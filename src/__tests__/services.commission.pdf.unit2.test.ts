@@ -62,7 +62,11 @@ describe('renderStatementPdf — cross-month period label', () => {
       commissionAmount: 100 as unknown as import('@prisma/client').Prisma.Decimal,
     };
     const buf = await renderStatementPdf({
-      statement: { ...baseStatement, periodFrom: new Date('2026-04-01'), periodTo: new Date('2026-04-30') } as never,
+      statement: {
+        ...baseStatement,
+        periodFrom: new Date('2026-04-01'),
+        periodTo: new Date('2026-04-30'),
+      } as never,
       items: [item as never],
       partner: { name: 'ПромТест', legalName: null },
       verifyUrl: null,
@@ -97,7 +101,11 @@ describe('renderStatementPdf — cross-month period label', () => {
     qrToDataURL.mockRejectedValueOnce('qr-string-failure');
     // renderStatementPdf should NOT throw — catch swallows it and returns null qrDataUrl
     const buf = await renderStatementPdf({
-      statement: { ...baseStatement, periodFrom: new Date('2026-04-01'), periodTo: new Date('2026-04-30') } as never,
+      statement: {
+        ...baseStatement,
+        periodFrom: new Date('2026-04-01'),
+        periodTo: new Date('2026-04-30'),
+      } as never,
       items: [],
       partner: { name: 'ПромТест', legalName: null },
       verifyUrl: 'https://example.com/verify/abc123',

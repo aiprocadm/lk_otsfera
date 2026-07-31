@@ -34,11 +34,11 @@ vi.mock('@/lib/pii/record', () => ({ recordPiiAccess }));
 
 const { getOrgFinanceKpis, listOrgPaymentsForExport } = vi.hoisted(() => ({
   getOrgFinanceKpis: vi.fn(),
-  listOrgPaymentsForExport: vi.fn()
+  listOrgPaymentsForExport: vi.fn(),
 }));
 vi.mock('@/lib/services/organization/finance', () => ({
   getOrgFinanceKpis,
-  listOrgPaymentsForExport
+  listOrgPaymentsForExport,
 }));
 
 import { prisma } from '@/lib/db/prisma';
@@ -51,7 +51,7 @@ const leaderSession = {
   sub: 'l1',
   role: 'manager',
   managerRole: 'leader',
-  companyId: 'c1'
+  companyId: 'c1',
 } as never;
 const orgSession = { sub: 'o1', role: 'organization' } as never;
 
@@ -65,7 +65,7 @@ const ORDER = {
   financialStatus: 'billed',
   totalAmount: new Prisma.Decimal('100.00'),
   paidAmount: new Prisma.Decimal('0.00'),
-  createdAt: new Date('2026-02-01')
+  createdAt: new Date('2026-02-01'),
 };
 
 const CERT = {
@@ -77,7 +77,7 @@ const CERT = {
   studentId: 's1',
   student: { id: 's1', name: 'Иванов Иван' },
   direction: { id: 'd1', name: 'Охрана труда' },
-  organization: { id: 'org1', name: 'ООО Ромашка' }
+  organization: { id: 'org1', name: 'ООО Ромашка' },
 };
 
 const req = (url: string) => new Request(url);
@@ -108,7 +108,9 @@ describe('GET /api/manager/orders/export', () => {
   it('фильтры экрана уходят в сервис; тело — валидный xlsx', async () => {
     getSession.mockResolvedValue(managerSession);
     const res = await ordersExport(
-      req('http://x/e?search=abc&executionStatus=pending&financialStatus=billed&organizationId=org1&unassigned=1')
+      req(
+        'http://x/e?search=abc&executionStatus=pending&financialStatus=billed&organizationId=org1&unassigned=1'
+      )
     );
     expect(res.status).toBe(200);
     expect(res.headers.get('content-disposition')).toContain('orders.xlsx');
@@ -118,7 +120,7 @@ describe('GET /api/manager/orders/export', () => {
       executionStatus: 'pending',
       financialStatus: 'billed',
       organizationId: 'org1',
-      unassigned: true
+      unassigned: true,
     });
 
     const wb = new ExcelJS.Workbook();
@@ -135,7 +137,7 @@ describe('GET /api/manager/orders/export', () => {
       executionStatus: undefined,
       financialStatus: undefined,
       organizationId: undefined,
-      unassigned: undefined
+      unassigned: undefined,
     });
   });
 
@@ -192,13 +194,13 @@ describe('GET /api/manager/organizations/[id]/certificates/export', () => {
       organizationId: 'org1',
       directionId: 'd1',
       status: 'expiring',
-      search: 'Иван'
+      search: 'Иван',
     });
     expect(recordPiiAccess).toHaveBeenCalledWith(expect.anything(), {
       session: managerSession,
       context: 'org_card_certificates_export',
       subjectIds: ['s1'],
-      meta: { take: 1, hasQuery: true }
+      meta: { take: 1, hasQuery: true },
     });
 
     const wb = new ExcelJS.Workbook();
@@ -236,10 +238,10 @@ describe('GET /api/manager/organizations/[id]/payments/export', () => {
     const res = await orgPaymentsExport(req('http://x/e'), params('org1'));
     expect(res.status).toBe(200);
     expect(res.headers.get('content-disposition')).toContain('payments.xlsx');
-    expect(listOrgPaymentsForExport).toHaveBeenCalledWith(
-      expect.anything(),
-      { organizationId: 'org1', limit: 10_000 }
-    );
+    expect(listOrgPaymentsForExport).toHaveBeenCalledWith(expect.anything(), {
+      organizationId: 'org1',
+      limit: 10_000,
+    });
 
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(await res.arrayBuffer());

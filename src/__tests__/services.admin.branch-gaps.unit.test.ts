@@ -131,13 +131,13 @@ describe('admin/partners — createPartnerWithAdmin null/undefined commissionRat
     expect(tx.partner.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ commissionRate: new Prisma.Decimal(0) }),
-      }),
+      })
     );
     expect(recordAuditMock).toHaveBeenCalledWith(
       tx,
       expect.objectContaining({
         after: expect.objectContaining({ commissionRate: null }),
-      }),
+      })
     );
     // partner.slug is null → `partner.slug ?? ''` → ''
     if (!result.ok) throw new Error('expected ok');
@@ -161,13 +161,13 @@ describe('admin/partners — createPartnerWithAdmin null/undefined commissionRat
     expect(tx.partner.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ commissionRate: new Prisma.Decimal(0) }),
-      }),
+      })
     );
     expect(recordAuditMock).toHaveBeenCalledWith(
       tx,
       expect.objectContaining({
         after: expect.objectContaining({ commissionRate: null }),
-      }),
+      })
     );
   });
 
@@ -198,7 +198,7 @@ describe('admin/partners — createPartnerWithAdmin null/undefined commissionRat
       tx,
       expect.objectContaining({
         after: expect.objectContaining({ commissionRate: '0.07' }),
-      }),
+      })
     );
   });
 });
@@ -219,15 +219,26 @@ import { QUEUE_NAMES } from '@/lib/jobs/queues';
 
 describe('admin/queueStats — getDlq: null/undefined job fields', () => {
   it('job.id undefined → jobId is empty string', async () => {
-    const provider: QueueProvider = (name) => ({
-      getJobCounts: vi.fn().mockResolvedValue({}),
-      getFailed: vi.fn().mockResolvedValue(
-        name === 'docs.scanDocument'
-          ? [{ id: undefined, name: 'scan', failedReason: 'err', finishedOn: 1000, attemptsMade: 1 }]
-          : [],
-      ),
-      getJob: vi.fn(),
-    } as any);
+    const provider: QueueProvider = (name) =>
+      ({
+        getJobCounts: vi.fn().mockResolvedValue({}),
+        getFailed: vi
+          .fn()
+          .mockResolvedValue(
+            name === 'docs.scanDocument'
+              ? [
+                  {
+                    id: undefined,
+                    name: 'scan',
+                    failedReason: 'err',
+                    finishedOn: 1000,
+                    attemptsMade: 1,
+                  },
+                ]
+              : []
+          ),
+        getJob: vi.fn(),
+      }) as any;
 
     const rows = await getDlq(provider);
     const row = rows.find((r) => r.queue === 'docs.scanDocument');
@@ -235,15 +246,26 @@ describe('admin/queueStats — getDlq: null/undefined job fields', () => {
   });
 
   it('job.failedReason undefined → failedReason is null', async () => {
-    const provider: QueueProvider = (name) => ({
-      getJobCounts: vi.fn().mockResolvedValue({}),
-      getFailed: vi.fn().mockResolvedValue(
-        name === 'docs.scanDocument'
-          ? [{ id: 'j1', name: 'scan', failedReason: undefined, finishedOn: 1000, attemptsMade: 1 }]
-          : [],
-      ),
-      getJob: vi.fn(),
-    } as any);
+    const provider: QueueProvider = (name) =>
+      ({
+        getJobCounts: vi.fn().mockResolvedValue({}),
+        getFailed: vi
+          .fn()
+          .mockResolvedValue(
+            name === 'docs.scanDocument'
+              ? [
+                  {
+                    id: 'j1',
+                    name: 'scan',
+                    failedReason: undefined,
+                    finishedOn: 1000,
+                    attemptsMade: 1,
+                  },
+                ]
+              : []
+          ),
+        getJob: vi.fn(),
+      }) as any;
 
     const rows = await getDlq(provider);
     const row = rows.find((r) => r.queue === 'docs.scanDocument');
@@ -251,15 +273,26 @@ describe('admin/queueStats — getDlq: null/undefined job fields', () => {
   });
 
   it('job.finishedOn undefined → failedAt is null', async () => {
-    const provider: QueueProvider = (name) => ({
-      getJobCounts: vi.fn().mockResolvedValue({}),
-      getFailed: vi.fn().mockResolvedValue(
-        name === 'docs.scanDocument'
-          ? [{ id: 'j1', name: 'scan', failedReason: 'err', finishedOn: undefined, attemptsMade: 1 }]
-          : [],
-      ),
-      getJob: vi.fn(),
-    } as any);
+    const provider: QueueProvider = (name) =>
+      ({
+        getJobCounts: vi.fn().mockResolvedValue({}),
+        getFailed: vi
+          .fn()
+          .mockResolvedValue(
+            name === 'docs.scanDocument'
+              ? [
+                  {
+                    id: 'j1',
+                    name: 'scan',
+                    failedReason: 'err',
+                    finishedOn: undefined,
+                    attemptsMade: 1,
+                  },
+                ]
+              : []
+          ),
+        getJob: vi.fn(),
+      }) as any;
 
     const rows = await getDlq(provider);
     const row = rows.find((r) => r.queue === 'docs.scanDocument');
@@ -267,15 +300,26 @@ describe('admin/queueStats — getDlq: null/undefined job fields', () => {
   });
 
   it('job.attemptsMade undefined → attemptsMade is 0', async () => {
-    const provider: QueueProvider = (name) => ({
-      getJobCounts: vi.fn().mockResolvedValue({}),
-      getFailed: vi.fn().mockResolvedValue(
-        name === 'docs.scanDocument'
-          ? [{ id: 'j1', name: 'scan', failedReason: 'err', finishedOn: 1000, attemptsMade: undefined }]
-          : [],
-      ),
-      getJob: vi.fn(),
-    } as any);
+    const provider: QueueProvider = (name) =>
+      ({
+        getJobCounts: vi.fn().mockResolvedValue({}),
+        getFailed: vi
+          .fn()
+          .mockResolvedValue(
+            name === 'docs.scanDocument'
+              ? [
+                  {
+                    id: 'j1',
+                    name: 'scan',
+                    failedReason: 'err',
+                    finishedOn: 1000,
+                    attemptsMade: undefined,
+                  },
+                ]
+              : []
+          ),
+        getJob: vi.fn(),
+      }) as any;
 
     const rows = await getDlq(provider);
     const row = rows.find((r) => r.queue === 'docs.scanDocument');
@@ -284,18 +328,31 @@ describe('admin/queueStats — getDlq: null/undefined job fields', () => {
 
   it('sort: job with failedAt sorts before job with null failedAt', async () => {
     const now = Date.now();
-    const provider: QueueProvider = (name) => ({
-      getJobCounts: vi.fn().mockResolvedValue({}),
-      getFailed: vi.fn().mockResolvedValue(
-        name === 'docs.scanDocument'
-          ? [
-              { id: 'nodate', name: 'scan', failedReason: 'e', finishedOn: undefined, attemptsMade: 1 },
-              { id: 'withdate', name: 'scan', failedReason: 'e', finishedOn: now, attemptsMade: 1 },
-            ]
-          : [],
-      ),
-      getJob: vi.fn(),
-    } as any);
+    const provider: QueueProvider = (name) =>
+      ({
+        getJobCounts: vi.fn().mockResolvedValue({}),
+        getFailed: vi.fn().mockResolvedValue(
+          name === 'docs.scanDocument'
+            ? [
+                {
+                  id: 'nodate',
+                  name: 'scan',
+                  failedReason: 'e',
+                  finishedOn: undefined,
+                  attemptsMade: 1,
+                },
+                {
+                  id: 'withdate',
+                  name: 'scan',
+                  failedReason: 'e',
+                  finishedOn: now,
+                  attemptsMade: 1,
+                },
+              ]
+            : []
+        ),
+        getJob: vi.fn(),
+      }) as any;
 
     const rows = await getDlq(provider);
     expect(rows[0].jobId).toBe('withdate');
@@ -304,18 +361,31 @@ describe('admin/queueStats — getDlq: null/undefined job fields', () => {
 
   it('sort comparator: both rows with null failedAt → stable (covers b.failedAt?.getTime() ?? 0)', async () => {
     // Two jobs both with finishedOn=undefined → both failedAt=null → sort uses 0-0=0
-    const provider: QueueProvider = (name) => ({
-      getJobCounts: vi.fn().mockResolvedValue({}),
-      getFailed: vi.fn().mockResolvedValue(
-        name === 'docs.scanDocument'
-          ? [
-              { id: 'null-1', name: 'scan', failedReason: 'e', finishedOn: undefined, attemptsMade: 1 },
-              { id: 'null-2', name: 'scan', failedReason: 'e', finishedOn: undefined, attemptsMade: 2 },
-            ]
-          : [],
-      ),
-      getJob: vi.fn(),
-    } as any);
+    const provider: QueueProvider = (name) =>
+      ({
+        getJobCounts: vi.fn().mockResolvedValue({}),
+        getFailed: vi.fn().mockResolvedValue(
+          name === 'docs.scanDocument'
+            ? [
+                {
+                  id: 'null-1',
+                  name: 'scan',
+                  failedReason: 'e',
+                  finishedOn: undefined,
+                  attemptsMade: 1,
+                },
+                {
+                  id: 'null-2',
+                  name: 'scan',
+                  failedReason: 'e',
+                  finishedOn: undefined,
+                  attemptsMade: 2,
+                },
+              ]
+            : []
+        ),
+        getJob: vi.fn(),
+      }) as any;
 
     const rows = await getDlq(provider);
     // Both have null failedAt; just verify they both appear
@@ -326,13 +396,14 @@ describe('admin/queueStats — getDlq: null/undefined job fields', () => {
 
 describe('admin/queueStats — retryDlqJob: non-Error thrown → RETRY_FAILED', () => {
   it('captures non-Error throws and returns RETRY_FAILED', async () => {
-    const provider: QueueProvider = () => ({
-      getJobCounts: vi.fn(),
-      getFailed: vi.fn(),
-      getJob: vi.fn().mockResolvedValue({
-        retry: vi.fn().mockRejectedValue('string error'),
-      }),
-    } as any);
+    const provider: QueueProvider = () =>
+      ({
+        getJobCounts: vi.fn(),
+        getFailed: vi.fn(),
+        getJob: vi.fn().mockResolvedValue({
+          retry: vi.fn().mockRejectedValue('string error'),
+        }),
+      }) as any;
 
     const result = await retryDlqJob('docs.scanDocument', 'j1', provider);
     expect(result).toEqual({ ok: false, reason: 'RETRY_FAILED' });
@@ -341,11 +412,14 @@ describe('admin/queueStats — retryDlqJob: non-Error thrown → RETRY_FAILED', 
 
 describe('admin/queueStats — defaultProvider smoke (via getQueueStats)', () => {
   it('getQueueStats with explicit stub provider returns row per queue', async () => {
-    const provider: QueueProvider = () => ({
-      getJobCounts: vi.fn().mockResolvedValue({ waiting: 1, active: 0, completed: 5, failed: 0, delayed: 0 }),
-      getFailed: vi.fn().mockResolvedValue([]),
-      getJob: vi.fn(),
-    } as any);
+    const provider: QueueProvider = () =>
+      ({
+        getJobCounts: vi
+          .fn()
+          .mockResolvedValue({ waiting: 1, active: 0, completed: 5, failed: 0, delayed: 0 }),
+        getFailed: vi.fn().mockResolvedValue([]),
+        getJob: vi.fn(),
+      }) as any;
 
     const rows = await getQueueStats(provider);
     expect(rows.length).toBe(QUEUE_NAMES.length);
@@ -357,7 +431,11 @@ describe('admin/queueStats — defaultProvider smoke (via getQueueStats)', () =>
 // ---------------------------------------------------------------------------
 // admin/syncControl.ts — rewindCursor null existing + triggerSync active undefined
 // ---------------------------------------------------------------------------
-import { rewindCursor, triggerSync, type SyncControlQueueProvider } from '@/lib/services/admin/syncControl';
+import {
+  rewindCursor,
+  triggerSync,
+  type SyncControlQueueProvider,
+} from '@/lib/services/admin/syncControl';
 
 describe('admin/syncControl — rewindCursor: existing cursor null', () => {
   it('when syncState.findUnique returns null, before.cursor is null', async () => {
@@ -378,7 +456,7 @@ describe('admin/syncControl — rewindCursor: existing cursor null', () => {
     // recordAudit is mocked via @/lib/auth/audit; check before.cursor is null (existing was null)
     expect(recordAuditMock).toHaveBeenCalledWith(
       expect.anything(), // tx
-      expect.objectContaining({ before: { cursor: null } }),
+      expect.objectContaining({ before: { cursor: null } })
     );
   });
 });
@@ -388,12 +466,13 @@ describe('admin/syncControl — triggerSync: counts.active undefined', () => {
     const auditCreate = vi.fn().mockResolvedValue({});
     const prisma = { auditLog: { create: auditCreate } } as never;
     const add = vi.fn().mockResolvedValue({ id: 'j1' });
-    const provider: SyncControlQueueProvider = () => ({
-      getJobCounts: vi.fn().mockResolvedValue({}), // active key absent → `counts.active ?? 0` = 0
-      add,
-      upsertJobScheduler: vi.fn(),
-      removeJobScheduler: vi.fn(),
-    } as any);
+    const provider: SyncControlQueueProvider = () =>
+      ({
+        getJobCounts: vi.fn().mockResolvedValue({}), // active key absent → `counts.active ?? 0` = 0
+        add,
+        upsertJobScheduler: vi.fn(),
+        removeJobScheduler: vi.fn(),
+      }) as any;
 
     const res = await triggerSync(prisma, 'actor', 'order', provider);
     expect(res.ok).toBe(true);
@@ -426,7 +505,11 @@ describe('admin/users/mutations — missed branches', () => {
       $transaction: vi.fn().mockImplementation((cb: (t: typeof txMock) => unknown) => cb(txMock)),
     } as unknown as PrismaClient;
 
-    const result = await createUser(prisma, 'actor', { email: 'e@x', name: 'N', role: 'organization' });
+    const result = await createUser(prisma, 'actor', {
+      email: 'e@x',
+      name: 'N',
+      role: 'organization',
+    });
     expect(result).toEqual({ ok: false, error: 'duplicate_email' });
   });
 
@@ -443,17 +526,29 @@ describe('admin/users/mutations — missed branches', () => {
   });
 
   it('updateUser: student → partner transition is allowed', async () => {
-    const before = { id: 'u1', role: 'student' as const, isActive: true, partnerId: null, name: 'X' };
+    const before = {
+      id: 'u1',
+      role: 'student' as const,
+      isActive: true,
+      partnerId: null,
+      name: 'X',
+    };
     const updated = { role: 'partner' as const, isActive: true, partnerId: 'p1', name: 'X' };
     const userDetail = {
-      id: 'u1', email: 'x@x', name: 'X', role: 'partner' as const, isActive: true, createdAt: new Date(),
-      partnerId: 'p1', partner: null, organizationUsers: [], managedOrganizations: [],
+      id: 'u1',
+      email: 'x@x',
+      name: 'X',
+      role: 'partner' as const,
+      isActive: true,
+      createdAt: new Date(),
+      partnerId: 'p1',
+      partner: null,
+      organizationUsers: [],
+      managedOrganizations: [],
     };
     const txMock = {
       user: {
-        findUnique: vi.fn()
-          .mockResolvedValueOnce(before)
-          .mockResolvedValueOnce(userDetail),
+        findUnique: vi.fn().mockResolvedValueOnce(before).mockResolvedValueOnce(userDetail),
         update: vi.fn().mockResolvedValue(updated),
         count: vi.fn(),
       },
@@ -486,17 +581,29 @@ describe('admin/users/mutations — missed branches', () => {
   });
 
   it('updateUser: only name changes → update data contains only name', async () => {
-    const before = { id: 'u1', role: 'organization' as const, isActive: true, partnerId: null, name: 'Old' };
+    const before = {
+      id: 'u1',
+      role: 'organization' as const,
+      isActive: true,
+      partnerId: null,
+      name: 'Old',
+    };
     const updated = { role: 'organization' as const, isActive: true, partnerId: null, name: 'New' };
     const userDetail = {
-      id: 'u1', email: 'x@x', name: 'New', role: 'organization' as const, isActive: true, createdAt: new Date(),
-      partnerId: null, partner: null, organizationUsers: [], managedOrganizations: [],
+      id: 'u1',
+      email: 'x@x',
+      name: 'New',
+      role: 'organization' as const,
+      isActive: true,
+      createdAt: new Date(),
+      partnerId: null,
+      partner: null,
+      organizationUsers: [],
+      managedOrganizations: [],
     };
     const txMock = {
       user: {
-        findUnique: vi.fn()
-          .mockResolvedValueOnce(before)
-          .mockResolvedValueOnce(userDetail),
+        findUnique: vi.fn().mockResolvedValueOnce(before).mockResolvedValueOnce(userDetail),
         update: vi.fn().mockResolvedValue(updated),
         count: vi.fn(),
       },
@@ -514,22 +621,34 @@ describe('admin/users/mutations — missed branches', () => {
     // recordAudit mocked → check it was called with action user_updated
     expect(recordAuditMock).toHaveBeenCalledWith(
       txMock,
-      expect.objectContaining({ action: 'user_updated' }),
+      expect.objectContaining({ action: 'user_updated' })
     );
   });
 
   it('updateUser: same-role (partner→partner) → audit action is user_updated', async () => {
-    const before = { id: 'u1', role: 'partner' as const, isActive: true, partnerId: 'p1', name: 'X' };
+    const before = {
+      id: 'u1',
+      role: 'partner' as const,
+      isActive: true,
+      partnerId: 'p1',
+      name: 'X',
+    };
     const updated = { role: 'partner' as const, isActive: true, partnerId: 'p1', name: 'New' };
     const userDetail = {
-      id: 'u1', email: 'x@x', name: 'New', role: 'partner' as const, isActive: true, createdAt: new Date(),
-      partnerId: 'p1', partner: null, organizationUsers: [], managedOrganizations: [],
+      id: 'u1',
+      email: 'x@x',
+      name: 'New',
+      role: 'partner' as const,
+      isActive: true,
+      createdAt: new Date(),
+      partnerId: 'p1',
+      partner: null,
+      organizationUsers: [],
+      managedOrganizations: [],
     };
     const txMock = {
       user: {
-        findUnique: vi.fn()
-          .mockResolvedValueOnce(before)
-          .mockResolvedValueOnce(userDetail),
+        findUnique: vi.fn().mockResolvedValueOnce(before).mockResolvedValueOnce(userDetail),
         update: vi.fn().mockResolvedValue(updated),
         count: vi.fn(),
       },
@@ -544,7 +663,7 @@ describe('admin/users/mutations — missed branches', () => {
     expect(result.ok).toBe(true);
     expect(recordAuditMock).toHaveBeenCalledWith(
       txMock,
-      expect.objectContaining({ action: 'user_updated' }),
+      expect.objectContaining({ action: 'user_updated' })
     );
   });
 
@@ -616,12 +735,20 @@ describe('admin/users/mutations — missed branches', () => {
       $transaction: vi.fn().mockImplementation((cb: (t: typeof txMock) => unknown) => cb(txMock)),
     } as unknown as PrismaClient;
 
-    await expect(createUser(prisma, 'actor', { email: 'n@x', name: 'N', role: 'organization' })).rejects.toThrow('DB write failure');
+    await expect(
+      createUser(prisma, 'actor', { email: 'n@x', name: 'N', role: 'organization' })
+    ).rejects.toThrow('DB write failure');
   });
 
   it('updateUser: forbidden role transition → ok:false error:role_transition_forbidden', async () => {
     // manager → partner is not in ALLOWED_TRANSITIONS → throws role_transition_forbidden
-    const before = { id: 'u2', role: 'manager' as const, isActive: true, partnerId: null, name: 'Y' };
+    const before = {
+      id: 'u2',
+      role: 'manager' as const,
+      isActive: true,
+      partnerId: null,
+      name: 'Y',
+    };
     const txMock = { user: { findUnique: vi.fn().mockResolvedValue(before) } };
     const prisma = {
       $transaction: vi.fn().mockImplementation((cb: (t: typeof txMock) => unknown) => cb(txMock)),
@@ -632,17 +759,29 @@ describe('admin/users/mutations — missed branches', () => {
   });
 
   it('updateUser: isActive:true update included in data', async () => {
-    const before = { id: 'u1', role: 'organization' as const, isActive: false, partnerId: null, name: 'X' };
+    const before = {
+      id: 'u1',
+      role: 'organization' as const,
+      isActive: false,
+      partnerId: null,
+      name: 'X',
+    };
     const updated = { role: 'organization' as const, isActive: true, partnerId: null, name: 'X' };
     const userDetail = {
-      id: 'u1', email: 'x@x', name: 'X', role: 'organization' as const, isActive: true, createdAt: new Date(),
-      partnerId: null, partner: null, organizationUsers: [], managedOrganizations: [],
+      id: 'u1',
+      email: 'x@x',
+      name: 'X',
+      role: 'organization' as const,
+      isActive: true,
+      createdAt: new Date(),
+      partnerId: null,
+      partner: null,
+      organizationUsers: [],
+      managedOrganizations: [],
     };
     const txMock = {
       user: {
-        findUnique: vi.fn()
-          .mockResolvedValueOnce(before)
-          .mockResolvedValueOnce(userDetail),
+        findUnique: vi.fn().mockResolvedValueOnce(before).mockResolvedValueOnce(userDetail),
         update: vi.fn().mockResolvedValue(updated),
         count: vi.fn(),
       },
@@ -672,7 +811,12 @@ describe('admin/users/queries — computeAttachmentLabel missed arms', () => {
     const prisma = {
       user: {
         findUnique: vi.fn().mockResolvedValue({
-          id: 'u1', email: 'p@x', name: 'P', role: 'partner', isActive: true, createdAt: new Date(),
+          id: 'u1',
+          email: 'p@x',
+          name: 'P',
+          role: 'partner',
+          isActive: true,
+          createdAt: new Date(),
           partnerId: 'p1',
           partner: null,
           organizationUsers: [],
@@ -690,8 +834,14 @@ describe('admin/users/queries — computeAttachmentLabel missed arms', () => {
     const prisma = {
       user: {
         findUnique: vi.fn().mockResolvedValue({
-          id: 'u2', email: 'o@x', name: 'O', role: 'organization', isActive: true, createdAt: new Date(),
-          partnerId: null, partner: null,
+          id: 'u2',
+          email: 'o@x',
+          name: 'O',
+          role: 'organization',
+          isActive: true,
+          createdAt: new Date(),
+          partnerId: null,
+          partner: null,
           organizationUsers: [],
           managedOrganizations: [],
           managerRole: null,
@@ -708,7 +858,12 @@ describe('admin/users/queries — computeAttachmentLabel missed arms', () => {
       user: {
         findMany: vi.fn().mockResolvedValue([
           {
-            id: 'u3', email: 'm@x', name: 'M', role: 'manager', isActive: true, createdAt: new Date(),
+            id: 'u3',
+            email: 'm@x',
+            name: 'M',
+            role: 'manager',
+            isActive: true,
+            createdAt: new Date(),
             partner: null,
             organizationUsers: [],
             managedOrganizations: [
@@ -730,7 +885,12 @@ describe('admin/users/queries — computeAttachmentLabel missed arms', () => {
       user: {
         findMany: vi.fn().mockResolvedValue([
           {
-            id: 'u4', email: 'm2@x', name: 'M2', role: 'manager', isActive: true, createdAt: new Date(),
+            id: 'u4',
+            email: 'm2@x',
+            name: 'M2',
+            role: 'manager',
+            isActive: true,
+            createdAt: new Date(),
             partner: null,
             organizationUsers: [],
             managedOrganizations: [],

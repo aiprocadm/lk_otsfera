@@ -18,16 +18,57 @@ export type DealStageView = {
 
 /** Дефолтный конвейер сделок (§3 спеки): 3 рабочих + 2 терминальных стадии. */
 export const DEFAULT_DEAL_STAGES: readonly DealStageView[] = [
-  { id: 'default:new', name: 'Новая', position: 0, statusAnchor: 'open', isTerminal: false, color: null },
-  { id: 'default:negotiation', name: 'Переговоры', position: 1, statusAnchor: 'open', isTerminal: false, color: null },
-  { id: 'default:proposal', name: 'Предложение', position: 2, statusAnchor: 'open', isTerminal: false, color: null },
-  { id: 'default:won', name: 'Выиграна', position: 3, statusAnchor: 'won', isTerminal: true, color: null },
-  { id: 'default:lost', name: 'Проиграна', position: 4, statusAnchor: 'lost', isTerminal: true, color: null }
+  {
+    id: 'default:new',
+    name: 'Новая',
+    position: 0,
+    statusAnchor: 'open',
+    isTerminal: false,
+    color: null,
+  },
+  {
+    id: 'default:negotiation',
+    name: 'Переговоры',
+    position: 1,
+    statusAnchor: 'open',
+    isTerminal: false,
+    color: null,
+  },
+  {
+    id: 'default:proposal',
+    name: 'Предложение',
+    position: 2,
+    statusAnchor: 'open',
+    isTerminal: false,
+    color: null,
+  },
+  {
+    id: 'default:won',
+    name: 'Выиграна',
+    position: 3,
+    statusAnchor: 'won',
+    isTerminal: true,
+    color: null,
+  },
+  {
+    id: 'default:lost',
+    name: 'Проиграна',
+    position: 4,
+    statusAnchor: 'lost',
+    isTerminal: true,
+    color: null,
+  },
 ];
 
 /** Стадии компании: кастомные (если заданы) или дефолтные. */
-export async function resolveDealStages(prisma: PrismaClient, companyId: string): Promise<DealStageView[]> {
-  const custom = await prisma.dealStage.findMany({ where: { companyId }, orderBy: { position: 'asc' } });
+export async function resolveDealStages(
+  prisma: PrismaClient,
+  companyId: string
+): Promise<DealStageView[]> {
+  const custom = await prisma.dealStage.findMany({
+    where: { companyId },
+    orderBy: { position: 'asc' },
+  });
   if (custom.length === 0) return DEFAULT_DEAL_STAGES.map((s) => ({ ...s }));
   return custom.map((s) => ({
     id: s.id,
@@ -35,7 +76,7 @@ export async function resolveDealStages(prisma: PrismaClient, companyId: string)
     position: s.position,
     statusAnchor: s.statusAnchor,
     isTerminal: s.isTerminal,
-    color: s.color
+    color: s.color,
   }));
 }
 

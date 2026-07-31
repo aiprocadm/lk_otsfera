@@ -40,7 +40,7 @@ export async function primeIntegrationSettingsCache(prisma: PrismaClient): Promi
     const keys = Object.keys(SETTING_SPECS) as SettingKey[];
     const rows = await prisma.integrationSetting.findMany({
       where: { key: { in: keys } },
-      select: { key: true, value: true, isSecret: true }
+      select: { key: true, value: true, isSecret: true },
     });
 
     const next = new Map<SettingKey, string>();
@@ -59,7 +59,7 @@ export async function primeIntegrationSettingsCache(prisma: PrismaClient): Promi
     snapshot = next;
   } catch (err) {
     log.warn('[integration-settings] cache prime failed — env fallback', {
-      error: err instanceof Error ? err.message : String(err)
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 }

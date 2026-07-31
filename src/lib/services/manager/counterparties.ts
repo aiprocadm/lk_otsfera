@@ -27,23 +27,20 @@ export async function listManagerCounterparties(
   const orgs = await prisma.organization.findMany({
     where: teamMode ? { companyId } : { id: { in: managedOrgIds(session) } },
     select: { id: true, name: true },
-    orderBy: { name: 'asc' }
+    orderBy: { name: 'asc' },
   });
 
   const partners = await prisma.partner.findMany({
     where: {
       isActive: true,
-      OR: [
-        { organizations: { some: { companyId } } },
-        { orders: { some: { companyId } } }
-      ]
+      OR: [{ organizations: { some: { companyId } } }, { orders: { some: { companyId } } }],
     },
     select: { id: true, name: true },
-    orderBy: { name: 'asc' }
+    orderBy: { name: 'asc' },
   });
 
   return {
     organizations: orgs.map((o) => ({ id: o.id, name: o.name })),
-    partners: partners.map((p) => ({ id: p.id, name: p.name }))
+    partners: partners.map((p) => ({ id: p.id, name: p.name })),
   };
 }

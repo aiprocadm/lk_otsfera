@@ -27,7 +27,7 @@ const CLIENT_DIRS = [
   'src/lib/services/partner',
   'src/lib/services/organization',
   'src/server-actions/partner',
-  'src/server-actions/organization'
+  'src/server-actions/organization',
 ];
 
 function walk(dir: string): string[] {
@@ -50,7 +50,7 @@ describe('клиентский контур не содержит домена �
       'src/app/partner/leads',
       'src/app/api/partner/leads',
       'src/lib/services/partner/leads.ts',
-      'src/lib/services/partner/leadAttachments.ts'
+      'src/lib/services/partner/leadAttachments.ts',
     ];
     const resurrected = forbidden.filter((f) => existsSync(path.join(ROOT, f)));
     expect(
@@ -80,7 +80,7 @@ describe('клиентские сервисы не отдают запрещён
     'funnelStageId',
     'promotedDealId',
     'sourceInboundId',
-    'sourceCallId'
+    'sourceCallId',
   ];
 
   const SERVICE_FILES = CLIENT_FILES.filter((f) => f.startsWith('src/lib/services/'));
@@ -126,6 +126,8 @@ describe('клиентские сервисы не отдают запрещён
     const offenders = SERVICE_FILES.filter((f) =>
       /prisma\.dealNote\.|tx\.dealNote\./.test(readFileSync(path.join(ROOT, f), 'utf8'))
     );
-    expect(offenders, `§7 ТЗ: DealNote — внутренние заметки:\n  ${offenders.join('\n  ')}`).toEqual([]);
+    expect(offenders, `§7 ТЗ: DealNote — внутренние заметки:\n  ${offenders.join('\n  ')}`).toEqual(
+      []
+    );
   });
 });

@@ -37,7 +37,7 @@ function session(sub: string, opts: { leader?: boolean } = {}): SessionPayload {
     role: 'manager',
     companyId,
     managedOrgIds: [],
-    ...(opts.leader ? { managerRole: 'leader' } : {})
+    ...(opts.leader ? { managerRole: 'leader' } : {}),
   } as SessionPayload;
 }
 
@@ -45,22 +45,22 @@ beforeAll(async () => {
   prisma = new PrismaClient();
 
   const company = await prisma.company.create({
-    data: { name: `claimLeaderCo-${STAMP}`, managerTeamVisibility: false }
+    data: { name: `claimLeaderCo-${STAMP}`, managerTeamVisibility: false },
   });
   companyId = company.id;
 
   const foreignCompany = await prisma.company.create({
-    data: { name: `claimLeaderForeignCo-${STAMP}`, managerTeamVisibility: false }
+    data: { name: `claimLeaderForeignCo-${STAMP}`, managerTeamVisibility: false },
   });
   foreignCompanyId = foreignCompany.id;
 
   const org = await prisma.organization.create({
-    data: { name: `claimLeaderOrg-${STAMP}`, companyId }
+    data: { name: `claimLeaderOrg-${STAMP}`, companyId },
   });
   organizationId = org.id;
 
   const foreignOrg = await prisma.organization.create({
-    data: { name: `claimLeaderForeignOrg-${STAMP}`, companyId: foreignCompanyId }
+    data: { name: `claimLeaderForeignOrg-${STAMP}`, companyId: foreignCompanyId },
   });
   foreignOrganizationId = foreignOrg.id;
 
@@ -69,8 +69,8 @@ beforeAll(async () => {
       email: `claim-leader-${STAMP}@example.test`,
       name: `Claim Leader ${STAMP}`,
       role: 'manager',
-      companyId
-    }
+      companyId,
+    },
   });
   leaderId = leader.id;
 
@@ -79,8 +79,8 @@ beforeAll(async () => {
       email: `claim-mgr-${STAMP}@example.test`,
       name: `Claim Manager ${STAMP}`,
       role: 'manager',
-      companyId
-    }
+      companyId,
+    },
   });
   managerId = manager.id;
 
@@ -90,8 +90,8 @@ beforeAll(async () => {
       companyId,
       organizationId,
       totalAmount: new Prisma.Decimal('10000.00'),
-      serviceType: 'document_development'
-    }
+      serviceType: 'document_development',
+    },
   });
   orderId = order.id;
 
@@ -101,8 +101,8 @@ beforeAll(async () => {
       companyId: foreignCompanyId,
       organizationId: foreignOrganizationId,
       totalAmount: new Prisma.Decimal('10000.00'),
-      serviceType: 'document_development'
-    }
+      serviceType: 'document_development',
+    },
   });
   foreignOrderId = foreignOrder.id;
 });
@@ -112,7 +112,7 @@ afterAll(async () => {
   await prisma.order.deleteMany({ where: { id: { in: [orderId, foreignOrderId] } } });
   await prisma.user.deleteMany({ where: { id: { in: [leaderId, managerId] } } });
   await prisma.organization.deleteMany({
-    where: { id: { in: [organizationId, foreignOrganizationId] } }
+    where: { id: { in: [organizationId, foreignOrganizationId] } },
   });
   await prisma.company.deleteMany({ where: { id: { in: [companyId, foreignCompanyId] } } });
   await prisma.$disconnect();
@@ -123,19 +123,22 @@ describe('claimOrder — leader bypass (teamMode=false, live Postgres)', () => {
     const r = await claimOrder(prisma, session(managerId), { orderId });
     expect(r).toEqual({ ok: false, error: 'forbidden' });
 
-    const row = await prisma.order.findUnique({ where: { id: orderId }, select: { managerId: true } });
+    const row = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { managerId: true },
+    });
     expect(row?.managerId).toBeNull();
   });
 
   it('(2) лидер на заказ ДРУГОЙ компании → forbidden (bypass ограничен C8-границей)', async () => {
     const r = await claimOrder(prisma, session(leaderId, { leader: true }), {
-      orderId: foreignOrderId
+      orderId: foreignOrderId,
     });
     expect(r).toEqual({ ok: false, error: 'forbidden' });
 
     const row = await prisma.order.findUnique({
       where: { id: foreignOrderId },
-      select: { managerId: true }
+      select: { managerId: true },
     });
     expect(row?.managerId).toBeNull();
   });
@@ -144,12 +147,15 @@ describe('claimOrder — leader bypass (teamMode=false, live Postgres)', () => {
     const r = await claimOrder(prisma, session(leaderId, { leader: true }), { orderId });
     expect(r).toEqual({ ok: true, changed: true });
 
-    const row = await prisma.order.findUnique({ where: { id: orderId }, select: { managerId: true } });
+    const row = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { managerId: true },
+    });
     expect(row?.managerId).toBe(leaderId);
 
     const audit = await prisma.auditLog.findFirst({
       where: { entity: 'order', entityId: orderId, action: 'order_self_assigned' },
-      select: { userId: true }
+      select: { userId: true },
     });
     expect(audit?.userId).toBe(leaderId);
   });

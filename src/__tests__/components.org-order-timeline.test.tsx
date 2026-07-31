@@ -30,7 +30,7 @@ function baseOrder(overrides: Partial<OrgOrderDetail> = {}): OrgOrderDetail {
     payments: [],
     commentsCount: 0,
     items: [],
-    ...overrides
+    ...overrides,
   } as OrgOrderDetail;
 }
 
@@ -50,7 +50,7 @@ describe('OrgOrderTimeline', () => {
       completedAt: new Date('2026-02-02'),
       paidAt: new Date('2026-02-03'),
       contractSignedAt: new Date('2026-01-15'),
-      closedAt: new Date('2026-02-04')
+      closedAt: new Date('2026-02-04'),
     });
     const html = renderToString(React.createElement(OrgOrderTimeline, { order }));
     expect(html).toContain('bg-orange-400');

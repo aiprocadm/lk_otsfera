@@ -23,21 +23,31 @@ beforeAll(async () => {
 
   const stamp = Date.now();
   const partner = await prisma.partner.create({
-    data: { name: `PushLeadPartner-${stamp}`, slug: `push-lead-test-${stamp}`, commissionRate: 0.1 }
+    data: {
+      name: `PushLeadPartner-${stamp}`,
+      slug: `push-lead-test-${stamp}`,
+      commissionRate: 0.1,
+    },
   });
   partnerId = partner.id;
 
   const author = await prisma.user.create({
-    data: { email: `author-${stamp}@test.local`, name: 'Lead Author', role: 'partner', partnerId }
+    data: { email: `author-${stamp}@test.local`, name: 'Lead Author', role: 'partner', partnerId },
   });
   authorUserId = author.id;
 
   const admin = await prisma.user.create({
-    data: { email: `admin-${stamp}@test.local`, name: 'Partner Admin', role: 'partner', partnerId }
+    data: { email: `admin-${stamp}@test.local`, name: 'Partner Admin', role: 'partner', partnerId },
   });
   adminUserId = admin.id;
   await prisma.partnerUser.create({
-    data: { partnerId, userId: adminUserId, roleInPartner: 'admin', isActive: true, assignedOrgIds: [] }
+    data: {
+      partnerId,
+      userId: adminUserId,
+      roleInPartner: 'admin',
+      isActive: true,
+      assignedOrgIds: [],
+    },
   });
 
   const lead = await prisma.lead.create({
@@ -48,8 +58,8 @@ beforeAll(async () => {
       clientContactName: 'Иван Иванов',
       subject: 'Запрос на обучение',
       productType: ['course'],
-      estimatedAmount: 50000
-    }
+      estimatedAmount: 50000,
+    },
   });
   leadId = lead.id;
 });
@@ -79,7 +89,7 @@ describe('pushLeadProcessor', () => {
 
     const reread = await prisma.lead.findUnique({
       where: { id: leadId },
-      select: { externalIdInOneC: true }
+      select: { externalIdInOneC: true },
     });
     expect(reread?.externalIdInOneC).toMatch(/^fake-req-/);
   });
@@ -88,7 +98,10 @@ describe('pushLeadProcessor', () => {
     // The previous test pushed this lead successfully, stamping pushedToOneCAt.
     // Reset it to an un-pushed state so the idempotency guard does not
     // short-circuit before the simulated adapter failure can fire.
-    await prisma.lead.update({ where: { id: leadId }, data: { pushedToOneCAt: null, externalIdInOneC: null } });
+    await prisma.lead.update({
+      where: { id: leadId },
+      data: { pushedToOneCAt: null, externalIdInOneC: null },
+    });
     process.env.FAKE_ONEC_FAILURE_RATE = '1';
     resetOneCAdapter();
     await expect(pushLeadProcessor(job(leadId), prisma)).rejects.toThrow();
@@ -116,10 +129,15 @@ describe('notifyPushLeadFinalFailure', () => {
     // Create a partner with no admin PartnerUser rows, plus a lead for it.
     const stamp = Date.now() + 1;
     const noAdminPartner = await prisma.partner.create({
-      data: { name: `NoAdminPartner-${stamp}`, commissionRate: 0 }
+      data: { name: `NoAdminPartner-${stamp}`, commissionRate: 0 },
     });
     const noAdminUser = await prisma.user.create({
-      data: { email: `noadmin-${stamp}@test.local`, name: 'No Admin', role: 'partner', partnerId: noAdminPartner.id }
+      data: {
+        email: `noadmin-${stamp}@test.local`,
+        name: 'No Admin',
+        role: 'partner',
+        partnerId: noAdminPartner.id,
+      },
     });
     const noAdminLead = await prisma.lead.create({
       data: {
@@ -129,12 +147,15 @@ describe('notifyPushLeadFinalFailure', () => {
         clientContactName: 'Иван',
         subject: 'Тест',
         productType: ['course'],
-        estimatedAmount: 1000
-      }
+        estimatedAmount: 1000,
+      },
     });
 
     try {
-      await notifyPushLeadFinalFailure(prisma, { leadId: noAdminLead.id, errorMessage: 'no-admin-test' });
+      await notifyPushLeadFinalFailure(prisma, {
+        leadId: noAdminLead.id,
+        errorMessage: 'no-admin-test',
+      });
 
       // No notifications should have been created — partner has no admin users
       const count = await prisma.notification.count({ where: { partnerId: noAdminPartner.id } });

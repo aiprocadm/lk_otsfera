@@ -18,20 +18,20 @@ export async function createNotification(input: NotificationInput) {
   return prisma.notification.create({
     data: {
       ...input,
-      meta: input.meta != null ? (input.meta as Prisma.InputJsonValue) : Prisma.JsonNull
-    }
+      meta: input.meta != null ? (input.meta as Prisma.InputJsonValue) : Prisma.JsonNull,
+    },
   });
 }
 
-export async function notifyDocumentCreated(params: Omit<NotificationInput, "type">) {
+export async function notifyDocumentCreated(params: Omit<NotificationInput, 'type'>) {
   return createNotification({ ...params, type: 'document_created' });
 }
 
-export async function notifyStatusChanged(params: Omit<NotificationInput, "type">) {
+export async function notifyStatusChanged(params: Omit<NotificationInput, 'type'>) {
   return createNotification({ ...params, type: 'status_changed' });
 }
 
-export async function notifyMessageCreated(params: Omit<NotificationInput, "type">) {
+export async function notifyMessageCreated(params: Omit<NotificationInput, 'type'>) {
   return createNotification({ ...params, type: 'message_created' });
 }
 

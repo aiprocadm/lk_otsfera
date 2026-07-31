@@ -9,7 +9,7 @@ import {
   deleteAccessProfile,
   assignUserProfile,
   type AccessProfileInput,
-  type AccessProfileErrorCode
+  type AccessProfileErrorCode,
 } from '@/lib/services/access/profiles';
 import type { ScopeLevel, Capability } from '@/lib/auth/accessProfile';
 
@@ -37,7 +37,9 @@ function readInput(fd: FormData): AccessProfileInput {
     finance: readStr(fd, 'finance') as ScopeLevel,
     leads: readStr(fd, 'leads') as ScopeLevel,
     tasks: readStr(fd, 'tasks') as ScopeLevel,
-    capabilities: fd.getAll('capabilities').filter((v): v is string => typeof v === 'string') as Capability[]
+    capabilities: fd
+      .getAll('capabilities')
+      .filter((v): v is string => typeof v === 'string') as Capability[],
   };
 }
 
@@ -46,7 +48,9 @@ function revalidate(): void {
   revalidatePath('/admin/roles');
 }
 
-export async function createAccessProfileAction(fd: FormData): Promise<ActionResult<{ id: string }>> {
+export async function createAccessProfileAction(
+  fd: FormData
+): Promise<ActionResult<{ id: string }>> {
   const session = await requireSession();
   const res = await createAccessProfile(prisma, session, readInput(fd));
   if (!res.ok) return { ok: false, error: res.error };
@@ -81,7 +85,7 @@ export async function assignUserProfileAction(fd: FormData): Promise<ActionResul
   const profileIdRaw = readStr(fd, 'profileId');
   const res = await assignUserProfile(prisma, session, {
     userId,
-    profileId: profileIdRaw === '' ? null : profileIdRaw
+    profileId: profileIdRaw === '' ? null : profileIdRaw,
   });
   if (!res.ok) return { ok: false, error: res.error };
   revalidate();

@@ -52,7 +52,9 @@ async function main(): Promise<void> {
   let dupGroups = 0;
   for (const table of TABLES) {
     if (!(await columnExists(table, 'inn'))) {
-      console.log(`[inn-preflight] ${table}.inn absent (pre-migration) — no duplicates possible, skipping.`);
+      console.log(
+        `[inn-preflight] ${table}.inn absent (pre-migration) — no duplicates possible, skipping.`
+      );
       continue;
     }
     const dups = await findDuplicates(table);
@@ -61,12 +63,16 @@ async function main(): Promise<void> {
       continue;
     }
     dupGroups += dups.length;
-    console.error(`[inn-preflight] ${table}.inn: FAIL — ${dups.length} duplicate value(s); UNIQUE index would error:`);
+    console.error(
+      `[inn-preflight] ${table}.inn: FAIL — ${dups.length} duplicate value(s); UNIQUE index would error:`
+    );
     for (const d of dups) console.error(`    inn=${d.inn} ×${d.n}`);
   }
 
   if (dupGroups > 0) {
-    console.error(`\n[inn-preflight] FAIL: ${dupGroups} duplicate INN group(s). Dedupe before \`prisma migrate deploy\`.`);
+    console.error(
+      `\n[inn-preflight] FAIL: ${dupGroups} duplicate INN group(s). Dedupe before \`prisma migrate deploy\`.`
+    );
     process.exitCode = 1;
   } else {
     console.log('\n[inn-preflight] OK: safe to apply the inn UNIQUE indexes.');

@@ -1,7 +1,10 @@
 const DEFAULT = '81.88.80.132,81.88.80.133,81.88.82.36';
 
 /** Checks a client IP against the Mango Office webhook source allowlist. */
-export function isMangoIpAllowed(ip: string, allowlist = process.env.MANGO_ALLOWED_IPS ?? DEFAULT): boolean {
+export function isMangoIpAllowed(
+  ip: string,
+  allowlist = process.env.MANGO_ALLOWED_IPS ?? DEFAULT
+): boolean {
   const set = new Set(
     allowlist
       .split(',')

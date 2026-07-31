@@ -33,13 +33,13 @@ beforeAll(async () => {
   await cleanup();
 
   await prisma.company.create({
-    data: { id: COMPANY_ID, name: 'Test Co PLODS' }
+    data: { id: COMPANY_ID, name: 'Test Co PLODS' },
   });
   await prisma.organization.create({
-    data: { id: ORG_ID, name: 'Test Org PLODS', inn: '0000000099', companyId: COMPANY_ID }
+    data: { id: ORG_ID, name: 'Test Org PLODS', inn: '0000000099', companyId: COMPANY_ID },
   });
   await prisma.partner.create({
-    data: { id: PARTNER_ID, name: 'Test Partner PLODS' }
+    data: { id: PARTNER_ID, name: 'Test Partner PLODS' },
   });
   await prisma.user.create({
     data: {
@@ -48,8 +48,8 @@ beforeAll(async () => {
       name: 'Test Sub PLODS',
       passwordHash: 'x',
       role: 'partner',
-      companyId: COMPANY_ID
-    }
+      companyId: COMPANY_ID,
+    },
   });
   // A partner-channel order-less document: no orderId, companyId set
   await prisma.document.create({
@@ -67,8 +67,8 @@ beforeAll(async () => {
       counterpartyId: PARTNER_ID,
       companyId: COMPANY_ID,
       orderId: null,
-      uploadedById: USER_ID
-    }
+      uploadedById: USER_ID,
+    },
   });
 });
 
@@ -84,7 +84,7 @@ describe('listPartnerDocuments — orderLess tab with scoped sub-user', () => {
       orderLess: true,
       scopeOrgIds: [ORG_ID], // scoped sub-user sees only this org's orders
       take: 20,
-      skip: 0
+      skip: 0,
     });
 
     const docIds = result.rows.map((r) => r.id);
@@ -99,7 +99,7 @@ describe('listPartnerDocuments — orderLess tab with scoped sub-user', () => {
       orderLess: false,
       scopeOrgIds: [ORG_ID],
       take: 20,
-      skip: 0
+      skip: 0,
     });
     expect(result.rows.map((r) => r.id)).not.toContain(DOC_ID);
   });

@@ -9,7 +9,7 @@ import {
   managerOrderMarkedPaidBy1CSubject,
   managerOrderMarkedPaidBy1CText,
   managerOrderStatusChangedSubject,
-  managerOrderStatusChangedText
+  managerOrderStatusChangedText,
 } from '@/lib/email/templates';
 import { log } from '@/lib/logging';
 import { dispatchToRecipient } from './channels/dispatch';
@@ -17,7 +17,7 @@ import {
   CHANNEL_RECIPIENT_SELECT,
   type ChannelPayload,
   type ChannelRecipient,
-  type EmailContentRef
+  type EmailContentRef,
 } from './channels/types';
 import { getAppBaseUrl, orderLabel } from './shared';
 
@@ -115,7 +115,7 @@ export async function resolveManagerRecipients(
 ): Promise<ManagerRecipient[]> {
   const order = await db.order.findUnique({
     where: { id: orderId },
-    select: { managerId: true, organizationId: true }
+    select: { managerId: true, organizationId: true },
   });
   if (!order) return [];
 
@@ -128,7 +128,7 @@ export async function resolveManagerRecipients(
   if (order.organizationId) {
     const orgAssigned = await db.organizationManager.findMany({
       where: { organizationId: order.organizationId, isActive: true },
-      select: { userId: true }
+      select: { userId: true },
     });
     for (const a of orgAssigned) ids.add(a.userId);
   }
@@ -137,7 +137,7 @@ export async function resolveManagerRecipients(
   const historical = await db.comment.findMany({
     where: { orderId, author: { role: 'manager' } },
     select: { authorId: true },
-    distinct: ['authorId']
+    distinct: ['authorId'],
   });
   for (const c of historical) ids.add(c.authorId);
 
@@ -148,7 +148,7 @@ export async function resolveManagerRecipients(
   // even if they were left on OrganizationManager.
   return db.user.findMany({
     where: { id: { in: Array.from(ids) }, isActive: true },
-    select: CHANNEL_RECIPIENT_SELECT
+    select: CHANNEL_RECIPIENT_SELECT,
   });
 }
 
@@ -183,12 +183,12 @@ const MANAGER_TEMPLATES: Record<
       orgName: input.payload.orgName,
       orderNumber: ctx.orderNumber ?? ctx.orderTitle,
       commentExcerpt: input.payload.commentExcerpt,
-      orderUrl: ctx.orderUrl
+      orderUrl: ctx.orderUrl,
     };
     return {
       subject: managerCommentFromOrgSubject(props),
       shortBody: managerCommentFromOrgText(props),
-      email: { template: 'managerCommentFromOrg', props }
+      email: { template: 'managerCommentFromOrg', props },
     };
   },
   document_uploaded_by_org: (input, ctx) => {
@@ -199,12 +199,12 @@ const MANAGER_TEMPLATES: Record<
       orderNumber: ctx.orderNumber ?? ctx.orderTitle,
       documentName: input.payload.documentName,
       documentType: input.payload.documentType,
-      orderUrl: ctx.orderUrl
+      orderUrl: ctx.orderUrl,
     };
     return {
       subject: managerDocumentUploadedByOrgSubject(props),
       shortBody: managerDocumentUploadedByOrgText(props),
-      email: { template: 'managerDocumentUploadedByOrg', props }
+      email: { template: 'managerDocumentUploadedByOrg', props },
     };
   },
   document_uploaded_by_partner: (input, ctx) => {
@@ -215,12 +215,12 @@ const MANAGER_TEMPLATES: Record<
       orderNumber: ctx.orderNumber ?? ctx.orderTitle,
       documentName: input.payload.documentName,
       documentType: input.payload.documentType,
-      orderUrl: ctx.orderUrl
+      orderUrl: ctx.orderUrl,
     };
     return {
       subject: managerDocumentUploadedByPartnerSubject(props),
       shortBody: managerDocumentUploadedByPartnerText(props),
-      email: { template: 'managerDocumentUploadedByPartner', props }
+      email: { template: 'managerDocumentUploadedByPartner', props },
     };
   },
   order_marked_paid_by_1c: (input, ctx) => {
@@ -230,12 +230,12 @@ const MANAGER_TEMPLATES: Record<
       orderNumber: ctx.orderNumber ?? ctx.orderTitle,
       amount: input.payload.amount,
       paidAt: input.payload.paidAt,
-      orderUrl: ctx.orderUrl
+      orderUrl: ctx.orderUrl,
     };
     return {
       subject: managerOrderMarkedPaidBy1CSubject(props),
       shortBody: managerOrderMarkedPaidBy1CText(props),
-      email: { template: 'managerOrderMarkedPaidBy1C', props }
+      email: { template: 'managerOrderMarkedPaidBy1C', props },
     };
   },
   order_status_changed_by_manager: (input, ctx) => {
@@ -246,12 +246,12 @@ const MANAGER_TEMPLATES: Record<
       actorName: input.payload.actorName,
       oldStatus: input.payload.oldStatus,
       newStatus: input.payload.newStatus,
-      orderUrl: ctx.orderUrl
+      orderUrl: ctx.orderUrl,
     };
     return {
       subject: managerOrderStatusChangedSubject(props),
       shortBody: managerOrderStatusChangedText(props),
-      email: { template: 'managerOrderStatusChanged', props }
+      email: { template: 'managerOrderStatusChanged', props },
     };
   },
   chat_message: (input, ctx) => {
@@ -269,11 +269,11 @@ const MANAGER_TEMPLATES: Record<
           title: subject,
           body: shortBody,
           recipientName: 'менеджер',
-          url: ctx.orderUrl
-        }
-      }
+          url: ctx.orderUrl,
+        },
+      },
     };
-  }
+  },
 };
 
 /**
@@ -290,14 +290,14 @@ export async function resolveOrgManagerRecipients(
 ): Promise<ManagerRecipient[]> {
   const assigned = await db.organizationManager.findMany({
     where: { organizationId, isActive: true },
-    select: { userId: true }
+    select: { userId: true },
   });
   const ids = new Set(assigned.map((a) => a.userId));
   if (opts?.excludeUserId) ids.delete(opts.excludeUserId);
   if (ids.size === 0) return [];
   return db.user.findMany({
     where: { id: { in: Array.from(ids) }, role: 'manager', isActive: true },
-    select: CHANNEL_RECIPIENT_SELECT
+    select: CHANNEL_RECIPIENT_SELECT,
   });
 }
 
@@ -314,7 +314,7 @@ export async function notifyManagersOrderLess(
     orderNumber: 'Общий документ',
     documentName: input.documentName,
     documentType: input.documentType,
-    orderUrl: `${getAppBaseUrl()}/manager/documents?tab=general`
+    orderUrl: `${getAppBaseUrl()}/manager/documents?tab=general`,
   };
   const subject = managerDocumentUploadedByOrgSubject(props);
   const shortBody = managerDocumentUploadedByOrgText(props);
@@ -324,13 +324,22 @@ export async function notifyManagersOrderLess(
     title: subject,
     body: shortBody,
     url: props.orderUrl,
-    email: { template: 'managerDocumentUploadedByOrg', props }
+    email: { template: 'managerDocumentUploadedByOrg', props },
   };
 
-  let emailsSent = 0, emailsSkipped = 0, emailsQueued = 0, recipientsNotified = 0;
+  let emailsSent = 0,
+    emailsSkipped = 0,
+    emailsQueued = 0,
+    recipientsNotified = 0;
   for (const r of recipients) {
     const row = await db.notification.create({
-      data: { userId: r.id, type: 'document_uploaded_by_org', title: subject, body: shortBody, meta }
+      data: {
+        userId: r.id,
+        type: 'document_uploaded_by_org',
+        title: subject,
+        body: shortBody,
+        meta,
+      },
     });
     recipientsNotified += 1;
 
@@ -347,7 +356,7 @@ export async function notifyManagersOrderLess(
     recipientsNotified,
     emailsSent,
     emailsSkipped,
-    ...(emailsQueued > 0 ? { emailsQueued } : {})
+    ...(emailsQueued > 0 ? { emailsQueued } : {}),
   };
 }
 
@@ -386,7 +395,7 @@ export async function notifyManagers(
 ): Promise<NotifyManagersSummary> {
   const order = await db.order.findUnique({
     where: { id: input.orderId },
-    select: { id: true, orderNumber: true, title: true }
+    select: { id: true, orderNumber: true, title: true },
   });
   if (!order) {
     return { recipientsNotified: 0, emailsSent: 0, emailsSkipped: 0 };
@@ -401,7 +410,7 @@ export async function notifyManagers(
     orderId: order.id,
     orderNumber: order.orderNumber,
     orderTitle: order.title,
-    orderUrl: getManagerOrderUrl(order.id)
+    orderUrl: getManagerOrderUrl(order.id),
   };
 
   const build = MANAGER_TEMPLATES[input.type];
@@ -412,7 +421,7 @@ export async function notifyManagers(
     title: subject,
     body: shortBody,
     url: ctx.orderUrl,
-    email
+    email,
   };
 
   let emailsSent = 0;
@@ -427,8 +436,8 @@ export async function notifyManagers(
         type: input.type,
         title: subject,
         body: shortBody,
-        meta: meta as Prisma.InputJsonValue
-      }
+        meta: meta as Prisma.InputJsonValue,
+      },
     });
     recipientsNotified += 1;
 
@@ -457,6 +466,6 @@ export async function notifyManagers(
     recipientsNotified,
     emailsSent,
     emailsSkipped,
-    ...(emailsQueued > 0 ? { emailsQueued } : {})
+    ...(emailsQueued > 0 ? { emailsQueued } : {}),
   };
 }

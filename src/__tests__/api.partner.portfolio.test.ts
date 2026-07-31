@@ -27,11 +27,24 @@ describe('GET /api/partner/portfolio', () => {
 
   it('returns paginated items with default take=20, skip=0', async () => {
     vi.mocked(getSession).mockResolvedValue({
-      sub: 'u', role: 'partner', partnerId: 'p1', partnerRole: 'admin', assignedOrgIds: []
+      sub: 'u',
+      role: 'partner',
+      partnerId: 'p1',
+      partnerRole: 'admin',
+      assignedOrgIds: [],
     } as any);
     vi.mocked(listPortfolio).mockResolvedValue({
-      items: [{ id: 'o1', name: 'Org1', inn: null, assignedManagerUserId: null, ordersCount: 0, debt: '0.00' }],
-      total: 1
+      items: [
+        {
+          id: 'o1',
+          name: 'Org1',
+          inn: null,
+          assignedManagerUserId: null,
+          ordersCount: 0,
+          debt: '0.00',
+        },
+      ],
+      total: 1,
     });
 
     const res = await GET(req());
@@ -41,48 +54,74 @@ describe('GET /api/partner/portfolio', () => {
     expect(body.items[0].name).toBe('Org1');
 
     expect(listPortfolio).toHaveBeenCalledWith(expect.anything(), {
-      partnerId: 'p1', scopeOrgIds: undefined, search: undefined, take: 20, skip: 0
+      partnerId: 'p1',
+      scopeOrgIds: undefined,
+      search: undefined,
+      take: 20,
+      skip: 0,
     });
   });
 
   it('parses take/skip/search query params and caps take at 100', async () => {
     vi.mocked(getSession).mockResolvedValue({
-      sub: 'u', role: 'partner', partnerId: 'p1', partnerRole: 'admin', assignedOrgIds: []
+      sub: 'u',
+      role: 'partner',
+      partnerId: 'p1',
+      partnerRole: 'admin',
+      assignedOrgIds: [],
     } as any);
     vi.mocked(listPortfolio).mockResolvedValue({ items: [], total: 0 });
 
     await GET(req('?take=500&skip=10&search=ООО'));
 
     expect(listPortfolio).toHaveBeenCalledWith(expect.anything(), {
-      partnerId: 'p1', scopeOrgIds: undefined, search: 'ООО', take: 100, skip: 10
+      partnerId: 'p1',
+      scopeOrgIds: undefined,
+      search: 'ООО',
+      take: 100,
+      skip: 10,
     });
   });
 
   it('passes assignedOrgIds as scope for scoped manager', async () => {
     vi.mocked(getSession).mockResolvedValue({
-      sub: 'u', role: 'partner', partnerId: 'p1', partnerRole: 'manager', assignedOrgIds: ['oA', 'oB']
+      sub: 'u',
+      role: 'partner',
+      partnerId: 'p1',
+      partnerRole: 'manager',
+      assignedOrgIds: ['oA', 'oB'],
     } as any);
     vi.mocked(listPortfolio).mockResolvedValue({ items: [], total: 0 });
 
     await GET(req());
 
-    expect(listPortfolio).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
-      scopeOrgIds: ['oA', 'oB']
-    }));
+    expect(listPortfolio).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        scopeOrgIds: ['oA', 'oB'],
+      })
+    );
   });
 
   it('uses fallback for negative skip (parsePositiveInt returns fallback when value < 0)', async () => {
     vi.mocked(getSession).mockResolvedValue({
-      sub: 'u', role: 'partner', partnerId: 'p1', partnerRole: 'admin', assignedOrgIds: []
+      sub: 'u',
+      role: 'partner',
+      partnerId: 'p1',
+      partnerRole: 'admin',
+      assignedOrgIds: [],
     } as any);
     vi.mocked(listPortfolio).mockResolvedValue({ items: [], total: 0 });
 
     await GET(req('?skip=-5&take=-1'));
 
     // Negative values should fall back to defaults: skip=0, take=20
-    expect(listPortfolio).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
-      skip: 0,
-      take: 20
-    }));
+    expect(listPortfolio).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        skip: 0,
+        take: 20,
+      })
+    );
   });
 });

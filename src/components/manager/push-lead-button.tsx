@@ -9,7 +9,7 @@ import { pushLeadToOneCAction } from '@/server-actions/manager/leads';
 // queue_unavailable/validation берутся из общего словаря.
 const ERROR_LABELS: Record<string, string> = {
   already_pushed: 'Лид уже отправлен в 1С',
-  not_found: 'Заявка не найдена.'
+  not_found: 'Заявка не найдена.',
 };
 
 /**
@@ -20,9 +20,9 @@ const ERROR_LABELS: Record<string, string> = {
 export function PushLeadButton({ leadId }: { leadId: string }) {
   return (
     <ActionToastButton
-      variant='secondary'
-      label='Отправить в 1С'
-      successText='Лид поставлен в очередь отправки в 1С'
+      variant="secondary"
+      label="Отправить в 1С"
+      successText="Лид поставлен в очередь отправки в 1С"
       errorLabels={ERROR_LABELS}
       action={() => pushLeadToOneCAction({ leadId })}
     />

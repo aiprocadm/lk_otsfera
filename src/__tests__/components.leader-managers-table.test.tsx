@@ -14,7 +14,7 @@ function makeRow(overrides: Partial<LeaderManagerRow> = {}): LeaderManagerRow {
     totalAmount: '120000.00',
     paidAmount: '80000.00',
     overdue: 0,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -29,8 +29,8 @@ describe('LeaderManagersTable', () => {
         activeOrders: 1,
         totalAmount: '50000.00',
         paidAmount: '50000.00',
-        overdue: 2
-      })
+        overdue: 2,
+      }),
     ];
     const html = renderToString(<LeaderManagersTable rows={rows} />);
 
@@ -45,16 +45,12 @@ describe('LeaderManagersTable', () => {
   });
 
   it('highlights overdue > 0 in red and keeps zero overdue neutral', () => {
-    const html = renderToString(
-      <LeaderManagersTable rows={[makeRow({ overdue: 5 })]} />
-    );
+    const html = renderToString(<LeaderManagersTable rows={[makeRow({ overdue: 5 })]} />);
     expect(html).toContain('text-red-700');
   });
 
   it('renders neutral (no red) when no manager is overdue', () => {
-    const html = renderToString(
-      <LeaderManagersTable rows={[makeRow({ overdue: 0 })]} />
-    );
+    const html = renderToString(<LeaderManagersTable rows={[makeRow({ overdue: 0 })]} />);
     expect(html).not.toContain('text-red-700');
   });
 

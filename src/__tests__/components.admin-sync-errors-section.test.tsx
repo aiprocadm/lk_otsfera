@@ -15,7 +15,7 @@ function makeError(overrides: Partial<SyncErrorRow> = {}): SyncErrorRow {
     errorMessage: 'timeout calling 1C',
     durationMs: 1250,
     createdAt: new Date('2026-07-16T09:00:00Z'),
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -45,7 +45,9 @@ describe('SyncErrorsSection', () => {
 
   it('длинная ошибка не рвёт раскладку: line-clamp/break-обёртка присутствует', () => {
     const html = renderToString(
-      React.createElement(SyncErrorsSection, { errors: [makeError({ errorMessage: 'x'.repeat(500) })] })
+      React.createElement(SyncErrorsSection, {
+        errors: [makeError({ errorMessage: 'x'.repeat(500) })],
+      })
     );
     expect(html).toContain('line-clamp-2');
     expect(html).toContain('break-all');
@@ -54,7 +56,7 @@ describe('SyncErrorsSection', () => {
   it('externalId=null, errorMessage=null, durationMs=null → «—»', () => {
     const html = renderToString(
       React.createElement(SyncErrorsSection, {
-        errors: [makeError({ externalId: null, errorMessage: null, durationMs: null })]
+        errors: [makeError({ externalId: null, errorMessage: null, durationMs: null })],
       })
     );
     expect(html).not.toContain('EXT-42');

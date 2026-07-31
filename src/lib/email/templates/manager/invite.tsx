@@ -10,15 +10,15 @@ export type ManagerInviteProps = {
 export function ManagerInviteTemplate({
   organizationName,
   inviteUrl,
-  invitedByName
+  invitedByName,
 }: ManagerInviteProps) {
   return (
-    <EmailLayout title='Приглашение в кабинет менеджера'>
+    <EmailLayout title="Приглашение в кабинет менеджера">
       <p style={emailStyles.paragraph}>Здравствуйте!</p>
       <p style={emailStyles.paragraph}>
-        {invitedByName ? <>{invitedByName} приглашает вас </> : 'Вас приглашают '}
-        в кабинет менеджера платформы «Промтехносфера». Вам назначена
-        организация <strong>{organizationName}</strong>.
+        {invitedByName ? <>{invitedByName} приглашает вас </> : 'Вас приглашают '}в кабинет
+        менеджера платформы «Промтехносфера». Вам назначена организация{' '}
+        <strong>{organizationName}</strong>.
       </p>
       <p style={emailStyles.paragraph}>
         Чтобы установить пароль и начать работу, перейдите по ссылке ниже:
@@ -44,16 +44,14 @@ export function managerInviteSubject(organizationName: string): string {
 export function managerInviteText({
   organizationName,
   inviteUrl,
-  invitedByName
+  invitedByName,
 }: ManagerInviteProps): string {
-  const intro = invitedByName
-    ? `${invitedByName} приглашает вас`
-    : 'Вас приглашают';
+  const intro = invitedByName ? `${invitedByName} приглашает вас` : 'Вас приглашают';
   return [
     'Здравствуйте!',
     '',
     `${intro} в кабинет менеджера платформы «Промтехносфера». Назначена организация «${organizationName}».`,
     '',
-    `Установить пароль: ${inviteUrl}`
+    `Установить пароль: ${inviteUrl}`,
   ].join('\n');
 }

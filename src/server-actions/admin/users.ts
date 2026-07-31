@@ -10,7 +10,7 @@ import {
   deactivateUser,
   reactivateUser,
   adminRegenerateBackupCodes,
-  type AdminUserErrorCode
+  type AdminUserErrorCode,
 } from '@/lib/services/admin/users';
 import { sendAdminUserInviteEmail } from '@/lib/email/send';
 import { log } from '@/lib/logging';
@@ -26,11 +26,11 @@ const createSchema = z
     email: z.string().email(),
     name: z.string().min(1).max(200),
     role: ROLE_ENUM,
-    partnerId: z.string().optional().nullable()
+    partnerId: z.string().optional().nullable(),
   })
   .refine((d) => d.role !== 'partner' || (d.partnerId && d.partnerId.length > 0), {
     message: 'partnerId required for partner role',
-    path: ['partnerId']
+    path: ['partnerId'],
   });
 
 const updateSchema = z.object({
@@ -38,7 +38,7 @@ const updateSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   role: ROLE_ENUM.optional(),
   partnerId: z.string().nullable().optional(),
-  isActive: z.coerce.boolean().optional()
+  isActive: z.coerce.boolean().optional(),
 });
 
 const targetSchema = z.object({ id: z.string().min(1) });
@@ -59,7 +59,7 @@ export async function createUserAction(
     email: readField(fd, 'email'),
     name: readField(fd, 'name'),
     role: readField(fd, 'role'),
-    partnerId: readField(fd, 'partnerId') || null
+    partnerId: readField(fd, 'partnerId') || null,
   });
   if (!parsed.success) return { ok: false, error: 'validation' };
 
@@ -74,7 +74,7 @@ export async function createUserAction(
       name: parsed.data.name,
       role: parsed.data.role,
       inviteUrl,
-      invitedByName: session.name ?? undefined
+      invitedByName: session.name ?? undefined,
     });
   } catch (e) {
     log.warn('[admin/users] send invite email failed', e);
@@ -90,7 +90,7 @@ export async function updateUserAction(fd: FormData): Promise<ActionResult> {
     name: readField(fd, 'name') || undefined,
     role: readField(fd, 'role') || undefined,
     partnerId: readField(fd, 'partnerId') || undefined,
-    isActive: readField(fd, 'isActive') || undefined
+    isActive: readField(fd, 'isActive') || undefined,
   });
   if (!parsed.success) return { ok: false, error: 'validation' };
 

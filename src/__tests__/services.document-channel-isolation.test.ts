@@ -11,29 +11,49 @@ let orgDocId: string, partnerDocId: string;
 beforeAll(async () => {
   prisma = new PrismaClient();
   const stamp = Date.now();
-  const partner = await prisma.partner.create({ data: { name: `IsoP-${stamp}`, commissionRate: 0.1 } });
+  const partner = await prisma.partner.create({
+    data: { name: `IsoP-${stamp}`, commissionRate: 0.1 },
+  });
   partnerId = partner.id;
   const company = await prisma.company.create({ data: { name: `IsoC-${stamp}` } });
   companyId = company.id;
-  const org = await prisma.organization.create({ data: { name: `IsoO-${stamp}`, partnerId, companyId } });
+  const org = await prisma.organization.create({
+    data: { name: `IsoO-${stamp}`, partnerId, companyId },
+  });
   orgId = org.id;
   const order = await prisma.order.create({
-    data: { title: 'Iso order', companyId, partnerId, organizationId: orgId, executionStatus: 'in_progress' }
+    data: {
+      title: 'Iso order',
+      companyId,
+      partnerId,
+      organizationId: orgId,
+      executionStatus: 'in_progress',
+    },
   });
   orderId = order.id;
 
   const od = await prisma.document.create({
     data: {
-      name: 'act.pdf', path: 'fake://iso-act', mimeType: 'application/pdf', type: 'act',
-      orderId, counterpartyType: 'organization', counterpartyId: orgId
-    }
+      name: 'act.pdf',
+      path: 'fake://iso-act',
+      mimeType: 'application/pdf',
+      type: 'act',
+      orderId,
+      counterpartyType: 'organization',
+      counterpartyId: orgId,
+    },
   });
   orgDocId = od.id;
   const pd = await prisma.document.create({
     data: {
-      name: 'commission.pdf', path: 'fake://iso-commission', mimeType: 'application/pdf', type: 'commission_statement',
-      orderId, counterpartyType: 'partner', counterpartyId: partnerId
-    }
+      name: 'commission.pdf',
+      path: 'fake://iso-commission',
+      mimeType: 'application/pdf',
+      type: 'commission_statement',
+      orderId,
+      counterpartyType: 'partner',
+      counterpartyId: partnerId,
+    },
   });
   partnerDocId = pd.id;
 });

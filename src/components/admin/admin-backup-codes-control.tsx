@@ -27,32 +27,35 @@ export function AdminBackupCodesControl({ userId }: { userId: string }) {
   }
 
   return (
-    <div className='rounded-lg border p-4 space-y-2'>
-      <h2 className='text-sm font-semibold text-[#111111]'>Коды восстановления (2FA)</h2>
-      <p className='text-sm text-gray-500'>
-        Перевыпуск для сотрудника, потерявшего доступ к почте и старым кодам.
-        Прежние коды аннулируются; новые показываются один раз.
+    <div className="rounded-lg border p-4 space-y-2">
+      <h2 className="text-sm font-semibold text-[#111111]">Коды восстановления (2FA)</h2>
+      <p className="text-sm text-gray-500">
+        Перевыпуск для сотрудника, потерявшего доступ к почте и старым кодам. Прежние коды
+        аннулируются; новые показываются один раз.
       </p>
       {codes ? (
         <div>
-          <div className='rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800'>
+          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
             Передайте эти коды сотруднику сейчас — после закрытия страницы они не покажутся.
           </div>
-          <ul className='mt-3 grid grid-cols-2 gap-2 font-mono text-sm'>
+          <ul className="mt-3 grid grid-cols-2 gap-2 font-mono text-sm">
             {codes.map((c) => (
-              <li key={c} className='rounded border border-gray-200 bg-gray-50 px-3 py-1.5 tracking-widest'>
+              <li
+                key={c}
+                className="rounded border border-gray-200 bg-gray-50 px-3 py-1.5 tracking-widest"
+              >
                 {c}
               </li>
             ))}
           </ul>
-          <div className='mt-3'>
-            <Button type='button' variant='secondary' onClick={onRegenerate} disabled={isPending}>
+          <div className="mt-3">
+            <Button type="button" variant="secondary" onClick={onRegenerate} disabled={isPending}>
               {isPending ? 'Генерирую…' : 'Перевыпустить заново'}
             </Button>
           </div>
         </div>
       ) : (
-        <Button type='button' onClick={onRegenerate} disabled={isPending}>
+        <Button type="button" onClick={onRegenerate} disabled={isPending}>
           {isPending ? 'Генерирую…' : 'Перевыпустить коды восстановления'}
         </Button>
       )}

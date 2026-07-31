@@ -30,7 +30,7 @@ function baseOrder(overrides: Partial<OrgOrderDetail> = {}): OrgOrderDetail {
     payments: [],
     commentsCount: 0,
     items: [],
-    ...overrides
+    ...overrides,
   } as OrgOrderDetail;
 }
 

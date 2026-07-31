@@ -9,7 +9,7 @@ const {
   sendMock,
   recordAuditMock,
   isRateLimitedMock,
-  chDeleteMock
+  chDeleteMock,
 } = vi.hoisted(() => ({
   findUniqueMock: vi.fn(),
   notFoundIfDisabledMock: vi.fn(),
@@ -18,14 +18,14 @@ const {
   sendMock: vi.fn(),
   recordAuditMock: vi.fn(),
   isRateLimitedMock: vi.fn(),
-  chDeleteMock: vi.fn()
+  chDeleteMock: vi.fn(),
 }));
 
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     user: { findUnique: findUniqueMock },
-    twoFactorChallenge: { delete: chDeleteMock }
-  }
+    twoFactorChallenge: { delete: chDeleteMock },
+  },
 }));
 vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled: notFoundIfDisabledMock }));
 vi.mock('@/lib/auth/jwt', () => ({ verifyTwoFactorPendingToken: verifyPendingMock }));
@@ -39,7 +39,7 @@ import { POST } from '@/app/api/auth/2fa/resend/route';
 function req(cookie?: string): NextRequest {
   return new NextRequest('http://x/api/auth/2fa/resend', {
     method: 'POST',
-    headers: cookie ? { cookie } : {}
+    headers: cookie ? { cookie } : {},
   });
 }
 
@@ -80,7 +80,9 @@ describe('POST /api/auth/2fa/resend', () => {
   });
 
   it('429 when the 3-per-window total key trips', async () => {
-    isRateLimitedMock.mockImplementation(async (key: string) => key.startsWith('2fa-resend-total:'));
+    isRateLimitedMock.mockImplementation(async (key: string) =>
+      key.startsWith('2fa-resend-total:')
+    );
     expect((await POST(req('2fa_pending=t'))).status).toBe(429);
   });
 

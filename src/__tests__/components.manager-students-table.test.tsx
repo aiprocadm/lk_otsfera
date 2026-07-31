@@ -3,8 +3,15 @@ import { renderToString } from 'react-dom/server';
 import React from 'react';
 
 vi.mock('next/link', () => ({
-  default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) =>
-    React.createElement('a', { href, className }, children)
+  default: ({
+    href,
+    children,
+    className,
+  }: {
+    href: string;
+    children: React.ReactNode;
+    className?: string;
+  }) => React.createElement('a', { href, className }, children),
 }));
 
 import { ManagerStudentsTable } from '@/components/manager/manager-students-table';
@@ -24,8 +31,8 @@ describe('ManagerStudentsTable', () => {
         email: 'ivanov@example.com',
         organization: { id: 'org1', name: 'ООО Ромашка' },
         externalStudentId: 'EXT-1',
-        createdAt: new Date('2026-01-15')
-      } as ManagerStudentRow
+        createdAt: new Date('2026-01-15'),
+      } as ManagerStudentRow,
     ];
     const html = renderToString(React.createElement(ManagerStudentsTable, { rows }));
     expect(html).toContain('href="/manager/students/s1"');
@@ -44,8 +51,8 @@ describe('ManagerStudentsTable', () => {
         email: 'petrov@example.com',
         organization: { id: 'org2', name: 'ООО Ландыш' },
         externalStudentId: null,
-        createdAt: new Date('2026-01-16')
-      } as ManagerStudentRow
+        createdAt: new Date('2026-01-16'),
+      } as ManagerStudentRow,
     ];
     const html = renderToString(React.createElement(ManagerStudentsTable, { rows }));
     expect(html).toContain('—');

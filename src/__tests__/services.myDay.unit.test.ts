@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { getCompanyTeamVisibility, managerOrderScope } = vi.hoisted(() => ({
   getCompanyTeamVisibility: vi.fn(),
-  managerOrderScope: vi.fn(() => ({ managerId: 'm1' }))
+  managerOrderScope: vi.fn(() => ({ managerId: 'm1' })),
 }));
 vi.mock('@/lib/auth/managerPolicy', () => ({ getCompanyTeamVisibility, managerOrderScope }));
 
@@ -21,18 +21,18 @@ vi.mock('@/lib/services/deals/board', () => ({ dealScopeWhere }));
 const { countIntake, intakeInboundWhere, intakeCallWhere } = vi.hoisted(() => ({
   countIntake: vi.fn(),
   intakeInboundWhere: vi.fn(() => ({ i: true })),
-  intakeCallWhere: vi.fn(() => ({ c: true }))
+  intakeCallWhere: vi.fn(() => ({ c: true })),
 }));
 vi.mock('@/lib/services/intake/list', () => ({
   countIntake,
   intakeInboundWhere,
-  intakeCallWhere
+  intakeCallWhere,
 }));
 
 const { evaluateReadinessBatch } = vi.hoisted(() => ({ evaluateReadinessBatch: vi.fn() }));
 vi.mock('@/lib/services/manager/orderDelivery', () => ({
   evaluateReadinessBatch,
-  READINESS_SELECT: {}
+  READINESS_SELECT: {},
 }));
 
 import { getMyDay } from '@/lib/services/manager/myDay';
@@ -61,10 +61,10 @@ function makePrisma(stub: PrismaStub = {}) {
       deal: { groupBy: vi.fn().mockResolvedValue(stub.deals ?? []) },
       dealStage: { findMany: dealStageFindMany },
       inboundMessage: { count: vi.fn().mockResolvedValue(stub.inbound ?? 0) },
-      call: { count: vi.fn().mockResolvedValue(stub.calls ?? 0) }
+      call: { count: vi.fn().mockResolvedValue(stub.calls ?? 0) },
     } as never,
     orderFindMany,
-    dealStageFindMany
+    dealStageFindMany,
   };
 }
 
@@ -89,7 +89,7 @@ describe('getMyDay', () => {
       dealsOpen: 0,
       dealsByStage: [],
       inboundFresh: 0,
-      callsMissed: 0
+      callsMissed: 0,
     });
   });
 
@@ -116,7 +116,7 @@ describe('getMyDay', () => {
       id: `o${i}`,
       orderNumber: `${i}`,
       title: `Заказ ${i}`,
-      items: []
+      items: [],
     }));
     const { prisma } = makePrisma({ orders });
     // Не готов только последний.
@@ -143,17 +143,17 @@ describe('getMyDay', () => {
     const { prisma } = makePrisma({
       deals: [
         { stageId: 's2', _count: { _all: 2 } },
-        { stageId: 's1', _count: { _all: 3 } }
+        { stageId: 's1', _count: { _all: 3 } },
       ],
       stages: [
         { id: 's1', name: 'Первичный контакт', position: 1 },
-        { id: 's2', name: 'Переговоры', position: 2 }
-      ]
+        { id: 's2', name: 'Переговоры', position: 2 },
+      ],
     });
     const data = await getMyDay(prisma, session, false, NOW);
     expect(data.dealsByStage).toEqual([
       { stageName: 'Первичный контакт', count: 3 },
-      { stageName: 'Переговоры', count: 2 }
+      { stageName: 'Переговоры', count: 2 },
     ]);
     expect(data.dealsOpen).toBe(5);
     expect(dealScopeWhere).toHaveBeenCalledWith(session, { managerId: 'm1' });
@@ -163,14 +163,14 @@ describe('getMyDay', () => {
     const { prisma } = makePrisma({
       deals: [
         { stageId: null, _count: { _all: 1 } },
-        { stageId: 's1', _count: { _all: 4 } }
+        { stageId: 's1', _count: { _all: 4 } },
       ],
-      stages: [{ id: 's1', name: 'Переговоры', position: 1 }]
+      stages: [{ id: 's1', name: 'Переговоры', position: 1 }],
     });
     const data = await getMyDay(prisma, session, false, NOW);
     expect(data.dealsByStage).toEqual([
       { stageName: 'Переговоры', count: 4 },
-      { stageName: 'Без стадии', count: 1 }
+      { stageName: 'Без стадии', count: 1 },
     ]);
     expect(data.dealsOpen).toBe(5);
   });
@@ -184,7 +184,7 @@ describe('getMyDay', () => {
   it('стадия, пропавшая из словаря, не роняет карточку', async () => {
     const { prisma } = makePrisma({
       deals: [{ stageId: 'ghost', _count: { _all: 2 } }],
-      stages: []
+      stages: [],
     });
     const data = await getMyDay(prisma, session, false, NOW);
     expect(data.dealsByStage).toEqual([{ stageName: 'Без стадии', count: 2 }]);

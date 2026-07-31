@@ -43,7 +43,7 @@ export function EnrollmentQueue({ rows }: { rows: EnrollmentRow[] }) {
       const res = await fetch(`/api/enrollments/${id}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const e = (await res.json().catch(() => ({}))) as { error?: string };
@@ -61,7 +61,7 @@ export function EnrollmentQueue({ rows }: { rows: EnrollmentRow[] }) {
   }
 
   if (rows.length === 0) {
-    return <EmptyState icon='🎓' message='Заявок на обучение нет' />;
+    return <EmptyState icon="🎓" message="Заявок на обучение нет" />;
   }
 
   return (
@@ -90,43 +90,52 @@ export function EnrollmentQueue({ rows }: { rows: EnrollmentRow[] }) {
               <Tr>
                 <Td>
                   <button
-                    type='button'
+                    type="button"
                     onClick={() => toggleOpen(r.id, open)}
-                    className='text-left'
+                    className="text-left"
                     aria-expanded={open}
                   >
-                    <div className='font-medium text-[#111111]'>
+                    <div className="font-medium text-[#111111]">
                       {r.firstStudentName ?? '—'}
-                      {r.studentCount > 1 && <span className='text-gray-500'> и ещё {r.studentCount - 1}</span>}
+                      {r.studentCount > 1 && (
+                        <span className="text-gray-500"> и ещё {r.studentCount - 1}</span>
+                      )}
                     </div>
-                    <div className='text-xs text-[#F97316]'>
-                      {open ? 'Свернуть' : `${r.studentCount} ${pluralizeRu(r.studentCount, 'слушатель', 'слушателя', 'слушателей')} — показать`}
+                    <div className="text-xs text-[#F97316]">
+                      {open
+                        ? 'Свернуть'
+                        : `${r.studentCount} ${pluralizeRu(r.studentCount, 'слушатель', 'слушателя', 'слушателей')} — показать`}
                     </div>
                   </button>
                 </Td>
-                <Td className='text-gray-700'>{r.directionName}</Td>
-                <Td className='text-gray-600'>
+                <Td className="text-gray-700">{r.directionName}</Td>
+                <Td className="text-gray-600">
                   {r.partnerName ?? r.organizationName ?? r.submittedByName}
-                  <div className='text-xs text-gray-400'>{r.submitterRole}</div>
+                  <div className="text-xs text-gray-400">{r.submitterRole}</div>
                 </Td>
                 <Td>
                   <EnrollmentStatusBadge status={r.status} />
                   {r.status === 'rejected' && r.rejectedReason && (
-                    <div className='text-xs text-gray-500 mt-0.5'>{r.rejectedReason}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">{r.rejectedReason}</div>
                   )}
                 </Td>
-                <Td className='text-gray-500'>{fmtDate(r.createdAt)}</Td>
+                <Td className="text-gray-500">{fmtDate(r.createdAt)}</Td>
                 <Td>
-                  <div className='flex flex-wrap gap-1.5'>
+                  <div className="flex flex-wrap gap-1.5">
                     {r.status === 'pending' && (
-                      <Button size='sm' variant='secondary' loading={busy} onClick={() => act(r.id, { action: 'approve' }, 'Заявка утверждена')}>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        loading={busy}
+                        onClick={() => act(r.id, { action: 'approve' }, 'Заявка утверждена')}
+                      >
                         Утвердить
                       </Button>
                     )}
                     {r.status === 'approved' && (
                       <Button
-                        size='sm'
-                        variant='primary'
+                        size="sm"
+                        variant="primary"
                         loading={busy}
                         onClick={() => {
                           // Для одиночной заявки id из LMS обязателен (как раньше);
@@ -138,7 +147,11 @@ export function EnrollmentQueue({ rows }: { rows: EnrollmentRow[] }) {
                           );
                           if (sid === null) return;
                           if (r.studentCount <= 1 && !sid.trim()) return;
-                          void act(r.id, { action: 'markProvisioned', externalStudentId: sid.trim() }, 'Отмечено: зачислены');
+                          void act(
+                            r.id,
+                            { action: 'markProvisioned', externalStudentId: sid.trim() },
+                            'Отмечено: зачислены'
+                          );
                         }}
                       >
                         Зачислены
@@ -146,32 +159,41 @@ export function EnrollmentQueue({ rows }: { rows: EnrollmentRow[] }) {
                     )}
                     {toTraining.length > 0 && (
                       <Button
-                        size='sm'
-                        variant='primary'
+                        size="sm"
+                        variant="primary"
                         loading={busy}
-                        onClick={() => advance(toTraining, 'markInTraining', 'Отмечено: идёт обучение')}
+                        onClick={() =>
+                          advance(toTraining, 'markInTraining', 'Отмечено: идёт обучение')
+                        }
                       >
                         Идёт обучение
                       </Button>
                     )}
                     {toCerts.length > 0 && (
                       <Button
-                        size='sm'
-                        variant='primary'
+                        size="sm"
+                        variant="primary"
                         loading={busy}
-                        onClick={() => advance(toCerts, 'markCertificatesReady', 'Отмечено: удостоверения готовы')}
+                        onClick={() =>
+                          advance(
+                            toCerts,
+                            'markCertificatesReady',
+                            'Отмечено: удостоверения готовы'
+                          )
+                        }
                       >
                         Удостоверения готовы
                       </Button>
                     )}
                     {(r.status === 'pending' || r.status === 'approved') && (
                       <Button
-                        size='sm'
-                        variant='danger'
+                        size="sm"
+                        variant="danger"
                         loading={busy}
                         onClick={() => {
                           const reason = window.prompt('Причина отклонения:');
-                          if (reason !== null) void act(r.id, { action: 'reject', reason }, 'Заявка отклонена');
+                          if (reason !== null)
+                            void act(r.id, { action: 'reject', reason }, 'Заявка отклонена');
                         }}
                       >
                         Отклонить
@@ -183,36 +205,51 @@ export function EnrollmentQueue({ rows }: { rows: EnrollmentRow[] }) {
               {open && (
                 <Tr>
                   <Td colSpan={6}>
-                    <ul className='space-y-1.5 py-1'>
+                    <ul className="space-y-1.5 py-1">
                       {r.items.map((item, i) => (
-                        <li key={item.id} className='text-sm text-gray-700'>
+                        <li key={item.id} className="text-sm text-gray-700">
                           {(item.status === 'provisioned' || item.status === 'in_training') && (
                             <input
-                              type='checkbox'
-                              className='mr-1.5 align-middle accent-[#F97316]'
+                              type="checkbox"
+                              className="mr-1.5 align-middle accent-[#F97316]"
                               checked={selected.has(item.id)}
                               onChange={(e) => toggleItem(item.id, e.target.checked)}
                               aria-label={`Выбрать позицию: ${item.fullName}`}
                             />
                           )}
-                          <span className='font-medium text-[#111111]'>{i + 1}. {item.fullName}</span>{' '}
-                          <span className='text-xs text-gray-500'>{item.email}</span>
-                          {item.position && <span className='text-xs text-gray-500'> · {item.position}</span>}
-                          {item.snils && <span className='text-xs text-gray-500'> · СНИЛС {item.snils}</span>}
-                          {item.birthDate && (
-                            <span className='text-xs text-gray-500'> · род. {fmtDate(item.birthDate)}</span>
+                          <span className="font-medium text-[#111111]">
+                            {i + 1}. {item.fullName}
+                          </span>{' '}
+                          <span className="text-xs text-gray-500">{item.email}</span>
+                          {item.position && (
+                            <span className="text-xs text-gray-500"> · {item.position}</span>
                           )}
-                          {item.extra && <span className='text-xs text-gray-500'> · {item.extra}</span>}
-                          <span className='ml-2'>
+                          {item.snils && (
+                            <span className="text-xs text-gray-500"> · СНИЛС {item.snils}</span>
+                          )}
+                          {item.birthDate && (
+                            <span className="text-xs text-gray-500">
+                              {' '}
+                              · род. {fmtDate(item.birthDate)}
+                            </span>
+                          )}
+                          {item.extra && (
+                            <span className="text-xs text-gray-500"> · {item.extra}</span>
+                          )}
+                          <span className="ml-2">
                             <EnrollmentStatusBadge status={item.status} />
                           </span>
                           {item.externalStudentId && (
-                            <span className='text-xs text-gray-500 ml-1'>LMS: {item.externalStudentId}</span>
+                            <span className="text-xs text-gray-500 ml-1">
+                              LMS: {item.externalStudentId}
+                            </span>
                           )}
                         </li>
                       ))}
                     </ul>
-                    {r.note && <div className='text-xs text-gray-500 pb-1'>Примечание: {r.note}</div>}
+                    {r.note && (
+                      <div className="text-xs text-gray-500 pb-1">Примечание: {r.note}</div>
+                    )}
                   </Td>
                 </Tr>
               )}

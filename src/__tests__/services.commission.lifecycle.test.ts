@@ -10,7 +10,7 @@ let platformAdminUserId: string;
 beforeAll(async () => {
   prisma = new PrismaClient();
   const p = await prisma.partner.create({
-    data: { name: 'LCP-' + Date.now(), commissionRate: 0.1 }
+    data: { name: 'LCP-' + Date.now(), commissionRate: 0.1 },
   });
   partnerId = p.id;
   const pu = await prisma.user.create({
@@ -19,8 +19,8 @@ beforeAll(async () => {
       passwordHash: 'h',
       name: 'PU',
       role: 'partner',
-      partnerId
-    }
+      partnerId,
+    },
   });
   partnerUserId = pu.id;
   const a = await prisma.user.create({
@@ -28,15 +28,15 @@ beforeAll(async () => {
       email: 'lc-admin-' + Date.now() + '@x.local',
       passwordHash: 'h',
       name: 'A',
-      role: 'admin'
-    }
+      role: 'admin',
+    },
   });
   platformAdminUserId = a.id;
 });
 
 afterAll(async () => {
   await prisma.auditLog.deleteMany({
-    where: { userId: { in: [partnerUserId, platformAdminUserId] } }
+    where: { userId: { in: [partnerUserId, platformAdminUserId] } },
   });
   await prisma.commissionStatementItem.deleteMany({ where: { statement: { partnerId } } });
   await prisma.commissionStatement.deleteMany({ where: { partnerId } });
@@ -59,8 +59,8 @@ async function createDraft() {
       totalBaseAmount: 100000,
       averageRate: 0.1,
       totalCommissionAmount: 10000,
-      status: 'draft'
-    }
+      status: 'draft',
+    },
   });
 }
 
@@ -68,12 +68,12 @@ describe('approveStatement', () => {
   it('transitions draft → approved with timestamp + audit', async () => {
     const draft = await createDraft();
     const before = await prisma.auditLog.count({
-      where: { action: 'commission_statement_approved' }
+      where: { action: 'commission_statement_approved' },
     });
     const res = await approveStatement(prisma, {
       statementId: draft.id,
       partnerId,
-      approvedByUserId: partnerUserId
+      approvedByUserId: partnerUserId,
     });
     expect(res.ok).toBe(true);
     if (!res.ok) throw new Error('expected ok');
@@ -81,7 +81,7 @@ describe('approveStatement', () => {
     expect(res.statement.approvedAt).not.toBeNull();
     expect(res.statement.approvedByUserId).toBe(partnerUserId);
     const after = await prisma.auditLog.count({
-      where: { action: 'commission_statement_approved' }
+      where: { action: 'commission_statement_approved' },
     });
     expect(after).toBe(before + 1);
   });
@@ -96,14 +96,14 @@ describe('approveStatement', () => {
         totalBaseAmount: 0,
         averageRate: 0,
         totalCommissionAmount: 0,
-        status: 'draft'
-      }
+        status: 'draft',
+      },
     });
     expect(
       await approveStatement(prisma, {
         statementId: draft.id,
         partnerId,
-        approvedByUserId: partnerUserId
+        approvedByUserId: partnerUserId,
       })
     ).toEqual({ ok: false, error: 'not_found' });
     await prisma.commissionStatement.deleteMany({ where: { partnerId: otherP.id } });
@@ -115,13 +115,13 @@ describe('approveStatement', () => {
     await approveStatement(prisma, {
       statementId: draft.id,
       partnerId,
-      approvedByUserId: partnerUserId
+      approvedByUserId: partnerUserId,
     });
     expect(
       await approveStatement(prisma, {
         statementId: draft.id,
         partnerId,
-        approvedByUserId: partnerUserId
+        approvedByUserId: partnerUserId,
       })
     ).toEqual({ ok: false, error: 'lifecycle_violation' });
   });
@@ -130,13 +130,13 @@ describe('approveStatement', () => {
     const draft = await createDraft();
     await prisma.commissionStatement.update({
       where: { id: draft.id },
-      data: { supersededBy: 'fake-id' }
+      data: { supersededBy: 'fake-id' },
     });
     expect(
       await approveStatement(prisma, {
         statementId: draft.id,
         partnerId,
-        approvedByUserId: partnerUserId
+        approvedByUserId: partnerUserId,
       })
     ).toEqual({ ok: false, error: 'lifecycle_violation' });
   });
@@ -148,11 +148,11 @@ describe('markStatementPaid', () => {
     await approveStatement(prisma, {
       statementId: draft.id,
       partnerId,
-      approvedByUserId: partnerUserId
+      approvedByUserId: partnerUserId,
     });
     const res = await markStatementPaid(prisma, {
       statementId: draft.id,
-      paidByUserId: platformAdminUserId
+      paidByUserId: platformAdminUserId,
     });
     expect(res.ok).toBe(true);
     if (!res.ok) throw new Error('expected ok');
@@ -165,7 +165,7 @@ describe('markStatementPaid', () => {
     expect(
       await markStatementPaid(prisma, {
         statementId: draft.id,
-        paidByUserId: platformAdminUserId
+        paidByUserId: platformAdminUserId,
       })
     ).toEqual({ ok: false, error: 'lifecycle_violation' });
   });
@@ -175,12 +175,12 @@ describe('markStatementPaid', () => {
     await approveStatement(prisma, {
       statementId: draft.id,
       partnerId,
-      approvedByUserId: partnerUserId
+      approvedByUserId: partnerUserId,
     });
     expect(
       await markStatementPaid(prisma, {
         statementId: draft.id,
-        paidByUserId: partnerUserId
+        paidByUserId: partnerUserId,
       })
     ).toEqual({ ok: false, error: 'forbidden' });
   });
@@ -190,16 +190,16 @@ describe('markStatementPaid', () => {
     await approveStatement(prisma, {
       statementId: draft.id,
       partnerId,
-      approvedByUserId: partnerUserId
+      approvedByUserId: partnerUserId,
     });
     await markStatementPaid(prisma, {
       statementId: draft.id,
-      paidByUserId: platformAdminUserId
+      paidByUserId: platformAdminUserId,
     });
     expect(
       await markStatementPaid(prisma, {
         statementId: draft.id,
-        paidByUserId: platformAdminUserId
+        paidByUserId: platformAdminUserId,
       })
     ).toEqual({ ok: false, error: 'lifecycle_violation' });
   });
@@ -209,17 +209,17 @@ describe('markStatementPaid', () => {
     await approveStatement(prisma, {
       statementId: draft.id,
       partnerId,
-      approvedByUserId: partnerUserId
+      approvedByUserId: partnerUserId,
     });
     const before = await prisma.auditLog.count({
-      where: { action: 'commission_statement_paid' }
+      where: { action: 'commission_statement_paid' },
     });
     await markStatementPaid(prisma, {
       statementId: draft.id,
-      paidByUserId: platformAdminUserId
+      paidByUserId: platformAdminUserId,
     });
     const after = await prisma.auditLog.count({
-      where: { action: 'commission_statement_paid' }
+      where: { action: 'commission_statement_paid' },
     });
     expect(after).toBe(before + 1);
   });

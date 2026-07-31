@@ -14,7 +14,7 @@ vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
 
 const { managedOrgIds, getCompanyTeamVisibility } = vi.hoisted(() => ({
   managedOrgIds: vi.fn(),
-  getCompanyTeamVisibility: vi.fn()
+  getCompanyTeamVisibility: vi.fn(),
 }));
 vi.mock('@/lib/auth/managerPolicy', () => ({ managedOrgIds, getCompanyTeamVisibility }));
 
@@ -23,7 +23,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 
 const prisma = {
   certificate: { findMany: vi.fn(), count: vi.fn() },
-  organization: { findMany: vi.fn() }
+  organization: { findMany: vi.fn() },
 } as never as import('@prisma/client').PrismaClient;
 
 const mocked = prisma as unknown as {
@@ -35,7 +35,7 @@ const admin = { sub: 'a', role: 'admin' } as SessionPayload;
 const orgSession = {
   sub: 'o',
   role: 'organization',
-  organizationMemberships: [{ organizationId: 'org1', roleInOrg: 'admin', isActive: true }]
+  organizationMemberships: [{ organizationId: 'org1', roleInOrg: 'admin', isActive: true }],
 } as never as SessionPayload;
 
 // Фиксированное «сегодня» для детерминированных границ.
@@ -93,13 +93,17 @@ describe('listCertificates — organizationId и скоуп', () => {
   });
 
   it('partner-manager видит только пересечение организаций партнёра с assignedOrgIds', async () => {
-    mocked.organization.findMany.mockResolvedValue([{ id: 'orgA' }, { id: 'orgB' }, { id: 'orgC' }]);
+    mocked.organization.findMany.mockResolvedValue([
+      { id: 'orgA' },
+      { id: 'orgB' },
+      { id: 'orgC' },
+    ]);
     const pm = {
       sub: 'p',
       role: 'partner',
       partnerId: 'pt1',
       partnerRole: 'manager',
-      assignedOrgIds: ['orgB', 'orgZ']
+      assignedOrgIds: ['orgB', 'orgZ'],
     } as never as SessionPayload;
     await listCertificates(prisma, pm, {});
     expect(lastWhere().organizationId).toEqual({ in: ['orgB'] });
@@ -107,14 +111,24 @@ describe('listCertificates — organizationId и скоуп', () => {
 
   it('partner-admin видит все организации партнёра (без сужения)', async () => {
     mocked.organization.findMany.mockResolvedValue([{ id: 'orgA' }, { id: 'orgB' }]);
-    const pa = { sub: 'p', role: 'partner', partnerId: 'pt1', partnerRole: 'admin' } as never as SessionPayload;
+    const pa = {
+      sub: 'p',
+      role: 'partner',
+      partnerId: 'pt1',
+      partnerRole: 'admin',
+    } as never as SessionPayload;
     await listCertificates(prisma, pa, {});
     expect(lastWhere().organizationId).toEqual({ in: ['orgA', 'orgB'] });
   });
 
   it('partner-manager без assignedOrgIds → пустой скоуп (?? [] ветка)', async () => {
     mocked.organization.findMany.mockResolvedValue([{ id: 'orgA' }]);
-    const pm = { sub: 'p', role: 'partner', partnerId: 'pt1', partnerRole: 'manager' } as never as SessionPayload;
+    const pm = {
+      sub: 'p',
+      role: 'partner',
+      partnerId: 'pt1',
+      partnerRole: 'manager',
+    } as never as SessionPayload;
     await listCertificates(prisma, pm, {});
     expect(lastWhere().organizationId).toEqual({ in: [] });
   });
@@ -163,7 +177,7 @@ describe('listCertificates — фильтры, поиск, пагинация, t
   it('PII-журнал получает studentId выданной страницы', async () => {
     mocked.certificate.findMany.mockResolvedValue([
       { id: 'c1', studentId: 's1' },
-      { id: 'c2', studentId: 's2' }
+      { id: 'c2', studentId: 's2' },
     ]);
     await listCertificates(prisma, admin, { take: 2 });
     expect(recordPiiAccess).toHaveBeenCalledWith(

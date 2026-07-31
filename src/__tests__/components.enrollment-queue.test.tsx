@@ -6,7 +6,10 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 const { push, refresh } = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push, refresh }) }));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 import { EnrollmentQueue } from '@/components/enrollment/enrollment-queue';
@@ -24,7 +27,7 @@ function item(overrides: Partial<EnrollmentItemRow> = {}): EnrollmentItemRow {
     extra: null,
     status: 'pending',
     externalStudentId: null,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -45,7 +48,7 @@ function row(overrides: Partial<EnrollmentRow> = {}): EnrollmentRow {
     note: null,
     createdAt: new Date('2024-01-15T10:00:00Z'),
     reviewedAt: null,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -70,7 +73,13 @@ describe('EnrollmentQueue', () => {
   it('renders partnerName preferentially over organizationName/submittedByName, with submitterRole below', () => {
     render(
       React.createElement(EnrollmentQueue, {
-        rows: [row({ partnerName: 'ООО Партнёр', organizationName: 'ООО Заказчик', submitterRole: 'partner' })]
+        rows: [
+          row({
+            partnerName: 'ООО Партнёр',
+            organizationName: 'ООО Заказчик',
+            submitterRole: 'partner',
+          }),
+        ],
       })
     );
     expect(screen.getByText('ООО Партнёр')).toBeTruthy();
@@ -80,7 +89,7 @@ describe('EnrollmentQueue', () => {
   it('falls back to organizationName when partnerName is null', () => {
     render(
       React.createElement(EnrollmentQueue, {
-        rows: [row({ partnerName: null, organizationName: 'ООО Заказчик' })]
+        rows: [row({ partnerName: null, organizationName: 'ООО Заказчик' })],
       })
     );
     expect(screen.getByText('ООО Заказчик')).toBeTruthy();
@@ -89,7 +98,7 @@ describe('EnrollmentQueue', () => {
   it('falls back to submittedByName when both partnerName and organizationName are null', () => {
     render(
       React.createElement(EnrollmentQueue, {
-        rows: [row({ partnerName: null, organizationName: null, submittedByName: 'Сам подал' })]
+        rows: [row({ partnerName: null, organizationName: null, submittedByName: 'Сам подал' })],
       })
     );
     expect(screen.getByText('Сам подал')).toBeTruthy();
@@ -109,11 +118,11 @@ describe('EnrollmentQueue', () => {
                 birthDate: new Date('1990-01-02T00:00:00Z'),
                 extra: 'нужна параллельная группа',
                 status: 'provisioned',
-                externalStudentId: 'LMS-42'
-              })
-            ]
-          })
-        ]
+                externalStudentId: 'LMS-42',
+              }),
+            ],
+          }),
+        ],
       })
     );
     fireEvent.click(screen.getByText(/показать/));
@@ -131,7 +140,7 @@ describe('EnrollmentQueue', () => {
   it('счётчик «и ещё N» для многопозиционной заявки', () => {
     render(
       React.createElement(EnrollmentQueue, {
-        rows: [row({ studentCount: 3, items: [item(), item({ id: 'i2' }), item({ id: 'i3' })] })]
+        rows: [row({ studentCount: 3, items: [item(), item({ id: 'i2' }), item({ id: 'i3' })] })],
       })
     );
     expect(screen.getByText(/и ещё 2/)).toBeTruthy();
@@ -143,7 +152,7 @@ describe('EnrollmentQueue', () => {
     // заполнены. Строка очереди обязана остаться кликабельной и читаемой.
     render(
       React.createElement(EnrollmentQueue, {
-        rows: [row({ firstStudentName: null, studentCount: 1 })]
+        rows: [row({ firstStudentName: null, studentCount: 1 })],
       })
     );
     expect(screen.getByText('—')).toBeTruthy();
@@ -164,7 +173,11 @@ describe('EnrollmentQueue', () => {
   });
 
   it('rejected/provisioned rows show no action buttons (+ причина отклонения в строке)', () => {
-    render(React.createElement(EnrollmentQueue, { rows: [row({ status: 'rejected', rejectedReason: 'Неполные данные' })] }));
+    render(
+      React.createElement(EnrollmentQueue, {
+        rows: [row({ status: 'rejected', rejectedReason: 'Неполные данные' })],
+      })
+    );
     expect(screen.queryByRole('button', { name: 'Утвердить' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Отклонить' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Зачислены' })).toBeNull();
@@ -190,7 +203,7 @@ describe('EnrollmentQueue', () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       status: 400,
-      json: async () => ({ error: 'not_found' })
+      json: async () => ({ error: 'not_found' }),
     });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(EnrollmentQueue, { rows: [row({ status: 'pending' })] }));
@@ -207,7 +220,7 @@ describe('EnrollmentQueue', () => {
       status: 500,
       json: async () => {
         throw new Error('bad json');
-      }
+      },
     });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(EnrollmentQueue, { rows: [row({ status: 'pending' })] }));
@@ -241,7 +254,7 @@ describe('EnrollmentQueue', () => {
         '/api/enrollments/e1',
         expect.objectContaining({
           method: 'PATCH',
-          body: JSON.stringify({ action: 'markProvisioned', externalStudentId: 'LMS-7' })
+          body: JSON.stringify({ action: 'markProvisioned', externalStudentId: 'LMS-7' }),
         })
       )
     );
@@ -254,7 +267,7 @@ describe('EnrollmentQueue', () => {
     vi.stubGlobal('fetch', fetchMock);
     render(
       React.createElement(EnrollmentQueue, {
-        rows: [row({ status: 'approved', studentCount: 2, items: [item(), item({ id: 'i2' })] })]
+        rows: [row({ status: 'approved', studentCount: 2, items: [item(), item({ id: 'i2' })] })],
       })
     );
 
@@ -264,7 +277,7 @@ describe('EnrollmentQueue', () => {
       expect(fetchMock).toHaveBeenCalledWith(
         '/api/enrollments/e1',
         expect.objectContaining({
-          body: JSON.stringify({ action: 'markProvisioned', externalStudentId: '' })
+          body: JSON.stringify({ action: 'markProvisioned', externalStudentId: '' }),
         })
       )
     );
@@ -303,7 +316,7 @@ describe('EnrollmentQueue', () => {
         '/api/enrollments/e1',
         expect.objectContaining({
           method: 'PATCH',
-          body: JSON.stringify({ action: 'reject', reason: 'Причина отказа' })
+          body: JSON.stringify({ action: 'reject', reason: 'Причина отказа' }),
         })
       )
     );
@@ -349,7 +362,11 @@ describe('EnrollmentQueue', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Утвердить' }));
     // Button becomes disabled while busy (loading prop wired through to Button)
-    await waitFor(() => expect((screen.getByRole('button', { name: 'Утвердить' }) as HTMLButtonElement).disabled).toBe(true));
+    await waitFor(() =>
+      expect(
+        (screen.getByRole('button', { name: 'Утвердить' }) as HTMLButtonElement).disabled
+      ).toBe(true)
+    );
 
     resolveFetch({ ok: true });
     await waitFor(() => expect(toastSuccess).toHaveBeenCalled());

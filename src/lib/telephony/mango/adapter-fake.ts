@@ -10,7 +10,9 @@ import type { MangoAdapter } from './index';
  * (JSON array of rows), defaulting to [].
  */
 export class FakeMangoAdapter implements MangoAdapter {
-  async fetchRecording(recordingId: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+  async fetchRecording(
+    recordingId: string
+  ): Promise<{ buffer: Buffer; contentType: string } | null> {
     void recordingId;
     const raw = process.env.FAKE_MANGO_RECORDING;
     if (!raw) return null;
@@ -26,7 +28,10 @@ export class FakeMangoAdapter implements MangoAdapter {
     return { ready: true, rows: readStatsFixture() };
   }
 
-  async initiateCallback(input: { fromInternal: string; toNumber: string }): Promise<{ commandId: string }> {
+  async initiateCallback(input: {
+    fromInternal: string;
+    toNumber: string;
+  }): Promise<{ commandId: string }> {
     void input;
     return { commandId: `fake-cmd-${randomUUID()}` };
   }

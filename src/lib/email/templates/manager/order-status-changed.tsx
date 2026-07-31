@@ -11,7 +11,7 @@ export type ManagerOrderStatusChangedProps = {
 
 export function ManagerOrderStatusChanged(props: ManagerOrderStatusChangedProps) {
   return (
-    <EmailLayout title='Статус заказа изменён'>
+    <EmailLayout title="Статус заказа изменён">
       <p style={emailStyles.paragraph}>
         Менеджер <strong>{props.actorName}</strong> перевёл заказ{' '}
         <strong>№ {props.orderNumber}</strong>:
@@ -30,19 +30,15 @@ export function ManagerOrderStatusChanged(props: ManagerOrderStatusChangedProps)
   );
 }
 
-export function managerOrderStatusChangedSubject(
-  props: ManagerOrderStatusChangedProps
-): string {
+export function managerOrderStatusChangedSubject(props: ManagerOrderStatusChangedProps): string {
   return `Менеджер ${props.actorName} перевёл заказ № ${props.orderNumber} в ${props.newStatus}`;
 }
 
-export function managerOrderStatusChangedText(
-  props: ManagerOrderStatusChangedProps
-): string {
+export function managerOrderStatusChangedText(props: ManagerOrderStatusChangedProps): string {
   return [
     `Менеджер ${props.actorName} перевёл заказ № ${props.orderNumber}:`,
     `${props.oldStatus} → ${props.newStatus}.`,
     '',
-    `Открыть заказ: ${props.orderUrl}`
+    `Открыть заказ: ${props.orderUrl}`,
   ].join('\n');
 }

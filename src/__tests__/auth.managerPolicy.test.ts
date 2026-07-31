@@ -14,7 +14,7 @@ import {
   managerOrgScope,
   isManagerLeader,
   isLeaderSameCompany,
-  getCompanyTeamVisibility
+  getCompanyTeamVisibility,
 } from '@/lib/auth/managerPolicy';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
@@ -22,7 +22,7 @@ function makeSession(overrides: Partial<SessionPayload> = {}): SessionPayload {
   return {
     sub: 'user-1',
     role: 'manager',
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -48,8 +48,8 @@ describe('managerOrderScopeFilter', () => {
       OR: [
         { managerId: 'user-1' },
         { organizationId: { in: ['org-A', 'org-B'] } },
-        { comments: { some: { authorId: 'user-1' } } }
-      ]
+        { comments: { some: { authorId: 'user-1' } } },
+      ],
     });
   });
 
@@ -59,8 +59,8 @@ describe('managerOrderScopeFilter', () => {
       OR: [
         { managerId: 'user-1' },
         { organizationId: { in: [] } },
-        { comments: { some: { authorId: 'user-1' } } }
-      ]
+        { comments: { some: { authorId: 'user-1' } } },
+      ],
     });
   });
 });
@@ -73,10 +73,10 @@ describe('managerDocumentScopeFilter', () => {
         OR: [
           { managerId: 'user-1' },
           { organizationId: { in: ['org-A'] } },
-          { comments: { some: { authorId: 'user-1' } } }
-        ]
+          { comments: { some: { authorId: 'user-1' } } },
+        ],
       },
-      scanStatus: { not: 'infected' }
+      scanStatus: { not: 'infected' },
     });
   });
 });
@@ -95,16 +95,12 @@ describe('managerOrgScopeFilter', () => {
 describe('canSeeOrder', () => {
   it('true when managerId equals session.sub', () => {
     const session = makeSession();
-    expect(
-      canSeeOrder(session, { managerId: 'user-1', organizationId: null })
-    ).toBe(true);
+    expect(canSeeOrder(session, { managerId: 'user-1', organizationId: null })).toBe(true);
   });
 
   it('true when organizationId is in managed scope', () => {
     const session = makeSession({ managedOrgIds: ['org-A'] });
-    expect(
-      canSeeOrder(session, { managerId: 'someone-else', organizationId: 'org-A' })
-    ).toBe(true);
+    expect(canSeeOrder(session, { managerId: 'someone-else', organizationId: 'org-A' })).toBe(true);
   });
 
   it('true when commentsCountByMe > 0 (historical access)', () => {
@@ -113,7 +109,7 @@ describe('canSeeOrder', () => {
       canSeeOrder(session, {
         managerId: 'someone-else',
         organizationId: 'org-X',
-        commentsCountByMe: 2
+        commentsCountByMe: 2,
       })
     ).toBe(true);
   });
@@ -124,39 +120,35 @@ describe('canSeeOrder', () => {
       canSeeOrder(session, {
         managerId: 'someone-else',
         organizationId: 'org-X',
-        commentsCountByMe: 0
+        commentsCountByMe: 0,
       })
     ).toBe(false);
   });
 
   it('false for orphan order (null managerId, null organizationId, no comments)', () => {
     const session = makeSession({ managedOrgIds: ['org-A'] });
-    expect(
-      canSeeOrder(session, { managerId: null, organizationId: null })
-    ).toBe(false);
+    expect(canSeeOrder(session, { managerId: null, organizationId: null })).toBe(false);
   });
 
   it('false when commentsCountByMe is undefined and no other match', () => {
     const session = makeSession({ managedOrgIds: ['org-A'] });
-    expect(
-      canSeeOrder(session, { managerId: null, organizationId: 'org-X' })
-    ).toBe(false);
+    expect(canSeeOrder(session, { managerId: null, organizationId: 'org-X' })).toBe(false);
   });
 });
 
 describe('canSeeDocument', () => {
   it('delegates to canSeeOrder via doc.order', () => {
     const session = makeSession({ managedOrgIds: ['org-A'] });
-    expect(
-      canSeeDocument(session, { order: { managerId: null, organizationId: 'org-A' } })
-    ).toBe(true);
+    expect(canSeeDocument(session, { order: { managerId: null, organizationId: 'org-A' } })).toBe(
+      true
+    );
   });
 
   it('false when underlying order is not visible', () => {
     const session = makeSession({ managedOrgIds: ['org-A'] });
-    expect(
-      canSeeDocument(session, { order: { managerId: null, organizationId: 'org-X' } })
-    ).toBe(false);
+    expect(canSeeDocument(session, { order: { managerId: null, organizationId: 'org-X' } })).toBe(
+      false
+    );
   });
 });
 
@@ -219,15 +211,23 @@ describe('managerOrgScope (resolver)', () => {
 describe('canSeeOrder with teamMode', () => {
   it('teamMode=true: visible iff order.companyId === session.companyId', () => {
     const session = makeSession({ companyId: 'co-1' });
-    expect(canSeeOrder(session, { managerId: 'other', organizationId: 'org-X', companyId: 'co-1' }, true)).toBe(true);
-    expect(canSeeOrder(session, { managerId: 'other', organizationId: 'org-X', companyId: 'co-2' }, true)).toBe(false);
+    expect(
+      canSeeOrder(session, { managerId: 'other', organizationId: 'org-X', companyId: 'co-1' }, true)
+    ).toBe(true);
+    expect(
+      canSeeOrder(session, { managerId: 'other', organizationId: 'org-X', companyId: 'co-2' }, true)
+    ).toBe(false);
   });
   it('teamMode=true with no session.companyId denies', () => {
-    expect(canSeeOrder(makeSession(), { managerId: null, organizationId: null, companyId: 'co-1' }, true)).toBe(false);
+    expect(
+      canSeeOrder(makeSession(), { managerId: null, organizationId: null, companyId: 'co-1' }, true)
+    ).toBe(false);
   });
   it('teamMode=false keeps the legacy three-way semantics', () => {
     const session = makeSession({ managedOrgIds: ['org-A'], companyId: 'co-1' });
-    expect(canSeeOrder(session, { managerId: 'user-1', organizationId: null, companyId: 'co-2' }, false)).toBe(true);
+    expect(
+      canSeeOrder(session, { managerId: 'user-1', organizationId: null, companyId: 'co-2' }, false)
+    ).toBe(true);
   });
 });
 
@@ -236,14 +236,14 @@ describe('managerDocumentScope (resolver)', () => {
     const session = makeSession({ managedOrgIds: ['org-A'], companyId: 'co-1' });
     expect(managerDocumentScope(session, false)).toEqual({
       order: managerOrderScopeFilter(session),
-      scanStatus: { not: 'infected' }
+      scanStatus: { not: 'infected' },
     });
   });
   it('teamMode=true uses company-wide order filter + excludes infected', () => {
     const session = makeSession({ companyId: 'co-1' });
     expect(managerDocumentScope(session, true)).toEqual({
       order: { companyId: 'co-1' },
-      scanStatus: { not: 'infected' }
+      scanStatus: { not: 'infected' },
     });
   });
 });
@@ -297,19 +297,19 @@ describe('getCompanyTeamVisibility', () => {
   it('returns the managerTeamVisibility flag from the DB when companyId is present', async () => {
     const prisma = {
       company: {
-        findUnique: vi.fn().mockResolvedValue({ managerTeamVisibility: true })
-      }
+        findUnique: vi.fn().mockResolvedValue({ managerTeamVisibility: true }),
+      },
     } as any;
     expect(await getCompanyTeamVisibility(prisma, 'co-1')).toBe(true);
     expect(prisma.company.findUnique).toHaveBeenCalledWith({
       where: { id: 'co-1' },
-      select: { managerTeamVisibility: true }
+      select: { managerTeamVisibility: true },
     });
   });
 
   it('returns false when the company row is not found (null result)', async () => {
     const prisma = {
-      company: { findUnique: vi.fn().mockResolvedValue(null) }
+      company: { findUnique: vi.fn().mockResolvedValue(null) },
     } as any;
     expect(await getCompanyTeamVisibility(prisma, 'co-missing')).toBe(false);
   });
@@ -317,8 +317,8 @@ describe('getCompanyTeamVisibility', () => {
   it('returns false when managerTeamVisibility is false', async () => {
     const prisma = {
       company: {
-        findUnique: vi.fn().mockResolvedValue({ managerTeamVisibility: false })
-      }
+        findUnique: vi.fn().mockResolvedValue({ managerTeamVisibility: false }),
+      },
     } as any;
     expect(await getCompanyTeamVisibility(prisma, 'co-1')).toBe(false);
   });

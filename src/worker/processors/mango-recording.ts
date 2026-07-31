@@ -14,13 +14,11 @@ export type MangoRecordingPayload = {
 };
 
 export type MangoRecordingResult =
-  | { skipped: 'no_call' }
-  | { skipped: 'no_recording' }
-  | { stored: true };
+  { skipped: 'no_call' } | { skipped: 'no_recording' } | { stored: true };
 
 export async function mangoRecordingProcessor(
   job: Job<MangoRecordingPayload>,
-  db: PrismaClient = prisma,
+  db: PrismaClient = prisma
 ): Promise<MangoRecordingResult> {
   const { externalId, recordingId } = job.data;
 
@@ -46,12 +44,14 @@ export async function mangoRecordingProcessor(
   });
 
   const payload: ScanDocumentPayload = { kind: 'call_recording', id: call.id };
-  await getQueue('docs.scanDocument').add('scan', payload).catch((err) => {
-    log.warn('[mango-recording] enqueue scan failed', {
-      callId: call.id,
-      error: err instanceof Error ? err.message : String(err),
+  await getQueue('docs.scanDocument')
+    .add('scan', payload)
+    .catch((err) => {
+      log.warn('[mango-recording] enqueue scan failed', {
+        callId: call.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
     });
-  });
 
   return { stored: true };
 }

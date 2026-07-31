@@ -21,15 +21,15 @@ export function managerOrderScopeFilter(session: SessionPayload): Prisma.OrderWh
     OR: [
       { managerId: session.sub },
       { organizationId: { in: managedOrgIds(session) } },
-      { comments: { some: { authorId: session.sub } } }
-    ]
+      { comments: { some: { authorId: session.sub } } },
+    ],
   };
 }
 
 export function managerDocumentScopeFilter(session: SessionPayload): Prisma.DocumentWhereInput {
   return {
     order: managerOrderScopeFilter(session),
-    scanStatus: { not: 'infected' }
+    scanStatus: { not: 'infected' },
   };
 }
 
@@ -67,7 +67,9 @@ export function canSeeOrder(
 
 export function canSeeDocument(
   session: SessionPayload,
-  doc: { order: { managerId: string | null; organizationId: string | null; companyId?: string | null } },
+  doc: {
+    order: { managerId: string | null; organizationId: string | null; companyId?: string | null };
+  },
   teamMode = false
 ): boolean {
   return canSeeOrder(session, doc.order, teamMode);
@@ -93,19 +95,30 @@ export function companyWideOrderFilter(session: SessionPayload): Prisma.OrderWhe
  * существующие call-site'ы работают без правок; сессия без профиля даёт
  * legacy-поведение байт-в-байт (регресс C/F зелёный).
  */
-export function managerOrderScope(session: SessionPayload, teamMode: boolean): Prisma.OrderWhereInput {
+export function managerOrderScope(
+  session: SessionPayload,
+  teamMode: boolean
+): Prisma.OrderWhereInput {
   const level = session.accessProfile?.orders;
   if (level) return orderWhereForLevel(session, level);
   return teamMode ? companyWideOrderFilter(session) : managerOrderScopeFilter(session);
 }
 
-export function managerDocumentScope(session: SessionPayload, teamMode: boolean): Prisma.DocumentWhereInput {
+export function managerDocumentScope(
+  session: SessionPayload,
+  teamMode: boolean
+): Prisma.DocumentWhereInput {
   const level = session.accessProfile?.documents;
-  const orderWhere = level ? orderWhereForLevel(session, level) : managerOrderScope(session, teamMode);
+  const orderWhere = level
+    ? orderWhereForLevel(session, level)
+    : managerOrderScope(session, teamMode);
   return { order: orderWhere, scanStatus: { not: 'infected' } };
 }
 
-export function managerOrgScope(session: SessionPayload, teamMode: boolean): Prisma.OrganizationWhereInput {
+export function managerOrgScope(
+  session: SessionPayload,
+  teamMode: boolean
+): Prisma.OrganizationWhereInput {
   const level = session.accessProfile?.organizations;
   if (level) {
     const companyOnly = { companyId: session.companyId ?? NO_COMPANY_SENTINEL };
@@ -113,7 +126,9 @@ export function managerOrgScope(session: SessionPayload, teamMode: boolean): Pri
     // assigned/own → закреплённые орги, всё равно ограниченные компанией (C8-пол).
     return { AND: [companyOnly, managerOrgScopeFilter(session)] };
   }
-  return teamMode ? { companyId: session.companyId ?? NO_COMPANY_SENTINEL } : managerOrgScopeFilter(session);
+  return teamMode
+    ? { companyId: session.companyId ?? NO_COMPANY_SENTINEL }
+    : managerOrgScopeFilter(session);
 }
 
 export function isManagerLeader(session: SessionPayload): boolean {
@@ -126,7 +141,10 @@ export function isManagerLeader(session: SessionPayload): boolean {
  * Расширяет деталь заказа и держит scope-gate самозабора (claimOrder в
  * distribution.ts зеркалит getOrder этой же границей), НЕ списки.
  */
-export function isLeaderSameCompany(session: SessionPayload, orderCompanyId: string | null | undefined): boolean {
+export function isLeaderSameCompany(
+  session: SessionPayload,
+  orderCompanyId: string | null | undefined
+): boolean {
   return isManagerLeader(session) && !!session.companyId && orderCompanyId === session.companyId;
 }
 
@@ -143,7 +161,7 @@ export async function getCompanyTeamVisibility(
   if (!companyId) return false;
   const company = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { managerTeamVisibility: true }
+    select: { managerTeamVisibility: true },
   });
   return company?.managerTeamVisibility ?? false;
 }
@@ -175,7 +193,7 @@ export async function canManagerAccessOrg(
   if (!session.companyId) return false;
   const org = await prisma.organization.findUnique({
     where: { id: orgId },
-    select: { companyId: true }
+    select: { companyId: true },
   });
   return !!org && org.companyId === session.companyId;
 }

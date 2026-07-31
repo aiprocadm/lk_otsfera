@@ -6,7 +6,13 @@ import { Paginator } from '@/components/ui/paginator';
 describe('Paginator', () => {
   it('возвращает пусто при ≤1 странице', () => {
     const html = renderToString(
-      React.createElement(Paginator, { basePath: '/x', searchParams: {}, take: 25, skip: 0, total: 10 })
+      React.createElement(Paginator, {
+        basePath: '/x',
+        searchParams: {},
+        take: 25,
+        skip: 0,
+        total: 10,
+      })
     );
     expect(html).toBe('');
   });
@@ -14,7 +20,11 @@ describe('Paginator', () => {
   it('первая страница (60/25): «Вперёд» есть, «Назад» нет, «Страница 1 из 3»', () => {
     const html = renderToString(
       React.createElement(Paginator, {
-        basePath: '/organization/orders', searchParams: { search: 'abc' }, take: 25, skip: 0, total: 60
+        basePath: '/organization/orders',
+        searchParams: { search: 'abc' },
+        take: 25,
+        skip: 0,
+        total: 60,
       })
     );
     expect(html).toContain('Вперёд');
@@ -25,7 +35,11 @@ describe('Paginator', () => {
   it('средняя страница: обе кнопки; текущие query-параметры сохранены', () => {
     const html = renderToString(
       React.createElement(Paginator, {
-        basePath: '/organization/orders', searchParams: { search: 'abc', org: 'o1' }, take: 25, skip: 25, total: 60
+        basePath: '/organization/orders',
+        searchParams: { search: 'abc', org: 'o1' },
+        take: 25,
+        skip: 25,
+        total: 60,
       })
     );
     expect(html).toContain('Назад');
@@ -38,7 +52,11 @@ describe('Paginator', () => {
   it('последняя страница: «Назад» есть, «Вперёд» нет', () => {
     const html = renderToString(
       React.createElement(Paginator, {
-        basePath: '/partner/deals', searchParams: {}, take: 25, skip: 50, total: 60
+        basePath: '/partner/deals',
+        searchParams: {},
+        take: 25,
+        skip: 50,
+        total: 60,
       })
     );
     expect(html).toContain('Назад');
@@ -53,7 +71,7 @@ describe('Paginator', () => {
         searchParams: { take: '999', skip: '999', search: 'abc' },
         take: 25,
         skip: 25,
-        total: 60
+        total: 60,
       })
     );
     // Стейл take/skip из searchParams не должны просочиться в ссылку —

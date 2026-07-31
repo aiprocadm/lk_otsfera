@@ -19,17 +19,21 @@ const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
 vi.mock('@/components/enrollment/enrollment-queue', () => ({
   EnrollmentQueue: (props: { rows: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'enrollment-queue' }, JSON.stringify(props.rows))
+    React.createElement('div', { 'data-testid': 'enrollment-queue' }, JSON.stringify(props.rows)),
 }));
 
-
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'leader' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'leader' as const,
+  companyId: 'c1',
+};
 
 describe('LeaderEnrollmentsPage', () => {
   beforeEach(() => {

@@ -18,17 +18,34 @@ const STAMP = Date.now();
 let companyA: string, companyB: string, m1: string, mB: string, taskA: string;
 
 const client = (role: 'partner' | 'organization' | 'student'): SessionPayload =>
-  ({ sub: `${role}-1`, role, companyId: companyA, managedOrgIds: [] } as unknown as SessionPayload);
+  ({ sub: `${role}-1`, role, companyId: companyA, managedOrgIds: [] }) as unknown as SessionPayload;
 const sMB = (): SessionPayload =>
-  ({ sub: mB, role: 'manager', companyId: companyB, managedOrgIds: [] } as unknown as SessionPayload);
+  ({
+    sub: mB,
+    role: 'manager',
+    companyId: companyB,
+    managedOrgIds: [],
+  }) as unknown as SessionPayload;
 
 beforeAll(async () => {
   prisma = new PrismaClient();
   companyA = (await prisma.company.create({ data: { name: `g38a-${STAMP}` } })).id;
   companyB = (await prisma.company.create({ data: { name: `g38b-${STAMP}` } })).id;
-  m1 = (await prisma.user.create({ data: { email: `g38m1-${STAMP}@t.local`, name: 'M1', role: 'manager', companyId: companyA } })).id;
-  mB = (await prisma.user.create({ data: { email: `g38mb-${STAMP}@t.local`, name: 'MB', role: 'manager', companyId: companyB } })).id;
-  taskA = (await prisma.task.create({ data: { companyId: companyA, createdById: m1, title: `g38task-${STAMP}`, status: 'todo' } })).id;
+  m1 = (
+    await prisma.user.create({
+      data: { email: `g38m1-${STAMP}@t.local`, name: 'M1', role: 'manager', companyId: companyA },
+    })
+  ).id;
+  mB = (
+    await prisma.user.create({
+      data: { email: `g38mb-${STAMP}@t.local`, name: 'MB', role: 'manager', companyId: companyB },
+    })
+  ).id;
+  taskA = (
+    await prisma.task.create({
+      data: { companyId: companyA, createdById: m1, title: `g38task-${STAMP}`, status: 'todo' },
+    })
+  ).id;
 });
 
 afterAll(async () => {
@@ -41,36 +58,71 @@ afterAll(async () => {
 });
 
 describe('canSeeTask — клиентские роли не видят задачи никогда (pure)', () => {
-  const task = { companyId: companyA, createdById: m1, assigneeUserIds: [] as string[], linkedOrganizationId: null };
-  it.each(['partner', 'organization', 'student'] as const)('роль %s → false даже в своей компании', (role) => {
-    expect(canSeeTask(client(role), task)).toBe(false);
-  });
+  const task = {
+    companyId: companyA,
+    createdById: m1,
+    assigneeUserIds: [] as string[],
+    linkedOrganizationId: null,
+  };
+  it.each(['partner', 'organization', 'student'] as const)(
+    'роль %s → false даже в своей компании',
+    (role) => {
+      expect(canSeeTask(client(role), task)).toBe(false);
+    }
+  );
 });
 
 describe('service-layer: клиентские роли отклонены', () => {
-  it.each(['partner', 'organization', 'student'] as const)('createTask от %s → forbidden', async (role) => {
-    expect(await createTask(prisma, client(role), { title: 'взлом' })).toEqual({ ok: false, error: 'forbidden' });
-  });
+  it.each(['partner', 'organization', 'student'] as const)(
+    'createTask от %s → forbidden',
+    async (role) => {
+      expect(await createTask(prisma, client(role), { title: 'взлом' })).toEqual({
+        ok: false,
+        error: 'forbidden',
+      });
+    }
+  );
 
   it('updateTask/deleteTask/assignTask от partner → forbidden (staffGate)', async () => {
-    expect(await updateTask(prisma, client('partner'), taskA, { title: 'x' })).toEqual({ ok: false, error: 'forbidden' });
-    expect(await deleteTask(prisma, client('partner'), taskA)).toEqual({ ok: false, error: 'forbidden' });
-    expect(await assignTask(prisma, client('partner'), { taskId: taskA, assigneeIds: [] })).toEqual({ ok: false, error: 'forbidden' });
+    expect(await updateTask(prisma, client('partner'), taskA, { title: 'x' })).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+    expect(await deleteTask(prisma, client('partner'), taskA)).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+    expect(await assignTask(prisma, client('partner'), { taskId: taskA, assigneeIds: [] })).toEqual(
+      { ok: false, error: 'forbidden' }
+    );
   });
 
   it('moveTask от partner своей компании → not_found (canSeeTask deny роли)', async () => {
-    expect(await moveTask(prisma, client('partner'), { taskId: taskA, toColumnId: 'default:done' })).toEqual({ ok: false, error: 'not_found' });
-    const row = await prisma.task.findUniqueOrThrow({ where: { id: taskA }, select: { status: true } });
+    expect(
+      await moveTask(prisma, client('partner'), { taskId: taskA, toColumnId: 'default:done' })
+    ).toEqual({ ok: false, error: 'not_found' });
+    const row = await prisma.task.findUniqueOrThrow({
+      where: { id: taskA },
+      select: { status: true },
+    });
     expect(row.status).toBe('todo'); // не изменилась
   });
 });
 
 describe('cross-company (C8): менеджер чужой компании не трогает задачу', () => {
   it('move/update/delete задачи компании A от менеджера компании B → not_found', async () => {
-    expect(await moveTask(prisma, sMB(), { taskId: taskA, toColumnId: 'default:in_progress' })).toEqual({ ok: false, error: 'not_found' });
-    expect(await updateTask(prisma, sMB(), taskA, { title: 'hack' })).toEqual({ ok: false, error: 'not_found' });
+    expect(
+      await moveTask(prisma, sMB(), { taskId: taskA, toColumnId: 'default:in_progress' })
+    ).toEqual({ ok: false, error: 'not_found' });
+    expect(await updateTask(prisma, sMB(), taskA, { title: 'hack' })).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
     expect(await deleteTask(prisma, sMB(), taskA)).toEqual({ ok: false, error: 'not_found' });
-    const row = await prisma.task.findUniqueOrThrow({ where: { id: taskA }, select: { status: true, title: true } });
+    const row = await prisma.task.findUniqueOrThrow({
+      where: { id: taskA },
+      select: { status: true, title: true },
+    });
     expect(row.status).toBe('todo');
   });
 });

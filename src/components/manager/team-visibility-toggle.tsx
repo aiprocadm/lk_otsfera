@@ -19,18 +19,18 @@ export function TeamVisibilityToggle({ initial }: { initial: boolean }) {
   }
 
   return (
-    <div className='rounded-lg bg-[#F3F4F6] p-4'>
-      <div className='flex items-center justify-between gap-4'>
+    <div className="rounded-lg bg-[#F3F4F6] p-4">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <p className='font-medium text-[#111111]'>Видимость всей команды</p>
-          <p className='text-sm text-gray-600'>
+          <p className="font-medium text-[#111111]">Видимость всей команды</p>
+          <p className="text-sm text-gray-600">
             {enabled
               ? 'Включено: каждый менеджер видит все заказы компании.'
               : 'Выключено: каждый менеджер видит только свои назначения.'}
           </p>
         </div>
         <button
-          type='button'
+          type="button"
           onClick={onToggle}
           disabled={pending}
           aria-pressed={enabled}
@@ -39,7 +39,11 @@ export function TeamVisibilityToggle({ initial }: { initial: boolean }) {
           {enabled ? 'Включено' : 'Выключено'}
         </button>
       </div>
-      {error && <p role='alert' className='mt-2 text-sm text-red-600'>{error}</p>}
+      {error && (
+        <p role="alert" className="mt-2 text-sm text-red-600">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

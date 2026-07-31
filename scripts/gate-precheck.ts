@@ -35,7 +35,10 @@ function gitLines(cmd: string): string[] {
 
 function changedFiles(): string[] {
   const files = new Set<string>();
-  for (const line of readStdin().split('\n').map((s) => s.trim()).filter(Boolean)) {
+  for (const line of readStdin()
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean)) {
     const [, localSha, , remoteSha] = line.split(/\s+/);
     if (!localSha || localSha === ZERO) continue; // branch deletion — nothing to push
 

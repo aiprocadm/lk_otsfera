@@ -4,7 +4,7 @@ import type {
   FinancialStatus,
   DocumentType,
   DocumentDirection,
-  Prisma
+  Prisma,
 } from '@prisma/client';
 import { orderStage, type Stage } from '@/lib/orders/humanStage';
 import { organizationChannelWhere } from '@/lib/auth/documentChannelPolicy';
@@ -12,7 +12,7 @@ import { organizationChannelWhere } from '@/lib/auth/documentChannelPolicy';
 const ORDER_ITEM_INCLUDE = {
   student: { select: { id: true, name: true, email: true } },
   direction: { select: { id: true, name: true } },
-  certificate: { select: { id: true, number: true, validUntil: true } }
+  certificate: { select: { id: true, number: true, validUntil: true } },
 } satisfies Prisma.OrderItemInclude;
 
 export type OrgOrderItemRow = Prisma.OrderItemGetPayload<{ include: typeof ORDER_ITEM_INCLUDE }>;
@@ -76,10 +76,10 @@ export async function listOrgOrders(
       ? {
           OR: [
             { title: { contains: opts.search, mode: 'insensitive' as const } },
-            { orderNumber: { contains: opts.search, mode: 'insensitive' as const } }
-          ]
+            { orderNumber: { contains: opts.search, mode: 'insensitive' as const } },
+          ],
         }
-      : {})
+      : {}),
   };
 
   const [total, orders] = await Promise.all([
@@ -99,9 +99,9 @@ export async function listOrgOrders(
         financialStatus: true,
         createdAt: true,
         deadline: true,
-        manager: { select: { name: true } }
-      }
-    })
+        manager: { select: { name: true } },
+      },
+    }),
   ]);
 
   const rows: OrgOrderRow[] = orders.map((o) => ({
@@ -117,11 +117,11 @@ export async function listOrgOrders(
       executionStatus: o.executionStatus,
       financialStatus: o.financialStatus,
       amount: Number(o.totalAmount),
-      paidTotal: Number(o.paidAmount)
+      paidTotal: Number(o.paidAmount),
     }),
     createdAt: o.createdAt,
     deadline: o.deadline,
-    managerName: o.manager?.name ?? null
+    managerName: o.manager?.name ?? null,
   }));
 
   return { rows, total };
@@ -216,8 +216,8 @@ export async function getOrgOrder(
           direction: true,
           signedAt: true,
           createdAt: true,
-          size: true
-        }
+          size: true,
+        },
       },
       payments: {
         orderBy: { paidAt: 'desc' },
@@ -227,15 +227,15 @@ export async function getOrgOrder(
           paidAt: true,
           method: true,
           isRefund: true,
-          note: true
-        }
+          note: true,
+        },
       },
       _count: { select: { comments: true } },
       items: {
         include: ORDER_ITEM_INCLUDE,
-        orderBy: { createdAt: 'asc' }
-      }
-    }
+        orderBy: { createdAt: 'asc' },
+      },
+    },
   });
 
   if (!order) return null;
@@ -250,7 +250,7 @@ export async function getOrgOrder(
       executionStatus: order.executionStatus,
       financialStatus: order.financialStatus,
       amount: Number(order.totalAmount),
-      paidTotal: Number(order.paidAmount)
+      paidTotal: Number(order.paidAmount),
     }),
     executionStatus: order.executionStatus,
     financialStatus: order.financialStatus,
@@ -278,7 +278,7 @@ export async function getOrgOrder(
       size: d.size,
       orderId: order.id,
       orderNumber: order.orderNumber,
-      orderTitle: order.title
+      orderTitle: order.title,
     })),
     payments: order.payments.map((p) => ({
       id: p.id,
@@ -286,9 +286,9 @@ export async function getOrgOrder(
       paidAt: p.paidAt,
       method: p.method,
       isRefund: p.isRefund,
-      note: p.note
+      note: p.note,
     })),
     commentsCount: order._count.comments,
-    items: order.items
+    items: order.items,
   };
 }

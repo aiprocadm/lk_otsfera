@@ -35,7 +35,7 @@ function orderWhereForScope(scope: DashboardScope) {
  */
 function orgWhereForScope(scope: DashboardScope) {
   const base: { partnerId: string; id?: { in: string[] } } = {
-    partnerId: scope.partnerId
+    partnerId: scope.partnerId,
   };
   if (scope.scopeOrgIds.length > 0) {
     base.id = { in: scope.scopeOrgIds };
@@ -51,35 +51,32 @@ function startOfNextMonth(now = new Date()): Date {
   return new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, 0);
 }
 
-export async function kpis(
-  prisma: PrismaClient,
-  scope: DashboardScope
-): Promise<Kpis> {
+export async function kpis(prisma: PrismaClient, scope: DashboardScope): Promise<Kpis> {
   const baseWhere = orderWhereForScope(scope);
 
   const partner = await prisma.partner.findUnique({
     where: { id: scope.partnerId },
-    select: { commissionRate: true }
+    select: { commissionRate: true },
   });
   const rate = partner?.commissionRate ?? new Prisma.Decimal(0);
 
   const [openOrders, outstandingAgg, paidThisMonth] = await Promise.all([
     prisma.order.count({
-      where: { ...baseWhere, executionStatus: { in: ['pending', 'in_progress'] } }
+      where: { ...baseWhere, executionStatus: { in: ['pending', 'in_progress'] } },
     }),
     // Сумма линейна → SQL SUM вместо выборки всех строк в JS (R2).
     prisma.order.aggregate({
       where: { ...baseWhere, executionStatus: { not: 'cancelled' } },
-      _sum: { totalAmount: true, paidAmount: true }
+      _sum: { totalAmount: true, paidAmount: true },
     }),
     prisma.order.findMany({
       where: {
         ...baseWhere,
         financialStatus: 'paid',
-        paidAt: { gte: startOfThisMonth(), lt: startOfNextMonth() }
+        paidAt: { gte: startOfThisMonth(), lt: startOfNextMonth() },
       },
-      select: { totalAmount: true, organization: { select: { partnerCommissionRate: true } } }
-    })
+      select: { totalAmount: true, organization: { select: { partnerCommissionRate: true } } },
+    }),
   ]);
 
   // Деньги — на Decimal (канон §1 ТЗ): накопление сумм и умножение на ставку
@@ -100,7 +97,7 @@ export async function kpis(
   return {
     openOrders,
     outstanding: outstanding.toFixed(2),
-    commissionThisMonth: commission.toFixed(2)
+    commissionThisMonth: commission.toFixed(2),
   };
 }
 
@@ -123,10 +120,7 @@ export type Attention = {
   overdueOrders: AttentionOrder[];
 };
 
-export async function attention(
-  prisma: PrismaClient,
-  scope: DashboardScope
-): Promise<Attention> {
+export async function attention(prisma: PrismaClient, scope: DashboardScope): Promise<Attention> {
   const baseWhere = orderWhereForScope(scope);
   const now = new Date();
   const fourteenDaysAgo = new Date(now.getTime() - FOURTEEN_DAYS_MS);
@@ -136,22 +130,36 @@ export async function attention(
       where: {
         ...baseWhere,
         executionStatus: { in: ['pending', 'in_progress'] },
-        updatedAt: { lt: fourteenDaysAgo }
+        updatedAt: { lt: fourteenDaysAgo },
       },
       orderBy: { updatedAt: 'asc' },
       take: ATTENTION_CAP,
-      select: { id: true, title: true, updatedAt: true, deadline: true, totalAmount: true, paidAmount: true }
+      select: {
+        id: true,
+        title: true,
+        updatedAt: true,
+        deadline: true,
+        totalAmount: true,
+        paidAmount: true,
+      },
     }),
     prisma.order.findMany({
       where: {
         ...baseWhere,
         executionStatus: { not: 'cancelled' },
         financialStatus: { in: ['billed', 'partially_paid'] },
-        deadline: { lt: now }
+        deadline: { lt: now },
       },
       orderBy: { deadline: 'asc' },
       take: ATTENTION_CAP,
-      select: { id: true, title: true, updatedAt: true, deadline: true, totalAmount: true, paidAmount: true }
+      select: {
+        id: true,
+        title: true,
+        updatedAt: true,
+        deadline: true,
+        totalAmount: true,
+        paidAmount: true,
+      },
     }),
   ]);
 
@@ -159,13 +167,13 @@ export async function attention(
     stuckOrders: stuck.map((o) => ({
       ...o,
       totalAmount: Number(o.totalAmount).toFixed(2),
-      paidAmount: Number(o.paidAmount).toFixed(2)
+      paidAmount: Number(o.paidAmount).toFixed(2),
     })),
     overdueOrders: overdue.map((o) => ({
       ...o,
       totalAmount: Number(o.totalAmount).toFixed(2),
-      paidAmount: Number(o.paidAmount).toFixed(2)
-    }))
+      paidAmount: Number(o.paidAmount).toFixed(2),
+    })),
   };
 }
 
@@ -193,18 +201,20 @@ export async function recentEvents(
       where: baseWhere,
       orderBy: { updatedAt: 'desc' },
       take: limit,
-      select: { id: true, title: true, updatedAt: true }
+      select: { id: true, title: true, updatedAt: true },
     }),
     prisma.payment.findMany({
       where: { organization: orgWhereForScope(scope) },
       orderBy: { createdAt: 'desc' },
       take: limit,
       select: {
-        id: true, amount: true, createdAt: true,
+        id: true,
+        amount: true,
+        createdAt: true,
         order: { select: { id: true, title: true } },
-        organization: { select: { id: true, name: true } }
-      }
-    })
+        organization: { select: { id: true, name: true } },
+      },
+    }),
   ]);
 
   const events: DashboardEvent[] = [
@@ -212,7 +222,7 @@ export async function recentEvents(
       kind: 'order_updated',
       at: o.updatedAt,
       title: `Заказ «${o.title}» обновлён`,
-      ref: { kind: 'order', id: o.id }
+      ref: { kind: 'order', id: o.id },
     })),
     ...payments.map((p): DashboardEvent =>
       p.order
@@ -220,14 +230,14 @@ export async function recentEvents(
             kind: 'payment_received',
             at: p.createdAt,
             title: `Оплата ${fmtMoney(Number(p.amount))} по заказу «${p.order.title}»`,
-            ref: { kind: 'order', id: p.order.id }
+            ref: { kind: 'order', id: p.order.id },
           }
         : {
             kind: 'payment_received',
             at: p.createdAt,
-            title: `Оплата ${fmtMoney(Number(p.amount))} (организация ${p.organization.name})`
+            title: `Оплата ${fmtMoney(Number(p.amount))} (организация ${p.organization.name})`,
           }
-    )
+    ),
   ];
 
   events.sort((a, b) => b.at.getTime() - a.at.getTime());
@@ -252,7 +262,9 @@ export async function recentEnrollments(
   scope: DashboardScope,
   take = 5
 ): Promise<PartnerEnrollmentSummary[]> {
-  const where: { partnerId: string; organizationId?: { in: string[] } } = { partnerId: scope.partnerId };
+  const where: { partnerId: string; organizationId?: { in: string[] } } = {
+    partnerId: scope.partnerId,
+  };
   if (scope.scopeOrgIds.length > 0) {
     where.organizationId = { in: scope.scopeOrgIds };
   }
@@ -266,15 +278,15 @@ export async function recentEnrollments(
       createdAt: true,
       legacyCourseTitle: true,
       direction: { select: { name: true } },
-      _count: { select: { items: true } }
-    }
+      _count: { select: { items: true } },
+    },
   });
   return rows.map((r) => ({
     id: r.id,
     directionName: r.direction?.name ?? r.legacyCourseTitle ?? '—',
     studentCount: r._count.items,
     status: r.status,
-    createdAt: r.createdAt
+    createdAt: r.createdAt,
   }));
 }
 
@@ -292,6 +304,9 @@ export async function expiringCertificates(
   startOfToday.setHours(0, 0, 0, 0);
   const horizon = new Date(startOfToday.getTime() + EXPIRING_WITHIN_DAYS * 24 * 3600 * 1000);
   return prisma.certificate.count({
-    where: { organization: orgWhereForScope(scope), validUntil: { gte: startOfToday, lte: horizon } }
+    where: {
+      organization: orgWhereForScope(scope),
+      validUntil: { gte: startOfToday, lte: horizon },
+    },
   });
 }

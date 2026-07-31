@@ -2,10 +2,10 @@ import { describe, it, expect, vi } from 'vitest';
 
 const { pingMock, s3PingMock } = vi.hoisted(() => ({ pingMock: vi.fn(), s3PingMock: vi.fn() }));
 vi.mock('@/lib/jobs/connection', () => ({
-  getRedisConnection: () => ({ ping: pingMock })
+  getRedisConnection: () => ({ ping: pingMock }),
 }));
 vi.mock('@/lib/storage/s3', () => ({
-  s3HealthPing: s3PingMock
+  s3HealthPing: s3PingMock,
 }));
 
 import { withTimeout, checkDb, checkRedis, checkS3 } from '@/lib/health/checks';

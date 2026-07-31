@@ -35,25 +35,32 @@ const ESTIMATED = '150000.50';
 // Менеджерская сессия компании: leads-scope 'all' (командная очередь),
 // нет accessProfile-фильтра → canSeeLead пропускает.
 const managerSession = (): SessionPayload =>
-  ({ sub: managerId, role: 'manager', companyId, managedOrgIds: [] } as unknown as SessionPayload);
+  ({ sub: managerId, role: 'manager', companyId, managedOrgIds: [] }) as unknown as SessionPayload;
 
 beforeAll(async () => {
   prisma = new PrismaClient();
 
   companyId = (await prisma.company.create({ data: { name: `funnelE2E-co-${STAMP}` } })).id;
   partnerId = (
-    await prisma.partner.create({ data: { name: `funnelE2E-p-${STAMP}`, slug: `funnelE2E-p-${STAMP}` } })
+    await prisma.partner.create({
+      data: { name: `funnelE2E-p-${STAMP}`, slug: `funnelE2E-p-${STAMP}` },
+    })
   ).id;
   managerId = (
     await prisma.user.create({
-      data: { email: `funnelE2E-m-${STAMP}@t.local`, name: 'Менеджер E2E', role: 'manager', companyId }
+      data: {
+        email: `funnelE2E-m-${STAMP}@t.local`,
+        name: 'Менеджер E2E',
+        role: 'manager',
+        companyId,
+      },
     })
   ).id;
   // Организация принадлежит и партнёру (для createLead org-scope), и компании
   // (promoteLead читает companyId организации для нового Order).
   orgId = (
     await prisma.organization.create({
-      data: { name: `funnelE2E-org-${STAMP}`, companyId, partnerId }
+      data: { name: `funnelE2E-org-${STAMP}`, companyId, partnerId },
     })
   ).id;
 });
@@ -83,8 +90,8 @@ describe('E2E funnel promotion — один лид через весь journey',
         clientCompanyName: `funnelE2E-client-${STAMP}`,
         clientContactName: 'Контактное лицо',
         subject: 'Заявка на обучение по ОТ',
-        estimatedAmount: new Prisma.Decimal(ESTIMATED)
-      }
+        estimatedAmount: new Prisma.Decimal(ESTIMATED),
+      },
     });
     const leadId = created.id;
     expect(created.status).toBe('new');
@@ -95,44 +102,47 @@ describe('E2E funnel promotion — один лид через весь journey',
     //    кодом ошибки lifecycle-слоя, а статус лида — не измениться.
     const illegal = await moveFunnelLead(prisma, managerSession(), {
       leadId,
-      toStageId: 'default:qualified'
+      toStageId: 'default:qualified',
     });
     expect(illegal).toEqual({ ok: false, error: 'lifecycle_violation' });
     expect(
-      (await prisma.lead.findUniqueOrThrow({ where: { id: leadId }, select: { status: true } })).status
+      (await prisma.lead.findUniqueOrThrow({ where: { id: leadId }, select: { status: true } }))
+        .status
     ).toBe('new');
 
     // 3) ЛЕГАЛЬНО: new → in_review (диспетчер → setLeadStatus).
     const toReview = await moveFunnelLead(prisma, managerSession(), {
       leadId,
-      toStageId: 'default:in_review'
+      toStageId: 'default:in_review',
     });
     expect(toReview).toEqual({ ok: true });
     expect(
-      (await prisma.lead.findUniqueOrThrow({ where: { id: leadId }, select: { status: true } })).status
+      (await prisma.lead.findUniqueOrThrow({ where: { id: leadId }, select: { status: true } }))
+        .status
     ).toBe('in_review');
 
     // 4) ЛЕГАЛЬНО: in_review → qualified.
     const toQualified = await moveFunnelLead(prisma, managerSession(), {
       leadId,
-      toStageId: 'default:qualified'
+      toStageId: 'default:qualified',
     });
     expect(toQualified).toEqual({ ok: true });
     expect(
-      (await prisma.lead.findUniqueOrThrow({ where: { id: leadId }, select: { status: true } })).status
+      (await prisma.lead.findUniqueOrThrow({ where: { id: leadId }, select: { status: true } }))
+        .status
     ).toBe('qualified');
 
     // 5) ПОВЫШЕНИЕ: qualified → promoted_to_order (диспетчер → promoteLead).
     //    Создаётся локальный Order и линкуется к лиду.
     const promote = await moveFunnelLead(prisma, managerSession(), {
       leadId,
-      toStageId: 'default:promoted_to_order'
+      toStageId: 'default:promoted_to_order',
     });
     expect(promote).toEqual({ ok: true });
 
     const promoted = await prisma.lead.findUniqueOrThrow({
       where: { id: leadId },
-      select: { status: true, promotedOrderId: true, organizationId: true }
+      select: { status: true, promotedOrderId: true, organizationId: true },
     });
     expect(promoted.status).toBe('promoted_to_order');
     expect(promoted.promotedOrderId).not.toBeNull();
@@ -150,8 +160,8 @@ describe('E2E funnel promotion — один лид через весь journey',
         title: true,
         totalAmount: true,
         executionStatus: true,
-        financialStatus: true
-      }
+        financialStatus: true,
+      },
     });
     expect(order.organizationId).toBe(orgId);
     expect(order.companyId).toBe(companyId);

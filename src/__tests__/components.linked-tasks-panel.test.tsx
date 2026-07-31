@@ -9,7 +9,10 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 const { createTaskAction } = vi.hoisted(() => ({ createTaskAction: vi.fn() }));
 vi.mock('@/server-actions/tasks', () => ({ createTaskAction }));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 import { LinkedTasksPanel } from '@/components/tasks/linked-tasks-panel';
@@ -36,7 +39,7 @@ function card(over: Partial<TaskCard>): TaskCard {
     linkedLeadSubject: null,
     linkedDealId: null,
     linkedDealTitle: null,
-    ...over
+    ...over,
   };
 }
 
@@ -56,8 +59,13 @@ describe('LinkedTasksPanel (этап 7, ФТ-7.1/3.2)', () => {
 
   it('список: срок, исполнители, зачёркнутая завершённая', () => {
     const tasks = [
-      card({ id: 't1', title: 'Открытая', dueDate: new Date('2026-08-15'), assigneeNames: ['Иван'] }),
-      card({ id: 't2', title: 'Готовая', completedAt: new Date('2026-07-01') })
+      card({
+        id: 't1',
+        title: 'Открытая',
+        dueDate: new Date('2026-08-15'),
+        assigneeNames: ['Иван'],
+      }),
+      card({ id: 't2', title: 'Готовая', completedAt: new Date('2026-07-01') }),
     ];
     render(<LinkedTasksPanel link={{ leadId: 'l1' }} tasks={tasks} currentUserId="m1" />);
     expect(screen.getByText('Открытая')).toBeTruthy();
@@ -71,7 +79,9 @@ describe('LinkedTasksPanel (этап 7, ФТ-7.1/3.2)', () => {
     render(<LinkedTasksPanel link={{ leadId: 'l1' }} tasks={[]} currentUserId="m1" />);
 
     fireEvent.click(screen.getByRole('button', { name: '+ Задача' }));
-    fireEvent.change(screen.getByLabelText('Название задачи'), { target: { value: 'Перезвонить' } });
+    fireEvent.change(screen.getByLabelText('Название задачи'), {
+      target: { value: 'Перезвонить' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Создать' }));
 
     await waitFor(() => expect(createTaskAction).toHaveBeenCalledTimes(1));
@@ -90,7 +100,14 @@ describe('LinkedTasksPanel (этап 7, ФТ-7.1/3.2)', () => {
   it('quick-add для сделки: linkedDealId; снятый чекбокс — без исполнителя; кастомный onCreated', async () => {
     createTaskAction.mockResolvedValue({ ok: true, id: 't9' });
     const onCreated = vi.fn();
-    render(<LinkedTasksPanel link={{ dealId: 'd1' }} tasks={[]} currentUserId="m1" onCreated={onCreated} />);
+    render(
+      <LinkedTasksPanel
+        link={{ dealId: 'd1' }}
+        tasks={[]}
+        currentUserId="m1"
+        onCreated={onCreated}
+      />
+    );
 
     fireEvent.click(screen.getByRole('button', { name: '+ Задача' }));
     fireEvent.change(screen.getByLabelText('Название задачи'), { target: { value: 'Счёт' } });

@@ -7,11 +7,11 @@ import {
   getOrgFinanceKpisForOrgs,
   listOrgPaymentsForOrgs,
   type OrgFinanceKpis,
-  type OrgPaymentRow
+  type OrgPaymentRow,
 } from '@/lib/services/organization/finance';
 import {
   getOrgIntermediaryCommissionForOrgs,
-  type OrgIntermediaryCommission
+  type OrgIntermediaryCommission,
 } from './orgCommission';
 
 export type ManagerOrgFinanceSection = {
@@ -53,7 +53,7 @@ export async function getManagerFinanceOverview(
   const orgs = await prisma.organization.findMany({
     where: unscoped ? undefined : managerOrgScope(session, opts.teamMode),
     select: { id: true, name: true },
-    orderBy: { name: 'asc' }
+    orderBy: { name: 'asc' },
   });
 
   // Батч: KPI, платежи (top-50 per-org оконным ROW_NUMBER) и комиссия
@@ -65,7 +65,7 @@ export async function getManagerFinanceOverview(
     includePayments ? listOrgPaymentsForOrgs(prisma, orgIdList) : Promise.resolve(null),
     canSeeCommission
       ? getOrgIntermediaryCommissionForOrgs(prisma, orgIdList)
-      : Promise.resolve(null)
+      : Promise.resolve(null),
   ]);
 
   const sections = orgs.map((org): ManagerOrgFinanceSection => ({
@@ -73,7 +73,7 @@ export async function getManagerFinanceOverview(
     orgName: org.name,
     kpis: kpisByOrg.get(org.id)!,
     payments: paymentsByOrg?.get(org.id) ?? [],
-    commission: commissionByOrg?.get(org.id) ?? null
+    commission: commissionByOrg?.get(org.id) ?? null,
   }));
 
   let billed = new Prisma.Decimal(0);
@@ -85,7 +85,7 @@ export async function getManagerFinanceOverview(
   const summary: OrgFinanceKpis = {
     billed: billed.toFixed(2),
     paid: paid.toFixed(2),
-    outstanding: billed.minus(paid).toFixed(2)
+    outstanding: billed.minus(paid).toFixed(2),
   };
 
   return { summary, sections, canSeeCommission };

@@ -4,7 +4,11 @@ import type { Thresholds } from './thresholds';
 
 export type Severity = 'warning' | 'critical';
 export type Breach = { key: string; severity: Severity; message: string; value: number };
-export type AlertMetrics = { queues: QueueStatsRow[]; syncLag: SyncLagRow[]; pendingDeadLetters: number };
+export type AlertMetrics = {
+  queues: QueueStatsRow[];
+  syncLag: SyncLagRow[];
+  pendingDeadLetters: number;
+};
 
 export function evaluate(metrics: AlertMetrics, t: Thresholds): Breach[] {
   const breaches: Breach[] = [];
@@ -15,7 +19,7 @@ export function evaluate(metrics: AlertMetrics, t: Thresholds): Breach[] {
         key: `queue_depth:${queue}`,
         severity: 'warning',
         message: `Очередь ${queue}: ${counts.waiting} задач в ожидании (порог ${t.queueWaitingMax})`,
-        value: counts.waiting
+        value: counts.waiting,
       });
     }
     if (counts.failed > t.dlqMax) {
@@ -23,7 +27,7 @@ export function evaluate(metrics: AlertMetrics, t: Thresholds): Breach[] {
         key: `dlq:${queue}`,
         severity: 'critical',
         message: `Очередь ${queue}: ${counts.failed} упавших задач в DLQ (порог ${t.dlqMax})`,
-        value: counts.failed
+        value: counts.failed,
       });
     }
   }
@@ -36,7 +40,7 @@ export function evaluate(metrics: AlertMetrics, t: Thresholds): Breach[] {
         key: `sync_lag:${row.entity}`,
         severity: 'critical',
         message: `Синхронизация ${row.entity}: лаг ${lagHours}ч (порог ${maxHours}ч)`,
-        value: row.lagMs
+        value: row.lagMs,
       });
     }
   }

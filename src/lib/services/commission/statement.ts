@@ -70,8 +70,8 @@ async function updateDraftInPlace(
           organizationName: item.organizationName,
           baseAmount: item.baseAmount,
           rate: item.rate,
-          commissionAmount: item.commissionAmount
-        }))
+          commissionAmount: item.commissionAmount,
+        })),
       });
     }
     return tx.commissionStatement.update({
@@ -83,8 +83,8 @@ async function updateDraftInPlace(
         calculatedAt: new Date(),
         calculatedByUserId,
         pdfPath: null,
-        xlsxPath: null
-      }
+        xlsxPath: null,
+      },
     });
   });
 }
@@ -100,7 +100,7 @@ export async function calculateStatementForPartner(
 
   const partner = await prisma.partner.findUnique({
     where: { id: partnerId },
-    select: { commissionRate: true }
+    select: { commissionRate: true },
   });
   if (!partner) {
     return { ok: false, error: 'partner_not_found' };
@@ -117,9 +117,9 @@ export async function calculateStatementForPartner(
         supersededBy: null,
         periodFrom: { lte: periodTo },
         periodTo: { gte: periodFrom },
-        NOT: { periodFrom, periodTo }
+        NOT: { periodFrom, periodTo },
       },
-      select: { id: true }
+      select: { id: true },
     });
     if (overlap) {
       return { ok: false, error: 'period_overlap' };
@@ -190,7 +190,8 @@ export async function calculateStatementForPartner(
       // is the statement's partner, so partner Y's discount never bleeds onto partner X.
       // F4: the same gate guards the history — a foreign org's timeline gets an empty
       // list (not undefined!) so its current override can never resurface via fallback.
-      orgOverride: p.organization.partnerId === partnerId ? p.organization.partnerCommissionRate : null,
+      orgOverride:
+        p.organization.partnerId === partnerId ? p.organization.partnerCommissionRate : null,
       orgChanges:
         p.organization.partnerId === partnerId ? (orgChangesByOrg.get(p.organizationId) ?? []) : [],
       changes: rateChanges,
@@ -226,9 +227,9 @@ export async function calculateStatementForPartner(
       partnerId,
       periodFrom,
       periodTo,
-      supersededBy: null
+      supersededBy: null,
     },
-    orderBy: { calculatedAt: 'desc' }
+    orderBy: { calculatedAt: 'desc' },
   });
 
   let statement: CommissionStatement;
@@ -249,7 +250,7 @@ export async function calculateStatementForPartner(
         if (existing) {
           await tx.commissionStatement.update({
             where: { id: existing.id },
-            data: { supersededBy: existing.id }
+            data: { supersededBy: existing.id },
           });
         }
         const created = await tx.commissionStatement.create({
@@ -262,8 +263,8 @@ export async function calculateStatementForPartner(
             totalBaseAmount: calc.totals.totalBaseAmount,
             totalCommissionAmount: calc.totals.totalCommissionAmount,
             averageRate: calc.totals.averageRate,
-            status: 'draft'
-          }
+            status: 'draft',
+          },
         });
         if (calc.items.length > 0) {
           await tx.commissionStatementItem.createMany({
@@ -276,14 +277,14 @@ export async function calculateStatementForPartner(
               organizationName: item.organizationName,
               baseAmount: item.baseAmount,
               rate: item.rate,
-              commissionAmount: item.commissionAmount
-            }))
+              commissionAmount: item.commissionAmount,
+            })),
           });
         }
         if (existing) {
           await tx.commissionStatement.update({
             where: { id: existing.id },
-            data: { supersededBy: created.id }
+            data: { supersededBy: created.id },
           });
         }
         return created;
@@ -298,7 +299,7 @@ export async function calculateStatementForPartner(
       if (!isUniqueViolation(err)) throw err;
       const winner = await prisma.commissionStatement.findFirst({
         where: { partnerId, periodFrom, periodTo, supersededBy: null },
-        orderBy: { calculatedAt: 'desc' }
+        orderBy: { calculatedAt: 'desc' },
       });
       // A P2002 means a concurrent writer WON the live (partner, period) slot, so this
       // re-read always finds it; `!winner` is an unreachable defensive guard (a winner
@@ -324,7 +325,7 @@ export async function calculateStatementForPartner(
         itemCount: calc.items.length,
         totalCommission: calc.totals.totalCommissionAmount.toString(),
         isNew,
-        supersededOldId: !isNew ? null : existing?.id ?? null,
+        supersededOldId: !isNew ? null : (existing?.id ?? null),
       },
     });
   }
@@ -336,7 +337,7 @@ export async function calculateStatementForPartner(
     try {
       await Promise.all([
         getQueue('docs.generateCommissionPdf').add('generate', { statementId: statement.id }),
-        getQueue('docs.generateCommissionXlsx').add('generate', { statementId: statement.id })
+        getQueue('docs.generateCommissionXlsx').add('generate', { statementId: statement.id }),
       ]);
     } catch (err) {
       log.warn('[commission] failed to enqueue PDF/XLSX jobs:', err);
@@ -347,6 +348,6 @@ export async function calculateStatementForPartner(
     ok: true,
     statement,
     itemCount: calc.items.length,
-    isNew
+    isNew,
   };
 }

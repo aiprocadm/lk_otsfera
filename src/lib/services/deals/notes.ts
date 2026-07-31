@@ -33,13 +33,13 @@ export async function addNoteToDeal(
 
   const deal = await prisma.deal.findFirst({
     where: { AND: [{ id: args.dealId }, dealScopeWhere(session)] },
-    select: { id: true }
+    select: { id: true },
   });
   if (!deal) return { ok: false, error: 'not_found' };
 
   const note = await prisma.dealNote.create({
     data: { dealId: deal.id, authorId: session.sub, body },
-    select: { id: true }
+    select: { id: true },
   });
 
   await recordAudit(prisma, {
@@ -47,7 +47,7 @@ export async function addNoteToDeal(
     entity: 'deal',
     entityId: deal.id,
     userId: session.sub,
-    after: { noteId: note.id }
+    after: { noteId: note.id },
   });
 
   return { ok: true, id: note.id };
@@ -62,7 +62,7 @@ export async function listDealNotes(
 
   const deal = await prisma.deal.findFirst({
     where: { AND: [{ id: args.dealId }, dealScopeWhere(session)] },
-    select: { id: true }
+    select: { id: true },
   });
   if (!deal) return { ok: false, error: 'not_found' };
 
@@ -70,11 +70,16 @@ export async function listDealNotes(
     where: { dealId: deal.id },
     orderBy: { createdAt: 'desc' },
     take: 200,
-    select: { id: true, body: true, createdAt: true, author: { select: { name: true } } }
+    select: { id: true, body: true, createdAt: true, author: { select: { name: true } } },
   });
 
   return {
     ok: true,
-    rows: rows.map((n) => ({ id: n.id, body: n.body, authorName: n.author.name, createdAt: n.createdAt }))
+    rows: rows.map((n) => ({
+      id: n.id,
+      body: n.body,
+      authorName: n.author.name,
+      createdAt: n.createdAt,
+    })),
   };
 }

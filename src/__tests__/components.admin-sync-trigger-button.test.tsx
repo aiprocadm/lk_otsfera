@@ -51,13 +51,19 @@ describe('SyncTriggerButton', () => {
 
   it('busy state shows "Запуск…" and disables the button', async () => {
     let resolvePromise: (v: unknown) => void = () => {};
-    triggerSyncAction.mockReturnValue(new Promise((resolve) => { resolvePromise = resolve; }));
+    triggerSyncAction.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePromise = resolve;
+      })
+    );
     render(React.createElement(SyncTriggerButton, { entity: 'orders' }));
     const button = screen.getByRole('button', { name: 'Запустить' });
     fireEvent.click(button);
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Запуск…' })).toBeTruthy());
-    expect((screen.getByRole('button', { name: 'Запуск…' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Запуск…' }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
     resolvePromise({ ok: true });
     await waitFor(() => expect(refresh).toHaveBeenCalled());
   });

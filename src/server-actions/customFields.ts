@@ -18,7 +18,7 @@ const REVALIDATE_PATHS: Record<CustomFieldEntity, (id: string) => string[]> = {
   organization: (id) => [`/admin/organizations/${id}`, `/manager/organizations/${id}`],
   partner: (id) => [`/admin/partners/${id}`],
   student: (id) => [`/manager/students/${id}`, `/organization/students/${id}`],
-  document: (id) => [`/admin/documents/${id}`]
+  document: (id) => [`/admin/documents/${id}`],
 };
 
 /**

@@ -4,21 +4,26 @@ import { revalidatePath } from 'next/cache';
 import type { TaskStatus } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireSession } from '@/lib/auth/requireRole';
-import { moveTask, listLinkedTasks, type MoveTaskError, type TaskCard } from '@/lib/services/tasks/board';
+import {
+  moveTask,
+  listLinkedTasks,
+  type MoveTaskError,
+  type TaskCard,
+} from '@/lib/services/tasks/board';
 import {
   createTask,
   updateTask,
   deleteTask,
   assignTask,
   type TaskInput,
-  type TaskErrorCode
+  type TaskErrorCode,
 } from '@/lib/services/tasks/tasks';
 import {
   createTaskColumn,
   updateTaskColumn,
   deleteTaskColumn,
   type TaskColumnInput,
-  type TaskColumnErrorCode
+  type TaskColumnErrorCode,
 } from '@/lib/services/tasks/columns';
 
 /**
@@ -52,7 +57,7 @@ function taskInput(fd: FormData): TaskInput {
     linkedOrganizationId: str(fd, 'linkedOrganizationId') || null,
     linkedLeadId: str(fd, 'linkedLeadId') || null,
     linkedDealId: str(fd, 'linkedDealId') || null,
-    assigneeIds: fd.getAll('assigneeIds').filter((v): v is string => typeof v === 'string')
+    assigneeIds: fd.getAll('assigneeIds').filter((v): v is string => typeof v === 'string'),
   };
 }
 
@@ -67,7 +72,9 @@ export async function moveTaskAction(fd: FormData): Promise<ActionResult<MoveTas
   return { ok: true };
 }
 
-export async function createTaskAction(fd: FormData): Promise<ActionResult<TaskErrorCode> & { id?: string }> {
+export async function createTaskAction(
+  fd: FormData
+): Promise<ActionResult<TaskErrorCode> & { id?: string }> {
   const session = await requireSession();
   const res = await createTask(prisma, session, taskInput(fd));
   if (!res.ok) return { ok: false, error: res.error };
@@ -125,11 +132,13 @@ function columnInput(fd: FormData): TaskColumnInput {
     position: Number(str(fd, 'position') || 0),
     statusAnchor: (str(fd, 'statusAnchor') || 'todo') as TaskStatus,
     color: str(fd, 'color') || null,
-    isDoneColumn: fd.get('isDoneColumn') === 'on' || str(fd, 'isDoneColumn') === 'true'
+    isDoneColumn: fd.get('isDoneColumn') === 'on' || str(fd, 'isDoneColumn') === 'true',
   };
 }
 
-export async function createTaskColumnAction(fd: FormData): Promise<ActionResult<TaskColumnErrorCode> & { id?: string }> {
+export async function createTaskColumnAction(
+  fd: FormData
+): Promise<ActionResult<TaskColumnErrorCode> & { id?: string }> {
   const session = await requireSession();
   const res = await createTaskColumn(prisma, session, columnInput(fd));
   if (!res.ok) return { ok: false, error: res.error };
@@ -137,7 +146,9 @@ export async function createTaskColumnAction(fd: FormData): Promise<ActionResult
   return { ok: true, id: res.id };
 }
 
-export async function updateTaskColumnAction(fd: FormData): Promise<ActionResult<TaskColumnErrorCode>> {
+export async function updateTaskColumnAction(
+  fd: FormData
+): Promise<ActionResult<TaskColumnErrorCode>> {
   const session = await requireSession();
   const id = str(fd, 'id');
   if (!id) return { ok: false, error: 'validation' };
@@ -147,7 +158,9 @@ export async function updateTaskColumnAction(fd: FormData): Promise<ActionResult
   return { ok: true };
 }
 
-export async function deleteTaskColumnAction(fd: FormData): Promise<ActionResult<TaskColumnErrorCode>> {
+export async function deleteTaskColumnAction(
+  fd: FormData
+): Promise<ActionResult<TaskColumnErrorCode>> {
   const session = await requireSession();
   const id = str(fd, 'id');
   if (!id) return { ok: false, error: 'validation' };

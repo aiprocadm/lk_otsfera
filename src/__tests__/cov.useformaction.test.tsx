@@ -34,7 +34,7 @@ describe('useFormAction — stateful transitions', () => {
       useFormAction<{ inviteUrl: string }>({
         action: async () => ({ ok: true, inviteUrl: 'https://x/y' }),
         onSuccess,
-        refresh: true
+        refresh: true,
       })
     );
     await act(async () => {
@@ -50,7 +50,7 @@ describe('useFormAction — stateful transitions', () => {
     const { result } = renderHook(() =>
       useFormAction({
         action: async () => ({ ok: false as const, error: 'not_found' }),
-        errorMap: { not_found: 'Не найдено.' }
+        errorMap: { not_found: 'Не найдено.' },
       })
     );
     await act(async () => {

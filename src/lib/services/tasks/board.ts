@@ -50,14 +50,24 @@ const CARD_INCLUDE = {
   linkedOrder: { select: { title: true } },
   linkedOrganization: { select: { name: true } },
   linkedLead: { select: { subject: true } },
-  linkedDeal: { select: { title: true } }
+  linkedDeal: { select: { title: true } },
 } as const;
 
 const CARD_SELECT = {
-  id: true, title: true, description: true, priority: true, dueDate: true, completedAt: true,
-  status: true, columnId: true, createdAt: true,
-  linkedOrderId: true, linkedOrganizationId: true, linkedLeadId: true, linkedDealId: true,
-  ...CARD_INCLUDE
+  id: true,
+  title: true,
+  description: true,
+  priority: true,
+  dueDate: true,
+  completedAt: true,
+  status: true,
+  columnId: true,
+  createdAt: true,
+  linkedOrderId: true,
+  linkedOrganizationId: true,
+  linkedLeadId: true,
+  linkedDealId: true,
+  ...CARD_INCLUDE,
 } as const;
 
 type CardRow = Prisma.TaskGetPayload<{ select: typeof CARD_SELECT }>;
@@ -82,7 +92,7 @@ function toCard(t: CardRow, columnId: string): TaskCard {
     linkedLeadId: t.linkedLeadId,
     linkedLeadSubject: t.linkedLead?.subject ?? null,
     linkedDealId: t.linkedDealId,
-    linkedDealTitle: t.linkedDeal?.title ?? null
+    linkedDealTitle: t.linkedDeal?.title ?? null,
   };
 }
 
@@ -95,7 +105,9 @@ export function taskFiltersWhere(
   const base = taskWhereForLevel(session, session.accessProfile?.tasks ?? 'all');
   const and: Prisma.TaskWhereInput[] = [base];
   if (filters?.scope === 'mine') {
-    and.push({ OR: [{ createdById: session.sub }, { assignees: { some: { userId: session.sub } } }] });
+    and.push({
+      OR: [{ createdById: session.sub }, { assignees: { some: { userId: session.sub } } }],
+    });
   }
   if (filters?.assigneeId) {
     and.push({ assignees: { some: { userId: filters.assigneeId } } });
@@ -118,7 +130,7 @@ export async function listTaskBoard(
     where,
     orderBy: { createdAt: 'desc' },
     take: 500,
-    select: CARD_SELECT
+    select: CARD_SELECT,
   });
 
   const board: TaskBoardColumn[] = columns.map((column) => ({ column, cards: [] }));
@@ -147,13 +159,18 @@ export async function listLinkedTasks(
   if (!isStaff || !session.companyId) return [];
   const columns = await resolveTaskColumns(prisma, session.companyId);
   const base = taskWhereForLevel(session, session.accessProfile?.tasks ?? 'all');
-  const linkWhere: Prisma.TaskWhereInput = 'leadId' in link ? { linkedLeadId: link.leadId } : { linkedDealId: link.dealId };
+  const linkWhere: Prisma.TaskWhereInput =
+    'leadId' in link ? { linkedLeadId: link.leadId } : { linkedDealId: link.dealId };
 
   const tasks = await prisma.task.findMany({
     where: { AND: [base, linkWhere] },
-    orderBy: [{ completedAt: 'asc' }, { dueDate: { sort: 'asc', nulls: 'last' } }, { createdAt: 'desc' }],
+    orderBy: [
+      { completedAt: 'asc' },
+      { dueDate: { sort: 'asc', nulls: 'last' } },
+      { createdAt: 'desc' },
+    ],
     take: 50,
-    select: CARD_SELECT
+    select: CARD_SELECT,
   });
   return tasks
     .map((t) => {
@@ -170,12 +187,30 @@ export type TaskFormOptions = {
   orders: { id: string; title: string }[];
 };
 
-export async function getTaskFormOptions(prisma: PrismaClient, session: SessionPayload): Promise<TaskFormOptions> {
+export async function getTaskFormOptions(
+  prisma: PrismaClient,
+  session: SessionPayload
+): Promise<TaskFormOptions> {
   const companyId = session.companyId ?? NO_COMPANY_SENTINEL; // нет компании → пустые списки (fail-safe)
   const [users, organizations, orders] = await Promise.all([
-    prisma.user.findMany({ where: { companyId, role: 'manager', isActive: true }, select: { id: true, name: true }, orderBy: { name: 'asc' }, take: 200 }),
-    prisma.organization.findMany({ where: { companyId }, select: { id: true, name: true }, orderBy: { name: 'asc' }, take: 200 }),
-    prisma.order.findMany({ where: { companyId }, select: { id: true, title: true }, orderBy: { createdAt: 'desc' }, take: 100 })
+    prisma.user.findMany({
+      where: { companyId, role: 'manager', isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+      take: 200,
+    }),
+    prisma.organization.findMany({
+      where: { companyId },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+      take: 200,
+    }),
+    prisma.order.findMany({
+      where: { companyId },
+      select: { id: true, title: true },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    }),
   ]);
   return { users, organizations, orders };
 }
@@ -196,16 +231,22 @@ export async function moveTask(
   const task = await prisma.task.findUnique({
     where: { id: args.taskId },
     select: {
-      id: true, companyId: true, status: true, columnId: true, completedAt: true,
-      createdById: true, linkedOrganizationId: true, assignees: { select: { userId: true } }
-    }
+      id: true,
+      companyId: true,
+      status: true,
+      columnId: true,
+      completedAt: true,
+      createdById: true,
+      linkedOrganizationId: true,
+      assignees: { select: { userId: true } },
+    },
   });
   if (!task) return { ok: false, error: 'not_found' };
   const scopeTask = {
     companyId: task.companyId,
     createdById: task.createdById,
     assigneeUserIds: task.assignees.map((a) => a.userId),
-    linkedOrganizationId: task.linkedOrganizationId
+    linkedOrganizationId: task.linkedOrganizationId,
   };
   if (!canSeeTask(session, scopeTask)) return { ok: false, error: 'not_found' }; // scope: не leak-аем
 
@@ -218,12 +259,15 @@ export async function moveTask(
   await prisma.$transaction(async (tx) => {
     await tx.task.update({
       where: { id: task.id },
-      data: { columnId: persistColumnId, status: target.statusAnchor, completedAt }
+      data: { columnId: persistColumnId, status: target.statusAnchor, completedAt },
     });
     await recordAudit(tx, {
-      userId: session.sub, action: 'task_moved', entity: 'task', entityId: task.id,
+      userId: session.sub,
+      action: 'task_moved',
+      entity: 'task',
+      entityId: task.id,
       before: { status: task.status, columnId: task.columnId },
-      after: { status: target.statusAnchor, columnId: persistColumnId }
+      after: { status: target.statusAnchor, columnId: persistColumnId },
     });
   });
   return { ok: true };

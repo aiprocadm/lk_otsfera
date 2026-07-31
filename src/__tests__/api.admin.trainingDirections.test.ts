@@ -2,17 +2,24 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { requireSession, requireAdmin } = vi.hoisted(() => ({
   requireSession: vi.fn(),
-  requireAdmin: vi.fn()
+  requireAdmin: vi.fn(),
 }));
-const { createDirection, listDirections, updateDirection, deactivateDirection } = vi.hoisted(() => ({
-  createDirection: vi.fn(),
-  listDirections: vi.fn(),
-  updateDirection: vi.fn(),
-  deactivateDirection: vi.fn()
-}));
+const { createDirection, listDirections, updateDirection, deactivateDirection } = vi.hoisted(
+  () => ({
+    createDirection: vi.fn(),
+    listDirections: vi.fn(),
+    updateDirection: vi.fn(),
+    deactivateDirection: vi.fn(),
+  })
+);
 
 vi.mock('@/lib/auth/guard', () => ({ requireSession, requireAdmin }));
-vi.mock('@/lib/services/training', () => ({ createDirection, listDirections, updateDirection, deactivateDirection }));
+vi.mock('@/lib/services/training', () => ({
+  createDirection,
+  listDirections,
+  updateDirection,
+  deactivateDirection,
+}));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 import { GET, POST } from '@/app/api/admin/training-directions/route';
@@ -43,14 +50,20 @@ describe('GET /api/admin/training-directions', () => {
   });
 
   it('401 если нет сессии', async () => {
-    requireSession.mockResolvedValue({ ok: false, response: new Response('Unauthorized', { status: 401 }) });
+    requireSession.mockResolvedValue({
+      ok: false,
+      response: new Response('Unauthorized', { status: 401 }),
+    });
     const res = await GET();
     expect(res.status).toBe(401);
     expect(listDirections).not.toHaveBeenCalled();
   });
 
   it('403 если не admin', async () => {
-    requireAdmin.mockReturnValue({ ok: false, response: new Response('Forbidden', { status: 403 }) });
+    requireAdmin.mockReturnValue({
+      ok: false,
+      response: new Response('Forbidden', { status: 403 }),
+    });
     const res = await GET();
     expect(res.status).toBe(403);
     expect(listDirections).not.toHaveBeenCalled();
@@ -84,7 +97,10 @@ describe('POST /api/admin/training-directions', () => {
   });
 
   it('401 если нет сессии', async () => {
-    requireSession.mockResolvedValue({ ok: false, response: new Response('Unauthorized', { status: 401 }) });
+    requireSession.mockResolvedValue({
+      ok: false,
+      response: new Response('Unauthorized', { status: 401 }),
+    });
     const req = new Request('http://x', { method: 'POST', body: JSON.stringify({ name: 'X' }) });
     const res = await POST(req as Request);
     expect(res.status).toBe(401);
@@ -97,7 +113,10 @@ describe('POST /api/admin/training-directions', () => {
 describe('PATCH /api/admin/training-directions/[id]', () => {
   it('200 при успехе', async () => {
     updateDirection.mockResolvedValue({ ok: true, direction: { id: 'd1', name: 'Updated' } });
-    const req = new Request('http://x', { method: 'PATCH', body: JSON.stringify({ name: 'Updated' }) });
+    const req = new Request('http://x', {
+      method: 'PATCH',
+      body: JSON.stringify({ name: 'Updated' }),
+    });
     const res = await PATCH(req as Request, idCtx('d1'));
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -137,7 +156,10 @@ describe('DELETE /api/admin/training-directions/[id]', () => {
   });
 
   it('401 если нет сессии', async () => {
-    requireSession.mockResolvedValue({ ok: false, response: new Response('Unauthorized', { status: 401 }) });
+    requireSession.mockResolvedValue({
+      ok: false,
+      response: new Response('Unauthorized', { status: 401 }),
+    });
     const req = new Request('http://x', { method: 'DELETE' });
     const res = await DELETE(req as Request, idCtx('d1'));
     expect(res.status).toBe(401);

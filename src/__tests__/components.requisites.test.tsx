@@ -19,24 +19,41 @@ vi.mock('@/components/party/party-autocomplete', () => ({
     autocompleteSpy(props);
     return (
       <div>
-        <input id={props.id} name={props.name} value={props.value} onChange={(e) => props.onChange(e.target.value)} />
+        <input
+          id={props.id}
+          name={props.name}
+          value={props.value}
+          onChange={(e) => props.onChange(e.target.value)}
+        />
         <button
           type="button"
           onClick={() =>
-            props.onSelect({ name: 'ООО «ДаДата»', inn: '7707083893', kpp: '770701001', ogrn: '1027700132195', address: 'г. Москва' })
+            props.onSelect({
+              name: 'ООО «ДаДата»',
+              inn: '7707083893',
+              kpp: '770701001',
+              ogrn: '1027700132195',
+              address: 'г. Москва',
+            })
           }
         >
           stub-suggest
         </button>
       </div>
     );
-  }
+  },
 }));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
-import { RequisitesFields, type RequisitesDefaults } from '@/components/requisites/requisites-fields';
+import {
+  RequisitesFields,
+  type RequisitesDefaults,
+} from '@/components/requisites/requisites-fields';
 import { RequisitesCard } from '@/components/requisites/requisites-card';
 
 const DEFAULTS: RequisitesDefaults = {
@@ -51,7 +68,7 @@ const DEFAULTS: RequisitesDefaults = {
   bic: null,
   signerName: null,
   signerPosition: null,
-  signerBasis: null
+  signerBasis: null,
 };
 
 beforeEach(() => vi.clearAllMocks());
@@ -63,7 +80,9 @@ describe('RequisitesFields', () => {
     expect((screen.getByLabelText('ИНН') as HTMLInputElement).value).toBe('7707083893');
     expect((screen.getByLabelText('КПП') as HTMLInputElement).value).toBe('770701001');
     expect((screen.getByLabelText('ОГРН') as HTMLInputElement).value).toBe('1027700132195');
-    expect((screen.getByLabelText('Юридический адрес') as HTMLInputElement).value).toBe('г. Москва');
+    expect((screen.getByLabelText('Юридический адрес') as HTMLInputElement).value).toBe(
+      'г. Москва'
+    );
     expect((screen.getByLabelText('Банк') as HTMLInputElement).value).toBe('Т-Банк');
   });
 
@@ -77,9 +96,18 @@ describe('RequisitesFields', () => {
     render(
       <RequisitesFields
         defaults={{
-          legalName: null, inn: null, kpp: null, ogrn: null, legalAddress: null,
-          bankName: null, bankAccount: null, corrAccount: null, bic: null,
-          signerName: null, signerPosition: null, signerBasis: null
+          legalName: null,
+          inn: null,
+          kpp: null,
+          ogrn: null,
+          legalAddress: null,
+          bankName: null,
+          bankAccount: null,
+          corrAccount: null,
+          bic: null,
+          signerName: null,
+          signerPosition: null,
+          signerBasis: null,
         }}
         idPrefix="e"
       />
@@ -99,7 +127,7 @@ describe('RequisitesFields', () => {
       ['КПП', '997950001'],
       ['ОГРН', '1234567890123'],
       ['Юридический адрес', 'г. Тверь, ул. Советская, 1'],
-      ['Банк', 'Сбербанк']
+      ['Банк', 'Сбербанк'],
     ] as const) {
       const field = screen.getByLabelText(label) as HTMLInputElement;
       fireEvent.change(field, { target: { value } });
@@ -132,8 +160,16 @@ describe('RequisitesCard', () => {
   });
 
   it('ошибки с messages — списком role=alert; без messages — toast', async () => {
-    const action = vi.fn().mockResolvedValue({ ok: false, error: 'validation', messages: ['ИНН должен содержать 10 или 12 цифр'] });
-    render(<RequisitesCard title="Т" description="d" defaults={DEFAULTS} idPrefix="t" action={action} />);
+    const action = vi
+      .fn()
+      .mockResolvedValue({
+        ok: false,
+        error: 'validation',
+        messages: ['ИНН должен содержать 10 или 12 цифр'],
+      });
+    render(
+      <RequisitesCard title="Т" description="d" defaults={DEFAULTS} idPrefix="t" action={action} />
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('ИНН'));
 
@@ -143,7 +179,16 @@ describe('RequisitesCard', () => {
   });
 
   it('canEdit=false — форма скрыта, подсказка о правах', () => {
-    render(<RequisitesCard title="Т" description="d" defaults={DEFAULTS} idPrefix="t" action={vi.fn()} canEdit={false} />);
+    render(
+      <RequisitesCard
+        title="Т"
+        description="d"
+        defaults={DEFAULTS}
+        idPrefix="t"
+        action={vi.fn()}
+        canEdit={false}
+      />
+    );
     expect(screen.queryByRole('button', { name: 'Сохранить' })).toBeNull();
     expect(screen.getByText(/администратор или руководитель/)).toBeTruthy();
   });

@@ -1,7 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { createLeadStore } from './leads';
 
-const body = { partnerSlug: 'acme', cabinetLeadId: 'L1', clientCompanyName: 'c', subject: 's', productType: ['training'] };
+const body = {
+  partnerSlug: 'acme',
+  cabinetLeadId: 'L1',
+  clientCompanyName: 'c',
+  subject: 's',
+  productType: ['training'],
+};
 const now = () => new Date('2026-06-06T00:00:00Z');
 
 describe('createLeadStore', () => {

@@ -6,7 +6,10 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 const { push, refresh } = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push, refresh }) }));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 import { EnrollmentQueue } from '@/components/enrollment/enrollment-queue';
@@ -24,7 +27,7 @@ function item(overrides: Partial<EnrollmentItemRow> = {}): EnrollmentItemRow {
     extra: null,
     status: 'pending',
     externalStudentId: null,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -45,7 +48,7 @@ function row(overrides: Partial<EnrollmentRow> = {}): EnrollmentRow {
     note: null,
     createdAt: new Date('2024-01-15T10:00:00Z'),
     reviewedAt: null,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -56,8 +59,13 @@ function provisionedRow(): EnrollmentRow {
     studentCount: 2,
     items: [
       item({ id: 'i1', status: 'provisioned' }),
-      item({ id: 'i2', fullName: 'Анна Иванова', email: 'anna@example.com', status: 'provisioned' })
-    ]
+      item({
+        id: 'i2',
+        fullName: 'Анна Иванова',
+        email: 'anna@example.com',
+        status: 'provisioned',
+      }),
+    ],
   });
 }
 
@@ -87,7 +95,10 @@ describe('EnrollmentQueue — bulk-переходы позиций (PR-2)', () =
     fireEvent.click(screen.getByRole('button', { name: 'Идёт обучение' }));
 
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Отмечено: идёт обучение'));
-    expect(fetchMock).toHaveBeenCalledWith('/api/enrollments/e1', expect.objectContaining({ method: 'PATCH' }));
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/enrollments/e1',
+      expect.objectContaining({ method: 'PATCH' })
+    );
     expect(lastPatchBody(fetchMock)).toEqual({ action: 'markInTraining' });
     await waitFor(() => expect(refresh).toHaveBeenCalled());
   });
@@ -135,10 +146,15 @@ describe('EnrollmentQueue — bulk-переходы позиций (PR-2)', () =
             studentCount: 2,
             items: [
               item({ id: 'i1', status: 'in_training' }),
-              item({ id: 'i2', fullName: 'Анна Иванова', email: 'anna@example.com', status: 'in_training' })
-            ]
-          })
-        ]
+              item({
+                id: 'i2',
+                fullName: 'Анна Иванова',
+                email: 'anna@example.com',
+                status: 'in_training',
+              }),
+            ],
+          }),
+        ],
       })
     );
     expect(screen.queryByRole('button', { name: 'Идёт обучение' })).toBeNull();
@@ -147,7 +163,9 @@ describe('EnrollmentQueue — bulk-переходы позиций (PR-2)', () =
     fireEvent.click(screen.getByRole('checkbox', { name: 'Выбрать позицию: Иван Петров' }));
     fireEvent.click(screen.getByRole('button', { name: 'Удостоверения готовы' }));
 
-    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Отмечено: удостоверения готовы'));
+    await waitFor(() =>
+      expect(toastSuccess).toHaveBeenCalledWith('Отмечено: удостоверения готовы')
+    );
     expect(lastPatchBody(fetchMock)).toEqual({ action: 'markCertificatesReady', itemIds: ['i1'] });
   });
 
@@ -161,11 +179,21 @@ describe('EnrollmentQueue — bulk-переходы позиций (PR-2)', () =
             studentCount: 3,
             items: [
               item({ id: 'i1', status: 'provisioned' }),
-              item({ id: 'i2', fullName: 'Анна Иванова', email: 'anna@example.com', status: 'in_training' }),
-              item({ id: 'i3', fullName: 'Пётр Сидоров', email: 'petr@example.com', status: 'rejected' })
-            ]
-          })
-        ]
+              item({
+                id: 'i2',
+                fullName: 'Анна Иванова',
+                email: 'anna@example.com',
+                status: 'in_training',
+              }),
+              item({
+                id: 'i3',
+                fullName: 'Пётр Сидоров',
+                email: 'petr@example.com',
+                status: 'rejected',
+              }),
+            ],
+          }),
+        ],
       })
     );
     expect(screen.getByRole('button', { name: 'Идёт обучение' })).toBeTruthy();
@@ -189,7 +217,7 @@ describe('EnrollmentQueue — bulk-переходы позиций (PR-2)', () =
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       status: 409,
-      json: async () => ({ error: 'lifecycle_violation' })
+      json: async () => ({ error: 'lifecycle_violation' }),
     });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(EnrollmentQueue, { rows: [provisionedRow()] }));

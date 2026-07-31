@@ -1,4 +1,4 @@
-/* eslint-disable */
+ 
 /**
  * Промтехносфера PWA service worker.
  *

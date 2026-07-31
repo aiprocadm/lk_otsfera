@@ -27,7 +27,7 @@ const org = vi.hoisted(() => ({
   attention: vi.fn(),
   recentEvents: vi.fn(),
   recentEnrollments: vi.fn(),
-  expiringCertificates: vi.fn()
+  expiringCertificates: vi.fn(),
 }));
 vi.mock('@/lib/services/organization/dashboard', () => org);
 
@@ -36,13 +36,18 @@ const partner = vi.hoisted(() => ({
   attention: vi.fn(),
   recentEvents: vi.fn(),
   recentEnrollments: vi.fn(),
-  expiringCertificates: vi.fn()
+  expiringCertificates: vi.fn(),
 }));
 vi.mock('@/lib/services/partner/dashboard', () => partner);
 
 vi.mock('@/components/organization/org-app-shell', () => ({
   OrgAppShell: (props: { activeOrgName: string; children: React.ReactNode }) =>
-    React.createElement('div', { 'data-testid': 'org-app-shell' }, props.activeOrgName, props.children)
+    React.createElement(
+      'div',
+      { 'data-testid': 'org-app-shell' },
+      props.activeOrgName,
+      props.children
+    ),
 }));
 
 import OrganizationDashboardPage from '@/app/organization/dashboard/page';
@@ -54,9 +59,14 @@ const ORG_CTX = {
   activeOrgId: 'org-1',
   activeOrgName: 'ООО Ромашка',
   memberships: [],
-  viewerRole: 'admin' as const
+  viewerRole: 'admin' as const,
 };
-const PARTNER_SESSION = { sub: 'p1', role: 'partner' as const, partnerId: 'pt-1', assignedOrgIds: ['org-9'] };
+const PARTNER_SESSION = {
+  sub: 'p1',
+  role: 'partner' as const,
+  partnerId: 'pt-1',
+  assignedOrgIds: ['org-9'],
+};
 const PARTNER_SCOPE = { partnerId: 'pt-1', scopeOrgIds: ['org-9'] };
 
 beforeEach(() => {
@@ -74,9 +84,9 @@ beforeEach(() => {
   partner.kpis.mockResolvedValue({
     openOrders: 5,
     outstanding: '1000.00',
-    commissionThisMonth: '300.00'
+    commissionThisMonth: '300.00',
   });
-  partner.attention.mockResolvedValue({ stuckOrders: [], overdueOrders: [], });
+  partner.attention.mockResolvedValue({ stuckOrders: [], overdueOrders: [] });
   partner.recentEvents.mockResolvedValue([]);
   partner.recentEnrollments.mockResolvedValue([]);
   partner.expiringCertificates.mockResolvedValue(0);

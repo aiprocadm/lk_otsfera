@@ -44,11 +44,23 @@ import { GET as unreadGet } from '@/app/api/messages/unread/route';
 // Helpers
 // ---------------------------------------------------------------------------
 function orgSession(overrides: Record<string, unknown> = {}) {
-  return { sub: 'u-org-1', role: 'organization', email: 'org@local', orgIds: ['org-1'], ...overrides };
+  return {
+    sub: 'u-org-1',
+    role: 'organization',
+    email: 'org@local',
+    orgIds: ['org-1'],
+    ...overrides,
+  };
 }
 
 function teamSession(overrides: Record<string, unknown> = {}) {
-  return { sub: 'u-mgr-1', role: 'manager', email: 'mgr@local', managedOrgIds: ['org-1'], ...overrides };
+  return {
+    sub: 'u-mgr-1',
+    role: 'manager',
+    email: 'mgr@local',
+    managedOrgIds: ['org-1'],
+    ...overrides,
+  };
 }
 
 function jsonReq(url: string, body: unknown, method = 'POST') {
@@ -90,9 +102,7 @@ describe('POST /api/messages', () => {
   });
 
   it('missing body field → 400', async () => {
-    const res = await messagesPost(
-      jsonReq('https://app.local/api/messages', { orderId: 'ord-1' })
-    );
+    const res = await messagesPost(jsonReq('https://app.local/api/messages', { orderId: 'ord-1' }));
     expect(res.status).toBe(400);
     const json = (await res.json()) as { ok: boolean; error: string };
     expect(json).toEqual({ ok: false, error: 'bad_request' });
@@ -100,9 +110,7 @@ describe('POST /api/messages', () => {
   });
 
   it('missing orderId field → 400', async () => {
-    const res = await messagesPost(
-      jsonReq('https://app.local/api/messages', { body: 'hello' })
-    );
+    const res = await messagesPost(jsonReq('https://app.local/api/messages', { body: 'hello' }));
     expect(res.status).toBe(400);
     const json = (await res.json()) as { ok: boolean; error: string };
     expect(json).toEqual({ ok: false, error: 'bad_request' });
@@ -176,11 +184,17 @@ describe('GET /api/messages', () => {
   });
 
   it('valid threadId → 200 with rows', async () => {
-    const rows = [{ id: 'msg-1', authorId: 'u-1', body: 'hi', hasAttachment: false, createdAt: new Date('2026-06-01') }];
+    const rows = [
+      {
+        id: 'msg-1',
+        authorId: 'u-1',
+        body: 'hi',
+        hasAttachment: false,
+        createdAt: new Date('2026-06-01'),
+      },
+    ];
     listMessagesMock.mockResolvedValue({ ok: true, rows });
-    const res = await messagesGet(
-      new Request('https://app.local/api/messages?threadId=thr-1')
-    );
+    const res = await messagesGet(new Request('https://app.local/api/messages?threadId=thr-1'));
     expect(res.status).toBe(200);
     const json = (await res.json()) as { ok: boolean; rows: unknown[] };
     expect(json.ok).toBe(true);
@@ -268,7 +282,9 @@ describe('POST /api/messages/read', () => {
 
   it('valid threadId → 200 ok:true', async () => {
     markReadMock.mockResolvedValue({ ok: true });
-    const res = await readPost(jsonReq('https://app.local/api/messages/read', { threadId: 'thr-1' }));
+    const res = await readPost(
+      jsonReq('https://app.local/api/messages/read', { threadId: 'thr-1' })
+    );
     expect(res.status).toBe(200);
     const json = (await res.json()) as { ok: boolean };
     expect(json).toEqual({ ok: true });
@@ -277,7 +293,9 @@ describe('POST /api/messages/read', () => {
 
   it('flag OFF → 404', async () => {
     process.env.FEATURE_CHAT = '0';
-    const res = await readPost(jsonReq('https://app.local/api/messages/read', { threadId: 'thr-1' }));
+    const res = await readPost(
+      jsonReq('https://app.local/api/messages/read', { threadId: 'thr-1' })
+    );
     expect(res.status).toBe(404);
     expect(markReadMock).not.toHaveBeenCalled();
   });
@@ -292,13 +310,17 @@ describe('POST /api/messages/read', () => {
 
   it('service returns forbidden → 403', async () => {
     markReadMock.mockResolvedValue({ ok: false, error: 'forbidden' });
-    const res = await readPost(jsonReq('https://app.local/api/messages/read', { threadId: 'thr-1' }));
+    const res = await readPost(
+      jsonReq('https://app.local/api/messages/read', { threadId: 'thr-1' })
+    );
     expect(res.status).toBe(403);
   });
 
   it('service returns thread_not_found → 404', async () => {
     markReadMock.mockResolvedValue({ ok: false, error: 'thread_not_found' });
-    const res = await readPost(jsonReq('https://app.local/api/messages/read', { threadId: 'thr-1' }));
+    const res = await readPost(
+      jsonReq('https://app.local/api/messages/read', { threadId: 'thr-1' })
+    );
     expect(res.status).toBe(404);
   });
 
@@ -307,7 +329,9 @@ describe('POST /api/messages/read', () => {
       ok: false,
       response: new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 }),
     });
-    const res = await readPost(jsonReq('https://app.local/api/messages/read', { threadId: 'thr-1' }));
+    const res = await readPost(
+      jsonReq('https://app.local/api/messages/read', { threadId: 'thr-1' })
+    );
     expect(res.status).toBe(401);
     expect(markReadMock).not.toHaveBeenCalled();
   });
@@ -404,7 +428,7 @@ describe('POST /api/messages — additional error branches', () => {
       jsonReq('https://app.local/api/messages', {
         orderId: 'ord-1',
         body: 'see attachment',
-        attachmentPath: 'chat/ord-1/uuid-file.pdf'
+        attachmentPath: 'chat/ord-1/uuid-file.pdf',
       })
     );
     expect(res.status).toBe(201);
@@ -414,9 +438,7 @@ describe('POST /api/messages — additional error branches', () => {
 
   it('GET without after param omitted entirely → threadId only in args', async () => {
     listMessagesMock.mockResolvedValue({ ok: true, rows: [] });
-    const res = await messagesGet(
-      new Request('https://app.local/api/messages?threadId=thr-2')
-    );
+    const res = await messagesGet(new Request('https://app.local/api/messages?threadId=thr-2'));
     expect(res.status).toBe(200);
     // No after key should be present when after query param is absent
     expect(listMessagesMock).toHaveBeenCalledWith({}, orgSession(), { threadId: 'thr-2' });
@@ -426,9 +448,7 @@ describe('POST /api/messages — additional error branches', () => {
     // When threadId is absent from URL, get('threadId') returns null → ?? '' → ''
     // This covers the ?? '' fallback branch on the threadId line
     listMessagesMock.mockResolvedValue({ ok: true, rows: [] });
-    const res = await messagesGet(
-      new Request('https://app.local/api/messages')
-    );
+    const res = await messagesGet(new Request('https://app.local/api/messages'));
     expect(res.status).toBe(200);
     expect(listMessagesMock).toHaveBeenCalledWith({}, orgSession(), { threadId: '' });
   });

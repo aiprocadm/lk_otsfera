@@ -7,7 +7,7 @@ vi.mock('@/lib/email/send', () => ({
   sendManagerDocumentUploadedByPartnerEmail: sendPartner,
   sendManagerOrderMarkedPaidBy1CEmail: vi.fn(),
   sendManagerOrderStatusChangedEmail: vi.fn(),
-  sendNotificationEmail: vi.fn()
+  sendNotificationEmail: vi.fn(),
 }));
 
 vi.mock('@/lib/telegram/client', () => ({
@@ -22,17 +22,31 @@ describe('notifyManagers — document_uploaded_by_partner', () => {
     sendPartner.mockResolvedValue({ status: 'sent', id: 'e1' });
     const create = vi.fn().mockResolvedValue({});
     const db = {
-      order: { findUnique: vi.fn().mockResolvedValue({ id: 'o1', orderNumber: '42', title: 'T', managerId: 'm1', organizationId: 'org1' }) },
+      order: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({
+            id: 'o1',
+            orderNumber: '42',
+            title: 'T',
+            managerId: 'm1',
+            organizationId: 'org1',
+          }),
+      },
       organizationManager: { findMany: vi.fn().mockResolvedValue([]) },
       comment: { findMany: vi.fn().mockResolvedValue([]) },
       user: { findMany: vi.fn().mockResolvedValue([{ id: 'm1', email: 'm@x.ru', name: 'M' }]) },
-      notification: { create }
+      notification: { create },
     } as never;
 
     const r = await notifyManagers(db, {
       orderId: 'o1',
       type: 'document_uploaded_by_partner',
-      payload: { partnerName: 'ООО Партнёр', documentName: 'k.pdf', documentType: 'commission_statement' }
+      payload: {
+        partnerName: 'ООО Партнёр',
+        documentName: 'k.pdf',
+        documentType: 'commission_statement',
+      },
     });
 
     expect(r.recipientsNotified).toBe(1);

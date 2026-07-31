@@ -24,7 +24,7 @@ const DOC_TYPE_OPTIONS: Array<{ value: string; label: string }> = [
   { value: 'certificate', label: 'Сертификат' },
   { value: 'report', label: 'Отчёт' },
   { value: 'commission_statement', label: 'Расчёт комиссии' },
-  { value: 'other', label: 'Прочее' }
+  { value: 'other', label: 'Прочее' },
 ];
 
 type Props = { orderId: string };
@@ -53,7 +53,7 @@ export function ManagerDocUploadForm({ orderId }: Props) {
       toast.success(`Документ «${lastFileNameRef.current}» загружен.`);
       if (fileInputRef.current) fileInputRef.current.value = '';
     },
-    refresh: true
+    refresh: true,
   });
 
   function onDocTypeChange(value: string) {
@@ -75,44 +75,61 @@ export function ManagerDocUploadForm({ orderId }: Props) {
   const error = localError ?? errorText;
 
   return (
-    <div className='bg-white border border-gray-200 rounded-xl p-5'>
-      <h2 className='text-sm font-semibold text-[#111111] mb-3'>Загрузить документ</h2>
-      <form action={guardedAction} className='flex flex-col gap-3'>
-        <Field htmlFor='mgr-doc-file' label='Файл' hint='Допустимые форматы: PDF, JPG, PNG, DOCX, XLS, XLSX. Максимум 20 МБ.'>
+    <div className="bg-white border border-gray-200 rounded-xl p-5">
+      <h2 className="text-sm font-semibold text-[#111111] mb-3">Загрузить документ</h2>
+      <form action={guardedAction} className="flex flex-col gap-3">
+        <Field
+          htmlFor="mgr-doc-file"
+          label="Файл"
+          hint="Допустимые форматы: PDF, JPG, PNG, DOCX, XLS, XLSX. Максимум 20 МБ."
+        >
           <input
-            id='mgr-doc-file'
+            id="mgr-doc-file"
             ref={fileInputRef}
-            type='file'
+            type="file"
             disabled={pending}
-            className='block w-full text-sm text-gray-700 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-[#F97316] file:text-white hover:file:bg-[#EA580C] file:cursor-pointer disabled:opacity-50'
+            className="block w-full text-sm text-gray-700 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-[#F97316] file:text-white hover:file:bg-[#EA580C] file:cursor-pointer disabled:opacity-50"
           />
         </Field>
 
-        <Field htmlFor='mgr-doc-type' label='Тип документа'>
-          <Select id='mgr-doc-type' value={docType} onChange={(e) => onDocTypeChange(e.target.value)} disabled={pending}>
-            {DOC_TYPE_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+        <Field htmlFor="mgr-doc-type" label="Тип документа">
+          <Select
+            id="mgr-doc-type"
+            value={docType}
+            onChange={(e) => onDocTypeChange(e.target.value)}
+            disabled={pending}
+          >
+            {DOC_TYPE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
           </Select>
         </Field>
 
-        <Field htmlFor='mgr-doc-recipient' label='Получатель'>
+        <Field htmlFor="mgr-doc-recipient" label="Получатель">
           <Select
-            id='mgr-doc-recipient'
+            id="mgr-doc-recipient"
             value={recipient}
             onChange={(e) => setRecipient(e.target.value as 'organization' | 'partner')}
             disabled={pending}
           >
-            <option value='organization'>Организация</option>
-            <option value='partner'>Партнёр</option>
+            <option value="organization">Организация</option>
+            <option value="partner">Партнёр</option>
           </Select>
         </Field>
 
         <div>
-          <Button type='submit' loading={pending}>
+          <Button type="submit" loading={pending}>
             {pending ? 'Загружаю…' : 'Загрузить'}
           </Button>
         </div>
 
-        {error && <p role='alert' className='text-sm text-red-600'>{error}</p>}
+        {error && (
+          <p role="alert" className="text-sm text-red-600">
+            {error}
+          </p>
+        )}
       </form>
     </div>
   );

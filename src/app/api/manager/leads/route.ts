@@ -21,7 +21,7 @@ export async function GET(req: Request) {
     status,
     search: sp.get('q') ?? undefined,
     assignedToUserId: sp.get('assignedToMe') === '1' ? session.sub : undefined,
-    cursor: sp.get('cursor') ?? undefined
+    cursor: sp.get('cursor') ?? undefined,
   });
   return NextResponse.json(result);
 }

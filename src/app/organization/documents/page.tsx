@@ -30,7 +30,7 @@ const VALID_TYPES: DocumentType[] = [
   'certificate',
   'report',
   'commission_statement',
-  'other'
+  'other',
 ];
 
 const TYPE_LABELS: Record<DocumentType, string> = {
@@ -42,14 +42,14 @@ const TYPE_LABELS: Record<DocumentType, string> = {
   certificate: 'Сертификаты',
   report: 'Отчёты',
   commission_statement: 'Комиссия',
-  other: 'Прочее'
+  other: 'Прочее',
 };
 
 const DEFAULT_TAKE = 50;
 const MAX_TAKE = 200;
 
 export default async function OrganizationDocumentsPage({
-  searchParams
+  searchParams,
 }: {
   searchParams: Promise<SearchParams>;
 }) {
@@ -74,21 +74,19 @@ export default async function OrganizationDocumentsPage({
     search: sp.search,
     take,
     skip,
-    orderLess: tab === 'general'
+    orderLess: tab === 'general',
   });
 
   // Этап 3 PR-2 (ФТ-6.6): «новый» = не скачан текущим пользователем.
   const viewed = await viewedDocumentIds(prisma, {
     userId: ctx.session.sub,
-    documentIds: rows.map((r) => r.id)
+    documentIds: rows.map((r) => r.id),
   });
   const newDocIds = rows.filter((r) => !viewed.has(r.id)).map((r) => r.id);
 
   const grandTotal = Object.values(countsByType).reduce((s, n) => s + (n ?? 0), 0);
 
-  const downloadEndpointQuery = sp.org
-    ? `?org=${encodeURIComponent(sp.org)}`
-    : '';
+  const downloadEndpointQuery = sp.org ? `?org=${encodeURIComponent(sp.org)}` : '';
 
   return (
     <OrgAppShell
@@ -98,21 +96,19 @@ export default async function OrganizationDocumentsPage({
       activeOrgId={ctx.activeOrgId}
       viewerRole={ctx.viewerRole}
     >
-      <div className='space-y-4'>
-        <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-3'>
+      <div className="space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
-            <h1 className='text-2xl font-semibold text-[#111111]'>Документы</h1>
-            <p className='text-sm text-gray-500 mt-0.5'>
+            <h1 className="text-2xl font-semibold text-[#111111]">Документы</h1>
+            <p className="text-sm text-gray-500 mt-0.5">
               {total} {pluralizeRu(total, 'документ', 'документа', 'документов')}
-              {sp.search && (
-                <span className='text-gray-400'> · по запросу «{sp.search}»</span>
-              )}
+              {sp.search && <span className="text-gray-400"> · по запросу «{sp.search}»</span>}
             </p>
           </div>
           <OrgDocumentsSearch />
         </div>
 
-        <nav className='flex gap-2'>
+        <nav className="flex gap-2">
           <Link
             href={`/organization/documents${sp.org ? `?org=${sp.org}` : ''}`}
             className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
@@ -144,20 +140,24 @@ export default async function OrganizationDocumentsPage({
           tab={tab}
         />
 
-        {tab === 'general' && (
-          <OrganizationOrderLessUploadForm organizationId={ctx.activeOrgId} />
-        )}
+        {tab === 'general' && <OrganizationOrderLessUploadForm organizationId={ctx.activeOrgId} />}
 
         <DocumentsList
           rows={rows}
-          downloadEndpointBase='/api/organization/documents'
+          downloadEndpointBase="/api/organization/documents"
           downloadEndpointQuery={downloadEndpointQuery}
           newDocIds={newDocIds}
           groupByOrder={tab === 'orders'}
-          cardHrefBase='/organization/documents'
+          cardHrefBase="/organization/documents"
         />
 
-        <Paginator basePath='/organization/documents' searchParams={sp} take={take} skip={skip} total={total} />
+        <Paginator
+          basePath="/organization/documents"
+          searchParams={sp}
+          take={take}
+          skip={skip}
+          total={total}
+        />
       </div>
     </OrgAppShell>
   );
@@ -169,7 +169,7 @@ function TypeFilter({
   grandTotal,
   search,
   org,
-  tab
+  tab,
 }: {
   active?: DocumentType;
   countsByType: Partial<Record<DocumentType, number>>;
@@ -191,8 +191,8 @@ function TypeFilter({
   }
 
   return (
-    <nav className='flex flex-wrap gap-1.5'>
-      <Chip href={href()} active={!active} label='Все' count={grandTotal} />
+    <nav className="flex flex-wrap gap-1.5">
+      <Chip href={href()} active={!active} label="Все" count={grandTotal} />
       {present.map((t) => (
         <Chip
           key={t}
@@ -211,7 +211,7 @@ function Chip({
   href,
   label,
   count,
-  active
+  active,
 }: {
   href: string;
   label: string;

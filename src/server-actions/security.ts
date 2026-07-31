@@ -19,14 +19,14 @@ export async function revokeAllSessionsAction(): Promise<
 
   await prisma.user.update({
     where: { id: session.sub },
-    data: { sessionVersion: { increment: 1 } }
+    data: { sessionVersion: { increment: 1 } },
   });
 
   await recordAudit(prisma, {
     userId: session.sub,
     action: 'sessions_revoked',
     entity: 'user',
-    entityId: session.sub
+    entityId: session.sub,
   }).catch(() => {});
 
   (await cookies()).delete('session');

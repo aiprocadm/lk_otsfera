@@ -12,7 +12,7 @@ function makeItem(overrides: Partial<PortfolioItem> = {}): PortfolioItem {
     assignedManagerUserId: null,
     ordersCount: 3,
     debt: '0.00',
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -32,12 +32,16 @@ describe('PortfolioCardList', () => {
   });
 
   it('shows fallback text when inn is null', () => {
-    const html = renderToString(React.createElement(PortfolioCardList, { items: [makeItem({ inn: null })] }));
+    const html = renderToString(
+      React.createElement(PortfolioCardList, { items: [makeItem({ inn: null })] })
+    );
     expect(html).toContain('ИНН не указан');
   });
 
   it('shows red accent styling and formatted debt when debt > 0', () => {
-    const html = renderToString(React.createElement(PortfolioCardList, { items: [makeItem({ debt: '25000.00' })] }));
+    const html = renderToString(
+      React.createElement(PortfolioCardList, { items: [makeItem({ debt: '25000.00' })] })
+    );
     expect(html).toContain('text-red-700');
     expect(html).toContain('₽');
   });

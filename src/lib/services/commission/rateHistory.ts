@@ -18,7 +18,7 @@ export async function listRateHistory(
 
   const changes = await prisma.commissionRateChange.findMany({
     where: { partnerId },
-    orderBy: { effectiveFrom: 'desc' }
+    orderBy: { effectiveFrom: 'desc' },
   });
 
   const ids = [...new Set(changes.map((c) => c.changedById).filter(Boolean) as string[])];
@@ -35,8 +35,8 @@ export async function listRateHistory(
       oldRate: c.oldRate ? Number(c.oldRate) : null,
       newRate: Number(c.newRate),
       effectiveFrom: c.effectiveFrom,
-      changedByName: c.changedById ? (nameById.get(c.changedById) ?? null) : null
-    }))
+      changedByName: c.changedById ? (nameById.get(c.changedById) ?? null) : null,
+    })),
   };
 }
 
@@ -62,7 +62,7 @@ export async function listOrgRateHistory(
 
   const changes = await prisma.organizationCommissionRateChange.findMany({
     where: { organizationId },
-    orderBy: { effectiveFrom: 'desc' }
+    orderBy: { effectiveFrom: 'desc' },
   });
 
   const ids = [...new Set(changes.map((c) => c.changedById).filter(Boolean) as string[])];
@@ -79,7 +79,7 @@ export async function listOrgRateHistory(
       oldRate: c.oldRate ? Number(c.oldRate) : null,
       newRate: c.newRate ? Number(c.newRate) : null,
       effectiveFrom: c.effectiveFrom,
-      changedByName: c.changedById ? (nameById.get(c.changedById) ?? null) : null
-    }))
+      changedByName: c.changedById ? (nameById.get(c.changedById) ?? null) : null,
+    })),
   };
 }

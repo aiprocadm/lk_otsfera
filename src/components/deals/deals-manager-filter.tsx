@@ -10,7 +10,7 @@ import { Select } from '@/components/ui';
  */
 export function DealsManagerFilter({
   managers,
-  managerId
+  managerId,
 }: {
   managers: { id: string; name: string }[];
   managerId?: string;
@@ -27,7 +27,12 @@ export function DealsManagerFilter({
   return (
     <div>
       <p className="mb-1.5 text-xs font-medium text-gray-500">Менеджер</p>
-      <Select aria-label="Менеджер" value={managerId ?? ''} onChange={handleChange} className="w-full sm:w-64">
+      <Select
+        aria-label="Менеджер"
+        value={managerId ?? ''}
+        onChange={handleChange}
+        className="w-full sm:w-64"
+      >
         <option value="">Все менеджеры</option>
         {managers.map((m) => (
           <option key={m.id} value={m.id}>

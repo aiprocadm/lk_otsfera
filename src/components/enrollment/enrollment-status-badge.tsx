@@ -8,12 +8,14 @@ const TONE: Record<EnrollmentStatus, string> = {
   rejected: 'bg-gray-100 text-gray-600 border-gray-200',
   provisioned: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   in_training: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-  certificates_ready: 'bg-green-50 text-green-700 border-green-200'
+  certificates_ready: 'bg-green-50 text-green-700 border-green-200',
 };
 
 export function EnrollmentStatusBadge({ status }: { status: EnrollmentStatus }) {
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium border rounded-full ${TONE[status]}`}>
+    <span
+      className={`inline-flex items-center px-2 py-0.5 text-xs font-medium border rounded-full ${TONE[status]}`}
+    >
       {LABEL[status]}
     </span>
   );

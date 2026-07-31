@@ -40,10 +40,12 @@ describe('UnreadBadge', () => {
 
   it('passes select() that defaults count to 0 when the API payload omits it', () => {
     let capturedSelect: ((d: unknown) => number) | undefined;
-    useClientResource.mockImplementation((_url: string, opts: { select: (d: unknown) => number }) => {
-      capturedSelect = opts.select;
-      return { data: 0 };
-    });
+    useClientResource.mockImplementation(
+      (_url: string, opts: { select: (d: unknown) => number }) => {
+        capturedSelect = opts.select;
+        return { data: 0 };
+      }
+    );
     render(React.createElement(UnreadBadge));
     expect(capturedSelect).toBeDefined();
     expect(capturedSelect!({})).toBe(0);

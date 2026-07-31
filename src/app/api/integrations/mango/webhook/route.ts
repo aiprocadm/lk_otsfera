@@ -43,8 +43,12 @@ export async function POST(req: Request): Promise<Response> {
   // Креды из настроек (БД → env); сбой чтения БД деградирует на env, чтобы
   // авария базы не превращала подписанные вебхуки в 500 (fail-closed остаётся:
   // нет кредов нигде → 401).
-  const apiKey = (await getSettingValue(prisma, 'mango.apiKey').catch(() => process.env.MANGO_API_KEY))?.trim();
-  const salt = (await getSettingValue(prisma, 'mango.apiSalt').catch(() => process.env.MANGO_API_SALT))?.trim();
+  const apiKey = (
+    await getSettingValue(prisma, 'mango.apiKey').catch(() => process.env.MANGO_API_KEY)
+  )?.trim();
+  const salt = (
+    await getSettingValue(prisma, 'mango.apiSalt').catch(() => process.env.MANGO_API_SALT)
+  )?.trim();
   if (
     !apiKey ||
     !salt ||
@@ -75,7 +79,7 @@ export async function POST(req: Request): Promise<Response> {
     await ingestCallEvent(prisma, event).catch((e: unknown) => {
       log.error('[webhook/mango] ingest failed', {
         externalId: event.externalId,
-        error: e instanceof Error ? e.message : String(e)
+        error: e instanceof Error ? e.message : String(e),
       });
     });
     if (event.kind === 'recording' && event.recordingId) {
@@ -85,12 +89,12 @@ export async function POST(req: Request): Promise<Response> {
       try {
         await getQueue('telephony.mango.recording').add('rec', {
           externalId: event.externalId,
-          recordingId: event.recordingId
+          recordingId: event.recordingId,
         });
       } catch (e) {
         log.error('[webhook/mango] recording enqueue failed', {
           externalId: event.externalId,
-          error: e instanceof Error ? e.message : String(e)
+          error: e instanceof Error ? e.message : String(e),
         });
       }
     }

@@ -53,7 +53,10 @@ export type UploadChatAttachmentArgs = {
 
 export type UploadChatAttachmentResult =
   | { ok: true; attachmentPath: string }
-  | { ok: false; error: 'forbidden' | 'order_not_found' | 'too_large' | 'invalid_mime' | 'storage' };
+  | {
+      ok: false;
+      error: 'forbidden' | 'order_not_found' | 'too_large' | 'invalid_mime' | 'storage';
+    };
 
 export async function uploadChatAttachment(
   prisma: PrismaClient,
@@ -118,8 +121,7 @@ export async function uploadChatAttachment(
 // ---------------------------------------------------------------------------
 
 export type GetChatAttachmentSignedUrlResult =
-  | { ok: true; url: string }
-  | { ok: false; error: 'forbidden' | 'not_found' | 'storage' };
+  { ok: true; url: string } | { ok: false; error: 'forbidden' | 'not_found' | 'storage' };
 
 export async function getChatAttachmentSignedUrl(
   prisma: PrismaClient,

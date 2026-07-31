@@ -1,31 +1,43 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, waitFor, within, cleanup as cleanupAll } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+  cleanup as cleanupAll,
+} from '@testing-library/react';
 
 const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 
-const { createDealAction, updateDealAction, addDealNoteAction, listDealNotesAction } = vi.hoisted(() => ({
-  createDealAction: vi.fn(),
-  updateDealAction: vi.fn(),
-  addDealNoteAction: vi.fn(),
-  listDealNotesAction: vi.fn()
-}));
+const { createDealAction, updateDealAction, addDealNoteAction, listDealNotesAction } = vi.hoisted(
+  () => ({
+    createDealAction: vi.fn(),
+    updateDealAction: vi.fn(),
+    addDealNoteAction: vi.fn(),
+    listDealNotesAction: vi.fn(),
+  })
+);
 vi.mock('@/server-actions/deals', () => ({
   createDealAction,
   updateDealAction,
   addDealNoteAction,
-  listDealNotesAction
+  listDealNotesAction,
 }));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 // Этап 7 (ФТ-7.1): блок «Задачи» в режиме редактирования — экшен и панель стабятся.
 const { listLinkedTasksAction, linkedPanelSpy } = vi.hoisted(() => ({
   listLinkedTasksAction: vi.fn(),
-  linkedPanelSpy: vi.fn()
+  linkedPanelSpy: vi.fn(),
 }));
 vi.mock('@/server-actions/tasks', () => ({ listLinkedTasksAction }));
 vi.mock('@/components/tasks/linked-tasks-panel', () => ({
@@ -36,7 +48,7 @@ vi.mock('@/components/tasks/linked-tasks-panel', () => ({
       { 'data-testid': 'linked-tasks-panel-stub' },
       React.createElement('button', { onClick: props.onCreated }, 'stub-task-created')
     );
-  }
+  },
 }));
 
 import { DealDialog, NewDealButton, type DealDialogTarget } from '@/components/deals/deal-dialog';
@@ -44,7 +56,7 @@ import { DealDialog, NewDealButton, type DealDialogTarget } from '@/components/d
 const organizations = [{ id: 'org-1', name: 'ООО Ромашка' }];
 const managers = [
   { id: 'u-me', name: 'Я Сам' },
-  { id: 'm-2', name: 'Пётр' }
+  { id: 'm-2', name: 'Пётр' },
 ];
 
 const target: DealDialogTarget = {
@@ -54,7 +66,7 @@ const target: DealDialogTarget = {
   organizationId: 'org-1',
   managerId: 'm-2',
   expectedCloseAt: new Date('2026-08-15T00:00:00.000Z'),
-  orderId: null
+  orderId: null,
 };
 
 function renderCreate(overrides: Partial<React.ComponentProps<typeof DealDialog>> = {}) {
@@ -66,7 +78,7 @@ function renderCreate(overrides: Partial<React.ComponentProps<typeof DealDialog>
       currentUserId: 'u-me',
       onClose,
       onSaved,
-      ...overrides
+      ...overrides,
     })
   );
 }
@@ -93,7 +105,9 @@ describe('DealDialog', () => {
       expect(await screen.findByText('Новая сделка')).toBeTruthy();
       expect((screen.getByLabelText('Название') as HTMLInputElement).value).toBe('');
       expect((screen.getByLabelText('Ответственный') as HTMLSelectElement).value).toBe('u-me');
-      expect((screen.getByLabelText('Организация (необязательно)') as HTMLSelectElement).value).toBe('');
+      expect(
+        (screen.getByLabelText('Организация (необязательно)') as HTMLSelectElement).value
+      ).toBe('');
     });
 
     it('submit calls createDealAction with title/amount/expectedCloseAt/organizationId/managerId', async () => {
@@ -103,8 +117,12 @@ describe('DealDialog', () => {
 
       fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'Новая продажа' } });
       fireEvent.change(screen.getByLabelText('Сумма, ₽'), { target: { value: '999.99' } });
-      fireEvent.change(screen.getByLabelText('Ожидаемое закрытие'), { target: { value: '2026-09-01' } });
-      fireEvent.change(screen.getByLabelText('Организация (необязательно)'), { target: { value: 'org-1' } });
+      fireEvent.change(screen.getByLabelText('Ожидаемое закрытие'), {
+        target: { value: '2026-09-01' },
+      });
+      fireEvent.change(screen.getByLabelText('Организация (необязательно)'), {
+        target: { value: 'org-1' },
+      });
       fireEvent.change(screen.getByLabelText('Ответственный'), { target: { value: 'm-2' } });
       fireEvent.click(screen.getByRole('button', { name: 'Создать' }));
 
@@ -146,7 +164,7 @@ describe('DealDialog', () => {
       createDealAction.mockResolvedValue({
         ok: false,
         error: 'validation',
-        messages: ['Укажите название сделки', 'Сумма — число, до двух знаков после запятой']
+        messages: ['Укажите название сделки', 'Сумма — число, до двух знаков после запятой'],
       });
       renderCreate();
       await screen.findByText('Новая сделка');
@@ -196,8 +214,12 @@ describe('DealDialog', () => {
       expect(await screen.findByText('Сделка')).toBeTruthy();
       expect((screen.getByLabelText('Название') as HTMLInputElement).value).toBe('Сделка Ромашка');
       expect((screen.getByLabelText('Сумма, ₽') as HTMLInputElement).value).toBe('150.50');
-      expect((screen.getByLabelText('Ожидаемое закрытие') as HTMLInputElement).value).toBe('2026-08-15');
-      expect((screen.getByLabelText('Организация (необязательно)') as HTMLSelectElement).value).toBe('org-1');
+      expect((screen.getByLabelText('Ожидаемое закрытие') as HTMLInputElement).value).toBe(
+        '2026-08-15'
+      );
+      expect(
+        (screen.getByLabelText('Организация (необязательно)') as HTMLSelectElement).value
+      ).toBe('org-1');
       expect((screen.getByLabelText('Ответственный') as HTMLSelectElement).value).toBe('m-2');
     });
 
@@ -222,8 +244,13 @@ describe('DealDialog', () => {
       listDealNotesAction.mockResolvedValue({
         ok: true,
         rows: [
-          { id: 'n1', body: 'Клиент просил счёт до пятницы', authorName: 'Мария', createdAt: new Date('2026-07-01T10:00:00Z') }
-        ]
+          {
+            id: 'n1',
+            body: 'Клиент просил счёт до пятницы',
+            authorName: 'Мария',
+            createdAt: new Date('2026-07-01T10:00:00Z'),
+          },
+        ],
       });
       renderCreate({ target });
       expect(await screen.findByText('Клиент просил счёт до пятницы')).toBeTruthy();
@@ -250,7 +277,7 @@ describe('DealDialog', () => {
 
       listDealNotesAction.mockResolvedValue({
         ok: true,
-        rows: [{ id: 'n2', body: 'Новая заметка', authorName: 'Я', createdAt: new Date() }]
+        rows: [{ id: 'n2', body: 'Новая заметка', authorName: 'Я', createdAt: new Date() }],
       });
 
       const field = screen.getByPlaceholderText(/заметк/i) as HTMLTextAreaElement;
@@ -277,10 +304,14 @@ describe('DealDialog', () => {
       addDealNoteAction.mockResolvedValue({ ok: false, error: 'not_found' });
       renderCreate({ target });
       await screen.findByText('Заметок пока нет.');
-      fireEvent.change(screen.getByPlaceholderText(/заметк/i), { target: { value: 'Важная заметка' } });
+      fireEvent.change(screen.getByPlaceholderText(/заметк/i), {
+        target: { value: 'Важная заметка' },
+      });
       fireEvent.click(screen.getByRole('button', { name: 'Добавить' }));
       await waitFor(() => expect(toastError).toHaveBeenCalled());
-      expect((screen.getByPlaceholderText(/заметк/i) as HTMLTextAreaElement).value).toBe('Важная заметка');
+      expect((screen.getByPlaceholderText(/заметк/i) as HTMLTextAreaElement).value).toBe(
+        'Важная заметка'
+      );
     });
 
     it('незнакомый код отказа → общий текст; сбой перезагрузки списка после добавления → пустой список', async () => {
@@ -356,7 +387,9 @@ describe('DealDialog', () => {
 
   describe('NewDealButton', () => {
     it('opens the create dialog on click and closes it on cancel', async () => {
-      render(React.createElement(NewDealButton, { organizations, managers, currentUserId: 'u-me' }));
+      render(
+        React.createElement(NewDealButton, { organizations, managers, currentUserId: 'u-me' })
+      );
       expect(screen.queryByText('Новая сделка')).toBeNull();
 
       fireEvent.click(screen.getByRole('button', { name: '+ Сделка' }));
@@ -368,7 +401,9 @@ describe('DealDialog', () => {
 
     it('closes the dialog and refreshes the router after a successful save', async () => {
       createDealAction.mockResolvedValue({ ok: true, id: 'new-deal' });
-      render(React.createElement(NewDealButton, { organizations, managers, currentUserId: 'u-me' }));
+      render(
+        React.createElement(NewDealButton, { organizations, managers, currentUserId: 'u-me' })
+      );
       fireEvent.click(screen.getByRole('button', { name: '+ Сделка' }));
       const dlg = (await screen.findByText('Новая сделка')).closest('dialog') as HTMLElement;
 

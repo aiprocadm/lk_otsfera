@@ -6,7 +6,10 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 const { pushLeadToOneCAction } = vi.hoisted(() => ({ pushLeadToOneCAction: vi.fn() }));
 vi.mock('@/server-actions/manager/leads', () => ({ pushLeadToOneCAction }));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 import { PushLeadButton } from '@/components/manager/push-lead-button';
@@ -17,14 +20,14 @@ describe('PushLeadButton', () => {
   });
 
   it('рендерит secondary-кнопку «Отправить в 1С»', () => {
-    render(<PushLeadButton leadId='l1' />);
+    render(<PushLeadButton leadId="l1" />);
     const button = screen.getByRole('button', { name: 'Отправить в 1С' }) as HTMLButtonElement;
     expect(button.disabled).toBe(false);
   });
 
   it('клик вызывает экшен с leadId; успех — success-тост', async () => {
     pushLeadToOneCAction.mockResolvedValue({ ok: true });
-    render(<PushLeadButton leadId='l1' />);
+    render(<PushLeadButton leadId="l1" />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Отправить в 1С' }));
 
@@ -37,7 +40,7 @@ describe('PushLeadButton', () => {
 
   it('already_pushed — локальная дельта текста поверх errorMessageRu', async () => {
     pushLeadToOneCAction.mockResolvedValue({ ok: false, error: 'already_pushed' });
-    render(<PushLeadButton leadId='l1' />);
+    render(<PushLeadButton leadId="l1" />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Отправить в 1С' }));
 
@@ -47,7 +50,7 @@ describe('PushLeadButton', () => {
 
   it('not_found — локальная дельта «Заявка не найдена.» (центральный текст — про заказ)', async () => {
     pushLeadToOneCAction.mockResolvedValue({ ok: false, error: 'not_found' });
-    render(<PushLeadButton leadId='l1' />);
+    render(<PushLeadButton leadId="l1" />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Отправить в 1С' }));
 
@@ -57,7 +60,7 @@ describe('PushLeadButton', () => {
 
   it('queue_unavailable — общий словарь errorMessageRu (дельта не нужна)', async () => {
     pushLeadToOneCAction.mockResolvedValue({ ok: false, error: 'queue_unavailable' });
-    render(<PushLeadButton leadId='l1' />);
+    render(<PushLeadButton leadId="l1" />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Отправить в 1С' }));
 
@@ -68,7 +71,7 @@ describe('PushLeadButton', () => {
 
   it('код вне локальной дельты падает в errorMessageRu (validation)', async () => {
     pushLeadToOneCAction.mockResolvedValue({ ok: false, error: 'validation' });
-    render(<PushLeadButton leadId='l1' />);
+    render(<PushLeadButton leadId="l1" />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Отправить в 1С' }));
 

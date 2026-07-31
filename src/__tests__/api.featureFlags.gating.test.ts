@@ -28,7 +28,7 @@ function middlewareReq(pathname: string) {
   return {
     url: `https://app.local${pathname}`,
     nextUrl: { pathname },
-    cookies: { get: vi.fn().mockReturnValue({ value: 'tkn' }) }
+    cookies: { get: vi.fn().mockReturnValue({ value: 'tkn' }) },
   } as any;
 }
 

@@ -23,9 +23,7 @@ export async function POST(req: Request) {
 
   if (!result.ok) {
     const status =
-      result.error === 'forbidden' ? 403 :
-      result.error === 'message_not_found' ? 404 :
-      400; // 'invalid'
+      result.error === 'forbidden' ? 403 : result.error === 'message_not_found' ? 404 : 400; // 'invalid'
     return Response.json({ ok: false, error: result.error }, { status });
   }
 

@@ -22,7 +22,7 @@ export async function backfillTable(
   kind: ScanDocumentTarget,
   fetchBatch: (cursor: string | null, take: number) => Promise<PendingRow[]>,
   queue: Pick<Queue, 'add'>,
-  batchSize: number,
+  batchSize: number
 ): Promise<number> {
   let cursor: string | null = null;
   let enqueued = 0;
@@ -49,7 +49,7 @@ export async function backfillTable(
 export async function runBackfill(
   db: PrismaClient = defaultPrisma,
   queue: Pick<Queue, 'add'> = getQueue('docs.scanDocument'),
-  batchSize: number = Number(process.env.BACKFILL_BATCH ?? '500'),
+  batchSize: number = Number(process.env.BACKFILL_BATCH ?? '500')
 ): Promise<BackfillResult> {
   const documents = await backfillTable(
     'document',
@@ -62,7 +62,7 @@ export async function runBackfill(
         ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
       }),
     queue,
-    batchSize,
+    batchSize
   );
 
   const leadAttachments = await backfillTable(
@@ -76,7 +76,7 @@ export async function runBackfill(
         ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
       }),
     queue,
-    batchSize,
+    batchSize
   );
 
   const inboundAttachments = await backfillTable(
@@ -90,7 +90,7 @@ export async function runBackfill(
         ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
       }),
     queue,
-    batchSize,
+    batchSize
   );
 
   const staffAttachments = await backfillTable(
@@ -104,7 +104,7 @@ export async function runBackfill(
         ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
       }),
     queue,
-    batchSize,
+    batchSize
   );
 
   return {

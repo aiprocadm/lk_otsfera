@@ -12,25 +12,30 @@ import { ManagerOrderDetailView } from '@/components/manager/manager-order-detai
 import { LeaderAssignOrderManagerForm } from '@/components/leader/leader-assign-order-manager-form';
 import { getOrderStatusPanel } from '@/lib/services/orderStatuses';
 
-export default async function LeaderOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function LeaderOrderDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const session = await requireManagerLeader();
   const { id } = await params;
   const data = await loadManagerOrderDetail(prisma, session, id);
   if (!data) notFound();
 
-  const [directionsResult, students, customFieldsResult, activity, companyManagers] = await Promise.all([
-    listDirections(prisma, session),
-    prisma.student.findMany({
-      where: { organizationId: data.order.organizationId ?? undefined },
-      select: { id: true, name: true, email: true },
-      orderBy: { name: 'asc' }
-    }),
-    getValuesForEntity(prisma, session, 'order', id),
-    getDealActivity(prisma, session, id, { view: 'all' }),
-    // A3: кандидаты для формы назначения — активные менеджеры компании
-    // руководителя (C8: граница — компания; без companyId кандидатов нет).
-    session.companyId ? listCompanyManagers(prisma, session.companyId) : Promise.resolve([])
-  ]);
+  const [directionsResult, students, customFieldsResult, activity, companyManagers] =
+    await Promise.all([
+      listDirections(prisma, session),
+      prisma.student.findMany({
+        where: { organizationId: data.order.organizationId ?? undefined },
+        select: { id: true, name: true, email: true },
+        orderBy: { name: 'asc' },
+      }),
+      getValuesForEntity(prisma, session, 'order', id),
+      getDealActivity(prisma, session, id, { view: 'all' }),
+      // A3: кандидаты для формы назначения — активные менеджеры компании
+      // руководителя (C8: граница — компания; без companyId кандидатов нет).
+      session.companyId ? listCompanyManagers(prisma, session.companyId) : Promise.resolve([]),
+    ]);
   const directions = directionsResult.ok ? directionsResult.directions : [];
   const customFields = customFieldsResult.ok ? customFieldsResult.fields : [];
   const activityItems = activity.ok ? activity.items : [];
@@ -45,11 +50,11 @@ export default async function LeaderOrderDetailPage({ params }: { params: Promis
   const statusPanel = await getOrderStatusPanel(prisma, session, id);
 
   return (
-    <div className='space-y-5'>
+    <div className="space-y-5">
       <ManagerOrderDetailView
-      statusPanel={statusPanel}
+        statusPanel={statusPanel}
         data={data}
-        backHref='/leader/orders'
+        backHref="/leader/orders"
         directions={directions}
         students={students}
         customFields={customFields}

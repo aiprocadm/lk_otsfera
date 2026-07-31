@@ -7,11 +7,20 @@ import type { SyncJobPayload } from '@/lib/jobs/types';
 
 const { capturePendingSkips, replayPendingRecords } = vi.hoisted(() => ({
   capturePendingSkips: vi.fn().mockResolvedValue(undefined),
-  replayPendingRecords: vi.fn().mockResolvedValue({ resolved: 0, deadLettered: 0, stillPending: 0 }),
+  replayPendingRecords: vi
+    .fn()
+    .mockResolvedValue({ resolved: 0, deadLettered: 0, stillPending: 0 }),
 }));
-vi.mock('@/lib/services/oneCSync/pending', () => ({ capturePendingSkips, replayPendingRecords, isTransientSkip: () => true }));
+vi.mock('@/lib/services/oneCSync/pending', () => ({
+  capturePendingSkips,
+  replayPendingRecords,
+  isTransientSkip: () => true,
+}));
 
-const job = { id: 'shadow-1', data: { triggeredAt: '2026-05-01T00:00:00Z', reason: 'manual' as const } } as Job<SyncJobPayload>;
+const job = {
+  id: 'shadow-1',
+  data: { triggeredAt: '2026-05-01T00:00:00Z', reason: 'manual' as const },
+} as Job<SyncJobPayload>;
 
 function dbMock() {
   const orderCreate = vi.fn().mockResolvedValue({});
@@ -19,16 +28,36 @@ function dbMock() {
   const syncStateUpsert = vi.fn().mockResolvedValue({});
   const db = {
     syncState: { findUnique: vi.fn().mockResolvedValue(null), upsert: syncStateUpsert },
-    organization: { findFirst: vi.fn().mockResolvedValue({ id: 'org1', partnerId: 'p1', companyId: 'c1', externalId: '1c-org-001' }) },
-    order: { findUnique: vi.fn().mockResolvedValue(null), create: orderCreate, update: orderUpdate },
-    syncLog: { create: vi.fn().mockResolvedValue({}) }
+    organization: {
+      findFirst: vi
+        .fn()
+        .mockResolvedValue({
+          id: 'org1',
+          partnerId: 'p1',
+          companyId: 'c1',
+          externalId: '1c-org-001',
+        }),
+    },
+    order: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      create: orderCreate,
+      update: orderUpdate,
+    },
+    syncLog: { create: vi.fn().mockResolvedValue({}) },
   } as unknown as PrismaClient;
   return { db, orderCreate, orderUpdate, syncStateUpsert };
 }
 
 describe('syncOrdersProcessor shadow mode', () => {
-  beforeEach(() => { process.env.ONE_C_ADAPTER = 'fake'; process.env.ONE_C_MODE = 'shadow'; resetOneCAdapter(); });
-  afterEach(() => { delete process.env.ONE_C_MODE; resetOneCAdapter(); });
+  beforeEach(() => {
+    process.env.ONE_C_ADAPTER = 'fake';
+    process.env.ONE_C_MODE = 'shadow';
+    resetOneCAdapter();
+  });
+  afterEach(() => {
+    delete process.env.ONE_C_MODE;
+    resetOneCAdapter();
+  });
 
   it('counts wouldCreate without writing to the DB', async () => {
     const { db, orderCreate, orderUpdate } = dbMock();
@@ -36,15 +65,22 @@ describe('syncOrdersProcessor shadow mode', () => {
     expect(orderCreate).not.toHaveBeenCalled();
     expect(orderUpdate).not.toHaveBeenCalled();
     expect(result.created).toBeGreaterThan(0); // fixtures resolve to the mocked org
-    expect((db.syncState.upsert as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled(); // cursor not advanced in shadow
+    expect(db.syncState.upsert as ReturnType<typeof vi.fn>).not.toHaveBeenCalled(); // cursor not advanced in shadow
     const logArg = (db.syncLog.create as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(logArg.data.operation).toBe('check');
   });
 });
 
 describe('syncOrdersProcessor live mode', () => {
-  beforeEach(() => { process.env.ONE_C_ADAPTER = 'fake'; process.env.ONE_C_MODE = 'live'; resetOneCAdapter(); });
-  afterEach(() => { delete process.env.ONE_C_MODE; resetOneCAdapter(); });
+  beforeEach(() => {
+    process.env.ONE_C_ADAPTER = 'fake';
+    process.env.ONE_C_MODE = 'live';
+    resetOneCAdapter();
+  });
+  afterEach(() => {
+    delete process.env.ONE_C_MODE;
+    resetOneCAdapter();
+  });
 
   it('creates orders and advances cursor in live mode', async () => {
     const { db, orderCreate, syncStateUpsert } = dbMock();
@@ -65,16 +101,22 @@ describe('syncOrdersProcessor live mode', () => {
       organizationId: 'org1',
       financialStatus: 'paid',
       orderNumber: 'OLD',
-      title: 'Old title'
+      title: 'Old title',
     };
     const orderUpdate = vi.fn().mockResolvedValue({});
     const syncStateUpsert = vi.fn().mockResolvedValue({});
     const db = {
       syncState: { findUnique: vi.fn().mockResolvedValue(null), upsert: syncStateUpsert },
-      organization: { findFirst: vi.fn().mockResolvedValue({ id: 'org1', partnerId: 'p1', companyId: 'c1' }) },
+      organization: {
+        findFirst: vi.fn().mockResolvedValue({ id: 'org1', partnerId: 'p1', companyId: 'c1' }),
+      },
       // Always return existing order so every record takes the UPDATE path → bump called multiple times
-      order: { findUnique: vi.fn().mockResolvedValue(existingOrder), update: orderUpdate, create: vi.fn() },
-      syncLog: { create: vi.fn().mockResolvedValue({}) }
+      order: {
+        findUnique: vi.fn().mockResolvedValue(existingOrder),
+        update: orderUpdate,
+        create: vi.fn(),
+      },
+      syncLog: { create: vi.fn().mockResolvedValue({}) },
     } as unknown as PrismaClient;
 
     const result = await syncOrdersProcessor(job, db);
@@ -90,8 +132,15 @@ describe('syncOrdersProcessor live mode', () => {
 });
 
 describe('syncOrdersProcessor record-level handler failure', () => {
-  beforeEach(() => { process.env.ONE_C_ADAPTER = 'fake'; process.env.ONE_C_MODE = 'shadow'; resetOneCAdapter(); });
-  afterEach(() => { delete process.env.ONE_C_MODE; resetOneCAdapter(); });
+  beforeEach(() => {
+    process.env.ONE_C_ADAPTER = 'fake';
+    process.env.ONE_C_MODE = 'shadow';
+    resetOneCAdapter();
+  });
+  afterEach(() => {
+    delete process.env.ONE_C_MODE;
+    resetOneCAdapter();
+  });
 
   it('accumulates per-record failures and covers the getExternalId lambda', async () => {
     // Making db.organization.findFirst throw causes upsertOrderRecord (the handler) to throw.
@@ -101,7 +150,7 @@ describe('syncOrdersProcessor record-level handler failure', () => {
     const db = {
       syncState: { findUnique: vi.fn().mockResolvedValue(null), upsert: syncStateUpsert },
       organization: { findFirst: vi.fn().mockRejectedValue(new Error('handler_err')) },
-      syncLog: { create: vi.fn().mockResolvedValue({}) }
+      syncLog: { create: vi.fn().mockResolvedValue({}) },
     } as unknown as PrismaClient;
 
     const result = await syncOrdersProcessor(job, db);
@@ -113,16 +162,26 @@ describe('syncOrdersProcessor record-level handler failure', () => {
 });
 
 describe('syncOrdersProcessor error path', () => {
-  beforeEach(() => { process.env.ONE_C_ADAPTER = 'fake'; process.env.ONE_C_MODE = 'shadow'; resetOneCAdapter(); });
-  afterEach(() => { delete process.env.ONE_C_MODE; resetOneCAdapter(); });
+  beforeEach(() => {
+    process.env.ONE_C_ADAPTER = 'fake';
+    process.env.ONE_C_MODE = 'shadow';
+    resetOneCAdapter();
+  });
+  afterEach(() => {
+    delete process.env.ONE_C_MODE;
+    resetOneCAdapter();
+  });
 
   it('calls markCursorError + writeSyncLog(skip/error) then re-throws when getCursor throws (Error instance)', async () => {
     const syncStateUpsert = vi.fn().mockResolvedValue({});
     const syncLogCreate = vi.fn().mockResolvedValue({});
     const db = {
       // getCursor calls syncState.findUnique — make it throw
-      syncState: { findUnique: vi.fn().mockRejectedValue(new Error('DB_GONE')), upsert: syncStateUpsert },
-      syncLog: { create: syncLogCreate }
+      syncState: {
+        findUnique: vi.fn().mockRejectedValue(new Error('DB_GONE')),
+        upsert: syncStateUpsert,
+      },
+      syncLog: { create: syncLogCreate },
     } as unknown as PrismaClient;
 
     await expect(syncOrdersProcessor(job, db)).rejects.toThrow('DB_GONE');
@@ -134,7 +193,7 @@ describe('syncOrdersProcessor error path', () => {
     // writeSyncLog with status=error
     expect(syncLogCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ entity: 'order', status: 'error', operation: 'skip' })
+        data: expect.objectContaining({ entity: 'order', status: 'error', operation: 'skip' }),
       })
     );
   });
@@ -145,16 +204,16 @@ describe('syncOrdersProcessor error path', () => {
     const db = {
       syncState: {
         findUnique: vi.fn().mockRejectedValue('string-error'),
-        upsert: syncStateUpsert
+        upsert: syncStateUpsert,
       },
-      syncLog: { create: syncLogCreate }
+      syncLog: { create: syncLogCreate },
     } as unknown as PrismaClient;
 
     await expect(syncOrdersProcessor(job, db)).rejects.toBe('string-error');
 
     expect(syncLogCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ errorMessage: 'string-error' })
+        data: expect.objectContaining({ errorMessage: 'string-error' }),
       })
     );
   });
@@ -164,8 +223,11 @@ describe('syncOrdersProcessor error path', () => {
     const syncLogCreate = vi.fn().mockResolvedValue({});
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const db = {
-      syncState: { findUnique: vi.fn().mockRejectedValue(new Error('MAIN_ERR')), upsert: syncStateUpsert },
-      syncLog: { create: syncLogCreate }
+      syncState: {
+        findUnique: vi.fn().mockRejectedValue(new Error('MAIN_ERR')),
+        upsert: syncStateUpsert,
+      },
+      syncLog: { create: syncLogCreate },
     } as unknown as PrismaClient;
 
     await expect(syncOrdersProcessor(job, db)).rejects.toThrow('MAIN_ERR');
@@ -188,14 +250,27 @@ describe('syncOrdersProcessor pending capture+replay (live mode)', () => {
     resetOneCAdapter();
     vi.clearAllMocks();
   });
-  afterEach(() => { delete process.env.ONE_C_MODE; resetOneCAdapter(); });
+  afterEach(() => {
+    delete process.env.ONE_C_MODE;
+    resetOneCAdapter();
+  });
 
   it('calls capturePendingSkips and replayPendingRecords in live mode', async () => {
     const { db } = dbMock();
     await syncOrdersProcessor(job, db);
 
-    expect(capturePendingSkips).toHaveBeenCalledWith(db, 'order', expect.any(Array), expect.any(Function), expect.any(Object));
-    expect(replayPendingRecords).toHaveBeenCalledWith(db, 'order', expect.objectContaining({ now: expect.any(Date) }));
+    expect(capturePendingSkips).toHaveBeenCalledWith(
+      db,
+      'order',
+      expect.any(Array),
+      expect.any(Function),
+      expect.any(Object)
+    );
+    expect(replayPendingRecords).toHaveBeenCalledWith(
+      db,
+      'order',
+      expect.objectContaining({ now: expect.any(Date) })
+    );
   });
 });
 
@@ -206,7 +281,10 @@ describe('syncOrdersProcessor pending capture+replay (shadow mode)', () => {
     resetOneCAdapter();
     vi.clearAllMocks();
   });
-  afterEach(() => { delete process.env.ONE_C_MODE; resetOneCAdapter(); });
+  afterEach(() => {
+    delete process.env.ONE_C_MODE;
+    resetOneCAdapter();
+  });
 
   it('does NOT call capturePendingSkips or replayPendingRecords in shadow mode', async () => {
     const { db } = dbMock();

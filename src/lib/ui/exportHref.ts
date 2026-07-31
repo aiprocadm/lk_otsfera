@@ -6,10 +6,7 @@
  * Этап 9 (PR-3): вынесен из `partner/certificates` и `organization/certificates`,
  * где жил двумя копиями; используется всеми кнопками «Выгрузить в Excel».
  */
-export function exportHref(
-  base: string,
-  params: Record<string, string | undefined>
-): string {
+export function exportHref(base: string, params: Record<string, string | undefined>): string {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
     if (v) qs.set(k, v);

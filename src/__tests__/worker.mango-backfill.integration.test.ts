@@ -120,7 +120,8 @@ describe('mangoBackfillProcessor', () => {
       contactChannel: prisma.contactChannel,
       syncState: prisma.syncState,
       call: {
-        findUnique: vi.fn()
+        findUnique: vi
+          .fn()
           .mockRejectedValueOnce(new Error('ingest down'))
           .mockRejectedValueOnce('ingest gone'),
       },

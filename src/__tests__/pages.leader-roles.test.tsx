@@ -14,7 +14,7 @@ vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 
 const { listAccessProfiles, listAssignableUsers } = vi.hoisted(() => ({
   listAccessProfiles: vi.fn(),
-  listAssignableUsers: vi.fn()
+  listAssignableUsers: vi.fn(),
 }));
 vi.mock('@/lib/services/access/profiles', () => ({ listAccessProfiles, listAssignableUsers }));
 
@@ -22,7 +22,7 @@ const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
@@ -33,11 +33,15 @@ vi.mock('@/components/access/role-editor', () => ({
       { 'data-testid': 'role-editor' },
       JSON.stringify(props.profiles),
       JSON.stringify(props.users)
-    )
+    ),
 }));
 
-
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'leader' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'leader' as const,
+  companyId: 'c1',
+};
 
 describe('LeaderRolesPage', () => {
   beforeEach(() => {

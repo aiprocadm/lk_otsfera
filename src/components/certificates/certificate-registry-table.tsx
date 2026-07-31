@@ -26,7 +26,7 @@ export type CertificateRegistryRow = {
 export function CertificateRegistryTable({
   rows,
   showOrganization = false,
-  studentHrefBase = null
+  studentHrefBase = null,
 }: {
   rows: CertificateRegistryRow[];
   showOrganization?: boolean;
@@ -36,7 +36,9 @@ export function CertificateRegistryTable({
   const today = new Date();
 
   if (rows.length === 0) {
-    return <EmptyState icon='📜' message='Удостоверений не найдено — попробуйте изменить фильтры.' />;
+    return (
+      <EmptyState icon="📜" message="Удостоверений не найдено — попробуйте изменить фильтры." />
+    );
   }
 
   return (
@@ -54,20 +56,23 @@ export function CertificateRegistryTable({
       <tbody>
         {rows.map((c) => (
           <Tr key={c.id}>
-            <Td className='font-medium text-[#111111]'>
+            <Td className="font-medium text-[#111111]">
               {studentHrefBase ? (
-                <Link href={`${studentHrefBase}/${c.student.id}`} className='hover:text-[#F97316] hover:underline'>
+                <Link
+                  href={`${studentHrefBase}/${c.student.id}`}
+                  className="hover:text-[#F97316] hover:underline"
+                >
                   {c.student.name}
                 </Link>
               ) : (
                 c.student.name
               )}
             </Td>
-            {showOrganization && <Td className='text-gray-600'>{c.organization.name}</Td>}
+            {showOrganization && <Td className="text-gray-600">{c.organization.name}</Td>}
             <Td>{c.direction.name}</Td>
-            <Td className='font-mono text-xs text-gray-700'>{c.number}</Td>
-            <Td className='text-gray-500'>{fmtDate(c.issuedAt)}</Td>
-            <Td className='text-gray-500'>{c.validUntil ? fmtDate(c.validUntil) : 'бессрочно'}</Td>
+            <Td className="font-mono text-xs text-gray-700">{c.number}</Td>
+            <Td className="text-gray-500">{fmtDate(c.issuedAt)}</Td>
+            <Td className="text-gray-500">{c.validUntil ? fmtDate(c.validUntil) : 'бессрочно'}</Td>
             <Td>
               <CertificateStatusBadge validUntil={c.validUntil} today={today} />
             </Td>
@@ -75,7 +80,7 @@ export function CertificateRegistryTable({
               {c.documentId ? (
                 <CertificateDownloadButton documentId={c.documentId} />
               ) : (
-                <span className='text-xs text-gray-400'>скан готовится</span>
+                <span className="text-xs text-gray-400">скан готовится</span>
               )}
             </Td>
           </Tr>

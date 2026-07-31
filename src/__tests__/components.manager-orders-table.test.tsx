@@ -3,11 +3,19 @@ import { renderToString } from 'react-dom/server';
 import React from 'react';
 
 vi.mock('next/link', () => ({
-  default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) =>
-    React.createElement('a', { href, className }, children)
+  default: ({
+    href,
+    children,
+    className,
+  }: {
+    href: string;
+    children: React.ReactNode;
+    className?: string;
+  }) => React.createElement('a', { href, className }, children),
 }));
 vi.mock('@/components/partner/deal-status-badge', () => ({
-  DealStatusBadge: ({ stage }: { stage: { label: string } }) => React.createElement('span', null, stage.label)
+  DealStatusBadge: ({ stage }: { stage: { label: string } }) =>
+    React.createElement('span', null, stage.label),
 }));
 
 import { ManagerOrdersTable } from '@/components/manager/manager-orders-table';
@@ -25,7 +33,7 @@ function makeRow(overrides: Partial<ManagerOrderRow>): ManagerOrderRow {
     financialStatus: 'partially_paid',
     organization: { id: 'g1', name: 'Орг' },
     manager: { id: 'm1', name: 'Иван' },
-    ...overrides
+    ...overrides,
   } as ManagerOrderRow;
 }
 
@@ -63,7 +71,12 @@ describe('ManagerOrdersTable', () => {
       React.createElement(ManagerOrdersTable, {
         rows,
         nextCursor: 'cur1',
-        searchParams: { search: 'x', statusId: 'st-1', financialStatus: 'billed', organizationId: 'g1' }
+        searchParams: {
+          search: 'x',
+          statusId: 'st-1',
+          financialStatus: 'billed',
+          organizationId: 'g1',
+        },
       })
     );
     expect(html).toContain('Дальше');
@@ -77,7 +90,7 @@ describe('ManagerOrdersTable', () => {
       React.createElement(ManagerOrdersTable, {
         rows,
         nextCursor: 'cur1',
-        searchParams: { unassigned: '1' }
+        searchParams: { unassigned: '1' },
       })
     );
     expect(html).toContain('unassigned=1');
@@ -91,7 +104,7 @@ describe('ManagerOrdersTable', () => {
         rows,
         nextCursor: 'cur1',
         searchParams: {},
-        basePath: '/leader'
+        basePath: '/leader',
       })
     );
     expect(html).toContain('href="/leader/orders/o1"');
@@ -116,7 +129,9 @@ describe('ManagerOrdersTable', () => {
   });
 
   it('терминальный статус («Отменена») выделяется предупреждающим тоном', () => {
-    const rows = [makeRow({ statusDefinition: { id: 'st-x', label: 'Отменена', isTerminal: true } } as never)];
+    const rows = [
+      makeRow({ statusDefinition: { id: 'st-x', label: 'Отменена', isTerminal: true } } as never),
+    ];
     const html = renderToString(
       React.createElement(ManagerOrdersTable, { rows, nextCursor: null, searchParams: {} })
     );

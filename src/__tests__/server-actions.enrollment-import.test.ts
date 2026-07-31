@@ -15,13 +15,16 @@ vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 const { canSubmitEnrollments } = vi.hoisted(() => ({ canSubmitEnrollments: vi.fn() }));
 vi.mock('@/lib/services/enrollments/policy', () => ({ canSubmitEnrollments }));
 
-const { parseEnrollmentImportWorkbook } = vi.hoisted(() => ({ parseEnrollmentImportWorkbook: vi.fn() }));
+const { parseEnrollmentImportWorkbook } = vi.hoisted(() => ({
+  parseEnrollmentImportWorkbook: vi.fn(),
+}));
 vi.mock('@/lib/services/enrollments/importRows', () => ({ parseEnrollmentImportWorkbook }));
 
 import { parseEnrollmentImportAction } from '@/server-actions/enrollment-import';
 
 const SESSION = { sub: 'u1', role: 'organization' } as never;
-const FILE_ERROR = 'Выберите файл Excel (.xlsx) размером до 10 МБ — скачайте шаблон и заполните его.';
+const FILE_ERROR =
+  'Выберите файл Excel (.xlsx) размером до 10 МБ — скачайте шаблон и заполните его.';
 const RIGHTS_ERROR = 'Недостаточно прав для импорта слушателей';
 
 const formWith = (file: FormDataEntryValue | null): FormData => {

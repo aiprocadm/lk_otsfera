@@ -4,7 +4,7 @@ import type {
   OneCOrderSchema,
   OneCPaymentSchema,
   OneCDocumentSchema,
-  OneCLeadPushResultSchema
+  OneCLeadPushResultSchema,
 } from './schemas';
 
 export type OneCOrgDto = z.infer<typeof OneCOrgSchema>;

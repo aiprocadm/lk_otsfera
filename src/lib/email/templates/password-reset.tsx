@@ -11,8 +11,8 @@ export function PasswordResetTemplate({ name, resetUrl }: PasswordResetProps) {
     <EmailLayout title="Восстановление пароля">
       <p style={emailStyles.paragraph}>Здравствуйте, {name}!</p>
       <p style={emailStyles.paragraph}>
-        Мы получили запрос на восстановление пароля для вашего аккаунта.
-        Перейдите по ссылке ниже, чтобы установить новый пароль:
+        Мы получили запрос на восстановление пароля для вашего аккаунта. Перейдите по ссылке ниже,
+        чтобы установить новый пароль:
       </p>
       <p style={emailStyles.paragraph}>
         <a href={resetUrl} style={emailStyles.button}>
@@ -23,8 +23,8 @@ export function PasswordResetTemplate({ name, resetUrl }: PasswordResetProps) {
         <span style={emailStyles.mono}>{resetUrl}</span>
       </p>
       <p style={emailStyles.muted}>
-        Если вы не запрашивали восстановление пароля — просто проигнорируйте это письмо.
-        Ваш пароль не изменится.
+        Если вы не запрашивали восстановление пароля — просто проигнорируйте это письмо. Ваш пароль
+        не изменится.
       </p>
     </EmailLayout>
   );

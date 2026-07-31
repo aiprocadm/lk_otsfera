@@ -11,7 +11,7 @@ const {
   assignTask,
   createTaskColumn,
   updateTaskColumn,
-  deleteTaskColumn
+  deleteTaskColumn,
 } = vi.hoisted(() => ({
   requireSession: vi.fn(),
   revalidatePath: vi.fn(),
@@ -23,7 +23,7 @@ const {
   assignTask: vi.fn(),
   createTaskColumn: vi.fn(),
   updateTaskColumn: vi.fn(),
-  deleteTaskColumn: vi.fn()
+  deleteTaskColumn: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireSession }));
@@ -31,7 +31,11 @@ vi.mock('next/cache', () => ({ revalidatePath }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('@/lib/services/tasks/board', () => ({ moveTask, listLinkedTasks }));
 vi.mock('@/lib/services/tasks/tasks', () => ({ createTask, updateTask, deleteTask, assignTask }));
-vi.mock('@/lib/services/tasks/columns', () => ({ createTaskColumn, updateTaskColumn, deleteTaskColumn }));
+vi.mock('@/lib/services/tasks/columns', () => ({
+  createTaskColumn,
+  updateTaskColumn,
+  deleteTaskColumn,
+}));
 
 import {
   moveTaskAction,
@@ -42,7 +46,7 @@ import {
   assignTaskAction,
   createTaskColumnAction,
   updateTaskColumnAction,
-  deleteTaskColumnAction
+  deleteTaskColumnAction,
 } from '@/server-actions/tasks';
 
 const SESSION = { sub: 'u1', role: 'manager', managerRole: 'leader', companyId: 'co-A' };
@@ -64,7 +68,10 @@ describe('moveTaskAction', () => {
     moveTask.mockResolvedValue({ ok: true });
     const res = await moveTaskAction(form({ taskId: 't1', toColumnId: 'default:in_progress' }));
     expect(res).toEqual({ ok: true });
-    expect(moveTask).toHaveBeenCalledWith({}, SESSION, { taskId: 't1', toColumnId: 'default:in_progress' });
+    expect(moveTask).toHaveBeenCalledWith({}, SESSION, {
+      taskId: 't1',
+      toColumnId: 'default:in_progress',
+    });
     expect(revalidatePath).toHaveBeenCalledWith('/manager/tasks');
     expect(revalidatePath).toHaveBeenCalledWith('/leader/tasks');
   });
@@ -74,7 +81,10 @@ describe('moveTaskAction', () => {
   });
   it('maps service error, no revalidate', async () => {
     moveTask.mockResolvedValue({ ok: false, error: 'invalid_column' });
-    expect(await moveTaskAction(form({ taskId: 't1', toColumnId: 'x' }))).toEqual({ ok: false, error: 'invalid_column' });
+    expect(await moveTaskAction(form({ taskId: 't1', toColumnId: 'x' }))).toEqual({
+      ok: false,
+      error: 'invalid_column',
+    });
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 });
@@ -90,7 +100,12 @@ describe('task CRUD actions', () => {
     expect(createTask).toHaveBeenCalledWith(
       {},
       SESSION,
-      expect.objectContaining({ title: 'Позвонить', priority: 'high', columnId: 'default:todo', assigneeIds: ['u2', 'u3'] })
+      expect.objectContaining({
+        title: 'Позвонить',
+        priority: 'high',
+        columnId: 'default:todo',
+        assigneeIds: ['u2', 'u3'],
+      })
     );
   });
   it('create passes linked lead/deal ids from hidden fields (этап 7, ФТ-7.1)', async () => {
@@ -116,13 +131,21 @@ describe('task CRUD actions', () => {
     expect(await createTaskAction(form({ title: '' }))).toEqual({ ok: false, error: 'validation' });
   });
   it('update requires id', async () => {
-    expect(await updateTaskAction(form({ title: 'x' }))).toEqual({ ok: false, error: 'validation' });
+    expect(await updateTaskAction(form({ title: 'x' }))).toEqual({
+      ok: false,
+      error: 'validation',
+    });
     expect(updateTask).not.toHaveBeenCalled();
   });
   it('update with id calls service', async () => {
     updateTask.mockResolvedValue({ ok: true });
     expect(await updateTaskAction(form({ id: 't5', title: 'x' }))).toEqual({ ok: true });
-    expect(updateTask).toHaveBeenCalledWith({}, SESSION, 't5', expect.objectContaining({ title: 'x' }));
+    expect(updateTask).toHaveBeenCalledWith(
+      {},
+      SESSION,
+      't5',
+      expect.objectContaining({ title: 'x' })
+    );
   });
   it('delete requires id; with id calls service', async () => {
     expect(await deleteTaskAction(new FormData())).toEqual({ ok: false, error: 'validation' });
@@ -158,16 +181,37 @@ describe('listLinkedTasksAction (этап 7)', () => {
 describe('column CRUD actions', () => {
   it('create builds input, returns id', async () => {
     createTaskColumn.mockResolvedValue({ ok: true, id: 'c1' });
-    const res = await createTaskColumnAction(form({ name: 'Бэклог', position: '0', statusAnchor: 'todo', isDoneColumn: 'on' }));
+    const res = await createTaskColumnAction(
+      form({ name: 'Бэклог', position: '0', statusAnchor: 'todo', isDoneColumn: 'on' })
+    );
     expect(res).toEqual({ ok: true, id: 'c1' });
-    expect(createTaskColumn).toHaveBeenCalledWith({}, SESSION, expect.objectContaining({ name: 'Бэклог', position: 0, statusAnchor: 'todo', isDoneColumn: true }));
+    expect(createTaskColumn).toHaveBeenCalledWith(
+      {},
+      SESSION,
+      expect.objectContaining({
+        name: 'Бэклог',
+        position: 0,
+        statusAnchor: 'todo',
+        isDoneColumn: true,
+      })
+    );
   });
   it('update requires id; delete requires id', async () => {
-    expect(await updateTaskColumnAction(form({ name: 'x' }))).toEqual({ ok: false, error: 'validation' });
-    expect(await deleteTaskColumnAction(new FormData())).toEqual({ ok: false, error: 'validation' });
+    expect(await updateTaskColumnAction(form({ name: 'x' }))).toEqual({
+      ok: false,
+      error: 'validation',
+    });
+    expect(await deleteTaskColumnAction(new FormData())).toEqual({
+      ok: false,
+      error: 'validation',
+    });
     updateTaskColumn.mockResolvedValue({ ok: true });
     deleteTaskColumn.mockResolvedValue({ ok: true });
-    expect(await updateTaskColumnAction(form({ id: 'c2', name: 'x', position: '1', statusAnchor: 'review' }))).toEqual({ ok: true });
+    expect(
+      await updateTaskColumnAction(
+        form({ id: 'c2', name: 'x', position: '1', statusAnchor: 'review' })
+      )
+    ).toEqual({ ok: true });
     expect(await deleteTaskColumnAction(form({ id: 'c3' }))).toEqual({ ok: true });
     expect(deleteTaskColumn).toHaveBeenCalledWith({}, SESSION, 'c3');
   });

@@ -8,7 +8,11 @@ import { OneCOrderSchema } from '@/lib/services/oneCSync/schemas';
 import type { OneCOrderDto } from '@/lib/services/oneCSync/dto';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
 import { getCursor, advanceCursor, markCursorError } from '@/lib/services/oneCSync/cursor';
-import { runRecordBatch, batchStatus, type BatchSummary } from '@/lib/services/oneCSync/record-batch';
+import {
+  runRecordBatch,
+  batchStatus,
+  type BatchSummary,
+} from '@/lib/services/oneCSync/record-batch';
 import { oneCMode } from '@/lib/services/oneCSync/config';
 import { upsertOrderRecord } from '@/lib/services/oneCSync/writers';
 import { capturePendingSkips, replayPendingRecords } from '@/lib/services/oneCSync/pending';
@@ -38,8 +42,12 @@ export async function syncOrdersProcessor(
       if (!maxUpdatedAt || t > maxUpdatedAt) maxUpdatedAt = t;
     };
 
-    const summary = await runRecordBatch<OneCOrderDto>(raw, OneCOrderSchema, (d) => d.externalId,
-      (dto, sum) => upsertOrderRecord(db, dto, sum, { mode, notify: true, bump }));
+    const summary = await runRecordBatch<OneCOrderDto>(
+      raw,
+      OneCOrderSchema,
+      (d) => d.externalId,
+      (dto, sum) => upsertOrderRecord(db, dto, sum, { mode, notify: true, bump })
+    );
 
     if (mode === 'live') await advanceCursor(db, 'order', maxUpdatedAt);
 
@@ -47,7 +55,13 @@ export async function syncOrdersProcessor(
       // Capture out-of-order skips and replay the backlog so nothing is lost when a
       // dependency (org/order) appears later. Best-effort: never fail the pull on this.
       try {
-        await capturePendingSkips(db, 'order', raw, (dto) => (dto as OneCOrderDto).externalId, summary);
+        await capturePendingSkips(
+          db,
+          'order',
+          raw,
+          (dto) => (dto as OneCOrderDto).externalId,
+          summary
+        );
         await replayPendingRecords(db, 'order', { now: new Date() });
       } catch (e) {
         log.warn('[sync-order] pending capture/replay failed', e);
@@ -61,7 +75,7 @@ export async function syncOrdersProcessor(
         operation: mode === 'shadow' ? 'check' : summary.created > 0 ? 'create' : 'update',
         status: batchStatus(summary),
         payload: { mode, ...summary },
-        durationMs: Date.now() - startedAt
+        durationMs: Date.now() - startedAt,
       },
       db
     );
@@ -79,7 +93,7 @@ export async function syncOrdersProcessor(
         operation: 'skip',
         status: 'error',
         errorMessage: message,
-        durationMs: Date.now() - startedAt
+        durationMs: Date.now() - startedAt,
       },
       db
     );

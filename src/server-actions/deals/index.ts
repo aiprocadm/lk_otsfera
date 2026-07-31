@@ -12,7 +12,7 @@ import {
   updateDealStage,
   deleteDealStage,
   type DealStageInput,
-  type DealStageErrorCode
+  type DealStageErrorCode,
 } from '@/lib/services/access/dealStages';
 import type { DealStageView } from '@/lib/services/deals/stages';
 import { convertLeadToDeal, winDeal } from '@/lib/services/deals/convert';
@@ -42,7 +42,11 @@ export async function moveDealAction(fd: FormData): Promise<ActionResult<MoveDea
   const dealId = str(fd, 'dealId');
   const toStageId = str(fd, 'toStageId');
   if (!dealId || !toStageId) return { ok: false, error: 'not_found' };
-  const res = await moveDeal(prisma, session, { dealId, toStageId, lostReason: str(fd, 'lostReason') || undefined });
+  const res = await moveDeal(prisma, session, {
+    dealId,
+    toStageId,
+    lostReason: str(fd, 'lostReason') || undefined,
+  });
   if (!res.ok) return { ok: false, error: res.error };
   revalidate();
   return { ok: true };
@@ -54,7 +58,7 @@ function dealInput(fd: FormData): DealInput {
     amount: str(fd, 'amount') || null,
     organizationId: str(fd, 'organizationId') || null,
     managerId: str(fd, 'managerId') || null,
-    expectedCloseAt: str(fd, 'expectedCloseAt') || null
+    expectedCloseAt: str(fd, 'expectedCloseAt') || null,
   };
 }
 
@@ -68,7 +72,9 @@ export async function createDealAction(
   return { ok: true, id: res.deal.id };
 }
 
-export async function updateDealAction(fd: FormData): Promise<ActionResult<'forbidden' | 'not_found' | 'validation'>> {
+export async function updateDealAction(
+  fd: FormData
+): Promise<ActionResult<'forbidden' | 'not_found' | 'validation'>> {
   const session = await requireSession();
   const dealId = str(fd, 'id');
   if (!dealId) return { ok: false, error: 'not_found' };
@@ -92,7 +98,10 @@ export async function winDealAction(
   const session = await requireSession();
   const dealId = str(fd, 'dealId');
   if (!dealId) return { ok: false, error: 'not_found' };
-  const res = await winDeal(prisma, session, { dealId, toStageId: str(fd, 'toStageId') || undefined });
+  const res = await winDeal(prisma, session, {
+    dealId,
+    toStageId: str(fd, 'toStageId') || undefined,
+  });
   if (!res.ok) return { ok: false, error: res.error };
   revalidate();
   // Выигрыш меняет и лид-источник (если был), и создаёт заказ.
@@ -149,11 +158,13 @@ function stageInput(fd: FormData): DealStageInput {
     position: Number(str(fd, 'position') || 0),
     statusAnchor: (str(fd, 'statusAnchor') || 'open') as DealStatus,
     color: str(fd, 'color') || null,
-    isTerminal: fd.get('isTerminal') === 'on' || str(fd, 'isTerminal') === 'true'
+    isTerminal: fd.get('isTerminal') === 'on' || str(fd, 'isTerminal') === 'true',
   };
 }
 
-export async function createDealStageAction(fd: FormData): Promise<ActionResult<DealStageErrorCode> & { id?: string }> {
+export async function createDealStageAction(
+  fd: FormData
+): Promise<ActionResult<DealStageErrorCode> & { id?: string }> {
   const session = await requireSession();
   const res = await createDealStage(prisma, session, stageInput(fd));
   if (!res.ok) return { ok: false, error: res.error };
@@ -161,7 +172,9 @@ export async function createDealStageAction(fd: FormData): Promise<ActionResult<
   return { ok: true, id: res.id };
 }
 
-export async function updateDealStageAction(fd: FormData): Promise<ActionResult<DealStageErrorCode>> {
+export async function updateDealStageAction(
+  fd: FormData
+): Promise<ActionResult<DealStageErrorCode>> {
   const session = await requireSession();
   const id = str(fd, 'id');
   if (!id) return { ok: false, error: 'validation' };
@@ -171,7 +184,9 @@ export async function updateDealStageAction(fd: FormData): Promise<ActionResult<
   return { ok: true };
 }
 
-export async function deleteDealStageAction(fd: FormData): Promise<ActionResult<DealStageErrorCode>> {
+export async function deleteDealStageAction(
+  fd: FormData
+): Promise<ActionResult<DealStageErrorCode>> {
   const session = await requireSession();
   const id = str(fd, 'id');
   if (!id) return { ok: false, error: 'validation' };

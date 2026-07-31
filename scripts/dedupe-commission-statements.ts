@@ -35,7 +35,9 @@ async function main(): Promise<void> {
   const groups = await findLiveDuplicateGroups();
 
   if (groups.length === 0) {
-    console.log('[commission-dedupe] OK — no duplicate live statements; safe to apply the partial-unique index.');
+    console.log(
+      '[commission-dedupe] OK — no duplicate live statements; safe to apply the partial-unique index.'
+    );
     return;
   }
 
@@ -47,9 +49,14 @@ async function main(): Promise<void> {
   for (const g of groups) {
     // Order by calculatedAt DESC, then createdAt DESC as a stable tiebreaker.
     const rows = await prisma.commissionStatement.findMany({
-      where: { partnerId: g.partnerId, periodFrom: g.periodFrom, periodTo: g.periodTo, supersededBy: null },
+      where: {
+        partnerId: g.partnerId,
+        periodFrom: g.periodFrom,
+        periodTo: g.periodTo,
+        supersededBy: null,
+      },
       orderBy: [{ calculatedAt: 'desc' }, { createdAt: 'desc' }],
-      select: { id: true, calculatedAt: true, status: true }
+      select: { id: true, calculatedAt: true, status: true },
     });
     const [keep, ...losers] = rows;
     console.log(
@@ -60,16 +67,20 @@ async function main(): Promise<void> {
     if (APPLY) {
       await prisma.commissionStatement.updateMany({
         where: { id: { in: losers.map((l) => l.id) } },
-        data: { supersededBy: keep.id }
+        data: { supersededBy: keep.id },
       });
     }
     supersededTotal += losers.length;
   }
 
   if (APPLY) {
-    console.log(`\n[commission-dedupe] DONE — superseded ${supersededTotal} row(s). Safe to apply the migration now.`);
+    console.log(
+      `\n[commission-dedupe] DONE — superseded ${supersededTotal} row(s). Safe to apply the migration now.`
+    );
   } else {
-    console.error(`\n[commission-dedupe] FAIL: ${supersededTotal} row(s) would be superseded. Re-run with --apply, then migrate.`);
+    console.error(
+      `\n[commission-dedupe] FAIL: ${supersededTotal} row(s) would be superseded. Re-run with --apply, then migrate.`
+    );
     process.exitCode = 1;
   }
 }

@@ -4,10 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { getOrgPageContext } from '@/lib/auth/orgPageContext';
 import { OrgAppShell } from '@/components/organization/org-app-shell';
 import { OrgOrdersFilter } from '@/components/organization/org-orders-filter';
-import {
-  OrgOrdersTable,
-  OrgOrdersCardList
-} from '@/components/organization/org-orders-table';
+import { OrgOrdersTable, OrgOrdersCardList } from '@/components/organization/org-orders-table';
 import { listOrgOrders } from '@/lib/services/organization/orders';
 import { pluralizeRu } from '@/lib/format';
 import { Paginator } from '@/components/ui';
@@ -26,21 +23,21 @@ const VALID_EXECUTION: ExecutionStatus[] = [
   'in_progress',
   'completed',
   'cancelled',
-  'on_hold'
+  'on_hold',
 ];
 const VALID_FINANCIAL: FinancialStatus[] = [
   'not_billed',
   'billed',
   'partially_paid',
   'paid',
-  'refunded'
+  'refunded',
 ];
 
 const DEFAULT_TAKE = 25;
 const MAX_TAKE = 100;
 
 export default async function OrganizationOrdersPage({
-  searchParams
+  searchParams,
 }: {
   searchParams: Promise<SearchParams>;
 }) {
@@ -66,7 +63,7 @@ export default async function OrganizationOrdersPage({
     executionStatus,
     financialStatus,
     take,
-    skip
+    skip,
   });
 
   return (
@@ -77,10 +74,10 @@ export default async function OrganizationOrdersPage({
       activeOrgId={ctx.activeOrgId}
       viewerRole={ctx.viewerRole}
     >
-      <div className='space-y-4'>
+      <div className="space-y-4">
         <div>
-          <h1 className='text-2xl font-semibold text-[#111111]'>Заказы</h1>
-          <p className='text-sm text-gray-500 mt-0.5'>
+          <h1 className="text-2xl font-semibold text-[#111111]">Заказы</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
             {total} {pluralizeRu(total, 'заказ', 'заказа', 'заказов')} · {ctx.activeOrgName}
           </p>
         </div>
@@ -90,9 +87,14 @@ export default async function OrganizationOrdersPage({
         <OrgOrdersTable rows={rows} orgParam={sp.org ?? null} />
         <OrgOrdersCardList rows={rows} orgParam={sp.org ?? null} />
 
-        <Paginator basePath='/organization/orders' searchParams={sp} take={take} skip={skip} total={total} />
+        <Paginator
+          basePath="/organization/orders"
+          searchParams={sp}
+          take={take}
+          skip={skip}
+          total={total}
+        />
       </div>
     </OrgAppShell>
   );
 }
-

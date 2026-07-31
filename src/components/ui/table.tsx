@@ -24,7 +24,7 @@ export function TableShell({ overflow = 'hidden', className, children }: TableSh
         className
       )}
     >
-      <table className='w-full text-sm'>{children}</table>
+      <table className="w-full text-sm">{children}</table>
     </div>
   );
 }
@@ -39,7 +39,7 @@ export function THead({ className, children }: { className?: string; children: R
 
 export function Th({ className, children, ...rest }: React.ThHTMLAttributes<HTMLTableCellElement>) {
   return (
-    <th scope='col' className={cn('px-4 py-2.5 font-medium text-gray-600', className)} {...rest}>
+    <th scope="col" className={cn('px-4 py-2.5 font-medium text-gray-600', className)} {...rest}>
       {children}
     </th>
   );

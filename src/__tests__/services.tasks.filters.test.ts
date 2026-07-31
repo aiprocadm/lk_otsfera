@@ -12,7 +12,13 @@ import { taskFiltersWhere, listTaskBoard, listLinkedTasks } from '@/lib/services
 const NOW = new Date('2026-07-26T12:00:00Z');
 
 const manager = (over: Record<string, unknown> = {}): SessionPayload =>
-  ({ sub: 'm1', role: 'manager', companyId: 'co-A', managedOrgIds: [], ...over } as unknown as SessionPayload);
+  ({
+    sub: 'm1',
+    role: 'manager',
+    companyId: 'co-A',
+    managedOrgIds: [],
+    ...over,
+  }) as unknown as SessionPayload;
 
 const TASK_ROW = {
   id: 't1',
@@ -33,14 +39,17 @@ const TASK_ROW = {
   linkedOrder: null,
   linkedOrganization: null,
   linkedLead: { subject: 'Лид-тема' },
-  linkedDeal: { title: 'Сделка-1' }
+  linkedDeal: { title: 'Сделка-1' },
 };
 
-function fakePrisma(rows: unknown[] = [TASK_ROW], columns: unknown[] = []): { prisma: PrismaClient; findMany: ReturnType<typeof vi.fn> } {
+function fakePrisma(
+  rows: unknown[] = [TASK_ROW],
+  columns: unknown[] = []
+): { prisma: PrismaClient; findMany: ReturnType<typeof vi.fn> } {
   const findMany = vi.fn().mockResolvedValue(rows);
   const prisma = {
     taskColumn: { findMany: vi.fn().mockResolvedValue(columns) },
-    task: { findMany }
+    task: { findMany },
   } as unknown as PrismaClient;
   return { prisma, findMany };
 }
@@ -56,27 +65,31 @@ describe('taskFiltersWhere', () => {
     expect(w).toEqual({
       AND: [
         { companyId: 'co-A' },
-        { OR: [{ createdById: 'm1' }, { assignees: { some: { userId: 'm1' } } }] }
-      ]
+        { OR: [{ createdById: 'm1' }, { assignees: { some: { userId: 'm1' } } }] },
+      ],
     });
   });
 
   it('assigneeId — фильтр по исполнителю (ФТ-7.3, лидер)', () => {
     const w = taskFiltersWhere(manager(), { assigneeId: 'm2' }, NOW);
     expect(w).toEqual({
-      AND: [{ companyId: 'co-A' }, { assignees: { some: { userId: 'm2' } } }]
+      AND: [{ companyId: 'co-A' }, { assignees: { some: { userId: 'm2' } } }],
     });
   });
 
   it('overdue — срок в прошлом и статус не done', () => {
     const w = taskFiltersWhere(manager(), { overdue: true }, NOW);
     expect(w).toEqual({
-      AND: [{ companyId: 'co-A' }, { dueDate: { lt: NOW }, status: { not: 'done' } }]
+      AND: [{ companyId: 'co-A' }, { dueDate: { lt: NOW }, status: { not: 'done' } }],
     });
   });
 
   it('комбинация всех фильтров', () => {
-    const w = taskFiltersWhere(manager(), { scope: 'mine', assigneeId: 'm2', overdue: true }, NOW) as {
+    const w = taskFiltersWhere(
+      manager(),
+      { scope: 'mine', assigneeId: 'm2', overdue: true },
+      NOW
+    ) as {
       AND: unknown[];
     };
     expect(w.AND).toHaveLength(4);
@@ -104,7 +117,7 @@ describe('listTaskBoard с фильтрами', () => {
       linkedLeadId: 'l1',
       linkedLeadSubject: 'Лид-тема',
       linkedDealId: 'd1',
-      linkedDealTitle: 'Сделка-1'
+      linkedDealTitle: 'Сделка-1',
     });
   });
 });
@@ -112,7 +125,11 @@ describe('listTaskBoard с фильтрами', () => {
 describe('listLinkedTasks (ФТ-7.1)', () => {
   it('клиентская роль → пусто (задачи строго внутренние)', async () => {
     const { prisma, findMany } = fakePrisma();
-    const rows = await listLinkedTasks(prisma, { sub: 'p1', role: 'partner' } as unknown as SessionPayload, { leadId: 'l1' });
+    const rows = await listLinkedTasks(
+      prisma,
+      { sub: 'p1', role: 'partner' } as unknown as SessionPayload,
+      { leadId: 'l1' }
+    );
     expect(rows).toEqual([]);
     expect(findMany).not.toHaveBeenCalled();
   });
@@ -128,7 +145,7 @@ describe('listLinkedTasks (ФТ-7.1)', () => {
     const rows = await listLinkedTasks(prisma, manager(), { leadId: 'l1' });
 
     expect(findMany.mock.calls[0]![0].where).toEqual({
-      AND: [{ companyId: 'co-A' }, { linkedLeadId: 'l1' }]
+      AND: [{ companyId: 'co-A' }, { linkedLeadId: 'l1' }],
     });
     expect(rows).toHaveLength(1);
     expect(rows[0]!.linkedLeadSubject).toBe('Лид-тема');
@@ -138,14 +155,21 @@ describe('listLinkedTasks (ФТ-7.1)', () => {
     const { prisma, findMany } = fakePrisma();
     await listLinkedTasks(prisma, manager(), { dealId: 'd1' });
     expect(findMany.mock.calls[0]![0].where).toEqual({
-      AND: [{ companyId: 'co-A' }, { linkedDealId: 'd1' }]
+      AND: [{ companyId: 'co-A' }, { linkedDealId: 'd1' }],
     });
   });
 
   it('задача, чей статус не покрыт кастомными колонками, отфильтровывается', async () => {
     // Кастомный набор колонок без якоря todo → columnForTask вернёт undefined.
     const customColumns = [
-      { id: 'c-done', name: 'Готово', position: 0, statusAnchor: 'done', isDoneColumn: true, color: null }
+      {
+        id: 'c-done',
+        name: 'Готово',
+        position: 0,
+        statusAnchor: 'done',
+        isDoneColumn: true,
+        color: null,
+      },
     ];
     const { prisma } = fakePrisma([TASK_ROW], customColumns);
     const rows = await listLinkedTasks(prisma, manager(), { leadId: 'l1' });

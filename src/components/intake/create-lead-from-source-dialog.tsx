@@ -26,14 +26,14 @@ export type LeadPrefill = {
 const CONVERT_ERRORS: Record<string, string> = {
   already_converted: 'Из этого источника лид уже создан.',
   not_found: 'Источник не найден или недоступен.',
-  forbidden: 'Нет доступа.'
+  forbidden: 'Нет доступа.',
 };
 
 export function CreateLeadFromSourceDialog({
   kind,
   sourceId,
   prefill,
-  onClose
+  onClose,
 }: {
   kind: LeadSourceKind;
   sourceId: string;
@@ -58,7 +58,9 @@ export function CreateLeadFromSourceDialog({
         setMessages(res.messages);
         return;
       }
-      toast.error(CONVERT_ERRORS[res.error] ?? errorMessageRu(res.error, 'Не удалось создать лид.'));
+      toast.error(
+        CONVERT_ERRORS[res.error] ?? errorMessageRu(res.error, 'Не удалось создать лид.')
+      );
       return;
     }
     toast.success('Лид создан.');
@@ -76,11 +78,24 @@ export function CreateLeadFromSourceDialog({
           </ul>
         )}
         <Field htmlFor="ls-company" label="Компания клиента">
-          <Input id="ls-company" name="companyName" required maxLength={300} defaultValue={prefill.companyName} autoFocus />
+          <Input
+            id="ls-company"
+            name="companyName"
+            required
+            maxLength={300}
+            defaultValue={prefill.companyName}
+            autoFocus
+          />
         </Field>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field htmlFor="ls-contact" label="Контактное лицо">
-            <Input id="ls-contact" name="contactName" required maxLength={200} defaultValue={prefill.contactName} />
+            <Input
+              id="ls-contact"
+              name="contactName"
+              required
+              maxLength={200}
+              defaultValue={prefill.contactName}
+            />
           </Field>
           <Field htmlFor="ls-inn" label="ИНН (необязательно)">
             <Input id="ls-inn" name="inn" maxLength={12} inputMode="numeric" />
@@ -88,14 +103,30 @@ export function CreateLeadFromSourceDialog({
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field htmlFor="ls-phone" label="Телефон">
-            <Input id="ls-phone" name="contactPhone" maxLength={30} defaultValue={prefill.contactPhone} />
+            <Input
+              id="ls-phone"
+              name="contactPhone"
+              maxLength={30}
+              defaultValue={prefill.contactPhone}
+            />
           </Field>
           <Field htmlFor="ls-email" label="Email">
-            <Input id="ls-email" name="contactEmail" maxLength={200} defaultValue={prefill.contactEmail} />
+            <Input
+              id="ls-email"
+              name="contactEmail"
+              maxLength={200}
+              defaultValue={prefill.contactEmail}
+            />
           </Field>
         </div>
         <Field htmlFor="ls-subject" label="Тема">
-          <Input id="ls-subject" name="subject" required maxLength={300} defaultValue={prefill.subject} />
+          <Input
+            id="ls-subject"
+            name="subject"
+            required
+            maxLength={300}
+            defaultValue={prefill.subject}
+          />
         </Field>
         <Field htmlFor="ls-notes" label="Примечание (необязательно)">
           <Textarea id="ls-notes" name="notes" rows={2} />

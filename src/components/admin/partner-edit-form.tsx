@@ -7,13 +7,13 @@ import type { PartnerDetail } from '@/lib/services/admin/partners';
 
 const ERROR_MAP: Record<string, string> = {
   validation: 'Проверьте корректность полей.',
-  not_found: 'Партнёр не найден.'
+  not_found: 'Партнёр не найден.',
 };
 
 export function PartnerEditForm({ partner }: { partner: PartnerDetail }) {
   const { formAction, pending, errorText, success } = useFormAction<object>({
     action: updatePartnerAction,
-    errorMap: ERROR_MAP
+    errorMap: ERROR_MAP,
   });
   const [name, setName] = useState(partner.name);
   const [commissionRate, setCommissionRate] = useState<string>(
@@ -22,7 +22,10 @@ export function PartnerEditForm({ partner }: { partner: PartnerDetail }) {
   const [isActive, setIsActive] = useState(partner.isActive);
 
   return (
-    <form action={formAction} className="space-y-4 bg-white border border-gray-200 rounded-xl p-6 max-w-xl">
+    <form
+      action={formAction}
+      className="space-y-4 bg-white border border-gray-200 rounded-xl p-6 max-w-xl"
+    >
       <input type="hidden" name="id" value={partner.id} />
 
       <div>
@@ -64,13 +67,17 @@ export function PartnerEditForm({ partner }: { partner: PartnerDetail }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-[#111111] mb-1">Дата вступления ставки</label>
+        <label className="block text-sm font-medium text-[#111111] mb-1">
+          Дата вступления ставки
+        </label>
         <input
           type="date"
           name="effectiveFrom"
           className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]"
         />
-        <p className="text-xs text-gray-500 mt-1">Оставьте пустым — ставка вступит с текущего момента.</p>
+        <p className="text-xs text-gray-500 mt-1">
+          Оставьте пустым — ставка вступит с текущего момента.
+        </p>
       </div>
 
       <div>
@@ -87,7 +94,9 @@ export function PartnerEditForm({ partner }: { partner: PartnerDetail }) {
       </div>
 
       {errorText && (
-        <div role="alert" className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{errorText}</div>
+        <div role="alert" className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">
+          {errorText}
+        </div>
       )}
       {success && (
         <div role="status" className="text-sm bg-green-50 text-green-700 rounded px-3 py-2">

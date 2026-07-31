@@ -18,7 +18,7 @@ function makeOrder(overrides: Partial<ManagerOrderDetail>): ManagerOrderDetail {
     manager: { name: 'Иван Менеджеров' },
     organization: { name: 'ООО Ромашка' },
     productMix: [],
-    ...overrides
+    ...overrides,
   } as ManagerOrderDetail;
 }
 

@@ -20,12 +20,15 @@ export async function getOrgFinanceKpisForOrgs(
   organizationIds: string[]
 ): Promise<Map<string, OrgFinanceKpis>> {
   const acc = new Map<string, { billed: Prisma.Decimal; paid: Prisma.Decimal }>(
-    organizationIds.map((id) => [id, { billed: new Prisma.Decimal(0), paid: new Prisma.Decimal(0) }])
+    organizationIds.map((id) => [
+      id,
+      { billed: new Prisma.Decimal(0), paid: new Prisma.Decimal(0) },
+    ])
   );
   if (organizationIds.length) {
     const orders = await prisma.order.findMany({
       where: { organizationId: { in: organizationIds }, financialStatus: { in: BILLED_STATUSES } },
-      select: { organizationId: true, totalAmount: true, paidAmount: true }
+      select: { organizationId: true, totalAmount: true, paidAmount: true },
     });
     for (const o of orders) {
       const a = acc.get(o.organizationId)!;
@@ -39,8 +42,8 @@ export async function getOrgFinanceKpisForOrgs(
       {
         billed: a.billed.toFixed(2),
         paid: a.paid.toFixed(2),
-        outstanding: a.billed.minus(a.paid).toFixed(2)
-      }
+        outstanding: a.billed.minus(a.paid).toFixed(2),
+      },
     ])
   );
 }
@@ -88,8 +91,8 @@ export async function listOrgPayments(
       purpose: true,
       paymentOrderNumber: true,
       enteredBy: { select: { name: true } },
-      order: { select: { id: true, orderNumber: true } }
-    }
+      order: { select: { id: true, orderNumber: true } },
+    },
   });
   return rows.map((p) => ({
     id: p.id,
@@ -103,7 +106,7 @@ export async function listOrgPayments(
     vatAmount: p.vatAmount != null ? p.vatAmount.toFixed(2) : null,
     purpose: p.purpose ?? null,
     paymentOrderNumber: p.paymentOrderNumber ?? null,
-    enteredByName: p.enteredBy?.name ?? null
+    enteredByName: p.enteredBy?.name ?? null,
   }));
 }
 
@@ -117,7 +120,7 @@ export async function listOrgPaymentsForExport(
 ): Promise<{ rows: OrgPaymentRow[]; total: number }> {
   const [rows, total] = await Promise.all([
     listOrgPayments(prisma, { organizationId: opts.organizationId, take: opts.limit }),
-    prisma.payment.count({ where: { organizationId: opts.organizationId } })
+    prisma.payment.count({ where: { organizationId: opts.organizationId } }),
   ]);
   return { rows, total };
 }
@@ -182,7 +185,7 @@ export async function listOrgPaymentsForOrgs(
       vatAmount: r.vatAmount != null ? r.vatAmount.toFixed(2) : null,
       purpose: r.purpose,
       paymentOrderNumber: r.paymentOrderNumber,
-      enteredByName: r.enteredByName
+      enteredByName: r.enteredByName,
     });
   }
   return result;

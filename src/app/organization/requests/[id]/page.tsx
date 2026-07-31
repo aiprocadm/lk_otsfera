@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 
 /** Деталка обращения подателя-организации (этап 5, ФТ-1.3). */
 export default async function OrganizationRequestDetailPage({
-  params
+  params,
 }: {
   params: Promise<{ id: string }>;
 }) {
@@ -22,7 +22,9 @@ export default async function OrganizationRequestDetailPage({
   // canSee-чек (§4): getClientRequest скоупит по сессии — чужое обращение = not_found.
   const r = await getClientRequest(prisma, ctx.session, id);
   if (!r.ok) notFound();
-  const attachmentsResult = await listClientRequestAttachments(prisma, ctx.session, { requestId: id });
+  const attachmentsResult = await listClientRequestAttachments(prisma, ctx.session, {
+    requestId: id,
+  });
   const attachments = attachmentsResult.ok ? attachmentsResult.rows : [];
   return (
     <OrgAppShell
@@ -40,9 +42,9 @@ export default async function OrganizationRequestDetailPage({
           size: a.size,
           mimeType: a.mimeType,
           createdAt: a.createdAt.toISOString(),
-          createdByUserName: a.createdByUserName
+          createdByUserName: a.createdByUserName,
         }))}
-        backHref='/organization/requests'
+        backHref="/organization/requests"
       />
     </OrgAppShell>
   );

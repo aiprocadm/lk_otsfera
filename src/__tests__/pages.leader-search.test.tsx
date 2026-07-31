@@ -18,7 +18,7 @@ vi.mock('@/lib/services/search/globalSearch', () => ({ globalSearch }));
 const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
-  })
+  }),
 }));
 vi.mock('next/navigation', () => nav);
 
@@ -27,11 +27,15 @@ vi.mock('@/components/search/search-results', () => ({
   SearchResults: (props: Record<string, unknown>) => {
     resultsSpy(props);
     return React.createElement('div', { 'data-testid': 'search-results' });
-  }
+  },
 }));
 
-
-const SESSION = { sub: 'l1', role: 'manager' as const, managerRole: 'leader' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'l1',
+  role: 'manager' as const,
+  managerRole: 'leader' as const,
+  companyId: 'c1',
+};
 
 function pageProps(q?: string) {
   return { searchParams: Promise.resolve(q === undefined ? {} : { q }) };

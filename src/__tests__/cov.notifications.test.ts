@@ -24,25 +24,20 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // Hoisted mocks
 // ---------------------------------------------------------------------------
 
-const {
-  emailSend,
-  telegramSend,
-  telegramEnabled,
-  queueAdd,
-  getQueue,
-  userFindUnique,
-} = vi.hoisted(() => {
-  const queueAdd = vi.fn();
-  return {
-    emailSend: vi.fn(),
-    telegramSend: vi.fn(),
-    // Controls the fake telegram channel's isEnabledFor gate (mirrors isTelegramEnabled()).
-    telegramEnabled: { value: false },
-    queueAdd,
-    getQueue: vi.fn(() => ({ add: queueAdd })),
-    userFindUnique: vi.fn(),
-  };
-});
+const { emailSend, telegramSend, telegramEnabled, queueAdd, getQueue, userFindUnique } = vi.hoisted(
+  () => {
+    const queueAdd = vi.fn();
+    return {
+      emailSend: vi.fn(),
+      telegramSend: vi.fn(),
+      // Controls the fake telegram channel's isEnabledFor gate (mirrors isTelegramEnabled()).
+      telegramEnabled: { value: false },
+      queueAdd,
+      getQueue: vi.fn(() => ({ add: queueAdd })),
+      userFindUnique: vi.fn(),
+    };
+  }
+);
 
 // Fake channel registry — the single seam every SUT flows through.
 // isEnabledFor reads recipient fields directly (mirrors the real email/telegram
@@ -115,15 +110,23 @@ const TELEGRAM_ONLY_RECIP = { id: 'm2', email: null, name: 'Tg', telegramChatId:
 // ---------------------------------------------------------------------------
 
 function managerDb(recipients: Array<Record<string, unknown>>) {
-  const create = vi.fn().mockImplementation((args: { data: { userId: string } }) =>
-    Promise.resolve({ id: `notif-${args.data.userId}` })
-  );
+  const create = vi
+    .fn()
+    .mockImplementation((args: { data: { userId: string } }) =>
+      Promise.resolve({ id: `notif-${args.data.userId}` })
+    );
   return {
     db: {
       order: {
         findUnique: vi
           .fn()
-          .mockResolvedValue({ id: 'o1', orderNumber: '123', title: 'T', managerId: 'm1', organizationId: 'org1' }),
+          .mockResolvedValue({
+            id: 'o1',
+            orderNumber: '123',
+            title: 'T',
+            managerId: 'm1',
+            organizationId: 'org1',
+          }),
       },
       organizationManager: { findMany: vi.fn().mockResolvedValue([]) },
       comment: { findMany: vi.fn().mockResolvedValue([]) },
@@ -184,9 +187,11 @@ describe('notifyManagers — D5 queued path', () => {
 // ---------------------------------------------------------------------------
 
 function orderLessDb(recipients: Array<Record<string, unknown>>) {
-  const create = vi.fn().mockImplementation((args: { data: { userId: string } }) =>
-    Promise.resolve({ id: `notif-${args.data.userId}` })
-  );
+  const create = vi
+    .fn()
+    .mockImplementation((args: { data: { userId: string } }) =>
+      Promise.resolve({ id: `notif-${args.data.userId}` })
+    );
   return {
     db: {
       organizationManager: {
@@ -242,11 +247,19 @@ describe('notifyManagersOrderLess — D5 queued path', () => {
 // ---------------------------------------------------------------------------
 
 function orgDb(recipients: Array<Record<string, unknown>>) {
-  const create = vi.fn().mockImplementation((args: { data: { userId: string } }) =>
-    Promise.resolve({ id: `notif-${args.data.userId}` })
-  );
+  const create = vi
+    .fn()
+    .mockImplementation((args: { data: { userId: string } }) =>
+      Promise.resolve({ id: `notif-${args.data.userId}` })
+    );
   const organizationUsers = recipients.map((u) => ({
-    user: { telegramChatId: null, maxChatId: null, whatsappPhone: null, notificationChannels: null, ...u },
+    user: {
+      telegramChatId: null,
+      maxChatId: null,
+      whatsappPhone: null,
+      notificationChannels: null,
+      ...u,
+    },
   }));
   return {
     db: {
@@ -308,11 +321,19 @@ describe('notifyOrgUsers — D5 queued path', () => {
 // ---------------------------------------------------------------------------
 
 function partnerDb(recipients: Array<Record<string, unknown>>) {
-  const create = vi.fn().mockImplementation((args: { data: { userId: string } }) =>
-    Promise.resolve({ id: `notif-${args.data.userId}` })
-  );
+  const create = vi
+    .fn()
+    .mockImplementation((args: { data: { userId: string } }) =>
+      Promise.resolve({ id: `notif-${args.data.userId}` })
+    );
   const partnerUsers = recipients.map((u) => ({
-    user: { telegramChatId: null, maxChatId: null, whatsappPhone: null, notificationChannels: null, ...u },
+    user: {
+      telegramChatId: null,
+      maxChatId: null,
+      whatsappPhone: null,
+      notificationChannels: null,
+      ...u,
+    },
   }));
   return {
     db: {
@@ -481,7 +502,9 @@ function fakeDbForWorker(overrides?: { syncLogCreate?: ReturnType<typeof vi.fn> 
   };
 }
 
-function workerJob(overrides: Partial<NotificationDispatchPayload> = {}): NotificationDispatchPayload {
+function workerJob(
+  overrides: Partial<NotificationDispatchPayload> = {}
+): NotificationDispatchPayload {
   return {
     userId: 'wu1',
     channel: 'email',

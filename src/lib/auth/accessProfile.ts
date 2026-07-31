@@ -24,20 +24,14 @@ export const capabilitySchema = z.enum([
   'export',
   'manage_catalog',
   'manage_users',
-  'assign_orders'
+  'assign_orders',
 ]);
 export type Capability = z.infer<typeof capabilitySchema>;
 export const CAPABILITIES = capabilitySchema.options;
 
 /** Типы объектов, по которым профиль задаёт охват. */
 export type AccessObjectType =
-  | 'orders'
-  | 'organizations'
-  | 'threads'
-  | 'documents'
-  | 'finance'
-  | 'leads'
-  | 'tasks';
+  'orders' | 'organizations' | 'threads' | 'documents' | 'finance' | 'leads' | 'tasks';
 
 /** Денормализованное в JWT представление профиля (short enums + флаги). */
 export type SessionAccessProfile = {
@@ -63,7 +57,7 @@ export const sessionAccessProfileSchema = z.object({
   finance: scopeLevelSchema,
   leads: scopeLevelSchema,
   tasks: scopeLevelSchema,
-  capabilities: z.array(capabilitySchema)
+  capabilities: z.array(capabilitySchema),
 });
 
 /**
@@ -83,7 +77,10 @@ function companyFloor(session: SessionPayload): { companyId: string } {
  *  - own      → компания И managerId == session.sub;
  *  - assigned → компания И organizationId ∈ managedOrgIds.
  */
-export function orderWhereForLevel(session: SessionPayload, level: ScopeLevel): Prisma.OrderWhereInput {
+export function orderWhereForLevel(
+  session: SessionPayload,
+  level: ScopeLevel
+): Prisma.OrderWhereInput {
   const floor = companyFloor(session);
   if (level === 'all') return floor;
   if (level === 'own') return { AND: [floor, { managerId: session.sub }] };
@@ -98,10 +95,18 @@ export function orderWhereForLevel(session: SessionPayload, level: ScopeLevel): 
  *  - assigned → свои назначенные ∪ лиды закреплённых орг (`managedOrgIds`);
  *  - all      → без фильтра (вся командная очередь).
  */
-export function leadWhereForLevel(session: SessionPayload, level: ScopeLevel): Prisma.LeadWhereInput {
+export function leadWhereForLevel(
+  session: SessionPayload,
+  level: ScopeLevel
+): Prisma.LeadWhereInput {
   if (level === 'all') return {};
   if (level === 'own') return { assignedManagerId: session.sub };
-  return { OR: [{ assignedManagerId: session.sub }, { organizationId: { in: session.managedOrgIds ?? [] } }] };
+  return {
+    OR: [
+      { assignedManagerId: session.sub },
+      { organizationId: { in: session.managedOrgIds ?? [] } },
+    ],
+  };
 }
 
 /**
@@ -131,17 +136,20 @@ export function canSeeLead(
  * Сервис берёт уровень как `session.accessProfile?.tasks ?? 'all'` → нет профиля
  * тождественно company-wide (legacy-командное поведение внутри компании).
  */
-export function taskWhereForLevel(session: SessionPayload, level: ScopeLevel): Prisma.TaskWhereInput {
+export function taskWhereForLevel(
+  session: SessionPayload,
+  level: ScopeLevel
+): Prisma.TaskWhereInput {
   const floor = companyFloor(session);
   if (level === 'all') return floor;
   const mine: Prisma.TaskWhereInput['OR'] = [
     { createdById: session.sub },
-    { assignees: { some: { userId: session.sub } } }
+    { assignees: { some: { userId: session.sub } } },
   ];
   if (level === 'own') return { AND: [floor, { OR: mine }] };
   // assigned
   return {
-    AND: [floor, { OR: [...mine, { linkedOrganizationId: { in: session.managedOrgIds ?? [] } }] }]
+    AND: [floor, { OR: [...mine, { linkedOrganizationId: { in: session.managedOrgIds ?? [] } }] }],
   };
 }
 
@@ -154,7 +162,12 @@ export function taskWhereForLevel(session: SessionPayload, level: ScopeLevel): P
  */
 export function canSeeTask(
   session: SessionPayload,
-  task: { companyId: string; createdById: string; assigneeUserIds: string[]; linkedOrganizationId: string | null }
+  task: {
+    companyId: string;
+    createdById: string;
+    assigneeUserIds: string[];
+    linkedOrganizationId: string | null;
+  }
 ): boolean {
   if (session.role === 'admin') return true;
   if (session.role !== 'manager') return false;
@@ -165,7 +178,11 @@ export function canSeeTask(
   const mine = task.createdById === session.sub || task.assigneeUserIds.includes(session.sub);
   if (level === 'own') return mine;
   // assigned
-  return mine || (!!task.linkedOrganizationId && (session.managedOrgIds ?? []).includes(task.linkedOrganizationId));
+  return (
+    mine ||
+    (!!task.linkedOrganizationId &&
+      (session.managedOrgIds ?? []).includes(task.linkedOrganizationId))
+  );
 }
 
 /**
@@ -218,6 +235,6 @@ export function toSessionAccessProfile(row: AccessProfileRow): SessionAccessProf
     finance: row.financeScope,
     leads: row.leadsScope,
     tasks: row.tasksScope,
-    capabilities
+    capabilities,
   };
 }

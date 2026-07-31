@@ -21,15 +21,21 @@ export async function backfillContacts(
   // phone and whatsapp share one number space (see resolveContactByChannel's
   // phoneLike widening) — a Lead phone matching a User's whatsapp must collapse
   // to a single channel row, so both types bucket under the same dedup key.
-  const bucket = (type: ContactChannelType): string => (type === 'phone' || type === 'whatsapp' ? 'phoneLike' : type);
-  const key = (companyId: string, type: ContactChannelType, nv: string) => `${companyId}|${bucket(type)}|${nv}`;
+  const bucket = (type: ContactChannelType): string =>
+    type === 'phone' || type === 'whatsapp' ? 'phoneLike' : type;
+  const key = (companyId: string, type: ContactChannelType, nv: string) =>
+    `${companyId}|${bucket(type)}|${nv}`;
   for (const ch of await prisma.contactChannel.findMany({
     select: { companyId: true, type: true, normalizedValue: true, contactId: true },
   })) {
     seen.set(key(ch.companyId, ch.type, ch.normalizedValue), ch.contactId);
   }
 
-  async function ensureChannel(companyId: string, contactId: string, seed: ChannelSeed): Promise<void> {
+  async function ensureChannel(
+    companyId: string,
+    contactId: string,
+    seed: ChannelSeed
+  ): Promise<void> {
     const nv = normalizeChannelValue(seed.type, seed.value);
     if (!nv) return;
     if (seen.has(key(companyId, seed.type, nv))) return;

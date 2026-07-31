@@ -16,7 +16,12 @@ export function fmtMoney(value: number | string): string {
 export function fmtDate(value: Date | string): string {
   const d = typeof value === 'string' ? new Date(value) : value;
   if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Moscow' });
+  return d.toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'Europe/Moscow',
+  });
 }
 
 export function fmtDateTime(value: Date | string): string {
@@ -47,7 +52,11 @@ export function fmtLastLogin(value: Date | string | null | undefined): string {
   const d = typeof value === 'string' ? new Date(value) : value;
   if (Number.isNaN(d.getTime())) return '—';
   if (moscowDayKey(d) === moscowDayKey(new Date())) {
-    const time = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Moscow' });
+    const time = d.toLocaleTimeString('ru-RU', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Europe/Moscow',
+    });
     return `сегодня, ${time}`;
   }
   return fmtDate(d);

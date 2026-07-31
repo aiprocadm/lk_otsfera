@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const { createNotification, deliverNotificationToUser, logError } = vi.hoisted(() => ({
   createNotification: vi.fn(),
   deliverNotificationToUser: vi.fn(),
-  logError: vi.fn()
+  logError: vi.fn(),
 }));
 vi.mock('@/lib/notifications', () => ({ createNotification, deliverNotificationToUser }));
 vi.mock('@/lib/logging', () => ({ log: { error: logError, info: vi.fn(), warn: vi.fn() } }));
@@ -18,7 +18,7 @@ const base = {
   taskId: 't1',
   taskTitle: 'Позвонить клиенту',
   dueDate: null as Date | null,
-  actorUserId: 'actor'
+  actorUserId: 'actor',
 };
 
 describe('notifyTaskAssigned', () => {
@@ -38,11 +38,16 @@ describe('notifyTaskAssigned', () => {
         type: 'task_assigned',
         title: 'Вам назначена задача',
         body: '«Позвонить клиенту».',
-        meta: { taskId: 't1', url: TASKS_BOARD_URL }
+        meta: { taskId: 't1', url: TASKS_BOARD_URL },
       })
     );
     expect(deliverNotificationToUser).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: 'u2', type: 'task_assigned', url: TASKS_BOARD_URL, dedupKey: 'n1' })
+      expect.objectContaining({
+        userId: 'u2',
+        type: 'task_assigned',
+        url: TASKS_BOARD_URL,
+        dedupKey: 'n1',
+      })
     );
   });
 
@@ -52,7 +57,11 @@ describe('notifyTaskAssigned', () => {
   });
 
   it('срок попадает в текст, когда dueDate задан', async () => {
-    await notifyTaskAssigned({ ...base, dueDate: new Date('2026-08-15T00:00:00Z'), assigneeUserIds: ['u1'] });
+    await notifyTaskAssigned({
+      ...base,
+      dueDate: new Date('2026-08-15T00:00:00Z'),
+      assigneeUserIds: ['u1'],
+    });
     const body = createNotification.mock.calls[0]![0].body as string;
     expect(body).toContain('срок до');
     expect(body).toContain('«Позвонить клиенту»');
@@ -70,10 +79,14 @@ describe('notifyTaskAssigned', () => {
       .mockRejectedValueOnce(new Error('db down'))
       .mockResolvedValueOnce({ id: 'n2' });
 
-    await expect(notifyTaskAssigned({ ...base, assigneeUserIds: ['u1', 'u2'] })).resolves.toBeUndefined();
+    await expect(
+      notifyTaskAssigned({ ...base, assigneeUserIds: ['u1', 'u2'] })
+    ).resolves.toBeUndefined();
 
     expect(logError).toHaveBeenCalledTimes(1);
     expect(deliverNotificationToUser).toHaveBeenCalledTimes(1);
-    expect(deliverNotificationToUser).toHaveBeenCalledWith(expect.objectContaining({ userId: 'u2' }));
+    expect(deliverNotificationToUser).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'u2' })
+    );
   });
 });

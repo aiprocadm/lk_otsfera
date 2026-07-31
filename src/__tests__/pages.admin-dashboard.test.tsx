@@ -10,7 +10,7 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 const { kpis, attention, recentEvents } = vi.hoisted(() => ({
   kpis: vi.fn(),
   attention: vi.fn(),
-  recentEvents: vi.fn()
+  recentEvents: vi.fn(),
 }));
 vi.mock('@/lib/services/admin/dashboard', () => ({ kpis, attention, recentEvents }));
 
@@ -31,10 +31,16 @@ describe('AdminDashboardPage', () => {
     kpis.mockResolvedValue([{ label: 'Заказы', value: 5, href: '/admin/orders' }]);
     attention.mockResolvedValue([
       { id: 'a1', title: 'Просрочен', href: '/admin/orders/1', severity: 'urgent' },
-      { id: 'a2', title: 'Скоро', href: '/admin/orders/2', severity: 'normal' }
+      { id: 'a2', title: 'Скоро', href: '/admin/orders/2', severity: 'normal' },
     ]);
     recentEvents.mockResolvedValue([
-      { id: 'e1', actor: 'Иванов', verb: 'order_created', entity: 'order', timestamp: new Date('2024-01-01') }
+      {
+        id: 'e1',
+        actor: 'Иванов',
+        verb: 'order_created',
+        entity: 'order',
+        timestamp: new Date('2024-01-01'),
+      },
     ]);
 
     const { container } = await renderServerComponent(AdminDashboardPage());

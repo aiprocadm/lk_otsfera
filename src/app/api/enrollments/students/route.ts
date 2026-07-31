@@ -26,7 +26,7 @@ async function canAccessOrg(session: SessionPayload, organizationId: string): Pr
   // покрытия — недостижимое удаляем, а не «покрываем»).
   const org = await prisma.organization.findFirst({
     where: { id: organizationId, partnerId: session.partnerId ?? '__none__' },
-    select: { id: true }
+    select: { id: true },
   });
   return !!org;
 }
@@ -36,7 +36,8 @@ export async function GET(req: Request) {
   if (disabled) return disabled;
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (!canSubmitEnrollments(session)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  if (!canSubmitEnrollments(session))
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   const sp = new URL(req.url).searchParams;
   const organizationId = sp.get('organizationId')?.trim();
@@ -49,7 +50,7 @@ export async function GET(req: Request) {
   const { rows } = await listOrgStudents(prisma, {
     organizationId,
     search: sp.get('q') ?? undefined,
-    take: 200
+    take: 200,
   });
 
   // meta — только флаги/счётчики (PiiAccessMeta), без id и поисковых строк (§12).
@@ -57,10 +58,10 @@ export async function GET(req: Request) {
     session,
     context: 'enrollment_wizard_students',
     subjectIds: rows.map((r) => r.id),
-    meta: { take: 200, hasQuery: sp.get('q') !== null }
+    meta: { take: 200, hasQuery: sp.get('q') !== null },
   });
 
   return NextResponse.json({
-    students: rows.map((r) => ({ id: r.id, name: r.name, email: r.email }))
+    students: rows.map((r) => ({ id: r.id, name: r.name, email: r.email })),
   });
 }

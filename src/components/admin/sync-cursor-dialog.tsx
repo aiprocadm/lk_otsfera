@@ -66,17 +66,30 @@ export function SyncCursorDialog({
         Курсор…
       </button>
 
-      <Dialog open={open} onClose={close} title={`Перемотка курсора: ${entity}`} size="md" busy={pending} error={error ?? undefined}>
+      <Dialog
+        open={open}
+        onClose={close}
+        title={`Перемотка курсора: ${entity}`}
+        size="md"
+        busy={pending}
+        error={error ?? undefined}
+      >
         <div className="space-y-3">
           <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2">
-            ⚠️ Перемотка вызовет повторный pull всех изменений 1С с указанного момента. Сброс (пустое поле) = полный re-pull с начала. Текущий курсор: <span className="font-mono">{currentCursor ?? '—'}</span>.
+            ⚠️ Перемотка вызовет повторный pull всех изменений 1С с указанного момента. Сброс
+            (пустое поле) = полный re-pull с начала. Текущий курсор:{' '}
+            <span className="font-mono">{currentCursor ?? '—'}</span>.
           </p>
           <label className="block">
-            <span className="block text-sm font-medium text-gray-700 mb-1">Новый курсор (дата/время)</span>
+            <span className="block text-sm font-medium text-gray-700 mb-1">
+              Новый курсор (дата/время)
+            </span>
             <input
               type="datetime-local"
               value={value}
-              onChange={(e) => setValue(e.target.value ? new Date(e.target.value).toISOString() : '')}
+              onChange={(e) =>
+                setValue(e.target.value ? new Date(e.target.value).toISOString() : '')
+              }
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]"
             />
           </label>
@@ -101,7 +114,11 @@ export function SyncCursorDialog({
               Сбросить (полный re-pull)
             </button>
             <div className="flex gap-2">
-              <button type="button" onClick={close} className="px-4 py-2 border border-gray-200 text-sm rounded-lg hover:bg-gray-50">
+              <button
+                type="button"
+                onClick={close}
+                className="px-4 py-2 border border-gray-200 text-sm rounded-lg hover:bg-gray-50"
+              >
                 Отмена
               </button>
               <button

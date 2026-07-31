@@ -11,7 +11,7 @@ export function Paginator({
   searchParams,
   take,
   skip,
-  total
+  total,
 }: {
   basePath: string;
   searchParams: Record<string, string | string[] | undefined>;
@@ -41,14 +41,14 @@ export function Paginator({
   const next = Math.min((pages - 1) * take, skip + take);
 
   return (
-    <div className='flex items-center justify-between text-sm text-gray-500'>
+    <div className="flex items-center justify-between text-sm text-gray-500">
       {/* template literal намеренно: React 19 вставляет comment-node (<!-- -->) между соседними {}-выражениями — не превращать обратно в JSX-интерполяции */}
       <span>{`Страница ${page} из ${pages} · ${total} всего`}</span>
-      <div className='flex gap-2'>
+      <div className="flex gap-2">
         {skip > 0 && (
           <a
             href={link(prev)}
-            className='px-3 py-1.5 border border-gray-200 rounded hover:bg-gray-50'
+            className="px-3 py-1.5 border border-gray-200 rounded hover:bg-gray-50"
           >
             Назад
           </a>
@@ -56,7 +56,7 @@ export function Paginator({
         {skip + take < total && (
           <a
             href={link(next)}
-            className='px-3 py-1.5 border border-gray-200 rounded hover:bg-gray-50'
+            className="px-3 py-1.5 border border-gray-200 rounded hover:bg-gray-50"
           >
             Вперёд
           </a>

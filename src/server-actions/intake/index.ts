@@ -8,12 +8,12 @@ import {
   claimInbound,
   claimCall,
   closeCallIntake,
-  type IntakeClaimError
+  type IntakeClaimError,
 } from '@/lib/services/intake/claim';
 import {
   createLeadFromInbound,
   createLeadFromCall,
-  type ConvertSourceInput
+  type ConvertSourceInput,
 } from '@/lib/services/intake/convert';
 import { takeInTriage } from '@/lib/services/clientRequests/triage';
 
@@ -37,7 +37,9 @@ function revalidate(): void {
 
 export type IntakeClaimActionError = IntakeClaimError | 'validation';
 
-export async function claimIntakeAction(fd: FormData): Promise<ActionResult<IntakeClaimActionError>> {
+export async function claimIntakeAction(
+  fd: FormData
+): Promise<ActionResult<IntakeClaimActionError>> {
   const session = await requireSession();
   const type = str(fd, 'type');
   const id = str(fd, 'id');
@@ -47,7 +49,9 @@ export async function claimIntakeAction(fd: FormData): Promise<ActionResult<Inta
   if (type === 'client_request') {
     const r = await takeInTriage(prisma, session, { id });
     // lifecycle_violation здесь = «уже взято/разобрано» — маппим в already_assigned для единого UX.
-    res = r.ok ? { ok: true } : { ok: false, error: r.error === 'lifecycle_violation' ? 'already_assigned' : r.error };
+    res = r.ok
+      ? { ok: true }
+      : { ok: false, error: r.error === 'lifecycle_violation' ? 'already_assigned' : r.error };
   } else if (type === 'enrollment') {
     res = await claimEnrollment(prisma, session, { id });
   } else if (type === 'inbound') {
@@ -63,7 +67,9 @@ export async function claimIntakeAction(fd: FormData): Promise<ActionResult<Inta
   return { ok: true };
 }
 
-export async function closeCallIntakeAction(fd: FormData): Promise<ActionResult<IntakeClaimError | 'validation'>> {
+export async function closeCallIntakeAction(
+  fd: FormData
+): Promise<ActionResult<IntakeClaimError | 'validation'>> {
   const session = await requireSession();
   const id = str(fd, 'id');
   if (!id) return { ok: false, error: 'validation' };
@@ -81,13 +87,17 @@ function convertInput(fd: FormData): ConvertSourceInput {
     contactPhone: str(fd, 'contactPhone') || null,
     contactEmail: str(fd, 'contactEmail') || null,
     subject: str(fd, 'subject') || null,
-    notes: str(fd, 'notes') || null
+    notes: str(fd, 'notes') || null,
   };
 }
 
 export type ConvertActionResult =
   | { ok: true; leadId: string }
-  | { ok: false; error: 'forbidden' | 'not_found' | 'already_converted' | 'validation'; messages?: string[] };
+  | {
+      ok: false;
+      error: 'forbidden' | 'not_found' | 'already_converted' | 'validation';
+      messages?: string[];
+    };
 
 export async function createLeadFromInboundAction(fd: FormData): Promise<ConvertActionResult> {
   const session = await requireSession();

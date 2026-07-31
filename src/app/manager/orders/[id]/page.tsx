@@ -18,7 +18,7 @@ import { buildOrderBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import { getOrderStatusPanel } from '@/lib/services/orderStatuses';
 
 export default async function ManagerOrderDetailPage({
-  params
+  params,
 }: {
   params: Promise<{ id: string }>;
 }) {
@@ -32,10 +32,10 @@ export default async function ManagerOrderDetailPage({
     prisma.student.findMany({
       where: { organizationId: data.order.organizationId ?? undefined },
       select: { id: true, name: true, email: true },
-      orderBy: { name: 'asc' }
+      orderBy: { name: 'asc' },
     }),
     getValuesForEntity(prisma, session, 'order', id),
-    getDealActivity(prisma, session, id, { view: 'all' })
+    getDealActivity(prisma, session, id, { view: 'all' }),
   ]);
   const directions = directionsResult.ok ? directionsResult.directions : [];
   const customFields = customFieldsResult.ok ? customFieldsResult.fields : [];
@@ -45,10 +45,23 @@ export default async function ManagerOrderDetailPage({
 
   // Этап 8 (ФТ-9.4/9.5): панель генерации счёта/акта — за флагом; данные собирает страница.
   let generatePanel: React.ReactNode = null;
-  if (isFeatureEnabled('document_generation') && data.order.organizationId && data.order.companyId) {
+  if (
+    isFeatureEnabled('document_generation') &&
+    data.order.organizationId &&
+    data.order.companyId
+  ) {
     const REQ = {
-      name: true, legalName: true, inn: true, kpp: true, legalAddress: true, bankName: true,
-      bankAccount: true, corrAccount: true, bic: true, signerName: true, signerPosition: true
+      name: true,
+      legalName: true,
+      inn: true,
+      kpp: true,
+      legalAddress: true,
+      bankName: true,
+      bankAccount: true,
+      corrAccount: true,
+      bic: true,
+      signerName: true,
+      signerPosition: true,
     } as const;
     const [company, organization, invoiceCount] = await Promise.all([
       prisma.company.findUnique({ where: { id: data.order.companyId }, select: REQ }),
@@ -56,8 +69,8 @@ export default async function ManagerOrderDetailPage({
       prisma.document.groupBy({
         by: ['type'],
         where: { orderId: id, type: { in: ['invoice', 'contract'] }, generatedBy: 'system' },
-        _count: { _all: true }
-      })
+        _count: { _all: true },
+      }),
     ]);
     const missing: MissingRequisite[] =
       company && organization ? listMissingRequisites(company, organization) : [];
@@ -112,10 +125,10 @@ export default async function ManagerOrderDetailPage({
             select: {
               id: true,
               clientCompanyName: true,
-              sourceRequest: { select: { id: true, subject: true } }
-            }
-          }
-        }
+              sourceRequest: { select: { id: true, subject: true } },
+            },
+          },
+        },
       })
     : null;
   const breadcrumbs = buildOrderBreadcrumbs({
@@ -128,11 +141,11 @@ export default async function ManagerOrderDetailPage({
             ? {
                 id: deal.lead.id,
                 title: deal.lead.clientCompanyName,
-                sourceRequest: deal.lead.sourceRequest
+                sourceRequest: deal.lead.sourceRequest,
               }
-            : null
+            : null,
         }
-      : null
+      : null,
   });
 
   return (
@@ -140,7 +153,7 @@ export default async function ManagerOrderDetailPage({
       statusPanel={statusPanel}
       breadcrumbs={breadcrumbs}
       data={data}
-      backHref='/manager/orders'
+      backHref="/manager/orders"
       directions={directions}
       students={students}
       customFields={customFields}

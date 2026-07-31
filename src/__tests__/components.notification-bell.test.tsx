@@ -29,7 +29,7 @@ const ROWS: Row[] = [
     body: 'Здравствуйте, есть вопрос по срокам обучения сотрудников.',
     isRead: false,
     createdAt: '2026-07-10T12:00:00.000Z',
-    meta: { orderId: 'ord-1' }
+    meta: { orderId: 'ord-1' },
   },
   {
     id: 'n2',
@@ -38,8 +38,8 @@ const ROWS: Row[] = [
     body: 'Не удалось обработать заказ.',
     isRead: true,
     createdAt: '2026-07-01T08:00:00.000Z',
-    meta: {}
-  }
+    meta: {},
+  },
 ];
 
 /** Управляемое состояние обоих ресурсов + перехват опций хука. */
@@ -104,7 +104,7 @@ describe('NotificationBell', () => {
       render(
         React.createElement(NotificationBell, {
           role: 'partner',
-          buttonClassName: 'hover:bg-white/10'
+          buttonClassName: 'hover:bg-white/10',
         })
       );
       const bell = screen.getByRole('button', { name: 'Уведомления' });
@@ -233,7 +233,7 @@ describe('NotificationBell', () => {
       expect(fetchMock).toHaveBeenCalledWith('/api/notifications', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: 'n1' })
+        body: JSON.stringify({ id: 'n1' }),
       });
       expect(listRefetch).toHaveBeenCalled();
       expect(unreadRefetch).toHaveBeenCalled();
@@ -278,7 +278,7 @@ describe('NotificationBell', () => {
       expect(fetchMock).toHaveBeenCalledWith('/api/notifications', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: ['n1'] })
+        body: JSON.stringify({ ids: ['n1'] }),
       });
       expect(unreadRefetch).toHaveBeenCalled();
     });

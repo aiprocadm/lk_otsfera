@@ -12,15 +12,15 @@ vi.mock('@/lib/services/orderStatuses', () => ({
     forward: [],
     backward: [],
     terminal: null,
-    history: []
-  })
+    history: [],
+  }),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireManagerLeader }));
 
 const { studentFindMany } = vi.hoisted(() => ({ studentFindMany: vi.fn() }));
 vi.mock('@/lib/db/prisma', () => ({
-  prisma: { student: { findMany: studentFindMany } }
+  prisma: { student: { findMany: studentFindMany } },
 }));
 
 const { loadManagerOrderDetail } = vi.hoisted(() => ({ loadManagerOrderDetail: vi.fn() }));
@@ -53,16 +53,16 @@ vi.mock('@/components/leader/leader-assign-order-manager-form', () => ({
       JSON.stringify({
         orderId: props.orderId,
         currentManagerId: props.currentManagerId,
-        candidates: props.candidates
+        candidates: props.candidates,
       })
-    )
+    ),
 }));
 
 const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
@@ -87,12 +87,17 @@ vi.mock('@/components/manager/manager-order-detail-view', () => ({
       JSON.stringify(props.activityItems),
       String(props.inboundEnabled),
       String(props.telephonyEnabled)
-    )
+    ),
 }));
 
 import LeaderOrderDetailPage from '@/app/leader/orders/[id]/page';
 
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'leader' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'leader' as const,
+  companyId: 'c1',
+};
 
 const BASE_DATA = {
   order: {
@@ -104,12 +109,12 @@ const BASE_DATA = {
     executionStatus: 'in_progress',
     documents: [],
     payments: [],
-    commentsCountByMe: 0
+    commentsCountByMe: 0,
   },
   auditEntries: [],
   comments: [],
   documentRows: [],
-  items: []
+  items: [],
 };
 
 describe('LeaderOrderDetailPage', () => {
@@ -131,9 +136,7 @@ describe('LeaderOrderDetailPage', () => {
     loadManagerOrderDetail.mockResolvedValue(null);
 
     await expect(
-      renderServerComponent(
-        LeaderOrderDetailPage({ params: Promise.resolve({ id: 'missing' }) })
-      )
+      renderServerComponent(LeaderOrderDetailPage({ params: Promise.resolve({ id: 'missing' }) }))
     ).rejects.toThrow('NOT_FOUND');
 
     expect(listDirections).not.toHaveBeenCalled();
@@ -147,11 +150,31 @@ describe('LeaderOrderDetailPage', () => {
     studentFindMany.mockResolvedValue([{ id: 's1', name: 'Студент', email: 's@x.com' }]);
     getValuesForEntity.mockResolvedValue({
       ok: true,
-      fields: [{ definition: { id: 'f1', key: 'k1', label: 'Поле', fieldType: 'text', options: null, required: false, sortOrder: 0 }, value: 'v' }]
+      fields: [
+        {
+          definition: {
+            id: 'f1',
+            key: 'k1',
+            label: 'Поле',
+            fieldType: 'text',
+            options: null,
+            required: false,
+            sortOrder: 0,
+          },
+          value: 'v',
+        },
+      ],
     });
     getDealActivity.mockResolvedValue({
       ok: true,
-      items: [{ kind: 'event', id: 'e1', at: new Date('2026-01-01T00:00:00Z'), label: 'Смена статуса заказа' }]
+      items: [
+        {
+          kind: 'event',
+          id: 'e1',
+          at: new Date('2026-01-01T00:00:00Z'),
+          label: 'Смена статуса заказа',
+        },
+      ],
     });
     isFeatureEnabled.mockImplementation((flag: string) => flag === 'telephony_mango');
 
@@ -193,7 +216,7 @@ describe('LeaderOrderDetailPage', () => {
     requireManagerLeader.mockResolvedValue(SESSION);
     loadManagerOrderDetail.mockResolvedValue({
       ...BASE_DATA,
-      order: { ...BASE_DATA.order, organizationId: null }
+      order: { ...BASE_DATA.order, organizationId: null },
     });
     listDirections.mockResolvedValue({ ok: false, error: 'forbidden' });
     studentFindMany.mockResolvedValue([]);
@@ -220,9 +243,30 @@ describe('LeaderOrderDetailPage', () => {
     getDealActivity.mockResolvedValue({ ok: true, items: [] });
     isFeatureEnabled.mockReturnValue(false);
     listCompanyManagers.mockResolvedValue([
-      { id: 'm1', name: 'Анна', email: 'anna@x.com', isActive: true, managerRole: null, assignments: [] },
-      { id: 'm2', name: 'Борис', email: 'boris@x.com', isActive: false, managerRole: null, assignments: [] },
-      { id: 'm-current', name: 'Вера', email: 'vera@x.com', isActive: true, managerRole: 'leader', assignments: [] }
+      {
+        id: 'm1',
+        name: 'Анна',
+        email: 'anna@x.com',
+        isActive: true,
+        managerRole: null,
+        assignments: [],
+      },
+      {
+        id: 'm2',
+        name: 'Борис',
+        email: 'boris@x.com',
+        isActive: false,
+        managerRole: null,
+        assignments: [],
+      },
+      {
+        id: 'm-current',
+        name: 'Вера',
+        email: 'vera@x.com',
+        isActive: true,
+        managerRole: 'leader',
+        assignments: [],
+      },
     ]);
 
     const { getByTestId } = await renderServerComponent(
@@ -239,8 +283,8 @@ describe('LeaderOrderDetailPage', () => {
       currentManagerId: 'm-current',
       candidates: [
         { id: 'm1', email: 'anna@x.com', name: 'Анна' },
-        { id: 'm-current', email: 'vera@x.com', name: 'Вера' }
-      ]
+        { id: 'm-current', email: 'vera@x.com', name: 'Вера' },
+      ],
     });
     // Деталка рендерится рядом с формой, а не заменяется ею.
     expect(getByTestId('order-detail-view')).toBeTruthy();
@@ -250,7 +294,7 @@ describe('LeaderOrderDetailPage', () => {
     requireManagerLeader.mockResolvedValue({ ...SESSION, companyId: null });
     loadManagerOrderDetail.mockResolvedValue({
       ...BASE_DATA,
-      order: { ...BASE_DATA.order, managerId: null }
+      order: { ...BASE_DATA.order, managerId: null },
     });
     listDirections.mockResolvedValue({ ok: true, directions: [] });
     studentFindMany.mockResolvedValue([]);

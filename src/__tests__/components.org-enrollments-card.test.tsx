@@ -11,7 +11,7 @@ function summary(overrides: Partial<OrgEnrollmentSummary> = {}): OrgEnrollmentSu
     studentCount: 1,
     status: 'pending',
     createdAt: new Date('2024-01-15T10:00:00Z'),
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -41,7 +41,12 @@ describe('OrgEnrollmentsCard', () => {
   it('склонение счётчика: 2 слушателя / 5 слушателей; ссылки по id каждой строки', () => {
     const html = renderCard([
       summary({ id: 'e2', studentCount: 2, status: 'in_training' }),
-      summary({ id: 'e5', directionName: 'Пожарная безопасность', studentCount: 5, status: 'certificates_ready' })
+      summary({
+        id: 'e5',
+        directionName: 'Пожарная безопасность',
+        studentCount: 5,
+        status: 'certificates_ready',
+      }),
     ]);
     expect(html).toContain('2 слушателя');
     expect(html).toContain('5 слушателей');

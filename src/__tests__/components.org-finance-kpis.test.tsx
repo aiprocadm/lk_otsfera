@@ -4,7 +4,7 @@ import React from 'react';
 
 vi.mock('next/link', () => ({
   default: ({ children, className }: { children: React.ReactNode; className?: string }) =>
-    React.createElement('a', { className }, children)
+    React.createElement('a', { className }, children),
 }));
 
 import { OrgFinanceKpisGrid } from '@/components/organization/org-finance-kpis';

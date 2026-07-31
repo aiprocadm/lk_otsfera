@@ -7,7 +7,11 @@ vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
 import { updateInternalPhoneAction } from '@/server-actions/staff-profile';
 
 const session = { sub: 'u1', role: 'manager', companyId: 'c1' };
-beforeEach(() => { vi.clearAllMocks(); requireManager.mockResolvedValue(session); update.mockResolvedValue({}); });
+beforeEach(() => {
+  vi.clearAllMocks();
+  requireManager.mockResolvedValue(session);
+  update.mockResolvedValue({});
+});
 
 it('stores a trimmed internal number for the authenticated manager', async () => {
   const res = await updateInternalPhoneAction({ internalPhone: '  101  ' });

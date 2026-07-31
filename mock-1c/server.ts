@@ -20,10 +20,15 @@ const PATH_TO_ENTITY: Record<string, Entity> = {
   [ENDPOINTS.organizations]: 'organization',
   [ENDPOINTS.orders]: 'order',
   [ENDPOINTS.payments]: 'payment',
-  [ENDPOINTS.documents]: 'document'
+  [ENDPOINTS.documents]: 'document',
 };
 
-function send(res: http.ServerResponse, status: number, body: unknown, headers: Record<string, string> = {}): void {
+function send(
+  res: http.ServerResponse,
+  status: number,
+  body: unknown,
+  headers: Record<string, string> = {}
+): void {
   const payload = typeof body === 'string' ? body : JSON.stringify(body);
   res.writeHead(status, { 'Content-Type': 'application/json', ...headers });
   res.end(payload);
@@ -51,7 +56,10 @@ export function createMock1cServer(deps: Mock1cDeps): http.Server {
       // --- introspection / control (no auth, dev-only) ---
       if (path === '/__health' && method === 'GET') return send(res, 200, { ok: true });
       if (path === '/__state' && method === 'GET') {
-        return send(res, 200, { scenario: deps.scenarioRef.current, leads: deps.leadStore.state() });
+        return send(res, 200, {
+          scenario: deps.scenarioRef.current,
+          leads: deps.leadStore.state(),
+        });
       }
       if (path === '/__control' && method === 'POST') {
         const raw = await readBody(req);
@@ -76,7 +84,8 @@ export function createMock1cServer(deps: Mock1cDeps): http.Server {
 
       // --- failure injection on reads ---
       if (method === 'GET' && scenario.failMode !== 'none') {
-        if (scenario.failMode === 'transient') return send(res, 503, { error: 'temporarily unavailable' }, { 'Retry-After': '1' });
+        if (scenario.failMode === 'transient')
+          return send(res, 503, { error: 'temporarily unavailable' }, { 'Retry-After': '1' });
         return send(res, 500, { error: 'permanent failure' });
       }
 
@@ -89,7 +98,10 @@ export function createMock1cServer(deps: Mock1cDeps): http.Server {
         const cursor: SyncCursor = since ? { since } : {};
         const records = deps.dataset.list(entity, cursor) as Array<Record<string, unknown>>;
         const { body, meta } = shapeResponse(records, scenario, offset);
-        if (meta.pages > 1) log(`[mock1c] ${entity}: page at offset ${offset} (${meta.served}/${meta.total}), pages=${meta.pages}`);
+        if (meta.pages > 1)
+          log(
+            `[mock1c] ${entity}: page at offset ${offset} (${meta.served}/${meta.total}), pages=${meta.pages}`
+          );
         return send(res, 200, body);
       }
 
@@ -97,7 +109,11 @@ export function createMock1cServer(deps: Mock1cDeps): http.Server {
       if (path === ENDPOINTS.leadPush && method === 'POST') {
         const raw = await readBody(req);
         let parsed: Record<string, unknown>;
-        try { parsed = JSON.parse(raw); } catch { return send(res, 400, { error: 'invalid JSON' }); }
+        try {
+          parsed = JSON.parse(raw);
+        } catch {
+          return send(res, 400, { error: 'invalid JSON' });
+        }
         const outcome = deps.leadStore.accept(parsed, scenario.pushFailRate);
         if (outcome.status !== 200) return send(res, outcome.status, { error: 'push failed' });
         return send(res, 200, outcome.result);

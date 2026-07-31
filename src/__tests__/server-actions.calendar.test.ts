@@ -6,13 +6,15 @@
  */
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { requireSession, revalidatePath, createEvent, updateEvent, deleteEvent } = vi.hoisted(() => ({
-  requireSession: vi.fn(),
-  revalidatePath: vi.fn(),
-  createEvent: vi.fn(),
-  updateEvent: vi.fn(),
-  deleteEvent: vi.fn()
-}));
+const { requireSession, revalidatePath, createEvent, updateEvent, deleteEvent } = vi.hoisted(
+  () => ({
+    requireSession: vi.fn(),
+    revalidatePath: vi.fn(),
+    createEvent: vi.fn(),
+    updateEvent: vi.fn(),
+    deleteEvent: vi.fn(),
+  })
+);
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireSession }));
 vi.mock('next/cache', () => ({ revalidatePath }));
@@ -21,7 +23,7 @@ vi.mock('@/lib/services/calendar/events', () => ({
   createEvent,
   updateEvent,
   deleteEvent,
-  REMIND_MINUTES: [15, 60, 1440]
+  REMIND_MINUTES: [15, 60, 1440],
 }));
 
 import { createEventAction, updateEventAction, deleteEventAction } from '@/server-actions/calendar';
@@ -55,7 +57,7 @@ describe('флаг staff_calendar off', () => {
   it.each([
     ['create', () => createEventAction(validForm()), createEvent],
     ['update', () => updateEventAction(validForm({ id: 'e1' })), updateEvent],
-    ['delete', () => deleteEventAction(form({ id: 'e1' })), deleteEvent]
+    ['delete', () => deleteEventAction(form({ id: 'e1' })), deleteEvent],
   ] as const)('%s → forbidden, сервис не вызван', async (_name, run, serviceMock) => {
     delete process.env[FLAG_ENV]; // opt-in: без env флаг выключен
     expect(await run()).toEqual({ ok: false, error: 'forbidden' });
@@ -74,7 +76,7 @@ describe('createEventAction', () => {
       allDay: 'on',
       remindMinutes: '15',
       linkedOrderId: 'o1',
-      linkedOrganizationId: 'org1'
+      linkedOrganizationId: 'org1',
     });
     fd.append('attendeeIds', 'u2');
     fd.append('attendeeIds', 'u3');
@@ -90,7 +92,7 @@ describe('createEventAction', () => {
       remindMinutes: 15,
       linkedOrderId: 'o1',
       linkedOrganizationId: 'org1',
-      attendeeIds: ['u2', 'u3']
+      attendeeIds: ['u2', 'u3'],
     });
     expect(revalidatePath).toHaveBeenCalledWith('/manager/calendar');
     expect(revalidatePath).toHaveBeenCalledWith('/leader/calendar');
@@ -109,7 +111,7 @@ describe('createEventAction', () => {
       remindMinutes: null,
       linkedOrderId: null,
       linkedOrganizationId: null,
-      attendeeIds: []
+      attendeeIds: [],
     });
   });
 
@@ -154,7 +156,7 @@ describe('updateEventAction', () => {
     updateEvent.mockResolvedValue({ ok: false, error: 'not_found' });
     expect(await updateEventAction(validForm({ id: 'ghost' }))).toEqual({
       ok: false,
-      error: 'not_found'
+      error: 'not_found',
     });
     expect(revalidatePath).not.toHaveBeenCalled();
   });

@@ -33,14 +33,14 @@ const BASE_DOC = {
   counterpartyType: 'organization',
   counterpartyId: 'org1',
   uploadedBy: { name: 'Иванов', email: 'i@t.local' },
-  order: { id: 'ord1', title: 'Заказ', orderNumber: 'ON-1', companyId: 'co1' }
+  order: { id: 'ord1', title: 'Заказ', orderNumber: 'ON-1', companyId: 'co1' },
 };
 
 function makePrisma(doc: unknown, orgName = 'ООО Ромашка', partnerName = 'Партнёр А') {
   return {
     document: { findUnique: vi.fn().mockResolvedValue(doc) },
     organization: { findUnique: vi.fn().mockResolvedValue(orgName ? { name: orgName } : null) },
-    partner: { findUnique: vi.fn().mockResolvedValue(partnerName ? { name: partnerName } : null) }
+    partner: { findUnique: vi.fn().mockResolvedValue(partnerName ? { name: partnerName } : null) },
   } as unknown as PrismaClient;
 }
 
@@ -77,7 +77,7 @@ describe('getDocumentDetail', () => {
     expect(res.document.counterparty).toEqual({
       type: 'organization',
       id: 'org1',
-      name: 'ООО Ромашка'
+      name: 'ООО Ромашка',
     });
   });
 
@@ -94,7 +94,7 @@ describe('getDocumentDetail', () => {
     const prisma = makePrisma({
       ...BASE_DOC,
       counterpartyType: 'partner',
-      counterpartyId: 'p1'
+      counterpartyId: 'p1',
     });
     const res = await getDocumentDetail(prisma, session, 'doc1');
     if (!res.ok) throw new Error('unexpected');
@@ -146,7 +146,7 @@ describe('getDocumentDetail', () => {
     const prisma = makePrisma({
       ...BASE_DOC,
       scanStatus: 'infected',
-      scanReason: 'Eicar-Test-Signature'
+      scanReason: 'Eicar-Test-Signature',
     });
     const res = await getDocumentDetail(prisma, session, 'doc1');
     if (!res.ok) throw new Error('unexpected');

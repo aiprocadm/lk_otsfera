@@ -1,11 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { Prisma } from '@prisma/client';
-import { calculateCommission, type PaymentForCalc, type CorrectionForCalc } from '@/lib/services/commission/calculator';
+import {
+  calculateCommission,
+  type PaymentForCalc,
+  type CorrectionForCalc,
+} from '@/lib/services/commission/calculator';
 
-function payment(overrides: Partial<{
-  paymentId: string; orderId: string | null; orderNumber: string | null;
-  organizationName: string; amount: number | string; isRefund: boolean; rate: number | string;
-}> = {}): PaymentForCalc {
+function payment(
+  overrides: Partial<{
+    paymentId: string;
+    orderId: string | null;
+    orderNumber: string | null;
+    organizationName: string;
+    amount: number | string;
+    isRefund: boolean;
+    rate: number | string;
+  }> = {}
+): PaymentForCalc {
   return {
     paymentId: overrides.paymentId ?? 'pay1',
     orderId: overrides.orderId === undefined ? 'o1' : overrides.orderId,
@@ -73,7 +84,9 @@ describe('calculateCommission (payment-based)', () => {
   });
 
   it('order-less payment keeps orderId null and computes on full amount', () => {
-    const r = calculateCommission([payment({ orderId: null, orderNumber: null, amount: 50000, rate: 0.1 })]);
+    const r = calculateCommission([
+      payment({ orderId: null, orderNumber: null, amount: 50000, rate: 0.1 }),
+    ]);
     expect(r.items[0].orderId).toBeNull();
     expect(r.items[0].commissionAmount.toNumber()).toBe(5000);
   });
@@ -106,13 +119,15 @@ describe('calculateCommission (payment-based)', () => {
     expect(r.totals.averageRate.toNumber()).toBeCloseTo((0.1 * 100000 + 0.05 * 300000) / 400000, 6);
   });
 
-  function correction(over: Partial<{
-    correctionId: string;
-    organizationName: string;
-    baseAmount: number | string;
-    rate: number | string;
-    commissionAmount: number | string;
-  }> = {}): CorrectionForCalc {
+  function correction(
+    over: Partial<{
+      correctionId: string;
+      organizationName: string;
+      baseAmount: number | string;
+      rate: number | string;
+      commissionAmount: number | string;
+    }> = {}
+  ): CorrectionForCalc {
     return {
       correctionId: over.correctionId ?? 'c1',
       organizationName: over.organizationName ?? 'Корректировка §9.5',

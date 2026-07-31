@@ -59,42 +59,42 @@ export function getIntegrationsStatus(): IntegrationStatus[] {
         oneCAdapter === 'rest'
           ? 'Боевой обмен с 1С по сети включён.'
           : 'Работает тестовый (fake) адаптер — реальный обмен с 1С выключен.',
-      envHint: 'вид адаптера и креды — в форме ниже'
+      envHint: 'вид адаптера и креды — в форме ниже',
     },
     {
       key: 'mango',
       label: 'Телефония (Mango Office)',
       enabled: isMangoTelephonyEnabled(),
       description: 'Приём звонков, запись разговоров и click-to-call через Mango Office.',
-      envHint: 'FEATURE_TELEPHONY_MANGO=1 (на сервере) + ключи в форме ниже'
+      envHint: 'FEATURE_TELEPHONY_MANGO=1 (на сервере) + ключи в форме ниже',
     },
     {
       key: 'telegram',
       label: 'Telegram-бот',
       enabled: isTelegramEnabled(),
       description: 'Уведомления и вход через Telegram-бот.',
-      envHint: 'токен и имя бота — в форме ниже'
+      envHint: 'токен и имя бота — в форме ниже',
     },
     {
       key: 'max',
       label: 'Max-бот',
       enabled: isMaxEnabled(),
       description: 'Уведомления через мессенджер Max.',
-      envHint: 'FEATURE_MAX_CHANNEL=1 (на сервере) + токен и имя бота в форме ниже'
+      envHint: 'FEATURE_MAX_CHANNEL=1 (на сервере) + токен и имя бота в форме ниже',
     },
     {
       key: 'whatsapp',
       label: 'WhatsApp',
       enabled: isWhatsAppEnabled(),
       description: 'Входящие/исходящие сообщения WhatsApp через агрегатора.',
-      envHint: 'FEATURE_WHATSAPP_CHANNEL=1 (на сервере) + ключи агрегатора в форме ниже'
+      envHint: 'FEATURE_WHATSAPP_CHANNEL=1 (на сервере) + ключи агрегатора в форме ниже',
     },
     {
       key: 'dadata',
       label: 'DaData (подсказки по ИНН)',
       enabled: isDadataEnabled(),
       description: 'Автозаполнение реквизитов организаций по названию/ИНН.',
-      envHint: 'включение и ключ — в форме ниже'
-    }
+      envHint: 'включение и ключ — в форме ниже',
+    },
   ];
 }

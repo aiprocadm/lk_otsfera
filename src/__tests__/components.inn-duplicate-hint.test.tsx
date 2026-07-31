@@ -18,12 +18,12 @@ import { InnDuplicateHint } from '@/components/party/inn-duplicate-hint';
 const DUPLICATES = {
   organizations: [
     { id: 'o1', name: 'ООО Ромашка' },
-    { id: 'o2', name: 'ООО Василёк' }
+    { id: 'o2', name: 'ООО Василёк' },
   ],
   leads: [
     { id: 'l1', subject: 'Обучение ОТ', status: 'new' },
-    { id: 'l2', subject: 'Повторное обучение', status: 'in_review' }
-  ]
+    { id: 'l2', subject: 'Повторное обучение', status: 'in_review' },
+  ],
 };
 
 function okJson(body: unknown) {
@@ -52,24 +52,22 @@ afterEach(() => {
 
 describe('InnDuplicateHint — когда фетчим', () => {
   it('9 цифр (не ИНН) → fetch не зовётся, плашки нет', async () => {
-    render(<InnDuplicateHint inn='123456789' cardHrefBase='/manager/organizations' />);
+    render(<InnDuplicateHint inn="123456789" cardHrefBase="/manager/organizations" />);
     await settle(1000);
     expect(fetchMock).not.toHaveBeenCalled();
     expect(screen.queryByText('Уже есть в базе:')).toBeNull();
   });
 
   it('пустой ИНН и мусор с буквами → fetch не зовётся', async () => {
-    const { rerender } = render(
-      <InnDuplicateHint inn='' cardHrefBase='/manager/organizations' />
-    );
+    const { rerender } = render(<InnDuplicateHint inn="" cardHrefBase="/manager/organizations" />);
     await settle(1000);
-    rerender(<InnDuplicateHint inn='77070838ab' cardHrefBase='/manager/organizations' />);
+    rerender(<InnDuplicateHint inn="77070838ab" cardHrefBase="/manager/organizations" />);
     await settle(1000);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('10 цифр с пробелами и дефисами → fetch нормализованного ИНН после 400мс (не раньше)', async () => {
-    render(<InnDuplicateHint inn=' 7707 083-893 ' cardHrefBase='/manager/organizations' />);
+    render(<InnDuplicateHint inn=" 7707 083-893 " cardHrefBase="/manager/organizations" />);
     await settle(399);
     expect(fetchMock).not.toHaveBeenCalled();
     await settle(1);
@@ -78,7 +76,7 @@ describe('InnDuplicateHint — когда фетчим', () => {
   });
 
   it('12 цифр с дефисами → фетчит после 400мс', async () => {
-    render(<InnDuplicateHint inn='7707-0838-93-12' cardHrefBase='/admin/organizations' />);
+    render(<InnDuplicateHint inn="7707-0838-93-12" cardHrefBase="/admin/organizations" />);
     await settle(400);
     expect(fetchMock).toHaveBeenCalledWith('/api/duplicates/by-inn?inn=770708389312');
   });
@@ -86,7 +84,7 @@ describe('InnDuplicateHint — когда фетчим', () => {
 
 describe('InnDuplicateHint — рендер плашки', () => {
   it('организации — ссылки cardHrefBase/id в новой вкладке; лиды — с русскими статусами', async () => {
-    render(<InnDuplicateHint inn='7707083893' cardHrefBase='/manager/organizations' />);
+    render(<InnDuplicateHint inn="7707083893" cardHrefBase="/manager/organizations" />);
     await settle(400);
 
     expect(screen.getByText('Уже есть в базе:')).toBeTruthy();
@@ -106,11 +104,11 @@ describe('InnDuplicateHint — рендер плашки', () => {
       okJson({
         duplicates: {
           organizations: [{ id: 'o9', name: 'АО Пион' }],
-          leads: [{ id: 'l9', subject: 'Старый лид', status: 'mystery_status' }]
-        }
+          leads: [{ id: 'l9', subject: 'Старый лид', status: 'mystery_status' }],
+        },
       })
     );
-    render(<InnDuplicateHint inn='7707083893' cardHrefBase='/admin/organizations' />);
+    render(<InnDuplicateHint inn="7707083893" cardHrefBase="/admin/organizations" />);
     await settle(400);
     expect(screen.getByRole('link', { name: 'АО Пион' }).getAttribute('href')).toBe(
       '/admin/organizations/o9'
@@ -121,9 +119,9 @@ describe('InnDuplicateHint — рендер плашки', () => {
   it('excludeOrganizationId прячет саму организацию, остальные остаются', async () => {
     render(
       <InnDuplicateHint
-        inn='7707083893'
-        cardHrefBase='/admin/organizations'
-        excludeOrganizationId='o1'
+        inn="7707083893"
+        cardHrefBase="/admin/organizations"
+        excludeOrganizationId="o1"
       />
     );
     await settle(400);
@@ -137,9 +135,9 @@ describe('InnDuplicateHint — рендер плашки', () => {
     );
     render(
       <InnDuplicateHint
-        inn='7707083893'
-        cardHrefBase='/admin/organizations'
-        excludeOrganizationId='self'
+        inn="7707083893"
+        cardHrefBase="/admin/organizations"
+        excludeOrganizationId="self"
       />
     );
     await settle(400);
@@ -149,7 +147,7 @@ describe('InnDuplicateHint — рендер плашки', () => {
 
   it('пустые дубли → ничего не рендерим', async () => {
     fetchMock.mockResolvedValue(okJson({ duplicates: { organizations: [], leads: [] } }));
-    render(<InnDuplicateHint inn='7707083893' cardHrefBase='/manager/organizations' />);
+    render(<InnDuplicateHint inn="7707083893" cardHrefBase="/manager/organizations" />);
     await settle(400);
     expect(screen.queryByText('Уже есть в базе:')).toBeNull();
   });
@@ -158,10 +156,10 @@ describe('InnDuplicateHint — рендер плашки', () => {
 describe('InnDuplicateHint — тихая деградация', () => {
   it.each([
     ['403 forbidden', { ok: false, status: 403, json: async () => ({ error: 'forbidden' }) }],
-    ['429 rate-limit', { ok: false, status: 429, json: async () => ({ error: 'rate_limited' }) }]
+    ['429 rate-limit', { ok: false, status: 429, json: async () => ({ error: 'rate_limited' }) }],
   ])('%s → молча ничего', async (_label, response) => {
     fetchMock.mockResolvedValue(response);
-    render(<InnDuplicateHint inn='7707083893' cardHrefBase='/manager/organizations' />);
+    render(<InnDuplicateHint inn="7707083893" cardHrefBase="/manager/organizations" />);
     await settle(400);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(screen.queryByText('Уже есть в базе:')).toBeNull();
@@ -169,7 +167,7 @@ describe('InnDuplicateHint — тихая деградация', () => {
 
   it('сетевая ошибка → молча ничего (unhandled rejection нет)', async () => {
     fetchMock.mockRejectedValue(new Error('network down'));
-    render(<InnDuplicateHint inn='7707083893' cardHrefBase='/manager/organizations' />);
+    render(<InnDuplicateHint inn="7707083893" cardHrefBase="/manager/organizations" />);
     await settle(400);
     expect(screen.queryByText('Уже есть в базе:')).toBeNull();
   });
@@ -178,14 +176,14 @@ describe('InnDuplicateHint — тихая деградация', () => {
 describe('InnDuplicateHint — смена ИНН', () => {
   it('смена ИНН сразу гасит устаревшую плашку (до ответа нового запроса)', async () => {
     const { rerender } = render(
-      <InnDuplicateHint inn='7707083893' cardHrefBase='/manager/organizations' />
+      <InnDuplicateHint inn="7707083893" cardHrefBase="/manager/organizations" />
     );
     await settle(400);
     expect(screen.getByText('Уже есть в базе:')).toBeTruthy();
 
     // Новый ИНН: ответ подвешен — плашка обязана погаснуть немедленно.
     fetchMock.mockImplementation(() => new Promise(() => {}));
-    rerender(<InnDuplicateHint inn='770708389312' cardHrefBase='/manager/organizations' />);
+    rerender(<InnDuplicateHint inn="770708389312" cardHrefBase="/manager/organizations" />);
     expect(screen.queryByText('Уже есть в базе:')).toBeNull();
 
     await settle(400);
@@ -200,17 +198,20 @@ describe('InnDuplicateHint — смена ИНН', () => {
     // организации.
     let resolveStale: ((v: unknown) => void) | null = null;
     fetchMock.mockImplementationOnce(
-      () => new Promise((resolve) => { resolveStale = resolve; })
+      () =>
+        new Promise((resolve) => {
+          resolveStale = resolve;
+        })
     );
 
     const { rerender } = render(
-      <InnDuplicateHint inn='7707083893' cardHrefBase='/manager/organizations' />
+      <InnDuplicateHint inn="7707083893" cardHrefBase="/manager/organizations" />
     );
     await settle(400); // запрос по первому ИНН ушёл и завис
 
     // Второй ИНН: его ответ подвешиваем, чтобы плашку не рисовал он.
     fetchMock.mockImplementation(() => new Promise(() => {}));
-    rerender(<InnDuplicateHint inn='770708389312' cardHrefBase='/manager/organizations' />);
+    rerender(<InnDuplicateHint inn="770708389312" cardHrefBase="/manager/organizations" />);
     await settle(400);
 
     // Теперь отвечает ПЕРВЫЙ, уже неактуальный запрос.
@@ -223,12 +224,12 @@ describe('InnDuplicateHint — смена ИНН', () => {
 
   it('нормализация не гасит плашку: «7707083893» → «7707 083-893» остаётся той же', async () => {
     const { rerender } = render(
-      <InnDuplicateHint inn='7707083893' cardHrefBase='/manager/organizations' />
+      <InnDuplicateHint inn="7707083893" cardHrefBase="/manager/organizations" />
     );
     await settle(400);
     expect(screen.getByText('Уже есть в базе:')).toBeTruthy();
 
-    rerender(<InnDuplicateHint inn='7707 083-893' cardHrefBase='/manager/organizations' />);
+    rerender(<InnDuplicateHint inn="7707 083-893" cardHrefBase="/manager/organizations" />);
     expect(screen.getByText('Уже есть в базе:')).toBeTruthy();
   });
 });

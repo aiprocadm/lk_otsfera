@@ -3,7 +3,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 import { AskQuestionButton } from '@/components/support/ask-question-button';
@@ -48,7 +51,10 @@ describe('AskQuestionButton', () => {
     openDialog();
     const dialog = document.querySelector('dialog');
     expect(dialog).not.toBeNull();
-    fireEvent(dialog as HTMLDialogElement, new Event('cancel', { bubbles: false, cancelable: true }));
+    fireEvent(
+      dialog as HTMLDialogElement,
+      new Event('cancel', { bubbles: false, cancelable: true })
+    );
     expect(screen.queryByLabelText('Тема')).toBeNull();
   });
 
@@ -59,11 +65,20 @@ describe('AskQuestionButton', () => {
     fireEvent.change(screen.getByLabelText('Вопрос'), { target: { value: 'Текст' } });
     fireEvent.click(screen.getByRole('button', { name: 'Отправить' }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/support/question', expect.objectContaining({ method: 'POST' })));
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/support/question',
+        expect.objectContaining({ method: 'POST' })
+      )
+    );
     const body = fetchMock.mock.calls[0]![1].body as FormData;
     expect(body.get('subject')).toBe('Тема');
     expect(body.get('body')).toBe('Текст');
-    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Обращение ОБР-3F7A2C принято — мы ответим в кабинете.'));
+    await waitFor(() =>
+      expect(toastSuccess).toHaveBeenCalledWith(
+        'Обращение ОБР-3F7A2C принято — мы ответим в кабинете.'
+      )
+    );
     expect(screen.queryByLabelText('Тема')).toBeNull();
   });
 
@@ -75,11 +90,17 @@ describe('AskQuestionButton', () => {
   });
 
   it('ошибка с messages → список role=alert, модалка открыта', async () => {
-    fetchMock.mockResolvedValue({ ok: false, json: () => Promise.resolve({ error: 'validation', messages: ['Укажите тему обращения'] }) });
+    fetchMock.mockResolvedValue({
+      ok: false,
+      json: () => Promise.resolve({ error: 'validation', messages: ['Укажите тему обращения'] }),
+    });
     openDialog();
     fillAndSubmit();
     await waitFor(() => {
-      const alerts = screen.getAllByRole('alert').map((a) => a.textContent).join(' ');
+      const alerts = screen
+        .getAllByRole('alert')
+        .map((a) => a.textContent)
+        .join(' ');
       expect(alerts).toContain('Укажите тему обращения');
     });
     expect(screen.getByLabelText('Тема')).toBeTruthy();
@@ -98,7 +119,7 @@ describe('AskQuestionButton', () => {
   });
 
   it('кастомный className применяется к кнопке (светлая шапка org)', () => {
-    render(<AskQuestionButton className='org-btn' />);
+    render(<AskQuestionButton className="org-btn" />);
     expect(screen.getByRole('button', { name: 'Задать вопрос' }).className).toBe('org-btn');
   });
 });

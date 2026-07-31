@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
  * а список документов и так живёт здесь же.
  */
 export default async function ManagerDocumentDetailPage({
-  params
+  params,
 }: {
   params: Promise<{ id: string }>;
 }) {
@@ -30,10 +30,10 @@ export default async function ManagerDocumentDetailPage({
   return (
     <DocumentDetailView
       document={res.document}
-      backHref='/manager/documents'
-      orderHrefBase='/manager/orders'
+      backHref="/manager/documents"
+      orderHrefBase="/manager/orders"
     >
-      <EntityCustomFields fields={customFields} entityType='document' entityId={id} />
+      <EntityCustomFields fields={customFields} entityType="document" entityId={id} />
     </DocumentDetailView>
   );
 }

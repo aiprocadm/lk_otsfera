@@ -17,7 +17,7 @@ function makeSession(role: SessionPayload['role']): SessionPayload {
 function makeDb(changes: unknown[], users: unknown[] = []) {
   return {
     organizationCommissionRateChange: { findMany: vi.fn().mockResolvedValue(changes) },
-    user: { findMany: vi.fn().mockResolvedValue(users) }
+    user: { findMany: vi.fn().mockResolvedValue(users) },
   } as any;
 }
 
@@ -28,7 +28,7 @@ function changeRow(over: Record<string, unknown> = {}) {
     newRate: dec('0.10'),
     effectiveFrom: new Date('2026-03-01T00:00:00Z'),
     changedById: null,
-    ...over
+    ...over,
   };
 }
 
@@ -52,7 +52,7 @@ describe('listOrgRateHistory (unit)', () => {
     expect(result).toEqual({ ok: true, rows: [] });
     expect(db.organizationCommissionRateChange.findMany).toHaveBeenCalledWith({
       where: { organizationId: 'org-42' },
-      orderBy: { effectiveFrom: 'desc' }
+      orderBy: { effectiveFrom: 'desc' },
     });
   });
 
@@ -63,7 +63,7 @@ describe('listOrgRateHistory (unit)', () => {
       // «Сброс к ставке партнёра»: newRate null, oldRate задан.
       changeRow({ id: 'ch-reset', oldRate: dec('0.07'), newRate: null, effectiveFrom: effectiveA }),
       // Первичная установка: oldRate null, newRate задан.
-      changeRow({ id: 'ch-init', oldRate: null, newRate: dec('0.07'), effectiveFrom: effectiveB })
+      changeRow({ id: 'ch-init', oldRate: null, newRate: dec('0.07'), effectiveFrom: effectiveB }),
     ]);
 
     const result = await listOrgRateHistory(db, makeSession('admin'), 'org-1');
@@ -76,15 +76,15 @@ describe('listOrgRateHistory (unit)', () => {
         oldRate: 0.07,
         newRate: null,
         effectiveFrom: effectiveA,
-        changedByName: null
+        changedByName: null,
       },
       {
         id: 'ch-init',
         oldRate: null,
         newRate: 0.07,
         effectiveFrom: effectiveB,
-        changedByName: null
-      }
+        changedByName: null,
+      },
     ]);
     // Все changedById = null → батч-запрос имён не выполняется вовсе.
     expect(db.user.findMany).not.toHaveBeenCalled();
@@ -95,11 +95,11 @@ describe('listOrgRateHistory (unit)', () => {
       [
         changeRow({ id: 'ch-3', changedById: 'u-1' }),
         changeRow({ id: 'ch-2', changedById: 'u-1' }),
-        changeRow({ id: 'ch-1', changedById: 'u-2' })
+        changeRow({ id: 'ch-1', changedById: 'u-2' }),
       ],
       [
         { id: 'u-1', name: 'Admin One' },
-        { id: 'u-2', name: 'Admin Two' }
+        { id: 'u-2', name: 'Admin Two' },
       ]
     );
 
@@ -110,12 +110,12 @@ describe('listOrgRateHistory (unit)', () => {
     expect(db.user.findMany).toHaveBeenCalledTimes(1);
     expect(db.user.findMany).toHaveBeenCalledWith({
       where: { id: { in: ['u-1', 'u-2'] } },
-      select: { id: true, name: true }
+      select: { id: true, name: true },
     });
     expect(result.rows.map((r) => r.changedByName)).toEqual([
       'Admin One',
       'Admin One',
-      'Admin Two'
+      'Admin Two',
     ]);
   });
 

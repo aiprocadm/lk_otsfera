@@ -14,12 +14,14 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 const ADMIN: SessionPayload = { sub: 'adm-1', role: 'admin' };
 const MANAGER: SessionPayload = { sub: 'mgr-1', role: 'manager' };
 
-function makePrisma(over: {
-  rows?: unknown[];
-  found?: { status: string } | null;
-  updatedCount?: number;
-  auditRejects?: boolean;
-} = {}) {
+function makePrisma(
+  over: {
+    rows?: unknown[];
+    found?: { status: string } | null;
+    updatedCount?: number;
+    auditRejects?: boolean;
+  } = {}
+) {
   const findMany = vi.fn().mockResolvedValue(over.rows ?? []);
   const findUnique = vi.fn().mockResolvedValue(over.found ?? null);
   const updateMany = vi.fn().mockResolvedValue({ count: over.updatedCount ?? 1 });
@@ -62,9 +64,14 @@ describe('listPendingRecords', () => {
 
   it('возвращает строки из prisma как records', async () => {
     const row = {
-      id: 'p1', entity: 'payment', externalId: 'PAY-1', reason: 'organization_not_found',
-      attempts: 2, status: 'pending',
-      firstSeenAt: new Date('2026-07-01T00:00:00Z'), lastTriedAt: new Date('2026-07-02T00:00:00Z'),
+      id: 'p1',
+      entity: 'payment',
+      externalId: 'PAY-1',
+      reason: 'organization_not_found',
+      attempts: 2,
+      status: 'pending',
+      firstSeenAt: new Date('2026-07-01T00:00:00Z'),
+      lastTriedAt: new Date('2026-07-02T00:00:00Z'),
     };
     const { prisma } = makePrisma({ rows: [row] });
     expect(await listPendingRecords(prisma, ADMIN)).toEqual({ ok: true, records: [row] });
@@ -74,13 +81,19 @@ describe('listPendingRecords', () => {
 describe('requeueDeadRecord', () => {
   it('не-admin → forbidden, без чтения записи', async () => {
     const { prisma, findUnique } = makePrisma();
-    expect(await requeueDeadRecord(prisma, MANAGER, 'p1')).toEqual({ ok: false, error: 'forbidden' });
+    expect(await requeueDeadRecord(prisma, MANAGER, 'p1')).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
     expect(findUnique).not.toHaveBeenCalled();
   });
 
   it('запись не существует → not_found', async () => {
     const { prisma, updateMany } = makePrisma({ found: null });
-    expect(await requeueDeadRecord(prisma, ADMIN, 'nope')).toEqual({ ok: false, error: 'not_found' });
+    expect(await requeueDeadRecord(prisma, ADMIN, 'nope')).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
     expect(updateMany).not.toHaveBeenCalled();
   });
 
@@ -105,15 +118,17 @@ describe('requeueDeadRecord', () => {
       where: { id: 'p1', status: 'dead' },
       data: { status: 'pending', attempts: 0 },
     });
-    expect(create).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({
-        userId: 'adm-1',
-        action: 'one_c_pending_requeued',
-        entity: 'one_c_pending',
-        entityId: 'p1',
-        meta: expect.objectContaining({ after: { status: 'pending', attempts: 0 } }),
-      }),
-    }));
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userId: 'adm-1',
+          action: 'one_c_pending_requeued',
+          entity: 'one_c_pending',
+          entityId: 'p1',
+          meta: expect.objectContaining({ after: { status: 'pending', attempts: 0 } }),
+        }),
+      })
+    );
   });
 
   it('сбой аудита проглатывается (graceful §3): запись уже возвращена → ok:true + log.warn', async () => {

@@ -3,7 +3,11 @@ import { renderToString } from 'react-dom/server';
 import React from 'react';
 import { TableShell, THead, Th, Tr, Td } from '@/components/ui/table';
 
-function renderFullTable(extra?: { shellClassName?: string; overflow?: 'hidden' | 'x-auto'; hover?: boolean }) {
+function renderFullTable(extra?: {
+  shellClassName?: string;
+  overflow?: 'hidden' | 'x-auto';
+  hover?: boolean;
+}) {
   return renderToString(
     React.createElement(
       TableShell,
@@ -12,11 +16,7 @@ function renderFullTable(extra?: { shellClassName?: string; overflow?: 'hidden' 
       React.createElement(
         'tbody',
         null,
-        React.createElement(
-          Tr,
-          { hover: extra?.hover },
-          React.createElement(Td, null, 'Ячейка')
-        )
+        React.createElement(Tr, { hover: extra?.hover }, React.createElement(Td, null, 'Ячейка'))
       )
     )
   );

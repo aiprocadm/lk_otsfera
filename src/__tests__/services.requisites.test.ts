@@ -11,31 +11,43 @@ vi.mock('@/lib/auth/audit', () => ({ recordAudit: recordAuditMock }));
 
 import { getOrgRequisites, setOrgRequisites } from '@/lib/services/organization/requisites';
 import { getPartnerRequisites, setPartnerRequisites } from '@/lib/services/partner/requisites';
-import { listCompaniesRequisites, setCompanyRequisites } from '@/lib/services/admin/companyRequisites';
+import {
+  listCompaniesRequisites,
+  setCompanyRequisites,
+} from '@/lib/services/admin/companyRequisites';
 import {
   getOrgRequisitesByAdmin,
   getPartnerRequisitesByAdmin,
   setOrgRequisitesByAdmin,
-  setPartnerRequisitesByAdmin
+  setPartnerRequisitesByAdmin,
 } from '@/lib/services/admin/counterpartyRequisites';
 
-const P2002 = new Prisma.PrismaClientKnownRequestError('dup', { code: 'P2002', clientVersion: '5.0.0' });
+const P2002 = new Prisma.PrismaClientKnownRequestError('dup', {
+  code: 'P2002',
+  clientVersion: '5.0.0',
+});
 
 const orgMember = (roleInOrg: string, orgId = 'org-1'): SessionPayload =>
   ({
     sub: 'u1',
     role: 'organization',
-    organizationMemberships: [{ organizationId: orgId, roleInOrg, isActive: true }]
-  } as unknown as SessionPayload);
+    organizationMemberships: [{ organizationId: orgId, roleInOrg, isActive: true }],
+  }) as unknown as SessionPayload;
 const partnerSession = (partnerRole: 'admin' | 'manager'): SessionPayload =>
-  ({ sub: 'p1', role: 'partner', partnerId: 'pt-1', partnerRole } as unknown as SessionPayload);
-const adminSession = (): SessionPayload => ({ sub: 'a1', role: 'admin' } as unknown as SessionPayload);
+  ({ sub: 'p1', role: 'partner', partnerId: 'pt-1', partnerRole }) as unknown as SessionPayload;
+const adminSession = (): SessionPayload =>
+  ({ sub: 'a1', role: 'admin' }) as unknown as SessionPayload;
 
 function fake(model: 'organization' | 'partner' | 'company', row: unknown = { id: 'x' }) {
   const findUnique = vi.fn().mockResolvedValue(row);
   const findMany = vi.fn().mockResolvedValue([row]);
   const update = vi.fn().mockResolvedValue({});
-  return { prisma: { [model]: { findUnique, findMany, update } } as unknown as PrismaClient, findUnique, update, findMany };
+  return {
+    prisma: { [model]: { findUnique, findMany, update } } as unknown as PrismaClient,
+    findUnique,
+    update,
+    findMany,
+  };
 }
 
 const VALID = { legalName: 'ООО Тест', inn: '7707083893', bankAccount: '40702810400000000001' };
@@ -46,13 +58,22 @@ describe('организация (самообслуживание)', () => {
   it('чтение: любой активный участник своей организации; чужая/не тот role → forbidden', async () => {
     const { prisma } = fake('organization', { name: 'О' });
     expect((await getOrgRequisites(prisma, orgMember('member'), 'org-1')).ok).toBe(true);
-    expect(await getOrgRequisites(prisma, orgMember('member', 'org-2'), 'org-1')).toEqual({ ok: false, error: 'forbidden' });
-    expect(await getOrgRequisites(prisma, adminSession(), 'org-1')).toEqual({ ok: false, error: 'forbidden' });
+    expect(await getOrgRequisites(prisma, orgMember('member', 'org-2'), 'org-1')).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+    expect(await getOrgRequisites(prisma, adminSession(), 'org-1')).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
   });
 
   it('запись: только admin|leader организации; member → forbidden', async () => {
     const { prisma, update } = fake('organization');
-    expect(await setOrgRequisites(prisma, orgMember('member'), 'org-1', VALID)).toEqual({ ok: false, error: 'forbidden' });
+    expect(await setOrgRequisites(prisma, orgMember('member'), 'org-1', VALID)).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
     expect((await setOrgRequisites(prisma, orgMember('leader'), 'org-1', VALID)).ok).toBe(true);
     expect(update).toHaveBeenCalledTimes(1);
   });
@@ -74,14 +95,24 @@ describe('организация (самообслуживание)', () => {
     const dup = fake('organization');
     dup.update.mockRejectedValue(P2002);
     const r = await setOrgRequisites(dup.prisma, orgMember('admin'), 'org-1', VALID);
-    expect(r).toEqual({ ok: false, error: 'validation', messages: ['Организация с таким ИНН уже существует'] });
+    expect(r).toEqual({
+      ok: false,
+      error: 'validation',
+      messages: ['Организация с таким ИНН уже существует'],
+    });
   });
 
   it('сессия вообще без членств и чужая роль → forbidden, БД не трогаем', async () => {
     const noMemberships = { sub: 'u1', role: 'organization' } as never;
     const { prisma, findUnique, update } = fake('organization');
-    expect(await getOrgRequisites(prisma, noMemberships, 'org-1')).toEqual({ ok: false, error: 'forbidden' });
-    expect(await setOrgRequisites(prisma, adminSession(), 'org-1', VALID)).toEqual({ ok: false, error: 'forbidden' });
+    expect(await getOrgRequisites(prisma, noMemberships, 'org-1')).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+    expect(await setOrgRequisites(prisma, adminSession(), 'org-1', VALID)).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
     expect(findUnique).not.toHaveBeenCalled();
     expect(update).not.toHaveBeenCalled();
   });
@@ -90,12 +121,18 @@ describe('организация (самообслуживание)', () => {
     // В аудите хранится только хвост счёта. Если счёта нет вовсе, там должен
     // быть null — иначе в журнале появится пустая строка, похожая на данные.
     const { prisma } = fake('organization');
-    await setOrgRequisites(prisma, orgMember('admin'), 'org-1', { legalName: 'ООО Тест', inn: '7707083893' });
+    await setOrgRequisites(prisma, orgMember('admin'), 'org-1', {
+      legalName: 'ООО Тест',
+      inn: '7707083893',
+    });
     expect(recordAuditMock.mock.calls[0]![1].after.bankAccountTail).toBeNull();
 
     recordAuditMock.mockReset();
     const pt = fake('partner');
-    await setPartnerRequisites(pt.prisma, partnerSession('admin'), { legalName: 'ООО Тест', inn: '7707083893' });
+    await setPartnerRequisites(pt.prisma, partnerSession('admin'), {
+      legalName: 'ООО Тест',
+      inn: '7707083893',
+    });
     expect(recordAuditMock.mock.calls[0]![1].after.bankAccountTail).toBeNull();
   });
 
@@ -103,14 +140,14 @@ describe('организация (самообслуживание)', () => {
     const gone = fake('organization', null);
     expect(await getOrgRequisites(gone.prisma, orgMember('admin'), 'org-1')).toEqual({
       ok: false,
-      error: 'not_found'
+      error: 'not_found',
     });
 
     const broken = fake('organization');
     broken.update.mockRejectedValue(new Error('connection reset'));
-    await expect(setOrgRequisites(broken.prisma, orgMember('admin'), 'org-1', VALID)).rejects.toThrow(
-      'connection reset'
-    );
+    await expect(
+      setOrgRequisites(broken.prisma, orgMember('admin'), 'org-1', VALID)
+    ).rejects.toThrow('connection reset');
   });
 
   it('членство неактивно → forbidden, будто организации нет', async () => {
@@ -119,18 +156,27 @@ describe('организация (самообслуживание)', () => {
     const inactive = {
       sub: 'u1',
       role: 'organization',
-      organizationMemberships: [{ organizationId: 'org-1', roleInOrg: 'admin', isActive: false }]
+      organizationMemberships: [{ organizationId: 'org-1', roleInOrg: 'admin', isActive: false }],
     } as never;
     const { prisma, findUnique, update } = fake('organization');
-    expect(await getOrgRequisites(prisma, inactive, 'org-1')).toEqual({ ok: false, error: 'forbidden' });
-    expect(await setOrgRequisites(prisma, inactive, 'org-1', VALID)).toEqual({ ok: false, error: 'forbidden' });
+    expect(await getOrgRequisites(prisma, inactive, 'org-1')).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+    expect(await setOrgRequisites(prisma, inactive, 'org-1', VALID)).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
     expect(findUnique).not.toHaveBeenCalled();
     expect(update).not.toHaveBeenCalled();
   });
 
   it('not_found когда организации нет', async () => {
     const { prisma } = fake('organization', null);
-    expect(await setOrgRequisites(prisma, orgMember('admin'), 'org-1', VALID)).toEqual({ ok: false, error: 'not_found' });
+    expect(await setOrgRequisites(prisma, orgMember('admin'), 'org-1', VALID)).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
   });
 });
 
@@ -138,7 +184,10 @@ describe('партнёр (самообслуживание)', () => {
   it('чтение — любой партнёрский пользователь; запись — только partner-admin', async () => {
     const { prisma, update } = fake('partner', { name: 'П' });
     expect((await getPartnerRequisites(prisma, partnerSession('manager'))).ok).toBe(true);
-    expect(await setPartnerRequisites(prisma, partnerSession('manager'), VALID)).toEqual({ ok: false, error: 'forbidden' });
+    expect(await setPartnerRequisites(prisma, partnerSession('manager'), VALID)).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
     expect((await setPartnerRequisites(prisma, partnerSession('admin'), VALID)).ok).toBe(true);
     expect(update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'pt-1' } }));
   });
@@ -149,18 +198,21 @@ describe('партнёр (самообслуживание)', () => {
     const gone = fake('partner', null);
     expect(await getPartnerRequisites(gone.prisma, partnerSession('manager'))).toEqual({
       ok: false,
-      error: 'not_found'
+      error: 'not_found',
     });
     expect(await setPartnerRequisites(gone.prisma, partnerSession('admin'), VALID)).toEqual({
       ok: false,
-      error: 'not_found'
+      error: 'not_found',
     });
     expect(gone.update).not.toHaveBeenCalled();
   });
 
   it('кривые реквизиты партнёра → validation с причинами, запись не идёт', async () => {
     const { prisma, update } = fake('partner');
-    const res = await setPartnerRequisites(prisma, partnerSession('admin'), { ...VALID, ogrn: '123' });
+    const res = await setPartnerRequisites(prisma, partnerSession('admin'), {
+      ...VALID,
+      ogrn: '123',
+    });
     expect(res.ok).toBe(false);
     if (res.ok) return;
     expect(res.error).toBe('validation');
@@ -170,10 +222,14 @@ describe('партнёр (самообслуживание)', () => {
 
   it('не-партнёрская роль и партнёр без partnerId → forbidden до запроса в БД', async () => {
     const { prisma, findUnique } = fake('partner');
-    expect(await setPartnerRequisites(prisma, adminSession(), VALID)).toEqual({ ok: false, error: 'forbidden' });
-    expect(
-      await getPartnerRequisites(prisma, { sub: 'u', role: 'partner' } as never)
-    ).toEqual({ ok: false, error: 'forbidden' });
+    expect(await setPartnerRequisites(prisma, adminSession(), VALID)).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+    expect(await getPartnerRequisites(prisma, { sub: 'u', role: 'partner' } as never)).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
     expect(findUnique).not.toHaveBeenCalled();
   });
 
@@ -183,9 +239,9 @@ describe('партнёр (самообслуживание)', () => {
     // «проверьте реквизиты» — иначе сбой хранилища останется незамеченным.
     const broken = fake('partner');
     broken.update.mockRejectedValue(new Error('connection reset'));
-    await expect(setPartnerRequisites(broken.prisma, partnerSession('admin'), VALID)).rejects.toThrow(
-      'connection reset'
-    );
+    await expect(
+      setPartnerRequisites(broken.prisma, partnerSession('admin'), VALID)
+    ).rejects.toThrow('connection reset');
   });
 
   it('P2002 → русская валидация; клиентская организация → forbidden', async () => {
@@ -194,9 +250,12 @@ describe('партнёр (самообслуживание)', () => {
     expect(await setPartnerRequisites(dup.prisma, partnerSession('admin'), VALID)).toEqual({
       ok: false,
       error: 'validation',
-      messages: ['Партнёр с таким ИНН уже существует']
+      messages: ['Партнёр с таким ИНН уже существует'],
     });
-    expect(await getPartnerRequisites(dup.prisma, orgMember('admin'))).toEqual({ ok: false, error: 'forbidden' });
+    expect(await getPartnerRequisites(dup.prisma, orgMember('admin'))).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
   });
 });
 
@@ -204,22 +263,40 @@ describe('компания (админ)', () => {
   it('список — только admin; запись валидирует email и пишет phone/email', async () => {
     const { prisma, update } = fake('company', { id: 'c1', name: 'К' });
     expect((await listCompaniesRequisites(prisma, adminSession())).ok).toBe(true);
-    expect(await listCompaniesRequisites(prisma, partnerSession('admin'))).toEqual({ ok: false, error: 'forbidden' });
+    expect(await listCompaniesRequisites(prisma, partnerSession('admin'))).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
 
-    const bad = await setCompanyRequisites(prisma, adminSession(), 'c1', { ...VALID, email: 'не-почта' });
+    const bad = await setCompanyRequisites(prisma, adminSession(), 'c1', {
+      ...VALID,
+      email: 'не-почта',
+    });
     expect(bad.ok).toBe(false);
 
-    const r = await setCompanyRequisites(prisma, adminSession(), 'c1', { ...VALID, phone: ' +7 495 000-00-00 ', email: 'Doc@X.RU ' });
+    const r = await setCompanyRequisites(prisma, adminSession(), 'c1', {
+      ...VALID,
+      phone: ' +7 495 000-00-00 ',
+      email: 'Doc@X.RU ',
+    });
     expect(r.ok).toBe(true);
     expect(update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ phone: '+7 495 000-00-00', email: 'doc@x.ru' }) })
+      expect.objectContaining({
+        data: expect.objectContaining({ phone: '+7 495 000-00-00', email: 'doc@x.ru' }),
+      })
     );
   });
 
   it('не-admin → forbidden; not_found', async () => {
     const { prisma } = fake('company', null);
-    expect(await setCompanyRequisites(prisma, orgMember('admin'), 'c1', VALID)).toEqual({ ok: false, error: 'forbidden' });
-    expect(await setCompanyRequisites(prisma, adminSession(), 'cX', VALID)).toEqual({ ok: false, error: 'not_found' });
+    expect(await setCompanyRequisites(prisma, orgMember('admin'), 'c1', VALID)).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+    expect(await setCompanyRequisites(prisma, adminSession(), 'cX', VALID)).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
   });
 
   it('кривые реквизиты → validation с причинами; в базу ничего не пишем', async () => {
@@ -229,14 +306,14 @@ describe('компания (админ)', () => {
     const res = await setCompanyRequisites(prisma, adminSession(), 'c1', {
       ...VALID,
       inn: '123',
-      kpp: '77'
+      kpp: '77',
     });
     expect(res.ok).toBe(false);
     if (res.ok) return;
     expect(res.error).toBe('validation');
     expect(res.messages).toEqual([
       'ИНН должен содержать 10 или 12 цифр',
-      'КПП должен содержать 9 цифр'
+      'КПП должен содержать 9 цифр',
     ]);
     expect(update).not.toHaveBeenCalled();
     expect(recordAuditMock).not.toHaveBeenCalled();
@@ -246,7 +323,10 @@ describe('компания (админ)', () => {
 describe('админ-правка контрагентов', () => {
   it('гейт admin; успех пишет и аудирует; чтение не-админом → null', async () => {
     const { prisma, update } = fake('organization');
-    expect(await setOrgRequisitesByAdmin(prisma, partnerSession('admin'), 'org-1', VALID)).toEqual({ ok: false, error: 'forbidden' });
+    expect(await setOrgRequisitesByAdmin(prisma, partnerSession('admin'), 'org-1', VALID)).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
     expect((await setOrgRequisitesByAdmin(prisma, adminSession(), 'org-1', VALID)).ok).toBe(true);
     expect(update).toHaveBeenCalled();
     expect(await getOrgRequisitesByAdmin(prisma, partnerSession('admin'), 'org-1')).toBeNull();
@@ -254,10 +334,14 @@ describe('админ-правка контрагентов', () => {
 
   it('чтение обеих карточек админом; не-админ получает null без запроса в БД', async () => {
     const org = fake('organization', { legalName: 'ООО К' });
-    expect(await getOrgRequisitesByAdmin(org.prisma, adminSession(), 'org-1')).toEqual({ legalName: 'ООО К' });
+    expect(await getOrgRequisitesByAdmin(org.prisma, adminSession(), 'org-1')).toEqual({
+      legalName: 'ООО К',
+    });
 
     const pt = fake('partner', { legalName: 'ООО П' });
-    expect(await getPartnerRequisitesByAdmin(pt.prisma, adminSession(), 'pt-1')).toEqual({ legalName: 'ООО П' });
+    expect(await getPartnerRequisitesByAdmin(pt.prisma, adminSession(), 'pt-1')).toEqual({
+      legalName: 'ООО П',
+    });
     expect(await getPartnerRequisitesByAdmin(pt.prisma, orgMember('admin'), 'pt-1')).toBeNull();
 
     const empty = fake('partner', null);
@@ -266,14 +350,17 @@ describe('админ-правка контрагентов', () => {
 
   it('организация: кривые реквизиты → validation, карточки нет → not_found, P2002 → русская валидация', async () => {
     const { prisma, update } = fake('organization');
-    const bad = await setOrgRequisitesByAdmin(prisma, adminSession(), 'org-1', { ...VALID, inn: '12' });
+    const bad = await setOrgRequisitesByAdmin(prisma, adminSession(), 'org-1', {
+      ...VALID,
+      inn: '12',
+    });
     expect(bad).toMatchObject({ ok: false, error: 'validation' });
     expect(update).not.toHaveBeenCalled();
 
     const none = fake('organization', null);
     expect(await setOrgRequisitesByAdmin(none.prisma, adminSession(), 'org-X', VALID)).toEqual({
       ok: false,
-      error: 'not_found'
+      error: 'not_found',
     });
 
     const dup = fake('organization');
@@ -281,7 +368,7 @@ describe('админ-правка контрагентов', () => {
     expect(await setOrgRequisitesByAdmin(dup.prisma, adminSession(), 'org-1', VALID)).toEqual({
       ok: false,
       error: 'validation',
-      messages: ['Организация с таким ИНН уже существует']
+      messages: ['Организация с таким ИНН уже существует'],
     });
   });
 
@@ -290,30 +377,37 @@ describe('админ-правка контрагентов', () => {
     // «проверьте реквизиты» — иначе он не попадёт в мониторинг.
     const org = fake('organization');
     org.update.mockRejectedValue(new Error('connection reset'));
-    await expect(setOrgRequisitesByAdmin(org.prisma, adminSession(), 'org-1', VALID)).rejects.toThrow(
-      'connection reset'
-    );
+    await expect(
+      setOrgRequisitesByAdmin(org.prisma, adminSession(), 'org-1', VALID)
+    ).rejects.toThrow('connection reset');
 
     const pt = fake('partner');
     pt.update.mockRejectedValue(new Error('connection reset'));
-    await expect(setPartnerRequisitesByAdmin(pt.prisma, adminSession(), 'pt-1', VALID)).rejects.toThrow(
-      'connection reset'
-    );
+    await expect(
+      setPartnerRequisitesByAdmin(pt.prisma, adminSession(), 'pt-1', VALID)
+    ).rejects.toThrow('connection reset');
   });
 
   it('партнёр: гейт админа, кривые реквизиты, аудит с маскировкой счёта', async () => {
     const { prisma, update } = fake('partner');
-    expect(await setPartnerRequisitesByAdmin(prisma, partnerSession('admin'), 'pt-1', VALID)).toEqual({
+    expect(
+      await setPartnerRequisitesByAdmin(prisma, partnerSession('admin'), 'pt-1', VALID)
+    ).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
 
-    const bad = await setPartnerRequisitesByAdmin(prisma, adminSession(), 'pt-1', { ...VALID, kpp: '12' });
+    const bad = await setPartnerRequisitesByAdmin(prisma, adminSession(), 'pt-1', {
+      ...VALID,
+      kpp: '12',
+    });
     expect(bad).toMatchObject({ ok: false, error: 'validation' });
     expect(update).not.toHaveBeenCalled();
 
     recordAuditMock.mockReset();
-    expect((await setPartnerRequisitesByAdmin(prisma, adminSession(), 'pt-1', VALID)).ok).toBe(true);
+    expect((await setPartnerRequisitesByAdmin(prisma, adminSession(), 'pt-1', VALID)).ok).toBe(
+      true
+    );
     const audit = recordAuditMock.mock.calls[0]![1];
     expect(audit.entity).toBe('partner');
     expect(audit.after.bankAccountTail).toBe('0001');
@@ -321,11 +415,17 @@ describe('админ-правка контрагентов', () => {
 
     // Без счёта — null, а не обрезок пустой строки.
     recordAuditMock.mockReset();
-    await setPartnerRequisitesByAdmin(prisma, adminSession(), 'pt-1', { legalName: 'ООО', inn: '7707083893' });
+    await setPartnerRequisitesByAdmin(prisma, adminSession(), 'pt-1', {
+      legalName: 'ООО',
+      inn: '7707083893',
+    });
     expect(recordAuditMock.mock.calls[0]![1].after.bankAccountTail).toBeNull();
 
     recordAuditMock.mockReset();
-    await setOrgRequisitesByAdmin(fake('organization').prisma, adminSession(), 'org-1', { legalName: 'ООО', inn: '7707083893' });
+    await setOrgRequisitesByAdmin(fake('organization').prisma, adminSession(), 'org-1', {
+      legalName: 'ООО',
+      inn: '7707083893',
+    });
     expect(recordAuditMock.mock.calls[0]![1].after.bankAccountTail).toBeNull();
   });
 
@@ -335,9 +435,12 @@ describe('админ-правка контрагентов', () => {
     expect(await setPartnerRequisitesByAdmin(dup.prisma, adminSession(), 'pt-1', VALID)).toEqual({
       ok: false,
       error: 'validation',
-      messages: ['Партнёр с таким ИНН уже существует']
+      messages: ['Партнёр с таким ИНН уже существует'],
     });
     const none = fake('partner', null);
-    expect(await setPartnerRequisitesByAdmin(none.prisma, adminSession(), 'pt-X', VALID)).toEqual({ ok: false, error: 'not_found' });
+    expect(await setPartnerRequisitesByAdmin(none.prisma, adminSession(), 'pt-X', VALID)).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
   });
 });

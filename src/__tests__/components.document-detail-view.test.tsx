@@ -28,7 +28,7 @@ function doc(over: Partial<DocumentDetail> = {}): DocumentDetail {
     uploadedByName: 'Иванов',
     order: { id: 'ord1', title: 'Заказ', orderNumber: 'ON-1' },
     counterparty: { type: 'organization', id: 'org1', name: 'ООО Ромашка' },
-    ...over
+    ...over,
   };
 }
 
@@ -38,7 +38,7 @@ describe('DocumentDetailView — сведения', () => {
   });
 
   it('шапка: имя, русский тип и направление', () => {
-    render(<DocumentDetailView document={doc()} backHref='/admin/documents' />);
+    render(<DocumentDetailView document={doc()} backHref="/admin/documents" />);
     expect(screen.getByText('Счёт №5')).toBeTruthy();
     expect(screen.getByText(/Счёт · Исходящий/)).toBeTruthy();
   });
@@ -47,14 +47,14 @@ describe('DocumentDetailView — сведения', () => {
     render(
       <DocumentDetailView
         document={doc({ type: 'weird', direction: 'sideways' })}
-        backHref='/admin/documents'
+        backHref="/admin/documents"
       />
     );
     expect(screen.getByText(/weird · sideways/)).toBeTruthy();
   });
 
   it('ссылка «назад» ведёт в список своего кабинета', () => {
-    render(<DocumentDetailView document={doc()} backHref='/partner/documents' />);
+    render(<DocumentDetailView document={doc()} backHref="/partner/documents" />);
     expect(screen.getByRole('link', { name: '← Документы' }).getAttribute('href')).toBe(
       '/partner/documents'
     );
@@ -64,8 +64,8 @@ describe('DocumentDetailView — сведения', () => {
     render(
       <DocumentDetailView
         document={doc()}
-        backHref='/manager/documents'
-        orderHrefBase='/manager/orders'
+        backHref="/manager/documents"
+        orderHrefBase="/manager/orders"
       />
     );
     expect(screen.getByRole('link', { name: 'ON-1' }).getAttribute('href')).toBe(
@@ -74,7 +74,7 @@ describe('DocumentDetailView — сведения', () => {
   });
 
   it('без базы заказа — просто текст, без битой ссылки', () => {
-    render(<DocumentDetailView document={doc()} backHref='/admin/documents' />);
+    render(<DocumentDetailView document={doc()} backHref="/admin/documents" />);
     expect(screen.queryByRole('link', { name: 'ON-1' })).toBeNull();
     expect(screen.getByText('ON-1')).toBeTruthy();
   });
@@ -83,15 +83,15 @@ describe('DocumentDetailView — сведения', () => {
     render(
       <DocumentDetailView
         document={doc({ order: { id: 'o2', title: 'Обучение ОТ', orderNumber: null } })}
-        backHref='/admin/documents'
-        orderHrefBase='/admin/orders'
+        backHref="/admin/documents"
+        orderHrefBase="/admin/orders"
       />
     );
     expect(screen.getByRole('link', { name: 'Обучение ОТ' })).toBeTruthy();
   });
 
   it('общий документ подписан как «вне заказа»', () => {
-    render(<DocumentDetailView document={doc({ order: null })} backHref='/admin/documents' />);
+    render(<DocumentDetailView document={doc({ order: null })} backHref="/admin/documents" />);
     expect(screen.getByText('Общий документ (вне заказа)')).toBeTruthy();
   });
 
@@ -99,7 +99,7 @@ describe('DocumentDetailView — сведения', () => {
     render(
       <DocumentDetailView
         document={doc({ number: null, signedAt: null, uploadedByName: null })}
-        backHref='/admin/documents'
+        backHref="/admin/documents"
       />
     );
     expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(3);
@@ -109,7 +109,7 @@ describe('DocumentDetailView — сведения', () => {
     render(
       <DocumentDetailView
         document={doc({ signedAt: new Date('2026-07-15T00:00:00Z') })}
-        backHref='/admin/documents'
+        backHref="/admin/documents"
       />
     );
     expect(screen.getByText('15.07.2026')).toBeTruthy();
@@ -117,12 +117,12 @@ describe('DocumentDetailView — сведения', () => {
 
   it('статус антивируса: чисто / идёт проверка', () => {
     const { rerender } = render(
-      <DocumentDetailView document={doc()} backHref='/admin/documents' />
+      <DocumentDetailView document={doc()} backHref="/admin/documents" />
     );
     expect(screen.getByText('чисто')).toBeTruthy();
 
     rerender(
-      <DocumentDetailView document={doc({ scanStatus: 'pending' })} backHref='/admin/documents' />
+      <DocumentDetailView document={doc({ scanStatus: 'pending' })} backHref="/admin/documents" />
     );
     expect(screen.getByText('идёт проверка')).toBeTruthy();
   });
@@ -131,7 +131,7 @@ describe('DocumentDetailView — сведения', () => {
     render(
       <DocumentDetailView
         document={doc({ counterparty: { type: 'unknown', id: 'x', name: null } })}
-        backHref='/admin/documents'
+        backHref="/admin/documents"
       />
     );
     expect(screen.getByText('Контрагент')).toBeTruthy();
@@ -141,7 +141,7 @@ describe('DocumentDetailView — сведения', () => {
     render(
       <DocumentDetailView
         document={doc({ order: { id: 'o3', title: 'Разработка документов', orderNumber: null } })}
-        backHref='/admin/documents'
+        backHref="/admin/documents"
       />
     );
     expect(screen.getByText('Разработка документов')).toBeTruthy();
@@ -150,8 +150,8 @@ describe('DocumentDetailView — сведения', () => {
 
   it('секция полей рендерится дочерним элементом', () => {
     render(
-      <DocumentDetailView document={doc()} backHref='/admin/documents'>
-        <div data-testid='fields'>поля</div>
+      <DocumentDetailView document={doc()} backHref="/admin/documents">
+        <div data-testid="fields">поля</div>
       </DocumentDetailView>
     );
     expect(screen.getByTestId('fields')).toBeTruthy();
@@ -163,7 +163,7 @@ describe('DocumentDetailView — заражённый файл', () => {
     render(
       <DocumentDetailView
         document={doc({ scanStatus: 'infected', scanReason: 'Eicar-Test' })}
-        backHref='/admin/documents'
+        backHref="/admin/documents"
       />
     );
     expect(screen.getByText(/Файл заблокирован антивирусом/)).toBeTruthy();
@@ -176,7 +176,7 @@ describe('DocumentDetailView — заражённый файл', () => {
     render(
       <DocumentDetailView
         document={doc({ scanStatus: 'infected', scanReason: null })}
-        backHref='/admin/documents'
+        backHref="/admin/documents"
       />
     );
     expect(screen.getByText(/Файл заблокирован антивирусом/)).toBeTruthy();
@@ -194,11 +194,11 @@ describe('DocumentDetailView — скачивание', () => {
   it('успех: запрашивает ссылку у роута и открывает её', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ downloadUrl: 'https://s3.local/file.pdf' })
+      json: async () => ({ downloadUrl: 'https://s3.local/file.pdf' }),
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    render(<DocumentDetailView document={doc()} backHref='/admin/documents' />);
+    render(<DocumentDetailView document={doc()} backHref="/admin/documents" />);
     fireEvent.click(screen.getByRole('button', { name: 'Скачать файл' }));
 
     await waitFor(() =>
@@ -216,7 +216,7 @@ describe('DocumentDetailView — скачивание', () => {
   it('410 от роута: отдельное сообщение про карантин, а не общая ошибка', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 410 }));
 
-    render(<DocumentDetailView document={doc()} backHref='/admin/documents' />);
+    render(<DocumentDetailView document={doc()} backHref="/admin/documents" />);
     fireEvent.click(screen.getByRole('button', { name: 'Скачать файл' }));
 
     await waitFor(() =>
@@ -228,7 +228,7 @@ describe('DocumentDetailView — скачивание', () => {
   it('прочая ошибка: предлагает повторить', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 502 }));
 
-    render(<DocumentDetailView document={doc()} backHref='/admin/documents' />);
+    render(<DocumentDetailView document={doc()} backHref="/admin/documents" />);
     fireEvent.click(screen.getByRole('button', { name: 'Скачать файл' }));
 
     await waitFor(() =>

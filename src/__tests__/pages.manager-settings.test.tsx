@@ -18,33 +18,41 @@ vi.mock('@/lib/services/notifications/preferences', () => ({ getNotificationSett
 
 vi.mock('@/components/settings/telegram-link-card', () => ({
   TelegramLinkCard: (props: { status: unknown }) =>
-    React.createElement('div', { 'data-testid': 'telegram-card' }, JSON.stringify(props.status))
+    React.createElement('div', { 'data-testid': 'telegram-card' }, JSON.stringify(props.status)),
 }));
 
 vi.mock('@/components/settings/notification-channels-card', () => ({
   NotificationChannelsCard: (props: { settings: unknown }) =>
-    React.createElement('div', { 'data-testid': 'notif-card' }, JSON.stringify(props.settings))
+    React.createElement('div', { 'data-testid': 'notif-card' }, JSON.stringify(props.settings)),
 }));
 
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 
 vi.mock('@/components/settings/security-card', () => ({
-  SecurityCard: () => React.createElement('div', { 'data-testid': 'security-card' }, 'SECURITY')
+  SecurityCard: () => React.createElement('div', { 'data-testid': 'security-card' }, 'SECURITY'),
 }));
 
 vi.mock('@/components/settings/staff-backup-codes-section', () => ({
   StaffBackupCodesSection: () =>
-    React.createElement('div', { 'data-testid': 'backup-codes-section' }, 'BACKUP')
+    React.createElement('div', { 'data-testid': 'backup-codes-section' }, 'BACKUP'),
 }));
 
 vi.mock('@/components/manager/settings/internal-phone-card', () => ({
   InternalPhoneCard: (props: { initialInternalPhone: string | null }) =>
-    React.createElement('div', { 'data-testid': 'internal-phone-card' }, String(props.initialInternalPhone))
+    React.createElement(
+      'div',
+      { 'data-testid': 'internal-phone-card' },
+      String(props.initialInternalPhone)
+    ),
 }));
 
-
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'member' as const,
+  companyId: 'c1',
+};
 
 describe('ManagerSettingsPage', () => {
   beforeEach(() => {
@@ -68,7 +76,10 @@ describe('ManagerSettingsPage', () => {
     expect(requireManager).toHaveBeenCalled();
     expect(getTelegramStatus).toHaveBeenCalledWith({ user: { findUnique } }, SESSION);
     expect(getNotificationSettings).toHaveBeenCalledWith({ user: { findUnique } }, SESSION);
-    expect(findUnique).toHaveBeenCalledWith({ where: { id: 'u1' }, select: { internalPhone: true } });
+    expect(findUnique).toHaveBeenCalledWith({
+      where: { id: 'u1' },
+      select: { internalPhone: true },
+    });
     expect(container.textContent).toContain('Настройки');
     expect(container.textContent).toContain('linked');
     expect(container.textContent).toContain('email');
@@ -84,7 +95,9 @@ describe('ManagerSettingsPage', () => {
 
     const { container } = await renderServerComponent(ManagerSettingsPage());
 
-    expect(container.querySelector('[data-testid="internal-phone-card"]')?.textContent).toBe('null');
+    expect(container.querySelector('[data-testid="internal-phone-card"]')?.textContent).toBe(
+      'null'
+    );
   });
 
   it('shows the backup-codes section when staff_2fa is enabled', async () => {

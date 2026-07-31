@@ -18,7 +18,7 @@ vi.mock('@/lib/services/search/globalSearch', () => ({ globalSearch }));
 const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
-  })
+  }),
 }));
 vi.mock('next/navigation', () => nav);
 
@@ -27,9 +27,8 @@ vi.mock('@/components/search/search-results', () => ({
   SearchResults: (props: Record<string, unknown>) => {
     resultsSpy(props);
     return React.createElement('div', { 'data-testid': 'search-results' });
-  }
+  },
 }));
-
 
 const SESSION = { sub: 'm1', role: 'manager' as const, companyId: 'c1' };
 
@@ -48,7 +47,9 @@ describe('ManagerSearchPage', () => {
 
   it('флаг global_search off → notFound() до auth', async () => {
     isFeatureEnabled.mockReturnValue(false);
-    await expect(renderServerComponent(ManagerSearchPage(pageProps()))).rejects.toThrow('NOT_FOUND');
+    await expect(renderServerComponent(ManagerSearchPage(pageProps()))).rejects.toThrow(
+      'NOT_FOUND'
+    );
     expect(isFeatureEnabled).toHaveBeenCalledWith('global_search');
     expect(requireManager).not.toHaveBeenCalled();
   });

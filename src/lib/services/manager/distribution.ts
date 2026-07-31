@@ -1,7 +1,11 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
-import { canSeeOrder, getCompanyTeamVisibility, isLeaderSameCompany } from '@/lib/auth/managerPolicy';
+import {
+  canSeeOrder,
+  getCompanyTeamVisibility,
+  isLeaderSameCompany,
+} from '@/lib/auth/managerPolicy';
 
 /**
  * §5.3 ТЗ — распределение заявок:
@@ -21,7 +25,7 @@ export async function resolveAutoManager(
 ): Promise<string | null> {
   const byOrg = await prisma.organizationManager.findMany({
     where: { organizationId: args.organizationId, isActive: true },
-    select: { userId: true }
+    select: { userId: true },
   });
   const orgUserIds = [...new Set(byOrg.map((r) => r.userId))];
   if (orgUserIds.length === 1) return orgUserIds[0];
@@ -30,7 +34,7 @@ export async function resolveAutoManager(
   if (orgUserIds.length === 0 && args.partnerId) {
     const byPartner = await prisma.organizationManager.findMany({
       where: { isActive: true, organization: { partnerId: args.partnerId } },
-      select: { userId: true }
+      select: { userId: true },
     });
     const partnerUserIds = [...new Set(byPartner.map((r) => r.userId))];
     if (partnerUserIds.length === 1) return partnerUserIds[0];
@@ -40,8 +44,7 @@ export async function resolveAutoManager(
 }
 
 export type AssignManagerResult =
-  | { ok: true; changed: boolean }
-  | { ok: false; error: 'order_not_found' | 'invalid_manager' };
+  { ok: true; changed: boolean } | { ok: false; error: 'order_not_found' | 'invalid_manager' };
 
 /**
  * Ручное назначение менеджера (руководитель/администратор). Роль вызывающего
@@ -60,7 +63,7 @@ export async function assignOrderManager(
   if (args.managerUserId !== null) {
     const candidate = await prisma.user.findUnique({
       where: { id: args.managerUserId },
-      select: { role: true, isActive: true, companyId: true }
+      select: { role: true, isActive: true, companyId: true },
     });
     if (!candidate || candidate.role !== 'manager' || !candidate.isActive) {
       return { ok: false, error: 'invalid_manager' };
@@ -75,19 +78,22 @@ export async function assignOrderManager(
 
   const order = await prisma.order.findUnique({
     where: { id: args.orderId },
-    select: { managerId: true }
+    select: { managerId: true },
   });
   if (!order) return { ok: false, error: 'order_not_found' };
   if (order.managerId === args.managerUserId) return { ok: true, changed: false };
 
-  await prisma.order.update({ where: { id: args.orderId }, data: { managerId: args.managerUserId } });
+  await prisma.order.update({
+    where: { id: args.orderId },
+    data: { managerId: args.managerUserId },
+  });
   await recordAudit(prisma, {
     userId: session.sub,
     action: 'order_manager_changed',
     entity: 'order',
     entityId: args.orderId,
     before: { managerId: order.managerId },
-    after: { managerId: args.managerUserId }
+    after: { managerId: args.managerUserId },
   });
   return { ok: true, changed: true };
 }
@@ -110,7 +116,7 @@ export async function claimOrder(
   const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
   const order = await prisma.order.findUnique({
     where: { id: args.orderId },
-    select: { managerId: true, organizationId: true, companyId: true }
+    select: { managerId: true, organizationId: true, companyId: true },
   });
   if (!order) return { ok: false, error: 'not_found' };
   // Scope gate BEFORE mutation: claiming would set managerId=sub, which itself
@@ -136,7 +142,7 @@ export async function claimOrder(
     action: 'order_self_assigned',
     entity: 'order',
     entityId: args.orderId,
-    after: { managerId: session.sub }
+    after: { managerId: session.sub },
   });
   return { ok: true, changed: true };
 }

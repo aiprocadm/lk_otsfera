@@ -143,7 +143,9 @@ describe('telegramChannel', () => {
     isTelegramEnabled.mockReturnValue(true);
     const bound = { telegramChatId: '123' };
     expect(
-      telegramChannel.isEnabledFor(makeUser({ ...bound, notificationChannels: { telegram: false } }))
+      telegramChannel.isEnabledFor(
+        makeUser({ ...bound, notificationChannels: { telegram: false } })
+      )
     ).toBe(false);
     expect(
       telegramChannel.isEnabledFor(makeUser({ ...bound, notificationChannels: { telegram: true } }))
@@ -200,7 +202,10 @@ describe('maxChannel (D3)', () => {
     expect(await maxChannel.send(makeUser({ maxChatId: 'm1' }), basePayload)).toEqual({
       status: 'sent',
     });
-    expect(sendMaxMessage).toHaveBeenCalledWith('m1', 'Оплата по заказу № 42\n\nПолучена оплата 100 ₽.');
+    expect(sendMaxMessage).toHaveBeenCalledWith(
+      'm1',
+      'Оплата по заказу № 42\n\nПолучена оплата 100 ₽.'
+    );
 
     sendMaxMessage.mockResolvedValue({ ok: false });
     expect(await maxChannel.send(makeUser({ maxChatId: 'm1' }), basePayload)).toEqual({

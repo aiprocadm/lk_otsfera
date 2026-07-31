@@ -7,7 +7,7 @@ import {
   formatDateRu,
   safeText,
   styleHeader,
-  textOrDash
+  textOrDash,
 } from '@/lib/services/export/xlsx';
 
 /**
@@ -20,7 +20,7 @@ function sheet(): ExcelJS.Worksheet {
   const ws = wb.addWorksheet('Лист');
   ws.columns = [
     { header: '№', key: 'num', width: 6 },
-    { header: 'Имя', key: 'name', width: 20 }
+    { header: 'Имя', key: 'name', width: 20 },
   ];
   return ws;
 }

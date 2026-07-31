@@ -7,7 +7,10 @@ import type { TrainingDirection } from '@prisma/client';
 const { push, refresh } = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push, refresh }) }));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 import { DirectionsAdmin } from '@/components/training/directions-admin';
@@ -20,7 +23,7 @@ function direction(overrides: Partial<TrainingDirection> = {}): TrainingDirectio
     isActive: true,
     createdAt: new Date('2024-01-01T00:00:00Z'),
     updatedAt: new Date('2024-01-01T00:00:00Z'),
-    ...overrides
+    ...overrides,
   } as TrainingDirection;
 }
 
@@ -52,7 +55,10 @@ describe('DirectionsAdmin', () => {
   it('renders a row per direction with active badge and name/order', () => {
     render(
       React.createElement(DirectionsAdmin, {
-        directions: [direction({ isActive: true }), direction({ id: 'd2', name: 'ПБ', isActive: false })]
+        directions: [
+          direction({ isActive: true }),
+          direction({ id: 'd2', name: 'ПБ', isActive: false }),
+        ],
       })
     );
     expect(screen.getByText('Охрана труда')).toBeTruthy();
@@ -64,7 +70,10 @@ describe('DirectionsAdmin', () => {
   it('only active directions show the "Деактивировать" button', () => {
     render(
       React.createElement(DirectionsAdmin, {
-        directions: [direction({ id: 'd1', isActive: true }), direction({ id: 'd2', isActive: false })]
+        directions: [
+          direction({ id: 'd1', isActive: true }),
+          direction({ id: 'd2', isActive: false }),
+        ],
       })
     );
     expect(screen.getAllByRole('button', { name: 'Деактивировать' }).length).toBe(1);
@@ -78,7 +87,9 @@ describe('DirectionsAdmin', () => {
     fireEvent.click(screen.getByRole('button', { name: '+ Добавить' }));
     expect(await screen.findByText('Новое направление')).toBeTruthy();
 
-    fireEvent.change(screen.getByLabelText('Название'), { target: { value: '  Электробезопасность  ' } });
+    fireEvent.change(screen.getByLabelText('Название'), {
+      target: { value: '  Электробезопасность  ' },
+    });
     fireEvent.change(screen.getByLabelText('Порядок сортировки'), { target: { value: '5' } });
     fireEvent.click(screen.getByRole('button', { name: 'Создать' }));
 
@@ -87,7 +98,7 @@ describe('DirectionsAdmin', () => {
         '/api/admin/training-directions',
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ name: 'Электробезопасность', sortOrder: 5 })
+          body: JSON.stringify({ name: 'Электробезопасность', sortOrder: 5 }),
         })
       )
     );
@@ -118,7 +129,9 @@ describe('DirectionsAdmin', () => {
   });
 
   it('add failure (with error body) shows the mapped toast error, dialog stays open', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, json: async () => ({ error: 'validation' }) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: false, json: async () => ({ error: 'validation' }) });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(DirectionsAdmin, { directions: [] }));
     fireEvent.click(screen.getByRole('button', { name: '+ Добавить' }));
@@ -136,7 +149,7 @@ describe('DirectionsAdmin', () => {
       ok: false,
       json: async () => {
         throw new Error('bad json');
-      }
+      },
     });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(DirectionsAdmin, { directions: [] }));
@@ -164,12 +177,20 @@ describe('DirectionsAdmin', () => {
   }
 
   it('opening the edit dialog pre-fills name/sortOrder from the target direction', async () => {
-    render(React.createElement(DirectionsAdmin, { directions: [direction({ name: 'Старое имя', sortOrder: 7 })] }));
+    render(
+      React.createElement(DirectionsAdmin, {
+        directions: [direction({ name: 'Старое имя', sortOrder: 7 })],
+      })
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
     expect(await screen.findByText('Изменить направление')).toBeTruthy();
     const dialogEl = openEditDialog();
-    expect((within(dialogEl).getByLabelText('Название') as HTMLInputElement).value).toBe('Старое имя');
-    expect((within(dialogEl).getByLabelText('Порядок сортировки') as HTMLInputElement).value).toBe('7');
+    expect((within(dialogEl).getByLabelText('Название') as HTMLInputElement).value).toBe(
+      'Старое имя'
+    );
+    expect((within(dialogEl).getByLabelText('Порядок сортировки') as HTMLInputElement).value).toBe(
+      '7'
+    );
   });
 
   it('edit success: PATCHes the direction id with new name/sortOrder, shows toast, closes, refreshes', async () => {
@@ -180,13 +201,18 @@ describe('DirectionsAdmin', () => {
     await screen.findByText('Изменить направление');
     const dialogEl = openEditDialog();
 
-    fireEvent.change(within(dialogEl).getByLabelText('Название'), { target: { value: 'Новое имя' } });
+    fireEvent.change(within(dialogEl).getByLabelText('Название'), {
+      target: { value: 'Новое имя' },
+    });
     fireEvent.click(within(dialogEl).getByRole('button', { name: 'Сохранить' }));
 
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         '/api/admin/training-directions/d9',
-        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ name: 'Новое имя', sortOrder: 1 }) })
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({ name: 'Новое имя', sortOrder: 1 }),
+        })
       )
     );
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Направление обновлено.'));
@@ -202,7 +228,9 @@ describe('DirectionsAdmin', () => {
     await screen.findByText('Изменить направление');
     const dialogEl = openEditDialog();
 
-    fireEvent.change(within(dialogEl).getByLabelText('Порядок сортировки'), { target: { value: '' } });
+    fireEvent.change(within(dialogEl).getByLabelText('Порядок сортировки'), {
+      target: { value: '' },
+    });
     fireEvent.click(within(dialogEl).getByRole('button', { name: 'Сохранить' }));
 
     await waitFor(() =>
@@ -213,7 +241,7 @@ describe('DirectionsAdmin', () => {
     );
   });
 
-  it('edit failure with a body lacking an `error` field falls back to the empty-string code (?? \'\' branch)', async () => {
+  it("edit failure with a body lacking an `error` field falls back to the empty-string code (?? '' branch)", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(DirectionsAdmin, { directions: [direction()] }));
@@ -225,7 +253,9 @@ describe('DirectionsAdmin', () => {
   });
 
   it('edit failure shows the mapped toast error and keeps the dialog open', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, json: async () => ({ error: 'not_found' }) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: false, json: async () => ({ error: 'not_found' }) });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(DirectionsAdmin, { directions: [direction()] }));
     fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
@@ -244,7 +274,7 @@ describe('DirectionsAdmin', () => {
     await waitFor(() => expect(HTMLDialogElement.prototype.close).toHaveBeenCalled());
   });
 
-  it('Escape closes the add dialog via the Dialog primitive\'s onClose prop', async () => {
+  it("Escape closes the add dialog via the Dialog primitive's onClose prop", async () => {
     render(React.createElement(DirectionsAdmin, { directions: [] }));
     fireEvent.click(screen.getByRole('button', { name: '+ Добавить' }));
     await screen.findByText('Новое направление');
@@ -254,7 +284,7 @@ describe('DirectionsAdmin', () => {
     await waitFor(() => expect(HTMLDialogElement.prototype.close).toHaveBeenCalled());
   });
 
-  it('Escape closes the edit dialog via the Dialog primitive\'s onClose prop', async () => {
+  it("Escape closes the edit dialog via the Dialog primitive's onClose prop", async () => {
     render(React.createElement(DirectionsAdmin, { directions: [direction()] }));
     fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
     await screen.findByText('Изменить направление');
@@ -266,18 +296,26 @@ describe('DirectionsAdmin', () => {
   it('deactivate success: DELETEs the direction id, shows toast, refreshes', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal('fetch', fetchMock);
-    render(React.createElement(DirectionsAdmin, { directions: [direction({ id: 'd5', isActive: true })] }));
+    render(
+      React.createElement(DirectionsAdmin, {
+        directions: [direction({ id: 'd5', isActive: true })],
+      })
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Деактивировать' }));
 
     await waitFor(() =>
-      expect(fetchMock).toHaveBeenCalledWith('/api/admin/training-directions/d5', { method: 'DELETE' })
+      expect(fetchMock).toHaveBeenCalledWith('/api/admin/training-directions/d5', {
+        method: 'DELETE',
+      })
     );
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Направление деактивировано.'));
     expect(refresh).toHaveBeenCalled();
   });
 
   it('deactivate failure (with error body) shows the mapped toast error', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, json: async () => ({ error: 'forbidden' }) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: false, json: async () => ({ error: 'forbidden' }) });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(DirectionsAdmin, { directions: [direction({ isActive: true })] }));
     fireEvent.click(screen.getByRole('button', { name: 'Деактивировать' }));
@@ -291,7 +329,7 @@ describe('DirectionsAdmin', () => {
       ok: false,
       json: async () => {
         throw new Error('bad json');
-      }
+      },
     });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(DirectionsAdmin, { directions: [direction({ isActive: true })] }));

@@ -12,14 +12,17 @@ const { recordAudit } = vi.hoisted(() => ({ recordAudit: vi.fn() }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
 
 const { notifyManagersClientRequestSubmitted } = vi.hoisted(() => ({
-  notifyManagersClientRequestSubmitted: vi.fn()
+  notifyManagersClientRequestSubmitted: vi.fn(),
 }));
 vi.mock('@/lib/services/clientRequests/notify', () => ({
   notifyManagersClientRequestSubmitted,
-  notifySubmitterClientRequestStatus: vi.fn()
+  notifySubmitterClientRequestStatus: vi.fn(),
 }));
 
-import { validateClientRequestInput, submitClientRequest } from '@/lib/services/clientRequests/submit';
+import {
+  validateClientRequestInput,
+  submitClientRequest,
+} from '@/lib/services/clientRequests/submit';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -30,13 +33,16 @@ const VALID = {
   companyName: 'ООО Ромашка',
   contactName: 'Иван Иванов',
   contactPhone: '+7 900 000-00-00',
-  subject: 'Обучение по охране труда'
+  subject: 'Обучение по охране труда',
 };
 
 function db(over: Record<string, unknown> = {}) {
   const create = vi
     .fn()
-    .mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ id: 'R1', ...data }));
+    .mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
+      id: 'R1',
+      ...data,
+    }));
   const prisma = { clientRequest: { create }, ...over };
   return { prisma: prisma as never, create };
 }
@@ -57,8 +63,8 @@ describe('validateClientRequestInput — обязательные поля', () 
         'Укажите название компании',
         'Укажите контактное лицо',
         'Укажите тему обращения',
-        'Укажите телефон или email для связи'
-      ]
+        'Укажите телефон или email для связи',
+      ],
     });
   });
 
@@ -89,7 +95,11 @@ describe('validateClientRequestInput — обязательные поля', () 
 
 describe('validateClientRequestInput — email и ИНН', () => {
   it('кривой email: сообщение содержит сам (уже lower-case) email', () => {
-    const r = validateClientRequestInput({ ...VALID, contactPhone: null, contactEmail: ' NOT-AN-EMAIL ' });
+    const r = validateClientRequestInput({
+      ...VALID,
+      contactPhone: null,
+      contactEmail: ' NOT-AN-EMAIL ',
+    });
     if (r.ok) throw new Error('expected errors');
     expect(r.errors).toEqual(['Некорректный email «not-an-email»']);
   });
@@ -127,7 +137,7 @@ describe('validateClientRequestInput — happy path', () => {
       contactPhone: ' +7 900 000-00-00 ',
       contactEmail: ' Ivan@Example.RU ',
       subject: ' Обучение ',
-      body: ' Хотим обучить 5 сотрудников. '
+      body: ' Хотим обучить 5 сотрудников. ',
     });
     expect(r).toEqual({
       ok: true,
@@ -138,8 +148,8 @@ describe('validateClientRequestInput — happy path', () => {
         contactPhone: '+7 900 000-00-00',
         contactEmail: 'ivan@example.ru',
         subject: 'Обучение',
-        body: 'Хотим обучить 5 сотрудников.'
-      }
+        body: 'Хотим обучить 5 сотрудников.',
+      },
     });
   });
 
@@ -154,8 +164,8 @@ describe('validateClientRequestInput — happy path', () => {
         contactPhone: '+7 900 000-00-00',
         contactEmail: null,
         subject: 'Обучение по охране труда',
-        body: null
-      }
+        body: null,
+      },
     });
   });
 
@@ -175,7 +185,7 @@ describe('submitClientRequest — RBAC', () => {
     for (const role of ['manager', 'admin', 'student'] as const) {
       expect(await submitClientRequest(prisma, s({ role }), VALID)).toEqual({
         ok: false,
-        error: 'forbidden'
+        error: 'forbidden',
       });
     }
     expect(create).not.toHaveBeenCalled();
@@ -193,9 +203,11 @@ describe('submitClientRequest — RBAC', () => {
 
   it('партнёр без partnerId в сессии → forbidden', async () => {
     const { prisma, create } = db();
-    expect(await submitClientRequest(prisma, s({ role: 'partner', partnerId: null }), VALID)).toEqual({
+    expect(
+      await submitClientRequest(prisma, s({ role: 'partner', partnerId: null }), VALID)
+    ).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
     expect(create).not.toHaveBeenCalled();
   });
@@ -211,7 +223,7 @@ describe('submitClientRequest — партнёр', () => {
       submittedByUserId: 'u1',
       partnerId: 'p1',
       organizationId: null,
-      companyName: 'ООО Ромашка'
+      companyName: 'ООО Ромашка',
     });
   });
 });
@@ -222,27 +234,33 @@ describe('submitClientRequest — организация', () => {
 
   it('явный чужой organizationId (не в активных членствах) → forbidden', async () => {
     const { prisma, create } = db();
-    const session = s({ role: 'organization', organizationMemberships: [member('o1'), member('o2', false)] });
+    const session = s({
+      role: 'organization',
+      organizationMemberships: [member('o1'), member('o2', false)],
+    });
     expect(await submitClientRequest(prisma, session, { ...VALID, organizationId: 'o2' })).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
     expect(await submitClientRequest(prisma, session, { ...VALID, organizationId: 'oX' })).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
     expect(create).not.toHaveBeenCalled();
   });
 
   it('явный свой organizationId — ок; source=organization_cabinet, partnerId=null', async () => {
     const { prisma, create } = db();
-    const session = s({ role: 'organization', organizationMemberships: [member('o1'), member('o2')] });
+    const session = s({
+      role: 'organization',
+      organizationMemberships: [member('o1'), member('o2')],
+    });
     const r = await submitClientRequest(prisma, session, { ...VALID, organizationId: 'o2' });
     if (!r.ok) throw new Error('expected ok');
     expect(create.mock.calls[0][0].data).toMatchObject({
       source: 'organization_cabinet',
       partnerId: null,
-      organizationId: 'o2'
+      organizationId: 'o2',
     });
   });
 
@@ -251,7 +269,7 @@ describe('submitClientRequest — организация', () => {
     const session = s({
       role: 'organization',
       organizationId: 'o2',
-      organizationMemberships: [member('o1'), member('o2')]
+      organizationMemberships: [member('o1'), member('o2')],
     });
     const r = await submitClientRequest(prisma, session, VALID);
     if (!r.ok) throw new Error('expected ok');
@@ -262,7 +280,7 @@ describe('submitClientRequest — организация', () => {
     const { prisma, create } = db();
     const session = s({
       role: 'organization',
-      organizationMemberships: [member('o9', false), member('o1'), member('o2')]
+      organizationMemberships: [member('o9', false), member('o1'), member('o2')],
     });
     const r = await submitClientRequest(prisma, session, VALID);
     if (!r.ok) throw new Error('expected ok');
@@ -273,10 +291,14 @@ describe('submitClientRequest — организация', () => {
     const { prisma } = db();
     expect(await submitClientRequest(prisma, s({ role: 'organization' }), VALID)).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
     expect(
-      await submitClientRequest(prisma, s({ role: 'organization', organizationMemberships: [] }), VALID)
+      await submitClientRequest(
+        prisma,
+        s({ role: 'organization', organizationMemberships: [] }),
+        VALID
+      )
     ).toEqual({ ok: false, error: 'forbidden' });
   });
 });
@@ -284,18 +306,17 @@ describe('submitClientRequest — организация', () => {
 describe('submitClientRequest — аудит и уведомление', () => {
   it('аудит без ПДн: after только source/partnerId/organizationId', async () => {
     const { prisma } = db();
-    const r = await submitClientRequest(
-      prisma,
-      s({ role: 'partner', partnerId: 'p1' }),
-      { ...VALID, contactEmail: 'ivan@example.ru' }
-    );
+    const r = await submitClientRequest(prisma, s({ role: 'partner', partnerId: 'p1' }), {
+      ...VALID,
+      contactEmail: 'ivan@example.ru',
+    });
     if (!r.ok) throw new Error('expected ok');
     expect(recordAudit).toHaveBeenCalledWith(prisma, {
       userId: 'u1',
       action: 'client_request_submitted',
       entity: 'client_request',
       entityId: 'R1',
-      after: { source: 'partner_cabinet', partnerId: 'p1', organizationId: null }
+      after: { source: 'partner_cabinet', partnerId: 'p1', organizationId: null },
     });
     const after = JSON.stringify(recordAudit.mock.calls[0][1].after);
     expect(after).not.toContain('ivan@example.ru');

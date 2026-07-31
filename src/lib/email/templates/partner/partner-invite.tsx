@@ -16,15 +16,14 @@ export function PartnerInviteTemplate({
   roleLabel,
   inviteUrl,
   invitedByName,
-  expiresInDays = 7
+  expiresInDays = 7,
 }: PartnerInviteProps) {
   return (
-    <EmailLayout title='Приглашение в кабинет партнёра'>
+    <EmailLayout title="Приглашение в кабинет партнёра">
       <p style={emailStyles.paragraph}>Здравствуйте!</p>
       <p style={emailStyles.paragraph}>
-        {invitedByName ? <>{invitedByName} приглашает вас </> : 'Вас приглашают '}
-        в команду партнёра <strong>{partnerName}</strong> на платформе
-        «Промтехносфера» (роль: {roleLabel}).
+        {invitedByName ? <>{invitedByName} приглашает вас </> : 'Вас приглашают '}в команду партнёра{' '}
+        <strong>{partnerName}</strong> на платформе «Промтехносфера» (роль: {roleLabel}).
       </p>
       <p style={emailStyles.paragraph}>
         Чтобы установить пароль и начать работу, перейдите по ссылке ниже:
@@ -35,8 +34,8 @@ export function PartnerInviteTemplate({
         </a>
       </p>
       <p style={emailStyles.muted}>
-        Ссылка действует {expiresInDays} дн. Если кнопка не работает, скопируйте
-        ссылку в адресную строку браузера:
+        Ссылка действует {expiresInDays} дн. Если кнопка не работает, скопируйте ссылку в адресную
+        строку браузера:
         <br />
         <span style={emailStyles.mono}>{inviteUrl}</span>
       </p>
@@ -53,7 +52,7 @@ export function partnerInviteText({
   roleLabel,
   inviteUrl,
   invitedByName,
-  expiresInDays = 7
+  expiresInDays = 7,
 }: PartnerInviteProps): string {
   const intro = invitedByName ? `${invitedByName} приглашает вас` : 'Вас приглашают';
   return [
@@ -62,6 +61,6 @@ export function partnerInviteText({
     `${intro} в команду партнёра «${partnerName}» на платформе Промтехносфера (роль: ${roleLabel}).`,
     '',
     `Установить пароль: ${inviteUrl}`,
-    `Ссылка действует ${expiresInDays} дн.`
+    `Ссылка действует ${expiresInDays} дн.`,
   ].join('\n');
 }

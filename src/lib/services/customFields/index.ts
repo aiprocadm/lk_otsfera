@@ -13,11 +13,7 @@ export { getValuesForEntity, getFieldsForEntity, setValues } from './values';
 export type { ValuesError, FieldWithValue } from './values';
 
 // §11 ТЗ v0.5 — этап 1
-export {
-  CUSTOM_FIELD_ENTITIES,
-  CUSTOM_FIELD_ENTITY_LABELS,
-  isCustomFieldEntity,
-} from './entities';
+export { CUSTOM_FIELD_ENTITIES, CUSTOM_FIELD_ENTITY_LABELS, isCustomFieldEntity } from './entities';
 export type { CustomFieldEntity } from './entities';
 
 export {

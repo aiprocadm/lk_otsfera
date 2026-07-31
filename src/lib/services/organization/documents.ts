@@ -1,6 +1,11 @@
 import type { PrismaClient, DocumentType, DocumentDirection } from '@prisma/client';
 import type { Prisma } from '@prisma/client';
-import { organizationChannelWhere, documentInChannel, orderBoundWhere, orderLessWhere } from '@/lib/auth/documentChannelPolicy';
+import {
+  organizationChannelWhere,
+  documentInChannel,
+  orderBoundWhere,
+  orderLessWhere,
+} from '@/lib/auth/documentChannelPolicy';
 
 export type OrgDocRow = {
   id: string;
@@ -60,8 +65,8 @@ export async function listOrgDocuments(
       ? {
           createdAt: {
             ...(opts.from ? { gte: opts.from } : {}),
-            ...(opts.to ? { lte: opts.to } : {})
-          }
+            ...(opts.to ? { lte: opts.to } : {}),
+          },
         }
       : {};
 
@@ -70,12 +75,12 @@ export async function listOrgDocuments(
     ...(opts.orderLess ? orderLessWhere() : orderBoundWhere()),
     ...(opts.orderId ? { orderId: opts.orderId } : {}),
     ...dateFilter,
-    ...(opts.search ? { name: { contains: opts.search, mode: 'insensitive' as const } } : {})
+    ...(opts.search ? { name: { contains: opts.search, mode: 'insensitive' as const } } : {}),
   };
 
   const filteredWhere = {
     ...baseWhere,
-    ...(opts.type ? { type: opts.type } : {})
+    ...(opts.type ? { type: opts.type } : {}),
   };
 
   const [total, docs, countsRaw] = await Promise.all([
@@ -94,14 +99,14 @@ export async function listOrgDocuments(
         createdAt: true,
         size: true,
         orderId: true,
-        order: { select: { orderNumber: true, title: true } }
-      }
+        order: { select: { orderNumber: true, title: true } },
+      },
     }),
     prisma.document.groupBy({
       by: ['type'],
       where: baseWhere,
-      _count: { _all: true }
-    })
+      _count: { _all: true },
+    }),
   ]);
 
   const countsByType: Partial<Record<DocumentType, number>> = {};
@@ -119,7 +124,7 @@ export async function listOrgDocuments(
     size: d.size,
     orderId: d.orderId,
     orderNumber: d.order?.orderNumber ?? null,
-    orderTitle: d.order?.title ?? null
+    orderTitle: d.order?.title ?? null,
   }));
 
   return { rows, total, countsByType };
@@ -145,8 +150,8 @@ export async function getOrgDocumentForDownload(
       scanStatus: true,
       scanReason: true,
       counterpartyType: true,
-      counterpartyId: true
-    }
+      counterpartyId: true,
+    },
   });
 
   if (!doc) return { ok: false, error: 'not_found' };
@@ -164,6 +169,6 @@ export async function getOrgDocumentForDownload(
     ok: true,
     path: doc.path,
     mimeType: doc.mimeType,
-    name: doc.name
+    name: doc.name,
   };
 }

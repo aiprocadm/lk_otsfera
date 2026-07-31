@@ -11,12 +11,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { getCompanyTeamVisibility, managerOrderScope } = vi.hoisted(() => ({
   getCompanyTeamVisibility: vi.fn().mockResolvedValue(false),
-  managerOrderScope: vi.fn().mockReturnValue({})
+  managerOrderScope: vi.fn().mockReturnValue({}),
 }));
 
 vi.mock('@/lib/auth/managerPolicy', () => ({
   getCompanyTeamVisibility,
-  managerOrderScope
+  managerOrderScope,
 }));
 
 // Import from barrel index to cover dashboard/index.ts
@@ -27,16 +27,24 @@ const SESSION: SessionPayload = {
   sub: 'mgr-1',
   role: 'manager',
   managedOrgIds: ['org-1'],
-  companyId: 'co-1'
+  companyId: 'co-1',
 };
 
-function fakePrismaParallel(activeOrders = 5, activeOld = 2, attention = 3, unread = 1, urgent = 0) {
+function fakePrismaParallel(
+  activeOrders = 5,
+  activeOld = 2,
+  attention = 3,
+  unread = 1,
+  urgent = 0
+) {
   let orderCallIdx = 0;
   const counts = [activeOrders, activeOld, attention, urgent]; // 3 order counts + urgentDeadlines
   return {
-    order: { count: vi.fn().mockImplementation(() => Promise.resolve(counts[orderCallIdx++] ?? 0)) },
+    order: {
+      count: vi.fn().mockImplementation(() => Promise.resolve(counts[orderCallIdx++] ?? 0)),
+    },
     notification: { count: vi.fn().mockResolvedValue(unread) },
-    company: { findUnique: vi.fn() }
+    company: { findUnique: vi.fn() },
   } as never;
 }
 
@@ -70,7 +78,7 @@ describe('kpis', () => {
       activeOrdersDelta: expect.any(Number),
       attentionCount: expect.any(Number),
       unreadComments: expect.any(Number),
-      urgentDeadlines: expect.any(Number)
+      urgentDeadlines: expect.any(Number),
     });
   });
 
@@ -84,7 +92,7 @@ describe('kpis', () => {
     const p = {
       order: { count: orderCount },
       notification: { count: vi.fn().mockResolvedValue(0) },
-      company: { findUnique: vi.fn() }
+      company: { findUnique: vi.fn() },
     } as never;
     const result = await kpis(p, SESSION, false);
     expect(result.activeOrdersDelta).toBe(3); // 8 - 5

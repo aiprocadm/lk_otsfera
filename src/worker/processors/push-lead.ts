@@ -34,14 +34,14 @@ export async function notifyPushLeadFinalFailure(
 ): Promise<void> {
   const lead = await db.lead.findUnique({
     where: { id: args.leadId },
-    select: { partnerId: true, clientCompanyName: true }
+    select: { partnerId: true, clientCompanyName: true },
   });
   // Этап 5: лид без партнёра — уведомлять некого.
   if (!lead || !lead.partnerId) return;
 
   const admins = await db.partnerUser.findMany({
     where: { partnerId: lead.partnerId, roleInPartner: 'admin', isActive: true },
-    select: { userId: true }
+    select: { userId: true },
   });
 
   if (admins.length === 0) return;
@@ -58,9 +58,9 @@ export async function notifyPushLeadFinalFailure(
           meta: {
             kind: 'push_lead_failed',
             leadId: args.leadId,
-            error: args.errorMessage
-          }
-        }
+            error: args.errorMessage,
+          },
+        },
       })
     )
   );

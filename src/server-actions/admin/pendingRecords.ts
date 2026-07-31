@@ -4,7 +4,10 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db/prisma';
 import { requireAdmin } from '@/lib/auth/requireRole';
-import { requeueDeadRecord, type RequeueDeadRecordResult } from '@/lib/services/admin/pendingRecords';
+import {
+  requeueDeadRecord,
+  type RequeueDeadRecordResult,
+} from '@/lib/services/admin/pendingRecords';
 
 type Validation = { ok: false; error: 'validation' };
 

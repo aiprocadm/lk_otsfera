@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { requireSession, resendInvite } = vi.hoisted(() => ({
   requireSession: vi.fn(),
-  resendInvite: vi.fn()
+  resendInvite: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireSession }));
@@ -28,11 +28,19 @@ beforeEach(() => {
 
 describe('resendInviteAction — happy path', () => {
   it('прокидывает prisma-синглтон, сессию и userId в сервис; результат отдаёт как есть', async () => {
-    resendInvite.mockResolvedValue({ ok: true, inviteUrl: 'https://app/reset-password?token=n', emailStatus: 'sent' });
+    resendInvite.mockResolvedValue({
+      ok: true,
+      inviteUrl: 'https://app/reset-password?token=n',
+      emailStatus: 'sent',
+    });
 
     const res = await resendInviteAction({ userId: 'u-1' });
 
-    expect(res).toEqual({ ok: true, inviteUrl: 'https://app/reset-password?token=n', emailStatus: 'sent' });
+    expect(res).toEqual({
+      ok: true,
+      inviteUrl: 'https://app/reset-password?token=n',
+      emailStatus: 'sent',
+    });
     expect(requireSession).toHaveBeenCalledTimes(1);
     expect(resendInvite).toHaveBeenCalledWith(prisma, SESSION, { userId: 'u-1', sendEmail: true });
   });

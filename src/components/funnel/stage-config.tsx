@@ -2,10 +2,27 @@
 
 import React, { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Input, Select, Field, Dialog, TableShell, THead, Th, Tr, Td, Badge, ColorSwatchPicker } from '@/components/ui';
+import {
+  Button,
+  Input,
+  Select,
+  Field,
+  Dialog,
+  TableShell,
+  THead,
+  Th,
+  Tr,
+  Td,
+  Badge,
+  ColorSwatchPicker,
+} from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
 import { errorMessageRu } from '@/lib/errors/messages';
-import { createFunnelStageAction, updateFunnelStageAction, deleteFunnelStageAction } from '@/server-actions/funnel';
+import {
+  createFunnelStageAction,
+  updateFunnelStageAction,
+  deleteFunnelStageAction,
+} from '@/server-actions/funnel';
 import type { FunnelStageView } from '@/lib/funnel/stages';
 
 const ANCHORS: { value: string; label: string }[] = [
@@ -13,11 +30,17 @@ const ANCHORS: { value: string; label: string }[] = [
   { value: 'in_review', label: 'В работе' },
   { value: 'qualified', label: 'Квалифицирован' },
   { value: 'promoted_to_order', label: 'Передано в работу' },
-  { value: 'rejected', label: 'Отказ' }
+  { value: 'rejected', label: 'Отказ' },
 ];
 const anchorLabel = (a: string) => ANCHORS.find((x) => x.value === a)?.label ?? a;
 
-export function StageConfig({ stages, isDefault }: { stages: FunnelStageView[]; isDefault: boolean }) {
+export function StageConfig({
+  stages,
+  isDefault,
+}: {
+  stages: FunnelStageView[];
+  isDefault: boolean;
+}) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [editing, setEditing] = useState<{ target: FunnelStageView | null } | null>(null);
@@ -41,7 +64,8 @@ export function StageConfig({ stages, isDefault }: { stages: FunnelStageView[]; 
           <h2 className="text-lg font-semibold text-[#111111]">Стадии воронки</h2>
           {isDefault && (
             <p className="text-xs text-gray-500 mt-0.5">
-              Сейчас используются стадии по умолчанию. Создав свою первую стадию, вы замените набор — задайте все нужные стадии.
+              Сейчас используются стадии по умолчанию. Создав свою первую стадию, вы замените набор
+              — задайте все нужные стадии.
             </p>
           )}
         </div>
@@ -104,7 +128,7 @@ export function StageConfig({ stages, isDefault }: { stages: FunnelStageView[]; 
 function StageDialog({
   target,
   onClose,
-  onSaved
+  onSaved,
 }: {
   target: FunnelStageView | null;
   onClose: () => void;
@@ -128,13 +152,32 @@ function StageDialog({
   }
 
   return (
-    <Dialog open onClose={onClose} title={target ? 'Изменить стадию' : 'Новая стадия'} size="md" busy={submitting}>
+    <Dialog
+      open
+      onClose={onClose}
+      title={target ? 'Изменить стадию' : 'Новая стадия'}
+      size="md"
+      busy={submitting}
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
         <Field htmlFor="st-name" label="Название">
-          <Input id="st-name" name="name" required maxLength={60} defaultValue={target?.name ?? ''} autoFocus />
+          <Input
+            id="st-name"
+            name="name"
+            required
+            maxLength={60}
+            defaultValue={target?.name ?? ''}
+            autoFocus
+          />
         </Field>
         <Field htmlFor="st-position" label="Позиция (порядок колонки)">
-          <Input id="st-position" name="position" type="number" min={0} defaultValue={target?.position ?? 0} />
+          <Input
+            id="st-position"
+            name="position"
+            type="number"
+            min={0}
+            defaultValue={target?.position ?? 0}
+          />
         </Field>
         <Field htmlFor="st-anchor" label="Якорь статуса (переход lifecycle)">
           <Select id="st-anchor" name="statusAnchor" defaultValue={target?.statusAnchor ?? 'new'}>
@@ -147,7 +190,12 @@ function StageDialog({
         </Field>
         <ColorSwatchPicker name="color" value={target?.color ?? null} />
         <label className="flex items-center gap-2 cursor-pointer text-sm">
-          <input type="checkbox" name="isTerminal" defaultChecked={target?.isTerminal ?? false} className="h-4 w-4 rounded" />
+          <input
+            type="checkbox"
+            name="isTerminal"
+            defaultChecked={target?.isTerminal ?? false}
+            className="h-4 w-4 rounded"
+          />
           <span>Терминальная стадия</span>
         </label>
         <div className="flex justify-end gap-2">

@@ -6,7 +6,10 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 const { resendInviteAction } = vi.hoisted(() => ({ resendInviteAction: vi.fn() }));
 vi.mock('@/server-actions/invite-resend', () => ({ resendInviteAction }));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 import { InviteResendButtons } from '@/components/team/invite-resend-buttons';
@@ -14,7 +17,7 @@ import { InviteResendButtons } from '@/components/team/invite-resend-buttons';
 const okResult = (emailStatus: 'sent' | 'skipped' = 'sent') => ({
   ok: true as const,
   inviteUrl: 'https://lk.example/invite/tok-9',
-  emailStatus
+  emailStatus,
 });
 
 /** Отложенный промис — для проверки busy-состояний. */
@@ -64,7 +67,9 @@ describe('InviteResendButtons', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Отправить повторно' }));
 
     await waitFor(() =>
-      expect(toastSuccess).toHaveBeenCalledWith('Почта выключена — используйте «Скопировать ссылку»')
+      expect(toastSuccess).toHaveBeenCalledWith(
+        'Почта выключена — используйте «Скопировать ссылку»'
+      )
     );
   });
 
@@ -77,7 +82,9 @@ describe('InviteResendButtons', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Скопировать ссылку' }));
 
     await waitFor(() =>
-      expect(toastSuccess).toHaveBeenCalledWith('Ссылка скопирована (прежняя ссылка больше не действует)')
+      expect(toastSuccess).toHaveBeenCalledWith(
+        'Ссылка скопирована (прежняя ссылка больше не действует)'
+      )
     );
     expect(resendInviteAction).toHaveBeenCalledWith({ userId: 'u2', sendEmail: false });
     expect(writeText).toHaveBeenCalledWith('https://lk.example/invite/tok-9');
@@ -102,7 +109,7 @@ describe('InviteResendButtons', () => {
     ['forbidden', 'Недостаточно прав'],
     ['not_found', 'Пользователь не найден или деактивирован'],
     ['already_active', 'Пользователь уже установил пароль'],
-    ['rate_limited', 'Слишком много отправок — попробуйте через час']
+    ['rate_limited', 'Слишком много отправок — попробуйте через час'],
   ])('код ошибки %s → русский тост «%s»', async (code, message) => {
     resendInviteAction.mockResolvedValue({ ok: false, error: code });
     render(React.createElement(InviteResendButtons, { userId: 'u1' }));
@@ -152,7 +159,9 @@ describe('InviteResendButtons', () => {
     expect(resendInviteAction).toHaveBeenCalledTimes(1);
 
     d.resolve(okResult('sent'));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Отправить повторно' })).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Отправить повторно' })).toBeTruthy()
+    );
     const buttons = screen.getAllByRole('button') as HTMLButtonElement[];
     expect(buttons.map((b) => b.disabled)).toEqual([false, false]);
   });
@@ -166,9 +175,13 @@ describe('InviteResendButtons', () => {
 
     const copyBtn = await screen.findByRole('button', { name: 'Готовим…' });
     expect((copyBtn as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole('button', { name: 'Отправить повторно' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (screen.getByRole('button', { name: 'Отправить повторно' }) as HTMLButtonElement).disabled
+    ).toBe(true);
 
     d.resolve(okResult('sent'));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Скопировать ссылку' })).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Скопировать ссылку' })).toBeTruthy()
+    );
   });
 });

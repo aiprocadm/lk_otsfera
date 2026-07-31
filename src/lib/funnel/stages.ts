@@ -18,18 +18,66 @@ export type FunnelStageView = {
 
 /** Дефолтная воронка (§24.3 ТЗ + этап 6): 3 рабочих + 3 терминальных стадии над якорями. */
 export const DEFAULT_FUNNEL_STAGES: readonly FunnelStageView[] = [
-  { id: 'default:new', name: 'Новый лид', position: 0, statusAnchor: 'new', isTerminal: false, color: null },
-  { id: 'default:in_review', name: 'В работе', position: 1, statusAnchor: 'in_review', isTerminal: false, color: null },
-  { id: 'default:qualified', name: 'Квалифицирован', position: 2, statusAnchor: 'qualified', isTerminal: false, color: null },
-  { id: 'default:promoted_to_order', name: 'Передано в работу', position: 3, statusAnchor: 'promoted_to_order', isTerminal: true, color: null },
+  {
+    id: 'default:new',
+    name: 'Новый лид',
+    position: 0,
+    statusAnchor: 'new',
+    isTerminal: false,
+    color: null,
+  },
+  {
+    id: 'default:in_review',
+    name: 'В работе',
+    position: 1,
+    statusAnchor: 'in_review',
+    isTerminal: false,
+    color: null,
+  },
+  {
+    id: 'default:qualified',
+    name: 'Квалифицирован',
+    position: 2,
+    statusAnchor: 'qualified',
+    isTerminal: false,
+    color: null,
+  },
+  {
+    id: 'default:promoted_to_order',
+    name: 'Передано в работу',
+    position: 3,
+    statusAnchor: 'promoted_to_order',
+    isTerminal: true,
+    color: null,
+  },
   // Этап 6 (ФТ-4.4): перенос лида сюда создаёт сделку (convertLeadToDeal).
-  { id: 'default:promoted_to_deal', name: 'Передан в сделку', position: 4, statusAnchor: 'promoted_to_deal', isTerminal: true, color: null },
-  { id: 'default:rejected', name: 'Отказ', position: 5, statusAnchor: 'rejected', isTerminal: true, color: null }
+  {
+    id: 'default:promoted_to_deal',
+    name: 'Передан в сделку',
+    position: 4,
+    statusAnchor: 'promoted_to_deal',
+    isTerminal: true,
+    color: null,
+  },
+  {
+    id: 'default:rejected',
+    name: 'Отказ',
+    position: 5,
+    statusAnchor: 'rejected',
+    isTerminal: true,
+    color: null,
+  },
 ];
 
 /** Стадии компании: кастомные (если заданы) или дефолтные. */
-export async function resolveFunnelStages(prisma: PrismaClient, companyId: string): Promise<FunnelStageView[]> {
-  const custom = await prisma.funnelStage.findMany({ where: { companyId }, orderBy: { position: 'asc' } });
+export async function resolveFunnelStages(
+  prisma: PrismaClient,
+  companyId: string
+): Promise<FunnelStageView[]> {
+  const custom = await prisma.funnelStage.findMany({
+    where: { companyId },
+    orderBy: { position: 'asc' },
+  });
   if (custom.length === 0) return DEFAULT_FUNNEL_STAGES.map((s) => ({ ...s }));
   return custom.map((s) => ({
     id: s.id,
@@ -37,7 +85,7 @@ export async function resolveFunnelStages(prisma: PrismaClient, companyId: strin
     position: s.position,
     statusAnchor: s.statusAnchor,
     isTerminal: s.isTerminal,
-    color: s.color
+    color: s.color,
   }));
 }
 

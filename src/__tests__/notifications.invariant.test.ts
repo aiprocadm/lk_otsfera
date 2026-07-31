@@ -38,14 +38,11 @@ let managers: ManagerFixture[] = [];
 let managerIds: string[] = [];
 let orderIds: string[] = [];
 
-function buildSession(
-  userId: string,
-  managedOrgIds: string[]
-): SessionPayload {
+function buildSession(userId: string, managedOrgIds: string[]): SessionPayload {
   return {
     sub: userId,
     role: 'manager' as Role,
-    managedOrgIds
+    managedOrgIds,
   };
 }
 
@@ -53,24 +50,24 @@ beforeAll(async () => {
   prisma = new PrismaClient();
 
   const company = await prisma.company.create({
-    data: { name: `inv-co-${STAMP}` }
+    data: { name: `inv-co-${STAMP}` },
   });
   companyId = company.id;
   const partner = await prisma.partner.create({
-    data: { name: `inv-p-${STAMP}`, commissionRate: 0.1 }
+    data: { name: `inv-p-${STAMP}`, commissionRate: 0.1 },
   });
   partnerId = partner.id;
 
   const orgA = await prisma.organization.create({
-    data: { name: `inv-orgA-${STAMP}`, partnerId, companyId }
+    data: { name: `inv-orgA-${STAMP}`, partnerId, companyId },
   });
   orgAId = orgA.id;
   const orgB = await prisma.organization.create({
-    data: { name: `inv-orgB-${STAMP}`, partnerId, companyId }
+    data: { name: `inv-orgB-${STAMP}`, partnerId, companyId },
   });
   orgBId = orgB.id;
   const orgC = await prisma.organization.create({
-    data: { name: `inv-orgC-${STAMP}`, partnerId, companyId }
+    data: { name: `inv-orgC-${STAMP}`, partnerId, companyId },
   });
   orgCId = orgC.id;
 
@@ -81,8 +78,8 @@ beforeAll(async () => {
         data: {
           email: `inv-m${i}-${STAMP}@t.local`,
           name: `Inv-M${i}`,
-          role: 'manager'
-        }
+          role: 'manager',
+        },
       })
     )
   );
@@ -102,8 +99,8 @@ beforeAll(async () => {
       { organizationId: orgBId, userId: managerIds[2], isActive: true },
       { organizationId: orgCId, userId: managerIds[4], isActive: true },
       // Deactivated assignment — must NOT contribute to managedOrgIds
-      { organizationId: orgCId, userId: managerIds[3], isActive: false }
-    ]
+      { organizationId: orgCId, userId: managerIds[3], isActive: false },
+    ],
   });
 
   // Build session payloads mirroring the login loader behavior (Task 4):
@@ -112,14 +109,14 @@ beforeAll(async () => {
     managerIds.map(async (id) => {
       const assigns = await prisma.organizationManager.findMany({
         where: { userId: id, isActive: true },
-        select: { organizationId: true }
+        select: { organizationId: true },
       });
       return {
         id,
         session: buildSession(
           id,
           assigns.map((a) => a.organizationId)
-        )
+        ),
       };
     })
   );
@@ -136,8 +133,8 @@ beforeAll(async () => {
       partnerId,
       organizationId: orgAId,
       managerId: managerIds[3],
-      executionStatus: 'in_progress'
-    }
+      executionStatus: 'in_progress',
+    },
   });
   const o2 = await prisma.order.create({
     data: {
@@ -145,8 +142,8 @@ beforeAll(async () => {
       companyId,
       partnerId,
       organizationId: orgBId,
-      executionStatus: 'in_progress'
-    }
+      executionStatus: 'in_progress',
+    },
   });
   const o3 = await prisma.order.create({
     data: {
@@ -155,27 +152,27 @@ beforeAll(async () => {
       partnerId,
       organizationId: orgCId,
       managerId: managerIds[0],
-      executionStatus: 'in_progress'
-    }
+      executionStatus: 'in_progress',
+    },
   });
   orderIds = [o1.id, o2.id, o3.id];
 
   // Historical comments: M0 has commented on O2 (he wasn't otherwise in scope
   // for O2). This is path (c) — historical commenter.
   await prisma.comment.create({
-    data: { orderId: o2.id, authorId: managerIds[0], body: 'past note' }
+    data: { orderId: o2.id, authorId: managerIds[0], body: 'past note' },
   });
 });
 
 afterAll(async () => {
   await prisma.comment.deleteMany({ where: { orderId: { in: orderIds } } });
   await prisma.organizationManager.deleteMany({
-    where: { organizationId: { in: [orgAId, orgBId, orgCId] } }
+    where: { organizationId: { in: [orgAId, orgBId, orgCId] } },
   });
   await prisma.order.deleteMany({ where: { id: { in: orderIds } } });
   await prisma.user.deleteMany({ where: { id: { in: managerIds } } });
   await prisma.organization.deleteMany({
-    where: { id: { in: [orgAId, orgBId, orgCId] } }
+    where: { id: { in: [orgAId, orgBId, orgCId] } },
   });
   await prisma.company.deleteMany({ where: { id: companyId } });
   await prisma.partner.deleteMany({ where: { id: partnerId } });
@@ -187,7 +184,7 @@ describe('notifyManagers / managerOrderScopeFilter visibility invariant', () => 
     for (const orderId of orderIds) {
       const order = await prisma.order.findUnique({
         where: { id: orderId },
-        select: { id: true, managerId: true, organizationId: true }
+        select: { id: true, managerId: true, organizationId: true },
       });
       expect(order).not.toBeNull();
 
@@ -199,12 +196,12 @@ describe('notifyManagers / managerOrderScopeFilter visibility invariant', () => 
       const visibleIds: string[] = [];
       for (const m of managers) {
         const commentsCountByMe = await prisma.comment.count({
-          where: { orderId, authorId: m.id }
+          where: { orderId, authorId: m.id },
         });
         const visible = canSeeOrder(m.session, {
           managerId: order!.managerId,
           organizationId: order!.organizationId,
-          commentsCountByMe
+          commentsCountByMe,
         });
         if (visible) visibleIds.push(m.id);
       }
@@ -232,9 +229,7 @@ describe('notifyManagers / managerOrderScopeFilter visibility invariant', () => 
 
   it('O3 (orgC, managerId=M0, M3 deactivated assignment) recipients = {M0, M4}', async () => {
     const recipients = await resolveManagerRecipients(prisma, orderIds[2]);
-    expect(recipients.map((r) => r.id).sort()).toEqual(
-      [managerIds[0], managerIds[4]].sort()
-    );
+    expect(recipients.map((r) => r.id).sort()).toEqual([managerIds[0], managerIds[4]].sort());
     // Critical: M3 has a deactivated OrganizationManager row for orgC and
     // must NOT appear as a recipient.
     expect(recipients.map((r) => r.id)).not.toContain(managerIds[3]);

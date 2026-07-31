@@ -96,8 +96,12 @@ describe('mimeValidator', () => {
     expect(extensionFor('application/pdf')).toBe('pdf');
     expect(extensionFor('image/jpeg')).toBe('jpg');
     expect(extensionFor('image/png')).toBe('png');
-    expect(extensionFor('application/vnd.openxmlformats-officedocument.wordprocessingml.document')).toBe('docx');
-    expect(extensionFor('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')).toBe('xlsx');
+    expect(
+      extensionFor('application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+    ).toBe('docx');
+    expect(extensionFor('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')).toBe(
+      'xlsx'
+    );
   });
 
   // ── mime_mismatch branches for each magic-byte type ──────────────────────

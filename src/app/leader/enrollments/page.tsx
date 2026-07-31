@@ -13,8 +13,8 @@ export default async function LeaderEnrollmentsPage() {
   const session = await requireManagerLeader();
   const { rows } = await listEnrollmentRequests(prisma, session, {});
   return (
-    <div className='space-y-5'>
-      <h1 className='text-2xl font-semibold text-[#111111]'>Заявки на обучение</h1>
+    <div className="space-y-5">
+      <h1 className="text-2xl font-semibold text-[#111111]">Заявки на обучение</h1>
       <EnrollmentQueue rows={rows} />
     </div>
   );

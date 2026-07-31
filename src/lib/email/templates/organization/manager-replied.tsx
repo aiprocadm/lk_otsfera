@@ -10,15 +10,13 @@ export type OrgManagerRepliedProps = {
 };
 
 export function OrgManagerRepliedTemplate(props: OrgManagerRepliedProps) {
-  const orderLabel = props.orderNumber
-    ? `№ ${props.orderNumber}`
-    : `«${props.orderTitle}»`;
+  const orderLabel = props.orderNumber ? `№ ${props.orderNumber}` : `«${props.orderTitle}»`;
 
   return (
-    <EmailLayout title='Менеджер ответил по заказу'>
+    <EmailLayout title="Менеджер ответил по заказу">
       <p style={emailStyles.paragraph}>
-        Менеджер оставил сообщение по заказу <strong>{orderLabel}</strong>{' '}
-        ({props.organizationName}):
+        Менеджер оставил сообщение по заказу <strong>{orderLabel}</strong> ({props.organizationName}
+        ):
       </p>
       <p style={emailStyles.paragraph}>
         <em>«{props.commentExcerpt}»</em>
@@ -36,20 +34,16 @@ export function OrgManagerRepliedTemplate(props: OrgManagerRepliedProps) {
 }
 
 export function orgManagerRepliedSubject(props: OrgManagerRepliedProps): string {
-  const label = props.orderNumber
-    ? `№ ${props.orderNumber}`
-    : `«${props.orderTitle}»`;
+  const label = props.orderNumber ? `№ ${props.orderNumber}` : `«${props.orderTitle}»`;
   return `Менеджер ответил по заказу ${label}`;
 }
 
 export function orgManagerRepliedText(props: OrgManagerRepliedProps): string {
-  const orderLabel = props.orderNumber
-    ? `№ ${props.orderNumber}`
-    : `«${props.orderTitle}»`;
+  const orderLabel = props.orderNumber ? `№ ${props.orderNumber}` : `«${props.orderTitle}»`;
   return [
     `Менеджер оставил сообщение по заказу ${orderLabel} (${props.organizationName}):`,
     `«${props.commentExcerpt}»`,
     '',
-    `Открыть заказ: ${props.orderUrl}`
+    `Открыть заказ: ${props.orderUrl}`,
   ].join('\n');
 }

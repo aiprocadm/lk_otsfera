@@ -6,13 +6,13 @@ import { useFormAction, type ActionResult } from '@/lib/ui/useFormAction';
 import {
   IntegrationCheckPanel,
   type IntegrationCheckInfo,
-  type IntegrationTestAction
+  type IntegrationTestAction,
 } from '@/components/admin/integration-settings-form';
 
 const ERROR_MAP: Record<string, string> = {
   secrets_key_missing:
     'На сервере не задан ключ шифрования (APP_ENCRYPTION_KEY) — секреты сохранять нельзя. Обратитесь к администратору сервера.',
-  validation: 'Проверьте заполнение полей.'
+  validation: 'Проверьте заполнение полей.',
 };
 
 export function EmailSettingsForm({
@@ -21,7 +21,7 @@ export function EmailSettingsForm({
   apiKeySet,
   apiKeySource,
   testAction,
-  check
+  check,
 }: {
   initialEnabled: boolean;
   initialFrom: string;
@@ -33,16 +33,20 @@ export function EmailSettingsForm({
 }) {
   const [enabled, setEnabled] = useState(initialEnabled);
   const { formAction, pending, errorText, success } = useFormAction<Record<string, never>>({
-    action: saveEmailSettingsAction as (fd: FormData) => Promise<ActionResult<Record<string, never>>>,
+    action: saveEmailSettingsAction as (
+      fd: FormData
+    ) => Promise<ActionResult<Record<string, never>>>,
     errorMap: ERROR_MAP,
-    refresh: true
+    refresh: true,
   });
 
   return (
     <form action={formAction} className="space-y-4 bg-white border border-gray-200 rounded-xl p-5">
       <div>
         <h2 className="font-semibold text-[#111111]">Исходящая почта (уведомления)</h2>
-        <p className="text-xs text-gray-500 mt-0.5">Отправка через Resend. Ключ хранится в базе в зашифрованном виде.</p>
+        <p className="text-xs text-gray-500 mt-0.5">
+          Отправка через Resend. Ключ хранится в базе в зашифрованном виде.
+        </p>
       </div>
 
       <label className="flex items-center gap-2">
@@ -86,12 +90,18 @@ export function EmailSettingsForm({
       </label>
 
       {errorText && (
-        <div className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2" role="alert">
+        <div
+          className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2"
+          role="alert"
+        >
           {errorText}
         </div>
       )}
       {success && (
-        <div className="text-sm text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-2" role="status">
+        <div
+          className="text-sm text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-2"
+          role="status"
+        >
           Настройки сохранены.
         </div>
       )}

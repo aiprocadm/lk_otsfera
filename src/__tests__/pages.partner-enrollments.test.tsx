@@ -9,7 +9,7 @@ const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
@@ -18,18 +18,18 @@ vi.mock('@/lib/auth/requireRole', () => ({ requirePartner }));
 
 const { organizationFindMany, trainingDirectionFindMany } = vi.hoisted(() => ({
   organizationFindMany: vi.fn(),
-  trainingDirectionFindMany: vi.fn().mockResolvedValue([{ id: 'd1', name: 'Охрана труда' }])
+  trainingDirectionFindMany: vi.fn().mockResolvedValue([{ id: 'd1', name: 'Охрана труда' }]),
 }));
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     organization: { findMany: organizationFindMany },
-    trainingDirection: { findMany: trainingDirectionFindMany }
-  }
+    trainingDirection: { findMany: trainingDirectionFindMany },
+  },
 }));
 
 import React from 'react';
 vi.mock('@/components/enrollment/enrollment-wizard', () => ({
-  EnrollmentWizard: () => React.createElement('div', { 'data-testid': 'enrollment-wizard' })
+  EnrollmentWizard: () => React.createElement('div', { 'data-testid': 'enrollment-wizard' }),
 }));
 
 const { listEnrollmentRequests } = vi.hoisted(() => ({ listEnrollmentRequests: vi.fn() }));
@@ -77,10 +77,10 @@ describe('PartnerEnrollmentsPage', () => {
           rejectedReason: null,
           note: null,
           createdAt: new Date('2024-01-01'),
-          reviewedAt: null
-        }
+          reviewedAt: null,
+        },
       ],
-      nextCursor: null
+      nextCursor: null,
     });
     organizationFindMany.mockResolvedValue([{ id: 'org-1', name: 'ООО Ромашка' }]);
 

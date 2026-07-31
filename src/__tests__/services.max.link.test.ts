@@ -90,7 +90,10 @@ describe('linkMaxByCode', () => {
 
   it('успех: пишет maxChatId, чистит код, audit', async () => {
     await generateMaxLinkCode(prisma, session(ids.u1));
-    const u = await prisma.user.findUnique({ where: { id: ids.u1 }, select: { maxLinkCode: true } });
+    const u = await prisma.user.findUnique({
+      where: { id: ids.u1 },
+      select: { maxLinkCode: true },
+    });
     const chatId = `mc-linked-${STAMP}`;
     const result = await linkMaxByCode(prisma, { code: u!.maxLinkCode!, chatId });
     expect(result).toEqual({ ok: true });
@@ -108,7 +111,10 @@ describe('linkMaxByCode', () => {
 
   it('chat_taken когда chatId уже у другого пользователя', async () => {
     await generateMaxLinkCode(prisma, session(ids.u2));
-    const u = await prisma.user.findUnique({ where: { id: ids.u2 }, select: { maxLinkCode: true } });
+    const u = await prisma.user.findUnique({
+      where: { id: ids.u2 },
+      select: { maxLinkCode: true },
+    });
     const result = await linkMaxByCode(prisma, {
       code: u!.maxLinkCode!,
       chatId: `mc-linked-${STAMP}`, // уже у u1

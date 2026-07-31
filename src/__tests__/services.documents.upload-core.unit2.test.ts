@@ -11,7 +11,12 @@ const { uploadMock, addMock, auditMock } = vi.hoisted(() => ({
   auditMock: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('@/lib/storage', () => ({
-  getObjectStorage: () => ({ upload: uploadMock, createSignedUrl: vi.fn(), remove: vi.fn(), download: vi.fn() }),
+  getObjectStorage: () => ({
+    upload: uploadMock,
+    createSignedUrl: vi.fn(),
+    remove: vi.fn(),
+    download: vi.fn(),
+  }),
   documentBucket: 'documents',
   StorageError: class StorageError extends Error {},
 }));

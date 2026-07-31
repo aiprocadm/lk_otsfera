@@ -1,7 +1,14 @@
 import { normalizePhone } from '@/lib/services/inbound/resolve';
 
 export type MangoEvent =
-  | { kind: 'call'; externalId: string; direction?: 'inbound' | 'outbound'; callerNumber?: string; internalNumber?: string; status?: string }
+  | {
+      kind: 'call';
+      externalId: string;
+      direction?: 'inbound' | 'outbound';
+      callerNumber?: string;
+      internalNumber?: string;
+      status?: string;
+    }
   | {
       kind: 'summary';
       externalId: string;

@@ -1,9 +1,7 @@
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 export function isOrgMember(session: SessionPayload, orgId: string): boolean {
-  return !!session.organizationMemberships?.some(
-    (m) => m.isActive && m.organizationId === orgId
-  );
+  return !!session.organizationMemberships?.some((m) => m.isActive && m.organizationId === orgId);
 }
 
 export function isOrgAdmin(session: SessionPayload, orgId: string): boolean {
@@ -28,15 +26,13 @@ export function activeOrgIds(session: SessionPayload): string[] {
     .map((m) => m.organizationId);
 }
 
-export function organizationOrgScopeFilter(
-  session: SessionPayload
-): { id: { in: string[] } } {
+export function organizationOrgScopeFilter(session: SessionPayload): { id: { in: string[] } } {
   return { id: { in: activeOrgIds(session) } };
 }
 
-export function organizationOrderScopeFilter(
-  session: SessionPayload
-): { organizationId: { in: string[] } } {
+export function organizationOrderScopeFilter(session: SessionPayload): {
+  organizationId: { in: string[] };
+} {
   return { organizationId: { in: activeOrgIds(session) } };
 }
 

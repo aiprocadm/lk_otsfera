@@ -9,14 +9,21 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 const { moveTaskAction } = vi.hoisted(() => ({ moveTaskAction: vi.fn() }));
 vi.mock('@/server-actions/tasks', () => ({ moveTaskAction }));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 // TaskDialog itself is covered by its own dedicated test file — stub it here so
 // TaskBoard's coverage isolates to its own logic (columns/cards/drag-drop/move).
 const { taskDialogSpy } = vi.hoisted(() => ({ taskDialogSpy: vi.fn() }));
 vi.mock('@/components/tasks/task-dialog', () => ({
-  TaskDialog: (props: { target: { id: string } | null; onClose: () => void; onSaved: () => void }) => {
+  TaskDialog: (props: {
+    target: { id: string } | null;
+    onClose: () => void;
+    onSaved: () => void;
+  }) => {
     taskDialogSpy(props);
     return React.createElement(
       'div',
@@ -24,7 +31,7 @@ vi.mock('@/components/tasks/task-dialog', () => ({
       React.createElement('button', { onClick: props.onClose }, 'stub-close'),
       React.createElement('button', { onClick: props.onSaved }, 'stub-saved')
     );
-  }
+  },
 }));
 
 import { TaskBoard } from '@/components/tasks/task-board';
@@ -35,12 +42,33 @@ const options: TaskFormOptions = { users: [], organizations: [], orders: [] };
 
 const board: TaskBoardData = {
   columns: [
-    { id: 'col-1', name: 'К выполнению', position: 0, statusAnchor: 'todo', isDoneColumn: false, color: null },
-    { id: 'col-2', name: 'Готово', position: 1, statusAnchor: 'done', isDoneColumn: true, color: null }
+    {
+      id: 'col-1',
+      name: 'К выполнению',
+      position: 0,
+      statusAnchor: 'todo',
+      isDoneColumn: false,
+      color: null,
+    },
+    {
+      id: 'col-2',
+      name: 'Готово',
+      position: 1,
+      statusAnchor: 'done',
+      isDoneColumn: true,
+      color: null,
+    },
   ],
   board: [
     {
-      column: { id: 'col-1', name: 'К выполнению', position: 0, statusAnchor: 'todo', isDoneColumn: false, color: null },
+      column: {
+        id: 'col-1',
+        name: 'К выполнению',
+        position: 0,
+        statusAnchor: 'todo',
+        isDoneColumn: false,
+        color: null,
+      },
       cards: [
         {
           id: 'task-1',
@@ -61,7 +89,7 @@ const board: TaskBoardData = {
           linkedLeadId: null,
           linkedLeadSubject: null,
           linkedDealId: null,
-          linkedDealTitle: null
+          linkedDealTitle: null,
         },
         {
           id: 'task-2',
@@ -82,12 +110,22 @@ const board: TaskBoardData = {
           linkedLeadId: null,
           linkedLeadSubject: null,
           linkedDealId: null,
-          linkedDealTitle: null
-        }
-      ]
+          linkedDealTitle: null,
+        },
+      ],
     },
-    { column: { id: 'col-2', name: 'Готово', position: 1, statusAnchor: 'done', isDoneColumn: true, color: null }, cards: [] }
-  ]
+    {
+      column: {
+        id: 'col-2',
+        name: 'Готово',
+        position: 1,
+        statusAnchor: 'done',
+        isDoneColumn: true,
+        color: null,
+      },
+      cards: [],
+    },
+  ],
 };
 
 function dataTransfer(id: string) {
@@ -97,7 +135,7 @@ function dataTransfer(id: string) {
       store[type] = value;
       if (id) store['text/plain'] = id;
     },
-    getData: (type: string) => store[type] ?? id
+    getData: (type: string) => store[type] ?? id,
   };
 }
 
@@ -126,8 +164,8 @@ describe('TaskBoard', () => {
       ...board,
       board: [
         { column: { ...board.board[0].column, color: '#8B5CF6' }, cards: [] },
-        board.board[1] // color: null → transparent placeholder
-      ]
+        board.board[1], // color: null → transparent placeholder
+      ],
     };
     render(React.createElement(TaskBoard, { board: colored, options }));
     const strips = screen.getAllByTestId('column-color-strip');
@@ -153,9 +191,9 @@ describe('TaskBoard', () => {
       board: [
         {
           column: board.board[0].column,
-          cards: [{ ...board.board[0].cards[0], linkedOrderTitle: null, linkedOrderId: null }]
-        }
-      ]
+          cards: [{ ...board.board[0].cards[0], linkedOrderTitle: null, linkedOrderId: null }],
+        },
+      ],
     };
     render(React.createElement(TaskBoard, { board: b, options }));
     expect(screen.getByText('ООО Ромашка')).toBeTruthy();
@@ -178,11 +216,11 @@ describe('TaskBoard', () => {
               linkedLeadId: 'l1',
               linkedLeadSubject: 'Обучение по ОТ',
               linkedDealId: 'd1',
-              linkedDealTitle: 'Поставка обучения'
-            }
-          ]
-        }
-      ]
+              linkedDealTitle: 'Поставка обучения',
+            },
+          ],
+        },
+      ],
     };
     render(React.createElement(TaskBoard, { board: b, options }));
     expect(screen.getByText('Лид: Обучение по ОТ · Сделка: Поставка обучения')).toBeTruthy();
@@ -194,9 +232,14 @@ describe('TaskBoard', () => {
       board: [
         {
           column: board.board[0].column,
-          cards: [{ ...board.board[0].cards[0], priority: 'legacy_priority' as TaskBoardData['board'][0]['cards'][0]['priority'] }]
-        }
-      ]
+          cards: [
+            {
+              ...board.board[0].cards[0],
+              priority: 'legacy_priority' as TaskBoardData['board'][0]['cards'][0]['priority'],
+            },
+          ],
+        },
+      ],
     };
     render(React.createElement(TaskBoard, { board: b, options }));
     // PRIORITY_LABEL has no entry either, so the badge renders with undefined
@@ -220,7 +263,7 @@ describe('TaskBoard', () => {
     expect(lastCall.target).toBeNull();
   });
 
-  it('the dialog stub\'s onClose/onSaved close it (dialog unmounts)', () => {
+  it("the dialog stub's onClose/onSaved close it (dialog unmounts)", () => {
     render(React.createElement(TaskBoard, { board, options }));
     fireEvent.click(screen.getByRole('button', { name: '+ Новая задача' }));
     expect(screen.getByTestId('task-dialog-stub')).toBeTruthy();
@@ -247,7 +290,8 @@ describe('TaskBoard', () => {
 
   it('drag-leaving a non-highlighted column leaves the highlighted one untouched', () => {
     render(React.createElement(TaskBoard, { board, options }));
-    const firstColumn = screen.getByText('К выполнению').closest('div')!.parentElement as HTMLElement;
+    const firstColumn = screen.getByText('К выполнению').closest('div')!
+      .parentElement as HTMLElement;
     const secondColumn = screen.getByText('Готово').closest('div')!.parentElement as HTMLElement;
     fireEvent.dragOver(firstColumn, { dataTransfer: dataTransfer('') });
     fireEvent.dragLeave(secondColumn);

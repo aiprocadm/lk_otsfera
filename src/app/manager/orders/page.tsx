@@ -19,7 +19,7 @@ type SearchParams = {
 };
 
 export default async function ManagerOrdersPage({
-  searchParams
+  searchParams,
 }: {
   searchParams: Promise<SearchParams>;
 }) {
@@ -27,7 +27,7 @@ export default async function ManagerOrdersPage({
   const sp = await searchParams;
   const [{ rows, nextCursor }, orgs] = await Promise.all([
     listOrders(prisma, { session, ...sp, unassigned: sp.unassigned === '1' }),
-    listOrganizations(prisma, session)
+    listOrganizations(prisma, session),
   ]);
   // §10 ТЗ v0.5: фильтр по рабочему статусу — активные строки справочника.
   const statusOptions = (await getOrderedStatuses(prisma))
@@ -36,20 +36,20 @@ export default async function ManagerOrdersPage({
 
   return (
     <>
-      <div className='mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3'>
+      <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
-          <h1 className='text-2xl font-semibold text-[#111111]'>Заказы</h1>
-          <p className='text-sm text-gray-500 mt-0.5'>Заказы ваших организаций</p>
+          <h1 className="text-2xl font-semibold text-[#111111]">Заказы</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Заказы ваших организаций</p>
         </div>
         {/* ФТ-12.2: выгрузка уважает активные фильтры экрана. */}
         <ExportLink
-          base='/api/manager/orders/export'
+          base="/api/manager/orders/export"
           params={{
             search: sp.search,
             executionStatus: sp.executionStatus,
             financialStatus: sp.financialStatus,
             organizationId: sp.organizationId,
-            unassigned: sp.unassigned
+            unassigned: sp.unassigned,
           }}
         />
       </div>

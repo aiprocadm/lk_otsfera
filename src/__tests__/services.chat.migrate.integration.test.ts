@@ -20,12 +20,12 @@ let managerUserId: string;
 
 async function seedData() {
   const partner = await prisma.partner.create({
-    data: { name: `${PREFIX}-Partner`, slug: PARTNER_SLUG, commissionRate: 0.1 }
+    data: { name: `${PREFIX}-Partner`, slug: PARTNER_SLUG, commissionRate: 0.1 },
   });
   partnerId = partner.id;
 
   const company = await prisma.company.create({
-    data: { name: `${PREFIX}-Company` }
+    data: { name: `${PREFIX}-Company` },
   });
   companyId = company.id;
 
@@ -34,8 +34,8 @@ async function seedData() {
       name: `${PREFIX}-Org`,
       externalId: ORG_EXT_ID,
       partnerId,
-      companyId
-    }
+      companyId,
+    },
   });
   organizationId = org.id;
 
@@ -44,8 +44,8 @@ async function seedData() {
       title: ORDER_TITLE,
       partnerId,
       organizationId,
-      companyId
-    }
+      companyId,
+    },
   });
   orderId = order.id;
 
@@ -54,8 +54,8 @@ async function seedData() {
       email: `${PREFIX}-orguser@test.local`,
       name: `${PREFIX}-OrgUser`,
       role: 'organization',
-      isActive: true
-    }
+      isActive: true,
+    },
   });
   orgUserId = orgUser.id;
 
@@ -64,8 +64,8 @@ async function seedData() {
       email: `${PREFIX}-partneruser@test.local`,
       name: `${PREFIX}-PartnerUser`,
       role: 'partner',
-      isActive: true
-    }
+      isActive: true,
+    },
   });
   partnerUserId = partnerUser.id;
 
@@ -74,8 +74,8 @@ async function seedData() {
       email: `${PREFIX}-manager@test.local`,
       name: `${PREFIX}-Manager`,
       role: 'manager',
-      isActive: true
-    }
+      isActive: true,
+    },
   });
   managerUserId = managerUser.id;
 
@@ -92,8 +92,8 @@ async function seedData() {
       orderId,
       authorId: orgUserId,
       body: 'q1',
-      createdAt: t(0)
-    }
+      createdAt: t(0),
+    },
   });
 
   await prisma.comment.create({
@@ -101,8 +101,8 @@ async function seedData() {
       orderId,
       authorId: managerUserId,
       body: 'a1',
-      createdAt: t(1000)
-    }
+      createdAt: t(1000),
+    },
   });
 
   await prisma.comment.create({
@@ -111,8 +111,8 @@ async function seedData() {
       authorId: partnerUserId,
       body: 'p1',
       attachmentPath: 'uploads/test-attach.pdf',
-      createdAt: t(2000)
-    }
+      createdAt: t(2000),
+    },
   });
 
   await prisma.comment.create({
@@ -120,21 +120,21 @@ async function seedData() {
       orderId,
       authorId: managerUserId,
       body: 'a2',
-      createdAt: t(3000)
-    }
+      createdAt: t(3000),
+    },
   });
 }
 
 async function cleanupData() {
   // FK-safe order: message → threadReadState → orderThread → comment → order → org → company → partner → users
   await prisma.message.deleteMany({
-    where: { thread: { order: { title: ORDER_TITLE } } }
+    where: { thread: { order: { title: ORDER_TITLE } } },
   });
   await prisma.threadReadState.deleteMany({
-    where: { thread: { order: { title: ORDER_TITLE } } }
+    where: { thread: { order: { title: ORDER_TITLE } } },
   });
   await prisma.orderThread.deleteMany({
-    where: { order: { title: ORDER_TITLE } }
+    where: { order: { title: ORDER_TITLE } },
   });
   await prisma.comment.deleteMany({ where: { order: { title: ORDER_TITLE } } });
   await prisma.order.deleteMany({ where: { title: ORDER_TITLE } });
@@ -146,11 +146,11 @@ async function cleanupData() {
   const emailsToClean = [
     `${PREFIX}-orguser@test.local`,
     `${PREFIX}-partneruser@test.local`,
-    `${PREFIX}-manager@test.local`
+    `${PREFIX}-manager@test.local`,
   ];
   const staleUsers = await prisma.user.findMany({
     where: { email: { in: emailsToClean } },
-    select: { id: true }
+    select: { id: true },
   });
   const staleIds = staleUsers.map((u) => u.id);
   if (staleIds.length > 0) {
@@ -178,13 +178,13 @@ describe('migrateCommentsToMessages integration', () => {
 
     // Org thread: messages "q1" (org user) and "a1" (manager → inherited org side)
     const orgThread = await prisma.orderThread.findUnique({
-      where: { orderId_side: { orderId, side: 'org' } }
+      where: { orderId_side: { orderId, side: 'org' } },
     });
     expect(orgThread).not.toBeNull();
 
     const orgMessages = await prisma.message.findMany({
       where: { threadId: orgThread!.id },
-      orderBy: { createdAt: 'asc' }
+      orderBy: { createdAt: 'asc' },
     });
     expect(orgMessages).toHaveLength(2);
     expect(orgMessages[0].body).toBe('q1');
@@ -194,13 +194,13 @@ describe('migrateCommentsToMessages integration', () => {
 
     // Partner thread: messages "p1" (partner user) and "a2" (manager → inherited partner side)
     const partnerThread = await prisma.orderThread.findUnique({
-      where: { orderId_side: { orderId, side: 'partner' } }
+      where: { orderId_side: { orderId, side: 'partner' } },
     });
     expect(partnerThread).not.toBeNull();
 
     const partnerMessages = await prisma.message.findMany({
       where: { threadId: partnerThread!.id },
-      orderBy: { createdAt: 'asc' }
+      orderBy: { createdAt: 'asc' },
     });
     expect(partnerMessages).toHaveLength(2);
     expect(partnerMessages[0].body).toBe('p1');
@@ -224,7 +224,7 @@ describe('migrateCommentsToMessages integration', () => {
     // partner thread last message is "a2" at base+3000
     // (need to re-fetch to get the updated value)
     const partnerThreadUpdated = await prisma.orderThread.findUnique({
-      where: { orderId_side: { orderId, side: 'partner' } }
+      where: { orderId_side: { orderId, side: 'partner' } },
     });
     expect(partnerThreadUpdated!.lastMessageAt.getTime()).toBe(base.getTime() + 3000);
   });
@@ -238,7 +238,7 @@ describe('migrateCommentsToMessages integration', () => {
     expect(first.migrated).toBe(4);
 
     const countAfterFirst = await prisma.message.count({
-      where: { thread: { order: { title: ORDER_TITLE } } }
+      where: { thread: { order: { title: ORDER_TITLE } } },
     });
 
     const second = await migrateCommentsToMessages(prisma);
@@ -247,7 +247,7 @@ describe('migrateCommentsToMessages integration', () => {
 
     // Scoped message count must be unchanged by the second (no-op) run.
     const countAfterSecond = await prisma.message.count({
-      where: { thread: { order: { title: ORDER_TITLE } } }
+      where: { thread: { order: { title: ORDER_TITLE } } },
     });
     expect(countAfterSecond).toBe(countAfterFirst);
   });

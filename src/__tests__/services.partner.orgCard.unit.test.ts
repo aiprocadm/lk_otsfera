@@ -13,17 +13,20 @@ function dec(n: number) {
 function makePrisma(org: object | null, orders: object[] = []) {
   return {
     organization: { findFirst: vi.fn().mockResolvedValue(org) },
-    order: { findMany: vi.fn().mockResolvedValue(orders) }
+    order: { findMany: vi.fn().mockResolvedValue(orders) },
   } as any;
 }
 
 const baseOrg = {
-  id: 'org1', name: 'ООО Тест', inn: '7700000001', kpp: null,
+  id: 'org1',
+  name: 'ООО Тест',
+  inn: '7700000001',
+  kpp: null,
   assignedManagerUserId: null,
   partnerCommissionRate: { toString: () => '0.05' },
   partnerCommissionRateNote: 'VIP',
   companyId: 'co1',
-  company: { name: 'Компания Холдинг' }
+  company: { name: 'Компания Холдинг' },
 };
 
 describe('getOrgCard — unit', () => {
@@ -36,7 +39,7 @@ describe('getOrgCard — unit', () => {
   it('returns org card with legalName from company when companyId is set', async () => {
     const prisma = makePrisma(baseOrg, [
       { totalAmount: dec(1000), paidAmount: dec(200), executionStatus: 'in_progress' },
-      { totalAmount: dec(500), paidAmount: dec(500), executionStatus: 'cancelled' }
+      { totalAmount: dec(500), paidAmount: dec(500), executionStatus: 'cancelled' },
     ]);
     const result = await getOrgCard(prisma, { orgId: 'org1', partnerId: 'p1' });
     expect(result).not.toBeNull();

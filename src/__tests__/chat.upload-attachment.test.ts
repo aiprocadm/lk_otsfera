@@ -17,7 +17,7 @@ describe('uploadAttachment', () => {
   it('returns attachmentPath on 200 ok:true response', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ ok: true, attachmentPath: 'chat/uploads/abc.pdf' })
+      json: async () => ({ ok: true, attachmentPath: 'chat/uploads/abc.pdf' }),
     });
     const result = await uploadAttachment(makeFile(), 'order-1');
     expect(result).toBe('chat/uploads/abc.pdf');
@@ -32,7 +32,7 @@ describe('uploadAttachment', () => {
   it('returns null when response body has ok:false', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ ok: false, error: 'invalid_mime' })
+      json: async () => ({ ok: false, error: 'invalid_mime' }),
     });
     const result = await uploadAttachment(makeFile(), 'order-1');
     expect(result).toBeNull();
@@ -41,7 +41,9 @@ describe('uploadAttachment', () => {
   it('returns null when response JSON is malformed', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
-      json: async () => { throw new SyntaxError('Unexpected token'); }
+      json: async () => {
+        throw new SyntaxError('Unexpected token');
+      },
     });
     const result = await uploadAttachment(makeFile(), 'order-1');
     expect(result).toBeNull();
@@ -56,7 +58,7 @@ describe('uploadAttachment', () => {
   it('includes file, orderId in FormData — no side when omitted', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ ok: true, attachmentPath: 'path/x' })
+      json: async () => ({ ok: true, attachmentPath: 'path/x' }),
     });
     const file = makeFile('test.pdf');
     await uploadAttachment(file, 'order-42');
@@ -71,7 +73,7 @@ describe('uploadAttachment', () => {
   it('includes side in FormData when provided', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ ok: true, attachmentPath: 'path/y' })
+      json: async () => ({ ok: true, attachmentPath: 'path/y' }),
     });
     const file = makeFile('test.docx');
     await uploadAttachment(file, 'order-99', 'partner');
@@ -84,7 +86,7 @@ describe('uploadAttachment', () => {
   it('uses POST method and /api/messages/attachment endpoint', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ ok: true, attachmentPath: 'p' })
+      json: async () => ({ ok: true, attachmentPath: 'p' }),
     });
     await uploadAttachment(makeFile(), 'ord');
     const [url, opts] = fetchMock.mock.calls[0] as [string, RequestInit];

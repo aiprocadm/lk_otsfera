@@ -30,15 +30,14 @@ export function SecurityCard() {
   }
 
   return (
-    <div className='rounded-lg border border-gray-200 bg-white p-4'>
-      <h2 className='text-sm font-semibold text-gray-700'>Безопасность</h2>
-      <p className='mt-1 text-sm text-gray-500'>
-        Завершает работу во всех браузерах и на всех устройствах, включая это.
-        Пригодится, если вы входили с чужого компьютера или потеряли телефон.
-        Дальше нужно будет войти заново.
+    <div className="rounded-lg border border-gray-200 bg-white p-4">
+      <h2 className="text-sm font-semibold text-gray-700">Безопасность</h2>
+      <p className="mt-1 text-sm text-gray-500">
+        Завершает работу во всех браузерах и на всех устройствах, включая это. Пригодится, если вы
+        входили с чужого компьютера или потеряли телефон. Дальше нужно будет войти заново.
       </p>
-      <div className='mt-3'>
-        <Button type='button' variant='danger' onClick={onRevoke} disabled={isPending}>
+      <div className="mt-3">
+        <Button type="button" variant="danger" onClick={onRevoke} disabled={isPending}>
           {isPending ? 'Выходим…' : 'Выйти на всех устройствах'}
         </Button>
       </div>

@@ -7,7 +7,10 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 const { push, refresh } = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push, refresh }) }));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 import { ClientRequestQueue } from '@/components/client-requests/client-request-queue';
@@ -33,7 +36,7 @@ function row(overrides: Partial<ClientRequestRow> = {}): ClientRequestRow {
     createdAt: new Date('2024-01-15T10:00:00Z'),
     triagedAt: null,
     attachmentCount: 0,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -82,15 +85,15 @@ describe('ClientRequestQueue', () => {
             size: 1024,
             mimeType: 'application/pdf',
             createdAt: '2024-01-16T09:00:00Z',
-            createdByUserName: null
-          }
-        ]
-      })
+            createdByUserName: null,
+          },
+        ],
+      }),
     });
     vi.stubGlobal('fetch', fetchMock);
     render(
       React.createElement(ClientRequestQueue, {
-        rows: [row({ body: 'Нужно обучить 10 сотрудников', attachmentCount: 1 })]
+        rows: [row({ body: 'Нужно обучить 10 сотрудников', attachmentCount: 1 })],
       })
     );
 
@@ -119,7 +122,10 @@ describe('ClientRequestQueue', () => {
   it('сервер ответил ошибкой на список вложений → пустой список, обращение читается', async () => {
     // Отказ (403/500) — не то же самое, что обрыв сети. И там, и там вложения
     // просто не показываем: само обращение важнее и должно открыться.
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) })
+    );
     render(React.createElement(ClientRequestQueue, { rows: [row({ body: 'Текст обращения' })] }));
 
     fireEvent.click(screen.getByText('Подробнее'));
@@ -137,8 +143,13 @@ describe('ClientRequestQueue', () => {
       React.createElement(ClientRequestQueue, {
         rows: [
           row({ id: 'cr-org', partnerName: null, organizationName: 'ООО Заказчик' }),
-          row({ id: 'cr-self', partnerName: null, organizationName: null, submittedByName: 'Пётр Сидоров' })
-        ]
+          row({
+            id: 'cr-self',
+            partnerName: null,
+            organizationName: null,
+            submittedByName: 'Пётр Сидоров',
+          }),
+        ],
       })
     );
     expect(screen.getByText('ООО Заказчик')).toBeTruthy();
@@ -150,8 +161,8 @@ describe('ClientRequestQueue', () => {
       React.createElement(ClientRequestQueue, {
         rows: [
           row({ id: 'cr-both', contactPhone: '+79990001122', contactEmail: 'i@x.ru' }),
-          row({ id: 'cr-none', contactPhone: null, contactEmail: null })
-        ]
+          row({ id: 'cr-none', contactPhone: null, contactEmail: null }),
+        ],
       })
     );
     expect(screen.getByText('+79990001122 · i@x.ru')).toBeTruthy();
@@ -200,8 +211,8 @@ describe('ClientRequestQueue', () => {
       React.createElement(ClientRequestQueue, {
         rows: [
           row({ id: 'cr-c', status: 'converted' }),
-          row({ id: 'cr-r', status: 'rejected', rejectedReason: 'Дубликат', subject: 'Второе' })
-        ]
+          row({ id: 'cr-r', status: 'rejected', rejectedReason: 'Дубликат', subject: 'Второе' }),
+        ],
       })
     );
     expect(screen.queryByRole('button', { name: 'Взять в работу' })).toBeNull();
@@ -227,7 +238,9 @@ describe('ClientRequestQueue', () => {
   });
 
   it('«Принять → создать лид»: PATCH convertToLead, тост со ссылкой /manager/leads/<leadId>', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ leadId: 'lead-9' }) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ leadId: 'lead-9' }) });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(ClientRequestQueue, { rows: [row({ status: 'in_triage' })] }));
 
@@ -279,7 +292,13 @@ describe('ClientRequestQueue', () => {
   it('ошибка сервера → toast.error с кодом, refresh не зовётся', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue({ ok: false, status: 409, json: async () => ({ error: 'invalid_status' }) })
+      vi
+        .fn()
+        .mockResolvedValue({
+          ok: false,
+          status: 409,
+          json: async () => ({ error: 'invalid_status' }),
+        })
     );
     render(React.createElement(ClientRequestQueue, { rows: [row({ status: 'submitted' })] }));
 
@@ -297,7 +316,7 @@ describe('ClientRequestQueue', () => {
         status: 500,
         json: async () => {
           throw new Error('bad json');
-        }
+        },
       })
     );
     render(React.createElement(ClientRequestQueue, { rows: [row({ status: 'submitted' })] }));
@@ -320,16 +339,25 @@ describe('ClientRequestQueue', () => {
     let resolveFetch: (v: unknown) => void = () => {};
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockImplementation(() => new Promise((resolve) => { resolveFetch = resolve; }))
+      vi.fn().mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveFetch = resolve;
+          })
+      )
     );
     render(React.createElement(ClientRequestQueue, { rows: [row({ status: 'submitted' })] }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Взять в работу' }));
 
     await waitFor(() =>
-      expect((screen.getByRole('button', { name: 'Взять в работу' }) as HTMLButtonElement).disabled).toBe(true)
+      expect(
+        (screen.getByRole('button', { name: 'Взять в работу' }) as HTMLButtonElement).disabled
+      ).toBe(true)
     );
-    expect((screen.getByRole('button', { name: 'Принять → создать лид' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (screen.getByRole('button', { name: 'Принять → создать лид' }) as HTMLButtonElement).disabled
+    ).toBe(true);
 
     resolveFetch({ ok: true, json: async () => ({}) });
     await waitFor(() => expect(toastSuccess).toHaveBeenCalled());

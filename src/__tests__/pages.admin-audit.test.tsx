@@ -11,25 +11,29 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 const { listAudit, listAuditFilters } = vi.hoisted(() => ({
   listAudit: vi.fn(),
-  listAuditFilters: vi.fn()
+  listAuditFilters: vi.fn(),
 }));
 vi.mock('@/lib/services/admin/auditLog', () => ({ listAudit, listAuditFilters }));
 
 vi.mock('@/components/admin/audit-log-filters', () => ({
-  AuditLogFilters: (props: { entities: unknown[]; actions: unknown[]; actors: unknown[]; current: unknown }) =>
+  AuditLogFilters: (props: {
+    entities: unknown[];
+    actions: unknown[];
+    actors: unknown[];
+    current: unknown;
+  }) =>
     React.createElement(
       'div',
       { 'data-testid': 'audit-filters' },
       JSON.stringify(props.entities),
       JSON.stringify(props.current)
-    )
+    ),
 }));
 
 vi.mock('@/components/admin/audit-log-table', () => ({
   AuditLogTable: (props: { rows: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'audit-table' }, JSON.stringify(props.rows))
+    React.createElement('div', { 'data-testid': 'audit-table' }, JSON.stringify(props.rows)),
 }));
-
 
 const SESSION = { sub: 'admin1', role: 'admin' as const };
 
@@ -43,7 +47,11 @@ describe('AdminAuditPage', () => {
   it('parses filters (entity/action/actorUserId/from/to/q) and passes them to listAudit, renders nextCursor "load more" link', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     listAudit.mockResolvedValue({ rows: [{ id: 'a1' }], nextCursor: 'cur-2' });
-    listAuditFilters.mockResolvedValue({ entities: ['order'], actions: ['order_created'], actors: [] });
+    listAuditFilters.mockResolvedValue({
+      entities: ['order'],
+      actions: ['order_created'],
+      actors: [],
+    });
 
     const { container } = await renderServerComponent(
       AdminAuditPage({
@@ -53,8 +61,8 @@ describe('AdminAuditPage', () => {
           actorUserId: 'u1',
           from: '2024-01-01',
           to: '2024-02-01',
-          q: '  test  '
-        })
+          q: '  test  ',
+        }),
       })
     );
 
@@ -66,7 +74,7 @@ describe('AdminAuditPage', () => {
         action: 'order_created',
         actorUserId: 'u1',
         q: 'test',
-        take: 50
+        take: 50,
       })
     );
     expect(container.textContent).toContain('Аудит');

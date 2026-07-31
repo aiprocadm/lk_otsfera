@@ -7,17 +7,16 @@ const {
   findManyMemberships,
   findUniqueAccessProfile,
   compare,
-  signToken
-} =
-  vi.hoisted(() => ({
-    findUniqueUser: vi.fn(),
-    updateUser: vi.fn(),
-    findManyManagedOrgs: vi.fn(),
-    findManyMemberships: vi.fn(),
-    findUniqueAccessProfile: vi.fn(),
-    compare: vi.fn(),
-    signToken: vi.fn()
-  }));
+  signToken,
+} = vi.hoisted(() => ({
+  findUniqueUser: vi.fn(),
+  updateUser: vi.fn(),
+  findManyManagedOrgs: vi.fn(),
+  findManyMemberships: vi.fn(),
+  findUniqueAccessProfile: vi.fn(),
+  compare: vi.fn(),
+  signToken: vi.fn(),
+}));
 
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
@@ -26,8 +25,8 @@ vi.mock('@/lib/db/prisma', () => ({
     partnerUser: { findUnique: vi.fn().mockResolvedValue(null) },
     organizationUser: { findMany: findManyMemberships },
     organizationManager: { findMany: findManyManagedOrgs },
-    accessProfile: { findUnique: findUniqueAccessProfile }
-  }
+    accessProfile: { findUnique: findUniqueAccessProfile },
+  },
 }));
 vi.mock('bcryptjs', () => ({ default: { compare } }));
 vi.mock('@/lib/auth/jwt', () => ({ signToken }));
@@ -55,7 +54,7 @@ describe('auth login route — manager managedOrgIds', () => {
       externalStudentId: null,
       passwordHash: 'hash',
       managerRole: null,
-      ...overrides
+      ...overrides,
     };
   }
 
@@ -63,7 +62,7 @@ describe('auth login route — manager managedOrgIds', () => {
     return new Request('https://app.local/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password: 'pw' }),
-      headers: { 'content-type': 'application/json' }
+      headers: { 'content-type': 'application/json' },
     });
   }
 
@@ -78,7 +77,7 @@ describe('auth login route — manager managedOrgIds', () => {
       expect.objectContaining({
         sub: 'u-mgr-1',
         role: 'manager',
-        managedOrgIds: []
+        managedOrgIds: [],
       })
     );
   });
@@ -87,7 +86,7 @@ describe('auth login route — manager managedOrgIds', () => {
     findUniqueUser.mockResolvedValue(managerUser());
     findManyManagedOrgs.mockResolvedValue([
       { organizationId: 'org-A' },
-      { organizationId: 'org-B' }
+      { organizationId: 'org-B' },
     ]);
 
     const res = await POST(loginRequest());
@@ -96,13 +95,13 @@ describe('auth login route — manager managedOrgIds', () => {
     // C8 company floor: only orgs in the manager's own company are counted.
     expect(findManyManagedOrgs).toHaveBeenCalledWith({
       where: { userId: 'u-mgr-1', isActive: true, organization: { companyId: 'co-1' } },
-      select: { organizationId: true }
+      select: { organizationId: true },
     });
     expect(signToken).toHaveBeenCalledWith(
       expect.objectContaining({
         sub: 'u-mgr-1',
         role: 'manager',
-        managedOrgIds: ['org-A', 'org-B']
+        managedOrgIds: ['org-A', 'org-B'],
       })
     );
   });
@@ -117,12 +116,12 @@ describe('auth login route — manager managedOrgIds', () => {
 
     expect(findManyManagedOrgs).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { userId: 'u-mgr-1', isActive: true, organization: { companyId: 'co-1' } }
+        where: { userId: 'u-mgr-1', isActive: true, organization: { companyId: 'co-1' } },
       })
     );
     expect(signToken).toHaveBeenCalledWith(
       expect.objectContaining({
-        managedOrgIds: ['org-active']
+        managedOrgIds: ['org-active'],
       })
     );
   });
@@ -140,7 +139,7 @@ describe('auth login route — manager managedOrgIds', () => {
     expect(res.status).toBe(200);
     expect(findManyManagedOrgs).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ organization: { companyId: 'co-1' } })
+        where: expect.objectContaining({ organization: { companyId: 'co-1' } }),
       })
     );
     expect(signToken).toHaveBeenCalledWith(
@@ -167,7 +166,7 @@ describe('auth login route — manager managedOrgIds', () => {
       ...managerUser(),
       id: 'u-admin',
       role: 'admin',
-      email: 'admin@example.com'
+      email: 'admin@example.com',
     });
 
     await POST(loginRequest('admin@example.com'));
@@ -190,7 +189,7 @@ describe('auth login route — manager managedOrgIds', () => {
         sub: 'u-mgr-1',
         role: 'manager',
         managedOrgIds: ['org-A'],
-        managerRole: 'leader'
+        managerRole: 'leader',
       })
     );
   });
@@ -225,7 +224,7 @@ describe('auth login route — manager managedOrgIds', () => {
       financeScope: 'own',
       leadsScope: 'own',
       tasksScope: 'own',
-      capabilities: ['see_commission', 'garbage'] // 'garbage' отбрасывается схемой
+      capabilities: ['see_commission', 'garbage'], // 'garbage' отбрасывается схемой
     });
 
     const res = await POST(loginRequest());
@@ -244,8 +243,8 @@ describe('auth login route — manager managedOrgIds', () => {
           finance: 'own',
           leads: 'own',
           tasks: 'own',
-          capabilities: ['see_commission']
-        }
+          capabilities: ['see_commission'],
+        },
       })
     );
   });

@@ -15,7 +15,7 @@ function makeRow(overrides: Partial<DlqRow> = {}): DlqRow {
     failedReason: 'Timeout',
     failedAt: new Date(),
     attemptsMade: 5,
-    ...overrides
+    ...overrides,
   };
 }
 

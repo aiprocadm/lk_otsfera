@@ -9,20 +9,24 @@ describe('training schema', () => {
     const company = await prisma.company.create({ data: { name: 'C' } });
     const org = await prisma.organization.create({ data: { name: 'O', companyId: company.id } });
     const student = await prisma.student.create({
-      data: { name: 'Иванов', email: 'iv@o.ru', organizationId: org.id }
+      data: { name: 'Иванов', email: 'iv@o.ru', organizationId: org.id },
     });
     const order = await prisma.order.create({
-      data: { title: 'T', companyId: company.id, organizationId: org.id }
+      data: { title: 'T', companyId: company.id, organizationId: org.id },
     });
     const item = await prisma.orderItem.create({
-      data: { orderId: order.id, studentId: student.id, directionId: dir.id }
+      data: { orderId: order.id, studentId: student.id, directionId: dir.id },
     });
     expect(item.trainingStatus).toBe('pending');
     const cert = await prisma.certificate.create({
       data: {
-        studentId: student.id, organizationId: org.id, directionId: dir.id,
-        orderItemId: item.id, number: 'УД-1', issuedAt: new Date()
-      }
+        studentId: student.id,
+        organizationId: org.id,
+        directionId: dir.id,
+        orderItemId: item.id,
+        number: 'УД-1',
+        issuedAt: new Date(),
+      },
     });
     expect(cert.validUntil).toBeNull();
     await prisma.certificate.delete({ where: { id: cert.id } });
@@ -39,14 +43,18 @@ describe('training schema', () => {
     const company = await prisma.company.create({ data: { name: 'C2' } });
     const org = await prisma.organization.create({ data: { name: 'O2', companyId: company.id } });
     const student = await prisma.student.create({
-      data: { name: 'Петров', email: 'pe@o2.ru', organizationId: org.id }
+      data: { name: 'Петров', email: 'pe@o2.ru', organizationId: org.id },
     });
     const order = await prisma.order.create({
-      data: { title: 'T2', companyId: company.id, organizationId: org.id }
+      data: { title: 'T2', companyId: company.id, organizationId: org.id },
     });
-    await prisma.orderItem.create({ data: { orderId: order.id, studentId: student.id, directionId: dir.id } });
+    await prisma.orderItem.create({
+      data: { orderId: order.id, studentId: student.id, directionId: dir.id },
+    });
     await expect(
-      prisma.orderItem.create({ data: { orderId: order.id, studentId: student.id, directionId: dir.id } })
+      prisma.orderItem.create({
+        data: { orderId: order.id, studentId: student.id, directionId: dir.id },
+      })
     ).rejects.toThrow();
     await prisma.orderItem.deleteMany({ where: { orderId: order.id } });
     await prisma.order.delete({ where: { id: order.id } });

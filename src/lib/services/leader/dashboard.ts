@@ -37,7 +37,7 @@ export type LeaderDashboard = {
 
 const EMPTY: LeaderDashboard = {
   kpis: { managers: 0, activeOrders: 0, debt: '0.00', commission: null },
-  perManager: []
+  perManager: [],
 };
 
 /**
@@ -62,7 +62,7 @@ export async function leaderDashboard(
   const now = new Date();
   const activeWhere: Prisma.OrderWhereInput = {
     companyId,
-    executionStatus: { in: [...ACTIVE_EXEC] }
+    executionStatus: { in: [...ACTIVE_EXEC] },
   };
 
   const [managers, activeOrders, activeGroup, overdueGroup, finance] = await Promise.all([
@@ -72,20 +72,20 @@ export async function leaderDashboard(
       by: ['managerId'],
       where: activeWhere,
       _count: { _all: true },
-      _sum: { totalAmount: true, paidAmount: true }
+      _sum: { totalAmount: true, paidAmount: true },
     }),
     prisma.order.groupBy({
       by: ['managerId'],
       where: {
         companyId,
         deadline: { lt: now },
-        executionStatus: { notIn: [...TERMINAL_EXEC] }
+        executionStatus: { notIn: [...TERMINAL_EXEC] },
       },
-      _count: { _all: true }
+      _count: { _all: true },
     }),
     // R1.2: дашборду нужны только summary.outstanding и commission-итоги —
     // ledger платежей (top-50 на каждую организацию) не тянем.
-    getManagerFinanceOverview(prisma, session, { teamMode: true, includePayments: false })
+    getManagerFinanceOverview(prisma, session, { teamMode: true, includePayments: false }),
   ]);
 
   const aggBy = new Map(activeGroup.map((g) => [g.managerId, g]));
@@ -110,7 +110,7 @@ export async function leaderDashboard(
       activeOrders: agg?._count._all ?? 0,
       totalAmount: new Prisma.Decimal(agg?._sum.totalAmount ?? 0).toFixed(2),
       paidAmount: new Prisma.Decimal(agg?._sum.paidAmount ?? 0).toFixed(2),
-      overdue: overdueBy.get(m.id) ?? 0
+      overdue: overdueBy.get(m.id) ?? 0,
     };
   });
 
@@ -129,8 +129,8 @@ export async function leaderDashboard(
       managers: managers.length,
       activeOrders,
       debt: finance.summary.outstanding,
-      commission: hasCommission ? commissionTotal.toFixed(2) : null
+      commission: hasCommission ? commissionTotal.toFixed(2) : null,
     },
-    perManager
+    perManager,
   };
 }

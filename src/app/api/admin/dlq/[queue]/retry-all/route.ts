@@ -36,5 +36,9 @@ export async function POST(_req: Request, { params }: Params) {
     after: { retried: result.retried, failed: result.failed, truncated: result.truncated },
   }).catch((e) => log.warn('[dlq/retry-all] audit failed', e));
 
-  return NextResponse.json({ retried: result.retried, failed: result.failed, truncated: result.truncated });
+  return NextResponse.json({
+    retried: result.retried,
+    failed: result.failed,
+    truncated: result.truncated,
+  });
 }

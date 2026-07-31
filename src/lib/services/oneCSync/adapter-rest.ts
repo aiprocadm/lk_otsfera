@@ -1,9 +1,21 @@
 import { OneCLeadPushResultSchema } from './schemas';
 import { withTimeout, withRetry, OneCHttpError } from './resilience';
-import { ENDPOINTS, buildAuthHeader, buildUrl, buildLeadBody, parseEnvelope, normalizeOrderRecord } from './rest-wire';
+import {
+  ENDPOINTS,
+  buildAuthHeader,
+  buildUrl,
+  buildLeadBody,
+  parseEnvelope,
+  normalizeOrderRecord,
+} from './rest-wire';
 import type {
-  OneCOrgDto, OneCOrderDto, OneCPaymentDto, OneCDocumentDto,
-  OneCLeadPushPayload, OneCLeadPushResult, SyncCursor
+  OneCOrgDto,
+  OneCOrderDto,
+  OneCPaymentDto,
+  OneCDocumentDto,
+  OneCLeadPushPayload,
+  OneCLeadPushResult,
+  SyncCursor,
 } from './dto';
 import type { OneCAdapter } from './adapter';
 
@@ -17,7 +29,8 @@ async function doFetch(url: string, init: RequestInit, signal: AbortSignal): Pro
   const res = await fetch(url, { ...init, signal });
   if (!res.ok) {
     const retryAfterHeader = Number(res.headers?.get?.('retry-after'));
-    const retryAfter = Number.isFinite(retryAfterHeader) && retryAfterHeader > 0 ? retryAfterHeader : undefined;
+    const retryAfter =
+      Number.isFinite(retryAfterHeader) && retryAfterHeader > 0 ? retryAfterHeader : undefined;
     throw new OneCHttpError(res.status, `1C responded ${res.status} for ${url}`, retryAfter);
   }
   return res.json();
@@ -37,14 +50,18 @@ export class RestOneCAdapter implements OneCAdapter {
     let pages = 0;
     do {
       const url = buildUrl(this.config.baseUrl, path, cursor, pageCursor);
-      const raw = await withRetry(() => withTimeout((signal) => doFetch(url, { method: 'GET', headers }, signal)));
+      const raw = await withRetry(() =>
+        withTimeout((signal) => doFetch(url, { method: 'GET', headers }, signal))
+      );
       const { items, nextCursor } = parseEnvelope(raw);
       all.push(...items);
       pageCursor = nextCursor;
       pages += 1;
       /* v8 ignore next 3 -- MAX_PAGES=10_000 is a runaway guard; hitting it in a unit test would require 10k fetch mock calls */
       if (pages >= MAX_PAGES) {
-        throw new Error(`1C pagination exceeded ${MAX_PAGES} pages for ${path} — aborting to avoid a runaway loop`);
+        throw new Error(
+          `1C pagination exceeded ${MAX_PAGES} pages for ${path} — aborting to avoid a runaway loop`
+        );
       }
     } while (pageCursor);
     return all;
@@ -68,9 +85,15 @@ export class RestOneCAdapter implements OneCAdapter {
 
   async pushLead(payload: OneCLeadPushPayload): Promise<OneCLeadPushResult> {
     const url = buildUrl(this.config.baseUrl, ENDPOINTS.leadPush, {});
-    const headers = { ...buildAuthHeader(this.config.token), 'Content-Type': 'application/json', Accept: 'application/json' };
+    const headers = {
+      ...buildAuthHeader(this.config.token),
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    };
     const body = JSON.stringify(buildLeadBody(payload));
-    const raw = await withRetry(() => withTimeout((signal) => doFetch(url, { method: 'POST', headers, body }, signal)));
+    const raw = await withRetry(() =>
+      withTimeout((signal) => doFetch(url, { method: 'POST', headers, body }, signal))
+    );
     return OneCLeadPushResultSchema.parse(raw);
   }
 }

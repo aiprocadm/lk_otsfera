@@ -10,7 +10,7 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { requireManager, requireManagerLeader, requireAdmin } = vi.hoisted(() => ({
   requireManager: vi.fn(),
   requireManagerLeader: vi.fn(),
-  requireAdmin: vi.fn()
+  requireAdmin: vi.fn(),
 }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager, requireManagerLeader, requireAdmin }));
 
@@ -30,17 +30,26 @@ const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
 vi.mock('@/components/intake/intake-table', () => ({
   IntakeTable: (props: { items: unknown[]; viewerPrefix: string; currentUserId: string }) =>
-    React.createElement('div', { 'data-testid': 'intake-table' }, props.viewerPrefix, `items:${props.items.length}`)
+    React.createElement(
+      'div',
+      { 'data-testid': 'intake-table' },
+      props.viewerPrefix,
+      `items:${props.items.length}`
+    ),
 }));
 vi.mock('@/components/intake/intake-filters', () => ({
   IntakeFilters: (props: { managers: { name: string }[] }) =>
-    React.createElement('div', { 'data-testid': 'intake-filters' }, props.managers.map((m) => m.name).join(','))
+    React.createElement(
+      'div',
+      { 'data-testid': 'intake-filters' },
+      props.managers.map((m) => m.name).join(',')
+    ),
 }));
 vi.mock('@/components/ui', async (importOriginal) => {
   const mod = (await importOriginal()) as Record<string, unknown>;
@@ -65,7 +74,10 @@ beforeEach(() => {
   requireManagerLeader.mockResolvedValue({ ...SESSION, managerRole: 'leader' });
   requireAdmin.mockResolvedValue({ sub: 'a1', role: 'admin' });
   listIntake.mockResolvedValue(OK_RESULT);
-  listCompanyManagers.mockResolvedValue([{ id: 'm2', name: 'Мария', isActive: true }, { id: 'm3', name: 'Неактивный', isActive: false }]);
+  listCompanyManagers.mockResolvedValue([
+    { id: 'm2', name: 'Мария', isActive: true },
+    { id: 'm3', name: 'Неактивный', isActive: false },
+  ]);
   userFindMany.mockResolvedValue([{ id: 'm2', name: 'Мария' }]);
 });
 
@@ -79,8 +91,13 @@ describe('ManagerIntakePage', () => {
 
   it('рендерит таблицу без фильтров; skip → page', async () => {
     const { container } = await renderServerComponent(ManagerIntakePage(sp({ skip: '50' })));
-    expect(listIntake).toHaveBeenCalledWith({ user: { findMany: userFindMany } }, SESSION, { page: 2, pageSize: 50 });
-    expect(container.querySelector('[data-testid="intake-table"]')?.textContent).toContain('/manager');
+    expect(listIntake).toHaveBeenCalledWith({ user: { findMany: userFindMany } }, SESSION, {
+      page: 2,
+      pageSize: 50,
+    });
+    expect(container.querySelector('[data-testid="intake-table"]')?.textContent).toContain(
+      '/manager'
+    );
     expect(container.querySelector('[data-testid="intake-filters"]')).toBeNull();
     expect(container.textContent).toContain('Входящие в работу');
   });
@@ -91,7 +108,7 @@ describe('пагинация и фильтры из адреса — крайн�
     ['параметра нет вовсе', {}],
     ['skip повторён (массив)', { skip: ['10', '20'] as unknown as string }],
     ['skip не число', { skip: 'abc' }],
-    ['skip отрицательный', { skip: '-40' }]
+    ['skip отрицательный', { skip: '-40' }],
   ])('%s → первая страница, а не падение', async (_label, params) => {
     // Адрес правят руками и присылают в мессенджерах. Любой мусор в ?skip=
     // должен означать «первая страница», а не ошибку и не отрицательный сдвиг.
@@ -101,7 +118,7 @@ describe('пагинация и фильтры из адреса — крайн�
 
   it.each([
     ['руководитель', 'leader'],
-    ['админ', 'admin']
+    ['админ', 'admin'],
   ])('%s: мусор в ?skip= → первая страница', async (_label, who) => {
     const page = who === 'leader' ? LeaderIntakePage : AdminIntakePage;
     await renderServerComponent(page(sp({ skip: 'abc' })));
@@ -114,7 +131,7 @@ describe('пагинация и фильтры из адреса — крайн�
 
   it.each([
     ['админ', 'admin'],
-    ['руководитель', 'leader']
+    ['руководитель', 'leader'],
   ])('%s: ?assignee= повторён (массив) → трактуется как «все»', async (_label, who) => {
     const page = who === 'admin' ? AdminIntakePage : LeaderIntakePage;
     await renderServerComponent(page(sp({ assignee: ['m2', 'm3'] as unknown as string })));
@@ -155,7 +172,9 @@ describe('пагинация и фильтры из адреса — крайн�
 
 describe('LeaderIntakePage', () => {
   it('фильтры: только активные менеджеры; assignee/unassigned прокидываются', async () => {
-    const { container } = await renderServerComponent(LeaderIntakePage(sp({ assignee: 'm2', unassigned: '1' })));
+    const { container } = await renderServerComponent(
+      LeaderIntakePage(sp({ assignee: 'm2', unassigned: '1' }))
+    );
     expect(listIntake).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ managerRole: 'leader' }),
@@ -163,7 +182,9 @@ describe('LeaderIntakePage', () => {
     );
     const filters = container.querySelector('[data-testid="intake-filters"]');
     expect(filters?.textContent).toBe('Мария');
-    expect(container.querySelector('[data-testid="intake-table"]')?.textContent).toContain('/leader');
+    expect(container.querySelector('[data-testid="intake-table"]')?.textContent).toContain(
+      '/leader'
+    );
   });
 
   it('флаг выключен → notFound', async () => {
@@ -182,7 +203,9 @@ describe('AdminIntakePage', () => {
   it('зеркало: staff-список из prisma, viewerPrefix /admin', async () => {
     const { container } = await renderServerComponent(AdminIntakePage(sp()));
     expect(userFindMany).toHaveBeenCalled();
-    expect(container.querySelector('[data-testid="intake-table"]')?.textContent).toContain('/admin');
+    expect(container.querySelector('[data-testid="intake-table"]')?.textContent).toContain(
+      '/admin'
+    );
     expect(container.querySelector('[data-testid="intake-filters"]')?.textContent).toBe('Мария');
   });
 

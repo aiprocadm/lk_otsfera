@@ -22,7 +22,9 @@ const textField: FieldWithValue = {
     fieldType: 'text',
     options: [],
     required: false,
-    sortOrder: 1, helpText: null, editable: true
+    sortOrder: 1,
+    helpText: null,
+    editable: true,
   },
   value: 'ABC-123',
 };
@@ -35,7 +37,9 @@ const boolField: FieldWithValue = {
     fieldType: 'boolean',
     options: [],
     required: false,
-    sortOrder: 2, helpText: null, editable: true
+    sortOrder: 2,
+    helpText: null,
+    editable: true,
   },
   value: 'true',
 };
@@ -50,7 +54,9 @@ const dateField: FieldWithValue = {
     fieldType: 'date',
     options: [],
     required: false,
-    sortOrder: 3, helpText: null, editable: true
+    sortOrder: 3,
+    helpText: null,
+    editable: true,
   },
   value: '2026-07-01',
 };
@@ -63,7 +69,9 @@ const selectField: FieldWithValue = {
     fieldType: 'select',
     options: ['Низкий', 'Высокий'],
     required: true,
-    sortOrder: 4, helpText: null, editable: true
+    sortOrder: 4,
+    helpText: null,
+    editable: true,
   },
   value: 'Высокий',
 };
@@ -74,9 +82,7 @@ const nullValueField: FieldWithValue = { ...textField, value: null };
 
 describe('OrderCustomFields — empty fields', () => {
   it('рендерит null (ничего) когда fields пустой массив', () => {
-    const html = renderToString(
-      <OrderCustomFields fields={[]} orderId='o1' editable={false} />
-    );
+    const html = renderToString(<OrderCustomFields fields={[]} orderId="o1" editable={false} />);
     expect(html).toBe('');
   });
 });
@@ -86,14 +92,14 @@ describe('OrderCustomFields — empty fields', () => {
 describe('OrderCustomFields — read-only (editable=false)', () => {
   it('показывает заголовок секции', () => {
     const html = renderToString(
-      <OrderCustomFields fields={[textField]} orderId='o1' editable={false} />
+      <OrderCustomFields fields={[textField]} orderId="o1" editable={false} />
     );
     expect(html).toContain('Дополнительные поля');
   });
 
   it('показывает label и текстовое значение', () => {
     const html = renderToString(
-      <OrderCustomFields fields={[textField]} orderId='o1' editable={false} />
+      <OrderCustomFields fields={[textField]} orderId="o1" editable={false} />
     );
     expect(html).toContain('Код проекта');
     expect(html).toContain('ABC-123');
@@ -101,7 +107,7 @@ describe('OrderCustomFields — read-only (editable=false)', () => {
 
   it('boolean true → «Да»', () => {
     const html = renderToString(
-      <OrderCustomFields fields={[boolField]} orderId='o1' editable={false} />
+      <OrderCustomFields fields={[boolField]} orderId="o1" editable={false} />
     );
     expect(html).toContain('Да');
     expect(html).not.toContain('Нет');
@@ -109,14 +115,14 @@ describe('OrderCustomFields — read-only (editable=false)', () => {
 
   it('boolean false → «Нет»', () => {
     const html = renderToString(
-      <OrderCustomFields fields={[boolFieldFalse]} orderId='o1' editable={false} />
+      <OrderCustomFields fields={[boolFieldFalse]} orderId="o1" editable={false} />
     );
     expect(html).toContain('Нет');
   });
 
   it('date value отформатирован как DD.MM.YYYY', () => {
     const html = renderToString(
-      <OrderCustomFields fields={[dateField]} orderId='o1' editable={false} />
+      <OrderCustomFields fields={[dateField]} orderId="o1" editable={false} />
     );
     // fmtDate formats as DD.MM.YYYY in ru-RU locale
     expect(html).toContain('01.07.2026');
@@ -124,14 +130,14 @@ describe('OrderCustomFields — read-only (editable=false)', () => {
 
   it('null value показывает «—»', () => {
     const html = renderToString(
-      <OrderCustomFields fields={[nullValueField]} orderId='o1' editable={false} />
+      <OrderCustomFields fields={[nullValueField]} orderId="o1" editable={false} />
     );
     expect(html).toContain('—');
   });
 
   it('НЕ рендерит кнопку «Сохранить»', () => {
     const html = renderToString(
-      <OrderCustomFields fields={[textField]} orderId='o1' editable={false} />
+      <OrderCustomFields fields={[textField]} orderId="o1" editable={false} />
     );
     expect(html).not.toContain('Сохранить поля');
   });
@@ -142,14 +148,14 @@ describe('OrderCustomFields — read-only (editable=false)', () => {
 describe('OrderCustomFields — edit mode (editable=true)', () => {
   it('показывает заголовок секции', () => {
     const html = renderToString(
-      <OrderCustomFields fields={[textField]} orderId='o1' editable={true} />
+      <OrderCustomFields fields={[textField]} orderId="o1" editable={true} />
     );
     expect(html).toContain('Дополнительные поля');
   });
 
   it('рендерит текстовый input с предзаполненным значением', () => {
     const html = renderToString(
-      <OrderCustomFields fields={[textField]} orderId='o1' editable={true} />
+      <OrderCustomFields fields={[textField]} orderId="o1" editable={true} />
     );
     expect(html).toContain('type="text"');
     expect(html).toContain('ABC-123');
@@ -157,14 +163,14 @@ describe('OrderCustomFields — edit mode (editable=true)', () => {
 
   it('рендерит date input', () => {
     const html = renderToString(
-      <OrderCustomFields fields={[dateField]} orderId='o1' editable={true} />
+      <OrderCustomFields fields={[dateField]} orderId="o1" editable={true} />
     );
     expect(html).toContain('type="date"');
   });
 
   it('рендерит select с options для select-поля', () => {
     const html = renderToString(
-      <OrderCustomFields fields={[selectField]} orderId='o1' editable={true} />
+      <OrderCustomFields fields={[selectField]} orderId="o1" editable={true} />
     );
     expect(html).toContain('<select');
     expect(html).toContain('Низкий');
@@ -173,7 +179,7 @@ describe('OrderCustomFields — edit mode (editable=true)', () => {
 
   it('рендерит checkbox для boolean-поля', () => {
     const html = renderToString(
-      <OrderCustomFields fields={[boolField]} orderId='o1' editable={true} />
+      <OrderCustomFields fields={[boolField]} orderId="o1" editable={true} />
     );
     expect(html).toContain('type="checkbox"');
     expect(html).toContain('Срочный');
@@ -181,14 +187,14 @@ describe('OrderCustomFields — edit mode (editable=true)', () => {
 
   it('показывает кнопку «Сохранить поля»', () => {
     const html = renderToString(
-      <OrderCustomFields fields={[textField]} orderId='o1' editable={true} />
+      <OrderCustomFields fields={[textField]} orderId="o1" editable={true} />
     );
     expect(html).toContain('Сохранить поля');
   });
 
   it('required поле помечается звёздочкой', () => {
     const html = renderToString(
-      <OrderCustomFields fields={[selectField]} orderId='o1' editable={true} />
+      <OrderCustomFields fields={[selectField]} orderId="o1" editable={true} />
     );
     // Label + required asterisk
     expect(html).toContain('Приоритет');

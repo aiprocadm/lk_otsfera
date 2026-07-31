@@ -1,17 +1,41 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { requireSession } = vi.hoisted(() => ({ requireSession: vi.fn() }));
-const { previewPaymentImport, commitPaymentImport, searchResolveOrgs, listResolveOrders } = vi.hoisted(() => ({ previewPaymentImport: vi.fn(), commitPaymentImport: vi.fn(), searchResolveOrgs: vi.fn(), listResolveOrders: vi.fn() }));
+const { previewPaymentImport, commitPaymentImport, searchResolveOrgs, listResolveOrders } =
+  vi.hoisted(() => ({
+    previewPaymentImport: vi.fn(),
+    commitPaymentImport: vi.fn(),
+    searchResolveOrgs: vi.fn(),
+    listResolveOrders: vi.fn(),
+  }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireSession }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
-vi.mock('@/lib/services/import/oneCAccountCard', () => ({ previewPaymentImport, commitPaymentImport, resolveQueueRow: vi.fn(), dismissQueueRow: vi.fn(), searchResolveOrgs, listResolveOrders }));
+vi.mock('@/lib/services/import/oneCAccountCard', () => ({
+  previewPaymentImport,
+  commitPaymentImport,
+  resolveQueueRow: vi.fn(),
+  dismissQueueRow: vi.fn(),
+  searchResolveOrgs,
+  listResolveOrders,
+}));
 
-import { previewPaymentImportAction, searchResolveOrgsAction, listResolveOrdersAction } from '@/server-actions/payment-import';
+import {
+  previewPaymentImportAction,
+  searchResolveOrgsAction,
+  listResolveOrdersAction,
+} from '@/server-actions/payment-import';
 
-beforeEach(() => { vi.clearAllMocks(); requireSession.mockResolvedValue({ sub: 'u1', role: 'admin' }); });
+beforeEach(() => {
+  vi.clearAllMocks();
+  requireSession.mockResolvedValue({ sub: 'u1', role: 'admin' });
+});
 
-function form(file?: File): FormData { const f = new FormData(); if (file) f.set('file', file); return f; }
+function form(file?: File): FormData {
+  const f = new FormData();
+  if (file) f.set('file', file);
+  return f;
+}
 
 describe('previewPaymentImportAction', () => {
   it('rejects non-file', async () => {
@@ -19,7 +43,10 @@ describe('previewPaymentImportAction', () => {
   });
   it('rejects wrong extension', async () => {
     const file = new File(['x'], 'c.pdf', { type: 'application/pdf' });
-    expect(await previewPaymentImportAction(form(file))).toEqual({ ok: false, error: 'invalid_file' });
+    expect(await previewPaymentImportAction(form(file))).toEqual({
+      ok: false,
+      error: 'invalid_file',
+    });
   });
   it('accepts .xls and delegates', async () => {
     previewPaymentImport.mockResolvedValue({ ok: true, plan: { counts: {} } });
@@ -49,6 +76,10 @@ describe('listResolveOrdersAction', () => {
     listResolveOrders.mockResolvedValue([{ id: 'ord1', orderNumber: '7', title: 'X' }]);
     const res = await listResolveOrdersAction({ organizationId: 'o1' });
     expect(res).toEqual([{ id: 'ord1', orderNumber: '7', title: 'X' }]);
-    expect(listResolveOrders).toHaveBeenCalledWith({}, { sub: 'u1', role: 'admin' }, { organizationId: 'o1' });
+    expect(listResolveOrders).toHaveBeenCalledWith(
+      {},
+      { sub: 'u1', role: 'admin' },
+      { organizationId: 'o1' }
+    );
   });
 });

@@ -3,7 +3,7 @@ import React from 'react';
 import { renderToString } from 'react-dom/server';
 import {
   certificateStatus,
-  CertificateStatusBadge
+  CertificateStatusBadge,
 } from '@/components/certificates/certificate-status-badge';
 
 /**
@@ -12,7 +12,8 @@ import {
  */
 
 const TODAY = new Date('2026-07-24T15:30:00');
-const day = (offset: number) => new Date(new Date('2026-07-24T00:00:00').getTime() + offset * 24 * 3600 * 1000);
+const day = (offset: number) =>
+  new Date(new Date('2026-07-24T00:00:00').getTime() + offset * 24 * 3600 * 1000);
 
 describe('certificateStatus', () => {
   it('null (бессрочное) → active', () => {

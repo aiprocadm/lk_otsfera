@@ -14,8 +14,8 @@ export const INFECTED_HIDDEN_WHERE = {
  * Returns the where-fragment for the given session: an empty object for
  * platform admins (see everything), `INFECTED_HIDDEN_WHERE` for everyone else.
  */
-export function hideInfectedForSession(
-  session: Pick<SessionPayload, 'role'>,
-): { scanStatus?: { not: 'infected' } } {
+export function hideInfectedForSession(session: Pick<SessionPayload, 'role'>): {
+  scanStatus?: { not: 'infected' };
+} {
   return session.role === 'admin' ? {} : INFECTED_HIDDEN_WHERE;
 }

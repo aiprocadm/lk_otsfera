@@ -31,10 +31,10 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang='ru'>
+    <html lang="ru">
       <body>
         {children}
-        <Toaster richColors position='top-right' />
+        <Toaster richColors position="top-right" />
         {isFeatureEnabled('pwa_installer') && <PwaInstaller />}
       </body>
     </html>

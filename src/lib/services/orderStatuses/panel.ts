@@ -52,7 +52,7 @@ export async function getOrderStatusPanel(
   // (§2 CLAUDE.md — страницы тонкие).
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    select: { id: true, statusId: true }
+    select: { id: true, statusId: true },
   });
 
   const all = await getOrderedStatuses(prisma);
@@ -81,7 +81,9 @@ export async function getOrderStatusPanel(
   const historyRows = await listStatusHistory(prisma, orderId);
 
   return {
-    current: current ? { id: current.id, label: current.label, isTerminal: current.isTerminal } : null,
+    current: current
+      ? { id: current.id, label: current.label, isTerminal: current.isTerminal }
+      : null,
     forward,
     backward,
     terminal: staff && terminalRow ? view(terminalRow) : null,
@@ -91,7 +93,7 @@ export async function getOrderStatusPanel(
       fromLabel: h.from?.label ?? null,
       toLabel: h.to.label,
       userName: h.user?.name ?? h.user?.email ?? null,
-      reason: h.reason
-    }))
+      reason: h.reason,
+    })),
   };
 }

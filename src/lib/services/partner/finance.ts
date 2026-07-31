@@ -28,7 +28,7 @@ export async function getFinanceKpis(
 ): Promise<FinanceKpis> {
   const statements = await prisma.commissionStatement.findMany({
     where: { partnerId, supersededBy: null },
-    select: { status: true, totalCommissionAmount: true }
+    select: { status: true, totalCommissionAmount: true },
   });
 
   let earnedTotal = 0;
@@ -62,7 +62,7 @@ export async function listStatements(
 
   const where: Prisma.CommissionStatementWhereInput = {
     partnerId,
-    supersededBy: null
+    supersededBy: null,
   };
   if (status) where.status = status as CommissionStatement['status'];
   if (from || to) {
@@ -84,14 +84,14 @@ export async function listStatements(
       totalCommissionAmount: true,
       pdfPath: true,
       xlsxPath: true,
-      _count: { select: { items: true } }
-    }
+      _count: { select: { items: true } },
+    },
   });
 
   return rows.map(({ _count, totalCommissionAmount, ...s }) => ({
     ...s,
     totalCommissionAmount: totalCommissionAmount.toFixed(2),
-    itemCount: _count.items
+    itemCount: _count.items,
   }));
 }
 
@@ -102,6 +102,6 @@ export async function getStatementWithItems(
 ) {
   return prisma.commissionStatement.findFirst({
     where: { id: statementId, partnerId },
-    include: { items: { orderBy: { organizationName: 'asc' } } }
+    include: { items: { orderBy: { organizationName: 'asc' } } },
   });
 }

@@ -10,7 +10,7 @@ import { REDACTED } from '@/lib/logging/scrub';
 const { init, captureRequestError, assertEnvOnBoot } = vi.hoisted(() => ({
   init: vi.fn(),
   captureRequestError: vi.fn(),
-  assertEnvOnBoot: vi.fn()
+  assertEnvOnBoot: vi.fn(),
 }));
 vi.mock('@sentry/nextjs', () => ({ init, captureRequestError }));
 vi.mock('@/lib/env', () => ({ assertEnvOnBoot }));
@@ -39,7 +39,7 @@ describe('register', () => {
       dsn: 'https://k@sentry.example.ru/1',
       environment: 'staging',
       tracesSampleRate: 0,
-      sendDefaultPii: false
+      sendDefaultPii: false,
     });
     // beforeSend вычищает ПДн из события
     const scrubbed = opts.beforeSend({ message: 'to a@b.ru', user: { id: 1 } });
@@ -89,9 +89,11 @@ describe('register', () => {
 });
 
 describe('onRequestError', () => {
-  const args = [new Error('boom'), { path: '/api/x' }, { routerKind: 'App Router' }] as unknown as Parameters<
-    typeof onRequestError
-  >;
+  const args = [
+    new Error('boom'),
+    { path: '/api/x' },
+    { routerKind: 'App Router' },
+  ] as unknown as Parameters<typeof onRequestError>;
 
   it('без DSN — no-op', async () => {
     vi.stubEnv('SENTRY_DSN', '');

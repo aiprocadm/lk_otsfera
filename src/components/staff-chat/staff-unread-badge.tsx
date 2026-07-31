@@ -33,7 +33,7 @@ export function StaffUnreadBadge() {
         fontWeight: 600,
         lineHeight: 1,
         marginLeft: '8px',
-        verticalAlign: 'middle'
+        verticalAlign: 'middle',
       }}
     >
       {count}

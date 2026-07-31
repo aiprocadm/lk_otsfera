@@ -30,7 +30,7 @@ function baseOrder(overrides: Partial<OrgOrderDetail> = {}): OrgOrderDetail {
     payments: [],
     commentsCount: 0,
     items: [],
-    ...overrides
+    ...overrides,
   } as OrgOrderDetail;
 }
 
@@ -72,7 +72,10 @@ describe('OrgOrderHeader', () => {
   });
 
   it('renders the multi-step stepper for a non-terminal order', () => {
-    const order = baseOrder({ executionStatus: 'in_progress', contractSignedAt: new Date('2026-01-02') });
+    const order = baseOrder({
+      executionStatus: 'in_progress',
+      contractSignedAt: new Date('2026-01-02'),
+    });
     const html = renderToString(React.createElement(OrgOrderHeader, { order }));
     expect(html).toContain('<ol');
   });

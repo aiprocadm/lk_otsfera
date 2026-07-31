@@ -17,7 +17,7 @@ describe('getThresholds', () => {
       ALERT_DLQ_MAX: '2',
       ALERT_SYNC_LAG_MAX_HOURS: '1',
       ALERT_RENOTIFY_COOLDOWN_HOURS: '2',
-      ALERT_ONEC_DEADLETTER_MAX: '3'
+      ALERT_ONEC_DEADLETTER_MAX: '3',
     });
     expect(t.queueWaitingMax).toBe(5);
     expect(t.dlqMax).toBe(2);

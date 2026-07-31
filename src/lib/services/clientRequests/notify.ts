@@ -1,5 +1,9 @@
 import type { ClientRequest, PrismaClient } from '@prisma/client';
-import { createNotification, deliverNotificationToUser, resolveOrgManagerRecipients } from '@/lib/notifications';
+import {
+  createNotification,
+  deliverNotificationToUser,
+  resolveOrgManagerRecipients,
+} from '@/lib/notifications';
 import { CHANNEL_RECIPIENT_SELECT } from '@/lib/notifications/channels/types';
 import { log } from '@/lib/logging';
 import { CLIENT_REQUEST_STATUS_LABEL } from './labels';
@@ -35,12 +39,12 @@ export async function notifyManagersClientRequestSubmitted(
     let recipients: Array<{ id: string } & Record<string, unknown>> = [];
     if (request.organizationId) {
       recipients = await resolveOrgManagerRecipients(prisma, request.organizationId, {
-        excludeUserId: request.submittedByUserId
+        excludeUserId: request.submittedByUserId,
       });
     } else if (request.partnerId) {
       const assigned = await prisma.organizationManager.findMany({
         where: { isActive: true, organization: { partnerId: request.partnerId } },
-        select: { userId: true }
+        select: { userId: true },
       });
       const ids = Array.from(new Set(assigned.map((a) => a.userId))).filter(
         (id) => id !== request.submittedByUserId
@@ -48,7 +52,7 @@ export async function notifyManagersClientRequestSubmitted(
       if (ids.length) {
         recipients = await prisma.user.findMany({
           where: { id: { in: ids }, role: 'manager', isActive: true },
-          select: CHANNEL_RECIPIENT_SELECT
+          select: CHANNEL_RECIPIENT_SELECT,
         });
       }
     }
@@ -64,7 +68,7 @@ export async function notifyManagersClientRequestSubmitted(
         type: 'client_request_submitted',
         title,
         body,
-        meta: { requestId: request.id, url: '/manager/requests' }
+        meta: { requestId: request.id, url: '/manager/requests' },
       });
       await deliverNotificationToUser({
         userId: r.id,
@@ -72,13 +76,13 @@ export async function notifyManagersClientRequestSubmitted(
         body,
         type: 'client_request_submitted',
         url: '/manager/requests',
-        dedupKey: row.id
+        dedupKey: row.id,
       });
     }
   } catch (err) {
     log.warn('[clientRequests/notify] submit notify failed', {
       requestId: request.id,
-      error: err instanceof Error ? err.message : String(err)
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 }
@@ -96,7 +100,9 @@ export async function notifySubmitterClientRequestStatus(
     const statusLabel = CLIENT_REQUEST_STATUS_LABEL[request.status];
     const title = `Обращение — статус «${statusLabel}»`;
     const reason =
-      request.status === 'rejected' && request.rejectedReason ? ` Причина: ${request.rejectedReason}` : '';
+      request.status === 'rejected' && request.rejectedReason
+        ? ` Причина: ${request.rejectedReason}`
+        : '';
     const body = `Обращение «${request.subject}» (${request.companyName}) — статус «${statusLabel}».${reason}`;
     const url = submitterRequestUrl(request);
     const row = await createNotification({
@@ -106,7 +112,7 @@ export async function notifySubmitterClientRequestStatus(
       type: 'client_request_status_changed',
       title,
       body,
-      meta: { requestId: request.id, status: request.status, url }
+      meta: { requestId: request.id, status: request.status, url },
     });
     await deliverNotificationToUser({
       userId: request.submittedByUserId,
@@ -114,12 +120,12 @@ export async function notifySubmitterClientRequestStatus(
       body,
       type: 'client_request_status_changed',
       url,
-      dedupKey: row.id
+      dedupKey: row.id,
     });
   } catch (err) {
     log.warn('[clientRequests/notify] status notify failed', {
       requestId: request.id,
-      error: err instanceof Error ? err.message : String(err)
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 }

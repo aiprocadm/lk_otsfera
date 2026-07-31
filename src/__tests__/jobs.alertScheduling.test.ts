@@ -10,7 +10,7 @@ describe('registerAlertSchedules', () => {
         upsertJobScheduler: vi.fn(async (id: string, opts) => {
           calls.push({ id, opts: opts as { pattern?: string; tz?: string } });
           return { id };
-        })
+        }),
       }) as unknown as Queue;
 
     const result = await registerAlertSchedules(getQueue as never);

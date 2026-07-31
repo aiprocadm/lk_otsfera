@@ -8,13 +8,10 @@ import { setOrgCommissionRate, clearOrgCommissionRate } from '@/lib/services/par
 
 const payloadSchema = z.object({
   rate: z.union([z.number().gt(0).lt(1), z.null()]),
-  reason: z.string().min(1).max(500)
+  reason: z.string().min(1).max(500),
 });
 
-export async function PUT(
-  req: Request,
-  ctx: { params: Promise<{ orgId: string }> }
-) {
+export async function PUT(req: Request, ctx: { params: Promise<{ orgId: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -27,18 +24,27 @@ export async function PUT(
 
   const parseResult = payloadSchema.safeParse(await req.json().catch(() => null));
   if (!parseResult.success) {
-    return NextResponse.json(
-      { error: 'Invalid payload' },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
   }
 
   const { rate, reason } = parseResult.data;
   const partnerId = admin.value.partnerId;
 
-  const res = rate === null
-    ? await clearOrgCommissionRate(prisma, { organizationId: orgId, partnerId, reason, changedByUserId: session.sub })
-    : await setOrgCommissionRate(prisma, { organizationId: orgId, partnerId, newRate: rate, reason, changedByUserId: session.sub });
+  const res =
+    rate === null
+      ? await clearOrgCommissionRate(prisma, {
+          organizationId: orgId,
+          partnerId,
+          reason,
+          changedByUserId: session.sub,
+        })
+      : await setOrgCommissionRate(prisma, {
+          organizationId: orgId,
+          partnerId,
+          newRate: rate,
+          reason,
+          changedByUserId: session.sub,
+        });
   if (!res.ok) {
     const status = res.error === 'not_found' ? 404 : 422;
     return NextResponse.json({ error: res.error }, { status });

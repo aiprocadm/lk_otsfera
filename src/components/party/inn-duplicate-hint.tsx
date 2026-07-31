@@ -24,13 +24,13 @@ const INN_RE = /^(\d{10}|\d{12})$/;
 const LEAD_STATUS_RU: Record<string, string> = {
   new: 'Новый',
   in_review: 'На рассмотрении',
-  qualified: 'Квалифицирован'
+  qualified: 'Квалифицирован',
 };
 
 export function InnDuplicateHint({
   inn,
   cardHrefBase,
-  excludeOrganizationId
+  excludeOrganizationId,
 }: InnDuplicateHintProps) {
   // Результат храним вместе с ИНН, для которого он получен: при смене ИНН
   // устаревшая плашка гаснет сама (без setState прямо в эффекте).
@@ -67,16 +67,16 @@ export function InnDuplicateHint({
   if (organizations.length === 0 && leads.length === 0) return null;
 
   return (
-    <div className='mt-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900'>
-      <div className='font-medium'>Уже есть в базе:</div>
-      <ul className='mt-0.5 space-y-0.5'>
+    <div className="mt-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+      <div className="font-medium">Уже есть в базе:</div>
+      <ul className="mt-0.5 space-y-0.5">
         {organizations.map((o) => (
           <li key={o.id}>
             <a
               href={`${cardHrefBase}/${o.id}`}
-              className='underline'
-              target='_blank'
-              rel='noreferrer'
+              className="underline"
+              target="_blank"
+              rel="noreferrer"
             >
               {o.name}
             </a>

@@ -32,9 +32,9 @@ export async function getStaffBadges(
     countIntake(prisma, session),
     prisma.task.count({ where: taskFiltersWhere(session, { overdue: true }, new Date()) }),
     prisma.clientRequest.count({
-      where: { AND: [clientRequestScopeWhere(session), { status: 'submitted' }] }
+      where: { AND: [clientRequestScopeWhere(session), { status: 'submitted' }] },
     }),
-    unreadCount(prisma, session)
+    unreadCount(prisma, session),
   ]);
   return {
     intake,
@@ -43,6 +43,6 @@ export async function getStaffBadges(
     // unreadCount не умеет отказывать: его тип — только { ok: true; count },
     // вне скоупа он возвращает count: 0. Прежняя проверка `unread.ok ? … : 0`
     // была недостижимой веткой (Ф2 программы покрытия — такое удаляем).
-    messagesUnread: unread.count
+    messagesUnread: unread.count,
   };
 }

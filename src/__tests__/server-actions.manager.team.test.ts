@@ -7,7 +7,7 @@ const {
   organizationManagerFindUnique,
   createAndAssignManager,
   deactivateAssignment,
-  sendManagerInviteEmail
+  sendManagerInviteEmail,
 } = vi.hoisted(() => ({
   requireManagerLeader: vi.fn(),
   revalidatePath: vi.fn(),
@@ -15,20 +15,20 @@ const {
   organizationManagerFindUnique: vi.fn(),
   createAndAssignManager: vi.fn(),
   deactivateAssignment: vi.fn(),
-  sendManagerInviteEmail: vi.fn()
+  sendManagerInviteEmail: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireManagerLeader }));
 vi.mock('next/cache', () => ({ revalidatePath }));
 vi.mock('@/lib/email/send', () => ({ sendManagerInviteEmail }));
 vi.mock('@/lib/logging', () => ({
-  log: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() }
+  log: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     organization: { findUnique: organizationFindUnique },
-    organizationManager: { findUnique: organizationManagerFindUnique }
-  }
+    organizationManager: { findUnique: organizationManagerFindUnique },
+  },
 }));
 vi.mock('@/lib/services/manager/invite', () => ({
   createAndAssignManager,
@@ -39,12 +39,12 @@ vi.mock('@/lib/services/manager/invite', () => ({
       super(code);
       this.code = code;
     }
-  }
+  },
 }));
 
 import {
   leaderAssignManagerAction,
-  leaderDeactivateAssignmentAction
+  leaderDeactivateAssignmentAction,
 } from '@/server-actions/manager/team';
 
 function fd(data: Record<string, string>): FormData {
@@ -58,7 +58,7 @@ const LEADER_SESSION_CO_A = {
   role: 'manager' as const,
   managerRole: 'leader' as const,
   companyId: 'co-A',
-  managedOrgIds: ['org-1']
+  managedOrgIds: ['org-1'],
 };
 
 beforeEach(() => {
@@ -129,7 +129,7 @@ describe('leaderAssignManagerAction — happy path (same company)', () => {
       user: { id: 'u-10', email: 'new@t.local' },
       inviteUrl: 'https://app/reset?token=abc',
       alreadyHasPassword: false,
-      reactivated: false
+      reactivated: false,
     });
 
     const res = await leaderAssignManagerAction(
@@ -155,7 +155,7 @@ describe('leaderAssignManagerAction — happy path (same company)', () => {
       user: { id: 'u-10', email: 'new@t.local' },
       inviteUrl: 'https://app/reset?token=abc',
       alreadyHasPassword: false,
-      reactivated: false
+      reactivated: false,
     });
     sendManagerInviteEmail.mockResolvedValue({ status: 'sent', id: 'em-1' });
 
@@ -168,7 +168,7 @@ describe('leaderAssignManagerAction — happy path (same company)', () => {
       to: 'new@t.local',
       organizationName: 'ООО Ромашка',
       inviteUrl: 'https://app/reset?token=abc',
-      invitedByName: 'Лидер'
+      invitedByName: 'Лидер',
     });
   });
 
@@ -179,7 +179,7 @@ describe('leaderAssignManagerAction — happy path (same company)', () => {
       user: { id: 'u-11', email: 'old@t.local' },
       inviteUrl: null,
       alreadyHasPassword: true,
-      reactivated: false
+      reactivated: false,
     });
 
     const res = await leaderAssignManagerAction(
@@ -198,7 +198,7 @@ describe('leaderAssignManagerAction — happy path (same company)', () => {
       user: { id: 'u-12', email: 'fail@t.local' },
       inviteUrl: 'https://app/reset?token=fail',
       alreadyHasPassword: false,
-      reactivated: false
+      reactivated: false,
     });
     sendManagerInviteEmail.mockRejectedValue(new Error('SMTP down'));
 
@@ -206,20 +206,22 @@ describe('leaderAssignManagerAction — happy path (same company)', () => {
       fd({ mode: 'existing', organizationId: 'org-1', email: 'fail@t.local' })
     );
 
-    expect(res).toEqual({ ok: true, inviteUrl: 'https://app/reset?token=fail', reactivated: false });
+    expect(res).toEqual({
+      ok: true,
+      inviteUrl: 'https://app/reset?token=fail',
+      reactivated: false,
+    });
     expect(revalidatePath).toHaveBeenCalledWith('/manager/team');
   });
 
   it('фолбэк «организация», когда org-запись не нашлась при отправке письма', async () => {
-    organizationFindUnique
-      .mockResolvedValueOnce({ companyId: 'co-A' })
-      .mockResolvedValueOnce(null);
+    organizationFindUnique.mockResolvedValueOnce({ companyId: 'co-A' }).mockResolvedValueOnce(null);
     createAndAssignManager.mockResolvedValue({
       ok: true,
       user: { id: 'u-13', email: 'ghost@t.local' },
       inviteUrl: 'https://app/reset?token=g',
       alreadyHasPassword: false,
-      reactivated: false
+      reactivated: false,
     });
     sendManagerInviteEmail.mockResolvedValue({ status: 'sent', id: null });
 

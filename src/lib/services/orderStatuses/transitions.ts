@@ -78,8 +78,8 @@ export async function transitionOrderStatus(
       serviceType: true,
       accountingSignedAt: true,
       documents: { select: { scanStatus: true } },
-      items: { select: { trainingStatus: true } }
-    }
+      items: { select: { trainingStatus: true } },
+    },
   });
   if (!order) return { ok: false, error: 'not_found' };
 
@@ -143,8 +143,8 @@ export async function transitionOrderStatus(
       fromId: current?.id ?? null,
       toId: target.id,
       userId: session.sub,
-      reason
-    }
+      reason,
+    },
   });
 
   await recordAudit(prisma, {
@@ -152,7 +152,7 @@ export async function transitionOrderStatus(
     action: 'order_status_changed',
     entity: 'order',
     entityId: order.id,
-    after: { from: current?.key ?? null, to: target.key, reason }
+    after: { from: current?.key ?? null, to: target.key, reason },
   });
 
   // §10 ТЗ: «смена каждого из этих статусов — событие-триггер для уведомлений
@@ -171,8 +171,8 @@ export async function transitionOrderStatus(
         orderTitle: order.title,
         dimension: 'execution',
         oldStatus: current?.label ?? '—',
-        newStatus: target.label
-      }
+        newStatus: target.label,
+      },
     });
   }
 
@@ -181,7 +181,7 @@ export async function transitionOrderStatus(
   try {
     const actor = await prisma.user.findUnique({
       where: { id: session.sub },
-      select: { name: true }
+      select: { name: true },
     });
     await notifyManagers(
       prisma,
@@ -191,8 +191,8 @@ export async function transitionOrderStatus(
         payload: {
           actorName: actor?.name ?? 'Менеджер',
           oldStatus: current?.label ?? '—',
-          newStatus: target.label
-        }
+          newStatus: target.label,
+        },
       },
       { excludeUserId: session.sub }
     );
@@ -200,7 +200,7 @@ export async function transitionOrderStatus(
     log.warn('[orderStatuses] notifyManagers failed', {
       orderId: order.id,
       actorId: session.sub,
-      error: err instanceof Error ? err.message : String(err)
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 
@@ -224,7 +224,7 @@ export async function applyStatusAnchor(
 ): Promise<{ ok: true; changed: boolean } | { ok: false; error: 'not_found' | 'invalid_status' }> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    select: { id: true, statusId: true }
+    select: { id: true, statusId: true },
   });
   if (!order) return { ok: false, error: 'not_found' };
 
@@ -252,8 +252,8 @@ export async function applyStatusAnchor(
       fromId: current?.id ?? null,
       toId: target.id,
       userId: userId ?? null,
-      reason: 'Автоматически: наступило событие'
-    }
+      reason: 'Автоматически: наступило событие',
+    },
   });
 
   return { ok: true, changed: true };
@@ -270,7 +270,7 @@ export async function listStatusHistory(prisma: PrismaClient, orderId: string) {
       reason: true,
       from: { select: { id: true, label: true } },
       to: { select: { id: true, label: true } },
-      user: { select: { name: true, email: true } }
-    }
+      user: { select: { name: true, email: true } },
+    },
   });
 }

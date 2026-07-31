@@ -8,7 +8,7 @@ import type {
   OneCDocumentDto,
   OneCLeadPushPayload,
   OneCLeadPushResult,
-  SyncCursor
+  SyncCursor,
 } from './dto';
 
 function afterCursor<T extends { updatedAt: string }>(items: T[], cursor: SyncCursor): T[] {
@@ -58,7 +58,9 @@ export class FakeOneCAdapter implements OneCAdapter {
     const failureRateStr = process.env.FAKE_ONEC_FAILURE_RATE;
     const failureRate = failureRateStr ? Number(failureRateStr) : 0;
     if (Number.isFinite(failureRate) && failureRate > 0 && Math.random() < failureRate) {
-      throw new Error(`FakeOneC simulated failure (rate=${failureRate}) for lead ${payload.cabinetLeadId}`);
+      throw new Error(
+        `FakeOneC simulated failure (rate=${failureRate}) for lead ${payload.cabinetLeadId}`
+      );
     }
     return { acceptedAt: new Date().toISOString(), oneCRequestId: `fake-req-${Date.now()}` };
   }

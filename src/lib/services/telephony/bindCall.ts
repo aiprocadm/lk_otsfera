@@ -4,7 +4,12 @@ import { getCompanyTeamVisibility, isOrgInScope, isManagerLeader } from '@/lib/a
 import { captureChannel } from '@/lib/services/manager/contacts';
 import { recordAudit } from '@/lib/auth/audit';
 
-export type BindCallArgs = { callId: string; organizationId: string; contactId?: string; orderId?: string };
+export type BindCallArgs = {
+  callId: string;
+  organizationId: string;
+  contactId?: string;
+  orderId?: string;
+};
 export type BindCallResult = { ok: true } | { ok: false; error: 'forbidden' | 'not_found' };
 
 /**
@@ -34,13 +39,13 @@ export async function bindCall(
 ): Promise<BindCallResult> {
   const call = await prisma.call.findUnique({
     where: { id: args.callId },
-    select: { id: true, callerNumber: true }
+    select: { id: true, callerNumber: true },
   });
   if (!call) return { ok: false, error: 'not_found' };
 
   const org = await prisma.organization.findUnique({
     where: { id: args.organizationId },
-    select: { id: true, companyId: true }
+    select: { id: true, companyId: true },
   });
   if (!org) return { ok: false, error: 'not_found' };
 
@@ -60,9 +65,10 @@ export async function bindCall(
   if (args.contactId) {
     const contact = await prisma.contact.findUnique({
       where: { id: args.contactId },
-      select: { id: true, companyId: true, organizationId: true }
+      select: { id: true, companyId: true, organizationId: true },
     });
-    if (!contact || contact.companyId !== session.companyId) return { ok: false, error: 'forbidden' };
+    if (!contact || contact.companyId !== session.companyId)
+      return { ok: false, error: 'forbidden' };
     if (contact.organizationId && contact.organizationId !== args.organizationId) {
       return { ok: false, error: 'forbidden' };
     }
@@ -75,7 +81,7 @@ export async function bindCall(
   if (args.orderId) {
     const order = await prisma.order.findUnique({
       where: { id: args.orderId },
-      select: { id: true, organizationId: true, companyId: true }
+      select: { id: true, organizationId: true, companyId: true },
     });
     const orderInScope =
       !!order &&
@@ -84,7 +90,7 @@ export async function bindCall(
     if (orderInScope) {
       const thread = await prisma.orderThread.findUnique({
         where: { orderId_side: { orderId: args.orderId, side: 'org' } },
-        select: { id: true }
+        select: { id: true },
       });
       threadId = thread?.id ?? null;
     }
@@ -92,7 +98,7 @@ export async function bindCall(
 
   await prisma.call.update({
     where: { id: args.callId },
-    data: { resolvedOrgId: args.organizationId, companyId: org.companyId, contactId, threadId }
+    data: { resolvedOrgId: args.organizationId, companyId: org.companyId, contactId, threadId },
   });
 
   if (contactId && call.callerNumber) {
@@ -100,7 +106,7 @@ export async function bindCall(
       contactId,
       companyId: org.companyId,
       type: 'phone',
-      value: call.callerNumber
+      value: call.callerNumber,
     });
   }
 
@@ -109,7 +115,7 @@ export async function bindCall(
     entity: 'call',
     entityId: args.callId,
     userId: session.sub,
-    after: { organizationId: args.organizationId, contactId, threadId }
+    after: { organizationId: args.organizationId, contactId, threadId },
   });
 
   return { ok: true };

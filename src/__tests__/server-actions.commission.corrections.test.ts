@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { requireSession, resolveCorrection, revalidatePath } = vi.hoisted(() => ({
   requireSession: vi.fn(),
   resolveCorrection: vi.fn(),
-  revalidatePath: vi.fn()
+  revalidatePath: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireSession }));

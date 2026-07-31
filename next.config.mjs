@@ -11,8 +11,8 @@ const securityHeaders = [
   // object/embed-инъекции, подмену <base>, увод form action на чужой origin.
   {
     key: 'Content-Security-Policy',
-    value: "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'"
-  }
+    value: "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'",
+  },
 ];
 
 /** @type {import('next').NextConfig} */
@@ -24,7 +24,7 @@ const nextConfig = {
   poweredByHeader: false,
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
-  }
+  },
 };
 
 export default nextConfig;

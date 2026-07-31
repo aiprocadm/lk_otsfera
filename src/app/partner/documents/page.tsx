@@ -19,7 +19,7 @@ const VALID_TYPES: DocumentType[] = [
   'certificate',
   'report',
   'commission_statement',
-  'other'
+  'other',
 ];
 
 const TYPE_LABELS: Record<DocumentType, string> = {
@@ -31,16 +31,22 @@ const TYPE_LABELS: Record<DocumentType, string> = {
   certificate: 'Сертификаты',
   report: 'Отчёты',
   commission_statement: 'Комиссия',
-  other: 'Прочее'
+  other: 'Прочее',
 };
 
 const DEFAULT_TAKE = 50;
 const MAX_TAKE = 200;
 
 export default async function PartnerDocumentsPage({
-  searchParams
+  searchParams,
 }: {
-  searchParams: Promise<{ type?: string; search?: string; take?: string; skip?: string; tab?: string }>;
+  searchParams: Promise<{
+    type?: string;
+    search?: string;
+    take?: string;
+    skip?: string;
+    tab?: string;
+  }>;
 }) {
   const session = await requirePartner();
 
@@ -56,9 +62,10 @@ export default async function PartnerDocumentsPage({
     ? (sp.type as DocumentType)
     : undefined;
 
-  const scope = session.assignedOrgIds && session.assignedOrgIds.length > 0
-    ? session.assignedOrgIds
-    : undefined;
+  const scope =
+    session.assignedOrgIds && session.assignedOrgIds.length > 0
+      ? session.assignedOrgIds
+      : undefined;
 
   const { rows, total, countsByType } = await listPartnerDocuments(prisma, {
     partnerId: session.partnerId,
@@ -67,7 +74,7 @@ export default async function PartnerDocumentsPage({
     search: sp.search,
     orderLess: tab === 'general',
     take,
-    skip
+    skip,
   });
 
   const grandTotal = Object.values(countsByType).reduce((s, n) => s + (n ?? 0), 0);
@@ -75,32 +82,32 @@ export default async function PartnerDocumentsPage({
   // Этап 3 PR-2 (ФТ-6.6): «новый» = не скачан текущим пользователем.
   const viewed = await viewedDocumentIds(prisma, {
     userId: session.sub,
-    documentIds: rows.map((r) => r.id)
+    documentIds: rows.map((r) => r.id),
   });
   const newDocIds = rows.filter((r) => !viewed.has(r.id)).map((r) => r.id);
 
   return (
-    <div className='space-y-4'>
-      <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-3'>
+    <div className="space-y-4">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
-          <h1 className='text-2xl font-semibold text-[#111111]'>Документы</h1>
-          <p className='text-sm text-gray-500 mt-0.5'>
+          <h1 className="text-2xl font-semibold text-[#111111]">Документы</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
             {total} {pluralizeRu(total, 'документ', 'документа', 'документов')}
-            {sp.search && <span className='text-gray-400'> · по запросу «{sp.search}»</span>}
+            {sp.search && <span className="text-gray-400"> · по запросу «{sp.search}»</span>}
           </p>
         </div>
         <DocumentsSearch />
       </div>
 
-      <nav className='flex gap-2'>
+      <nav className="flex gap-2">
         <Link
-          href='/partner/documents'
+          href="/partner/documents"
           className={`px-3 py-1.5 text-sm rounded-full border ${tab === 'orders' ? 'bg-[#F97316] text-white border-[#F97316]' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'}`}
         >
           По заказам
         </Link>
         <Link
-          href='/partner/documents?tab=general'
+          href="/partner/documents?tab=general"
           className={`px-3 py-1.5 text-sm rounded-full border ${tab === 'general' ? 'bg-[#F97316] text-white border-[#F97316]' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'}`}
         >
           Общие документы
@@ -119,16 +126,26 @@ export default async function PartnerDocumentsPage({
         rows={rows}
         newDocIds={newDocIds}
         groupByOrder={tab === 'orders'}
-        cardHrefBase='/partner/documents'
+        cardHrefBase="/partner/documents"
       />
 
-      <Paginator basePath='/partner/documents' searchParams={sp} take={take} skip={skip} total={total} />
+      <Paginator
+        basePath="/partner/documents"
+        searchParams={sp}
+        take={take}
+        skip={skip}
+        total={total}
+      />
     </div>
   );
 }
 
 function TypeFilter({
-  active, countsByType, grandTotal, search, tab
+  active,
+  countsByType,
+  grandTotal,
+  search,
+  tab,
 }: {
   active?: DocumentType;
   countsByType: Partial<Record<DocumentType, number>>;
@@ -148,8 +165,8 @@ function TypeFilter({
   }
 
   return (
-    <nav className='flex flex-wrap gap-1.5'>
-      <Chip href={href()} active={!active} label='Все' count={grandTotal} />
+    <nav className="flex flex-wrap gap-1.5">
+      <Chip href={href()} active={!active} label="Все" count={grandTotal} />
       {present.map((t) => (
         <Chip
           key={t}
@@ -165,8 +182,16 @@ function TypeFilter({
 }
 
 function Chip({
-  href, label, count, active
-}: { href: string; label: string; count: number; active: boolean }) {
+  href,
+  label,
+  count,
+  active,
+}: {
+  href: string;
+  label: string;
+  count: number;
+  active: boolean;
+}) {
   return (
     <Link
       href={href}

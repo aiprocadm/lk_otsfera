@@ -15,7 +15,7 @@ const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
 // сервис, иначе он полезет в реальный prisma. Обычная функция, а не vi.fn:
 // в файле есть resetAllMocks, он снёс бы заготовленный ответ.
 vi.mock('@/lib/services/customFields', () => ({
-  getFieldsForEntity: async () => []
+  getFieldsForEntity: async () => [],
 }));
 
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
@@ -24,7 +24,7 @@ const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
@@ -35,7 +35,7 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 const { getOrgStudent, listOrgStudentTraining } = vi.hoisted(() => ({
   getOrgStudent: vi.fn(),
-  listOrgStudentTraining: vi.fn()
+  listOrgStudentTraining: vi.fn(),
 }));
 vi.mock('@/lib/services/organization/students', () => ({ getOrgStudent, listOrgStudentTraining }));
 
@@ -48,16 +48,20 @@ vi.mock('@/lib/services/training/certificates', async (importOriginal) => {
 
 vi.mock('@/components/organization/org-app-shell', () => ({
   OrgAppShell: (props: { activeOrgName: string; children: React.ReactNode }) =>
-    React.createElement('div', { 'data-testid': 'org-app-shell' }, props.activeOrgName, props.children)
+    React.createElement(
+      'div',
+      { 'data-testid': 'org-app-shell' },
+      props.activeOrgName,
+      props.children
+    ),
 }));
-
 
 const ORG_CTX = {
   session: { sub: 'u1', role: 'organization' as const, email: 'org@example.com' },
   activeOrgId: 'org-1',
   activeOrgName: 'ООО Ромашка',
   memberships: [],
-  viewerRole: 'admin' as const
+  viewerRole: 'admin' as const,
 };
 
 const STUDENT = {
@@ -65,12 +69,12 @@ const STUDENT = {
   name: 'Иванов Иван',
   email: 'ivanov@x.ru',
   externalStudentId: 'EXT-9',
-  createdAt: new Date('2026-01-01')
+  createdAt: new Date('2026-01-01'),
 };
 
 const props = (id: string) => ({
   params: Promise.resolve({ id }),
-  searchParams: Promise.resolve({})
+  searchParams: Promise.resolve({}),
 });
 
 beforeEach(() => {
@@ -85,7 +89,9 @@ beforeEach(() => {
 describe('OrganizationStudentDetailPage', () => {
   it('флаг off → notFound, контекст не запрашивается', async () => {
     isFeatureEnabled.mockReturnValue(false);
-    await expect(renderServerComponent(OrganizationStudentDetailPage(props('s1')))).rejects.toThrow('NOT_FOUND');
+    await expect(renderServerComponent(OrganizationStudentDetailPage(props('s1')))).rejects.toThrow(
+      'NOT_FOUND'
+    );
     expect(getOrgPageContext).not.toHaveBeenCalled();
   });
 
@@ -93,10 +99,12 @@ describe('OrganizationStudentDetailPage', () => {
     isFeatureEnabled.mockReturnValue(true);
     getOrgPageContext.mockResolvedValue(ORG_CTX);
     getOrgStudent.mockResolvedValue(null);
-    await expect(renderServerComponent(OrganizationStudentDetailPage(props('foreign')))).rejects.toThrow('NOT_FOUND');
+    await expect(
+      renderServerComponent(OrganizationStudentDetailPage(props('foreign')))
+    ).rejects.toThrow('NOT_FOUND');
     expect(getOrgStudent).toHaveBeenCalledWith(expect.anything(), {
       organizationId: 'org-1',
-      studentId: 'foreign'
+      studentId: 'foreign',
     });
     expect(listCertificates).not.toHaveBeenCalled();
   });
@@ -131,10 +139,10 @@ describe('OrganizationStudentDetailPage', () => {
           documentId: null,
           student: { id: 's1', name: 'Иванов Иван' },
           direction: { id: 'd1', name: 'Охрана труда' },
-          organization: { id: 'org-1', name: 'ООО Ромашка' }
-        }
+          organization: { id: 'org-1', name: 'ООО Ромашка' },
+        },
       ],
-      total: 1
+      total: 1,
     });
     listOrgStudentTraining.mockResolvedValue([
       {
@@ -142,22 +150,22 @@ describe('OrganizationStudentDetailPage', () => {
         trainingStatus: 'in_progress',
         createdAt: new Date('2026-02-01'),
         direction: { name: 'Пожарная безопасность' },
-        order: { id: 'ord1', title: 'Обучение 2026', orderNumber: '42' }
+        order: { id: 'ord1', title: 'Обучение 2026', orderNumber: '42' },
       },
       {
         id: 'oi2',
         trainingStatus: 'certificate_issued',
         createdAt: new Date('2026-03-01'),
         direction: { name: 'Электробезопасность' },
-        order: { id: 'ord2', title: 'Без номера', orderNumber: null }
-      }
+        order: { id: 'ord2', title: 'Без номера', orderNumber: null },
+      },
     ]);
 
     const { container } = await renderServerComponent(OrganizationStudentDetailPage(props('s1')));
 
     expect(listCertificates).toHaveBeenCalledWith(expect.anything(), ORG_CTX.session, {
       organizationId: 'org-1',
-      studentId: 's1'
+      studentId: 's1',
     });
     expect(container.textContent).toContain('Иванов Иван');
     expect(container.textContent).toContain('EXT-9');
@@ -194,7 +202,7 @@ vi.mock('@/components/organization/student-position-form', () => ({
       'div',
       { 'data-testid': 'position-form' },
       `${props.organizationId}|${props.studentId}|${props.initialPosition ?? 'null'}`
-    )
+    ),
 }));
 
 describe('OrganizationStudentDetailPage — должность', () => {
@@ -203,9 +211,7 @@ describe('OrganizationStudentDetailPage — должность', () => {
     getOrgPageContext.mockResolvedValue(ORG_CTX);
     getOrgStudent.mockResolvedValue({ ...STUDENT, position: 'Инженер' });
 
-    const { container } = await renderServerComponent(
-      OrganizationStudentDetailPage(props('s1'))
-    );
+    const { container } = await renderServerComponent(OrganizationStudentDetailPage(props('s1')));
     expect(container.querySelector('[data-testid="position-form"]')!.textContent).toBe(
       'org-1|s1|Инженер'
     );
@@ -216,9 +222,7 @@ describe('OrganizationStudentDetailPage — должность', () => {
     getOrgPageContext.mockResolvedValue(ORG_CTX);
     getOrgStudent.mockResolvedValue({ ...STUDENT, position: null });
 
-    const { container } = await renderServerComponent(
-      OrganizationStudentDetailPage(props('s1'))
-    );
+    const { container } = await renderServerComponent(OrganizationStudentDetailPage(props('s1')));
     expect(container.querySelector('[data-testid="position-form"]')!.textContent).toContain('null');
   });
 });

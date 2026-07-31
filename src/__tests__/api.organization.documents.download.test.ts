@@ -1,43 +1,39 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const {
-  getSession,
-  cookiesGet,
-  documentFindUnique,
-  auditCreate,
-  createSignedUrl,
-  redirectMock
-} = vi.hoisted(() => ({
-  getSession: vi.fn(),
-  cookiesGet: vi.fn().mockReturnValue(undefined),
-  documentFindUnique: vi.fn(),
-  auditCreate: vi.fn(),
-  createSignedUrl: vi.fn(),
-  redirectMock: vi.fn(() => {
-    throw new Error('REDIRECT');
-  })
-}));
+const { getSession, cookiesGet, documentFindUnique, auditCreate, createSignedUrl, redirectMock } =
+  vi.hoisted(() => ({
+    getSession: vi.fn(),
+    cookiesGet: vi.fn().mockReturnValue(undefined),
+    documentFindUnique: vi.fn(),
+    auditCreate: vi.fn(),
+    createSignedUrl: vi.fn(),
+    redirectMock: vi.fn(() => {
+      throw new Error('REDIRECT');
+    }),
+  }));
 
 vi.mock('@/lib/auth/session', () => ({ getSession }));
 vi.mock('next/headers', () => ({
-  cookies: () => Promise.resolve({ get: cookiesGet })
+  cookies: () => Promise.resolve({ get: cookiesGet }),
 }));
 vi.mock('next/navigation', () => ({ redirect: redirectMock }));
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     document: { findUnique: documentFindUnique },
-    auditLog: { create: auditCreate }
-  }
+    auditLog: { create: auditCreate },
+  },
 }));
-const { markDocumentViewed } = vi.hoisted(() => ({ markDocumentViewed: vi.fn().mockResolvedValue(undefined) }));
+const { markDocumentViewed } = vi.hoisted(() => ({
+  markDocumentViewed: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock('@/lib/services/documents/viewMarks', () => ({ markDocumentViewed }));
 vi.mock('@/lib/storage', () => ({
   getObjectStorage: () => ({
     createSignedUrl,
     upload: vi.fn(),
     remove: vi.fn(),
-    download: vi.fn()
-  })
+    download: vi.fn(),
+  }),
 }));
 
 import { POST as downloadPost } from '@/app/api/organization/documents/[id]/download/route';
@@ -50,14 +46,14 @@ function orgSession(orgIds: { id: string; isActive?: boolean }[]) {
     organizationMemberships: orgIds.map((o) => ({
       organizationId: o.id,
       roleInOrg: 'member',
-      isActive: o.isActive !== false
-    }))
+      isActive: o.isActive !== false,
+    })),
   };
 }
 
 function postReq(query = ''): Request {
   return new Request(`https://app.local/api/organization/documents/d1/download${query}`, {
-    method: 'POST'
+    method: 'POST',
   });
 }
 
@@ -89,7 +85,7 @@ describe('POST /api/organization/documents/[id]/download', () => {
       scanStatus: 'clean',
       scanReason: null,
       counterpartyType: 'organization',
-      counterpartyId: 'org-a'
+      counterpartyId: 'org-a',
     });
     createSignedUrl.mockResolvedValue('https://signed.test/x');
 
@@ -100,7 +96,7 @@ describe('POST /api/organization/documents/[id]/download', () => {
     // Этап 3 PR-2 (ФТ-6.6): скачивание гасит бейдж «новый».
     expect(markDocumentViewed).toHaveBeenCalledWith(expect.anything(), {
       documentId: 'd1',
-      userId: orgSession([]).sub
+      userId: orgSession([]).sub,
     });
   });
 
@@ -114,7 +110,7 @@ describe('POST /api/organization/documents/[id]/download', () => {
       scanStatus: 'clean',
       scanReason: null,
       counterpartyType: 'organization',
-      counterpartyId: 'org-a'
+      counterpartyId: 'org-a',
     });
     createSignedUrl.mockResolvedValue('https://signed.test/x');
 
@@ -134,7 +130,7 @@ describe('POST /api/organization/documents/[id]/download', () => {
       scanStatus: 'clean',
       scanReason: null,
       counterpartyType: 'organization',
-      counterpartyId: 'org-a'
+      counterpartyId: 'org-a',
     });
     createSignedUrl.mockResolvedValue('https://signed.test/x');
 
@@ -154,7 +150,7 @@ describe('POST /api/organization/documents/[id]/download', () => {
       scanStatus: 'clean',
       scanReason: null,
       counterpartyType: 'organization',
-      counterpartyId: 'org-a'
+      counterpartyId: 'org-a',
     });
     createSignedUrl.mockResolvedValue('https://signed.test/x');
 
@@ -175,7 +171,7 @@ describe('POST /api/organization/documents/[id]/download', () => {
       scanStatus: 'clean',
       scanReason: null,
       counterpartyType: 'organization',
-      counterpartyId: 'org-b'
+      counterpartyId: 'org-b',
     });
     createSignedUrl.mockResolvedValue('https://signed.test/cookie');
 
@@ -211,7 +207,7 @@ describe('POST /api/organization/documents/[id]/download', () => {
       scanStatus: 'clean',
       scanReason: null,
       counterpartyType: 'organization',
-      counterpartyId: 'org-b'
+      counterpartyId: 'org-b',
     });
     const res = await downloadPost(postReq(), paramsP);
     expect(res.status).toBe(404);
@@ -227,7 +223,7 @@ describe('POST /api/organization/documents/[id]/download', () => {
       scanStatus: 'infected',
       scanReason: 'EICAR',
       counterpartyType: 'organization',
-      counterpartyId: 'org-a'
+      counterpartyId: 'org-a',
     });
     const res = await downloadPost(postReq(), paramsP);
     expect(res.status).toBe(410);
@@ -247,7 +243,7 @@ describe('POST /api/organization/documents/[id]/download', () => {
       scanStatus: 'infected',
       scanReason: null,
       counterpartyType: 'organization',
-      counterpartyId: 'org-a'
+      counterpartyId: 'org-a',
     });
     const res = await downloadPost(postReq(), paramsP);
     expect(res.status).toBe(410);
@@ -266,7 +262,7 @@ describe('POST /api/organization/documents/[id]/download', () => {
       scanStatus: 'clean',
       scanReason: null,
       counterpartyType: 'organization',
-      counterpartyId: 'org-a'
+      counterpartyId: 'org-a',
     });
     createSignedUrl.mockResolvedValue('https://signed.test/x');
 
@@ -280,9 +276,7 @@ describe('POST /api/organization/documents/[id]/download', () => {
   });
 
   it('honors ?org=<id> query to pick org context for multi-org users', async () => {
-    getSession.mockResolvedValue(
-      orgSession([{ id: 'org-a' }, { id: 'org-b' }])
-    );
+    getSession.mockResolvedValue(orgSession([{ id: 'org-a' }, { id: 'org-b' }]));
     documentFindUnique.mockResolvedValue({
       id: 'd1',
       name: 'b-doc.pdf',
@@ -291,7 +285,7 @@ describe('POST /api/organization/documents/[id]/download', () => {
       scanStatus: 'clean',
       scanReason: null,
       counterpartyType: 'organization',
-      counterpartyId: 'org-b'
+      counterpartyId: 'org-b',
     });
     createSignedUrl.mockResolvedValue('https://signed.test/b');
 
@@ -309,7 +303,7 @@ describe('POST /api/organization/documents/[id]/download', () => {
       scanStatus: 'clean',
       scanReason: null,
       counterpartyType: 'organization',
-      counterpartyId: 'org-c'
+      counterpartyId: 'org-c',
     });
     // queryOrg 'org-c' is not in memberships → resolveActiveOrgId falls back to first
     // active membership 'org-a', then doc.counterpartyId 'org-c' !== 'org-a' → silent 404.
@@ -327,7 +321,7 @@ describe('POST /api/organization/documents/[id]/download', () => {
       scanStatus: 'clean',
       scanReason: null,
       counterpartyType: 'organization',
-      counterpartyId: 'org-a'
+      counterpartyId: 'org-a',
     });
     createSignedUrl.mockRejectedValue(new Error('storage down'));
 
@@ -345,7 +339,7 @@ describe('POST /api/organization/documents/[id]/download', () => {
       scanStatus: 'clean',
       scanReason: null,
       counterpartyType: 'organization',
-      counterpartyId: 'org-a'
+      counterpartyId: 'org-a',
     });
     createSignedUrl.mockRejectedValue('provider exploded');
 

@@ -8,11 +8,14 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 
 const { generateTelegramLinkAction, unlinkTelegramAction } = vi.hoisted(() => ({
   generateTelegramLinkAction: vi.fn(),
-  unlinkTelegramAction: vi.fn()
+  unlinkTelegramAction: vi.fn(),
 }));
 vi.mock('@/server-actions/telegram', () => ({ generateTelegramLinkAction, unlinkTelegramAction }));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 import { TelegramLinkCard } from '@/components/settings/telegram-link-card';
@@ -34,7 +37,9 @@ describe('TelegramLinkCard (interactions, Pattern I)', () => {
 
     const link = await screen.findByRole('link', { name: 'Открыть в Telegram' });
     expect(link.getAttribute('href')).toBe('https://t.me/deep');
-    expect(screen.getByText('Откройте ссылку и нажмите Старт в Telegram, затем обновите страницу.')).toBeTruthy();
+    expect(
+      screen.getByText('Откройте ссылку и нажмите Старт в Telegram, затем обновите страницу.')
+    ).toBeTruthy();
   });
 
   it('generate link error: toasts the mapped message via errorMessageRu fallback, no anchor rendered', async () => {

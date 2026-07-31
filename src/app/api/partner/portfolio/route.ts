@@ -25,16 +25,17 @@ export async function GET(req: Request) {
   const skip = parsePositiveInt(sp.get('skip'), 0);
   const search = sp.get('search') ?? undefined;
 
-  const scope = session.assignedOrgIds && session.assignedOrgIds.length > 0
-    ? session.assignedOrgIds
-    : undefined;
+  const scope =
+    session.assignedOrgIds && session.assignedOrgIds.length > 0
+      ? session.assignedOrgIds
+      : undefined;
 
   const result = await listPortfolio(prisma, {
     partnerId: partner.value.partnerId,
     scopeOrgIds: scope,
     search,
     take,
-    skip
+    skip,
   });
 
   return NextResponse.json(result);

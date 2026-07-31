@@ -5,11 +5,14 @@ import { canTriageClientRequests } from './policy';
 import { clientRequestScopeWhere } from './list';
 import { notifySubmitterClientRequestStatus } from './notify';
 
-type TriageFailure = { ok: false; error: 'forbidden' | 'not_found' | 'lifecycle_violation' | 'validation' };
+type TriageFailure = {
+  ok: false;
+  error: 'forbidden' | 'not_found' | 'lifecycle_violation' | 'validation';
+};
 
 async function loadInScope(prisma: PrismaClient, session: SessionPayload, id: string) {
   return prisma.clientRequest.findFirst({
-    where: { AND: [{ id }, clientRequestScopeWhere(session)] }
+    where: { AND: [{ id }, clientRequestScopeWhere(session)] },
   });
 }
 
@@ -30,14 +33,14 @@ export async function takeInTriage(
 
   const updated = await prisma.clientRequest.update({
     where: { id: r.id },
-    data: { status: 'in_triage', triagedByUserId: session.sub, triagedAt: new Date() }
+    data: { status: 'in_triage', triagedByUserId: session.sub, triagedAt: new Date() },
   });
   await recordAudit(prisma, {
     userId: session.sub,
     action: 'client_request_taken',
     entity: 'client_request',
     entityId: r.id,
-    after: { status: 'in_triage' }
+    after: { status: 'in_triage' },
   });
   await notifySubmitterClientRequestStatus(prisma, updated);
   return { ok: true, request: updated };
@@ -75,12 +78,12 @@ export async function convertToLead(
         clientContactEmail: r.contactEmail,
         subject: r.subject,
         notes: r.body,
-        status: 'new'
-      }
+        status: 'new',
+      },
     });
     const request = await tx.clientRequest.update({
       where: { id: r.id },
-      data: { status: 'converted', triagedByUserId: session.sub, triagedAt: new Date() }
+      data: { status: 'converted', triagedByUserId: session.sub, triagedAt: new Date() },
     });
     return { lead, request };
   });
@@ -90,7 +93,7 @@ export async function convertToLead(
     action: 'client_request_converted',
     entity: 'client_request',
     entityId: r.id,
-    after: { leadId: lead.id }
+    after: { leadId: lead.id },
   });
   await notifySubmitterClientRequestStatus(prisma, request);
   return { ok: true, request, lead };
@@ -114,15 +117,15 @@ export async function rejectClientRequest(
       status: 'rejected',
       rejectedReason: args.reason.trim() || 'Отклонено',
       triagedByUserId: session.sub,
-      triagedAt: new Date()
-    }
+      triagedAt: new Date(),
+    },
   });
   await recordAudit(prisma, {
     userId: session.sub,
     action: 'client_request_rejected',
     entity: 'client_request',
     entityId: r.id,
-    after: { reason: updated.rejectedReason }
+    after: { reason: updated.rejectedReason },
   });
   await notifySubmitterClientRequestStatus(prisma, updated);
   return { ok: true, request: updated };

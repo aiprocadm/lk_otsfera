@@ -9,7 +9,7 @@ const {
   notifyMessageCreated,
   notifyOrgUsers,
   deliverNotificationToUser,
-  getPrimaryOrganizationId
+  getPrimaryOrganizationId,
 } = vi.hoisted(() => ({
   getSession: vi.fn(),
   orderFindUnique: vi.fn(),
@@ -19,7 +19,7 @@ const {
   notifyMessageCreated: vi.fn(),
   notifyOrgUsers: vi.fn(),
   deliverNotificationToUser: vi.fn(),
-  getPrimaryOrganizationId: vi.fn()
+  getPrimaryOrganizationId: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/session', () => ({ getSession }));
@@ -27,8 +27,8 @@ vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     order: { findUnique: orderFindUnique },
     comment: { create: commentCreate, count: commentCount },
-    auditLog: { create: auditCreate }
-  }
+    auditLog: { create: auditCreate },
+  },
 }));
 vi.mock('@/lib/notifications', () => ({
   notifyMessageCreated,
@@ -36,7 +36,7 @@ vi.mock('@/lib/notifications', () => ({
   deliverNotificationToUser,
 }));
 vi.mock('@/lib/auth/organization', () => ({
-  getPrimaryOrganizationId
+  getPrimaryOrganizationId,
 }));
 
 import { POST as commentsPost } from '@/app/api/comments/route';
@@ -46,7 +46,7 @@ function managerSession(opts: { sub?: string; managedOrgIds?: string[] } = {}) {
     sub: opts.sub ?? 'u-mgr-1',
     role: 'manager',
     email: 'mgr@t.local',
-    managedOrgIds: opts.managedOrgIds ?? []
+    managedOrgIds: opts.managedOrgIds ?? [],
   };
 }
 
@@ -54,7 +54,7 @@ function commentReq(orderId: string, body = 'hello from manager'): Request {
   return new Request('https://app.local/api/comments', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ orderId, body })
+    body: JSON.stringify({ orderId, body }),
   });
 }
 
@@ -66,13 +66,13 @@ describe('POST /api/comments — manager role', () => {
       orderId: 'ord-1',
       body: 'hello from manager',
       createdAt: new Date(),
-      authorId: 'u-mgr-1'
+      authorId: 'u-mgr-1',
     });
     commentCount.mockResolvedValue(0);
     notifyOrgUsers.mockResolvedValue({
       recipientsNotified: 1,
       emailsSent: 0,
-      emailsSkipped: 1
+      emailsSkipped: 1,
     });
   });
 
@@ -83,13 +83,13 @@ describe('POST /api/comments — manager role', () => {
       managerId: 'u-mgr-1',
       organizationId: 'org-a',
       orderNumber: 'ORD-001',
-      title: 'Test order'
+      title: 'Test order',
     });
 
     const res = await commentsPost(commentReq('ord-1'));
     expect(res.status).toBe(201);
     expect(commentCreate).toHaveBeenCalledWith({
-      data: { orderId: 'ord-1', body: 'hello from manager', authorId: 'u-mgr-1' }
+      data: { orderId: 'ord-1', body: 'hello from manager', authorId: 'u-mgr-1' },
     });
     expect(auditCreate).toHaveBeenCalled();
     expect(notifyOrgUsers).toHaveBeenCalledWith(
@@ -101,8 +101,8 @@ describe('POST /api/comments — manager role', () => {
           orderId: 'ord-1',
           orderNumber: 'ORD-001',
           orderTitle: 'Test order',
-          commentExcerpt: 'hello from manager'
-        })
+          commentExcerpt: 'hello from manager',
+        }),
       })
     );
     // Manager branch must NOT touch the partner-side notification helpers.
@@ -119,7 +119,7 @@ describe('POST /api/comments — manager role', () => {
       managerId: 'other-mgr',
       organizationId: 'org-a',
       orderNumber: 'ORD-002',
-      title: 'Org order'
+      title: 'Org order',
     });
 
     const res = await commentsPost(commentReq('ord-1'));
@@ -136,20 +136,20 @@ describe('POST /api/comments — manager role', () => {
       managerId: 'other-mgr',
       organizationId: 'org-foreign',
       orderNumber: 'ORD-003',
-      title: 'Historical access'
+      title: 'Historical access',
     });
     commentCount.mockResolvedValue(3);
 
     const res = await commentsPost(commentReq('ord-1'));
     expect(res.status).toBe(201);
     expect(commentCount).toHaveBeenCalledWith({
-      where: { orderId: 'ord-1', authorId: 'u-mgr-1' }
+      where: { orderId: 'ord-1', authorId: 'u-mgr-1' },
     });
     expect(notifyOrgUsers).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
         organizationId: 'org-foreign',
-        type: 'manager_replied'
+        type: 'manager_replied',
       })
     );
   });
@@ -161,7 +161,7 @@ describe('POST /api/comments — manager role', () => {
       managerId: 'other-mgr',
       organizationId: 'org-foreign',
       orderNumber: 'ORD-004',
-      title: 'Foreign'
+      title: 'Foreign',
     });
     commentCount.mockResolvedValue(0);
 
@@ -187,7 +187,7 @@ describe('POST /api/comments — manager role', () => {
       new Request('https://app.local/api/comments', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ orderId: 'ord-1', body: '' })
+        body: JSON.stringify({ orderId: 'ord-1', body: '' }),
       })
     );
     expect(res.status).toBe(400);
@@ -201,7 +201,7 @@ describe('POST /api/comments — manager role', () => {
       new Request('https://app.local/api/comments', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ body: 'hi' })
+        body: JSON.stringify({ body: 'hi' }),
       })
     );
     expect(res.status).toBe(400);
@@ -215,7 +215,7 @@ describe('POST /api/comments — manager role', () => {
       managerId: 'u-mgr-1',
       organizationId: 'org-a',
       orderNumber: 'ORD-005',
-      title: 'Long body'
+      title: 'Long body',
     });
 
     const longBody = 'a'.repeat(500);
@@ -223,8 +223,7 @@ describe('POST /api/comments — manager role', () => {
     expect(res.status).toBe(201);
 
     const callArg = notifyOrgUsers.mock.calls[0]?.[1] as
-      | { payload: { commentExcerpt: string } }
-      | undefined;
+      { payload: { commentExcerpt: string } } | undefined;
     expect(callArg?.payload.commentExcerpt).toHaveLength(200);
   });
 
@@ -235,7 +234,7 @@ describe('POST /api/comments — manager role', () => {
       managerId: 'u-mgr-1',
       organizationId: null,
       orderNumber: 'ORD-006',
-      title: 'Orphan order'
+      title: 'Orphan order',
     });
 
     const res = await commentsPost(commentReq('ord-1'));
@@ -251,7 +250,7 @@ describe('POST /api/comments — manager role', () => {
       managerId: 'u-mgr-1',
       organizationId: 'org-a',
       orderNumber: 'ORD-007',
-      title: 'Notify boom'
+      title: 'Notify boom',
     });
     notifyOrgUsers.mockRejectedValueOnce(new Error('email transport down'));
 
@@ -267,7 +266,7 @@ describe('POST /api/comments — manager role', () => {
       managerId: 'u-mgr-1',
       organizationId: 'org-a',
       orderNumber: 'ORD-008',
-      title: 'String throw'
+      title: 'String throw',
     });
     // Throwing a non-Error value hits the `String(err)` branch in the catch
     notifyOrgUsers.mockRejectedValueOnce('plain string rejection');

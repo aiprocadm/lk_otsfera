@@ -10,9 +10,9 @@ type SearchParams = { tab?: string };
 
 function TabChips({ activeTab }: { activeTab: 'orders' | 'general' }) {
   return (
-    <div className='flex gap-2'>
+    <div className="flex gap-2">
       <Link
-        href='/admin/documents'
+        href="/admin/documents"
         className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
           activeTab === 'orders'
             ? 'bg-[#F97316] text-white'
@@ -22,7 +22,7 @@ function TabChips({ activeTab }: { activeTab: 'orders' | 'general' }) {
         По заказам
       </Link>
       <Link
-        href='/admin/documents?tab=general'
+        href="/admin/documents?tab=general"
         className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
           activeTab === 'general'
             ? 'bg-[#F97316] text-white'
@@ -36,7 +36,7 @@ function TabChips({ activeTab }: { activeTab: 'orders' | 'general' }) {
 }
 
 export default async function AdminDocumentsPage({
-  searchParams
+  searchParams,
 }: {
   searchParams: Promise<SearchParams>;
 }) {
@@ -56,8 +56,8 @@ export default async function AdminDocumentsPage({
         direction: true,
         signedAt: true,
         createdAt: true,
-        size: true
-      }
+        size: true,
+      },
     });
 
     const documentRows: OrgDocumentRow[] = rows.map((d) => ({
@@ -70,26 +70,26 @@ export default async function AdminDocumentsPage({
       size: d.size,
       orderId: null,
       orderNumber: null,
-      orderTitle: null
+      orderTitle: null,
     }));
 
     return (
-      <div className='space-y-4'>
-        <h1 className='text-2xl font-semibold text-[#111111]'>Документы</h1>
-        <TabChips activeTab='general' />
+      <div className="space-y-4">
+        <h1 className="text-2xl font-semibold text-[#111111]">Документы</h1>
+        <TabChips activeTab="general" />
         <DocumentsList
           rows={documentRows}
-          downloadEndpointBase='/api/documents'
-          cardHrefBase='/admin/documents'
+          downloadEndpointBase="/api/documents"
+          cardHrefBase="/admin/documents"
         />
       </div>
     );
   }
 
   return (
-    <div className='space-y-4'>
-      <h1 className='text-xl font-semibold'>Admin · Documents</h1>
-      <TabChips activeTab='orders' />
+    <div className="space-y-4">
+      <h1 className="text-xl font-semibold">Admin · Documents</h1>
+      <TabChips activeTab="orders" />
       <DocumentsPanel />
     </div>
   );

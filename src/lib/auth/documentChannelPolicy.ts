@@ -23,7 +23,7 @@ export function organizationChannelWhere(organizationId: string): Prisma.Documen
   return {
     counterpartyType: 'organization',
     counterpartyId: organizationId,
-    ...INFECTED_HIDDEN_WHERE
+    ...INFECTED_HIDDEN_WHERE,
   };
 }
 
@@ -31,7 +31,7 @@ export function partnerChannelWhere(partnerId: string): Prisma.DocumentWhereInpu
   return {
     counterpartyType: 'partner',
     counterpartyId: partnerId,
-    ...INFECTED_HIDDEN_WHERE
+    ...INFECTED_HIDDEN_WHERE,
   };
 }
 
@@ -81,7 +81,12 @@ export function canManagerUploadOrderLess(
  * own channel. Pure + testable — called from every download guard.
  */
 export function canReadOrderLessDocument(
-  session: { role: string; organizationId?: string | null; partnerId?: string | null; companyId?: string | null },
+  session: {
+    role: string;
+    organizationId?: string | null;
+    partnerId?: string | null;
+    companyId?: string | null;
+  },
   doc: { counterpartyType: CounterpartyType; counterpartyId: string; companyId: string | null }
 ): boolean {
   if (session.role === 'admin') return true;

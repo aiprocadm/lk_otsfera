@@ -6,7 +6,7 @@ import { PiiAccessFilters } from '@/components/admin/pii-access-filters';
 const PROPS = {
   contexts: [{ key: 'calls_list', labelRu: 'Журнал звонков' }],
   subjectTypes: ['caller'],
-  actors: [{ id: 'u1', name: 'Емп', email: 'e@x.ru' }]
+  actors: [{ id: 'u1', name: 'Емп', email: 'e@x.ru' }],
 };
 
 describe('PiiAccessFilters', () => {

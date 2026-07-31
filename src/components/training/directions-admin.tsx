@@ -3,7 +3,18 @@
 import React, { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { TrainingDirection } from '@prisma/client';
-import { Button, Input, Field, Dialog, TableShell, THead, Th, Tr, Td, Badge } from '@/components/ui';
+import {
+  Button,
+  Input,
+  Field,
+  Dialog,
+  TableShell,
+  THead,
+  Th,
+  Tr,
+  Td,
+  Badge,
+} from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
 import { errorMessageRu } from '@/lib/errors/messages';
 
@@ -28,7 +39,7 @@ export function DirectionsAdmin({ directions }: Props) {
     const res = await fetch('/api/admin/training-directions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, sortOrder })
+      body: JSON.stringify({ name, sortOrder }),
     });
 
     if (!res.ok) {
@@ -57,7 +68,7 @@ export function DirectionsAdmin({ directions }: Props) {
     const res = await fetch(`/api/admin/training-directions/${editTarget.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, sortOrder })
+      body: JSON.stringify({ name, sortOrder }),
     });
 
     if (!res.ok) {
@@ -113,9 +124,7 @@ export function DirectionsAdmin({ directions }: Props) {
               <Td>{d.name}</Td>
               <Td>{d.sortOrder}</Td>
               <Td>
-                <Badge tone={d.isActive ? 'success' : 'neutral'}>
-                  {d.isActive ? 'Да' : 'Нет'}
-                </Badge>
+                <Badge tone={d.isActive ? 'success' : 'neutral'}>{d.isActive ? 'Да' : 'Нет'}</Badge>
               </Td>
               <Td>
                 <div className="flex gap-2">
@@ -140,12 +149,7 @@ export function DirectionsAdmin({ directions }: Props) {
       </TableShell>
 
       {/* ─── Add dialog ──────────────────────────────────────────────────────── */}
-      <Dialog
-        open={addOpen}
-        onClose={() => setAddOpen(false)}
-        title="Новое направление"
-        size="sm"
-      >
+      <Dialog open={addOpen} onClose={() => setAddOpen(false)} title="Новое направление" size="sm">
         <form onSubmit={handleAdd} className="space-y-4">
           <Field htmlFor="add-name" label="Название">
             <Input id="add-name" name="name" required autoFocus />
@@ -175,7 +179,12 @@ export function DirectionsAdmin({ directions }: Props) {
               <Input id="edit-name" name="name" required defaultValue={editTarget.name} autoFocus />
             </Field>
             <Field htmlFor="edit-sort" label="Порядок сортировки">
-              <Input id="edit-sort" name="sortOrder" type="number" defaultValue={editTarget.sortOrder} />
+              <Input
+                id="edit-sort"
+                name="sortOrder"
+                type="number"
+                defaultValue={editTarget.sortOrder}
+              />
             </Field>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="secondary" onClick={() => setEditTarget(null)}>

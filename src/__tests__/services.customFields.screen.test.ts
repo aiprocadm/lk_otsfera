@@ -10,17 +10,17 @@ const { listDefinitions, getActiveDefinitions } = vi.hoisted(() => ({
   listDefinitions: vi.fn(),
   // getFieldsForEntity ходит сюда через getValuesForEntity — без этого мока
   // тест падает на «No export is defined».
-  getActiveDefinitions: vi.fn().mockResolvedValue([])
+  getActiveDefinitions: vi.fn().mockResolvedValue([]),
 }));
 vi.mock('@/lib/services/customFields/definitions', () => ({
   listDefinitions,
-  getActiveDefinitions
+  getActiveDefinitions,
 }));
 
 import {
   parseEntityParam,
   getCustomFieldsScreen,
-  DEFAULT_ENTITY
+  DEFAULT_ENTITY,
 } from '@/lib/services/customFields/screen';
 import { getFieldsForEntity } from '@/lib/services/customFields/values';
 
@@ -64,7 +64,7 @@ describe('getCustomFieldsScreen', () => {
       'org_type',
       'partner',
       'assigned_manager',
-      'status'
+      'status',
     ]);
   });
 

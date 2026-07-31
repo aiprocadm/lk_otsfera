@@ -16,7 +16,7 @@ export async function deliverTelegram(text: string): Promise<void> {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ chat_id: chatId, text }),
-      signal: controller.signal
+      signal: controller.signal,
     });
   } finally {
     clearTimeout(timer);
@@ -32,7 +32,7 @@ export async function deliverAlert(prisma: PrismaClient, d: AlertDelivery): Prom
 
   const admins = await prisma.user.findMany({
     where: { role: 'admin', isActive: true },
-    select: { id: true }
+    select: { id: true },
   });
 
   for (const a of admins) {
@@ -52,7 +52,7 @@ export async function deliverAlert(prisma: PrismaClient, d: AlertDelivery): Prom
         body: text,
         type,
         channels: ['email'],
-        dedupKey: rowId
+        dedupKey: rowId,
       });
     } catch (err) {
       log.error('[alerts] email failed', { userId: a.id, err });

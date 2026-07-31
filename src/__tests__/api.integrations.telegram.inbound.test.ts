@@ -1,15 +1,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ---- hoisted mocks (mirrors api.telegram.webhook.test.ts) ----
-const { linkByCodeMock, sendTelegramMessageMock, prismaMock, ingestMock, isFeatureEnabledMock, recordWebhookEvent } =
-  vi.hoisted(() => ({
-    linkByCodeMock: vi.fn(),
-    sendTelegramMessageMock: vi.fn(),
-    prismaMock: {},
-    ingestMock: vi.fn(),
-    isFeatureEnabledMock: vi.fn(),
-    recordWebhookEvent: vi.fn().mockResolvedValue(undefined),
-  }));
+const {
+  linkByCodeMock,
+  sendTelegramMessageMock,
+  prismaMock,
+  ingestMock,
+  isFeatureEnabledMock,
+  recordWebhookEvent,
+} = vi.hoisted(() => ({
+  linkByCodeMock: vi.fn(),
+  sendTelegramMessageMock: vi.fn(),
+  prismaMock: {},
+  ingestMock: vi.fn(),
+  isFeatureEnabledMock: vi.fn(),
+  recordWebhookEvent: vi.fn().mockResolvedValue(undefined),
+}));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: prismaMock }));
 vi.mock('@/lib/services/telegram/link', () => ({ linkByCode: linkByCodeMock }));
@@ -55,7 +61,12 @@ describe('POST /api/integrations/telegram/webhook — inbound ingest', () => {
   it('не-/start текст → ingestInboundMessage, 200 (с senderDisplay из from.username)', async () => {
     ingestMock.mockResolvedValue({ ok: true, id: 'm1', deduped: false });
     const update = {
-      message: { message_id: 55, chat: { id: 999 }, text: 'нужна помощь', from: { username: 'ivan' } },
+      message: {
+        message_id: 55,
+        chat: { id: 999 },
+        text: 'нужна помощь',
+        from: { username: 'ivan' },
+      },
     };
     const res = await POST(makeRequest(update));
     expect(res.status).toBe(200);

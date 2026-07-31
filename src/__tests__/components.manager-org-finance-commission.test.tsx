@@ -6,7 +6,11 @@ import type { OrgIntermediaryCommission } from '@/lib/services/manager/orgCommis
 
 describe('OrgFinanceCommission', () => {
   it('renders total, effective rate percentage, and omits the per-order details when empty', () => {
-    const data: OrgIntermediaryCommission = { effectiveRate: '0.1', totalCommission: '0.00', perOrder: [] };
+    const data: OrgIntermediaryCommission = {
+      effectiveRate: '0.1',
+      totalCommission: '0.00',
+      perOrder: [],
+    };
     const html = renderToString(React.createElement(OrgFinanceCommission, { data }));
     expect(html).toContain('ставка ');
     expect(html).toContain('10.00');
@@ -19,8 +23,8 @@ describe('OrgFinanceCommission', () => {
       effectiveRate: '0.15',
       totalCommission: '150.00',
       perOrder: [
-        { orderId: 'o1', orderNumber: '55', baseAmount: '1000.00', commissionAmount: '150.00' }
-      ]
+        { orderId: 'o1', orderNumber: '55', baseAmount: '1000.00', commissionAmount: '150.00' },
+      ],
     };
     const html = renderToString(React.createElement(OrgFinanceCommission, { data }));
     expect(html).toContain('<details');
@@ -33,8 +37,8 @@ describe('OrgFinanceCommission', () => {
       effectiveRate: '0.15',
       totalCommission: '150.00',
       perOrder: [
-        { orderId: 'o2', orderNumber: null, baseAmount: '500.00', commissionAmount: '75.00' }
-      ]
+        { orderId: 'o2', orderNumber: null, baseAmount: '500.00', commissionAmount: '75.00' },
+      ],
     };
     const html = renderToString(React.createElement(OrgFinanceCommission, { data }));
     expect(html).toContain('—');

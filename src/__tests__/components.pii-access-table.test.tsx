@@ -17,7 +17,7 @@ function row(over: Partial<PiiAccessRow> = {}): PiiAccessRow {
     subjectCount: 1,
     subjects: [{ id: 's1', label: 'Иван И.' }],
     meta: null,
-    ...over
+    ...over,
   };
 }
 

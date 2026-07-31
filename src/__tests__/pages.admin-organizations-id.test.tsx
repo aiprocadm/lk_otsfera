@@ -8,15 +8,14 @@ const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
 // сервис, иначе он полезет в реальный prisma. Обычная функция, а не vi.fn:
 // в файле есть resetAllMocks, он снёс бы заготовленный ответ.
 vi.mock('@/lib/services/customFields', () => ({
-  getFieldsForEntity: async () => []
+  getFieldsForEntity: async () => [],
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
 
 const { organizationFindUnique } = vi.hoisted(() => ({ organizationFindUnique: vi.fn() }));
 vi.mock('@/lib/db/prisma', () => ({
-
-  prisma: { organization: { findUnique: organizationFindUnique } }
+  prisma: { organization: { findUnique: organizationFindUnique } },
 }));
 
 const { getOrganization } = vi.hoisted(() => ({ getOrganization: vi.fn() }));
@@ -29,7 +28,7 @@ const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
@@ -41,43 +40,50 @@ vi.mock('@/components/partner/customer-access-section', () => ({
       props.organizationId,
       String(props.canInvite),
       props.source
-    )
+    ),
 }));
 
 vi.mock('@/components/admin/managers-block', () => ({
   ManagersBlock: (props: { orgId: string }) =>
-    React.createElement('div', { 'data-testid': 'managers-block' }, props.orgId)
+    React.createElement('div', { 'data-testid': 'managers-block' }, props.orgId),
 }));
 
 vi.mock('@/components/admin/organization-edit-form', () => ({
   OrganizationEditForm: (props: { org: unknown }) =>
-    React.createElement('div', { 'data-testid': 'org-edit-form' }, JSON.stringify(props.org))
+    React.createElement('div', { 'data-testid': 'org-edit-form' }, JSON.stringify(props.org)),
 }));
 
 vi.mock('@/components/admin/admin-rate-override-form', () => ({
-  AdminRateOverrideForm: (props: { organizationId: string; initialRate: unknown; initialNote: unknown }) =>
+  AdminRateOverrideForm: (props: {
+    organizationId: string;
+    initialRate: unknown;
+    initialNote: unknown;
+  }) =>
     React.createElement(
       'div',
       { 'data-testid': 'rate-override-form' },
       props.organizationId,
       String(props.initialRate),
       String(props.initialNote)
-    )
+    ),
 }));
-
 
 // Этап 8 (PR-1): реквизиты для документов — сервис и карточка стабятся.
 const { getOrgRequisitesByAdmin, getPartnerRequisitesByAdmin } = vi.hoisted(() => ({
   getOrgRequisitesByAdmin: vi.fn().mockResolvedValue(null),
-  getPartnerRequisitesByAdmin: vi.fn().mockResolvedValue(null)
+  getPartnerRequisitesByAdmin: vi.fn().mockResolvedValue(null),
 }));
-vi.mock('@/lib/services/admin/counterpartyRequisites', () => ({ getOrgRequisitesByAdmin, getPartnerRequisitesByAdmin }));
+vi.mock('@/lib/services/admin/counterpartyRequisites', () => ({
+  getOrgRequisitesByAdmin,
+  getPartnerRequisitesByAdmin,
+}));
 vi.mock('@/server-actions/requisites', () => ({
   setOrgRequisitesByAdminAction: vi.fn(),
-  setPartnerRequisitesByAdminAction: vi.fn()
+  setPartnerRequisitesByAdminAction: vi.fn(),
 }));
 vi.mock('@/components/requisites/requisites-card', () => ({
-  RequisitesCard: (props: { title: string }) => React.createElement('div', { 'data-testid': 'requisites-card' }, props.title)
+  RequisitesCard: (props: { title: string }) =>
+    React.createElement('div', { 'data-testid': 'requisites-card' }, props.title),
 }));
 
 import AdminOrganizationDetailPage from '@/app/admin/organizations/[id]/page';
@@ -92,12 +98,12 @@ const ORG = {
   externalId: 'ext-1',
   partner: { name: 'Партнёр 1' },
   partnerCommissionRate: 0.1,
-  partnerCommissionRateNote: 'note'
+  partnerCommissionRateNote: 'note',
 };
 
 const META = {
   company: { id: 'c1', name: 'Компания' },
-  _count: { orders: 5, students: 10, organizationUsers: 2 }
+  _count: { orders: 5, students: 10, organizationUsers: 2 },
 };
 
 describe('AdminOrganizationDetailPage', () => {
@@ -116,7 +122,9 @@ describe('AdminOrganizationDetailPage', () => {
     organizationFindUnique.mockResolvedValue(META);
 
     await expect(
-      renderServerComponent(AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'missing' }) }))
+      renderServerComponent(
+        AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'missing' }) })
+      )
     ).rejects.toThrow('NOT_FOUND');
   });
 
@@ -126,7 +134,9 @@ describe('AdminOrganizationDetailPage', () => {
     organizationFindUnique.mockResolvedValue(null);
 
     await expect(
-      renderServerComponent(AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }) }))
+      renderServerComponent(
+        AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }) })
+      )
     ).rejects.toThrow('NOT_FOUND');
   });
 
@@ -159,9 +169,18 @@ describe('AdminOrganizationDetailPage', () => {
     getOrganization.mockResolvedValue(ORG);
     organizationFindUnique.mockResolvedValue(META);
     getOrgRequisitesByAdmin.mockResolvedValue({
-      legalName: 'ООО Заказчик', inn: '7707083893', kpp: null, ogrn: null, legalAddress: null,
-      bankName: null, bankAccount: null, corrAccount: null, bic: null,
-      signerName: null, signerPosition: null, signerBasis: null
+      legalName: 'ООО Заказчик',
+      inn: '7707083893',
+      kpp: null,
+      ogrn: null,
+      legalAddress: null,
+      bankName: null,
+      bankAccount: null,
+      corrAccount: null,
+      bic: null,
+      signerName: null,
+      signerPosition: null,
+      signerBasis: null,
     });
 
     const { container } = await renderServerComponent(
@@ -180,7 +199,7 @@ describe('AdminOrganizationDetailPage', () => {
       partner: null,
       kpp: null,
       externalId: null,
-      inn: null
+      inn: null,
     });
     organizationFindUnique.mockResolvedValue({ ...META, company: null });
 
@@ -204,9 +223,9 @@ describe('AdminOrganizationDetailPage', () => {
           oldRate: 0.05,
           newRate: 0.1,
           effectiveFrom: new Date('2026-03-01'),
-          changedByName: 'Admin One'
-        }
-      ]
+          changedByName: 'Admin One',
+        },
+      ],
     });
 
     const { container } = await renderServerComponent(
@@ -233,9 +252,9 @@ describe('AdminOrganizationDetailPage', () => {
           oldRate: null,
           newRate: null,
           effectiveFrom: new Date('2026-04-01'),
-          changedByName: null
-        }
-      ]
+          changedByName: null,
+        },
+      ],
     });
 
     const { container } = await renderServerComponent(

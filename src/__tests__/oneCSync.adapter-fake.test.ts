@@ -36,7 +36,7 @@ describe('FakeOneCAdapter', () => {
       clientCompanyName: 'X',
       clientContactName: 'Y',
       subject: 'Z',
-      productType: ['training']
+      productType: ['training'],
     });
     expect(result.acceptedAt).toBeTruthy();
   });
@@ -64,7 +64,9 @@ describe('FakeOneCAdapter', () => {
     try {
       const a = new FakeOneCAdapter();
       const orders = await a.pullOrders({});
-      const malformed = orders.find((o) => (o as unknown as Record<string, unknown>).broken === true);
+      const malformed = orders.find(
+        (o) => (o as unknown as Record<string, unknown>).broken === true
+      );
       expect(malformed).toBeDefined();
     } finally {
       if (prev === undefined) delete process.env.FAKE_ONEC_MALFORMED_RATE;
@@ -90,13 +92,15 @@ describe('FakeOneCAdapter', () => {
     process.env.FAKE_ONEC_FAILURE_RATE = '1'; // 100% failure
     try {
       const a = new FakeOneCAdapter();
-      await expect(a.pushLead({
-        cabinetLeadId: 'lead-fail',
-        clientCompanyName: 'X',
-        clientContactName: 'Y',
-        subject: 'Z',
-        productType: []
-      })).rejects.toThrow(/FakeOneC simulated failure/);
+      await expect(
+        a.pushLead({
+          cabinetLeadId: 'lead-fail',
+          clientCompanyName: 'X',
+          clientContactName: 'Y',
+          subject: 'Z',
+          productType: [],
+        })
+      ).rejects.toThrow(/FakeOneC simulated failure/);
     } finally {
       if (prev === undefined) delete process.env.FAKE_ONEC_FAILURE_RATE;
       else process.env.FAKE_ONEC_FAILURE_RATE = prev;

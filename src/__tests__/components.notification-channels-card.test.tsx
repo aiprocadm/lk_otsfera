@@ -8,17 +8,23 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push, refresh }) }));
 
 const { updateChannelPreferenceAction, saveWhatsappPhoneAction } = vi.hoisted(() => ({
   updateChannelPreferenceAction: vi.fn(),
-  saveWhatsappPhoneAction: vi.fn()
+  saveWhatsappPhoneAction: vi.fn(),
 }));
-vi.mock('@/server-actions/notification-channels', () => ({ updateChannelPreferenceAction, saveWhatsappPhoneAction }));
+vi.mock('@/server-actions/notification-channels', () => ({
+  updateChannelPreferenceAction,
+  saveWhatsappPhoneAction,
+}));
 
 const { generateMaxLinkAction, unlinkMaxAction } = vi.hoisted(() => ({
   generateMaxLinkAction: vi.fn(),
-  unlinkMaxAction: vi.fn()
+  unlinkMaxAction: vi.fn(),
 }));
 vi.mock('@/server-actions/max', () => ({ generateMaxLinkAction, unlinkMaxAction }));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 import { NotificationChannelsCard } from '@/components/settings/notification-channels-card';
@@ -28,7 +34,7 @@ const allUnavailable: NotificationSettingsView = {
   emailAlwaysOn: true,
   telegram: { available: false, linked: false, enabled: false },
   max: { available: false, linked: false, enabled: false },
-  whatsapp: { available: false, phone: null, enabled: false }
+  whatsapp: { available: false, phone: null, enabled: false },
 };
 
 describe('NotificationChannelsCard', () => {
@@ -54,11 +60,13 @@ describe('NotificationChannelsCard', () => {
   it('Telegram section: shows not-linked hint when unlinked, toggle disabled', () => {
     const settings: NotificationSettingsView = {
       ...allUnavailable,
-      telegram: { available: true, linked: false, enabled: false }
+      telegram: { available: true, linked: false, enabled: false },
     };
     render(React.createElement(NotificationChannelsCard, { settings }));
     expect(screen.getByText('Telegram')).toBeTruthy();
-    expect(screen.getByText('Привяжите Telegram в карточке выше, чтобы получать уведомления.')).toBeTruthy();
+    expect(
+      screen.getByText('Привяжите Telegram в карточке выше, чтобы получать уведомления.')
+    ).toBeTruthy();
     const checkbox = screen.getByRole('checkbox') as HTMLInputElement;
     expect(checkbox.disabled).toBe(true);
     expect(checkbox.checked).toBe(false);
@@ -69,7 +77,7 @@ describe('NotificationChannelsCard', () => {
     updateChannelPreferenceAction.mockResolvedValue({ ok: true });
     const settings: NotificationSettingsView = {
       ...allUnavailable,
-      telegram: { available: true, linked: true, enabled: false }
+      telegram: { available: true, linked: true, enabled: false },
     };
     render(React.createElement(NotificationChannelsCard, { settings }));
     expect(screen.getByText('Выключен')).toBeTruthy();
@@ -77,7 +85,9 @@ describe('NotificationChannelsCard', () => {
     expect(checkbox.disabled).toBe(false);
     fireEvent.click(checkbox);
 
-    await waitFor(() => expect(updateChannelPreferenceAction).toHaveBeenCalledWith('telegram', true));
+    await waitFor(() =>
+      expect(updateChannelPreferenceAction).toHaveBeenCalledWith('telegram', true)
+    );
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Канал включён'));
     await waitFor(() => expect(refresh).toHaveBeenCalled());
   });
@@ -86,14 +96,16 @@ describe('NotificationChannelsCard', () => {
     updateChannelPreferenceAction.mockResolvedValue({ ok: true });
     const settings: NotificationSettingsView = {
       ...allUnavailable,
-      telegram: { available: true, linked: true, enabled: true }
+      telegram: { available: true, linked: true, enabled: true },
     };
     render(React.createElement(NotificationChannelsCard, { settings }));
     const checkbox = screen.getByRole('checkbox') as HTMLInputElement;
     expect(checkbox.checked).toBe(true);
     fireEvent.click(checkbox);
 
-    await waitFor(() => expect(updateChannelPreferenceAction).toHaveBeenCalledWith('telegram', false));
+    await waitFor(() =>
+      expect(updateChannelPreferenceAction).toHaveBeenCalledWith('telegram', false)
+    );
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Канал выключен'));
   });
 
@@ -101,7 +113,7 @@ describe('NotificationChannelsCard', () => {
     updateChannelPreferenceAction.mockResolvedValue({ ok: false, error: 'forbidden' });
     const settings: NotificationSettingsView = {
       ...allUnavailable,
-      telegram: { available: true, linked: true, enabled: false }
+      telegram: { available: true, linked: true, enabled: false },
     };
     render(React.createElement(NotificationChannelsCard, { settings }));
     fireEvent.click(screen.getByRole('checkbox'));
@@ -113,7 +125,7 @@ describe('NotificationChannelsCard', () => {
   it('Max section (not linked, no deep link yet): shows "Привязать Max" button', () => {
     const settings: NotificationSettingsView = {
       ...allUnavailable,
-      max: { available: true, linked: false, enabled: false }
+      max: { available: true, linked: false, enabled: false },
     };
     render(React.createElement(NotificationChannelsCard, { settings }));
     expect(screen.getByRole('button', { name: 'Привязать Max' })).toBeTruthy();
@@ -123,7 +135,7 @@ describe('NotificationChannelsCard', () => {
     generateMaxLinkAction.mockResolvedValue({ ok: true, deepLink: 'https://max.link/x' });
     const settings: NotificationSettingsView = {
       ...allUnavailable,
-      max: { available: true, linked: false, enabled: false }
+      max: { available: true, linked: false, enabled: false },
     };
     render(React.createElement(NotificationChannelsCard, { settings }));
     fireEvent.click(screen.getByRole('button', { name: 'Привязать Max' }));
@@ -136,12 +148,14 @@ describe('NotificationChannelsCard', () => {
     generateMaxLinkAction.mockResolvedValue({ ok: false, error: 'storage' });
     const settings: NotificationSettingsView = {
       ...allUnavailable,
-      max: { available: true, linked: false, enabled: false }
+      max: { available: true, linked: false, enabled: false },
     };
     render(React.createElement(NotificationChannelsCard, { settings }));
     fireEvent.click(screen.getByRole('button', { name: 'Привязать Max' }));
 
-    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Не удалось загрузить файл. Попробуйте ещё раз.'));
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith('Не удалось загрузить файл. Попробуйте ещё раз.')
+    );
     expect(screen.queryByRole('link', { name: 'Открыть в Max' })).toBeNull();
   });
 
@@ -149,7 +163,7 @@ describe('NotificationChannelsCard', () => {
     updateChannelPreferenceAction.mockResolvedValue({ ok: true });
     const settings: NotificationSettingsView = {
       ...allUnavailable,
-      max: { available: true, linked: true, enabled: false }
+      max: { available: true, linked: true, enabled: false },
     };
     render(React.createElement(NotificationChannelsCard, { settings }));
     fireEvent.click(screen.getByRole('checkbox'));
@@ -161,7 +175,7 @@ describe('NotificationChannelsCard', () => {
     unlinkMaxAction.mockResolvedValue(undefined);
     const settings: NotificationSettingsView = {
       ...allUnavailable,
-      max: { available: true, linked: true, enabled: true }
+      max: { available: true, linked: true, enabled: true },
     };
     render(React.createElement(NotificationChannelsCard, { settings }));
     fireEvent.click(screen.getByRole('button', { name: 'Отвязать Max' }));
@@ -174,10 +188,12 @@ describe('NotificationChannelsCard', () => {
   it('WhatsApp section: renders phone input pre-filled, not-linked hint when no phone', () => {
     const settings: NotificationSettingsView = {
       ...allUnavailable,
-      whatsapp: { available: true, phone: null, enabled: false }
+      whatsapp: { available: true, phone: null, enabled: false },
     };
     render(React.createElement(NotificationChannelsCard, { settings }));
-    expect(screen.getByText('Укажите номер телефона, чтобы получать уведомления в WhatsApp.')).toBeTruthy();
+    expect(
+      screen.getByText('Укажите номер телефона, чтобы получать уведомления в WhatsApp.')
+    ).toBeTruthy();
     const input = screen.getByLabelText('Номер телефона') as HTMLInputElement;
     expect(input.value).toBe('');
   });
@@ -186,7 +202,7 @@ describe('NotificationChannelsCard', () => {
     saveWhatsappPhoneAction.mockResolvedValue({ ok: true, phone: '+79000000000' });
     const settings: NotificationSettingsView = {
       ...allUnavailable,
-      whatsapp: { available: true, phone: '', enabled: false }
+      whatsapp: { available: true, phone: '', enabled: false },
     };
     render(React.createElement(NotificationChannelsCard, { settings }));
     const input = screen.getByLabelText('Номер телефона');
@@ -202,7 +218,7 @@ describe('NotificationChannelsCard', () => {
     saveWhatsappPhoneAction.mockResolvedValue({ ok: true, phone: null });
     const settings: NotificationSettingsView = {
       ...allUnavailable,
-      whatsapp: { available: true, phone: '+79000000000', enabled: false }
+      whatsapp: { available: true, phone: '+79000000000', enabled: false },
     };
     render(React.createElement(NotificationChannelsCard, { settings }));
     const input = screen.getByLabelText('Номер телефона');
@@ -216,7 +232,7 @@ describe('NotificationChannelsCard', () => {
     saveWhatsappPhoneAction.mockResolvedValue({ ok: false, error: 'invalid_phone' });
     const settings: NotificationSettingsView = {
       ...allUnavailable,
-      whatsapp: { available: true, phone: '123', enabled: false }
+      whatsapp: { available: true, phone: '123', enabled: false },
     };
     render(React.createElement(NotificationChannelsCard, { settings }));
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
@@ -233,18 +249,20 @@ describe('NotificationChannelsCard', () => {
     updateChannelPreferenceAction.mockResolvedValue({ ok: true });
     const settings: NotificationSettingsView = {
       ...allUnavailable,
-      whatsapp: { available: true, phone: '+79000000000', enabled: false }
+      whatsapp: { available: true, phone: '+79000000000', enabled: false },
     };
     render(React.createElement(NotificationChannelsCard, { settings }));
     fireEvent.click(screen.getByRole('checkbox'));
 
-    await waitFor(() => expect(updateChannelPreferenceAction).toHaveBeenCalledWith('whatsapp', true));
+    await waitFor(() =>
+      expect(updateChannelPreferenceAction).toHaveBeenCalledWith('whatsapp', true)
+    );
   });
 
   it('WhatsApp toggle: linked is derived from phone presence (checkbox enabled when phone set)', () => {
     const settings: NotificationSettingsView = {
       ...allUnavailable,
-      whatsapp: { available: true, phone: '+79000000000', enabled: true }
+      whatsapp: { available: true, phone: '+79000000000', enabled: true },
     };
     render(React.createElement(NotificationChannelsCard, { settings }));
     const checkbox = screen.getByRole('checkbox') as HTMLInputElement;

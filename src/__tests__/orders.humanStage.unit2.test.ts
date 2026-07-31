@@ -39,11 +39,21 @@ describe('paymentStage — additional branches', () => {
     expect(s).toEqual({ label: 'Счёт не выставлен', tone: 'neutral' });
   });
   it('not_billed, no payments, completed=true → Счёт не выставлен (warning)', () => {
-    const s = paymentStage({ financialStatus: 'not_billed', amount: '100', paidTotal: '0', completed: true });
+    const s = paymentStage({
+      financialStatus: 'not_billed',
+      amount: '100',
+      paidTotal: '0',
+      completed: true,
+    });
     expect(s).toEqual({ label: 'Счёт не выставлен', tone: 'warning' });
   });
   it('not_billed, completed=false explicit → Счёт не выставлен (neutral)', () => {
-    const s = paymentStage({ financialStatus: 'not_billed', amount: '100', paidTotal: '0', completed: false });
+    const s = paymentStage({
+      financialStatus: 'not_billed',
+      amount: '100',
+      paidTotal: '0',
+      completed: false,
+    });
     expect(s).toEqual({ label: 'Счёт не выставлен', tone: 'neutral' });
   });
   it('partially_paid status, 0 actual payments → Счёт выставлен (neutral)', () => {
@@ -65,27 +75,52 @@ describe('paymentStage — additional branches', () => {
 
 describe('orderStage — additional combined cases', () => {
   it('completed + refunded → Возврат (finance priority)', () => {
-    const s = orderStage({ executionStatus: 'completed', financialStatus: 'refunded', amount: '100', paidTotal: '100' });
+    const s = orderStage({
+      executionStatus: 'completed',
+      financialStatus: 'refunded',
+      amount: '100',
+      paidTotal: '100',
+    });
     expect(s).toEqual({ label: 'Возврат', tone: 'danger' });
   });
 
   it('pending + not_billed → Новый, счёт не выставлен (neutral)', () => {
-    const s = orderStage({ executionStatus: 'pending', financialStatus: 'not_billed', amount: '500', paidTotal: '0' });
+    const s = orderStage({
+      executionStatus: 'pending',
+      financialStatus: 'not_billed',
+      amount: '500',
+      paidTotal: '0',
+    });
     expect(s).toEqual({ label: 'Новый, счёт не выставлен', tone: 'neutral' });
   });
 
   it('in_progress + not_billed → В работе, счёт не выставлен (neutral)', () => {
-    const s = orderStage({ executionStatus: 'in_progress', financialStatus: 'not_billed', amount: '100', paidTotal: '0' });
+    const s = orderStage({
+      executionStatus: 'in_progress',
+      financialStatus: 'not_billed',
+      amount: '100',
+      paidTotal: '0',
+    });
     expect(s.label).toBe('В работе, счёт не выставлен');
   });
 
   it('completed + full payment → Завершён, оплачен (success)', () => {
-    const s = orderStage({ executionStatus: 'completed', financialStatus: 'paid', amount: '100', paidTotal: '100' });
+    const s = orderStage({
+      executionStatus: 'completed',
+      financialStatus: 'paid',
+      amount: '100',
+      paidTotal: '100',
+    });
     expect(s).toEqual({ label: 'Завершён, оплачен', tone: 'success' });
   });
 
   it('combined label: pay.label starts with uppercase but combined has lowercase', () => {
-    const s = orderStage({ executionStatus: 'in_progress', financialStatus: 'billed', amount: '100', paidTotal: '0' });
+    const s = orderStage({
+      executionStatus: 'in_progress',
+      financialStatus: 'billed',
+      amount: '100',
+      paidTotal: '0',
+    });
     // exec.label = "В работе", pay.label = "Счёт выставлен" → lower = "счёт выставлен"
     expect(s.label).toBe('В работе, счёт выставлен');
   });

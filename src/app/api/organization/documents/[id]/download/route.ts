@@ -46,7 +46,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       {
         code: 'INFECTED',
         message: 'Document was quarantined by malware scan',
-        scanReason: result.scanReason ?? undefined
+        scanReason: result.scanReason ?? undefined,
       },
       { status: 410 }
     );
@@ -62,7 +62,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       documentId: id,
       storagePath: result.path,
       ttl,
-      providerError: error instanceof Error ? error.message : String(error)
+      providerError: error instanceof Error ? error.message : String(error),
     });
     return NextResponse.json(
       { error: 'Failed to create document download link', correlationId },
@@ -75,7 +75,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     entity: 'document',
     entityId: id,
     userId: session.sub,
-    after: { ttl, viewer: 'organization', organizationId: activeOrgId }
+    after: { ttl, viewer: 'organization', organizationId: activeOrgId },
   });
   // Этап 3 PR-2 (ФТ-6.6): скачивание гасит бейдж «новый» (best-effort внутри).
   await markDocumentViewed(prisma, { documentId: id, userId: session.sub });
@@ -83,6 +83,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   return NextResponse.json({
     downloadUrl: signedUrl,
     expiresInSec: ttl,
-    fileName: result.name
+    fileName: result.name,
   });
 }

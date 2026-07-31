@@ -16,17 +16,17 @@ beforeAll(async () => {
   prisma = new PrismaClient();
   const stamp = Date.now();
   const partner = await prisma.partner.create({
-    data: { name: `OrgOrdersP-${stamp}`, commissionRate: 0.1 }
+    data: { name: `OrgOrdersP-${stamp}`, commissionRate: 0.1 },
   });
   partnerId = partner.id;
   const company = await prisma.company.create({ data: { name: `OrgOrdersC-${stamp}` } });
   companyId = company.id;
 
   const orgA = await prisma.organization.create({
-    data: { name: `OrgOrdersA-${stamp}`, partnerId, companyId }
+    data: { name: `OrgOrdersA-${stamp}`, partnerId, companyId },
   });
   const orgB = await prisma.organization.create({
-    data: { name: `OrgOrdersB-${stamp}`, partnerId, companyId }
+    data: { name: `OrgOrdersB-${stamp}`, partnerId, companyId },
   });
   orgAId = orgA.id;
   orgBId = orgB.id;
@@ -36,8 +36,8 @@ beforeAll(async () => {
       email: `org-orders-mgr-${stamp}@t.local`,
       passwordHash: 'x',
       name: 'Alice Manager',
-      role: 'manager'
-    }
+      role: 'manager',
+    },
   });
   managerId = manager.id;
 
@@ -53,8 +53,8 @@ beforeAll(async () => {
       paidAmount: 25000,
       executionStatus: 'in_progress',
       financialStatus: 'partially_paid',
-      productMix: ['training']
-    }
+      productMix: ['training'],
+    },
   });
   orderA1Id = a1.id;
 
@@ -68,8 +68,8 @@ beforeAll(async () => {
       totalAmount: 50000,
       paidAmount: 50000,
       executionStatus: 'completed',
-      financialStatus: 'paid'
-    }
+      financialStatus: 'paid',
+    },
   });
   orderA2Id = a2.id;
 
@@ -83,8 +83,8 @@ beforeAll(async () => {
       totalAmount: 200000,
       paidAmount: 0,
       executionStatus: 'pending',
-      financialStatus: 'billed'
-    }
+      financialStatus: 'billed',
+    },
   });
   orderB1Id = b1.id;
 
@@ -100,8 +100,8 @@ beforeAll(async () => {
       type: 'contract',
       orderId: orderA1Id,
       counterpartyType: 'organization',
-      counterpartyId: orgAId
-    }
+      counterpartyId: orgAId,
+    },
   });
   await prisma.document.create({
     data: {
@@ -112,17 +112,23 @@ beforeAll(async () => {
       orderId: orderA1Id,
       scanStatus: 'infected',
       counterpartyType: 'organization',
-      counterpartyId: orgAId
-    }
+      counterpartyId: orgAId,
+    },
   });
   await prisma.payment.create({
-    data: { organizationId: orgAId, orderId: orderA1Id, amount: 25000, paidAt: new Date(), method: 'bank' }
+    data: {
+      organizationId: orgAId,
+      orderId: orderA1Id,
+      amount: 25000,
+      paidAt: new Date(),
+      method: 'bank',
+    },
   });
   await prisma.comment.create({
-    data: { orderId: orderA1Id, body: 'first comment', authorId: managerId }
+    data: { orderId: orderA1Id, body: 'first comment', authorId: managerId },
   });
   await prisma.comment.create({
-    data: { orderId: orderA1Id, body: 'second comment', authorId: managerId }
+    data: { orderId: orderA1Id, body: 'second comment', authorId: managerId },
   });
 });
 
@@ -155,7 +161,7 @@ describe('services/organization/orders — listOrgOrders', () => {
   it('filters by executionStatus', async () => {
     const { rows, total } = await listOrgOrders(prisma, {
       organizationId: orgAId,
-      executionStatus: 'completed'
+      executionStatus: 'completed',
     });
     expect(total).toBe(1);
     expect(rows[0]!.id).toBe(orderA2Id);
@@ -164,7 +170,7 @@ describe('services/organization/orders — listOrgOrders', () => {
   it('filters by financialStatus', async () => {
     const { rows, total } = await listOrgOrders(prisma, {
       organizationId: orgAId,
-      financialStatus: 'partially_paid'
+      financialStatus: 'partially_paid',
     });
     expect(total).toBe(1);
     expect(rows[0]!.id).toBe(orderA1Id);
@@ -173,7 +179,7 @@ describe('services/organization/orders — listOrgOrders', () => {
   it('searches by orderNumber (case-insensitive)', async () => {
     const { rows } = await listOrgOrders(prisma, {
       organizationId: orgAId,
-      search: 'a1-'
+      search: 'a1-',
     });
     expect(rows.length).toBe(1);
     expect(rows[0]!.id).toBe(orderA1Id);
@@ -182,7 +188,7 @@ describe('services/organization/orders — listOrgOrders', () => {
   it('searches by title (case-insensitive)', async () => {
     const { rows } = await listOrgOrders(prisma, {
       organizationId: orgAId,
-      search: 'ОХРАНЕ'
+      search: 'ОХРАНЕ',
     });
     expect(rows.length).toBe(1);
     expect(rows[0]!.id).toBe(orderA1Id);
@@ -191,7 +197,7 @@ describe('services/organization/orders — listOrgOrders', () => {
   it('maps fields: debt, stage, managerName', async () => {
     const { rows } = await listOrgOrders(prisma, {
       organizationId: orgAId,
-      executionStatus: 'in_progress'
+      executionStatus: 'in_progress',
     });
     const a1 = rows.find((r) => r.id === orderA1Id);
     expect(a1).toBeDefined();

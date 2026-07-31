@@ -3,19 +3,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { findUnique, verifyToken, cookiesGet } = vi.hoisted(() => ({
   findUnique: vi.fn(),
   verifyToken: vi.fn(),
-  cookiesGet: vi.fn()
+  cookiesGet: vi.fn(),
 }));
 
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
-    user: { findUnique }
-  }
+    user: { findUnique },
+  },
 }));
 
 vi.mock('@/lib/auth/jwt', () => ({ verifyToken }));
 
 vi.mock('next/headers', () => ({
-  cookies: vi.fn().mockResolvedValue({ get: cookiesGet })
+  cookies: vi.fn().mockResolvedValue({ get: cookiesGet }),
 }));
 
 import { cookies } from 'next/headers';
@@ -29,7 +29,7 @@ const PAYLOAD_V0 = { ...PAYLOAD, sessionVersion: 0 };
 // Выборка getSession читает обе колонки: активность и версию сессии.
 const EXPECTED_SELECT = {
   where: { id: 'user-1' },
-  select: { isActive: true, sessionVersion: true }
+  select: { isActive: true, sessionVersion: true },
 };
 
 describe('getSession', () => {

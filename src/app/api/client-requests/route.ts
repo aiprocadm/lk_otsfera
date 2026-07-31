@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     contactEmail: str(body.contactEmail),
     subject: str(body.subject),
     body: str(body.body),
-    organizationId: str(body.organizationId)
+    organizationId: str(body.organizationId),
   });
   if (!res.ok) {
     const status = res.error === 'validation' ? 400 : 403;
@@ -44,10 +44,11 @@ export async function GET(req: Request) {
 
   const sp = new URL(req.url).searchParams;
   const statusRaw = sp.get('status');
-  const status = statusRaw && STATUSES.includes(statusRaw) ? (statusRaw as ClientRequestStatus) : undefined;
+  const status =
+    statusRaw && STATUSES.includes(statusRaw) ? (statusRaw as ClientRequestStatus) : undefined;
   const result = await listClientRequests(prisma, session, {
     status,
-    cursor: sp.get('cursor') ?? undefined
+    cursor: sp.get('cursor') ?? undefined,
   });
   return NextResponse.json(result);
 }

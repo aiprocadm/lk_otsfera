@@ -9,7 +9,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 import { LoginForm, type DemoLogin } from '@/components/auth/login-form';
 
 const demoLogins: DemoLogin[] = [
-  { label: 'Администратор', email: 'admin@company.ru', password: 'admin123' }
+  { label: 'Администратор', email: 'admin@company.ru', password: 'admin123' },
 ];
 
 describe('LoginForm', () => {
@@ -56,7 +56,9 @@ describe('LoginForm', () => {
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(LoginForm, null));
 
-    fireEvent.change(screen.getByPlaceholderText('admin@company.ru'), { target: { value: 'u@x.ru' } });
+    fireEvent.change(screen.getByPlaceholderText('admin@company.ru'), {
+      target: { value: 'u@x.ru' },
+    });
     fireEvent.change(screen.getByPlaceholderText('••••••••'), { target: { value: 'secret' } });
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
 
@@ -65,19 +67,21 @@ describe('LoginForm', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'u@x.ru', password: 'secret' })
+      body: JSON.stringify({ email: 'u@x.ru', password: 'secret' }),
     });
   });
 
   it('error with a known code: maps via errorMessageRu (lowercased) and shows the alert banner', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
-      json: () => Promise.resolve({ code: 'INVALID_CREDENTIALS' })
+      json: () => Promise.resolve({ code: 'INVALID_CREDENTIALS' }),
     });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(LoginForm, null));
 
-    fireEvent.change(screen.getByPlaceholderText('admin@company.ru'), { target: { value: 'u@x.ru' } });
+    fireEvent.change(screen.getByPlaceholderText('admin@company.ru'), {
+      target: { value: 'u@x.ru' },
+    });
     fireEvent.change(screen.getByPlaceholderText('••••••••'), { target: { value: 'wrong' } });
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
 
@@ -88,12 +92,14 @@ describe('LoginForm', () => {
   it('error without a usable code: falls back to the default message', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
-      json: () => Promise.resolve({})
+      json: () => Promise.resolve({}),
     });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(LoginForm, null));
 
-    fireEvent.change(screen.getByPlaceholderText('admin@company.ru'), { target: { value: 'u@x.ru' } });
+    fireEvent.change(screen.getByPlaceholderText('admin@company.ru'), {
+      target: { value: 'u@x.ru' },
+    });
     fireEvent.change(screen.getByPlaceholderText('••••••••'), { target: { value: 'wrong' } });
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
 
@@ -103,12 +109,14 @@ describe('LoginForm', () => {
   it('error where res.json() itself throws: still falls back gracefully via .catch', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
-      json: () => Promise.reject(new Error('bad json'))
+      json: () => Promise.reject(new Error('bad json')),
     });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(LoginForm, null));
 
-    fireEvent.change(screen.getByPlaceholderText('admin@company.ru'), { target: { value: 'u@x.ru' } });
+    fireEvent.change(screen.getByPlaceholderText('admin@company.ru'), {
+      target: { value: 'u@x.ru' },
+    });
     fireEvent.change(screen.getByPlaceholderText('••••••••'), { target: { value: 'wrong' } });
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
 
@@ -120,7 +128,9 @@ describe('LoginForm', () => {
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(LoginForm, null));
 
-    fireEvent.change(screen.getByPlaceholderText('admin@company.ru'), { target: { value: 'u@x.ru' } });
+    fireEvent.change(screen.getByPlaceholderText('admin@company.ru'), {
+      target: { value: 'u@x.ru' },
+    });
     fireEvent.change(screen.getByPlaceholderText('••••••••'), { target: { value: 'wrong' } });
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
 
@@ -133,7 +143,9 @@ describe('LoginForm', () => {
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(LoginForm, { demoLogins }));
 
-    fireEvent.change(screen.getByPlaceholderText('admin@company.ru'), { target: { value: 'u@x.ru' } });
+    fireEvent.change(screen.getByPlaceholderText('admin@company.ru'), {
+      target: { value: 'u@x.ru' },
+    });
     fireEvent.change(screen.getByPlaceholderText('••••••••'), { target: { value: 'wrong' } });
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
     await screen.findByText('Ошибка сети. Попробуйте ещё раз.');

@@ -6,7 +6,7 @@ import type { SyncJobPayload } from '@/lib/jobs/types';
 const { getQueueStatsMock, getSyncLagMock, deliverAlertMock } = vi.hoisted(() => ({
   getQueueStatsMock: vi.fn(),
   getSyncLagMock: vi.fn(),
-  deliverAlertMock: vi.fn()
+  deliverAlertMock: vi.fn(),
 }));
 vi.mock('@/lib/services/admin/queueStats', () => ({ getQueueStats: getQueueStatsMock }));
 vi.mock('@/lib/services/admin/syncHealth', () => ({ getSyncLag: getSyncLagMock }));
@@ -22,19 +22,26 @@ let prisma: PrismaClient;
 /** Wrap the real prisma with a stub for oneCPendingRecord (table may not exist locally yet) */
 function makeDb(base: PrismaClient): PrismaClient {
   return Object.assign(Object.create(Object.getPrototypeOf(base)), base, {
-    oneCPendingRecord: { count: vi.fn().mockResolvedValue(0) }
+    oneCPendingRecord: { count: vi.fn().mockResolvedValue(0) },
   }) as unknown as PrismaClient;
 }
 
 function job(): Job<SyncJobPayload> {
-  return { id: 'alert-test', data: { triggeredAt: new Date().toISOString(), reason: 'manual' } } as Job<SyncJobPayload>;
+  return {
+    id: 'alert-test',
+    data: { triggeredAt: new Date().toISOString(), reason: 'manual' },
+  } as Job<SyncJobPayload>;
 }
 function withFailure() {
-  getQueueStatsMock.mockResolvedValue([{ queue: 'notifications.dispatch', counts: { ...noCounts, failed: 3 } }]);
+  getQueueStatsMock.mockResolvedValue([
+    { queue: 'notifications.dispatch', counts: { ...noCounts, failed: 3 } },
+  ]);
   getSyncLagMock.mockResolvedValue([]);
 }
 function healthy() {
-  getQueueStatsMock.mockResolvedValue([{ queue: 'notifications.dispatch', counts: { ...noCounts } }]);
+  getQueueStatsMock.mockResolvedValue([
+    { queue: 'notifications.dispatch', counts: { ...noCounts } },
+  ]);
   getSyncLagMock.mockResolvedValue([]);
 }
 
@@ -94,8 +101,8 @@ describe('evaluateAlertsProcessor', () => {
       alertState: {
         findMany: vi.fn().mockResolvedValue([]),
         upsert: vi.fn().mockResolvedValue(undefined),
-        update: vi.fn().mockResolvedValue(undefined)
-      }
+        update: vi.fn().mockResolvedValue(undefined),
+      },
     };
     const r = await evaluateAlertsProcessor(job(), mockDb as unknown as PrismaClient);
     expect(r.fired).toBe(1);

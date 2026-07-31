@@ -20,7 +20,7 @@ const sendMocks = vi.hoisted(() => ({
   sendPartnerInviteEmail: vi.fn(),
   sendOrgInviteEmail: vi.fn(),
   sendManagerInviteEmail: vi.fn(),
-  sendAdminUserInviteEmail: vi.fn()
+  sendAdminUserInviteEmail: vi.fn(),
 }));
 const { logWarn } = vi.hoisted(() => ({ logWarn: vi.fn() }));
 
@@ -29,7 +29,7 @@ vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
 vi.mock('@/lib/auth/passwordReset', () => ({ createInviteToken }));
 vi.mock('@/lib/email/send', () => sendMocks);
 vi.mock('@/lib/logging', () => ({
-  log: { warn: logWarn, info: vi.fn(), error: vi.fn(), debug: vi.fn() }
+  log: { warn: logWarn, info: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
 import { resendInvite } from '@/lib/services/team/resend';
@@ -57,7 +57,7 @@ function makeTarget(over: Partial<Target> = {}): Target {
     passwordHash: null,
     partnerId: 'p1',
     companyId: null,
-    ...over
+    ...over,
   };
 }
 
@@ -71,7 +71,7 @@ function makePrisma(target: Target | null, over: Record<string, unknown> = {}) {
     partner: { findUnique: vi.fn().mockResolvedValue(null) },
     organizationManager: { findFirst: vi.fn().mockResolvedValue(null) },
     $transaction: vi.fn(async (cb: (t: unknown) => unknown) => cb(tx)),
-    ...over
+    ...over,
   };
   return { prisma: prisma as never, tx, tokenUpdateMany };
 }
@@ -80,19 +80,19 @@ const ADMIN: SessionPayload = { sub: 'adm-1', role: 'admin', name: 'Админ' 
 const ORG_ADMIN: SessionPayload = {
   sub: 'org-adm',
   role: 'organization',
-  organizationMemberships: [{ organizationId: 'org-1', roleInOrg: 'admin', isActive: true }]
+  organizationMemberships: [{ organizationId: 'org-1', roleInOrg: 'admin', isActive: true }],
 };
 const PARTNER_ADMIN: SessionPayload = {
   sub: 'pa-1',
   role: 'partner',
   partnerRole: 'admin',
-  partnerId: 'p1'
+  partnerId: 'p1',
 };
 const MANAGER_LEADER: SessionPayload = {
   sub: 'ml-1',
   role: 'manager',
   managerRole: 'leader',
-  companyId: 'c1'
+  companyId: 'c1',
 };
 
 beforeEach(() => {
@@ -112,7 +112,7 @@ describe('resendInvite — гейты', () => {
     const { prisma } = makePrisma(null);
     expect(await resendInvite(prisma, ADMIN, { userId: 'ghost' })).toEqual({
       ok: false,
-      error: 'not_found'
+      error: 'not_found',
     });
     expect(recordAudit).not.toHaveBeenCalled();
   });
@@ -121,7 +121,7 @@ describe('resendInvite — гейты', () => {
     const { prisma } = makePrisma(makeTarget({ isActive: false }));
     expect(await resendInvite(prisma, ADMIN, { userId: 'u-t' })).toEqual({
       ok: false,
-      error: 'not_found'
+      error: 'not_found',
     });
   });
 
@@ -129,7 +129,7 @@ describe('resendInvite — гейты', () => {
     const { prisma } = makePrisma(makeTarget({ passwordHash: 'bcrypt-hash' }));
     expect(await resendInvite(prisma, ADMIN, { userId: 'u-t' })).toEqual({
       ok: false,
-      error: 'already_active'
+      error: 'already_active',
     });
     expect(createInviteToken).not.toHaveBeenCalled();
   });
@@ -139,11 +139,11 @@ describe('resendInvite — гейты', () => {
     const { prisma, tokenUpdateMany } = makePrisma(makeTarget());
     expect(await resendInvite(prisma, ADMIN, { userId: 'u-t' })).toEqual({
       ok: false,
-      error: 'rate_limited'
+      error: 'rate_limited',
     });
     expect(isRateLimited).toHaveBeenCalledWith('invite-resend:adm-1', {
       windowMs: 60 * 60 * 1000,
-      max: 5
+      max: 5,
     });
     expect(tokenUpdateMany).not.toHaveBeenCalled();
     expect(createInviteToken).not.toHaveBeenCalled();
@@ -162,12 +162,12 @@ describe('resendInvite — скоуп admin', () => {
     expect(res).toEqual({
       ok: true,
       inviteUrl: expect.stringContaining('/reset-password?token=tok-resend'),
-      emailStatus: 'sent'
+      emailStatus: 'sent',
     });
     // ФТ-10.2: старые невыгоревшие invite-токены гасятся до выпуска нового.
     expect(tokenUpdateMany).toHaveBeenCalledWith({
       where: { userId: 'u-t', purpose: 'invite', usedAt: null },
-      data: { usedAt: expect.any(Date) }
+      data: { usedAt: expect.any(Date) },
     });
     expect(createInviteToken).toHaveBeenCalledWith(tx, 'u-t');
   });
@@ -177,7 +177,7 @@ describe('resendInvite — скоуп organization admin/leader', () => {
   it('admin организации может переотправить активному участнику своей org', async () => {
     const membership = { id: 'ou-1', organization: { name: 'Org A' } };
     const { prisma } = makePrisma(makeTarget({ role: 'organization', partnerId: null }), {
-      organizationUser: { findFirst: vi.fn().mockResolvedValue(membership) }
+      organizationUser: { findFirst: vi.fn().mockResolvedValue(membership) },
     });
     const res = await resendInvite(prisma, ORG_ADMIN, { userId: 'u-t' });
     expect(res).toMatchObject({ ok: true, emailStatus: 'sent' });
@@ -190,8 +190,8 @@ describe('resendInvite — скоуп organization admin/leader', () => {
         where: expect.objectContaining({
           userId: 'u-t',
           isActive: true,
-          organizationId: { in: ['org-1'] }
-        })
+          organizationId: { in: ['org-1'] },
+        }),
       })
     );
   });
@@ -200,10 +200,12 @@ describe('resendInvite — скоуп organization admin/leader', () => {
     const session: SessionPayload = {
       sub: 'org-lead',
       role: 'organization',
-      organizationMemberships: [{ organizationId: 'org-1', roleInOrg: 'leader', isActive: true }]
+      organizationMemberships: [{ organizationId: 'org-1', roleInOrg: 'leader', isActive: true }],
     };
     const { prisma } = makePrisma(makeTarget({ role: 'organization', partnerId: null }), {
-      organizationUser: { findFirst: vi.fn().mockResolvedValue({ id: 'ou-2', organization: { name: 'O' } }) }
+      organizationUser: {
+        findFirst: vi.fn().mockResolvedValue({ id: 'ou-2', organization: { name: 'O' } }),
+      },
     });
     expect((await resendInvite(prisma, session, { userId: 'u-t' })).ok).toBe(true);
   });
@@ -212,30 +214,32 @@ describe('resendInvite — скоуп organization admin/leader', () => {
     const session: SessionPayload = {
       sub: 'org-member',
       role: 'organization',
-      organizationMemberships: [{ organizationId: 'org-1', roleInOrg: 'member', isActive: true }]
+      organizationMemberships: [{ organizationId: 'org-1', roleInOrg: 'member', isActive: true }],
     };
     const { prisma } = makePrisma(makeTarget({ role: 'organization', partnerId: null }));
     expect(await resendInvite(prisma, session, { userId: 'u-t' })).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
   });
 
   it('forbidden: цель не состоит в организациях актёра', async () => {
     const { prisma } = makePrisma(makeTarget({ role: 'organization', partnerId: null }), {
-      organizationUser: { findFirst: vi.fn().mockResolvedValue(null) }
+      organizationUser: { findFirst: vi.fn().mockResolvedValue(null) },
     });
     expect(await resendInvite(prisma, ORG_ADMIN, { userId: 'u-t' })).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
   });
 
   it('forbidden: цель не organization-роли', async () => {
-    const { prisma } = makePrisma(makeTarget({ role: 'manager', partnerId: null, companyId: 'c1' }));
+    const { prisma } = makePrisma(
+      makeTarget({ role: 'manager', partnerId: null, companyId: 'c1' })
+    );
     expect(await resendInvite(prisma, ORG_ADMIN, { userId: 'u-t' })).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
   });
 });
@@ -244,9 +248,9 @@ describe('resendInvite — скоуп partner-admin', () => {
   it('partner-admin может переотправить активному участнику своей команды', async () => {
     const { prisma } = makePrisma(makeTarget(), {
       partnerUser: {
-        findUnique: vi.fn().mockResolvedValue({ isActive: true, roleInPartner: 'manager' })
+        findUnique: vi.fn().mockResolvedValue({ isActive: true, roleInPartner: 'manager' }),
       },
-      partner: { findUnique: vi.fn().mockResolvedValue({ name: 'ООО Партнёр' }) }
+      partner: { findUnique: vi.fn().mockResolvedValue({ name: 'ООО Партнёр' }) },
     });
     const res = await resendInvite(prisma, PARTNER_ADMIN, { userId: 'u-t' });
     expect(res).toMatchObject({ ok: true, emailStatus: 'sent' });
@@ -257,12 +261,12 @@ describe('resendInvite — скоуп partner-admin', () => {
       sub: 'pm-1',
       role: 'partner',
       partnerRole: 'manager',
-      partnerId: 'p1'
+      partnerId: 'p1',
     };
     const { prisma } = makePrisma(makeTarget());
     expect(await resendInvite(prisma, session, { userId: 'u-t' })).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
   });
 
@@ -270,17 +274,17 @@ describe('resendInvite — скоуп partner-admin', () => {
     const { prisma } = makePrisma(makeTarget({ partnerId: 'p2' }));
     expect(await resendInvite(prisma, PARTNER_ADMIN, { userId: 'u-t' })).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
   });
 
   it('forbidden: membership в команде деактивирован', async () => {
     const { prisma } = makePrisma(makeTarget(), {
-      partnerUser: { findUnique: vi.fn().mockResolvedValue({ isActive: false }) }
+      partnerUser: { findUnique: vi.fn().mockResolvedValue({ isActive: false }) },
     });
     expect(await resendInvite(prisma, PARTNER_ADMIN, { userId: 'u-t' })).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
   });
 });
@@ -291,30 +295,34 @@ describe('resendInvite — скоуп manager-leader', () => {
       makeTarget({ role: 'manager', partnerId: null, companyId: 'c1' }),
       {
         organizationManager: {
-          findFirst: vi.fn().mockResolvedValue({ organization: { name: 'Орг Л' } })
-        }
+          findFirst: vi.fn().mockResolvedValue({ organization: { name: 'Орг Л' } }),
+        },
       }
     );
     expect(await resendInvite(prisma, MANAGER_LEADER, { userId: 'u-t' })).toMatchObject({
       ok: true,
-      emailStatus: 'sent'
+      emailStatus: 'sent',
     });
   });
 
   it('forbidden: обычный manager (без managerRole=leader)', async () => {
     const session: SessionPayload = { sub: 'm-1', role: 'manager', companyId: 'c1' };
-    const { prisma } = makePrisma(makeTarget({ role: 'manager', partnerId: null, companyId: 'c1' }));
+    const { prisma } = makePrisma(
+      makeTarget({ role: 'manager', partnerId: null, companyId: 'c1' })
+    );
     expect(await resendInvite(prisma, session, { userId: 'u-t' })).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
   });
 
   it('forbidden: менеджер из чужой компании', async () => {
-    const { prisma } = makePrisma(makeTarget({ role: 'manager', partnerId: null, companyId: 'c2' }));
+    const { prisma } = makePrisma(
+      makeTarget({ role: 'manager', partnerId: null, companyId: 'c2' })
+    );
     expect(await resendInvite(prisma, MANAGER_LEADER, { userId: 'u-t' })).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
   });
 
@@ -324,7 +332,7 @@ describe('resendInvite — скоуп manager-leader', () => {
     );
     expect(await resendInvite(prisma, MANAGER_LEADER, { userId: 'u-t' })).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
   });
 });
@@ -335,9 +343,9 @@ describe('resendInvite — письмо по роли цели', () => {
   it('partner → sendPartnerInviteEmail с именем партнёра и русской ролью', async () => {
     const { prisma } = makePrisma(makeTarget(), {
       partnerUser: {
-        findUnique: vi.fn().mockResolvedValue({ isActive: true, roleInPartner: 'admin' })
+        findUnique: vi.fn().mockResolvedValue({ isActive: true, roleInPartner: 'admin' }),
       },
-      partner: { findUnique: vi.fn().mockResolvedValue({ name: 'ООО Партнёр' }) }
+      partner: { findUnique: vi.fn().mockResolvedValue({ name: 'ООО Партнёр' }) },
     });
     const res = await resendInvite(prisma, { ...ADMIN, name: 'Иван' }, { userId: 'u-t' });
     expect(res).toMatchObject({ ok: true, emailStatus: 'sent' });
@@ -346,7 +354,7 @@ describe('resendInvite — письмо по роли цели', () => {
       partnerName: 'ООО Партнёр',
       roleLabel: 'администратор',
       inviteUrl: expect.stringContaining('token=tok-resend'),
-      invitedByName: 'Иван'
+      invitedByName: 'Иван',
     });
     expect(sendMocks.sendOrgInviteEmail).not.toHaveBeenCalled();
     expect(sendMocks.sendAdminUserInviteEmail).not.toHaveBeenCalled();
@@ -363,8 +371,8 @@ describe('resendInvite — письмо по роли цели', () => {
   it('organization → sendOrgInviteEmail с именем организации', async () => {
     const { prisma } = makePrisma(makeTarget({ role: 'organization', partnerId: null }), {
       organizationUser: {
-        findFirst: vi.fn().mockResolvedValue({ id: 'ou-1', organization: { name: 'Орг А' } })
-      }
+        findFirst: vi.fn().mockResolvedValue({ id: 'ou-1', organization: { name: 'Орг А' } }),
+      },
     });
     await resendInvite(prisma, ORG_ADMIN, { userId: 'u-t' });
     expect(sendMocks.sendOrgInviteEmail).toHaveBeenCalledWith(
@@ -377,8 +385,8 @@ describe('resendInvite — письмо по роли цели', () => {
       makeTarget({ role: 'manager', partnerId: null, companyId: 'c1' }),
       {
         organizationManager: {
-          findFirst: vi.fn().mockResolvedValue({ organization: { name: 'Орг М' } })
-        }
+          findFirst: vi.fn().mockResolvedValue({ organization: { name: 'Орг М' } }),
+        },
       }
     );
     await resendInvite(prisma, MANAGER_LEADER, { userId: 'u-t' });
@@ -414,7 +422,7 @@ describe('resendInvite — режимы письма и аудит', () => {
     expect(res).toEqual({
       ok: true,
       inviteUrl: expect.stringContaining('token=tok-resend'),
-      emailStatus: 'skipped'
+      emailStatus: 'skipped',
     });
     expect(sendMocks.sendPartnerInviteEmail).not.toHaveBeenCalled();
     expect(sendMocks.sendOrgInviteEmail).not.toHaveBeenCalled();
@@ -423,7 +431,7 @@ describe('resendInvite — режимы письма и аудит', () => {
     expect(recordAudit).toHaveBeenCalledWith(
       prisma,
       expect.objectContaining({
-        after: expect.objectContaining({ emailRequested: false, emailStatus: 'skipped' })
+        after: expect.objectContaining({ emailRequested: false, emailStatus: 'skipped' }),
       })
     );
   });
@@ -451,7 +459,7 @@ describe('resendInvite — режимы письма и аудит', () => {
     const { prisma } = makePrisma(makeTarget());
     expect(await resendInvite(prisma, ADMIN, { userId: 'u-t' })).toMatchObject({
       ok: true,
-      emailStatus: 'skipped'
+      emailStatus: 'skipped',
     });
   });
 
@@ -462,7 +470,7 @@ describe('resendInvite — режимы письма и аудит', () => {
     expect(res).toEqual({
       ok: true,
       inviteUrl: expect.stringContaining('token=tok-resend'),
-      emailStatus: 'skipped'
+      emailStatus: 'skipped',
     });
     expect(logWarn).toHaveBeenCalled();
   });
@@ -472,14 +480,14 @@ describe('resendInvite — режимы письма и аудит', () => {
     const { prisma } = makePrisma(makeTarget());
     expect(await resendInvite(prisma, ADMIN, { userId: 'u-t' })).toMatchObject({
       ok: true,
-      emailStatus: 'skipped'
+      emailStatus: 'skipped',
     });
   });
 
   it.each([
     ['organization', 'sendOrgInviteEmail'],
     ['manager', 'sendManagerInviteEmail'],
-    ['student', 'sendAdminUserInviteEmail']
+    ['student', 'sendAdminUserInviteEmail'],
   ])("выключенная отправка писем: роль %s → emailStatus='skipped'", async (role, mockName) => {
     // Транспорт отвечает «skipped», когда почта выключена настройкой. Это не
     // ошибка: приглашение выпущено, ссылку отдадут вручную. Проверка нужна для
@@ -487,12 +495,12 @@ describe('resendInvite — режимы письма и аудит', () => {
     // почте, и человек будет ждать письма, которого нет.
     (sendMocks as Record<string, ReturnType<typeof vi.fn>>)[mockName].mockResolvedValue({
       status: 'skipped',
-      reason: 'disabled'
+      reason: 'disabled',
     });
     const { prisma } = makePrisma(makeTarget({ role }));
     expect(await resendInvite(prisma, ADMIN, { userId: 'u-t' })).toMatchObject({
       ok: true,
-      emailStatus: 'skipped'
+      emailStatus: 'skipped',
     });
   });
 
@@ -501,7 +509,7 @@ describe('resendInvite — режимы письма и аудит', () => {
     const { prisma } = makePrisma(makeTarget({ role: 'organization' }));
     expect(await resendInvite(prisma, noMemberships, { userId: 'u-t' })).toMatchObject({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
   });
 
@@ -513,7 +521,7 @@ describe('resendInvite — режимы письма и аудит', () => {
       action: 'invite_resent',
       entity: 'user',
       entityId: 'u-t',
-      after: { targetRole: 'partner', emailRequested: true, emailStatus: 'sent' }
+      after: { targetRole: 'partner', emailRequested: true, emailStatus: 'sent' },
     });
   });
 });

@@ -1,7 +1,17 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
-import { ensureGeneral, openDm, listConversations, markStaffRead, dmKeyFor } from '@/lib/services/staffChat/conversations';
-import { sendStaffMessage, listStaffMessages, toggleReaction } from '@/lib/services/staffChat/messages';
+import {
+  ensureGeneral,
+  openDm,
+  listConversations,
+  markStaffRead,
+  dmKeyFor,
+} from '@/lib/services/staffChat/conversations';
+import {
+  sendStaffMessage,
+  listStaffMessages,
+  toggleReaction,
+} from '@/lib/services/staffChat/messages';
 
 /**
  * M4 close-out regression (Task 8, final) — integration coverage for the
@@ -56,33 +66,60 @@ beforeAll(async () => {
   companyRace = cR.id;
 
   const u1 = await prisma.user.create({
-    data: { email: `${STAMP}-m1@x.local`, name: `Manager One ${STAMP}`, role: 'manager', companyId: companyA, passwordHash: 'x' }
+    data: {
+      email: `${STAMP}-m1@x.local`,
+      name: `Manager One ${STAMP}`,
+      role: 'manager',
+      companyId: companyA,
+      passwordHash: 'x',
+    },
   });
   m1 = u1.id;
   const u2 = await prisma.user.create({
-    data: { email: `${STAMP}-m2@x.local`, name: `Manager Two ${STAMP}`, role: 'manager', companyId: companyA, passwordHash: 'x' }
+    data: {
+      email: `${STAMP}-m2@x.local`,
+      name: `Manager Two ${STAMP}`,
+      role: 'manager',
+      companyId: companyA,
+      passwordHash: 'x',
+    },
   });
   m2 = u2.id;
   const u9 = await prisma.user.create({
-    data: { email: `${STAMP}-m9@x.local`, name: `Manager Nine ${STAMP}`, role: 'manager', companyId: companyB, passwordHash: 'x' }
+    data: {
+      email: `${STAMP}-m9@x.local`,
+      name: `Manager Nine ${STAMP}`,
+      role: 'manager',
+      companyId: companyB,
+      passwordHash: 'x',
+    },
   });
   m9 = u9.id;
   const ua = await prisma.user.create({
-    data: { email: `${STAMP}-admin@x.local`, name: `Admin ${STAMP}`, role: 'admin', passwordHash: 'x' }
+    data: {
+      email: `${STAMP}-admin@x.local`,
+      name: `Admin ${STAMP}`,
+      role: 'admin',
+      passwordHash: 'x',
+    },
   });
   adminId = ua.id;
 });
 
 afterAll(async () => {
   const convIds = [generalA, generalB, generalRace, dmConversationId].filter((id) => id.length > 0);
-  await prisma.staffReaction.deleteMany({ where: { message: { conversationId: { in: convIds } } } });
+  await prisma.staffReaction.deleteMany({
+    where: { message: { conversationId: { in: convIds } } },
+  });
   await prisma.staffMessageRead.deleteMany({ where: { conversationId: { in: convIds } } });
   await prisma.staffMessage.deleteMany({ where: { conversationId: { in: convIds } } });
   await prisma.staffParticipant.deleteMany({ where: { conversationId: { in: convIds } } });
   await prisma.staffConversation.deleteMany({ where: { id: { in: convIds } } });
   // sendStaffMessage writes an AuditLog row per send (required userId FK) —
   // must be cleared before the authoring users are deleted.
-  await prisma.auditLog.deleteMany({ where: { userId: { in: [m1, m2] }, entity: 'staff_conversation' } });
+  await prisma.auditLog.deleteMany({
+    where: { userId: { in: [m1, m2] }, entity: 'staff_conversation' },
+  });
   await prisma.notification.deleteMany({ where: { userId: { in: [m1, m2, m9, adminId] } } });
   await prisma.user.deleteMany({ where: { id: { in: [m1, m2, m9, adminId] } } });
   await prisma.company.deleteMany({ where: { id: { in: [companyA, companyB, companyRace] } } });
@@ -105,7 +142,9 @@ describe('M4 staff chat — C8 isolation (general conversations)', () => {
     expect(idsM1).toContain(generalA);
     expect(idsM1).not.toContain(generalB);
 
-    const forbidden = await listStaffMessages(prisma, managerSession(m1, companyA), { conversationId: generalB });
+    const forbidden = await listStaffMessages(prisma, managerSession(m1, companyA), {
+      conversationId: generalB,
+    });
     expect(forbidden).toEqual({ ok: false, error: 'forbidden' });
 
     const listAdmin = await listConversations(prisma, adminSession(adminId));
@@ -120,7 +159,7 @@ describe('M4 staff chat — race safety', () => {
   it('dmKey race: two concurrent openDm calls for the same pair collapse to one row', async () => {
     const [r1, r2] = await Promise.all([
       openDm(prisma, managerSession(m1, companyA), { targetUserId: m2 }),
-      openDm(prisma, managerSession(m2, companyA), { targetUserId: m1 })
+      openDm(prisma, managerSession(m2, companyA), { targetUserId: m1 }),
     ]);
     expect(r1.ok).toBe(true);
     expect(r2.ok).toBe(true);
@@ -134,14 +173,19 @@ describe('M4 staff chat — race safety', () => {
   });
 
   it('general race: two concurrent ensureGeneral calls for a fresh company collapse to one row', async () => {
-    const [g1, g2] = await Promise.all([ensureGeneral(prisma, companyRace), ensureGeneral(prisma, companyRace)]);
+    const [g1, g2] = await Promise.all([
+      ensureGeneral(prisma, companyRace),
+      ensureGeneral(prisma, companyRace),
+    ]);
     expect(g1.ok).toBe(true);
     expect(g2.ok).toBe(true);
     if (!g1.ok || !g2.ok) throw new Error('ensureGeneral race failed');
     expect(g1.conversationId).toBe(g2.conversationId);
     generalRace = g1.conversationId;
 
-    const rows = await prisma.staffConversation.findMany({ where: { companyId: companyRace, kind: 'general' } });
+    const rows = await prisma.staffConversation.findMany({
+      where: { companyId: companyRace, kind: 'general' },
+    });
     expect(rows).toHaveLength(1);
   });
 });
@@ -163,7 +207,7 @@ describe('M4 staff chat — client roles', () => {
 
     const sendRes = await sendStaffMessage(prisma, partnerSession, {
       conversationId: generalA,
-      body: 'client should never post here'
+      body: 'client should never post here',
     });
     expect(sendRes).toEqual({ ok: false, error: 'forbidden' });
   });
@@ -173,16 +217,22 @@ describe('M4 staff chat — reaction toggle', () => {
   it('toggling the same reaction twice is idempotent against the live unique index', async () => {
     const sendRes = await sendStaffMessage(prisma, managerSession(m1, companyA), {
       conversationId: dmConversationId,
-      body: 'reaction toggle fixture message'
+      body: 'reaction toggle fixture message',
     });
     expect(sendRes.ok).toBe(true);
     if (!sendRes.ok) throw new Error('seed message failed');
     const messageId = sendRes.messageId;
 
-    const on = await toggleReaction(prisma, managerSession(m2, companyA), { messageId, emoji: '👍' });
+    const on = await toggleReaction(prisma, managerSession(m2, companyA), {
+      messageId,
+      emoji: '👍',
+    });
     expect(on).toEqual({ ok: true, reacted: true });
 
-    const off = await toggleReaction(prisma, managerSession(m2, companyA), { messageId, emoji: '👍' });
+    const off = await toggleReaction(prisma, managerSession(m2, companyA), {
+      messageId,
+      emoji: '👍',
+    });
     expect(off).toEqual({ ok: true, reacted: false });
 
     const rows = await prisma.staffReaction.findMany({ where: { messageId } });
@@ -196,33 +246,41 @@ describe('M4 staff chat — first-unread notification rule', () => {
     // first-ever message in this DM, which triggered its own first-unread
     // notification for m2. Start this scenario from a clean, known state.
     await prisma.notification.deleteMany({ where: { userId: m2, type: 'staff_dm_message' } });
-    const resetRead = await markStaffRead(prisma, managerSession(m2, companyA), { conversationId: dmConversationId });
+    const resetRead = await markStaffRead(prisma, managerSession(m2, companyA), {
+      conversationId: dmConversationId,
+    });
     expect(resetRead).toEqual({ ok: true });
 
     const first = await sendStaffMessage(prisma, managerSession(m1, companyA), {
       conversationId: dmConversationId,
-      body: 'first-unread message 1'
+      body: 'first-unread message 1',
     });
     expect(first.ok).toBe(true);
     const second = await sendStaffMessage(prisma, managerSession(m1, companyA), {
       conversationId: dmConversationId,
-      body: 'first-unread message 2'
+      body: 'first-unread message 2',
     });
     expect(second.ok).toBe(true);
 
-    const afterTwoUnread = await prisma.notification.findMany({ where: { userId: m2, type: 'staff_dm_message' } });
+    const afterTwoUnread = await prisma.notification.findMany({
+      where: { userId: m2, type: 'staff_dm_message' },
+    });
     expect(afterTwoUnread).toHaveLength(1);
 
-    const caughtUp = await markStaffRead(prisma, managerSession(m2, companyA), { conversationId: dmConversationId });
+    const caughtUp = await markStaffRead(prisma, managerSession(m2, companyA), {
+      conversationId: dmConversationId,
+    });
     expect(caughtUp).toEqual({ ok: true });
 
     const third = await sendStaffMessage(prisma, managerSession(m1, companyA), {
       conversationId: dmConversationId,
-      body: 'first-unread message 3'
+      body: 'first-unread message 3',
     });
     expect(third.ok).toBe(true);
 
-    const afterCatchUp = await prisma.notification.findMany({ where: { userId: m2, type: 'staff_dm_message' } });
+    const afterCatchUp = await prisma.notification.findMany({
+      where: { userId: m2, type: 'staff_dm_message' },
+    });
     expect(afterCatchUp).toHaveLength(2);
   });
 });

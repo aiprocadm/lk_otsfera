@@ -14,7 +14,7 @@ function captureSink() {
   return {
     lines,
     dest: { write: (s: string) => void lines.push(s) },
-    parsed: () => lines.map((l) => JSON.parse(l) as Record<string, unknown>)
+    parsed: () => lines.map((l) => JSON.parse(l) as Record<string, unknown>),
   };
 }
 
@@ -28,7 +28,7 @@ describe('console-режим (dev/test passthrough)', () => {
     ['debug', 'debug'],
     ['info', 'log'], // worker-тесты прибиты к console.log для start/done
     ['warn', 'warn'],
-    ['error', 'error']
+    ['error', 'error'],
   ] as const)('%s → console.%s c verbatim-аргументами', (method, sink) => {
     const spy = vi.spyOn(console, sink).mockImplementation(() => {});
     const l = createLogger({ mode: 'console' });

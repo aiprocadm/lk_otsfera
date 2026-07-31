@@ -28,7 +28,11 @@ const ET = 'student';
 let adminUserId: string;
 let selectDefId: string;
 
-function makeSession(userId: string, role: string, extra: Partial<SessionPayload> = {}): SessionPayload {
+function makeSession(
+  userId: string,
+  role: string,
+  extra: Partial<SessionPayload> = {}
+): SessionPayload {
   return { sub: userId, role: role as SessionPayload['role'], ...extra } as SessionPayload;
 }
 
@@ -36,7 +40,12 @@ beforeAll(async () => {
   prisma = new PrismaClient();
 
   const admin = await prisma.user.create({
-    data: { email: `cov2cf-admin-${STAMP}@t.local`, passwordHash: 'x', name: 'Cov2CF Admin', role: 'admin' },
+    data: {
+      email: `cov2cf-admin-${STAMP}@t.local`,
+      passwordHash: 'x',
+      name: 'Cov2CF Admin',
+      role: 'admin',
+    },
   });
   adminUserId = admin.id;
 

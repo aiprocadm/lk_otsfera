@@ -18,9 +18,7 @@ const { fakeSend, fakeIsEnabledFor } = vi.hoisted(() => ({
 // один fake-канал: если fan-out доставит в него без правок org.ts, критерий
 // «канал без правок мест генерации» выполнен структурно.
 vi.mock('@/lib/notifications/channels/registry', () => ({
-  getChannels: () => [
-    { key: 'fake', isEnabledFor: fakeIsEnabledFor, send: fakeSend },
-  ],
+  getChannels: () => [{ key: 'fake', isEnabledFor: fakeIsEnabledFor, send: fakeSend }],
 }));
 // notif_queue не трогаем — inline-путь (dispatchToRecipient без Redis).
 

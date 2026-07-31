@@ -6,7 +6,9 @@ import { cn } from '@/lib/ui/cn';
 const CONTROL =
   'w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316] focus:border-transparent disabled:opacity-50';
 
-export type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & { invalid?: boolean };
+export type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
+  invalid?: boolean;
+};
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea(
   { invalid, className, ...rest },

@@ -20,7 +20,7 @@ import { log } from '@/lib/logging';
 
 const commentSchema = z.object({
   orderId: z.string().min(1).max(64),
-  body: z.string().trim().min(1).max(5000)
+  body: z.string().trim().min(1).max(5000),
 });
 
 export async function POST(req: Request) {
@@ -51,14 +51,14 @@ export async function POST(req: Request) {
       select: {
         id: true,
         organizationId: true,
-        organization: { select: { name: true } }
-      }
+        organization: { select: { name: true } },
+      },
     });
     if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     if (!canSeeOrder(s, order)) return forbiddenResponse('Access denied');
 
     const comment = await prisma.comment.create({
-      data: { orderId, body, authorId: s.sub }
+      data: { orderId, body, authorId: s.sub },
     });
 
     await recordAudit(prisma, {
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
       entity: 'order',
       entityId: orderId,
       userId: s.sub,
-      after: { commentId: comment.id, viewer: 'organization' }
+      after: { commentId: comment.id, viewer: 'organization' },
     });
 
     // Best-effort fan-out to managers in scope of this order. Failure here must
@@ -80,14 +80,14 @@ export async function POST(req: Request) {
         type: 'comment_from_org',
         payload: {
           orgName: order.organization?.name ?? '',
-          commentExcerpt: body.slice(0, 200)
-        }
+          commentExcerpt: body.slice(0, 200),
+        },
       });
     } catch (err) {
       log.warn('[api/comments] notifyManagers (comment_from_org) failed', {
         commentId: comment.id,
         orderId: order.id,
-        error: err instanceof Error ? err.message : String(err)
+        error: err instanceof Error ? err.message : String(err),
       });
     }
 
@@ -110,19 +110,18 @@ export async function POST(req: Request) {
         organizationId: true,
         companyId: true,
         orderNumber: true,
-        title: true
-      }
+        title: true,
+      },
     });
     if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
     let commentsCountByMe = 0;
     if (!teamMode && order.managerId !== s.sub) {
       const inOrgScope =
-        order.organizationId !== null &&
-        managedOrgIds(s).includes(order.organizationId);
+        order.organizationId !== null && managedOrgIds(s).includes(order.organizationId);
       if (!inOrgScope) {
         commentsCountByMe = await prisma.comment.count({
-          where: { orderId: order.id, authorId: s.sub }
+          where: { orderId: order.id, authorId: s.sub },
         });
       }
     }
@@ -131,7 +130,7 @@ export async function POST(req: Request) {
     }
 
     const comment = await prisma.comment.create({
-      data: { orderId, body, authorId: s.sub }
+      data: { orderId, body, authorId: s.sub },
     });
 
     await recordAudit(prisma, {
@@ -139,7 +138,7 @@ export async function POST(req: Request) {
       entity: 'order',
       entityId: orderId,
       userId: s.sub,
-      after: { commentId: comment.id, viewer: 'manager' }
+      after: { commentId: comment.id, viewer: 'manager' },
     });
 
     if (order.organizationId) {
@@ -151,14 +150,14 @@ export async function POST(req: Request) {
             orderId: order.id,
             orderNumber: order.orderNumber,
             orderTitle: order.title,
-            commentExcerpt: body.slice(0, 200)
-          }
+            commentExcerpt: body.slice(0, 200),
+          },
         });
       } catch (err) {
         log.warn('[api/comments] notifyOrgUsers (manager_replied) failed', {
           commentId: comment.id,
           organizationId: order.organizationId,
-          error: err instanceof Error ? err.message : String(err)
+          error: err instanceof Error ? err.message : String(err),
         });
       }
     }
@@ -194,20 +193,20 @@ export async function POST(req: Request) {
       partnerId: s.partnerId,
       title: 'Новое сообщение',
       body,
-      meta: { orderId, commentId: comment.id }
+      meta: { orderId, commentId: comment.id },
     });
     await deliverNotificationToUser({
       userId: s.sub,
       title: 'Новое сообщение',
       body,
       type: 'message_created',
-      dedupKey: row.id
+      dedupKey: row.id,
     });
   } catch (err) {
     log.warn('[api/comments] notification fan-out failed', {
       commentId: comment.id,
       orderId,
-      error: err instanceof Error ? err.message : String(err)
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 

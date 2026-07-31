@@ -12,14 +12,14 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 const { getFinanceKpis, listStatements } = vi.hoisted(() => ({
   getFinanceKpis: vi.fn(),
-  listStatements: vi.fn()
+  listStatements: vi.fn(),
 }));
 vi.mock('@/lib/services/partner/finance', () => ({ getFinanceKpis, listStatements }));
 
 // ManualCalcForm / CommissionStatementsList ('use client') use useFormAction ->
 // useRouter() and useClientResource -- stub next/navigation.
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 
 import FinancePage from '@/app/partner/finance/page';
@@ -39,7 +39,7 @@ describe('FinancePage', () => {
     getFinanceKpis.mockResolvedValue({
       earnedTotal: 1000,
       pendingTotal: 200,
-      paidTotal: 800
+      paidTotal: 800,
     });
     listStatements.mockResolvedValue([
       {
@@ -50,8 +50,8 @@ describe('FinancePage', () => {
         totalCommissionAmount: '500.00',
         pdfPath: null,
         xlsxPath: null,
-        itemCount: 3
-      }
+        itemCount: 3,
+      },
     ]);
     isPartnerAdmin.mockReturnValue(true);
 
@@ -68,7 +68,7 @@ describe('FinancePage', () => {
     getFinanceKpis.mockResolvedValue({
       earnedTotal: 0,
       pendingTotal: 0,
-      paidTotal: 0
+      paidTotal: 0,
     });
     listStatements.mockResolvedValue([]);
     isPartnerAdmin.mockReturnValue(false);

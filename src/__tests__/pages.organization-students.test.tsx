@@ -13,7 +13,12 @@ vi.mock('@/lib/services/organization/students', () => ({ listOrgStudents }));
 
 vi.mock('@/components/organization/org-app-shell', () => ({
   OrgAppShell: (props: { activeOrgName: string; children: React.ReactNode }) =>
-    React.createElement('div', { 'data-testid': 'org-app-shell' }, props.activeOrgName, props.children)
+    React.createElement(
+      'div',
+      { 'data-testid': 'org-app-shell' },
+      props.activeOrgName,
+      props.children
+    ),
 }));
 
 import OrganizationStudentsPage from '@/app/organization/students/page';
@@ -23,7 +28,7 @@ const CTX = {
   activeOrgId: 'org-1',
   activeOrgName: 'ООО Ромашка',
   memberships: [],
-  viewerRole: 'admin' as const
+  viewerRole: 'admin' as const,
 };
 
 describe('OrganizationStudentsPage', () => {
@@ -40,10 +45,13 @@ describe('OrganizationStudentsPage', () => {
       OrganizationStudentsPage({ searchParams: Promise.resolve({ search: 'нет-такого' }) })
     );
 
-    expect(listOrgStudents).toHaveBeenCalledWith({}, expect.objectContaining({
-      organizationId: 'org-1',
-      search: 'нет-такого'
-    }));
+    expect(listOrgStudents).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({
+        organizationId: 'org-1',
+        search: 'нет-такого',
+      })
+    );
     expect(container.textContent).toContain('По запросу никого не нашли');
     expect(container.textContent).toContain('по запросу «нет-такого»');
   });
@@ -68,22 +76,22 @@ describe('OrganizationStudentsPage', () => {
           name: 'Иванов Иван',
           email: 'ivanov@example.com',
           externalStudentId: 'ext-1',
-          createdAt: new Date('2024-03-15')
+          createdAt: new Date('2024-03-15'),
         },
         {
           id: 's2',
           name: 'Петров Пётр',
           email: 'petrov@example.com',
           externalStudentId: null,
-          createdAt: new Date('2024-04-01')
-        }
+          createdAt: new Date('2024-04-01'),
+        },
       ],
-      total: 120
+      total: 120,
     });
 
     const { container } = await renderServerComponent(
       OrganizationStudentsPage({
-        searchParams: Promise.resolve({ org: 'org-1', search: 'Иван', take: '50', skip: '50' })
+        searchParams: Promise.resolve({ org: 'org-1', search: 'Иван', take: '50', skip: '50' }),
       })
     );
 
@@ -113,10 +121,10 @@ describe('OrganizationStudentsPage', () => {
             name: 'Иванов Иван',
             email: 'ivanov@example.com',
             externalStudentId: null,
-            createdAt: new Date('2024-03-15')
-          }
+            createdAt: new Date('2024-03-15'),
+          },
         ],
-        total: 1
+        total: 1,
       });
 
       const { container } = await renderServerComponent(
@@ -139,8 +147,8 @@ describe('OrganizationStudentsPage', () => {
         name: 'Один Сотрудников',
         email: 'one@example.com',
         externalStudentId: null,
-        createdAt: new Date('2024-01-01')
-      }
+        createdAt: new Date('2024-01-01'),
+      },
     ];
 
     listOrgStudents.mockResolvedValue({ rows: oneRow, total: 1 });
@@ -173,7 +181,10 @@ describe('OrganizationStudentsPage', () => {
       OrganizationStudentsPage({ searchParams: Promise.resolve({ take: '99999', skip: 'abc' }) })
     );
 
-    expect(listOrgStudents).toHaveBeenCalledWith({}, expect.objectContaining({ take: 200, skip: 0 }));
+    expect(listOrgStudents).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({ take: 200, skip: 0 })
+    );
     expect(container.textContent).not.toContain('Страница');
   });
 });

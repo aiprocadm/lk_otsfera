@@ -15,7 +15,7 @@ function makeCard(overrides: Partial<OrgCard> = {}): OrgCard {
     partnerCommissionRate: null,
     partnerCommissionRateNote: null,
     kpi: { ordersCount: 3, debt: '0.00' },
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -30,7 +30,9 @@ describe('OrgCardHeader', () => {
 
   it('falls back to em-dash for missing INN and omits KPP/legalName when absent', () => {
     const html = renderToString(
-      React.createElement(OrgCardHeader, { card: makeCard({ inn: null, kpp: null, legalName: null }) })
+      React.createElement(OrgCardHeader, {
+        card: makeCard({ inn: null, kpp: null, legalName: null }),
+      })
     );
     expect(html).toContain('ИНН <!-- -->—');
     expect(html).not.toContain('КПП');
@@ -38,7 +40,9 @@ describe('OrgCardHeader', () => {
 
   it('shows debt tile with red accent when debt > 0', () => {
     const html = renderToString(
-      React.createElement(OrgCardHeader, { card: makeCard({ kpi: { ordersCount: 1, debt: '5000.00' } }) })
+      React.createElement(OrgCardHeader, {
+        card: makeCard({ kpi: { ordersCount: 1, debt: '5000.00' } }),
+      })
     );
     expect(html).toContain('text-red-700');
     expect(html).toContain('bg-red-50');
@@ -54,7 +58,7 @@ describe('OrgCardHeader', () => {
   it('renders the individual commission rate block with note when set', () => {
     const html = renderToString(
       React.createElement(OrgCardHeader, {
-        card: makeCard({ partnerCommissionRate: '0.085', partnerCommissionRateNote: 'VIP-клиент' })
+        card: makeCard({ partnerCommissionRate: '0.085', partnerCommissionRateNote: 'VIP-клиент' }),
       })
     );
     expect(html).toContain('Индивидуальная ставка комиссии');
@@ -63,13 +67,17 @@ describe('OrgCardHeader', () => {
   });
 
   it('omits the commission-rate block entirely when partnerCommissionRate is null', () => {
-    const html = renderToString(React.createElement(OrgCardHeader, { card: makeCard({ partnerCommissionRate: null }) }));
+    const html = renderToString(
+      React.createElement(OrgCardHeader, { card: makeCard({ partnerCommissionRate: null }) })
+    );
     expect(html).not.toContain('Индивидуальная ставка комиссии');
   });
 
   it('renders the rate block without the note span when partnerCommissionRateNote is null', () => {
     const html = renderToString(
-      React.createElement(OrgCardHeader, { card: makeCard({ partnerCommissionRate: '0.1', partnerCommissionRateNote: null }) })
+      React.createElement(OrgCardHeader, {
+        card: makeCard({ partnerCommissionRate: '0.1', partnerCommissionRateNote: null }),
+      })
     );
     expect(html).toContain('10.00<!-- -->%');
     expect(html).not.toContain('ml-1 text-orange-600');

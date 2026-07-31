@@ -31,10 +31,7 @@ import { createCounterpartyDocument } from '@/lib/services/manager/uploads';
  *   500 — object-storage upload failed
  */
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const disabled = notFoundIfDisabled('manager_cabinet');
   if (disabled) return disabled;
 
@@ -63,23 +60,25 @@ export async function POST(
       name: file.name,
       size: file.size,
       mimeType: file.type,
-      buffer
-    }
+      buffer,
+    },
   });
 
   if (!result.ok) {
     const status =
-      result.error === 'forbidden' ? 403
-      : result.error === 'too_large' ? 413
-      : result.error === 'invalid_mime' ? 415
-      : result.error === 'not_found' ? 404
-      : result.error === 'invalid_recipient' ? 400
-      : 500;
+      result.error === 'forbidden'
+        ? 403
+        : result.error === 'too_large'
+          ? 413
+          : result.error === 'invalid_mime'
+            ? 415
+            : result.error === 'not_found'
+              ? 404
+              : result.error === 'invalid_recipient'
+                ? 400
+                : 500;
     return Response.json({ ok: false, error: result.error }, { status });
   }
 
-  return Response.json(
-    { ok: true, documentId: result.documentId },
-    { status: 201 }
-  );
+  return Response.json({ ok: true, documentId: result.documentId }, { status: 201 });
 }

@@ -17,10 +17,7 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
  * не был отправлен. Один порог за прогон: следующий (более мелкий) добьётся при
  * последующих ежедневных прогонах.
  */
-export function selectDueReminders(
-  certs: ExpiringCertificate[],
-  today: Date
-): DueReminder[] {
+export function selectDueReminders(certs: ExpiringCertificate[], today: Date): DueReminder[] {
   // Сортируем пороги по возрастанию для поиска тесной полосы.
   const ascThresholds = [...REMINDER_THRESHOLDS].sort((a, b) => a - b) as number[];
 

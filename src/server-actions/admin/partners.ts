@@ -9,7 +9,7 @@ import {
   updatePartner,
   deactivatePartner,
   reactivatePartner,
-  type AdminPartnerErrorCode
+  type AdminPartnerErrorCode,
 } from '@/lib/services/admin/partners';
 import { sendAdminUserInviteEmail } from '@/lib/email/send';
 import { log } from '@/lib/logging';
@@ -20,10 +20,14 @@ type ActionResult<T = void> = Success<T> | Failure;
 
 const createSchema = z.object({
   name: z.string().min(1).max(200),
-  slug: z.string().min(1).max(80).regex(/^[a-z0-9-]+$/, 'lowercase, цифры и дефис'),
+  slug: z
+    .string()
+    .min(1)
+    .max(80)
+    .regex(/^[a-z0-9-]+$/, 'lowercase, цифры и дефис'),
   commissionRate: z.coerce.number().min(0).max(100).optional(),
   adminEmail: z.string().email(),
-  adminName: z.string().min(1).max(200)
+  adminName: z.string().min(1).max(200),
 });
 
 const updateSchema = z.object({
@@ -38,8 +42,8 @@ const updateSchema = z.object({
     .string()
     .optional()
     .refine((s) => s === undefined || s === '' || !isNaN(new Date(s).getTime()), {
-      message: 'effectiveFrom must be a valid date'
-    })
+      message: 'effectiveFrom must be a valid date',
+    }),
 });
 
 const targetSchema = z.object({ id: z.string().min(1) });
@@ -55,20 +59,27 @@ function appBaseUrl(): string {
 
 export async function createPartnerWithAdminAction(
   fd: FormData
-): Promise<ActionResult<{ partner: { id: string; name: string; slug: string }; user: { id: string; email: string }; inviteUrl: string }>> {
+): Promise<
+  ActionResult<{
+    partner: { id: string; name: string; slug: string };
+    user: { id: string; email: string };
+    inviteUrl: string;
+  }>
+> {
   const parsed = createSchema.safeParse({
     name: readField(fd, 'name'),
     slug: readField(fd, 'slug'),
     commissionRate: readField(fd, 'commissionRate') || undefined,
     adminEmail: readField(fd, 'adminEmail'),
-    adminName: readField(fd, 'adminName')
+    adminName: readField(fd, 'adminName'),
   });
   if (!parsed.success) return { ok: false, error: 'validation' };
 
   const session = await requireAdmin();
   const serviceArgs = {
     ...parsed.data,
-    commissionRate: parsed.data.commissionRate != null ? parsed.data.commissionRate / 100 : undefined
+    commissionRate:
+      parsed.data.commissionRate != null ? parsed.data.commissionRate / 100 : undefined,
   };
   const result = await createPartnerWithAdmin(prisma, session.sub, serviceArgs);
   if (!result.ok) return { ok: false, error: result.error };
@@ -80,7 +91,7 @@ export async function createPartnerWithAdminAction(
       name: parsed.data.adminName,
       role: 'partner',
       inviteUrl,
-      invitedByName: session.name ?? undefined
+      invitedByName: session.name ?? undefined,
     });
   } catch (e) {
     log.warn('[admin/partners] send invite email failed', e);
@@ -96,7 +107,7 @@ export async function updatePartnerAction(fd: FormData): Promise<ActionResult> {
     name: readField(fd, 'name') || undefined,
     commissionRate: readField(fd, 'commissionRate') || undefined,
     isActive: readField(fd, 'isActive') || undefined,
-    effectiveFrom: readField(fd, 'effectiveFrom') || undefined
+    effectiveFrom: readField(fd, 'effectiveFrom') || undefined,
   });
   if (!parsed.success) return { ok: false, error: 'validation' };
 
@@ -105,7 +116,7 @@ export async function updatePartnerAction(fd: FormData): Promise<ActionResult> {
   const args = {
     ...raw,
     commissionRate: raw.commissionRate != null ? raw.commissionRate / 100 : raw.commissionRate,
-    effectiveFrom: raw.effectiveFrom ? new Date(raw.effectiveFrom) : undefined
+    effectiveFrom: raw.effectiveFrom ? new Date(raw.effectiveFrom) : undefined,
   };
   const res = await updatePartner(prisma, session.sub, id, args);
   if (!res.ok) return { ok: false, error: res.error };

@@ -10,7 +10,7 @@ import { CalendarMonthView } from '@/components/calendar/calendar-month-view';
 export const dynamic = 'force-dynamic';
 
 export default async function LeaderCalendarPage({
-  searchParams
+  searchParams,
 }: {
   searchParams: Promise<{ m?: string }>;
 }) {
@@ -21,7 +21,7 @@ export default async function LeaderCalendarPage({
   const range = monthGridRange(month);
   const [items, options] = await Promise.all([
     listCalendarItems(prisma, session, range),
-    getEventFormOptions(prisma, session)
+    getEventFormOptions(prisma, session),
   ]);
 
   return (
@@ -29,7 +29,8 @@ export default async function LeaderCalendarPage({
       <div>
         <h1 className="text-2xl font-bold text-[#111111]">Календарь</h1>
         <p className="text-sm text-gray-500 mt-1">
-          События команды и задачи со сроком — в одной сетке. Кликните по дню, чтобы создать событие.
+          События команды и задачи со сроком — в одной сетке. Кликните по дню, чтобы создать
+          событие.
         </p>
       </div>
       <CalendarMonthView

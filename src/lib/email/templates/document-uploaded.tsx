@@ -8,13 +8,17 @@ export type DocumentUploadedProps = {
   url: string;
 };
 
-export function DocumentUploadedTemplate({ partnerName, orderNumber, filename, url }: DocumentUploadedProps) {
+export function DocumentUploadedTemplate({
+  partnerName,
+  orderNumber,
+  filename,
+  url,
+}: DocumentUploadedProps) {
   return (
     <EmailLayout title="Новый документ по заказу">
       <p style={emailStyles.paragraph}>Здравствуйте, {partnerName}!</p>
       <p style={emailStyles.paragraph}>
-        К заказу <strong>{orderNumber}</strong> загружен документ{' '}
-        <strong>«{filename}»</strong>.
+        К заказу <strong>{orderNumber}</strong> загружен документ <strong>«{filename}»</strong>.
       </p>
       <p style={emailStyles.paragraph}>
         <a href={url} style={emailStyles.button}>
@@ -32,7 +36,12 @@ export function documentUploadedSubject(orderNumber: string): string {
   return `Новый документ по заказу ${orderNumber}`;
 }
 
-export function documentUploadedText({ partnerName, orderNumber, filename, url }: DocumentUploadedProps): string {
+export function documentUploadedText({
+  partnerName,
+  orderNumber,
+  filename,
+  url,
+}: DocumentUploadedProps): string {
   return [
     `Здравствуйте, ${partnerName}!`,
     '',

@@ -17,7 +17,7 @@ function item(overrides: Partial<EnrollmentDetailItem> = {}): EnrollmentDetailIt
     status: 'pending',
     externalStudentId: null,
     certificateDocumentId: null,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -36,12 +36,15 @@ function detail(overrides: Partial<EnrollmentDetail> = {}): EnrollmentDetail {
     reviewedAt: null,
     provisionedAt: null,
     items: [item()],
-    ...overrides
+    ...overrides,
   };
 }
 
 function renderView(d: EnrollmentDetail, backHref = '/organization/enrollments'): string {
-  return renderToString(React.createElement(EnrollmentDetailView, { detail: d, backHref })).replace(/<!-- -->/g, '');
+  return renderToString(React.createElement(EnrollmentDetailView, { detail: d, backHref })).replace(
+    /<!-- -->/g,
+    ''
+  );
 }
 
 describe('EnrollmentDetailView — шапка', () => {
@@ -54,7 +57,9 @@ describe('EnrollmentDetailView — шапка', () => {
   });
 
   it('организация в подзаголовке только когда organizationName задан', () => {
-    expect(renderView(detail({ organizationName: 'ООО Ромашка' }))).toContain('организация ООО Ромашка');
+    expect(renderView(detail({ organizationName: 'ООО Ромашка' }))).toContain(
+      'организация ООО Ромашка'
+    );
     expect(renderView(detail())).not.toContain('организация');
   });
 
@@ -78,8 +83,13 @@ describe('EnrollmentDetailView — позиции', () => {
       detail({
         items: [
           item({ status: 'provisioned', position: 'инженер' }),
-          item({ id: 'i2', fullName: 'Анна Иванова', email: 'anna@example.com', status: 'in_training' })
-        ]
+          item({
+            id: 'i2',
+            fullName: 'Анна Иванова',
+            email: 'anna@example.com',
+            status: 'in_training',
+          }),
+        ],
       })
     );
     expect(html).toContain('Слушатели (2)');
@@ -98,8 +108,13 @@ describe('EnrollmentDetailView — позиции', () => {
         status: 'certificates_ready',
         items: [
           item({ status: 'certificates_ready', certificateDocumentId: 'doc-1' }),
-          item({ id: 'i2', fullName: 'Анна Иванова', email: 'anna@example.com', status: 'certificates_ready' })
-        ]
+          item({
+            id: 'i2',
+            fullName: 'Анна Иванова',
+            email: 'anna@example.com',
+            status: 'certificates_ready',
+          }),
+        ],
       })
     );
     expect(html.match(/Скачать удостоверение/g)).toHaveLength(1);
@@ -123,17 +138,22 @@ describe('EnrollmentDetailView — позиции', () => {
         status: 'certificates_ready',
         items: [
           item({ status: 'certificates_ready', certificateDocumentId: 'doc-1' }),
-          item({ id: 'i2', fullName: 'Анна Иванова', email: 'anna@example.com', status: 'certificates_ready' })
-        ]
+          item({
+            id: 'i2',
+            fullName: 'Анна Иванова',
+            email: 'anna@example.com',
+            status: 'certificates_ready',
+          }),
+        ],
       })
     );
     expect(html).not.toContain('файлы появятся здесь');
   });
 
   it('в других статусах подсказки про файлы нет даже без ссылок', () => {
-    expect(renderView(detail({ status: 'in_training', items: [item({ status: 'in_training' })] }))).not.toContain(
-      'файлы появятся здесь'
-    );
+    expect(
+      renderView(detail({ status: 'in_training', items: [item({ status: 'in_training' })] }))
+    ).not.toContain('файлы появятся здесь');
   });
 
   it('примечание рендерится только при наличии', () => {

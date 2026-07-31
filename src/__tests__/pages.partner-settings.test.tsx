@@ -20,19 +20,23 @@ const { getPartnerRequisites } = vi.hoisted(() => ({ getPartnerRequisites: vi.fn
 vi.mock('@/lib/services/partner/requisites', () => ({ getPartnerRequisites }));
 vi.mock('@/server-actions/requisites', () => ({ setPartnerRequisitesAction: vi.fn() }));
 vi.mock('@/components/settings/security-card', () => ({
-  SecurityCard: () => React.createElement('div', { 'data-testid': 'security-card' }, 'SECURITY')
+  SecurityCard: () => React.createElement('div', { 'data-testid': 'security-card' }, 'SECURITY'),
 }));
 
 vi.mock('@/components/requisites/requisites-card', () => ({
   RequisitesCard: (props: { title: string; canEdit?: boolean }) =>
-    React.createElement('div', { 'data-testid': 'requisites-card' }, props.title, ` canEdit:${String(props.canEdit)}`)
+    React.createElement(
+      'div',
+      { 'data-testid': 'requisites-card' },
+      props.title,
+      ` canEdit:${String(props.canEdit)}`
+    ),
 }));
 
 // TelegramLinkCard ('use client') calls useRouter().
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
-
 
 const SESSION = { sub: 'u1', role: 'partner' as const, partnerId: 'p1' };
 
@@ -55,12 +59,25 @@ describe('PartnerSettingsPage', () => {
         emailAlwaysOn: true,
         telegram: { available: true, linked: false, enabled: true },
         max: { available: false, linked: false, enabled: false },
-        whatsapp: { available: false, phone: null, enabled: false }
-      }
+        whatsapp: { available: false, phone: null, enabled: false },
+      },
     });
     getPartnerRequisites.mockResolvedValue({
       ok: true,
-      requisites: { legalName: 'ООО Партнёр', inn: '7707083893', kpp: null, ogrn: null, legalAddress: null, bankName: null, bankAccount: null, corrAccount: null, bic: null, signerName: null, signerPosition: null, signerBasis: null }
+      requisites: {
+        legalName: 'ООО Партнёр',
+        inn: '7707083893',
+        kpp: null,
+        ogrn: null,
+        legalAddress: null,
+        bankName: null,
+        bankAccount: null,
+        corrAccount: null,
+        bic: null,
+        signerName: null,
+        signerPosition: null,
+        signerBasis: null,
+      },
     });
 
     const { container } = await renderServerComponent(PartnerSettingsPage());
@@ -77,8 +94,8 @@ describe('PartnerSettingsPage', () => {
         emailAlwaysOn: true,
         telegram: { available: true, linked: false, enabled: true },
         max: { available: false, linked: false, enabled: false },
-        whatsapp: { available: false, phone: null, enabled: false }
-      }
+        whatsapp: { available: false, phone: null, enabled: false },
+      },
     });
 
     const { container } = await renderServerComponent(PartnerSettingsPage());

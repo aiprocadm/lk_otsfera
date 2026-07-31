@@ -7,7 +7,7 @@ const { replace } = vi.hoisted(() => ({ replace: vi.fn() }));
 
 vi.mock('next/navigation', () => ({
   useRouter: vi.fn(() => ({ replace })),
-  useSearchParams: vi.fn(() => new URLSearchParams())
+  useSearchParams: vi.fn(() => new URLSearchParams()),
 }));
 
 import { useSearchParams } from 'next/navigation';
@@ -44,7 +44,9 @@ describe('OrgDocumentsSearch', () => {
     const input = screen.getByPlaceholderText('Поиск по имени файла…');
     fireEvent.change(input, { target: { value: 'договор' } });
     fireEvent.keyDown(input, { key: 'Enter' });
-    expect(replace).toHaveBeenCalledWith('/organization/documents?search=%D0%B4%D0%BE%D0%B3%D0%BE%D0%B2%D0%BE%D1%80');
+    expect(replace).toHaveBeenCalledWith(
+      '/organization/documents?search=%D0%B4%D0%BE%D0%B3%D0%BE%D0%B2%D0%BE%D1%80'
+    );
   });
 
   it('pressing a non-Enter key does not apply', () => {

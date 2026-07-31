@@ -15,23 +15,31 @@ export async function getCursor(db: PrismaClient, entity: CursorEntity): Promise
 }
 
 /** Advance only when there was a successful high-water mark. null = no records handled → leave cursor. */
-export async function advanceCursor(db: PrismaClient, entity: CursorEntity, maxUpdatedAt: Date | null): Promise<void> {
+export async function advanceCursor(
+  db: PrismaClient,
+  entity: CursorEntity,
+  maxUpdatedAt: Date | null
+): Promise<void> {
   const now = new Date();
   const base = { lastRunAt: now, lastSuccessAt: now, lastError: null as string | null };
   const cursor = maxUpdatedAt ? applyOverlap(maxUpdatedAt, oneCCursorOverlapMinutes()) : undefined;
   await db.syncState.upsert({
     where: { entity },
     create: { entity, ...base, ...(cursor ? { cursor } : {}) },
-    update: { ...base, ...(cursor ? { cursor } : {}) }
+    update: { ...base, ...(cursor ? { cursor } : {}) },
   });
 }
 
-export async function markCursorError(db: PrismaClient, entity: CursorEntity, error: string): Promise<void> {
+export async function markCursorError(
+  db: PrismaClient,
+  entity: CursorEntity,
+  error: string
+): Promise<void> {
   const now = new Date();
   const msg = error.slice(0, 1000);
   await db.syncState.upsert({
     where: { entity },
     create: { entity, lastRunAt: now, lastError: msg },
-    update: { lastRunAt: now, lastError: msg }
+    update: { lastRunAt: now, lastError: msg },
   });
 }

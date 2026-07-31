@@ -7,10 +7,14 @@ import { migrateCommentsToMessages } from '@/lib/services/chat/migrate';
 
 function makeComment(overrides: Record<string, any> = {}) {
   return {
-    id: 'c1', orderId: 'o1', authorId: 'u1', body: 'Текст',
-    attachmentPath: null, createdAt: new Date('2024-01-01'),
+    id: 'c1',
+    orderId: 'o1',
+    authorId: 'u1',
+    body: 'Текст',
+    attachmentPath: null,
+    createdAt: new Date('2024-01-01'),
     author: { role: 'organization' },
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -26,7 +30,7 @@ function makePrisma(comments: object[], existingMsg: object | null = null) {
     _upsert: upsert,
     _findFirst: findFirst,
     _create: create,
-    _threadUpdate: update
+    _threadUpdate: update,
   } as any;
 }
 
@@ -65,7 +69,7 @@ describe('migrateCommentsToMessages — unit', () => {
   it('manager comment inherits "partner" side when last external was partner', async () => {
     const comments = [
       makeComment({ id: 'c1', author: { role: 'partner' } }),
-      makeComment({ id: 'c2', author: { role: 'manager' } })
+      makeComment({ id: 'c2', author: { role: 'manager' } }),
     ];
     const prisma = makePrisma(comments);
     const result = await migrateCommentsToMessages(prisma);

@@ -30,7 +30,7 @@ export async function POST(req: Request) {
   const res = await createDirection(prisma, adminGuard.value, {
     name: body.name,
     slug: body.slug,
-    sortOrder: body.sortOrder
+    sortOrder: body.sortOrder,
   });
   if (!res.ok) return NextResponse.json({ error: res.error }, { status: mapErr(res.error) });
   return NextResponse.json({ direction: res.direction }, { status: 201 });

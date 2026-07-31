@@ -23,7 +23,7 @@ describe('readSpreadsheet richText cell (@22)', () => {
     const fakeWs = {
       rowCount: 1,
       columnCount: 1,
-      getRow: () => ({ getCell: (c: number) => (c === 1 ? richCell : emptyCell) })
+      getRow: () => ({ getCell: (c: number) => (c === 1 ? richCell : emptyCell) }),
     };
     loadXlsxWorkbook.mockResolvedValue({ worksheets: [fakeWs] } as never);
 

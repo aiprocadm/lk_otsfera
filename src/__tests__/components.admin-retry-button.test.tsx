@@ -20,7 +20,11 @@ describe('RetryButton', () => {
 
   it('renders the "Повторить" label and posts to the correct encoded URL on click', async () => {
     let resolveFetch!: (value: { ok: boolean }) => void;
-    const fetchMock = vi.fn().mockReturnValue(new Promise((resolve) => { resolveFetch = resolve; }));
+    const fetchMock = vi.fn().mockReturnValue(
+      new Promise((resolve) => {
+        resolveFetch = resolve;
+      })
+    );
     vi.stubGlobal('fetch', fetchMock);
 
     render(React.createElement(RetryButton, { queue: 'docs.scanDocument', jobId: 'job/1' }));
@@ -28,14 +32,15 @@ describe('RetryButton', () => {
     fireEvent.click(button);
 
     expect(await screen.findByRole('button', { name: 'Повтор…' })).toBeTruthy();
-    expect((screen.getByRole('button', { name: 'Повтор…' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Повтор…' }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
 
     resolveFetch({ ok: true });
     await waitFor(() => expect(refresh).toHaveBeenCalled());
-    expect(fetchMock).toHaveBeenCalledWith(
-      '/api/admin/dlq/docs.scanDocument/job%2F1/retry',
-      { method: 'POST' }
-    );
+    expect(fetchMock).toHaveBeenCalledWith('/api/admin/dlq/docs.scanDocument/job%2F1/retry', {
+      method: 'POST',
+    });
     expect(await screen.findByRole('button', { name: 'Повторить' })).toBeTruthy();
   });
 
@@ -43,7 +48,7 @@ describe('RetryButton', () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       status: 500,
-      json: () => Promise.resolve({ error: 'boom' })
+      json: () => Promise.resolve({ error: 'boom' }),
     });
     vi.stubGlobal('fetch', fetchMock);
 
@@ -58,7 +63,7 @@ describe('RetryButton', () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       status: 503,
-      json: () => Promise.resolve({})
+      json: () => Promise.resolve({}),
     });
     vi.stubGlobal('fetch', fetchMock);
 
@@ -72,7 +77,7 @@ describe('RetryButton', () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       status: 502,
-      json: () => Promise.reject(new Error('bad json'))
+      json: () => Promise.reject(new Error('bad json')),
     });
     vi.stubGlobal('fetch', fetchMock);
 

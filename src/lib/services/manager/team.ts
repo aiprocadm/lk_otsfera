@@ -17,9 +17,9 @@ const ROW_INCLUDE = {
       id: true,
       name: true,
       email: true,
-      isActive: true
-    }
-  }
+      isActive: true,
+    },
+  },
 } satisfies Prisma.OrganizationManagerInclude;
 
 export type ManagerAssignmentRow = Prisma.OrganizationManagerGetPayload<{
@@ -38,7 +38,7 @@ export async function listManagersForOrg(
   const rows = await prisma.organizationManager.findMany({
     where: { organizationId: orgId },
     include: ROW_INCLUDE,
-    orderBy: [{ isActive: 'desc' }, { assignedAt: 'desc' }]
+    orderBy: [{ isActive: 'desc' }, { assignedAt: 'desc' }],
   });
 
   const active: ManagerAssignmentRow[] = [];
@@ -70,7 +70,12 @@ export type CompanyManagerRow = {
   managerRole: string | null;
   /** ФТ-11.3: последний успешный вход; null = ещё ни разу не входил. */
   lastLoginAt: Date | null;
-  assignments: { id: string; organizationId: string; organizationName: string; isActive: boolean }[];
+  assignments: {
+    id: string;
+    organizationId: string;
+    organizationName: string;
+    isActive: boolean;
+  }[];
 };
 
 /**
@@ -95,11 +100,11 @@ export async function listCompanyManagers(
         select: {
           id: true,
           isActive: true,
-          organization: { select: { id: true, name: true } }
-        }
-      }
+          organization: { select: { id: true, name: true } },
+        },
+      },
     },
-    orderBy: { name: 'asc' }
+    orderBy: { name: 'asc' },
   });
   return users.map((u) => ({
     id: u.id,
@@ -112,7 +117,7 @@ export async function listCompanyManagers(
       id: a.id,
       organizationId: a.organization.id,
       organizationName: a.organization.name,
-      isActive: a.isActive
-    }))
+      isActive: a.isActive,
+    })),
   }));
 }

@@ -7,7 +7,7 @@ const {
   createComment,
   notifyMessageCreated,
   deliverNotificationToUser,
-  getPrimaryOrganizationId
+  getPrimaryOrganizationId,
 } = vi.hoisted(() => ({
   requireSession: vi.fn(),
   requireOrderAccess: vi.fn(),
@@ -15,19 +15,19 @@ const {
   createComment: vi.fn(),
   notifyMessageCreated: vi.fn(),
   deliverNotificationToUser: vi.fn(),
-  getPrimaryOrganizationId: vi.fn()
+  getPrimaryOrganizationId: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/guard', () => ({
   requireSession,
   requireOrderAccess,
-  forbiddenResponse: (m: string) => Response.json({ message: m }, { status: 403 })
+  forbiddenResponse: (m: string) => Response.json({ message: m }, { status: 403 }),
 }));
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     order: { findUnique: findOrder },
-    comment: { create: createComment }
-  }
+    comment: { create: createComment },
+  },
 }));
 vi.mock('@/lib/notifications', () => ({ notifyMessageCreated, deliverNotificationToUser }));
 vi.mock('@/lib/auth/organization', () => ({ getPrimaryOrganizationId }));
@@ -38,7 +38,7 @@ const makeRequest = (body: object) =>
   new Request('https://app.local/api/comments', {
     method: 'POST',
     body: JSON.stringify(body),
-    headers: { 'content-type': 'application/json' }
+    headers: { 'content-type': 'application/json' },
   });
 
 describe('POST /api/comments', () => {
@@ -54,7 +54,10 @@ describe('POST /api/comments', () => {
   });
 
   it('returns 401 when session is missing', async () => {
-    requireSession.mockResolvedValue({ ok: false, response: Response.json({ error: 'Unauthorized' }, { status: 401 }) });
+    requireSession.mockResolvedValue({
+      ok: false,
+      response: Response.json({ error: 'Unauthorized' }, { status: 401 }),
+    });
     const res = await POST(makeRequest({ orderId: 'ord1', body: 'hello' }));
     expect(res.status).toBe(401);
     expect(createComment).not.toHaveBeenCalled();
@@ -70,7 +73,7 @@ describe('POST /api/comments', () => {
   it('returns 403 when user has no access to the order', async () => {
     requireOrderAccess.mockResolvedValue({
       ok: false,
-      response: Response.json({ error: 'Forbidden' }, { status: 403 })
+      response: Response.json({ error: 'Forbidden' }, { status: 403 }),
     });
     const res = await POST(makeRequest({ orderId: 'ord1', body: 'hello' }));
     expect(res.status).toBe(403);
@@ -81,7 +84,7 @@ describe('POST /api/comments', () => {
     const res = await POST(makeRequest({ orderId: 'ord1', body: 'hello' }));
     expect(res.status).toBe(200);
     expect(createComment).toHaveBeenCalledWith({
-      data: { orderId: 'ord1', body: 'hello', authorId: 'u1' }
+      data: { orderId: 'ord1', body: 'hello', authorId: 'u1' },
     });
     const json = await res.json();
     expect(json).toMatchObject({ id: 'cm1', orderId: 'ord1' });
@@ -105,7 +108,10 @@ describe('POST /api/comments', () => {
   });
 
   it('partner can comment only on own orders (partnerId pin)', async () => {
-    requireSession.mockResolvedValue({ ok: true, value: { sub: 'u1', role: 'partner', partnerId: 'p1' } });
+    requireSession.mockResolvedValue({
+      ok: true,
+      value: { sub: 'u1', role: 'partner', partnerId: 'p1' },
+    });
     findOrder.mockResolvedValue({ id: 'ord1', companyId: 'c1', partnerId: 'p1' });
     const res = await POST(makeRequest({ orderId: 'ord1', body: 'hello' }));
     expect(res.status).toBe(200);
@@ -113,7 +119,10 @@ describe('POST /api/comments', () => {
   });
 
   it("partner cannot comment on a sibling partner's order in the same company", async () => {
-    requireSession.mockResolvedValue({ ok: true, value: { sub: 'u1', role: 'partner', partnerId: 'p1' } });
+    requireSession.mockResolvedValue({
+      ok: true,
+      value: { sub: 'u1', role: 'partner', partnerId: 'p1' },
+    });
     findOrder.mockResolvedValue({ id: 'ord1', companyId: 'c1', partnerId: 'pX' });
     const res = await POST(makeRequest({ orderId: 'ord1', body: 'hello' }));
     expect(res.status).toBe(403);

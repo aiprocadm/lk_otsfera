@@ -7,7 +7,7 @@ import { requireManagerLeader } from '@/lib/auth/requireRole';
 import {
   createAndAssignManager,
   deactivateAssignment,
-  type ManagerInviteErrorCode
+  type ManagerInviteErrorCode,
 } from '@/lib/services/manager/invite';
 import { sendManagerInviteEmail } from '@/lib/email/send';
 import { log } from '@/lib/logging';
@@ -18,15 +18,30 @@ function readForm(formData: FormData, key: string): string | undefined {
 }
 
 /** A leader may only touch orgs in their own company. */
-async function orgInLeaderCompany(orgId: string, companyId: string | null | undefined): Promise<boolean> {
+async function orgInLeaderCompany(
+  orgId: string,
+  companyId: string | null | undefined
+): Promise<boolean> {
   if (!companyId) return false;
-  const org = await prisma.organization.findUnique({ where: { id: orgId }, select: { companyId: true } });
+  const org = await prisma.organization.findUnique({
+    where: { id: orgId },
+    select: { companyId: true },
+  });
   return !!org && org.companyId === companyId;
 }
 
 const assignSchema = z.discriminatedUnion('mode', [
-  z.object({ mode: z.literal('existing'), organizationId: z.string().min(1), email: z.string().email() }),
-  z.object({ mode: z.literal('new'), organizationId: z.string().min(1), email: z.string().email(), name: z.string().max(200).optional() })
+  z.object({
+    mode: z.literal('existing'),
+    organizationId: z.string().min(1),
+    email: z.string().email(),
+  }),
+  z.object({
+    mode: z.literal('new'),
+    organizationId: z.string().min(1),
+    email: z.string().email(),
+    name: z.string().max(200).optional(),
+  }),
 ]);
 
 export type LeaderAssignResult =
@@ -38,7 +53,7 @@ export async function leaderAssignManagerAction(formData: FormData): Promise<Lea
     mode: readForm(formData, 'mode'),
     organizationId: readForm(formData, 'organizationId'),
     email: readForm(formData, 'email'),
-    name: readForm(formData, 'name')
+    name: readForm(formData, 'name'),
   });
   if (!parsed.success) return { ok: false, error: 'validation' };
 
@@ -57,13 +72,13 @@ export async function leaderAssignManagerAction(formData: FormData): Promise<Lea
     try {
       const org = await prisma.organization.findUnique({
         where: { id: parsed.data.organizationId },
-        select: { name: true }
+        select: { name: true },
       });
       await sendManagerInviteEmail({
         to: parsed.data.email,
         organizationName: org?.name ?? 'организация',
         inviteUrl: result.inviteUrl,
-        invitedByName: session.name ?? undefined
+        invitedByName: session.name ?? undefined,
       });
     } catch (e) {
       log.warn('[manager/team] send invite email failed', e);
@@ -76,9 +91,12 @@ export async function leaderAssignManagerAction(formData: FormData): Promise<Lea
 
 const deactivateSchema = z.object({ assignmentId: z.string().min(1) });
 
-export type LeaderDeactivateResult = { ok: true } | { ok: false; error: 'validation' | 'forbidden_org' | 'not_found' };
+export type LeaderDeactivateResult =
+  { ok: true } | { ok: false; error: 'validation' | 'forbidden_org' | 'not_found' };
 
-export async function leaderDeactivateAssignmentAction(formData: FormData): Promise<LeaderDeactivateResult> {
+export async function leaderDeactivateAssignmentAction(
+  formData: FormData
+): Promise<LeaderDeactivateResult> {
   const parsed = deactivateSchema.safeParse({ assignmentId: readForm(formData, 'assignmentId') });
   if (!parsed.success) return { ok: false, error: 'validation' };
 
@@ -86,7 +104,7 @@ export async function leaderDeactivateAssignmentAction(formData: FormData): Prom
   // Resolve the assignment's org first to enforce the company boundary.
   const row = await prisma.organizationManager.findUnique({
     where: { id: parsed.data.assignmentId },
-    select: { organizationId: true }
+    select: { organizationId: true },
   });
   if (!row) return { ok: false, error: 'not_found' };
   if (!(await orgInLeaderCompany(row.organizationId, session.companyId))) {

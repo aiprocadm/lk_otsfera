@@ -123,7 +123,9 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.payment.deleteMany({ where: { externalId: { in: [EXT_MATCHED, EXT_UNMATCHED, EXT_SUPPLIER] } } });
+  await prisma.payment.deleteMany({
+    where: { externalId: { in: [EXT_MATCHED, EXT_UNMATCHED, EXT_SUPPLIER] } },
+  });
   await prisma.paymentImportRow.deleteMany({
     where: { externalId: { in: [EXT_MATCHED, EXT_UNMATCHED, EXT_SUPPLIER] } },
   });
@@ -138,7 +140,10 @@ afterAll(async () => {
 
 describe('1C payment import — idempotency (integration)', () => {
   it('first import: INN-match → Payment, unmatched → queue, supplier(60) → filtered out', async () => {
-    const res = await commitPaymentImport(prisma, adminSession, { fileBuffer: await cardBuffer(), fileName: 'card.xlsx' });
+    const res = await commitPaymentImport(prisma, adminSession, {
+      fileBuffer: await cardBuffer(),
+      fileName: 'card.xlsx',
+    });
     expect(res.ok).toBe(true);
     if (res.ok) {
       // one exact import, one queued, one excluded — supplier row filtered by классификация.
@@ -158,7 +163,9 @@ describe('1C payment import — idempotency (integration)', () => {
     expect(pay?.isRefund).toBe(false);
 
     // (b) unmatched client row → manual-resolve queue, NOT lost, NOT a Payment.
-    const queued = await prisma.paymentImportRow.findUnique({ where: { externalId: EXT_UNMATCHED } });
+    const queued = await prisma.paymentImportRow.findUnique({
+      where: { externalId: EXT_UNMATCHED },
+    });
     expect(queued).not.toBeNull();
     expect(queued?.status).toBe('needs_review');
     expect(queued?.amount.toFixed(2)).toBe('5000.00');
@@ -166,27 +173,38 @@ describe('1C payment import — idempotency (integration)', () => {
 
     // (c) supplier (корр-счёт 60) filtered out — no Payment and no queue row anywhere.
     expect(await prisma.payment.findUnique({ where: { externalId: EXT_SUPPLIER } })).toBeNull();
-    expect(await prisma.paymentImportRow.findUnique({ where: { externalId: EXT_SUPPLIER } })).toBeNull();
+    expect(
+      await prisma.paymentImportRow.findUnique({ where: { externalId: EXT_SUPPLIER } })
+    ).toBeNull();
   });
 
   it('re-import of the SAME set is idempotent: no duplicate Payment or queue row', async () => {
     // Baseline before the second run.
     const payBefore = await prisma.payment.count({ where: { externalId: EXT_MATCHED } });
-    const queueBefore = await prisma.paymentImportRow.count({ where: { externalId: EXT_UNMATCHED } });
+    const queueBefore = await prisma.paymentImportRow.count({
+      where: { externalId: EXT_UNMATCHED },
+    });
     expect(payBefore).toBe(1);
     expect(queueBefore).toBe(1);
 
-    const res = await commitPaymentImport(prisma, adminSession, { fileBuffer: await cardBuffer(), fileName: 'card.xlsx' });
+    const res = await commitPaymentImport(prisma, adminSession, {
+      fileBuffer: await cardBuffer(),
+      fileName: 'card.xlsx',
+    });
     expect(res.ok).toBe(true);
 
     // Payment.externalId @unique → upsert-by-externalId keeps the count at exactly 1.
     const payAfter = await prisma.payment.count({ where: { externalId: EXT_MATCHED } });
     expect(payAfter).toBe(1);
     // PaymentImportRow.externalId @unique → the queue row is updated in place, not re-created.
-    const queueAfter = await prisma.paymentImportRow.count({ where: { externalId: EXT_UNMATCHED } });
+    const queueAfter = await prisma.paymentImportRow.count({
+      where: { externalId: EXT_UNMATCHED },
+    });
     expect(queueAfter).toBe(1);
     // Still needs_review (unmatched a second time) — not silently resolved/duplicated.
-    const queued = await prisma.paymentImportRow.findUnique({ where: { externalId: EXT_UNMATCHED } });
+    const queued = await prisma.paymentImportRow.findUnique({
+      where: { externalId: EXT_UNMATCHED },
+    });
     expect(queued?.status).toBe('needs_review');
 
     // Supplier row remains filtered out across re-imports.

@@ -1,15 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const {
-  getSession,
-  createCounterpartyDocumentMock,
-  redirectMock
-} = vi.hoisted(() => ({
+const { getSession, createCounterpartyDocumentMock, redirectMock } = vi.hoisted(() => ({
   getSession: vi.fn(),
   createCounterpartyDocumentMock: vi.fn(),
   redirectMock: vi.fn(() => {
     throw new Error('REDIRECT');
-  })
+  }),
 }));
 
 vi.mock('@/lib/auth/session', () => ({ getSession }));
@@ -17,12 +13,12 @@ vi.mock('next/navigation', () => ({
   redirect: redirectMock,
   notFound: () => {
     throw new Error('NOTFOUND');
-  }
+  },
 }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled: vi.fn() }));
 vi.mock('@/lib/services/manager/uploads', () => ({
-  createCounterpartyDocument: createCounterpartyDocumentMock
+  createCounterpartyDocument: createCounterpartyDocumentMock,
 }));
 
 import { POST as uploadPost } from '@/app/api/manager/documents/[id]/upload/route';
@@ -33,7 +29,7 @@ function managerSession(opts: { sub?: string; managedOrgIds?: string[] } = {}) {
     sub: opts.sub ?? 'u-mgr-1',
     role: 'manager',
     email: 'mgr@local',
-    managedOrgIds: opts.managedOrgIds ?? ['org-a']
+    managedOrgIds: opts.managedOrgIds ?? ['org-a'],
   };
 }
 
@@ -46,7 +42,7 @@ function buildReq(opts: { file?: File | null; docType?: string; recipient?: stri
   if (opts.recipient !== undefined) fd.set('recipient', opts.recipient);
   return new Request('https://app.local/api/manager/documents/ord-1/upload', {
     method: 'POST',
-    body: fd
+    body: fd,
   });
 }
 
@@ -60,7 +56,9 @@ describe('POST /api/manager/documents/[id]/upload', () => {
   });
 
   it('returns 404 when the manager cabinet flag is disabled', async () => {
-    vi.mocked(notFoundIfDisabled).mockReturnValue(new Response('Not Found', { status: 404 }) as never);
+    vi.mocked(notFoundIfDisabled).mockReturnValue(
+      new Response('Not Found', { status: 404 }) as never
+    );
     const res = await uploadPost(
       buildReq({ file: new File(['x'], 'a.pdf', { type: 'application/pdf' }) }) as never,
       paramsP
@@ -96,7 +94,7 @@ describe('POST /api/manager/documents/[id]/upload', () => {
     const badReq = new Request('https://app.local/api/manager/documents/ord-1/upload', {
       method: 'POST',
       body: 'NOT MULTIPART',
-      headers: { 'content-type': 'application/json' }
+      headers: { 'content-type': 'application/json' },
     });
     const res = await uploadPost(badReq as never, paramsP);
     expect(res.status).toBe(400);
@@ -119,7 +117,7 @@ describe('POST /api/manager/documents/[id]/upload', () => {
       buildReq({
         file: new File(['x'], 'a.pdf', { type: 'application/pdf' }),
         docType: 'invoice',
-        recipient: 'organization'
+        recipient: 'organization',
       }) as never,
       paramsP
     );
@@ -134,7 +132,7 @@ describe('POST /api/manager/documents/[id]/upload', () => {
       orderId: 'ord-1',
       docType: 'invoice',
       recipient: 'organization',
-      file: { name: 'a.pdf', mimeType: 'application/pdf' }
+      file: { name: 'a.pdf', mimeType: 'application/pdf' },
     });
   });
 
@@ -155,7 +153,7 @@ describe('POST /api/manager/documents/[id]/upload', () => {
       buildReq({
         file: new File(['x'], 'stmt.pdf', { type: 'application/pdf' }),
         docType: 'commission_statement',
-        recipient: 'partner'
+        recipient: 'partner',
       }) as never,
       paramsP
     );
@@ -200,7 +198,7 @@ describe('POST /api/manager/documents/[id]/upload', () => {
     createCounterpartyDocumentMock.mockResolvedValue({ ok: false, error: 'invalid_mime' });
     const res = await uploadPost(
       buildReq({
-        file: new File(['x'], 'virus.exe', { type: 'application/x-msdownload' })
+        file: new File(['x'], 'virus.exe', { type: 'application/x-msdownload' }),
       }) as never,
       paramsP
     );
@@ -225,7 +223,7 @@ describe('POST /api/manager/documents/[id]/upload', () => {
     const res = await uploadPost(
       buildReq({
         file: new File(['x'], 'stmt.pdf', { type: 'application/pdf' }),
-        recipient: 'partner'
+        recipient: 'partner',
       }) as never,
       paramsP
     );

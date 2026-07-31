@@ -2,18 +2,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { requireSession, requireAdmin } = vi.hoisted(() => ({
   requireSession: vi.fn(),
-  requireAdmin: vi.fn()
+  requireAdmin: vi.fn(),
 }));
 const { getDlq, retryDlqJob } = vi.hoisted(() => ({
   getDlq: vi.fn(),
-  retryDlqJob: vi.fn()
+  retryDlqJob: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/guard', () => ({ requireSession, requireAdmin }));
 vi.mock('@/lib/services/admin/queueStats', () => ({ getDlq, retryDlqJob }));
 vi.mock('@/lib/jobs/queues', () => ({
   QUEUE_NAMES: ['docs.scanDocument', 'notifications.dispatch'],
-  getQueue: vi.fn()
+  getQueue: vi.fn(),
 }));
 
 import { GET } from '@/app/api/admin/dlq/route';
@@ -35,7 +35,16 @@ beforeEach(() => {
 
 describe('GET /api/admin/dlq', () => {
   it('returns rows on success', async () => {
-    getDlq.mockResolvedValue([{ queue: 'docs.scanDocument', jobId: 'j1', name: 'scan', failedReason: 'oops', failedAt: null, attemptsMade: 3 }]);
+    getDlq.mockResolvedValue([
+      {
+        queue: 'docs.scanDocument',
+        jobId: 'j1',
+        name: 'scan',
+        failedReason: 'oops',
+        failedAt: null,
+        attemptsMade: 3,
+      },
+    ]);
     const res = await GET();
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -44,14 +53,20 @@ describe('GET /api/admin/dlq', () => {
   });
 
   it('returns guard response when not authenticated', async () => {
-    requireSession.mockResolvedValue({ ok: false, response: new Response('Unauthorized', { status: 401 }) });
+    requireSession.mockResolvedValue({
+      ok: false,
+      response: new Response('Unauthorized', { status: 401 }),
+    });
     const res = await GET();
     expect(res.status).toBe(401);
     expect(getDlq).not.toHaveBeenCalled();
   });
 
   it('returns guard response when not admin', async () => {
-    requireAdmin.mockReturnValue({ ok: false, response: new Response('Forbidden', { status: 403 }) });
+    requireAdmin.mockReturnValue({
+      ok: false,
+      response: new Response('Forbidden', { status: 403 }),
+    });
     const res = await GET();
     expect(res.status).toBe(403);
     expect(getDlq).not.toHaveBeenCalled();
@@ -63,14 +78,20 @@ describe('GET /api/admin/dlq', () => {
 describe('POST /api/admin/dlq/[queue]/[jobId]/retry', () => {
   it('retries job successfully', async () => {
     retryDlqJob.mockResolvedValue({ ok: true, queue: 'docs.scanDocument', jobId: 'j1' });
-    const res = await POST(new Request('http://x', { method: 'POST' }), retryParams('docs.scanDocument', 'j1'));
+    const res = await POST(
+      new Request('http://x', { method: 'POST' }),
+      retryParams('docs.scanDocument', 'j1')
+    );
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.retried).toEqual({ queue: 'docs.scanDocument', jobId: 'j1' });
   });
 
   it('400 for unknown queue', async () => {
-    const res = await POST(new Request('http://x', { method: 'POST' }), retryParams('unknown.queue', 'j1'));
+    const res = await POST(
+      new Request('http://x', { method: 'POST' }),
+      retryParams('unknown.queue', 'j1')
+    );
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toBe('UNKNOWN_QUEUE');
@@ -78,7 +99,10 @@ describe('POST /api/admin/dlq/[queue]/[jobId]/retry', () => {
   });
 
   it('400 when jobId is empty string', async () => {
-    const res = await POST(new Request('http://x', { method: 'POST' }), retryParams('docs.scanDocument', '   '));
+    const res = await POST(
+      new Request('http://x', { method: 'POST' }),
+      retryParams('docs.scanDocument', '   ')
+    );
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toBe('JOB_ID_REQUIRED');
@@ -86,7 +110,10 @@ describe('POST /api/admin/dlq/[queue]/[jobId]/retry', () => {
 
   it('404 when job not found in DLQ', async () => {
     retryDlqJob.mockResolvedValue({ ok: false, reason: 'JOB_NOT_FOUND' });
-    const res = await POST(new Request('http://x', { method: 'POST' }), retryParams('docs.scanDocument', 'missing'));
+    const res = await POST(
+      new Request('http://x', { method: 'POST' }),
+      retryParams('docs.scanDocument', 'missing')
+    );
     expect(res.status).toBe(404);
     const body = await res.json();
     expect(body.error).toBe('JOB_NOT_FOUND');
@@ -94,20 +121,35 @@ describe('POST /api/admin/dlq/[queue]/[jobId]/retry', () => {
 
   it('500 on other service failure', async () => {
     retryDlqJob.mockResolvedValue({ ok: false, reason: 'QUEUE_UNAVAILABLE' });
-    const res = await POST(new Request('http://x', { method: 'POST' }), retryParams('docs.scanDocument', 'j1'));
+    const res = await POST(
+      new Request('http://x', { method: 'POST' }),
+      retryParams('docs.scanDocument', 'j1')
+    );
     expect(res.status).toBe(500);
   });
 
   it('returns guard response when not authenticated', async () => {
-    requireSession.mockResolvedValue({ ok: false, response: new Response('Unauthorized', { status: 401 }) });
-    const res = await POST(new Request('http://x', { method: 'POST' }), retryParams('docs.scanDocument', 'j1'));
+    requireSession.mockResolvedValue({
+      ok: false,
+      response: new Response('Unauthorized', { status: 401 }),
+    });
+    const res = await POST(
+      new Request('http://x', { method: 'POST' }),
+      retryParams('docs.scanDocument', 'j1')
+    );
     expect(res.status).toBe(401);
     expect(retryDlqJob).not.toHaveBeenCalled();
   });
 
   it('returns guard response when not admin', async () => {
-    requireAdmin.mockReturnValue({ ok: false, response: new Response('Forbidden', { status: 403 }) });
-    const res = await POST(new Request('http://x', { method: 'POST' }), retryParams('docs.scanDocument', 'j1'));
+    requireAdmin.mockReturnValue({
+      ok: false,
+      response: new Response('Forbidden', { status: 403 }),
+    });
+    const res = await POST(
+      new Request('http://x', { method: 'POST' }),
+      retryParams('docs.scanDocument', 'j1')
+    );
     expect(res.status).toBe(403);
     expect(retryDlqJob).not.toHaveBeenCalled();
   });

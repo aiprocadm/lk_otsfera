@@ -20,7 +20,12 @@ beforeAll(async () => {
   const user = await prisma.user.upsert({
     where: { id: `${T}-user` },
     update: {},
-    create: { id: `${T}-user`, email: `${T}-user@x.test`, name: 'Просмотрщик', role: 'organization' }
+    create: {
+      id: `${T}-user`,
+      email: `${T}-user@x.test`,
+      name: 'Просмотрщик',
+      role: 'organization',
+    },
   });
   userId = user.id;
   const company = await prisma.company.create({ data: { name: `${T}-Компания` } });
@@ -34,8 +39,8 @@ beforeAll(async () => {
         mimeType: 'application/pdf',
         companyId,
         counterpartyType: 'organization',
-        counterpartyId: org.id
-      }
+        counterpartyId: org.id,
+      },
     });
   docA = (await mkDoc(`${T}-a.pdf`)).id;
   docB = (await mkDoc(`${T}-b.pdf`)).id;
@@ -54,7 +59,7 @@ describe('viewMarks (integration)', () => {
   it('первая отметка создаёт строку; повторная не плодит дублей и двигает viewedAt', async () => {
     await markDocumentViewed(prisma, { documentId: docA, userId });
     const first = await prisma.documentViewMark.findUniqueOrThrow({
-      where: { documentId_userId: { documentId: docA, userId } }
+      where: { documentId_userId: { documentId: docA, userId } },
     });
 
     await new Promise((r) => setTimeout(r, 15));

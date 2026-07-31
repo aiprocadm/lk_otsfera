@@ -23,9 +23,7 @@ function isStaff(session: SessionPayload): boolean {
 }
 
 function roleSnapshot(session: SessionPayload): string {
-  return session.role === 'manager' && session.managerRole === 'leader'
-    ? 'leader'
-    : session.role;
+  return session.role === 'manager' && session.managerRole === 'leader' ? 'leader' : session.role;
 }
 
 function toRow(args: PiiAccessArgs) {
@@ -43,7 +41,7 @@ function toRow(args: PiiAccessArgs) {
     subjectType: ctx.subjectType,
     subjectIds: args.subjectIds,
     subjectCount: args.subjectIds.length,
-    ...(Object.keys(meta).length > 0 ? { meta } : {})
+    ...(Object.keys(meta).length > 0 ? { meta } : {}),
   };
 }
 
@@ -57,11 +55,12 @@ export async function recordPiiAccess(prisma: PrismaLike, args: PiiAccessArgs): 
 }
 
 /** Пакетная запись (напр. organizationCard: inbound + calls) одним round-trip. */
-export async function recordPiiAccessMany(prisma: PrismaLike, argsList: PiiAccessArgs[]): Promise<void> {
+export async function recordPiiAccessMany(
+  prisma: PrismaLike,
+  argsList: PiiAccessArgs[]
+): Promise<void> {
   if (!isFeatureEnabled('pii_access_log')) return;
-  const rows = argsList
-    .filter((a) => isStaff(a.session) && a.subjectIds.length > 0)
-    .map(toRow);
+  const rows = argsList.filter((a) => isStaff(a.session) && a.subjectIds.length > 0).map(toRow);
   if (rows.length === 0) return;
   try {
     if (rows.length === 1) {
@@ -73,7 +72,7 @@ export async function recordPiiAccessMany(prisma: PrismaLike, argsList: PiiAcces
     log.error('pii_access_log_write_failed', {
       contexts: rows.map((r) => r.context),
       count: rows.length,
-      error: e instanceof Error ? e.message : String(e)
+      error: e instanceof Error ? e.message : String(e),
     });
   }
 }

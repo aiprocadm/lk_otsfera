@@ -13,7 +13,7 @@ vi.mock('@/lib/services/partner/portfolio', () => ({ listPortfolio }));
 // PortfolioSearch ('use client') calls useRouter()/useSearchParams().
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
-  useSearchParams: () => new URLSearchParams()
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 import PortfolioPage from '@/app/partner/portfolio/page';
@@ -26,7 +26,7 @@ const BASE_ITEM = {
   inn: '123456',
   assignedManagerUserId: null,
   ordersCount: 3,
-  debt: '1000.00'
+  debt: '1000.00',
 };
 
 describe('PortfolioPage', () => {
@@ -50,7 +50,7 @@ describe('PortfolioPage', () => {
         scopeOrgIds: ['org-1'],
         search: undefined,
         take: 20,
-        skip: 0
+        skip: 0,
       })
     );
     expect(container.textContent).toContain('Портфель');
@@ -78,7 +78,7 @@ describe('PortfolioPage', () => {
     requirePartner.mockResolvedValue(SESSION);
     listPortfolio.mockResolvedValue({
       items: [BASE_ITEM, { ...BASE_ITEM, id: 'org-2' }, { ...BASE_ITEM, id: 'org-3' }],
-      total: 3
+      total: 3,
     });
 
     const { container } = await renderServerComponent(

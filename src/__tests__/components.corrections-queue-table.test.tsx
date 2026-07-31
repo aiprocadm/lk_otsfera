@@ -12,7 +12,10 @@ vi.mock('@/server-actions/commission/corrections', () => ({ resolveCorrectionAct
 const { toastSuccess } = vi.hoisted(() => ({ toastSuccess: vi.fn() }));
 vi.mock('sonner', () => ({ toast: { success: toastSuccess } }));
 
-import { CorrectionsQueueTable, type CorrectionRow } from '@/components/commission/corrections-queue-table';
+import {
+  CorrectionsQueueTable,
+  type CorrectionRow,
+} from '@/components/commission/corrections-queue-table';
 
 const row: CorrectionRow = {
   id: 'c1',
@@ -21,7 +24,7 @@ const row: CorrectionRow = {
   commissionAmount: '150',
   rate: '0.15',
   originalPeriodFrom: '2026-01-01',
-  originalPeriodTo: '2026-01-31'
+  originalPeriodTo: '2026-01-31',
 };
 
 describe('CorrectionsQueueTable', () => {
@@ -71,7 +74,9 @@ describe('CorrectionsQueueTable', () => {
     await waitFor(() => expect(refresh).toHaveBeenCalled());
 
     // Row disappears (resolved) -> empty state shows
-    await waitFor(() => expect(screen.getByText('Очередь пуста — нет корректировок, требующих решения.')).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText('Очередь пуста — нет корректировок, требующих решения.')).toBeTruthy()
+    );
   });
 
   it('waive flow: requires a reason, submit button disabled until filled, then submits with reason', async () => {

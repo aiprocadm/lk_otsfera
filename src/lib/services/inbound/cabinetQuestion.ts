@@ -60,7 +60,11 @@ function activeOrgId(session: SessionPayload): string | null {
   if (session.role !== 'organization') return null;
   const memberships = session.organizationMemberships ?? [];
   const active = memberships.find((m) => m.isActive && m.organizationId === session.organizationId);
-  return (active ?? memberships.find((m) => m.isActive))?.organizationId ?? session.organizationId ?? null;
+  return (
+    (active ?? memberships.find((m) => m.isActive))?.organizationId ??
+    session.organizationId ??
+    null
+  );
 }
 
 export async function submitCabinetQuestion(
@@ -87,14 +91,18 @@ export async function submitCabinetQuestion(
   if (input.file) {
     if (input.file.size > maxFileSizeBytes()) return { ok: false, error: 'too_large' };
     if (!ALLOWED_MIME_TYPES.has(input.file.type)) return { ok: false, error: 'invalid_mime' };
-    if (!validateMagicBytes(input.file.type, input.file.buffer).ok) return { ok: false, error: 'invalid_mime' };
+    if (!validateMagicBytes(input.file.type, input.file.buffer).ok)
+      return { ok: false, error: 'invalid_mime' };
 
     const safeName = sanitizeFilename(input.file.name);
     const path = `support/${session.sub}/${randomUUID()}-${safeName}`;
     try {
       await getObjectStorage().upload(path, input.file.buffer, { contentType: input.file.type });
     } catch (err) {
-      log.error('[inbound/cabinetQuestion] upload failed', { userId: session.sub, error: (err as Error).message });
+      log.error('[inbound/cabinetQuestion] upload failed', {
+        userId: session.sub,
+        error: (err as Error).message,
+      });
       return { ok: false, error: 'storage' };
     }
     attachment = { path, name: safeName, mime: input.file.type };
@@ -102,7 +110,8 @@ export async function submitCabinetQuestion(
 
   const orgId = activeOrgId(session);
   const companyId = orgId
-    ? (await prisma.organization.findUnique({ where: { id: orgId }, select: { companyId: true } }))?.companyId ?? null
+    ? ((await prisma.organization.findUnique({ where: { id: orgId }, select: { companyId: true } }))
+        ?.companyId ?? null)
     : null;
 
   const ingested = await ingestInboundMessage(prisma, {
@@ -119,8 +128,8 @@ export async function submitCabinetQuestion(
     sender: {
       userId: session.sub,
       organizationId: orgId,
-      companyId
-    }
+      companyId,
+    },
   });
   if (!ingested.ok) return { ok: false, error: 'storage' };
 
@@ -129,7 +138,7 @@ export async function submitCabinetQuestion(
     action: 'cabinet_question_submitted',
     entity: 'inbound_message',
     entityId: ingested.id,
-    after: { hasAttachment: attachment !== null, organizationId: orgId }
+    after: { hasAttachment: attachment !== null, organizationId: orgId },
   });
 
   return { ok: true, id: ingested.id, code: questionCode(ingested.id) };

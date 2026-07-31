@@ -51,26 +51,47 @@ beforeAll(async () => {
   const cB = await prisma.company.create({ data: { name: `${STAMP}-coB` } });
   companyB = cB.id;
 
-  const oB = await prisma.organization.create({ data: { name: `${STAMP}-orgB`, companyId: companyB } });
+  const oB = await prisma.organization.create({
+    data: { name: `${STAMP}-orgB`, companyId: companyB },
+  });
   orgB = oB.id;
   const ordB = await prisma.order.create({
-    data: { title: `${STAMP}-order-B`, companyId: companyB, organizationId: orgB, totalAmount: 100000 }
+    data: {
+      title: `${STAMP}-order-B`,
+      companyId: companyB,
+      organizationId: orgB,
+      totalAmount: 100000,
+    },
   });
   orderB = ordB.id;
 
   const mgrA = await prisma.user.create({
-    data: { email: `${STAMP}-mgrA@x.local`, name: `Manager A ${STAMP}`, role: 'manager', companyId: companyA, passwordHash: 'x' }
+    data: {
+      email: `${STAMP}-mgrA@x.local`,
+      name: `Manager A ${STAMP}`,
+      role: 'manager',
+      companyId: companyA,
+      passwordHash: 'x',
+    },
   });
   managerA = mgrA.id;
 
   // --- Company C: owning-manager fixture (tests 2-4) --------------------
   const cC = await prisma.company.create({ data: { name: `${STAMP}-coC` } });
   companyC = cC.id;
-  const oC = await prisma.organization.create({ data: { name: `${STAMP}-orgC`, companyId: companyC } });
+  const oC = await prisma.organization.create({
+    data: { name: `${STAMP}-orgC`, companyId: companyC },
+  });
   orgC = oC.id;
 
   const mgrC = await prisma.user.create({
-    data: { email: `${STAMP}-mgrC@x.local`, name: `Manager C ${STAMP}`, role: 'manager', companyId: companyC, passwordHash: 'x' }
+    data: {
+      email: `${STAMP}-mgrC@x.local`,
+      name: `Manager C ${STAMP}`,
+      role: 'manager',
+      companyId: companyC,
+      passwordHash: 'x',
+    },
   });
   managerC = mgrC.id;
 
@@ -80,8 +101,8 @@ beforeAll(async () => {
       companyId: companyC,
       organizationId: orgC,
       managerId: managerC,
-      totalAmount: 250000
-    }
+      totalAmount: 250000,
+    },
   });
   orderC = ordC.id;
 
@@ -97,8 +118,8 @@ beforeAll(async () => {
       body: `входящее письмо клиента ${STAMP}`,
       sentAt: new Date(),
       threadId: threadC,
-      companyId: companyC
-    }
+      companyId: companyC,
+    },
   });
   inboundC = inbound.id;
 
@@ -111,20 +132,25 @@ beforeAll(async () => {
       status: 'completed',
       startedAt: new Date(),
       threadId: threadC,
-      companyId: companyC
-    }
+      companyId: companyC,
+    },
   });
   callC = call.id;
 
   // The note itself — via the real service, as the owning manager.
-  const noteRes = await addDealNote(prisma, managerSession(managerC, companyC), { orderId: orderC, body: NOTE_BODY });
+  const noteRes = await addDealNote(prisma, managerSession(managerC, companyC), {
+    orderId: orderC,
+    body: NOTE_BODY,
+  });
   if (!noteRes.ok) throw new Error(`addDealNote seed failed: ${noteRes.error}`);
 });
 
 afterAll(async () => {
   process.env.FEATURE_PII_ACCESS_LOG = '0';
   await prisma.piiAccessEvent.deleteMany({ where: { userId: { in: [managerA, managerC] } } });
-  await prisma.auditLog.deleteMany({ where: { userId: managerC, entity: 'order', entityId: orderC } });
+  await prisma.auditLog.deleteMany({
+    where: { userId: managerC, entity: 'order', entityId: orderC },
+  });
   await prisma.dealNote.deleteMany({ where: { orderId: orderC } });
   await prisma.inboundMessage.deleteMany({ where: { id: inboundC } });
   await prisma.call.deleteMany({ where: { id: callC } });
@@ -138,14 +164,18 @@ afterAll(async () => {
 
 describe('M1 deal activity — IDOR/C8 (getDealActivity company isolation)', () => {
   it('manager in company A gets not_found for an order in company B', async () => {
-    const res = await getDealActivity(prisma, managerSession(managerA, companyA), orderB, { view: 'all' });
+    const res = await getDealActivity(prisma, managerSession(managerA, companyA), orderB, {
+      view: 'all',
+    });
     expect(res).toEqual({ ok: false, error: 'not_found' });
   });
 });
 
 describe('M1 deal activity — DealNote client-invisibility', () => {
   it('the owning manager sees the note in the activity feed', async () => {
-    const res = await getDealActivity(prisma, managerSession(managerC, companyC), orderC, { view: 'all' });
+    const res = await getDealActivity(prisma, managerSession(managerC, companyC), orderC, {
+      view: 'all',
+    });
     expect(res.ok).toBe(true);
     if (!res.ok) return;
     const note = res.items.find((i) => i.kind === 'note');
@@ -173,7 +203,7 @@ describe('M1 deal activity — DealNote client-invisibility', () => {
     // client-facing service layer, regardless of which order is queried.
     const roots = [
       path.join(process.cwd(), 'src', 'lib', 'services', 'organization'),
-      path.join(process.cwd(), 'src', 'lib', 'services', 'partner')
+      path.join(process.cwd(), 'src', 'lib', 'services', 'partner'),
     ];
     const offenders: string[] = [];
     for (const root of roots) {
@@ -188,7 +218,9 @@ describe('M1 deal activity — DealNote client-invisibility', () => {
 
 describe('M1 deal activity — dialogue filter', () => {
   it("view:'all' surfaces note/call/message_in; view:'dialogue' drops note/call but keeps message_in", async () => {
-    const all = await getDealActivity(prisma, managerSession(managerC, companyC), orderC, { view: 'all' });
+    const all = await getDealActivity(prisma, managerSession(managerC, companyC), orderC, {
+      view: 'all',
+    });
     expect(all.ok).toBe(true);
     if (!all.ok) return;
     const allKinds = all.items.map((i) => i.kind);
@@ -196,7 +228,9 @@ describe('M1 deal activity — dialogue filter', () => {
     expect(allKinds).toContain('call');
     expect(allKinds).toContain('message_in');
 
-    const dialogue = await getDealActivity(prisma, managerSession(managerC, companyC), orderC, { view: 'dialogue' });
+    const dialogue = await getDealActivity(prisma, managerSession(managerC, companyC), orderC, {
+      view: 'dialogue',
+    });
     expect(dialogue.ok).toBe(true);
     if (!dialogue.ok) return;
     const dialogueKinds = dialogue.items.map((i) => i.kind);
@@ -209,7 +243,9 @@ describe('M1 deal activity — dialogue filter', () => {
 describe('M1 deal activity — PII journal', () => {
   it('writes deal_activity_inbound/deal_activity_calls PiiAccessEvent rows for the acting manager', async () => {
     await prisma.piiAccessEvent.deleteMany({ where: { userId: managerC } });
-    const res = await getDealActivity(prisma, managerSession(managerC, companyC), orderC, { view: 'all' });
+    const res = await getDealActivity(prisma, managerSession(managerC, companyC), orderC, {
+      view: 'all',
+    });
     expect(res.ok).toBe(true);
 
     const rows = await prisma.piiAccessEvent.findMany({ where: { userId: managerC } });

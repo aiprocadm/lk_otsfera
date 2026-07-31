@@ -18,7 +18,7 @@ function fmtDate(d: Date): string {
   return new Intl.DateTimeFormat('ru-RU', {
     day: '2-digit',
     month: '2-digit',
-    year: 'numeric'
+    year: 'numeric',
   }).format(d);
 }
 
@@ -26,11 +26,10 @@ export function OrgPaymentReceivedTemplate(props: OrgPaymentReceivedProps) {
   const orderLabel = props.orderNumber ? `№ ${props.orderNumber}` : `«${props.orderTitle}»`;
 
   return (
-    <EmailLayout title='Получена оплата'>
+    <EmailLayout title="Получена оплата">
       <p style={emailStyles.paragraph}>
         Получена оплата <strong>{fmtMoney(props.amount)}</strong> по заказу{' '}
-        <strong>{orderLabel}</strong> ({props.organizationName}) от{' '}
-        {fmtDate(props.paidAt)}.
+        <strong>{orderLabel}</strong> ({props.organizationName}) от {fmtDate(props.paidAt)}.
       </p>
       <p style={emailStyles.paragraph}>
         <a href={props.orderUrl} style={emailStyles.button}>
@@ -54,6 +53,6 @@ export function orgPaymentReceivedText(props: OrgPaymentReceivedProps): string {
   return [
     `Получена оплата ${fmtMoney(props.amount)} по заказу ${orderLabel} (${props.organizationName}) от ${fmtDate(props.paidAt)}.`,
     '',
-    `Открыть заказ: ${props.orderUrl}`
+    `Открыть заказ: ${props.orderUrl}`,
   ].join('\n');
 }

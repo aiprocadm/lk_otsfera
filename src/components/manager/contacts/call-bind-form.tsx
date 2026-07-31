@@ -20,7 +20,7 @@ import { bindCallAction, createContactFromCallAction } from '@/server-actions/co
 const ERROR_LABEL: Record<string, string> = {
   forbidden: 'Организация вне вашей зоны видимости.',
   not_found: 'Звонок или организация не найдены.',
-  invalid: 'Введите имя контакта.'
+  invalid: 'Введите имя контакта.',
 };
 
 function errorLabel(code: string): string {
@@ -30,7 +30,7 @@ function errorLabel(code: string): string {
 export function CallBindForm({
   callId,
   callerNumber,
-  orgs
+  orgs,
 }: {
   callId: string;
   callerNumber: string;
@@ -74,7 +74,7 @@ export function CallBindForm({
         callId,
         organizationId,
         name: trimmedName,
-        phone: callerNumber
+        phone: callerNumber,
       });
       if (result.ok) {
         toast.success('Контакт создан, звонок привязан.');

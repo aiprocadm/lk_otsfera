@@ -3,7 +3,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 import { CertificateDownloadButton } from '@/components/enrollment/certificate-download-button';
@@ -23,7 +26,7 @@ describe('CertificateDownloadButton', () => {
     const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ downloadUrl: 'https://s3.example/presigned' })
+      json: async () => ({ downloadUrl: 'https://s3.example/presigned' }),
     });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(CertificateDownloadButton, { documentId: 'doc-1' }));
@@ -31,7 +34,11 @@ describe('CertificateDownloadButton', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Скачать удостоверение' }));
 
     await waitFor(() =>
-      expect(openSpy).toHaveBeenCalledWith('https://s3.example/presigned', '_blank', 'noopener,noreferrer')
+      expect(openSpy).toHaveBeenCalledWith(
+        'https://s3.example/presigned',
+        '_blank',
+        'noopener,noreferrer'
+      )
     );
     expect(fetchMock).toHaveBeenCalledWith('/api/documents/doc-1/download', { method: 'POST' });
     expect(toastError).not.toHaveBeenCalled();

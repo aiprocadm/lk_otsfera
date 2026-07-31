@@ -33,14 +33,14 @@ export async function GET(req: Request) {
     financialStatus: url.searchParams.get('financialStatus') || undefined,
     organizationId: url.searchParams.get('organizationId') || undefined,
     unassigned: url.searchParams.get('unassigned') === '1' || undefined,
-    ...(companyWide ? { teamModeOverride: true } : {})
+    ...(companyWide ? { teamModeOverride: true } : {}),
   });
 
   const buf = await renderOrdersXlsx({ rows, total });
   return new NextResponse(Buffer.from(buf), {
     headers: {
       'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'content-disposition': 'attachment; filename="orders.xlsx"'
-    }
+      'content-disposition': 'attachment; filename="orders.xlsx"',
+    },
   });
 }

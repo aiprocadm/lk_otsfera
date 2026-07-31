@@ -34,7 +34,13 @@ function session(role: string, extra: Record<string, unknown> = {}) {
 const prisma = {
   certificate: { findMany: vi.fn(), create: vi.fn(), count: vi.fn().mockResolvedValue(0) },
   student: { findUnique: vi.fn() },
-  orderItem: { findMany: vi.fn(), create: vi.fn(), update: vi.fn(), findUnique: vi.fn(), delete: vi.fn() },
+  orderItem: {
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    findUnique: vi.fn(),
+    delete: vi.fn(),
+  },
   organization: { findMany: vi.fn() },
   trainingDirection: { findUnique: vi.fn(), update: vi.fn(), findMany: vi.fn(), create: vi.fn() },
   $transaction: vi.fn(),
@@ -66,7 +72,7 @@ describe('cov certificates.scopeOrgIds role variants', () => {
     const res = await listCertificates(prisma, session('manager', { companyId: 'c1' }), {});
     expect(res.ok).toBe(true);
     expect(prisma.organization.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { companyId: 'c1' } }),
+      expect.objectContaining({ where: { companyId: 'c1' } })
     );
     const where = prisma.certificate.findMany.mock.calls[0][0].where;
     expect(where.organizationId).toEqual({ in: ['orgA', 'orgB'] });
@@ -89,7 +95,7 @@ describe('cov certificates.scopeOrgIds role variants', () => {
     const res = await listCertificates(prisma, session('partner', { partnerId: 'p1' }), {});
     expect(res.ok).toBe(true);
     expect(prisma.organization.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { partnerId: 'p1' } }),
+      expect.objectContaining({ where: { partnerId: 'p1' } })
     );
     const where = prisma.certificate.findMany.mock.calls[0][0].where;
     expect(where.organizationId).toEqual({ in: ['porg'] });
@@ -101,7 +107,7 @@ describe('cov certificates.scopeOrgIds role variants', () => {
     const res = await listCertificates(prisma, session('partner', { partnerId: undefined }), {});
     expect(res.ok).toBe(true);
     expect(prisma.organization.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { partnerId: '__none__' } }),
+      expect.objectContaining({ where: { partnerId: '__none__' } })
     );
   });
 
@@ -115,7 +121,7 @@ describe('cov certificates.scopeOrgIds role variants', () => {
           { organizationId: 'oInactive', isActive: false },
         ],
       }),
-      {},
+      {}
     );
     expect(res.ok).toBe(true);
     const where = prisma.certificate.findMany.mock.calls[0][0].where;
@@ -127,7 +133,7 @@ describe('cov certificates.scopeOrgIds role variants', () => {
     const res = await listCertificates(
       prisma,
       session('organization', { organizationMemberships: undefined }),
-      {},
+      {}
     );
     expect(res.ok).toBe(true);
     const where = prisma.certificate.findMany.mock.calls[0][0].where;
@@ -153,9 +159,7 @@ describe('cov certificates.listCertificates filters', () => {
     expect(res.ok).toBe(true);
     const where = prisma.certificate.findMany.mock.calls[0][0].where;
     expect(where.studentId).toBe('s1');
-    expect(where.validUntil).toEqual(
-      expect.objectContaining({ not: null, lte: expect.any(Date) }),
-    );
+    expect(where.validUntil).toEqual(expect.objectContaining({ not: null, lte: expect.any(Date) }));
   });
 });
 
@@ -198,7 +202,7 @@ describe('cov certificates.createCertificate paths', () => {
     expect(data.number).toBe('N');
     expect(recordAudit).toHaveBeenCalledWith(
       prisma,
-      expect.objectContaining({ action: 'certificate_created' }),
+      expect.objectContaining({ action: 'certificate_created' })
     );
   });
 
@@ -211,7 +215,7 @@ describe('cov certificates.createCertificate paths', () => {
         directionId: 'd1',
         number: 'N',
         issuedAt: new Date('2026-01-01'),
-      }),
+      })
     ).rejects.toEqual({ code: 'P2000', message: 'boom' });
   });
 });
@@ -279,7 +283,7 @@ describe('cov certificates.issueFromOrderItem paths', () => {
     expect(data.documentId).toBeNull();
     expect(recordAudit).toHaveBeenCalledWith(
       prisma,
-      expect.objectContaining({ action: 'certificate_issued' }),
+      expect.objectContaining({ action: 'certificate_issued' })
     );
   });
 });
@@ -347,7 +351,7 @@ describe('cov orderItems.addOrderItem error rethrow', () => {
         orderId: 'o1',
         studentId: 's1',
         directionId: 'd1',
-      }),
+      })
     ).rejects.toEqual({ code: 'P2010', message: 'raw' });
   });
 });
@@ -371,7 +375,11 @@ describe('cov orderItems.updateItemStatus branch variants', () => {
   });
 
   it('order not visible → forbidden [L93]', async () => {
-    prisma.orderItem.findUnique.mockResolvedValue({ id: 'it1', orderId: 'o1', trainingStatus: 'not_started' });
+    prisma.orderItem.findUnique.mockResolvedValue({
+      id: 'it1',
+      orderId: 'o1',
+      trainingStatus: 'not_started',
+    });
     getOrder.mockResolvedValue(null);
     const res = await updateItemStatus(prisma, session('manager'), {
       itemId: 'it1',
@@ -411,7 +419,7 @@ describe('cov orderItems.removeOrderItem', () => {
     expect(prisma.orderItem.delete).toHaveBeenCalledWith({ where: { id: 'it1' } });
     expect(recordAudit).toHaveBeenCalledWith(
       prisma,
-      expect.objectContaining({ action: 'order_item_removed', entityId: 'it1' }),
+      expect.objectContaining({ action: 'order_item_removed', entityId: 'it1' })
     );
   });
 });
@@ -425,7 +433,7 @@ describe('cov directions branch alternates', () => {
     const res = await listDirections(prisma, session('admin'), { includeInactive: true });
     expect(res.ok).toBe(true);
     expect(prisma.trainingDirection.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: {} }),
+      expect.objectContaining({ where: {} })
     );
   });
 

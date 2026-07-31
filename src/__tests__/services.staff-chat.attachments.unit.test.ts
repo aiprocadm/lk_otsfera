@@ -33,7 +33,10 @@ vi.mock('@/lib/services/staffChat/policy', () => ({
   canSeeStaffConversation: vi.fn(),
 }));
 
-import { uploadStaffAttachment, getStaffAttachmentSignedUrl } from '@/lib/services/staffChat/attachments';
+import {
+  uploadStaffAttachment,
+  getStaffAttachmentSignedUrl,
+} from '@/lib/services/staffChat/attachments';
 import { canSeeStaffConversation } from '@/lib/services/staffChat/policy';
 import { maxFileSizeBytes } from '@/lib/config/upload';
 
@@ -48,7 +51,14 @@ const validFile = {
   buffer: Buffer.from('%PDF-1.4 fake content'),
 };
 
-function makePrisma(conversation: object | null = { id: 'conv1', kind: 'dm', companyId: 'c1', participants: [{ userId: 'u1' }] }) {
+function makePrisma(
+  conversation: object | null = {
+    id: 'conv1',
+    kind: 'dm',
+    companyId: 'c1',
+    participants: [{ userId: 'u1' }],
+  }
+) {
   return {
     staffConversation: { findUnique: vi.fn().mockResolvedValue(conversation) },
   } as any;
@@ -72,19 +82,28 @@ beforeEach(() => {
 describe('uploadStaffAttachment — unit', () => {
   it('rejects file exceeding the size cap', async () => {
     const bigFile = { ...validFile, size: maxFileSizeBytes() + 1024 };
-    const result = await uploadStaffAttachment(makePrisma(), session, { conversationId: 'conv1', file: bigFile });
+    const result = await uploadStaffAttachment(makePrisma(), session, {
+      conversationId: 'conv1',
+      file: bigFile,
+    });
     expect(result).toEqual({ ok: false, error: 'too_large' });
   });
 
   it('rejects unsupported MIME type', async () => {
     const badFile = { ...validFile, mimeType: 'text/plain' };
-    const result = await uploadStaffAttachment(makePrisma(), session, { conversationId: 'conv1', file: badFile });
+    const result = await uploadStaffAttachment(makePrisma(), session, {
+      conversationId: 'conv1',
+      file: badFile,
+    });
     expect(result).toEqual({ ok: false, error: 'invalid_mime' });
   });
 
   it('rejects when magic-byte validation fails for PDF', async () => {
     validateMagicBytesMock.mockReturnValue({ ok: false, error: 'magic_mismatch' });
-    const result = await uploadStaffAttachment(makePrisma(), session, { conversationId: 'conv1', file: validFile });
+    const result = await uploadStaffAttachment(makePrisma(), session, {
+      conversationId: 'conv1',
+      file: validFile,
+    });
     expect(result).toEqual({ ok: false, error: 'invalid_mime' });
   });
 
@@ -92,29 +111,46 @@ describe('uploadStaffAttachment — unit', () => {
     canSeeStaffConversationMock.mockReturnValue(true);
     uploadMock.mockResolvedValue(undefined);
     const excelFile = { ...validFile, mimeType: 'application/vnd.ms-excel' };
-    const result = await uploadStaffAttachment(makePrisma(), session, { conversationId: 'conv1', file: excelFile });
+    const result = await uploadStaffAttachment(makePrisma(), session, {
+      conversationId: 'conv1',
+      file: excelFile,
+    });
     expect(validateMagicBytesMock).not.toHaveBeenCalled();
     expect(result.ok).toBe(true);
   });
 
   it('returns conversation_not_found when the conversation does not exist', async () => {
     validateMagicBytesMock.mockReturnValue({ ok: true });
-    const result = await uploadStaffAttachment(makePrisma(null), session, { conversationId: 'missing', file: validFile });
+    const result = await uploadStaffAttachment(makePrisma(null), session, {
+      conversationId: 'missing',
+      file: validFile,
+    });
     expect(result).toEqual({ ok: false, error: 'conversation_not_found' });
   });
 
   it('returns forbidden for a non-staff caller', async () => {
     validateMagicBytesMock.mockReturnValue({ ok: true });
     canSeeStaffConversationMock.mockReturnValue(false);
-    const result = await uploadStaffAttachment(makePrisma(), session, { conversationId: 'conv1', file: validFile });
+    const result = await uploadStaffAttachment(makePrisma(), session, {
+      conversationId: 'conv1',
+      file: validFile,
+    });
     expect(result).toEqual({ ok: false, error: 'forbidden' });
   });
 
   it('returns forbidden for a staff member who is not a participant of the DM', async () => {
     validateMagicBytesMock.mockReturnValue({ ok: true });
     canSeeStaffConversationMock.mockReturnValue(false);
-    const dm = { id: 'conv1', kind: 'dm', companyId: 'c1', participants: [{ userId: 'u2' }, { userId: 'u3' }] };
-    const result = await uploadStaffAttachment(makePrisma(dm), session, { conversationId: 'conv1', file: validFile });
+    const dm = {
+      id: 'conv1',
+      kind: 'dm',
+      companyId: 'c1',
+      participants: [{ userId: 'u2' }, { userId: 'u3' }],
+    };
+    const result = await uploadStaffAttachment(makePrisma(dm), session, {
+      conversationId: 'conv1',
+      file: validFile,
+    });
     expect(result).toEqual({ ok: false, error: 'forbidden' });
   });
 
@@ -123,7 +159,10 @@ describe('uploadStaffAttachment — unit', () => {
     canSeeStaffConversationMock.mockReturnValue(true);
     uploadMock.mockRejectedValue(new Error('bucket not found'));
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const result = await uploadStaffAttachment(makePrisma(), session, { conversationId: 'conv1', file: validFile });
+    const result = await uploadStaffAttachment(makePrisma(), session, {
+      conversationId: 'conv1',
+      file: validFile,
+    });
     expect(result).toEqual({ ok: false, error: 'storage' });
     consoleSpy.mockRestore();
   });
@@ -134,7 +173,10 @@ describe('uploadStaffAttachment — unit', () => {
     canSeeStaffConversationMock.mockReturnValue(true);
     uploadMock.mockRejectedValue('disk full');
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const result = await uploadStaffAttachment(makePrisma(), session, { conversationId: 'conv1', file: validFile });
+    const result = await uploadStaffAttachment(makePrisma(), session, {
+      conversationId: 'conv1',
+      file: validFile,
+    });
     expect(result).toEqual({ ok: false, error: 'storage' });
     consoleSpy.mockRestore();
   });
@@ -144,7 +186,10 @@ describe('uploadStaffAttachment — unit', () => {
     canSeeStaffConversationMock.mockReturnValue(true);
     uploadMock.mockResolvedValue(undefined);
     const weirdNameFile = { ...validFile, name: 'my report (final)!.pdf' };
-    const result = await uploadStaffAttachment(makePrisma(), session, { conversationId: 'conv1', file: weirdNameFile });
+    const result = await uploadStaffAttachment(makePrisma(), session, {
+      conversationId: 'conv1',
+      file: weirdNameFile,
+    });
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.attachmentPath).toMatch(
@@ -160,13 +205,23 @@ describe('getStaffAttachmentSignedUrl — unit', () => {
   const conv = { id: 'conv1', kind: 'dm', companyId: 'c1', participants: [{ userId: 'u1' }] };
 
   it('returns not_found when the message does not exist', async () => {
-    const result = await getStaffAttachmentSignedUrl(makeMessagePrisma(null), session, { messageId: 'msg-x' });
+    const result = await getStaffAttachmentSignedUrl(makeMessagePrisma(null), session, {
+      messageId: 'msg-x',
+    });
     expect(result).toEqual({ ok: false, error: 'not_found' });
   });
 
   it('returns not_found when the message has no attachmentPath', async () => {
-    const msg = { id: 'm1', attachmentPath: null, attachmentName: null, scanStatus: 'none', conversation: conv };
-    const result = await getStaffAttachmentSignedUrl(makeMessagePrisma(msg), session, { messageId: 'm1' });
+    const msg = {
+      id: 'm1',
+      attachmentPath: null,
+      attachmentName: null,
+      scanStatus: 'none',
+      conversation: conv,
+    };
+    const result = await getStaffAttachmentSignedUrl(makeMessagePrisma(msg), session, {
+      messageId: 'm1',
+    });
     expect(result).toEqual({ ok: false, error: 'not_found' });
   });
 
@@ -179,7 +234,9 @@ describe('getStaffAttachmentSignedUrl — unit', () => {
       scanStatus: 'clean',
       conversation: conv,
     };
-    const result = await getStaffAttachmentSignedUrl(makeMessagePrisma(msg), session, { messageId: 'm1' });
+    const result = await getStaffAttachmentSignedUrl(makeMessagePrisma(msg), session, {
+      messageId: 'm1',
+    });
     expect(result).toEqual({ ok: false, error: 'not_found' });
     expect(createSignedUrlMock).not.toHaveBeenCalled();
   });
@@ -193,7 +250,9 @@ describe('getStaffAttachmentSignedUrl — unit', () => {
       scanStatus: 'clean',
       conversation: conv,
     };
-    const result = await getStaffAttachmentSignedUrl(makeMessagePrisma(msg), session, { messageId: 'm1' });
+    const result = await getStaffAttachmentSignedUrl(makeMessagePrisma(msg), session, {
+      messageId: 'm1',
+    });
     expect(result).toEqual({ ok: false, error: 'forbidden' });
   });
 
@@ -206,7 +265,9 @@ describe('getStaffAttachmentSignedUrl — unit', () => {
       scanStatus: 'pending',
       conversation: conv,
     };
-    const result = await getStaffAttachmentSignedUrl(makeMessagePrisma(msg), session, { messageId: 'm1' });
+    const result = await getStaffAttachmentSignedUrl(makeMessagePrisma(msg), session, {
+      messageId: 'm1',
+    });
     expect(result).toEqual({ ok: false, error: 'not_ready' });
   });
 
@@ -219,7 +280,9 @@ describe('getStaffAttachmentSignedUrl — unit', () => {
       scanStatus: 'error',
       conversation: conv,
     };
-    const result = await getStaffAttachmentSignedUrl(makeMessagePrisma(msg), session, { messageId: 'm1' });
+    const result = await getStaffAttachmentSignedUrl(makeMessagePrisma(msg), session, {
+      messageId: 'm1',
+    });
     expect(result).toEqual({ ok: false, error: 'not_ready' });
   });
 
@@ -232,7 +295,9 @@ describe('getStaffAttachmentSignedUrl — unit', () => {
       scanStatus: 'infected',
       conversation: conv,
     };
-    const result = await getStaffAttachmentSignedUrl(makeMessagePrisma(msg), session, { messageId: 'm1' });
+    const result = await getStaffAttachmentSignedUrl(makeMessagePrisma(msg), session, {
+      messageId: 'm1',
+    });
     expect(result).toEqual({ ok: false, error: 'infected' });
   });
 
@@ -246,7 +311,9 @@ describe('getStaffAttachmentSignedUrl — unit', () => {
       scanStatus: 'clean',
       conversation: conv,
     };
-    const result = await getStaffAttachmentSignedUrl(makeMessagePrisma(msg), session, { messageId: 'm1' });
+    const result = await getStaffAttachmentSignedUrl(makeMessagePrisma(msg), session, {
+      messageId: 'm1',
+    });
     expect(result).toEqual({ ok: true, url: 'https://cdn.example.com/signed-url' });
     expect(createSignedUrlMock).toHaveBeenCalledWith('staff-chat/conv1/uuid-file.pdf', 600, {
       download: 'report.pdf',
@@ -263,7 +330,9 @@ describe('getStaffAttachmentSignedUrl — unit', () => {
       scanStatus: 'clean',
       conversation: conv,
     };
-    const result = await getStaffAttachmentSignedUrl(makeMessagePrisma(msg), session, { messageId: 'm1' });
+    const result = await getStaffAttachmentSignedUrl(makeMessagePrisma(msg), session, {
+      messageId: 'm1',
+    });
     expect(result).toEqual({ ok: true, url: 'https://cdn.example.com/signed-url-2' });
     expect(createSignedUrlMock).toHaveBeenCalledWith('staff-chat/conv1/uuid-file.pdf', 600, {
       download: true,
@@ -281,7 +350,9 @@ describe('getStaffAttachmentSignedUrl — unit', () => {
       conversation: conv,
     };
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const result = await getStaffAttachmentSignedUrl(makeMessagePrisma(msg), session, { messageId: 'm1' });
+    const result = await getStaffAttachmentSignedUrl(makeMessagePrisma(msg), session, {
+      messageId: 'm1',
+    });
     expect(result).toEqual({ ok: false, error: 'storage' });
     consoleSpy.mockRestore();
   });
@@ -298,7 +369,9 @@ describe('getStaffAttachmentSignedUrl — unit', () => {
       conversation: conv,
     };
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const result = await getStaffAttachmentSignedUrl(makeMessagePrisma(msg), session, { messageId: 'm1' });
+    const result = await getStaffAttachmentSignedUrl(makeMessagePrisma(msg), session, {
+      messageId: 'm1',
+    });
     expect(result).toEqual({ ok: false, error: 'storage' });
     consoleSpy.mockRestore();
   });

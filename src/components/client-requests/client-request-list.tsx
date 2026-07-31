@@ -12,13 +12,15 @@ import { ClientRequestStatusBadge } from './client-request-status-badge';
  */
 export function ClientRequestList({
   rows,
-  detailHrefBase
+  detailHrefBase,
 }: {
   rows: ClientRequestRow[];
   detailHrefBase?: string;
 }) {
   if (rows.length === 0) {
-    return <EmptyState icon='📨' message='Обращений пока нет — отправьте первое через форму выше' />;
+    return (
+      <EmptyState icon="📨" message="Обращений пока нет — отправьте первое через форму выше" />
+    );
   }
   return (
     <TableShell>
@@ -32,9 +34,12 @@ export function ClientRequestList({
         {rows.map((r) => (
           <Tr key={r.id}>
             <Td>
-              <div className='font-medium text-[#111111]'>
+              <div className="font-medium text-[#111111]">
                 {detailHrefBase ? (
-                  <Link href={`${detailHrefBase}/${r.id}`} className='hover:text-[#F97316] hover:underline'>
+                  <Link
+                    href={`${detailHrefBase}/${r.id}`}
+                    className="hover:text-[#F97316] hover:underline"
+                  >
                     {r.subject}
                   </Link>
                 ) : (
@@ -42,21 +47,24 @@ export function ClientRequestList({
                 )}
               </div>
               {detailHrefBase && (
-                <div className='text-xs text-gray-500'>
-                  <Link href={`${detailHrefBase}/${r.id}`} className='text-[#F97316] hover:underline'>
+                <div className="text-xs text-gray-500">
+                  <Link
+                    href={`${detailHrefBase}/${r.id}`}
+                    className="text-[#F97316] hover:underline"
+                  >
                     подробнее
                   </Link>
                 </div>
               )}
             </Td>
-            <Td className='text-gray-700'>{r.companyName}</Td>
+            <Td className="text-gray-700">{r.companyName}</Td>
             <Td>
               <ClientRequestStatusBadge status={r.status} />
               {r.status === 'rejected' && r.rejectedReason && (
-                <div className='text-xs text-gray-500 mt-0.5'>{r.rejectedReason}</div>
+                <div className="text-xs text-gray-500 mt-0.5">{r.rejectedReason}</div>
               )}
             </Td>
-            <Td className='text-gray-500'>{fmtDate(r.createdAt)}</Td>
+            <Td className="text-gray-500">{fmtDate(r.createdAt)}</Td>
           </Tr>
         ))}
       </tbody>

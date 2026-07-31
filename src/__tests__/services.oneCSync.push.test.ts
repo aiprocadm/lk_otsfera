@@ -33,9 +33,9 @@ function makePrismaMock(opts: {
     lead: {
       findUnique: vi.fn().mockResolvedValue(opts.lead ?? null),
       update: updateSpy,
-      updateMany: updateManySpy
+      updateMany: updateManySpy,
     },
-    syncLog: { create: logSpy }
+    syncLog: { create: logSpy },
   } as unknown as PrismaClient;
   return { prisma, updateSpy, updateManySpy, logSpy };
 }
@@ -54,9 +54,9 @@ function makeFakeAdapter(opts: {
       if (opts.shouldThrow) throw new Error('simulated failure');
       return {
         acceptedAt: opts.acceptedAt ?? '2026-05-22T10:00:00Z',
-        oneCRequestId: opts.oneCRequestId ?? 'req-1'
+        oneCRequestId: opts.oneCRequestId ?? 'req-1',
       };
-    })
+    }),
   } as unknown as OneCAdapter;
 }
 
@@ -84,8 +84,8 @@ describe('pushLeadToOneC', () => {
         productType: ['training'],
         notes: null,
         partner: { slug: 'demo' },
-        pushedToOneCAt: null
-      }
+        pushedToOneCAt: null,
+      },
     });
     const adapter = makeFakeAdapter({ oneCRequestId: 'fake-req-99' });
     const res = await pushLeadToOneC(prisma, 'lead-1', { adapter });
@@ -94,13 +94,13 @@ describe('pushLeadToOneC', () => {
     // Atomic claim flips pushedToOneCAt from null (first-writer-wins).
     expect(updateManySpy).toHaveBeenCalledWith({
       where: { id: 'lead-1', pushedToOneCAt: null },
-      data: { pushedToOneCAt: expect.any(Date) }
+      data: { pushedToOneCAt: expect.any(Date) },
     });
     // Success update only stamps the external id — pushedToOneCAt is already
     // set by the claim above.
     expect(updateSpy).toHaveBeenCalledWith({
       where: { id: 'lead-1' },
-      data: { externalIdInOneC: 'fake-req-99' }
+      data: { externalIdInOneC: 'fake-req-99' },
     });
     expect(logSpy).toHaveBeenCalledTimes(1);
     expect(logSpy.mock.calls[0][0].data.status).toBe('success');
@@ -112,14 +112,28 @@ describe('pushLeadToOneC', () => {
     const already = new Date('2026-05-22T10:00:00Z');
     const { prisma, updateSpy, logSpy } = makePrismaMock({
       lead: {
-        id: 'lead-3', clientCompanyName: 'A', clientInn: null, clientContactName: 'B',
-        clientContactPhone: null, clientContactEmail: null, subject: 'S',
-        estimatedAmount: null, productType: [], notes: null, partner: { slug: 'demo' },
-        pushedToOneCAt: already
-      }
+        id: 'lead-3',
+        clientCompanyName: 'A',
+        clientInn: null,
+        clientContactName: 'B',
+        clientContactPhone: null,
+        clientContactEmail: null,
+        subject: 'S',
+        estimatedAmount: null,
+        productType: [],
+        notes: null,
+        partner: { slug: 'demo' },
+        pushedToOneCAt: already,
+      },
     });
     const pushLead = vi.fn();
-    const adapter = { pullOrganizations: vi.fn(), pullOrders: vi.fn(), pullPayments: vi.fn(), pullDocuments: vi.fn(), pushLead } as unknown as import('@/lib/services/oneCSync/adapter').OneCAdapter;
+    const adapter = {
+      pullOrganizations: vi.fn(),
+      pullOrders: vi.fn(),
+      pullPayments: vi.fn(),
+      pullDocuments: vi.fn(),
+      pushLead,
+    } as unknown as import('@/lib/services/oneCSync/adapter').OneCAdapter;
     const res = await pushLeadToOneC(prisma, 'lead-3', { adapter });
     expect(res.ok).toBe(true);
     expect(pushLead).not.toHaveBeenCalled();
@@ -142,8 +156,8 @@ describe('pushLeadToOneC', () => {
         productType: [],
         notes: null,
         partner: { slug: null },
-        pushedToOneCAt: null
-      }
+        pushedToOneCAt: null,
+      },
     });
     const adapter = makeFakeAdapter({ shouldThrow: true });
     const res = await pushLeadToOneC(prisma, 'lead-2', { adapter });
@@ -157,17 +171,28 @@ describe('pushLeadToOneC', () => {
   it('claim lost (concurrent): updateMany count 0 ⇒ skips adapter, idempotent', async () => {
     const { prisma, updateManySpy, updateSpy, logSpy } = makePrismaMock({
       lead: {
-        id: 'lead-x', clientCompanyName: 'A', clientInn: null, clientContactName: 'B',
-        clientContactPhone: null, clientContactEmail: null, subject: 'S',
-        estimatedAmount: null, productType: [], notes: null, partner: { slug: 'demo' },
-        pushedToOneCAt: null
-      }
+        id: 'lead-x',
+        clientCompanyName: 'A',
+        clientInn: null,
+        clientContactName: 'B',
+        clientContactPhone: null,
+        clientContactEmail: null,
+        subject: 'S',
+        estimatedAmount: null,
+        productType: [],
+        notes: null,
+        partner: { slug: 'demo' },
+        pushedToOneCAt: null,
+      },
     });
     updateManySpy.mockResolvedValueOnce({ count: 0 }); // another worker won the claim
     const pushLead = vi.fn();
     const adapter = {
-      pullOrganizations: vi.fn(), pullOrders: vi.fn(), pullPayments: vi.fn(),
-      pullDocuments: vi.fn(), pushLead
+      pullOrganizations: vi.fn(),
+      pullOrders: vi.fn(),
+      pullPayments: vi.fn(),
+      pullDocuments: vi.fn(),
+      pushLead,
     } as unknown as OneCAdapter;
     const res = await pushLeadToOneC(prisma, 'lead-x', { adapter });
     expect(res.ok).toBe(true);
@@ -180,11 +205,19 @@ describe('pushLeadToOneC', () => {
   it('claim won then adapter fails ⇒ rolls back pushedToOneCAt to null (retry preserved)', async () => {
     const { prisma, updateManySpy } = makePrismaMock({
       lead: {
-        id: 'lead-y', clientCompanyName: 'X', clientInn: null, clientContactName: 'Y',
-        clientContactPhone: null, clientContactEmail: null, subject: 'Z',
-        estimatedAmount: null, productType: [], notes: null, partner: { slug: null },
-        pushedToOneCAt: null
-      }
+        id: 'lead-y',
+        clientCompanyName: 'X',
+        clientInn: null,
+        clientContactName: 'Y',
+        clientContactPhone: null,
+        clientContactEmail: null,
+        subject: 'Z',
+        estimatedAmount: null,
+        productType: [],
+        notes: null,
+        partner: { slug: null },
+        pushedToOneCAt: null,
+      },
     });
     updateManySpy.mockResolvedValueOnce({ count: 1 }); // win the claim
     const adapter = makeFakeAdapter({ shouldThrow: true });
@@ -199,11 +232,19 @@ describe('pushLeadToOneC', () => {
   it('adapter fails AND rollback fails ⇒ still returns ok:false with the adapter error (no throw)', async () => {
     const { prisma, updateManySpy } = makePrismaMock({
       lead: {
-        id: 'lead-z', clientCompanyName: 'X', clientInn: null, clientContactName: 'Y',
-        clientContactPhone: null, clientContactEmail: null, subject: 'Z',
-        estimatedAmount: null, productType: [], notes: null, partner: { slug: null },
-        pushedToOneCAt: null
-      }
+        id: 'lead-z',
+        clientCompanyName: 'X',
+        clientInn: null,
+        clientContactName: 'Y',
+        clientContactPhone: null,
+        clientContactEmail: null,
+        subject: 'Z',
+        estimatedAmount: null,
+        productType: [],
+        notes: null,
+        partner: { slug: null },
+        pushedToOneCAt: null,
+      },
     });
     updateManySpy.mockResolvedValueOnce({ count: 1 }); // claim wins
     updateManySpy.mockRejectedValueOnce(new Error('db gone')); // rollback fails
@@ -227,7 +268,7 @@ describe('FakeOneCAdapter.pushLead simulator', () => {
         clientCompanyName: 'c',
         clientContactName: 'n',
         subject: 's',
-        productType: []
+        productType: [],
       })
     ).rejects.toThrow(/simulated failure/);
     process.env.FAKE_ONEC_FAILURE_RATE = prev;
@@ -243,7 +284,7 @@ describe('FakeOneCAdapter.pushLead simulator', () => {
       clientCompanyName: 'c',
       clientContactName: 'n',
       subject: 's',
-      productType: []
+      productType: [],
     });
     expect(r.acceptedAt).toBeTruthy();
     process.env.FAKE_ONEC_FAILURE_RATE = prev;

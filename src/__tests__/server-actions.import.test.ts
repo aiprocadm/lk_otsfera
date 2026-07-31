@@ -27,7 +27,10 @@ function fd(entries: Record<string, string | File>) {
 
 const xlsxFile = (name = 'data.xlsx', size?: number) => {
   const content = new Uint8Array(size ?? 4).fill(0x50);
-  content[0] = 0x50; content[1] = 0x4b; content[2] = 0x03; content[3] = 0x04;
+  content[0] = 0x50;
+  content[1] = 0x4b;
+  content[2] = 0x03;
+  content[3] = 0x04;
   return new File([content], name, {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
@@ -65,8 +68,28 @@ describe('previewImportAction — file guard', () => {
 
   it('delegates to previewImport and returns its result for a valid .xlsx', async () => {
     const report = {
-      orders: { pulled: 1, created: 1, updated: 0, skipped: 0, invalid: 0, failed: 0, skips: [], invalids: [], failures: [] },
-      payments: { pulled: 0, created: 0, updated: 0, skipped: 0, invalid: 0, failed: 0, skips: [], invalids: [], failures: [] },
+      orders: {
+        pulled: 1,
+        created: 1,
+        updated: 0,
+        skipped: 0,
+        invalid: 0,
+        failed: 0,
+        skips: [],
+        invalids: [],
+        failures: [],
+      },
+      payments: {
+        pulled: 0,
+        created: 0,
+        updated: 0,
+        skipped: 0,
+        invalid: 0,
+        failed: 0,
+        skips: [],
+        invalids: [],
+        failures: [],
+      },
     };
     previewImport.mockResolvedValue({ ok: true, report });
     const result = await previewImportAction(fd({ file: xlsxFile() }));
@@ -74,7 +97,7 @@ describe('previewImportAction — file guard', () => {
     expect(previewImport).toHaveBeenCalledWith(
       {},
       session,
-      expect.objectContaining({ fileBuffer: expect.any(Buffer) }),
+      expect.objectContaining({ fileBuffer: expect.any(Buffer) })
     );
     expect(result).toEqual({ ok: true, report });
   });
@@ -113,15 +136,35 @@ describe('commitImportAction — file guard', () => {
 
   it('delegates to commitImport and returns its result', async () => {
     const report = {
-      orders: { pulled: 2, created: 2, updated: 0, skipped: 0, invalid: 0, failed: 0, skips: [], invalids: [], failures: [] },
-      payments: { pulled: 3, created: 3, updated: 0, skipped: 0, invalid: 0, failed: 0, skips: [], invalids: [], failures: [] },
+      orders: {
+        pulled: 2,
+        created: 2,
+        updated: 0,
+        skipped: 0,
+        invalid: 0,
+        failed: 0,
+        skips: [],
+        invalids: [],
+        failures: [],
+      },
+      payments: {
+        pulled: 3,
+        created: 3,
+        updated: 0,
+        skipped: 0,
+        invalid: 0,
+        failed: 0,
+        skips: [],
+        invalids: [],
+        failures: [],
+      },
     };
     commitImport.mockResolvedValue({ ok: true, report });
     const result = await commitImportAction(fd({ file: xlsxFile() }));
     expect(commitImport).toHaveBeenCalledWith(
       {},
       session,
-      expect.objectContaining({ fileBuffer: expect.any(Buffer) }),
+      expect.objectContaining({ fileBuffer: expect.any(Buffer) })
     );
     expect(result).toEqual({ ok: true, report });
   });

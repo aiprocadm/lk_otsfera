@@ -23,7 +23,7 @@ function segmented(active: boolean): string {
 
 export function TasksToolbar({
   state,
-  assigneeOptions
+  assigneeOptions,
 }: {
   state: TasksToolbarState;
   /** Список для фильтра по исполнителю (ФТ-7.3, только руководитель); null — фильтр скрыт. */
@@ -48,10 +48,18 @@ export function TasksToolbar({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <div className="flex gap-1" role="group" aria-label="Охват задач">
-        <button type="button" className={segmented(state.scope === 'all')} onClick={() => apply({ scope: 'all' })}>
+        <button
+          type="button"
+          className={segmented(state.scope === 'all')}
+          onClick={() => apply({ scope: 'all' })}
+        >
           Все
         </button>
-        <button type="button" className={segmented(state.scope === 'mine')} onClick={() => apply({ scope: 'mine' })}>
+        <button
+          type="button"
+          className={segmented(state.scope === 'mine')}
+          onClick={() => apply({ scope: 'mine' })}
+        >
           Мои
         </button>
       </div>
@@ -83,10 +91,18 @@ export function TasksToolbar({
       )}
 
       <div className="ml-auto flex gap-1" role="group" aria-label="Вид">
-        <button type="button" className={segmented(state.view === 'board')} onClick={() => apply({ view: 'board' })}>
+        <button
+          type="button"
+          className={segmented(state.view === 'board')}
+          onClick={() => apply({ view: 'board' })}
+        >
           Доска
         </button>
-        <button type="button" className={segmented(state.view === 'list')} onClick={() => apply({ view: 'list' })}>
+        <button
+          type="button"
+          className={segmented(state.view === 'list')}
+          onClick={() => apply({ view: 'list' })}
+        >
           Список
         </button>
       </div>

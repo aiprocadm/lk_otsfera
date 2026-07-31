@@ -3,7 +3,7 @@ import type { PrismaClient } from '@prisma/client';
 import {
   primeIntegrationSettingsCache,
   cachedIntegrationSetting,
-  resetIntegrationSettingsCache
+  resetIntegrationSettingsCache,
 } from '@/lib/config/integrationSettingsCache';
 import { encryptSecret } from '@/lib/crypto/secrets';
 
@@ -55,7 +55,7 @@ describe('integrationSettingsCache', () => {
     process.env.TELEGRAM_BOT_TOKEN = 'env-token';
     const { db } = prismaWith([
       { key: 'telegram.botToken', value: '', isSecret: false },
-      { key: 'telegram.botUsername', value: null, isSecret: false }
+      { key: 'telegram.botUsername', value: null, isSecret: false },
     ]);
     await primeIntegrationSettingsCache(db);
     expect(cachedIntegrationSetting('telegram.botToken')).toBe('env-token');
@@ -66,7 +66,7 @@ describe('integrationSettingsCache', () => {
     process.env.TELEGRAM_BOT_TOKEN = 'env-token';
     const { db } = prismaWith([
       { key: 'telegram.botToken', value: encryptSecret('db-secret'), isSecret: true },
-      { key: 'max.botToken', value: 'v1:not-really-encrypted', isSecret: true }
+      { key: 'max.botToken', value: 'v1:not-really-encrypted', isSecret: true },
     ]);
     await primeIntegrationSettingsCache(db);
     expect(cachedIntegrationSetting('telegram.botToken')).toBe('db-secret');

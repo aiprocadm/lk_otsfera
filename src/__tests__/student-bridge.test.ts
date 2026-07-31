@@ -1,15 +1,15 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 const { create } = vi.hoisted(() => ({
-  create: vi.fn().mockResolvedValue({})
+  create: vi.fn().mockResolvedValue({}),
 }));
 
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     studentBridgeTokenJti: {
-      create
-    }
-  }
+      create,
+    },
+  },
 }));
 
 import { signStudentBridgeToken, verifyStudentBridgeToken } from '@/lib/auth/jwt';
@@ -31,7 +31,7 @@ describe('student bridge token and redirect', () => {
       organizationId: 'o1',
       email: 'a@b.c',
       name: 'N',
-      externalStudentId: 's1'
+      externalStudentId: 's1',
     });
     const payload = await verifyStudentBridgeToken(token);
     expect(payload.aud).toBe('external-student-portal');

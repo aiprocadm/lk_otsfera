@@ -12,7 +12,7 @@ const inviteSchema = z.object({
   email: z.string().email(),
   name: z.string().min(1).max(200),
   roleInPartner: z.enum(['admin', 'manager']),
-  assignedOrgIds: z.array(z.string()).default([])
+  assignedOrgIds: z.array(z.string()).default([]),
 });
 
 export async function GET() {
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
 
   const result = await inviteMember(prisma, {
     partnerId: admin.value.partnerId,
-    ...parsed.data
+    ...parsed.data,
   });
   if (!result.ok) {
     const status = result.error === 'email_taken' ? 409 : 422;
@@ -67,14 +67,14 @@ export async function POST(req: Request) {
   try {
     const partner = await prisma.partner.findUnique({
       where: { id: admin.value.partnerId },
-      select: { name: true }
+      select: { name: true },
     });
     const sent = await sendPartnerInviteEmail({
       to: parsed.data.email,
       partnerName: partner?.name ?? 'партнёр',
       roleLabel: parsed.data.roleInPartner === 'admin' ? 'администратор' : 'менеджер',
       inviteUrl: result.inviteUrl,
-      invitedByName: session.name ?? undefined
+      invitedByName: session.name ?? undefined,
     });
     if (sent.status === 'sent') emailStatus = 'sent';
   } catch (e) {
@@ -86,7 +86,7 @@ export async function POST(req: Request) {
       userId: result.user.id,
       partnerUserId: result.partnerUser.id,
       inviteUrl: result.inviteUrl,
-      emailStatus
+      emailStatus,
     },
     { status: 201 }
   );

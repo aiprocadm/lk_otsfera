@@ -7,7 +7,7 @@ import { Prisma } from '@prisma/client';
 import { kpis, attention, recentEvents } from '@/lib/services/partner/dashboard';
 
 vi.mock('@/lib/format', () => ({
-  fmtMoney: (n: number) => `${n.toFixed(2)} ₽`
+  fmtMoney: (n: number) => `${n.toFixed(2)} ₽`,
 }));
 
 function dec(n: number) {
@@ -18,21 +18,21 @@ function dec(n: number) {
 function makePrisma(overrides: Record<string, any> = {}) {
   return {
     partner: {
-      findUnique: vi.fn().mockResolvedValue({ commissionRate: dec(0.1) })
+      findUnique: vi.fn().mockResolvedValue({ commissionRate: dec(0.1) }),
     },
     order: {
       count: vi.fn().mockResolvedValue(0),
       findMany: vi.fn().mockResolvedValue([]),
-      aggregate: vi.fn().mockResolvedValue({ _sum: { totalAmount: null, paidAmount: null } })
+      aggregate: vi.fn().mockResolvedValue({ _sum: { totalAmount: null, paidAmount: null } }),
     },
     lead: {
       count: vi.fn().mockResolvedValue(0),
-      findMany: vi.fn().mockResolvedValue([])
+      findMany: vi.fn().mockResolvedValue([]),
     },
     payment: {
-      findMany: vi.fn().mockResolvedValue([])
+      findMany: vi.fn().mockResolvedValue([]),
     },
-    ...overrides
+    ...overrides,
   } as any;
 }
 
@@ -43,11 +43,16 @@ describe('kpis — unit', () => {
       order: {
         count: vi.fn().mockResolvedValue(2),
         // outstanding теперь считается SQL-агрегатом (R2)
-        aggregate: vi.fn().mockResolvedValue({ _sum: { totalAmount: dec(1000), paidAmount: dec(200) } }),
-        findMany: vi.fn()
-          .mockResolvedValueOnce([{ totalAmount: dec(500), organization: { partnerCommissionRate: null } }]) // paidThisMonth
+        aggregate: vi
+          .fn()
+          .mockResolvedValue({ _sum: { totalAmount: dec(1000), paidAmount: dec(200) } }),
+        findMany: vi
+          .fn()
+          .mockResolvedValueOnce([
+            { totalAmount: dec(500), organization: { partnerCommissionRate: null } },
+          ]), // paidThisMonth
       },
-      lead: { count: vi.fn().mockResolvedValue(3) }
+      lead: { count: vi.fn().mockResolvedValue(3) },
     });
 
     const result = await kpis(prisma, { partnerId: 'p1', scopeOrgIds: [] });
@@ -77,13 +82,12 @@ describe('kpis — unit', () => {
       order: {
         count: vi.fn().mockResolvedValue(0),
         aggregate: vi.fn().mockResolvedValue({ _sum: { totalAmount: null, paidAmount: null } }),
-        findMany: vi.fn()
-          .mockResolvedValueOnce([
-            { totalAmount: dec(10000), organization: { partnerCommissionRate: null } },
-            { totalAmount: dec(5000), organization: { partnerCommissionRate: null } }
-          ]) // paidThisMonth
+        findMany: vi.fn().mockResolvedValueOnce([
+          { totalAmount: dec(10000), organization: { partnerCommissionRate: null } },
+          { totalAmount: dec(5000), organization: { partnerCommissionRate: null } },
+        ]), // paidThisMonth
       },
-      lead: { count: vi.fn().mockResolvedValue(0) }
+      lead: { count: vi.fn().mockResolvedValue(0) },
     });
     const result = await kpis(prisma, { partnerId: 'p1', scopeOrgIds: [] });
     expect(result.commissionThisMonth).toBe('1500.00');
@@ -95,13 +99,12 @@ describe('kpis — unit', () => {
       order: {
         count: vi.fn().mockResolvedValue(0),
         aggregate: vi.fn().mockResolvedValue({ _sum: { totalAmount: null, paidAmount: null } }),
-        findMany: vi.fn()
-          .mockResolvedValueOnce([
-            { totalAmount: dec(10000), organization: { partnerCommissionRate: dec(0.2) } }, // договорная скидка
-            { totalAmount: dec(5000), organization: { partnerCommissionRate: null } } // дефолт партнёра
-          ]) // paidThisMonth
+        findMany: vi.fn().mockResolvedValueOnce([
+          { totalAmount: dec(10000), organization: { partnerCommissionRate: dec(0.2) } }, // договорная скидка
+          { totalAmount: dec(5000), organization: { partnerCommissionRate: null } }, // дефолт партнёра
+        ]), // paidThisMonth
       },
-      lead: { count: vi.fn().mockResolvedValue(0) }
+      lead: { count: vi.fn().mockResolvedValue(0) },
     });
     const result = await kpis(prisma, { partnerId: 'p1', scopeOrgIds: [] });
     // 10000×0.2 + 5000×0.1 = 2500
@@ -113,7 +116,7 @@ describe('attention — unit', () => {
   it('returns empty arrays when no stuck/overdue/stale', async () => {
     const prisma = makePrisma({
       order: { findMany: vi.fn().mockResolvedValue([]) },
-      lead: { findMany: vi.fn().mockResolvedValue([]) }
+      lead: { findMany: vi.fn().mockResolvedValue([]) },
     });
     const result = await attention(prisma, { partnerId: 'p1', scopeOrgIds: [] });
     expect(result.stuckOrders).toEqual([]);
@@ -123,14 +126,21 @@ describe('attention — unit', () => {
   it('maps stuckOrders with formatted amounts', async () => {
     const prisma = makePrisma({
       order: {
-        findMany: vi.fn()
-          .mockResolvedValueOnce([{
-            id: 'o1', title: 'Stuck', updatedAt: new Date('2024-01-01'),
-            deadline: null, totalAmount: dec(5000), paidAmount: dec(1000)
-          }])
-          .mockResolvedValueOnce([]) // overdue
+        findMany: vi
+          .fn()
+          .mockResolvedValueOnce([
+            {
+              id: 'o1',
+              title: 'Stuck',
+              updatedAt: new Date('2024-01-01'),
+              deadline: null,
+              totalAmount: dec(5000),
+              paidAmount: dec(1000),
+            },
+          ])
+          .mockResolvedValueOnce([]), // overdue
       },
-      lead: { findMany: vi.fn().mockResolvedValue([]) }
+      lead: { findMany: vi.fn().mockResolvedValue([]) },
     });
     const result = await attention(prisma, { partnerId: 'p1', scopeOrgIds: [] });
     expect(result.stuckOrders).toHaveLength(1);
@@ -141,14 +151,21 @@ describe('attention — unit', () => {
   it('maps overdueOrders with formatted amounts', async () => {
     const prisma = makePrisma({
       order: {
-        findMany: vi.fn()
+        findMany: vi
+          .fn()
           .mockResolvedValueOnce([]) // stuck — empty
-          .mockResolvedValueOnce([{
-            id: 'o2', title: 'Overdue', updatedAt: new Date('2024-02-01'),
-            deadline: new Date('2024-01-01'), totalAmount: dec(8000), paidAmount: dec(2000)
-          }]) // overdue
+          .mockResolvedValueOnce([
+            {
+              id: 'o2',
+              title: 'Overdue',
+              updatedAt: new Date('2024-02-01'),
+              deadline: new Date('2024-01-01'),
+              totalAmount: dec(8000),
+              paidAmount: dec(2000),
+            },
+          ]), // overdue
       },
-      lead: { findMany: vi.fn().mockResolvedValue([]) }
+      lead: { findMany: vi.fn().mockResolvedValue([]) },
     });
     const result = await attention(prisma, { partnerId: 'p1', scopeOrgIds: [] });
     expect(result.overdueOrders).toHaveLength(1);
@@ -159,7 +176,7 @@ describe('attention — unit', () => {
   it('applies scopeOrgIds narrowing in attention where clause', async () => {
     const prisma = makePrisma({
       order: { findMany: vi.fn().mockResolvedValue([]) },
-      lead: { findMany: vi.fn().mockResolvedValue([]) }
+      lead: { findMany: vi.fn().mockResolvedValue([]) },
     });
     await attention(prisma, { partnerId: 'p1', scopeOrgIds: ['org1'] });
     const where = prisma.order.findMany.mock.calls[0][0].where;
@@ -172,7 +189,7 @@ describe('recentEvents — unit', () => {
     const prisma = makePrisma({
       order: { findMany: vi.fn().mockResolvedValue([]) },
       lead: { findMany: vi.fn().mockResolvedValue([]) },
-      payment: { findMany: vi.fn().mockResolvedValue([]) }
+      payment: { findMany: vi.fn().mockResolvedValue([]) },
     });
     const events = await recentEvents(prisma, { partnerId: 'p1', scopeOrgIds: [] }, 10);
     expect(events).toEqual([]);
@@ -180,9 +197,13 @@ describe('recentEvents — unit', () => {
 
   it('generates order_updated event with ref', async () => {
     const prisma = makePrisma({
-      order: { findMany: vi.fn().mockResolvedValue([{ id: 'o1', title: 'Заказ', updatedAt: new Date('2024-05-01') }]) },
+      order: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([{ id: 'o1', title: 'Заказ', updatedAt: new Date('2024-05-01') }]),
+      },
       lead: { findMany: vi.fn().mockResolvedValue([]) },
-      payment: { findMany: vi.fn().mockResolvedValue([]) }
+      payment: { findMany: vi.fn().mockResolvedValue([]) },
     });
     const events = await recentEvents(prisma, { partnerId: 'p1', scopeOrgIds: [] }, 10);
     expect(events).toHaveLength(1);
@@ -194,11 +215,17 @@ describe('recentEvents — unit', () => {
     const prisma = makePrisma({
       order: { findMany: vi.fn().mockResolvedValue([]) },
       lead: { findMany: vi.fn().mockResolvedValue([]) },
-      payment: { findMany: vi.fn().mockResolvedValue([{
-        id: 'pay1', amount: { toFixed: () => '500.00' }, createdAt: new Date('2024-07-01'),
-        order: { id: 'o1', title: 'Заказ' },
-        organization: { id: 'org1', name: 'ООО Тест' }
-      }]) }
+      payment: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'pay1',
+            amount: { toFixed: () => '500.00' },
+            createdAt: new Date('2024-07-01'),
+            order: { id: 'o1', title: 'Заказ' },
+            organization: { id: 'org1', name: 'ООО Тест' },
+          },
+        ]),
+      },
     });
     const events = await recentEvents(prisma, { partnerId: 'p1', scopeOrgIds: [] }, 10);
     expect(events[0].kind).toBe('payment_received');
@@ -210,11 +237,17 @@ describe('recentEvents — unit', () => {
     const prisma = makePrisma({
       order: { findMany: vi.fn().mockResolvedValue([]) },
       lead: { findMany: vi.fn().mockResolvedValue([]) },
-      payment: { findMany: vi.fn().mockResolvedValue([{
-        id: 'pay2', amount: { toFixed: () => '300.00' }, createdAt: new Date('2024-08-01'),
-        order: null,
-        organization: { id: 'org2', name: 'ООО Без Заказа' }
-      }]) }
+      payment: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'pay2',
+            amount: { toFixed: () => '300.00' },
+            createdAt: new Date('2024-08-01'),
+            order: null,
+            organization: { id: 'org2', name: 'ООО Без Заказа' },
+          },
+        ]),
+      },
     });
     const events = await recentEvents(prisma, { partnerId: 'p1', scopeOrgIds: [] }, 10);
     expect(events[0].kind).toBe('payment_received');
@@ -224,12 +257,14 @@ describe('recentEvents — unit', () => {
 
   it('respects limit when sorting and slicing', async () => {
     const orders = Array.from({ length: 5 }, (_, i) => ({
-      id: `o${i}`, title: `Заказ ${i}`, updatedAt: new Date(2024, 0, i + 1)
+      id: `o${i}`,
+      title: `Заказ ${i}`,
+      updatedAt: new Date(2024, 0, i + 1),
     }));
     const prisma = makePrisma({
       order: { findMany: vi.fn().mockResolvedValue(orders) },
       lead: { findMany: vi.fn().mockResolvedValue([]) },
-      payment: { findMany: vi.fn().mockResolvedValue([]) }
+      payment: { findMany: vi.fn().mockResolvedValue([]) },
     });
     const events = await recentEvents(prisma, { partnerId: 'p1', scopeOrgIds: [] }, 3);
     expect(events).toHaveLength(3);
@@ -239,7 +274,7 @@ describe('recentEvents — unit', () => {
     const prisma = makePrisma({
       order: { findMany: vi.fn().mockResolvedValue([]) },
       lead: { findMany: vi.fn().mockResolvedValue([]) },
-      payment: { findMany: vi.fn().mockResolvedValue([]) }
+      payment: { findMany: vi.fn().mockResolvedValue([]) },
     });
     await recentEvents(prisma, { partnerId: 'p1', scopeOrgIds: ['org1'] }, 10);
     const where = prisma.order.findMany.mock.calls[0][0].where;
@@ -250,7 +285,7 @@ describe('recentEvents — unit', () => {
     const prisma = makePrisma({
       order: { findMany: vi.fn().mockResolvedValue([]) },
       lead: { findMany: vi.fn().mockResolvedValue([]) },
-      payment: { findMany: vi.fn().mockResolvedValue([]) }
+      payment: { findMany: vi.fn().mockResolvedValue([]) },
     });
     await recentEvents(prisma, { partnerId: 'p1', scopeOrgIds: ['org1'] }, 10);
     const where = prisma.payment.findMany.mock.calls[0][0].where;

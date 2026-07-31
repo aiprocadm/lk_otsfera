@@ -22,7 +22,7 @@ const FILE_ERROR_RU: Record<ScanFileError, string> = {
   certificate_missing: 'у слушателя ещё нет удостоверения',
   too_large: 'файл слишком большой',
   invalid_mime: 'недопустимый тип файла',
-  storage: 'не удалось сохранить файл'
+  storage: 'не удалось сохранить файл',
 };
 
 type Row = {
@@ -35,7 +35,7 @@ type RowResult = { fileName: string; ok: boolean; message: string };
 
 export function CertificateScansPanel({
   orderId,
-  targets
+  targets,
 }: {
   orderId: string;
   targets: CertificateScanTarget[];
@@ -62,7 +62,7 @@ export function CertificateScansPanel({
       files.map((file, index) => ({
         file,
         itemId: matches[index].suggestedItemId ?? '',
-        suggested: matches[index].suggestedItemId !== null
+        suggested: matches[index].suggestedItemId !== null,
       }))
     );
   }
@@ -94,7 +94,7 @@ export function CertificateScansPanel({
       }
       const res = await fetch(`/api/manager/orders/${orderId}/certificate-scans`, {
         method: 'POST',
-        body: form
+        body: form,
       });
       const body = await res.json().catch(() => null);
       if (!res.ok || !body?.ok) {
@@ -107,7 +107,7 @@ export function CertificateScansPanel({
         message:
           r.ok === true
             ? 'загружен'
-            : FILE_ERROR_RU[r.error as ScanFileError] ?? 'не удалось загрузить'
+            : (FILE_ERROR_RU[r.error as ScanFileError] ?? 'не удалось загрузить'),
       }));
       setResults(mapped);
       const okCount = mapped.filter((r) => r.ok).length;
@@ -123,55 +123,58 @@ export function CertificateScansPanel({
   }
 
   return (
-    <div className='bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-3'>
-      <div className='flex items-center justify-between gap-3'>
-        <h2 className='text-sm font-medium text-gray-500 uppercase tracking-wider'>
+    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wider">
           Сканы удостоверений
         </h2>
         {missingScans > 0 ? (
-          <Badge tone='warning'>Без скана: {missingScans}</Badge>
+          <Badge tone="warning">Без скана: {missingScans}</Badge>
         ) : (
-          <Badge tone='success'>Все сканы загружены</Badge>
+          <Badge tone="success">Все сканы загружены</Badge>
         )}
       </div>
 
       {withCertificate.length === 0 ? (
-        <p className='text-sm text-gray-500'>
+        <p className="text-sm text-gray-500">
           Сканы можно загрузить после того, как слушателям выданы удостоверения.
         </p>
       ) : (
-        <form onSubmit={handleSubmit} className='space-y-3'>
+        <form onSubmit={handleSubmit} className="space-y-3">
           <input
             ref={inputRef}
-            type='file'
+            type="file"
             multiple
-            aria-label='Файлы сканов'
+            aria-label="Файлы сканов"
             onChange={handleFiles}
             disabled={busy}
-            className='block w-full text-sm text-gray-700'
+            className="block w-full text-sm text-gray-700"
           />
 
           {rows.length > 0 && (
             <>
-              <p className='text-xs text-gray-500'>
-                Слушатель подставлен по совпадению ФИО в имени файла — это подсказка,
-                проверьте каждую строку.
+              <p className="text-xs text-gray-500">
+                Слушатель подставлен по совпадению ФИО в имени файла — это подсказка, проверьте
+                каждую строку.
               </p>
-              <ul className='space-y-2'>
+              <ul className="space-y-2">
                 {rows.map((row, index) => (
-                  <li key={`${row.file.name}-${index}`} className='flex flex-wrap items-center gap-2'>
-                    <span className='text-sm text-gray-700 min-w-0 flex-1 truncate'>
+                  <li
+                    key={`${row.file.name}-${index}`}
+                    className="flex flex-wrap items-center gap-2"
+                  >
+                    <span className="text-sm text-gray-700 min-w-0 flex-1 truncate">
                       {row.file.name}
                     </span>
-                    {row.suggested && <Badge tone='warning'>подсказка</Badge>}
+                    {row.suggested && <Badge tone="warning">подсказка</Badge>}
                     <Select
                       aria-label={`Слушатель для файла ${row.file.name}`}
                       value={row.itemId}
                       onChange={(e) => setRowItem(index, e.target.value)}
                       disabled={busy}
-                      className='w-auto'
+                      className="w-auto"
                     >
-                      <option value=''>— выберите слушателя —</option>
+                      <option value="">— выберите слушателя —</option>
                       {withCertificate.map((t) => (
                         <option key={t.itemId} value={t.itemId}>
                           {t.studentName}
@@ -187,13 +190,13 @@ export function CertificateScansPanel({
           )}
 
           {error && (
-            <p role='alert' className='text-sm text-red-600'>
+            <p role="alert" className="text-sm text-red-600">
               {error}
             </p>
           )}
 
           {results && (
-            <ul className='text-sm space-y-1' aria-label='Результат загрузки'>
+            <ul className="text-sm space-y-1" aria-label="Результат загрузки">
               {results.map((r) => (
                 <li key={r.fileName} className={r.ok ? 'text-gray-700' : 'text-red-600'}>
                   {r.fileName} — {r.message}
@@ -202,12 +205,12 @@ export function CertificateScansPanel({
             </ul>
           )}
 
-          <div className='flex gap-2'>
-            <Button type='submit' disabled={busy || rows.length === 0}>
+          <div className="flex gap-2">
+            <Button type="submit" disabled={busy || rows.length === 0}>
               {busy ? 'Загружаем…' : 'Загрузить сканы'}
             </Button>
             {rows.length > 0 && (
-              <Button type='button' variant='secondary' onClick={reset} disabled={busy}>
+              <Button type="button" variant="secondary" onClick={reset} disabled={busy}>
                 Очистить
               </Button>
             )}

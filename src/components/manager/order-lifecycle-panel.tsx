@@ -19,13 +19,13 @@ import { resolveErrorText } from '@/lib/ui/useFormAction';
 import { setOrderAccountingSignedAction } from '@/server-actions/manager/orderLifecycle';
 
 const ERROR_LABELS: Record<string, string> = {
-  forbidden: 'Нет доступа к этому заказу.'
+  forbidden: 'Нет доступа к этому заказу.',
 };
 
 export function OrderLifecyclePanel({
   orderId,
   accountingSigned,
-  returnReason
+  returnReason,
 }: {
   orderId: string;
   accountingSigned: boolean;
@@ -47,20 +47,20 @@ export function OrderLifecyclePanel({
   }
 
   return (
-    <div className='bg-white border border-gray-200 rounded-xl p-5 space-y-3'>
-      <h2 className='text-sm font-semibold text-[#111111]'>Бухгалтерия</h2>
+    <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+      <h2 className="text-sm font-semibold text-[#111111]">Бухгалтерия</h2>
 
       {returnReason && (
-        <p className='text-xs text-gray-500'>Причина последнего возврата: {returnReason}</p>
+        <p className="text-xs text-gray-500">Причина последнего возврата: {returnReason}</p>
       )}
 
-      <label className='flex items-center gap-2 text-sm cursor-pointer'>
+      <label className="flex items-center gap-2 text-sm cursor-pointer">
         <input
-          type='checkbox'
+          type="checkbox"
           checked={accountingSigned}
           disabled={pending}
           onChange={onToggleSigned}
-          className='h-4 w-4 rounded border-gray-300 accent-[#F97316]'
+          className="h-4 w-4 rounded border-gray-300 accent-[#F97316]"
         />
         Бухгалтерия подписана
       </label>

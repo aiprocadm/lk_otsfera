@@ -16,7 +16,7 @@ function makeAlert(overrides: Partial<AlertStateRow> = {}): AlertStateRow {
     lastNotifiedAt: new Date('2026-07-16T10:05:00Z'),
     resolvedAt: null,
     updatedAt: new Date('2026-07-16T10:05:00Z'),
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -59,7 +59,13 @@ describe('AlertsSection', () => {
   it('resolved: нейтральный статус, resolvedAt рендерится датой', () => {
     const html = renderToString(
       React.createElement(AlertsSection, {
-        alerts: [makeAlert({ status: 'resolved', severity: 'warning', resolvedAt: new Date('2026-07-16T11:00:00Z') })]
+        alerts: [
+          makeAlert({
+            status: 'resolved',
+            severity: 'warning',
+            resolvedAt: new Date('2026-07-16T11:00:00Z'),
+          }),
+        ],
       })
     );
     expect(html).toContain('resolved');

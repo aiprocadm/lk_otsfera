@@ -55,7 +55,8 @@ export async function POST(req: NextRequest) {
   const clientId = req.headers.get('x-bridge-client')?.trim() ?? '';
   const sharedSecret = req.headers.get('x-bridge-secret')?.trim() ?? '';
   const expectedSecret = process.env.STUDENT_BRIDGE_SHARED_SECRET?.trim() ?? '';
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? req.headers.get('x-real-ip');
+  const ip =
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? req.headers.get('x-real-ip');
 
   if (!clientId || !expectedSecret || !safeEqual(sharedSecret, expectedSecret)) {
     await auditBridgeFailure({
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
       userId: sessionResult.value.sub,
       clientId,
       ip,
-      reason: 'client-auth-failed'
+      reason: 'client-auth-failed',
     });
     return NextResponse.json({ error: 'bridge client denied' }, { status: 403 });
   }
@@ -75,12 +76,12 @@ export async function POST(req: NextRequest) {
       userId: sessionResult.value.sub,
       clientId,
       ip,
-      reason: 'rate-limit-exceeded'
+      reason: 'rate-limit-exceeded',
     });
     return NextResponse.json({ error: 'too many requests' }, { status: 429 });
   }
 
-  const body = await req.json().catch(() => null) as { code?: string } | null;
+  const body = (await req.json().catch(() => null)) as { code?: string } | null;
   const code = body?.code?.trim();
   const safeError = { error: 'invalid exchange request' };
 
@@ -90,7 +91,7 @@ export async function POST(req: NextRequest) {
       userId: sessionResult.value.sub,
       clientId,
       ip,
-      reason: 'missing-or-invalid-code'
+      reason: 'missing-or-invalid-code',
     });
     return NextResponse.json(safeError, { status: 400 });
   }
@@ -100,20 +101,20 @@ export async function POST(req: NextRequest) {
   const result = await prisma.$transaction(async (tx) => {
     const claimed = await tx.studentBridgeGrant.updateMany({
       where: { code, usedAt: null, expiresAt: { gt: now } },
-      data: { usedAt: now }
+      data: { usedAt: now },
     });
 
     if (claimed.count === 0) {
       const grant = await tx.studentBridgeGrant.findUnique({
         where: { code },
-        select: { jti: true, usedAt: true, expiresAt: true }
+        select: { jti: true, usedAt: true, expiresAt: true },
       });
       return { kind: 'rejected' as const, grant };
     }
 
     const grant = await tx.studentBridgeGrant.findUnique({
       where: { code },
-      select: { jti: true, token: true }
+      select: { jti: true, token: true },
     });
 
     if (!grant) return { kind: 'rejected' as const, grant: null };
@@ -136,7 +137,7 @@ export async function POST(req: NextRequest) {
         userId: sessionResult.value.sub,
         clientId,
         ip,
-        reason: 'missing-or-invalid-code'
+        reason: 'missing-or-invalid-code',
       });
       return NextResponse.json(safeError, { status: 400 });
     }
@@ -147,7 +148,7 @@ export async function POST(req: NextRequest) {
       userId: sessionResult.value.sub,
       clientId,
       ip,
-      reason: result.grant.usedAt ? 'already-used' : 'expired'
+      reason: result.grant.usedAt ? 'already-used' : 'expired',
     });
     return NextResponse.json({ error: 'code is no longer valid' }, { status: 410 });
   }

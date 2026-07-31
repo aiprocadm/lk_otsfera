@@ -8,16 +8,14 @@ import {
   createAndAssignManager,
   deactivateAssignment,
   reactivateAssignment,
-  type ManagerInviteErrorCode
+  type ManagerInviteErrorCode,
 } from '@/lib/services/manager/invite';
 import { sendManagerInviteEmail } from '@/lib/email/send';
 import { setManagerRole } from '@/lib/services/admin/managerRole';
 import { assignOrderManager } from '@/lib/services/manager/distribution';
 import { log } from '@/lib/logging';
 
-export type AssignOrInviteManagerActionError =
-  | 'validation'
-  | ManagerInviteErrorCode;
+export type AssignOrInviteManagerActionError = 'validation' | ManagerInviteErrorCode;
 
 export type AssignOrInviteManagerActionResult =
   | {
@@ -33,14 +31,14 @@ const assignOrInviteSchema = z.discriminatedUnion('mode', [
   z.object({
     mode: z.literal('existing'),
     organizationId: z.string().min(1),
-    email: z.string().email()
+    email: z.string().email(),
   }),
   z.object({
     mode: z.literal('new'),
     organizationId: z.string().min(1),
     email: z.string().email(),
-    name: z.string().max(200).optional()
-  })
+    name: z.string().max(200).optional(),
+  }),
 ]);
 
 function readForm(formData: FormData, key: string): string | undefined {
@@ -55,7 +53,7 @@ export async function assignOrInviteManagerAction(
     mode: readForm(formData, 'mode'),
     organizationId: readForm(formData, 'organizationId'),
     email: readForm(formData, 'email'),
-    name: readForm(formData, 'name')
+    name: readForm(formData, 'name'),
   };
   const parsed = assignOrInviteSchema.safeParse(raw);
   if (!parsed.success) {
@@ -75,13 +73,13 @@ export async function assignOrInviteManagerAction(
     try {
       const org = await prisma.organization.findUnique({
         where: { id: parsed.data.organizationId },
-        select: { name: true }
+        select: { name: true },
       });
       await sendManagerInviteEmail({
         to: parsed.data.email,
         organizationName: org?.name ?? 'организация',
         inviteUrl: result.inviteUrl,
-        invitedByName: session.name ?? undefined
+        invitedByName: session.name ?? undefined,
       });
     } catch (e) {
       log.warn('[admin/manager] send invite email failed', e);
@@ -94,21 +92,20 @@ export async function assignOrInviteManagerAction(
     user: result.user,
     inviteUrl: result.inviteUrl,
     alreadyHasPassword: result.alreadyHasPassword,
-    reactivated: result.reactivated
+    reactivated: result.reactivated,
   };
 }
 
 const assignmentIdSchema = z.object({ assignmentId: z.string().min(1) });
 
 export type AssignmentToggleResult =
-  | { ok: true }
-  | { ok: false; error: 'validation' | 'not_found' };
+  { ok: true } | { ok: false; error: 'validation' | 'not_found' };
 
 export async function deactivateManagerAssignmentAction(
   formData: FormData
 ): Promise<AssignmentToggleResult> {
   const parsed = assignmentIdSchema.safeParse({
-    assignmentId: readForm(formData, 'assignmentId')
+    assignmentId: readForm(formData, 'assignmentId'),
   });
   if (!parsed.success) return { ok: false, error: 'validation' };
 
@@ -123,7 +120,7 @@ export async function reactivateManagerAssignmentAction(
   formData: FormData
 ): Promise<AssignmentToggleResult> {
   const parsed = assignmentIdSchema.safeParse({
-    assignmentId: readForm(formData, 'assignmentId')
+    assignmentId: readForm(formData, 'assignmentId'),
   });
   if (!parsed.success) return { ok: false, error: 'validation' };
 
@@ -170,7 +167,7 @@ const assignOrderManagerSchema = z.object({
     .min(1)
     .nullable()
     /* v8 ignore next -- v is non-empty-string | null (nullable); '' is rejected by min(1) */
-    .transform((v) => (v === '' ? null : v))
+    .transform((v) => (v === '' ? null : v)),
 });
 
 export type AssignOrderManagerActionResult =
@@ -185,12 +182,10 @@ export async function assignOrderManagerAction(
 ): Promise<AssignOrderManagerActionResult> {
   const rawManagerUserId = formData.get('managerUserId');
   const managerUserId =
-    typeof rawManagerUserId === 'string' && rawManagerUserId.length > 0
-      ? rawManagerUserId
-      : null;
+    typeof rawManagerUserId === 'string' && rawManagerUserId.length > 0 ? rawManagerUserId : null;
   const parsed = assignOrderManagerSchema.safeParse({
     orderId: readForm(formData, 'orderId'),
-    managerUserId
+    managerUserId,
   });
   if (!parsed.success) {
     return { ok: false, error: 'validation' };
@@ -201,7 +196,7 @@ export async function assignOrderManagerAction(
   // Shared manual-assign service (also used by the leader action) — §5.3.
   const result = await assignOrderManager(prisma, session, {
     orderId: parsed.data.orderId,
-    managerUserId: parsed.data.managerUserId
+    managerUserId: parsed.data.managerUserId,
   });
   if (!result.ok) return { ok: false, error: result.error };
 
@@ -212,19 +207,18 @@ export async function assignOrderManagerAction(
 
 const setManagerRoleSchema = z.object({
   userId: z.string().min(1),
-  role: z.enum(['leader', 'member'])
+  role: z.enum(['leader', 'member']),
 });
 
 export type SetManagerRoleActionResult =
-  | { ok: true }
-  | { ok: false; error: 'validation' | 'user_not_found' | 'not_a_manager' };
+  { ok: true } | { ok: false; error: 'validation' | 'user_not_found' | 'not_a_manager' };
 
 export async function setManagerRoleAction(
   formData: FormData
 ): Promise<SetManagerRoleActionResult> {
   const parsed = setManagerRoleSchema.safeParse({
     userId: readForm(formData, 'userId'),
-    role: readForm(formData, 'role')
+    role: readForm(formData, 'role'),
   });
   if (!parsed.success) return { ok: false, error: 'validation' };
 

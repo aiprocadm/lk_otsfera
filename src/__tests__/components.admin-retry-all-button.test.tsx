@@ -21,7 +21,9 @@ describe('RetryAllButton', () => {
   it('renders "Повторить все" and posts to the encoded retry-all URL on click', async () => {
     let resolveFetch!: (value: { ok: boolean; json: () => Promise<unknown> }) => void;
     const fetchMock = vi.fn().mockReturnValue(
-      new Promise((resolve) => { resolveFetch = resolve; })
+      new Promise((resolve) => {
+        resolveFetch = resolve;
+      })
     );
     vi.stubGlobal('fetch', fetchMock);
 
@@ -30,21 +32,22 @@ describe('RetryAllButton', () => {
     fireEvent.click(button);
 
     expect(await screen.findByRole('button', { name: 'Повтор…' })).toBeTruthy();
-    expect((screen.getByRole('button', { name: 'Повтор…' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Повтор…' }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
 
     resolveFetch({ ok: true, json: () => Promise.resolve({ retried: 12 }) });
     await waitFor(() => expect(screen.getByText('Повторно: 12')).toBeTruthy());
-    expect(fetchMock).toHaveBeenCalledWith(
-      '/api/admin/dlq/docs%2Fscan/retry-all',
-      { method: 'POST' }
-    );
+    expect(fetchMock).toHaveBeenCalledWith('/api/admin/dlq/docs%2Fscan/retry-all', {
+      method: 'POST',
+    });
     expect(refresh).toHaveBeenCalled();
   });
 
   it('appends the truncated note when body.truncated is set', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ retried: 500, truncated: true })
+      json: () => Promise.resolve({ retried: 500, truncated: true }),
     });
     vi.stubGlobal('fetch', fetchMock);
 
@@ -57,7 +60,7 @@ describe('RetryAllButton', () => {
   it('defaults the retried count to 0 when body.retried is missing', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({})
+      json: () => Promise.resolve({}),
     });
     vi.stubGlobal('fetch', fetchMock);
 
@@ -71,7 +74,7 @@ describe('RetryAllButton', () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       status: 500,
-      json: () => Promise.resolve({ error: 'boom' })
+      json: () => Promise.resolve({ error: 'boom' }),
     });
     vi.stubGlobal('fetch', fetchMock);
 
@@ -86,7 +89,7 @@ describe('RetryAllButton', () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       status: 503,
-      json: () => Promise.resolve({})
+      json: () => Promise.resolve({}),
     });
     vi.stubGlobal('fetch', fetchMock);
 

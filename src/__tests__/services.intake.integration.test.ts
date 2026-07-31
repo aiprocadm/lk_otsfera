@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
-import { claimEnrollment, claimInbound, claimCall, closeCallIntake } from '@/lib/services/intake/claim';
+import {
+  claimEnrollment,
+  claimInbound,
+  claimCall,
+  closeCallIntake,
+} from '@/lib/services/intake/claim';
 import { createLeadFromInbound, createLeadFromCall } from '@/lib/services/intake/convert';
 import { listIntake, countIntake } from '@/lib/services/intake/list';
 import { getStaffBadges } from '@/lib/services/intake/badges';
@@ -19,16 +24,35 @@ let m1: string, m2: string;
 let inboundId: string, callId: string, callSpamId: string;
 
 const sM1 = (): SessionPayload =>
-  ({ sub: m1, role: 'manager', companyId: companyA, managedOrgIds: [] } as unknown as SessionPayload);
+  ({
+    sub: m1,
+    role: 'manager',
+    companyId: companyA,
+    managedOrgIds: [],
+  }) as unknown as SessionPayload;
 const sM2 = (): SessionPayload =>
-  ({ sub: m2, role: 'manager', companyId: companyA, managedOrgIds: [] } as unknown as SessionPayload);
-const sPartner = (): SessionPayload => ({ sub: 'px', role: 'partner' } as unknown as SessionPayload);
+  ({
+    sub: m2,
+    role: 'manager',
+    companyId: companyA,
+    managedOrgIds: [],
+  }) as unknown as SessionPayload;
+const sPartner = (): SessionPayload =>
+  ({ sub: 'px', role: 'partner' }) as unknown as SessionPayload;
 
 beforeAll(async () => {
   prisma = new PrismaClient();
   companyA = (await prisma.company.create({ data: { name: `s7p2-${STAMP}` } })).id;
-  m1 = (await prisma.user.create({ data: { email: `s7p2-m1-${STAMP}@t.local`, name: 'М1', role: 'manager', companyId: companyA } })).id;
-  m2 = (await prisma.user.create({ data: { email: `s7p2-m2-${STAMP}@t.local`, name: 'М2', role: 'manager', companyId: companyA } })).id;
+  m1 = (
+    await prisma.user.create({
+      data: { email: `s7p2-m1-${STAMP}@t.local`, name: 'М1', role: 'manager', companyId: companyA },
+    })
+  ).id;
+  m2 = (
+    await prisma.user.create({
+      data: { email: `s7p2-m2-${STAMP}@t.local`, name: 'М2', role: 'manager', companyId: companyA },
+    })
+  ).id;
 
   inboundId = (
     await prisma.inboundMessage.create({
@@ -38,25 +62,39 @@ beforeAll(async () => {
         senderRef: `client-${STAMP}@x.ru`,
         senderDisplay: 'Клиент Иванов',
         subject: `s7p2-subject-${STAMP}`,
-        body: 'Хотим обучение'
-      }
+        body: 'Хотим обучение',
+      },
     })
   ).id;
   callId = (
     await prisma.call.create({
-      data: { provider: 'mango', externalId: `s7p2-c1-${STAMP}`, direction: 'inbound', callerNumber: '+79990001122', status: 'answered' }
+      data: {
+        provider: 'mango',
+        externalId: `s7p2-c1-${STAMP}`,
+        direction: 'inbound',
+        callerNumber: '+79990001122',
+        status: 'answered',
+      },
     })
   ).id;
   callSpamId = (
     await prisma.call.create({
-      data: { provider: 'mango', externalId: `s7p2-c2-${STAMP}`, direction: 'inbound', callerNumber: '+79990003344', status: 'missed' }
+      data: {
+        provider: 'mango',
+        externalId: `s7p2-c2-${STAMP}`,
+        direction: 'inbound',
+        callerNumber: '+79990003344',
+        status: 'missed',
+      },
     })
   ).id;
 });
 
 afterAll(async () => {
   await prisma.auditLog.deleteMany({ where: { userId: { in: [m1, m2] } } });
-  await prisma.lead.deleteMany({ where: { OR: [{ sourceInboundId: inboundId }, { sourceCallId: callId }] } });
+  await prisma.lead.deleteMany({
+    where: { OR: [{ sourceInboundId: inboundId }, { sourceCallId: callId }] },
+  });
   await prisma.inboundMessage.deleteMany({ where: { id: inboundId } });
   await prisma.call.deleteMany({ where: { id: { in: [callId, callSpamId] } } });
   await prisma.user.deleteMany({ where: { id: { in: [m1, m2] } } });
@@ -80,9 +118,18 @@ describe('полный путь Intake', () => {
   });
 
   it('claim обращения: m1 берёт, m2 получает already_assigned, повтор m1 идемпотентен', async () => {
-    expect(await claimInbound(prisma, sM1(), { id: inboundId })).toEqual({ ok: true, changed: true });
-    expect(await claimInbound(prisma, sM2(), { id: inboundId })).toEqual({ ok: false, error: 'already_assigned' });
-    expect(await claimInbound(prisma, sM1(), { id: inboundId })).toEqual({ ok: true, changed: false });
+    expect(await claimInbound(prisma, sM1(), { id: inboundId })).toEqual({
+      ok: true,
+      changed: true,
+    });
+    expect(await claimInbound(prisma, sM2(), { id: inboundId })).toEqual({
+      ok: false,
+      error: 'already_assigned',
+    });
+    expect(await claimInbound(prisma, sM1(), { id: inboundId })).toEqual({
+      ok: true,
+      changed: false,
+    });
 
     const res = await listIntake(prisma, sM1(), { pageSize: 100 });
     const item = res.ok ? res.result.items.find((i) => i.id === inboundId) : null;
@@ -93,7 +140,12 @@ describe('полный путь Intake', () => {
     const before = await countIntake(prisma, sM1());
     const r = await createLeadFromInbound(prisma, sM1(), {
       inboundId,
-      input: { companyName: 'ООО Клиент', contactName: 'Иванов', contactEmail: `client-${STAMP}@x.ru`, subject: 'Обучение по ОТ' }
+      input: {
+        companyName: 'ООО Клиент',
+        contactName: 'Иванов',
+        contactEmail: `client-${STAMP}@x.ru`,
+        subject: 'Обучение по ОТ',
+      },
     });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
@@ -108,7 +160,7 @@ describe('полный путь Intake', () => {
 
     const again = await createLeadFromInbound(prisma, sM1(), {
       inboundId,
-      input: { companyName: 'X', contactName: 'Y', contactPhone: '+70000000000', subject: 'Z' }
+      input: { companyName: 'X', contactName: 'Y', contactPhone: '+70000000000', subject: 'Z' },
     });
     // bound-сообщение своей компании остаётся в scope → повтор ловится @unique-связью.
     expect(again).toEqual({ ok: false, error: 'already_converted' });
@@ -117,7 +169,12 @@ describe('полный путь Intake', () => {
   it('звонок → лид (source=call, claim), второй звонок закрывается «Закрыть»', async () => {
     const r = await createLeadFromCall(prisma, sM1(), {
       callId,
-      input: { companyName: 'Звонивший', contactName: '+79990001122', contactPhone: '+79990001122', subject: 'Входящий звонок' }
+      input: {
+        companyName: 'Звонивший',
+        contactName: '+79990001122',
+        contactPhone: '+79990001122',
+        subject: 'Входящий звонок',
+      },
     });
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.lead.sourceCallId).toBe(callId);
@@ -130,13 +187,19 @@ describe('полный путь Intake', () => {
 
     // Спам-звонок: claim m2 → закрытие.
     expect(await claimCall(prisma, sM2(), { id: callSpamId })).toEqual({ ok: true, changed: true });
-    expect(await closeCallIntake(prisma, sM2(), { id: callSpamId })).toEqual({ ok: true, changed: true });
+    expect(await closeCallIntake(prisma, sM2(), { id: callSpamId })).toEqual({
+      ok: true,
+      changed: true,
+    });
     const list2 = await listIntake(prisma, sM1(), { pageSize: 100 });
     expect(list2.ok && list2.result.items.map((i) => i.id)).not.toContain(callSpamId);
   });
 
   it('claimEnrollment гейтится ролью; бейджи считаются', async () => {
-    expect(await claimEnrollment(prisma, sPartner(), { id: 'whatever' })).toEqual({ ok: false, error: 'forbidden' });
+    expect(await claimEnrollment(prisma, sPartner(), { id: 'whatever' })).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
     const badges = await getStaffBadges(prisma, sM1());
     expect(typeof badges.intake).toBe('number');
     expect(typeof badges.tasksOverdue).toBe('number');

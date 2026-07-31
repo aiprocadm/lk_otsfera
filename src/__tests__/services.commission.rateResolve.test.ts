@@ -5,7 +5,7 @@ import {
   resolveEffectiveRate,
   resolveOrgOverrideAt,
   type RateChange,
-  type OrgRateChange
+  type OrgRateChange,
 } from '@/lib/services/commission/rateResolve';
 
 const d = (s: string) => new Date(s);
@@ -62,7 +62,12 @@ describe('resolveEffectiveRate (per-org override priority)', () => {
 
   it('priority 1: org override wins over partner history and default', () => {
     expect(
-      resolveEffectiveRate({ orgOverride: dec(0.07), changes, paidAt: d('2026-04-20'), partnerDefault }).toNumber()
+      resolveEffectiveRate({
+        orgOverride: dec(0.07),
+        changes,
+        paidAt: d('2026-04-20'),
+        partnerDefault,
+      }).toNumber()
     ).toBe(0.07);
   });
 
@@ -70,28 +75,53 @@ describe('resolveEffectiveRate (per-org override priority)', () => {
     // setOrgCommissionRate forbids 0, but the resolver must treat any set value
     // (incl. Decimal(0)) as the override — "set" means use it, not fall through.
     expect(
-      resolveEffectiveRate({ orgOverride: dec(0), changes, paidAt: d('2026-04-20'), partnerDefault }).toNumber()
+      resolveEffectiveRate({
+        orgOverride: dec(0),
+        changes,
+        paidAt: d('2026-04-20'),
+        partnerDefault,
+      }).toNumber()
     ).toBe(0);
   });
 
   it('priority 2: no override → historical partner rate at paidAt', () => {
     expect(
-      resolveEffectiveRate({ orgOverride: null, changes, paidAt: d('2026-04-20'), partnerDefault }).toNumber()
+      resolveEffectiveRate({
+        orgOverride: null,
+        changes,
+        paidAt: d('2026-04-20'),
+        partnerDefault,
+      }).toNumber()
     ).toBe(0.2);
     expect(
-      resolveEffectiveRate({ orgOverride: null, changes, paidAt: d('2026-04-14'), partnerDefault }).toNumber()
+      resolveEffectiveRate({
+        orgOverride: null,
+        changes,
+        paidAt: d('2026-04-14'),
+        partnerDefault,
+      }).toNumber()
     ).toBe(0.05);
   });
 
   it('priority 3: no override and no history → partner default', () => {
     expect(
-      resolveEffectiveRate({ orgOverride: null, changes: [], paidAt: d('2026-04-20'), partnerDefault }).toNumber()
+      resolveEffectiveRate({
+        orgOverride: null,
+        changes: [],
+        paidAt: d('2026-04-20'),
+        partnerDefault,
+      }).toNumber()
     ).toBe(0.1);
   });
 
   it('undefined override behaves like null (inherits)', () => {
     expect(
-      resolveEffectiveRate({ orgOverride: undefined, changes: [], paidAt: d('2026-04-20'), partnerDefault }).toNumber()
+      resolveEffectiveRate({
+        orgOverride: undefined,
+        changes: [],
+        paidAt: d('2026-04-20'),
+        partnerDefault,
+      }).toNumber()
     ).toBe(0.1);
   });
 });
@@ -159,7 +189,13 @@ describe('resolveEffectiveRate with orgChanges (F4 — priority preserved)', () 
     // Ставка изменена 2026-05-01 задним числом относительно платежа за апрель:
     // расчёт апреля обязан взять 0.07 (действовавшую), не текущие 0.03.
     expect(
-      resolveEffectiveRate({ orgOverride: dec(0.03), orgChanges, changes, paidAt: d('2026-04-10'), partnerDefault }).toNumber()
+      resolveEffectiveRate({
+        orgOverride: dec(0.03),
+        orgChanges,
+        changes,
+        paidAt: d('2026-04-10'),
+        partnerDefault,
+      }).toNumber()
     ).toBe(0.07);
   });
 
@@ -168,7 +204,13 @@ describe('resolveEffectiveRate with orgChanges (F4 — priority preserved)', () 
       { effectiveFrom: d('2026-05-01'), oldRate: null, newRate: dec(0.03) },
     ];
     expect(
-      resolveEffectiveRate({ orgOverride: dec(0.03), orgChanges, changes, paidAt: d('2026-04-10'), partnerDefault }).toNumber()
+      resolveEffectiveRate({
+        orgOverride: dec(0.03),
+        orgChanges,
+        changes,
+        paidAt: d('2026-04-10'),
+        partnerDefault,
+      }).toNumber()
     ).toBe(0.05);
   });
 
@@ -178,22 +220,44 @@ describe('resolveEffectiveRate with orgChanges (F4 — priority preserved)', () 
       { effectiveFrom: d('2026-03-01'), oldRate: dec(0.07), newRate: null },
     ];
     expect(
-      resolveEffectiveRate({ orgOverride: null, orgChanges, changes, paidAt: d('2026-04-10'), partnerDefault }).toNumber()
+      resolveEffectiveRate({
+        orgOverride: null,
+        orgChanges,
+        changes,
+        paidAt: d('2026-04-10'),
+        partnerDefault,
+      }).toNumber()
     ).toBe(0.05);
   });
 
   it('empty history list falls back to current override (orgs untouched since F4)', () => {
     expect(
-      resolveEffectiveRate({ orgOverride: dec(0.07), orgChanges: [], changes, paidAt: d('2026-04-10'), partnerDefault }).toNumber()
+      resolveEffectiveRate({
+        orgOverride: dec(0.07),
+        orgChanges: [],
+        changes,
+        paidAt: d('2026-04-10'),
+        partnerDefault,
+      }).toNumber()
     ).toBe(0.07);
   });
 
   it('omitted orgChanges keeps the exact pre-F4 behaviour', () => {
     expect(
-      resolveEffectiveRate({ orgOverride: dec(0.07), changes, paidAt: d('2026-04-10'), partnerDefault }).toNumber()
+      resolveEffectiveRate({
+        orgOverride: dec(0.07),
+        changes,
+        paidAt: d('2026-04-10'),
+        partnerDefault,
+      }).toNumber()
     ).toBe(0.07);
     expect(
-      resolveEffectiveRate({ orgOverride: null, changes, paidAt: d('2026-04-10'), partnerDefault }).toNumber()
+      resolveEffectiveRate({
+        orgOverride: null,
+        changes,
+        paidAt: d('2026-04-10'),
+        partnerDefault,
+      }).toNumber()
     ).toBe(0.05);
   });
 });

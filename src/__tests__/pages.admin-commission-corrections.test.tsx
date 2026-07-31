@@ -13,7 +13,7 @@ vi.mock('@/lib/services/commission/corrections', () => ({ listCorrectionQueue })
 
 vi.mock('@/components/commission/corrections-queue-table', () => ({
   CorrectionsQueueTable: (props: { rows: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'corrections-table' }, JSON.stringify(props.rows))
+    React.createElement('div', { 'data-testid': 'corrections-table' }, JSON.stringify(props.rows)),
 }));
 
 import AdminCommissionCorrectionsPage from '@/app/admin/commission-corrections/page';
@@ -36,7 +36,7 @@ describe('AdminCommissionCorrectionsPage', () => {
         commissionAmount: { toString: () => '10.05' },
         rate: { toString: () => '0.1' },
         originalPeriodFrom: new Date('2024-01-01T00:00:00.000Z'),
-        originalPeriodTo: new Date('2024-01-31T00:00:00.000Z')
+        originalPeriodTo: new Date('2024-01-31T00:00:00.000Z'),
       },
       {
         id: 'c2',
@@ -45,8 +45,8 @@ describe('AdminCommissionCorrectionsPage', () => {
         commissionAmount: { toString: () => '5.00' },
         rate: { toString: () => '0.1' },
         originalPeriodFrom: new Date('2024-02-01T00:00:00.000Z'),
-        originalPeriodTo: new Date('2024-02-28T00:00:00.000Z')
-      }
+        originalPeriodTo: new Date('2024-02-28T00:00:00.000Z'),
+      },
     ]);
 
     const { container } = await renderServerComponent(AdminCommissionCorrectionsPage());

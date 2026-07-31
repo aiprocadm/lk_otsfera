@@ -9,7 +9,7 @@ import React from 'react';
 
 const { requireAdmin, requireManagerLeader } = vi.hoisted(() => ({
   requireAdmin: vi.fn(),
-  requireManagerLeader: vi.fn()
+  requireManagerLeader: vi.fn(),
 }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin, requireManagerLeader }));
 
@@ -20,7 +20,7 @@ vi.mock('@/lib/services/orderStatuses', () => ({ listStatusDefinitions }));
 
 vi.mock('@/components/admin/order-statuses-admin', () => ({
   OrderStatusesAdmin: (props: { rows: { id: string }[] }) =>
-    React.createElement('div', { 'data-testid': 'statuses' }, JSON.stringify(props.rows))
+    React.createElement('div', { 'data-testid': 'statuses' }, JSON.stringify(props.rows)),
 }));
 
 import AdminOrderStatusesPage from '@/app/admin/order-statuses/page';

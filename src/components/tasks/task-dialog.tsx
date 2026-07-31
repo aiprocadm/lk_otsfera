@@ -14,7 +14,7 @@ const PRIORITIES: { value: string; label: string }[] = [
   { value: '', label: 'Без приоритета' },
   { value: 'low', label: 'Низкий' },
   { value: 'medium', label: 'Средний' },
-  { value: 'high', label: 'Высокий' }
+  { value: 'high', label: 'Высокий' },
 ];
 
 function dateValue(d: Date | null): string {
@@ -31,7 +31,7 @@ export function TaskDialog({
   options,
   link,
   onClose,
-  onSaved
+  onSaved,
 }: {
   target: TaskCard | null;
   columns: TaskColumnView[];
@@ -49,7 +49,7 @@ export function TaskDialog({
     link?.label ??
     [
       target?.linkedLeadSubject ? `лид «${target.linkedLeadSubject}»` : null,
-      target?.linkedDealTitle ? `сделка «${target.linkedDealTitle}»` : null
+      target?.linkedDealTitle ? `сделка «${target.linkedDealTitle}»` : null,
     ]
       .filter(Boolean)
       .join(', ');
@@ -90,16 +90,34 @@ export function TaskDialog({
   }
 
   return (
-    <Dialog open onClose={onClose} title={target ? 'Задача' : 'Новая задача'} size="lg" busy={submitting}>
+    <Dialog
+      open
+      onClose={onClose}
+      title={target ? 'Задача' : 'Новая задача'}
+      size="lg"
+      busy={submitting}
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
         <input type="hidden" name="linkedLeadId" value={linkedLeadId} />
         <input type="hidden" name="linkedDealId" value={linkedDealId} />
         {linkLabel && <p className="text-xs text-gray-500">Привязана: {linkLabel}</p>}
         <Field htmlFor="tk-title" label="Название">
-          <Input id="tk-title" name="title" required maxLength={200} defaultValue={target?.title ?? ''} autoFocus />
+          <Input
+            id="tk-title"
+            name="title"
+            required
+            maxLength={200}
+            defaultValue={target?.title ?? ''}
+            autoFocus
+          />
         </Field>
         <Field htmlFor="tk-desc" label="Описание">
-          <Textarea id="tk-desc" name="description" rows={3} defaultValue={target?.description ?? ''} />
+          <Textarea
+            id="tk-desc"
+            name="description"
+            rows={3}
+            defaultValue={target?.description ?? ''}
+          />
         </Field>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Field htmlFor="tk-priority" label="Приоритет">
@@ -112,10 +130,19 @@ export function TaskDialog({
             </Select>
           </Field>
           <Field htmlFor="tk-due" label="Срок">
-            <Input id="tk-due" name="dueDate" type="date" defaultValue={dateValue(target?.dueDate ?? null)} />
+            <Input
+              id="tk-due"
+              name="dueDate"
+              type="date"
+              defaultValue={dateValue(target?.dueDate ?? null)}
+            />
           </Field>
           <Field htmlFor="tk-col" label="Колонка">
-            <Select id="tk-col" name="columnId" defaultValue={target?.columnId ?? columns[0]?.id ?? ''}>
+            <Select
+              id="tk-col"
+              name="columnId"
+              defaultValue={target?.columnId ?? columns[0]?.id ?? ''}
+            >
               {columns.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -126,7 +153,11 @@ export function TaskDialog({
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field htmlFor="tk-org" label="Организация (необязательно)">
-            <Select id="tk-org" name="linkedOrganizationId" defaultValue={target?.linkedOrganizationId ?? ''}>
+            <Select
+              id="tk-org"
+              name="linkedOrganizationId"
+              defaultValue={target?.linkedOrganizationId ?? ''}
+            >
               <option value="">— не привязана —</option>
               {options.organizations.map((o) => (
                 <option key={o.id} value={o.id}>

@@ -3,7 +3,7 @@ import { renderToString } from 'react-dom/server';
 import React from 'react';
 
 vi.mock('next/navigation', () => ({
-  usePathname: vi.fn()
+  usePathname: vi.fn(),
 }));
 
 vi.mock('next/link', () => ({
@@ -12,7 +12,7 @@ vi.mock('next/link', () => ({
     children,
     className,
     'data-testid': testId,
-    'data-active': dataActive
+    'data-active': dataActive,
   }: {
     href: string;
     children: React.ReactNode;
@@ -24,7 +24,7 @@ vi.mock('next/link', () => ({
       'a',
       { href, className, 'data-testid': testId, 'data-active': dataActive },
       children
-    )
+    ),
 }));
 
 import { usePathname } from 'next/navigation';

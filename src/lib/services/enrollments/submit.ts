@@ -17,7 +17,9 @@ export type SubmitEnrollmentResult =
   | { ok: false; error: 'forbidden' | 'validation'; messages?: string[] };
 
 function activeOrgIds(session: SessionPayload): string[] {
-  return (session.organizationMemberships ?? []).filter((m) => m.isActive).map((m) => m.organizationId);
+  return (session.organizationMemberships ?? [])
+    .filter((m) => m.isActive)
+    .map((m) => m.organizationId);
 }
 
 /**
@@ -43,7 +45,7 @@ export async function submitEnrollmentRequest(
   }
   const direction = await prisma.trainingDirection.findFirst({
     where: { id: directionId, isActive: true },
-    select: { id: true }
+    select: { id: true },
   });
   if (!direction) {
     return { ok: false, error: 'validation', messages: ['Направление не найдено или неактивно'] };
@@ -60,7 +62,7 @@ export async function submitEnrollmentRequest(
     if (organizationId) {
       const org = await prisma.organization.findFirst({
         where: { id: organizationId, partnerId: partnerId ?? undefined },
-        select: { id: true }
+        select: { id: true },
       });
       if (!org) return { ok: false, error: 'forbidden' };
     }
@@ -81,7 +83,7 @@ export async function submitEnrollmentRequest(
     if (!organizationId) return { ok: false, error: 'forbidden' };
     const students = await prisma.student.findMany({
       where: { id: { in: studentIds }, organizationId },
-      select: { id: true, name: true, email: true }
+      select: { id: true, name: true, email: true },
     });
     if (students.length !== new Set(studentIds).size) return { ok: false, error: 'forbidden' };
     for (const s of students) studentById.set(s.id, { name: s.name, email: s.email });
@@ -95,8 +97,8 @@ export async function submitEnrollmentRequest(
         partnerId,
         organizationId,
         directionId,
-        note: input.note?.trim() || null
-      }
+        note: input.note?.trim() || null,
+      },
     });
     await tx.enrollmentRequestItem.createMany({
       data: validated.items.map((item) => {
@@ -109,9 +111,9 @@ export async function submitEnrollmentRequest(
           position: item.position,
           snils: item.snils,
           birthDate: item.birthDate,
-          extra: item.extra
+          extra: item.extra,
         };
-      })
+      }),
     });
 
     // Этап 9 (ФТ-12.2): должность из заявки подхватывается в карточку
@@ -122,7 +124,7 @@ export async function submitEnrollmentRequest(
       if (!item.studentId || !item.position) continue;
       await tx.student.updateMany({
         where: { id: item.studentId, position: null },
-        data: { position: item.position }
+        data: { position: item.position },
       });
     }
 
@@ -139,12 +141,17 @@ export async function submitEnrollmentRequest(
       organizationId,
       directionId,
       itemCount: validated.items.length,
-      submitterRole: created.submitterRole
-    }
+      submitterRole: created.submitterRole,
+    },
   });
 
   // ФТ-2.5: менеджерам организации о новой заявке (best-effort внутри notify.ts).
   await notifyManagersEnrollmentSubmitted(prisma, created);
 
-  return { ok: true, request: created, itemCount: validated.items.length, warnings: validated.warnings };
+  return {
+    ok: true,
+    request: created,
+    itemCount: validated.items.length,
+    warnings: validated.warnings,
+  };
 }

@@ -45,7 +45,7 @@ function sideBadgeStyle(side: ThreadSide): React.CSSProperties {
       border: '1px solid #BFDBFE',
       fontWeight: 500,
       flexShrink: 0,
-      whiteSpace: 'nowrap' as const
+      whiteSpace: 'nowrap' as const,
     };
   }
   return {
@@ -57,12 +57,19 @@ function sideBadgeStyle(side: ThreadSide): React.CSSProperties {
     border: '1px solid #FED7AA',
     fontWeight: 500,
     flexShrink: 0,
-    whiteSpace: 'nowrap' as const
+    whiteSpace: 'nowrap' as const,
   };
 }
 
 /** Maps raw API message row to a ChatMessageVM. */
-function toVM(r: { id: string; authorId: string; authorName: string; body: string; createdAt: string; hasAttachment?: boolean }): ChatMessageVM {
+function toVM(r: {
+  id: string;
+  authorId: string;
+  authorName: string;
+  body: string;
+  createdAt: string;
+  hasAttachment?: boolean;
+}): ChatMessageVM {
   return {
     id: r.id,
     authorId: r.authorId,
@@ -72,7 +79,7 @@ function toVM(r: { id: string; authorId: string; authorName: string; body: strin
     attachmentUrl: r.hasAttachment
       ? `/api/messages/attachment?messageId=${encodeURIComponent(r.id)}`
       : undefined,
-    createdAt: r.createdAt
+    createdAt: r.createdAt,
   };
 }
 
@@ -86,10 +93,12 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
   const [selected, setSelected] = useState<Thread | null>(null);
   const [messages, setMessages] = useState<ChatMessageVM[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
-  const [threadUnread, setThreadUnread] = useState<Record<string, boolean>>(
-    () => Object.fromEntries(threads.map((t) => [t.id, t.unread]))
+  const [threadUnread, setThreadUnread] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(threads.map((t) => [t.id, t.unread]))
   );
-  const [pendingAttachment, setPendingAttachment] = useState<{ path: string; name: string } | null>(null);
+  const [pendingAttachment, setPendingAttachment] = useState<{ path: string; name: string } | null>(
+    null
+  );
   const [attachError, setAttachError] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
 
@@ -102,10 +111,20 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
   // receive real Date values from other callers), so the type can't be narrowed
   // here without diverging the shared VM type.
   /* v8 ignore next -- unreachable: `messages` state here is always populated via toVM(), which assigns a string createdAt */
-  const latestCreatedAt: string | null = rawLatest instanceof Date ? rawLatest.toISOString() : rawLatest;
+  const latestCreatedAt: string | null =
+    rawLatest instanceof Date ? rawLatest.toISOString() : rawLatest;
 
   // appendNew: called by useThreadPolling with rows newer than cursor; dedup by id
-  function appendNew(rows: Array<{ id: string; authorId: string; authorName: string; body: string; createdAt: string; hasAttachment: boolean }>) {
+  function appendNew(
+    rows: Array<{
+      id: string;
+      authorId: string;
+      authorName: string;
+      body: string;
+      createdAt: string;
+      hasAttachment: boolean;
+    }>
+  ) {
     setMessages((prev) => {
       const existingIds = new Set(prev.map((m) => m.id));
       const fresh = rows.filter((r) => !existingIds.has(r.id)).map(toVM);
@@ -150,7 +169,7 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
     fetch('/api/messages/read', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ threadId: thread.id })
+      body: JSON.stringify({ threadId: thread.id }),
     })
       .then((res) => {
         if (res.ok) setThreadUnread((prev) => ({ ...prev, [thread.id]: false }));
@@ -192,8 +211,8 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
           orderId: selected.orderId,
           ...(variant === 'team' ? { side: selected.side } : {}),
           body: text,
-          ...(pendingAttachment ? { attachmentPath: pendingAttachment.path } : {})
-        })
+          ...(pendingAttachment ? { attachmentPath: pendingAttachment.path } : {}),
+        }),
       });
       if (!res.ok) {
         clientLog.warn('[order-thread-inbox] send message failed', res.status);
@@ -236,7 +255,7 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
         borderRadius: '12px',
         overflow: 'hidden',
         backgroundColor: '#ffffff',
-        minHeight: '480px'
+        minHeight: '480px',
       }}
     >
       {/* Left panel — thread list */}
@@ -245,7 +264,7 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
           width: variant === 'team' ? '300px' : '280px',
           flexShrink: 0,
           borderRight: '1px solid #E5E7EB',
-          overflowY: 'auto'
+          overflowY: 'auto',
         }}
       >
         {threads.length === 0 ? (
@@ -254,11 +273,13 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
               padding: '32px 16px',
               textAlign: 'center',
               color: '#6B7280',
-              fontSize: '14px'
+              fontSize: '14px',
             }}
           >
             Нет переписок
-            <p className='text-xs text-gray-400 mt-1'>Переписка появится, когда вы напишете сообщение по заказу или вам напишет команда.</p>
+            <p className="text-xs text-gray-400 mt-1">
+              Переписка появится, когда вы напишете сообщение по заказу или вам напишет команда.
+            </p>
           </div>
         ) : (
           <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
@@ -279,7 +300,7 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
                       cursor: 'pointer',
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: '4px'
+                      gap: '4px',
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -291,7 +312,7 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
                             height: '8px',
                             borderRadius: '50%',
                             backgroundColor: '#F97316',
-                            flexShrink: 0
+                            flexShrink: 0,
                           }}
                           aria-label="Непрочитано"
                         />
@@ -304,7 +325,7 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
-                          ...(variant === 'team' ? { flex: 1, minWidth: 0 } : {})
+                          ...(variant === 'team' ? { flex: 1, minWidth: 0 } : {}),
                         }}
                       >
                         {thread.orderTitle}
@@ -336,7 +357,7 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
               alignItems: 'center',
               justifyContent: 'center',
               color: '#9CA3AF',
-              fontSize: '14px'
+              fontSize: '14px',
             }}
           >
             Выберите переписку
@@ -350,7 +371,7 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
                 backgroundColor: '#F9FAFB',
                 ...(variant === 'team'
                   ? { display: 'flex', alignItems: 'center', gap: '8px' }
-                  : {})
+                  : {}),
               }}
             >
               <span style={{ fontSize: '13px', color: '#6B7280' }}>
@@ -360,9 +381,7 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
                 {selected.orderTitle}
               </span>
               {variant === 'team' && (
-                <span style={sideBadgeStyle(selected.side)}>
-                  {sideBadgeLabel(selected.side)}
-                </span>
+                <span style={sideBadgeStyle(selected.side)}>{sideBadgeLabel(selected.side)}</span>
               )}
             </div>
             <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -372,7 +391,7 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
                     padding: '24px',
                     textAlign: 'center',
                     color: '#9CA3AF',
-                    fontSize: '14px'
+                    fontSize: '14px',
                   }}
                 >
                   Загрузка…
@@ -392,7 +411,7 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
                   backgroundColor: '#FFF7ED',
                   borderTop: '1px solid #FED7AA',
                   fontSize: '13px',
-                  color: '#C2410C'
+                  color: '#C2410C',
                 }}
               >
                 <span>📎 {pendingAttachment.name}</span>
@@ -406,7 +425,7 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
                     color: '#9CA3AF',
                     fontSize: '16px',
                     lineHeight: 1,
-                    padding: '0 2px'
+                    padding: '0 2px',
                   }}
                 >
                   ✕
@@ -422,7 +441,7 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
                   backgroundColor: '#FEF2F2',
                   borderTop: '1px solid #FECACA',
                   fontSize: '13px',
-                  color: '#DC2626'
+                  color: '#DC2626',
                 }}
               >
                 {attachError ?? sendError}

@@ -12,7 +12,7 @@ import { fmtDate } from '@/lib/format';
  */
 export function ManagerStudentsTable({ rows }: { rows: ManagerStudentRow[] }) {
   if (rows.length === 0) {
-    return <EmptyState icon='👥' message='Сотрудники не найдены.' />;
+    return <EmptyState icon="👥" message="Сотрудники не найдены." />;
   }
 
   return (
@@ -27,26 +27,22 @@ export function ManagerStudentsTable({ rows }: { rows: ManagerStudentRow[] }) {
       <tbody>
         {rows.map((s) => (
           <Tr key={s.id}>
-            <Td className='font-medium'>
-              <Link href={`/manager/students/${s.id}`} className='text-[#F97316] hover:underline'>
+            <Td className="font-medium">
+              <Link href={`/manager/students/${s.id}`} className="text-[#F97316] hover:underline">
                 {s.name}
               </Link>
             </Td>
-            <Td className='text-gray-600'>{s.email}</Td>
+            <Td className="text-gray-600">{s.email}</Td>
             <Td>
               <Link
                 href={`/manager/organizations/${s.organization.id}`}
-                className='text-[#F97316] hover:underline'
+                className="text-[#F97316] hover:underline"
               >
                 {s.organization.name}
               </Link>
             </Td>
-            <Td className='text-gray-500 font-mono text-xs'>
-              {s.externalStudentId ?? '—'}
-            </Td>
-            <Td className='text-gray-500'>
-              {fmtDate(s.createdAt)}
-            </Td>
+            <Td className="text-gray-500 font-mono text-xs">{s.externalStudentId ?? '—'}</Td>
+            <Td className="text-gray-500">{fmtDate(s.createdAt)}</Td>
           </Tr>
         ))}
       </tbody>

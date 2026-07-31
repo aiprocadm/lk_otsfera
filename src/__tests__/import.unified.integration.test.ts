@@ -15,7 +15,11 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { commitImport } from '@/lib/services/import';
-import { upsertOrderRecord, upsertPaymentRecord, type WriteCtx } from '@/lib/services/oneCSync/writers';
+import {
+  upsertOrderRecord,
+  upsertPaymentRecord,
+  type WriteCtx,
+} from '@/lib/services/oneCSync/writers';
 import { importScope } from '@/lib/services/oneCSync/scope';
 import { emptySummary } from '@/lib/services/oneCSync/record-batch';
 
@@ -124,9 +128,7 @@ async function fullTeardown() {
   }
 
   // Audit logs written by admin session (non-blocking cleanup)
-  await prisma.auditLog
-    .deleteMany({ where: { userId: adminSession.sub } })
-    .catch(() => undefined);
+  await prisma.auditLog.deleteMany({ where: { userId: adminSession.sub } }).catch(() => undefined);
 }
 
 // ── setup ─────────────────────────────────────────────────────────────────────

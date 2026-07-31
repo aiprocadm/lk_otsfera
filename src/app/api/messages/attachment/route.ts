@@ -74,11 +74,15 @@ export async function POST(req: Request) {
 
   if (!result.ok) {
     const status =
-      result.error === 'forbidden'      ? 403 :
-      result.error === 'order_not_found'? 404 :
-      result.error === 'too_large'      ? 413 :
-      result.error === 'invalid_mime'   ? 415 :
-      500; // 'storage'
+      result.error === 'forbidden'
+        ? 403
+        : result.error === 'order_not_found'
+          ? 404
+          : result.error === 'too_large'
+            ? 413
+            : result.error === 'invalid_mime'
+              ? 415
+              : 500; // 'storage'
     return Response.json({ ok: false, error: result.error }, { status });
   }
 
@@ -99,8 +103,7 @@ export async function GET(req: Request) {
 
   if (!result.ok) {
     return new Response(null, {
-      status:
-        result.error === 'forbidden' ? 403 : result.error === 'storage' ? 502 : 404,
+      status: result.error === 'forbidden' ? 403 : result.error === 'storage' ? 502 : 404,
     });
   }
 

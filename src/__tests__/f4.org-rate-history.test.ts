@@ -27,17 +27,23 @@ const PERIOD_TO = new Date('2026-04-30T23:59:59Z');
 beforeAll(async () => {
   prisma = new PrismaClient();
   const p = await prisma.partner.create({
-    data: { name: 'F4P-' + Date.now(), commissionRate: 0.1 }
+    data: { name: 'F4P-' + Date.now(), commissionRate: 0.1 },
   });
   partnerId = p.id;
   const c = await prisma.company.create({ data: { name: 'F4C-' + Date.now() } });
   companyId = c.id;
   const org = await prisma.organization.create({
-    data: { name: 'F4Org-' + Date.now(), partnerId, companyId }
+    data: { name: 'F4Org-' + Date.now(), partnerId, companyId },
   });
   orgId = org.id;
   const u = await prisma.user.create({
-    data: { email: 'f4-' + Date.now() + '@x.local', passwordHash: 'h', name: 'U', role: 'partner', partnerId }
+    data: {
+      email: 'f4-' + Date.now() + '@x.local',
+      passwordHash: 'h',
+      name: 'U',
+      role: 'partner',
+      partnerId,
+    },
   });
   userId = u.id;
 });
@@ -68,16 +74,26 @@ beforeEach(async () => {
 
 async function payInApril(amount: number) {
   const o = await prisma.order.create({
-    data: { title: 'F4', companyId, organizationId: orgId, partnerId, totalAmount: amount, financialStatus: 'paid' }
+    data: {
+      title: 'F4',
+      companyId,
+      organizationId: orgId,
+      partnerId,
+      totalAmount: amount,
+      financialStatus: 'paid',
+    },
   });
   await prisma.payment.create({
-    data: { organizationId: orgId, orderId: o.id, amount, paidAt: new Date('2026-04-10') }
+    data: { organizationId: orgId, orderId: o.id, amount, paidAt: new Date('2026-04-10') },
   });
 }
 
 async function calcApril() {
   const r = await calculateStatementForPartner(prisma, {
-    partnerId, periodFrom: PERIOD_FROM, periodTo: PERIOD_TO, calculatedByUserId: null
+    partnerId,
+    periodFrom: PERIOD_FROM,
+    periodTo: PERIOD_TO,
+    calculatedByUserId: null,
   });
   if (!r.ok) throw new Error(`unexpected calc failure: ${r.error}`);
   return r;
@@ -85,13 +101,30 @@ async function calcApril() {
 
 describe('F4 — rate mutations append history', () => {
   it('set → set → clear leaves a 3-row append-only timeline', async () => {
-    await setOrgCommissionRate(prisma, { organizationId: orgId, partnerId, newRate: 0.07, reason: 'VIP', changedByUserId: userId });
-    await setOrgCommissionRate(prisma, { organizationId: orgId, partnerId, newRate: 0.05, reason: 'renegotiated', changedByUserId: userId });
-    await clearOrgCommissionRate(prisma, { organizationId: orgId, partnerId, reason: 'reset', changedByUserId: userId });
+    await setOrgCommissionRate(prisma, {
+      organizationId: orgId,
+      partnerId,
+      newRate: 0.07,
+      reason: 'VIP',
+      changedByUserId: userId,
+    });
+    await setOrgCommissionRate(prisma, {
+      organizationId: orgId,
+      partnerId,
+      newRate: 0.05,
+      reason: 'renegotiated',
+      changedByUserId: userId,
+    });
+    await clearOrgCommissionRate(prisma, {
+      organizationId: orgId,
+      partnerId,
+      reason: 'reset',
+      changedByUserId: userId,
+    });
 
     const rows = await prisma.organizationCommissionRateChange.findMany({
       where: { organizationId: orgId },
-      orderBy: { effectiveFrom: 'asc' }
+      orderBy: { effectiveFrom: 'asc' },
     });
     expect(rows).toHaveLength(3);
     expect(rows[0].oldRate).toBeNull();
@@ -111,11 +144,26 @@ describe('F4 — statement uses the override in effect at paidAt', () => {
     // (текущее значение тоже 0.03). Пересчёт апреля обязан взять 0.07.
     await prisma.organizationCommissionRateChange.createMany({
       data: [
-        { organizationId: orgId, oldRate: null, newRate: new Prisma.Decimal(0.07), effectiveFrom: new Date('2026-04-01'), changedById: userId },
-        { organizationId: orgId, oldRate: new Prisma.Decimal(0.07), newRate: new Prisma.Decimal(0.03), effectiveFrom: new Date('2026-06-01'), changedById: userId }
-      ]
+        {
+          organizationId: orgId,
+          oldRate: null,
+          newRate: new Prisma.Decimal(0.07),
+          effectiveFrom: new Date('2026-04-01'),
+          changedById: userId,
+        },
+        {
+          organizationId: orgId,
+          oldRate: new Prisma.Decimal(0.07),
+          newRate: new Prisma.Decimal(0.03),
+          effectiveFrom: new Date('2026-06-01'),
+          changedById: userId,
+        },
+      ],
     });
-    await prisma.organization.update({ where: { id: orgId }, data: { partnerCommissionRate: 0.03 } });
+    await prisma.organization.update({
+      where: { id: orgId },
+      data: { partnerCommissionRate: 0.03 },
+    });
 
     const r = await calcApril();
     expect(Number(r.statement.totalCommissionAmount)).toBe(7000); // 0.07, не 0.03 (=3000)
@@ -125,9 +173,18 @@ describe('F4 — statement uses the override in effect at paidAt', () => {
     await payInApril(100000);
     // В апреле override ещё не существовал (история началась 1 июня).
     await prisma.organizationCommissionRateChange.create({
-      data: { organizationId: orgId, oldRate: null, newRate: new Prisma.Decimal(0.03), effectiveFrom: new Date('2026-06-01'), changedById: userId }
+      data: {
+        organizationId: orgId,
+        oldRate: null,
+        newRate: new Prisma.Decimal(0.03),
+        effectiveFrom: new Date('2026-06-01'),
+        changedById: userId,
+      },
     });
-    await prisma.organization.update({ where: { id: orgId }, data: { partnerCommissionRate: 0.03 } });
+    await prisma.organization.update({
+      where: { id: orgId },
+      data: { partnerCommissionRate: 0.03 },
+    });
 
     const r = await calcApril();
     expect(Number(r.statement.totalCommissionAmount)).toBe(10000); // партнёрский дефолт 0.1
@@ -137,9 +194,21 @@ describe('F4 — statement uses the override in effect at paidAt', () => {
     await payInApril(100000);
     await prisma.organizationCommissionRateChange.createMany({
       data: [
-        { organizationId: orgId, oldRate: null, newRate: new Prisma.Decimal(0.07), effectiveFrom: new Date('2026-01-01'), changedById: userId },
-        { organizationId: orgId, oldRate: new Prisma.Decimal(0.07), newRate: null, effectiveFrom: new Date('2026-03-01'), changedById: userId }
-      ]
+        {
+          organizationId: orgId,
+          oldRate: null,
+          newRate: new Prisma.Decimal(0.07),
+          effectiveFrom: new Date('2026-01-01'),
+          changedById: userId,
+        },
+        {
+          organizationId: orgId,
+          oldRate: new Prisma.Decimal(0.07),
+          newRate: null,
+          effectiveFrom: new Date('2026-03-01'),
+          changedById: userId,
+        },
+      ],
     });
 
     const r = await calcApril();
@@ -148,7 +217,10 @@ describe('F4 — statement uses the override in effect at paidAt', () => {
 
   it('no history (pre-F4 org): current override applies as before', async () => {
     await payInApril(100000);
-    await prisma.organization.update({ where: { id: orgId }, data: { partnerCommissionRate: 0.07 } });
+    await prisma.organization.update({
+      where: { id: orgId },
+      data: { partnerCommissionRate: 0.07 },
+    });
 
     const r = await calcApril();
     expect(Number(r.statement.totalCommissionAmount)).toBe(7000);

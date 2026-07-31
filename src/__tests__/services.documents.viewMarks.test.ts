@@ -11,7 +11,7 @@ vi.mock('@/lib/logging', () => ({ log: { warn, error: vi.fn(), info: vi.fn() } }
 import { markDocumentViewed, viewedDocumentIds } from '@/lib/services/documents/viewMarks';
 
 const prisma = {
-  documentViewMark: { upsert: vi.fn(), findMany: vi.fn() }
+  documentViewMark: { upsert: vi.fn(), findMany: vi.fn() },
 } as never as import('@prisma/client').PrismaClient;
 
 const mocked = prisma as unknown as {
@@ -29,13 +29,15 @@ describe('markDocumentViewed', () => {
     expect(mocked.documentViewMark.upsert).toHaveBeenCalledWith({
       where: { documentId_userId: { documentId: 'd1', userId: 'u1' } },
       create: { documentId: 'd1', userId: 'u1' },
-      update: { viewedAt: expect.any(Date) }
+      update: { viewedAt: expect.any(Date) },
     });
   });
 
   it('best-effort: сбой БД проглатывается с log.warn (скачивание не ломается)', async () => {
     mocked.documentViewMark.upsert.mockRejectedValue(new Error('db down'));
-    await expect(markDocumentViewed(prisma, { documentId: 'd1', userId: 'u1' })).resolves.toBeUndefined();
+    await expect(
+      markDocumentViewed(prisma, { documentId: 'd1', userId: 'u1' })
+    ).resolves.toBeUndefined();
     expect(warn).toHaveBeenCalledWith(
       '[documents/viewMarks] mark failed',
       expect.objectContaining({ documentId: 'd1', error: 'db down' })
@@ -64,7 +66,7 @@ describe('viewedDocumentIds', () => {
     const res = await viewedDocumentIds(prisma, { userId: 'u1', documentIds: ['a', 'b', 'c'] });
     expect(mocked.documentViewMark.findMany).toHaveBeenCalledWith({
       where: { userId: 'u1', documentId: { in: ['a', 'b', 'c'] } },
-      select: { documentId: true }
+      select: { documentId: true },
     });
     expect(res.has('a')).toBe(true);
     expect(res.has('b')).toBe(false);

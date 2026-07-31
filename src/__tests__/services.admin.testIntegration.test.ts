@@ -1,17 +1,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-const { getSettingValue, sendEmail, warn, imapConnect, imapLogout, ImapFlowCtor } = vi.hoisted(() => {
-  const imapConnect = vi.fn();
-  const imapLogout = vi.fn();
-  return {
-    getSettingValue: vi.fn(),
-    sendEmail: vi.fn(),
-    warn: vi.fn(),
-    imapConnect,
-    imapLogout,
-    ImapFlowCtor: vi.fn(() => ({ connect: imapConnect, logout: imapLogout }))
-  };
-});
+const { getSettingValue, sendEmail, warn, imapConnect, imapLogout, ImapFlowCtor } = vi.hoisted(
+  () => {
+    const imapConnect = vi.fn();
+    const imapLogout = vi.fn();
+    return {
+      getSettingValue: vi.fn(),
+      sendEmail: vi.fn(),
+      warn: vi.fn(),
+      imapConnect,
+      imapLogout,
+      ImapFlowCtor: vi.fn(() => ({ connect: imapConnect, logout: imapLogout })),
+    };
+  }
+);
 vi.mock('@/lib/config/integrationSettings', () => ({ getSettingValue }));
 vi.mock('@/lib/email/send', () => ({ send: sendEmail }));
 vi.mock('@/lib/logging', () => ({ log: { warn } }));
@@ -27,14 +29,16 @@ const MANAGER = { sub: 'm1', role: 'manager' } as SessionPayload;
 function makePrisma() {
   return {
     user: { findUnique: vi.fn() },
-    syncState: { upsert: vi.fn().mockResolvedValue({}) }
+    syncState: { upsert: vi.fn().mockResolvedValue({}) },
   };
 }
 let prisma = makePrisma();
 
 /** getSettingValue отвечает по ключу из карты (нет ключа → null). */
 function settings(map: Record<string, string | null>) {
-  getSettingValue.mockImplementation((_p: unknown, key: string) => Promise.resolve(map[key] ?? null));
+  getSettingValue.mockImplementation((_p: unknown, key: string) =>
+    Promise.resolve(map[key] ?? null)
+  );
 }
 
 function fetchMock() {
@@ -138,7 +142,9 @@ describe('probe: telegram', () => {
     fetchMock().mockResolvedValue({ status: 401 });
     const res = await run('telegram');
     expect(res).toEqual({ ok: true, success: false, message: 'Авторизация отклонена (HTTP 401)' });
-    expect(fetchMock().mock.calls[0][0]).toBe('https://api.telegram.org/botsuper-secret-token/getMe');
+    expect(fetchMock().mock.calls[0][0]).toBe(
+      'https://api.telegram.org/botsuper-secret-token/getMe'
+    );
     expect((res as { message: string }).message).not.toContain('super-secret-token');
   });
 
@@ -149,7 +155,7 @@ describe('probe: telegram', () => {
     expect(res).toEqual({
       ok: true,
       success: false,
-      message: 'Сервис недоступен: сетевая ошибка или таймаут'
+      message: 'Сервис недоступен: сетевая ошибка или таймаут',
     });
   });
 });
@@ -205,14 +211,19 @@ describe('probe: imap', () => {
       'imap.user': 'u',
       'imap.password': 'p',
       'imap.port': '143',
-      'imap.tls': '0'
+      'imap.tls': '0',
     });
     imapConnect.mockResolvedValue(undefined);
     imapLogout.mockResolvedValue(undefined);
     const res = await run('imap');
     expect(res).toEqual({ ok: true, success: true, message: 'Подключение успешно' });
     expect(ImapFlowCtor).toHaveBeenCalledWith(
-      expect.objectContaining({ host: 'imap.x.ru', port: 143, secure: false, auth: { user: 'u', pass: 'p' } })
+      expect.objectContaining({
+        host: 'imap.x.ru',
+        port: 143,
+        secure: false,
+        auth: { user: 'u', pass: 'p' },
+      })
     );
   });
 
@@ -231,7 +242,7 @@ describe('probe: imap', () => {
     expect(res).toEqual({
       ok: true,
       success: false,
-      message: 'Не удалось подключиться: Authentication failed'
+      message: 'Не удалось подключиться: Authentication failed',
     });
   });
 
@@ -242,7 +253,7 @@ describe('probe: imap', () => {
     expect(res).toEqual({
       ok: true,
       success: false,
-      message: 'Не удалось подключиться: ошибка соединения'
+      message: 'Не удалось подключиться: ошибка соединения',
     });
   });
 });
@@ -276,7 +287,7 @@ describe('probe: onec', () => {
     settings({
       'onec.apiUrl': 'https://1c.example.ru/base/hs/exchange/',
       'onec.healthPath': '/health',
-      'onec.apiToken': 'onec-token'
+      'onec.apiToken': 'onec-token',
     });
     await run('onec');
     const [url, init] = fetchMock().mock.calls[0];
@@ -313,7 +324,11 @@ describe('probe: mango', () => {
   });
 
   it('кастомный base URL склеивается без двойного слэша', async () => {
-    settings({ 'mango.apiKey': 'k', 'mango.apiSalt': 's', 'mango.vpbxBaseUrl': 'https://m.example.ru/vpbx/' });
+    settings({
+      'mango.apiKey': 'k',
+      'mango.apiSalt': 's',
+      'mango.vpbxBaseUrl': 'https://m.example.ru/vpbx/',
+    });
     await run('mango');
     expect(fetchMock().mock.calls[0][0]).toBe('https://m.example.ru/vpbx/config/users/request');
   });
@@ -335,7 +350,7 @@ describe('probe: email', () => {
     expect(res).toEqual({
       ok: true,
       success: true,
-      message: 'Тестовое письмо отправлено на admin@x.ru'
+      message: 'Тестовое письмо отправлено на admin@x.ru',
     });
     expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: 'admin@x.ru' }));
   });
@@ -358,7 +373,7 @@ describe('probe: email', () => {
     expect(res).toEqual({
       ok: true,
       success: false,
-      message: 'Сервис недоступен: сетевая ошибка или таймаут'
+      message: 'Сервис недоступен: сетевая ошибка или таймаут',
     });
   });
 });

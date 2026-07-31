@@ -15,7 +15,7 @@ import type { ManagerOrgListRow } from '@/lib/services/manager/organizations';
 export function CallsOrgFilter({
   orgs,
   orgId,
-  direction
+  direction,
 }: {
   orgs: Pick<ManagerOrgListRow, 'id' | 'name'>[];
   orgId?: string;

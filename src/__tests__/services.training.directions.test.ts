@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { listDirections, createDirection, deactivateDirection } from '@/lib/services/training/directions';
+import {
+  listDirections,
+  createDirection,
+  deactivateDirection,
+} from '@/lib/services/training/directions';
 
 function session(role: string, managerRole: string | null = null) {
   return { sub: 'u1', role, managerRole, companyId: 'c1' } as any;
@@ -9,8 +13,8 @@ const prisma = {
   trainingDirection: {
     findMany: vi.fn(),
     create: vi.fn(),
-    update: vi.fn()
-  }
+    update: vi.fn(),
+  },
 } as any;
 
 beforeEach(() => {
@@ -50,7 +54,8 @@ describe('directions service', () => {
     const res = await deactivateDirection(prisma, session('admin'), { id: 'd1' });
     expect(res.ok).toBe(true);
     expect(prisma.trainingDirection.update).toHaveBeenCalledWith({
-      where: { id: 'd1' }, data: { isActive: false }
+      where: { id: 'd1' },
+      data: { isActive: false },
     });
   });
 });

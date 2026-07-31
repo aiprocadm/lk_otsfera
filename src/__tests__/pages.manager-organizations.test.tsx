@@ -13,12 +13,17 @@ vi.mock('@/lib/services/manager/organizations', () => ({ listOrganizations }));
 
 vi.mock('@/components/manager/manager-orgs-list', () => ({
   ManagerOrgsList: (props: { orgs: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'orgs-list' }, JSON.stringify(props.orgs))
+    React.createElement('div', { 'data-testid': 'orgs-list' }, JSON.stringify(props.orgs)),
 }));
 
 import ManagerOrganizationsPage from '@/app/manager/organizations/page';
 
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'member' as const,
+  companyId: 'c1',
+};
 
 describe('ManagerOrganizationsPage', () => {
   beforeEach(() => {

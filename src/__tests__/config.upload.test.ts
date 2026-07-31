@@ -1,8 +1,16 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { resolveMaxFileSizeMb, maxFileSizeBytes, DEFAULT_MAX_FILE_SIZE_MB, ALLOWED_MIME_TYPES } from '@/lib/config/upload';
+import {
+  resolveMaxFileSizeMb,
+  maxFileSizeBytes,
+  DEFAULT_MAX_FILE_SIZE_MB,
+  ALLOWED_MIME_TYPES,
+} from '@/lib/config/upload';
 
 const ORIG = process.env.DOCUMENT_MAX_FILE_SIZE_MB;
-afterEach(() => { if (ORIG === undefined) delete process.env.DOCUMENT_MAX_FILE_SIZE_MB; else process.env.DOCUMENT_MAX_FILE_SIZE_MB = ORIG; });
+afterEach(() => {
+  if (ORIG === undefined) delete process.env.DOCUMENT_MAX_FILE_SIZE_MB;
+  else process.env.DOCUMENT_MAX_FILE_SIZE_MB = ORIG;
+});
 
 describe('config/upload', () => {
   it('defaults to 200 MB (§11)', () => {
@@ -21,6 +29,10 @@ describe('config/upload', () => {
   });
   it('allow-list includes .doc and .docx (§13)', () => {
     expect(ALLOWED_MIME_TYPES.has('application/msword')).toBe(true);
-    expect(ALLOWED_MIME_TYPES.has('application/vnd.openxmlformats-officedocument.wordprocessingml.document')).toBe(true);
+    expect(
+      ALLOWED_MIME_TYPES.has(
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      )
+    ).toBe(true);
   });
 });

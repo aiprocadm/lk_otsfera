@@ -6,7 +6,10 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 const { claimOrderAction } = vi.hoisted(() => ({ claimOrderAction: vi.fn() }));
 vi.mock('@/server-actions/manager/orderAssignment', () => ({ claimOrderAction }));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 import { ClaimOrderButton } from '@/components/manager/claim-order-button';
@@ -17,20 +20,20 @@ describe('ClaimOrderButton', () => {
   });
 
   it('managerId != null — кнопка не рендерится (заказ уже закреплён)', () => {
-    const { container } = render(<ClaimOrderButton orderId='o1' managerId='m1' />);
+    const { container } = render(<ClaimOrderButton orderId="o1" managerId="m1" />);
     expect(container.innerHTML).toBe('');
     expect(screen.queryByRole('button')).toBeNull();
   });
 
   it('managerId === null — рендерит кнопку «Взять в работу»', () => {
-    render(<ClaimOrderButton orderId='o1' managerId={null} />);
+    render(<ClaimOrderButton orderId="o1" managerId={null} />);
     const button = screen.getByRole('button', { name: 'Взять в работу' }) as HTMLButtonElement;
     expect(button.disabled).toBe(false);
   });
 
   it('клик вызывает экшен с orderId; успех — success-тост', async () => {
     claimOrderAction.mockResolvedValue({ ok: true, changed: true });
-    render(<ClaimOrderButton orderId='o1' managerId={null} />);
+    render(<ClaimOrderButton orderId="o1" managerId={null} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Взять в работу' }));
 
@@ -41,7 +44,7 @@ describe('ClaimOrderButton', () => {
 
   it('already_assigned — локальная дельта поверх errorMessageRu (контекст самозабора)', async () => {
     claimOrderAction.mockResolvedValue({ ok: false, error: 'already_assigned' });
-    render(<ClaimOrderButton orderId='o1' managerId={null} />);
+    render(<ClaimOrderButton orderId="o1" managerId={null} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Взять в работу' }));
 
@@ -53,7 +56,7 @@ describe('ClaimOrderButton', () => {
 
   it('forbidden — локальная дельта (центральный текст «Нет прав на загрузку.» — про документы)', async () => {
     claimOrderAction.mockResolvedValue({ ok: false, error: 'forbidden' });
-    render(<ClaimOrderButton orderId='o1' managerId={null} />);
+    render(<ClaimOrderButton orderId="o1" managerId={null} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Взять в работу' }));
 
@@ -63,7 +66,7 @@ describe('ClaimOrderButton', () => {
 
   it('код вне локальной дельты падает в общий словарь errorMessageRu (not_found)', async () => {
     claimOrderAction.mockResolvedValue({ ok: false, error: 'not_found' });
-    render(<ClaimOrderButton orderId='o1' managerId={null} />);
+    render(<ClaimOrderButton orderId="o1" managerId={null} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Взять в работу' }));
 

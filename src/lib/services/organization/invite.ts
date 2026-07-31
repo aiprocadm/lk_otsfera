@@ -1,9 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import {
-  inviteMember,
-  OrgMemberError,
-  type InviteMemberResult
-} from './team';
+import { inviteMember, OrgMemberError, type InviteMemberResult } from './team';
 
 export type OrgInviteErrorCode = 'not_found' | 'forbidden';
 
@@ -56,7 +52,7 @@ export async function createOrgAdminInvite(
 ): Promise<InviteMemberResult> {
   const org = await prisma.organization.findUnique({
     where: { id: args.organizationId },
-    select: { id: true, partnerId: true }
+    select: { id: true, partnerId: true },
   });
   if (!org) throw new OrgInviteError('not_found');
 
@@ -72,7 +68,7 @@ export async function createOrgAdminInvite(
       organizationId: args.organizationId,
       email: args.email,
       name: args.name,
-      roleInOrg: 'admin'
+      roleInOrg: 'admin',
     },
     ctx.actorUserId,
     { source: ctx.source }
@@ -82,6 +78,6 @@ export async function createOrgAdminInvite(
   return {
     user: r.user,
     inviteUrl: r.inviteUrl,
-    alreadyHasPassword: r.alreadyHasPassword
+    alreadyHasPassword: r.alreadyHasPassword,
   };
 }

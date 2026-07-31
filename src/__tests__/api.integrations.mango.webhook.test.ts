@@ -51,7 +51,9 @@ describe('POST /api/integrations/mango/webhook', () => {
   it('404 когда флаг telephony_mango выключен (ingest не вызывается)', async () => {
     process.env.FEATURE_TELEPHONY_MANGO = '0';
     const json = JSON.stringify({ entry_id: 'e1' });
-    const res = await POST(req('https://app.local/api/integrations/mango/webhook?type=summary', json));
+    const res = await POST(
+      req('https://app.local/api/integrations/mango/webhook?type=summary', json)
+    );
     expect(res.status).toBe(404);
     expect(ingestCallEvent).not.toHaveBeenCalled();
   });
@@ -68,7 +70,9 @@ describe('POST /api/integrations/mango/webhook', () => {
   it('401 при валидном IP, но НЕВЕРНОЙ подписи', async () => {
     const json = JSON.stringify({ entry_id: 'e1' });
     const res = await POST(
-      req('https://app.local/api/integrations/mango/webhook?type=summary', json, { sign: 'wrong-sign' })
+      req('https://app.local/api/integrations/mango/webhook?type=summary', json, {
+        sign: 'wrong-sign',
+      })
     );
     expect(res.status).toBe(401);
     expect(ingestCallEvent).not.toHaveBeenCalled();
@@ -78,7 +82,9 @@ describe('POST /api/integrations/mango/webhook', () => {
     delete process.env.MANGO_API_KEY;
     delete process.env.MANGO_API_SALT;
     const json = JSON.stringify({ entry_id: 'e1' });
-    const res = await POST(req('https://app.local/api/integrations/mango/webhook?type=summary', json));
+    const res = await POST(
+      req('https://app.local/api/integrations/mango/webhook?type=summary', json)
+    );
     expect(res.status).toBe(401);
     expect(ingestCallEvent).not.toHaveBeenCalled();
   });
@@ -93,7 +99,9 @@ describe('POST /api/integrations/mango/webhook', () => {
       duration: 42,
       status: 'Answered',
     });
-    const res = await POST(req('https://app.local/api/integrations/mango/webhook?type=summary', json));
+    const res = await POST(
+      req('https://app.local/api/integrations/mango/webhook?type=summary', json)
+    );
     expect(res.status).toBe(200);
     expect(ingestCallEvent).toHaveBeenCalledTimes(1);
     expect(ingestCallEvent).toHaveBeenCalledWith(
@@ -128,7 +136,9 @@ describe('POST /api/integrations/mango/webhook', () => {
       recording_state: 'Completed',
       recording_id: 'rec-123',
     });
-    const res = await POST(req('https://app.local/api/integrations/mango/webhook?type=recording', json));
+    const res = await POST(
+      req('https://app.local/api/integrations/mango/webhook?type=recording', json)
+    );
     expect(res.status).toBe(200);
     expect(ingestCallEvent).toHaveBeenCalledWith(
       {},
@@ -140,7 +150,9 @@ describe('POST /api/integrations/mango/webhook', () => {
 
   it('malformed JSON тело (но валидная подпись над этой строкой) → 200, ingest не вызывается', async () => {
     const json = '{ not valid json';
-    const res = await POST(req('https://app.local/api/integrations/mango/webhook?type=summary', json));
+    const res = await POST(
+      req('https://app.local/api/integrations/mango/webhook?type=summary', json)
+    );
     expect(res.status).toBe(200);
     expect(ingestCallEvent).not.toHaveBeenCalled();
     expect(addMock).not.toHaveBeenCalled();
@@ -156,7 +168,9 @@ describe('POST /api/integrations/mango/webhook', () => {
       duration: 5,
       status: 'Answered',
     });
-    const res = await POST(req('https://app.local/api/integrations/mango/webhook?type=summary', json));
+    const res = await POST(
+      req('https://app.local/api/integrations/mango/webhook?type=summary', json)
+    );
     expect(res.status).toBe(200);
   });
 
@@ -168,7 +182,9 @@ describe('POST /api/integrations/mango/webhook', () => {
       recording_state: 'Completed',
       recording_id: 'rec-9',
     });
-    const res = await POST(req('https://app.local/api/integrations/mango/webhook?type=recording', json));
+    const res = await POST(
+      req('https://app.local/api/integrations/mango/webhook?type=recording', json)
+    );
     expect(res.status).toBe(200);
   });
 
@@ -182,7 +198,9 @@ describe('POST /api/integrations/mango/webhook', () => {
       duration: 5,
       status: 'Answered',
     });
-    const res = await POST(req('https://app.local/api/integrations/mango/webhook?type=summary', json));
+    const res = await POST(
+      req('https://app.local/api/integrations/mango/webhook?type=summary', json)
+    );
     expect(res.status).toBe(200);
   });
 
@@ -194,7 +212,9 @@ describe('POST /api/integrations/mango/webhook', () => {
       recording_state: 'Completed',
       recording_id: 'rec-11',
     });
-    const res = await POST(req('https://app.local/api/integrations/mango/webhook?type=recording', json));
+    const res = await POST(
+      req('https://app.local/api/integrations/mango/webhook?type=recording', json)
+    );
     expect(res.status).toBe(200);
   });
 
@@ -208,7 +228,9 @@ describe('POST /api/integrations/mango/webhook', () => {
       recording_state: 'Completed',
       recording_id: 'rec-10',
     });
-    const res = await POST(req('https://app.local/api/integrations/mango/webhook?type=recording', json));
+    const res = await POST(
+      req('https://app.local/api/integrations/mango/webhook?type=recording', json)
+    );
     expect(res.status).toBe(200);
     expect(addMock).not.toHaveBeenCalled();
   });
@@ -217,13 +239,17 @@ describe('POST /api/integrations/mango/webhook', () => {
 describe('диагностика вебхука (ФТ-14.4)', () => {
   it('подписанное событие → отметка webhook.mango; неверная подпись → отметки нет', async () => {
     const json = JSON.stringify({ entry_id: 'diag1' });
-    const ok = await POST(req('https://app.local/api/integrations/mango/webhook?type=summary', json));
+    const ok = await POST(
+      req('https://app.local/api/integrations/mango/webhook?type=summary', json)
+    );
     expect(ok.status).toBe(200);
     expect(recordWebhookEvent).toHaveBeenCalledWith(expect.anything(), 'mango');
 
     recordWebhookEvent.mockClear();
     const denied = await POST(
-      req('https://app.local/api/integrations/mango/webhook?type=summary', json, { sign: 'wrong-sign' })
+      req('https://app.local/api/integrations/mango/webhook?type=summary', json, {
+        sign: 'wrong-sign',
+      })
     );
     expect(denied.status).toBe(401);
     expect(recordWebhookEvent).not.toHaveBeenCalled();

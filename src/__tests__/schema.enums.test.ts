@@ -32,8 +32,15 @@ describe('Schema enums (parsed from prisma/schema.prisma)', () => {
   it('DocumentType covers all required document kinds', () => {
     expect(enumValues('DocumentType')).toEqual(
       expect.arrayContaining([
-        'contract', 'extra_agreement', 'invoice', 'act', 'waybill',
-        'certificate', 'report', 'commission_statement', 'other'
+        'contract',
+        'extra_agreement',
+        'invoice',
+        'act',
+        'waybill',
+        'certificate',
+        'report',
+        'commission_statement',
+        'other',
       ])
     );
   });
@@ -45,9 +52,7 @@ describe('Schema enums (parsed from prisma/schema.prisma)', () => {
   });
 
   it('GenerationSource has user and system', () => {
-    expect(enumValues('GenerationSource')).toEqual(
-      expect.arrayContaining(['user', 'system'])
-    );
+    expect(enumValues('GenerationSource')).toEqual(expect.arrayContaining(['user', 'system']));
   });
 
   // Этап 11 PR-3 (ФТ-15.7): enum NotificationType удалён из схемы. Он был

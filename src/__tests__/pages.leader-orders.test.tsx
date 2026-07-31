@@ -10,8 +10,8 @@ const { requireManagerLeader } = vi.hoisted(() => ({ requireManagerLeader: vi.fn
 vi.mock('@/lib/services/orderStatuses', () => ({
   getOrderedStatuses: async () => [
     { id: 'st-1', label: 'Принято в работу', isActive: true },
-    { id: 'st-2', label: 'Выключенный', isActive: false }
-  ]
+    { id: 'st-2', label: 'Выключенный', isActive: false },
+  ],
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireManagerLeader }));
@@ -32,7 +32,7 @@ vi.mock('@/components/manager/manager-orders-filter', () => ({
       props.basePath,
       JSON.stringify(props.orgs),
       JSON.stringify(props.initial)
-    )
+    ),
 }));
 
 vi.mock('@/components/manager/manager-orders-table', () => ({
@@ -43,16 +43,25 @@ vi.mock('@/components/manager/manager-orders-table', () => ({
       props.basePath,
       String(props.nextCursor),
       JSON.stringify(props.rows)
-    )
+    ),
 }));
 
 vi.mock('@/components/manager/manager-orders-card-list', () => ({
   ManagerOrdersCardList: (props: { rows: unknown[]; basePath?: string }) =>
-    React.createElement('div', { 'data-testid': 'orders-cards' }, props.basePath, JSON.stringify(props.rows))
+    React.createElement(
+      'div',
+      { 'data-testid': 'orders-cards' },
+      props.basePath,
+      JSON.stringify(props.rows)
+    ),
 }));
 
-
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'leader' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'leader' as const,
+  companyId: 'c1',
+};
 
 describe('LeaderOrdersPage', () => {
   beforeEach(() => {
@@ -89,7 +98,7 @@ describe('LeaderOrdersPage', () => {
       executionStatus: 'in_progress',
       financialStatus: 'not_billed',
       organizationId: 'org1',
-      cursor: 'cursor-1'
+      cursor: 'cursor-1',
     };
 
     const { container } = await renderServerComponent(
@@ -134,7 +143,9 @@ describe('LeaderOrdersPage — выгрузка в Excel', () => {
 
   it('ссылка несёт scope=company (company-wide режим кабинета) и фильтры', async () => {
     const { container } = await renderServerComponent(
-      LeaderOrdersPage({ searchParams: Promise.resolve({ search: 'abc', financialStatus: 'paid' }) })
+      LeaderOrdersPage({
+        searchParams: Promise.resolve({ search: 'abc', financialStatus: 'paid' }),
+      })
     );
     const href = container
       .querySelector('a[href*="/api/manager/orders/export"]')!

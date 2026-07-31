@@ -46,7 +46,14 @@ function makePollFn(
 }
 
 function makeRow(id: string, createdAt: string): PolledRow {
-  return { id, authorId: 'a1', body: 'hello', hasAttachment: false, authorName: 'Alice', createdAt };
+  return {
+    id,
+    authorId: 'a1',
+    body: 'hello',
+    hasAttachment: false,
+    authorName: 'Alice',
+    createdAt,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -67,7 +74,7 @@ describe('useThreadPolling — poll function logic', () => {
     const rows = [makeRow('msg-1', '2024-01-01T12:00:00Z')];
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ rows })
+      json: () => Promise.resolve({ rows }),
     } as unknown as Response);
     vi.stubGlobal('fetch', mockFetch);
 
@@ -92,12 +99,16 @@ describe('useThreadPolling — poll function logic', () => {
   it('does NOT fetch when threadId is null', async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ rows: [] })
+      json: () => Promise.resolve({ rows: [] }),
     } as unknown as Response);
     vi.stubGlobal('fetch', mockFetch);
 
     const onNew = vi.fn();
-    const poll = makePollFn(() => null, () => null, onNew);
+    const poll = makePollFn(
+      () => null,
+      () => null,
+      onNew
+    );
 
     await poll();
 
@@ -108,12 +119,16 @@ describe('useThreadPolling — poll function logic', () => {
   it('does NOT call onNew when fetch returns empty rows', async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ rows: [] })
+      json: () => Promise.resolve({ rows: [] }),
     } as unknown as Response);
     vi.stubGlobal('fetch', mockFetch);
 
     const onNew = vi.fn();
-    const poll = makePollFn(() => 'thread-xyz', () => null, onNew);
+    const poll = makePollFn(
+      () => 'thread-xyz',
+      () => null,
+      onNew
+    );
 
     await poll();
 
@@ -124,12 +139,16 @@ describe('useThreadPolling — poll function logic', () => {
   it('fetches without after= when cursor is null', async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ rows: [] })
+      json: () => Promise.resolve({ rows: [] }),
     } as unknown as Response);
     vi.stubGlobal('fetch', mockFetch);
 
     const onNew = vi.fn();
-    const poll = makePollFn(() => 'thread-abc', () => null, onNew);
+    const poll = makePollFn(
+      () => 'thread-abc',
+      () => null,
+      onNew
+    );
 
     await poll();
 
@@ -143,7 +162,11 @@ describe('useThreadPolling — poll function logic', () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network')));
 
     const onNew = vi.fn();
-    const poll = makePollFn(() => 'thread-abc', () => null, onNew);
+    const poll = makePollFn(
+      () => 'thread-abc',
+      () => null,
+      onNew
+    );
 
     // Should not throw
     await expect(poll()).resolves.toBeUndefined();
@@ -154,7 +177,11 @@ describe('useThreadPolling — poll function logic', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false } as Response));
 
     const onNew = vi.fn();
-    const poll = makePollFn(() => 'thread-abc', () => null, onNew);
+    const poll = makePollFn(
+      () => 'thread-abc',
+      () => null,
+      onNew
+    );
 
     await poll();
     expect(onNew).not.toHaveBeenCalled();
@@ -167,7 +194,7 @@ describe('useThreadPolling — poll function logic', () => {
       callCount++;
       return Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({ rows })
+        json: () => Promise.resolve({ rows }),
       } as unknown as Response);
     });
     vi.stubGlobal('fetch', mockFetch);
@@ -176,7 +203,15 @@ describe('useThreadPolling — poll function logic', () => {
 
     // Simulate interval manually (mimics how setInterval fires the poll)
     const INTERVAL = 1000;
-    const intervalId = setInterval(() => { void (async () => { await makePollFn(() => 'thread-abc', () => null, onNew)(); })(); }, INTERVAL);
+    const intervalId = setInterval(() => {
+      void (async () => {
+        await makePollFn(
+          () => 'thread-abc',
+          () => null,
+          onNew
+        )();
+      })();
+    }, INTERVAL);
 
     await vi.advanceTimersByTimeAsync(INTERVAL * 3 + 50);
 

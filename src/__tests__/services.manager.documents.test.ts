@@ -1,9 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
-import {
-  listDocuments,
-  getDocumentForDownload
-} from '@/lib/services/manager/documents';
+import { listDocuments, getDocumentForDownload } from '@/lib/services/manager/documents';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 let prisma: PrismaClient;
@@ -39,20 +36,20 @@ beforeAll(async () => {
   const company = await prisma.company.create({ data: { name: `MgrDocC-${stamp}` } });
   companyId = company.id;
   const partner = await prisma.partner.create({
-    data: { name: `MgrDocP-${stamp}`, commissionRate: 0.1 }
+    data: { name: `MgrDocP-${stamp}`, commissionRate: 0.1 },
   });
   partnerId = partner.id;
   const foreignPartner = await prisma.partner.create({
-    data: { name: `MgrDocFP-${stamp}`, commissionRate: 0.1 }
+    data: { name: `MgrDocFP-${stamp}`, commissionRate: 0.1 },
   });
   foreignPartnerId = foreignPartner.id;
 
   const orgA = await prisma.organization.create({
-    data: { name: `MgrDocOrgA-${stamp}`, partnerId, companyId }
+    data: { name: `MgrDocOrgA-${stamp}`, partnerId, companyId },
   });
   orgAId = orgA.id;
   const orgB = await prisma.organization.create({
-    data: { name: `MgrDocOrgB-${stamp}`, partnerId, companyId }
+    data: { name: `MgrDocOrgB-${stamp}`, partnerId, companyId },
   });
   orgBId = orgB.id;
 
@@ -61,8 +58,8 @@ beforeAll(async () => {
       email: `mgr-doc-a-${stamp}@t.local`,
       passwordHash: 'x',
       name: 'Manager A',
-      role: 'manager'
-    }
+      role: 'manager',
+    },
   });
   userAId = userA.id;
   const userB = await prisma.user.create({
@@ -70,8 +67,8 @@ beforeAll(async () => {
       email: `mgr-doc-b-${stamp}@t.local`,
       passwordHash: 'x',
       name: 'Manager B',
-      role: 'manager'
-    }
+      role: 'manager',
+    },
   });
   userBId = userB.id;
   const userC = await prisma.user.create({
@@ -79,17 +76,17 @@ beforeAll(async () => {
       email: `mgr-doc-c-${stamp}@t.local`,
       passwordHash: 'x',
       name: 'Manager C',
-      role: 'manager'
-    }
+      role: 'manager',
+    },
   });
   userCId = userC.id;
 
   // userA → orgA; userB → orgB; userC has no org assignment.
   await prisma.organizationManager.create({
-    data: { organizationId: orgAId, userId: userAId, isActive: true }
+    data: { organizationId: orgAId, userId: userAId, isActive: true },
   });
   await prisma.organizationManager.create({
-    data: { organizationId: orgBId, userId: userBId, isActive: true }
+    data: { organizationId: orgBId, userId: userBId, isActive: true },
   });
 
   const oA = await prisma.order.create({
@@ -99,8 +96,8 @@ beforeAll(async () => {
       companyId,
       partnerId,
       organizationId: orgAId,
-      executionStatus: 'in_progress'
-    }
+      executionStatus: 'in_progress',
+    },
   });
   orderOrgAId = oA.id;
 
@@ -111,8 +108,8 @@ beforeAll(async () => {
       companyId,
       partnerId,
       organizationId: orgBId,
-      executionStatus: 'pending'
-    }
+      executionStatus: 'pending',
+    },
   });
   orderOrgBId = oB.id;
 
@@ -124,8 +121,8 @@ beforeAll(async () => {
       partnerId,
       organizationId: orgBId,
       managerId: userCId,
-      executionStatus: 'in_progress'
-    }
+      executionStatus: 'in_progress',
+    },
   });
   orderManagerCId = oMC.id;
 
@@ -136,8 +133,8 @@ beforeAll(async () => {
       companyId,
       partnerId: foreignPartnerId,
       organizationId: orgAId, // sits in orgA but linked to foreign partner
-      executionStatus: 'completed'
-    }
+      executionStatus: 'completed',
+    },
   });
   orderForeignId = oF.id;
 
@@ -149,8 +146,8 @@ beforeAll(async () => {
       type: 'contract',
       orderId: orderOrgAId,
       counterpartyType: 'organization',
-      counterpartyId: orgAId
-    }
+      counterpartyId: orgAId,
+    },
   });
   docOrgAContractId = dA.id;
 
@@ -164,8 +161,8 @@ beforeAll(async () => {
       scanStatus: 'infected',
       scanReason: 'EICAR test',
       counterpartyType: 'organization',
-      counterpartyId: orgAId
-    }
+      counterpartyId: orgAId,
+    },
   });
   docOrgAInfectedId = dAInf.id;
 
@@ -177,8 +174,8 @@ beforeAll(async () => {
       type: 'invoice',
       orderId: orderOrgBId,
       counterpartyType: 'organization',
-      counterpartyId: orgBId
-    }
+      counterpartyId: orgBId,
+    },
   });
   docOrgBId = dB.id;
 
@@ -190,8 +187,8 @@ beforeAll(async () => {
       type: 'act',
       orderId: orderManagerCId,
       counterpartyType: 'organization',
-      counterpartyId: orgBId
-    }
+      counterpartyId: orgBId,
+    },
   });
   docManagerCId = dMC.id;
 
@@ -203,8 +200,8 @@ beforeAll(async () => {
       type: 'other',
       orderId: orderForeignId,
       counterpartyType: 'organization',
-      counterpartyId: orgAId
-    }
+      counterpartyId: orgAId,
+    },
   });
   docForeignId = dF.id;
 });
@@ -217,11 +214,8 @@ afterAll(async () => {
   await prisma.auditLog.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.comment.deleteMany({
     where: {
-      OR: [
-        { authorId: { in: userIds } },
-        { order: { organizationId: { in: orgIds } } }
-      ]
-    }
+      OR: [{ authorId: { in: userIds } }, { order: { organizationId: { in: orgIds } } }],
+    },
   });
   await prisma.document.deleteMany({ where: { order: { organizationId: { in: orgIds } } } });
   await prisma.order.deleteMany({ where: { organizationId: { in: orgIds } } });
@@ -229,7 +223,7 @@ afterAll(async () => {
   await prisma.user.deleteMany({ where: { id: { in: userIds } } });
   await prisma.organization.deleteMany({ where: { id: { in: orgIds } } });
   await prisma.partner.deleteMany({
-    where: { id: { in: [partnerId, foreignPartnerId] } }
+    where: { id: { in: [partnerId, foreignPartnerId] } },
   });
   await prisma.company.delete({ where: { id: companyId } });
   await prisma.$disconnect();
@@ -269,8 +263,8 @@ describe('services/manager/documents — listDocuments RBAC scope', () => {
         email: `mgr-doc-ghost-${Date.now()}@t.local`,
         passwordHash: 'x',
         role: 'manager',
-        name: 'Ghost'
-      }
+        name: 'Ghost',
+      },
     });
     try {
       const session = managerSession(ghost.id, []);
@@ -288,7 +282,7 @@ describe('services/manager/documents — listDocuments filters', () => {
     const { rows } = await listDocuments(prisma, {
       session,
       orderId: orderManagerCId,
-      take: 100
+      take: 100,
     });
     expect(rows.map((r) => r.id)).toEqual([docManagerCId]);
   });
@@ -298,7 +292,7 @@ describe('services/manager/documents — listDocuments filters', () => {
     const { rows } = await listDocuments(prisma, {
       session,
       orderId: orderOrgBId,
-      take: 100
+      take: 100,
     });
     expect(rows).toEqual([]);
   });
@@ -308,7 +302,7 @@ describe('services/manager/documents — listDocuments filters', () => {
     const { rows } = await listDocuments(prisma, {
       session,
       type: 'act',
-      take: 100
+      take: 100,
     });
     expect(rows.map((r) => r.id)).toEqual([docManagerCId]);
   });
@@ -318,7 +312,7 @@ describe('services/manager/documents — listDocuments filters', () => {
     const { rows } = await listDocuments(prisma, {
       session,
       search: 'INVOICE',
-      take: 100
+      take: 100,
     });
     expect(rows.map((r) => r.id)).toEqual([docOrgBId]);
   });
@@ -331,7 +325,7 @@ describe('services/manager/documents — listDocuments filters', () => {
     const second = await listDocuments(prisma, {
       session,
       take: 1,
-      cursor: first.nextCursor!
+      cursor: first.nextCursor!,
     });
     expect(second.rows.length).toBe(1);
     expect(second.rows[0]!.id).not.toBe(first.rows[0]!.id);
@@ -349,9 +343,7 @@ describe('services/manager/documents — listDocuments filters', () => {
 
   it('rejects take > 100 via zod validation', async () => {
     const session = managerSession(userAId, [orgAId]);
-    await expect(
-      listDocuments(prisma, { session, take: 9999 })
-    ).rejects.toThrow();
+    await expect(listDocuments(prisma, { session, take: 9999 })).rejects.toThrow();
   });
 });
 
@@ -398,7 +390,7 @@ describe('services/manager/documents — getDocumentForDownload', () => {
 
   it('comments-history path: userA keeps seeing orgB doc via past comment after assignment removed', async () => {
     await prisma.comment.create({
-      data: { orderId: orderOrgBId, body: 'historical reply', authorId: userAId }
+      data: { orderId: orderOrgBId, body: 'historical reply', authorId: userAId },
     });
     await prisma.organizationManager.deleteMany({ where: { userId: userAId } });
 
@@ -408,7 +400,7 @@ describe('services/manager/documents — getDocumentForDownload', () => {
       expect(r.ok).toBe(true);
     } finally {
       await prisma.organizationManager.create({
-        data: { organizationId: orgAId, userId: userAId, isActive: true }
+        data: { organizationId: orgAId, userId: userAId, isActive: true },
       });
     }
   });

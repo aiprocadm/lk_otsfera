@@ -23,8 +23,8 @@ async function createPromotedOrder(
       clientContactName: 'Контакт',
       subject: 'portfolio-it',
       status: 'promoted_to_order',
-      promotedOrderId: order.id
-    }
+      promotedOrderId: order.id,
+    },
   });
 }
 
@@ -43,48 +43,63 @@ beforeAll(async () => {
       role: 'partner',
       partnerId,
       passwordHash: null,
-      isActive: true
-    }
+      isActive: true,
+    },
   });
   userId = user.id;
 
   const company = await prisma.company.create({ data: { name: 'C-' + Date.now() } });
 
   const withDebt = await prisma.organization.create({
-    data: { name: 'OrgДолг', partnerId, companyId: company.id, inn: '7700000001' }
+    data: { name: 'OrgДолг', partnerId, companyId: company.id, inn: '7700000001' },
   });
   const clean = await prisma.organization.create({
-    data: { name: 'OrgЧистый', partnerId, companyId: company.id, inn: '7700000002' }
+    data: { name: 'OrgЧистый', partnerId, companyId: company.id, inn: '7700000002' },
   });
   const empty = await prisma.organization.create({
-    data: { name: 'OrgПустой', partnerId, companyId: company.id, inn: '7700000003' }
+    data: { name: 'OrgПустой', partnerId, companyId: company.id, inn: '7700000003' },
   });
   const otherPartnerOrg = await prisma.organization.create({
-    data: { name: 'OrgЧужой', partnerId: otherPartnerId, companyId: company.id }
+    data: { name: 'OrgЧужой', partnerId: otherPartnerId, companyId: company.id },
   });
 
   await createPromotedOrder({
-    title: 'Заказ с долгом', companyId: company.id, partnerId, organizationId: withDebt.id,
-    totalAmount: 100000, paidAmount: 40000,
-    executionStatus: 'in_progress', financialStatus: 'partially_paid'
+    title: 'Заказ с долгом',
+    companyId: company.id,
+    partnerId,
+    organizationId: withDebt.id,
+    totalAmount: 100000,
+    paidAmount: 40000,
+    executionStatus: 'in_progress',
+    financialStatus: 'partially_paid',
   });
   // Отменённый заказ: попадает в ordersCount, но исключён из debt.
   await createPromotedOrder({
-    title: 'Отменённый', companyId: company.id, partnerId, organizationId: withDebt.id,
-    totalAmount: 77000, paidAmount: 0,
-    executionStatus: 'cancelled', financialStatus: 'not_billed'
+    title: 'Отменённый',
+    companyId: company.id,
+    partnerId,
+    organizationId: withDebt.id,
+    totalAmount: 77000,
+    paidAmount: 0,
+    executionStatus: 'cancelled',
+    financialStatus: 'not_billed',
   });
   await createPromotedOrder({
-    title: 'Завершённая', companyId: company.id, partnerId, organizationId: clean.id,
-    totalAmount: 50000, paidAmount: 50000,
-    executionStatus: 'completed', financialStatus: 'paid'
+    title: 'Завершённая',
+    companyId: company.id,
+    partnerId,
+    organizationId: clean.id,
+    totalAmount: 50000,
+    paidAmount: 50000,
+    executionStatus: 'completed',
+    financialStatus: 'paid',
   });
 
   orgIds = {
     withDebt: withDebt.id,
     clean: clean.id,
     empty: empty.id,
-    otherPartner: otherPartnerOrg.id
+    otherPartner: otherPartnerOrg.id,
   };
 });
 
@@ -92,7 +107,9 @@ afterAll(async () => {
   // Lead.promotedOrderId → Order: лиды удаляются до заказов.
   await prisma.lead.deleteMany({ where: { partnerId: { in: [partnerId, otherPartnerId] } } });
   await prisma.order.deleteMany({ where: { partnerId: { in: [partnerId, otherPartnerId] } } });
-  await prisma.organization.deleteMany({ where: { partnerId: { in: [partnerId, otherPartnerId] } } });
+  await prisma.organization.deleteMany({
+    where: { partnerId: { in: [partnerId, otherPartnerId] } },
+  });
   await prisma.user.delete({ where: { id: userId } });
   await prisma.partner.deleteMany({ where: { id: { in: [partnerId, otherPartnerId] } } });
   await prisma.company.deleteMany({ where: { name: { startsWith: 'C-' } } });
@@ -133,7 +150,10 @@ describe('listPortfolio', () => {
 
   it('returns empty page when search matches nothing (no KPI query issued)', async () => {
     const result = await listPortfolio(prisma, {
-      partnerId, search: 'нет-такой-организации-zzz', take: 50, skip: 0
+      partnerId,
+      search: 'нет-такой-организации-zzz',
+      take: 50,
+      skip: 0,
     });
     expect(result.items).toEqual([]);
     expect(result.total).toBe(0);
@@ -144,7 +164,7 @@ describe('listPortfolio', () => {
       partnerId,
       scopeOrgIds: [orgIds.withDebt],
       take: 50,
-      skip: 0
+      skip: 0,
     });
     const names = result.items.map((o) => o.name);
     expect(names).toEqual(['OrgДолг']);
@@ -152,7 +172,10 @@ describe('listPortfolio', () => {
 
   it('filters by name search (case-insensitive substring)', async () => {
     const result = await listPortfolio(prisma, {
-      partnerId, search: 'долг', take: 50, skip: 0
+      partnerId,
+      search: 'долг',
+      take: 50,
+      skip: 0,
     });
     expect(result.items.map((o) => o.name)).toEqual(['OrgДолг']);
   });

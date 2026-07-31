@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const { getSettingValue, warn } = vi.hoisted(() => ({
   getSettingValue: vi.fn(),
-  warn: vi.fn()
+  warn: vi.fn(),
 }));
 vi.mock('@/lib/config/integrationSettings', () => ({ getSettingValue }));
 vi.mock('@/lib/logging', () => ({ log: { warn } }));
@@ -13,7 +13,9 @@ const prisma = {} as never;
 
 /** Помощник: getSettingValue отвечает по ключу. */
 function settings(map: Record<string, string | null>) {
-  getSettingValue.mockImplementation((_p: unknown, key: string) => Promise.resolve(map[key] ?? null));
+  getSettingValue.mockImplementation((_p: unknown, key: string) =>
+    Promise.resolve(map[key] ?? null)
+  );
 }
 
 describe('normalizeParty', () => {
@@ -28,16 +30,16 @@ describe('normalizeParty', () => {
       suggestions: [
         {
           value: 'ООО Ромашка',
-          data: { inn: '7701', kpp: '770101001', ogrn: '102', address: { value: 'Москва' } }
+          data: { inn: '7701', kpp: '770101001', ogrn: '102', address: { value: 'Москва' } },
         },
         { value: 'Без ИНН', data: { inn: 123 } }, // inn не строка → пропуск
         { data: { inn: '7702' } }, // нет value → пропуск
-        { value: 'Мин поля', data: { inn: '7703' } } // без kpp/ogrn/address → null
-      ]
+        { value: 'Мин поля', data: { inn: '7703' } }, // без kpp/ogrn/address → null
+      ],
     };
     expect(normalizeParty(body)).toEqual([
       { name: 'ООО Ромашка', inn: '7701', kpp: '770101001', ogrn: '102', address: 'Москва' },
-      { name: 'Мин поля', inn: '7703', kpp: null, ogrn: null, address: null }
+      { name: 'Мин поля', inn: '7703', kpp: null, ogrn: null, address: null },
     ]);
   });
 
@@ -79,7 +81,7 @@ describe('suggestParty', () => {
     settings({ 'dadata.enabled': '1', 'dadata.apiKey': 'secret-key' });
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: async () => ({ suggestions: [{ value: 'Сбербанк', data: { inn: '7707' } }] })
+      json: async () => ({ suggestions: [{ value: 'Сбербанк', data: { inn: '7707' } }] }),
     });
 
     const res = await suggestParty(prisma, ' сбер ');

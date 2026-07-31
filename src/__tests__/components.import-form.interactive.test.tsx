@@ -6,7 +6,7 @@ import type { BatchSummary } from '@/lib/services/oneCSync/record-batch';
 
 const { previewImportAction, commitImportAction } = vi.hoisted(() => ({
   previewImportAction: vi.fn(),
-  commitImportAction: vi.fn()
+  commitImportAction: vi.fn(),
 }));
 vi.mock('@/server-actions/import', () => ({ previewImportAction, commitImportAction }));
 
@@ -23,7 +23,7 @@ function emptySummary(overrides: Partial<BatchSummary> = {}): BatchSummary {
     skips: [],
     invalids: [],
     failures: [],
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -60,8 +60,8 @@ describe('ImportForm (interactive, jsdom)', () => {
       ok: true,
       report: {
         orders: emptySummary({ pulled: 5, created: 3, updated: 2 }),
-        payments: emptySummary({ pulled: 4, created: 4 })
-      }
+        payments: emptySummary({ pulled: 4, created: 4 }),
+      },
     });
     render(React.createElement(ImportForm));
     const input = screen.getByTestId('import-file-input') as HTMLInputElement;
@@ -84,7 +84,10 @@ describe('ImportForm (interactive, jsdom)', () => {
         })
     );
     render(React.createElement(ImportForm));
-    pickFile(screen.getByTestId('import-file-input') as HTMLInputElement, new File(['x'], 'a.xlsx'));
+    pickFile(
+      screen.getByTestId('import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
     fireEvent.click(screen.getByTestId('import-preview-button'));
 
     expect(await screen.findByText('Загрузка…')).toBeTruthy();
@@ -95,7 +98,10 @@ describe('ImportForm (interactive, jsdom)', () => {
   it('preview failure (forbidden): shows the mapped error message in an alert, no plan section', async () => {
     previewImportAction.mockResolvedValue({ ok: false, error: 'forbidden' });
     render(React.createElement(ImportForm));
-    pickFile(screen.getByTestId('import-file-input') as HTMLInputElement, new File(['x'], 'a.xlsx'));
+    pickFile(
+      screen.getByTestId('import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
     fireEvent.click(screen.getByTestId('import-preview-button'));
 
     expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Недостаточно прав');
@@ -106,12 +112,15 @@ describe('ImportForm (interactive, jsdom)', () => {
     for (const [code, expected] of [
       ['invalid_file', 'Выберите .xlsx файл (не более 20 МБ)'],
       ['empty', 'Файл пуст или нет валидных строк'],
-      ['parse_failed', 'Не удалось разобрать файл']
+      ['parse_failed', 'Не удалось разобрать файл'],
     ] as const) {
       previewImportAction.mockReset();
       previewImportAction.mockResolvedValue({ ok: false, error: code });
       const { unmount } = render(React.createElement(ImportForm));
-      pickFile(screen.getByTestId('import-file-input') as HTMLInputElement, new File(['x'], 'a.xlsx'));
+      pickFile(
+        screen.getByTestId('import-file-input') as HTMLInputElement,
+        new File(['x'], 'a.xlsx')
+      );
       fireEvent.click(screen.getByTestId('import-preview-button'));
       expect(await screen.findByText(expected)).toBeTruthy();
       unmount();
@@ -121,7 +130,10 @@ describe('ImportForm (interactive, jsdom)', () => {
   it('preview failure with an unmapped code falls back to "Ошибка: <code>"', async () => {
     previewImportAction.mockResolvedValue({ ok: false, error: 'weird_code' });
     render(React.createElement(ImportForm));
-    pickFile(screen.getByTestId('import-file-input') as HTMLInputElement, new File(['x'], 'a.xlsx'));
+    pickFile(
+      screen.getByTestId('import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
     fireEvent.click(screen.getByTestId('import-preview-button'));
     expect(await screen.findByText('Ошибка: weird_code')).toBeTruthy();
   });
@@ -147,13 +159,16 @@ describe('ImportForm (interactive, jsdom)', () => {
           skipped: 1,
           invalid: 1,
           skips: [{ externalId: 'EXT-1', reason: 'дубликат' }],
-          invalids: [{ externalId: null, issue: 'нет даты' }]
+          invalids: [{ externalId: null, issue: 'нет даты' }],
         }),
-        payments: emptySummary()
-      }
+        payments: emptySummary(),
+      },
     });
     render(React.createElement(ImportForm));
-    pickFile(screen.getByTestId('import-file-input') as HTMLInputElement, new File(['x'], 'a.xlsx'));
+    pickFile(
+      screen.getByTestId('import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
     fireEvent.click(screen.getByTestId('import-preview-button'));
 
     await screen.findByTestId('import-plan');
@@ -166,10 +181,13 @@ describe('ImportForm (interactive, jsdom)', () => {
   it('ReasonsTable renders nothing when there are no skips/invalids (rows.length===0 branch)', async () => {
     previewImportAction.mockResolvedValue({
       ok: true,
-      report: { orders: emptySummary({ pulled: 1, created: 1 }), payments: emptySummary() }
+      report: { orders: emptySummary({ pulled: 1, created: 1 }), payments: emptySummary() },
     });
     render(React.createElement(ImportForm));
-    pickFile(screen.getByTestId('import-file-input') as HTMLInputElement, new File(['x'], 'a.xlsx'));
+    pickFile(
+      screen.getByTestId('import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
     fireEvent.click(screen.getByTestId('import-preview-button'));
 
     await screen.findByTestId('import-plan');
@@ -180,12 +198,19 @@ describe('ImportForm (interactive, jsdom)', () => {
     previewImportAction.mockResolvedValue({
       ok: true,
       report: {
-        orders: emptySummary({ pulled: 1, failed: 1, failures: [{ externalId: 'X', error: 'boom' }] }),
-        payments: emptySummary()
-      }
+        orders: emptySummary({
+          pulled: 1,
+          failed: 1,
+          failures: [{ externalId: 'X', error: 'boom' }],
+        }),
+        payments: emptySummary(),
+      },
     });
     render(React.createElement(ImportForm));
-    pickFile(screen.getByTestId('import-file-input') as HTMLInputElement, new File(['x'], 'a.xlsx'));
+    pickFile(
+      screen.getByTestId('import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
     fireEvent.click(screen.getByTestId('import-preview-button'));
 
     await screen.findByTestId('import-plan');
@@ -195,14 +220,23 @@ describe('ImportForm (interactive, jsdom)', () => {
   it('commit success: shows the success banner + final summaries, hides the commit button', async () => {
     previewImportAction.mockResolvedValue({
       ok: true,
-      report: { orders: emptySummary({ pulled: 2, created: 2 }), payments: emptySummary({ pulled: 1, created: 1 }) }
+      report: {
+        orders: emptySummary({ pulled: 2, created: 2 }),
+        payments: emptySummary({ pulled: 1, created: 1 }),
+      },
     });
     commitImportAction.mockResolvedValue({
       ok: true,
-      report: { orders: emptySummary({ pulled: 2, created: 2 }), payments: emptySummary({ pulled: 1, created: 1 }) }
+      report: {
+        orders: emptySummary({ pulled: 2, created: 2 }),
+        payments: emptySummary({ pulled: 1, created: 1 }),
+      },
     });
     render(React.createElement(ImportForm));
-    pickFile(screen.getByTestId('import-file-input') as HTMLInputElement, new File(['x'], 'a.xlsx'));
+    pickFile(
+      screen.getByTestId('import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
     fireEvent.click(screen.getByTestId('import-preview-button'));
     await screen.findByTestId('import-commit-button');
 
@@ -215,7 +249,7 @@ describe('ImportForm (interactive, jsdom)', () => {
   it('commit shows a loading label while pending', async () => {
     previewImportAction.mockResolvedValue({
       ok: true,
-      report: { orders: emptySummary(), payments: emptySummary() }
+      report: { orders: emptySummary(), payments: emptySummary() },
     });
     let resolveCommit: (v: unknown) => void = () => {};
     commitImportAction.mockImplementation(
@@ -225,7 +259,10 @@ describe('ImportForm (interactive, jsdom)', () => {
         })
     );
     render(React.createElement(ImportForm));
-    pickFile(screen.getByTestId('import-file-input') as HTMLInputElement, new File(['x'], 'a.xlsx'));
+    pickFile(
+      screen.getByTestId('import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
     fireEvent.click(screen.getByTestId('import-preview-button'));
     await screen.findByTestId('import-commit-button');
 
@@ -238,11 +275,14 @@ describe('ImportForm (interactive, jsdom)', () => {
   it('commit failure: shows the mapped error alert, no success banner', async () => {
     previewImportAction.mockResolvedValue({
       ok: true,
-      report: { orders: emptySummary(), payments: emptySummary() }
+      report: { orders: emptySummary(), payments: emptySummary() },
     });
     commitImportAction.mockResolvedValue({ ok: false, error: 'parse_failed' });
     render(React.createElement(ImportForm));
-    pickFile(screen.getByTestId('import-file-input') as HTMLInputElement, new File(['x'], 'a.xlsx'));
+    pickFile(
+      screen.getByTestId('import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
     fireEvent.click(screen.getByTestId('import-preview-button'));
     await screen.findByTestId('import-commit-button');
 
@@ -258,7 +298,7 @@ describe('ImportForm (interactive, jsdom)', () => {
     // clearing files on the (still-mounted) input before invoking commit.
     previewImportAction.mockResolvedValue({
       ok: true,
-      report: { orders: emptySummary(), payments: emptySummary() }
+      report: { orders: emptySummary(), payments: emptySummary() },
     });
     render(React.createElement(ImportForm));
     const input = screen.getByTestId('import-file-input') as HTMLInputElement;

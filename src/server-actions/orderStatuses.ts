@@ -10,7 +10,7 @@ import type { CompletionCondition } from '@/lib/orders/completion';
 const Schema = z.object({
   orderId: z.string().min(1),
   toId: z.string().min(1),
-  reason: z.string().max(1000).optional()
+  reason: z.string().max(1000).optional(),
 });
 
 export type TransitionStatusActionResult =
@@ -53,7 +53,7 @@ export async function transitionOrderStatusAction(input: {
     '/manager/orders',
     `/leader/orders/${input.orderId}`,
     '/leader/orders',
-    `/admin/orders/${input.orderId}`
+    `/admin/orders/${input.orderId}`,
   ]) {
     revalidatePath(path);
   }

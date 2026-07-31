@@ -12,16 +12,16 @@ export default async function ResetPasswordPage({ searchParams }: { searchParams
 
   if (!token) {
     return (
-      <main className='min-h-screen flex items-center justify-center px-4 bg-gray-50'>
-        <div className='w-full max-w-md bg-white border border-gray-100 rounded-2xl shadow-xl p-8 space-y-5'>
+      <main className="min-h-screen flex items-center justify-center px-4 bg-gray-50">
+        <div className="w-full max-w-md bg-white border border-gray-100 rounded-2xl shadow-xl p-8 space-y-5">
           <div>
-            <h1 className='text-2xl font-bold text-[#111111]'>Восстановление пароля</h1>
-            <p className='text-sm text-gray-500 mt-0.5'>
+            <h1 className="text-2xl font-bold text-[#111111]">Восстановление пароля</h1>
+            <p className="text-sm text-gray-500 mt-0.5">
               Укажите email вашего аккаунта — мы отправим ссылку для сброса пароля.
             </p>
           </div>
           <ForgotPasswordForm />
-          <Link href='/login' className='inline-block text-sm text-[#F97316] hover:underline'>
+          <Link href="/login" className="inline-block text-sm text-[#F97316] hover:underline">
             ← Вернуться на страницу входа
           </Link>
         </div>
@@ -35,13 +35,13 @@ export default async function ResetPasswordPage({ searchParams }: { searchParams
   const isInvite = peek.valid && peek.purpose === 'invite';
 
   return (
-    <main className='min-h-screen flex items-center justify-center px-4 bg-gray-50'>
-      <div className='w-full max-w-md bg-white border border-gray-100 rounded-2xl shadow-xl p-8 space-y-5'>
+    <main className="min-h-screen flex items-center justify-center px-4 bg-gray-50">
+      <div className="w-full max-w-md bg-white border border-gray-100 rounded-2xl shadow-xl p-8 space-y-5">
         <div>
-          <h1 className='text-2xl font-bold text-[#111111]'>
+          <h1 className="text-2xl font-bold text-[#111111]">
             {isInvite ? 'Добро пожаловать!' : 'Установка пароля'}
           </h1>
-          <p className='text-sm text-gray-500 mt-0.5'>
+          <p className="text-sm text-gray-500 mt-0.5">
             {isInvite
               ? 'Аккаунт создан для вас — осталось придумать пароль, и можно начинать работу.'
               : 'Создайте новый пароль для входа в кабинет.'}

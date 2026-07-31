@@ -2,7 +2,10 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import { setOrgRequisites, getOrgRequisites } from '@/lib/services/organization/requisites';
 import { setPartnerRequisites } from '@/lib/services/partner/requisites';
-import { setCompanyRequisites, listCompaniesRequisites } from '@/lib/services/admin/companyRequisites';
+import {
+  setCompanyRequisites,
+  listCompaniesRequisites,
+} from '@/lib/services/admin/companyRequisites';
 import { getOrganizationCard } from '@/lib/services/manager/organizationCard';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
@@ -22,25 +25,55 @@ const sOrg = (roleInOrg: string): SessionPayload =>
   ({
     sub: orgUser,
     role: 'organization',
-    organizationMemberships: [{ organizationId: orgA, roleInOrg, isActive: true }]
-  } as unknown as SessionPayload);
+    organizationMemberships: [{ organizationId: orgA, roleInOrg, isActive: true }],
+  }) as unknown as SessionPayload;
 const sPartnerAdmin = (): SessionPayload =>
-  ({ sub: partnerUser, role: 'partner', partnerId: partnerA, partnerRole: 'admin' } as unknown as SessionPayload);
-const sAdmin = (): SessionPayload => ({ sub: manager, role: 'admin' } as unknown as SessionPayload);
+  ({
+    sub: partnerUser,
+    role: 'partner',
+    partnerId: partnerA,
+    partnerRole: 'admin',
+  }) as unknown as SessionPayload;
+const sAdmin = (): SessionPayload => ({ sub: manager, role: 'admin' }) as unknown as SessionPayload;
 const sManager = (): SessionPayload =>
-  ({ sub: manager, role: 'manager', companyId: companyA, managedOrgIds: [orgA] } as unknown as SessionPayload);
+  ({
+    sub: manager,
+    role: 'manager',
+    companyId: companyA,
+    managedOrgIds: [orgA],
+  }) as unknown as SessionPayload;
 
 beforeAll(async () => {
   prisma = new PrismaClient();
   companyA = (await prisma.company.create({ data: { name: `s8p1-${STAMP}` } })).id;
-  orgA = (await prisma.organization.create({ data: { name: `s8p1-orgA-${STAMP}`, companyId: companyA } })).id;
-  orgB = (await prisma.organization.create({ data: { name: `s8p1-orgB-${STAMP}`, companyId: companyA, inn: `77${STAMP}`.slice(0, 10) } })).id;
-  partnerA = (
-    await prisma.partner.create({ data: { name: `s8p1-pt-${STAMP}`, slug: `s8p1-${STAMP}`, commissionRate: 0.1 } })
+  orgA = (
+    await prisma.organization.create({ data: { name: `s8p1-orgA-${STAMP}`, companyId: companyA } })
   ).id;
-  manager = (await prisma.user.create({ data: { email: `s8p1-m-${STAMP}@t.local`, name: 'М', role: 'manager', companyId: companyA } })).id;
-  orgUser = (await prisma.user.create({ data: { email: `s8p1-o-${STAMP}@t.local`, name: 'О', role: 'organization' } })).id;
-  partnerUser = (await prisma.user.create({ data: { email: `s8p1-p-${STAMP}@t.local`, name: 'П', role: 'partner' } })).id;
+  orgB = (
+    await prisma.organization.create({
+      data: { name: `s8p1-orgB-${STAMP}`, companyId: companyA, inn: `77${STAMP}`.slice(0, 10) },
+    })
+  ).id;
+  partnerA = (
+    await prisma.partner.create({
+      data: { name: `s8p1-pt-${STAMP}`, slug: `s8p1-${STAMP}`, commissionRate: 0.1 },
+    })
+  ).id;
+  manager = (
+    await prisma.user.create({
+      data: { email: `s8p1-m-${STAMP}@t.local`, name: 'М', role: 'manager', companyId: companyA },
+    })
+  ).id;
+  orgUser = (
+    await prisma.user.create({
+      data: { email: `s8p1-o-${STAMP}@t.local`, name: 'О', role: 'organization' },
+    })
+  ).id;
+  partnerUser = (
+    await prisma.user.create({
+      data: { email: `s8p1-p-${STAMP}@t.local`, name: 'П', role: 'partner' },
+    })
+  ).id;
 });
 
 afterAll(async () => {
@@ -66,11 +99,13 @@ describe('реквизиты организации', () => {
       bic: '044525225',
       signerName: 'Иванов И.И.',
       signerPosition: 'Генеральный директор',
-      signerBasis: 'Устава'
+      signerBasis: 'Устава',
     });
     expect(res).toEqual({ ok: true });
 
-    expect((await setOrgRequisites(prisma, sOrg('member'), orgA, { inn: '7707083893' })).ok).toBe(false);
+    expect((await setOrgRequisites(prisma, sOrg('member'), orgA, { inn: '7707083893' })).ok).toBe(
+      false
+    );
     const read = await getOrgRequisites(prisma, sOrg('member'), orgA);
     expect(read.ok && read.requisites.legalName).toBe('ООО «Ромашка»');
 
@@ -82,15 +117,25 @@ describe('реквизиты организации', () => {
   it('дубль ИНН другой организации → русская валидация', async () => {
     const dupInn = `77${STAMP}`.slice(0, 10);
     const res = await setOrgRequisites(prisma, sOrg('admin'), orgA, { inn: dupInn });
-    expect(res).toEqual({ ok: false, error: 'validation', messages: ['Организация с таким ИНН уже существует'] });
+    expect(res).toEqual({
+      ok: false,
+      error: 'validation',
+      messages: ['Организация с таким ИНН уже существует'],
+    });
   });
 });
 
 describe('партнёр и компания', () => {
   it('partner-admin сохраняет реквизиты партнёра', async () => {
-    const res = await setPartnerRequisites(prisma, sPartnerAdmin(), { kpp: '770801001', bic: '044525974' });
+    const res = await setPartnerRequisites(prisma, sPartnerAdmin(), {
+      kpp: '770801001',
+      bic: '044525974',
+    });
     expect(res).toEqual({ ok: true });
-    const row = await prisma.partner.findUnique({ where: { id: partnerA }, select: { kpp: true, bic: true } });
+    const row = await prisma.partner.findUnique({
+      where: { id: partnerA },
+      select: { kpp: true, bic: true },
+    });
     expect(row).toEqual({ kpp: '770801001', bic: '044525974' });
   });
 
@@ -99,7 +144,7 @@ describe('партнёр и компания', () => {
       legalName: 'ООО «Промтехносфера»',
       inn: '7708123456',
       phone: '+7 495 000-00-00',
-      email: 'docs@pts.ru'
+      email: 'docs@pts.ru',
     });
     expect(res).toEqual({ ok: true });
     const list = await listCompaniesRequisites(prisma, sAdmin());

@@ -2,11 +2,13 @@ import type { PrismaClient, TrainingDirection } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 export type DirectionsError = 'forbidden' | 'validation' | 'not_found';
-type Result<T> = { ok: true } & T | { ok: false; error: DirectionsError };
+type Result<T> = ({ ok: true } & T) | { ok: false; error: DirectionsError };
 
 /** admin или руководитель (manager+managerRole='leader') настраивают справочники (§10/§11). */
 function canManageSettings(session: SessionPayload): boolean {
-  return session.role === 'admin' || (session.role === 'manager' && session.managerRole === 'leader');
+  return (
+    session.role === 'admin' || (session.role === 'manager' && session.managerRole === 'leader')
+  );
 }
 
 export async function listDirections(
@@ -16,7 +18,7 @@ export async function listDirections(
 ): Promise<Result<{ directions: TrainingDirection[] }>> {
   const directions = await prisma.trainingDirection.findMany({
     where: opts?.includeInactive ? {} : { isActive: true },
-    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }]
+    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
   });
   return { ok: true, directions };
 }
@@ -30,7 +32,7 @@ export async function createDirection(
   const name = args.name?.trim();
   if (!name) return { ok: false, error: 'validation' };
   const direction = await prisma.trainingDirection.create({
-    data: { name, slug: args.slug?.trim() || null, sortOrder: args.sortOrder ?? 0 }
+    data: { name, slug: args.slug?.trim() || null, sortOrder: args.sortOrder ?? 0 },
   });
   return { ok: true, direction };
 }
@@ -59,7 +61,8 @@ export async function deactivateDirection(
 ): Promise<Result<{ direction: TrainingDirection }>> {
   if (!canManageSettings(session)) return { ok: false, error: 'forbidden' };
   const direction = await prisma.trainingDirection.update({
-    where: { id: args.id }, data: { isActive: false }
+    where: { id: args.id },
+    data: { isActive: false },
   });
   return { ok: true, direction };
 }

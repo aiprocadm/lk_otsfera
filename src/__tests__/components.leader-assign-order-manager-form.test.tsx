@@ -7,7 +7,7 @@ const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 
 const { assignOrderManagerLeaderAction } = vi.hoisted(() => ({
-  assignOrderManagerLeaderAction: vi.fn()
+  assignOrderManagerLeaderAction: vi.fn(),
 }));
 vi.mock('@/server-actions/manager/orderAssignment', () => ({ assignOrderManagerLeaderAction }));
 
@@ -150,9 +150,9 @@ describe('LeaderAssignOrderManagerForm', () => {
       })
     );
     expect(select.value).toBe('m2');
-    expect(
-      (screen.getByRole('button', { name: 'Сохранить' }) as HTMLButtonElement).disabled
-    ).toBe(true);
+    expect((screen.getByRole('button', { name: 'Сохранить' }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
 
     // Обратный переход: менеджера сняли извне → селект возвращается к «Без менеджера».
     rerender(
@@ -163,9 +163,9 @@ describe('LeaderAssignOrderManagerForm', () => {
       })
     );
     expect(select.value).toBe('');
-    expect(
-      (screen.getByRole('button', { name: 'Сохранить' }) as HTMLButtonElement).disabled
-    ).toBe(true);
+    expect((screen.getByRole('button', { name: 'Сохранить' }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
   });
 
   it('rerender с тем же currentManagerId не затирает несохранённый выбор пользователя', () => {
@@ -186,9 +186,9 @@ describe('LeaderAssignOrderManagerForm', () => {
       })
     );
     expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('m2');
-    expect(
-      (screen.getByRole('button', { name: 'Сохранить' }) as HTMLButtonElement).disabled
-    ).toBe(false);
+    expect((screen.getByRole('button', { name: 'Сохранить' }) as HTMLButtonElement).disabled).toBe(
+      false
+    );
   });
 
   it('успех (changed): зовёт экшен объектом {orderId, managerUserId} и показывает «Менеджер обновлён.»', async () => {

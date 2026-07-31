@@ -18,15 +18,21 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: { user: { findUnique: userFindUnique
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 
-const { kpis, attention, recentEvents, recentEnrollments, expiringCertificates } = vi.hoisted(() => ({
-  kpis: vi.fn(),
-  attention: vi.fn(),
-  recentEvents: vi.fn(),
-  recentEnrollments: vi.fn(),
-  expiringCertificates: vi.fn()
-}));
+const { kpis, attention, recentEvents, recentEnrollments, expiringCertificates } = vi.hoisted(
+  () => ({
+    kpis: vi.fn(),
+    attention: vi.fn(),
+    recentEvents: vi.fn(),
+    recentEnrollments: vi.fn(),
+    expiringCertificates: vi.fn(),
+  })
+);
 vi.mock('@/lib/services/organization/dashboard', () => ({
-  kpis, attention, recentEvents, recentEnrollments, expiringCertificates
+  kpis,
+  attention,
+  recentEvents,
+  recentEnrollments,
+  expiringCertificates,
 }));
 
 // OrgAppShell renders the sidebar/nav chrome — it is a plain (non-async) function
@@ -34,16 +40,20 @@ vi.mock('@/lib/services/organization/dashboard', () => ({
 // focused on the page's own data-fetch/branching logic.
 vi.mock('@/components/organization/org-app-shell', () => ({
   OrgAppShell: (props: { activeOrgName: string; children: React.ReactNode }) =>
-    React.createElement('div', { 'data-testid': 'org-app-shell' }, props.activeOrgName, props.children)
+    React.createElement(
+      'div',
+      { 'data-testid': 'org-app-shell' },
+      props.activeOrgName,
+      props.children
+    ),
 }));
-
 
 const CTX = {
   session: { sub: 'u1', role: 'organization' as const, email: 'org@example.com' },
   activeOrgId: 'org-1',
   activeOrgName: 'ООО Ромашка',
   memberships: [],
-  viewerRole: 'admin' as const
+  viewerRole: 'admin' as const,
 };
 
 describe('OrganizationDashboardPage', () => {
@@ -74,7 +84,7 @@ describe('OrganizationDashboardPage', () => {
     expect(recentEvents).toHaveBeenCalledWith(expect.anything(), 'org-1');
     expect(userFindUnique).toHaveBeenCalledWith({
       where: { id: 'u1' },
-      select: { name: true, welcomeSeenAt: true }
+      select: { name: true, welcomeSeenAt: true },
     });
     expect(container.textContent).toContain('Главная');
     expect(container.textContent).toContain('ООО Ромашка');
@@ -88,9 +98,7 @@ describe('OrganizationDashboardPage', () => {
     attention.mockResolvedValue({ items: [] });
     recentEvents.mockResolvedValue([]);
 
-    await renderServerComponent(
-      OrganizationDashboardPage({ searchParams: Promise.resolve({}) })
-    );
+    await renderServerComponent(OrganizationDashboardPage({ searchParams: Promise.resolve({}) }));
 
     expect(getOrgPageContext).toHaveBeenCalledWith({});
   });

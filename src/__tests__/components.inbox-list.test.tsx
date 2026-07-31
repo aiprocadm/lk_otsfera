@@ -4,28 +4,41 @@ import { renderToString } from 'react-dom/server';
 import React from 'react';
 
 vi.mock('@/components/manager/inbox-bind-form', () => ({
-  InboxBindForm: (props: { inboundMessageId: string; organizations: unknown[]; contactsEnabled?: boolean }) =>
+  InboxBindForm: (props: {
+    inboundMessageId: string;
+    organizations: unknown[];
+    contactsEnabled?: boolean;
+  }) =>
     React.createElement(
       'div',
       { 'data-testid': 'bind-form' },
       `bind:${props.inboundMessageId}:orgs=${props.organizations.length}:contacts=${String(props.contactsEnabled)}`
-    )
+    ),
 }));
 vi.mock('@/components/manager/inbox-reply-form', () => ({
   InboxReplyForm: (props: { inboundMessageId: string }) =>
-    React.createElement('div', { 'data-testid': 'reply-form' }, `reply:${props.inboundMessageId}`)
+    React.createElement('div', { 'data-testid': 'reply-form' }, `reply:${props.inboundMessageId}`),
 }));
 vi.mock('@/components/intake/source-intake-actions', () => ({
-  SourceIntakeActions: (props: { kind: string; sourceId: string; leadPrefill: Record<string, string>; taskTitle: string }) =>
+  SourceIntakeActions: (props: {
+    kind: string;
+    sourceId: string;
+    leadPrefill: Record<string, string>;
+    taskTitle: string;
+  }) =>
     React.createElement(
       'div',
       { 'data-testid': 'intake-actions' },
       `${props.kind}:${props.sourceId}:${props.leadPrefill.companyName}:${props.leadPrefill.contactEmail}:${props.taskTitle}`
-    )
+    ),
 }));
 vi.mock('@/components/manager/inbox-archive-button', () => ({
   InboxArchiveButton: (props: { inboundMessageId: string; mode: string }) =>
-    React.createElement('div', { 'data-testid': 'archive-button' }, `${props.mode}:${props.inboundMessageId}`)
+    React.createElement(
+      'div',
+      { 'data-testid': 'archive-button' },
+      `${props.mode}:${props.inboundMessageId}`
+    ),
 }));
 
 import { InboxList } from '@/components/manager/inbox-list';
@@ -43,7 +56,7 @@ const base: InboxItem = {
   status: 'unresolved',
   resolvedOrgId: null,
   scanStatus: 'none',
-  attachmentName: null
+  attachmentName: null,
 };
 
 const ORGS = [{ id: 'org-1', name: 'Орг' }] as never;
@@ -128,7 +141,13 @@ describe('InboxList', () => {
     // сотруднику (currentUserId) и только у неразобранных обращений; данные
     // отправителя должны переехать в префилл — иначе менеджер перебивает их
     // руками из соседней колонки.
-    const emailItem = { ...base, channel: 'email', senderRef: 'p@x.ru', senderDisplay: null, subject: 'Вопрос по счёту' };
+    const emailItem = {
+      ...base,
+      channel: 'email',
+      senderRef: 'p@x.ru',
+      senderDisplay: null,
+      subject: 'Вопрос по счёту',
+    };
     const withUser = renderToString(
       <InboxList items={[emailItem]} organizations={ORGS} currentUserId="m1" />
     );
@@ -142,7 +161,9 @@ describe('InboxList', () => {
 
     // Разобранное (bound) — кнопок тоже нет.
     const boundItem = { ...base, status: 'bound' as const };
-    const bound = renderToString(<InboxList items={[boundItem]} organizations={ORGS} currentUserId="m1" />);
+    const bound = renderToString(
+      <InboxList items={[boundItem]} organizations={ORGS} currentUserId="m1" />
+    );
     expect(count(bound, 'data-testid="intake-actions"')).toBe(0);
   });
 
@@ -167,13 +188,10 @@ describe('InboxList', () => {
   it.each([
     ['infected', 'Вложение: заражено'],
     ['pending', 'Вложение: проверяется'],
-    ['clean', 'Вложение: чисто']
+    ['clean', 'Вложение: чисто'],
   ])('вложение со scanStatus=%s → бейдж «%s»', (scanStatus, label) => {
     const html = renderToString(
-      <InboxList
-        items={[{ ...base, attachmentName: 'a.pdf', scanStatus }]}
-        organizations={ORGS}
-      />
+      <InboxList items={[{ ...base, attachmentName: 'a.pdf', scanStatus }]} organizations={ORGS} />
     );
     expect(html).toContain('a.pdf');
     expect(html).toContain(label);
@@ -227,7 +245,7 @@ describe('InboxFiltersBar', () => {
   });
 
   it('активные channel+status комбинируются в href обеих групп', () => {
-    const html = renderToString(<InboxFiltersBar channel='email' status='bound' />);
+    const html = renderToString(<InboxFiltersBar channel="email" status="bound" />);
     // группа каналов сохраняет status, группа статусов сохраняет channel
     expect(html).toContain('channel=telegram&amp;status=bound');
     expect(html).toContain('channel=email&amp;status=unresolved');

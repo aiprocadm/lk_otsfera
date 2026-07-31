@@ -34,10 +34,10 @@ export function CertificateDownloadButton({ documentId }: { documentId: string }
 
   return (
     <button
-      type='button'
+      type="button"
       onClick={download}
       disabled={busy}
-      className='text-xs text-[#F97316] hover:underline disabled:text-gray-400'
+      className="text-xs text-[#F97316] hover:underline disabled:text-gray-400"
     >
       {busy ? 'Готовим ссылку…' : 'Скачать удостоверение'}
     </button>

@@ -31,13 +31,17 @@ describe('InviteOrgUserForm', () => {
   });
 
   it('renders the trigger button and dialog is closed by default', () => {
-    render(React.createElement(InviteOrgUserForm, { organizationId: 'org1', viewerRole: 'member' }));
+    render(
+      React.createElement(InviteOrgUserForm, { organizationId: 'org1', viewerRole: 'member' })
+    );
     expect(screen.getByRole('button', { name: 'Пригласить участника' })).toBeTruthy();
     expect(showModal).not.toHaveBeenCalled();
   });
 
   it('opens the dialog on click and shows the member/leader options but not admin for a member viewer', async () => {
-    render(React.createElement(InviteOrgUserForm, { organizationId: 'org1', viewerRole: 'member' }));
+    render(
+      React.createElement(InviteOrgUserForm, { organizationId: 'org1', viewerRole: 'member' })
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Пригласить участника' }));
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
     expect(screen.getByText('Сотрудник')).toBeTruthy();
@@ -57,7 +61,7 @@ describe('InviteOrgUserForm', () => {
       ok: true,
       user: { id: 'u1', email: 'new@x.com' },
       inviteUrl: 'https://app/invite/abc',
-      alreadyHasPassword: false
+      alreadyHasPassword: false,
     });
     render(React.createElement(InviteOrgUserForm, { organizationId: 'org1', viewerRole: 'admin' }));
     fireEvent.click(screen.getByRole('button', { name: 'Пригласить участника' }));
@@ -70,7 +74,10 @@ describe('InviteOrgUserForm', () => {
 
     await waitFor(() => expect(screen.getByText(/Письмо приглашения отправлено на/)).toBeTruthy());
     expect(screen.getByText('new@x.com')).toBeTruthy();
-    expect(screen.getByLabelText('Ссылка приглашения')).toHaveProperty('value', 'https://app/invite/abc');
+    expect(screen.getByLabelText('Ссылка приглашения')).toHaveProperty(
+      'value',
+      'https://app/invite/abc'
+    );
 
     fireEvent.click(screen.getByText('Скопировать'));
     await waitFor(() => expect(screen.getByText('Скопировано ✓')).toBeTruthy());
@@ -85,7 +92,7 @@ describe('InviteOrgUserForm', () => {
       ok: true,
       user: { id: 'u2', email: 'existing@x.com' },
       inviteUrl: null,
-      alreadyHasPassword: true
+      alreadyHasPassword: true,
     });
     render(React.createElement(InviteOrgUserForm, { organizationId: 'org1', viewerRole: 'admin' }));
     fireEvent.click(screen.getByRole('button', { name: 'Пригласить участника' }));
@@ -101,13 +108,13 @@ describe('InviteOrgUserForm', () => {
 
   it('clipboard write failure is swallowed silently (catch branch)', async () => {
     Object.assign(navigator, {
-      clipboard: { writeText: vi.fn().mockRejectedValue(new Error('no-https')) }
+      clipboard: { writeText: vi.fn().mockRejectedValue(new Error('no-https')) },
     });
     inviteOrgMemberAction.mockResolvedValue({
       ok: true,
       user: { id: 'u1', email: 'new@x.com' },
       inviteUrl: 'https://app/invite/abc',
-      alreadyHasPassword: false
+      alreadyHasPassword: false,
     });
     render(React.createElement(InviteOrgUserForm, { organizationId: 'org1', viewerRole: 'admin' }));
     fireEvent.click(screen.getByRole('button', { name: 'Пригласить участника' }));
@@ -128,7 +135,7 @@ describe('InviteOrgUserForm', () => {
       ok: true,
       user: { id: 'u3', email: 'nolink@x.com' },
       inviteUrl: null,
-      alreadyHasPassword: false
+      alreadyHasPassword: false,
     });
     render(React.createElement(InviteOrgUserForm, { organizationId: 'org1', viewerRole: 'admin' }));
     fireEvent.click(screen.getByRole('button', { name: 'Пригласить участника' }));

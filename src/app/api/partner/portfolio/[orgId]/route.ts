@@ -5,10 +5,7 @@ import { requirePartner } from '@/lib/auth/guard';
 import { canPartnerAccessOrg } from '@/lib/auth/policy';
 import { getOrgCard } from '@/lib/services/partner/orgCard';
 
-export async function GET(
-  _req: Request,
-  ctx: { params: Promise<{ orgId: string }> }
-) {
+export async function GET(_req: Request, ctx: { params: Promise<{ orgId: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

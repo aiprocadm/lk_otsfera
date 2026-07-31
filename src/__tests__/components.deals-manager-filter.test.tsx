@@ -16,7 +16,7 @@ import { DealsManagerFilter } from '@/components/deals/deals-manager-filter';
 
 const MANAGERS = [
   { id: 'm-1', name: 'Иванов И.' },
-  { id: 'm-2', name: 'Петрова А.' }
+  { id: 'm-2', name: 'Петрова А.' },
 ];
 
 function getSelect(container: HTMLElement): HTMLSelectElement {
@@ -36,14 +36,14 @@ describe('DealsManagerFilter', () => {
     expect(Array.from(select.options).map((o) => o.textContent)).toEqual([
       'Все менеджеры',
       'Иванов И.',
-      'Петрова А.'
+      'Петрова А.',
     ]);
     expect(select.value).toBe('');
     expect(push).not.toHaveBeenCalled();
   });
 
   it('managerId из searchParams выбирает соответствующую опцию', () => {
-    const { container } = render(<DealsManagerFilter managers={MANAGERS} managerId='m-2' />);
+    const { container } = render(<DealsManagerFilter managers={MANAGERS} managerId="m-2" />);
     expect(getSelect(container).value).toBe('m-2');
   });
 
@@ -55,7 +55,7 @@ describe('DealsManagerFilter', () => {
   });
 
   it('«Все менеджеры» пушит чистый /leader/deals (без пустого query)', () => {
-    const { container } = render(<DealsManagerFilter managers={MANAGERS} managerId='m-1' />);
+    const { container } = render(<DealsManagerFilter managers={MANAGERS} managerId="m-1" />);
     fireEvent.change(getSelect(container), { target: { value: '' } });
     expect(push).toHaveBeenCalledWith('/leader/deals');
   });
@@ -63,7 +63,7 @@ describe('DealsManagerFilter', () => {
   it('пустой список менеджеров — только опция «Все менеджеры», без падения', () => {
     const { container } = render(<DealsManagerFilter managers={[]} />);
     expect(Array.from(getSelect(container).options).map((o) => o.textContent)).toEqual([
-      'Все менеджеры'
+      'Все менеджеры',
     ]);
   });
 });

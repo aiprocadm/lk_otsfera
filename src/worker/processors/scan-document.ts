@@ -47,7 +47,9 @@ function clamAvInstream(host: string, port: number, payload: Buffer): Promise<st
     });
 
     socket.on('data', (data) => chunks.push(data));
-    socket.once('end', () => resolve(Buffer.concat(chunks).toString('utf8').replace(/\0+$/, '').trim()));
+    socket.once('end', () =>
+      resolve(Buffer.concat(chunks).toString('utf8').replace(/\0+$/, '').trim())
+    );
     socket.once('timeout', () => {
       socket.destroy();
       reject(new Error(`ClamAV socket timeout after ${timeoutMs}ms`));
@@ -73,28 +75,40 @@ export const defaultScanDeps: ScanDeps = {
 async function loadTarget(
   db: PrismaClient,
   kind: ScanDocumentTarget,
-  id: string,
+  id: string
 ): Promise<{ id: string; path: string } | null> {
   if (kind === 'document') {
     return db.document.findUnique({ where: { id }, select: { id: true, path: true } });
   }
   if (kind === 'inbound_attachment') {
-    const row = await db.inboundMessage.findUnique({ where: { id }, select: { id: true, attachmentPath: true } });
+    const row = await db.inboundMessage.findUnique({
+      where: { id },
+      select: { id: true, attachmentPath: true },
+    });
     if (!row || !row.attachmentPath) return null;
     return { id: row.id, path: row.attachmentPath };
   }
   if (kind === 'call_recording') {
-    const row = await db.call.findUnique({ where: { id }, select: { id: true, recordingPath: true } });
+    const row = await db.call.findUnique({
+      where: { id },
+      select: { id: true, recordingPath: true },
+    });
     if (!row || !row.recordingPath) return null;
     return { id: row.id, path: row.recordingPath };
   }
   if (kind === 'staff_attachment') {
-    const row = await db.staffMessage.findUnique({ where: { id }, select: { id: true, attachmentPath: true } });
+    const row = await db.staffMessage.findUnique({
+      where: { id },
+      select: { id: true, attachmentPath: true },
+    });
     if (!row || !row.attachmentPath) return null;
     return { id: row.id, path: row.attachmentPath };
   }
   if (kind === 'client_request_attachment') {
-    return db.clientRequestAttachment.findUnique({ where: { id }, select: { id: true, path: true } });
+    return db.clientRequestAttachment.findUnique({
+      where: { id },
+      select: { id: true, path: true },
+    });
   }
   return db.leadAttachment.findUnique({ where: { id }, select: { id: true, path: true } });
 }
@@ -104,10 +118,13 @@ async function persistResult(
   kind: ScanDocumentTarget,
   id: string,
   scanStatus: ScanStatus,
-  scanReason: string | null,
+  scanReason: string | null
 ): Promise<void> {
   if (kind === 'document') {
-    await db.document.update({ where: { id }, data: { scanStatus, scanReason, scannedAt: new Date() } });
+    await db.document.update({
+      where: { id },
+      data: { scanStatus, scanReason, scannedAt: new Date() },
+    });
   } else if (kind === 'inbound_attachment') {
     // InboundMessage has no `scannedAt` column (unlike Document) — do not add it here.
     await db.inboundMessage.update({ where: { id }, data: { scanStatus, scanReason } });
@@ -121,28 +138,35 @@ async function persistResult(
     await db.staffMessage.update({ where: { id }, data: { scanStatus } });
   } else if (kind === 'client_request_attachment') {
     // Этап 5: вложения заявок клиентов — полный набор колонок, как LeadAttachment.
-    await db.clientRequestAttachment.update({ where: { id }, data: { scanStatus, scanReason, scannedAt: new Date() } });
+    await db.clientRequestAttachment.update({
+      where: { id },
+      data: { scanStatus, scanReason, scannedAt: new Date() },
+    });
   } else {
-    await db.leadAttachment.update({ where: { id }, data: { scanStatus, scanReason, scannedAt: new Date() } });
+    await db.leadAttachment.update({
+      where: { id },
+      data: { scanStatus, scanReason, scannedAt: new Date() },
+    });
   }
 }
 
 type ParsedScanResponse =
-  | { type: 'clean' }
-  | { type: 'infected'; virus: string }
-  | { type: 'error'; reason: string };
+  { type: 'clean' } | { type: 'infected'; virus: string } | { type: 'error'; reason: string };
 
 function parseClamAvResponse(response: string): ParsedScanResponse {
   if (/: OK\b/.test(response)) return { type: 'clean' };
   const found = /: (.+) FOUND\b/.exec(response);
   if (found) return { type: 'infected', virus: found[1].trim() };
-  return { type: 'error', reason: `Unexpected ClamAV response: ${response.slice(0, 200) || '(empty)'}` };
+  return {
+    type: 'error',
+    reason: `Unexpected ClamAV response: ${response.slice(0, 200) || '(empty)'}`,
+  };
 }
 
 export async function scanDocumentProcessor(
   job: Job<ScanDocumentPayload>,
   db: PrismaClient = prisma,
-  deps: ScanDeps = defaultScanDeps,
+  deps: ScanDeps = defaultScanDeps
 ): Promise<ScanDocumentResult> {
   const { kind, id } = job.data;
   log.info('[worker] scan-document started', { id: job.id, kind, targetId: id });
@@ -164,7 +188,7 @@ export async function scanDocumentProcessor(
         status: 'warn',
         errorMessage: 'CLAMAV_HOST not configured; marking clean by default',
       },
-      db,
+      db
     );
     return { kind, id, scanStatus: 'clean', scanReason: null };
   }
@@ -189,7 +213,7 @@ export async function scanDocumentProcessor(
         status: 'error',
         errorMessage: `Storage download failed: ${reason}`,
       },
-      db,
+      db
     );
     throw err;
   }
@@ -214,7 +238,7 @@ export async function scanDocumentProcessor(
         status: 'error',
         errorMessage: `ClamAV unreachable: ${reason}`,
       },
-      db,
+      db
     );
     throw err;
   }
@@ -238,7 +262,7 @@ export async function scanDocumentProcessor(
       status: 'error',
       errorMessage: parsed.reason,
     },
-    db,
+    db
   );
   return { kind, id, scanStatus: 'error', scanReason: parsed.reason };
 }

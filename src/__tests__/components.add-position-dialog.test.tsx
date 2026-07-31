@@ -13,11 +13,11 @@ import { AddPositionDialog } from '@/components/training/add-position-dialog';
 
 const DIRECTIONS = [
   { id: 'd1', name: 'Охрана труда' },
-  { id: 'd2', name: 'Пожарная безопасность' }
+  { id: 'd2', name: 'Пожарная безопасность' },
 ];
 const STUDENTS = [
   { id: 's1', name: 'Иван Петров', email: 'ivan@example.com' },
-  { id: 's2', name: 'Пётр Иванов', email: 'petr@example.com' }
+  { id: 's2', name: 'Пётр Иванов', email: 'petr@example.com' },
 ];
 
 describe('AddPositionDialog', () => {
@@ -46,7 +46,7 @@ describe('AddPositionDialog', () => {
         onClose: vi.fn(),
         orderId: 'order-1',
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     expect(await screen.findByText('Добавить слушателя')).toBeTruthy();
@@ -61,7 +61,7 @@ describe('AddPositionDialog', () => {
         onClose: vi.fn(),
         orderId: 'order-1',
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     expect(HTMLDialogElement.prototype.showModal).not.toHaveBeenCalled();
@@ -76,7 +76,7 @@ describe('AddPositionDialog', () => {
         onClose: vi.fn(),
         orderId: 'order-1',
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     await screen.findByText('Добавить слушателя');
@@ -96,14 +96,16 @@ describe('AddPositionDialog', () => {
         onClose,
         orderId: 'order-1',
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     await screen.findByText('Добавить слушателя');
 
     fireEvent.change(screen.getByLabelText('Слушатель'), { target: { value: 's1' } });
     fireEvent.change(screen.getByLabelText('Направление обучения'), { target: { value: 'd1' } });
-    fireEvent.change(screen.getByLabelText('Примечание (необязательно)'), { target: { value: '  срочно  ' } });
+    fireEvent.change(screen.getByLabelText('Примечание (необязательно)'), {
+      target: { value: '  срочно  ' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Добавить' }));
 
     await waitFor(() =>
@@ -111,7 +113,7 @@ describe('AddPositionDialog', () => {
         '/api/manager/orders/order-1/items',
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ studentId: 's1', directionId: 'd1', note: 'срочно' })
+          body: JSON.stringify({ studentId: 's1', directionId: 'd1', note: 'срочно' }),
         })
       )
     );
@@ -129,7 +131,7 @@ describe('AddPositionDialog', () => {
         onClose: vi.fn(),
         orderId: 'order-1',
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     await screen.findByText('Добавить слушателя');
@@ -146,7 +148,9 @@ describe('AddPositionDialog', () => {
   });
 
   it('submit failure (with error json) shows the mapped server error, does not close', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, json: async () => ({ error: 'forbidden' }) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: false, json: async () => ({ error: 'forbidden' }) });
     vi.stubGlobal('fetch', fetchMock);
     const onClose = vi.fn();
     render(
@@ -155,7 +159,7 @@ describe('AddPositionDialog', () => {
         onClose,
         orderId: 'order-1',
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     await screen.findByText('Добавить слушателя');
@@ -173,7 +177,7 @@ describe('AddPositionDialog', () => {
       ok: false,
       json: async () => {
         throw new Error('bad json');
-      }
+      },
     });
     vi.stubGlobal('fetch', fetchMock);
     render(
@@ -182,7 +186,7 @@ describe('AddPositionDialog', () => {
         onClose: vi.fn(),
         orderId: 'order-1',
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     await screen.findByText('Добавить слушателя');
@@ -202,7 +206,7 @@ describe('AddPositionDialog', () => {
         onClose: vi.fn(),
         orderId: 'order-1',
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     await screen.findByText('Добавить слушателя');
@@ -228,7 +232,7 @@ describe('AddPositionDialog', () => {
         onClose: vi.fn(),
         orderId: 'order-1',
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     await screen.findByText('Добавить слушателя');
@@ -251,7 +255,7 @@ describe('AddPositionDialog', () => {
         onClose,
         orderId: 'order-1',
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     await screen.findByText('Добавить слушателя');
@@ -276,7 +280,7 @@ describe('AddPositionDialog', () => {
         onClose,
         orderId: 'order-1',
         directions: DIRECTIONS,
-        students: STUDENTS
+        students: STUDENTS,
       })
     );
     await screen.findByText('Добавить слушателя');

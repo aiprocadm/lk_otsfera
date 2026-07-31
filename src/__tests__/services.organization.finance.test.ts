@@ -1,7 +1,15 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient, Prisma } from '@prisma/client';
-import { getOrgFinanceKpis, getOrgFinanceKpisForOrgs, listOrgPayments, listOrgPaymentsForOrgs } from '@/lib/services/organization/finance';
-import { getOrgIntermediaryCommission, getOrgIntermediaryCommissionForOrgs } from '@/lib/services/manager/orgCommission';
+import {
+  getOrgFinanceKpis,
+  getOrgFinanceKpisForOrgs,
+  listOrgPayments,
+  listOrgPaymentsForOrgs,
+} from '@/lib/services/organization/finance';
+import {
+  getOrgIntermediaryCommission,
+  getOrgIntermediaryCommissionForOrgs,
+} from '@/lib/services/manager/orgCommission';
 
 let prisma: PrismaClient;
 let partnerId: string;
@@ -12,7 +20,7 @@ const STAMP = Date.now();
 beforeAll(async () => {
   prisma = new PrismaClient();
   const partner = await prisma.partner.create({
-    data: { name: `FinP-${STAMP}`, commissionRate: new Prisma.Decimal('0.1') }
+    data: { name: `FinP-${STAMP}`, commissionRate: new Prisma.Decimal('0.1') },
   });
   partnerId = partner.id;
   const company = await prisma.company.create({ data: { name: `FinC-${STAMP}` } });
@@ -22,8 +30,8 @@ beforeAll(async () => {
       name: `FinOrg-${STAMP}`,
       partnerId,
       companyId,
-      partnerCommissionRate: new Prisma.Decimal('0.15')
-    }
+      partnerCommissionRate: new Prisma.Decimal('0.15'),
+    },
   });
   orgId = org.id;
 
@@ -37,8 +45,8 @@ beforeAll(async () => {
       financialStatus: 'partially_paid',
       totalAmount: new Prisma.Decimal('100000'),
       paidAmount: new Prisma.Decimal('40000'),
-      vatIncluded: true
-    }
+      vatIncluded: true,
+    },
   });
   const o2 = await prisma.order.create({
     data: {
@@ -48,8 +56,8 @@ beforeAll(async () => {
       financialStatus: 'paid',
       totalAmount: new Prisma.Decimal('50000'),
       paidAmount: new Prisma.Decimal('50000'),
-      vatIncluded: true
-    }
+      vatIncluded: true,
+    },
   });
   await prisma.order.create({
     data: {
@@ -59,14 +67,26 @@ beforeAll(async () => {
       financialStatus: 'not_billed',
       totalAmount: new Prisma.Decimal('9999'),
       paidAmount: new Prisma.Decimal('0'),
-      vatIncluded: true
-    }
+      vatIncluded: true,
+    },
   });
   await prisma.payment.create({
-    data: { organizationId: orgId, orderId: o1.id, amount: new Prisma.Decimal('40000'), paidAt: new Date('2026-05-01'), method: 'bank' }
+    data: {
+      organizationId: orgId,
+      orderId: o1.id,
+      amount: new Prisma.Decimal('40000'),
+      paidAt: new Date('2026-05-01'),
+      method: 'bank',
+    },
   });
   await prisma.payment.create({
-    data: { organizationId: orgId, orderId: o2.id, amount: new Prisma.Decimal('50000'), paidAt: new Date('2026-05-10'), method: 'bank' }
+    data: {
+      organizationId: orgId,
+      orderId: o2.id,
+      amount: new Prisma.Decimal('50000'),
+      paidAt: new Date('2026-05-10'),
+      method: 'bank',
+    },
   });
   await prisma.payment.create({
     data: {
@@ -75,8 +95,8 @@ beforeAll(async () => {
       amount: new Prisma.Decimal('5000'),
       paidAt: new Date('2026-05-11'),
       isRefund: true,
-      note: 'возврат'
-    }
+      note: 'возврат',
+    },
   });
 });
 
@@ -115,8 +135,8 @@ describe('listOrgPayments', () => {
         orderId: null,
         amount: new Prisma.Decimal('12345'),
         paidAt: new Date('2026-05-20'),
-        method: 'import'
-      }
+        method: 'import',
+      },
     });
     try {
       const rows = await listOrgPayments(prisma, { organizationId: orgId });
@@ -141,9 +161,9 @@ describe('listOrgPayments', () => {
         purpose: 'Оплата по договору №99',
         paymentOrderNumber: 'ПП-099',
         paidAt: new Date('2026-05-25'),
-        method: 'bank'
+        method: 'bank',
         // enteredById: null (no actor in WriteCtx; future work)
-      }
+      },
     });
     try {
       const rows = await listOrgPayments(prisma, { organizationId: orgId });
@@ -171,7 +191,7 @@ describe('getOrgIntermediaryCommission', () => {
   it('standalone org (no partner, no override) → empty commission, KPIs intact', async () => {
     const c3 = await prisma.company.create({ data: { name: `FinC3-${STAMP}` } });
     const solo = await prisma.organization.create({
-      data: { name: `FinSolo-${STAMP}`, companyId: c3.id } // ни partnerId, ни override
+      data: { name: `FinSolo-${STAMP}`, companyId: c3.id }, // ни partnerId, ни override
     });
     try {
       await prisma.order.create({
@@ -182,8 +202,8 @@ describe('getOrgIntermediaryCommission', () => {
           financialStatus: 'billed',
           totalAmount: new Prisma.Decimal('7000'),
           paidAmount: new Prisma.Decimal('0'),
-          vatIncluded: true
-        }
+          vatIncluded: true,
+        },
       });
       const c = await getOrgIntermediaryCommission(prisma, solo.id);
       expect(c).toEqual({ effectiveRate: '0', totalCommission: '0.00', perOrder: [] });
@@ -200,7 +220,7 @@ describe('getOrgIntermediaryCommission', () => {
   it('falls back to the partner default rate when the org has no override', async () => {
     const company2 = await prisma.company.create({ data: { name: `FinC2-${STAMP}` } });
     const org2 = await prisma.organization.create({
-      data: { name: `FinOrg2-${STAMP}`, partnerId, companyId: company2.id } // no partnerCommissionRate
+      data: { name: `FinOrg2-${STAMP}`, partnerId, companyId: company2.id }, // no partnerCommissionRate
     });
     try {
       await prisma.order.create({
@@ -211,8 +231,8 @@ describe('getOrgIntermediaryCommission', () => {
           financialStatus: 'billed',
           totalAmount: new Prisma.Decimal('10000'),
           paidAmount: new Prisma.Decimal('0'),
-          vatIncluded: true
-        }
+          vatIncluded: true,
+        },
       });
       const c = await getOrgIntermediaryCommission(prisma, org2.id);
       expect(c.effectiveRate).toBe('0.1'); // partner default (commissionRate 0.1)
@@ -235,7 +255,7 @@ describe('batch variants (менеджерская витрина: N орган�
   it('listOrgPaymentsForOrgs: rows match the singular ledger; unknown org → []', async () => {
     const [batch, singular] = await Promise.all([
       listOrgPaymentsForOrgs(prisma, [orgId, 'no-such-org']),
-      listOrgPayments(prisma, { organizationId: orgId })
+      listOrgPayments(prisma, { organizationId: orgId }),
     ]);
     expect(batch.get(orgId)).toEqual(singular);
     expect(batch.get(orgId)).toHaveLength(3);
@@ -255,8 +275,8 @@ describe('batch variants (менеджерская витрина: N орган�
         name: 'Финансист',
         role: 'manager',
         passwordHash: null,
-        isActive: true
-      }
+        isActive: true,
+      },
     });
     const rich = await prisma.payment.create({
       data: {
@@ -268,8 +288,8 @@ describe('batch variants (менеджерская витрина: N орган�
         paymentOrderNumber: 'ПП-777',
         paidAt: new Date('2026-05-30'),
         method: 'bank',
-        enteredById: user.id
-      }
+        enteredById: user.id,
+      },
     });
     try {
       const batch = await listOrgPaymentsForOrgs(prisma, [orgId]);
@@ -281,7 +301,7 @@ describe('batch variants (менеджерская витрина: N орган�
         paymentOrderNumber: 'ПП-777',
         enteredByName: 'Финансист',
         orderId: null,
-        orderNumber: null
+        orderNumber: null,
       });
     } finally {
       await prisma.payment.delete({ where: { id: rich.id } });
@@ -293,7 +313,11 @@ describe('batch variants (менеджерская витрина: N орган�
     const kpis = await getOrgFinanceKpisForOrgs(prisma, ['no-such-org']);
     expect(kpis.get('no-such-org')).toEqual({ billed: '0.00', paid: '0.00', outstanding: '0.00' });
     const comm = await getOrgIntermediaryCommissionForOrgs(prisma, ['no-such-org']);
-    expect(comm.get('no-such-org')).toEqual({ effectiveRate: '0', totalCommission: '0.00', perOrder: [] });
+    expect(comm.get('no-such-org')).toEqual({
+      effectiveRate: '0',
+      totalCommission: '0.00',
+      perOrder: [],
+    });
   });
 
   it('multi-org batch matches singular results; rated org without orders → zero total with its rate', async () => {
@@ -302,20 +326,28 @@ describe('batch variants (менеджерская витрина: N орган�
         name: `FinOrg3-${STAMP}`,
         partnerId,
         companyId,
-        partnerCommissionRate: new Prisma.Decimal('0.2') // ставка есть, заказов нет
-      }
+        partnerCommissionRate: new Prisma.Decimal('0.2'), // ставка есть, заказов нет
+      },
     });
     try {
       const [kpis, comm] = await Promise.all([
         getOrgFinanceKpisForOrgs(prisma, [orgId, org3.id]),
-        getOrgIntermediaryCommissionForOrgs(prisma, [orgId, org3.id])
+        getOrgIntermediaryCommissionForOrgs(prisma, [orgId, org3.id]),
       ]);
       // Главный org — те же цифры, что и в одиночных тестах выше.
-      expect(kpis.get(orgId)).toEqual({ billed: '150000.00', paid: '90000.00', outstanding: '60000.00' });
+      expect(kpis.get(orgId)).toEqual({
+        billed: '150000.00',
+        paid: '90000.00',
+        outstanding: '60000.00',
+      });
       expect(comm.get(orgId)!.totalCommission).toBe('22500.00');
       expect(comm.get(orgId)!.perOrder).toHaveLength(2);
       // org3: ставка резолвится, но заказов нет → нулевая комиссия.
-      expect(comm.get(org3.id)).toEqual({ effectiveRate: '0.2', totalCommission: '0.00', perOrder: [] });
+      expect(comm.get(org3.id)).toEqual({
+        effectiveRate: '0.2',
+        totalCommission: '0.00',
+        perOrder: [],
+      });
       expect(kpis.get(org3.id)).toEqual({ billed: '0.00', paid: '0.00', outstanding: '0.00' });
     } finally {
       await prisma.organization.deleteMany({ where: { id: org3.id } });

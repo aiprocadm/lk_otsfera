@@ -43,26 +43,27 @@ export function OrgSidebar(props: {
   // командой (server action enforces per-row privilege). Флаг-фильтрация (chat)
   // уже сделана на сервере в navItemsFor — сюда приходит готовый список.
   const items = props.items.filter(
-    (it) => !it.orgAdminOrLeaderOnly || props.viewerRole === 'admin' || props.viewerRole === 'leader'
+    (it) =>
+      !it.orgAdminOrLeaderOnly || props.viewerRole === 'admin' || props.viewerRole === 'leader'
   );
 
   return (
-    <nav className='w-60 min-h-screen bg-white border-r border-gray-200 p-4 flex-shrink-0'>
-      <div className='text-lg font-bold text-[#111111] mb-1 px-2'>Заказчик</div>
-      <div className='text-xs text-gray-500 mb-4 px-2 truncate'>
+    <nav className="w-60 min-h-screen bg-white border-r border-gray-200 p-4 flex-shrink-0">
+      <div className="text-lg font-bold text-[#111111] mb-1 px-2">Заказчик</div>
+      <div className="text-xs text-gray-500 mb-4 px-2 truncate">
         {activeOrg?.organizationName ?? 'Организация'}
       </div>
 
       {props.memberships.length > 1 ? (
-        <div className='mb-6 px-2'>
-          <label className='block text-xs font-medium uppercase tracking-wider text-gray-500 mb-1'>
+        <div className="mb-6 px-2">
+          <label className="block text-xs font-medium uppercase tracking-wider text-gray-500 mb-1">
             Организация
           </label>
           <select
             value={props.activeOrgId}
             onChange={onOrgChange}
-            className='w-full text-sm border border-gray-300 rounded px-2 py-1.5 bg-white'
-            data-testid='org-selector'
+            className="w-full text-sm border border-gray-300 rounded px-2 py-1.5 bg-white"
+            data-testid="org-selector"
           >
             {props.memberships.map((m) => (
               <option key={m.organizationId} value={m.organizationId}>
@@ -73,10 +74,9 @@ export function OrgSidebar(props: {
         </div>
       ) : null}
 
-      <ul className='space-y-0.5'>
+      <ul className="space-y-0.5">
         {items.map((item) => {
-          const isActive =
-            pathname === item.href || pathname?.startsWith(item.href + '/');
+          const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
           return (
             <li key={item.href}>
               <Link
@@ -89,7 +89,7 @@ export function OrgSidebar(props: {
                 data-testid={`org-nav-${item.href.replace(/\//g, '-')}`}
                 data-active={isActive ? 'true' : 'false'}
               >
-                {item.icon ? <span className='text-base'>{item.icon}</span> : null}
+                {item.icon ? <span className="text-base">{item.icon}</span> : null}
                 <span>{item.label}</span>
               </Link>
             </li>

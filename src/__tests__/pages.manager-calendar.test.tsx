@@ -13,7 +13,7 @@ vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 
 const { listCalendarItems, getEventFormOptions } = vi.hoisted(() => ({
   listCalendarItems: vi.fn(),
-  getEventFormOptions: vi.fn()
+  getEventFormOptions: vi.fn(),
 }));
 vi.mock('@/lib/services/calendar/items', () => ({ listCalendarItems, getEventFormOptions }));
 
@@ -21,7 +21,7 @@ const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
@@ -32,15 +32,24 @@ vi.mock('@/components/calendar/calendar-month-view', () => ({
     return React.createElement(
       'div',
       { 'data-testid': 'calendar-month-view' },
-      JSON.stringify({ month: props.month, calendarHref: props.calendarHref, tasksHref: props.tasksHref })
+      JSON.stringify({
+        month: props.month,
+        calendarHref: props.calendarHref,
+        tasksHref: props.tasksHref,
+      })
     );
-  }
+  },
 }));
 
 import ManagerCalendarPage from '@/app/manager/calendar/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'member' as const,
+  companyId: 'c1',
+};
 
 function pageProps(m?: string) {
   return { searchParams: Promise.resolve(m === undefined ? {} : { m }) };
@@ -59,7 +68,9 @@ describe('ManagerCalendarPage', () => {
   it('calls notFound() when the staff_calendar flag is disabled (before auth check)', async () => {
     isFeatureEnabled.mockReturnValue(false);
 
-    await expect(renderServerComponent(ManagerCalendarPage(pageProps()))).rejects.toThrow('NOT_FOUND');
+    await expect(renderServerComponent(ManagerCalendarPage(pageProps()))).rejects.toThrow(
+      'NOT_FOUND'
+    );
 
     expect(isFeatureEnabled).toHaveBeenCalledWith('staff_calendar');
     expect(requireManager).not.toHaveBeenCalled();

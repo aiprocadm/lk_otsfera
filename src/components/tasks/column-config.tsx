@@ -2,21 +2,44 @@
 
 import React, { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Input, Select, Field, Dialog, TableShell, THead, Th, Tr, Td, Badge, ColorSwatchPicker } from '@/components/ui';
+import {
+  Button,
+  Input,
+  Select,
+  Field,
+  Dialog,
+  TableShell,
+  THead,
+  Th,
+  Tr,
+  Td,
+  Badge,
+  ColorSwatchPicker,
+} from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
 import { errorMessageRu } from '@/lib/errors/messages';
-import { createTaskColumnAction, updateTaskColumnAction, deleteTaskColumnAction } from '@/server-actions/tasks';
+import {
+  createTaskColumnAction,
+  updateTaskColumnAction,
+  deleteTaskColumnAction,
+} from '@/server-actions/tasks';
 import type { TaskColumnView } from '@/lib/tasks/columns';
 
 const ANCHORS: { value: string; label: string }[] = [
   { value: 'todo', label: 'К выполнению' },
   { value: 'in_progress', label: 'В работе' },
   { value: 'review', label: 'На проверке' },
-  { value: 'done', label: 'Готово' }
+  { value: 'done', label: 'Готово' },
 ];
 const anchorLabel = (a: string) => ANCHORS.find((x) => x.value === a)?.label ?? a;
 
-export function ColumnConfig({ columns, isDefault }: { columns: TaskColumnView[]; isDefault: boolean }) {
+export function ColumnConfig({
+  columns,
+  isDefault,
+}: {
+  columns: TaskColumnView[];
+  isDefault: boolean;
+}) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [editing, setEditing] = useState<{ target: TaskColumnView | null } | null>(null);
@@ -40,7 +63,8 @@ export function ColumnConfig({ columns, isDefault }: { columns: TaskColumnView[]
           <h2 className="text-lg font-semibold text-[#111111]">Колонки канбана</h2>
           {isDefault && (
             <p className="text-xs text-gray-500 mt-0.5">
-              Сейчас используются колонки по умолчанию. Создав свою первую колонку, вы замените набор — задайте все нужные колонки.
+              Сейчас используются колонки по умолчанию. Создав свою первую колонку, вы замените
+              набор — задайте все нужные колонки.
             </p>
           )}
         </div>
@@ -103,7 +127,7 @@ export function ColumnConfig({ columns, isDefault }: { columns: TaskColumnView[]
 function ColumnDialog({
   target,
   onClose,
-  onSaved
+  onSaved,
 }: {
   target: TaskColumnView | null;
   onClose: () => void;
@@ -127,13 +151,32 @@ function ColumnDialog({
   }
 
   return (
-    <Dialog open onClose={onClose} title={target ? 'Изменить колонку' : 'Новая колонка'} size="md" busy={submitting}>
+    <Dialog
+      open
+      onClose={onClose}
+      title={target ? 'Изменить колонку' : 'Новая колонка'}
+      size="md"
+      busy={submitting}
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
         <Field htmlFor="col-name" label="Название">
-          <Input id="col-name" name="name" required maxLength={60} defaultValue={target?.name ?? ''} autoFocus />
+          <Input
+            id="col-name"
+            name="name"
+            required
+            maxLength={60}
+            defaultValue={target?.name ?? ''}
+            autoFocus
+          />
         </Field>
         <Field htmlFor="col-position" label="Позиция (порядок колонки)">
-          <Input id="col-position" name="position" type="number" min={0} defaultValue={target?.position ?? 0} />
+          <Input
+            id="col-position"
+            name="position"
+            type="number"
+            min={0}
+            defaultValue={target?.position ?? 0}
+          />
         </Field>
         <Field htmlFor="col-anchor" label="Якорь статуса">
           <Select id="col-anchor" name="statusAnchor" defaultValue={target?.statusAnchor ?? 'todo'}>
@@ -146,7 +189,12 @@ function ColumnDialog({
         </Field>
         <ColorSwatchPicker name="color" value={target?.color ?? null} />
         <label className="flex items-center gap-2 cursor-pointer text-sm">
-          <input type="checkbox" name="isDoneColumn" defaultChecked={target?.isDoneColumn ?? false} className="h-4 w-4 rounded" />
+          <input
+            type="checkbox"
+            name="isDoneColumn"
+            defaultChecked={target?.isDoneColumn ?? false}
+            className="h-4 w-4 rounded"
+          />
           <span>Колонка «Готово» (проставляет дату завершения)</span>
         </label>
         <div className="flex justify-end gap-2">

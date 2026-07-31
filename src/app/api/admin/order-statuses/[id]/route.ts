@@ -22,7 +22,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
   const res = await updateStatusDefinition(prisma, guard.value, id, {
     label: body.label,
     sortOrder: body.sortOrder,
-    isActive: body.isActive
+    isActive: body.isActive,
   });
   if (!res.ok) return NextResponse.json({ error: res.error }, { status: mapErr(res.error) });
   return NextResponse.json({ definition: res.definition });

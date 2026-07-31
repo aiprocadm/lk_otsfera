@@ -29,7 +29,7 @@ function row(overrides: Partial<ClientRequestRow> = {}): ClientRequestRow {
     createdAt: new Date('2024-01-15T10:00:00Z'),
     triagedAt: null,
     attachmentCount: 0,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -43,7 +43,7 @@ function attachment(
     mimeType: 'application/pdf',
     createdAt: '2024-01-16T09:00:00Z',
     createdByUserName: 'Партнёр 1',
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -80,7 +80,7 @@ describe('ClientRequestDetailView', () => {
         inn: '7701234567',
         contactPhone: '+79990001122',
         contactEmail: 'ivan@example.com',
-        organizationName: 'ООО Заказчик'
+        organizationName: 'ООО Заказчик',
       })
     );
     expect(full).toContain('7701234567');

@@ -15,12 +15,12 @@ export async function markDocumentViewed(
     await prisma.documentViewMark.upsert({
       where: { documentId_userId: { documentId: args.documentId, userId: args.userId } },
       create: { documentId: args.documentId, userId: args.userId },
-      update: { viewedAt: new Date() }
+      update: { viewedAt: new Date() },
     });
   } catch (err) {
     log.warn('[documents/viewMarks] mark failed', {
       documentId: args.documentId,
-      error: err instanceof Error ? err.message : String(err)
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 }
@@ -33,7 +33,7 @@ export async function viewedDocumentIds(
   if (!args.documentIds.length) return new Set();
   const rows = await prisma.documentViewMark.findMany({
     where: { userId: args.userId, documentId: { in: args.documentIds } },
-    select: { documentId: true }
+    select: { documentId: true },
   });
   return new Set(rows.map((r) => r.documentId));
 }

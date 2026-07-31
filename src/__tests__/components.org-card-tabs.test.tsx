@@ -3,9 +3,24 @@ import { renderToString } from 'react-dom/server';
 import React from 'react';
 
 vi.mock('next/link', () => ({
-  default: ({ href, children, className, 'data-testid': testId, 'data-active': dataActive }: {
-    href: string; children: React.ReactNode; className?: string; 'data-testid'?: string; 'data-active'?: boolean;
-  }) => React.createElement('a', { href, className, 'data-testid': testId, 'data-active': dataActive }, children)
+  default: ({
+    href,
+    children,
+    className,
+    'data-testid': testId,
+    'data-active': dataActive,
+  }: {
+    href: string;
+    children: React.ReactNode;
+    className?: string;
+    'data-testid'?: string;
+    'data-active'?: boolean;
+  }) =>
+    React.createElement(
+      'a',
+      { href, className, 'data-testid': testId, 'data-active': dataActive },
+      children
+    ),
 }));
 
 import { OrgCardTabs, ORG_CARD_TABS } from '@/components/manager/org-card-tabs';
@@ -28,10 +43,18 @@ function makeCard(overrides: Partial<OrganizationCard>): OrganizationCard {
     calls: [],
     // Этап 8 (PR-1): полный набор реквизитов read-only таба.
     requisites: {
-      legalName: null, ogrn: null, legalAddress: null, bankName: null, bankAccount: null,
-      corrAccount: null, bic: null, signerName: null, signerPosition: null, signerBasis: null
+      legalName: null,
+      ogrn: null,
+      legalAddress: null,
+      bankName: null,
+      bankAccount: null,
+      corrAccount: null,
+      bic: null,
+      signerName: null,
+      signerPosition: null,
+      signerBasis: null,
     },
-    ...overrides
+    ...overrides,
   } as unknown as OrganizationCard;
 }
 
@@ -88,9 +111,9 @@ describe('OrgCardTabs — orders section', () => {
           financialStatus: 'billed',
           totalAmount: '1000.00',
           paidAmount: '500.00',
-          createdAt: new Date('2026-01-01')
-        }
-      ]
+          createdAt: new Date('2026-01-01'),
+        },
+      ],
     });
     const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'orders' }));
     expect(html).toContain('A-1');
@@ -112,9 +135,9 @@ describe('OrgCardTabs — orders section', () => {
           financialStatus: 'not_billed',
           totalAmount: '0.00',
           paidAmount: '0.00',
-          createdAt: new Date('2026-01-01')
-        }
-      ]
+          createdAt: new Date('2026-01-01'),
+        },
+      ],
     });
     const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'orders' }));
     expect(html).toContain('—');
@@ -131,8 +154,14 @@ describe('OrgCardTabs — documents section', () => {
   it('non-empty: renders document row with name, type, direction, date', () => {
     const card = makeCard({
       documents: [
-        { id: 'd1', name: 'Договор.pdf', type: 'contract', direction: 'to_organization', createdAt: new Date('2026-02-01') }
-      ]
+        {
+          id: 'd1',
+          name: 'Договор.pdf',
+          type: 'contract',
+          direction: 'to_organization',
+          createdAt: new Date('2026-02-01'),
+        },
+      ],
     });
     const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'documents' }));
     expect(html).toContain('Договор.pdf');
@@ -143,7 +172,10 @@ describe('OrgCardTabs — documents section', () => {
 
 describe('OrgCardTabs — payments section', () => {
   it('renders kpi tiles for totalPaid/totalRefunded even when empty', () => {
-    const card = makeCard({ payments: [], kpis: { activeOrders: 0, totalPaid: '0.00', totalRefunded: '0.00' } as never });
+    const card = makeCard({
+      payments: [],
+      kpis: { activeOrders: 0, totalPaid: '0.00', totalRefunded: '0.00' } as never,
+    });
     const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'payments' }));
     expect(html).toContain('Оплачено (нетто)');
     expect(html).toContain('Возвраты');
@@ -152,7 +184,15 @@ describe('OrgCardTabs — payments section', () => {
 
   it('non-empty: renders a regular payment row with success badge', () => {
     const card = makeCard({
-      payments: [{ id: 'p1', paidAt: new Date('2026-03-01'), amount: '100.00', isRefund: false, orderId: 'o1' }]
+      payments: [
+        {
+          id: 'p1',
+          paidAt: new Date('2026-03-01'),
+          amount: '100.00',
+          isRefund: false,
+          orderId: 'o1',
+        },
+      ],
     });
     const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'payments' }));
     expect(html).toContain('100.00 ₽');
@@ -161,7 +201,15 @@ describe('OrgCardTabs — payments section', () => {
 
   it('non-empty: renders a refund payment row with danger badge', () => {
     const card = makeCard({
-      payments: [{ id: 'p1', paidAt: new Date('2026-03-01'), amount: '50.00', isRefund: true, orderId: 'o1' }]
+      payments: [
+        {
+          id: 'p1',
+          paidAt: new Date('2026-03-01'),
+          amount: '50.00',
+          isRefund: true,
+          orderId: 'o1',
+        },
+      ],
     });
     const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'payments' }));
     expect(html).toContain('Возврат');
@@ -177,7 +225,15 @@ describe('OrgCardTabs — threads section', () => {
 
   it('non-empty: renders author, date, body', () => {
     const card = makeCard({
-      activity: [{ id: 'c1', authorName: 'Иван', createdAt: new Date('2026-04-01'), body: 'Комментарий тест', orderId: 'o1' }]
+      activity: [
+        {
+          id: 'c1',
+          authorName: 'Иван',
+          createdAt: new Date('2026-04-01'),
+          body: 'Комментарий тест',
+          orderId: 'o1',
+        },
+      ],
     });
     const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'threads' }));
     expect(html).toContain('Иван');
@@ -205,14 +261,14 @@ describe('OrgCardTabs — details section', () => {
     // Подписант уходит в шапку документов. Если должности нет, в строке не
     // должно оставаться висящей запятой.
     const withPosition = makeCard({
-      requisites: { signerName: 'Иванов И.И.', signerPosition: 'Директор' }
+      requisites: { signerName: 'Иванов И.И.', signerPosition: 'Директор' },
     } as never);
     expect(
       renderToString(React.createElement(OrgCardTabs, { card: withPosition, activeTab: 'details' }))
     ).toContain('Иванов И.И., Директор');
 
     const withoutPosition = makeCard({
-      requisites: { signerName: 'Иванов И.И.', signerPosition: null }
+      requisites: { signerName: 'Иванов И.И.', signerPosition: null },
     } as never);
     const html = renderToString(
       React.createElement(OrgCardTabs, { card: withoutPosition, activeTab: 'details' })
@@ -254,9 +310,16 @@ describe('OrgCardTabs — history section (default tab)', () => {
       orders: [{ id: 'o1', title: 'Заказ 1', createdAt: new Date('2026-01-05') } as never],
       payments: [
         { id: 'p1', amount: '100.00', paidAt: new Date('2026-01-07'), isRefund: false } as never,
-        { id: 'p2', amount: '20.00', paidAt: new Date('2026-01-08'), isRefund: true } as never
+        { id: 'p2', amount: '20.00', paidAt: new Date('2026-01-08'), isRefund: true } as never,
       ],
-      activity: [{ id: 'c1', authorName: 'X', createdAt: new Date('2026-01-06'), body: 'привет мир как дела сегодня действительно длинный текст' } as never]
+      activity: [
+        {
+          id: 'c1',
+          authorName: 'X',
+          createdAt: new Date('2026-01-06'),
+          body: 'привет мир как дела сегодня действительно длинный текст',
+        } as never,
+      ],
     });
     const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'history' }));
     expect(html).toContain('Последние заявки');
@@ -271,7 +334,9 @@ describe('OrgCardTabs — history section (default tab)', () => {
     const card = makeCard({
       orders: [],
       payments: [],
-      activity: [{ id: 'c1', authorName: 'X', createdAt: new Date('2026-01-06'), body: 'непусто' } as never]
+      activity: [
+        { id: 'c1', authorName: 'X', createdAt: new Date('2026-01-06'), body: 'непусто' } as never,
+      ],
     });
     const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'history' }));
     const dashCount = (html.match(/text-xs text-gray-400">—</g) ?? []).length;
@@ -317,9 +382,9 @@ describe('OrgCardTabs — inbound messages tab (G4, read-only)', () => {
           createdAt: new Date('2026-07-01'),
           status: 'bound',
           scanStatus: 'clean',
-          attachmentName: 'скан.pdf'
-        }
-      ]
+          attachmentName: 'скан.pdf',
+        },
+      ],
     });
     const html = renderToString(
       React.createElement(OrgCardTabs, { card, activeTab: 'inbound_messages' })
@@ -345,9 +410,9 @@ describe('OrgCardTabs — inbound messages tab (G4, read-only)', () => {
           createdAt: new Date('2026-07-02'),
           status: 'strange',
           scanStatus: 'none',
-          attachmentName: null
-        }
-      ]
+          attachmentName: null,
+        },
+      ],
     });
     const html = renderToString(
       React.createElement(OrgCardTabs, { card, activeTab: 'inbound_messages' })
@@ -364,13 +429,31 @@ describe('OrgCardTabs — inbound messages tab (G4, read-only)', () => {
 describe('вкладки внутреннего контура (этап 7 PR-3)', () => {
   const internal = {
     clientRequests: [
-      { id: 'r1', subject: 'Обучение по ОТ', status: 'rejected', rejectedReason: 'Дубль', createdAt: new Date('2026-07-01') }
+      {
+        id: 'r1',
+        subject: 'Обучение по ОТ',
+        status: 'rejected',
+        rejectedReason: 'Дубль',
+        createdAt: new Date('2026-07-01'),
+      },
     ],
     leads: [{ id: 'l1', subject: 'Лид-тема', status: 'new', createdAt: new Date('2026-07-02') }],
     deals: [
-      { id: 'd1', title: 'Сделка-1', status: 'won', amount: '1500.00', createdAt: new Date('2026-07-03') },
-      { id: 'd2', title: 'Сделка-2', status: 'open', amount: null, createdAt: new Date('2026-07-04') }
-    ]
+      {
+        id: 'd1',
+        title: 'Сделка-1',
+        status: 'won',
+        amount: '1500.00',
+        createdAt: new Date('2026-07-03'),
+      },
+      {
+        id: 'd2',
+        title: 'Сделка-2',
+        status: 'open',
+        amount: null,
+        createdAt: new Date('2026-07-04'),
+      },
+    ],
   };
 
   it('канон табов содержит три новых ключа', () => {
@@ -382,7 +465,10 @@ describe('вкладки внутреннего контура (этап 7 PR-3)
 
   it('заявки клиентов: тема, русский статус, причина отклонения', () => {
     const html = renderToString(
-      React.createElement(OrgCardTabs, { card: makeCard(internal as never), activeTab: 'client_requests' })
+      React.createElement(OrgCardTabs, {
+        card: makeCard(internal as never),
+        activeTab: 'client_requests',
+      })
     );
     expect(html).toContain('Обучение по ОТ');
     expect(html).toContain('Дубль');
@@ -390,13 +476,17 @@ describe('вкладки внутреннего контура (этап 7 PR-3)
   });
 
   it('лиды: ссылка на карточку лида + статус-бейдж', () => {
-    const html = renderToString(React.createElement(OrgCardTabs, { card: makeCard(internal as never), activeTab: 'leads' }));
+    const html = renderToString(
+      React.createElement(OrgCardTabs, { card: makeCard(internal as never), activeTab: 'leads' })
+    );
     expect(html).toContain('/manager/leads/l1');
     expect(html).toContain('Лид-тема');
   });
 
   it('сделки: русские статусы и сумма с прочерком для null', () => {
-    const html = renderToString(React.createElement(OrgCardTabs, { card: makeCard(internal as never), activeTab: 'deals' }));
+    const html = renderToString(
+      React.createElement(OrgCardTabs, { card: makeCard(internal as never), activeTab: 'deals' })
+    );
     expect(html).toContain('Сделка-1');
     expect(html).toContain('Выиграна');
     expect(html).toContain('В работе');
@@ -409,7 +499,15 @@ describe('вкладки внутреннего контура (этап 7 PR-3)
     // а не пустой бейдж: иначе менеджер не поймёт, в каком состоянии сделка.
     const odd = {
       ...internal,
-      deals: [{ id: 'd9', title: 'Сделка-9', status: 'frozen', amount: null, createdAt: new Date('2026-07-05') }]
+      deals: [
+        {
+          id: 'd9',
+          title: 'Сделка-9',
+          status: 'frozen',
+          amount: null,
+          createdAt: new Date('2026-07-05'),
+        },
+      ],
     };
     const html = renderToString(
       React.createElement(OrgCardTabs, { card: makeCard(odd as never), activeTab: 'deals' })
@@ -420,9 +518,17 @@ describe('вкладки внутреннего контура (этап 7 PR-3)
 
   it('пустые состояния трёх вкладок', () => {
     const empty = makeCard({ clientRequests: [], leads: [], deals: [] } as never);
-    expect(renderToString(React.createElement(OrgCardTabs, { card: empty, activeTab: 'client_requests' }))).toContain('Заявок клиентов пока нет.');
-    expect(renderToString(React.createElement(OrgCardTabs, { card: empty, activeTab: 'leads' }))).toContain('Лидов пока нет.');
-    expect(renderToString(React.createElement(OrgCardTabs, { card: empty, activeTab: 'deals' }))).toContain('Сделок пока нет.');
+    expect(
+      renderToString(
+        React.createElement(OrgCardTabs, { card: empty, activeTab: 'client_requests' })
+      )
+    ).toContain('Заявок клиентов пока нет.');
+    expect(
+      renderToString(React.createElement(OrgCardTabs, { card: empty, activeTab: 'leads' }))
+    ).toContain('Лидов пока нет.');
+    expect(
+      renderToString(React.createElement(OrgCardTabs, { card: empty, activeTab: 'deals' }))
+    ).toContain('Сделок пока нет.');
   });
 });
 
@@ -436,7 +542,7 @@ describe('OrgCardTabs — вкладка «Удостоверения» и вы�
     directionName: 'Охрана труда',
     issuedAt: new Date('2026-01-15'),
     validUntil: new Date('2029-01-15'),
-    hasScan: true
+    hasScan: true,
   };
 
   it('вкладка есть в списке табов', () => {
@@ -460,7 +566,7 @@ describe('OrgCardTabs — вкладка «Удостоверения» и вы�
   it('бессрочное удостоверение и отсутствующий скан подписаны словами', () => {
     const card = makeCard({
       id: 'org1',
-      certificates: [{ ...CERT, validUntil: null, hasScan: false }]
+      certificates: [{ ...CERT, validUntil: null, hasScan: false }],
     } as never);
     const html = renderToString(
       React.createElement(OrgCardTabs, { card, activeTab: 'certificates' })

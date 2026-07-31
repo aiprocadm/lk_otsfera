@@ -20,7 +20,11 @@ let partnerSession: SessionPayload;
 
 const stamp = Date.now();
 
-function makeSession(userId: string, role: string, extra: Partial<SessionPayload> = {}): SessionPayload {
+function makeSession(
+  userId: string,
+  role: string,
+  extra: Partial<SessionPayload> = {}
+): SessionPayload {
   return { sub: userId, role: role as SessionPayload['role'], ...extra } as SessionPayload;
 }
 
@@ -83,7 +87,7 @@ describe('definitions service — этап 1 ТЗ v0.5', () => {
       entityType: 'invoice',
       key: 'some_key',
       label: 'Счёт',
-      fieldType: 'text'
+      fieldType: 'text',
     });
     expect(res).toEqual({ ok: false, error: 'invalid_entity_type' });
   });
@@ -95,7 +99,7 @@ describe('definitions service — этап 1 ТЗ v0.5', () => {
       entityType: 'organization',
       key: 'status',
       label: 'Статус (дубль)',
-      fieldType: 'text'
+      fieldType: 'text',
     });
     expect(res).toEqual({ ok: false, error: 'reserved_key' });
   });
@@ -105,7 +109,7 @@ describe('definitions service — этап 1 ТЗ v0.5', () => {
       entityType: 'order',
       key: `status_note_${stamp}`,
       label: 'Пометка о статусе',
-      fieldType: 'text'
+      fieldType: 'text',
     });
     expect(res.ok).toBe(true);
     if (!res.ok) throw new Error('unexpected');
@@ -117,7 +121,7 @@ describe('definitions service — этап 1 ТЗ v0.5', () => {
       entityType: ET,
       key: `multi_no_opts_${stamp}`,
       label: 'Множественный без вариантов',
-      fieldType: 'multiselect'
+      fieldType: 'multiselect',
     });
     expect(res).toEqual({ ok: false, error: 'options_required' });
   });
@@ -127,14 +131,14 @@ describe('definitions service — этап 1 ТЗ v0.5', () => {
       entityType: ET,
       key: `roles_patch_${stamp}`,
       label: 'Поле с ролями',
-      fieldType: 'text'
+      fieldType: 'text',
     });
     if (!created.ok) throw new Error('unexpected');
 
     const res = await updateDefinition(prisma, adminSession, created.definition.id, {
       helpText: 'Заполняет бухгалтерия',
       visibleToRoles: ['admin', 'organization'],
-      editableByRoles: ['manager', 'root'] // 'root' — мусор, обязан отвалиться
+      editableByRoles: ['manager', 'root'], // 'root' — мусор, обязан отвалиться
     });
     expect(res.ok).toBe(true);
     if (!res.ok) throw new Error('unexpected');
@@ -144,7 +148,7 @@ describe('definitions service — этап 1 ТЗ v0.5', () => {
 
     // Подсказку можно снять, передав null.
     const cleared = await updateDefinition(prisma, adminSession, created.definition.id, {
-      helpText: null
+      helpText: null,
     });
     if (!cleared.ok) throw new Error('unexpected');
     expect(cleared.definition.helpText).toBeNull();
@@ -158,7 +162,7 @@ describe('definitions service — этап 1 ТЗ v0.5', () => {
       entityType: ET,
       key: `by_leader_${stamp}`,
       label: 'Поле от руководителя',
-      fieldType: 'text'
+      fieldType: 'text',
     });
     expect(res.ok).toBe(true);
     if (!res.ok) throw new Error('unexpected');

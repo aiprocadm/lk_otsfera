@@ -25,7 +25,11 @@ describe('parseMangoEvent — summary', () => {
   it('maps call_direction 2 → outbound', () => {
     const json = { entry_id: 'e2', call_direction: 2, from: { number: '+7 999 000 11 22' } };
     const ev = parseMangoEvent('summary', json);
-    expect(ev).toMatchObject({ kind: 'summary', direction: 'outbound', callerNumber: '+79990001122' });
+    expect(ev).toMatchObject({
+      kind: 'summary',
+      direction: 'outbound',
+      callerNumber: '+79990001122',
+    });
   });
 
   it('defaults to inbound when call_direction is missing/other', () => {
@@ -107,7 +111,9 @@ describe('parseMangoEvent — invalid input', () => {
 
   it('missing entry_id on any known type → null', () => {
     expect(parseMangoEvent('summary', { from: { number: '1' } })).toBeNull();
-    expect(parseMangoEvent('recording', { recording_state: 'Completed', recording_id: 'r' })).toBeNull();
+    expect(
+      parseMangoEvent('recording', { recording_state: 'Completed', recording_id: 'r' })
+    ).toBeNull();
     expect(parseMangoEvent('call', {})).toBeNull();
   });
 });

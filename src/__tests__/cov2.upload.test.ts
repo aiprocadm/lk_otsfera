@@ -19,9 +19,15 @@ const { requireSession, requireRole, requireOrderAccess } = vi.hoisted(() => ({
   requireOrderAccess: vi.fn(),
 }));
 const {
-  orderFindUnique, orgFindFirst, docCreate, auditCreate,
-  upload, enqueueAdd,
-  notifyDocumentCreated, deliverNotificationToUser, getPrimaryOrganizationId,
+  orderFindUnique,
+  orgFindFirst,
+  docCreate,
+  auditCreate,
+  upload,
+  enqueueAdd,
+  notifyDocumentCreated,
+  deliverNotificationToUser,
+  getPrimaryOrganizationId,
 } = vi.hoisted(() => ({
   orderFindUnique: vi.fn(),
   orgFindFirst: vi.fn(),
@@ -46,9 +52,17 @@ vi.mock('@/lib/db/prisma', () => ({
 }));
 vi.mock('@/lib/notifications', () => ({ notifyDocumentCreated, deliverNotificationToUser }));
 vi.mock('@/lib/storage', () => ({
-  getObjectStorage: () => ({ upload, createSignedUrl: vi.fn(), remove: vi.fn(), download: vi.fn() }),
+  getObjectStorage: () => ({
+    upload,
+    createSignedUrl: vi.fn(),
+    remove: vi.fn(),
+    download: vi.fn(),
+  }),
 }));
-vi.mock('@/lib/jobs/queues', () => ({ getQueue: () => ({ add: enqueueAdd }), QUEUE_NAMES: ['docs.scanDocument'] }));
+vi.mock('@/lib/jobs/queues', () => ({
+  getQueue: () => ({ add: enqueueAdd }),
+  QUEUE_NAMES: ['docs.scanDocument'],
+}));
 
 import { POST as uploadPost } from '@/app/api/documents/upload/route';
 

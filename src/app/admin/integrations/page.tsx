@@ -2,13 +2,17 @@ import React from 'react';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { getIntegrationsStatus } from '@/lib/services/admin/integrations';
 import { prisma } from '@/lib/db/prisma';
-import { getSettingsView, type SettingKey, type SettingViewRow } from '@/lib/config/integrationSettings';
+import {
+  getSettingsView,
+  type SettingKey,
+  type SettingViewRow,
+} from '@/lib/config/integrationSettings';
 import { primeIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
 import { EmailSettingsForm } from '@/components/admin/email-settings-form';
 import {
   IntegrationSettingsForm,
   type IntegrationCheckInfo,
-  type WebhookDiagInfo
+  type WebhookDiagInfo,
 } from '@/components/admin/integration-settings-form';
 import {
   saveTelegramSettingsAction,
@@ -18,9 +22,12 @@ import {
   saveImapSettingsAction,
   saveOnecSettingsAction,
   saveDadataSettingsAction,
-  testIntegrationAction
+  testIntegrationAction,
 } from '@/server-actions/admin/integrationSettings';
-import { INTEGRATION_TEST_KEYS, type IntegrationTestKey } from '@/lib/services/admin/testIntegration';
+import {
+  INTEGRATION_TEST_KEYS,
+  type IntegrationTestKey,
+} from '@/lib/services/admin/testIntegration';
 import { getAppBaseUrl } from '@/lib/notifications/shared';
 import { fmtDateTime } from '@/lib/format';
 
@@ -52,7 +59,7 @@ const VIEW_KEYS: SettingKey[] = [
   'onec.apiToken',
   'onec.healthPath',
   'dadata.enabled',
-  'dadata.apiKey'
+  'dadata.apiKey',
 ];
 
 const WEBHOOK_NAMES = ['telegram', 'max', 'whatsapp', 'mango'] as const;
@@ -69,23 +76,22 @@ export default async function AdminIntegrationsPage() {
       entity: {
         in: [
           ...INTEGRATION_TEST_KEYS.map((k) => `integration.${k}`),
-          ...WEBHOOK_NAMES.map((n) => `webhook.${n}`)
-        ]
-      }
+          ...WEBHOOK_NAMES.map((n) => `webhook.${n}`),
+        ],
+      },
     },
-    select: { entity: true, lastRunAt: true, lastSuccessAt: true, lastError: true }
+    select: { entity: true, lastRunAt: true, lastSuccessAt: true, lastError: true },
   });
   const stateOf = (entity: string) => syncStates.find((s) => s.entity === entity);
 
   const checkOf = (key: IntegrationTestKey): IntegrationCheckInfo | null => {
     const s = stateOf(`integration.${key}`);
     if (!s?.lastRunAt) return null;
-    const lastOk =
-      !!s.lastSuccessAt && s.lastRunAt.getTime() === s.lastSuccessAt.getTime();
+    const lastOk = !!s.lastSuccessAt && s.lastRunAt.getTime() === s.lastSuccessAt.getTime();
     return {
       lastAt: fmtDateTime(s.lastRunAt),
       lastOk,
-      lastError: s.lastError
+      lastError: s.lastError,
     };
   };
 
@@ -102,7 +108,7 @@ export default async function AdminIntegrationsPage() {
       headerName,
       secretSet,
       lastEventAt: s?.lastSuccessAt ? fmtDateTime(s.lastSuccessAt) : null,
-      note
+      note,
     };
   };
   const testOf = (key: IntegrationTestKey) => testIntegrationAction.bind(null, key);
@@ -118,7 +124,7 @@ export default async function AdminIntegrationsPage() {
 
   const secretProps = (k: SettingKey) => ({
     secretSet: byKey(k).isSet,
-    secretSource: byKey(k).source
+    secretSource: byKey(k).source,
   });
 
   return (
@@ -131,10 +137,11 @@ export default async function AdminIntegrationsPage() {
       </div>
 
       <div className="text-sm text-blue-800 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
-        <span aria-hidden className="mr-1">ℹ️</span>
-        Секретные ключи хранятся в базе в зашифрованном виде. Если параметр задан
-        в конфиге сервера (env), он используется как запасной вариант, пока не
-        задан здесь.
+        <span aria-hidden className="mr-1">
+          ℹ️
+        </span>
+        Секретные ключи хранятся в базе в зашифрованном виде. Если параметр задан в конфиге сервера
+        (env), он используется как запасной вариант, пока не задан здесь.
       </div>
 
       <ul className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100 overflow-hidden">
@@ -161,7 +168,9 @@ export default async function AdminIntegrationsPage() {
       </ul>
 
       <div className="pt-2 space-y-4">
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Настройки</h2>
+        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+          Настройки
+        </h2>
         <EmailSettingsForm
           initialEnabled={emailEnabled}
           initialFrom={emailFrom}
@@ -181,15 +190,15 @@ export default async function AdminIntegrationsPage() {
               label: 'Имя бота (username, без @)',
               kind: 'text',
               initialValue: byKey('telegram.botUsername').value ?? '',
-              placeholder: 'otsfera_bot'
+              placeholder: 'otsfera_bot',
             },
             {
               name: 'telegram_botToken',
               label: 'Токен бота',
               kind: 'secret',
               placeholder: '123456:ABC-…',
-              ...secretProps('telegram.botToken')
-            }
+              ...secretProps('telegram.botToken'),
+            },
           ]}
           testAction={testOf('telegram')}
           check={checkOf('telegram')}
@@ -210,25 +219,29 @@ export default async function AdminIntegrationsPage() {
               name: 'max_botUsername',
               label: 'Имя бота (username)',
               kind: 'text',
-              initialValue: byKey('max.botUsername').value ?? ''
+              initialValue: byKey('max.botUsername').value ?? '',
             },
             {
               name: 'max_botToken',
               label: 'Токен бота',
               kind: 'secret',
-              ...secretProps('max.botToken')
+              ...secretProps('max.botToken'),
             },
             {
               name: 'max_baseUrl',
               label: 'Базовый URL API (необязательно)',
               kind: 'text',
               initialValue: byKey('max.baseUrl').value ?? '',
-              placeholder: 'https://botapi.max.ru'
-            }
+              placeholder: 'https://botapi.max.ru',
+            },
           ]}
           testAction={testOf('max')}
           check={checkOf('max')}
-          webhook={webhookOf('max', 'x-max-webhook-secret', !!process.env.MAX_WEBHOOK_SECRET?.trim())}
+          webhook={webhookOf(
+            'max',
+            'x-max-webhook-secret',
+            !!process.env.MAX_WEBHOOK_SECRET?.trim()
+          )}
         />
 
         <IntegrationSettingsForm
@@ -241,21 +254,21 @@ export default async function AdminIntegrationsPage() {
               name: 'whatsapp_apiKey',
               label: 'API-ключ агрегатора',
               kind: 'secret',
-              ...secretProps('whatsapp.apiKey')
+              ...secretProps('whatsapp.apiKey'),
             },
             {
               name: 'whatsapp_channelId',
               label: 'ID канала (подключённый номер)',
               kind: 'secret',
-              ...secretProps('whatsapp.channelId')
+              ...secretProps('whatsapp.channelId'),
             },
             {
               name: 'whatsapp_baseUrl',
               label: 'Базовый URL агрегатора (необязательно)',
               kind: 'text',
               initialValue: byKey('whatsapp.baseUrl').value ?? '',
-              placeholder: 'https://api.wazzup24.com'
-            }
+              placeholder: 'https://api.wazzup24.com',
+            },
           ]}
           testAction={testOf('whatsapp')}
           check={checkOf('whatsapp')}
@@ -277,20 +290,20 @@ export default async function AdminIntegrationsPage() {
               label: 'Базовый URL VPBX API',
               kind: 'text',
               initialValue: byKey('mango.vpbxBaseUrl').value ?? '',
-              placeholder: 'https://app.mango-office.ru/vpbx/'
+              placeholder: 'https://app.mango-office.ru/vpbx/',
             },
             {
               name: 'mango_apiKey',
               label: 'API-ключ (vpbx_api_key)',
               kind: 'secret',
-              ...secretProps('mango.apiKey')
+              ...secretProps('mango.apiKey'),
             },
             {
               name: 'mango_apiSalt',
               label: 'Соль подписи (api_salt)',
               kind: 'secret',
-              ...secretProps('mango.apiSalt')
-            }
+              ...secretProps('mango.apiSalt'),
+            },
           ]}
           testAction={testOf('mango')}
           check={checkOf('mango')}
@@ -314,41 +327,41 @@ export default async function AdminIntegrationsPage() {
               initialValue: (byKey('imap.adapter').value ?? 'fake').trim().toLowerCase(),
               options: [
                 { value: 'fake', label: 'Отключено (тестовый режим)' },
-                { value: 'imap', label: 'IMAP-ящик' }
-              ]
+                { value: 'imap', label: 'IMAP-ящик' },
+              ],
             },
             {
               name: 'imap_host',
               label: 'Сервер (host)',
               kind: 'text',
               initialValue: byKey('imap.host').value ?? '',
-              placeholder: 'imap.yandex.ru'
+              placeholder: 'imap.yandex.ru',
             },
             {
               name: 'imap_port',
               label: 'Порт',
               kind: 'text',
               initialValue: byKey('imap.port').value ?? '',
-              placeholder: '993'
+              placeholder: '993',
             },
             {
               name: 'imap_user',
               label: 'Логин',
               kind: 'text',
-              initialValue: byKey('imap.user').value ?? ''
+              initialValue: byKey('imap.user').value ?? '',
             },
             {
               name: 'imap_password',
               label: 'Пароль',
               kind: 'secret',
-              ...secretProps('imap.password')
+              ...secretProps('imap.password'),
             },
             {
               name: 'imap_tls',
               label: 'Использовать TLS (шифрованное соединение)',
               kind: 'checkbox',
-              initialChecked: imapTls !== '0' && imapTls !== 'false' && imapTls !== 'off'
-            }
+              initialChecked: imapTls !== '0' && imapTls !== 'false' && imapTls !== 'off',
+            },
           ]}
           testAction={testOf('imap')}
           check={checkOf('imap')}
@@ -367,29 +380,29 @@ export default async function AdminIntegrationsPage() {
               initialValue: onecAdapter === 'rest' ? 'rest' : 'fake',
               options: [
                 { value: 'fake', label: 'Отключено (тестовый режим)' },
-                { value: 'rest', label: 'Боевой обмен по сети (REST)' }
-              ]
+                { value: 'rest', label: 'Боевой обмен по сети (REST)' },
+              ],
             },
             {
               name: 'onec_apiUrl',
               label: 'Адрес API 1С',
               kind: 'text',
               initialValue: byKey('onec.apiUrl').value ?? '',
-              placeholder: 'https://1c.example.ru/base/hs/exchange/'
+              placeholder: 'https://1c.example.ru/base/hs/exchange/',
             },
             {
               name: 'onec_healthPath',
               label: 'Путь для проверки связи (необязательно)',
               kind: 'text',
               initialValue: byKey('onec.healthPath').value ?? '',
-              placeholder: 'health'
+              placeholder: 'health',
             },
             {
               name: 'onec_apiToken',
               label: 'Токен доступа',
               kind: 'secret',
-              ...secretProps('onec.apiToken')
-            }
+              ...secretProps('onec.apiToken'),
+            },
           ]}
           testAction={testOf('onec')}
           check={checkOf('onec')}
@@ -404,14 +417,14 @@ export default async function AdminIntegrationsPage() {
               name: 'dadata_enabled',
               label: 'Включить подсказки DaData',
               kind: 'checkbox',
-              initialChecked: dadataEnabled
+              initialChecked: dadataEnabled,
             },
             {
               name: 'dadata_apiKey',
               label: 'API-ключ DaData',
               kind: 'secret',
-              ...secretProps('dadata.apiKey')
-            }
+              ...secretProps('dadata.apiKey'),
+            },
           ]}
           testAction={testOf('dadata')}
           check={checkOf('dadata')}

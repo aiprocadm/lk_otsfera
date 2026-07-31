@@ -15,17 +15,19 @@ vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
-const { advanceEnrollmentItems, approveEnrollment, rejectEnrollment, markProvisioned } = vi.hoisted(() => ({
-  advanceEnrollmentItems: vi.fn(),
-  approveEnrollment: vi.fn(),
-  rejectEnrollment: vi.fn(),
-  markProvisioned: vi.fn()
-}));
+const { advanceEnrollmentItems, approveEnrollment, rejectEnrollment, markProvisioned } = vi.hoisted(
+  () => ({
+    advanceEnrollmentItems: vi.fn(),
+    approveEnrollment: vi.fn(),
+    rejectEnrollment: vi.fn(),
+    markProvisioned: vi.fn(),
+  })
+);
 vi.mock('@/lib/services/enrollments/lifecycle', () => ({
   advanceEnrollmentItems,
   approveEnrollment,
   rejectEnrollment,
-  markProvisioned
+  markProvisioned,
 }));
 
 import { PATCH } from '@/app/api/enrollments/[id]/route';
@@ -34,7 +36,11 @@ const partner = { sub: 'p', role: 'partner', partnerId: 'p1' } as never;
 const manager = { sub: 'm', role: 'manager' } as never;
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 const jsonReq = (b: unknown) =>
-  new Request('http://x/', { method: 'PATCH', body: JSON.stringify(b), headers: { 'content-type': 'application/json' } });
+  new Request('http://x/', {
+    method: 'PATCH',
+    body: JSON.stringify(b),
+    headers: { 'content-type': 'application/json' },
+  });
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -69,16 +75,19 @@ describe('PATCH /api/enrollments/[id] — markInTraining / markCertificatesReady
       ok: true,
       request: { id: 'E1', status: 'in_training' },
       movedCount: 2,
-      headerChanged: true
+      headerChanged: true,
     });
     const res = await PATCH(jsonReq({ action: 'markInTraining' }), ctx('E1'));
     expect(res.status).toBe(200);
-    expect(advanceEnrollmentItems).toHaveBeenCalledWith({}, {
-      id: 'E1',
-      reviewerId: 'm',
-      target: 'in_training',
-      itemIds: undefined
-    });
+    expect(advanceEnrollmentItems).toHaveBeenCalledWith(
+      {},
+      {
+        id: 'E1',
+        reviewerId: 'm',
+        target: 'in_training',
+        itemIds: undefined,
+      }
+    );
   });
 
   it('markCertificatesReady с itemIds → строки приведены к String', async () => {
@@ -87,17 +96,23 @@ describe('PATCH /api/enrollments/[id] — markInTraining / markCertificatesReady
       ok: true,
       request: { id: 'E1', status: 'certificates_ready' },
       movedCount: 3,
-      headerChanged: true
+      headerChanged: true,
     });
     // Число и строка в массиве — роут обязан отдать сервису только строки.
-    const res = await PATCH(jsonReq({ action: 'markCertificatesReady', itemIds: ['i1', 42, 'i3'] }), ctx('E1'));
+    const res = await PATCH(
+      jsonReq({ action: 'markCertificatesReady', itemIds: ['i1', 42, 'i3'] }),
+      ctx('E1')
+    );
     expect(res.status).toBe(200);
-    expect(advanceEnrollmentItems).toHaveBeenCalledWith({}, {
-      id: 'E1',
-      reviewerId: 'm',
-      target: 'certificates_ready',
-      itemIds: ['i1', '42', 'i3']
-    });
+    expect(advanceEnrollmentItems).toHaveBeenCalledWith(
+      {},
+      {
+        id: 'E1',
+        reviewerId: 'm',
+        target: 'certificates_ready',
+        itemIds: ['i1', '42', 'i3'],
+      }
+    );
   });
 
   it('itemIds строка (не массив) → 400 validation, сервис не вызван', async () => {
@@ -146,11 +161,14 @@ describe('PATCH /api/enrollments/[id] — markInTraining / markCertificatesReady
       ok: true,
       request: { id: 'E1', status: 'in_training' },
       movedCount: 1,
-      headerChanged: false
+      headerChanged: false,
     });
     const res = await PATCH(jsonReq({ action: 'markInTraining', itemIds: ['i1'] }), ctx('E1'));
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ request: { id: 'E1', status: 'in_training' }, movedCount: 1 });
+    expect(await res.json()).toEqual({
+      request: { id: 'E1', status: 'in_training' },
+      movedCount: 1,
+    });
   });
 
   it('неизвестный action → 400 с перечнем всех пяти actions', async () => {

@@ -3,8 +3,15 @@ import { renderToString } from 'react-dom/server';
 import React from 'react';
 
 vi.mock('next/link', () => ({
-  default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) =>
-    React.createElement('a', { href, className }, children)
+  default: ({
+    href,
+    children,
+    className,
+  }: {
+    href: string;
+    children: React.ReactNode;
+    className?: string;
+  }) => React.createElement('a', { href, className }, children),
 }));
 
 import { ManagerAttentionList } from '@/components/manager/manager-attention-list';
@@ -18,7 +25,13 @@ describe('ManagerAttentionList', () => {
 
   it('urgent item: red dot + red text classes', () => {
     const items: AttentionItem[] = [
-      { id: 'a1', kind: 'overdue', severity: 'urgent', message: 'Просрочен дедлайн', href: '/manager/orders/1' }
+      {
+        id: 'a1',
+        kind: 'overdue',
+        severity: 'urgent',
+        message: 'Просрочен дедлайн',
+        href: '/manager/orders/1',
+      },
     ];
     const html = renderToString(React.createElement(ManagerAttentionList, { items }));
     expect(html).toContain('bg-red-500');
@@ -29,7 +42,13 @@ describe('ManagerAttentionList', () => {
 
   it('non-urgent item: amber dot + amber text classes', () => {
     const items: AttentionItem[] = [
-      { id: 'a2', kind: 'stale', severity: 'warn', message: 'Нет ответа 3 дня', href: '/manager/orders/2' }
+      {
+        id: 'a2',
+        kind: 'stale',
+        severity: 'warn',
+        message: 'Нет ответа 3 дня',
+        href: '/manager/orders/2',
+      },
     ];
     const html = renderToString(React.createElement(ManagerAttentionList, { items }));
     expect(html).toContain('bg-amber-500');

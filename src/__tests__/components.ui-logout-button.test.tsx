@@ -41,7 +41,9 @@ describe('LogoutButton', () => {
 
     // busy-лейбл виден сразу после клика, кнопка задизейблена
     expect(await screen.findByRole('button', { name: 'Выходим…' })).toBeTruthy();
-    expect((screen.getByRole('button', { name: 'Выходим…' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Выходим…' }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
 
     await waitFor(() => expect(push).toHaveBeenCalledWith('/login'));
     expect(fetchMock).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' });

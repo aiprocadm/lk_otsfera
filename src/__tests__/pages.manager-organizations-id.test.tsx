@@ -9,7 +9,7 @@ const { requireManagerForOrg } = vi.hoisted(() => ({ requireManagerForOrg: vi.fn
 // сервис, иначе он полезет в реальный prisma. Обычная функция, а не vi.fn:
 // в файле есть resetAllMocks, он снёс бы заготовленный ответ.
 vi.mock('@/lib/services/customFields', () => ({
-  getFieldsForEntity: async () => []
+  getFieldsForEntity: async () => [],
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireManagerForOrg }));
@@ -28,7 +28,7 @@ const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
@@ -57,12 +57,16 @@ vi.mock('@/components/manager/org-card-tabs', () => ({
     { key: 'leads', label: 'Лиды' },
     { key: 'deals', label: 'Сделки' },
     { key: 'certificates', label: 'Удостоверения' },
-    { key: 'details', label: 'Реквизиты' }
-  ]
+    { key: 'details', label: 'Реквизиты' },
+  ],
 }));
 
-
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'member' as const,
+  companyId: 'c1',
+};
 const CARD = { id: 'org-1', name: 'Org' };
 
 describe('ManagerOrgDetailPage', () => {
@@ -83,7 +87,7 @@ describe('ManagerOrgDetailPage', () => {
       renderServerComponent(
         ManagerOrgDetailPage({
           params: Promise.resolve({ id: 'missing' }),
-          searchParams: Promise.resolve({})
+          searchParams: Promise.resolve({}),
         })
       )
     ).rejects.toThrow('NOT_FOUND');
@@ -96,7 +100,7 @@ describe('ManagerOrgDetailPage', () => {
     const { container } = await renderServerComponent(
       ManagerOrgDetailPage({
         params: Promise.resolve({ id: 'org-1' }),
-        searchParams: Promise.resolve({})
+        searchParams: Promise.resolve({}),
       })
     );
 
@@ -112,7 +116,7 @@ describe('ManagerOrgDetailPage', () => {
     const { container } = await renderServerComponent(
       ManagerOrgDetailPage({
         params: Promise.resolve({ id: 'org-1' }),
-        searchParams: Promise.resolve({ tab: 'payments' })
+        searchParams: Promise.resolve({ tab: 'payments' }),
       })
     );
 
@@ -126,7 +130,7 @@ describe('ManagerOrgDetailPage', () => {
     const { container } = await renderServerComponent(
       ManagerOrgDetailPage({
         params: Promise.resolve({ id: 'org-1' }),
-        searchParams: Promise.resolve({ tab: 'bogus' })
+        searchParams: Promise.resolve({ tab: 'bogus' }),
       })
     );
 
@@ -140,7 +144,7 @@ describe('ManagerOrgDetailPage', () => {
     const { container } = await renderServerComponent(
       ManagerOrgDetailPage({
         params: Promise.resolve({ id: 'org-1' }),
-        searchParams: Promise.resolve({ tab: ['payments', 'orders'] })
+        searchParams: Promise.resolve({ tab: ['payments', 'orders'] }),
       })
     );
 
@@ -155,7 +159,7 @@ describe('ManagerOrgDetailPage', () => {
     const { container } = await renderServerComponent(
       ManagerOrgDetailPage({
         params: Promise.resolve({ id: 'org-1' }),
-        searchParams: Promise.resolve({})
+        searchParams: Promise.resolve({}),
       })
     );
 
@@ -171,7 +175,7 @@ describe('ManagerOrgDetailPage', () => {
     const { container } = await renderServerComponent(
       ManagerOrgDetailPage({
         params: Promise.resolve({ id: 'org-1' }),
-        searchParams: Promise.resolve({})
+        searchParams: Promise.resolve({}),
       })
     );
 
@@ -189,7 +193,7 @@ describe('ManagerOrgDetailPage', () => {
     const { container } = await renderServerComponent(
       ManagerOrgDetailPage({
         params: Promise.resolve({ id: 'org-1' }),
-        searchParams: Promise.resolve({ tab: 'calls' })
+        searchParams: Promise.resolve({ tab: 'calls' }),
       })
     );
 
@@ -206,7 +210,7 @@ describe('ManagerOrgDetailPage', () => {
     const { container } = await renderServerComponent(
       ManagerOrgDetailPage({
         params: Promise.resolve({ id: 'org-1' }),
-        searchParams: Promise.resolve({ tab: 'calls' })
+        searchParams: Promise.resolve({ tab: 'calls' }),
       })
     );
 
@@ -218,16 +222,24 @@ describe('ManagerOrgDetailPage', () => {
     getOrganizationCard.mockResolvedValue(CARD);
     // Все флаги выключены → внутренние вкладки: только leads.
     let res = await renderServerComponent(
-      ManagerOrgDetailPage({ params: Promise.resolve({ id: 'org-1' }), searchParams: Promise.resolve({}) })
+      ManagerOrgDetailPage({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({}),
+      })
     );
     let tabs = res.container.textContent ?? '';
     expect(tabs).toContain('leads');
     expect(tabs).not.toContain('client_requests');
     expect(tabs).not.toContain('deals');
 
-    isFeatureEnabled.mockImplementation((f: string) => f === 'client_requests' || f === 'deals_pipeline');
+    isFeatureEnabled.mockImplementation(
+      (f: string) => f === 'client_requests' || f === 'deals_pipeline'
+    );
     res = await renderServerComponent(
-      ManagerOrgDetailPage({ params: Promise.resolve({ id: 'org-1' }), searchParams: Promise.resolve({ tab: 'deals' }) })
+      ManagerOrgDetailPage({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({ tab: 'deals' }),
+      })
     );
     tabs = res.container.textContent ?? '';
     expect(tabs).toContain('client_requests');
@@ -251,7 +263,7 @@ describe('ManagerOrgDetailPage — вкладка удостоверений', (
     const { container } = await renderServerComponent(
       ManagerOrgDetailPage({
         params: Promise.resolve({ id: 'org-1' }),
-        searchParams: Promise.resolve({ tab: 'certificates' })
+        searchParams: Promise.resolve({ tab: 'certificates' }),
       })
     );
     expect(container.textContent).toContain('certificates');
@@ -265,7 +277,7 @@ describe('ManagerOrgDetailPage — вкладка удостоверений', (
     const { container } = await renderServerComponent(
       ManagerOrgDetailPage({
         params: Promise.resolve({ id: 'org-1' }),
-        searchParams: Promise.resolve({ tab: 'certificates' })
+        searchParams: Promise.resolve({ tab: 'certificates' }),
       })
     );
     expect(container.textContent).toContain('active:history');

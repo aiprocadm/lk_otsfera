@@ -26,17 +26,17 @@ const TYPE_LABELS: Record<string, string> = {
   certificate: 'Сертификат',
   report: 'Отчёт',
   commission_statement: 'Расчёт комиссии',
-  other: 'Прочее'
+  other: 'Прочее',
 };
 
 const DIRECTION_LABELS: Record<string, string> = {
   incoming: 'Входящий',
-  outgoing: 'Исходящий'
+  outgoing: 'Исходящий',
 };
 
 const COUNTERPARTY_LABELS: Record<string, string> = {
   organization: 'Организация',
-  partner: 'Партнёр'
+  partner: 'Партнёр',
 };
 
 export function fmtSize(bytes: number | null): string {
@@ -50,15 +50,15 @@ function fmtDate(d: Date | string): string {
   return new Intl.DateTimeFormat('ru-RU', {
     day: '2-digit',
     month: '2-digit',
-    year: 'numeric'
+    year: 'numeric',
   }).format(new Date(d));
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className='flex gap-2 text-sm'>
-      <dt className='text-gray-500 min-w-0 shrink-0 basis-48'>{label}</dt>
-      <dd className='text-[#111111] min-w-0 break-words'>{children}</dd>
+    <div className="flex gap-2 text-sm">
+      <dt className="text-gray-500 min-w-0 shrink-0 basis-48">{label}</dt>
+      <dd className="text-[#111111] min-w-0 break-words">{children}</dd>
     </div>
   );
 }
@@ -91,12 +91,12 @@ function DownloadButton({ documentId }: { documentId: string }) {
   }
 
   return (
-    <div className='space-y-1'>
+    <div className="space-y-1">
       <Button onClick={handleDownload} disabled={busy}>
         {busy ? 'Готовим ссылку…' : 'Скачать файл'}
       </Button>
       {error && (
-        <p role='alert' className='text-sm text-red-600'>
+        <p role="alert" className="text-sm text-red-600">
           {error}
         </p>
       )}
@@ -120,48 +120,51 @@ export function DocumentDetailView({
   document: doc,
   backHref,
   orderHrefBase,
-  children
+  children,
 }: DocumentDetailViewProps) {
   const infected = doc.scanStatus === 'infected';
 
   return (
-    <div className='space-y-5'>
+    <div className="space-y-5">
       <div>
-        <Link href={backHref} className='text-sm text-[#F97316] hover:underline'>
+        <Link href={backHref} className="text-sm text-[#F97316] hover:underline">
           ← Документы
         </Link>
-        <h1 className='text-2xl font-bold text-[#111111] mt-1'>{doc.name}</h1>
-        <p className='text-sm text-gray-500'>
+        <h1 className="text-2xl font-bold text-[#111111] mt-1">{doc.name}</h1>
+        <p className="text-sm text-gray-500">
           {TYPE_LABELS[doc.type] ?? doc.type} · {DIRECTION_LABELS[doc.direction] ?? doc.direction} ·
           загружен {fmtDate(doc.createdAt)}
         </p>
       </div>
 
       {infected && (
-        <div role='alert' className='rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700'>
+        <div
+          role="alert"
+          className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+        >
           <strong>Файл заблокирован антивирусом.</strong> Скачивание недоступно.
           {doc.scanReason ? ` Причина: ${doc.scanReason}.` : ''}
         </div>
       )}
 
-      <div className='bg-white border border-gray-200 rounded-xl p-5 space-y-2'>
-        <h2 className='text-sm font-semibold text-[#111111]'>Сведения о документе</h2>
-        <dl className='space-y-2'>
-          <Row label='Номер'>{doc.number ?? '—'}</Row>
-          <Row label='Версия'>{doc.version}</Row>
-          <Row label='Размер'>{fmtSize(doc.size)}</Row>
-          <Row label='Формат файла'>{doc.mimeType}</Row>
-          <Row label='Подписан'>{doc.signedAt ? fmtDate(doc.signedAt) : '—'}</Row>
-          <Row label='Загрузил'>{doc.uploadedByName ?? '—'}</Row>
+      <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-2">
+        <h2 className="text-sm font-semibold text-[#111111]">Сведения о документе</h2>
+        <dl className="space-y-2">
+          <Row label="Номер">{doc.number ?? '—'}</Row>
+          <Row label="Версия">{doc.version}</Row>
+          <Row label="Размер">{fmtSize(doc.size)}</Row>
+          <Row label="Формат файла">{doc.mimeType}</Row>
+          <Row label="Подписан">{doc.signedAt ? fmtDate(doc.signedAt) : '—'}</Row>
+          <Row label="Загрузил">{doc.uploadedByName ?? '—'}</Row>
           <Row label={COUNTERPARTY_LABELS[doc.counterparty.type] ?? 'Контрагент'}>
             {doc.counterparty.name ?? '—'}
           </Row>
-          <Row label='Заказ'>
+          <Row label="Заказ">
             {doc.order ? (
               orderHrefBase ? (
                 <Link
                   href={`${orderHrefBase}/${doc.order.id}`}
-                  className='text-[#F97316] hover:underline'
+                  className="text-[#F97316] hover:underline"
                 >
                   {doc.order.orderNumber ?? doc.order.title}
                 </Link>
@@ -172,13 +175,13 @@ export function DocumentDetailView({
               'Общий документ (вне заказа)'
             )}
           </Row>
-          <Row label='Проверка антивирусом'>
+          <Row label="Проверка антивирусом">
             {infected ? (
-              <Badge tone='danger'>заблокирован</Badge>
+              <Badge tone="danger">заблокирован</Badge>
             ) : doc.scanStatus === 'clean' ? (
-              <Badge tone='success'>чисто</Badge>
+              <Badge tone="success">чисто</Badge>
             ) : (
-              <Badge tone='neutral'>идёт проверка</Badge>
+              <Badge tone="neutral">идёт проверка</Badge>
             )}
           </Row>
         </dl>

@@ -13,8 +13,7 @@ import { recordAudit } from '@/lib/auth/audit';
  */
 
 export type AccountingSignedResult =
-  | { ok: true; changed: boolean }
-  | { ok: false; error: 'not_found' | 'forbidden' };
+  { ok: true; changed: boolean } | { ok: false; error: 'not_found' | 'forbidden' };
 
 /**
  * §21 ТЗ: менеджер отмечает «бухгалтерия подписана» галочкой. Идемпотентно;
@@ -33,8 +32,8 @@ export async function setOrderAccountingSigned(
       managerId: true,
       organizationId: true,
       companyId: true,
-      accountingSignedAt: true
-    }
+      accountingSignedAt: true,
+    },
   });
   if (!order) return { ok: false, error: 'not_found' };
   if (!canSeeOrder(session, order, teamMode)) return { ok: false, error: 'forbidden' };
@@ -44,7 +43,7 @@ export async function setOrderAccountingSigned(
 
   await prisma.order.update({
     where: { id: args.orderId },
-    data: { accountingSignedAt: args.signed ? new Date() : null }
+    data: { accountingSignedAt: args.signed ? new Date() : null },
   });
 
   await recordAudit(prisma, {
@@ -52,7 +51,7 @@ export async function setOrderAccountingSigned(
     action: 'order_accounting_signed',
     entity: 'order',
     entityId: args.orderId,
-    after: { signed: args.signed }
+    after: { signed: args.signed },
   });
 
   return { ok: true, changed: true };

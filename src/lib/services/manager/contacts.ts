@@ -13,7 +13,8 @@ export type CreateContactArgs = {
   note?: string;
   channels: ContactChannelInput[];
 };
-export type CreateContactResult = { ok: true; contactId: string } | { ok: false; error: 'forbidden' | 'invalid' };
+export type CreateContactResult =
+  { ok: true; contactId: string } | { ok: false; error: 'forbidden' | 'invalid' };
 
 export async function createContact(
   prisma: PrismaClient,
@@ -38,7 +39,8 @@ export async function createContact(
     const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
     // Руководителя сужение по закреплению не касается (лидер-инвариант C8):
     // компания проверена выше.
-    if (!teamMode && !isManagerLeader(session) && !isOrgInScope(session, args.organizationId)) return { ok: false, error: 'forbidden' };
+    if (!teamMode && !isManagerLeader(session) && !isOrgInScope(session, args.organizationId))
+      return { ok: false, error: 'forbidden' };
   }
 
   // isPrimary is assigned AFTER filtering out channels that normalize to '' so the
@@ -46,7 +48,9 @@ export async function createContact(
   // leave the contact with channels but none marked primary.
   const channelData: Prisma.ContactChannelCreateWithoutContactInput[] = args.channels
     .map((ch) => ({
-      companyId: session.companyId!, type: ch.type, value: ch.value.trim(),
+      companyId: session.companyId!,
+      type: ch.type,
+      value: ch.value.trim(),
       normalizedValue: normalizeChannelValue(ch.type, ch.value),
     }))
     .filter((ch) => ch.normalizedValue !== '')
@@ -56,7 +60,9 @@ export async function createContact(
     data: {
       companyId: session.companyId,
       organizationId: args.organizationId ?? null,
-      name, position: args.position?.trim() || null, note: args.note?.trim() || null,
+      name,
+      position: args.position?.trim() || null,
+      note: args.note?.trim() || null,
       createdById: session.sub,
       channels: { create: channelData },
     },
@@ -84,12 +90,19 @@ export async function captureChannel(
   const normalizedValue = normalizeChannelValue(args.type, args.value);
   if (!normalizedValue) return;
   const exists = await prisma.contactChannel.findFirst({
-    where: { companyId: args.companyId, type: args.type, normalizedValue }, select: { id: true },
+    where: { companyId: args.companyId, type: args.type, normalizedValue },
+    select: { id: true },
   });
   if (exists) return;
   try {
     await prisma.contactChannel.create({
-      data: { contactId: args.contactId, companyId: args.companyId, type: args.type, value: args.value.trim(), normalizedValue },
+      data: {
+        contactId: args.contactId,
+        companyId: args.companyId,
+        type: args.type,
+        value: args.value.trim(),
+        normalizedValue,
+      },
     });
   } catch (e) {
     if (!(e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002')) throw e;

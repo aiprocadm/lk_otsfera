@@ -21,16 +21,53 @@ import { dealScopeWhere, getDealBoard, moveDeal } from '@/lib/services/deals/boa
 
 const ADMIN: SessionPayload = { sub: 'adm-1', role: 'admin', companyId: 'c1' };
 const ADMIN_NO_CO: SessionPayload = { sub: 'adm-0', role: 'admin' };
-const LEADER: SessionPayload = { sub: 'ld-1', role: 'manager', managerRole: 'leader', companyId: 'c1' };
+const LEADER: SessionPayload = {
+  sub: 'ld-1',
+  role: 'manager',
+  managerRole: 'leader',
+  companyId: 'c1',
+};
 const MGR: SessionPayload = { sub: 'm-1', role: 'manager', companyId: 'c1' };
 const PARTNER: SessionPayload = { sub: 'p-1', role: 'partner', partnerId: 'pt-1' };
 
 /** Кастомный словарь: 2 open-стадии + won + lost (реальные cuid-подобные id). */
 const CUSTOM_STAGES = [
-  { id: 'st-a', companyId: 'c1', name: 'Первичный контакт', position: 0, statusAnchor: 'open', isTerminal: false, color: null },
-  { id: 'st-b', companyId: 'c1', name: 'В работе', position: 1, statusAnchor: 'open', isTerminal: false, color: '#3B82F6' },
-  { id: 'st-won', companyId: 'c1', name: 'Успех', position: 2, statusAnchor: 'won', isTerminal: true, color: null },
-  { id: 'st-lost', companyId: 'c1', name: 'Провал', position: 3, statusAnchor: 'lost', isTerminal: true, color: null }
+  {
+    id: 'st-a',
+    companyId: 'c1',
+    name: 'Первичный контакт',
+    position: 0,
+    statusAnchor: 'open',
+    isTerminal: false,
+    color: null,
+  },
+  {
+    id: 'st-b',
+    companyId: 'c1',
+    name: 'В работе',
+    position: 1,
+    statusAnchor: 'open',
+    isTerminal: false,
+    color: '#3B82F6',
+  },
+  {
+    id: 'st-won',
+    companyId: 'c1',
+    name: 'Успех',
+    position: 2,
+    statusAnchor: 'won',
+    isTerminal: true,
+    color: null,
+  },
+  {
+    id: 'st-lost',
+    companyId: 'c1',
+    name: 'Провал',
+    position: 3,
+    statusAnchor: 'lost',
+    isTerminal: true,
+    color: null,
+  },
 ];
 
 type Mocks = {
@@ -49,7 +86,7 @@ function makePrisma(opts: { stages?: unknown[]; deals?: unknown[]; deal?: unknow
   const dealUpdate = vi.fn().mockResolvedValue({});
   const prisma = {
     dealStage: { findMany: stageFindMany },
-    deal: { findMany: dealFindMany, findFirst: dealFindFirst, update: dealUpdate }
+    deal: { findMany: dealFindMany, findFirst: dealFindFirst, update: dealUpdate },
   } as unknown as PrismaClient;
   return { prisma, stageFindMany, dealFindMany, dealFindFirst, dealUpdate };
 }
@@ -68,7 +105,7 @@ function makeDeal(over: Record<string, unknown> = {}) {
     managerId: null,
     organization: null,
     manager: null,
-    ...over
+    ...over,
   };
 }
 
@@ -94,19 +131,27 @@ describe('dealScopeWhere', () => {
 
   it('leader → company-floor; фильтр по менеджеру добавляется', () => {
     expect(dealScopeWhere(LEADER)).toEqual({ companyId: 'c1' });
-    expect(dealScopeWhere(LEADER, { managerId: 'm-9' })).toEqual({ companyId: 'c1', managerId: 'm-9' });
+    expect(dealScopeWhere(LEADER, { managerId: 'm-9' })).toEqual({
+      companyId: 'c1',
+      managerId: 'm-9',
+    });
   });
 
   it('рядовой менеджер → company + пришпилен к своим; фильтр opts игнорируется', () => {
     expect(dealScopeWhere(MGR)).toEqual({ companyId: 'c1', managerId: 'm-1' });
-    expect(dealScopeWhere(MGR, { managerId: 'm-9' })).toEqual({ companyId: 'c1', managerId: 'm-1' });
+    expect(dealScopeWhere(MGR, { managerId: 'm-9' })).toEqual({
+      companyId: 'c1',
+      managerId: 'm-1',
+    });
   });
 
   it('companyId null → sentinel __none__ (ничего не матчится)', () => {
-    expect(dealScopeWhere({ sub: 'ld-0', role: 'manager', managerRole: 'leader' })).toEqual({ companyId: '__none__' });
+    expect(dealScopeWhere({ sub: 'ld-0', role: 'manager', managerRole: 'leader' })).toEqual({
+      companyId: '__none__',
+    });
     expect(dealScopeWhere({ sub: 'm-0', role: 'manager', companyId: null })).toEqual({
       companyId: '__none__',
-      managerId: 'm-0'
+      managerId: 'm-0',
     });
   });
 });
@@ -129,7 +174,7 @@ describe('getDealBoard', () => {
       'default:negotiation',
       'default:proposal',
       'default:won',
-      'default:lost'
+      'default:lost',
     ]);
     expect(board.columns.map((c) => c.cards.length)).toEqual([0, 0, 0, 0, 0]);
   });
@@ -162,7 +207,7 @@ describe('getDealBoard', () => {
       makeDeal({ id: 'd-explicit', stageId: 'st-b' }),
       makeDeal({ id: 'd-null-open' }),
       makeDeal({ id: 'd-won', status: 'won' }),
-      makeDeal({ id: 'd-ghost', stageId: 'ghost-id' }) // stageId не из словаря → якорь open → st-a
+      makeDeal({ id: 'd-ghost', stageId: 'ghost-id' }), // stageId не из словаря → якорь open → st-a
     ];
     const { prisma, dealFindMany } = makePrisma({ stages: CUSTOM_STAGES, deals });
     const board = await getDealBoard(prisma, LEADER, { managerId: 'm-9' });
@@ -190,9 +235,9 @@ describe('getDealBoard', () => {
         manager: { name: 'Менеджер' },
         orderId: 'ord-1',
         expectedCloseAt: closeAt,
-        createdAt
+        createdAt,
       }),
-      makeDeal({ id: 'd-bare', title: 'Пустая', createdAt })
+      makeDeal({ id: 'd-bare', title: 'Пустая', createdAt }),
     ];
     const { prisma } = makePrisma({ deals });
     const board = await getDealBoard(prisma, MGR);
@@ -209,7 +254,7 @@ describe('getDealBoard', () => {
         status: 'open',
         orderId: 'ord-1',
         expectedCloseAt: closeAt,
-        createdAt
+        createdAt,
       },
       {
         id: 'd-bare',
@@ -222,8 +267,8 @@ describe('getDealBoard', () => {
         status: 'open',
         orderId: null,
         expectedCloseAt: null,
-        createdAt
-      }
+        createdAt,
+      },
     ]);
   });
 });
@@ -235,7 +280,7 @@ describe('moveDeal — гейты', () => {
     const { prisma, stageFindMany } = makePrisma();
     expect(await moveDeal(prisma, PARTNER, { dealId: 'd-1', toStageId: 'default:won' })).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
     expect(stageFindMany).not.toHaveBeenCalled();
   });
@@ -245,12 +290,14 @@ describe('moveDeal — гейты', () => {
     const MGR_NO_CO: SessionPayload = { sub: 'm-0', role: 'manager' };
     expect(await moveDeal(prisma, MGR_NO_CO, { dealId: 'd-1', toStageId: 'default:won' })).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
     // admin без companyId проходит гейт: стадии резолвятся по компании СДЕЛКИ.
-    expect(await moveDeal(prisma, ADMIN_NO_CO, { dealId: 'd-x', toStageId: 'default:won' })).toEqual({
+    expect(
+      await moveDeal(prisma, ADMIN_NO_CO, { dealId: 'd-x', toStageId: 'default:won' })
+    ).toEqual({
       ok: false,
-      error: 'not_found' // сделки нет в моке — но не forbidden
+      error: 'not_found', // сделки нет в моке — но не forbidden
     });
   });
 
@@ -259,11 +306,11 @@ describe('moveDeal — гейты', () => {
     // admin не может перевести чужую сделку в стадию своей компании.
     const { prisma, stageFindMany } = makePrisma({
       stages: CUSTOM_STAGES,
-      deal: { id: 'd-1', status: 'open', stageId: null, companyId: 'c1' }
+      deal: { id: 'd-1', status: 'open', stageId: null, companyId: 'c1' },
     });
     expect(await moveDeal(prisma, MGR, { dealId: 'd-1', toStageId: 'default:won' })).toEqual({
       ok: false,
-      error: 'invalid_stage'
+      error: 'invalid_stage',
     });
     expect(stageFindMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { companyId: 'c1' } })
@@ -272,22 +319,28 @@ describe('moveDeal — гейты', () => {
 
   it('сделка вне скоупа (чужая/несуществующая) → not_found; скоуп в самой выборке', async () => {
     const { prisma, dealFindFirst } = makePrisma();
-    expect(await moveDeal(prisma, MGR, { dealId: 'd-alien', toStageId: 'default:negotiation' })).toEqual({
+    expect(
+      await moveDeal(prisma, MGR, { dealId: 'd-alien', toStageId: 'default:negotiation' })
+    ).toEqual({
       ok: false,
-      error: 'not_found'
+      error: 'not_found',
     });
     expect(dealFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { AND: [{ id: 'd-alien' }, { companyId: 'c1', managerId: 'm-1' }] }
+        where: { AND: [{ id: 'd-alien' }, { companyId: 'c1', managerId: 'm-1' }] },
       })
     );
   });
 
   it('сделка уже завершена (won) → lifecycle_violation, update не вызывается', async () => {
-    const { prisma, dealUpdate } = makePrisma({ deal: { id: 'd-1', status: 'won', stageId: null } });
-    expect(await moveDeal(prisma, MGR, { dealId: 'd-1', toStageId: 'default:negotiation' })).toEqual({
+    const { prisma, dealUpdate } = makePrisma({
+      deal: { id: 'd-1', status: 'won', stageId: null },
+    });
+    expect(
+      await moveDeal(prisma, MGR, { dealId: 'd-1', toStageId: 'default:negotiation' })
+    ).toEqual({
       ok: false,
-      error: 'lifecycle_violation'
+      error: 'lifecycle_violation',
     });
     expect(dealUpdate).not.toHaveBeenCalled();
     expect(recordAudit).not.toHaveBeenCalled();
@@ -298,7 +351,7 @@ describe('moveDeal — перенос внутри open', () => {
   it('кастомная open-стадия → stageId персистится + аудит deal_stage_changed', async () => {
     const { prisma, dealUpdate } = makePrisma({
       stages: CUSTOM_STAGES,
-      deal: { id: 'd-1', status: 'open', stageId: 'st-a' }
+      deal: { id: 'd-1', status: 'open', stageId: 'st-a' },
     });
     expect(await moveDeal(prisma, MGR, { dealId: 'd-1', toStageId: 'st-b' })).toEqual({ ok: true });
     expect(dealUpdate).toHaveBeenCalledWith({ where: { id: 'd-1' }, data: { stageId: 'st-b' } });
@@ -307,27 +360,35 @@ describe('moveDeal — перенос внутри open', () => {
       action: 'deal_stage_changed',
       entity: 'deal',
       entityId: 'd-1',
-      after: { toStageId: 'st-b' }
+      after: { toStageId: 'st-b' },
     });
   });
 
   it('синтетический default:* → в БД пишется stageId=null', async () => {
-    const { prisma, dealUpdate } = makePrisma({ deal: { id: 'd-1', status: 'open', stageId: null } });
-    expect(await moveDeal(prisma, MGR, { dealId: 'd-1', toStageId: 'default:proposal' })).toEqual({ ok: true });
+    const { prisma, dealUpdate } = makePrisma({
+      deal: { id: 'd-1', status: 'open', stageId: null },
+    });
+    expect(await moveDeal(prisma, MGR, { dealId: 'd-1', toStageId: 'default:proposal' })).toEqual({
+      ok: true,
+    });
     expect(dealUpdate).toHaveBeenCalledWith({ where: { id: 'd-1' }, data: { stageId: null } });
   });
 });
 
 describe('moveDeal — терминальные стадии', () => {
   it('lost без причины (в т.ч. пробелы) → reason_required, ничего не пишем', async () => {
-    const { prisma, dealUpdate } = makePrisma({ deal: { id: 'd-1', status: 'open', stageId: null } });
+    const { prisma, dealUpdate } = makePrisma({
+      deal: { id: 'd-1', status: 'open', stageId: null },
+    });
     expect(await moveDeal(prisma, MGR, { dealId: 'd-1', toStageId: 'default:lost' })).toEqual({
       ok: false,
-      error: 'reason_required'
+      error: 'reason_required',
     });
-    expect(await moveDeal(prisma, MGR, { dealId: 'd-1', toStageId: 'default:lost', lostReason: '   ' })).toEqual({
+    expect(
+      await moveDeal(prisma, MGR, { dealId: 'd-1', toStageId: 'default:lost', lostReason: '   ' })
+    ).toEqual({
       ok: false,
-      error: 'reason_required'
+      error: 'reason_required',
     });
     expect(dealUpdate).not.toHaveBeenCalled();
     expect(recordAudit).not.toHaveBeenCalled();
@@ -336,31 +397,40 @@ describe('moveDeal — терминальные стадии', () => {
   it('lost с причиной → status/lostAt/lostReason(trim)/stageId + аудит с якорем', async () => {
     const { prisma, dealUpdate } = makePrisma({
       stages: CUSTOM_STAGES,
-      deal: { id: 'd-1', status: 'open', stageId: 'st-b' }
+      deal: { id: 'd-1', status: 'open', stageId: 'st-b' },
     });
     expect(
-      await moveDeal(prisma, LEADER, { dealId: 'd-1', toStageId: 'st-lost', lostReason: '  клиент ушёл  ' })
+      await moveDeal(prisma, LEADER, {
+        dealId: 'd-1',
+        toStageId: 'st-lost',
+        lostReason: '  клиент ушёл  ',
+      })
     ).toEqual({ ok: true });
     expect(dealUpdate).toHaveBeenCalledWith({
       where: { id: 'd-1' },
-      data: { status: 'lost', lostAt: expect.any(Date), lostReason: 'клиент ушёл', stageId: 'st-lost' }
+      data: {
+        status: 'lost',
+        lostAt: expect.any(Date),
+        lostReason: 'клиент ушёл',
+        stageId: 'st-lost',
+      },
     });
     expect(recordAudit).toHaveBeenCalledWith(prisma, {
       userId: 'ld-1',
       action: 'deal_stage_changed',
       entity: 'deal',
       entityId: 'd-1',
-      after: { toStageId: 'st-lost', statusAnchor: 'lost' }
+      after: { toStageId: 'st-lost', statusAnchor: 'lost' },
     });
   });
 
   it('won-стадия через move запрещена (инвариант «выигрыш = заказ») → won_requires_order', async () => {
     const { prisma, dealUpdate } = makePrisma({
-      deal: { id: 'd-1', status: 'open', stageId: null, companyId: 'c1' }
+      deal: { id: 'd-1', status: 'open', stageId: null, companyId: 'c1' },
     });
     expect(await moveDeal(prisma, MGR, { dealId: 'd-1', toStageId: 'default:won' })).toEqual({
       ok: false,
-      error: 'won_requires_order'
+      error: 'won_requires_order',
     });
     expect(dealUpdate).not.toHaveBeenCalled();
   });

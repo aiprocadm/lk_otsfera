@@ -21,7 +21,7 @@ const TRAINING_TONE: Record<string, 'neutral' | 'info' | 'success' | 'danger'> =
   pending: 'neutral',
   in_progress: 'info',
   certificate_issued: 'success',
-  cancelled: 'danger'
+  cancelled: 'danger',
 };
 
 /**
@@ -30,7 +30,7 @@ const TRAINING_TONE: Record<string, 'neutral' | 'info' | 'success' | 'danger'> =
  */
 export default async function OrganizationStudentDetailPage({
   params,
-  searchParams
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ org?: string }>;
@@ -45,7 +45,7 @@ export default async function OrganizationStudentDetailPage({
 
   const [certsResult, training] = await Promise.all([
     listCertificates(prisma, ctx.session, { organizationId: ctx.activeOrgId, studentId: id }),
-    listOrgStudentTraining(prisma, { organizationId: ctx.activeOrgId, studentId: id })
+    listOrgStudentTraining(prisma, { organizationId: ctx.activeOrgId, studentId: id }),
   ]);
   const certificates = certsResult.ok ? certsResult.certificates : [];
 
@@ -61,20 +61,20 @@ export default async function OrganizationStudentDetailPage({
       activeOrgId={ctx.activeOrgId}
       viewerRole={ctx.viewerRole}
     >
-      <div className='space-y-5'>
+      <div className="space-y-5">
         <div>
-          <Link href='/organization/students' className='text-sm text-[#F97316] hover:underline'>
+          <Link href="/organization/students" className="text-sm text-[#F97316] hover:underline">
             ← Сотрудники
           </Link>
-          <div className='bg-white border border-gray-200 rounded-xl p-6 mt-2 space-y-1'>
-            <h1 className='text-2xl font-semibold text-[#111111]'>{student.name}</h1>
-            <p className='text-gray-500 text-sm'>{student.email}</p>
-            <p className='text-gray-400 text-xs mt-1'>
+          <div className="bg-white border border-gray-200 rounded-xl p-6 mt-2 space-y-1">
+            <h1 className="text-2xl font-semibold text-[#111111]">{student.name}</h1>
+            <p className="text-gray-500 text-sm">{student.email}</p>
+            <p className="text-gray-400 text-xs mt-1">
               {student.externalStudentId && <>ID студента {student.externalStudentId} · </>}
               Добавлен {fmtDate(student.createdAt)}
             </p>
             {/* ФТ-12.2: должность попадает в выгрузку сотрудников. */}
-            <div className='pt-3'>
+            <div className="pt-3">
               <StudentPositionForm
                 organizationId={ctx.activeOrgId}
                 studentId={student.id}
@@ -84,15 +84,15 @@ export default async function OrganizationStudentDetailPage({
           </div>
         </div>
 
-        <section className='space-y-2'>
-          <h2 className='text-xl font-semibold text-[#111111]'>Удостоверения</h2>
+        <section className="space-y-2">
+          <h2 className="text-xl font-semibold text-[#111111]">Удостоверения</h2>
           <CertificateRegistryTable rows={certificates} />
         </section>
 
-        <section className='space-y-2'>
-          <h2 className='text-xl font-semibold text-[#111111]'>История обучения</h2>
+        <section className="space-y-2">
+          <h2 className="text-xl font-semibold text-[#111111]">История обучения</h2>
           {training.length === 0 ? (
-            <EmptyState icon='🎓' message='Обучение сотрудника пока не оформлялось.' />
+            <EmptyState icon="🎓" message="Обучение сотрудника пока не оформлялось." />
           ) : (
             <TableShell>
               <THead>
@@ -107,7 +107,7 @@ export default async function OrganizationStudentDetailPage({
                     <Td>
                       <Link
                         href={`/organization/orders/${t.order.id}`}
-                        className='text-[#F97316] hover:underline'
+                        className="text-[#F97316] hover:underline"
                       >
                         {t.order.orderNumber ? `№ ${t.order.orderNumber}` : t.order.title}
                       </Link>
@@ -118,7 +118,7 @@ export default async function OrganizationStudentDetailPage({
                         {TRAINING_STATUS_RU[t.trainingStatus]}
                       </Badge>
                     </Td>
-                    <Td className='text-gray-500'>{fmtDate(t.createdAt)}</Td>
+                    <Td className="text-gray-500">{fmtDate(t.createdAt)}</Td>
                   </Tr>
                 ))}
               </tbody>
@@ -126,7 +126,7 @@ export default async function OrganizationStudentDetailPage({
           )}
         </section>
 
-        <EntityCustomFields fields={customFields} entityType='student' entityId={id} />
+        <EntityCustomFields fields={customFields} entityType="student" entityId={id} />
       </div>
     </OrgAppShell>
   );

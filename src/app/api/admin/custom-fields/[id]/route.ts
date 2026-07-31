@@ -27,7 +27,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
     isActive: body.isActive,
     helpText: body.helpText,
     visibleToRoles: body.visibleToRoles,
-    editableByRoles: body.editableByRoles
+    editableByRoles: body.editableByRoles,
   });
   if (!res.ok) return NextResponse.json({ error: res.error }, { status: mapErr(res.error) });
   return NextResponse.json({ definition: res.definition });

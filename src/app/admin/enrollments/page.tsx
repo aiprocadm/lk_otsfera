@@ -17,12 +17,12 @@ export default async function AdminEnrollmentsPage() {
     prisma.trainingDirection.findMany({
       where: { isActive: true },
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-      select: { id: true, name: true }
-    })
+      select: { id: true, name: true },
+    }),
   ]);
   return (
-    <div className='space-y-5'>
-      <h1 className='text-2xl font-semibold text-[#111111]'>Заявки на обучение</h1>
+    <div className="space-y-5">
+      <h1 className="text-2xl font-semibold text-[#111111]">Заявки на обучение</h1>
       <EnrollmentQueue rows={rows} />
       <EnrollmentWizard directions={directions} />
     </div>

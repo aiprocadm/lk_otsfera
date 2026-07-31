@@ -21,7 +21,7 @@ export function readImapConfig(): ImapConfig {
     port: Number.isFinite(port) ? port : undefined,
     user: cachedIntegrationSetting('imap.user') ?? undefined,
     password: cachedIntegrationSetting('imap.password') ?? undefined,
-    tls: rawTls !== '0' && rawTls !== 'false' && rawTls !== 'off'
+    tls: rawTls !== '0' && rawTls !== 'false' && rawTls !== 'off',
   };
 }
 
@@ -45,7 +45,10 @@ export function parseCursor(cursor: string | null, uidValidity: string): number 
 export function bodyTextFrom(text: string | undefined, html: string | false | undefined): string {
   if (text?.trim()) return text.trim();
   if (typeof html === 'string' && html.trim()) {
-    return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    return html
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
   return '';
 }
@@ -71,7 +74,9 @@ export class ImapInboundEmailAdapter implements InboundEmailAdapter {
   async fetchNewMessages(cursor: string | null): Promise<InboundEmailFetchResult> {
     const { host, port, user, password, tls } = this.config;
     if (!host || !user || !password) {
-      throw new Error('imap config incomplete: host/user/password required (see /admin/integrations)');
+      throw new Error(
+        'imap config incomplete: host/user/password required (see /admin/integrations)'
+      );
     }
 
     const client = new ImapFlow({
@@ -80,7 +85,7 @@ export class ImapInboundEmailAdapter implements InboundEmailAdapter {
       port: port ?? (tls ? 993 : 143),
       secure: tls,
       auth: { user, pass: password },
-      logger: false
+      logger: false,
     });
 
     await client.connect();
@@ -115,13 +120,13 @@ export class ImapInboundEmailAdapter implements InboundEmailAdapter {
             externalId: `${uidValidity}-${uid}`,
             from,
             subject: parsed.subject ?? undefined,
-            text: bodyTextFrom(parsed.text, parsed.html)
+            text: bodyTextFrom(parsed.text, parsed.html),
           });
         }
 
         return {
           messages,
-          cursor: maxUid > 0 ? `${uidValidity}:${maxUid}` : cursor
+          cursor: maxUid > 0 ? `${uidValidity}:${maxUid}` : cursor,
         };
       } finally {
         lock.release();

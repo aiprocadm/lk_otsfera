@@ -8,7 +8,11 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 
 const { taskDialogSpy } = vi.hoisted(() => ({ taskDialogSpy: vi.fn() }));
 vi.mock('@/components/tasks/task-dialog', () => ({
-  TaskDialog: (props: { target: { id: string } | null; onClose: () => void; onSaved: () => void }) => {
+  TaskDialog: (props: {
+    target: { id: string } | null;
+    onClose: () => void;
+    onSaved: () => void;
+  }) => {
     taskDialogSpy(props);
     return React.createElement(
       'div',
@@ -16,7 +20,7 @@ vi.mock('@/components/tasks/task-dialog', () => ({
       React.createElement('button', { onClick: props.onClose }, 'stub-close'),
       React.createElement('button', { onClick: props.onSaved }, 'stub-saved')
     );
-  }
+  },
 }));
 
 import { TaskList, sortTaskRows } from '@/components/tasks/task-list';
@@ -46,16 +50,23 @@ function card(over: Partial<TaskCard>): TaskCard {
     linkedLeadSubject: null,
     linkedDealId: null,
     linkedDealTitle: null,
-    ...over
+    ...over,
   };
 }
 
-const col = (id: string, name: string) => ({ id, name, position: 0, statusAnchor: 'todo' as const, isDoneColumn: false, color: null });
+const col = (id: string, name: string) => ({
+  id,
+  name,
+  position: 0,
+  statusAnchor: 'todo' as const,
+  isDoneColumn: false,
+  color: null,
+});
 
 function makeBoard(cards: TaskCard[]): TaskBoardData {
   return {
     columns: [col('col-1', 'К выполнению')],
-    board: [{ column: col('col-1', 'К выполнению'), cards }]
+    board: [{ column: col('col-1', 'К выполнению'), cards }],
   };
 }
 
@@ -68,9 +79,14 @@ describe('sortTaskRows (чистая сортировка ФТ-7.4)', () => {
       row({ id: 'later', dueDate: new Date('2026-09-01') }),
       row({ id: 'none', dueDate: null }),
       row({ id: 'soon', dueDate: new Date('2026-08-01') }),
-      row({ id: 'soon-high', dueDate: new Date('2026-08-01'), priority: 'high' })
+      row({ id: 'soon-high', dueDate: new Date('2026-08-01'), priority: 'high' }),
     ];
-    expect(sortTaskRows(rows, 'due').map((r) => r.id)).toEqual(['soon-high', 'soon', 'later', 'none']);
+    expect(sortTaskRows(rows, 'due').map((r) => r.id)).toEqual([
+      'soon-high',
+      'soon',
+      'later',
+      'none',
+    ]);
   });
 
   it('по приоритету: high → medium → low → без; тай-брейк сроком', () => {
@@ -79,9 +95,15 @@ describe('sortTaskRows (чистая сортировка ФТ-7.4)', () => {
       row({ id: 'low', priority: 'low' }),
       row({ id: 'high-late', priority: 'high', dueDate: new Date('2026-09-01') }),
       row({ id: 'high-soon', priority: 'high', dueDate: new Date('2026-08-01') }),
-      row({ id: 'med', priority: 'medium' })
+      row({ id: 'med', priority: 'medium' }),
     ];
-    expect(sortTaskRows(rows, 'priority').map((r) => r.id)).toEqual(['high-soon', 'high-late', 'med', 'low', 'no-prio']);
+    expect(sortTaskRows(rows, 'priority').map((r) => r.id)).toEqual([
+      'high-soon',
+      'high-late',
+      'med',
+      'low',
+      'no-prio',
+    ]);
   });
 });
 
@@ -104,7 +126,7 @@ describe('TaskList', () => {
       dueDate: new Date('2099-08-15'),
       assigneeNames: ['Иван'],
       linkedLeadSubject: 'Тема лида',
-      linkedDealTitle: 'Сделка-1'
+      linkedDealTitle: 'Сделка-1',
     });
     render(<TaskList board={makeBoard([c])} options={options} />);
     expect(screen.getByText('Проверить документы')).toBeTruthy();
@@ -121,7 +143,7 @@ describe('TaskList', () => {
     const c = card({
       id: 't-legacy',
       title: 'Задача из будущего',
-      priority: 'critical' as never
+      priority: 'critical' as never,
     });
     render(<TaskList board={makeBoard([c])} options={options} />);
     expect(screen.getByText('Задача из будущего')).toBeTruthy();
@@ -134,7 +156,12 @@ describe('TaskList', () => {
   });
 
   it('завершённая задача с прошедшим сроком НЕ считается просроченной', () => {
-    const c = card({ id: 't3', title: 'Готовая', dueDate: new Date('2020-01-01'), completedAt: new Date('2020-01-02') });
+    const c = card({
+      id: 't3',
+      title: 'Готовая',
+      dueDate: new Date('2020-01-01'),
+      completedAt: new Date('2020-01-02'),
+    });
     render(<TaskList board={makeBoard([c])} options={options} />);
     expect(screen.queryByText(/просрочена/)).toBeNull();
   });
@@ -149,7 +176,9 @@ describe('TaskList', () => {
     const c = card({ id: 't5', title: 'Кликни меня' });
     render(<TaskList board={makeBoard([c])} options={options} />);
     fireEvent.click(screen.getByText('Кликни меня'));
-    expect(taskDialogSpy).toHaveBeenCalledWith(expect.objectContaining({ target: expect.objectContaining({ id: 't5' }) }));
+    expect(taskDialogSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ target: expect.objectContaining({ id: 't5' }) })
+    );
 
     fireEvent.click(screen.getByText('stub-saved'));
     expect(screen.queryByTestId('task-dialog-stub')).toBeNull();
@@ -167,7 +196,7 @@ describe('TaskList', () => {
   it('переключение сортировки меняет порядок строк', () => {
     const cards = [
       card({ id: 'a', title: 'А-без-срока', priority: 'high' }),
-      card({ id: 'b', title: 'Б-скоро', dueDate: new Date('2099-01-01') })
+      card({ id: 'b', title: 'Б-скоро', dueDate: new Date('2099-01-01') }),
     ];
     render(<TaskList board={makeBoard(cards)} options={options} />);
     let rows = screen.getAllByRole('row').slice(1); // без thead

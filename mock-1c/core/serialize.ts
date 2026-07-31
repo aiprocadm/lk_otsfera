@@ -5,12 +5,18 @@ type Rec = Record<string, unknown>;
 // Q10: map our enum codes to plausible native-1С Russian stage names. These are
 // deliberately NOT members of our z.enum — emitting them must trigger quarantine.
 const EXECUTION_RU: Record<string, string> = {
-  pending: 'Новый', in_progress: 'В работе', completed: 'Выполнен',
-  cancelled: 'Отменён', on_hold: 'Приостановлен'
+  pending: 'Новый',
+  in_progress: 'В работе',
+  completed: 'Выполнен',
+  cancelled: 'Отменён',
+  on_hold: 'Приостановлен',
 };
 const FINANCIAL_RU: Record<string, string> = {
-  not_billed: 'Не выставлен', billed: 'Выставлен', partially_paid: 'Частично оплачен',
-  paid: 'Оплачен', refunded: 'Возврат'
+  not_billed: 'Не выставлен',
+  billed: 'Выставлен',
+  partially_paid: 'Частично оплачен',
+  paid: 'Оплачен',
+  refunded: 'Возврат',
 };
 
 export function applyDialect(record: Rec, dialect: StatusDialect): Rec {
@@ -49,12 +55,26 @@ export function injectDuplicates(records: Rec[]): Rec[] {
 
 export type ResponseMeta = { total: number; pages: number; served: number };
 
-export function paginate(records: Rec[], pageSize: number, offset = 0): { page: Rec[]; meta: ResponseMeta } {
+export function paginate(
+  records: Rec[],
+  pageSize: number,
+  offset = 0
+): { page: Rec[]; meta: ResponseMeta } {
   if (!(pageSize > 0) || records.length <= pageSize) {
-    return { page: records, meta: { total: records.length, pages: records.length === 0 ? 0 : 1, served: records.length } };
+    return {
+      page: records,
+      meta: { total: records.length, pages: records.length === 0 ? 0 : 1, served: records.length },
+    };
   }
   const page = records.slice(offset, offset + pageSize);
-  return { page, meta: { total: records.length, pages: Math.ceil(records.length / pageSize), served: page.length } };
+  return {
+    page,
+    meta: {
+      total: records.length,
+      pages: Math.ceil(records.length / pageSize),
+      served: page.length,
+    },
+  };
 }
 
 export function wrapEnvelope(records: Rec[], envelope: EnvelopeShape): unknown {
@@ -80,7 +100,9 @@ export function shapeResponse(
   if (scenario.pageSize > 0 && shaped.length > scenario.pageSize) {
     const { page, meta } = paginate(shaped, scenario.pageSize, offset);
     const hasMore = offset + scenario.pageSize < shaped.length;
-    const body = hasMore ? { items: page, nextCursor: String(offset + scenario.pageSize) } : { items: page };
+    const body = hasMore
+      ? { items: page, nextCursor: String(offset + scenario.pageSize) }
+      : { items: page };
     return { body, meta };
   }
   const { page, meta } = paginate(shaped, scenario.pageSize, offset);

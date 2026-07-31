@@ -3,39 +3,53 @@ import React from 'react';
 import { renderToString } from 'react-dom/server';
 vi.mock('next/link', () => ({
   default: ({ href, children }: { href: string; children: React.ReactNode }) =>
-    React.createElement('a', { href }, children)
+    React.createElement('a', { href }, children),
 }));
 import { ManagerOrdersFilter } from '@/components/manager/manager-orders-filter';
 
 describe('ManagerOrdersFilter', () => {
   it('поле поиска name="search" и action ведёт на basePath', () => {
-    const html = renderToString(React.createElement(ManagerOrdersFilter, {
-      orgs: [], initial: { search: 'abc' }, basePath: '/leader'
-    }));
+    const html = renderToString(
+      React.createElement(ManagerOrdersFilter, {
+        orgs: [],
+        initial: { search: 'abc' },
+        basePath: '/leader',
+      })
+    );
     expect(html).toContain('name="search"');
     expect(html).toContain('action="/leader/orders"');
     expect(html).toContain('value="abc"');
   });
   it('basePath по умолчанию /manager', () => {
-    const html = renderToString(React.createElement(ManagerOrdersFilter, { orgs: [], initial: {} }));
+    const html = renderToString(
+      React.createElement(ManagerOrdersFilter, { orgs: [], initial: {} })
+    );
     expect(html).toContain('action="/manager/orders"');
   });
 
   it('без активных фильтров ссылка "Сбросить" не рендерится', () => {
-    const html = renderToString(React.createElement(ManagerOrdersFilter, { orgs: [], initial: {} }));
+    const html = renderToString(
+      React.createElement(ManagerOrdersFilter, { orgs: [], initial: {} })
+    );
     expect(html).not.toContain('Сбросить');
   });
 
   it('с активным фильтром (search) рендерится ссылка "Сбросить" на {basePath}/orders', () => {
     const html = renderToString(
-      React.createElement(ManagerOrdersFilter, { orgs: [], initial: { search: 'abc' }, basePath: '/leader' })
+      React.createElement(ManagerOrdersFilter, {
+        orgs: [],
+        initial: { search: 'abc' },
+        basePath: '/leader',
+      })
     );
     expect(html).toContain('Сбросить');
     expect(html).toContain('href="/leader/orders"');
   });
 
   it('чекбокс «Без менеджера» name="unassigned" value="1", по умолчанию не отмечен', () => {
-    const html = renderToString(React.createElement(ManagerOrdersFilter, { orgs: [], initial: {} }));
+    const html = renderToString(
+      React.createElement(ManagerOrdersFilter, { orgs: [], initial: {} })
+    );
     expect(html).toContain('Без менеджера');
     expect(html).toContain('name="unassigned"');
     expect(html).toContain('value="1"');
@@ -57,7 +71,7 @@ describe('ManagerOrdersFilter', () => {
       React.createElement(ManagerOrdersFilter, {
         orgs: [{ id: 'g1', name: 'Орг 1' }],
         initial: { statusId: 'st-1', financialStatus: 'billed', organizationId: 'g1' },
-        statuses: [{ id: 'st-1', label: 'Принято в работу' }]
+        statuses: [{ id: 'st-1', label: 'Принято в работу' }],
       })
     );
     expect(html).toContain('Орг 1');

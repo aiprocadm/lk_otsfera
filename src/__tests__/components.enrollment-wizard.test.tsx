@@ -9,7 +9,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 const { toastSuccess, toastError, toastInfo } = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
-  toastInfo: vi.fn()
+  toastInfo: vi.fn(),
 }));
 vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: toastError, info: toastInfo } }));
 
@@ -17,15 +17,15 @@ import { EnrollmentWizard, validateRowsClient } from '@/components/enrollment/en
 
 const DIRECTIONS = [
   { id: 'd1', name: 'Охрана труда' },
-  { id: 'd2', name: 'Пожарная безопасность' }
+  { id: 'd2', name: 'Пожарная безопасность' },
 ];
 const ORGS = [
   { id: 'o1', name: 'ООО Ромашка' },
-  { id: 'o2', name: 'ООО Василёк' }
+  { id: 'o2', name: 'ООО Василёк' },
 ];
 const STUDENTS = [
   { id: 'st1', name: 'Пётр Петров', email: 'p@org.ru' },
-  { id: 'st2', name: 'Анна Иванова', email: 'a@org.ru' }
+  { id: 'st2', name: 'Анна Иванова', email: 'a@org.ru' },
 ];
 
 function fetchMockOk() {
@@ -57,12 +57,21 @@ function pickDirection(id = 'd1') {
 }
 
 describe('validateRowsClient', () => {
-  const base = { key: 'k', studentId: null, fullName: '', email: '', position: '', snils: '', birthDate: '', extra: '' };
+  const base = {
+    key: 'k',
+    studentId: null,
+    fullName: '',
+    email: '',
+    position: '',
+    snils: '',
+    birthDate: '',
+    extra: '',
+  };
   it('пусто → «хотя бы одного»; ошибки ФИО/email/СНИЛС адресные', () => {
     expect(validateRowsClient([])).toEqual(['Добавьте хотя бы одного слушателя']);
     const errors = validateRowsClient([
       { ...base },
-      { ...base, fullName: 'Иван', email: 'плохо', snils: '123' }
+      { ...base, fullName: 'Иван', email: 'плохо', snils: '123' },
     ]);
     expect(errors).toContain('Слушатель 1: не указано ФИО');
     expect(errors).toContain('Слушатель 1: не указан email');
@@ -78,7 +87,9 @@ describe('EnrollmentWizard — шаг 1', () => {
   it('«Далее» заблокирована без направления; пустой справочник — подсказка', () => {
     renderWizard({ directions: [] });
     expect(screen.getByText(/Справочник направлений пуст/)).toBeTruthy();
-    expect((screen.getByRole('button', { name: 'Далее: слушатели' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (screen.getByRole('button', { name: 'Далее: слушатели' }) as HTMLButtonElement).disabled
+    ).toBe(true);
   });
 
   it('выбор направления открывает шаг 2; селект организаций рендерится при наличии', () => {
@@ -101,7 +112,9 @@ describe('EnrollmentWizard — шаг 2 (слушатели)', () => {
     expect(screen.getByText(/Отметьте сотрудников галочками/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: '+ Добавить слушателя' }));
-    expect((screen.getByRole('button', { name: 'Далее: проверка' }) as HTMLButtonElement).disabled).toBe(false);
+    expect(
+      (screen.getByRole('button', { name: 'Далее: проверка' }) as HTMLButtonElement).disabled
+    ).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: 'Далее: проверка' }));
     expect(await screen.findByRole('alert')).toBeTruthy();
     expect(screen.getByText('Слушатель 1: не указано ФИО')).toBeTruthy();
@@ -126,10 +139,14 @@ describe('EnrollmentWizard — шаг 2 (слушатели)', () => {
     expect(screen.getByText('Слушатели в заявке: 0')).toBeTruthy();
 
     // Поиск фильтрует клиентски
-    fireEvent.change(screen.getByPlaceholderText('Поиск по ФИО или email'), { target: { value: 'анна' } });
+    fireEvent.change(screen.getByPlaceholderText('Поиск по ФИО или email'), {
+      target: { value: 'анна' },
+    });
     expect(screen.queryByText('Пётр Петров')).toBeNull();
     expect(screen.getByText('Анна Иванова')).toBeTruthy();
-    fireEvent.change(screen.getByPlaceholderText('Поиск по ФИО или email'), { target: { value: 'нет таких' } });
+    fireEvent.change(screen.getByPlaceholderText('Поиск по ФИО или email'), {
+      target: { value: 'нет таких' },
+    });
     expect(screen.getByText('Никого не нашли по запросу.')).toBeTruthy();
   });
 
@@ -137,7 +154,12 @@ describe('EnrollmentWizard — шаг 2 (слушатели)', () => {
     // Организацию выбирают из списка (кабинет партнёра). Смена значения должна
     // подтянуть сотрудников именно выбранной организации.
     vi.stubGlobal('fetch', fetchMockOk());
-    renderWizard({ organizations: [{ id: 'o1', name: 'ООО Ромашка' }, { id: 'o2', name: 'ООО Лютик' }] });
+    renderWizard({
+      organizations: [
+        { id: 'o1', name: 'ООО Ромашка' },
+        { id: 'o2', name: 'ООО Лютик' },
+      ],
+    });
     pickDirection();
     // Селект организации — на первом шаге, рядом с направлением.
     const orgSelect = screen.getAllByRole('combobox')[1] as HTMLSelectElement;
@@ -176,7 +198,9 @@ describe('EnrollmentWizard — шаг 2 (слушатели)', () => {
     fireEvent.change(dateInput, { target: { value: '1990-01-01' } });
     expect(dateInput.value).toBe('1990-01-01');
 
-    const extra = screen.getByPlaceholderText('Любая дополнительная информация') as HTMLInputElement;
+    const extra = screen.getByPlaceholderText(
+      'Любая дополнительная информация'
+    ) as HTMLInputElement;
     fireEvent.change(extra, { target: { value: 'группа 2' } });
     expect(extra.value).toBe('группа 2');
   });
@@ -191,7 +215,9 @@ describe('EnrollmentWizard — шаг 2 (слушатели)', () => {
     fireEvent.change(screen.getByPlaceholderText('ФИО *'), { target: { value: 'Иван Иванов' } });
     fireEvent.change(screen.getByPlaceholderText('Email *'), { target: { value: 'i@x.ru' } });
     fireEvent.change(screen.getByPlaceholderText('Должность'), { target: { value: 'инженер' } });
-    fireEvent.change(screen.getByPlaceholderText('СНИЛС (11 цифр)'), { target: { value: '112-233-445 95' } });
+    fireEvent.change(screen.getByPlaceholderText('СНИЛС (11 цифр)'), {
+      target: { value: '112-233-445 95' },
+    });
 
     fireEvent.click(screen.getByText('Удалить'));
     expect(screen.getByText('Слушатели в заявке: 0')).toBeTruthy();
@@ -234,7 +260,9 @@ describe('EnrollmentWizard — шаг 3 и отправка', () => {
     await screen.findByText('Пётр Петров');
     fireEvent.click(screen.getAllByRole('checkbox')[0]!);
     if (rowPatch.position) {
-      fireEvent.change(screen.getByPlaceholderText('Должность'), { target: { value: rowPatch.position } });
+      fireEvent.change(screen.getByPlaceholderText('Должность'), {
+        target: { value: rowPatch.position },
+      });
     }
     fireEvent.click(screen.getByRole('button', { name: 'Далее: проверка' }));
     return fetchMock;
@@ -251,14 +279,16 @@ describe('EnrollmentWizard — шаг 3 и отправка', () => {
     fireEvent.change(screen.getByRole('textbox'), { target: { value: ' срочно ' } });
     fireEvent.click(screen.getByRole('button', { name: 'Отправить заявку' }));
 
-    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Заявка на обучение отправлена (слушателей: 1)'));
+    await waitFor(() =>
+      expect(toastSuccess).toHaveBeenCalledWith('Заявка на обучение отправлена (слушателей: 1)')
+    );
     const submitCall = fetchMock.mock.calls.find((c: unknown[]) => c[0] === '/api/enrollments')!;
     const body = JSON.parse((submitCall[1] as { body: string }).body);
     expect(body).toMatchObject({
       directionId: 'd1',
       organizationId: 'o1',
       note: 'срочно',
-      items: [{ studentId: 'st1', fullName: 'Пётр Петров', email: 'p@org.ru' }]
+      items: [{ studentId: 'st1', fullName: 'Пётр Петров', email: 'p@org.ru' }],
     });
     expect(refresh).toHaveBeenCalled();
     // Мастер сброшен на шаг 1
@@ -270,11 +300,16 @@ describe('EnrollmentWizard — шаг 3 и отправка', () => {
       if (String(url).startsWith('/api/enrollments/students')) {
         return { ok: true, json: async () => ({ students: STUDENTS }) };
       }
-      return { ok: true, json: async () => ({ itemCount: 1, warnings: ['Слушатель 2: дубликат — объединён'] }) };
+      return {
+        ok: true,
+        json: async () => ({ itemCount: 1, warnings: ['Слушатель 2: дубликат — объединён'] }),
+      };
     });
     await fillToStep3(fetchMock);
     fireEvent.click(screen.getByRole('button', { name: 'Отправить заявку' }));
-    await waitFor(() => expect(toastInfo).toHaveBeenCalledWith('Слушатель 2: дубликат — объединён'));
+    await waitFor(() =>
+      expect(toastInfo).toHaveBeenCalledWith('Слушатель 2: дубликат — объединён')
+    );
   });
 
   it('уход со страницы во время загрузки сотрудников не роняет мастер', async () => {
@@ -283,7 +318,12 @@ describe('EnrollmentWizard — шаг 3 и отправка', () => {
     let resolveFetch: ((v: unknown) => void) | null = null;
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockImplementation(() => new Promise((resolve) => { resolveFetch = resolve; }))
+      vi.fn().mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveFetch = resolve;
+          })
+      )
     );
     const { unmount } = renderWizard({ defaultOrganizationId: 'o1' });
     pickDirection();
@@ -321,7 +361,9 @@ describe('EnrollmentWizard — шаг 3 и отправка', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Далее: проверка' }));
     fireEvent.click(screen.getByRole('button', { name: 'Отправить заявку' }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/enrollments', expect.anything()));
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith('/api/enrollments', expect.anything())
+    );
     const sent = JSON.parse((fetchMock.mock.calls.at(-1)![1] as { body: string }).body);
     expect(sent.organizationId).toBeNull();
     expect(sent.note).toBeNull();
@@ -332,11 +374,19 @@ describe('EnrollmentWizard — шаг 3 и отправка', () => {
       if (String(url).startsWith('/api/enrollments/students')) {
         return { ok: true, json: async () => ({ students: STUDENTS }) };
       }
-      return { ok: false, status: 502, json: async () => { throw new Error('not json'); } };
+      return {
+        ok: false,
+        status: 502,
+        json: async () => {
+          throw new Error('not json');
+        },
+      };
     });
     await fillToStep3(fetchMock);
     fireEvent.click(screen.getByRole('button', { name: 'Отправить заявку' }));
-    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Не удалось отправить заявку: 502'));
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith('Не удалось отправить заявку: 502')
+    );
   });
 
   it('итог: позиция с должностью показывает её через точку; ответ без warnings не падает', async () => {
@@ -359,7 +409,14 @@ describe('EnrollmentWizard — шаг 3 и отправка', () => {
       if (String(url).startsWith('/api/enrollments/students')) {
         return { ok: true, json: async () => ({ students: STUDENTS }) };
       }
-      return { ok: false, status: 400, json: async () => ({ error: 'validation', messages: ['Направление не найдено или неактивно'] }) };
+      return {
+        ok: false,
+        status: 400,
+        json: async () => ({
+          error: 'validation',
+          messages: ['Направление не найдено или неактивно'],
+        }),
+      };
     });
     await fillToStep3(fetchMock);
     fireEvent.click(screen.getByRole('button', { name: 'Отправить заявку' }));
@@ -376,7 +433,9 @@ describe('EnrollmentWizard — шаг 3 и отправка', () => {
     });
     await fillToStep3(fetchMock);
     fireEvent.click(screen.getByRole('button', { name: 'Отправить заявку' }));
-    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Не удалось отправить заявку: forbidden'));
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith('Не удалось отправить заявку: forbidden')
+    );
 
     // Сетевая ошибка
     fetchMock.mockImplementation(async (url: string) => {

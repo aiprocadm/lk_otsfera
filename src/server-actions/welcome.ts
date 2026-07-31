@@ -15,7 +15,7 @@ export async function dismissWelcomeAction(): Promise<{ ok: boolean }> {
   }
   await prisma.user.update({
     where: { id: session.sub },
-    data: { welcomeSeenAt: new Date() }
+    data: { welcomeSeenAt: new Date() },
   });
   revalidatePath(session.role === 'partner' ? '/partner/dashboard' : '/organization/dashboard');
   return { ok: true };

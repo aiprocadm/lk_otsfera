@@ -13,7 +13,7 @@ vi.mock('@/lib/services/partner/deals', () => ({ listPartnerDeals }));
 // DealsFilter ('use client') calls useRouter()/useSearchParams() -- stub next/navigation.
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
-  useSearchParams: () => new URLSearchParams()
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 import PartnerDealsPage from '@/app/partner/deals/page';
@@ -32,7 +32,7 @@ describe('PartnerDealsPage', () => {
 
     const { container } = await renderServerComponent(
       PartnerDealsPage({
-        searchParams: Promise.resolve({ execution: 'bogus', financial: 'bogus' })
+        searchParams: Promise.resolve({ execution: 'bogus', financial: 'bogus' }),
       })
     );
 
@@ -44,7 +44,7 @@ describe('PartnerDealsPage', () => {
         executionStatus: undefined,
         financialStatus: undefined,
         take: 25,
-        skip: 0
+        skip: 0,
       })
     );
     expect(container.textContent).toContain('Заказы');
@@ -69,10 +69,10 @@ describe('PartnerDealsPage', () => {
           organizationId: 'org-1',
           createdAt: new Date('2024-01-01'),
           deadline: null,
-          closedAt: null
-        }
+          closedAt: null,
+        },
       ],
-      total: 1
+      total: 1,
     });
 
     await renderServerComponent(
@@ -82,8 +82,8 @@ describe('PartnerDealsPage', () => {
           financial: 'paid',
           take: '500',
           skip: '10',
-          search: 'foo'
-        })
+          search: 'foo',
+        }),
       })
     );
 
@@ -96,7 +96,7 @@ describe('PartnerDealsPage', () => {
         financialStatus: 'paid',
         search: 'foo',
         take: 100,
-        skip: 10
+        skip: 10,
       })
     );
   });
@@ -107,7 +107,7 @@ describe('PartnerDealsPage', () => {
 
     await renderServerComponent(
       PartnerDealsPage({
-        searchParams: Promise.resolve({ take: 'abc', skip: 'xyz' })
+        searchParams: Promise.resolve({ take: 'abc', skip: 'xyz' }),
       })
     );
 

@@ -38,7 +38,9 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await prisma.syncLog.deleteMany({ where: { entity: 'notification', externalId: { startsWith: `job-${STAMP}` } } });
+  await prisma.syncLog.deleteMany({
+    where: { entity: 'notification', externalId: { startsWith: `job-${STAMP}` } },
+  });
   await prisma.user.delete({ where: { id: ids.user } });
   await prisma.$disconnect();
 });
@@ -48,7 +50,9 @@ beforeEach(() => {
   isTelegramEnabled.mockReturnValue(true);
 });
 
-function jobData(overrides: Partial<NotificationDispatchPayload> = {}): NotificationDispatchPayload {
+function jobData(
+  overrides: Partial<NotificationDispatchPayload> = {}
+): NotificationDispatchPayload {
   return {
     userId: ids.user,
     channel: 'telegram',
@@ -129,7 +133,11 @@ describe('runDispatchNotification', () => {
           notificationChannels: null,
         }),
       },
-      syncLog: { create: async () => { throw new Error('log db down'); } },
+      syncLog: {
+        create: async () => {
+          throw new Error('log db down');
+        },
+      },
     } as unknown as PrismaClient;
 
     await expect(runDispatchNotification(fakeDb, jobData(), 'job-nolog')).rejects.toThrow(

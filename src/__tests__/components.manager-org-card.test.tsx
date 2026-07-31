@@ -9,7 +9,7 @@ describe('ManagerOrgCard', () => {
     const org = {
       name: 'ООО Ромашка',
       partner: { name: 'Партнёр Иванов' },
-      _count: { orders: 3, students: 10, users: 2 }
+      _count: { orders: 3, students: 10, users: 2 },
     } as ManagerOrgDetail;
     const html = renderToString(React.createElement(ManagerOrgCard, { org }));
     expect(html).toContain('ООО Ромашка');
@@ -23,7 +23,7 @@ describe('ManagerOrgCard', () => {
     const org = {
       name: 'ООО Ромашка',
       partner: null,
-      _count: { orders: 0, students: 0, users: 0 }
+      _count: { orders: 0, students: 0, users: 0 },
     } as ManagerOrgDetail;
     const html = renderToString(React.createElement(ManagerOrgCard, { org }));
     expect(html).not.toContain('Партнёр:');

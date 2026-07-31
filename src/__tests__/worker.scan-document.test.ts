@@ -25,7 +25,7 @@ function makeDb(
     callRecordingPath?: string | null;
     staffAttachmentPath?: string | null;
     clientRequestAttachmentPath?: string | null;
-  } = {},
+  } = {}
 ) {
   const documentUpdate = vi.fn().mockResolvedValue({});
   const attachmentUpdate = vi.fn().mockResolvedValue({});
@@ -36,63 +36,75 @@ function makeDb(
   const syncLogCreate = vi.fn().mockResolvedValue({});
   return {
     document: {
-      findUnique: vi.fn().mockResolvedValue(
-        opts.documentPath === undefined
-          ? { id: 'doc-1', path: 'orders/o1/file.pdf' }
-          : opts.documentPath === null
-            ? null
-            : { id: 'doc-1', path: opts.documentPath },
-      ),
+      findUnique: vi
+        .fn()
+        .mockResolvedValue(
+          opts.documentPath === undefined
+            ? { id: 'doc-1', path: 'orders/o1/file.pdf' }
+            : opts.documentPath === null
+              ? null
+              : { id: 'doc-1', path: opts.documentPath }
+        ),
       update: documentUpdate,
     },
     leadAttachment: {
-      findUnique: vi.fn().mockResolvedValue(
-        opts.attachmentPath === undefined
-          ? { id: 'att-1', path: 'leads/l1/file.pdf' }
-          : opts.attachmentPath === null
-            ? null
-            : { id: 'att-1', path: opts.attachmentPath },
-      ),
+      findUnique: vi
+        .fn()
+        .mockResolvedValue(
+          opts.attachmentPath === undefined
+            ? { id: 'att-1', path: 'leads/l1/file.pdf' }
+            : opts.attachmentPath === null
+              ? null
+              : { id: 'att-1', path: opts.attachmentPath }
+        ),
       update: attachmentUpdate,
     },
     inboundMessage: {
-      findUnique: vi.fn().mockResolvedValue(
-        opts.inboundAttachmentPath === undefined
-          ? { id: 'inbound-1', attachmentPath: 'inbound/msg-1/file.pdf' }
-          : opts.inboundAttachmentPath === null
-            ? null
-            : { id: 'inbound-1', attachmentPath: opts.inboundAttachmentPath },
-      ),
+      findUnique: vi
+        .fn()
+        .mockResolvedValue(
+          opts.inboundAttachmentPath === undefined
+            ? { id: 'inbound-1', attachmentPath: 'inbound/msg-1/file.pdf' }
+            : opts.inboundAttachmentPath === null
+              ? null
+              : { id: 'inbound-1', attachmentPath: opts.inboundAttachmentPath }
+        ),
       update: inboundMessageUpdate,
     },
     call: {
-      findUnique: vi.fn().mockResolvedValue(
-        opts.callRecordingPath === undefined
-          ? { id: 'call-1', recordingPath: 'calls/c1/recording.mp3' }
-          : opts.callRecordingPath === null
-            ? null
-            : { id: 'call-1', recordingPath: opts.callRecordingPath },
-      ),
+      findUnique: vi
+        .fn()
+        .mockResolvedValue(
+          opts.callRecordingPath === undefined
+            ? { id: 'call-1', recordingPath: 'calls/c1/recording.mp3' }
+            : opts.callRecordingPath === null
+              ? null
+              : { id: 'call-1', recordingPath: opts.callRecordingPath }
+        ),
       update: callUpdate,
     },
     staffMessage: {
-      findUnique: vi.fn().mockResolvedValue(
-        opts.staffAttachmentPath === undefined
-          ? { id: 'staff-msg-1', attachmentPath: 'staff-chat/conv-1/file.pdf' }
-          : opts.staffAttachmentPath === null
-            ? null
-            : { id: 'staff-msg-1', attachmentPath: opts.staffAttachmentPath },
-      ),
+      findUnique: vi
+        .fn()
+        .mockResolvedValue(
+          opts.staffAttachmentPath === undefined
+            ? { id: 'staff-msg-1', attachmentPath: 'staff-chat/conv-1/file.pdf' }
+            : opts.staffAttachmentPath === null
+              ? null
+              : { id: 'staff-msg-1', attachmentPath: opts.staffAttachmentPath }
+        ),
       update: staffMessageUpdate,
     },
     clientRequestAttachment: {
-      findUnique: vi.fn().mockResolvedValue(
-        opts.clientRequestAttachmentPath === undefined
-          ? { id: 'cra-1', path: 'client-requests/r1/file.pdf' }
-          : opts.clientRequestAttachmentPath === null
-            ? null
-            : { id: 'cra-1', path: opts.clientRequestAttachmentPath },
-      ),
+      findUnique: vi
+        .fn()
+        .mockResolvedValue(
+          opts.clientRequestAttachmentPath === undefined
+            ? { id: 'cra-1', path: 'client-requests/r1/file.pdf' }
+            : opts.clientRequestAttachmentPath === null
+              ? null
+              : { id: 'cra-1', path: opts.clientRequestAttachmentPath }
+        ),
       update: clientRequestAttachmentUpdate,
     },
     syncLog: { create: syncLogCreate },
@@ -127,9 +139,18 @@ describe('scanDocumentProcessor', () => {
     const db: StubDb = makeDb();
     const deps = makeDeps();
 
-    const result = await scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps);
+    const result = await scanDocumentProcessor(
+      makeJob({ kind: 'document', id: 'doc-1' }),
+      db,
+      deps
+    );
 
-    expect(result).toEqual({ kind: 'document', id: 'doc-1', scanStatus: 'clean', scanReason: null });
+    expect(result).toEqual({
+      kind: 'document',
+      id: 'doc-1',
+      scanStatus: 'clean',
+      scanReason: null,
+    });
     expect(deps.scan).not.toHaveBeenCalled();
     expect(deps.download).not.toHaveBeenCalled();
     expect(db.document.update).toHaveBeenCalledWith({
@@ -149,7 +170,11 @@ describe('scanDocumentProcessor', () => {
     const db = makeDb();
     const deps = makeDeps({ scan: vi.fn().mockResolvedValue('stream: OK') });
 
-    const result = await scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps);
+    const result = await scanDocumentProcessor(
+      makeJob({ kind: 'document', id: 'doc-1' }),
+      db,
+      deps
+    );
 
     expect(result.scanStatus).toBe('clean');
     expect(deps.scan).toHaveBeenCalledWith('clamav.local', 3310, expect.any(Buffer));
@@ -163,7 +188,11 @@ describe('scanDocumentProcessor', () => {
       scan: vi.fn().mockResolvedValue('stream: Win.Test.EICAR_HDB-1 FOUND'),
     });
 
-    const result = await scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps);
+    const result = await scanDocumentProcessor(
+      makeJob({ kind: 'document', id: 'doc-1' }),
+      db,
+      deps
+    );
 
     expect(result).toEqual({
       kind: 'document',
@@ -186,7 +215,7 @@ describe('scanDocumentProcessor', () => {
     });
 
     await expect(
-      scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps),
+      scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps)
     ).rejects.toThrow(/ECONNREFUSED/);
 
     // Must NOT persist any status (especially not 'clean') on a scanner outage.
@@ -205,7 +234,11 @@ describe('scanDocumentProcessor', () => {
     const db = makeDb();
     const deps = makeDeps({ scan: vi.fn().mockResolvedValue('something weird') });
 
-    const result = await scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps);
+    const result = await scanDocumentProcessor(
+      makeJob({ kind: 'document', id: 'doc-1' }),
+      db,
+      deps
+    );
 
     expect(result.scanStatus).toBe('error');
     expect(result.scanReason).toContain('Unexpected ClamAV response');
@@ -223,7 +256,7 @@ describe('scanDocumentProcessor', () => {
     });
 
     await expect(
-      scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps),
+      scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps)
     ).rejects.toThrow(/STORAGE_DOWNLOAD/);
 
     // Must NOT persist a terminal 'error' status: the backfill sweep only
@@ -243,12 +276,14 @@ describe('scanDocumentProcessor', () => {
   it('updates LeadAttachment row when kind=leadAttachment', async () => {
     process.env.CLAMAV_HOST = 'clamav.local';
     const db = makeDb();
-    const deps = makeDeps({ scan: vi.fn().mockResolvedValue('stream: Eicar-Test-Signature FOUND') });
+    const deps = makeDeps({
+      scan: vi.fn().mockResolvedValue('stream: Eicar-Test-Signature FOUND'),
+    });
 
     const result = await scanDocumentProcessor(
       makeJob({ kind: 'leadAttachment', id: 'att-1' }),
       db,
-      deps,
+      deps
     );
 
     expect(result.scanStatus).toBe('infected');
@@ -267,7 +302,7 @@ describe('scanDocumentProcessor', () => {
     const result = await scanDocumentProcessor(
       makeJob({ kind: 'inbound_attachment', id: 'inbound-1' }),
       db,
-      deps,
+      deps
     );
 
     expect(result).toEqual({
@@ -287,12 +322,14 @@ describe('scanDocumentProcessor', () => {
   it('marks InboundMessage infected and captures virus name from "FOUND" response', async () => {
     process.env.CLAMAV_HOST = 'clamav.local';
     const db = makeDb();
-    const deps = makeDeps({ scan: vi.fn().mockResolvedValue('stream: Eicar-Test-Signature FOUND') });
+    const deps = makeDeps({
+      scan: vi.fn().mockResolvedValue('stream: Eicar-Test-Signature FOUND'),
+    });
 
     const result = await scanDocumentProcessor(
       makeJob({ kind: 'inbound_attachment', id: 'inbound-1' }),
       db,
-      deps,
+      deps
     );
 
     expect(result.scanStatus).toBe('infected');
@@ -310,7 +347,7 @@ describe('scanDocumentProcessor', () => {
     const result = await scanDocumentProcessor(
       makeJob({ kind: 'call_recording', id: 'call-1' }),
       db,
-      deps,
+      deps
     );
 
     expect(result).toEqual({
@@ -331,12 +368,14 @@ describe('scanDocumentProcessor', () => {
   it('marks Call recording infected and captures virus name from "FOUND" response', async () => {
     process.env.CLAMAV_HOST = 'clamav.local';
     const db = makeDb();
-    const deps = makeDeps({ scan: vi.fn().mockResolvedValue('stream: Eicar-Test-Signature FOUND') });
+    const deps = makeDeps({
+      scan: vi.fn().mockResolvedValue('stream: Eicar-Test-Signature FOUND'),
+    });
 
     const result = await scanDocumentProcessor(
       makeJob({ kind: 'call_recording', id: 'call-1' }),
       db,
-      deps,
+      deps
     );
 
     expect(result.scanStatus).toBe('infected');
@@ -351,7 +390,7 @@ describe('scanDocumentProcessor', () => {
     const deps = makeDeps();
 
     await expect(
-      scanDocumentProcessor(makeJob({ kind: 'call_recording', id: 'call-1' }), db, deps),
+      scanDocumentProcessor(makeJob({ kind: 'call_recording', id: 'call-1' }), db, deps)
     ).rejects.toThrow(/NOT_FOUND/);
     expect(db.call.update).not.toHaveBeenCalled();
   });
@@ -362,12 +401,14 @@ describe('scanDocumentProcessor', () => {
     // только статус, расследовать карантин будет нечем.
     process.env.CLAMAV_HOST = 'clamav.local';
     const db = makeDb();
-    const deps = makeDeps({ scan: vi.fn().mockResolvedValue('stream: Eicar-Test-Signature FOUND') });
+    const deps = makeDeps({
+      scan: vi.fn().mockResolvedValue('stream: Eicar-Test-Signature FOUND'),
+    });
 
     const result = await scanDocumentProcessor(
       makeJob({ kind: 'client_request_attachment', id: 'cra-1' }),
       db,
-      deps,
+      deps
     );
 
     expect(result).toEqual({
@@ -392,7 +433,7 @@ describe('scanDocumentProcessor', () => {
     const result = await scanDocumentProcessor(
       makeJob({ kind: 'staff_attachment', id: 'staff-msg-1' }),
       db,
-      deps,
+      deps
     );
 
     expect(result).toEqual({
@@ -414,12 +455,14 @@ describe('scanDocumentProcessor', () => {
   it('marks StaffMessage infected and captures virus name from "FOUND" response', async () => {
     process.env.CLAMAV_HOST = 'clamav.local';
     const db = makeDb();
-    const deps = makeDeps({ scan: vi.fn().mockResolvedValue('stream: Eicar-Test-Signature FOUND') });
+    const deps = makeDeps({
+      scan: vi.fn().mockResolvedValue('stream: Eicar-Test-Signature FOUND'),
+    });
 
     const result = await scanDocumentProcessor(
       makeJob({ kind: 'staff_attachment', id: 'staff-msg-1' }),
       db,
-      deps,
+      deps
     );
 
     expect(result.scanStatus).toBe('infected');
@@ -434,7 +477,7 @@ describe('scanDocumentProcessor', () => {
     const deps = makeDeps();
 
     await expect(
-      scanDocumentProcessor(makeJob({ kind: 'staff_attachment', id: 'staff-msg-1' }), db, deps),
+      scanDocumentProcessor(makeJob({ kind: 'staff_attachment', id: 'staff-msg-1' }), db, deps)
     ).rejects.toThrow(/NOT_FOUND/);
     expect(db.staffMessage.update).not.toHaveBeenCalled();
   });
@@ -444,7 +487,7 @@ describe('scanDocumentProcessor', () => {
     const deps = makeDeps();
 
     await expect(
-      scanDocumentProcessor(makeJob({ kind: 'inbound_attachment', id: 'inbound-1' }), db, deps),
+      scanDocumentProcessor(makeJob({ kind: 'inbound_attachment', id: 'inbound-1' }), db, deps)
     ).rejects.toThrow(/NOT_FOUND/);
     expect(db.inboundMessage.update).not.toHaveBeenCalled();
   });
@@ -454,7 +497,7 @@ describe('scanDocumentProcessor', () => {
     const deps = makeDeps();
 
     await expect(
-      scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps),
+      scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps)
     ).rejects.toThrow(/NOT_FOUND/);
     expect(db.document.update).not.toHaveBeenCalled();
   });
@@ -477,7 +520,11 @@ describe('scanDocumentProcessor', () => {
     // An empty response string → response.slice(0, 200) is '' (falsy) → || '(empty)' taken
     const deps = makeDeps({ scan: vi.fn().mockResolvedValue('') });
 
-    const result = await scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps);
+    const result = await scanDocumentProcessor(
+      makeJob({ kind: 'document', id: 'doc-1' }),
+      db,
+      deps
+    );
 
     expect(result.scanStatus).toBe('error');
     expect(result.scanReason).toContain('(empty)');
@@ -492,7 +539,7 @@ describe('scanDocumentProcessor', () => {
     });
 
     await expect(
-      scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps),
+      scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps)
     ).rejects.toBe('plain-string-error');
 
     expect(db.syncLog.create).toHaveBeenCalledWith({
@@ -511,7 +558,7 @@ describe('scanDocumentProcessor', () => {
     });
 
     await expect(
-      scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps),
+      scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps)
     ).rejects.toBe('scanner-plain-error');
 
     expect(db.syncLog.create).toHaveBeenCalledWith({

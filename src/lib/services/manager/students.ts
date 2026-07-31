@@ -20,18 +20,16 @@ import { recordPiiAccess } from '@/lib/pii/record';
  */
 
 const ListStudentsOptionsSchema = z.object({
-  session: z.custom<SessionPayload>(
-    (v) => !!v && typeof v === 'object' && 'sub' in (v as object)
-  ),
+  session: z.custom<SessionPayload>((v) => !!v && typeof v === 'object' && 'sub' in (v as object)),
   q: z.string().optional(),
   take: z.number().int().min(1).max(100).default(50),
-  cursor: z.string().optional()
+  cursor: z.string().optional(),
 });
 
 export type ListStudentsOptions = z.input<typeof ListStudentsOptionsSchema>;
 
 const LIST_INCLUDE = {
-  organization: { select: { id: true, name: true } }
+  organization: { select: { id: true, name: true } },
 } satisfies Prisma.StudentInclude;
 
 export type ManagerStudentRow = Prisma.StudentGetPayload<{ include: typeof LIST_INCLUDE }>;
@@ -57,8 +55,8 @@ export async function listStudents(
     filters.push({
       OR: [
         { name: { contains: opts.q, mode: 'insensitive' } },
-        { email: { contains: opts.q, mode: 'insensitive' } }
-      ]
+        { email: { contains: opts.q, mode: 'insensitive' } },
+      ],
     });
   }
 
@@ -67,7 +65,7 @@ export async function listStudents(
     include: LIST_INCLUDE,
     orderBy: { id: 'desc' },
     take: opts.take + 1,
-    ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {})
+    ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
   });
 
   const hasMore = rows.length > opts.take;
@@ -77,7 +75,7 @@ export async function listStudents(
     session: opts.session,
     context: 'manager_students_list',
     subjectIds: sliced.map((s) => s.id),
-    meta: { take: opts.take, hasQuery: opts.q !== undefined, cursor: opts.cursor !== undefined }
+    meta: { take: opts.take, hasQuery: opts.q !== undefined, cursor: opts.cursor !== undefined },
   });
   return { rows: sliced, nextCursor };
 }
@@ -88,7 +86,7 @@ const DETAIL_SELECT = {
   email: true,
   organizationId: true,
   createdAt: true,
-  organization: { select: { id: true, name: true } }
+  organization: { select: { id: true, name: true } },
 } satisfies Prisma.StudentSelect;
 
 export type ManagerStudentDetail = Prisma.StudentGetPayload<{ select: typeof DETAIL_SELECT }>;
@@ -110,7 +108,7 @@ export async function getStudent(
   if (teamMode) {
     const org = await prisma.organization.findUnique({
       where: { id: student.organizationId },
-      select: { companyId: true }
+      select: { companyId: true },
     });
     if (!org || !session.companyId || org.companyId !== session.companyId) return null;
   } else if (!managedOrgIds(session).includes(student.organizationId)) {
@@ -120,7 +118,7 @@ export async function getStudent(
   await recordPiiAccess(prisma, {
     session,
     context: 'manager_student_view',
-    subjectIds: [student.id]
+    subjectIds: [student.id],
   });
   return student;
 }

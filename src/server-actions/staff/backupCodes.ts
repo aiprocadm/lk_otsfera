@@ -20,7 +20,7 @@ export async function regenerateBackupCodesAction(): Promise<
     action: '2fa_backup_regenerated',
     entity: 'auth_2fa',
     entityId: session.sub,
-    userId: session.sub
+    userId: session.sub,
   }).catch(() => {});
   return { ok: true, codes };
 }

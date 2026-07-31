@@ -19,7 +19,7 @@ export async function GET() {
   const scope = await buildNotificationScopeWhere(prisma, session);
 
   const count = await prisma.notification.count({
-    where: { AND: [scope, { isRead: false }] }
+    where: { AND: [scope, { isRead: false }] },
   });
 
   return Response.json({ count });

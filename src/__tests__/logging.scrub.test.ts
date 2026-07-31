@@ -41,21 +41,26 @@ describe('scrub', () => {
   });
 
   it('редактирует чувствительные ключи точным совпадением (без учёта регистра)', () => {
-    expect(
-      scrub({ email: 'a@b.ru', Name: 'Иванов', token: 'x', orderId: 'o1' })
-    ).toEqual({ email: REDACTED, Name: REDACTED, token: REDACTED, orderId: 'o1' });
+    expect(scrub({ email: 'a@b.ru', Name: 'Иванов', token: 'x', orderId: 'o1' })).toEqual({
+      email: REDACTED,
+      Name: REDACTED,
+      token: REDACTED,
+      orderId: 'o1',
+    });
   });
 
   it('редактирует по суффиксу (userEmail), но не ложные срабатывания (statusCode, queueName)', () => {
-    expect(
-      scrub({ userEmail: 'a@b.ru', statusCode: 404, queueName: 'emails.send' })
-    ).toEqual({ userEmail: REDACTED, statusCode: 404, queueName: 'emails.send' });
+    expect(scrub({ userEmail: 'a@b.ru', statusCode: 404, queueName: 'emails.send' })).toEqual({
+      userEmail: REDACTED,
+      statusCode: 404,
+      queueName: 'emails.send',
+    });
   });
 
   it('рекурсивно обрабатывает вложенные объекты и массивы', () => {
     expect(scrub({ a: [{ phone: '+7900' }, 'x@y.ru'], b: { inviteUrl: 'https://…' } })).toEqual({
       a: [{ phone: REDACTED }, REDACTED],
-      b: { inviteUrl: REDACTED }
+      b: { inviteUrl: REDACTED },
     });
   });
 
@@ -75,7 +80,7 @@ describe('scrub', () => {
 
   it('Date → ISO-строка', () => {
     expect(scrub({ at: new Date('2026-07-09T00:00:00Z') })).toEqual({
-      at: '2026-07-09T00:00:00.000Z'
+      at: '2026-07-09T00:00:00.000Z',
     });
   });
 
@@ -106,13 +111,13 @@ describe('scrubSentryEvent', () => {
         query_string: 'token=secret1',
         cookies: { session: 'jwt' },
         headers: { Authorization: 'Bearer x', 'x-request-id': 'r1' },
-        data: { email: 'a@b.ru' }
+        data: { email: 'a@b.ru' },
       },
       exception: { values: [{ value: 'sent to a@b.ru' }, {}] },
       breadcrumbs: [{ message: 'mail a@b.ru', data: { to: 'a@b.ru' } }, {}],
       extra: { inviteUrl: 'https://…' },
       contexts: { job: { token: 'x' } },
-      user: { id: 'u1' }
+      user: { id: 'u1' },
     };
     const out = scrubSentryEvent(event);
     expect(out.message).toBe(`user ${REDACTED} failed`);

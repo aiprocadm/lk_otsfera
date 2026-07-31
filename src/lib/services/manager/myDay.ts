@@ -7,7 +7,7 @@ import { countIntake, intakeInboundWhere, intakeCallWhere } from '@/lib/services
 import {
   READINESS_SELECT,
   evaluateReadinessBatch,
-  type OrderForReadiness
+  type OrderForReadiness,
 } from '@/lib/services/manager/orderDelivery';
 import { ONE_DAY_MS } from './dashboard/constants';
 
@@ -70,12 +70,12 @@ async function readyToDeliverOrders(
       AND: [
         managerOrderScope(session, teamMode),
         { resultDeliveredAt: null },
-        { executionStatus: { not: 'cancelled' } }
-      ]
+        { executionStatus: { not: 'cancelled' } },
+      ],
     },
     select: READINESS_SELECT,
     orderBy: { updatedAt: 'desc' },
-    take: READINESS_SCAN_CAP
+    take: READINESS_SCAN_CAP,
   });
 
   const readiness = await evaluateReadinessBatch(prisma, orders as OrderForReadiness[]);
@@ -85,8 +85,8 @@ async function readyToDeliverOrders(
     preview: ready.slice(0, READY_PREVIEW).map((o) => ({
       id: o.id,
       orderNumber: o.orderNumber,
-      title: o.title
-    }))
+      title: o.title,
+    })),
   };
 }
 
@@ -96,54 +96,44 @@ export async function getMyDay(
   teamModeOverride?: boolean,
   nowOverride?: Date
 ): Promise<MyDayData> {
-  const teamMode =
-    teamModeOverride ?? (await getCompanyTeamVisibility(prisma, session.companyId));
+  const teamMode = teamModeOverride ?? (await getCompanyTeamVisibility(prisma, session.companyId));
   const now = nowOverride ?? new Date();
   const { start, end } = dayBounds(now);
   const dayAgo = new Date(now.getTime() - ONE_DAY_MS);
 
-  const [
-    tasksToday,
-    tasksOverdue,
-    intake,
-    ready,
-    dealsGrouped,
-    inboundFresh,
-    callsMissed
-  ] = await Promise.all([
-    prisma.task.count({
-      where: {
-        AND: [
-          taskFiltersWhere(session, { scope: 'mine' }, now),
-          { dueDate: { gte: start, lt: end }, status: { not: 'done' } }
-        ]
-      }
-    }),
-    prisma.task.count({
-      where: taskFiltersWhere(session, { scope: 'mine', overdue: true }, now)
-    }),
-    countIntake(prisma, session),
-    readyToDeliverOrders(prisma, session, teamMode),
-    prisma.deal.groupBy({
-      by: ['stageId'],
-      where: { AND: [dealScopeWhere(session, { managerId: session.sub }), { status: 'open' }] },
-      _count: { _all: true }
-    }),
-    prisma.inboundMessage.count({
-      where: { AND: [intakeInboundWhere(session), { createdAt: { gte: dayAgo } }] }
-    }),
-    prisma.call.count({
-      where: { AND: [intakeCallWhere(session), { startedAt: { gte: dayAgo } }] }
-    })
-  ]);
+  const [tasksToday, tasksOverdue, intake, ready, dealsGrouped, inboundFresh, callsMissed] =
+    await Promise.all([
+      prisma.task.count({
+        where: {
+          AND: [
+            taskFiltersWhere(session, { scope: 'mine' }, now),
+            { dueDate: { gte: start, lt: end }, status: { not: 'done' } },
+          ],
+        },
+      }),
+      prisma.task.count({
+        where: taskFiltersWhere(session, { scope: 'mine', overdue: true }, now),
+      }),
+      countIntake(prisma, session),
+      readyToDeliverOrders(prisma, session, teamMode),
+      prisma.deal.groupBy({
+        by: ['stageId'],
+        where: { AND: [dealScopeWhere(session, { managerId: session.sub }), { status: 'open' }] },
+        _count: { _all: true },
+      }),
+      prisma.inboundMessage.count({
+        where: { AND: [intakeInboundWhere(session), { createdAt: { gte: dayAgo } }] },
+      }),
+      prisma.call.count({
+        where: { AND: [intakeCallWhere(session), { startedAt: { gte: dayAgo } }] },
+      }),
+    ]);
 
-  const stageIds = dealsGrouped
-    .map((g) => g.stageId)
-    .filter((id): id is string => id != null);
+  const stageIds = dealsGrouped.map((g) => g.stageId).filter((id): id is string => id != null);
   const stages = stageIds.length
     ? await prisma.dealStage.findMany({
         where: { id: { in: stageIds } },
-        select: { id: true, name: true, position: true }
+        select: { id: true, name: true, position: true },
       })
     : [];
   const stageById = new Map(stages.map((s) => [s.id, s]));
@@ -155,7 +145,7 @@ export async function getMyDay(
       return {
         stageName: stage?.name ?? 'Без стадии',
         position: stage?.position ?? Number.MAX_SAFE_INTEGER,
-        count: g._count._all
+        count: g._count._all,
       };
     })
     .sort((a, b) => a.position - b.position)
@@ -171,6 +161,6 @@ export async function getMyDay(
     dealsOpen: dealsByStage.reduce((sum, s) => sum + s.count, 0),
     dealsByStage,
     inboundFresh,
-    callsMissed
+    callsMissed,
   };
 }

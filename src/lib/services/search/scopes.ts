@@ -3,13 +3,13 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import {
   leadWhereForLevel,
   taskWhereForLevel,
-  NO_COMPANY_SENTINEL
+  NO_COMPANY_SENTINEL,
 } from '@/lib/auth/accessProfile';
 import {
   managedOrgIds,
   managerDocumentScope,
   managerOrderScope,
-  managerOrgScope
+  managerOrgScope,
 } from '@/lib/auth/managerPolicy';
 import { eventScopeWhere } from '@/lib/services/calendar/items';
 import { conversationScopeWhere } from '@/lib/services/staffChat/conversations';
@@ -51,6 +51,6 @@ export function searchScopes(session: SessionPayload, teamMode: boolean): Search
       isAdmin || teamMode
         ? { organization: floor }
         : { organizationId: { in: managedOrgIds(session) } },
-    messages: { conversation: conversationScopeWhere(session) }
+    messages: { conversation: conversationScopeWhere(session) },
   };
 }

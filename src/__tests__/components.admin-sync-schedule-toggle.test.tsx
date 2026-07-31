@@ -66,7 +66,11 @@ describe('SyncScheduleToggle', () => {
 
   it('busy state disables the button while pending', async () => {
     let resolvePromise: (v: unknown) => void = () => {};
-    setSchedulePausedAction.mockReturnValue(new Promise((resolve) => { resolvePromise = resolve; }));
+    setSchedulePausedAction.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePromise = resolve;
+      })
+    );
     render(React.createElement(SyncScheduleToggle, { schedulerId: 's1', paused: false }));
     const button = screen.getByRole('button', { name: 'Активно — пауза' });
     fireEvent.click(button);

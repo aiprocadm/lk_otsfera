@@ -20,18 +20,16 @@ describe('buildFetchAction (fetch → ActionResult)', () => {
   });
 
   it('ok JSON: возвращает { ok:true, ...body }; JSON body отправлен с content-type', async () => {
-    const fetchMock = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(
-        new Response(JSON.stringify({ id: 'lead1' }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' }
-        })
-      );
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ id: 'lead1' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    );
 
     const action = buildFetchAction<{ id: string }>({
       url: '/api/partner/leads',
-      body: (fd) => ({ subject: fd.get('subject') })
+      body: (fd) => ({ subject: fd.get('subject') }),
     });
     const fd = new FormData();
     fd.set('subject', 'hi');
@@ -71,7 +69,7 @@ describe('buildFetchAction (fetch → ActionResult)', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ error: 'EMAIL_TAKEN' }), {
         status: 409,
-        headers: { 'content-type': 'application/json' }
+        headers: { 'content-type': 'application/json' },
       })
     );
     const action = buildFetchAction({ url: '/api/x', body: () => ({}) });
@@ -110,7 +108,7 @@ describe('useFetchSubmit (начальное состояние)', () => {
   function Probe() {
     const { pending, errorText, data, success, formAction } = useFetchSubmit({
       url: '/api/x',
-      body: () => ({})
+      body: () => ({}),
     });
     return (
       <form action={formAction}>

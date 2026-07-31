@@ -14,12 +14,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { getCompanyTeamVisibility, managerOrderScope } = vi.hoisted(() => ({
   getCompanyTeamVisibility: vi.fn().mockResolvedValue(false),
-  managerOrderScope: vi.fn().mockReturnValue({})
+  managerOrderScope: vi.fn().mockReturnValue({}),
 }));
 
 vi.mock('@/lib/auth/managerPolicy', () => ({
   getCompanyTeamVisibility,
-  managerOrderScope
+  managerOrderScope,
 }));
 
 import { listIncomingComments } from '@/lib/services/manager/messages';
@@ -29,13 +29,13 @@ const SESSION: SessionPayload = {
   sub: 'mgr-1',
   role: 'manager',
   managedOrgIds: ['org-1'],
-  companyId: 'co-1'
+  companyId: 'co-1',
 };
 
 function fakePrisma(rows: unknown[] = []) {
   return {
     comment: { findMany: vi.fn().mockResolvedValue(rows) },
-    company: { findUnique: vi.fn() }
+    company: { findUnique: vi.fn() },
   } as never;
 }
 
@@ -45,7 +45,7 @@ function commentRow(id: string) {
     body: 'test',
     orderId: 'ord-1',
     order: { id: 'ord-1', orderNumber: 'O-1', title: 'T' },
-    author: { id: 'u-1', name: 'User', email: 'u@t.local', role: 'organization' }
+    author: { id: 'u-1', name: 'User', email: 'u@t.local', role: 'organization' },
   };
 }
 

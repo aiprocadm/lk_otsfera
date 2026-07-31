@@ -14,6 +14,6 @@ export const clientLog = {
   debug: (...args: unknown[]) => console.debug(...args),
   info: (...args: unknown[]) => console.log(...args),
   warn: (...args: unknown[]) => console.warn(...args),
-  error: (...args: unknown[]) => console.error(...args)
+  error: (...args: unknown[]) => console.error(...args),
 };
 /* eslint-enable no-console */

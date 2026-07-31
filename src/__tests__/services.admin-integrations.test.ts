@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const { isTelegramEnabled, isMaxEnabled, isWhatsAppEnabled } = vi.hoisted(() => ({
   isTelegramEnabled: vi.fn(),
   isMaxEnabled: vi.fn(),
-  isWhatsAppEnabled: vi.fn()
+  isWhatsAppEnabled: vi.fn(),
 }));
 vi.mock('@/lib/telegram/client', () => ({ isTelegramEnabled }));
 vi.mock('@/lib/max/client', () => ({ isMaxEnabled }));

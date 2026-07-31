@@ -42,14 +42,14 @@ export async function createUser(
           role: args.role,
           partnerId: args.partnerId ?? null,
           passwordHash: null,
-          isActive: true
-        }
+          isActive: true,
+        },
       });
 
       if (args.role === 'partner' && args.partnerId) {
         // §14 ТЗ: лимит активных пользователей партнёра форсируется и здесь.
         const activePartnerUsers = await tx.partnerUser.count({
-          where: { partnerId: args.partnerId, isActive: true }
+          where: { partnerId: args.partnerId, isActive: true },
         });
         if (activePartnerUsers >= MAX_PARTNER_USERS) {
           throw new AdminUserError('member_limit_reached');
@@ -59,8 +59,8 @@ export async function createUser(
             userId: user.id,
             partnerId: args.partnerId,
             roleInPartner: 'member',
-            assignedOrgIds: []
-          }
+            assignedOrgIds: [],
+          },
         });
       }
 
@@ -74,13 +74,13 @@ export async function createUser(
         after: {
           email: args.email,
           role: args.role,
-          partnerId: args.partnerId ?? null
-        }
+          partnerId: args.partnerId ?? null,
+        },
       });
 
       return {
         user: { id: user.id, email: user.email, name: user.name, role: user.role },
-        inviteToken: token
+        inviteToken: token,
       };
     });
     return { ok: true, ...data };
@@ -95,7 +95,7 @@ async function assertNotLastActiveAdmin(
   candidateUserId: string
 ): Promise<void> {
   const remaining = await tx.user.count({
-    where: { role: 'admin', isActive: true, NOT: { id: candidateUserId } }
+    where: { role: 'admin', isActive: true, NOT: { id: candidateUserId } },
   });
   if (remaining === 0) {
     throw new AdminUserError('last_admin_protected');
@@ -112,7 +112,7 @@ export type UpdateUserArgs = {
 const ALLOWED_TRANSITIONS: ReadonlyArray<[Role, Role]> = [
   ['partner', 'partner'],
   ['partner', 'student'],
-  ['student', 'partner']
+  ['student', 'partner'],
 ];
 
 function isAllowedRoleTransition(from: Role, to: Role): boolean {
@@ -138,7 +138,7 @@ export async function updateUser(
     const updatedDetail = await prisma.$transaction(async (tx) => {
       const before = await tx.user.findUnique({
         where: { id },
-        select: { id: true, role: true, isActive: true, partnerId: true, name: true }
+        select: { id: true, role: true, isActive: true, partnerId: true, name: true },
       });
       if (!before) throw new AdminUserError('not_found');
 
@@ -165,7 +165,12 @@ export async function updateUser(
       // Partner attach if changing TO partner
       if (args.role === 'partner' && args.partnerId && before.role !== 'partner') {
         await tx.partnerUser.create({
-          data: { userId: id, partnerId: args.partnerId, roleInPartner: 'member', assignedOrgIds: [] }
+          data: {
+            userId: id,
+            partnerId: args.partnerId,
+            roleInPartner: 'member',
+            assignedOrgIds: [],
+          },
         });
       }
 
@@ -175,8 +180,8 @@ export async function updateUser(
           ...(args.name !== undefined ? { name: args.name } : {}),
           ...(args.role !== undefined ? { role: args.role } : {}),
           ...(args.partnerId !== undefined ? { partnerId: args.partnerId } : {}),
-          ...(args.isActive !== undefined ? { isActive: args.isActive } : {})
-        }
+          ...(args.isActive !== undefined ? { isActive: args.isActive } : {}),
+        },
       });
 
       const isRoleChange = args.role !== undefined && args.role !== before.role;
@@ -185,8 +190,18 @@ export async function updateUser(
         action: isRoleChange ? 'user_role_changed' : 'user_updated',
         entity: 'user',
         entityId: id,
-        before: { role: before.role, isActive: before.isActive, partnerId: before.partnerId, name: before.name },
-        after: { role: updated.role, isActive: updated.isActive, partnerId: updated.partnerId, name: updated.name }
+        before: {
+          role: before.role,
+          isActive: before.isActive,
+          partnerId: before.partnerId,
+          name: before.name,
+        },
+        after: {
+          role: updated.role,
+          isActive: updated.isActive,
+          partnerId: updated.partnerId,
+          name: updated.name,
+        },
       });
 
       // Пост-мутационный re-fetch — не read-контекст, журнал ПДн не пишем.
@@ -211,7 +226,7 @@ export async function deactivateUser(
     await prisma.$transaction(async (tx) => {
       const before = await tx.user.findUnique({
         where: { id },
-        select: { role: true, isActive: true }
+        select: { role: true, isActive: true },
       });
       if (!before) throw new AdminUserError('not_found');
       if (!before.isActive) return;
@@ -224,7 +239,7 @@ export async function deactivateUser(
       // деактивированного — без него он работал бы до истечения токена.
       await tx.user.update({
         where: { id },
-        data: { isActive: false, sessionVersion: { increment: 1 } }
+        data: { isActive: false, sessionVersion: { increment: 1 } },
       });
 
       await recordAudit(tx, {
@@ -233,7 +248,7 @@ export async function deactivateUser(
         entity: 'user',
         entityId: id,
         before: { isActive: true },
-        after: { isActive: false }
+        after: { isActive: false },
       });
     });
     return { ok: true };
@@ -252,7 +267,7 @@ export async function reactivateUser(
     await prisma.$transaction(async (tx) => {
       const before = await tx.user.findUnique({
         where: { id },
-        select: { isActive: true }
+        select: { isActive: true },
       });
       if (!before) throw new AdminUserError('not_found');
       if (before.isActive) return;
@@ -265,7 +280,7 @@ export async function reactivateUser(
         entity: 'user',
         entityId: id,
         before: { isActive: false },
-        after: { isActive: true }
+        after: { isActive: true },
       });
     });
     return { ok: true };
@@ -288,7 +303,7 @@ export async function adminRegenerateBackupCodes(
   try {
     const target = await prisma.user.findUnique({
       where: { id: targetUserId },
-      select: { id: true, role: true }
+      select: { id: true, role: true },
     });
     if (!target) throw new AdminUserError('not_found');
     // Только staff пользуется 2FA (admin/manager, включая leader).
@@ -302,7 +317,7 @@ export async function adminRegenerateBackupCodes(
       userId: actorUserId,
       action: '2fa_backup_regenerated',
       entity: 'auth_2fa',
-      entityId: target.id
+      entityId: target.id,
     });
 
     return { ok: true, codes };

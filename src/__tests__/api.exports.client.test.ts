@@ -18,11 +18,11 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: { organization: { findUnique: vi.fn(
 
 const { getOrgFinanceKpis, listOrgPaymentsForExport } = vi.hoisted(() => ({
   getOrgFinanceKpis: vi.fn(),
-  listOrgPaymentsForExport: vi.fn()
+  listOrgPaymentsForExport: vi.fn(),
 }));
 vi.mock('@/lib/services/organization/finance', () => ({
   getOrgFinanceKpis,
-  listOrgPaymentsForExport
+  listOrgPaymentsForExport,
 }));
 
 const { listOrgStudentsForExport } = vi.hoisted(() => ({ listOrgStudentsForExport: vi.fn() }));
@@ -40,8 +40,8 @@ const orgSession = {
   role: 'organization',
   organizationMemberships: [
     { organizationId: 'orgA', isActive: true, roleInOrg: 'admin' },
-    { organizationId: 'orgB', isActive: true, roleInOrg: 'member' }
-  ]
+    { organizationId: 'orgB', isActive: true, roleInOrg: 'member' },
+  ],
 } as never;
 const partnerSession = { sub: 'p1', role: 'partner' } as never;
 
@@ -52,7 +52,7 @@ const STUDENT = {
   position: 'Инженер',
   externalStudentId: null,
   createdAt: new Date('2026-01-10'),
-  activeCertificates: 3
+  activeCertificates: 3,
 };
 
 const req = (url: string) => new Request(url);
@@ -84,7 +84,7 @@ describe('GET /api/organization/finance/export', () => {
     expect(res.headers.get('content-disposition')).toContain('payments.xlsx');
     expect(listOrgPaymentsForExport).toHaveBeenCalledWith(expect.anything(), {
       organizationId: 'orgB',
-      limit: 10_000
+      limit: 10_000,
     });
     expect(recordPiiAccess).not.toHaveBeenCalled();
 
@@ -140,7 +140,7 @@ describe('GET /api/organization/students/export', () => {
     expect(listOrgStudentsForExport).toHaveBeenCalledWith(expect.anything(), {
       organizationId: 'orgA',
       search: 'Иван',
-      limit: 10_000
+      limit: 10_000,
     });
     expect(recordPiiAccess).not.toHaveBeenCalled();
 

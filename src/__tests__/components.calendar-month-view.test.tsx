@@ -8,14 +8,18 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 
 vi.mock('next/link', () => ({
   default: ({ children, ...rest }: { children: React.ReactNode } & Record<string, unknown>) =>
-    React.createElement('a', rest, children)
+    React.createElement('a', rest, children),
 }));
 
 // EventDialog is covered by its own dedicated test file — stub it here so the
 // month view's coverage isolates to its own logic (grid/chips/upcoming/nav).
 const { eventDialogSpy } = vi.hoisted(() => ({ eventDialogSpy: vi.fn() }));
 vi.mock('@/components/calendar/event-dialog', () => ({
-  EventDialog: (props: { target: { id: string } | null; onClose: () => void; onSaved: () => void }) => {
+  EventDialog: (props: {
+    target: { id: string } | null;
+    onClose: () => void;
+    onSaved: () => void;
+  }) => {
     eventDialogSpy(props);
     return React.createElement(
       'div',
@@ -23,7 +27,7 @@ vi.mock('@/components/calendar/event-dialog', () => ({
       React.createElement('button', { onClick: props.onClose }, 'stub-close'),
       React.createElement('button', { onClick: props.onSaved }, 'stub-saved')
     );
-  }
+  },
 }));
 
 import { CalendarMonthView } from '@/components/calendar/calendar-month-view';
@@ -55,7 +59,7 @@ function eventItem(overrides: Partial<CalendarItem>): CalendarItem {
     linkedOrganizationName: null,
     priority: null,
     completedAt: null,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -69,23 +73,27 @@ function taskItem(overrides: Partial<CalendarItem>): CalendarItem {
     createdById: null,
     createdByName: null,
     priority: 'medium' as CalendarItem['priority'],
-    ...overrides
+    ...overrides,
   };
 }
 
-const pastEvent = eventItem({ id: 'e-past', title: 'Прошедшее событие', date: new Date(2026, 7, 5, 9, 0) });
+const pastEvent = eventItem({
+  id: 'e-past',
+  title: 'Прошедшее событие',
+  date: new Date(2026, 7, 5, 9, 0),
+});
 const futEvent = eventItem({
   id: 'e-fut',
   title: 'Планёрка',
   date: new Date(2026, 7, 12, 10, 0),
-  location: 'Zoom'
+  location: 'Zoom',
 });
 const taskOpen = taskItem({ id: 't-open', title: 'Открытая задача', date: new Date(2026, 7, 15) });
 const taskDone = taskItem({
   id: 't-done',
   title: 'Готовая задача',
   date: new Date(2026, 7, 20),
-  completedAt: new Date(2026, 7, 1)
+  completedAt: new Date(2026, 7, 1),
 });
 
 const items: CalendarItem[] = [pastEvent, futEvent, taskOpen, taskDone];
@@ -99,7 +107,7 @@ function renderView(overrides: Partial<React.ComponentProps<typeof CalendarMonth
       today: TODAY,
       calendarHref: '/manager/calendar',
       tasksHref: '/manager/tasks',
-      ...overrides
+      ...overrides,
     })
   );
 }
@@ -122,7 +130,11 @@ describe('CalendarMonthView', () => {
   it('два события в один день показываются оба в одной ячейке', () => {
     // Группировка по дням — самое частое место, где теряется вторая запись:
     // день уже есть в списке, и элемент должен добавиться к нему, а не заменить.
-    const second = eventItem({ id: 'e-fut-2', title: 'Созвон с клиентом', date: new Date(2026, 7, 12, 15, 0) });
+    const second = eventItem({
+      id: 'e-fut-2',
+      title: 'Созвон с клиентом',
+      date: new Date(2026, 7, 12, 15, 0),
+    });
     renderView({ items: [...items, second] });
     expect(screen.getByTitle('Планёрка')).toBeTruthy();
     expect(screen.getByTitle('Созвон с клиентом')).toBeTruthy();
@@ -186,8 +198,12 @@ describe('CalendarMonthView', () => {
 
   it('prev/next/today navigation links carry the correct ?m=', () => {
     renderView();
-    expect(screen.getByLabelText('Предыдущий месяц').getAttribute('href')).toBe('/manager/calendar?m=2026-07');
-    expect(screen.getByLabelText('Следующий месяц').getAttribute('href')).toBe('/manager/calendar?m=2026-09');
+    expect(screen.getByLabelText('Предыдущий месяц').getAttribute('href')).toBe(
+      '/manager/calendar?m=2026-07'
+    );
+    expect(screen.getByLabelText('Следующий месяц').getAttribute('href')).toBe(
+      '/manager/calendar?m=2026-09'
+    );
     expect(screen.getByText('Сегодня').getAttribute('href')).toBe('/manager/calendar');
     expect(screen.getByText('Август 2026')).toBeTruthy();
   });

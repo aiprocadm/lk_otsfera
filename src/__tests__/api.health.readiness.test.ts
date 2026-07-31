@@ -3,12 +3,12 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 const { checkDbMock, checkRedisMock, checkS3Mock } = vi.hoisted(() => ({
   checkDbMock: vi.fn(),
   checkRedisMock: vi.fn(),
-  checkS3Mock: vi.fn()
+  checkS3Mock: vi.fn(),
 }));
 vi.mock('@/lib/health/checks', () => ({
   checkDb: checkDbMock,
   checkRedis: checkRedisMock,
-  checkS3: checkS3Mock
+  checkS3: checkS3Mock,
 }));
 // don't instantiate the real Prisma singleton — the route imports it but
 // checkDb (mocked) never uses it
@@ -20,7 +20,7 @@ const TOKEN = 'test-health-token-0123456789-abcdefghij';
 
 function req(authHeader?: string): Request {
   return new Request('http://localhost/api/health', {
-    headers: authHeader ? { authorization: authHeader } : {}
+    headers: authHeader ? { authorization: authHeader } : {},
   });
 }
 

@@ -29,7 +29,7 @@ import { useThreadPolling, type PolledRow } from '@/hooks/useThreadPolling';
 function jsonResponse(body: unknown, ok = true): Response {
   return {
     ok,
-    json: () => Promise.resolve(body)
+    json: () => Promise.resolve(body),
   } as unknown as Response;
 }
 
@@ -40,7 +40,7 @@ function makeRow(id: string, createdAt: string): PolledRow {
     body: 'hello',
     hasAttachment: false,
     authorName: 'Alice',
-    createdAt
+    createdAt,
   };
 }
 
@@ -48,7 +48,7 @@ function makeRow(id: string, createdAt: string): PolledRow {
 function setVisibility(state: DocumentVisibilityState): void {
   Object.defineProperty(document, 'visibilityState', {
     configurable: true,
-    get: () => state
+    get: () => state,
   });
 }
 
@@ -104,7 +104,8 @@ describe('useClientResource — lifecycle branches', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const { result, rerender } = renderHook(
-      ({ enabled }: { enabled: boolean }) => useClientResource<{ v: number }>('/api/x', { enabled }),
+      ({ enabled }: { enabled: boolean }) =>
+        useClientResource<{ v: number }>('/api/x', { enabled }),
       { initialProps: { enabled: false } }
     );
 
@@ -141,7 +142,10 @@ describe('useClientResource — lifecycle branches', () => {
   it('bails out (mount guard) when the component unmounts before fetch resolves', async () => {
     let resolveFetch!: (r: Response) => void;
     const fetchMock = vi.fn().mockImplementation(
-      () => new Promise<Response>((res) => { resolveFetch = res; })
+      () =>
+        new Promise<Response>((res) => {
+          resolveFetch = res;
+        })
     );
     vi.stubGlobal('fetch', fetchMock);
 
@@ -176,21 +180,25 @@ describe('useClientResource — lifecycle branches', () => {
       const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ tick: true }));
       vi.stubGlobal('fetch', fetchMock);
 
-      const { unmount } = renderHook(() =>
-        useClientResource('/api/poll', { intervalMs: 1000 })
-      );
+      const { unmount } = renderHook(() => useClientResource('/api/poll', { intervalMs: 1000 }));
 
       // Initial mount load.
-      await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
       expect(fetchMock).toHaveBeenCalledTimes(1);
 
       // Visible tick → polls.
-      await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
+      });
       expect(fetchMock).toHaveBeenCalledTimes(2);
 
       // Hidden → the interval callback hits the visibility guard and returns early.
       setVisibility('hidden');
-      await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
+      });
       expect(fetchMock).toHaveBeenCalledTimes(2);
 
       unmount();
@@ -200,10 +208,10 @@ describe('useClientResource — lifecycle branches', () => {
       const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ tick: true }));
       vi.stubGlobal('fetch', fetchMock);
 
-      const { unmount } = renderHook(() =>
-        useClientResource('/api/poll', { intervalMs: 5000 })
-      );
-      await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+      const { unmount } = renderHook(() => useClientResource('/api/poll', { intervalMs: 5000 }));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
       const afterMount = fetchMock.mock.calls.length; // initial load
 
       // visibilitychange while visible → onVisible load branch.
@@ -229,21 +237,25 @@ describe('useClientResource — lifecycle branches', () => {
       const fetchMock = vi.fn().mockResolvedValue(jsonResponse({}));
       vi.stubGlobal('fetch', fetchMock);
 
-      const { unmount } = renderHook(() =>
-        useClientResource('/api/poll', { intervalMs: 1000 })
-      );
-      await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+      const { unmount } = renderHook(() => useClientResource('/api/poll', { intervalMs: 1000 }));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
       const before = fetchMock.mock.calls.length;
 
       unmount();
 
-      await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5000);
+      });
       expect(fetchMock.mock.calls.length).toBe(before);
 
       // Listener removed too: a post-unmount visibilitychange does nothing.
       setVisibility('visible');
       document.dispatchEvent(new Event('visibilitychange'));
-      await act(async () => { await Promise.resolve(); });
+      await act(async () => {
+        await Promise.resolve();
+      });
       expect(fetchMock.mock.calls.length).toBe(before);
     });
   });
@@ -270,7 +282,9 @@ describe('useThreadPolling — real hook lifecycle', () => {
 
     renderHook(() => useThreadPolling(null, null, onNew, 1000));
 
-    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
     expect(fetchMock).not.toHaveBeenCalled();
     expect(onNew).not.toHaveBeenCalled();
   });
@@ -281,11 +295,11 @@ describe('useThreadPolling — real hook lifecycle', () => {
     vi.stubGlobal('fetch', fetchMock);
     const onNew = vi.fn();
 
-    renderHook(() =>
-      useThreadPolling('thread-abc', '2024-01-01T11:00:00Z', onNew, 1000)
-    );
+    renderHook(() => useThreadPolling('thread-abc', '2024-01-01T11:00:00Z', onNew, 1000));
 
-    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const url = fetchMock.mock.calls[0][0] as string;
@@ -301,7 +315,9 @@ describe('useThreadPolling — real hook lifecycle', () => {
 
     renderHook(() => useThreadPolling('thread-xyz', null, onNew, 1000));
 
-    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const url = fetchMock.mock.calls[0][0] as string;
@@ -321,12 +337,16 @@ describe('useThreadPolling — real hook lifecycle', () => {
       { initialProps: { cursor: null as string | null } }
     );
 
-    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
-    expect((fetchMock.mock.calls[0][0] as string)).not.toContain('after=');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    expect(fetchMock.mock.calls[0][0] as string).not.toContain('after=');
 
     // New cursor lands in cursorRef (sync effect) — same interval keeps ticking.
     rerender({ cursor: '2024-02-02T00:00:00Z' });
-    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
 
     const secondUrl = fetchMock.mock.calls[1][0] as string;
     expect(secondUrl).toContain('after=2024-02-02T00%3A00%3A00Z');
@@ -341,16 +361,19 @@ describe('useThreadPolling — real hook lifecycle', () => {
     const onNewB = vi.fn();
 
     const { rerender } = renderHook(
-      ({ cb }: { cb: (r: PolledRow[]) => void }) =>
-        useThreadPolling('thread-abc', null, cb, 1000),
+      ({ cb }: { cb: (r: PolledRow[]) => void }) => useThreadPolling('thread-abc', null, cb, 1000),
       { initialProps: { cb: onNewA as (r: PolledRow[]) => void } }
     );
 
-    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
     expect(onNewA).toHaveBeenCalledTimes(1);
 
     rerender({ cb: onNewB });
-    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
     expect(onNewB).toHaveBeenCalledTimes(1);
     // A not called again — the ref swap took effect.
     expect(onNewA).toHaveBeenCalledTimes(1);
@@ -364,7 +387,9 @@ describe('useThreadPolling — real hook lifecycle', () => {
     setVisibility('hidden');
     renderHook(() => useThreadPolling('thread-abc', null, onNew, 1000));
 
-    await act(async () => { await vi.advanceTimersByTimeAsync(3000); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -398,7 +423,9 @@ describe('useThreadPolling — real hook lifecycle', () => {
     const onNew = vi.fn();
 
     renderHook(() => useThreadPolling('thread-abc', null, onNew, 1000));
-    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(onNew).not.toHaveBeenCalled();
@@ -409,7 +436,9 @@ describe('useThreadPolling — real hook lifecycle', () => {
     const onNew = vi.fn();
 
     renderHook(() => useThreadPolling('thread-abc', null, onNew, 1000));
-    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
 
     expect(onNew).not.toHaveBeenCalled();
   });
@@ -421,9 +450,13 @@ describe('useThreadPolling — real hook lifecycle', () => {
 
     renderHook(() => useThreadPolling('thread-abc', null, onNew));
 
-    await act(async () => { await vi.advanceTimersByTimeAsync(6999); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6999);
+    });
     expect(fetchMock).not.toHaveBeenCalled();
-    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -432,22 +465,26 @@ describe('useThreadPolling — real hook lifecycle', () => {
     vi.stubGlobal('fetch', fetchMock);
     const onNew = vi.fn();
 
-    const { unmount } = renderHook(() =>
-      useThreadPolling('thread-abc', null, onNew, 1000)
-    );
+    const { unmount } = renderHook(() => useThreadPolling('thread-abc', null, onNew, 1000));
 
-    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
     const before = fetchMock.mock.calls.length;
 
     unmount();
 
-    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
     expect(fetchMock.mock.calls.length).toBe(before);
 
     // Listener gone too.
     setVisibility('visible');
     document.dispatchEvent(new Event('visibilitychange'));
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+    });
     expect(fetchMock.mock.calls.length).toBe(before);
   });
 });

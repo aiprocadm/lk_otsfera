@@ -5,7 +5,13 @@ import { useRouter } from 'next/navigation';
 import { setSchedulePausedAction } from '@/server-actions/admin/syncControl';
 import { resolveErrorText } from '@/lib/ui/useFormAction';
 
-export function SyncScheduleToggle({ schedulerId, paused }: { schedulerId: string; paused: boolean }) {
+export function SyncScheduleToggle({
+  schedulerId,
+  paused,
+}: {
+  schedulerId: string;
+  paused: boolean;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [err, setErr] = useState<string | null>(null);
@@ -20,7 +26,8 @@ export function SyncScheduleToggle({ schedulerId, paused }: { schedulerId: strin
       if (res.ok) router.refresh();
       // queue_unavailable — админ-специфичный текст; unknown_schedule/validation
       // покрыты центральным словарём (errorMessageRu) через resolveErrorText.
-      else setErr(resolveErrorText(res.error, { queue_unavailable: 'Очередь недоступна (Redis).' }));
+      else
+        setErr(resolveErrorText(res.error, { queue_unavailable: 'Очередь недоступна (Redis).' }));
     });
   }
 

@@ -34,14 +34,14 @@ async function loadCompanies(prisma: PrismaClient): Promise<CompanyInfo[]> {
       slaResponseHours: true,
       users: {
         where: { role: 'manager', managerRole: 'leader', isActive: true },
-        select: { id: true }
-      }
-    }
+        select: { id: true },
+      },
+    },
   });
   return companies.map((c) => ({
     id: c.id,
     slaResponseHours: c.slaResponseHours,
-    leaders: c.users.map((u) => u.id)
+    leaders: c.users.map((u) => u.id),
   }));
 }
 
@@ -50,26 +50,40 @@ async function loadUnassignedUnits(prisma: PrismaClient): Promise<Unit[]> {
   const [requests, enrollments, inbound, calls] = await Promise.all([
     prisma.clientRequest.findMany({
       where: { status: 'submitted' },
-      select: { id: true, createdAt: true, companyName: true, subject: true, organization: { select: { companyId: true } } },
+      select: {
+        id: true,
+        createdAt: true,
+        companyName: true,
+        subject: true,
+        organization: { select: { companyId: true } },
+      },
       orderBy: { createdAt: 'asc' },
-      take: BATCH_LIMIT
+      take: BATCH_LIMIT,
     }),
     prisma.enrollmentRequest.findMany({
       where: { status: 'pending', claimedByUserId: null },
       select: {
-        id: true, createdAt: true,
+        id: true,
+        createdAt: true,
         organization: { select: { name: true, companyId: true } },
         direction: { select: { name: true } },
-        legacyCourseTitle: true
+        legacyCourseTitle: true,
       },
       orderBy: { createdAt: 'asc' },
-      take: BATCH_LIMIT
+      take: BATCH_LIMIT,
     }),
     prisma.inboundMessage.findMany({
       where: { status: 'unresolved', claimedByUserId: null },
-      select: { id: true, createdAt: true, companyId: true, senderDisplay: true, senderRef: true, subject: true },
+      select: {
+        id: true,
+        createdAt: true,
+        companyId: true,
+        senderDisplay: true,
+        senderRef: true,
+        subject: true,
+      },
       orderBy: { createdAt: 'asc' },
-      take: BATCH_LIMIT
+      take: BATCH_LIMIT,
     }),
     prisma.call.findMany({
       where: {
@@ -78,12 +92,12 @@ async function loadUnassignedUnits(prisma: PrismaClient): Promise<Unit[]> {
         contactId: null,
         intakeClosedAt: null,
         lead: null,
-        claimedByUserId: null
+        claimedByUserId: null,
       },
       select: { id: true, createdAt: true, companyId: true, callerNumber: true },
       orderBy: { createdAt: 'asc' },
-      take: BATCH_LIMIT
-    })
+      take: BATCH_LIMIT,
+    }),
   ]);
 
   const units: Unit[] = [];
@@ -93,7 +107,7 @@ async function loadUnassignedUnits(prisma: PrismaClient): Promise<Unit[]> {
       sourceId: r.id,
       companyId: r.organization?.companyId ?? null,
       createdAt: r.createdAt,
-      label: `заявка клиента «${r.subject}» (${r.companyName})`
+      label: `заявка клиента «${r.subject}» (${r.companyName})`,
     });
   }
   for (const e of enrollments) {
@@ -103,7 +117,7 @@ async function loadUnassignedUnits(prisma: PrismaClient): Promise<Unit[]> {
       sourceId: e.id,
       companyId: e.organization?.companyId ?? null,
       createdAt: e.createdAt,
-      label: `заявка на обучение «${direction}»${e.organization ? ` (${e.organization.name})` : ''}`
+      label: `заявка на обучение «${direction}»${e.organization ? ` (${e.organization.name})` : ''}`,
     });
   }
   for (const m of inbound) {
@@ -112,7 +126,7 @@ async function loadUnassignedUnits(prisma: PrismaClient): Promise<Unit[]> {
       sourceId: m.id,
       companyId: m.companyId,
       createdAt: m.createdAt,
-      label: `обращение от ${m.senderDisplay?.trim() || m.senderRef}${m.subject ? `: «${m.subject}»` : ''}`
+      label: `обращение от ${m.senderDisplay?.trim() || m.senderRef}${m.subject ? `: «${m.subject}»` : ''}`,
     });
   }
   for (const c of calls) {
@@ -121,7 +135,7 @@ async function loadUnassignedUnits(prisma: PrismaClient): Promise<Unit[]> {
       sourceId: c.id,
       companyId: c.companyId,
       createdAt: c.createdAt,
-      label: `входящий звонок с ${c.callerNumber}`
+      label: `входящий звонок с ${c.callerNumber}`,
     });
   }
   return units;
@@ -150,7 +164,7 @@ export async function runSlaEscalation(
     // Дедуп: одна эскалация на единицу за всю её жизнь (решение §10-2).
     try {
       await prisma.slaEscalation.create({
-        data: { sourceType: unit.sourceType, sourceId: unit.sourceId, companyId: unit.companyId }
+        data: { sourceType: unit.sourceType, sourceId: unit.sourceId, companyId: unit.companyId },
       });
     } catch (e) {
       if ((e as { code?: string }).code === 'P2002') continue;
@@ -168,7 +182,7 @@ export async function runSlaEscalation(
           type: 'sla_escalation',
           title,
           body,
-          meta: { sourceType: unit.sourceType, sourceId: unit.sourceId, url: ESCALATION_URL }
+          meta: { sourceType: unit.sourceType, sourceId: unit.sourceId, url: ESCALATION_URL },
         });
         await deliverNotificationToUser({
           userId,
@@ -176,14 +190,14 @@ export async function runSlaEscalation(
           body,
           type: 'sla_escalation',
           url: ESCALATION_URL,
-          dedupKey: row.id
+          dedupKey: row.id,
         });
       } catch (err) {
         log.error('[sla-escalation] notify failed', {
           userId,
           sourceType: unit.sourceType,
           sourceId: unit.sourceId,
-          error: (err as Error).message
+          error: (err as Error).message,
         });
       }
     }

@@ -8,7 +8,7 @@ import { useFormAction } from '@/lib/ui/useFormAction';
 const ERROR_MAP: Record<string, string> = {
   duplicate_slug: 'Slug занят. Выберите другой.',
   duplicate_email: 'Email уже зарегистрирован.',
-  validation: 'Проверьте поля.'
+  validation: 'Проверьте поля.',
 };
 
 export function PartnerCreateForm() {
@@ -42,7 +42,10 @@ export function PartnerCreateForm() {
   }
 
   return (
-    <form action={formAction} className="space-y-4 bg-white border border-gray-200 rounded-xl p-6 max-w-xl">
+    <form
+      action={formAction}
+      className="space-y-4 bg-white border border-gray-200 rounded-xl p-6 max-w-xl"
+    >
       <div>
         <label className="block text-sm font-medium text-[#111111] mb-1">Название партнёра</label>
         <input
@@ -61,13 +64,15 @@ export function PartnerCreateForm() {
           required
           maxLength={80}
           onBlur={(e) => validateSlug(e.target.value)}
-          onChange={(e) => { if (slugError) validateSlug(e.target.value); }}
+          onChange={(e) => {
+            if (slugError) validateSlug(e.target.value);
+          }}
           className={`w-full border rounded px-3 py-2 text-sm focus:outline-none focus:border-[#F97316] ${slugError ? 'border-red-400' : 'border-gray-200'}`}
         />
-        {slugError && (
-          <p className="text-xs text-red-600 mt-1">{slugError}</p>
-        )}
-        <p className="text-xs text-gray-500 mt-1">Строчные буквы, цифры и дефис. Например: <span className="font-mono">my-partner</span></p>
+        {slugError && <p className="text-xs text-red-600 mt-1">{slugError}</p>}
+        <p className="text-xs text-gray-500 mt-1">
+          Строчные буквы, цифры и дефис. Например: <span className="font-mono">my-partner</span>
+        </p>
       </div>
       <div>
         <label className="block text-sm font-medium text-[#111111] mb-1">Ставка комиссии, %</label>
@@ -105,7 +110,9 @@ export function PartnerCreateForm() {
         </div>
       </fieldset>
       {errorText && (
-        <div role="alert" className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{errorText}</div>
+        <div role="alert" className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">
+          {errorText}
+        </div>
       )}
       {inviteUrl && (
         <div role="status" className="text-sm bg-green-50 text-green-700 rounded px-3 py-2">

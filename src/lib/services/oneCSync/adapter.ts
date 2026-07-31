@@ -5,7 +5,7 @@ import type {
   OneCDocumentDto,
   OneCLeadPushPayload,
   OneCLeadPushResult,
-  SyncCursor
+  SyncCursor,
 } from './dto';
 
 export interface OneCAdapter {

@@ -7,23 +7,24 @@ import { updateItemStatus, removeOrderItem } from '@/lib/services/training/order
 
 function mapError(error: string): number {
   switch (error) {
-    case 'forbidden': return 403;
-    case 'not_found': return 404;
-    case 'duplicate_position': return 409;
-    default: return 400; // direction_inactive | student_mismatch | validation
+    case 'forbidden':
+      return 403;
+    case 'not_found':
+      return 404;
+    case 'duplicate_position':
+      return 409;
+    default:
+      return 400; // direction_inactive | student_mismatch | validation
   }
 }
 
-export async function PATCH(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const disabled = notFoundIfDisabled('manager_cabinet');
   if (disabled) return disabled;
 
   const session = await requireManager();
   const { id } = await params;
-  const body = await req.json() as { trainingStatus: TrainingStatus };
+  const body = (await req.json()) as { trainingStatus: TrainingStatus };
   const res = await updateItemStatus(prisma, session, {
     itemId: id,
     trainingStatus: body.trainingStatus,
@@ -32,10 +33,7 @@ export async function PATCH(
   return NextResponse.json({ item: res.item });
 }
 
-export async function DELETE(
-  _req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const disabled = notFoundIfDisabled('manager_cabinet');
   if (disabled) return disabled;
 

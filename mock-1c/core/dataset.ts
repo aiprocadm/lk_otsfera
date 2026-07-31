@@ -1,5 +1,9 @@
 import { FAKE_ORGS } from '@/lib/services/oneCSync/fixtures/orgs';
-import { FAKE_ORDERS, FAKE_PAYMENTS, FAKE_DOCUMENTS } from '@/lib/services/oneCSync/fixtures/orders';
+import {
+  FAKE_ORDERS,
+  FAKE_PAYMENTS,
+  FAKE_DOCUMENTS,
+} from '@/lib/services/oneCSync/fixtures/orders';
 import type { SyncCursor } from '@/lib/services/oneCSync/dto';
 
 export type Entity = 'organization' | 'order' | 'payment' | 'document';
@@ -13,7 +17,7 @@ function seed(): Record<Entity, Rec[]> {
     organization: clone(FAKE_ORGS),
     order: clone(FAKE_ORDERS),
     payment: clone(FAKE_PAYMENTS),
-    document: clone(FAKE_DOCUMENTS)
+    document: clone(FAKE_DOCUMENTS),
   };
 }
 
@@ -35,6 +39,6 @@ export function createDataset(initial: Record<Entity, Rec[]> = seed()): Dataset 
     touch(entity, externalId, now = () => new Date()) {
       const row = store[entity].find((r) => r.externalId === externalId);
       if (row) row.updatedAt = now().toISOString();
-    }
+    },
   };
 }

@@ -23,18 +23,18 @@ export default async function OrganizationRequestsPage() {
       activeOrgId={ctx.activeOrgId}
       viewerRole={ctx.viewerRole}
     >
-      <div className='space-y-5'>
+      <div className="space-y-5">
         <div>
-          <h1 className='text-2xl font-semibold text-[#111111]'>Мои заявки</h1>
+          <h1 className="text-2xl font-semibold text-[#111111]">Мои заявки</h1>
           {/* Этап 11 PR-3 (решение §5-1): термин ТЗ — «Мои заявки». Чтобы он не
               смешивался с «Заявкой на обучение», подзаголовок проговаривает суть. */}
-          <p className='mt-1 text-sm text-gray-600'>
-            Обращения в поддержку: вопрос, запрос расчёта или новая потребность.
-            Заявки на обучение слушателей подаются в разделе «Заявки на обучение».
+          <p className="mt-1 text-sm text-gray-600">
+            Обращения в поддержку: вопрос, запрос расчёта или новая потребность. Заявки на обучение
+            слушателей подаются в разделе «Заявки на обучение».
           </p>
         </div>
         <ClientRequestForm />
-        <ClientRequestList rows={rows} detailHrefBase='/organization/requests' />
+        <ClientRequestList rows={rows} detailHrefBase="/organization/requests" />
       </div>
     </OrgAppShell>
   );

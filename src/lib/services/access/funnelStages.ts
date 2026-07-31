@@ -12,15 +12,26 @@ import type { FunnelStageView } from '@/lib/funnel/stages';
 
 export type FunnelStageErrorCode = 'forbidden' | 'not_found' | 'validation' | 'position_taken';
 
-const anchorSchema = z.enum(['new', 'in_review', 'qualified', 'promoted_to_order', 'promoted_to_deal', 'rejected']);
+const anchorSchema = z.enum([
+  'new',
+  'in_review',
+  'qualified',
+  'promoted_to_order',
+  'promoted_to_deal',
+  'rejected',
+]);
 
 const inputSchema = z.object({
   name: z.string().trim().min(1).max(60),
   position: z.number().int().min(0),
   statusAnchor: anchorSchema,
   // Строгий #RRGGBB (пикер шлёт только такие; '' экшен уже смаппил в null).
-  color: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/).nullish(),
-  isTerminal: z.boolean().optional()
+  color: z
+    .string()
+    .trim()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .nullish(),
+  isTerminal: z.boolean().optional(),
 });
 export type FunnelStageInput = z.input<typeof inputSchema>;
 
@@ -47,7 +58,7 @@ function toColumns(input: z.infer<typeof inputSchema>) {
     position: input.position,
     statusAnchor: input.statusAnchor,
     color: input.color ?? null,
-    isTerminal: input.isTerminal ?? false
+    isTerminal: input.isTerminal ?? false,
   };
 }
 function isUnique(e: unknown): boolean {
@@ -60,12 +71,20 @@ export async function listFunnelStages(
 ): Promise<{ ok: true; rows: FunnelStageView[] } | { ok: false; error: FunnelStageErrorCode }> {
   const g = gate(session);
   if ('error' in g) return { ok: false, error: g.error };
-  const rows = await prisma.funnelStage.findMany({ where: { companyId: g.companyId }, orderBy: { position: 'asc' } });
+  const rows = await prisma.funnelStage.findMany({
+    where: { companyId: g.companyId },
+    orderBy: { position: 'asc' },
+  });
   return {
     ok: true,
     rows: rows.map((s) => ({
-      id: s.id, name: s.name, position: s.position, statusAnchor: s.statusAnchor, isTerminal: s.isTerminal, color: s.color
-    }))
+      id: s.id,
+      name: s.name,
+      position: s.position,
+      statusAnchor: s.statusAnchor,
+      isTerminal: s.isTerminal,
+      color: s.color,
+    })),
   };
 }
 
@@ -84,7 +103,11 @@ export async function createFunnelStage(
     const row = await prisma.$transaction(async (tx) => {
       const created = await tx.funnelStage.create({ data: { companyId: g.companyId, ...columns } });
       await recordAudit(tx, {
-        userId: session.sub, action: 'funnel_stage_created', entity: 'funnel_stage', entityId: created.id, after: columns
+        userId: session.sub,
+        action: 'funnel_stage_created',
+        entity: 'funnel_stage',
+        entityId: created.id,
+        after: columns,
       });
       return created;
     });
@@ -110,14 +133,25 @@ export async function updateFunnelStage(
     await prisma.$transaction(async (tx) => {
       const before = await tx.funnelStage.findUnique({
         where: { id },
-        select: { companyId: true, name: true, position: true, statusAnchor: true, color: true, isTerminal: true }
+        select: {
+          companyId: true,
+          name: true,
+          position: true,
+          statusAnchor: true,
+          color: true,
+          isTerminal: true,
+        },
       });
       if (!before || before.companyId !== g.companyId) throw new FunnelStageError('not_found');
       const columns = toColumns(parsed.data);
       await tx.funnelStage.update({ where: { id }, data: columns });
       await recordAudit(tx, {
-        userId: session.sub, action: 'funnel_stage_updated', entity: 'funnel_stage', entityId: id,
-        before: { ...before, companyId: undefined }, after: columns
+        userId: session.sub,
+        action: 'funnel_stage_updated',
+        entity: 'funnel_stage',
+        entityId: id,
+        before: { ...before, companyId: undefined },
+        after: columns,
       });
     });
     return { ok: true };
@@ -138,12 +172,19 @@ export async function deleteFunnelStage(
 
   try {
     await prisma.$transaction(async (tx) => {
-      const before = await tx.funnelStage.findUnique({ where: { id }, select: { companyId: true, name: true } });
+      const before = await tx.funnelStage.findUnique({
+        where: { id },
+        select: { companyId: true, name: true },
+      });
       if (!before || before.companyId !== g.companyId) throw new FunnelStageError('not_found');
       // Lead.funnelStageId FK = ON DELETE SET NULL → карточки откатываются к дефолту по якорю.
       await tx.funnelStage.delete({ where: { id } });
       await recordAudit(tx, {
-        userId: session.sub, action: 'funnel_stage_deleted', entity: 'funnel_stage', entityId: id, before: { name: before.name }
+        userId: session.sub,
+        action: 'funnel_stage_deleted',
+        entity: 'funnel_stage',
+        entityId: id,
+        before: { name: before.name },
       });
     });
     return { ok: true };

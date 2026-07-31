@@ -8,7 +8,7 @@ import Link from 'next/link';
 
 const DIRECTIONS: { value: string; label: string }[] = [
   { value: 'inbound', label: 'Входящие' },
-  { value: 'outbound', label: 'Исходящие' }
+  { value: 'outbound', label: 'Исходящие' },
 ];
 
 function buildHref(direction: string | undefined, orgId: string | undefined): string {
@@ -22,7 +22,7 @@ function buildHref(direction: string | undefined, orgId: string | undefined): st
 export function CallsFiltersBar({
   direction,
   orgId,
-  children
+  children,
 }: {
   direction?: string;
   orgId?: string;
@@ -36,7 +36,9 @@ export function CallsFiltersBar({
           <Link
             href={buildHref(undefined, orgId)}
             className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-              !direction ? 'bg-[#F97316] text-white' : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
+              !direction
+                ? 'bg-[#F97316] text-white'
+                : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
             }`}
           >
             Все

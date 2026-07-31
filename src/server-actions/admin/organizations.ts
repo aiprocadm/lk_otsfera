@@ -7,12 +7,9 @@ import { requireAdmin } from '@/lib/auth/requireRole';
 import {
   createOrganization,
   updateOrganization,
-  type AdminOrgErrorCode
+  type AdminOrgErrorCode,
 } from '@/lib/services/admin/organizations';
-import {
-  setOrgCommissionRate,
-  clearOrgCommissionRate
-} from '@/lib/services/partner/rateOverride';
+import { setOrgCommissionRate, clearOrgCommissionRate } from '@/lib/services/partner/rateOverride';
 import { log } from '@/lib/logging';
 
 type Failure = {
@@ -25,21 +22,21 @@ type ActionResult<T = void> = Success<T> | Failure;
 const createSchema = z.object({
   name: z.string().min(1).max(200),
   inn: z.string().max(20).optional(),
-  kpp: z.string().max(20).optional()
+  kpp: z.string().max(20).optional(),
 });
 
 const updateSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1).max(200).optional(),
   inn: z.string().max(20).nullable().optional(),
-  kpp: z.string().max(20).nullable().optional()
+  kpp: z.string().max(20).nullable().optional(),
 });
 
 const overrideSchema = z.object({
   organizationId: z.string().min(1),
   ratePercent: z.coerce.number().gt(0).lt(100).optional(),
   reason: z.string().min(1).max(500),
-  clear: z.coerce.boolean().optional()
+  clear: z.coerce.boolean().optional(),
 });
 
 function readField(fd: FormData, key: string): string {
@@ -47,11 +44,13 @@ function readField(fd: FormData, key: string): string {
   return typeof v === 'string' ? v : '';
 }
 
-export async function createOrganizationAction(fd: FormData): Promise<ActionResult<{ id: string }>> {
+export async function createOrganizationAction(
+  fd: FormData
+): Promise<ActionResult<{ id: string }>> {
   const parsed = createSchema.safeParse({
     name: readField(fd, 'name'),
     inn: readField(fd, 'inn') || undefined,
-    kpp: readField(fd, 'kpp') || undefined
+    kpp: readField(fd, 'kpp') || undefined,
   });
   if (!parsed.success) return { ok: false, error: 'validation' };
 
@@ -67,7 +66,7 @@ export async function updateOrganizationAction(fd: FormData): Promise<ActionResu
     id: readField(fd, 'id'),
     name: readField(fd, 'name') || undefined,
     inn: readField(fd, 'inn') || undefined,
-    kpp: readField(fd, 'kpp') || undefined
+    kpp: readField(fd, 'kpp') || undefined,
   });
   if (!parsed.success) return { ok: false, error: 'validation' };
 
@@ -85,7 +84,7 @@ export async function setOrgRateOverrideAction(fd: FormData): Promise<ActionResu
     organizationId: readField(fd, 'organizationId'),
     ratePercent: readField(fd, 'ratePercent') || undefined,
     reason: readField(fd, 'reason'),
-    clear: readField(fd, 'clear') || undefined
+    clear: readField(fd, 'clear') || undefined,
   });
   if (!parsed.success) return { ok: false, error: 'validation' };
 
@@ -95,7 +94,7 @@ export async function setOrgRateOverrideAction(fd: FormData): Promise<ActionResu
 
   const org = await prisma.organization.findUnique({
     where: { id: organizationId },
-    select: { partnerId: true }
+    select: { partnerId: true },
   });
   if (!org) return { ok: false as const, error: 'not_found' as const };
 
@@ -104,10 +103,21 @@ export async function setOrgRateOverrideAction(fd: FormData): Promise<ActionResu
   const partnerId: string = org.partnerId;
 
   const res = clear
-    ? await clearOrgCommissionRate(prisma, { organizationId, partnerId, reason, changedByUserId: session.sub })
+    ? await clearOrgCommissionRate(prisma, {
+        organizationId,
+        partnerId,
+        reason,
+        changedByUserId: session.sub,
+      })
     : ratePercent !== undefined
-      ? await setOrgCommissionRate(prisma, { organizationId, partnerId, newRate: ratePercent / 100, reason, changedByUserId: session.sub })
-      : ({ ok: false as const, error: 'validation' as const });
+      ? await setOrgCommissionRate(prisma, {
+          organizationId,
+          partnerId,
+          newRate: ratePercent / 100,
+          reason,
+          changedByUserId: session.sub,
+        })
+      : { ok: false as const, error: 'validation' as const };
   if (!res.ok) return { ok: false, error: res.error };
   revalidatePath(`/admin/organizations/${organizationId}`);
   return { ok: true };

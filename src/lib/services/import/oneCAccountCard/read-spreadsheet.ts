@@ -19,7 +19,11 @@ function cellToString(v: unknown): string {
   }
   if (typeof v === 'object') {
     const o = v as Record<string, unknown>;
-    if (Array.isArray(o.richText)) return (o.richText as Array<{ text?: string }>).map((r) => r.text ?? '').join('').trim();
+    if (Array.isArray(o.richText))
+      return (o.richText as Array<{ text?: string }>)
+        .map((r) => r.text ?? '')
+        .join('')
+        .trim();
     if ('result' in o) return cellToString(o.result);
     if ('text' in o) return cellToString(o.text);
   }
@@ -34,7 +38,8 @@ async function readXlsx(buffer: Buffer): Promise<string[][]> {
   for (let r = 1; r <= ws.rowCount; r++) {
     const row = ws.getRow(r);
     const cells: string[] = [];
-    for (let c = 1; c <= Math.max(ws.columnCount, 12); c++) cells.push(cellToString(row.getCell(c).value));
+    for (let c = 1; c <= Math.max(ws.columnCount, 12); c++)
+      cells.push(cellToString(row.getCell(c).value));
     grid.push(cells);
   }
   return grid;

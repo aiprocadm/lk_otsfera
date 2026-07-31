@@ -31,10 +31,7 @@ describe('Document model fields', () => {
   });
 
   it('Document has counterpartyType + counterpartyId and CounterpartyType enum exists', () => {
-    const schema = readFileSync(
-      join(process.cwd(), 'prisma', 'schema.prisma'),
-      'utf8'
-    );
+    const schema = readFileSync(join(process.cwd(), 'prisma', 'schema.prisma'), 'utf8');
     expect(schema).toMatch(/enum CounterpartyType \{[\s\S]*organization[\s\S]*partner[\s\S]*\}/);
     expect(schema).toMatch(/counterpartyType\s+CounterpartyType/);
     expect(schema).toMatch(/counterpartyId\s+String/);
@@ -47,10 +44,14 @@ describe('Document XOR constraint (integration)', () => {
     await expect(
       prisma.document.create({
         data: {
-          name: 'bad.pdf', path: 'fake://bad', mimeType: 'application/pdf', type: 'other',
-          counterpartyType: 'organization', counterpartyId: 'x'
+          name: 'bad.pdf',
+          path: 'fake://bad',
+          mimeType: 'application/pdf',
+          type: 'other',
+          counterpartyType: 'organization',
+          counterpartyId: 'x',
           // no orderId, no companyId
-        } as never
+        } as never,
       })
     ).rejects.toThrow();
   });

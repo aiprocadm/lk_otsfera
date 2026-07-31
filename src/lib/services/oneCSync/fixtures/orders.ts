@@ -17,7 +17,7 @@ export const FAKE_ORDERS: OneCOrderDto[] = [
     executionStatus: 'completed',
     financialStatus: 'paid',
     productMix: ['training'],
-    updatedAt: '2026-05-12T10:00:00Z'
+    updatedAt: '2026-05-12T10:00:00Z',
   },
   {
     externalId: '1c-order-1002',
@@ -33,7 +33,7 @@ export const FAKE_ORDERS: OneCOrderDto[] = [
     executionStatus: 'in_progress',
     financialStatus: 'partially_paid',
     productMix: ['service'],
-    updatedAt: '2026-05-15T12:00:00Z'
+    updatedAt: '2026-05-15T12:00:00Z',
   },
   {
     externalId: '1c-order-1003',
@@ -50,8 +50,8 @@ export const FAKE_ORDERS: OneCOrderDto[] = [
     executionStatus: 'completed',
     financialStatus: 'partially_paid',
     productMix: ['supply', 'service'],
-    updatedAt: '2026-05-05T16:00:00Z'
-  }
+    updatedAt: '2026-05-05T16:00:00Z',
+  },
 ];
 
 export const FAKE_PAYMENTS: OneCPaymentDto[] = [
@@ -62,7 +62,7 @@ export const FAKE_PAYMENTS: OneCPaymentDto[] = [
     paidAt: '2026-04-20T14:00:00Z',
     method: 'wire',
     isRefund: false,
-    updatedAt: '2026-04-20T14:00:00Z'
+    updatedAt: '2026-04-20T14:00:00Z',
   },
   {
     externalId: '1c-pay-002',
@@ -71,7 +71,7 @@ export const FAKE_PAYMENTS: OneCPaymentDto[] = [
     paidAt: '2026-04-25T14:00:00Z',
     method: 'wire',
     isRefund: false,
-    updatedAt: '2026-04-25T14:00:00Z'
+    updatedAt: '2026-04-25T14:00:00Z',
   },
   {
     externalId: '1c-pay-003',
@@ -80,8 +80,8 @@ export const FAKE_PAYMENTS: OneCPaymentDto[] = [
     paidAt: '2026-05-01T10:00:00Z',
     method: 'wire',
     isRefund: false,
-    updatedAt: '2026-05-01T10:00:00Z'
-  }
+    updatedAt: '2026-05-01T10:00:00Z',
+  },
 ];
 
 export const FAKE_DOCUMENTS: OneCDocumentDto[] = [
@@ -94,7 +94,7 @@ export const FAKE_DOCUMENTS: OneCDocumentDto[] = [
     size: 248_000,
     signedAt: '2026-04-12T10:00:00Z',
     downloadUrl: 'fake://1c-doc-1.pdf',
-    updatedAt: '2026-04-12T10:00:00Z'
+    updatedAt: '2026-04-12T10:00:00Z',
   },
   {
     externalId: '1c-doc-2',
@@ -104,7 +104,7 @@ export const FAKE_DOCUMENTS: OneCDocumentDto[] = [
     mimeType: 'application/pdf',
     size: 80_000,
     downloadUrl: 'fake://1c-doc-2.pdf',
-    updatedAt: '2026-04-15T11:00:00Z'
+    updatedAt: '2026-04-15T11:00:00Z',
   },
   {
     externalId: '1c-doc-3',
@@ -115,6 +115,6 @@ export const FAKE_DOCUMENTS: OneCDocumentDto[] = [
     size: 120_000,
     signedAt: '2026-05-10T18:00:00Z',
     downloadUrl: 'fake://1c-doc-3.pdf',
-    updatedAt: '2026-05-10T18:00:00Z'
-  }
+    updatedAt: '2026-05-10T18:00:00Z',
+  },
 ];

@@ -8,7 +8,11 @@ import { OneCDocumentSchema } from '@/lib/services/oneCSync/schemas';
 import type { OneCDocumentDto } from '@/lib/services/oneCSync/dto';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
 import { getCursor, advanceCursor, markCursorError } from '@/lib/services/oneCSync/cursor';
-import { runRecordBatch, batchStatus, type BatchSummary } from '@/lib/services/oneCSync/record-batch';
+import {
+  runRecordBatch,
+  batchStatus,
+  type BatchSummary,
+} from '@/lib/services/oneCSync/record-batch';
 import { oneCMode } from '@/lib/services/oneCSync/config';
 import { upsertDocumentRecord } from '@/lib/services/oneCSync/writers';
 import { capturePendingSkips, replayPendingRecords } from '@/lib/services/oneCSync/pending';
@@ -51,7 +55,13 @@ export async function syncDocumentsProcessor(
       // Capture out-of-order skips and replay the backlog so nothing is lost when a
       // dependency (org/order) appears later. Best-effort: never fail the pull on this.
       try {
-        await capturePendingSkips(db, 'document', raw, (dto) => (dto as OneCDocumentDto).externalId, summary);
+        await capturePendingSkips(
+          db,
+          'document',
+          raw,
+          (dto) => (dto as OneCDocumentDto).externalId,
+          summary
+        );
         await replayPendingRecords(db, 'document', { now: new Date() });
       } catch (e) {
         log.warn('[sync-document] pending capture/replay failed', e);
@@ -65,7 +75,7 @@ export async function syncDocumentsProcessor(
         operation: mode === 'shadow' ? 'check' : summary.created > 0 ? 'create' : 'update',
         status: batchStatus(summary),
         payload: { mode, ...summary },
-        durationMs: Date.now() - startedAt
+        durationMs: Date.now() - startedAt,
       },
       db
     );
@@ -77,7 +87,14 @@ export async function syncDocumentsProcessor(
       log.warn('[sync-documents] markCursorError failed', e)
     );
     await writeSyncLog(
-      { entity: 'document', direction: 'inbound', operation: 'skip', status: 'error', errorMessage: message, durationMs: Date.now() - startedAt },
+      {
+        entity: 'document',
+        direction: 'inbound',
+        operation: 'skip',
+        status: 'error',
+        errorMessage: message,
+        durationMs: Date.now() - startedAt,
+      },
       db
     );
     throw err;

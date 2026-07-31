@@ -5,7 +5,11 @@ import { render, screen } from '@testing-library/react';
 
 vi.mock('@/components/admin/requeue-pending-button', () => ({
   RequeuePendingButton: (props: { id: string }) =>
-    React.createElement('button', { 'data-testid': 'requeue', 'data-id': props.id }, 'Вернуть в очередь'),
+    React.createElement(
+      'button',
+      { 'data-testid': 'requeue', 'data-id': props.id },
+      'Вернуть в очередь'
+    ),
 }));
 
 import { PendingRecordsSection } from '@/components/admin/pending-records-section';
@@ -37,7 +41,14 @@ describe('PendingRecordsSection', () => {
     const { container } = render(
       <PendingRecordsSection
         records={[
-          rec({ id: 'd1', entity: 'order', externalId: 'ORD-9', status: 'dead', attempts: 5, reason: 'organization_not_found' }),
+          rec({
+            id: 'd1',
+            entity: 'order',
+            externalId: 'ORD-9',
+            status: 'dead',
+            attempts: 5,
+            reason: 'organization_not_found',
+          }),
           rec({ id: 'p1', entity: 'payment', externalId: 'PAY-1', status: 'pending' }),
         ]}
       />
@@ -58,10 +69,7 @@ describe('PendingRecordsSection', () => {
   it('dead-строка получает кнопку возврата с id, pending — нет', () => {
     render(
       <PendingRecordsSection
-        records={[
-          rec({ id: 'd1', status: 'dead' }),
-          rec({ id: 'p1', status: 'pending' }),
-        ]}
+        records={[rec({ id: 'd1', status: 'dead' }), rec({ id: 'p1', status: 'pending' })]}
       />
     );
     const buttons = screen.getAllByTestId('requeue');

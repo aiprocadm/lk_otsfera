@@ -117,7 +117,7 @@ beforeAll(async () => {
   const otherCompany = await prisma.company.create({ data: { name: `MgrPolicyOtherC-${stamp}` } });
   otherCompanyId = otherCompany.id;
   const foreignOrg = await prisma.organization.create({
-    data: { name: `MgrPolicyForeignOrg-${stamp}`, partnerId, companyId: otherCompanyId }
+    data: { name: `MgrPolicyForeignOrg-${stamp}`, partnerId, companyId: otherCompanyId },
   });
   const foreignOrder = await prisma.order.create({
     data: {
@@ -127,8 +127,8 @@ beforeAll(async () => {
       partnerId,
       organizationId: foreignOrg.id,
       executionStatus: 'in_progress',
-      financialStatus: 'not_billed'
-    }
+      financialStatus: 'not_billed',
+    },
   });
   foreignOrderId = foreignOrder.id;
 });
@@ -211,10 +211,16 @@ describe('policy.canAccessOrganization — manager branch', () => {
 
 describe('policy.canReadOrder — manager branch, company-wide mode', () => {
   beforeAll(async () => {
-    await prisma.company.update({ where: { id: companyId }, data: { managerTeamVisibility: true } });
+    await prisma.company.update({
+      where: { id: companyId },
+      data: { managerTeamVisibility: true },
+    });
   });
   afterAll(async () => {
-    await prisma.company.update({ where: { id: companyId }, data: { managerTeamVisibility: false } });
+    await prisma.company.update({
+      where: { id: companyId },
+      data: { managerTeamVisibility: false },
+    });
   });
 
   it('sees ANY order in its own company (even with empty managedOrgIds)', async () => {
@@ -224,13 +230,18 @@ describe('policy.canReadOrder — manager branch, company-wide mode', () => {
 
   it('still CANNOT see an order in another company (cross-company isolation)', async () => {
     const session = managerSession([]);
-    expect(await canReadOrder(session, { id: foreignOrderId, companyId: otherCompanyId })).toBe(false);
+    expect(await canReadOrder(session, { id: foreignOrderId, companyId: otherCompanyId })).toBe(
+      false
+    );
   });
 
   it('canAccessOrganization: any org in own company, but not foreign company org', async () => {
     const session = managerSession([]);
     expect(await canAccessOrganization(session, otherOrgId)).toBe(true); // same company, previously out of scope
-    const foreignOrg = await prisma.organization.findFirst({ where: { companyId: otherCompanyId }, select: { id: true } });
+    const foreignOrg = await prisma.organization.findFirst({
+      where: { companyId: otherCompanyId },
+      select: { id: true },
+    });
     expect(await canAccessOrganization(session, foreignOrg!.id)).toBe(false);
   });
 });

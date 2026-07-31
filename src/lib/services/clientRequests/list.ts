@@ -34,7 +34,7 @@ const ROW_INCLUDE = {
   submittedByUser: { select: { name: true } },
   partner: { select: { name: true } },
   organization: { select: { name: true } },
-  _count: { select: { attachments: true } }
+  _count: { select: { attachments: true } },
 } satisfies Prisma.ClientRequestInclude;
 
 type RowSource = Prisma.ClientRequestGetPayload<{ include: typeof ROW_INCLUDE }>;
@@ -58,7 +58,7 @@ function toRow(r: RowSource): ClientRequestRow {
     rejectedReason: r.rejectedReason,
     createdAt: r.createdAt,
     triagedAt: r.triagedAt,
-    attachmentCount: r._count.attachments
+    attachmentCount: r._count.attachments,
   };
 }
 
@@ -75,8 +75,8 @@ export function clientRequestScopeWhere(session: SessionPayload): Prisma.ClientR
     return {
       OR: [
         { organization: { companyId: session.companyId ?? '__none__' } },
-        { organizationId: null }
-      ]
+        { organizationId: null },
+      ],
     };
   }
   return { submittedByUserId: session.sub };
@@ -95,11 +95,13 @@ export async function listClientRequests(
 ): Promise<{ rows: ClientRequestRow[]; nextCursor: string | null }> {
   const take = opts.take ?? 20;
   const rows = await prisma.clientRequest.findMany({
-    where: { AND: [clientRequestScopeWhere(session), ...(opts.status ? [{ status: opts.status }] : [])] },
+    where: {
+      AND: [clientRequestScopeWhere(session), ...(opts.status ? [{ status: opts.status }] : [])],
+    },
     orderBy: { createdAt: 'desc' },
     take: take + 1,
     ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
-    include: ROW_INCLUDE
+    include: ROW_INCLUDE,
   });
   const hasMore = rows.length > take;
   const page = hasMore ? rows.slice(0, take) : rows;
@@ -108,7 +110,7 @@ export async function listClientRequests(
     session,
     context: 'client_requests_list',
     subjectIds: page.map((r) => r.id),
-    meta: { take, cursor: opts.cursor !== undefined }
+    meta: { take, cursor: opts.cursor !== undefined },
   });
 
   return { rows: page.map(toRow), nextCursor: hasMore ? page[page.length - 1]!.id : null };
@@ -122,14 +124,14 @@ export async function getClientRequest(
 ): Promise<{ ok: true; request: ClientRequestRow } | { ok: false; error: 'not_found' }> {
   const r = await prisma.clientRequest.findFirst({
     where: { AND: [{ id }, clientRequestScopeWhere(session)] },
-    include: ROW_INCLUDE
+    include: ROW_INCLUDE,
   });
   if (!r) return { ok: false, error: 'not_found' };
 
   await recordPiiAccess(prisma, {
     session,
     context: 'client_request_view',
-    subjectIds: [r.id]
+    subjectIds: [r.id],
   });
 
   return { ok: true, request: toRow(r) };

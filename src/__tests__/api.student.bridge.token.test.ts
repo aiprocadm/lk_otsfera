@@ -24,13 +24,15 @@ vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
 vi.mock('@/lib/rateLimit', () => ({ isRateLimited }));
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
-    $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn({
-      studentBridgeGrant: {
-        updateMany: grantUpdateMany,
-        findUnique: grantFindUnique,
-      },
-      auditLog: { create: vi.fn().mockResolvedValue(undefined) },
-    })),
+    $transaction: vi.fn(async (fn: (tx: unknown) => unknown) =>
+      fn({
+        studentBridgeGrant: {
+          updateMany: grantUpdateMany,
+          findUnique: grantFindUnique,
+        },
+        auditLog: { create: vi.fn().mockResolvedValue(undefined) },
+      })
+    ),
   },
 }));
 
@@ -88,7 +90,9 @@ describe('POST /api/student/bridge/token', () => {
       ok: false,
       response: new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 }),
     });
-    const res = await POST(buildReq({ clientId: CLIENT_ID, secret: SHARED_SECRET, body: { code: 'abc123' } }));
+    const res = await POST(
+      buildReq({ clientId: CLIENT_ID, secret: SHARED_SECRET, body: { code: 'abc123' } })
+    );
     expect(res.status).toBe(401);
   });
 
@@ -97,14 +101,18 @@ describe('POST /api/student/bridge/token', () => {
       ok: false,
       response: new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 }),
     });
-    const res = await POST(buildReq({ clientId: CLIENT_ID, secret: SHARED_SECRET, body: { code: 'abc123' } }));
+    const res = await POST(
+      buildReq({ clientId: CLIENT_ID, secret: SHARED_SECRET, body: { code: 'abc123' } })
+    );
     expect(res.status).toBe(403);
   });
 
   it('403 when x-bridge-client header is missing (empty clientId)', async () => {
-    const res = await POST(buildReq({ clientId: '', secret: SHARED_SECRET, body: { code: 'abc123' } }));
+    const res = await POST(
+      buildReq({ clientId: '', secret: SHARED_SECRET, body: { code: 'abc123' } })
+    );
     expect(res.status).toBe(403);
-    const body = await res.json() as { error: string };
+    const body = (await res.json()) as { error: string };
     expect(body.error).toBe('bridge client denied');
     expect(recordAudit).toHaveBeenCalledWith(
       expect.anything(),
@@ -117,7 +125,7 @@ describe('POST /api/student/bridge/token', () => {
     // → ?.trim() returns undefined → ?? '' = '' → covers the ?? '' fallback branch
     const res = await POST(buildReq({ secret: SHARED_SECRET, body: { code: 'abc123' } }));
     expect(res.status).toBe(403);
-    const body = await res.json() as { error: string };
+    const body = (await res.json()) as { error: string };
     expect(body.error).toBe('bridge client denied');
   });
 
@@ -126,30 +134,36 @@ describe('POST /api/student/bridge/token', () => {
     // → ?.trim() returns undefined → ?? '' = '' → covers the ?? '' fallback branch on sharedSecret
     const res = await POST(buildReq({ clientId: CLIENT_ID, body: { code: 'abc123' } }));
     expect(res.status).toBe(403);
-    const body = await res.json() as { error: string };
+    const body = (await res.json()) as { error: string };
     expect(body.error).toBe('bridge client denied');
   });
 
   it('403 when STUDENT_BRIDGE_SHARED_SECRET env is not set (empty expectedSecret)', async () => {
     delete process.env.STUDENT_BRIDGE_SHARED_SECRET;
-    const res = await POST(buildReq({ clientId: CLIENT_ID, secret: SHARED_SECRET, body: { code: 'abc123' } }));
+    const res = await POST(
+      buildReq({ clientId: CLIENT_ID, secret: SHARED_SECRET, body: { code: 'abc123' } })
+    );
     expect(res.status).toBe(403);
-    const body = await res.json() as { error: string };
+    const body = (await res.json()) as { error: string };
     expect(body.error).toBe('bridge client denied');
   });
 
   it('403 when x-bridge-secret header is wrong', async () => {
-    const res = await POST(buildReq({ clientId: CLIENT_ID, secret: 'wrong-secret', body: { code: 'abc123' } }));
+    const res = await POST(
+      buildReq({ clientId: CLIENT_ID, secret: 'wrong-secret', body: { code: 'abc123' } })
+    );
     expect(res.status).toBe(403);
-    const body = await res.json() as { error: string };
+    const body = (await res.json()) as { error: string };
     expect(body.error).toBe('bridge client denied');
   });
 
   it('429 when rate limit is exceeded', async () => {
     isRateLimited.mockResolvedValue(true);
-    const res = await POST(buildReq({ clientId: CLIENT_ID, secret: SHARED_SECRET, body: { code: 'abc123' } }));
+    const res = await POST(
+      buildReq({ clientId: CLIENT_ID, secret: SHARED_SECRET, body: { code: 'abc123' } })
+    );
     expect(res.status).toBe(429);
-    const body = await res.json() as { error: string };
+    const body = (await res.json()) as { error: string };
     expect(body.error).toBe('too many requests');
     expect(recordAudit).toHaveBeenCalledWith(
       expect.anything(),
@@ -160,11 +174,14 @@ describe('POST /api/student/bridge/token', () => {
   it('400 when body has no code', async () => {
     const res = await POST(buildReq({ clientId: CLIENT_ID, secret: SHARED_SECRET, body: {} }));
     expect(res.status).toBe(400);
-    const body = await res.json() as { error: string };
+    const body = (await res.json()) as { error: string };
     expect(body.error).toBe('invalid exchange request');
     expect(recordAudit).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ action: 'STUDENT_BRIDGE_CODE_REJECTED', reason: 'missing-or-invalid-code' })
+      expect.objectContaining({
+        action: 'STUDENT_BRIDGE_CODE_REJECTED',
+        reason: 'missing-or-invalid-code',
+      })
     );
   });
 
@@ -186,11 +203,16 @@ describe('POST /api/student/bridge/token', () => {
     // First findUnique returns null (code not in DB at all)
     grantFindUnique.mockResolvedValue(null);
 
-    const res = await POST(buildReq({ clientId: CLIENT_ID, secret: SHARED_SECRET, body: { code: 'nonexistent' } }));
+    const res = await POST(
+      buildReq({ clientId: CLIENT_ID, secret: SHARED_SECRET, body: { code: 'nonexistent' } })
+    );
     expect(res.status).toBe(400);
     expect(recordAudit).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ action: 'STUDENT_BRIDGE_CODE_REJECTED', reason: 'missing-or-invalid-code' })
+      expect.objectContaining({
+        action: 'STUDENT_BRIDGE_CODE_REJECTED',
+        reason: 'missing-or-invalid-code',
+      })
     );
   });
 
@@ -203,13 +225,18 @@ describe('POST /api/student/bridge/token', () => {
       expiresAt: new Date('2026-06-15T10:05:00Z'),
     });
 
-    const res = await POST(buildReq({ clientId: CLIENT_ID, secret: SHARED_SECRET, body: { code: 'used-code' } }));
+    const res = await POST(
+      buildReq({ clientId: CLIENT_ID, secret: SHARED_SECRET, body: { code: 'used-code' } })
+    );
     expect(res.status).toBe(410);
-    const body = await res.json() as { error: string };
+    const body = (await res.json()) as { error: string };
     expect(body.error).toBe('code is no longer valid');
     expect(recordAudit).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ action: 'STUDENT_BRIDGE_CODE_REUSE_BLOCKED', reason: 'already-used' })
+      expect.objectContaining({
+        action: 'STUDENT_BRIDGE_CODE_REUSE_BLOCKED',
+        reason: 'already-used',
+      })
     );
   });
 
@@ -222,9 +249,11 @@ describe('POST /api/student/bridge/token', () => {
       expiresAt: new Date('2026-06-01T00:00:00Z'),
     });
 
-    const res = await POST(buildReq({ clientId: CLIENT_ID, secret: SHARED_SECRET, body: { code: 'expired-code' } }));
+    const res = await POST(
+      buildReq({ clientId: CLIENT_ID, secret: SHARED_SECRET, body: { code: 'expired-code' } })
+    );
     expect(res.status).toBe(410);
-    const body = await res.json() as { error: string };
+    const body = (await res.json()) as { error: string };
     expect(body.error).toBe('code is no longer valid');
     expect(recordAudit).toHaveBeenCalledWith(
       expect.anything(),
@@ -238,9 +267,11 @@ describe('POST /api/student/bridge/token', () => {
     grantUpdateMany.mockResolvedValue({ count: 1 });
     grantFindUnique.mockResolvedValue(null); // race: grant was deleted between claim and fetch
 
-    const res = await POST(buildReq({ clientId: CLIENT_ID, secret: SHARED_SECRET, body: { code: 'race-code' } }));
+    const res = await POST(
+      buildReq({ clientId: CLIENT_ID, secret: SHARED_SECRET, body: { code: 'race-code' } })
+    );
     expect(res.status).toBe(400);
-    const body = await res.json() as { error: string };
+    const body = (await res.json()) as { error: string };
     expect(body.error).toBe('invalid exchange request');
   });
 
@@ -248,14 +279,16 @@ describe('POST /api/student/bridge/token', () => {
     grantUpdateMany.mockResolvedValue({ count: 1 });
     grantFindUnique.mockResolvedValue({ jti: 'jti-ok', token: 'signed-jwt-abc' });
 
-    const res = await POST(buildReq({
-      clientId: CLIENT_ID,
-      secret: SHARED_SECRET,
-      body: { code: 'valid-code' },
-      ip: '1.2.3.4',
-    }));
+    const res = await POST(
+      buildReq({
+        clientId: CLIENT_ID,
+        secret: SHARED_SECRET,
+        body: { code: 'valid-code' },
+        ip: '1.2.3.4',
+      })
+    );
     expect(res.status).toBe(200);
-    const body = await res.json() as { token: string; token_type: string };
+    const body = (await res.json()) as { token: string; token_type: string };
     expect(body.token).toBe('signed-jwt-abc');
     expect(body.token_type).toBe('Bearer');
   });
@@ -276,9 +309,6 @@ describe('POST /api/student/bridge/token', () => {
     const res = await POST(req);
     expect(res.status).toBe(200);
     // isRateLimited should have been called with the ip from x-real-ip
-    expect(isRateLimited).toHaveBeenCalledWith(
-      `${CLIENT_ID}:10.0.0.1`,
-      expect.any(Object)
-    );
+    expect(isRateLimited).toHaveBeenCalledWith(`${CLIENT_ID}:10.0.0.1`, expect.any(Object));
   });
 });

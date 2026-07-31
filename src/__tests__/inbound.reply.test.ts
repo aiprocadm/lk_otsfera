@@ -1,10 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const t = vi.hoisted(() => ({ tg: vi.fn(), max: vi.fn(), wa: vi.fn(), createN: vi.fn(), deliver: vi.fn(), warn: vi.fn() }));
+const t = vi.hoisted(() => ({
+  tg: vi.fn(),
+  max: vi.fn(),
+  wa: vi.fn(),
+  createN: vi.fn(),
+  deliver: vi.fn(),
+  warn: vi.fn(),
+}));
 vi.mock('@/lib/telegram/client', () => ({ sendTelegramMessage: t.tg }));
 vi.mock('@/lib/max/client', () => ({ sendMaxMessage: t.max }));
 vi.mock('@/lib/whatsapp/aggregator', () => ({ sendWhatsAppMessage: t.wa }));
-vi.mock('@/lib/notifications', () => ({ createNotification: t.createN, deliverNotificationToUser: t.deliver }));
+vi.mock('@/lib/notifications', () => ({
+  createNotification: t.createN,
+  deliverNotificationToUser: t.deliver,
+}));
 vi.mock('@/lib/logging', () => ({ log: { warn: t.warn } }));
 
 import { replyToInbound } from '@/lib/services/inbound/reply';
@@ -14,14 +24,20 @@ describe('replyToInbound', () => {
 
   it('routes to whatsapp transport by channel', async () => {
     t.wa.mockResolvedValue({ ok: true });
-    const r = await replyToInbound({ channel: 'whatsapp', senderRef: '+79990001122', subject: null } as any, 'спасибо');
+    const r = await replyToInbound(
+      { channel: 'whatsapp', senderRef: '+79990001122', subject: null } as any,
+      'спасибо'
+    );
     expect(t.wa).toHaveBeenCalledWith('+79990001122', 'спасибо');
     expect(r.ok).toBe(true);
   });
 
   it('routes to telegram transport', async () => {
     t.tg.mockResolvedValue({ ok: true });
-    const r = await replyToInbound({ channel: 'telegram', senderRef: '999', subject: null } as any, 'привет');
+    const r = await replyToInbound(
+      { channel: 'telegram', senderRef: '999', subject: null } as any,
+      'привет'
+    );
     expect(t.tg).toHaveBeenCalledWith('999', 'привет');
     expect(r.ok).toBe(true);
   });
@@ -35,18 +51,27 @@ describe('replyToInbound', () => {
 
   it('whatsapp transport failure -> ok:false', async () => {
     t.wa.mockResolvedValue({ ok: false });
-    const r = await replyToInbound({ channel: 'whatsapp', senderRef: '+7', subject: null } as any, 'x');
+    const r = await replyToInbound(
+      { channel: 'whatsapp', senderRef: '+7', subject: null } as any,
+      'x'
+    );
     expect(r.ok).toBe(false);
   });
 
   it('telegram transport rejection -> ok:false (swallowed)', async () => {
     t.tg.mockRejectedValue(new Error('network'));
-    const r = await replyToInbound({ channel: 'telegram', senderRef: '1', subject: null } as any, 'x');
+    const r = await replyToInbound(
+      { channel: 'telegram', senderRef: '1', subject: null } as any,
+      'x'
+    );
     expect(r.ok).toBe(false);
   });
 
   it('email channel has no raw-send available -> ok:false (deferred)', async () => {
-    const r = await replyToInbound({ channel: 'email', senderRef: 'a@b.ru', subject: 'Re: заказ' } as any, 'текст ответа');
+    const r = await replyToInbound(
+      { channel: 'email', senderRef: 'a@b.ru', subject: 'Re: заказ' } as any,
+      'текст ответа'
+    );
     expect(r.ok).toBe(false);
     expect(t.tg).not.toHaveBeenCalled();
     expect(t.max).not.toHaveBeenCalled();
@@ -65,7 +90,12 @@ describe('replyToInbound', () => {
     t.createN.mockResolvedValue({ id: 'n1' });
     t.deliver.mockResolvedValue(undefined);
     const r = await replyToInbound(
-      { channel: 'cabinet', senderRef: 'u1', subject: 'Не открывается документ', resolvedUserId: 'user-9' } as any,
+      {
+        channel: 'cabinet',
+        senderRef: 'u1',
+        subject: 'Не открывается документ',
+        resolvedUserId: 'user-9',
+      } as any,
       'Проверьте, пожалуйста, ещё раз'
     );
     expect(r.ok).toBe(true);
@@ -73,10 +103,12 @@ describe('replyToInbound', () => {
       expect.objectContaining({
         userId: 'user-9',
         type: 'inbound_reply',
-        body: '«Не открывается документ»: Проверьте, пожалуйста, ещё раз'
+        body: '«Не открывается документ»: Проверьте, пожалуйста, ещё раз',
       })
     );
-    expect(t.deliver).toHaveBeenCalledWith(expect.objectContaining({ userId: 'user-9', dedupKey: 'n1' }));
+    expect(t.deliver).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'user-9', dedupKey: 'n1' })
+    );
   });
 
   it('cabinet: без темы в теле уведомления только текст ответа', async () => {
@@ -105,6 +137,8 @@ describe('replyToInbound', () => {
       'Ответ'
     );
     expect(r.ok).toBe(false);
-    expect(t.warn).toHaveBeenCalledWith('[inbound/reply] cabinet reply failed', { error: 'db down' });
+    expect(t.warn).toHaveBeenCalledWith('[inbound/reply] cabinet reply failed', {
+      error: 'db down',
+    });
   });
 });

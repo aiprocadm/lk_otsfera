@@ -26,7 +26,7 @@ export const INTEGRATION_TEST_KEYS = [
   'imap',
   'dadata',
   'onec',
-  'mango'
+  'mango',
 ] as const;
 
 export type IntegrationTestKey = (typeof INTEGRATION_TEST_KEYS)[number];
@@ -42,7 +42,7 @@ const PROBE_TIMEOUT_MS = 5000;
 const OK: Probe = { ok: true, message: 'Подключение успешно' };
 const NETWORK_FAIL: Probe = {
   ok: false,
-  message: 'Сервис недоступен: сетевая ошибка или таймаут'
+  message: 'Сервис недоступен: сетевая ошибка или таймаут',
 };
 
 function notConfigured(what: string): Probe {
@@ -67,7 +67,7 @@ async function probeFetch(url: string, init: RequestInit = {}): Promise<Probe> {
     return statusToProbe(res.status);
   } catch {
     return NETWORK_FAIL;
-  /* v8 ignore next 2 -- V8 marks the finally as a branch; the exceptional-completion edge is unreachable (bare catch catches all, clearTimeout cannot throw) */
+    /* v8 ignore next 2 -- V8 marks the finally as a branch; the exceptional-completion edge is unreachable (bare catch catches all, clearTimeout cannot throw) */
   } finally {
     clearTimeout(timer);
   }
@@ -82,7 +82,7 @@ function joinUrl(base: string, path: string): string {
 async function probeEmail(prisma: PrismaClient, session: SessionPayload): Promise<Probe> {
   const admin = await prisma.user.findUnique({
     where: { id: session.sub },
-    select: { email: true }
+    select: { email: true },
   });
   const to = admin?.email?.trim();
   if (!to) return notConfigured('email администратора (некуда отправить тестовое письмо)');
@@ -92,7 +92,7 @@ async function probeEmail(prisma: PrismaClient, session: SessionPayload): Promis
       to,
       subject: 'Проверка подключения — ЛК ОЦ Сфера',
       html: '<p>Это тестовое письмо: отправка почты из личного кабинета работает.</p>',
-      text: 'Это тестовое письмо: отправка почты из личного кабинета работает.'
+      text: 'Это тестовое письмо: отправка почты из личного кабинета работает.',
     });
     if (result.status === 'sent') {
       return { ok: true, message: `Тестовое письмо отправлено на ${to}` };
@@ -126,7 +126,7 @@ async function probeWhatsapp(prisma: PrismaClient): Promise<Probe> {
   if (!apiKey || !channelId) return notConfigured('API-ключ и ID канала агрегатора');
   const base = (await getSettingValue(prisma, 'whatsapp.baseUrl')) || 'https://api.wazzup24.com';
   return probeFetch(joinUrl(base, 'v3/channels'), {
-    headers: { authorization: `Bearer ${apiKey}` }
+    headers: { authorization: `Bearer ${apiKey}` },
   });
 }
 
@@ -151,7 +151,7 @@ async function probeImap(prisma: PrismaClient): Promise<Probe> {
       auth: { user, pass: password },
       logger: false,
       greetingTimeout: PROBE_TIMEOUT_MS,
-      socketTimeout: PROBE_TIMEOUT_MS
+      socketTimeout: PROBE_TIMEOUT_MS,
     });
     await client.connect();
     await client.logout();
@@ -172,9 +172,9 @@ async function probeDadata(prisma: PrismaClient): Promise<Probe> {
     headers: {
       'content-type': 'application/json',
       accept: 'application/json',
-      authorization: `Token ${apiKey}`
+      authorization: `Token ${apiKey}`,
     },
-    body: JSON.stringify({ query: 'тест', count: 1 })
+    body: JSON.stringify({ query: 'тест', count: 1 }),
   });
 }
 
@@ -193,7 +193,8 @@ async function probeMango(prisma: PrismaClient): Promise<Probe> {
   const apiKey = await getSettingValue(prisma, 'mango.apiKey');
   const salt = await getSettingValue(prisma, 'mango.apiSalt');
   if (!apiKey || !salt) return notConfigured('API-ключ и соль подписи');
-  const base = (await getSettingValue(prisma, 'mango.vpbxBaseUrl')) || 'https://app.mango-office.ru/vpbx/';
+  const base =
+    (await getSettingValue(prisma, 'mango.vpbxBaseUrl')) || 'https://app.mango-office.ru/vpbx/';
 
   // Generic-проба доступности: подписанный запрос читающей команды VPBX API.
   // Успех = достучались и авторизация принята; живой обмен звонками — отдельный модуль.
@@ -203,7 +204,7 @@ async function probeMango(prisma: PrismaClient): Promise<Probe> {
   return probeFetch(joinUrl(base, 'config/users/request'), {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: body.toString()
+    body: body.toString(),
   });
 }
 
@@ -259,17 +260,17 @@ export async function testIntegration(
         entity,
         lastRunAt: now,
         lastSuccessAt: probe.ok ? now : null,
-        lastError: probe.ok ? null : probe.message
+        lastError: probe.ok ? null : probe.message,
       },
       update: {
         lastRunAt: now,
-        ...(probe.ok ? { lastSuccessAt: now, lastError: null } : { lastError: probe.message })
-      }
+        ...(probe.ok ? { lastSuccessAt: now, lastError: null } : { lastError: probe.message }),
+      },
     });
   } catch (err) {
     log.warn('[testIntegration] SyncState write failed', {
       key,
-      error: err instanceof Error ? err.message : String(err)
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 

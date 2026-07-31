@@ -1,6 +1,9 @@
 import React from 'react';
 import { Badge } from '@/components/ui';
-import { certificateStatus, type CertificateStatusFilter } from '@/lib/services/training/certificates';
+import {
+  certificateStatus,
+  type CertificateStatusFilter,
+} from '@/lib/services/training/certificates';
 
 /**
  * Статус удостоверения в клиентских реестрах (этап 3, спека §4): считается
@@ -17,18 +20,21 @@ export { certificateStatus };
 
 export function CertificateStatusBadge({
   validUntil,
-  today
+  today,
 }: {
   validUntil: Date | null;
   today: Date;
 }) {
   const status = certificateStatus(validUntil, today);
-  if (status === 'expired') return <Badge tone='danger'>Истекло</Badge>;
+  if (status === 'expired') return <Badge tone="danger">Истекло</Badge>;
   if (status === 'expiring') {
     const startOfToday = new Date(today);
     startOfToday.setHours(0, 0, 0, 0);
-    const days = Math.max(0, Math.ceil((validUntil!.getTime() - startOfToday.getTime()) / MS_PER_DAY));
-    return <Badge tone='warning'>Истекает через {days} дн.</Badge>;
+    const days = Math.max(
+      0,
+      Math.ceil((validUntil!.getTime() - startOfToday.getTime()) / MS_PER_DAY)
+    );
+    return <Badge tone="warning">Истекает через {days} дн.</Badge>;
   }
-  return <Badge tone='success'>Действует</Badge>;
+  return <Badge tone="success">Действует</Badge>;
 }

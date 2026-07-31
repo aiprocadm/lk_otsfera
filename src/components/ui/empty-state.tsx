@@ -20,11 +20,11 @@ export function EmptyState({
   return (
     <div className={cn('bg-white border border-gray-200 rounded-xl p-12 text-center', className)}>
       {icon && (
-        <div className='w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3'>
-          <span className='text-2xl'>{icon}</span>
+        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+          <span className="text-2xl">{icon}</span>
         </div>
       )}
-      <p className='text-gray-500 text-sm'>{message}</p>
+      <p className="text-gray-500 text-sm">{message}</p>
       {children}
     </div>
   );

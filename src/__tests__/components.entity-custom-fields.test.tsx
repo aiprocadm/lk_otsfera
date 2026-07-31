@@ -14,7 +14,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 
 const { toastSuccess, toastError } = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
-  toastError: vi.fn()
+  toastError: vi.fn(),
 }));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
@@ -37,9 +37,9 @@ function fwv(
       sortOrder: 1,
       helpText: null,
       editable: true,
-      ...over
+      ...over,
     },
-    value
+    value,
   };
 }
 
@@ -53,7 +53,7 @@ describe('EntityCustomFields — пустое состояние и режимы
 
   it('без полей секция не рендерится вовсе', () => {
     const { container } = render(
-      <EntityCustomFields fields={[]} entityType='organization' entityId='o1' />
+      <EntityCustomFields fields={[]} entityType="organization" entityId="o1" />
     );
     expect(container.innerHTML).toBe('');
   });
@@ -62,8 +62,8 @@ describe('EntityCustomFields — пустое состояние и режимы
     render(
       <EntityCustomFields
         fields={[fwv({ id: 'd1', label: 'Куратор', editable: false }, 'Иванов')]}
-        entityType='organization'
-        entityId='o1'
+        entityType="organization"
+        entityId="o1"
       />
     );
     expect(screen.getByText('Куратор')).toBeTruthy();
@@ -76,10 +76,10 @@ describe('EntityCustomFields — пустое состояние и режимы
       <EntityCustomFields
         fields={[
           fwv({ id: 'd1', label: 'Комментарий', editable: true }, 'текст'),
-          fwv({ id: 'd2', label: 'Только чтение', editable: false }, 'значение')
+          fwv({ id: 'd2', label: 'Только чтение', editable: false }, 'значение'),
         ]}
-        entityType='partner'
-        entityId='p1'
+        entityType="partner"
+        entityId="p1"
       />
     );
     expect((screen.getByLabelText('Комментарий') as HTMLInputElement).value).toBe('текст');
@@ -92,9 +92,9 @@ describe('EntityCustomFields — пустое состояние и режимы
     render(
       <EntityCustomFields
         fields={[fwv({ id: 'd1' })]}
-        entityType='student'
-        entityId='s1'
-        title='Кадровые данные'
+        entityType="student"
+        entityId="s1"
+        title="Кадровые данные"
       />
     );
     expect(screen.getByText('Кадровые данные')).toBeTruthy();
@@ -104,8 +104,8 @@ describe('EntityCustomFields — пустое состояние и режимы
     render(
       <EntityCustomFields
         fields={[fwv({ id: 'd1', label: 'СНИЛС', helpText: 'Только цифры' })]}
-        entityType='student'
-        entityId='s1'
+        entityType="student"
+        entityId="s1"
       />
     );
     expect(screen.getByText('Только цифры')).toBeTruthy();
@@ -117,8 +117,8 @@ describe('EntityCustomFields — контролы 12 типов', () => {
     render(
       <EntityCustomFields
         fields={[fwv({ id: 'd1', label: 'Заметка', fieldType: 'textarea' }, 'строка')]}
-        entityType='organization'
-        entityId='o1'
+        entityType="organization"
+        entityId="o1"
       />
     );
     const el = screen.getByLabelText('Заметка');
@@ -129,8 +129,8 @@ describe('EntityCustomFields — контролы 12 типов', () => {
     render(
       <EntityCustomFields
         fields={[fwv({ id: 'd1', label: 'Сумма', fieldType: 'money' }, '100.50')]}
-        entityType='organization'
-        entityId='o1'
+        entityType="organization"
+        entityId="o1"
       />
     );
     const el = screen.getByLabelText('Сумма') as HTMLInputElement;
@@ -145,15 +145,13 @@ describe('EntityCustomFields — контролы 12 типов', () => {
     ['url', 'url'],
     ['date', 'date'],
     ['number', 'number'],
-    ['text', 'text']
+    ['text', 'text'],
   ])('тип %s → input type=%s', (fieldType, inputType) => {
     render(
       <EntityCustomFields
-        fields={[
-          fwv({ id: 'd1', label: 'Поле X', fieldType: fieldType as 'text' })
-        ]}
-        entityType='organization'
-        entityId='o1'
+        fields={[fwv({ id: 'd1', label: 'Поле X', fieldType: fieldType as 'text' })]}
+        entityType="organization"
+        entityId="o1"
       />
     );
     expect((screen.getByLabelText('Поле X') as HTMLInputElement).type).toBe(inputType);
@@ -163,10 +161,15 @@ describe('EntityCustomFields — контролы 12 типов', () => {
     render(
       <EntityCustomFields
         fields={[
-          fwv({ id: 'd1', label: 'Приоритет', fieldType: 'select', options: ['низкий', 'высокий'] })
+          fwv({
+            id: 'd1',
+            label: 'Приоритет',
+            fieldType: 'select',
+            options: ['низкий', 'высокий'],
+          }),
         ]}
-        entityType='organization'
-        entityId='o1'
+        entityType="organization"
+        entityId="o1"
       />
     );
     const select = screen.getByLabelText('Приоритет') as HTMLSelectElement;
@@ -174,7 +177,7 @@ describe('EntityCustomFields — контролы 12 типов', () => {
     expect(Array.from(select.options).map((o) => o.textContent)).toEqual([
       '— выберите —',
       'низкий',
-      'высокий'
+      'высокий',
     ]);
   });
 
@@ -182,8 +185,8 @@ describe('EntityCustomFields — контролы 12 типов', () => {
     render(
       <EntityCustomFields
         fields={[fwv({ id: 'd1', label: 'Срочно', fieldType: 'boolean' }, 'true')]}
-        entityType='organization'
-        entityId='o1'
+        entityType="organization"
+        entityId="o1"
       />
     );
     expect((screen.getByLabelText('Срочно') as HTMLInputElement).checked).toBe(true);
@@ -194,12 +197,17 @@ describe('EntityCustomFields — контролы 12 типов', () => {
       <EntityCustomFields
         fields={[
           fwv(
-            { id: 'd1', label: 'Направления', fieldType: 'multiselect', options: ['ОТ', 'ПБ', 'ЭБ'] },
+            {
+              id: 'd1',
+              label: 'Направления',
+              fieldType: 'multiselect',
+              options: ['ОТ', 'ПБ', 'ЭБ'],
+            },
             '["ОТ","ЭБ"]'
-          )
+          ),
         ]}
-        entityType='organization'
-        entityId='o1'
+        entityType="organization"
+        entityId="o1"
       />
     );
     expect((screen.getByLabelText('ОТ') as HTMLInputElement).checked).toBe(true);
@@ -214,10 +222,10 @@ describe('EntityCustomFields — контролы 12 типов', () => {
           fwv(
             { id: 'd1', label: 'Направления', fieldType: 'multiselect', options: ['ОТ', 'ПБ'] },
             'не json'
-          )
+          ),
         ]}
-        entityType='organization'
-        entityId='o1'
+        entityType="organization"
+        entityId="o1"
       />
     );
     expect((screen.getByLabelText('ОТ') as HTMLInputElement).checked).toBe(false);
@@ -228,8 +236,8 @@ describe('EntityCustomFields — контролы 12 типов', () => {
     render(
       <EntityCustomFields
         fields={[fwv({ id: 'd1', label: 'ИНН', required: true })]}
-        entityType='organization'
-        entityId='o1'
+        entityType="organization"
+        entityId="o1"
       />
     );
     expect((screen.getByLabelText(/ИНН/) as HTMLInputElement).required).toBe(true);
@@ -239,8 +247,8 @@ describe('EntityCustomFields — контролы 12 типов', () => {
     render(
       <EntityCustomFields
         fields={[fwv({ id: 'd1', label: 'Согласовано', fieldType: 'boolean', required: true })]}
-        entityType='organization'
-        entityId='o1'
+        entityType="organization"
+        entityId="o1"
       />
     );
     expect((screen.getByLabelText(/Согласовано/) as HTMLInputElement).required).toBe(true);
@@ -261,10 +269,10 @@ describe('EntityCustomFields — сохранение', () => {
       <EntityCustomFields
         fields={[
           fwv({ id: 'd1', label: 'Комментарий' }, 'было'),
-          fwv({ id: 'd2', label: 'Пусто' }, '')
+          fwv({ id: 'd2', label: 'Пусто' }, ''),
         ]}
-        entityType='student'
-        entityId='s7'
+        entityType="student"
+        entityId="s7"
       />
     );
 
@@ -274,10 +282,12 @@ describe('EntityCustomFields — сохранение', () => {
     await waitFor(() =>
       expect(saveCustomFieldsAction).toHaveBeenCalledWith('student', 's7', {
         d1: 'стало',
-        d2: null
+        d2: null,
       })
     );
-    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Дополнительные поля сохранены.'));
+    await waitFor(() =>
+      expect(toastSuccess).toHaveBeenCalledWith('Дополнительные поля сохранены.')
+    );
     expect(refresh).toHaveBeenCalled();
   });
 
@@ -287,10 +297,10 @@ describe('EntityCustomFields — сохранение', () => {
       <EntityCustomFields
         fields={[
           fwv({ id: 'd1', label: 'Мой' }, 'да'),
-          fwv({ id: 'd2', label: 'Чужой', editable: false }, 'нет')
+          fwv({ id: 'd2', label: 'Чужой', editable: false }, 'нет'),
         ]}
-        entityType='partner'
-        entityId='p1'
+        entityType="partner"
+        entityId="p1"
       />
     );
 
@@ -309,10 +319,10 @@ describe('EntityCustomFields — сохранение', () => {
           fwv(
             { id: 'd1', label: 'Направления', fieldType: 'multiselect', options: ['ОТ', 'ПБ'] },
             '["ОТ"]'
-          )
+          ),
         ]}
-        entityType='organization'
-        entityId='o1'
+        entityType="organization"
+        entityId="o1"
       />
     );
 
@@ -320,7 +330,7 @@ describe('EntityCustomFields — сохранение', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить поля' }));
     await waitFor(() =>
       expect(saveCustomFieldsAction).toHaveBeenCalledWith('organization', 'o1', {
-        d1: '["ОТ","ПБ"]'
+        d1: '["ОТ","ПБ"]',
       })
     );
 
@@ -338,8 +348,8 @@ describe('EntityCustomFields — сохранение', () => {
     render(
       <EntityCustomFields
         fields={[fwv({ id: 'd1', label: 'Срочно', fieldType: 'boolean' }, 'false')]}
-        entityType='organization'
-        entityId='o1'
+        entityType="organization"
+        entityId="o1"
       />
     );
 
@@ -355,11 +365,16 @@ describe('EntityCustomFields — сохранение', () => {
     render(
       <EntityCustomFields
         fields={[
-          fwv({ id: 'd1', label: 'Приоритет', fieldType: 'select', options: ['низкий', 'высокий'] }),
-          fwv({ id: 'd2', label: 'Заметка', fieldType: 'textarea' })
+          fwv({
+            id: 'd1',
+            label: 'Приоритет',
+            fieldType: 'select',
+            options: ['низкий', 'высокий'],
+          }),
+          fwv({ id: 'd2', label: 'Заметка', fieldType: 'textarea' }),
         ]}
-        entityType='organization'
-        entityId='o1'
+        entityType="organization"
+        entityId="o1"
       />
     );
 
@@ -370,7 +385,7 @@ describe('EntityCustomFields — сохранение', () => {
     await waitFor(() =>
       expect(saveCustomFieldsAction).toHaveBeenCalledWith('organization', 'o1', {
         d1: 'высокий',
-        d2: 'две\nстроки'
+        d2: 'две\nстроки',
       })
     );
   });
@@ -380,8 +395,8 @@ describe('EntityCustomFields — сохранение', () => {
     render(
       <EntityCustomFields
         fields={[fwv({ id: 'd1', label: 'Поле' }, 'x')]}
-        entityType='organization'
-        entityId='o1'
+        entityType="organization"
+        entityId="o1"
       />
     );
 

@@ -28,7 +28,7 @@ export async function createTwoFactorChallenge(
   await prisma.twoFactorChallenge.upsert({
     where: { userId },
     create: { userId, codeHash: hashCode(code), expiresAt },
-    update: { codeHash: hashCode(code), expiresAt, attempts: 0 }
+    update: { codeHash: hashCode(code), expiresAt, attempts: 0 },
   });
   return { code };
 }
@@ -58,16 +58,19 @@ export async function verifyTwoFactorCode(
   // backup-код вне логин-флоу бесполезен.
   const backup = await prisma.twoFactorBackupCode.findFirst({
     where: { userId, codeHash: hashCode(code), usedAt: null },
-    select: { id: true }
+    select: { id: true },
   });
   if (backup) {
-    await prisma.twoFactorBackupCode.update({ where: { id: backup.id }, data: { usedAt: new Date() } });
+    await prisma.twoFactorBackupCode.update({
+      where: { id: backup.id },
+      data: { usedAt: new Date() },
+    });
     await prisma.twoFactorChallenge.delete({ where: { userId } });
     return { ok: true, method: 'backup' };
   }
   await prisma.twoFactorChallenge.update({
     where: { userId },
-    data: { attempts: { increment: 1 } }
+    data: { attempts: { increment: 1 } },
   });
   return { ok: false, error: 'invalid_code' };
 }
@@ -87,7 +90,7 @@ export async function generateBackupCodes(
   await prisma.$transaction(async (tx) => {
     await tx.twoFactorBackupCode.deleteMany({ where: { userId } });
     await tx.twoFactorBackupCode.createMany({
-      data: codes.map((c) => ({ userId, codeHash: hashCode(c) }))
+      data: codes.map((c) => ({ userId, codeHash: hashCode(c) })),
     });
   });
   return { codes };

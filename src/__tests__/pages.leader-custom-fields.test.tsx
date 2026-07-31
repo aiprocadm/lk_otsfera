@@ -24,9 +24,9 @@ vi.mock('@/components/admin/custom-fields-admin', () => ({
       JSON.stringify({
         entity: props.entity,
         basePath: props.basePath,
-        definitions: props.definitions
+        definitions: props.definitions,
       })
-    )
+    ),
 }));
 
 import LeaderCustomFieldsPage from '@/app/leader/settings/custom-fields/page';

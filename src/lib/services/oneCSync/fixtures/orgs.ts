@@ -8,7 +8,7 @@ export const FAKE_ORGS: OneCOrgDto[] = [
     inn: '7701234567',
     kpp: '770101001',
     partnerExternalId: '1c-partner-001',
-    updatedAt: '2026-04-12T10:00:00Z'
+    updatedAt: '2026-04-12T10:00:00Z',
   },
   {
     externalId: '1c-org-002',
@@ -17,7 +17,7 @@ export const FAKE_ORGS: OneCOrgDto[] = [
     inn: '5024009999',
     kpp: '502401001',
     partnerExternalId: '1c-partner-001',
-    updatedAt: '2026-04-15T11:00:00Z'
+    updatedAt: '2026-04-15T11:00:00Z',
   },
   {
     externalId: '1c-org-003',
@@ -26,6 +26,6 @@ export const FAKE_ORGS: OneCOrgDto[] = [
     inn: '5030005555',
     kpp: '503001001',
     partnerExternalId: '1c-partner-001',
-    updatedAt: '2026-04-18T09:00:00Z'
-  }
+    updatedAt: '2026-04-18T09:00:00Z',
+  },
 ];

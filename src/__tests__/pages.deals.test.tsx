@@ -5,12 +5,12 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManager, requireManagerLeader } = vi.hoisted(() => ({
   requireManager: vi.fn(),
-  requireManagerLeader: vi.fn()
+  requireManagerLeader: vi.fn(),
 }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager, requireManagerLeader }));
 
 const { prismaMock } = vi.hoisted(() => ({
-  prismaMock: { organization: { findMany: vi.fn() } }
+  prismaMock: { organization: { findMany: vi.fn() } },
 }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: prismaMock }));
 
@@ -27,13 +27,13 @@ const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
 vi.mock('@/components/deals/deal-board', () => ({
   DealBoard: (props: { board: unknown }) =>
-    React.createElement('div', { 'data-testid': 'deal-board' }, JSON.stringify(props.board))
+    React.createElement('div', { 'data-testid': 'deal-board' }, JSON.stringify(props.board)),
 }));
 
 vi.mock('@/components/deals/deal-dialog', () => ({
@@ -43,24 +43,34 @@ vi.mock('@/components/deals/deal-dialog', () => ({
       { 'data-testid': 'new-deal-button', 'data-user': props.currentUserId },
       '+ Сделка',
       JSON.stringify(props.managers)
-    )
+    ),
 }));
 
 vi.mock('@/components/deals/deal-stage-config', () => ({
   DealStageConfig: (props: { stages: unknown[]; isDefault: boolean }) =>
-    React.createElement('div', { 'data-testid': 'stage-config' }, String(props.isDefault))
+    React.createElement('div', { 'data-testid': 'stage-config' }, String(props.isDefault)),
 }));
 
 vi.mock('@/components/deals/deals-manager-filter', () => ({
   DealsManagerFilter: (props: { managerId?: string }) =>
-    React.createElement('div', { 'data-testid': 'manager-filter' }, props.managerId ?? 'all')
+    React.createElement('div', { 'data-testid': 'manager-filter' }, props.managerId ?? 'all'),
 }));
 
 import ManagerDealsPage from '@/app/manager/deals/page';
 import LeaderDealsPage from '@/app/leader/deals/page';
 
-const MANAGER_SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
-const LEADER_SESSION = { sub: 'u2', role: 'manager' as const, managerRole: 'leader' as const, companyId: 'c1' };
+const MANAGER_SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'member' as const,
+  companyId: 'c1',
+};
+const LEADER_SESSION = {
+  sub: 'u2',
+  role: 'manager' as const,
+  managerRole: 'leader' as const,
+  companyId: 'c1',
+};
 
 const BOARD = { stages: [{ id: 'default:new', name: 'Новая' }], columns: [] };
 
@@ -72,7 +82,7 @@ beforeEach(() => {
   prismaMock.organization.findMany.mockResolvedValue([{ id: 'org-1', name: 'ООО Ромашка' }]);
   listCompanyManagers.mockResolvedValue([
     { id: 'm-active', name: 'Иван', isActive: true },
-    { id: 'm-inactive', name: 'Пётр', isActive: false }
+    { id: 'm-inactive', name: 'Пётр', isActive: false },
   ]);
   getDealBoard.mockResolvedValue(BOARD);
 });
@@ -164,7 +174,9 @@ describe('LeaderDealsPage', () => {
 
     const { getByTestId } = await renderLeader({ manager: 'm-active' });
 
-    expect(getDealBoard).toHaveBeenCalledWith(prismaMock, LEADER_SESSION, { managerId: 'm-active' });
+    expect(getDealBoard).toHaveBeenCalledWith(prismaMock, LEADER_SESSION, {
+      managerId: 'm-active',
+    });
     expect(getByTestId('manager-filter').textContent).toBe('m-active');
   });
 

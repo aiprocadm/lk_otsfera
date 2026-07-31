@@ -3,7 +3,12 @@ import { getSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { canReviewEnrollments } from '@/lib/services/enrollments/policy';
-import { advanceEnrollmentItems, approveEnrollment, rejectEnrollment, markProvisioned } from '@/lib/services/enrollments/lifecycle';
+import {
+  advanceEnrollmentItems,
+  approveEnrollment,
+  rejectEnrollment,
+  markProvisioned,
+} from '@/lib/services/enrollments/lifecycle';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -15,7 +20,8 @@ export async function PATCH(req: Request, { params }: Params) {
   if (disabled) return disabled;
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (!canReviewEnrollments(session)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  if (!canReviewEnrollments(session))
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   const { id } = await params;
   const body = await req.json().catch(() => null);
@@ -28,12 +34,20 @@ export async function PATCH(req: Request, { params }: Params) {
     return NextResponse.json({ request: r.request });
   }
   if (action === 'reject') {
-    const r = await rejectEnrollment(prisma, { id, reviewerId, reason: String(body?.reason ?? '') });
+    const r = await rejectEnrollment(prisma, {
+      id,
+      reviewerId,
+      reason: String(body?.reason ?? ''),
+    });
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: statusFor(r.error) });
     return NextResponse.json({ request: r.request });
   }
   if (action === 'markProvisioned') {
-    const r = await markProvisioned(prisma, { id, reviewerId, externalStudentId: String(body?.externalStudentId ?? '') });
+    const r = await markProvisioned(prisma, {
+      id,
+      reviewerId,
+      externalStudentId: String(body?.externalStudentId ?? ''),
+    });
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: statusFor(r.error) });
     return NextResponse.json({ request: r.request });
   }
@@ -47,13 +61,16 @@ export async function PATCH(req: Request, { params }: Params) {
       id,
       reviewerId,
       target: action === 'markInTraining' ? 'in_training' : 'certificates_ready',
-      itemIds
+      itemIds,
     });
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: statusFor(r.error) });
     return NextResponse.json({ request: r.request, movedCount: r.movedCount });
   }
   return NextResponse.json(
-    { error: 'Invalid action. Use approve|reject|markProvisioned|markInTraining|markCertificatesReady' },
+    {
+      error:
+        'Invalid action. Use approve|reject|markProvisioned|markInTraining|markCertificatesReady',
+    },
     { status: 400 }
   );
 }

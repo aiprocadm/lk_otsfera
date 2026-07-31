@@ -7,18 +7,18 @@ const {
   dismissQueueRowAction,
   resolveQueueRowAction,
   searchResolveOrgsAction,
-  listResolveOrdersAction
+  listResolveOrdersAction,
 } = vi.hoisted(() => ({
   dismissQueueRowAction: vi.fn(),
   resolveQueueRowAction: vi.fn(),
   searchResolveOrgsAction: vi.fn(),
-  listResolveOrdersAction: vi.fn()
+  listResolveOrdersAction: vi.fn(),
 }));
 vi.mock('@/server-actions/payment-import', () => ({
   dismissQueueRowAction,
   resolveQueueRowAction,
   searchResolveOrgsAction,
-  listResolveOrdersAction
+  listResolveOrdersAction,
 }));
 
 const { toastSuccess } = vi.hoisted(() => ({ toastSuccess: vi.fn() }));
@@ -40,7 +40,7 @@ function row(over: Partial<QueueRow> = {}): QueueRow {
     candidateOrgId: 'org1',
     candidateOrgName: 'ООО Ромашка',
     matchMethod: 'fuzzy',
-    ...over
+    ...over,
   };
 }
 
@@ -64,7 +64,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
   it('renders the isRefund suffix and the counterparty INN suffix', () => {
     render(
       React.createElement(PaymentQueueTable, {
-        rows: [row({ isRefund: true, counterpartyInn: '123456' })]
+        rows: [row({ isRefund: true, counterpartyInn: '123456' })],
       })
     );
     expect(screen.getByText('0000-9 (возврат)')).toBeTruthy();
@@ -79,9 +79,9 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
             counterpartyName: null,
             counterpartyInn: null,
             accountCandidates: [],
-            candidateOrgName: null
-          })
-        ]
+            candidateOrgName: null,
+          }),
+        ],
       })
     );
     const dashes = screen.getAllByText('—');
@@ -91,7 +91,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
   it('joins multiple accountCandidates with a comma', () => {
     render(
       React.createElement(PaymentQueueTable, {
-        rows: [row({ accountCandidates: ['СЧ-1', 'СЧ-2'] })]
+        rows: [row({ accountCandidates: ['СЧ-1', 'СЧ-2'] })],
       })
     );
     expect(screen.getByText('СЧ-1, СЧ-2')).toBeTruthy();
@@ -102,14 +102,16 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
     render(React.createElement(PaymentQueueTable, { rows: [row()] }));
     fireEvent.click(screen.getByRole('button', { name: 'Отклонить' }));
     await waitFor(() => expect(dismissQueueRowAction).toHaveBeenCalledWith({ rowId: 'r1' }));
-    await waitFor(() => expect(screen.getByText('Очередь пуста — все оплаты сопоставлены.')).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText('Очередь пуста — все оплаты сопоставлены.')).toBeTruthy()
+    );
   });
 
   it('dismissing one of several rows only hides that row', async () => {
     dismissQueueRowAction.mockResolvedValue(undefined);
     render(
       React.createElement(PaymentQueueTable, {
-        rows: [row({ id: 'r1', externalId: 'EXT-1' }), row({ id: 'r2', externalId: 'EXT-2' })]
+        rows: [row({ id: 'r1', externalId: 'EXT-1' }), row({ id: 'r2', externalId: 'EXT-2' })],
       })
     );
     const rejectButtons = screen.getAllByRole('button', { name: 'Отклонить' });
@@ -128,7 +130,11 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
   });
 
   it('opening the bind dialog for a row without a counterparty shows the "без контрагента" fallback', async () => {
-    render(React.createElement(PaymentQueueTable, { rows: [row({ counterpartyName: null, counterpartyInn: null })] }));
+    render(
+      React.createElement(PaymentQueueTable, {
+        rows: [row({ counterpartyName: null, counterpartyInn: null })],
+      })
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
     await screen.findByText('Привязать оплату');
     const dialogEl = document.querySelector('dialog') as HTMLElement;
@@ -136,7 +142,9 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
   });
 
   it('org search loads on open and pre-fills the candidate org from the row', async () => {
-    searchResolveOrgsAction.mockResolvedValue([{ id: 'org1', name: 'ООО Ромашка', inn: '7701234567' }]);
+    searchResolveOrgsAction.mockResolvedValue([
+      { id: 'org1', name: 'ООО Ромашка', inn: '7701234567' },
+    ]);
     render(React.createElement(PaymentQueueTable, { rows: [row()] }));
     fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
     await screen.findByText('Привязать оплату');
@@ -147,8 +155,14 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
   });
 
   it('candidate org not present in the search results is injected explicitly as an option', async () => {
-    searchResolveOrgsAction.mockResolvedValue([{ id: 'other', name: 'Другая организация', inn: null }]);
-    render(React.createElement(PaymentQueueTable, { rows: [row({ candidateOrgId: 'org1', candidateOrgName: 'ООО Ромашка' })] }));
+    searchResolveOrgsAction.mockResolvedValue([
+      { id: 'other', name: 'Другая организация', inn: null },
+    ]);
+    render(
+      React.createElement(PaymentQueueTable, {
+        rows: [row({ candidateOrgId: 'org1', candidateOrgName: 'ООО Ромашка' })],
+      })
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
     await screen.findByText('Привязать оплату');
 
@@ -159,7 +173,9 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
   });
 
   it('does not inject the candidate org when it is already present in the search results', async () => {
-    searchResolveOrgsAction.mockResolvedValue([{ id: 'org1', name: 'ООО Ромашка (из поиска)', inn: '7701234567' }]);
+    searchResolveOrgsAction.mockResolvedValue([
+      { id: 'org1', name: 'ООО Ромашка (из поиска)', inn: '7701234567' },
+    ]);
     render(React.createElement(PaymentQueueTable, { rows: [row()] }));
     fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
     await screen.findByText('Привязать оплату');
@@ -172,7 +188,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
     searchResolveOrgsAction.mockResolvedValue([]);
     render(
       React.createElement(PaymentQueueTable, {
-        rows: [row({ candidateOrgId: null, candidateOrgName: null })]
+        rows: [row({ candidateOrgId: null, candidateOrgName: null })],
       })
     );
     fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
@@ -195,13 +211,15 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
   it('selecting an org loads its orders; order select shows orderNumber prefix and title-only fallback', async () => {
     listResolveOrdersAction.mockResolvedValue([
       { id: 'ord1', orderNumber: 'ПЗ-01', title: 'Поставка' },
-      { id: 'ord2', orderNumber: null, title: 'Без номера' }
+      { id: 'ord2', orderNumber: null, title: 'Без номера' },
     ]);
     render(React.createElement(PaymentQueueTable, { rows: [row()] }));
     fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
     await screen.findByText('Привязать оплату');
 
-    await waitFor(() => expect(listResolveOrdersAction).toHaveBeenCalledWith({ organizationId: 'org1' }));
+    await waitFor(() =>
+      expect(listResolveOrdersAction).toHaveBeenCalledWith({ organizationId: 'org1' })
+    );
     const orderSelect = screen.getByLabelText('Заказ (необязательно)') as HTMLSelectElement;
     await waitFor(() => expect(within(orderSelect).getByText('№ПЗ-01 — Поставка')).toBeTruthy());
     expect(within(orderSelect).getByText('Без номера')).toBeTruthy();
@@ -209,7 +227,11 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
   });
 
   it('order select stays disabled while no org is chosen (no candidate org on this row)', async () => {
-    render(React.createElement(PaymentQueueTable, { rows: [row({ candidateOrgId: null, candidateOrgName: null })] }));
+    render(
+      React.createElement(PaymentQueueTable, {
+        rows: [row({ candidateOrgId: null, candidateOrgName: null })],
+      })
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
     await screen.findByText('Привязать оплату');
     const orderSelect = screen.getByLabelText('Заказ (необязательно)') as HTMLSelectElement;
@@ -217,15 +239,19 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
   });
 
   it('changing the org resets orderId and, when clearing org, clears the orders list', async () => {
-    listResolveOrdersAction.mockResolvedValue([{ id: 'ord1', orderNumber: 'ПЗ-01', title: 'Поставка' }]);
+    listResolveOrdersAction.mockResolvedValue([
+      { id: 'ord1', orderNumber: 'ПЗ-01', title: 'Поставка' },
+    ]);
     searchResolveOrgsAction.mockResolvedValue([
       { id: 'org1', name: 'ООО Ромашка', inn: null },
-      { id: 'org2', name: 'ООО Лютик', inn: null }
+      { id: 'org2', name: 'ООО Лютик', inn: null },
     ]);
     render(React.createElement(PaymentQueueTable, { rows: [row()] }));
     fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
     await screen.findByText('Привязать оплату');
-    await waitFor(() => expect(listResolveOrdersAction).toHaveBeenCalledWith({ organizationId: 'org1' }));
+    await waitFor(() =>
+      expect(listResolveOrdersAction).toHaveBeenCalledWith({ organizationId: 'org1' })
+    );
 
     const orgSelect = screen.getByLabelText('Организация') as HTMLSelectElement;
     fireEvent.change(orgSelect, { target: { value: '' } });
@@ -235,7 +261,9 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
   });
 
   it('when the fetched orders no longer include the current orderId, orderId resets to empty', async () => {
-    listResolveOrdersAction.mockResolvedValueOnce([{ id: 'ord1', orderNumber: 'ПЗ-01', title: 'Поставка' }]);
+    listResolveOrdersAction.mockResolvedValueOnce([
+      { id: 'ord1', orderNumber: 'ПЗ-01', title: 'Поставка' },
+    ]);
     render(React.createElement(PaymentQueueTable, { rows: [row()] }));
     fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
     await screen.findByText('Привязать оплату');
@@ -247,7 +275,9 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
 
     // Re-select the same org (different identity call) to trigger the effect
     // again with a response that no longer contains 'ord1'.
-    listResolveOrdersAction.mockResolvedValueOnce([{ id: 'ord2', orderNumber: 'ПЗ-02', title: 'Другой заказ' }]);
+    listResolveOrdersAction.mockResolvedValueOnce([
+      { id: 'ord2', orderNumber: 'ПЗ-02', title: 'Другой заказ' },
+    ]);
     const orgSelect = screen.getByLabelText('Организация') as HTMLSelectElement;
     fireEvent.change(orgSelect, { target: { value: '' } });
     fireEvent.change(orgSelect, { target: { value: 'org1' } });
@@ -266,14 +296,22 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
     fireEvent.click(within(dialogEl).getByRole('button', { name: 'Привязать' }));
 
     await waitFor(() =>
-      expect(resolveQueueRowAction).toHaveBeenCalledWith({ rowId: 'r1', organizationId: 'org1', orderId: null })
+      expect(resolveQueueRowAction).toHaveBeenCalledWith({
+        rowId: 'r1',
+        organizationId: 'org1',
+        orderId: null,
+      })
     );
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Оплата привязана и проведена'));
-    await waitFor(() => expect(screen.getByText('Очередь пуста — все оплаты сопоставлены.')).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText('Очередь пуста — все оплаты сопоставлены.')).toBeTruthy()
+    );
   });
 
   it('submit passes a chosen orderId through to resolveQueueRowAction', async () => {
-    listResolveOrdersAction.mockResolvedValue([{ id: 'ord1', orderNumber: 'ПЗ-01', title: 'Поставка' }]);
+    listResolveOrdersAction.mockResolvedValue([
+      { id: 'ord1', orderNumber: 'ПЗ-01', title: 'Поставка' },
+    ]);
     resolveQueueRowAction.mockResolvedValue({ ok: true });
     render(React.createElement(PaymentQueueTable, { rows: [row()] }));
     fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
@@ -285,7 +323,11 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
     fireEvent.click(within(dialogEl).getByRole('button', { name: 'Привязать' }));
 
     await waitFor(() =>
-      expect(resolveQueueRowAction).toHaveBeenCalledWith({ rowId: 'r1', organizationId: 'org1', orderId: 'ord1' })
+      expect(resolveQueueRowAction).toHaveBeenCalledWith({
+        rowId: 'r1',
+        organizationId: 'org1',
+        orderId: 'ord1',
+      })
     );
   });
 
@@ -299,7 +341,9 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
     fireEvent.click(within(dialogEl).getByRole('button', { name: 'Привязать' }));
 
     expect(
-      await screen.findByText('Оплата не записана: организация вне вашей зоны доступа или нет данных для привязки')
+      await screen.findByText(
+        'Оплата не записана: организация вне вашей зоны доступа или нет данных для привязки'
+      )
     ).toBeTruthy();
     expect(toastSuccess).not.toHaveBeenCalled();
     expect(screen.getByText('Привязать оплату')).toBeTruthy();
@@ -328,11 +372,17 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
   });
 
   it('submit button is disabled while no org is selected', async () => {
-    render(React.createElement(PaymentQueueTable, { rows: [row({ candidateOrgId: null, candidateOrgName: null })] }));
+    render(
+      React.createElement(PaymentQueueTable, {
+        rows: [row({ candidateOrgId: null, candidateOrgName: null })],
+      })
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
     await screen.findByText('Привязать оплату');
     const dialogEl = document.querySelector('dialog') as HTMLElement;
-    const submitBtn = within(dialogEl).getByRole('button', { name: 'Привязать' }) as HTMLButtonElement;
+    const submitBtn = within(dialogEl).getByRole('button', {
+      name: 'Привязать',
+    }) as HTMLButtonElement;
     expect(submitBtn.disabled).toBe(true);
   });
 
@@ -367,11 +417,15 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
     render(React.createElement(PaymentQueueTable, { rows: [row()] }));
     fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
     await screen.findByText('Привязать оплату');
-    await waitFor(() => expect(listResolveOrdersAction).toHaveBeenCalledWith({ organizationId: 'org1' }));
+    await waitFor(() =>
+      expect(listResolveOrdersAction).toHaveBeenCalledWith({ organizationId: 'org1' })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
     await waitFor(() => expect(screen.queryByText('Привязать оплату')).toBeNull());
 
-    expect(() => resolveOrders([{ id: 'ord1', orderNumber: 'ПЗ-01', title: 'Поставка' }])).not.toThrow();
+    expect(() =>
+      resolveOrders([{ id: 'ord1', orderNumber: 'ПЗ-01', title: 'Поставка' }])
+    ).not.toThrow();
   });
 });

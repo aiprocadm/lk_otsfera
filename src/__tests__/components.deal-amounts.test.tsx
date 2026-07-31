@@ -30,7 +30,7 @@ function makeDeal(overrides: Partial<DealDetail> = {}): DealDetail {
     documents: [],
     comments: [],
     items: [],
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -57,7 +57,9 @@ describe('DealAmounts', () => {
   });
 
   it('shows "Без НДС" when vatIncluded is false', () => {
-    const html = renderToString(React.createElement(DealAmounts, { deal: makeDeal({ vatIncluded: false, vatRate: null }) }));
+    const html = renderToString(
+      React.createElement(DealAmounts, { deal: makeDeal({ vatIncluded: false, vatRate: null }) })
+    );
     expect(html).toContain('Без НДС');
   });
 

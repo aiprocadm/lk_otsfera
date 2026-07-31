@@ -7,7 +7,7 @@ import type {
   OneCPaymentDto,
   OneCDocumentDto,
   OneCLeadPushResult,
-  OneCAdapter
+  OneCAdapter,
 } from '@/lib/services/oneCSync';
 import { resetOneCAdapter } from '@/lib/services/oneCSync';
 import type { SyncJobPayload } from '@/lib/jobs/types';
@@ -46,7 +46,7 @@ vi.mock('@/lib/services/oneCSync', async (orig) => {
   const actual = await (orig() as Promise<typeof import('@/lib/services/oneCSync')>);
   return {
     ...actual,
-    getOneCAdapter: () => adapter
+    getOneCAdapter: () => adapter,
   };
 });
 
@@ -61,7 +61,7 @@ vi.mock('@/lib/notifications', async (orig) => {
     notifyManagers: (...args: Parameters<typeof actual.notifyManagers>) => {
       notifyManagersSpy(...args);
       return actual.notifyManagers(...args);
-    }
+    },
   };
 });
 
@@ -70,7 +70,7 @@ import { syncPaymentsProcessor } from '@/worker/processors/sync-payments';
 function makeJob(): Job<SyncJobPayload> {
   return {
     id: 'spm-' + Date.now() + '-' + Math.random().toString(36).slice(2),
-    data: { triggeredAt: new Date().toISOString(), reason: 'manual' as const }
+    data: { triggeredAt: new Date().toISOString(), reason: 'manual' as const },
   } as Job<SyncJobPayload>;
 }
 
@@ -101,7 +101,7 @@ beforeAll(async () => {
   prisma = new PrismaClient();
 
   const partner = await prisma.partner.create({
-    data: { name: uniq('p'), commissionRate: 0.1 }
+    data: { name: uniq('p'), commissionRate: 0.1 },
   });
   partnerId = partner.id;
   const company = await prisma.company.create({ data: { name: uniq('co') } });
@@ -109,7 +109,7 @@ beforeAll(async () => {
 
   // Two organizations: one with an active OrganizationManager, one with none.
   const orgA = await prisma.organization.create({
-    data: { name: uniq('org-with-mgr'), partnerId, companyId, externalId: uniq('1c-org-a') }
+    data: { name: uniq('org-with-mgr'), partnerId, companyId, externalId: uniq('1c-org-a') },
   });
   orgWithManagerId = orgA.id;
   const orgB = await prisma.organization.create({
@@ -117,8 +117,8 @@ beforeAll(async () => {
       name: uniq('org-no-mgr'),
       partnerId,
       companyId,
-      externalId: uniq('1c-org-b')
-    }
+      externalId: uniq('1c-org-b'),
+    },
   });
   orgNoManagerId = orgB.id;
 
@@ -127,32 +127,37 @@ beforeAll(async () => {
     data: {
       email: `${uniq('m-per-order')}@t.local`,
       name: 'M-Per-Order',
-      role: 'manager'
-    }
+      role: 'manager',
+    },
   });
   perOrderManagerId = perOrderM.id;
 
   const orgM = await prisma.user.create({
-    data: { email: `${uniq('m-org')}@t.local`, name: 'M-Org', role: 'manager' }
+    data: { email: `${uniq('m-org')}@t.local`, name: 'M-Org', role: 'manager' },
   });
   orgManagerId = orgM.id;
 
   // Org user (so notifyOrgUsers has someone to write to — confirms we
   // don't regress the existing fan-out)
   const orgU = await prisma.user.create({
-    data: { email: `${uniq('u-org')}@t.local`, name: 'OrgUser', role: 'organization' }
+    data: { email: `${uniq('u-org')}@t.local`, name: 'OrgUser', role: 'organization' },
   });
   orgUserId = orgU.id;
   await prisma.organizationUser.create({
-    data: { organizationId: orgWithManagerId, userId: orgUserId, roleInOrg: 'admin', isActive: true }
+    data: {
+      organizationId: orgWithManagerId,
+      userId: orgUserId,
+      roleInOrg: 'admin',
+      isActive: true,
+    },
   });
   await prisma.organizationUser.create({
-    data: { organizationId: orgNoManagerId, userId: orgUserId, roleInOrg: 'admin', isActive: true }
+    data: { organizationId: orgNoManagerId, userId: orgUserId, roleInOrg: 'admin', isActive: true },
   });
 
   // Per-org assignment for orgA only
   await prisma.organizationManager.create({
-    data: { organizationId: orgWithManagerId, userId: orgManagerId, isActive: true }
+    data: { organizationId: orgWithManagerId, userId: orgManagerId, isActive: true },
   });
 
   // ----- Orders ------------------------------------------------------------
@@ -168,8 +173,8 @@ beforeAll(async () => {
       externalId: orderPerOrderExternalId,
       managerId: perOrderManagerId,
       executionStatus: 'in_progress',
-      financialStatus: 'not_billed'
-    }
+      financialStatus: 'not_billed',
+    },
   });
   orderPerOrderManagerId = o1.id;
 
@@ -184,8 +189,8 @@ beforeAll(async () => {
       organizationId: orgWithManagerId,
       externalId: orderPerOrgExternalId,
       executionStatus: 'in_progress',
-      financialStatus: 'not_billed'
-    }
+      financialStatus: 'not_billed',
+    },
   });
   orderPerOrgManagerId = o2.id;
 
@@ -200,24 +205,22 @@ beforeAll(async () => {
       organizationId: orgNoManagerId,
       externalId: orderNoManagerExternalId,
       executionStatus: 'in_progress',
-      financialStatus: 'not_billed'
-    }
+      financialStatus: 'not_billed',
+    },
   });
   orderNoManagerId = o3.id;
 });
 
 afterAll(async () => {
-  const orderIds = [orderPerOrderManagerId, orderPerOrgManagerId, orderNoManagerId].filter(
-    Boolean
-  );
+  const orderIds = [orderPerOrderManagerId, orderPerOrgManagerId, orderNoManagerId].filter(Boolean);
   const userIds = [perOrderManagerId, orgManagerId, orgUserId].filter(Boolean);
   const orgIds = [orgWithManagerId, orgNoManagerId].filter(Boolean);
 
   await prisma.payment.deleteMany({ where: { orderId: { in: orderIds } } });
   await prisma.notification.deleteMany({
     where: {
-      OR: [{ userId: { in: userIds } }, { organizationId: { in: orgIds } }]
-    }
+      OR: [{ userId: { in: userIds } }, { organizationId: { in: orgIds } }],
+    },
   });
   await prisma.organizationManager.deleteMany({ where: { organizationId: { in: orgIds } } });
   await prisma.organizationUser.deleteMany({ where: { organizationId: { in: orgIds } } });
@@ -237,15 +240,15 @@ beforeEach(async () => {
   adapter.payments = [];
   adapter.documents = [];
   await prisma.payment.deleteMany({
-    where: { orderId: { in: [orderPerOrderManagerId, orderPerOrgManagerId, orderNoManagerId] } }
+    where: { orderId: { in: [orderPerOrderManagerId, orderPerOrgManagerId, orderNoManagerId] } },
   });
   await prisma.notification.deleteMany({
     where: {
       OR: [
         { userId: { in: [perOrderManagerId, orgManagerId, orgUserId] } },
-        { organizationId: { in: [orgWithManagerId, orgNoManagerId] } }
-      ]
-    }
+        { organizationId: { in: [orgWithManagerId, orgNoManagerId] } },
+      ],
+    },
   });
   delete process.env.EMAIL_ENABLED;
 });
@@ -261,28 +264,25 @@ describe('syncPaymentsProcessor → notifyManagers fan-out', () => {
         paidAt: paidAtIso,
         method: 'wire',
         isRefund: false,
-        updatedAt: paidAtIso
-      }
+        updatedAt: paidAtIso,
+      },
     ];
 
     await syncPaymentsProcessor(makeJob(), prisma);
 
     expect(notifyManagersSpy).toHaveBeenCalledTimes(1);
-    expect(notifyManagersSpy).toHaveBeenCalledWith(
-      expect.anything(),
-      {
-        orderId: orderPerOrderManagerId,
-        type: 'order_marked_paid_by_1c',
-        payload: {
-          amount: 75000,
-          paidAt: new Date(paidAtIso)
-        }
-      }
-    );
+    expect(notifyManagersSpy).toHaveBeenCalledWith(expect.anything(), {
+      orderId: orderPerOrderManagerId,
+      type: 'order_marked_paid_by_1c',
+      payload: {
+        amount: 75000,
+        paidAt: new Date(paidAtIso),
+      },
+    });
 
     // The per-order manager got an in-app row.
     const mgrRows = await prisma.notification.findMany({
-      where: { userId: perOrderManagerId, type: 'order_marked_paid_by_1c' }
+      where: { userId: perOrderManagerId, type: 'order_marked_paid_by_1c' },
     });
     expect(mgrRows).toHaveLength(1);
     const meta = mgrRows[0].meta as Record<string, unknown>;
@@ -292,7 +292,7 @@ describe('syncPaymentsProcessor → notifyManagers fan-out', () => {
 
     // Existing org-side fan-out continues to work — no regression.
     const orgRows = await prisma.notification.findMany({
-      where: { userId: orgUserId, type: 'payment_received' }
+      where: { userId: orgUserId, type: 'payment_received' },
     });
     expect(orgRows).toHaveLength(1);
   });
@@ -307,8 +307,8 @@ describe('syncPaymentsProcessor → notifyManagers fan-out', () => {
         paidAt: paidAtIso,
         method: 'card',
         isRefund: false,
-        updatedAt: paidAtIso
-      }
+        updatedAt: paidAtIso,
+      },
     ];
 
     await syncPaymentsProcessor(makeJob(), prisma);
@@ -319,19 +319,19 @@ describe('syncPaymentsProcessor → notifyManagers fan-out', () => {
       expect.objectContaining({
         orderId: orderPerOrgManagerId,
         type: 'order_marked_paid_by_1c',
-        payload: expect.objectContaining({ amount: 42000 })
+        payload: expect.objectContaining({ amount: 42000 }),
       })
     );
 
     // Per-org manager got the row even though there is no Order.managerId.
     const mgrRows = await prisma.notification.findMany({
-      where: { userId: orgManagerId, type: 'order_marked_paid_by_1c' }
+      where: { userId: orgManagerId, type: 'order_marked_paid_by_1c' },
     });
     expect(mgrRows).toHaveLength(1);
 
     // The per-order-only manager should NOT have been notified for this order.
     const wrongMgrRows = await prisma.notification.findMany({
-      where: { userId: perOrderManagerId, type: 'order_marked_paid_by_1c' }
+      where: { userId: perOrderManagerId, type: 'order_marked_paid_by_1c' },
     });
     expect(wrongMgrRows).toHaveLength(0);
   });
@@ -346,12 +346,12 @@ describe('syncPaymentsProcessor → notifyManagers fan-out', () => {
         paidAt: paidAtIso,
         method: 'wire',
         isRefund: false,
-        updatedAt: paidAtIso
-      }
+        updatedAt: paidAtIso,
+      },
     ];
 
     await expect(syncPaymentsProcessor(makeJob(), prisma)).resolves.toMatchObject({
-      created: 1
+      created: 1,
     });
 
     // Hook fired once with the no-manager order id, but no manager rows landed.
@@ -363,8 +363,8 @@ describe('syncPaymentsProcessor → notifyManagers fan-out', () => {
     const mgrRows = await prisma.notification.findMany({
       where: {
         type: 'order_marked_paid_by_1c',
-        userId: { in: [perOrderManagerId, orgManagerId] }
-      }
+        userId: { in: [perOrderManagerId, orgManagerId] },
+      },
     });
     expect(mgrRows).toHaveLength(0);
   });
@@ -378,8 +378,8 @@ describe('syncPaymentsProcessor → notifyManagers fan-out', () => {
         paidAt: '2026-05-26T13:00:00.000Z',
         method: 'wire',
         isRefund: true,
-        updatedAt: '2026-05-26T13:00:00.000Z'
-      }
+        updatedAt: '2026-05-26T13:00:00.000Z',
+      },
     ];
 
     await syncPaymentsProcessor(makeJob(), prisma);
@@ -388,8 +388,8 @@ describe('syncPaymentsProcessor → notifyManagers fan-out', () => {
     const mgrRows = await prisma.notification.findMany({
       where: {
         type: 'order_marked_paid_by_1c',
-        userId: { in: [perOrderManagerId, orgManagerId] }
-      }
+        userId: { in: [perOrderManagerId, orgManagerId] },
+      },
     });
     expect(mgrRows).toHaveLength(0);
   });
@@ -403,8 +403,8 @@ describe('syncPaymentsProcessor → notifyManagers fan-out', () => {
         orderId: orderPerOrderManagerId,
         amount: 50000,
         paidAt: new Date('2026-05-25T10:00:00.000Z'),
-        isRefund: false
-      }
+        isRefund: false,
+      },
     });
     adapter.payments = [
       {
@@ -414,8 +414,8 @@ describe('syncPaymentsProcessor → notifyManagers fan-out', () => {
         paidAt: '2026-05-26T14:00:00.000Z',
         method: 'wire',
         isRefund: false,
-        updatedAt: '2026-05-26T14:00:00.000Z'
-      }
+        updatedAt: '2026-05-26T14:00:00.000Z',
+      },
     ];
 
     await syncPaymentsProcessor(makeJob(), prisma);
@@ -424,8 +424,8 @@ describe('syncPaymentsProcessor → notifyManagers fan-out', () => {
     const mgrRows = await prisma.notification.findMany({
       where: {
         type: 'order_marked_paid_by_1c',
-        userId: { in: [perOrderManagerId, orgManagerId] }
-      }
+        userId: { in: [perOrderManagerId, orgManagerId] },
+      },
     });
     expect(mgrRows).toHaveLength(0);
   });

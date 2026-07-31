@@ -94,7 +94,11 @@ describe('MarkPaidForm', () => {
 
   it('busy state disables both buttons while pending', async () => {
     let resolvePromise: (v: unknown) => void = () => {};
-    const fetchMock = vi.fn().mockReturnValue(new Promise((resolve) => { resolvePromise = resolve; }));
+    const fetchMock = vi.fn().mockReturnValue(
+      new Promise((resolve) => {
+        resolvePromise = resolve;
+      })
+    );
     vi.stubGlobal('fetch', fetchMock);
 
     render(React.createElement(MarkPaidForm, { statementId: 's1', status: 'approved' }));
@@ -102,8 +106,12 @@ describe('MarkPaidForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Да, отметить выплаченным' }));
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Отмечаю…' })).toBeTruthy());
-    expect((screen.getByRole('button', { name: 'Отмечаю…' }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole('button', { name: 'Отмена' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Отмечаю…' }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
+    expect((screen.getByRole('button', { name: 'Отмена' }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
 
     resolvePromise({ ok: true });
     await waitFor(() => expect(refresh).toHaveBeenCalled());

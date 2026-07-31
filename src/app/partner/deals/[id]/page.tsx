@@ -16,7 +16,7 @@ import { OrderCustomFields } from '@/components/orders/order-custom-fields';
 import { getValuesForEntity } from '@/lib/services/customFields';
 
 export default async function PartnerDealDetailPage({
-  params
+  params,
 }: {
   params: Promise<{ id: string }>;
 }) {
@@ -25,7 +25,7 @@ export default async function PartnerDealDetailPage({
   const { id } = await params;
   const deal = await getPartnerDealDetail(prisma, {
     dealId: id,
-    partnerId: session.partnerId
+    partnerId: session.partnerId,
   });
 
   if (!deal) notFound();
@@ -39,21 +39,22 @@ export default async function PartnerDealDetailPage({
   }
 
   return (
-    <div className='space-y-4'>
-      <div className='text-sm'>
-        <BackLink href='/partner/deals' label='Все заказы' />
+    <div className="space-y-4">
+      <div className="text-sm">
+        <BackLink href="/partner/deals" label="Все заказы" />
       </div>
 
       <DealHeader deal={deal} />
 
-      <div className='grid gap-4 md:grid-cols-3'>
-        <div className='md:col-span-2 space-y-4'>
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="md:col-span-2 space-y-4">
           <DealAmounts deal={deal} />
 
-          <div className='bg-white border border-gray-200 rounded-xl p-5 space-y-3'>
-            <h2 className='text-sm font-semibold text-[#111111]'>
-              Документы {deal.documents.length > 0 && (
-                <span className='text-gray-400 font-normal'>({deal.documents.length})</span>
+          <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+            <h2 className="text-sm font-semibold text-[#111111]">
+              Документы{' '}
+              {deal.documents.length > 0 && (
+                <span className="text-gray-400 font-normal">({deal.documents.length})</span>
               )}
             </h2>
             <DocumentsList rows={deal.documents} />
@@ -73,7 +74,7 @@ export default async function PartnerDealDetailPage({
           <DealComments comments={deal.comments} orderId={deal.id} />
         </div>
 
-        <div className='space-y-4'>
+        <div className="space-y-4">
           <DealTimeline deal={deal} />
         </div>
       </div>

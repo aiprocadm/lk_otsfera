@@ -8,10 +8,12 @@ import type { PrismaClient } from '@prisma/client';
 
 const { createNotification, deliverNotificationToUser } = vi.hoisted(() => ({
   createNotification: vi.fn(),
-  deliverNotificationToUser: vi.fn()
+  deliverNotificationToUser: vi.fn(),
 }));
 vi.mock('@/lib/notifications', () => ({ createNotification, deliverNotificationToUser }));
-vi.mock('@/lib/db/prisma', () => ({ prisma: { task: { findMany: vi.fn().mockResolvedValue([]) } } }));
+vi.mock('@/lib/db/prisma', () => ({
+  prisma: { task: { findMany: vi.fn().mockResolvedValue([]) } },
+}));
 
 import { runTaskDueSoon, taskDueSoonProcessor } from '@/worker/processors/task-due-soon';
 
@@ -29,7 +31,7 @@ const TASK = {
   title: 'Позвонить',
   dueDate: new Date('2026-07-27T00:00:00'),
   createdById: 'creator',
-  assignees: [{ userId: 'u1' }, { userId: 'u2' }, { userId: 'u1' }]
+  assignees: [{ userId: 'u1' }, { userId: 'u2' }, { userId: 'u1' }],
 };
 
 beforeEach(() => {
@@ -59,7 +61,7 @@ describe('runTaskDueSoon', () => {
     expect(res).toEqual({ notified: 1 });
     expect(updateMany).toHaveBeenCalledWith({
       where: { id: 't1', dueSoonNotifiedAt: null },
-      data: { dueSoonNotifiedAt: NOW }
+      data: { dueSoonNotifiedAt: NOW },
     });
     // u1 дедуплицирован.
     expect(createNotification).toHaveBeenCalledTimes(2);
@@ -68,7 +70,7 @@ describe('runTaskDueSoon', () => {
         userId: 'u1',
         type: 'task_due_soon',
         title: 'Скоро срок задачи',
-        meta: { taskId: 't1', url: '/manager/tasks' }
+        meta: { taskId: 't1', url: '/manager/tasks' },
       })
     );
     expect(deliverNotificationToUser).toHaveBeenCalledWith(

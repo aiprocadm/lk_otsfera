@@ -16,13 +16,13 @@ import { Button, Input } from '@/components/ui';
 
 const ERROR_LABEL: Record<string, string> = {
   forbidden: 'Сотрудник не найден в вашей организации.',
-  validation: 'Должность слишком длинная — не больше 200 символов.'
+  validation: 'Должность слишком длинная — не больше 200 символов.',
 };
 
 export function StudentPositionForm({
   organizationId,
   studentId,
-  initialPosition
+  initialPosition,
 }: {
   organizationId: string;
   studentId: string;
@@ -34,28 +34,28 @@ export function StudentPositionForm({
     action: updateStudentPositionAction,
     errorMap: ERROR_LABEL,
     refresh: true,
-    onSuccess: () => toast.success('Должность сохранена')
+    onSuccess: () => toast.success('Должность сохранена'),
   });
 
   return (
-    <form action={formAction} className='flex flex-col sm:flex-row sm:items-end gap-2'>
-      <input type='hidden' name='organizationId' value={organizationId} />
-      <input type='hidden' name='studentId' value={studentId} />
-      <label className='flex-1'>
-        <span className='block text-xs text-gray-500 mb-1'>Должность</span>
+    <form action={formAction} className="flex flex-col sm:flex-row sm:items-end gap-2">
+      <input type="hidden" name="organizationId" value={organizationId} />
+      <input type="hidden" name="studentId" value={studentId} />
+      <label className="flex-1">
+        <span className="block text-xs text-gray-500 mb-1">Должность</span>
         <Input
-          name='position'
+          name="position"
           value={position}
           onChange={(e) => setPosition(e.target.value)}
-          placeholder='например, инженер по охране труда'
+          placeholder="например, инженер по охране труда"
           maxLength={200}
         />
       </label>
-      <Button type='submit' disabled={pending}>
+      <Button type="submit" disabled={pending}>
         {pending ? 'Сохраняем…' : 'Сохранить'}
       </Button>
       {errorText && (
-        <p role='alert' className='text-sm text-red-600 sm:self-center'>
+        <p role="alert" className="text-sm text-red-600 sm:self-center">
           {errorText}
         </p>
       )}

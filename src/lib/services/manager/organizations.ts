@@ -4,7 +4,7 @@ import {
   managerOrgScope,
   canSeeOrganization,
   getCompanyTeamVisibility,
-  isLeaderSameCompany
+  isLeaderSameCompany,
 } from '@/lib/auth/managerPolicy';
 
 /**
@@ -29,9 +29,9 @@ const LIST_SELECT = {
   _count: {
     select: {
       orders: true,
-      students: true
-    }
-  }
+      students: true,
+    },
+  },
 } satisfies Prisma.OrganizationSelect;
 
 export type ManagerOrgListRow = Prisma.OrganizationGetPayload<{ select: typeof LIST_SELECT }>;
@@ -41,12 +41,11 @@ export async function listOrganizations(
   session: SessionPayload,
   teamModeOverride?: boolean
 ): Promise<ManagerOrgListRow[]> {
-  const teamMode =
-    teamModeOverride ?? (await getCompanyTeamVisibility(prisma, session.companyId));
+  const teamMode = teamModeOverride ?? (await getCompanyTeamVisibility(prisma, session.companyId));
   return prisma.organization.findMany({
     where: managerOrgScope(session, teamMode),
     select: LIST_SELECT,
-    orderBy: { name: 'asc' }
+    orderBy: { name: 'asc' },
   });
 }
 
@@ -55,10 +54,10 @@ const DETAIL_INCLUDE = {
     select: {
       orders: true,
       students: true,
-      users: true
-    }
+      users: true,
+    },
   },
-  partner: { select: { id: true, name: true } }
+  partner: { select: { id: true, name: true } },
 } satisfies Prisma.OrganizationInclude;
 
 export type ManagerOrgDetail = Prisma.OrganizationGetPayload<{ include: typeof DETAIL_INCLUDE }>;
@@ -73,7 +72,7 @@ export async function getOrganization(
   // (no existence-leak) — company-wide needs org.companyId.
   const org = await prisma.organization.findUnique({
     where: { id: orgId },
-    include: DETAIL_INCLUDE
+    include: DETAIL_INCLUDE,
   });
   if (!org) return null;
   if (teamMode) {

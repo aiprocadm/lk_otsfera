@@ -3,8 +3,15 @@ import { renderToString } from 'react-dom/server';
 import React from 'react';
 
 vi.mock('next/link', () => ({
-  default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) =>
-    React.createElement('a', { href, className }, children)
+  default: ({
+    href,
+    children,
+    className,
+  }: {
+    href: string;
+    children: React.ReactNode;
+    className?: string;
+  }) => React.createElement('a', { href, className }, children),
 }));
 
 import { OrgFinancePayments } from '@/components/organization/org-finance-payments';
@@ -24,13 +31,15 @@ function basePayment(overrides: Partial<OrgPaymentRow> = {}): OrgPaymentRow {
     purpose: 'Оплата курса',
     paymentOrderNumber: '555',
     enteredByName: 'Иванов',
-    ...overrides
+    ...overrides,
   };
 }
 
 describe('OrgFinancePayments', () => {
   it('renders the empty state when there are no payments', () => {
-    const html = renderToString(React.createElement(OrgFinancePayments, { payments: [], orgId: 'org1' }));
+    const html = renderToString(
+      React.createElement(OrgFinancePayments, { payments: [], orgId: 'org1' })
+    );
     expect(html).toContain('Платежей пока нет.');
   });
 
@@ -51,7 +60,7 @@ describe('OrgFinancePayments', () => {
     const html = renderToString(
       React.createElement(OrgFinancePayments, {
         payments: [basePayment({ orderId: null, orderNumber: null, isRefund: true })],
-        orgId: 'org1'
+        orgId: 'org1',
       })
     );
     expect(html).toContain('Возврат');
@@ -62,7 +71,7 @@ describe('OrgFinancePayments', () => {
     const html = renderToString(
       React.createElement(OrgFinancePayments, {
         payments: [basePayment({ orderNumber: null })],
-        orgId: 'org1'
+        orgId: 'org1',
       })
     );
     expect(html).toContain('href="/organization/orders/o1?org=org1"');
@@ -76,10 +85,10 @@ describe('OrgFinancePayments', () => {
             vatAmount: null,
             purpose: null,
             paymentOrderNumber: null,
-            enteredByName: null
-          })
+            enteredByName: null,
+          }),
         ],
-        orgId: 'org1'
+        orgId: 'org1',
       })
     );
     expect(html).toContain('—');

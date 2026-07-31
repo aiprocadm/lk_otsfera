@@ -8,19 +8,25 @@ const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
 
 const { findManyOrganizations } = vi.hoisted(() => ({ findManyOrganizations: vi.fn() }));
-vi.mock('@/lib/db/prisma', () => ({ prisma: { organization: { findMany: findManyOrganizations } } }));
+vi.mock('@/lib/db/prisma', () => ({
+  prisma: { organization: { findMany: findManyOrganizations } },
+}));
 
 const { listManagerLeads } = vi.hoisted(() => ({ listManagerLeads: vi.fn() }));
 vi.mock('@/lib/services/manager/leads', () => ({ listManagerLeads }));
 
 vi.mock('@/components/manager/lead-create-staff-form', () => ({
   LeadCreateStaffForm: (props: { organizations: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'lead-create-form' }, JSON.stringify(props.organizations))
+    React.createElement(
+      'div',
+      { 'data-testid': 'lead-create-form' },
+      JSON.stringify(props.organizations)
+    ),
 }));
 
 vi.mock('@/components/manager/manager-leads-filter', () => ({
   ManagerLeadsFilter: (props: { query: unknown }) =>
-    React.createElement('div', { 'data-testid': 'leads-filter' }, JSON.stringify(props.query))
+    React.createElement('div', { 'data-testid': 'leads-filter' }, JSON.stringify(props.query)),
 }));
 
 vi.mock('@/components/manager/manager-leads-table', () => ({
@@ -31,11 +37,15 @@ vi.mock('@/components/manager/manager-leads-table', () => ({
       JSON.stringify(props.rows),
       String(props.nextCursor),
       JSON.stringify(props.query)
-    )
+    ),
 }));
 
-
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'member' as const,
+  companyId: 'c1',
+};
 
 describe('ManagerLeadsPage', () => {
   beforeEach(() => {
@@ -55,7 +65,12 @@ describe('ManagerLeadsPage', () => {
 
     expect(listManagerLeads).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ status: undefined, search: undefined, assignedToUserId: undefined, cursor: undefined })
+      expect.objectContaining({
+        status: undefined,
+        search: undefined,
+        assignedToUserId: undefined,
+        cursor: undefined,
+      })
     );
   });
 
@@ -65,18 +80,20 @@ describe('ManagerLeadsPage', () => {
 
     const { container } = await renderServerComponent(
       ManagerLeadsPage({
-        searchParams: Promise.resolve({ status: 'new', q: 'ООО', assignedToMe: '1', cursor: 'c1' })
+        searchParams: Promise.resolve({ status: 'new', q: 'ООО', assignedToMe: '1', cursor: 'c1' }),
       })
     );
 
-    expect(listManagerLeads).toHaveBeenCalledWith(
-      expect.anything(),
-      { status: 'new', search: 'ООО', assignedToUserId: 'u1', cursor: 'c1' }
-    );
+    expect(listManagerLeads).toHaveBeenCalledWith(expect.anything(), {
+      status: 'new',
+      search: 'ООО',
+      assignedToUserId: 'u1',
+      cursor: 'c1',
+    });
     expect(findManyOrganizations).toHaveBeenCalledWith({
       where: { companyId: 'c1' },
       select: { id: true, name: true },
-      orderBy: { name: 'asc' }
+      orderBy: { name: 'asc' },
     });
     expect(container.textContent).toContain('Лиды');
     expect(container.textContent).toContain('l1');

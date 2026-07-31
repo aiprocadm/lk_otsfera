@@ -28,7 +28,7 @@ export type OrgIntermediaryCommission = {
 const emptyCommission = (): OrgIntermediaryCommission => ({
   effectiveRate: '0',
   totalCommission: '0.00',
-  perOrder: []
+  perOrder: [],
 });
 
 /**
@@ -48,7 +48,11 @@ export async function getOrgIntermediaryCommissionForOrgs(
 
   const orgs = await prisma.organization.findMany({
     where: { id: { in: organizationIds } },
-    select: { id: true, partnerCommissionRate: true, partner: { select: { commissionRate: true } } }
+    select: {
+      id: true,
+      partnerCommissionRate: true,
+      partner: { select: { commissionRate: true } },
+    },
   });
   // Standalone org (no partner) with no org override → no intermediary commission.
   const rateByOrg = new Map<string, Prisma.Decimal>();
@@ -59,8 +63,11 @@ export async function getOrgIntermediaryCommissionForOrgs(
   if (!rateByOrg.size) return result;
 
   const orders = await prisma.order.findMany({
-    where: { organizationId: { in: [...rateByOrg.keys()] }, financialStatus: { in: BILLED_STATUSES } },
-    select: { id: true, orderNumber: true, organizationId: true, totalAmount: true }
+    where: {
+      organizationId: { in: [...rateByOrg.keys()] },
+      financialStatus: { in: BILLED_STATUSES },
+    },
+    select: { id: true, orderNumber: true, organizationId: true, totalAmount: true },
   });
 
   // Live estimate (NOT the partner statement): base = order total, commission =
@@ -80,7 +87,7 @@ export async function getOrgIntermediaryCommissionForOrgs(
       orderId: o.id,
       orderNumber: o.orderNumber,
       baseAmount: baseAmount.toFixed(2),
-      commissionAmount: commissionAmount.toFixed(2)
+      commissionAmount: commissionAmount.toFixed(2),
     });
     perOrderByOrg.set(o.organizationId, rows);
   }
@@ -94,7 +101,7 @@ export async function getOrgIntermediaryCommissionForOrgs(
     result.set(orgId, {
       effectiveRate: effectiveRate.toString(),
       totalCommission: totalCommission.toFixed(2),
-      perOrder
+      perOrder,
     });
   }
   return result;

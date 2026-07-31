@@ -3,7 +3,11 @@ import type { PrismaClient } from '@prisma/client';
 import { getSyncSummary, listSyncErrors } from '@/lib/services/syncSummary';
 
 type CountInput = { where: { entity: string; status: string } };
-type FindFirstInput = { where: { entity: string; status: string }; orderBy?: unknown; select?: unknown };
+type FindFirstInput = {
+  where: { entity: string; status: string };
+  orderBy?: unknown;
+  select?: unknown;
+};
 type FindUniqueInput = { where: { entity: string }; select?: unknown };
 
 function makePrismaMock(opts: {
@@ -33,14 +37,14 @@ function makePrismaMock(opts: {
           return e ?? null;
         }
         return null;
-      })
+      }),
     },
     syncState: {
       findUnique: vi.fn(async (input: FindUniqueInput) => {
         const c = cursorByEntity[input.where.entity];
         return c !== undefined ? { cursor: c } : null;
-      })
-    }
+      }),
+    },
   } as unknown as PrismaClient;
 }
 
@@ -68,8 +72,8 @@ describe('getSyncSummary', () => {
         'order:success': 12,
         'order:warn': 3,
         'order:error': 1,
-        'payment:success': 8
-      }
+        'payment:success': 8,
+      },
     });
     const rows = await getSyncSummary(prisma);
     const order = rows.find((r) => r.entity === 'order')!;
@@ -87,8 +91,8 @@ describe('getSyncSummary', () => {
     const prisma = makePrismaMock({
       lastSuccessByEntity: { organization: lastSuccess },
       lastErrorByEntity: {
-        organization: { createdAt: lastError, errorMessage: 'timeout calling 1C' }
-      }
+        organization: { createdAt: lastError, errorMessage: 'timeout calling 1C' },
+      },
     });
     const rows = await getSyncSummary(prisma);
     const org = rows.find((r) => r.entity === 'organization')!;
@@ -99,7 +103,7 @@ describe('getSyncSummary', () => {
 
   it('exposes cursor and positive lagMs when SyncState has a cursor', async () => {
     const prisma = makePrismaMock({
-      cursorByEntity: { order: '2026-05-01T00:00:00.000Z' }
+      cursorByEntity: { order: '2026-05-01T00:00:00.000Z' },
     });
     const rows = await getSyncSummary(prisma);
     const order = rows.find((r) => r.entity === 'order')!;
@@ -114,7 +118,7 @@ describe('getSyncSummary', () => {
 describe('listSyncErrors', () => {
   function makeErrorsPrisma(rows: unknown[] = []) {
     return {
-      syncLog: { findMany: vi.fn().mockResolvedValue(rows) }
+      syncLog: { findMany: vi.fn().mockResolvedValue(rows) },
     } as unknown as PrismaClient;
   }
 
@@ -127,7 +131,7 @@ describe('listSyncErrors', () => {
       operation: 'upsert',
       errorMessage: 'timeout calling 1C',
       durationMs: 1200,
-      createdAt: new Date('2026-07-16T09:00:00Z')
+      createdAt: new Date('2026-07-16T09:00:00Z'),
     };
     const prisma = makeErrorsPrisma([row]);
     const rows = await listSyncErrors(prisma);
@@ -148,10 +152,10 @@ describe('listSyncErrors', () => {
         operation: true,
         errorMessage: true,
         durationMs: true,
-        createdAt: true
+        createdAt: true,
       },
       orderBy: { createdAt: 'desc' },
-      take: 50
+      take: 50,
     });
     expect(arg.select).not.toHaveProperty('payload');
   });

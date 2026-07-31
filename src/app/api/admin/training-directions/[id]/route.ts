@@ -22,7 +22,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
   const res = await updateDirection(prisma, adminGuard.value, {
     id,
     name: body.name,
-    sortOrder: body.sortOrder
+    sortOrder: body.sortOrder,
   });
   if (!res.ok) return NextResponse.json({ error: res.error }, { status: mapErr(res.error) });
   return NextResponse.json({ direction: res.direction });

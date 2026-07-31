@@ -46,8 +46,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         name: file.name,
         size: file.size,
         mimeType: file.type,
-        buffer: Buffer.from(await file.arrayBuffer())
-      }
+        buffer: Buffer.from(await file.arrayBuffer()),
+      },
     }))
   );
 

@@ -25,7 +25,7 @@ import {
   Th,
   Tr,
   Td,
-  Badge
+  Badge,
 } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
 import { errorMessageRu } from '@/lib/errors/messages';
@@ -35,7 +35,7 @@ const ANCHOR_HINTS: Record<string, string> = {
   paid: 'ставится автоматически, когда поступила оплата',
   documents_issued: 'ставится автоматически, когда переданы документы',
   accounting_signed: 'ставится автоматически, когда бухгалтерия подписала',
-  closed: 'ставится автоматически при закрытии заявки'
+  closed: 'ставится автоматически при закрытии заявки',
 };
 
 export type OrderStatusesAdminProps = {
@@ -72,7 +72,7 @@ export function OrderStatusesAdmin({ rows }: OrderStatusesAdminProps) {
         headers: { 'Content-Type': 'application/json' },
         // Новый статус встаёт в конец: вставку в середину заказчик делает
         // кнопками порядка — так понятнее, чем гадать с числом.
-        body: JSON.stringify({ key, label, sortOrder: maxOrder + 1 })
+        body: JSON.stringify({ key, label, sortOrder: maxOrder + 1 }),
       },
       'Не удалось добавить статус.'
     );
@@ -95,7 +95,7 @@ export function OrderStatusesAdmin({ rows }: OrderStatusesAdminProps) {
       {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ label })
+        body: JSON.stringify({ label }),
       },
       'Не удалось переименовать статус.'
     );
@@ -119,7 +119,7 @@ export function OrderStatusesAdmin({ rows }: OrderStatusesAdminProps) {
       {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sortOrder: neighbour.sortOrder })
+        body: JSON.stringify({ sortOrder: neighbour.sortOrder }),
       },
       'Не удалось изменить порядок.'
     );
@@ -130,7 +130,7 @@ export function OrderStatusesAdmin({ rows }: OrderStatusesAdminProps) {
       {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sortOrder: row.sortOrder })
+        body: JSON.stringify({ sortOrder: row.sortOrder }),
       },
       'Не удалось изменить порядок.'
     );
@@ -146,7 +146,7 @@ export function OrderStatusesAdmin({ rows }: OrderStatusesAdminProps) {
       {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isActive })
+        body: JSON.stringify({ isActive }),
       },
       isActive ? 'Не удалось включить статус.' : 'Не удалось выключить статус.'
     );
@@ -316,7 +316,7 @@ export function OrderStatusesAdmin({ rows }: OrderStatusesAdminProps) {
 function EditStatusDialog({
   target,
   onClose,
-  onSubmit
+  onSubmit,
 }: {
   target: OrderStatusDefinition | null;
   onClose: () => void;
@@ -328,7 +328,13 @@ function EditStatusDialog({
     <Dialog open={!!target} onClose={onClose} title="Переименовать статус" size="md">
       <form onSubmit={onSubmit} className="space-y-4">
         <Field htmlFor="edit-status-label" label="Название">
-          <Input id="edit-status-label" name="label" required defaultValue={target.label} autoFocus />
+          <Input
+            id="edit-status-label"
+            name="label"
+            required
+            defaultValue={target.label}
+            autoFocus
+          />
         </Field>
         <Field htmlFor="edit-status-key" label="Ключ">
           <Input

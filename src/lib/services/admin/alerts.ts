@@ -21,8 +21,7 @@ export type AlertStateRow = {
 };
 
 export type ListAlertStatesResult =
-  | { ok: true; alerts: AlertStateRow[] }
-  | { ok: false; error: 'forbidden' };
+  { ok: true; alerts: AlertStateRow[] } | { ok: false; error: 'forbidden' };
 
 /**
  * Последние состояния алертов для /admin/health. Firing-алерты первыми

@@ -10,7 +10,7 @@ import {
   createDealAction,
   updateDealAction,
   addDealNoteAction,
-  listDealNotesAction
+  listDealNotesAction,
 } from '@/server-actions/deals';
 import { listLinkedTasksAction } from '@/server-actions/tasks';
 import type { DealNoteRow } from '@/lib/services/deals/notes';
@@ -30,7 +30,7 @@ export type DealDialogOption = { id: string; name: string };
 const NOTE_ERRORS: Record<string, string> = {
   not_found: 'Сделка не найдена или недоступна.',
   invalid: 'Заметка не может быть пустой.',
-  forbidden: 'Нет доступа.'
+  forbidden: 'Нет доступа.',
 };
 
 /** Минимум для префилла формы редактирования (id-поля, не имена — см. DealCard). */
@@ -56,7 +56,7 @@ export function DealDialog({
   currentUserId,
   tasksEnabled = false,
   onClose,
-  onSaved
+  onSaved,
 }: {
   target: DealDialogTarget | null;
   organizations: DealDialogOption[];
@@ -143,7 +143,13 @@ export function DealDialog({
   }
 
   return (
-    <Dialog open onClose={onClose} title={target ? 'Сделка' : 'Новая сделка'} size="md" busy={submitting}>
+    <Dialog
+      open
+      onClose={onClose}
+      title={target ? 'Сделка' : 'Новая сделка'}
+      size="md"
+      busy={submitting}
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
         {messages.length > 0 && (
           <ul role="alert" className="text-sm text-red-600 list-disc pl-5 space-y-0.5">
@@ -153,14 +159,32 @@ export function DealDialog({
           </ul>
         )}
         <Field htmlFor="dl-title" label="Название">
-          <Input id="dl-title" name="title" required maxLength={200} defaultValue={target?.title ?? ''} autoFocus />
+          <Input
+            id="dl-title"
+            name="title"
+            required
+            maxLength={200}
+            defaultValue={target?.title ?? ''}
+            autoFocus
+          />
         </Field>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field htmlFor="dl-amount" label="Сумма, ₽">
-            <Input id="dl-amount" name="amount" inputMode="decimal" placeholder="0.00" defaultValue={target?.amount ?? ''} />
+            <Input
+              id="dl-amount"
+              name="amount"
+              inputMode="decimal"
+              placeholder="0.00"
+              defaultValue={target?.amount ?? ''}
+            />
           </Field>
           <Field htmlFor="dl-close" label="Ожидаемое закрытие">
-            <Input id="dl-close" name="expectedCloseAt" type="date" defaultValue={dateValue(target?.expectedCloseAt ?? null)} />
+            <Input
+              id="dl-close"
+              name="expectedCloseAt"
+              type="date"
+              defaultValue={dateValue(target?.expectedCloseAt ?? null)}
+            />
           </Field>
         </div>
         <Field htmlFor="dl-org" label="Организация (необязательно)">
@@ -174,7 +198,11 @@ export function DealDialog({
           </Select>
         </Field>
         <Field htmlFor="dl-manager" label="Ответственный">
-          <Select id="dl-manager" name="managerId" defaultValue={target?.managerId ?? currentUserId}>
+          <Select
+            id="dl-manager"
+            name="managerId"
+            defaultValue={target?.managerId ?? currentUserId}
+          >
             {managers.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.name}
@@ -213,7 +241,10 @@ export function DealDialog({
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-[#111111]">Заметки</h3>
             {target.orderId && (
-              <a href={`/manager/orders/${target.orderId}`} className="text-sm text-[#F97316] underline">
+              <a
+                href={`/manager/orders/${target.orderId}`}
+                className="text-sm text-[#F97316] underline"
+              >
                 Открыть заказ
               </a>
             )}
@@ -263,7 +294,7 @@ export function DealDialog({
 export function NewDealButton({
   organizations,
   managers,
-  currentUserId
+  currentUserId,
 }: {
   organizations: DealDialogOption[];
   managers: DealDialogOption[];

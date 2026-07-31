@@ -18,7 +18,10 @@ vi.mock('@/lib/jobs/queues', () => ({
   getQueue: () => ({ add: addMock }),
 }));
 
-import { mangoRecordingProcessor, type MangoRecordingPayload } from '@/worker/processors/mango-recording';
+import {
+  mangoRecordingProcessor,
+  type MangoRecordingPayload,
+} from '@/worker/processors/mango-recording';
 
 const prisma = new PrismaClient();
 const STAMP = `mrp${Date.now()}`;
@@ -58,15 +61,13 @@ describe('mangoRecordingProcessor', () => {
 
     const result = await mangoRecordingProcessor(
       makeJob({ externalId, recordingId: 'rec-123' }),
-      prisma,
+      prisma
     );
 
     expect(result).toEqual({ stored: true });
-    expect(uploadMock).toHaveBeenCalledWith(
-      `calls/${externalId}/recording.mp3`,
-      buffer,
-      { contentType: 'audio/mpeg' },
-    );
+    expect(uploadMock).toHaveBeenCalledWith(`calls/${externalId}/recording.mp3`, buffer, {
+      contentType: 'audio/mpeg',
+    });
     expect(addMock).toHaveBeenCalledWith('scan', { kind: 'call_recording', id: call.id });
 
     const row = await prisma.call.findUnique({ where: { id: call.id } });
@@ -90,7 +91,10 @@ describe('mangoRecordingProcessor', () => {
     fetchRecording.mockResolvedValue({ buffer: Buffer.from('x'), contentType: 'audio/mpeg' });
     addMock.mockRejectedValue(new Error('redis down'));
 
-    const result = await mangoRecordingProcessor(makeJob({ externalId, recordingId: 'rec-f' }), prisma);
+    const result = await mangoRecordingProcessor(
+      makeJob({ externalId, recordingId: 'rec-f' }),
+      prisma
+    );
 
     expect(result).toEqual({ stored: true });
     expect(warn).toHaveBeenCalledWith(
@@ -101,10 +105,19 @@ describe('mangoRecordingProcessor', () => {
     // Не-Error значение стрингифицируется (вторая нога тернарника).
     const externalId2 = `${STAMP}:enqueue-fail-str`;
     await prisma.call.create({
-      data: { provider: 'mango', externalId: externalId2, direction: 'inbound', callerNumber: '+79990003334', status: 'completed' },
+      data: {
+        provider: 'mango',
+        externalId: externalId2,
+        direction: 'inbound',
+        callerNumber: '+79990003334',
+        status: 'completed',
+      },
     });
     addMock.mockRejectedValue('queue gone');
-    const r2 = await mangoRecordingProcessor(makeJob({ externalId: externalId2, recordingId: 'rec-g' }), prisma);
+    const r2 = await mangoRecordingProcessor(
+      makeJob({ externalId: externalId2, recordingId: 'rec-g' }),
+      prisma
+    );
     expect(r2).toEqual({ stored: true });
     expect(warn).toHaveBeenCalledWith(
       '[mango-recording] enqueue scan failed',
@@ -129,7 +142,7 @@ describe('mangoRecordingProcessor', () => {
 
     const result = await mangoRecordingProcessor(
       makeJob({ externalId, recordingId: 'rec-missing' }),
-      prisma,
+      prisma
     );
 
     expect(result).toEqual({ skipped: 'no_recording' });
@@ -146,7 +159,7 @@ describe('mangoRecordingProcessor', () => {
 
     const result = await mangoRecordingProcessor(
       makeJob({ externalId, recordingId: 'rec-999' }),
-      prisma,
+      prisma
     );
 
     expect(result).toEqual({ skipped: 'no_call' });

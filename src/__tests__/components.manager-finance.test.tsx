@@ -8,8 +8,34 @@ import type { OrgPaymentRow } from '@/lib/services/organization/finance';
 import type { ManagerFinanceOverview } from '@/lib/services/manager/finance';
 
 const rows: OrgPaymentRow[] = [
-  { id: 'p1', amount: '40.00', paidAt: new Date('2026-04-01'), method: 'wire', isRefund: false, note: null, orderId: 'ord-1', orderNumber: 'A-1', vatAmount: '6.00', purpose: 'Аванс', paymentOrderNumber: 'ПП-1', enteredByName: null },
-  { id: 'p2', amount: '10.00', paidAt: new Date('2026-04-02'), method: null, isRefund: false, note: null, orderId: null, orderNumber: null, vatAmount: null, purpose: null, paymentOrderNumber: null, enteredByName: null }
+  {
+    id: 'p1',
+    amount: '40.00',
+    paidAt: new Date('2026-04-01'),
+    method: 'wire',
+    isRefund: false,
+    note: null,
+    orderId: 'ord-1',
+    orderNumber: 'A-1',
+    vatAmount: '6.00',
+    purpose: 'Аванс',
+    paymentOrderNumber: 'ПП-1',
+    enteredByName: null,
+  },
+  {
+    id: 'p2',
+    amount: '10.00',
+    paidAt: new Date('2026-04-02'),
+    method: null,
+    isRefund: false,
+    note: null,
+    orderId: null,
+    orderNumber: null,
+    vatAmount: null,
+    purpose: null,
+    paymentOrderNumber: null,
+    enteredByName: null,
+  },
 ];
 
 describe('ManagerFinancePayments', () => {
@@ -30,13 +56,13 @@ describe('ManagerFinancePayments', () => {
   });
 
   it('respects basePath for the order link (admin → /admin/orders)', () => {
-    const html = renderToString(<ManagerFinancePayments payments={rows} basePath='/admin' />);
+    const html = renderToString(<ManagerFinancePayments payments={rows} basePath="/admin" />);
     expect(html).toContain('/admin/orders/ord-1');
     expect(html).not.toContain('/manager/orders/ord-1');
   });
 
   it('respects basePath for the order link (leader → /leader/orders)', () => {
-    const html = renderToString(<ManagerFinancePayments payments={rows} basePath='/leader' />);
+    const html = renderToString(<ManagerFinancePayments payments={rows} basePath="/leader" />);
     expect(html).toContain('/leader/orders/ord-1');
   });
 
@@ -63,12 +89,12 @@ describe('ManagerFinancePayments', () => {
 
 describe('OrgFinancePayments', () => {
   it('links order rows to /organization/orders carrying the active ?org=', () => {
-    const html = renderToString(<OrgFinancePayments payments={rows} orgId='org-9' />);
+    const html = renderToString(<OrgFinancePayments payments={rows} orgId="org-9" />);
     expect(html).toContain('/organization/orders/ord-1?org=org-9');
   });
 
   it('renders empty state when no payments', () => {
-    const html = renderToString(<OrgFinancePayments payments={[]} orgId='org-9' />);
+    const html = renderToString(<OrgFinancePayments payments={[]} orgId="org-9" />);
     expect(html).toContain('Платежей пока нет');
   });
 });
@@ -78,14 +104,14 @@ const baseSection = {
   orgName: 'ООО Ромашка',
   kpis: { billed: '100.00', paid: '40.00', outstanding: '60.00' },
   payments: rows,
-  commission: null as ManagerFinanceOverview['sections'][number]['commission']
+  commission: null as ManagerFinanceOverview['sections'][number]['commission'],
 };
 
 describe('ManagerFinanceView', () => {
   const overview: ManagerFinanceOverview = {
     summary: { billed: '100.00', paid: '40.00', outstanding: '60.00' },
     sections: [baseSection],
-    canSeeCommission: false
+    canSeeCommission: false,
   };
 
   it('renders org name and summary', () => {
@@ -103,7 +129,12 @@ describe('ManagerFinanceView', () => {
     const withCommission: ManagerFinanceOverview = {
       ...overview,
       canSeeCommission: true,
-      sections: [{ ...baseSection, commission: { effectiveRate: '0.1', totalCommission: '10.00', perOrder: [] } }]
+      sections: [
+        {
+          ...baseSection,
+          commission: { effectiveRate: '0.1', totalCommission: '10.00', perOrder: [] },
+        },
+      ],
     };
     const html = renderToString(<ManagerFinanceView data={withCommission} />);
     expect(html).toContain('Комиссия посредника');
@@ -114,16 +145,24 @@ describe('ManagerFinanceView', () => {
       React.createElement(ManagerFinanceView, {
         data: {
           summary: { billed: '100', paid: '0', outstanding: '100' },
-          sections: [{ orgId: 'o1', orgName: 'Орг', kpis: { billed: '100', paid: '0', outstanding: '100' }, payments: [], commission: null }],
-          canSeeCommission: false
-        }
+          sections: [
+            {
+              orgId: 'o1',
+              orgName: 'Орг',
+              kpis: { billed: '100', paid: '0', outstanding: '100' },
+              payments: [],
+              commission: null,
+            },
+          ],
+          canSeeCommission: false,
+        },
       })
     );
     expect(html).not.toContain('Комиссия');
   });
 
   it('threads ordersBasePath down to the payment rows', () => {
-    const html = renderToString(<ManagerFinanceView data={overview} ordersBasePath='/admin' />);
+    const html = renderToString(<ManagerFinanceView data={overview} ordersBasePath="/admin" />);
     expect(html).toContain('/admin/orders/ord-1');
     expect(html).not.toContain('/manager/orders/ord-1');
   });
@@ -132,7 +171,7 @@ describe('ManagerFinanceView', () => {
     const empty: ManagerFinanceOverview = {
       summary: { billed: '0.00', paid: '0.00', outstanding: '0.00' },
       sections: [],
-      canSeeCommission: false
+      canSeeCommission: false,
     };
     const html = renderToString(<ManagerFinanceView data={empty} />);
     expect(html).toContain('Нет организаций');

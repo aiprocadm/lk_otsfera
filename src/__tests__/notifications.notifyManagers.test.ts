@@ -49,7 +49,7 @@ const allManagerIds = (): string[] => [
   deactivatedAssignmentManagerId,
   historicalCommenterId,
   inactiveUserManagerId,
-  unrelatedManagerId
+  unrelatedManagerId,
 ];
 
 beforeAll(async () => {
@@ -58,42 +58,42 @@ beforeAll(async () => {
   const company = await prisma.company.create({ data: { name: uniq('co') } });
   companyId = company.id;
   const partner = await prisma.partner.create({
-    data: { name: uniq('p'), commissionRate: 0.1 }
+    data: { name: uniq('p'), commissionRate: 0.1 },
   });
   partnerId = partner.id;
 
   const orgA = await prisma.organization.create({
-    data: { name: uniq('orgA'), partnerId, companyId }
+    data: { name: uniq('orgA'), partnerId, companyId },
   });
   orgAId = orgA.id;
   const orgB = await prisma.organization.create({
-    data: { name: uniq('orgB'), partnerId, companyId }
+    data: { name: uniq('orgB'), partnerId, companyId },
   });
   orgBId = orgB.id;
 
   // Manager users
   const perOrderM = await prisma.user.create({
-    data: { email: `${uniq('m-per-order')}@t.local`, name: 'M-Per-Order', role: 'manager' }
+    data: { email: `${uniq('m-per-order')}@t.local`, name: 'M-Per-Order', role: 'manager' },
   });
   perOrderManagerId = perOrderM.id;
 
   const orgM1 = await prisma.user.create({
-    data: { email: `${uniq('m-org-1')}@t.local`, name: 'M-Org-1', role: 'manager' }
+    data: { email: `${uniq('m-org-1')}@t.local`, name: 'M-Org-1', role: 'manager' },
   });
   orgManager1Id = orgM1.id;
 
   const orgM2 = await prisma.user.create({
-    data: { email: `${uniq('m-org-2')}@t.local`, name: 'M-Org-2', role: 'manager' }
+    data: { email: `${uniq('m-org-2')}@t.local`, name: 'M-Org-2', role: 'manager' },
   });
   orgManager2Id = orgM2.id;
 
   const deactM = await prisma.user.create({
-    data: { email: `${uniq('m-org-deact')}@t.local`, name: 'M-Org-Deact', role: 'manager' }
+    data: { email: `${uniq('m-org-deact')}@t.local`, name: 'M-Org-Deact', role: 'manager' },
   });
   deactivatedAssignmentManagerId = deactM.id;
 
   const histM = await prisma.user.create({
-    data: { email: `${uniq('m-hist')}@t.local`, name: 'M-Historical', role: 'manager' }
+    data: { email: `${uniq('m-hist')}@t.local`, name: 'M-Historical', role: 'manager' },
   });
   historicalCommenterId = histM.id;
 
@@ -102,32 +102,32 @@ beforeAll(async () => {
       email: `${uniq('m-inactive-user')}@t.local`,
       name: 'M-Inactive-User',
       role: 'manager',
-      isActive: false
-    }
+      isActive: false,
+    },
   });
   inactiveUserManagerId = inactiveM.id;
 
   const unrelatedM = await prisma.user.create({
-    data: { email: `${uniq('m-unrelated')}@t.local`, name: 'M-Unrelated', role: 'manager' }
+    data: { email: `${uniq('m-unrelated')}@t.local`, name: 'M-Unrelated', role: 'manager' },
   });
   unrelatedManagerId = unrelatedM.id;
 
   // Per-org assignments to orgA: 2 active + 1 deactivated + 1 inactive-User
   await prisma.organizationManager.create({
-    data: { organizationId: orgAId, userId: orgManager1Id, isActive: true }
+    data: { organizationId: orgAId, userId: orgManager1Id, isActive: true },
   });
   await prisma.organizationManager.create({
-    data: { organizationId: orgAId, userId: orgManager2Id, isActive: true }
+    data: { organizationId: orgAId, userId: orgManager2Id, isActive: true },
   });
   await prisma.organizationManager.create({
     data: {
       organizationId: orgAId,
       userId: deactivatedAssignmentManagerId,
-      isActive: false
-    }
+      isActive: false,
+    },
   });
   await prisma.organizationManager.create({
-    data: { organizationId: orgAId, userId: inactiveUserManagerId, isActive: true }
+    data: { organizationId: orgAId, userId: inactiveUserManagerId, isActive: true },
   });
 
   // ----- Orders ------------------------------------------------------------
@@ -139,8 +139,8 @@ beforeAll(async () => {
       partnerId,
       organizationId: orgBId,
       managerId: perOrderManagerId,
-      executionStatus: 'in_progress'
-    }
+      executionStatus: 'in_progress',
+    },
   });
   orderPerOrderId = o1.id;
 
@@ -152,8 +152,8 @@ beforeAll(async () => {
       companyId,
       partnerId,
       organizationId: orgAId,
-      executionStatus: 'in_progress'
-    }
+      executionStatus: 'in_progress',
+    },
   });
   orderPerOrgId = o2.id;
 
@@ -166,12 +166,12 @@ beforeAll(async () => {
       companyId,
       partnerId,
       organizationId: orgBId,
-      executionStatus: 'in_progress'
-    }
+      executionStatus: 'in_progress',
+    },
   });
   orderHistoricalId = o3.id;
   await prisma.comment.create({
-    data: { orderId: orderHistoricalId, authorId: historicalCommenterId, body: 'hist note' }
+    data: { orderId: orderHistoricalId, authorId: historicalCommenterId, body: 'hist note' },
   });
 
   // Dedupe test: order on orgA, managerId == orgManager1Id (he's also in
@@ -183,8 +183,8 @@ beforeAll(async () => {
       partnerId,
       organizationId: orgAId,
       managerId: orgManager1Id,
-      executionStatus: 'in_progress'
-    }
+      executionStatus: 'in_progress',
+    },
   });
   orderDedupeId = o4.id;
 
@@ -195,8 +195,8 @@ beforeAll(async () => {
       companyId,
       partnerId,
       organizationId: orgAId,
-      executionStatus: 'in_progress'
-    }
+      executionStatus: 'in_progress',
+    },
   });
   orderExcludeId = o5.id;
 
@@ -208,8 +208,8 @@ beforeAll(async () => {
       partnerId,
       organizationId: orgBId,
       managerId: perOrderManagerId,
-      executionStatus: 'in_progress'
-    }
+      executionStatus: 'in_progress',
+    },
   });
   orderRESEndOffId = o6.id;
 
@@ -222,8 +222,8 @@ beforeAll(async () => {
       partnerId,
       organizationId: orgBId,
       managerId: inactiveUserManagerId,
-      executionStatus: 'in_progress'
-    }
+      executionStatus: 'in_progress',
+    },
   });
   orderInactiveUserId = o7.id;
 });
@@ -236,7 +236,7 @@ afterAll(async () => {
     orderDedupeId,
     orderExcludeId,
     orderRESEndOffId,
-    orderInactiveUserId
+    orderInactiveUserId,
   ].filter(Boolean);
   const userIds = [
     perOrderManagerId,
@@ -245,14 +245,14 @@ afterAll(async () => {
     deactivatedAssignmentManagerId,
     historicalCommenterId,
     inactiveUserManagerId,
-    unrelatedManagerId
+    unrelatedManagerId,
   ].filter(Boolean);
   const orgIds = [orgAId, orgBId].filter(Boolean);
 
   await prisma.notification.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.comment.deleteMany({ where: { orderId: { in: orderIds } } });
   await prisma.organizationManager.deleteMany({
-    where: { organizationId: { in: orgIds } }
+    where: { organizationId: { in: orgIds } },
   });
   await prisma.order.deleteMany({ where: { id: { in: orderIds } } });
   await prisma.user.deleteMany({ where: { id: { in: userIds } } });
@@ -274,10 +274,10 @@ beforeEach(async () => {
           deactivatedAssignmentManagerId,
           historicalCommenterId,
           inactiveUserManagerId,
-          unrelatedManagerId
-        ]
-      }
-    }
+          unrelatedManagerId,
+        ],
+      },
+    },
   });
   delete process.env.EMAIL_ENABLED;
 });
@@ -287,7 +287,7 @@ describe('notifyManagers', () => {
     const summary = await notifyManagers(prisma, {
       orderId: orderPerOrderId,
       type: 'comment_from_org',
-      payload: { orgName: 'OrgX', commentExcerpt: 'hello' }
+      payload: { orgName: 'OrgX', commentExcerpt: 'hello' },
     });
 
     expect(summary.recipientsNotified).toBe(1);
@@ -295,7 +295,7 @@ describe('notifyManagers', () => {
     expect(summary.emailsSkipped).toBe(1);
 
     const rows = await prisma.notification.findMany({
-      where: { userId: perOrderManagerId }
+      where: { userId: perOrderManagerId },
     });
     expect(rows).toHaveLength(1);
     expect(rows[0].type).toBe('comment_from_org');
@@ -309,14 +309,14 @@ describe('notifyManagers', () => {
     const summary = await notifyManagers(prisma, {
       orderId: orderPerOrgId,
       type: 'order_marked_paid_by_1c',
-      payload: { amount: 100000, paidAt: new Date('2026-05-26T00:00:00Z') }
+      payload: { amount: 100000, paidAt: new Date('2026-05-26T00:00:00Z') },
     });
 
     // 2 active org managers; deactivated assignment + inactive-user excluded.
     expect(summary.recipientsNotified).toBe(2);
 
     const rows = await prisma.notification.findMany({
-      where: { type: 'order_marked_paid_by_1c', userId: { in: allManagerIds() } }
+      where: { type: 'order_marked_paid_by_1c', userId: { in: allManagerIds() } },
     });
     const userIds = rows.map((r) => r.userId).sort();
     expect(userIds).toEqual([orgManager1Id, orgManager2Id].sort());
@@ -334,12 +334,12 @@ describe('notifyManagers', () => {
     const summary = await notifyManagers(prisma, {
       orderId: orderHistoricalId,
       type: 'comment_from_org',
-      payload: { orgName: 'OrgX', commentExcerpt: 'second comment' }
+      payload: { orgName: 'OrgX', commentExcerpt: 'second comment' },
     });
     expect(summary.recipientsNotified).toBe(1);
 
     const rows = await prisma.notification.findMany({
-      where: { userId: historicalCommenterId, type: 'comment_from_org' }
+      where: { userId: historicalCommenterId, type: 'comment_from_org' },
     });
     expect(rows).toHaveLength(1);
   });
@@ -351,8 +351,8 @@ describe('notifyManagers', () => {
       payload: {
         actorName: 'Actor',
         oldStatus: 'pending',
-        newStatus: 'in_progress'
-      }
+        newStatus: 'in_progress',
+      },
     });
 
     // orderDedupe org is orgA → expected recipients: orgManager1 (per-order
@@ -361,7 +361,7 @@ describe('notifyManagers', () => {
     expect(summary.recipientsNotified).toBe(2);
 
     const rows = await prisma.notification.findMany({
-      where: { type: 'order_status_changed_by_manager', userId: { in: allManagerIds() } }
+      where: { type: 'order_status_changed_by_manager', userId: { in: allManagerIds() } },
     });
     const counts = rows.reduce<Record<string, number>>((acc, r) => {
       acc[r.userId] = (acc[r.userId] ?? 0) + 1;
@@ -378,7 +378,7 @@ describe('notifyManagers', () => {
       {
         orderId: orderExcludeId,
         type: 'order_status_changed_by_manager',
-        payload: { actorName: 'Actor', oldStatus: 'pending', newStatus: 'in_progress' }
+        payload: { actorName: 'Actor', oldStatus: 'pending', newStatus: 'in_progress' },
       },
       { excludeUserId: orgManager1Id }
     );
@@ -386,7 +386,7 @@ describe('notifyManagers', () => {
     expect(summary.recipientsNotified).toBe(1);
 
     const rows = await prisma.notification.findMany({
-      where: { type: 'order_status_changed_by_manager', userId: { in: allManagerIds() } }
+      where: { type: 'order_status_changed_by_manager', userId: { in: allManagerIds() } },
     });
     const userIds = rows.map((r) => r.userId);
     expect(userIds).toEqual([orgManager2Id]);
@@ -398,7 +398,7 @@ describe('notifyManagers', () => {
     const summary = await notifyManagers(prisma, {
       orderId: orderRESEndOffId,
       type: 'comment_from_org',
-      payload: { orgName: 'OrgX', commentExcerpt: 'skip-email' }
+      payload: { orgName: 'OrgX', commentExcerpt: 'skip-email' },
     });
 
     expect(summary.recipientsNotified).toBe(1);
@@ -406,7 +406,7 @@ describe('notifyManagers', () => {
     expect(summary.emailsSkipped).toBe(1);
 
     const rows = await prisma.notification.findMany({
-      where: { userId: perOrderManagerId, type: 'comment_from_org' }
+      where: { userId: perOrderManagerId, type: 'comment_from_org' },
     });
     expect(rows).toHaveLength(1);
   });
@@ -420,7 +420,7 @@ describe('notifyManagers', () => {
     const summary = await notifyManagers(prisma, {
       orderId: orderInactiveUserId,
       type: 'comment_from_org',
-      payload: { orgName: 'OrgX', commentExcerpt: 'nobody home' }
+      payload: { orgName: 'OrgX', commentExcerpt: 'nobody home' },
     });
     expect(summary.recipientsNotified).toBe(0);
   });
@@ -429,7 +429,7 @@ describe('notifyManagers', () => {
     const summary = await notifyManagers(prisma, {
       orderId: 'does-not-exist',
       type: 'comment_from_org',
-      payload: { orgName: 'OrgX', commentExcerpt: 'noop' }
+      payload: { orgName: 'OrgX', commentExcerpt: 'noop' },
     });
     expect(summary).toEqual({ recipientsNotified: 0, emailsSent: 0, emailsSkipped: 0 });
   });

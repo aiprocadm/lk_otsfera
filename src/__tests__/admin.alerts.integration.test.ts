@@ -147,7 +147,14 @@ describe('admin alerts + sync errors (integration)', () => {
     for (const row of ours) {
       expect(row).not.toHaveProperty('payload'); // сырые ПДн из 1С не покидают сервис
       expect(Object.keys(row).sort()).toEqual([
-        'createdAt', 'direction', 'durationMs', 'entity', 'errorMessage', 'externalId', 'id', 'operation',
+        'createdAt',
+        'direction',
+        'durationMs',
+        'entity',
+        'errorMessage',
+        'externalId',
+        'id',
+        'operation',
       ]);
     }
 

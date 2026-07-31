@@ -2,7 +2,7 @@ import { it, expect, vi, beforeEach } from 'vitest';
 
 const { getOrder, recordPiiAccessMany } = vi.hoisted(() => ({
   getOrder: vi.fn(),
-  recordPiiAccessMany: vi.fn()
+  recordPiiAccessMany: vi.fn(),
 }));
 vi.mock('@/lib/services/manager/orders', () => ({ getOrder }));
 vi.mock('@/lib/pii/record', () => ({ recordPiiAccessMany, recordPiiAccess: vi.fn() }));
@@ -19,7 +19,7 @@ function fakePrisma(over: Record<string, unknown> = {}) {
     inboundMessage: { findMany: vi.fn().mockResolvedValue([]) },
     call: { findMany: vi.fn().mockResolvedValue([]) },
     dealNote: { findMany: vi.fn().mockResolvedValue([]) },
-    auditLog: { findMany: vi.fn().mockResolvedValue([]) }
+    auditLog: { findMany: vi.fn().mockResolvedValue([]) },
   };
   return { ...base, ...over } as never;
 }
@@ -35,15 +35,34 @@ it('returns not_found when order is not visible', async () => {
 it('merges sources ascending by unified `at`, using inbound.sentAt over createdAt', async () => {
   getOrder.mockResolvedValue({ id: 'o1' });
   const prisma = fakePrisma({
-    inboundMessage: { findMany: vi.fn().mockResolvedValue([
-      { id: 'in1', channel: 'whatsapp', senderDisplay: 'Пётр', senderRef: 'wa:1', body: 'привет',
-        sentAt: new Date('2026-07-13T10:00:00Z'), createdAt: new Date('2026-07-13T10:05:00Z'),
-        attachmentName: null }
-    ]) },
-    dealNote: { findMany: vi.fn().mockResolvedValue([
-      { id: 'n1', body: 'скидка 5%', createdAt: new Date('2026-07-13T09:00:00Z'),
-        author: { name: 'Иванов' } }
-    ]) }
+    inboundMessage: {
+      findMany: vi
+        .fn()
+        .mockResolvedValue([
+          {
+            id: 'in1',
+            channel: 'whatsapp',
+            senderDisplay: 'Пётр',
+            senderRef: 'wa:1',
+            body: 'привет',
+            sentAt: new Date('2026-07-13T10:00:00Z'),
+            createdAt: new Date('2026-07-13T10:05:00Z'),
+            attachmentName: null,
+          },
+        ]),
+    },
+    dealNote: {
+      findMany: vi
+        .fn()
+        .mockResolvedValue([
+          {
+            id: 'n1',
+            body: 'скидка 5%',
+            createdAt: new Date('2026-07-13T09:00:00Z'),
+            author: { name: 'Иванов' },
+          },
+        ]),
+    },
   });
   const res = await getDealActivity(prisma, session, 'o1', { view: 'all' });
   expect(res.ok).toBe(true);
@@ -55,17 +74,29 @@ it('merges sources ascending by unified `at`, using inbound.sentAt over createdA
 it("view:'dialogue' excludes note/call/event", async () => {
   getOrder.mockResolvedValue({ id: 'o1' });
   const prisma = fakePrisma({
-    dealNote: { findMany: vi.fn().mockResolvedValue([
-      { id: 'n1', body: 'x', createdAt: new Date(), author: { name: 'И' } }
-    ]) },
-    call: { findMany: vi.fn().mockResolvedValue([
-      { id: 'ca1', direction: 'inbound', callerNumber: '+70000000000', durationSec: 10,
-        startedAt: new Date(), createdAt: new Date(), recordingScanStatus: 'clean',
-        recordingPath: 'x', initiatedBy: null }
-    ]) },
-    auditLog: { findMany: vi.fn().mockResolvedValue([
-      { id: 'e1', createdAt: new Date() }
-    ]) }
+    dealNote: {
+      findMany: vi
+        .fn()
+        .mockResolvedValue([{ id: 'n1', body: 'x', createdAt: new Date(), author: { name: 'И' } }]),
+    },
+    call: {
+      findMany: vi
+        .fn()
+        .mockResolvedValue([
+          {
+            id: 'ca1',
+            direction: 'inbound',
+            callerNumber: '+70000000000',
+            durationSec: 10,
+            startedAt: new Date(),
+            createdAt: new Date(),
+            recordingScanStatus: 'clean',
+            recordingPath: 'x',
+            initiatedBy: null,
+          },
+        ]),
+    },
+    auditLog: { findMany: vi.fn().mockResolvedValue([{ id: 'e1', createdAt: new Date() }]) },
   });
   // Sanity: view:'all' surfaces note+call+event, so their absence below is real exclusion.
   const all = await getDealActivity(prisma, session, 'o1', { view: 'all' });
@@ -77,21 +108,47 @@ it("view:'dialogue' excludes note/call/event", async () => {
 it('records PII access for inbound + calls (two contexts)', async () => {
   getOrder.mockResolvedValue({ id: 'o1' });
   const prisma = fakePrisma({
-    inboundMessage: { findMany: vi.fn().mockResolvedValue([
-      { id: 'in1', channel: 'email', senderDisplay: null, senderRef: 'a@b.c', body: 'hi', sentAt: null,
-        createdAt: new Date(), attachmentName: null }
-    ]) },
-    call: { findMany: vi.fn().mockResolvedValue([
-      { id: 'ca1', direction: 'inbound', callerNumber: '+70000000000', durationSec: 10,
-        startedAt: new Date(), createdAt: new Date(), recordingScanStatus: 'clean',
-        recordingPath: 'x', initiatedBy: null }
-    ]) }
+    inboundMessage: {
+      findMany: vi
+        .fn()
+        .mockResolvedValue([
+          {
+            id: 'in1',
+            channel: 'email',
+            senderDisplay: null,
+            senderRef: 'a@b.c',
+            body: 'hi',
+            sentAt: null,
+            createdAt: new Date(),
+            attachmentName: null,
+          },
+        ]),
+    },
+    call: {
+      findMany: vi
+        .fn()
+        .mockResolvedValue([
+          {
+            id: 'ca1',
+            direction: 'inbound',
+            callerNumber: '+70000000000',
+            durationSec: 10,
+            startedAt: new Date(),
+            createdAt: new Date(),
+            recordingScanStatus: 'clean',
+            recordingPath: 'x',
+            initiatedBy: null,
+          },
+        ]),
+    },
   });
   await getDealActivity(prisma, session, 'o1', { view: 'all' });
   expect(recordPiiAccessMany).toHaveBeenCalledOnce();
   const argsList = recordPiiAccessMany.mock.calls[0][1];
-  expect(argsList.map((a: { context: string }) => a.context).sort())
-    .toEqual(['deal_activity_calls', 'deal_activity_inbound']);
+  expect(argsList.map((a: { context: string }) => a.context).sort()).toEqual([
+    'deal_activity_calls',
+    'deal_activity_inbound',
+  ]);
 });
 
 it('handles an order with no threads (skips thread-scoped queries)', async () => {
@@ -101,10 +158,21 @@ it('handles an order with no threads (skips thread-scoped queries)', async () =>
   const call = { findMany: vi.fn() };
   const prisma = fakePrisma({
     orderThread: { findMany: vi.fn().mockResolvedValue([]) },
-    message, inboundMessage, call,
-    comment: { findMany: vi.fn().mockResolvedValue([
-      { id: 'cm1', body: 'привет', createdAt: new Date('2026-07-13T08:00:00Z'), author: { name: 'Клиент' } }
-    ]) }
+    message,
+    inboundMessage,
+    call,
+    comment: {
+      findMany: vi
+        .fn()
+        .mockResolvedValue([
+          {
+            id: 'cm1',
+            body: 'привет',
+            createdAt: new Date('2026-07-13T08:00:00Z'),
+            author: { name: 'Клиент' },
+          },
+        ]),
+    },
   });
   const res = await getDealActivity(prisma, session, 'o1', { view: 'all' });
   expect(res.ok).toBe(true);
@@ -119,15 +187,29 @@ it('handles an order with no threads (skips thread-scoped queries)', async () =>
 it('maps outgoing messages with hasAttachment flag and status-change events', async () => {
   getOrder.mockResolvedValue({ id: 'o1' });
   const prisma = fakePrisma({
-    message: { findMany: vi.fn().mockResolvedValue([
-      { id: 'm1', body: 'без файла', createdAt: new Date('2026-07-13T06:00:00Z'),
-        attachmentPath: null, author: { name: 'Менеджер' } },
-      { id: 'm2', body: 'с файлом', createdAt: new Date('2026-07-13T06:30:00Z'),
-        attachmentPath: 'orders/o1/doc.pdf', author: { name: 'Менеджер' } }
-    ]) },
-    auditLog: { findMany: vi.fn().mockResolvedValue([
-      { id: 'e1', createdAt: new Date('2026-07-13T07:00:00Z') }
-    ]) }
+    message: {
+      findMany: vi.fn().mockResolvedValue([
+        {
+          id: 'm1',
+          body: 'без файла',
+          createdAt: new Date('2026-07-13T06:00:00Z'),
+          attachmentPath: null,
+          author: { name: 'Менеджер' },
+        },
+        {
+          id: 'm2',
+          body: 'с файлом',
+          createdAt: new Date('2026-07-13T06:30:00Z'),
+          attachmentPath: 'orders/o1/doc.pdf',
+          author: { name: 'Менеджер' },
+        },
+      ]),
+    },
+    auditLog: {
+      findMany: vi
+        .fn()
+        .mockResolvedValue([{ id: 'e1', createdAt: new Date('2026-07-13T07:00:00Z') }]),
+    },
   });
   const res = await getDealActivity(prisma, session, 'o1', { view: 'all' });
   expect(res.ok).toBe(true);
@@ -143,11 +225,23 @@ it('maps outgoing messages with hasAttachment flag and status-change events', as
 it('maps a call with no startedAt, unscanned recording, and a known initiator', async () => {
   getOrder.mockResolvedValue({ id: 'o1' });
   const prisma = fakePrisma({
-    call: { findMany: vi.fn().mockResolvedValue([
-      { id: 'ca2', direction: 'outbound', callerNumber: '+79990000000', durationSec: null,
-        startedAt: null, createdAt: new Date('2026-07-13T07:00:00Z'), recordingScanStatus: 'pending',
-        recordingPath: null, initiatedBy: { name: 'Менеджер' } }
-    ]) }
+    call: {
+      findMany: vi
+        .fn()
+        .mockResolvedValue([
+          {
+            id: 'ca2',
+            direction: 'outbound',
+            callerNumber: '+79990000000',
+            durationSec: null,
+            startedAt: null,
+            createdAt: new Date('2026-07-13T07:00:00Z'),
+            recordingScanStatus: 'pending',
+            recordingPath: null,
+            initiatedBy: { name: 'Менеджер' },
+          },
+        ]),
+    },
   });
   const res = await getDealActivity(prisma, session, 'o1', { view: 'all' });
   expect(res.ok).toBe(true);
@@ -156,6 +250,6 @@ it('maps a call with no startedAt, unscanned recording, and a known initiator', 
   expect(call).toMatchObject({
     at: new Date('2026-07-13T07:00:00Z'), // startedAt null → falls back to createdAt
     recordingReady: false, // scanStatus !== 'clean' short-circuits
-    initiator: 'Менеджер' // initiatedBy present → name, not null fallback
+    initiator: 'Менеджер', // initiatedBy present → name, not null fallback
   });
 });

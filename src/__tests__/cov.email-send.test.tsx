@@ -21,10 +21,10 @@ vi.mock('@/lib/config/integrationSettings', () => ({
     const map: Record<string, string | undefined> = {
       'email.from': process.env.EMAIL_FROM,
       'email.enabled': process.env.EMAIL_ENABLED,
-      'email.resendApiKey': process.env.RESEND_API_KEY
+      'email.resendApiKey': process.env.RESEND_API_KEY,
     };
     return map[key]?.trim() || null;
-  }
+  },
 }));
 import {
   send,
@@ -83,20 +83,14 @@ describe('send() outcomes', () => {
   it('no-recipient: empty "to" short-circuits before any transport', async () => {
     process.env.EMAIL_ENABLED = 'true';
     const transport = makeTransport();
-    const result = await send(
-      { to: '', subject: 'x', html: '<p>x</p>' },
-      { transport },
-    );
+    const result = await send({ to: '', subject: 'x', html: '<p>x</p>' }, { transport });
     expect(result).toEqual({ status: 'skipped', reason: 'no-recipient' });
     expect(transport.calls).toHaveLength(0);
   });
 
   it('disabled: EMAIL_ENABLED unset → isEmailEnabled false', async () => {
     const transport = makeTransport();
-    const result = await send(
-      { to: 'a@b.com', subject: 'x', html: '<p>x</p>' },
-      { transport },
-    );
+    const result = await send({ to: 'a@b.com', subject: 'x', html: '<p>x</p>' }, { transport });
     expect(result).toEqual({ status: 'skipped', reason: 'disabled' });
     expect(transport.calls).toHaveLength(0);
   });
@@ -108,7 +102,7 @@ describe('send() outcomes', () => {
     const result = await send({ to: 'a@b.com', subject: 'x', html: '<p>x</p>' });
     expect(result).toEqual({ status: 'skipped', reason: 'no-api-key' });
     expect(warn).toHaveBeenCalledWith(
-      '[email] отправка включена, но не задан ключ Resend — письмо пропущено',
+      '[email] отправка включена, но не задан ключ Resend — письмо пропущено'
     );
   });
 
@@ -117,7 +111,7 @@ describe('send() outcomes', () => {
     const transport = makeTransport();
     const result = await send(
       { to: 'a@b.com', subject: 'Hi', html: '<p>x</p>', text: 'x' },
-      { transport },
+      { transport }
     );
     expect(result).toEqual({ status: 'sent', id: 'msg_test' });
     expect(transport.calls[0]).toMatchObject({
@@ -148,7 +142,7 @@ describe('sendXxxEmail wrappers', () => {
         body: 'Текст',
         url: 'https://lk.otsfera.ru/x',
       },
-      { transport },
+      { transport }
     );
     expect(result).toEqual({ status: 'sent', id: 'msg_test' });
     expect(transport.calls[0].html).toMatch(/^<!DOCTYPE html>/);
@@ -164,7 +158,7 @@ describe('sendXxxEmail wrappers', () => {
         amount: '125 000 ₽',
         url: 'https://lk.otsfera.ru/finance',
       },
-      { transport },
+      { transport }
     );
     expect(result).toEqual({ status: 'sent', id: 'msg_test' });
     expect(transport.calls[0].subject).toBe('Отчёт по комиссии за 2026-04 готов');
@@ -180,7 +174,7 @@ describe('sendXxxEmail wrappers', () => {
         orderNumber: 'ORD-1',
         url: 'https://lk.otsfera.ru/deals',
       },
-      { transport },
+      { transport }
     );
     expect(result).toEqual({ status: 'sent', id: 'msg_test' });
     expect(transport.calls[0].subject).toBe('Заявка стала заказом ORD-1');
@@ -196,7 +190,7 @@ describe('sendXxxEmail wrappers', () => {
         filename: 'spec.pdf',
         url: 'https://lk.otsfera.ru/deals/7',
       },
-      { transport },
+      { transport }
     );
     expect(result).toEqual({ status: 'sent', id: 'msg_test' });
     expect(transport.calls[0].subject).toBe('Новый документ по заказу ORD-7');
@@ -210,7 +204,7 @@ describe('sendXxxEmail wrappers', () => {
         organizationName: 'ООО Ромашка',
         inviteUrl: 'https://lk.otsfera.ru/invite/1',
       },
-      { transport },
+      { transport }
     );
     expect(result).toEqual({ status: 'sent', id: 'msg_test' });
     expect(transport.calls[0].subject).toBe('Приглашение в кабинет «ООО Ромашка»');
@@ -228,7 +222,7 @@ describe('sendXxxEmail wrappers', () => {
         documentType: 'act',
         orderUrl: 'https://lk.otsfera.ru/org/orders/9',
       },
-      { transport },
+      { transport }
     );
     expect(result).toEqual({ status: 'sent', id: 'msg_test' });
     expect(transport.calls[0].subject).toBe('Новый документ по заказу № ORD-9');
@@ -246,7 +240,7 @@ describe('sendXxxEmail wrappers', () => {
         paidAt: new Date('2026-04-01T00:00:00Z'),
         orderUrl: 'https://lk.otsfera.ru/org/orders/9',
       },
-      { transport },
+      { transport }
     );
     expect(result).toEqual({ status: 'sent', id: 'msg_test' });
     expect(transport.calls[0].subject).toContain('Оплата');
@@ -265,7 +259,7 @@ describe('sendXxxEmail wrappers', () => {
         newStatus: 'in_progress',
         orderUrl: 'https://lk.otsfera.ru/org/orders/9',
       },
-      { transport },
+      { transport }
     );
     expect(result).toEqual({ status: 'sent', id: 'msg_test' });
     expect(transport.calls[0].subject).toContain('ORD-9');
@@ -282,7 +276,7 @@ describe('sendXxxEmail wrappers', () => {
         commentExcerpt: 'Готово',
         orderUrl: 'https://lk.otsfera.ru/org/orders/9',
       },
-      { transport },
+      { transport }
     );
     expect(result).toEqual({ status: 'sent', id: 'msg_test' });
     expect(transport.calls[0].subject).toBe('Менеджер ответил по заказу № ORD-9');
@@ -298,7 +292,7 @@ describe('sendXxxEmail wrappers', () => {
         commentExcerpt: 'Вопрос',
         orderUrl: 'https://lk.otsfera.ru/manager/orders/9',
       },
-      { transport },
+      { transport }
     );
     expect(result).toEqual({ status: 'sent', id: 'msg_test' });
     expect(transport.calls[0].subject).toContain('ORD-9');
@@ -315,7 +309,7 @@ describe('sendXxxEmail wrappers', () => {
         documentType: 'act',
         orderUrl: 'https://lk.otsfera.ru/manager/orders/9',
       },
-      { transport },
+      { transport }
     );
     expect(result).toEqual({ status: 'sent', id: 'msg_test' });
     expect(transport.calls[0].subject).toContain('act.pdf');
@@ -331,7 +325,7 @@ describe('sendXxxEmail wrappers', () => {
         paidAt: new Date('2026-04-01T00:00:00Z'),
         orderUrl: 'https://lk.otsfera.ru/manager/orders/9',
       },
-      { transport },
+      { transport }
     );
     expect(result).toEqual({ status: 'sent', id: 'msg_test' });
     expect(transport.calls[0].subject).toContain('ORD-9');
@@ -348,7 +342,7 @@ describe('sendXxxEmail wrappers', () => {
         newStatus: 'Завершён',
         orderUrl: 'https://lk.otsfera.ru/manager/orders/9',
       },
-      { transport },
+      { transport }
     );
     expect(result).toEqual({ status: 'sent', id: 'msg_test' });
     expect(transport.calls[0].subject).toContain('ORD-9');
@@ -362,12 +356,10 @@ describe('sendXxxEmail wrappers', () => {
         organizationName: 'ООО Ромашка',
         inviteUrl: 'https://lk.otsfera.ru/invite/2',
       },
-      { transport },
+      { transport }
     );
     expect(result).toEqual({ status: 'sent', id: 'msg_test' });
-    expect(transport.calls[0].subject).toBe(
-      'Приглашение в кабинет менеджера «ООО Ромашка»',
-    );
+    expect(transport.calls[0].subject).toBe('Приглашение в кабинет менеджера «ООО Ромашка»');
   });
 
   it('sendAdminUserInviteEmail', async () => {
@@ -379,7 +371,7 @@ describe('sendXxxEmail wrappers', () => {
         name: 'Админ',
         role: 'manager',
       },
-      { transport },
+      { transport }
     );
     expect(result).toEqual({ status: 'sent', id: 'msg_test' });
     expect(transport.calls[0].subject).toBe('Приглашение в кабинет Промтехносферы');
@@ -397,7 +389,7 @@ describe('sendXxxEmail wrappers', () => {
         documentType: 'act',
         orderUrl: 'https://lk.otsfera.ru/partner/orders/9',
       },
-      { transport },
+      { transport }
     );
     expect(result).toEqual({ status: 'sent', id: 'msg_test' });
     expect(transport.calls[0].subject).toContain('act.pdf');
@@ -414,7 +406,7 @@ describe('sendXxxEmail wrappers', () => {
         documentType: 'act',
         orderUrl: 'https://lk.otsfera.ru/manager/orders/9',
       },
-      { transport },
+      { transport }
     );
     expect(result).toEqual({ status: 'sent', id: 'msg_test' });
     expect(transport.calls[0].subject).toContain('act.pdf');

@@ -25,9 +25,9 @@ vi.mock('@/components/admin/custom-fields-admin', () => ({
         definitions: props.definitions,
         entity: props.entity,
         systemKeys: props.systemFields.map((f) => f.key),
-        basePath: props.basePath
+        basePath: props.basePath,
       })
-    )
+    ),
 }));
 
 import AdminCustomFieldsPage from '@/app/admin/custom-fields/page';

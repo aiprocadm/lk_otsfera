@@ -22,17 +22,17 @@ function buildNextHref(query: Record<string, string | undefined>, cursor: string
 
 export function ManagerLeadsTable({ rows, nextCursor, query }: Props) {
   if (rows.length === 0) {
-    return <EmptyState icon='📬' message='По выбранным фильтрам заявок нет' />;
+    return <EmptyState icon="📬" message="По выбранным фильтрам заявок нет" />;
   }
 
   return (
-    <div className='space-y-3'>
+    <div className="space-y-3">
       <TableShell>
         <THead>
           <Th>Клиент</Th>
           <Th>Тема</Th>
           <Th>Партнёр</Th>
-          <Th className='text-right'>Оценка</Th>
+          <Th className="text-right">Оценка</Th>
           <Th>Статус</Th>
           <Th>Менеджер</Th>
         </THead>
@@ -40,26 +40,33 @@ export function ManagerLeadsTable({ rows, nextCursor, query }: Props) {
           {rows.map((l) => (
             <Tr key={l.id}>
               <Td>
-                <Link href={`/manager/leads/${l.id}`} className='font-medium text-[#111111] hover:text-[#F97316]'>
+                <Link
+                  href={`/manager/leads/${l.id}`}
+                  className="font-medium text-[#111111] hover:text-[#F97316]"
+                >
                   {l.clientCompanyName}
                 </Link>
-                {l.clientInn && <div className='text-xs text-gray-500'>ИНН {l.clientInn}</div>}
+                {l.clientInn && <div className="text-xs text-gray-500">ИНН {l.clientInn}</div>}
               </Td>
-              <Td className='text-gray-600'>{l.subject}</Td>
-              <Td className='text-gray-600'>{l.partnerName}</Td>
-              <Td className='text-right text-gray-700'>{l.estimatedAmount ? fmtMoney(l.estimatedAmount) : '—'}</Td>
-              <Td><LeadStatusBadge status={l.status} /></Td>
-              <Td className='text-gray-600'>{l.assignedManagerName ?? '—'}</Td>
+              <Td className="text-gray-600">{l.subject}</Td>
+              <Td className="text-gray-600">{l.partnerName}</Td>
+              <Td className="text-right text-gray-700">
+                {l.estimatedAmount ? fmtMoney(l.estimatedAmount) : '—'}
+              </Td>
+              <Td>
+                <LeadStatusBadge status={l.status} />
+              </Td>
+              <Td className="text-gray-600">{l.assignedManagerName ?? '—'}</Td>
             </Tr>
           ))}
         </tbody>
       </TableShell>
 
       {nextCursor && (
-        <div className='flex justify-center'>
+        <div className="flex justify-center">
           <Link
             href={buildNextHref(query, nextCursor)}
-            className='px-4 py-2 text-sm border border-gray-200 rounded-lg text-gray-700 hover:border-[#F97316] hover:text-[#F97316]'
+            className="px-4 py-2 text-sm border border-gray-200 rounded-lg text-gray-700 hover:border-[#F97316] hover:text-[#F97316]"
           >
             Дальше →
           </Link>

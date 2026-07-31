@@ -33,28 +33,48 @@ function orgSession(organizationId: string): SessionPayload {
   } as unknown as SessionPayload;
 }
 function partnerSession(partnerId: string): SessionPayload {
-  return { sub: `u-${partnerId}`, role: 'partner', partnerId, assignedOrgIds: [] } as unknown as SessionPayload;
+  return {
+    sub: `u-${partnerId}`,
+    role: 'partner',
+    partnerId,
+    assignedOrgIds: [],
+  } as unknown as SessionPayload;
 }
 
 beforeAll(async () => {
   prisma = new PrismaClient();
 
-  const pA = await prisma.partner.create({ data: { name: `idorPA-${STAMP}`, commissionRate: new Prisma.Decimal('0.1') } });
+  const pA = await prisma.partner.create({
+    data: { name: `idorPA-${STAMP}`, commissionRate: new Prisma.Decimal('0.1') },
+  });
   partnerA = pA.id;
   const cA = await prisma.company.create({ data: { name: `idorCA-${STAMP}` } });
   companyA = cA.id;
-  const oA = await prisma.organization.create({ data: { name: `idorOA-${STAMP}`, partnerId: partnerA, companyId: companyA } });
+  const oA = await prisma.organization.create({
+    data: { name: `idorOA-${STAMP}`, partnerId: partnerA, companyId: companyA },
+  });
   orgA = oA.id;
 
-  const pB = await prisma.partner.create({ data: { name: `idorPB-${STAMP}`, commissionRate: new Prisma.Decimal('0.2') } });
+  const pB = await prisma.partner.create({
+    data: { name: `idorPB-${STAMP}`, commissionRate: new Prisma.Decimal('0.2') },
+  });
   partnerB = pB.id;
   const cB = await prisma.company.create({ data: { name: `idorCB-${STAMP}` } });
   companyB = cB.id;
-  const oB = await prisma.organization.create({ data: { name: `idorOB-${STAMP}`, partnerId: partnerB, companyId: companyB } });
+  const oB = await prisma.organization.create({
+    data: { name: `idorOB-${STAMP}`, partnerId: partnerB, companyId: companyB },
+  });
   orgB = oB.id;
 
   const ordA = await prisma.order.create({
-    data: { title: 'A-order', companyId: companyA, organizationId: orgA, partnerId: partnerA, totalAmount: 100000, financialStatus: 'paid' },
+    data: {
+      title: 'A-order',
+      companyId: companyA,
+      organizationId: orgA,
+      partnerId: partnerA,
+      totalAmount: 100000,
+      financialStatus: 'paid',
+    },
   });
   orderA = ordA.id;
   const payA = await prisma.payment.create({
@@ -65,8 +85,15 @@ beforeAll(async () => {
   // Org-channel document for tenant A (the org legitimately sees this).
   const dA = await prisma.document.create({
     data: {
-      name: 'A-contract.pdf', path: 's3://x/a', mimeType: 'application/pdf', type: 'contract', direction: 'incoming',
-      orderId: orderA, counterpartyType: 'organization', counterpartyId: orgA, scanStatus: 'clean',
+      name: 'A-contract.pdf',
+      path: 's3://x/a',
+      mimeType: 'application/pdf',
+      type: 'contract',
+      direction: 'incoming',
+      orderId: orderA,
+      counterpartyType: 'organization',
+      counterpartyId: orgA,
+      scanStatus: 'clean',
     },
   });
   docA = dA.id;
@@ -75,16 +102,28 @@ beforeAll(async () => {
   // invisible to the organization (C1 behavioral proof).
   const cd = await prisma.document.create({
     data: {
-      name: 'A-commission.pdf', path: 's3://x/comm', mimeType: 'application/pdf', type: 'commission_statement', direction: 'outgoing',
-      orderId: orderA, counterpartyType: 'partner', counterpartyId: partnerA, scanStatus: 'clean',
+      name: 'A-commission.pdf',
+      path: 's3://x/comm',
+      mimeType: 'application/pdf',
+      type: 'commission_statement',
+      direction: 'outgoing',
+      orderId: orderA,
+      counterpartyType: 'partner',
+      counterpartyId: partnerA,
+      scanStatus: 'clean',
     },
   });
   commDocA = cd.id;
 
   const st = await prisma.commissionStatement.create({
     data: {
-      partnerId: partnerA, periodFrom: new Date('2026-04-01'), periodTo: new Date('2026-04-30'),
-      totalBaseAmount: 100000, averageRate: 0.1, totalCommissionAmount: 10000, status: 'draft',
+      partnerId: partnerA,
+      periodFrom: new Date('2026-04-01'),
+      periodTo: new Date('2026-04-30'),
+      totalBaseAmount: 100000,
+      averageRate: 0.1,
+      totalCommissionAmount: 10000,
+      status: 'draft',
     },
   });
   stmtA = st.id;
@@ -93,7 +132,9 @@ beforeAll(async () => {
 afterAll(async () => {
   const partnerIds = [partnerA, partnerB];
   const orgIds = [orgA, orgB];
-  await prisma.commissionStatementItem.deleteMany({ where: { statement: { partnerId: { in: partnerIds } } } });
+  await prisma.commissionStatementItem.deleteMany({
+    where: { statement: { partnerId: { in: partnerIds } } },
+  });
   await prisma.commissionStatement.deleteMany({ where: { partnerId: { in: partnerIds } } });
   await prisma.document.deleteMany({ where: { id: { in: [docA, commDocA] } } });
   await prisma.payment.deleteMany({ where: { organizationId: { in: orgIds } } });
@@ -106,15 +147,24 @@ afterAll(async () => {
 
 describe('C3 — Order IDOR', () => {
   it('org B cannot reach tenant A order via the org scope filter', async () => {
-    const hit = await prisma.order.findFirst({ where: { id: orderA, ...organizationOrderScopeFilter(orgSession(orgB)) }, select: { id: true } });
+    const hit = await prisma.order.findFirst({
+      where: { id: orderA, ...organizationOrderScopeFilter(orgSession(orgB)) },
+      select: { id: true },
+    });
     expect(hit).toBeNull();
   });
   it('org A CAN reach its own order (positive control)', async () => {
-    const hit = await prisma.order.findFirst({ where: { id: orderA, ...organizationOrderScopeFilter(orgSession(orgA)) }, select: { id: true } });
+    const hit = await prisma.order.findFirst({
+      where: { id: orderA, ...organizationOrderScopeFilter(orgSession(orgA)) },
+      select: { id: true },
+    });
     expect(hit?.id).toBe(orderA);
   });
   it('partner B cannot reach tenant A order via the partner scope filter', async () => {
-    const hit = await prisma.order.findFirst({ where: { id: orderA, ...partnerOrgScopeFilter(partnerSession(partnerB)) }, select: { id: true } });
+    const hit = await prisma.order.findFirst({
+      where: { id: orderA, ...partnerOrgScopeFilter(partnerSession(partnerB)) },
+      select: { id: true },
+    });
     expect(hit).toBeNull();
   });
 });
@@ -165,10 +215,17 @@ describe('C3 — CommissionStatement IDOR', () => {
   // the {id, partnerId} filter in approveStatement, so a cross-partner approve must
   // be rejected (not_found), not silently succeed.
   it('partner B cannot approve tenant A statement by id → not_found (no mutation)', async () => {
-    const r = await approveStatement(prisma, { statementId: stmtA, partnerId: partnerB, approvedByUserId: `u-${partnerB}` });
+    const r = await approveStatement(prisma, {
+      statementId: stmtA,
+      partnerId: partnerB,
+      approvedByUserId: `u-${partnerB}`,
+    });
     expect(r).toEqual({ ok: false, error: 'not_found' });
     // The statement stayed a draft — the cross-partner call did not mutate it.
-    const after = await prisma.commissionStatement.findUnique({ where: { id: stmtA }, select: { status: true } });
+    const after = await prisma.commissionStatement.findUnique({
+      where: { id: stmtA },
+      select: { status: true },
+    });
     expect(after?.status).toBe('draft');
   });
 });

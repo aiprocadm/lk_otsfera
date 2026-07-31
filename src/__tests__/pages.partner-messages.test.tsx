@@ -8,7 +8,7 @@ vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
-  })
+  }),
 }));
 vi.mock('next/navigation', () => nav);
 
@@ -25,7 +25,7 @@ vi.mock('@/lib/services/chat/threads', () => ({ listThreads }));
 // own dedicated coverage elsewhere; stub it here to keep this page test focused
 // and free of unrelated act() warnings.
 vi.mock('@/components/chat/unread-badge', () => ({
-  UnreadBadge: () => null
+  UnreadBadge: () => null,
 }));
 
 import PartnerMessagesPage from '@/app/partner/messages/page';
@@ -62,9 +62,9 @@ describe('PartnerMessagesPage', () => {
           orderNumber: '123',
           orderTitle: 'Заказ 1',
           lastMessageAt: new Date(),
-          unread: true
-        }
-      ]
+          unread: true,
+        },
+      ],
     });
 
     const { container } = await renderServerComponent(PartnerMessagesPage());

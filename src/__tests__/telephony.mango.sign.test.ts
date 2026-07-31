@@ -35,7 +35,9 @@ describe('verifyMangoSign', () => {
   });
 
   it('false for an undefined sign', () => {
-    expect(verifyMangoSign({ apiKey, salt, json, sign: undefined as unknown as string })).toBe(false);
+    expect(verifyMangoSign({ apiKey, salt, json, sign: undefined as unknown as string })).toBe(
+      false
+    );
   });
 
   it('false for a length-mismatched (short) sign — must not throw', () => {

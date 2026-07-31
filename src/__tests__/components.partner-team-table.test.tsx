@@ -4,7 +4,7 @@ import React from 'react';
 
 vi.mock('@/components/partner/member-row-actions', () => ({
   MemberRowActions: ({ userId }: { userId: string }) =>
-    React.createElement('button', { 'data-testid': `actions-${userId}` }, 'actions')
+    React.createElement('button', { 'data-testid': `actions-${userId}` }, 'actions'),
 }));
 
 // InviteResendButtons — 'use client' с server-action импортом; для SSR-string
@@ -19,7 +19,7 @@ const orgs = [
   { id: 'org2', name: 'ООО Вторая' },
   { id: 'org3', name: 'ООО Третья' },
   { id: 'org4', name: 'ООО Четвёртая' },
-  { id: 'org5', name: 'ООО Пятая' }
+  { id: 'org5', name: 'ООО Пятая' },
 ];
 
 function makeRow(overrides: Partial<TeamRow> = {}): TeamRow {
@@ -34,13 +34,15 @@ function makeRow(overrides: Partial<TeamRow> = {}): TeamRow {
     invitePending: false,
     createdAt: new Date('2026-01-01'),
     lastLoginAt: null,
-    ...overrides
+    ...overrides,
   };
 }
 
 describe('TeamTable', () => {
   it('renders the empty state when there are no rows', () => {
-    const html = renderToString(React.createElement(TeamTable, { rows: [], orgs, currentUserId: 'me' }));
+    const html = renderToString(
+      React.createElement(TeamTable, { rows: [], orgs, currentUserId: 'me' })
+    );
     expect(html).toContain('В команде пока никого нет');
   });
 
@@ -57,14 +59,22 @@ describe('TeamTable', () => {
 
   it('renders the admin role badge', () => {
     const html = renderToString(
-      React.createElement(TeamTable, { rows: [makeRow({ roleInPartner: 'admin' })], orgs, currentUserId: 'me' })
+      React.createElement(TeamTable, {
+        rows: [makeRow({ roleInPartner: 'admin' })],
+        orgs,
+        currentUserId: 'me',
+      })
     );
     expect(html).toContain('Админ');
   });
 
   it('marks the current user with "(вы)" and hides actions for self', () => {
     const html = renderToString(
-      React.createElement(TeamTable, { rows: [makeRow({ userId: 'me' })], orgs, currentUserId: 'me' })
+      React.createElement(TeamTable, {
+        rows: [makeRow({ userId: 'me' })],
+        orgs,
+        currentUserId: 'me',
+      })
     );
     expect(html).toContain('(вы)');
     expect(html).not.toContain('data-testid="actions-me"');
@@ -72,7 +82,11 @@ describe('TeamTable', () => {
 
   it('dims an inactive row, shows "деактивирован", em-dash role and no actions', () => {
     const html = renderToString(
-      React.createElement(TeamTable, { rows: [makeRow({ isActive: false })], orgs, currentUserId: 'me' })
+      React.createElement(TeamTable, {
+        rows: [makeRow({ isActive: false })],
+        orgs,
+        currentUserId: 'me',
+      })
     );
     expect(html).toContain('bg-gray-50/50 text-gray-400');
     expect(html).toContain('деактивирован');
@@ -84,7 +98,7 @@ describe('TeamTable', () => {
       React.createElement(TeamTable, {
         rows: [makeRow({ assignedOrgIds: ['org1', 'org2'] })],
         orgs,
-        currentUserId: 'me'
+        currentUserId: 'me',
       })
     );
     expect(html).toContain('ООО Ромашка, ООО Вторая');
@@ -95,7 +109,7 @@ describe('TeamTable', () => {
       React.createElement(TeamTable, {
         rows: [makeRow({ assignedOrgIds: ['unknown'] })],
         orgs,
-        currentUserId: 'me'
+        currentUserId: 'me',
       })
     );
     expect(html).toContain('—');
@@ -106,7 +120,7 @@ describe('TeamTable', () => {
       React.createElement(TeamTable, {
         rows: [makeRow({ assignedOrgIds: ['org1', 'org2', 'org3'] })],
         orgs,
-        currentUserId: 'me'
+        currentUserId: 'me',
       })
     );
     expect(html).toContain('организации');
@@ -117,7 +131,7 @@ describe('TeamTable', () => {
       React.createElement(TeamTable, {
         rows: [makeRow({ assignedOrgIds: ['org1', 'org2', 'org3', 'org4', 'org5'] })],
         orgs,
-        currentUserId: 'me'
+        currentUserId: 'me',
       })
     );
     expect(html).toContain('организаций');
@@ -125,7 +139,11 @@ describe('TeamTable', () => {
 
   it('invitePending=true у активного чужого сотрудника: бейдж «Ожидает установки пароля» и кнопки переотправки', () => {
     const html = renderToString(
-      React.createElement(TeamTable, { rows: [makeRow({ invitePending: true })], orgs, currentUserId: 'me' })
+      React.createElement(TeamTable, {
+        rows: [makeRow({ invitePending: true })],
+        orgs,
+        currentUserId: 'me',
+      })
     );
     expect(html).toContain('Ожидает установки пароля');
     expect(html).toContain('Отправить повторно');
@@ -134,7 +152,11 @@ describe('TeamTable', () => {
 
   it('invitePending=true у self: бейдж есть, кнопок переотправки нет', () => {
     const html = renderToString(
-      React.createElement(TeamTable, { rows: [makeRow({ userId: 'me', invitePending: true })], orgs, currentUserId: 'me' })
+      React.createElement(TeamTable, {
+        rows: [makeRow({ userId: 'me', invitePending: true })],
+        orgs,
+        currentUserId: 'me',
+      })
     );
     expect(html).toContain('Ожидает установки пароля');
     expect(html).not.toContain('Отправить повторно');
@@ -143,7 +165,11 @@ describe('TeamTable', () => {
 
   it('деактивированная строка с invitePending=true: ни бейджа, ни кнопок', () => {
     const html = renderToString(
-      React.createElement(TeamTable, { rows: [makeRow({ invitePending: true, isActive: false })], orgs, currentUserId: 'me' })
+      React.createElement(TeamTable, {
+        rows: [makeRow({ invitePending: true, isActive: false })],
+        orgs,
+        currentUserId: 'me',
+      })
     );
     expect(html).not.toContain('Ожидает установки пароля');
     expect(html).not.toContain('Отправить повторно');
@@ -165,7 +191,7 @@ describe('TeamTable', () => {
       React.createElement(TeamTable, {
         rows: [makeRow({ lastLoginAt: new Date('2025-11-05T10:00:00Z') })],
         orgs,
-        currentUserId: 'me'
+        currentUserId: 'me',
       })
     );
     expect(html).toContain('Последний вход');
@@ -174,7 +200,11 @@ describe('TeamTable', () => {
 
   it('сотрудник ни разу не входил (lastLoginAt=null): в колонке прочерк', () => {
     const html = renderToString(
-      React.createElement(TeamTable, { rows: [makeRow({ lastLoginAt: null })], orgs, currentUserId: 'me' })
+      React.createElement(TeamTable, {
+        rows: [makeRow({ lastLoginAt: null })],
+        orgs,
+        currentUserId: 'me',
+      })
     );
     expect(html).toContain('Последний вход');
     expect(html).toContain('>—<');
@@ -185,7 +215,7 @@ describe('TeamTable', () => {
       React.createElement(TeamTable, {
         rows: [makeRow({ userId: 'u1' }), makeRow({ userId: 'u2', name: 'Второй' })],
         orgs,
-        currentUserId: 'me'
+        currentUserId: 'me',
       })
     );
     expect(html).toContain('Иван Петров');

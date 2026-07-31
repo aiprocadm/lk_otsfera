@@ -15,13 +15,13 @@ export async function GET() {
 
   const scope = {
     partnerId: partner.value.partnerId,
-    scopeOrgIds: session.assignedOrgIds ?? []
+    scopeOrgIds: session.assignedOrgIds ?? [],
   };
 
   const [k, a, events] = await Promise.all([
     kpis(prisma, scope),
     attention(prisma, scope),
-    recentEvents(prisma, scope, EVENT_LIMIT)
+    recentEvents(prisma, scope, EVENT_LIMIT),
   ]);
 
   return NextResponse.json({ kpis: k, attention: a, events });

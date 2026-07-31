@@ -6,9 +6,12 @@ import { createCertificate, issueFromOrderItem } from '@/lib/services/training/c
 
 function mapError(error: string): number {
   switch (error) {
-    case 'forbidden': return 403;
-    case 'not_found': return 404;
-    default: return 400; // validation
+    case 'forbidden':
+      return 403;
+    case 'not_found':
+      return 404;
+    default:
+      return 400; // validation
   }
 }
 
@@ -17,7 +20,7 @@ export async function POST(req: Request) {
   if (disabled) return disabled;
 
   const session = await requireManager();
-  const body = await req.json() as {
+  const body = (await req.json()) as {
     orderItemId?: string;
     studentId?: string;
     directionId?: string;

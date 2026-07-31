@@ -20,7 +20,7 @@ export function ActionToastButton({
   errorLabels,
   variant,
   size,
-  disabled
+  disabled,
 }: {
   label: string;
   successText: string;

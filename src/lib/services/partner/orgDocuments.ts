@@ -32,7 +32,7 @@ export async function getOrgDocuments(
 ): Promise<OrgDocumentsResult> {
   const org = await prisma.organization.findUnique({
     where: { id: filter.orgId },
-    select: { companyId: true, partnerId: true }
+    select: { companyId: true, partnerId: true },
   });
 
   if (!org || org.partnerId !== filter.partnerId || !org.companyId) {
@@ -42,7 +42,7 @@ export async function getOrgDocuments(
   const docWhere = {
     ...partnerChannelWhere(filter.partnerId),
     order: { organizationId: filter.orgId },
-    ...(filter.type ? { type: filter.type } : {})
+    ...(filter.type ? { type: filter.type } : {}),
   };
 
   const [docs, countsRaw] = await Promise.all([
@@ -59,17 +59,17 @@ export async function getOrgDocuments(
         createdAt: true,
         size: true,
         orderId: true,
-        order: { select: { orderNumber: true, title: true } }
-      }
+        order: { select: { orderNumber: true, title: true } },
+      },
     }),
     prisma.document.groupBy({
       by: ['type'],
       where: {
         ...partnerChannelWhere(filter.partnerId),
-        order: { organizationId: filter.orgId }
+        order: { organizationId: filter.orgId },
       },
-      _count: { _all: true }
-    })
+      _count: { _all: true },
+    }),
   ]);
 
   const countsByType: Partial<Record<DocumentType, number>> = {};
@@ -89,7 +89,7 @@ export async function getOrgDocuments(
     size: d.size,
     orderId: d.orderId,
     orderNumber: d.order?.orderNumber ?? null,
-    orderTitle: d.order?.title ?? null
+    orderTitle: d.order?.title ?? null,
   }));
 
   return { rows, countsByType, total };

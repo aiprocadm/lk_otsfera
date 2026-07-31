@@ -28,8 +28,8 @@ export async function runCalendarReminders(
       remindAt: true,
       location: true,
       createdById: true,
-      attendees: { select: { userId: true } }
-    }
+      attendees: { select: { userId: true } },
+    },
   });
 
   let remindersSent = 0;
@@ -39,7 +39,7 @@ export async function runCalendarReminders(
     // Атомарный claim: только один воркер «сжигает» напоминание.
     const claimed = await prisma.calendarEvent.updateMany({
       where: { id: event.id, reminderSentAt: null },
-      data: { reminderSentAt: now }
+      data: { reminderSentAt: now },
     });
     if (claimed.count === 0) continue;
 
@@ -58,7 +58,7 @@ export async function runCalendarReminders(
       month: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
-      timeZone: 'Europe/Moscow'
+      timeZone: 'Europe/Moscow',
     });
     const title = 'Напоминание о событии';
     const body = `«${event.title}» — ${when}${event.location ? `, ${event.location}` : ''}`;
@@ -70,7 +70,7 @@ export async function runCalendarReminders(
           type: 'calendar_event_reminder',
           title,
           body,
-          meta: { calendarEventId: event.id }
+          meta: { calendarEventId: event.id },
         });
         await deliverNotificationToUser({
           userId,
@@ -78,10 +78,14 @@ export async function runCalendarReminders(
           body,
           type: 'calendar_event_reminder',
           url: '/manager/calendar',
-          dedupKey: row.id
+          dedupKey: row.id,
         });
       } catch (e) {
-        log.error('[calendar-reminder] delivery failed', { err: e, calendarEventId: event.id, userId });
+        log.error('[calendar-reminder] delivery failed', {
+          err: e,
+          calendarEventId: event.id,
+          userId,
+        });
       }
     }
 
@@ -92,7 +96,10 @@ export async function runCalendarReminders(
 }
 
 /** BullMQ wrapper, вызывается воркером по расписанию. */
-export async function calendarReminderProcessor(): Promise<{ remindersSent: number; stale: number }> {
+export async function calendarReminderProcessor(): Promise<{
+  remindersSent: number;
+  stale: number;
+}> {
   const { prisma } = await import('@/lib/db/prisma');
   return runCalendarReminders(prisma, new Date());
 }

@@ -11,8 +11,7 @@ import { getSettingValue } from '@/lib/config/integrationSettings';
  * остаётся на сервере — наружу отдаётся только нормализованный результат.
  */
 
-const DADATA_URL =
-  'https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/party';
+const DADATA_URL = 'https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/party';
 const DADATA_TIMEOUT_MS = 3000;
 const MAX_SUGGESTIONS = 10;
 
@@ -56,8 +55,7 @@ export function normalizeParty(body: unknown): PartySuggestion[] {
       inn,
       kpp: typeof rec.data?.kpp === 'string' ? rec.data.kpp : null,
       ogrn: typeof rec.data?.ogrn === 'string' ? rec.data.ogrn : null,
-      address:
-        typeof rec.data?.address?.value === 'string' ? rec.data.address.value : null
+      address: typeof rec.data?.address?.value === 'string' ? rec.data.address.value : null,
     });
   }
   return out;
@@ -84,19 +82,19 @@ export async function suggestParty(
       headers: {
         'content-type': 'application/json',
         accept: 'application/json',
-        authorization: `Token ${apiKey}`
+        authorization: `Token ${apiKey}`,
       },
       body: JSON.stringify({ query: q, count: MAX_SUGGESTIONS }),
-      signal: controller.signal
+      signal: controller.signal,
     });
     if (!res.ok) return [];
     return normalizeParty(await res.json());
   } catch (err) {
     log.warn('[dadata] suggest party failed — degrading to empty', {
-      error: err instanceof Error ? err.message : String(err)
+      error: err instanceof Error ? err.message : String(err),
     });
     return [];
-  /* v8 ignore next 2 -- V8 marks the finally as a branch; the exceptional-completion edge is unreachable (bare catch catches all, clearTimeout cannot throw) */
+    /* v8 ignore next 2 -- V8 marks the finally as a branch; the exceptional-completion edge is unreachable (bare catch catches all, clearTimeout cannot throw) */
   } finally {
     clearTimeout(timer);
   }

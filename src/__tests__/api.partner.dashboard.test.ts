@@ -4,7 +4,7 @@ vi.mock('@/lib/auth/session', () => ({ getSession: vi.fn() }));
 vi.mock('@/lib/services/partner/dashboard', () => ({
   kpis: vi.fn(),
   attention: vi.fn(),
-  recentEvents: vi.fn()
+  recentEvents: vi.fn(),
 }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
@@ -22,17 +22,29 @@ describe('GET /api/partner/dashboard', () => {
   });
 
   it('403 for non-partner', async () => {
-    vi.mocked(getSession).mockResolvedValue({ sub: 'u', role: 'organization', organizationId: 'o' } as any);
+    vi.mocked(getSession).mockResolvedValue({
+      sub: 'u',
+      role: 'organization',
+      organizationId: 'o',
+    } as any);
     const res = await GET();
     expect(res.status).toBe(403);
   });
 
   it('returns kpis + attention + events for partner', async () => {
     vi.mocked(getSession).mockResolvedValue({
-      sub: 'u', role: 'partner', partnerId: 'p1', partnerRole: 'admin', assignedOrgIds: []
+      sub: 'u',
+      role: 'partner',
+      partnerId: 'p1',
+      partnerRole: 'admin',
+      assignedOrgIds: [],
     } as any);
-    vi.mocked(kpis).mockResolvedValue({ openOrders: 5, outstanding: '10000.00', commissionThisMonth: '500.00' });
-    vi.mocked(attention).mockResolvedValue({ stuckOrders: [], overdueOrders: [], });
+    vi.mocked(kpis).mockResolvedValue({
+      openOrders: 5,
+      outstanding: '10000.00',
+      commissionThisMonth: '500.00',
+    });
+    vi.mocked(attention).mockResolvedValue({ stuckOrders: [], overdueOrders: [] });
     vi.mocked(recentEvents).mockResolvedValue([]);
 
     const res = await GET();
@@ -49,23 +61,41 @@ describe('GET /api/partner/dashboard', () => {
 
   it('passes assignedOrgIds to scope when partner is scoped manager', async () => {
     vi.mocked(getSession).mockResolvedValue({
-      sub: 'u', role: 'partner', partnerId: 'p1', partnerRole: 'manager', assignedOrgIds: ['oA', 'oB']
+      sub: 'u',
+      role: 'partner',
+      partnerId: 'p1',
+      partnerRole: 'manager',
+      assignedOrgIds: ['oA', 'oB'],
     } as any);
-    vi.mocked(kpis).mockResolvedValue({ openOrders: 0, outstanding: '0.00', commissionThisMonth: '0.00' });
-    vi.mocked(attention).mockResolvedValue({ stuckOrders: [], overdueOrders: [], });
+    vi.mocked(kpis).mockResolvedValue({
+      openOrders: 0,
+      outstanding: '0.00',
+      commissionThisMonth: '0.00',
+    });
+    vi.mocked(attention).mockResolvedValue({ stuckOrders: [], overdueOrders: [] });
     vi.mocked(recentEvents).mockResolvedValue([]);
 
     await GET();
-    expect(kpis).toHaveBeenCalledWith(expect.anything(), { partnerId: 'p1', scopeOrgIds: ['oA', 'oB'] });
+    expect(kpis).toHaveBeenCalledWith(expect.anything(), {
+      partnerId: 'p1',
+      scopeOrgIds: ['oA', 'oB'],
+    });
   });
 
   it('defaults scopeOrgIds to [] when assignedOrgIds is null/undefined', async () => {
     vi.mocked(getSession).mockResolvedValue({
-      sub: 'u', role: 'partner', partnerId: 'p1', partnerRole: 'admin'
+      sub: 'u',
+      role: 'partner',
+      partnerId: 'p1',
+      partnerRole: 'admin',
       // assignedOrgIds intentionally omitted → undefined
     } as any);
-    vi.mocked(kpis).mockResolvedValue({ openOrders: 0, outstanding: '0.00', commissionThisMonth: '0.00' });
-    vi.mocked(attention).mockResolvedValue({ stuckOrders: [], overdueOrders: [], });
+    vi.mocked(kpis).mockResolvedValue({
+      openOrders: 0,
+      outstanding: '0.00',
+      commissionThisMonth: '0.00',
+    });
+    vi.mocked(attention).mockResolvedValue({ stuckOrders: [], overdueOrders: [] });
     vi.mocked(recentEvents).mockResolvedValue([]);
 
     await GET();

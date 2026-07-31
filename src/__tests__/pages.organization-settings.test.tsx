@@ -20,30 +20,39 @@ const { getOrgRequisites } = vi.hoisted(() => ({ getOrgRequisites: vi.fn() }));
 vi.mock('@/lib/services/organization/requisites', () => ({ getOrgRequisites }));
 vi.mock('@/server-actions/requisites', () => ({ setOrgRequisitesAction: vi.fn() }));
 vi.mock('@/components/settings/security-card', () => ({
-  SecurityCard: () => React.createElement('div', { 'data-testid': 'security-card' }, 'SECURITY')
+  SecurityCard: () => React.createElement('div', { 'data-testid': 'security-card' }, 'SECURITY'),
 }));
 
 vi.mock('@/components/requisites/requisites-card', () => ({
   RequisitesCard: (props: { title: string; canEdit?: boolean }) =>
-    React.createElement('div', { 'data-testid': 'requisites-card' }, props.title, ` canEdit:${String(props.canEdit)}`)
+    React.createElement(
+      'div',
+      { 'data-testid': 'requisites-card' },
+      props.title,
+      ` canEdit:${String(props.canEdit)}`
+    ),
 }));
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 
 vi.mock('@/components/organization/org-app-shell', () => ({
   OrgAppShell: (props: { activeOrgName: string; children: React.ReactNode }) =>
-    React.createElement('div', { 'data-testid': 'org-app-shell' }, props.activeOrgName, props.children)
+    React.createElement(
+      'div',
+      { 'data-testid': 'org-app-shell' },
+      props.activeOrgName,
+      props.children
+    ),
 }));
-
 
 const CTX = {
   session: { sub: 'u1', role: 'organization' as const, email: 'org@example.com' },
   activeOrgId: 'org-1',
   activeOrgName: 'ООО Ромашка',
   memberships: [],
-  viewerRole: 'admin' as const
+  viewerRole: 'admin' as const,
 };
 
 describe('OrganizationSettingsPage', () => {
@@ -63,16 +72,25 @@ describe('OrganizationSettingsPage', () => {
         emailAlwaysOn: true,
         telegram: { available: true, linked: false, enabled: true },
         max: { available: false, linked: false, enabled: false },
-        whatsapp: { available: false, phone: null, enabled: false }
-      }
+        whatsapp: { available: false, phone: null, enabled: false },
+      },
     });
     getOrgRequisites.mockResolvedValue({
       ok: true,
       requisites: {
-        legalName: 'ООО Ромашка', inn: '7707083893', kpp: null, ogrn: null, legalAddress: null,
-        bankName: null, bankAccount: null, corrAccount: null, bic: null,
-        signerName: null, signerPosition: null, signerBasis: null
-      }
+        legalName: 'ООО Ромашка',
+        inn: '7707083893',
+        kpp: null,
+        ogrn: null,
+        legalAddress: null,
+        bankName: null,
+        bankAccount: null,
+        corrAccount: null,
+        bic: null,
+        signerName: null,
+        signerPosition: null,
+        signerBasis: null,
+      },
     });
     const { container } = await renderServerComponent(OrganizationSettingsPage());
     expect(container.textContent).toContain('Реквизиты организации');
@@ -87,16 +105,25 @@ describe('OrganizationSettingsPage', () => {
         emailAlwaysOn: true,
         telegram: { available: true, linked: false, enabled: true },
         max: { available: false, linked: false, enabled: false },
-        whatsapp: { available: false, phone: null, enabled: false }
-      }
+        whatsapp: { available: false, phone: null, enabled: false },
+      },
     });
     getOrgRequisites.mockResolvedValue({
       ok: true,
       requisites: {
-        legalName: 'ООО Ромашка', inn: null, kpp: null, ogrn: null, legalAddress: null,
-        bankName: null, bankAccount: null, corrAccount: null, bic: null,
-        signerName: null, signerPosition: null, signerBasis: null
-      }
+        legalName: 'ООО Ромашка',
+        inn: null,
+        kpp: null,
+        ogrn: null,
+        legalAddress: null,
+        bankName: null,
+        bankAccount: null,
+        corrAccount: null,
+        bic: null,
+        signerName: null,
+        signerPosition: null,
+        signerBasis: null,
+      },
     });
     const { container } = await renderServerComponent(OrganizationSettingsPage());
     expect(container.textContent).toContain('Реквизиты организации');
@@ -111,8 +138,8 @@ describe('OrganizationSettingsPage', () => {
         emailAlwaysOn: true,
         telegram: { available: true, linked: false, enabled: true },
         max: { available: false, linked: false, enabled: false },
-        whatsapp: { available: false, phone: null, enabled: false }
-      }
+        whatsapp: { available: false, phone: null, enabled: false },
+      },
     });
     const { container } = await renderServerComponent(OrganizationSettingsPage());
     expect(getOrgRequisites).not.toHaveBeenCalled();
@@ -128,8 +155,8 @@ describe('OrganizationSettingsPage', () => {
         emailAlwaysOn: true,
         telegram: { available: true, linked: false, enabled: true },
         max: { available: false, linked: false, enabled: false },
-        whatsapp: { available: false, phone: null, enabled: false }
-      }
+        whatsapp: { available: false, phone: null, enabled: false },
+      },
     });
 
     const { container } = await renderServerComponent(OrganizationSettingsPage());

@@ -23,8 +23,10 @@ import { log } from '@/lib/logging';
  * success.
  */
 export async function replyToInbound(
-  msg: Pick<InboundMessage, 'channel' | 'senderRef' | 'subject'> & { resolvedUserId?: string | null },
-  text: string,
+  msg: Pick<InboundMessage, 'channel' | 'senderRef' | 'subject'> & {
+    resolvedUserId?: string | null;
+  },
+  text: string
 ): Promise<{ ok: boolean }> {
   switch (msg.channel) {
     case 'cabinet':
@@ -69,9 +71,15 @@ async function replyToCabinetQuestion(
       userId: msg.resolvedUserId,
       type: 'inbound_reply',
       title,
-      body
+      body,
     });
-    await deliverNotificationToUser({ userId: msg.resolvedUserId, title, body, type: 'inbound_reply', dedupKey: row.id });
+    await deliverNotificationToUser({
+      userId: msg.resolvedUserId,
+      title,
+      body,
+      type: 'inbound_reply',
+      dedupKey: row.id,
+    });
     return { ok: true };
   } catch (err) {
     log.warn('[inbound/reply] cabinet reply failed', { error: (err as Error).message });

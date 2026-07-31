@@ -10,7 +10,7 @@ import {
   deleteEvent,
   REMIND_MINUTES,
   type CalendarEventInput,
-  type CalendarErrorCode
+  type CalendarErrorCode,
 } from '@/lib/services/calendar/events';
 
 /**
@@ -50,7 +50,7 @@ function eventInput(fd: FormData): CalendarEventInput {
     remindMinutes: remind,
     linkedOrderId: str(fd, 'linkedOrderId') || null,
     linkedOrganizationId: str(fd, 'linkedOrganizationId') || null,
-    attendeeIds: fd.getAll('attendeeIds').filter((v): v is string => typeof v === 'string')
+    attendeeIds: fd.getAll('attendeeIds').filter((v): v is string => typeof v === 'string'),
   };
 }
 

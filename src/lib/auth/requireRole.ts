@@ -5,7 +5,7 @@ import {
   canManagerAccessOrg,
   isOrgInScope,
   getCompanyTeamVisibility,
-  isLeaderSameCompany
+  isLeaderSameCompany,
 } from '@/lib/auth/managerPolicy';
 import { getSession } from './session';
 import type { SessionPayload } from './jwt';
@@ -51,8 +51,7 @@ export async function requirePartnerAdmin(): Promise<PartnerSession> {
 export async function requireOrganization(): Promise<SessionPayload> {
   const session = await requireSession();
   const hasActiveMembership =
-    session.role === 'organization' &&
-    !!session.organizationMemberships?.some((m) => m.isActive);
+    session.role === 'organization' && !!session.organizationMemberships?.some((m) => m.isActive);
   if (!hasActiveMembership) redirect('/forbidden');
   return session;
 }
@@ -114,9 +113,7 @@ export async function requireManagerForOrg(orgId: string): Promise<SessionPayloa
   return session;
 }
 
-export async function requireManagerForOrder(
-  orderId: string
-): Promise<{
+export async function requireManagerForOrder(orderId: string): Promise<{
   session: SessionPayload;
   order: { id: string; managerId: string | null; organizationId: string | null; companyId: string };
 }> {
@@ -125,7 +122,7 @@ export async function requireManagerForOrder(
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    select: { id: true, managerId: true, organizationId: true, companyId: true }
+    select: { id: true, managerId: true, organizationId: true, companyId: true },
   });
   if (!order) notFound();
 
@@ -141,11 +138,10 @@ export async function requireManagerForOrder(
   // historical comments. Company-wide mode skips straight to the companyId check.
   let commentsCountByMe = 0;
   if (!teamMode && order.managerId !== session.sub) {
-    const inOrgScope =
-      order.organizationId !== null && isOrgInScope(session, order.organizationId);
+    const inOrgScope = order.organizationId !== null && isOrgInScope(session, order.organizationId);
     if (!inOrgScope) {
       commentsCountByMe = await prisma.comment.count({
-        where: { orderId: order.id, authorId: session.sub }
+        where: { orderId: order.id, authorId: session.sub },
       });
     }
   }

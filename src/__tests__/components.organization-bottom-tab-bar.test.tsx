@@ -26,13 +26,13 @@ describe('OrganizationBottomTabBar', () => {
       '⌂Главная',
       '📋Заказы',
       '✚Заявки',
-      '📄Документы'
+      '📄Документы',
     ]);
     expect(links.map((l) => l.getAttribute('href'))).toEqual([
       '/organization/dashboard',
       '/organization/orders',
       '/organization/requests',
-      '/organization/documents'
+      '/organization/documents',
     ]);
   });
 

@@ -15,32 +15,36 @@ vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 const { getFunnelAnalytics, getPlanFact, monthRange } = vi.hoisted(() => ({
   getFunnelAnalytics: vi.fn(),
   getPlanFact: vi.fn(),
-  monthRange: vi.fn()
+  monthRange: vi.fn(),
 }));
 vi.mock('@/lib/services/leader/analytics', () => ({ getFunnelAnalytics, getPlanFact, monthRange }));
 
 const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
-  })
+  }),
 }));
 vi.mock('next/navigation', () => nav);
 
 vi.mock('@/components/leader/analytics/month-picker', () => ({
   MonthPicker: (props: { month: string }) =>
-    React.createElement('div', { 'data-testid': 'month-picker' }, props.month)
+    React.createElement('div', { 'data-testid': 'month-picker' }, props.month),
 }));
 vi.mock('@/components/leader/analytics/funnel-analytics-panel', () => ({
   FunnelAnalyticsPanel: (props: unknown) =>
-    React.createElement('div', { 'data-testid': 'funnel-panel' }, JSON.stringify(props))
+    React.createElement('div', { 'data-testid': 'funnel-panel' }, JSON.stringify(props)),
 }));
 vi.mock('@/components/leader/analytics/plan-fact-table', () => ({
   PlanFactTable: (props: unknown) =>
-    React.createElement('div', { 'data-testid': 'plan-fact-table' }, JSON.stringify(props))
+    React.createElement('div', { 'data-testid': 'plan-fact-table' }, JSON.stringify(props)),
 }));
 
-
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'leader' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'leader' as const,
+  companyId: 'c1',
+};
 
 const FUNNEL_OK = {
   ok: true as const,
@@ -54,11 +58,15 @@ const FUNNEL_OK = {
     rejectedPct: 0,
     avgDaysToPromote: null,
     estimatedTotal: '0.00',
-    promotedEstimated: '0.00'
+    promotedEstimated: '0.00',
   },
-  perManager: []
+  perManager: [],
 };
-const PLAN_FACT_OK = { ok: true as const, rows: [], totals: { target: '0.00', fact: '0.00', executionPct: null } };
+const PLAN_FACT_OK = {
+  ok: true as const,
+  rows: [],
+  totals: { target: '0.00', fact: '0.00', executionPct: null },
+};
 
 function sp(month?: string): Promise<{ month?: string }> {
   return Promise.resolve({ month });

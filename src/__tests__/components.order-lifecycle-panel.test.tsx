@@ -12,13 +12,13 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 const { setOrderAccountingSignedAction } = vi.hoisted(() => ({
-  setOrderAccountingSignedAction: vi.fn()
+  setOrderAccountingSignedAction: vi.fn(),
 }));
 vi.mock('@/server-actions/manager/orderLifecycle', () => ({ setOrderAccountingSignedAction }));
 
 const { toastSuccess, toastError } = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
-  toastError: vi.fn()
+  toastError: vi.fn(),
 }));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
@@ -33,17 +33,17 @@ beforeEach(() => {
 describe('OrderLifecyclePanel — отметка бухгалтерии', () => {
   it('галочка отражает текущее состояние', () => {
     const { rerender } = render(
-      <OrderLifecyclePanel orderId='o1' accountingSigned={false} returnReason={null} />
+      <OrderLifecyclePanel orderId="o1" accountingSigned={false} returnReason={null} />
     );
     expect((screen.getByRole('checkbox') as HTMLInputElement).checked).toBe(false);
 
-    rerender(<OrderLifecyclePanel orderId='o1' accountingSigned={true} returnReason={null} />);
+    rerender(<OrderLifecyclePanel orderId="o1" accountingSigned={true} returnReason={null} />);
     expect((screen.getByRole('checkbox') as HTMLInputElement).checked).toBe(true);
   });
 
   it('простановка галочки сохраняется и подтверждается', async () => {
     setOrderAccountingSignedAction.mockResolvedValue({ ok: true });
-    render(<OrderLifecyclePanel orderId='o1' accountingSigned={false} returnReason={null} />);
+    render(<OrderLifecyclePanel orderId="o1" accountingSigned={false} returnReason={null} />);
 
     fireEvent.click(screen.getByRole('checkbox'));
 
@@ -55,7 +55,7 @@ describe('OrderLifecyclePanel — отметка бухгалтерии', () => 
 
   it('снятие галочки шлёт signed=false', async () => {
     setOrderAccountingSignedAction.mockResolvedValue({ ok: true });
-    render(<OrderLifecyclePanel orderId='o2' accountingSigned={true} returnReason={null} />);
+    render(<OrderLifecyclePanel orderId="o2" accountingSigned={true} returnReason={null} />);
 
     fireEvent.click(screen.getByRole('checkbox'));
 
@@ -66,7 +66,7 @@ describe('OrderLifecyclePanel — отметка бухгалтерии', () => 
 
   it('отказ сервера показывает понятную ошибку', async () => {
     setOrderAccountingSignedAction.mockResolvedValue({ ok: false, error: 'forbidden' });
-    render(<OrderLifecyclePanel orderId='o1' accountingSigned={false} returnReason={null} />);
+    render(<OrderLifecyclePanel orderId="o1" accountingSigned={false} returnReason={null} />);
 
     fireEvent.click(screen.getByRole('checkbox'));
 
@@ -76,16 +76,16 @@ describe('OrderLifecyclePanel — отметка бухгалтерии', () => 
 
   it('причина последнего возврата показывается, если она есть', () => {
     const { rerender } = render(
-      <OrderLifecyclePanel orderId='o1' accountingSigned={false} returnReason='Ждём документы' />
+      <OrderLifecyclePanel orderId="o1" accountingSigned={false} returnReason="Ждём документы" />
     );
     expect(screen.getByText(/Ждём документы/)).toBeTruthy();
 
-    rerender(<OrderLifecyclePanel orderId='o1' accountingSigned={false} returnReason={null} />);
+    rerender(<OrderLifecyclePanel orderId="o1" accountingSigned={false} returnReason={null} />);
     expect(screen.queryByText(/Причина последнего возврата/)).toBeNull();
   });
 
   it('заголовок больше не про жизненный цикл — статусом занимается другая панель', () => {
-    render(<OrderLifecyclePanel orderId='o1' accountingSigned={false} />);
+    render(<OrderLifecyclePanel orderId="o1" accountingSigned={false} />);
     expect(screen.getByText('Бухгалтерия')).toBeTruthy();
     expect(screen.queryByRole('button')).toBeNull();
   });

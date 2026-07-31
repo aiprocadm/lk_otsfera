@@ -14,7 +14,9 @@ export function normalizeName(name: string): string {
     .trim();
 }
 
-function baseDto(r: ParsedRow): Omit<OneCPaymentDto, 'orderExternalId' | 'organizationInn' | 'organizationExternalId'> {
+function baseDto(
+  r: ParsedRow
+): Omit<OneCPaymentDto, 'orderExternalId' | 'organizationInn' | 'organizationExternalId'> {
   return {
     externalId: r.externalId,
     amount: r.amount as number,
@@ -38,7 +40,12 @@ export async function matchRow(prisma: PrismaClient, r: ParsedRow): Promise<Matc
   for (const cand of r.accountCandidates) {
     const order = await prisma.order.findFirst({
       where: { OR: [{ orderNumber: cand }, { externalId: cand }] },
-      select: { id: true, externalId: true, organizationId: true, organization: { select: { inn: true } } },
+      select: {
+        id: true,
+        externalId: true,
+        organizationId: true,
+        organization: { select: { inn: true } },
+      },
     });
     if (order) {
       // writer резолвит заказ по externalId; если его нет — пишем org-level по ИНН заказа.
@@ -49,13 +56,21 @@ export async function matchRow(prisma: PrismaClient, r: ParsedRow): Promise<Matc
         return { route: 'exact', dto: { ...baseDto(r), organizationInn: order.organization.inn } };
       }
       // заказ без externalId и без ИНН орги — в очередь с кандидат-заказом
-      return { route: 'queue', candidateOrgId: order.organizationId, candidateOrderId: order.id, matchMethod: 'name_fuzzy' };
+      return {
+        route: 'queue',
+        candidateOrgId: order.organizationId,
+        candidateOrderId: order.id,
+        matchMethod: 'name_fuzzy',
+      };
     }
   }
 
   // 2) ИНН → организация (точно)
   if (r.counterpartyInn) {
-    const org = await prisma.organization.findFirst({ where: { inn: r.counterpartyInn }, select: { id: true, inn: true } });
+    const org = await prisma.organization.findFirst({
+      where: { inn: r.counterpartyInn },
+      select: { id: true, inn: true },
+    });
     if (org?.inn) return { route: 'exact', dto: { ...baseDto(r), organizationInn: org.inn } };
   }
 
@@ -67,7 +82,13 @@ export async function matchRow(prisma: PrismaClient, r: ParsedRow): Promise<Matc
         where: { name: { contains: norm.split(' ')[0], mode: 'insensitive' } },
         select: { id: true },
       });
-      if (org) return { route: 'queue', candidateOrgId: org.id, candidateOrderId: null, matchMethod: 'name_fuzzy' };
+      if (org)
+        return {
+          route: 'queue',
+          candidateOrgId: org.id,
+          candidateOrderId: null,
+          matchMethod: 'name_fuzzy',
+        };
     }
   }
 

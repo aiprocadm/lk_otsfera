@@ -32,7 +32,7 @@ import {
   canSeeOrganization,
   isManagerLeader,
   isLeaderSameCompany,
-  managedOrgIds
+  managedOrgIds,
 } from '@/lib/auth/managerPolicy';
 import { requireFieldsAdmin, requireAdmin, requireRole } from '@/lib/auth/guard';
 
@@ -46,7 +46,13 @@ const ORG = 'org-1';
 function sess(role: RoleKey, over: Partial<SessionPayload> = {}): SessionPayload {
   const base: Partial<SessionPayload> = { sub: `u-${role}`, companyId: COMPANY };
   if (role === 'leader') {
-    return { ...base, role: 'manager', managerRole: 'leader', managedOrgIds: [], ...over } as SessionPayload;
+    return {
+      ...base,
+      role: 'manager',
+      managerRole: 'leader',
+      managedOrgIds: [],
+      ...over,
+    } as SessionPayload;
   }
   if (role === 'manager') {
     return { ...base, role: 'manager', managedOrgIds: [], ...over } as SessionPayload;
@@ -70,7 +76,7 @@ describe('матрица доступа: руководитель против �
       manager: false,
       partner: false,
       organization: false,
-      student: false
+      student: false,
     });
   });
 
@@ -82,7 +88,7 @@ describe('матрица доступа: руководитель против �
       manager: false,
       partner: false,
       organization: false,
-      student: false
+      student: false,
     });
   });
 
@@ -94,7 +100,7 @@ describe('матрица доступа: руководитель против �
       manager: false,
       partner: false,
       organization: false,
-      student: false
+      student: false,
     });
   });
 
@@ -173,7 +179,7 @@ describe('полнота матрицы', () => {
     // лидер-инвариант (решение заказчика 29.07.2026).
     'canManagerAccessOrg',
     // Алиас canSeeOrganization.
-    'isOrgInScope'
+    'isOrgInScope',
   ]);
 
   function exportedNames(relPath: string): string[] {
@@ -205,7 +211,7 @@ describe('полнота матрицы', () => {
     'requirePartner',
     'requirePartnerAdmin',
     'unauthorizedResponse',
-    'forbiddenResponse'
+    'forbiddenResponse',
   ]);
 
   it('каждый гард API описан в матрице', () => {
@@ -230,7 +236,7 @@ describe('полнота матрицы', () => {
     'requireManagerForOrg',
     'requireManagerForOrder',
     // Только руководитель.
-    'requireManagerLeader'
+    'requireManagerLeader',
   ]);
 
   it('каждый страничный гард описан в матрице', () => {

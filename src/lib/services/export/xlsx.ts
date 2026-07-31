@@ -62,6 +62,6 @@ export function appendOverflowNotice(
   if (args.total <= limit) return;
   ws.addRow({});
   ws.addRow({
-    [args.noticeKey]: `Показаны первые ${limit} строк из ${args.total} — уточните фильтры.`
+    [args.noticeKey]: `Показаны первые ${limit} строк из ${args.total} — уточните фильтры.`,
   });
 }

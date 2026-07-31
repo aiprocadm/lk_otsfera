@@ -15,7 +15,7 @@ export const CUSTOM_FIELD_ROLES = [
   'leader',
   'manager',
   'partner',
-  'organization'
+  'organization',
 ] as const;
 
 export type CustomFieldRole = (typeof CUSTOM_FIELD_ROLES)[number];
@@ -25,7 +25,7 @@ export const CUSTOM_FIELD_ROLE_LABELS: Record<CustomFieldRole, string> = {
   leader: 'Руководитель',
   manager: 'Менеджер',
   partner: 'Партнёр',
-  organization: 'Организация'
+  organization: 'Организация',
 };
 
 /**

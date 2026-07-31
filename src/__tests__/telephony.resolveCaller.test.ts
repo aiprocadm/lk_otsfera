@@ -22,7 +22,19 @@ describe('canonicalizeRuPhone', () => {
 describe('resolveCaller', () => {
   it('resolves via ContactChannel (phone-like) before User.whatsappPhone; sets contactId', async () => {
     const d = {
-      contactChannel: { findMany: vi.fn(async () => [{ contact: { id: 'k5', organizationId: 'o5', companyId: 'c5', userId: null, isArchived: false } }]) },
+      contactChannel: {
+        findMany: vi.fn(async () => [
+          {
+            contact: {
+              id: 'k5',
+              organizationId: 'o5',
+              companyId: 'c5',
+              userId: null,
+              isArchived: false,
+            },
+          },
+        ]),
+      },
       user: { findMany: vi.fn(async () => []) },
       lead: { findMany: vi.fn(async () => []) },
     } as any;
@@ -36,8 +48,22 @@ describe('resolveCaller', () => {
     // the call on its own; resolution must fall through to User.whatsappPhone (mirrors
     // the inbound org-less fall-through). Covers the `hit && hit.organizationId` false-leg.
     const d = {
-      contactChannel: { findMany: vi.fn(async () => [{ contact: { id: 'k9', organizationId: null, companyId: 'c9', userId: null, isArchived: false } }]) },
-      user: { findMany: vi.fn(async () => [{ id: 'u1', organization: { id: 'o1', companyId: 'c1' } }]) },
+      contactChannel: {
+        findMany: vi.fn(async () => [
+          {
+            contact: {
+              id: 'k9',
+              organizationId: null,
+              companyId: 'c9',
+              userId: null,
+              isArchived: false,
+            },
+          },
+        ]),
+      },
+      user: {
+        findMany: vi.fn(async () => [{ id: 'u1', organization: { id: 'o1', companyId: 'c1' } }]),
+      },
       lead: { findMany: vi.fn(async () => []) },
     } as any;
     const r = await resolveCaller(d, '+79990001122');
@@ -50,12 +76,30 @@ describe('resolveCaller', () => {
     // Covers the `hit.userId ? { userId } : {}` true-leg — a contact whose
     // channel matched AND that is linked to a User row.
     const d = {
-      contactChannel: { findMany: vi.fn(async () => [{ contact: { id: 'k7', organizationId: 'o7', companyId: 'c7', userId: 'u7', isArchived: false } }]) },
+      contactChannel: {
+        findMany: vi.fn(async () => [
+          {
+            contact: {
+              id: 'k7',
+              organizationId: 'o7',
+              companyId: 'c7',
+              userId: 'u7',
+              isArchived: false,
+            },
+          },
+        ]),
+      },
       user: { findMany: vi.fn(async () => []) },
       lead: { findMany: vi.fn(async () => []) },
     } as any;
     const r = await resolveCaller(d, '+79990001122');
-    expect(r).toMatchObject({ matchType: 'exact', orgId: 'o7', companyId: 'c7', contactId: 'k7', userId: 'u7' });
+    expect(r).toMatchObject({
+      matchType: 'exact',
+      orgId: 'o7',
+      companyId: 'c7',
+      contactId: 'k7',
+      userId: 'u7',
+    });
     expect(d.user.findMany).not.toHaveBeenCalled();
   });
 
@@ -70,7 +114,9 @@ describe('resolveCaller', () => {
     const d = db([u]);
     const r = await resolveCaller(d, '88001234567');
     expect(r).toMatchObject({ matchType: 'exact', userId: 'u1', orgId: 'o1', companyId: 'c1' });
-    expect(d.user.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { whatsappPhone: '+78001234567' } }));
+    expect(d.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { whatsappPhone: '+78001234567' } })
+    );
   });
 
   it('ambiguous (>1 user) → unresolved (never guess)', async () => {

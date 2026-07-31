@@ -14,8 +14,8 @@ export type AuditFilters = {
   from?: Date;
   to?: Date;
   q?: string;
-  take?: number;     // default 50, max 100
-  cursor?: string;   // id of last seen, exclusive
+  take?: number; // default 50, max 100
+  cursor?: string; // id of last seen, exclusive
 };
 
 export type AuditRow = {
@@ -61,7 +61,7 @@ export async function listAudit(
     include: { user: { select: { id: true, email: true, name: true } } },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: take + 1, // +1 to detect whether a next page exists
-    ...(filters.cursor ? { cursor: { id: filters.cursor }, skip: 1 } : {})
+    ...(filters.cursor ? { cursor: { id: filters.cursor }, skip: 1 } : {}),
   });
 
   let nextCursor: string | null = null;
@@ -78,43 +78,41 @@ export async function listAudit(
       action: r.action,
       entity: r.entity as AuditEntity,
       entityId: r.entityId,
-      meta: r.meta
+      meta: r.meta,
     })),
-    nextCursor
+    nextCursor,
   };
 }
 
-export async function listAuditFilters(
-  prisma: PrismaClient
-): Promise<AuditFiltersOptions> {
+export async function listAuditFilters(prisma: PrismaClient): Promise<AuditFiltersOptions> {
   const [entityRows, actionRows, actorIds] = await Promise.all([
     prisma.auditLog.findMany({
       distinct: ['entity'],
       select: { entity: true },
-      orderBy: { entity: 'asc' }
+      orderBy: { entity: 'asc' },
     }),
     prisma.auditLog.findMany({
       distinct: ['action'],
       select: { action: true },
-      orderBy: { action: 'asc' }
+      orderBy: { action: 'asc' },
     }),
     prisma.auditLog.findMany({
       distinct: ['userId'],
       select: { userId: true },
-      take: 200
-    })
+      take: 200,
+    }),
   ]);
   const actors = actorIds.length
     ? await prisma.user.findMany({
         where: { id: { in: actorIds.map((r) => r.userId) } },
         select: { id: true, name: true, email: true },
-        orderBy: { name: 'asc' }
+        orderBy: { name: 'asc' },
       })
     : [];
 
   return {
     entities: entityRows.map((r) => r.entity as AuditEntity),
     actions: actionRows.map((r) => r.action),
-    actors
+    actors,
   };
 }

@@ -28,10 +28,14 @@ describe('updateChannelPreferenceAction', () => {
     updateChannelPreference.mockResolvedValue({ ok: true, channels: { telegram: false } });
     const result = await updateChannelPreferenceAction('telegram', false);
     expect(requireSession).toHaveBeenCalled();
-    expect(updateChannelPreference).toHaveBeenCalledWith({}, { sub: 'u-1' }, {
-      channel: 'telegram',
-      enabled: false,
-    });
+    expect(updateChannelPreference).toHaveBeenCalledWith(
+      {},
+      { sub: 'u-1' },
+      {
+        channel: 'telegram',
+        enabled: false,
+      }
+    );
     expect(result).toEqual({ ok: true, channels: { telegram: false } });
   });
 });
@@ -41,9 +45,13 @@ describe('saveWhatsappPhoneAction', () => {
     saveWhatsappPhone.mockResolvedValue({ ok: true, phone: '+79991234567' });
     const result = await saveWhatsappPhoneAction('+7 999 123-45-67');
     expect(requireSession).toHaveBeenCalled();
-    expect(saveWhatsappPhone).toHaveBeenCalledWith({}, { sub: 'u-1' }, {
-      phone: '+7 999 123-45-67',
-    });
+    expect(saveWhatsappPhone).toHaveBeenCalledWith(
+      {},
+      { sub: 'u-1' },
+      {
+        phone: '+7 999 123-45-67',
+      }
+    );
     expect(result).toEqual({ ok: true, phone: '+79991234567' });
   });
 });

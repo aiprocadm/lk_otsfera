@@ -13,7 +13,7 @@ const {
   isOrgAdmin,
   isOrgLeader,
   orgFindMany,
-  orgUserFindFirst
+  orgUserFindFirst,
 } = vi.hoisted(() => {
   const cookiesGet = vi.fn();
   const cookiesFn = vi.fn(async () => ({ get: cookiesGet }));
@@ -26,33 +26,33 @@ const {
     isOrgAdmin: vi.fn(),
     isOrgLeader: vi.fn(),
     orgFindMany: vi.fn(),
-    orgUserFindFirst: vi.fn()
+    orgUserFindFirst: vi.fn(),
   };
 });
 
 vi.mock('@/lib/auth/requireRole', () => ({
-  requireOrganization
+  requireOrganization,
 }));
 
 vi.mock('next/headers', () => ({
-  cookies: cookiesFn
+  cookies: cookiesFn,
 }));
 
 vi.mock('@/lib/auth/orgContext', () => ({
-  resolveActiveOrgId
+  resolveActiveOrgId,
 }));
 
 vi.mock('@/lib/auth/organizationPolicy', () => ({
   activeOrgIds,
   isOrgAdmin,
-  isOrgLeader
+  isOrgLeader,
 }));
 
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     organization: { findMany: orgFindMany },
-    organizationUser: { findFirst: orgUserFindFirst }
-  }
+    organizationUser: { findFirst: orgUserFindFirst },
+  },
 }));
 
 // ---------------------------------------------------------------------------
@@ -73,8 +73,8 @@ const BASE_ORG_SESSION: SessionPayload = {
   organizationMemberships: [
     { organizationId: 'org-A', roleInOrg: 'admin', isActive: true },
     { organizationId: 'org-B', roleInOrg: 'leader', isActive: true },
-    { organizationId: 'org-C', roleInOrg: 'member', isActive: false } // inactive
-  ]
+    { organizationId: 'org-C', roleInOrg: 'member', isActive: false }, // inactive
+  ],
 };
 
 // ---------------------------------------------------------------------------
@@ -92,7 +92,7 @@ describe('getOrgPageContext', () => {
     activeOrgIds.mockReturnValue(['org-A', 'org-B']);
     orgFindMany.mockResolvedValue([
       { id: 'org-A', name: 'Alpha Corp' },
-      { id: 'org-B', name: 'Beta Ltd' }
+      { id: 'org-B', name: 'Beta Ltd' },
     ]);
     isOrgAdmin.mockReturnValue(false);
     isOrgLeader.mockReturnValue(false);
@@ -113,12 +113,12 @@ describe('getOrgPageContext', () => {
     expect(ctx.memberships[0]).toEqual({
       organizationId: 'org-A',
       organizationName: 'Alpha Corp',
-      roleInOrg: 'admin'
+      roleInOrg: 'admin',
     });
     expect(ctx.memberships[1]).toEqual({
       organizationId: 'org-B',
       organizationName: 'Beta Ltd',
-      roleInOrg: 'leader'
+      roleInOrg: 'leader',
     });
   });
 
@@ -213,7 +213,7 @@ describe('getOrgPageContext', () => {
 
     expect(orgFindMany).toHaveBeenCalledWith({
       where: { id: { in: ['org-A', 'org-B'] } },
-      select: { id: true, name: true }
+      select: { id: true, name: true },
     });
   });
 
@@ -228,7 +228,7 @@ describe('getOrgPageContext', () => {
   it('returns empty memberships array when session.organizationMemberships is undefined', async () => {
     const sessionNoMemberships: SessionPayload = {
       sub: 'u-org-empty',
-      role: 'organization'
+      role: 'organization',
       // organizationMemberships absent → ?? [] fallback
     };
     requireOrganization.mockResolvedValue(sessionNoMemberships);
@@ -254,12 +254,12 @@ describe('getPrimaryOrganizationId', () => {
   const SESSION_WITH_ORG_ID: SessionPayload = {
     sub: 'u-org',
     role: 'organization',
-    organizationId: 'org-direct'
+    organizationId: 'org-direct',
   };
 
   const SESSION_WITHOUT_ORG_ID: SessionPayload = {
     sub: 'u-org-2',
-    role: 'organization'
+    role: 'organization',
     // no organizationId
   };
 
@@ -282,7 +282,7 @@ describe('getPrimaryOrganizationId', () => {
     expect(orgUserFindFirst).toHaveBeenCalledWith({
       where: { userId: 'u-org-2', isActive: true },
       select: { organizationId: true },
-      orderBy: { createdAt: 'asc' }
+      orderBy: { createdAt: 'asc' },
     });
   });
 
@@ -298,7 +298,11 @@ describe('getPrimaryOrganizationId', () => {
 
   // --- organizationId is null/falsy → falls through to DB ---
   it('falls through to DB when organizationId is null', async () => {
-    const sessionNullOrg: SessionPayload = { sub: 'u-null', role: 'organization', organizationId: null };
+    const sessionNullOrg: SessionPayload = {
+      sub: 'u-null',
+      role: 'organization',
+      organizationId: null,
+    };
     orgUserFindFirst.mockResolvedValue({ organizationId: 'org-via-db' });
 
     const result = await getPrimaryOrganizationId(sessionNullOrg);

@@ -93,7 +93,7 @@ export async function getFunnelAnalytics(
 
   const scopeOr: Prisma.LeadWhereInput['OR'] = [
     { assignedManagerId: null },
-    { assignedManager: { companyId } }
+    { assignedManager: { companyId } },
   ];
 
   const [stages, managers, openLeads, cohortLeads] = await Promise.all([
@@ -101,7 +101,7 @@ export async function getFunnelAnalytics(
     listCompanyManagers(prisma, companyId),
     prisma.lead.findMany({
       where: { status: { in: [...OPEN_LEAD_STATUSES] }, OR: scopeOr },
-      select: { status: true, funnelStageId: true, estimatedAmount: true }
+      select: { status: true, funnelStageId: true, estimatedAmount: true },
     }),
     prisma.lead.findMany({
       where: { createdAt: { gte: from, lt: to }, OR: scopeOr },
@@ -110,9 +110,9 @@ export async function getFunnelAnalytics(
         estimatedAmount: true,
         assignedManagerId: true,
         createdAt: true,
-        promotedOrder: { select: { createdAt: true } }
-      }
-    })
+        promotedOrder: { select: { createdAt: true } },
+      },
+    }),
   ]);
 
   // --- snapshot: нетерминальные стадии ---
@@ -134,7 +134,13 @@ export async function getFunnelAnalytics(
 
   const snapshot: StageSnapshot[] = openStages.map((s) => {
     const bucket = buckets.get(s.id) ?? { count: 0, sum: new Prisma.Decimal(0) };
-    return { stageId: s.id, name: s.name, color: s.color, count: bucket.count, estimatedSum: bucket.sum.toFixed(2) };
+    return {
+      stageId: s.id,
+      name: s.name,
+      color: s.color,
+      count: bucket.count,
+      estimatedSum: bucket.sum.toFixed(2),
+    };
   });
 
   // --- cohort: лиды, созданные в периоде ---
@@ -157,7 +163,8 @@ export async function getFunnelAnalytics(
 
     if (isPromoted) {
       promoted += 1;
-      if (lead.estimatedAmount !== null) promotedEstimated = promotedEstimated.plus(lead.estimatedAmount);
+      if (lead.estimatedAmount !== null)
+        promotedEstimated = promotedEstimated.plus(lead.estimatedAmount);
       if (lead.promotedOrder) {
         daysSum += (lead.promotedOrder.createdAt.getTime() - lead.createdAt.getTime()) / 86_400_000;
         daysCount += 1;
@@ -187,7 +194,7 @@ export async function getFunnelAnalytics(
     rejectedPct: pct(rejected, total),
     avgDaysToPromote: daysCount > 0 ? Math.round((daysSum / daysCount) * 10) / 10 : null,
     estimatedTotal: estimatedTotal.toFixed(2),
-    promotedEstimated: promotedEstimated.toFixed(2)
+    promotedEstimated: promotedEstimated.toFixed(2),
   };
 
   const perManager: ManagerFunnelRow[] = managers.map((m) => {
@@ -198,7 +205,7 @@ export async function getFunnelAnalytics(
       assigned: agg.assigned,
       promoted: agg.promoted,
       rejected: agg.rejected,
-      conversionPct: pct(agg.promoted, agg.assigned)
+      conversionPct: pct(agg.promoted, agg.assigned),
     };
   });
   if (unassignedAgg.assigned > 0) {
@@ -208,7 +215,7 @@ export async function getFunnelAnalytics(
       assigned: unassignedAgg.assigned,
       promoted: unassignedAgg.promoted,
       rejected: unassignedAgg.rejected,
-      conversionPct: pct(unassignedAgg.promoted, unassignedAgg.assigned)
+      conversionPct: pct(unassignedAgg.promoted, unassignedAgg.assigned),
     });
   }
 
@@ -263,23 +270,23 @@ export async function getPlanFact(
     listCompanyManagers(prisma, companyId),
     prisma.payment.findMany({
       where: { paidAt: { gte: from, lt: to }, order: { companyId } },
-      select: { amount: true, isRefund: true, order: { select: { managerId: true } } }
+      select: { amount: true, isRefund: true, order: { select: { managerId: true } } },
     }),
     prisma.order.groupBy({
       by: ['managerId'],
       where: { companyId, completedAt: { gte: from, lt: to } },
-      _count: { _all: true }
+      _count: { _all: true },
     }),
     prisma.salesTarget.findMany({
       where: { companyId, year, month },
-      select: { managerId: true, targetAmount: true }
+      select: { managerId: true, targetAmount: true },
     }),
     prisma.deal.groupBy({
       by: ['managerId'],
       where: { companyId, status: 'won', wonAt: { gte: from, lt: to } },
       _sum: { amount: true },
-      _count: { _all: true }
-    })
+      _count: { _all: true },
+    }),
   ]);
 
   const factByManager = new Map<string, Prisma.Decimal>();
@@ -289,7 +296,10 @@ export async function getPlanFact(
     const delta = p.isRefund ? amount.negated() : amount;
     const managerId = p.order?.managerId ?? null;
     if (managerId) {
-      factByManager.set(managerId, (factByManager.get(managerId) ?? new Prisma.Decimal(0)).plus(delta));
+      factByManager.set(
+        managerId,
+        (factByManager.get(managerId) ?? new Prisma.Decimal(0)).plus(delta)
+      );
     } else {
       unassignedFact = unassignedFact.plus(delta);
     }
@@ -326,7 +336,7 @@ export async function getPlanFact(
       completedOrders: completedByManager.get(m.id) ?? 0,
       wonDeals: won?.count ?? 0,
       wonAmount: (won?.amount ?? new Prisma.Decimal(0)).toFixed(2),
-      executionPct: target && target.gt(0) ? pct(fact, target) : null
+      executionPct: target && target.gt(0) ? pct(fact, target) : null,
     };
   });
 
@@ -340,7 +350,7 @@ export async function getPlanFact(
       completedOrders: unassignedCompleted,
       wonDeals: unassignedWon.count,
       wonAmount: unassignedWon.amount.toFixed(2),
-      executionPct: null
+      executionPct: null,
     });
   }
 
@@ -357,7 +367,7 @@ export async function getPlanFact(
     target: totalTarget.toFixed(2),
     fact: totalFact.toFixed(2),
     wonAmount: totalWon.toFixed(2),
-    executionPct: totalTarget.gt(0) ? pct(totalFact, totalTarget) : null
+    executionPct: totalTarget.gt(0) ? pct(totalFact, totalTarget) : null,
   };
 
   return { ok: true, rows, totals };
@@ -386,7 +396,8 @@ export async function upsertSalesTarget(
   session: SessionPayload,
   args: UpsertSalesTargetArgs
 ): Promise<{ ok: true } | { ok: false; error: UpsertSalesTargetError }> {
-  const isLeader = session.role === 'admin' || (session.role === 'manager' && session.managerRole === 'leader');
+  const isLeader =
+    session.role === 'admin' || (session.role === 'manager' && session.managerRole === 'leader');
   if (!isLeader || !session.companyId) return { ok: false, error: 'forbidden' };
   const companyId = session.companyId;
   const { managerId, year, month, targetAmount } = args;
@@ -395,7 +406,7 @@ export async function upsertSalesTarget(
 
   const target = await prisma.user.findUnique({
     where: { id: managerId },
-    select: { id: true, role: true, companyId: true }
+    select: { id: true, role: true, companyId: true },
   });
   if (!target || target.role !== 'manager') return { ok: false, error: 'not_found' };
   if (target.companyId !== companyId) return { ok: false, error: 'forbidden' };
@@ -407,7 +418,7 @@ export async function upsertSalesTarget(
       entity: 'user',
       entityId: managerId,
       userId: session.sub,
-      after: { year, month }
+      after: { year, month },
     });
     return { ok: true };
   }
@@ -420,12 +431,13 @@ export async function upsertSalesTarget(
   }
   // isFinite: Decimal('NaN') парсится без throw, а NaN-сравнения всегда false —
   // без явной проверки 'NaN' проскочил бы оба guard'а и уронил upsert (§3: не throw).
-  if (!amount.isFinite() || amount.lte(0) || amount.gte(MAX_TARGET_AMOUNT)) return { ok: false, error: 'invalid' };
+  if (!amount.isFinite() || amount.lte(0) || amount.gte(MAX_TARGET_AMOUNT))
+    return { ok: false, error: 'invalid' };
 
   await prisma.salesTarget.upsert({
     where: { companyId_managerId_year_month: { companyId, managerId, year, month } },
     create: { companyId, managerId, year, month, targetAmount: amount, createdById: session.sub },
-    update: { targetAmount: amount }
+    update: { targetAmount: amount },
   });
 
   await recordAudit(prisma, {
@@ -433,7 +445,7 @@ export async function upsertSalesTarget(
     entity: 'user',
     entityId: managerId,
     userId: session.sub,
-    after: { year, month, targetAmount: amount.toFixed(2) }
+    after: { year, month, targetAmount: amount.toFixed(2) },
   });
 
   return { ok: true };

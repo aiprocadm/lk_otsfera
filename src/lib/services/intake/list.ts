@@ -57,7 +57,11 @@ export type IntakeFilters = {
 
 export type IntakeResult = { items: IntakeItem[]; total: number };
 
-export function slaLevelFor(waitingMs: number, warningHours = INTAKE_WARNING_HOURS, breachHours = INTAKE_BREACH_HOURS): IntakeSlaLevel {
+export function slaLevelFor(
+  waitingMs: number,
+  warningHours = INTAKE_WARNING_HOURS,
+  breachHours = INTAKE_BREACH_HOURS
+): IntakeSlaLevel {
   const hours = waitingMs / 3_600_000;
   if (hours > breachHours) return 'breach';
   if (hours > warningHours) return 'warning';
@@ -69,13 +73,21 @@ export function intakeCallWhere(session: SessionPayload): Prisma.CallWhereInput 
   return {
     AND: [
       { OR: [{ companyId: session.companyId ?? '__no_company__' }, { companyId: null }] },
-      { direction: 'inbound', resolvedOrgId: null, contactId: null, intakeClosedAt: null, lead: null }
-    ]
+      {
+        direction: 'inbound',
+        resolvedOrgId: null,
+        contactId: null,
+        intakeClosedAt: null,
+        lead: null,
+      },
+    ],
   };
 }
 
 export function intakeClientRequestWhere(session: SessionPayload): Prisma.ClientRequestWhereInput {
-  return { AND: [clientRequestScopeWhere(session), { status: { in: ['submitted', 'in_triage'] } }] };
+  return {
+    AND: [clientRequestScopeWhere(session), { status: { in: ['submitted', 'in_triage'] } }],
+  };
 }
 
 export function intakeEnrollmentWhere(): Prisma.EnrollmentRequestWhereInput {
@@ -98,7 +110,7 @@ export async function listIntake(
   const thresholds = session.companyId
     ? await prisma.company.findUnique({
         where: { id: session.companyId },
-        select: { slaResponseHours: true, slaWarningHours: true }
+        select: { slaResponseHours: true, slaWarningHours: true },
       })
     : null;
   const warningHours = thresholds?.slaWarningHours ?? INTAKE_WARNING_HOURS;
@@ -111,39 +123,60 @@ export async function listIntake(
       orderBy: { createdAt: 'asc' },
       take: SOURCE_CAP,
       select: {
-        id: true, createdAt: true, companyName: true, subject: true, status: true,
-        triagedByUserId: true, organizationId: true
-      }
+        id: true,
+        createdAt: true,
+        companyName: true,
+        subject: true,
+        status: true,
+        triagedByUserId: true,
+        organizationId: true,
+      },
     }),
     prisma.enrollmentRequest.findMany({
       where: intakeEnrollmentWhere(),
       orderBy: { createdAt: 'asc' },
       take: SOURCE_CAP,
       select: {
-        id: true, createdAt: true, claimedByUserId: true, organizationId: true, legacyCourseTitle: true,
+        id: true,
+        createdAt: true,
+        claimedByUserId: true,
+        organizationId: true,
+        legacyCourseTitle: true,
         organization: { select: { name: true } },
         partner: { select: { name: true } },
         direction: { select: { name: true } },
-        items: { select: { id: true }, take: 100 }
-      }
+        items: { select: { id: true }, take: 100 },
+      },
     }),
     prisma.inboundMessage.findMany({
       where: intakeInboundWhere(session),
       orderBy: { createdAt: 'asc' },
       take: SOURCE_CAP,
       select: {
-        id: true, createdAt: true, channel: true, senderDisplay: true, senderRef: true,
-        subject: true, body: true, claimedByUserId: true, resolvedOrgId: true
-      }
+        id: true,
+        createdAt: true,
+        channel: true,
+        senderDisplay: true,
+        senderRef: true,
+        subject: true,
+        body: true,
+        claimedByUserId: true,
+        resolvedOrgId: true,
+      },
     }),
     prisma.call.findMany({
       where: intakeCallWhere(session),
       orderBy: { createdAt: 'asc' },
       take: SOURCE_CAP,
       select: {
-        id: true, createdAt: true, callerNumber: true, durationSec: true, status: true, claimedByUserId: true
-      }
-    })
+        id: true,
+        createdAt: true,
+        callerNumber: true,
+        durationSec: true,
+        status: true,
+        claimedByUserId: true,
+      },
+    }),
   ]);
 
   const items: IntakeItem[] = [];
@@ -162,7 +195,7 @@ export async function listIntake(
       href: '/requests',
       leadPrefill: null,
       taskTitle: `Обращение клиента: ${r.subject}`,
-      organizationId: r.organizationId
+      organizationId: r.organizationId,
     });
   }
 
@@ -181,12 +214,16 @@ export async function listIntake(
       href: '/enrollments',
       leadPrefill: null,
       taskTitle: `Заявка на обучение: ${direction}`,
-      organizationId: e.organizationId
+      organizationId: e.organizationId,
     });
   }
 
   const CHANNEL_LABEL: Record<string, string> = {
-    email: 'письмо', telegram: 'Telegram', max: 'Max', whatsapp: 'WhatsApp', cabinet: 'вопрос из кабинета'
+    email: 'письмо',
+    telegram: 'Telegram',
+    max: 'Max',
+    whatsapp: 'WhatsApp',
+    cabinet: 'вопрос из кабинета',
   };
   for (const m of inbound) {
     const from = m.senderDisplay?.trim() || m.senderRef;
@@ -207,10 +244,10 @@ export async function listIntake(
         contactName: from,
         contactPhone: '',
         contactEmail: m.channel === 'email' ? m.senderRef : '',
-        subject: m.subject?.trim() || 'Обращение из внешнего канала'
+        subject: m.subject?.trim() || 'Обращение из внешнего канала',
       },
       taskTitle: `Обращение: ${essence}`,
-      organizationId: m.resolvedOrgId
+      organizationId: m.resolvedOrgId,
     });
   }
 
@@ -219,7 +256,10 @@ export async function listIntake(
       type: 'call',
       id: c.id,
       from: c.callerNumber,
-      essence: c.durationSec != null ? `Входящий звонок · ${c.durationSec} сек` : `Входящий звонок · ${c.status}`,
+      essence:
+        c.durationSec != null
+          ? `Входящий звонок · ${c.durationSec} сек`
+          : `Входящий звонок · ${c.status}`,
       createdAt: c.createdAt,
       waitingMs: now - c.createdAt.getTime(),
       slaLevel: 'ok',
@@ -231,17 +271,22 @@ export async function listIntake(
         contactName: c.callerNumber,
         contactPhone: c.callerNumber,
         contactEmail: '',
-        subject: 'Входящий звонок'
+        subject: 'Входящий звонок',
       },
       taskTitle: `Перезвонить: ${c.callerNumber}`,
-      organizationId: null
+      organizationId: null,
     });
   }
 
   // Имена ответственных — одним запросом.
-  const responsibleIds = [...new Set(items.map((i) => i.responsibleUserId).filter((v): v is string => !!v))];
+  const responsibleIds = [
+    ...new Set(items.map((i) => i.responsibleUserId).filter((v): v is string => !!v)),
+  ];
   if (responsibleIds.length > 0) {
-    const users = await prisma.user.findMany({ where: { id: { in: responsibleIds } }, select: { id: true, name: true } });
+    const users = await prisma.user.findMany({
+      where: { id: { in: responsibleIds } },
+      select: { id: true, name: true },
+    });
     const byId = new Map(users.map((u) => [u.id, u.name]));
     for (const item of items) {
       if (item.responsibleUserId) item.responsibleName = byId.get(item.responsibleUserId) ?? null;
@@ -252,7 +297,8 @@ export async function listIntake(
 
   let filtered = items;
   if (filters.onlyUnassigned) filtered = filtered.filter((i) => !i.responsibleUserId);
-  else if (filters.assigneeId) filtered = filtered.filter((i) => i.responsibleUserId === filters.assigneeId);
+  else if (filters.assigneeId)
+    filtered = filtered.filter((i) => i.responsibleUserId === filters.assigneeId);
 
   filtered.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
@@ -264,7 +310,7 @@ export async function listIntake(
   await recordPiiAccess(prisma, {
     session,
     context: 'intake_list',
-    subjectIds: paged.filter((i) => i.type === 'inbound' || i.type === 'call').map((i) => i.id)
+    subjectIds: paged.filter((i) => i.type === 'inbound' || i.type === 'call').map((i) => i.id),
   });
 
   return { ok: true, result: { items: paged, total: filtered.length } };
@@ -277,7 +323,7 @@ export async function countIntake(prisma: PrismaClient, session: SessionPayload)
     prisma.clientRequest.count({ where: intakeClientRequestWhere(session) }),
     prisma.enrollmentRequest.count({ where: intakeEnrollmentWhere() }),
     prisma.inboundMessage.count({ where: intakeInboundWhere(session) }),
-    prisma.call.count({ where: intakeCallWhere(session) })
+    prisma.call.count({ where: intakeCallWhere(session) }),
   ]);
   return a + b + c + d;
 }

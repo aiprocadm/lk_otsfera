@@ -2,17 +2,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('@/lib/auth/session', () => ({ getSession: vi.fn() }));
 vi.mock('@/lib/services/partner/team', () => ({
-  listTeam: vi.fn(), inviteMember: vi.fn(), assignOrgs: vi.fn(), deactivateMember: vi.fn()
+  listTeam: vi.fn(),
+  inviteMember: vi.fn(),
+  assignOrgs: vi.fn(),
+  deactivateMember: vi.fn(),
 }));
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     auditLog: { create: vi.fn().mockResolvedValue(undefined) },
-    partner: { findUnique: vi.fn() }
-  }
+    partner: { findUnique: vi.fn() },
+  },
 }));
 vi.mock('@/lib/email/send', () => ({ sendPartnerInviteEmail: vi.fn() }));
 vi.mock('@/lib/logging', () => ({
-  log: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() }
+  log: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
 import { getSession } from '@/lib/auth/session';
@@ -23,15 +26,28 @@ import { GET, POST } from '@/app/api/partner/team/route';
 import { PUT, DELETE } from '@/app/api/partner/team/[userId]/route';
 
 const adminSession = {
-  sub: 'u-admin', role: 'partner', partnerId: 'p1', partnerRole: 'admin', assignedOrgIds: []
+  sub: 'u-admin',
+  role: 'partner',
+  partnerId: 'p1',
+  partnerRole: 'admin',
+  assignedOrgIds: [],
 } as any;
 
 const managerSession = {
-  sub: 'u-mgr', role: 'partner', partnerId: 'p1', partnerRole: 'manager', assignedOrgIds: []
+  sub: 'u-mgr',
+  role: 'partner',
+  partnerId: 'p1',
+  partnerRole: 'manager',
+  assignedOrgIds: [],
 } as any;
 
 const userCtx = (userId: string) => ({ params: Promise.resolve({ userId }) });
-const jsonReq = (b: unknown) => new Request('http://x/', { method: 'POST', body: JSON.stringify(b), headers: { 'content-type': 'application/json' } });
+const jsonReq = (b: unknown) =>
+  new Request('http://x/', {
+    method: 'POST',
+    body: JSON.stringify(b),
+    headers: { 'content-type': 'application/json' },
+  });
 
 describe('GET /api/partner/team — unauthenticated', () => {
   beforeEach(() => vi.resetAllMocks());
@@ -47,13 +63,19 @@ describe('POST /api/partner/team — JSON parse failure', () => {
 
   it('400 when JSON body cannot be parsed', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
-    const badReq = new Request('http://x/', { method: 'POST', body: 'NOT JSON', headers: { 'content-type': 'application/json' } });
+    const badReq = new Request('http://x/', {
+      method: 'POST',
+      body: 'NOT JSON',
+      headers: { 'content-type': 'application/json' },
+    });
     expect((await POST(badReq)).status).toBe(400);
   });
 
   it('401 when POST unauthenticated (session is null)', async () => {
     vi.mocked(getSession).mockResolvedValue(null);
-    const res = await POST(jsonReq({ email: 'x@x.local', name: 'X', roleInPartner: 'manager', assignedOrgIds: [] }));
+    const res = await POST(
+      jsonReq({ email: 'x@x.local', name: 'X', roleInPartner: 'manager', assignedOrgIds: [] })
+    );
     expect(res.status).toBe(401);
   });
 });
@@ -81,7 +103,13 @@ describe('POST /api/partner/team', () => {
 
   it('403 for non-admin', async () => {
     vi.mocked(getSession).mockResolvedValue(managerSession);
-    expect((await POST(jsonReq({ email: 'x@x.local', name: 'X', roleInPartner: 'manager', assignedOrgIds: [] }))).status).toBe(403);
+    expect(
+      (
+        await POST(
+          jsonReq({ email: 'x@x.local', name: 'X', roleInPartner: 'manager', assignedOrgIds: [] })
+        )
+      ).status
+    ).toBe(403);
   });
 
   it('400 on invalid payload — body is the bare stable code, no zod details (R2)', async () => {
@@ -95,40 +123,54 @@ describe('POST /api/partner/team', () => {
   it('201 on success — тело содержит inviteUrl и emailStatus:sent, письмо ушло с roleLabel «менеджер»', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
     vi.mocked(inviteMember).mockResolvedValue({
-      ok: true, user: { id: 'u1' }, partnerUser: { id: 'pu1' }, inviteUrl: 'https://app/reset-password?token=t1'
+      ok: true,
+      user: { id: 'u1' },
+      partnerUser: { id: 'pu1' },
+      inviteUrl: 'https://app/reset-password?token=t1',
     } as any);
     vi.mocked(prisma.partner.findUnique).mockResolvedValue({ name: 'ООО Партнёр' } as any);
     vi.mocked(sendPartnerInviteEmail).mockResolvedValue({ status: 'sent', id: 'em-1' });
 
-    const res = await POST(jsonReq({ email: 'x@x.local', name: 'Имя', roleInPartner: 'manager', assignedOrgIds: ['oA'] }));
+    const res = await POST(
+      jsonReq({ email: 'x@x.local', name: 'Имя', roleInPartner: 'manager', assignedOrgIds: ['oA'] })
+    );
     expect(res.status).toBe(201);
     expect(inviteMember).toHaveBeenCalledWith(expect.anything(), {
-      partnerId: 'p1', email: 'x@x.local', name: 'Имя', roleInPartner: 'manager', assignedOrgIds: ['oA']
+      partnerId: 'p1',
+      email: 'x@x.local',
+      name: 'Имя',
+      roleInPartner: 'manager',
+      assignedOrgIds: ['oA'],
     });
     expect(await res.json()).toEqual({
       userId: 'u1',
       partnerUserId: 'pu1',
       inviteUrl: 'https://app/reset-password?token=t1',
-      emailStatus: 'sent'
+      emailStatus: 'sent',
     });
     expect(sendPartnerInviteEmail).toHaveBeenCalledWith({
       to: 'x@x.local',
       partnerName: 'ООО Партнёр',
       roleLabel: 'менеджер',
       inviteUrl: 'https://app/reset-password?token=t1',
-      invitedByName: undefined
+      invitedByName: undefined,
     });
   });
 
   it('roleInPartner=admin → roleLabel «администратор»; без имени партнёра — фолбэк «партнёр»', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
     vi.mocked(inviteMember).mockResolvedValue({
-      ok: true, user: { id: 'u1' }, partnerUser: { id: 'pu1' }, inviteUrl: 'https://app/reset-password?token=t2'
+      ok: true,
+      user: { id: 'u1' },
+      partnerUser: { id: 'pu1' },
+      inviteUrl: 'https://app/reset-password?token=t2',
     } as any);
     vi.mocked(prisma.partner.findUnique).mockResolvedValue(null);
     vi.mocked(sendPartnerInviteEmail).mockResolvedValue({ status: 'sent', id: null });
 
-    const res = await POST(jsonReq({ email: 'a@x.local', name: 'Админ', roleInPartner: 'admin', assignedOrgIds: [] }));
+    const res = await POST(
+      jsonReq({ email: 'a@x.local', name: 'Админ', roleInPartner: 'admin', assignedOrgIds: [] })
+    );
     expect(res.status).toBe(201);
     expect(sendPartnerInviteEmail).toHaveBeenCalledWith(
       expect.objectContaining({ roleLabel: 'администратор', partnerName: 'партнёр' })
@@ -138,12 +180,17 @@ describe('POST /api/partner/team', () => {
   it('email skipped (транспорт выключен) → 201 c emailStatus:skipped', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
     vi.mocked(inviteMember).mockResolvedValue({
-      ok: true, user: { id: 'u1' }, partnerUser: { id: 'pu1' }, inviteUrl: 'https://app/reset-password?token=t3'
+      ok: true,
+      user: { id: 'u1' },
+      partnerUser: { id: 'pu1' },
+      inviteUrl: 'https://app/reset-password?token=t3',
     } as any);
     vi.mocked(prisma.partner.findUnique).mockResolvedValue({ name: 'П' } as any);
     vi.mocked(sendPartnerInviteEmail).mockResolvedValue({ status: 'skipped', reason: 'disabled' });
 
-    const res = await POST(jsonReq({ email: 'x@x.local', name: 'И', roleInPartner: 'manager', assignedOrgIds: [] }));
+    const res = await POST(
+      jsonReq({ email: 'x@x.local', name: 'И', roleInPartner: 'manager', assignedOrgIds: [] })
+    );
     expect(res.status).toBe(201);
     expect((await res.json()).emailStatus).toBe('skipped');
   });
@@ -151,23 +198,30 @@ describe('POST /api/partner/team', () => {
   it('сбой отправки письма best-effort: 201 не ломается, emailStatus:skipped, inviteUrl остаётся', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
     vi.mocked(inviteMember).mockResolvedValue({
-      ok: true, user: { id: 'u1' }, partnerUser: { id: 'pu1' }, inviteUrl: 'https://app/reset-password?token=t4'
+      ok: true,
+      user: { id: 'u1' },
+      partnerUser: { id: 'pu1' },
+      inviteUrl: 'https://app/reset-password?token=t4',
     } as any);
     vi.mocked(prisma.partner.findUnique).mockResolvedValue({ name: 'П' } as any);
     vi.mocked(sendPartnerInviteEmail).mockRejectedValue(new Error('SMTP down'));
 
-    const res = await POST(jsonReq({ email: 'x@x.local', name: 'И', roleInPartner: 'manager', assignedOrgIds: [] }));
+    const res = await POST(
+      jsonReq({ email: 'x@x.local', name: 'И', roleInPartner: 'manager', assignedOrgIds: [] })
+    );
     expect(res.status).toBe(201);
     expect(await res.json()).toMatchObject({
       inviteUrl: 'https://app/reset-password?token=t4',
-      emailStatus: 'skipped'
+      emailStatus: 'skipped',
     });
   });
 
   it('409 on email_taken', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
     vi.mocked(inviteMember).mockResolvedValue({ ok: false, error: 'email_taken' } as any);
-    const res = await POST(jsonReq({ email: 'x@x.local', name: 'И', roleInPartner: 'manager', assignedOrgIds: [] }));
+    const res = await POST(
+      jsonReq({ email: 'x@x.local', name: 'И', roleInPartner: 'manager', assignedOrgIds: [] })
+    );
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({ error: 'email_taken' });
   });
@@ -175,7 +229,9 @@ describe('POST /api/partner/team', () => {
   it('422 on org_out_of_scope', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
     vi.mocked(inviteMember).mockResolvedValue({ ok: false, error: 'org_out_of_scope' } as any);
-    const res = await POST(jsonReq({ email: 'x@x.local', name: 'И', roleInPartner: 'manager', assignedOrgIds: ['bad'] }));
+    const res = await POST(
+      jsonReq({ email: 'x@x.local', name: 'И', roleInPartner: 'manager', assignedOrgIds: ['bad'] })
+    );
     expect(res.status).toBe(422);
     expect(await res.json()).toEqual({ error: 'org_out_of_scope' });
   });
@@ -183,7 +239,9 @@ describe('POST /api/partner/team', () => {
   it('propagates unexpected errors from inviteMember', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
     vi.mocked(inviteMember).mockRejectedValue(new Error('DB_DEADLOCK: timeout'));
-    await expect(POST(jsonReq({ email: 'x@x.local', name: 'И', roleInPartner: 'manager', assignedOrgIds: [] }))).rejects.toThrow('DB_DEADLOCK');
+    await expect(
+      POST(jsonReq({ email: 'x@x.local', name: 'И', roleInPartner: 'manager', assignedOrgIds: [] }))
+    ).rejects.toThrow('DB_DEADLOCK');
   });
 });
 
@@ -202,7 +260,11 @@ describe('PUT /api/partner/team/[userId]', () => {
 
   it('400 on invalid payload (missing assignedOrgIds) — no zod details in body (R2)', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
-    const req = new Request('http://x/', { method: 'PUT', body: JSON.stringify({ wrong: 'field' }), headers: { 'content-type': 'application/json' } });
+    const req = new Request('http://x/', {
+      method: 'PUT',
+      body: JSON.stringify({ wrong: 'field' }),
+      headers: { 'content-type': 'application/json' },
+    });
     const res = await PUT(req, userCtx('u'));
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: 'Invalid payload' });
@@ -210,7 +272,11 @@ describe('PUT /api/partner/team/[userId]', () => {
 
   it('400 on JSON parse failure', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
-    const req = new Request('http://x/', { method: 'PUT', body: 'not-json', headers: { 'content-type': 'text/plain' } });
+    const req = new Request('http://x/', {
+      method: 'PUT',
+      body: 'not-json',
+      headers: { 'content-type': 'text/plain' },
+    });
     expect((await PUT(req, userCtx('u'))).status).toBe(400);
   });
 
@@ -221,7 +287,9 @@ describe('PUT /api/partner/team/[userId]', () => {
     const res = await PUT(jsonReq({ assignedOrgIds: ['oA', 'oB'] }), userCtx('user-1'));
     expect(res.status).toBe(200);
     expect(assignOrgs).toHaveBeenCalledWith(expect.anything(), {
-      partnerId: 'p1', userId: 'user-1', assignedOrgIds: ['oA', 'oB']
+      partnerId: 'p1',
+      userId: 'user-1',
+      assignedOrgIds: ['oA', 'oB'],
     });
   });
 
@@ -262,7 +330,10 @@ describe('DELETE /api/partner/team/[userId]', () => {
 
   it('409 on last_admin_protected', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession);
-    vi.mocked(deactivateMember).mockResolvedValue({ ok: false, error: 'last_admin_protected' } as any);
+    vi.mocked(deactivateMember).mockResolvedValue({
+      ok: false,
+      error: 'last_admin_protected',
+    } as any);
     const res = await DELETE(new Request('http://x/'), userCtx('user-1'));
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({ error: 'last_admin_protected' });

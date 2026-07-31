@@ -8,7 +8,7 @@ import { getOrgStudent, listOrgStudentTraining } from '@/lib/services/organizati
 
 const prisma = {
   student: { findFirst: vi.fn() },
-  orderItem: { findMany: vi.fn() }
+  orderItem: { findMany: vi.fn() },
 } as never as import('@prisma/client').PrismaClient;
 
 const mocked = prisma as unknown as {
@@ -22,7 +22,13 @@ beforeEach(() => {
 
 describe('getOrgStudent', () => {
   it('ищет строго в пределах организации (id + organizationId)', async () => {
-    mocked.student.findFirst.mockResolvedValue({ id: 's1', name: 'И', email: 'i@x.ru', externalStudentId: null, createdAt: new Date() });
+    mocked.student.findFirst.mockResolvedValue({
+      id: 's1',
+      name: 'И',
+      email: 'i@x.ru',
+      externalStudentId: null,
+      createdAt: new Date(),
+    });
     const res = await getOrgStudent(prisma, { organizationId: 'org-1', studentId: 's1' });
     expect(res?.id).toBe('s1');
     expect(mocked.student.findFirst).toHaveBeenCalledWith(
@@ -43,7 +49,7 @@ describe('listOrgStudentTraining', () => {
     expect(mocked.orderItem.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { studentId: 's1', order: { organizationId: 'org-1' } },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
       })
     );
   });

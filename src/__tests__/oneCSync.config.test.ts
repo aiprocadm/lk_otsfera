@@ -1,5 +1,9 @@
 import { describe, expect, it, afterEach } from 'vitest';
-import { oneCMode, oneCHttpTimeoutMs, oneCCursorOverlapMinutes } from '@/lib/services/oneCSync/config';
+import {
+  oneCMode,
+  oneCHttpTimeoutMs,
+  oneCCursorOverlapMinutes,
+} from '@/lib/services/oneCSync/config';
 
 describe('oneCSync config', () => {
   afterEach(() => {

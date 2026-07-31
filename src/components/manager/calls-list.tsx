@@ -38,12 +38,12 @@ export type CallListItem = {
 
 const DIRECTION_LABEL: Record<string, string> = {
   inbound: 'Входящий',
-  outbound: 'Исходящий'
+  outbound: 'Исходящий',
 };
 
 const DIRECTION_TONE: Record<string, 'success' | 'info'> = {
   inbound: 'success',
-  outbound: 'info'
+  outbound: 'info',
 };
 
 function fmtDuration(sec: number | null): string {
@@ -78,7 +78,7 @@ export function CallsList({
   items,
   orgs = [],
   contactsEnabled = false,
-  currentUserId = ''
+  currentUserId = '',
 }: {
   items: CallListItem[];
   orgs?: { id: string; name: string }[];
@@ -140,7 +140,7 @@ export function CallsList({
                         contactName: item.callerNumber,
                         contactPhone: item.callerNumber,
                         contactEmail: '',
-                        subject: 'Входящий звонок'
+                        subject: 'Входящий звонок',
                       }}
                       taskTitle={`Перезвонить: ${item.callerNumber}`}
                       organizationId={item.resolvedOrgId}

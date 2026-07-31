@@ -4,7 +4,11 @@ import * as React from 'react';
 import { prisma } from '@/lib/db/prisma';
 import { createInviteToken } from '@/lib/auth/passwordReset';
 import { send } from '@/lib/email/send';
-import { PasswordResetTemplate, passwordResetSubject, passwordResetText } from '@/lib/email/templates/password-reset';
+import {
+  PasswordResetTemplate,
+  passwordResetSubject,
+  passwordResetText,
+} from '@/lib/email/templates/password-reset';
 import { log } from '@/lib/logging';
 import { isRateLimited } from '@/lib/rateLimit';
 

@@ -68,7 +68,7 @@ describe('FakeInboundEmailAdapter', () => {
   it('returns messages from FAKE_INBOUND_EMAIL and advances the cursor', async () => {
     const fixture = [
       { externalId: 'm1', from: 'a@example.com', subject: 'hi', text: 'body1' },
-      { externalId: 'm2', from: 'b@example.com', text: 'body2' }
+      { externalId: 'm2', from: 'b@example.com', text: 'body2' },
     ];
     process.env.FAKE_INBOUND_EMAIL = JSON.stringify(fixture);
     const adapter = new FakeInboundEmailAdapter();
@@ -101,7 +101,7 @@ describe('FakeInboundEmailAdapter', () => {
     const fixture = [
       { externalId: 'm1', from: 'a@example.com', text: 'body1' },
       { externalId: 'm2', from: 'b@example.com', text: 'body2' },
-      { externalId: 'm3', from: 'c@example.com', text: 'body3' }
+      { externalId: 'm3', from: 'c@example.com', text: 'body3' },
     ];
     process.env.FAKE_INBOUND_EMAIL = JSON.stringify(fixture);
     const adapter = new FakeInboundEmailAdapter();
@@ -144,7 +144,7 @@ describe('readImapConfig', () => {
       port: 993,
       user: 'bot@example.com',
       password: 'secret',
-      tls: true
+      tls: true,
     });
   });
 
@@ -154,7 +154,7 @@ describe('readImapConfig', () => {
       port: undefined,
       user: undefined,
       password: undefined,
-      tls: true
+      tls: true,
     });
   });
 

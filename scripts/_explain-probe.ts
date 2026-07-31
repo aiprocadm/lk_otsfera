@@ -18,17 +18,24 @@ async function seed() {
   const company = await prisma.company.upsert({
     where: { id: MARK + '-company' },
     update: {},
-    create: { id: MARK + '-company', name: MARK }
+    create: { id: MARK + '-company', name: MARK },
   });
   const org = await prisma.organization.upsert({
     where: { id: MARK + '-org' },
     update: {},
-    create: { id: MARK + '-org', name: MARK, companyId: company.id }
+    create: { id: MARK + '-org', name: MARK, companyId: company.id },
   });
   const user = await prisma.user.upsert({
     where: { email: EMAIL },
     update: {},
-    create: { id: MARK + '-user', email: EMAIL, passwordHash: 'x', name: MARK, role: 'manager', companyId: company.id }
+    create: {
+      id: MARK + '-user',
+      email: EMAIL,
+      passwordHash: 'x',
+      name: MARK,
+      role: 'manager',
+      companyId: company.id,
+    },
   });
 
   const B = 5000;
@@ -40,8 +47,8 @@ async function seed() {
         entity: ['order', 'commission_statement', 'organization'][i % 3],
         entityId: `${MARK}-e${(batch * B + i) % 4000}`,
         userId: user.id,
-        createdAt: new Date(Date.now() - ((batch * B + i) % 90) * 86400000)
-      }))
+        createdAt: new Date(Date.now() - ((batch * B + i) % 90) * 86400000),
+      })),
     });
   }
   // 20k orders in one company (the C8 company-wide list shape)
@@ -52,8 +59,8 @@ async function seed() {
         companyId: company.id,
         organizationId: org.id,
         executionStatus: (['pending', 'in_progress', 'completed'] as const)[i % 3],
-        financialStatus: (['billed', 'paid'] as const)[i % 2]
-      }))
+        financialStatus: (['billed', 'paid'] as const)[i % 2],
+      })),
     });
   }
   // 30k notifications for one user
@@ -65,8 +72,8 @@ async function seed() {
         title: MARK,
         body: 'x',
         isRead: i % 5 !== 0,
-        createdAt: new Date(Date.now() - ((batch * B + i) % 60) * 86400000)
-      }))
+        createdAt: new Date(Date.now() - ((batch * B + i) % 60) * 86400000),
+      })),
     });
   }
   console.log('seeded: 50k AuditLog, 20k Order, 30k Notification');
@@ -85,7 +92,7 @@ const NEW_INDEXES = [
   'Order_companyId_executionStatus_idx',
   'Order_companyId_financialStatus_idx',
   'Notification_userId_createdAt_idx',
-  'Notification_userId_isRead_idx'
+  'Notification_userId_isRead_idx',
 ];
 
 /**
@@ -95,13 +102,16 @@ const NEW_INDEXES = [
 async function explainBefore() {
   await analyzeTables(prisma);
   await prisma
-    .$transaction(async (tx) => {
-      for (const idx of NEW_INDEXES) {
-        await tx.$executeRawUnsafe(`DROP INDEX IF EXISTS "${idx}"`);
-      }
-      await runExplains(tx);
-      throw new Error('__rollback__'); // намеренно: откатить DROP INDEX
-    }, { timeout: 60000 })
+    .$transaction(
+      async (tx) => {
+        for (const idx of NEW_INDEXES) {
+          await tx.$executeRawUnsafe(`DROP INDEX IF EXISTS "${idx}"`);
+        }
+        await runExplains(tx);
+        throw new Error('__rollback__'); // намеренно: откатить DROP INDEX
+      },
+      { timeout: 60000 }
+    )
     .catch((e) => {
       if (!(e instanceof Error && e.message === '__rollback__')) throw e;
     });
@@ -111,16 +121,16 @@ async function runExplains(db: { $queryRawUnsafe: (q: string) => Promise<unknown
   const queries: Array<[string, string]> = [
     [
       'Q1 AuditLog entity+entityId (manager/orderDetail, admin statement audit)',
-      `EXPLAIN ANALYZE SELECT * FROM "AuditLog" WHERE entity = 'order' AND "entityId" = '${MARK}-e77' ORDER BY "createdAt" DESC LIMIT 50`
+      `EXPLAIN ANALYZE SELECT * FROM "AuditLog" WHERE entity = 'order' AND "entityId" = '${MARK}-e77' ORDER BY "createdAt" DESC LIMIT 50`,
     ],
     [
       'Q2 Order companyId+executionStatus aggregate (manager KPIs count, leader groupBy)',
-      `EXPLAIN ANALYZE SELECT count(*) FROM "Order" WHERE "companyId" = '${MARK}-company' AND "executionStatus" = 'pending'`
+      `EXPLAIN ANALYZE SELECT count(*) FROM "Order" WHERE "companyId" = '${MARK}-company' AND "executionStatus" = 'pending'`,
     ],
     [
       'Q3 Notification userId ORDER BY createdAt (api/notifications feed)',
-      `EXPLAIN ANALYZE SELECT id FROM "Notification" WHERE "userId" = '${MARK}-user' ORDER BY "createdAt" DESC LIMIT 50`
-    ]
+      `EXPLAIN ANALYZE SELECT id FROM "Notification" WHERE "userId" = '${MARK}-user' ORDER BY "createdAt" DESC LIMIT 50`,
+    ],
   ];
   for (const [label, sql] of queries) {
     console.log(`\n===== ${label} =====`);
@@ -154,5 +164,8 @@ async function main() {
 }
 
 main()
-  .catch((e) => { console.error(e); process.exitCode = 1; })
+  .catch((e) => {
+    console.error(e);
+    process.exitCode = 1;
+  })
   .finally(() => prisma.$disconnect());

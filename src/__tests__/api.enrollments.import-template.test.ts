@@ -58,7 +58,14 @@ describe('GET /api/enrollments/import-template', () => {
 
     const headers: string[] = [];
     ws.getRow(1).eachCell((cell) => headers.push(String(cell.value)));
-    expect(headers).toEqual(['ФИО*', 'Email*', 'Должность', 'СНИЛС', 'Дата рождения', 'Дополнительно']);
+    expect(headers).toEqual([
+      'ФИО*',
+      'Email*',
+      'Должность',
+      'СНИЛС',
+      'Дата рождения',
+      'Дополнительно',
+    ]);
 
     // Строка-пример показывает форматы (СНИЛС с маской, дата ДД.ММ.ГГГГ).
     const example = ws.getRow(2);

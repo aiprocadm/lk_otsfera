@@ -37,19 +37,19 @@ export async function renderStatementXlsx(args: RenderStatementXlsxArgs): Promis
   const ws = wb.addWorksheet('Items');
 
   ws.columns = [
-    { header: '№',            key: 'num',              width: 6  },
-    { header: 'Заказ / платёж', key: 'orderNumber',    width: 18 },
-    { header: 'Организация',  key: 'organizationName', width: 36 },
-    { header: 'База, ₽',      key: 'baseAmount',       width: 16 },
-    { header: 'Ставка',       key: 'rate',             width: 10 },
-    { header: 'Комиссия, ₽',  key: 'commissionAmount', width: 16 },
+    { header: '№', key: 'num', width: 6 },
+    { header: 'Заказ / платёж', key: 'orderNumber', width: 18 },
+    { header: 'Организация', key: 'organizationName', width: 36 },
+    { header: 'База, ₽', key: 'baseAmount', width: 16 },
+    { header: 'Ставка', key: 'rate', width: 10 },
+    { header: 'Комиссия, ₽', key: 'commissionAmount', width: 16 },
   ];
 
   // Style header row
   const headerRow = ws.getRow(1);
   headerRow.eachCell((cell) => {
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + BRAND_COLOR } };
-    cell.font  = { color: { argb: HEADER_FONT_COLOR }, bold: true };
+    cell.font = { color: { argb: HEADER_FONT_COLOR }, bold: true };
     cell.alignment = { vertical: 'middle', horizontal: 'center' };
   });
   headerRow.height = 20;
@@ -95,12 +95,12 @@ export async function renderStatementXlsx(args: RenderStatementXlsxArgs): Promis
   ];
 
   const summaryRows: [string, string | number][] = [
-    ['Партнёр',         safeText(partner.name)],
-    ['Период',          periodLabel(statement.periodFrom, statement.periodTo)],
-    ['Статус',          safeText(statement.status)],
-    ['Сформировано',    new Date(statement.calculatedAt).toLocaleDateString('ru-RU')],
-    ['Итого база, ₽',   n(statement.totalBaseAmount)],
-    ['Средняя ставка',  n(statement.averageRate)],
+    ['Партнёр', safeText(partner.name)],
+    ['Период', periodLabel(statement.periodFrom, statement.periodTo)],
+    ['Статус', safeText(statement.status)],
+    ['Сформировано', new Date(statement.calculatedAt).toLocaleDateString('ru-RU')],
+    ['Итого база, ₽', n(statement.totalBaseAmount)],
+    ['Средняя ставка', n(statement.averageRate)],
     ['Итого комиссия, ₽', n(statement.totalCommissionAmount)],
   ];
 

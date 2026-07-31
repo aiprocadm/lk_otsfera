@@ -14,7 +14,7 @@ export function readMangoConfig(): MangoRestConfig {
   return {
     apiKey: cachedIntegrationSetting('mango.apiKey') ?? undefined,
     apiSalt: cachedIntegrationSetting('mango.apiSalt') ?? undefined,
-    baseUrl: cachedIntegrationSetting('mango.vpbxBaseUrl') ?? DEFAULT_BASE_URL
+    baseUrl: cachedIntegrationSetting('mango.vpbxBaseUrl') ?? DEFAULT_BASE_URL,
   };
 }
 
@@ -54,7 +54,9 @@ export class RestMangoAdapter implements MangoAdapter {
     return this.overrides ?? readMangoConfig();
   }
 
-  async fetchRecording(recordingId: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+  async fetchRecording(
+    recordingId: string
+  ): Promise<{ buffer: Buffer; contentType: string } | null> {
     void recordingId;
     void this.config;
     throw new Error('Mango REST adapter not wired (set MANGO_ADAPTER=fake for tests)');
@@ -74,9 +76,14 @@ export class RestMangoAdapter implements MangoAdapter {
 
   // POST {MANGO_VPBX_BASE_URL}/commands/callback — signature as in the other calls.
   // Response shape (command_id) confirmed against Mango docs at live wiring.
-  async initiateCallback(_input: { fromInternal: string; toNumber: string }): Promise<{ commandId: string }> {
+  async initiateCallback(_input: {
+    fromInternal: string;
+    toNumber: string;
+  }): Promise<{ commandId: string }> {
     void _input;
     void this.config;
-    throw new Error('RestMangoAdapter.initiateCallback not wired yet (owner enables live callback)');
+    throw new Error(
+      'RestMangoAdapter.initiateCallback not wired yet (owner enables live callback)'
+    );
   }
 }

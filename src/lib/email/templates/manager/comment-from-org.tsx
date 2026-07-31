@@ -10,10 +10,10 @@ export type ManagerCommentFromOrgProps = {
 
 export function ManagerCommentFromOrg(props: ManagerCommentFromOrgProps) {
   return (
-    <EmailLayout title='Новое сообщение по заказу'>
+    <EmailLayout title="Новое сообщение по заказу">
       <p style={emailStyles.paragraph}>
-        Организация <strong>{props.orgName}</strong> оставила сообщение по
-        заказу <strong>№ {props.orderNumber}</strong>:
+        Организация <strong>{props.orgName}</strong> оставила сообщение по заказу{' '}
+        <strong>№ {props.orderNumber}</strong>:
       </p>
       <p style={emailStyles.paragraph}>
         <em>«{props.commentExcerpt}»</em>
@@ -39,6 +39,6 @@ export function managerCommentFromOrgText(props: ManagerCommentFromOrgProps): st
     `Организация ${props.orgName} оставила сообщение по заказу № ${props.orderNumber}:`,
     `«${props.commentExcerpt}»`,
     '',
-    `Открыть заказ: ${props.orderUrl}`
+    `Открыть заказ: ${props.orderUrl}`,
   ].join('\n');
 }

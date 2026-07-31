@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const { requireSession, isRateLimited, suggestParty } = vi.hoisted(() => ({
   requireSession: vi.fn(),
   isRateLimited: vi.fn(),
-  suggestParty: vi.fn()
+  suggestParty: vi.fn(),
 }));
 vi.mock('@/lib/auth/guard', () => ({ requireSession }));
 vi.mock('@/lib/rateLimit', () => ({ isRateLimited }));
@@ -49,14 +49,14 @@ describe('GET /api/suggest/party', () => {
 
   it('happy path: зовёт сервис с очищенным запросом и отдаёт только suggestions', async () => {
     suggestParty.mockResolvedValue([
-      { name: 'Сбербанк', inn: '7707', kpp: null, ogrn: null, address: null }
+      { name: 'Сбербанк', inn: '7707', kpp: null, ogrn: null, address: null },
     ]);
     const res = await GET(req('  сбер  '));
     const body = await res.json();
     expect(res.status).toBe(200);
     expect(suggestParty).toHaveBeenCalledWith(expect.anything(), 'сбер');
     expect(body).toEqual({
-      suggestions: [{ name: 'Сбербанк', inn: '7707', kpp: null, ogrn: null, address: null }]
+      suggestions: [{ name: 'Сбербанк', inn: '7707', kpp: null, ogrn: null, address: null }],
     });
     // Ключ DaData в ответе не фигурирует (его формирует и держит сервис).
     expect(JSON.stringify(body)).not.toContain('Token');

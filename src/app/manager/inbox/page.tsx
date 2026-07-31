@@ -24,7 +24,7 @@ const PAGE_SIZE = 25;
 const KNOWN_CHANNELS = new Set(['telegram', 'max', 'whatsapp', 'email', 'cabinet']);
 
 export default async function ManagerInboxPage({
-  searchParams
+  searchParams,
 }: {
   searchParams: Promise<SearchParams>;
 }) {
@@ -45,31 +45,37 @@ export default async function ManagerInboxPage({
     ...(channel ? { channel } : {}),
     ...(status ? { status } : {}),
     page,
-    pageSize: PAGE_SIZE
+    pageSize: PAGE_SIZE,
   };
 
   const [{ items, total }, organizations] = await Promise.all([
     listInbox(prisma, session, filters),
-    listOrganizations(prisma, session)
+    listOrganizations(prisma, session),
   ]);
 
   const contactsEnabled = isFeatureEnabled('contacts');
 
   return (
-    <div className='space-y-4'>
+    <div className="space-y-4">
       <div>
-        <h1 className='text-2xl font-bold text-[#111111]'>Обращения</h1>
-        <p className='mt-1 text-sm text-gray-500'>
-          Входящие сообщения из мессенджеров и почты. Привяжите обращение к организации, чтобы ответить.
+        <h1 className="text-2xl font-bold text-[#111111]">Обращения</h1>
+        <p className="mt-1 text-sm text-gray-500">
+          Входящие сообщения из мессенджеров и почты. Привяжите обращение к организации, чтобы
+          ответить.
         </p>
       </div>
 
       <InboxFiltersBar channel={channel} status={status} />
 
-      <InboxList items={items} organizations={organizations} contactsEnabled={contactsEnabled} currentUserId={session.sub} />
+      <InboxList
+        items={items}
+        organizations={organizations}
+        contactsEnabled={contactsEnabled}
+        currentUserId={session.sub}
+      />
 
       <Paginator
-        basePath='/manager/inbox'
+        basePath="/manager/inbox"
         searchParams={sp}
         take={PAGE_SIZE}
         skip={(page - 1) * PAGE_SIZE}

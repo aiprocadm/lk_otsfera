@@ -11,12 +11,15 @@ const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 
 const { useClientResourceMock } = vi.hoisted(() => ({
-  useClientResourceMock: vi.fn((..._args: [string, { select: (raw: unknown) => unknown }]) => (
-    (void _args, { data: null as unknown, loading: false })
-  ))
+  useClientResourceMock: vi.fn(
+    (..._args: [string, { select: (raw: unknown) => unknown }]) => (
+      void _args,
+      { data: null as unknown, loading: false }
+    )
+  ),
 }));
 vi.mock('@/hooks/useClientResource', () => ({
-  useClientResource: useClientResourceMock
+  useClientResource: useClientResourceMock,
 }));
 
 import { CommissionStatementsList } from '@/components/partner/commission-statements-list';
@@ -30,7 +33,10 @@ function maxButtonNesting(html: string): number {
   let max = 0;
   for (const tag of html.match(/<\/?button\b/g) ?? []) {
     if (tag.startsWith('</')) depth--;
-    else { depth++; if (depth > max) max = depth; }
+    else {
+      depth++;
+      if (depth > max) max = depth;
+    }
   }
   return max;
 }
@@ -43,14 +49,12 @@ const draft: StatementListItem = {
   totalCommissionAmount: '1000.00',
   pdfPath: 'p.pdf',
   xlsxPath: 'x.xlsx',
-  itemCount: 2
+  itemCount: 2,
 };
 
 describe('CommissionStatementsList — valid HTML nesting (hydration-safe)', () => {
   it('draft + canManage: action controls render without a <button> nested in a <button>', () => {
-    const html = renderToString(
-      <CommissionStatementsList statements={[draft]} canManage={true} />
-    );
+    const html = renderToString(<CommissionStatementsList statements={[draft]} canManage={true} />);
     // The interactive controls that previously sat inside the toggle <button>.
     expect(html).toContain('Утвердить');
     expect(html).toContain('PDF');
@@ -61,9 +65,7 @@ describe('CommissionStatementsList — valid HTML nesting (hydration-safe)', () 
   });
 
   it('renders empty state without any statements', () => {
-    const html = renderToString(
-      <CommissionStatementsList statements={[]} canManage={false} />
-    );
+    const html = renderToString(<CommissionStatementsList statements={[]} canManage={false} />);
     expect(html).toContain('Отчётов ещё нет');
     expect(maxButtonNesting(html)).toBeLessThanOrEqual(1);
   });
@@ -71,17 +73,28 @@ describe('CommissionStatementsList — valid HTML nesting (hydration-safe)', () 
 
 describe('CommissionStatementsList — coverage extension', () => {
   it('empty + canManage: shows the hint about generating the first statement', () => {
-    const html = renderToString(
-      <CommissionStatementsList statements={[]} canManage={true} />
-    );
+    const html = renderToString(<CommissionStatementsList statements={[]} canManage={true} />);
     expect(html).toContain('Сформировать за период');
   });
 
   it('same-month period renders "мес год"; different months render a date range', () => {
-    const sameMonth: StatementListItem = { ...draft, periodFrom: new Date('2026-03-01'), periodTo: new Date('2026-03-31') };
-    const crossMonth: StatementListItem = { ...draft, id: 's2', periodFrom: new Date('2026-03-01'), periodTo: new Date('2026-04-15') };
-    const htmlSame = renderToString(<CommissionStatementsList statements={[sameMonth]} canManage={false} />);
-    const htmlCross = renderToString(<CommissionStatementsList statements={[crossMonth]} canManage={false} />);
+    const sameMonth: StatementListItem = {
+      ...draft,
+      periodFrom: new Date('2026-03-01'),
+      periodTo: new Date('2026-03-31'),
+    };
+    const crossMonth: StatementListItem = {
+      ...draft,
+      id: 's2',
+      periodFrom: new Date('2026-03-01'),
+      periodTo: new Date('2026-04-15'),
+    };
+    const htmlSame = renderToString(
+      <CommissionStatementsList statements={[sameMonth]} canManage={false} />
+    );
+    const htmlCross = renderToString(
+      <CommissionStatementsList statements={[crossMonth]} canManage={false} />
+    );
     expect(htmlSame).toContain('мар 2026');
     expect(htmlCross).toContain('—');
   });
@@ -90,30 +103,48 @@ describe('CommissionStatementsList — coverage extension', () => {
     const approved: StatementListItem = { ...draft, id: 's2', status: 'approved' };
     const paid: StatementListItem = { ...draft, id: 's3', status: 'paid' };
     const superseded: StatementListItem = { ...draft, id: 's4', status: 'superseded' };
-    const unknown: StatementListItem = { ...draft, id: 's5', status: 'weird_status' as StatementListItem['status'] };
+    const unknown: StatementListItem = {
+      ...draft,
+      id: 's5',
+      status: 'weird_status' as StatementListItem['status'],
+    };
 
-    expect(renderToString(<CommissionStatementsList statements={[approved]} canManage={false} />)).toContain('Утверждён');
-    expect(renderToString(<CommissionStatementsList statements={[paid]} canManage={false} />)).toContain('Выплачен');
-    expect(renderToString(<CommissionStatementsList statements={[superseded]} canManage={false} />)).toContain('Заменён');
-    const htmlUnknown = renderToString(<CommissionStatementsList statements={[unknown]} canManage={false} />);
+    expect(
+      renderToString(<CommissionStatementsList statements={[approved]} canManage={false} />)
+    ).toContain('Утверждён');
+    expect(
+      renderToString(<CommissionStatementsList statements={[paid]} canManage={false} />)
+    ).toContain('Выплачен');
+    expect(
+      renderToString(<CommissionStatementsList statements={[superseded]} canManage={false} />)
+    ).toContain('Заменён');
+    const htmlUnknown = renderToString(
+      <CommissionStatementsList statements={[unknown]} canManage={false} />
+    );
     expect(htmlUnknown).toContain('weird_status');
     expect(htmlUnknown).toContain('bg-gray-100 text-gray-500');
   });
 
   it('does not render the Утвердить button when canManage is false, even if draft', () => {
-    const html = renderToString(<CommissionStatementsList statements={[draft]} canManage={false} />);
+    const html = renderToString(
+      <CommissionStatementsList statements={[draft]} canManage={false} />
+    );
     expect(html).not.toContain('Утвердить');
   });
 
   it('does not render the Утвердить button when status is not draft, even if canManage', () => {
     const approved: StatementListItem = { ...draft, status: 'approved' };
-    const html = renderToString(<CommissionStatementsList statements={[approved]} canManage={true} />);
+    const html = renderToString(
+      <CommissionStatementsList statements={[approved]} canManage={true} />
+    );
     expect(html).not.toContain('Утвердить');
   });
 
   it('renders placeholder text instead of a download link when pdfPath/xlsxPath are null', () => {
     const noFiles: StatementListItem = { ...draft, pdfPath: null, xlsxPath: null };
-    const html = renderToString(<CommissionStatementsList statements={[noFiles]} canManage={false} />);
+    const html = renderToString(
+      <CommissionStatementsList statements={[noFiles]} canManage={false} />
+    );
     expect(html).toContain('PDF…');
     expect(html).toContain('XLSX…');
   });
@@ -122,9 +153,15 @@ describe('CommissionStatementsList — coverage extension', () => {
     const one: StatementListItem = { ...draft, itemCount: 1 };
     const two: StatementListItem = { ...draft, id: 's2', itemCount: 2 };
     const five: StatementListItem = { ...draft, id: 's3', itemCount: 5 };
-    expect(renderToString(<CommissionStatementsList statements={[one]} canManage={false} />)).toContain('заказ<!-- --> ');
-    expect(renderToString(<CommissionStatementsList statements={[two]} canManage={false} />)).toContain('заказа');
-    expect(renderToString(<CommissionStatementsList statements={[five]} canManage={false} />)).toContain('заказов');
+    expect(
+      renderToString(<CommissionStatementsList statements={[one]} canManage={false} />)
+    ).toContain('заказ<!-- --> ');
+    expect(
+      renderToString(<CommissionStatementsList statements={[two]} canManage={false} />)
+    ).toContain('заказа');
+    expect(
+      renderToString(<CommissionStatementsList statements={[five]} canManage={false} />)
+    ).toContain('заказов');
   });
 });
 
@@ -163,10 +200,10 @@ describe('CommissionStatementsList — interactive (jsdom)', () => {
           organizationName: 'ООО Ромашка',
           baseAmount: '1000.00',
           rate: '0.15',
-          commissionAmount: '150.00'
-        }
+          commissionAmount: '150.00',
+        },
       ],
-      loading: false
+      loading: false,
     });
     render(<CommissionStatementsList statements={[draft]} canManage={false} />);
     fireEvent.click(screen.getByRole('button', { name: /янв 2026/ }));
@@ -189,9 +226,16 @@ describe('CommissionStatementsList — interactive (jsdom)', () => {
   it('item row falls back to em-dash when orderNumber is null', () => {
     useClientResourceMock.mockReturnValue({
       data: [
-        { id: 'i1', orderNumber: null, organizationName: 'Орг', baseAmount: '100', rate: '0.1', commissionAmount: '10' }
+        {
+          id: 'i1',
+          orderNumber: null,
+          organizationName: 'Орг',
+          baseAmount: '100',
+          rate: '0.1',
+          commissionAmount: '10',
+        },
       ],
-      loading: false
+      loading: false,
     });
     render(<CommissionStatementsList statements={[draft]} canManage={false} />);
     fireEvent.click(screen.getByRole('button', { name: /янв 2026/ }));

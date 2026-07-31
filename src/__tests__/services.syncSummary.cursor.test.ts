@@ -20,7 +20,9 @@ describe('getSyncSummary cursor + lag', () => {
     expect(orderBefore.cursor).toBeNull();
     expect(orderBefore.lagMs).toBeNull();
 
-    await prisma.syncState.create({ data: { entity: 'order', cursor: '2026-05-01T00:00:00.000Z' } });
+    await prisma.syncState.create({
+      data: { entity: 'order', cursor: '2026-05-01T00:00:00.000Z' },
+    });
 
     const after = await getSyncSummary(prisma);
     const orderAfter = after.find((r) => r.entity === 'order')!;

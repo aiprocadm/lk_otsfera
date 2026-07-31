@@ -15,7 +15,9 @@ function jsonRes(status: number, body: unknown) {
 async function reachCodeStep(fetchMock: ReturnType<typeof vi.fn>) {
   fetchMock.mockResolvedValueOnce(jsonRes(200, { ok: true, twoFactorRequired: true }));
   render(React.createElement(LoginForm, null));
-  fireEvent.change(screen.getByPlaceholderText('admin@company.ru'), { target: { value: 'm@x.ru' } });
+  fireEvent.change(screen.getByPlaceholderText('admin@company.ru'), {
+    target: { value: 'm@x.ru' },
+  });
   fireEvent.change(screen.getByPlaceholderText('••••••••'), { target: { value: 'pw' } });
   fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
   await screen.findByText('Введите код из письма');
@@ -27,7 +29,9 @@ async function reachCodeStep(fetchMock: ReturnType<typeof vi.fn>) {
 async function reachCodeStepFake(fetchMock: ReturnType<typeof vi.fn>) {
   fetchMock.mockResolvedValueOnce(jsonRes(200, { ok: true, twoFactorRequired: true }));
   render(React.createElement(LoginForm, null));
-  fireEvent.change(screen.getByPlaceholderText('admin@company.ru'), { target: { value: 'm@x.ru' } });
+  fireEvent.change(screen.getByPlaceholderText('admin@company.ru'), {
+    target: { value: 'm@x.ru' },
+  });
   fireEvent.change(screen.getByPlaceholderText('••••••••'), { target: { value: 'pw' } });
   fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
   await act(async () => {
@@ -57,7 +61,9 @@ describe('LoginForm — 2FA step', () => {
     expect(screen.getByText('Мы отправили код на вашу почту.')).toBeTruthy();
     // Демо-блок скрыт на шаге кода, кулдаун ресенда активен
     expect(screen.queryByText('Демо-доступ')).toBeNull();
-    expect((screen.getByText(/Отправить ещё раз \(\d+с\)/) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByText(/Отправить ещё раз \(\d+с\)/) as HTMLButtonElement).disabled).toBe(
+      true
+    );
   });
 
   it('submitting the code verifies and navigates to /dashboard', async () => {
@@ -67,7 +73,7 @@ describe('LoginForm — 2FA step', () => {
 
     fetchMock.mockResolvedValueOnce(jsonRes(200, { ok: true }));
     fireEvent.change(screen.getByPlaceholderText('Код из письма или код восстановления'), {
-      target: { value: '123456' }
+      target: { value: '123456' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Подтвердить' }));
 
@@ -75,7 +81,7 @@ describe('LoginForm — 2FA step', () => {
     expect(fetchMock).toHaveBeenLastCalledWith('/api/auth/2fa/verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: '123456' })
+      body: JSON.stringify({ code: '123456' }),
     });
   });
 
@@ -86,7 +92,7 @@ describe('LoginForm — 2FA step', () => {
 
     fetchMock.mockResolvedValueOnce(jsonRes(401, { code: 'INVALID_CODE' }));
     fireEvent.change(screen.getByPlaceholderText('Код из письма или код восстановления'), {
-      target: { value: '000000' }
+      target: { value: '000000' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Подтвердить' }));
 
@@ -101,7 +107,7 @@ describe('LoginForm — 2FA step', () => {
 
     fetchMock.mockResolvedValueOnce(jsonRes(401, {})); // тело без code → ветка ': '''
     fireEvent.change(screen.getByPlaceholderText('Код из письма или код восстановления'), {
-      target: { value: '000000' }
+      target: { value: '000000' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Подтвердить' }));
 
@@ -115,7 +121,7 @@ describe('LoginForm — 2FA step', () => {
 
     fetchMock.mockRejectedValueOnce(new Error('offline'));
     fireEvent.change(screen.getByPlaceholderText('Код из письма или код восстановления'), {
-      target: { value: '123456' }
+      target: { value: '123456' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Подтвердить' }));
 
@@ -129,13 +135,17 @@ describe('LoginForm — 2FA step', () => {
     await reachCodeStepFake(fetchMock);
 
     // Во время кулдауна кнопка задизейблена и подписана «(Nс)»
-    expect((screen.getByText(/Отправить ещё раз \(\d+с\)/) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByText(/Отправить ещё раз \(\d+с\)/) as HTMLButtonElement).disabled).toBe(
+      true
+    );
 
     await act(async () => {
       vi.advanceTimersByTime(31_000);
     });
 
-    const resendBtn = screen.getByRole('button', { name: 'Отправить код ещё раз' }) as HTMLButtonElement;
+    const resendBtn = screen.getByRole('button', {
+      name: 'Отправить код ещё раз',
+    }) as HTMLButtonElement;
     expect(resendBtn.disabled).toBe(false);
 
     fetchMock.mockResolvedValueOnce(jsonRes(200, { ok: true }));

@@ -20,26 +20,26 @@ export async function generateCommissionXlsxProcessor(
 
   const statement = await db.commissionStatement.findUnique({
     where: { id: statementId },
-    include: { items: true, partner: true }
+    include: { items: true, partner: true },
   });
   if (!statement) throw new Error(`NOT_FOUND: CommissionStatement ${statementId}`);
 
   const buf = await renderStatementXlsx({
     statement,
     items: statement.items,
-    partner: { name: statement.partner.name }
+    partner: { name: statement.partner.name },
   });
 
   const path = `partners/${statement.partnerId}/commission/${statementId}.xlsx`;
   // Throws StorageError on provider failure → propagates so BullMQ retries the
   // job (fail-loud upload semantics; historically the Supabase client's `if (error) throw`).
   await getObjectStorage().upload(path, buf, {
-    contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
 
   await db.commissionStatement.update({
     where: { id: statementId },
-    data: { xlsxPath: path }
+    data: { xlsxPath: path },
   });
 
   return { statementId, path };

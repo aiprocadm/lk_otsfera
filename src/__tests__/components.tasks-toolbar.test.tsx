@@ -7,13 +7,18 @@ const { replace } = vi.hoisted(() => ({ replace: vi.fn() }));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace }),
   usePathname: () => '/manager/tasks',
-  useSearchParams: () => new URLSearchParams('')
+  useSearchParams: () => new URLSearchParams(''),
 }));
 
 import { TasksToolbar } from '@/components/tasks/tasks-toolbar';
 import type { TasksToolbarState } from '@/lib/tasks/filters';
 
-const DEFAULT: TasksToolbarState = { scope: 'all', assigneeId: null, overdue: false, view: 'board' };
+const DEFAULT: TasksToolbarState = {
+  scope: 'all',
+  assigneeId: null,
+  overdue: false,
+  view: 'board',
+};
 
 describe('TasksToolbar (этап 7, ФТ-7.3/7.4)', () => {
   beforeEach(() => replace.mockReset());
@@ -77,7 +82,10 @@ describe('TasksToolbar (этап 7, ФТ-7.3/7.4)', () => {
 
   it('несколько активных фильтров комбинируются в query', () => {
     render(
-      <TasksToolbar state={{ scope: 'mine', assigneeId: 'm2', overdue: true, view: 'board' }} assigneeOptions={[{ id: 'm2', name: 'М' }]} />
+      <TasksToolbar
+        state={{ scope: 'mine', assigneeId: 'm2', overdue: true, view: 'board' }}
+        assigneeOptions={[{ id: 'm2', name: 'М' }]}
+      />
     );
     fireEvent.click(screen.getByRole('button', { name: 'Список' }));
     const url = replace.mock.calls[0]![0] as string;

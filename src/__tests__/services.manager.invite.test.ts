@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import {
   createAndAssignManager,
   deactivateAssignment,
-  reactivateAssignment
+  reactivateAssignment,
 } from '@/lib/services/manager/invite';
 
 let prisma: PrismaClient;
@@ -28,12 +28,12 @@ beforeAll(async () => {
   const otherCompany = await prisma.company.create({ data: { name: `MgrInvOtherC-${STAMP}` } });
   otherCompanyId = otherCompany.id;
   const partner = await prisma.partner.create({
-    data: { name: `MgrInvP-${STAMP}`, commissionRate: 0.1 }
+    data: { name: `MgrInvP-${STAMP}`, commissionRate: 0.1 },
   });
   partnerId = partner.id;
 
   const org = await prisma.organization.create({
-    data: { name: `MgrInv-Org-${STAMP}`, partnerId, companyId }
+    data: { name: `MgrInv-Org-${STAMP}`, partnerId, companyId },
   });
   orgId = org.id;
 
@@ -42,8 +42,8 @@ beforeAll(async () => {
       email: `mgr-inv-actor-${STAMP}@t.local`,
       passwordHash: 'x',
       name: 'Actor',
-      role: 'admin'
-    }
+      role: 'admin',
+    },
   });
   adminActorUserId = actor.id;
 
@@ -56,8 +56,8 @@ beforeAll(async () => {
       role: 'manager',
       // Same company as orgId — the C8 company floor requires manager and org
       // to share a company for the assignment to be valid.
-      companyId
-    }
+      companyId,
+    },
   });
   existingManagerUserId = existing.id;
 
@@ -70,8 +70,8 @@ beforeAll(async () => {
       passwordHash: 'has-pw',
       name: 'Foreign Mgr',
       role: 'manager',
-      companyId: otherCompanyId
-    }
+      companyId: otherCompanyId,
+    },
   });
   foreignManagerUserId = foreign.id;
 
@@ -81,8 +81,8 @@ beforeAll(async () => {
       email: existingNonManagerEmail,
       passwordHash: 'x',
       name: 'Org User',
-      role: 'organization'
-    }
+      role: 'organization',
+    },
   });
   existingNonManagerUserId = nonMgr.id;
 });
@@ -91,19 +91,28 @@ afterAll(async () => {
   // Wipe everything we may have created across tests by org-scope; users we
   // created directly are removed by id.
   await prisma.passwordResetToken.deleteMany({
-    where: { user: { email: { contains: `mgr-inv-` } } }
+    where: { user: { email: { contains: `mgr-inv-` } } },
   });
   await prisma.auditLog.deleteMany({
-    where: { userId: { in: [adminActorUserId] } }
+    where: { userId: { in: [adminActorUserId] } },
   });
   await prisma.organizationManager.deleteMany({ where: { organizationId: orgId } });
   await prisma.user.deleteMany({
     where: {
       OR: [
-        { id: { in: [adminActorUserId, existingManagerUserId, existingNonManagerUserId, foreignManagerUserId] } },
-        { email: { contains: `mgr-inv-new-${STAMP}` } }
-      ]
-    }
+        {
+          id: {
+            in: [
+              adminActorUserId,
+              existingManagerUserId,
+              existingNonManagerUserId,
+              foreignManagerUserId,
+            ],
+          },
+        },
+        { email: { contains: `mgr-inv-new-${STAMP}` } },
+      ],
+    },
   });
   await prisma.organization.delete({ where: { id: orgId } });
   await prisma.partner.delete({ where: { id: partnerId } });
@@ -117,16 +126,16 @@ beforeEach(async () => {
   // starts clean. We only delete assignments for users this suite knows
   // about, to avoid touching cross-suite state.
   await prisma.organizationManager.deleteMany({
-    where: { organizationId: orgId }
+    where: { organizationId: orgId },
   });
   // mode='new' creates a fresh user and (when there's no passwordHash)
   // a PasswordResetToken via createInviteToken. Drop the tokens first to
   // avoid the FK constraint, then drop the users.
   await prisma.passwordResetToken.deleteMany({
-    where: { user: { email: { contains: `mgr-inv-new-${STAMP}` } } }
+    where: { user: { email: { contains: `mgr-inv-new-${STAMP}` } } },
   });
   await prisma.user.deleteMany({
-    where: { email: { contains: `mgr-inv-new-${STAMP}` } }
+    where: { email: { contains: `mgr-inv-new-${STAMP}` } },
   });
 });
 
@@ -175,8 +184,8 @@ describe('createAndAssignManager — mode=existing', () => {
 
     const row = await prisma.organizationManager.findUnique({
       where: {
-        organizationId_userId: { organizationId: orgId, userId: existingManagerUserId }
-      }
+        organizationId_userId: { organizationId: orgId, userId: existingManagerUserId },
+      },
     });
     expect(row?.isActive).toBe(true);
     expect(row?.assignedBy).toBe(adminActorUserId);
@@ -185,7 +194,7 @@ describe('createAndAssignManager — mode=existing', () => {
   it('already_assigned when an active assignment exists', async () => {
     // pre-create active assignment
     await prisma.organizationManager.create({
-      data: { organizationId: orgId, userId: existingManagerUserId, isActive: true }
+      data: { organizationId: orgId, userId: existingManagerUserId, isActive: true },
     });
     expect(
       await createAndAssignManager(
@@ -202,8 +211,8 @@ describe('createAndAssignManager — mode=existing', () => {
         organizationId: orgId,
         userId: existingManagerUserId,
         isActive: false,
-        deactivatedAt: new Date()
-      }
+        deactivatedAt: new Date(),
+      },
     });
 
     const result = await createAndAssignManager(
@@ -216,8 +225,8 @@ describe('createAndAssignManager — mode=existing', () => {
 
     const row = await prisma.organizationManager.findUnique({
       where: {
-        organizationId_userId: { organizationId: orgId, userId: existingManagerUserId }
-      }
+        organizationId_userId: { organizationId: orgId, userId: existingManagerUserId },
+      },
     });
     expect(row?.isActive).toBe(true);
     expect(row?.deactivatedAt).toBeNull();
@@ -279,8 +288,8 @@ describe('createAndAssignManager — C8 company floor', () => {
     // The cross-company assignment must not have been persisted.
     const row = await prisma.organizationManager.findUnique({
       where: {
-        organizationId_userId: { organizationId: orgId, userId: foreignManagerUserId }
-      }
+        organizationId_userId: { organizationId: orgId, userId: foreignManagerUserId },
+      },
     });
     expect(row).toBeNull();
   });
@@ -302,7 +311,7 @@ describe('createAndAssignManager — C8 company floor', () => {
 describe('deactivateAssignment / reactivateAssignment', () => {
   it('deactivate flips isActive=false, sets deactivatedAt, and records audit', async () => {
     const created = await prisma.organizationManager.create({
-      data: { organizationId: orgId, userId: existingManagerUserId, isActive: true }
+      data: { organizationId: orgId, userId: existingManagerUserId, isActive: true },
     });
 
     const result = await deactivateAssignment(prisma, created.id, adminActorUserId);
@@ -313,8 +322,12 @@ describe('deactivateAssignment / reactivateAssignment', () => {
     expect(updated?.deactivatedAt).not.toBeNull();
 
     const audit = await prisma.auditLog.findFirst({
-      where: { entity: 'organization_manager', entityId: created.id, action: 'manager_deactivated' },
-      orderBy: { createdAt: 'desc' }
+      where: {
+        entity: 'organization_manager',
+        entityId: created.id,
+        action: 'manager_deactivated',
+      },
+      orderBy: { createdAt: 'desc' },
     });
     expect(audit).not.toBeNull();
   });
@@ -330,8 +343,8 @@ describe('deactivateAssignment / reactivateAssignment', () => {
         organizationId: orgId,
         userId: existingManagerUserId,
         isActive: false,
-        deactivatedAt: new Date()
-      }
+        deactivatedAt: new Date(),
+      },
     });
     const result = await deactivateAssignment(prisma, created.id, adminActorUserId);
     expect(result).toEqual({ ok: true, organizationId: orgId });
@@ -343,8 +356,8 @@ describe('deactivateAssignment / reactivateAssignment', () => {
         organizationId: orgId,
         userId: existingManagerUserId,
         isActive: false,
-        deactivatedAt: new Date()
-      }
+        deactivatedAt: new Date(),
+      },
     });
     const result = await reactivateAssignment(prisma, created.id, adminActorUserId);
     expect(result).toEqual({ ok: true, organizationId: orgId });

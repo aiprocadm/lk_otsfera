@@ -8,7 +8,7 @@ const {
   notifyManagers,
   notifyMessageCreated,
   deliverNotificationToUser,
-  getPrimaryOrganizationId
+  getPrimaryOrganizationId,
 } = vi.hoisted(() => ({
   getSession: vi.fn(),
   orderFindUnique: vi.fn(),
@@ -17,7 +17,7 @@ const {
   notifyManagers: vi.fn(),
   notifyMessageCreated: vi.fn(),
   deliverNotificationToUser: vi.fn(),
-  getPrimaryOrganizationId: vi.fn()
+  getPrimaryOrganizationId: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/session', () => ({ getSession }));
@@ -25,8 +25,8 @@ vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     order: { findUnique: orderFindUnique },
     comment: { create: commentCreate },
-    auditLog: { create: auditCreate }
-  }
+    auditLog: { create: auditCreate },
+  },
 }));
 vi.mock('@/lib/notifications', () => ({
   notifyManagers,
@@ -34,7 +34,7 @@ vi.mock('@/lib/notifications', () => ({
   deliverNotificationToUser,
 }));
 vi.mock('@/lib/auth/organization', () => ({
-  getPrimaryOrganizationId
+  getPrimaryOrganizationId,
 }));
 
 import { POST as commentsPost } from '@/app/api/comments/route';
@@ -47,8 +47,8 @@ function orgSession(orgIds: { id: string; isActive?: boolean }[]) {
     organizationMemberships: orgIds.map((o) => ({
       organizationId: o.id,
       roleInOrg: 'member',
-      isActive: o.isActive !== false
-    }))
+      isActive: o.isActive !== false,
+    })),
   };
 }
 
@@ -56,7 +56,7 @@ function commentReq(orderId: string, body = 'hello from org'): Request {
   return new Request('https://app.local/api/comments', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ orderId, body })
+    body: JSON.stringify({ orderId, body }),
   });
 }
 
@@ -68,12 +68,12 @@ describe('POST /api/comments — organization role', () => {
       orderId: 'ord-1',
       body: 'hello from org',
       createdAt: new Date(),
-      authorId: 'u-org-1'
+      authorId: 'u-org-1',
     });
     notifyManagers.mockResolvedValue({
       recipientsNotified: 0,
       emailsSent: 0,
-      emailsSkipped: 0
+      emailsSkipped: 0,
     });
   });
 
@@ -84,7 +84,7 @@ describe('POST /api/comments — organization role', () => {
     const res = await commentsPost(commentReq('ord-1'));
     expect(res.status).toBe(201);
     expect(commentCreate).toHaveBeenCalledWith({
-      data: { orderId: 'ord-1', body: 'hello from org', authorId: 'u-org-1' }
+      data: { orderId: 'ord-1', body: 'hello from org', authorId: 'u-org-1' },
     });
     expect(auditCreate).toHaveBeenCalled();
     // Org branch does NOT touch the partner-side notification helpers.
@@ -111,9 +111,7 @@ describe('POST /api/comments — organization role', () => {
   });
 
   it('rejects with 403 when org-user has only deactivated memberships', async () => {
-    getSession.mockResolvedValue(
-      orgSession([{ id: 'org-a', isActive: false }])
-    );
+    getSession.mockResolvedValue(orgSession([{ id: 'org-a', isActive: false }]));
     orderFindUnique.mockResolvedValue({ id: 'ord-1', organizationId: 'org-a' });
 
     const res = await commentsPost(commentReq('ord-1'));
@@ -134,7 +132,7 @@ describe('POST /api/comments — organization role', () => {
       new Request('https://app.local/api/comments', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ orderId: 'ord-1', body: '' })
+        body: JSON.stringify({ orderId: 'ord-1', body: '' }),
       })
     );
     expect(res.status).toBe(400);
@@ -162,7 +160,7 @@ describe('POST /api/comments — partner/admin flow unchanged', () => {
       orderId: 'ord-1',
       body: 'partner comment',
       createdAt: new Date(),
-      authorId: 'u-partner'
+      authorId: 'u-partner',
     });
   });
 
@@ -171,7 +169,7 @@ describe('POST /api/comments — partner/admin flow unchanged', () => {
     orderFindUnique.mockResolvedValue({
       id: 'ord-1',
       companyId: 'c1',
-      organizationId: 'org-x'
+      organizationId: 'org-x',
     });
 
     const res = await commentsPost(commentReq('ord-1', 'partner comment'));
@@ -217,7 +215,6 @@ describe('POST /api/comments — partner/admin flow unchanged', () => {
   });
 });
 
-
 describe('POST /api/comments — non-Error throw in notifyManagers catch (org branch)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -226,12 +223,12 @@ describe('POST /api/comments — non-Error throw in notifyManagers catch (org br
       orderId: 'ord-1',
       body: 'hi',
       createdAt: new Date(),
-      authorId: 'u-org-1'
+      authorId: 'u-org-1',
     });
     notifyManagers.mockResolvedValue({
       recipientsNotified: 0,
       emailsSent: 0,
-      emailsSkipped: 0
+      emailsSkipped: 0,
     });
   });
 
@@ -256,7 +253,7 @@ describe('POST /api/comments — parse & partner-role branches', () => {
       orderId: 'ord-1',
       body: 'hi',
       createdAt: new Date(),
-      authorId: 'u-partner'
+      authorId: 'u-partner',
     });
   });
 
@@ -265,7 +262,7 @@ describe('POST /api/comments — parse & partner-role branches', () => {
     const badReq = new Request('https://app.local/api/comments', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: 'NOT JSON'
+      body: 'NOT JSON',
     });
     const res = await commentsPost(badReq);
     expect(res.status).toBe(400);

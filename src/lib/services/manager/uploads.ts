@@ -36,7 +36,8 @@ export type CreateCounterpartyDocumentResult =
   | { ok: true; documentId: string }
   | {
       ok: false;
-      error: 'forbidden' | 'too_large' | 'invalid_mime' | 'storage' | 'not_found' | 'invalid_recipient';
+      error:
+        'forbidden' | 'too_large' | 'invalid_mime' | 'storage' | 'not_found' | 'invalid_recipient';
     };
 
 export async function createCounterpartyDocument(
@@ -58,8 +59,8 @@ export async function createCounterpartyDocument(
       partnerId: true,
       companyId: true,
       orderNumber: true,
-      title: true
-    }
+      title: true,
+    },
   });
   if (!order) return { ok: false, error: 'not_found' };
 
@@ -71,7 +72,7 @@ export async function createCounterpartyDocument(
       order.organizationId !== null && managedOrgIds(session).includes(order.organizationId);
     if (!inOrgScope) {
       commentsCountByMe = await prisma.comment.count({
-        where: { orderId: order.id, authorId: session.sub }
+        where: { orderId: order.id, authorId: session.sub },
       });
     }
   }
@@ -95,7 +96,7 @@ export async function createCounterpartyDocument(
     docType: args.docType,
     uploadedById: session.sub,
     source: 'manager',
-    file: args.file
+    file: args.file,
   });
   if (!persisted.ok) return persisted;
 
@@ -110,8 +111,8 @@ export async function createCounterpartyDocument(
           orderNumber: order.orderNumber,
           orderTitle: order.title,
           documentName: args.file.name,
-          documentType: args.docType
-        }
+          documentType: args.docType,
+        },
       });
     } else {
       await notifyPartnerUsers(prisma, {
@@ -122,15 +123,15 @@ export async function createCounterpartyDocument(
           orderNumber: order.orderNumber,
           orderTitle: order.title,
           documentName: args.file.name,
-          documentType: args.docType
-        }
+          documentType: args.docType,
+        },
       });
     }
   } catch (err) {
     log.warn('[manager/uploads] recipient notify failed', {
       documentId: persisted.documentId,
       recipient: args.recipient,
-      error: err instanceof Error ? err.message : String(err)
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 
@@ -166,7 +167,7 @@ export async function createManagerOrderLessDocument(
   const { organizations, partners } = await listManagerCounterparties(prisma, session);
   const scope = {
     managedOrgIds: organizations.map((o) => o.id),
-    partnerIds: partners.map((p) => p.id)
+    partnerIds: partners.map((p) => p.id),
   };
   if (!canManagerUploadOrderLess(args.counterparty, scope)) {
     return { ok: false, error: 'forbidden' };
@@ -180,7 +181,7 @@ export async function createManagerOrderLessDocument(
     docType: args.docType,
     uploadedById: session.sub,
     source: 'manager',
-    file: args.file
+    file: args.file,
   });
   if (!persisted.ok) return persisted;
 
@@ -194,8 +195,8 @@ export async function createManagerOrderLessDocument(
           orderNumber: null,
           orderTitle: null,
           documentName: args.file.name,
-          documentType: args.docType
-        }
+          documentType: args.docType,
+        },
       });
     } else {
       await notifyPartnerUsers(prisma, {
@@ -206,14 +207,14 @@ export async function createManagerOrderLessDocument(
           orderNumber: null,
           orderTitle: null,
           documentName: args.file.name,
-          documentType: args.docType
-        }
+          documentType: args.docType,
+        },
       });
     }
   } catch (err) {
     log.warn('[manager/uploads] order-less notify failed', {
       documentId: persisted.documentId,
-      error: err instanceof Error ? err.message : String(err)
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 

@@ -50,7 +50,9 @@ export class FileOneCAdapter implements OneCAdapter {
   constructor(private readonly buffer: Buffer | ArrayBuffer) {}
 
   private parsed?: ReturnType<typeof parseWorkbook>;
-  private sheets() { return (this.parsed ??= parseWorkbook(this.buffer)); }
+  private sheets() {
+    return (this.parsed ??= parseWorkbook(this.buffer));
+  }
 
   // Excel import only ATTACHES to existing orgs (resolved by INN); it never creates orgs or documents.
   async pullOrganizations(cursor: SyncCursor): Promise<OneCOrgDto[]> {

@@ -8,12 +8,12 @@ const { replace, get, toStringMock } = vi.hoisted(() => {
   return {
     replace: vi.fn(),
     get: vi.fn((...args: [string]) => (void args, null) as string | null),
-    toStringMock
+    toStringMock,
   };
 });
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace }),
-  useSearchParams: () => ({ get, toString: toStringMock })
+  useSearchParams: () => ({ get, toString: toStringMock }),
 }));
 
 import { DocumentsSearch } from '@/components/partner/documents-search';
@@ -36,7 +36,9 @@ describe('DocumentsSearch', () => {
   it('initializes the input value from the current search param', () => {
     get.mockImplementation((key: string) => (key === 'search' ? 'договор' : null));
     render(React.createElement(DocumentsSearch));
-    expect((screen.getByPlaceholderText('Поиск по имени файла…') as HTMLInputElement).value).toBe('договор');
+    expect((screen.getByPlaceholderText('Поиск по имени файла…') as HTMLInputElement).value).toBe(
+      'договор'
+    );
   });
 
   it('pressing Enter applies the search and navigates with the search param set', () => {

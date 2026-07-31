@@ -1,7 +1,11 @@
 import { type Prisma, type PrismaClient } from '@prisma/client';
 import { log } from '@/lib/logging';
 import { dispatchToRecipient } from './channels/dispatch';
-import { CHANNEL_RECIPIENT_SELECT, type ChannelPayload, type EmailContentRef } from './channels/types';
+import {
+  CHANNEL_RECIPIENT_SELECT,
+  type ChannelPayload,
+  type EmailContentRef,
+} from './channels/types';
 import { getAppBaseUrl, orderLabel } from './shared';
 
 type OrgNotifyInput =
@@ -97,10 +101,17 @@ function buildOrgNotification(
   orderUrl: string
 ): { title: string; body: string; meta: Record<string, unknown> } {
   if (input.type === 'document_published') {
-    const { orderId: docOrderId, orderNumber, orderTitle, documentName, documentType } = input.payload;
-    const title = docOrderId === null
-      ? 'Новый общий документ'
-      : `Новый документ по заказу ${orderLabel(orderNumber, orderTitle)}`;
+    const {
+      orderId: docOrderId,
+      orderNumber,
+      orderTitle,
+      documentName,
+      documentType,
+    } = input.payload;
+    const title =
+      docOrderId === null
+        ? 'Новый общий документ'
+        : `Новый документ по заказу ${orderLabel(orderNumber, orderTitle)}`;
     return {
       title,
       body: `Загружен документ «${documentName}» (${documentType}).`,
@@ -110,8 +121,8 @@ function buildOrgNotification(
         documentName,
         documentType,
         organizationName,
-        url: orderUrl
-      }
+        url: orderUrl,
+      },
     };
   }
   if (input.type === 'payment_received') {
@@ -125,8 +136,8 @@ function buildOrgNotification(
         amount,
         paidAt: paidAt.toISOString(),
         organizationName,
-        url: orderUrl
-      }
+        url: orderUrl,
+      },
     };
   }
   if (input.type === 'manager_replied') {
@@ -139,8 +150,8 @@ function buildOrgNotification(
         orderNumber,
         commentExcerpt,
         organizationName,
-        url: orderUrl
-      }
+        url: orderUrl,
+      },
     };
   }
   if (input.type === 'requisites_requested') {
@@ -148,7 +159,7 @@ function buildOrgNotification(
     return {
       title: 'Заполните реквизиты организации',
       body: `Для формирования документов${input.payload.orderTitle ? ` по заказу «${input.payload.orderTitle}»` : ''} не хватает: ${missing}. Заполните реквизиты в настройках кабинета.`,
-      meta: { url: '/organization/settings' }
+      meta: { url: '/organization/settings' },
     };
   }
 
@@ -165,8 +176,8 @@ function buildOrgNotification(
         orderId: input.payload.orderId,
         orderNumber,
         organizationName,
-        url: serviceType === 'training' ? '/organization/certificates' : orderUrl
-      }
+        url: serviceType === 'training' ? '/organization/certificates' : orderUrl,
+      },
     };
   }
 
@@ -180,8 +191,8 @@ function buildOrgNotification(
         orderNumber,
         excerpt,
         organizationName,
-        url: orderUrl
-      }
+        url: orderUrl,
+      },
     };
   }
   // order_status_changed
@@ -197,8 +208,8 @@ function buildOrgNotification(
       oldStatus,
       newStatus,
       organizationName,
-      url: orderUrl
-    }
+      url: orderUrl,
+    },
   };
 }
 
@@ -221,8 +232,8 @@ function buildOrgEmailRef(
         orderTitle: input.payload.orderTitle,
         documentName: input.payload.documentName,
         documentType: input.payload.documentType,
-        orderUrl
-      }
+        orderUrl,
+      },
     };
   }
   if (input.type === 'payment_received') {
@@ -234,8 +245,8 @@ function buildOrgEmailRef(
         orderTitle: input.payload.orderTitle,
         amount: input.payload.amount,
         paidAt: input.payload.paidAt,
-        orderUrl
-      }
+        orderUrl,
+      },
     };
   }
   if (input.type === 'manager_replied') {
@@ -246,8 +257,8 @@ function buildOrgEmailRef(
         orderNumber: input.payload.orderNumber,
         orderTitle: input.payload.orderTitle,
         commentExcerpt: input.payload.commentExcerpt,
-        orderUrl
-      }
+        orderUrl,
+      },
     };
   }
   if (input.type === 'chat_message') {
@@ -259,8 +270,8 @@ function buildOrgEmailRef(
         title: `Новое сообщение по заказу ${label}`,
         body: excerpt,
         recipientName: organizationName,
-        url: orderUrl
-      }
+        url: orderUrl,
+      },
     };
   }
   if (input.type === 'order_result_delivered') {
@@ -273,8 +284,8 @@ function buildOrgEmailRef(
             ? 'Работа завершена. Удостоверения доступны в личном кабинете.'
             : 'Работа завершена. Итоговые документы доступны в личном кабинете.',
         recipientName: organizationName,
-        url: orderUrl
-      }
+        url: orderUrl,
+      },
     };
   }
 
@@ -285,8 +296,8 @@ function buildOrgEmailRef(
         title: 'Заполните реквизиты организации',
         body: `Для формирования документов не хватает: ${input.payload.missingLabels.slice(0, 6).join(', ')}.`,
         recipientName: organizationName,
-        url: orderUrl
-      }
+        url: orderUrl,
+      },
     };
   }
   return {
@@ -298,8 +309,8 @@ function buildOrgEmailRef(
       dimension: input.payload.dimension,
       oldStatus: input.payload.oldStatus,
       newStatus: input.payload.newStatus,
-      orderUrl
-    }
+      orderUrl,
+    },
   };
 }
 
@@ -324,26 +335,27 @@ export async function notifyOrgUsers(
       organizationUsers: {
         where: { isActive: true, user: { isActive: true } },
         select: {
-          user: { select: CHANNEL_RECIPIENT_SELECT }
-        }
-      }
-    }
+          user: { select: CHANNEL_RECIPIENT_SELECT },
+        },
+      },
+    },
   });
 
   if (!org) {
     return { recipientsNotified: 0, emailsSent: 0, emailsSkipped: 0 };
   }
 
-  const orderUrl = input.payload.orderId === null
-    ? `${getAppBaseUrl()}/organization/documents?tab=general`
-    : `${getAppBaseUrl()}/organization/orders/${input.payload.orderId}`;
+  const orderUrl =
+    input.payload.orderId === null
+      ? `${getAppBaseUrl()}/organization/documents?tab=general`
+      : `${getAppBaseUrl()}/organization/orders/${input.payload.orderId}`;
   const { title, body, meta } = buildOrgNotification(input, org.name, orderUrl);
   const channelPayload: ChannelPayload = {
     type: input.type,
     title,
     body,
     url: orderUrl,
-    email: buildOrgEmailRef(input, org.name, orderUrl)
+    email: buildOrgEmailRef(input, org.name, orderUrl),
   };
 
   let emailsSent = 0;
@@ -359,8 +371,8 @@ export async function notifyOrgUsers(
         type: input.type,
         title,
         body,
-        meta: meta as Prisma.InputJsonValue
-      }
+        meta: meta as Prisma.InputJsonValue,
+      },
     });
     recipientsNotified += 1;
 
@@ -389,6 +401,6 @@ export async function notifyOrgUsers(
     recipientsNotified,
     emailsSent,
     emailsSkipped,
-    ...(emailsQueued > 0 ? { emailsQueued } : {})
+    ...(emailsQueued > 0 ? { emailsQueued } : {}),
   };
 }

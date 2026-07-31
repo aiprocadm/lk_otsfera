@@ -11,32 +11,36 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const { getCompanyTeamVisibility, managerDocumentScope, canSeeOrder } = vi.hoisted(() => ({
   getCompanyTeamVisibility: vi.fn(),
   managerDocumentScope: vi.fn(),
-  canSeeOrder: vi.fn()
+  canSeeOrder: vi.fn(),
 }));
 
 const { managerOrderLessWhere, canReadOrderLessDocument } = vi.hoisted(() => ({
   managerOrderLessWhere: vi.fn(),
-  canReadOrderLessDocument: vi.fn()
+  canReadOrderLessDocument: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/managerPolicy', () => ({
   getCompanyTeamVisibility,
   managerDocumentScope,
-  canSeeOrder
+  canSeeOrder,
 }));
 vi.mock('@/lib/auth/documentChannelPolicy', () => ({
   managerOrderLessWhere,
-  canReadOrderLessDocument
+  canReadOrderLessDocument,
 }));
 
-import { listDocuments, getDocumentForDownload, listManagerOrderLessDocuments } from '@/lib/services/manager/documents';
+import {
+  listDocuments,
+  getDocumentForDownload,
+  listManagerOrderLessDocuments,
+} from '@/lib/services/manager/documents';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 const SESSION: SessionPayload = {
   sub: 'mgr-1',
   role: 'manager',
   managedOrgIds: ['org-1'],
-  companyId: 'co-1'
+  companyId: 'co-1',
 };
 
 function docRow(id: string, overrides: Record<string, unknown> = {}) {
@@ -56,8 +60,14 @@ function docRow(id: string, overrides: Record<string, unknown> = {}) {
     signedAt: null,
     createdAt: new Date('2026-06-01'),
     size: 1024,
-    order: { id: 'ord-1', orderNumber: 'O-1', title: 'T', managerId: 'mgr-1', organizationId: 'org-1' },
-    ...overrides
+    order: {
+      id: 'ord-1',
+      orderNumber: 'O-1',
+      title: 'T',
+      managerId: 'mgr-1',
+      organizationId: 'org-1',
+    },
+    ...overrides,
   };
 }
 
@@ -111,7 +121,9 @@ describe('listDocuments', () => {
     const p = { document: { findMany }, company: { findUnique: vi.fn() } } as never;
     await listDocuments(p, { session: SESSION, search: 'договор' });
     const where = findMany.mock.calls[0][0].where;
-    expect(where).toMatchObject({ AND: expect.arrayContaining([{ name: { contains: 'договор', mode: 'insensitive' } }]) });
+    expect(where).toMatchObject({
+      AND: expect.arrayContaining([{ name: { contains: 'договор', mode: 'insensitive' } }]),
+    });
   });
 
   it('passes cursor when provided', async () => {
@@ -139,7 +151,7 @@ describe('getDocumentForDownload', () => {
     const p = {
       document: { findUnique: vi.fn().mockResolvedValue(null) },
       comment: { count: vi.fn() },
-      company: { findUnique: vi.fn() }
+      company: { findUnique: vi.fn() },
     } as never;
     const result = await getDocumentForDownload(p, SESSION, 'nonexistent');
     expect(result).toEqual({ ok: false, error: 'not_found' });
@@ -151,7 +163,7 @@ describe('getDocumentForDownload', () => {
     const p = {
       document: { findUnique: vi.fn().mockResolvedValue(doc) },
       comment: { count: vi.fn() },
-      company: { findUnique: vi.fn() }
+      company: { findUnique: vi.fn() },
     } as never;
     const result = await getDocumentForDownload(p, SESSION, 'd1');
     expect(result).toEqual({ ok: false, error: 'not_found' });
@@ -159,11 +171,16 @@ describe('getDocumentForDownload', () => {
 
   it('orderId=null: returns infected when canRead=true but scanStatus=infected', async () => {
     canReadOrderLessDocument.mockReturnValue(true);
-    const doc = docRow('d1', { orderId: null, order: null, scanStatus: 'infected', scanReason: 'eicar' });
+    const doc = docRow('d1', {
+      orderId: null,
+      order: null,
+      scanStatus: 'infected',
+      scanReason: 'eicar',
+    });
     const p = {
       document: { findUnique: vi.fn().mockResolvedValue(doc) },
       comment: { count: vi.fn() },
-      company: { findUnique: vi.fn() }
+      company: { findUnique: vi.fn() },
     } as never;
     const result = await getDocumentForDownload(p, SESSION, 'd1');
     expect(result).toEqual({ ok: false, error: 'infected', scanReason: 'eicar' });
@@ -171,24 +188,44 @@ describe('getDocumentForDownload', () => {
 
   it('orderId=null: returns ok path when canRead=true and clean', async () => {
     canReadOrderLessDocument.mockReturnValue(true);
-    const doc = docRow('d1', { orderId: null, order: null, scanStatus: 'clean', path: 'order-less/f.pdf', mimeType: 'application/pdf', name: 'f.pdf' });
+    const doc = docRow('d1', {
+      orderId: null,
+      order: null,
+      scanStatus: 'clean',
+      path: 'order-less/f.pdf',
+      mimeType: 'application/pdf',
+      name: 'f.pdf',
+    });
     const p = {
       document: { findUnique: vi.fn().mockResolvedValue(doc) },
       comment: { count: vi.fn() },
-      company: { findUnique: vi.fn() }
+      company: { findUnique: vi.fn() },
     } as never;
     const result = await getDocumentForDownload(p, SESSION, 'd1');
-    expect(result).toEqual({ ok: true, path: 'order-less/f.pdf', mimeType: 'application/pdf', name: 'f.pdf' });
+    expect(result).toEqual({
+      ok: true,
+      path: 'order-less/f.pdf',
+      mimeType: 'application/pdf',
+      name: 'f.pdf',
+    });
   });
 
   it('orderId=null: doc.companyId=null passes null to canReadOrderLessDocument (covers ?? null fallback)', async () => {
     canReadOrderLessDocument.mockReturnValue(true);
     // companyId=null exercises the doc.companyId ?? null right-side
-    const doc = docRow('d1', { orderId: null, order: null, companyId: null, scanStatus: 'clean', path: 'x.pdf', mimeType: 'application/pdf', name: 'x.pdf' });
+    const doc = docRow('d1', {
+      orderId: null,
+      order: null,
+      companyId: null,
+      scanStatus: 'clean',
+      path: 'x.pdf',
+      mimeType: 'application/pdf',
+      name: 'x.pdf',
+    });
     const p = {
       document: { findUnique: vi.fn().mockResolvedValue(doc) },
       comment: { count: vi.fn() },
-      company: { findUnique: vi.fn() }
+      company: { findUnique: vi.fn() },
     } as never;
     const result = await getDocumentForDownload(p, SESSION, 'd1');
     expect(result).toEqual({ ok: true, path: 'x.pdf', mimeType: 'application/pdf', name: 'x.pdf' });
@@ -200,11 +237,16 @@ describe('getDocumentForDownload', () => {
 
   it('orderId=null: scanReason defaults to null when not set', async () => {
     canReadOrderLessDocument.mockReturnValue(true);
-    const doc = docRow('d1', { orderId: null, order: null, scanStatus: 'infected', scanReason: null });
+    const doc = docRow('d1', {
+      orderId: null,
+      order: null,
+      scanStatus: 'infected',
+      scanReason: null,
+    });
     const p = {
       document: { findUnique: vi.fn().mockResolvedValue(doc) },
       comment: { count: vi.fn() },
-      company: { findUnique: vi.fn() }
+      company: { findUnique: vi.fn() },
     } as never;
     const result = await getDocumentForDownload(p, SESSION, 'd1');
     expect(result).toMatchObject({ error: 'infected', scanReason: null });
@@ -220,7 +262,7 @@ describe('getDocumentForDownload', () => {
     const p = {
       document: { findUnique: vi.fn().mockResolvedValue(doc) },
       comment: { count: commentCount },
-      company: { findUnique: vi.fn() }
+      company: { findUnique: vi.fn() },
     } as never;
     await getDocumentForDownload(p, SESSION, 'd1');
     expect(commentCount).not.toHaveBeenCalled();
@@ -235,7 +277,7 @@ describe('getDocumentForDownload', () => {
     const p = {
       document: { findUnique: vi.fn().mockResolvedValue(doc) },
       comment: { count: commentCount },
-      company: { findUnique: vi.fn() }
+      company: { findUnique: vi.fn() },
     } as never;
     const result = await getDocumentForDownload(p, SESSION, 'd1');
     expect(commentCount).toHaveBeenCalled();
@@ -250,7 +292,7 @@ describe('getDocumentForDownload', () => {
     const p = {
       document: { findUnique: vi.fn().mockResolvedValue(doc) },
       comment: { count: commentCount },
-      company: { findUnique: vi.fn() }
+      company: { findUnique: vi.fn() },
     } as never;
     await getDocumentForDownload(p, SESSION, 'd1');
     expect(commentCount).not.toHaveBeenCalled();
@@ -264,7 +306,7 @@ describe('getDocumentForDownload', () => {
     const p = {
       document: { findUnique: vi.fn().mockResolvedValue(doc) },
       comment: { count: commentCount },
-      company: { findUnique: vi.fn() }
+      company: { findUnique: vi.fn() },
     } as never;
     await getDocumentForDownload(p, SESSION, 'd1');
     // org-1 is in managedOrgIds so comment count is skipped
@@ -282,7 +324,7 @@ describe('getDocumentForDownload', () => {
     const p = {
       document: { findUnique: vi.fn().mockResolvedValue(doc) },
       comment: { count: commentCount },
-      company: { findUnique: vi.fn() }
+      company: { findUnique: vi.fn() },
     } as never;
     const result = await getDocumentForDownload(p, sessionNoOrgs, 'd1');
     // comment count IS called (org not in empty array)
@@ -293,11 +335,19 @@ describe('getDocumentForDownload', () => {
   it('orderId=null: doc.companyId non-null passes to canReadOrderLessDocument', async () => {
     canReadOrderLessDocument.mockReturnValue(true);
     // companyId non-null (covers the ?? null false-branch = companyId returned as-is)
-    const doc = docRow('d1', { orderId: null, order: null, companyId: 'co-1', scanStatus: 'clean', path: 'x.pdf', mimeType: 'application/pdf', name: 'x.pdf' });
+    const doc = docRow('d1', {
+      orderId: null,
+      order: null,
+      companyId: 'co-1',
+      scanStatus: 'clean',
+      path: 'x.pdf',
+      mimeType: 'application/pdf',
+      name: 'x.pdf',
+    });
     const p = {
       document: { findUnique: vi.fn().mockResolvedValue(doc) },
       comment: { count: vi.fn() },
-      company: { findUnique: vi.fn() }
+      company: { findUnique: vi.fn() },
     } as never;
     const result = await getDocumentForDownload(p, SESSION, 'd1');
     expect(result).toEqual({ ok: true, path: 'x.pdf', mimeType: 'application/pdf', name: 'x.pdf' });
@@ -314,7 +364,7 @@ describe('getDocumentForDownload', () => {
     const p = {
       document: { findUnique: vi.fn().mockResolvedValue(doc) },
       comment: { count: vi.fn() },
-      company: { findUnique: vi.fn() }
+      company: { findUnique: vi.fn() },
     } as never;
     const result = await getDocumentForDownload(p, SESSION, 'd1');
     expect(result).toEqual({ ok: false, error: 'infected', scanReason: 'malware' });
@@ -327,7 +377,7 @@ describe('getDocumentForDownload', () => {
     const p = {
       document: { findUnique: vi.fn().mockResolvedValue(doc) },
       comment: { count: vi.fn() },
-      company: { findUnique: vi.fn() }
+      company: { findUnique: vi.fn() },
     } as never;
     const result = await getDocumentForDownload(p, SESSION, 'd1');
     expect(result).toEqual({ ok: false, error: 'infected', scanReason: null });
@@ -335,14 +385,25 @@ describe('getDocumentForDownload', () => {
 
   it('returns ok with path/mimeType/name for clean in-scope document', async () => {
     const ord = { managerId: 'mgr-1', organizationId: 'org-1', companyId: 'co-1' };
-    const doc = docRow('d1', { order: ord, scanStatus: 'clean', path: 'orders/o1/d1.pdf', mimeType: 'application/pdf', name: 'contract.pdf' });
+    const doc = docRow('d1', {
+      order: ord,
+      scanStatus: 'clean',
+      path: 'orders/o1/d1.pdf',
+      mimeType: 'application/pdf',
+      name: 'contract.pdf',
+    });
     const p = {
       document: { findUnique: vi.fn().mockResolvedValue(doc) },
       comment: { count: vi.fn() },
-      company: { findUnique: vi.fn() }
+      company: { findUnique: vi.fn() },
     } as never;
     const result = await getDocumentForDownload(p, SESSION, 'd1');
-    expect(result).toEqual({ ok: true, path: 'orders/o1/d1.pdf', mimeType: 'application/pdf', name: 'contract.pdf' });
+    expect(result).toEqual({
+      ok: true,
+      path: 'orders/o1/d1.pdf',
+      mimeType: 'application/pdf',
+      name: 'contract.pdf',
+    });
   });
 });
 
@@ -383,9 +444,15 @@ describe('listManagerOrderLessDocuments', () => {
 
   it('paginates: nextCursor set when rows > take', async () => {
     const orderLessRow = (id: string) => ({
-      id, name: `f-${id}.pdf`, type: 'contract', direction: 'outgoing',
-      signedAt: null, createdAt: new Date(), size: 100,
-      counterpartyType: 'organization', counterpartyId: 'org-1'
+      id,
+      name: `f-${id}.pdf`,
+      type: 'contract',
+      direction: 'outgoing',
+      signedAt: null,
+      createdAt: new Date(),
+      size: 100,
+      counterpartyType: 'organization',
+      counterpartyId: 'org-1',
     });
     const rows = Array.from({ length: 6 }, (_, i) => orderLessRow(`d${i}`));
     const findMany = vi.fn().mockResolvedValue(rows);

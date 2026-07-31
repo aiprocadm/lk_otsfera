@@ -201,10 +201,7 @@ export async function attention(prisma: PrismaClient): Promise<AttentionItem[]> 
   return items;
 }
 
-export async function recentEvents(
-  prisma: PrismaClient,
-  take = 20,
-): Promise<EventItem[]> {
+export async function recentEvents(prisma: PrismaClient, take = 20): Promise<EventItem[]> {
   const rows = await prisma.auditLog.findMany({
     where: { action: { in: TRACKED_ACTIONS } },
     orderBy: { createdAt: 'desc' },

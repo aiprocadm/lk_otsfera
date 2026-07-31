@@ -17,28 +17,56 @@ beforeAll(async () => {
   companyId = c.id;
   const org = await prisma.organization.create({ data: { name: `NMO-${s}`, companyId } });
   orgId = org.id;
-  const m = await prisma.user.create({ data: { email: `nm-${s}@x.io`, name: 'NM Mgr', role: 'manager', companyId, isActive: true } });
+  const m = await prisma.user.create({
+    data: { email: `nm-${s}@x.io`, name: 'NM Mgr', role: 'manager', companyId, isActive: true },
+  });
   mgrId = m.id;
-  await prisma.organizationManager.create({ data: { organizationId: orgId, userId: mgrId, isActive: true } });
+  await prisma.organizationManager.create({
+    data: { organizationId: orgId, userId: mgrId, isActive: true },
+  });
 
   // Isolation fixture A: manager assigned to a DIFFERENT org (different company)
   const cOther = await prisma.company.create({ data: { name: `NMC-other-${s}` } });
   companyOtherId = cOther.id;
-  const orgOther = await prisma.organization.create({ data: { name: `NMO-other-${s}`, companyId: companyOtherId } });
+  const orgOther = await prisma.organization.create({
+    data: { name: `NMO-other-${s}`, companyId: companyOtherId },
+  });
   orgOtherId = orgOther.id;
-  const mOther = await prisma.user.create({ data: { email: `nm-other-${s}@x.io`, name: 'NM Other Mgr', role: 'manager', companyId: companyOtherId, isActive: true } });
+  const mOther = await prisma.user.create({
+    data: {
+      email: `nm-other-${s}@x.io`,
+      name: 'NM Other Mgr',
+      role: 'manager',
+      companyId: companyOtherId,
+      isActive: true,
+    },
+  });
   mgrOtherId = mOther.id;
-  await prisma.organizationManager.create({ data: { organizationId: orgOtherId, userId: mgrOtherId, isActive: true } });
+  await prisma.organizationManager.create({
+    data: { organizationId: orgOtherId, userId: mgrOtherId, isActive: true },
+  });
 
   // Isolation fixture B: manager with isActive=false for orgId
-  const mInactive = await prisma.user.create({ data: { email: `nm-inactive-${s}@x.io`, name: 'NM Inactive Mgr', role: 'manager', companyId, isActive: true } });
+  const mInactive = await prisma.user.create({
+    data: {
+      email: `nm-inactive-${s}@x.io`,
+      name: 'NM Inactive Mgr',
+      role: 'manager',
+      companyId,
+      isActive: true,
+    },
+  });
   mgrInactiveId = mInactive.id;
-  await prisma.organizationManager.create({ data: { organizationId: orgId, userId: mgrInactiveId, isActive: false } });
+  await prisma.organizationManager.create({
+    data: { organizationId: orgId, userId: mgrInactiveId, isActive: false },
+  });
 });
 
 afterAll(async () => {
   // Delete OrganizationManager rows before users/orgs/companies
-  await prisma.organizationManager.deleteMany({ where: { userId: { in: [mgrId, mgrInactiveId] } } });
+  await prisma.organizationManager.deleteMany({
+    where: { userId: { in: [mgrId, mgrInactiveId] } },
+  });
   await prisma.organizationManager.deleteMany({ where: { userId: mgrOtherId } });
   await prisma.user.deleteMany({ where: { id: { in: [mgrId, mgrInactiveId] } } });
   await prisma.organization.delete({ where: { id: orgId } });

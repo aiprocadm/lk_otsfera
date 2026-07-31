@@ -22,7 +22,10 @@ export type MarkPaidInput = {
 export async function approveStatement(
   prisma: PrismaClient,
   input: ApproveInput
-): Promise<{ ok: true; statement: CommissionStatement } | { ok: false; error: 'not_found' | 'lifecycle_violation' }> {
+): Promise<
+  | { ok: true; statement: CommissionStatement }
+  | { ok: false; error: 'not_found' | 'lifecycle_violation' }
+> {
   const statement = await prisma.commissionStatement.findFirst({
     where: { id: input.statementId, partnerId: input.partnerId },
     select: {
@@ -32,7 +35,7 @@ export async function approveStatement(
       partnerId: true,
       periodFrom: true,
       periodTo: true,
-    }
+    },
   });
   if (!statement) return { ok: false, error: 'not_found' };
   if (statement.supersededBy) {
@@ -49,8 +52,8 @@ export async function approveStatement(
       data: {
         status: 'approved',
         approvedByUserId: input.approvedByUserId,
-        approvedAt: now
-      }
+        approvedAt: now,
+      },
     });
     // A6/§9.5: если строки-корректировки увели итог в минус (зажим R2 при выплате),
     // непокрытый остаток переносим синтетической applied-корректировкой в след. период.
@@ -103,10 +106,13 @@ export async function approveStatement(
 export async function markStatementPaid(
   prisma: PrismaClient,
   input: MarkPaidInput
-): Promise<{ ok: true; statement: CommissionStatement } | { ok: false; error: 'forbidden' | 'not_found' | 'lifecycle_violation' }> {
+): Promise<
+  | { ok: true; statement: CommissionStatement }
+  | { ok: false; error: 'forbidden' | 'not_found' | 'lifecycle_violation' }
+> {
   const payer = await prisma.user.findUnique({
     where: { id: input.paidByUserId },
-    select: { role: true }
+    select: { role: true },
   });
   if (!payer) return { ok: false, error: 'forbidden' };
   if (payer.role !== 'admin') {
@@ -119,8 +125,8 @@ export async function markStatementPaid(
       id: true,
       status: true,
       supersededBy: true,
-      partnerId: true
-    }
+      partnerId: true,
+    },
   });
   if (!statement) return { ok: false, error: 'not_found' };
   if (statement.supersededBy) {
@@ -136,8 +142,8 @@ export async function markStatementPaid(
       where: { id: statement.id },
       data: {
         status: 'paid',
-        paidAt
-      }
+        paidAt,
+      },
     });
     await recordAudit(tx, {
       userId: input.paidByUserId,

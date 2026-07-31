@@ -10,7 +10,7 @@ const DOC_TYPE_LABELS: Record<string, string> = {
   certificate: 'сертификат',
   report: 'отчёт',
   commission_statement: 'расчёт комиссии',
-  other: 'документ'
+  other: 'документ',
 };
 
 export type OrgDocumentPublishedProps = {
@@ -25,13 +25,17 @@ export type OrgDocumentPublishedProps = {
 export function OrgDocumentPublishedTemplate(props: OrgDocumentPublishedProps) {
   const { organizationName, orderNumber, orderTitle, documentName, documentType, orderUrl } = props;
   const typeLabel = DOC_TYPE_LABELS[documentType] ?? 'документ';
-  const orderLabel = orderNumber ? `№ ${orderNumber}` : orderTitle ? `«${orderTitle}»` : '(без заказа)';
+  const orderLabel = orderNumber
+    ? `№ ${orderNumber}`
+    : orderTitle
+      ? `«${orderTitle}»`
+      : '(без заказа)';
 
   return (
-    <EmailLayout title='Новый документ по заказу'>
+    <EmailLayout title="Новый документ по заказу">
       <p style={emailStyles.paragraph}>
-        По заказу <strong>{orderLabel}</strong> ({organizationName}) загружен{' '}
-        {typeLabel}: <strong>«{documentName}»</strong>.
+        По заказу <strong>{orderLabel}</strong> ({organizationName}) загружен {typeLabel}:{' '}
+        <strong>«{documentName}»</strong>.
       </p>
       <p style={emailStyles.paragraph}>
         <a href={orderUrl} style={emailStyles.button}>
@@ -46,16 +50,24 @@ export function OrgDocumentPublishedTemplate(props: OrgDocumentPublishedProps) {
 }
 
 export function orgDocumentPublishedSubject(props: OrgDocumentPublishedProps): string {
-  const label = props.orderNumber ? `№ ${props.orderNumber}` : props.orderTitle ? `«${props.orderTitle}»` : '(без заказа)';
+  const label = props.orderNumber
+    ? `№ ${props.orderNumber}`
+    : props.orderTitle
+      ? `«${props.orderTitle}»`
+      : '(без заказа)';
   return `Новый документ по заказу ${label}`;
 }
 
 export function orgDocumentPublishedText(props: OrgDocumentPublishedProps): string {
   const typeLabel = DOC_TYPE_LABELS[props.documentType] ?? 'документ';
-  const orderLabel = props.orderNumber ? `№ ${props.orderNumber}` : props.orderTitle ? `«${props.orderTitle}»` : '(без заказа)';
+  const orderLabel = props.orderNumber
+    ? `№ ${props.orderNumber}`
+    : props.orderTitle
+      ? `«${props.orderTitle}»`
+      : '(без заказа)';
   return [
     `По заказу ${orderLabel} (${props.organizationName}) загружен ${typeLabel}: «${props.documentName}».`,
     '',
-    `Открыть заказ: ${props.orderUrl}`
+    `Открыть заказ: ${props.orderUrl}`,
   ].join('\n');
 }

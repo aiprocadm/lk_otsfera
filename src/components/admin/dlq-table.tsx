@@ -17,31 +17,31 @@ function ageLabel(d: Date | null): string {
 
 export function DlqTable({ rows }: { rows: DlqRow[] }) {
   if (rows.length === 0) {
-    return <EmptyState message='Все очереди чисты — ни одной упавшей задачи.' className='p-8' />;
+    return <EmptyState message="Все очереди чисты — ни одной упавшей задачи." className="p-8" />;
   }
   return (
-    <TableShell overflow='x-auto'>
+    <TableShell overflow="x-auto">
       <THead>
         <Th>Очередь</Th>
         <Th>Job ID</Th>
         <Th>Имя</Th>
         <Th>Причина</Th>
-        <Th className='text-right'>Попыток</Th>
-        <Th className='text-right'>Когда</Th>
-        <Th className='text-right'>Действие</Th>
+        <Th className="text-right">Попыток</Th>
+        <Th className="text-right">Когда</Th>
+        <Th className="text-right">Действие</Th>
       </THead>
       <tbody>
         {rows.map((row) => (
           <Tr key={`${row.queue}:${row.jobId}`}>
-            <Td className='font-mono text-xs text-gray-600'>{row.queue}</Td>
-            <Td className='font-mono text-xs text-gray-500'>{row.jobId}</Td>
-            <Td className='text-gray-700'>{row.name}</Td>
-            <Td className='text-red-700 text-xs max-w-md'>
-              <span className='line-clamp-2'>{row.failedReason ?? '—'}</span>
+            <Td className="font-mono text-xs text-gray-600">{row.queue}</Td>
+            <Td className="font-mono text-xs text-gray-500">{row.jobId}</Td>
+            <Td className="text-gray-700">{row.name}</Td>
+            <Td className="text-red-700 text-xs max-w-md">
+              <span className="line-clamp-2">{row.failedReason ?? '—'}</span>
             </Td>
-            <Td className='text-right tabular-nums text-gray-600'>{row.attemptsMade}</Td>
-            <Td className='text-right text-gray-500 text-xs'>{ageLabel(row.failedAt)}</Td>
-            <Td className='text-right'>
+            <Td className="text-right tabular-nums text-gray-600">{row.attemptsMade}</Td>
+            <Td className="text-right text-gray-500 text-xs">{ageLabel(row.failedAt)}</Td>
+            <Td className="text-right">
               <RetryButton queue={row.queue} jobId={row.jobId} />
             </Td>
           </Tr>

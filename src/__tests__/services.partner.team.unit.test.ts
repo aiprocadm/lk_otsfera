@@ -7,7 +7,7 @@ import { describe, it, expect, vi } from 'vitest';
 // Этап 4 (ФТ-10.1): inviteMember больше не выдаёт временный bcrypt-пароль —
 // создаёт пользователя без пароля + invite-токен через createInviteToken.
 const { createInviteToken } = vi.hoisted(() => ({
-  createInviteToken: vi.fn().mockResolvedValue({ token: 'tok-unit', expiresAt: new Date() })
+  createInviteToken: vi.fn().mockResolvedValue({ token: 'tok-unit', expiresAt: new Date() }),
 }));
 vi.mock('@/lib/auth/passwordReset', () => ({ createInviteToken }));
 
@@ -18,12 +18,19 @@ describe('listTeam — unit (roleInPartner mapping)', () => {
   it('maps roleInPartner "admin" → "admin"', async () => {
     const prisma = {
       partnerUser: {
-        findMany: vi.fn().mockResolvedValue([{
-          id: 'pu1', userId: 'u1', partnerId: 'p1',
-          roleInPartner: 'admin', assignedOrgIds: [], isActive: true, createdAt: new Date(),
-          user: { email: 'a@a.com', name: 'Admin', passwordHash: 'bcrypt-hash' }
-        }])
-      }
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'pu1',
+            userId: 'u1',
+            partnerId: 'p1',
+            roleInPartner: 'admin',
+            assignedOrgIds: [],
+            isActive: true,
+            createdAt: new Date(),
+            user: { email: 'a@a.com', name: 'Admin', passwordHash: 'bcrypt-hash' },
+          },
+        ]),
+      },
     } as any;
     const team = await listTeam(prisma, 'p1');
     expect(team[0].roleInPartner).toBe('admin');
@@ -34,14 +41,20 @@ describe('listTeam — unit (roleInPartner mapping)', () => {
   it('maps any non-admin roleInPartner → "manager"', async () => {
     const prisma = {
       partnerUser: {
-        findMany: vi.fn().mockResolvedValue([{
-          id: 'pu2', userId: 'u2', partnerId: 'p1',
-          // "supervisor" is a non-standard value — the ternary maps it to 'manager'
-          roleInPartner: 'supervisor',
-          assignedOrgIds: [], isActive: true, createdAt: new Date(),
-          user: { email: 'b@b.com', name: 'Bob', passwordHash: null }
-        }])
-      }
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'pu2',
+            userId: 'u2',
+            partnerId: 'p1',
+            // "supervisor" is a non-standard value — the ternary maps it to 'manager'
+            roleInPartner: 'supervisor',
+            assignedOrgIds: [],
+            isActive: true,
+            createdAt: new Date(),
+            user: { email: 'b@b.com', name: 'Bob', passwordHash: null },
+          },
+        ]),
+      },
     } as any;
     const team = await listTeam(prisma, 'p1');
     expect(team[0].roleInPartner).toBe('manager');
@@ -52,12 +65,19 @@ describe('listTeam — unit (roleInPartner mapping)', () => {
   it('maps roleInPartner "manager" → "manager"', async () => {
     const prisma = {
       partnerUser: {
-        findMany: vi.fn().mockResolvedValue([{
-          id: 'pu3', userId: 'u3', partnerId: 'p1',
-          roleInPartner: 'manager', assignedOrgIds: ['org1'], isActive: false, createdAt: new Date(),
-          user: { email: 'c@c.com', name: 'Mgr', passwordHash: 'h' }
-        }])
-      }
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'pu3',
+            userId: 'u3',
+            partnerId: 'p1',
+            roleInPartner: 'manager',
+            assignedOrgIds: ['org1'],
+            isActive: false,
+            createdAt: new Date(),
+            user: { email: 'c@c.com', name: 'Mgr', passwordHash: 'h' },
+          },
+        ]),
+      },
     } as any;
     const team = await listTeam(prisma, 'p1');
     expect(team[0].roleInPartner).toBe('manager');
@@ -72,12 +92,15 @@ describe('inviteMember — unit', () => {
       organization: { count: vi.fn().mockResolvedValue(0) },
       user: { findUnique: vi.fn(), create: vi.fn() },
       partnerUser: { create: vi.fn() },
-      $transaction: vi.fn()
+      $transaction: vi.fn(),
     } as any;
     expect(
       await inviteMember(prisma, {
-        partnerId: 'p1', email: 'x@x.com', name: 'X',
-        roleInPartner: 'manager', assignedOrgIds: ['bad-org']
+        partnerId: 'p1',
+        email: 'x@x.com',
+        name: 'X',
+        roleInPartner: 'manager',
+        assignedOrgIds: ['bad-org'],
       })
     ).toEqual({ ok: false, error: 'org_out_of_scope' });
   });
@@ -87,12 +110,15 @@ describe('inviteMember — unit', () => {
       organization: { count: vi.fn().mockResolvedValue(0) },
       partnerUser: { count: vi.fn().mockResolvedValue(0) },
       user: { findUnique: vi.fn().mockResolvedValue({ id: 'existing' }) },
-      $transaction: vi.fn()
+      $transaction: vi.fn(),
     } as any;
     expect(
       await inviteMember(prisma, {
-        partnerId: 'p1', email: 'taken@x.com', name: 'X',
-        roleInPartner: 'manager', assignedOrgIds: []
+        partnerId: 'p1',
+        email: 'taken@x.com',
+        name: 'X',
+        roleInPartner: 'manager',
+        assignedOrgIds: [],
       })
     ).toEqual({ ok: false, error: 'email_taken' });
   });
@@ -102,12 +128,15 @@ describe('inviteMember — unit', () => {
       organization: { count: vi.fn() },
       partnerUser: { count: vi.fn().mockResolvedValue(MAX_PARTNER_USERS) },
       user: { findUnique: vi.fn() },
-      $transaction: vi.fn()
+      $transaction: vi.fn(),
     } as any;
     expect(
       await inviteMember(prisma, {
-        partnerId: 'p1', email: 'over@x.com', name: 'Over',
-        roleInPartner: 'manager', assignedOrgIds: []
+        partnerId: 'p1',
+        email: 'over@x.com',
+        name: 'Over',
+        roleInPartner: 'manager',
+        assignedOrgIds: [],
       })
     ).toEqual({ ok: false, error: 'member_limit_reached' });
     // Short-circuits before the email lookup / user creation.
@@ -117,29 +146,39 @@ describe('inviteMember — unit', () => {
   it('successfully creates user and partnerUser via transaction when no conflicts', async () => {
     createInviteToken.mockClear();
     const newUser = { id: 'u-new', email: 'new@x.com', role: 'partner', partnerId: 'p1' };
-    const newPartnerUser = { id: 'pu-new', partnerId: 'p1', userId: 'u-new', roleInPartner: 'manager' };
+    const newPartnerUser = {
+      id: 'pu-new',
+      partnerId: 'p1',
+      userId: 'u-new',
+      roleInPartner: 'manager',
+    };
     const tx = {
       user: { create: vi.fn().mockResolvedValue(newUser) },
-      partnerUser: { create: vi.fn().mockResolvedValue(newPartnerUser) }
+      partnerUser: { create: vi.fn().mockResolvedValue(newPartnerUser) },
     };
     const prisma = {
       organization: { count: vi.fn().mockResolvedValue(1) }, // 1 org in scope
       partnerUser: { count: vi.fn().mockResolvedValue(0) },
       user: { findUnique: vi.fn().mockResolvedValue(null) }, // no existing user
-      $transaction: vi.fn().mockImplementation((cb: (arg: unknown) => unknown) => cb(tx))
+      $transaction: vi.fn().mockImplementation((cb: (arg: unknown) => unknown) => cb(tx)),
     } as any;
     const result = await inviteMember(prisma, {
-      partnerId: 'p1', email: 'new@x.com', name: 'Новый',
-      roleInPartner: 'manager', assignedOrgIds: ['org1']
+      partnerId: 'p1',
+      email: 'new@x.com',
+      name: 'Новый',
+      roleInPartner: 'manager',
+      assignedOrgIds: ['org1'],
     });
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error('expected ok');
     expect(result.user).toEqual(newUser);
     expect(result.partnerUser).toEqual(newPartnerUser);
     // Этап 4: пользователь без пароля + invite-токен внутри той же транзакции.
-    expect(tx.user.create).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ email: 'new@x.com', role: 'partner', passwordHash: null })
-    }));
+    expect(tx.user.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ email: 'new@x.com', role: 'partner', passwordHash: null }),
+      })
+    );
     expect(createInviteToken).toHaveBeenCalledWith(tx, 'u-new');
     expect(result.inviteUrl).toContain('/reset-password?token=tok-unit');
   });
@@ -148,18 +187,21 @@ describe('inviteMember — unit', () => {
     const newUser = { id: 'u2', email: 'u2@x.com', role: 'partner', partnerId: 'p1' };
     const tx = {
       user: { create: vi.fn().mockResolvedValue(newUser) },
-      partnerUser: { create: vi.fn().mockResolvedValue({ id: 'pu2' }) }
+      partnerUser: { create: vi.fn().mockResolvedValue({ id: 'pu2' }) },
     };
     createInviteToken.mockClear();
     const prisma = {
       organization: { count: vi.fn() },
       partnerUser: { count: vi.fn().mockResolvedValue(0) },
       user: { findUnique: vi.fn().mockResolvedValue(null) },
-      $transaction: vi.fn().mockImplementation((cb: (arg: unknown) => unknown) => cb(tx))
+      $transaction: vi.fn().mockImplementation((cb: (arg: unknown) => unknown) => cb(tx)),
     } as any;
     await inviteMember(prisma, {
-      partnerId: 'p1', email: 'u2@x.com', name: 'U2',
-      roleInPartner: 'admin', assignedOrgIds: []
+      partnerId: 'p1',
+      email: 'u2@x.com',
+      name: 'U2',
+      roleInPartner: 'admin',
+      assignedOrgIds: [],
     });
     // No org count check when list is empty
     expect(prisma.organization.count).not.toHaveBeenCalled();
@@ -172,7 +214,7 @@ describe('assignOrgs — unit', () => {
   it('returns org_out_of_scope when orgs outside partner', async () => {
     const prisma = {
       organization: { count: vi.fn().mockResolvedValue(0) },
-      partnerUser: { update: vi.fn() }
+      partnerUser: { update: vi.fn() },
     } as any;
     expect(
       await assignOrgs(prisma, { partnerId: 'p1', userId: 'u1', assignedOrgIds: ['foreign'] })
@@ -183,7 +225,7 @@ describe('assignOrgs — unit', () => {
     const update = vi.fn().mockResolvedValue({ id: 'pu1', assignedOrgIds: [] });
     const prisma = {
       organization: { count: vi.fn() },
-      partnerUser: { update }
+      partnerUser: { update },
     } as any;
     const result = await assignOrgs(prisma, { partnerId: 'p1', userId: 'u1', assignedOrgIds: [] });
     expect(prisma.organization.count).not.toHaveBeenCalled();
@@ -197,11 +239,12 @@ describe('deactivateMember — unit', () => {
     const userUpdate = vi.fn();
     const prisma = {
       partnerUser: { findUnique: vi.fn().mockResolvedValue(null), update: vi.fn() },
-      user: { update: userUpdate }
+      user: { update: userUpdate },
     } as any;
-    expect(
-      await deactivateMember(prisma, { partnerId: 'p1', userId: 'u1' })
-    ).toEqual({ ok: false, error: 'not_found' });
+    expect(await deactivateMember(prisma, { partnerId: 'p1', userId: 'u1' })).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
     // ФТ-11.2: нечего снимать — сессии не отзываем.
     expect(userUpdate).not.toHaveBeenCalled();
   });
@@ -211,11 +254,13 @@ describe('deactivateMember — unit', () => {
     const userUpdate = vi.fn().mockResolvedValue({});
     const prisma = {
       partnerUser: {
-        findUnique: vi.fn().mockResolvedValue({ id: 'pu1', roleInPartner: 'manager', isActive: true }),
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ id: 'pu1', roleInPartner: 'manager', isActive: true }),
         count: vi.fn(),
-        update
+        update,
       },
-      user: { update: userUpdate }
+      user: { update: userUpdate },
     } as any;
     const result = await deactivateMember(prisma, { partnerId: 'p1', userId: 'u1' });
     expect(prisma.partnerUser.count).not.toHaveBeenCalled();
@@ -225,7 +270,7 @@ describe('deactivateMember — unit', () => {
     // снятого участника (по args.userId).
     expect(userUpdate).toHaveBeenCalledWith({
       where: { id: 'u1' },
-      data: { sessionVersion: { increment: 1 } }
+      data: { sessionVersion: { increment: 1 } },
     });
   });
 
@@ -234,18 +279,20 @@ describe('deactivateMember — unit', () => {
     const userUpdate = vi.fn().mockResolvedValue({});
     const prisma = {
       partnerUser: {
-        findUnique: vi.fn().mockResolvedValue({ id: 'pu1', roleInPartner: 'admin', isActive: false }),
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ id: 'pu1', roleInPartner: 'admin', isActive: false }),
         count: vi.fn(),
-        update
+        update,
       },
-      user: { update: userUpdate }
+      user: { update: userUpdate },
     } as any;
     await deactivateMember(prisma, { partnerId: 'p1', userId: 'u1' });
     // isActive is false → skip count check (admin guard only fires when isActive is true)
     expect(prisma.partnerUser.count).not.toHaveBeenCalled();
     expect(userUpdate).toHaveBeenCalledWith({
       where: { id: 'u1' },
-      data: { sessionVersion: { increment: 1 } }
+      data: { sessionVersion: { increment: 1 } },
     });
   });
 
@@ -253,15 +300,18 @@ describe('deactivateMember — unit', () => {
     const userUpdate = vi.fn();
     const prisma = {
       partnerUser: {
-        findUnique: vi.fn().mockResolvedValue({ id: 'pu1', roleInPartner: 'admin', isActive: true }),
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ id: 'pu1', roleInPartner: 'admin', isActive: true }),
         count: vi.fn().mockResolvedValue(1),
-        update: vi.fn()
+        update: vi.fn(),
       },
-      user: { update: userUpdate }
+      user: { update: userUpdate },
     } as any;
-    expect(
-      await deactivateMember(prisma, { partnerId: 'p1', userId: 'u1' })
-    ).toEqual({ ok: false, error: 'last_admin_protected' });
+    expect(await deactivateMember(prisma, { partnerId: 'p1', userId: 'u1' })).toEqual({
+      ok: false,
+      error: 'last_admin_protected',
+    });
     // ФТ-11.2: защита последнего админа отменяет и отзыв сессий.
     expect(userUpdate).not.toHaveBeenCalled();
   });
@@ -278,11 +328,13 @@ describe('deactivateMember — unit', () => {
     });
     const prisma = {
       partnerUser: {
-        findUnique: vi.fn().mockResolvedValue({ id: 'pu2', roleInPartner: 'admin', isActive: true }),
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ id: 'pu2', roleInPartner: 'admin', isActive: true }),
         count: vi.fn().mockResolvedValue(2), // есть второй активный админ
-        update
+        update,
       },
-      user: { update: userUpdate }
+      user: { update: userUpdate },
     } as any;
 
     const result = await deactivateMember(prisma, { partnerId: 'p1', userId: 'u-target' });
@@ -291,7 +343,7 @@ describe('deactivateMember — unit', () => {
     expect(userUpdate).toHaveBeenCalledOnce();
     expect(userUpdate).toHaveBeenCalledWith({
       where: { id: 'u-target' },
-      data: { sessionVersion: { increment: 1 } }
+      data: { sessionVersion: { increment: 1 } },
     });
   });
 });

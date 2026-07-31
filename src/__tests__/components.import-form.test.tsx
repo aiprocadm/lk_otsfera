@@ -23,7 +23,9 @@ describe('ImportForm (SSR structural contract)', () => {
     expect(html).toContain('data-testid="import-preview-button"');
     expect(html).toContain('Загрузить и проверить');
     // SSR renders the button with disabled="" (initial state: hasFile=false)
-    expect(html).toMatch(/disabled=""[^>]*data-testid="import-preview-button"|data-testid="import-preview-button"[^>]*disabled/);
+    expect(html).toMatch(
+      /disabled=""[^>]*data-testid="import-preview-button"|data-testid="import-preview-button"[^>]*disabled/
+    );
   });
 
   it('does not render commit button before a successful preview', () => {

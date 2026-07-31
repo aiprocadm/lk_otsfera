@@ -60,10 +60,10 @@ export async function getEnrollmentRequest(
           birthDate: true,
           extra: true,
           status: true,
-          externalStudentId: true
-        }
-      }
-    }
+          externalStudentId: true,
+        },
+      },
+    },
   });
   if (!r) return { ok: false, error: 'not_found' };
 
@@ -76,9 +76,13 @@ export async function getEnrollmentRequest(
     : [];
   if (readyStudentIds.length) {
     const certs = await prisma.certificate.findMany({
-      where: { studentId: { in: readyStudentIds }, directionId: r.directionId!, documentId: { not: null } },
+      where: {
+        studentId: { in: readyStudentIds },
+        directionId: r.directionId!,
+        documentId: { not: null },
+      },
       orderBy: { issuedAt: 'desc' },
-      select: { studentId: true, documentId: true }
+      select: { studentId: true, documentId: true },
     });
     for (const c of certs) {
       if (!certByStudent.has(c.studentId)) certByStudent.set(c.studentId, c.documentId!);
@@ -92,8 +96,8 @@ export async function getEnrollmentRequest(
         companyId: true,
         counterpartyType: true,
         counterpartyId: true,
-        order: { select: { companyId: true } }
-      }
+        order: { select: { companyId: true } },
+      },
     });
     const allowed = new Map<string, boolean>();
     for (const d of docs) {
@@ -103,7 +107,7 @@ export async function getEnrollmentRequest(
           ...d,
           counterpartyType: d.counterpartyType ?? undefined,
           counterpartyId: d.counterpartyId ?? undefined,
-          order: d.order?.companyId ? { companyId: d.order.companyId } : null
+          order: d.order?.companyId ? { companyId: d.order.companyId } : null,
         })
       );
     }
@@ -115,7 +119,7 @@ export async function getEnrollmentRequest(
   await recordPiiAccess(prisma, {
     session,
     context: 'enrollment_detail',
-    subjectIds: [r.id]
+    subjectIds: [r.id],
   });
 
   return {
@@ -135,8 +139,8 @@ export async function getEnrollmentRequest(
       provisionedAt: r.provisionedAt,
       items: r.items.map((i) => ({
         ...i,
-        certificateDocumentId: i.studentId ? (certByStudent.get(i.studentId) ?? null) : null
-      }))
-    }
+        certificateDocumentId: i.studentId ? (certByStudent.get(i.studentId) ?? null) : null,
+      })),
+    },
   };
 }

@@ -32,7 +32,7 @@ export function buildLeadBreadcrumbs(lead: LeadCrumbInput): Crumb[] {
     crumbs.push({ label: 'Обращения клиентов', href: '/manager/requests' });
     crumbs.push({
       label: short(lead.sourceRequest.subject, 'Обращение'),
-      href: '/manager/requests'
+      href: '/manager/requests',
     });
   } else {
     crumbs.push({ label: 'Лиды', href: '/manager/leads' });
@@ -64,7 +64,7 @@ export function buildOrderBreadcrumbs(order: OrderCrumbInput): Crumb[] {
     crumbs.push({ label: 'Обращения клиентов', href: '/manager/requests' });
     crumbs.push({
       label: short(lead.sourceRequest.subject, 'Обращение'),
-      href: '/manager/requests'
+      href: '/manager/requests',
     });
   }
   if (lead) {

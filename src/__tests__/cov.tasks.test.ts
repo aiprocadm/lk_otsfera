@@ -27,7 +27,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 const { recordAuditMock, requireSessionMock, revalidatePathMock } = vi.hoisted(() => ({
   recordAuditMock: vi.fn(),
   requireSessionMock: vi.fn(),
-  revalidatePathMock: vi.fn()
+  revalidatePathMock: vi.fn(),
 }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit: recordAuditMock }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireSession: requireSessionMock }));
@@ -39,7 +39,7 @@ import {
   listTaskColumns,
   createTaskColumn,
   updateTaskColumn,
-  deleteTaskColumn
+  deleteTaskColumn,
 } from '@/lib/services/tasks/columns';
 import { listTaskBoard, getTaskFormOptions, moveTask } from '@/lib/services/tasks/board';
 import { resolveTaskColumns } from '@/lib/tasks/columns';
@@ -50,7 +50,7 @@ import {
   assignTaskAction,
   createTaskColumnAction,
   updateTaskColumnAction,
-  deleteTaskColumnAction
+  deleteTaskColumnAction,
 } from '@/server-actions/tasks';
 
 // ─── shared helpers ──────────────────────────────────────────────────────────
@@ -59,7 +59,7 @@ import {
 function txThrows(err: unknown, extra: Record<string, unknown> = {}): PrismaClient {
   return {
     ...extra,
-    $transaction: vi.fn().mockRejectedValue(err)
+    $transaction: vi.fn().mockRejectedValue(err),
   } as unknown as PrismaClient;
 }
 
@@ -67,25 +67,40 @@ function txThrows(err: unknown, extra: Record<string, unknown> = {}): PrismaClie
 function txRuns(tx: unknown, extra: Record<string, unknown> = {}): PrismaClient {
   return {
     ...extra,
-    $transaction: vi.fn().mockImplementation((fn: (t: unknown) => unknown) => fn(tx))
+    $transaction: vi.fn().mockImplementation((fn: (t: unknown) => unknown) => fn(tx)),
   } as unknown as PrismaClient;
 }
 
 const P2002 = new Prisma.PrismaClientKnownRequestError('Unique constraint', {
   code: 'P2002',
-  clientVersion: '5.0.0'
+  clientVersion: '5.0.0',
 });
 
 const managerA = (): SessionPayload =>
-  ({ sub: 'm1', role: 'manager', companyId: 'co-A', managedOrgIds: [] } as unknown as SessionPayload);
+  ({
+    sub: 'm1',
+    role: 'manager',
+    companyId: 'co-A',
+    managedOrgIds: [],
+  }) as unknown as SessionPayload;
 const leaderA = (): SessionPayload =>
-  ({ sub: 'l1', role: 'manager', managerRole: 'leader', companyId: 'co-A' } as unknown as SessionPayload);
+  ({
+    sub: 'l1',
+    role: 'manager',
+    managerRole: 'leader',
+    companyId: 'co-A',
+  }) as unknown as SessionPayload;
 const plainA = (): SessionPayload =>
-  ({ sub: 'p1', role: 'manager', managerRole: null, companyId: 'co-A' } as unknown as SessionPayload);
+  ({
+    sub: 'p1',
+    role: 'manager',
+    managerRole: null,
+    companyId: 'co-A',
+  }) as unknown as SessionPayload;
 const adminA = (): SessionPayload =>
-  ({ sub: 'a1', role: 'admin', companyId: 'co-A' } as unknown as SessionPayload);
+  ({ sub: 'a1', role: 'admin', companyId: 'co-A' }) as unknown as SessionPayload;
 const noCompany = (): SessionPayload =>
-  ({ sub: 'm1', role: 'manager', managedOrgIds: [] } as unknown as SessionPayload); // no companyId
+  ({ sub: 'm1', role: 'manager', managedOrgIds: [] }) as unknown as SessionPayload; // no companyId
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -99,7 +114,16 @@ describe('tasks.ts — createTask', () => {
   });
 
   it('custom (non-default) target column → persistColumnId keeps the real id (branch@120)', async () => {
-    const columns = [{ id: 'col-x', name: 'Backlog', position: 0, statusAnchor: 'todo', isDoneColumn: false, color: null }];
+    const columns = [
+      {
+        id: 'col-x',
+        name: 'Backlog',
+        position: 0,
+        statusAnchor: 'todo',
+        isDoneColumn: false,
+        color: null,
+      },
+    ];
     const created = { id: 'task-1' };
     const tx = { task: { create: vi.fn().mockResolvedValue(created) } };
     const prisma = txRuns(tx, { taskColumn: { findMany: vi.fn().mockResolvedValue(columns) } });
@@ -132,11 +156,20 @@ describe('tasks.ts — updateTask', () => {
   });
 
   it('assigneeIds present → syncAssignees runs (branch@185 !== undefined arm)', async () => {
-    const before = { companyId: 'co-A', createdById: 'm1', linkedOrganizationId: null, assignees: [], title: 'old' };
+    const before = {
+      companyId: 'co-A',
+      createdById: 'm1',
+      linkedOrganizationId: null,
+      assignees: [],
+      title: 'old',
+    };
     const findMany = vi.fn().mockResolvedValue([]); // no existing assignees
     const tx = {
-      task: { findUnique: vi.fn().mockResolvedValue(before), update: vi.fn().mockResolvedValue({}) },
-      taskAssignee: { findMany, createMany: vi.fn(), deleteMany: vi.fn() }
+      task: {
+        findUnique: vi.fn().mockResolvedValue(before),
+        update: vi.fn().mockResolvedValue({}),
+      },
+      taskAssignee: { findMany, createMany: vi.fn(), deleteMany: vi.fn() },
     };
     const r = await updateTask(txRuns(tx), managerA(), 't1', { title: 'new', assigneeIds: [] });
     expect(r).toEqual({ ok: true });
@@ -145,7 +178,9 @@ describe('tasks.ts — updateTask', () => {
 
   it('re-throws a non-TaskError from the transaction (branch@193, lines194-195)', async () => {
     const boom = new Error('update tx failed');
-    await expect(updateTask(txThrows(boom), managerA(), 't1', { title: 'x' })).rejects.toThrow('update tx failed');
+    await expect(updateTask(txThrows(boom), managerA(), 't1', { title: 'x' })).rejects.toThrow(
+      'update tx failed'
+    );
   });
 });
 
@@ -170,7 +205,12 @@ describe('tasks.ts — assignTask', () => {
   });
 
   it('task in another company → not_found via canSeeTask deny (branch@236)', async () => {
-    const before = { companyId: 'co-B', createdById: 'x', linkedOrganizationId: null, assignees: [] };
+    const before = {
+      companyId: 'co-B',
+      createdById: 'x',
+      linkedOrganizationId: null,
+      assignees: [],
+    };
     const tx = { task: { findUnique: vi.fn().mockResolvedValue(before) } };
     const r = await assignTask(txRuns(tx), managerA(), { taskId: 't1', assigneeIds: [] });
     expect(r).toEqual({ ok: false, error: 'not_found' });
@@ -178,7 +218,9 @@ describe('tasks.ts — assignTask', () => {
 
   it('re-throws a non-TaskError from the transaction (branch@251, lines252-253)', async () => {
     const boom = new Error('assign tx failed');
-    await expect(assignTask(txThrows(boom), managerA(), { taskId: 't1', assigneeIds: [] })).rejects.toThrow('assign tx failed');
+    await expect(
+      assignTask(txThrows(boom), managerA(), { taskId: 't1', assigneeIds: [] })
+    ).rejects.toThrow('assign tx failed');
   });
 });
 
@@ -187,7 +229,9 @@ describe('tasks.ts — assignTask', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe('columns.ts — role gate', () => {
   it('admin passes canManage → listTaskColumns returns rows (branch@37 admin arm)', async () => {
-    const prisma = { taskColumn: { findMany: vi.fn().mockResolvedValue([]) } } as unknown as PrismaClient;
+    const prisma = {
+      taskColumn: { findMany: vi.fn().mockResolvedValue([]) },
+    } as unknown as PrismaClient;
     const r = await listTaskColumns(prisma, adminA());
     expect(r).toEqual({ ok: true, rows: [] });
   });
@@ -201,7 +245,7 @@ describe('columns.ts — role gate', () => {
     const r = await updateTaskColumn({} as unknown as PrismaClient, plainA(), 'c1', {
       name: 'X',
       position: 0,
-      statusAnchor: 'todo'
+      statusAnchor: 'todo',
     });
     expect(r).toEqual({ ok: false, error: 'forbidden' });
   });
@@ -215,7 +259,11 @@ describe('columns.ts — role gate', () => {
 describe('columns.ts — createTaskColumn', () => {
   it('re-throws a non-P2002 error (branch@93 isUnique-false, lines94-95)', async () => {
     const boom = new Error('column tx failed');
-    const r = createTaskColumn(txThrows(boom), leaderA(), { name: 'X', position: 0, statusAnchor: 'todo' });
+    const r = createTaskColumn(txThrows(boom), leaderA(), {
+      name: 'X',
+      position: 0,
+      statusAnchor: 'todo',
+    });
     await expect(r).rejects.toThrow('column tx failed');
   });
 });
@@ -225,25 +273,55 @@ describe('columns.ts — updateTaskColumn', () => {
     const r = await updateTaskColumn({} as unknown as PrismaClient, leaderA(), 'c1', {
       name: '  ',
       position: 0,
-      statusAnchor: 'todo'
+      statusAnchor: 'todo',
     });
     expect(r).toEqual({ ok: false, error: 'validation' });
   });
 
   it('missing / cross-company column → not_found (branch@125 TaskColumnError arm)', async () => {
-    const tx = { taskColumn: { findUnique: vi.fn().mockResolvedValue({ companyId: 'co-B', name: 'x', position: 0, statusAnchor: 'todo', color: null, isDoneColumn: false }) } };
-    const r = await updateTaskColumn(txRuns(tx), leaderA(), 'c1', { name: 'X', position: 0, statusAnchor: 'todo' });
+    const tx = {
+      taskColumn: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({
+            companyId: 'co-B',
+            name: 'x',
+            position: 0,
+            statusAnchor: 'todo',
+            color: null,
+            isDoneColumn: false,
+          }),
+      },
+    };
+    const r = await updateTaskColumn(txRuns(tx), leaderA(), 'c1', {
+      name: 'X',
+      position: 0,
+      statusAnchor: 'todo',
+    });
     expect(r).toEqual({ ok: false, error: 'not_found' });
   });
 
   it('P2002 during update → position_taken (line126 isUnique-true arm)', async () => {
     const tx = {
       taskColumn: {
-        findUnique: vi.fn().mockResolvedValue({ companyId: 'co-A', name: 'x', position: 0, statusAnchor: 'todo', color: null, isDoneColumn: false }),
-        update: vi.fn().mockRejectedValue(P2002)
-      }
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({
+            companyId: 'co-A',
+            name: 'x',
+            position: 0,
+            statusAnchor: 'todo',
+            color: null,
+            isDoneColumn: false,
+          }),
+        update: vi.fn().mockRejectedValue(P2002),
+      },
     };
-    const r = await updateTaskColumn(txRuns(tx), leaderA(), 'c1', { name: 'X', position: 1, statusAnchor: 'todo' });
+    const r = await updateTaskColumn(txRuns(tx), leaderA(), 'c1', {
+      name: 'X',
+      position: 1,
+      statusAnchor: 'todo',
+    });
     expect(r).toEqual({ ok: false, error: 'position_taken' });
   });
 
@@ -251,11 +329,26 @@ describe('columns.ts — updateTaskColumn', () => {
     const boom = new Error('update column exploded');
     const tx = {
       taskColumn: {
-        findUnique: vi.fn().mockResolvedValue({ companyId: 'co-A', name: 'x', position: 0, statusAnchor: 'todo', color: null, isDoneColumn: false }),
-        update: vi.fn().mockRejectedValue(boom)
-      }
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({
+            companyId: 'co-A',
+            name: 'x',
+            position: 0,
+            statusAnchor: 'todo',
+            color: null,
+            isDoneColumn: false,
+          }),
+        update: vi.fn().mockRejectedValue(boom),
+      },
     };
-    await expect(updateTaskColumn(txRuns(tx), leaderA(), 'c1', { name: 'X', position: 1, statusAnchor: 'todo' })).rejects.toThrow('update column exploded');
+    await expect(
+      updateTaskColumn(txRuns(tx), leaderA(), 'c1', {
+        name: 'X',
+        position: 1,
+        statusAnchor: 'todo',
+      })
+    ).rejects.toThrow('update column exploded');
   });
 });
 
@@ -268,7 +361,9 @@ describe('columns.ts — deleteTaskColumn', () => {
 
   it('re-throws a non-domain error (branch@150 non-TaskColumnError arm, lines152-153)', async () => {
     const boom = new Error('delete column exploded');
-    await expect(deleteTaskColumn(txThrows(boom), leaderA(), 'c1')).rejects.toThrow('delete column exploded');
+    await expect(deleteTaskColumn(txThrows(boom), leaderA(), 'c1')).rejects.toThrow(
+      'delete column exploded'
+    );
   });
 });
 
@@ -279,44 +374,87 @@ describe('board.ts — listTaskBoard', () => {
   it('session without companyId → resolveTaskColumns("") default board, no cards (branch@44 ?? "" arm)', async () => {
     const prisma = {
       taskColumn: { findMany: vi.fn().mockResolvedValue([]) },
-      task: { findMany: vi.fn().mockResolvedValue([]) }
+      task: { findMany: vi.fn().mockResolvedValue([]) },
     } as unknown as PrismaClient;
     const board = await listTaskBoard(prisma, noCompany());
-    expect(board.columns.map((c) => c.statusAnchor)).toEqual(['todo', 'in_progress', 'review', 'done']);
+    expect(board.columns.map((c) => c.statusAnchor)).toEqual([
+      'todo',
+      'in_progress',
+      'review',
+      'done',
+    ]);
     expect(board.board.every((c) => c.cards.length === 0)).toBe(true);
     // resolveTaskColumns was called with '' (the ?? '' fallback).
-    const findMany = (prisma.taskColumn.findMany as unknown as ReturnType<typeof vi.fn>);
+    const findMany = prisma.taskColumn.findMany as unknown as ReturnType<typeof vi.fn>;
     expect(findMany.mock.calls[0][0].where.companyId).toBe('');
   });
 
   it('task whose status has no matching custom column is skipped; linkedOrder/linkedOrg names resolve both arms (branch@63, branch@79)', async () => {
-    const customColumns = [{ id: 'c-todo', name: 'Todo', position: 0, statusAnchor: 'todo', isDoneColumn: false, color: null }];
+    const customColumns = [
+      {
+        id: 'c-todo',
+        name: 'Todo',
+        position: 0,
+        statusAnchor: 'todo',
+        isDoneColumn: false,
+        color: null,
+      },
+    ];
     const cardWithLinks = {
-      id: 'A', title: 'A', description: null, priority: null, dueDate: null, completedAt: null,
-      status: 'todo', columnId: null, createdAt: new Date(),
+      id: 'A',
+      title: 'A',
+      description: null,
+      priority: null,
+      dueDate: null,
+      completedAt: null,
+      status: 'todo',
+      columnId: null,
+      createdAt: new Date(),
       createdBy: { name: 'Creator' },
       assignees: [{ userId: 'u9', user: { name: 'U9' } }],
-      linkedOrderId: 'ord-1', linkedOrder: { title: 'Order One' },
-      linkedOrganizationId: 'org-1', linkedOrganization: { name: 'Org One' }
+      linkedOrderId: 'ord-1',
+      linkedOrder: { title: 'Order One' },
+      linkedOrganizationId: 'org-1',
+      linkedOrganization: { name: 'Org One' },
     };
     const cardNoLinks = {
-      id: 'B', title: 'B', description: null, priority: null, dueDate: null, completedAt: null,
-      status: 'todo', columnId: null, createdAt: new Date(),
-      createdBy: { name: 'Creator' }, assignees: [],
-      linkedOrderId: null, linkedOrder: null,
-      linkedOrganizationId: null, linkedOrganization: null
+      id: 'B',
+      title: 'B',
+      description: null,
+      priority: null,
+      dueDate: null,
+      completedAt: null,
+      status: 'todo',
+      columnId: null,
+      createdAt: new Date(),
+      createdBy: { name: 'Creator' },
+      assignees: [],
+      linkedOrderId: null,
+      linkedOrder: null,
+      linkedOrganizationId: null,
+      linkedOrganization: null,
     };
     // Status 'done' has no column in the custom set → columnForTask returns undefined → skipped.
     const cardOrphan = {
-      id: 'C', title: 'C', description: null, priority: null, dueDate: null, completedAt: null,
-      status: 'done', columnId: null, createdAt: new Date(),
-      createdBy: { name: 'Creator' }, assignees: [],
-      linkedOrderId: null, linkedOrder: null,
-      linkedOrganizationId: null, linkedOrganization: null
+      id: 'C',
+      title: 'C',
+      description: null,
+      priority: null,
+      dueDate: null,
+      completedAt: null,
+      status: 'done',
+      columnId: null,
+      createdAt: new Date(),
+      createdBy: { name: 'Creator' },
+      assignees: [],
+      linkedOrderId: null,
+      linkedOrder: null,
+      linkedOrganizationId: null,
+      linkedOrganization: null,
     };
     const prisma = {
       taskColumn: { findMany: vi.fn().mockResolvedValue(customColumns) },
-      task: { findMany: vi.fn().mockResolvedValue([cardWithLinks, cardNoLinks, cardOrphan]) }
+      task: { findMany: vi.fn().mockResolvedValue([cardWithLinks, cardNoLinks, cardOrphan]) },
     } as unknown as PrismaClient;
 
     const board = await listTaskBoard(prisma, managerA());
@@ -340,7 +478,7 @@ describe('board.ts — getTaskFormOptions', () => {
     const prisma = {
       user: { findMany: userFindMany },
       organization: { findMany: vi.fn().mockResolvedValue([]) },
-      order: { findMany: vi.fn().mockResolvedValue([]) }
+      order: { findMany: vi.fn().mockResolvedValue([]) },
     } as unknown as PrismaClient;
     const opt = await getTaskFormOptions(prisma, noCompany());
     expect(opt).toEqual({ users: [], organizations: [], orders: [] });
@@ -351,21 +489,39 @@ describe('board.ts — getTaskFormOptions', () => {
 
 describe('board.ts — moveTask', () => {
   it('session without companyId → forbidden (branch@110)', async () => {
-    const r = await moveTask({} as unknown as PrismaClient, noCompany(), { taskId: 't1', toColumnId: 'default:todo' });
+    const r = await moveTask({} as unknown as PrismaClient, noCompany(), {
+      taskId: 't1',
+      toColumnId: 'default:todo',
+    });
     expect(r).toEqual({ ok: false, error: 'forbidden' });
   });
 
   it('custom (non-default) target column → persistColumnId keeps the real id (branch@134)', async () => {
-    const customColumns = [{ id: 'col-y', name: 'Doing', position: 0, statusAnchor: 'in_progress', isDoneColumn: false, color: null }];
+    const customColumns = [
+      {
+        id: 'col-y',
+        name: 'Doing',
+        position: 0,
+        statusAnchor: 'in_progress',
+        isDoneColumn: false,
+        color: null,
+      },
+    ];
     const task = {
-      id: 't1', companyId: 'co-A', status: 'todo', columnId: null, completedAt: null,
-      createdById: 'm1', linkedOrganizationId: null, assignees: []
+      id: 't1',
+      companyId: 'co-A',
+      status: 'todo',
+      columnId: null,
+      completedAt: null,
+      createdById: 'm1',
+      linkedOrganizationId: null,
+      assignees: [],
     };
     const update = vi.fn().mockResolvedValue({});
     const tx = { task: { update } };
     const prisma = txRuns(tx, {
       taskColumn: { findMany: vi.fn().mockResolvedValue(customColumns) },
-      task: { findUnique: vi.fn().mockResolvedValue(task) }
+      task: { findUnique: vi.fn().mockResolvedValue(task) },
     });
     const r = await moveTask(prisma, managerA(), { taskId: 't1', toColumnId: 'col-y' });
     expect(r).toEqual({ ok: true });
@@ -380,14 +536,46 @@ describe('board.ts — moveTask', () => {
 describe('lib/tasks/columns.ts — resolveTaskColumns', () => {
   it('maps custom columns when the company has them (branch@30 non-empty arm, lines31-39)', async () => {
     const custom = [
-      { id: 'k1', name: 'Backlog', position: 0, statusAnchor: 'todo', isDoneColumn: false, color: '#fff', companyId: 'co-A' },
-      { id: 'k2', name: 'Done', position: 1, statusAnchor: 'done', isDoneColumn: true, color: null, companyId: 'co-A' }
+      {
+        id: 'k1',
+        name: 'Backlog',
+        position: 0,
+        statusAnchor: 'todo',
+        isDoneColumn: false,
+        color: '#fff',
+        companyId: 'co-A',
+      },
+      {
+        id: 'k2',
+        name: 'Done',
+        position: 1,
+        statusAnchor: 'done',
+        isDoneColumn: true,
+        color: null,
+        companyId: 'co-A',
+      },
     ];
-    const prisma = { taskColumn: { findMany: vi.fn().mockResolvedValue(custom) } } as unknown as PrismaClient;
+    const prisma = {
+      taskColumn: { findMany: vi.fn().mockResolvedValue(custom) },
+    } as unknown as PrismaClient;
     const cols = await resolveTaskColumns(prisma, 'co-A');
     expect(cols).toEqual([
-      { id: 'k1', name: 'Backlog', position: 0, statusAnchor: 'todo', isDoneColumn: false, color: '#fff' },
-      { id: 'k2', name: 'Done', position: 1, statusAnchor: 'done', isDoneColumn: true, color: null }
+      {
+        id: 'k1',
+        name: 'Backlog',
+        position: 0,
+        statusAnchor: 'todo',
+        isDoneColumn: false,
+        color: '#fff',
+      },
+      {
+        id: 'k2',
+        name: 'Done',
+        position: 1,
+        statusAnchor: 'done',
+        isDoneColumn: true,
+        color: null,
+      },
     ]);
   });
 });
@@ -405,7 +593,12 @@ function fd(entries: Record<string, string>): FormData {
   return form;
 }
 const partner = (): SessionPayload =>
-  ({ sub: 'part-1', role: 'partner', partnerId: 'pp1', managedOrgIds: [] } as unknown as SessionPayload);
+  ({
+    sub: 'part-1',
+    role: 'partner',
+    partnerId: 'pp1',
+    managedOrgIds: [],
+  }) as unknown as SessionPayload;
 
 describe('server-actions/tasks — taskInput helper (branch@49 dueDate present)', () => {
   it('builds a Date when dueDate is a non-empty string, then service denies partner', async () => {
@@ -419,7 +612,10 @@ describe('server-actions/tasks — taskInput helper (branch@49 dueDate present)'
 describe('server-actions/tasks — service-error return arms', () => {
   it('updateTaskAction returns the service error (branch@81)', async () => {
     requireSessionMock.mockResolvedValue(partner());
-    expect(await updateTaskAction(fd({ id: 't1', title: 'X' }))).toEqual({ ok: false, error: 'forbidden' });
+    expect(await updateTaskAction(fd({ id: 't1', title: 'X' }))).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
     expect(revalidatePathMock).not.toHaveBeenCalled();
   });
 
@@ -436,20 +632,27 @@ describe('server-actions/tasks — service-error return arms', () => {
   it('createTaskColumnAction returns the service error (branch@120)', async () => {
     requireSessionMock.mockResolvedValue(partner());
     // isDoneColumn='true' → @110 right-hand `=== 'true'` arm; no statusAnchor → @111 `|| 'todo'` fallback.
-    const res = await createTaskColumnAction(fd({ name: 'Col', position: '0', isDoneColumn: 'true' }));
+    const res = await createTaskColumnAction(
+      fd({ name: 'Col', position: '0', isDoneColumn: 'true' })
+    );
     expect(res).toEqual({ ok: false, error: 'forbidden' });
   });
 
   it('updateTaskColumnAction returns the service error (branch@130)', async () => {
     requireSessionMock.mockResolvedValue(partner());
-    expect(await updateTaskColumnAction(fd({ id: 'c1', name: 'X', position: '0', statusAnchor: 'todo' }))).toEqual({
+    expect(
+      await updateTaskColumnAction(fd({ id: 'c1', name: 'X', position: '0', statusAnchor: 'todo' }))
+    ).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
   });
 
   it('deleteTaskColumnAction returns the service error (branch@140)', async () => {
     requireSessionMock.mockResolvedValue(partner());
-    expect(await deleteTaskColumnAction(fd({ id: 'c1' }))).toEqual({ ok: false, error: 'forbidden' });
+    expect(await deleteTaskColumnAction(fd({ id: 'c1' }))).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
   });
 });

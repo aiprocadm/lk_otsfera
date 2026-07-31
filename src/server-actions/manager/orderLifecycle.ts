@@ -20,12 +20,11 @@ function revalidateOrder(orderId: string): void {
 
 const AccountingSchema = z.object({
   orderId: z.string().min(1),
-  signed: z.boolean()
+  signed: z.boolean(),
 });
 
 export type SetAccountingSignedActionResult =
-  | { ok: true; changed: boolean }
-  | { ok: false; error: 'validation' | 'not_found' | 'forbidden' };
+  { ok: true; changed: boolean } | { ok: false; error: 'validation' | 'not_found' | 'forbidden' };
 
 export async function setOrderAccountingSignedAction(input: {
   orderId: string;

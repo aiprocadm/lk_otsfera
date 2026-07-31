@@ -14,14 +14,13 @@ vi.mock('@/lib/services/admin/partners', () => ({ listPartners }));
 
 vi.mock('@/components/admin/partners-filters', () => ({
   PartnersFilters: (props: { active?: string; filter?: string; q?: string }) =>
-    React.createElement('div', { 'data-testid': 'partners-filters' }, JSON.stringify(props))
+    React.createElement('div', { 'data-testid': 'partners-filters' }, JSON.stringify(props)),
 }));
 
 vi.mock('@/components/admin/partners-table', () => ({
   PartnersTable: (props: { rows: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'partners-table' }, JSON.stringify(props.rows))
+    React.createElement('div', { 'data-testid': 'partners-table' }, JSON.stringify(props.rows)),
 }));
-
 
 const SESSION = { sub: 'admin1', role: 'admin' as const };
 
@@ -37,7 +36,12 @@ describe('AdminPartnersPage', () => {
 
     const { container } = await renderServerComponent(
       AdminPartnersPage({
-        searchParams: Promise.resolve({ active: 'true', filter: 'norate', q: ' test ', skip: '10' })
+        searchParams: Promise.resolve({
+          active: 'true',
+          filter: 'norate',
+          q: ' test ',
+          skip: '10',
+        }),
       })
     );
 
@@ -56,7 +60,9 @@ describe('AdminPartnersPage', () => {
     listPartners.mockResolvedValue({ rows: [], total: 0 });
 
     await renderServerComponent(
-      AdminPartnersPage({ searchParams: Promise.resolve({ active: 'false', filter: 'other', skip: '-5' }) })
+      AdminPartnersPage({
+        searchParams: Promise.resolve({ active: 'false', filter: 'other', skip: '-5' }),
+      })
     );
 
     expect(listPartners).toHaveBeenCalledWith(

@@ -4,7 +4,7 @@ import { describe, it, expect, vi } from 'vitest';
 const nav = vi.hoisted(() => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);
-  })
+  }),
 }));
 vi.mock('next/navigation', () => nav);
 

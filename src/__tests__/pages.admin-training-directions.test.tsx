@@ -13,7 +13,11 @@ vi.mock('@/lib/services/training', () => ({ listDirections }));
 
 vi.mock('@/components/training/directions-admin', () => ({
   DirectionsAdmin: (props: { directions: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'directions-admin' }, JSON.stringify(props.directions))
+    React.createElement(
+      'div',
+      { 'data-testid': 'directions-admin' },
+      JSON.stringify(props.directions)
+    ),
 }));
 
 import AdminTrainingDirectionsPage from '@/app/admin/training-directions/page';

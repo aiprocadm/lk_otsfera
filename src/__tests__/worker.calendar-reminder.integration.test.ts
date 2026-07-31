@@ -6,7 +6,7 @@ import { PrismaClient } from '@prisma/client';
 // реальные строки Notification в живой БД (в отличие от certificate-expiry, у
 // календаря нет своей reminder-таблицы — единственная улика и есть Notification).
 const { deliverNotificationToUser } = vi.hoisted(() => ({
-  deliverNotificationToUser: vi.fn().mockResolvedValue({})
+  deliverNotificationToUser: vi.fn().mockResolvedValue({}),
 }));
 vi.mock('@/lib/notifications', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/notifications')>();
@@ -27,10 +27,20 @@ const ALREADY_SENT_AT = new Date('2026-01-01T00:00:00.000Z');
 beforeAll(async () => {
   const company = await prisma.company.create({ data: { name: 'm5calrem-co' } });
   const creator = await prisma.user.create({
-    data: { email: 'creator@m5calrem.test', name: 'Создатель', role: 'manager', companyId: company.id }
+    data: {
+      email: 'creator@m5calrem.test',
+      name: 'Создатель',
+      role: 'manager',
+      companyId: company.id,
+    },
   });
   const attendee = await prisma.user.create({
-    data: { email: 'attendee@m5calrem.test', name: 'Участник', role: 'manager', companyId: company.id }
+    data: {
+      email: 'attendee@m5calrem.test',
+      name: 'Участник',
+      role: 'manager',
+      companyId: company.id,
+    },
   });
 
   // (a) свежий кандидат: remindAt в прошлом (<24ч), напоминание должно уйти
@@ -41,8 +51,8 @@ beforeAll(async () => {
       location: 'Zoom',
       startsAt: new Date(NOW.getTime() + 50 * MIN),
       remindAt: new Date(NOW.getTime() - 10 * MIN),
-      createdById: creator.id
-    }
+      createdById: creator.id,
+    },
   });
   await prisma.calendarEventAttendee.create({ data: { eventId: evFresh.id, userId: attendee.id } });
 
@@ -53,8 +63,8 @@ beforeAll(async () => {
       title: 'Протухшее событие',
       startsAt: new Date(NOW.getTime() - 24 * HOUR),
       remindAt: new Date(NOW.getTime() - 25 * HOUR),
-      createdById: creator.id
-    }
+      createdById: creator.id,
+    },
   });
 
   // (d) уже отправленное: reminderSentAt != null — не кандидат вовсе
@@ -65,8 +75,8 @@ beforeAll(async () => {
       startsAt: new Date(NOW.getTime() + 50 * MIN),
       remindAt: new Date(NOW.getTime() - 10 * MIN),
       reminderSentAt: ALREADY_SENT_AT,
-      createdById: creator.id
-    }
+      createdById: creator.id,
+    },
   });
 
   Object.assign(ids, {
@@ -75,7 +85,7 @@ beforeAll(async () => {
     attendee: attendee.id,
     evFresh: evFresh.id,
     evStale: evStale.id,
-    evAlready: evAlready.id
+    evAlready: evAlready.id,
   });
 });
 
@@ -90,7 +100,7 @@ afterAll(async () => {
 
 async function reminderNotifications() {
   const rows = await prisma.notification.findMany({
-    where: { type: 'calendar_event_reminder', userId: { in: [ids.creator, ids.attendee] } }
+    where: { type: 'calendar_event_reminder', userId: { in: [ids.creator, ids.attendee] } },
   });
   return rows;
 }
@@ -135,7 +145,9 @@ describe('calendar-reminder processor (integration)', () => {
   });
 
   it('(d) событие с reminderSentAt != null не тронуто', async () => {
-    const evAlready = await prisma.calendarEvent.findUniqueOrThrow({ where: { id: ids.evAlready } });
+    const evAlready = await prisma.calendarEvent.findUniqueOrThrow({
+      where: { id: ids.evAlready },
+    });
     expect(evAlready.reminderSentAt).toEqual(ALREADY_SENT_AT);
 
     const rows = await reminderNotifications();

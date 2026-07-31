@@ -90,7 +90,7 @@ export async function listCalls(
   await recordPiiAccess(prisma, {
     session,
     context: 'calls_list',
-    subjectIds: items.map((i) => i.id)
+    subjectIds: items.map((i) => i.id),
   });
 
   return { items, total };

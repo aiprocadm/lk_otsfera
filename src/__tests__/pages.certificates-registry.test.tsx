@@ -15,7 +15,7 @@ const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
@@ -27,13 +27,13 @@ vi.mock('@/lib/auth/requireRole', () => ({ requirePartner }));
 
 const { trainingDirectionFindMany, organizationFindMany } = vi.hoisted(() => ({
   trainingDirectionFindMany: vi.fn(),
-  organizationFindMany: vi.fn()
+  organizationFindMany: vi.fn(),
 }));
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     trainingDirection: { findMany: trainingDirectionFindMany },
-    organization: { findMany: organizationFindMany }
-  }
+    organization: { findMany: organizationFindMany },
+  },
 }));
 
 const { listCertificates } = vi.hoisted(() => ({ listCertificates: vi.fn() }));
@@ -45,7 +45,12 @@ vi.mock('@/lib/services/training/certificates', async (importOriginal) => {
 
 vi.mock('@/components/organization/org-app-shell', () => ({
   OrgAppShell: (props: { activeOrgName: string; children: React.ReactNode }) =>
-    React.createElement('div', { 'data-testid': 'org-app-shell' }, props.activeOrgName, props.children)
+    React.createElement(
+      'div',
+      { 'data-testid': 'org-app-shell' },
+      props.activeOrgName,
+      props.children
+    ),
 }));
 
 import OrganizationCertificatesPage from '@/app/organization/certificates/page';
@@ -57,15 +62,20 @@ const ORG_CTX = {
   activeOrgId: 'org-1',
   activeOrgName: 'ООО Ромашка',
   memberships: [],
-  viewerRole: 'admin' as const
+  viewerRole: 'admin' as const,
 };
-const PARTNER_ADMIN = { sub: 'p1', role: 'partner' as const, partnerId: 'pt-1', partnerRole: 'admin' as const };
+const PARTNER_ADMIN = {
+  sub: 'p1',
+  role: 'partner' as const,
+  partnerId: 'pt-1',
+  partnerRole: 'admin' as const,
+};
 const PARTNER_MANAGER = {
   sub: 'p2',
   role: 'partner' as const,
   partnerId: 'pt-1',
   partnerRole: 'manager' as const,
-  assignedOrgIds: ['org-9']
+  assignedOrgIds: ['org-9'],
 };
 
 const CERT = {
@@ -76,7 +86,7 @@ const CERT = {
   documentId: null,
   student: { id: 's1', name: 'Иванов Иван' },
   direction: { id: 'd1', name: 'Охрана труда' },
-  organization: { id: 'org-1', name: 'ООО Ромашка' }
+  organization: { id: 'org-1', name: 'ООО Ромашка' },
 };
 
 const props = (sp: Record<string, string> = {}) => ({ searchParams: Promise.resolve(sp) });
@@ -94,7 +104,9 @@ beforeEach(() => {
 describe('OrganizationCertificatesPage', () => {
   it('флаг off → notFound, контекст не запрашивается', async () => {
     isFeatureEnabled.mockReturnValue(false);
-    await expect(renderServerComponent(OrganizationCertificatesPage(props()))).rejects.toThrow('NOT_FOUND');
+    await expect(renderServerComponent(OrganizationCertificatesPage(props()))).rejects.toThrow(
+      'NOT_FOUND'
+    );
     expect(isFeatureEnabled).toHaveBeenCalledWith('certificates_registry');
     expect(getOrgPageContext).not.toHaveBeenCalled();
   });
@@ -104,7 +116,16 @@ describe('OrganizationCertificatesPage', () => {
     getOrgPageContext.mockResolvedValue(ORG_CTX);
 
     const { container } = await renderServerComponent(
-      OrganizationCertificatesPage(props({ direction: 'd1', status: 'expiring', search: 'Иван', take: '10', skip: '20', org: 'org-1' }))
+      OrganizationCertificatesPage(
+        props({
+          direction: 'd1',
+          status: 'expiring',
+          search: 'Иван',
+          take: '10',
+          skip: '20',
+          org: 'org-1',
+        })
+      )
     );
 
     expect(listCertificates).toHaveBeenCalledWith(expect.anything(), ORG_CTX.session, {
@@ -113,7 +134,7 @@ describe('OrganizationCertificatesPage', () => {
       status: 'expiring',
       search: 'Иван',
       take: 10,
-      skip: 20
+      skip: 20,
     });
     expect(container.textContent).toContain('Удостоверения');
     expect(container.textContent).toContain('Иванов Иван');
@@ -129,7 +150,9 @@ describe('OrganizationCertificatesPage', () => {
     isFeatureEnabled.mockReturnValue(true);
     getOrgPageContext.mockResolvedValue(ORG_CTX);
 
-    await renderServerComponent(OrganizationCertificatesPage(props({ status: 'bogus', take: 'x', skip: '-5' })));
+    await renderServerComponent(
+      OrganizationCertificatesPage(props({ status: 'bogus', take: 'x', skip: '-5' }))
+    );
 
     expect(listCertificates).toHaveBeenCalledWith(
       expect.anything(),
@@ -142,7 +165,9 @@ describe('OrganizationCertificatesPage', () => {
 describe('PartnerCertificatesPage', () => {
   it('флаг off → notFound, requirePartner не вызывается', async () => {
     isFeatureEnabled.mockReturnValue(false);
-    await expect(renderServerComponent(PartnerCertificatesPage(props()))).rejects.toThrow('NOT_FOUND');
+    await expect(renderServerComponent(PartnerCertificatesPage(props()))).rejects.toThrow(
+      'NOT_FOUND'
+    );
     expect(requirePartner).not.toHaveBeenCalled();
   });
 
@@ -188,7 +213,12 @@ describe('PartnerCertificatesPage', () => {
     // должны ломать реестр — иначе партнёр увидит ошибку вместо своих
     // удостоверений.
     isFeatureEnabled.mockReturnValue(true);
-    requirePartner.mockResolvedValue({ sub: 'p1', role: 'partner', partnerId: 'pt-1', partnerRole: 'admin' });
+    requirePartner.mockResolvedValue({
+      sub: 'p1',
+      role: 'partner',
+      partnerId: 'pt-1',
+      partnerRole: 'admin',
+    });
 
     await renderServerComponent(PartnerCertificatesPage(props({ take: 'много', skip: '-10' })));
 
@@ -201,7 +231,12 @@ describe('PartnerCertificatesPage', () => {
 
   it('партнёрский реестр: разумные take/skip из адреса уважаются', async () => {
     isFeatureEnabled.mockReturnValue(true);
-    requirePartner.mockResolvedValue({ sub: 'p1', role: 'partner', partnerId: 'pt-1', partnerRole: 'admin' });
+    requirePartner.mockResolvedValue({
+      sub: 'p1',
+      role: 'partner',
+      partnerId: 'pt-1',
+      partnerRole: 'admin',
+    });
 
     await renderServerComponent(PartnerCertificatesPage(props({ take: '10', skip: '20' })));
 

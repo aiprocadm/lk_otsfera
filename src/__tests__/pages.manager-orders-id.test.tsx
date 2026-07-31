@@ -12,20 +12,20 @@ vi.mock('@/lib/services/orderStatuses', () => ({
     forward: [],
     backward: [],
     terminal: null,
-    history: []
-  })
+    history: [],
+  }),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
 
 const { studentFindMany, dealFindUnique } = vi.hoisted(() => ({
   studentFindMany: vi.fn(),
-  dealFindUnique: vi.fn()
+  dealFindUnique: vi.fn(),
 }));
 const { companyFindUnique, organizationFindUnique, documentGroupBy } = vi.hoisted(() => ({
   companyFindUnique: vi.fn(),
   organizationFindUnique: vi.fn(),
-  documentGroupBy: vi.fn()
+  documentGroupBy: vi.fn(),
 }));
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
@@ -33,8 +33,8 @@ vi.mock('@/lib/db/prisma', () => ({
     deal: { findUnique: dealFindUnique },
     company: { findUnique: companyFindUnique },
     organization: { findUnique: organizationFindUnique },
-    document: { groupBy: documentGroupBy }
-  }
+    document: { groupBy: documentGroupBy },
+  },
 }));
 
 const { loadManagerOrderDetail } = vi.hoisted(() => ({ loadManagerOrderDetail: vi.fn() }));
@@ -53,34 +53,39 @@ vi.mock('@/lib/services/customFields', () => ({ getValuesForEntity }));
 const { getOrderReadiness } = vi.hoisted(() => ({ getOrderReadiness: vi.fn() }));
 vi.mock('@/lib/services/manager/orderDelivery', () => ({ getOrderReadiness }));
 vi.mock('@/components/manager/order-readiness-panel', () => ({
-  OrderReadinessPanel: () => null
+  OrderReadinessPanel: () => null,
 }));
 
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
 // Этап 12 PR-2 (ФТ-5.3): панель массовой загрузки сканов удостоверений.
 const { listCertificateScanTargets } = vi.hoisted(() => ({
-  listCertificateScanTargets: vi.fn()
+  listCertificateScanTargets: vi.fn(),
 }));
 vi.mock('@/lib/services/manager/certificateScans', () => ({ listCertificateScanTargets }));
 vi.mock('@/components/manager/certificate-scans-panel', () => ({
-  CertificateScansPanel: () => React.createElement('div', { 'data-testid': 'scans-panel' })
+  CertificateScansPanel: () => React.createElement('div', { 'data-testid': 'scans-panel' }),
 }));
 
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 vi.mock('@/components/manager/generate-documents-panel', () => ({
-  GenerateDocumentsPanel: (props: { orderId: string; missing: unknown[]; hasInvoice: boolean; hasContract: boolean }) =>
+  GenerateDocumentsPanel: (props: {
+    orderId: string;
+    missing: unknown[];
+    hasInvoice: boolean;
+    hasContract: boolean;
+  }) =>
     React.createElement(
       'div',
       { 'data-testid': 'generate-panel' },
       `${props.orderId}:missing=${props.missing.length}:invoice=${props.hasInvoice}:contract=${props.hasContract}`
-    )
+    ),
 }));
 
 const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
@@ -113,12 +118,17 @@ vi.mock('@/components/manager/manager-order-detail-view', () => ({
       props.generatePanel,
       props.readinessPanel,
       JSON.stringify(props.breadcrumbs ?? [])
-    )
+    ),
 }));
 
 import ManagerOrderDetailPage from '@/app/manager/orders/[id]/page';
 
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'member' as const,
+  companyId: 'c1',
+};
 
 const BASE_DATA = {
   order: {
@@ -129,17 +139,21 @@ const BASE_DATA = {
     executionStatus: 'in_progress',
     documents: [],
     payments: [],
-    commentsCountByMe: 0
+    commentsCountByMe: 0,
   },
   auditEntries: [],
   comments: [],
   documentRows: [],
-  items: []
+  items: [],
 };
 
 describe('ManagerOrderDetailPage', () => {
   beforeEach(() => {
-    getOrderReadiness.mockResolvedValue({ ok: true, readiness: { ready: true, gaps: [], items: [] }, deliveredAt: null });
+    getOrderReadiness.mockResolvedValue({
+      ok: true,
+      readiness: { ready: true, gaps: [], items: [] },
+      deliveredAt: null,
+    });
     requireManager.mockReset();
     studentFindMany.mockReset();
     loadManagerOrderDetail.mockReset();
@@ -159,9 +173,7 @@ describe('ManagerOrderDetailPage', () => {
     loadManagerOrderDetail.mockResolvedValue(null);
 
     await expect(
-      renderServerComponent(
-        ManagerOrderDetailPage({ params: Promise.resolve({ id: 'missing' }) })
-      )
+      renderServerComponent(ManagerOrderDetailPage({ params: Promise.resolve({ id: 'missing' }) }))
     ).rejects.toThrow('NOT_FOUND');
 
     expect(listDirections).not.toHaveBeenCalled();
@@ -175,11 +187,31 @@ describe('ManagerOrderDetailPage', () => {
     studentFindMany.mockResolvedValue([{ id: 's1', name: 'Студент', email: 's@x.com' }]);
     getValuesForEntity.mockResolvedValue({
       ok: true,
-      fields: [{ definition: { id: 'f1', key: 'k1', label: 'Поле', fieldType: 'text', options: null, required: false, sortOrder: 0 }, value: 'v' }]
+      fields: [
+        {
+          definition: {
+            id: 'f1',
+            key: 'k1',
+            label: 'Поле',
+            fieldType: 'text',
+            options: null,
+            required: false,
+            sortOrder: 0,
+          },
+          value: 'v',
+        },
+      ],
     });
     getDealActivity.mockResolvedValue({
       ok: true,
-      items: [{ kind: 'event', id: 'e1', at: new Date('2026-01-01T00:00:00Z'), label: 'Смена статуса заказа' }]
+      items: [
+        {
+          kind: 'event',
+          id: 'e1',
+          at: new Date('2026-01-01T00:00:00Z'),
+          label: 'Смена статуса заказа',
+        },
+      ],
     });
     isFeatureEnabled.mockImplementation((flag: string) => flag === 'inbound_messaging');
 
@@ -220,7 +252,7 @@ describe('ManagerOrderDetailPage', () => {
     requireManager.mockResolvedValue(SESSION);
     loadManagerOrderDetail.mockResolvedValue({
       ...BASE_DATA,
-      order: { ...BASE_DATA.order, organizationId: null }
+      order: { ...BASE_DATA.order, organizationId: null },
     });
     listDirections.mockResolvedValue({ ok: false, error: 'forbidden' });
     studentFindMany.mockResolvedValue([]);
@@ -244,7 +276,7 @@ describe('ManagerOrderDetailPage', () => {
     function trainingOrder(extra: Record<string, unknown> = {}) {
       return {
         ...BASE_DATA,
-        order: { ...BASE_DATA.order, serviceType: 'training', resultDeliveredAt: null, ...extra }
+        order: { ...BASE_DATA.order, serviceType: 'training', resultDeliveredAt: null, ...extra },
       };
     }
 
@@ -278,7 +310,7 @@ describe('ManagerOrderDetailPage', () => {
     it('заказ на разработку документов — панели нет', async () => {
       const { container } = await renderWith({
         ...BASE_DATA,
-        order: { ...BASE_DATA.order, serviceType: 'document_development', resultDeliveredAt: null }
+        order: { ...BASE_DATA.order, serviceType: 'document_development', resultDeliveredAt: null },
       });
       expect(listCertificateScanTargets).not.toHaveBeenCalled();
       expect(container.querySelector('[data-testid="scans-panel"]')).toBeNull();
@@ -297,7 +329,7 @@ describe('ManagerOrderDetailPage', () => {
       requireManager.mockResolvedValue(SESSION);
       loadManagerOrderDetail.mockResolvedValue({
         ...BASE_DATA,
-        order: { ...BASE_DATA.order, title: 'Обучение по ОТ' }
+        order: { ...BASE_DATA.order, title: 'Обучение по ОТ' },
       });
       listDirections.mockResolvedValue({ ok: true, directions: [] });
       studentFindMany.mockResolvedValue([]);
@@ -322,8 +354,8 @@ describe('ManagerOrderDetailPage', () => {
         lead: {
           id: 'l1',
           clientCompanyName: 'ООО «Ромашка»',
-          sourceRequest: { id: 'r1', subject: 'Нужно обучение' }
-        }
+          sourceRequest: { id: 'r1', subject: 'Нужно обучение' },
+        },
       });
       const { container } = await renderOrder();
       expect(dealFindUnique).toHaveBeenCalledWith(
@@ -346,16 +378,30 @@ describe('ManagerOrderDetailPage', () => {
 });
 describe('панель генерации документов (этап 8, ФТ-9.4/9.5)', () => {
   const FULL = {
-    name: 'Раб', legalName: 'ООО', inn: '7707083893', kpp: null, legalAddress: 'адрес',
-    bankName: 'Банк', bankAccount: '40702810400000000001', corrAccount: '301', bic: '044525225',
-    signerName: 'Иванов', signerPosition: 'Директор'
+    name: 'Раб',
+    legalName: 'ООО',
+    inn: '7707083893',
+    kpp: null,
+    legalAddress: 'адрес',
+    bankName: 'Банк',
+    bankAccount: '40702810400000000001',
+    corrAccount: '301',
+    bic: '044525225',
+    signerName: 'Иванов',
+    signerPosition: 'Директор',
   };
 
   async function renderWithGeneration(orderOver: Record<string, unknown> = {}) {
     requireManager.mockResolvedValue(SESSION);
     loadManagerOrderDetail.mockResolvedValue({
       ...BASE_DATA,
-      order: { ...BASE_DATA.order, companyId: 'co-1', serviceType: 'training', resultDeliveredAt: null, ...orderOver }
+      order: {
+        ...BASE_DATA.order,
+        companyId: 'co-1',
+        serviceType: 'training',
+        resultDeliveredAt: null,
+        ...orderOver,
+      },
     });
     listDirections.mockResolvedValue({ ok: true, directions: [] });
     studentFindMany.mockResolvedValue([]);
@@ -366,7 +412,9 @@ describe('панель генерации документов (этап 8, ФТ
     companyFindUnique.mockResolvedValue(FULL);
     organizationFindUnique.mockResolvedValue(FULL);
     documentGroupBy.mockResolvedValue([{ type: 'invoice', _count: { _all: 2 } }]);
-    return renderServerComponent(ManagerOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) }));
+    return renderServerComponent(
+      ManagerOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
+    );
   }
 
   it('флаг включён и стороны на месте: панель собрана, счёт уже есть, договора нет', async () => {
@@ -381,7 +429,12 @@ describe('панель генерации документов (этап 8, ФТ
     requireManager.mockResolvedValue(SESSION);
     loadManagerOrderDetail.mockResolvedValue({
       ...BASE_DATA,
-      order: { ...BASE_DATA.order, companyId: 'co-1', serviceType: 'training', resultDeliveredAt: null }
+      order: {
+        ...BASE_DATA.order,
+        companyId: 'co-1',
+        serviceType: 'training',
+        resultDeliveredAt: null,
+      },
     });
     listDirections.mockResolvedValue({ ok: true, directions: [] });
     studentFindMany.mockResolvedValue([]);
@@ -392,8 +445,12 @@ describe('панель генерации документов (этап 8, ФТ
     companyFindUnique.mockResolvedValue(null);
     organizationFindUnique.mockResolvedValue(FULL);
     documentGroupBy.mockResolvedValue([]);
-    const { container } = await renderServerComponent(ManagerOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) }));
-    expect(container.querySelector('[data-testid="generate-panel"]')?.textContent).toContain('missing=0');
+    const { container } = await renderServerComponent(
+      ManagerOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
+    );
+    expect(container.querySelector('[data-testid="generate-panel"]')?.textContent).toContain(
+      'missing=0'
+    );
   });
 
   it('заказ без companyId: панели нет даже при включённом флаге', async () => {
@@ -405,7 +462,7 @@ describe('панель генерации документов (этап 8, ФТ
     getOrderReadiness.mockResolvedValue({
       ok: true,
       readiness: { ready: true, gaps: [], items: [] },
-      deliveredAt: new Date('2026-07-01T10:00:00Z')
+      deliveredAt: new Date('2026-07-01T10:00:00Z'),
     });
     const { container } = await renderWithGeneration();
     expect(container.textContent).toBeTruthy();

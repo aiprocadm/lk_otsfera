@@ -6,10 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/lib/ui/toast';
 import { errorMessageRu } from '@/lib/errors/messages';
-import {
-  generateTelegramLinkAction,
-  unlinkTelegramAction,
-} from '@/server-actions/telegram';
+import { generateTelegramLinkAction, unlinkTelegramAction } from '@/server-actions/telegram';
 
 type Props = {
   status: { linked: boolean; enabled: boolean };

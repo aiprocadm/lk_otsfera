@@ -8,10 +8,10 @@ const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
 
 const { trainingDirectionFindMany } = vi.hoisted(() => ({
-  trainingDirectionFindMany: vi.fn().mockResolvedValue([{ id: 'd1', name: 'Охрана труда' }])
+  trainingDirectionFindMany: vi.fn().mockResolvedValue([{ id: 'd1', name: 'Охрана труда' }]),
 }));
 vi.mock('@/lib/db/prisma', () => ({
-  prisma: { trainingDirection: { findMany: trainingDirectionFindMany } }
+  prisma: { trainingDirection: { findMany: trainingDirectionFindMany } },
 }));
 
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
@@ -24,21 +24,25 @@ const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
 vi.mock('@/components/enrollment/enrollment-queue', () => ({
   EnrollmentQueue: (props: { rows: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'enrollment-queue' }, JSON.stringify(props.rows))
+    React.createElement('div', { 'data-testid': 'enrollment-queue' }, JSON.stringify(props.rows)),
 }));
 
 vi.mock('@/components/enrollment/enrollment-wizard', () => ({
-  EnrollmentWizard: () => React.createElement('div', { 'data-testid': 'enrollment-form' })
+  EnrollmentWizard: () => React.createElement('div', { 'data-testid': 'enrollment-form' }),
 }));
 
-
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'member' as const,
+  companyId: 'c1',
+};
 
 describe('ManagerEnrollmentsPage', () => {
   beforeEach(() => {

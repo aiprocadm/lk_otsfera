@@ -122,10 +122,7 @@ async function cleanupData() {
   await prisma.company.deleteMany({ where: { id: companyId } });
   await prisma.partner.deleteMany({ where: { slug: PARTNER_SLUG } });
 
-  const emailsToClean = [
-    `${PREFIX}-manager@test.local`,
-    `${PREFIX}-orguser@test.local`,
-  ];
+  const emailsToClean = [`${PREFIX}-manager@test.local`, `${PREFIX}-orguser@test.local`];
   const staleUsers = await prisma.user.findMany({
     where: { email: { in: emailsToClean } },
     select: { id: true },
@@ -391,7 +388,9 @@ describe('getChatAttachmentSignedUrl integration', () => {
     const wrongOrgSession: SessionPayload = {
       sub: 'u-org-wrong',
       role: 'organization',
-      organizationMemberships: [{ organizationId: 'other-org-id', roleInOrg: 'member', isActive: true }],
+      organizationMemberships: [
+        { organizationId: 'other-org-id', roleInOrg: 'member', isActive: true },
+      ],
     };
     const result = await getChatAttachmentSignedUrl(prisma, wrongOrgSession, msg.id);
     expect(result).toEqual({ ok: false, error: 'forbidden' });

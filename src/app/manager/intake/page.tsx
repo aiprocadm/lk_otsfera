@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 const TAKE = 50;
 
 export default async function ManagerIntakePage({
-  searchParams
+  searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
@@ -21,7 +21,10 @@ export default async function ManagerIntakePage({
   const sp = await searchParams;
   const skip = Math.max(Number(typeof sp.skip === 'string' ? sp.skip : 0) || 0, 0);
 
-  const res = await listIntake(prisma, session, { page: Math.floor(skip / TAKE) + 1, pageSize: TAKE });
+  const res = await listIntake(prisma, session, {
+    page: Math.floor(skip / TAKE) + 1,
+    pageSize: TAKE,
+  });
   if (!res.ok) notFound();
 
   return (
@@ -33,7 +36,13 @@ export default async function ManagerIntakePage({
         </p>
       </div>
       <IntakeTable items={res.result.items} viewerPrefix="/manager" currentUserId={session.sub} />
-      <Paginator basePath="/manager/intake" searchParams={sp} take={TAKE} skip={skip} total={res.result.total} />
+      <Paginator
+        basePath="/manager/intake"
+        searchParams={sp}
+        take={TAKE}
+        skip={skip}
+        total={res.result.total}
+      />
     </div>
   );
 }

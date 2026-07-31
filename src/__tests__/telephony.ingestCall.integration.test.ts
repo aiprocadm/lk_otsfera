@@ -94,7 +94,9 @@ describe('ingestCallEvent', () => {
 
   it('resolved caller sets companyId from a seeded User/Org', async () => {
     const company = await prisma.company.create({ data: { name: `${STAMP}-co` } });
-    const org = await prisma.organization.create({ data: { name: `${STAMP}-org`, companyId: company.id } });
+    const org = await prisma.organization.create({
+      data: { name: `${STAMP}-org`, companyId: company.id },
+    });
     const user = await prisma.user.create({
       data: {
         email: `${STAMP}-user@t.local`,
@@ -129,7 +131,9 @@ describe('ingestCallEvent', () => {
 
   it('call-событие с резолвнутым звонящим тоже связывает org/company (не только summary)', async () => {
     const company = await prisma.company.create({ data: { name: `${STAMP}-co2` } });
-    const org = await prisma.organization.create({ data: { name: `${STAMP}-org2`, companyId: company.id } });
+    const org = await prisma.organization.create({
+      data: { name: `${STAMP}-org2`, companyId: company.id },
+    });
     const user = await prisma.user.create({
       data: {
         email: `${STAMP}-user2@t.local`,
@@ -162,10 +166,17 @@ describe('ingestCallEvent', () => {
 
   it('lead-резолв (звонящий известен только по лиду): resolvedUserId=null, status-дефолты', async () => {
     const company = await prisma.company.create({ data: { name: `${STAMP}-co3` } });
-    const org = await prisma.organization.create({ data: { name: `${STAMP}-org3`, companyId: company.id } });
+    const org = await prisma.organization.create({
+      data: { name: `${STAMP}-org3`, companyId: company.id },
+    });
     const partner = await prisma.partner.create({ data: { name: `${STAMP}-p3` } });
     const creator = await prisma.user.create({
-      data: { email: `${STAMP}-creator@t.local`, name: 'C', role: 'partner', partnerId: partner.id },
+      data: {
+        email: `${STAMP}-creator@t.local`,
+        name: 'C',
+        role: 'partner',
+        partnerId: partner.id,
+      },
     });
     const lead = await prisma.lead.create({
       data: {
@@ -183,7 +194,10 @@ describe('ingestCallEvent', () => {
     try {
       // summary без status: create-путь берёт дефолт 'completed', resolvedUserId — null (лид без user)
       const r1 = await ingestCallEvent(prisma, {
-        kind: 'summary', externalId: extSummary, direction: 'inbound', callerNumber: '+79990005555',
+        kind: 'summary',
+        externalId: extSummary,
+        direction: 'inbound',
+        callerNumber: '+79990005555',
       });
       expect(r1.ok).toBe(true);
       let row = await prisma.call.findFirst({ where: { externalId: extSummary } });
@@ -194,14 +208,19 @@ describe('ingestCallEvent', () => {
 
       // replay того же summary — update-путь с теми же дефолтами
       await ingestCallEvent(prisma, {
-        kind: 'summary', externalId: extSummary, direction: 'inbound', callerNumber: '+79990005555',
+        kind: 'summary',
+        externalId: extSummary,
+        direction: 'inbound',
+        callerNumber: '+79990005555',
       });
       row = await prisma.call.findFirst({ where: { externalId: extSummary } });
       expect(row?.status).toBe('completed');
 
       // call-событие с lead-резолвом — та же ?? null-ветка в call-ветке
       const r2 = await ingestCallEvent(prisma, {
-        kind: 'call', externalId: extCall, callerNumber: '+79990005555',
+        kind: 'call',
+        externalId: extCall,
+        callerNumber: '+79990005555',
       });
       expect(r2.ok).toBe(true);
       const callRow = await prisma.call.findFirst({ where: { externalId: extCall } });
@@ -219,14 +238,23 @@ describe('ingestCallEvent', () => {
 
   it('contact-first resolution (M2): summary event resolves via ContactChannel, sets Call.contactId', async () => {
     const company = await prisma.company.create({ data: { name: `${STAMP}-co4` } });
-    const org = await prisma.organization.create({ data: { name: `${STAMP}-org4`, companyId: company.id } });
+    const org = await prisma.organization.create({
+      data: { name: `${STAMP}-org4`, companyId: company.id },
+    });
     const contact = await prisma.contact.create({
       data: {
         companyId: company.id,
         organizationId: org.id,
         name: `${STAMP}-contact4`,
         channels: {
-          create: [{ companyId: company.id, type: 'phone', value: '+79990006666', normalizedValue: '+79990006666' }],
+          create: [
+            {
+              companyId: company.id,
+              type: 'phone',
+              value: '+79990006666',
+              normalizedValue: '+79990006666',
+            },
+          ],
         },
       },
     });
@@ -270,7 +298,11 @@ describe('ingestCallEvent', () => {
 
   it('recording event → needsRecording:true and recordingId set (creates placeholder row if none exists)', async () => {
     const externalId = `${STAMP}:recording`;
-    const r = await ingestCallEvent(prisma, { kind: 'recording', externalId, recordingId: 'rec-abc-123' });
+    const r = await ingestCallEvent(prisma, {
+      kind: 'recording',
+      externalId,
+      recordingId: 'rec-abc-123',
+    });
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.needsRecording).toBe(true);
     const row = await prisma.call.findFirst({ where: { externalId } });
@@ -287,7 +319,11 @@ describe('ingestCallEvent', () => {
       durationSec: 15,
       status: 'completed',
     });
-    const r = await ingestCallEvent(prisma, { kind: 'recording', externalId, recordingId: 'rec-xyz-999' });
+    const r = await ingestCallEvent(prisma, {
+      kind: 'recording',
+      externalId,
+      recordingId: 'rec-xyz-999',
+    });
     expect(r.ok).toBe(true);
     const rows = await prisma.call.findMany({ where: { externalId } });
     expect(rows).toHaveLength(1);

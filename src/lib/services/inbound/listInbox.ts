@@ -85,7 +85,7 @@ export async function listInbox(
   await recordPiiAccess(prisma, {
     session,
     context: 'inbox_list',
-    subjectIds: rows.map((r) => r.id)
+    subjectIds: rows.map((r) => r.id),
   });
 
   return { items: rows, total };

@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { notifyManagers, notifyOrgUsers } = vi.hoisted(() => ({
   notifyManagers: vi.fn(),
-  notifyOrgUsers: vi.fn()
+  notifyOrgUsers: vi.fn(),
 }));
 vi.mock('@/lib/notifications', () => ({ notifyManagers, notifyOrgUsers }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit: vi.fn() }));
@@ -17,22 +17,27 @@ import { canSeeThread } from '@/lib/services/chat/policy';
 const canSeeThreadMock = canSeeThread as ReturnType<typeof vi.fn>;
 
 const orgSession = {
-  sub: 'u1', role: 'organization',
-  organizationMemberships: [{ organizationId: 'org1', isActive: true, roleInOrg: 'member' }]
+  sub: 'u1',
+  role: 'organization',
+  organizationMemberships: [{ organizationId: 'org1', isActive: true, roleInOrg: 'member' }],
 } as any;
 const teamSession = { sub: 'mgr1', role: 'manager', companyId: 'c1' } as any;
 const adminSession = { sub: 'adm1', role: 'admin' } as any;
 
 const order = {
-  id: 'o1', organizationId: 'org1', partnerId: 'p1', companyId: 'c1',
-  orderNumber: 'N1', title: 'Заказ'
+  id: 'o1',
+  organizationId: 'org1',
+  partnerId: 'p1',
+  companyId: 'c1',
+  orderNumber: 'N1',
+  title: 'Заказ',
 };
 const thread = { id: 't1', side: 'org', order: { ...order } };
 
 function makePrisma(threadVal: object | null, msgs: object[] = []) {
   return {
     orderThread: { findUnique: vi.fn().mockResolvedValue(threadVal) },
-    message: { findMany: vi.fn().mockResolvedValue(msgs) }
+    message: { findMany: vi.fn().mockResolvedValue(msgs) },
   } as any;
 }
 
@@ -40,7 +45,7 @@ function makeSendPrisma(orderVal: object | null) {
   return {
     order: { findUnique: vi.fn().mockResolvedValue(orderVal) },
     orderThread: { upsert: vi.fn().mockResolvedValue({ id: 't1', side: 'org', orderId: 'o1' }) },
-    message: { create: vi.fn().mockResolvedValue({ id: 'm1' }) }
+    message: { create: vi.fn().mockResolvedValue({ id: 'm1' }) },
   } as any;
 }
 
@@ -68,11 +73,16 @@ describe('listMessages — unit', () => {
 
   it('returns messages when authorized', async () => {
     canSeeThreadMock.mockReturnValue(true);
-    const msgs = [{
-      id: 'm1', authorId: 'u1', body: 'Привет', attachmentPath: null,
-      createdAt: new Date('2024-06-01'),
-      author: { name: 'Пользователь' }
-    }];
+    const msgs = [
+      {
+        id: 'm1',
+        authorId: 'u1',
+        body: 'Привет',
+        attachmentPath: null,
+        createdAt: new Date('2024-06-01'),
+        author: { name: 'Пользователь' },
+      },
+    ];
     const prisma = makePrisma(thread, msgs);
     const result = await listMessages(prisma, orgSession, { threadId: 't1' });
     expect(result.ok).toBe(true);
@@ -85,11 +95,16 @@ describe('listMessages — unit', () => {
 
   it('sets hasAttachment=true when attachmentPath is present', async () => {
     canSeeThreadMock.mockReturnValue(true);
-    const msgs = [{
-      id: 'm2', authorId: 'u1', body: 'See attachment', attachmentPath: 'chat/o1/file.pdf',
-      createdAt: new Date('2024-06-02'),
-      author: { name: 'U' }
-    }];
+    const msgs = [
+      {
+        id: 'm2',
+        authorId: 'u1',
+        body: 'See attachment',
+        attachmentPath: 'chat/o1/file.pdf',
+        createdAt: new Date('2024-06-02'),
+        author: { name: 'U' },
+      },
+    ];
     const prisma = makePrisma(thread, msgs);
     const result = await listMessages(prisma, orgSession, { threadId: 't1' });
     if (result.ok) {
@@ -123,11 +138,16 @@ describe('listMessages — unit', () => {
 describe('listMessages — null author name fallback', () => {
   it('uses empty string when author.name is null', async () => {
     canSeeThreadMock.mockReturnValue(true);
-    const msgs = [{
-      id: 'm1', authorId: 'u1', body: 'Hello', attachmentPath: null,
-      createdAt: new Date('2024-06-01'),
-      author: { name: null } // triggers ?? '' branch
-    }];
+    const msgs = [
+      {
+        id: 'm1',
+        authorId: 'u1',
+        body: 'Hello',
+        attachmentPath: null,
+        createdAt: new Date('2024-06-01'),
+        author: { name: null }, // triggers ?? '' branch
+      },
+    ];
     const prisma = makePrisma(thread, msgs);
     const result = await listMessages(prisma, orgSession, { threadId: 't1' });
     if (result.ok) {
@@ -141,7 +161,9 @@ describe('sendMessage — additional branches', () => {
     const prisma = makeSendPrisma(order);
     // args.body is undefined → trim() would throw but ?. makes it undefined, ?? '' → ''
     const result = await sendMessage(prisma, orgSession, {
-      orderId: 'o1', side: 'org', body: undefined as any
+      orderId: 'o1',
+      side: 'org',
+      body: undefined as any,
     });
     expect(result).toEqual({ ok: false, error: 'empty_body' });
   });
@@ -168,7 +190,11 @@ describe('sendMessage — additional branches', () => {
     notifyManagers.mockRejectedValue(new Error('notify down'));
     const prisma = makeSendPrisma(order);
     const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const result = await sendMessage(prisma, orgSession, { orderId: 'o1', side: 'org', body: 'hi' });
+    const result = await sendMessage(prisma, orgSession, {
+      orderId: 'o1',
+      side: 'org',
+      body: 'hi',
+    });
     expect(result).toEqual({ ok: true, messageId: 'm1' });
     consoleSpy.mockRestore();
   });
@@ -179,7 +205,11 @@ describe('sendMessage — additional branches', () => {
     notifyManagers.mockRejectedValue('string error from notify');
     const prisma = makeSendPrisma(order);
     const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const result = await sendMessage(prisma, orgSession, { orderId: 'o1', side: 'org', body: 'hi' });
+    const result = await sendMessage(prisma, orgSession, {
+      orderId: 'o1',
+      side: 'org',
+      body: 'hi',
+    });
     expect(result).toEqual({ ok: true, messageId: 'm1' });
     consoleSpy.mockRestore();
   });
@@ -190,7 +220,11 @@ describe('sendMessage — additional branches', () => {
     // admin IS in the "non-team" branch → wait, admin role is manager||admin → isTeam=true
     // admin on org side calls notifyOrgUsers
     notifyOrgUsers.mockResolvedValue(undefined);
-    const result = await sendMessage(prisma, adminSession, { orderId: 'o1', side: 'org', body: 'admin msg' });
+    const result = await sendMessage(prisma, adminSession, {
+      orderId: 'o1',
+      side: 'org',
+      body: 'admin msg',
+    });
     expect(result.ok).toBe(true);
     expect(notifyOrgUsers).toHaveBeenCalled();
   });

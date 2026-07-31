@@ -9,7 +9,16 @@ import { log } from '@/lib/logging';
 import { scrubSentryEvent } from '@/lib/logging/scrub';
 import { getRedisConnection, closeRedisConnection } from '@/lib/jobs/connection';
 import { closeAllQueues, getQueue, type QueueName } from '@/lib/jobs/queues';
-import { registerSyncSchedules, registerCommissionSchedules, registerAlertSchedules, registerCertExpirySchedules, registerCalendarReminderSchedules, registerTaskDueSoonSchedules, registerSlaEscalationSchedules, loadPausedSchedulerIds } from '@/lib/jobs/scheduling';
+import {
+  registerSyncSchedules,
+  registerCommissionSchedules,
+  registerAlertSchedules,
+  registerCertExpirySchedules,
+  registerCalendarReminderSchedules,
+  registerTaskDueSoonSchedules,
+  registerSlaEscalationSchedules,
+  loadPausedSchedulerIds,
+} from '@/lib/jobs/scheduling';
 import { prisma } from '@/lib/db/prisma';
 import type { PushLeadJobPayload } from '@/lib/jobs/types';
 import { toBullProcessor } from './to-bull-processor';
@@ -41,7 +50,7 @@ if (process.env.SENTRY_DSN) {
     environment: process.env.SENTRY_ENVIRONMENT || process.env.NODE_ENV,
     tracesSampleRate: 0,
     sendDefaultPii: false,
-    beforeSend: (event) => scrubSentryEvent(event)
+    beforeSend: (event) => scrubSentryEvent(event),
   });
 }
 
@@ -52,7 +61,7 @@ function startWorker<T = unknown>(queueName: QueueName, processor: Processor<T>)
   // default survives (BullMQ would otherwise pass its token string into that slot).
   const worker = new Worker(queueName, toBullProcessor(processor), {
     connection: getRedisConnection(),
-    autorun: true
+    autorun: true,
   });
   worker.on('completed', (job) => {
     log.info(`[worker] ${queueName} completed`, { id: job.id });
@@ -64,7 +73,7 @@ function startWorker<T = unknown>(queueName: QueueName, processor: Processor<T>)
     if ((job?.attemptsMade ?? 0) >= (job?.opts?.attempts ?? 1)) {
       Sentry.captureException(err, {
         tags: { queue: queueName },
-        extra: { jobId: job?.id, attemptsMade: job?.attemptsMade }
+        extra: { jobId: job?.id, attemptsMade: job?.attemptsMade },
       });
     }
   });
@@ -91,7 +100,7 @@ function startHeartbeat(): void {
     } catch (e) {
       log.warn('[worker] heartbeat write failed', {
         file,
-        error: e instanceof Error ? e.message : String(e)
+        error: e instanceof Error ? e.message : String(e),
       });
     }
   };
@@ -115,7 +124,7 @@ function startScanBackfillSweep(): void {
       if (result.enqueued > 0) log.info('[worker] scan-backfill sweep enqueued', result);
     } catch (e) {
       log.error('[worker] scan-backfill sweep failed', {
-        error: e instanceof Error ? e.message : String(e)
+        error: e instanceof Error ? e.message : String(e),
       });
     }
   };
@@ -134,10 +143,7 @@ async function main() {
   startWorker('oneCSync.pullDocuments', syncDocumentsProcessor as Processor);
   startWorker('oneCSync.reconcile', syncReconcileProcessor as Processor);
 
-  const pushLeadWorker = startWorker(
-    'oneCSync.pushLead',
-    pushLeadProcessor as Processor
-  );
+  const pushLeadWorker = startWorker('oneCSync.pushLead', pushLeadProcessor as Processor);
   // eslint-disable-next-line @typescript-eslint/no-misused-promises -- BullMQ допускает async-слушатель 'failed'; ошибки обрабатываются внутри
   pushLeadWorker.on('failed', async (job, err) => {
     if (!job) return;
@@ -146,7 +152,7 @@ async function main() {
       if (data?.leadId) {
         await notifyPushLeadFinalFailure(prisma, {
           leadId: data.leadId,
-          errorMessage: err.message
+          errorMessage: err.message,
         }).catch((e) => log.error('[worker] notifyPushLeadFinalFailure failed', e));
       }
     }
@@ -154,7 +160,10 @@ async function main() {
 
   startWorker('docs.generateCommissionPdf', generateCommissionPdfProcessor as Processor);
   startWorker('docs.generateCommissionXlsx', generateCommissionXlsxProcessor as Processor);
-  startWorker('docs.calculateMonthlyCommissions', calculateMonthlyCommissionsProcessor as Processor);
+  startWorker(
+    'docs.calculateMonthlyCommissions',
+    calculateMonthlyCommissionsProcessor as Processor
+  );
   startWorker('docs.scanDocument', scanDocumentProcessor as Processor);
   startWorker('monitoring.evaluateAlerts', evaluateAlertsProcessor as Processor);
   startWorker('notifications.certificateExpiry', certificateExpiryProcessor as Processor);
@@ -175,12 +184,20 @@ async function main() {
     const calendarReminderSchedules = await registerCalendarReminderSchedules();
     const taskDueSoonSchedules = await registerTaskDueSoonSchedules();
     const slaEscalationSchedules = await registerSlaEscalationSchedules();
-    for (const r of [...syncSchedules, ...commissionSchedules, ...alertSchedules, ...certExpirySchedules, ...calendarReminderSchedules, ...taskDueSoonSchedules, ...slaEscalationSchedules]) {
+    for (const r of [
+      ...syncSchedules,
+      ...commissionSchedules,
+      ...alertSchedules,
+      ...certExpirySchedules,
+      ...calendarReminderSchedules,
+      ...taskDueSoonSchedules,
+      ...slaEscalationSchedules,
+    ]) {
       log.info('[worker] schedule registered', {
         schedulerId: r.schedulerId,
         queue: r.queueName,
         pattern: r.pattern,
-        tz: r.tz
+        tz: r.tz,
       });
     }
   } else {
@@ -211,7 +228,7 @@ async function shutdown(signal: string) {
   log.info(`[worker] received ${signal}, shutting down...`);
   const forceExit = setTimeout(() => {
     log.error('[worker] graceful shutdown timed out — forcing exit', {
-      timeoutMs: SHUTDOWN_TIMEOUT_MS
+      timeoutMs: SHUTDOWN_TIMEOUT_MS,
     });
     process.exit(1);
   }, SHUTDOWN_TIMEOUT_MS);

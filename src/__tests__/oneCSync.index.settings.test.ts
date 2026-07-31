@@ -39,7 +39,7 @@ describe('getOneCAdapter — конфиг из настроек интеграц
     await cache.primeIntegrationSettingsCache(
       mockPrisma([
         { key: 'onec.adapter', value: 'rest', isSecret: false },
-        { key: 'onec.apiUrl', value: 'https://db-1c/', isSecret: false }
+        { key: 'onec.apiUrl', value: 'https://db-1c/', isSecret: false },
       ])
     );
 
@@ -54,7 +54,7 @@ describe('getOneCAdapter — конфиг из настроек интеграц
     await cache.primeIntegrationSettingsCache(
       mockPrisma([
         { key: 'onec.adapter', value: 'rest', isSecret: false },
-        { key: 'onec.apiUrl', value: 'https://db-1c-v2/', isSecret: false }
+        { key: 'onec.apiUrl', value: 'https://db-1c-v2/', isSecret: false },
       ])
     );
     const a2 = getOneCAdapter();

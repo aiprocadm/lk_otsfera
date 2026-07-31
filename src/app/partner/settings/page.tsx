@@ -18,16 +18,16 @@ export default async function PartnerSettingsPage() {
   const requisites = await getPartnerRequisites(prisma, session);
 
   return (
-    <div className='space-y-6'>
-      <h1 className='text-2xl font-bold text-[#111111]'>Настройки</h1>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-[#111111]">Настройки</h1>
       <TelegramLinkCard status={status} />
       <NotificationChannelsCard settings={settings.view} />
       {requisites.ok && (
         <RequisitesCard
-          title='Реквизиты партнёра'
-          description='Нужны для автоматического формирования документов. Начните вводить название или ИНН — остальное подставится само.'
+          title="Реквизиты партнёра"
+          description="Нужны для автоматического формирования документов. Начните вводить название или ИНН — остальное подставится само."
           defaults={requisites.requisites}
-          idPrefix='pt-req'
+          idPrefix="pt-req"
           action={setPartnerRequisitesAction}
           canEdit={session.partnerRole === 'admin'}
         />

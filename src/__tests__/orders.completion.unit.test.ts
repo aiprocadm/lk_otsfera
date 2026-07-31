@@ -2,14 +2,14 @@ import { describe, it, expect } from 'vitest';
 import {
   evaluateOrderCompletion,
   isTrainingOrder,
-  type OrderCompletionInput
+  type OrderCompletionInput,
 } from '@/lib/orders/completion';
 
 const base: OrderCompletionInput = {
   serviceType: 'training',
   accountingSignedAt: new Date('2026-07-01T00:00:00Z'),
   documents: [{ scanStatus: 'clean' }],
-  items: [{ trainingStatus: 'certificate_issued' }]
+  items: [{ trainingStatus: 'certificate_issued' }],
 };
 
 describe('isTrainingOrder', () => {
@@ -56,7 +56,7 @@ describe('evaluateOrderCompletion', () => {
       serviceType: 'training',
       accountingSignedAt: null,
       documents: [],
-      items: []
+      items: [],
     });
     expect(r.ready).toBe(false);
     expect(r.unmet.sort()).toEqual(
@@ -68,7 +68,7 @@ describe('evaluateOrderCompletion', () => {
     const r = evaluateOrderCompletion({
       ...base,
       serviceType: 'document_development',
-      items: []
+      items: [],
     });
     expect(r.ready).toBe(true);
     expect(r.unmet).toEqual([]);

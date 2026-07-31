@@ -21,7 +21,7 @@ import { updateStudentPositionAction } from '@/server-actions/organization/stude
 const orgSession = {
   sub: 'u1',
   role: 'organization',
-  organizationMemberships: [{ organizationId: 'orgA', isActive: true, roleInOrg: 'admin' }]
+  organizationMemberships: [{ organizationId: 'orgA', isActive: true, roleInOrg: 'admin' }],
 } as never;
 
 function fd(over: Record<string, string> = {}): FormData {
@@ -52,11 +52,11 @@ describe('updateStudentPositionAction', () => {
     getSession.mockResolvedValue(orgSession);
     expect(await updateStudentPositionAction(fd({ studentId: '' }))).toEqual({
       ok: false,
-      error: 'validation'
+      error: 'validation',
     });
     expect(await updateStudentPositionAction(fd({ organizationId: '' }))).toEqual({
       ok: false,
-      error: 'validation'
+      error: 'validation',
     });
   });
 
@@ -66,7 +66,10 @@ describe('updateStudentPositionAction', () => {
     getSession.mockResolvedValue(orgSession);
     const noStudent = new FormData();
     noStudent.set('organizationId', 'orgA');
-    expect(await updateStudentPositionAction(noStudent)).toEqual({ ok: false, error: 'validation' });
+    expect(await updateStudentPositionAction(noStudent)).toEqual({
+      ok: false,
+      error: 'validation',
+    });
 
     const noOrg = new FormData();
     noOrg.set('studentId', 's1');
@@ -88,7 +91,7 @@ describe('updateStudentPositionAction', () => {
     expect(updateOrgStudentPosition).toHaveBeenCalledWith(expect.anything(), {
       organizationId: 'orgA',
       studentId: 's1',
-      position: 'Инженер'
+      position: 'Инженер',
     });
     expect(revalidatePath).toHaveBeenCalledWith('/organization/students/s1');
   });

@@ -21,18 +21,36 @@ let inboundId: string, leadId: string, dealId: string, requestId: string;
 
 const sLeader = (): SessionPayload =>
   // managedOrgIds: карточка организации скоупится через canSeeOrganization (без teamMode).
-  ({ sub: leader, role: 'manager', managerRole: 'leader', companyId: companyA, managedOrgIds: [orgA] } as unknown as SessionPayload);
+  ({
+    sub: leader,
+    role: 'manager',
+    managerRole: 'leader',
+    companyId: companyA,
+    managedOrgIds: [orgA],
+  }) as unknown as SessionPayload;
 
 beforeAll(async () => {
   prisma = new PrismaClient();
   companyA = (await prisma.company.create({ data: { name: `s7p3-${STAMP}` } })).id;
   leader = (
     await prisma.user.create({
-      data: { email: `s7p3-l-${STAMP}@t.local`, name: 'Лидер', role: 'manager', managerRole: 'leader', companyId: companyA }
+      data: {
+        email: `s7p3-l-${STAMP}@t.local`,
+        name: 'Лидер',
+        role: 'manager',
+        managerRole: 'leader',
+        companyId: companyA,
+      },
     })
   ).id;
-  m1 = (await prisma.user.create({ data: { email: `s7p3-m-${STAMP}@t.local`, name: 'М1', role: 'manager', companyId: companyA } })).id;
-  orgA = (await prisma.organization.create({ data: { name: `s7p3-org-${STAMP}`, companyId: companyA } })).id;
+  m1 = (
+    await prisma.user.create({
+      data: { email: `s7p3-m-${STAMP}@t.local`, name: 'М1', role: 'manager', companyId: companyA },
+    })
+  ).id;
+  orgA = (
+    await prisma.organization.create({ data: { name: `s7p3-org-${STAMP}`, companyId: companyA } })
+  ).id;
 
   // Просроченное обращение своей компании (26 часов назад).
   inboundId = (
@@ -44,8 +62,8 @@ beforeAll(async () => {
         subject: `s7p3-subj-${STAMP}`,
         body: 'ждёт',
         companyId: companyA,
-        createdAt: new Date(Date.now() - 26 * 3_600_000)
-      }
+        createdAt: new Date(Date.now() - 26 * 3_600_000),
+      },
     })
   ).id;
 
@@ -60,8 +78,8 @@ beforeAll(async () => {
         contactName: 'Контакт',
         contactPhone: '+70000000001',
         subject: `s7p3-req-${STAMP}`,
-        createdAt: new Date()
-      }
+        createdAt: new Date(),
+      },
     })
   ).id;
   leadId = (
@@ -72,13 +90,19 @@ beforeAll(async () => {
         clientCompanyName: `s7p3-lc-${STAMP}`,
         clientContactName: 'К',
         subject: `s7p3-lead-${STAMP}`,
-        source: 'manual'
-      }
+        source: 'manual',
+      },
     })
   ).id;
   dealId = (
     await prisma.deal.create({
-      data: { companyId: companyA, organizationId: orgA, title: `s7p3-deal-${STAMP}`, status: 'won', amount: 1500 }
+      data: {
+        companyId: companyA,
+        organizationId: orgA,
+        title: `s7p3-deal-${STAMP}`,
+        status: 'won',
+        amount: 1500,
+      },
     })
   ).id;
 });
@@ -99,9 +123,15 @@ afterAll(async () => {
 
 describe('пороги компании', () => {
   it('setSlaSettings пишет и читает пороги; Intake подсвечивает по ним', async () => {
-    const set = await setSlaSettings(prisma, leader, companyA, { slaResponseHours: 48, slaWarningHours: 2 });
+    const set = await setSlaSettings(prisma, leader, companyA, {
+      slaResponseHours: 48,
+      slaWarningHours: 2,
+    });
     expect(set).toEqual({ ok: true, changed: true });
-    expect(await getSlaSettings(prisma, companyA)).toEqual({ slaResponseHours: 48, slaWarningHours: 2 });
+    expect(await getSlaSettings(prisma, companyA)).toEqual({
+      slaResponseHours: 48,
+      slaWarningHours: 2,
+    });
 
     // 26ч ожидания при порогах 2/48 → warning (не breach).
     const list = await listIntake(prisma, sLeader(), { pageSize: 100 });
@@ -115,28 +145,34 @@ describe('пороги компании', () => {
 
 describe('SLA-эскалация', () => {
   it('полный цикл: эскалация руководителю один раз, второй прогон пуст', async () => {
-    const before = await prisma.notification.count({ where: { userId: leader, type: 'sla_escalation' } });
+    const before = await prisma.notification.count({
+      where: { userId: leader, type: 'sla_escalation' },
+    });
 
     const run1 = await runSlaEscalation(prisma, new Date());
     expect(run1.escalated).toBeGreaterThanOrEqual(1);
 
-    const after1 = await prisma.notification.count({ where: { userId: leader, type: 'sla_escalation' } });
+    const after1 = await prisma.notification.count({
+      where: { userId: leader, type: 'sla_escalation' },
+    });
     expect(after1).toBeGreaterThan(before);
     const journal = await prisma.slaEscalation.findUnique({
-      where: { sourceType_sourceId: { sourceType: 'inbound', sourceId: inboundId } }
+      where: { sourceType_sourceId: { sourceType: 'inbound', sourceId: inboundId } },
     });
     expect(journal).not.toBeNull();
     expect(journal!.companyId).toBe(companyA);
 
     const notif = await prisma.notification.findFirst({
       where: { userId: leader, type: 'sla_escalation' },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
     expect(notif!.body).toContain(`s7p3-subj-${STAMP}`);
 
     // Идемпотентность: журнал не даёт повторов.
     await runSlaEscalation(prisma, new Date());
-    expect(await prisma.notification.count({ where: { userId: leader, type: 'sla_escalation' } })).toBe(after1);
+    expect(
+      await prisma.notification.count({ where: { userId: leader, type: 'sla_escalation' } })
+    ).toBe(after1);
   });
 });
 

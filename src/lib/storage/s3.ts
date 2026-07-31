@@ -3,7 +3,7 @@ import {
   PutObjectCommand,
   GetObjectCommand,
   DeleteObjectsCommand,
-  ListObjectsV2Command
+  ListObjectsV2Command,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { type ObjectStorage, StorageError, documentBucket } from './objectStorage';
@@ -43,7 +43,7 @@ export class S3Storage implements ObjectStorage {
           Bucket: this.bucket,
           Key: path,
           Body: body,
-          ContentType: opts.contentType
+          ContentType: opts.contentType,
         })
       );
     } catch (e) {
@@ -53,9 +53,7 @@ export class S3Storage implements ObjectStorage {
 
   async download(path: string): Promise<Buffer> {
     try {
-      const res = await this.client.send(
-        new GetObjectCommand({ Bucket: this.bucket, Key: path })
-      );
+      const res = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: path }));
       if (!res.Body) throw new Error('empty body');
       const bytes = await res.Body.transformToByteArray();
       return Buffer.from(bytes);
@@ -75,7 +73,7 @@ export class S3Storage implements ObjectStorage {
         new GetObjectCommand({
           Bucket: this.bucket,
           Key: path,
-          ResponseContentDisposition: disposition
+          ResponseContentDisposition: disposition,
         }),
         { expiresIn: ttlSeconds }
       );
@@ -101,7 +99,7 @@ export class S3Storage implements ObjectStorage {
       await this.client.send(
         new DeleteObjectsCommand({
           Bucket: this.bucket,
-          Delete: { Objects: paths.map((Key) => ({ Key })) }
+          Delete: { Objects: paths.map((Key) => ({ Key })) },
         })
       );
     } catch (e) {
@@ -128,7 +126,7 @@ export function buildS3Storage(): S3Storage {
     endpoint,
     region,
     credentials: { accessKeyId, secretAccessKey },
-    forcePathStyle
+    forcePathStyle,
   });
   return new S3Storage(client, documentBucket);
 }

@@ -66,128 +66,127 @@ export async function createAndAssignManager(
   args: CreateAndAssignManagerInput,
   actorUserId: string
 ): Promise<
-  | ({ ok: true } & CreateAndAssignManagerResult)
-  | { ok: false; error: ManagerInviteErrorCode }
+  ({ ok: true } & CreateAndAssignManagerResult) | { ok: false; error: ManagerInviteErrorCode }
 > {
   try {
     const result = await prisma.$transaction(async (tx) => {
-    const org = await tx.organization.findUnique({
-      where: { id: args.organizationId },
-      select: { id: true, companyId: true }
-    });
-    if (!org) throw new ManagerInviteError('org_not_found');
-
-    let user = await tx.user.findUnique({ where: { email: args.email } });
-
-    if (args.mode === 'existing') {
-      if (!user) throw new ManagerInviteError('user_not_found');
-      if (user.role !== 'manager') throw new ManagerInviteError('role_conflict');
-    } else {
-      // mode === 'new'
-      if (user && user.role !== 'manager') {
-        throw new ManagerInviteError('role_conflict');
-      }
-      if (!user) {
-        // A freshly-invited manager is born into the organization's company —
-        // managers derive their entire C8 scope from User.companyId, so leaving
-        // it null would make the new manager invisible to the leader roster and
-        // deny-all in company-wide reads. Stamping org.companyId here also makes
-        // the company-floor assertion below hold by construction.
-        user = await tx.user.create({
-          data: {
-            email: args.email,
-            name: args.name ?? args.email,
-            role: 'manager',
-            isActive: true,
-            passwordHash: null,
-            companyId: org.companyId
-          }
-        });
-      }
-    }
-
-    // C8 company floor (defense-in-depth): a manager may only be assigned to an
-    // organization in their own company. Freshly-created managers inherit
-    // org.companyId above, so this only rejects an *existing* manager account
-    // being pulled across the company boundary (or a company-less org/manager
-    // mismatch). Cross-company OrganizationManager rows are the upstream cause of
-    // the inbound-message bind IDOR fixed at src/server-actions/inbound.ts.
-    if (user.companyId !== org.companyId) {
-      throw new ManagerInviteError('company_mismatch');
-    }
-
-    const existing = await tx.organizationManager.findUnique({
-      where: {
-        organizationId_userId: {
-          organizationId: args.organizationId,
-          userId: user.id
-        }
-      }
-    });
-
-    let assignmentId: string;
-    let reactivated = false;
-    if (existing) {
-      if (existing.isActive) {
-        throw new ManagerInviteError('already_assigned');
-      }
-      const updated = await tx.organizationManager.update({
-        where: { id: existing.id },
-        data: {
-          isActive: true,
-          deactivatedAt: null,
-          assignedAt: new Date(),
-          assignedBy: actorUserId
-        }
+      const org = await tx.organization.findUnique({
+        where: { id: args.organizationId },
+        select: { id: true, companyId: true },
       });
-      assignmentId = updated.id;
-      reactivated = true;
-    } else {
-      const created = await tx.organizationManager.create({
-        data: {
+      if (!org) throw new ManagerInviteError('org_not_found');
+
+      let user = await tx.user.findUnique({ where: { email: args.email } });
+
+      if (args.mode === 'existing') {
+        if (!user) throw new ManagerInviteError('user_not_found');
+        if (user.role !== 'manager') throw new ManagerInviteError('role_conflict');
+      } else {
+        // mode === 'new'
+        if (user && user.role !== 'manager') {
+          throw new ManagerInviteError('role_conflict');
+        }
+        if (!user) {
+          // A freshly-invited manager is born into the organization's company —
+          // managers derive their entire C8 scope from User.companyId, so leaving
+          // it null would make the new manager invisible to the leader roster and
+          // deny-all in company-wide reads. Stamping org.companyId here also makes
+          // the company-floor assertion below hold by construction.
+          user = await tx.user.create({
+            data: {
+              email: args.email,
+              name: args.name ?? args.email,
+              role: 'manager',
+              isActive: true,
+              passwordHash: null,
+              companyId: org.companyId,
+            },
+          });
+        }
+      }
+
+      // C8 company floor (defense-in-depth): a manager may only be assigned to an
+      // organization in their own company. Freshly-created managers inherit
+      // org.companyId above, so this only rejects an *existing* manager account
+      // being pulled across the company boundary (or a company-less org/manager
+      // mismatch). Cross-company OrganizationManager rows are the upstream cause of
+      // the inbound-message bind IDOR fixed at src/server-actions/inbound.ts.
+      if (user.companyId !== org.companyId) {
+        throw new ManagerInviteError('company_mismatch');
+      }
+
+      const existing = await tx.organizationManager.findUnique({
+        where: {
+          organizationId_userId: {
+            organizationId: args.organizationId,
+            userId: user.id,
+          },
+        },
+      });
+
+      let assignmentId: string;
+      let reactivated = false;
+      if (existing) {
+        if (existing.isActive) {
+          throw new ManagerInviteError('already_assigned');
+        }
+        const updated = await tx.organizationManager.update({
+          where: { id: existing.id },
+          data: {
+            isActive: true,
+            deactivatedAt: null,
+            assignedAt: new Date(),
+            assignedBy: actorUserId,
+          },
+        });
+        assignmentId = updated.id;
+        reactivated = true;
+      } else {
+        const created = await tx.organizationManager.create({
+          data: {
+            organizationId: args.organizationId,
+            userId: user.id,
+            isActive: true,
+            assignedBy: actorUserId,
+          },
+        });
+        assignmentId = created.id;
+      }
+
+      // Mint an invite token only when the manager has never set a password
+      // (newly-created user OR an existing passwordless account being
+      // re-onboarded). For accounts with an existing password, the admin
+      // should rely on the in-app notification, not the email link.
+      let inviteUrl: string | null = null;
+      let alreadyHasPassword = false;
+      if (user.passwordHash === null) {
+        const { token } = await createInviteToken(tx, user.id);
+        inviteUrl = `${getAppBaseUrl()}/reset-password?token=${token}`;
+      } else {
+        alreadyHasPassword = true;
+      }
+
+      await recordAudit(tx, {
+        userId: actorUserId,
+        action: reactivated ? 'manager_reactivated' : 'manager_assigned',
+        entity: 'organization_manager',
+        entityId: assignmentId,
+        after: {
           organizationId: args.organizationId,
           userId: user.id,
-          isActive: true,
-          assignedBy: actorUserId
-        }
+          email: user.email,
+          mode: args.mode,
+          reactivated,
+          alreadyHasPassword,
+        },
       });
-      assignmentId = created.id;
-    }
 
-    // Mint an invite token only when the manager has never set a password
-    // (newly-created user OR an existing passwordless account being
-    // re-onboarded). For accounts with an existing password, the admin
-    // should rely on the in-app notification, not the email link.
-    let inviteUrl: string | null = null;
-    let alreadyHasPassword = false;
-    if (user.passwordHash === null) {
-      const { token } = await createInviteToken(tx, user.id);
-      inviteUrl = `${getAppBaseUrl()}/reset-password?token=${token}`;
-    } else {
-      alreadyHasPassword = true;
-    }
-
-    await recordAudit(tx, {
-      userId: actorUserId,
-      action: reactivated ? 'manager_reactivated' : 'manager_assigned',
-      entity: 'organization_manager',
-      entityId: assignmentId,
-      after: {
-        organizationId: args.organizationId,
-        userId: user.id,
-        email: user.email,
-        mode: args.mode,
+      return {
+        user: { id: user.id, email: user.email },
+        inviteUrl,
+        alreadyHasPassword,
         reactivated,
-        alreadyHasPassword
-      }
-    });
-
-    return {
-      user: { id: user.id, email: user.email },
-      inviteUrl,
-      alreadyHasPassword,
-      reactivated
-    };
+      };
     });
     return { ok: true, ...result };
   } catch (e) {
@@ -214,13 +213,13 @@ export async function deactivateAssignment(
     if (!row.isActive) return { ok: true, organizationId: row.organizationId }; // idempotent
     await tx.organizationManager.update({
       where: { id: row.id },
-      data: { isActive: false, deactivatedAt: new Date() }
+      data: { isActive: false, deactivatedAt: new Date() },
     });
     // Этап 9 (ФТ-11.2): managedOrgIds денормализованы в токен, поэтому снятие
     // с организации без отзыва сессий оставляло бы доступ до истечения JWT.
     await tx.user.update({
       where: { id: row.userId },
-      data: { sessionVersion: { increment: 1 } }
+      data: { sessionVersion: { increment: 1 } },
     });
     await recordAudit(tx, {
       userId: actorUserId,
@@ -231,8 +230,8 @@ export async function deactivateAssignment(
       after: {
         isActive: false,
         organizationId: row.organizationId,
-        userId: row.userId
-      }
+        userId: row.userId,
+      },
     });
     return { ok: true, organizationId: row.organizationId };
   });
@@ -255,8 +254,8 @@ export async function reactivateAssignment(
         isActive: true,
         deactivatedAt: null,
         assignedAt: new Date(),
-        assignedBy: actorUserId
-      }
+        assignedBy: actorUserId,
+      },
     });
     await recordAudit(tx, {
       userId: actorUserId,
@@ -267,8 +266,8 @@ export async function reactivateAssignment(
       after: {
         isActive: true,
         organizationId: row.organizationId,
-        userId: row.userId
-      }
+        userId: row.userId,
+      },
     });
     return { ok: true, organizationId: row.organizationId };
   });

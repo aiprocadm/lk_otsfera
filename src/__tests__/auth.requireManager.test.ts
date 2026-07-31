@@ -7,7 +7,7 @@ const { getSession, redirect, notFound, orderFindUnique, commentCount, companyFi
     notFound: vi.fn(),
     orderFindUnique: vi.fn(),
     commentCount: vi.fn(),
-    companyFindUnique: vi.fn()
+    companyFindUnique: vi.fn(),
   }));
 
 vi.mock('@/lib/auth/session', () => ({ getSession }));
@@ -16,40 +16,40 @@ vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     order: { findUnique: orderFindUnique },
     comment: { count: commentCount },
-    company: { findUnique: companyFindUnique }
-  }
+    company: { findUnique: companyFindUnique },
+  },
 }));
 
 import {
   requireManager,
   requireManagerForOrg,
   requireManagerForOrder,
-  requireManagerLeader
+  requireManagerLeader,
 } from '@/lib/auth/requireRole';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 const MANAGER_WITH_SCOPE: SessionPayload = {
   sub: 'mgr-1',
   role: 'manager',
-  managedOrgIds: ['org-A', 'org-B']
+  managedOrgIds: ['org-A', 'org-B'],
 };
 
 const MANAGER_EMPTY_SCOPE: SessionPayload = {
   sub: 'mgr-2',
   role: 'manager',
-  managedOrgIds: []
+  managedOrgIds: [],
 };
 
 const MANAGER_NO_MANAGED_ORG_IDS_FIELD: SessionPayload = {
   // No managedOrgIds field at all → loader did not run, treat as unauthenticated.
   sub: 'mgr-3',
-  role: 'manager'
+  role: 'manager',
 };
 
 const PARTNER_SESSION: SessionPayload = {
   sub: 'u-partner',
   role: 'partner',
-  partnerRole: 'admin'
+  partnerRole: 'admin',
 };
 
 describe('requireManager', () => {
@@ -110,23 +110,17 @@ describe('requireManagerForOrg', () => {
 
   it('redirects to /manager/dashboard when orgId is not in scope', async () => {
     getSession.mockResolvedValue(MANAGER_WITH_SCOPE);
-    await expect(requireManagerForOrg('org-X')).rejects.toThrow(
-      'NEXT_REDIRECT:/manager/dashboard'
-    );
+    await expect(requireManagerForOrg('org-X')).rejects.toThrow('NEXT_REDIRECT:/manager/dashboard');
   });
 
   it('redirects to /manager/dashboard when scope is empty', async () => {
     getSession.mockResolvedValue(MANAGER_EMPTY_SCOPE);
-    await expect(requireManagerForOrg('org-A')).rejects.toThrow(
-      'NEXT_REDIRECT:/manager/dashboard'
-    );
+    await expect(requireManagerForOrg('org-A')).rejects.toThrow('NEXT_REDIRECT:/manager/dashboard');
   });
 
   it('redirects to /forbidden when caller is not a manager (delegates to requireManager)', async () => {
     getSession.mockResolvedValue(PARTNER_SESSION);
-    await expect(requireManagerForOrg('org-A')).rejects.toThrow(
-      'NEXT_REDIRECT:/forbidden'
-    );
+    await expect(requireManagerForOrg('org-A')).rejects.toThrow('NEXT_REDIRECT:/forbidden');
   });
 });
 
@@ -146,14 +140,14 @@ describe('requireManagerForOrder', () => {
     orderFindUnique.mockResolvedValue({
       id: 'order-1',
       managerId: 'mgr-1',
-      organizationId: 'org-X'
+      organizationId: 'org-X',
     });
     commentCount.mockResolvedValue(0);
 
     const result = await requireManagerForOrder('order-1');
     expect(result).toEqual({
       session: MANAGER_WITH_SCOPE,
-      order: { id: 'order-1', managerId: 'mgr-1', organizationId: 'org-X' }
+      order: { id: 'order-1', managerId: 'mgr-1', organizationId: 'org-X' },
     });
     expect(notFound).not.toHaveBeenCalled();
   });
@@ -163,7 +157,7 @@ describe('requireManagerForOrder', () => {
     orderFindUnique.mockResolvedValue({
       id: 'order-2',
       managerId: 'other-user',
-      organizationId: 'org-A'
+      organizationId: 'org-A',
     });
     commentCount.mockResolvedValue(0);
 
@@ -177,7 +171,7 @@ describe('requireManagerForOrder', () => {
     orderFindUnique.mockResolvedValue({
       id: 'order-3',
       managerId: 'other-user',
-      organizationId: 'org-X' // out of scope
+      organizationId: 'org-X', // out of scope
     });
     commentCount.mockResolvedValue(2);
 
@@ -185,7 +179,7 @@ describe('requireManagerForOrder', () => {
     expect(result.order.id).toBe('order-3');
     expect(notFound).not.toHaveBeenCalled();
     expect(commentCount).toHaveBeenCalledWith({
-      where: { orderId: 'order-3', authorId: 'mgr-1' }
+      where: { orderId: 'order-3', authorId: 'mgr-1' },
     });
   });
 
@@ -193,9 +187,7 @@ describe('requireManagerForOrder', () => {
     getSession.mockResolvedValue(MANAGER_WITH_SCOPE);
     orderFindUnique.mockResolvedValue(null);
 
-    await expect(requireManagerForOrder('order-missing')).rejects.toThrow(
-      'NEXT_NOT_FOUND'
-    );
+    await expect(requireManagerForOrder('order-missing')).rejects.toThrow('NEXT_NOT_FOUND');
     expect(notFound).toHaveBeenCalled();
   });
 
@@ -204,21 +196,17 @@ describe('requireManagerForOrder', () => {
     orderFindUnique.mockResolvedValue({
       id: 'order-foreign',
       managerId: 'other-user',
-      organizationId: 'org-X' // not in MANAGER_WITH_SCOPE.managedOrgIds
+      organizationId: 'org-X', // not in MANAGER_WITH_SCOPE.managedOrgIds
     });
     commentCount.mockResolvedValue(0);
 
-    await expect(requireManagerForOrder('order-foreign')).rejects.toThrow(
-      'NEXT_NOT_FOUND'
-    );
+    await expect(requireManagerForOrder('order-foreign')).rejects.toThrow('NEXT_NOT_FOUND');
     expect(notFound).toHaveBeenCalled();
   });
 
   it('redirects to /forbidden when caller is not a manager', async () => {
     getSession.mockResolvedValue(PARTNER_SESSION);
-    await expect(requireManagerForOrder('order-1')).rejects.toThrow(
-      'NEXT_REDIRECT:/forbidden'
-    );
+    await expect(requireManagerForOrder('order-1')).rejects.toThrow('NEXT_REDIRECT:/forbidden');
     expect(orderFindUnique).not.toHaveBeenCalled();
   });
 
@@ -229,7 +217,7 @@ describe('requireManagerForOrder', () => {
     role: 'manager',
     managedOrgIds: [],
     managerRole: 'leader',
-    companyId: 'c1'
+    companyId: 'c1',
   };
 
   it('leader открывает заказ своей компании даже при toggle OFF (нет ни managerId, ни org-scope, ни истории)', async () => {
@@ -239,7 +227,7 @@ describe('requireManagerForOrder', () => {
       id: 'order-own',
       managerId: 'someone-else',
       organizationId: 'org-X', // out of leader's empty scope
-      companyId: 'c1'
+      companyId: 'c1',
     });
     commentCount.mockResolvedValue(0);
 
@@ -257,13 +245,11 @@ describe('requireManagerForOrder', () => {
       id: 'order-foreign-company',
       managerId: 'someone-else',
       organizationId: 'org-X',
-      companyId: 'c2' // другая компания
+      companyId: 'c2', // другая компания
     });
     commentCount.mockResolvedValue(0);
 
-    await expect(requireManagerForOrder('order-foreign-company')).rejects.toThrow(
-      'NEXT_NOT_FOUND'
-    );
+    await expect(requireManagerForOrder('order-foreign-company')).rejects.toThrow('NEXT_NOT_FOUND');
     expect(notFound).toHaveBeenCalled();
   });
 
@@ -272,14 +258,14 @@ describe('requireManagerForOrder', () => {
       sub: 'mgr-leader-nocompany',
       role: 'manager',
       managedOrgIds: [],
-      managerRole: 'leader'
+      managerRole: 'leader',
       // companyId отсутствует
     } as SessionPayload);
     orderFindUnique.mockResolvedValue({
       id: 'order-no-company-leader',
       managerId: 'someone-else',
       organizationId: 'org-X',
-      companyId: 'c1'
+      companyId: 'c1',
     });
     commentCount.mockResolvedValue(0);
 
@@ -304,7 +290,7 @@ describe('requireManagerLeader', () => {
     sub: 'mgr-leader',
     role: 'manager',
     managedOrgIds: [],
-    managerRole: 'leader'
+    managerRole: 'leader',
   };
 
   it('возвращает сессию для manager-leader', async () => {

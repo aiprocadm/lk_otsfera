@@ -23,7 +23,7 @@ export default async function EditPartnerPage({ params }: { params: Promise<{ id
   const { id } = await params;
   const [partner, rateHistoryResult] = await Promise.all([
     getPartner(prisma, id),
-    listRateHistory(prisma, session, id)
+    listRateHistory(prisma, session, id),
   ]);
   if (!partner) notFound();
   const rateHistory = rateHistoryResult.ok ? rateHistoryResult.rows : [];
@@ -35,7 +35,7 @@ export default async function EditPartnerPage({ params }: { params: Promise<{ id
   return (
     <div className="space-y-4 max-w-3xl">
       <div>
-        <BackLink href='/admin/partners' label='Все партнёры' />
+        <BackLink href="/admin/partners" label="Все партнёры" />
         <h1 className="text-2xl font-bold text-[#111111] mt-1">Партнёр: {partner.name}</h1>
         <p className="text-sm text-gray-500">slug: {partner.slug}</p>
       </div>
@@ -43,10 +43,10 @@ export default async function EditPartnerPage({ params }: { params: Promise<{ id
       <PartnerEditForm partner={partner} />
       {requisites && (
         <RequisitesCard
-          title='Реквизиты для документов'
-          description='Полный набор реквизитов партнёра для автогенерации документов (этап 8).'
+          title="Реквизиты для документов"
+          description="Полный набор реквизитов партнёра для автогенерации документов (этап 8)."
           defaults={requisites}
-          idPrefix='adm-pt-req'
+          idPrefix="adm-pt-req"
           action={setPartnerRequisitesByAdminAction}
           hidden={{ partnerId: partner.id }}
         />
@@ -107,9 +107,7 @@ export default async function EditPartnerPage({ params }: { params: Promise<{ id
                       <span className="text-red-500">Нет</span>
                     )}
                   </Td>
-                  <Td className="py-2 text-gray-500">
-                    {fmtDate(admin.createdAt)}
-                  </Td>
+                  <Td className="py-2 text-gray-500">{fmtDate(admin.createdAt)}</Td>
                   <Td className="py-2">
                     <Link
                       href={`/admin/users/${admin.userId}`}
@@ -125,7 +123,7 @@ export default async function EditPartnerPage({ params }: { params: Promise<{ id
         )}
       </div>
 
-      <EntityCustomFields fields={customFields} entityType='partner' entityId={partner.id} />
+      <EntityCustomFields fields={customFields} entityType="partner" entityId={partner.id} />
     </div>
   );
 }

@@ -37,7 +37,7 @@ function sessionWithProfile(
     role: 'manager',
     companyId,
     managedOrgIds,
-    accessProfile
+    accessProfile,
   } as unknown as SessionPayload;
 }
 
@@ -47,17 +47,26 @@ beforeAll(async () => {
   const company = await prisma.company.create({ data: { name: `g1-co-${STAMP}` } });
   companyId = company.id;
 
-  const oAssigned = await prisma.organization.create({ data: { name: `g1-orgA-${STAMP}`, companyId } });
+  const oAssigned = await prisma.organization.create({
+    data: { name: `g1-orgA-${STAMP}`, companyId },
+  });
   orgAssigned = oAssigned.id;
-  const oOther = await prisma.organization.create({ data: { name: `g1-orgB-${STAMP}`, companyId } });
+  const oOther = await prisma.organization.create({
+    data: { name: `g1-orgB-${STAMP}`, companyId },
+  });
   orgOther = oOther.id;
 
   const ordA = await prisma.order.create({
-    data: { title: 'g1 assigned-order', companyId, organizationId: orgAssigned, totalAmount: 100000 }
+    data: {
+      title: 'g1 assigned-order',
+      companyId,
+      organizationId: orgAssigned,
+      totalAmount: 100000,
+    },
   });
   orderAssigned = ordA.id;
   const ordB = await prisma.order.create({
-    data: { title: 'g1 other-order', companyId, organizationId: orgOther, totalAmount: 200000 }
+    data: { title: 'g1 other-order', companyId, organizationId: orgOther, totalAmount: 200000 },
   });
   orderOther = ordB.id;
 
@@ -72,8 +81,8 @@ beforeAll(async () => {
       financeScope: 'own',
       leadsScope: 'own',
       tasksScope: 'own',
-      capabilities: []
-    }
+      capabilities: [],
+    },
   });
   assignedProfileId = pAssigned.id;
 
@@ -88,16 +97,20 @@ beforeAll(async () => {
       financeScope: 'all',
       leadsScope: 'all',
       tasksScope: 'all',
-      capabilities: ['see_commission']
-    }
+      capabilities: ['see_commission'],
+    },
   });
   allSeeCommissionProfileId = pAll.id;
 });
 
 afterAll(async () => {
   await prisma.order.deleteMany({ where: { id: { in: [orderAssigned, orderOther] } } });
-  await prisma.user.deleteMany({ where: { accessProfileId: { in: [assignedProfileId, allSeeCommissionProfileId] } } });
-  await prisma.accessProfile.deleteMany({ where: { id: { in: [assignedProfileId, allSeeCommissionProfileId] } } });
+  await prisma.user.deleteMany({
+    where: { accessProfileId: { in: [assignedProfileId, allSeeCommissionProfileId] } },
+  });
+  await prisma.accessProfile.deleteMany({
+    where: { id: { in: [assignedProfileId, allSeeCommissionProfileId] } },
+  });
   await prisma.organization.deleteMany({ where: { id: { in: [orgAssigned, orgOther] } } });
   await prisma.company.deleteMany({ where: { id: companyId } });
   await prisma.$disconnect();
@@ -111,12 +124,12 @@ describe('G1 — AccessProfile модель + привязка к User', () => {
         name: 'G1 Manager',
         role: 'manager',
         companyId,
-        accessProfileId: assignedProfileId
-      }
+        accessProfileId: assignedProfileId,
+      },
     });
     const read = await prisma.user.findUnique({
       where: { id: user.id },
-      include: { accessProfile: true }
+      include: { accessProfile: true },
     });
     expect(read?.accessProfile?.id).toBe(assignedProfileId);
     expect(read?.accessProfile?.ordersScope).toBe('assigned');
@@ -135,7 +148,9 @@ describe('G1 — профиль реально сужает выборку за�
   });
 
   it('all: менеджер видит все заказы компании (company-wide)', async () => {
-    const row = await prisma.accessProfile.findUniqueOrThrow({ where: { id: allSeeCommissionProfileId } });
+    const row = await prisma.accessProfile.findUniqueOrThrow({
+      where: { id: allSeeCommissionProfileId },
+    });
     const session = sessionWithProfile(toSessionAccessProfile(row), [orgAssigned]);
     const { rows } = await listOrders(prisma, { session, teamModeOverride: false });
     const ids = rows.map((r) => r.id);
@@ -154,7 +169,9 @@ describe('G1 — see_commission гейтит выдачу комиссии на 
   });
 
   it('профиль с флагом: комиссия отдаётся', async () => {
-    const row = await prisma.accessProfile.findUniqueOrThrow({ where: { id: allSeeCommissionProfileId } });
+    const row = await prisma.accessProfile.findUniqueOrThrow({
+      where: { id: allSeeCommissionProfileId },
+    });
     const session = sessionWithProfile(toSessionAccessProfile(row), [orgAssigned]);
     const overview = await getManagerFinanceOverview(prisma, session, { teamMode: false });
     expect(overview.canSeeCommission).toBe(true);

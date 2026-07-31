@@ -6,7 +6,7 @@ const { navItemsFor } = vi.hoisted(() => ({ navItemsFor: vi.fn() }));
 vi.mock('@/lib/navigation/cabinet', () => ({ navItemsFor }));
 
 vi.mock('@/components/ui', () => ({
-  LogoutButton: () => React.createElement('button', null, 'Выйти')
+  LogoutButton: () => React.createElement('button', null, 'Выйти'),
 }));
 
 vi.mock('@/components/leader/leader-sidebar', () => ({
@@ -15,12 +15,16 @@ vi.mock('@/components/leader/leader-sidebar', () => ({
       'nav',
       { 'data-testid': 'leader-sidebar' },
       props.items.map((item) => React.createElement('span', { key: item.href }, item.label))
-    )
+    ),
 }));
 
 vi.mock('@/components/notifications/notification-bell', () => ({
   NotificationBell: (props: { role: string }) =>
-    React.createElement('span', { 'data-testid': 'notification-bell', 'data-role': props.role }, '🔔')
+    React.createElement(
+      'span',
+      { 'data-testid': 'notification-bell', 'data-role': props.role },
+      '🔔'
+    ),
 }));
 
 import { LeaderAppShell } from '@/components/leader/leader-app-shell';
@@ -46,7 +50,7 @@ describe('LeaderAppShell', () => {
     const html = renderToString(
       renderShell({
         session: { ...baseSession, email: 'leader@example.com' },
-        children: React.createElement('p', null, 'дочерний контент')
+        children: React.createElement('p', null, 'дочерний контент'),
       })
     );
 

@@ -20,8 +20,12 @@ const inputSchema = z.object({
   position: z.number().int().min(0),
   statusAnchor: anchorSchema,
   // Строгий #RRGGBB (пикер шлёт только такие; '' экшен уже смаппил в null).
-  color: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/).nullish(),
-  isDoneColumn: z.boolean().optional()
+  color: z
+    .string()
+    .trim()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .nullish(),
+  isDoneColumn: z.boolean().optional(),
 });
 export type TaskColumnInput = z.input<typeof inputSchema>;
 
@@ -48,7 +52,7 @@ function toColumns(input: z.infer<typeof inputSchema>) {
     position: input.position,
     statusAnchor: input.statusAnchor,
     color: input.color ?? null,
-    isDoneColumn: input.isDoneColumn ?? false
+    isDoneColumn: input.isDoneColumn ?? false,
   };
 }
 function isUnique(e: unknown): boolean {
@@ -61,12 +65,20 @@ export async function listTaskColumns(
 ): Promise<{ ok: true; rows: TaskColumnView[] } | { ok: false; error: TaskColumnErrorCode }> {
   const g = gate(session);
   if ('error' in g) return { ok: false, error: g.error };
-  const rows = await prisma.taskColumn.findMany({ where: { companyId: g.companyId }, orderBy: { position: 'asc' } });
+  const rows = await prisma.taskColumn.findMany({
+    where: { companyId: g.companyId },
+    orderBy: { position: 'asc' },
+  });
   return {
     ok: true,
     rows: rows.map((c) => ({
-      id: c.id, name: c.name, position: c.position, statusAnchor: c.statusAnchor, isDoneColumn: c.isDoneColumn, color: c.color
-    }))
+      id: c.id,
+      name: c.name,
+      position: c.position,
+      statusAnchor: c.statusAnchor,
+      isDoneColumn: c.isDoneColumn,
+      color: c.color,
+    })),
   };
 }
 
@@ -85,7 +97,11 @@ export async function createTaskColumn(
     const row = await prisma.$transaction(async (tx) => {
       const created = await tx.taskColumn.create({ data: { companyId: g.companyId, ...columns } });
       await recordAudit(tx, {
-        userId: session.sub, action: 'task_column_created', entity: 'task_column', entityId: created.id, after: columns
+        userId: session.sub,
+        action: 'task_column_created',
+        entity: 'task_column',
+        entityId: created.id,
+        after: columns,
       });
       return created;
     });
@@ -111,14 +127,25 @@ export async function updateTaskColumn(
     await prisma.$transaction(async (tx) => {
       const before = await tx.taskColumn.findUnique({
         where: { id },
-        select: { companyId: true, name: true, position: true, statusAnchor: true, color: true, isDoneColumn: true }
+        select: {
+          companyId: true,
+          name: true,
+          position: true,
+          statusAnchor: true,
+          color: true,
+          isDoneColumn: true,
+        },
       });
       if (!before || before.companyId !== g.companyId) throw new TaskColumnError('not_found');
       const columns = toColumns(parsed.data);
       await tx.taskColumn.update({ where: { id }, data: columns });
       await recordAudit(tx, {
-        userId: session.sub, action: 'task_column_updated', entity: 'task_column', entityId: id,
-        before: { ...before, companyId: undefined }, after: columns
+        userId: session.sub,
+        action: 'task_column_updated',
+        entity: 'task_column',
+        entityId: id,
+        before: { ...before, companyId: undefined },
+        after: columns,
       });
     });
     return { ok: true };
@@ -139,12 +166,19 @@ export async function deleteTaskColumn(
 
   try {
     await prisma.$transaction(async (tx) => {
-      const before = await tx.taskColumn.findUnique({ where: { id }, select: { companyId: true, name: true } });
+      const before = await tx.taskColumn.findUnique({
+        where: { id },
+        select: { companyId: true, name: true },
+      });
       if (!before || before.companyId !== g.companyId) throw new TaskColumnError('not_found');
       // Task.columnId FK = ON DELETE SET NULL → задачи откатываются к дефолту по status-якорю.
       await tx.taskColumn.delete({ where: { id } });
       await recordAudit(tx, {
-        userId: session.sub, action: 'task_column_deleted', entity: 'task_column', entityId: id, before: { name: before.name }
+        userId: session.sub,
+        action: 'task_column_deleted',
+        entity: 'task_column',
+        entityId: id,
+        before: { name: before.name },
       });
     });
     return { ok: true };

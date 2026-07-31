@@ -22,36 +22,78 @@ vi.mock('@/lib/services/admin/pendingRecords', () => ({ listPendingRecords }));
 
 vi.mock('@/components/admin/requeue-pending-button', () => ({
   RequeuePendingButton: (props: { id: string }) =>
-    React.createElement('button', { 'data-testid': 'requeue' }, props.id)
+    React.createElement('button', { 'data-testid': 'requeue' }, props.id),
 }));
 
 const { SYNC_ENTITIES } = vi.hoisted(() => ({
   SYNC_ENTITIES: {
-    organization: { queueName: 'oneCSync.pullOrganizations', schedulerId: 'oneCSync.pullOrganizations.cron', cronLabel: '0 */6 * * *' },
-    order: { queueName: 'oneCSync.pullOrders', schedulerId: 'oneCSync.pullOrders.cron', cronLabel: '*/15 * * * *' },
-    payment: { queueName: 'oneCSync.pullPayments', schedulerId: 'oneCSync.pullPayments.cron', cronLabel: '*/15 * * * *' },
-    document: { queueName: 'oneCSync.pullDocuments', schedulerId: 'oneCSync.pullDocuments.cron', cronLabel: '0 * * * *' },
-    certificateExpiry: { queueName: 'notifications.certificateExpiry', schedulerId: 'notifications.certificateExpiry.cron', cronLabel: '0 7 * * *' },
-    emailPoll: { queueName: 'inbound.email.poll', schedulerId: 'inbound.email.poll.cron', cronLabel: '*/5 * * * *' },
-    mangoBackfill: { queueName: 'telephony.mango.backfill', schedulerId: 'telephony.mango.backfill.cron', cronLabel: '0 * * * *' },
-    monthlyCommissions: { queueName: 'docs.calculateMonthlyCommissions', schedulerId: 'docs.calculateMonthlyCommissions.cron', cronLabel: '0 6 1 * *' }
-  }
+    organization: {
+      queueName: 'oneCSync.pullOrganizations',
+      schedulerId: 'oneCSync.pullOrganizations.cron',
+      cronLabel: '0 */6 * * *',
+    },
+    order: {
+      queueName: 'oneCSync.pullOrders',
+      schedulerId: 'oneCSync.pullOrders.cron',
+      cronLabel: '*/15 * * * *',
+    },
+    payment: {
+      queueName: 'oneCSync.pullPayments',
+      schedulerId: 'oneCSync.pullPayments.cron',
+      cronLabel: '*/15 * * * *',
+    },
+    document: {
+      queueName: 'oneCSync.pullDocuments',
+      schedulerId: 'oneCSync.pullDocuments.cron',
+      cronLabel: '0 * * * *',
+    },
+    certificateExpiry: {
+      queueName: 'notifications.certificateExpiry',
+      schedulerId: 'notifications.certificateExpiry.cron',
+      cronLabel: '0 7 * * *',
+    },
+    emailPoll: {
+      queueName: 'inbound.email.poll',
+      schedulerId: 'inbound.email.poll.cron',
+      cronLabel: '*/5 * * * *',
+    },
+    mangoBackfill: {
+      queueName: 'telephony.mango.backfill',
+      schedulerId: 'telephony.mango.backfill.cron',
+      cronLabel: '0 * * * *',
+    },
+    monthlyCommissions: {
+      queueName: 'docs.calculateMonthlyCommissions',
+      schedulerId: 'docs.calculateMonthlyCommissions.cron',
+      cronLabel: '0 6 1 * *',
+    },
+  },
 }));
 vi.mock('@/lib/services/admin/syncControl', () => ({ SYNC_ENTITIES }));
 
 vi.mock('@/components/admin/sync-trigger-button', () => ({
   SyncTriggerButton: (props: { entity: string }) =>
-    React.createElement('div', { 'data-testid': 'sync-trigger' }, props.entity)
+    React.createElement('div', { 'data-testid': 'sync-trigger' }, props.entity),
 }));
 
 vi.mock('@/components/admin/sync-schedule-toggle', () => ({
   SyncScheduleToggle: (props: { schedulerId: string; paused: boolean }) =>
-    React.createElement('div', { 'data-testid': 'sync-schedule-toggle' }, props.schedulerId, String(props.paused))
+    React.createElement(
+      'div',
+      { 'data-testid': 'sync-schedule-toggle' },
+      props.schedulerId,
+      String(props.paused)
+    ),
 }));
 
 vi.mock('@/components/admin/sync-cursor-dialog', () => ({
   SyncCursorDialog: (props: { entity: string; currentCursor: unknown }) =>
-    React.createElement('div', { 'data-testid': 'sync-cursor-dialog' }, props.entity, String(props.currentCursor))
+    React.createElement(
+      'div',
+      { 'data-testid': 'sync-cursor-dialog' },
+      props.entity,
+      String(props.currentCursor)
+    ),
 }));
 
 import AdminSyncPage from '@/app/admin/sync/page';
@@ -72,9 +114,11 @@ describe('AdminSyncPage', () => {
     requireAdmin.mockResolvedValue(SESSION);
     getSyncSummary.mockResolvedValue([
       { entity: 'organization', lastSuccessAt: new Date('2024-01-01T10:00:00Z'), cursor: 'cur-1' },
-      { entity: 'order', lastSuccessAt: null, cursor: null }
+      { entity: 'order', lastSuccessAt: null, cursor: null },
     ]);
-    getQueueStats.mockResolvedValue([{ queue: 'oneCSync.pullOrganizations', counts: { active: 2 } }]);
+    getQueueStats.mockResolvedValue([
+      { queue: 'oneCSync.pullOrganizations', counts: { active: 2 } },
+    ]);
     loadPausedSchedulerIds.mockResolvedValue(new Set(['oneCSync.pullOrders.cron']));
 
     const { container } = await renderServerComponent(AdminSyncPage());
@@ -91,7 +135,7 @@ describe('AdminSyncPage', () => {
   it('catches getQueueStats/loadPausedSchedulerIds rejections and falls back to empty defaults', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     getSyncSummary.mockResolvedValue([
-      { entity: 'organization', lastSuccessAt: new Date('2024-01-01'), cursor: null }
+      { entity: 'organization', lastSuccessAt: new Date('2024-01-01'), cursor: null },
     ]);
     getQueueStats.mockRejectedValue(new Error('redis down'));
     loadPausedSchedulerIds.mockRejectedValue(new Error('db down'));
@@ -134,10 +178,21 @@ describe('AdminSyncPage', () => {
     expect(container.textContent).toContain('*/5 * * * *');
     expect(container.textContent).toContain('0 6 1 * *');
     // кнопки запуска: reconcile (основная таблица) + 4 фоновые задачи
-    const triggers = Array.from(container.querySelectorAll('[data-testid="sync-trigger"]')).map((el) => el.textContent);
-    expect(triggers).toEqual(expect.arrayContaining(['certificateExpiry', 'emailPoll', 'mangoBackfill', 'monthlyCommissions']));
+    const triggers = Array.from(container.querySelectorAll('[data-testid="sync-trigger"]')).map(
+      (el) => el.textContent
+    );
+    expect(triggers).toEqual(
+      expect.arrayContaining([
+        'certificateExpiry',
+        'emailPoll',
+        'mangoBackfill',
+        'monthlyCommissions',
+      ])
+    );
     // колонка «Сейчас»: active>0 у inbound.email.poll → ровно один бейдж на странице
-    const badges = Array.from(container.querySelectorAll('span')).filter((el) => el.textContent === 'выполняется');
+    const badges = Array.from(container.querySelectorAll('span')).filter(
+      (el) => el.textContent === 'выполняется'
+    );
     expect(badges).toHaveLength(1);
     // пояснение, где смотреть результаты
     expect(container.textContent).toContain('уведомления');
@@ -155,16 +210,26 @@ describe('AdminSyncPage', () => {
       ok: true,
       records: [
         {
-          id: 'd1', entity: 'order', externalId: 'ORD-1', reason: 'organization_not_found',
-          attempts: 5, status: 'dead',
-          firstSeenAt: new Date('2026-07-01T10:00:00Z'), lastTriedAt: new Date('2026-07-02T10:00:00Z')
+          id: 'd1',
+          entity: 'order',
+          externalId: 'ORD-1',
+          reason: 'organization_not_found',
+          attempts: 5,
+          status: 'dead',
+          firstSeenAt: new Date('2026-07-01T10:00:00Z'),
+          lastTriedAt: new Date('2026-07-02T10:00:00Z'),
         },
         {
-          id: 'p1', entity: 'payment', externalId: 'PAY-1', reason: 'order_not_found',
-          attempts: 1, status: 'pending',
-          firstSeenAt: new Date('2026-07-03T10:00:00Z'), lastTriedAt: new Date('2026-07-04T10:00:00Z')
-        }
-      ]
+          id: 'p1',
+          entity: 'payment',
+          externalId: 'PAY-1',
+          reason: 'order_not_found',
+          attempts: 1,
+          status: 'pending',
+          firstSeenAt: new Date('2026-07-03T10:00:00Z'),
+          lastTriedAt: new Date('2026-07-04T10:00:00Z'),
+        },
+      ],
     });
 
     const { container } = await renderServerComponent(AdminSyncPage());

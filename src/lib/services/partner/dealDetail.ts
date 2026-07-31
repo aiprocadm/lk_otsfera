@@ -15,7 +15,7 @@ export type DealCommentRow = {
 const ORDER_ITEM_INCLUDE = {
   student: { select: { id: true, name: true, email: true } },
   direction: { select: { id: true, name: true } },
-  certificate: { select: { id: true, number: true, validUntil: true } }
+  certificate: { select: { id: true, number: true, validUntil: true } },
 } satisfies Prisma.OrderItemInclude;
 
 export type DealOrderItemRow = Prisma.OrderItemGetPayload<{ include: typeof ORDER_ITEM_INCLUDE }>;
@@ -88,8 +88,8 @@ export async function getPartnerDealDetail(
           direction: true,
           signedAt: true,
           createdAt: true,
-          size: true
-        }
+          size: true,
+        },
       },
       comments: {
         orderBy: { createdAt: 'asc' },
@@ -97,16 +97,16 @@ export async function getPartnerDealDetail(
           id: true,
           body: true,
           createdAt: true,
-          author: { select: { name: true } }
-        }
+          author: { select: { name: true } },
+        },
       },
       // Позиции заказа целиком клиентские (слушатель, направление, статус,
       // цена) — внутренних полей у OrderItem нет, include безопасен.
       items: {
         include: ORDER_ITEM_INCLUDE,
-        orderBy: { createdAt: 'asc' }
-      }
-    }
+        orderBy: { createdAt: 'asc' },
+      },
+    },
   });
 
   if (!order) return null;
@@ -123,7 +123,7 @@ export async function getPartnerDealDetail(
       executionStatus: order.executionStatus,
       financialStatus: order.financialStatus,
       amount: Number(order.totalAmount),
-      paidTotal: Number(order.paidAmount)
+      paidTotal: Number(order.paidAmount),
     }),
     executionStatus: order.executionStatus,
     financialStatus: order.financialStatus,
@@ -152,14 +152,14 @@ export async function getPartnerDealDetail(
       size: d.size,
       orderId: order.id,
       orderNumber: order.orderNumber,
-      orderTitle: order.title
+      orderTitle: order.title,
     })),
     comments: order.comments.map((c) => ({
       id: c.id,
       body: c.body,
       createdAt: c.createdAt,
-      authorName: c.author.name
+      authorName: c.author.name,
     })),
-    items: order.items
+    items: order.items,
   };
 }

@@ -6,7 +6,7 @@ import {
   formatDateRu,
   safeText,
   styleHeader,
-  textOrDash
+  textOrDash,
 } from '@/lib/services/export/xlsx';
 
 /**
@@ -30,7 +30,7 @@ export function renderOrgStudentsXlsx(args: {
     { header: 'Должность', key: 'position', width: 28 },
     { header: 'Действующих удостоверений', key: 'activeCertificates', width: 26 },
     { header: 'Внешний id', key: 'externalStudentId', width: 18 },
-    { header: 'Добавлен', key: 'createdAt', width: 14 }
+    { header: 'Добавлен', key: 'createdAt', width: 14 },
   ];
 
   const page = args.rows.slice(0, EXPORT_ROW_LIMIT);
@@ -44,7 +44,7 @@ export function renderOrgStudentsXlsx(args: {
       position: textOrDash(s.position),
       activeCertificates: s.activeCertificates,
       externalStudentId: textOrDash(s.externalStudentId),
-      createdAt: formatDateRu(s.createdAt)
+      createdAt: formatDateRu(s.createdAt),
     });
   });
 

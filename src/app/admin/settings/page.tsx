@@ -22,13 +22,14 @@ export default async function AdminSettingsPage() {
   const companies = await listCompaniesRequisites(prisma, session);
 
   return (
-    <div className='space-y-6'>
-      <h1 className='text-2xl font-bold text-[#111111]'>Настройки</h1>
-      <div className='text-sm text-blue-800 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3'>
-        <span aria-hidden className='mr-1'>ℹ️</span>
-        Личные настройки уведомлений — здесь. Интеграции платформы (почта,
-        телефония Mango, боты Telegram/Max/WhatsApp, 1С, DaData) настраиваются
-        и проверяются на странице «Интеграции».
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-[#111111]">Настройки</h1>
+      <div className="text-sm text-blue-800 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
+        <span aria-hidden className="mr-1">
+          ℹ️
+        </span>
+        Личные настройки уведомлений — здесь. Интеграции платформы (почта, телефония Mango, боты
+        Telegram/Max/WhatsApp, 1С, DaData) настраиваются и проверяются на странице «Интеграции».
       </div>
       <TelegramLinkCard status={status} />
       <NotificationChannelsCard settings={settings.view} />
@@ -39,18 +40,28 @@ export default async function AdminSettingsPage() {
           <RequisitesCard
             key={c.id}
             title={`Реквизиты исполнителя: ${c.name}`}
-            description='Подставляются в шапку формируемых счетов и актов (этап 8).'
+            description="Подставляются в шапку формируемых счетов и актов (этап 8)."
             defaults={c}
             idPrefix={`co-req-${c.id}`}
             action={setCompanyRequisitesAction}
             hidden={{ companyId: c.id }}
           >
-            <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
-              <Field htmlFor={`co-req-${c.id}-phone`} label='Телефон (шапка документов)'>
-                <Input id={`co-req-${c.id}-phone`} name='phone' maxLength={30} defaultValue={c.phone ?? ''} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field htmlFor={`co-req-${c.id}-phone`} label="Телефон (шапка документов)">
+                <Input
+                  id={`co-req-${c.id}-phone`}
+                  name="phone"
+                  maxLength={30}
+                  defaultValue={c.phone ?? ''}
+                />
               </Field>
-              <Field htmlFor={`co-req-${c.id}-email`} label='Email (шапка документов)'>
-                <Input id={`co-req-${c.id}-email`} name='email' maxLength={200} defaultValue={c.email ?? ''} />
+              <Field htmlFor={`co-req-${c.id}-email`} label="Email (шапка документов)">
+                <Input
+                  id={`co-req-${c.id}-email`}
+                  name="email"
+                  maxLength={200}
+                  defaultValue={c.email ?? ''}
+                />
               </Field>
             </div>
           </RequisitesCard>

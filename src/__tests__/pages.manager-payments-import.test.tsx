@@ -9,23 +9,31 @@ vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
 
 const { organizationFindMany } = vi.hoisted(() => ({ organizationFindMany: vi.fn() }));
 vi.mock('@/lib/db/prisma', () => ({
-  prisma: { organization: { findMany: organizationFindMany } }
+  prisma: { organization: { findMany: organizationFindMany } },
 }));
 
 const { listQueue } = vi.hoisted(() => ({ listQueue: vi.fn() }));
 vi.mock('@/lib/services/import/oneCAccountCard', () => ({ listQueue }));
 
 vi.mock('@/components/import/payment-import-form', () => ({
-  PaymentImportForm: () => React.createElement('div', { 'data-testid': 'payment-import-form' })
+  PaymentImportForm: () => React.createElement('div', { 'data-testid': 'payment-import-form' }),
 }));
 
 vi.mock('@/components/import/payment-queue-table', () => ({
   PaymentQueueTable: (props: { rows: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'payment-queue-table' }, JSON.stringify(props.rows))
+    React.createElement(
+      'div',
+      { 'data-testid': 'payment-queue-table' },
+      JSON.stringify(props.rows)
+    ),
 }));
 
-
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'member' as const,
+  companyId: 'c1',
+};
 
 describe('ManagerPaymentsImportPage', () => {
   beforeEach(() => {
@@ -48,8 +56,8 @@ describe('ManagerPaymentsImportPage', () => {
         counterpartyInn: '1234567890',
         accountCandidates: [],
         candidateOrgId: null,
-        matchMethod: 'none'
-      }
+        matchMethod: 'none',
+      },
     ]);
 
     const { container } = await renderServerComponent(ManagerPaymentsImportPage());
@@ -75,7 +83,7 @@ describe('ManagerPaymentsImportPage', () => {
         counterpartyInn: '1234567890',
         accountCandidates: ['a1', 'a2'],
         candidateOrgId: 'org-1',
-        matchMethod: 'inn'
+        matchMethod: 'inn',
       },
       {
         id: 'q2',
@@ -88,8 +96,8 @@ describe('ManagerPaymentsImportPage', () => {
         counterpartyInn: null,
         accountCandidates: null,
         candidateOrgId: 'org-2',
-        matchMethod: 'manual'
-      }
+        matchMethod: 'manual',
+      },
     ]);
     organizationFindMany.mockResolvedValue([{ id: 'org-1', name: 'Org One' }]);
 

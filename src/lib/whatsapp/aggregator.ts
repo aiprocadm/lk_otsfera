@@ -36,10 +36,7 @@ export function isWhatsAppEnabled(): boolean {
  * POST {base}/v3/message, Bearer-ключ, тело { channelId, chatType, chatId, text }.
  * Best-effort `{ ok }`; транспорт-level сбой не бросается наружу.
  */
-export async function sendWhatsAppMessage(
-  phone: string,
-  text: string
-): Promise<{ ok: boolean }> {
+export async function sendWhatsAppMessage(phone: string, text: string): Promise<{ ok: boolean }> {
   const apiKey = cachedIntegrationSetting('whatsapp.apiKey');
   const channelId = cachedIntegrationSetting('whatsapp.channelId');
   if (!apiKey || !channelId) return { ok: false };
@@ -64,7 +61,7 @@ export async function sendWhatsAppMessage(
     return { ok: res.ok };
   } catch {
     return { ok: false };
-  /* v8 ignore next 2 -- V8 marks the finally as a branch; the exceptional-completion edge is unreachable (bare catch catches all, clearTimeout cannot throw) */
+    /* v8 ignore next 2 -- V8 marks the finally as a branch; the exceptional-completion edge is unreachable (bare catch catches all, clearTimeout cannot throw) */
   } finally {
     clearTimeout(timer);
   }

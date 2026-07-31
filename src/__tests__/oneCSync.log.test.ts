@@ -14,7 +14,7 @@ afterAll(async () => {
 
 afterEach(async () => {
   await prisma.syncLog.deleteMany({
-    where: { entity: 'order', externalId: { startsWith: 'log-test-' } }
+    where: { entity: 'order', externalId: { startsWith: 'log-test-' } },
   });
 });
 
@@ -26,10 +26,10 @@ describe('writeSyncLog', () => {
       direction: 'inbound',
       operation: 'create',
       status: 'success',
-      durationMs: 12
+      durationMs: 12,
     });
     const rows = await prisma.syncLog.findMany({
-      where: { externalId: 'log-test-1' }
+      where: { externalId: 'log-test-1' },
     });
     expect(rows).toHaveLength(1);
     expect(rows[0].status).toBe('success');
@@ -43,10 +43,10 @@ describe('writeSyncLog', () => {
       operation: 'update',
       status: 'error',
       errorMessage: 'boom',
-      payload: { stack: 'fake' }
+      payload: { stack: 'fake' },
     });
     const row = await prisma.syncLog.findFirst({
-      where: { externalId: 'log-test-2' }
+      where: { externalId: 'log-test-2' },
     });
     expect(row?.errorMessage).toBe('boom');
     expect(row?.payload).toMatchObject({ stack: 'fake' });

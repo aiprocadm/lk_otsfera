@@ -27,16 +27,28 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const doc = await prisma.document.findUnique({
     where: { id },
     select: {
-      id: true, path: true, name: true, scanStatus: true, scanReason: true,
-      orderId: true, companyId: true, counterpartyType: true, counterpartyId: true,
-      order: { select: { companyId: true } }
-    }
+      id: true,
+      path: true,
+      name: true,
+      scanStatus: true,
+      scanReason: true,
+      orderId: true,
+      companyId: true,
+      counterpartyType: true,
+      counterpartyId: true,
+      order: { select: { companyId: true } },
+    },
   });
   if (!doc) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  if (!(await canReadDocument(s, doc))) return forbiddenResponse('You do not have access to this document');
+  if (!(await canReadDocument(s, doc)))
+    return forbiddenResponse('You do not have access to this document');
   if (doc.scanStatus === 'infected' && s.role !== 'admin') {
     return NextResponse.json(
-      { code: 'INFECTED', message: 'Document was quarantined by malware scan', scanReason: doc.scanReason ?? undefined },
+      {
+        code: 'INFECTED',
+        message: 'Document was quarantined by malware scan',
+        scanReason: doc.scanReason ?? undefined,
+      },
       { status: 410 }
     );
   }
@@ -51,9 +63,12 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
       documentId: doc.id,
       storagePath: doc.path,
       ttl,
-      providerError: error instanceof Error ? error.message : String(error)
+      providerError: error instanceof Error ? error.message : String(error),
     });
-    return NextResponse.json({ error: 'Failed to create document download link', correlationId }, { status: 502 });
+    return NextResponse.json(
+      { error: 'Failed to create document download link', correlationId },
+      { status: 502 }
+    );
   }
 
   await recordAudit(prisma, {

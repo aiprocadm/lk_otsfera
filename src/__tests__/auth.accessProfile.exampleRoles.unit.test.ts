@@ -20,7 +20,7 @@ const OPERATOR: SessionAccessProfile = {
   finance: 'own',
   leads: 'own',
   tasks: 'assigned',
-  capabilities: []
+  capabilities: [],
 };
 
 const OHS_SPECIALIST: SessionAccessProfile = {
@@ -33,7 +33,7 @@ const OHS_SPECIALIST: SessionAccessProfile = {
   finance: 'own',
   leads: 'own',
   tasks: 'assigned',
-  capabilities: []
+  capabilities: [],
 };
 
 const SALES: SessionAccessProfile = {
@@ -46,7 +46,7 @@ const SALES: SessionAccessProfile = {
   finance: 'own',
   leads: 'all',
   tasks: 'all',
-  capabilities: []
+  capabilities: [],
 };
 
 function sessionWith(profile: SessionAccessProfile): SessionPayload {
@@ -55,7 +55,7 @@ function sessionWith(profile: SessionAccessProfile): SessionPayload {
     role: 'manager',
     companyId: 'co-1',
     managedOrgIds: ['o1', 'o2'],
-    accessProfile: profile
+    accessProfile: profile,
   } as unknown as SessionPayload;
 }
 
@@ -75,12 +75,12 @@ describe('G1.5 — «Специалист по ОТ (аутсорсинг)»', (
   const s = sessionWith(OHS_SPECIALIST);
   it('организации = assigned (только закреплённые заказчики, company-floor)', () => {
     expect(managerOrgScope(s, true)).toEqual({
-      AND: [{ companyId: 'co-1' }, { id: { in: ['o1', 'o2'] } }]
+      AND: [{ companyId: 'co-1' }, { id: { in: ['o1', 'o2'] } }],
     });
   });
   it('обмен документами по закреплённым оргам; комиссия скрыта', () => {
     expect(managerDocumentScope(s, true).order).toEqual({
-      AND: [{ companyId: 'co-1' }, { organizationId: { in: ['o1', 'o2'] } }]
+      AND: [{ companyId: 'co-1' }, { organizationId: { in: ['o1', 'o2'] } }],
     });
     expect(can(s, 'see_commission')).toBe(false);
   });
@@ -92,7 +92,9 @@ describe('G1.5 — «Менеджер по продажам»', () => {
     expect(s.accessProfile?.leads).toBe('all');
   });
   it('операционка сужена до own', () => {
-    expect(managerOrderScope(s, true)).toEqual({ AND: [{ companyId: 'co-1' }, { managerId: 'u1' }] });
+    expect(managerOrderScope(s, true)).toEqual({
+      AND: [{ companyId: 'co-1' }, { managerId: 'u1' }],
+    });
     expect(can(s, 'see_commission')).toBe(false);
   });
 });

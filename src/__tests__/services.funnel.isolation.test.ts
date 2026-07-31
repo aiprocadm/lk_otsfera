@@ -19,21 +19,31 @@ let partnerId: string;
 let leadA: string;
 
 const client = (role: 'partner' | 'organization' | 'student'): SessionPayload =>
-  ({ sub: `${role}-1`, role, companyId: companyA, managedOrgIds: [] } as unknown as SessionPayload);
+  ({ sub: `${role}-1`, role, companyId: companyA, managedOrgIds: [] }) as unknown as SessionPayload;
 const staff = (): SessionPayload =>
-  ({ sub: m1, role: 'manager', companyId: companyA, managedOrgIds: [] } as unknown as SessionPayload);
+  ({
+    sub: m1,
+    role: 'manager',
+    companyId: companyA,
+    managedOrgIds: [],
+  }) as unknown as SessionPayload;
 
 beforeAll(async () => {
   prisma = new PrismaClient();
   companyA = (await prisma.company.create({ data: { name: `g2iso-${STAMP}` } })).id;
   m1 = (
     await prisma.user.create({
-      data: { email: `g2iso-m1-${STAMP}@t.local`, name: 'M1', role: 'manager', companyId: companyA }
+      data: {
+        email: `g2iso-m1-${STAMP}@t.local`,
+        name: 'M1',
+        role: 'manager',
+        companyId: companyA,
+      },
     })
   ).id;
   partnerId = (
     await prisma.partner.create({
-      data: { name: `g2iso-p-${STAMP}`, commissionRate: 0.1 }
+      data: { name: `g2iso-p-${STAMP}`, commissionRate: 0.1 },
     })
   ).id;
   leadA = (
@@ -44,8 +54,8 @@ beforeAll(async () => {
         clientCompanyName: `g2iso-client-${STAMP}`,
         clientContactName: 'Контакт',
         subject: 'Обучение по ОТ',
-        status: 'new'
-      }
+        status: 'new',
+      },
     })
   ).id;
 });
@@ -84,12 +94,12 @@ describe('moveFunnelLead — клиентские роли отклонены, �
       const anyStage = board.stages[0]!;
       const res = await moveFunnelLead(prisma, client(role), {
         leadId: leadA,
-        toStageId: anyStage.id
+        toStageId: anyStage.id,
       });
       expect(res).toEqual({ ok: false, error: 'forbidden' });
       const lead = await prisma.lead.findUniqueOrThrow({
         where: { id: leadA },
-        select: { status: true, funnelStageId: true }
+        select: { status: true, funnelStageId: true },
       });
       expect(lead).toEqual({ status: 'new', funnelStageId: null });
     }

@@ -6,11 +6,14 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 const { createTaskAction, updateTaskAction, deleteTaskAction } = vi.hoisted(() => ({
   createTaskAction: vi.fn(),
   updateTaskAction: vi.fn(),
-  deleteTaskAction: vi.fn()
+  deleteTaskAction: vi.fn(),
 }));
 vi.mock('@/server-actions/tasks', () => ({ createTaskAction, updateTaskAction, deleteTaskAction }));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 import { TaskDialog } from '@/components/tasks/task-dialog';
@@ -18,8 +21,22 @@ import type { TaskColumnView } from '@/lib/tasks/columns';
 import type { TaskCard, TaskFormOptions } from '@/lib/services/tasks/board';
 
 const columns: TaskColumnView[] = [
-  { id: 'col-1', name: 'К выполнению', position: 0, statusAnchor: 'todo', isDoneColumn: false, color: null },
-  { id: 'col-2', name: 'Готово', position: 1, statusAnchor: 'done', isDoneColumn: true, color: null }
+  {
+    id: 'col-1',
+    name: 'К выполнению',
+    position: 0,
+    statusAnchor: 'todo',
+    isDoneColumn: false,
+    color: null,
+  },
+  {
+    id: 'col-2',
+    name: 'Готово',
+    position: 1,
+    statusAnchor: 'done',
+    isDoneColumn: true,
+    color: null,
+  },
 ];
 
 const emptyOptions: TaskFormOptions = { users: [], organizations: [], orders: [] };
@@ -27,7 +44,7 @@ const emptyOptions: TaskFormOptions = { users: [], organizations: [], orders: []
 const fullOptions: TaskFormOptions = {
   users: [{ id: 'u1', name: 'Иван Петров' }],
   organizations: [{ id: 'org1', name: 'ООО Ромашка' }],
-  orders: [{ id: 'ord1', title: 'Заказ №1' }]
+  orders: [{ id: 'ord1', title: 'Заказ №1' }],
 };
 
 const task: TaskCard = {
@@ -49,7 +66,7 @@ const task: TaskCard = {
   linkedLeadId: null,
   linkedLeadSubject: null,
   linkedDealId: null,
-  linkedDealTitle: null
+  linkedDealTitle: null,
 };
 
 function renderDialog(props: React.ComponentProps<typeof TaskDialog>) {
@@ -79,7 +96,9 @@ describe('TaskDialog', () => {
 
   describe('привязки к лиду/сделке (этап 7, ФТ-7.1)', () => {
     it('create без контекста: скрытые поля пустые, подписи нет', () => {
-      const { container } = render(renderDialog({ target: null, columns, options: emptyOptions, onClose, onSaved }));
+      const { container } = render(
+        renderDialog({ target: null, columns, options: emptyOptions, onClose, onSaved })
+      );
       const lead = container.querySelector('input[name="linkedLeadId"]') as HTMLInputElement;
       const deal = container.querySelector('input[name="linkedDealId"]') as HTMLInputElement;
       expect(lead.value).toBe('');
@@ -90,8 +109,12 @@ describe('TaskDialog', () => {
     it('link prop (создание из карточки лида): id в скрытом поле + подпись', () => {
       const { container } = render(
         renderDialog({
-          target: null, columns, options: emptyOptions, onClose, onSaved,
-          link: { leadId: 'l1', label: 'лид «Тема»' }
+          target: null,
+          columns,
+          options: emptyOptions,
+          onClose,
+          onSaved,
+          link: { leadId: 'l1', label: 'лид «Тема»' },
         })
       );
       const lead = container.querySelector('input[name="linkedLeadId"]') as HTMLInputElement;
@@ -100,10 +123,22 @@ describe('TaskDialog', () => {
     });
 
     it('edit сохраняет связи target в скрытых полях (редактирование не стирает привязку)', () => {
-      const linked = { ...task, linkedLeadId: 'l7', linkedLeadSubject: 'Лид-тема', linkedDealId: 'd7', linkedDealTitle: 'Сделка-7' };
-      const { container } = render(renderDialog({ target: linked, columns, options: emptyOptions, onClose, onSaved }));
-      expect((container.querySelector('input[name="linkedLeadId"]') as HTMLInputElement).value).toBe('l7');
-      expect((container.querySelector('input[name="linkedDealId"]') as HTMLInputElement).value).toBe('d7');
+      const linked = {
+        ...task,
+        linkedLeadId: 'l7',
+        linkedLeadSubject: 'Лид-тема',
+        linkedDealId: 'd7',
+        linkedDealTitle: 'Сделка-7',
+      };
+      const { container } = render(
+        renderDialog({ target: linked, columns, options: emptyOptions, onClose, onSaved })
+      );
+      expect(
+        (container.querySelector('input[name="linkedLeadId"]') as HTMLInputElement).value
+      ).toBe('l7');
+      expect(
+        (container.querySelector('input[name="linkedDealId"]') as HTMLInputElement).value
+      ).toBe('d7');
       expect(screen.getByText('Привязана: лид «Лид-тема», сделка «Сделка-7»')).toBeTruthy();
     });
   });
@@ -136,19 +171,29 @@ describe('TaskDialog', () => {
     expect(descInput.value).toBe('Срочно');
     const dueInput = screen.getByLabelText('Срок') as HTMLInputElement;
     expect(dueInput.value).toBe('2026-08-15');
-    const assigneeCheckbox = screen.getByRole('checkbox', { name: 'Иван Петров' }) as HTMLInputElement;
+    const assigneeCheckbox = screen.getByRole('checkbox', {
+      name: 'Иван Петров',
+    }) as HTMLInputElement;
     expect(assigneeCheckbox.checked).toBe(true);
     expect(screen.getByRole('button', { name: 'Удалить' })).toBeTruthy();
   });
 
-  it('with no target and an empty columns list, the column select defaults to empty string (?? \'\' fallback)', () => {
+  it("with no target and an empty columns list, the column select defaults to empty string (?? '' fallback)", () => {
     render(renderDialog({ target: null, columns: [], options: fullOptions, onClose, onSaved }));
     const select = screen.getByLabelText('Колонка') as HTMLSelectElement;
     expect(select.value).toBe('');
   });
 
   it('a target with no dueDate renders an empty date input (dateValue null branch)', () => {
-    render(renderDialog({ target: { ...task, dueDate: null }, columns, options: fullOptions, onClose, onSaved }));
+    render(
+      renderDialog({
+        target: { ...task, dueDate: null },
+        columns,
+        options: fullOptions,
+        onClose,
+        onSaved,
+      })
+    );
     const dueInput = screen.getByLabelText('Срок') as HTMLInputElement;
     expect(dueInput.value).toBe('');
   });

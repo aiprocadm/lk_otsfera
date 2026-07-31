@@ -2,11 +2,7 @@ import React from 'react';
 import { requireManager } from '@/lib/auth/requireRole';
 import { getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { prisma } from '@/lib/db/prisma';
-import {
-  kpis,
-  attention,
-  recentEvents
-} from '@/lib/services/manager/dashboard';
+import { kpis, attention, recentEvents } from '@/lib/services/manager/dashboard';
 import { getMyDay } from '@/lib/services/manager/myDay';
 import { MyDayCards } from '@/components/manager/my-day-cards';
 import { ManagerKpiGrid } from '@/components/manager/manager-kpi-grid';
@@ -24,12 +20,12 @@ export default async function ManagerDashboard() {
     // undefined take → дефолт сервиса; 4-й аргумент — общий teamMode
     recentEvents(prisma, session, undefined, teamMode),
     // Этап 11 PR-2 (ФТ-15.3): «Мой день» — первый блок «Главной».
-    getMyDay(prisma, session, teamMode)
+    getMyDay(prisma, session, teamMode),
   ]);
   return (
     <>
-      <h1 className='mb-4 text-2xl font-semibold'>Главная</h1>
-      <div className='space-y-4'>
+      <h1 className="mb-4 text-2xl font-semibold">Главная</h1>
+      <div className="space-y-4">
         <MyDayCards data={myDay} />
         <ManagerKpiGrid data={kpiData} />
         <ManagerAttentionList items={attentionData} />

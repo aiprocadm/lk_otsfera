@@ -28,8 +28,21 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * (только формат; на дубли на клиентской стороне НЕ проверяется — ФТ-13.4).
  * Чистая функция, русские сообщения. Экспортируется для переиспользования формой.
  */
-export function validateClientRequestInput(input: SubmitClientRequestInput):
-  | { ok: true; values: { companyName: string; inn: string | null; contactName: string; contactPhone: string | null; contactEmail: string | null; subject: string; body: string | null } }
+export function validateClientRequestInput(
+  input: SubmitClientRequestInput
+):
+  | {
+      ok: true;
+      values: {
+        companyName: string;
+        inn: string | null;
+        contactName: string;
+        contactPhone: string | null;
+        contactEmail: string | null;
+        subject: string;
+        body: string | null;
+      };
+    }
   | { ok: false; errors: string[] } {
   const errors: string[] = [];
   const companyName = input.companyName?.trim() ?? '';
@@ -43,8 +56,10 @@ export function validateClientRequestInput(input: SubmitClientRequestInput):
   if (!contactName) errors.push('Укажите контактное лицо');
   if (!subject) errors.push('Укажите тему обращения');
   if (!contactPhone && !contactEmail) errors.push('Укажите телефон или email для связи');
-  if (contactEmail && !EMAIL_RE.test(contactEmail)) errors.push(`Некорректный email «${contactEmail}»`);
-  if (innDigits && !/^(\d{10}|\d{12})$/.test(innDigits)) errors.push('ИНН должен содержать 10 или 12 цифр');
+  if (contactEmail && !EMAIL_RE.test(contactEmail))
+    errors.push(`Некорректный email «${contactEmail}»`);
+  if (innDigits && !/^(\d{10}|\d{12})$/.test(innDigits))
+    errors.push('ИНН должен содержать 10 или 12 цифр');
 
   if (errors.length) return { ok: false, errors };
   return {
@@ -56,8 +71,8 @@ export function validateClientRequestInput(input: SubmitClientRequestInput):
       contactPhone,
       contactEmail,
       subject,
-      body: input.body?.trim() || null
-    }
+      body: input.body?.trim() || null,
+    },
   };
 }
 
@@ -106,8 +121,8 @@ export async function submitClientRequest(
       submittedByUserId: session.sub,
       partnerId,
       organizationId,
-      ...validated.values
-    }
+      ...validated.values,
+    },
   });
 
   await recordAudit(prisma, {
@@ -116,7 +131,7 @@ export async function submitClientRequest(
     entity: 'client_request',
     entityId: request.id,
     // Только принадлежность — ПДн контакта в аудит не пишем.
-    after: { source: request.source, partnerId, organizationId }
+    after: { source: request.source, partnerId, organizationId },
   });
 
   await notifyManagersClientRequestSubmitted(prisma, request);

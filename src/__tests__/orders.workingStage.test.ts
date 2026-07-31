@@ -7,7 +7,7 @@ const base = {
   completedAt: null,
   closedAt: null,
   amount: '100000',
-  paidTotal: '0'
+  paidTotal: '0',
 };
 
 describe('orderWorkingStage — терминальные состояния вне дорожки', () => {
@@ -79,7 +79,7 @@ describe('orderWorkingStage — монотонность (самая дальн�
       ...base,
       executionStatus: 'completed',
       contractSignedAt: new Date('2024-01-01'),
-      closedAt: new Date('2024-06-01')
+      closedAt: new Date('2024-06-01'),
     });
     expect(s.index).toBe(6);
   });
@@ -88,7 +88,7 @@ describe('orderWorkingStage — монотонность (самая дальн�
     const s = orderWorkingStage({
       ...base,
       executionStatus: 'in_progress',
-      paidTotal: '50000'
+      paidTotal: '50000',
     });
     expect(s.index).toBe(4);
   });
@@ -103,7 +103,7 @@ describe('orderWorkingStage — монотонность (самая дальн�
       ...base,
       executionStatus: 'completed',
       contractSignedAt: new Date('2024-01-01'),
-      paidTotal: '50000'
+      paidTotal: '50000',
     });
     expect(s.index).toBe(5);
   });
@@ -113,7 +113,7 @@ describe('orderWorkingStage — монотонность (самая дальн�
       ...base,
       executionStatus: 'completed',
       paidTotal: '50000',
-      closedAt: new Date('2024-06-01')
+      closedAt: new Date('2024-06-01'),
     });
     expect(s.index).toBe(6);
   });

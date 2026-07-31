@@ -22,23 +22,32 @@ const nav = vi.hoisted(() => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
 vi.mock('@/components/manager/team-visibility-toggle', () => ({
   TeamVisibilityToggle: (props: { initial: boolean }) =>
-    React.createElement('div', { 'data-testid': 'visibility-toggle' }, String(props.initial))
+    React.createElement('div', { 'data-testid': 'visibility-toggle' }, String(props.initial)),
 }));
 
 vi.mock('@/components/manager/manager-roster-panel', () => ({
   ManagerRosterPanel: (props: { roster: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'roster-panel' }, JSON.stringify(props.roster))
+    React.createElement('div', { 'data-testid': 'roster-panel' }, JSON.stringify(props.roster)),
 }));
 
-
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'leader' as const, companyId: 'c1' };
-const SESSION_NO_COMPANY = { sub: 'u2', role: 'manager' as const, managerRole: 'leader' as const, companyId: null };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'leader' as const,
+  companyId: 'c1',
+};
+const SESSION_NO_COMPANY = {
+  sub: 'u2',
+  role: 'manager' as const,
+  managerRole: 'leader' as const,
+  companyId: null,
+};
 
 describe('ManagerTeamPage', () => {
   beforeEach(() => {

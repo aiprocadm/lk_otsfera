@@ -3,7 +3,7 @@ import { it, expect, vi, beforeEach } from 'vitest';
 const { requireManagerLeader, upsertSalesTarget, notFoundIfDisabled } = vi.hoisted(() => ({
   requireManagerLeader: vi.fn(),
   upsertSalesTarget: vi.fn(),
-  notFoundIfDisabled: vi.fn()
+  notFoundIfDisabled: vi.fn(),
 }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireManagerLeader }));
@@ -23,7 +23,12 @@ beforeEach(() => {
 it('returns disabled when the leader_analytics flag is off, without checking auth', async () => {
   notFoundIfDisabled.mockReturnValue(new Response(null, { status: 404 }));
 
-  const res = await upsertSalesTargetAction({ managerId: 'm1', year: 2026, month: 7, targetAmount: '1000.00' });
+  const res = await upsertSalesTargetAction({
+    managerId: 'm1',
+    year: 2026,
+    month: 7,
+    targetAmount: '1000.00',
+  });
 
   expect(res).toEqual({ ok: false, error: 'disabled' });
   expect(notFoundIfDisabled).toHaveBeenCalledWith('leader_analytics');
@@ -47,7 +52,12 @@ it('propagates a service-level error result (e.g. invalid amount) unchanged', as
   notFoundIfDisabled.mockReturnValue(null);
   upsertSalesTarget.mockResolvedValue({ ok: false, error: 'invalid' });
 
-  const res = await upsertSalesTargetAction({ managerId: 'm1', year: 2026, month: 7, targetAmount: '-5' });
+  const res = await upsertSalesTargetAction({
+    managerId: 'm1',
+    year: 2026,
+    month: 7,
+    targetAmount: '-5',
+  });
 
   expect(res).toEqual({ ok: false, error: 'invalid' });
 });

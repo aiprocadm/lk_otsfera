@@ -19,8 +19,8 @@ export async function migrateCommentsToMessages(prisma: PrismaClient): Promise<M
       body: true,
       attachmentPath: true,
       createdAt: true,
-      author: { select: { role: true } }
-    }
+      author: { select: { role: true } },
+    },
   });
 
   const lastExternalSide = new Map<string, ThreadSide>();
@@ -40,7 +40,7 @@ export async function migrateCommentsToMessages(prisma: PrismaClient): Promise<M
     const thread = await prisma.orderThread.upsert({
       where: { orderId_side: { orderId: c.orderId, side } },
       update: {},
-      create: { orderId: c.orderId, side, lastMessageAt: c.createdAt }
+      create: { orderId: c.orderId, side, lastMessageAt: c.createdAt },
     });
 
     const existing = await prisma.message.findFirst({
@@ -48,9 +48,9 @@ export async function migrateCommentsToMessages(prisma: PrismaClient): Promise<M
         threadId: thread.id,
         authorId: c.authorId,
         body: c.body,
-        createdAt: c.createdAt
+        createdAt: c.createdAt,
       },
-      select: { id: true }
+      select: { id: true },
     });
     if (existing) {
       skipped++;
@@ -63,14 +63,14 @@ export async function migrateCommentsToMessages(prisma: PrismaClient): Promise<M
         authorId: c.authorId,
         body: c.body,
         attachmentPath: c.attachmentPath,
-        createdAt: c.createdAt
-      }
+        createdAt: c.createdAt,
+      },
     });
 
     // Ascending order → the last write per thread leaves lastMessageAt at the latest comment.
     await prisma.orderThread.update({
       where: { id: thread.id },
-      data: { lastMessageAt: c.createdAt }
+      data: { lastMessageAt: c.createdAt },
     });
 
     migrated++;

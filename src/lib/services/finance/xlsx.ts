@@ -7,7 +7,7 @@ import {
   formatDateRu,
   safeText,
   styleHeader,
-  textOrDash
+  textOrDash,
 } from '@/lib/services/export/xlsx';
 
 /**
@@ -38,7 +38,7 @@ export function renderPaymentsXlsx(args: {
     { header: 'Способ', key: 'method', width: 20 },
     { header: 'Возврат', key: 'isRefund', width: 10 },
     { header: 'Внёс', key: 'enteredBy', width: 22 },
-    { header: 'Комментарий', key: 'note', width: 36 }
+    { header: 'Комментарий', key: 'note', width: 36 },
   ];
 
   const page = args.rows.slice(0, EXPORT_ROW_LIMIT);
@@ -56,7 +56,7 @@ export function renderPaymentsXlsx(args: {
       method: safeText(paymentMethodRu(p.method)),
       isRefund: p.isRefund ? 'да' : 'нет',
       enteredBy: textOrDash(p.enteredByName),
-      note: textOrDash(p.note)
+      note: textOrDash(p.note),
     });
   });
 
@@ -65,7 +65,7 @@ export function renderPaymentsXlsx(args: {
   const totals = wb.addWorksheet('Итоги');
   totals.columns = [
     { header: 'Показатель', key: 'label', width: 28 },
-    { header: 'Значение', key: 'value', width: 20 }
+    { header: 'Значение', key: 'value', width: 20 },
   ];
   styleHeader(totals, true);
   totals.addRow({ label: 'Организация', value: safeText(args.organizationName) });

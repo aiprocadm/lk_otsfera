@@ -40,8 +40,7 @@ const requiredSecret = (minLen: number) =>
     .min(minLen, `минимум ${minLen} символа(ов)`)
     .refine(notPlaceholder, PLACEHOLDER_MSG);
 
-const requiredNonEmpty = (why: string) =>
-  z.string({ required_error: why }).trim().min(1, why);
+const requiredNonEmpty = (why: string) => z.string({ required_error: why }).trim().min(1, why);
 
 const s3Credential = () =>
   requiredNonEmpty('обязательна в production')
@@ -56,7 +55,7 @@ export const productionEnvSchema = z
     APP_URL: z
       .string({
         required_error:
-          'обязательна в production (абсолютные ссылки в письмах/уведомлениях; без неё действует hardcode-fallback)'
+          'обязательна в production (абсолютные ссылки в письмах/уведомлениях; без неё действует hardcode-fallback)',
       })
       .trim()
       .url('должна быть валидным URL (https://<домен>)'),
@@ -92,7 +91,7 @@ export const productionEnvSchema = z
     FEATURE_TELEPHONY_MANGO: optionalStr,
     MANGO_API_KEY: optionalStr,
     MANGO_API_SALT: optionalStr,
-    SHOW_DEMO_LOGINS: optionalStr
+    SHOW_DEMO_LOGINS: optionalStr,
   })
   .superRefine((env, ctx) => {
     const requireIf = (cond: boolean, key: keyof typeof env, message: string) => {
@@ -111,7 +110,7 @@ export const productionEnvSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['RESEND_API_KEY'],
-        message: PLACEHOLDER_MSG
+        message: PLACEHOLDER_MSG,
       });
     }
 
@@ -121,14 +120,22 @@ export const productionEnvSchema = z
     requireIf(imap, 'IMAP_PASSWORD', 'обязательна при INBOUND_EMAIL_ADAPTER=imap');
 
     const mangoOn = isTruthy(env.FEATURE_TELEPHONY_MANGO);
-    requireIf(mangoOn, 'MANGO_API_KEY', 'обязательна при FEATURE_TELEPHONY_MANGO (подпись вебхука fail-closed)');
-    requireIf(mangoOn, 'MANGO_API_SALT', 'обязательна при FEATURE_TELEPHONY_MANGO (подпись вебхука fail-closed)');
+    requireIf(
+      mangoOn,
+      'MANGO_API_KEY',
+      'обязательна при FEATURE_TELEPHONY_MANGO (подпись вебхука fail-closed)'
+    );
+    requireIf(
+      mangoOn,
+      'MANGO_API_SALT',
+      'обязательна при FEATURE_TELEPHONY_MANGO (подпись вебхука fail-closed)'
+    );
 
     if (isTruthy(env.SHOW_DEMO_LOGINS)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['SHOW_DEMO_LOGINS'],
-        message: 'НИКОГДА не включать в production — раскрытие демо-учёток на /login'
+        message: 'НИКОГДА не включать в production — раскрытие демо-учёток на /login',
       });
     }
   });
@@ -139,9 +146,7 @@ export interface EnvValidationResult {
   issues: string[];
 }
 
-export function validateProductionEnv(
-  env: NodeJS.ProcessEnv = process.env
-): EnvValidationResult {
+export function validateProductionEnv(env: NodeJS.ProcessEnv = process.env): EnvValidationResult {
   const parsed = productionEnvSchema.safeParse(env);
   if (parsed.success) return { ok: true, issues: [] };
   const issues = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`);

@@ -2,7 +2,12 @@ import { Prisma, type PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
-import { scopeLevelSchema, capabilitySchema, type ScopeLevel, type Capability } from '@/lib/auth/accessProfile';
+import {
+  scopeLevelSchema,
+  capabilitySchema,
+  type ScopeLevel,
+  type Capability,
+} from '@/lib/auth/accessProfile';
 
 /**
  * G1.4 — CRUD профилей доступа (конструктор ролей). Result-контракт (§3).
@@ -46,7 +51,7 @@ const inputSchema = z.object({
   finance: scopeLevelSchema,
   leads: scopeLevelSchema,
   tasks: scopeLevelSchema,
-  capabilities: z.array(capabilitySchema)
+  capabilities: z.array(capabilitySchema),
 });
 
 function canManageProfiles(session: SessionPayload): boolean {
@@ -70,7 +75,7 @@ function toColumns(input: z.infer<typeof inputSchema>) {
     financeScope: input.finance,
     leadsScope: input.leads,
     tasksScope: input.tasks,
-    capabilities: [...new Set(input.capabilities)]
+    capabilities: [...new Set(input.capabilities)],
   };
 }
 
@@ -81,14 +86,16 @@ function isUniqueViolation(e: unknown): boolean {
 export async function listAccessProfiles(
   prisma: PrismaClient,
   session: SessionPayload
-): Promise<{ ok: true; rows: AccessProfileListRow[] } | { ok: false; error: AccessProfileErrorCode }> {
+): Promise<
+  { ok: true; rows: AccessProfileListRow[] } | { ok: false; error: AccessProfileErrorCode }
+> {
   const gate = requireManager(session);
   if ('error' in gate) return { ok: false, error: gate.error };
 
   const profiles = await prisma.accessProfile.findMany({
     where: { companyId: gate.companyId },
     orderBy: { name: 'asc' },
-    include: { _count: { select: { users: true } } }
+    include: { _count: { select: { users: true } } },
   });
 
   return {
@@ -104,12 +111,17 @@ export async function listAccessProfiles(
       leads: p.leadsScope,
       tasks: p.tasksScope,
       capabilities: p.capabilities as Capability[],
-      usersCount: p._count.users
-    }))
+      usersCount: p._count.users,
+    })),
   };
 }
 
-export type AssignableUser = { id: string; name: string; email: string; accessProfileId: string | null };
+export type AssignableUser = {
+  id: string;
+  name: string;
+  email: string;
+  accessProfileId: string | null;
+};
 
 /** Менеджеры компании — кандидаты на назначение профиля (для UI-дропдауна). */
 export async function listAssignableUsers(
@@ -122,7 +134,7 @@ export async function listAssignableUsers(
   const rows = await prisma.user.findMany({
     where: { companyId: gate.companyId, role: 'manager' },
     select: { id: true, name: true, email: true, accessProfileId: true },
-    orderBy: { name: 'asc' }
+    orderBy: { name: 'asc' },
   });
   return { ok: true, rows };
 }
@@ -140,13 +152,15 @@ export async function createAccessProfile(
   try {
     const created = await prisma.$transaction(async (tx) => {
       const columns = toColumns(parsed.data);
-      const row = await tx.accessProfile.create({ data: { companyId: gate.companyId, ...columns } });
+      const row = await tx.accessProfile.create({
+        data: { companyId: gate.companyId, ...columns },
+      });
       await recordAudit(tx, {
         userId: session.sub,
         action: 'access_profile_created',
         entity: 'access_profile',
         entityId: row.id,
-        after: columns
+        after: columns,
       });
       return row;
     });
@@ -173,9 +187,17 @@ export async function updateAccessProfile(
       const before = await tx.accessProfile.findUnique({
         where: { id },
         select: {
-          companyId: true, name: true, ordersScope: true, organizationsScope: true,
-          threadsScope: true, documentsScope: true, financeScope: true, leadsScope: true, tasksScope: true, capabilities: true
-        }
+          companyId: true,
+          name: true,
+          ordersScope: true,
+          organizationsScope: true,
+          threadsScope: true,
+          documentsScope: true,
+          financeScope: true,
+          leadsScope: true,
+          tasksScope: true,
+          capabilities: true,
+        },
       });
       if (!before || before.companyId !== gate.companyId) throw new AccessProfileError('not_found');
 
@@ -187,7 +209,7 @@ export async function updateAccessProfile(
         entity: 'access_profile',
         entityId: id,
         before: { ...before, companyId: undefined },
-        after: columns
+        after: columns,
       });
     });
     return { ok: true };
@@ -208,7 +230,10 @@ export async function deleteAccessProfile(
 
   try {
     await prisma.$transaction(async (tx) => {
-      const before = await tx.accessProfile.findUnique({ where: { id }, select: { companyId: true, name: true } });
+      const before = await tx.accessProfile.findUnique({
+        where: { id },
+        select: { companyId: true, name: true },
+      });
       if (!before || before.companyId !== gate.companyId) throw new AccessProfileError('not_found');
       // User.accessProfileId FK is ON DELETE SET NULL → назначенные юзеры откатываются в legacy.
       await tx.accessProfile.delete({ where: { id } });
@@ -217,7 +242,7 @@ export async function deleteAccessProfile(
         action: 'access_profile_deleted',
         entity: 'access_profile',
         entityId: id,
-        before: { name: before.name }
+        before: { name: before.name },
       });
     });
     return { ok: true };
@@ -237,20 +262,30 @@ export async function assignUserProfile(
 
   try {
     await prisma.$transaction(async (tx) => {
-      const user = await tx.user.findUnique({ where: { id: args.userId }, select: { companyId: true, accessProfileId: true } });
+      const user = await tx.user.findUnique({
+        where: { id: args.userId },
+        select: { companyId: true, accessProfileId: true },
+      });
       if (!user || user.companyId !== gate.companyId) throw new AccessProfileError('not_found');
       if (args.profileId !== null) {
-        const profile = await tx.accessProfile.findUnique({ where: { id: args.profileId }, select: { companyId: true } });
-        if (!profile || profile.companyId !== gate.companyId) throw new AccessProfileError('not_found');
+        const profile = await tx.accessProfile.findUnique({
+          where: { id: args.profileId },
+          select: { companyId: true },
+        });
+        if (!profile || profile.companyId !== gate.companyId)
+          throw new AccessProfileError('not_found');
       }
-      await tx.user.update({ where: { id: args.userId }, data: { accessProfileId: args.profileId } });
+      await tx.user.update({
+        where: { id: args.userId },
+        data: { accessProfileId: args.profileId },
+      });
       await recordAudit(tx, {
         userId: session.sub,
         action: 'user_access_profile_assigned',
         entity: 'user',
         entityId: args.userId,
         before: { accessProfileId: user.accessProfileId },
-        after: { accessProfileId: args.profileId }
+        after: { accessProfileId: args.profileId },
       });
     });
     return { ok: true };

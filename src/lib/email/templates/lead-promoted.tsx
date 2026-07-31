@@ -8,13 +8,18 @@ export type LeadPromotedProps = {
   url: string;
 };
 
-export function LeadPromotedTemplate({ partnerName, leadSubject, orderNumber, url }: LeadPromotedProps) {
+export function LeadPromotedTemplate({
+  partnerName,
+  leadSubject,
+  orderNumber,
+  url,
+}: LeadPromotedProps) {
   return (
     <EmailLayout title="Заявка стала заказом">
       <p style={emailStyles.paragraph}>Здравствуйте, {partnerName}!</p>
       <p style={emailStyles.paragraph}>
-        Ваша заявка <strong>«{leadSubject}»</strong> стала заказом{' '}
-        <strong>{orderNumber}</strong>. Можно отслеживать прогресс в кабинете.
+        Ваша заявка <strong>«{leadSubject}»</strong> стала заказом <strong>{orderNumber}</strong>.
+        Можно отслеживать прогресс в кабинете.
       </p>
       <p style={emailStyles.paragraph}>
         <a href={url} style={emailStyles.button}>
@@ -32,7 +37,12 @@ export function leadPromotedSubject(orderNumber: string): string {
   return `Заявка стала заказом ${orderNumber}`;
 }
 
-export function leadPromotedText({ partnerName, leadSubject, orderNumber, url }: LeadPromotedProps): string {
+export function leadPromotedText({
+  partnerName,
+  leadSubject,
+  orderNumber,
+  url,
+}: LeadPromotedProps): string {
   return [
     `Здравствуйте, ${partnerName}!`,
     '',

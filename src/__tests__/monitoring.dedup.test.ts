@@ -16,7 +16,7 @@ describe('diffAlerts', () => {
 
   it('stays silent for a firing breach within cooldown', () => {
     const active: ActiveAlert[] = [
-      { key: 'dlq:x', lastNotifiedAt: new Date(now.getTime() - 60_000) }
+      { key: 'dlq:x', lastNotifiedAt: new Date(now.getTime() - 60_000) },
     ];
     const r = diffAlerts([breach('dlq:x')], active, now, COOLDOWN);
     expect(r.toFire).toEqual([]);
@@ -25,7 +25,7 @@ describe('diffAlerts', () => {
 
   it('re-notifies a firing breach past the cooldown', () => {
     const active: ActiveAlert[] = [
-      { key: 'dlq:x', lastNotifiedAt: new Date(now.getTime() - COOLDOWN - 1) }
+      { key: 'dlq:x', lastNotifiedAt: new Date(now.getTime() - COOLDOWN - 1) },
     ];
     const r = diffAlerts([breach('dlq:x')], active, now, COOLDOWN);
     expect(r.toRenotify.map((b) => b.key)).toEqual(['dlq:x']);

@@ -1,5 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { searchResolveOrgs, listResolveOrders } from '@/lib/services/import/oneCAccountCard/resolve-picker';
+import {
+  searchResolveOrgs,
+  listResolveOrders,
+} from '@/lib/services/import/oneCAccountCard/resolve-picker';
 
 const admin = { sub: 'a1', role: 'admin', companyId: 'c1' } as never;
 const manager = { sub: 'm1', role: 'manager', companyId: 'c1', managedOrgIds: ['orgA'] } as never;
@@ -11,7 +14,9 @@ describe('searchResolveOrgs', () => {
   it('returns [] for non-staff without querying', async () => {
     const prisma = { organization: { findMany: vi.fn() } } as never;
     expect(await searchResolveOrgs(prisma, partner, {})).toEqual([]);
-    expect((prisma as { organization: { findMany: ReturnType<typeof vi.fn> } }).organization.findMany).not.toHaveBeenCalled();
+    expect(
+      (prisma as { organization: { findMany: ReturnType<typeof vi.fn> } }).organization.findMany
+    ).not.toHaveBeenCalled();
   });
 
   it('admin without query searches all orgs (empty where)', async () => {
@@ -71,7 +76,9 @@ describe('listResolveOrders', () => {
     const prisma = { order: { findMany } } as never;
     const res = await listResolveOrders(prisma, admin, { organizationId: 'orgZ' });
     expect(res).toEqual([{ id: 'ord1', orderNumber: '12', title: 'Курс' }]);
-    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { organizationId: 'orgZ' } }));
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { organizationId: 'orgZ' } })
+    );
   });
 
   it('scoped manager lists orders for an in-scope org', async () => {
@@ -85,9 +92,11 @@ describe('listResolveOrders', () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const prisma = { order: { findMany } } as never;
     await listResolveOrders(prisma, leader, { organizationId: 'orgZ' });
-    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { organizationId: 'orgZ', organization: { companyId: 'c1' } },
-    }));
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { organizationId: 'orgZ', organization: { companyId: 'c1' } },
+      })
+    );
   });
 
   it('scoped manager gets [] for an out-of-scope org without querying', async () => {

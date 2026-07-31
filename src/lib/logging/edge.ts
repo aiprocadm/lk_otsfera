@@ -15,7 +15,7 @@ const CONSOLE_SINK: Record<Level, (...a: unknown[]) => void> = {
   debug: (...a) => console.debug(...a),
   info: (...a) => console.log(...a),
   warn: (...a) => console.warn(...a),
-  error: (...a) => console.error(...a)
+  error: (...a) => console.error(...a),
 };
 /* eslint-enable no-console */
 
@@ -26,7 +26,7 @@ function emit(level: Level, msg: string, args: unknown[]): void {
         level,
         time: Date.now(),
         msg,
-        ...(args.length ? { ctx: scrub(args.length === 1 ? args[0] : args) } : {})
+        ...(args.length ? { ctx: scrub(args.length === 1 ? args[0] : args) } : {}),
       })
     );
     return;
@@ -38,5 +38,5 @@ export const edgeLog = {
   debug: (msg: string, ...args: unknown[]) => emit('debug', msg, args),
   info: (msg: string, ...args: unknown[]) => emit('info', msg, args),
   warn: (msg: string, ...args: unknown[]) => emit('warn', msg, args),
-  error: (msg: string, ...args: unknown[]) => emit('error', msg, args)
+  error: (msg: string, ...args: unknown[]) => emit('error', msg, args),
 };

@@ -6,7 +6,10 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 const { setSlaSettingsAction } = vi.hoisted(() => ({ setSlaSettingsAction: vi.fn() }));
 vi.mock('@/server-actions/manager/slaSettings', () => ({ setSlaSettingsAction }));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 import { SlaSettingsCard } from '@/components/manager/sla-settings-card';
@@ -26,7 +29,10 @@ describe('SlaSettingsCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
 
     await waitFor(() =>
-      expect(setSlaSettingsAction).toHaveBeenCalledWith({ slaResponseHours: 48, slaWarningHours: 4 })
+      expect(setSlaSettingsAction).toHaveBeenCalledWith({
+        slaResponseHours: 48,
+        slaWarningHours: 4,
+      })
     );
     expect(toastSuccess).toHaveBeenCalledWith('Пороги SLA сохранены.');
   });
@@ -37,7 +43,11 @@ describe('SlaSettingsCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Пороги SLA не изменились.'));
 
-    setSlaSettingsAction.mockResolvedValue({ ok: false, error: 'validation', messages: ['Порог подсветки должен быть меньше'] });
+    setSlaSettingsAction.mockResolvedValue({
+      ok: false,
+      error: 'validation',
+      messages: ['Порог подсветки должен быть меньше'],
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('меньше'));
   });
@@ -46,6 +56,8 @@ describe('SlaSettingsCard', () => {
     setSlaSettingsAction.mockResolvedValue({ ok: false, error: 'no_company' });
     render(<SlaSettingsCard initial={{ slaResponseHours: 24, slaWarningHours: 4 }} />);
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
-    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Не удалось сохранить пороги SLA.'));
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith('Не удалось сохранить пороги SLA.')
+    );
   });
 });

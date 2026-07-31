@@ -24,7 +24,7 @@ export async function GET(req: Request): Promise<Response> {
 
   const limited = await isRateLimited(`suggest:party:${session.sub}`, {
     windowMs: RATE_WINDOW_MS,
-    max: RATE_MAX
+    max: RATE_MAX,
   });
   if (limited) {
     return NextResponse.json({ error: 'rate_limited' }, { status: 429 });

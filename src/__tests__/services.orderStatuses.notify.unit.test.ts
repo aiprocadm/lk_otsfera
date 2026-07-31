@@ -12,7 +12,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 
 const { notifyOrgUsers, notifyManagers } = vi.hoisted(() => ({
   notifyOrgUsers: vi.fn(),
-  notifyManagers: vi.fn()
+  notifyManagers: vi.fn(),
 }));
 vi.mock('@/lib/notifications', () => ({ notifyOrgUsers, notifyManagers }));
 
@@ -24,15 +24,31 @@ vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
 
 const { getOrderedStatuses, findByAnchor } = vi.hoisted(() => ({
   getOrderedStatuses: vi.fn(),
-  findByAnchor: vi.fn()
+  findByAnchor: vi.fn(),
 }));
 vi.mock('@/lib/services/orderStatuses/definitions', () => ({ getOrderedStatuses, findByAnchor }));
 
 import { transitionOrderStatus } from '@/lib/services/orderStatuses/transitions';
 
 const STATUSES = [
-  { id: 'd', key: 'draft', label: 'Черновик', sortOrder: 1, isActive: true, isTerminal: false, anchor: null },
-  { id: 'a', key: 'accepted', label: 'Принято в работу', sortOrder: 2, isActive: true, isTerminal: false, anchor: null }
+  {
+    id: 'd',
+    key: 'draft',
+    label: 'Черновик',
+    sortOrder: 1,
+    isActive: true,
+    isTerminal: false,
+    anchor: null,
+  },
+  {
+    id: 'a',
+    key: 'accepted',
+    label: 'Принято в работу',
+    sortOrder: 2,
+    isActive: true,
+    isTerminal: false,
+    anchor: null,
+  },
 ];
 
 const ORDER = {
@@ -46,14 +62,14 @@ const ORDER = {
   serviceType: 'document_development',
   accountingSignedAt: null,
   documents: [],
-  items: []
+  items: [],
 };
 
 function prismaStub() {
   return {
     order: { findUnique: async () => ORDER, update: async () => ORDER },
     orderStatusChange: { create: async () => ({}) },
-    user: { findUnique: async () => ({ name: 'Иванов' }) }
+    user: { findUnique: async () => ({ name: 'Иванов' }) },
   } as unknown as PrismaClient;
 }
 
@@ -95,9 +111,12 @@ describe('смена статуса — сбой рассылки коллега
   it('заявка без организации — клиентам не шлём, статус меняется', async () => {
     notifyManagers.mockResolvedValue(undefined);
     const prisma = {
-      order: { findUnique: async () => ({ ...ORDER, organizationId: null }), update: async () => ({}) },
+      order: {
+        findUnique: async () => ({ ...ORDER, organizationId: null }),
+        update: async () => ({}),
+      },
       orderStatusChange: { create: async () => ({}) },
-      user: { findUnique: async () => ({ name: 'Иванов' }) }
+      user: { findUnique: async () => ({ name: 'Иванов' }) },
     } as unknown as PrismaClient;
 
     const res = await transitionOrderStatus(prisma, admin, { orderId: 'o1', toId: 'a' });

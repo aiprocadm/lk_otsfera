@@ -6,14 +6,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { requireManager, revalidatePath, setOrderAccountingSigned } = vi.hoisted(() => ({
   requireManager: vi.fn(),
   revalidatePath: vi.fn(),
-  setOrderAccountingSigned: vi.fn()
+  setOrderAccountingSigned: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
 vi.mock('next/cache', () => ({ revalidatePath }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('@/lib/services/manager/orderLifecycle', () => ({
-  setOrderAccountingSigned
+  setOrderAccountingSigned,
 }));
 
 import { setOrderAccountingSignedAction } from '@/server-actions/manager/orderLifecycle';
@@ -38,7 +38,7 @@ describe('setOrderAccountingSignedAction', () => {
     expect(res).toEqual({ ok: true, changed: true });
     expect(setOrderAccountingSigned).toHaveBeenCalledWith(expect.anything(), SESSION, {
       orderId: 'o1',
-      signed: true
+      signed: true,
     });
     expect(revalidatePath).toHaveBeenCalledWith('/manager/orders/o1');
   });

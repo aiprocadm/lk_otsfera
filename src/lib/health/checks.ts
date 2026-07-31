@@ -23,16 +23,16 @@ export async function withTimeout(
       fn(),
       new Promise((_, reject) => {
         timer = setTimeout(() => reject(new Error('timeout')), timeoutMs);
-      })
+      }),
     ]);
     return { ok: true, ms: Date.now() - start };
   } catch (err) {
     return {
       ok: false,
       ms: Date.now() - start,
-      error: err instanceof Error ? err.message : String(err)
+      error: err instanceof Error ? err.message : String(err),
     };
-  /* v8 ignore next 2 -- V8 marks the finally-block as a branch point; the !timer path is unreachable because timer is always assigned synchronously inside new Promise before the race resolves */
+    /* v8 ignore next 2 -- V8 marks the finally-block as a branch point; the !timer path is unreachable because timer is always assigned synchronously inside new Promise before the race resolves */
   } finally {
     if (timer) clearTimeout(timer);
   }

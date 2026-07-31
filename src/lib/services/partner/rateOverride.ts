@@ -19,7 +19,7 @@ export async function setOrgCommissionRate(
 
   const org = await prisma.organization.findFirst({
     where: { id: input.organizationId, partnerId: input.partnerId },
-    select: { id: true, partnerCommissionRate: true }
+    select: { id: true, partnerCommissionRate: true },
   });
   if (!org) return { ok: false, error: 'not_found' };
 
@@ -30,8 +30,8 @@ export async function setOrgCommissionRate(
         partnerCommissionRate: input.newRate,
         partnerCommissionRateNote: input.reason,
         partnerCommissionRateChangedAt: new Date(),
-        partnerCommissionRateChangedBy: input.changedByUserId
-      }
+        partnerCommissionRateChangedBy: input.changedByUserId,
+      },
     });
     // F4 (A5): append-only история — расчёт ведомости берёт override на paidAt.
     await tx.organizationCommissionRateChange.create({
@@ -39,8 +39,8 @@ export async function setOrgCommissionRate(
         organizationId: input.organizationId,
         oldRate: org.partnerCommissionRate,
         newRate: input.newRate,
-        changedById: input.changedByUserId
-      }
+        changedById: input.changedByUserId,
+      },
     });
     await recordAudit(tx, {
       userId: input.changedByUserId,
@@ -62,7 +62,7 @@ export async function clearOrgCommissionRate(
 ): Promise<{ ok: true } | { ok: false; error: 'not_found' }> {
   const org = await prisma.organization.findFirst({
     where: { id: input.organizationId, partnerId: input.partnerId },
-    select: { id: true, partnerCommissionRate: true }
+    select: { id: true, partnerCommissionRate: true },
   });
   if (!org) return { ok: false, error: 'not_found' };
 
@@ -73,8 +73,8 @@ export async function clearOrgCommissionRate(
         partnerCommissionRate: null,
         partnerCommissionRateNote: null,
         partnerCommissionRateChangedAt: new Date(),
-        partnerCommissionRateChangedBy: input.changedByUserId
-      }
+        partnerCommissionRateChangedBy: input.changedByUserId,
+      },
     });
     // F4 (A5): событие «очистка» — newRate null (возврат к наследованию).
     await tx.organizationCommissionRateChange.create({
@@ -82,8 +82,8 @@ export async function clearOrgCommissionRate(
         organizationId: input.organizationId,
         oldRate: org.partnerCommissionRate,
         newRate: null,
-        changedById: input.changedByUserId
-      }
+        changedById: input.changedByUserId,
+      },
     });
     await recordAudit(tx, {
       userId: input.changedByUserId,

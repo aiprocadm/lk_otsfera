@@ -11,7 +11,7 @@ export default async function AdminRolesPage() {
   const session = await requireAdmin();
   const [profilesRes, usersRes] = await Promise.all([
     listAccessProfiles(prisma, session),
-    listAssignableUsers(prisma, session)
+    listAssignableUsers(prisma, session),
   ]);
   return (
     <RoleEditor

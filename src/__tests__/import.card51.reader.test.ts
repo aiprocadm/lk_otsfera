@@ -1,12 +1,21 @@
 import { describe, it, expect } from 'vitest';
 import ExcelJS from 'exceljs';
 import * as XLSX from 'xlsx';
-import { sniffFormat, readSpreadsheet } from '@/lib/services/import/oneCAccountCard/read-spreadsheet';
+import {
+  sniffFormat,
+  readSpreadsheet,
+} from '@/lib/services/import/oneCAccountCard/read-spreadsheet';
 
 describe('sniffFormat', () => {
-  it('detects xlsx by extension', () => { expect(sniffFormat('a.XLSX')).toBe('xlsx'); });
-  it('detects xls by extension', () => { expect(sniffFormat('a.xls')).toBe('xls'); });
-  it('falls back to xlsx for unknown', () => { expect(sniffFormat('a.bin')).toBe('xlsx'); });
+  it('detects xlsx by extension', () => {
+    expect(sniffFormat('a.XLSX')).toBe('xlsx');
+  });
+  it('detects xls by extension', () => {
+    expect(sniffFormat('a.xls')).toBe('xls');
+  });
+  it('falls back to xlsx for unknown', () => {
+    expect(sniffFormat('a.bin')).toBe('xlsx');
+  });
 });
 
 async function xlsxBuffer(): Promise<Buffer> {

@@ -9,27 +9,23 @@ export type ManagerOrderMarkedPaidBy1CProps = {
 };
 
 function fmtMoney(amount: number): string {
-  return (
-    new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(amount) +
-    ' ₽'
-  );
+  return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(amount) + ' ₽';
 }
 
 function fmtDate(d: Date): string {
   return new Intl.DateTimeFormat('ru-RU', {
     day: '2-digit',
     month: '2-digit',
-    year: 'numeric'
+    year: 'numeric',
   }).format(d);
 }
 
 export function ManagerOrderMarkedPaidBy1C(props: ManagerOrderMarkedPaidBy1CProps) {
   return (
-    <EmailLayout title='Получена оплата (1С)'>
+    <EmailLayout title="Получена оплата (1С)">
       <p style={emailStyles.paragraph}>
         По заказу <strong>№ {props.orderNumber}</strong> получена оплата{' '}
-        <strong>{fmtMoney(props.amount)}</strong> от{' '}
-        {fmtDate(props.paidAt)} (отметка 1С).
+        <strong>{fmtMoney(props.amount)}</strong> от {fmtDate(props.paidAt)} (отметка 1С).
       </p>
       <p style={emailStyles.paragraph}>
         <a href={props.orderUrl} style={emailStyles.button}>
@@ -43,18 +39,14 @@ export function ManagerOrderMarkedPaidBy1C(props: ManagerOrderMarkedPaidBy1CProp
   );
 }
 
-export function managerOrderMarkedPaidBy1CSubject(
-  props: ManagerOrderMarkedPaidBy1CProps
-): string {
+export function managerOrderMarkedPaidBy1CSubject(props: ManagerOrderMarkedPaidBy1CProps): string {
   return `Получена оплата ${fmtMoney(props.amount)} по заказу № ${props.orderNumber}`;
 }
 
-export function managerOrderMarkedPaidBy1CText(
-  props: ManagerOrderMarkedPaidBy1CProps
-): string {
+export function managerOrderMarkedPaidBy1CText(props: ManagerOrderMarkedPaidBy1CProps): string {
   return [
     `По заказу № ${props.orderNumber} получена оплата ${fmtMoney(props.amount)} от ${fmtDate(props.paidAt)} (отметка 1С).`,
     '',
-    `Открыть заказ: ${props.orderUrl}`
+    `Открыть заказ: ${props.orderUrl}`,
   ].join('\n');
 }

@@ -33,7 +33,9 @@ import { previewImport, commitImport } from '@/lib/services/import';
 function makePrisma() {
   return {
     organization: {
-      findFirst: vi.fn().mockResolvedValue({ id: 'org-1', partnerId: 'p-1', companyId: 'co-1', externalId: null }),
+      findFirst: vi
+        .fn()
+        .mockResolvedValue({ id: 'org-1', partnerId: 'p-1', companyId: 'co-1', externalId: null }),
       findMany: vi.fn().mockResolvedValue([]),
       update: vi.fn().mockResolvedValue({}),
     },
@@ -66,19 +68,38 @@ function makeAdapter(orders: unknown[], payments: unknown[]) {
   };
 }
 
-const managerSession = { sub: 'u1', role: 'manager', managerRole: 'leader', companyId: 'co-1' } as any;
+const managerSession = {
+  sub: 'u1',
+  role: 'manager',
+  managerRole: 'leader',
+  companyId: 'co-1',
+} as any;
 const adminSession = { sub: 'admin1', role: 'admin', companyId: 'co-1' } as any;
 
-const EMPTY_SUMMARY = () => ({ pulled: 0, created: 0, updated: 0, skipped: 0, invalid: 0, failed: 0, skips: [], invalids: [], failures: [] });
+const EMPTY_SUMMARY = () => ({
+  pulled: 0,
+  created: 0,
+  updated: 0,
+  skipped: 0,
+  invalid: 0,
+  failed: 0,
+  skips: [],
+  invalids: [],
+  failures: [],
+});
 
 describe('previewImport', () => {
   it('rejects non-staff roles', async () => {
-    const res = await previewImport({} as any, { role: 'partner' } as any, { fileBuffer: Buffer.from('') });
+    const res = await previewImport({} as any, { role: 'partner' } as any, {
+      fileBuffer: Buffer.from(''),
+    });
     expect(res).toEqual({ ok: false, error: 'forbidden' });
   });
 
   it('rejects organization role', async () => {
-    const res = await previewImport({} as any, { role: 'organization' } as any, { fileBuffer: Buffer.from('') });
+    const res = await previewImport({} as any, { role: 'organization' } as any, {
+      fileBuffer: Buffer.from(''),
+    });
     expect(res).toEqual({ ok: false, error: 'forbidden' });
   });
 
@@ -111,7 +132,7 @@ describe('previewImport', () => {
     const orderSummary = { ...EMPTY_SUMMARY(), pulled: 1, created: 1 };
     const paymentSummary = EMPTY_SUMMARY();
     runRecordBatch
-      .mockResolvedValueOnce(orderSummary)  // orders
+      .mockResolvedValueOnce(orderSummary) // orders
       .mockResolvedValueOnce(paymentSummary); // payments
 
     const prisma = makePrisma();
@@ -137,7 +158,9 @@ describe('previewImport', () => {
 
 describe('commitImport', () => {
   it('rejects non-staff roles', async () => {
-    const res = await commitImport({} as any, { role: 'partner' } as any, { fileBuffer: Buffer.from('') });
+    const res = await commitImport({} as any, { role: 'partner' } as any, {
+      fileBuffer: Buffer.from(''),
+    });
     expect(res).toEqual({ ok: false, error: 'forbidden' });
   });
 
@@ -147,9 +170,7 @@ describe('commitImport', () => {
 
     const orderSummary = { ...EMPTY_SUMMARY(), pulled: 1, created: 1 };
     const paymentSummary = EMPTY_SUMMARY();
-    runRecordBatch
-      .mockResolvedValueOnce(orderSummary)
-      .mockResolvedValueOnce(paymentSummary);
+    runRecordBatch.mockResolvedValueOnce(orderSummary).mockResolvedValueOnce(paymentSummary);
 
     recordAudit.mockResolvedValue(undefined);
 
@@ -159,7 +180,7 @@ describe('commitImport', () => {
     expect(res).toEqual({ ok: true, report: { orders: orderSummary, payments: paymentSummary } });
     expect(recordAudit).toHaveBeenCalledWith(
       prisma,
-      expect.objectContaining({ action: 'one_c_import.commit', entity: 'one_c_import' }),
+      expect.objectContaining({ action: 'one_c_import.commit', entity: 'one_c_import' })
     );
   });
 
@@ -169,9 +190,7 @@ describe('commitImport', () => {
 
     const orderSummary = { ...EMPTY_SUMMARY(), pulled: 1, updated: 1 };
     const paymentSummary = EMPTY_SUMMARY();
-    runRecordBatch
-      .mockResolvedValueOnce(orderSummary)
-      .mockResolvedValueOnce(paymentSummary);
+    runRecordBatch.mockResolvedValueOnce(orderSummary).mockResolvedValueOnce(paymentSummary);
 
     recordAudit.mockRejectedValue(new Error('audit db down'));
 

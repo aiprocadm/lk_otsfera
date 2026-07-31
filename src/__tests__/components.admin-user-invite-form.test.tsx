@@ -13,15 +13,15 @@ import { UserInviteForm } from '@/components/admin/user-invite-form';
 
 const PARTNERS = [
   { id: 'p1', name: 'Партнёр А' },
-  { id: 'p2', name: 'Партнёр Б' }
+  { id: 'p2', name: 'Партнёр Б' },
 ];
 
 function fillCommonFields() {
   fireEvent.change(document.querySelector('input[name="email"]') as HTMLInputElement, {
-    target: { value: 'new@x.com' }
+    target: { value: 'new@x.com' },
   });
   fireEvent.change(document.querySelector('input[name="name"]') as HTMLInputElement, {
-    target: { value: 'Новый' }
+    target: { value: 'Новый' },
   });
 }
 
@@ -60,7 +60,7 @@ describe('UserInviteForm', () => {
     createUserAction.mockResolvedValue({
       ok: true,
       user: { id: 'u1', email: 'new@x.com' },
-      inviteUrl: 'https://app/invite/u1'
+      inviteUrl: 'https://app/invite/u1',
     });
     render(React.createElement(UserInviteForm, { partners: PARTNERS }));
     fillCommonFields();
@@ -78,7 +78,7 @@ describe('UserInviteForm', () => {
     createUserAction.mockResolvedValue({
       ok: true,
       user: { id: 'u1', email: 'new@x.com' },
-      inviteUrl: 'https://app/invite/u1'
+      inviteUrl: 'https://app/invite/u1',
     });
     render(React.createElement(UserInviteForm, { partners: PARTNERS }));
     fillCommonFields();
@@ -108,13 +108,19 @@ describe('UserInviteForm', () => {
 
   it('busy state shows "Создаю…" and disables the submit button', async () => {
     let resolvePromise: (v: unknown) => void = () => {};
-    createUserAction.mockReturnValue(new Promise((resolve) => { resolvePromise = resolve; }));
+    createUserAction.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePromise = resolve;
+      })
+    );
     render(React.createElement(UserInviteForm, { partners: PARTNERS }));
     fillCommonFields();
     fireEvent.click(screen.getByRole('button', { name: 'Пригласить' }));
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Создаю…' })).toBeTruthy());
-    expect((screen.getByRole('button', { name: 'Создаю…' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Создаю…' }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
     resolvePromise({ ok: true, user: { id: 'u1', email: 'new@x.com' }, inviteUrl: 'u' });
     await waitFor(() => expect(screen.getByRole('status')).toBeTruthy());
   });

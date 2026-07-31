@@ -9,7 +9,7 @@ const c = new S3Client({
   endpoint: ENDPOINT || 'http://localhost:9000',
   region: 'ru-central1',
   credentials: { accessKeyId: 'minioadmin', secretAccessKey: 'minioadmin' },
-  forcePathStyle: true
+  forcePathStyle: true,
 });
 
 describe.skipIf(!ENDPOINT)('S3Storage round-trip (MinIO)', () => {

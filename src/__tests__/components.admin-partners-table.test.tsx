@@ -3,13 +3,20 @@ import { renderToString } from 'react-dom/server';
 import React from 'react';
 
 vi.mock('next/link', () => ({
-  default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) =>
-    React.createElement('a', { href, className }, children)
+  default: ({
+    href,
+    children,
+    className,
+  }: {
+    href: string;
+    children: React.ReactNode;
+    className?: string;
+  }) => React.createElement('a', { href, className }, children),
 }));
 
 vi.mock('@/server-actions/admin/partners', () => ({
   deactivatePartnerFormAction: vi.fn(),
-  reactivatePartnerFormAction: vi.fn()
+  reactivatePartnerFormAction: vi.fn(),
 }));
 
 import { PartnersTable } from '@/components/admin/partners-table';
@@ -24,7 +31,7 @@ function makeRow(overrides: Partial<PartnerRow> = {}): PartnerRow {
     isActive: true,
     activeOrgCount: 3,
     paidYTD: '150000',
-    ...overrides
+    ...overrides,
   };
 }
 

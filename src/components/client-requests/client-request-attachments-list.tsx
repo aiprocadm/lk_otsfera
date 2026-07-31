@@ -27,7 +27,7 @@ function fmtDate(iso: string): string {
     month: '2-digit',
     year: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
   }).format(new Date(iso));
 }
 
@@ -53,7 +53,7 @@ export function ClientRequestAttachmentsList({ requestId, rows }: Props) {
     setBusyId(id);
     try {
       const res = await fetch(`/api/client-requests/${requestId}/attachments/${id}/download`, {
-        method: 'POST'
+        method: 'POST',
       });
       if (!res.ok) {
         if (res.status === 410) setError('Файл помещён в карантин антивирусом');
@@ -73,30 +73,30 @@ export function ClientRequestAttachmentsList({ requestId, rows }: Props) {
   }
 
   if (rows.length === 0) {
-    return <div className='text-sm text-gray-500'>Пока нет вложений</div>;
+    return <div className="text-sm text-gray-500">Пока нет вложений</div>;
   }
 
   return (
-    <div className='space-y-2'>
-      <ul className='space-y-1'>
+    <div className="space-y-2">
+      <ul className="space-y-1">
         {rows.map((r) => (
           <li
             key={r.id}
-            className='flex items-center gap-3 px-3 py-2 bg-white border border-gray-200 rounded-lg'
+            className="flex items-center gap-3 px-3 py-2 bg-white border border-gray-200 rounded-lg"
           >
-            <span className='inline-flex items-center justify-center min-w-12 px-2 h-6 text-[10px] font-semibold rounded bg-gray-100 text-gray-700'>
+            <span className="inline-flex items-center justify-center min-w-12 px-2 h-6 text-[10px] font-semibold rounded bg-gray-100 text-gray-700">
               {mimeIcon(r.mimeType)}
             </span>
-            <div className='flex-1 min-w-0'>
+            <div className="flex-1 min-w-0">
               <button
-                type='button'
+                type="button"
                 onClick={() => download(r.id)}
                 disabled={busyId === r.id}
-                className='text-sm text-[#111111] hover:text-[#F97316] truncate block text-left disabled:opacity-50'
+                className="text-sm text-[#111111] hover:text-[#F97316] truncate block text-left disabled:opacity-50"
               >
                 {busyId === r.id ? 'Готовим ссылку…' : r.name}
               </button>
-              <div className='text-xs text-gray-500'>
+              <div className="text-xs text-gray-500">
                 {fmtSize(r.size)} · {fmtDate(r.createdAt)}
                 {r.createdByUserName && <> · {r.createdByUserName}</>}
               </div>
@@ -105,7 +105,7 @@ export function ClientRequestAttachmentsList({ requestId, rows }: Props) {
         ))}
       </ul>
       {error && (
-        <div className='text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2'>
+        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
           {error}
         </div>
       )}

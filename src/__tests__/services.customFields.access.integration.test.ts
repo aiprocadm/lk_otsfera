@@ -28,7 +28,7 @@ let partnerA: string;
 let orgA: string;
 let studentA: string;
 let orderA: string;
-let docA: string;        // документ заказа A
+let docA: string; // документ заказа A
 let generalDocA: string; // общий документ организации A
 
 // Контур B (чужой)
@@ -46,10 +46,10 @@ let partnerBUserId: string;
 let orgAUserId: string;
 
 // Определения
-let defOrgId: string;      // организация, правит только admin+leader (дефолт)
-let defOrderId: string;    // заявка, правит только admin+leader (дефолт)
-let defStudentId: string;  // сотрудник, правит организация
-let defDocId: string;      // документ, видит только admin
+let defOrgId: string; // организация, правит только admin+leader (дефолт)
+let defOrderId: string; // заявка, правит только admin+leader (дефолт)
+let defStudentId: string; // сотрудник, правит организация
+let defDocId: string; // документ, видит только admin
 
 function sess(userId: string, role: string, extra: Partial<SessionPayload> = {}): SessionPayload {
   return { sub: userId, role: role as SessionPayload['role'], ...extra } as SessionPayload;
@@ -71,80 +71,124 @@ beforeAll(async () => {
   companyA = (await prisma.company.create({ data: { name: `CFA-CoA-${S}` } })).id;
   companyB = (await prisma.company.create({ data: { name: `CFA-CoB-${S}` } })).id;
 
-  partnerA = (await prisma.partner.create({ data: { name: `CFA-PA-${S}`, commissionRate: 0.1 } })).id;
-  partnerB = (await prisma.partner.create({ data: { name: `CFA-PB-${S}`, commissionRate: 0.1 } })).id;
+  partnerA = (await prisma.partner.create({ data: { name: `CFA-PA-${S}`, commissionRate: 0.1 } }))
+    .id;
+  partnerB = (await prisma.partner.create({ data: { name: `CFA-PB-${S}`, commissionRate: 0.1 } }))
+    .id;
 
-  orgA = (await prisma.organization.create({
-    data: { name: `CFA-OrgA-${S}`, partnerId: partnerA, companyId: companyA }
-  })).id;
-  orgB = (await prisma.organization.create({
-    data: { name: `CFA-OrgB-${S}`, partnerId: partnerB, companyId: companyB }
-  })).id;
+  orgA = (
+    await prisma.organization.create({
+      data: { name: `CFA-OrgA-${S}`, partnerId: partnerA, companyId: companyA },
+    })
+  ).id;
+  orgB = (
+    await prisma.organization.create({
+      data: { name: `CFA-OrgB-${S}`, partnerId: partnerB, companyId: companyB },
+    })
+  ).id;
 
   await prisma.organizationManager.create({
-    data: { organizationId: orgA, userId: managerAId, isActive: true }
+    data: { organizationId: orgA, userId: managerAId, isActive: true },
   });
 
-  studentA = (await prisma.student.create({
-    data: { name: `CFA-Student-${S}`, email: `cfa-student-${S}@t.local`, organizationId: orgA }
-  })).id;
+  studentA = (
+    await prisma.student.create({
+      data: { name: `CFA-Student-${S}`, email: `cfa-student-${S}@t.local`, organizationId: orgA },
+    })
+  ).id;
 
-  orderA = (await prisma.order.create({
-    data: {
-      title: `CFA-OrderA-${S}`, orderNumber: `CFA-ONA-${S}`,
-      companyId: companyA, partnerId: partnerA, organizationId: orgA,
-      executionStatus: 'in_progress'
-    }
-  })).id;
+  orderA = (
+    await prisma.order.create({
+      data: {
+        title: `CFA-OrderA-${S}`,
+        orderNumber: `CFA-ONA-${S}`,
+        companyId: companyA,
+        partnerId: partnerA,
+        organizationId: orgA,
+        executionStatus: 'in_progress',
+      },
+    })
+  ).id;
 
-  orderB = (await prisma.order.create({
-    data: {
-      title: `CFA-OrderB-${S}`, orderNumber: `CFA-ONB-${S}`,
-      companyId: companyB, partnerId: partnerB, organizationId: orgB,
-      executionStatus: 'in_progress'
-    }
-  })).id;
+  orderB = (
+    await prisma.order.create({
+      data: {
+        title: `CFA-OrderB-${S}`,
+        orderNumber: `CFA-ONB-${S}`,
+        companyId: companyB,
+        partnerId: partnerB,
+        organizationId: orgB,
+        executionStatus: 'in_progress',
+      },
+    })
+  ).id;
 
-  docA = (await prisma.document.create({
-    data: {
-      name: `CFA-DocA-${S}`, path: `p/${S}/a`, mimeType: 'application/pdf',
-      counterpartyType: 'organization', counterpartyId: orgA, orderId: orderA
-    }
-  })).id;
+  docA = (
+    await prisma.document.create({
+      data: {
+        name: `CFA-DocA-${S}`,
+        path: `p/${S}/a`,
+        mimeType: 'application/pdf',
+        counterpartyType: 'organization',
+        counterpartyId: orgA,
+        orderId: orderA,
+      },
+    })
+  ).id;
 
-  generalDocA = (await prisma.document.create({
-    data: {
-      name: `CFA-GenDocA-${S}`, path: `p/${S}/gen`, mimeType: 'application/pdf',
-      counterpartyType: 'organization', counterpartyId: orgA, companyId: companyA
-    }
-  })).id;
+  generalDocA = (
+    await prisma.document.create({
+      data: {
+        name: `CFA-GenDocA-${S}`,
+        path: `p/${S}/gen`,
+        mimeType: 'application/pdf',
+        counterpartyType: 'organization',
+        counterpartyId: orgA,
+        companyId: companyA,
+      },
+    })
+  ).id;
 
   const admin = sess(adminId, 'admin');
 
   const dOrg = await createDefinition(prisma, admin, {
-    entityType: 'organization', key: `cfa_org_note_${S}`, label: 'Заметка по организации',
-    fieldType: 'text', sortOrder: 1
+    entityType: 'organization',
+    key: `cfa_org_note_${S}`,
+    label: 'Заметка по организации',
+    fieldType: 'text',
+    sortOrder: 1,
   });
   if (!dOrg.ok) throw new Error(`org def: ${dOrg.error}`);
   defOrgId = dOrg.definition.id;
 
   const dOrder = await createDefinition(prisma, admin, {
-    entityType: 'order', key: `cfa_order_note_${S}`, label: 'Заметка по заявке',
-    fieldType: 'text', sortOrder: 1
+    entityType: 'order',
+    key: `cfa_order_note_${S}`,
+    label: 'Заметка по заявке',
+    fieldType: 'text',
+    sortOrder: 1,
   });
   if (!dOrder.ok) throw new Error(`order def: ${dOrder.error}`);
   defOrderId = dOrder.definition.id;
 
   const dStudent = await createDefinition(prisma, admin, {
-    entityType: 'student', key: `cfa_student_note_${S}`, label: 'Заметка по сотруднику',
-    fieldType: 'textarea', sortOrder: 1, editableByRoles: ['organization']
+    entityType: 'student',
+    key: `cfa_student_note_${S}`,
+    label: 'Заметка по сотруднику',
+    fieldType: 'textarea',
+    sortOrder: 1,
+    editableByRoles: ['organization'],
   });
   if (!dStudent.ok) throw new Error(`student def: ${dStudent.error}`);
   defStudentId = dStudent.definition.id;
 
   const dDoc = await createDefinition(prisma, admin, {
-    entityType: 'document', key: `cfa_doc_note_${S}`, label: 'Служебная пометка',
-    fieldType: 'text', sortOrder: 1, visibleToRoles: ['admin']
+    entityType: 'document',
+    key: `cfa_doc_note_${S}`,
+    label: 'Служебная пометка',
+    fieldType: 'text',
+    sortOrder: 1,
+    visibleToRoles: ['admin'],
   });
   if (!dDoc.ok) throw new Error(`doc def: ${dDoc.error}`);
   defDocId = dDoc.definition.id;
@@ -152,10 +196,10 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await prisma.customFieldValue.deleteMany({
-    where: { definitionId: { in: [defOrgId, defOrderId, defStudentId, defDocId] } }
+    where: { definitionId: { in: [defOrgId, defOrderId, defStudentId, defDocId] } },
   });
   await prisma.customFieldDefinition.deleteMany({
-    where: { id: { in: [defOrgId, defOrderId, defStudentId, defDocId] } }
+    where: { id: { in: [defOrgId, defOrderId, defStudentId, defDocId] } },
   });
   await prisma.document.deleteMany({ where: { name: { startsWith: `CFA-` } } });
   await prisma.order.deleteMany({ where: { title: { startsWith: `CFA-` } } });
@@ -164,7 +208,9 @@ afterAll(async () => {
   await prisma.organization.deleteMany({ where: { name: { startsWith: `CFA-` } } });
   await prisma.partner.deleteMany({ where: { name: { startsWith: `CFA-` } } });
   await prisma.auditLog.deleteMany({
-    where: { userId: { in: [adminId, managerAId, leaderAId, partnerAUserId, partnerBUserId, orgAUserId] } }
+    where: {
+      userId: { in: [adminId, managerAId, leaderAId, partnerAUserId, partnerBUserId, orgAUserId] },
+    },
   });
   await prisma.user.deleteMany({ where: { email: { contains: `cfa-` } } });
   await prisma.company.deleteMany({ where: { name: { startsWith: `CFA-Co` } } });
@@ -305,9 +351,13 @@ describe('resolveEntityAccess — документ', () => {
   it('общий документ партнёра: доступ по контрагенту-партнёру', async () => {
     const generalDocP = await prisma.document.create({
       data: {
-        name: `CFA-GenDocP-${S}`, path: `p/${S}/genp`, mimeType: 'application/pdf',
-        counterpartyType: 'partner', counterpartyId: partnerA, companyId: companyA
-      }
+        name: `CFA-GenDocP-${S}`,
+        path: `p/${S}/genp`,
+        mimeType: 'application/pdf',
+        counterpartyType: 'partner',
+        counterpartyId: partnerA,
+        companyId: companyA,
+      },
     });
     const pa = sess(partnerAUserId, 'partner', { partnerId: partnerA });
     const pb = sess(partnerBUserId, 'partner', { partnerId: partnerB });
@@ -321,15 +371,21 @@ describe('resolveEntityAccess — документ', () => {
     // (organizationMemberships) и assignedOrgIds. Проверяем все, иначе часть
     // клиентов «внезапно» теряет доступ при смене способа входа.
     const byMembership = sess(orgAUserId, 'organization', {
-      organizationMemberships: [{ organizationId: orgA, roleInOrg: 'member', isActive: true }]
+      organizationMemberships: [{ organizationId: orgA, roleInOrg: 'member', isActive: true }],
     });
     const byAssigned = sess(orgAUserId, 'organization', { assignedOrgIds: [orgA] });
     const inactiveMembership = sess(orgAUserId, 'organization', {
-      organizationMemberships: [{ organizationId: orgA, roleInOrg: 'member', isActive: false }]
+      organizationMemberships: [{ organizationId: orgA, roleInOrg: 'member', isActive: false }],
     });
-    expect((await resolveEntityAccess(prisma, byMembership, 'organization', orgA)).canRead).toBe(true);
-    expect((await resolveEntityAccess(prisma, byAssigned, 'organization', orgA)).canRead).toBe(true);
-    expect((await resolveEntityAccess(prisma, inactiveMembership, 'organization', orgA)).canRead).toBe(false);
+    expect((await resolveEntityAccess(prisma, byMembership, 'organization', orgA)).canRead).toBe(
+      true
+    );
+    expect((await resolveEntityAccess(prisma, byAssigned, 'organization', orgA)).canRead).toBe(
+      true
+    );
+    expect(
+      (await resolveEntityAccess(prisma, inactiveMembership, 'organization', orgA)).canRead
+    ).toBe(false);
   });
 
   it('менеджер без компании к карточке партнёра не допускается', async () => {
@@ -369,7 +425,9 @@ describe('setValues — скоуп и роль перемножаются', () =
 
   it('руководитель правит по дефолту (заявка своей компании)', async () => {
     const leader = sess(leaderAId, 'manager', { companyId: companyA, managerRole: 'leader' });
-    const res = await setValues(prisma, leader, 'order', orderA, { [defOrderId]: 'от руководителя' });
+    const res = await setValues(prisma, leader, 'order', orderA, {
+      [defOrderId]: 'от руководителя',
+    });
     expect(res).toEqual({ ok: true });
   });
 
@@ -379,7 +437,9 @@ describe('setValues — скоуп и роль перемножаются', () =
     // ни открыть карточку, ни заполнить поля §11, хотя §4 ТЗ даёт ему настройку
     // полей. Граница компании при этом сохраняется — см. следующую проверку.
     const leader = sess(leaderAId, 'manager', { companyId: companyA, managerRole: 'leader' });
-    const res = await setValues(prisma, leader, 'organization', orgA, { [defOrgId]: 'от руководителя' });
+    const res = await setValues(prisma, leader, 'organization', orgA, {
+      [defOrgId]: 'от руководителя',
+    });
     expect(res).toEqual({ ok: true });
   });
 
@@ -396,7 +456,7 @@ describe('setValues — скоуп и роль перемножаются', () =
 
     // и значение в базе не изменилось
     const row = await prisma.customFieldValue.findUnique({
-      where: { definitionId_entityId: { definitionId: defOrgId, entityId: orgA } }
+      where: { definitionId_entityId: { definitionId: defOrgId, entityId: orgA } },
     });
     expect(row?.value).toBe('от руководителя');
   });
@@ -404,20 +464,24 @@ describe('setValues — скоуп и роль перемножаются', () =
   it('деактивированное поле не пишется, но и не роняет сохранение', async () => {
     const admin = sess(adminId, 'admin');
     const dOff = await createDefinition(prisma, admin, {
-      entityType: 'organization', key: `cfa_off_${S}`, label: 'Выключенное',
-      fieldType: 'text', sortOrder: 9
+      entityType: 'organization',
+      key: `cfa_off_${S}`,
+      label: 'Выключенное',
+      fieldType: 'text',
+      sortOrder: 9,
     });
     if (!dOff.ok) throw new Error('unexpected');
     await prisma.customFieldDefinition.update({
-      where: { id: dOff.definition.id }, data: { isActive: false }
+      where: { id: dOff.definition.id },
+      data: { isActive: false },
     });
 
     const res = await setValues(prisma, admin, 'organization', orgA, {
-      [dOff.definition.id]: 'мимо'
+      [dOff.definition.id]: 'мимо',
     });
     expect(res).toEqual({ ok: true });
     const row = await prisma.customFieldValue.findUnique({
-      where: { definitionId_entityId: { definitionId: dOff.definition.id, entityId: orgA } }
+      where: { definitionId_entityId: { definitionId: dOff.definition.id, entityId: orgA } },
     });
     expect(row).toBeNull();
 

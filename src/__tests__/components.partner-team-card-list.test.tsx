@@ -4,7 +4,7 @@ import React from 'react';
 
 vi.mock('@/components/partner/member-row-actions', () => ({
   MemberRowActions: ({ userId }: { userId: string }) =>
-    React.createElement('button', { 'data-testid': `actions-${userId}` }, 'actions')
+    React.createElement('button', { 'data-testid': `actions-${userId}` }, 'actions'),
 }));
 
 // InviteResendButtons — 'use client' с server-action импортом; для SSR-string
@@ -20,7 +20,7 @@ const orgs = [
   { id: 'org3', name: 'ООО Третья' },
   { id: 'org4', name: 'ООО Четвёртая' },
   { id: 'org5', name: 'ООО Пятая' },
-  { id: 'org6', name: 'ООО Шестая' }
+  { id: 'org6', name: 'ООО Шестая' },
 ];
 
 function makeRow(overrides: Partial<TeamRow> = {}): TeamRow {
@@ -35,13 +35,15 @@ function makeRow(overrides: Partial<TeamRow> = {}): TeamRow {
     invitePending: false,
     createdAt: new Date('2026-01-01'),
     lastLoginAt: null,
-    ...overrides
+    ...overrides,
   };
 }
 
 describe('TeamCardList', () => {
   it('renders null (nothing) when rows is empty', () => {
-    const html = renderToString(React.createElement(TeamCardList, { rows: [], orgs, currentUserId: 'me' }));
+    const html = renderToString(
+      React.createElement(TeamCardList, { rows: [], orgs, currentUserId: 'me' })
+    );
     expect(html).toBe('');
   });
 
@@ -57,14 +59,22 @@ describe('TeamCardList', () => {
 
   it('renders admin role badge for roleInPartner=admin', () => {
     const html = renderToString(
-      React.createElement(TeamCardList, { rows: [makeRow({ roleInPartner: 'admin' })], orgs, currentUserId: 'me' })
+      React.createElement(TeamCardList, {
+        rows: [makeRow({ roleInPartner: 'admin' })],
+        orgs,
+        currentUserId: 'me',
+      })
     );
     expect(html).toContain('Админ');
   });
 
   it('marks the current user with "(вы)" and omits the actions button for self', () => {
     const html = renderToString(
-      React.createElement(TeamCardList, { rows: [makeRow({ userId: 'me' })], orgs, currentUserId: 'me' })
+      React.createElement(TeamCardList, {
+        rows: [makeRow({ userId: 'me' })],
+        orgs,
+        currentUserId: 'me',
+      })
     );
     expect(html).toContain('(вы)');
     expect(html).not.toContain('data-testid="actions-me"');
@@ -72,7 +82,11 @@ describe('TeamCardList', () => {
 
   it('renders the deactivated label and dims the row for inactive members, omitting the actions button', () => {
     const html = renderToString(
-      React.createElement(TeamCardList, { rows: [makeRow({ isActive: false })], orgs, currentUserId: 'me' })
+      React.createElement(TeamCardList, {
+        rows: [makeRow({ isActive: false })],
+        orgs,
+        currentUserId: 'me',
+      })
     );
     expect(html).toContain('opacity-60');
     expect(html).toContain('деактивирован');
@@ -81,7 +95,11 @@ describe('TeamCardList', () => {
 
   it('renders MemberRowActions for an active non-self member', () => {
     const html = renderToString(
-      React.createElement(TeamCardList, { rows: [makeRow({ userId: 'other' })], orgs, currentUserId: 'me' })
+      React.createElement(TeamCardList, {
+        rows: [makeRow({ userId: 'other' })],
+        orgs,
+        currentUserId: 'me',
+      })
     );
     expect(html).toContain('data-testid="actions-other"');
   });
@@ -91,7 +109,7 @@ describe('TeamCardList', () => {
       React.createElement(TeamCardList, {
         rows: [makeRow({ assignedOrgIds: ['org1', 'org2'] })],
         orgs,
-        currentUserId: 'me'
+        currentUserId: 'me',
       })
     );
     expect(html).toContain('ООО Ромашка, ООО Вторая');
@@ -102,7 +120,7 @@ describe('TeamCardList', () => {
       React.createElement(TeamCardList, {
         rows: [makeRow({ assignedOrgIds: ['unknown1', 'unknown2'] })],
         orgs,
-        currentUserId: 'me'
+        currentUserId: 'me',
       })
     );
     expect(html).toContain('Доступ: <!-- -->—');
@@ -113,7 +131,7 @@ describe('TeamCardList', () => {
       React.createElement(TeamCardList, {
         rows: [makeRow({ assignedOrgIds: ['org1', 'org2', 'org3'] })],
         orgs,
-        currentUserId: 'me'
+        currentUserId: 'me',
       })
     );
     expect(html).toContain('3');
@@ -125,7 +143,7 @@ describe('TeamCardList', () => {
       React.createElement(TeamCardList, {
         rows: [makeRow({ assignedOrgIds: ['org1', 'org2', 'org3', 'org4', 'org5'] })],
         orgs,
-        currentUserId: 'me'
+        currentUserId: 'me',
       })
     );
     expect(html).toContain('5');
@@ -138,7 +156,7 @@ describe('TeamCardList', () => {
       React.createElement(TeamCardList, {
         rows: [makeRow({ userId: 'other', invitePending: true })],
         orgs,
-        currentUserId: 'me'
+        currentUserId: 'me',
       })
     );
     expect(html).toContain('Ожидает установки пароля');
@@ -151,7 +169,7 @@ describe('TeamCardList', () => {
       React.createElement(TeamCardList, {
         rows: [makeRow({ userId: 'me', invitePending: true })],
         orgs,
-        currentUserId: 'me'
+        currentUserId: 'me',
       })
     );
     expect(html).toContain('Ожидает установки пароля');
@@ -166,7 +184,7 @@ describe('TeamCardList', () => {
       React.createElement(TeamCardList, {
         rows: [makeRow({ lastLoginAt: new Date('2025-11-05T10:00:00Z') })],
         orgs,
-        currentUserId: 'me'
+        currentUserId: 'me',
       })
     );
     expect(html).toContain('Последний вход: <!-- -->05.11.2025');
@@ -177,7 +195,7 @@ describe('TeamCardList', () => {
       React.createElement(TeamCardList, {
         rows: [makeRow({ lastLoginAt: null })],
         orgs,
-        currentUserId: 'me'
+        currentUserId: 'me',
       })
     );
     expect(html).toContain('Последний вход: <!-- -->—');
@@ -188,7 +206,7 @@ describe('TeamCardList', () => {
       React.createElement(TeamCardList, {
         rows: [makeRow({ userId: 'other', invitePending: true, isActive: false })],
         orgs,
-        currentUserId: 'me'
+        currentUserId: 'me',
       })
     );
     expect(html).not.toContain('Ожидает установки пароля');

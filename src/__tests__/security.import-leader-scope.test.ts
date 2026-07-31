@@ -1,7 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { importScope } from '@/lib/services/oneCSync/scope';
 import { orgInScope } from '@/lib/services/oneCSync/writers';
-import { searchResolveOrgs, listResolveOrders } from '@/lib/services/import/oneCAccountCard/resolve-picker';
+import {
+  searchResolveOrgs,
+  listResolveOrders,
+} from '@/lib/services/import/oneCAccountCard/resolve-picker';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 // Regression for the C8 broken-tenant-isolation finding: a manager-leader
@@ -12,7 +15,13 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 // bug lumped leader into the admin `unscoped` bucket, letting a Company-A leader
 // inject a Payment attributed to a Company-B org (public INN) and enumerate
 // Company-B's orgs via the resolve pickers.
-const leaderA = { sub: 'L', role: 'manager', managerRole: 'leader', companyId: 'companyA', managedOrgIds: [] } as unknown as SessionPayload;
+const leaderA = {
+  sub: 'L',
+  role: 'manager',
+  managerRole: 'leader',
+  companyId: 'companyA',
+  managedOrgIds: [],
+} as unknown as SessionPayload;
 const adminA = { sub: 'a', role: 'admin', companyId: 'companyA' } as unknown as SessionPayload;
 
 describe('C8: manager-leader 1C payment-import scope is company-bounded, not global', () => {

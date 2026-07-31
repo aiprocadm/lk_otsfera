@@ -25,7 +25,9 @@ const { createCertificate, issueFromOrderItem } = vi.hoisted(() => ({
 vi.mock('@/lib/auth/session', () => ({ getSession }));
 vi.mock('next/navigation', () => ({
   redirect: redirectMock,
-  notFound: () => { throw new Error('NOTFOUND'); },
+  notFound: () => {
+    throw new Error('NOTFOUND');
+  },
 }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled: vi.fn() }));
@@ -64,24 +66,35 @@ beforeEach(() => {
 
 describe('manager_cabinet flag disabled → 404 before handler logic', () => {
   beforeEach(() => {
-    vi.mocked(notFoundIfDisabled).mockReturnValue(new Response('Not Found', { status: 404 }) as never);
+    vi.mocked(notFoundIfDisabled).mockReturnValue(
+      new Response('Not Found', { status: 404 }) as never
+    );
   });
 
   it('GET /orders/[id]/items → 404, service untouched', async () => {
-    const res = await GET(new Request('http://x') as never, { params: Promise.resolve({ id: 'o1' }) } as never);
+    const res = await GET(
+      new Request('http://x') as never,
+      { params: Promise.resolve({ id: 'o1' }) } as never
+    );
     expect(res.status).toBe(404);
     expect(listOrderItems).not.toHaveBeenCalled();
   });
 
   it('POST /orders/[id]/items → 404, service untouched', async () => {
-    const req = new Request('http://x', { method: 'POST', body: JSON.stringify({ studentId: 's1', directionId: 'd1' }) });
+    const req = new Request('http://x', {
+      method: 'POST',
+      body: JSON.stringify({ studentId: 's1', directionId: 'd1' }),
+    });
     const res = await POST(req as never, { params: Promise.resolve({ id: 'o1' }) } as never);
     expect(res.status).toBe(404);
     expect(addOrderItem).not.toHaveBeenCalled();
   });
 
   it('PATCH /order-items/[id] → 404, service untouched', async () => {
-    const req = new Request('http://x', { method: 'PATCH', body: JSON.stringify({ trainingStatus: 'completed' }) });
+    const req = new Request('http://x', {
+      method: 'PATCH',
+      body: JSON.stringify({ trainingStatus: 'completed' }),
+    });
     const res = await PATCH(req as never, { params: Promise.resolve({ id: 'it1' }) } as never);
     expect(res.status).toBe(404);
     expect(updateItemStatus).not.toHaveBeenCalled();
@@ -95,7 +108,10 @@ describe('manager_cabinet flag disabled → 404 before handler logic', () => {
   });
 
   it('POST /certificates → 404, service untouched', async () => {
-    const req = new Request('http://x', { method: 'POST', body: JSON.stringify({ orderItemId: 'oi1', number: 'X', issuedAt: '2026-01-01' }) });
+    const req = new Request('http://x', {
+      method: 'POST',
+      body: JSON.stringify({ orderItemId: 'oi1', number: 'X', issuedAt: '2026-01-01' }),
+    });
     const res = await certPost(req as never);
     expect(res.status).toBe(404);
     expect(issueFromOrderItem).not.toHaveBeenCalled();
@@ -111,7 +127,7 @@ describe('GET /api/manager/orders/[id]/items', () => {
     const req = new Request('http://x');
     const res = await GET(req as never, { params: Promise.resolve({ id: 'o1' }) } as never);
     expect(res.status).toBe(200);
-    const body = await res.json() as { items: { id: string }[] };
+    const body = (await res.json()) as { items: { id: string }[] };
     expect(body.items).toHaveLength(1);
   });
 
@@ -160,7 +176,7 @@ describe('POST /api/manager/orders/[id]/items', () => {
     });
     const res = await POST(req as never, { params: Promise.resolve({ id: 'o1' }) } as never);
     expect(res.status).toBe(201);
-    const body = await res.json() as { item: { id: string } };
+    const body = (await res.json()) as { item: { id: string } };
     expect(body.item).toEqual({ id: 'it1' });
   });
 
@@ -290,7 +306,7 @@ describe('POST /api/manager/certificates', () => {
     });
     const res = await certPost(req as never);
     expect(res.status).toBe(201);
-    const body = await res.json() as { certificate: { id: string } };
+    const body = (await res.json()) as { certificate: { id: string } };
     expect(body.certificate).toEqual({ id: 'c1' });
     expect(issueFromOrderItem).toHaveBeenCalledTimes(1);
     expect(createCertificate).not.toHaveBeenCalled();
@@ -328,7 +344,12 @@ describe('POST /api/manager/certificates', () => {
     createCertificate.mockResolvedValue({ ok: false, error: 'validation' });
     const req = new Request('http://x', {
       method: 'POST',
-      body: JSON.stringify({ studentId: 's1', directionId: 'd1', number: '', issuedAt: '2026-01-01' }),
+      body: JSON.stringify({
+        studentId: 's1',
+        directionId: 'd1',
+        number: '',
+        issuedAt: '2026-01-01',
+      }),
     });
     const res = await certPost(req as never);
     expect(res.status).toBe(400);
@@ -355,7 +376,12 @@ describe('POST /api/manager/certificates', () => {
   });
 
   it('redirects non-manager', async () => {
-    getSession.mockResolvedValue({ sub: 'u-partner', role: 'partner', email: 'p@local', partnerId: 'p1' });
+    getSession.mockResolvedValue({
+      sub: 'u-partner',
+      role: 'partner',
+      email: 'p@local',
+      partnerId: 'p1',
+    });
     const req = new Request('http://x', {
       method: 'POST',
       body: JSON.stringify({ orderItemId: 'oi1', number: 'X', issuedAt: '2026-01-01' }),

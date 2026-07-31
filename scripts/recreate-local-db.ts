@@ -24,8 +24,7 @@
  */
 import { PrismaClient } from '@prisma/client';
 
-const DB_URL =
-  process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:5432/cabinet';
+const DB_URL = process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:5432/cabinet';
 
 function parse(url: string) {
   const u = new URL(url);
@@ -85,7 +84,9 @@ async function main() {
   console.log(
     `[recreate-local-db] done — Cyrillic case-insensitive search works (cyr_ilike=${fold.cyr_ilike}).`
   );
-  console.log('[recreate-local-db] next: `npm run prisma:migrate:deploy` then `npm run prisma:seed`.');
+  console.log(
+    '[recreate-local-db] next: `npm run prisma:migrate:deploy` then `npm run prisma:seed`.'
+  );
 }
 
 main()

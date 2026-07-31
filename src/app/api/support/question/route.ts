@@ -14,7 +14,7 @@ const STATUS: Record<string, number> = {
   validation: 400,
   too_large: 413,
   invalid_mime: 415,
-  storage: 502
+  storage: 502,
 };
 
 export async function POST(req: Request) {
@@ -34,13 +34,21 @@ export async function POST(req: Request) {
   if (raw && typeof raw === 'object' && 'arrayBuffer' in raw) {
     const f = raw as File;
     if (f.size > 0) {
-      file = { name: f.name, type: f.type, size: f.size, buffer: Buffer.from(await f.arrayBuffer()) };
+      file = {
+        name: f.name,
+        type: f.type,
+        size: f.size,
+        buffer: Buffer.from(await f.arrayBuffer()),
+      };
     }
   }
 
   const res = await submitCabinetQuestion(prisma, session, { subject, body, file });
   if (!res.ok) {
-    return NextResponse.json({ error: res.error, messages: res.messages }, { status: STATUS[res.error] ?? 400 });
+    return NextResponse.json(
+      { error: res.error, messages: res.messages },
+      { status: STATUS[res.error] ?? 400 }
+    );
   }
   return NextResponse.json({ id: res.id, code: res.code }, { status: 201 });
 }

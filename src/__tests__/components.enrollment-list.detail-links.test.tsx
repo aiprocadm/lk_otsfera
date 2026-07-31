@@ -16,7 +16,7 @@ function item(overrides: Partial<EnrollmentItemRow> = {}): EnrollmentItemRow {
     extra: null,
     status: 'pending',
     externalStudentId: null,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -37,14 +37,17 @@ function row(overrides: Partial<EnrollmentRow> = {}): EnrollmentRow {
     note: null,
     createdAt: new Date('2024-01-15T10:00:00Z'),
     reviewedAt: null,
-    ...overrides
+    ...overrides,
   };
 }
 
 describe('EnrollmentList — ссылки на деталку (detailHrefBase)', () => {
   it('с detailHrefBase: ссылка на имени первого слушателя и ссылка «подробнее»', () => {
     const html = renderToString(
-      React.createElement(EnrollmentList, { rows: [row()], detailHrefBase: '/organization/enrollments' })
+      React.createElement(EnrollmentList, {
+        rows: [row()],
+        detailHrefBase: '/organization/enrollments',
+      })
     ).replace(/<!-- -->/g, '');
     // Две ссылки на деталку: обёртка имени + «подробнее»
     expect(html.match(/href="\/organization\/enrollments\/e1"/g)).toHaveLength(2);
@@ -57,7 +60,7 @@ describe('EnrollmentList — ссылки на деталку (detailHrefBase)',
     const html = renderToString(
       React.createElement(EnrollmentList, {
         rows: [row(), row({ id: 'e2', firstStudentName: 'Анна Иванова' })],
-        detailHrefBase: '/partner/enrollments'
+        detailHrefBase: '/partner/enrollments',
       })
     );
     expect(html).toContain('href="/partner/enrollments/e1"');
@@ -65,7 +68,10 @@ describe('EnrollmentList — ссылки на деталку (detailHrefBase)',
   });
 
   it('без detailHrefBase: ни ссылок, ни «подробнее» — имя обычным текстом', () => {
-    const html = renderToString(React.createElement(EnrollmentList, { rows: [row()] })).replace(/<!-- -->/g, '');
+    const html = renderToString(React.createElement(EnrollmentList, { rows: [row()] })).replace(
+      /<!-- -->/g,
+      ''
+    );
     expect(html).toContain('Иван Петров');
     expect(html).not.toContain('<a');
     expect(html).not.toContain('подробнее');
@@ -75,7 +81,7 @@ describe('EnrollmentList — ссылки на деталку (detailHrefBase)',
     const html = renderToString(
       React.createElement(EnrollmentList, {
         rows: [row({ firstStudentName: null, studentCount: 0, items: [] })],
-        detailHrefBase: '/organization/enrollments'
+        detailHrefBase: '/organization/enrollments',
       })
     ).replace(/<!-- -->/g, '');
     expect(html).toMatch(/<a[^>]*href="\/organization\/enrollments\/e1"[^>]*>—<\/a>/);

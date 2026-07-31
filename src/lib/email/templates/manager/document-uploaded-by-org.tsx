@@ -10,7 +10,7 @@ const DOC_TYPE_LABELS: Record<string, string> = {
   certificate: 'сертификат',
   report: 'отчёт',
   commission_statement: 'расчёт комиссии',
-  other: 'документ'
+  other: 'документ',
 };
 
 export type ManagerDocumentUploadedByOrgProps = {
@@ -25,11 +25,10 @@ export function ManagerDocumentUploadedByOrg(props: ManagerDocumentUploadedByOrg
   const typeLabel = DOC_TYPE_LABELS[props.documentType] ?? 'документ';
 
   return (
-    <EmailLayout title='Документ от организации'>
+    <EmailLayout title="Документ от организации">
       <p style={emailStyles.paragraph}>
         Организация <strong>{props.orgName}</strong> загрузила {typeLabel}{' '}
-        <strong>«{props.documentName}»</strong> к заказу{' '}
-        <strong>№ {props.orderNumber}</strong>.
+        <strong>«{props.documentName}»</strong> к заказу <strong>№ {props.orderNumber}</strong>.
       </p>
       <p style={emailStyles.paragraph}>
         <a href={props.orderUrl} style={emailStyles.button}>
@@ -49,13 +48,11 @@ export function managerDocumentUploadedByOrgSubject(
   return `${props.orgName} загрузил документ ${props.documentName} к заказу № ${props.orderNumber}`;
 }
 
-export function managerDocumentUploadedByOrgText(
-  props: ManagerDocumentUploadedByOrgProps
-): string {
+export function managerDocumentUploadedByOrgText(props: ManagerDocumentUploadedByOrgProps): string {
   const typeLabel = DOC_TYPE_LABELS[props.documentType] ?? 'документ';
   return [
     `Организация ${props.orgName} загрузила ${typeLabel} «${props.documentName}» к заказу № ${props.orderNumber}.`,
     '',
-    `Открыть заказ: ${props.orderUrl}`
+    `Открыть заказ: ${props.orderUrl}`,
   ].join('\n');
 }

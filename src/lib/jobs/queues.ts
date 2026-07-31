@@ -20,7 +20,7 @@ export const QUEUE_NAMES = [
   'notifications.taskDueSoon',
   'inbound.email.poll',
   'telephony.mango.recording',
-  'telephony.mango.backfill'
+  'telephony.mango.backfill',
 ] as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[number];
@@ -29,7 +29,7 @@ const defaultJobOpts: QueueOptions['defaultJobOptions'] = {
   attempts: 5,
   backoff: { type: 'exponential', delay: 1000 },
   removeOnComplete: { count: 1000 },
-  removeOnFail: false
+  removeOnFail: false,
 };
 
 const queues = new Map<QueueName, Queue>();
@@ -39,7 +39,7 @@ export function getQueue(name: QueueName): Queue {
   if (existing) return existing;
   const queue = new Queue(name, {
     connection: getRedisConnection(),
-    defaultJobOptions: defaultJobOpts
+    defaultJobOptions: defaultJobOpts,
   });
   queues.set(name, queue);
   return queue;

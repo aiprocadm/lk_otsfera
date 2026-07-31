@@ -22,13 +22,10 @@ describe('leader_cabinet (opt-in flag)', () => {
     expect(isFeatureEnabled('leader_cabinet')).toBe(false);
   });
 
-  it.each(['0', 'false', 'off', 'no', 'disabled'])(
-    'stays disabled for falsy value %s',
-    (val) => {
-      process.env.FEATURE_LEADER_CABINET = val;
-      expect(isFeatureEnabled('leader_cabinet')).toBe(false);
-    }
-  );
+  it.each(['0', 'false', 'off', 'no', 'disabled'])('stays disabled for falsy value %s', (val) => {
+    process.env.FEATURE_LEADER_CABINET = val;
+    expect(isFeatureEnabled('leader_cabinet')).toBe(false);
+  });
 
   it.each(['1', 'true', 'on', 'yes', 'enabled', 'True', ' 1 '])(
     'is ENABLED for truthy value %s',

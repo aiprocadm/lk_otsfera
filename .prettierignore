@@ -1,0 +1,13 @@
+# Артефакты сборки и отчёты
+.next/
+coverage/
+playwright-report/
+node_modules/
+# Снапшоты и сгенерированное
+src/e2e/snapshots/
+public/sw.js
+next-env.d.ts
+# Миграции никогда не редактируются (CLAUDE.md §2) — и не переформатируются
+prisma/migrations/
+# Markdown: много вручную выровненных таблиц (ТЗ, планы) — не трогаем
+*.md

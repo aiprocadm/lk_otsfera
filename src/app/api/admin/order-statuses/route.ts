@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     key: body.key,
     label: body.label,
     sortOrder: body.sortOrder,
-    isTerminal: body.isTerminal
+    isTerminal: body.isTerminal,
     // anchor намеренно не принимается из формы: якоря раздаёт система,
     // заказчик привязывать статус к событию не может (спека §4.1).
   });

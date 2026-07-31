@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   CALENDAR_REMINDER_SCHEDULES,
-  registerCalendarReminderSchedules
+  registerCalendarReminderSchedules,
 } from '@/lib/jobs/scheduling';
 
 describe('calendar reminder schedule (M5)', () => {

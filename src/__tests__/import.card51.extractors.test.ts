@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
-  parseRusDate, parseAmount, extractDocNumber, extractAccountCandidates,
-  extractCounterparty, extractInn, extractVat,
+  parseRusDate,
+  parseAmount,
+  extractDocNumber,
+  extractAccountCandidates,
+  extractCounterparty,
+  extractInn,
+  extractVat,
 } from '@/lib/services/import/oneCAccountCard/extractors';
 
 describe('parseRusDate', () => {
@@ -14,18 +19,30 @@ describe('parseRusDate', () => {
 });
 
 describe('parseAmount', () => {
-  it('parses plain integer', () => { expect(parseAmount('14800')).toBe(14800); });
-  it('parses decimal with dot', () => { expect(parseAmount('2600.1')).toBe(2600.1); });
-  it('tolerates spaces and comma decimal', () => { expect(parseAmount('1 200,50')).toBe(1200.5); });
-  it('returns null when empty', () => { expect(parseAmount('')).toBeNull(); });
+  it('parses plain integer', () => {
+    expect(parseAmount('14800')).toBe(14800);
+  });
+  it('parses decimal with dot', () => {
+    expect(parseAmount('2600.1')).toBe(2600.1);
+  });
+  it('tolerates spaces and comma decimal', () => {
+    expect(parseAmount('1 200,50')).toBe(1200.5);
+  });
+  it('returns null when empty', () => {
+    expect(parseAmount('')).toBeNull();
+  });
 });
 
 describe('extractDocNumber', () => {
   it('pulls 1C doc number from line 1', () => {
-    expect(extractDocNumber('Поступление на расчетный счет 0000-001471 от 01.06.2026 17:00:00')).toBe('0000-001471');
+    expect(
+      extractDocNumber('Поступление на расчетный счет 0000-001471 от 01.06.2026 17:00:00')
+    ).toBe('0000-001471');
   });
   it('handles Списание', () => {
-    expect(extractDocNumber('Списание с расчетного счета 0000-000777 от 02.06.2026 10:00:00')).toBe('0000-000777');
+    expect(extractDocNumber('Списание с расчетного счета 0000-000777 от 02.06.2026 10:00:00')).toBe(
+      '0000-000777'
+    );
   });
 });
 
@@ -35,7 +52,10 @@ describe('extractAccountCandidates', () => {
     expect(extractAccountCandidates(text)).toEqual(['260509-1905', '260424РД']);
   });
   it('handles abbreviated and suffixed forms', () => {
-    expect(extractAccountCandidates('по сч № 260125-2605, счет № 251221А-6')).toEqual(['260125-2605', '251221А-6']);
+    expect(extractAccountCandidates('по сч № 260125-2605, счет № 251221А-6')).toEqual([
+      '260125-2605',
+      '251221А-6',
+    ]);
   });
   it('returns empty array when none', () => {
     expect(extractAccountCandidates('Перевод собственных средств')).toEqual([]);

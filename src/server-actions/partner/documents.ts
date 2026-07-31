@@ -10,7 +10,10 @@ import { log } from '@/lib/logging';
 
 export type UploadDocumentResult =
   | { ok: true; documentId: string }
-  | { ok: false; error: 'validation' | 'forbidden' | 'not_found' | 'too_large' | 'invalid_mime' | 'storage' };
+  | {
+      ok: false;
+      error: 'validation' | 'forbidden' | 'not_found' | 'too_large' | 'invalid_mime' | 'storage';
+    };
 
 const schema = z.object({ orderId: z.string().min(1), docType: z.string().min(1) });
 
@@ -22,7 +25,7 @@ export async function uploadPartnerDocument(formData: FormData): Promise<UploadD
 
   const parsed = schema.safeParse({
     orderId: String(formData.get('orderId') ?? ''),
-    docType: String(formData.get('docType') ?? 'other')
+    docType: String(formData.get('docType') ?? 'other'),
   });
   if (!parsed.success) return { ok: false, error: 'validation' };
 
@@ -31,7 +34,7 @@ export async function uploadPartnerDocument(formData: FormData): Promise<UploadD
 
   const order = await prisma.order.findUnique({
     where: { id: parsed.data.orderId },
-    select: { id: true, partnerId: true, orderNumber: true, title: true }
+    select: { id: true, partnerId: true, orderNumber: true, title: true },
   });
   if (!order || order.partnerId !== session.partnerId) {
     return { ok: false, error: 'not_found' };
@@ -45,24 +48,28 @@ export async function uploadPartnerDocument(formData: FormData): Promise<UploadD
     docType: parsed.data.docType,
     uploadedById: session.sub,
     source: 'partner',
-    file: { name: file.name, size: file.size, mimeType: file.type, buffer }
+    file: { name: file.name, size: file.size, mimeType: file.type, buffer },
   });
   if (!persisted.ok) return persisted;
 
   try {
     const partner = await prisma.partner.findUnique({
       where: { id: session.partnerId },
-      select: { name: true }
+      select: { name: true },
     });
     await notifyManagers(prisma, {
       orderId: order.id,
       type: 'document_uploaded_by_partner',
-      payload: { partnerName: partner?.name ?? 'партнёр', documentName: file.name, documentType: parsed.data.docType }
+      payload: {
+        partnerName: partner?.name ?? 'партнёр',
+        documentName: file.name,
+        documentType: parsed.data.docType,
+      },
     });
   } catch (err) {
     log.warn('[uploadPartnerDocument] notifyManagers failed', {
       documentId: persisted.documentId,
-      error: err instanceof Error ? err.message : String(err)
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 

@@ -15,7 +15,7 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 const { kpis, attention, recentEvents } = vi.hoisted(() => ({
   kpis: vi.fn(),
   attention: vi.fn(),
-  recentEvents: vi.fn()
+  recentEvents: vi.fn(),
 }));
 vi.mock('@/lib/services/manager/dashboard', () => ({ kpis, attention, recentEvents }));
 
@@ -24,26 +24,30 @@ const { getMyDay } = vi.hoisted(() => ({ getMyDay: vi.fn() }));
 vi.mock('@/lib/services/manager/myDay', () => ({ getMyDay }));
 vi.mock('@/components/manager/my-day-cards', () => ({
   MyDayCards: (props: { data: unknown }) =>
-    React.createElement('div', { 'data-testid': 'my-day' }, JSON.stringify(props.data))
+    React.createElement('div', { 'data-testid': 'my-day' }, JSON.stringify(props.data)),
 }));
 
 vi.mock('@/components/manager/manager-kpi-grid', () => ({
   ManagerKpiGrid: (props: { data: unknown }) =>
-    React.createElement('div', { 'data-testid': 'kpi-grid' }, JSON.stringify(props.data))
+    React.createElement('div', { 'data-testid': 'kpi-grid' }, JSON.stringify(props.data)),
 }));
 
 vi.mock('@/components/manager/manager-attention-list', () => ({
   ManagerAttentionList: (props: { items: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'attention-list' }, JSON.stringify(props.items))
+    React.createElement('div', { 'data-testid': 'attention-list' }, JSON.stringify(props.items)),
 }));
 
 vi.mock('@/components/manager/manager-events-feed', () => ({
   ManagerEventsFeed: (props: { events: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'events-feed' }, JSON.stringify(props.events))
+    React.createElement('div', { 'data-testid': 'events-feed' }, JSON.stringify(props.events)),
 }));
 
-
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'member' as const,
+  companyId: 'c1',
+};
 
 describe('ManagerDashboard', () => {
   beforeEach(() => {

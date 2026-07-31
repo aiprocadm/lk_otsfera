@@ -33,7 +33,7 @@ function mgrSession(companyId: string, managedOrgId: string, sub: string): Sessi
     sub,
     role: 'manager',
     companyId,
-    managedOrgIds: [managedOrgId]
+    managedOrgIds: [managedOrgId],
   } as unknown as SessionPayload;
 }
 
@@ -48,44 +48,60 @@ beforeAll(async () => {
   const cB = await prisma.company.create({ data: { name: `f3CB-${STAMP}` } });
   companyB = cB.id;
 
-  const oA = await prisma.organization.create({ data: { name: `f3OA-${STAMP}`, companyId: companyA } });
+  const oA = await prisma.organization.create({
+    data: { name: `f3OA-${STAMP}`, companyId: companyA },
+  });
   orgA = oA.id;
-  const oB = await prisma.organization.create({ data: { name: `f3OB-${STAMP}`, companyId: companyB } });
+  const oB = await prisma.organization.create({
+    data: { name: `f3OB-${STAMP}`, companyId: companyB },
+  });
   orgB = oB.id;
 
   const ordA = await prisma.order.create({
-    data: { title: 'f3 A-order', companyId: companyA, organizationId: orgA, totalAmount: 100000 }
+    data: { title: 'f3 A-order', companyId: companyA, organizationId: orgA, totalAmount: 100000 },
   });
   orderA = ordA.id;
   const ordB = await prisma.order.create({
-    data: { title: 'f3 B-order', companyId: companyB, organizationId: orgB, totalAmount: 200000 }
+    data: { title: 'f3 B-order', companyId: companyB, organizationId: orgB, totalAmount: 200000 },
   });
   orderB = ordB.id;
 
   const payA = await prisma.payment.create({
-    data: { organizationId: orgA, orderId: orderA, amount: 100000, paidAt: new Date('2026-04-10') }
+    data: { organizationId: orgA, orderId: orderA, amount: 100000, paidAt: new Date('2026-04-10') },
   });
   paymentA = payA.id;
   const payB = await prisma.payment.create({
-    data: { organizationId: orgB, orderId: orderB, amount: 200000, paidAt: new Date('2026-04-11') }
+    data: { organizationId: orgB, orderId: orderB, amount: 200000, paidAt: new Date('2026-04-11') },
   });
   paymentB = payB.id;
 
   // Order-bound docs: orderId set, companyId null (XOR CHECK), counterparty = org.
   const dA = await prisma.document.create({
     data: {
-      name: 'f3-A.pdf', path: 's3://x/fa', mimeType: 'application/pdf', type: 'contract',
-      direction: 'incoming', orderId: orderA, counterpartyType: 'organization', counterpartyId: orgA,
-      scanStatus: 'clean'
-    }
+      name: 'f3-A.pdf',
+      path: 's3://x/fa',
+      mimeType: 'application/pdf',
+      type: 'contract',
+      direction: 'incoming',
+      orderId: orderA,
+      counterpartyType: 'organization',
+      counterpartyId: orgA,
+      scanStatus: 'clean',
+    },
   });
   docA = dA.id;
   const dB = await prisma.document.create({
     data: {
-      name: 'f3-B.pdf', path: 's3://x/fb', mimeType: 'application/pdf', type: 'contract',
-      direction: 'incoming', orderId: orderB, counterpartyType: 'organization', counterpartyId: orgB,
-      scanStatus: 'clean'
-    }
+      name: 'f3-B.pdf',
+      path: 's3://x/fb',
+      mimeType: 'application/pdf',
+      type: 'contract',
+      direction: 'incoming',
+      orderId: orderB,
+      counterpartyType: 'organization',
+      counterpartyId: orgB,
+      scanStatus: 'clean',
+    },
   });
   docB = dB.id;
 });
@@ -156,7 +172,10 @@ describe('F3 — finance (payments) list is company-isolated', () => {
 
 describe('F3 — documents list is company-isolated', () => {
   it('scoped (managerTeamVisibility=off): manager A gets docA, never docB', async () => {
-    await prisma.company.update({ where: { id: companyA }, data: { managerTeamVisibility: false } });
+    await prisma.company.update({
+      where: { id: companyA },
+      data: { managerTeamVisibility: false },
+    });
     const { rows } = await listDocuments(prisma, { session: sessionA() });
     const ids = rows.map((r) => r.id);
     expect(ids).toContain(docA);

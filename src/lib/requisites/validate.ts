@@ -50,7 +50,7 @@ export function validateRequisites(
     bic: norm(input.bic),
     signerName: norm(input.signerName),
     signerPosition: norm(input.signerPosition),
-    signerBasis: norm(input.signerBasis)
+    signerBasis: norm(input.signerBasis),
   };
 
   for (const [key, label] of Object.entries({
@@ -59,7 +59,7 @@ export function validateRequisites(
     bankName: 'Название банка',
     signerName: 'ФИО подписанта',
     signerPosition: 'Должность подписанта',
-    signerBasis: 'Основание полномочий'
+    signerBasis: 'Основание полномочий',
   }) as Array<[keyof RequisitesValues, string]>) {
     const v = values[key];
     if (v && v.length > MAX_TEXT) errors.push(`${label}: не длиннее ${MAX_TEXT} символов`);
@@ -75,7 +75,8 @@ export function validateRequisites(
   }
   if (values.ogrn) {
     values.ogrn = digits(values.ogrn);
-    if (!/^(\d{13}|\d{15})$/.test(values.ogrn)) errors.push('ОГРН должен содержать 13 цифр (или 15 для ИП)');
+    if (!/^(\d{13}|\d{15})$/.test(values.ogrn))
+      errors.push('ОГРН должен содержать 13 цифр (или 15 для ИП)');
   }
   if (values.bic) {
     values.bic = digits(values.bic);
@@ -83,11 +84,13 @@ export function validateRequisites(
   }
   if (values.bankAccount) {
     values.bankAccount = digits(values.bankAccount);
-    if (!/^\d{20}$/.test(values.bankAccount)) errors.push('Расчётный счёт должен содержать 20 цифр');
+    if (!/^\d{20}$/.test(values.bankAccount))
+      errors.push('Расчётный счёт должен содержать 20 цифр');
   }
   if (values.corrAccount) {
     values.corrAccount = digits(values.corrAccount);
-    if (!/^\d{20}$/.test(values.corrAccount)) errors.push('Корреспондентский счёт должен содержать 20 цифр');
+    if (!/^\d{20}$/.test(values.corrAccount))
+      errors.push('Корреспондентский счёт должен содержать 20 цифр');
   }
 
   if (errors.length > 0) return { ok: false, errors };

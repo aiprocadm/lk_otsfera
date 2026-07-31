@@ -41,11 +41,11 @@ describe('documentBucket', () => {
 // --- S3Storage (mocked client) ---
 const { sendMock, getSignedUrlMock } = vi.hoisted(() => ({
   sendMock: vi.fn(),
-  getSignedUrlMock: vi.fn()
+  getSignedUrlMock: vi.fn(),
 }));
 
 vi.mock('@aws-sdk/s3-request-presigner', () => ({
-  getSignedUrl: getSignedUrlMock
+  getSignedUrl: getSignedUrlMock,
 }));
 
 describe('S3Storage.upload', () => {
@@ -59,7 +59,7 @@ describe('S3Storage.upload', () => {
     expect(cmd.input).toMatchObject({
       Bucket: 'bkt',
       Key: 'orders/1/x.pdf',
-      ContentType: 'application/pdf'
+      ContentType: 'application/pdf',
     });
     expect(cmd.input.Body).toEqual(Buffer.from('hi'));
   });
@@ -70,10 +70,12 @@ describe('S3Storage.upload', () => {
     const { S3Storage } = await import('@/lib/storage/s3');
     const { StorageError } = await import('@/lib/storage/objectStorage');
     const storage = new S3Storage({ send: sendMock } as never, 'bkt');
-    await expect(storage.upload('p', Buffer.from(''), { contentType: 'x' }))
-      .rejects.toBeInstanceOf(StorageError);
-    await expect(storage.upload('p', Buffer.from(''), { contentType: 'x' }))
-      .rejects.toThrow('STORAGE_UPLOAD: net down');
+    await expect(storage.upload('p', Buffer.from(''), { contentType: 'x' })).rejects.toBeInstanceOf(
+      StorageError
+    );
+    await expect(storage.upload('p', Buffer.from(''), { contentType: 'x' })).rejects.toThrow(
+      'STORAGE_UPLOAD: net down'
+    );
   });
 });
 
@@ -120,7 +122,7 @@ describe('S3Storage.download', () => {
   it('returns a Buffer assembled from GetObject body', async () => {
     sendMock.mockReset();
     sendMock.mockResolvedValue({
-      Body: { transformToByteArray: async () => new Uint8Array([1, 2, 3]) }
+      Body: { transformToByteArray: async () => new Uint8Array([1, 2, 3]) },
     });
     const { S3Storage } = await import('@/lib/storage/s3');
     const storage = new S3Storage({ send: sendMock } as never, 'bkt');
@@ -274,7 +276,7 @@ describe('S3Storage.remove', () => {
     const cmd = sendMock.mock.calls[0][0];
     expect(cmd.input).toMatchObject({
       Bucket: 'bkt',
-      Delete: { Objects: [{ Key: 'a/1' }, { Key: 'b/2' }] }
+      Delete: { Objects: [{ Key: 'a/1' }, { Key: 'b/2' }] },
     });
   });
 

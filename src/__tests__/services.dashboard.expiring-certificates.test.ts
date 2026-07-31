@@ -10,10 +10,11 @@ import { EXPIRING_WITHIN_DAYS } from '@/lib/services/training/certificates';
  */
 
 const prisma = {
-  certificate: { count: vi.fn() }
+  certificate: { count: vi.fn() },
 } as never as import('@prisma/client').PrismaClient;
 
-const countMock = (prisma as unknown as { certificate: { count: ReturnType<typeof vi.fn> } }).certificate.count;
+const countMock = (prisma as unknown as { certificate: { count: ReturnType<typeof vi.fn> } })
+  .certificate.count;
 
 const NOW = new Date('2026-07-24T15:30:00');
 const START = new Date('2026-07-24T00:00:00');
@@ -29,7 +30,7 @@ describe('organization/dashboard.expiringCertificates', () => {
     const n = await orgExpiring(prisma, 'org-1', NOW);
     expect(n).toBe(3);
     expect(countMock).toHaveBeenCalledWith({
-      where: { organizationId: 'org-1', validUntil: { gte: START, lte: HORIZON } }
+      where: { organizationId: 'org-1', validUntil: { gte: START, lte: HORIZON } },
     });
   });
 
@@ -47,8 +48,8 @@ describe('partner/dashboard.expiringCertificates', () => {
     expect(countMock).toHaveBeenCalledWith({
       where: {
         organization: { partnerId: 'pt-1', id: { in: ['org-9'] } },
-        validUntil: { gte: START, lte: HORIZON }
-      }
+        validUntil: { gte: START, lte: HORIZON },
+      },
     });
   });
 

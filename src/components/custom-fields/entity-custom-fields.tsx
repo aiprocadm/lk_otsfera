@@ -23,10 +23,7 @@ import { toast } from '@/lib/ui/toast';
 import { saveCustomFieldsAction } from '@/server-actions/customFields';
 import type { FieldWithValue } from '@/lib/services/customFields';
 import type { CustomFieldEntity } from '@/lib/services/customFields/entities';
-import {
-  parseMultiselect,
-  serializeMultiselect
-} from '@/lib/services/customFields/coerce';
+import { parseMultiselect, serializeMultiselect } from '@/lib/services/customFields/coerce';
 
 // ─── Показ значения ──────────────────────────────────────────────────────────
 
@@ -61,13 +58,13 @@ export function formatValue(fwv: FieldWithValue): string {
 
 function ReadOnlyFields({ fields }: { fields: FieldWithValue[] }) {
   return (
-    <dl className='space-y-2'>
+    <dl className="space-y-2">
       {fields.map((fwv) => (
-        <div key={fwv.definition.id} className='flex gap-2 text-sm'>
-          <dt className='text-gray-500 min-w-0 shrink-0 basis-40 truncate'>
+        <div key={fwv.definition.id} className="flex gap-2 text-sm">
+          <dt className="text-gray-500 min-w-0 shrink-0 basis-40 truncate">
             {fwv.definition.label}
           </dt>
-          <dd className='text-[#111111] min-w-0 break-words'>{formatValue(fwv)}</dd>
+          <dd className="text-[#111111] min-w-0 break-words">{formatValue(fwv)}</dd>
         </div>
       ))}
     </dl>
@@ -79,16 +76,16 @@ function ReadOnlyFields({ fields }: { fields: FieldWithValue[] }) {
 function FieldLabel({ fwv }: { fwv: FieldWithValue }) {
   const { definition: def } = fwv;
   return (
-    <label htmlFor={`cf-${def.id}`} className='block text-xs font-medium text-gray-700'>
+    <label htmlFor={`cf-${def.id}`} className="block text-xs font-medium text-gray-700">
       {def.label}
-      {def.required && <span className='text-red-500 ml-0.5'>*</span>}
+      {def.required && <span className="text-red-500 ml-0.5">*</span>}
     </label>
   );
 }
 
 function HelpText({ text }: { text: string | null }) {
   if (!text) return null;
-  return <p className='text-xs text-gray-500'>{text}</p>;
+  return <p className="text-xs text-gray-500">{text}</p>;
 }
 
 // ─── Форма ───────────────────────────────────────────────────────────────────
@@ -102,13 +99,13 @@ const INPUT_TYPE: Record<string, string> = {
   phone: 'tel',
   email: 'email',
   url: 'url',
-  text: 'text'
+  text: 'text',
 };
 
 function EditForm({
   fields,
   entityType,
-  entityId
+  entityId,
 }: {
   fields: FieldWithValue[];
   entityType: CustomFieldEntity;
@@ -158,7 +155,7 @@ function EditForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className='space-y-3'>
+    <form onSubmit={handleSubmit} className="space-y-3">
       {editable.map((fwv) => {
         const { definition: def } = fwv;
         // `values` инициализируется из этого же списка (см. useState выше),
@@ -169,7 +166,7 @@ function EditForm({
 
         if (def.fieldType === 'select') {
           return (
-            <div key={def.id} className='space-y-1'>
+            <div key={def.id} className="space-y-1">
               <FieldLabel fwv={fwv} />
               <Select
                 id={`cf-${def.id}`}
@@ -178,7 +175,7 @@ function EditForm({
                 disabled={isPending}
                 onChange={(e) => handleChange(def.id, e.target.value)}
               >
-                <option value=''>— выберите —</option>
+                <option value="">— выберите —</option>
                 {def.options.map((opt) => (
                   <option key={opt} value={opt}>
                     {opt}
@@ -193,17 +190,17 @@ function EditForm({
         if (def.fieldType === 'multiselect') {
           const selected = parseMultiselect(val || '[]') ?? [];
           return (
-            <div key={def.id} className='space-y-1'>
+            <div key={def.id} className="space-y-1">
               <FieldLabel fwv={fwv} />
-              <div className='flex flex-wrap gap-3'>
+              <div className="flex flex-wrap gap-3">
                 {def.options.map((opt) => (
-                  <label key={opt} className='flex items-center gap-1.5 text-sm cursor-pointer'>
+                  <label key={opt} className="flex items-center gap-1.5 text-sm cursor-pointer">
                     <input
                       id={`cf-${def.id}-${opt}`}
-                      type='checkbox'
+                      type="checkbox"
                       checked={selected.includes(opt)}
                       disabled={isPending}
-                      className='h-4 w-4 rounded border-gray-300 text-[#F97316] focus:ring-[#F97316]'
+                      className="h-4 w-4 rounded border-gray-300 text-[#F97316] focus:ring-[#F97316]"
                       onChange={(e) => toggleMulti(def.id, opt, e.target.checked)}
                     />
                     <span>{opt}</span>
@@ -217,20 +214,20 @@ function EditForm({
 
         if (def.fieldType === 'boolean') {
           return (
-            <div key={def.id} className='space-y-1'>
-              <div className='flex items-center gap-2'>
+            <div key={def.id} className="space-y-1">
+              <div className="flex items-center gap-2">
                 <input
                   id={`cf-${def.id}`}
-                  type='checkbox'
+                  type="checkbox"
                   checked={val === 'true'}
                   disabled={isPending}
                   required={def.required && val === '' ? true : undefined}
-                  className='h-4 w-4 rounded border-gray-300 text-[#F97316] focus:ring-[#F97316]'
+                  className="h-4 w-4 rounded border-gray-300 text-[#F97316] focus:ring-[#F97316]"
                   onChange={(e) => handleChange(def.id, e.target.checked ? 'true' : 'false')}
                 />
-                <label htmlFor={`cf-${def.id}`} className='text-sm text-gray-700'>
+                <label htmlFor={`cf-${def.id}`} className="text-sm text-gray-700">
                   {def.label}
-                  {def.required && <span className='text-red-500 ml-0.5'>*</span>}
+                  {def.required && <span className="text-red-500 ml-0.5">*</span>}
                 </label>
               </div>
               <HelpText text={def.helpText} />
@@ -240,7 +237,7 @@ function EditForm({
 
         if (def.fieldType === 'textarea') {
           return (
-            <div key={def.id} className='space-y-1'>
+            <div key={def.id} className="space-y-1">
               <FieldLabel fwv={fwv} />
               <Textarea
                 id={`cf-${def.id}`}
@@ -257,7 +254,7 @@ function EditForm({
 
         // text | number | money | date | datetime | phone | email | url
         return (
-          <div key={def.id} className='space-y-1'>
+          <div key={def.id} className="space-y-1">
             <FieldLabel fwv={fwv} />
             <Input
               id={`cf-${def.id}`}
@@ -278,8 +275,8 @@ function EditForm({
 
       {readOnly.length > 0 && <ReadOnlyFields fields={readOnly} />}
 
-      <div className='pt-1'>
-        <Button type='submit' disabled={isPending}>
+      <div className="pt-1">
+        <Button type="submit" disabled={isPending}>
           {isPending ? 'Сохранение…' : 'Сохранить поля'}
         </Button>
       </div>
@@ -307,15 +304,15 @@ export function EntityCustomFields({
   fields,
   entityType,
   entityId,
-  title = 'Дополнительные поля'
+  title = 'Дополнительные поля',
 }: EntityCustomFieldsProps) {
   if (fields.length === 0) return null;
 
   const anyEditable = fields.some((f) => f.definition.editable);
 
   return (
-    <div className='bg-white border border-gray-200 rounded-xl p-5 space-y-3'>
-      <h2 className='text-sm font-semibold text-[#111111]'>{title}</h2>
+    <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+      <h2 className="text-sm font-semibold text-[#111111]">{title}</h2>
       {anyEditable ? (
         <EditForm fields={fields} entityType={entityType} entityId={entityId} />
       ) : (

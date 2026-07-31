@@ -6,12 +6,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { getCompanyTeamVisibility, managedOrgIds } = vi.hoisted(() => ({
   getCompanyTeamVisibility: vi.fn(),
-  managedOrgIds: vi.fn()
+  managedOrgIds: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/managerPolicy', () => ({
   getCompanyTeamVisibility,
-  managedOrgIds
+  managedOrgIds,
 }));
 
 import { listManagerCounterparties } from '@/lib/services/manager/counterparties';
@@ -21,7 +21,7 @@ const SESSION: SessionPayload = {
   sub: 'mgr-1',
   role: 'manager',
   managedOrgIds: ['org-1'],
-  companyId: 'co-1'
+  companyId: 'co-1',
 };
 
 beforeEach(() => {
@@ -36,7 +36,7 @@ describe('listManagerCounterparties', () => {
     const p = {
       organization: { findMany: vi.fn() },
       partner: { findMany: vi.fn() },
-      company: { findUnique: vi.fn() }
+      company: { findUnique: vi.fn() },
     } as never;
     const result = await listManagerCounterparties(p, nullSession as never);
     expect(result).toEqual({ organizations: [], partners: [] });
@@ -52,7 +52,7 @@ describe('listManagerCounterparties', () => {
     const p = {
       organization: { findMany: orgFindMany },
       partner: { findMany: partnerFindMany },
-      company: { findUnique: vi.fn().mockResolvedValue({ managerTeamVisibility: false }) }
+      company: { findUnique: vi.fn().mockResolvedValue({ managerTeamVisibility: false }) },
     } as never;
     const result = await listManagerCounterparties(p, SESSION);
     expect(orgFindMany).toHaveBeenCalledWith(
@@ -63,12 +63,15 @@ describe('listManagerCounterparties', () => {
 
   it('teamMode=ON: queries orgs by companyId', async () => {
     getCompanyTeamVisibility.mockResolvedValue(true);
-    const orgFindMany = vi.fn().mockResolvedValue([{ id: 'org-1', name: 'Org 1' }, { id: 'org-2', name: 'Org 2' }]);
+    const orgFindMany = vi.fn().mockResolvedValue([
+      { id: 'org-1', name: 'Org 1' },
+      { id: 'org-2', name: 'Org 2' },
+    ]);
     const partnerFindMany = vi.fn().mockResolvedValue([]);
     const p = {
       organization: { findMany: orgFindMany },
       partner: { findMany: partnerFindMany },
-      company: { findUnique: vi.fn().mockResolvedValue({ managerTeamVisibility: true }) }
+      company: { findUnique: vi.fn().mockResolvedValue({ managerTeamVisibility: true }) },
     } as never;
     const result = await listManagerCounterparties(p, SESSION);
     expect(orgFindMany).toHaveBeenCalledWith(
@@ -81,25 +84,25 @@ describe('listManagerCounterparties', () => {
     getCompanyTeamVisibility.mockResolvedValue(false);
     const partnerFindMany = vi.fn().mockResolvedValue([
       { id: 'p-1', name: 'Partner A' },
-      { id: 'p-2', name: 'Partner B' }
+      { id: 'p-2', name: 'Partner B' },
     ]);
     const p = {
       organization: { findMany: vi.fn().mockResolvedValue([]) },
       partner: { findMany: partnerFindMany },
-      company: { findUnique: vi.fn().mockResolvedValue({ managerTeamVisibility: false }) }
+      company: { findUnique: vi.fn().mockResolvedValue({ managerTeamVisibility: false }) },
     } as never;
     const result = await listManagerCounterparties(p, SESSION);
     expect(result.partners).toEqual([
       { id: 'p-1', name: 'Partner A' },
-      { id: 'p-2', name: 'Partner B' }
+      { id: 'p-2', name: 'Partner B' },
     ]);
     // Verify the OR filter includes companyId
     expect(partnerFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
           isActive: true,
-          OR: expect.arrayContaining([{ organizations: { some: { companyId: 'co-1' } } }])
-        })
+          OR: expect.arrayContaining([{ organizations: { some: { companyId: 'co-1' } } }]),
+        }),
       })
     );
   });
@@ -109,7 +112,7 @@ describe('listManagerCounterparties', () => {
     const p = {
       organization: { findMany: vi.fn().mockResolvedValue([]) },
       partner: { findMany: vi.fn().mockResolvedValue([]) },
-      company: { findUnique: vi.fn().mockResolvedValue({ managerTeamVisibility: false }) }
+      company: { findUnique: vi.fn().mockResolvedValue({ managerTeamVisibility: false }) },
     } as never;
     const result = await listManagerCounterparties(p, SESSION);
     expect(result).toEqual({ organizations: [], partners: [] });

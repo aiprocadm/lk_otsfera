@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getSessionMock, isFeatureEnabledMock, generateBackupCodesMock, recordAuditMock } = vi.hoisted(() => ({
-  getSessionMock: vi.fn(),
-  isFeatureEnabledMock: vi.fn(),
-  generateBackupCodesMock: vi.fn(),
-  recordAuditMock: vi.fn()
-}));
+const { getSessionMock, isFeatureEnabledMock, generateBackupCodesMock, recordAuditMock } =
+  vi.hoisted(() => ({
+    getSessionMock: vi.fn(),
+    isFeatureEnabledMock: vi.fn(),
+    generateBackupCodesMock: vi.fn(),
+    recordAuditMock: vi.fn(),
+  }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('@/lib/auth/session', () => ({ getSession: getSessionMock }));
@@ -18,7 +19,9 @@ import { regenerateBackupCodesAction } from '@/server-actions/staff/backupCodes'
 beforeEach(() => {
   vi.clearAllMocks();
   isFeatureEnabledMock.mockReturnValue(true);
-  generateBackupCodesMock.mockResolvedValue({ codes: Array.from({ length: 10 }, (_, i) => `CODE${i}`) });
+  generateBackupCodesMock.mockResolvedValue({
+    codes: Array.from({ length: 10 }, (_, i) => `CODE${i}`),
+  });
   recordAuditMock.mockResolvedValue(undefined);
 });
 

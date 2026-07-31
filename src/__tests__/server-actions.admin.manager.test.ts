@@ -12,7 +12,7 @@ const {
   orderUpdate,
   userFindUnique,
   recordAudit,
-  setManagerRole
+  setManagerRole,
 } = vi.hoisted(() => ({
   requireAdmin: vi.fn(),
   createAndAssignManager: vi.fn(),
@@ -25,7 +25,7 @@ const {
   orderUpdate: vi.fn(),
   userFindUnique: vi.fn(),
   recordAudit: vi.fn(),
-  setManagerRole: vi.fn()
+  setManagerRole: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
@@ -33,8 +33,8 @@ vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     organization: { findUnique: organizationFindUnique },
     order: { findUnique: orderFindUnique, update: orderUpdate },
-    user: { findUnique: userFindUnique }
-  }
+    user: { findUnique: userFindUnique },
+  },
 }));
 vi.mock('next/cache', () => ({ revalidatePath }));
 vi.mock('@/lib/email/send', () => ({ sendManagerInviteEmail }));
@@ -48,7 +48,7 @@ vi.mock('@/lib/services/manager/invite', async () => {
     ...actual,
     createAndAssignManager,
     deactivateAssignment,
-    reactivateAssignment
+    reactivateAssignment,
   };
 });
 
@@ -59,7 +59,7 @@ import {
   assignOrderManagerAction,
   setManagerRoleAction,
   deactivateManagerAssignmentFormAction,
-  reactivateManagerAssignmentFormAction
+  reactivateManagerAssignmentFormAction,
 } from '@/server-actions/admin/manager';
 
 function fd(data: Record<string, string>): FormData {
@@ -94,7 +94,7 @@ describe('assignOrInviteManagerAction', () => {
       user: { id: 'u-2', email: 'new@t.local' },
       inviteUrl: 'https://app/reset-password?token=xyz',
       alreadyHasPassword: false,
-      reactivated: false
+      reactivated: false,
     });
     sendManagerInviteEmail.mockResolvedValue({ status: 'sent', id: 'em-1' });
 
@@ -103,7 +103,7 @@ describe('assignOrInviteManagerAction', () => {
         mode: 'new',
         organizationId: 'org-1',
         email: 'new@t.local',
-        name: 'Fresh Mgr'
+        name: 'Fresh Mgr',
       })
     );
 
@@ -112,7 +112,7 @@ describe('assignOrInviteManagerAction', () => {
       user: { id: 'u-2', email: 'new@t.local' },
       inviteUrl: 'https://app/reset-password?token=xyz',
       alreadyHasPassword: false,
-      reactivated: false
+      reactivated: false,
     });
     expect(createAndAssignManager).toHaveBeenCalledWith(
       expect.anything(),
@@ -123,7 +123,7 @@ describe('assignOrInviteManagerAction', () => {
       to: 'new@t.local',
       organizationName: 'ACME',
       inviteUrl: 'https://app/reset-password?token=xyz',
-      invitedByName: 'Plat Admin'
+      invitedByName: 'Plat Admin',
     });
     expect(revalidatePath).toHaveBeenCalledWith('/admin/organizations/org-1');
   });
@@ -134,7 +134,7 @@ describe('assignOrInviteManagerAction', () => {
       user: { id: 'u-3', email: 'has@t.local' },
       inviteUrl: null,
       alreadyHasPassword: true,
-      reactivated: false
+      reactivated: false,
     });
 
     const res = await assignOrInviteManagerAction(
@@ -218,35 +218,27 @@ describe('assignOrderManagerAction', () => {
   it('order_not_found when order does not exist', async () => {
     userFindUnique.mockResolvedValue({ role: 'manager', isActive: true });
     orderFindUnique.mockResolvedValue(null);
-    const res = await assignOrderManagerAction(
-      fd({ orderId: 'no-order', managerUserId: 'm-1' })
-    );
+    const res = await assignOrderManagerAction(fd({ orderId: 'no-order', managerUserId: 'm-1' }));
     expect(res).toEqual({ ok: false, error: 'order_not_found' });
     expect(orderUpdate).not.toHaveBeenCalled();
   });
 
   it('invalid_manager when user is not a manager', async () => {
     userFindUnique.mockResolvedValue({ role: 'partner', isActive: true });
-    const res = await assignOrderManagerAction(
-      fd({ orderId: 'o-1', managerUserId: 'p-1' })
-    );
+    const res = await assignOrderManagerAction(fd({ orderId: 'o-1', managerUserId: 'p-1' }));
     expect(res).toEqual({ ok: false, error: 'invalid_manager' });
     expect(orderFindUnique).not.toHaveBeenCalled();
   });
 
   it('invalid_manager when manager is inactive', async () => {
     userFindUnique.mockResolvedValue({ role: 'manager', isActive: false });
-    const res = await assignOrderManagerAction(
-      fd({ orderId: 'o-1', managerUserId: 'm-x' })
-    );
+    const res = await assignOrderManagerAction(fd({ orderId: 'o-1', managerUserId: 'm-x' }));
     expect(res).toEqual({ ok: false, error: 'invalid_manager' });
   });
 
   it('invalid_manager when user does not exist', async () => {
     userFindUnique.mockResolvedValue(null);
-    const res = await assignOrderManagerAction(
-      fd({ orderId: 'o-1', managerUserId: 'missing' })
-    );
+    const res = await assignOrderManagerAction(fd({ orderId: 'o-1', managerUserId: 'missing' }));
     expect(res).toEqual({ ok: false, error: 'invalid_manager' });
   });
 
@@ -254,13 +246,11 @@ describe('assignOrderManagerAction', () => {
     userFindUnique.mockResolvedValue({ role: 'manager', isActive: true });
     orderFindUnique.mockResolvedValue({ managerId: null });
 
-    const res = await assignOrderManagerAction(
-      fd({ orderId: 'o-1', managerUserId: 'm-1' })
-    );
+    const res = await assignOrderManagerAction(fd({ orderId: 'o-1', managerUserId: 'm-1' }));
     expect(res).toEqual({ ok: true, changed: true });
     expect(orderUpdate).toHaveBeenCalledWith({
       where: { id: 'o-1' },
-      data: { managerId: 'm-1' }
+      data: { managerId: 'm-1' },
     });
     expect(recordAudit).toHaveBeenCalledWith(
       expect.anything(),
@@ -269,7 +259,7 @@ describe('assignOrderManagerAction', () => {
         entity: 'order',
         entityId: 'o-1',
         before: { managerId: null },
-        after: { managerId: 'm-1' }
+        after: { managerId: 'm-1' },
       })
     );
     expect(revalidatePath).toHaveBeenCalledWith('/admin/orders/o-1');
@@ -278,14 +268,12 @@ describe('assignOrderManagerAction', () => {
   it('happy path — clears managerId when managerUserId is empty', async () => {
     orderFindUnique.mockResolvedValue({ managerId: 'm-old' });
 
-    const res = await assignOrderManagerAction(
-      fd({ orderId: 'o-1', managerUserId: '' })
-    );
+    const res = await assignOrderManagerAction(fd({ orderId: 'o-1', managerUserId: '' }));
     expect(res).toEqual({ ok: true, changed: true });
     expect(userFindUnique).not.toHaveBeenCalled(); // no validation needed when clearing
     expect(orderUpdate).toHaveBeenCalledWith({
       where: { id: 'o-1' },
-      data: { managerId: null }
+      data: { managerId: null },
     });
   });
 
@@ -293,9 +281,7 @@ describe('assignOrderManagerAction', () => {
     userFindUnique.mockResolvedValue({ role: 'manager', isActive: true });
     orderFindUnique.mockResolvedValue({ managerId: 'm-1' });
 
-    const res = await assignOrderManagerAction(
-      fd({ orderId: 'o-1', managerUserId: 'm-1' })
-    );
+    const res = await assignOrderManagerAction(fd({ orderId: 'o-1', managerUserId: 'm-1' }));
     expect(res).toEqual({ ok: true, changed: false });
     expect(orderUpdate).not.toHaveBeenCalled();
     expect(recordAudit).not.toHaveBeenCalled();
@@ -325,7 +311,7 @@ describe('setManagerRoleAction — requireAdmin gate', () => {
     expect(res).toEqual({ ok: true });
     expect(setManagerRole).toHaveBeenCalledWith(
       expect.anything(),
-      'admin-1',      // session.sub from beforeEach
+      'admin-1', // session.sub from beforeEach
       'u-5',
       'leader'
     );
@@ -343,7 +329,7 @@ describe('setManagerRoleAction — requireAdmin gate', () => {
       expect.anything(),
       'admin-1',
       'u-5',
-      null   // 'member' is normalised to null
+      null // 'member' is normalised to null
     );
   });
 
@@ -373,7 +359,7 @@ describe('assignOrInviteManagerAction — email failure (graceful degradation)',
       user: { id: 'u-5', email: 'invite@t.local' },
       inviteUrl: 'https://app/reset-password?token=tok',
       alreadyHasPassword: false,
-      reactivated: false
+      reactivated: false,
     });
     sendManagerInviteEmail.mockRejectedValue(new Error('SMTP down'));
 
@@ -393,7 +379,7 @@ describe('assignOrInviteManagerAction — email failure (graceful degradation)',
       user: { id: 'u-6', email: 'inv2@t.local' },
       inviteUrl: 'https://app/reset-password?token=tok2',
       alreadyHasPassword: false,
-      reactivated: false
+      reactivated: false,
     });
     sendManagerInviteEmail.mockResolvedValue({ status: 'sent' });
 
@@ -414,7 +400,7 @@ describe('assignOrInviteManagerAction — email failure (graceful degradation)',
       user: { id: 'u-7', email: 'inv3@t.local' },
       inviteUrl: 'https://app/reset-password?token=tok3',
       alreadyHasPassword: false,
-      reactivated: false
+      reactivated: false,
     });
     sendManagerInviteEmail.mockResolvedValue({ status: 'sent' });
 

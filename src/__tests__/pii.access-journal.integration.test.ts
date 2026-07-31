@@ -17,7 +17,7 @@ const session = (over: Partial<SessionPayload> = {}): SessionPayload => ({
   sub: actorId,
   role: 'manager',
   companyId: null,
-  ...over
+  ...over,
 });
 
 beforeAll(async () => {
@@ -27,8 +27,8 @@ beforeAll(async () => {
       email: `${RUN}-actor@test.local`,
       name: `${RUN} actor`,
       role: 'manager',
-      passwordHash: 'x'
-    }
+      passwordHash: 'x',
+    },
   });
   actorId = actor.id;
 });
@@ -49,10 +49,10 @@ describe('PII access journal (integration)', () => {
     await recordPiiAccess(prisma, {
       session: session(),
       context: 'manager_students_list',
-      subjectIds: [`${RUN}-s1`, `${RUN}-s2`]
+      subjectIds: [`${RUN}-s1`, `${RUN}-s2`],
     });
     const hit = await prisma.piiAccessEvent.findMany({
-      where: { subjectIds: { has: `${RUN}-s2` }, userId: actorId }
+      where: { subjectIds: { has: `${RUN}-s2` }, userId: actorId },
     });
     expect(hit).toHaveLength(1);
     expect(hit[0].subjectCount).toBe(2);
@@ -62,12 +62,20 @@ describe('PII access journal (integration)', () => {
 
   it('createMany: два события organizationCard одним вызовом; leader-снапшот', async () => {
     await recordPiiAccessMany(prisma, [
-      { session: session({ managerRole: 'leader' }), context: 'org_card_inbound', subjectIds: [`${RUN}-m1`] },
-      { session: session({ managerRole: 'leader' }), context: 'org_card_calls', subjectIds: [`${RUN}-c1`] }
+      {
+        session: session({ managerRole: 'leader' }),
+        context: 'org_card_inbound',
+        subjectIds: [`${RUN}-m1`],
+      },
+      {
+        session: session({ managerRole: 'leader' }),
+        context: 'org_card_calls',
+        subjectIds: [`${RUN}-c1`],
+      },
     ]);
     const rows = await prisma.piiAccessEvent.findMany({
       where: { userId: actorId },
-      orderBy: { context: 'asc' }
+      orderBy: { context: 'asc' },
     });
     expect(rows.map((r) => r.context)).toEqual(['org_card_calls', 'org_card_inbound']);
     expect(rows.every((r) => r.userRole === 'leader')).toBe(true);
@@ -78,7 +86,7 @@ describe('PII access journal (integration)', () => {
       await recordPiiAccess(prisma, {
         session: session(),
         context: 'calls_list',
-        subjectIds: [`${RUN}-call-${i}`]
+        subjectIds: [`${RUN}-call-${i}`],
       });
     }
     const admin: SessionPayload = { sub: actorId, role: 'admin' };
@@ -96,7 +104,7 @@ describe('PII access journal (integration)', () => {
     await recordPiiAccess(prisma, {
       session: session(),
       context: 'calls_list',
-      subjectIds: [`${RUN}-off`]
+      subjectIds: [`${RUN}-off`],
     });
     process.env.FEATURE_PII_ACCESS_LOG = '1';
     const rows = await prisma.piiAccessEvent.findMany({ where: { userId: actorId } });

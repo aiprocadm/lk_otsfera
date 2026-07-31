@@ -7,11 +7,11 @@ import {
   getOrganization,
   updateOrganization,
   createOrganization,
-  AdminOrgError
+  AdminOrgError,
 } from '@/lib/services/admin/organizations';
 
 const { recordAuditMock } = vi.hoisted(() => ({
-  recordAuditMock: vi.fn()
+  recordAuditMock: vi.fn(),
 }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit: recordAuditMock }));
 
@@ -27,7 +27,7 @@ function makeOrg(overrides: Record<string, unknown> = {}) {
     partner: { id: 'p1', name: 'Тест Партнёр' },
     _count: { orders: 5, organizationUsers: 2 },
     partnerCommissionRate: new Prisma.Decimal('0.08'),
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -36,9 +36,9 @@ function makePrisma(overrides: Record<string, unknown> = {}) {
     organization: {
       findMany: vi.fn().mockResolvedValue([]),
       count: vi.fn().mockResolvedValue(0),
-      findUnique: vi.fn().mockResolvedValue(null)
+      findUnique: vi.fn().mockResolvedValue(null),
     },
-    ...overrides
+    ...overrides,
   } as unknown as PrismaClient;
 }
 
@@ -66,7 +66,7 @@ describe('listOrganizations()', () => {
     expect(whereArg.OR).toEqual([
       { name: { contains: 'foo', mode: 'insensitive' } },
       { inn: { contains: 'foo', mode: 'insensitive' } },
-      { externalId: { contains: 'foo', mode: 'insensitive' } }
+      { externalId: { contains: 'foo', mode: 'insensitive' } },
     ]);
   });
 
@@ -240,7 +240,7 @@ describe('getOrganization()', () => {
       partner: { id: 'p1', name: 'Тест Партнёр' },
       partnerCommissionRate: new Prisma.Decimal('0.08'),
       partnerCommissionRateNote: 'Спецусловие',
-      ...overrides
+      ...overrides,
     };
   }
 
@@ -309,7 +309,7 @@ describe('getOrganization()', () => {
       kpp: '770001001',
       externalId: '1C-001',
       partnerId: 'p1',
-      partner: { id: 'p1', name: 'Тест Партнёр' }
+      partner: { id: 'p1', name: 'Тест Партнёр' },
     });
   });
 });
@@ -324,14 +324,14 @@ describe('updateOrganization()', () => {
     return {
       organization: {
         findUnique: vi.fn().mockResolvedValue(orgData),
-        update: vi.fn().mockResolvedValue({})
-      }
+        update: vi.fn().mockResolvedValue({}),
+      },
     };
   }
 
   function makePrismaWithTx(tx: ReturnType<typeof makeTx>) {
     return {
-      $transaction: vi.fn().mockImplementation((fn: (tx: unknown) => unknown) => fn(tx))
+      $transaction: vi.fn().mockImplementation((fn: (tx: unknown) => unknown) => fn(tx)),
     } as unknown as PrismaClient;
   }
 
@@ -339,16 +339,20 @@ describe('updateOrganization()', () => {
     const tx = makeTx(null);
     const prisma = makePrismaWithTx(tx);
 
-    expect(await updateOrganization(prisma, 'actor1', 'missing', { name: 'New' }))
-      .toEqual({ ok: false, error: 'not_found' });
+    expect(await updateOrganization(prisma, 'actor1', 'missing', { name: 'New' })).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
   });
 
   it('returns a §3 Result (not a throw) when not found', async () => {
     const tx = makeTx(null);
     const prisma = makePrismaWithTx(tx);
 
-    expect(await updateOrganization(prisma, 'actor1', 'missing', {}))
-      .toEqual({ ok: false, error: 'not_found' });
+    expect(await updateOrganization(prisma, 'actor1', 'missing', {})).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
   });
 
   it('happy path: calls tx.organization.update with only provided fields', async () => {
@@ -360,7 +364,7 @@ describe('updateOrganization()', () => {
 
     expect(tx.organization.update).toHaveBeenCalledWith({
       where: { id: 'org1' },
-      data: { name: 'New Name' }
+      data: { name: 'New Name' },
     });
   });
 
@@ -377,7 +381,7 @@ describe('updateOrganization()', () => {
         userId: 'actor1',
         action: 'organization_updated',
         entity: 'organization',
-        entityId: 'org1'
+        entityId: 'org1',
       })
     );
   });
@@ -436,17 +440,19 @@ describe('updateOrganization()', () => {
 describe('createOrganization()', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  function makeCreatePrisma(opts: {
-    innLookup?: unknown;
-    txThrows?: unknown;
-    companyId?: string;
-    orgId?: string;
-  } = {}) {
+  function makeCreatePrisma(
+    opts: {
+      innLookup?: unknown;
+      txThrows?: unknown;
+      companyId?: string;
+      orgId?: string;
+    } = {}
+  ) {
     const companyCreate = vi.fn().mockResolvedValue({ id: opts.companyId ?? 'company1' });
     const orgCreate = vi.fn().mockResolvedValue({ id: opts.orgId ?? 'neworg1' });
     const tx = {
       company: { create: companyCreate },
-      organization: { create: orgCreate }
+      organization: { create: orgCreate },
     };
     const findUnique = vi.fn().mockResolvedValue(opts.innLookup ?? null);
     const $transaction = vi.fn().mockImplementation(async (fn: (tx: unknown) => unknown) => {
@@ -455,15 +461,17 @@ describe('createOrganization()', () => {
     });
     const prisma = {
       organization: { findUnique },
-      $transaction
+      $transaction,
     } as unknown as PrismaClient;
     return { prisma, findUnique, companyCreate, orgCreate, $transaction };
   }
 
   it('validation: empty name → error validation, no DB writes', async () => {
     const { prisma, $transaction } = makeCreatePrisma();
-    expect(await createOrganization(prisma, 'actor1', { name: '   ' }))
-      .toEqual({ ok: false, error: 'validation' });
+    expect(await createOrganization(prisma, 'actor1', { name: '   ' })).toEqual({
+      ok: false,
+      error: 'validation',
+    });
     expect($transaction).not.toHaveBeenCalled();
   });
 
@@ -471,26 +479,39 @@ describe('createOrganization()', () => {
     // Форма может прислать объект без поля name (старый клиент, ручной вызов
     // API). Отсутствие поля должно вести к вежливому отказу, а не к TypeError.
     const { prisma, $transaction } = makeCreatePrisma();
-    expect(await createOrganization(prisma, 'actor1', {} as never))
-      .toEqual({ ok: false, error: 'validation' });
+    expect(await createOrganization(prisma, 'actor1', {} as never)).toEqual({
+      ok: false,
+      error: 'validation',
+    });
     expect($transaction).not.toHaveBeenCalled();
   });
 
   it('inn_exists: existing inn short-circuits before any write', async () => {
     const { prisma, $transaction } = makeCreatePrisma({ innLookup: { id: 'existing' } });
-    expect(await createOrganization(prisma, 'actor1', { name: 'Новая', inn: '7700000000' }))
-      .toEqual({ ok: false, error: 'inn_exists' });
+    expect(
+      await createOrganization(prisma, 'actor1', { name: 'Новая', inn: '7700000000' })
+    ).toEqual({ ok: false, error: 'inn_exists' });
     expect($transaction).not.toHaveBeenCalled();
   });
 
   it('happy path: mints a Company, creates org with externalId=null, returns id', async () => {
     const { prisma, companyCreate, orgCreate } = makeCreatePrisma({ orgId: 'org-new' });
-    const res = await createOrganization(prisma, 'actor1', { name: 'ООО Ромашка', inn: '7712345678', kpp: '771201001' });
+    const res = await createOrganization(prisma, 'actor1', {
+      name: 'ООО Ромашка',
+      inn: '7712345678',
+      kpp: '771201001',
+    });
 
     expect(res).toEqual({ ok: true, id: 'org-new' });
     expect(companyCreate).toHaveBeenCalledWith({ data: { name: 'ООО Ромашка' } });
     const orgData = orgCreate.mock.calls[0][0].data;
-    expect(orgData).toMatchObject({ name: 'ООО Ромашка', inn: '7712345678', kpp: '771201001', externalId: null, companyId: 'company1' });
+    expect(orgData).toMatchObject({
+      name: 'ООО Ромашка',
+      inn: '7712345678',
+      kpp: '771201001',
+      externalId: null,
+      companyId: 'company1',
+    });
   });
 
   it('trims inputs and stores blank inn/kpp as null; skips inn lookup when absent', async () => {
@@ -514,19 +535,22 @@ describe('createOrganization()', () => {
         userId: 'actor1',
         action: 'organization_created_manual',
         entity: 'organization',
-        after: expect.objectContaining({ source: 'manual', name: 'Аудит Тест' })
+        after: expect.objectContaining({ source: 'manual', name: 'Аудит Тест' }),
       })
     );
   });
 
   it('P2002 race (concurrent inn insert) maps to inn_exists', async () => {
     const { prisma } = makeCreatePrisma({ txThrows: { code: 'P2002' } });
-    expect(await createOrganization(prisma, 'actor1', { name: 'Гонка', inn: '7700000000' }))
-      .toEqual({ ok: false, error: 'inn_exists' });
+    expect(
+      await createOrganization(prisma, 'actor1', { name: 'Гонка', inn: '7700000000' })
+    ).toEqual({ ok: false, error: 'inn_exists' });
   });
 
   it('non-P2002 errors propagate', async () => {
     const { prisma } = makeCreatePrisma({ txThrows: new Error('db down') });
-    await expect(createOrganization(prisma, 'actor1', { name: 'Ошибка' })).rejects.toThrow('db down');
+    await expect(createOrganization(prisma, 'actor1', { name: 'Ошибка' })).rejects.toThrow(
+      'db down'
+    );
   });
 });

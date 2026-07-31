@@ -57,7 +57,7 @@ function fromPino(p: pino.Logger): AppLogger {
     info: (msg, ...args) => emit('info', msg, args),
     warn: (msg, ...args) => emit('warn', msg, args),
     error: (msg, ...args) => emit('error', msg, args),
-    child: (bindings) => fromPino(p.child(scrub(bindings) as Record<string, unknown>))
+    child: (bindings) => fromPino(p.child(scrub(bindings) as Record<string, unknown>)),
   };
 }
 
@@ -69,7 +69,7 @@ const CONSOLE_SINK: Record<Level, (...a: unknown[]) => void> = {
   debug: (...a) => console.debug(...a),
   info: (...a) => console.log(...a),
   warn: (...a) => console.warn(...a),
-  error: (...a) => console.error(...a)
+  error: (...a) => console.error(...a),
 };
 /* eslint-enable no-console */
 
@@ -86,7 +86,7 @@ function consoleLogger(bindings?: Record<string, unknown>): AppLogger {
     info: (msg, ...args) => emit('info', msg, args),
     warn: (msg, ...args) => emit('warn', msg, args),
     error: (msg, ...args) => emit('error', msg, args),
-    child: (extra) => consoleLogger({ ...bindings, ...extra })
+    child: (extra) => consoleLogger({ ...bindings, ...extra }),
   };
 }
 
@@ -98,7 +98,7 @@ export function createLogger(opts: CreateLoggerOptions): AppLogger {
       base: opts.bindings ?? {},
       // Машиночитаемый uppercase-уровень не нужен — дефолтный числовой pino-
       // level понятен коллекторам; timestamp дефолтный (epoch ms).
-      messageKey: 'msg'
+      messageKey: 'msg',
     },
     opts.destination
   );
@@ -115,5 +115,5 @@ export function modeFromEnv(): 'json' | 'console' {
 /** Логгер процесса. Импортируй именно его: `import { log } from '@/lib/logging'`. */
 export const log: AppLogger = createLogger({
   mode: modeFromEnv(),
-  level: process.env.LOG_LEVEL
+  level: process.env.LOG_LEVEL,
 });

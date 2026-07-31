@@ -5,7 +5,7 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 
 const { useThreadPolling, uploadAttachment } = vi.hoisted(() => ({
   useThreadPolling: vi.fn(),
-  uploadAttachment: vi.fn()
+  uploadAttachment: vi.fn(),
 }));
 vi.mock('@/hooks/useThreadPolling', () => ({ useThreadPolling }));
 vi.mock('@/lib/chat/upload-attachment', () => ({ uploadAttachment }));
@@ -21,7 +21,7 @@ const THREAD_A = {
   orderNumber: 'ПЗ-0001',
   orderTitle: 'Поставка оборудования',
   lastMessageAt: new Date('2024-03-01T10:00:00Z'),
-  unread: false
+  unread: false,
 };
 
 const THREAD_ORG = {
@@ -31,7 +31,7 @@ const THREAD_ORG = {
   orderNumber: 'ПЗ-0010',
   orderTitle: 'Поставка компрессоров',
   lastMessageAt: new Date('2024-04-01T10:00:00Z'),
-  unread: true
+  unread: true,
 };
 
 const THREAD_NO_NUMBER = {
@@ -41,7 +41,7 @@ const THREAD_NO_NUMBER = {
   orderNumber: null,
   orderTitle: 'Заказ без номера',
   lastMessageAt: new Date('2024-03-05T10:00:00Z'),
-  unread: false
+  unread: false,
 };
 
 function messagesResponse(rows: Array<Record<string, unknown>>) {
@@ -67,7 +67,7 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_A],
         currentUserId: CURRENT_USER,
-        variant: 'role'
+        variant: 'role',
       })
     );
     expect(screen.getByText('Выберите переписку')).toBeTruthy();
@@ -84,8 +84,8 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
               authorName: 'Я',
               body: 'привет',
               createdAt: '2024-03-01T10:00:00Z',
-              hasAttachment: false
-            }
+              hasAttachment: false,
+            },
           ])
         );
       }
@@ -100,14 +100,17 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_A],
         currentUserId: CURRENT_USER,
-        variant: 'role'
+        variant: 'role',
       })
     );
 
     fireEvent.click(screen.getByText('Поставка оборудования'));
     // loading text appears synchronously after click, before fetch resolves
     await waitFor(() => expect(screen.getByText('привет')).toBeTruthy());
-    expect(fetchMock).toHaveBeenCalledWith('/api/messages/read', expect.objectContaining({ method: 'POST' }));
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/messages/read',
+      expect.objectContaining({ method: 'POST' })
+    );
   });
 
   it('selecting a thread with an already-unread flag then a failed markRead keeps the unread dot and warns', async () => {
@@ -126,11 +129,13 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_ORG],
         currentUserId: CURRENT_USER,
-        variant: 'team'
+        variant: 'team',
       })
     );
     fireEvent.click(screen.getByText('Поставка компрессоров'));
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/messages/read', expect.anything()));
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith('/api/messages/read', expect.anything())
+    );
     // unread dot still present since markRead failed (res.ok === false)
     await waitFor(() => expect(screen.getByLabelText('Непрочитано')).toBeTruthy());
   });
@@ -151,7 +156,7 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_A],
         currentUserId: CURRENT_USER,
-        variant: 'role'
+        variant: 'role',
       })
     );
     fireEvent.click(screen.getByText('Поставка оборудования'));
@@ -179,7 +184,7 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_A],
         currentUserId: CURRENT_USER,
-        variant: 'role'
+        variant: 'role',
       })
     );
     fireEvent.click(screen.getByText('Поставка оборудования'));
@@ -205,7 +210,7 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_A],
         currentUserId: CURRENT_USER,
-        variant: 'role'
+        variant: 'role',
       })
     );
     fireEvent.click(screen.getByText('Поставка оборудования'));
@@ -233,7 +238,7 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_A],
         currentUserId: CURRENT_USER,
-        variant: 'role'
+        variant: 'role',
       })
     );
     fireEvent.click(screen.getByText('Поставка оборудования'));
@@ -266,7 +271,7 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_ORG],
         currentUserId: CURRENT_USER,
-        variant: 'team'
+        variant: 'team',
       })
     );
     fireEvent.click(screen.getByText('Поставка компрессоров'));
@@ -295,7 +300,7 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_A],
         currentUserId: CURRENT_USER,
-        variant: 'role'
+        variant: 'role',
       })
     );
     fireEvent.click(screen.getByText('Поставка оборудования'));
@@ -306,10 +311,10 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
     Object.defineProperty(fileInput, 'files', { value: [file] });
     fireEvent.change(fileInput);
 
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('Не удалось загрузить файл'));
-    expect(
-      consoleWarnSpy
-    ).toHaveBeenCalledWith('[order-thread-inbox] attachment upload failed');
+    await waitFor(() =>
+      expect(screen.getByRole('alert').textContent).toBe('Не удалось загрузить файл')
+    );
+    expect(consoleWarnSpy).toHaveBeenCalledWith('[order-thread-inbox] attachment upload failed');
   });
 
   it('handleSend: success path posts body+attachment, clears pending attachment, refetches messages', async () => {
@@ -332,7 +337,7 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_A],
         currentUserId: CURRENT_USER,
-        variant: 'role'
+        variant: 'role',
       })
     );
     fireEvent.click(screen.getByText('Поставка оборудования'));
@@ -355,7 +360,7 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
     expect(parsed).toMatchObject({
       orderId: 'order-a',
       body: 'привет с вложением',
-      attachmentPath: 'uploads/doc.pdf'
+      attachmentPath: 'uploads/doc.pdf',
     });
     // variant='role' must NOT include a side key
     expect(parsed.side).toBeUndefined();
@@ -378,7 +383,7 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_ORG],
         currentUserId: CURRENT_USER,
-        variant: 'team'
+        variant: 'team',
       })
     );
     fireEvent.click(screen.getByText('Поставка компрессоров'));
@@ -389,7 +394,9 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Отправить' }));
 
     await waitFor(() => {
-      const call = fetchMock.mock.calls.find((c) => c[0] === '/api/messages' && c[1]?.method === 'POST');
+      const call = fetchMock.mock.calls.find(
+        (c) => c[0] === '/api/messages' && c[1]?.method === 'POST'
+      );
       expect(call).toBeDefined();
       const parsed = JSON.parse(call![1].body as string);
       expect(parsed.side).toBe('org');
@@ -406,7 +413,7 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
         return Promise.resolve({
           ok: false,
           status: 400,
-          json: () => Promise.resolve({ ok: false, error: 'too_large' })
+          json: () => Promise.resolve({ ok: false, error: 'too_large' }),
         });
       }
       throw new Error('unexpected fetch ' + url);
@@ -417,7 +424,7 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_A],
         currentUserId: CURRENT_USER,
-        variant: 'role'
+        variant: 'role',
       })
     );
     fireEvent.click(screen.getByText('Поставка оборудования'));
@@ -451,7 +458,7 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_A],
         currentUserId: CURRENT_USER,
-        variant: 'role'
+        variant: 'role',
       })
     );
     fireEvent.click(screen.getByText('Поставка оборудования'));
@@ -481,7 +488,14 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
         if (messagesGetCount === 1) {
           return Promise.resolve(
             messagesResponse([
-              { id: 'm1', authorId: 'user-1', authorName: 'Я', body: 'первое', createdAt: '2024-03-01T10:00:00Z', hasAttachment: false }
+              {
+                id: 'm1',
+                authorId: 'user-1',
+                authorName: 'Я',
+                body: 'первое',
+                createdAt: '2024-03-01T10:00:00Z',
+                hasAttachment: false,
+              },
             ])
           );
         }
@@ -499,7 +513,7 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_A],
         currentUserId: CURRENT_USER,
-        variant: 'role'
+        variant: 'role',
       })
     );
     fireEvent.click(screen.getByText('Поставка оборудования'));
@@ -522,7 +536,14 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
       if (typeof url === 'string' && url.startsWith('/api/messages?threadId=')) {
         return Promise.resolve(
           messagesResponse([
-            { id: 'm1', authorId: 'user-1', authorName: 'Я', body: 'исходное', createdAt: '2024-03-01T10:00:00Z', hasAttachment: false }
+            {
+              id: 'm1',
+              authorId: 'user-1',
+              authorName: 'Я',
+              body: 'исходное',
+              createdAt: '2024-03-01T10:00:00Z',
+              hasAttachment: false,
+            },
           ])
         );
       }
@@ -535,7 +556,7 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_A],
         currentUserId: CURRENT_USER,
-        variant: 'role'
+        variant: 'role',
       })
     );
     fireEvent.click(screen.getByText('Поставка оборудования'));
@@ -545,8 +566,22 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
     // duplicate id should be filtered out; new id should be appended
     act(() => {
       capturedAppend!([
-        { id: 'm1', authorId: 'user-1', authorName: 'Я', body: 'дубликат', createdAt: '2024-03-01T10:00:01Z', hasAttachment: false },
-        { id: 'm2', authorId: 'user-2', authorName: 'Коллега', body: 'новое сообщение', createdAt: '2024-03-01T10:00:02Z', hasAttachment: true }
+        {
+          id: 'm1',
+          authorId: 'user-1',
+          authorName: 'Я',
+          body: 'дубликат',
+          createdAt: '2024-03-01T10:00:01Z',
+          hasAttachment: false,
+        },
+        {
+          id: 'm2',
+          authorId: 'user-2',
+          authorName: 'Коллега',
+          body: 'новое сообщение',
+          createdAt: '2024-03-01T10:00:02Z',
+          hasAttachment: true,
+        },
       ]);
     });
 
@@ -563,7 +598,14 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
       if (typeof url === 'string' && url.startsWith('/api/messages?threadId=')) {
         return Promise.resolve(
           messagesResponse([
-            { id: 'm1', authorId: 'user-1', authorName: 'Я', body: 'исходное', createdAt: '2024-03-01T10:00:00Z', hasAttachment: false }
+            {
+              id: 'm1',
+              authorId: 'user-1',
+              authorName: 'Я',
+              body: 'исходное',
+              createdAt: '2024-03-01T10:00:00Z',
+              hasAttachment: false,
+            },
           ])
         );
       }
@@ -576,7 +618,7 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_A],
         currentUserId: CURRENT_USER,
-        variant: 'role'
+        variant: 'role',
       })
     );
     fireEvent.click(screen.getByText('Поставка оборудования'));
@@ -584,7 +626,14 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
 
     act(() => {
       capturedAppend!([
-        { id: 'm1', authorId: 'user-1', authorName: 'Я', body: 'исходное-дубликат', createdAt: '2024-03-01T10:00:00Z', hasAttachment: false }
+        {
+          id: 'm1',
+          authorId: 'user-1',
+          authorName: 'Я',
+          body: 'исходное-дубликат',
+          createdAt: '2024-03-01T10:00:00Z',
+          hasAttachment: false,
+        },
       ]);
     });
 
@@ -597,7 +646,7 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_A],
         currentUserId: CURRENT_USER,
-        variant: 'role'
+        variant: 'role',
       })
     );
     expect(useThreadPolling).toHaveBeenCalledWith(null, null, expect.any(Function));
@@ -609,7 +658,14 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
       if (typeof url === 'string' && url.startsWith('/api/messages?threadId=')) {
         return Promise.resolve(
           messagesResponse([
-            { id: 'm1', authorId: 'user-1', authorName: 'Я', body: 'x', createdAt: '2024-03-01T10:00:00.000Z', hasAttachment: false }
+            {
+              id: 'm1',
+              authorId: 'user-1',
+              authorName: 'Я',
+              body: 'x',
+              createdAt: '2024-03-01T10:00:00.000Z',
+              hasAttachment: false,
+            },
           ])
         );
       }
@@ -622,12 +678,16 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_A],
         currentUserId: CURRENT_USER,
-        variant: 'role'
+        variant: 'role',
       })
     );
     fireEvent.click(screen.getByText('Поставка оборудования'));
     await waitFor(() =>
-      expect(useThreadPolling).toHaveBeenCalledWith('thread-a', '2024-03-01T10:00:00.000Z', expect.any(Function))
+      expect(useThreadPolling).toHaveBeenCalledWith(
+        'thread-a',
+        '2024-03-01T10:00:00.000Z',
+        expect.any(Function)
+      )
     );
   });
 
@@ -645,7 +705,7 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_NO_NUMBER],
         currentUserId: CURRENT_USER,
-        variant: 'role'
+        variant: 'role',
       })
     );
     fireEvent.click(screen.getByText('Заказ без номера'));
@@ -671,14 +731,14 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
       orderNumber: 'ПЗ-0099',
       orderTitle: 'Новый заказ',
       lastMessageAt: new Date('2024-05-01T10:00:00Z'),
-      unread: true
+      unread: true,
     };
 
     const { rerender } = render(
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_A],
         currentUserId: CURRENT_USER,
-        variant: 'role'
+        variant: 'role',
       })
     );
     // threadUnread state was initialized only from the first render's `threads`
@@ -688,7 +748,7 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_A, NEW_UNREAD_THREAD],
         currentUserId: CURRENT_USER,
-        variant: 'role'
+        variant: 'role',
       })
     );
     await waitFor(() => expect(screen.getAllByLabelText('Непрочитано').length).toBe(1));
@@ -703,7 +763,7 @@ describe('OrderThreadInbox (interactive, jsdom)', () => {
       React.createElement(OrderThreadInbox, {
         threads: [THREAD_A],
         currentUserId: CURRENT_USER,
-        variant: 'role'
+        variant: 'role',
       })
     );
     expect(screen.queryByTitle('Прикрепить файл')).toBeNull();

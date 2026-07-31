@@ -1,7 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import { submitEnrollmentRequest } from '@/lib/services/enrollments/submit';
-import { approveEnrollment, markProvisioned, advanceEnrollmentItems } from '@/lib/services/enrollments/lifecycle';
+import {
+  approveEnrollment,
+  markProvisioned,
+  advanceEnrollmentItems,
+} from '@/lib/services/enrollments/lifecycle';
 import { getEnrollmentRequest } from '@/lib/services/enrollments/detail';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
@@ -28,14 +32,21 @@ beforeAll(async () => {
   await prisma.user.upsert({
     where: { id: SUBMITTER },
     update: {},
-    create: { id: SUBMITTER, email: `${SUBMITTER}@enr.test`, name: 'PR2 Податель', role: 'organization' }
+    create: {
+      id: SUBMITTER,
+      email: `${SUBMITTER}@enr.test`,
+      name: 'PR2 Податель',
+      role: 'organization',
+    },
   });
   await prisma.user.upsert({
     where: { id: REVIEWER },
     update: {},
-    create: { id: REVIEWER, email: `${REVIEWER}@enr.test`, name: 'PR2 Ревьюер', role: 'admin' }
+    create: { id: REVIEWER, email: `${REVIEWER}@enr.test`, name: 'PR2 Ревьюер', role: 'admin' },
   });
-  const dir = await prisma.trainingDirection.create({ data: { name: `${T}-Пожарная безопасность`, sortOrder: 910 } });
+  const dir = await prisma.trainingDirection.create({
+    data: { name: `${T}-Пожарная безопасность`, sortOrder: 910 },
+  });
   directionId = dir.id;
   const org = await prisma.organization.create({ data: { name: `${T}-Организация` } });
   orgId = org.id;
@@ -43,7 +54,7 @@ beforeAll(async () => {
   submitterSession = {
     sub: SUBMITTER,
     role: 'organization',
-    organizationMemberships: [{ organizationId: orgId, roleInOrg: 'admin', isActive: true }]
+    organizationMemberships: [{ organizationId: orgId, roleInOrg: 'admin', isActive: true }],
   } as SessionPayload;
 });
 
@@ -61,13 +72,16 @@ async function itemStatuses(requestId: string): Promise<string[]> {
   const items = await prisma.enrollmentRequestItem.findMany({
     where: { requestId },
     orderBy: { id: 'asc' },
-    select: { status: true }
+    select: { status: true },
   });
   return items.map((i) => i.status);
 }
 
 async function headerStatus(requestId: string): Promise<string> {
-  const r = await prisma.enrollmentRequest.findUniqueOrThrow({ where: { id: requestId }, select: { status: true } });
+  const r = await prisma.enrollmentRequest.findUniqueOrThrow({
+    where: { id: requestId },
+    select: { status: true },
+  });
   return r.status;
 }
 
@@ -82,8 +96,8 @@ describe('PR-2 конвейер позиций + уведомления + дет
       organizationId: orgId,
       items: [
         { fullName: 'Анна ПР2', email: `${T}-anna@org.test` },
-        { fullName: 'Борис ПР2', email: `${T}-boris@org.test` }
-      ]
+        { fullName: 'Борис ПР2', email: `${T}-boris@org.test` },
+      ],
     });
     if (!res.ok) throw new Error(`submit failed: ${JSON.stringify(res)}`);
     requestId = res.request.id;
@@ -91,7 +105,7 @@ describe('PR-2 конвейер позиций + уведомления + дет
     const items = await prisma.enrollmentRequestItem.findMany({
       where: { requestId },
       orderBy: { id: 'asc' },
-      select: { id: true }
+      select: { id: true },
     });
     expect(items).toHaveLength(2);
     itemA = items[0].id;
@@ -110,11 +124,12 @@ describe('PR-2 конвейер позиций + уведомления + дет
   it('после approve податель получил Notification type enrollment_status_changed', async () => {
     const rows = await prisma.notification.findMany({
       where: { userId: SUBMITTER, type: 'enrollment_status_changed' },
-      orderBy: { createdAt: 'asc' }
+      orderBy: { createdAt: 'asc' },
     });
     expect(rows.length).toBeGreaterThanOrEqual(1);
     const approved = rows.find(
-      (n) => (n.meta as { requestId?: string; status?: string })?.requestId === requestId &&
+      (n) =>
+        (n.meta as { requestId?: string; status?: string })?.requestId === requestId &&
         (n.meta as { status?: string })?.status === 'approved'
     );
     expect(approved).toBeDefined();
@@ -127,7 +142,7 @@ describe('PR-2 конвейер позиций + уведомления + дет
       id: requestId,
       reviewerId: REVIEWER,
       target: 'in_training',
-      itemIds: [itemA]
+      itemIds: [itemA],
     });
     if (!r.ok) throw new Error(`advance failed: ${JSON.stringify(r)}`);
     expect(r.movedCount).toBe(1);
@@ -143,7 +158,7 @@ describe('PR-2 конвейер позиций + уведомления + дет
       id: requestId,
       reviewerId: REVIEWER,
       target: 'in_training',
-      itemIds: [itemA]
+      itemIds: [itemA],
     });
     expect(again).toEqual({ ok: false, error: 'lifecycle_violation' });
 
@@ -152,7 +167,7 @@ describe('PR-2 конвейер позиций + уведомления + дет
       id: requestId,
       reviewerId: REVIEWER,
       target: 'in_training',
-      itemIds: ['alien-item-pr2']
+      itemIds: ['alien-item-pr2'],
     });
     expect(alien).toEqual({ ok: false, error: 'validation' });
     expect(await itemStatuses(requestId)).toEqual(['in_training', 'provisioned']);
@@ -163,7 +178,7 @@ describe('PR-2 конвейер позиций + уведомления + дет
       id: requestId,
       reviewerId: REVIEWER,
       target: 'in_training',
-      itemIds: [itemB]
+      itemIds: [itemB],
     });
     if (!second.ok) throw new Error(`advance failed: ${JSON.stringify(second)}`);
     expect(second.headerChanged).toBe(true);
@@ -174,7 +189,7 @@ describe('PR-2 конвейер позиций + уведомления + дет
     const ready = await advanceEnrollmentItems(prisma, {
       id: requestId,
       reviewerId: REVIEWER,
-      target: 'certificates_ready'
+      target: 'certificates_ready',
     });
     if (!ready.ok) throw new Error(`advance failed: ${JSON.stringify(ready)}`);
     expect(ready.movedCount).toBe(2);
@@ -183,7 +198,9 @@ describe('PR-2 конвейер позиций + уведомления + дет
 
     // Смена статуса шапки на in_training и certificates_ready тоже уведомила подателя.
     const statuses = (
-      await prisma.notification.findMany({ where: { userId: SUBMITTER, type: 'enrollment_status_changed' } })
+      await prisma.notification.findMany({
+        where: { userId: SUBMITTER, type: 'enrollment_status_changed' },
+      })
     ).map((n) => (n.meta as { status?: string })?.status);
     expect(statuses).toContain('in_training');
     expect(statuses).toContain('certificates_ready');
@@ -194,13 +211,16 @@ describe('PR-2 конвейер позиций + уведомления + дет
     if (!mine.ok) throw new Error(`expected ok, got ${JSON.stringify(mine)}`);
     expect(mine.request.directionName).toBe(`${T}-Пожарная безопасность`);
     expect(mine.request.items).toHaveLength(2);
-    expect(mine.request.items.map((i) => i.status)).toEqual(['certificates_ready', 'certificates_ready']);
+    expect(mine.request.items.map((i) => i.status)).toEqual([
+      'certificates_ready',
+      'certificates_ready',
+    ]);
 
     // Пользователь другого партнёра: скоуп по partnerId → заявка неотличима от несуществующей.
     const alienPartner = {
       sub: `${T}-alien`,
       role: 'partner',
-      partnerId: `${T}-no-such-partner`
+      partnerId: `${T}-no-such-partner`,
     } as SessionPayload;
     const foreign = await getEnrollmentRequest(prisma, alienPartner, requestId);
     expect(foreign).toEqual({ ok: false, error: 'not_found' });
@@ -209,7 +229,7 @@ describe('PR-2 конвейер позиций + уведомления + дет
     const alienOrg = {
       sub: `${T}-alien-org`,
       role: 'organization',
-      organizationMemberships: []
+      organizationMemberships: [],
     } as unknown as SessionPayload;
     const foreignOrg = await getEnrollmentRequest(prisma, alienOrg, requestId);
     expect(foreignOrg).toEqual({ ok: false, error: 'not_found' });

@@ -31,7 +31,11 @@ function parsePeriod(raw: string | undefined): { year: number; month: number } {
 
 type SearchParams = Promise<{ month?: string }>;
 
-export default async function LeaderAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function LeaderAnalyticsPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   if (!isFeatureEnabled('leader_analytics')) notFound();
   const session = await requireManagerLeader();
 
@@ -41,27 +45,31 @@ export default async function LeaderAnalyticsPage({ searchParams }: { searchPara
 
   const [funnel, planFact] = await Promise.all([
     getFunnelAnalytics(prisma, session, { from, to }),
-    getPlanFact(prisma, session, { year, month })
+    getPlanFact(prisma, session, { year, month }),
   ]);
   if (!funnel.ok || !planFact.ok) notFound();
 
   const monthValue = `${year}-${String(month).padStart(2, '0')}`;
 
   return (
-    <div className='space-y-8'>
+    <div className="space-y-8">
       <div>
-        <h1 className='text-2xl font-bold text-[#111111]'>Аналитика</h1>
-        <p className='text-sm text-gray-500 mt-1'>
+        <h1 className="text-2xl font-bold text-[#111111]">Аналитика</h1>
+        <p className="text-sm text-gray-500 mt-1">
           Конверсия воронки за период и выполнение плана продаж по менеджерам.
         </p>
       </div>
 
       <MonthPicker month={monthValue} />
 
-      <FunnelAnalyticsPanel snapshot={funnel.snapshot} cohort={funnel.cohort} perManager={funnel.perManager} />
+      <FunnelAnalyticsPanel
+        snapshot={funnel.snapshot}
+        cohort={funnel.cohort}
+        perManager={funnel.perManager}
+      />
 
       <div>
-        <h2 className='text-lg font-semibold text-[#111111] mb-3'>План / факт</h2>
+        <h2 className="text-lg font-semibold text-[#111111] mb-3">План / факт</h2>
         <PlanFactTable year={year} month={month} rows={planFact.rows} totals={planFact.totals} />
       </div>
     </div>

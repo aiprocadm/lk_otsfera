@@ -8,8 +8,16 @@ import ExcelJS from 'exceljs';
 // is already covered by import.card51.integration.test.ts.
 const { uploadThrows } = vi.hoisted(() => ({ uploadThrows: vi.fn() }));
 vi.mock('@/lib/storage', () => ({ getObjectStorage: () => ({ upload: uploadThrows }) }));
-vi.mock('@/lib/services/oneCSync/log', () => ({ writeSyncLog: vi.fn(async () => { throw new Error('log down'); }) }));
-vi.mock('@/lib/auth/audit', () => ({ recordAudit: vi.fn(async () => { throw new Error('audit down'); }) }));
+vi.mock('@/lib/services/oneCSync/log', () => ({
+  writeSyncLog: vi.fn(async () => {
+    throw new Error('log down');
+  }),
+}));
+vi.mock('@/lib/auth/audit', () => ({
+  recordAudit: vi.fn(async () => {
+    throw new Error('audit down');
+  }),
+}));
 
 // server-actions/payment-import wraps the real service. Only the auth boundary
 // (requireSession) is mocked; the barrel service + singleton prisma stay real so
@@ -17,9 +25,20 @@ vi.mock('@/lib/auth/audit', () => ({ recordAudit: vi.fn(async () => { throw new 
 const { requireSession } = vi.hoisted(() => ({ requireSession: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireSession }));
 
-import { previewPaymentImport, commitPaymentImport } from '@/lib/services/import/oneCAccountCard/import-batch';
-import { listQueue, resolveQueueRow, dismissQueueRow } from '@/lib/services/import/oneCAccountCard/resolve-queue';
-import { commitPaymentImportAction, resolveQueueRowAction, dismissQueueRowAction } from '@/server-actions/payment-import';
+import {
+  previewPaymentImport,
+  commitPaymentImport,
+} from '@/lib/services/import/oneCAccountCard/import-batch';
+import {
+  listQueue,
+  resolveQueueRow,
+  dismissQueueRow,
+} from '@/lib/services/import/oneCAccountCard/resolve-queue';
+import {
+  commitPaymentImportAction,
+  resolveQueueRowAction,
+  dismissQueueRowAction,
+} from '@/server-actions/payment-import';
 
 const prisma = new PrismaClient();
 const STAMP = Date.now();
@@ -57,16 +76,19 @@ const ROW_EXT = {
 const COMMIT_EXT = ['0000-000701', '0000-000702', '0000-000703', '0000-000705'];
 const ORDER_EXT = 'RQ-ORD-0001';
 
-function makeRow(externalId: string, opts: {
-  batchId: string;
-  isRefund?: boolean;
-  purpose?: string | null;
-  paymentOrderNumber?: string | null;
-  vatAmount?: number | null;
-  status?: string;
-  candidateOrgId?: string | null;
-  candidateOrderId?: string | null;
-}) {
+function makeRow(
+  externalId: string,
+  opts: {
+    batchId: string;
+    isRefund?: boolean;
+    purpose?: string | null;
+    paymentOrderNumber?: string | null;
+    vatAmount?: number | null;
+    status?: string;
+    candidateOrgId?: string | null;
+    candidateOrderId?: string | null;
+  }
+) {
   return prisma.paymentImportRow.create({
     data: {
       batchId: opts.batchId,
@@ -96,15 +118,65 @@ async function commitBuffer(): Promise<Buffer> {
   const ws = wb.addWorksheet('Лист1');
   ws.addRow(['Сальдо на начало']);
   // exact non-refund (Поступление + 62, ИНН-match) → imported
-  ws.addRow(['01.07.2026', 'Поступление на расчетный счет 0000-000701 от 01.07.2026 10:00:00\nОплата по договору', '', `КЛИЕНТ ООО ИНН ${INN}`, '', '18000', '', '62.01', '']);
+  ws.addRow([
+    '01.07.2026',
+    'Поступление на расчетный счет 0000-000701 от 01.07.2026 10:00:00\nОплата по договору',
+    '',
+    `КЛИЕНТ ООО ИНН ${INN}`,
+    '',
+    '18000',
+    '',
+    '62.01',
+    '',
+  ]);
   // exact refund (Списание + 62, ИНН-match, сумма в кредите) → imported + refund
-  ws.addRow(['02.07.2026', 'Списание с расчетного счета 0000-000702 от 02.07.2026 10:00:00\nВозврат клиенту', '', `КЛИЕНТ ООО ИНН ${INN}`, '', '', '', '62.01', '3000']);
+  ws.addRow([
+    '02.07.2026',
+    'Списание с расчетного счета 0000-000702 от 02.07.2026 10:00:00\nВозврат клиенту',
+    '',
+    `КЛИЕНТ ООО ИНН ${INN}`,
+    '',
+    '',
+    '',
+    '62.01',
+    '3000',
+  ]);
   // queue (нет ИНН, неизвестное имя) → queued
-  ws.addRow(['03.07.2026', 'Поступление на расчетный счет 0000-000703 от 03.07.2026 10:00:00\nОплата', '', 'НЕИЗВЕСТНАЯ ФИРМА', '', '5000', '', '62.01', '']);
+  ws.addRow([
+    '03.07.2026',
+    'Поступление на расчетный счет 0000-000703 от 03.07.2026 10:00:00\nОплата',
+    '',
+    'НЕИЗВЕСТНАЯ ФИРМА',
+    '',
+    '5000',
+    '',
+    '62.01',
+    '',
+  ]);
   // excluded (corr 60 → supplier)
-  ws.addRow(['04.07.2026', 'Списание с расчетного счета 0000-000704 от 04.07.2026 10:00:00\nоплата поставщику', '', 'ПОСТАВЩИК', '', '', '', '60', '900']);
+  ws.addRow([
+    '04.07.2026',
+    'Списание с расчетного счета 0000-000704 от 04.07.2026 10:00:00\nоплата поставщику',
+    '',
+    'ПОСТАВЩИК',
+    '',
+    '',
+    '',
+    '60',
+    '900',
+  ]);
   // parse-error (payment kind, но нет суммы и даты) → parseErrors → syncLog status 'warn'
-  ws.addRow(['', 'Поступление на расчетный счет 0000-000705 от 04.07.2026\nОплата', '', `КЛИЕНТ ООО ИНН ${INN}`, '', '', '', '62.01', '']);
+  ws.addRow([
+    '',
+    'Поступление на расчетный счет 0000-000705 от 04.07.2026\nОплата',
+    '',
+    `КЛИЕНТ ООО ИНН ${INN}`,
+    '',
+    '',
+    '',
+    '62.01',
+    '',
+  ]);
   ws.addRow(['Обороты за период и сальдо на конец']);
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
@@ -113,25 +185,59 @@ beforeAll(async () => {
   // default S3 failure = Error → hits the `e instanceof Error ? e.message` arm (import-batch L106).
   uploadThrows.mockRejectedValue(new Error('s3 down'));
   // commitPaymentImport writes batch.importedById → real User FK.
-  await prisma.user.create({ data: { id: 'cov-import-admin', email: `cov-import-admin-${STAMP}@t.test`, name: 'Cov Admin', role: 'admin' } });
+  await prisma.user.create({
+    data: {
+      id: 'cov-import-admin',
+      email: `cov-import-admin-${STAMP}@t.test`,
+      name: 'Cov Admin',
+      role: 'admin',
+    },
+  });
   const company = await prisma.company.create({ data: { name: COMPANY_NAME } });
   companyId = company.id;
   const other = await prisma.company.create({ data: { name: OTHER_COMPANY_NAME } });
   otherCompanyId = other.id;
 
-  const orgWithInn = await prisma.organization.create({ data: { name: `Клиент ООО ${STAMP}`, inn: INN, externalId: `CV-ORG-${STAMP}`, companyId } });
+  const orgWithInn = await prisma.organization.create({
+    data: { name: `Клиент ООО ${STAMP}`, inn: INN, externalId: `CV-ORG-${STAMP}`, companyId },
+  });
   orgWithInnId = orgWithInn.id;
-  const orgNull = await prisma.organization.create({ data: { name: `Без реквизитов ${STAMP}`, inn: null, externalId: null, companyId } });
+  const orgNull = await prisma.organization.create({
+    data: { name: `Без реквизитов ${STAMP}`, inn: null, externalId: null, companyId },
+  });
   orgNullId = orgNull.id;
 
-  const order = await prisma.order.create({ data: { title: `Cov order ${STAMP}`, externalId: ORDER_EXT, companyId, organizationId: orgWithInnId } });
+  const order = await prisma.order.create({
+    data: {
+      title: `Cov order ${STAMP}`,
+      externalId: ORDER_EXT,
+      companyId,
+      organizationId: orgWithInnId,
+    },
+  });
   orderWithExtId = order.id;
 
-  const batch = await prisma.paymentImportBatch.create({ data: { importedById: 'cov-import-admin', companyId, fileName: 'seed.xlsx', counts: {} as unknown as Prisma.InputJsonValue, status: 'committed' } });
+  const batch = await prisma.paymentImportBatch.create({
+    data: {
+      importedById: 'cov-import-admin',
+      companyId,
+      fileName: 'seed.xlsx',
+      counts: {} as unknown as Prisma.InputJsonValue,
+      status: 'committed',
+    },
+  });
   batchId = batch.id;
 
   await makeRow(ROW_EXT.a, { batchId, candidateOrgId: orgNullId });
-  await makeRow(ROW_EXT.b, { batchId, isRefund: true, purpose: 'Возврат по договору', paymentOrderNumber: 'PN-77', vatAmount: 500, candidateOrgId: orgWithInnId, candidateOrderId: orderWithExtId });
+  await makeRow(ROW_EXT.b, {
+    batchId,
+    isRefund: true,
+    purpose: 'Возврат по договору',
+    paymentOrderNumber: 'PN-77',
+    vatAmount: 500,
+    candidateOrgId: orgWithInnId,
+    candidateOrderId: orderWithExtId,
+  });
   await makeRow(ROW_EXT.c, { batchId, candidateOrgId: orgWithInnId });
   await makeRow(ROW_EXT.resolved, { batchId, status: 'resolved' });
   await makeRow(ROW_EXT.scope, { batchId });
@@ -139,16 +245,36 @@ beforeAll(async () => {
   await makeRow(ROW_EXT.orgReq, { batchId });
   await makeRow(ROW_EXT.orgMissing, { batchId });
 
-  managerInCompany = { sub: 'cov-import-mgr', role: 'manager', companyId, managedOrgIds: [orgWithInnId] } as never;
+  managerInCompany = {
+    sub: 'cov-import-mgr',
+    role: 'manager',
+    companyId,
+    managedOrgIds: [orgWithInnId],
+  } as never;
   managerNoCompany = { sub: 'cov-import-mgr2', role: 'manager', companyId: null } as never;
-  managerOtherCompany = { sub: 'cov-import-mgr3', role: 'manager', companyId: otherCompanyId } as never;
+  managerOtherCompany = {
+    sub: 'cov-import-mgr3',
+    role: 'manager',
+    companyId: otherCompanyId,
+  } as never;
 });
 
 afterAll(async () => {
-  await prisma.payment.deleteMany({ where: { externalId: { in: [...COMMIT_EXT, ROW_EXT.b, ROW_EXT.c] } } });
-  await prisma.paymentImportRow.deleteMany({ where: { externalId: { in: [...Object.values(ROW_EXT), ...COMMIT_EXT] } } });
+  await prisma.payment.deleteMany({
+    where: { externalId: { in: [...COMMIT_EXT, ROW_EXT.b, ROW_EXT.c] } },
+  });
+  await prisma.paymentImportRow.deleteMany({
+    where: { externalId: { in: [...Object.values(ROW_EXT), ...COMMIT_EXT] } },
+  });
   // batches: seed + direct-call commits (companyId=null for admin) + action commit → clean by importer/company.
-  await prisma.paymentImportBatch.deleteMany({ where: { OR: [{ companyId: { in: [companyId, otherCompanyId] } }, { importedById: 'cov-import-admin' }] } });
+  await prisma.paymentImportBatch.deleteMany({
+    where: {
+      OR: [
+        { companyId: { in: [companyId, otherCompanyId] } },
+        { importedById: 'cov-import-admin' },
+      ],
+    },
+  });
   await prisma.order.deleteMany({ where: { externalId: ORDER_EXT } });
   await prisma.organization.deleteMany({ where: { id: { in: [orgWithInnId, orgNullId] } } });
   await prisma.company.deleteMany({ where: { id: { in: [companyId, otherCompanyId] } } });
@@ -158,30 +284,45 @@ afterAll(async () => {
 
 describe('previewPaymentImport (cov)', () => {
   it('denies non-staff (organization) role', async () => {
-    const res = await previewPaymentImport(prisma, orgSession, { fileBuffer: Buffer.from(''), fileName: 'x.xlsx' });
+    const res = await previewPaymentImport(prisma, orgSession, {
+      fileBuffer: Buffer.from(''),
+      fileName: 'x.xlsx',
+    });
     expect(res).toEqual({ ok: false, error: 'forbidden' });
   });
 
   it('maps an unreadable file to parse_failed', async () => {
-    const res = await previewPaymentImport(prisma, adminSession, { fileBuffer: Buffer.from('not a spreadsheet'), fileName: 'broken.xlsx' });
+    const res = await previewPaymentImport(prisma, adminSession, {
+      fileBuffer: Buffer.from('not a spreadsheet'),
+      fileName: 'broken.xlsx',
+    });
     expect(res).toEqual({ ok: false, error: 'parse_failed' });
   });
 
   it('admits the manager role (isStaff) past the auth gate', async () => {
     // manager passes isStaff (role==='manager' arm); unreadable buffer → parse_failed.
-    const res = await previewPaymentImport(prisma, managerInCompany, { fileBuffer: Buffer.from('not a spreadsheet'), fileName: 'broken.xlsx' });
+    const res = await previewPaymentImport(prisma, managerInCompany, {
+      fileBuffer: Buffer.from('not a spreadsheet'),
+      fileName: 'broken.xlsx',
+    });
     expect(res).toEqual({ ok: false, error: 'parse_failed' });
   });
 });
 
 describe('commitPaymentImport (cov)', () => {
   it('denies non-staff (organization) role', async () => {
-    const res = await commitPaymentImport(prisma, orgSession, { fileBuffer: Buffer.from(''), fileName: 'x.xlsx' });
+    const res = await commitPaymentImport(prisma, orgSession, {
+      fileBuffer: Buffer.from(''),
+      fileName: 'x.xlsx',
+    });
     expect(res).toEqual({ ok: false, error: 'forbidden' });
   });
 
   it('maps an unreadable file to parse_failed', async () => {
-    const res = await commitPaymentImport(prisma, adminSession, { fileBuffer: Buffer.from('not a spreadsheet'), fileName: 'broken.xlsx' });
+    const res = await commitPaymentImport(prisma, adminSession, {
+      fileBuffer: Buffer.from('not a spreadsheet'),
+      fileName: 'broken.xlsx',
+    });
     expect(res).toEqual({ ok: false, error: 'parse_failed' });
   });
 
@@ -191,13 +332,19 @@ describe('commitPaymentImport (cov)', () => {
     const ws = wb.addWorksheet('Лист1');
     ws.addRow(['просто заголовок без маркеров']);
     const buf = Buffer.from(await wb.xlsx.writeBuffer());
-    const res = await commitPaymentImport(prisma, adminSession, { fileBuffer: buf, fileName: 'headeronly.xlsx' });
+    const res = await commitPaymentImport(prisma, adminSession, {
+      fileBuffer: buf,
+      fileName: 'headeronly.xlsx',
+    });
     expect(res).toEqual({ ok: false, error: 'empty' });
   });
 
   it('commits: exact→Payment (incl. refund), queue, excluded, parse-error; best-effort sinks swallow failures', async () => {
     const buf = await commitBuffer();
-    const res = await commitPaymentImport(prisma, adminSession, { fileBuffer: buf, fileName: 'card.xlsx' });
+    const res = await commitPaymentImport(prisma, adminSession, {
+      fileBuffer: buf,
+      fileName: 'card.xlsx',
+    });
     expect(res.ok).toBe(true);
     if (res.ok) {
       expect(res.result.counts.totalRows).toBe(5);
@@ -209,15 +356,25 @@ describe('commitPaymentImport (cov)', () => {
       expect(res.result.counts.parseErrors).toBe(1);
     }
     // exact rows materialised as Payments (mocked S3/log/audit did not block them).
-    const pay = await prisma.payment.findUnique({ where: { externalId: '0000-000701' }, select: { organizationId: true, isRefund: true } });
+    const pay = await prisma.payment.findUnique({
+      where: { externalId: '0000-000701' },
+      select: { organizationId: true, isRefund: true },
+    });
     expect(pay?.organizationId).toBe(orgWithInnId);
     expect(pay?.isRefund).toBe(false);
-    const refund = await prisma.payment.findUnique({ where: { externalId: '0000-000702' }, select: { isRefund: true } });
+    const refund = await prisma.payment.findUnique({
+      where: { externalId: '0000-000702' },
+      select: { isRefund: true },
+    });
     expect(refund?.isRefund).toBe(true);
     // best-effort sinks were invoked and their rejections swallowed.
     expect(uploadThrows).toHaveBeenCalled();
     // fileKey never persisted because the S3 upload threw before the update.
-    const batch = await prisma.paymentImportBatch.findFirst({ where: { importedById: 'cov-import-admin', fileName: 'card.xlsx' }, orderBy: { createdAt: 'desc' }, select: { fileKey: true } });
+    const batch = await prisma.paymentImportBatch.findFirst({
+      where: { importedById: 'cov-import-admin', fileName: 'card.xlsx' },
+      orderBy: { createdAt: 'desc' },
+      select: { fileKey: true },
+    });
     expect(batch?.fileKey).toBeNull();
   });
 });
@@ -248,71 +405,147 @@ describe('listQueue (cov)', () => {
 
 describe('resolveQueueRow (cov)', () => {
   it('denies a non-staff role', async () => {
-    const res = await resolveQueueRow(prisma, orgSession, { rowId: 'whatever', organizationId: orgWithInnId, orderId: null });
+    const res = await resolveQueueRow(prisma, orgSession, {
+      rowId: 'whatever',
+      organizationId: orgWithInnId,
+      orderId: null,
+    });
     expect(res).toEqual({ ok: false, error: 'forbidden' });
   });
 
   it('returns not_found for an unknown row id', async () => {
-    const res = await resolveQueueRow(prisma, adminSession, { rowId: 'no-such-row', organizationId: orgWithInnId, orderId: null });
+    const res = await resolveQueueRow(prisma, adminSession, {
+      rowId: 'no-such-row',
+      organizationId: orgWithInnId,
+      orderId: null,
+    });
     expect(res).toEqual({ ok: false, error: 'not_found' });
   });
 
   it('returns not_found for a row that is not needs_review', async () => {
-    const row = await prisma.paymentImportRow.findUnique({ where: { externalId: ROW_EXT.resolved }, select: { id: true } });
-    const res = await resolveQueueRow(prisma, adminSession, { rowId: row!.id, organizationId: orgWithInnId, orderId: null });
+    const row = await prisma.paymentImportRow.findUnique({
+      where: { externalId: ROW_EXT.resolved },
+      select: { id: true },
+    });
+    const res = await resolveQueueRow(prisma, adminSession, {
+      rowId: row!.id,
+      organizationId: orgWithInnId,
+      orderId: null,
+    });
     expect(res).toEqual({ ok: false, error: 'not_found' });
   });
 
   it('returns not_found when a manager is in a different company (companyId mismatch)', async () => {
-    const row = await prisma.paymentImportRow.findUnique({ where: { externalId: ROW_EXT.scope }, select: { id: true } });
-    const res = await resolveQueueRow(prisma, managerOtherCompany, { rowId: row!.id, organizationId: orgWithInnId, orderId: null });
+    const row = await prisma.paymentImportRow.findUnique({
+      where: { externalId: ROW_EXT.scope },
+      select: { id: true },
+    });
+    const res = await resolveQueueRow(prisma, managerOtherCompany, {
+      rowId: row!.id,
+      organizationId: orgWithInnId,
+      orderId: null,
+    });
     expect(res).toEqual({ ok: false, error: 'not_found' });
   });
 
   it('returns not_found when a manager has no company at all (fail-safe scope)', async () => {
-    const row = await prisma.paymentImportRow.findUnique({ where: { externalId: ROW_EXT.scope }, select: { id: true } });
-    const res = await resolveQueueRow(prisma, managerNoCompany, { rowId: row!.id, organizationId: orgWithInnId, orderId: null });
+    const row = await prisma.paymentImportRow.findUnique({
+      where: { externalId: ROW_EXT.scope },
+      select: { id: true },
+    });
+    const res = await resolveQueueRow(prisma, managerNoCompany, {
+      rowId: row!.id,
+      organizationId: orgWithInnId,
+      orderId: null,
+    });
     expect(res).toEqual({ ok: false, error: 'not_found' });
   });
 
   it('returns org_required when organizationId is empty', async () => {
-    const row = await prisma.paymentImportRow.findUnique({ where: { externalId: ROW_EXT.orgReq }, select: { id: true } });
-    const res = await resolveQueueRow(prisma, adminSession, { rowId: row!.id, organizationId: '', orderId: null });
+    const row = await prisma.paymentImportRow.findUnique({
+      where: { externalId: ROW_EXT.orgReq },
+      select: { id: true },
+    });
+    const res = await resolveQueueRow(prisma, adminSession, {
+      rowId: row!.id,
+      organizationId: '',
+      orderId: null,
+    });
     expect(res).toEqual({ ok: false, error: 'org_required' });
   });
 
   it('returns not_found when the chosen organization does not exist', async () => {
-    const row = await prisma.paymentImportRow.findUnique({ where: { externalId: ROW_EXT.orgMissing }, select: { id: true } });
-    const res = await resolveQueueRow(prisma, adminSession, { rowId: row!.id, organizationId: 'no-such-org', orderId: null });
+    const row = await prisma.paymentImportRow.findUnique({
+      where: { externalId: ROW_EXT.orgMissing },
+      select: { id: true },
+    });
+    const res = await resolveQueueRow(prisma, adminSession, {
+      rowId: row!.id,
+      organizationId: 'no-such-org',
+      orderId: null,
+    });
     expect(res).toEqual({ ok: false, error: 'not_found' });
   });
 
   it('builds a null-field org-level DTO; writer skips a ref-less org → write_skipped', async () => {
     // rowA: no purpose/paymentOrderNumber/vatAmount, not a refund; org has no inn
     // & no externalId → resolveOrganizationRef returns null → Payment not created.
-    const row = await prisma.paymentImportRow.findUnique({ where: { externalId: ROW_EXT.a }, select: { id: true } });
-    const res = await resolveQueueRow(prisma, adminSession, { rowId: row!.id, organizationId: orgNullId, orderId: null });
+    const row = await prisma.paymentImportRow.findUnique({
+      where: { externalId: ROW_EXT.a },
+      select: { id: true },
+    });
+    const res = await resolveQueueRow(prisma, adminSession, {
+      rowId: row!.id,
+      organizationId: orgNullId,
+      orderId: null,
+    });
     expect(res).toEqual({ ok: false, error: 'write_skipped' });
-    const still = await prisma.paymentImportRow.findUnique({ where: { externalId: ROW_EXT.a }, select: { status: true } });
+    const still = await prisma.paymentImportRow.findUnique({
+      where: { externalId: ROW_EXT.a },
+      select: { status: true },
+    });
     expect(still?.status).toBe('needs_review');
   });
 
   it('resolves org-level with all optional fields present → Payment created + row resolved', async () => {
-    const row = await prisma.paymentImportRow.findUnique({ where: { externalId: ROW_EXT.c }, select: { id: true } });
-    const res = await resolveQueueRow(prisma, adminSession, { rowId: row!.id, organizationId: orgWithInnId, orderId: null });
+    const row = await prisma.paymentImportRow.findUnique({
+      where: { externalId: ROW_EXT.c },
+      select: { id: true },
+    });
+    const res = await resolveQueueRow(prisma, adminSession, {
+      rowId: row!.id,
+      organizationId: orgWithInnId,
+      orderId: null,
+    });
     expect(res.ok).toBe(true);
-    const pay = await prisma.payment.findUnique({ where: { externalId: ROW_EXT.c }, select: { organizationId: true } });
+    const pay = await prisma.payment.findUnique({
+      where: { externalId: ROW_EXT.c },
+      select: { organizationId: true },
+    });
     expect(pay?.organizationId).toBe(orgWithInnId);
-    const updated = await prisma.paymentImportRow.findUnique({ where: { externalId: ROW_EXT.c }, select: { status: true, resolvedPaymentId: true } });
+    const updated = await prisma.paymentImportRow.findUnique({
+      where: { externalId: ROW_EXT.c },
+      select: { status: true, resolvedPaymentId: true },
+    });
     expect(updated?.status).toBe('resolved');
     expect(updated?.resolvedPaymentId).toBeTruthy();
   });
 
   it('resolves order-level (order has externalId, refund row) → Payment on the order', async () => {
-    const row = await prisma.paymentImportRow.findUnique({ where: { externalId: ROW_EXT.b }, select: { id: true } });
-    const res = await resolveQueueRow(prisma, adminSession, { rowId: row!.id, organizationId: orgWithInnId, orderId: orderWithExtId });
+    const row = await prisma.paymentImportRow.findUnique({
+      where: { externalId: ROW_EXT.b },
+      select: { id: true },
+    });
+    const res = await resolveQueueRow(prisma, adminSession, {
+      rowId: row!.id,
+      organizationId: orgWithInnId,
+      orderId: orderWithExtId,
+    });
     expect(res.ok).toBe(true);
-    const pay = await prisma.payment.findUnique({ where: { externalId: ROW_EXT.b }, select: { orderId: true, isRefund: true } });
+    const pay = await prisma.payment.findUnique({
+      where: { externalId: ROW_EXT.b },
+      select: { orderId: true, isRefund: true },
+    });
     expect(pay?.orderId).toBe(orderWithExtId);
     expect(pay?.isRefund).toBe(true);
   });
@@ -325,16 +558,25 @@ describe('dismissQueueRow (cov)', () => {
   });
 
   it('returns not_found when a manager is out of company scope', async () => {
-    const row = await prisma.paymentImportRow.findUnique({ where: { externalId: ROW_EXT.scope }, select: { id: true } });
+    const row = await prisma.paymentImportRow.findUnique({
+      where: { externalId: ROW_EXT.scope },
+      select: { id: true },
+    });
     const res = await dismissQueueRow(prisma, managerOtherCompany, { rowId: row!.id });
     expect(res).toEqual({ ok: false, error: 'not_found' });
   });
 
   it('dismisses a needs_review row', async () => {
-    const row = await prisma.paymentImportRow.findUnique({ where: { externalId: ROW_EXT.dismiss }, select: { id: true } });
+    const row = await prisma.paymentImportRow.findUnique({
+      where: { externalId: ROW_EXT.dismiss },
+      select: { id: true },
+    });
     const res = await dismissQueueRow(prisma, adminSession, { rowId: row!.id });
     expect(res).toEqual({ ok: true });
-    const updated = await prisma.paymentImportRow.findUnique({ where: { externalId: ROW_EXT.dismiss }, select: { status: true } });
+    const updated = await prisma.paymentImportRow.findUnique({
+      where: { externalId: ROW_EXT.dismiss },
+      select: { status: true },
+    });
     expect(updated?.status).toBe('dismissed');
   });
 });
@@ -344,7 +586,17 @@ async function oneRowBuffer(): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('Лист1');
   ws.addRow(['Сальдо на начало']);
-  ws.addRow(['01.07.2026', 'Поступление на расчетный счет 0000-000701 от 01.07.2026 10:00:00\nОплата', '', `КЛИЕНТ ООО ИНН ${INN}`, '', '18000', '', '62.01', '']);
+  ws.addRow([
+    '01.07.2026',
+    'Поступление на расчетный счет 0000-000701 от 01.07.2026 10:00:00\nОплата',
+    '',
+    `КЛИЕНТ ООО ИНН ${INN}`,
+    '',
+    '18000',
+    '',
+    '62.01',
+    '',
+  ]);
   ws.addRow(['Обороты за период и сальдо на конец']);
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
@@ -375,7 +627,11 @@ describe('payment-import server actions (cov)', () => {
   it('resolveQueueRowAction delegates to the service with the session', async () => {
     requireSession.mockResolvedValue(adminSession);
     // unknown row id → service returns not_found; proves the wiring reaches the service.
-    const res = await resolveQueueRowAction({ rowId: 'action-no-row', organizationId: orgWithInnId, orderId: null });
+    const res = await resolveQueueRowAction({
+      rowId: 'action-no-row',
+      organizationId: orgWithInnId,
+      orderId: null,
+    });
     expect(res).toEqual({ ok: false, error: 'not_found' });
   });
 

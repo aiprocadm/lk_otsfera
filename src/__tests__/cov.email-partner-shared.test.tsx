@@ -85,7 +85,7 @@ describe('PartnerDocumentPublished template', () => {
         documentName: 'contract.pdf',
         documentType: 'contract',
         orderUrl: 'https://lk.otsfera.ru/partner/deals/ord-1',
-      }),
+      })
     );
     expect(html).toContain('№ ORD-2026-0042');
     expect(html).toContain('договор');
@@ -103,7 +103,7 @@ describe('PartnerDocumentPublished template', () => {
         documentName: 'scan.pdf',
         documentType: 'unmapped_kind',
         orderUrl: 'https://lk.otsfera.ru/x',
-      }),
+      })
     );
     expect(html).toContain('«Курс по охране труда»');
     // Unknown documentType falls back to the generic label.
@@ -120,7 +120,7 @@ describe('PartnerDocumentPublished template', () => {
         documentName: 'a.pdf',
         documentType: 'act',
         orderUrl: 'https://lk.otsfera.ru/y',
-      }),
+      })
     );
     expect(html).toContain('(без заказа)');
     expect(html).toContain('акт');
@@ -137,7 +137,7 @@ describe('partnerDocumentPublishedSubject', () => {
         documentName: 'd.pdf',
         documentType: 'other',
         orderUrl: 'u',
-      }),
+      })
     ).toBe('Новый документ d.pdf по заказу № 999');
   });
 
@@ -150,7 +150,7 @@ describe('partnerDocumentPublishedSubject', () => {
         documentName: 'd.pdf',
         documentType: 'other',
         orderUrl: 'u',
-      }),
+      })
     ).toBe('Новый документ d.pdf по заказу «Мой заказ»');
   });
 
@@ -163,7 +163,7 @@ describe('partnerDocumentPublishedSubject', () => {
         documentName: 'd.pdf',
         documentType: 'other',
         orderUrl: 'u',
-      }),
+      })
     ).toBe('Новый документ d.pdf по заказу (без заказа)');
   });
 });
@@ -216,7 +216,7 @@ describe('PasswordResetTemplate', () => {
       React.createElement(PasswordResetTemplate, {
         name: 'Иван',
         resetUrl: 'https://lk.otsfera.ru/reset-password?token=abc',
-      }),
+      })
     );
     expect(html).toContain('Здравствуйте, Иван!');
     expect(html).toContain('Установить пароль');
@@ -253,7 +253,7 @@ describe('sendPartnerDocumentPublishedEmail()', () => {
         documentType: 'contract',
         orderUrl: 'https://lk.otsfera.ru/partner/deals/ord-1',
       },
-      { transport },
+      { transport }
     );
 
     expect(result).toEqual({ status: 'sent', id: 'msg_test' });
@@ -279,7 +279,7 @@ describe('sendPartnerDocumentPublishedEmail()', () => {
         documentType: 'other',
         orderUrl: 'https://lk.otsfera.ru/y',
       },
-      { transport },
+      { transport }
     );
     expect(transport.calls[0].subject).toBe('Новый документ a.pdf по заказу «Мой заказ»');
   });
@@ -298,7 +298,7 @@ describe('sendManagerDocumentUploadedByPartnerEmail()', () => {
         documentType: 'act',
         orderUrl: 'https://lk.otsfera.ru/manager/orders/ord-007',
       },
-      { transport },
+      { transport }
     );
 
     expect(result).toEqual({ status: 'sent', id: 'msg_test' });

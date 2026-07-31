@@ -22,13 +22,11 @@ export default async function ManagerTeamPage() {
   const teamMode = session.companyId
     ? await getCompanyTeamVisibility(prisma, session.companyId)
     : false;
-  const roster = session.companyId
-    ? await listCompanyManagers(prisma, session.companyId)
-    : [];
+  const roster = session.companyId ? await listCompanyManagers(prisma, session.companyId) : [];
 
   return (
-    <div className='space-y-6'>
-      <h1 className='text-2xl font-semibold text-[#111111]'>Команда</h1>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-semibold text-[#111111]">Команда</h1>
       <TeamVisibilityToggle initial={teamMode} />
       <ManagerRosterPanel roster={roster} />
     </div>

@@ -6,13 +6,17 @@ import { describe, it, expect, vi } from 'vitest';
 import { getOrgDocuments } from '@/lib/services/partner/orgDocuments';
 
 vi.mock('@/lib/auth/documentChannelPolicy', () => ({
-  partnerChannelWhere: vi.fn(() => ({ counterpartyType: 'partner', counterpartyId: 'p1', scanStatus: { not: 'infected' } }))
+  partnerChannelWhere: vi.fn(() => ({
+    counterpartyType: 'partner',
+    counterpartyId: 'p1',
+    scanStatus: { not: 'infected' },
+  })),
 }));
 
 function makeOrg(opts: { partnerId?: string; companyId?: string | null } = {}) {
   return {
     partnerId: opts.partnerId ?? 'p1',
-    companyId: opts.companyId !== undefined ? opts.companyId : 'co1'
+    companyId: opts.companyId !== undefined ? opts.companyId : 'co1',
   };
 }
 
@@ -21,8 +25,8 @@ function makePrisma(org: object | null, docs: object[] = [], counts: object[] = 
     organization: { findUnique: vi.fn().mockResolvedValue(org) },
     document: {
       findMany: vi.fn().mockResolvedValue(docs),
-      groupBy: vi.fn().mockResolvedValue(counts)
-    }
+      groupBy: vi.fn().mockResolvedValue(counts),
+    },
   } as any;
 }
 
@@ -49,11 +53,19 @@ describe('getOrgDocuments — unit', () => {
   });
 
   it('returns mapped rows and countsByType when org is valid', async () => {
-    const docs = [{
-      id: 'd1', name: 'file.pdf', type: 'contract', direction: 'incoming',
-      signedAt: null, createdAt: new Date('2024-01-01'), size: 100,
-      orderId: 'o1', order: { orderNumber: 'N001', title: 'Заказ 1' }
-    }];
+    const docs = [
+      {
+        id: 'd1',
+        name: 'file.pdf',
+        type: 'contract',
+        direction: 'incoming',
+        signedAt: null,
+        createdAt: new Date('2024-01-01'),
+        size: 100,
+        orderId: 'o1',
+        order: { orderNumber: 'N001', title: 'Заказ 1' },
+      },
+    ];
     const counts = [{ type: 'contract', _count: { _all: 1 } }];
     const prisma = makePrisma(makeOrg(), docs, counts);
     const result = await getOrgDocuments(prisma, { orgId: 'org1', partnerId: 'p1' });
@@ -65,11 +77,19 @@ describe('getOrgDocuments — unit', () => {
   });
 
   it('maps order=null in doc to null orderNumber/orderTitle', async () => {
-    const docs = [{
-      id: 'd2', name: 'file2.pdf', type: 'other', direction: 'outgoing',
-      signedAt: null, createdAt: new Date('2024-02-01'), size: 50,
-      orderId: null, order: null
-    }];
+    const docs = [
+      {
+        id: 'd2',
+        name: 'file2.pdf',
+        type: 'other',
+        direction: 'outgoing',
+        signedAt: null,
+        createdAt: new Date('2024-02-01'),
+        size: 50,
+        orderId: null,
+        order: null,
+      },
+    ];
     const counts = [{ type: 'other', _count: { _all: 1 } }];
     const prisma = makePrisma(makeOrg(), docs, counts);
     const result = await getOrgDocuments(prisma, { orgId: 'org1', partnerId: 'p1' });

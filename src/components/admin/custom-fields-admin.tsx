@@ -26,19 +26,19 @@ import {
   Tr,
   Td,
   Badge,
-  Textarea
+  Textarea,
 } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
 import { errorMessageRu } from '@/lib/errors/messages';
 import {
   CUSTOM_FIELD_ENTITIES,
   CUSTOM_FIELD_ENTITY_LABELS,
-  type CustomFieldEntity
+  type CustomFieldEntity,
 } from '@/lib/services/customFields/entities';
 import {
   CUSTOM_FIELD_ROLES,
   CUSTOM_FIELD_ROLE_LABELS,
-  type CustomFieldRole
+  type CustomFieldRole,
 } from '@/lib/services/customFields/roles';
 import { FIELD_TYPE_LABELS, requiresOptions } from '@/lib/services/customFields/coerce';
 import type { SystemFieldDescriptor } from '@/lib/services/customFields/systemFields';
@@ -92,7 +92,7 @@ export function CustomFieldsAdmin({
   entity,
   definitions,
   systemFields,
-  basePath
+  basePath,
 }: CustomFieldsAdminProps) {
   const router = useRouter();
   const [addOpen, setAddOpen] = useState(false);
@@ -126,8 +126,8 @@ export function CustomFieldsAdmin({
         sortOrder,
         helpText,
         visibleToRoles: readRoles(fd, 'visibleToRoles'),
-        editableByRoles: readRoles(fd, 'editableByRoles')
-      })
+        editableByRoles: readRoles(fd, 'editableByRoles'),
+      }),
     });
 
     if (!res.ok) {
@@ -167,8 +167,8 @@ export function CustomFieldsAdmin({
         sortOrder,
         helpText,
         visibleToRoles: readRoles(fd, 'visibleToRoles'),
-        editableByRoles: readRoles(fd, 'editableByRoles')
-      })
+        editableByRoles: readRoles(fd, 'editableByRoles'),
+      }),
     });
 
     if (!res.ok) {
@@ -289,9 +289,7 @@ function EntityTabs({ entity, basePath }: { entity: CustomFieldEntity; basePath:
           key={e}
           href={`${basePath}?entity=${e}`}
           className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-            e === entity
-              ? 'bg-[#F97316] text-white'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            e === entity ? 'bg-[#F97316] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
           }`}
         >
           {CUSTOM_FIELD_ENTITY_LABELS[e]}
@@ -308,8 +306,8 @@ function SystemFieldsBlock({ fields }: { fields: SystemFieldDescriptor[] }) {
     <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-2">
       <h2 className="text-sm font-semibold text-[#111111]">Системные поля</h2>
       <p className="text-xs text-gray-500">
-        Эти поля заданы в системе: их нельзя удалить, а их ключи заняты — новое поле с таким
-        ключом создать не получится.
+        Эти поля заданы в системе: их нельзя удалить, а их ключи заняты — новое поле с таким ключом
+        создать не получится.
       </p>
       <ul className="space-y-1">
         {fields.map((f) => (
@@ -331,7 +329,7 @@ function RoleCheckboxes({
   name,
   idPrefix,
   selected,
-  hint
+  hint,
 }: {
   name: string;
   idPrefix: string;
@@ -368,7 +366,7 @@ const EDITABLE_HINT = 'Ничего не отмечено — поле прав�
 function AddFieldDialog({
   open,
   onClose,
-  onSubmit
+  onSubmit,
 }: {
   open: boolean;
   onClose: () => void;
@@ -448,7 +446,7 @@ function AddFieldDialog({
 function EditFieldDialog({
   target,
   onClose,
-  onSubmit
+  onSubmit,
 }: {
   target: CustomFieldDefinition | null;
   onClose: () => void;
@@ -464,7 +462,12 @@ function EditFieldDialog({
         </Field>
         {/* Ключ и тип неизменяемы после создания */}
         <Field htmlFor="edit-key-display" label="Ключ">
-          <Input id="edit-key-display" value={target.key} readOnly className="bg-gray-50 text-gray-500" />
+          <Input
+            id="edit-key-display"
+            value={target.key}
+            readOnly
+            className="bg-gray-50 text-gray-500"
+          />
         </Field>
         <Field htmlFor="edit-type-display" label="Тип поля">
           <Input
@@ -517,7 +520,12 @@ function EditFieldDialog({
           </label>
         </Field>
         <Field htmlFor="edit-sortOrder" label="Порядок отображения">
-          <Input id="edit-sortOrder" name="sortOrder" type="number" defaultValue={target.sortOrder} />
+          <Input
+            id="edit-sortOrder"
+            name="sortOrder"
+            type="number"
+            defaultValue={target.sortOrder}
+          />
         </Field>
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>

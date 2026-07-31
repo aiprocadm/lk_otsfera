@@ -8,7 +8,7 @@ const ACCEPT_MIME = [
   'image/jpeg',
   'image/png',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 ];
 
 const ACCEPT_ATTR = ACCEPT_MIME.join(',') + ',.pdf,.jpg,.jpeg,.png,.docx,.xlsx';
@@ -22,7 +22,10 @@ type Props = {
  * Загрузка вложения к обращению клиента (этап 5) — sibling
  * `partner/lead-attachment-dropzone`, бьёт в /api/client-requests/....
  */
-export function ClientRequestAttachmentDropzone({ requestId, maxSizeMb = DEFAULT_MAX_FILE_SIZE_MB }: Props) {
+export function ClientRequestAttachmentDropzone({
+  requestId,
+  maxSizeMb = DEFAULT_MAX_FILE_SIZE_MB,
+}: Props) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -46,7 +49,7 @@ export function ClientRequestAttachmentDropzone({ requestId, maxSizeMb = DEFAULT
       try {
         const res = await fetch(`/api/client-requests/${requestId}/attachments`, {
           method: 'POST',
-          body: form
+          body: form,
         });
         if (!res.ok) {
           if (res.status === 413) setError(`Файл больше ${maxSizeMb} МБ`);
@@ -88,7 +91,7 @@ export function ClientRequestAttachmentDropzone({ requestId, maxSizeMb = DEFAULT
   );
 
   return (
-    <div className='space-y-2'>
+    <div className="space-y-2">
       <div
         onDragOver={(e) => {
           e.preventDefault();
@@ -97,7 +100,7 @@ export function ClientRequestAttachmentDropzone({ requestId, maxSizeMb = DEFAULT
         onDragLeave={() => setDragOver(false)}
         onDrop={onDrop}
         onClick={() => inputRef.current?.click()}
-        role='button'
+        role="button"
         tabIndex={0}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -113,21 +116,21 @@ export function ClientRequestAttachmentDropzone({ requestId, maxSizeMb = DEFAULT
       >
         <input
           ref={inputRef}
-          type='file'
+          type="file"
           accept={ACCEPT_ATTR}
-          className='hidden'
+          className="hidden"
           onChange={onPick}
           disabled={uploading}
         />
-        <div className='text-sm text-[#111111] font-medium'>
+        <div className="text-sm text-[#111111] font-medium">
           {uploading ? 'Загружаем…' : 'Перетащите файл или нажмите для выбора'}
         </div>
-        <div className='text-xs text-gray-500 mt-1'>
+        <div className="text-xs text-gray-500 mt-1">
           PDF, JPEG, PNG, DOCX, XLSX до {maxSizeMb} МБ
         </div>
       </div>
       {error && (
-        <div className='text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2'>
+        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
           {error}
         </div>
       )}

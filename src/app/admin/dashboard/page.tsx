@@ -47,7 +47,9 @@ export default async function AdminDashboardPage() {
                   <Link
                     href={item.href}
                     className={`flex-1 min-w-0 truncate hover:underline ${
-                      item.severity === 'urgent' ? 'text-red-700' : 'text-gray-700 hover:text-[#F97316]'
+                      item.severity === 'urgent'
+                        ? 'text-red-700'
+                        : 'text-gray-700 hover:text-[#F97316]'
                     }`}
                   >
                     {item.severity === 'urgent' ? '⚠ ' : '🕒 '}

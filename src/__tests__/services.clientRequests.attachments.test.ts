@@ -10,9 +10,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 const {
-  reqFindFirst, attFindFirst, attFindMany, attCreate, attDelete,
-  storageUpload, storageRemove, storageSigned, queueAdd,
-  validateMagicBytes, extensionFor, recordAudit, logWarn, logError
+  reqFindFirst,
+  attFindFirst,
+  attFindMany,
+  attCreate,
+  attDelete,
+  storageUpload,
+  storageRemove,
+  storageSigned,
+  queueAdd,
+  validateMagicBytes,
+  extensionFor,
+  recordAudit,
+  logWarn,
+  logError,
 } = vi.hoisted(() => ({
   reqFindFirst: vi.fn(),
   attFindFirst: vi.fn(),
@@ -27,7 +38,7 @@ const {
   extensionFor: vi.fn(),
   recordAudit: vi.fn(),
   logWarn: vi.fn(),
-  logError: vi.fn()
+  logError: vi.fn(),
 }));
 
 vi.mock('@/lib/storage', () => ({
@@ -35,19 +46,19 @@ vi.mock('@/lib/storage', () => ({
     upload: storageUpload,
     remove: storageRemove,
     createSignedUrl: storageSigned,
-    download: vi.fn()
+    download: vi.fn(),
   }),
   documentBucket: 'documents',
-  StorageError: class StorageError extends Error {}
+  StorageError: class StorageError extends Error {},
 }));
 vi.mock('@/lib/storage/mimeValidator', () => ({ validateMagicBytes, extensionFor }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
 vi.mock('@/lib/jobs/queues', () => ({ getQueue: () => ({ add: queueAdd }) }));
 vi.mock('@/lib/services/scan/visibility', () => ({
-  INFECTED_HIDDEN_WHERE: { scanStatus: { not: 'infected' } }
+  INFECTED_HIDDEN_WHERE: { scanStatus: { not: 'infected' } },
 }));
 vi.mock('@/lib/logging', () => ({
-  log: { warn: logWarn, error: logError, info: vi.fn(), debug: vi.fn() }
+  log: { warn: logWarn, error: logError, info: vi.fn(), debug: vi.fn() },
 }));
 
 import {
@@ -55,7 +66,7 @@ import {
   deleteClientRequestAttachment,
   listClientRequestAttachments,
   getClientRequestAttachmentDownloadUrl,
-  __testing
+  __testing,
 } from '@/lib/services/clientRequests/attachments';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -65,7 +76,7 @@ function prismaMock() {
   return {
     clientRequest: { findFirst: reqFindFirst },
     clientRequestAttachment: { findFirst: attFindFirst, findMany: attFindMany },
-    $transaction: vi.fn(async (cb: (t: typeof tx) => unknown) => cb(tx))
+    $transaction: vi.fn(async (cb: (t: typeof tx) => unknown) => cb(tx)),
   } as never;
 }
 
@@ -76,7 +87,7 @@ const goodFile = () => ({
   buffer: new Uint8Array([1, 2, 3]),
   name: 'doc.pdf',
   declaredMimeType: 'application/pdf',
-  size: 1024
+  size: 1024,
 });
 
 const input = () => ({ requestId: 'r1', file: goodFile() });
@@ -85,7 +96,7 @@ const foundRequest = (over: Record<string, unknown> = {}) => ({
   id: 'r1',
   status: 'submitted',
   submittedByUserId: 'u1',
-  ...over
+  ...over,
 });
 
 const foundAtt = (over: Record<string, unknown> = {}) => ({
@@ -97,7 +108,7 @@ const foundAtt = (over: Record<string, unknown> = {}) => ({
   scanReason: null,
   createdByUserId: 'u1',
   request: { id: 'r1', status: 'submitted', submittedByUserId: 'u1' },
-  ...over
+  ...over,
 });
 
 beforeEach(() => {
@@ -124,7 +135,7 @@ describe('uploadClientRequestAttachment', () => {
     // Скоуп подателя зашит в запрос (submittedByUserId).
     expect(reqFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { AND: [{ id: 'r1' }, { submittedByUserId: 'u1' }] }
+        where: { AND: [{ id: 'r1' }, { submittedByUserId: 'u1' }] },
       })
     );
     expect(storageUpload).not.toHaveBeenCalled();
@@ -154,7 +165,7 @@ describe('uploadClientRequestAttachment', () => {
   it('FILE_TOO_LARGE при превышении лимита', async () => {
     const r = await uploadClientRequestAttachment(prismaMock(), SUBMITTER, {
       ...input(),
-      file: { ...goodFile(), size: 999_000_000 }
+      file: { ...goodFile(), size: 999_000_000 },
     });
     expect(r).toMatchObject({ ok: false, error: 'FILE_TOO_LARGE' });
   });
@@ -162,7 +173,7 @@ describe('uploadClientRequestAttachment', () => {
   it('INVALID_FILENAME на имени из одних пробельных символов', async () => {
     const r = await uploadClientRequestAttachment(prismaMock(), SUBMITTER, {
       ...input(),
-      file: { ...goodFile(), name: '\t\n\r' }
+      file: { ...goodFile(), name: '\t\n\r' },
     });
     expect(r).toMatchObject({ ok: false, error: 'INVALID_FILENAME' });
   });
@@ -173,7 +184,7 @@ describe('uploadClientRequestAttachment', () => {
     reqFindFirst.mockResolvedValue(foundRequest());
     const r = await uploadClientRequestAttachment(prismaMock(), SUBMITTER, {
       ...input(),
-      file: { ...goodFile(), name: 'скан-без-расширения' }
+      file: { ...goodFile(), name: 'скан-без-расширения' },
     });
     expect(r).toMatchObject({ ok: true });
   });
@@ -183,7 +194,11 @@ describe('uploadClientRequestAttachment', () => {
     const r = await uploadClientRequestAttachment(prismaMock(), SUBMITTER, input());
     expect(r).toEqual({ ok: true, attachment: { id: 'att-1' } });
 
-    const [storagePath, , opts] = storageUpload.mock.calls[0] as [string, Buffer, { contentType: string }];
+    const [storagePath, , opts] = storageUpload.mock.calls[0] as [
+      string,
+      Buffer,
+      { contentType: string },
+    ];
     expect(storagePath).toMatch(/^client-requests\/r1\/[0-9a-f-]{36}\.pdf$/);
     expect(opts).toEqual({ contentType: 'application/pdf' });
 
@@ -194,15 +209,18 @@ describe('uploadClientRequestAttachment', () => {
         name: 'doc.pdf',
         path: storagePath,
         mimeType: 'application/pdf',
-        size: 1024
-      }
+        size: 1024,
+      },
     });
     // Аудит внутри той же транзакции (первый аргумент — tx, не prisma).
     expect(recordAudit).toHaveBeenCalledWith(
       expect.objectContaining({ clientRequestAttachment: expect.anything() }),
       expect.objectContaining({ action: 'client_request_attachment_uploaded', entityId: 'att-1' })
     );
-    expect(queueAdd).toHaveBeenCalledWith('scan', { kind: 'client_request_attachment', id: 'att-1' });
+    expect(queueAdd).toHaveBeenCalledWith('scan', {
+      kind: 'client_request_attachment',
+      id: 'att-1',
+    });
   });
 
   it('сбой постановки в скан-очередь проглатывается: ok:true + log.warn', async () => {
@@ -232,14 +250,20 @@ describe('uploadClientRequestAttachment', () => {
   it('сбой очереди сканирования не-Error значением тоже проглатывается', async () => {
     reqFindFirst.mockResolvedValue(foundRequest());
     queueAdd.mockRejectedValue('redis closed');
-    expect(await uploadClientRequestAttachment(prismaMock(), SUBMITTER, input())).toMatchObject({ ok: true });
+    expect(await uploadClientRequestAttachment(prismaMock(), SUBMITTER, input())).toMatchObject({
+      ok: true,
+    });
   });
 
   it('STORAGE_FAILURE при ошибке storage.upload (сырое сообщение — только в лог)', async () => {
     reqFindFirst.mockResolvedValue(foundRequest());
     storageUpload.mockRejectedValue(new Error('bucket down'));
     const r = await uploadClientRequestAttachment(prismaMock(), SUBMITTER, input());
-    expect(r).toMatchObject({ ok: false, error: 'STORAGE_FAILURE', message: 'Не удалось загрузить файл' });
+    expect(r).toMatchObject({
+      ok: false,
+      error: 'STORAGE_FAILURE',
+      message: 'Не удалось загрузить файл',
+    });
     expect(logError).toHaveBeenCalled();
   });
 
@@ -261,11 +285,13 @@ describe('uploadClientRequestAttachment', () => {
 describe('deleteClientRequestAttachment', () => {
   it('NOT_FOUND если вложение не найдено в скоупе', async () => {
     attFindFirst.mockResolvedValue(null);
-    const r = await deleteClientRequestAttachment(prismaMock(), SUBMITTER, { attachmentId: 'att-1' });
+    const r = await deleteClientRequestAttachment(prismaMock(), SUBMITTER, {
+      attachmentId: 'att-1',
+    });
     expect(r).toMatchObject({ ok: false, error: 'NOT_FOUND' });
     expect(attFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { AND: [{ id: 'att-1' }, { request: { submittedByUserId: 'u1' } }] }
+        where: { AND: [{ id: 'att-1' }, { request: { submittedByUserId: 'u1' } }] },
       })
     );
   });
@@ -282,7 +308,9 @@ describe('deleteClientRequestAttachment', () => {
       attFindFirst.mockResolvedValue(
         foundAtt({ request: { id: 'r1', status, submittedByUserId: 'u1' } })
       );
-      const r = await deleteClientRequestAttachment(prismaMock(), SUBMITTER, { attachmentId: 'att-1' });
+      const r = await deleteClientRequestAttachment(prismaMock(), SUBMITTER, {
+        attachmentId: 'att-1',
+      });
       expect(r).toMatchObject({ ok: false, error: 'REQUEST_NOT_EDITABLE' });
     }
     expect(attDelete).not.toHaveBeenCalled();
@@ -290,14 +318,16 @@ describe('deleteClientRequestAttachment', () => {
 
   it('успех подателя: delete+аудит в транзакции, best-effort удаление из хранилища', async () => {
     attFindFirst.mockResolvedValue(foundAtt());
-    const r = await deleteClientRequestAttachment(prismaMock(), SUBMITTER, { attachmentId: 'att-1' });
+    const r = await deleteClientRequestAttachment(prismaMock(), SUBMITTER, {
+      attachmentId: 'att-1',
+    });
     expect(r).toEqual({ ok: true });
     expect(attDelete).toHaveBeenCalledWith({ where: { id: 'att-1' } });
     expect(recordAudit).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
         action: 'client_request_attachment_deleted',
-        after: { requestId: 'r1', name: 'doc.pdf' }
+        after: { requestId: 'r1', name: 'doc.pdf' },
       })
     );
     expect(storageRemove).toHaveBeenCalledWith(['client-requests/r1/att-1.pdf']);
@@ -306,7 +336,9 @@ describe('deleteClientRequestAttachment', () => {
   it('сбой storage.remove проглатывается (ok:true)', async () => {
     attFindFirst.mockResolvedValue(foundAtt());
     storageRemove.mockRejectedValue(new Error('s3 down'));
-    const r = await deleteClientRequestAttachment(prismaMock(), SUBMITTER, { attachmentId: 'att-1' });
+    const r = await deleteClientRequestAttachment(prismaMock(), SUBMITTER, {
+      attachmentId: 'att-1',
+    });
     expect(r).toEqual({ ok: true });
   });
 });
@@ -318,36 +350,51 @@ describe('deleteClientRequestAttachment', () => {
 describe('getClientRequestAttachmentDownloadUrl', () => {
   it('успех подателя: signed url c TTL 300 и download-именем', async () => {
     attFindFirst.mockResolvedValue(foundAtt());
-    const r = await getClientRequestAttachmentDownloadUrl(prismaMock(), SUBMITTER, { attachmentId: 'att-1' });
-    expect(r).toEqual({ ok: true, url: 'https://signed', name: 'doc.pdf', mimeType: 'application/pdf' });
-    expect(storageSigned).toHaveBeenCalledWith('client-requests/r1/att-1.pdf', 300, { download: 'doc.pdf' });
+    const r = await getClientRequestAttachmentDownloadUrl(prismaMock(), SUBMITTER, {
+      attachmentId: 'att-1',
+    });
+    expect(r).toEqual({
+      ok: true,
+      url: 'https://signed',
+      name: 'doc.pdf',
+      mimeType: 'application/pdf',
+    });
+    expect(storageSigned).toHaveBeenCalledWith('client-requests/r1/att-1.pdf', 300, {
+      download: 'doc.pdf',
+    });
   });
 
   it('staff в скоупе тоже может скачивать (C8-скоуп в where)', async () => {
     attFindFirst.mockResolvedValue(foundAtt());
-    const r = await getClientRequestAttachmentDownloadUrl(prismaMock(), MANAGER, { attachmentId: 'att-1' });
+    const r = await getClientRequestAttachmentDownloadUrl(prismaMock(), MANAGER, {
+      attachmentId: 'att-1',
+    });
     expect(r).toMatchObject({ ok: true });
     expect(attFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
           AND: [
             { id: 'att-1' },
-            { request: { OR: [{ organization: { companyId: 'c1' } }, { organizationId: null }] } }
-          ]
-        }
+            { request: { OR: [{ organization: { companyId: 'c1' } }, { organizationId: null }] } },
+          ],
+        },
       })
     );
   });
 
   it('NOT_FOUND вне скоупа', async () => {
     attFindFirst.mockResolvedValue(null);
-    const r = await getClientRequestAttachmentDownloadUrl(prismaMock(), SUBMITTER, { attachmentId: 'att-1' });
+    const r = await getClientRequestAttachmentDownloadUrl(prismaMock(), SUBMITTER, {
+      attachmentId: 'att-1',
+    });
     expect(r).toMatchObject({ ok: false, error: 'NOT_FOUND' });
   });
 
   it('INFECTED → код INFECTED с scanReason в meta, без обращения к хранилищу', async () => {
     attFindFirst.mockResolvedValue(foundAtt({ scanStatus: 'infected', scanReason: 'EICAR-Test' }));
-    const r = await getClientRequestAttachmentDownloadUrl(prismaMock(), SUBMITTER, { attachmentId: 'att-1' });
+    const r = await getClientRequestAttachmentDownloadUrl(prismaMock(), SUBMITTER, {
+      attachmentId: 'att-1',
+    });
     expect(r).toMatchObject({ ok: false, error: 'INFECTED', meta: { scanReason: 'EICAR-Test' } });
     expect(storageSigned).not.toHaveBeenCalled();
   });
@@ -355,14 +402,18 @@ describe('getClientRequestAttachmentDownloadUrl', () => {
   it('сбой ссылки не-Error значением тоже даёт STORAGE_FAILURE', async () => {
     attFindFirst.mockResolvedValue(foundAtt());
     storageSigned.mockRejectedValue('signer closed');
-    const r = await getClientRequestAttachmentDownloadUrl(prismaMock(), SUBMITTER, { attachmentId: 'att-1' });
+    const r = await getClientRequestAttachmentDownloadUrl(prismaMock(), SUBMITTER, {
+      attachmentId: 'att-1',
+    });
     expect(r).toMatchObject({ ok: false, error: 'STORAGE_FAILURE' });
   });
 
   it('STORAGE_FAILURE при сбое createSignedUrl', async () => {
     attFindFirst.mockResolvedValue(foundAtt());
     storageSigned.mockRejectedValue(new Error('no url'));
-    const r = await getClientRequestAttachmentDownloadUrl(prismaMock(), SUBMITTER, { attachmentId: 'att-1' });
+    const r = await getClientRequestAttachmentDownloadUrl(prismaMock(), SUBMITTER, {
+      attachmentId: 'att-1',
+    });
     expect(r).toMatchObject({ ok: false, error: 'STORAGE_FAILURE' });
   });
 });
@@ -389,7 +440,7 @@ describe('listClientRequestAttachments', () => {
         mimeType: 'application/pdf',
         createdAt: dt,
         createdByUserId: 'u1',
-        createdByUser: { name: 'Иван Иванов' }
+        createdByUser: { name: 'Иван Иванов' },
       },
       {
         id: 'a2',
@@ -398,14 +449,14 @@ describe('listClientRequestAttachments', () => {
         mimeType: 'application/pdf',
         createdAt: dt,
         createdByUserId: null,
-        createdByUser: null
-      }
+        createdByUser: null,
+      },
     ]);
     const r = await listClientRequestAttachments(prismaMock(), SUBMITTER, { requestId: 'r1' });
     expect(attFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { requestId: 'r1', scanStatus: { not: 'infected' } },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
       })
     );
     expect(r).toEqual({
@@ -418,10 +469,10 @@ describe('listClientRequestAttachments', () => {
           mimeType: 'application/pdf',
           createdAt: dt,
           createdByUserId: 'u1',
-          createdByUserName: 'Иван Иванов'
+          createdByUserName: 'Иван Иванов',
         },
-        expect.objectContaining({ id: 'a2', createdByUserName: null })
-      ]
+        expect.objectContaining({ id: 'a2', createdByUserName: null }),
+      ],
     });
   });
 });

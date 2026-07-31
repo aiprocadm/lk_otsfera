@@ -78,7 +78,11 @@ let organizationId: string;
 let orderId: string; // real, admin-writable
 let defTextId: string;
 
-function makeSession(userId: string, role: string, extra: Partial<SessionPayload> = {}): SessionPayload {
+function makeSession(
+  userId: string,
+  role: string,
+  extra: Partial<SessionPayload> = {}
+): SessionPayload {
   return { sub: userId, role: role as SessionPayload['role'], ...extra } as SessionPayload;
 }
 
@@ -86,19 +90,31 @@ beforeAll(async () => {
   prisma = new PrismaClient();
 
   const admin = await prisma.user.create({
-    data: { email: `covcf-admin-${STAMP}@t.local`, passwordHash: 'x', name: 'CovCF Admin', role: 'admin' },
+    data: {
+      email: `covcf-admin-${STAMP}@t.local`,
+      passwordHash: 'x',
+      name: 'CovCF Admin',
+      role: 'admin',
+    },
   });
   adminUserId = admin.id;
 
   const manager = await prisma.user.create({
-    data: { email: `covcf-mgr-${STAMP}@t.local`, passwordHash: 'x', name: 'CovCF Manager', role: 'manager' },
+    data: {
+      email: `covcf-mgr-${STAMP}@t.local`,
+      passwordHash: 'x',
+      name: 'CovCF Manager',
+      role: 'manager',
+    },
   });
   managerUserId = manager.id;
 
   const company = await prisma.company.create({ data: { name: `CovCF-Co-${STAMP}` } });
   companyId = company.id;
 
-  const partner = await prisma.partner.create({ data: { name: `CovCF-P-${STAMP}`, commissionRate: 0.1 } });
+  const partner = await prisma.partner.create({
+    data: { name: `CovCF-P-${STAMP}`, commissionRate: 0.1 },
+  });
   partnerId = partner.id;
 
   const org = await prisma.organization.create({
@@ -143,7 +159,7 @@ afterAll(async () => {
   // Чистим только СВОИ определения: entityType теперь общий для всех тестов
   // (закрытый список из пяти сущностей), удаление по нему снесло бы чужие.
   await prisma.customFieldDefinition.deleteMany({
-    where: { entityType: { in: [ET, ET_EMPTY] }, key: { startsWith: 'cov_' } }
+    where: { entityType: { in: [ET, ET_EMPTY] }, key: { startsWith: 'cov_' } },
   });
   await prisma.customFieldDefinition.deleteMany({ where: { key: { in: ['valid_key'] } } });
   await prisma.order.deleteMany({ where: { title: { startsWith: 'CovCF-' } } });
@@ -226,9 +242,9 @@ describe('definitions service — non-Prisma errors rethrow', () => {
       customFieldDefinition: { update: vi.fn().mockRejectedValue(boom) },
     } as unknown as PrismaClient;
 
-    await expect(
-      deactivateDefinition(fakePrisma, adminSession, 'some-id')
-    ).rejects.toThrow('statement timeout');
+    await expect(deactivateDefinition(fakePrisma, adminSession, 'some-id')).rejects.toThrow(
+      'statement timeout'
+    );
   });
 });
 
@@ -236,7 +252,12 @@ describe('definitions service — non-Prisma errors rethrow', () => {
 
 describe('values service — coverage closure', () => {
   it('getValuesForEntity: entityType with no active defs → empty fields (branch @137 true, lines 138-139)', async () => {
-    const res = await getValuesForEntity(prisma, makeSession(adminUserId, 'admin'), ET_EMPTY, orderId);
+    const res = await getValuesForEntity(
+      prisma,
+      makeSession(adminUserId, 'admin'),
+      ET_EMPTY,
+      orderId
+    );
     expect(res).toEqual({ ok: true, fields: [] });
   });
 
@@ -330,7 +351,10 @@ describe('custom-fields routes — error-mapping coverage', () => {
 
   it('PATCH: admin guard failure returns its response ([id] branch @18 true)', async () => {
     requireSession.mockResolvedValue({ ok: true, value: adminSession });
-    requireFieldsAdmin.mockReturnValue({ ok: false, response: new Response('Forbidden', { status: 403 }) });
+    requireFieldsAdmin.mockReturnValue({
+      ok: false,
+      response: new Response('Forbidden', { status: 403 }),
+    });
 
     const req = new Request('http://x', { method: 'PATCH', body: JSON.stringify({ label: 'X' }) });
     const res = await PATCH(req as Request, { params: Promise.resolve({ id: 'cf1' }) });
@@ -340,7 +364,10 @@ describe('custom-fields routes — error-mapping coverage', () => {
 
   it('DELETE: admin guard failure returns its response ([id] branch @37 true)', async () => {
     requireSession.mockResolvedValue({ ok: true, value: adminSession });
-    requireFieldsAdmin.mockReturnValue({ ok: false, response: new Response('Forbidden', { status: 403 }) });
+    requireFieldsAdmin.mockReturnValue({
+      ok: false,
+      response: new Response('Forbidden', { status: 403 }),
+    });
 
     const req = new Request('http://x', { method: 'DELETE' });
     const res = await DELETE(req as Request, { params: Promise.resolve({ id: 'cf1' }) });

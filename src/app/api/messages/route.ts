@@ -31,10 +31,13 @@ export async function POST(req: Request) {
 
   if (!result.ok) {
     const status =
-      result.error === 'forbidden' ? 403 :
-      result.error === 'order_not_found' ? 404 :
-      result.error === 'too_large' ? 413 :
-      400;
+      result.error === 'forbidden'
+        ? 403
+        : result.error === 'order_not_found'
+          ? 404
+          : result.error === 'too_large'
+            ? 413
+            : 400;
     return Response.json({ ok: false, error: result.error }, { status });
   }
 

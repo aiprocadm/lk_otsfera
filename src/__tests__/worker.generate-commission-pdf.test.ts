@@ -5,7 +5,7 @@ import type { GenerateCommissionPdfPayload } from '@/lib/jobs/types';
 
 const { uploadMock, renderPdfMock } = vi.hoisted(() => ({
   uploadMock: vi.fn(),
-  renderPdfMock: vi.fn()
+  renderPdfMock: vi.fn(),
 }));
 
 vi.mock('@/lib/storage', () => ({
@@ -13,11 +13,11 @@ vi.mock('@/lib/storage', () => ({
     upload: uploadMock,
     download: vi.fn(),
     createSignedUrl: vi.fn(),
-    remove: vi.fn()
-  })
+    remove: vi.fn(),
+  }),
 }));
 vi.mock('@/lib/services/commission/pdf', () => ({
-  renderStatementPdf: renderPdfMock
+  renderStatementPdf: renderPdfMock,
 }));
 
 import { generateCommissionPdfProcessor } from '@/worker/processors/generate-commission-pdf';
@@ -27,17 +27,20 @@ let partnerId: string;
 let statementId: string;
 
 function job(id: string): Job<GenerateCommissionPdfPayload> {
-  return { id: 'test-pdf-' + Date.now(), data: { statementId: id } } as Job<GenerateCommissionPdfPayload>;
+  return {
+    id: 'test-pdf-' + Date.now(),
+    data: { statementId: id },
+  } as Job<GenerateCommissionPdfPayload>;
 }
 
 beforeAll(async () => {
   prisma = new PrismaClient();
   const partner = await prisma.partner.create({
-    data: { name: `PdfProcPartner-${Date.now()}`, legalName: 'ООО PdfProc', commissionRate: 0.1 }
+    data: { name: `PdfProcPartner-${Date.now()}`, legalName: 'ООО PdfProc', commissionRate: 0.1 },
   });
   partnerId = partner.id;
   const stmt = await prisma.commissionStatement.create({
-    data: { partnerId, periodFrom: new Date('2026-04-01'), periodTo: new Date('2026-04-30') }
+    data: { partnerId, periodFrom: new Date('2026-04-01'), periodTo: new Date('2026-04-30') },
   });
   statementId = stmt.id;
 });
@@ -58,7 +61,10 @@ beforeEach(() => {
 
 describe('generateCommissionPdfProcessor', () => {
   it('renders, uploads to the partner path, and persists pdfPath', async () => {
-    await prisma.commissionStatement.update({ where: { id: statementId }, data: { pdfPath: null } });
+    await prisma.commissionStatement.update({
+      where: { id: statementId },
+      data: { pdfPath: null },
+    });
 
     const result = await generateCommissionPdfProcessor(job(statementId), prisma);
 
@@ -79,25 +85,32 @@ describe('generateCommissionPdfProcessor', () => {
 
     const reread = await prisma.commissionStatement.findUnique({
       where: { id: statementId },
-      select: { pdfPath: true }
+      select: { pdfPath: true },
     });
     expect(reread?.pdfPath).toBe(expectedPath);
   });
 
   it('throws NOT_FOUND when the statement does not exist', async () => {
-    await expect(generateCommissionPdfProcessor(job('does-not-exist'), prisma)).rejects.toThrow(/NOT_FOUND/);
+    await expect(generateCommissionPdfProcessor(job('does-not-exist'), prisma)).rejects.toThrow(
+      /NOT_FOUND/
+    );
     expect(renderPdfMock).not.toHaveBeenCalled();
   });
 
   it('propagates the storage error and does not persist pdfPath when upload throws', async () => {
-    await prisma.commissionStatement.update({ where: { id: statementId }, data: { pdfPath: null } });
+    await prisma.commissionStatement.update({
+      where: { id: statementId },
+      data: { pdfPath: null },
+    });
     uploadMock.mockRejectedValue(new Error('STORAGE_UPLOAD: bucket exploded'));
 
-    await expect(generateCommissionPdfProcessor(job(statementId), prisma)).rejects.toThrow(/bucket exploded/);
+    await expect(generateCommissionPdfProcessor(job(statementId), prisma)).rejects.toThrow(
+      /bucket exploded/
+    );
 
     const reread = await prisma.commissionStatement.findUnique({
       where: { id: statementId },
-      select: { pdfPath: true }
+      select: { pdfPath: true },
     });
     expect(reread?.pdfPath).toBeNull();
   });

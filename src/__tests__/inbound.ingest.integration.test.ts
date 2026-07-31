@@ -14,7 +14,12 @@ describe('ingestInboundMessage', () => {
   });
 
   it('creates one row and is idempotent on replay', async () => {
-    const dto = { channel: 'telegram' as const, externalId: 'tg:test:1', senderRef: '999', body: 'привет' };
+    const dto = {
+      channel: 'telegram' as const,
+      externalId: 'tg:test:1',
+      senderRef: '999',
+      body: 'привет',
+    };
     const r1 = await ingestInboundMessage(prisma, dto);
     expect(r1.ok).toBe(true);
     const r2 = await ingestInboundMessage(prisma, dto);
@@ -25,7 +30,10 @@ describe('ingestInboundMessage', () => {
 
   it('unresolved sender → status unresolved, companyId null', async () => {
     const r = await ingestInboundMessage(prisma, {
-      channel: 'telegram', externalId: 'tg:test:2', senderRef: 'unknown', body: 'x',
+      channel: 'telegram',
+      externalId: 'tg:test:2',
+      senderRef: 'unknown',
+      body: 'x',
     });
     expect(r.ok).toBe(true);
     const row = await prisma.inboundMessage.findUnique({ where: { externalId: 'tg:test:2' } });
@@ -36,12 +44,29 @@ describe('ingestInboundMessage', () => {
   it('exact match → status bound + companyId bound from resolver (scope binding)', async () => {
     const stamp = Date.now();
     const company = await prisma.company.create({ data: { name: `inb-co-${stamp}` } });
-    const org = await prisma.organization.create({ data: { name: `inb-org-${stamp}`, companyId: company.id } });
-    const user = await prisma.user.create({ data: { email: `inb-${stamp}@t.local`, name: 'U', role: 'organization', organizationId: org.id, telegramChatId: `tgc-${stamp}` } });
+    const org = await prisma.organization.create({
+      data: { name: `inb-org-${stamp}`, companyId: company.id },
+    });
+    const user = await prisma.user.create({
+      data: {
+        email: `inb-${stamp}@t.local`,
+        name: 'U',
+        role: 'organization',
+        organizationId: org.id,
+        telegramChatId: `tgc-${stamp}`,
+      },
+    });
     try {
-      const r = await ingestInboundMessage(prisma, { channel: 'telegram', externalId: `tg:test:bound:${stamp}`, senderRef: `tgc-${stamp}`, body: 'hi' });
+      const r = await ingestInboundMessage(prisma, {
+        channel: 'telegram',
+        externalId: `tg:test:bound:${stamp}`,
+        senderRef: `tgc-${stamp}`,
+        body: 'hi',
+      });
       expect(r.ok).toBe(true);
-      const row = await prisma.inboundMessage.findUnique({ where: { externalId: `tg:test:bound:${stamp}` } });
+      const row = await prisma.inboundMessage.findUnique({
+        where: { externalId: `tg:test:bound:${stamp}` },
+      });
       expect(row?.status).toBe('bound');
       expect(row?.companyId).toBe(company.id);
       expect(row?.resolvedOrgId).toBe(org.id);
@@ -57,19 +82,37 @@ describe('ingestInboundMessage', () => {
   it('contact channel match (M2) → status bound + contactId persisted, no User row needed', async () => {
     const stamp = Date.now();
     const company = await prisma.company.create({ data: { name: `inb-kco-${stamp}` } });
-    const org = await prisma.organization.create({ data: { name: `inb-korg-${stamp}`, companyId: company.id } });
+    const org = await prisma.organization.create({
+      data: { name: `inb-korg-${stamp}`, companyId: company.id },
+    });
     const contact = await prisma.contact.create({
       data: {
         companyId: company.id,
         organizationId: org.id,
         name: `inb-contact-${stamp}`,
-        channels: { create: [{ companyId: company.id, type: 'telegram', value: `tgc-k-${stamp}`, normalizedValue: `tgc-k-${stamp}` }] },
+        channels: {
+          create: [
+            {
+              companyId: company.id,
+              type: 'telegram',
+              value: `tgc-k-${stamp}`,
+              normalizedValue: `tgc-k-${stamp}`,
+            },
+          ],
+        },
       },
     });
     try {
-      const r = await ingestInboundMessage(prisma, { channel: 'telegram', externalId: `tg:test:contact:${stamp}`, senderRef: `tgc-k-${stamp}`, body: 'hi from contact' });
+      const r = await ingestInboundMessage(prisma, {
+        channel: 'telegram',
+        externalId: `tg:test:contact:${stamp}`,
+        senderRef: `tgc-k-${stamp}`,
+        body: 'hi from contact',
+      });
       expect(r.ok).toBe(true);
-      const row = await prisma.inboundMessage.findUnique({ where: { externalId: `tg:test:contact:${stamp}` } });
+      const row = await prisma.inboundMessage.findUnique({
+        where: { externalId: `tg:test:contact:${stamp}` },
+      });
       expect(row?.status).toBe('bound');
       expect(row?.contactId).toBe(contact.id);
       expect(row?.resolvedOrgId).toBe(org.id);
@@ -84,8 +127,16 @@ describe('ingestInboundMessage', () => {
   });
 
   it('concurrent duplicate delivery → single row (race handled, no throw)', async () => {
-    const dto = { channel: 'telegram' as const, externalId: 'tg:test:race', senderRef: '888', body: 'race' };
-    const [a, b] = await Promise.all([ingestInboundMessage(prisma, dto), ingestInboundMessage(prisma, dto)]);
+    const dto = {
+      channel: 'telegram' as const,
+      externalId: 'tg:test:race',
+      senderRef: '888',
+      body: 'race',
+    };
+    const [a, b] = await Promise.all([
+      ingestInboundMessage(prisma, dto),
+      ingestInboundMessage(prisma, dto),
+    ]);
     expect(a.ok).toBe(true);
     expect(b.ok).toBe(true);
     const rows = await prisma.inboundMessage.findMany({ where: { externalId: 'tg:test:race' } });
@@ -110,7 +161,12 @@ describe('ingestInboundMessage', () => {
   });
 
   it('ingest without attachment → does not enqueue a scan job', async () => {
-    const dto = { channel: 'telegram' as const, externalId: 'tg:test:noattach', senderRef: '666', body: 'no file' };
+    const dto = {
+      channel: 'telegram' as const,
+      externalId: 'tg:test:noattach',
+      senderRef: '666',
+      body: 'no file',
+    };
     const r = await ingestInboundMessage(prisma, dto);
     expect(r.ok).toBe(true);
     expect(addMock).not.toHaveBeenCalled();
@@ -127,22 +183,33 @@ describe('ingestInboundMessage', () => {
     };
     const r = await ingestInboundMessage(prisma, dto);
     expect(r.ok).toBe(true);
-    const row = await prisma.inboundMessage.findUnique({ where: { externalId: 'tg:test:attach-enq-fail' } });
+    const row = await prisma.inboundMessage.findUnique({
+      where: { externalId: 'tg:test:attach-enq-fail' },
+    });
     expect(row?.scanStatus).toBe('pending'); // backfill-sweep подберёт позже
     await prisma.inboundMessage.deleteMany({ where: { externalId: 'tg:test:attach-enq-fail' } });
   });
 
   it('max/whatsapp каналы прокидывают senderRef в свой резолв-параметр', async () => {
     const rMax = await ingestInboundMessage(prisma, {
-      channel: 'max', externalId: 'tg:test:max-ch', senderRef: 'max-1', body: 'x',
+      channel: 'max',
+      externalId: 'tg:test:max-ch',
+      senderRef: 'max-1',
+      body: 'x',
     });
     expect(rMax.ok).toBe(true);
     const rWa = await ingestInboundMessage(prisma, {
-      channel: 'whatsapp', externalId: 'tg:test:wa-ch', senderRef: '+79990007777', body: 'x',
+      channel: 'whatsapp',
+      externalId: 'tg:test:wa-ch',
+      senderRef: '+79990007777',
+      body: 'x',
     });
     expect(rWa.ok).toBe(true);
     const rEmail = await ingestInboundMessage(prisma, {
-      channel: 'email', externalId: 'tg:test:email-ch', senderRef: 'nobody@nowhere.test', body: 'x',
+      channel: 'email',
+      externalId: 'tg:test:email-ch',
+      senderRef: 'nobody@nowhere.test',
+      body: 'x',
     });
     expect(rEmail.ok).toBe(true);
     const rows = await prisma.inboundMessage.findMany({
@@ -169,7 +236,10 @@ describe('ingestInboundMessage', () => {
     } as unknown as PrismaClient;
 
     const r = await ingestInboundMessage(poisoned, {
-      channel: 'telegram', externalId: 'tg:test:ghost-race', senderRef: '333', body: 'x',
+      channel: 'telegram',
+      externalId: 'tg:test:ghost-race',
+      senderRef: '333',
+      body: 'x',
     });
     expect(r).toEqual({ ok: true, id: '', deduped: true });
   });
@@ -205,7 +275,10 @@ describe('ingestInboundMessage', () => {
 
     await expect(
       ingestInboundMessage(poisoned, {
-        channel: 'telegram', externalId: 'tg:test:boom', senderRef: '444', body: 'x',
+        channel: 'telegram',
+        externalId: 'tg:test:boom',
+        senderRef: '444',
+        body: 'x',
       })
     ).rejects.toThrow('db exploded');
   });

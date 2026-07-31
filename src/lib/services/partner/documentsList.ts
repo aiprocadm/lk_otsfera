@@ -1,5 +1,9 @@
 import type { PrismaClient, DocumentType } from '@prisma/client';
-import { partnerChannelWhere, orderBoundWhere, orderLessWhere } from '@/lib/auth/documentChannelPolicy';
+import {
+  partnerChannelWhere,
+  orderBoundWhere,
+  orderLessWhere,
+} from '@/lib/auth/documentChannelPolicy';
 import type { OrgDocumentRow } from './orgDocuments';
 
 export type PartnerDocumentsFilter = {
@@ -37,16 +41,14 @@ export async function listPartnerDocuments(
     ...orderAxisWhere,
     ...orgScope,
     ...(filter.type ? { type: filter.type } : {}),
-    ...(filter.search
-      ? { name: { contains: filter.search, mode: 'insensitive' as const } }
-      : {})
+    ...(filter.search ? { name: { contains: filter.search, mode: 'insensitive' as const } } : {}),
   };
 
   const groupByWhere = {
     ...partnerChannelWhere(filter.partnerId),
     ...orderAxisWhere,
     ...orgScope,
-    ...(filter.search ? { name: { contains: filter.search, mode: 'insensitive' as const } } : {})
+    ...(filter.search ? { name: { contains: filter.search, mode: 'insensitive' as const } } : {}),
   };
 
   const [total, docs, countsRaw] = await Promise.all([
@@ -65,14 +67,14 @@ export async function listPartnerDocuments(
         createdAt: true,
         size: true,
         orderId: true,
-        order: { select: { orderNumber: true, title: true } }
-      }
+        order: { select: { orderNumber: true, title: true } },
+      },
     }),
     prisma.document.groupBy({
       by: ['type'],
       where: groupByWhere,
-      _count: { _all: true }
-    })
+      _count: { _all: true },
+    }),
   ]);
 
   const countsByType: Partial<Record<DocumentType, number>> = {};
@@ -90,7 +92,7 @@ export async function listPartnerDocuments(
     size: d.size,
     orderId: d.orderId,
     orderNumber: d.order?.orderNumber ?? null,
-    orderTitle: d.order?.title ?? null
+    orderTitle: d.order?.title ?? null,
   }));
 
   return { rows, total, countsByType };

@@ -10,21 +10,24 @@ const {
   createAccessProfileAction,
   updateAccessProfileAction,
   deleteAccessProfileAction,
-  assignUserProfileAction
+  assignUserProfileAction,
 } = vi.hoisted(() => ({
   createAccessProfileAction: vi.fn(),
   updateAccessProfileAction: vi.fn(),
   deleteAccessProfileAction: vi.fn(),
-  assignUserProfileAction: vi.fn()
+  assignUserProfileAction: vi.fn(),
 }));
 vi.mock('@/server-actions/access/profiles', () => ({
   createAccessProfileAction,
   updateAccessProfileAction,
   deleteAccessProfileAction,
-  assignUserProfileAction
+  assignUserProfileAction,
 }));
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({ toastSuccess: vi.fn(), toastError: vi.fn() }));
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 import { RoleEditor } from '@/components/access/role-editor';
@@ -42,7 +45,7 @@ const profile: AccessProfileListRow = {
   leads: 'own',
   tasks: 'own',
   capabilities: ['export'],
-  usersCount: 2
+  usersCount: 2,
 };
 
 const profileNoCaps: AccessProfileListRow = {
@@ -50,10 +53,15 @@ const profileNoCaps: AccessProfileListRow = {
   id: 'p2',
   name: 'Без прав',
   capabilities: [],
-  usersCount: 0
+  usersCount: 0,
 };
 
-const user: AssignableUser = { id: 'u1', name: 'Иван Петров', email: 'ivan@example.com', accessProfileId: null };
+const user: AssignableUser = {
+  id: 'u1',
+  name: 'Иван Петров',
+  email: 'ivan@example.com',
+  accessProfileId: null,
+};
 
 function renderEditor(props: { profiles: AccessProfileListRow[]; users: AssignableUser[] }) {
   return React.createElement(RoleEditor, props);
@@ -80,7 +88,9 @@ describe('RoleEditor', () => {
 
   it('renders EmptyState for both profiles and users when both are empty', () => {
     render(renderEditor({ profiles: [], users: [] }));
-    expect(screen.getByText('Ролей пока нет — создайте первую, чтобы нарезать права внутри компании.')).toBeTruthy();
+    expect(
+      screen.getByText('Ролей пока нет — создайте первую, чтобы нарезать права внутри компании.')
+    ).toBeTruthy();
     expect(screen.getByText('Менеджеры компании появятся здесь после добавления.')).toBeTruthy();
   });
 
@@ -97,7 +107,7 @@ describe('RoleEditor', () => {
       ...profile,
       id: 'p-stale',
       orders: 'legacy_scope' as ScopeLevel,
-      capabilities: ['legacy_cap' as Capability]
+      capabilities: ['legacy_cap' as Capability],
     };
     render(renderEditor({ profiles: [stale], users: [] }));
     expect(screen.getByText('Заявки: legacy_scope')).toBeTruthy();
@@ -143,7 +153,9 @@ describe('RoleEditor', () => {
     const dialog = await screen.findByText('Новая роль');
     const dialogEl = dialog.closest('dialog') as HTMLElement;
 
-    fireEvent.change(screen.getByLabelText('Название роли'), { target: { value: 'Новый профиль' } });
+    fireEvent.change(screen.getByLabelText('Название роли'), {
+      target: { value: 'Новый профиль' },
+    });
     fireEvent.click(within(dialogEl).getByRole('button', { name: 'Создать' }));
 
     await waitFor(() => expect(createAccessProfileAction).toHaveBeenCalledTimes(1));

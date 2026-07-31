@@ -116,7 +116,9 @@ describe('ManagerDocUploadForm (interactive, jsdom)', () => {
   });
 
   it('server error response: renders the mapped alert text (not the local guard message)', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 400, json: async () => ({ error: 'too_large' }) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: false, status: 400, json: async () => ({ error: 'too_large' }) });
     vi.stubGlobal('fetch', fetchMock);
 
     render(React.createElement(ManagerDocUploadForm, { orderId: 'o1' }));

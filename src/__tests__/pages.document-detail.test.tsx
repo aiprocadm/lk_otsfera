@@ -14,7 +14,7 @@ import React from 'react';
 const { requireAdmin, requireManager, requirePartner } = vi.hoisted(() => ({
   requireAdmin: vi.fn(),
   requireManager: vi.fn(),
-  requirePartner: vi.fn()
+  requirePartner: vi.fn(),
 }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin, requireManager, requirePartner }));
 
@@ -24,7 +24,7 @@ vi.mock('@/lib/auth/orgPageContext', () => ({ getOrgPageContext }));
 const { notFound } = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NEXT_NOT_FOUND');
-  })
+  }),
 }));
 vi.mock('next/navigation', () => ({ notFound }));
 
@@ -34,7 +34,7 @@ const { getDocumentDetail } = vi.hoisted(() => ({ getDocumentDetail: vi.fn() }))
 vi.mock('@/lib/services/documents/detail', () => ({ getDocumentDetail }));
 
 vi.mock('@/lib/services/customFields', () => ({
-  getFieldsForEntity: async () => []
+  getFieldsForEntity: async () => [],
 }));
 
 vi.mock('@/components/documents/document-detail-view', () => ({
@@ -49,18 +49,18 @@ vi.mock('@/components/documents/document-detail-view', () => ({
       JSON.stringify({
         name: props.document.name,
         backHref: props.backHref,
-        orderHrefBase: props.orderHrefBase
+        orderHrefBase: props.orderHrefBase,
       })
-    )
+    ),
 }));
 
 vi.mock('@/components/custom-fields/entity-custom-fields', () => ({
-  EntityCustomFields: () => React.createElement('div', { 'data-testid': 'fields' })
+  EntityCustomFields: () => React.createElement('div', { 'data-testid': 'fields' }),
 }));
 
 vi.mock('@/components/organization/org-app-shell', () => ({
   OrgAppShell: ({ children }: { children: React.ReactNode }) =>
-    React.createElement('div', { 'data-testid': 'org-shell' }, children)
+    React.createElement('div', { 'data-testid': 'org-shell' }, children),
 }));
 
 import AdminDocumentPage from '@/app/admin/documents/[id]/page';
@@ -76,7 +76,7 @@ const ORG_CTX = {
   activeOrgId: 'org-1',
   activeOrgName: 'ООО Ромашка',
   memberships: [],
-  viewerRole: 'admin'
+  viewerRole: 'admin',
 };
 
 beforeEach(() => {
@@ -149,7 +149,7 @@ describe('Карточка документа — кабинет организ�
     const { container } = await renderServerComponent(
       OrganizationDocumentPage({
         params: Promise.resolve({ id: 'd1' }),
-        searchParams: Promise.resolve({})
+        searchParams: Promise.resolve({}),
       })
     );
     expect(getOrgPageContext).toHaveBeenCalled();
@@ -164,7 +164,7 @@ describe('Карточка документа — кабинет организ�
       renderServerComponent(
         OrganizationDocumentPage({
           params: Promise.resolve({ id: 'x' }),
-          searchParams: Promise.resolve({})
+          searchParams: Promise.resolve({}),
         })
       )
     ).rejects.toThrow('NEXT_NOT_FOUND');

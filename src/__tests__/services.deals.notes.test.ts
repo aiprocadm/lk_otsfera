@@ -29,7 +29,7 @@ function makePrisma(opts: { deal?: unknown; notes?: unknown[] } = {}) {
   const noteFindMany = vi.fn().mockResolvedValue(opts.notes ?? []);
   const prisma = {
     deal: { findFirst: dealFindFirst },
-    dealNote: { create: noteCreate, findMany: noteFindMany }
+    dealNote: { create: noteCreate, findMany: noteFindMany },
   } as unknown as PrismaClient;
   return { prisma, dealFindFirst, noteCreate, noteFindMany };
 }
@@ -45,7 +45,7 @@ describe('addNoteToDeal', () => {
     const { prisma, dealFindFirst, noteCreate } = makePrisma();
     expect(await addNoteToDeal(prisma, session, { dealId: 'd-1', body: 'Заметка' })).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
     expect(dealFindFirst).not.toHaveBeenCalled();
     expect(noteCreate).not.toHaveBeenCalled();
@@ -57,34 +57,34 @@ describe('addNoteToDeal', () => {
     const { prisma, dealFindFirst, noteCreate } = makePrisma({ deal: { id: 'd-1' } });
     expect(await addNoteToDeal(prisma, MGR, { dealId: 'd-1' } as never)).toEqual({
       ok: false,
-      error: 'invalid'
+      error: 'invalid',
     });
     expect(dealFindFirst).not.toHaveBeenCalled();
     expect(noteCreate).not.toHaveBeenCalled();
   });
 
-  it.each([['пустое тело', ''], ['одни пробелы', '   \n\t ']])(
-    '%s → invalid, в БД не ходим',
-    async (_label, body) => {
-      const { prisma, dealFindFirst, noteCreate } = makePrisma({ deal: { id: 'd-1' } });
-      expect(await addNoteToDeal(prisma, MGR, { dealId: 'd-1', body })).toEqual({
-        ok: false,
-        error: 'invalid'
-      });
-      expect(dealFindFirst).not.toHaveBeenCalled();
-      expect(noteCreate).not.toHaveBeenCalled();
-    }
-  );
+  it.each([
+    ['пустое тело', ''],
+    ['одни пробелы', '   \n\t '],
+  ])('%s → invalid, в БД не ходим', async (_label, body) => {
+    const { prisma, dealFindFirst, noteCreate } = makePrisma({ deal: { id: 'd-1' } });
+    expect(await addNoteToDeal(prisma, MGR, { dealId: 'd-1', body })).toEqual({
+      ok: false,
+      error: 'invalid',
+    });
+    expect(dealFindFirst).not.toHaveBeenCalled();
+    expect(noteCreate).not.toHaveBeenCalled();
+  });
 
   it('сделка вне скоупа → not_found; скоуп менеджера в самой выборке', async () => {
     const { prisma, dealFindFirst, noteCreate } = makePrisma();
     expect(await addNoteToDeal(prisma, MGR, { dealId: 'd-alien', body: 'Заметка' })).toEqual({
       ok: false,
-      error: 'not_found'
+      error: 'not_found',
     });
     expect(dealFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { AND: [{ id: 'd-alien' }, { companyId: 'c1', managerId: 'm-1' }] }
+        where: { AND: [{ id: 'd-alien' }, { companyId: 'c1', managerId: 'm-1' }] },
       })
     );
     expect(noteCreate).not.toHaveBeenCalled();
@@ -93,14 +93,16 @@ describe('addNoteToDeal', () => {
 
   it('happy: dealId + authorId, тело trim-ится, orderId НЕ пишется (параллельная привязка)', async () => {
     const { prisma, noteCreate } = makePrisma({ deal: { id: 'd-1' } });
-    expect(await addNoteToDeal(prisma, MGR, { dealId: 'd-1', body: '  Позвонить клиенту  ' })).toEqual({
+    expect(
+      await addNoteToDeal(prisma, MGR, { dealId: 'd-1', body: '  Позвонить клиенту  ' })
+    ).toEqual({
       ok: true,
-      id: 'n-1'
+      id: 'n-1',
     });
     // Точный матч data: ключа orderId нет вовсе — заметка живёт только на сделке.
     expect(noteCreate).toHaveBeenCalledWith({
       data: { dealId: 'd-1', authorId: 'm-1', body: 'Позвонить клиенту' },
-      select: { id: true }
+      select: { id: true },
     });
   });
 
@@ -112,7 +114,7 @@ describe('addNoteToDeal', () => {
       entity: 'deal',
       entityId: 'd-1',
       userId: 'm-1',
-      after: { noteId: expect.any(String) }
+      after: { noteId: expect.any(String) },
     });
   });
 });
@@ -124,7 +126,7 @@ describe('listDealNotes', () => {
     const { prisma, dealFindFirst } = makePrisma();
     expect(await listDealNotes(prisma, PARTNER, { dealId: 'd-1' })).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
     expect(dealFindFirst).not.toHaveBeenCalled();
   });
@@ -133,11 +135,11 @@ describe('listDealNotes', () => {
     const { prisma, dealFindFirst, noteFindMany } = makePrisma();
     expect(await listDealNotes(prisma, MGR, { dealId: 'd-alien' })).toEqual({
       ok: false,
-      error: 'not_found'
+      error: 'not_found',
     });
     expect(dealFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { AND: [{ id: 'd-alien' }, { companyId: 'c1', managerId: 'm-1' }] }
+        where: { AND: [{ id: 'd-alien' }, { companyId: 'c1', managerId: 'm-1' }] },
       })
     );
     expect(noteFindMany).not.toHaveBeenCalled();
@@ -150,21 +152,21 @@ describe('listDealNotes', () => {
       deal: { id: 'd-1' },
       notes: [
         { id: 'n-2', body: 'Свежая', createdAt: t2, author: { name: 'Анна' } },
-        { id: 'n-1', body: 'Старая', createdAt: t1, author: { name: 'Борис' } }
-      ]
+        { id: 'n-1', body: 'Старая', createdAt: t1, author: { name: 'Борис' } },
+      ],
     });
     expect(await listDealNotes(prisma, MGR, { dealId: 'd-1' })).toEqual({
       ok: true,
       rows: [
         { id: 'n-2', body: 'Свежая', authorName: 'Анна', createdAt: t2 },
-        { id: 'n-1', body: 'Старая', authorName: 'Борис', createdAt: t1 }
-      ]
+        { id: 'n-1', body: 'Старая', authorName: 'Борис', createdAt: t1 },
+      ],
     });
     expect(noteFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { dealId: 'd-1' },
         orderBy: { createdAt: 'desc' },
-        take: 200
+        take: 200,
       })
     );
   });

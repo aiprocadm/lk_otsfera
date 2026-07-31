@@ -17,11 +17,15 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), refresh: 
 
 vi.mock('@/components/commission/corrections-queue-table', () => ({
   CorrectionsQueueTable: (props: { rows: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'corrections-table' }, JSON.stringify(props.rows))
+    React.createElement('div', { 'data-testid': 'corrections-table' }, JSON.stringify(props.rows)),
 }));
 
-
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'leader' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'leader' as const,
+  companyId: 'c1',
+};
 
 describe('LeaderCommissionCorrectionsPage', () => {
   beforeEach(() => {
@@ -39,8 +43,8 @@ describe('LeaderCommissionCorrectionsPage', () => {
         commissionAmount: { toString: () => '10.00' },
         rate: { toString: () => '0.10' },
         originalPeriodFrom: new Date('2026-01-01T00:00:00Z'),
-        originalPeriodTo: new Date('2026-01-31T00:00:00Z')
-      }
+        originalPeriodTo: new Date('2026-01-31T00:00:00Z'),
+      },
     ]);
 
     const { container } = await renderServerComponent(LeaderCommissionCorrectionsPage());
@@ -63,8 +67,8 @@ describe('LeaderCommissionCorrectionsPage', () => {
         commissionAmount: { toString: () => '0.50' },
         rate: { toString: () => '0.10' },
         originalPeriodFrom: new Date('2026-02-01T00:00:00Z'),
-        originalPeriodTo: new Date('2026-02-28T00:00:00Z')
-      }
+        originalPeriodTo: new Date('2026-02-28T00:00:00Z'),
+      },
     ]);
 
     const { container } = await renderServerComponent(LeaderCommissionCorrectionsPage());

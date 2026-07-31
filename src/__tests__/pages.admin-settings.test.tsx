@@ -16,12 +16,12 @@ vi.mock('@/lib/services/notifications/preferences', () => ({ getNotificationSett
 
 vi.mock('@/components/settings/telegram-link-card', () => ({
   TelegramLinkCard: (props: { status: unknown }) =>
-    React.createElement('div', { 'data-testid': 'telegram-card' }, JSON.stringify(props.status))
+    React.createElement('div', { 'data-testid': 'telegram-card' }, JSON.stringify(props.status)),
 }));
 
 vi.mock('@/components/settings/notification-channels-card', () => ({
   NotificationChannelsCard: (props: { settings: unknown }) =>
-    React.createElement('div', { 'data-testid': 'notif-card' }, JSON.stringify(props.settings))
+    React.createElement('div', { 'data-testid': 'notif-card' }, JSON.stringify(props.settings)),
 }));
 
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
@@ -33,22 +33,22 @@ vi.mock('@/lib/services/admin/companyRequisites', () => ({ listCompaniesRequisit
 vi.mock('@/server-actions/requisites', () => ({ setCompanyRequisitesAction: vi.fn() }));
 vi.mock('@/components/requisites/requisites-card', () => ({
   RequisitesCard: (props: { title: string }) =>
-    React.createElement('div', { 'data-testid': 'requisites-card' }, props.title)
+    React.createElement('div', { 'data-testid': 'requisites-card' }, props.title),
 }));
 
 vi.mock('@/components/settings/security-card', () => ({
-  SecurityCard: () => React.createElement('div', { 'data-testid': 'security-card' }, 'SECURITY')
+  SecurityCard: () => React.createElement('div', { 'data-testid': 'security-card' }, 'SECURITY'),
 }));
 
 vi.mock('@/components/settings/staff-backup-codes-section', () => ({
   StaffBackupCodesSection: () =>
-    React.createElement('div', { 'data-testid': 'backup-codes-section' }, 'BACKUP')
+    React.createElement('div', { 'data-testid': 'backup-codes-section' }, 'BACKUP'),
 }));
 
 // Матрица читает FEATURE_FLAGS напрямую (featureFlags тут замокан) — заглушка;
 // сам компонент покрыт components.feature-flags-matrix.test.tsx.
 vi.mock('@/components/admin/feature-flags-matrix', () => ({
-  FeatureFlagsMatrix: () => React.createElement('div', { 'data-testid': 'flags-matrix' }, 'FLAGS')
+  FeatureFlagsMatrix: () => React.createElement('div', { 'data-testid': 'flags-matrix' }, 'FLAGS'),
 }));
 
 import AdminSettingsPage from '@/app/admin/settings/page';
@@ -95,11 +95,24 @@ describe('AdminSettingsPage', () => {
       ok: true,
       companies: [
         {
-          id: 'c1', name: 'Промтехносфера', legalName: 'ООО ПТС', inn: '7707083893', kpp: null, ogrn: null,
-          legalAddress: null, bankName: null, bankAccount: null, corrAccount: null, bic: null,
-          signerName: null, signerPosition: null, signerBasis: null, phone: '+7 495 000-00-00', email: 'doc@pts.ru'
-        }
-      ]
+          id: 'c1',
+          name: 'Промтехносфера',
+          legalName: 'ООО ПТС',
+          inn: '7707083893',
+          kpp: null,
+          ogrn: null,
+          legalAddress: null,
+          bankName: null,
+          bankAccount: null,
+          corrAccount: null,
+          bic: null,
+          signerName: null,
+          signerPosition: null,
+          signerBasis: null,
+          phone: '+7 495 000-00-00',
+          email: 'doc@pts.ru',
+        },
+      ],
     });
 
     const { container } = await renderServerComponent(AdminSettingsPage());
@@ -117,11 +130,24 @@ describe('AdminSettingsPage', () => {
       ok: true,
       companies: [
         {
-          id: 'c2', name: 'Вторая', legalName: null, inn: null, kpp: null, ogrn: null,
-          legalAddress: null, bankName: null, bankAccount: null, corrAccount: null, bic: null,
-          signerName: null, signerPosition: null, signerBasis: null, phone: null, email: null
-        }
-      ]
+          id: 'c2',
+          name: 'Вторая',
+          legalName: null,
+          inn: null,
+          kpp: null,
+          ogrn: null,
+          legalAddress: null,
+          bankName: null,
+          bankAccount: null,
+          corrAccount: null,
+          bic: null,
+          signerName: null,
+          signerPosition: null,
+          signerBasis: null,
+          phone: null,
+          email: null,
+        },
+      ],
     });
     const { container } = await renderServerComponent(AdminSettingsPage());
     expect(container.textContent).toContain('Реквизиты исполнителя: Вторая');

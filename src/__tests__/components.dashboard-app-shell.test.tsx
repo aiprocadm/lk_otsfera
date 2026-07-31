@@ -16,12 +16,12 @@ vi.mock('@/lib/auth/managerPolicy', () => ({ isManagerLeader }));
 
 vi.mock('next/link', () => ({
   default: (props: React.AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) =>
-    React.createElement('a', { href: props.href, className: props.className }, props.children)
+    React.createElement('a', { href: props.href, className: props.className }, props.children),
 }));
 
 vi.mock('@/components/ui', () => ({
   LogoutButton: (props: { className?: string }) =>
-    React.createElement('button', { className: props.className }, 'Выйти')
+    React.createElement('button', { className: props.className }, 'Выйти'),
 }));
 
 vi.mock('@/components/notifications/notification-bell', () => ({
@@ -31,10 +31,10 @@ vi.mock('@/components/notifications/notification-bell', () => ({
       {
         'data-testid': 'notification-bell',
         'data-role': props.role,
-        'data-button-class': props.buttonClassName
+        'data-button-class': props.buttonClassName,
       },
       '🔔'
-    )
+    ),
 }));
 
 import { AppShell } from '@/components/dashboard/app-shell';
@@ -60,7 +60,12 @@ describe('AppShell', () => {
   });
 
   it('renders role label from the known map, name, and children', async () => {
-    getSession.mockResolvedValue({ sub: 'u1', role: 'admin', name: 'Иван Иванов', partnerRole: null });
+    getSession.mockResolvedValue({
+      sub: 'u1',
+      role: 'admin',
+      name: 'Иван Иванов',
+      partnerRole: null,
+    });
     navItemsFor.mockReturnValue([{ href: '/admin/dashboard', label: 'Главная' }]);
 
     const el = await AppShell({ children: React.createElement('p', null, 'дочерний контент') });
@@ -136,6 +141,9 @@ describe('AppShell', () => {
 
     await AppShell({ children: 'c' });
 
-    expect(navItemsFor).toHaveBeenCalledWith('manager', { isManagerLeader: true, isPartnerAdmin: true });
+    expect(navItemsFor).toHaveBeenCalledWith('manager', {
+      isManagerLeader: true,
+      isPartnerAdmin: true,
+    });
   });
 });

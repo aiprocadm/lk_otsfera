@@ -26,7 +26,9 @@ export async function resolveContactByChannel(
 ): Promise<ChannelResolution | null> {
   const normalizedValue = normalizeChannelValue(input.type, input.value);
   if (!normalizedValue) return null;
-  const typeFilter = input.phoneLike ? { in: ['phone', 'whatsapp'] as ContactChannelType[] } : input.type;
+  const typeFilter = input.phoneLike
+    ? { in: ['phone', 'whatsapp'] as ContactChannelType[] }
+    : input.type;
 
   const rows = await prisma.contactChannel.findMany({
     where: { type: typeFilter, normalizedValue, contact: { is: { isArchived: false } } },
@@ -40,5 +42,10 @@ export async function resolveContactByChannel(
   const live = rows.filter((r) => !r.contact.isArchived);
   if (live.length !== 1) return null;
   const c = live[0].contact;
-  return { contactId: c.id, organizationId: c.organizationId, companyId: c.companyId, ...(c.userId ? { userId: c.userId } : {}) };
+  return {
+    contactId: c.id,
+    organizationId: c.organizationId,
+    companyId: c.companyId,
+    ...(c.userId ? { userId: c.userId } : {}),
+  };
 }

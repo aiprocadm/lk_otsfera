@@ -3,8 +3,11 @@ import {
   organizationChannelWhere,
   partnerChannelWhere,
   documentInChannel,
-  orderBoundWhere, orderLessWhere, managerOrderLessWhere,
-  canManagerUploadOrderLess, canReadOrderLessDocument
+  orderBoundWhere,
+  orderLessWhere,
+  managerOrderLessWhere,
+  canManagerUploadOrderLess,
+  canReadOrderLessDocument,
 } from '@/lib/auth/documentChannelPolicy';
 
 describe('documentChannelPolicy', () => {
@@ -12,7 +15,7 @@ describe('documentChannelPolicy', () => {
     expect(organizationChannelWhere('org-1')).toEqual({
       counterpartyType: 'organization',
       counterpartyId: 'org-1',
-      scanStatus: { not: 'infected' }
+      scanStatus: { not: 'infected' },
     });
   });
 
@@ -20,7 +23,7 @@ describe('documentChannelPolicy', () => {
     expect(partnerChannelWhere('p-1')).toEqual({
       counterpartyType: 'partner',
       counterpartyId: 'p-1',
-      scanStatus: { not: 'infected' }
+      scanStatus: { not: 'infected' },
     });
   });
 
@@ -41,7 +44,9 @@ describe('order-less axis', () => {
   });
   it('managerOrderLessWhere pins company + hides infected', () => {
     expect(managerOrderLessWhere('co-1')).toEqual({
-      orderId: null, companyId: 'co-1', scanStatus: { not: 'infected' }
+      orderId: null,
+      companyId: 'co-1',
+      scanStatus: { not: 'infected' },
     });
   });
 });
@@ -76,12 +81,22 @@ describe('canReadOrderLessDocument', () => {
     expect(canReadOrderLessDocument({ role: 'partner', partnerId: 'pX' }, doc)).toBe(false);
   });
   it('organization reads only its org channel', () => {
-    const orgDoc = { counterpartyType: 'organization' as const, counterpartyId: 'o1', companyId: 'co-1' };
-    expect(canReadOrderLessDocument({ role: 'organization', organizationId: 'o1' }, orgDoc)).toBe(true);
-    expect(canReadOrderLessDocument({ role: 'organization', organizationId: 'oX' }, orgDoc)).toBe(false);
+    const orgDoc = {
+      counterpartyType: 'organization' as const,
+      counterpartyId: 'o1',
+      companyId: 'co-1',
+    };
+    expect(canReadOrderLessDocument({ role: 'organization', organizationId: 'o1' }, orgDoc)).toBe(
+      true
+    );
+    expect(canReadOrderLessDocument({ role: 'organization', organizationId: 'oX' }, orgDoc)).toBe(
+      false
+    );
   });
   it('manager denied when doc has no company', () => {
-    expect(canReadOrderLessDocument({ role: 'manager', companyId: 'co-1' }, { ...doc, companyId: null })).toBe(false);
+    expect(
+      canReadOrderLessDocument({ role: 'manager', companyId: 'co-1' }, { ...doc, companyId: null })
+    ).toBe(false);
   });
   it('unknown/student role returns false', () => {
     expect(canReadOrderLessDocument({ role: 'student' }, doc)).toBe(false);

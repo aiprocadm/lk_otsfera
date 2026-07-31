@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-const { linkMaxByCode, sendMaxMessage, notFoundIfDisabled, isFeatureEnabled, recordWebhookEvent } = vi.hoisted(() => ({
-  linkMaxByCode: vi.fn(),
-  sendMaxMessage: vi.fn(),
-  notFoundIfDisabled: vi.fn(),
-  isFeatureEnabled: vi.fn(),
-  recordWebhookEvent: vi.fn().mockResolvedValue(undefined),
-}));
+const { linkMaxByCode, sendMaxMessage, notFoundIfDisabled, isFeatureEnabled, recordWebhookEvent } =
+  vi.hoisted(() => ({
+    linkMaxByCode: vi.fn(),
+    sendMaxMessage: vi.fn(),
+    notFoundIfDisabled: vi.fn(),
+    isFeatureEnabled: vi.fn(),
+    recordWebhookEvent: vi.fn().mockResolvedValue(undefined),
+  }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('@/lib/services/max/link', () => ({ linkMaxByCode }));
@@ -62,7 +63,10 @@ describe('POST /api/integrations/max/webhook', () => {
   it('200 на валидный /start <code> (message-форма) → linkMaxByCode', async () => {
     linkMaxByCode.mockResolvedValue({ ok: true });
     const res = await POST(
-      req({ message: { text: '/start CODE123', chat: { id: 42 } } }, { 'x-max-webhook-secret': SECRET })
+      req(
+        { message: { text: '/start CODE123', chat: { id: 42 } } },
+        { 'x-max-webhook-secret': SECRET }
+      )
     );
     expect(res.status).toBe(200);
     expect(linkMaxByCode).toHaveBeenCalledWith({}, { code: 'CODE123', chatId: '42' });

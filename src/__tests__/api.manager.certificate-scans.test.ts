@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { getSession, uploadCertificateScansMock } = vi.hoisted(() => ({
   getSession: vi.fn(),
-  uploadCertificateScansMock: vi.fn()
+  uploadCertificateScansMock: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/session', () => ({ getSession }));
@@ -18,12 +18,12 @@ vi.mock('next/navigation', () => ({
   }),
   notFound: () => {
     throw new Error('NOTFOUND');
-  }
+  },
 }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled: vi.fn() }));
 vi.mock('@/lib/services/manager/certificateScans', () => ({
-  uploadCertificateScans: uploadCertificateScansMock
+  uploadCertificateScans: uploadCertificateScansMock,
 }));
 
 import { POST } from '@/app/api/manager/orders/[id]/certificate-scans/route';
@@ -43,7 +43,7 @@ function buildReq(pairs: Array<{ file?: File; itemId?: string }>) {
   }
   return new Request('https://app.local/api/manager/orders/ord-1/certificate-scans', {
     method: 'POST',
-    body: fd
+    body: fd,
   });
 }
 
@@ -56,7 +56,7 @@ describe('POST /api/manager/orders/[id]/certificate-scans', () => {
       sub: 'u-mgr',
       role: 'manager',
       email: 'm@local',
-      managedOrgIds: ['org-a']
+      managedOrgIds: ['org-a'],
     });
     vi.mocked(notFoundIfDisabled).mockReturnValue(undefined as never);
     uploadCertificateScansMock.mockResolvedValue({ ok: true, results: [] });
@@ -90,7 +90,7 @@ describe('POST /api/manager/orders/[id]/certificate-scans', () => {
     const req = new Request('https://app.local/api/manager/orders/ord-1/certificate-scans', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: '{"nope":1}'
+      body: '{"nope":1}',
     });
     const res = await POST(req as never, paramsP);
     expect(res.status).toBe(400);
@@ -99,12 +99,12 @@ describe('POST /api/manager/orders/[id]/certificate-scans', () => {
   it('пары file/orderItemId передаются в сервис по порядку', async () => {
     uploadCertificateScansMock.mockResolvedValue({
       ok: true,
-      results: [{ fileName: 'a.pdf', ok: true, orderItemId: 'i1', documentId: 'd1' }]
+      results: [{ fileName: 'a.pdf', ok: true, orderItemId: 'i1', documentId: 'd1' }],
     });
     const res = await POST(
       buildReq([
         { file: pdf('a.pdf'), itemId: 'i1' },
-        { file: pdf('b.pdf'), itemId: 'i2' }
+        { file: pdf('b.pdf'), itemId: 'i2' },
       ]) as never,
       paramsP
     );
@@ -116,7 +116,7 @@ describe('POST /api/manager/orders/[id]/certificate-scans', () => {
     expect(Buffer.isBuffer(call.files[0].file.buffer)).toBe(true);
     await expect(res.json()).resolves.toEqual({
       ok: true,
-      results: [{ fileName: 'a.pdf', ok: true, orderItemId: 'i1', documentId: 'd1' }]
+      results: [{ fileName: 'a.pdf', ok: true, orderItemId: 'i1', documentId: 'd1' }],
     });
   });
 
@@ -124,7 +124,7 @@ describe('POST /api/manager/orders/[id]/certificate-scans', () => {
     for (const [error, status] of [
       ['forbidden', 403],
       ['not_found', 404],
-      ['validation', 400]
+      ['validation', 400],
     ] as const) {
       uploadCertificateScansMock.mockResolvedValue({ ok: false, error });
       const res = await POST(buildReq([{ file: pdf('a.pdf'), itemId: 'i1' }]) as never, paramsP);

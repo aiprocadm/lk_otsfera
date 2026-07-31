@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { canSeeOrder, getCompanyTeamVisibility } = vi.hoisted(() => ({
   canSeeOrder: vi.fn(),
-  getCompanyTeamVisibility: vi.fn()
+  getCompanyTeamVisibility: vi.fn(),
 }));
 vi.mock('@/lib/auth/managerPolicy', () => ({ canSeeOrder, getCompanyTeamVisibility }));
 
@@ -20,7 +20,7 @@ vi.mock('@/lib/notifications', () => ({ notifyOrgUsers }));
 import {
   deliverOrderResult,
   approveDeliverables,
-  getOrderReadiness
+  getOrderReadiness,
 } from '@/lib/services/manager/orderDelivery';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
@@ -43,9 +43,9 @@ const READY_ORDER = {
       id: 'i1',
       trainingStatus: 'certificate_issued',
       student: { name: 'Иванов' },
-      certificate: { documentId: 'd1' }
-    }
-  ]
+      certificate: { documentId: 'd1' },
+    },
+  ],
 };
 
 function makePrisma(order: unknown, scanDocs: Array<{ id: string; scanStatus: string }> = []) {
@@ -56,8 +56,8 @@ function makePrisma(order: unknown, scanDocs: Array<{ id: string; scanStatus: st
     order: { findUnique: vi.fn().mockResolvedValue(order), update },
     document: { findMany: findManyDocuments },
     $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
-      fn({ order: { update }, /* аудит пишется тем же tx */ })
-    )
+      fn({ order: { update } /* аудит пишется тем же tx */ })
+    ),
   } as never;
   return { prisma, update, findManyDocuments };
 }
@@ -74,7 +74,7 @@ describe('deliverOrderResult', () => {
     const { prisma } = makePrisma(null);
     expect(await deliverOrderResult(prisma, session, 'ghost')).toEqual({
       ok: false,
-      error: 'not_found'
+      error: 'not_found',
     });
   });
 
@@ -83,7 +83,7 @@ describe('deliverOrderResult', () => {
     const { prisma, update } = makePrisma(READY_ORDER);
     expect(await deliverOrderResult(prisma, session, 'o1')).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
     expect(update).not.toHaveBeenCalled();
     expect(notifyOrgUsers).not.toHaveBeenCalled();
@@ -92,7 +92,7 @@ describe('deliverOrderResult', () => {
   it('заказ не готов → not_ready с расшифровкой, без записи и уведомления', async () => {
     const { prisma, update } = makePrisma({
       ...READY_ORDER,
-      items: [{ ...READY_ORDER.items[0], certificate: null }]
+      items: [{ ...READY_ORDER.items[0], certificate: null }],
     });
     const res = await deliverOrderResult(prisma, session, 'o1');
     expect(res.ok).toBe(false);
@@ -112,7 +112,7 @@ describe('deliverOrderResult', () => {
 
     expect(update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ resultDeliveredById: 'm1' })
+        data: expect.objectContaining({ resultDeliveredById: 'm1' }),
       })
     );
     expect(recordAudit).toHaveBeenCalledWith(
@@ -159,7 +159,7 @@ describe('approveDeliverables (решение §6-2)', () => {
     ...READY_ORDER,
     serviceType: 'document_development',
     items: [],
-    documents: [{ direction: 'outgoing', scanStatus: 'clean' }]
+    documents: [{ direction: 'outgoing', scanStatus: 'clean' }],
   };
 
   it('ставит отметку и пишет аудит', async () => {
@@ -168,7 +168,7 @@ describe('approveDeliverables (решение §6-2)', () => {
     expect(res.ok).toBe(true);
     expect(update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ deliverablesApprovedById: 'm1' })
+        data: expect.objectContaining({ deliverablesApprovedById: 'm1' }),
       })
     );
     expect(recordAudit).toHaveBeenCalledWith(
@@ -182,7 +182,7 @@ describe('approveDeliverables (решение §6-2)', () => {
     const { prisma, update } = makePrisma({ ...DOC_ORDER, deliverablesApprovedAt: approved });
     expect(await approveDeliverables(prisma, session, 'o1')).toEqual({
       ok: true,
-      approvedAt: approved
+      approvedAt: approved,
     });
     expect(update).not.toHaveBeenCalled();
   });
@@ -192,7 +192,7 @@ describe('approveDeliverables (решение §6-2)', () => {
     const { prisma } = makePrisma(DOC_ORDER);
     expect(await approveDeliverables(prisma, session, 'o1')).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
   });
 
@@ -200,7 +200,7 @@ describe('approveDeliverables (решение §6-2)', () => {
     const { prisma } = makePrisma(null);
     expect(await approveDeliverables(prisma, session, 'x')).toEqual({
       ok: false,
-      error: 'not_found'
+      error: 'not_found',
     });
   });
 });
@@ -222,13 +222,13 @@ describe('getOrderReadiness', () => {
     const a = makePrisma(READY_ORDER);
     expect(await getOrderReadiness(a.prisma, session, 'o1')).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
 
     const b = makePrisma(null);
     expect(await getOrderReadiness(b.prisma, session, 'x')).toEqual({
       ok: false,
-      error: 'not_found'
+      error: 'not_found',
     });
   });
 });
@@ -270,9 +270,9 @@ describe('getOrderReadiness — статусы сканов удостовере
           id: 'i1',
           trainingStatus: 'certificate_issued',
           student: { name: 'Иванов' },
-          certificate: { documentId: null }
-        }
-      ]
+          certificate: { documentId: null },
+        },
+      ],
     };
     const { prisma, findManyDocuments } = makePrisma(order);
     const res = await getOrderReadiness(prisma, session, 'o1');

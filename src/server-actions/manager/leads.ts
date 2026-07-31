@@ -35,7 +35,7 @@ export async function pushLeadToOneCAction(input: {
 
   const lead = await prisma.lead.findUnique({
     where: { id: parsed.data.leadId },
-    select: { id: true, pushedToOneCAt: true }
+    select: { id: true, pushedToOneCAt: true },
   });
   if (!lead) return { ok: false, error: 'not_found' };
   if (lead.pushedToOneCAt) return { ok: false, error: 'already_pushed' };
@@ -46,12 +46,12 @@ export async function pushLeadToOneCAction(input: {
   try {
     const payload: PushLeadJobPayload = { leadId: lead.id };
     await getQueue('oneCSync.pushLead').add('push', payload, {
-      jobId: `push-lead:${lead.id}:${Date.now()}`
+      jobId: `push-lead:${lead.id}:${Date.now()}`,
     });
   } catch (err) {
     log.error('[manager/leads] push lead enqueue failed', {
       leadId: lead.id,
-      error: err instanceof Error ? err.message : String(err)
+      error: err instanceof Error ? err.message : String(err),
     });
     return { ok: false, error: 'queue_unavailable' };
   }
@@ -60,7 +60,7 @@ export async function pushLeadToOneCAction(input: {
     action: 'lead_push_enqueued',
     entity: 'lead',
     entityId: lead.id,
-    userId: session.sub
+    userId: session.sub,
   });
 
   revalidatePath(`/manager/leads/${lead.id}`);

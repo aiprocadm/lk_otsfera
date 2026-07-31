@@ -3,7 +3,9 @@ import { isFeatureEnabled } from '@/lib/featureFlags';
 
 describe('chat feature flag', () => {
   const KEY = 'FEATURE_CHAT';
-  afterEach(() => { delete process.env[KEY]; });
+  afterEach(() => {
+    delete process.env[KEY];
+  });
 
   it('is OFF by default (opt-in)', () => {
     delete process.env[KEY];

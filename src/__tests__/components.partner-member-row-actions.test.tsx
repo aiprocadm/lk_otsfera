@@ -10,7 +10,7 @@ import { MemberRowActions } from '@/components/partner/member-row-actions';
 
 const orgs = [
   { id: 'org1', name: 'ООО Ромашка' },
-  { id: 'org2', name: 'ООО Вторая' }
+  { id: 'org2', name: 'ООО Вторая' },
 ];
 
 describe('MemberRowActions', () => {
@@ -38,7 +38,7 @@ describe('MemberRowActions', () => {
         name: 'Иван Петров',
         initialAssignedOrgIds: [],
         orgs,
-        ...overrides
+        ...overrides,
       })
     );
   }
@@ -54,7 +54,9 @@ describe('MemberRowActions', () => {
     fireEvent.click(screen.getByText('Доступ'));
     await waitFor(() => expect(screen.getByText('Доступ к организациям')).toBeTruthy());
     const dialog = screen.getByRole('dialog', { name: 'Доступ к организациям' });
-    const allCheckbox = within(dialog).getByLabelText('Доступ ко всем организациям партнёра') as HTMLInputElement;
+    const allCheckbox = within(dialog).getByLabelText(
+      'Доступ ко всем организациям партнёра'
+    ) as HTMLInputElement;
     expect(allCheckbox.checked).toBe(true);
     // per-org list hidden when allOrgs=true
     expect(within(dialog).queryByText('ООО Ромашка')).toBeNull();
@@ -64,7 +66,9 @@ describe('MemberRowActions', () => {
     renderActions({ initialAssignedOrgIds: ['org1'] });
     fireEvent.click(screen.getByText('Доступ'));
     const dialog = await screen.findByRole('dialog', { name: 'Доступ к организациям' });
-    const allCheckbox = within(dialog).getByLabelText('Доступ ко всем организациям партнёра') as HTMLInputElement;
+    const allCheckbox = within(dialog).getByLabelText(
+      'Доступ ко всем организациям партнёра'
+    ) as HTMLInputElement;
     expect(allCheckbox.checked).toBe(false);
     const org1Checkbox = within(dialog).getByLabelText('ООО Ромашка') as HTMLInputElement;
     expect(org1Checkbox.checked).toBe(true);
@@ -95,7 +99,9 @@ describe('MemberRowActions', () => {
     renderActions({ initialAssignedOrgIds: ['org1'] });
     fireEvent.click(screen.getByText('Доступ'));
     const dialog = await screen.findByRole('dialog', { name: 'Доступ к организациям' });
-    const allCheckbox = within(dialog).getByLabelText('Доступ ко всем организациям партнёра') as HTMLInputElement;
+    const allCheckbox = within(dialog).getByLabelText(
+      'Доступ ко всем организациям партнёра'
+    ) as HTMLInputElement;
     fireEvent.click(allCheckbox);
     expect(allCheckbox.checked).toBe(true);
     expect(within(dialog).queryByText('ООО Ромашка')).toBeNull();
@@ -105,7 +111,9 @@ describe('MemberRowActions', () => {
     renderActions({ initialAssignedOrgIds: [] });
     fireEvent.click(screen.getByText('Доступ'));
     const dialog = await screen.findByRole('dialog', { name: 'Доступ к организациям' });
-    const allCheckbox = within(dialog).getByLabelText('Доступ ко всем организациям партнёра') as HTMLInputElement;
+    const allCheckbox = within(dialog).getByLabelText(
+      'Доступ ко всем организациям партнёра'
+    ) as HTMLInputElement;
     fireEvent.click(allCheckbox); // uncheck "all" -> 0 selected
     const save = within(dialog).getByText('Сохранить') as HTMLButtonElement;
     expect(save.disabled).toBe(true);
@@ -142,7 +150,9 @@ describe('MemberRowActions', () => {
   });
 
   it('saveOrgs error path (JSON body): shows the translated error and does not close the dialog', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, json: () => Promise.resolve({ error: 'org_out_of_scope' }) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: false, json: () => Promise.resolve({ error: 'org_out_of_scope' }) });
     vi.stubGlobal('fetch', fetchMock);
     renderActions({ initialAssignedOrgIds: [] });
     fireEvent.click(screen.getByText('Доступ'));
@@ -154,14 +164,18 @@ describe('MemberRowActions', () => {
   });
 
   it('saveOrgs error path (non-JSON body): falls back to the generic message', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, json: () => Promise.reject(new Error('x')) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: false, json: () => Promise.reject(new Error('x')) });
     vi.stubGlobal('fetch', fetchMock);
     renderActions({ initialAssignedOrgIds: [] });
     fireEvent.click(screen.getByText('Доступ'));
     const dialog = await screen.findByRole('dialog', { name: 'Доступ к организациям' });
     fireEvent.submit(within(dialog).getByText('Сохранить').closest('form')!);
 
-    expect(await within(dialog).findByText('Не удалось сохранить доступ. Попробуйте ещё раз.')).toBeTruthy();
+    expect(
+      await within(dialog).findByText('Не удалось сохранить доступ. Попробуйте ещё раз.')
+    ).toBeTruthy();
   });
 
   it('"Отмена" in the access dialog closes it without saving', async () => {
@@ -169,7 +183,9 @@ describe('MemberRowActions', () => {
     fireEvent.click(screen.getByText('Доступ'));
     const dialog = await screen.findByRole('dialog', { name: 'Доступ к организациям' });
     fireEvent.click(within(dialog).getByText('Отмена'));
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Доступ к организациям' })).toBeNull());
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Доступ к организациям' })).toBeNull()
+    );
   });
 
   it('opening "Удалить" shows the confirmation dialog with the member name', async () => {
@@ -184,7 +200,9 @@ describe('MemberRowActions', () => {
     fireEvent.click(screen.getByText('Доступ'));
     const dialog = await screen.findByRole('dialog', { name: 'Доступ к организациям' });
     fireEvent(dialog, new Event('cancel', { cancelable: true }));
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Доступ к организациям' })).toBeNull());
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Доступ к организациям' })).toBeNull()
+    );
   });
 
   it('Escape (dialog cancel event) closes the deactivate dialog via Dialog.onClose', async () => {
@@ -192,7 +210,9 @@ describe('MemberRowActions', () => {
     fireEvent.click(screen.getByText('Удалить'));
     const dialog = await screen.findByRole('dialog', { name: 'Деактивировать сотрудника?' });
     fireEvent(dialog, new Event('cancel', { cancelable: true }));
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Деактивировать сотрудника?' })).toBeNull());
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Деактивировать сотрудника?' })).toBeNull()
+    );
   });
 
   it('"Отмена" in the deactivate dialog closes it', async () => {
@@ -200,7 +220,9 @@ describe('MemberRowActions', () => {
     fireEvent.click(screen.getByText('Удалить'));
     const dialog = await screen.findByRole('dialog', { name: 'Деактивировать сотрудника?' });
     fireEvent.click(within(dialog).getByText('Отмена'));
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Деактивировать сотрудника?' })).toBeNull());
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Деактивировать сотрудника?' })).toBeNull()
+    );
   });
 
   it('deactivate success path (204 No Content): closes and refreshes', async () => {
@@ -226,36 +248,56 @@ describe('MemberRowActions', () => {
   });
 
   it('deactivate error path: last_admin_protected maps to a specific Russian message', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 400, json: () => Promise.resolve({ error: 'last_admin_protected' }) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({
+        ok: false,
+        status: 400,
+        json: () => Promise.resolve({ error: 'last_admin_protected' }),
+      });
     vi.stubGlobal('fetch', fetchMock);
     renderActions();
     fireEvent.click(screen.getByText('Удалить'));
     const dialog = await screen.findByRole('dialog', { name: 'Деактивировать сотрудника?' });
     fireEvent.click(within(dialog).getByText('Деактивировать'));
 
-    expect(await within(dialog).findByText('Нельзя деактивировать последнего админа партнёра')).toBeTruthy();
+    expect(
+      await within(dialog).findByText('Нельзя деактивировать последнего админа партнёра')
+    ).toBeTruthy();
     expect(refresh).not.toHaveBeenCalled();
   });
 
   it('deactivate error path: unknown error code falls back to the generic message', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 400, json: () => Promise.resolve({ error: 'other_error' }) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({
+        ok: false,
+        status: 400,
+        json: () => Promise.resolve({ error: 'other_error' }),
+      });
     vi.stubGlobal('fetch', fetchMock);
     renderActions();
     fireEvent.click(screen.getByText('Удалить'));
     const dialog = await screen.findByRole('dialog', { name: 'Деактивировать сотрудника?' });
     fireEvent.click(within(dialog).getByText('Деактивировать'));
 
-    expect(await within(dialog).findByText('Не удалось деактивировать. Попробуйте ещё раз.')).toBeTruthy();
+    expect(
+      await within(dialog).findByText('Не удалось деактивировать. Попробуйте ещё раз.')
+    ).toBeTruthy();
   });
 
   it('deactivate error path: non-JSON body falls back to the generic message', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 400, json: () => Promise.reject(new Error('x')) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: false, status: 400, json: () => Promise.reject(new Error('x')) });
     vi.stubGlobal('fetch', fetchMock);
     renderActions();
     fireEvent.click(screen.getByText('Удалить'));
     const dialog = await screen.findByRole('dialog', { name: 'Деактивировать сотрудника?' });
     fireEvent.click(within(dialog).getByText('Деактивировать'));
 
-    expect(await within(dialog).findByText('Не удалось деактивировать. Попробуйте ещё раз.')).toBeTruthy();
+    expect(
+      await within(dialog).findByText('Не удалось деактивировать. Попробуйте ещё раз.')
+    ).toBeTruthy();
   });
 });

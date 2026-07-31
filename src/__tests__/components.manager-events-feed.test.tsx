@@ -3,8 +3,15 @@ import { renderToString } from 'react-dom/server';
 import React from 'react';
 
 vi.mock('next/link', () => ({
-  default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) =>
-    React.createElement('a', { href, className }, children)
+  default: ({
+    href,
+    children,
+    className,
+  }: {
+    href: string;
+    children: React.ReactNode;
+    className?: string;
+  }) => React.createElement('a', { href, className }, children),
 }));
 
 import { ManagerEventsFeed } from '@/components/manager/manager-events-feed';
@@ -18,7 +25,13 @@ describe('ManagerEventsFeed', () => {
 
   it('event with href: wraps content in a Link', () => {
     const events: EventItem[] = [
-      { id: 'e1', kind: 'document', text: 'Документ загружен', when: new Date('2026-05-01T10:00:00Z'), href: '/manager/orders/1' }
+      {
+        id: 'e1',
+        kind: 'document',
+        text: 'Документ загружен',
+        when: new Date('2026-05-01T10:00:00Z'),
+        href: '/manager/orders/1',
+      },
     ];
     const html = renderToString(React.createElement(ManagerEventsFeed, { events }));
     expect(html).toContain('href="/manager/orders/1"');
@@ -27,7 +40,12 @@ describe('ManagerEventsFeed', () => {
 
   it('event without href: renders a plain div (no link)', () => {
     const events: EventItem[] = [
-      { id: 'e2', kind: 'system', text: 'Системное событие', when: new Date('2026-05-01T10:00:00Z') }
+      {
+        id: 'e2',
+        kind: 'system',
+        text: 'Системное событие',
+        when: new Date('2026-05-01T10:00:00Z'),
+      },
     ];
     const html = renderToString(React.createElement(ManagerEventsFeed, { events }));
     expect(html).not.toContain('<a ');

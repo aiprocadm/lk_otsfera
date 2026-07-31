@@ -16,7 +16,7 @@ export function QuickTaskDialog({
   titlePrefill,
   organizationId,
   currentUserId,
-  onClose
+  onClose,
 }: {
   titlePrefill: string;
   organizationId: string | null;
@@ -49,7 +49,14 @@ export function QuickTaskDialog({
     <Dialog open onClose={onClose} title="Новая задача" size="sm" busy={submitting}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <Field htmlFor="qt-title" label="Название">
-          <Input id="qt-title" name="title" required maxLength={200} defaultValue={titlePrefill} autoFocus />
+          <Input
+            id="qt-title"
+            name="title"
+            required
+            maxLength={200}
+            defaultValue={titlePrefill}
+            autoFocus
+          />
         </Field>
         <div className="flex items-center gap-3">
           <Field htmlFor="qt-due" label="Срок">

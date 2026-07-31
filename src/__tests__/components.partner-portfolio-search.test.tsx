@@ -7,14 +7,14 @@ const { replace, getMock } = vi.hoisted(() => ({
   replace: vi.fn(),
   // Real URLSearchParams#get(key) signature; default stub ignores the key
   // and returns null (no initial "search" param) unless overridden per-test.
-  getMock: vi.fn((key: string): string | null => (key === '__never__' ? key : null))
+  getMock: vi.fn((key: string): string | null => (key === '__never__' ? key : null)),
 }));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace }),
   useSearchParams: () => ({
     get: getMock,
-    toString: () => ''
-  })
+    toString: () => '',
+  }),
 }));
 
 import { PortfolioSearch } from '@/components/partner/portfolio-search';
@@ -29,7 +29,9 @@ describe('PortfolioSearch', () => {
   it('initializes the input from the current "search" query param', () => {
     getMock.mockImplementation((k: string) => (k === 'search' ? 'Ромашка' : null));
     render(React.createElement(PortfolioSearch));
-    expect((screen.getByPlaceholderText('Поиск по названию…') as HTMLInputElement).value).toBe('Ромашка');
+    expect((screen.getByPlaceholderText('Поиск по названию…') as HTMLInputElement).value).toBe(
+      'Ромашка'
+    );
   });
 
   it('defaults to an empty input when there is no "search" param', () => {
@@ -42,7 +44,9 @@ describe('PortfolioSearch', () => {
     const input = screen.getByPlaceholderText('Поиск по названию…');
     fireEvent.change(input, { target: { value: 'Иванов' } });
     fireEvent.click(screen.getByRole('button', { name: 'Найти' }));
-    expect(replace).toHaveBeenCalledWith('/partner/portfolio?search=%D0%98%D0%B2%D0%B0%D0%BD%D0%BE%D0%B2');
+    expect(replace).toHaveBeenCalledWith(
+      '/partner/portfolio?search=%D0%98%D0%B2%D0%B0%D0%BD%D0%BE%D0%B2'
+    );
   });
 
   it('clicking "Найти" with an empty value navigates without the search param', () => {

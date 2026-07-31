@@ -42,7 +42,7 @@ export type CalendarRange = { from: Date; to: Date };
 /** Экспортирован для M6 (глобальный поиск): единый шов видимости событий. */
 export function eventScopeWhere(session: SessionPayload): Prisma.CalendarEventWhereInput {
   const floor: Prisma.CalendarEventWhereInput = {
-    companyId: session.companyId ?? NO_COMPANY_SENTINEL
+    companyId: session.companyId ?? NO_COMPANY_SENTINEL,
   };
   if (session.role === 'admin') return floor;
   const level = session.accessProfile?.tasks;
@@ -51,8 +51,8 @@ export function eventScopeWhere(session: SessionPayload): Prisma.CalendarEventWh
   return {
     AND: [
       floor,
-      { OR: [{ createdById: session.sub }, { attendees: { some: { userId: session.sub } } }] }
-    ]
+      { OR: [{ createdById: session.sub }, { attendees: { some: { userId: session.sub } } }] },
+    ],
   };
 }
 
@@ -78,8 +78,8 @@ export async function listCalendarItems(
           // пересечение [from, to): событие началось до конца окна и (не имеет
           // конца ∧ началось в окне) ∨ закончилось после начала окна.
           { startsAt: { lt: range.to } },
-          { OR: [{ endsAt: null, startsAt: { gte: range.from } }, { endsAt: { gt: range.from } }] }
-        ]
+          { OR: [{ endsAt: null, startsAt: { gte: range.from } }, { endsAt: { gt: range.from } }] },
+        ],
       },
       orderBy: { startsAt: 'asc' },
       take: 500,
@@ -98,15 +98,15 @@ export async function listCalendarItems(
         linkedOrderId: true,
         linkedOrder: { select: { title: true } },
         linkedOrganizationId: true,
-        linkedOrganization: { select: { name: true } }
-      }
+        linkedOrganization: { select: { name: true } },
+      },
     }),
     prisma.task.findMany({
       where: {
         AND: [
           taskWhereForLevel(session, session.accessProfile?.tasks ?? 'all'),
-          { dueDate: { gte: range.from, lt: range.to } }
-        ]
+          { dueDate: { gte: range.from, lt: range.to } },
+        ],
       },
       orderBy: { dueDate: 'asc' },
       take: 500,
@@ -115,60 +115,56 @@ export async function listCalendarItems(
         title: true,
         dueDate: true,
         priority: true,
-        completedAt: true
-      }
-    })
+        completedAt: true,
+      },
+    }),
   ]);
 
   const items: CalendarItem[] = [
-    ...events.map(
-      (e): CalendarItem => ({
-        kind: 'event',
-        id: e.id,
-        title: e.title,
-        date: e.startsAt,
-        endsAt: e.endsAt,
-        allDay: e.allDay,
-        location: e.location,
-        description: e.description,
-        createdById: e.createdById,
-        createdByName: e.createdBy.name,
-        attendeeIds: e.attendees.map((a) => a.userId),
-        attendeeNames: e.attendees.map((a) => a.user.name),
-        remindMinutes: remindMinutesFrom(e.startsAt, e.remindAt),
-        linkedOrderId: e.linkedOrderId,
-        linkedOrderTitle: e.linkedOrder?.title ?? null,
-        linkedOrganizationId: e.linkedOrganizationId,
-        linkedOrganizationName: e.linkedOrganization?.name ?? null,
-        priority: null,
-        completedAt: null
-      })
-    ),
+    ...events.map((e): CalendarItem => ({
+      kind: 'event',
+      id: e.id,
+      title: e.title,
+      date: e.startsAt,
+      endsAt: e.endsAt,
+      allDay: e.allDay,
+      location: e.location,
+      description: e.description,
+      createdById: e.createdById,
+      createdByName: e.createdBy.name,
+      attendeeIds: e.attendees.map((a) => a.userId),
+      attendeeNames: e.attendees.map((a) => a.user.name),
+      remindMinutes: remindMinutesFrom(e.startsAt, e.remindAt),
+      linkedOrderId: e.linkedOrderId,
+      linkedOrderTitle: e.linkedOrder?.title ?? null,
+      linkedOrganizationId: e.linkedOrganizationId,
+      linkedOrganizationName: e.linkedOrganization?.name ?? null,
+      priority: null,
+      completedAt: null,
+    })),
     ...tasks
       .filter((t) => t.dueDate !== null)
-      .map(
-        (t): CalendarItem => ({
-          kind: 'task',
-          id: t.id,
-          title: t.title,
-          date: t.dueDate as Date,
-          endsAt: null,
-          allDay: true,
-          location: null,
-          description: null,
-          createdById: null,
-          createdByName: null,
-          attendeeIds: [],
-          attendeeNames: [],
-          remindMinutes: null,
-          linkedOrderId: null,
-          linkedOrderTitle: null,
-          linkedOrganizationId: null,
-          linkedOrganizationName: null,
-          priority: t.priority,
-          completedAt: t.completedAt
-        })
-      )
+      .map((t): CalendarItem => ({
+        kind: 'task',
+        id: t.id,
+        title: t.title,
+        date: t.dueDate as Date,
+        endsAt: null,
+        allDay: true,
+        location: null,
+        description: null,
+        createdById: null,
+        createdByName: null,
+        attendeeIds: [],
+        attendeeNames: [],
+        remindMinutes: null,
+        linkedOrderId: null,
+        linkedOrderTitle: null,
+        linkedOrganizationId: null,
+        linkedOrganizationName: null,
+        priority: t.priority,
+        completedAt: t.completedAt,
+      })),
   ];
 
   return items.sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -191,20 +187,20 @@ export async function getEventFormOptions(
       where: { companyId, role: { in: ['admin', 'manager'] }, isActive: true },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
-      take: 200
+      take: 200,
     }),
     prisma.organization.findMany({
       where: { companyId },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
-      take: 200
+      take: 200,
     }),
     prisma.order.findMany({
       where: { companyId },
       select: { id: true, title: true },
       orderBy: { createdAt: 'desc' },
-      take: 100
-    })
+      take: 100,
+    }),
   ]);
   return { users, organizations, orders };
 }

@@ -13,7 +13,7 @@ function makePayment(overrides: Partial<Payment>): Payment {
     isRefund: false,
     note: null,
     orderId: 'o1',
-    ...overrides
+    ...overrides,
   } as Payment;
 }
 

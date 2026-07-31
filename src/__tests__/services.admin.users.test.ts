@@ -11,7 +11,7 @@ import {
   updateUser,
   deactivateUser,
   reactivateUser,
-  adminRegenerateBackupCodes
+  adminRegenerateBackupCodes,
 } from '@/lib/services/admin/users';
 import { MAX_PARTNER_USERS } from '@/lib/config/teamLimits';
 
@@ -24,8 +24,8 @@ describe('listUsers', () => {
     const prisma = {
       user: {
         findMany: vi.fn().mockResolvedValue([]),
-        count: vi.fn().mockResolvedValue(0)
-      }
+        count: vi.fn().mockResolvedValue(0),
+      },
     } as unknown as Parameters<typeof listUsers>[0];
 
     await listUsers(prisma, ADMIN_SESSION, { role: 'partner', active: true });
@@ -38,8 +38,8 @@ describe('listUsers', () => {
     const prisma = {
       user: {
         findMany: vi.fn().mockResolvedValue([]),
-        count: vi.fn().mockResolvedValue(0)
-      }
+        count: vi.fn().mockResolvedValue(0),
+      },
     } as unknown as Parameters<typeof listUsers>[0];
 
     await listUsers(prisma, ADMIN_SESSION, { q: 'foo' });
@@ -48,7 +48,7 @@ describe('listUsers', () => {
     expect(args.where.OR).toEqual(
       expect.arrayContaining([
         { email: { contains: 'foo', mode: 'insensitive' } },
-        { name: { contains: 'foo', mode: 'insensitive' } }
+        { name: { contains: 'foo', mode: 'insensitive' } },
       ])
     );
   });
@@ -66,11 +66,11 @@ describe('listUsers', () => {
             createdAt: new Date(),
             partner: { name: 'Acme' },
             organizationUsers: [],
-            managedOrganizations: []
-          }
+            managedOrganizations: [],
+          },
         ]),
-        count: vi.fn().mockResolvedValue(1)
-      }
+        count: vi.fn().mockResolvedValue(1),
+      },
     } as unknown as Parameters<typeof listUsers>[0];
 
     const { rows } = await listUsers(prisma, ADMIN_SESSION, {});
@@ -91,13 +91,13 @@ describe('listUsers', () => {
             partner: null,
             organizationUsers: [
               { organization: { name: 'Org A' } },
-              { organization: { name: 'Org B' } }
+              { organization: { name: 'Org B' } },
             ],
-            managedOrganizations: []
-          }
+            managedOrganizations: [],
+          },
         ]),
-        count: vi.fn().mockResolvedValue(1)
-      }
+        count: vi.fn().mockResolvedValue(1),
+      },
     } as unknown as Parameters<typeof listUsers>[0];
 
     const { rows } = await listUsers(prisma, ADMIN_SESSION, {});
@@ -117,11 +117,11 @@ describe('listUsers', () => {
             createdAt: new Date(),
             partner: null,
             organizationUsers: [],
-            managedOrganizations: [{ organization: { name: 'ManagedOrg' } }]
-          }
+            managedOrganizations: [{ organization: { name: 'ManagedOrg' } }],
+          },
         ]),
-        count: vi.fn().mockResolvedValue(1)
-      }
+        count: vi.fn().mockResolvedValue(1),
+      },
     } as unknown as Parameters<typeof listUsers>[0];
 
     const { rows } = await listUsers(prisma, ADMIN_SESSION, {});
@@ -138,15 +138,15 @@ describe('listUsers', () => {
       createdAt: new Date(),
       partner: null,
       organizationUsers: [],
-      managedOrganizations: []
+      managedOrganizations: [],
     });
 
     for (const role of ['admin', 'student'] as const) {
       const prisma = {
         user: {
           findMany: vi.fn().mockResolvedValue([makeUser(role)]),
-          count: vi.fn().mockResolvedValue(1)
-        }
+          count: vi.fn().mockResolvedValue(1),
+        },
       } as unknown as Parameters<typeof listUsers>[0];
 
       const { rows } = await listUsers(prisma, ADMIN_SESSION, {});
@@ -158,8 +158,8 @@ describe('listUsers', () => {
     const prisma = {
       user: {
         findMany: vi.fn().mockResolvedValue([]),
-        count: vi.fn().mockResolvedValue(0)
-      }
+        count: vi.fn().mockResolvedValue(0),
+      },
     } as unknown as Parameters<typeof listUsers>[0];
 
     await listUsers(prisma, ADMIN_SESSION, { take: 999 });
@@ -172,8 +172,8 @@ describe('listUsers', () => {
     const prisma = {
       user: {
         findMany: vi.fn().mockResolvedValue([]),
-        count: vi.fn().mockResolvedValue(42)
-      }
+        count: vi.fn().mockResolvedValue(42),
+      },
     } as unknown as Parameters<typeof listUsers>[0];
 
     const { total } = await listUsers(prisma, ADMIN_SESSION, {});
@@ -184,8 +184,8 @@ describe('listUsers', () => {
     const prisma = {
       user: {
         findMany: vi.fn().mockResolvedValue([]),
-        count: vi.fn().mockResolvedValue(0)
-      }
+        count: vi.fn().mockResolvedValue(0),
+      },
     } as unknown as Parameters<typeof listUsers>[0];
 
     await listUsers(prisma, ADMIN_SESSION, { q: 'bar' });
@@ -193,7 +193,7 @@ describe('listUsers', () => {
     const args = (prisma.user.findMany as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(args.where.OR).toEqual([
       { email: { contains: 'bar', mode: 'insensitive' } },
-      { name: { contains: 'bar', mode: 'insensitive' } }
+      { name: { contains: 'bar', mode: 'insensitive' } },
     ]);
     expect(args.where.AND).toBeUndefined();
   });
@@ -202,8 +202,8 @@ describe('listUsers', () => {
     const prisma = {
       user: {
         findMany: vi.fn().mockResolvedValue([]),
-        count: vi.fn().mockResolvedValue(0)
-      }
+        count: vi.fn().mockResolvedValue(0),
+      },
     } as unknown as Parameters<typeof listUsers>[0];
 
     await listUsers(prisma, ADMIN_SESSION, { q: 'baz', organizationId: 'org-1' });
@@ -214,15 +214,15 @@ describe('listUsers', () => {
       {
         OR: [
           { email: { contains: 'baz', mode: 'insensitive' } },
-          { name: { contains: 'baz', mode: 'insensitive' } }
-        ]
+          { name: { contains: 'baz', mode: 'insensitive' } },
+        ],
       },
       {
         OR: [
           { organizationUsers: { some: { organizationId: 'org-1' } } },
-          { managedOrganizations: { some: { organizationId: 'org-1' } } }
-        ]
-      }
+          { managedOrganizations: { some: { organizationId: 'org-1' } } },
+        ],
+      },
     ]);
   });
 
@@ -230,8 +230,8 @@ describe('listUsers', () => {
     const prisma = {
       user: {
         findMany: vi.fn().mockResolvedValue([]),
-        count: vi.fn().mockResolvedValue(0)
-      }
+        count: vi.fn().mockResolvedValue(0),
+      },
     } as unknown as Parameters<typeof listUsers>[0];
 
     await listUsers(prisma, ADMIN_SESSION, { organizationId: 'org-2' });
@@ -239,7 +239,7 @@ describe('listUsers', () => {
     const args = (prisma.user.findMany as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(args.where.OR).toEqual([
       { organizationUsers: { some: { organizationId: 'org-2' } } },
-      { managedOrganizations: { some: { organizationId: 'org-2' } } }
+      { managedOrganizations: { some: { organizationId: 'org-2' } } },
     ]);
     expect(args.where.AND).toBeUndefined();
   });
@@ -253,16 +253,16 @@ describe('listUsers', () => {
       createdAt: new Date(),
       partner: null,
       organizationUsers: [],
-      managedOrganizations: []
+      managedOrganizations: [],
     };
     const prisma = {
       user: {
         findMany: vi.fn().mockResolvedValue([
           { ...base, id: 'u-pending', passwordHash: null },
-          { ...base, id: 'u-active', passwordHash: 'bcrypt-hash' }
+          { ...base, id: 'u-active', passwordHash: 'bcrypt-hash' },
         ]),
-        count: vi.fn().mockResolvedValue(2)
-      }
+        count: vi.fn().mockResolvedValue(2),
+      },
     } as unknown as Parameters<typeof listUsers>[0];
 
     const { rows } = await listUsers(prisma, ADMIN_SESSION, {});
@@ -281,27 +281,30 @@ describe('listUsers', () => {
       createdAt: new Date(),
       partner: null,
       organizationUsers: [],
-      managedOrganizations: []
+      managedOrganizations: [],
     });
     const prisma = {
       user: {
         findMany: vi.fn().mockResolvedValue([row('U1'), row('U2')]),
-        count: vi.fn().mockResolvedValue(2)
-      }
+        count: vi.fn().mockResolvedValue(2),
+      },
     } as unknown as Parameters<typeof listUsers>[0];
 
     await listUsers(prisma, ADMIN_SESSION, {});
-    expect(recordPiiAccess).toHaveBeenCalledWith(prisma, expect.objectContaining({
-      context: 'admin_users_list',
-      subjectIds: ['U1', 'U2']
-    }));
+    expect(recordPiiAccess).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({
+        context: 'admin_users_list',
+        subjectIds: ['U1', 'U2'],
+      })
+    );
   });
 });
 
 describe('getUser', () => {
   it('возвращает null если пользователь не найден', async () => {
     const prisma = {
-      user: { findUnique: vi.fn().mockResolvedValue(null) }
+      user: { findUnique: vi.fn().mockResolvedValue(null) },
     } as unknown as Parameters<typeof getUser>[0];
 
     const result = await getUser(prisma, ADMIN_SESSION, 'nonexistent');
@@ -326,12 +329,12 @@ describe('getUser', () => {
               organizationId: 'org1',
               organization: { id: 'org1', name: 'Org A' },
               roleInOrg: 'member',
-              isActive: true
-            }
+              isActive: true,
+            },
           ],
-          managedOrganizations: []
-        })
-      }
+          managedOrganizations: [],
+        }),
+      },
     } as unknown as Parameters<typeof getUser>[0];
 
     const result = await getUser(prisma, ADMIN_SESSION, 'u1');
@@ -342,8 +345,8 @@ describe('getUser', () => {
         organizationId: 'org1',
         organizationName: 'Org A',
         roleInOrg: 'member',
-        isActive: true
-      }
+        isActive: true,
+      },
     ]);
     expect(result!.organizationManagerships).toEqual([]);
   });
@@ -366,11 +369,11 @@ describe('getUser', () => {
               id: 'om1',
               organizationId: 'org2',
               organization: { id: 'org2', name: 'Org B' },
-              isActive: true
-            }
-          ]
-        })
-      }
+              isActive: true,
+            },
+          ],
+        }),
+      },
     } as unknown as Parameters<typeof getUser>[0];
 
     const result = await getUser(prisma, ADMIN_SESSION, 'u2');
@@ -380,8 +383,8 @@ describe('getUser', () => {
         organizationManagerId: 'om1',
         organizationId: 'org2',
         organizationName: 'Org B',
-        isActive: true
-      }
+        isActive: true,
+      },
     ]);
     expect(result!.organizationMemberships).toEqual([]);
   });
@@ -404,12 +407,12 @@ describe('getUser', () => {
               organizationId: 'org3',
               organization: { id: 'org3', name: 'Org C' },
               roleInOrg: null,
-              isActive: true
-            }
+              isActive: true,
+            },
           ],
-          managedOrganizations: []
-        })
-      }
+          managedOrganizations: [],
+        }),
+      },
     } as unknown as Parameters<typeof getUser>[0];
 
     const result = await getUser(prisma, ADMIN_SESSION, 'u3');
@@ -428,16 +431,16 @@ describe('getUser', () => {
       partnerId: null,
       partner: null,
       organizationUsers: [],
-      managedOrganizations: []
+      managedOrganizations: [],
     });
 
     const prismaPending = {
-      user: { findUnique: vi.fn().mockResolvedValue(detail(null)) }
+      user: { findUnique: vi.fn().mockResolvedValue(detail(null)) },
     } as unknown as Parameters<typeof getUser>[0];
     expect((await getUser(prismaPending, ADMIN_SESSION, 'u-d'))!.invitePending).toBe(true);
 
     const prismaActive = {
-      user: { findUnique: vi.fn().mockResolvedValue(detail('bcrypt-hash')) }
+      user: { findUnique: vi.fn().mockResolvedValue(detail('bcrypt-hash')) },
     } as unknown as Parameters<typeof getUser>[0];
     expect((await getUser(prismaActive, ADMIN_SESSION, 'u-d'))!.invitePending).toBe(false);
   });
@@ -456,20 +459,23 @@ describe('getUser', () => {
           partnerId: null,
           partner: null,
           organizationUsers: [],
-          managedOrganizations: []
-        })
-      }
+          managedOrganizations: [],
+        }),
+      },
     } as unknown as Parameters<typeof getUser>[0];
 
     await getUser(prismaWithUser, ADMIN_SESSION, 'U1');
-    expect(recordPiiAccess).toHaveBeenCalledWith(prismaWithUser, expect.objectContaining({
-      context: 'admin_user_view',
-      subjectIds: ['U1']
-    }));
+    expect(recordPiiAccess).toHaveBeenCalledWith(
+      prismaWithUser,
+      expect.objectContaining({
+        context: 'admin_user_view',
+        subjectIds: ['U1'],
+      })
+    );
 
     recordPiiAccess.mockClear();
     const prismaWithoutUser = {
-      user: { findUnique: vi.fn().mockResolvedValue(null) }
+      user: { findUnique: vi.fn().mockResolvedValue(null) },
     } as unknown as Parameters<typeof getUser>[0];
     await getUser(prismaWithoutUser, ADMIN_SESSION, 'nope');
     expect(recordPiiAccess).not.toHaveBeenCalled();
@@ -486,17 +492,19 @@ describe('createUser', () => {
 
   it('бросает not_found если role=partner без partnerId', async () => {
     const prisma = { $transaction: vi.fn() } as unknown as Parameters<typeof createUser>[0];
-    expect(
-      await createUser(prisma, 'actor', { email: 'a@x', name: 'A', role: 'partner' })
-    ).toEqual({ ok: false, error: 'not_found' });
+    expect(await createUser(prisma, 'actor', { email: 'a@x', name: 'A', role: 'partner' })).toEqual(
+      { ok: false, error: 'not_found' }
+    );
   });
 
   it('бросает duplicate_email при существующем email', async () => {
     const txMock = {
-      user: { findUnique: vi.fn().mockResolvedValue({ id: 'existing' }) }
+      user: { findUnique: vi.fn().mockResolvedValue({ id: 'existing' }) },
     };
     const prisma = {
-      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+      $transaction: vi
+        .fn()
+        .mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)),
     } as unknown as Parameters<typeof createUser>[0];
 
     expect(
@@ -509,17 +517,23 @@ describe('createUser', () => {
     const txMock = {
       user: {
         findUnique: vi.fn().mockResolvedValue(null),
-        create: vi.fn().mockResolvedValue(created)
+        create: vi.fn().mockResolvedValue(created),
       },
       partnerUser: { create: vi.fn() },
       passwordResetToken: { create: vi.fn().mockResolvedValue({}) },
-      auditLog: { create: vi.fn() }
+      auditLog: { create: vi.fn() },
     };
     const prisma = {
-      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+      $transaction: vi
+        .fn()
+        .mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)),
     } as unknown as Parameters<typeof createUser>[0];
 
-    const result = await createUser(prisma, 'actor', { email: 'a@x', name: 'A', role: 'organization' });
+    const result = await createUser(prisma, 'actor', {
+      email: 'a@x',
+      name: 'A',
+      role: 'organization',
+    });
     if (!result.ok) throw new Error('expected ok');
     expect(result.user).toMatchObject(created);
     expect(result.inviteToken).toBeTruthy();
@@ -531,24 +545,31 @@ describe('createUser', () => {
     const txMock = {
       user: {
         findUnique: vi.fn().mockResolvedValue(null),
-        create: vi.fn().mockResolvedValue(created)
+        create: vi.fn().mockResolvedValue(created),
       },
       partnerUser: { count: vi.fn().mockResolvedValue(0), create: vi.fn() },
       passwordResetToken: { create: vi.fn().mockResolvedValue({}) },
-      auditLog: { create: vi.fn() }
+      auditLog: { create: vi.fn() },
     };
     const prisma = {
-      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+      $transaction: vi
+        .fn()
+        .mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)),
     } as unknown as Parameters<typeof createUser>[0];
 
-    await createUser(prisma, 'actor', { email: 'p@x', name: 'P', role: 'partner', partnerId: 'partner1' });
+    await createUser(prisma, 'actor', {
+      email: 'p@x',
+      name: 'P',
+      role: 'partner',
+      partnerId: 'partner1',
+    });
     expect(txMock.partnerUser.create).toHaveBeenCalledWith({
       data: {
         userId: 'u2',
         partnerId: 'partner1',
         roleInPartner: 'member',
-        assignedOrgIds: []
-      }
+        assignedOrgIds: [],
+      },
     });
   });
 
@@ -557,18 +578,23 @@ describe('createUser', () => {
     const txMock = {
       user: {
         findUnique: vi.fn().mockResolvedValue(null),
-        create: vi.fn().mockResolvedValue(created)
+        create: vi.fn().mockResolvedValue(created),
       },
       partnerUser: { count: vi.fn().mockResolvedValue(MAX_PARTNER_USERS), create: vi.fn() },
       passwordResetToken: { create: vi.fn().mockResolvedValue({}) },
-      auditLog: { create: vi.fn() }
+      auditLog: { create: vi.fn() },
     };
     const prisma = {
-      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+      $transaction: vi
+        .fn()
+        .mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)),
     } as unknown as Parameters<typeof createUser>[0];
 
     const result = await createUser(prisma, 'actor', {
-      email: 'p9@x', name: 'P9', role: 'partner', partnerId: 'partner1'
+      email: 'p9@x',
+      name: 'P9',
+      role: 'partner',
+      partnerId: 'partner1',
     });
     expect(result).toEqual({ ok: false, error: 'member_limit_reached' });
     expect(txMock.partnerUser.create).not.toHaveBeenCalled();
@@ -579,14 +605,16 @@ describe('createUser', () => {
     const txMock = {
       user: {
         findUnique: vi.fn().mockResolvedValue(null),
-        create: vi.fn().mockResolvedValue(created)
+        create: vi.fn().mockResolvedValue(created),
       },
       partnerUser: { create: vi.fn() },
       passwordResetToken: { create: vi.fn().mockResolvedValue({}) },
-      auditLog: { create: vi.fn() }
+      auditLog: { create: vi.fn() },
     };
     const prisma = {
-      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+      $transaction: vi
+        .fn()
+        .mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)),
     } as unknown as Parameters<typeof createUser>[0];
 
     await createUser(prisma, 'actor', { email: 'o@x', name: 'O', role: 'organization' });
@@ -597,62 +625,85 @@ describe('createUser', () => {
 describe('updateUser', () => {
   it('бросает self_action_forbidden при изменении своей роли', async () => {
     const prisma = { $transaction: vi.fn() } as unknown as Parameters<typeof updateUser>[0];
-    expect(
-      await updateUser(prisma, 'me', 'me', { role: 'organization' })
-    ).toEqual({ ok: false, error: 'self_action_forbidden' });
+    expect(await updateUser(prisma, 'me', 'me', { role: 'organization' })).toEqual({
+      ok: false,
+      error: 'self_action_forbidden',
+    });
   });
 
   it('бросает admin_role_via_ui при попытке role=admin', async () => {
     const prisma = { $transaction: vi.fn() } as unknown as Parameters<typeof updateUser>[0];
-    expect(
-      await updateUser(prisma, 'a', 'b', { role: 'admin' as never })
-    ).toEqual({ ok: false, error: 'admin_role_via_ui' });
+    expect(await updateUser(prisma, 'a', 'b', { role: 'admin' as never })).toEqual({
+      ok: false,
+      error: 'admin_role_via_ui',
+    });
   });
 
   it('бросает last_admin_protected при попытке deactivate последнего active admin', async () => {
     const txMock = {
       user: {
         findUnique: vi.fn().mockResolvedValue({
-          id: 'u1', role: 'admin', isActive: true, partnerId: null, name: 'X'
+          id: 'u1',
+          role: 'admin',
+          isActive: true,
+          partnerId: null,
+          name: 'X',
         }),
-        count: vi.fn().mockResolvedValue(0)
-      }
+        count: vi.fn().mockResolvedValue(0),
+      },
     };
     const prisma = {
-      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+      $transaction: vi
+        .fn()
+        .mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)),
     } as unknown as Parameters<typeof updateUser>[0];
 
-    expect(
-      await updateUser(prisma, 'actor', 'u1', { isActive: false })
-    ).toEqual({ ok: false, error: 'last_admin_protected' });
+    expect(await updateUser(prisma, 'actor', 'u1', { isActive: false })).toEqual({
+      ok: false,
+      error: 'last_admin_protected',
+    });
   });
 
   it('бросает role_transition_forbidden для запрещённого перехода (e.g. organization → partner)', async () => {
     const txMock = {
       user: {
         findUnique: vi.fn().mockResolvedValue({
-          id: 'u1', role: 'organization', isActive: true, partnerId: null, name: 'X'
-        })
-      }
+          id: 'u1',
+          role: 'organization',
+          isActive: true,
+          partnerId: null,
+          name: 'X',
+        }),
+      },
     };
     const prisma = {
-      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+      $transaction: vi
+        .fn()
+        .mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)),
     } as unknown as Parameters<typeof updateUser>[0];
 
-    expect(
-      await updateUser(prisma, 'actor', 'u1', { role: 'partner', partnerId: 'p1' })
-    ).toEqual({ ok: false, error: 'role_transition_forbidden' });
+    expect(await updateUser(prisma, 'actor', 'u1', { role: 'partner', partnerId: 'p1' })).toEqual({
+      ok: false,
+      error: 'role_transition_forbidden',
+    });
   });
 
   it('бросает self_action_forbidden при попытке деактивировать себя через isActive=false', async () => {
     const prisma = { $transaction: vi.fn() } as unknown as Parameters<typeof updateUser>[0];
-    expect(
-      await updateUser(prisma, 'me', 'me', { isActive: false })
-    ).toEqual({ ok: false, error: 'self_action_forbidden' });
+    expect(await updateUser(prisma, 'me', 'me', { isActive: false })).toEqual({
+      ok: false,
+      error: 'self_action_forbidden',
+    });
   });
 
   it('partner → student: удаляет partnerUser, обновляет user, пишет user_role_changed, возвращает UserDetail', async () => {
-    const before = { id: 'u1', role: 'partner' as const, isActive: true, partnerId: 'p1', name: 'X' };
+    const before = {
+      id: 'u1',
+      role: 'partner' as const,
+      isActive: true,
+      partnerId: 'p1',
+      name: 'X',
+    };
     const updated = { role: 'student' as const, isActive: true, partnerId: null, name: 'X' };
     const userDetail = {
       id: 'u1',
@@ -664,21 +715,24 @@ describe('updateUser', () => {
       partnerId: null,
       partner: null,
       organizationUsers: [],
-      managedOrganizations: []
+      managedOrganizations: [],
     };
     const txMock = {
       user: {
-        findUnique: vi.fn()
-          .mockResolvedValueOnce(before)    // before snapshot
+        findUnique: vi
+          .fn()
+          .mockResolvedValueOnce(before) // before snapshot
           .mockResolvedValueOnce(userDetail), // getUser re-fetch
         update: vi.fn().mockResolvedValue(updated),
-        count: vi.fn()
+        count: vi.fn(),
       },
       partnerUser: { deleteMany: vi.fn() },
-      auditLog: { create: vi.fn() }
+      auditLog: { create: vi.fn() },
     };
     const prisma = {
-      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+      $transaction: vi
+        .fn()
+        .mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)),
     } as unknown as Parameters<typeof updateUser>[0];
 
     const result = await updateUser(prisma, 'actor', 'u1', { role: 'student' });
@@ -686,11 +740,14 @@ describe('updateUser', () => {
 
     expect(txMock.partnerUser.deleteMany).toHaveBeenCalledWith({ where: { userId: 'u1' } });
     expect(txMock.user.update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'u1' }, data: expect.objectContaining({ role: 'student' }) })
+      expect.objectContaining({
+        where: { id: 'u1' },
+        data: expect.objectContaining({ role: 'student' }),
+      })
     );
     expect(txMock.auditLog.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ action: 'user_role_changed' })
+        data: expect.objectContaining({ action: 'user_role_changed' }),
       })
     );
     expect(result.user).toMatchObject({ id: 'u1', role: 'student' });
@@ -700,16 +757,21 @@ describe('updateUser', () => {
 describe('deactivateUser', () => {
   it('бросает self_action_forbidden когда actorUserId === id', async () => {
     const prisma = { $transaction: vi.fn() } as unknown as Parameters<typeof deactivateUser>[0];
-    expect(await deactivateUser(prisma, 'me', 'me')).toEqual({ ok: false, error: 'self_action_forbidden' });
+    expect(await deactivateUser(prisma, 'me', 'me')).toEqual({
+      ok: false,
+      error: 'self_action_forbidden',
+    });
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it('бросает not_found когда пользователь не существует', async () => {
     const txMock = {
-      user: { findUnique: vi.fn().mockResolvedValue(null) }
+      user: { findUnique: vi.fn().mockResolvedValue(null) },
     };
     const prisma = {
-      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+      $transaction: vi
+        .fn()
+        .mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)),
     } as unknown as Parameters<typeof deactivateUser>[0];
 
     expect(await deactivateUser(prisma, 'actor', 'u1')).toEqual({ ok: false, error: 'not_found' });
@@ -720,12 +782,14 @@ describe('deactivateUser', () => {
       user: {
         findUnique: vi.fn().mockResolvedValue({ role: 'partner', isActive: false }),
         update: vi.fn(),
-        count: vi.fn()
+        count: vi.fn(),
       },
-      auditLog: { create: vi.fn() }
+      auditLog: { create: vi.fn() },
     };
     const prisma = {
-      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+      $transaction: vi
+        .fn()
+        .mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)),
     } as unknown as Parameters<typeof deactivateUser>[0];
 
     await deactivateUser(prisma, 'actor', 'u1');
@@ -737,14 +801,19 @@ describe('deactivateUser', () => {
     const txMock = {
       user: {
         findUnique: vi.fn().mockResolvedValue({ role: 'admin', isActive: true }),
-        count: vi.fn().mockResolvedValue(0)
-      }
+        count: vi.fn().mockResolvedValue(0),
+      },
     };
     const prisma = {
-      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+      $transaction: vi
+        .fn()
+        .mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)),
     } as unknown as Parameters<typeof deactivateUser>[0];
 
-    expect(await deactivateUser(prisma, 'actor', 'u1')).toEqual({ ok: false, error: 'last_admin_protected' });
+    expect(await deactivateUser(prisma, 'actor', 'u1')).toEqual({
+      ok: false,
+      error: 'last_admin_protected',
+    });
   });
 
   it('деактивирует активного non-admin: update с isActive=false, audit user_deactivated', async () => {
@@ -752,12 +821,14 @@ describe('deactivateUser', () => {
       user: {
         findUnique: vi.fn().mockResolvedValue({ role: 'partner', isActive: true }),
         update: vi.fn().mockResolvedValue({}),
-        count: vi.fn()
+        count: vi.fn(),
       },
-      auditLog: { create: vi.fn() }
+      auditLog: { create: vi.fn() },
     };
     const prisma = {
-      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+      $transaction: vi
+        .fn()
+        .mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)),
     } as unknown as Parameters<typeof deactivateUser>[0];
 
     await deactivateUser(prisma, 'actor', 'u1');
@@ -765,7 +836,7 @@ describe('deactivateUser', () => {
     // работает до истечения 7-дневного токена.
     expect(txMock.user.update).toHaveBeenCalledWith({
       where: { id: 'u1' },
-      data: { isActive: false, sessionVersion: { increment: 1 } }
+      data: { isActive: false, sessionVersion: { increment: 1 } },
     });
     expect(txMock.auditLog.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ action: 'user_deactivated' }) })
@@ -777,18 +848,20 @@ describe('deactivateUser', () => {
       user: {
         findUnique: vi.fn().mockResolvedValue({ role: 'admin', isActive: true }),
         update: vi.fn().mockResolvedValue({}),
-        count: vi.fn().mockResolvedValue(1) // есть ещё один активный админ
+        count: vi.fn().mockResolvedValue(1), // есть ещё один активный админ
       },
-      auditLog: { create: vi.fn() }
+      auditLog: { create: vi.fn() },
     };
     const prisma = {
-      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+      $transaction: vi
+        .fn()
+        .mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)),
     } as unknown as Parameters<typeof deactivateUser>[0];
 
     expect(await deactivateUser(prisma, 'actor', 'u1')).toEqual({ ok: true });
     expect(txMock.user.update).toHaveBeenCalledWith({
       where: { id: 'u1' },
-      data: { isActive: false, sessionVersion: { increment: 1 } }
+      data: { isActive: false, sessionVersion: { increment: 1 } },
     });
   });
 
@@ -797,12 +870,14 @@ describe('deactivateUser', () => {
       user: {
         findUnique: vi.fn().mockResolvedValue({ role: 'partner', isActive: false }),
         update: vi.fn(),
-        count: vi.fn()
+        count: vi.fn(),
       },
-      auditLog: { create: vi.fn() }
+      auditLog: { create: vi.fn() },
     };
     const prisma = {
-      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+      $transaction: vi
+        .fn()
+        .mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)),
     } as unknown as Parameters<typeof deactivateUser>[0];
 
     expect(await deactivateUser(prisma, 'actor', 'u1')).toEqual({ ok: true });
@@ -814,15 +889,20 @@ describe('deactivateUser', () => {
       user: {
         findUnique: vi.fn().mockResolvedValue({ role: 'admin', isActive: true }),
         update: vi.fn(),
-        count: vi.fn().mockResolvedValue(0)
+        count: vi.fn().mockResolvedValue(0),
       },
-      auditLog: { create: vi.fn() }
+      auditLog: { create: vi.fn() },
     };
     const prisma = {
-      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+      $transaction: vi
+        .fn()
+        .mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)),
     } as unknown as Parameters<typeof deactivateUser>[0];
 
-    expect(await deactivateUser(prisma, 'actor', 'u1')).toEqual({ ok: false, error: 'last_admin_protected' });
+    expect(await deactivateUser(prisma, 'actor', 'u1')).toEqual({
+      ok: false,
+      error: 'last_admin_protected',
+    });
     expect(txMock.user.update).not.toHaveBeenCalled();
   });
 });
@@ -830,10 +910,12 @@ describe('deactivateUser', () => {
 describe('reactivateUser', () => {
   it('бросает not_found когда пользователь не существует', async () => {
     const txMock = {
-      user: { findUnique: vi.fn().mockResolvedValue(null) }
+      user: { findUnique: vi.fn().mockResolvedValue(null) },
     };
     const prisma = {
-      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+      $transaction: vi
+        .fn()
+        .mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)),
     } as unknown as Parameters<typeof reactivateUser>[0];
 
     expect(await reactivateUser(prisma, 'actor', 'u1')).toEqual({ ok: false, error: 'not_found' });
@@ -843,12 +925,14 @@ describe('reactivateUser', () => {
     const txMock = {
       user: {
         findUnique: vi.fn().mockResolvedValue({ isActive: true }),
-        update: vi.fn()
+        update: vi.fn(),
       },
-      auditLog: { create: vi.fn() }
+      auditLog: { create: vi.fn() },
     };
     const prisma = {
-      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+      $transaction: vi
+        .fn()
+        .mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)),
     } as unknown as Parameters<typeof reactivateUser>[0];
 
     await reactivateUser(prisma, 'actor', 'u1');
@@ -860,16 +944,21 @@ describe('reactivateUser', () => {
     const txMock = {
       user: {
         findUnique: vi.fn().mockResolvedValue({ isActive: false }),
-        update: vi.fn().mockResolvedValue({})
+        update: vi.fn().mockResolvedValue({}),
       },
-      auditLog: { create: vi.fn() }
+      auditLog: { create: vi.fn() },
     };
     const prisma = {
-      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+      $transaction: vi
+        .fn()
+        .mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)),
     } as unknown as Parameters<typeof reactivateUser>[0];
 
     await reactivateUser(prisma, 'actor', 'u1');
-    expect(txMock.user.update).toHaveBeenCalledWith({ where: { id: 'u1' }, data: { isActive: true } });
+    expect(txMock.user.update).toHaveBeenCalledWith({
+      where: { id: 'u1' },
+      data: { isActive: true },
+    });
     expect(txMock.auditLog.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ action: 'user_reactivated' }) })
     );
@@ -880,12 +969,14 @@ describe('reactivateUser', () => {
       user: {
         findUnique: vi.fn().mockResolvedValue({ isActive: false }),
         update: vi.fn().mockResolvedValue({}),
-        count: vi.fn()
+        count: vi.fn(),
       },
-      auditLog: { create: vi.fn() }
+      auditLog: { create: vi.fn() },
     };
     const prisma = {
-      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+      $transaction: vi
+        .fn()
+        .mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)),
     } as unknown as Parameters<typeof reactivateUser>[0];
 
     await reactivateUser(prisma, 'actor', 'u1');
@@ -896,12 +987,14 @@ describe('reactivateUser', () => {
     const txMock = {
       user: {
         findUnique: vi.fn().mockResolvedValue({ isActive: false }),
-        update: vi.fn().mockResolvedValue({})
+        update: vi.fn().mockResolvedValue({}),
       },
-      auditLog: { create: vi.fn() }
+      auditLog: { create: vi.fn() },
     };
     const prisma = {
-      $transaction: vi.fn().mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock))
+      $transaction: vi
+        .fn()
+        .mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)),
     } as unknown as Parameters<typeof reactivateUser>[0];
 
     await reactivateUser(prisma, 'actor', 'u1');
@@ -920,15 +1013,20 @@ describe('adminRegenerateBackupCodes', () => {
       user: { findUnique: vi.fn().mockResolvedValue(target) },
       auditLog: { create: auditCreate },
       // generateBackupCodes выполняет транзакцию с deleteMany+createMany
-      $transaction: vi.fn().mockImplementation((cb: (tx: unknown) => unknown) =>
-        cb({ twoFactorBackupCode: { deleteMany: bcDeleteMany, createMany: bcCreateMany } })
-      )
+      $transaction: vi
+        .fn()
+        .mockImplementation((cb: (tx: unknown) => unknown) =>
+          cb({ twoFactorBackupCode: { deleteMany: bcDeleteMany, createMany: bcCreateMany } })
+        ),
     } as unknown as Parameters<typeof adminRegenerateBackupCodes>[0];
     return { prisma, bcDeleteMany, bcCreateMany, auditCreate };
   }
 
   it('manager target: 10 fresh hashed codes + audit with target entityId', async () => {
-    const { prisma, bcDeleteMany, bcCreateMany, auditCreate } = makePrisma({ id: 'm1', role: 'manager' });
+    const { prisma, bcDeleteMany, bcCreateMany, auditCreate } = makePrisma({
+      id: 'm1',
+      role: 'manager',
+    });
     const res = await adminRegenerateBackupCodes(prisma, 'admin1', 'm1');
     expect(res.ok).toBe(true);
     if (res.ok) {
@@ -943,8 +1041,8 @@ describe('adminRegenerateBackupCodes', () => {
           action: '2fa_backup_regenerated',
           entity: 'auth_2fa',
           entityId: 'm1',
-          userId: 'admin1'
-        })
+          userId: 'admin1',
+        }),
       })
     );
   });
@@ -956,19 +1054,25 @@ describe('adminRegenerateBackupCodes', () => {
 
   it('missing target → not_found', async () => {
     const { prisma, bcCreateMany } = makePrisma(null);
-    expect(await adminRegenerateBackupCodes(prisma, 'admin1', 'ghost')).toEqual({ ok: false, error: 'not_found' });
+    expect(await adminRegenerateBackupCodes(prisma, 'admin1', 'ghost')).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
     expect(bcCreateMany).not.toHaveBeenCalled();
   });
 
   it('non-staff target → not_staff, no codes issued', async () => {
     const { prisma, bcCreateMany } = makePrisma({ id: 'p1', role: 'partner' });
-    expect(await adminRegenerateBackupCodes(prisma, 'admin1', 'p1')).toEqual({ ok: false, error: 'not_staff' });
+    expect(await adminRegenerateBackupCodes(prisma, 'admin1', 'p1')).toEqual({
+      ok: false,
+      error: 'not_staff',
+    });
     expect(bcCreateMany).not.toHaveBeenCalled();
   });
 
   it('rethrows a non-AdminUserError (e.g. a DB failure) instead of swallowing it', async () => {
     const prisma = {
-      user: { findUnique: vi.fn().mockRejectedValue(new Error('db down')) }
+      user: { findUnique: vi.fn().mockRejectedValue(new Error('db down')) },
     } as unknown as Parameters<typeof adminRegenerateBackupCodes>[0];
     await expect(adminRegenerateBackupCodes(prisma, 'admin1', 'm1')).rejects.toThrow('db down');
   });

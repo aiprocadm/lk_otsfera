@@ -9,7 +9,7 @@ const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
 // сервис, иначе он полезет в реальный prisma. Обычная функция, а не vi.fn:
 // в файле есть resetAllMocks, он снёс бы заготовленный ответ.
 vi.mock('@/lib/services/customFields', () => ({
-  getFieldsForEntity: async () => []
+  getFieldsForEntity: async () => [],
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
@@ -26,17 +26,21 @@ const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
 vi.mock('@/components/training/certificate-list', () => ({
   CertificateList: (props: { certificates: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'cert-list' }, JSON.stringify(props.certificates))
+    React.createElement('div', { 'data-testid': 'cert-list' }, JSON.stringify(props.certificates)),
 }));
 
-
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'member' as const,
+  companyId: 'c1',
+};
 
 const STUDENT = {
   id: 's1',
@@ -44,7 +48,7 @@ const STUDENT = {
   email: 'ivan@x.com',
   organizationId: 'org-1',
   createdAt: new Date('2024-01-01'),
-  organization: { id: 'org-1', name: 'Org' }
+  organization: { id: 'org-1', name: 'Org' },
 };
 
 // Scope-ветки (teamMode ON/OFF, чужая организация/company) переехали из
@@ -63,7 +67,9 @@ describe('ManagerStudentDetailPage', () => {
     getStudent.mockResolvedValue(null);
 
     await expect(
-      renderServerComponent(ManagerStudentDetailPage({ params: Promise.resolve({ id: 'missing' }) }))
+      renderServerComponent(
+        ManagerStudentDetailPage({ params: Promise.resolve({ id: 'missing' }) })
+      )
     ).rejects.toThrow('NOT_FOUND');
 
     expect(listCertificates).not.toHaveBeenCalled();

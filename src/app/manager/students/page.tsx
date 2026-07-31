@@ -8,7 +8,7 @@ import { ManagerStudentsTable } from '@/components/manager/manager-students-tabl
 type SearchParams = { q?: string; cursor?: string };
 
 export default async function ManagerStudentsPage({
-  searchParams
+  searchParams,
 }: {
   searchParams: Promise<SearchParams>;
 }) {
@@ -18,7 +18,7 @@ export default async function ManagerStudentsPage({
   const { rows, nextCursor } = await listStudents(prisma, {
     session,
     q: sp.q,
-    cursor: sp.cursor
+    cursor: sp.cursor,
   });
 
   // Preserve current filters on the "next page" link so cursor pagination does
@@ -28,19 +28,19 @@ export default async function ManagerStudentsPage({
   if (nextCursor) nextParams.set('cursor', nextCursor);
 
   return (
-    <div className='space-y-4'>
-      <h1 className='text-2xl font-semibold text-[#111111]'>Сотрудники</h1>
+    <div className="space-y-4">
+      <h1 className="text-2xl font-semibold text-[#111111]">Сотрудники</h1>
 
-      <form method='get' className='flex flex-wrap items-center gap-2'>
+      <form method="get" className="flex flex-wrap items-center gap-2">
         <input
-          name='q'
+          name="q"
           defaultValue={sp.q ?? ''}
-          placeholder='Поиск по ФИО или email…'
-          className='border border-gray-200 rounded px-2 py-1 text-sm flex-1 min-w-[200px]'
+          placeholder="Поиск по ФИО или email…"
+          className="border border-gray-200 rounded px-2 py-1 text-sm flex-1 min-w-[200px]"
         />
         <button
-          type='submit'
-          className='px-3 py-1 bg-[#F97316] text-white rounded text-sm hover:bg-[#EA580C]'
+          type="submit"
+          className="px-3 py-1 bg-[#F97316] text-white rounded text-sm hover:bg-[#EA580C]"
         >
           Найти
         </button>
@@ -52,7 +52,7 @@ export default async function ManagerStudentsPage({
         <div>
           <Link
             href={`/manager/students?${nextParams.toString()}`}
-            className='inline-block text-sm text-[#F97316] hover:underline'
+            className="inline-block text-sm text-[#F97316] hover:underline"
           >
             Дальше →
           </Link>

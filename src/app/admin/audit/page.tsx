@@ -37,12 +37,12 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
     to: parseDate(sp.to),
     q: sp.q?.trim() || undefined,
     cursor: sp.cursor || undefined,
-    take: 50
+    take: 50,
   };
 
   const [{ rows, nextCursor }, options] = await Promise.all([
     listAudit(prisma, filters),
-    listAuditFilters(prisma)
+    listAuditFilters(prisma),
   ]);
 
   return (

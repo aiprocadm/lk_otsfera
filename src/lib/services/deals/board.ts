@@ -17,7 +17,9 @@ function isStaff(session: SessionPayload): boolean {
 }
 
 function isLeaderOrAdmin(session: SessionPayload): boolean {
-  return session.role === 'admin' || (session.role === 'manager' && session.managerRole === 'leader');
+  return (
+    session.role === 'admin' || (session.role === 'manager' && session.managerRole === 'leader')
+  );
 }
 
 /** C8-скоуп PR-1: company-floor; рядовой менеджер дополнительно пришпилен к своим. */
@@ -78,8 +80,8 @@ export async function getDealBoard(
       organizationId: true,
       managerId: true,
       organization: { select: { name: true } },
-      manager: { select: { name: true } }
-    }
+      manager: { select: { name: true } },
+    },
   });
 
   const columns: DealColumn[] = stages.map((stage) => ({ stage, cards: [] }));
@@ -99,7 +101,7 @@ export async function getDealBoard(
       status: d.status,
       orderId: d.orderId,
       expectedCloseAt: d.expectedCloseAt,
-      createdAt: d.createdAt
+      createdAt: d.createdAt,
     });
   }
 
@@ -125,7 +127,7 @@ export async function moveDeal(
 
   const deal = await prisma.deal.findFirst({
     where: { AND: [{ id: args.dealId }, dealScopeWhere(session)] },
-    select: { id: true, status: true, stageId: true, companyId: true }
+    select: { id: true, status: true, stageId: true, companyId: true },
   });
   // Скоуп в выборке: чужая сделка неотличима от несуществующей.
   if (!deal) return { ok: false, error: 'not_found' };
@@ -147,7 +149,7 @@ export async function moveDeal(
       action: 'deal_stage_changed',
       entity: 'deal',
       entityId: deal.id,
-      after: { toStageId: args.toStageId }
+      after: { toStageId: args.toStageId },
     });
     return { ok: true };
   }
@@ -157,7 +159,7 @@ export async function moveDeal(
     if (!reason) return { ok: false, error: 'reason_required' };
     await prisma.deal.update({
       where: { id: deal.id },
-      data: { status: 'lost', lostAt: new Date(), lostReason: reason, stageId: persistStageId }
+      data: { status: 'lost', lostAt: new Date(), lostReason: reason, stageId: persistStageId },
     });
   } else {
     // PR-2 (инвариант «выигрыш = заказ», решение §9-3): won-стадия достижима
@@ -171,7 +173,7 @@ export async function moveDeal(
     action: 'deal_stage_changed',
     entity: 'deal',
     entityId: deal.id,
-    after: { toStageId: args.toStageId, statusAnchor: target.statusAnchor }
+    after: { toStageId: args.toStageId, statusAnchor: target.statusAnchor },
   });
   return { ok: true };
 }

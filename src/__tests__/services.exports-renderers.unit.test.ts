@@ -45,7 +45,7 @@ const order = (over: Partial<ManagerOrderRow> = {}): ManagerOrderRow =>
     totalAmount: new Prisma.Decimal('1000.00'),
     paidAmount: new Prisma.Decimal('400.00'),
     createdAt: new Date('2026-02-10T09:00:00Z'),
-    ...over
+    ...over,
   }) as unknown as ManagerOrderRow;
 
 describe('renderOrdersXlsx', () => {
@@ -54,8 +54,17 @@ describe('renderOrdersXlsx', () => {
     const ws = wb.worksheets[0]!;
     expect(ws.name).toBe('Заказы');
     expect(headersOf(ws)).toEqual([
-      '№', 'Номер заказа', 'Название', 'Организация', 'Менеджер',
-      'Статус', 'Оплата', 'Сумма, ₽', 'Оплачено, ₽', 'Долг, ₽', 'Создан'
+      '№',
+      'Номер заказа',
+      'Название',
+      'Организация',
+      'Менеджер',
+      'Статус',
+      'Оплата',
+      'Сумма, ₽',
+      'Оплачено, ₽',
+      'Долг, ₽',
+      'Создан',
     ]);
     const row = rowValues(ws, 2);
     expect(row).toContain('В работе');
@@ -72,10 +81,10 @@ describe('renderOrdersXlsx', () => {
             orderNumber: null,
             manager: null,
             executionStatus: 'exotic' as never,
-            financialStatus: 'exotic' as never
-          })
+            financialStatus: 'exotic' as never,
+          }),
         ],
-        total: 1
+        total: 1,
       })
     );
     const row = rowValues(wb.worksheets[0]!, 2);
@@ -87,7 +96,7 @@ describe('renderOrdersXlsx', () => {
     const wb = await load(
       await renderOrdersXlsx({
         rows: [order({ manager: { id: 'm1', name: null, email: 'p@x.ru' } as never })],
-        total: 1
+        total: 1,
       })
     );
     expect(rowValues(wb.worksheets[0]!, 2)).toContain('p@x.ru');
@@ -97,7 +106,7 @@ describe('renderOrdersXlsx', () => {
     const wb = await load(
       await renderOrdersXlsx({ rows: [order({ title: '=HYPERLINK("evil")' })], total: 1 })
     );
-    expect(rowValues(wb.worksheets[0]!, 2)).toContain("'=HYPERLINK(\"evil\")");
+    expect(rowValues(wb.worksheets[0]!, 2)).toContain('\'=HYPERLINK("evil")');
   });
 
   it('срез по лимиту + хвост о превышении', async () => {
@@ -135,7 +144,7 @@ const payment = (over: Partial<OrgPaymentRow> = {}): OrgPaymentRow => ({
   purpose: 'обучение',
   paymentOrderNumber: '77',
   enteredByName: 'Петров Пётр',
-  ...over
+  ...over,
 });
 
 const KPIS = { billed: '1000.00', paid: '400.00', outstanding: '600.00' };
@@ -147,13 +156,22 @@ describe('renderPaymentsXlsx', () => {
         rows: [payment()],
         total: 1,
         kpis: KPIS,
-        organizationName: 'ООО Ромашка'
+        organizationName: 'ООО Ромашка',
       })
     );
     const ws = wb.getWorksheet('Платежи')!;
     expect(headersOf(ws)).toEqual([
-      '№', 'Дата', 'Заказ', 'Сумма, ₽', 'НДС, ₽', 'Назначение',
-      '№ платёжного поручения', 'Способ', 'Возврат', 'Внёс', 'Комментарий'
+      '№',
+      'Дата',
+      'Заказ',
+      'Сумма, ₽',
+      'НДС, ₽',
+      'Назначение',
+      '№ платёжного поручения',
+      'Способ',
+      'Возврат',
+      'Внёс',
+      'Комментарий',
     ]);
     const row = rowValues(ws, 2);
     expect(row).toContain('Банковский перевод');
@@ -178,12 +196,12 @@ describe('renderPaymentsXlsx', () => {
             paymentOrderNumber: null,
             enteredByName: null,
             orderNumber: null,
-            vatAmount: null
-          })
+            vatAmount: null,
+          }),
         ],
         total: 1,
         kpis: KPIS,
-        organizationName: 'ООО Ромашка'
+        organizationName: 'ООО Ромашка',
       })
     );
     const row = rowValues(wb.getWorksheet('Платежи')!, 2);
@@ -199,7 +217,7 @@ describe('renderPaymentsXlsx', () => {
         rows,
         total: rows.length,
         kpis: KPIS,
-        organizationName: 'ООО Ромашка'
+        organizationName: 'ООО Ромашка',
       })
     );
     const ws = wb.getWorksheet('Платежи')!;
@@ -217,7 +235,7 @@ const student = (over: Partial<OrgStudentExportRow> = {}): OrgStudentExportRow =
   externalStudentId: 'EXT-1',
   createdAt: new Date('2026-01-20T09:00:00Z'),
   activeCertificates: 2,
-  ...over
+  ...over,
 });
 
 describe('renderOrgStudentsXlsx', () => {
@@ -226,7 +244,13 @@ describe('renderOrgStudentsXlsx', () => {
     const ws = wb.worksheets[0]!;
     expect(ws.name).toBe('Сотрудники');
     expect(headersOf(ws)).toEqual([
-      '№', 'ФИО', 'Email', 'Должность', 'Действующих удостоверений', 'Внешний id', 'Добавлен'
+      '№',
+      'ФИО',
+      'Email',
+      'Должность',
+      'Действующих удостоверений',
+      'Внешний id',
+      'Добавлен',
     ]);
     const row = rowValues(ws, 2);
     expect(row).toContain('Иванов Иван');
@@ -239,7 +263,7 @@ describe('renderOrgStudentsXlsx', () => {
     const wb = await load(
       await renderOrgStudentsXlsx({
         rows: [student({ position: null, externalStudentId: null, activeCertificates: 0 })],
-        total: 1
+        total: 1,
       })
     );
     const row = rowValues(wb.worksheets[0]!, 2);

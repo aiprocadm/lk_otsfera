@@ -42,7 +42,7 @@ export const ORG_CARD_TABS: { key: OrgCardTab; label: string }[] = [
   { key: 'leads', label: 'Лиды' },
   { key: 'deals', label: 'Сделки' },
   { key: 'certificates', label: 'Удостоверения' },
-  { key: 'details', label: 'Реквизиты' }
+  { key: 'details', label: 'Реквизиты' },
 ];
 
 const money = (v: string) => `${v} ₽`;
@@ -60,7 +60,7 @@ function Tile({ label, value }: { label: string; value: React.ReactNode }) {
 export function OrgCardTabs({
   card,
   activeTab,
-  tabs = ORG_CARD_TABS
+  tabs = ORG_CARD_TABS,
 }: {
   card: OrganizationCard;
   activeTab: OrgCardTab;
@@ -152,8 +152,12 @@ function OrdersSection({ orders }: { orders: OrganizationCard['orders'] }) {
           <Tr key={o.id}>
             <Td>{o.orderNumber ?? '—'}</Td>
             <Td className="font-medium">{o.title}</Td>
-            <Td><Badge tone="neutral">{o.executionStatus}</Badge></Td>
-            <Td><Badge tone="neutral">{o.financialStatus}</Badge></Td>
+            <Td>
+              <Badge tone="neutral">{o.executionStatus}</Badge>
+            </Td>
+            <Td>
+              <Badge tone="neutral">{o.financialStatus}</Badge>
+            </Td>
             <Td>{money(o.totalAmount)}</Td>
             <Td>{money(o.paidAmount)}</Td>
           </Tr>
@@ -190,7 +194,7 @@ function DocumentsSection({ documents }: { documents: OrganizationCard['document
 function PaymentsSection({
   payments,
   kpis,
-  orgId
+  orgId,
 }: {
   payments: OrganizationCard['payments'];
   kpis: OrganizationCard['kpis'];
@@ -220,7 +224,13 @@ function PaymentsSection({
               <Tr key={p.id}>
                 <Td>{dateRu(p.paidAt)}</Td>
                 <Td>{money(p.amount)}</Td>
-                <Td>{p.isRefund ? <Badge tone="danger">Возврат</Badge> : <Badge tone="success">Оплата</Badge>}</Td>
+                <Td>
+                  {p.isRefund ? (
+                    <Badge tone="danger">Возврат</Badge>
+                  ) : (
+                    <Badge tone="success">Оплата</Badge>
+                  )}
+                </Td>
               </Tr>
             ))}
           </tbody>
@@ -233,7 +243,7 @@ function PaymentsSection({
 /** Этап 9 (ФТ-12.2): реестр удостоверений организации в карточке + выгрузка. */
 function CertificatesSection({
   certificates,
-  orgId
+  orgId,
 }: {
   certificates: OrganizationCard['certificates'];
   orgId: string;
@@ -306,19 +316,19 @@ const INBOUND_CHANNEL_LABEL: Record<string, string> = {
   max: 'MAX',
   whatsapp: 'WhatsApp',
   email: 'Email',
-  cabinet: 'Вопрос из кабинета'
+  cabinet: 'Вопрос из кабинета',
 };
 
 const INBOUND_STATUS_TONE: Record<string, 'warning' | 'success' | 'neutral'> = {
   unresolved: 'warning',
   bound: 'success',
-  archived: 'neutral'
+  archived: 'neutral',
 };
 
 const INBOUND_STATUS_LABEL: Record<string, string> = {
   unresolved: 'Не распознано',
   bound: 'Привязано',
-  archived: 'В архиве'
+  archived: 'В архиве',
 };
 
 function inboundExcerpt(body: string, max = 140): string {
@@ -327,7 +337,11 @@ function inboundExcerpt(body: string, max = 140): string {
 }
 
 /** Read-only история обращений (Task 12/G4) — привязка/ответ живут только в /manager/inbox. */
-function InboundMessagesSection({ inboundMessages }: { inboundMessages: OrganizationCard['inboundMessages'] }) {
+function InboundMessagesSection({
+  inboundMessages,
+}: {
+  inboundMessages: OrganizationCard['inboundMessages'];
+}) {
   if (inboundMessages.length === 0) return <EmptyState message="Обращений нет" />;
   return (
     <TableShell>
@@ -381,10 +395,17 @@ function DetailsSection({ card }: { card: OrganizationCard }) {
       <Detail label="БИК" value={card.requisites.bic ?? '—'} />
       <Detail
         label="Подписант"
-        value={card.requisites.signerName ? `${card.requisites.signerName}${card.requisites.signerPosition ? `, ${card.requisites.signerPosition}` : ''}` : '—'}
+        value={
+          card.requisites.signerName
+            ? `${card.requisites.signerName}${card.requisites.signerPosition ? `, ${card.requisites.signerPosition}` : ''}`
+            : '—'
+        }
       />
       {card.commission && (
-        <Detail label="Ставка комиссии партнёра" value={card.commission.partnerCommissionRate ?? '—'} />
+        <Detail
+          label="Ставка комиссии партнёра"
+          value={card.commission.partnerCommissionRate ?? '—'}
+        />
       )}
     </dl>
   );
@@ -411,7 +432,11 @@ function HistorySection({ card }: { card: OrganizationCard }) {
       </MiniPanel>
       <MiniPanel title="Последние оплаты">
         {card.payments.slice(0, 5).map((p) => (
-          <MiniRow key={p.id} left={`${p.isRefund ? '− ' : ''}${money(p.amount)}`} right={dateRu(p.paidAt)} />
+          <MiniRow
+            key={p.id}
+            left={`${p.isRefund ? '− ' : ''}${money(p.amount)}`}
+            right={dateRu(p.paidAt)}
+          />
         ))}
       </MiniPanel>
       <MiniPanel title="Последняя переписка">
@@ -428,7 +453,11 @@ function MiniPanel({ title, children }: { title: string; children: React.ReactNo
   return (
     <div className="rounded-lg border border-gray-200 p-3">
       <h3 className="text-sm font-semibold text-[#111111] mb-2">{title}</h3>
-      {items.length === 0 ? <p className="text-xs text-gray-400">—</p> : <div className="space-y-1">{items}</div>}
+      {items.length === 0 ? (
+        <p className="text-xs text-gray-400">—</p>
+      ) : (
+        <div className="space-y-1">{items}</div>
+      )}
     </div>
   );
 }
@@ -458,8 +487,12 @@ function ClientRequestsSection({ requests }: { requests: OrganizationCard['clien
           <Tr key={r.id}>
             <Td className="font-medium">{r.subject}</Td>
             <Td>
-              <Badge tone="neutral">{clientRequestStatusLabel(r.status as ClientRequestStatus)}</Badge>
-              {r.rejectedReason && <span className="ml-2 text-xs text-gray-500">{r.rejectedReason}</span>}
+              <Badge tone="neutral">
+                {clientRequestStatusLabel(r.status as ClientRequestStatus)}
+              </Badge>
+              {r.rejectedReason && (
+                <span className="ml-2 text-xs text-gray-500">{r.rejectedReason}</span>
+              )}
             </Td>
             <Td>{dateRu(r.createdAt)}</Td>
           </Tr>
@@ -486,7 +519,9 @@ function LeadsSection({ leads }: { leads: OrganizationCard['leads'] }) {
                 {l.subject}
               </Link>
             </Td>
-            <Td><LeadStatusBadge status={l.status as LeadStatus} /></Td>
+            <Td>
+              <LeadStatusBadge status={l.status as LeadStatus} />
+            </Td>
             <Td>{dateRu(l.createdAt)}</Td>
           </Tr>
         ))}
@@ -495,8 +530,16 @@ function LeadsSection({ leads }: { leads: OrganizationCard['leads'] }) {
   );
 }
 
-const DEAL_STATUS_LABEL: Record<string, string> = { open: 'В работе', won: 'Выиграна', lost: 'Проиграна' };
-const DEAL_STATUS_TONE: Record<string, 'neutral' | 'success' | 'danger'> = { open: 'neutral', won: 'success', lost: 'danger' };
+const DEAL_STATUS_LABEL: Record<string, string> = {
+  open: 'В работе',
+  won: 'Выиграна',
+  lost: 'Проиграна',
+};
+const DEAL_STATUS_TONE: Record<string, 'neutral' | 'success' | 'danger'> = {
+  open: 'neutral',
+  won: 'success',
+  lost: 'danger',
+};
 
 function DealsSection({ deals }: { deals: OrganizationCard['deals'] }) {
   if (deals.length === 0) return <EmptyState message="Сделок пока нет." />;
@@ -512,7 +555,11 @@ function DealsSection({ deals }: { deals: OrganizationCard['deals'] }) {
         {deals.map((d) => (
           <Tr key={d.id}>
             <Td className="font-medium">{d.title}</Td>
-            <Td><Badge tone={DEAL_STATUS_TONE[d.status] ?? 'neutral'}>{DEAL_STATUS_LABEL[d.status] ?? d.status}</Badge></Td>
+            <Td>
+              <Badge tone={DEAL_STATUS_TONE[d.status] ?? 'neutral'}>
+                {DEAL_STATUS_LABEL[d.status] ?? d.status}
+              </Badge>
+            </Td>
             <Td>{d.amount ? money(d.amount) : '—'}</Td>
             <Td>{dateRu(d.createdAt)}</Td>
           </Tr>

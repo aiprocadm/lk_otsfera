@@ -3,11 +3,17 @@ import { getSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { getClientRequest } from '@/lib/services/clientRequests/list';
-import { takeInTriage, convertToLead, rejectClientRequest } from '@/lib/services/clientRequests/triage';
+import {
+  takeInTriage,
+  convertToLead,
+  rejectClientRequest,
+} from '@/lib/services/clientRequests/triage';
 
 type Params = { params: Promise<{ id: string }> };
 
-const statusFor = (error: 'forbidden' | 'not_found' | 'lifecycle_violation' | 'validation'): number =>
+const statusFor = (
+  error: 'forbidden' | 'not_found' | 'lifecycle_violation' | 'validation'
+): number =>
   error === 'validation' ? 400 : error === 'forbidden' ? 403 : error === 'not_found' ? 404 : 409;
 
 export async function GET(_req: Request, { params }: Params) {
@@ -44,7 +50,10 @@ export async function PATCH(req: Request, { params }: Params) {
     return NextResponse.json({ request: r.request, leadId: r.lead.id });
   }
   if (action === 'reject') {
-    const r = await rejectClientRequest(prisma, session, { id, reason: String(body?.reason ?? '') });
+    const r = await rejectClientRequest(prisma, session, {
+      id,
+      reason: String(body?.reason ?? ''),
+    });
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: statusFor(r.error) });
     return NextResponse.json({ request: r.request });
   }

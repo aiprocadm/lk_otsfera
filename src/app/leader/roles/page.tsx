@@ -11,7 +11,7 @@ export default async function LeaderRolesPage() {
   const session = await requireManagerLeader();
   const [profilesRes, usersRes] = await Promise.all([
     listAccessProfiles(prisma, session),
-    listAssignableUsers(prisma, session)
+    listAssignableUsers(prisma, session),
   ]);
   return (
     <RoleEditor

@@ -54,7 +54,7 @@ export function LeadCreateStaffForm({ organizations }: { organizations: LeadCrea
         contactEmail: contactEmail || null,
         subject,
         notes: notes || null,
-        organizationId: organizationId || null
+        organizationId: organizationId || null,
       });
       if (!res.ok) {
         setErrors(
@@ -82,12 +82,12 @@ export function LeadCreateStaffForm({ organizations }: { organizations: LeadCrea
           setOpen(false);
           setErrors([]);
         }}
-        title='Новый лид'
-        size='lg'
+        title="Новый лид"
+        size="lg"
         busy={busy}
         error={
           errors.length > 0 ? (
-            <ul className='space-y-0.5'>
+            <ul className="space-y-0.5">
               {errors.map((err) => (
                 <li key={err}>{err}</li>
               ))}
@@ -95,12 +95,12 @@ export function LeadCreateStaffForm({ organizations }: { organizations: LeadCrea
           ) : null
         }
       >
-        <form onSubmit={submit} className='space-y-3'>
-          <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
-            <Field htmlFor='lcs-company' label='Название компании *'>
+        <form onSubmit={submit} className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field htmlFor="lcs-company" label="Название компании *">
               {/* ФТ-13.3: подсказка DaData автозаполняет ИНН. */}
               <PartyAutocomplete
-                id='lcs-company'
+                id="lcs-company"
                 value={companyName}
                 onChange={setCompanyName}
                 onSelect={(s) => {
@@ -110,52 +110,52 @@ export function LeadCreateStaffForm({ organizations }: { organizations: LeadCrea
                 required
               />
             </Field>
-            <Field htmlFor='lcs-inn' label='ИНН'>
-              <Input id='lcs-inn' value={inn} onChange={(e) => setInn(e.target.value)} />
+            <Field htmlFor="lcs-inn" label="ИНН">
+              <Input id="lcs-inn" value={inn} onChange={(e) => setInn(e.target.value)} />
               {/* ФТ-13.4: информационная плашка антидублей, сабмит не блокирует. */}
-              <InnDuplicateHint inn={inn} cardHrefBase='/manager/organizations' />
+              <InnDuplicateHint inn={inn} cardHrefBase="/manager/organizations" />
             </Field>
-            <Field htmlFor='lcs-contact' label='Контактное лицо *'>
+            <Field htmlFor="lcs-contact" label="Контактное лицо *">
               <Input
-                id='lcs-contact'
+                id="lcs-contact"
                 value={contactName}
                 onChange={(e) => setContactName(e.target.value)}
                 required
               />
             </Field>
-            <Field htmlFor='lcs-subject' label='Тема *'>
+            <Field htmlFor="lcs-subject" label="Тема *">
               <Input
-                id='lcs-subject'
+                id="lcs-subject"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 required
               />
             </Field>
-            <Field htmlFor='lcs-phone' label='Телефон' hint='Телефон или email — хотя бы одно'>
+            <Field htmlFor="lcs-phone" label="Телефон" hint="Телефон или email — хотя бы одно">
               <Input
-                id='lcs-phone'
-                type='tel'
+                id="lcs-phone"
+                type="tel"
                 value={contactPhone}
                 onChange={(e) => setContactPhone(e.target.value)}
               />
             </Field>
-            <Field htmlFor='lcs-email' label='Email' hint='Телефон или email — хотя бы одно'>
+            <Field htmlFor="lcs-email" label="Email" hint="Телефон или email — хотя бы одно">
               <Input
-                id='lcs-email'
-                type='email'
+                id="lcs-email"
+                type="email"
                 value={contactEmail}
                 onChange={(e) => setContactEmail(e.target.value)}
               />
             </Field>
           </div>
           {organizations.length > 0 && (
-            <Field htmlFor='lcs-org' label='Организация'>
+            <Field htmlFor="lcs-org" label="Организация">
               <Select
-                id='lcs-org'
+                id="lcs-org"
                 value={organizationId}
                 onChange={(e) => setOrganizationId(e.target.value)}
               >
-                <option value=''>— без организации —</option>
+                <option value="">— без организации —</option>
                 {organizations.map((o) => (
                   <option key={o.id} value={o.id}>
                     {o.name}
@@ -164,18 +164,18 @@ export function LeadCreateStaffForm({ organizations }: { organizations: LeadCrea
               </Select>
             </Field>
           )}
-          <Field htmlFor='lcs-notes' label='Примечание'>
+          <Field htmlFor="lcs-notes" label="Примечание">
             <Textarea
-              id='lcs-notes'
+              id="lcs-notes"
               rows={3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
           </Field>
-          <div className='flex justify-end gap-2'>
+          <div className="flex justify-end gap-2">
             <Button
-              type='button'
-              variant='secondary'
+              type="button"
+              variant="secondary"
               disabled={busy}
               onClick={() => {
                 setOpen(false);
@@ -184,7 +184,7 @@ export function LeadCreateStaffForm({ organizations }: { organizations: LeadCrea
             >
               Отмена
             </Button>
-            <Button type='submit' loading={busy}>
+            <Button type="submit" loading={busy}>
               Создать лид
             </Button>
           </div>

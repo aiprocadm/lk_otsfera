@@ -43,7 +43,7 @@ function makeLead(over: Record<string, unknown> = {}) {
     promotedOrderId: null,
     promotedDealId: null,
     organization: { companyId: 'c-org' },
-    ...over
+    ...over,
   };
 }
 
@@ -70,14 +70,30 @@ function makeDeal(over: Record<string, unknown> = {}) {
     organizationId: 'org-1',
     managerId: 'm-9',
     lead: { partnerId: 'pt-1' },
-    ...over
+    ...over,
   };
 }
 
 /** Словарь стадий сделок компании c1: open + won (реальные cuid-подобные id). */
 const DEAL_STAGES = [
-  { id: 'st-open', companyId: 'c1', name: 'В работе', position: 0, statusAnchor: 'open', isTerminal: false, color: null },
-  { id: 'st-won', companyId: 'c1', name: 'Успех', position: 1, statusAnchor: 'won', isTerminal: true, color: null }
+  {
+    id: 'st-open',
+    companyId: 'c1',
+    name: 'В работе',
+    position: 0,
+    statusAnchor: 'open',
+    isTerminal: false,
+    color: null,
+  },
+  {
+    id: 'st-won',
+    companyId: 'c1',
+    name: 'Успех',
+    position: 1,
+    statusAnchor: 'won',
+    isTerminal: true,
+    color: null,
+  },
 ];
 
 function makeWinPrisma(opts: { deal?: unknown; stages?: unknown[] } = {}) {
@@ -90,13 +106,13 @@ function makeWinPrisma(opts: { deal?: unknown; stages?: unknown[] } = {}) {
   const tx = {
     order: { create: txOrderCreate },
     deal: { update: txDealUpdate },
-    orderStatusDefinition: { findFirst: vi.fn().mockResolvedValue({ id: 'oss_draft' }) }
+    orderStatusDefinition: { findFirst: vi.fn().mockResolvedValue({ id: 'oss_draft' }) },
   };
   const $transaction = vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx));
   const prisma = {
     deal: { findFirst: dealFindFirst },
     dealStage: { findMany: stageFindMany },
-    $transaction
+    $transaction,
   } as unknown as PrismaClient;
   return { prisma, dealFindFirst, stageFindMany, txOrderCreate, txDealUpdate, $transaction };
 }
@@ -112,7 +128,7 @@ describe('convertLeadToDeal — гейты', () => {
     const { prisma, leadFindUnique } = makeConvertPrisma();
     expect(await convertLeadToDeal(prisma, session, { leadId: 'l-1' })).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
     expect(leadFindUnique).not.toHaveBeenCalled();
   });
@@ -121,7 +137,7 @@ describe('convertLeadToDeal — гейты', () => {
     const { prisma, $transaction } = makeConvertPrisma();
     expect(await convertLeadToDeal(prisma, MGR, { leadId: 'l-ghost' })).toEqual({
       ok: false,
-      error: 'not_found'
+      error: 'not_found',
     });
     expect($transaction).not.toHaveBeenCalled();
   });
@@ -131,12 +147,12 @@ describe('convertLeadToDeal — гейты', () => {
     ['status=promoted_to_deal', { status: 'promoted_to_deal' }],
     ['status=rejected', { status: 'rejected' }],
     ['заполнен promotedOrderId', { promotedOrderId: 'ord-9' }],
-    ['заполнен promotedDealId', { promotedDealId: 'deal-9' }]
+    ['заполнен promotedDealId', { promotedDealId: 'deal-9' }],
   ])('%s → lifecycle_violation, транзакция не стартует', async (_label, over) => {
     const { prisma, $transaction } = makeConvertPrisma({ lead: makeLead(over) });
     expect(await convertLeadToDeal(prisma, MGR, { leadId: 'l-1' })).toEqual({
       ok: false,
-      error: 'lifecycle_violation'
+      error: 'lifecycle_violation',
     });
     expect($transaction).not.toHaveBeenCalled();
     expect(recordAudit).not.toHaveBeenCalled();
@@ -155,7 +171,7 @@ describe('convertLeadToDeal — выбор companyId', () => {
 
   it('лид без организации → companyId сессии', async () => {
     const { prisma, txDealCreate } = makeConvertPrisma({
-      lead: makeLead({ organizationId: null, organization: null })
+      lead: makeLead({ organizationId: null, organization: null }),
     });
     const res = await convertLeadToDeal(prisma, MGR, { leadId: 'l-1' });
     expect(res.ok).toBe(true);
@@ -166,11 +182,11 @@ describe('convertLeadToDeal — выбор companyId', () => {
 
   it('ни организации, ни companyId сессии (admin) → forbidden, транзакции нет', async () => {
     const { prisma, $transaction } = makeConvertPrisma({
-      lead: makeLead({ organizationId: null, organization: null })
+      lead: makeLead({ organizationId: null, organization: null }),
     });
     expect(await convertLeadToDeal(prisma, ADMIN_NO_CO, { leadId: 'l-1' })).toEqual({
       ok: false,
-      error: 'forbidden'
+      error: 'forbidden',
     });
     expect($transaction).not.toHaveBeenCalled();
   });
@@ -179,13 +195,13 @@ describe('convertLeadToDeal — выбор companyId', () => {
 describe('convertLeadToDeal — транзакция и аудит', () => {
   it('deal наследует организацию/сумму/тему, managerId = assignedManagerId лида', async () => {
     const { prisma, txDealCreate, txLeadUpdate } = makeConvertPrisma({
-      lead: makeLead({ assignedManagerId: 'm-7' })
+      lead: makeLead({ assignedManagerId: 'm-7' }),
     });
     const res = await convertLeadToDeal(prisma, ADMIN, { leadId: 'l-1' });
     expect(res).toEqual({
       ok: true,
       deal: { id: 'deal-new' },
-      lead: { id: 'l-1', status: 'promoted_to_deal', promotedDealId: 'deal-new' }
+      lead: { id: 'l-1', status: 'promoted_to_deal', promotedDealId: 'deal-new' },
     });
     expect(txDealCreate).toHaveBeenCalledWith({
       data: {
@@ -194,12 +210,12 @@ describe('convertLeadToDeal — транзакция и аудит', () => {
         organizationId: 'org-1',
         title: 'Обучение по ОТ',
         amount: 1500.5,
-        managerId: 'm-7'
-      }
+        managerId: 'm-7',
+      },
     });
     expect(txLeadUpdate).toHaveBeenCalledWith({
       where: { id: 'l-1' },
-      data: { status: 'promoted_to_deal', promotedDealId: 'deal-new' }
+      data: { status: 'promoted_to_deal', promotedDealId: 'deal-new' },
     });
   });
 
@@ -215,7 +231,7 @@ describe('convertLeadToDeal — транзакция и аудит', () => {
       action: 'lead_promoted_to_deal',
       entity: 'lead',
       entityId: 'l-1',
-      after: { dealId: 'deal-new' }
+      after: { dealId: 'deal-new' },
     });
   });
 });
@@ -225,23 +241,35 @@ describe('convertLeadToDeal — транзакция и аудит', () => {
 describe('winDeal — гейты', () => {
   it('клиентская роль → forbidden без запросов', async () => {
     const { prisma, dealFindFirst } = makeWinPrisma();
-    expect(await winDeal(prisma, PARTNER, { dealId: 'd-1' })).toEqual({ ok: false, error: 'forbidden' });
+    expect(await winDeal(prisma, PARTNER, { dealId: 'd-1' })).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
     expect(dealFindFirst).not.toHaveBeenCalled();
   });
 
   it('менеджер без companyId → forbidden; admin без companyId допущен (Model A)', async () => {
     const { prisma } = makeWinPrisma();
-    expect(await winDeal(prisma, MGR_NO_CO, { dealId: 'd-1' })).toEqual({ ok: false, error: 'forbidden' });
+    expect(await winDeal(prisma, MGR_NO_CO, { dealId: 'd-1' })).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
     // admin проходит гейт — сделки нет в моке, но это уже not_found, не forbidden.
-    expect(await winDeal(prisma, ADMIN_NO_CO, { dealId: 'd-1' })).toEqual({ ok: false, error: 'not_found' });
+    expect(await winDeal(prisma, ADMIN_NO_CO, { dealId: 'd-1' })).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
   });
 
   it('сделка вне скоупа → not_found; скоуп менеджера в самой выборке', async () => {
     const { prisma, dealFindFirst } = makeWinPrisma();
-    expect(await winDeal(prisma, MGR, { dealId: 'd-alien' })).toEqual({ ok: false, error: 'not_found' });
+    expect(await winDeal(prisma, MGR, { dealId: 'd-alien' })).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
     expect(dealFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { AND: [{ id: 'd-alien' }, { companyId: 'c1', managerId: 'm-1' }] }
+        where: { AND: [{ id: 'd-alien' }, { companyId: 'c1', managerId: 'm-1' }] },
       })
     );
   });
@@ -250,14 +278,17 @@ describe('winDeal — гейты', () => {
     const { prisma, $transaction } = makeWinPrisma({ deal: makeDeal({ status }) });
     expect(await winDeal(prisma, MGR, { dealId: 'd-1' })).toEqual({
       ok: false,
-      error: 'lifecycle_violation'
+      error: 'lifecycle_violation',
     });
     expect($transaction).not.toHaveBeenCalled();
   });
 
   it('сделка без организации → org_required (§9-3: заказу обязательна организация)', async () => {
     const { prisma, $transaction } = makeWinPrisma({ deal: makeDeal({ organizationId: null }) });
-    expect(await winDeal(prisma, MGR, { dealId: 'd-1' })).toEqual({ ok: false, error: 'org_required' });
+    expect(await winDeal(prisma, MGR, { dealId: 'd-1' })).toEqual({
+      ok: false,
+      error: 'org_required',
+    });
     expect($transaction).not.toHaveBeenCalled();
     expect(recordAudit).not.toHaveBeenCalled();
   });
@@ -267,11 +298,11 @@ describe('winDeal — toStageId', () => {
   it('не-won стадия → lifecycle_violation; стадии резолвятся по компании СДЕЛКИ', async () => {
     const { prisma, stageFindMany, $transaction } = makeWinPrisma({
       deal: makeDeal({ companyId: 'c-deal' }),
-      stages: DEAL_STAGES
+      stages: DEAL_STAGES,
     });
     expect(await winDeal(prisma, ADMIN, { dealId: 'd-1', toStageId: 'st-open' })).toEqual({
       ok: false,
-      error: 'lifecycle_violation'
+      error: 'lifecycle_violation',
     });
     expect(stageFindMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { companyId: 'c-deal' } })
@@ -283,7 +314,7 @@ describe('winDeal — toStageId', () => {
     const { prisma } = makeWinPrisma({ deal: makeDeal(), stages: DEAL_STAGES });
     expect(await winDeal(prisma, MGR, { dealId: 'd-1', toStageId: 'ghost' })).toEqual({
       ok: false,
-      error: 'lifecycle_violation'
+      error: 'lifecycle_violation',
     });
   });
 
@@ -293,7 +324,7 @@ describe('winDeal — toStageId', () => {
     expect(res.ok).toBe(true);
     expect(txDealUpdate).toHaveBeenCalledWith({
       where: { id: 'd-1' },
-      data: { status: 'won', wonAt: expect.any(Date), orderId: 'ord-1', stageId: 'st-won' }
+      data: { status: 'won', wonAt: expect.any(Date), orderId: 'ord-1', stageId: 'st-won' },
     });
   });
 
@@ -324,20 +355,20 @@ describe('winDeal — транзакция и аудит', () => {
         managerId: 'm-9',
         totalAmount: 500,
         executionStatus: 'pending',
-        financialStatus: 'not_billed'
-      }
+        financialStatus: 'not_billed',
+      },
     });
   });
 
   it('фолбэки: без лида → partnerId null, без менеджера → sub, без суммы → 0', async () => {
     const { prisma, txOrderCreate } = makeWinPrisma({
-      deal: makeDeal({ lead: null, managerId: null, amount: null })
+      deal: makeDeal({ lead: null, managerId: null, amount: null }),
     });
     const res = await winDeal(prisma, MGR, { dealId: 'd-1' });
     expect(res.ok).toBe(true);
     expect(txOrderCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ partnerId: null, managerId: 'm-1', totalAmount: 0 })
+        data: expect.objectContaining({ partnerId: null, managerId: 'm-1', totalAmount: 0 }),
       })
     );
   });
@@ -348,18 +379,18 @@ describe('winDeal — транзакция и аудит', () => {
     expect(res).toEqual({
       ok: true,
       deal: { id: 'd-1', status: 'won', orderId: 'ord-1' },
-      order: { id: 'ord-1' }
+      order: { id: 'ord-1' },
     });
     expect(txDealUpdate).toHaveBeenCalledWith({
       where: { id: 'd-1' },
-      data: { status: 'won', wonAt: expect.any(Date), orderId: 'ord-1', stageId: null }
+      data: { status: 'won', wonAt: expect.any(Date), orderId: 'ord-1', stageId: null },
     });
     expect(recordAudit).toHaveBeenCalledWith(prisma, {
       userId: 'm-1',
       action: 'deal_won_order_created',
       entity: 'deal',
       entityId: 'd-1',
-      after: { orderId: 'ord-1', organizationId: 'org-1' }
+      after: { orderId: 'ord-1', organizationId: 'org-1' },
     });
   });
 });

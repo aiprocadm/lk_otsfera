@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
  * зеркало в его кабинете поверх того же компонента и того же сервиса.
  */
 export default async function LeaderCustomFieldsPage({
-  searchParams
+  searchParams,
 }: {
   searchParams: Promise<{ entity?: string }>;
 }) {

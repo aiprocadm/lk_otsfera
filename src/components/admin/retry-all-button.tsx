@@ -12,7 +12,9 @@ export function RetryAllButton({ queue }: { queue: string }) {
     setBusy(true);
     setMsg(null);
     try {
-      const res = await fetch(`/api/admin/dlq/${encodeURIComponent(queue)}/retry-all`, { method: 'POST' });
+      const res = await fetch(`/api/admin/dlq/${encodeURIComponent(queue)}/retry-all`, {
+        method: 'POST',
+      });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
         setMsg(typeof body?.error === 'string' ? body.error : `HTTP ${res.status}`);

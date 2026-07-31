@@ -18,15 +18,49 @@ export type TaskColumnView = {
 
 /** Дефолтный канбан (§21 ТЗ): 3 рабочих + 1 done-колонка над якорями TaskStatus. */
 export const DEFAULT_TASK_COLUMNS: readonly TaskColumnView[] = [
-  { id: 'default:todo', name: 'К выполнению', position: 0, statusAnchor: 'todo', isDoneColumn: false, color: null },
-  { id: 'default:in_progress', name: 'В работе', position: 1, statusAnchor: 'in_progress', isDoneColumn: false, color: null },
-  { id: 'default:review', name: 'На проверке', position: 2, statusAnchor: 'review', isDoneColumn: false, color: null },
-  { id: 'default:done', name: 'Готово', position: 3, statusAnchor: 'done', isDoneColumn: true, color: null }
+  {
+    id: 'default:todo',
+    name: 'К выполнению',
+    position: 0,
+    statusAnchor: 'todo',
+    isDoneColumn: false,
+    color: null,
+  },
+  {
+    id: 'default:in_progress',
+    name: 'В работе',
+    position: 1,
+    statusAnchor: 'in_progress',
+    isDoneColumn: false,
+    color: null,
+  },
+  {
+    id: 'default:review',
+    name: 'На проверке',
+    position: 2,
+    statusAnchor: 'review',
+    isDoneColumn: false,
+    color: null,
+  },
+  {
+    id: 'default:done',
+    name: 'Готово',
+    position: 3,
+    statusAnchor: 'done',
+    isDoneColumn: true,
+    color: null,
+  },
 ];
 
 /** Колонки компании: кастомные (если заданы) или дефолтные. */
-export async function resolveTaskColumns(prisma: PrismaClient, companyId: string): Promise<TaskColumnView[]> {
-  const custom = await prisma.taskColumn.findMany({ where: { companyId }, orderBy: { position: 'asc' } });
+export async function resolveTaskColumns(
+  prisma: PrismaClient,
+  companyId: string
+): Promise<TaskColumnView[]> {
+  const custom = await prisma.taskColumn.findMany({
+    where: { companyId },
+    orderBy: { position: 'asc' },
+  });
   if (custom.length === 0) return DEFAULT_TASK_COLUMNS.map((c) => ({ ...c }));
   return custom.map((c) => ({
     id: c.id,
@@ -34,7 +68,7 @@ export async function resolveTaskColumns(prisma: PrismaClient, companyId: string
     position: c.position,
     statusAnchor: c.statusAnchor,
     isDoneColumn: c.isDoneColumn,
-    color: c.color
+    color: c.color,
   }));
 }
 

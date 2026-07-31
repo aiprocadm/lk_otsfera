@@ -5,7 +5,7 @@ import {
   managerOrderScope,
   canSeeOrder,
   getCompanyTeamVisibility,
-  isLeaderSameCompany
+  isLeaderSameCompany,
 } from '@/lib/auth/managerPolicy';
 
 /**
@@ -34,7 +34,7 @@ const ListOrdersOptionsSchema = z.object({
   cursor: z.string().optional(),
   // Кабинет руководителя форсит company-wide независимо от toggle ("играющий
   // тренер": личный /manager-кабинет лидера остаётся scoped, см. CLAUDE.md §4).
-  teamModeOverride: z.boolean().optional()
+  teamModeOverride: z.boolean().optional(),
 });
 
 export type ListOrdersOptions = z.input<typeof ListOrdersOptionsSchema>;
@@ -45,7 +45,7 @@ const LIST_INCLUDE = {
   // §10 ТЗ v0.5: в списке показываем рабочий статус из справочника — тот же,
   // что на карточке. Операционный `executionStatus` из интерфейса убран
   // (решение Q3), поэтому бейджи по нему больше не строим.
-  statusDefinition: { select: { id: true, label: true, isTerminal: true } }
+  statusDefinition: { select: { id: true, label: true, isTerminal: true } },
 } satisfies Prisma.OrderInclude;
 
 export type ManagerOrderRow = Prisma.OrderGetPayload<{ include: typeof LIST_INCLUDE }>;
@@ -69,10 +69,14 @@ function buildOrdersFilters(
     filters.push({ statusId: opts.statusId });
   }
   if (opts.executionStatus) {
-    filters.push({ executionStatus: opts.executionStatus as Prisma.OrderWhereInput['executionStatus'] });
+    filters.push({
+      executionStatus: opts.executionStatus as Prisma.OrderWhereInput['executionStatus'],
+    });
   }
   if (opts.financialStatus) {
-    filters.push({ financialStatus: opts.financialStatus as Prisma.OrderWhereInput['financialStatus'] });
+    filters.push({
+      financialStatus: opts.financialStatus as Prisma.OrderWhereInput['financialStatus'],
+    });
   }
   if (opts.organizationId) {
     filters.push({ organizationId: opts.organizationId });
@@ -84,8 +88,8 @@ function buildOrdersFilters(
     filters.push({
       OR: [
         { title: { contains: opts.search, mode: 'insensitive' } },
-        { orderNumber: { contains: opts.search, mode: 'insensitive' } }
-      ]
+        { orderNumber: { contains: opts.search, mode: 'insensitive' } },
+      ],
     });
   }
   return filters;
@@ -106,7 +110,7 @@ export async function listOrders(
     include: LIST_INCLUDE,
     orderBy: { id: 'desc' },
     take: opts.take + 1,
-    ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {})
+    ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
   });
 
   const hasMore = rows.length > opts.take;
@@ -141,8 +145,8 @@ export async function listOrdersForExport(
       where,
       include: LIST_INCLUDE,
       orderBy: { id: 'desc' },
-      take: ORDERS_EXPORT_LIMIT
-    })
+      take: ORDERS_EXPORT_LIMIT,
+    }),
   ]);
   return { rows, total };
 }
@@ -152,7 +156,7 @@ const DETAIL_INCLUDE = {
   payments: true,
   manager: { select: { id: true, name: true, email: true } },
   organization: { select: { id: true, name: true } },
-  _count: { select: { comments: true } }
+  _count: { select: { comments: true } },
 } satisfies Prisma.OrderInclude;
 
 export type ManagerOrderDetail = Prisma.OrderGetPayload<{ include: typeof DETAIL_INCLUDE }> & {
@@ -172,9 +176,9 @@ export async function getOrder(
       comments: {
         where: { authorId: session.sub },
         take: 1,
-        select: { id: true }
-      }
-    }
+        select: { id: true },
+      },
+    },
   });
   if (!order) return null;
   const commentsCountByMe = order.comments.length;

@@ -5,7 +5,7 @@
 const ORDER_TYPE_RU: Record<string, string> = {
   supply: 'Поставка',
   service: 'Услуги',
-  training: 'Обучение'
+  training: 'Обучение',
 };
 
 export function orderTypeRu(code: string): string {
@@ -15,7 +15,7 @@ export function orderTypeRu(code: string): string {
 const PAYMENT_METHOD_RU: Record<string, string> = {
   wire: 'Банковский перевод',
   card: 'Карта',
-  cash: 'Наличные'
+  cash: 'Наличные',
 };
 
 export function paymentMethodRu(code: string | null | undefined): string {

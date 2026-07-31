@@ -31,10 +31,7 @@ import { notFoundIfDisabled } from '@/lib/featureFlags';
 
 const SIGNED_URL_TTL_SEC = 600;
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const disabled = notFoundIfDisabled('telephony_mango');
   if (disabled) return disabled;
 
@@ -71,9 +68,13 @@ export async function GET(
     return new Response(null, { status: 404 });
   }
 
-  const signedUrl = await getObjectStorage().createSignedUrl(call.recordingPath, SIGNED_URL_TTL_SEC, {
-    download: 'recording.mp3',
-  });
+  const signedUrl = await getObjectStorage().createSignedUrl(
+    call.recordingPath,
+    SIGNED_URL_TTL_SEC,
+    {
+      download: 'recording.mp3',
+    }
+  );
 
   return Response.redirect(signedUrl, 302);
 }

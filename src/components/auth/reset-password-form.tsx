@@ -47,42 +47,38 @@ export function ResetPasswordForm({ token }: { token: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className='space-y-4'>
+    <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className='block text-sm font-medium text-gray-700 mb-1.5'>
-          Новый пароль
-        </label>
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">Новый пароль</label>
         <input
-          type='password'
+          type="password"
           required
           minLength={MIN_LENGTH}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           disabled={pending}
-          placeholder='••••••••'
-          className='w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316] focus:border-transparent disabled:opacity-60 transition-all'
-          autoComplete='new-password'
+          placeholder="••••••••"
+          className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316] focus:border-transparent disabled:opacity-60 transition-all"
+          autoComplete="new-password"
         />
       </div>
       <div>
-        <label className='block text-sm font-medium text-gray-700 mb-1.5'>
-          Повторите пароль
-        </label>
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">Повторите пароль</label>
         <input
-          type='password'
+          type="password"
           required
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
           disabled={pending}
-          placeholder='••••••••'
-          className='w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316] focus:border-transparent disabled:opacity-60 transition-all'
-          autoComplete='new-password'
+          placeholder="••••••••"
+          className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316] focus:border-transparent disabled:opacity-60 transition-all"
+          autoComplete="new-password"
         />
       </div>
       <button
-        type='submit'
+        type="submit"
         disabled={pending}
-        className='w-full bg-[#F97316] hover:bg-[#EA580C] text-white font-semibold rounded-lg py-3 text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed mt-2'
+        className="w-full bg-[#F97316] hover:bg-[#EA580C] text-white font-semibold rounded-lg py-3 text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed mt-2"
       >
         {pending ? 'Сохраняем…' : 'Установить пароль'}
       </button>

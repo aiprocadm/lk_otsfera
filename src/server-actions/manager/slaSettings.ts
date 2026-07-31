@@ -10,7 +10,7 @@ import { setSlaSettings } from '@/lib/services/manager/slaSettings';
 
 const InputSchema = z.object({
   slaResponseHours: z.coerce.number().int(),
-  slaWarningHours: z.coerce.number().int()
+  slaWarningHours: z.coerce.number().int(),
 });
 
 export type SetSlaSettingsActionResult =

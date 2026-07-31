@@ -35,28 +35,29 @@ export async function getSyncSummary(prisma: PrismaClient): Promise<SyncSummaryR
   const rows: SyncSummaryRow[] = [];
 
   for (const entity of TRACKED_ENTITIES) {
-    const [successCount24h, warnCount24h, errorCount24h, lastSuccess, lastError, state] = await Promise.all([
-      prisma.syncLog.count({
-        where: { entity, direction: 'inbound', status: 'success', createdAt: { gte: since } }
-      }),
-      prisma.syncLog.count({
-        where: { entity, direction: 'inbound', status: 'warn', createdAt: { gte: since } }
-      }),
-      prisma.syncLog.count({
-        where: { entity, direction: 'inbound', status: 'error', createdAt: { gte: since } }
-      }),
-      prisma.syncLog.findFirst({
-        where: { entity, direction: 'inbound', status: 'success' },
-        orderBy: { createdAt: 'desc' },
-        select: { createdAt: true }
-      }),
-      prisma.syncLog.findFirst({
-        where: { entity, direction: 'inbound', status: 'error' },
-        orderBy: { createdAt: 'desc' },
-        select: { createdAt: true, errorMessage: true }
-      }),
-      prisma.syncState.findUnique({ where: { entity }, select: { cursor: true } })
-    ]);
+    const [successCount24h, warnCount24h, errorCount24h, lastSuccess, lastError, state] =
+      await Promise.all([
+        prisma.syncLog.count({
+          where: { entity, direction: 'inbound', status: 'success', createdAt: { gte: since } },
+        }),
+        prisma.syncLog.count({
+          where: { entity, direction: 'inbound', status: 'warn', createdAt: { gte: since } },
+        }),
+        prisma.syncLog.count({
+          where: { entity, direction: 'inbound', status: 'error', createdAt: { gte: since } },
+        }),
+        prisma.syncLog.findFirst({
+          where: { entity, direction: 'inbound', status: 'success' },
+          orderBy: { createdAt: 'desc' },
+          select: { createdAt: true },
+        }),
+        prisma.syncLog.findFirst({
+          where: { entity, direction: 'inbound', status: 'error' },
+          orderBy: { createdAt: 'desc' },
+          select: { createdAt: true, errorMessage: true },
+        }),
+        prisma.syncState.findUnique({ where: { entity }, select: { cursor: true } }),
+      ]);
 
     const cursor = state?.cursor ?? null;
     const lagMs = cursor ? Date.now() - Date.parse(cursor) : null;
@@ -70,7 +71,7 @@ export async function getSyncSummary(prisma: PrismaClient): Promise<SyncSummaryR
       lastErrorAt: lastError?.createdAt ?? null,
       lastErrorMessage: lastError?.errorMessage ?? null,
       cursor,
-      lagMs
+      lagMs,
     });
   }
 
@@ -94,9 +95,9 @@ export async function listSyncErrors(prisma: PrismaClient): Promise<SyncErrorRow
       operation: true,
       errorMessage: true,
       durationMs: true,
-      createdAt: true
+      createdAt: true,
     },
     orderBy: { createdAt: 'desc' },
-    take: 50
+    take: 50,
   });
 }

@@ -34,16 +34,16 @@ export const SYSTEM_FIELDS: Record<CustomFieldEntity, SystemFieldDescriptor[]> =
     { key: 'org_type', label: 'Тип (прямая / партнёрская)', source: 'Наличие связанного партнёра' },
     { key: 'partner', label: 'Связанный партнёр', source: 'Карточка организации' },
     { key: 'assigned_manager', label: 'Ответственный менеджер', source: 'Назначение менеджера' },
-    { key: 'status', label: 'Статус', source: 'Карточка организации' }
+    { key: 'status', label: 'Статус', source: 'Карточка организации' },
   ],
   student: [
     { key: 'name', label: 'ФИО', source: 'Карточка сотрудника' },
     { key: 'organization', label: 'Организация', source: 'Привязка сотрудника' },
-    { key: 'status', label: 'Статус карточки', source: 'Карточка сотрудника' }
+    { key: 'status', label: 'Статус карточки', source: 'Карточка сотрудника' },
   ],
   order: [],
   partner: [],
-  document: []
+  document: [],
 };
 
 /** Занят ли ключ системным полем этой сущности. */

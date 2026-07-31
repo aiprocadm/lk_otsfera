@@ -7,12 +7,17 @@ const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
 
 vi.mock('@/components/import/import-form', () => ({
-  ImportForm: () => React.createElement('div', { 'data-testid': 'import-form' })
+  ImportForm: () => React.createElement('div', { 'data-testid': 'import-form' }),
 }));
 
 import ManagerImportPage from '@/app/manager/import/page';
 
-const SESSION = { sub: 'u1', role: 'manager' as const, managerRole: 'member' as const, companyId: 'c1' };
+const SESSION = {
+  sub: 'u1',
+  role: 'manager' as const,
+  managerRole: 'member' as const,
+  companyId: 'c1',
+};
 
 describe('ManagerImportPage', () => {
   beforeEach(() => {

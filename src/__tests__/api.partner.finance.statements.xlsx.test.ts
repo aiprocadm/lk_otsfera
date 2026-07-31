@@ -1,31 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const {
-  getSession,
-  notFoundIfDisabled,
-  commissionStatementFindFirst,
-  createSignedUrl
-} = vi.hoisted(() => ({
-  getSession: vi.fn(),
-  notFoundIfDisabled: vi.fn(),
-  commissionStatementFindFirst: vi.fn(),
-  createSignedUrl: vi.fn()
-}));
+const { getSession, notFoundIfDisabled, commissionStatementFindFirst, createSignedUrl } =
+  vi.hoisted(() => ({
+    getSession: vi.fn(),
+    notFoundIfDisabled: vi.fn(),
+    commissionStatementFindFirst: vi.fn(),
+    createSignedUrl: vi.fn(),
+  }));
 
 vi.mock('@/lib/auth/session', () => ({ getSession }));
 vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled }));
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
-    commissionStatement: { findFirst: commissionStatementFindFirst }
-  }
+    commissionStatement: { findFirst: commissionStatementFindFirst },
+  },
 }));
 vi.mock('@/lib/storage', () => ({
   getObjectStorage: () => ({
     createSignedUrl,
     upload: vi.fn(),
     remove: vi.fn(),
-    download: vi.fn()
-  })
+    download: vi.fn(),
+  }),
 }));
 
 import { GET } from '@/app/api/partner/finance/statements/[id]/xlsx/route';
@@ -35,7 +31,7 @@ const partnerSession = {
   role: 'partner' as const,
   partnerId: 'p1',
   partnerRole: 'admin',
-  assignedOrgIds: []
+  assignedOrgIds: [],
 };
 
 function ctx(id: string) {
@@ -83,7 +79,7 @@ describe('GET /api/partner/finance/statements/[id]/xlsx', () => {
     expect(res.status).toBe(307);
     expect(commissionStatementFindFirst).toHaveBeenCalledWith({
       where: { id: 's1' },
-      select: { xlsxPath: true }
+      select: { xlsxPath: true },
     });
   });
 
@@ -145,7 +141,7 @@ describe('GET /api/partner/finance/statements/[id]/xlsx', () => {
 
     expect(commissionStatementFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'stmt-xyz', partnerId: 'p1' }
+        where: { id: 'stmt-xyz', partnerId: 'p1' },
       })
     );
   });

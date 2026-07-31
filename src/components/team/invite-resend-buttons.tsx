@@ -8,7 +8,7 @@ const ERROR_RU: Record<string, string> = {
   forbidden: 'Недостаточно прав',
   not_found: 'Пользователь не найден или деактивирован',
   already_active: 'Пользователь уже установил пароль',
-  rate_limited: 'Слишком много отправок — попробуйте через час'
+  rate_limited: 'Слишком много отправок — попробуйте через час',
 };
 
 /**
@@ -51,20 +51,20 @@ export function InviteResendButtons({ userId }: { userId: string }) {
   }
 
   return (
-    <span className='inline-flex flex-wrap gap-x-2 gap-y-0.5'>
+    <span className="inline-flex flex-wrap gap-x-2 gap-y-0.5">
       <button
-        type='button'
+        type="button"
         onClick={() => run('email')}
         disabled={busy !== null}
-        className='text-xs text-[#F97316] hover:underline disabled:text-gray-400'
+        className="text-xs text-[#F97316] hover:underline disabled:text-gray-400"
       >
         {busy === 'email' ? 'Отправляем…' : 'Отправить повторно'}
       </button>
       <button
-        type='button'
+        type="button"
         onClick={() => run('copy')}
         disabled={busy !== null}
-        className='text-xs text-[#F97316] hover:underline disabled:text-gray-400'
+        className="text-xs text-[#F97316] hover:underline disabled:text-gray-400"
       >
         {busy === 'copy' ? 'Готовим…' : 'Скопировать ссылку'}
       </button>

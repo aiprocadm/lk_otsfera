@@ -9,14 +9,14 @@ function req(pathname: string, token?: string) {
   return {
     url: `https://app.local${pathname}`,
     nextUrl: { pathname },
-    cookies: { get: vi.fn().mockReturnValue(token ? { value: token } : undefined) }
+    cookies: { get: vi.fn().mockReturnValue(token ? { value: token } : undefined) },
   } as any;
 }
 
 const ORIGINAL_ENV = {
   JWT_SECRET: process.env.JWT_SECRET,
   FEATURE_MANAGER_CABINET: process.env.FEATURE_MANAGER_CABINET,
-  FEATURE_LEADER_CABINET: process.env.FEATURE_LEADER_CABINET
+  FEATURE_LEADER_CABINET: process.env.FEATURE_LEADER_CABINET,
 };
 
 describe('middleware — leader cabinet', () => {
@@ -38,7 +38,7 @@ describe('middleware — leader cabinet', () => {
   it('менеджер-лидер при FEATURE_LEADER_CABINET=1: / -> /leader/dashboard', async () => {
     process.env.FEATURE_LEADER_CABINET = '1';
     vi.mocked(jwtVerify).mockResolvedValue({
-      payload: { role: 'manager', managerRole: 'leader' }
+      payload: { role: 'manager', managerRole: 'leader' },
     } as any);
 
     const res = await middleware(req('/', 'tkn'));
@@ -49,7 +49,7 @@ describe('middleware — leader cabinet', () => {
 
   it('менеджер-лидер при выключенном флаге: / -> /manager/dashboard', async () => {
     vi.mocked(jwtVerify).mockResolvedValue({
-      payload: { role: 'manager', managerRole: 'leader' }
+      payload: { role: 'manager', managerRole: 'leader' },
     } as any);
 
     const res = await middleware(req('/', 'tkn'));
@@ -71,7 +71,7 @@ describe('middleware — leader cabinet', () => {
   it('менеджер-лидер при включённом флаге: /login -> /leader/dashboard (auth-страница)', async () => {
     process.env.FEATURE_LEADER_CABINET = '1';
     vi.mocked(jwtVerify).mockResolvedValue({
-      payload: { role: 'manager', managerRole: 'leader' }
+      payload: { role: 'manager', managerRole: 'leader' },
     } as any);
 
     const res = await middleware(req('/login', 'tkn'));
@@ -92,7 +92,7 @@ describe('middleware — leader cabinet', () => {
 
   it('менеджер на /leader/team при ВЫКЛЮЧЕННОМ флаге -> 404 (FEATURE_PREFIXES)', async () => {
     vi.mocked(jwtVerify).mockResolvedValue({
-      payload: { role: 'manager', managerRole: 'leader' }
+      payload: { role: 'manager', managerRole: 'leader' },
     } as any);
 
     const res = await middleware(req('/leader/team', 'tkn'));

@@ -10,7 +10,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import {
   listOrgStudentsForExport,
-  updateOrgStudentPosition
+  updateOrgStudentPosition,
 } from '@/lib/services/organization/students';
 import { listOrgPaymentsForExport } from '@/lib/services/organization/finance';
 import { submitEnrollmentRequest } from '@/lib/services/enrollments/submit';
@@ -36,16 +36,16 @@ beforeAll(async () => {
   companyId = company.id;
 
   const org = await prisma.organization.create({
-    data: { name: `${RUN}-org`, companyId }
+    data: { name: `${RUN}-org`, companyId },
   });
   orgId = org.id;
   const other = await prisma.organization.create({
-    data: { name: `${RUN}-org2`, companyId }
+    data: { name: `${RUN}-org2`, companyId },
   });
   otherOrgId = other.id;
 
   const direction = await prisma.trainingDirection.create({
-    data: { name: `${RUN}-dir`, isActive: true }
+    data: { name: `${RUN}-dir`, isActive: true },
   });
   directionId = direction.id;
 
@@ -54,21 +54,21 @@ beforeAll(async () => {
       email: `${RUN}-actor@test.local`,
       name: `${RUN} actor`,
       role: 'organization',
-      passwordHash: 'x'
-    }
+      passwordHash: 'x',
+    },
   });
   actorId = actor.id;
 
   const a = await prisma.student.create({
-    data: { name: `${RUN} Первый`, email: `${RUN}-a@test.local`, organizationId: orgId }
+    data: { name: `${RUN} Первый`, email: `${RUN}-a@test.local`, organizationId: orgId },
   });
   sWithCerts = a.id;
   const b = await prisma.student.create({
-    data: { name: `${RUN} Второй`, email: `${RUN}-b@test.local`, organizationId: orgId }
+    data: { name: `${RUN} Второй`, email: `${RUN}-b@test.local`, organizationId: orgId },
   });
   sExpired = b.id;
   const c = await prisma.student.create({
-    data: { name: `${RUN} Чужой`, email: `${RUN}-c@test.local`, organizationId: otherOrgId }
+    data: { name: `${RUN} Чужой`, email: `${RUN}-c@test.local`, organizationId: otherOrgId },
   });
   sForeign = c.id;
 
@@ -81,7 +81,7 @@ beforeAll(async () => {
         organizationId: orgId,
         directionId,
         issuedAt: new Date('2026-01-01'),
-        validUntil: null
+        validUntil: null,
       },
       {
         number: `${RUN}-2`,
@@ -89,7 +89,7 @@ beforeAll(async () => {
         organizationId: orgId,
         directionId,
         issuedAt: new Date('2026-01-01'),
-        validUntil: new Date('2026-12-31')
+        validUntil: new Date('2026-12-31'),
       },
       {
         number: `${RUN}-3`,
@@ -97,7 +97,7 @@ beforeAll(async () => {
         organizationId: orgId,
         directionId,
         issuedAt: new Date('2025-01-01'),
-        validUntil: new Date('2026-01-31')
+        validUntil: new Date('2026-01-31'),
       },
       {
         number: `${RUN}-4`,
@@ -105,19 +105,19 @@ beforeAll(async () => {
         organizationId: orgId,
         directionId,
         issuedAt: new Date('2025-01-01'),
-        validUntil: new Date('2026-01-31')
-      }
-    ]
+        validUntil: new Date('2026-01-31'),
+      },
+    ],
   });
 });
 
 afterAll(async () => {
   await prisma.piiAccessEvent.deleteMany({ where: { userId: actorId } });
   await prisma.enrollmentRequestItem.deleteMany({
-    where: { request: { organizationId: { in: [orgId, otherOrgId] } } }
+    where: { request: { organizationId: { in: [orgId, otherOrgId] } } },
   });
   await prisma.enrollmentRequest.deleteMany({
-    where: { organizationId: { in: [orgId, otherOrgId] } }
+    where: { organizationId: { in: [orgId, otherOrgId] } },
   });
   await prisma.certificate.deleteMany({ where: { organizationId: { in: [orgId, otherOrgId] } } });
   await prisma.student.deleteMany({ where: { organizationId: { in: [orgId, otherOrgId] } } });
@@ -135,7 +135,7 @@ describe('listOrgStudentsForExport (integration)', () => {
     const res = await listOrgStudentsForExport(prisma, {
       organizationId: orgId,
       limit: 100,
-      now: NOW
+      now: NOW,
     });
 
     const byId = new Map(res.rows.map((r) => [r.id, r]));
@@ -150,7 +150,7 @@ describe('listOrgStudentsForExport (integration)', () => {
       organizationId: orgId,
       search: 'Первый',
       limit: 100,
-      now: NOW
+      now: NOW,
     });
     expect(res.rows.map((r) => r.id)).toEqual([sWithCerts]);
     expect(res.total).toBe(1);
@@ -162,17 +162,17 @@ describe('updateOrgStudentPosition (integration)', () => {
     const saved = await updateOrgStudentPosition(prisma, {
       organizationId: orgId,
       studentId: sWithCerts,
-      position: 'Инженер по охране труда'
+      position: 'Инженер по охране труда',
     });
     expect(saved).toEqual({ ok: true, position: 'Инженер по охране труда' });
-    expect(
-      (await prisma.student.findUnique({ where: { id: sWithCerts } }))!.position
-    ).toBe('Инженер по охране труда');
+    expect((await prisma.student.findUnique({ where: { id: sWithCerts } }))!.position).toBe(
+      'Инженер по охране труда'
+    );
 
     const foreign = await updateOrgStudentPosition(prisma, {
       organizationId: orgId,
       studentId: sForeign,
-      position: 'Директор'
+      position: 'Директор',
     });
     expect(foreign).toEqual({ ok: false, error: 'forbidden' });
     expect((await prisma.student.findUnique({ where: { id: sForeign } }))!.position).toBeNull();
@@ -186,7 +186,7 @@ describe('должность из заявки на обучение (integratio
       role: 'organization',
       email: `${RUN}-actor@test.local`,
       companyId,
-      organizationMemberships: [{ organizationId: orgId, isActive: true, roleInOrg: 'admin' }]
+      organizationMemberships: [{ organizationId: orgId, isActive: true, roleInOrg: 'admin' }],
     }) as unknown as SessionPayload;
 
   it('подхватывается для пустой должности и НЕ затирает заполненную', async () => {
@@ -196,14 +196,14 @@ describe('должность из заявки на обучение (integratio
       organizationId: orgId,
       items: [
         { studentId: sWithCerts, position: 'Слесарь' },
-        { studentId: sExpired, position: 'Электромонтёр' }
-      ]
+        { studentId: sExpired, position: 'Электромонтёр' },
+      ],
     });
     expect(res.ok).toBe(true);
 
     const [kept, filled] = await Promise.all([
       prisma.student.findUnique({ where: { id: sWithCerts } }),
-      prisma.student.findUnique({ where: { id: sExpired } })
+      prisma.student.findUnique({ where: { id: sExpired } }),
     ]);
     expect(kept!.position).toBe('Инженер по охране труда'); // не затёрли
     expect(filled!.position).toBe('Электромонтёр'); // подхватили
@@ -223,12 +223,12 @@ describe('журнал ПДн для выгрузок (integration)', () => {
         session: staffSession(),
         context: 'org_card_certificates_export',
         subjectIds: [sWithCerts],
-        meta: { take: 1, hasQuery: false }
+        meta: { take: 1, hasQuery: false },
       });
       await recordPiiAccess(prisma, {
         session: clientSession(),
         context: 'org_card_certificates_export',
-        subjectIds: [sWithCerts]
+        subjectIds: [sWithCerts],
       });
 
       const rows = await prisma.piiAccessEvent.findMany({ where: { userId: actorId } });

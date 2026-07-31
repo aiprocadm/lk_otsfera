@@ -23,7 +23,7 @@ export const SEARCH_CATEGORIES = [
   'events',
   'documents',
   'students',
-  'messages'
+  'messages',
 ] as const;
 export type SearchCategory = (typeof SEARCH_CATEGORIES)[number];
 
@@ -35,7 +35,7 @@ export const SEARCH_CATEGORY_LABELS_RU: Record<SearchCategory, string> = {
   events: 'Календарь',
   documents: 'Документы',
   students: 'Слушатели',
-  messages: 'Чат команды'
+  messages: 'Чат команды',
 };
 
 export type SearchHit = {
@@ -112,20 +112,20 @@ export async function globalSearch(
                 { title: { contains: q, mode: insensitive } },
                 { orderNumber: { contains: q, mode: insensitive } },
                 // Внешние идентификаторы — точные строки, без case-фолда (идиома репо).
-                { externalId: { contains: q } }
-              ]
-            }
-          ]
+                { externalId: { contains: q } },
+              ],
+            },
+          ],
         },
         select: {
           id: true,
           title: true,
           orderNumber: true,
           createdAt: true,
-          organization: { select: { name: true } }
+          organization: { select: { name: true } },
         },
         orderBy: { createdAt: 'desc' },
-        take: SEARCH_TAKE
+        take: SEARCH_TAKE,
       }),
       prisma.organization.findMany({
         where: {
@@ -135,14 +135,14 @@ export async function globalSearch(
               OR: [
                 { name: { contains: q, mode: insensitive } },
                 { inn: { contains: q } },
-                { externalId: { contains: q } }
-              ]
-            }
-          ]
+                { externalId: { contains: q } },
+              ],
+            },
+          ],
         },
         select: { id: true, name: true, inn: true, createdAt: true },
         orderBy: { createdAt: 'desc' },
-        take: SEARCH_TAKE
+        take: SEARCH_TAKE,
       }),
       prisma.lead.findMany({
         where: {
@@ -152,14 +152,14 @@ export async function globalSearch(
               OR: [
                 { clientCompanyName: { contains: q, mode: insensitive } },
                 { subject: { contains: q, mode: insensitive } },
-                { clientInn: { contains: q } }
-              ]
-            }
-          ]
+                { clientInn: { contains: q } },
+              ],
+            },
+          ],
         },
         select: { id: true, clientCompanyName: true, subject: true, createdAt: true },
         orderBy: { createdAt: 'desc' },
-        take: SEARCH_TAKE
+        take: SEARCH_TAKE,
       }),
       isFeatureEnabled('internal_tasks')
         ? prisma.task.findMany({
@@ -169,14 +169,14 @@ export async function globalSearch(
                 {
                   OR: [
                     { title: { contains: q, mode: insensitive } },
-                    { description: { contains: q, mode: insensitive } }
-                  ]
-                }
-              ]
+                    { description: { contains: q, mode: insensitive } },
+                  ],
+                },
+              ],
             },
             select: { id: true, title: true, description: true, dueDate: true, createdAt: true },
             orderBy: { createdAt: 'desc' },
-            take: SEARCH_TAKE
+            take: SEARCH_TAKE,
           })
         : Promise.resolve([]),
       isFeatureEnabled('staff_calendar')
@@ -188,14 +188,14 @@ export async function globalSearch(
                   OR: [
                     { title: { contains: q, mode: insensitive } },
                     { description: { contains: q, mode: insensitive } },
-                    { location: { contains: q, mode: insensitive } }
-                  ]
-                }
-              ]
+                    { location: { contains: q, mode: insensitive } },
+                  ],
+                },
+              ],
             },
             select: { id: true, title: true, location: true, startsAt: true },
             orderBy: { startsAt: 'desc' },
-            take: SEARCH_TAKE
+            take: SEARCH_TAKE,
           })
         : Promise.resolve([]),
       prisma.document.findMany({
@@ -204,10 +204,10 @@ export async function globalSearch(
           id: true,
           name: true,
           createdAt: true,
-          order: { select: { title: true } }
+          order: { select: { title: true } },
         },
         orderBy: { createdAt: 'desc' },
-        take: SEARCH_TAKE
+        take: SEARCH_TAKE,
       }),
       prisma.student.findMany({
         where: {
@@ -216,20 +216,20 @@ export async function globalSearch(
             {
               OR: [
                 { name: { contains: q, mode: insensitive } },
-                { email: { contains: q, mode: insensitive } }
-              ]
-            }
-          ]
+                { email: { contains: q, mode: insensitive } },
+              ],
+            },
+          ],
         },
         select: {
           id: true,
           name: true,
           email: true,
           createdAt: true,
-          organization: { select: { name: true } }
+          organization: { select: { name: true } },
         },
         orderBy: { createdAt: 'desc' },
-        take: SEARCH_TAKE
+        take: SEARCH_TAKE,
       }),
       isFeatureEnabled('staff_chat')
         ? prisma.staffMessage.findMany({
@@ -239,22 +239,22 @@ export async function globalSearch(
                 {
                   OR: [
                     { body: { contains: q, mode: insensitive } },
-                    { attachmentName: { contains: q, mode: insensitive } }
-                  ]
-                }
-              ]
+                    { attachmentName: { contains: q, mode: insensitive } },
+                  ],
+                },
+              ],
             },
             select: {
               id: true,
               body: true,
               attachmentName: true,
               createdAt: true,
-              author: { select: { name: true } }
+              author: { select: { name: true } },
             },
             orderBy: { createdAt: 'desc' },
-            take: SEARCH_TAKE
+            take: SEARCH_TAKE,
           })
-        : Promise.resolve([])
+        : Promise.resolve([]),
     ]);
 
   // §25.7: слушатели в выдаче — ПДн; журналируем id (никогда не бросает,
@@ -263,7 +263,7 @@ export async function globalSearch(
     session,
     context: 'global_search_students',
     subjectIds: students.map((s) => s.id),
-    meta: { take: SEARCH_TAKE, hasQuery: true }
+    meta: { take: SEARCH_TAKE, hasQuery: true },
   });
 
   const groups: SearchGroup[] = [
@@ -274,8 +274,8 @@ export async function globalSearch(
         title: o.title,
         subtitle: joinParts(o.orderNumber, o.organization.name),
         href: `/manager/orders/${o.id}`,
-        date: o.createdAt
-      }))
+        date: o.createdAt,
+      })),
     },
     {
       key: 'organizations' as const,
@@ -284,8 +284,8 @@ export async function globalSearch(
         title: org.name,
         subtitle: org.inn ? `ИНН ${org.inn}` : null,
         href: `/manager/organizations/${org.id}`,
-        date: org.createdAt
-      }))
+        date: org.createdAt,
+      })),
     },
     {
       key: 'leads' as const,
@@ -294,8 +294,8 @@ export async function globalSearch(
         title: l.clientCompanyName,
         subtitle: snippet(l.subject, 80),
         href: `/manager/leads/${l.id}`,
-        date: l.createdAt
-      }))
+        date: l.createdAt,
+      })),
     },
     {
       key: 'tasks' as const,
@@ -304,8 +304,8 @@ export async function globalSearch(
         title: t.title,
         subtitle: t.description ? snippet(t.description, 80) : null,
         href: '/manager/tasks',
-        date: t.dueDate ?? t.createdAt
-      }))
+        date: t.dueDate ?? t.createdAt,
+      })),
     },
     {
       key: 'events' as const,
@@ -314,8 +314,8 @@ export async function globalSearch(
         title: e.title,
         subtitle: e.location,
         href: '/manager/calendar',
-        date: e.startsAt
-      }))
+        date: e.startsAt,
+      })),
     },
     {
       key: 'documents' as const,
@@ -324,8 +324,8 @@ export async function globalSearch(
         title: d.name,
         subtitle: d.order?.title ?? null,
         href: '/manager/documents',
-        date: d.createdAt
-      }))
+        date: d.createdAt,
+      })),
     },
     {
       key: 'students' as const,
@@ -334,8 +334,8 @@ export async function globalSearch(
         title: s.name,
         subtitle: joinParts(s.email, s.organization.name),
         href: `/manager/students/${s.id}`,
-        date: s.createdAt
-      }))
+        date: s.createdAt,
+      })),
     },
     {
       key: 'messages' as const,
@@ -344,14 +344,14 @@ export async function globalSearch(
         title: m.body ? snippet(m.body, 120) : (m.attachmentName ?? ''),
         subtitle: m.author.name,
         href: '/manager/messages',
-        date: m.createdAt
-      }))
-    }
+        date: m.createdAt,
+      })),
+    },
   ]
     .map((g) => ({
       ...g,
       labelRu: SEARCH_CATEGORY_LABELS_RU[g.key],
-      limited: g.hits.length === SEARCH_TAKE
+      limited: g.hits.length === SEARCH_TAKE,
     }))
     .filter((g) => g.hits.length > 0);
 

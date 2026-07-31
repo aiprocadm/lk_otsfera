@@ -8,7 +8,13 @@ import { DocumentsList } from '@/components/partner/documents-list';
 import { ManagerOrderLessUploadForm } from '@/components/manager/manager-order-less-upload-form';
 import type { OrgDocumentRow } from '@/lib/services/partner/orgDocuments';
 
-type SearchParams = { search?: string; type?: string; orderId?: string; cursor?: string; tab?: string };
+type SearchParams = {
+  search?: string;
+  type?: string;
+  orderId?: string;
+  cursor?: string;
+  tab?: string;
+};
 
 // Mirrors prisma/schema.prisma `enum DocumentType` (lower_snake_case literal
 // values) with Russian-language labels — keep this in sync if the enum gains
@@ -22,12 +28,18 @@ const TYPE_OPTIONS: Array<{ value: string; label: string }> = [
   { value: 'certificate', label: 'Сертификат' },
   { value: 'report', label: 'Отчёт' },
   { value: 'commission_statement', label: 'Расчёт комиссии' },
-  { value: 'other', label: 'Прочее' }
+  { value: 'other', label: 'Прочее' },
 ];
 
-function TabChips({ activeTab, ordersHref }: { activeTab: 'orders' | 'general'; ordersHref: string }) {
+function TabChips({
+  activeTab,
+  ordersHref,
+}: {
+  activeTab: 'orders' | 'general';
+  ordersHref: string;
+}) {
   return (
-    <div className='flex gap-2'>
+    <div className="flex gap-2">
       <Link
         href={ordersHref}
         className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
@@ -39,7 +51,7 @@ function TabChips({ activeTab, ordersHref }: { activeTab: 'orders' | 'general'; 
         По заказам
       </Link>
       <Link
-        href='/manager/documents?tab=general'
+        href="/manager/documents?tab=general"
         className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
           activeTab === 'general'
             ? 'bg-[#F97316] text-white'
@@ -53,7 +65,7 @@ function TabChips({ activeTab, ordersHref }: { activeTab: 'orders' | 'general'; 
 }
 
 export default async function ManagerDocumentsPage({
-  searchParams
+  searchParams,
 }: {
   searchParams: Promise<SearchParams>;
 }) {
@@ -64,7 +76,7 @@ export default async function ManagerDocumentsPage({
   if (isGeneral) {
     const [{ rows }, cps] = await Promise.all([
       listManagerOrderLessDocuments(prisma, session),
-      listManagerCounterparties(prisma, session)
+      listManagerCounterparties(prisma, session),
     ]);
 
     const documentRows: OrgDocumentRow[] = rows.map((d) => ({
@@ -77,18 +89,18 @@ export default async function ManagerDocumentsPage({
       size: d.size,
       orderId: null,
       orderNumber: null,
-      orderTitle: null
+      orderTitle: null,
     }));
 
     return (
-      <div className='space-y-4'>
-        <h1 className='text-2xl font-semibold text-[#111111]'>Документы</h1>
-        <TabChips activeTab='general' ordersHref='/manager/documents' />
+      <div className="space-y-4">
+        <h1 className="text-2xl font-semibold text-[#111111]">Документы</h1>
+        <TabChips activeTab="general" ordersHref="/manager/documents" />
         <ManagerOrderLessUploadForm organizations={cps.organizations} partners={cps.partners} />
         <DocumentsList
           rows={documentRows}
-          downloadEndpointBase='/api/manager/documents'
-          cardHrefBase='/manager/documents'
+          downloadEndpointBase="/api/manager/documents"
+          cardHrefBase="/manager/documents"
         />
       </div>
     );
@@ -100,7 +112,7 @@ export default async function ManagerDocumentsPage({
     search: sp.search,
     type: sp.type || undefined,
     orderId: sp.orderId,
-    cursor: sp.cursor
+    cursor: sp.cursor,
   });
 
   // listDocuments returns raw Document rows (with order include). DocumentsList
@@ -117,7 +129,7 @@ export default async function ManagerDocumentsPage({
     size: d.size,
     orderId: d.orderId,
     orderNumber: d.order?.orderNumber ?? null,
-    orderTitle: d.order?.title ?? null
+    orderTitle: d.order?.title ?? null,
   }));
 
   // Preserve current filters on the "next page" link so cursor pagination does
@@ -139,50 +151,50 @@ export default async function ManagerDocumentsPage({
   })();
 
   return (
-    <div className='space-y-4'>
-      <h1 className='text-2xl font-semibold text-[#111111]'>Документы</h1>
+    <div className="space-y-4">
+      <h1 className="text-2xl font-semibold text-[#111111]">Документы</h1>
 
-      <TabChips activeTab='orders' ordersHref={ordersTabHref} />
+      <TabChips activeTab="orders" ordersHref={ordersTabHref} />
 
-      <form method='get' className='flex flex-wrap items-center gap-2'>
+      <form method="get" className="flex flex-wrap items-center gap-2">
         <input
-          name='search'
+          name="search"
           defaultValue={sp.search ?? ''}
-          placeholder='Поиск по названию…'
-          className='border border-gray-200 rounded px-2 py-1 text-sm flex-1 min-w-[200px]'
+          placeholder="Поиск по названию…"
+          className="border border-gray-200 rounded px-2 py-1 text-sm flex-1 min-w-[200px]"
         />
         <select
-          name='type'
+          name="type"
           defaultValue={sp.type ?? ''}
-          className='border border-gray-200 rounded px-2 py-1 text-sm'
+          className="border border-gray-200 rounded px-2 py-1 text-sm"
         >
-          <option value=''>Все типы</option>
+          <option value="">Все типы</option>
           {TYPE_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
               {opt.label}
             </option>
           ))}
         </select>
-        {sp.orderId && <input type='hidden' name='orderId' value={sp.orderId} />}
+        {sp.orderId && <input type="hidden" name="orderId" value={sp.orderId} />}
         <button
-          type='submit'
-          className='px-3 py-1 bg-[#F97316] text-white rounded text-sm hover:bg-[#EA580C]'
+          type="submit"
+          className="px-3 py-1 bg-[#F97316] text-white rounded text-sm hover:bg-[#EA580C]"
         >
           Найти
         </button>
       </form>
 
       <DocumentsList
-          rows={documentRows}
-          downloadEndpointBase='/api/manager/documents'
-          cardHrefBase='/manager/documents'
-        />
+        rows={documentRows}
+        downloadEndpointBase="/api/manager/documents"
+        cardHrefBase="/manager/documents"
+      />
 
       {nextCursor && (
         <div>
           <Link
             href={`/manager/documents?${nextParams.toString()}`}
-            className='inline-block text-sm text-[#F97316] hover:underline'
+            className="inline-block text-sm text-[#F97316] hover:underline"
           >
             Дальше →
           </Link>

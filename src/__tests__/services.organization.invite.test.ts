@@ -1,9 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { PrismaClient } from '@prisma/client';
-import {
-  createOrgAdminInvite,
-  OrgInviteError
-} from '@/lib/services/organization/invite';
+import { createOrgAdminInvite, OrgInviteError } from '@/lib/services/organization/invite';
 
 let prisma: PrismaClient;
 let partnerAId: string;
@@ -18,21 +15,21 @@ const STAMP = Date.now();
 beforeAll(async () => {
   prisma = new PrismaClient();
   const a = await prisma.partner.create({
-    data: { name: `InviteSvcPA-${STAMP}`, commissionRate: 0.1 }
+    data: { name: `InviteSvcPA-${STAMP}`, commissionRate: 0.1 },
   });
   partnerAId = a.id;
   const b = await prisma.partner.create({
-    data: { name: `InviteSvcPB-${STAMP}`, commissionRate: 0.1 }
+    data: { name: `InviteSvcPB-${STAMP}`, commissionRate: 0.1 },
   });
   partnerBId = b.id;
   const company = await prisma.company.create({ data: { name: `InviteSvcC-${STAMP}` } });
   companyId = company.id;
   const oa = await prisma.organization.create({
-    data: { name: `InviteSvcOrgA-${STAMP}`, partnerId: partnerAId, companyId }
+    data: { name: `InviteSvcOrgA-${STAMP}`, partnerId: partnerAId, companyId },
   });
   orgAId = oa.id;
   const ob = await prisma.organization.create({
-    data: { name: `InviteSvcOrgB-${STAMP}`, partnerId: partnerBId, companyId }
+    data: { name: `InviteSvcOrgB-${STAMP}`, partnerId: partnerBId, companyId },
   });
   orgBId = ob.id;
 
@@ -42,8 +39,8 @@ beforeAll(async () => {
       name: 'Partner A admin',
       role: 'partner',
       partnerId: partnerAId,
-      passwordHash: 'x'
-    }
+      passwordHash: 'x',
+    },
   });
   actorPartnerAdminAId = pa.id;
   const adm = await prisma.user.create({
@@ -51,8 +48,8 @@ beforeAll(async () => {
       email: `invite-admin-${STAMP}@t.local`,
       name: 'Platform admin',
       role: 'admin',
-      passwordHash: 'x'
-    }
+      passwordHash: 'x',
+    },
   });
   actorPlatformAdminId = adm.id;
 });
@@ -60,7 +57,7 @@ beforeAll(async () => {
 afterAll(async () => {
   const testUsers = await prisma.user.findMany({
     where: { email: { contains: 'invite-' } },
-    select: { id: true }
+    select: { id: true },
   });
   const ids = testUsers.map((u) => u.id);
   await prisma.auditLog.deleteMany({ where: { entity: 'organization_user' } });
@@ -98,14 +95,14 @@ describe('createOrgAdminInvite', () => {
       {
         actorUserId: actorPartnerAdminAId,
         source: 'partner',
-        actorPartnerId: partnerAId
+        actorPartnerId: partnerAId,
       }
     );
     expect(result.user.email).toBe(email);
     expect(result.inviteUrl).toMatch(/\/reset-password\?token=/);
 
     const orgUser = await prisma.organizationUser.findFirst({
-      where: { organizationId: orgAId, userId: result.user.id }
+      where: { organizationId: orgAId, userId: result.user.id },
     });
     expect(orgUser?.roleInOrg).toBe('admin');
     expect(orgUser?.isActive).toBe(true);
@@ -114,13 +111,13 @@ describe('createOrgAdminInvite', () => {
       where: {
         entity: 'organization_user',
         entityId: orgUser!.id,
-        action: 'org_member_invited'
-      }
+        action: 'org_member_invited',
+      },
     });
     expect(audit).not.toBeNull();
     expect((audit!.meta as Record<string, unknown>).after).toMatchObject({
       source: 'partner',
-      roleInOrg: 'admin'
+      roleInOrg: 'admin',
     });
   });
 
@@ -132,7 +129,7 @@ describe('createOrgAdminInvite', () => {
         {
           actorUserId: actorPartnerAdminAId,
           source: 'partner',
-          actorPartnerId: partnerAId
+          actorPartnerId: partnerAId,
         }
       )
     ).rejects.toMatchObject({ code: 'forbidden' });
@@ -158,15 +155,15 @@ describe('createOrgAdminInvite', () => {
     expect(result.user.email).toBe(email);
 
     const orgUser = await prisma.organizationUser.findFirst({
-      where: { organizationId: orgBId, userId: result.user.id }
+      where: { organizationId: orgBId, userId: result.user.id },
     });
     expect(orgUser?.roleInOrg).toBe('admin');
 
     const audit = await prisma.auditLog.findFirst({
-      where: { entity: 'organization_user', entityId: orgUser!.id }
+      where: { entity: 'organization_user', entityId: orgUser!.id },
     });
     expect((audit!.meta as Record<string, unknown>).after).toMatchObject({
-      source: 'platform_admin'
+      source: 'platform_admin',
     });
   });
 });

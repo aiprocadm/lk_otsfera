@@ -10,7 +10,7 @@ import { send } from '@/lib/email/send';
 import {
   TwoFactorCodeTemplate,
   twoFactorCodeSubject,
-  twoFactorCodeText
+  twoFactorCodeText,
 } from '@/lib/email/templates/two-factor-code';
 import { log } from '@/lib/logging';
 
@@ -41,12 +41,15 @@ export async function POST(req: NextRequest) {
     (await isRateLimited(`2fa-resend-cool:${sub}`, { windowMs: 30_000, max: 1 })) ||
     (await isRateLimited(`2fa-resend-total:${sub}`, { windowMs: 10 * 60_000, max: 3 }))
   ) {
-    return NextResponse.json({ code: 'TOO_MANY_REQUESTS', message: 'Try again later' }, { status: 429 });
+    return NextResponse.json(
+      { code: 'TOO_MANY_REQUESTS', message: 'Try again later' },
+      { status: 429 }
+    );
   }
 
   const user = await prisma.user.findUnique({
     where: { id: sub },
-    select: { id: true, email: true, name: true, isActive: true }
+    select: { id: true, email: true, name: true, isActive: true },
   });
   if (!user || !user.isActive) {
     return NextResponse.json({ code: 'SESSION_EXPIRED', message: 'Login again' }, { status: 401 });
@@ -58,22 +61,25 @@ export async function POST(req: NextRequest) {
       to: user.email,
       subject: twoFactorCodeSubject(),
       html: await renderHtml(React.createElement(TwoFactorCodeTemplate, { name: user.name, code })),
-      text: twoFactorCodeText({ name: user.name, code })
+      text: twoFactorCodeText({ name: user.name, code }),
     });
   } catch (err) {
     await prisma.twoFactorChallenge.delete({ where: { userId: user.id } }).catch(() => {});
     log.error('[auth/2fa/resend] email send failed', {
       userId: user.id,
-      error: err instanceof Error ? err.message : String(err)
+      error: err instanceof Error ? err.message : String(err),
     });
-    return NextResponse.json({ code: 'EMAIL_SEND_FAILED', message: 'Failed to send the code' }, { status: 502 });
+    return NextResponse.json(
+      { code: 'EMAIL_SEND_FAILED', message: 'Failed to send the code' },
+      { status: 502 }
+    );
   }
 
   await recordAudit(prisma, {
     action: '2fa_code_sent',
     entity: 'auth_2fa',
     entityId: user.id,
-    userId: user.id
+    userId: user.id,
   }).catch(() => {});
 
   return NextResponse.json({ ok: true });

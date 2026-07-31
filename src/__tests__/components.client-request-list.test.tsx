@@ -24,15 +24,16 @@ function row(overrides: Partial<ClientRequestRow> = {}): ClientRequestRow {
     createdAt: new Date('2024-01-15T10:00:00Z'),
     triagedAt: null,
     attachmentCount: 0,
-    ...overrides
+    ...overrides,
   };
 }
 
 /** renderToString вставляет <!-- --> между текстовыми узлами — срезаем для проверки текста. */
 function html(rows: ClientRequestRow[], detailHrefBase?: string): string {
-  return renderToString(
-    React.createElement(ClientRequestList, { rows, detailHrefBase })
-  ).replace(/<!-- -->/g, '');
+  return renderToString(React.createElement(ClientRequestList, { rows, detailHrefBase })).replace(
+    /<!-- -->/g,
+    ''
+  );
 }
 
 describe('ClientRequestList', () => {
@@ -75,7 +76,12 @@ describe('ClientRequestList', () => {
   it('несколько строк рендерятся все', () => {
     const out = html([
       row(),
-      row({ id: 'cr2', subject: 'Второе обращение', companyName: 'АО Вектор', status: 'in_triage' })
+      row({
+        id: 'cr2',
+        subject: 'Второе обращение',
+        companyName: 'АО Вектор',
+        status: 'in_triage',
+      }),
     ]);
     expect(out).toContain('Обучение по охране труда');
     expect(out).toContain('Второе обращение');

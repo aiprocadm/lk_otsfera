@@ -26,20 +26,20 @@ beforeAll(async () => {
   companyId = company.id;
 
   const partner = await prisma.partner.create({
-    data: { name: `MgrDashP-${stamp}`, commissionRate: 0.1 }
+    data: { name: `MgrDashP-${stamp}`, commissionRate: 0.1 },
   });
   partnerId = partner.id;
   const foreignPartner = await prisma.partner.create({
-    data: { name: `MgrDashFP-${stamp}`, commissionRate: 0.1 }
+    data: { name: `MgrDashFP-${stamp}`, commissionRate: 0.1 },
   });
   foreignPartnerId = foreignPartner.id;
 
   const managedOrg = await prisma.organization.create({
-    data: { name: `MgrDashOrg-${stamp}`, partnerId, companyId }
+    data: { name: `MgrDashOrg-${stamp}`, partnerId, companyId },
   });
   managedOrgId = managedOrg.id;
   const foreignOrg = await prisma.organization.create({
-    data: { name: `MgrDashForeignOrg-${stamp}`, partnerId: foreignPartnerId, companyId }
+    data: { name: `MgrDashForeignOrg-${stamp}`, partnerId: foreignPartnerId, companyId },
   });
   foreignOrgId = foreignOrg.id;
 
@@ -48,8 +48,8 @@ beforeAll(async () => {
       email: `mgr-dash-${stamp}@t.local`,
       passwordHash: 'x',
       name: 'Manager Dash',
-      role: 'manager'
-    }
+      role: 'manager',
+    },
   });
   managerUserId = manager.id;
 
@@ -59,8 +59,8 @@ beforeAll(async () => {
       passwordHash: 'x',
       name: 'Org User Dash',
       role: 'organization',
-      organizationId: managedOrgId
-    }
+      organizationId: managedOrgId,
+    },
   });
   orgUserId = orgUser.id;
 
@@ -69,39 +69,39 @@ beforeAll(async () => {
       email: `mgr-noassign-dash-${stamp}@t.local`,
       passwordHash: 'x',
       name: 'No-Assignment Manager',
-      role: 'manager'
-    }
+      role: 'manager',
+    },
   });
   assignmentlessManagerUserId = noAssignManager.id;
 
   await prisma.organizationManager.create({
-    data: { organizationId: managedOrgId, userId: managerUserId, isActive: true }
+    data: { organizationId: managedOrgId, userId: managerUserId, isActive: true },
   });
 });
 
 afterAll(async () => {
   // FK-walk cleanup: comments → documents → payments → orders → ...
   await prisma.notification.deleteMany({
-    where: { userId: { in: [managerUserId, orgUserId, assignmentlessManagerUserId] } }
+    where: { userId: { in: [managerUserId, orgUserId, assignmentlessManagerUserId] } },
   });
   await prisma.auditLog.deleteMany({
-    where: { userId: { in: [managerUserId, orgUserId, assignmentlessManagerUserId] } }
+    where: { userId: { in: [managerUserId, orgUserId, assignmentlessManagerUserId] } },
   });
   await prisma.comment.deleteMany({
-    where: { author: { id: { in: [managerUserId, orgUserId, assignmentlessManagerUserId] } } }
+    where: { author: { id: { in: [managerUserId, orgUserId, assignmentlessManagerUserId] } } },
   });
   await prisma.payment.deleteMany({
-    where: { order: { organizationId: { in: [managedOrgId, foreignOrgId] } } }
+    where: { order: { organizationId: { in: [managedOrgId, foreignOrgId] } } },
   });
   await prisma.document.deleteMany({
-    where: { order: { organizationId: { in: [managedOrgId, foreignOrgId] } } }
+    where: { order: { organizationId: { in: [managedOrgId, foreignOrgId] } } },
   });
   await prisma.order.deleteMany({
-    where: { organizationId: { in: [managedOrgId, foreignOrgId] } }
+    where: { organizationId: { in: [managedOrgId, foreignOrgId] } },
   });
   await prisma.organizationManager.deleteMany({ where: { userId: managerUserId } });
   await prisma.user.deleteMany({
-    where: { id: { in: [managerUserId, orgUserId, assignmentlessManagerUserId] } }
+    where: { id: { in: [managerUserId, orgUserId, assignmentlessManagerUserId] } },
   });
   await prisma.organization.deleteMany({ where: { id: { in: [managedOrgId, foreignOrgId] } } });
   await prisma.partner.deleteMany({ where: { id: { in: [partnerId, foreignPartnerId] } } });
@@ -118,7 +118,7 @@ describe('manager dashboard service — kpis', () => {
       activeOrdersDelta: 0,
       attentionCount: 0,
       unreadComments: 0,
-      urgentDeadlines: 0
+      urgentDeadlines: 0,
     });
   });
 
@@ -131,8 +131,8 @@ describe('manager dashboard service — kpis', () => {
         companyId,
         partnerId,
         organizationId: managedOrgId,
-        executionStatus: 'in_progress'
-      }
+        executionStatus: 'in_progress',
+      },
     });
     await prisma.order.create({
       data: {
@@ -141,8 +141,8 @@ describe('manager dashboard service — kpis', () => {
         companyId,
         partnerId,
         organizationId: managedOrgId,
-        executionStatus: 'pending'
-      }
+        executionStatus: 'pending',
+      },
     });
     // out-of-scope order in foreign org
     await prisma.order.create({
@@ -152,8 +152,8 @@ describe('manager dashboard service — kpis', () => {
         companyId,
         partnerId: foreignPartnerId,
         organizationId: foreignOrgId,
-        executionStatus: 'in_progress'
-      }
+        executionStatus: 'in_progress',
+      },
     });
 
     const session = managerSession(managerUserId, [managedOrgId]);
@@ -173,8 +173,8 @@ describe('manager dashboard service — kpis', () => {
         partnerId,
         organizationId: managedOrgId,
         executionStatus: 'in_progress',
-        deadline: inTwoDays
-      }
+        deadline: inTwoDays,
+      },
     });
     await prisma.order.create({
       data: {
@@ -184,8 +184,8 @@ describe('manager dashboard service — kpis', () => {
         partnerId,
         organizationId: managedOrgId,
         executionStatus: 'in_progress',
-        deadline: inTenDays
-      }
+        deadline: inTenDays,
+      },
     });
 
     const session = managerSession(managerUserId, [managedOrgId]);
@@ -204,8 +204,8 @@ describe('manager dashboard service — kpis', () => {
         partnerId,
         organizationId: managedOrgId,
         executionStatus: 'in_progress',
-        deadline: yesterday
-      }
+        deadline: yesterday,
+      },
     });
     // overdue but completed → must NOT count
     await prisma.order.create({
@@ -216,8 +216,8 @@ describe('manager dashboard service — kpis', () => {
         partnerId,
         organizationId: managedOrgId,
         executionStatus: 'completed',
-        deadline: yesterday
-      }
+        deadline: yesterday,
+      },
     });
 
     const session = managerSession(managerUserId, [managedOrgId]);
@@ -233,8 +233,8 @@ describe('manager dashboard service — kpis', () => {
         type: 'comment_from_org',
         title: 'New comment',
         body: 'hi from org',
-        isRead: false
-      }
+        isRead: false,
+      },
     });
     // read one — must not count
     await prisma.notification.create({
@@ -243,8 +243,8 @@ describe('manager dashboard service — kpis', () => {
         type: 'comment_from_org',
         title: 'Old',
         body: 'old',
-        isRead: true
-      }
+        isRead: true,
+      },
     });
     // different user — must not count
     await prisma.notification.create({
@@ -253,8 +253,8 @@ describe('manager dashboard service — kpis', () => {
         type: 'comment_from_org',
         title: 'Other',
         body: 'x',
-        isRead: false
-      }
+        isRead: false,
+      },
     });
     // different type — must not count
     await prisma.notification.create({
@@ -263,8 +263,8 @@ describe('manager dashboard service — kpis', () => {
         type: 'order_status_changed',
         title: 'Status',
         body: 'x',
-        isRead: false
-      }
+        isRead: false,
+      },
     });
 
     const session = managerSession(managerUserId, [managedOrgId]);
@@ -293,8 +293,8 @@ describe('manager dashboard service — attention', () => {
         partnerId,
         organizationId: managedOrgId,
         executionStatus: 'in_progress',
-        deadline: yesterday
-      }
+        deadline: yesterday,
+      },
     });
     const stalledOrder = await prisma.order.create({
       data: {
@@ -303,13 +303,13 @@ describe('manager dashboard service — attention', () => {
         companyId,
         partnerId,
         organizationId: managedOrgId,
-        executionStatus: 'in_progress'
-      }
+        executionStatus: 'in_progress',
+      },
     });
     // Backdate updatedAt to >14d ago.
     await prisma.order.update({
       where: { id: stalledOrder.id },
-      data: { updatedAt: monthAgo }
+      data: { updatedAt: monthAgo },
     });
 
     const session = managerSession(managerUserId, [managedOrgId]);
@@ -338,8 +338,8 @@ describe('manager dashboard service — attention', () => {
         companyId,
         partnerId,
         organizationId: managedOrgId,
-        executionStatus: 'in_progress'
-      }
+        executionStatus: 'in_progress',
+      },
     });
     const doc = await prisma.document.create({
       data: {
@@ -349,12 +349,12 @@ describe('manager dashboard service — attention', () => {
         type: 'act',
         orderId: order.id,
         counterpartyType: 'organization',
-        counterpartyId: managedOrgId
-      }
+        counterpartyId: managedOrgId,
+      },
     });
     await prisma.document.update({
       where: { id: doc.id },
-      data: { createdAt: fiveDaysAgo }
+      data: { createdAt: fiveDaysAgo },
     });
 
     const session = managerSession(managerUserId, [managedOrgId]);
@@ -375,20 +375,20 @@ describe('manager dashboard service — attention', () => {
         companyId,
         partnerId,
         organizationId: managedOrgId,
-        executionStatus: 'in_progress'
-      }
+        executionStatus: 'in_progress',
+      },
     });
 
     const oldOrgComment = await prisma.comment.create({
       data: {
         orderId: order.id,
         body: 'нужна помощь',
-        authorId: orgUserId
-      }
+        authorId: orgUserId,
+      },
     });
     await prisma.comment.update({
       where: { id: oldOrgComment.id },
-      data: { createdAt: twoDaysAgo }
+      data: { createdAt: twoDaysAgo },
     });
 
     const session = managerSession(managerUserId, [managedOrgId]);
@@ -409,8 +409,8 @@ describe('manager dashboard service — attention', () => {
         partnerId: foreignPartnerId,
         organizationId: foreignOrgId,
         executionStatus: 'in_progress',
-        deadline: yesterday
-      }
+        deadline: yesterday,
+      },
     });
 
     const session = managerSession(managerUserId, [managedOrgId]);
@@ -435,8 +435,8 @@ describe('manager dashboard service — recentEvents', () => {
         companyId,
         partnerId,
         organizationId: managedOrgId,
-        executionStatus: 'in_progress'
-      }
+        executionStatus: 'in_progress',
+      },
     });
     const doc = await prisma.document.create({
       data: {
@@ -446,18 +446,18 @@ describe('manager dashboard service — recentEvents', () => {
         type: 'other',
         orderId: order.id,
         counterpartyType: 'organization',
-        counterpartyId: managedOrgId
-      }
+        counterpartyId: managedOrgId,
+      },
     });
     const payment = await prisma.payment.create({
-      data: { organizationId: managedOrgId, orderId: order.id, amount: 1234, paidAt: new Date() }
+      data: { organizationId: managedOrgId, orderId: order.id, amount: 1234, paidAt: new Date() },
     });
     const comment = await prisma.comment.create({
       data: {
         orderId: order.id,
         body: 'Тестовый комментарий для events feed (длинная строка проверяющая slice 100 символов на тексте сообщения)',
-        authorId: orgUserId
-      }
+        authorId: orgUserId,
+      },
     });
 
     const session = managerSession(managerUserId, [managedOrgId]);
@@ -485,11 +485,16 @@ describe('manager dashboard service — recentEvents', () => {
         companyId,
         partnerId: foreignPartnerId,
         organizationId: foreignOrgId,
-        executionStatus: 'in_progress'
-      }
+        executionStatus: 'in_progress',
+      },
     });
     const foreignPayment = await prisma.payment.create({
-      data: { organizationId: foreignOrgId, orderId: foreignOrder.id, amount: 999, paidAt: new Date() }
+      data: {
+        organizationId: foreignOrgId,
+        orderId: foreignOrder.id,
+        amount: 999,
+        paidAt: new Date(),
+      },
     });
 
     const session = managerSession(managerUserId, [managedOrgId]);

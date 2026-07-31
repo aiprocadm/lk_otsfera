@@ -9,7 +9,7 @@ vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
 
 const { partnerFindMany } = vi.hoisted(() => ({ partnerFindMany: vi.fn() }));
 vi.mock('@/lib/db/prisma', () => ({
-  prisma: { partner: { findMany: partnerFindMany } }
+  prisma: { partner: { findMany: partnerFindMany } },
 }));
 
 const { getUser } = vi.hoisted(() => ({ getUser: vi.fn() }));
@@ -19,7 +19,7 @@ const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
@@ -31,12 +31,17 @@ vi.mock('@/components/admin/user-edit-form', () => ({
       JSON.stringify(props.user),
       JSON.stringify(props.partners),
       String(props.isSelf)
-    )
+    ),
 }));
 
 vi.mock('@/components/admin/manager-role-control', () => ({
   ManagerRoleControl: (props: { userId: string; current: unknown }) =>
-    React.createElement('div', { 'data-testid': 'manager-role-control' }, props.userId, String(props.current))
+    React.createElement(
+      'div',
+      { 'data-testid': 'manager-role-control' },
+      props.userId,
+      String(props.current)
+    ),
 }));
 
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
@@ -44,9 +49,8 @@ vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 
 vi.mock('@/components/admin/admin-backup-codes-control', () => ({
   AdminBackupCodesControl: (props: { userId: string }) =>
-    React.createElement('div', { 'data-testid': 'admin-backup-codes' }, props.userId)
+    React.createElement('div', { 'data-testid': 'admin-backup-codes' }, props.userId),
 }));
-
 
 const SESSION = { sub: 'admin1', role: 'admin' as const };
 
@@ -55,7 +59,7 @@ const USER = {
   name: 'Иван Иванов',
   email: 'ivan@x.com',
   role: 'manager',
-  managerRole: 'member'
+  managerRole: 'member',
 };
 
 describe('EditUserPage', () => {

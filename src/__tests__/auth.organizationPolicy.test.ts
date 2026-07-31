@@ -8,7 +8,7 @@ import {
   organizationOrgScopeFilter,
   organizationOrderScopeFilter,
   canSeeOrder,
-  canSeeDocument
+  canSeeDocument,
 } from '@/lib/auth/organizationPolicy';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
@@ -24,7 +24,7 @@ describe('activeOrgIds', () => {
   it('filters out inactive memberships', () => {
     const session = s([
       { organizationId: 'A', roleInOrg: 'admin', isActive: true },
-      { organizationId: 'B', roleInOrg: 'member', isActive: false }
+      { organizationId: 'B', roleInOrg: 'member', isActive: false },
     ]);
     expect(activeOrgIds(session)).toEqual(['A']);
   });
@@ -33,7 +33,7 @@ describe('activeOrgIds', () => {
 describe('isOrgMember', () => {
   const session = s([
     { organizationId: 'A', roleInOrg: 'admin', isActive: true },
-    { organizationId: 'B', roleInOrg: 'member', isActive: false }
+    { organizationId: 'B', roleInOrg: 'member', isActive: false },
   ]);
 
   it('true for active membership', () => {
@@ -52,7 +52,7 @@ describe('isOrgMember', () => {
 describe('isOrgAdmin', () => {
   const session = s([
     { organizationId: 'A', roleInOrg: 'admin', isActive: true },
-    { organizationId: 'B', roleInOrg: 'member', isActive: true }
+    { organizationId: 'B', roleInOrg: 'member', isActive: true },
   ]);
 
   it('true for active admin role', () => {
@@ -67,7 +67,7 @@ describe('isOrgAdmin', () => {
 describe('scope filters', () => {
   const session = s([
     { organizationId: 'A', roleInOrg: 'admin', isActive: true },
-    { organizationId: 'B', roleInOrg: 'member', isActive: true }
+    { organizationId: 'B', roleInOrg: 'member', isActive: true },
   ]);
 
   it('organizationOrgScopeFilter returns id IN list', () => {
@@ -76,7 +76,7 @@ describe('scope filters', () => {
 
   it('organizationOrderScopeFilter returns organizationId IN list', () => {
     expect(organizationOrderScopeFilter(session)).toEqual({
-      organizationId: { in: ['A', 'B'] }
+      organizationId: { in: ['A', 'B'] },
     });
   });
 
@@ -122,7 +122,7 @@ describe('canSeeDocument', () => {
 describe('isOrgLeader', () => {
   const session = s([
     { organizationId: 'A', roleInOrg: 'leader', isActive: true },
-    { organizationId: 'B', roleInOrg: 'admin', isActive: true }
+    { organizationId: 'B', roleInOrg: 'admin', isActive: true },
   ]);
   it('true only for active leader membership in the org', () => {
     expect(isOrgLeader(session, 'A')).toBe(true);
@@ -140,7 +140,7 @@ describe('canSeeIntermediaryCommission', () => {
   const session = s([
     { organizationId: 'A', roleInOrg: 'admin', isActive: true },
     { organizationId: 'B', roleInOrg: 'leader', isActive: true },
-    { organizationId: 'C', roleInOrg: 'member', isActive: true }
+    { organizationId: 'C', roleInOrg: 'member', isActive: true },
   ]);
   it('true for admin and leader, false for member', () => {
     expect(canSeeIntermediaryCommission(session, 'A')).toBe(true);

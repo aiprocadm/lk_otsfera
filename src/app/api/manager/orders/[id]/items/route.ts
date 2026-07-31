@@ -6,17 +6,18 @@ import { listOrderItems, addOrderItem } from '@/lib/services/training/orderItems
 
 function mapError(error: string): number {
   switch (error) {
-    case 'forbidden': return 403;
-    case 'not_found': return 404;
-    case 'duplicate_position': return 409;
-    default: return 400; // direction_inactive | student_mismatch | validation
+    case 'forbidden':
+      return 403;
+    case 'not_found':
+      return 404;
+    case 'duplicate_position':
+      return 409;
+    default:
+      return 400; // direction_inactive | student_mismatch | validation
   }
 }
 
-export async function GET(
-  _req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const disabled = notFoundIfDisabled('manager_cabinet');
   if (disabled) return disabled;
 
@@ -27,16 +28,13 @@ export async function GET(
   return NextResponse.json({ items: res.items });
 }
 
-export async function POST(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const disabled = notFoundIfDisabled('manager_cabinet');
   if (disabled) return disabled;
 
   const session = await requireManager();
   const { id } = await params;
-  const body = await req.json() as { studentId: string; directionId: string; note?: string };
+  const body = (await req.json()) as { studentId: string; directionId: string; note?: string };
   const res = await addOrderItem(prisma, session, {
     orderId: id,
     studentId: body.studentId,

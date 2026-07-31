@@ -43,7 +43,7 @@ export async function listOrganizations(
     where.OR = [
       { name: { contains: filters.q, mode: 'insensitive' } },
       { inn: { contains: filters.q, mode: 'insensitive' } },
-      { externalId: { contains: filters.q, mode: 'insensitive' } }
+      { externalId: { contains: filters.q, mode: 'insensitive' } },
     ];
   }
   if (filters.partnerId) where.partnerId = filters.partnerId;
@@ -55,13 +55,13 @@ export async function listOrganizations(
       where,
       include: {
         partner: { select: { id: true, name: true } },
-        _count: { select: { orders: true, organizationUsers: true } }
+        _count: { select: { orders: true, organizationUsers: true } },
       },
       orderBy: { name: 'asc' },
       take,
-      skip
+      skip,
     }),
-    prisma.organization.count({ where })
+    prisma.organization.count({ where }),
   ]);
 
   const rows: OrgRow[] = orgs.map((o) => ({
@@ -72,7 +72,8 @@ export async function listOrganizations(
     partner: o.partner ? { id: o.partner.id, name: o.partner.name } : null,
     ordersCount: o._count.orders,
     organizationUsersCount: o._count.organizationUsers,
-    partnerCommissionRate: o.partnerCommissionRate !== null ? Number(o.partnerCommissionRate) : null
+    partnerCommissionRate:
+      o.partnerCommissionRate !== null ? Number(o.partnerCommissionRate) : null,
   }));
 
   return { rows, total };
@@ -102,8 +103,8 @@ export async function getOrganization(prisma: PrismaClient, id: string): Promise
       partnerId: true,
       partner: { select: { id: true, name: true } },
       partnerCommissionRate: true,
-      partnerCommissionRateNote: true
-    }
+      partnerCommissionRateNote: true,
+    },
   });
   if (!o) return null;
   return {
@@ -114,8 +115,9 @@ export async function getOrganization(prisma: PrismaClient, id: string): Promise
     externalId: o.externalId,
     partnerId: o.partnerId,
     partner: o.partner ? { id: o.partner.id, name: o.partner.name } : null,
-    partnerCommissionRate: o.partnerCommissionRate !== null ? Number(o.partnerCommissionRate) : null,
-    partnerCommissionRateNote: o.partnerCommissionRateNote
+    partnerCommissionRate:
+      o.partnerCommissionRate !== null ? Number(o.partnerCommissionRate) : null,
+    partnerCommissionRateNote: o.partnerCommissionRateNote,
   };
 }
 
@@ -154,14 +156,14 @@ export async function createOrganization(
     const id = await prisma.$transaction(async (tx) => {
       const company = await tx.company.create({ data: { name } });
       const org = await tx.organization.create({
-        data: { name, inn, kpp, externalId: null, companyId: company.id }
+        data: { name, inn, kpp, externalId: null, companyId: company.id },
       });
       await recordAudit(tx, {
         userId: actorUserId,
         action: 'organization_created_manual',
         entity: 'organization',
         entityId: org.id,
-        after: { name, inn, kpp, source: 'manual' }
+        after: { name, inn, kpp, source: 'manual' },
       });
       return org.id;
     });
@@ -191,7 +193,7 @@ export async function updateOrganization(
     await prisma.$transaction(async (tx) => {
       const before = await tx.organization.findUnique({
         where: { id },
-        select: { name: true, inn: true, kpp: true }
+        select: { name: true, inn: true, kpp: true },
       });
       if (!before) throw new AdminOrgError('not_found');
 
@@ -200,8 +202,8 @@ export async function updateOrganization(
         data: {
           ...(args.name !== undefined ? { name: args.name } : {}),
           ...(args.inn !== undefined ? { inn: args.inn } : {}),
-          ...(args.kpp !== undefined ? { kpp: args.kpp } : {})
-        }
+          ...(args.kpp !== undefined ? { kpp: args.kpp } : {}),
+        },
       });
 
       await recordAudit(tx, {
@@ -210,7 +212,7 @@ export async function updateOrganization(
         entity: 'organization',
         entityId: id,
         before,
-        after: args
+        after: args,
       });
     });
     return { ok: true };

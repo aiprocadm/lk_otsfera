@@ -28,7 +28,11 @@ describe('ManagerRoleControl', () => {
 
   it('clicking promote calls the action with role=leader and disables the button while pending', async () => {
     let resolvePromise: (v: unknown) => void = () => {};
-    setManagerRoleAction.mockReturnValue(new Promise((resolve) => { resolvePromise = resolve; }));
+    setManagerRoleAction.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePromise = resolve;
+      })
+    );
 
     render(React.createElement(ManagerRoleControl, { userId: 'u1', current: null }));
     const button = screen.getByRole('button', { name: 'Назначить руководителем' });

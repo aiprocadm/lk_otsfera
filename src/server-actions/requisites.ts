@@ -6,7 +6,10 @@ import { requireSession } from '@/lib/auth/requireRole';
 import { setOrgRequisites } from '@/lib/services/organization/requisites';
 import { setPartnerRequisites } from '@/lib/services/partner/requisites';
 import { setCompanyRequisites } from '@/lib/services/admin/companyRequisites';
-import { setOrgRequisitesByAdmin, setPartnerRequisitesByAdmin } from '@/lib/services/admin/counterpartyRequisites';
+import {
+  setOrgRequisitesByAdmin,
+  setPartnerRequisitesByAdmin,
+} from '@/lib/services/admin/counterpartyRequisites';
 import type { RequisitesInput } from '@/lib/requisites/validate';
 
 /**
@@ -36,7 +39,7 @@ function requisitesInput(fd: FormData): RequisitesInput {
     bic: f('bic'),
     signerName: f('signerName'),
     signerPosition: f('signerPosition'),
-    signerBasis: f('signerBasis')
+    signerBasis: f('signerBasis'),
   };
 }
 
@@ -65,7 +68,7 @@ export async function setCompanyRequisitesAction(fd: FormData): Promise<Requisit
   const res = await setCompanyRequisites(prisma, session, companyId, {
     ...requisitesInput(fd),
     phone: str(fd, 'phone') || null,
-    email: str(fd, 'email') || null
+    email: str(fd, 'email') || null,
   });
   if (!res.ok) return res;
   revalidatePath('/admin/settings');
@@ -82,7 +85,9 @@ export async function setOrgRequisitesByAdminAction(fd: FormData): Promise<Requi
   return { ok: true };
 }
 
-export async function setPartnerRequisitesByAdminAction(fd: FormData): Promise<RequisitesActionResult> {
+export async function setPartnerRequisitesByAdminAction(
+  fd: FormData
+): Promise<RequisitesActionResult> {
   const session = await requireSession();
   const partnerId = str(fd, 'partnerId');
   if (!partnerId) return { ok: false, error: 'validation' };

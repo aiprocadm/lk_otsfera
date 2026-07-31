@@ -15,7 +15,7 @@ const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() })
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
@@ -32,7 +32,12 @@ vi.mock('@/lib/services/enrollments/detail', () => ({ getEnrollmentRequest }));
 
 vi.mock('@/components/organization/org-app-shell', () => ({
   OrgAppShell: (props: { activeOrgName: string; children: React.ReactNode }) =>
-    React.createElement('div', { 'data-testid': 'org-app-shell' }, props.activeOrgName, props.children)
+    React.createElement(
+      'div',
+      { 'data-testid': 'org-app-shell' },
+      props.activeOrgName,
+      props.children
+    ),
 }));
 
 // Презентационная деталка покрыта своими W1-тестами; здесь — стаб с
@@ -43,7 +48,7 @@ vi.mock('@/components/enrollment/enrollment-detail-view', () => ({
       'div',
       { 'data-testid': 'enrollment-detail-view', 'data-back': props.backHref },
       props.detail.directionName
-    )
+    ),
 }));
 
 import OrganizationEnrollmentDetailPage from '@/app/organization/enrollments/[id]/page';
@@ -55,7 +60,7 @@ const ORG_CTX = {
   activeOrgId: 'org-1',
   activeOrgName: 'ООО Ромашка',
   memberships: [],
-  viewerRole: 'admin' as const
+  viewerRole: 'admin' as const,
 };
 const PARTNER_SESSION = { sub: 'p1', role: 'partner' as const, partnerId: 'pt-1' };
 const DETAIL = { id: 'E1', directionName: 'Охрана труда', items: [] };
@@ -71,7 +76,9 @@ beforeEach(() => {
 describe('OrganizationEnrollmentDetailPage', () => {
   it('флаг off → notFound, контекст не запрашивается', async () => {
     isFeatureEnabled.mockReturnValue(false);
-    await expect(renderServerComponent(OrganizationEnrollmentDetailPage(props('E1')))).rejects.toThrow('NOT_FOUND');
+    await expect(
+      renderServerComponent(OrganizationEnrollmentDetailPage(props('E1')))
+    ).rejects.toThrow('NOT_FOUND');
     expect(isFeatureEnabled).toHaveBeenCalledWith('enrollment_requests');
     expect(getOrgPageContext).not.toHaveBeenCalled();
   });
@@ -80,7 +87,9 @@ describe('OrganizationEnrollmentDetailPage', () => {
     isFeatureEnabled.mockReturnValue(true);
     getOrgPageContext.mockResolvedValue(ORG_CTX);
     getEnrollmentRequest.mockResolvedValue({ ok: false, error: 'not_found' });
-    await expect(renderServerComponent(OrganizationEnrollmentDetailPage(props('чужая')))).rejects.toThrow('NOT_FOUND');
+    await expect(
+      renderServerComponent(OrganizationEnrollmentDetailPage(props('чужая')))
+    ).rejects.toThrow('NOT_FOUND');
     expect(getEnrollmentRequest).toHaveBeenCalledWith({}, ORG_CTX.session, 'чужая');
   });
 
@@ -89,21 +98,25 @@ describe('OrganizationEnrollmentDetailPage', () => {
     getOrgPageContext.mockResolvedValue(ORG_CTX);
     getEnrollmentRequest.mockResolvedValue({ ok: true, request: DETAIL });
 
-    const { container } = await renderServerComponent(OrganizationEnrollmentDetailPage(props('E1')));
+    const { container } = await renderServerComponent(
+      OrganizationEnrollmentDetailPage(props('E1'))
+    );
 
     expect(container.textContent).toContain('Охрана труда');
     expect(container.textContent).toContain('ООО Ромашка');
     expect(container.querySelector('[data-testid="org-app-shell"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="enrollment-detail-view"]')?.getAttribute('data-back')).toBe(
-      '/organization/enrollments'
-    );
+    expect(
+      container.querySelector('[data-testid="enrollment-detail-view"]')?.getAttribute('data-back')
+    ).toBe('/organization/enrollments');
   });
 });
 
 describe('PartnerEnrollmentDetailPage', () => {
   it('флаг off → notFound, requirePartner не вызывается', async () => {
     isFeatureEnabled.mockReturnValue(false);
-    await expect(renderServerComponent(PartnerEnrollmentDetailPage(props('E1')))).rejects.toThrow('NOT_FOUND');
+    await expect(renderServerComponent(PartnerEnrollmentDetailPage(props('E1')))).rejects.toThrow(
+      'NOT_FOUND'
+    );
     expect(requirePartner).not.toHaveBeenCalled();
   });
 
@@ -111,7 +124,9 @@ describe('PartnerEnrollmentDetailPage', () => {
     isFeatureEnabled.mockReturnValue(true);
     requirePartner.mockResolvedValue(PARTNER_SESSION);
     getEnrollmentRequest.mockResolvedValue({ ok: false, error: 'not_found' });
-    await expect(renderServerComponent(PartnerEnrollmentDetailPage(props('E404')))).rejects.toThrow('NOT_FOUND');
+    await expect(renderServerComponent(PartnerEnrollmentDetailPage(props('E404')))).rejects.toThrow(
+      'NOT_FOUND'
+    );
     expect(getEnrollmentRequest).toHaveBeenCalledWith({}, PARTNER_SESSION, 'E404');
   });
 
@@ -123,8 +138,8 @@ describe('PartnerEnrollmentDetailPage', () => {
     const { container } = await renderServerComponent(PartnerEnrollmentDetailPage(props('E1')));
 
     expect(container.textContent).toContain('Охрана труда');
-    expect(container.querySelector('[data-testid="enrollment-detail-view"]')?.getAttribute('data-back')).toBe(
-      '/partner/enrollments'
-    );
+    expect(
+      container.querySelector('[data-testid="enrollment-detail-view"]')?.getAttribute('data-back')
+    ).toBe('/partner/enrollments');
   });
 });

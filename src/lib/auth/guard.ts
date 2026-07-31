@@ -24,14 +24,18 @@ export function requireRole(session: SessionPayload, roles: Role[]): GuardResult
   return { ok: true, value: session };
 }
 
-export async function requireOrderAccess(session: SessionPayload, order: { id: string; companyId: string }): Promise<GuardResult<SessionPayload>> {
+export async function requireOrderAccess(
+  session: SessionPayload,
+  order: { id: string; companyId: string }
+): Promise<GuardResult<SessionPayload>> {
   const canRead = await canReadOrder(session, order);
   if (!canRead) return { ok: false, response: forbiddenResponse() };
   return { ok: true, value: session };
 }
 
 export function requireAdmin(session: SessionPayload): GuardResult<SessionPayload> {
-  if (session.role !== 'admin') return { ok: false, response: forbiddenResponse('Admin access only') };
+  if (session.role !== 'admin')
+    return { ok: false, response: forbiddenResponse('Admin access only') };
   return { ok: true, value: session };
 }
 
@@ -48,14 +52,18 @@ export function requireFieldsAdmin(session: SessionPayload): GuardResult<Session
   return { ok: false, response: forbiddenResponse('Admin or leader access only') };
 }
 
-export function requirePartner(session: SessionPayload): GuardResult<SessionPayload & { partnerId: string }> {
+export function requirePartner(
+  session: SessionPayload
+): GuardResult<SessionPayload & { partnerId: string }> {
   if (session.role !== 'partner' || !session.partnerId) {
     return { ok: false, response: forbiddenResponse('Partner access only') };
   }
   return { ok: true, value: session as SessionPayload & { partnerId: string } };
 }
 
-export function requirePartnerAdmin(session: SessionPayload): GuardResult<SessionPayload & { partnerId: string }> {
+export function requirePartnerAdmin(
+  session: SessionPayload
+): GuardResult<SessionPayload & { partnerId: string }> {
   const partnerResult = requirePartner(session);
   if (!partnerResult.ok) return partnerResult;
   if (!isPartnerAdmin(session)) {

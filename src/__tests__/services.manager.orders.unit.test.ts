@@ -10,14 +10,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const { getCompanyTeamVisibility, canSeeOrder, isLeaderSameCompany } = vi.hoisted(() => ({
   getCompanyTeamVisibility: vi.fn(),
   canSeeOrder: vi.fn(),
-  isLeaderSameCompany: vi.fn()
+  isLeaderSameCompany: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/managerPolicy', () => ({
   getCompanyTeamVisibility,
   canSeeOrder,
   isLeaderSameCompany,
-  managerOrderScope: vi.fn().mockReturnValue({})
+  managerOrderScope: vi.fn().mockReturnValue({}),
 }));
 
 import { listOrders, getOrder } from '@/lib/services/manager/orders';
@@ -27,16 +27,16 @@ const SESSION: SessionPayload = {
   sub: 'mgr-1',
   role: 'manager',
   managedOrgIds: ['org-1'],
-  companyId: 'co-1'
+  companyId: 'co-1',
 };
 
 function fakePrisma(rows: unknown[] = []) {
   return {
     order: {
       findMany: vi.fn().mockResolvedValue(rows),
-      findUnique: vi.fn().mockResolvedValue(null)
+      findUnique: vi.fn().mockResolvedValue(null),
     },
-    company: { findUnique: vi.fn() }
+    company: { findUnique: vi.fn() },
   } as never;
 }
 
@@ -86,8 +86,8 @@ describe('listOrders — filter branches', () => {
     expect(filters).toContainEqual({
       OR: [
         { title: { contains: 'тест', mode: 'insensitive' } },
-        { orderNumber: { contains: 'тест', mode: 'insensitive' } }
-      ]
+        { orderNumber: { contains: 'тест', mode: 'insensitive' } },
+      ],
     });
   });
 
@@ -97,9 +97,8 @@ describe('listOrders — filter branches', () => {
     await listOrders(p, { session: SESSION, search: 'ABC-123' });
     const where = findMany.mock.calls[0][0].where;
     const filters = where.AND as unknown[];
-    const searchFilter = filters.find(
-      (f) => typeof f === 'object' && f !== null && 'OR' in f
-    ) as { OR: unknown[] } | undefined;
+    const searchFilter = filters.find((f) => typeof f === 'object' && f !== null && 'OR' in f) as
+      { OR: unknown[] } | undefined;
     expect(searchFilter).toBeDefined();
     expect(searchFilter!.OR).toHaveLength(2);
   });
@@ -173,8 +172,12 @@ describe('getOrder', () => {
     canSeeOrder.mockReturnValue(false);
     isLeaderSameCompany.mockReturnValue(false);
     const order = {
-      id: 'ord-1', managerId: 'other', organizationId: 'org-1', companyId: 'co-1',
-      comments: [], _count: { comments: 0 }
+      id: 'ord-1',
+      managerId: 'other',
+      organizationId: 'org-1',
+      companyId: 'co-1',
+      comments: [],
+      _count: { comments: 0 },
     };
     const findUnique = vi.fn().mockResolvedValue(order);
     const p = { order: { findMany: vi.fn(), findUnique } } as never;
@@ -186,10 +189,19 @@ describe('getOrder', () => {
     isLeaderSameCompany.mockReturnValue(true);
     canSeeOrder.mockReturnValue(false); // would block if checked
     const order = {
-      id: 'ord-1', managerId: 'other', organizationId: 'org-1', companyId: 'co-1',
-      title: 'Test', orderNumber: 'O-1', executionStatus: 'pending',
-      comments: [{ id: 'c-1' }], _count: { comments: 1 },
-      documents: [], payments: [], manager: null, organization: null
+      id: 'ord-1',
+      managerId: 'other',
+      organizationId: 'org-1',
+      companyId: 'co-1',
+      title: 'Test',
+      orderNumber: 'O-1',
+      executionStatus: 'pending',
+      comments: [{ id: 'c-1' }],
+      _count: { comments: 1 },
+      documents: [],
+      payments: [],
+      manager: null,
+      organization: null,
     };
     const findUnique = vi.fn().mockResolvedValue(order);
     const p = { order: { findMany: vi.fn(), findUnique } } as never;
@@ -204,10 +216,19 @@ describe('getOrder', () => {
     isLeaderSameCompany.mockReturnValue(false);
     canSeeOrder.mockReturnValue(true);
     const order = {
-      id: 'ord-1', managerId: 'mgr-1', organizationId: 'org-1', companyId: 'co-1',
-      title: 'Test', orderNumber: 'O-1', executionStatus: 'pending',
-      comments: [], _count: { comments: 0 },
-      documents: [], payments: [], manager: null, organization: null
+      id: 'ord-1',
+      managerId: 'mgr-1',
+      organizationId: 'org-1',
+      companyId: 'co-1',
+      title: 'Test',
+      orderNumber: 'O-1',
+      executionStatus: 'pending',
+      comments: [],
+      _count: { comments: 0 },
+      documents: [],
+      payments: [],
+      manager: null,
+      organization: null,
     };
     const findUnique = vi.fn().mockResolvedValue(order);
     const p = { order: { findMany: vi.fn(), findUnique } } as never;

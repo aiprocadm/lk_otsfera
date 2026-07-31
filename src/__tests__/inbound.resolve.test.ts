@@ -38,7 +38,10 @@ describe('resolveInboundSender', () => {
   it('ambiguous (>1 user) → unresolved (never cross-bind)', async () => {
     const a = { id: 'u1', organizationId: 'o1', organization: { id: 'o1', companyId: 'c1' } };
     const b = { id: 'u2', organizationId: 'o2', organization: { id: 'o2', companyId: 'c2' } };
-    const r = await resolveInboundSender(db([a, b]), { channel: 'whatsapp', phone: '+79990001122' });
+    const r = await resolveInboundSender(db([a, b]), {
+      channel: 'whatsapp',
+      phone: '+79990001122',
+    });
     expect(r.matchType).toBe('unresolved');
   });
 
@@ -60,19 +63,37 @@ describe('resolveInboundSender', () => {
     const d = db([u]);
     const r = await resolveInboundSender(d, { channel: 'whatsapp', phone: '+7 (999) 000-11-22' });
     expect(r).toMatchObject({ matchType: 'exact', userId: 'u1' });
-    expect(d.user.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { whatsappPhone: '+79990001122' } }));
+    expect(d.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { whatsappPhone: '+79990001122' } })
+    );
   });
 
   it('email lookup is case-insensitive (mode: insensitive), not lowercased', async () => {
     const u = { id: 'u1', organizationId: 'o1', organization: { id: 'o1', companyId: 'c1' } };
     const d = db([u]);
     await resolveInboundSender(d, { channel: 'email', email: '  John@Example.COM ' });
-    expect(d.user.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { email: { equals: 'John@Example.COM', mode: 'insensitive' } } }));
+    expect(d.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { email: { equals: 'John@Example.COM', mode: 'insensitive' } },
+      })
+    );
   });
 
   it('resolves via ContactChannel first (before User); sets contactId', async () => {
     const d = {
-      contactChannel: { findMany: vi.fn(async () => [{ contact: { id: 'k1', organizationId: 'o9', companyId: 'c9', userId: null, isArchived: false } }]) },
+      contactChannel: {
+        findMany: vi.fn(async () => [
+          {
+            contact: {
+              id: 'k1',
+              organizationId: 'o9',
+              companyId: 'c9',
+              userId: null,
+              isArchived: false,
+            },
+          },
+        ]),
+      },
       user: { findMany: vi.fn(async () => []) },
     } as any;
     const r = await resolveInboundSender(d, { channel: 'telegram', chatId: 'tg-1' });
@@ -83,27 +104,70 @@ describe('resolveInboundSender', () => {
   it('a resolved contact linked to a portal User surfaces that userId', async () => {
     // Covers the `hit.userId ? { userId } : {}` true-leg on the contact-first path.
     const d = {
-      contactChannel: { findMany: vi.fn(async () => [{ contact: { id: 'k7', organizationId: 'o7', companyId: 'c7', userId: 'u7', isArchived: false } }]) },
+      contactChannel: {
+        findMany: vi.fn(async () => [
+          {
+            contact: {
+              id: 'k7',
+              organizationId: 'o7',
+              companyId: 'c7',
+              userId: 'u7',
+              isArchived: false,
+            },
+          },
+        ]),
+      },
       user: { findMany: vi.fn(async () => []) },
     } as any;
     const r = await resolveInboundSender(d, { channel: 'telegram', chatId: 'tg-7' });
-    expect(r).toMatchObject({ matchType: 'exact', orgId: 'o7', companyId: 'c7', contactId: 'k7', userId: 'u7' });
+    expect(r).toMatchObject({
+      matchType: 'exact',
+      orgId: 'o7',
+      companyId: 'c7',
+      contactId: 'k7',
+      userId: 'u7',
+    });
     expect(d.user.findMany).not.toHaveBeenCalled();
   });
 
   it('falls back to User when no contact channel matches', async () => {
     const d = {
       contactChannel: { findMany: vi.fn(async () => []) },
-      user: { findMany: vi.fn(async () => [{ id: 'u1', organizationId: 'o1', organization: { id: 'o1', companyId: 'c1' } }]) },
+      user: {
+        findMany: vi.fn(async () => [
+          { id: 'u1', organizationId: 'o1', organization: { id: 'o1', companyId: 'c1' } },
+        ]),
+      },
     } as any;
     const r = await resolveInboundSender(d, { channel: 'telegram', chatId: 'tg-2' });
-    expect(r).toMatchObject({ matchType: 'exact', userId: 'u1', orgId: 'o1', contactId: undefined });
+    expect(r).toMatchObject({
+      matchType: 'exact',
+      userId: 'u1',
+      orgId: 'o1',
+      contactId: undefined,
+    });
   });
 
   it('an org-less contact hit falls through to the User path (inbound needs an org to bind)', async () => {
     const d = {
-      contactChannel: { findMany: vi.fn(async () => [{ contact: { id: 'k2', organizationId: null, companyId: 'c9', userId: null, isArchived: false } }]) },
-      user: { findMany: vi.fn(async () => [{ id: 'u1', organizationId: 'o1', organization: { id: 'o1', companyId: 'c1' } }]) },
+      contactChannel: {
+        findMany: vi.fn(async () => [
+          {
+            contact: {
+              id: 'k2',
+              organizationId: null,
+              companyId: 'c9',
+              userId: null,
+              isArchived: false,
+            },
+          },
+        ]),
+      },
+      user: {
+        findMany: vi.fn(async () => [
+          { id: 'u1', organizationId: 'o1', organization: { id: 'o1', companyId: 'c1' } },
+        ]),
+      },
     } as any;
     const r = await resolveInboundSender(d, { channel: 'telegram', chatId: 'tg-3' });
     expect(r).toMatchObject({ matchType: 'exact', userId: 'u1', orgId: 'o1' });

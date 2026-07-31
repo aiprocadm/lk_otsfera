@@ -11,7 +11,10 @@ import { log } from '@/lib/logging';
 
 /** Russian month-year label, e.g. "май 2026" (no «г.» suffix). */
 function formatPeriod(periodFrom: Date): string {
-  const month = new Intl.DateTimeFormat('ru-RU', { month: 'long', timeZone: 'Europe/Moscow' }).format(periodFrom);
+  const month = new Intl.DateTimeFormat('ru-RU', {
+    month: 'long',
+    timeZone: 'Europe/Moscow',
+  }).format(periodFrom);
   return `${month} ${periodFrom.getFullYear()}`;
 }
 
@@ -44,7 +47,9 @@ export async function calculateMonthlyCommissionsProcessor(
     const detected = await detectLateRefundCorrections(db);
     if (detected > 0) log.info('[worker] late-refund corrections detected', { detected });
   } catch (e) {
-    log.warn('[worker] correction detection failed', { error: e instanceof Error ? e.message : String(e) });
+    log.warn('[worker] correction detection failed', {
+      error: e instanceof Error ? e.message : String(e),
+    });
   }
 
   // Партнёры, у кого есть хотя бы один платёж в периоде (по paidAt). При истории
@@ -58,10 +63,13 @@ export async function calculateMonthlyCommissionsProcessor(
       OR: [
         { order: { partnerId: { not: null } } },
         { order: { partnerId: null }, organization: { partnerId: { not: null } } },
-        { orderId: null, organization: { partnerId: { not: null } } }
-      ]
+        { orderId: null, organization: { partnerId: { not: null } } },
+      ],
     },
-    select: { order: { select: { partnerId: true } }, organization: { select: { partnerId: true } } }
+    select: {
+      order: { select: { partnerId: true } },
+      organization: { select: { partnerId: true } },
+    },
   });
   const partnerIdSet = new Set<string>();
   for (const p of paymentRows) {
@@ -80,7 +88,7 @@ export async function calculateMonthlyCommissionsProcessor(
         partnerId,
         periodFrom,
         periodTo,
-        calculatedByUserId: null
+        calculatedByUserId: null,
       });
       if (!result.ok) {
         // partner_not_found only — the partner vanished mid-batch; record and move on.
@@ -104,13 +112,13 @@ export async function calculateMonthlyCommissionsProcessor(
               payload: {
                 statementId: result.statement.id,
                 period: formatPeriod(result.statement.periodFrom),
-                amount: fmtMoney(result.statement.totalCommissionAmount.toString())
-              }
+                amount: fmtMoney(result.statement.totalCommissionAmount.toString()),
+              },
             });
           } catch (e) {
             log.warn('[worker] commission-ready notify failed', {
               partnerId,
-              error: e instanceof Error ? e.message : String(e)
+              error: e instanceof Error ? e.message : String(e),
             });
           }
         }
@@ -125,7 +133,7 @@ export async function calculateMonthlyCommissionsProcessor(
     periodTo: periodTo.toISOString(),
     partnersProcessed,
     partnersSkipped,
-    errors
+    errors,
   };
 
   // Continue-on-error per partner is intentional (one broken partner must not
@@ -139,7 +147,7 @@ export async function calculateMonthlyCommissionsProcessor(
       failed: errors.length,
       processed: partnersProcessed,
       skipped: partnersSkipped,
-      errors
+      errors,
     });
     await writeSyncLog(
       {
@@ -150,7 +158,7 @@ export async function calculateMonthlyCommissionsProcessor(
         errorMessage: `monthly commissions: ${errors.length} partner(s) failed${allFailed ? ' (ALL failed)' : ''}: ${errors
           .slice(0, 5)
           .map((e) => `${e.partnerId}: ${e.error}`)
-          .join('; ')}`
+          .join('; ')}`,
       },
       db
     ).catch((e) => log.warn('[worker] calculate-monthly-commissions writeSyncLog failed', e));

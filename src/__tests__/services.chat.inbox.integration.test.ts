@@ -27,12 +27,12 @@ let partnerSession: SessionPayload;
 
 async function seedData() {
   const partner = await prisma.partner.create({
-    data: { name: `${PREFIX}-Partner`, slug: PARTNER_SLUG, commissionRate: 0.1 }
+    data: { name: `${PREFIX}-Partner`, slug: PARTNER_SLUG, commissionRate: 0.1 },
   });
   partnerId = partner.id;
 
   const company = await prisma.company.create({
-    data: { name: `${PREFIX}-Company` }
+    data: { name: `${PREFIX}-Company` },
   });
   companyId = company.id;
 
@@ -41,8 +41,8 @@ async function seedData() {
       name: `${PREFIX}-Org`,
       externalId: ORG_EXT_ID,
       partnerId,
-      companyId
-    }
+      companyId,
+    },
   });
   organizationId = org.id;
 
@@ -51,8 +51,8 @@ async function seedData() {
       email: `${PREFIX}-manager@test.local`,
       name: `${PREFIX}-Manager`,
       role: 'manager',
-      isActive: true
-    }
+      isActive: true,
+    },
   });
   managerId = manager.id;
   // Manager chat visibility is company-scoped (C8) — session carries companyId.
@@ -63,25 +63,25 @@ async function seedData() {
       email: `${PREFIX}-orguser@test.local`,
       name: `${PREFIX}-OrgUser`,
       role: 'organization',
-      isActive: true
-    }
+      isActive: true,
+    },
   });
   orgUserId = orgUser.id;
 
   await prisma.organizationUser.create({
-    data: { organizationId, userId: orgUserId, roleInOrg: 'member', isActive: true }
+    data: { organizationId, userId: orgUserId, roleInOrg: 'member', isActive: true },
   });
 
   orgSession = {
     sub: orgUserId,
     role: 'organization',
-    organizationMemberships: [{ organizationId, roleInOrg: 'member', isActive: true }]
+    organizationMemberships: [{ organizationId, roleInOrg: 'member', isActive: true }],
   };
 
   partnerSession = {
     sub: 'partner-user-inbox-it',
     role: 'partner',
-    partnerId
+    partnerId,
   };
 
   const order = await prisma.order.create({
@@ -89,32 +89,32 @@ async function seedData() {
       title: ORDER_TITLE,
       partnerId,
       organizationId,
-      companyId
-    }
+      companyId,
+    },
   });
   orderId = order.id;
 
   // Create both threads upfront
   const orgThread = await prisma.orderThread.create({
-    data: { orderId, side: 'org', lastMessageAt: new Date() }
+    data: { orderId, side: 'org', lastMessageAt: new Date() },
   });
   orgThreadId = orgThread.id;
 
   const partnerThread = await prisma.orderThread.create({
-    data: { orderId, side: 'partner', lastMessageAt: new Date() }
+    data: { orderId, side: 'partner', lastMessageAt: new Date() },
   });
   partnerThreadId = partnerThread.id;
 }
 
 async function cleanupData() {
   await prisma.message.deleteMany({
-    where: { thread: { order: { title: ORDER_TITLE } } }
+    where: { thread: { order: { title: ORDER_TITLE } } },
   });
   await prisma.threadReadState.deleteMany({
-    where: { thread: { order: { title: ORDER_TITLE } } }
+    where: { thread: { order: { title: ORDER_TITLE } } },
   });
   await prisma.orderThread.deleteMany({
-    where: { order: { title: ORDER_TITLE } }
+    where: { order: { title: ORDER_TITLE } },
   });
   await prisma.order.deleteMany({ where: { title: ORDER_TITLE } });
   await prisma.organizationUser.deleteMany({ where: { organizationId } });
@@ -122,13 +122,10 @@ async function cleanupData() {
   await prisma.company.deleteMany({ where: { id: companyId } });
   await prisma.partner.deleteMany({ where: { slug: PARTNER_SLUG } });
 
-  const userEmails = [
-    `${PREFIX}-manager@test.local`,
-    `${PREFIX}-orguser@test.local`
-  ];
+  const userEmails = [`${PREFIX}-manager@test.local`, `${PREFIX}-orguser@test.local`];
   const staleUsers = await prisma.user.findMany({
     where: { email: { in: userEmails } },
-    select: { id: true }
+    select: { id: true },
   });
   const staleIds = staleUsers.map((u) => u.id);
   if (managerId && !staleIds.includes(managerId)) staleIds.push(managerId);
@@ -154,10 +151,10 @@ describe('listThreads scoping', () => {
   it('manager sees BOTH threads', async () => {
     // Seed a message on each side
     await prisma.message.create({
-      data: { threadId: orgThreadId, authorId: managerId, body: 'Org-side msg' }
+      data: { threadId: orgThreadId, authorId: managerId, body: 'Org-side msg' },
     });
     await prisma.message.create({
-      data: { threadId: partnerThreadId, authorId: managerId, body: 'Partner-side msg' }
+      data: { threadId: partnerThreadId, authorId: managerId, body: 'Partner-side msg' },
     });
 
     const result = await listThreads(prisma, managerSession);
@@ -170,10 +167,10 @@ describe('listThreads scoping', () => {
 
   it('organization member sees ONLY the org-side thread', async () => {
     await prisma.message.create({
-      data: { threadId: orgThreadId, authorId: managerId, body: 'Org-side msg' }
+      data: { threadId: orgThreadId, authorId: managerId, body: 'Org-side msg' },
     });
     await prisma.message.create({
-      data: { threadId: partnerThreadId, authorId: managerId, body: 'Partner-side msg' }
+      data: { threadId: partnerThreadId, authorId: managerId, body: 'Partner-side msg' },
     });
 
     const result = await listThreads(prisma, orgSession);
@@ -186,10 +183,10 @@ describe('listThreads scoping', () => {
 
   it('partner (matching partnerId) sees ONLY the partner-side thread', async () => {
     await prisma.message.create({
-      data: { threadId: orgThreadId, authorId: managerId, body: 'Org-side msg' }
+      data: { threadId: orgThreadId, authorId: managerId, body: 'Org-side msg' },
     });
     await prisma.message.create({
-      data: { threadId: partnerThreadId, authorId: managerId, body: 'Partner-side msg' }
+      data: { threadId: partnerThreadId, authorId: managerId, body: 'Partner-side msg' },
     });
 
     const result = await listThreads(prisma, partnerSession);
@@ -206,7 +203,7 @@ describe('markRead / unreadCount', () => {
     // Advance lastMessageAt so it's definitely after any read state
     await prisma.orderThread.update({
       where: { id: orgThreadId },
-      data: { lastMessageAt: new Date() }
+      data: { lastMessageAt: new Date() },
     });
 
     // Verify unread before markRead
@@ -246,10 +243,10 @@ describe('listMessages', () => {
     const t1 = new Date(Date.now() - 5000);
     const t2 = new Date(Date.now() - 2000);
     await prisma.message.create({
-      data: { threadId: orgThreadId, authorId: managerId, body: 'First', createdAt: t1 }
+      data: { threadId: orgThreadId, authorId: managerId, body: 'First', createdAt: t1 },
     });
     await prisma.message.create({
-      data: { threadId: orgThreadId, authorId: managerId, body: 'Second', createdAt: t2 }
+      data: { threadId: orgThreadId, authorId: managerId, body: 'Second', createdAt: t2 },
     });
 
     const result = await listMessages(prisma, managerSession, { threadId: orgThreadId });
@@ -266,15 +263,15 @@ describe('listMessages', () => {
     const t1 = new Date(Date.now() - 5000);
     const t2 = new Date(Date.now() - 2000);
     await prisma.message.create({
-      data: { threadId: orgThreadId, authorId: managerId, body: 'Old', createdAt: t1 }
+      data: { threadId: orgThreadId, authorId: managerId, body: 'Old', createdAt: t1 },
     });
     await prisma.message.create({
-      data: { threadId: orgThreadId, authorId: managerId, body: 'New', createdAt: t2 }
+      data: { threadId: orgThreadId, authorId: managerId, body: 'New', createdAt: t2 },
     });
 
     const result = await listMessages(prisma, managerSession, {
       threadId: orgThreadId,
-      after: t1.toISOString()
+      after: t1.toISOString(),
     });
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error('expected ok');

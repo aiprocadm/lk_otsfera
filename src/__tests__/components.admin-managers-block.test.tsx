@@ -9,28 +9,30 @@ vi.mock('@/lib/services/manager/team', () => ({ listManagersForOrg }));
 
 vi.mock('@/server-actions/admin/manager', () => ({
   deactivateManagerAssignmentFormAction: vi.fn(),
-  reactivateManagerAssignmentFormAction: vi.fn()
+  reactivateManagerAssignmentFormAction: vi.fn(),
 }));
 
 vi.mock('@/components/admin/assign-or-invite-manager-form', () => ({
   AssignOrInviteManagerForm: ({ organizationId }: { organizationId: string }) =>
-    React.createElement('div', { 'data-testid': 'assign-form' }, organizationId)
+    React.createElement('div', { 'data-testid': 'assign-form' }, organizationId),
 }));
 
 import { ManagersBlock } from '@/components/admin/managers-block';
 
-function makeAssignment(overrides: Partial<{
-  id: string;
-  assignedAt: Date;
-  deactivatedAt: Date | null;
-  user: { name: string | null; email: string };
-}> = {}) {
+function makeAssignment(
+  overrides: Partial<{
+    id: string;
+    assignedAt: Date;
+    deactivatedAt: Date | null;
+    user: { name: string | null; email: string };
+  }> = {}
+) {
   return {
     id: 'assign-1',
     assignedAt: new Date('2026-01-15'),
     deactivatedAt: null,
     user: { name: 'Иван Иванов', email: 'ivan@example.com' },
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -52,7 +54,7 @@ describe('ManagersBlock', () => {
   it('renders an active manager row with name, email, assignedAt, and deactivate action', async () => {
     listManagersForOrg.mockResolvedValue({
       active: [makeAssignment()],
-      inactive: []
+      inactive: [],
     });
 
     const el = await ManagersBlock({ orgId: 'org-1' });
@@ -68,7 +70,7 @@ describe('ManagersBlock', () => {
   it('renders "—" when an active manager has no name', async () => {
     listManagersForOrg.mockResolvedValue({
       active: [makeAssignment({ user: { name: null, email: 'noname@example.com' } })],
-      inactive: []
+      inactive: [],
     });
 
     const el = await ManagersBlock({ orgId: 'org-1' });
@@ -81,7 +83,7 @@ describe('ManagersBlock', () => {
   it('renders the "Архив" section with inactive managers and reactivate action', async () => {
     listManagersForOrg.mockResolvedValue({
       active: [],
-      inactive: [makeAssignment({ id: 'assign-2', deactivatedAt: new Date('2026-02-01') })]
+      inactive: [makeAssignment({ id: 'assign-2', deactivatedAt: new Date('2026-02-01') })],
     });
 
     const el = await ManagersBlock({ orgId: 'org-1' });
@@ -96,11 +98,13 @@ describe('ManagersBlock', () => {
   it('renders "—" when an inactive manager has no name', async () => {
     listManagersForOrg.mockResolvedValue({
       active: [],
-      inactive: [makeAssignment({
-        id: 'assign-noname',
-        user: { name: null, email: 'noname2@example.com' },
-        deactivatedAt: new Date('2026-02-05')
-      })]
+      inactive: [
+        makeAssignment({
+          id: 'assign-noname',
+          user: { name: null, email: 'noname2@example.com' },
+          deactivatedAt: new Date('2026-02-05'),
+        }),
+      ],
     });
 
     const el = await ManagersBlock({ orgId: 'org-1' });
@@ -113,7 +117,7 @@ describe('ManagersBlock', () => {
   it('omits the deactivatedAt label when it is null on an inactive row', async () => {
     listManagersForOrg.mockResolvedValue({
       active: [],
-      inactive: [makeAssignment({ id: 'assign-3', deactivatedAt: null })]
+      inactive: [makeAssignment({ id: 'assign-3', deactivatedAt: null })],
     });
 
     const el = await ManagersBlock({ orgId: 'org-1' });
@@ -126,7 +130,7 @@ describe('ManagersBlock', () => {
   it('renders both active and inactive lists together', async () => {
     listManagersForOrg.mockResolvedValue({
       active: [makeAssignment({ id: 'a1' })],
-      inactive: [makeAssignment({ id: 'a2', deactivatedAt: new Date('2026-03-01') })]
+      inactive: [makeAssignment({ id: 'a2', deactivatedAt: new Date('2026-03-01') })],
     });
 
     const el = await ManagersBlock({ orgId: 'org-1' });

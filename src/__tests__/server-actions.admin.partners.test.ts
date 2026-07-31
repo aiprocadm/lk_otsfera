@@ -7,7 +7,7 @@ const {
   deactivatePartner,
   reactivatePartner,
   sendAdminUserInviteEmail,
-  revalidatePath
+  revalidatePath,
 } = vi.hoisted(() => ({
   requireAdmin: vi.fn(),
   createPartnerWithAdmin: vi.fn(),
@@ -15,7 +15,7 @@ const {
   deactivatePartner: vi.fn(),
   reactivatePartner: vi.fn(),
   sendAdminUserInviteEmail: vi.fn(),
-  revalidatePath: vi.fn()
+  revalidatePath: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
@@ -24,16 +24,15 @@ vi.mock('next/cache', () => ({ revalidatePath }));
 vi.mock('@/lib/email/send', () => ({ sendAdminUserInviteEmail }));
 
 vi.mock('@/lib/services/admin/partners', async () => {
-  const actual =
-    await vi.importActual<typeof import('@/lib/services/admin/partners')>(
-      '@/lib/services/admin/partners'
-    );
+  const actual = await vi.importActual<typeof import('@/lib/services/admin/partners')>(
+    '@/lib/services/admin/partners'
+  );
   return {
     ...actual,
     createPartnerWithAdmin,
     updatePartner,
     deactivatePartner,
-    reactivatePartner
+    reactivatePartner,
   };
 });
 
@@ -44,7 +43,7 @@ import {
   reactivatePartnerAction,
   updatePartnerFormAction,
   deactivatePartnerFormAction,
-  reactivatePartnerFormAction
+  reactivatePartnerFormAction,
 } from '@/server-actions/admin/partners';
 
 function fd(data: Record<string, string>): FormData {
@@ -98,7 +97,7 @@ describe('createPartnerWithAdminAction', () => {
       ok: true,
       partner: { id: 'p-1', name: 'Test Partner', slug: 'test-partner' },
       user: { id: 'u-1', email: 'admin@partner.local' },
-      inviteToken: 'tok-abc'
+      inviteToken: 'tok-abc',
     });
 
     const res = await createPartnerWithAdminAction(
@@ -106,7 +105,7 @@ describe('createPartnerWithAdminAction', () => {
         name: 'Test Partner',
         slug: 'test-partner',
         adminEmail: 'admin@partner.local',
-        adminName: 'Partner Admin'
+        adminName: 'Partner Admin',
       })
     );
 
@@ -114,7 +113,7 @@ describe('createPartnerWithAdminAction', () => {
       ok: true,
       partner: { id: 'p-1', name: 'Test Partner', slug: 'test-partner' },
       user: { id: 'u-1', email: 'admin@partner.local' },
-      inviteUrl: 'https://app.test/reset-password?token=tok-abc'
+      inviteUrl: 'https://app.test/reset-password?token=tok-abc',
     });
     expect(revalidatePath).toHaveBeenCalledWith('/admin/partners');
 
@@ -127,7 +126,7 @@ describe('createPartnerWithAdminAction', () => {
       ok: true,
       partner: { id: 'p-2', name: 'Email Partner', slug: 'email-partner' },
       user: { id: 'u-2', email: 'admin@email-partner.local' },
-      inviteToken: 'tok-email'
+      inviteToken: 'tok-email',
     });
 
     await createPartnerWithAdminAction(
@@ -135,7 +134,7 @@ describe('createPartnerWithAdminAction', () => {
         name: 'Email Partner',
         slug: 'email-partner',
         adminEmail: 'admin@email-partner.local',
-        adminName: 'Email Admin'
+        adminName: 'Email Admin',
       })
     );
 
@@ -144,7 +143,7 @@ describe('createPartnerWithAdminAction', () => {
       name: 'Email Admin',
       role: 'partner',
       inviteUrl: 'https://app.test/reset-password?token=tok-email',
-      invitedByName: 'Admin User'
+      invitedByName: 'Admin User',
     });
 
     delete process.env.APP_URL;
@@ -155,7 +154,7 @@ describe('createPartnerWithAdminAction', () => {
       ok: true,
       partner: { id: 'p-3', name: 'Fail Partner', slug: 'fail-partner' },
       user: { id: 'u-3', email: 'fail@partner.local' },
-      inviteToken: 'tok-fail'
+      inviteToken: 'tok-fail',
     });
     sendAdminUserInviteEmail.mockRejectedValue(new Error('SMTP timeout'));
 
@@ -164,7 +163,7 @@ describe('createPartnerWithAdminAction', () => {
         name: 'Fail Partner',
         slug: 'fail-partner',
         adminEmail: 'fail@partner.local',
-        adminName: 'Fail Admin'
+        adminName: 'Fail Admin',
       })
     );
 
@@ -180,7 +179,7 @@ describe('createPartnerWithAdminAction', () => {
         name: 'Dup Partner',
         slug: 'dup-slug',
         adminEmail: 'dup@partner.local',
-        adminName: 'Dup Admin'
+        adminName: 'Dup Admin',
       })
     );
 
@@ -196,7 +195,7 @@ describe('createPartnerWithAdminAction', () => {
         name: 'Dup Email',
         slug: 'dup-email',
         adminEmail: 'existing@partner.local',
-        adminName: 'Dup Admin'
+        adminName: 'Dup Admin',
       })
     );
 
@@ -208,11 +207,17 @@ describe('createPartnerWithAdminAction', () => {
       ok: true,
       partner: { id: 'p-rate', name: 'P', slug: 'p-co' },
       user: { id: 'u-rate', email: 'a@x.test' },
-      inviteToken: 'tok-rate'
+      inviteToken: 'tok-rate',
     });
 
     await createPartnerWithAdminAction(
-      fd({ name: 'P', slug: 'p-co', commissionRate: '5', adminEmail: 'a@x.test', adminName: 'Admin' })
+      fd({
+        name: 'P',
+        slug: 'p-co',
+        commissionRate: '5',
+        adminEmail: 'a@x.test',
+        adminName: 'Admin',
+      })
     );
 
     expect(createPartnerWithAdmin).toHaveBeenCalledWith(
@@ -227,7 +232,7 @@ describe('createPartnerWithAdminAction', () => {
       ok: true,
       partner: { id: 'p-norat', name: 'P', slug: 'p-co' },
       user: { id: 'u-norat', email: 'a@x.test' },
-      inviteToken: 'tok-norat'
+      inviteToken: 'tok-norat',
     });
 
     await createPartnerWithAdminAction(
@@ -256,7 +261,7 @@ describe('createPartnerWithAdminAction — mapErr re-throw', () => {
       ok: true,
       partner: { id: 'p-fallback', name: 'P', slug: 'p-co' },
       user: { id: 'u-fallback', email: 'a@x.test' },
-      inviteToken: 'tok-fallback'
+      inviteToken: 'tok-fallback',
     });
 
     const res = await createPartnerWithAdminAction(
@@ -274,7 +279,7 @@ describe('createPartnerWithAdminAction — mapErr re-throw', () => {
       ok: true,
       partner: { id: 'p-nn', name: 'P', slug: 'p-co' },
       user: { id: 'u-nn', email: 'a@x.test' },
-      inviteToken: 'tok-nn'
+      inviteToken: 'tok-nn',
     });
     sendAdminUserInviteEmail.mockResolvedValue({ status: 'sent' });
 
@@ -290,9 +295,9 @@ describe('createPartnerWithAdminAction — mapErr re-throw', () => {
 describe('updatePartnerAction — mapErr re-throw', () => {
   it('re-throws non-AdminPartnerError errors from the service', async () => {
     updatePartner.mockRejectedValue(new Error('DB connection reset'));
-    await expect(
-      updatePartnerAction(fd({ id: 'p-1', name: 'X' }))
-    ).rejects.toThrow('DB connection reset');
+    await expect(updatePartnerAction(fd({ id: 'p-1', name: 'X' }))).rejects.toThrow(
+      'DB connection reset'
+    );
   });
 });
 
@@ -306,17 +311,12 @@ describe('updatePartnerAction', () => {
   it('happy path calls updatePartner and revalidates both paths', async () => {
     updatePartner.mockResolvedValue({ ok: true });
 
-    const res = await updatePartnerAction(
-      fd({ id: 'p-10', name: 'Updated Name' })
-    );
+    const res = await updatePartnerAction(fd({ id: 'p-10', name: 'Updated Name' }));
 
     expect(res).toEqual({ ok: true });
-    expect(updatePartner).toHaveBeenCalledWith(
-      expect.anything(),
-      'admin-1',
-      'p-10',
-      { name: 'Updated Name' }
-    );
+    expect(updatePartner).toHaveBeenCalledWith(expect.anything(), 'admin-1', 'p-10', {
+      name: 'Updated Name',
+    });
     expect(revalidatePath).toHaveBeenCalledWith('/admin/partners');
     expect(revalidatePath).toHaveBeenCalledWith('/admin/partners/p-10');
   });
@@ -367,7 +367,9 @@ describe('updatePartnerAction', () => {
   it('rejects an invalid effectiveFrom at validation (never reaches the service)', async () => {
     updatePartner.mockResolvedValue({ ok: true });
 
-    const res = await updatePartnerAction(fd({ id: 'p-1', commissionRate: '10', effectiveFrom: 'not-a-date' }));
+    const res = await updatePartnerAction(
+      fd({ id: 'p-1', commissionRate: '10', effectiveFrom: 'not-a-date' })
+    );
 
     expect(res).toMatchObject({ ok: false, error: 'validation' });
     expect(updatePartner).not.toHaveBeenCalled();
