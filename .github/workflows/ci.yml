@@ -27,13 +27,18 @@ jobs:
   gitleaks:
     name: gitleaks · скан секретов
     runs-on: ubuntu-latest
+    env:
+      GITLEAKS_VERSION: 8.24.3
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Бинарь напрямую (не gitleaks-action): экшену нужны API-права
+      # (Resource not accessible by integration), бинарю — нет; локальный
+      # запуск и CI используют одну и ту же команду и .gitleaks.toml.
+      - run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar xz gitleaks
+          ./gitleaks git . --no-banner --redact --config .gitleaks.toml
 
   checks:
     name: typecheck · lint · unit
