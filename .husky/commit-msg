@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+# Conventional Commits (фаза 1): заголовок коммита проверяется commitlint'ом.
+# Формат: type(scope): описание — см. commitlint.config.mjs.
+npx --no -- commitlint --edit "$1"

@@ -2,7 +2,7 @@
 # Husky-хуки обходятся `--no-verify`; этот workflow — обязательный гейт,
 # который обойти нельзя (после включения branch protection на main).
 #
-#   checks — L1/L2: typecheck + lint (max-warnings=0) + весь unit-слой
+#   checks — L1/L2: npm run verify (typecheck + lint + format:check + unit-слой)
 #   gate   — L2.5/L3: scripts/gate.ts (migrate deploy → seed → test:integration)
 #            против Postgres service-контейнера + prisma migrate status
 #
@@ -34,9 +34,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run prisma:generate
-      - run: npm run typecheck
-      - run: npm run lint -- --max-warnings 0
-      - run: npm run test:unit
+      # Фаза 1: единая команда локальной и серверной проверки.
+      # verify = typecheck → lint (max-warnings=0) → format:check → test:ci (unit).
+      - run: npm run verify
 
   gate:
     name: integration gate · migrate status
