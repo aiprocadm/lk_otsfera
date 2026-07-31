@@ -30,26 +30,26 @@ beforeEach(() => {
 describe('admin auth on /api/admin/* health endpoints', () => {
   it('queues GET returns 401 when unauthenticated', async () => {
     vi.mocked(getSession).mockResolvedValue(null);
-    const res = await queuesGet();
+    const res = await queuesGet(new Request('http://x'));
     expect(res.status).toBe(401);
   });
 
   it('queues GET returns 403 for non-admin', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerSession());
-    const res = await queuesGet();
+    const res = await queuesGet(new Request('http://x'));
     expect(res.status).toBe(403);
   });
 
   it('queues GET returns 200 with rows array for admin', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession());
-    const res = await queuesGet();
+    const res = await queuesGet(new Request('http://x'));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ rows: [] });
   });
 
   it('dlq GET enforces admin RBAC the same way', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerSession());
-    const res = await dlqGet();
+    const res = await dlqGet(new Request('http://x'));
     expect(res.status).toBe(403);
   });
 });

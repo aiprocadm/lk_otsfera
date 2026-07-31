@@ -1,32 +1,32 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { withAuth } from '@/lib/api/withAuth';
 import { prisma } from '@/lib/db/prisma';
-import { getSession } from '@/lib/auth/session';
 import { requirePartner, requirePartnerAdmin } from '@/lib/auth/guard';
 import { approveStatement, markStatementPaid } from '@/lib/services/commission/lifecycle';
 import { getStatementWithItems } from '@/lib/services/partner/finance';
 
-type Params = { params: Promise<{ id: string }> };
-
-export async function GET(_req: Request, { params }: Params) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const guard = requirePartner(session);
-  if (!guard.ok) return guard.response;
-
+export const GET = withAuth({ guard: requirePartner }, async ({ session, params }) => {
   const { id } = await params;
-  const statement = await getStatementWithItems(prisma, id, guard.value.partnerId);
+  // requirePartner гарантирует partnerId; тип withAuth сужение не переносит.
+  const statement = await getStatementWithItems(prisma, id, session.partnerId as string);
   if (!statement) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   return NextResponse.json({ statement });
-}
+});
 
-export async function PATCH(request: Request, { params }: Params) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+/**
+ * Схема — только ФОРМА входа. Допустимость action и права на неё
+ * (partner-admin для approve, платформенный admin для markPaid) — ниже:
+ * гард зависит от action, поэтому в opts.guard его не вынести.
+ */
+const patchBodySchema = z.object({
+  action: z.string(),
+});
 
+export const PATCH = withAuth({ body: patchBodySchema }, async ({ session, body, params }) => {
   const { id } = await params;
-  const body = await request.json().catch(() => null);
-  const action = body?.action;
+  const { action } = body;
 
   if (action === 'approve') {
     const guard = requirePartnerAdmin(session);
@@ -60,4 +60,4 @@ export async function PATCH(request: Request, { params }: Params) {
   }
 
   return NextResponse.json({ error: 'Invalid action. Use approve or markPaid' }, { status: 400 });
-}
+});

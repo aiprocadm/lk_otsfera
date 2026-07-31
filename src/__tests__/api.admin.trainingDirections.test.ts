@@ -42,7 +42,7 @@ beforeEach(() => {
 describe('GET /api/admin/training-directions', () => {
   it('200 с массивом направлений', async () => {
     listDirections.mockResolvedValue({ ok: true, directions: [{ id: 'd1', name: 'IT' }] });
-    const res = await GET();
+    const res = await GET(new Request('http://x'));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.directions).toHaveLength(1);
@@ -54,7 +54,7 @@ describe('GET /api/admin/training-directions', () => {
       ok: false,
       response: new Response('Unauthorized', { status: 401 }),
     });
-    const res = await GET();
+    const res = await GET(new Request('http://x'));
     expect(res.status).toBe(401);
     expect(listDirections).not.toHaveBeenCalled();
   });
@@ -64,7 +64,7 @@ describe('GET /api/admin/training-directions', () => {
       ok: false,
       response: new Response('Forbidden', { status: 403 }),
     });
-    const res = await GET();
+    const res = await GET(new Request('http://x'));
     expect(res.status).toBe(403);
     expect(listDirections).not.toHaveBeenCalled();
   });

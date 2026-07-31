@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
-import { requireAdmin, requireSession } from '@/lib/auth/guard';
+import { z } from 'zod';
+import { jsonError } from '@/lib/api/http';
+import { withAuth } from '@/lib/api/withAuth';
+import { requireAdmin } from '@/lib/auth/guard';
 import { prisma } from '@/lib/db/prisma';
 import { updateDirection, deactivateDirection } from '@/lib/services/training';
 
@@ -9,33 +12,25 @@ function mapErr(e: string): number {
   return 400;
 }
 
-type Ctx = { params: Promise<{ id: string }> };
+/** Форма патча; доменная валидация (пустое имя → `validation`) — в сервисе. */
+const patchBodySchema = z.object({
+  name: z.string().optional(),
+  sortOrder: z.number().optional(),
+});
 
-export async function PATCH(req: Request, ctx: Ctx) {
-  const sessionResult = await requireSession();
-  if (!sessionResult.ok) return sessionResult.response;
-  const adminGuard = requireAdmin(sessionResult.value);
-  if (!adminGuard.ok) return adminGuard.response;
+export const PATCH = withAuth(
+  { guard: requireAdmin, body: patchBodySchema },
+  async ({ session, body, params }) => {
+    const { id } = await params;
+    const res = await updateDirection(prisma, session, { id, ...body });
+    if (!res.ok) return jsonError(res.error, mapErr(res.error));
+    return NextResponse.json({ direction: res.direction });
+  }
+);
 
-  const { id } = await ctx.params;
-  const body = await req.json();
-  const res = await updateDirection(prisma, adminGuard.value, {
-    id,
-    name: body.name,
-    sortOrder: body.sortOrder,
-  });
-  if (!res.ok) return NextResponse.json({ error: res.error }, { status: mapErr(res.error) });
+export const DELETE = withAuth({ guard: requireAdmin }, async ({ session, params }) => {
+  const { id } = await params;
+  const res = await deactivateDirection(prisma, session, { id });
+  if (!res.ok) return jsonError(res.error, mapErr(res.error));
   return NextResponse.json({ direction: res.direction });
-}
-
-export async function DELETE(req: Request, ctx: Ctx) {
-  const sessionResult = await requireSession();
-  if (!sessionResult.ok) return sessionResult.response;
-  const adminGuard = requireAdmin(sessionResult.value);
-  if (!adminGuard.ok) return adminGuard.response;
-
-  const { id } = await ctx.params;
-  const res = await deactivateDirection(prisma, adminGuard.value, { id });
-  if (!res.ok) return NextResponse.json({ error: res.error }, { status: mapErr(res.error) });
-  return NextResponse.json({ direction: res.direction });
-}
+});

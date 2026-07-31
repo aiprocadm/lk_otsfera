@@ -45,7 +45,7 @@ describe('GET /api/admin/dlq', () => {
         attemptsMade: 3,
       },
     ]);
-    const res = await GET();
+    const res = await GET(new Request('http://x'));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.rows).toHaveLength(1);
@@ -57,7 +57,7 @@ describe('GET /api/admin/dlq', () => {
       ok: false,
       response: new Response('Unauthorized', { status: 401 }),
     });
-    const res = await GET();
+    const res = await GET(new Request('http://x'));
     expect(res.status).toBe(401);
     expect(getDlq).not.toHaveBeenCalled();
   });
@@ -67,7 +67,7 @@ describe('GET /api/admin/dlq', () => {
       ok: false,
       response: new Response('Forbidden', { status: 403 }),
     });
-    const res = await GET();
+    const res = await GET(new Request('http://x'));
     expect(res.status).toBe(403);
     expect(getDlq).not.toHaveBeenCalled();
   });

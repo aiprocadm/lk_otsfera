@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
-import { requireFieldsAdmin, requireSession } from '@/lib/auth/guard';
+import { z } from 'zod';
+import { jsonError } from '@/lib/api/http';
+import { withAuth } from '@/lib/api/withAuth';
+import { requireFieldsAdmin } from '@/lib/auth/guard';
 import { prisma } from '@/lib/db/prisma';
 import { updateDefinition, deactivateDefinition } from '@/lib/services/customFields';
 
@@ -9,38 +12,31 @@ function mapErr(e: string): number {
   return 400;
 }
 
-type Ctx = { params: Promise<{ id: string }> };
+/** Форма патча; доменная валидация значений — в сервисе (см. POST-роут). */
+const patchBodySchema = z.object({
+  label: z.string().optional(),
+  options: z.array(z.string()).optional(),
+  required: z.boolean().optional(),
+  sortOrder: z.number().optional(),
+  isActive: z.boolean().optional(),
+  helpText: z.string().nullish(),
+  visibleToRoles: z.array(z.string()).optional(),
+  editableByRoles: z.array(z.string()).optional(),
+});
 
-export async function PATCH(req: Request, ctx: Ctx) {
-  const sessionResult = await requireSession();
-  if (!sessionResult.ok) return sessionResult.response;
-  const adminGuard = requireFieldsAdmin(sessionResult.value);
-  if (!adminGuard.ok) return adminGuard.response;
+export const PATCH = withAuth(
+  { guard: requireFieldsAdmin, body: patchBodySchema },
+  async ({ session, body, params }) => {
+    const { id } = await params;
+    const res = await updateDefinition(prisma, session, id, body);
+    if (!res.ok) return jsonError(res.error, mapErr(res.error));
+    return NextResponse.json({ definition: res.definition });
+  }
+);
 
-  const { id } = await ctx.params;
-  const body = await req.json();
-  const res = await updateDefinition(prisma, adminGuard.value, id, {
-    label: body.label,
-    options: body.options,
-    required: body.required,
-    sortOrder: body.sortOrder,
-    isActive: body.isActive,
-    helpText: body.helpText,
-    visibleToRoles: body.visibleToRoles,
-    editableByRoles: body.editableByRoles,
-  });
-  if (!res.ok) return NextResponse.json({ error: res.error }, { status: mapErr(res.error) });
+export const DELETE = withAuth({ guard: requireFieldsAdmin }, async ({ session, params }) => {
+  const { id } = await params;
+  const res = await deactivateDefinition(prisma, session, id);
+  if (!res.ok) return jsonError(res.error, mapErr(res.error));
   return NextResponse.json({ definition: res.definition });
-}
-
-export async function DELETE(req: Request, ctx: Ctx) {
-  const sessionResult = await requireSession();
-  if (!sessionResult.ok) return sessionResult.response;
-  const adminGuard = requireFieldsAdmin(sessionResult.value);
-  if (!adminGuard.ok) return adminGuard.response;
-
-  const { id } = await ctx.params;
-  const res = await deactivateDefinition(prisma, adminGuard.value, id);
-  if (!res.ok) return NextResponse.json({ error: res.error }, { status: mapErr(res.error) });
-  return NextResponse.json({ definition: res.definition });
-}
+});

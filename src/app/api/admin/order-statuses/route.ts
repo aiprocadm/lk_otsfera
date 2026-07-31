@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
-import { requireFieldsAdmin, requireSession } from '@/lib/auth/guard';
+import { z } from 'zod';
+import { jsonError } from '@/lib/api/http';
+import { withAuth } from '@/lib/api/withAuth';
+import { requireFieldsAdmin } from '@/lib/auth/guard';
 import { prisma } from '@/lib/db/prisma';
 import { createStatusDefinition } from '@/lib/services/orderStatuses';
 
@@ -9,21 +12,24 @@ function mapErr(e: string): number {
   return 400;
 }
 
-export async function POST(req: Request) {
-  const sessionResult = await requireSession();
-  if (!sessionResult.ok) return sessionResult.response;
-  const guard = requireFieldsAdmin(sessionResult.value);
-  if (!guard.ok) return guard.response;
+/**
+ * Схема — только ФОРМА входа. Доменная валидация (формат key, дубликаты)
+ * остаётся в сервисе. `anchor` намеренно не принимается из формы: якоря
+ * раздаёт система, заказчик привязывать статус к событию не может (спека §4.1) —
+ * Zod по умолчанию отбрасывает неописанные ключи.
+ */
+const createBodySchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  sortOrder: z.number().optional(),
+  isTerminal: z.boolean().optional(),
+});
 
-  const body = await req.json();
-  const res = await createStatusDefinition(prisma, guard.value, {
-    key: body.key,
-    label: body.label,
-    sortOrder: body.sortOrder,
-    isTerminal: body.isTerminal,
-    // anchor намеренно не принимается из формы: якоря раздаёт система,
-    // заказчик привязывать статус к событию не может (спека §4.1).
-  });
-  if (!res.ok) return NextResponse.json({ error: res.error }, { status: mapErr(res.error) });
-  return NextResponse.json({ definition: res.definition }, { status: 201 });
-}
+export const POST = withAuth(
+  { guard: requireFieldsAdmin, body: createBodySchema },
+  async ({ session, body }) => {
+    const res = await createStatusDefinition(prisma, session, body);
+    if (!res.ok) return jsonError(res.error, mapErr(res.error));
+    return NextResponse.json({ definition: res.definition }, { status: 201 });
+  }
+);

@@ -1,8 +1,23 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { getSession } from '@/lib/auth/session';
 import { requirePartnerAdmin } from '@/lib/auth/guard';
+import { parseJsonBody } from '@/lib/api/http';
 import { calculateStatementForPartner } from '@/lib/services/commission/statement';
+
+/**
+ * Схема — только ФОРМА входа. Доменные проверки (валидность/порядок дат,
+ * overlap периодов) остаются ниже/в сервисе — их коды и сообщения стабильны.
+ *
+ * NB: роут намеренно НЕ на withAuth — регресс api.partner.finance.test.ts
+ * закрепляет, что неожиданный throw сервиса пробрасывается наружу
+ * (`rejects.toThrow`), а guardedRoute превратил бы его в 500 `internal`.
+ */
+const bodySchema = z.object({
+  periodFrom: z.string(),
+  periodTo: z.string(),
+});
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -10,13 +25,14 @@ export async function POST(request: Request) {
   const guard = requirePartnerAdmin(session);
   if (!guard.ok) return guard.response;
 
-  const body = await request.json().catch(() => null);
-  if (!body?.periodFrom || !body?.periodTo) {
+  const parsed = await parseJsonBody(request, bodySchema);
+  if (!parsed.ok) return parsed.response;
+  if (!parsed.data.periodFrom || !parsed.data.periodTo) {
     return NextResponse.json({ error: 'periodFrom and periodTo are required' }, { status: 400 });
   }
 
-  const periodFrom = new Date(body.periodFrom);
-  const periodTo = new Date(body.periodTo);
+  const periodFrom = new Date(parsed.data.periodFrom);
+  const periodTo = new Date(parsed.data.periodTo);
   if (isNaN(periodFrom.getTime()) || isNaN(periodTo.getTime())) {
     return NextResponse.json({ error: 'Invalid date format' }, { status: 400 });
   }

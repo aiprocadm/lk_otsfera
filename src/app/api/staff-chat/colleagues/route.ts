@@ -1,16 +1,12 @@
-import { requireSession, requireRole } from '@/lib/auth/guard';
-import { notFoundIfDisabled } from '@/lib/featureFlags';
+import { withAuth } from '@/lib/api/withAuth';
+import { requireRole } from '@/lib/auth/guard';
 import { prisma } from '@/lib/db/prisma';
 import { listColleagues } from '@/lib/services/staffChat/mentions';
 
-export async function GET() {
-  const off = notFoundIfDisabled('staff_chat');
-  if (off) return off;
-  const sess = await requireSession();
-  if (!sess.ok) return sess.response;
-  const staff = requireRole(sess.value, ['admin', 'manager']);
-  if (!staff.ok) return staff.response;
+const requireStaff = (session: Parameters<typeof requireRole>[0]) =>
+  requireRole(session, ['admin', 'manager']);
 
-  const result = await listColleagues(prisma, sess.value);
+export const GET = withAuth({ feature: 'staff_chat', guard: requireStaff }, async ({ session }) => {
+  const result = await listColleagues(prisma, session);
   return Response.json({ ok: true, rows: result.rows });
-}
+});
