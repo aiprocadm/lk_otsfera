@@ -23,15 +23,13 @@ describe('notifyManagers — document_uploaded_by_partner', () => {
     const create = vi.fn().mockResolvedValue({});
     const db = {
       order: {
-        findUnique: vi
-          .fn()
-          .mockResolvedValue({
-            id: 'o1',
-            orderNumber: '42',
-            title: 'T',
-            managerId: 'm1',
-            organizationId: 'org1',
-          }),
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'o1',
+          orderNumber: '42',
+          title: 'T',
+          managerId: 'm1',
+          organizationId: 'org1',
+        }),
       },
       organizationManager: { findMany: vi.fn().mockResolvedValue([]) },
       comment: { findMany: vi.fn().mockResolvedValue([]) },

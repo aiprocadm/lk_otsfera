@@ -281,16 +281,14 @@ describe('columns.ts — updateTaskColumn', () => {
   it('missing / cross-company column → not_found (branch@125 TaskColumnError arm)', async () => {
     const tx = {
       taskColumn: {
-        findUnique: vi
-          .fn()
-          .mockResolvedValue({
-            companyId: 'co-B',
-            name: 'x',
-            position: 0,
-            statusAnchor: 'todo',
-            color: null,
-            isDoneColumn: false,
-          }),
+        findUnique: vi.fn().mockResolvedValue({
+          companyId: 'co-B',
+          name: 'x',
+          position: 0,
+          statusAnchor: 'todo',
+          color: null,
+          isDoneColumn: false,
+        }),
       },
     };
     const r = await updateTaskColumn(txRuns(tx), leaderA(), 'c1', {
@@ -304,16 +302,14 @@ describe('columns.ts — updateTaskColumn', () => {
   it('P2002 during update → position_taken (line126 isUnique-true arm)', async () => {
     const tx = {
       taskColumn: {
-        findUnique: vi
-          .fn()
-          .mockResolvedValue({
-            companyId: 'co-A',
-            name: 'x',
-            position: 0,
-            statusAnchor: 'todo',
-            color: null,
-            isDoneColumn: false,
-          }),
+        findUnique: vi.fn().mockResolvedValue({
+          companyId: 'co-A',
+          name: 'x',
+          position: 0,
+          statusAnchor: 'todo',
+          color: null,
+          isDoneColumn: false,
+        }),
         update: vi.fn().mockRejectedValue(P2002),
       },
     };
@@ -329,16 +325,14 @@ describe('columns.ts — updateTaskColumn', () => {
     const boom = new Error('update column exploded');
     const tx = {
       taskColumn: {
-        findUnique: vi
-          .fn()
-          .mockResolvedValue({
-            companyId: 'co-A',
-            name: 'x',
-            position: 0,
-            statusAnchor: 'todo',
-            color: null,
-            isDoneColumn: false,
-          }),
+        findUnique: vi.fn().mockResolvedValue({
+          companyId: 'co-A',
+          name: 'x',
+          position: 0,
+          statusAnchor: 'todo',
+          color: null,
+          isDoneColumn: false,
+        }),
         update: vi.fn().mockRejectedValue(boom),
       },
     };

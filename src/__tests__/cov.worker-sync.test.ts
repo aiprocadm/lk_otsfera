@@ -161,14 +161,12 @@ withLiveMode('syncOrdersProcessor pending capture failure (live mode)', async ()
       upsert: vi.fn().mockResolvedValue({}),
     },
     organization: {
-      findFirst: vi
-        .fn()
-        .mockResolvedValue({
-          id: 'org1',
-          partnerId: 'p1',
-          companyId: 'c1',
-          externalId: '1c-org-001',
-        }),
+      findFirst: vi.fn().mockResolvedValue({
+        id: 'org1',
+        partnerId: 'p1',
+        companyId: 'c1',
+        externalId: '1c-org-001',
+      }),
     },
     order: {
       findUnique: vi.fn().mockResolvedValue(null),

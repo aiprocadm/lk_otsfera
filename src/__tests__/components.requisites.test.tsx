@@ -160,13 +160,11 @@ describe('RequisitesCard', () => {
   });
 
   it('ошибки с messages — списком role=alert; без messages — toast', async () => {
-    const action = vi
-      .fn()
-      .mockResolvedValue({
-        ok: false,
-        error: 'validation',
-        messages: ['ИНН должен содержать 10 или 12 цифр'],
-      });
+    const action = vi.fn().mockResolvedValue({
+      ok: false,
+      error: 'validation',
+      messages: ['ИНН должен содержать 10 или 12 цифр'],
+    });
     render(
       <RequisitesCard title="Т" description="d" defaults={DEFAULTS} idPrefix="t" action={action} />
     );

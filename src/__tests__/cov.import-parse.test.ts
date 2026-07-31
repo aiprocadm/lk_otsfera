@@ -249,14 +249,12 @@ describe('matchRow — uncovered branches', () => {
   it('order matched but no externalId and org has no inn → queue with candidateOrderId (L50 false, L52-53)', async () => {
     const prisma = db({
       order: {
-        findFirst: vi
-          .fn()
-          .mockResolvedValue({
-            id: 'o1',
-            externalId: null,
-            organizationId: 'org1',
-            organization: null,
-          }),
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'o1',
+          externalId: null,
+          organizationId: 'org1',
+          organization: null,
+        }),
       },
     });
     const out = await matchRow(prisma, row({ accountCandidates: ['260509-1905'] }));

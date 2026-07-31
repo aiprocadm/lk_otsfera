@@ -517,12 +517,10 @@ it('toggleReaction: message_not_found', async () => {
 it('toggleReaction: не-участник беседы сообщения → forbidden', async () => {
   const prisma = prismaFixture({
     staffMessage: {
-      findUnique: vi
-        .fn()
-        .mockResolvedValue({
-          id: 'msg1',
-          conversation: convFixture({ participants: [{ userId: 'x' }, { userId: 'y' }] }),
-        }),
+      findUnique: vi.fn().mockResolvedValue({
+        id: 'msg1',
+        conversation: convFixture({ participants: [{ userId: 'x' }, { userId: 'y' }] }),
+      }),
       findMany: vi.fn(),
       create: vi.fn(),
       count: vi.fn(),

@@ -605,20 +605,16 @@ describe('updatePartner()', () => {
     const created: { effectiveFrom?: Date } = {};
     const tx = {
       partner: {
-        findUnique: vi
-          .fn()
-          .mockResolvedValue({
-            name: 'P',
-            commissionRate: new Prisma.Decimal('0.1'),
-            isActive: true,
-          }),
-        update: vi
-          .fn()
-          .mockResolvedValue({
-            name: 'P',
-            commissionRate: new Prisma.Decimal('0.2'),
-            isActive: true,
-          }),
+        findUnique: vi.fn().mockResolvedValue({
+          name: 'P',
+          commissionRate: new Prisma.Decimal('0.1'),
+          isActive: true,
+        }),
+        update: vi.fn().mockResolvedValue({
+          name: 'P',
+          commissionRate: new Prisma.Decimal('0.2'),
+          isActive: true,
+        }),
       },
       commissionRateChange: {
         create: vi.fn().mockImplementation(({ data }) => {

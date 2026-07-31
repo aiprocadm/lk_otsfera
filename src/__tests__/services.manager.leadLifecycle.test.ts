@@ -18,12 +18,10 @@ function db(lead: LeadRow | null, over: Record<string, unknown> = {}) {
   return {
     lead: {
       findUnique: vi.fn().mockResolvedValue(lead),
-      update: vi
-        .fn()
-        .mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
-          ...lead,
-          ...data,
-        })),
+      update: vi.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
+        ...lead,
+        ...data,
+      })),
     },
     organization: { findUnique: vi.fn().mockResolvedValue({ companyId: 'co1' }) },
     // B1: assign-to-other валидирует кандидата; по умолчанию — активный менеджер

@@ -291,12 +291,10 @@ describe('ClientRequestAttachmentsList', () => {
   });
 
   it('скачивание: POST download-роут → window.open(downloadUrl)', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue({
-        ok: true,
-        json: async () => ({ downloadUrl: 'https://s3.example/presigned-1' }),
-      });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ downloadUrl: 'https://s3.example/presigned-1' }),
+    });
     vi.stubGlobal('fetch', fetchMock);
     const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
     render(

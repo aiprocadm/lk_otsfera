@@ -596,12 +596,10 @@ describe('StaffComposer', () => {
   it('falls back to a generic message for an unmapped upload error code', async () => {
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockResolvedValue({
-          ok: false,
-          json: async () => ({ ok: false, error: 'conversation_not_found' }),
-        })
+      vi.fn().mockResolvedValue({
+        ok: false,
+        json: async () => ({ ok: false, error: 'conversation_not_found' }),
+      })
     );
     render(<StaffComposer conversationId="c1" colleagues={[]} onSend={vi.fn()} />);
     const input = screen.getByTitle('Прикрепить файл').nextElementSibling as HTMLInputElement;

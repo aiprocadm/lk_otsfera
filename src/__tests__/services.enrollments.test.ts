@@ -68,14 +68,12 @@ describe('submitEnrollmentRequest (этап 2: шапка + позиции)', ()
       trainingDirection: { findFirst: vi.fn().mockResolvedValue({ id: 'd1' }) },
       organization: { findFirst: vi.fn().mockResolvedValue({ id: 'o1' }) },
       student: { findMany: vi.fn().mockResolvedValue([]) },
-      $transaction: vi
-        .fn()
-        .mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
-          fn({
-            enrollmentRequest: { create: requestCreate },
-            enrollmentRequestItem: { createMany: itemCreateMany },
-          })
-        ),
+      $transaction: vi.fn().mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
+        fn({
+          enrollmentRequest: { create: requestCreate },
+          enrollmentRequestItem: { createMany: itemCreateMany },
+        })
+      ),
       ...over,
     };
     return { d: base as never, requestCreate, itemCreateMany, base };
@@ -320,14 +318,12 @@ describe('enrollment lifecycle (шапка + зеркалирование поз
     const base = {
       enrollmentRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'E1', status }) },
       enrollmentRequestItem: { count: vi.fn().mockResolvedValue(itemCount) },
-      $transaction: vi
-        .fn()
-        .mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
-          fn({
-            enrollmentRequest: { update: requestUpdate },
-            enrollmentRequestItem: { updateMany: itemUpdateMany },
-          })
-        ),
+      $transaction: vi.fn().mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
+        fn({
+          enrollmentRequest: { update: requestUpdate },
+          enrollmentRequestItem: { updateMany: itemUpdateMany },
+        })
+      ),
     };
     return { d: base as never, requestUpdate, itemUpdateMany };
   }

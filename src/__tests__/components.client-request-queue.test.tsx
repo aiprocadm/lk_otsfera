@@ -292,13 +292,11 @@ describe('ClientRequestQueue', () => {
   it('ошибка сервера → toast.error с кодом, refresh не зовётся', async () => {
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockResolvedValue({
-          ok: false,
-          status: 409,
-          json: async () => ({ error: 'invalid_status' }),
-        })
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 409,
+        json: async () => ({ error: 'invalid_status' }),
+      })
     );
     render(React.createElement(ClientRequestQueue, { rows: [row({ status: 'submitted' })] }));
 

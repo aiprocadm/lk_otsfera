@@ -177,16 +177,14 @@ describe('approveStatement — unit', () => {
     };
     const db = {
       commissionStatement: {
-        findFirst: vi
-          .fn()
-          .mockResolvedValue({
-            id: 's1',
-            status: 'draft',
-            supersededBy: null,
-            partnerId: 'p1',
-            periodFrom: new Date('2026-05-01'),
-            periodTo: new Date('2026-05-31'),
-          }),
+        findFirst: vi.fn().mockResolvedValue({
+          id: 's1',
+          status: 'draft',
+          supersededBy: null,
+          partnerId: 'p1',
+          periodFrom: new Date('2026-05-01'),
+          periodTo: new Date('2026-05-31'),
+        }),
       },
       $transaction: vi.fn().mockImplementation(async (fn: any) => fn(tx)),
     } as any;
@@ -213,16 +211,14 @@ describe('approveStatement — unit', () => {
     };
     const db = {
       commissionStatement: {
-        findFirst: vi
-          .fn()
-          .mockResolvedValue({
-            id: 's1',
-            status: 'draft',
-            supersededBy: null,
-            partnerId: 'p1',
-            periodFrom: new Date('2026-05-01'),
-            periodTo: new Date('2026-05-31'),
-          }),
+        findFirst: vi.fn().mockResolvedValue({
+          id: 's1',
+          status: 'draft',
+          supersededBy: null,
+          partnerId: 'p1',
+          periodFrom: new Date('2026-05-01'),
+          periodTo: new Date('2026-05-31'),
+        }),
       },
       $transaction: vi.fn().mockImplementation(async (fn: any) => fn(tx)),
     } as any;
@@ -240,16 +236,14 @@ describe('approveStatement — unit', () => {
     };
     const db = {
       commissionStatement: {
-        findFirst: vi
-          .fn()
-          .mockResolvedValue({
-            id: 's1',
-            status: 'draft',
-            supersededBy: null,
-            partnerId: 'p1',
-            periodFrom: new Date('2026-05-01'),
-            periodTo: new Date('2026-05-31'),
-          }),
+        findFirst: vi.fn().mockResolvedValue({
+          id: 's1',
+          status: 'draft',
+          supersededBy: null,
+          partnerId: 'p1',
+          periodFrom: new Date('2026-05-01'),
+          periodTo: new Date('2026-05-31'),
+        }),
       },
       $transaction: vi.fn().mockImplementation(async (fn: any) => fn(tx)),
     } as any;

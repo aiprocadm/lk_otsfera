@@ -83,12 +83,10 @@ describe('RateOverrideForm', () => {
   });
 
   it('"Сохранить" error path (JSON error body): shows the error message and does not refresh', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue({
-        ok: false,
-        json: () => Promise.resolve({ error: 'rate_out_of_range' }),
-      });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      json: () => Promise.resolve({ error: 'rate_out_of_range' }),
+    });
     vi.stubGlobal('fetch', fetchMock);
     render(
       React.createElement(RateOverrideForm, { orgId: 'o1', initialRate: null, initialNote: null })

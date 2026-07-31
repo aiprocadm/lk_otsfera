@@ -121,25 +121,21 @@ describe('RestOneCAdapter', () => {
   it('throws OneCHttpError on a non-OK response', async () => {
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockResolvedValue({
-          ok: false,
-          status: 500,
-          headers: { get: () => null },
-          json: async () => ({}),
-        })
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        headers: { get: () => null },
+        json: async () => ({}),
+      })
     );
     await expect(new RestOneCAdapter(config).pullOrders({})).rejects.toThrow(/500/);
   });
 
   it('pushLead POSTs and validates the response', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue({
-        ok: true,
-        json: async () => ({ acceptedAt: '2026-05-01T00:00:00Z', oneCRequestId: 'r1' }),
-      });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ acceptedAt: '2026-05-01T00:00:00Z', oneCRequestId: 'r1' }),
+    });
     vi.stubGlobal('fetch', fetchMock);
     const r = await new RestOneCAdapter(config).pushLead({
       cabinetLeadId: 'l',

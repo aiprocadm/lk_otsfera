@@ -34,15 +34,13 @@ it('ensureGeneral creates lazily and recovers from P2002 race', async () => {
 it('openDm: cross-company target → forbidden; non-staff caller → forbidden', async () => {
   const prisma = {
     user: {
-      findUnique: vi
-        .fn()
-        .mockResolvedValue({
-          id: 'u9',
-          role: 'manager',
-          companyId: 'c2',
-          isActive: true,
-          name: 'X',
-        }),
+      findUnique: vi.fn().mockResolvedValue({
+        id: 'u9',
+        role: 'manager',
+        companyId: 'c2',
+        isActive: true,
+        name: 'X',
+      }),
     },
     staffConversation: { create: vi.fn(), findUnique: vi.fn() },
   } as never;

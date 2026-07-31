@@ -76,14 +76,12 @@ describe('advanceEnrollmentItems (bulk provisioned → in_training → certifica
     const itemUpdateMany = vi.fn().mockResolvedValue({ count: items.length });
     const base = {
       enrollmentRequest: { findUnique },
-      $transaction: vi
-        .fn()
-        .mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
-          fn({
-            enrollmentRequest: { update: requestUpdate },
-            enrollmentRequestItem: { updateMany: itemUpdateMany },
-          })
-        ),
+      $transaction: vi.fn().mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
+        fn({
+          enrollmentRequest: { update: requestUpdate },
+          enrollmentRequestItem: { updateMany: itemUpdateMany },
+        })
+      ),
     };
     return { d: base as never, requestUpdate, itemUpdateMany };
   }
@@ -222,14 +220,12 @@ describe('approve/reject/markProvisioned уведомляют подателя (
     const base = {
       enrollmentRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'E1', status }) },
       enrollmentRequestItem: { count: vi.fn().mockResolvedValue(itemCount) },
-      $transaction: vi
-        .fn()
-        .mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
-          fn({
-            enrollmentRequest: { update: requestUpdate },
-            enrollmentRequestItem: { updateMany: itemUpdateMany },
-          })
-        ),
+      $transaction: vi.fn().mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
+        fn({
+          enrollmentRequest: { update: requestUpdate },
+          enrollmentRequestItem: { updateMany: itemUpdateMany },
+        })
+      ),
     };
     return { d: base as never };
   }

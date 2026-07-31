@@ -214,13 +214,11 @@ describe('ManagerLeadActions (interactive, jsdom)', () => {
   });
 
   it('non-ok response with a code from the central map: toasts the russian errorMessageRu text', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue({
-        ok: false,
-        status: 409,
-        json: async () => ({ error: 'lifecycle_violation' }),
-      });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      json: async () => ({ error: 'lifecycle_violation' }),
+    });
     vi.stubGlobal('fetch', fetchMock);
 
     render(
@@ -258,13 +256,11 @@ describe('ManagerLeadActions (interactive, jsdom)', () => {
   });
 
   it('non-ok response with an unknown code: falls back to the generic message with the raw code', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue({
-        ok: false,
-        status: 400,
-        json: async () => ({ error: 'unknown_code_xyz' }),
-      });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: 'unknown_code_xyz' }),
+    });
     vi.stubGlobal('fetch', fetchMock);
 
     render(
@@ -471,13 +467,11 @@ describe('ManagerLeadActions (interactive, jsdom)', () => {
   });
 
   it('invalid_manager от бэкенда: тост «Выбранный менеджер недоступен», выбор в селекте сохраняется', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue({
-        ok: false,
-        status: 400,
-        json: async () => ({ error: 'invalid_manager' }),
-      });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: 'invalid_manager' }),
+    });
     vi.stubGlobal('fetch', fetchMock);
 
     render(

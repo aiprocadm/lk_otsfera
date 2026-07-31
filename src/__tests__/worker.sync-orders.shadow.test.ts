@@ -29,14 +29,12 @@ function dbMock() {
   const db = {
     syncState: { findUnique: vi.fn().mockResolvedValue(null), upsert: syncStateUpsert },
     organization: {
-      findFirst: vi
-        .fn()
-        .mockResolvedValue({
-          id: 'org1',
-          partnerId: 'p1',
-          companyId: 'c1',
-          externalId: '1c-org-001',
-        }),
+      findFirst: vi.fn().mockResolvedValue({
+        id: 'org1',
+        partnerId: 'p1',
+        companyId: 'c1',
+        externalId: '1c-org-001',
+      }),
     },
     order: {
       findUnique: vi.fn().mockResolvedValue(null),

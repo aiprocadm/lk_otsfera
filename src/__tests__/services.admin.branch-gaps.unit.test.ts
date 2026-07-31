@@ -222,21 +222,19 @@ describe('admin/queueStats — getDlq: null/undefined job fields', () => {
     const provider: QueueProvider = (name) =>
       ({
         getJobCounts: vi.fn().mockResolvedValue({}),
-        getFailed: vi
-          .fn()
-          .mockResolvedValue(
-            name === 'docs.scanDocument'
-              ? [
-                  {
-                    id: undefined,
-                    name: 'scan',
-                    failedReason: 'err',
-                    finishedOn: 1000,
-                    attemptsMade: 1,
-                  },
-                ]
-              : []
-          ),
+        getFailed: vi.fn().mockResolvedValue(
+          name === 'docs.scanDocument'
+            ? [
+                {
+                  id: undefined,
+                  name: 'scan',
+                  failedReason: 'err',
+                  finishedOn: 1000,
+                  attemptsMade: 1,
+                },
+              ]
+            : []
+        ),
         getJob: vi.fn(),
       }) as any;
 
@@ -249,21 +247,19 @@ describe('admin/queueStats — getDlq: null/undefined job fields', () => {
     const provider: QueueProvider = (name) =>
       ({
         getJobCounts: vi.fn().mockResolvedValue({}),
-        getFailed: vi
-          .fn()
-          .mockResolvedValue(
-            name === 'docs.scanDocument'
-              ? [
-                  {
-                    id: 'j1',
-                    name: 'scan',
-                    failedReason: undefined,
-                    finishedOn: 1000,
-                    attemptsMade: 1,
-                  },
-                ]
-              : []
-          ),
+        getFailed: vi.fn().mockResolvedValue(
+          name === 'docs.scanDocument'
+            ? [
+                {
+                  id: 'j1',
+                  name: 'scan',
+                  failedReason: undefined,
+                  finishedOn: 1000,
+                  attemptsMade: 1,
+                },
+              ]
+            : []
+        ),
         getJob: vi.fn(),
       }) as any;
 
@@ -276,21 +272,19 @@ describe('admin/queueStats — getDlq: null/undefined job fields', () => {
     const provider: QueueProvider = (name) =>
       ({
         getJobCounts: vi.fn().mockResolvedValue({}),
-        getFailed: vi
-          .fn()
-          .mockResolvedValue(
-            name === 'docs.scanDocument'
-              ? [
-                  {
-                    id: 'j1',
-                    name: 'scan',
-                    failedReason: 'err',
-                    finishedOn: undefined,
-                    attemptsMade: 1,
-                  },
-                ]
-              : []
-          ),
+        getFailed: vi.fn().mockResolvedValue(
+          name === 'docs.scanDocument'
+            ? [
+                {
+                  id: 'j1',
+                  name: 'scan',
+                  failedReason: 'err',
+                  finishedOn: undefined,
+                  attemptsMade: 1,
+                },
+              ]
+            : []
+        ),
         getJob: vi.fn(),
       }) as any;
 
@@ -303,21 +297,19 @@ describe('admin/queueStats — getDlq: null/undefined job fields', () => {
     const provider: QueueProvider = (name) =>
       ({
         getJobCounts: vi.fn().mockResolvedValue({}),
-        getFailed: vi
-          .fn()
-          .mockResolvedValue(
-            name === 'docs.scanDocument'
-              ? [
-                  {
-                    id: 'j1',
-                    name: 'scan',
-                    failedReason: 'err',
-                    finishedOn: 1000,
-                    attemptsMade: undefined,
-                  },
-                ]
-              : []
-          ),
+        getFailed: vi.fn().mockResolvedValue(
+          name === 'docs.scanDocument'
+            ? [
+                {
+                  id: 'j1',
+                  name: 'scan',
+                  failedReason: 'err',
+                  finishedOn: 1000,
+                  attemptsMade: undefined,
+                },
+              ]
+            : []
+        ),
         getJob: vi.fn(),
       }) as any;
 

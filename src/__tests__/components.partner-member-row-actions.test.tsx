@@ -248,13 +248,11 @@ describe('MemberRowActions', () => {
   });
 
   it('deactivate error path: last_admin_protected maps to a specific Russian message', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue({
-        ok: false,
-        status: 400,
-        json: () => Promise.resolve({ error: 'last_admin_protected' }),
-      });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: () => Promise.resolve({ error: 'last_admin_protected' }),
+    });
     vi.stubGlobal('fetch', fetchMock);
     renderActions();
     fireEvent.click(screen.getByText('Удалить'));
@@ -268,13 +266,11 @@ describe('MemberRowActions', () => {
   });
 
   it('deactivate error path: unknown error code falls back to the generic message', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue({
-        ok: false,
-        status: 400,
-        json: () => Promise.resolve({ error: 'other_error' }),
-      });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: () => Promise.resolve({ error: 'other_error' }),
+    });
     vi.stubGlobal('fetch', fetchMock);
     renderActions();
     fireEvent.click(screen.getByText('Удалить'));

@@ -474,18 +474,16 @@ describe('organization/finance (unit)', () => {
         ]),
       },
       order: {
-        findMany: vi
-          .fn()
-          .mockResolvedValue([
-            {
-              id: 'o1',
-              orderNumber: 'ЗАК-001',
-              organizationId: 'org-1',
-              totalAmount: new Prisma.Decimal('100000'),
-              vatIncluded: true,
-              vatRate: null,
-            },
-          ]),
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'o1',
+            orderNumber: 'ЗАК-001',
+            organizationId: 'org-1',
+            totalAmount: new Prisma.Decimal('100000'),
+            vatIncluded: true,
+            vatRate: null,
+          },
+        ]),
       },
     } as unknown as PrismaClient;
 
@@ -518,18 +516,16 @@ describe('organization/finance (unit)', () => {
         ]),
       },
       order: {
-        findMany: vi
-          .fn()
-          .mockResolvedValue([
-            {
-              id: 'o1',
-              orderNumber: null,
-              organizationId: 'org-1',
-              totalAmount: new Prisma.Decimal('10000'),
-              vatIncluded: true,
-              vatRate: null,
-            },
-          ]),
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'o1',
+            orderNumber: null,
+            organizationId: 'org-1',
+            totalAmount: new Prisma.Decimal('10000'),
+            vatIncluded: true,
+            vatRate: null,
+          },
+        ]),
       },
     } as unknown as PrismaClient;
 
@@ -656,17 +652,15 @@ describe('organization/students (unit)', () => {
     const prisma = {
       student: {
         count: vi.fn().mockResolvedValue(1),
-        findMany: vi
-          .fn()
-          .mockResolvedValue([
-            {
-              id: 's2',
-              name: 'Мария',
-              email: 'm@demo.local',
-              externalStudentId: null,
-              createdAt: new Date(),
-            },
-          ]),
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 's2',
+            name: 'Мария',
+            email: 'm@demo.local',
+            externalStudentId: null,
+            createdAt: new Date(),
+          },
+        ]),
       },
     } as unknown as PrismaClient;
 
@@ -2374,14 +2368,12 @@ describe('organization/invite — createOrgAdminInvite (unit)', () => {
             .mockResolvedValue({ id: 'u-dup', email: 'dup@x.com', passwordHash: 'x' }),
         },
         organizationUser: {
-          findUnique: vi
-            .fn()
-            .mockResolvedValue({
-              id: 'ou-dup',
-              isActive: true,
-              roleInOrg: 'member',
-              organizationId: 'org-1',
-            }),
+          findUnique: vi.fn().mockResolvedValue({
+            id: 'ou-dup',
+            isActive: true,
+            roleInOrg: 'member',
+            organizationId: 'org-1',
+          }),
         },
       }
     );

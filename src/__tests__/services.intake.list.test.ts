@@ -101,70 +101,62 @@ describe('listIntake', () => {
   it('нормализует 4 источника, сортирует «дольше ждёт — выше», резолвит имена, ставит slaLevel', async () => {
     const { prisma } = makePrisma({
       clientRequest: {
-        findMany: vi
-          .fn()
-          .mockResolvedValue([
-            {
-              id: 'r1',
-              createdAt: ago(30),
-              companyName: 'ООО Ромашка',
-              subject: 'Обучение',
-              status: 'in_triage',
-              triagedByUserId: 'm2',
-              organizationId: 'org-1',
-            },
-          ]),
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'r1',
+            createdAt: ago(30),
+            companyName: 'ООО Ромашка',
+            subject: 'Обучение',
+            status: 'in_triage',
+            triagedByUserId: 'm2',
+            organizationId: 'org-1',
+          },
+        ]),
         count: vi.fn(),
       },
       enrollmentRequest: {
-        findMany: vi
-          .fn()
-          .mockResolvedValue([
-            {
-              id: 'e1',
-              createdAt: ago(5),
-              claimedByUserId: null,
-              organizationId: null,
-              legacyCourseTitle: null,
-              organization: { name: 'ООО Лютик' },
-              partner: null,
-              direction: { name: 'Высота' },
-              items: [{ id: 'x' }, { id: 'y' }],
-            },
-          ]),
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'e1',
+            createdAt: ago(5),
+            claimedByUserId: null,
+            organizationId: null,
+            legacyCourseTitle: null,
+            organization: { name: 'ООО Лютик' },
+            partner: null,
+            direction: { name: 'Высота' },
+            items: [{ id: 'x' }, { id: 'y' }],
+          },
+        ]),
         count: vi.fn(),
       },
       inboundMessage: {
-        findMany: vi
-          .fn()
-          .mockResolvedValue([
-            {
-              id: 'i1',
-              createdAt: ago(1),
-              channel: 'email',
-              senderDisplay: 'Пётр',
-              senderRef: 'p@x.ru',
-              subject: 'Вопрос',
-              body: 'Текст обращения',
-              claimedByUserId: null,
-              resolvedOrgId: null,
-            },
-          ]),
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'i1',
+            createdAt: ago(1),
+            channel: 'email',
+            senderDisplay: 'Пётр',
+            senderRef: 'p@x.ru',
+            subject: 'Вопрос',
+            body: 'Текст обращения',
+            claimedByUserId: null,
+            resolvedOrgId: null,
+          },
+        ]),
         count: vi.fn(),
       },
       call: {
-        findMany: vi
-          .fn()
-          .mockResolvedValue([
-            {
-              id: 'c1',
-              createdAt: ago(2),
-              callerNumber: '+79990000000',
-              durationSec: 30,
-              status: 'answered',
-              claimedByUserId: null,
-            },
-          ]),
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'c1',
+            createdAt: ago(2),
+            callerNumber: '+79990000000',
+            durationSec: 30,
+            status: 'answered',
+            claimedByUserId: null,
+          },
+        ]),
         count: vi.fn(),
       },
       user: { findMany: vi.fn().mockResolvedValue([{ id: 'm2', name: 'Мария' }]) },
@@ -300,18 +292,16 @@ describe('listIntake', () => {
     // человеку не ответили и надо перезвонить в первую очередь.
     const { prisma } = makePrisma({
       call: {
-        findMany: vi
-          .fn()
-          .mockResolvedValue([
-            {
-              id: 'c-missed',
-              createdAt: ago(1),
-              callerNumber: '+79991112233',
-              durationSec: null,
-              status: 'missed',
-              claimedByUserId: null,
-            },
-          ]),
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'c-missed',
+            createdAt: ago(1),
+            callerNumber: '+79991112233',
+            durationSec: null,
+            status: 'missed',
+            claimedByUserId: null,
+          },
+        ]),
         count: vi.fn(),
       },
     });

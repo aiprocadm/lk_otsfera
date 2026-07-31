@@ -129,12 +129,10 @@ describe('DocumentsPanel', () => {
   });
 
   it('download: successful fetch opens the presigned URL in a new tab', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ downloadUrl: 'https://s3/signed' }),
-      });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ downloadUrl: 'https://s3/signed' }),
+    });
     vi.stubGlobal('fetch', fetchMock);
     const openMock = vi.fn();
     vi.stubGlobal('open', openMock);

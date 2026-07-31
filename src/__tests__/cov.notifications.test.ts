@@ -118,15 +118,13 @@ function managerDb(recipients: Array<Record<string, unknown>>) {
   return {
     db: {
       order: {
-        findUnique: vi
-          .fn()
-          .mockResolvedValue({
-            id: 'o1',
-            orderNumber: '123',
-            title: 'T',
-            managerId: 'm1',
-            organizationId: 'org1',
-          }),
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'o1',
+          orderNumber: '123',
+          title: 'T',
+          managerId: 'm1',
+          organizationId: 'org1',
+        }),
       },
       organizationManager: { findMany: vi.fn().mockResolvedValue([]) },
       comment: { findMany: vi.fn().mockResolvedValue([]) },

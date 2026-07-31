@@ -800,15 +800,13 @@ describe('upsertOrderRecord — additional branch coverage', () => {
     });
     const d = {
       order: {
-        findUnique: vi
-          .fn()
-          .mockResolvedValue({
-            id: 'ex',
-            organizationId: 'o',
-            financialStatus: 'billed',
-            orderNumber: 'O-EXTRA',
-            title: 'T',
-          }),
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'ex',
+          organizationId: 'o',
+          financialStatus: 'billed',
+          orderNumber: 'O-EXTRA',
+          title: 'T',
+        }),
         create: vi.fn(),
         update: vi.fn(),
       },
@@ -828,15 +826,13 @@ describe('upsertOrderRecord — additional branch coverage', () => {
     });
     const d = {
       order: {
-        findUnique: vi
-          .fn()
-          .mockResolvedValue({
-            id: 'ex',
-            organizationId: null,
-            financialStatus: 'billed',
-            orderNumber: 'O-EXTRA',
-            title: 'T',
-          }),
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'ex',
+          organizationId: null,
+          financialStatus: 'billed',
+          orderNumber: 'O-EXTRA',
+          title: 'T',
+        }),
         create: vi.fn(),
         update: vi.fn(),
       },
@@ -857,15 +853,13 @@ describe('upsertOrderRecord — additional branch coverage', () => {
     const changedDto = { ...baseDto, financialStatus: 'paid' } as any;
     const d = {
       order: {
-        findUnique: vi
-          .fn()
-          .mockResolvedValue({
-            id: 'ex',
-            organizationId: null,
-            financialStatus: 'billed',
-            orderNumber: 'O-EXTRA',
-            title: 'T',
-          }),
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'ex',
+          organizationId: null,
+          financialStatus: 'billed',
+          orderNumber: 'O-EXTRA',
+          title: 'T',
+        }),
         create: vi.fn(),
         update: vi.fn(),
       },
@@ -888,15 +882,13 @@ describe('upsertOrderRecord — additional branch coverage', () => {
     const changedDto = { ...baseDto, financialStatus: 'paid' } as any;
     const d = {
       order: {
-        findUnique: vi
-          .fn()
-          .mockResolvedValue({
-            id: 'ex',
-            organizationId: 'o',
-            financialStatus: 'billed',
-            orderNumber: 'O-EXTRA',
-            title: 'T',
-          }),
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'ex',
+          organizationId: 'o',
+          financialStatus: 'billed',
+          orderNumber: 'O-EXTRA',
+          title: 'T',
+        }),
         create: vi.fn(),
         update: vi.fn(),
       },
@@ -919,15 +911,13 @@ describe('upsertOrderRecord — additional branch coverage', () => {
     // same financialStatus as dto ('billed')
     const d = {
       order: {
-        findUnique: vi
-          .fn()
-          .mockResolvedValue({
-            id: 'ex',
-            organizationId: 'o',
-            financialStatus: 'billed',
-            orderNumber: 'O-EXTRA',
-            title: 'T',
-          }),
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'ex',
+          organizationId: 'o',
+          financialStatus: 'billed',
+          orderNumber: 'O-EXTRA',
+          title: 'T',
+        }),
         create: vi.fn(),
         update: vi.fn(),
       },
@@ -1000,14 +990,12 @@ describe('upsertDocumentRecord — additional branch coverage', () => {
       getQueue.mockReturnValue({ add: vi.fn().mockRejectedValue(new Error('redis down')) });
       const d = {
         order: {
-          findUnique: vi
-            .fn()
-            .mockResolvedValue({
-              id: 'ord1',
-              organizationId: 'o1',
-              orderNumber: 'O-1',
-              title: 't',
-            }),
+          findUnique: vi.fn().mockResolvedValue({
+            id: 'ord1',
+            organizationId: 'o1',
+            orderNumber: 'O-1',
+            title: 't',
+          }),
         },
         document: {
           findUnique: vi.fn().mockResolvedValue(null),

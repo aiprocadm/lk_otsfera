@@ -90,15 +90,13 @@ function orgDb(over: Record<string, unknown> = {}) {
 function docDb(over: Record<string, unknown> = {}) {
   return {
     order: {
-      findUnique: vi
-        .fn()
-        .mockResolvedValue({
-          id: 'ord1',
-          organizationId: 'orgA',
-          companyId: 'companyA',
-          orderNumber: 'O-1',
-          title: 't',
-        }),
+      findUnique: vi.fn().mockResolvedValue({
+        id: 'ord1',
+        organizationId: 'orgA',
+        companyId: 'companyA',
+        orderNumber: 'O-1',
+        title: 't',
+      }),
     },
     document: {
       findUnique: vi.fn().mockResolvedValue(null),
@@ -196,15 +194,13 @@ describe('C8: upsertDocumentRecord honours the company floor (by the order’s c
   it('leader CANNOT attach a document to another company’s order (skip out_of_scope, no fetch/create)', async () => {
     const d = docDb({
       order: {
-        findUnique: vi
-          .fn()
-          .mockResolvedValue({
-            id: 'ord1',
-            organizationId: 'orgB',
-            companyId: 'companyB',
-            orderNumber: 'O-1',
-            title: 't',
-          }),
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'ord1',
+          organizationId: 'orgB',
+          companyId: 'companyB',
+          orderNumber: 'O-1',
+          title: 't',
+        }),
       },
     });
     const sum = emptySummary();

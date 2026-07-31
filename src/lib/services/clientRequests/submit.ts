@@ -28,9 +28,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * (только формат; на дубли на клиентской стороне НЕ проверяется — ФТ-13.4).
  * Чистая функция, русские сообщения. Экспортируется для переиспользования формой.
  */
-export function validateClientRequestInput(
-  input: SubmitClientRequestInput
-):
+export function validateClientRequestInput(input: SubmitClientRequestInput):
   | {
       ok: true;
       values: {

@@ -33,14 +33,12 @@ describe('matchRow', () => {
   it('exact by account number → order (with externalId) → dto.orderExternalId', async () => {
     const prisma = db({
       order: {
-        findFirst: vi
-          .fn()
-          .mockResolvedValue({
-            id: 'o1',
-            externalId: 'EXT-1',
-            organizationId: 'org1',
-            organization: { inn: '7700000000' },
-          }),
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'o1',
+          externalId: 'EXT-1',
+          organizationId: 'org1',
+          organization: { inn: '7700000000' },
+        }),
       },
       organization: { findFirst: vi.fn() },
     });
@@ -52,14 +50,12 @@ describe('matchRow', () => {
   it('account matches order without externalId → falls back to org-level (organizationInn)', async () => {
     const prisma = db({
       order: {
-        findFirst: vi
-          .fn()
-          .mockResolvedValue({
-            id: 'o1',
-            externalId: null,
-            organizationId: 'org1',
-            organization: { inn: '7700000000' },
-          }),
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'o1',
+          externalId: null,
+          organizationId: 'org1',
+          organization: { inn: '7700000000' },
+        }),
       },
     });
     const out = await matchRow(prisma, row({ accountCandidates: ['260509-1905'] }));

@@ -36,32 +36,28 @@ it('merges sources ascending by unified `at`, using inbound.sentAt over createdA
   getOrder.mockResolvedValue({ id: 'o1' });
   const prisma = fakePrisma({
     inboundMessage: {
-      findMany: vi
-        .fn()
-        .mockResolvedValue([
-          {
-            id: 'in1',
-            channel: 'whatsapp',
-            senderDisplay: 'Пётр',
-            senderRef: 'wa:1',
-            body: 'привет',
-            sentAt: new Date('2026-07-13T10:00:00Z'),
-            createdAt: new Date('2026-07-13T10:05:00Z'),
-            attachmentName: null,
-          },
-        ]),
+      findMany: vi.fn().mockResolvedValue([
+        {
+          id: 'in1',
+          channel: 'whatsapp',
+          senderDisplay: 'Пётр',
+          senderRef: 'wa:1',
+          body: 'привет',
+          sentAt: new Date('2026-07-13T10:00:00Z'),
+          createdAt: new Date('2026-07-13T10:05:00Z'),
+          attachmentName: null,
+        },
+      ]),
     },
     dealNote: {
-      findMany: vi
-        .fn()
-        .mockResolvedValue([
-          {
-            id: 'n1',
-            body: 'скидка 5%',
-            createdAt: new Date('2026-07-13T09:00:00Z'),
-            author: { name: 'Иванов' },
-          },
-        ]),
+      findMany: vi.fn().mockResolvedValue([
+        {
+          id: 'n1',
+          body: 'скидка 5%',
+          createdAt: new Date('2026-07-13T09:00:00Z'),
+          author: { name: 'Иванов' },
+        },
+      ]),
     },
   });
   const res = await getDealActivity(prisma, session, 'o1', { view: 'all' });
@@ -80,21 +76,19 @@ it("view:'dialogue' excludes note/call/event", async () => {
         .mockResolvedValue([{ id: 'n1', body: 'x', createdAt: new Date(), author: { name: 'И' } }]),
     },
     call: {
-      findMany: vi
-        .fn()
-        .mockResolvedValue([
-          {
-            id: 'ca1',
-            direction: 'inbound',
-            callerNumber: '+70000000000',
-            durationSec: 10,
-            startedAt: new Date(),
-            createdAt: new Date(),
-            recordingScanStatus: 'clean',
-            recordingPath: 'x',
-            initiatedBy: null,
-          },
-        ]),
+      findMany: vi.fn().mockResolvedValue([
+        {
+          id: 'ca1',
+          direction: 'inbound',
+          callerNumber: '+70000000000',
+          durationSec: 10,
+          startedAt: new Date(),
+          createdAt: new Date(),
+          recordingScanStatus: 'clean',
+          recordingPath: 'x',
+          initiatedBy: null,
+        },
+      ]),
     },
     auditLog: { findMany: vi.fn().mockResolvedValue([{ id: 'e1', createdAt: new Date() }]) },
   });
@@ -109,37 +103,33 @@ it('records PII access for inbound + calls (two contexts)', async () => {
   getOrder.mockResolvedValue({ id: 'o1' });
   const prisma = fakePrisma({
     inboundMessage: {
-      findMany: vi
-        .fn()
-        .mockResolvedValue([
-          {
-            id: 'in1',
-            channel: 'email',
-            senderDisplay: null,
-            senderRef: 'a@b.c',
-            body: 'hi',
-            sentAt: null,
-            createdAt: new Date(),
-            attachmentName: null,
-          },
-        ]),
+      findMany: vi.fn().mockResolvedValue([
+        {
+          id: 'in1',
+          channel: 'email',
+          senderDisplay: null,
+          senderRef: 'a@b.c',
+          body: 'hi',
+          sentAt: null,
+          createdAt: new Date(),
+          attachmentName: null,
+        },
+      ]),
     },
     call: {
-      findMany: vi
-        .fn()
-        .mockResolvedValue([
-          {
-            id: 'ca1',
-            direction: 'inbound',
-            callerNumber: '+70000000000',
-            durationSec: 10,
-            startedAt: new Date(),
-            createdAt: new Date(),
-            recordingScanStatus: 'clean',
-            recordingPath: 'x',
-            initiatedBy: null,
-          },
-        ]),
+      findMany: vi.fn().mockResolvedValue([
+        {
+          id: 'ca1',
+          direction: 'inbound',
+          callerNumber: '+70000000000',
+          durationSec: 10,
+          startedAt: new Date(),
+          createdAt: new Date(),
+          recordingScanStatus: 'clean',
+          recordingPath: 'x',
+          initiatedBy: null,
+        },
+      ]),
     },
   });
   await getDealActivity(prisma, session, 'o1', { view: 'all' });
@@ -162,16 +152,14 @@ it('handles an order with no threads (skips thread-scoped queries)', async () =>
     inboundMessage,
     call,
     comment: {
-      findMany: vi
-        .fn()
-        .mockResolvedValue([
-          {
-            id: 'cm1',
-            body: 'привет',
-            createdAt: new Date('2026-07-13T08:00:00Z'),
-            author: { name: 'Клиент' },
-          },
-        ]),
+      findMany: vi.fn().mockResolvedValue([
+        {
+          id: 'cm1',
+          body: 'привет',
+          createdAt: new Date('2026-07-13T08:00:00Z'),
+          author: { name: 'Клиент' },
+        },
+      ]),
     },
   });
   const res = await getDealActivity(prisma, session, 'o1', { view: 'all' });
@@ -226,21 +214,19 @@ it('maps a call with no startedAt, unscanned recording, and a known initiator', 
   getOrder.mockResolvedValue({ id: 'o1' });
   const prisma = fakePrisma({
     call: {
-      findMany: vi
-        .fn()
-        .mockResolvedValue([
-          {
-            id: 'ca2',
-            direction: 'outbound',
-            callerNumber: '+79990000000',
-            durationSec: null,
-            startedAt: null,
-            createdAt: new Date('2026-07-13T07:00:00Z'),
-            recordingScanStatus: 'pending',
-            recordingPath: null,
-            initiatedBy: { name: 'Менеджер' },
-          },
-        ]),
+      findMany: vi.fn().mockResolvedValue([
+        {
+          id: 'ca2',
+          direction: 'outbound',
+          callerNumber: '+79990000000',
+          durationSec: null,
+          startedAt: null,
+          createdAt: new Date('2026-07-13T07:00:00Z'),
+          recordingScanStatus: 'pending',
+          recordingPath: null,
+          initiatedBy: { name: 'Менеджер' },
+        },
+      ]),
     },
   });
   const res = await getDealActivity(prisma, session, 'o1', { view: 'all' });

@@ -57,9 +57,7 @@ function appBaseUrl(): string {
   return process.env.APP_URL?.trim() || 'https://lk.otsfera.ru';
 }
 
-export async function createPartnerWithAdminAction(
-  fd: FormData
-): Promise<
+export async function createPartnerWithAdminAction(fd: FormData): Promise<
   ActionResult<{
     partner: { id: string; name: string; slug: string };
     user: { id: string; email: string };
