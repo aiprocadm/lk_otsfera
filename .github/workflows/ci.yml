@@ -103,5 +103,13 @@ jobs:
       # Отдельный шаг test:integration не нужен — он внутри gate.
       - run: npm run gate
       # История миграций консистентна: все применены, нет failed/missing.
-      # (Дрейф schema.prisma от каталога миграций этот шаг НЕ ловит.)
       - run: npx prisma migrate status
+      # Фаза 5: дрейф schema.prisma от каталога миграций (migrate status его
+      # не ловит). Пустая shadow-БД на том же service-контейнере.
+      - run: PGPASSWORD=postgres createdb -h localhost -U postgres drift_shadow
+      - run: >-
+          npx prisma migrate diff
+          --from-migrations prisma/migrations
+          --to-schema-datamodel prisma/schema.prisma
+          --shadow-database-url postgresql://postgres:postgres@localhost:5432/drift_shadow
+          --exit-code
