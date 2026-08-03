@@ -1,4 +1,4 @@
-import type { PrismaClient, CommissionStatement, Prisma } from '@prisma/client';
+import { Prisma, type PrismaClient, type CommissionStatement } from '@prisma/client';
 
 export type FinanceKpis = {
   earnedTotal: number;
@@ -31,18 +31,26 @@ export async function getFinanceKpis(
     select: { status: true, totalCommissionAmount: true },
   });
 
-  let earnedTotal = 0;
-  let pendingTotal = 0;
-  let paidTotal = 0;
+  // Деньги суммируем на Prisma.Decimal (фаза 5, аудит D1): накопление во
+  // float даёт дрейф в копейках. В number конвертируем один раз на выходе
+  // (DTO для RSC остаётся числовым).
+  const zero = new Prisma.Decimal(0);
+  let earnedTotal = zero;
+  let pendingTotal = zero;
+  let paidTotal = zero;
 
   for (const s of statements) {
-    const amount = Number(s.totalCommissionAmount);
-    if (s.status === 'approved' || s.status === 'paid') earnedTotal += amount;
-    if (s.status === 'draft' || s.status === 'approved') pendingTotal += amount;
-    if (s.status === 'paid') paidTotal += amount;
+    const amount = s.totalCommissionAmount;
+    if (s.status === 'approved' || s.status === 'paid') earnedTotal = earnedTotal.plus(amount);
+    if (s.status === 'draft' || s.status === 'approved') pendingTotal = pendingTotal.plus(amount);
+    if (s.status === 'paid') paidTotal = paidTotal.plus(amount);
   }
 
-  return { earnedTotal, pendingTotal, paidTotal };
+  return {
+    earnedTotal: earnedTotal.toNumber(),
+    pendingTotal: pendingTotal.toNumber(),
+    paidTotal: paidTotal.toNumber(),
+  };
 }
 
 export type ListStatementsOptions = {

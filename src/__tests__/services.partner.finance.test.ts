@@ -26,6 +26,18 @@ describe('getFinanceKpis', () => {
     });
   });
 
+  it('суммирует деньги без float-дрейфа (фаза 5, аудит D1)', async () => {
+    // Во float 10.10 + 20.20 + 0.03 = 30.330000000000002; на Decimal — ровно 30.33.
+    findMany.mockResolvedValue([
+      { status: 'paid', totalCommissionAmount: new Prisma.Decimal('10.10') },
+      { status: 'paid', totalCommissionAmount: new Prisma.Decimal('20.20') },
+      { status: 'paid', totalCommissionAmount: new Prisma.Decimal('0.03') },
+    ]);
+    const r = await getFinanceKpis(prisma, 'p1');
+    expect(r.paidTotal).toBe(30.33);
+    expect(r.earnedTotal).toBe(30.33);
+  });
+
   it('возвращает нули на пустом наборе', async () => {
     findMany.mockResolvedValue([]);
     expect(await getFinanceKpis(prisma, 'p1')).toEqual({
