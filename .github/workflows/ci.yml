@@ -53,7 +53,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run prisma:generate
+      # Как у typecheck/lint: дефолтного heap на раннере не хватает (OOM).
       - run: npm run build
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
 
   # Фаза 7: критические уязвимости прод-зависимостей = красная сборка.
   # Порог critical (не high): текущие high — транзитивные без фиксов у
