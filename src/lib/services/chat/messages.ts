@@ -69,7 +69,7 @@ export async function listMessages(
   };
 }
 
-export type SendError = 'forbidden' | 'order_not_found' | 'empty_body' | 'too_large';
+type SendError = 'forbidden' | 'order_not_found' | 'empty_body' | 'too_large';
 export type SendResult = { ok: true; messageId: string } | { ok: false; error: SendError };
 
 const MAX_BODY = 5000;

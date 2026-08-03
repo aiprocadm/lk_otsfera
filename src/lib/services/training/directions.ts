@@ -1,7 +1,7 @@
 import type { PrismaClient, TrainingDirection } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
-export type DirectionsError = 'forbidden' | 'validation' | 'not_found';
+type DirectionsError = 'forbidden' | 'validation' | 'not_found';
 type Result<T> = ({ ok: true } & T) | { ok: false; error: DirectionsError };
 
 /** admin или руководитель (manager+managerRole='leader') настраивают справочники (§10/§11). */

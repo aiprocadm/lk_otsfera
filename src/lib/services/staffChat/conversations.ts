@@ -116,7 +116,7 @@ export async function openDm(
   }
 }
 
-export type StaffConversationRow = {
+type StaffConversationRow = {
   id: string;
   kind: 'dm' | 'general';
   title: string;

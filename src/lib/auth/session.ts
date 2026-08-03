@@ -2,6 +2,9 @@ import { cookies } from 'next/headers';
 import { prisma } from '@/lib/db/prisma';
 import { verifyToken } from './jwt';
 
+/** Срок жизни session-cookie = сроку жизни JWT '7d' в jwt.ts (signToken). */
+export const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
+
 export async function getSession() {
   const token = (await cookies()).get('session')?.value;
   if (!token) return null;

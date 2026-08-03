@@ -34,7 +34,7 @@ export type TaskCard = {
   linkedDealTitle: string | null;
 };
 
-export type TaskBoardColumn = { column: TaskColumnView; cards: TaskCard[] };
+type TaskBoardColumn = { column: TaskColumnView; cards: TaskCard[] };
 export type TaskBoard = { columns: TaskColumnView[]; board: TaskBoardColumn[] };
 
 /** Этап 7 (ФТ-7.3): фильтры доски/списка. Всё поверх охвата профиля (не вместо). */

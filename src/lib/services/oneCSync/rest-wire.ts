@@ -17,7 +17,7 @@ export const ENDPOINTS = {
 
 // DECISION Q6/Q7: incremental cursor query param + datetime format on the wire.
 export const SINCE_PARAM = 'since';
-export function formatSince(sinceIso: string): string {
+function formatSince(sinceIso: string): string {
   return sinceIso; // ISO passthrough; adjust if 1C wants МСК / no-offset (Q7).
 }
 

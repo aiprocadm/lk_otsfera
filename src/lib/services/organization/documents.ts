@@ -7,7 +7,7 @@ import {
   orderLessWhere,
 } from '@/lib/auth/documentChannelPolicy';
 
-export type OrgDocRow = {
+type OrgDocRow = {
   id: string;
   name: string;
   type: DocumentType;

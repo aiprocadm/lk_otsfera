@@ -12,7 +12,7 @@ export class OrgInviteError extends Error {
   }
 }
 
-export type OrgInviteSource = 'partner' | 'platform_admin';
+type OrgInviteSource = 'partner' | 'platform_admin';
 
 export type CreateOrgAdminInviteArgs = {
   organizationId: string;

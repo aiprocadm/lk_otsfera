@@ -5,7 +5,7 @@ import type { Role, SessionPayload } from './jwt';
 
 type GuardResult<T> = { ok: true; value: T } | { ok: false; response: Response };
 
-export function unauthorizedResponse(message = 'Unauthorized') {
+function unauthorizedResponse(message = 'Unauthorized') {
   return NextResponse.json({ error: message }, { status: 401 });
 }
 

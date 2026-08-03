@@ -8,7 +8,7 @@ type PrismaLike = PrismaClient | Prisma.TransactionClient;
 
 /** meta события — только счётчики/флаги. Сырые поисковые строки ЗАПРЕЩЕНЫ
  *  (могут содержать ФИО/email — журнал не должен сам копить ПДн). */
-export type PiiAccessMeta = { take?: number; hasQuery?: boolean; cursor?: boolean };
+type PiiAccessMeta = { take?: number; hasQuery?: boolean; cursor?: boolean };
 
 export type PiiAccessArgs = {
   session: SessionPayload;

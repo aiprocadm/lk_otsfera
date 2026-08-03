@@ -40,7 +40,7 @@ const CARD_SELECT = {
   _count: { select: { orders: true, students: true, users: true } },
 } satisfies Prisma.OrganizationSelect;
 
-export type OrgCardOrder = {
+type OrgCardOrder = {
   id: string;
   orderNumber: string | null;
   title: string;
@@ -50,28 +50,28 @@ export type OrgCardOrder = {
   paidAmount: string;
   createdAt: Date;
 };
-export type OrgCardDocument = {
+type OrgCardDocument = {
   id: string;
   name: string;
   type: string;
   direction: string;
   createdAt: Date;
 };
-export type OrgCardPayment = {
+type OrgCardPayment = {
   id: string;
   amount: string;
   paidAt: Date;
   isRefund: boolean;
   orderId: string | null;
 };
-export type OrgCardComment = {
+type OrgCardComment = {
   id: string;
   body: string;
   createdAt: Date;
   authorName: string;
   orderId: string;
 };
-export type OrgCardInboundMessage = {
+type OrgCardInboundMessage = {
   id: string;
   channel: string;
   senderRef: string;
@@ -83,7 +83,7 @@ export type OrgCardInboundMessage = {
   scanStatus: string;
   attachmentName: string | null;
 };
-export type OrgCardCall = {
+type OrgCardCall = {
   id: string;
   direction: string;
   callerNumber: string;
@@ -98,15 +98,15 @@ export type OrgCardCall = {
 };
 
 // Этап 7 (PR-3, §9 этапа 7): внутренний контур в карточке организации.
-export type OrgCardClientRequest = {
+type OrgCardClientRequest = {
   id: string;
   subject: string;
   status: string;
   rejectedReason: string | null;
   createdAt: Date;
 };
-export type OrgCardLead = { id: string; subject: string; status: string; createdAt: Date };
-export type OrgCardDeal = {
+type OrgCardLead = { id: string; subject: string; status: string; createdAt: Date };
+type OrgCardDeal = {
   id: string;
   title: string;
   status: string;
@@ -115,7 +115,7 @@ export type OrgCardDeal = {
 };
 
 // Этап 9 (ФТ-12.2, PR-3): вкладка «Удостоверения» карточки + её выгрузка.
-export type OrgCardCertificate = {
+type OrgCardCertificate = {
   id: string;
   number: string;
   studentName: string;
@@ -125,7 +125,7 @@ export type OrgCardCertificate = {
   hasScan: boolean;
 };
 
-export type OrgCardRequisites = {
+type OrgCardRequisites = {
   legalName: string | null;
   ogrn: string | null;
   legalAddress: string | null;

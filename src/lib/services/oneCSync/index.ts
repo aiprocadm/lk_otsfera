@@ -49,5 +49,4 @@ export function resetOneCAdapter(): void {
 }
 
 export type { OneCAdapter } from './adapter';
-export { FileOneCAdapter } from './adapter-file';
 export * from './dto';

@@ -24,10 +24,10 @@ export type StatusDefinitionsError =
 type Result<T> = ({ ok: true } & T) | { ok: false; error: StatusDefinitionsError };
 
 /** Якоря — производные факты, к которым привязан статус. */
-export const STATUS_ANCHORS = ['paid', 'documents_issued', 'accounting_signed', 'closed'] as const;
+const STATUS_ANCHORS = ['paid', 'documents_issued', 'accounting_signed', 'closed'] as const;
 export type StatusAnchor = (typeof STATUS_ANCHORS)[number];
 
-export function isStatusAnchor(value: string): value is StatusAnchor {
+function isStatusAnchor(value: string): value is StatusAnchor {
   return (STATUS_ANCHORS as readonly string[]).includes(value);
 }
 

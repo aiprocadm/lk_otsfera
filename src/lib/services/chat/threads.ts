@@ -4,11 +4,11 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { activeOrgIds } from '@/lib/auth/organizationPolicy';
 import { canSeeThread } from './policy';
 
-export type ChatError = 'forbidden' | 'order_not_found';
+type ChatError = 'forbidden' | 'order_not_found';
 
 export type ThreadResult = { ok: true; thread: OrderThread } | { ok: false; error: ChatError };
 
-export type ThreadRow = {
+type ThreadRow = {
   id: string;
   orderId: string;
   side: ThreadSide;

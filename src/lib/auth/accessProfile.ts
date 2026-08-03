@@ -14,9 +14,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 
 export {
   scopeLevelSchema,
-  SCOPE_LEVELS,
   capabilitySchema,
-  CAPABILITIES,
   sessionAccessProfileSchema,
 } from './accessProfileSchema';
 export type {

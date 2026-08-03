@@ -23,7 +23,7 @@ import { log } from '@/lib/logging';
  *     must not block the upload from the manager's perspective.
  */
 
-export type DocumentRecipient = 'organization' | 'partner';
+type DocumentRecipient = 'organization' | 'partner';
 
 export type CreateCounterpartyDocumentArgs = {
   orderId: string;

@@ -19,7 +19,7 @@ export type PiiSubjectType =
 /** Этап 9 (ФТ-12.1, PR-3): `export` — выгрузка ПДн сотрудником в файл.
  *  Клиентские выгрузки собственных данных сюда не попадают (фильтр `isStaff`
  *  внутри `recordPiiAccess`). */
-export type PiiAction = 'list' | 'view' | 'export';
+type PiiAction = 'list' | 'view' | 'export';
 
 export type PiiContext = {
   subjectType: PiiSubjectType;

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import type { DealStatus } from '@prisma/client';
+import { str } from '@/lib/actions/form';
 import { prisma } from '@/lib/db/prisma';
 import { requireSession } from '@/lib/auth/requireRole';
 import { moveDeal, type MoveDealError } from '@/lib/services/deals/board';
@@ -26,11 +27,6 @@ import { addNoteToDeal, listDealNotes, type DealNoteRow } from '@/lib/services/d
  */
 
 type ActionResult<E extends string> = { ok: true } | { ok: false; error: E; messages?: string[] };
-
-function str(fd: FormData, key: string): string {
-  const v = fd.get(key);
-  return typeof v === 'string' ? v : '';
-}
 
 function revalidate(): void {
   revalidatePath('/manager/deals');

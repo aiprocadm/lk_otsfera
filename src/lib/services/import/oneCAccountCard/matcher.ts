@@ -5,7 +5,7 @@ import type { ParsedRow, MatchOutcome } from './types';
 const EPOCH = new Date(0).toISOString();
 
 /** Нормализация наименования для fuzzy: upper-case, схлопывание пробелов, убрать орг-формы и пунктуацию. */
-export function normalizeName(name: string): string {
+function normalizeName(name: string): string {
   return name
     .toUpperCase()
     .replace(/[«»"'().,]/g, ' ')

@@ -22,7 +22,7 @@ function isStaff(session: SessionPayload): boolean {
   return session.role === 'admin' || session.role === 'manager';
 }
 
-export type FunnelCard = {
+type FunnelCard = {
   id: string;
   clientCompanyName: string;
   subject: string;
@@ -32,7 +32,7 @@ export type FunnelCard = {
   createdAt: Date;
 };
 
-export type FunnelColumn = { stage: FunnelStageView; cards: FunnelCard[] };
+type FunnelColumn = { stage: FunnelStageView; cards: FunnelCard[] };
 export type FunnelBoard = { stages: FunnelStageView[]; columns: FunnelColumn[] };
 
 const CARD_INCLUDE = {

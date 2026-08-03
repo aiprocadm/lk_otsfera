@@ -19,7 +19,7 @@ import { resolveErrorText } from '@/lib/ui/useFormAction';
 import { transitionOrderStatusAction } from '@/server-actions/orderStatuses';
 import type { CompletionCondition } from '@/lib/orders/completion';
 
-export type StatusOption = {
+type StatusOption = {
   id: string;
   label: string;
   isTerminal: boolean;
@@ -27,7 +27,7 @@ export type StatusOption = {
   isAuto: boolean;
 };
 
-export type StatusHistoryRow = {
+type StatusHistoryRow = {
   id: string;
   createdAt: Date | string;
   fromLabel: string | null;

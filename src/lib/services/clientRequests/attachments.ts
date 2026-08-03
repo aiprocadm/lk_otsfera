@@ -32,7 +32,7 @@ export type ClientRequestAttachmentRow = {
   createdByUserName: string | null;
 };
 
-export type ClientRequestAttachmentErrorCode =
+type ClientRequestAttachmentErrorCode =
   | 'NOT_FOUND'
   | 'FORBIDDEN'
   | 'UNSUPPORTED_MEDIA_TYPE'
@@ -49,7 +49,7 @@ export type ClientRequestAttachmentFailure = {
   meta?: { scanReason?: string | null };
 };
 
-export class ClientRequestAttachmentError extends Error {
+class ClientRequestAttachmentError extends Error {
   constructor(
     public code: ClientRequestAttachmentErrorCode,
     message: string,

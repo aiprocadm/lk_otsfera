@@ -4,7 +4,7 @@ import { log } from '@/lib/logging';
 
 const TELEGRAM_TIMEOUT_MS = 5000;
 
-export async function deliverTelegram(text: string): Promise<void> {
+async function deliverTelegram(text: string): Promise<void> {
   const token = process.env.ALERT_TELEGRAM_BOT_TOKEN?.trim();
   const chatId = process.env.ALERT_TELEGRAM_CHAT_ID?.trim();
   if (!token || !chatId) return; // channel not configured — skip silently

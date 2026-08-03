@@ -18,8 +18,6 @@ export type { DocumentUploadedProps } from './document-uploaded';
 export { NotificationTemplate, notificationText } from './notification';
 export type { NotificationProps } from './notification';
 
-export { EmailLayout, emailStyles } from './layout';
-
 export { OrgInviteTemplate, orgInviteSubject, orgInviteText } from './organization/org-invite';
 export type { OrgInviteProps } from './organization/org-invite';
 

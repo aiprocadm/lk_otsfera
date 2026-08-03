@@ -3,7 +3,7 @@ import type { PrismaClient } from '@prisma/client';
 import { getQueue, type QueueName } from './queues';
 import type { SyncJobPayload } from './types';
 
-export type SyncScheduleQueueName = Extract<
+type SyncScheduleQueueName = Extract<
   QueueName,
   | 'oneCSync.pullOrders'
   | 'oneCSync.pullPayments'

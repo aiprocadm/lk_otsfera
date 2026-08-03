@@ -49,7 +49,7 @@ const s3Credential = () =>
 
 const optionalStr = z.string().optional();
 
-export const productionEnvSchema = z
+const productionEnvSchema = z
   .object({
     DATABASE_URL: requiredNonEmpty('обязательна в production'),
     APP_URL: z

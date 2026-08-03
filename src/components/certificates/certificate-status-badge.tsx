@@ -1,9 +1,6 @@
 import React from 'react';
 import { Badge } from '@/components/ui';
-import {
-  certificateStatus,
-  type CertificateStatusFilter,
-} from '@/lib/services/training/certificates';
+import { certificateStatus } from '@/lib/services/training/certificates';
 
 /**
  * Статус удостоверения в клиентских реестрах (этап 3, спека §4): считается
@@ -15,7 +12,6 @@ import {
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-export type CertificateStatus = CertificateStatusFilter;
 export { certificateStatus };
 
 export function CertificateStatusBadge({

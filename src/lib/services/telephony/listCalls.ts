@@ -20,7 +20,7 @@ export type CallsFilters = {
   pageSize?: number;
 };
 
-export type CallItem = {
+type CallItem = {
   id: string;
   direction: string;
   callerNumber: string;

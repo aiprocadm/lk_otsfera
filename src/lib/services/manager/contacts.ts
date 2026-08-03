@@ -5,7 +5,7 @@ import { getCompanyTeamVisibility, isOrgInScope, isManagerLeader } from '@/lib/a
 import { normalizeChannelValue } from '@/lib/services/contacts/resolveContactByChannel';
 import { recordAudit } from '@/lib/auth/audit';
 
-export type ContactChannelInput = { type: ContactChannelType; value: string };
+type ContactChannelInput = { type: ContactChannelType; value: string };
 export type CreateContactArgs = {
   name: string;
   organizationId?: string | null;

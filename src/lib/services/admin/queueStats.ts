@@ -1,7 +1,7 @@
 import type { Queue } from 'bullmq';
 import { QUEUE_NAMES, getQueue, type QueueName } from '@/lib/jobs/queues';
 
-export type QueueCounts = {
+type QueueCounts = {
   waiting: number;
   active: number;
   completed: number;

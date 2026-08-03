@@ -30,7 +30,7 @@ export type CorrectionForCalc = {
   commissionAmount: Prisma.Decimal; // уже отрицательная, НЕ пересчитывается
 };
 
-export type CalculatorItem = {
+type CalculatorItem = {
   paymentId: string | null;
   orderId: string | null;
   correctionId: string | null;
@@ -41,7 +41,7 @@ export type CalculatorItem = {
   commissionAmount: Prisma.Decimal;
 };
 
-export type CalculatorTotals = {
+type CalculatorTotals = {
   totalBaseAmount: Prisma.Decimal;
   totalCommissionAmount: Prisma.Decimal;
   averageRate: Prisma.Decimal;

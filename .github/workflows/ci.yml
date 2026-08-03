@@ -54,6 +54,7 @@ jobs:
       - run: npm run prisma:generate
       # Фаза 1: единая команда локальной и серверной проверки.
       # verify = typecheck → lint → boundaries (dependency-cruiser) →
+      #          deadcode (knip) → dup:check (jscpd ≤3%) →
       #          format:check → test:ci (unit).
       - run: npm run verify
 

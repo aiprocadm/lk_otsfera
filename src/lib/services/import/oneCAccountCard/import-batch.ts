@@ -13,7 +13,6 @@ import { parseAccountCard } from './parser';
 import { matchRow } from './matcher';
 import type { ParsedRow, CardImportCounts } from './types';
 
-export type PaymentImportError = 'invalid_file' | 'forbidden' | 'empty' | 'parse_failed';
 export type Args = { fileBuffer: Buffer; fileName: string };
 
 function isStaff(s: SessionPayload) {

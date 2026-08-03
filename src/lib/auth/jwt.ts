@@ -17,7 +17,10 @@ function assertSecretStrength(secret: string, varName: string): string {
   return secret;
 }
 
-export type Role = 'admin' | 'manager' | 'partner' | 'organization' | 'student';
+/** Единый источник top-level ролей (дедупликация C2: тип Role + roleSchema). */
+const ROLE_VALUES = ['admin', 'manager', 'partner', 'organization', 'student'] as const;
+
+export type Role = (typeof ROLE_VALUES)[number];
 
 // Словарь под-ролей. «Старший»/team-lead проекта реализован тремя под-ролями
 // (by design §4 — три домена, три гарда) и в каждом назван по-разному:
@@ -33,7 +36,7 @@ export type PartnerRoleInPartner = 'admin' | 'manager';
 
 export type OrgRoleInOrg = 'admin' | 'leader' | 'member';
 
-export type ManagerRole = 'leader';
+type ManagerRole = 'leader';
 
 export type OrganizationMembership = {
   organizationId: string;
@@ -74,7 +77,7 @@ export type StudentBridgePayload = Pick<
 // session shape would trust a malformed/forged token's structure. These schemas
 // validate the contractual claims at the trust boundary. Unknown standard claims
 // (iat/exp/aud/iss/jti) are stripped here and re-merged where the caller needs them.
-const roleSchema = z.enum(['admin', 'manager', 'partner', 'organization', 'student']);
+const roleSchema = z.enum(ROLE_VALUES);
 
 const organizationMembershipSchema = z.object({
   organizationId: z.string(),

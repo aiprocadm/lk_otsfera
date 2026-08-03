@@ -9,7 +9,7 @@ import { requiresOptions } from './coerce';
 
 // ─── Error codes ────────────────────────────────────────────────────────────
 
-export type DefinitionsError =
+type DefinitionsError =
   | 'forbidden'
   | 'not_found'
   | 'invalid_key'

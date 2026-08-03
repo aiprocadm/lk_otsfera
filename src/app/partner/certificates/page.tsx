@@ -5,6 +5,7 @@ import { requirePartner } from '@/lib/auth/requireRole';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import {
   listCertificates,
+  CERTIFICATE_STATUS_FILTERS,
   type CertificateStatusFilter,
 } from '@/lib/services/training/certificates';
 import { CertificateRegistryTable } from '@/components/certificates/certificate-registry-table';
@@ -25,10 +26,9 @@ type SearchParams = {
 
 const DEFAULT_TAKE = 50;
 const MAX_TAKE = 200;
-const STATUSES: CertificateStatusFilter[] = ['active', 'expiring', 'expired'];
 
 function parseStatus(raw: string | undefined): CertificateStatusFilter | undefined {
-  return STATUSES.includes(raw as CertificateStatusFilter)
+  return CERTIFICATE_STATUS_FILTERS.includes(raw as CertificateStatusFilter)
     ? (raw as CertificateStatusFilter)
     : undefined;
 }

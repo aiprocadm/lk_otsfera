@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import type { TaskStatus } from '@prisma/client';
+import { type ActionResult, str } from '@/lib/actions/form';
 import { prisma } from '@/lib/db/prisma';
 import { requireSession } from '@/lib/auth/requireRole';
 import {
@@ -31,13 +32,6 @@ import {
  * (сервис энфорсит company-scope через staffGate + canSeeTask); колонки-CRUD —
  * сервис гейтит admin|leader. Достаточно requireSession().
  */
-
-type ActionResult<E extends string> = { ok: true } | { ok: false; error: E };
-
-function str(fd: FormData, key: string): string {
-  const v = fd.get(key);
-  return typeof v === 'string' ? v : '';
-}
 
 function revalidate(): void {
   revalidatePath('/manager/tasks');

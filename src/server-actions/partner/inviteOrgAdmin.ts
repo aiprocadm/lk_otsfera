@@ -13,7 +13,7 @@ import { OrgMemberError, type OrgMemberErrorCode } from '@/lib/services/organiza
 import { sendOrgInviteEmail } from '@/lib/email/send';
 import { log } from '@/lib/logging';
 
-export type InvitePartnerActionError = 'validation' | OrgInviteErrorCode | OrgMemberErrorCode;
+type InvitePartnerActionError = 'validation' | OrgInviteErrorCode | OrgMemberErrorCode;
 
 export type InvitePartnerActionResult =
   | {

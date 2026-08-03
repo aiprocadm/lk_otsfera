@@ -13,7 +13,7 @@ import type { PrismaClient, FinancialStatus } from '@prisma/client';
 /** Заказы, считающиеся «выставленными» (те же статусы, что у финансового хаба). */
 const BILLED_STATUSES: FinancialStatus[] = ['billed', 'partially_paid', 'paid'];
 
-export type OrgCommissionOrderRow = {
+type OrgCommissionOrderRow = {
   orderId: string;
   orderNumber: string | null;
   baseAmount: string;

@@ -8,10 +8,9 @@ import { z } from 'zod';
  * accessProfile.ts реэкспортирует всё отсюда.
  */
 
-// Уровни охвата и capability — единый источник (схема → тип → список значений).
+// Уровни охвата и capability — единый источник (схема → тип).
 export const scopeLevelSchema = z.enum(['own', 'assigned', 'all']);
 export type ScopeLevel = z.infer<typeof scopeLevelSchema>;
-export const SCOPE_LEVELS = scopeLevelSchema.options;
 
 export const capabilitySchema = z.enum([
   'see_commission',
@@ -22,7 +21,6 @@ export const capabilitySchema = z.enum([
   'assign_orders',
 ]);
 export type Capability = z.infer<typeof capabilitySchema>;
-export const CAPABILITIES = capabilitySchema.options;
 
 /** Типы объектов, по которым профиль задаёт охват. */
 export type AccessObjectType =

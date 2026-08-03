@@ -12,7 +12,7 @@ import { isManagerLeader } from '@/lib/auth/managerPolicy';
 import { getOrderedStatuses } from './definitions';
 import { listStatusHistory } from './transitions';
 
-export type StatusOptionView = {
+type StatusOptionView = {
   id: string;
   label: string;
   isTerminal: boolean;

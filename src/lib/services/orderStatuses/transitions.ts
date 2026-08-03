@@ -21,7 +21,7 @@ import { notifyManagers, notifyOrgUsers } from '@/lib/notifications';
 import { log } from '@/lib/logging';
 import { getOrderedStatuses, findByAnchor, type StatusAnchor } from './definitions';
 
-export type TransitionError =
+type TransitionError =
   | 'not_found'
   | 'forbidden'
   | 'invalid_status'

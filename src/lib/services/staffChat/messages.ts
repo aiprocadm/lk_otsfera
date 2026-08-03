@@ -25,7 +25,7 @@ async function loadConv(prisma: PrismaClient, id: string): Promise<ConvWithParti
   });
 }
 
-export type SendStaffError = 'forbidden' | 'conversation_not_found' | 'empty_body' | 'too_large';
+type SendStaffError = 'forbidden' | 'conversation_not_found' | 'empty_body' | 'too_large';
 export type SendStaffResult =
   { ok: true; messageId: string } | { ok: false; error: SendStaffError };
 
@@ -195,7 +195,7 @@ export async function sendStaffMessage(
   return { ok: true, messageId: message.id };
 }
 
-export type StaffMessageRow = {
+type StaffMessageRow = {
   id: string;
   authorId: string;
   authorName: string;

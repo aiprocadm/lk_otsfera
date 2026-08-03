@@ -24,7 +24,7 @@ export type ItemGap =
   | 'certificate_scan_missing'
   | 'certificate_scan_infected';
 
-export type ItemReadiness = {
+type ItemReadiness = {
   itemId: string;
   studentName: string;
   gaps: ItemGap[];

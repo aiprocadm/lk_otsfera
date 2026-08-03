@@ -106,7 +106,7 @@ export async function kpis(prisma: PrismaClient, scope: DashboardScope): Promise
 const FOURTEEN_DAYS_MS = 14 * 24 * 3600 * 1000;
 const ATTENTION_CAP = 10;
 
-export type AttentionOrder = {
+type AttentionOrder = {
   id: string;
   title: string;
   updatedAt: Date;
@@ -179,7 +179,7 @@ export async function attention(prisma: PrismaClient, scope: DashboardScope): Pr
 
 // ─── T10: Recent Events ─────────────────────────────────────────────────────
 
-export type EventKind = 'order_updated' | 'payment_received';
+type EventKind = 'order_updated' | 'payment_received';
 
 export type DashboardEvent = {
   kind: EventKind;

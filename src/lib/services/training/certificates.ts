@@ -4,7 +4,7 @@ import { managedOrgIds, getCompanyTeamVisibility } from '@/lib/auth/managerPolic
 import { recordAudit } from '@/lib/auth/audit';
 import { recordPiiAccess } from '@/lib/pii/record';
 
-export type CertificatesError = 'forbidden' | 'not_found' | 'validation';
+type CertificatesError = 'forbidden' | 'not_found' | 'validation';
 type Result<T> = ({ ok: true } & T) | { ok: false; error: CertificatesError };
 
 const CERT_INCLUDE = {
@@ -70,7 +70,10 @@ async function scopeOrgIds(
 /** Порог «истекает» реестра (ФТ-6.1, ≤ 60 дней — фиксирован в ТЗ). */
 export const EXPIRING_WITHIN_DAYS = 60;
 
-export type CertificateStatusFilter = 'active' | 'expiring' | 'expired';
+/** Единый источник фильтров статуса реестра (дедупликация C2, фаза 2). */
+export const CERTIFICATE_STATUS_FILTERS = ['active', 'expiring', 'expired'] as const;
+
+export type CertificateStatusFilter = (typeof CERTIFICATE_STATUS_FILTERS)[number];
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const LIST_MAX_TAKE = 200;

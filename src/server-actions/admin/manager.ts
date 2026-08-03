@@ -15,7 +15,7 @@ import { setManagerRole } from '@/lib/services/admin/managerRole';
 import { assignOrderManager } from '@/lib/services/manager/distribution';
 import { log } from '@/lib/logging';
 
-export type AssignOrInviteManagerActionError = 'validation' | ManagerInviteErrorCode;
+type AssignOrInviteManagerActionError = 'validation' | ManagerInviteErrorCode;
 
 export type AssignOrInviteManagerActionResult =
   | {

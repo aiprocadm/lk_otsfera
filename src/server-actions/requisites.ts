@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { str } from '@/lib/actions/form';
 import { prisma } from '@/lib/db/prisma';
 import { requireSession } from '@/lib/auth/requireRole';
 import { setOrgRequisites } from '@/lib/services/organization/requisites';
@@ -20,10 +21,6 @@ import type { RequisitesInput } from '@/lib/requisites/validate';
 export type RequisitesActionResult =
   | { ok: true }
   | { ok: false; error: 'forbidden' | 'not_found' | 'validation'; messages?: string[] };
-
-function str(fd: FormData, key: string): string {
-  return typeof fd.get(key) === 'string' ? (fd.get(key) as string) : '';
-}
 
 function requisitesInput(fd: FormData): RequisitesInput {
   const f = (k: string) => str(fd, k) || null;
