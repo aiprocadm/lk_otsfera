@@ -309,6 +309,7 @@ describe('values service — coverage closure', () => {
 // ─── route error-mapping branches (fully mocked services + guard) ────────────
 
 const adminSession = { sub: 'admin-1', role: 'admin' };
+const routeCtx = { params: Promise.resolve({}) };
 
 describe('custom-fields routes — error-mapping coverage', () => {
   // Clear the route mocks between route tests (integration tests above never call them).
@@ -329,7 +330,7 @@ describe('custom-fields routes — error-mapping coverage', () => {
       method: 'POST',
       body: JSON.stringify({ entityType: 'order', key: 'k', label: 'L', fieldType: 'text' }),
     });
-    const res = await POST(req as Request);
+    const res = await POST(req as Request, routeCtx);
     expect(res.status).toBe(404);
     const body = await res.json();
     expect(body.error).toBe('not_found');

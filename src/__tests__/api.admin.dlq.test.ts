@@ -21,6 +21,8 @@ import { POST } from '@/app/api/admin/dlq/[queue]/[jobId]/retry/route';
 
 const adminSession = { sub: 'admin-1', role: 'admin' };
 
+const routeCtx = { params: Promise.resolve({}) };
+
 function retryParams(queue: string, jobId: string) {
   return { params: Promise.resolve({ queue, jobId }) };
 }
@@ -45,7 +47,7 @@ describe('GET /api/admin/dlq', () => {
         attemptsMade: 3,
       },
     ]);
-    const res = await GET(new Request('http://x'));
+    const res = await GET(new Request('http://x'), routeCtx);
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.rows).toHaveLength(1);
@@ -57,7 +59,7 @@ describe('GET /api/admin/dlq', () => {
       ok: false,
       response: new Response('Unauthorized', { status: 401 }),
     });
-    const res = await GET(new Request('http://x'));
+    const res = await GET(new Request('http://x'), routeCtx);
     expect(res.status).toBe(401);
     expect(getDlq).not.toHaveBeenCalled();
   });
@@ -67,7 +69,7 @@ describe('GET /api/admin/dlq', () => {
       ok: false,
       response: new Response('Forbidden', { status: 403 }),
     });
-    const res = await GET(new Request('http://x'));
+    const res = await GET(new Request('http://x'), routeCtx);
     expect(res.status).toBe(403);
     expect(getDlq).not.toHaveBeenCalled();
   });

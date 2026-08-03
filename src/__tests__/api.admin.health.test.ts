@@ -14,6 +14,8 @@ import { GET as queuesGet } from '@/app/api/admin/queues/route';
 import { GET as dlqGet } from '@/app/api/admin/dlq/route';
 import { POST as retryPost } from '@/app/api/admin/dlq/[queue]/[jobId]/retry/route';
 
+const routeCtx = { params: Promise.resolve({}) };
+
 function adminSession() {
   return { sub: 'admin1', role: 'admin', partnerId: null, name: 'Admin' } as never;
 }
@@ -30,26 +32,26 @@ beforeEach(() => {
 describe('admin auth on /api/admin/* health endpoints', () => {
   it('queues GET returns 401 when unauthenticated', async () => {
     vi.mocked(getSession).mockResolvedValue(null);
-    const res = await queuesGet(new Request('http://x'));
+    const res = await queuesGet(new Request('http://x'), routeCtx);
     expect(res.status).toBe(401);
   });
 
   it('queues GET returns 403 for non-admin', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerSession());
-    const res = await queuesGet(new Request('http://x'));
+    const res = await queuesGet(new Request('http://x'), routeCtx);
     expect(res.status).toBe(403);
   });
 
   it('queues GET returns 200 with rows array for admin', async () => {
     vi.mocked(getSession).mockResolvedValue(adminSession());
-    const res = await queuesGet(new Request('http://x'));
+    const res = await queuesGet(new Request('http://x'), routeCtx);
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ rows: [] });
   });
 
   it('dlq GET enforces admin RBAC the same way', async () => {
     vi.mocked(getSession).mockResolvedValue(partnerSession());
-    const res = await dlqGet(new Request('http://x'));
+    const res = await dlqGet(new Request('http://x'), routeCtx);
     expect(res.status).toBe(403);
   });
 });

@@ -43,6 +43,8 @@ import { GET as unreadGet } from '@/app/api/messages/unread/route';
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+const routeCtx = { params: Promise.resolve({}) };
+
 function orgSession(overrides: Record<string, unknown> = {}) {
   return {
     sub: 'u-org-1',
@@ -84,7 +86,8 @@ describe('POST /api/messages', () => {
   it('org session + valid body → 201 with messageId', async () => {
     sendMessageMock.mockResolvedValue({ ok: true, messageId: 'm1' });
     const res = await messagesPost(
-      jsonReq('https://app.local/api/messages', { orderId: 'ord-1', body: 'hello' })
+      jsonReq('https://app.local/api/messages', { orderId: 'ord-1', body: 'hello' }),
+      routeCtx
     );
     expect(res.status).toBe(201);
     const json = (await res.json()) as { ok: boolean; messageId: string };
@@ -95,14 +98,18 @@ describe('POST /api/messages', () => {
   it('flag OFF → 404 and service NOT called', async () => {
     process.env.FEATURE_CHAT = '0';
     const res = await messagesPost(
-      jsonReq('https://app.local/api/messages', { orderId: 'ord-1', body: 'hello' })
+      jsonReq('https://app.local/api/messages', { orderId: 'ord-1', body: 'hello' }),
+      routeCtx
     );
     expect(res.status).toBe(404);
     expect(sendMessageMock).not.toHaveBeenCalled();
   });
 
   it('missing body field → 400', async () => {
-    const res = await messagesPost(jsonReq('https://app.local/api/messages', { orderId: 'ord-1' }));
+    const res = await messagesPost(
+      jsonReq('https://app.local/api/messages', { orderId: 'ord-1' }),
+      routeCtx
+    );
     expect(res.status).toBe(400);
     const json = (await res.json()) as { error: string };
     expect(json).toEqual({ error: 'invalid_request' });
@@ -110,7 +117,10 @@ describe('POST /api/messages', () => {
   });
 
   it('missing orderId field → 400', async () => {
-    const res = await messagesPost(jsonReq('https://app.local/api/messages', { body: 'hello' }));
+    const res = await messagesPost(
+      jsonReq('https://app.local/api/messages', { body: 'hello' }),
+      routeCtx
+    );
     expect(res.status).toBe(400);
     const json = (await res.json()) as { error: string };
     expect(json).toEqual({ error: 'invalid_request' });
@@ -120,7 +130,8 @@ describe('POST /api/messages', () => {
   it('service returns forbidden → 403', async () => {
     sendMessageMock.mockResolvedValue({ ok: false, error: 'forbidden' });
     const res = await messagesPost(
-      jsonReq('https://app.local/api/messages', { orderId: 'ord-1', body: 'hello' })
+      jsonReq('https://app.local/api/messages', { orderId: 'ord-1', body: 'hello' }),
+      routeCtx
     );
     expect(res.status).toBe(403);
     const json = (await res.json()) as { ok: boolean; error: string };
@@ -131,7 +142,8 @@ describe('POST /api/messages', () => {
     requireSessionMock.mockResolvedValue({ ok: true, value: teamSession() });
     sendMessageMock.mockResolvedValue({ ok: true, messageId: 'm2' });
     const res = await messagesPost(
-      jsonReq('https://app.local/api/messages', { orderId: 'ord-1', body: 'hi', side: 'org' })
+      jsonReq('https://app.local/api/messages', { orderId: 'ord-1', body: 'hi', side: 'org' }),
+      routeCtx
     );
     expect(res.status).toBe(201);
     const [, , args] = sendMessageMock.mock.calls[0]!;
@@ -142,7 +154,8 @@ describe('POST /api/messages', () => {
     sendMessageMock.mockResolvedValue({ ok: true, messageId: 'm3' });
     // body.side is partner but org role → deriveSide returns 'org' → should win
     const res = await messagesPost(
-      jsonReq('https://app.local/api/messages', { orderId: 'ord-1', body: 'hi', side: 'partner' })
+      jsonReq('https://app.local/api/messages', { orderId: 'ord-1', body: 'hi', side: 'partner' }),
+      routeCtx
     );
     expect(res.status).toBe(201);
     const [, , args] = sendMessageMock.mock.calls[0]!;
@@ -152,7 +165,8 @@ describe('POST /api/messages', () => {
   it('team session with body.side missing → 400 (no valid side)', async () => {
     requireSessionMock.mockResolvedValue({ ok: true, value: teamSession() });
     const res = await messagesPost(
-      jsonReq('https://app.local/api/messages', { orderId: 'ord-1', body: 'hi' })
+      jsonReq('https://app.local/api/messages', { orderId: 'ord-1', body: 'hi' }),
+      routeCtx
     );
     // deriveSide returns null, body.side is undefined → neither 'org' nor 'partner'
     expect(res.status).toBe(400);
@@ -166,7 +180,8 @@ describe('POST /api/messages', () => {
       response: new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 }),
     });
     const res = await messagesPost(
-      jsonReq('https://app.local/api/messages', { orderId: 'ord-1', body: 'hello' })
+      jsonReq('https://app.local/api/messages', { orderId: 'ord-1', body: 'hello' }),
+      routeCtx
     );
     expect(res.status).toBe(401);
     expect(sendMessageMock).not.toHaveBeenCalled();
@@ -194,7 +209,10 @@ describe('GET /api/messages', () => {
       },
     ];
     listMessagesMock.mockResolvedValue({ ok: true, rows });
-    const res = await messagesGet(new Request('https://app.local/api/messages?threadId=thr-1'));
+    const res = await messagesGet(
+      new Request('https://app.local/api/messages?threadId=thr-1'),
+      routeCtx
+    );
     expect(res.status).toBe(200);
     const json = (await res.json()) as { ok: boolean; rows: unknown[] };
     expect(json.ok).toBe(true);
@@ -204,27 +222,37 @@ describe('GET /api/messages', () => {
 
   it('flag OFF → 404', async () => {
     process.env.FEATURE_CHAT = '0';
-    const res = await messagesGet(new Request('https://app.local/api/messages?threadId=thr-1'));
+    const res = await messagesGet(
+      new Request('https://app.local/api/messages?threadId=thr-1'),
+      routeCtx
+    );
     expect(res.status).toBe(404);
     expect(listMessagesMock).not.toHaveBeenCalled();
   });
 
   it('service returns forbidden → 403', async () => {
     listMessagesMock.mockResolvedValue({ ok: false, error: 'forbidden' });
-    const res = await messagesGet(new Request('https://app.local/api/messages?threadId=thr-1'));
+    const res = await messagesGet(
+      new Request('https://app.local/api/messages?threadId=thr-1'),
+      routeCtx
+    );
     expect(res.status).toBe(403);
   });
 
   it('service returns thread_not_found → 404', async () => {
     listMessagesMock.mockResolvedValue({ ok: false, error: 'thread_not_found' });
-    const res = await messagesGet(new Request('https://app.local/api/messages?threadId=thr-1'));
+    const res = await messagesGet(
+      new Request('https://app.local/api/messages?threadId=thr-1'),
+      routeCtx
+    );
     expect(res.status).toBe(404);
   });
 
   it('passes after param when provided', async () => {
     listMessagesMock.mockResolvedValue({ ok: true, rows: [] });
     await messagesGet(
-      new Request('https://app.local/api/messages?threadId=thr-1&after=2026-06-01T00:00:00.000Z')
+      new Request('https://app.local/api/messages?threadId=thr-1&after=2026-06-01T00:00:00.000Z'),
+      routeCtx
     );
     expect(listMessagesMock).toHaveBeenCalledWith({}, orgSession(), {
       threadId: 'thr-1',
@@ -246,7 +274,7 @@ describe('GET /api/messages/threads', () => {
   it('returns listThreads result directly', async () => {
     const payload = { ok: true, rows: [{ id: 'thr-1', orderId: 'ord-1', side: 'org' }] };
     listThreadsMock.mockResolvedValue(payload);
-    const res = await threadsGet(new Request('https://app.local/api/messages/threads'));
+    const res = await threadsGet(new Request('https://app.local/api/messages/threads'), routeCtx);
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual(payload);
@@ -254,7 +282,7 @@ describe('GET /api/messages/threads', () => {
 
   it('flag OFF → 404', async () => {
     process.env.FEATURE_CHAT = '0';
-    const res = await threadsGet(new Request('https://app.local/api/messages/threads'));
+    const res = await threadsGet(new Request('https://app.local/api/messages/threads'), routeCtx);
     expect(res.status).toBe(404);
     expect(listThreadsMock).not.toHaveBeenCalled();
   });
@@ -264,7 +292,7 @@ describe('GET /api/messages/threads', () => {
       ok: false,
       response: new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 }),
     });
-    const res = await threadsGet(new Request('https://app.local/api/messages/threads'));
+    const res = await threadsGet(new Request('https://app.local/api/messages/threads'), routeCtx);
     expect(res.status).toBe(401);
     expect(listThreadsMock).not.toHaveBeenCalled();
   });
@@ -283,7 +311,8 @@ describe('POST /api/messages/read', () => {
   it('valid threadId → 200 ok:true', async () => {
     markReadMock.mockResolvedValue({ ok: true });
     const res = await readPost(
-      jsonReq('https://app.local/api/messages/read', { threadId: 'thr-1' })
+      jsonReq('https://app.local/api/messages/read', { threadId: 'thr-1' }),
+      routeCtx
     );
     expect(res.status).toBe(200);
     const json = (await res.json()) as { ok: boolean };
@@ -294,14 +323,15 @@ describe('POST /api/messages/read', () => {
   it('flag OFF → 404', async () => {
     process.env.FEATURE_CHAT = '0';
     const res = await readPost(
-      jsonReq('https://app.local/api/messages/read', { threadId: 'thr-1' })
+      jsonReq('https://app.local/api/messages/read', { threadId: 'thr-1' }),
+      routeCtx
     );
     expect(res.status).toBe(404);
     expect(markReadMock).not.toHaveBeenCalled();
   });
 
   it('missing threadId → 400', async () => {
-    const res = await readPost(jsonReq('https://app.local/api/messages/read', {}));
+    const res = await readPost(jsonReq('https://app.local/api/messages/read', {}), routeCtx);
     expect(res.status).toBe(400);
     const json = (await res.json()) as { error: string };
     expect(json).toEqual({ error: 'invalid_request' });
@@ -311,7 +341,8 @@ describe('POST /api/messages/read', () => {
   it('service returns forbidden → 403', async () => {
     markReadMock.mockResolvedValue({ ok: false, error: 'forbidden' });
     const res = await readPost(
-      jsonReq('https://app.local/api/messages/read', { threadId: 'thr-1' })
+      jsonReq('https://app.local/api/messages/read', { threadId: 'thr-1' }),
+      routeCtx
     );
     expect(res.status).toBe(403);
   });
@@ -319,7 +350,8 @@ describe('POST /api/messages/read', () => {
   it('service returns thread_not_found → 404', async () => {
     markReadMock.mockResolvedValue({ ok: false, error: 'thread_not_found' });
     const res = await readPost(
-      jsonReq('https://app.local/api/messages/read', { threadId: 'thr-1' })
+      jsonReq('https://app.local/api/messages/read', { threadId: 'thr-1' }),
+      routeCtx
     );
     expect(res.status).toBe(404);
   });
@@ -330,7 +362,8 @@ describe('POST /api/messages/read', () => {
       response: new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 }),
     });
     const res = await readPost(
-      jsonReq('https://app.local/api/messages/read', { threadId: 'thr-1' })
+      jsonReq('https://app.local/api/messages/read', { threadId: 'thr-1' }),
+      routeCtx
     );
     expect(res.status).toBe(401);
     expect(markReadMock).not.toHaveBeenCalled();
@@ -349,7 +382,7 @@ describe('GET /api/messages/unread', () => {
 
   it('returns unreadCount result directly', async () => {
     unreadCountMock.mockResolvedValue({ ok: true, count: 3 });
-    const res = await unreadGet(new Request('https://app.local/api/messages/unread'));
+    const res = await unreadGet(new Request('https://app.local/api/messages/unread'), routeCtx);
     expect(res.status).toBe(200);
     const json = (await res.json()) as { ok: boolean; count: number };
     expect(json).toEqual({ ok: true, count: 3 });
@@ -358,7 +391,7 @@ describe('GET /api/messages/unread', () => {
 
   it('flag OFF → 404', async () => {
     process.env.FEATURE_CHAT = '0';
-    const res = await unreadGet(new Request('https://app.local/api/messages/unread'));
+    const res = await unreadGet(new Request('https://app.local/api/messages/unread'), routeCtx);
     expect(res.status).toBe(404);
     expect(unreadCountMock).not.toHaveBeenCalled();
   });
@@ -368,7 +401,7 @@ describe('GET /api/messages/unread', () => {
       ok: false,
       response: new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 }),
     });
-    const res = await unreadGet(new Request('https://app.local/api/messages/unread'));
+    const res = await unreadGet(new Request('https://app.local/api/messages/unread'), routeCtx);
     expect(res.status).toBe(401);
     expect(unreadCountMock).not.toHaveBeenCalled();
   });
@@ -387,7 +420,8 @@ describe('POST /api/messages — additional error branches', () => {
   it('service returns order_not_found → 404', async () => {
     sendMessageMock.mockResolvedValue({ ok: false, error: 'order_not_found' });
     const res = await messagesPost(
-      jsonReq('https://app.local/api/messages', { orderId: 'ord-999', body: 'hello' })
+      jsonReq('https://app.local/api/messages', { orderId: 'ord-999', body: 'hello' }),
+      routeCtx
     );
     expect(res.status).toBe(404);
     const json = (await res.json()) as { ok: boolean; error: string };
@@ -397,7 +431,8 @@ describe('POST /api/messages — additional error branches', () => {
   it('service returns too_large → 413', async () => {
     sendMessageMock.mockResolvedValue({ ok: false, error: 'too_large' });
     const res = await messagesPost(
-      jsonReq('https://app.local/api/messages', { orderId: 'ord-1', body: 'x'.repeat(10001) })
+      jsonReq('https://app.local/api/messages', { orderId: 'ord-1', body: 'x'.repeat(10001) }),
+      routeCtx
     );
     expect(res.status).toBe(413);
     const json = (await res.json()) as { ok: boolean; error: string };
@@ -407,7 +442,8 @@ describe('POST /api/messages — additional error branches', () => {
   it('service returns unknown error → 400 (fallback status)', async () => {
     sendMessageMock.mockResolvedValue({ ok: false, error: 'unknown_error' });
     const res = await messagesPost(
-      jsonReq('https://app.local/api/messages', { orderId: 'ord-1', body: 'hello' })
+      jsonReq('https://app.local/api/messages', { orderId: 'ord-1', body: 'hello' }),
+      routeCtx
     );
     expect(res.status).toBe(400);
   });
@@ -417,7 +453,10 @@ describe('POST /api/messages — additional error branches', () => {
       ok: false,
       response: new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 }),
     });
-    const res = await messagesGet(new Request('https://app.local/api/messages?threadId=thr-1'));
+    const res = await messagesGet(
+      new Request('https://app.local/api/messages?threadId=thr-1'),
+      routeCtx
+    );
     expect(res.status).toBe(401);
     expect(listMessagesMock).not.toHaveBeenCalled();
   });
@@ -429,7 +468,8 @@ describe('POST /api/messages — additional error branches', () => {
         orderId: 'ord-1',
         body: 'see attachment',
         attachmentPath: 'chat/ord-1/uuid-file.pdf',
-      })
+      }),
+      routeCtx
     );
     expect(res.status).toBe(201);
     const [, , args] = sendMessageMock.mock.calls[0]!;
@@ -438,7 +478,10 @@ describe('POST /api/messages — additional error branches', () => {
 
   it('GET without after param omitted entirely → threadId only in args', async () => {
     listMessagesMock.mockResolvedValue({ ok: true, rows: [] });
-    const res = await messagesGet(new Request('https://app.local/api/messages?threadId=thr-2'));
+    const res = await messagesGet(
+      new Request('https://app.local/api/messages?threadId=thr-2'),
+      routeCtx
+    );
     expect(res.status).toBe(200);
     // No after key should be present when after query param is absent
     expect(listMessagesMock).toHaveBeenCalledWith({}, orgSession(), { threadId: 'thr-2' });
@@ -448,7 +491,7 @@ describe('POST /api/messages — additional error branches', () => {
     // When threadId is absent from URL, get('threadId') returns null → ?? '' → ''
     // This covers the ?? '' fallback branch on the threadId line
     listMessagesMock.mockResolvedValue({ ok: true, rows: [] });
-    const res = await messagesGet(new Request('https://app.local/api/messages'));
+    const res = await messagesGet(new Request('https://app.local/api/messages'), routeCtx);
     expect(res.status).toBe(200);
     expect(listMessagesMock).toHaveBeenCalledWith({}, orgSession(), { threadId: '' });
   });

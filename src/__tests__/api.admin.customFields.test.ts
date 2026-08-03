@@ -23,6 +23,8 @@ import { PATCH, DELETE } from '@/app/api/admin/custom-fields/[id]/route';
 
 const adminSession = { sub: 'admin-1', role: 'admin' };
 
+const routeCtx = { params: Promise.resolve({}) };
+
 function idCtx(id: string) {
   return { params: Promise.resolve({ id }) };
 }
@@ -47,7 +49,7 @@ describe('POST /api/admin/custom-fields', () => {
         fieldType: 'text',
       }),
     });
-    const res = await POST(req as Request);
+    const res = await POST(req as Request, routeCtx);
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.definition.id).toBe('cf1');
@@ -60,7 +62,7 @@ describe('POST /api/admin/custom-fields', () => {
       method: 'POST',
       body: JSON.stringify({ entityType: 'order', key: 'x', label: 'X', fieldType: 'text' }),
     });
-    const res = await POST(req as Request);
+    const res = await POST(req as Request, routeCtx);
     expect(res.status).toBe(403);
     const body = await res.json();
     expect(body.error).toBe('forbidden');
@@ -72,7 +74,7 @@ describe('POST /api/admin/custom-fields', () => {
       method: 'POST',
       body: JSON.stringify({ entityType: 'order', key: '123bad', label: 'X', fieldType: 'text' }),
     });
-    const res = await POST(req as Request);
+    const res = await POST(req as Request, routeCtx);
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toBe('invalid_key');
@@ -89,7 +91,7 @@ describe('POST /api/admin/custom-fields', () => {
         fieldType: 'select',
       }),
     });
-    const res = await POST(req as Request);
+    const res = await POST(req as Request, routeCtx);
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toBe('options_required');
@@ -101,7 +103,7 @@ describe('POST /api/admin/custom-fields', () => {
       method: 'POST',
       body: JSON.stringify({ entityType: 'order', key: 'dup', label: 'Дубль', fieldType: 'text' }),
     });
-    const res = await POST(req as Request);
+    const res = await POST(req as Request, routeCtx);
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toBe('duplicate_key');
@@ -116,7 +118,7 @@ describe('POST /api/admin/custom-fields', () => {
       method: 'POST',
       body: JSON.stringify({ entityType: 'order', key: 'x', label: 'X', fieldType: 'text' }),
     });
-    const res = await POST(req as Request);
+    const res = await POST(req as Request, routeCtx);
     expect(res.status).toBe(401);
     expect(createDefinition).not.toHaveBeenCalled();
   });
@@ -130,7 +132,7 @@ describe('POST /api/admin/custom-fields', () => {
       method: 'POST',
       body: JSON.stringify({ entityType: 'order', key: 'x', label: 'X', fieldType: 'text' }),
     });
-    const res = await POST(req as Request);
+    const res = await POST(req as Request, routeCtx);
     expect(res.status).toBe(403);
     expect(createDefinition).not.toHaveBeenCalled();
   });

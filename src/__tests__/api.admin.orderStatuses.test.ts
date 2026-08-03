@@ -31,6 +31,7 @@ import { PATCH, DELETE } from '@/app/api/admin/order-statuses/[id]/route';
 
 const SESSION = { sub: 'a1', role: 'admin' };
 const ctx = { params: Promise.resolve({ id: 'st1' }) };
+const routeCtx = { params: Promise.resolve({}) };
 
 function jsonReq(body: unknown) {
   return new Request('http://x', { method: 'POST', body: JSON.stringify(body) });
@@ -47,7 +48,7 @@ beforeEach(() => {
 describe('POST /api/admin/order-statuses', () => {
   it('создаёт статус и отдаёт 201', async () => {
     createStatusDefinition.mockResolvedValue({ ok: true, definition: { id: 'st9' } });
-    const res = await POST(jsonReq({ key: 'extra', label: 'Доп', sortOrder: 8 }));
+    const res = await POST(jsonReq({ key: 'extra', label: 'Доп', sortOrder: 8 }), routeCtx);
     expect(res.status).toBe(201);
     expect(createStatusDefinition).toHaveBeenCalledWith(
       {},
@@ -58,14 +59,14 @@ describe('POST /api/admin/order-statuses', () => {
 
   it('якорь из тела запроса игнорируется — события раздаёт система', async () => {
     createStatusDefinition.mockResolvedValue({ ok: true, definition: { id: 'st9' } });
-    await POST(jsonReq({ key: 'extra', label: 'Доп', anchor: 'paid' }));
+    await POST(jsonReq({ key: 'extra', label: 'Доп', anchor: 'paid' }), routeCtx);
     const args = createStatusDefinition.mock.calls[0][2];
     expect(args).not.toHaveProperty('anchor');
   });
 
   it('неавторизованный запрос отдаёт ответ гарда', async () => {
     requireSession.mockResolvedValue({ ok: false, response: new Response(null, { status: 401 }) });
-    const res = await POST(jsonReq({}));
+    const res = await POST(jsonReq({}), routeCtx);
     expect(res.status).toBe(401);
   });
 
@@ -74,7 +75,7 @@ describe('POST /api/admin/order-statuses', () => {
       ok: false,
       response: new Response(null, { status: 403 }),
     });
-    const res = await POST(jsonReq({}));
+    const res = await POST(jsonReq({}), routeCtx);
     expect(res.status).toBe(403);
   });
 
@@ -85,7 +86,7 @@ describe('POST /api/admin/order-statuses', () => {
       ['duplicate_key', 400],
     ] as const) {
       createStatusDefinition.mockResolvedValue({ ok: false, error });
-      const res = await POST(jsonReq({ key: 'k', label: 'L' }));
+      const res = await POST(jsonReq({ key: 'k', label: 'L' }), routeCtx);
       expect(res.status).toBe(status);
       expect(await res.json()).toEqual({ error });
     }
