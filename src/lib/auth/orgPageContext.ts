@@ -4,7 +4,12 @@ import { resolveActiveOrgId } from '@/lib/auth/orgContext';
 import { activeOrgIds, isOrgAdmin, isOrgLeader } from '@/lib/auth/organizationPolicy';
 import { prisma } from '@/lib/db/prisma';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import type { OrgSidebarMembership } from '@/components/organization/org-sidebar';
+/** Membership для сайдбара организации. Тип живёт в lib — правило lib-no-upward (фаза 3). */
+export type OrgSidebarMembership = {
+  organizationId: string;
+  organizationName: string;
+  roleInOrg: 'admin' | 'leader' | 'member';
+};
 
 export type OrgPageContext = {
   session: SessionPayload;

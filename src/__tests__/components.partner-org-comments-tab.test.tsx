@@ -1,13 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderToString } from 'react-dom/server';
 
-vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
-
 const { listOrgOrderComments } = vi.hoisted(() => ({ listOrgOrderComments: vi.fn() }));
 vi.mock('@/lib/services/partner/orgComments', () => ({ listOrgOrderComments }));
 
+import type { PrismaClient } from '@prisma/client';
+
 import { CommentsTab } from '@/components/partner/org-comments-tab';
 import type { OrgCommentRow } from '@/lib/services/partner/orgComments';
+
+const prisma = {} as PrismaClient;
 
 function makeComment(overrides: Partial<OrgCommentRow> = {}): OrgCommentRow {
   return {
@@ -28,14 +30,14 @@ describe('CommentsTab (async server component)', () => {
 
   it('shows the empty-state message when there are no comments', async () => {
     listOrgOrderComments.mockResolvedValue([]);
-    const element = await CommentsTab({ orgId: 'org1' });
+    const element = await CommentsTab({ orgId: 'org1', prisma });
     const html = renderToString(element);
     expect(html).toContain('Комментариев нет.');
   });
 
   it('renders each comment with author, order title, timestamp and body', async () => {
     listOrgOrderComments.mockResolvedValue([makeComment()]);
-    const element = await CommentsTab({ orgId: 'org1' });
+    const element = await CommentsTab({ orgId: 'org1', prisma });
     const html = renderToString(element);
     expect(html).toContain('Иван Петров');
     expect(html).toContain('Обучение №42');
@@ -44,7 +46,7 @@ describe('CommentsTab (async server component)', () => {
 
   it('forwards orgId to listOrgOrderComments', async () => {
     listOrgOrderComments.mockResolvedValue([]);
-    await CommentsTab({ orgId: 'org42' });
+    await CommentsTab({ orgId: 'org42', prisma });
     expect(listOrgOrderComments).toHaveBeenCalledWith({}, { orgId: 'org42' });
   });
 
@@ -53,7 +55,7 @@ describe('CommentsTab (async server component)', () => {
       makeComment({ id: 'c1', body: 'Первый' }),
       makeComment({ id: 'c2', body: 'Второй' }),
     ]);
-    const element = await CommentsTab({ orgId: 'org1' });
+    const element = await CommentsTab({ orgId: 'org1', prisma });
     const html = renderToString(element);
     expect(html).toContain('Первый');
     expect(html).toContain('Второй');

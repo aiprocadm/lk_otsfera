@@ -1,18 +1,14 @@
 import React from 'react';
-import { prisma } from '@/lib/db/prisma';
+import type { PrismaClient } from '@prisma/client';
 import { fmtDateTime } from '@/lib/format';
+import { listOrgHistory } from '@/lib/services/partner/orgHistory';
 
 const labels: Record<string, string> = {
   partner_commission_rate_changed: 'Изменена ставка комиссии',
 };
 
-export async function HistoryTab({ orgId }: { orgId: string }) {
-  const rows = await prisma.auditLog.findMany({
-    where: { entity: 'Organization', entityId: orgId },
-    include: { user: { select: { name: true } } },
-    orderBy: { createdAt: 'desc' },
-    take: 50,
-  });
+export async function HistoryTab({ orgId, prisma }: { orgId: string; prisma: PrismaClient }) {
+  const rows = await listOrgHistory(prisma, { orgId });
 
   if (rows.length === 0) {
     return (

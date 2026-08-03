@@ -53,7 +53,8 @@ jobs:
       - run: npm ci
       - run: npm run prisma:generate
       # Фаза 1: единая команда локальной и серверной проверки.
-      # verify = typecheck → lint (max-warnings=0) → format:check → test:ci (unit).
+      # verify = typecheck → lint → boundaries (dependency-cruiser) →
+      #          format:check → test:ci (unit).
       - run: npm run verify
 
   gate:

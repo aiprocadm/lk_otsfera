@@ -3,7 +3,10 @@ import { type JWTPayload, SignJWT, jwtVerify } from 'jose';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
-import { sessionAccessProfileSchema, type SessionAccessProfile } from '@/lib/auth/accessProfile';
+import {
+  sessionAccessProfileSchema,
+  type SessionAccessProfile,
+} from '@/lib/auth/accessProfileSchema';
 
 const MIN_JWT_SECRET_LENGTH = 32;
 

@@ -1,5 +1,7 @@
 import { isFeatureEnabled } from '@/lib/featureFlags';
-import type { WelcomeAction } from '@/components/welcome/welcome-card';
+
+/** Карточка welcome-блока. Тип живёт в lib (не в компоненте) — правило lib-no-upward (фаза 3). */
+export type WelcomeAction = { href: string; title: string; hint: string };
 
 /**
  * Состав карточек welcome-блока (этап 4, ФТ-10.4, решение §8-3 спеки):

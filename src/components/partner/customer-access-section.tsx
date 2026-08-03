@@ -1,10 +1,11 @@
 import React from 'react';
-import { prisma } from '@/lib/db/prisma';
+import type { PrismaClient } from '@prisma/client';
 import { listMembers } from '@/lib/services/organization/team';
 import { InviteCustomerAdminForm } from './invite-customer-admin-form';
 
 type Props = {
   organizationId: string;
+  prisma: PrismaClient;
   /** When false the invite button is hidden — read-only view for partner-managers. */
   canInvite: boolean;
   /**
@@ -24,6 +25,7 @@ function fmtDate(d: Date): string {
 
 export async function CustomerAccessSection({
   organizationId,
+  prisma,
   canInvite,
   source = 'partner',
 }: Props) {

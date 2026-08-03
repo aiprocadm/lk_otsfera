@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderToString } from 'react-dom/server';
 
-const { findMany } = vi.hoisted(() => ({ findMany: vi.fn() }));
-vi.mock('@/lib/db/prisma', () => ({ prisma: { auditLog: { findMany } } }));
+import type { PrismaClient } from '@prisma/client';
 
 import { HistoryTab } from '@/components/partner/org-history-tab';
+
+const findMany = vi.fn();
+const prisma = { auditLog: { findMany } } as unknown as PrismaClient;
 
 describe('HistoryTab (async server component)', () => {
   beforeEach(() => {
@@ -13,7 +15,7 @@ describe('HistoryTab (async server component)', () => {
 
   it('shows the empty-state message when there is no history', async () => {
     findMany.mockResolvedValue([]);
-    const element = await HistoryTab({ orgId: 'org1' });
+    const element = await HistoryTab({ orgId: 'org1', prisma });
     const html = renderToString(element);
     expect(html).toContain('История пуста.');
   });
@@ -28,7 +30,7 @@ describe('HistoryTab (async server component)', () => {
         meta: null,
       },
     ]);
-    const element = await HistoryTab({ orgId: 'org1' });
+    const element = await HistoryTab({ orgId: 'org1', prisma });
     const html = renderToString(element);
     expect(html).toContain('Изменена ставка комиссии');
     expect(html).toContain('Система');
@@ -44,7 +46,7 @@ describe('HistoryTab (async server component)', () => {
         meta: null,
       },
     ]);
-    const element = await HistoryTab({ orgId: 'org1' });
+    const element = await HistoryTab({ orgId: 'org1', prisma });
     const html = renderToString(element);
     expect(html).toContain('Админ Иванов');
   });
@@ -59,7 +61,7 @@ describe('HistoryTab (async server component)', () => {
         meta: null,
       },
     ]);
-    const element = await HistoryTab({ orgId: 'org1' });
+    const element = await HistoryTab({ orgId: 'org1', prisma });
     const html = renderToString(element);
     expect(html).toContain('some_other_action');
   });
@@ -74,7 +76,7 @@ describe('HistoryTab (async server component)', () => {
         meta: { oldRate: null, newRate: '0.08' },
       },
     ]);
-    const element = await HistoryTab({ orgId: 'org1' });
+    const element = await HistoryTab({ orgId: 'org1', prisma });
     const html = renderToString(element);
     expect(html).toContain('—');
     expect(html).toContain('0.08');
@@ -90,7 +92,7 @@ describe('HistoryTab (async server component)', () => {
         meta: { oldRate: '0.05', newRate: null },
       },
     ]);
-    const element = await HistoryTab({ orgId: 'org1' });
+    const element = await HistoryTab({ orgId: 'org1', prisma });
     const html = renderToString(element);
     expect(html).toContain('0.05');
     expect(html).toMatch(/0\.05.*—/);
@@ -106,7 +108,7 @@ describe('HistoryTab (async server component)', () => {
         meta: { oldRate: '0.1', newRate: '0.08', reason: 'VIP-клиент' },
       },
     ]);
-    const element = await HistoryTab({ orgId: 'org1' });
+    const element = await HistoryTab({ orgId: 'org1', prisma });
     const html = renderToString(element);
     expect(html).toContain('VIP-клиент');
   });
@@ -121,14 +123,14 @@ describe('HistoryTab (async server component)', () => {
         meta: null,
       },
     ]);
-    const element = await HistoryTab({ orgId: 'org1' });
+    const element = await HistoryTab({ orgId: 'org1', prisma });
     const html = renderToString(element);
     expect(html).not.toContain('text-gray-500 text-xs ml-2');
   });
 
   it('queries by entity Organization + entityId, ordered desc, take 50', async () => {
     findMany.mockResolvedValue([]);
-    await HistoryTab({ orgId: 'org42' });
+    await HistoryTab({ orgId: 'org42', prisma });
     expect(findMany).toHaveBeenCalledWith({
       where: { entity: 'Organization', entityId: 'org42' },
       include: { user: { select: { name: true } } },

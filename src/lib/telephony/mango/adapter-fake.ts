@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { MangoAdapter } from './index';
+import type { MangoAdapter } from './types';
 
 /**
  * Deterministic, network-free adapter for tests and local dev.

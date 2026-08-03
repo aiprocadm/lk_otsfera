@@ -1,12 +1,9 @@
 import React from 'react';
-import { prisma } from '@/lib/db/prisma';
+import type { PrismaClient } from '@prisma/client';
+import { listOrgEmployees } from '@/lib/services/partner/orgEmployees';
 
-export async function EmployeesTab({ orgId }: { orgId: string }) {
-  const rows = await prisma.organizationUser.findMany({
-    where: { organizationId: orgId, isActive: true },
-    include: { user: { select: { name: true, email: true } } },
-    orderBy: { createdAt: 'asc' },
-  });
+export async function EmployeesTab({ orgId, prisma }: { orgId: string; prisma: PrismaClient }) {
+  const rows = await listOrgEmployees(prisma, { orgId });
 
   if (rows.length === 0) {
     return (

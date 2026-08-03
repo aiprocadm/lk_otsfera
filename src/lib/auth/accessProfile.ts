@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import type { Prisma } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
@@ -13,52 +12,25 @@ import type { SessionPayload } from '@/lib/auth/jwt';
  * держится company-floor (C8): профиль не расширяет видимость за пределы компании.
  */
 
-// Уровни охвата и capability — единый источник (схема → тип → список значений).
-export const scopeLevelSchema = z.enum(['own', 'assigned', 'all']);
-export type ScopeLevel = z.infer<typeof scopeLevelSchema>;
-export const SCOPE_LEVELS = scopeLevelSchema.options;
-
-export const capabilitySchema = z.enum([
-  'see_commission',
-  'import_1c',
-  'export',
-  'manage_catalog',
-  'manage_users',
-  'assign_orders',
-]);
-export type Capability = z.infer<typeof capabilitySchema>;
-export const CAPABILITIES = capabilitySchema.options;
-
-/** Типы объектов, по которым профиль задаёт охват. */
-export type AccessObjectType =
-  'orders' | 'organizations' | 'threads' | 'documents' | 'finance' | 'leads' | 'tasks';
-
-/** Денормализованное в JWT представление профиля (short enums + флаги). */
-export type SessionAccessProfile = {
-  id: string;
-  name: string;
-  orders: ScopeLevel;
-  organizations: ScopeLevel;
-  threads: ScopeLevel;
-  documents: ScopeLevel;
-  finance: ScopeLevel;
-  leads: ScopeLevel;
-  tasks: ScopeLevel;
-  capabilities: Capability[];
-};
-
-export const sessionAccessProfileSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  orders: scopeLevelSchema,
-  organizations: scopeLevelSchema,
-  threads: scopeLevelSchema,
-  documents: scopeLevelSchema,
-  finance: scopeLevelSchema,
-  leads: scopeLevelSchema,
-  tasks: scopeLevelSchema,
-  capabilities: z.array(capabilitySchema),
-});
+export {
+  scopeLevelSchema,
+  SCOPE_LEVELS,
+  capabilitySchema,
+  CAPABILITIES,
+  sessionAccessProfileSchema,
+} from './accessProfileSchema';
+export type {
+  ScopeLevel,
+  Capability,
+  AccessObjectType,
+  SessionAccessProfile,
+} from './accessProfileSchema';
+import {
+  capabilitySchema,
+  type ScopeLevel,
+  type Capability,
+  type SessionAccessProfile,
+} from './accessProfileSchema';
 
 /**
  * Company id-заглушка для сессии без компании: не совпадает ни с одной реальной
