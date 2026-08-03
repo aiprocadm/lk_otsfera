@@ -35,7 +35,7 @@ export type ManagerInviteErrorCode =
   // company boundary is the upstream root cause of cross-company IDOR (§4).
   | 'company_mismatch';
 
-export class ManagerInviteError extends Error {
+class ManagerInviteError extends Error {
   readonly code: ManagerInviteErrorCode;
   constructor(code: ManagerInviteErrorCode) {
     super(code);

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import type { LeadStatus } from '@prisma/client';
+import { type ActionResult, str } from '@/lib/actions/form';
 import { prisma } from '@/lib/db/prisma';
 import { requireSession } from '@/lib/auth/requireRole';
 import { moveFunnelLead, type MoveFunnelLeadError } from '@/lib/services/funnel/board';
@@ -19,13 +20,6 @@ import {
  * через canSeeLead; стадии-CRUD — сервис гейтит admin|leader. Поэтому здесь
  * достаточно requireSession().
  */
-
-type ActionResult<E extends string> = { ok: true } | { ok: false; error: E };
-
-function str(fd: FormData, key: string): string {
-  const v = fd.get(key);
-  return typeof v === 'string' ? v : '';
-}
 
 function revalidate(): void {
   revalidatePath('/leader/funnel');

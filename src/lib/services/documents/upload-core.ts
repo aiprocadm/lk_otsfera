@@ -48,7 +48,7 @@ const VALID_DOC_TYPES = new Set<DocumentType>([
   'other',
 ]);
 
-export type UploadSource = 'manager' | 'organization' | 'partner';
+type UploadSource = 'manager' | 'organization' | 'partner';
 
 export type PersistDocumentArgs = {
   counterparty: { type: 'organization' | 'partner'; id: string };

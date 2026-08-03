@@ -92,7 +92,7 @@ runbook'и, действующее ТЗ и STATUS.md. Фазы 1–9 надо **
 | # | Находка | Severity |
 |---|---|---|
 | C1 | **Список статусов лида продублирован и разъехался**: `STATUSES` в `src/app/api/manager/leads/route.ts:8` и `src/app/manager/leads/page.tsx:14` не содержит `promoted_to_deal`, который есть в enum и в `services/access/funnelStages.ts`. Это уже фактический рассинхрон, а не риск. | MAJOR |
-| C2 | Статусы сертификатов `['active','expiring','expired']` скопированы **в 6 файлах**; статусы зачислений и client-requests дублируют prisma-enum'ы; списки ролей — в 2 zod-enum'ах (`lib/auth/jwt.ts`, `server-actions/admin/users.ts`). | MINOR |
+| C2 | Статусы сертификатов ×6, статусы зачислений/client-requests vs prisma-enum'ы, списки ролей ×2. **Закрыто фазой 2 (01.08.2026):** сертификаты → `CERTIFICATE_STATUS_FILTERS` (services/training), зачисления/client-requests → `Object.values(<PrismaEnum>)`, роли → `ROLE_VALUES` (jwt.ts), TTL cookie → `SESSION_COOKIE_MAX_AGE_SECONDS`. Уточнение: «дубль ролей в `admin/users.ts`» был ложной находкой — там осознанно другой состав (без admin). Лид-статусы (C1) не трогались — ждут решения заказчика. | закрыто |
 | C3 | Задокументированные хардкоды-лимиты: `MAX_ORGANIZATION_USERS=10`, `MAX_PARTNER_USERS=5` (`lib/config/teamLimits.ts`), `SLA_MAX_HOURS=168`, порог «истекает» 60 дней, TTL приглашения 7 дней, лимиты импорта 20/10 МБ. Вопрос заказчику: что из этого должно стать настройкой. | MINOR |
 | C4 | **Не хардкод (проверено):** ставки комиссии (`Partner.commissionRate`, override `Organization.partnerCommissionRate`), НДС (`vatRate` из 1С) — в БД; стадии воронки / колонки задач / статусы заказа — паттерн «дефолт в коде + company-scoped таблицы `FunnelStage`/`TaskColumn`/`OrderStatusDefinition`» — соответствует ТЗ §10. | ок |
 
@@ -133,10 +133,13 @@ server-actions** (~120 экшенов) построена в ходе аудит
 
 ## 7. Гигиена кода
 
-- knip: 65 неиспользуемых экспортов + 111 неиспользуемых типов (в основном
-  «экспорт на всякий случай» из сервисов), 1 дублирующий экспорт
-  (`canSeeOrganization|isOrgInScope` в `managerPolicy`). Конфига `knip.json`
-  нет — отсюда ложные срабатывания на скрипты хуков/Playwright/sw.js. MINOR.
+- knip: 65 неиспользуемых экспортов + 111 неиспользуемых типов, 1 дублирующий
+  экспорт. **Закрыто фазой 2 (01.08.2026):** `knip.json` заведён (ложные
+  срабатывания сняты entry-точками), все 178 позиций вычищены
+  (unexport/удаление/чистка barrel'ов), 2 лишние devDeps удалены; дубль-алиас
+  `canSeeOrganization|isOrgInScope` оставлен осознанно (оба имени живые,
+  тождество закреплено тестом) и переведён в warn. `npm run deadcode` — в
+  `verify` и CI.
 - **`npm run format` сломан**: prettier не установлен (knip: unlisted binary),
   конфига prettier и `.editorconfig` нет. MINOR, но это «фундамент» фазы 1.
 - commitlint нет; история коммитов при этом фактически следует Conventional

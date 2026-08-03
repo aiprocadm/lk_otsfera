@@ -17,7 +17,7 @@ const FOCUSABLE_SELECTOR = [
 
 const FORM_CONTROL_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
 
-export type DialogSize = 'sm' | 'md' | 'lg' | 'xl';
+type DialogSize = 'sm' | 'md' | 'lg' | 'xl';
 
 const SIZE_CLASS: Record<DialogSize, string> = {
   sm: 'max-w-sm',

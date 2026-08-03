@@ -40,8 +40,3 @@ export type CardImportCounts = {
   excludedByReason: Record<string, number>;
   parseErrors: number;
 };
-
-export type CardImportResult = {
-  counts: CardImportCounts;
-  batchId: string | null; // null в режиме превью
-};

@@ -7,7 +7,7 @@ import { writeSyncLog } from '@/lib/services/oneCSync/log';
 import type { ScanDocumentPayload, ScanDocumentTarget } from '@/lib/jobs/types';
 import { log } from '@/lib/logging';
 
-export type ScanStatus = 'clean' | 'infected' | 'error';
+type ScanStatus = 'clean' | 'infected' | 'error';
 
 export type ScanDocumentResult = {
   kind: ScanDocumentTarget;
@@ -67,7 +67,7 @@ async function defaultDownload(path: string): Promise<Buffer> {
 }
 /* v8 ignore stop */
 
-export const defaultScanDeps: ScanDeps = {
+const defaultScanDeps: ScanDeps = {
   scan: clamAvInstream,
   download: defaultDownload,
 };

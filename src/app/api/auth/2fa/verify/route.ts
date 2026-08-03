@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { verifyTwoFactorPendingToken, signToken } from '@/lib/auth/jwt';
+import { SESSION_COOKIE_MAX_AGE_SECONDS } from '@/lib/auth/session';
 import { verifyTwoFactorCode } from '@/lib/services/auth/twoFactor';
 import { buildSessionClaims } from '@/lib/auth/buildSessionClaims';
 import { recordAudit } from '@/lib/auth/audit';
@@ -98,7 +99,7 @@ export async function POST(req: NextRequest) {
     secure: process.env.NODE_ENV === 'production',
     path: '/',
     // Синхронно с login-роутом: срок cookie = сроку 7d-JWT
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: SESSION_COOKIE_MAX_AGE_SECONDS,
   });
   res.cookies.set('2fa_pending', '', { httpOnly: true, path: '/', maxAge: 0 });
   return res;

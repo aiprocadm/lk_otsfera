@@ -14,7 +14,7 @@ import {
   type OrgIntermediaryCommission,
 } from './orgCommission';
 
-export type ManagerOrgFinanceSection = {
+type ManagerOrgFinanceSection = {
   orgId: string;
   orgName: string;
   kpis: OrgFinanceKpis;

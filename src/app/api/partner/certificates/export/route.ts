@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db/prisma';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import {
   listCertificates,
+  CERTIFICATE_STATUS_FILTERS,
   type CertificateStatusFilter,
 } from '@/lib/services/training/certificates';
 import { renderCertificatesXlsx } from '@/lib/services/certificates/xlsx';
@@ -15,8 +16,6 @@ import { renderCertificatesXlsx } from '@/lib/services/certificates/xlsx';
  * (`?organization/direction/status/search`). Скоуп — внутри listCertificates
  * (partner-manager — только закреплённые организации).
  */
-
-const STATUSES: CertificateStatusFilter[] = ['active', 'expiring', 'expired'];
 
 export async function GET(req: Request) {
   const disabled = notFoundIfDisabled('certificates_registry');
@@ -31,7 +30,7 @@ export async function GET(req: Request) {
   const res = await listCertificates(prisma, guard.value, {
     organizationId: url.searchParams.get('organization') || undefined,
     directionId: url.searchParams.get('direction') || undefined,
-    status: STATUSES.includes(status as CertificateStatusFilter)
+    status: CERTIFICATE_STATUS_FILTERS.includes(status as CertificateStatusFilter)
       ? (status as CertificateStatusFilter)
       : undefined,
     search: url.searchParams.get('search') || undefined,

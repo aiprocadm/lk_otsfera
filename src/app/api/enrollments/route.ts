@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import type { EnrollmentStatus } from '@prisma/client';
+import { EnrollmentStatus } from '@prisma/client';
 import { z } from 'zod';
 import { parseJsonBody } from '@/lib/api/http';
 import { getSession } from '@/lib/auth/session';
@@ -9,14 +9,8 @@ import { submitEnrollmentRequest } from '@/lib/services/enrollments/submit';
 import { listEnrollmentRequests } from '@/lib/services/enrollments/list';
 import { canSubmitEnrollments } from '@/lib/services/enrollments/policy';
 
-const STATUSES = [
-  'pending',
-  'approved',
-  'rejected',
-  'provisioned',
-  'in_training',
-  'certificates_ready',
-];
+// Дедупликация C2: источник — prisma-enum EnrollmentStatus (schema.prisma).
+const STATUSES: string[] = Object.values(EnrollmentStatus);
 
 /** Позиция из тела запроса: только строковые поля, ничего не интерпретируем. */
 function readItem(raw: unknown) {

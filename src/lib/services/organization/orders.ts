@@ -15,7 +15,7 @@ const ORDER_ITEM_INCLUDE = {
   certificate: { select: { id: true, number: true, validUntil: true } },
 } satisfies Prisma.OrderItemInclude;
 
-export type OrgOrderItemRow = Prisma.OrderItemGetPayload<{ include: typeof ORDER_ITEM_INCLUDE }>;
+type OrgOrderItemRow = Prisma.OrderItemGetPayload<{ include: typeof ORDER_ITEM_INCLUDE }>;
 
 export type OrgOrderRow = {
   id: string;
@@ -127,7 +127,7 @@ export async function listOrgOrders(
   return { rows, total };
 }
 
-export type OrgOrderDocument = {
+type OrgOrderDocument = {
   id: string;
   name: string;
   type: DocumentType;

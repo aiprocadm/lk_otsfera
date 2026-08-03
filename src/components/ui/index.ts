@@ -1,19 +1,14 @@
 export { ActionToastButton } from './action-toast-button';
 export { BackLink } from './back-link';
 export { Breadcrumbs } from './breadcrumbs';
-export { Button, type ButtonProps } from './button';
-export { Input, type InputProps } from './input';
-export { Textarea, type TextareaProps } from './textarea';
-export { Select, type SelectProps } from './select';
+export { Button } from './button';
+export { Input } from './input';
+export { Textarea } from './textarea';
+export { Select } from './select';
 export { Badge } from './badge';
-export {
-  ColorSwatchPicker,
-  COLOR_SWATCH_PRESETS,
-  type ColorSwatchPickerProps,
-} from './color-swatch-picker';
-export { Spinner } from './spinner';
-export { Field, type FieldProps } from './field';
-export { Dialog, type DialogProps, type DialogSize } from './dialog';
+export { ColorSwatchPicker, COLOR_SWATCH_PRESETS } from './color-swatch-picker';
+export { Field } from './field';
+export { Dialog } from './dialog';
 export { EmptyState } from './empty-state';
 export { LogoutButton } from './logout-button';
 export { TableShell, THead, Th, Tr, Td } from './table';

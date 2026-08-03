@@ -15,19 +15,10 @@ import { searchScopes } from './scopes';
 
 export const SEARCH_TAKE = 8;
 
-export const SEARCH_CATEGORIES = [
-  'orders',
-  'organizations',
-  'leads',
-  'tasks',
-  'events',
-  'documents',
-  'students',
-  'messages',
-] as const;
-export type SearchCategory = (typeof SEARCH_CATEGORIES)[number];
+type SearchCategory =
+  'orders' | 'organizations' | 'leads' | 'tasks' | 'events' | 'documents' | 'students' | 'messages';
 
-export const SEARCH_CATEGORY_LABELS_RU: Record<SearchCategory, string> = {
+const SEARCH_CATEGORY_LABELS_RU: Record<SearchCategory, string> = {
   orders: 'Заказы',
   organizations: 'Организации',
   leads: 'Заявки',
@@ -38,7 +29,7 @@ export const SEARCH_CATEGORY_LABELS_RU: Record<SearchCategory, string> = {
   messages: 'Чат команды',
 };
 
-export type SearchHit = {
+type SearchHit = {
   id: string;
   /** Первая строка результата (название/номер/сниппет). */
   title: string;

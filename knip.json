@@ -1,0 +1,13 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": ["scripts/**/*.{ts,mjs}", "src/e2e/**/*.ts"],
+  "project": ["src/**/*.{ts,tsx}", "scripts/**/*.{ts,mjs}", "mock-1c/**/*.ts", "prisma/**/*.ts"],
+  "ignoreBinaries": ["pwsh"],
+  "rules": {
+    "exports": "error",
+    "types": "error",
+    "files": "error",
+    "dependencies": "error",
+    "duplicates": "warn"
+  }
+}

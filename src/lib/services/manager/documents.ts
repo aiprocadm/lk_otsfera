@@ -45,7 +45,7 @@ const LIST_INCLUDE = {
   },
 } satisfies Prisma.DocumentInclude;
 
-export type ManagerDocumentRow = Prisma.DocumentGetPayload<{ include: typeof LIST_INCLUDE }>;
+type ManagerDocumentRow = Prisma.DocumentGetPayload<{ include: typeof LIST_INCLUDE }>;
 
 export type ListDocumentsResult = {
   rows: ManagerDocumentRow[];

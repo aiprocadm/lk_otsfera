@@ -31,4 +31,4 @@ export function __resetInboundEmailAdapter(): void {
   cachedForKind = null;
 }
 
-export type { InboundEmailAdapter, InboundEmailDto, InboundEmailFetchResult } from './adapter';
+export type { InboundEmailAdapter } from './adapter';

@@ -2,7 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { managedOrgIds, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 
-export type CounterpartyOption = { id: string; name: string };
+type CounterpartyOption = { id: string; name: string };
 export type ManagerCounterparties = {
   organizations: CounterpartyOption[];
   partners: CounterpartyOption[];

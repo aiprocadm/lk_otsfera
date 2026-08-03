@@ -4,7 +4,7 @@ import { getOrder } from '@/lib/services/manager/orders';
 import { recordAudit } from '@/lib/auth/audit';
 import { recordPiiAccess } from '@/lib/pii/record';
 
-export type OrderItemsError =
+type OrderItemsError =
   | 'forbidden'
   | 'not_found'
   | 'direction_inactive'

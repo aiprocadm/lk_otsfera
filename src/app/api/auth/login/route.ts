@@ -4,6 +4,7 @@ import * as React from 'react';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db/prisma';
 import { signToken, signTwoFactorPendingToken } from '@/lib/auth/jwt';
+import { SESSION_COOKIE_MAX_AGE_SECONDS } from '@/lib/auth/session';
 import { buildSessionClaims } from '@/lib/auth/buildSessionClaims';
 import { isRateLimited } from '@/lib/rateLimit';
 import { isFeatureEnabled } from '@/lib/featureFlags';
@@ -167,7 +168,7 @@ export async function POST(req: Request) {
     // Align the cookie lifetime with the 7d JWT expiry. Without maxAge this is a
     // session cookie (cleared on browser close), so the effective session
     // lifetime diverged from the token it carries.
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: SESSION_COOKIE_MAX_AGE_SECONDS,
   });
   return res;
 }

@@ -22,7 +22,7 @@ const ROW_INCLUDE = {
   },
 } satisfies Prisma.OrganizationManagerInclude;
 
-export type ManagerAssignmentRow = Prisma.OrganizationManagerGetPayload<{
+type ManagerAssignmentRow = Prisma.OrganizationManagerGetPayload<{
   include: typeof ROW_INCLUDE;
 }>;
 

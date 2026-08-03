@@ -1,6 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { type ActionResult, str } from '@/lib/actions/form';
+
 import { prisma } from '@/lib/db/prisma';
 import { requireSession } from '@/lib/auth/requireRole';
 import { isFeatureEnabled } from '@/lib/featureFlags';
@@ -19,13 +21,6 @@ import {
  * страница со своим notFound-гейтом может быть открыта в момент выключения флага.
  * Company-scope и роли энфорсит сервис (staffGate + canSeeEvent).
  */
-
-type ActionResult<E extends string> = { ok: true } | { ok: false; error: E };
-
-function str(fd: FormData, key: string): string {
-  const v = fd.get(key);
-  return typeof v === 'string' ? v : '';
-}
 
 function revalidate(): void {
   revalidatePath('/manager/calendar');

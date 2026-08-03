@@ -72,5 +72,3 @@ export async function buildNotificationScopeWhere(
 
   return { OR: scope };
 }
-
-export type NotificationScopeWhere = Awaited<ReturnType<typeof buildNotificationScopeWhere>>;

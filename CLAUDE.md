@@ -197,6 +197,13 @@ removeOnComplete: { count: 1000 }, removeOnFail: false
 - **Журнал доступа к ПДн (§25.7)** — модель `PiiAccessEvent` + хелпер `recordPiiAccess` ([src/lib/pii/record.ts](src/lib/pii/record.ts)). Новое staff-чтение ПДн физлиц клиентского контура обязано зарегистрировать контекст в [src/lib/pii/contexts.ts](src/lib/pii/contexts.ts) и вызвать `recordPiiAccess` (guardrail `pii.capture-coverage`). `subjectIds` — только id строк; в `meta` запрещены сырые поисковые строки; содержимое журнала не выводится в pino-логи. Запись awaited + never-throws (fail-open §3, `log.error` на сбой).
 - **Логирование — только через `@/lib/logging`** (`log` — server/worker; `@/lib/logging/edge` — middleware; `@/lib/logging/client` — 'use client'). Сырой `console.*` в `src/**` запрещён eslint-правилом `no-console`. В production логгер пишет pino-JSON и прогоняет контекст через `scrub()` (ПДн/секреты → `[REDACTED]`); в dev/test — console-passthrough с verbatim-аргументами (на этом держатся ~37 console-spy регрессов — формат сообщений не менять). Sentry (server/edge/worker) — no-op без `SENTRY_DSN`; события чистятся `scrubSentryEvent` (`sendDefaultPii: false`).
 
+## 12b. Гигиена кода (фаза 2)
+
+- **Мёртвый код**: `npm run deadcode` (knip, конфиг [knip.json](knip.json)) — неиспользуемый экспорт/тип/файл/зависимость = красная сборка (входит в `verify` и CI). Не экспортируй «на всякий случай»: символ, нужный только внутри файла, живёт без `export`.
+- **Barrel-политика**: `index.ts` — только публичный API модуля и только с реэкспортами, которые реально используются извне (knip это энфорсит). Прямой импорт из подмодуля (`@/components/ui/spinner`) — норма, а не нарушение.
+- **Дублирование**: `npm run dup:check` (jscpd, порог 3% на `src/`) — в `verify` и CI. Общие помощники server-actions (`str`, `ActionResult`) — в [src/lib/actions/form.ts](src/lib/actions/form.ts); `revalidate()`-хелперы остаются локальными (пути свои у каждого домена). Зеркальные security-ветки (например в `worker/processors/scan-document.ts`) — осознанное дублирование, не «оптимизировать».
+- **Нейминг (фактический, зафиксирован)**: компоненты — `kebab-case.tsx`; модули lib/services — `camelCase.ts` (или `kebab-case.ts` там, где так сложилось в домене — внутри домена стиль не смешивать); тесты — `src/__tests__/<area>.<name>.test.ts[x]` с префиксом слоя (`api.`, `services.`, `components.`, `pages.`, `worker.`, `server-actions.`); строковые списки-справочники не копируются между файлами — единый источник (константа в lib или prisma-enum).
+
 ## 13. Stylistic preferences
 
 - Импорты — alias `@/...` (см. tsconfig.json `paths`).

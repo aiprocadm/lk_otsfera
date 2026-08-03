@@ -14,7 +14,7 @@ import { recordPiiAccess } from '@/lib/pii/record';
  * (PR-3, §4.4); константы ниже — фолбэк для сессии без компании.
  */
 
-export const INTAKE_WARNING_HOURS = 4;
+const INTAKE_WARNING_HOURS = 4;
 export const INTAKE_BREACH_HOURS = 24;
 const SOURCE_CAP = 200;
 

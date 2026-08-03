@@ -32,7 +32,7 @@ type PropsOf<F> = F extends (args: infer A) => unknown ? Omit<A, 'to'> : never;
  * совпадать с реестром `EMAIL_TEMPLATES` в `email.ts` — несовпадение ловит
  * typecheck через `Record<EmailTemplateKey, …>`.
  */
-export type EmailTemplatePropsMap = {
+type EmailTemplatePropsMap = {
   notification: PropsOf<typeof sendNotificationEmail>;
   orgDocumentPublished: PropsOf<typeof sendOrgDocumentPublishedEmail>;
   orgPaymentReceived: PropsOf<typeof sendOrgPaymentReceivedEmail>;

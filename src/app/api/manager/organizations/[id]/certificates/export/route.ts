@@ -5,6 +5,7 @@ import { canManagerAccessOrg } from '@/lib/auth/managerPolicy';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import {
   listCertificates,
+  CERTIFICATE_STATUS_FILTERS,
   type CertificateStatusFilter,
 } from '@/lib/services/training/certificates';
 import { renderCertificatesXlsx } from '@/lib/services/certificates/xlsx';
@@ -19,8 +20,6 @@ import { recordPiiAccess } from '@/lib/pii/record';
  * ФТ-12.1: это выгрузка ПДн физлиц сотрудником — пишем `PiiAccessEvent` с
  * действием `export` (сверх `certificates_list`, который пишет сама выборка).
  */
-
-const STATUSES: CertificateStatusFilter[] = ['active', 'expiring', 'expired'];
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const disabled = notFoundIfDisabled('certificates_registry');
@@ -40,7 +39,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const res = await listCertificates(prisma, session, {
     organizationId: id,
     directionId: url.searchParams.get('direction') || undefined,
-    status: STATUSES.includes(status as CertificateStatusFilter)
+    status: CERTIFICATE_STATUS_FILTERS.includes(status as CertificateStatusFilter)
       ? (status as CertificateStatusFilter)
       : undefined,
     search: url.searchParams.get('search') || undefined,

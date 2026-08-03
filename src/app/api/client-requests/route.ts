@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import type { ClientRequestStatus } from '@prisma/client';
+import { ClientRequestStatus } from '@prisma/client';
 import { z } from 'zod';
 import { parseJsonBody } from '@/lib/api/http';
 import { getSession } from '@/lib/auth/session';
@@ -8,7 +8,8 @@ import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { submitClientRequest } from '@/lib/services/clientRequests/submit';
 import { listClientRequests } from '@/lib/services/clientRequests/list';
 
-const STATUSES = ['submitted', 'in_triage', 'converted', 'rejected'];
+// Дедупликация C2: источник — prisma-enum ClientRequestStatus (schema.prisma).
+const STATUSES: string[] = Object.values(ClientRequestStatus);
 
 /** Тонкие роуты заявок клиентов (этап 5): только маппинг кодов в HTTP (§3). */
 export async function POST(req: Request) {

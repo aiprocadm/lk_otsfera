@@ -16,7 +16,7 @@ import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { canReadDocument } from '@/lib/auth/policy';
 
-export type DocumentDetailError = 'not_found';
+type DocumentDetailError = 'not_found';
 
 export type DocumentDetail = {
   id: string;

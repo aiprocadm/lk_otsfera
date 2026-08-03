@@ -93,7 +93,7 @@ export type SyncControlQueueProvider = (
 ) => Pick<Queue, 'getJobCounts' | 'add' | 'upsertJobScheduler' | 'removeJobScheduler'>;
 
 /* v8 ignore next 1 — default provider is only used in production/integration; unit tests always inject a mock provider */
-export const defaultSyncProvider: SyncControlQueueProvider = (name) => getQueue(name);
+const defaultSyncProvider: SyncControlQueueProvider = (name) => getQueue(name);
 
 export type RewindResult =
   | { ok: true; entity: SyncControlEntity; cursor: string | null }

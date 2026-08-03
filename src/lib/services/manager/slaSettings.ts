@@ -8,8 +8,8 @@ import { recordAudit } from '@/lib/auth/audit';
  * вызывающем (leader/admin server-action), аудит без ПДн.
  */
 
-export const SLA_MIN_HOURS = 1;
-export const SLA_MAX_HOURS = 168; // неделя — верхняя граница разумного порога
+const SLA_MIN_HOURS = 1;
+const SLA_MAX_HOURS = 168; // неделя — верхняя граница разумного порога
 
 export type SlaSettings = { slaResponseHours: number; slaWarningHours: number };
 

@@ -1,7 +1,5 @@
 import type { ChannelKey, ChannelPayload } from '@/lib/notifications/channels/types';
 
-export type OneCEntity = 'order' | 'payment' | 'document' | 'organization' | 'lead';
-
 export type SyncJobPayload = {
   triggeredAt: string;
   reason?: 'cron' | 'webhook' | 'manual';
@@ -29,13 +27,6 @@ export type NotificationDispatchPayload = {
   userId: string;
   channel: ChannelKey;
   payload: ChannelPayload;
-};
-
-export type SendEmailPayload = {
-  to: string;
-  subject: string;
-  template: string;
-  variables: Record<string, unknown>;
 };
 
 export type ScanDocumentTarget =

@@ -21,7 +21,7 @@ import {
 } from './channels/types';
 import { getAppBaseUrl, orderLabel } from './shared';
 
-export type NotifyManagersType =
+type NotifyManagersType =
   | 'comment_from_org'
   | 'document_uploaded_by_org'
   | 'document_uploaded_by_partner'

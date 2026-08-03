@@ -30,7 +30,7 @@ const READINESS_SCAN_CAP = 200;
 /** Сколько заказов показываем ссылками в карточке. */
 const READY_PREVIEW = 5;
 
-export type MyDayDeal = { stageName: string; count: number };
+type MyDayDeal = { stageName: string; count: number };
 
 export type MyDayData = {
   tasksToday: number;

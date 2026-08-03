@@ -3,7 +3,7 @@ import { orderStage, type Stage } from '@/lib/orders/humanStage';
 import { partnerChannelWhere } from '@/lib/auth/documentChannelPolicy';
 import type { OrgDocumentRow } from './orgDocuments';
 
-export type DealDocumentRow = OrgDocumentRow;
+type DealDocumentRow = OrgDocumentRow;
 
 export type DealCommentRow = {
   id: string;
@@ -18,7 +18,7 @@ const ORDER_ITEM_INCLUDE = {
   certificate: { select: { id: true, number: true, validUntil: true } },
 } satisfies Prisma.OrderItemInclude;
 
-export type DealOrderItemRow = Prisma.OrderItemGetPayload<{ include: typeof ORDER_ITEM_INCLUDE }>;
+type DealOrderItemRow = Prisma.OrderItemGetPayload<{ include: typeof ORDER_ITEM_INCLUDE }>;
 
 export type DealDetail = {
   id: string;

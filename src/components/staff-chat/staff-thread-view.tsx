@@ -2,7 +2,7 @@
 import React, { useEffect, useRef } from 'react';
 import { fmtDate, fmtDateTime } from '@/lib/format';
 
-export type StaffReactionVM = { emoji: string; count: number; mine: boolean };
+type StaffReactionVM = { emoji: string; count: number; mine: boolean };
 
 export type StaffThreadMessageVM = {
   id: string;

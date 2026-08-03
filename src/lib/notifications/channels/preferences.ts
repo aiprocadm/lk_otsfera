@@ -12,7 +12,7 @@ import { z } from 'zod';
 import type { ChannelKey } from './types';
 
 /** Каналы, которыми управляет пользователь (email намеренно исключён). */
-export const OPTIONAL_CHANNEL_KEYS = [
+const OPTIONAL_CHANNEL_KEYS = [
   'telegram',
   'max',
   'whatsapp',

@@ -9,7 +9,7 @@ import { listCompanyManagers } from '@/lib/services/manager/team';
 const ACTIVE_EXEC = ['pending', 'in_progress'] as const;
 const TERMINAL_EXEC = ['completed', 'cancelled'] as const;
 
-export type LeaderKpis = {
+type LeaderKpis = {
   managers: number;
   activeOrders: number;
   /** Decimal sums serialized as strings (service contract §3). */
