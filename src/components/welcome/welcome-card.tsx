@@ -6,7 +6,9 @@ import { useRouter } from 'next/navigation';
 import { dismissWelcomeAction } from '@/server-actions/welcome';
 import { toast } from '@/lib/ui/toast';
 
-export type WelcomeAction = { href: string; title: string; hint: string };
+// Тип переехал в lib (правило lib-no-upward, фаза 3); реэкспорт сохраняет публичный API компонента.
+export type { WelcomeAction } from '@/lib/welcomeActions';
+import type { WelcomeAction } from '@/lib/welcomeActions';
 
 /**
  * Одноразовый welcome-блок первого входа (этап 4, ФТ-10.4). Строго

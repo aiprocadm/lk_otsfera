@@ -39,11 +39,11 @@ export default async function OrgCardPage({
     <div className="space-y-4">
       <OrgCardHeader card={card} />
       <OrgTabs orgId={orgId} active={tab} isAdmin={isAdmin} />
-      {tab === 'employees' && <EmployeesTab orgId={orgId} />}
-      {tab === 'comments' && <CommentsTab orgId={orgId} />}
-      {tab === 'history' && <HistoryTab orgId={orgId} />}
+      {tab === 'employees' && <EmployeesTab orgId={orgId} prisma={prisma} />}
+      {tab === 'comments' && <CommentsTab orgId={orgId} prisma={prisma} />}
+      {tab === 'history' && <HistoryTab orgId={orgId} prisma={prisma} />}
 
-      <CustomerAccessSection organizationId={orgId} canInvite={isAdmin} />
+      <CustomerAccessSection organizationId={orgId} prisma={prisma} canInvite={isAdmin} />
     </div>
   );
 }

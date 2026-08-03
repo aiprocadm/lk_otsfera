@@ -1,9 +1,9 @@
 import React from 'react';
-import { prisma } from '@/lib/db/prisma';
+import type { PrismaClient } from '@prisma/client';
 import { fmtDateTime } from '@/lib/format';
 import { listOrgOrderComments } from '@/lib/services/partner/orgComments';
 
-export async function CommentsTab({ orgId }: { orgId: string }) {
+export async function CommentsTab({ orgId, prisma }: { orgId: string; prisma: PrismaClient }) {
   // SECURITY (Track E / E2-C): comments are scoped to the CLIENT organization,
   // not the seller company. See listOrgOrderComments.
   const comments = await listOrgOrderComments(prisma, { orgId });

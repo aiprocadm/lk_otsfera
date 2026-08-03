@@ -2,8 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import React from 'react';
 
-vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
-
 const { listManagersForOrg } = vi.hoisted(() => ({ listManagersForOrg: vi.fn() }));
 vi.mock('@/lib/services/manager/team', () => ({ listManagersForOrg }));
 
@@ -17,7 +15,11 @@ vi.mock('@/components/admin/assign-or-invite-manager-form', () => ({
     React.createElement('div', { 'data-testid': 'assign-form' }, organizationId),
 }));
 
+import type { PrismaClient } from '@prisma/client';
+
 import { ManagersBlock } from '@/components/admin/managers-block';
+
+const prisma = {} as PrismaClient;
 
 function makeAssignment(
   overrides: Partial<{
@@ -44,7 +46,7 @@ describe('ManagersBlock', () => {
   it('renders the "no managers" notice when both active and inactive are empty', async () => {
     listManagersForOrg.mockResolvedValue({ active: [], inactive: [] });
 
-    const el = await ManagersBlock({ orgId: 'org-1' });
+    const el = await ManagersBlock({ orgId: 'org-1', prisma });
     const html = renderToString(el);
 
     expect(html).toContain('пока нет назначенных менеджеров');
@@ -57,7 +59,7 @@ describe('ManagersBlock', () => {
       inactive: [],
     });
 
-    const el = await ManagersBlock({ orgId: 'org-1' });
+    const el = await ManagersBlock({ orgId: 'org-1', prisma });
     const html = renderToString(el);
 
     expect(html).toContain('Иван Иванов');
@@ -73,7 +75,7 @@ describe('ManagersBlock', () => {
       inactive: [],
     });
 
-    const el = await ManagersBlock({ orgId: 'org-1' });
+    const el = await ManagersBlock({ orgId: 'org-1', prisma });
     const html = renderToString(el);
 
     expect(html).toContain('—');
@@ -86,7 +88,7 @@ describe('ManagersBlock', () => {
       inactive: [makeAssignment({ id: 'assign-2', deactivatedAt: new Date('2026-02-01') })],
     });
 
-    const el = await ManagersBlock({ orgId: 'org-1' });
+    const el = await ManagersBlock({ orgId: 'org-1', prisma });
     const html = renderToString(el);
 
     expect(html).toContain('Архив');
@@ -107,7 +109,7 @@ describe('ManagersBlock', () => {
       ],
     });
 
-    const el = await ManagersBlock({ orgId: 'org-1' });
+    const el = await ManagersBlock({ orgId: 'org-1', prisma });
     const html = renderToString(el);
 
     expect(html).toContain('—');
@@ -120,7 +122,7 @@ describe('ManagersBlock', () => {
       inactive: [makeAssignment({ id: 'assign-3', deactivatedAt: null })],
     });
 
-    const el = await ManagersBlock({ orgId: 'org-1' });
+    const el = await ManagersBlock({ orgId: 'org-1', prisma });
     const html = renderToString(el);
 
     expect(html).not.toContain('деактивирован');
@@ -133,7 +135,7 @@ describe('ManagersBlock', () => {
       inactive: [makeAssignment({ id: 'a2', deactivatedAt: new Date('2026-03-01') })],
     });
 
-    const el = await ManagersBlock({ orgId: 'org-1' });
+    const el = await ManagersBlock({ orgId: 'org-1', prisma });
     const html = renderToString(el);
 
     expect(html).toContain('Деактивировать');

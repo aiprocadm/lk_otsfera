@@ -140,9 +140,14 @@ export default async function AdminOrganizationDetailPage({
 
       <EntityCustomFields fields={customFields} entityType="organization" entityId={org.id} />
 
-      <CustomerAccessSection organizationId={org.id} canInvite={true} source="admin" />
+      <CustomerAccessSection
+        organizationId={org.id}
+        prisma={prisma}
+        canInvite={true}
+        source="admin"
+      />
 
-      <ManagersBlock orgId={org.id} />
+      <ManagersBlock orgId={org.id} prisma={prisma} />
     </div>
   );
 }

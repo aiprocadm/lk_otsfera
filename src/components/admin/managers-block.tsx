@@ -1,5 +1,5 @@
 import React from 'react';
-import { prisma } from '@/lib/db/prisma';
+import type { PrismaClient } from '@prisma/client';
 import { listManagersForOrg } from '@/lib/services/manager/team';
 import {
   deactivateManagerAssignmentFormAction,
@@ -15,7 +15,7 @@ function fmtDate(d: Date): string {
   }).format(d);
 }
 
-export async function ManagersBlock({ orgId }: { orgId: string }) {
+export async function ManagersBlock({ orgId, prisma }: { orgId: string; prisma: PrismaClient }) {
   const { active, inactive } = await listManagersForOrg(prisma, orgId);
   const hasAny = active.length + inactive.length > 0;
 

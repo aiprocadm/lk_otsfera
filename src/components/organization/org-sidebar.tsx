@@ -5,11 +5,10 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { NavItem } from '@/lib/navigation/cabinet';
 
-export type OrgSidebarMembership = {
-  organizationId: string;
-  organizationName: string;
-  roleInOrg: 'admin' | 'leader' | 'member';
-};
+// Тип переехал в lib/auth/orgPageContext (правило lib-no-upward, фаза 3);
+// реэкспорт сохраняет публичный API компонента (org-app-shell импортирует отсюда).
+export type { OrgSidebarMembership } from '@/lib/auth/orgPageContext';
+import type { OrgSidebarMembership } from '@/lib/auth/orgPageContext';
 
 export function OrgSidebar(props: {
   items: NavItem[];
