@@ -5,6 +5,7 @@ import { requireAdmin } from '@/lib/auth/requireRole';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { prisma } from '@/lib/db/prisma';
 import { getUser } from '@/lib/services/admin/users';
+import { listActivePartnerOptions } from '@/lib/services/admin/partners';
 import { UserEditForm } from '@/components/admin/user-edit-form';
 import { ManagerRoleControl } from '@/components/admin/manager-role-control';
 import { AdminBackupCodesControl } from '@/components/admin/admin-backup-codes-control';
@@ -17,11 +18,7 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
   const user = await getUser(prisma, session, id);
   if (!user) notFound();
 
-  const partners = await prisma.partner.findMany({
-    where: { isActive: true },
-    select: { id: true, name: true },
-    orderBy: { name: 'asc' },
-  });
+  const partners = await listActivePartnerOptions(prisma);
 
   return (
     <div className="space-y-4 max-w-3xl">

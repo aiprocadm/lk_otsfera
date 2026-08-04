@@ -4,7 +4,9 @@ import {
   getFinanceKpis,
   listStatements,
   getStatementWithItems,
+  getStatementFilePath,
 } from '@/lib/services/partner/finance';
+import type { SessionPayload } from '@/lib/auth/jwt';
 
 const { findMany, findFirst } = vi.hoisted(() => ({ findMany: vi.fn(), findFirst: vi.fn() }));
 const prisma = { commissionStatement: { findMany, findFirst } } as never;
@@ -129,5 +131,68 @@ describe('getStatementWithItems', () => {
       where: { id: 's1', partnerId: 'p1' },
       include: { items: { orderBy: { organizationName: 'asc' } } },
     });
+  });
+});
+
+describe('getStatementFilePath — скоуп акта (аудит A1: запрос уехал из pdf/xlsx-роутов)', () => {
+  const partnerSession = { sub: 'u-p', role: 'partner', partnerId: 'p1' } as SessionPayload;
+  const adminSession = { sub: 'u-a', role: 'admin' } as SessionPayload;
+
+  it('партнёр: фильтр по своему partnerId + select pdfPath', async () => {
+    findFirst.mockResolvedValue({ pdfPath: 'uploads/s1.pdf' });
+
+    const r = await getStatementFilePath(prisma, partnerSession, { id: 's1', format: 'pdf' });
+
+    expect(r).toEqual({ ok: true, path: 'uploads/s1.pdf' });
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { id: 's1', partnerId: 'p1' },
+      select: { pdfPath: true },
+    });
+  });
+
+  it('партнёр: xlsx берёт свой столбец', async () => {
+    findFirst.mockResolvedValue({ xlsxPath: 'uploads/s1.xlsx' });
+
+    const r = await getStatementFilePath(prisma, partnerSession, { id: 's1', format: 'xlsx' });
+
+    expect(r).toEqual({ ok: true, path: 'uploads/s1.xlsx' });
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { id: 's1', partnerId: 'p1' },
+      select: { xlsxPath: true },
+    });
+  });
+
+  it('admin (Model A): без partnerId-фильтра', async () => {
+    findFirst.mockResolvedValue({ pdfPath: 'uploads/s1.pdf' });
+
+    await getStatementFilePath(prisma, adminSession, { id: 's1', format: 'pdf' });
+
+    expect(findFirst).toHaveBeenCalledWith({ where: { id: 's1' }, select: { pdfPath: true } });
+  });
+
+  it('сессия партнёра без partnerId → not_found и НИ ОДНОГО запроса (фильтр не снимается)', async () => {
+    const broken = { sub: 'u-p', role: 'partner' } as SessionPayload;
+
+    const r = await getStatementFilePath(prisma, broken, { id: 's1', format: 'pdf' });
+
+    expect(r).toEqual({ ok: false, error: 'not_found' });
+    expect(findFirst).not.toHaveBeenCalled();
+  });
+
+  it('чужой/несуществующий акт → not_found', async () => {
+    findFirst.mockResolvedValue(null);
+    await expect(
+      getStatementFilePath(prisma, partnerSession, { id: 's1', format: 'pdf' })
+    ).resolves.toEqual({ ok: false, error: 'not_found' });
+  });
+
+  it.each([
+    ['pdf', { pdfPath: null }],
+    ['xlsx', { xlsxPath: null }],
+  ] as const)('файл %s ещё не собран → not_generated', async (format, row) => {
+    findFirst.mockResolvedValue(row);
+    await expect(
+      getStatementFilePath(prisma, partnerSession, { id: 's1', format })
+    ).resolves.toEqual({ ok: false, error: 'not_generated' });
   });
 });

@@ -11,7 +11,13 @@ const { createInviteToken } = vi.hoisted(() => ({
 }));
 vi.mock('@/lib/auth/passwordReset', () => ({ createInviteToken }));
 
-import { listTeam, inviteMember, assignOrgs, deactivateMember } from '@/lib/services/partner/team';
+import {
+  listTeam,
+  inviteMember,
+  assignOrgs,
+  deactivateMember,
+  getPartnerName,
+} from '@/lib/services/partner/team';
 import { MAX_PARTNER_USERS } from '@/lib/config/teamLimits';
 
 describe('listTeam — unit (roleInPartner mapping)', () => {
@@ -345,5 +351,20 @@ describe('deactivateMember — unit', () => {
       where: { id: 'u-target' },
       data: { sessionVersion: { increment: 1 } },
     });
+  });
+});
+
+describe('getPartnerName — unit (аудит A1: запрос уехал из роута приглашения)', () => {
+  it('узкий select по id партнёра, возвращает название', async () => {
+    const findUnique = vi.fn().mockResolvedValue({ name: 'ООО Партнёр' });
+    const prisma = { partner: { findUnique } } as never;
+
+    await expect(getPartnerName(prisma, 'p1')).resolves.toBe('ООО Партнёр');
+    expect(findUnique).toHaveBeenCalledWith({ where: { id: 'p1' }, select: { name: true } });
+  });
+
+  it('записи нет → null (роут подставит обобщённое «партнёр»)', async () => {
+    const prisma = { partner: { findUnique: vi.fn().mockResolvedValue(null) } } as never;
+    await expect(getPartnerName(prisma, 'p-ghost')).resolves.toBeNull();
   });
 });

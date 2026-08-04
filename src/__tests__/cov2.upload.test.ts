@@ -13,10 +13,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // all hoisted-mocked so no external system is touched.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const { requireSession, requireRole, requireOrderAccess } = vi.hoisted(() => ({
+const { requireSession, requireRole } = vi.hoisted(() => ({
   requireSession: vi.fn(),
   requireRole: vi.fn(),
-  requireOrderAccess: vi.fn(),
 }));
 const {
   orderFindUnique,
@@ -40,7 +39,11 @@ const {
   getPrimaryOrganizationId: vi.fn(),
 }));
 
-vi.mock('@/lib/auth/guard', () => ({ requireSession, requireRole, requireOrderAccess }));
+vi.mock('@/lib/auth/guard', () => ({
+  requireSession,
+  requireRole,
+  forbiddenResponse: () => Response.json({ error: 'Forbidden' }, { status: 403 }),
+}));
 vi.mock('@/lib/auth/organization', () => ({ getPrimaryOrganizationId }));
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
@@ -73,7 +76,6 @@ describe('documents/upload fan-out: try completes normally (route.ts:150-166)', 
     vi.clearAllMocks();
     requireSession.mockResolvedValue({ ok: true, value: adminSession });
     requireRole.mockReturnValue({ ok: true, value: adminSession });
-    requireOrderAccess.mockResolvedValue({ ok: true, value: adminSession });
     orderFindUnique.mockResolvedValue({ id: 'ord1', companyId: 'c1', organizationId: 'o1' });
     orgFindFirst.mockResolvedValue({ id: 'o1', partnerId: 'p1' });
     upload.mockResolvedValue(undefined);

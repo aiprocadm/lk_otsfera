@@ -6,6 +6,8 @@ vi.mock('@/lib/pii/record', () => ({ recordPiiAccess }));
 
 import {
   listUsers,
+  listActiveManagerOptions,
+  listManagerCandidates,
   getUser,
   createUser,
   updateUser,
@@ -1075,5 +1077,44 @@ describe('adminRegenerateBackupCodes', () => {
       user: { findUnique: vi.fn().mockRejectedValue(new Error('db down')) },
     } as unknown as Parameters<typeof adminRegenerateBackupCodes>[0];
     await expect(adminRegenerateBackupCodes(prisma, 'admin1', 'm1')).rejects.toThrow('db down');
+  });
+});
+
+/**
+ * Аудит A1: справочники менеджеров уехали со страниц /admin/intake и
+ * /admin/orders/[id] в сервис — здесь пиннится форма их запросов.
+ */
+describe('listActiveManagerOptions', () => {
+  it('берёт активных менеджеров по алфавиту, не более 200, только id+name', async () => {
+    const findMany = vi.fn().mockResolvedValue([{ id: 'm1', name: 'Мария' }]);
+    const prisma = { user: { findMany } } as unknown as Parameters<
+      typeof listActiveManagerOptions
+    >[0];
+
+    const rows = await listActiveManagerOptions(prisma);
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: { role: 'manager', isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+      take: 200,
+    });
+    expect(rows).toEqual([{ id: 'm1', name: 'Мария' }]);
+  });
+});
+
+describe('listManagerCandidates', () => {
+  it('берёт всех активных менеджеров (без ограничения по организации) по e-mail', async () => {
+    const findMany = vi.fn().mockResolvedValue([{ id: 'm1', name: 'Мария', email: 'm@x.com' }]);
+    const prisma = { user: { findMany } } as unknown as Parameters<typeof listManagerCandidates>[0];
+
+    const rows = await listManagerCandidates(prisma);
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: { role: 'manager', isActive: true },
+      select: { id: true, name: true, email: true },
+      orderBy: { email: 'asc' },
+    });
+    expect(rows).toEqual([{ id: 'm1', name: 'Мария', email: 'm@x.com' }]);
   });
 });

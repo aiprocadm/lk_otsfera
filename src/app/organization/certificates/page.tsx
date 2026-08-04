@@ -8,6 +8,7 @@ import {
   CERTIFICATE_STATUS_FILTERS,
   type CertificateStatusFilter,
 } from '@/lib/services/training/certificates';
+import { listDirectionFilterOptions } from '@/lib/services/training/directions';
 import { OrgAppShell } from '@/components/organization/org-app-shell';
 import { CertificateRegistryTable } from '@/components/certificates/certificate-registry-table';
 import { CertificateRegistryFilters } from '@/components/certificates/certificate-registry-filters';
@@ -51,11 +52,7 @@ export default async function OrganizationCertificatesPage({
   const skip = Number.isFinite(Number(sp.skip)) && Number(sp.skip) > 0 ? Number(sp.skip) : 0;
 
   const [directions, result] = await Promise.all([
-    prisma.trainingDirection.findMany({
-      where: { isActive: true },
-      orderBy: { sortOrder: 'asc' },
-      select: { id: true, name: true },
-    }),
+    listDirectionFilterOptions(prisma),
     listCertificates(prisma, ctx.session, {
       organizationId: ctx.activeOrgId,
       directionId: sp.direction || undefined,

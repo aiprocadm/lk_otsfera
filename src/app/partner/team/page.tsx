@@ -2,6 +2,7 @@ import React from 'react';
 import { prisma } from '@/lib/db/prisma';
 import { requirePartnerAdmin } from '@/lib/auth/requireRole';
 import { listTeam } from '@/lib/services/partner/team';
+import { listPartnerOrgOptions } from '@/lib/services/partner/orgOptions';
 import { TeamTable } from '@/components/partner/team-table';
 import { TeamCardList } from '@/components/partner/team-card-list';
 import { InviteMemberForm } from '@/components/partner/invite-member-form';
@@ -12,11 +13,7 @@ export default async function PartnerTeamPage() {
 
   const [rows, orgs] = await Promise.all([
     listTeam(prisma, session.partnerId),
-    prisma.organization.findMany({
-      where: { partnerId: session.partnerId },
-      orderBy: { name: 'asc' },
-      select: { id: true, name: true },
-    }),
+    listPartnerOrgOptions(prisma, { partnerId: session.partnerId }),
   ]);
 
   const activeCount = rows.filter((r) => r.isActive).length;

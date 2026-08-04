@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { getSession } from '@/lib/auth/session';
 import { requirePartnerAdmin } from '@/lib/auth/guard';
-import { listTeam, inviteMember } from '@/lib/services/partner/team';
+import { listTeam, inviteMember, getPartnerName } from '@/lib/services/partner/team';
 import { recordAudit } from '@/lib/auth/audit';
 import { sendPartnerInviteEmail } from '@/lib/email/send';
 import { log } from '@/lib/logging';
@@ -65,14 +65,11 @@ export async function POST(req: Request) {
   // приглашение, ссылка возвращается для фолбэка «Скопировать» в форме.
   let emailStatus: 'sent' | 'skipped' = 'skipped';
   try {
-    const partner = await prisma.partner.findUnique({
-      where: { id: admin.value.partnerId },
-      select: { name: true },
-    });
+    const partnerName = await getPartnerName(prisma, admin.value.partnerId);
     const invitedByName = session.name ?? undefined;
     const sent = await sendPartnerInviteEmail({
       to: parsed.data.email,
-      partnerName: partner?.name ?? 'партнёр',
+      partnerName: partnerName ?? 'партнёр',
       roleLabel: parsed.data.roleInPartner === 'admin' ? 'администратор' : 'менеджер',
       inviteUrl: result.inviteUrl,
       // exactOptionalPropertyTypes: props письма различают «ключа нет» и «ключ = undefined».

@@ -14,7 +14,11 @@ const { listOrderItems } = vi.hoisted(() => ({
 vi.mock('@/lib/services/manager/orders', () => ({ getOrder }));
 vi.mock('@/lib/services/training', () => ({ listOrderItems }));
 
-import { loadManagerOrderDetail } from '@/lib/services/manager/orderDetail';
+import {
+  loadManagerOrderDetail,
+  listOrderStudentOptions,
+  loadOrderDealChain,
+} from '@/lib/services/manager/orderDetail';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 const SESSION: SessionPayload = {
@@ -127,5 +131,67 @@ describe('loadManagerOrderDetail', () => {
     const result = await loadManagerOrderDetail(prisma, SESSION, 'order-2');
 
     expect(result!.documentRows).toEqual([]);
+  });
+});
+
+// A1: два запроса карточки заказа переехали со страниц (manager/leader
+// orders/[id]) в сервис — здесь пиннится форма каждого.
+describe('listOrderStudentOptions', () => {
+  it('фильтрует по организации заказа, узкий select, сортировка по имени', async () => {
+    const findMany = vi.fn().mockResolvedValue([{ id: 's1', name: 'Иван', email: 'i@x' }]);
+    const prisma = { student: { findMany } } as never;
+
+    const rows = await listOrderStudentOptions(prisma, 'org-1');
+
+    expect(rows).toEqual([{ id: 's1', name: 'Иван', email: 'i@x' }]);
+    expect(findMany).toHaveBeenCalledWith({
+      where: { organizationId: 'org-1' },
+      select: { id: true, name: true, email: true },
+      orderBy: { name: 'asc' },
+    });
+  });
+
+  // Заказ без организации на практике не встречается (Order.organizationId
+  // обязателен), но защитная ветка со страницы сохранена: фильтра нет — для
+  // Prisma пустой where и `organizationId: undefined` эквивалентны.
+  it('заказ без организации: запрос уходит без фильтра по организации', async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const prisma = { student: { findMany } } as never;
+
+    await listOrderStudentOptions(prisma, null);
+
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: {} }));
+  });
+});
+
+describe('loadOrderDealChain', () => {
+  it('читает сделку по заказу с лидом и обращением', async () => {
+    const chain = {
+      title: 'Сделка',
+      lead: { id: 'l1', clientCompanyName: 'ООО', sourceRequest: { id: 'r1', subject: 'Тема' } },
+    };
+    const findUnique = vi.fn().mockResolvedValue(chain);
+    const prisma = { deal: { findUnique } } as never;
+
+    expect(await loadOrderDealChain(prisma, 'order-1')).toEqual(chain);
+    expect(findUnique).toHaveBeenCalledWith({
+      where: { orderId: 'order-1' },
+      select: {
+        title: true,
+        lead: {
+          select: {
+            id: true,
+            clientCompanyName: true,
+            sourceRequest: { select: { id: true, subject: true } },
+          },
+        },
+      },
+    });
+  });
+
+  it('заказ не из сделки → null', async () => {
+    const prisma = { deal: { findUnique: vi.fn().mockResolvedValue(null) } } as never;
+
+    expect(await loadOrderDealChain(prisma, 'order-1')).toBeNull();
   });
 });

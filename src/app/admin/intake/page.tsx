@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/auth/requireRole';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { prisma } from '@/lib/db/prisma';
 import { listIntake } from '@/lib/services/intake/list';
+import { listActiveManagerOptions } from '@/lib/services/admin/users';
 import { IntakeTable } from '@/components/intake/intake-table';
 import { IntakeFilters } from '@/components/intake/intake-filters';
 import { Paginator } from '@/components/ui';
@@ -32,12 +33,7 @@ export default async function AdminIntakePage({
       assigneeId,
       onlyUnassigned,
     }),
-    prisma.user.findMany({
-      where: { role: 'manager', isActive: true },
-      select: { id: true, name: true },
-      orderBy: { name: 'asc' },
-      take: 200,
-    }),
+    listActiveManagerOptions(prisma),
   ]);
   if (!res.ok) notFound();
 

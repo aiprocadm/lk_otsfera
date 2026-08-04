@@ -18,27 +18,27 @@ vi.mock('@/lib/services/orderStatuses', () => ({
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
 
-const { studentFindMany, dealFindUnique } = vi.hoisted(() => ({
-  studentFindMany: vi.fn(),
-  dealFindUnique: vi.fn(),
+// A1: прямых запросов на странице не осталось — prisma только прокидывается в
+// сервисы. Формы запросов пиннятся в services.manager.orderDetail.unit и
+// services.documents.generationPanel.unit.
+const { prismaMock } = vi.hoisted(() => ({ prismaMock: { student: {} } }));
+vi.mock('@/lib/db/prisma', () => ({ prisma: prismaMock }));
+
+const { loadManagerOrderDetail, listOrderStudentOptions, loadOrderDealChain } = vi.hoisted(() => ({
+  loadManagerOrderDetail: vi.fn(),
+  listOrderStudentOptions: vi.fn(),
+  loadOrderDealChain: vi.fn(),
 }));
-const { companyFindUnique, organizationFindUnique, documentGroupBy } = vi.hoisted(() => ({
-  companyFindUnique: vi.fn(),
-  organizationFindUnique: vi.fn(),
-  documentGroupBy: vi.fn(),
-}));
-vi.mock('@/lib/db/prisma', () => ({
-  prisma: {
-    student: { findMany: studentFindMany },
-    deal: { findUnique: dealFindUnique },
-    company: { findUnique: companyFindUnique },
-    organization: { findUnique: organizationFindUnique },
-    document: { groupBy: documentGroupBy },
-  },
+vi.mock('@/lib/services/manager/orderDetail', () => ({
+  loadManagerOrderDetail,
+  listOrderStudentOptions,
+  loadOrderDealChain,
 }));
 
-const { loadManagerOrderDetail } = vi.hoisted(() => ({ loadManagerOrderDetail: vi.fn() }));
-vi.mock('@/lib/services/manager/orderDetail', () => ({ loadManagerOrderDetail }));
+const { getDocumentGenerationPanel } = vi.hoisted(() => ({
+  getDocumentGenerationPanel: vi.fn(),
+}));
+vi.mock('@/lib/services/documents/generationPanel', () => ({ getDocumentGenerationPanel }));
 
 const { getDealActivity } = vi.hoisted(() => ({ getDealActivity: vi.fn() }));
 vi.mock('@/lib/services/manager/dealActivity', () => ({ getDealActivity }));
@@ -155,14 +155,15 @@ describe('ManagerOrderDetailPage', () => {
       deliveredAt: null,
     });
     requireManager.mockReset();
-    studentFindMany.mockReset();
+    listOrderStudentOptions.mockReset();
     loadManagerOrderDetail.mockReset();
     getDealActivity.mockReset();
     listDirections.mockReset();
     getValuesForEntity.mockReset();
     isFeatureEnabled.mockReset();
-    dealFindUnique.mockReset();
-    dealFindUnique.mockResolvedValue(null);
+    loadOrderDealChain.mockReset();
+    loadOrderDealChain.mockResolvedValue(null);
+    getDocumentGenerationPanel.mockReset();
     listCertificateScanTargets.mockReset();
     listCertificateScanTargets.mockResolvedValue({ ok: true, targets: [] });
     nav.notFound.mockClear();
@@ -184,7 +185,7 @@ describe('ManagerOrderDetailPage', () => {
     requireManager.mockResolvedValue(SESSION);
     loadManagerOrderDetail.mockResolvedValue(BASE_DATA);
     listDirections.mockResolvedValue({ ok: true, directions: [{ id: 'd1', name: 'Направление' }] });
-    studentFindMany.mockResolvedValue([{ id: 's1', name: 'Студент', email: 's@x.com' }]);
+    listOrderStudentOptions.mockResolvedValue([{ id: 's1', name: 'Студент', email: 's@x.com' }]);
     getValuesForEntity.mockResolvedValue({
       ok: true,
       fields: [
@@ -224,9 +225,7 @@ describe('ManagerOrderDetailPage', () => {
       SESSION,
       'order-1'
     );
-    expect(studentFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { organizationId: 'org-1' } })
-    );
+    expect(listOrderStudentOptions).toHaveBeenCalledWith(prismaMock, 'org-1');
     expect(getValuesForEntity).toHaveBeenCalledWith(
       expect.objectContaining({ student: expect.anything() }),
       expect.anything(), // сессия: этап 1 ТЗ v0.5 фильтрует поля по ролям на сервере
@@ -255,7 +254,7 @@ describe('ManagerOrderDetailPage', () => {
       order: { ...BASE_DATA.order, organizationId: null },
     });
     listDirections.mockResolvedValue({ ok: false, error: 'forbidden' });
-    studentFindMany.mockResolvedValue([]);
+    listOrderStudentOptions.mockResolvedValue([]);
     getValuesForEntity.mockResolvedValue({ ok: false, error: 'not_found' });
     getDealActivity.mockResolvedValue({ ok: false, error: 'not_found' });
     isFeatureEnabled.mockReturnValue(false);
@@ -264,9 +263,9 @@ describe('ManagerOrderDetailPage', () => {
       ManagerOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
     );
 
-    expect(studentFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { organizationId: undefined } })
-    );
+    // Заказ без организации: сервис получает null и сам решает, во что его
+    // превратить в запросе (регресс — services.manager.orderDetail.unit).
+    expect(listOrderStudentOptions).toHaveBeenCalledWith(prismaMock, null);
     expect(container.textContent).toContain('[]falsefalse');
   });
 
@@ -284,7 +283,7 @@ describe('ManagerOrderDetailPage', () => {
       requireManager.mockResolvedValue(SESSION);
       loadManagerOrderDetail.mockResolvedValue(data);
       listDirections.mockResolvedValue({ ok: true, directions: [] });
-      studentFindMany.mockResolvedValue([]);
+      listOrderStudentOptions.mockResolvedValue([]);
       getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
       getDealActivity.mockResolvedValue({ ok: true, items: [] });
       isFeatureEnabled.mockReturnValue(false);
@@ -332,7 +331,7 @@ describe('ManagerOrderDetailPage', () => {
         order: { ...BASE_DATA.order, title: 'Обучение по ОТ' },
       });
       listDirections.mockResolvedValue({ ok: true, directions: [] });
-      studentFindMany.mockResolvedValue([]);
+      listOrderStudentOptions.mockResolvedValue([]);
       getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
       getDealActivity.mockResolvedValue({ ok: true, items: [] });
       return renderServerComponent(
@@ -343,13 +342,13 @@ describe('ManagerOrderDetailPage', () => {
     it('со сделками выключенными флагом цепочка не дочитывается', async () => {
       isFeatureEnabled.mockReturnValue(false);
       const { container } = await renderOrder();
-      expect(dealFindUnique).not.toHaveBeenCalled();
+      expect(loadOrderDealChain).not.toHaveBeenCalled();
       expect(container.textContent).toContain('Заказы');
     });
 
     it('заказ из сделки с лидом и обращением разворачивает всю цепочку', async () => {
       isFeatureEnabled.mockImplementation((flag: string) => flag === 'deals_pipeline');
-      dealFindUnique.mockResolvedValue({
+      loadOrderDealChain.mockResolvedValue({
         title: 'Сделка с Ромашкой',
         lead: {
           id: 'l1',
@@ -358,9 +357,7 @@ describe('ManagerOrderDetailPage', () => {
         },
       });
       const { container } = await renderOrder();
-      expect(dealFindUnique).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { orderId: 'order-1' } })
-      );
+      expect(loadOrderDealChain).toHaveBeenCalledWith(prismaMock, 'order-1');
       expect(container.textContent).toContain('Обращения клиентов');
       expect(container.textContent).toContain('Нужно обучение');
       expect(container.textContent).toContain('/manager/leads/l1');
@@ -369,7 +366,7 @@ describe('ManagerOrderDetailPage', () => {
 
     it('сделка без лида даёт цепочку без обращения', async () => {
       isFeatureEnabled.mockImplementation((flag: string) => flag === 'deals_pipeline');
-      dealFindUnique.mockResolvedValue({ title: 'Прямая сделка', lead: null });
+      loadOrderDealChain.mockResolvedValue({ title: 'Прямая сделка', lead: null });
       const { container } = await renderOrder();
       expect(container.textContent).toContain('Прямая сделка');
       expect(container.textContent).not.toContain('Обращения клиентов');
@@ -377,20 +374,6 @@ describe('ManagerOrderDetailPage', () => {
   });
 });
 describe('панель генерации документов (этап 8, ФТ-9.4/9.5)', () => {
-  const FULL = {
-    name: 'Раб',
-    legalName: 'ООО',
-    inn: '7707083893',
-    kpp: null,
-    legalAddress: 'адрес',
-    bankName: 'Банк',
-    bankAccount: '40702810400000000001',
-    corrAccount: '301',
-    bic: '044525225',
-    signerName: 'Иванов',
-    signerPosition: 'Директор',
-  };
-
   async function renderWithGeneration(orderOver: Record<string, unknown> = {}) {
     requireManager.mockResolvedValue(SESSION);
     loadManagerOrderDetail.mockResolvedValue({
@@ -404,27 +387,37 @@ describe('панель генерации документов (этап 8, ФТ
       },
     });
     listDirections.mockResolvedValue({ ok: true, directions: [] });
-    studentFindMany.mockResolvedValue([]);
+    listOrderStudentOptions.mockResolvedValue([]);
     getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
     getDealActivity.mockResolvedValue({ ok: true, items: [] });
     listCertificateScanTargets.mockResolvedValue({ ok: true, targets: [] });
     isFeatureEnabled.mockImplementation((flag: string) => flag === 'document_generation');
-    companyFindUnique.mockResolvedValue(FULL);
-    organizationFindUnique.mockResolvedValue(FULL);
-    documentGroupBy.mockResolvedValue([{ type: 'invoice', _count: { _all: 2 } }]);
+    getDocumentGenerationPanel.mockResolvedValue({
+      missing: [],
+      hasInvoice: true,
+      hasContract: false,
+    });
     return renderServerComponent(
       ManagerOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
     );
   }
 
   it('флаг включён и стороны на месте: панель собрана, счёт уже есть, договора нет', async () => {
-    // Страница сама собирает данные для панели: полноту реквизитов и какие
-    // документы уже сгенерированы. От этого зависят активность кнопок.
+    // Данные панели (полнота реквизитов + что уже сгенерировано) считает сервис;
+    // страница передаёт их в компонент — от них зависит активность кнопок.
     const { container } = await renderWithGeneration();
     const panel = container.querySelector('[data-testid="generate-panel"]');
     expect(panel?.textContent).toBe('order-1:missing=0:invoice=true:contract=false');
+    expect(getDocumentGenerationPanel).toHaveBeenCalledWith(prismaMock, {
+      orderId: 'order-1',
+      companyId: 'co-1',
+      organizationId: 'org-1',
+    });
   });
 
+  // Ветка «сторона исчезла между запросами» живёт внутри сервиса
+  // (services.documents.generationPanel.unit); странице важно лишь, что пустой
+  // список недостающего доезжает до компонента.
   it('карточка стороны исчезла между запросами → панель с пустым списком недостающего', async () => {
     requireManager.mockResolvedValue(SESSION);
     loadManagerOrderDetail.mockResolvedValue({
@@ -437,14 +430,16 @@ describe('панель генерации документов (этап 8, ФТ
       },
     });
     listDirections.mockResolvedValue({ ok: true, directions: [] });
-    studentFindMany.mockResolvedValue([]);
+    listOrderStudentOptions.mockResolvedValue([]);
     getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
     getDealActivity.mockResolvedValue({ ok: true, items: [] });
     listCertificateScanTargets.mockResolvedValue({ ok: true, targets: [] });
     isFeatureEnabled.mockImplementation((flag: string) => flag === 'document_generation');
-    companyFindUnique.mockResolvedValue(null);
-    organizationFindUnique.mockResolvedValue(FULL);
-    documentGroupBy.mockResolvedValue([]);
+    getDocumentGenerationPanel.mockResolvedValue({
+      missing: [],
+      hasInvoice: false,
+      hasContract: false,
+    });
     const { container } = await renderServerComponent(
       ManagerOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
     );

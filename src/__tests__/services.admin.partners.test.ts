@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
 import {
   listPartners,
+  listActivePartnerOptions,
   getPartner,
   updatePartner,
   deactivatePartner,
@@ -928,5 +929,25 @@ describe('createPartnerWithAdmin()', () => {
     await createPartnerWithAdmin(prisma, 'actor1', argsWithoutRate);
 
     expect(tx.commissionRateChange.create).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Аудит A1: справочник партнёров для селектов уехал со страниц
+ * /admin/organizations и /admin/users/* в сервис — форма запроса пиннится тут.
+ */
+describe('listActivePartnerOptions()', () => {
+  it('возвращает только активных партнёров по алфавиту, узким select', async () => {
+    const findMany = vi.fn().mockResolvedValue([{ id: 'p1', name: 'Партнёр' }]);
+    const prisma = makePrisma({ partner: { findMany } });
+
+    const rows = await listActivePartnerOptions(prisma);
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: { isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+    expect(rows).toEqual([{ id: 'p1', name: 'Партнёр' }]);
   });
 });

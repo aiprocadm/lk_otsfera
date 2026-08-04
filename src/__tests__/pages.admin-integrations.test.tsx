@@ -5,14 +5,19 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
 
-const { getIntegrationsStatus } = vi.hoisted(() => ({ getIntegrationsStatus: vi.fn() }));
-vi.mock('@/lib/services/admin/integrations', () => ({ getIntegrationsStatus }));
-
-const { getSettingsView, syncStateFindMany } = vi.hoisted(() => ({
-  getSettingsView: vi.fn(),
-  syncStateFindMany: vi.fn(),
+// Чтение SyncState уехало в сервис (аудит A1) — форма запроса пиннится в
+// services.admin-integrations.test.ts.
+const { getIntegrationsStatus, listIntegrationSyncStates } = vi.hoisted(() => ({
+  getIntegrationsStatus: vi.fn(),
+  listIntegrationSyncStates: vi.fn(),
 }));
-vi.mock('@/lib/db/prisma', () => ({ prisma: { syncState: { findMany: syncStateFindMany } } }));
+vi.mock('@/lib/services/admin/integrations', () => ({
+  getIntegrationsStatus,
+  listIntegrationSyncStates,
+}));
+
+const { getSettingsView } = vi.hoisted(() => ({ getSettingsView: vi.fn() }));
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('@/lib/config/integrationSettings', () => ({ getSettingsView }));
 
 const { primeIntegrationSettingsCache } = vi.hoisted(() => ({
@@ -97,8 +102,8 @@ describe('AdminIntegrationsPage', () => {
     getIntegrationsStatus.mockReset();
     getSettingsView.mockReset();
     primeIntegrationSettingsCache.mockClear();
-    syncStateFindMany.mockReset();
-    syncStateFindMany.mockResolvedValue([]);
+    listIntegrationSyncStates.mockReset();
+    listIntegrationSyncStates.mockResolvedValue([]);
     formTitles.length = 0;
     formProps.length = 0;
     requireAdmin.mockResolvedValue(SESSION);
@@ -208,7 +213,7 @@ describe('AdminIntegrationsPage', () => {
     getIntegrationsStatus.mockReturnValue([]);
     const ranAt = new Date('2026-07-23T10:00:00Z');
     const eventAt = new Date('2026-07-23T09:30:00Z');
-    syncStateFindMany.mockResolvedValue([
+    listIntegrationSyncStates.mockResolvedValue([
       { entity: 'integration.telegram', lastRunAt: ranAt, lastSuccessAt: ranAt, lastError: null },
       {
         entity: 'integration.onec',

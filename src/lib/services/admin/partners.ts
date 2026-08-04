@@ -392,3 +392,18 @@ export async function createPartnerWithAdmin(
     throw e;
   }
 }
+
+/**
+ * Активные партнёры для выпадающих списков админских форм и фильтров
+ * (страницы /admin/organizations, /admin/users/*). Узкий select: только то,
+ * что рисуется в `<option>`.
+ */
+export async function listActivePartnerOptions(
+  prisma: PrismaClient
+): Promise<Array<{ id: string; name: string }>> {
+  return prisma.partner.findMany({
+    where: { isActive: true },
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  });
+}

@@ -205,3 +205,35 @@ export async function listUsers(
 
   return { rows, total };
 }
+
+/**
+ * Активные менеджеры платформы для фильтра «исполнитель» в админском зеркале
+ * (Model A — без company-скоупа; гард `requireAdmin` остаётся на странице).
+ */
+export async function listActiveManagerOptions(
+  prisma: PrismaClient
+): Promise<Array<{ id: string; name: string }>> {
+  return prisma.user.findMany({
+    where: { role: 'manager', isActive: true },
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+    take: 200,
+  });
+}
+
+/**
+ * Кандидаты на назначение менеджера заказу.
+ *
+ * The candidate pool for per-order assignment is *all* active managers, not
+ * just those with an existing assignment to the org — admins routinely need to
+ * assign cross-org managers as part of the third visibility branch.
+ */
+export async function listManagerCandidates(
+  prisma: PrismaClient
+): Promise<Array<{ id: string; name: string; email: string }>> {
+  return prisma.user.findMany({
+    where: { role: 'manager', isActive: true },
+    select: { id: true, name: true, email: true },
+    orderBy: { email: 'asc' },
+  });
+}

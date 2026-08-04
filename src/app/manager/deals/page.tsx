@@ -4,6 +4,7 @@ import { requireManager } from '@/lib/auth/requireRole';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { prisma } from '@/lib/db/prisma';
 import { getDealBoard } from '@/lib/services/deals/board';
+import { listCompanyOrgOptions } from '@/lib/services/manager/organizations';
 import { listCompanyManagers } from '@/lib/services/manager/team';
 import { DealBoard } from '@/components/deals/deal-board';
 import { NewDealButton } from '@/components/deals/deal-dialog';
@@ -20,13 +21,7 @@ export default async function ManagerDealsPage() {
 
   const [board, organizations, managers] = await Promise.all([
     getDealBoard(prisma, session),
-    session.companyId
-      ? prisma.organization.findMany({
-          where: { companyId: session.companyId },
-          select: { id: true, name: true },
-          orderBy: { name: 'asc' },
-        })
-      : Promise.resolve([]),
+    listCompanyOrgOptions(prisma, session),
     session.companyId ? listCompanyManagers(prisma, session.companyId) : Promise.resolve([]),
   ]);
 

@@ -7,8 +7,13 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
 
-const { findUnique } = vi.hoisted(() => ({ findUnique: vi.fn() }));
-vi.mock('@/lib/db/prisma', () => ({ prisma: { user: { findUnique } } }));
+const { prismaMock } = vi.hoisted(() => ({ prismaMock: {} }));
+vi.mock('@/lib/db/prisma', () => ({ prisma: prismaMock }));
+
+// A1: внутренний номер читает сервис профиля сотрудника (форма запроса
+// пиннится в services.manager.staffProfile.unit).
+const { getStaffInternalPhone } = vi.hoisted(() => ({ getStaffInternalPhone: vi.fn() }));
+vi.mock('@/lib/services/manager/staffProfile', () => ({ getStaffInternalPhone }));
 
 const { getTelegramStatus } = vi.hoisted(() => ({ getTelegramStatus: vi.fn() }));
 vi.mock('@/lib/services/telegram/link', () => ({ getTelegramStatus }));
@@ -59,8 +64,8 @@ describe('ManagerSettingsPage', () => {
     requireManager.mockReset();
     getTelegramStatus.mockReset();
     getNotificationSettings.mockReset();
-    findUnique.mockReset();
-    findUnique.mockResolvedValue({ internalPhone: null });
+    getStaffInternalPhone.mockReset();
+    getStaffInternalPhone.mockResolvedValue(null);
     isFeatureEnabled.mockReset();
     isFeatureEnabled.mockReturnValue(false);
   });
@@ -69,17 +74,14 @@ describe('ManagerSettingsPage', () => {
     requireManager.mockResolvedValue(SESSION);
     getTelegramStatus.mockResolvedValue({ linked: true });
     getNotificationSettings.mockResolvedValue({ view: { email: true } });
-    findUnique.mockResolvedValue({ internalPhone: '101' });
+    getStaffInternalPhone.mockResolvedValue('101');
 
     const { container } = await renderServerComponent(ManagerSettingsPage());
 
     expect(requireManager).toHaveBeenCalled();
-    expect(getTelegramStatus).toHaveBeenCalledWith({ user: { findUnique } }, SESSION);
-    expect(getNotificationSettings).toHaveBeenCalledWith({ user: { findUnique } }, SESSION);
-    expect(findUnique).toHaveBeenCalledWith({
-      where: { id: 'u1' },
-      select: { internalPhone: true },
-    });
+    expect(getTelegramStatus).toHaveBeenCalledWith(prismaMock, SESSION);
+    expect(getNotificationSettings).toHaveBeenCalledWith(prismaMock, SESSION);
+    expect(getStaffInternalPhone).toHaveBeenCalledWith(prismaMock, SESSION);
     expect(container.textContent).toContain('Настройки');
     expect(container.textContent).toContain('linked');
     expect(container.textContent).toContain('email');
@@ -91,7 +93,7 @@ describe('ManagerSettingsPage', () => {
     requireManager.mockResolvedValue(SESSION);
     getTelegramStatus.mockResolvedValue({ linked: true });
     getNotificationSettings.mockResolvedValue({ view: { email: true } });
-    findUnique.mockResolvedValue(null);
+    getStaffInternalPhone.mockResolvedValue(null);
 
     const { container } = await renderServerComponent(ManagerSettingsPage());
 

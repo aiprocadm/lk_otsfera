@@ -1,3 +1,3 @@
 export { previewPaymentImport, commitPaymentImport } from './import-batch';
-export { listQueue, resolveQueueRow, dismissQueueRow } from './resolve-queue';
+export { listQueue, listQueueOrgNames, resolveQueueRow, dismissQueueRow } from './resolve-queue';
 export { searchResolveOrgs, listResolveOrders } from './resolve-picker';

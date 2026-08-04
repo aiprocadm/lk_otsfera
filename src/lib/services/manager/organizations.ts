@@ -49,6 +49,30 @@ export async function listOrganizations(
   });
 }
 
+export type CompanyOrgOption = { id: string; name: string };
+
+/**
+ * Узкий справочник «организации моей компании» для селектов форм (создание
+ * лида/сделки на страницах менеджера и руководителя).
+ *
+ * Скоуп — компания сессии (C8), а не `managedOrgIds`: форма привязки лида/сделки
+ * намеренно шире списка «моих» организаций, поэтому `managerOrgScope` здесь не
+ * применяется. Сессия без компании (сотрудник ещё не привязан) даёт пустой
+ * список **без обращения к БД** — иначе получился бы запрос `companyId: undefined`
+ * (= все организации всех компаний).
+ */
+export async function listCompanyOrgOptions(
+  prisma: PrismaClient,
+  session: SessionPayload
+): Promise<CompanyOrgOption[]> {
+  if (!session.companyId) return [];
+  return prisma.organization.findMany({
+    where: { companyId: session.companyId },
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  });
+}
+
 const DETAIL_INCLUDE = {
   _count: {
     select: {

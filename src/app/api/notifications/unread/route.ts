@@ -1,12 +1,12 @@
 import { prisma } from '@/lib/db/prisma';
 import { requireRole, requireSession } from '@/lib/auth/guard';
-import { buildNotificationScopeWhere } from '@/lib/services/notifications/scope';
+import { countUnreadNotifications } from '@/lib/services/notifications/inbox';
 
 /**
  * GET /api/notifications/unread — счётчик непрочитанных уведомлений (Task C1,
- * parity). Гейты и scope те же, что у GET /api/notifications; поверх скоупа —
- * фильтр isRead:false. Запрос обслуживается индексом
- * Notification @@index([userId, isRead]) (F2 §16).
+ * parity). Гейты и scope те же, что у GET /api/notifications (общий
+ * `buildNotificationScopeWhere` внутри сервиса); поверх скоупа — фильтр
+ * isRead:false.
  */
 export async function GET() {
   const sessionResult = await requireSession();
@@ -16,11 +16,7 @@ export async function GET() {
   const roleResult = requireRole(session, ['admin', 'manager', 'partner', 'organization']);
   if (!roleResult.ok) return roleResult.response;
 
-  const scope = await buildNotificationScopeWhere(prisma, session);
+  const result = await countUnreadNotifications(prisma, session);
 
-  const count = await prisma.notification.count({
-    where: { AND: [scope, { isRead: false }] },
-  });
-
-  return Response.json({ count });
+  return Response.json({ count: result.count });
 }
