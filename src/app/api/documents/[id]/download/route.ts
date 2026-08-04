@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { requireSession } from '@/lib/auth/guard';
-import { canReadDocument, forbiddenResponse } from '@/lib/auth/policy';
+import { forbiddenResponse } from '@/lib/auth/policy';
 import { getObjectStorage } from '@/lib/storage';
 import { recordAudit } from '@/lib/auth/audit';
+import { getDocumentForSignedDownload } from '@/lib/services/documents/download';
 import { markDocumentViewed } from '@/lib/services/documents/viewMarks';
 import { log } from '@/lib/logging';
 
@@ -24,25 +25,12 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const s = sessionResult.value;
 
   const { id } = await params;
-  const doc = await prisma.document.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      path: true,
-      name: true,
-      scanStatus: true,
-      scanReason: true,
-      orderId: true,
-      companyId: true,
-      counterpartyType: true,
-      counterpartyId: true,
-      order: { select: { companyId: true } },
-    },
-  });
-  if (!doc) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  if (!(await canReadDocument(s, doc)))
-    return forbiddenResponse('You do not have access to this document');
-  if (doc.scanStatus === 'infected' && s.role !== 'admin') {
+  const doc = await getDocumentForSignedDownload(prisma, s, id);
+  if (!doc.ok) {
+    if (doc.error === 'not_found')
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (doc.error === 'forbidden')
+      return forbiddenResponse('You do not have access to this document');
     return NextResponse.json(
       {
         code: 'INFECTED',

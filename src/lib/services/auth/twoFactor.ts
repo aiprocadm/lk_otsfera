@@ -33,6 +33,19 @@ export async function createTwoFactorChallenge(
   return { code };
 }
 
+/**
+ * Снять выданный челлендж (login/resend вызывают это, когда письмо с кодом не
+ * ушло: без письма код всё равно недостижим, висящая запись только съела бы
+ * попытку). Best-effort — удаление несуществующей записи не должно превращать
+ * 502 «письмо не ушло» в 500.
+ */
+export async function discardTwoFactorChallenge(
+  prisma: PrismaClient,
+  userId: string
+): Promise<void> {
+  await prisma.twoFactorChallenge.delete({ where: { userId } }).catch(() => {});
+}
+
 export async function verifyTwoFactorCode(
   prisma: PrismaClient,
   userId: string,

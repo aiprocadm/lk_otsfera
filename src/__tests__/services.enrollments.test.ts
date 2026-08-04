@@ -14,6 +14,7 @@ vi.mock('@/lib/services/enrollments/notify', () => ({
 }));
 
 import {
+  canAccessEnrollmentOrg,
   canReviewEnrollments,
   canSubmitEnrollments,
   submitterRoleLabel,
@@ -52,6 +53,50 @@ describe('enrollment policy', () => {
     expect(submitterRoleLabel(s({ role: 'manager', managerRole: 'leader' }))).toBe('leader');
     expect(submitterRoleLabel(s({ role: 'manager' }))).toBe('manager');
     expect(submitterRoleLabel(s({ role: 'partner' }))).toBe('partner');
+  });
+});
+
+// Аудит A1: скоуп организации мастера заявки (был приватной функцией роута
+// /api/enrollments/students, теперь предикат сервисного слоя).
+describe('canAccessEnrollmentOrg', () => {
+  const findFirst = vi.fn();
+  const db = { organization: { findFirst } } as never;
+
+  beforeEach(() => findFirst.mockReset());
+
+  it('manager/admin — любая организация, без запроса в базу', async () => {
+    expect(await canAccessEnrollmentOrg(db, s({ role: 'manager' }), 'o1')).toBe(true);
+    expect(await canAccessEnrollmentOrg(db, s({ role: 'admin' }), 'o1')).toBe(true);
+    expect(findFirst).not.toHaveBeenCalled();
+  });
+
+  it('organization — только своё активное членство', async () => {
+    const session = s({
+      role: 'organization',
+      organizationMemberships: [
+        { organizationId: 'o1', isActive: true },
+        { organizationId: 'o2', isActive: false },
+      ],
+    });
+    expect(await canAccessEnrollmentOrg(db, session, 'o1')).toBe(true);
+    expect(await canAccessEnrollmentOrg(db, session, 'o2')).toBe(false);
+    expect(await canAccessEnrollmentOrg(db, s({ role: 'organization' }), 'o1')).toBe(false);
+  });
+
+  it('partner — запрос со своим partnerId; без partnerId — sentinel deny-all', async () => {
+    findFirst.mockResolvedValue({ id: 'o1' });
+    expect(await canAccessEnrollmentOrg(db, s({ role: 'partner', partnerId: 'p1' }), 'o1')).toBe(
+      true
+    );
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'o1', partnerId: 'p1' } })
+    );
+
+    findFirst.mockResolvedValue(null);
+    expect(await canAccessEnrollmentOrg(db, s({ role: 'partner' }), 'o1')).toBe(false);
+    expect(findFirst).toHaveBeenLastCalledWith(
+      expect.objectContaining({ where: { id: 'o1', partnerId: '__none__' } })
+    );
   });
 });
 

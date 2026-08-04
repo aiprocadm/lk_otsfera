@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from './session';
-import { canReadOrder, isPartnerAdmin } from './policy';
+import { isPartnerAdmin } from './policy';
 import type { Role, SessionPayload } from './jwt';
 
 type GuardResult<T> = { ok: true; value: T } | { ok: false; response: Response };
@@ -24,14 +24,12 @@ export function requireRole(session: SessionPayload, roles: Role[]): GuardResult
   return { ok: true, value: session };
 }
 
-export async function requireOrderAccess(
-  session: SessionPayload,
-  order: { id: string; companyId: string }
-): Promise<GuardResult<SessionPayload>> {
-  const canRead = await canReadOrder(session, order);
-  if (!canRead) return { ok: false, response: forbiddenResponse() };
-  return { ok: true, value: session };
-}
+/*
+ * `requireOrderAccess` (обёртка над canReadOrder, возвращавшая Response) удалён
+ * аудитом A1: оба его вызова уехали в сервисный слой (comments/documents),
+ * а там предикат `canReadOrder` вызывается напрямую и отдаёт код результата —
+ * HTTP-ответ собирает роут. Экспорт «на всякий случай» ловит knip (§12b).
+ */
 
 export function requireAdmin(session: SessionPayload): GuardResult<SessionPayload> {
   if (session.role !== 'admin')

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   requireSession,
-  requireOrderAccess,
+  canReadOrder,
   findOrder,
   createComment,
   notifyMessageCreated,
@@ -10,7 +10,7 @@ const {
   getPrimaryOrganizationId,
 } = vi.hoisted(() => ({
   requireSession: vi.fn(),
-  requireOrderAccess: vi.fn(),
+  canReadOrder: vi.fn(),
   findOrder: vi.fn(),
   createComment: vi.fn(),
   notifyMessageCreated: vi.fn(),
@@ -20,9 +20,11 @@ const {
 
 vi.mock('@/lib/auth/guard', () => ({
   requireSession,
-  requireOrderAccess,
   forbiddenResponse: (m: string) => Response.json({ message: m }, { status: 403 }),
 }));
+// Ф0/A1: доступ общей ветки проверяет сервис через canReadOrder (раньше — гард
+// requireOrderAccess в роуте). Мокается предикат, проверяемое поведение то же.
+vi.mock('@/lib/auth/policy', () => ({ canReadOrder }));
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     order: { findUnique: findOrder },
@@ -46,7 +48,7 @@ describe('POST /api/comments', () => {
     vi.resetAllMocks();
     requireSession.mockResolvedValue({ ok: true, value: { sub: 'u1', partnerId: 'p1' } });
     findOrder.mockResolvedValue({ id: 'ord1', companyId: 'c1' });
-    requireOrderAccess.mockResolvedValue({ ok: true });
+    canReadOrder.mockResolvedValue(true);
     createComment.mockResolvedValue({ id: 'cm1', orderId: 'ord1', body: 'hello', authorId: 'u1' });
     getPrimaryOrganizationId.mockResolvedValue('org1');
     notifyMessageCreated.mockResolvedValue({ id: 'notif-1' });
@@ -71,10 +73,7 @@ describe('POST /api/comments', () => {
   });
 
   it('returns 403 when user has no access to the order', async () => {
-    requireOrderAccess.mockResolvedValue({
-      ok: false,
-      response: Response.json({ error: 'Forbidden' }, { status: 403 }),
-    });
+    canReadOrder.mockResolvedValue(false);
     const res = await POST(makeRequest({ orderId: 'ord1', body: 'hello' }));
     expect(res.status).toBe(403);
     expect(createComment).not.toHaveBeenCalled();
@@ -115,7 +114,7 @@ describe('POST /api/comments', () => {
     findOrder.mockResolvedValue({ id: 'ord1', companyId: 'c1', partnerId: 'p1' });
     const res = await POST(makeRequest({ orderId: 'ord1', body: 'hello' }));
     expect(res.status).toBe(200);
-    expect(requireOrderAccess).not.toHaveBeenCalled();
+    expect(canReadOrder).not.toHaveBeenCalled();
   });
 
   it("partner cannot comment on a sibling partner's order in the same company", async () => {

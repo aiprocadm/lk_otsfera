@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { requireOrderAccess, requireRole, requireSession } from '@/lib/auth/guard';
-import { deliverNotificationToUser, notifyDocumentCreated } from '@/lib/notifications';
-import { getPrimaryOrganizationId } from '@/lib/auth/organization';
-import { getObjectStorage } from '@/lib/storage';
-import { getQueue } from '@/lib/jobs/queues';
-import type { ScanDocumentPayload } from '@/lib/jobs/types';
-import { recordAudit } from '@/lib/auth/audit';
-import { validateMagicBytes, SUPPORTED_MIME_TYPES } from '@/lib/storage/mimeValidator';
+import { forbiddenResponse, requireRole, requireSession } from '@/lib/auth/guard';
 import { resolveMaxFileSizeMb, maxFileSizeBytes } from '@/lib/config/upload';
-import { log } from '@/lib/logging';
+import { uploadAdminDocument } from '@/lib/services/documents/adminUpload';
+
+/**
+ * POST /api/documents/upload — legacy-канал загрузки из админ-панели.
+ *
+ * Роут остаётся тонким (§3): гарды → форма входа (наличие полей, MIME/
+ * расширение, размер) → `uploadAdminDocument` → маппинг кода в HTTP. Размер и
+ * MIME проверяются здесь намеренно: они отсекают файл ДО чтения его в память,
+ * а доменные проверки (заказ, доступ, magic bytes, хранилище) живут в сервисе.
+ */
 
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
@@ -42,10 +44,6 @@ function errorResponse(code: string, message: string, status: number, correlatio
     { code, message, ...(correlationId ? { correlationId } : {}) },
     { status }
   );
-}
-
-function sanitizeFilename(filename: string) {
-  return filename.replace(/[^a-zA-Z0-9._-]/g, '_');
 }
 
 export async function POST(req: Request) {
@@ -90,123 +88,41 @@ export async function POST(req: Request) {
     );
   }
 
-  const order = await prisma.order.findUnique({ where: { id: orderId } });
-  if (!order) return errorResponse('NOT_FOUND', 'Not found', 404, correlationId);
-  const orderAccess = await requireOrderAccess(s, order);
-  if (!orderAccess.ok) return orderAccess.response;
-
-  const organization = await prisma.organization.findFirst({
-    where: { companyId: order.companyId },
-    select: { id: true, partnerId: true },
-  });
-  if (!organization) {
-    return errorResponse(
-      'ORGANIZATION_CONTEXT_NOT_FOUND',
-      'Organization context not found',
-      400,
-      correlationId
-    );
-  }
-
-  const tenantPath = `partner/${organization.partnerId}/org/${organization.id}/order/${order.id}`;
-  const internalPath = `${tenantPath}/${Date.now()}-${sanitizeFilename(file.name)}`;
-
-  const arrayBuffer = await file.arrayBuffer();
-
-  // Defense-in-depth: when the declared MIME is one we can fingerprint, the
-  // file's magic bytes must match — defeats content-type/extension spoofing.
-  // Types the validator can't fingerprint (e.g. application/zip) fall through
-  // to the allow-list + async ClamAV scan.
-  if ((SUPPORTED_MIME_TYPES as readonly string[]).includes(file.type)) {
-    const validation = validateMagicBytes(file.type, new Uint8Array(arrayBuffer));
-    if (!validation.ok) {
-      return errorResponse('INVALID_FILE_FORMAT', ALLOWED_FORMATS_ERROR, 400, correlationId);
-    }
-  }
-
-  try {
-    await getObjectStorage().upload(internalPath, Buffer.from(arrayBuffer), {
-      contentType: file.type,
-    });
-  } catch (uploadError) {
-    log.error('Document upload failed', {
-      correlationId,
-      orderId,
-      fileName: file.name,
-      fileSize: file.size,
-      mimeType: file.type,
-      storagePath: internalPath,
-      providerError: uploadError instanceof Error ? uploadError.message : String(uploadError),
-    });
-    return errorResponse('STORAGE_UPLOAD_FAILED', 'Failed to upload document', 502, correlationId);
-  }
-
-  const doc = await prisma.document.create({
-    data: {
-      orderId,
-      counterpartyType: 'organization',
-      counterpartyId: order.organizationId,
+  const result = await uploadAdminDocument(prisma, s, {
+    orderId,
+    correlationId,
+    file: {
       name: file.name,
-      path: internalPath,
+      size: file.size,
       mimeType: file.type,
-      uploadedById: s.sub,
+      buffer: Buffer.from(await file.arrayBuffer()),
     },
   });
 
-  await recordAudit(prisma, {
-    action: 'document_upload',
-    entity: 'document',
-    entityId: doc.id,
-    userId: s.sub,
-    after: { orderId, path: internalPath, mimeType: file.type, size: file.size },
-  });
-
-  // Best-effort enqueue of async ClamAV scan. Failure leaves scanStatus='pending'
-  // (graceful — file stays usable; backfill job sweeps stuck rows separately).
-  try {
-    const payload: ScanDocumentPayload = { kind: 'document', id: doc.id };
-    await getQueue('docs.scanDocument').add('scan', payload);
-  } catch (err) {
-    log.warn('[documents/upload] enqueue scan failed', {
-      correlationId,
-      documentId: doc.id,
-      error: err instanceof Error ? err.message : String(err),
-    });
+  if (!result.ok) {
+    switch (result.error) {
+      case 'not_found':
+        return errorResponse('NOT_FOUND', 'Not found', 404, correlationId);
+      case 'forbidden':
+        return forbiddenResponse();
+      case 'organization_context_not_found':
+        return errorResponse(
+          'ORGANIZATION_CONTEXT_NOT_FOUND',
+          'Organization context not found',
+          400,
+          correlationId
+        );
+      case 'invalid_file_format':
+        return errorResponse('INVALID_FILE_FORMAT', ALLOWED_FORMATS_ERROR, 400, correlationId);
+      default:
+        return errorResponse(
+          'STORAGE_UPLOAD_FAILED',
+          'Failed to upload document',
+          502,
+          correlationId
+        );
+    }
   }
 
-  // Best-effort fan-out: the document row is already committed; a notification
-  // or email transport failure must not surface as an upload error (the client
-  // would retry and create a duplicate).
-  try {
-    const organizationId = await getPrimaryOrganizationId(s);
-    const row = await notifyDocumentCreated({
-      userId: s.sub,
-      organizationId,
-      // exactOptionalPropertyTypes: NotificationInput различает «ключа нет» и «ключ = undefined».
-      ...(s.partnerId !== undefined ? { partnerId: s.partnerId } : {}),
-      title: 'Новый документ',
-      body: `Загружен документ ${file.name}`,
-      meta: { orderId, documentId: doc.id },
-    });
-    await deliverNotificationToUser({
-      userId: s.sub,
-      title: 'Новый документ',
-      body: `Загружен документ ${file.name}`,
-      type: 'document_created',
-      dedupKey: row.id,
-    });
-  } catch (err) {
-    log.warn('[documents/upload] notification fan-out failed', {
-      correlationId,
-      documentId: doc.id,
-      error: err instanceof Error ? err.message : String(err),
-    });
-  }
-
-  return NextResponse.json({
-    id: doc.id,
-    name: doc.name,
-    mimeType: doc.mimeType,
-    createdAt: doc.createdAt,
-  });
+  return NextResponse.json(result.document);
 }
