@@ -55,11 +55,17 @@ runbook'и, действующее ТЗ и STATUS.md. Фазы 1–9 надо **
 
 ### MINOR
 
-- S5. `/api/support/question` — приём файла любой ролью без Zod; привязка к
-  сессии есть, лимиты файла проверить в сервисе `cabinetQuestion`.
-- S6. 5 server-actions на голом `getSession` вместо `require*`-гардов
-  (`organization/documents`, `organization/students`, `partner/documents`,
-  `security`, `staff/backupCodes`) — работают, но выбиваются из паттерна.
+- S5. `/api/support/question` — **проверено 04.08.2026: находка ложная.**
+  Лимиты файла (размер, MIME allow-list, magic bytes) enforce'ятся в сервисе
+  `cabinetQuestion` — ровно там, где им место; роут остаётся тонким.
+- S6. 5 server-actions на голом `getSession` вместо `require*`-гардов —
+  **закрыто решением 04.08.2026: не выравнивать.** Гарды `requireRole.ts`
+  при отказе делают `redirect`, а эти экшены возвращают Result
+  `{ok:false,error:'forbidden'}`, который UI показывает под формой/в тосте.
+  Переход увёл бы пользователя со страницы посреди отправки — смена UX.
+  Альтернатива (завести параллельное семейство Result-гардов) даёт вторую
+  guard-поверхность вместо одной: сложность растёт, безопасность нет.
+  Проверки внутри экшенов корректны; расхождение — стилистическое.
 - S7. Срок cookie сессии `60*60*24*7` захардкожен в 2 местах
   (`api/auth/login`, `api/auth/2fa/verify`).
 

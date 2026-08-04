@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { readFile, readMultipart } from '@/lib/api/multipart';
 import { prisma } from '@/lib/db/prisma';
 import { getSession } from '@/lib/auth/session';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
@@ -59,20 +60,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
-  const form = await req.formData().catch(() => null);
+  const form = await readMultipart(req);
   if (!form) return NextResponse.json({ error: 'Expected multipart form-data' }, { status: 400 });
 
-  const file = form.get('file');
-  if (!(file instanceof File)) {
+  const file = await readFile(form, 'file');
+  if (file === null) {
     return NextResponse.json({ error: 'Field "file" is required' }, { status: 400 });
   }
-  const arrayBuf = await file.arrayBuffer();
 
   try {
     const result = await uploadClientRequestAttachment(prisma, session, {
       requestId: id,
       file: {
-        buffer: new Uint8Array(arrayBuf),
+        // Buffer — это Uint8Array; сервис принимает его как есть.
+        buffer: file.buffer,
         name: file.name,
         /* v8 ignore next -- file.type is always '' in test env (FormData re-parsing strips MIME); tested in e2e */
         declaredMimeType: file.type || 'application/octet-stream',

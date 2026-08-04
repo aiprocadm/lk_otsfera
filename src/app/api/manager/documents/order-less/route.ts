@@ -1,8 +1,16 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { formFields, readFile, readMultipart } from '@/lib/api/multipart';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { createManagerOrderLessDocument } from '@/lib/services/manager/uploads';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
+
+const FIELDS = z.object({
+  counterpartyType: z.coerce.string().default(''),
+  counterpartyId: z.coerce.string().default(''),
+  docType: z.coerce.string().default('other'),
+});
 
 const STATUS: Record<string, number> = {
   forbidden: 403,
@@ -18,27 +26,24 @@ export async function POST(req: Request) {
   if (disabled) return disabled;
 
   const session = await requireManager();
-  const fd = await req.formData().catch(() => null);
+  const fd = await readMultipart(req);
   if (!fd) {
     return NextResponse.json({ error: 'invalid_request' }, { status: 400 });
   }
-  const counterpartyType = String(fd.get('counterpartyType') ?? '');
-  const counterpartyId = String(fd.get('counterpartyId') ?? '');
-  const docType = String(fd.get('docType') ?? 'other');
-  const file = fd.get('file');
+  const { counterpartyType, counterpartyId, docType } = formFields(fd, FIELDS);
 
   if ((counterpartyType !== 'organization' && counterpartyType !== 'partner') || !counterpartyId) {
     return NextResponse.json({ error: 'invalid_request' }, { status: 400 });
   }
-  if (!(file instanceof File)) {
+  const file = await readFile(fd, 'file');
+  if (file === null) {
     return NextResponse.json({ error: 'invalid_request' }, { status: 400 });
   }
 
-  const buffer = Buffer.from(await file.arrayBuffer());
   const result = await createManagerOrderLessDocument(prisma, session, {
     counterparty: { type: counterpartyType as 'organization' | 'partner', id: counterpartyId },
     docType,
-    file: { name: file.name, size: file.size, mimeType: file.type, buffer },
+    file: { name: file.name, size: file.size, mimeType: file.type, buffer: file.buffer },
   });
 
   if (!result.ok) {
