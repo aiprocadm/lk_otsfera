@@ -106,7 +106,7 @@ Feature flags (staged rollout кабинетов, каналы, поведенч
 ### 5.1. Синхронизация с 1С (pull)
 
 Адаптер выбирается настройкой `onec.adapter` (`fake` | `rest`; из
-`/admin/integrations` или env `ONE_C_ADAPTER`) — фабрика
+`/admin/settings/integrations` или env `ONE_C_ADAPTER`) — фабрика
 [src/lib/services/oneCSync/index.ts](../src/lib/services/oneCSync/index.ts).
 Очереди `oneCSync.{pullOrders,pullPayments,pullDocuments,pullOrganizations,pushLead,reconcile}`.
 

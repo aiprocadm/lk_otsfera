@@ -66,8 +66,8 @@ describe('createAccessProfileAction', () => {
         capabilities: ['see_commission', 'export'],
       })
     );
-    expect(revalidatePath).toHaveBeenCalledWith('/leader/roles');
-    expect(revalidatePath).toHaveBeenCalledWith('/admin/roles');
+    expect(revalidatePath).toHaveBeenCalledWith('/leader/settings/access/roles');
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/settings/access/roles');
   });
 
   it('maps a service error and does not revalidate', async () => {
@@ -97,7 +97,7 @@ describe('updateAccessProfileAction', () => {
       'p-9',
       expect.objectContaining({ name: 'Оператор' })
     );
-    expect(revalidatePath).toHaveBeenCalledWith('/admin/roles');
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/settings/access/roles');
   });
 
   it('maps name_taken', async () => {

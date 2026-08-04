@@ -117,9 +117,11 @@ describe('notificationHref', () => {
   });
 
   describe('ветка 3: admin + ops_alert', () => {
-    it('admin + ops_alert → /admin/health (meta у алертов отсутствует)', () => {
-      expect(notificationHref('admin', 'ops_alert', undefined)).toBe('/admin/health');
-      expect(notificationHref('admin', 'ops_alert', null)).toBe('/admin/health');
+    it('admin + ops_alert → /admin/settings/system/health (meta у алертов отсутствует)', () => {
+      expect(notificationHref('admin', 'ops_alert', undefined)).toBe(
+        '/admin/settings/system/health'
+      );
+      expect(notificationHref('admin', 'ops_alert', null)).toBe('/admin/settings/system/health');
     });
 
     it('admin + другой тип → null', () => {

@@ -13,7 +13,7 @@ import type { SettingsCapability } from '@/lib/auth/accessProfileSchema';
  * а сам путь собирается из кабинета и `path` — зеркала не расходятся.
  */
 
-export type SettingsGroupId = 'integrations' | 'catalogs' | 'access' | 'security';
+type SettingsGroupId = 'integrations' | 'catalogs' | 'access' | 'security';
 export type SettingsCabinet = 'admin' | 'leader';
 
 export type SettingsSection = {
@@ -40,7 +40,7 @@ export type SettingsSection = {
  * несколько прежних страниц во вкладки: «Обмен с 1С» — это две разные загрузки,
  * и каждая обязана приехать на свою вкладку, а не на общий корень подраздела.
  */
-export type LegacyRoute = { from: string; toPath?: string };
+type LegacyRoute = { from: string; toPath?: string };
 
 /** Порядок групп — из ТЗ §3 (Интеграции → Конфигурация → Доступ → Безопасность). */
 export const SETTINGS_GROUPS: ReadonlyArray<{ id: SettingsGroupId; title: string }> = [

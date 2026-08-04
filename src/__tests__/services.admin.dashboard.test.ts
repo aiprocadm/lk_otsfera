@@ -189,7 +189,7 @@ describe('attention()', () => {
     const lag = items.find((i) => i.id === 'sync_lag');
     expect(lag).toBeDefined();
     expect(lag!.severity).toBe('warn');
-    expect(lag!.href).toBe('/admin/health');
+    expect(lag!.href).toBe('/admin/settings/system/health');
   });
 
   it('adds urgent item when sync lag >48h', async () => {
@@ -240,7 +240,7 @@ describe('attention()', () => {
     const dlq = items.find((i) => i.id === 'dlq');
     expect(dlq).toBeDefined();
     expect(dlq!.severity).toBe('urgent');
-    expect(dlq!.href).toBe('/admin/health');
+    expect(dlq!.href).toBe('/admin/settings/system/health');
     expect(dlq!.title).toContain('1');
   });
 

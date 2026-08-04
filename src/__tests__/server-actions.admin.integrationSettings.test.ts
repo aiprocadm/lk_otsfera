@@ -67,7 +67,7 @@ describe('saveEmailSettingsAction', () => {
     ]);
     expect(resetEmailTransportCache).toHaveBeenCalled();
     expect(resetIntegrationSettingsCache).toHaveBeenCalled();
-    expect(revalidatePath).toHaveBeenCalledWith('/admin/integrations');
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/settings/integrations');
   });
 
   it('unchecked checkbox → enabled=false', async () => {
@@ -100,7 +100,7 @@ describe('bot/whatsapp/mango group actions', () => {
       { key: 'telegram.botToken', value: 'tk' },
     ]);
     expect(resetIntegrationSettingsCache).toHaveBeenCalled();
-    expect(revalidatePath).toHaveBeenCalledWith('/admin/integrations');
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/settings/integrations');
   });
 
   it('max: mirrors telegram mapping onto max.* keys + baseUrl', async () => {
@@ -258,7 +258,7 @@ describe('testIntegrationAction', () => {
     expect(res).toEqual({ ok: true, success: true, message: 'Подключение успешно' });
     expect(requireAdmin).toHaveBeenCalled();
     expect(testIntegration).toHaveBeenCalledWith(expect.anything(), { sub: 'admin-1' }, 'telegram');
-    expect(revalidatePath).toHaveBeenCalledWith('/admin/integrations');
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/settings/integrations');
   });
 
   it('неуспешная проба тоже revalidate-ится (lastError записан в SyncState)', async () => {
@@ -269,7 +269,7 @@ describe('testIntegrationAction', () => {
     });
     const res = await testIntegrationAction('onec', new FormData());
     expect(res).toEqual({ ok: true, success: false, message: 'Сервер ответил HTTP 500' });
-    expect(revalidatePath).toHaveBeenCalledWith('/admin/integrations');
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/settings/integrations');
   });
 
   it('ошибка сервиса (unknown_key) → без revalidate', async () => {

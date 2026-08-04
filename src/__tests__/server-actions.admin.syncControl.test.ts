@@ -40,7 +40,7 @@ describe('triggerSyncAction', () => {
     const res = await triggerSyncAction(fd({ entity: 'order' }));
     expect(requireAdmin).toHaveBeenCalled();
     expect(triggerSync).toHaveBeenCalledWith({}, 'admin-1', 'order');
-    expect(revalidatePath).toHaveBeenCalledWith('/admin/sync');
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/settings/integrations/sync');
     expect(res).toEqual({ ok: true, jobId: 'manual:order:1' });
   });
 

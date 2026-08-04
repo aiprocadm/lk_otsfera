@@ -208,8 +208,18 @@ describe('navByRole.admin — русский канон с группами (в�
     for (const item of navByRole.admin) {
       expect(item.label).toMatch(/[А-Яа-яЁё]/);
       expect(item.icon).toBeTruthy();
+      // ТЗ 2026-08-04: «Настройки» стоят отдельным блоком внизу и группы не имеют.
+      if (item.pinnedBottom) {
+        expect(item.group).toBeUndefined();
+        continue;
+      }
       expect(['Платформа', 'Операции', 'Обмен с 1С', 'Справочники']).toContain(item.group);
     }
+  });
+
+  it('единственный закреплённый внизу пункт — «Настройки»', () => {
+    const pinned = navByRole.admin.filter((i) => i.pinnedBottom);
+    expect(pinned.map((i) => i.href)).toEqual(['/admin/settings']);
   });
 });
 

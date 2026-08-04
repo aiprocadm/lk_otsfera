@@ -30,7 +30,7 @@ describe('requeuePendingRecordAction', () => {
     const res = await requeuePendingRecordAction(fd({ id: 'rec-1' }));
     expect(requireAdmin).toHaveBeenCalled();
     expect(requeueDeadRecord).toHaveBeenCalledWith({}, SESSION, 'rec-1');
-    expect(revalidatePath).toHaveBeenCalledWith('/admin/sync');
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/settings/integrations/sync');
     expect(res).toEqual({ ok: true });
   });
 
@@ -54,6 +54,6 @@ describe('requeuePendingRecordAction', () => {
     const res = await requeuePendingRecordAction(fd({ id: 'rec-race' }));
     expect(res).toEqual({ ok: false, error: 'not_dead' });
     // страница всё равно ревалидируется — состояние могло поменяться конкурентом
-    expect(revalidatePath).toHaveBeenCalledWith('/admin/sync');
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/settings/integrations/sync');
   });
 });
