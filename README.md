@@ -1,33 +1,124 @@
-# B2B Cabinet MVP (Next.js + Prisma + S3)
+# lk-otsfera — B2B личный кабинет (Next.js + Prisma + S3)
 
-## Stack
-Next.js 15, TypeScript, Tailwind, Prisma, PostgreSQL, S3-совместимое объектное хранилище, BullMQ + Redis.
+Личный кабинет «Промтехносферы»: пять ролей (organization / partner / manager / admin / student),
+заказы, документы с антивирус-сканом, комиссии, синхронизация с 1С, уведомления
+(email / Telegram / Max / WhatsApp), фоновый воркер на BullMQ.
 
-## Установка
-1. Установите зависимости:
+**Стек**: Next.js 15 (App Router) · React 19 · TypeScript 5 (strict) · Prisma 5 + PostgreSQL ·
+S3-совместимое объектное хранилище · BullMQ + Redis · Vitest · Playwright.
+
+## Запуск за 10 минут
+
+Нужны: Node.js 24.x, Docker (для Postgres/Redis/MinIO).
+
+1. Клонируйте и поставьте зависимости (husky-хуки поставятся сами через `prepare`):
+
+   ```bash
+   git clone <repo-url> && cd lk_otsfera
+   npm ci
+   ```
+
+2. Скопируйте env и поправьте под локальный запуск **вне** Docker:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   В `.env` замените docker-хосты на localhost и включите демо-логины:
+   - `DATABASE_URL` и `DIRECT_URL`: `@db:5432` → `@localhost:5432`
+   - `REDIS_URL=redis://localhost:6379`
+   - `JWT_SECRET` — любая строка **от 32 символов** (короче — middleware не пустит)
+   - `SHOW_DEMO_LOGINS=on` — блок готовых логинов на `/login` (только dev/staging!)
+
+3. Поднимите инфраструктуру (Postgres 16 на :5432, Redis на :6379, MinIO на :9000/:9001):
+
+   ```bash
+   docker compose up -d db redis minio
+   ```
+
+4. Сгенерируйте Prisma Client и примените миграции:
+
+   ```bash
+   npm run prisma:generate
+   npm run prisma:migrate:deploy
+   ```
+
+   > **Windows**: если кластер Postgres с локалью `C`, регистронезависимый поиск по кириллице
+   > молча ломается. Пересоздайте БД с ICU: `npm run db:recreate-local`, затем снова
+   > `npm run prisma:migrate:deploy` (подробности — в [Troubleshooting](#windows--локаль-c--кириллический-поиск)).
+
+5. Засейдите демо-данные:
+
+   ```bash
+   npm run prisma:seed
+   ```
+
+   Сидируются учётки (пароль у всех — `Password123!`, это открытые dev-данные из
+   [prisma/seed.ts](prisma/seed.ts)):
+   - `admin@demo.local` — админ
+   - `partner@demo.local` / `partner-mgr@demo.local` — партнёр (админ / менеджер)
+   - `org@demo.local` — организация
+   - `manager@demo.local` / `leader@demo.local` — менеджер / руководитель
+   - `student@demo.local` — студент
+
+6. Запустите dev-сервер и откройте [http://localhost:3000](http://localhost:3000):
+
+   ```bash
+   npm run dev
+   ```
+
+   Войдите любой учёткой из шага 5 (при `SHOW_DEMO_LOGINS=on` они кликабельны на `/login`).
+
+7. (Опционально) фоновые задачи — воркер во втором терминале: `npm run worker:dev`.
+   Без него UI работает, но 1С-sync / скан документов / генерация комиссий не выполняются.
+
+8. (Опционально) загрузка документов: создайте bucket `documents` в консоли MinIO
+   [http://localhost:9001](http://localhost:9001) (логин/пароль `minioadmin`/`minioadmin`).
+
+9. (Опционально) кабинеты organization/manager по умолчанию выключены (staged rollout) —
+   включаются в `.env`: `FEATURE_ORGANIZATION_CABINET=1`, `FEATURE_MANAGER_CABINET=1`.
+
+Одна команда проверки, что всё в порядке (typecheck + lint + boundaries + deadcode +
+dup + format + unit-тесты, БД не нужна):
+
 ```bash
-npm ci
+npm run verify
 ```
-2. Скопируйте переменные окружения:
-```bash
-cp .env.example .env
-```
-3. Сгенерируйте Prisma Client:
-```bash
-npm run prisma:generate
-```
+
+## Команды дня
+
+Полная таблица команд с пояснениями — в [CLAUDE.md §1](CLAUDE.md). Самое частое:
+
+| Команда | Что делает |
+|---|---|
+| `npm run dev` | Dev-сервер на :3000 |
+| `npm run worker:dev` | Воркер BullMQ (отдельный процесс) |
+| `npm run verify` | Полный статический гейт + unit-тесты |
+| `npm test` | Все vitest'ы (unit + integration; integration требует Postgres) |
+| `npm run gate` | Integration-слой против эфемерного Docker-Postgres |
+| `npm run prisma:migrate` | Локальная миграция (dev) |
+| `npm run prisma:seed` | Демо-данные |
+| `npm run build` | Production-сборка |
+
+## Документация
+
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — карта архитектуры: слои, направление зависимостей, домены.
+- [CLAUDE.md](CLAUDE.md) — проектные правила: контракт сервисов, RBAC, feature flags, тестовая дисциплина.
+- [docs/RUNBOOK.md](docs/RUNBOOK.md) — эксплуатация: деплой, инциденты, восстановление.
+- [docs/CI.md](docs/CI.md) — устройство CI и локальной лестницы хуков.
+- [docs/INVARIANTS.md](docs/INVARIANTS.md) — неизменяемые инварианты системы (безопасность, изоляция, деньги).
 
 ## Env
 
 Минимально обязательные переменные для запуска:
 
-- `DATABASE_URL`
-- `DIRECT_URL`
-- `JWT_SECRET`
-- `S3_ENDPOINT` — endpoint S3-совместимого хранилища (РФ-провайдер: Yandex Object Storage / VK Cloud / Selectel; локально MinIO `http://localhost:9000`).
-- `S3_REGION` — регион хранилища (например `ru-central1`).
-- `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` — ключи доступа к хранилищу (server-only).
-- `S3_BUCKET` — имя bucket для документов (по умолчанию `documents`).
+- `DATABASE_URL`, `DIRECT_URL`
+- `APP_URL` — базовый URL сервера (без него падает `/student/redirect`, а dev-письма ссылаются на прод)
+- `JWT_SECRET` — минимум 32 символа
+- `S3_ENDPOINT` — endpoint S3-совместимого хранилища (РФ-провайдер: Yandex Object Storage / VK Cloud / Selectel; локально MinIO `http://localhost:9000`)
+- `S3_REGION` — регион хранилища (например `ru-central1`)
+- `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` — ключи доступа к хранилищу (server-only)
+- `S3_BUCKET` — имя bucket для документов (по умолчанию `documents`)
 
 Переменные для Student bridge:
 
@@ -42,6 +133,7 @@ npm run prisma:generate
 
 - `S3_FORCE_PATH_STYLE` — `1` для MinIO и провайдеров без virtual-host-style (path-style адресация).
 - `DOCUMENT_MAX_FILE_SIZE_MB` — максимальный размер загружаемого файла в MB; значение должно быть конечным числом больше `0` (рекомендуемый диапазон `1..200`, по умолчанию `200`).
+- `SHOW_DEMO_LOGINS` — блок демо-логинов на `/login`. Server-only env (не `NEXT_PUBLIC_*`), по умолчанию выключен. **Никогда не включать в production.**
 
 Telegram-уведомления пользователям (§18, опционально — фича дремлет, если не задано):
 
@@ -77,16 +169,9 @@ WhatsApp — по выбору пользователя в «Настройка�
 `FEATURE_NOTIF_QUEUE=1` + `REDIS_URL` включают очередь `notifications.dispatch` с ретраями и
 идемпотентностью (одно событие не задваивается в канале); без флага/Redis — доставка inline.
 
-## Локальный запуск
+Полный справочник переменных с комментариями — [.env.example](.env.example).
 
-```bash
-npm run prisma:migrate
-npm run dev
-```
-
-Приложение по умолчанию доступно на `http://localhost:3000`.
-
-## Docker запуск
+## Docker запуск (всё приложение в контейнерах)
 
 1. Поднимите контейнеры:
 ```bash
@@ -97,34 +182,19 @@ docker compose up --build
 docker compose exec app npx prisma migrate deploy
 ```
 
-## Миграции
-
-Для локальной разработки:
-```bash
-npm run prisma:migrate
-```
-
-Для production/deploy:
-```bash
-npm run prisma:migrate:deploy
-```
-
-## Сиды
-
-Заполнение тестовыми данными:
-```bash
-npm run prisma:seed
-```
+В этом режиме `.env` использует docker-хосты как в `.env.example` (`db`, `redis`).
 
 ## Тесты
 
-Тестовая дисциплина — трёхслойная (см. [CLAUDE.md §6](CLAUDE.md)). Гейтинг локальный через Husky + серверное зеркало на GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)).
+Тестовая дисциплина — четырёхслойная (см. [CLAUDE.md §6](CLAUDE.md)). Гейтинг локальный через
+Husky + серверное зеркало на GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)).
 
 | Команда | Слой | Когда |
 |---|---|---|
 | `npm test` | Всё (unit + integration) | Полный прогон |
 | `npm run test:unit` | Только unit (без БД) | Pre-push hook, быстрая обратная связь |
-| `npm run test:integration` | Только integration (нужен Postgres) | Перед PR / релизом, вручную |
+| `npm run gate` | Integration против эфемерного Docker-Postgres | Pre-push при затронутых `prisma/`/`worker/`/`services/`; вручную перед PR |
+| `npm run test:integration` | Только integration (нужен живой Postgres) | Перед PR / релизом, вручную |
 | `npm run test:changed` | Vitest на изменённых файлах в unit-режиме | Pre-commit hook (автоматически) |
 | `npm run test:watch` | Интерактивный режим | Во время разработки |
 
@@ -138,44 +208,25 @@ npm run prisma:migrate:deploy
 npm run test:integration
 ```
 
-> **Windows / локаль `C` — кириллический поиск.** Postgres сворачивает регистр (`lower()` и `ILIKE`, который Prisma генерит для `mode:'insensitive'`) по **коллации**, а не по глобальной настройке. Если локальная БД создана под локалью `C`/`POSIX` (типичный дефолт `template1` на Windows-кластере, который наследует БД, авто-созданная `prisma migrate deploy`), регистр сворачивается **только для ASCII** — и регистронезависимый поиск по кириллице молча возвращает 0 строк. Симптом: падают ровно integration-тесты поиска (org orders/students, partner portfolio) при зелёных unit. Это средовой дефект, не баг кода. Фикс — пересоздать локальную БД с ICU-провайдером (полное Unicode-сворачивание):
+### Windows / локаль `C` — кириллический поиск
+
+> Postgres сворачивает регистр (`lower()` и `ILIKE`, который Prisma генерит для `mode:'insensitive'`) по **коллации**, а не по глобальной настройке. Если локальная БД создана под локалью `C`/`POSIX` (типичный дефолт `template1` на Windows-кластере, который наследует БД, авто-созданная `prisma migrate deploy`), регистр сворачивается **только для ASCII** — и регистронезависимый поиск по кириллице молча возвращает 0 строк. Симптом: падают ровно integration-тесты поиска (org orders/students, partner portfolio) при зелёных unit. Это средовой дефект, не баг кода. Фикс — пересоздать локальную БД с ICU-провайдером (полное Unicode-сворачивание):
 >
 > ```bash
 > npm run db:recreate-local          # drop + create `cabinet` с LOCALE_PROVIDER icu, проверка сворачивания
 > npm run prisma:migrate:deploy
-> npm run prisma:seed                # seed не завершается сам локально (BullMQ handle) — Ctrl-C после "[seed] done"
+> npm run prisma:seed
 > ```
 >
 > Скрипт ([scripts/recreate-local-db.ts](scripts/recreate-local-db.ts)) защищён на работу только с `localhost`. Диагностика: `SELECT ('Иван' ILIKE 'иван')` → `false` подтверждает сломанную локаль.
 
-## Build
-
-Проверка сборки production:
-```bash
-npm run build
-```
-
-## Features
-- Auth via JWT cookie + RBAC (organization/partner/student/manager/admin)
-- Dashboard with orders/documents/comments summary
-- Orders list/detail
-- Documents metadata + upload endpoint
-- Order comments API
-- Dark mode support via Tailwind class
-- Middleware route protection
-- Basic audit log model
-
 ## Deployment
+
 - Works on VPS by Docker
 - РФ-инфраструктура: managed PostgreSQL + S3-совместимое объектное хранилище + Redis
   (см. [docs/runbook-prod-infra-rf.md](docs/runbook-prod-infra-rf.md))
-
-## New cabinets (MVP)
-- `/partner/dashboard` — dashboard партнера с агрегированными метриками.
-- `/organization/dashboard` — dashboard организации.
-- `/manager/dashboard` — dashboard внутреннего менеджера Промтехносферы.
-- `/student` + `/student/redirect` — временный SSO-like переход во внешний LMS по signed JWT.
-- Middleware ограничивает доступ по ролям и изолирует кабинеты.
+- Bootstrap первого админа на чистой (не-демо) БД: `npm run db:create-admin`
+  (вход через env `ADMIN_EMAIL`/`ADMIN_PASSWORD`, см. [.env.example](.env.example))
 
 ## Cabinet rollout status
 
