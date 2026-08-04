@@ -49,7 +49,7 @@
 
 1. `git fetch` → нет нового коммита в `origin/main` → **молча выходит**.
 2. Есть новый → снимок `.next` (`cp -a`, ~2 с) как страховка.
-3. `git reset --hard` → `npm ci` **только если сменился** `package-lock.json` → `prisma generate` → `npm run build` → проверка, что появился `.next/BUILD_ID` → `prisma migrate deploy`.
+3. `git reset --hard` → `npm ci --include=dev` **только если сменился** `package-lock.json` → `prisma generate` → `npm run build` → проверка, что появился `.next/BUILD_ID` → `prisma migrate deploy`.
 4. Успех → `kill` главных процессов обеих служб; systemd поднимет их с новой сборкой. Дальше скрипт ждёт ответа стенда по HTTP (до 60 с) и пишет результат в журнал.
 5. **Любая осечка → откат**: код возвращается на прежний коммит, `.next` восстанавливается из снимка, службы не трогаются, причина пишется в журнал.
 
@@ -105,7 +105,9 @@ cp /путь/к/.env.production .   &&  chmod 600 .env.production
 
 # 4. Зависимости и первая сборка
 export PATH=/home/aiproc/.nvm/versions/node/v24.18.0/bin:$PATH
-npm ci
+# --include=dev: сборке нужны dev-зависимости, а .env.production ниже ставит
+# NODE_ENV=production, при котором npm их выкидывает (см. «Ловушки»).
+npm ci --include=dev
 set -a && . ./.env.production && set +a
 npx prisma generate && npm run build
 npx prisma migrate deploy
@@ -156,6 +158,17 @@ curl -s -o /dev/null -w '%{http_code}\n' \
 | Служба «активна», но порт молчит | Цикл падений; чаще всего затёрт `.next` | `journalctl` — ищем `Could not find a production build` |
 | Обращение с сервера на свой же внешний адрес даёт код 000 | Hairpin NAT не работает; это НЕ признак закрытого порта | Проверять только с внешней машины |
 | `curl` на внешний адрес отдаёт мусорные коды и «сервер 127.0.0.1» | На сервере поднят локальный прокси | Всегда `curl --noproxy '*'` |
+| Стенд не обновляется, в `lk-update.log` «ОШИБКА: не встали зависимости» сразу после «изменился package-lock.json» | `npm ci` под `NODE_ENV=production` (из `.env.production`) выкидывает dev-зависимости — падает `prepare`/husky | `grep 'не встали зависимости' ~/stands/logs/lk-update.log`; лечение — `npm ci --include=dev`, см. ниже |
+
+**`npm ci` под `NODE_ENV=production` сносит dev-зависимости (04.08.2026).**
+Скрипт обновления загружает `.env.production`, где `NODE_ENV=production`; для
+npm это то же самое, что `--omit=dev`, и обычный `npm ci` **удаляет 545
+пакетов**. Дальше сразу падает `prepare` («`sh: 1: husky: not found`», код 127),
+скрипт честно откатывается — и так каждые 10 минут. Внешне выглядит как
+«стенд не обновляется», хотя код и сборка целы. Симптом в `lk-update.log`:
+`ОШИБКА: не встали зависимости` сразу после `изменился package-lock.json`.
+Лечение — флаг `--include=dev` (он уже в скрипте); при ручной установке не
+забывать его тоже.
 
 **Внешняя проверка** (WebFetch к этим доменам стабильно врёт «Socket is closed»):
 
@@ -169,6 +182,7 @@ curl --noproxy '*' -H "Accept: application/json" \
 `401` от чужих машин = стенд работает и защищён паролем.
 
 ---
+
 
 ## 5. Что стенд НЕ показывает
 

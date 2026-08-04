@@ -167,7 +167,14 @@ lock_after="$(md5sum package-lock.json 2>/dev/null | cut -d' ' -f1)"
 # иначе это лишние несколько минут на каждом обновлении.
 if [[ "$lock_before" != "$lock_after" ]]; then
     log "изменился package-lock.json — переустанавливаю зависимости"
-    if ! npm ci >>"$STAND_LOG" 2>&1; then
+    # --include=dev ОБЯЗАТЕЛЕН. Выше мы загрузили .env.production, где
+    # NODE_ENV=production; для npm это равносильно --omit=dev, и обычный
+    # `npm ci` СНОСИТ все dev-зависимости (545 пакетов). Дальше цепочка рвётся
+    # дважды: сразу падает `prepare` (husky нет → «sh: 1: husky: not found»,
+    # код 127), а если бы и не падал — `npm run build` всё равно не соберётся
+    # без typescript/tailwind. Именно так стенд простоял на версии четырёхдневной
+    # давности 04.08.2026: каждые 10 минут cron честно откатывался.
+    if ! npm ci --include=dev >>"$STAND_LOG" 2>&1; then
         log "ОШИБКА: не встали зависимости"
         rollback
         exit 1
