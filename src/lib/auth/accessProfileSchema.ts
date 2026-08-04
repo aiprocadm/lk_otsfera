@@ -12,6 +12,23 @@ import { z } from 'zod';
 export const scopeLevelSchema = z.enum(['own', 'assigned', 'all']);
 export type ScopeLevel = z.infer<typeof scopeLevelSchema>;
 
+/**
+ * Права на служебные разделы хаба «Настройки» (ТЗ 2026-08-04 §5.2). Отдельный
+ * подсписок внутри общего набора capability: по нему `settingsAccess.ts`
+ * отличает профиль, ничего не знающий о хабе (legacy — доступ прежний), от
+ * профиля, где разделы настроек уже размечены (default-deny на остальное).
+ */
+export const SETTINGS_CAPABILITIES = [
+  'settings.integrations.view',
+  'settings.integrations.manage',
+  'settings.catalogs.manage',
+  'settings.access.manage',
+  'settings.audit.view',
+  'settings.personal_data.view',
+  'settings.system.view',
+] as const;
+export type SettingsCapability = (typeof SETTINGS_CAPABILITIES)[number];
+
 export const capabilitySchema = z.enum([
   'see_commission',
   'import_1c',
@@ -19,6 +36,7 @@ export const capabilitySchema = z.enum([
   'manage_catalog',
   'manage_users',
   'assign_orders',
+  ...SETTINGS_CAPABILITIES,
 ]);
 export type Capability = z.infer<typeof capabilitySchema>;
 

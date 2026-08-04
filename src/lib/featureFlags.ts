@@ -93,6 +93,13 @@ export const FEATURE_FLAGS = [
   // Этап 9 (ФТ-11.1): кнопка «Задать вопрос» в кабинетах. Поведенческий флаг
   // (не route): точки чтения — шеллы partner/organization и POST /api/support/question.
   'cabinet_questions',
+  // ТЗ 2026-08-04: хаб «Настройки» в кабинетах сотрудников. Поведенческий
+  // opt-in флаг (НЕ route): точки чтения — состав сайдбара (admin/leader) и
+  // тонкие шлюзы на старых маршрутах (флаг ON → redirect в хаб, OFF → прежняя
+  // страница на месте). В FEATURE_PREFIXES middleware намеренно НЕ добавлен:
+  // новые пути обязаны отвечать всегда, иначе редирект уводил бы на 404.
+  // Снимается после приёмки. Спека 2026-08-04-settings-hub-design.
+  'settings_hub',
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -128,6 +135,7 @@ const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'intake_inbox',
   'document_generation',
   'cabinet_questions',
+  'settings_hub',
 ]);
 
 /**
