@@ -10,7 +10,7 @@ const {
   reactivateMember,
   sendOrgInviteEmail,
   revalidatePath,
-  organizationFindUnique,
+  getOrganizationName,
 } = vi.hoisted(() => ({
   requireOrganizationAdmin: vi.fn(),
   requireOrganizationAdminOrLeader: vi.fn(),
@@ -21,7 +21,7 @@ const {
   reactivateMember: vi.fn(),
   sendOrgInviteEmail: vi.fn(),
   revalidatePath: vi.fn(),
-  organizationFindUnique: vi.fn(),
+  getOrganizationName: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({
@@ -29,9 +29,8 @@ vi.mock('@/lib/auth/requireRole', () => ({
   requireOrganizationAdminOrLeader,
 }));
 vi.mock('@/lib/auth/organizationPolicy', () => ({ isOrgAdmin }));
-vi.mock('@/lib/db/prisma', () => ({
-  prisma: { organization: { findUnique: organizationFindUnique } },
-}));
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+vi.mock('@/lib/services/organization/lookup', () => ({ getOrganizationName }));
 vi.mock('next/cache', () => ({ revalidatePath }));
 vi.mock('@/lib/email/send', () => ({ sendOrgInviteEmail }));
 
@@ -89,7 +88,7 @@ describe('inviteOrgMemberAction', () => {
   });
 
   it('happy path returns inviteUrl and sends email when invite token created', async () => {
-    organizationFindUnique.mockResolvedValue({ name: 'ООО Тест' });
+    getOrganizationName.mockResolvedValue('ООО Тест');
     inviteMember.mockResolvedValue({
       ok: true,
       user: { id: 'u1', email: 'new@t.local' },
@@ -205,7 +204,7 @@ describe('reactivateOrgMemberAction', () => {
 
 describe('inviteOrgMemberAction — email failure (graceful degradation)', () => {
   it('still returns ok:true when sendOrgInviteEmail throws', async () => {
-    organizationFindUnique.mockResolvedValue({ name: 'ООО Тест' });
+    getOrganizationName.mockResolvedValue('ООО Тест');
     inviteMember.mockResolvedValue({
       ok: true,
       user: { id: 'u3', email: 'new2@t.local' },
@@ -351,7 +350,7 @@ describe('inviteOrgMemberAction — null/fallback branches', () => {
   });
 
   it('uses "организация" fallback when org lookup returns null during email', async () => {
-    organizationFindUnique.mockResolvedValue(null);
+    getOrganizationName.mockResolvedValue(null);
     inviteMember.mockResolvedValue({
       ok: true,
       user: { id: 'u-null-org', email: 'no@t.local' },
@@ -375,7 +374,7 @@ describe('inviteOrgMemberAction — null/fallback branches', () => {
       name: null,
       organizationMemberships: [{ organizationId: 'org-1', roleInOrg: 'admin', isActive: true }],
     });
-    organizationFindUnique.mockResolvedValue({ name: 'ООО Тест' });
+    getOrganizationName.mockResolvedValue('ООО Тест');
     inviteMember.mockResolvedValue({
       ok: true,
       user: { id: 'u-nn', email: 'nn@t.local' },

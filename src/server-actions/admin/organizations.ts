@@ -9,7 +9,7 @@ import {
   updateOrganization,
   type AdminOrgErrorCode,
 } from '@/lib/services/admin/organizations';
-import { setOrgCommissionRate, clearOrgCommissionRate } from '@/lib/services/partner/rateOverride';
+import { applyOrgRateOverride } from '@/lib/services/admin/orgRateOverride';
 import { log } from '@/lib/logging';
 
 type Failure = {
@@ -102,32 +102,14 @@ export async function setOrgRateOverrideAction(fd: FormData): Promise<ActionResu
 
   const { organizationId, ratePercent, reason, clear } = parsed.data;
 
-  const org = await prisma.organization.findUnique({
-    where: { id: organizationId },
-    select: { partnerId: true },
+  // exactOptionalPropertyTypes: аргументы сервиса различают «ключа нет» и «ключ = undefined».
+  const res = await applyOrgRateOverride(prisma, {
+    organizationId,
+    reason,
+    changedByUserId: session.sub,
+    ...(ratePercent !== undefined ? { ratePercent } : {}),
+    ...(clear !== undefined ? { clear } : {}),
   });
-  if (!org) return { ok: false as const, error: 'not_found' as const };
-
-  // Standalone orgs (no partner) have no intermediary-commission override to set/clear.
-  if (org.partnerId === null) return { ok: false as const, error: 'not_found' as const };
-  const partnerId: string = org.partnerId;
-
-  const res = clear
-    ? await clearOrgCommissionRate(prisma, {
-        organizationId,
-        partnerId,
-        reason,
-        changedByUserId: session.sub,
-      })
-    : ratePercent !== undefined
-      ? await setOrgCommissionRate(prisma, {
-          organizationId,
-          partnerId,
-          newRate: ratePercent / 100,
-          reason,
-          changedByUserId: session.sub,
-        })
-      : { ok: false as const, error: 'validation' as const };
   if (!res.ok) return { ok: false, error: res.error };
   revalidatePath(`/admin/organizations/${organizationId}`);
   return { ok: true };

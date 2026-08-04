@@ -2,22 +2,15 @@
 
 import { prisma } from '@/lib/db/prisma';
 import { requireManager } from '@/lib/auth/requireRole';
+import { updateInternalPhone, type UpdateInternalPhoneResult } from '@/lib/services/staff/profile';
 
 /**
- * Настройки профиля сотрудника. Сейчас — только внутренний (АТС-добавочный)
- * номер, с которого Mango инициирует click-to-call (M2). Это внутренний
- * PBX-extension, а НЕ клиентский телефон: храним сырым (trim), НЕ прогоняя через
- * normalizePhoneCanonical. Пустая строка очищает номер (→ null).
+ * Тонкий адаптер над `updateInternalPhone` (src/lib/services/staff/profile.ts):
+ * гард роли здесь, нормализация и запись — в сервисе.
  */
 export async function updateInternalPhoneAction(args: {
   internalPhone: string;
-}): Promise<{ ok: true } | { ok: false; error: 'invalid' }> {
+}): Promise<UpdateInternalPhoneResult> {
   const session = await requireManager();
-  const value = args.internalPhone.trim();
-  if (value.length > 32) return { ok: false, error: 'invalid' };
-  await prisma.user.update({
-    where: { id: session.sub },
-    data: { internalPhone: value === '' ? null : value },
-  });
-  return { ok: true };
+  return updateInternalPhone(prisma, session, args);
 }

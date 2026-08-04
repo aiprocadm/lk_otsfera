@@ -1,25 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getSessionMock, recordAuditMock, userUpdateMock, cookiesMock, cookieDeleteMock } =
-  vi.hoisted(() => ({
-    getSessionMock: vi.fn(),
-    recordAuditMock: vi.fn(),
-    userUpdateMock: vi.fn(),
-    cookiesMock: vi.fn(),
-    cookieDeleteMock: vi.fn(),
-  }));
+/**
+ * После аудита A1 экшен — тонкий адаптер: гард сессии, вызов сервиса
+ * `revokeAllSessions`, удаление собственной cookie. Работа с БД и аудитом
+ * проверяется в services.auth.sessions.unit.test.ts.
+ */
 
-vi.mock('@/lib/db/prisma', () => ({ prisma: { user: { update: userUpdateMock } } }));
+const { getSessionMock, revokeAllSessionsMock, cookiesMock, cookieDeleteMock } = vi.hoisted(() => ({
+  getSessionMock: vi.fn(),
+  revokeAllSessionsMock: vi.fn(),
+  cookiesMock: vi.fn(),
+  cookieDeleteMock: vi.fn(),
+}));
+
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('@/lib/auth/session', () => ({ getSession: getSessionMock }));
-vi.mock('@/lib/auth/audit', () => ({ recordAudit: recordAuditMock }));
+vi.mock('@/lib/services/auth/sessions', () => ({ revokeAllSessions: revokeAllSessionsMock }));
 vi.mock('next/headers', () => ({ cookies: cookiesMock }));
 
 import { revokeAllSessionsAction } from '@/server-actions/security';
 
 beforeEach(() => {
   vi.clearAllMocks();
-  userUpdateMock.mockResolvedValue({ id: 'u1' });
-  recordAuditMock.mockResolvedValue(undefined);
+  revokeAllSessionsMock.mockResolvedValue({ ok: true });
   cookiesMock.mockResolvedValue({ delete: cookieDeleteMock });
 });
 
@@ -28,35 +31,16 @@ describe('revokeAllSessionsAction', () => {
     getSessionMock.mockResolvedValue(null);
 
     expect(await revokeAllSessionsAction()).toEqual({ ok: false, error: 'forbidden' });
-    expect(userUpdateMock).not.toHaveBeenCalled();
-    expect(recordAuditMock).not.toHaveBeenCalled();
+    expect(revokeAllSessionsMock).not.toHaveBeenCalled();
     expect(cookieDeleteMock).not.toHaveBeenCalled();
   });
 
-  it('с сессией — инкремент sessionVersion своего пользователя', async () => {
-    getSessionMock.mockResolvedValue({ sub: 'u1', role: 'partner' });
+  it('с сессией — отзыв идёт по своей сессии (id сервису не передаётся отдельно)', async () => {
+    const session = { sub: 'u1', role: 'partner' };
+    getSessionMock.mockResolvedValue(session);
 
     expect(await revokeAllSessionsAction()).toEqual({ ok: true });
-    expect(userUpdateMock).toHaveBeenCalledWith({
-      where: { id: 'u1' },
-      data: { sessionVersion: { increment: 1 } },
-    });
-  });
-
-  it('пишет аудит sessions_revoked по сущности user', async () => {
-    getSessionMock.mockResolvedValue({ sub: 'u7', role: 'manager' });
-
-    await revokeAllSessionsAction();
-
-    expect(recordAuditMock).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        userId: 'u7',
-        action: 'sessions_revoked',
-        entity: 'user',
-        entityId: 'u7',
-      })
-    );
+    expect(revokeAllSessionsMock).toHaveBeenCalledWith(expect.anything(), session);
   });
 
   it('удаляет собственную cookie session — текущее устройство тоже выходит', async () => {
@@ -64,14 +48,6 @@ describe('revokeAllSessionsAction', () => {
 
     await revokeAllSessionsAction();
 
-    expect(cookieDeleteMock).toHaveBeenCalledWith('session');
-  });
-
-  it('сбой аудита проглатывается и не ломает результат', async () => {
-    getSessionMock.mockResolvedValue({ sub: 'u1', role: 'admin' });
-    recordAuditMock.mockRejectedValue(new Error('audit down'));
-
-    expect(await revokeAllSessionsAction()).toEqual({ ok: true });
     expect(cookieDeleteMock).toHaveBeenCalledWith('session');
   });
 });

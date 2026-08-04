@@ -4,10 +4,7 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db/prisma';
 import { requireManager } from '@/lib/auth/requireRole';
-import { recordAudit } from '@/lib/auth/audit';
-import { getQueue } from '@/lib/jobs/queues';
-import type { PushLeadJobPayload } from '@/lib/jobs/types';
-import { log } from '@/lib/logging';
+import { pushLeadToOneC } from '@/lib/services/manager/leadPush';
 
 const PushSchema = z.object({ leadId: z.string().min(1).max(64) });
 
@@ -16,14 +13,10 @@ export type PushLeadToOneCActionResult =
   | { ok: false; error: 'validation' | 'not_found' | 'already_pushed' | 'queue_unavailable' };
 
 /**
- * B3: ручная отправка лида в 1С — продюсер очереди oneCSync.pushLead.
- * Лиды — shared queue (решение владельца): пушить может любой менеджер,
- * ownership-проверки нет — как и у остальных lead-операций (requireManager only).
- * Идемпотентность: guard pushedToOneCAt здесь + атомарный claim в сервисе
- * воркера (push-lead.ts, first-writer-wins, НЕ трогаем). jobId timestamped по
- * образцу triggerSync (syncControl): статический `push-lead:<id>` при
- * removeOnFail:false навсегда занимал бы jobId после исчерпания attempts —
- * повторный add тихо дедупился бы в ложный ok:true.
+ * B3: ручная отправка лида в 1С. Тонкий адаптер: форма входа (zod →
+ * `validation`), гард роли и ревалидация карточки — здесь; чтение лида,
+ * идемпотентность и постановка джобы — в `pushLeadToOneC`
+ * (src/lib/services/manager/leadPush.ts).
  */
 export async function pushLeadToOneCAction(input: {
   leadId: string;
@@ -33,36 +26,9 @@ export async function pushLeadToOneCAction(input: {
 
   const session = await requireManager();
 
-  const lead = await prisma.lead.findUnique({
-    where: { id: parsed.data.leadId },
-    select: { id: true, pushedToOneCAt: true },
-  });
-  if (!lead) return { ok: false, error: 'not_found' };
-  if (lead.pushedToOneCAt) return { ok: false, error: 'already_pushed' };
+  const result = await pushLeadToOneC(prisma, session, { leadId: parsed.data.leadId });
+  if (!result.ok) return result;
 
-  // try/catch, а не .catch(): getQueue → getRedisConnection бросает СИНХРОННО
-  // при отсутствующем REDIS_URL (см. api/integrations/mango/webhook). Сбой
-  // enqueue не роняет страницу — деградирует в стабильный код queue_unavailable.
-  try {
-    const payload: PushLeadJobPayload = { leadId: lead.id };
-    await getQueue('oneCSync.pushLead').add('push', payload, {
-      jobId: `push-lead:${lead.id}:${Date.now()}`,
-    });
-  } catch (err) {
-    log.error('[manager/leads] push lead enqueue failed', {
-      leadId: lead.id,
-      error: err instanceof Error ? err.message : String(err),
-    });
-    return { ok: false, error: 'queue_unavailable' };
-  }
-
-  await recordAudit(prisma, {
-    action: 'lead_push_enqueued',
-    entity: 'lead',
-    entityId: lead.id,
-    userId: session.sub,
-  });
-
-  revalidatePath(`/manager/leads/${lead.id}`);
+  revalidatePath(`/manager/leads/${parsed.data.leadId}`);
   return { ok: true };
 }

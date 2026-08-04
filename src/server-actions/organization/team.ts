@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db/prisma';
 import { requireOrganizationAdminOrLeader } from '@/lib/auth/requireRole';
 import { isOrgAdmin } from '@/lib/auth/organizationPolicy';
+import { getOrganizationName } from '@/lib/services/organization/lookup';
 import {
   inviteMember,
   updateMemberRole,
@@ -81,13 +82,10 @@ export async function inviteOrgMemberAction(formData: FormData): Promise<
   // created and inviteUrl is returned for the "Copy link" fallback.
   if (res.inviteUrl !== null) {
     try {
-      const org = await prisma.organization.findUnique({
-        where: { id: parsed.data.organizationId },
-        select: { name: true },
-      });
+      const orgName = await getOrganizationName(prisma, parsed.data.organizationId);
       await sendOrgInviteEmail({
         to: parsed.data.email,
-        organizationName: org?.name ?? 'организация',
+        organizationName: orgName ?? 'организация',
         inviteUrl: res.inviteUrl,
         invitedByName: session.name ?? undefined,
       });

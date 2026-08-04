@@ -5,19 +5,18 @@ const {
   createOrgAdminInvite,
   sendOrgInviteEmail,
   revalidatePath,
-  organizationFindUnique,
+  getOrganizationName,
 } = vi.hoisted(() => ({
   requireAdmin: vi.fn(),
   createOrgAdminInvite: vi.fn(),
   sendOrgInviteEmail: vi.fn(),
   revalidatePath: vi.fn(),
-  organizationFindUnique: vi.fn(),
+  getOrganizationName: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
-vi.mock('@/lib/db/prisma', () => ({
-  prisma: { organization: { findUnique: organizationFindUnique } },
-}));
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+vi.mock('@/lib/services/organization/lookup', () => ({ getOrganizationName }));
 vi.mock('next/cache', () => ({ revalidatePath }));
 vi.mock('@/lib/email/send', () => ({ sendOrgInviteEmail }));
 vi.mock('@/lib/services/organization/invite', async () => {
@@ -44,7 +43,7 @@ beforeEach(() => {
 
 describe('inviteAdminOrgAdminAction', () => {
   it('passes source=platform_admin and no actorPartnerId', async () => {
-    organizationFindUnique.mockResolvedValue({ name: 'ООО Тест' });
+    getOrganizationName.mockResolvedValue('ООО Тест');
     createOrgAdminInvite.mockResolvedValue({
       user: { id: 'u-1', email: 'cust@t.local' },
       inviteUrl: 'https://app/reset-password?token=xyz',
@@ -109,7 +108,7 @@ describe('inviteAdminOrgAdminAction', () => {
   });
 
   it('still returns ok:true when sendOrgInviteEmail throws (graceful degradation)', async () => {
-    organizationFindUnique.mockResolvedValue({ name: 'ООО Тест' });
+    getOrganizationName.mockResolvedValue('ООО Тест');
     createOrgAdminInvite.mockResolvedValue({
       user: { id: 'u-new', email: 'new@t.local' },
       inviteUrl: 'https://app/reset-password?token=xyz',
@@ -127,7 +126,7 @@ describe('inviteAdminOrgAdminAction', () => {
   });
 
   it('uses fallback "организация" when org is not found during email send', async () => {
-    organizationFindUnique.mockResolvedValue(null);
+    getOrganizationName.mockResolvedValue(null);
     createOrgAdminInvite.mockResolvedValue({
       user: { id: 'u-new2', email: 'new2@t.local' },
       inviteUrl: 'https://app/reset-password?token=abc',
@@ -146,7 +145,7 @@ describe('inviteAdminOrgAdminAction', () => {
 
   it('uses undefined invitedByName when session.name is absent', async () => {
     requireAdmin.mockResolvedValue({ sub: 'admin-1', name: null });
-    organizationFindUnique.mockResolvedValue({ name: 'ООО Тест' });
+    getOrganizationName.mockResolvedValue('ООО Тест');
     createOrgAdminInvite.mockResolvedValue({
       user: { id: 'u-3', email: 'new3@t.local' },
       inviteUrl: 'https://app/reset-password?token=ghi',

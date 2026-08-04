@@ -5,19 +5,18 @@ const {
   createOrgAdminInvite,
   sendOrgInviteEmail,
   revalidatePath,
-  organizationFindUnique,
+  getOrganizationName,
 } = vi.hoisted(() => ({
   requirePartnerAdmin: vi.fn(),
   createOrgAdminInvite: vi.fn(),
   sendOrgInviteEmail: vi.fn(),
   revalidatePath: vi.fn(),
-  organizationFindUnique: vi.fn(),
+  getOrganizationName: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requirePartnerAdmin }));
-vi.mock('@/lib/db/prisma', () => ({
-  prisma: { organization: { findUnique: organizationFindUnique } },
-}));
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+vi.mock('@/lib/services/organization/lookup', () => ({ getOrganizationName }));
 vi.mock('next/cache', () => ({ revalidatePath }));
 vi.mock('@/lib/email/send', () => ({ sendOrgInviteEmail }));
 vi.mock('@/lib/services/organization/invite', async () => {
@@ -59,7 +58,7 @@ describe('invitePartnerOrgAdminAction', () => {
   });
 
   it('happy path passes actorPartnerId from session and sends email', async () => {
-    organizationFindUnique.mockResolvedValue({ name: 'ООО Клиент' });
+    getOrganizationName.mockResolvedValue('ООО Клиент');
     createOrgAdminInvite.mockResolvedValue({
       user: { id: 'u-new', email: 'cust@t.local' },
       inviteUrl: 'https://app.test/reset-password?token=abc',
@@ -125,7 +124,7 @@ describe('invitePartnerOrgAdminAction', () => {
   });
 
   it('still returns ok:true when sendOrgInviteEmail throws (graceful degradation)', async () => {
-    organizationFindUnique.mockResolvedValue({ name: 'ООО Клиент' });
+    getOrganizationName.mockResolvedValue('ООО Клиент');
     createOrgAdminInvite.mockResolvedValue({
       user: { id: 'u-new', email: 'cust@t.local' },
       inviteUrl: 'https://app.test/reset-password?token=tok',
@@ -143,7 +142,7 @@ describe('invitePartnerOrgAdminAction', () => {
   });
 
   it('uses "организация" fallback when org lookup returns null during email send', async () => {
-    organizationFindUnique.mockResolvedValue(null);
+    getOrganizationName.mockResolvedValue(null);
     createOrgAdminInvite.mockResolvedValue({
       user: { id: 'u-n2', email: 'n2@t.local' },
       inviteUrl: 'https://app.test/reset-password?token=tok2',
@@ -166,7 +165,7 @@ describe('invitePartnerOrgAdminAction', () => {
       partnerId: 'partner-1',
       name: null,
     });
-    organizationFindUnique.mockResolvedValue({ name: 'ООО Клиент' });
+    getOrganizationName.mockResolvedValue('ООО Клиент');
     createOrgAdminInvite.mockResolvedValue({
       user: { id: 'u-n3', email: 'n3@t.local' },
       inviteUrl: 'https://app.test/reset-password?token=tok3',
