@@ -5,10 +5,11 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { requirePartnerAdmin } = vi.hoisted(() => ({ requirePartnerAdmin: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requirePartnerAdmin }));
 
-const { organizationFindMany } = vi.hoisted(() => ({ organizationFindMany: vi.fn() }));
-vi.mock('@/lib/db/prisma', () => ({
-  prisma: { organization: { findMany: organizationFindMany } },
-}));
+// Селект организаций уехал в сервис; форма запроса и граница портфеля
+// пиннятся в services.partner.orgOptions.test.ts (аудит A1).
+const { listPartnerOrgOptions } = vi.hoisted(() => ({ listPartnerOrgOptions: vi.fn() }));
+vi.mock('@/lib/services/partner/orgOptions', () => ({ listPartnerOrgOptions }));
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 const { listTeam } = vi.hoisted(() => ({ listTeam: vi.fn() }));
 vi.mock('@/lib/services/partner/team', () => ({ listTeam }));
@@ -45,21 +46,19 @@ const INACTIVE_ROW = {
 describe('PartnerTeamPage', () => {
   beforeEach(() => {
     requirePartnerAdmin.mockReset();
-    organizationFindMany.mockReset();
+    listPartnerOrgOptions.mockReset();
     listTeam.mockReset();
   });
 
   it('shows the singular "деактивирован" suffix when exactly one member is inactive', async () => {
     requirePartnerAdmin.mockResolvedValue(SESSION);
     listTeam.mockResolvedValue([ACTIVE_ROW, INACTIVE_ROW]);
-    organizationFindMany.mockResolvedValue([{ id: 'org-1', name: 'ООО Ромашка' }]);
+    listPartnerOrgOptions.mockResolvedValue([{ id: 'org-1', name: 'ООО Ромашка' }]);
 
     const { container } = await renderServerComponent(PartnerTeamPage());
 
     expect(listTeam).toHaveBeenCalledWith(expect.anything(), 'p1');
-    expect(organizationFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { partnerId: 'p1' } })
-    );
+    expect(listPartnerOrgOptions).toHaveBeenCalledWith(expect.anything(), { partnerId: 'p1' });
     expect(container.textContent).toContain('Команда');
     expect(container.textContent).toContain('1 активный сотрудник');
     // Singular: no trailing 'о' suffix.
@@ -73,7 +72,7 @@ describe('PartnerTeamPage', () => {
       { ...INACTIVE_ROW, userId: 'u2' },
       { ...INACTIVE_ROW, userId: 'u3' },
     ]);
-    organizationFindMany.mockResolvedValue([]);
+    listPartnerOrgOptions.mockResolvedValue([]);
 
     const { container } = await renderServerComponent(PartnerTeamPage());
 
@@ -84,7 +83,7 @@ describe('PartnerTeamPage', () => {
   it('omits the deactivated-count clause entirely when all members are active', async () => {
     requirePartnerAdmin.mockResolvedValue(SESSION);
     listTeam.mockResolvedValue([ACTIVE_ROW]);
-    organizationFindMany.mockResolvedValue([]);
+    listPartnerOrgOptions.mockResolvedValue([]);
 
     const { container } = await renderServerComponent(PartnerTeamPage());
 

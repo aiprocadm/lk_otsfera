@@ -5,6 +5,7 @@ import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { verifyTwoFactorPendingToken, signToken } from '@/lib/auth/jwt';
 import { SESSION_COOKIE_MAX_AGE_SECONDS } from '@/lib/auth/session';
 import { verifyTwoFactorCode } from '@/lib/services/auth/twoFactor';
+import { getActiveUserForSession, recordLastLogin } from '@/lib/services/auth/login';
 import { buildSessionClaims } from '@/lib/auth/buildSessionClaims';
 import { recordAudit } from '@/lib/auth/audit';
 import { isRateLimited } from '@/lib/rateLimit';
@@ -67,11 +68,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const user = await prisma.user.findUnique({ where: { id: sub } });
-  if (!user || !user.isActive) {
+  const loaded = await getActiveUserForSession(prisma, sub);
+  if (!loaded.ok) {
     return NextResponse.json({ code: 'SESSION_EXPIRED', message: 'Login again' }, { status: 401 });
   }
-  const built = await buildSessionClaims(prisma, user);
+  const built = await buildSessionClaims(prisma, loaded.user);
   if (!built.ok) {
     return NextResponse.json(
       { code: 'ACCOUNT_DEACTIVATED', message: 'Account deactivated' },
@@ -87,9 +88,7 @@ export async function POST(req: NextRequest) {
   }).catch(() => {});
 
   // Этап 9 (ФТ-11.3): второй путь входа — отметка та же, тоже best-effort (§3).
-  await prisma.user
-    .update({ where: { id: sub }, data: { lastLoginAt: new Date() } })
-    .catch(() => {});
+  await recordLastLogin(prisma, sub);
 
   const token = await signToken(built.claims);
   const res = NextResponse.json({ ok: true });

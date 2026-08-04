@@ -54,6 +54,23 @@ export async function listTeam(prisma: PrismaClient, partnerId: string): Promise
   }));
 }
 
+/**
+ * Название партнёра для письма-приглашения (ФТ-10.1). Отдельная функция, а не
+ * поле результата `inviteMember`: письмо — best-effort ветка роута, и запрос
+ * названия не должен участвовать в транзакции приглашения. `null` = записи нет
+ * (роут подставляет обобщённое «партнёр»).
+ */
+export async function getPartnerName(
+  prisma: PrismaClient,
+  partnerId: string
+): Promise<string | null> {
+  const partner = await prisma.partner.findUnique({
+    where: { id: partnerId },
+    select: { name: true },
+  });
+  return partner?.name ?? null;
+}
+
 export type InviteInput = {
   partnerId: string;
   email: string;

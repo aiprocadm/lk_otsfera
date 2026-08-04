@@ -14,6 +14,7 @@ import {
   recentEnrollments,
   expiringCertificates,
 } from '@/lib/services/organization/dashboard';
+import { getWelcomeViewer } from '@/lib/services/welcome/viewer';
 import { WelcomeCard } from '@/components/welcome/welcome-card';
 import { welcomeActionsFor } from '@/lib/welcomeActions';
 
@@ -34,10 +35,7 @@ export default async function OrganizationDashboardPage({
     enrollmentsEnabled ? recentEnrollments(prisma, ctx.activeOrgId) : Promise.resolve([]),
     certificatesEnabled ? expiringCertificates(prisma, ctx.activeOrgId) : Promise.resolve(null),
     // ФТ-10.4: одноразовый welcome-блок — пока пользователь его не скрыл.
-    prisma.user.findUnique({
-      where: { id: ctx.session.sub },
-      select: { name: true, welcomeSeenAt: true },
-    }),
+    getWelcomeViewer(prisma, ctx.session),
   ]);
 
   return (

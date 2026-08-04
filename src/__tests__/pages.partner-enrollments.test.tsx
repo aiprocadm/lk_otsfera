@@ -16,16 +16,16 @@ vi.mock('next/navigation', () => nav);
 const { requirePartner } = vi.hoisted(() => ({ requirePartner: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requirePartner }));
 
-const { organizationFindMany, trainingDirectionFindMany } = vi.hoisted(() => ({
-  organizationFindMany: vi.fn(),
-  trainingDirectionFindMany: vi.fn().mockResolvedValue([{ id: 'd1', name: 'Охрана труда' }]),
+// Справочники (организации партнёра + направления) уехали в сервисы; форма
+// запросов и граница портфеля пиннятся в services.partner.orgOptions.test.ts и
+// services.training.directionOptions.test.ts (аудит A1).
+const { listPartnerOrgOptions, listDirectionOptions } = vi.hoisted(() => ({
+  listPartnerOrgOptions: vi.fn(),
+  listDirectionOptions: vi.fn().mockResolvedValue([{ id: 'd1', name: 'Охрана труда' }]),
 }));
-vi.mock('@/lib/db/prisma', () => ({
-  prisma: {
-    organization: { findMany: organizationFindMany },
-    trainingDirection: { findMany: trainingDirectionFindMany },
-  },
-}));
+vi.mock('@/lib/services/partner/orgOptions', () => ({ listPartnerOrgOptions }));
+vi.mock('@/lib/services/training/directions', () => ({ listDirectionOptions }));
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 import React from 'react';
 vi.mock('@/components/enrollment/enrollment-wizard', () => ({
@@ -44,7 +44,7 @@ describe('PartnerEnrollmentsPage', () => {
     isFeatureEnabled.mockReset();
     nav.notFound.mockClear();
     requirePartner.mockReset();
-    organizationFindMany.mockReset();
+    listPartnerOrgOptions.mockReset();
     listEnrollmentRequests.mockReset();
   });
 
@@ -82,14 +82,12 @@ describe('PartnerEnrollmentsPage', () => {
       ],
       nextCursor: null,
     });
-    organizationFindMany.mockResolvedValue([{ id: 'org-1', name: 'ООО Ромашка' }]);
+    listPartnerOrgOptions.mockResolvedValue([{ id: 'org-1', name: 'ООО Ромашка' }]);
 
     const { container } = await renderServerComponent(PartnerEnrollmentsPage());
 
     expect(listEnrollmentRequests).toHaveBeenCalledWith(expect.anything(), SESSION, {});
-    expect(organizationFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { partnerId: 'p1' } })
-    );
+    expect(listPartnerOrgOptions).toHaveBeenCalledWith(expect.anything(), { partnerId: 'p1' });
     expect(container.textContent).toContain('Заявки на обучение');
   });
 });

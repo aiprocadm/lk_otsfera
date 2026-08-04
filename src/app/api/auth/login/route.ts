@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import * as React from 'react';
-import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db/prisma';
 import { signToken, signTwoFactorPendingToken } from '@/lib/auth/jwt';
 import { SESSION_COOKIE_MAX_AGE_SECONDS } from '@/lib/auth/session';
 import { buildSessionClaims } from '@/lib/auth/buildSessionClaims';
 import { isRateLimited } from '@/lib/rateLimit';
 import { isFeatureEnabled } from '@/lib/featureFlags';
-import { createTwoFactorChallenge } from '@/lib/services/auth/twoFactor';
+import { createTwoFactorChallenge, discardTwoFactorChallenge } from '@/lib/services/auth/twoFactor';
+import { authenticateWithPassword, recordLastLogin } from '@/lib/services/auth/login';
 import { send } from '@/lib/email/send';
 import {
   TwoFactorCodeTemplate,
@@ -24,8 +24,6 @@ async function renderHtml(element: React.ReactElement): Promise<string> {
   const mod = await import('react-dom/server');
   return `<!DOCTYPE html>\n${mod.renderToStaticMarkup(element)}`;
 }
-
-const DUMMY_BCRYPT_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
 
 const loginSchema = z.object({
   email: z.string().email().max(254),
@@ -77,24 +75,24 @@ export async function POST(req: Request) {
 
   const { email, password } = parsed.data;
 
-  const user = await prisma.user.findUnique({ where: { email } });
+  // Проверка пары email+пароль целиком за сервисом: там же и DUMMY-хеш, и
+  // порядок веток, от которых зависит невозможность перечислить e-mail
+  // (см. комментарий в services/auth/login.ts).
+  const auth = await authenticateWithPassword(prisma, { email, password });
 
-  if (user && user.passwordHash === null) {
-    return NextResponse.json(
-      { code: 'ACCOUNT_NOT_ACTIVATED', message: 'Activate your account via the invite link.' },
-      { status: 403 }
-    );
+  if (!auth.ok) {
+    return auth.error === 'account_not_activated'
+      ? NextResponse.json(
+          { code: 'ACCOUNT_NOT_ACTIVATED', message: 'Activate your account via the invite link.' },
+          { status: 403 }
+        )
+      : NextResponse.json(
+          { code: 'INVALID_CREDENTIALS', message: 'Invalid credentials' },
+          { status: 401 }
+        );
   }
 
-  const hashToCompare = user?.passwordHash ?? DUMMY_BCRYPT_HASH;
-  const ok = await bcrypt.compare(password, hashToCompare);
-
-  if (!user || !ok) {
-    return NextResponse.json(
-      { code: 'INVALID_CREDENTIALS', message: 'Invalid credentials' },
-      { status: 401 }
-    );
-  }
+  const user = auth.user;
 
   const built = await buildSessionClaims(prisma, user);
   if (!built.ok) {
@@ -123,7 +121,7 @@ export async function POST(req: Request) {
     } catch (err) {
       // Без письма войти нельзя — честная ошибка вместо тихого проглота
       // (осознанное исключение из «notification fan-out проглатываем» §3).
-      await prisma.twoFactorChallenge.delete({ where: { userId: user.id } }).catch(() => {});
+      await discardTwoFactorChallenge(prisma, user.id);
       log.error('[auth/login] 2fa email send failed', {
         userId: user.id,
         error: err instanceof Error ? err.message : String(err),
@@ -153,9 +151,7 @@ export async function POST(req: Request) {
 
   // Этап 9 (ФТ-11.3): отметка входа. Best-effort (§3) — сбой апдейта не должен
   // лишать пользователя сессии, которую он уже заслужил верным паролем.
-  await prisma.user
-    .update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })
-    .catch(() => {});
+  await recordLastLogin(prisma, user.id);
 
   const token = await signToken(built.claims);
 

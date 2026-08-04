@@ -6,11 +6,11 @@ vi.mock('@/lib/services/partner/team', () => ({
   inviteMember: vi.fn(),
   assignOrgs: vi.fn(),
   deactivateMember: vi.fn(),
+  getPartnerName: vi.fn(),
 }));
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     auditLog: { create: vi.fn().mockResolvedValue(undefined) },
-    partner: { findUnique: vi.fn() },
   },
 }));
 vi.mock('@/lib/email/send', () => ({ sendPartnerInviteEmail: vi.fn() }));
@@ -19,9 +19,14 @@ vi.mock('@/lib/logging', () => ({
 }));
 
 import { getSession } from '@/lib/auth/session';
-import { prisma } from '@/lib/db/prisma';
 import { sendPartnerInviteEmail } from '@/lib/email/send';
-import { listTeam, inviteMember, assignOrgs, deactivateMember } from '@/lib/services/partner/team';
+import {
+  listTeam,
+  inviteMember,
+  assignOrgs,
+  deactivateMember,
+  getPartnerName,
+} from '@/lib/services/partner/team';
 import { GET, POST } from '@/app/api/partner/team/route';
 import { PUT, DELETE } from '@/app/api/partner/team/[userId]/route';
 
@@ -128,7 +133,7 @@ describe('POST /api/partner/team', () => {
       partnerUser: { id: 'pu1' },
       inviteUrl: 'https://app/reset-password?token=t1',
     } as any);
-    vi.mocked(prisma.partner.findUnique).mockResolvedValue({ name: 'ООО Партнёр' } as any);
+    vi.mocked(getPartnerName).mockResolvedValue('ООО Партнёр');
     vi.mocked(sendPartnerInviteEmail).mockResolvedValue({ status: 'sent', id: 'em-1' });
 
     const res = await POST(
@@ -165,7 +170,7 @@ describe('POST /api/partner/team', () => {
       partnerUser: { id: 'pu1' },
       inviteUrl: 'https://app/reset-password?token=t2',
     } as any);
-    vi.mocked(prisma.partner.findUnique).mockResolvedValue(null);
+    vi.mocked(getPartnerName).mockResolvedValue(null);
     vi.mocked(sendPartnerInviteEmail).mockResolvedValue({ status: 'sent', id: null });
 
     const res = await POST(
@@ -185,7 +190,7 @@ describe('POST /api/partner/team', () => {
       partnerUser: { id: 'pu1' },
       inviteUrl: 'https://app/reset-password?token=t3',
     } as any);
-    vi.mocked(prisma.partner.findUnique).mockResolvedValue({ name: 'П' } as any);
+    vi.mocked(getPartnerName).mockResolvedValue('П');
     vi.mocked(sendPartnerInviteEmail).mockResolvedValue({ status: 'skipped', reason: 'disabled' });
 
     const res = await POST(
@@ -203,7 +208,7 @@ describe('POST /api/partner/team', () => {
       partnerUser: { id: 'pu1' },
       inviteUrl: 'https://app/reset-password?token=t4',
     } as any);
-    vi.mocked(prisma.partner.findUnique).mockResolvedValue({ name: 'П' } as any);
+    vi.mocked(getPartnerName).mockResolvedValue('П');
     vi.mocked(sendPartnerInviteEmail).mockRejectedValue(new Error('SMTP down'));
 
     const res = await POST(

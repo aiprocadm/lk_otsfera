@@ -4,10 +4,7 @@ import Link from 'next/link';
 import { BackLink } from '@/components/ui';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
-import {
-  AssignOrderManagerForm,
-  type ManagerCandidate,
-} from '@/components/admin/assign-order-manager-form';
+import { AssignOrderManagerForm } from '@/components/admin/assign-order-manager-form';
 import {
   executionStage,
   paymentStage,
@@ -16,6 +13,8 @@ import {
 } from '@/lib/orders/humanStage';
 import { OrderStageStepper } from '@/components/orders/order-stage-stepper';
 import { getValuesForEntity } from '@/lib/services/customFields';
+import { getOrderForAdmin } from '@/lib/services/admin/orders';
+import { listManagerCandidates } from '@/lib/services/admin/users';
 import { OrderCustomFields } from '@/components/orders/order-custom-fields';
 
 export const dynamic = 'force-dynamic';
@@ -35,22 +34,8 @@ export default async function AdminOrderDetailPage({
   const { id } = await params;
 
   const [order, candidates, customFieldsResult] = await Promise.all([
-    prisma.order.findUnique({
-      where: { id },
-      include: {
-        organization: { select: { id: true, name: true } },
-        partner: { select: { id: true, name: true } },
-        manager: { select: { id: true, name: true, email: true } },
-      },
-    }),
-    // The candidate pool for per-order assignment is *all* active managers,
-    // not just those with an existing assignment to the org — admins routinely
-    // need to assign cross-org managers as part of the third visibility branch.
-    prisma.user.findMany({
-      where: { role: 'manager', isActive: true },
-      select: { id: true, name: true, email: true },
-      orderBy: { email: 'asc' },
-    }) as Promise<ManagerCandidate[]>,
+    getOrderForAdmin(prisma, id),
+    listManagerCandidates(prisma),
     getValuesForEntity(prisma, session, 'order', id),
   ]);
   if (!order) notFound();

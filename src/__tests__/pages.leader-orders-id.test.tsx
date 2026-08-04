@@ -18,13 +18,19 @@ vi.mock('@/lib/services/orderStatuses', () => ({
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireManagerLeader }));
 
-const { studentFindMany } = vi.hoisted(() => ({ studentFindMany: vi.fn() }));
-vi.mock('@/lib/db/prisma', () => ({
-  prisma: { student: { findMany: studentFindMany } },
-}));
+// A1: список слушателей читает сервис карточки заказа (форма запроса —
+// services.manager.orderDetail.unit); prisma страница только прокидывает.
+const { prismaMock } = vi.hoisted(() => ({ prismaMock: { student: {} } }));
+vi.mock('@/lib/db/prisma', () => ({ prisma: prismaMock }));
 
-const { loadManagerOrderDetail } = vi.hoisted(() => ({ loadManagerOrderDetail: vi.fn() }));
-vi.mock('@/lib/services/manager/orderDetail', () => ({ loadManagerOrderDetail }));
+const { loadManagerOrderDetail, listOrderStudentOptions } = vi.hoisted(() => ({
+  loadManagerOrderDetail: vi.fn(),
+  listOrderStudentOptions: vi.fn(),
+}));
+vi.mock('@/lib/services/manager/orderDetail', () => ({
+  loadManagerOrderDetail,
+  listOrderStudentOptions,
+}));
 
 const { getDealActivity } = vi.hoisted(() => ({ getDealActivity: vi.fn() }));
 vi.mock('@/lib/services/manager/dealActivity', () => ({ getDealActivity }));
@@ -120,7 +126,7 @@ const BASE_DATA = {
 describe('LeaderOrderDetailPage', () => {
   beforeEach(() => {
     requireManagerLeader.mockReset();
-    studentFindMany.mockReset();
+    listOrderStudentOptions.mockReset();
     loadManagerOrderDetail.mockReset();
     getDealActivity.mockReset();
     listDirections.mockReset();
@@ -147,7 +153,7 @@ describe('LeaderOrderDetailPage', () => {
     requireManagerLeader.mockResolvedValue(SESSION);
     loadManagerOrderDetail.mockResolvedValue(BASE_DATA);
     listDirections.mockResolvedValue({ ok: true, directions: [{ id: 'd1', name: 'Направление' }] });
-    studentFindMany.mockResolvedValue([{ id: 's1', name: 'Студент', email: 's@x.com' }]);
+    listOrderStudentOptions.mockResolvedValue([{ id: 's1', name: 'Студент', email: 's@x.com' }]);
     getValuesForEntity.mockResolvedValue({
       ok: true,
       fields: [
@@ -187,9 +193,7 @@ describe('LeaderOrderDetailPage', () => {
       SESSION,
       'order-1'
     );
-    expect(studentFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { organizationId: 'org-1' } })
-    );
+    expect(listOrderStudentOptions).toHaveBeenCalledWith(prismaMock, 'org-1');
     expect(getValuesForEntity).toHaveBeenCalledWith(
       expect.objectContaining({ student: expect.anything() }),
       expect.anything(), // сессия: этап 1 ТЗ v0.5 фильтрует поля по ролям на сервере
@@ -219,7 +223,7 @@ describe('LeaderOrderDetailPage', () => {
       order: { ...BASE_DATA.order, organizationId: null },
     });
     listDirections.mockResolvedValue({ ok: false, error: 'forbidden' });
-    studentFindMany.mockResolvedValue([]);
+    listOrderStudentOptions.mockResolvedValue([]);
     getValuesForEntity.mockResolvedValue({ ok: false, error: 'not_found' });
     getDealActivity.mockResolvedValue({ ok: false, error: 'not_found' });
     isFeatureEnabled.mockReturnValue(false);
@@ -228,9 +232,9 @@ describe('LeaderOrderDetailPage', () => {
       LeaderOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
     );
 
-    expect(studentFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { organizationId: undefined } })
-    );
+    // Заказ без организации: сервис получает null (что он делает с ним в
+    // запросе — регресс services.manager.orderDetail.unit).
+    expect(listOrderStudentOptions).toHaveBeenCalledWith(prismaMock, null);
     expect(container.textContent).toContain('[]falsefalse');
   });
 
@@ -238,7 +242,7 @@ describe('LeaderOrderDetailPage', () => {
     requireManagerLeader.mockResolvedValue(SESSION);
     loadManagerOrderDetail.mockResolvedValue(BASE_DATA);
     listDirections.mockResolvedValue({ ok: true, directions: [] });
-    studentFindMany.mockResolvedValue([]);
+    listOrderStudentOptions.mockResolvedValue([]);
     getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
     getDealActivity.mockResolvedValue({ ok: true, items: [] });
     isFeatureEnabled.mockReturnValue(false);
@@ -297,7 +301,7 @@ describe('LeaderOrderDetailPage', () => {
       order: { ...BASE_DATA.order, managerId: null },
     });
     listDirections.mockResolvedValue({ ok: true, directions: [] });
-    studentFindMany.mockResolvedValue([]);
+    listOrderStudentOptions.mockResolvedValue([]);
     getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
     getDealActivity.mockResolvedValue({ ok: true, items: [] });
     isFeatureEnabled.mockReturnValue(false);

@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
-import { listOrgOrders, getOrgOrder } from '@/lib/services/organization/orders';
+import {
+  listOrgOrders,
+  getOrgOrder,
+  listOrgOrderComments,
+} from '@/lib/services/organization/orders';
 
 let prisma: PrismaClient;
 let partnerId: string;
@@ -244,5 +248,20 @@ describe('services/organization/orders — getOrgOrder', () => {
   it('returns null for non-existent order id', async () => {
     const detail = await getOrgOrder(prisma, orgAId, 'cuid-that-does-not-exist');
     expect(detail).toBeNull();
+  });
+});
+
+describe('services/organization/orders — listOrgOrderComments', () => {
+  it('returns the order thread oldest-first with the author name folded in', async () => {
+    const rows = await listOrgOrderComments(prisma, orderA1Id);
+
+    expect(rows.map((r) => r.body)).toEqual(['first comment', 'second comment']);
+    expect(rows.every((r) => r.authorName === 'Alice Manager')).toBe(true);
+    expect(rows[0]!.createdAt.getTime()).toBeLessThanOrEqual(rows[1]!.createdAt.getTime());
+  });
+
+  it('returns an empty thread for an order without comments (no leakage from other orders)', async () => {
+    const rows = await listOrgOrderComments(prisma, orderA2Id);
+    expect(rows).toEqual([]);
   });
 });

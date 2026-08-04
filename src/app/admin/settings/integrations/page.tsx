@@ -1,7 +1,10 @@
 import type { Metadata } from 'next';
 import React from 'react';
 import { requireSettingsSection } from '@/lib/auth/requireSettings';
-import { getIntegrationsStatus } from '@/lib/services/admin/integrations';
+import {
+  getIntegrationsStatus,
+  listIntegrationSyncStates,
+} from '@/lib/services/admin/integrations';
 import { prisma } from '@/lib/db/prisma';
 import {
   getSettingsView,
@@ -74,17 +77,10 @@ export default async function AdminIntegrationsPage() {
   const integrations = getIntegrationsStatus();
 
   // ФТ-14.3/14.4: результаты проб «Проверить подключение» и отметки вебхуков.
-  const syncStates = await prisma.syncState.findMany({
-    where: {
-      entity: {
-        in: [
-          ...INTEGRATION_TEST_KEYS.map((k) => `integration.${k}`),
-          ...WEBHOOK_NAMES.map((n) => `webhook.${n}`),
-        ],
-      },
-    },
-    select: { entity: true, lastRunAt: true, lastSuccessAt: true, lastError: true },
-  });
+  const syncStates = await listIntegrationSyncStates(prisma, [
+    ...INTEGRATION_TEST_KEYS.map((k) => `integration.${k}`),
+    ...WEBHOOK_NAMES.map((n) => `webhook.${n}`),
+  ]);
   const stateOf = (entity: string) => syncStates.find((s) => s.entity === entity);
 
   const checkOf = (key: IntegrationTestKey): IntegrationCheckInfo | null => {

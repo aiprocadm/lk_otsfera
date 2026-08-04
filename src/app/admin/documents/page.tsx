@@ -4,7 +4,7 @@ import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { DocumentsList } from '@/components/partner/documents-list';
 import { DocumentsPanel } from '@/components/documents/documents-panel';
-import type { OrgDocumentRow } from '@/lib/services/partner/orgDocuments';
+import { listGeneralDocuments } from '@/lib/services/documents/generalList';
 
 type SearchParams = { tab?: string };
 
@@ -45,33 +45,7 @@ export default async function AdminDocumentsPage({
   const isGeneral = sp.tab === 'general';
 
   if (isGeneral) {
-    const rows = await prisma.document.findMany({
-      where: { orderId: null },
-      orderBy: { createdAt: 'desc' },
-      take: 200,
-      select: {
-        id: true,
-        name: true,
-        type: true,
-        direction: true,
-        signedAt: true,
-        createdAt: true,
-        size: true,
-      },
-    });
-
-    const documentRows: OrgDocumentRow[] = rows.map((d) => ({
-      id: d.id,
-      name: d.name,
-      type: d.type,
-      direction: d.direction,
-      signedAt: d.signedAt,
-      createdAt: d.createdAt,
-      size: d.size,
-      orderId: null,
-      orderNumber: null,
-      orderTitle: null,
-    }));
+    const documentRows = await listGeneralDocuments(prisma);
 
     return (
       <div className="space-y-4">

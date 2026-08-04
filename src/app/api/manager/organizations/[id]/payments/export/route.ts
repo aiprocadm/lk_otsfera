@@ -2,9 +2,8 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
 import { canManagerAccessOrg } from '@/lib/auth/managerPolicy';
-import { getOrgFinanceKpis, listOrgPaymentsForExport } from '@/lib/services/organization/finance';
+import { getPaymentsExportData } from '@/lib/services/finance/paymentsExport';
 import { renderPaymentsXlsx } from '@/lib/services/finance/xlsx';
-import { EXPORT_ROW_LIMIT } from '@/lib/services/export/xlsx';
 
 /**
  * Выгрузка платежей организации из карточки (вкладка «Оплаты») — staff-путь
@@ -22,13 +21,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
 
-  const [{ rows, total }, kpis, org] = await Promise.all([
-    listOrgPaymentsForExport(prisma, { organizationId: id, limit: EXPORT_ROW_LIMIT }),
-    getOrgFinanceKpis(prisma, id),
-    prisma.organization.findUnique({ where: { id }, select: { name: true } }),
-  ]);
+  const data = await getPaymentsExportData(prisma, id);
 
-  const buf = await renderPaymentsXlsx({ rows, total, kpis, organizationName: org?.name ?? '—' });
+  const buf = await renderPaymentsXlsx(data);
   return new NextResponse(Buffer.from(buf), {
     headers: {
       'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

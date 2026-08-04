@@ -7,13 +7,15 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { requireSettingsSection } = vi.hoisted(() => ({ requireSettingsSection: vi.fn() }));
 vi.mock('@/lib/auth/requireSettings', () => ({ requireSettingsSection }));
 
-const { organizationFindMany } = vi.hoisted(() => ({ organizationFindMany: vi.fn() }));
-vi.mock('@/lib/db/prisma', () => ({
-  prisma: { organization: { findMany: organizationFindMany } },
-}));
+// Поиск названий организаций-кандидатов уехал в сервис (аудит A1): форма
+// запроса пиннится в import.card51.resolveQueue.unit.test.ts.
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
-const { listQueue } = vi.hoisted(() => ({ listQueue: vi.fn() }));
-vi.mock('@/lib/services/import/oneCAccountCard', () => ({ listQueue }));
+const { listQueue, listQueueOrgNames } = vi.hoisted(() => ({
+  listQueue: vi.fn(),
+  listQueueOrgNames: vi.fn(),
+}));
+vi.mock('@/lib/services/import/oneCAccountCard', () => ({ listQueue, listQueueOrgNames }));
 
 vi.mock('@/components/import/payment-import-form', () => ({
   PaymentImportForm: () => React.createElement('div', { 'data-testid': 'payment-import-form' }),
@@ -33,7 +35,8 @@ const SESSION = { sub: 'admin1', role: 'admin' as const };
 describe('AdminPaymentsImportPage', () => {
   beforeEach(() => {
     requireSettingsSection.mockReset();
-    organizationFindMany.mockReset();
+    listQueueOrgNames.mockReset();
+    listQueueOrgNames.mockResolvedValue(new Map());
     listQueue.mockReset();
   });
 
@@ -59,7 +62,7 @@ describe('AdminPaymentsImportPage', () => {
 
     expect(requireSettingsSection).toHaveBeenCalled();
     expect(listQueue).toHaveBeenCalledWith(expect.anything(), SESSION);
-    expect(organizationFindMany).not.toHaveBeenCalled();
+    expect(listQueueOrgNames).toHaveBeenCalledWith(expect.anything(), []);
     expect(container.textContent).toContain('Импорт выписки');
     expect(container.textContent).toContain('ext1');
   });
@@ -94,13 +97,11 @@ describe('AdminPaymentsImportPage', () => {
         matchMethod: 'manual',
       },
     ]);
-    organizationFindMany.mockResolvedValue([{ id: 'org-1', name: 'Org One' }]);
+    listQueueOrgNames.mockResolvedValue(new Map([['org-1', 'Org One']]));
 
     const { container } = await renderServerComponent(AdminPaymentsImportPage());
 
-    expect(organizationFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: { in: ['org-1', 'org-2'] } } })
-    );
+    expect(listQueueOrgNames).toHaveBeenCalledWith(expect.anything(), ['org-1', 'org-2']);
     expect(container.textContent).toContain('Org One');
     expect(container.textContent).toContain('ext2');
   });

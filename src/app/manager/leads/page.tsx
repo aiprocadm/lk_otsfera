@@ -3,6 +3,7 @@ import { isLeadStatus } from '@/lib/leads/statuses';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { listManagerLeads } from '@/lib/services/manager/leads';
+import { listCompanyOrgOptions } from '@/lib/services/manager/organizations';
 import { ManagerLeadsFilter } from '@/components/manager/manager-leads-filter';
 import { ManagerLeadsTable } from '@/components/manager/manager-leads-table';
 import { LeadCreateStaffForm } from '@/components/manager/lead-create-staff-form';
@@ -29,13 +30,7 @@ export default async function ManagerLeadsPage({
     }),
     // Организации компании менеджера для необязательной привязки лида (C8);
     // без companyId — пустой список (лид без организации).
-    session.companyId
-      ? prisma.organization.findMany({
-          where: { companyId: session.companyId },
-          select: { id: true, name: true },
-          orderBy: { name: 'asc' },
-        })
-      : Promise.resolve([]),
+    listCompanyOrgOptions(prisma, session),
   ]);
 
   return (

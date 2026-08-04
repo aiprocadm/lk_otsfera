@@ -9,7 +9,7 @@ const {
   sendMock,
   recordAuditMock,
   isRateLimitedMock,
-  chDeleteMock,
+  discardChallengeMock,
 } = vi.hoisted(() => ({
   findUniqueMock: vi.fn(),
   notFoundIfDisabledMock: vi.fn(),
@@ -18,18 +18,18 @@ const {
   sendMock: vi.fn(),
   recordAuditMock: vi.fn(),
   isRateLimitedMock: vi.fn(),
-  chDeleteMock: vi.fn(),
+  discardChallengeMock: vi.fn(),
 }));
 
 vi.mock('@/lib/db/prisma', () => ({
-  prisma: {
-    user: { findUnique: findUniqueMock },
-    twoFactorChallenge: { delete: chDeleteMock },
-  },
+  prisma: { user: { findUnique: findUniqueMock } },
 }));
 vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled: notFoundIfDisabledMock }));
 vi.mock('@/lib/auth/jwt', () => ({ verifyTwoFactorPendingToken: verifyPendingMock }));
-vi.mock('@/lib/services/auth/twoFactor', () => ({ createTwoFactorChallenge: createChallengeMock }));
+vi.mock('@/lib/services/auth/twoFactor', () => ({
+  createTwoFactorChallenge: createChallengeMock,
+  discardTwoFactorChallenge: discardChallengeMock,
+}));
 vi.mock('@/lib/email/send', () => ({ send: sendMock }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit: recordAuditMock }));
 vi.mock('@/lib/rateLimit', () => ({ isRateLimited: isRateLimitedMock }));
@@ -52,7 +52,7 @@ beforeEach(() => {
   createChallengeMock.mockResolvedValue({ code: '654321' });
   sendMock.mockResolvedValue(undefined);
   recordAuditMock.mockResolvedValue(undefined);
-  chDeleteMock.mockResolvedValue(undefined);
+  discardChallengeMock.mockResolvedValue(undefined);
 });
 
 describe('POST /api/auth/2fa/resend', () => {
@@ -108,7 +108,9 @@ describe('POST /api/auth/2fa/resend', () => {
     sendMock.mockRejectedValue(new Error('resend down'));
     const res = await POST(req('2fa_pending=t'));
     expect(res.status).toBe(502);
-    expect(chDeleteMock).toHaveBeenCalledWith({ where: { userId: 'u1' } });
+    // Сам prisma-запрос удаления проверяется в
+    // services.auth.login-flow.unit.test.ts (сервис discardTwoFactorChallenge).
+    expect(discardChallengeMock).toHaveBeenCalledWith(expect.anything(), 'u1');
   });
 
   it('non-Error send rejection (string) → 502 (String(err) log arm)', async () => {

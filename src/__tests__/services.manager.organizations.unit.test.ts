@@ -23,7 +23,11 @@ vi.mock('@/lib/auth/managerPolicy', () => ({
   isLeaderSameCompany,
 }));
 
-import { listOrganizations, getOrganization } from '@/lib/services/manager/organizations';
+import {
+  listOrganizations,
+  getOrganization,
+  listCompanyOrgOptions,
+} from '@/lib/services/manager/organizations';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 const SESSION: SessionPayload = {
@@ -79,6 +83,34 @@ describe('listOrganizations', () => {
     const p = { organization: { findMany } } as never;
     const rows = await listOrganizations(p, SESSION);
     expect(rows).toEqual([]);
+  });
+});
+
+// A1: справочник для селектов форм переехал со страниц (manager/leader deals,
+// manager/leads) в сервис — здесь же проверяется форма запроса.
+describe('listCompanyOrgOptions', () => {
+  it('фильтрует по компании сессии, узкий select и сортировка по названию', async () => {
+    const findMany = vi.fn().mockResolvedValue([{ id: 'org-1', name: 'Org org-1' }]);
+    const p = { organization: { findMany } } as never;
+
+    const rows = await listCompanyOrgOptions(p, SESSION);
+
+    expect(rows).toEqual([{ id: 'org-1', name: 'Org org-1' }]);
+    expect(findMany).toHaveBeenCalledWith({
+      where: { companyId: 'co-1' },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+  });
+
+  it('сессия без компании: пустой список и ни одного запроса к БД', async () => {
+    const findMany = vi.fn();
+    const p = { organization: { findMany } } as never;
+
+    const rows = await listCompanyOrgOptions(p, { ...SESSION, companyId: null });
+
+    expect(rows).toEqual([]);
+    expect(findMany).not.toHaveBeenCalled();
   });
 });
 

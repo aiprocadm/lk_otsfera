@@ -11,10 +11,11 @@ import React from 'react';
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 
-// Этап 4 (ФТ-10.4): дашборды читают welcomeSeenAt зрителя; не-null → welcome-блок
-// скрыт и не мешает сценариям этого файла.
-const { userFindUnique } = vi.hoisted(() => ({ userFindUnique: vi.fn() }));
-vi.mock('@/lib/db/prisma', () => ({ prisma: { user: { findUnique: userFindUnique } } }));
+// Этап 4 (ФТ-10.4): дашборды читают зрителя через сервис welcome; welcomeSeenAt
+// не-null → блок скрыт и не мешает сценариям этого файла.
+const { getWelcomeViewer } = vi.hoisted(() => ({ getWelcomeViewer: vi.fn() }));
+vi.mock('@/lib/services/welcome/viewer', () => ({ getWelcomeViewer }));
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 const { getOrgPageContext } = vi.hoisted(() => ({ getOrgPageContext: vi.fn() }));
 vi.mock('@/lib/auth/orgPageContext', () => ({ getOrgPageContext }));
@@ -72,7 +73,7 @@ const PARTNER_SCOPE = { partnerId: 'pt-1', scopeOrgIds: ['org-9'] };
 beforeEach(() => {
   vi.resetAllMocks();
 
-  userFindUnique.mockResolvedValue({ name: 'Иван', welcomeSeenAt: new Date('2026-01-01') });
+  getWelcomeViewer.mockResolvedValue({ name: 'Иван', welcomeSeenAt: new Date('2026-01-01') });
   getOrgPageContext.mockResolvedValue(ORG_CTX);
   org.kpis.mockResolvedValue({ activeOrders: 3, totalStudents: 10, outstandingDebt: '0' });
   org.attention.mockResolvedValue({ items: [] });

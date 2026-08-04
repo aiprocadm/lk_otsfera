@@ -3,7 +3,8 @@ import * as React from 'react';
 import { prisma } from '@/lib/db/prisma';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { verifyTwoFactorPendingToken } from '@/lib/auth/jwt';
-import { createTwoFactorChallenge } from '@/lib/services/auth/twoFactor';
+import { createTwoFactorChallenge, discardTwoFactorChallenge } from '@/lib/services/auth/twoFactor';
+import { getActiveUserForCodeDelivery } from '@/lib/services/auth/login';
 import { recordAudit } from '@/lib/auth/audit';
 import { isRateLimited } from '@/lib/rateLimit';
 import { send } from '@/lib/email/send';
@@ -47,13 +48,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: sub },
-    select: { id: true, email: true, name: true, isActive: true },
-  });
-  if (!user || !user.isActive) {
+  const loaded = await getActiveUserForCodeDelivery(prisma, sub);
+  if (!loaded.ok) {
     return NextResponse.json({ code: 'SESSION_EXPIRED', message: 'Login again' }, { status: 401 });
   }
+  const user = loaded.user;
 
   const { code } = await createTwoFactorChallenge(prisma, user.id);
   try {
@@ -64,7 +63,7 @@ export async function POST(req: NextRequest) {
       text: twoFactorCodeText({ name: user.name, code }),
     });
   } catch (err) {
-    await prisma.twoFactorChallenge.delete({ where: { userId: user.id } }).catch(() => {});
+    await discardTwoFactorChallenge(prisma, user.id);
     log.error('[auth/2fa/resend] email send failed', {
       userId: user.id,
       error: err instanceof Error ? err.message : String(err),

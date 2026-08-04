@@ -2,7 +2,10 @@ import React from 'react';
 import { notFound } from 'next/navigation';
 import { requireManagerLeader } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
-import { loadManagerOrderDetail } from '@/lib/services/manager/orderDetail';
+import {
+  loadManagerOrderDetail,
+  listOrderStudentOptions,
+} from '@/lib/services/manager/orderDetail';
 import { getDealActivity } from '@/lib/services/manager/dealActivity';
 import { listDirections } from '@/lib/services/training';
 import { getValuesForEntity } from '@/lib/services/customFields';
@@ -25,11 +28,7 @@ export default async function LeaderOrderDetailPage({
   const [directionsResult, students, customFieldsResult, activity, companyManagers] =
     await Promise.all([
       listDirections(prisma, session),
-      prisma.student.findMany({
-        where: { organizationId: data.order.organizationId ?? undefined },
-        select: { id: true, name: true, email: true },
-        orderBy: { name: 'asc' },
-      }),
+      listOrderStudentOptions(prisma, data.order.organizationId),
       getValuesForEntity(prisma, session, 'order', id),
       getDealActivity(prisma, session, id, { view: 'all' }),
       // A3: кандидаты для формы назначения — активные менеджеры компании

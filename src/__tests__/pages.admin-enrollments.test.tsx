@@ -7,12 +7,13 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
 
-const { trainingDirectionFindMany } = vi.hoisted(() => ({
-  trainingDirectionFindMany: vi.fn().mockResolvedValue([{ id: 'd1', name: 'Охрана труда' }]),
+// Справочник направлений уехал в сервис (аудит A1): страница мокает сервис,
+// форма самого запроса проверяется в тесте services/training/directions.
+const { listDirectionOptions } = vi.hoisted(() => ({
+  listDirectionOptions: vi.fn().mockResolvedValue([{ id: 'd1', name: 'Охрана труда' }]),
 }));
-vi.mock('@/lib/db/prisma', () => ({
-  prisma: { trainingDirection: { findMany: trainingDirectionFindMany } },
-}));
+vi.mock('@/lib/services/training/directions', () => ({ listDirectionOptions }));
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));

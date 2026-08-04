@@ -7,13 +7,16 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
 
-const { orderFindUnique, userFindMany } = vi.hoisted(() => ({
-  orderFindUnique: vi.fn(),
-  userFindMany: vi.fn(),
+// Запросы уехали в сервисы (аудит A1): карточка заказа — в admin/orders,
+// список кандидатов-менеджеров — в admin/users. Форма запросов пиннится в
+// services.admin.orders.test.ts и services.admin.users.test.ts.
+const { getOrderForAdmin, listManagerCandidates } = vi.hoisted(() => ({
+  getOrderForAdmin: vi.fn(),
+  listManagerCandidates: vi.fn(),
 }));
-vi.mock('@/lib/db/prisma', () => ({
-  prisma: { order: { findUnique: orderFindUnique }, user: { findMany: userFindMany } },
-}));
+vi.mock('@/lib/services/admin/orders', () => ({ getOrderForAdmin }));
+vi.mock('@/lib/services/admin/users', () => ({ listManagerCandidates }));
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 const { getValuesForEntity } = vi.hoisted(() => ({ getValuesForEntity: vi.fn() }));
 vi.mock('@/lib/services/customFields', () => ({ getValuesForEntity }));
@@ -84,16 +87,16 @@ const BASE_ORDER = {
 describe('AdminOrderDetailPage', () => {
   beforeEach(() => {
     requireAdmin.mockReset();
-    orderFindUnique.mockReset();
-    userFindMany.mockReset();
+    getOrderForAdmin.mockReset();
+    listManagerCandidates.mockReset();
     getValuesForEntity.mockReset();
     nav.notFound.mockClear();
   });
 
   it('calls notFound() when the order is missing', async () => {
     requireAdmin.mockResolvedValue(SESSION);
-    orderFindUnique.mockResolvedValue(null);
-    userFindMany.mockResolvedValue([]);
+    getOrderForAdmin.mockResolvedValue(null);
+    listManagerCandidates.mockResolvedValue([]);
     getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
 
     await expect(
@@ -103,8 +106,8 @@ describe('AdminOrderDetailPage', () => {
 
   it('renders order details with an organization link, partner name, custom fields, and candidates (Decimal-like totalAmount via toNumber())', async () => {
     requireAdmin.mockResolvedValue(SESSION);
-    orderFindUnique.mockResolvedValue({ ...BASE_ORDER, totalAmount: { toNumber: () => 1000 } });
-    userFindMany.mockResolvedValue([{ id: 'm1', name: 'Менеджер', email: 'm@x.com' }]);
+    getOrderForAdmin.mockResolvedValue({ ...BASE_ORDER, totalAmount: { toNumber: () => 1000 } });
+    listManagerCandidates.mockResolvedValue([{ id: 'm1', name: 'Менеджер', email: 'm@x.com' }]);
     getValuesForEntity.mockResolvedValue({
       ok: true,
       fields: [
@@ -127,9 +130,7 @@ describe('AdminOrderDetailPage', () => {
       AdminOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
     );
 
-    expect(userFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { role: 'manager', isActive: true } })
-    );
+    expect(listManagerCandidates).toHaveBeenCalledWith(expect.anything());
     expect(getValuesForEntity).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(), // сессия: этап 1 ТЗ v0.5 фильтрует поля по ролям на сервере
@@ -146,13 +147,13 @@ describe('AdminOrderDetailPage', () => {
 
   it('falls back to "—" for missing organization/partner and [] custom fields when ok:false', async () => {
     requireAdmin.mockResolvedValue(SESSION);
-    orderFindUnique.mockResolvedValue({
+    getOrderForAdmin.mockResolvedValue({
       ...BASE_ORDER,
       organization: null,
       partner: null,
       totalAmount: null,
     });
-    userFindMany.mockResolvedValue([]);
+    listManagerCandidates.mockResolvedValue([]);
     getValuesForEntity.mockResolvedValue({ ok: false, error: 'not_found' });
 
     const { container } = await renderServerComponent(
@@ -167,8 +168,8 @@ describe('AdminOrderDetailPage', () => {
 
   it('formats a plain-number totalAmount via fmtMoney (typeof === "number" branch)', async () => {
     requireAdmin.mockResolvedValue(SESSION);
-    orderFindUnique.mockResolvedValue({ ...BASE_ORDER, totalAmount: 1000 });
-    userFindMany.mockResolvedValue([]);
+    getOrderForAdmin.mockResolvedValue({ ...BASE_ORDER, totalAmount: 1000 });
+    listManagerCandidates.mockResolvedValue([]);
     getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
 
     const { container } = await renderServerComponent(
