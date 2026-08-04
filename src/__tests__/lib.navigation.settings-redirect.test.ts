@@ -11,6 +11,10 @@ const { redirect } = vi.hoisted(() => ({
 vi.mock('next/navigation', () => ({ redirect }));
 
 import { redirectToSettingsHub } from '@/lib/navigation/settingsRedirect';
+import { legacyRedirectMap } from '@/lib/navigation/settings';
+// next.config.mjs дублирует карту редиректов (читается до сборки, TS импортировать
+// не может) — сверяем, чтобы списки не разъехались.
+import { SETTINGS_HUB_REDIRECTS } from '../../next.config.mjs';
 
 beforeEach(() => {
   isFeatureEnabled.mockReset();
@@ -43,5 +47,13 @@ describe('redirectToSettingsHub', () => {
     isFeatureEnabled.mockReturnValue(true);
     expect(() => redirectToSettingsHub('/leader/roles')).toThrow('REDIRECT');
     expect(redirect).toHaveBeenCalledWith('/leader/settings/access/roles');
+  });
+});
+
+describe('карта редиректов в next.config', () => {
+  it('совпадает с реестром разделов один в один', () => {
+    expect(Object.fromEntries(SETTINGS_HUB_REDIRECTS)).toEqual(
+      Object.fromEntries(legacyRedirectMap())
+    );
   });
 });
