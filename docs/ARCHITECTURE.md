@@ -208,4 +208,4 @@ flowchart LR
 - [docs/RUNBOOK.md](RUNBOOK.md) — эксплуатация; смежные runbook'и лежат рядом (`docs/runbook-*.md`).
 - [docs/CI.md](CI.md) — CI и лестница локальных хуков.
 - [docs/REPO_AUDIT.md](REPO_AUDIT.md) — аудит фазы 0: фактическое состояние и находки.
-- [docs/tz/2026-07-29-tz-lk-otsfera-v0.5.md](tz/2026-07-29-tz-lk-otsfera-v0.5.md) — действующее ТЗ; прогресс — [docs/tz/STATUS.md](tz/STATUS.md).
+- [docs/tz/STATUS.md](tz/STATUS.md) — **какое ТЗ действующее и что делать дальше** (единственный источник правды о прогрессе). Сейчас действующее — [ТЗ починки импорта 1С](tz/2026-08-04-tz-fix-1c-import.md); [ТЗ продукта v0.5](tz/2026-07-29-tz-lk-otsfera-v0.5.md) остаётся справочником по продукту, новых работ из него не берут.
