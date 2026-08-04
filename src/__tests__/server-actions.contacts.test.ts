@@ -3,24 +3,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
 const { bindCall } = vi.hoisted(() => ({ bindCall: vi.fn() }));
 const { createContact } = vi.hoisted(() => ({ createContact: vi.fn() }));
-const { bindInboundMessageAction } = vi.hoisted(() => ({ bindInboundMessageAction: vi.fn() }));
-const { inboundMessageFindUnique } = vi.hoisted(() => ({ inboundMessageFindUnique: vi.fn() }));
+const { createContactFromInbound } = vi.hoisted(() => ({ createContactFromInbound: vi.fn() }));
 const { notFoundIfDisabled } = vi.hoisted(() => ({ notFoundIfDisabled: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
 vi.mock('@/lib/services/telephony/bindCall', () => ({ bindCall }));
 vi.mock('@/lib/services/manager/contacts', () => ({ createContact }));
-vi.mock('@/server-actions/inbound', () => ({
-  bindInboundMessageAction,
-  CHANNEL_TO_CONTACT_TYPE: {
-    telegram: 'telegram',
-    max: 'max',
-    whatsapp: 'whatsapp',
-    email: 'email',
-  },
-}));
-vi.mock('@/lib/db/prisma', () => ({
-  prisma: { inboundMessage: { findUnique: inboundMessageFindUnique } },
-}));
+vi.mock('@/lib/services/inbound/createContactFromInbound', () => ({ createContactFromInbound }));
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled }));
 
 import {
@@ -124,16 +113,16 @@ describe('contacts server-actions', () => {
     });
   });
 
+  // Цепочка «найти письмо → создать контакт → привязать» живёт целиком в
+  // сервисе createContactFromInbound (services.inbound.createContactFromInbound
+  // .test.ts); здесь — только флаг, гард и прокидка Result.
   describe('createContactFromInboundAction', () => {
     beforeEach(() => {
-      inboundMessageFindUnique.mockReset();
-      bindInboundMessageAction.mockReset();
+      createContactFromInbound.mockReset();
     });
 
-    it('creates a contact from the sender identity then binds the inbound message to it', async () => {
-      inboundMessageFindUnique.mockResolvedValue({ channel: 'telegram', senderRef: 'chat-9' });
-      createContact.mockResolvedValue({ ok: true, contactId: 'k9' });
-      bindInboundMessageAction.mockResolvedValue({ ok: true });
+    it('delegates to the createContactFromInbound service', async () => {
+      createContactFromInbound.mockResolvedValue({ ok: true, contactId: 'k9' });
 
       const r = await createContactFromInboundAction({
         inboundMessageId: 'im-1',
@@ -142,24 +131,11 @@ describe('contacts server-actions', () => {
       });
 
       expect(r).toEqual({ ok: true, contactId: 'k9' });
-      expect(inboundMessageFindUnique).toHaveBeenCalledWith({
-        where: { id: 'im-1' },
-        select: { channel: true, senderRef: true },
-      });
-      expect(createContact).toHaveBeenCalledWith(
+      expect(createContactFromInbound).toHaveBeenCalledWith(
         expect.anything(),
-        expect.anything(),
-        expect.objectContaining({
-          name: 'Иван',
-          organizationId: 'o1',
-          channels: [{ type: 'telegram', value: 'chat-9' }],
-        })
+        { sub: 'm1', role: 'manager', companyId: 'c1' },
+        { inboundMessageId: 'im-1', organizationId: 'o1', name: 'Иван' }
       );
-      expect(bindInboundMessageAction).toHaveBeenCalledWith({
-        inboundMessageId: 'im-1',
-        organizationId: 'o1',
-        contactId: 'k9',
-      });
     });
 
     it('returns forbidden when the contacts flag is disabled', async () => {
@@ -170,59 +146,20 @@ describe('contacts server-actions', () => {
         name: 'Иван',
       });
       expect(r).toEqual({ ok: false, error: 'forbidden' });
-      expect(inboundMessageFindUnique).not.toHaveBeenCalled();
-      expect(createContact).not.toHaveBeenCalled();
+      expect(requireManager).not.toHaveBeenCalled();
+      expect(createContactFromInbound).not.toHaveBeenCalled();
     });
 
-    it('returns not_found when the inbound message does not exist', async () => {
-      inboundMessageFindUnique.mockResolvedValue(null);
-
-      const r = await createContactFromInboundAction({
-        inboundMessageId: 'gone',
-        organizationId: 'o1',
-        name: 'Иван',
-      });
-
-      expect(r).toEqual({ ok: false, error: 'not_found' });
-      expect(createContact).not.toHaveBeenCalled();
-      expect(bindInboundMessageAction).not.toHaveBeenCalled();
-    });
-
-    it('createContact failure short-circuits (bind not called)', async () => {
-      inboundMessageFindUnique.mockResolvedValue({ channel: 'telegram', senderRef: 'chat-9' });
-      createContact.mockResolvedValue({ ok: false, error: 'forbidden' });
-
-      const r = await createContactFromInboundAction({
-        inboundMessageId: 'im-1',
-        organizationId: 'o1',
-        name: 'Иван',
-      });
-
-      expect(r).toEqual({ ok: false, error: 'forbidden' });
-      expect(bindInboundMessageAction).not.toHaveBeenCalled();
-    });
-
-    it('surfaces a bind failure even though createContact succeeded', async () => {
-      inboundMessageFindUnique.mockResolvedValue({
-        channel: 'whatsapp',
-        senderRef: '+79990001122',
-      });
-      createContact.mockResolvedValue({ ok: true, contactId: 'k9' });
-      bindInboundMessageAction.mockResolvedValue({ ok: false, error: 'not_found' });
-
-      const r = await createContactFromInboundAction({
-        inboundMessageId: 'im-1',
-        organizationId: 'o1',
-        name: 'Иван',
-      });
-
-      expect(r).toEqual({ ok: false, error: 'not_found' });
-      expect(createContact).toHaveBeenCalledTimes(1);
-      expect(bindInboundMessageAction).toHaveBeenCalledWith({
-        inboundMessageId: 'im-1',
-        organizationId: 'o1',
-        contactId: 'k9',
-      });
+    it('surfaces service failures unchanged (not_found / forbidden / invalid)', async () => {
+      for (const error of ['not_found', 'forbidden', 'invalid']) {
+        createContactFromInbound.mockResolvedValue({ ok: false, error });
+        const r = await createContactFromInboundAction({
+          inboundMessageId: 'im-1',
+          organizationId: 'o1',
+          name: 'Иван',
+        });
+        expect(r).toEqual({ ok: false, error });
+      }
     });
   });
 });

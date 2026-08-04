@@ -7,7 +7,7 @@ const {
   reactivateAssignment,
   sendManagerInviteEmail,
   revalidatePath,
-  organizationFindUnique,
+  getOrganizationName,
   orderFindUnique,
   orderUpdate,
   userFindUnique,
@@ -20,7 +20,7 @@ const {
   reactivateAssignment: vi.fn(),
   sendManagerInviteEmail: vi.fn(),
   revalidatePath: vi.fn(),
-  organizationFindUnique: vi.fn(),
+  getOrganizationName: vi.fn(),
   orderFindUnique: vi.fn(),
   orderUpdate: vi.fn(),
   userFindUnique: vi.fn(),
@@ -31,11 +31,11 @@ const {
 vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
-    organization: { findUnique: organizationFindUnique },
     order: { findUnique: orderFindUnique, update: orderUpdate },
     user: { findUnique: userFindUnique },
   },
 }));
+vi.mock('@/lib/services/organization/lookup', () => ({ getOrganizationName }));
 vi.mock('next/cache', () => ({ revalidatePath }));
 vi.mock('@/lib/email/send', () => ({ sendManagerInviteEmail }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
@@ -88,7 +88,7 @@ describe('assignOrInviteManagerAction', () => {
   });
 
   it('happy path mode=new — calls service, sends invite email, revalidates', async () => {
-    organizationFindUnique.mockResolvedValue({ name: 'ACME' });
+    getOrganizationName.mockResolvedValue('ACME');
     createAndAssignManager.mockResolvedValue({
       ok: true,
       user: { id: 'u-2', email: 'new@t.local' },
@@ -143,7 +143,28 @@ describe('assignOrInviteManagerAction', () => {
 
     expect(res).toMatchObject({ ok: true, alreadyHasPassword: true });
     expect(sendManagerInviteEmail).not.toHaveBeenCalled();
-    expect(organizationFindUnique).not.toHaveBeenCalled(); // skipped when no inviteUrl
+    expect(getOrganizationName).not.toHaveBeenCalled(); // skipped when no inviteUrl
+  });
+
+  it('mode=new без name — ключ name в сервис не передаётся (exactOptionalPropertyTypes)', async () => {
+    createAndAssignManager.mockResolvedValue({
+      ok: true,
+      user: { id: 'u-nn', email: 'noname@t.local' },
+      inviteUrl: null,
+      alreadyHasPassword: true,
+      reactivated: false,
+    });
+
+    const res = await assignOrInviteManagerAction(
+      fd({ mode: 'new', organizationId: 'org-1', email: 'noname@t.local' })
+    );
+
+    expect(res).toMatchObject({ ok: true });
+    expect(createAndAssignManager).toHaveBeenCalledWith(
+      expect.anything(),
+      { mode: 'new', organizationId: 'org-1', email: 'noname@t.local' },
+      'admin-1'
+    );
   });
 
   it('maps role_conflict Result to {ok:false, error:"role_conflict"}', async () => {
@@ -353,7 +374,7 @@ describe('setManagerRoleAction — requireAdmin gate', () => {
 
 describe('assignOrInviteManagerAction — email failure (graceful degradation)', () => {
   it('still returns ok:true when sendManagerInviteEmail throws', async () => {
-    organizationFindUnique.mockResolvedValue({ name: 'ACME' });
+    getOrganizationName.mockResolvedValue('ACME');
     createAndAssignManager.mockResolvedValue({
       ok: true,
       user: { id: 'u-5', email: 'invite@t.local' },
@@ -373,7 +394,7 @@ describe('assignOrInviteManagerAction — email failure (graceful degradation)',
   });
 
   it('uses fallback "организация" when org lookup returns null during email send', async () => {
-    organizationFindUnique.mockResolvedValue(null);
+    getOrganizationName.mockResolvedValue(null);
     createAndAssignManager.mockResolvedValue({
       ok: true,
       user: { id: 'u-6', email: 'inv2@t.local' },
@@ -394,7 +415,7 @@ describe('assignOrInviteManagerAction — email failure (graceful degradation)',
 
   it('uses undefined invitedByName when session.name is absent', async () => {
     requireAdmin.mockResolvedValue({ sub: 'admin-1', name: null });
-    organizationFindUnique.mockResolvedValue({ name: 'ACME' });
+    getOrganizationName.mockResolvedValue('ACME');
     createAndAssignManager.mockResolvedValue({
       ok: true,
       user: { id: 'u-7', email: 'inv3@t.local' },

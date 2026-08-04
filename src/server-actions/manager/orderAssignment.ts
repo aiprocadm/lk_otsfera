@@ -4,7 +4,8 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db/prisma';
 import { requireManager, requireManagerLeader } from '@/lib/auth/requireRole';
-import { claimOrder, assignOrderManager } from '@/lib/services/manager/distribution';
+import { claimOrder } from '@/lib/services/manager/distribution';
+import { assignOrderManagerAsLeader } from '@/lib/services/manager/leaderOrderAssignment';
 
 function revalidateOrder(orderId: string): void {
   revalidatePath(`/manager/orders/${orderId}`);
@@ -44,9 +45,11 @@ export type AssignManagerLeaderActionResult =
   | { ok: false; error: 'validation' | 'order_not_found' | 'invalid_manager' | 'forbidden' };
 
 /**
- * §5.3 manual assignment by a leader. Same-company guard (C8): a leader may only
- * assign managers on orders of their own company. Admin uses the parallel
- * /admin action (assignOrderManagerAction) which shares the same service.
+ * §5.3 manual assignment by a leader — тонкий адаптер над
+ * `assignOrderManagerAsLeader` (src/lib/services/manager/leaderOrderAssignment.ts).
+ * Same-company guard (C8) и сужение кандидата живут в сервисе. Admin uses the
+ * parallel /admin action (assignOrderManagerAction) which shares the underlying
+ * `assignOrderManager` service without those narrowings.
  */
 export async function assignOrderManagerLeaderAction(input: {
   orderId: string;
@@ -57,20 +60,9 @@ export async function assignOrderManagerLeaderAction(input: {
 
   const session = await requireManagerLeader();
 
-  const order = await prisma.order.findUnique({
-    where: { id: parsed.data.orderId },
-    select: { companyId: true },
-  });
-  if (!order) return { ok: false, error: 'order_not_found' };
-  if (!session.companyId || order.companyId !== session.companyId) {
-    return { ok: false, error: 'forbidden' };
-  }
-
-  const result = await assignOrderManager(prisma, session, {
+  const result = await assignOrderManagerAsLeader(prisma, session, {
     orderId: parsed.data.orderId,
     managerUserId: parsed.data.managerUserId,
-    // C8: candidate manager must belong to the leader's (= order's) company.
-    restrictToCompanyId: session.companyId,
   });
   if (!result.ok) return result;
 

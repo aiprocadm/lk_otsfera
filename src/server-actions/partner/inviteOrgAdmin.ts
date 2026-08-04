@@ -9,6 +9,7 @@ import {
   OrgInviteError,
   type OrgInviteErrorCode,
 } from '@/lib/services/organization/invite';
+import { getOrganizationName } from '@/lib/services/organization/lookup';
 import { OrgMemberError, type OrgMemberErrorCode } from '@/lib/services/organization/team';
 import { sendOrgInviteEmail } from '@/lib/email/send';
 import { log } from '@/lib/logging';
@@ -64,13 +65,10 @@ export async function invitePartnerOrgAdminAction(
     // not surface as an action error.
     if (result.inviteUrl !== null) {
       try {
-        const org = await prisma.organization.findUnique({
-          where: { id: parsed.data.organizationId },
-          select: { name: true },
-        });
+        const orgName = await getOrganizationName(prisma, parsed.data.organizationId);
         await sendOrgInviteEmail({
           to: parsed.data.email,
-          organizationName: org?.name ?? 'организация',
+          organizationName: orgName ?? 'организация',
           inviteUrl: result.inviteUrl,
           invitedByName: session.name ?? undefined,
         });

@@ -10,6 +10,7 @@ import {
   reactivateAssignment,
   type ManagerInviteErrorCode,
 } from '@/lib/services/manager/invite';
+import { getOrganizationName } from '@/lib/services/organization/lookup';
 import { sendManagerInviteEmail } from '@/lib/email/send';
 import { setManagerRole } from '@/lib/services/admin/managerRole';
 import { assignOrderManager } from '@/lib/services/manager/distribution';
@@ -81,13 +82,10 @@ export async function assignOrInviteManagerAction(
     // transport failure must not bubble out of the action: the invite is
     // already created and would look failed while the token is live.
     try {
-      const org = await prisma.organization.findUnique({
-        where: { id: parsed.data.organizationId },
-        select: { name: true },
-      });
+      const orgName = await getOrganizationName(prisma, parsed.data.organizationId);
       await sendManagerInviteEmail({
         to: parsed.data.email,
-        organizationName: org?.name ?? 'организация',
+        organizationName: orgName ?? 'организация',
         inviteUrl: result.inviteUrl,
         invitedByName: session.name ?? undefined,
       });

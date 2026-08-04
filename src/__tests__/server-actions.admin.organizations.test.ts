@@ -4,24 +4,18 @@ const {
   requireAdmin,
   updateOrganization,
   createOrganization,
-  setOrgCommissionRate,
-  clearOrgCommissionRate,
+  applyOrgRateOverride,
   revalidatePath,
-  organizationFindUnique,
 } = vi.hoisted(() => ({
   requireAdmin: vi.fn(),
   updateOrganization: vi.fn(),
   createOrganization: vi.fn(),
-  setOrgCommissionRate: vi.fn(),
-  clearOrgCommissionRate: vi.fn(),
+  applyOrgRateOverride: vi.fn(),
   revalidatePath: vi.fn(),
-  organizationFindUnique: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
-vi.mock('@/lib/db/prisma', () => ({
-  prisma: { organization: { findUnique: organizationFindUnique } },
-}));
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('next/cache', () => ({ revalidatePath }));
 
 vi.mock('@/lib/services/admin/organizations', async () => {
@@ -31,10 +25,7 @@ vi.mock('@/lib/services/admin/organizations', async () => {
   return { ...actual, updateOrganization, createOrganization };
 });
 
-vi.mock('@/lib/services/partner/rateOverride', () => ({
-  setOrgCommissionRate,
-  clearOrgCommissionRate,
-}));
+vi.mock('@/lib/services/admin/orgRateOverride', () => ({ applyOrgRateOverride }));
 
 import {
   createOrganizationAction,
@@ -146,94 +137,69 @@ describe('setOrgRateOverrideAction', () => {
   it('returns validation error when reason is missing — bare stable code, no zod details (R2)', async () => {
     const res = await setOrgRateOverrideAction(fd({ organizationId: 'org-1', ratePercent: '8' }));
     expect(res).toEqual({ ok: false, error: 'validation' });
-    expect(organizationFindUnique).not.toHaveBeenCalled();
-    expect(setOrgCommissionRate).not.toHaveBeenCalled();
+    expect(applyOrgRateOverride).not.toHaveBeenCalled();
   });
 
-  it('returns not_found when org lookup returns null', async () => {
-    organizationFindUnique.mockResolvedValue(null);
-
-    const res = await setOrgRateOverrideAction(
-      fd({ organizationId: 'missing-org', ratePercent: '8', reason: 'special deal' })
-    );
-
-    expect(res).toEqual({ ok: false, error: 'not_found' });
-    expect(setOrgCommissionRate).not.toHaveBeenCalled();
-  });
-
-  it('set happy path: calls setOrgCommissionRate with newRate as fraction and partnerId from lookup', async () => {
-    organizationFindUnique.mockResolvedValue({ partnerId: 'partner-42' });
-    setOrgCommissionRate.mockResolvedValue({ ok: true });
+  it('set happy path: передаёт ratePercent и changedByUserId в сервис + ревалидирует карточку', async () => {
+    applyOrgRateOverride.mockResolvedValue({ ok: true });
 
     const res = await setOrgRateOverrideAction(
       fd({ organizationId: 'org-1', ratePercent: '8', reason: 'vip client' })
     );
 
     expect(res).toEqual({ ok: true });
-    expect(setOrgCommissionRate).toHaveBeenCalledWith(expect.anything(), {
+    expect(applyOrgRateOverride).toHaveBeenCalledWith(expect.anything(), {
       organizationId: 'org-1',
-      partnerId: 'partner-42',
-      newRate: 0.08,
+      ratePercent: 8,
       reason: 'vip client',
       changedByUserId: 'admin-1',
     });
     expect(revalidatePath).toHaveBeenCalledWith('/admin/organizations/org-1');
   });
 
-  it('clear happy path: calls clearOrgCommissionRate when clear=true', async () => {
-    organizationFindUnique.mockResolvedValue({ partnerId: 'partner-42' });
-    clearOrgCommissionRate.mockResolvedValue({ ok: true });
+  it('clear happy path: передаёт clear=true (без ratePercent) и ревалидирует', async () => {
+    applyOrgRateOverride.mockResolvedValue({ ok: true });
 
     const res = await setOrgRateOverrideAction(
       fd({ organizationId: 'org-1', reason: 'reverting override', clear: 'true' })
     );
 
     expect(res).toEqual({ ok: true });
-    expect(clearOrgCommissionRate).toHaveBeenCalledWith(expect.anything(), {
+    expect(applyOrgRateOverride).toHaveBeenCalledWith(expect.anything(), {
       organizationId: 'org-1',
-      partnerId: 'partner-42',
       reason: 'reverting override',
       changedByUserId: 'admin-1',
+      clear: true,
     });
-    expect(setOrgCommissionRate).not.toHaveBeenCalled();
     expect(revalidatePath).toHaveBeenCalledWith('/admin/organizations/org-1');
   });
 
   it('maps service rate_out_of_range Result to rate_out_of_range failure', async () => {
-    organizationFindUnique.mockResolvedValue({ partnerId: 'partner-42' });
-    setOrgCommissionRate.mockResolvedValue({ ok: false, error: 'rate_out_of_range' });
+    applyOrgRateOverride.mockResolvedValue({ ok: false, error: 'rate_out_of_range' });
 
     const res = await setOrgRateOverrideAction(
       fd({ organizationId: 'org-1', ratePercent: '8', reason: 'bad rate' })
     );
 
     expect(res).toEqual({ ok: false, error: 'rate_out_of_range' });
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 
-  it('returns validation error when both clear and ratePercent are absent', async () => {
-    organizationFindUnique.mockResolvedValue({ partnerId: 'partner-42' });
+  it('maps service validation Result (ни clear, ни ratePercent) to validation', async () => {
+    applyOrgRateOverride.mockResolvedValue({ ok: false, error: 'validation' });
 
     const res = await setOrgRateOverrideAction(fd({ organizationId: 'org-1', reason: 'test' }));
 
     expect(res).toMatchObject({ ok: false, error: 'validation' });
-    expect(setOrgCommissionRate).not.toHaveBeenCalled();
-    expect(clearOrgCommissionRate).not.toHaveBeenCalled();
-  });
-
-  it('returns not_found when org has no partnerId (standalone org)', async () => {
-    organizationFindUnique.mockResolvedValue({ partnerId: null });
-
-    const res = await setOrgRateOverrideAction(
-      fd({ organizationId: 'standalone-org', ratePercent: '8', reason: 'n/a' })
-    );
-
-    expect(res).toEqual({ ok: false, error: 'not_found' });
-    expect(setOrgCommissionRate).not.toHaveBeenCalled();
+    expect(applyOrgRateOverride).toHaveBeenCalledWith(expect.anything(), {
+      organizationId: 'org-1',
+      reason: 'test',
+      changedByUserId: 'admin-1',
+    });
   });
 
   it('maps service not_found Result to not_found', async () => {
-    organizationFindUnique.mockResolvedValue({ partnerId: 'p-42' });
-    setOrgCommissionRate.mockResolvedValue({ ok: false, error: 'not_found' });
+    applyOrgRateOverride.mockResolvedValue({ ok: false, error: 'not_found' });
 
     const res = await setOrgRateOverrideAction(
       fd({ organizationId: 'org-1', ratePercent: '8', reason: 'test' })
@@ -261,17 +227,16 @@ describe('form-action wrappers (discard result, log on failure)', () => {
   });
 
   it('setOrgRateOverrideFormAction returns void on success', async () => {
-    organizationFindUnique.mockResolvedValue({ partnerId: 'p-1' });
-    setOrgCommissionRate.mockResolvedValue({ ok: true });
+    applyOrgRateOverride.mockResolvedValue({ ok: true });
     const result = await setOrgRateOverrideFormAction(
       fd({ organizationId: 'org-1', ratePercent: '5', reason: 'test' })
     );
     expect(result).toBeUndefined();
-    expect(setOrgCommissionRate).toHaveBeenCalled();
+    expect(applyOrgRateOverride).toHaveBeenCalled();
   });
 
   it('setOrgRateOverrideFormAction logs and swallows failure', async () => {
-    organizationFindUnique.mockResolvedValue(null);
+    applyOrgRateOverride.mockResolvedValue({ ok: false, error: 'not_found' });
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const result = await setOrgRateOverrideFormAction(
       fd({ organizationId: 'missing', ratePercent: '5', reason: 'test' })

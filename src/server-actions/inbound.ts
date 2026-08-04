@@ -2,280 +2,42 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import type { ContactChannelType } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireManager } from '@/lib/auth/requireRole';
-import { getCompanyTeamVisibility, isOrgInScope, isManagerLeader } from '@/lib/auth/managerPolicy';
-import { recordAudit } from '@/lib/auth/audit';
-import { notifyOrgUsers } from '@/lib/notifications';
-import { replyToInbound } from '@/lib/services/inbound/reply';
-import { isInboundMessageInScope } from '@/lib/services/inbound/scope';
-import { writeSyncLog } from '@/lib/services/oneCSync/log';
-import { captureChannel } from '@/lib/services/manager/contacts';
-import { log } from '@/lib/logging';
+import {
+  bindInboundMessage,
+  type BindInboundMessageArgs,
+  type BindInboundMessageResult,
+} from '@/lib/services/inbound/bind';
+import {
+  sendInboundReply,
+  type SendInboundReplyArgs,
+  type SendInboundReplyResult,
+} from '@/lib/services/inbound/sendReply';
+import { archiveInboundMessage, restoreInboundMessage } from '@/lib/services/inbound/archive';
+
+export type { BindInboundMessageArgs, BindInboundMessageResult };
+export type ReplyInboundArgs = SendInboundReplyArgs;
+export type ReplyInboundResult = SendInboundReplyResult;
 
 /**
- * `InboundMessage.channel` values map 1:1 onto `ContactChannelType` — used by
- * the learn-on-link capture in `bindInboundMessageAction` below, and reused by
- * `createContactFromInboundAction` (src/server-actions/contacts.ts) to seed
- * the new contact's channel from the message that created it.
- */
-export const CHANNEL_TO_CONTACT_TYPE: Record<
-  'telegram' | 'max' | 'whatsapp' | 'email',
-  ContactChannelType
-> = {
-  telegram: 'telegram',
-  max: 'max',
-  whatsapp: 'whatsapp',
-  email: 'email',
-};
-
-export type BindInboundMessageArgs = {
-  inboundMessageId: string;
-  organizationId: string;
-  orderId?: string;
-  contactId?: string;
-};
-
-export type BindInboundMessageResult =
-  { ok: true } | { ok: false; error: 'forbidden' | 'not_found' };
-
-/**
- * Binds an unresolved/mis-resolved InboundMessage to a specific organization
- * (and optionally an order and/or a contact), so a manager can triage inbound
- * chat/email that `resolveInboundSender` (src/lib/services/inbound/resolve.ts)
- * failed to auto-match. Company-scoped (CLAUDE.md §4, C8): the target
- * organization must belong to the manager's own company — team-visibility-aware
- * via `getCompanyTeamVisibility` (ON → any org in the company; OFF → only orgs
- * in `session.managedOrgIds` via `isOrgInScope`). The MESSAGE itself must also
- * be in the C8 inbox scope (`isInboundMessageInScope`, scope.ts): without that
- * gate a manager of company B could re-bind company A's bound/archived row by
- * cuid, stealing it into their own company (E2 hardening).
- *
- * Learn-on-link: when a contact is bound, the message's sender identity
- * (`senderRef`) is captured as a channel on that contact (`captureChannel`,
- * idempotent) so future messages from the same sender auto-resolve. Mirrors
- * `bindCall` (src/lib/services/telephony/bindCall.ts) — same shape, different
- * source entity.
+ * Тонкий адаптер над `bindInboundMessage` (src/lib/services/inbound/bind.ts):
+ * гард роли здесь, весь скоуп (C8 + teamMode) и запись — в сервисе.
  */
 export async function bindInboundMessageAction(
   args: BindInboundMessageArgs
 ): Promise<BindInboundMessageResult> {
   const session = await requireManager();
-
-  const message = await prisma.inboundMessage.findUnique({
-    where: { id: args.inboundMessageId },
-    select: { id: true, channel: true, senderRef: true, companyId: true, status: true },
-  });
-  if (!message) return { ok: false, error: 'not_found' };
-
-  // C8 scope gate (E2): own company's rows or the shared unresolved queue —
-  // BEFORE the org lookup, so a foreign row costs no extra queries and does
-  // not depend on whichever organizationId the caller supplied.
-  if (!isInboundMessageInScope(session, message)) {
-    return { ok: false, error: 'forbidden' };
-  }
-
-  const org = await prisma.organization.findUnique({
-    where: { id: args.organizationId },
-    select: { id: true, companyId: true },
-  });
-  if (!org) return { ok: false, error: 'not_found' };
-
-  const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
-  // C8: company is the hard isolation boundary — enforce in BOTH modes.
-  // (managedOrgIds is loaded without a company filter, so in teamMode OFF a
-  // cross-company OrganizationManager assignment would otherwise let a manager
-  // bind an inbound to a foreign company's org, writing that foreign companyId
-  // — an IDOR hole. CLAUDE.md §4/§5.)
-  if (!session.companyId || org.companyId !== session.companyId) {
-    return { ok: false, error: 'forbidden' };
-  }
-  // managedOrgIds only further narrows within teamMode OFF (company already
-  // enforced above).
-  // Руководителя сужение по закреплению не касается (лидер-инвариант C8):
-  // компания проверена выше.
-  if (!teamMode && !isManagerLeader(session) && !isOrgInScope(session, args.organizationId)) {
-    return { ok: false, error: 'forbidden' };
-  }
-
-  // Optional contact attribution: the contact must belong to the manager's own
-  // company and (if it already has an org) that org must match the target —
-  // mirrors bindCall's contact gate (src/lib/services/telephony/bindCall.ts).
-  let contactId: string | null = null;
-  if (args.contactId) {
-    const contact = await prisma.contact.findUnique({
-      where: { id: args.contactId },
-      select: { id: true, companyId: true, organizationId: true },
-    });
-    if (!contact || contact.companyId !== session.companyId)
-      return { ok: false, error: 'forbidden' };
-    if (contact.organizationId && contact.organizationId !== args.organizationId) {
-      return { ok: false, error: 'forbidden' };
-    }
-    contactId = contact.id;
-  }
-
-  // Best-effort thread resolution: only if an orderId was given AND that
-  // order belongs to the target org AND is itself in the manager's scope.
-  let threadId: string | null = null;
-  if (args.orderId) {
-    const order = await prisma.order.findUnique({
-      where: { id: args.orderId },
-      select: { id: true, organizationId: true, companyId: true },
-    });
-    const orderInScope =
-      !!order &&
-      order.organizationId === args.organizationId &&
-      // C8-гейт выше уже гарантирует session.companyId non-null.
-      (teamMode ? order.companyId === session.companyId : true);
-    if (orderInScope) {
-      const thread = await prisma.orderThread.findUnique({
-        where: { orderId_side: { orderId: args.orderId, side: 'org' } },
-        select: { id: true },
-      });
-      threadId = thread?.id ?? null;
-    }
-  }
-
-  await prisma.inboundMessage.update({
-    where: { id: args.inboundMessageId },
-    data: {
-      resolvedOrgId: args.organizationId,
-      companyId: org.companyId,
-      threadId,
-      contactId,
-      status: 'bound',
-      boundAt: new Date(),
-      boundById: session.sub,
-    },
-  });
-
-  if (contactId) {
-    const channelType =
-      CHANNEL_TO_CONTACT_TYPE[message.channel as keyof typeof CHANNEL_TO_CONTACT_TYPE];
-    await captureChannel(prisma, {
-      contactId,
-      companyId: org.companyId,
-      type: channelType,
-      value: message.senderRef,
-    });
-  }
-
-  await recordAudit(prisma, {
-    action: 'inbound_message_bound',
-    entity: 'order_thread',
-    entityId: args.inboundMessageId,
-    userId: session.sub,
-    after: { organizationId: args.organizationId, threadId, contactId },
-  });
-
-  return { ok: true };
+  return bindInboundMessage(prisma, session, args);
 }
 
-export type ReplyInboundArgs = {
-  inboundMessageId: string;
-  text: string;
-};
-
-export type ReplyInboundResult =
-  | { ok: true }
-  | {
-      ok: false;
-      error: 'forbidden' | 'not_found' | 'invalid' | 'reply_failed' | 'email_unsupported';
-    };
-
 /**
- * Sends a manager reply to an inbound message through the existing outbound
- * transport (`replyToInbound`, src/lib/services/inbound/reply.ts). Scope: the
- * message must already be bound to the manager's own company (`companyId`
- * matches `session.companyId`) — an unresolved (`companyId=null`) or
- * cross-company message is `forbidden`; bind it first via
- * `bindInboundMessageAction`.
+ * Тонкий адаптер над `sendInboundReply` (src/lib/services/inbound/sendReply.ts):
+ * отправка ответа в канал + зеркало в тред + аудит/лог живут в сервисе.
  */
 export async function replyInboundAction(args: ReplyInboundArgs): Promise<ReplyInboundResult> {
   const session = await requireManager();
-
-  const message = await prisma.inboundMessage.findUnique({
-    where: { id: args.inboundMessageId },
-    select: {
-      id: true,
-      channel: true,
-      senderRef: true,
-      subject: true,
-      companyId: true,
-      threadId: true,
-      resolvedUserId: true,
-    },
-  });
-  if (!message) return { ok: false, error: 'not_found' };
-
-  if (!message.companyId || !session.companyId || message.companyId !== session.companyId) {
-    return { ok: false, error: 'forbidden' };
-  }
-
-  const text = args.text.trim();
-  if (!text) return { ok: false, error: 'invalid' };
-
-  const result = await replyToInbound(message, text);
-  if (!result.ok) {
-    return { ok: false, error: message.channel === 'email' ? 'email_unsupported' : 'reply_failed' };
-  }
-
-  // Best-effort thread mirror: reflect the reply into the org chat thread (if
-  // one is bound) so the organization sees it alongside the rest of the
-  // conversation. A mirror failure must NOT fail the action — the reply
-  // already went out over the real channel.
-  if (message.threadId) {
-    try {
-      await prisma.message.create({
-        data: { threadId: message.threadId, authorId: session.sub, body: text },
-      });
-      const thread = await prisma.orderThread.update({
-        where: { id: message.threadId },
-        data: { lastMessageAt: new Date() },
-        select: { orderId: true },
-      });
-      const order = await prisma.order.findUnique({
-        where: { id: thread.orderId },
-        select: { id: true, organizationId: true, orderNumber: true, title: true },
-      });
-      if (order?.organizationId) {
-        await notifyOrgUsers(prisma, {
-          organizationId: order.organizationId,
-          type: 'manager_replied',
-          payload: {
-            orderId: order.id,
-            orderNumber: order.orderNumber,
-            orderTitle: order.title,
-            commentExcerpt: text.slice(0, 200),
-          },
-        });
-      }
-    } catch (err) {
-      log.warn('[inbound/replyInboundAction] thread mirror failed', {
-        inboundMessageId: args.inboundMessageId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-  }
-
-  await recordAudit(prisma, {
-    action: 'inbound_message_replied',
-    entity: 'order_thread',
-    entityId: args.inboundMessageId,
-    userId: session.sub,
-    after: { channel: message.channel },
-  });
-
-  await writeSyncLog({
-    entity: 'inbound',
-    direction: 'outbound',
-    operation: 'create',
-    status: 'success',
-  });
-
-  return { ok: true };
+  return sendInboundReply(prisma, session, args);
 }
 
 const ArchiveInboundSchema = z.object({ inboundMessageId: z.string().min(1).max(64) });
@@ -284,25 +46,9 @@ export type ArchiveInboundResult =
   { ok: true } | { ok: false; error: 'validation' | 'forbidden' | 'not_found' };
 
 /**
- * Archives an inbound message (E2). Scope: the shared C8 predicate
- * `isInboundMessageInScope` (scope.ts) — own company's messages plus the
- * shared unresolved triage queue; a foreign company's bound message is
- * `forbidden`. Archiving an unresolved (companyId=null) message PINS it to
- * the archiver's company (bind-like semantics: a staff action fixes the
- * message to the actor's company) — otherwise the archived row would leave
- * EVERY session's scope forever (the scope matches own-company rows OR
- * status='unresolved', and archiving drops the status branch), i.e. it would
- * be invisible in the list and unrestorable. Pinning requires the actor to
- * HAVE a company, so a companyId-less session gets `forbidden` on the shared
- * queue. An unresolved row that ALREADY carries a companyId (restored after a
- * pin) is NOT re-pinned: company B archiving a row pinned to A sends it to
- * A's archive — deterministic and restorable by A. Idempotent: archiving an
- * already-archived message is a no-op `{ ok: true }` (no update, no audit).
- * The write is a compare-and-swap on the status we read (`updateMany` with
- * `status` in the where): a concurrent bind/archive that moved the row
- * between our read and write yields 0 rows → `not_found` (TOCTOU guard —
- * otherwise archive(co-B) racing bind(co-A) on one unresolved row could
- * stamp co-B's pin over the fresh co-A binding, crossing C8).
+ * Архивация обращения (E2). Форма входа — здесь (zod → `validation`), скоуп и
+ * запись — в `archiveInboundMessage`. Идемпотентный повтор (`changed: false`)
+ * не ревалидирует страницу: ничего не изменилось.
  */
 export async function archiveInboundMessageAction(input: {
   inboundMessageId: string;
@@ -312,58 +58,16 @@ export async function archiveInboundMessageAction(input: {
 
   const session = await requireManager();
 
-  const message = await prisma.inboundMessage.findUnique({
-    where: { id: parsed.data.inboundMessageId },
-    select: { companyId: true, status: true },
+  const result = await archiveInboundMessage(prisma, session, {
+    inboundMessageId: parsed.data.inboundMessageId,
   });
-  if (!message) return { ok: false, error: 'not_found' };
+  if (!result.ok) return result;
 
-  if (!isInboundMessageInScope(session, message)) return { ok: false, error: 'forbidden' };
-
-  if (message.status === 'archived') return { ok: true };
-
-  // Unresolved queue → pin to the archiver's company (see JSDoc); an
-  // already-bound message keeps its companyId untouched.
-  let data: { status: string; companyId?: string };
-  if (message.companyId == null) {
-    if (!session.companyId) return { ok: false, error: 'forbidden' };
-    data = { status: 'archived', companyId: session.companyId };
-  } else {
-    data = { status: 'archived' };
-  }
-
-  // CAS on the status we based the decision on (see JSDoc: TOCTOU guard).
-  const updated = await prisma.inboundMessage.updateMany({
-    where: { id: parsed.data.inboundMessageId, status: message.status },
-    data,
-  });
-  if (updated.count === 0) return { ok: false, error: 'not_found' };
-
-  await recordAudit(prisma, {
-    action: 'inbound_message_archived',
-    entity: 'order_thread',
-    entityId: parsed.data.inboundMessageId,
-    userId: session.sub,
-    before: { status: message.status },
-    after: data,
-  });
-
-  revalidatePath('/manager/inbox');
+  if (result.changed) revalidatePath('/manager/inbox');
   return { ok: true };
 }
 
-/**
- * Restores an archived inbound message (E2) back to its pre-archive status:
- * `bound` if it was ever bound (`boundAt` set), otherwise `unresolved`.
- * Scope: same shared C8 predicate as archive. A non-archived message returns
- * `not_found` — there is nothing to restore (semantics agreed in the plan).
- * A message restored to `unresolved` keeps the companyId pinned by archive —
- * shared-queue visibility comes from the status branch of the scope, and a
- * later bind overwrites companyId from the target organization anyway.
- * The write is a compare-and-swap on `status='archived'` (`updateMany`):
- * a concurrent restore/bind that moved the row between our read and write
- * yields 0 rows → `not_found` (TOCTOU guard, same as archive).
- */
+/** Восстановление обращения из архива (E2) — см. `restoreInboundMessage`. */
 export async function restoreInboundMessageAction(input: {
   inboundMessageId: string;
 }): Promise<ArchiveInboundResult> {
@@ -372,32 +76,10 @@ export async function restoreInboundMessageAction(input: {
 
   const session = await requireManager();
 
-  const message = await prisma.inboundMessage.findUnique({
-    where: { id: parsed.data.inboundMessageId },
-    select: { companyId: true, status: true, boundAt: true },
+  const result = await restoreInboundMessage(prisma, session, {
+    inboundMessageId: parsed.data.inboundMessageId,
   });
-  if (!message) return { ok: false, error: 'not_found' };
-
-  if (!isInboundMessageInScope(session, message)) return { ok: false, error: 'forbidden' };
-
-  if (message.status !== 'archived') return { ok: false, error: 'not_found' };
-
-  const restoredStatus = message.boundAt ? 'bound' : 'unresolved';
-  // CAS on 'archived' (see JSDoc: TOCTOU guard).
-  const updated = await prisma.inboundMessage.updateMany({
-    where: { id: parsed.data.inboundMessageId, status: 'archived' },
-    data: { status: restoredStatus },
-  });
-  if (updated.count === 0) return { ok: false, error: 'not_found' };
-
-  await recordAudit(prisma, {
-    action: 'inbound_message_restored',
-    entity: 'order_thread',
-    entityId: parsed.data.inboundMessageId,
-    userId: session.sub,
-    before: { status: 'archived' },
-    after: { status: restoredStatus },
-  });
+  if (!result.ok) return result;
 
   revalidatePath('/manager/inbox');
   return { ok: true };
