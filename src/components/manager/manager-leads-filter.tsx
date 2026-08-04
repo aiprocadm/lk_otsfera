@@ -1,13 +1,12 @@
 import React from 'react';
 import Link from 'next/link';
+import { LEAD_STATUS_FILTER_LABELS_RU } from '@/lib/leads/statuses';
 
+// Вкладки строятся из единого источника (@/lib/leads/statuses): список
+// статусов больше не дублируется здесь и не может разъехаться с prisma-enum.
 const TABS: Array<{ value: string; label: string }> = [
   { value: '', label: 'Все' },
-  { value: 'new', label: 'Новые' },
-  { value: 'in_review', label: 'На рассмотрении' },
-  { value: 'qualified', label: 'Квалифицированы' },
-  { value: 'promoted_to_order', label: 'Стали заказом' },
-  { value: 'rejected', label: 'Отклонены' },
+  ...Object.entries(LEAD_STATUS_FILTER_LABELS_RU).map(([value, label]) => ({ value, label })),
 ];
 
 type Query = {

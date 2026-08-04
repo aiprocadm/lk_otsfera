@@ -1,5 +1,5 @@
 import React from 'react';
-import type { LeadStatus } from '@prisma/client';
+import { isLeadStatus } from '@/lib/leads/statuses';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { listManagerLeads } from '@/lib/services/manager/leads';
@@ -11,8 +11,6 @@ export const dynamic = 'force-dynamic';
 
 type SearchParams = { status?: string; q?: string; assignedToMe?: string; cursor?: string };
 
-const STATUSES = ['new', 'in_review', 'qualified', 'promoted_to_order', 'rejected'];
-
 export default async function ManagerLeadsPage({
   searchParams,
 }: {
@@ -20,7 +18,7 @@ export default async function ManagerLeadsPage({
 }) {
   const session = await requireManager();
   const sp = await searchParams;
-  const status = sp.status && STATUSES.includes(sp.status) ? (sp.status as LeadStatus) : undefined;
+  const status = sp.status && isLeadStatus(sp.status) ? sp.status : undefined;
 
   const [{ rows, nextCursor }, organizations] = await Promise.all([
     listManagerLeads(prisma, {
