@@ -17,7 +17,7 @@
  *   npm run db:recreate-local        # drop + recreate `cabinet` with ICU, verify folding
  *   # then:
  *   npm run prisma:migrate:deploy
- *   npm run prisma:seed              # NB: seed never self-exits locally (BullMQ handle) — Ctrl-C after "[seed] done"
+ *   npm run prisma:seed
  *
  * Cross-platform (tsx, no psql/bash dependency). DESTRUCTIVE: drops the target DB.
  * Guarded to localhost only so it can never touch a managed/remote database.
