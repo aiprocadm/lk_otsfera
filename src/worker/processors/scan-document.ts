@@ -155,8 +155,9 @@ type ParsedScanResponse =
 
 function parseClamAvResponse(response: string): ParsedScanResponse {
   if (/: OK\b/.test(response)) return { type: 'clean' };
-  const found = /: (.+) FOUND\b/.exec(response);
-  if (found) return { type: 'infected', virus: found[1].trim() };
+  // Группа 1 не опциональна: если exec вернул матч, она всегда строка.
+  const virus = /: (.+) FOUND\b/.exec(response)?.[1];
+  if (virus !== undefined) return { type: 'infected', virus: virus.trim() };
   return {
     type: 'error',
     reason: `Unexpected ClamAV response: ${response.slice(0, 200) || '(empty)'}`,

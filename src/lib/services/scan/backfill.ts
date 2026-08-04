@@ -34,7 +34,7 @@ export async function backfillTable(
       await queue.add('scan', payload);
       enqueued += 1;
     }
-    cursor = rows[rows.length - 1].id;
+    cursor = rows[rows.length - 1]!.id; // пустая пачка отсеяна проверкой выше
     if (rows.length < batchSize) return enqueued;
   }
 }

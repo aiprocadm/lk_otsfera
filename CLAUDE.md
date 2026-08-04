@@ -10,7 +10,7 @@ Next.js 15 (App Router) · React 19 · TypeScript 5 (strict) · Prisma 5 + Postg
 |---|---|
 | `npm run dev` | Локальный dev-сервер на :3000 |
 | `npm run worker:dev` | Отдельный процесс воркера (BullMQ); UI без него не падает, но фоновые задачи не выполняются |
-| `npm run typecheck` | Перед коммитом — обязательно (strict TS) |
+| `npm run typecheck` | Перед коммитом — обязательно. Гоняет **два проекта**: боевой (`typecheck:src`) и тестовый (`typecheck:tests`, конфиг [src/__tests__/tsconfig.json](src/__tests__/tsconfig.json)) |
 | `npm run lint` | Перед коммитом — обязательно |
 | `npm test` | Все vitest'ы — unit + integration. **Запускаются последовательно по файлам** (см. §6) |
 | `npm run test:unit` | Только unit-слой (без Postgres). Используется в pre-push hook |
@@ -196,6 +196,33 @@ removeOnComplete: { count: 1000 }, removeOnFail: false
 - Audit log — единственный канал для расследования: пиши `action`, `entity`, `entityId`, `userId`, опционально `after`. Не пиши секреты.
 - **Журнал доступа к ПДн (§25.7)** — модель `PiiAccessEvent` + хелпер `recordPiiAccess` ([src/lib/pii/record.ts](src/lib/pii/record.ts)). Новое staff-чтение ПДн физлиц клиентского контура обязано зарегистрировать контекст в [src/lib/pii/contexts.ts](src/lib/pii/contexts.ts) и вызвать `recordPiiAccess` (guardrail `pii.capture-coverage`). `subjectIds` — только id строк; в `meta` запрещены сырые поисковые строки; содержимое журнала не выводится в pino-логи. Запись awaited + never-throws (fail-open §3, `log.error` на сбой).
 - **Логирование — только через `@/lib/logging`** (`log` — server/worker; `@/lib/logging/edge` — middleware; `@/lib/logging/client` — 'use client'). Сырой `console.*` в `src/**` запрещён eslint-правилом `no-console`. В production логгер пишет pino-JSON и прогоняет контекст через `scrub()` (ПДн/секреты → `[REDACTED]`); в dev/test — console-passthrough с verbatim-аргументами (на этом держатся ~37 console-spy регрессов — формат сообщений не менять). Sentry (server/edge/worker) — no-op без `SENTRY_DSN`; события чистятся `scrubSentryEvent` (`sendDefaultPii: false`).
+
+## 11b. Строгость TypeScript — два проекта (фаза 1b)
+
+Включены: `strict`, `noImplicitOverride`, `verbatimModuleSyntax`,
+`exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`.
+
+**`noUncheckedIndexedAccess` действует только на боевой код.** Тесты живут по
+своему [src/__tests__/tsconfig.json](src/__tests__/tsconfig.json) (наследует
+боевой, отключает один этот флаг). Причина: в бою флаг ловит реальные
+обращения к отсутствующему элементу (75 мест), в тестах даёт 1212
+срабатываний вида `calls[0][1]`, где индекс заведомо валиден. Корневой
+конфиг исключает `src/__tests__`, вложенный подхватывается автоматически
+(TS и typescript-eslint ищут ближайший `tsconfig.json` вверх по дереву).
+Собственные ambient-объявления (`src/types/*.d.ts`) включены в оба проекта.
+
+Практика по флагам:
+
+- `exactOptionalPropertyTypes`: у **своих** типов, где «поля нет» == «поле
+  undefined», расширяй объявление `x?: T | undefined`. Условный спред
+  `...(v !== undefined ? { v } : {})` — только там, где получатель различает
+  отсутствие и undefined: **аргументы Prisma** (`where`/`update`), внешние SDK,
+  JWT-claims, `updatePartnerAction` (`null` = «сбросить ставку»).
+- `noUncheckedIndexedAccess`: чини перестройкой кода (`for…of`,
+  деструктуризация с проверкой, `.find()`), а не `!`. Non-null assertion —
+  только когда индекс доказуемо валиден, с комментарием-обоснованием.
+- `any` и `@ts-ignore` запрещены в обоих проектах (в тестах `any` разрешён
+  eslint-политикой, но не как способ обойти эти флаги).
 
 ## 12b. Гигиена кода (фаза 2)
 

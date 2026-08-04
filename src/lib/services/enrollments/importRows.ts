@@ -100,7 +100,9 @@ export async function parseEnrollmentImportWorkbook(
       errors.push(...res.errors);
       continue;
     }
-    const item = res.items[0];
+    // validateEnrollmentItems при ok:true на один вход всегда даёт ровно одну
+    // позицию (дедуп внутри вызова отбрасывает только повтор уже виденного ключа).
+    const item = res.items[0]!;
     if (seenEmails.has(item.email)) {
       warnings.push(`Строка ${r}: дубликат email «${item.email}» — строка пропущена`);
       continue;

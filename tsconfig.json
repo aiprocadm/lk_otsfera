@@ -8,6 +8,7 @@
     "noImplicitOverride": true,
     "exactOptionalPropertyTypes": true,
     "verbatimModuleSyntax": true,
+    "noUncheckedIndexedAccess": true,
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
@@ -26,5 +27,5 @@
     }
   },
   "include": ["**/*.ts", "**/*.tsx", "next-env.d.ts", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "src/__tests__"]
 }

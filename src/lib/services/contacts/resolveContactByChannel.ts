@@ -40,8 +40,9 @@ export async function resolveContactByChannel(
     take: 2,
   });
   const live = rows.filter((r) => !r.contact.isArchived);
-  if (live.length !== 1) return null;
-  const c = live[0].contact;
+  const sole = live.length === 1 ? live[0] : undefined;
+  if (!sole) return null;
+  const c = sole.contact;
   return {
     contactId: c.id,
     organizationId: c.organizationId,

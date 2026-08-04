@@ -79,7 +79,8 @@ async function readyToDeliverOrders(
   });
 
   const readiness = await evaluateReadinessBatch(prisma, orders as OrderForReadiness[]);
-  const ready = orders.filter((_, i) => readiness[i].ready);
+  // evaluateReadinessBatch — это orders.map(): длины массивов совпадают.
+  const ready = orders.filter((_, i) => readiness[i]!.ready);
   return {
     total: ready.length,
     preview: ready.slice(0, READY_PREVIEW).map((o) => ({

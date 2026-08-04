@@ -73,7 +73,8 @@ export function orderWorkingStage(input: WorkingStageInput): WorkingStage {
     index = 1;
   }
 
-  const label = WORKING_STAGE_LABELS[index - 1];
+  // Цепочка выше даёт index строго в 1..6, а меток ровно 6 — индекс всегда валиден.
+  const label = WORKING_STAGE_LABELS[index - 1]!;
   const tone: StageTone = index === 6 ? 'success' : 'neutral';
 
   return { index, total: 6, label, tone, terminal: false };

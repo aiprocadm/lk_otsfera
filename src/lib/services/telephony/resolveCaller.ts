@@ -49,12 +49,13 @@ export async function resolveCaller(
     select: { id: true, organization: { select: { id: true, companyId: true } } },
     take: 2,
   });
-  if (users.length === 1 && users[0].organization?.id && users[0].organization.companyId) {
+  const soleUser = users.length === 1 ? users[0] : undefined;
+  if (soleUser?.organization?.id && soleUser.organization.companyId) {
     return {
       matchType: 'exact',
-      userId: users[0].id,
-      orgId: users[0].organization.id,
-      companyId: users[0].organization.companyId,
+      userId: soleUser.id,
+      orgId: soleUser.organization.id,
+      companyId: soleUser.organization.companyId,
     };
   }
   if (users.length > 1) return { matchType: 'unresolved' }; // ambiguous → never guess
@@ -65,11 +66,12 @@ export async function resolveCaller(
     select: { organizationId: true, organization: { select: { companyId: true } } },
     take: 2,
   });
-  if (leads.length === 1 && leads[0].organizationId && leads[0].organization?.companyId) {
+  const soleLead = leads.length === 1 ? leads[0] : undefined;
+  if (soleLead?.organizationId && soleLead.organization?.companyId) {
     return {
       matchType: 'exact',
-      orgId: leads[0].organizationId,
-      companyId: leads[0].organization.companyId,
+      orgId: soleLead.organizationId,
+      companyId: soleLead.organization.companyId,
     };
   }
 

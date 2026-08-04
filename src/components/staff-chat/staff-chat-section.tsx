@@ -53,7 +53,7 @@ export function StaffChatSection({ currentUserId }: { currentUserId: string }) {
   // The picker/mention list must never offer the current user as a target.
   const colleagues = (colleaguesRaw ?? []).filter((c) => c.id !== currentUserId);
 
-  const latestCreatedAt = messages.length > 0 ? messages[messages.length - 1].createdAt : null;
+  const latestCreatedAt = messages.at(-1)?.createdAt ?? null;
 
   function appendNew(newRows: StaffPolledRow[], forConversationId: string) {
     // A poll fired for conversation A can resolve AFTER the user switched to B

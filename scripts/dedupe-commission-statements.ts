@@ -59,6 +59,16 @@ async function main(): Promise<void> {
       select: { id: true, calculatedAt: true, status: true },
     });
     const [keep, ...losers] = rows;
+    // The group came from a HAVING COUNT(*) > 1 aggregate over the same live
+    // rows, so `keep` is always present. Guard only against a concurrent change
+    // between the two queries: fail loudly (as the previous TypeError did)
+    // rather than silently skipping a group before a migration.
+    if (!keep) {
+      throw new Error(
+        `[commission-dedupe] no live statements left for partner=${g.partnerId} ` +
+          `period=${g.periodFrom.toISOString()}..${g.periodTo.toISOString()} — concurrent change?`
+      );
+    }
     console.log(
       `  partner=${g.partnerId} period=${g.periodFrom.toISOString()}..${g.periodTo.toISOString()}: ` +
         `keep ${keep.id} (calculatedAt=${keep.calculatedAt.toISOString()}), supersede ${losers.map((l) => l.id).join(', ')}`

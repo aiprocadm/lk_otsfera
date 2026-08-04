@@ -59,11 +59,16 @@ export function CertificateScansPanel({
       withCertificate.map((t) => ({ itemId: t.itemId, studentName: t.studentName }))
     );
     setRows(
-      files.map((file, index) => ({
-        file,
-        itemId: matches[index].suggestedItemId ?? '',
-        suggested: matches[index].suggestedItemId !== null,
-      }))
+      files.map((file, index) => {
+        // suggestScanMatches — это map по тем же именам файлов, поэтому длина и
+        // порядок matches совпадают с files: matches[index] всегда есть.
+        const match = matches[index]!;
+        return {
+          file,
+          itemId: match.suggestedItemId ?? '',
+          suggested: match.suggestedItemId !== null,
+        };
+      })
     );
   }
 

@@ -37,6 +37,8 @@ describe('createDataset', () => {
   it('returns copies — mutating a result does not corrupt the store', () => {
     const ds = createDataset();
     (ds.list('order', {})[0] as Record<string, unknown>).title = 'MUTATED';
-    expect(ds.list('order', {})[0].title).not.toBe('MUTATED');
+    const [afterMutation] = ds.list('order', {});
+    expect(afterMutation).toBeDefined();
+    expect(afterMutation?.title).not.toBe('MUTATED');
   });
 });

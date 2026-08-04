@@ -76,8 +76,8 @@ export async function resolveInboundSender(
     select: { id: true, organization: { select: { id: true, companyId: true } } },
     take: 2,
   });
-  if (users.length !== 1) return { matchType: 'unresolved' };
-  const u = users[0];
+  const u = users.length === 1 ? users[0] : undefined;
+  if (!u) return { matchType: 'unresolved' };
   if (!u.organization?.id || !u.organization.companyId) return { matchType: 'unresolved' };
   return {
     matchType: 'exact',

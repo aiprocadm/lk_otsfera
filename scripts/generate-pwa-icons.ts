@@ -33,7 +33,8 @@ const CRC_TABLE: number[] = (() => {
 
 function crc32(buf: Buffer): number {
   let c = 0xffffffff;
-  for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
+  // `& 0xff` даёт индекс 0..255, а CRC_TABLE построена ровно на 256 элементов.
+  for (const byte of buf) c = CRC_TABLE[(c ^ byte) & 0xff]! ^ (c >>> 8);
   return (c ^ 0xffffffff) >>> 0;
 }
 

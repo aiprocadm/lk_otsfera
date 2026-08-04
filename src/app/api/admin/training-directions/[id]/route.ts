@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { jsonError } from '@/lib/api/http';
+import { jsonError, routeParams } from '@/lib/api/http';
 import { withAuth } from '@/lib/api/withAuth';
 import { requireAdmin } from '@/lib/auth/guard';
 import { prisma } from '@/lib/db/prisma';
@@ -21,7 +21,9 @@ const patchBodySchema = z.object({
 export const PATCH = withAuth(
   { guard: requireAdmin, body: patchBodySchema },
   async ({ session, body, params }) => {
-    const { id } = await params;
+    // Next.js всегда даёт сегмент [id] для этого файла роута; withAuth типизирует
+    // params как Record<string,string>, которая под noUncheckedIndexedAccess сужение теряет.
+    const { id } = await routeParams<{ id: string }>(params);
     // exactOptionalPropertyTypes: аргументы сервиса различают «ключа нет» и «ключ = undefined».
     const res = await updateDirection(prisma, session, {
       id,
@@ -34,7 +36,9 @@ export const PATCH = withAuth(
 );
 
 export const DELETE = withAuth({ guard: requireAdmin }, async ({ session, params }) => {
-  const { id } = await params;
+  // Next.js всегда даёт сегмент [id] для этого файла роута; withAuth типизирует
+  // params как Record<string,string>, которая под noUncheckedIndexedAccess сужение теряет.
+  const { id } = await routeParams<{ id: string }>(params);
   const res = await deactivateDirection(prisma, session, { id });
   if (!res.ok) return jsonError(res.error, mapErr(res.error));
   return NextResponse.json({ direction: res.direction });

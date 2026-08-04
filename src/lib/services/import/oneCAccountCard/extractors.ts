@@ -26,7 +26,8 @@ export function parseAmount(input: string | null | undefined): number | null {
 export function extractDocNumber(line1: string | null | undefined): string | null {
   if (!line1) return null;
   const m = line1.match(/\b(\d{2,}-\d{3,})\b/);
-  return m ? m[1] : null;
+  // Группа 1 обязательна в паттерне: если match сработал, она заполнена.
+  return m ? m[1]! : null;
 }
 
 // Паттерны № счёта в свободном тексте. Ядро: 'счет/сч/счёт/счета № <код>'.
@@ -43,7 +44,8 @@ export function extractAccountCandidates(text: string | null | undefined): strin
   const hits: Array<{ cand: string; idx: number }> = [];
   for (const re of ACCOUNT_PATTERNS) {
     for (const m of text.matchAll(re)) {
-      const cand = m[1].replace(/[.,;]+$/, '');
+      // Во всех ACCOUNT_PATTERNS группа 1 обязательна — при совпадении она заполнена.
+      const cand = m[1]!.replace(/[.,;]+$/, '');
       // The capture group requires ≥4 chars and trailing punctuation is not in its
       // class, so `cand.length < 4` (the false side) is unreachable.
       /* v8 ignore next */
@@ -59,7 +61,8 @@ export function extractAccountCandidates(text: string | null | undefined): strin
 /** Наименование контрагента — строка 1 col[3], без хвостового 'ИНН <digits>'. */
 export function extractCounterparty(col3: string | null | undefined): string | null {
   if (!col3) return null;
-  const line1 = col3.split('\n')[0].trim();
+  // String.split всегда возвращает минимум один элемент — [0] существует.
+  const line1 = col3.split('\n')[0]!.trim();
   const cleaned = line1.replace(/\s*ИНН\s*\d{10,12}\s*$/i, '').trim();
   return cleaned || null;
 }
@@ -68,7 +71,8 @@ export function extractCounterparty(col3: string | null | undefined): string | n
 export function extractInn(text: string | null | undefined): string | null {
   if (!text) return null;
   const m = text.match(/ИНН\s*(\d{10,12})\b/i);
-  return m ? m[1] : null;
+  // Группа 1 обязательна в паттерне: если match сработал, она заполнена.
+  return m ? m[1]! : null;
 }
 
 /**
@@ -90,7 +94,8 @@ export function extractVat(
     /НДС\s*(?:\(?\s*\d{1,2}\s*%\s*\)?)?[^0-9]*?(\d[\d\s]*)[.,-](\d{1,2})\b(?!\s*%)/i
   );
   if (sumMatch) {
-    const whole = sumMatch[1].replace(/\s/g, '');
+    // Группы 1 и 2 обязательны в паттерне: при совпадении обе заполнены.
+    const whole = sumMatch[1]!.replace(/\s/g, '');
     return Number(`${whole}.${sumMatch[2]}`);
   }
   // явная сумма без копеек после 'НДС ... - 3451' (редко)

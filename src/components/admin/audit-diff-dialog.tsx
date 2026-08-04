@@ -18,10 +18,11 @@ function maskedJsonString(meta: unknown, keys: string[]): string {
   if (!meta || typeof meta !== 'object') return '';
   const record = meta as Record<string, unknown>;
   const parts = keys.filter((k) => k in record).map((k) => [k, maskValue(k, record[k])] as const);
-  if (parts.length === 0) return '';
+  const [first] = parts;
+  if (!first) return '';
   // Single key (before/after): unwrap — the panel header already names it. Both call sites
   // below pass a single-element keys array, so `parts.length` is always exactly 1 here.
-  return JSON.stringify(parts[0][1], null, 2);
+  return JSON.stringify(first[1], null, 2);
 }
 
 function maskedExtraJsonString(meta: unknown, excludeKeys: string[]): string {

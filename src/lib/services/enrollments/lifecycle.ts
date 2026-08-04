@@ -38,7 +38,9 @@ export function aggregateEnrollmentHeaderStatus(
     const idx = ENROLLMENT_PIPELINE.indexOf(item.status);
     if (idx < min) min = idx;
   }
-  return min === ENROLLMENT_PIPELINE.length ? 'rejected' : ENROLLMENT_PIPELINE[min];
+  // min получен через indexOf по этому же массиву (enum не содержит статусов вне
+  // конвейера, кроме отсеянного 'rejected'), поэтому здесь он всегда в диапазоне.
+  return min === ENROLLMENT_PIPELINE.length ? 'rejected' : ENROLLMENT_PIPELINE[min]!;
 }
 async function loadRequest(prisma: PrismaClient, id: string) {
   return prisma.enrollmentRequest.findUnique({ where: { id }, select: { id: true, status: true } });
