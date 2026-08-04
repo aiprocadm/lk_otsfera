@@ -27,7 +27,7 @@ export function resolveRateAt(
   if (resolved !== null) return resolved;
 
   // paidAt раньше всех записей: ставка до первой смены = её oldRate, иначе дефолт.
-  return asc[0].oldRate ?? partnerDefault;
+  return asc[0]!.oldRate ?? partnerDefault; // пустой changes отсеян в начале функции
 }
 
 /**
@@ -70,7 +70,7 @@ export function resolveOrgOverrideAt(
   if (found) return resolved;
 
   // paidAt раньше всех записей: override до первой смены = её oldRate.
-  return asc[0].oldRate;
+  return asc[0]!.oldRate; // пустой changes отсеян в начале функции
 }
 
 /**

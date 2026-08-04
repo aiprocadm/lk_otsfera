@@ -172,7 +172,8 @@ export async function unreadCount(
       AND t."lastMessageAt" > COALESCE(rs."lastReadAt", to_timestamp(0))
   `);
 
-  return { ok: true, count: rows[0].count };
+  // Агрегат без GROUP BY всегда возвращает ровно одну строку.
+  return { ok: true, count: rows[0]!.count };
 }
 
 export async function findOrCreateThread(

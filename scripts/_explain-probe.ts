@@ -14,6 +14,12 @@ const prisma = new PrismaClient();
 const MARK = 'f-explain-probe';
 const EMAIL = `${MARK}@probe.local`;
 
+// Круговые наборы значений для синтетических строк. Индекс всегда берётся как
+// `i % <длина набора>`, поэтому обращение заведомо в границах (отсюда `!`).
+const PROBE_ENTITIES = ['order', 'commission_statement', 'organization'] as const;
+const PROBE_EXECUTION_STATUSES = ['pending', 'in_progress', 'completed'] as const;
+const PROBE_FINANCIAL_STATUSES = ['billed', 'paid'] as const;
+
 async function seed() {
   const company = await prisma.company.upsert({
     where: { id: MARK + '-company' },
@@ -44,7 +50,7 @@ async function seed() {
     await prisma.auditLog.createMany({
       data: Array.from({ length: B }, (_, i) => ({
         action: 'order_status_changed',
-        entity: ['order', 'commission_statement', 'organization'][i % 3],
+        entity: PROBE_ENTITIES[i % PROBE_ENTITIES.length]!,
         entityId: `${MARK}-e${(batch * B + i) % 4000}`,
         userId: user.id,
         createdAt: new Date(Date.now() - ((batch * B + i) % 90) * 86400000),
@@ -58,8 +64,8 @@ async function seed() {
         title: MARK,
         companyId: company.id,
         organizationId: org.id,
-        executionStatus: (['pending', 'in_progress', 'completed'] as const)[i % 3],
-        financialStatus: (['billed', 'paid'] as const)[i % 2],
+        executionStatus: PROBE_EXECUTION_STATUSES[i % PROBE_EXECUTION_STATUSES.length]!,
+        financialStatus: PROBE_FINANCIAL_STATUSES[i % PROBE_FINANCIAL_STATUSES.length]!,
       })),
     });
   }

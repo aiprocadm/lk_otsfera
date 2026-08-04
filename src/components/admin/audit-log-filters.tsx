@@ -19,7 +19,9 @@ type Props = {
 function groupActions(actions: string[]): Record<string, string[]> {
   const groups: Record<string, string[]> = {};
   for (const a of actions) {
-    const prefix = a.split('_')[0];
+    // String.prototype.split всегда возвращает минимум один элемент (для строки
+    // без разделителя — её саму), поэтому [0] здесь всегда строка.
+    const prefix = a.split('_')[0]!;
     (groups[prefix] = groups[prefix] ?? []).push(a);
   }
   return groups;

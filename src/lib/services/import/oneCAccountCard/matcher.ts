@@ -79,7 +79,8 @@ export async function matchRow(prisma: PrismaClient, r: ParsedRow): Promise<Matc
     const norm = normalizeName(r.counterpartyName);
     if (norm.length >= 3) {
       const org = await prisma.organization.findFirst({
-        where: { name: { contains: norm.split(' ')[0], mode: 'insensitive' } },
+        // String.split всегда возвращает минимум один элемент — [0] существует.
+        where: { name: { contains: norm.split(' ')[0]!, mode: 'insensitive' } },
         select: { id: true },
       });
       if (org)

@@ -103,7 +103,7 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
   const [sendError, setSendError] = useState<string | null>(null);
 
   // Derive polling inputs from current state
-  const rawLatest = messages.length > 0 ? messages[messages.length - 1].createdAt : null;
+  const rawLatest = messages.at(-1)?.createdAt ?? null;
   // `messages` is only ever populated via `toVM`, which always assigns a string
   // `createdAt` (API JSON never carries a Date instance) — the Date branch below
   // is unreachable through this component's public surface. ChatMessageVM's

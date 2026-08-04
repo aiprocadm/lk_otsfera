@@ -11,7 +11,10 @@ export function ManualCalcForm() {
   const { formAction, pending, errorText, reset } = useFetchSubmit({
     url: '/api/partner/finance/statements',
     body: () => {
-      const [year, mon] = month.split('-').map(Number);
+      // `month` comes from a required <input type="month">, so it is always
+      // "YYYY-MM" here. The NaN defaults keep the pre-existing behaviour for a
+      // malformed value: an Invalid Date, exactly as `undefined - 1` produced.
+      const [year = NaN, mon = NaN] = month.split('-').map(Number);
       return {
         periodFrom: new Date(year, mon - 1, 1).toISOString(),
         periodTo: new Date(year, mon, 0, 23, 59, 59, 999).toISOString(),

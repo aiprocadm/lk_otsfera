@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { routeParams } from '@/lib/api/http';
 import { withAuth } from '@/lib/api/withAuth';
 import { prisma } from '@/lib/db/prisma';
 import { requirePartner, requirePartnerAdmin } from '@/lib/auth/guard';
@@ -7,7 +8,9 @@ import { approveStatement, markStatementPaid } from '@/lib/services/commission/l
 import { getStatementWithItems } from '@/lib/services/partner/finance';
 
 export const GET = withAuth({ guard: requirePartner }, async ({ session, params }) => {
-  const { id } = await params;
+  // Next.js всегда даёт сегмент [id] для этого файла роута; withAuth типизирует
+  // params как Record<string,string>, которая под noUncheckedIndexedAccess сужение теряет.
+  const { id } = await routeParams<{ id: string }>(params);
   // requirePartner гарантирует partnerId; тип withAuth сужение не переносит.
   const statement = await getStatementWithItems(prisma, id, session.partnerId as string);
   if (!statement) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -25,7 +28,9 @@ const patchBodySchema = z.object({
 });
 
 export const PATCH = withAuth({ body: patchBodySchema }, async ({ session, body, params }) => {
-  const { id } = await params;
+  // Next.js всегда даёт сегмент [id] для этого файла роута; withAuth типизирует
+  // params как Record<string,string>, которая под noUncheckedIndexedAccess сужение теряет.
+  const { id } = await routeParams<{ id: string }>(params);
   const { action } = body;
 
   if (action === 'approve') {

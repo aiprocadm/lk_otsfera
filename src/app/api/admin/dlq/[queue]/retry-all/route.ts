@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { jsonError } from '@/lib/api/http';
+import { jsonError, routeParams } from '@/lib/api/http';
 import { withAuth } from '@/lib/api/withAuth';
 import { requireAdmin } from '@/lib/auth/guard';
 import { QUEUE_NAMES, type QueueName } from '@/lib/jobs/queues';
@@ -13,7 +13,9 @@ function isKnownQueue(name: string): name is QueueName {
 }
 
 export const POST = withAuth({ guard: requireAdmin }, async ({ session, params }) => {
-  const { queue } = await params;
+  // Next.js всегда даёт сегмент [queue] для этого файла роута; withAuth типизирует
+  // params как Record<string,string>, которая под noUncheckedIndexedAccess сужение теряет.
+  const { queue } = await routeParams<{ queue: string }>(params);
   if (!isKnownQueue(queue)) {
     return jsonError('UNKNOWN_QUEUE', 400);
   }

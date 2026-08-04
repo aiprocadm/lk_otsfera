@@ -63,7 +63,8 @@ export function suggestScanMatch(
 ): ScanMatch {
   const hits = targets.filter((t) => matches(fileName, t.studentName));
   if (hits.length === 1) {
-    return { fileName, suggestedItemId: hits[0].itemId, ambiguous: false };
+    // длина проверена строкой выше
+    return { fileName, suggestedItemId: hits[0]!.itemId, ambiguous: false };
   }
   return { fileName, suggestedItemId: null, ambiguous: hits.length > 1 };
 }

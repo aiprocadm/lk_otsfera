@@ -48,7 +48,7 @@ async function readXlsx(buffer: Buffer): Promise<string[][]> {
 function readXls(buffer: Buffer): string[][] {
   const wb = XLSX.read(buffer, { type: 'buffer' });
   const sheetName = wb.SheetNames[0];
-  const ws = wb.Sheets[sheetName];
+  const ws = sheetName === undefined ? undefined : wb.Sheets[sheetName];
   if (!ws) return [];
   // header:1 → массив массивов; defval:'' → не пропускать пустые ячейки (стабильные индексы).
   const rows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: '', raw: false });

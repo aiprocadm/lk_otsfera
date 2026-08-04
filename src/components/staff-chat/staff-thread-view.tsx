@@ -91,7 +91,8 @@ export function StaffThreadView({ messages, currentUserId, onToggleReaction }: P
         const day = dayKey(msg.createdAt);
         // Pure lookback (no mutable render-scoped variable, React Compiler-safe):
         // the previous message's day, or null before the first message.
-        const prevDay = index > 0 ? dayKey(messages[index - 1].createdAt) : null;
+        const prevMsg = messages[index - 1];
+        const prevDay = prevMsg ? dayKey(prevMsg.createdAt) : null;
         const showSeparator = day !== null && day !== prevDay;
         return (
           <React.Fragment key={msg.id}>

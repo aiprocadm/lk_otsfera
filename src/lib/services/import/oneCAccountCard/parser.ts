@@ -20,7 +20,7 @@ const COL = { date: 0, document: 1, analyticsCr: 3, debit: 5, corr: 7, credit: 8
 // nullish fallbacks are unreachable defensive guards.
 /* v8 ignore next 2 */
 function firstLine(s: string): string {
-  return (s ?? '').split('\n')[0].trim();
+  return (s ?? '').split('\n')[0]!.trim(); // split всегда даёт минимум один элемент
 }
 function restLines(s: string): string {
   return (s ?? '').split('\n').slice(1).join('\n').trim();

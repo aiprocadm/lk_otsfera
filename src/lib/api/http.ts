@@ -41,6 +41,22 @@ export function jsonError(
 export type ParseResult<T> = { ok: true; data: T } | { ok: false; response: NextResponse };
 
 /**
+ * Сегменты динамического роута. Next гарантирует наличие сегмента, имя которого
+ * стоит в пути файла (`[id]/route.ts` → всегда есть `params.id`), но статически
+ * это не выражается: `params` приходит как `Record<string, string>`, а под
+ * `noUncheckedIndexedAccess` (фаза 1b-2) любое чтение по ключу даёт
+ * `string | undefined`.
+ *
+ * Один документированный каст здесь вместо каста в каждом роуте:
+ *   const { id } = await routeParams<{ id: string }>(params);
+ */
+export async function routeParams<T extends Record<string, string>>(
+  params: Promise<Record<string, string>>
+): Promise<T> {
+  return (await params) as T;
+}
+
+/**
  * JSON-тело по Zod-схеме. Кривой JSON или несоответствие схеме → 400
  * `invalid_request`. Коды доменной валидации (например `validation` с
  * `messages`) остаются за сервисом — здесь только контроль формы.

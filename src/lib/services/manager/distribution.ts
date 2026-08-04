@@ -28,7 +28,7 @@ export async function resolveAutoManager(
     select: { userId: true },
   });
   const orgUserIds = [...new Set(byOrg.map((r) => r.userId))];
-  if (orgUserIds.length === 1) return orgUserIds[0];
+  if (orgUserIds.length === 1) return orgUserIds[0]!; // длина проверена строкой выше
 
   // Никого по организации — пробуем закрепление через партнёра.
   if (orgUserIds.length === 0 && args.partnerId) {
@@ -37,7 +37,7 @@ export async function resolveAutoManager(
       select: { userId: true },
     });
     const partnerUserIds = [...new Set(byPartner.map((r) => r.userId))];
-    if (partnerUserIds.length === 1) return partnerUserIds[0];
+    if (partnerUserIds.length === 1) return partnerUserIds[0]!; // длина проверена строкой выше
   }
 
   return null;

@@ -1,4 +1,5 @@
 import React from 'react';
+import type { TrainingStatus } from '@prisma/client';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
@@ -17,7 +18,10 @@ import { getFieldsForEntity } from '@/lib/services/customFields';
 
 export const dynamic = 'force-dynamic';
 
-const TRAINING_TONE: Record<string, 'neutral' | 'info' | 'success' | 'danger'> = {
+// Ключ — enum TrainingStatus целиком: карта тотальна, поэтому обращение по
+// статусу заказа не даёт undefined (и компилятор потребует дополнить её,
+// если в enum появится новый статус).
+const TRAINING_TONE: Record<TrainingStatus, 'neutral' | 'info' | 'success' | 'danger'> = {
   pending: 'neutral',
   in_progress: 'info',
   certificate_issued: 'success',

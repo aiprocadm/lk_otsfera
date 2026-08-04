@@ -64,7 +64,7 @@ export async function recordPiiAccessMany(
   if (rows.length === 0) return;
   try {
     if (rows.length === 1) {
-      await prisma.piiAccessEvent.create({ data: rows[0] });
+      await prisma.piiAccessEvent.create({ data: rows[0]! }); // длина проверена условием
     } else {
       await prisma.piiAccessEvent.createMany({ data: rows });
     }

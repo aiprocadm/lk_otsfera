@@ -128,7 +128,9 @@ export async function getOrderReadiness(
   if (!order) return { ok: false, error: 'not_found' };
   if (!canSeeOrder(session, order, teamMode)) return { ok: false, error: 'forbidden' };
 
-  const [readiness] = await evaluateReadinessBatch(prisma, [order as OrderForReadiness]);
+  const batch = await evaluateReadinessBatch(prisma, [order as OrderForReadiness]);
+  // evaluateReadinessBatch — это orders.map(): на один заказ ровно один элемент.
+  const readiness = batch[0]!;
   return { ok: true, readiness, deliveredAt: order.resultDeliveredAt };
 }
 
@@ -189,7 +191,9 @@ export async function deliverOrderResult(
     return { ok: true, deliveredAt: order.resultDeliveredAt, alreadyDelivered: true };
   }
 
-  const [readiness] = await evaluateReadinessBatch(prisma, [order as OrderForReadiness]);
+  const batch = await evaluateReadinessBatch(prisma, [order as OrderForReadiness]);
+  // evaluateReadinessBatch — это orders.map(): на один заказ ровно один элемент.
+  const readiness = batch[0]!;
   if (!readiness.ready) return { ok: false, error: 'not_ready', readiness };
 
   const deliveredAt = new Date();

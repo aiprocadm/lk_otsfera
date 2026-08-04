@@ -137,7 +137,9 @@ export async function listPiiAccess(
   let nextCursor: string | null = null;
   if (rows.length > take) {
     rows.pop();
-    nextCursor = rows[rows.length - 1].id;
+    // take >= 1 (клампится выше), а сюда попадаем при rows.length > take —
+    // после pop в массиве остаётся минимум один элемент.
+    nextCursor = rows[rows.length - 1]!.id;
   }
 
   const labels = await resolveSubjectLabels(prisma, rows);
