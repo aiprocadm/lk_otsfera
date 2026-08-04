@@ -2,8 +2,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
-const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
-vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
+const { requireSettingsSection } = vi.hoisted(() => ({ requireSettingsSection: vi.fn() }));
+vi.mock('@/lib/auth/requireSettings', () => ({ requireSettingsSection }));
 
 // Чтение SyncState уехало в сервис (аудит A1) — форма запроса пиннится в
 // services.admin-integrations.test.ts.
@@ -63,7 +63,7 @@ vi.mock('@/server-actions/admin/integrationSettings', () => ({
   testIntegrationAction: vi.fn(),
 }));
 
-import AdminIntegrationsPage from '@/app/admin/integrations/page';
+import AdminIntegrationsPage from '@/app/admin/settings/integrations/page';
 
 const SESSION = { sub: 'admin1', role: 'admin' as const };
 
@@ -98,7 +98,7 @@ const VIEW_KEYS = [
 
 describe('AdminIntegrationsPage', () => {
   beforeEach(() => {
-    requireAdmin.mockReset();
+    requireSettingsSection.mockReset();
     getIntegrationsStatus.mockReset();
     getSettingsView.mockReset();
     primeIntegrationSettingsCache.mockClear();
@@ -106,7 +106,7 @@ describe('AdminIntegrationsPage', () => {
     listIntegrationSyncStates.mockResolvedValue([]);
     formTitles.length = 0;
     formProps.length = 0;
-    requireAdmin.mockResolvedValue(SESSION);
+    requireSettingsSection.mockResolvedValue(SESSION);
     getSettingsView.mockResolvedValue(
       VIEW_KEYS.map((key) => ({
         key,
@@ -138,7 +138,7 @@ describe('AdminIntegrationsPage', () => {
 
     const { container } = await renderServerComponent(AdminIntegrationsPage());
 
-    expect(requireAdmin).toHaveBeenCalled();
+    expect(requireSettingsSection).toHaveBeenCalled();
     // Статус-панель читает кэш настроек — страница обязана его праймить.
     expect(primeIntegrationSettingsCache).toHaveBeenCalled();
     const text = container.textContent ?? '';

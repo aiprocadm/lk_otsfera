@@ -51,6 +51,7 @@ const OPT_IN_FLAGS = new Set([
   'intake_inbox',
   'document_generation',
   'cabinet_questions',
+  'settings_hub',
 ]);
 
 describe('isFeatureEnabled', () => {

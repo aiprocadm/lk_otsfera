@@ -28,6 +28,7 @@ describe('AuditLogFilters', () => {
   it('renders with no active filters: no reset link, all-options defaults', () => {
     const html = renderToString(
       React.createElement(AuditLogFilters, {
+        basePath: '/admin/settings/security/audit',
         entities: ENTITIES,
         actions: ACTIONS,
         actors: ACTORS,
@@ -40,34 +41,40 @@ describe('AuditLogFilters', () => {
     expect(html).toContain('Все пользователи');
   });
 
-  it('groups actions by prefix into optgroups', () => {
+  it('в списке действий — русские названия, значения остаются машинными', () => {
     const html = renderToString(
       React.createElement(AuditLogFilters, {
+        basePath: '/admin/settings/security/audit',
         entities: ENTITIES,
         actions: ACTIONS,
         actors: ACTORS,
         current: {},
       })
     );
-    expect(html).toContain('<optgroup label="user"');
-    expect(html).toContain('<optgroup label="partner"');
-    expect(html).toContain('user_created');
-    expect(html).toContain('user_updated');
-    expect(html).toContain('partner_created');
+    // Фильтр по-прежнему отправляет машинный код...
+    expect(html).toContain('value="user_created"');
+    expect(html).toContain('value="partner_created"');
+    // ...а человек видит русское название и ни одного английского кода.
+    expect(html).toContain('Создание пользователя');
+    expect(html).toContain('Изменение пользователя');
+    expect(html).toContain('Создание партнёра');
+    expect(html).not.toContain('>user_created<');
   });
 
-  it('lists entity options and actor options', () => {
+  it('в списке сущностей — русские названия, актёры как есть', () => {
     const html = renderToString(
       React.createElement(AuditLogFilters, {
+        basePath: '/admin/settings/security/audit',
         entities: ENTITIES,
         actions: ACTIONS,
         actors: ACTORS,
         current: {},
       })
     );
-    expect(html).toContain('>user<');
-    expect(html).toContain('>partner<');
-    expect(html).toContain('>organization<');
+    expect(html).toContain('value="user"');
+    expect(html).toContain('>Пользователь<');
+    expect(html).toContain('>Партнёр<');
+    expect(html).toContain('>Организация<');
     expect(html).toContain('Иван Иванов');
     expect(html).toContain('ivan@example.com');
   });
@@ -75,6 +82,7 @@ describe('AuditLogFilters', () => {
   it('renders reset link when current.entity is set', () => {
     const html = renderToString(
       React.createElement(AuditLogFilters, {
+        basePath: '/admin/settings/security/audit',
         entities: ENTITIES,
         actions: ACTIONS,
         actors: ACTORS,
@@ -82,12 +90,13 @@ describe('AuditLogFilters', () => {
       })
     );
     expect(html).toContain('Сбросить');
-    expect(html).toContain('href="/admin/audit"');
+    expect(html).toContain('href="/admin/settings/security/audit"');
   });
 
   it('renders reset link when current.action is set', () => {
     const html = renderToString(
       React.createElement(AuditLogFilters, {
+        basePath: '/admin/settings/security/audit',
         entities: ENTITIES,
         actions: ACTIONS,
         actors: ACTORS,
@@ -100,6 +109,7 @@ describe('AuditLogFilters', () => {
   it('renders reset link when current.actorUserId is set', () => {
     const html = renderToString(
       React.createElement(AuditLogFilters, {
+        basePath: '/admin/settings/security/audit',
         entities: ENTITIES,
         actions: ACTIONS,
         actors: ACTORS,
@@ -112,6 +122,7 @@ describe('AuditLogFilters', () => {
   it('renders reset link when current.from is set', () => {
     const html = renderToString(
       React.createElement(AuditLogFilters, {
+        basePath: '/admin/settings/security/audit',
         entities: ENTITIES,
         actions: ACTIONS,
         actors: ACTORS,
@@ -125,6 +136,7 @@ describe('AuditLogFilters', () => {
   it('renders reset link when current.to is set', () => {
     const html = renderToString(
       React.createElement(AuditLogFilters, {
+        basePath: '/admin/settings/security/audit',
         entities: ENTITIES,
         actions: ACTIONS,
         actors: ACTORS,
@@ -137,6 +149,7 @@ describe('AuditLogFilters', () => {
   it('renders reset link when current.q is set', () => {
     const html = renderToString(
       React.createElement(AuditLogFilters, {
+        basePath: '/admin/settings/security/audit',
         entities: ENTITIES,
         actions: ACTIONS,
         actors: ACTORS,
@@ -149,7 +162,13 @@ describe('AuditLogFilters', () => {
 
   it('handles empty entities/actions/actors arrays without throwing', () => {
     const html = renderToString(
-      React.createElement(AuditLogFilters, { entities: [], actions: [], actors: [], current: {} })
+      React.createElement(AuditLogFilters, {
+        basePath: '/admin/settings/security/audit',
+        entities: [],
+        actions: [],
+        actors: [],
+        current: {},
+      })
     );
     expect(html).toContain('Все сущности');
   });

@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import AdminRolesPage from '@/app/admin/roles/page';
+import AdminRolesPage from '@/app/admin/settings/access/roles/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
-const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
-vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
+const { requireSettingsSection } = vi.hoisted(() => ({ requireSettingsSection: vi.fn() }));
+vi.mock('@/lib/auth/requireSettings', () => ({ requireSettingsSection }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
@@ -40,25 +40,27 @@ const SESSION = { sub: 'admin1', role: 'admin' as const };
 
 describe('AdminRolesPage', () => {
   beforeEach(() => {
-    requireAdmin.mockReset();
+    requireSettingsSection.mockReset();
     isFeatureEnabled.mockReset();
     listAccessProfiles.mockReset();
     listAssignableUsers.mockReset();
     nav.notFound.mockClear();
   });
 
-  it('calls notFound() when role_constructor flag is disabled', async () => {
-    isFeatureEnabled.mockReturnValue(false);
+  // Гейт флага role_constructor переехал в requireSettingsSection (хаб настроек):
+  // страница обязана лишь позвать гард своего раздела, отказ он бросает сам.
+  it('спрашивает гард именно про раздел «Роли» в админском кабинете', async () => {
+    requireSettingsSection.mockRejectedValue(new Error('NOT_FOUND'));
 
     await expect(renderServerComponent(AdminRolesPage())).rejects.toThrow('NOT_FOUND');
 
-    expect(isFeatureEnabled).toHaveBeenCalledWith('role_constructor');
-    expect(requireAdmin).not.toHaveBeenCalled();
+    expect(requireSettingsSection).toHaveBeenCalledWith('access.roles', 'admin');
+    expect(listAccessProfiles).not.toHaveBeenCalled();
   });
 
   it('renders profiles/users when both service calls succeed', async () => {
     isFeatureEnabled.mockReturnValue(true);
-    requireAdmin.mockResolvedValue(SESSION);
+    requireSettingsSection.mockResolvedValue(SESSION);
     listAccessProfiles.mockResolvedValue({ ok: true, rows: [{ id: 'pr1' }] });
     listAssignableUsers.mockResolvedValue({ ok: true, rows: [{ id: 'u1' }] });
 
@@ -72,7 +74,7 @@ describe('AdminRolesPage', () => {
 
   it('falls back to [] for profiles/users when the service calls return ok:false', async () => {
     isFeatureEnabled.mockReturnValue(true);
-    requireAdmin.mockResolvedValue(SESSION);
+    requireSettingsSection.mockResolvedValue(SESSION);
     listAccessProfiles.mockResolvedValue({ ok: false, error: 'forbidden' });
     listAssignableUsers.mockResolvedValue({ ok: false, error: 'forbidden' });
 

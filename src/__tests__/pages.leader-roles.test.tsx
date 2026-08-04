@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import LeaderRolesPage from '@/app/leader/roles/page';
+import LeaderRolesPage from '@/app/leader/settings/access/roles/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
-const { requireManagerLeader } = vi.hoisted(() => ({ requireManagerLeader: vi.fn() }));
-vi.mock('@/lib/auth/requireRole', () => ({ requireManagerLeader }));
+const { requireSettingsSection } = vi.hoisted(() => ({ requireSettingsSection: vi.fn() }));
+vi.mock('@/lib/auth/requireSettings', () => ({ requireSettingsSection }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
@@ -45,25 +45,26 @@ const SESSION = {
 
 describe('LeaderRolesPage', () => {
   beforeEach(() => {
-    requireManagerLeader.mockReset();
+    requireSettingsSection.mockReset();
     isFeatureEnabled.mockReset();
     listAccessProfiles.mockReset();
     listAssignableUsers.mockReset();
     nav.notFound.mockClear();
   });
 
-  it('calls notFound() when the role_constructor flag is disabled (before auth check)', async () => {
-    isFeatureEnabled.mockReturnValue(false);
+  // Гейт флага role_constructor переехал в requireSettingsSection (хаб настроек).
+  it('спрашивает гард именно про раздел «Роли» в кабинете руководителя', async () => {
+    requireSettingsSection.mockRejectedValue(new Error('NOT_FOUND'));
 
     await expect(renderServerComponent(LeaderRolesPage())).rejects.toThrow('NOT_FOUND');
 
-    expect(isFeatureEnabled).toHaveBeenCalledWith('role_constructor');
-    expect(requireManagerLeader).not.toHaveBeenCalled();
+    expect(requireSettingsSection).toHaveBeenCalledWith('access.roles', 'leader');
+    expect(listAccessProfiles).not.toHaveBeenCalled();
   });
 
   it('renders profiles and users when both service calls succeed', async () => {
     isFeatureEnabled.mockReturnValue(true);
-    requireManagerLeader.mockResolvedValue(SESSION);
+    requireSettingsSection.mockResolvedValue(SESSION);
     listAccessProfiles.mockResolvedValue({ ok: true, rows: [{ id: 'p1', name: 'Профиль' }] });
     listAssignableUsers.mockResolvedValue({ ok: true, rows: [{ id: 'u2', name: 'Юзер' }] });
 
@@ -77,7 +78,7 @@ describe('LeaderRolesPage', () => {
 
   it('falls back to empty arrays when either service call returns ok:false', async () => {
     isFeatureEnabled.mockReturnValue(true);
-    requireManagerLeader.mockResolvedValue(SESSION);
+    requireSettingsSection.mockResolvedValue(SESSION);
     listAccessProfiles.mockResolvedValue({ ok: false, error: 'forbidden' });
     listAssignableUsers.mockResolvedValue({ ok: false, error: 'forbidden' });
 

@@ -28,6 +28,10 @@ const FEATURE_PREFIXES: Array<{ prefix: string; flag: FeatureFlag }> = [
   // G1: конструктор ролей — отдельный флаг поверх кабинетных префиксов (additive).
   { prefix: '/leader/roles', flag: 'role_constructor' },
   { prefix: '/admin/roles', flag: 'role_constructor' },
+  // ТЗ 2026-08-04: конструктор ролей переехал в хаб «Настройки» — гейтим и
+  // новые адреса (старые остаются: под выключенным settings_hub они живые).
+  { prefix: '/leader/settings/access/roles', flag: 'role_constructor' },
+  { prefix: '/admin/settings/access/roles', flag: 'role_constructor' },
   // G2: воронка продаж / канбан.
   { prefix: '/leader/funnel', flag: 'sales_funnel' },
   { prefix: '/manager/funnel', flag: 'sales_funnel' },

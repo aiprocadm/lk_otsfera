@@ -42,7 +42,7 @@ export async function saveEmailSettingsAction(fd: FormData): Promise<Integration
 
   resetEmailTransportCache();
   resetIntegrationSettingsCache();
-  revalidatePath('/admin/integrations');
+  revalidatePath('/admin/settings/integrations');
   return { ok: true };
 }
 
@@ -58,7 +58,7 @@ async function saveGroup(
   const res = await saveSettings(prisma, actorUserId, entries);
   if (!res.ok) return res;
   resetIntegrationSettingsCache();
-  revalidatePath('/admin/integrations');
+  revalidatePath('/admin/settings/integrations');
   return { ok: true };
 }
 
@@ -181,7 +181,7 @@ export async function testIntegrationAction(
   const session = await requireAdmin();
   const res = await testIntegration(prisma, session, key);
   if (!res.ok) return res;
-  revalidatePath('/admin/integrations');
+  revalidatePath('/admin/settings/integrations');
   return res;
 }
 

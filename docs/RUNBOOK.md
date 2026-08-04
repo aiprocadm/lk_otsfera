@@ -28,12 +28,15 @@
    docker compose -f docker-compose.prod.yml ps        # worker healthy = heartbeat-файл свежее 3 мин
    docker compose -f docker-compose.prod.yml logs --tail=100 web worker
    ```
-4. **Админ-панели** (роль admin):
-   - **`/admin/health`** — DB/Redis/worker, глубина всех очередей BullMQ, таблица DLQ
+4. **Админ-панели** (роль admin). Адреса изменились (ТЗ 2026-08-04): всё
+   редконастраиваемое собрано в хабе `/admin/settings`; старые адреса
+   (`/admin/health`, `/admin/sync`, `/admin/audit`, …) продолжают работать —
+   переадресуют на новые, пока включён флаг `settings_hub`.
+   - **`/admin/settings/system/health`** — DB/Redis/worker, глубина всех очередей BullMQ, таблица DLQ
      (упавшие задачи, кнопки retry / retry-all), активные алерты, ошибки синка.
      Отдельных страниц `/admin/queues` и `/admin/dlq` **нет** — всё здесь;
      API — `/api/admin/dlq` (+ `/[queue]/[jobId]/retry`, `/[queue]/retry-all`).
-   - **`/admin/sync`** — центр управления 1С-синком: cursor-lag, пауза/запуск расписаний,
+   - **`/admin/settings/integrations/sync`** — центр управления 1С-синком: cursor-lag, пауза/запуск расписаний,
      ручной триггер, dead-letter записи 1С (возврат в очередь).
 5. **Куда приходят алерты.** Воркер каждые 5 минут (`monitoring.evaluateAlerts`,
    cron `*/5 * * * *`) сверяет метрики с порогами
@@ -54,7 +57,7 @@
 
    ⚠️ Алерты вычисляет **сам воркер**: если упал воркер — алертов не будет.
    Внешнего мониторинга нет (**не настроено**); лежащий воркер видно только по
-   `docker compose ps` (healthcheck heartbeat) и по `/admin/health`.
+   `docker compose ps` (healthcheck heartbeat) и по `/admin/settings/system/health`.
 
 ---
 
@@ -62,11 +65,11 @@
 
 ### 2.1 DLQ растёт / очередь копится
 
-**Симптом**: алерт `dlq:<queue>` / `queue_depth:<queue>`; на `/admin/health` растут failed/waiting.
+**Симптом**: алерт `dlq:<queue>` / `queue_depth:<queue>`; на `/admin/settings/system/health` растут failed/waiting.
 
-1. `/admin/health` → таблица DLQ: смотреть `failedReason` свежих задач (общая причина видна сразу).
+1. `/admin/settings/system/health` → таблица DLQ: смотреть `failedReason` свежих задач (общая причина видна сразу).
 2. Упавшие задачи **не удаляются** (`removeOnFail:false` — намеренно, для расследования; CLAUDE.md §7). Ретраи: 5 попыток с экспоненциальным backoff — в DLQ попадает то, что упало 5 раз.
-3. Устранить причину (ClamAV — §2.4, 1С — §2.3, внешний сервис) → на `/admin/health` кнопка **retry** по задаче или **retry-all** по очереди (bulk до 500 задач за вызов).
+3. Устранить причину (ClamAV — §2.4, 1С — §2.3, внешний сервис) → на `/admin/settings/system/health` кнопка **retry** по задаче или **retry-all** по очереди (bulk до 500 задач за вызов).
 4. `waiting` копится при живой причине = воркер не разбирает → §2.2.
 5. Известный источник DLQ-шума — включённые заглушки-адаптеры (`inbound_messaging` с `INBOUND_EMAIL_ADAPTER≠fake`, `telephony_mango` без боевого адаптера) — см. [feature-flags-matrix.md](feature-flags-matrix.md).
 
@@ -82,18 +85,18 @@
    docker compose -f docker-compose.prod.yml restart worker
    ```
    (после правки `.env.production` — `up -d`, пересоздаёт контейнер с новым env).
-3. Проверить: `ps` → worker `healthy`; `/admin/health` — waiting уходит вниз.
+3. Проверить: `ps` → worker `healthy`; `/admin/settings/system/health` — waiting уходит вниз.
 4. Джобы не теряются: очереди в Redis (AOF-том `redisdata`), после старта воркер разбирает накопленное; cron-расписания (`registerSyncSchedules` и др.) он перерегистрирует сам.
 
 ### 2.3 1С-синк молчит
 
-**Симптом**: алерт `sync_lag:<entity>`; в `/admin/sync` cursor-lag растёт.
+**Симптом**: алерт `sync_lag:<entity>`; в `/admin/settings/integrations/sync` cursor-lag растёт.
 
-1. `/admin/sync`: не поставлено ли расписание на паузу; свежие ошибки синка; dead-letter записи (`OneCPendingRecord` со статусом `dead` — алерт `onec_dead_letters`).
-2. Проверить адаптер: env `ONE_C_ADAPTER` (`fake` = живых записей нет вообще, `rest` = боевой; требует `ONE_C_API_URL`+`ONE_C_API_TOKEN`) и `ONE_C_MODE` (**дефолт `live`**; `shadow` = читает, но не пишет — [config.ts](../src/lib/services/oneCSync/config.ts)). Эффективное значение адаптера может быть переопределено в БД через `/admin/integrations` ([integrationSettings.ts](../src/lib/config/integrationSettings.ts), ключ `onec.adapter`).
-3. Ручной прогон: `/admin/sync` → «Запустить» нужную сущность; наблюдать cursor и журнал.
+1. `/admin/settings/integrations/sync`: не поставлено ли расписание на паузу; свежие ошибки синка; dead-letter записи (`OneCPendingRecord` со статусом `dead` — алерт `onec_dead_letters`).
+2. Проверить адаптер: env `ONE_C_ADAPTER` (`fake` = живых записей нет вообще, `rest` = боевой; требует `ONE_C_API_URL`+`ONE_C_API_TOKEN`) и `ONE_C_MODE` (**дефолт `live`**; `shadow` = читает, но не пишет — [config.ts](../src/lib/services/oneCSync/config.ts)). Эффективное значение адаптера может быть переопределено в БД через `/admin/settings/integrations` ([integrationSettings.ts](../src/lib/config/integrationSettings.ts), ключ `onec.adapter`).
+3. Ручной прогон: `/admin/settings/integrations/sync` → «Запустить» нужную сущность; наблюдать cursor и журнал.
 4. Воркер жив? (§2.2 — расписания исполняет он: pull каждые 15 мин/1 ч/6 ч, reconcile в 03:00 МСК — [scheduling.ts](../src/lib/jobs/scheduling.ts)).
-5. Dead-letter записи после устранения причины возвращаются в очередь со страницы `/admin/sync`.
+5. Dead-letter записи после устранения причины возвращаются в очередь со страницы `/admin/settings/integrations/sync`.
 6. Откат при аварии на стороне 1С: `ONE_C_ADAPTER=fake` (или `ONE_C_MODE=shadow`) → `up -d`. Запись идемпотентна, данные не портятся ([runbook-launch-deploy.md](runbook-launch-deploy.md) §4).
 
 ### 2.4 ClamAV недоступен
@@ -103,7 +106,7 @@
 Что происходит ([scan-document.ts](../src/worker/processors/scan-document.ts)): при недоступном сканере файл **намеренно НЕ помечается clean** — job ретраится (5×), затем ложится в DLQ, строка остаётся `pending`. Раз в час воркер запускает backfill-свип ([backfill.ts](../src/lib/services/scan/backfill.ts)): пере-энкьюит все `pending` строки — после восстановления ClamAV всё досканируется **само**, максимум через час.
 
 1. Поднять ClamAV (адрес — `CLAMAV_HOST`/`CLAMAV_PORT`; если `CLAMAV_HOST` не задан вовсе — файлы помечаются clean by default с warn в SyncLog, это режим «окружение без сканера»).
-2. Не ждать час — на `/admin/health` retry-all по `docs.scanDocument`.
+2. Не ждать час — на `/admin/settings/system/health` retry-all по `docs.scanDocument`.
 3. Проверить: количество `pending` падает, DLQ пуст. Помнить: `pending`-файлы остаются скачиваемыми; `infected` отдают 410 (CLAUDE.md §10).
 
 ### 2.5 Письма не уходят
@@ -111,9 +114,9 @@
 **Симптом**: пользователи не получают email; в логах `[email] отправка включена, но не задан ключ Resend` или молчание.
 
 1. Отправка гейтится в [send.tsx](../src/lib/email/send.tsx): `skipped/disabled` — выключен `email.enabled`; `skipped/no-api-key` — нет `RESEND_API_KEY`; `skipped/no-recipient` — у получателя нет email.
-2. Эффективные значения: `/admin/integrations` (настройки в БД перекрывают env `EMAIL_ENABLED`/`RESEND_API_KEY`/`EMAIL_FROM`) — проверить и прогнать тестовую отправку там же.
+2. Эффективные значения: `/admin/settings/integrations` (настройки в БД перекрывают env `EMAIL_ENABLED`/`RESEND_API_KEY`/`EMAIL_FROM`) — проверить и прогнать тестовую отправку там же.
 3. Если правился env — `docker compose -f docker-compose.prod.yml up -d` (web **и** worker).
-4. При включённом `notif_queue` email уходит через очередь `notifications.dispatch` — проверить её DLQ на `/admin/health`; сбой enqueue деградирует в inline-доставку сам ([dispatch.ts](../src/lib/notifications/channels/dispatch.ts)).
+4. При включённом `notif_queue` email уходит через очередь `notifications.dispatch` — проверить её DLQ на `/admin/settings/system/health`; сбой enqueue деградирует в inline-доставку сам ([dispatch.ts](../src/lib/notifications/channels/dispatch.ts)).
 5. Дальше — статус Resend и валидность домена `EMAIL_FROM` (сторона провайдера).
 
 ### 2.6 Redis лежит
@@ -128,12 +131,12 @@
    docker compose -f docker-compose.prod.yml ps      # redis healthy, web/worker живы
    ```
 2. Данные очередей — в томе `redisdata` (AOF). Том потерян? Принятый риск: не бэкапится, reconcile 1С догонит, уведомления перегенерятся ([runbook-backups.md](runbook-backups.md) §1).
-3. После восстановления сверить `/admin/health` (воркер разобрал накопленное) и при необходимости ручной триггер синка (§2.3).
+3. После восстановления сверить `/admin/settings/system/health` (воркер разобрал накопленное) и при необходимости ручной триггер синка (§2.3).
 
 ### 2.7 Инцидент с ПДн
 
-1. Картина доступа сотрудников к ПДн — журнал `/admin/pii-access` (модель `PiiAccessEvent`, запись — [recordPiiAccess](../src/lib/pii/record.ts)).
-2. Флаг `pii_access_log` (opt-out, включён по умолчанию) — **аварийный рычаг**: `FEATURE_PII_ACCESS_LOG=0` → `up -d` останавливает запись журнала (no-op) и вешает баннер на `/admin/pii-access`. Выключать **только на время инцидента** — выключенный флаг = пауза комплаенс-журнала ([feature-flags-matrix.md](feature-flags-matrix.md)). Не выпиливать.
+1. Картина доступа сотрудников к ПДн — журнал `/admin/settings/security/personal-data` (модель `PiiAccessEvent`, запись — [recordPiiAccess](../src/lib/pii/record.ts)).
+2. Флаг `pii_access_log` (opt-out, включён по умолчанию) — **аварийный рычаг**: `FEATURE_PII_ACCESS_LOG=0` → `up -d` останавливает запись журнала (no-op) и вешает баннер на `/admin/settings/security/personal-data`. Выключать **только на время инцидента** — выключенный флаг = пауза комплаенс-журнала ([feature-flags-matrix.md](feature-flags-matrix.md)). Не выпиливать.
 3. После инцидента вернуть флаг (убрать env / `=1`) → `up -d`, убедиться, что баннер пропал.
 
 ---

@@ -3,8 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
-const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
-vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
+const { requireSettingsSection } = vi.hoisted(() => ({ requireSettingsSection: vi.fn() }));
+vi.mock('@/lib/auth/requireSettings', () => ({ requireSettingsSection }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
@@ -30,33 +30,33 @@ vi.mock('@/components/admin/custom-fields-admin', () => ({
     ),
 }));
 
-import AdminCustomFieldsPage from '@/app/admin/custom-fields/page';
+import AdminCustomFieldsPage from '@/app/admin/settings/catalogs/custom-fields/page';
 
 const SESSION = { sub: 'admin1', role: 'admin' as const };
 
 describe('AdminCustomFieldsPage', () => {
   beforeEach(() => {
-    requireAdmin.mockReset();
+    requireSettingsSection.mockReset();
     listDefinitions.mockReset();
   });
 
   it('по умолчанию показывает заявку', async () => {
-    requireAdmin.mockResolvedValue(SESSION);
+    requireSettingsSection.mockResolvedValue(SESSION);
     listDefinitions.mockResolvedValue({ ok: true, rows: [{ id: 'f1', key: 'k1' }] });
 
     const { container } = await renderServerComponent(
       AdminCustomFieldsPage({ searchParams: Promise.resolve({}) })
     );
 
-    expect(requireAdmin).toHaveBeenCalled();
+    expect(requireSettingsSection).toHaveBeenCalled();
     expect(listDefinitions).toHaveBeenCalledWith({}, SESSION, 'order');
     expect(container.textContent).toContain('f1');
     expect(container.textContent).toContain('"entity":"order"');
-    expect(container.textContent).toContain('"basePath":"/admin/custom-fields"');
+    expect(container.textContent).toContain('"basePath":"/admin/settings/catalogs/custom-fields"');
   });
 
   it('открывает выбранную сущность и отдаёт её системные поля', async () => {
-    requireAdmin.mockResolvedValue(SESSION);
+    requireSettingsSection.mockResolvedValue(SESSION);
     listDefinitions.mockResolvedValue({ ok: true, rows: [] });
 
     const { container } = await renderServerComponent(
@@ -70,7 +70,7 @@ describe('AdminCustomFieldsPage', () => {
   });
 
   it('мусор в адресе не роняет страницу — показывается заявка', async () => {
-    requireAdmin.mockResolvedValue(SESSION);
+    requireSettingsSection.mockResolvedValue(SESSION);
     listDefinitions.mockResolvedValue({ ok: true, rows: [] });
 
     const { container } = await renderServerComponent(
@@ -82,7 +82,7 @@ describe('AdminCustomFieldsPage', () => {
   });
 
   it('отказ сервиса даёт пустой список, а не падение', async () => {
-    requireAdmin.mockResolvedValue(SESSION);
+    requireSettingsSection.mockResolvedValue(SESSION);
     listDefinitions.mockResolvedValue({ ok: false, error: 'forbidden' });
 
     const { container } = await renderServerComponent(

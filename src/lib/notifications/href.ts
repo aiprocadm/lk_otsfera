@@ -67,7 +67,7 @@ export function notificationHref(
     if (typeof orderId === 'string' && orderId.length > 0) return `/manager/orders/${orderId}`;
   }
 
-  if (role === 'admin' && type === 'ops_alert') return '/admin/health';
+  if (role === 'admin' && type === 'ops_alert') return '/admin/settings/system/health';
 
   return null;
 }

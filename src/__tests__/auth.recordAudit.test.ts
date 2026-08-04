@@ -46,7 +46,7 @@ describe('recordAudit', () => {
   it('persists status = "denied" in meta when provided', async () => {
     await recordAudit(mockPrisma, {
       userId: 'u2',
-      action: 'delete',
+      action: 'user_deactivated',
       entity: 'order',
       entityId: 'ord-1',
       status: 'denied',
@@ -64,7 +64,7 @@ describe('recordAudit', () => {
 
     await recordAudit(mockPrisma, {
       userId: 'u3',
-      action: 'update',
+      action: 'user_updated',
       entity: 'partner',
       entityId: 'p-1',
       before,
@@ -80,7 +80,7 @@ describe('recordAudit', () => {
   it('omits before and after from meta when not provided (compact JSON)', async () => {
     await recordAudit(mockPrisma, {
       userId: 'u4',
-      action: 'view',
+      action: 'document_download_signed_url',
       entity: 'document',
       entityId: 'doc-1',
     });
@@ -92,7 +92,7 @@ describe('recordAudit', () => {
   it('includes reason in meta when provided', async () => {
     await recordAudit(mockPrisma, {
       userId: 'u5',
-      action: 'approve',
+      action: 'commission_statement_approved',
       entity: 'commission_statement',
       entityId: 'cs-1',
       reason: 'manual override',
@@ -120,7 +120,7 @@ describe('recordAudit', () => {
       auditLogCreate.mockResolvedValue(undefined);
       await recordAudit(mockPrisma, {
         userId: 'u6',
-        action: 'test',
+        action: 'user_created',
         entity,
         entityId: 'e-1',
       });

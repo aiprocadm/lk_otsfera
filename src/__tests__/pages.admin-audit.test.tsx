@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import AdminAuditPage from '@/app/admin/audit/page';
+import AdminAuditPage from '@/app/admin/settings/security/audit/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
-const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
-vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
+const { requireSettingsSection } = vi.hoisted(() => ({ requireSettingsSection: vi.fn() }));
+vi.mock('@/lib/auth/requireSettings', () => ({ requireSettingsSection }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
@@ -39,13 +39,13 @@ const SESSION = { sub: 'admin1', role: 'admin' as const };
 
 describe('AdminAuditPage', () => {
   beforeEach(() => {
-    requireAdmin.mockReset();
+    requireSettingsSection.mockReset();
     listAudit.mockReset();
     listAuditFilters.mockReset();
   });
 
   it('parses filters (entity/action/actorUserId/from/to/q) and passes them to listAudit, renders nextCursor "load more" link', async () => {
-    requireAdmin.mockResolvedValue(SESSION);
+    requireSettingsSection.mockResolvedValue(SESSION);
     listAudit.mockResolvedValue({ rows: [{ id: 'a1' }], nextCursor: 'cur-2' });
     listAuditFilters.mockResolvedValue({
       entities: ['order'],
@@ -66,7 +66,7 @@ describe('AdminAuditPage', () => {
       })
     );
 
-    expect(requireAdmin).toHaveBeenCalled();
+    expect(requireSettingsSection).toHaveBeenCalled();
     expect(listAudit).toHaveBeenCalledWith(
       {},
       expect.objectContaining({
@@ -78,13 +78,13 @@ describe('AdminAuditPage', () => {
       })
     );
     expect(container.textContent).toContain('Аудит');
-    const link = container.querySelector('a[href^="/admin/audit?"]');
+    const link = container.querySelector('a[href^="/admin/settings/security/audit?"]');
     expect(link).not.toBeNull();
     expect(link?.getAttribute('href')).toContain('cursor=cur-2');
   });
 
   it('treats an invalid "from" date as undefined and omits empty q/cursor, and does not render load-more when nextCursor is null', async () => {
-    requireAdmin.mockResolvedValue(SESSION);
+    requireSettingsSection.mockResolvedValue(SESSION);
     listAudit.mockResolvedValue({ rows: [], nextCursor: null });
     listAuditFilters.mockResolvedValue({ entities: [], actions: [], actors: [] });
 
@@ -96,6 +96,6 @@ describe('AdminAuditPage', () => {
       {},
       expect.objectContaining({ from: undefined, q: undefined, cursor: undefined })
     );
-    expect(container.querySelector('a[href^="/admin/audit?"]')).toBeNull();
+    expect(container.querySelector('a[href^="/admin/settings/security/audit?"]')).toBeNull();
   });
 });

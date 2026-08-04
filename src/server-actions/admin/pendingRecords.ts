@@ -25,6 +25,6 @@ export async function requeuePendingRecordAction(
   if (!parsed.success) return { ok: false, error: 'validation' };
   const session = await requireAdmin();
   const result = await requeueDeadRecord(prisma, session, parsed.data.id);
-  revalidatePath('/admin/sync');
+  revalidatePath('/admin/settings/integrations/sync');
   return result;
 }

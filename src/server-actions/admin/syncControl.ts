@@ -29,7 +29,7 @@ export async function triggerSyncAction(fd: FormData): Promise<TriggerResult | V
   if (!parsed.success) return { ok: false, error: 'validation' };
   const session = await requireAdmin();
   const result = await triggerSync(prisma, session.sub, parsed.data.entity);
-  revalidatePath('/admin/sync');
+  revalidatePath('/admin/settings/integrations/sync');
   return result;
 }
 
@@ -46,7 +46,7 @@ export async function setSchedulePausedAction(fd: FormData): Promise<PauseResult
     parsed.data.schedulerId,
     parsed.data.paused
   );
-  revalidatePath('/admin/sync');
+  revalidatePath('/admin/settings/integrations/sync');
   return result;
 }
 
@@ -59,6 +59,6 @@ export async function rewindCursorAction(fd: FormData): Promise<RewindResult | V
   const session = await requireAdmin();
   const cursor = parsed.data.cursor.trim() === '' ? null : parsed.data.cursor;
   const result = await rewindCursor(prisma, session.sub, parsed.data.entity, cursor);
-  revalidatePath('/admin/sync');
+  revalidatePath('/admin/settings/integrations/sync');
   return result;
 }

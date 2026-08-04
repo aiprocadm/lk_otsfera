@@ -38,7 +38,7 @@ describe('AuditDiffDialog', () => {
       id: 'a1',
       createdAt: new Date(),
       actor: null,
-      action: 'foo',
+      action: 'user_updated',
       entity: 'document' as const,
       entityId: 'd1',
       meta: { before: { token: 'tok-xyz', signedUrl: 'https://s/sig=secret' } },
@@ -49,18 +49,50 @@ describe('AuditDiffDialog', () => {
     expect(html).toContain('*****');
   });
 
-  it('отрисовывает «Прочие meta-поля» для нестандартных ключей', () => {
+  it('отрисовывает «Прочие сведения» для нестандартных ключей', () => {
     const row = {
       id: 'a1',
       createdAt: new Date(),
       actor: null,
-      action: 'foo',
+      action: 'user_updated',
       entity: 'user' as const,
       entityId: 'u1',
       meta: { sentEmail: true, source: 'admin' },
     } as any;
     const html = renderToString(React.createElement(AuditDiffDialog, { row, onClose: () => {} }));
-    expect(html).toContain('Прочие meta-поля');
+    expect(html).toContain('Прочие сведения');
+  });
+
+  it('заголовок карточки — по-русски, без машинных кодов', () => {
+    const row = {
+      id: 'a1',
+      createdAt: new Date(),
+      actor: null,
+      action: 'partner_created',
+      entity: 'partner' as const,
+      entityId: 'p1',
+      meta: null,
+    } as any;
+    const html = renderToString(React.createElement(AuditDiffDialog, { row, onClose: () => {} }));
+    expect(html).toContain('Создание партнёра · Партнёр');
+    expect(html).not.toContain('partner_created');
+  });
+
+  it('названия полей в диффе переведены', () => {
+    const row = {
+      id: 'a1',
+      createdAt: new Date(),
+      actor: null,
+      action: 'partner_commission_rate_changed',
+      entity: 'partner' as const,
+      entityId: 'p1',
+      meta: { before: { commissionRate: 10 }, after: { commissionRate: 12 } },
+    } as any;
+    const html = renderToString(React.createElement(AuditDiffDialog, { row, onClose: () => {} }));
+    expect(html).toContain('Ставка комиссии');
+    expect(html).not.toContain('commissionRate');
+    expect(html).toContain('Было');
+    expect(html).toContain('Стало');
   });
 
   it('recursively masks a sensitive key nested inside a plain object (object branch of maskValue)', () => {
@@ -68,7 +100,7 @@ describe('AuditDiffDialog', () => {
       id: 'a1',
       createdAt: new Date(),
       actor: null,
-      action: 'foo',
+      action: 'user_updated',
       entity: 'user' as const,
       entityId: 'u1',
       meta: { after: { profile: { apiKey: 'nested-secret-value' } } },
@@ -83,7 +115,7 @@ describe('AuditDiffDialog', () => {
       id: 'a1',
       createdAt: new Date(),
       actor: null,
-      action: 'foo',
+      action: 'user_updated',
       entity: 'user' as const,
       entityId: 'u1',
       meta: { after: { tokens: [{ token: 'array-secret' }, { token: 'array-secret-2' }] } },
@@ -93,18 +125,20 @@ describe('AuditDiffDialog', () => {
     expect(html).toContain('*****');
   });
 
-  it('passes through a null value unmasked (value !== null guard, false branch)', () => {
+  it('пустое значение поля показывается прочерком, а не «null»', () => {
     const row = {
       id: 'a1',
       createdAt: new Date(),
       actor: null,
-      action: 'foo',
+      action: 'user_updated',
       entity: 'user' as const,
       entityId: 'u1',
       meta: { after: { name: null } },
     } as any;
     const html = renderToString(React.createElement(AuditDiffDialog, { row, onClose: () => {} }));
-    expect(html).toContain('&quot;name&quot;: null');
+    // Поле переведено, значение — прочерк: «null» пользователю не показываем.
+    expect(html).toContain('Название');
+    expect(html).not.toContain('null');
   });
 
   it('renders "—" placeholders when meta is null (maskedJsonString/maskedExtraJsonString !meta branch)', () => {
@@ -112,13 +146,13 @@ describe('AuditDiffDialog', () => {
       id: 'a1',
       createdAt: new Date(),
       actor: null,
-      action: 'foo',
+      action: 'user_updated',
       entity: 'user' as const,
       entityId: 'u1',
       meta: null,
     } as any;
     const html = renderToString(React.createElement(AuditDiffDialog, { row, onClose: () => {} }));
-    expect(html).not.toContain('Прочие meta-поля');
+    expect(html).not.toContain('Прочие сведения');
     // Both "До" and "После" panels fall back to the em-dash placeholder.
     const dashCount = (html.match(/>—</g) ?? []).length;
     expect(dashCount).toBe(2);
@@ -129,13 +163,13 @@ describe('AuditDiffDialog', () => {
       id: 'a1',
       createdAt: new Date(),
       actor: null,
-      action: 'foo',
+      action: 'user_updated',
       entity: 'user' as const,
       entityId: 'u1',
       meta: 'not-an-object',
     } as any;
     const html = renderToString(React.createElement(AuditDiffDialog, { row, onClose: () => {} }));
-    expect(html).not.toContain('Прочие meta-поля');
+    expect(html).not.toContain('Прочие сведения');
     const dashCount = (html.match(/>—</g) ?? []).length;
     expect(dashCount).toBe(2);
   });
@@ -145,13 +179,13 @@ describe('AuditDiffDialog', () => {
       id: 'a1',
       createdAt: new Date(),
       actor: null,
-      action: 'foo',
+      action: 'user_updated',
       entity: 'user' as const,
       entityId: 'u1',
       meta: { before: { a: 1 }, after: { a: 2 } },
     } as any;
     const html = renderToString(React.createElement(AuditDiffDialog, { row, onClose: () => {} }));
-    expect(html).not.toContain('Прочие meta-поля');
+    expect(html).not.toContain('Прочие сведения');
   });
 
   it('clicking "Закрыть" calls onClose', () => {
@@ -160,7 +194,7 @@ describe('AuditDiffDialog', () => {
       id: 'a1',
       createdAt: new Date(),
       actor: null,
-      action: 'foo',
+      action: 'user_updated',
       entity: 'user' as const,
       entityId: 'u1',
       meta: null,

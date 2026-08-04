@@ -48,13 +48,13 @@ describe('AuditDetailButton', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Подробно' }));
     expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
-    expect(screen.getByText('partner_created · partner')).toBeTruthy();
+    expect(screen.getByText('Создание партнёра · Партнёр')).toBeTruthy();
   });
 
   it("closes the dialog when the dialog's X (aria-label Закрыть) button is clicked", () => {
     render(React.createElement(AuditDetailButton, { row: makeRow() }));
     fireEvent.click(screen.getByRole('button', { name: 'Подробно' }));
-    expect(screen.getByText('user_updated · user')).toBeTruthy();
+    expect(screen.getByText('Изменение пользователя · Пользователь')).toBeTruthy();
 
     // Dialog renders two "Закрыть"-accessible-name buttons: the primitive's
     // X (aria-label) and AuditDiffDialog's own footer button. Disambiguate
@@ -64,7 +64,7 @@ describe('AuditDetailButton', () => {
     expect(xButton).toBeTruthy();
     fireEvent.click(xButton!);
     expect(HTMLDialogElement.prototype.close).toHaveBeenCalled();
-    expect(screen.queryByText('user_updated · user')).toBeNull();
+    expect(screen.queryByText('Изменение пользователя · Пользователь')).toBeNull();
   });
 
   it("closes the dialog when the panel's footer close button is clicked", () => {
@@ -76,6 +76,6 @@ describe('AuditDetailButton', () => {
     expect(footerButton).toBeTruthy();
     fireEvent.click(footerButton!);
     expect(HTMLDialogElement.prototype.close).toHaveBeenCalled();
-    expect(screen.queryByText('user_updated · user')).toBeNull();
+    expect(screen.queryByText('Изменение пользователя · Пользователь')).toBeNull();
   });
 });

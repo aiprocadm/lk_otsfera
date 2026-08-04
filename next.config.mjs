@@ -15,6 +15,42 @@ const securityHeaders = [
   },
 ];
 
+/**
+ * Хаб «Настройки» (ТЗ 2026-08-04 §5.1): старые адреса служебных разделов
+ * переезжают на новые НАСТОЯЩИМ HTTP-редиректом. Страница-шлюз с `redirect()`
+ * тоже осталась (вторая линия), но при стриминге RSC она отдаёт 200 и уводит
+ * уже на клиенте — закладке и внешнему клиенту нужен честный код ответа.
+ *
+ * Список продублирован здесь намеренно: `next.config.mjs` читается до сборки и
+ * не может импортировать TS-реестр. От расхождения защищает тест
+ * `lib.navigation.settings-redirect` — он сверяет эту карту с реестром.
+ *
+ * Редирект временный (307): постоянный 308 браузер кэширует навсегда, и откат
+ * флага раскатки оставил бы пользователей с мёртвой навигацией. Переключить на
+ * постоянный — шагом снятия флага после приёмки.
+ */
+export const SETTINGS_HUB_REDIRECTS = [
+  ['/admin/health', '/admin/settings/system/health'],
+  ['/admin/integrations', '/admin/settings/integrations'],
+  ['/admin/sync', '/admin/settings/integrations/sync'],
+  ['/admin/import', '/admin/settings/integrations/1c/excel'],
+  ['/admin/payments-import', '/admin/settings/integrations/1c/payments'],
+  ['/admin/roles', '/admin/settings/access/roles'],
+  ['/leader/roles', '/leader/settings/access/roles'],
+  ['/admin/order-statuses', '/admin/settings/catalogs/application-statuses'],
+  ['/leader/settings/order-statuses', '/leader/settings/catalogs/application-statuses'],
+  ['/admin/custom-fields', '/admin/settings/catalogs/custom-fields'],
+  ['/leader/settings/custom-fields', '/leader/settings/catalogs/custom-fields'],
+  ['/admin/pii-access', '/admin/settings/security/personal-data'],
+  ['/admin/audit', '/admin/settings/security/audit'],
+];
+
+/** Тот же разбор значения, что и в src/lib/featureFlags.ts (opt-in флаг). */
+function isSettingsHubEnabled() {
+  const raw = process.env.FEATURE_SETTINGS_HUB?.trim().toLowerCase();
+  return raw === '1' || raw === 'true' || raw === 'on';
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: { serverActions: { bodySizeLimit: '10mb' } },
@@ -24,6 +60,14 @@ const nextConfig = {
   poweredByHeader: false,
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
+  },
+  async redirects() {
+    if (!isSettingsHubEnabled()) return [];
+    return SETTINGS_HUB_REDIRECTS.map(([source, destination]) => ({
+      source,
+      destination,
+      permanent: false,
+    }));
   },
 };
 

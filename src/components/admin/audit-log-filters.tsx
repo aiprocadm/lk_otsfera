@@ -1,8 +1,11 @@
 import React from 'react';
 import Link from 'next/link';
 import type { AuditEntity } from '@/lib/auth/audit';
+import { auditActionLabel, auditEntityLabel } from '@/lib/audit/labels';
 
 type Props = {
+  /** Адрес экрана: используется ссылкой «Сбросить» (экран переехал в хаб настроек). */
+  basePath: string;
   entities: AuditEntity[];
   actions: string[];
   actors: Array<{ id: string; name: string; email: string }>;
@@ -16,18 +19,18 @@ type Props = {
   };
 };
 
-function groupActions(actions: string[]): Record<string, string[]> {
-  const groups: Record<string, string[]> = {};
-  for (const a of actions) {
-    // String.prototype.split всегда возвращает минимум один элемент (для строки
-    // без разделителя — её саму), поэтому [0] здесь всегда строка.
-    const prefix = a.split('_')[0]!;
-    (groups[prefix] = groups[prefix] ?? []).push(a);
-  }
-  return groups;
+/**
+ * Русские подписи для выпадающих списков: значение остаётся машинным (фильтр
+ * ходит по нему в базу), человек видит название (ТЗ §6.4.4). Сортировка — по
+ * русской подписи, иначе список идёт в порядке английских кодов.
+ */
+function byLabel(values: string[], label: (v: string) => string): Array<[string, string]> {
+  return values
+    .map((value) => [value, label(value)] as [string, string])
+    .sort((a, b) => a[1].localeCompare(b[1], 'ru'));
 }
 
-export function AuditLogFilters({ entities, actions, actors, current }: Props) {
+export function AuditLogFilters({ basePath, entities, actions, actors, current }: Props) {
   const hasActive =
     current.entity ||
     current.action ||
@@ -36,7 +39,8 @@ export function AuditLogFilters({ entities, actions, actors, current }: Props) {
     current.to ||
     current.q;
 
-  const grouped = groupActions(actions);
+  const entityOptions = byLabel(entities, auditEntityLabel);
+  const actionOptions = byLabel(actions, auditActionLabel);
 
   return (
     <form
@@ -51,9 +55,9 @@ export function AuditLogFilters({ entities, actions, actors, current }: Props) {
           className="mt-1 border border-gray-200 rounded px-2 py-1.5 text-sm"
         >
           <option value="">Все сущности</option>
-          {entities.map((e) => (
-            <option key={e} value={e}>
-              {e}
+          {entityOptions.map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
             </option>
           ))}
         </select>
@@ -66,14 +70,10 @@ export function AuditLogFilters({ entities, actions, actors, current }: Props) {
           className="mt-1 border border-gray-200 rounded px-2 py-1.5 text-sm"
         >
           <option value="">Все действия</option>
-          {Object.entries(grouped).map(([prefix, group]) => (
-            <optgroup key={prefix} label={prefix}>
-              {group.map((a) => (
-                <option key={a} value={a}>
-                  {a}
-                </option>
-              ))}
-            </optgroup>
+          {actionOptions.map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
           ))}
         </select>
       </label>
@@ -128,7 +128,7 @@ export function AuditLogFilters({ entities, actions, actors, current }: Props) {
       </button>
       {hasActive && (
         <Link
-          href="/admin/audit"
+          href={basePath}
           className="px-3 py-1.5 border border-gray-200 rounded text-sm text-gray-600 hover:bg-gray-50"
         >
           Сбросить

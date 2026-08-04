@@ -144,7 +144,7 @@ export async function attention(prisma: PrismaClient): Promise<AttentionItem[]> 
       items.push({
         id: 'sync_lag',
         title: `Лаг синхронизации: ${lagging.length} сущ.`,
-        href: '/admin/health',
+        href: '/admin/settings/system/health',
         severity: urgent ? 'urgent' : 'warn',
       });
     }
@@ -159,7 +159,7 @@ export async function attention(prisma: PrismaClient): Promise<AttentionItem[]> 
       items.push({
         id: 'dlq',
         title: `Упавшие задачи: ${dlq.length}`,
-        href: '/admin/health',
+        href: '/admin/settings/system/health',
         severity: 'urgent',
       });
     }

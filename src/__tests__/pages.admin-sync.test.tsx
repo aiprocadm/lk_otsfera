@@ -3,8 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
-const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
-vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
+const { requireSettingsSection } = vi.hoisted(() => ({ requireSettingsSection: vi.fn() }));
+vi.mock('@/lib/auth/requireSettings', () => ({ requireSettingsSection }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
@@ -96,13 +96,13 @@ vi.mock('@/components/admin/sync-cursor-dialog', () => ({
     ),
 }));
 
-import AdminSyncPage from '@/app/admin/sync/page';
+import AdminSyncPage from '@/app/admin/settings/integrations/sync/page';
 
 const SESSION = { sub: 'admin1', role: 'admin' as const };
 
 describe('AdminSyncPage', () => {
   beforeEach(() => {
-    requireAdmin.mockReset();
+    requireSettingsSection.mockReset();
     getSyncSummary.mockReset();
     getQueueStats.mockReset();
     loadPausedSchedulerIds.mockReset();
@@ -111,7 +111,7 @@ describe('AdminSyncPage', () => {
   });
 
   it('renders sync summary rows with active queue badge, formatted date, paused toggle, and cursor', async () => {
-    requireAdmin.mockResolvedValue(SESSION);
+    requireSettingsSection.mockResolvedValue(SESSION);
     getSyncSummary.mockResolvedValue([
       { entity: 'organization', lastSuccessAt: new Date('2024-01-01T10:00:00Z'), cursor: 'cur-1' },
       { entity: 'order', lastSuccessAt: null, cursor: null },
@@ -123,7 +123,7 @@ describe('AdminSyncPage', () => {
 
     const { container } = await renderServerComponent(AdminSyncPage());
 
-    expect(requireAdmin).toHaveBeenCalled();
+    expect(requireSettingsSection).toHaveBeenCalled();
     expect(container.textContent).toContain('Синхронизация с 1С');
     expect(container.textContent).toContain('Организации');
     expect(container.textContent).toContain('выполняется');
@@ -133,7 +133,7 @@ describe('AdminSyncPage', () => {
   });
 
   it('catches getQueueStats/loadPausedSchedulerIds rejections and falls back to empty defaults', async () => {
-    requireAdmin.mockResolvedValue(SESSION);
+    requireSettingsSection.mockResolvedValue(SESSION);
     getSyncSummary.mockResolvedValue([
       { entity: 'organization', lastSuccessAt: new Date('2024-01-01'), cursor: null },
     ]);
@@ -147,7 +147,7 @@ describe('AdminSyncPage', () => {
   });
 
   it('shows the reconcile row active-badge when its queue has active jobs', async () => {
-    requireAdmin.mockResolvedValue(SESSION);
+    requireSettingsSection.mockResolvedValue(SESSION);
     getSyncSummary.mockResolvedValue([]);
     getQueueStats.mockResolvedValue([{ queue: 'oneCSync.reconcile', counts: { active: 1 } }]);
     loadPausedSchedulerIds.mockResolvedValue(new Set());
@@ -159,7 +159,7 @@ describe('AdminSyncPage', () => {
   });
 
   it('renders the background jobs section: 4 rows with RU labels, cron strings, activity badge and trigger buttons (G3)', async () => {
-    requireAdmin.mockResolvedValue(SESSION);
+    requireSettingsSection.mockResolvedValue(SESSION);
     getSyncSummary.mockResolvedValue([]);
     // Одна фоновая очередь активна → ровно один бейдж «выполняется» в секции.
     getQueueStats.mockResolvedValue([{ queue: 'inbound.email.poll', counts: { active: 1 } }]);
@@ -202,7 +202,7 @@ describe('AdminSyncPage', () => {
   });
 
   it('renders the 1C pending records section: dead row gets a requeue button, pending row does not', async () => {
-    requireAdmin.mockResolvedValue(SESSION);
+    requireSettingsSection.mockResolvedValue(SESSION);
     getSyncSummary.mockResolvedValue([]);
     getQueueStats.mockResolvedValue([]);
     loadPausedSchedulerIds.mockResolvedValue(new Set());
@@ -244,7 +244,7 @@ describe('AdminSyncPage', () => {
   });
 
   it('pending section: empty state on ok with no records and on non-ok result', async () => {
-    requireAdmin.mockResolvedValue(SESSION);
+    requireSettingsSection.mockResolvedValue(SESSION);
     getSyncSummary.mockResolvedValue([]);
     getQueueStats.mockResolvedValue([]);
     loadPausedSchedulerIds.mockResolvedValue(new Set());
@@ -256,7 +256,7 @@ describe('AdminSyncPage', () => {
   });
 
   it('pending section degrades gracefully when listPendingRecords rejects', async () => {
-    requireAdmin.mockResolvedValue(SESSION);
+    requireSettingsSection.mockResolvedValue(SESSION);
     getSyncSummary.mockResolvedValue([]);
     getQueueStats.mockResolvedValue([]);
     loadPausedSchedulerIds.mockResolvedValue(new Set());
