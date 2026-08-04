@@ -5,10 +5,11 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
 
-const { partnerFindMany } = vi.hoisted(() => ({ partnerFindMany: vi.fn() }));
-vi.mock('@/lib/db/prisma', () => ({
-  prisma: { partner: { findMany: partnerFindMany } },
-}));
+// Справочник партнёров уехал в сервис (аудит A1): страница мокает сервис,
+// форма запроса проверяется в services.admin.partners.test.ts.
+const { listActivePartnerOptions } = vi.hoisted(() => ({ listActivePartnerOptions: vi.fn() }));
+vi.mock('@/lib/services/admin/partners', () => ({ listActivePartnerOptions }));
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 const { listOrganizations } = vi.hoisted(() => ({ listOrganizations: vi.fn() }));
 vi.mock('@/lib/services/admin/organizations', () => ({ listOrganizations }));
@@ -35,7 +36,7 @@ const ORG = {
 describe('AdminOrganizationsPage', () => {
   beforeEach(() => {
     requireAdmin.mockReset();
-    partnerFindMany.mockReset();
+    listActivePartnerOptions.mockReset();
     listOrganizations.mockReset();
   });
 
@@ -45,7 +46,7 @@ describe('AdminOrganizationsPage', () => {
       rows: [{ ...ORG, partnerCommissionRate: 0.1 }],
       total: 1,
     });
-    partnerFindMany.mockResolvedValue([{ id: 'p1', name: 'Партнёр 1' }]);
+    listActivePartnerOptions.mockResolvedValue([{ id: 'p1', name: 'Партнёр 1' }]);
 
     const { container } = await renderServerComponent(
       AdminOrganizationsPage({
@@ -77,7 +78,7 @@ describe('AdminOrganizationsPage', () => {
   it('renders withRateOverride:false, negative skip clamped to 0, EmptyState when no orgs, and pluralize "организации"/"организаций" branches', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     listOrganizations.mockResolvedValue({ rows: [], total: 3 });
-    partnerFindMany.mockResolvedValue([]);
+    listActivePartnerOptions.mockResolvedValue([]);
 
     const { container } = await renderServerComponent(
       AdminOrganizationsPage({
@@ -99,7 +100,7 @@ describe('AdminOrganizationsPage', () => {
       rows: [{ ...ORG, inn: null, partner: null }],
       total: 13,
     });
-    partnerFindMany.mockResolvedValue([]);
+    listActivePartnerOptions.mockResolvedValue([]);
 
     const { container } = await renderServerComponent(
       AdminOrganizationsPage({ searchParams: Promise.resolve({}) })
@@ -117,7 +118,7 @@ describe('AdminOrganizationsPage', () => {
   it('renders the paginator with both Назад/Вперёд links (all filters set) when in the middle of a result set', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     listOrganizations.mockResolvedValue({ rows: [ORG], total: 200 });
-    partnerFindMany.mockResolvedValue([]);
+    listActivePartnerOptions.mockResolvedValue([]);
 
     const { container } = await renderServerComponent(
       AdminOrganizationsPage({
@@ -147,7 +148,7 @@ describe('AdminOrganizationsPage', () => {
   it('renders the paginator with partnerId/withRateOverride falling back to "" when absent from searchParams', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     listOrganizations.mockResolvedValue({ rows: [ORG], total: 200 });
-    partnerFindMany.mockResolvedValue([]);
+    listActivePartnerOptions.mockResolvedValue([]);
 
     const { container } = await renderServerComponent(
       AdminOrganizationsPage({ searchParams: Promise.resolve({ skip: '50' }) })
@@ -162,7 +163,7 @@ describe('AdminOrganizationsPage', () => {
   it('omits the paginator entirely when total <= PAGE_SIZE', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     listOrganizations.mockResolvedValue({ rows: [ORG], total: 1 });
-    partnerFindMany.mockResolvedValue([]);
+    listActivePartnerOptions.mockResolvedValue([]);
 
     const { container } = await renderServerComponent(
       AdminOrganizationsPage({ searchParams: Promise.resolve({}) })

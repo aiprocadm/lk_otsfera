@@ -51,6 +51,24 @@ export async function listQueue(prisma: PrismaClient, session: SessionPayload) {
   });
 }
 
+/**
+ * Названия организаций-кандидатов для строк очереди разбора.
+ *
+ * Пустой список id — без запроса в базу (очередь без кандидатов встречается
+ * чаще всего). Возвращает готовую карту id → название.
+ */
+export async function listQueueOrgNames(
+  prisma: PrismaClient,
+  orgIds: string[]
+): Promise<Map<string, string>> {
+  if (!orgIds.length) return new Map();
+  const orgs = await prisma.organization.findMany({
+    where: { id: { in: orgIds } },
+    select: { id: true, name: true },
+  });
+  return new Map(orgs.map((o) => [o.id, o.name]));
+}
+
 /** Подтвердить привязку строки очереди → создать Payment через writer, пометить resolved. */
 export async function resolveQueueRow(
   prisma: PrismaClient,

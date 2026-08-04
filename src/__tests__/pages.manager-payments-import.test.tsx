@@ -7,13 +7,15 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
 
-const { organizationFindMany } = vi.hoisted(() => ({ organizationFindMany: vi.fn() }));
-vi.mock('@/lib/db/prisma', () => ({
-  prisma: { organization: { findMany: organizationFindMany } },
-}));
+// Поиск названий организаций-кандидатов уехал в сервис (аудит A1): форма
+// запроса пиннится в import.card51.resolveQueue.unit.test.ts.
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
-const { listQueue } = vi.hoisted(() => ({ listQueue: vi.fn() }));
-vi.mock('@/lib/services/import/oneCAccountCard', () => ({ listQueue }));
+const { listQueue, listQueueOrgNames } = vi.hoisted(() => ({
+  listQueue: vi.fn(),
+  listQueueOrgNames: vi.fn(),
+}));
+vi.mock('@/lib/services/import/oneCAccountCard', () => ({ listQueue, listQueueOrgNames }));
 
 vi.mock('@/components/import/payment-import-form', () => ({
   PaymentImportForm: () => React.createElement('div', { 'data-testid': 'payment-import-form' }),
@@ -38,7 +40,8 @@ const SESSION = {
 describe('ManagerPaymentsImportPage', () => {
   beforeEach(() => {
     requireManager.mockReset();
-    organizationFindMany.mockReset();
+    listQueueOrgNames.mockReset();
+    listQueueOrgNames.mockResolvedValue(new Map());
     listQueue.mockReset();
   });
 
@@ -64,7 +67,7 @@ describe('ManagerPaymentsImportPage', () => {
 
     expect(requireManager).toHaveBeenCalled();
     expect(listQueue).toHaveBeenCalledWith(expect.anything(), SESSION);
-    expect(organizationFindMany).not.toHaveBeenCalled();
+    expect(listQueueOrgNames).toHaveBeenCalledWith(expect.anything(), []);
     expect(container.textContent).toContain('Импорт оплат');
     expect(container.textContent).toContain('ext1');
   });
@@ -99,13 +102,11 @@ describe('ManagerPaymentsImportPage', () => {
         matchMethod: 'manual',
       },
     ]);
-    organizationFindMany.mockResolvedValue([{ id: 'org-1', name: 'Org One' }]);
+    listQueueOrgNames.mockResolvedValue(new Map([['org-1', 'Org One']]));
 
     const { container } = await renderServerComponent(ManagerPaymentsImportPage());
 
-    expect(organizationFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: { in: ['org-1', 'org-2'] } } })
-    );
+    expect(listQueueOrgNames).toHaveBeenCalledWith(expect.anything(), ['org-1', 'org-2']);
     expect(container.textContent).toContain('Org One');
     // org-2 has no matching org row -> candidateOrgName falls back to null
     expect(container.textContent).toContain('ext2');

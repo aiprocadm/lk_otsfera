@@ -9,7 +9,10 @@ vi.mock('@/lib/telegram/client', () => ({ isTelegramEnabled }));
 vi.mock('@/lib/max/client', () => ({ isMaxEnabled }));
 vi.mock('@/lib/whatsapp/aggregator', () => ({ isWhatsAppEnabled }));
 
-import { getIntegrationsStatus } from '@/lib/services/admin/integrations';
+import {
+  getIntegrationsStatus,
+  listIntegrationSyncStates,
+} from '@/lib/services/admin/integrations';
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -91,5 +94,33 @@ describe('getIntegrationsStatus', () => {
       expect(row.description).toBeTruthy();
       expect(row.envHint).toBeTruthy();
     }
+  });
+});
+
+/**
+ * Аудит A1: чтение отметок проб/вебхуков уехало со страницы /admin/integrations
+ * в сервис — здесь пиннится форма запроса.
+ */
+describe('listIntegrationSyncStates', () => {
+  it('запрашивает ровно переданные имена и узкий select', async () => {
+    const findMany = vi
+      .fn()
+      .mockResolvedValue([
+        { entity: 'integration.telegram', lastRunAt: null, lastSuccessAt: null, lastError: null },
+      ]);
+    const prisma = { syncState: { findMany } } as unknown as Parameters<
+      typeof listIntegrationSyncStates
+    >[0];
+
+    const rows = await listIntegrationSyncStates(prisma, [
+      'integration.telegram',
+      'webhook.telegram',
+    ]);
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: { entity: { in: ['integration.telegram', 'webhook.telegram'] } },
+      select: { entity: true, lastRunAt: true, lastSuccessAt: true, lastError: true },
+    });
+    expect(rows).toHaveLength(1);
   });
 });

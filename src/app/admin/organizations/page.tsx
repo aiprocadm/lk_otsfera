@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/auth/requireRole';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 import { prisma } from '@/lib/db/prisma';
 import { listOrganizations } from '@/lib/services/admin/organizations';
+import { listActivePartnerOptions } from '@/lib/services/admin/partners';
 import type { OrgFilters } from '@/lib/services/admin/organizations';
 import { CreateOrganizationDialog } from '@/components/admin/create-organization-dialog';
 
@@ -41,11 +42,7 @@ export default async function AdminOrganizationsPage({
 
   const [{ rows: orgs, total }, partners] = await Promise.all([
     listOrganizations(prisma, filters),
-    prisma.partner.findMany({
-      where: { isActive: true },
-      select: { id: true, name: true },
-      orderBy: { name: 'asc' },
-    }),
+    listActivePartnerOptions(prisma),
   ]);
 
   return (

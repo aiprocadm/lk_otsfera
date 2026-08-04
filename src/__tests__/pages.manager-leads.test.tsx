@@ -7,13 +7,16 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
 
-const { findManyOrganizations } = vi.hoisted(() => ({ findManyOrganizations: vi.fn() }));
-vi.mock('@/lib/db/prisma', () => ({
-  prisma: { organization: { findMany: findManyOrganizations } },
-}));
+const { prismaMock } = vi.hoisted(() => ({ prismaMock: {} }));
+vi.mock('@/lib/db/prisma', () => ({ prisma: prismaMock }));
 
 const { listManagerLeads } = vi.hoisted(() => ({ listManagerLeads: vi.fn() }));
 vi.mock('@/lib/services/manager/leads', () => ({ listManagerLeads }));
+
+// A1: справочник организаций компании — сервис (форма запроса и пустой ответ
+// для сессии без компании проверяются в services.manager.organizations.unit).
+const { listCompanyOrgOptions } = vi.hoisted(() => ({ listCompanyOrgOptions: vi.fn() }));
+vi.mock('@/lib/services/manager/organizations', () => ({ listCompanyOrgOptions }));
 
 vi.mock('@/components/manager/lead-create-staff-form', () => ({
   LeadCreateStaffForm: (props: { organizations: unknown[] }) =>
@@ -51,8 +54,8 @@ describe('ManagerLeadsPage', () => {
   beforeEach(() => {
     requireManager.mockReset();
     listManagerLeads.mockReset();
-    findManyOrganizations.mockReset();
-    findManyOrganizations.mockResolvedValue([]);
+    listCompanyOrgOptions.mockReset();
+    listCompanyOrgOptions.mockResolvedValue([]);
   });
 
   it('passes an undefined status for an unrecognized status value', async () => {
@@ -90,24 +93,21 @@ describe('ManagerLeadsPage', () => {
       assignedToUserId: 'u1',
       cursor: 'c1',
     });
-    expect(findManyOrganizations).toHaveBeenCalledWith({
-      where: { companyId: 'c1' },
-      select: { id: true, name: true },
-      orderBy: { name: 'asc' },
-    });
+    expect(listCompanyOrgOptions).toHaveBeenCalledWith(prismaMock, SESSION);
     expect(container.textContent).toContain('Лиды');
     expect(container.textContent).toContain('l1');
   });
 
   it('passes an empty organizations list when the manager has no companyId', async () => {
-    requireManager.mockResolvedValue({ ...SESSION, companyId: null });
+    const session = { ...SESSION, companyId: null };
+    requireManager.mockResolvedValue(session);
     listManagerLeads.mockResolvedValue({ rows: [], nextCursor: null });
 
     const { container } = await renderServerComponent(
       ManagerLeadsPage({ searchParams: Promise.resolve({}) })
     );
 
-    expect(findManyOrganizations).not.toHaveBeenCalled();
+    expect(listCompanyOrgOptions).toHaveBeenCalledWith(prismaMock, session);
     expect(container.textContent).toContain('[]');
   });
 

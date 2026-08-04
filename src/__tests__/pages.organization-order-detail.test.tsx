@@ -10,16 +10,19 @@ vi.mock('@/lib/auth/orgPageContext', () => ({ getOrgPageContext }));
 const { canSeeOrder } = vi.hoisted(() => ({ canSeeOrder: vi.fn() }));
 vi.mock('@/lib/auth/organizationPolicy', () => ({ canSeeOrder }));
 
-const { getOrgOrder } = vi.hoisted(() => ({ getOrgOrder: vi.fn() }));
-vi.mock('@/lib/services/organization/orders', () => ({ getOrgOrder }));
+const { getOrgOrder, listOrgOrderComments } = vi.hoisted(() => ({
+  getOrgOrder: vi.fn(),
+  listOrgOrderComments: vi.fn(),
+}));
+vi.mock('@/lib/services/organization/orders', () => ({ getOrgOrder, listOrgOrderComments }));
 
 const { getValuesForEntity } = vi.hoisted(() => ({ getValuesForEntity: vi.fn() }));
 vi.mock('@/lib/services/customFields', () => ({ getValuesForEntity }));
 
-const { commentFindMany } = vi.hoisted(() => ({ commentFindMany: vi.fn() }));
-vi.mock('@/lib/db/prisma', () => ({
-  prisma: { comment: { findMany: commentFindMany } },
-}));
+// Лента комментариев уехала в сервис (аудит A1); форма запроса пиннится
+// интеграционно в services.organization.orders.test.ts. Ключ `comment` в мок-
+// prisma оставлен: страница прокидывает тот же клиент в getValuesForEntity.
+vi.mock('@/lib/db/prisma', () => ({ prisma: { comment: {} } }));
 
 const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
@@ -85,7 +88,7 @@ describe('OrganizationOrderDetailPage', () => {
     canSeeOrder.mockReset();
     getOrgOrder.mockReset();
     getValuesForEntity.mockReset();
-    commentFindMany.mockReset();
+    listOrgOrderComments.mockReset();
     nav.notFound.mockClear();
   });
 
@@ -139,12 +142,12 @@ describe('OrganizationOrderDetailPage', () => {
       ],
     });
     canSeeOrder.mockReturnValue(true);
-    commentFindMany.mockResolvedValue([
+    listOrgOrderComments.mockResolvedValue([
       {
         id: 'c1',
         body: 'Комментарий',
         createdAt: new Date('2024-01-01'),
-        author: { name: 'Менеджер М.' },
+        authorName: 'Менеджер М.',
       },
     ]);
     getValuesForEntity.mockResolvedValue({
@@ -172,9 +175,7 @@ describe('OrganizationOrderDetailPage', () => {
       })
     );
 
-    expect(commentFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { orderId: 'order-1' } })
-    );
+    expect(listOrgOrderComments).toHaveBeenCalledWith(expect.anything(), 'order-1');
     expect(getValuesForEntity).toHaveBeenCalledWith(
       expect.objectContaining({ comment: expect.anything() }),
       expect.anything(), // сессия: этап 1 ТЗ v0.5 фильтрует поля по ролям на сервере
@@ -194,7 +195,7 @@ describe('OrganizationOrderDetailPage', () => {
     getOrgPageContext.mockResolvedValue(CTX);
     getOrgOrder.mockResolvedValue(BASE_ORDER);
     canSeeOrder.mockReturnValue(true);
-    commentFindMany.mockResolvedValue([]);
+    listOrgOrderComments.mockResolvedValue([]);
     getValuesForEntity.mockResolvedValue({ ok: false, error: 'not_found' });
 
     const { container } = await renderServerComponent(

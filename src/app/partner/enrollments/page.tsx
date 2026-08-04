@@ -4,6 +4,8 @@ import { requirePartner } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { listEnrollmentRequests } from '@/lib/services/enrollments/list';
+import { listPartnerOrgOptions } from '@/lib/services/partner/orgOptions';
+import { listDirectionOptions } from '@/lib/services/training/directions';
 import { EnrollmentWizard } from '@/components/enrollment/enrollment-wizard';
 import { EnrollmentList } from '@/components/enrollment/enrollment-list';
 
@@ -14,16 +16,8 @@ export default async function PartnerEnrollmentsPage() {
   const session = await requirePartner();
   const [{ rows }, orgs, directions] = await Promise.all([
     listEnrollmentRequests(prisma, session, {}),
-    prisma.organization.findMany({
-      where: { partnerId: session.partnerId },
-      select: { id: true, name: true },
-      orderBy: { name: 'asc' },
-    }),
-    prisma.trainingDirection.findMany({
-      where: { isActive: true },
-      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-      select: { id: true, name: true },
-    }),
+    listPartnerOrgOptions(prisma, { partnerId: session.partnerId }),
+    listDirectionOptions(prisma),
   ]);
   return (
     <div className="space-y-5">

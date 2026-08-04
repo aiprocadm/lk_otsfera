@@ -7,12 +7,14 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
 
-const { trainingDirectionFindMany } = vi.hoisted(() => ({
-  trainingDirectionFindMany: vi.fn().mockResolvedValue([{ id: 'd1', name: 'Охрана труда' }]),
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+
+// A1: справочник направлений читает сервис (форма запроса — в
+// services.training.directions), страница только вызывает его.
+const { listDirectionOptions } = vi.hoisted(() => ({
+  listDirectionOptions: vi.fn().mockResolvedValue([{ id: 'd1', name: 'Охрана труда' }]),
 }));
-vi.mock('@/lib/db/prisma', () => ({
-  prisma: { trainingDirection: { findMany: trainingDirectionFindMany } },
-}));
+vi.mock('@/lib/services/training/directions', () => ({ listDirectionOptions }));
 
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
@@ -69,6 +71,7 @@ describe('ManagerEnrollmentsPage', () => {
     const { container } = await renderServerComponent(ManagerEnrollmentsPage());
 
     expect(listEnrollmentRequests).toHaveBeenCalledWith(expect.anything(), SESSION, {});
+    expect(listDirectionOptions).toHaveBeenCalledWith(expect.anything());
     expect(container.textContent).toContain('Заявки на обучение');
     expect(container.querySelector('[data-testid="enrollment-form"]')).not.toBeNull();
   });

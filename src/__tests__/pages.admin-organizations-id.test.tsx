@@ -13,13 +13,15 @@ vi.mock('@/lib/services/customFields', () => ({
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
 
-const { organizationFindUnique } = vi.hoisted(() => ({ organizationFindUnique: vi.fn() }));
-vi.mock('@/lib/db/prisma', () => ({
-  prisma: { organization: { findUnique: organizationFindUnique } },
-}));
+// Шапка карточки (компания + счётчики) уехала в сервис (аудит A1) — форма
+// запроса пиннится в services.admin.organizations.test.ts.
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
-const { getOrganization } = vi.hoisted(() => ({ getOrganization: vi.fn() }));
-vi.mock('@/lib/services/admin/organizations', () => ({ getOrganization }));
+const { getOrganization, getOrganizationMeta } = vi.hoisted(() => ({
+  getOrganization: vi.fn(),
+  getOrganizationMeta: vi.fn(),
+}));
+vi.mock('@/lib/services/admin/organizations', () => ({ getOrganization, getOrganizationMeta }));
 
 const { listOrgRateHistory } = vi.hoisted(() => ({ listOrgRateHistory: vi.fn() }));
 vi.mock('@/lib/services/commission/rateHistory', () => ({ listOrgRateHistory }));
@@ -109,7 +111,7 @@ const META = {
 describe('AdminOrganizationDetailPage', () => {
   beforeEach(() => {
     requireAdmin.mockReset();
-    organizationFindUnique.mockReset();
+    getOrganizationMeta.mockReset();
     getOrganization.mockReset();
     listOrgRateHistory.mockReset();
     listOrgRateHistory.mockResolvedValue({ ok: true, rows: [] });
@@ -119,7 +121,7 @@ describe('AdminOrganizationDetailPage', () => {
   it('calls notFound() when org is missing', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     getOrganization.mockResolvedValue(null);
-    organizationFindUnique.mockResolvedValue(META);
+    getOrganizationMeta.mockResolvedValue(META);
 
     await expect(
       renderServerComponent(
@@ -131,7 +133,7 @@ describe('AdminOrganizationDetailPage', () => {
   it('calls notFound() when meta is missing', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     getOrganization.mockResolvedValue(ORG);
-    organizationFindUnique.mockResolvedValue(null);
+    getOrganizationMeta.mockResolvedValue(null);
 
     await expect(
       renderServerComponent(
@@ -143,7 +145,7 @@ describe('AdminOrganizationDetailPage', () => {
   it('renders org details with company name, inn/kpp, external id, and volumes', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     getOrganization.mockResolvedValue(ORG);
-    organizationFindUnique.mockResolvedValue(META);
+    getOrganizationMeta.mockResolvedValue(META);
 
     const { container } = await renderServerComponent(
       AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }) })
@@ -167,7 +169,7 @@ describe('AdminOrganizationDetailPage', () => {
     // Без карточки их негде заполнить — а без них счёт и акт не собираются.
     requireAdmin.mockResolvedValue(SESSION);
     getOrganization.mockResolvedValue(ORG);
-    organizationFindUnique.mockResolvedValue(META);
+    getOrganizationMeta.mockResolvedValue(META);
     getOrgRequisitesByAdmin.mockResolvedValue({
       legalName: 'ООО Заказчик',
       inn: '7707083893',
@@ -201,7 +203,7 @@ describe('AdminOrganizationDetailPage', () => {
       externalId: null,
       inn: null,
     });
-    organizationFindUnique.mockResolvedValue({ ...META, company: null });
+    getOrganizationMeta.mockResolvedValue({ ...META, company: null });
 
     const { container } = await renderServerComponent(
       AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }) })
@@ -214,7 +216,7 @@ describe('AdminOrganizationDetailPage', () => {
   it('renders the rate history section with rows (percent formatting, changedByName)', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     getOrganization.mockResolvedValue(ORG);
-    organizationFindUnique.mockResolvedValue(META);
+    getOrganizationMeta.mockResolvedValue(META);
     listOrgRateHistory.mockResolvedValue({
       ok: true,
       rows: [
@@ -243,7 +245,7 @@ describe('AdminOrganizationDetailPage', () => {
   it('renders "—" for oldRate:null and «сброс (ставка партнёра)» for newRate:null', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     getOrganization.mockResolvedValue(ORG);
-    organizationFindUnique.mockResolvedValue(META);
+    getOrganizationMeta.mockResolvedValue(META);
     listOrgRateHistory.mockResolvedValue({
       ok: true,
       rows: [
@@ -268,7 +270,7 @@ describe('AdminOrganizationDetailPage', () => {
   it('renders the empty state «Изменений не было» when history has no rows', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     getOrganization.mockResolvedValue(ORG);
-    organizationFindUnique.mockResolvedValue(META);
+    getOrganizationMeta.mockResolvedValue(META);
     listOrgRateHistory.mockResolvedValue({ ok: true, rows: [] });
 
     const { container } = await renderServerComponent(
@@ -281,7 +283,7 @@ describe('AdminOrganizationDetailPage', () => {
   it('gracefully falls back to the empty state when listOrgRateHistory returns ok:false', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     getOrganization.mockResolvedValue(ORG);
-    organizationFindUnique.mockResolvedValue(META);
+    getOrganizationMeta.mockResolvedValue(META);
     listOrgRateHistory.mockResolvedValue({ ok: false, error: 'forbidden' });
 
     const { container } = await renderServerComponent(

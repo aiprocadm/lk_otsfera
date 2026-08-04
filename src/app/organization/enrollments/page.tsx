@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { getOrgPageContext } from '@/lib/auth/orgPageContext';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { listEnrollmentRequests } from '@/lib/services/enrollments/list';
+import { listDirectionOptions } from '@/lib/services/training/directions';
 import { OrgAppShell } from '@/components/organization/org-app-shell';
 import { EnrollmentWizard } from '@/components/enrollment/enrollment-wizard';
 import { EnrollmentList } from '@/components/enrollment/enrollment-list';
@@ -15,11 +16,7 @@ export default async function OrganizationEnrollmentsPage() {
   const ctx = await getOrgPageContext({});
   const [{ rows }, directions] = await Promise.all([
     listEnrollmentRequests(prisma, ctx.session, {}),
-    prisma.trainingDirection.findMany({
-      where: { isActive: true },
-      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-      select: { id: true, name: true },
-    }),
+    listDirectionOptions(prisma),
   ]);
   return (
     <OrgAppShell
