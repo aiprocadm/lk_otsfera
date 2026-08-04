@@ -59,7 +59,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1073.0",
     "@aws-sdk/s3-request-presigner": "^3.1073.0",
-    "@prisma/client": "^5.14.0",
+    "@prisma/client": "^6.19.3",
     "@react-pdf/renderer": "^4.5.1",
     "@sentry/nextjs": "^10.64.0",
     "@sentry/node": "^10.64.0",
@@ -74,7 +74,7 @@
     "mailparser": "^3.9.14",
     "next": "^15.0.0",
     "pino": "^10.3.1",
-    "prisma": "^5.14.0",
+    "prisma": "^6.19.3",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -113,13 +113,13 @@
     "vitest": "^2.1.8"
   },
   "allowScripts": {
-    "@prisma/client@5.22.0": true,
-    "@prisma/engines@5.22.0": true,
+    "@prisma/client@6.19.3": true,
+    "@prisma/engines@6.19.3": true,
     "@sentry/cli@2.58.6": true,
-    "esbuild@0.28.0": true,
     "esbuild@0.21.5": true,
+    "esbuild@0.28.0": true,
     "msgpackr-extract@3.0.3": true,
-    "prisma@5.22.0": true,
+    "prisma@6.19.3": true,
     "sharp@0.34.5": true,
     "unrs-resolver@1.12.2": true
   }
