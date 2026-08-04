@@ -28,7 +28,8 @@ export default async function LeaderDealsPage({
   const managerId = sp.manager?.trim() || undefined;
 
   const [board, organizations, managers] = await Promise.all([
-    getDealBoard(prisma, session, { managerId }),
+    // exactOptionalPropertyTypes: сервис различает «ключа нет» и «ключ = undefined».
+    getDealBoard(prisma, session, { ...(managerId !== undefined ? { managerId } : {}) }),
     session.companyId
       ? prisma.organization.findMany({
           where: { companyId: session.companyId },

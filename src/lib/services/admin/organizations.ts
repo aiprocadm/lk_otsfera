@@ -12,12 +12,13 @@ export class AdminOrgError extends Error {
   }
 }
 
+// Фильтры списка: «ключа нет» и «ключ = undefined» — одно и то же (не фильтровать).
 export type OrgFilters = {
-  q?: string;
-  partnerId?: string;
-  withRateOverride?: boolean;
-  take?: number;
-  skip?: number;
+  q?: string | undefined;
+  partnerId?: string | undefined;
+  withRateOverride?: boolean | undefined;
+  take?: number | undefined;
+  skip?: number | undefined;
 };
 
 export type OrgRow = {

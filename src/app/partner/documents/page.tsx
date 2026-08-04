@@ -147,11 +147,11 @@ function TypeFilter({
   search,
   tab,
 }: {
-  active?: DocumentType;
+  active?: DocumentType | undefined;
   countsByType: Partial<Record<DocumentType, number>>;
   grandTotal: number;
-  search?: string;
-  tab?: string;
+  search?: string | undefined;
+  tab?: string | undefined;
 }) {
   if (grandTotal === 0) return null;
   const present = VALID_TYPES.filter((t) => (countsByType[t] ?? 0) > 0);

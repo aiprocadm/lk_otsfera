@@ -6,7 +6,7 @@ export type PartnerInviteProps = {
   /** Русская подпись роли в команде («администратор» | «менеджер»). */
   roleLabel: string;
   inviteUrl: string;
-  invitedByName?: string;
+  invitedByName?: string | undefined;
   /** Срок действия ссылки в днях (ФТ-10.1); дефолт — TTL инвайт-токена. */
   expiresInDays?: number;
 };

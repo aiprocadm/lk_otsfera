@@ -190,7 +190,8 @@ export async function POST(req: Request) {
     const row = await notifyMessageCreated({
       userId: s.sub,
       organizationId,
-      partnerId: s.partnerId,
+      // exactOptionalPropertyTypes: NotificationInput различает «ключа нет» и «ключ = undefined».
+      ...(s.partnerId !== undefined ? { partnerId: s.partnerId } : {}),
       title: 'Новое сообщение',
       body,
       meta: { orderId, commentId: comment.id },

@@ -43,7 +43,12 @@ export async function transitionOrderStatusAction(input: {
   if (!parsed.success) return { ok: false, error: 'validation' };
 
   const session = await requireSession();
-  const res = await transitionOrderStatus(prisma, session, parsed.data);
+  // exactOptionalPropertyTypes: TransitionArgs различают «ключа нет» и «ключ = undefined».
+  const res = await transitionOrderStatus(prisma, session, {
+    orderId: parsed.data.orderId,
+    toId: parsed.data.toId,
+    ...(parsed.data.reason !== undefined ? { reason: parsed.data.reason } : {}),
+  });
   if (!res.ok) return res;
 
   // Одна и та же заявка живёт в трёх кабинетах — освежаем все, иначе соседний

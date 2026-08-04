@@ -74,7 +74,9 @@ describe('scrub', () => {
 
   it('Error без stack — stack undefined', () => {
     const err = new Error('boom');
-    err.stack = undefined;
+    // Убираем stack удалением свойства: `err.stack = undefined` не проходит при
+    // exactOptionalPropertyTypes, а scrub всё равно читает `value.stack ? … : undefined`.
+    delete err.stack;
     expect(scrub(err)).toEqual({ name: 'Error', message: 'boom', stack: undefined });
   });
 

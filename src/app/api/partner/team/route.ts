@@ -69,12 +69,14 @@ export async function POST(req: Request) {
       where: { id: admin.value.partnerId },
       select: { name: true },
     });
+    const invitedByName = session.name ?? undefined;
     const sent = await sendPartnerInviteEmail({
       to: parsed.data.email,
       partnerName: partner?.name ?? 'партнёр',
       roleLabel: parsed.data.roleInPartner === 'admin' ? 'администратор' : 'менеджер',
       inviteUrl: result.inviteUrl,
-      invitedByName: session.name ?? undefined,
+      // exactOptionalPropertyTypes: props письма различают «ключа нет» и «ключ = undefined».
+      ...(invitedByName !== undefined ? { invitedByName } : {}),
     });
     if (sent.status === 'sent') emailStatus = 'sent';
   } catch (e) {

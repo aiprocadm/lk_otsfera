@@ -45,8 +45,11 @@ export async function listColleagues(
       OR: [
         {
           role: 'manager',
-          companyId:
-            session.role === 'admin' ? undefined : (session.companyId ?? NO_COMPANY_SENTINEL),
+          // admin (Model A) видит менеджеров всех компаний: ключ companyId в
+          // where отсутствует ⇒ Prisma не фильтрует по нему.
+          ...(session.role === 'admin'
+            ? {}
+            : { companyId: session.companyId ?? NO_COMPANY_SENTINEL }),
         },
         { role: 'admin' },
       ],

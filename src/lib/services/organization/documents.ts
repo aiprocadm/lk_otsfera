@@ -20,16 +20,17 @@ type OrgDocRow = {
   orderTitle: string | null;
 };
 
+// Фильтры списка: «ключа нет» и «ключ = undefined» — одно и то же (не фильтровать).
 export type ListOrgDocumentsOptions = {
   organizationId: string;
-  type?: DocumentType;
-  orderId?: string;
-  orderLess?: boolean;
-  from?: Date;
-  to?: Date;
-  search?: string;
-  take?: number;
-  skip?: number;
+  type?: DocumentType | undefined;
+  orderId?: string | undefined;
+  orderLess?: boolean | undefined;
+  from?: Date | undefined;
+  to?: Date | undefined;
+  search?: string | undefined;
+  take?: number | undefined;
+  skip?: number | undefined;
 };
 
 export type ListOrgDocumentsResult = {

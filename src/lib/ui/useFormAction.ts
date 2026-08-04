@@ -25,11 +25,11 @@ export function resolveErrorText(code: string, errorMap?: Record<string, string>
 type UseFormActionOptions<T> = {
   action: (formData: FormData) => Promise<ActionResult<T>>;
   /** Переопределения поверх errorMessageRu(); формы переносят сюда свои ERROR_LABELS-дельты. */
-  errorMap?: Record<string, string>;
+  errorMap?: Record<string, string> | undefined;
   /** После ok:true — toast / onClose / копирование. */
-  onSuccess?: (data: T) => void;
+  onSuccess?: ((data: T) => void) | undefined;
   /** router.refresh() после успеха. Default false: Фаза 1 сохраняет поведение форм 1:1 (spec §6). */
-  refresh?: boolean;
+  refresh?: boolean | undefined;
 };
 
 type FormActionState<T> =

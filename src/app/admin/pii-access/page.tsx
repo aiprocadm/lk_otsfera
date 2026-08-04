@@ -35,15 +35,25 @@ export default async function AdminPiiAccessPage({ searchParams }: { searchParam
   const session = await requireAdmin();
   const sp = await searchParams;
 
+  const actorUserId = sp.actorUserId || undefined;
+  const userRole = sp.userRole || undefined;
+  const context = (sp.context || undefined) as PiiContextKey | undefined;
+  const subjectType = (sp.subjectType || undefined) as PiiSubjectType | undefined;
+  const subjectId = sp.subjectId?.trim() || undefined;
+  const from = parseDate(sp.from);
+  const to = parseDate(sp.to);
+  const cursor = sp.cursor || undefined;
+
+  // exactOptionalPropertyTypes: PiiAccessFilters различает «поля нет» и «поле = undefined».
   const filters: Filters = {
-    actorUserId: sp.actorUserId || undefined,
-    userRole: sp.userRole || undefined,
-    context: (sp.context || undefined) as PiiContextKey | undefined,
-    subjectType: (sp.subjectType || undefined) as PiiSubjectType | undefined,
-    subjectId: sp.subjectId?.trim() || undefined,
-    from: parseDate(sp.from),
-    to: parseDate(sp.to),
-    cursor: sp.cursor || undefined,
+    ...(actorUserId !== undefined ? { actorUserId } : {}),
+    ...(userRole !== undefined ? { userRole } : {}),
+    ...(context !== undefined ? { context } : {}),
+    ...(subjectType !== undefined ? { subjectType } : {}),
+    ...(subjectId !== undefined ? { subjectId } : {}),
+    ...(from !== undefined ? { from } : {}),
+    ...(to !== undefined ? { to } : {}),
+    ...(cursor !== undefined ? { cursor } : {}),
     take: 50,
   };
 

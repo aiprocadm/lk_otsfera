@@ -13,7 +13,7 @@ export function DealsManagerFilter({
   managerId,
 }: {
   managers: { id: string; name: string }[];
-  managerId?: string;
+  managerId?: string | undefined;
 }) {
   const router = useRouter();
 

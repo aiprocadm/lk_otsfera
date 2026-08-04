@@ -20,9 +20,9 @@ const SIZE: Record<Size, string> = {
 };
 
 export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: Variant;
-  size?: Size;
-  loading?: boolean;
+  variant?: Variant | undefined;
+  size?: Size | undefined;
+  loading?: boolean | undefined;
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(

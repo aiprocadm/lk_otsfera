@@ -62,7 +62,17 @@ export async function assignOrInviteManagerAction(
 
   const session = await requireAdmin();
 
-  const result = await createAndAssignManager(prisma, parsed.data, session.sub);
+  // exactOptionalPropertyTypes: вход сервиса различает «ключа name нет» и «name = undefined».
+  const input =
+    parsed.data.mode === 'new'
+      ? {
+          mode: 'new' as const,
+          organizationId: parsed.data.organizationId,
+          email: parsed.data.email,
+          ...(parsed.data.name !== undefined ? { name: parsed.data.name } : {}),
+        }
+      : parsed.data;
+  const result = await createAndAssignManager(prisma, input, session.sub);
   if (!result.ok) return { ok: false, error: result.error };
 
   if (result.inviteUrl !== null) {

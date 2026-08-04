@@ -197,25 +197,30 @@ export default defineConfig({
       testMatch: /snapshots\/student-.*\.spec\.ts/,
     },
   ],
-  webServer: process.env.PLAYWRIGHT_BASE_URL
-    ? undefined
+  // PLAYWRIGHT_BASE_URL задан → сервер уже поднят снаружи, ключ `webServer`
+  // не выставляем вовсе (при exactOptionalPropertyTypes `webServer: undefined`
+  // не подходит под опциональное поле — «нет ключа» ≠ «ключ = undefined»).
+  ...(process.env.PLAYWRIGHT_BASE_URL
+    ? {}
     : {
-        command: 'npm run dev',
-        url: 'http://localhost:3000',
-        reuseExistingServer: !process.env.CI,
-        timeout: 120_000,
-        // organization_cabinet / manager_cabinet are opt-in flags (off by
-        // default for staged rollout, see src/lib/featureFlags.ts). Their e2e
-        // specs need the cabinets live, so enable both for the test dev-server.
-        // Playwright merges this onto process.env, so .env (DATABASE_URL, …)
-        // is preserved.
-        env: {
-          FEATURE_ORGANIZATION_CABINET: '1',
-          FEATURE_MANAGER_CABINET: '1',
-          // leader_cabinet is opt-in too. The leader-* specs need
-          // /leader/dashboard live, and middleware only routes a leader's
-          // role-home there when this flag is on (src/middleware.ts).
-          FEATURE_LEADER_CABINET: '1',
+        webServer: {
+          command: 'npm run dev',
+          url: 'http://localhost:3000',
+          reuseExistingServer: !process.env.CI,
+          timeout: 120_000,
+          // organization_cabinet / manager_cabinet are opt-in flags (off by
+          // default for staged rollout, see src/lib/featureFlags.ts). Their e2e
+          // specs need the cabinets live, so enable both for the test dev-server.
+          // Playwright merges this onto process.env, so .env (DATABASE_URL, …)
+          // is preserved.
+          env: {
+            FEATURE_ORGANIZATION_CABINET: '1',
+            FEATURE_MANAGER_CABINET: '1',
+            // leader_cabinet is opt-in too. The leader-* specs need
+            // /leader/dashboard live, and middleware only routes a leader's
+            // role-home there when this flag is on (src/middleware.ts).
+            FEATURE_LEADER_CABINET: '1',
+          },
         },
-      },
+      }),
 });

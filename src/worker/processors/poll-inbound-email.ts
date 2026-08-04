@@ -30,7 +30,8 @@ export async function pollInboundEmailProcessor(
       channel: 'email',
       externalId: `email:${m.externalId}`,
       senderRef: m.from.trim().toLowerCase(),
-      subject: m.subject,
+      // exactOptionalPropertyTypes: InboundDto различает «ключа нет» и «ключ = undefined».
+      ...(m.subject !== undefined ? { subject: m.subject } : {}),
       body: m.text,
     }).catch((err) => {
       failed += 1;

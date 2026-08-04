@@ -39,7 +39,9 @@ describe('ManagerOrderHeader', () => {
   });
 
   it('omits org name block when organization is null', () => {
-    const order = makeOrder({ organization: null as unknown as undefined });
+    const order = makeOrder({
+      organization: null as unknown as ManagerOrderDetail['organization'],
+    });
     const html = renderToString(React.createElement(ManagerOrderHeader, { order }));
     expect(html).not.toContain('ООО Ромашка');
   });

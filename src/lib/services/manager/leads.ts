@@ -30,13 +30,14 @@ export type ManagerLeadRow = {
   createdAt: Date;
 };
 
+// Фильтры списка: «ключа нет» и «ключ = undefined» — одно и то же (не фильтровать).
 export type ListManagerLeadsOptions = {
-  session?: SessionPayload; // G2: источник leads-охвата (профиль). Без него — legacy.
-  status?: LeadStatus;
-  search?: string;
-  assignedToUserId?: string; // filter to leads assigned to this manager ("мои")
-  cursor?: string;
-  take?: number;
+  session?: SessionPayload | undefined; // G2: источник leads-охвата (профиль). Без него — legacy.
+  status?: LeadStatus | undefined;
+  search?: string | undefined;
+  assignedToUserId?: string | undefined; // filter to leads assigned to this manager ("мои")
+  cursor?: string | undefined;
+  take?: number | undefined;
 };
 
 export type ListManagerLeadsResult = {

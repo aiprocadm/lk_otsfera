@@ -28,7 +28,13 @@ const createBodySchema = z.object({
 export const POST = withAuth(
   { guard: requireFieldsAdmin, body: createBodySchema },
   async ({ session, body }) => {
-    const res = await createStatusDefinition(prisma, session, body);
+    // exactOptionalPropertyTypes: аргументы сервиса различают «ключа нет» и «ключ = undefined».
+    const res = await createStatusDefinition(prisma, session, {
+      key: body.key,
+      label: body.label,
+      ...(body.sortOrder !== undefined ? { sortOrder: body.sortOrder } : {}),
+      ...(body.isTerminal !== undefined ? { isTerminal: body.isTerminal } : {}),
+    });
     if (!res.ok) return jsonError(res.error, mapErr(res.error));
     return NextResponse.json({ definition: res.definition }, { status: 201 });
   }

@@ -10,12 +10,12 @@ export type InboundDto = {
   channel: 'telegram' | 'max' | 'whatsapp' | 'email' | 'cabinet';
   externalId: string;
   senderRef: string;
-  senderDisplay?: string | null;
-  subject?: string;
+  senderDisplay?: string | null | undefined;
+  subject?: string | undefined;
   body: string;
-  attachmentPath?: string;
-  attachmentName?: string;
-  attachmentMime?: string;
+  attachmentPath?: string | undefined;
+  attachmentName?: string | undefined;
+  attachmentMime?: string | undefined;
   /**
    * Этап 9: отправитель уже известен (кабинет — сессия клиента), резолв по
    * каналу не нужен. Статус остаётся `unresolved`: критерий Intake — именно

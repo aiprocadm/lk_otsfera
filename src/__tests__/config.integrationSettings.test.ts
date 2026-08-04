@@ -190,7 +190,9 @@ describe('saveSettings', () => {
     // сохранённое, ни оставлять след в аудите.
     const upsert = vi.fn();
     const prisma = makePrisma({ upsert });
-    await saveSettings(prisma, { sub: 'a1' } as never, [{ key: 'email.from', value: undefined }]);
+    // «Поля нет» = ключ value отсутствует: entry.value читается как undefined,
+    // ветка `if (raw === undefined) continue` та же самая.
+    await saveSettings(prisma, { sub: 'a1' } as never, [{ key: 'email.from' }]);
     expect(upsert).not.toHaveBeenCalled();
     expect(recordAuditMock).not.toHaveBeenCalled();
   });

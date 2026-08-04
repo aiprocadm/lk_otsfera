@@ -46,7 +46,8 @@ export async function POST(req: Request): Promise<Response> {
       channel: 'whatsapp',
       externalId: m.externalId,
       senderRef: m.phone,
-      senderDisplay: m.name,
+      // exactOptionalPropertyTypes: InboundDto различает «ключа нет» и «ключ = undefined».
+      ...(m.name !== undefined ? { senderDisplay: m.name } : {}),
       body: m.text,
     }).catch((e: unknown) => {
       log.error('[webhook/whatsapp] ingest failed', {

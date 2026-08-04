@@ -24,9 +24,9 @@ export function CallsFiltersBar({
   orgId,
   children,
 }: {
-  direction?: string;
-  orgId?: string;
-  children?: React.ReactNode;
+  direction?: string | undefined;
+  orgId?: string | undefined;
+  children?: React.ReactNode | undefined;
 }) {
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 sm:flex-row sm:flex-wrap sm:gap-8">

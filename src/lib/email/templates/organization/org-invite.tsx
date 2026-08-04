@@ -4,7 +4,7 @@ import { EmailLayout, emailStyles } from '../layout';
 export type OrgInviteProps = {
   organizationName: string;
   inviteUrl: string;
-  invitedByName?: string;
+  invitedByName?: string | undefined;
 };
 
 export function OrgInviteTemplate({ organizationName, inviteUrl, invitedByName }: OrgInviteProps) {

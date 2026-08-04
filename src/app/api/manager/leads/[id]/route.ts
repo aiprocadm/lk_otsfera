@@ -55,7 +55,8 @@ export async function PATCH(req: Request, { params }: Params) {
     const res = await assignLead(prisma, {
       leadId: id,
       managerId,
-      assignToUserId: body.assignToUserId,
+      // exactOptionalPropertyTypes: сервис различает «ключа нет» и «ключ = undefined».
+      ...(body.assignToUserId !== undefined ? { assignToUserId: body.assignToUserId } : {}),
     });
     if (!res.ok) return NextResponse.json({ error: res.error }, { status: statusFor(res.error) });
     return NextResponse.json({ lead: res.lead });

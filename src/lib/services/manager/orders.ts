@@ -70,12 +70,16 @@ function buildOrdersFilters(
   }
   if (opts.executionStatus) {
     filters.push({
-      executionStatus: opts.executionStatus as Prisma.OrderWhereInput['executionStatus'],
+      executionStatus: opts.executionStatus as NonNullable<
+        Prisma.OrderWhereInput['executionStatus']
+      >,
     });
   }
   if (opts.financialStatus) {
     filters.push({
-      financialStatus: opts.financialStatus as Prisma.OrderWhereInput['financialStatus'],
+      financialStatus: opts.financialStatus as NonNullable<
+        Prisma.OrderWhereInput['financialStatus']
+      >,
     });
   }
   if (opts.organizationId) {

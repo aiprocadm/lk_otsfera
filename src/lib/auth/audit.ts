@@ -50,10 +50,10 @@ export type AuditRecord = {
   action: string;
   entity: AuditEntity;
   entityId: string;
-  before?: Record<string, unknown>;
-  after?: Record<string, unknown>;
-  status?: 'success' | 'denied';
-  reason?: string;
+  before?: Record<string, unknown> | undefined;
+  after?: Record<string, unknown> | undefined;
+  status?: 'success' | 'denied' | undefined;
+  reason?: string | undefined;
 };
 
 type PrismaLike = PrismaClient | Prisma.TransactionClient;

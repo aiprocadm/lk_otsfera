@@ -14,11 +14,12 @@ export type OrgStudentExportRow = OrgStudentRow & {
   activeCertificates: number;
 };
 
+// Фильтры списка: «ключа нет» и «ключ = undefined» — одно и то же (не фильтровать).
 export type ListOrgStudentsOptions = {
   organizationId: string;
-  search?: string;
-  take?: number;
-  skip?: number;
+  search?: string | undefined;
+  take?: number | undefined;
+  skip?: number | undefined;
 };
 
 export type ListOrgStudentsResult = {
@@ -42,7 +43,7 @@ function normalizeSkip(skip: number | undefined): number {
 }
 
 /** Фильтр списка сотрудников — общий для экрана и выгрузки (ФТ-12.1). */
-function orgStudentsWhere(opts: { organizationId: string; search?: string }) {
+function orgStudentsWhere(opts: { organizationId: string; search?: string | undefined }) {
   return {
     organizationId: opts.organizationId,
     ...(opts.search
@@ -93,7 +94,13 @@ export async function listOrgStudents(
  */
 export async function listOrgStudentsForExport(
   prisma: PrismaClient,
-  opts: { organizationId: string; search?: string; limit: number; now?: Date }
+  // Фильтры выгрузки: «ключа нет» и «ключ = undefined» — одно и то же.
+  opts: {
+    organizationId: string;
+    search?: string | undefined;
+    limit: number;
+    now?: Date | undefined;
+  }
 ): Promise<{ rows: OrgStudentExportRow[]; total: number }> {
   const where = orgStudentsWhere(opts);
   const startOfToday = new Date(opts.now ?? new Date());

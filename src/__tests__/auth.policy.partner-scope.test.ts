@@ -39,7 +39,13 @@ describe('isPartnerAdmin', () => {
     expect(isPartnerAdmin(partnerAdminSession)).toBe(true);
     expect(isPartnerAdmin(partnerManagerScopedSession)).toBe(false);
     expect(isPartnerAdmin({ ...partnerAdminSession, role: 'admin' })).toBe(false);
-    expect(isPartnerAdmin({ ...partnerAdminSession, partnerRole: undefined })).toBe(false);
+    // Сессия партнёра без partnerRole: ключ убран (при
+    // exactOptionalPropertyTypes «поля нет» пишется удалением ключа, а не
+    // `partnerRole: undefined`). Для isPartnerAdmin — то же самое: он
+    // сравнивает session.partnerRole === 'admin'.
+    const { partnerRole: _partnerRole, ...adminWithoutPartnerRole } = partnerAdminSession;
+    void _partnerRole;
+    expect(isPartnerAdmin(adminWithoutPartnerRole)).toBe(false);
   });
 });
 

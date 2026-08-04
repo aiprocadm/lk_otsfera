@@ -105,20 +105,21 @@ function statusWhere(status: CertificateStatusFilter, now: Date): Prisma.Certifi
   return { OR: [{ validUntil: null }, { validUntil: { gt: horizon } }] };
 }
 
+// Фильтры списка: «ключа нет» и «ключ = undefined» — одно и то же (не фильтровать).
 export type ListCertificatesArgs = {
-  studentId?: string;
-  expiringWithinDays?: number;
+  studentId?: string | undefined;
+  expiringWithinDays?: number | undefined;
   /** Этап 3: сузить до одной организации (активная организация кабинета).
    *  Пересекается со скоупом сессии — чужой id даёт пустую выдачу. */
-  organizationId?: string;
-  directionId?: string;
-  status?: CertificateStatusFilter;
+  organizationId?: string | undefined;
+  directionId?: string | undefined;
+  status?: CertificateStatusFilter | undefined;
   /** Поиск по ФИО сотрудника (insensitive contains). */
-  search?: string;
-  take?: number;
-  skip?: number;
+  search?: string | undefined;
+  take?: number | undefined;
+  skip?: number | undefined;
   /** Инъекция «сегодня» для детерминированных тестов границ статуса. */
-  now?: Date;
+  now?: Date | undefined;
 };
 
 export async function listCertificates(
@@ -150,16 +151,22 @@ export async function listCertificates(
     where.student = { name: { contains: args.search.trim(), mode: 'insensitive' } };
   }
 
-  const paginated = args.take != null;
-  const take = paginated ? Math.min(Math.max(1, Math.floor(args.take!)), LIST_MAX_TAKE) : undefined;
-  const skip = paginated ? Math.max(0, Math.floor(args.skip ?? 0)) : undefined;
+  // Без args.take ключи take/skip не попадают в аргументы Prisma вовсе —
+  // выборка без пагинации (прежнее поведение `take: undefined`).
+  const pagination: { take?: number; skip?: number } =
+    args.take != null
+      ? {
+          take: Math.min(Math.max(1, Math.floor(args.take)), LIST_MAX_TAKE),
+          skip: Math.max(0, Math.floor(args.skip ?? 0)),
+        }
+      : {};
 
   const [certificates, total] = await Promise.all([
     prisma.certificate.findMany({
       where,
       include: CERT_INCLUDE,
       orderBy: { issuedAt: 'desc' },
-      ...(paginated ? { take, skip } : {}),
+      ...pagination,
     }),
     prisma.certificate.count({ where }),
   ]);

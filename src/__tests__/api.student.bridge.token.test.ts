@@ -61,7 +61,9 @@ function buildReq(opts: {
   return new Request('https://app.local/api/student/bridge/token', {
     method: 'POST',
     headers,
-    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+    // Тело без значения — просто не передаём ключ (RequestInit при
+    // exactOptionalPropertyTypes не принимает `body: undefined`).
+    ...(opts.body !== undefined ? { body: JSON.stringify(opts.body) } : {}),
   }) as unknown as NextRequest;
 }
 

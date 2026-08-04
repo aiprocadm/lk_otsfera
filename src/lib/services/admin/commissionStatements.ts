@@ -5,13 +5,14 @@ export type AdminStatementRow = CommissionStatement & {
   partner: { id: string; name: string; slug: string | null };
 };
 
+// Фильтры списка: «ключа нет» и «ключ = undefined» — одно и то же (не фильтровать).
 export type ListAdminStatementsOptions = {
-  status?: 'draft' | 'approved' | 'paid';
-  partnerId?: string;
-  from?: Date;
-  to?: Date;
-  skip?: number;
-  take?: number;
+  status?: 'draft' | 'approved' | 'paid' | undefined;
+  partnerId?: string | undefined;
+  from?: Date | undefined;
+  to?: Date | undefined;
+  skip?: number | undefined;
+  take?: number | undefined;
 };
 
 /**

@@ -178,7 +178,11 @@ describe('ImapInboundEmailAdapter.fetchNewMessages', () => {
   });
 
   it('неполный конфиг → понятный throw без попытки соединения', async () => {
-    const adapter = new ImapInboundEmailAdapter({ ...CFG, password: undefined });
+    // Конфиг без пароля: ключ убран (при exactOptionalPropertyTypes «поля нет»
+    // выражается удалением ключа) — адаптер видит тот же cfg.password === undefined.
+    const { password: _password, ...cfgWithoutPassword } = CFG;
+    void _password;
+    const adapter = new ImapInboundEmailAdapter(cfgWithoutPassword);
     await expect(adapter.fetchNewMessages(null)).rejects.toThrow('imap config incomplete');
     expect(state.connect).not.toHaveBeenCalled();
   });

@@ -51,7 +51,8 @@ export async function getManagerFinanceOverview(
   const canSeeCommission = can(session, 'see_commission');
 
   const orgs = await prisma.organization.findMany({
-    where: unscoped ? undefined : managerOrgScope(session, opts.teamMode),
+    // admin (unscoped): where отсутствует ⇒ Prisma не фильтрует организации.
+    ...(unscoped ? {} : { where: managerOrgScope(session, opts.teamMode) }),
     select: { id: true, name: true },
     orderBy: { name: 'asc' },
   });

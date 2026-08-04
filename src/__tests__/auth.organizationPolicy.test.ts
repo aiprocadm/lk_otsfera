@@ -12,7 +12,7 @@ import {
 } from '@/lib/auth/organizationPolicy';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
-function s(memberships: SessionPayload['organizationMemberships']): SessionPayload {
+function s(memberships: NonNullable<SessionPayload['organizationMemberships']>): SessionPayload {
   return { sub: 'u', role: 'organization', organizationMemberships: memberships };
 }
 

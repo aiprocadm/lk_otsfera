@@ -46,9 +46,10 @@ export const POST = withAuth(
     const result = await sendStaffMessage(prisma, session, {
       conversationId: body.conversationId,
       body: body.body,
-      attachmentPath: body.attachmentPath,
-      attachmentName: body.attachmentName,
-      attachmentMime: body.attachmentMime,
+      // exactOptionalPropertyTypes: сервис различает «ключа нет» и «ключ = undefined».
+      ...(body.attachmentPath !== undefined ? { attachmentPath: body.attachmentPath } : {}),
+      ...(body.attachmentName !== undefined ? { attachmentName: body.attachmentName } : {}),
+      ...(body.attachmentMime !== undefined ? { attachmentMime: body.attachmentMime } : {}),
     });
 
     if (!result.ok) {

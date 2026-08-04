@@ -33,10 +33,12 @@ export async function moveFunnelLeadAction(
   const leadId = str(fd, 'leadId');
   const toStageId = str(fd, 'toStageId');
   if (!leadId || !toStageId) return { ok: false, error: 'not_found' };
+  const reason = str(fd, 'reason') || undefined;
+  // exactOptionalPropertyTypes: сервис различает «ключа нет» и «ключ = undefined».
   const res = await moveFunnelLead(prisma, session, {
     leadId,
     toStageId,
-    reason: str(fd, 'reason') || undefined,
+    ...(reason !== undefined ? { reason } : {}),
   });
   if (!res.ok) return { ok: false, error: res.error };
   revalidate();

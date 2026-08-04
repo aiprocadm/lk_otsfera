@@ -28,7 +28,12 @@ const createBodySchema = z.object({
 export const POST = withAuth(
   { guard: requireAdmin, body: createBodySchema },
   async ({ session, body }) => {
-    const res = await createDirection(prisma, session, body);
+    // exactOptionalPropertyTypes: аргументы сервиса различают «ключа нет» и «ключ = undefined».
+    const res = await createDirection(prisma, session, {
+      name: body.name,
+      ...(body.slug !== undefined ? { slug: body.slug } : {}),
+      ...(body.sortOrder !== undefined ? { sortOrder: body.sortOrder } : {}),
+    });
     if (!res.ok) return jsonError(res.error, mapErr(res.error));
     return NextResponse.json({ direction: res.direction }, { status: 201 });
   }

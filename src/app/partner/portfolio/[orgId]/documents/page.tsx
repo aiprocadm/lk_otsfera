@@ -82,7 +82,7 @@ function TypeFilter({
   total,
 }: {
   orgId: string;
-  active?: DocumentType;
+  active?: DocumentType | undefined;
   countsByType: Partial<Record<DocumentType, number>>;
   total: number;
 }) {

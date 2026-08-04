@@ -8,15 +8,24 @@ function renderFullTable(extra?: {
   overflow?: 'hidden' | 'x-auto';
   hover?: boolean;
 }) {
+  // Незаданные опции не превращаются в `проп: undefined` — ключ просто не
+  // передаётся (exactOptionalPropertyTypes различает эти два случая).
   return renderToString(
     React.createElement(
       TableShell,
-      { className: extra?.shellClassName, overflow: extra?.overflow },
+      {
+        ...(extra?.shellClassName !== undefined ? { className: extra.shellClassName } : {}),
+        ...(extra?.overflow !== undefined ? { overflow: extra.overflow } : {}),
+      },
       React.createElement(THead, null, React.createElement(Th, null, 'Колонка')),
       React.createElement(
         'tbody',
         null,
-        React.createElement(Tr, { hover: extra?.hover }, React.createElement(Td, null, 'Ячейка'))
+        React.createElement(
+          Tr,
+          { ...(extra?.hover !== undefined ? { hover: extra.hover } : {}) },
+          React.createElement(Td, null, 'Ячейка')
+        )
       )
     )
   );

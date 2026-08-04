@@ -2,8 +2,8 @@ import { cachedIntegrationSetting } from '@/lib/config/integrationSettingsCache'
 import type { MangoAdapter } from './types';
 
 export type MangoRestConfig = {
-  apiKey?: string;
-  apiSalt?: string;
+  apiKey?: string | undefined;
+  apiSalt?: string | undefined;
   baseUrl: string;
 };
 

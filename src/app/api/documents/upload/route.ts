@@ -182,7 +182,8 @@ export async function POST(req: Request) {
     const row = await notifyDocumentCreated({
       userId: s.sub,
       organizationId,
-      partnerId: s.partnerId,
+      // exactOptionalPropertyTypes: NotificationInput различает «ключа нет» и «ключ = undefined».
+      ...(s.partnerId !== undefined ? { partnerId: s.partnerId } : {}),
       title: 'Новый документ',
       body: `Загружен документ ${file.name}`,
       meta: { orderId, documentId: doc.id },

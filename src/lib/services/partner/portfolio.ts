@@ -1,10 +1,11 @@
 import { Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
 
+// Фильтры списка: «ключа нет» и «ключ = undefined» — одно и то же (не фильтровать).
 export type PortfolioFilters = {
   partnerId: string;
-  scopeOrgIds?: string[];
-  search?: string;
+  scopeOrgIds?: string[] | undefined;
+  search?: string | undefined;
   take: number;
   skip: number;
 };

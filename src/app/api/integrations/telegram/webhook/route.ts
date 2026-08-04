@@ -71,14 +71,16 @@ export async function POST(req: Request): Promise<Response> {
       // the webhook (§3 — degrade gracefully). A bare `/start` (Start button)
       // matches neither branch and stays a no-op (pre-Task-6 behavior). Without
       // a message_id the externalId can't guarantee idempotency, so drop it.
+      const senderDisplay =
+        typeof (message?.from as Record<string, unknown> | undefined)?.username === 'string'
+          ? ((message!.from as Record<string, unknown>).username as string)
+          : undefined;
       await ingestInboundMessage(prisma, {
         channel: 'telegram',
         externalId: `tg:${chatId}:${message.message_id}`,
         senderRef: chatId,
-        senderDisplay:
-          typeof (message?.from as Record<string, unknown> | undefined)?.username === 'string'
-            ? ((message!.from as Record<string, unknown>).username as string)
-            : undefined,
+        // exactOptionalPropertyTypes: InboundDto различает «ключа нет» и «ключ = undefined».
+        ...(senderDisplay !== undefined ? { senderDisplay } : {}),
         body: text,
       }).catch((e: unknown) => {
         log.error('[webhook/telegram] ingest failed', {

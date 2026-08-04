@@ -91,7 +91,7 @@ export type ConvertActionResult =
   | {
       ok: false;
       error: 'forbidden' | 'not_found' | 'already_converted' | 'validation';
-      messages?: string[];
+      messages?: string[] | undefined;
     };
 
 export async function createLeadFromInboundAction(fd: FormData): Promise<ConvertActionResult> {

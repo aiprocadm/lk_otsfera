@@ -35,11 +35,12 @@ export type EnrollmentRow = {
   reviewedAt: Date | null;
 };
 
+// Фильтры списка: «ключа нет» и «ключ = undefined» — одно и то же (не фильтровать).
 export type ListEnrollmentsOptions = {
-  status?: EnrollmentStatus;
-  search?: string;
-  cursor?: string;
-  take?: number;
+  status?: EnrollmentStatus | undefined;
+  search?: string | undefined;
+  cursor?: string | undefined;
+  take?: number | undefined;
 };
 
 export type ListEnrollmentsResult = { rows: EnrollmentRow[]; nextCursor: string | null };

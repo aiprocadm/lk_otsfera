@@ -22,9 +22,10 @@ export async function GET(request: Request) {
     getFinanceKpis(prisma, partnerId),
     listStatements(prisma, {
       partnerId,
-      status,
-      from: fromStr ? new Date(fromStr) : undefined,
-      to: toStr ? new Date(toStr) : undefined,
+      // exactOptionalPropertyTypes: ListStatementsOptions различают «ключа нет» и «ключ = undefined».
+      ...(status !== undefined ? { status } : {}),
+      ...(fromStr ? { from: new Date(fromStr) } : {}),
+      ...(toStr ? { to: new Date(toStr) } : {}),
       skip,
       take,
     }),

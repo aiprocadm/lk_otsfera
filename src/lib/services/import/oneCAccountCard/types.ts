@@ -6,8 +6,8 @@ export type RowKind = 'payment' | 'refund' | 'excluded';
 export type ParsedRow = {
   rowIndex: number; // индекс исходной строки (диагностика)
   kind: RowKind;
-  excludeReason?: string; // при kind==='excluded' (supplier|bank_fee|internal_transfer|corr_other)
-  parseError?: string; // если строку нельзя распарсить (нет суммы/даты)
+  excludeReason?: string | undefined; // при kind==='excluded' (supplier|bank_fee|internal_transfer|corr_other)
+  parseError?: string | undefined; // если строку нельзя распарсить (нет суммы/даты)
   externalId: string; // № документа 1С, напр. '0000-001471'
   paidAt: string | null; // ISO
   amount: number | null;

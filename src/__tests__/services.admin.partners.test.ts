@@ -921,7 +921,11 @@ describe('createPartnerWithAdmin()', () => {
     const tx = makeTxForCreate();
     const prisma = makePrismaWithTx(tx);
 
-    await createPartnerWithAdmin(prisma, 'actor1', { ...baseArgs, commissionRate: undefined });
+    // Ставка не передана: ключ убран (при exactOptionalPropertyTypes «поля нет»
+    // выражается удалением ключа) — args.commissionRate так же undefined.
+    const { commissionRate: _commissionRate, ...argsWithoutRate } = baseArgs;
+    void _commissionRate;
+    await createPartnerWithAdmin(prisma, 'actor1', argsWithoutRate);
 
     expect(tx.commissionRateChange.create).not.toHaveBeenCalled();
   });

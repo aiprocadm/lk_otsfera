@@ -284,8 +284,6 @@ describe('signStudentBridgeToken', () => {
       sub: 'stu-2',
       role: 'student',
       organizationId: null,
-      email: undefined,
-      name: undefined,
       externalStudentId: null,
     };
 
@@ -302,8 +300,6 @@ describe('signStudentBridgeToken', () => {
       sub: 'stu-3',
       role: 'student',
       organizationId: null,
-      email: undefined,
-      name: undefined,
       externalStudentId: null,
     };
 
@@ -318,8 +314,6 @@ describe('signStudentBridgeToken', () => {
       sub: 'stu-4',
       role: 'student',
       organizationId: null,
-      email: undefined,
-      name: undefined,
       externalStudentId: null,
     };
 
@@ -333,8 +327,6 @@ describe('signStudentBridgeToken', () => {
       sub: 'stu-5',
       role: 'student',
       organizationId: null,
-      email: undefined,
-      name: undefined,
       externalStudentId: null,
     };
 
@@ -348,8 +340,6 @@ describe('signStudentBridgeToken', () => {
       sub: 'stu-6',
       role: 'student',
       organizationId: null,
-      email: undefined,
-      name: undefined,
       externalStudentId: null,
     };
 
@@ -372,8 +362,6 @@ describe('getStudentBridgeIssuer — missing both vars', () => {
       sub: 'stu-noissuer',
       role: 'student',
       organizationId: null,
-      email: undefined,
-      name: undefined,
       externalStudentId: null,
     };
 
@@ -391,8 +379,6 @@ describe('getStudentBridgeIssuer — missing both vars', () => {
       sub: 'stu-appurl-issuer',
       role: 'student',
       organizationId: null,
-      email: undefined,
-      name: undefined,
       externalStudentId: null,
     };
 
@@ -462,8 +448,6 @@ describe('verifyStudentBridgeToken', () => {
       sub: 'stu-replay',
       role: 'student',
       organizationId: null,
-      email: undefined,
-      name: undefined,
       externalStudentId: null,
     };
     const { token } = await signStudentBridgeToken(payload);
@@ -484,8 +468,6 @@ describe('verifyStudentBridgeToken', () => {
       sub: 'stu-dberr',
       role: 'student',
       organizationId: null,
-      email: undefined,
-      name: undefined,
       externalStudentId: null,
     };
     const { token } = await signStudentBridgeToken(payload);

@@ -16,7 +16,7 @@ export type OrgAttentionItem = {
   kind: 'billed_unpaid' | 'unsigned_act' | 'completed_open';
   orderId: string | null;
   title: string;
-  meta?: string;
+  meta?: string | undefined;
   severity: 'warn' | 'urgent';
 };
 

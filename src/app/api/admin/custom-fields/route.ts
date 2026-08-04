@@ -33,10 +33,19 @@ const createBodySchema = z.object({
 export const POST = withAuth(
   { guard: requireFieldsAdmin, body: createBodySchema },
   async ({ session, body }) => {
+    // exactOptionalPropertyTypes: аргументы сервиса различают «ключа нет» и «ключ = undefined».
     const res = await createDefinition(prisma, session, {
-      ...body,
+      entityType: body.entityType,
+      key: body.key,
+      label: body.label,
       // fieldType валидируется сервисом (isCustomFieldType) — здесь только форма.
       fieldType: body.fieldType as Parameters<typeof createDefinition>[2]['fieldType'],
+      ...(body.options !== undefined ? { options: body.options } : {}),
+      ...(body.required !== undefined ? { required: body.required } : {}),
+      ...(body.sortOrder !== undefined ? { sortOrder: body.sortOrder } : {}),
+      ...(body.helpText !== undefined ? { helpText: body.helpText } : {}),
+      ...(body.visibleToRoles !== undefined ? { visibleToRoles: body.visibleToRoles } : {}),
+      ...(body.editableByRoles !== undefined ? { editableByRoles: body.editableByRoles } : {}),
     });
     if (!res.ok) return jsonError(res.error, mapErr(res.error));
     return NextResponse.json({ definition: res.definition }, { status: 201 });

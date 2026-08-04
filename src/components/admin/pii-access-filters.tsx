@@ -6,13 +6,13 @@ type Props = {
   subjectTypes: string[];
   actors: Array<{ id: string; name: string; email: string }>;
   current: {
-    actorUserId?: string;
-    userRole?: string;
-    context?: string;
-    subjectType?: string;
-    subjectId?: string;
-    from?: string;
-    to?: string;
+    actorUserId?: string | undefined;
+    userRole?: string | undefined;
+    context?: string | undefined;
+    subjectType?: string | undefined;
+    subjectId?: string | undefined;
+    from?: string | undefined;
+    to?: string | undefined;
   };
 };
 

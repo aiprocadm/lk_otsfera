@@ -372,9 +372,12 @@ describe('syncOrdersProcessor', () => {
     });
     expect(after?.organizationId).toBe(altOrg.id);
 
-    // restore: re-link to real org (matches fixture organizationExternalId)
+    // restore: re-link to real org (matches fixture organizationExternalId).
+    // В DTO поле опционально, но у фикстуры [0] оно всегда задано — отсюда `!`
+    // (без него exactOptionalPropertyTypes не пустит `string | undefined` в
+    // OrganizationWhereUniqueInput).
     const realOrg = await prisma.organization.findUnique({
-      where: { externalId: FAKE_ORDERS[0].organizationExternalId },
+      where: { externalId: FAKE_ORDERS[0].organizationExternalId! },
       select: { id: true },
     });
     await prisma.order.updateMany({

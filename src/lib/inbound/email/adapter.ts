@@ -1,7 +1,7 @@
 export type InboundEmailDto = {
   externalId: string;
   from: string;
-  subject?: string;
+  subject?: string | undefined;
   text: string;
 };
 

@@ -7,15 +7,17 @@ export type AuditFiltersOptions = {
   actors: Array<{ id: string; name: string; email: string }>;
 };
 
+// Фильтры списка: «ключа нет» и «ключ = undefined» — одно и то же (не фильтровать).
+// Поэтому поля явно допускают undefined при exactOptionalPropertyTypes.
 export type AuditFilters = {
-  entity?: AuditEntity;
-  action?: string;
-  actorUserId?: string;
-  from?: Date;
-  to?: Date;
-  q?: string;
-  take?: number; // default 50, max 100
-  cursor?: string; // id of last seen, exclusive
+  entity?: AuditEntity | undefined;
+  action?: string | undefined;
+  actorUserId?: string | undefined;
+  from?: Date | undefined;
+  to?: Date | undefined;
+  q?: string | undefined;
+  take?: number | undefined; // default 50, max 100
+  cursor?: string | undefined; // id of last seen, exclusive
 };
 
 export type AuditRow = {

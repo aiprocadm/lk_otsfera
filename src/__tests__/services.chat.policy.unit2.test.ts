@@ -7,7 +7,12 @@ import { canSeeThread, deriveSide } from '@/lib/services/chat/policy';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 const order = { id: 'o1', organizationId: 'org1', partnerId: 'p1', companyId: 'c1' };
-const s = (over: Partial<SessionPayload>): SessionPayload =>
+// Явное `| undefined` в типе оверрайдов — сознательно: тесты ниже проверяют
+// ветки «в сессии нет partnerId / organizationMemberships», и при
+// exactOptionalPropertyTypes Partial<SessionPayload> такие литералы не принимает.
+type SessionOverrides = { [K in keyof SessionPayload]?: SessionPayload[K] | undefined };
+
+const s = (over: SessionOverrides): SessionPayload =>
   ({ sub: 'u', role: 'manager', ...over }) as SessionPayload;
 
 describe('deriveSide — additional roles', () => {

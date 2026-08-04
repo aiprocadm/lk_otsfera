@@ -111,7 +111,12 @@ afterAll(async () => {
 });
 
 async function idsFor(session?: SessionPayload): Promise<string[]> {
-  const { rows } = await listManagerLeads(prisma, { session, take: 100 });
+  // Вызов без сессии → ключ session не передаём вовсе (exactOptionalPropertyTypes:
+  // «поля нет» ≠ «поле = undefined»); сервис видит то же самое отсутствие сессии.
+  const { rows } = await listManagerLeads(prisma, {
+    ...(session !== undefined ? { session } : {}),
+    take: 100,
+  });
   return rows
     .map((r) => r.id)
     .filter((id) => [leadOwnM1, leadOwnM2, leadManagedOrg, leadUnassigned].includes(id));

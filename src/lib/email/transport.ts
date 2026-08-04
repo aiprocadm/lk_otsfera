@@ -18,7 +18,7 @@ export type EmailTransport = {
     to: string;
     subject: string;
     html: string;
-    text?: string;
+    text?: string | undefined;
   }): Promise<{ id: string | null }>;
 };
 
@@ -61,7 +61,9 @@ export async function defaultTransport(): Promise<EmailTransport | null> {
         to: input.to,
         subject: input.subject,
         html: input.html,
-        text: input.text,
+        // Resend SDK различает «поля нет» и «поле = undefined» (CreateEmailOptions
+        // под exactOptionalPropertyTypes) — text отдаём только когда он есть.
+        ...(input.text !== undefined ? { text: input.text } : {}),
       });
       // Surface Resend-side failures (invalid recipient, rate limit, revoked
       // key). Without this they were swallowed and reported upstream as "sent"

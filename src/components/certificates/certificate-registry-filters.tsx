@@ -25,7 +25,12 @@ export function CertificateRegistryFilters({
   directions: Array<{ id: string; name: string }>;
   /** Партнёр: селект организации; null — фильтр не показывается. */
   organizations?: Array<{ id: string; name: string }> | null;
-  current: { direction?: string; status?: string; search?: string; organization?: string };
+  current: {
+    direction?: string | undefined;
+    status?: string | undefined;
+    search?: string | undefined;
+    organization?: string | undefined;
+  };
   /** Скрытые параметры, которые надо сохранить при submit (например ?org= активной организации). */
   hidden?: Record<string, string>;
 }) {
