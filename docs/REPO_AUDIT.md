@@ -181,12 +181,17 @@ CODEOWNERS, Dependabot/Renovate нет.
 
 Наблюдаемость: pino + `scrub()` (ПДн), edge/client-логгеры, Sentry (server/
 edge/worker, no-op без DSN), PII-журнал (§25.7) с guardrail-тестом,
-`/api/health` (Bearer) + `/api/health/live`, DLQ-панель админа +
-retry-роуты, BullMQ с retry/backoff и `removeOnFail:false`. Отдельного
-`/api/ready` нет — роль readiness выполняет `/api/health`. Runbook'и:
-backups, launch-deploy, prod-infra, staged-rollout, test-stand. MINOR-дыры:
-метрики глубины очередей только в DLQ-панели, единый `docs/RUNBOOK.md` не
-собран (материал разложен по пяти файлам).
+`/api/health` (Bearer, readiness: db+redis+s3) + `/api/health/live`,
+DLQ-панель + retry-роуты, BullMQ с retry/backoff и `removeOnFail:false`,
+алерты порогов очередей/DLQ/sync-lag (monitoring-воркер, in-app+email+TG).
+**Фаза 8 (04.08.2026):** сводный `docs/RUNBOOK.md` собран (диагностика,
+7 типовых инцидентов, откаты, восстановление из бэкапа, 6 честных
+«не настроено»: внешний мониторинг, теги образов, Sentry source maps —
+с инструкциями подключения); лог-ревизия ПДн чистая (scrub покрывает
+имена/контакты/СНИЛС/секреты + паттерны). requestId в ответах и логах
+ошибок API — с фазы 4; сквозной request-контекст всех логов (userId/
+companyId в каждой строке) осознанно не вводился — AsyncLocalStorage-
+интеграция при реальной эксплуатационной потребности.
 
 Документация: CLAUDE.md (подробный контракт), действующее ТЗ v0.5 +
 STATUS.md, глоссарий, feature-flags-matrix, матрица видимости клиентских
