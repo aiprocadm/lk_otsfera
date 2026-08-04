@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import AdminPaymentsImportPage from '@/app/admin/payments-import/page';
+import AdminPaymentsImportPage from '@/app/admin/settings/integrations/1c/payments/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
-const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
-vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
+const { requireSettingsSection } = vi.hoisted(() => ({ requireSettingsSection: vi.fn() }));
+vi.mock('@/lib/auth/requireSettings', () => ({ requireSettingsSection }));
 
 const { organizationFindMany } = vi.hoisted(() => ({ organizationFindMany: vi.fn() }));
 vi.mock('@/lib/db/prisma', () => ({
@@ -32,13 +32,13 @@ const SESSION = { sub: 'admin1', role: 'admin' as const };
 
 describe('AdminPaymentsImportPage', () => {
   beforeEach(() => {
-    requireAdmin.mockReset();
+    requireSettingsSection.mockReset();
     organizationFindMany.mockReset();
     listQueue.mockReset();
   });
 
   it('skips the organization lookup when no queue row has a candidateOrgId', async () => {
-    requireAdmin.mockResolvedValue(SESSION);
+    requireSettingsSection.mockResolvedValue(SESSION);
     listQueue.mockResolvedValue([
       {
         id: 'q1',
@@ -57,7 +57,7 @@ describe('AdminPaymentsImportPage', () => {
 
     const { container } = await renderServerComponent(AdminPaymentsImportPage());
 
-    expect(requireAdmin).toHaveBeenCalled();
+    expect(requireSettingsSection).toHaveBeenCalled();
     expect(listQueue).toHaveBeenCalledWith(expect.anything(), SESSION);
     expect(organizationFindMany).not.toHaveBeenCalled();
     expect(container.textContent).toContain('Импорт выписки');
@@ -65,7 +65,7 @@ describe('AdminPaymentsImportPage', () => {
   });
 
   it('looks up candidate organizations and maps candidateOrgName (found + not-found branches), null accountCandidates fallback', async () => {
-    requireAdmin.mockResolvedValue(SESSION);
+    requireSettingsSection.mockResolvedValue(SESSION);
     listQueue.mockResolvedValue([
       {
         id: 'q1',

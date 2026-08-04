@@ -3,6 +3,8 @@ import Link from 'next/link';
 import type { AuditEntity } from '@/lib/auth/audit';
 
 type Props = {
+  /** Адрес экрана: используется ссылкой «Сбросить» (экран переехал в хаб настроек). */
+  basePath: string;
   entities: AuditEntity[];
   actions: string[];
   actors: Array<{ id: string; name: string; email: string }>;
@@ -27,7 +29,7 @@ function groupActions(actions: string[]): Record<string, string[]> {
   return groups;
 }
 
-export function AuditLogFilters({ entities, actions, actors, current }: Props) {
+export function AuditLogFilters({ basePath, entities, actions, actors, current }: Props) {
   const hasActive =
     current.entity ||
     current.action ||
@@ -128,7 +130,7 @@ export function AuditLogFilters({ entities, actions, actors, current }: Props) {
       </button>
       {hasActive && (
         <Link
-          href="/admin/audit"
+          href={basePath}
           className="px-3 py-1.5 border border-gray-200 rounded text-sm text-gray-600 hover:bg-gray-50"
         >
           Сбросить

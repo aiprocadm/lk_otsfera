@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import AdminHealthPage from '@/app/admin/health/page';
+import AdminHealthPage from '@/app/admin/settings/system/health/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
-const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
-vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
+const { requireSettingsSection } = vi.hoisted(() => ({ requireSettingsSection: vi.fn() }));
+vi.mock('@/lib/auth/requireSettings', () => ({ requireSettingsSection }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
@@ -54,7 +54,7 @@ const SESSION = { sub: 'admin1', role: 'admin' as const };
 
 describe('AdminHealthPage', () => {
   beforeEach(() => {
-    requireAdmin.mockReset();
+    requireSettingsSection.mockReset();
     getSyncLag.mockReset();
     getQueueStats.mockReset();
     getDlq.mockReset();
@@ -66,7 +66,7 @@ describe('AdminHealthPage', () => {
   });
 
   it('renders sync lag rows with lag label/badge tiers (seconds/minutes/hours/days) and error highlight', async () => {
-    requireAdmin.mockResolvedValue(SESSION);
+    requireSettingsSection.mockResolvedValue(SESSION);
     getSyncLag.mockResolvedValue([
       { entity: 'organization', lagMs: 30 * 1000, successCount24h: 5, errorCount24h: 0 },
       { entity: 'order', lagMs: 5 * 60 * 1000, successCount24h: 2, errorCount24h: 1 },
@@ -78,7 +78,7 @@ describe('AdminHealthPage', () => {
 
     const { container } = await renderServerComponent(AdminHealthPage());
 
-    expect(requireAdmin).toHaveBeenCalled();
+    expect(requireSettingsSection).toHaveBeenCalled();
     expect(container.textContent).toContain('Здоровье системы');
     expect(container.textContent).toContain('Организации');
     expect(container.textContent).toContain('30с');
@@ -90,7 +90,7 @@ describe('AdminHealthPage', () => {
   });
 
   it('передаёт алерты и ошибки синхронизации в обе новые секции', async () => {
-    requireAdmin.mockResolvedValue(SESSION);
+    requireSettingsSection.mockResolvedValue(SESSION);
     getSyncLag.mockResolvedValue([]);
     getQueueStats.mockResolvedValue([]);
     getDlq.mockResolvedValue([]);
@@ -121,7 +121,7 @@ describe('AdminHealthPage', () => {
   });
 
   it('forbidden-ветка listAlertStates деградирует в пустой список алертов', async () => {
-    requireAdmin.mockResolvedValue(SESSION);
+    requireSettingsSection.mockResolvedValue(SESSION);
     getSyncLag.mockResolvedValue([]);
     getQueueStats.mockResolvedValue([]);
     getDlq.mockResolvedValue([]);
@@ -133,7 +133,7 @@ describe('AdminHealthPage', () => {
   });
 
   it('renders lagMs:null as em-dash badge, empty sync/queue/dlq states, and catches all section rejections', async () => {
-    requireAdmin.mockResolvedValue(SESSION);
+    requireSettingsSection.mockResolvedValue(SESSION);
     getSyncLag.mockRejectedValue(new Error('db down'));
     getQueueStats.mockRejectedValue(new Error('redis down'));
     getDlq.mockRejectedValue(new Error('redis down'));
@@ -151,7 +151,7 @@ describe('AdminHealthPage', () => {
   });
 
   it('renders lagMs:null badge explicitly when a row has no lag data', async () => {
-    requireAdmin.mockResolvedValue(SESSION);
+    requireSettingsSection.mockResolvedValue(SESSION);
     getSyncLag.mockResolvedValue([
       { entity: 'organization', lagMs: null, successCount24h: 0, errorCount24h: 0 },
     ]);

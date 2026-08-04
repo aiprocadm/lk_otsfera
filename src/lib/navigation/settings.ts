@@ -1,3 +1,4 @@
+import type { Crumb } from '@/lib/navigation/breadcrumbs';
 import type { FeatureFlag } from '@/lib/featureFlags';
 import type { SettingsCapability } from '@/lib/auth/accessProfileSchema';
 
@@ -248,4 +249,20 @@ export function legacyRedirectMap(): ReadonlyMap<string, string> {
     }
   }
   return map;
+}
+
+/**
+ * Хлебные крошки подраздела: «Настройки → Интеграции → Обмен с 1С» (ТЗ §4.3).
+ * Группа страницы не имеет, поэтому идёт без ссылки; последняя крошка — текущий
+ * раздел. На корне хаба крошек нет (заголовок страницы и так «Настройки»).
+ */
+export function buildSettingsBreadcrumbs(cabinet: SettingsCabinet, pathname: string): Crumb[] {
+  const section = sectionByPath(cabinet, pathname);
+  if (!section) return [];
+  const group = SETTINGS_GROUPS.find((g) => g.id === section.group);
+  return [
+    { label: 'Настройки', href: settingsRoot(cabinet) },
+    { label: group?.title ?? '', href: null },
+    { label: section.title, href: null },
+  ];
 }

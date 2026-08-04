@@ -28,3 +28,15 @@ export function groupNavItems(items: NavItem[]): NavGroup[] {
   }
   return groups;
 }
+
+/**
+ * Делит меню на обычные пункты и закреплённые внизу (ТЗ 2026-08-04 §4.1:
+ * «Настройки» стоят отдельно от операционных разделов). Сайдбары рисуют
+ * `pinned` последним блоком с отчерком.
+ */
+export function splitPinnedItems(items: NavItem[]): { items: NavItem[]; pinned: NavItem[] } {
+  return {
+    items: items.filter((i) => !i.pinnedBottom),
+    pinned: items.filter((i) => i.pinnedBottom),
+  };
+}

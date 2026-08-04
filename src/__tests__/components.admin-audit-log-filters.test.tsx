@@ -28,6 +28,7 @@ describe('AuditLogFilters', () => {
   it('renders with no active filters: no reset link, all-options defaults', () => {
     const html = renderToString(
       React.createElement(AuditLogFilters, {
+        basePath: '/admin/settings/security/audit',
         entities: ENTITIES,
         actions: ACTIONS,
         actors: ACTORS,
@@ -43,6 +44,7 @@ describe('AuditLogFilters', () => {
   it('groups actions by prefix into optgroups', () => {
     const html = renderToString(
       React.createElement(AuditLogFilters, {
+        basePath: '/admin/settings/security/audit',
         entities: ENTITIES,
         actions: ACTIONS,
         actors: ACTORS,
@@ -59,6 +61,7 @@ describe('AuditLogFilters', () => {
   it('lists entity options and actor options', () => {
     const html = renderToString(
       React.createElement(AuditLogFilters, {
+        basePath: '/admin/settings/security/audit',
         entities: ENTITIES,
         actions: ACTIONS,
         actors: ACTORS,
@@ -75,6 +78,7 @@ describe('AuditLogFilters', () => {
   it('renders reset link when current.entity is set', () => {
     const html = renderToString(
       React.createElement(AuditLogFilters, {
+        basePath: '/admin/settings/security/audit',
         entities: ENTITIES,
         actions: ACTIONS,
         actors: ACTORS,
@@ -82,12 +86,13 @@ describe('AuditLogFilters', () => {
       })
     );
     expect(html).toContain('Сбросить');
-    expect(html).toContain('href="/admin/audit"');
+    expect(html).toContain('href="/admin/settings/security/audit"');
   });
 
   it('renders reset link when current.action is set', () => {
     const html = renderToString(
       React.createElement(AuditLogFilters, {
+        basePath: '/admin/settings/security/audit',
         entities: ENTITIES,
         actions: ACTIONS,
         actors: ACTORS,
@@ -100,6 +105,7 @@ describe('AuditLogFilters', () => {
   it('renders reset link when current.actorUserId is set', () => {
     const html = renderToString(
       React.createElement(AuditLogFilters, {
+        basePath: '/admin/settings/security/audit',
         entities: ENTITIES,
         actions: ACTIONS,
         actors: ACTORS,
@@ -112,6 +118,7 @@ describe('AuditLogFilters', () => {
   it('renders reset link when current.from is set', () => {
     const html = renderToString(
       React.createElement(AuditLogFilters, {
+        basePath: '/admin/settings/security/audit',
         entities: ENTITIES,
         actions: ACTIONS,
         actors: ACTORS,
@@ -125,6 +132,7 @@ describe('AuditLogFilters', () => {
   it('renders reset link when current.to is set', () => {
     const html = renderToString(
       React.createElement(AuditLogFilters, {
+        basePath: '/admin/settings/security/audit',
         entities: ENTITIES,
         actions: ACTIONS,
         actors: ACTORS,
@@ -137,6 +145,7 @@ describe('AuditLogFilters', () => {
   it('renders reset link when current.q is set', () => {
     const html = renderToString(
       React.createElement(AuditLogFilters, {
+        basePath: '/admin/settings/security/audit',
         entities: ENTITIES,
         actions: ACTIONS,
         actors: ACTORS,
@@ -149,7 +158,13 @@ describe('AuditLogFilters', () => {
 
   it('handles empty entities/actions/actors arrays without throwing', () => {
     const html = renderToString(
-      React.createElement(AuditLogFilters, { entities: [], actions: [], actors: [], current: {} })
+      React.createElement(AuditLogFilters, {
+        basePath: '/admin/settings/security/audit',
+        entities: [],
+        actions: [],
+        actors: [],
+        current: {},
+      })
     );
     expect(html).toContain('Все сущности');
   });

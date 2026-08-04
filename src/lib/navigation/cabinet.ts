@@ -16,6 +16,11 @@ export type NavItem = {
   group?: string;
   /** Скрыть пункт, когда флаг ВКЛЮЧЁН (обратный гейт: «Команда» менеджера уезжает в /leader). */
   hiddenWhenFlag?: FeatureFlag;
+  /**
+   * Закрепить внизу сайдбара, отдельно от операционных пунктов (ТЗ 2026-08-04 §4.1).
+   * Сайдбар рисует такие пункты последним блоком с отчерком.
+   */
+  pinnedBottom?: boolean;
   /** Этап 7 (ФТ-8.4): ключ живого счётчика из GET /api/staff/badges (рендерит NavBadge). */
   badgeKey?: 'intake' | 'tasksOverdue' | 'clientRequestsNew' | 'messagesUnread';
 };
@@ -25,9 +30,22 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
   // /admin/orders намеренно НЕ в меню: это deprecated-redirect на дашборд (реальна только деталь /admin/orders/[id]).
   admin: [
     { href: '/admin/dashboard', label: 'Главная', icon: '⌂', group: 'Платформа' },
-    { href: '/admin/health', label: 'Здоровье', icon: '💚', group: 'Платформа' },
-    { href: '/admin/settings', label: 'Настройки', icon: '⚙', group: 'Платформа' },
-    { href: '/admin/integrations', label: 'Интеграции', icon: '🔌', group: 'Платформа' },
+    {
+      href: '/admin/health',
+      label: 'Здоровье',
+      icon: '💚',
+      group: 'Платформа',
+      hiddenWhenFlag: 'settings_hub',
+    },
+    // ТЗ 2026-08-04: единственный служебный пункт при включённом хабе; закреплён внизу.
+    { href: '/admin/settings', label: 'Настройки', icon: '⚙', pinnedBottom: true },
+    {
+      href: '/admin/integrations',
+      label: 'Интеграции',
+      icon: '🔌',
+      group: 'Платформа',
+      hiddenWhenFlag: 'settings_hub',
+    },
     { href: '/admin/documents', label: 'Документы', icon: '📄', group: 'Операции' },
     { href: '/admin/messages', label: 'Сообщения', icon: '💬', group: 'Операции' },
     { href: '/admin/commission-statements', label: 'Комиссии', icon: '💰', group: 'Операции' },
@@ -59,18 +77,43 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
       group: 'Операции',
       flag: 'intake_inbox',
     },
-    { href: '/admin/audit', label: 'Аудит', icon: '🧾', group: 'Операции' },
-    { href: '/admin/pii-access', label: 'Доступ к ПДн', icon: '🛡️', group: 'Операции' },
+    {
+      href: '/admin/audit',
+      label: 'Аудит',
+      icon: '🧾',
+      group: 'Операции',
+      hiddenWhenFlag: 'settings_hub',
+    },
+    {
+      href: '/admin/pii-access',
+      label: 'Доступ к ПДн',
+      icon: '🛡️',
+      group: 'Операции',
+      hiddenWhenFlag: 'settings_hub',
+    },
     // Все три канала обмена с 1С — в одной группе, чтобы не путались (были
     // разбросаны: sync в «Платформе», два импорта в «Операциях»). Порядок:
     // авто-обмен по сети → два ручных файловых импорта.
-    { href: '/admin/sync', label: 'Синхронизация (авто)', icon: '🔄', group: 'Обмен с 1С' },
-    { href: '/admin/import', label: 'Загрузка Excel', icon: '📥', group: 'Обмен с 1С' },
+    {
+      href: '/admin/sync',
+      label: 'Синхронизация (авто)',
+      icon: '🔄',
+      group: 'Обмен с 1С',
+      hiddenWhenFlag: 'settings_hub',
+    },
+    {
+      href: '/admin/import',
+      label: 'Загрузка Excel',
+      icon: '📥',
+      group: 'Обмен с 1С',
+      hiddenWhenFlag: 'settings_hub',
+    },
     {
       href: '/admin/payments-import',
       label: 'Импорт выписки (сч. 51)',
       icon: '🏦',
       group: 'Обмен с 1С',
+      hiddenWhenFlag: 'settings_hub',
     },
     { href: '/admin/users', label: 'Пользователи', icon: '👤', group: 'Справочники' },
     { href: '/admin/partners', label: 'Партнёры', icon: '🏢', group: 'Справочники' },
@@ -81,15 +124,28 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
       icon: '🎯',
       group: 'Справочники',
     },
-    { href: '/admin/custom-fields', label: 'Доп-поля', icon: '🧩', group: 'Справочники' },
+    {
+      href: '/admin/custom-fields',
+      label: 'Доп-поля',
+      icon: '🧩',
+      group: 'Справочники',
+      hiddenWhenFlag: 'settings_hub',
+    },
     // §10 ТЗ v0.5: настраиваемый справочник рабочих статусов заявки.
-    { href: '/admin/order-statuses', label: 'Статусы заявок', icon: '🚦', group: 'Справочники' },
+    {
+      href: '/admin/order-statuses',
+      label: 'Статусы заявок',
+      icon: '🚦',
+      group: 'Справочники',
+      hiddenWhenFlag: 'settings_hub',
+    },
     {
       href: '/admin/roles',
       label: 'Роли',
       icon: '🎭',
       group: 'Справочники',
       flag: 'role_constructor',
+      hiddenWhenFlag: 'settings_hub',
     },
   ],
   manager: [
@@ -277,6 +333,7 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
       icon: '🎭',
       flag: 'role_constructor',
       group: 'Настройки',
+      hiddenWhenFlag: 'settings_hub',
     },
     {
       href: '/leader/funnel',
@@ -342,16 +399,23 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     { href: '/manager/messages', label: 'Сообщения', icon: '💬' },
     // Переключатель «играющего тренера» в личный кабинет менеджера.
     { href: '/manager/dashboard', label: 'Мои заказы', icon: '↩' },
-    { href: '/leader/settings', label: 'Настройки', icon: '⚙', group: 'Настройки' },
+    { href: '/leader/settings', label: 'Настройки', icon: '⚙', pinnedBottom: true },
     // §11 ТЗ v0.5: настройку полей ведёт и руководитель — зеркало админского
     // экрана в его кабинете (в /admin/* руководителя не пускаем, Model A).
-    { href: '/leader/settings/custom-fields', label: 'Доп-поля', icon: '🧩', group: 'Настройки' },
+    {
+      href: '/leader/settings/custom-fields',
+      label: 'Доп-поля',
+      icon: '🧩',
+      group: 'Настройки',
+      hiddenWhenFlag: 'settings_hub',
+    },
     // §10 ТЗ v0.5: зеркало справочника статусов — руководителя в /admin/* не пускаем.
     {
       href: '/leader/settings/order-statuses',
       label: 'Статусы заявок',
       icon: '🚦',
       group: 'Настройки',
+      hiddenWhenFlag: 'settings_hub',
     },
   ],
   partner: [

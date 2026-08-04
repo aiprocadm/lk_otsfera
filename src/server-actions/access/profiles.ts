@@ -44,8 +44,8 @@ function readInput(fd: FormData): AccessProfileInput {
 }
 
 function revalidate(): void {
-  revalidatePath('/leader/roles');
-  revalidatePath('/admin/roles');
+  revalidatePath('/leader/settings/access/roles');
+  revalidatePath('/admin/settings/access/roles');
 }
 
 export async function createAccessProfileAction(

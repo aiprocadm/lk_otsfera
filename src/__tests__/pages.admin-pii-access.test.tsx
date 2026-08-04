@@ -2,8 +2,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
-const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
-vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
+const { requireSettingsSection } = vi.hoisted(() => ({ requireSettingsSection: vi.fn() }));
+vi.mock('@/lib/auth/requireSettings', () => ({ requireSettingsSection }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
@@ -13,7 +13,7 @@ const { listPiiAccess, listPiiAccessFilters } = vi.hoisted(() => ({
 }));
 vi.mock('@/lib/services/admin/piiAccess', () => ({ listPiiAccess, listPiiAccessFilters }));
 
-import AdminPiiAccessPage from '@/app/admin/pii-access/page';
+import AdminPiiAccessPage from '@/app/admin/settings/security/personal-data/page';
 
 const ROW = {
   id: 'ev1',
@@ -31,7 +31,7 @@ const ROW = {
 
 beforeEach(() => {
   vi.clearAllMocks(); // hoisted-моки живут на весь файл — чистим call-историю (как в pages.admin-audit)
-  requireAdmin.mockResolvedValue({ sub: 'adm', role: 'admin' });
+  requireSettingsSection.mockResolvedValue({ sub: 'adm', role: 'admin' });
   listPiiAccess.mockResolvedValue({ ok: true, rows: [ROW], nextCursor: null });
   listPiiAccessFilters.mockResolvedValue({ ok: true, contexts: [], subjectTypes: [], actors: [] });
   delete process.env.FEATURE_PII_ACCESS_LOG; // opt-out: журнал «включён»

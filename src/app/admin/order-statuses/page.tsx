@@ -1,13 +1,10 @@
-import React from 'react';
-import { requireAdmin } from '@/lib/auth/requireRole';
-import { prisma } from '@/lib/db/prisma';
-import { listStatusDefinitions } from '@/lib/services/orderStatuses';
-import { OrderStatusesAdmin } from '@/components/admin/order-statuses-admin';
+import { redirectToSettingsHub } from '@/lib/navigation/settingsRedirect';
+import AdminApplicationStatusesPage from '@/app/admin/settings/catalogs/application-statuses/page';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AdminOrderStatusesPage() {
-  const session = await requireAdmin();
-  const res = await listStatusDefinitions(prisma, session);
-  return <OrderStatusesAdmin rows={res.ok ? res.rows : []} />;
+/** Старый адрес справочника статусов: при включённом хабе — редирект, иначе прежняя страница. */
+export default async function AdminOrderStatusesLegacyPage() {
+  redirectToSettingsHub('/admin/order-statuses');
+  return AdminApplicationStatusesPage();
 }

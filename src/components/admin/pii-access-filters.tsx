@@ -2,6 +2,8 @@ import React from 'react';
 import Link from 'next/link';
 
 type Props = {
+  /** Адрес экрана: используется ссылкой «Сбросить» (экран переехал в хаб настроек). */
+  basePath: string;
   contexts: Array<{ key: string; labelRu: string }>;
   subjectTypes: string[];
   actors: Array<{ id: string; name: string; email: string }>;
@@ -18,7 +20,7 @@ type Props = {
 
 const inputCls = 'mt-1 border border-gray-200 rounded px-2 py-1.5 text-sm';
 
-export function PiiAccessFilters({ contexts, subjectTypes, actors, current }: Props) {
+export function PiiAccessFilters({ basePath, contexts, subjectTypes, actors, current }: Props) {
   const hasActive =
     current.actorUserId ||
     current.userRole ||
@@ -100,7 +102,7 @@ export function PiiAccessFilters({ contexts, subjectTypes, actors, current }: Pr
       </button>
       {hasActive && (
         <Link
-          href="/admin/pii-access"
+          href={basePath}
           className="px-3 py-1.5 border border-gray-200 rounded text-sm text-gray-600 hover:bg-gray-50"
         >
           Сбросить

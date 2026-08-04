@@ -3,6 +3,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { LogoutButton } from '@/components/ui';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { navItemsFor } from '@/lib/navigation/cabinet';
+import { hasAnySettingsAccess } from '@/lib/auth/settingsAccess';
 import { LeaderSidebar } from './leader-sidebar';
 
 export function LeaderAppShell(props: { session: SessionPayload; children: ReactNode }) {
@@ -10,7 +11,13 @@ export function LeaderAppShell(props: { session: SessionPayload; children: React
   return (
     <div className="flex min-h-screen bg-gray-50">
       {/* Без opts: leader-меню не фильтруется по суб-роли (внутрь пускает layout-гард). */}
-      <LeaderSidebar items={navItemsFor('leader')} />
+      <LeaderSidebar
+        items={navItemsFor('leader').filter(
+          // ТЗ 2026-08-04 §5.2: нет доступа ни к одному разделу — нет и пункта.
+          (item) =>
+            item.href !== '/leader/settings' || hasAnySettingsAccess(props.session, 'leader')
+        )}
+      />
       <div className="flex-1 flex flex-col">
         <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
           <div className="text-sm text-gray-700 truncate">
