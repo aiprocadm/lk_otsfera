@@ -11,3 +11,5 @@ next-env.d.ts
 prisma/migrations/
 # Markdown: много вручную выровненных таблиц (ТЗ, планы) — не трогаем
 *.md
+# CODEOWNERS — формат GitHub, prettier-парсера нет
+.github/CODEOWNERS

@@ -15,6 +15,8 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 
 const session = { sub: 'u1', role: 'admin' } as SessionPayload;
 
+const routeCtx = { params: Promise.resolve({}) };
+
 beforeEach(() => {
   vi.clearAllMocks();
   notFoundIfDisabled.mockReturnValue(null);
@@ -42,13 +44,13 @@ describe('withAuth', () => {
 
   it('без ctx (юнит-тесты роутов) params — пустой объект', async () => {
     const handler = withAuth({}, async ({ params }) => Response.json(await params));
-    expect(await (await handler(post())).json()).toEqual({});
+    expect(await (await handler(post(), routeCtx)).json()).toEqual({});
   });
 
   it('выключенный флаг → ответ notFoundIfDisabled до сессии', async () => {
     notFoundIfDisabled.mockReturnValue(new Response('Not Found', { status: 404 }));
     const handler = withAuth({ feature: 'chat' }, async () => Response.json({}));
-    const res = await handler(post());
+    const res = await handler(post(), routeCtx);
     expect(res.status).toBe(404);
     expect(requireSession).not.toHaveBeenCalled();
   });
@@ -59,7 +61,7 @@ describe('withAuth', () => {
       response: Response.json({ error: 'Unauthorized' }, { status: 401 }),
     });
     const handler = withAuth({}, async () => Response.json({}));
-    expect((await handler(post())).status).toBe(401);
+    expect((await handler(post(), routeCtx)).status).toBe(401);
   });
 
   it('guard-отказ → его response, обработчик не зовётся', async () => {
@@ -73,7 +75,7 @@ describe('withAuth', () => {
       },
       inner
     );
-    expect((await handler(post())).status).toBe(403);
+    expect((await handler(post(), routeCtx)).status).toBe(403);
     expect(inner).not.toHaveBeenCalled();
   });
 
@@ -83,13 +85,13 @@ describe('withAuth', () => {
       { guard: () => ({ ok: true, value: narrowed }) },
       async ({ session: s }) => Response.json(s)
     );
-    expect(await (await handler(post())).json()).toEqual(narrowed);
+    expect(await (await handler(post(), routeCtx)).json()).toEqual(narrowed);
   });
 
   it('кривое тело → 400 invalid_request, обработчик не зовётся', async () => {
     const inner = vi.fn();
     const handler = withAuth({ body: z.object({ a: z.string() }) }, inner);
-    const res = await handler(post({ a: 1 }));
+    const res = await handler(post({ a: 1 }), routeCtx);
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: 'invalid_request' });
     expect(inner).not.toHaveBeenCalled();
@@ -99,7 +101,7 @@ describe('withAuth', () => {
     const handler = withAuth({}, async () => {
       throw new Error('boom');
     });
-    const res = await handler(post());
+    const res = await handler(post(), routeCtx);
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({ error: 'internal' });
     expect(logError).toHaveBeenCalled();

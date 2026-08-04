@@ -40,6 +40,39 @@ jobs:
           curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar xz gitleaks
           ./gitleaks git . --no-banner --redact --config .gitleaks.toml
 
+  # Фаза 7: прод-сборка ловит то, чего не видит typecheck (границы
+  # server/client-компонентов, конфиг Next). Sentry без DSN — no-op.
+  build:
+    name: build · прод-сборка
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run prisma:generate
+      # Как у typecheck/lint: дефолтного heap на раннере не хватает (OOM).
+      - run: npm run build
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+
+  # Фаза 7: критические уязвимости прод-зависимостей = красная сборка.
+  # Порог critical (не high): текущие high — транзитивные без фиксов у
+  # упаковщиков, их закрывает Renovate (см. docs/CI.md).
+  audit:
+    name: audit · критические уязвимости
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm audit --omit=dev --audit-level=critical
+
   checks:
     name: typecheck · lint · unit
     runs-on: ubuntu-latest

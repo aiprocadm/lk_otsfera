@@ -1,0 +1,29 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":timezone(Europe/Moscow)"],
+  "schedule": ["before 8am on monday"],
+  "prConcurrentLimit": 3,
+  "labels": ["dependencies"],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 8am on the first day of the month"]
+  },
+  "packageRules": [
+    {
+      "description": "Патчи и минорные — одним групповым PR",
+      "matchUpdateTypes": ["patch", "minor"],
+      "groupName": "minor и patch зависимости"
+    },
+    {
+      "description": "Мажоры — по одному, вручную (prisma 5→7, next и т.п. — осознанные миграции)",
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "xlsx стоит тарболом с CDN SheetJS (CVE-фикс, npm-версия заморожена автором) — Renovate его не трогает",
+      "matchPackageNames": ["xlsx"],
+      "enabled": false
+    }
+  ],
+  "vulnerabilityAlerts": { "enabled": true, "labels": ["security"] }
+}

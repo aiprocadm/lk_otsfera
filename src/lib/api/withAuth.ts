@@ -38,8 +38,12 @@ type WithAuthOpts<S extends z.ZodTypeAny | undefined> = {
 export function withAuth<S extends z.ZodTypeAny | undefined = undefined>(
   opts: WithAuthOpts<S>,
   handler: (ctx: HandlerCtx<S extends z.ZodTypeAny ? z.infer<S> : undefined>) => Promise<Response>
-): (req: Request, ctx?: RouteContext) => Promise<Response> {
-  return (req, ctx) =>
+): (req: Request, ctx: RouteContext) => Promise<Response> {
+  // Тип второго аргумента ОБЯЗАТЕЛЕН: Next 15 отвергает `ctx?: RouteContext`
+  // при сборке («RouteContext | undefined is not a valid type»). Реализация
+  // терпима к отсутствию ctx (юнит-тесты зовут роут без него) — допуск живёт
+  // в рантайме, а не в типе.
+  const impl = (req: Request, ctx?: RouteContext) =>
     guardedRoute(req, async (requestId) => {
       if (opts.feature) {
         const disabled = notFoundIfDisabled(opts.feature);
@@ -72,4 +76,5 @@ export function withAuth<S extends z.ZodTypeAny | undefined = undefined>(
         requestId,
       });
     });
+  return impl;
 }
