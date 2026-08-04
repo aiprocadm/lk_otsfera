@@ -15,13 +15,13 @@ export type SyncLogEntity =
 
 export type SyncLogEntry = {
   entity: SyncLogEntity;
-  externalId?: string;
+  externalId?: string | undefined;
   direction: 'inbound' | 'outbound';
   operation: 'create' | 'update' | 'skip' | 'delete' | 'check' | 'import';
   status: 'success' | 'error' | 'warn';
-  errorMessage?: string;
+  errorMessage?: string | undefined;
   payload?: unknown;
-  durationMs?: number;
+  durationMs?: number | undefined;
 };
 
 export async function writeSyncLog(

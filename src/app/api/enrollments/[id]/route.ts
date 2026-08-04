@@ -68,7 +68,8 @@ export async function PATCH(req: Request, { params }: Params) {
       id,
       reviewerId,
       target: action === 'markInTraining' ? 'in_training' : 'certificates_ready',
-      itemIds,
+      // exactOptionalPropertyTypes: сервис различает «ключа нет» и «ключ = undefined».
+      ...(itemIds !== undefined ? { itemIds } : {}),
     });
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: statusFor(r.error) });
     return NextResponse.json({ request: r.request, movedCount: r.movedCount });

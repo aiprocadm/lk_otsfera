@@ -82,10 +82,11 @@ export function clientRequestScopeWhere(session: SessionPayload): Prisma.ClientR
   return { submittedByUserId: session.sub };
 }
 
+// Фильтры списка: «ключа нет» и «ключ = undefined» — одно и то же (не фильтровать).
 export type ListClientRequestsOptions = {
-  status?: ClientRequestStatus;
-  take?: number;
-  cursor?: string;
+  status?: ClientRequestStatus | undefined;
+  take?: number | undefined;
+  cursor?: string | undefined;
 };
 
 export async function listClientRequests(

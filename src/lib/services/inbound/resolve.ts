@@ -4,19 +4,19 @@ import { resolveContactByChannel } from '@/lib/services/contacts/resolveContactB
 
 export type ResolveInput = {
   channel: 'telegram' | 'max' | 'whatsapp' | 'email';
-  chatId?: string;
-  phone?: string;
-  email?: string;
+  chatId?: string | undefined;
+  phone?: string | undefined;
+  email?: string | undefined;
 };
 export type ResolveResult =
   | {
       matchType: 'exact';
-      userId?: string;
+      userId?: string | undefined;
       orgId: string;
       companyId: string;
-      contactId?: string;
-      orderId?: string;
-      threadId?: string;
+      contactId?: string | undefined;
+      orderId?: string | undefined;
+      threadId?: string | undefined;
     }
   | {
       matchType: 'unresolved';

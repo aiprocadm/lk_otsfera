@@ -14,10 +14,11 @@ export type OrgDocumentRow = {
   orderTitle: string | null;
 };
 
+// Фильтры списка: «ключа нет» и «ключ = undefined» — одно и то же (не фильтровать).
 export type OrgDocumentsFilter = {
   orgId: string;
   partnerId: string;
-  type?: DocumentType;
+  type?: DocumentType | undefined;
 };
 
 export type OrgDocumentsResult = {

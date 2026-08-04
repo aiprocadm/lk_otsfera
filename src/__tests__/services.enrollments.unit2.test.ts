@@ -201,7 +201,7 @@ describe('submitEnrollmentRequest — additional branches', () => {
     expect(r.ok && r.request.partnerId).toBeNull();
   });
 
-  it('partner WITH organizationId and null partnerId → findFirst uses undefined (?? arm)', async () => {
+  it('partner WITH organizationId and null partnerId → findFirst omits partnerId (?? arm)', async () => {
     const orgFindFirst = vi.fn().mockResolvedValue({ id: 'o-unscoped' });
     const d = db({ organization: { findFirst: orgFindFirst } });
     const r = await submitEnrollmentRequest(d, sess({ role: 'partner', partnerId: null }), {
@@ -209,8 +209,12 @@ describe('submitEnrollmentRequest — additional branches', () => {
       organizationId: 'o-unscoped',
       items: ITEMS,
     });
+    // Партнёра нет → ключ partnerId в where отсутствует (для Prisma это то же
+    // самое, что прежнее `partnerId: undefined` — фильтра по партнёру нет).
     expect(orgFindFirst).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining({ partnerId: undefined }) })
+      expect.objectContaining({
+        where: expect.not.objectContaining({ partnerId: expect.anything() }),
+      })
     );
     expect(r.ok && r.request.organizationId).toBe('o-unscoped');
   });

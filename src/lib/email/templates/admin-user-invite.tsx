@@ -5,7 +5,7 @@ export type AdminUserInviteProps = {
   inviteUrl: string;
   name: string;
   role: 'organization' | 'partner' | 'manager' | 'student';
-  invitedByName?: string;
+  invitedByName?: string | undefined;
 };
 
 const ROLE_LABELS: Record<AdminUserInviteProps['role'], string> = {

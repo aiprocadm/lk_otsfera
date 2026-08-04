@@ -69,7 +69,9 @@ const PLAN_FACT_OK = {
 };
 
 function sp(month?: string): Promise<{ month?: string }> {
-  return Promise.resolve({ month });
+  // Месяц не задан → ключа в searchParams нет вовсе (как в реальном запросе без
+  // ?month=…); exactOptionalPropertyTypes не даёт написать `{ month: undefined }`.
+  return Promise.resolve(month === undefined ? {} : { month });
 }
 
 describe('LeaderAnalyticsPage', () => {

@@ -18,12 +18,13 @@ export type DealRow = {
   closedAt: Date | null;
 };
 
+// Фильтры списка: «ключа нет» и «ключ = undefined» — одно и то же (не фильтровать).
 export type DealsFilter = {
   partnerId: string;
-  scopeOrgIds?: string[];
-  search?: string;
-  executionStatus?: ExecutionStatus;
-  financialStatus?: FinancialStatus;
+  scopeOrgIds?: string[] | undefined;
+  search?: string | undefined;
+  executionStatus?: ExecutionStatus | undefined;
+  financialStatus?: FinancialStatus | undefined;
   take: number;
   skip: number;
 };

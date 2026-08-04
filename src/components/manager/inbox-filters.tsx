@@ -72,7 +72,13 @@ function FilterGroup({
   );
 }
 
-export function InboxFiltersBar({ channel, status }: { channel?: string; status?: string }) {
+export function InboxFiltersBar({
+  channel,
+  status,
+}: {
+  channel?: string | undefined;
+  status?: string | undefined;
+}) {
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 sm:flex-row sm:flex-wrap sm:gap-8">
       <FilterGroup

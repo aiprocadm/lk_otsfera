@@ -9,8 +9,8 @@ export function StatCard({
 }: {
   title: string;
   value: number | string;
-  accent?: boolean;
-  href?: string;
+  accent?: boolean | undefined;
+  href?: string | undefined;
 }) {
   const card = (
     <div

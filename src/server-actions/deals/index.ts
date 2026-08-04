@@ -26,7 +26,8 @@ import { addNoteToDeal, listDealNotes, type DealNoteRow } from '@/lib/services/d
  * admin | manager-leader. Поэтому здесь достаточно requireSession().
  */
 
-type ActionResult<E extends string> = { ok: true } | { ok: false; error: E; messages?: string[] };
+type ActionResult<E extends string> =
+  { ok: true } | { ok: false; error: E; messages?: string[] | undefined };
 
 function revalidate(): void {
   revalidatePath('/manager/deals');
@@ -38,10 +39,12 @@ export async function moveDealAction(fd: FormData): Promise<ActionResult<MoveDea
   const dealId = str(fd, 'dealId');
   const toStageId = str(fd, 'toStageId');
   if (!dealId || !toStageId) return { ok: false, error: 'not_found' };
+  const lostReason = str(fd, 'lostReason') || undefined;
+  // exactOptionalPropertyTypes: сервис различает «ключа нет» и «ключ = undefined».
   const res = await moveDeal(prisma, session, {
     dealId,
     toStageId,
-    lostReason: str(fd, 'lostReason') || undefined,
+    ...(lostReason !== undefined ? { lostReason } : {}),
   });
   if (!res.ok) return { ok: false, error: res.error };
   revalidate();
@@ -94,9 +97,11 @@ export async function winDealAction(
   const session = await requireSession();
   const dealId = str(fd, 'dealId');
   if (!dealId) return { ok: false, error: 'not_found' };
+  const toStageId = str(fd, 'toStageId') || undefined;
+  // exactOptionalPropertyTypes: сервис различает «ключа нет» и «ключ = undefined».
   const res = await winDeal(prisma, session, {
     dealId,
-    toStageId: str(fd, 'toStageId') || undefined,
+    ...(toStageId !== undefined ? { toStageId } : {}),
   });
   if (!res.ok) return { ok: false, error: res.error };
   revalidate();

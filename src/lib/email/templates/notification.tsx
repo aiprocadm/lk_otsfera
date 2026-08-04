@@ -5,7 +5,7 @@ export type NotificationProps = {
   recipientName: string;
   title: string;
   body: string;
-  url?: string;
+  url?: string | undefined;
 };
 
 /**

@@ -26,7 +26,12 @@ export async function resolveCorrectionAction(fd: FormData): Promise<Result> {
   if (!parsed.success) return { ok: false, error: 'validation' };
 
   const session = await requireSession();
-  const res = await resolveCorrection(prisma, session, parsed.data);
+  // exactOptionalPropertyTypes: аргументы сервиса различают «ключа нет» и «ключ = undefined».
+  const res = await resolveCorrection(prisma, session, {
+    correctionId: parsed.data.correctionId,
+    action: parsed.data.action,
+    ...(parsed.data.reason !== undefined ? { reason: parsed.data.reason } : {}),
+  });
   if (res.ok) {
     revalidatePath('/admin/commission-corrections');
     revalidatePath('/leader/commission-corrections');

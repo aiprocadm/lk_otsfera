@@ -4,19 +4,19 @@ export type MangoEvent =
   | {
       kind: 'call';
       externalId: string;
-      direction?: 'inbound' | 'outbound';
-      callerNumber?: string;
-      internalNumber?: string;
-      status?: string;
+      direction?: 'inbound' | 'outbound' | undefined;
+      callerNumber?: string | undefined;
+      internalNumber?: string | undefined;
+      status?: string | undefined;
     }
   | {
       kind: 'summary';
       externalId: string;
       direction: 'inbound' | 'outbound';
       callerNumber: string;
-      internalNumber?: string;
-      durationSec?: number;
-      status?: string;
+      internalNumber?: string | undefined;
+      durationSec?: number | undefined;
+      status?: string | undefined;
     }
   | { kind: 'recording'; externalId: string; recordingId: string };
 

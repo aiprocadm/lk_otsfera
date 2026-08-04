@@ -34,14 +34,15 @@ export type UserDetail = UserRow & {
   }>;
 };
 
+// Фильтры списка: «ключа нет» и «ключ = undefined» — одно и то же (не фильтровать).
 export type UserFilters = {
-  role?: Role;
-  active?: boolean;
-  q?: string;
-  partnerId?: string;
-  organizationId?: string;
-  take?: number;
-  skip?: number;
+  role?: Role | undefined;
+  active?: boolean | undefined;
+  q?: string | undefined;
+  partnerId?: string | undefined;
+  organizationId?: string | undefined;
+  take?: number | undefined;
+  skip?: number | undefined;
 };
 
 function computeAttachmentLabel(u: {

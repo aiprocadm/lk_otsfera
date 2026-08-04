@@ -15,18 +15,18 @@ export type OneCLeadPushResult = z.infer<typeof OneCLeadPushResultSchema>;
 
 // Outbound payload we construct — no need to runtime-validate our own output.
 export type OneCLeadPushPayload = {
-  partnerExternalId?: string;
-  partnerSlug?: string;
+  partnerExternalId?: string | undefined;
+  partnerSlug?: string | undefined;
   cabinetLeadId: string;
   clientCompanyName: string;
-  clientInn?: string;
+  clientInn?: string | undefined;
   clientContactName: string;
-  clientContactPhone?: string;
-  clientContactEmail?: string;
+  clientContactPhone?: string | undefined;
+  clientContactEmail?: string | undefined;
   subject: string;
-  estimatedAmount?: number;
+  estimatedAmount?: number | undefined;
   productType: string[];
-  notes?: string;
+  notes?: string | undefined;
 };
 
 export type SyncCursor = {

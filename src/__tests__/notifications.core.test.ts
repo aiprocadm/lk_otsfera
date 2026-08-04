@@ -136,7 +136,8 @@ describe('notifyDocumentCreated', () => {
 describe('notifyStatusChanged', () => {
   it('delegates to createNotification with type=status_changed', async () => {
     notificationCreate.mockResolvedValue({ id: 'n-4' });
-    await notifyStatusChanged({ ...BASE_INPUT, meta: undefined });
+    // BASE_INPUT и так без meta — отдельный `meta: undefined` ничего не добавлял.
+    await notifyStatusChanged({ ...BASE_INPUT });
 
     const callData = notificationCreate.mock.calls[0][0].data;
     expect(callData.type).toBe('status_changed');
@@ -235,7 +236,11 @@ describe('deliverNotificationToUser', () => {
     mockUser({ name: null, email: 'anon@test.ru' });
     sendNotificationEmailMock.mockResolvedValue({ status: 'sent', id: 'e-2' });
 
-    await deliverNotificationToUser({ ...PAYLOAD, url: undefined });
+    // Payload без url: ключ убран (при exactOptionalPropertyTypes «поля нет»
+    // выражается удалением ключа), доставка видит тот же payload.url === undefined.
+    const { url: _url, ...payloadWithoutUrl } = PAYLOAD;
+    void _url;
+    await deliverNotificationToUser(payloadWithoutUrl);
 
     expect(sendNotificationEmailMock).toHaveBeenCalledWith(
       expect.objectContaining({ recipientName: 'партнёр' })

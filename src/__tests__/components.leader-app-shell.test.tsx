@@ -67,9 +67,8 @@ describe('LeaderAppShell', () => {
   });
 
   it('omits the email span when session.email is null/undefined', () => {
-    const html = renderToString(
-      renderShell({ session: { ...baseSession, email: undefined }, children: 'c' })
-    );
+    // baseSession и так без email — сессия без ключа даёт session.email === undefined.
+    const html = renderToString(renderShell({ session: baseSession, children: 'c' }));
 
     expect(html).not.toContain('·');
   });

@@ -16,12 +16,13 @@ export class AdminPartnerError extends Error {
   }
 }
 
+// Фильтры списка: «ключа нет» и «ключ = undefined» — одно и то же (не фильтровать).
 export type PartnerFilters = {
-  active?: boolean;
-  filter?: 'norate';
-  q?: string;
-  take?: number;
-  skip?: number;
+  active?: boolean | undefined;
+  filter?: 'norate' | undefined;
+  q?: string | undefined;
+  take?: number | undefined;
+  skip?: number | undefined;
 };
 
 export type PartnerRow = {

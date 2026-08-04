@@ -64,7 +64,13 @@ export async function createUserAction(
   if (!parsed.success) return { ok: false, error: 'validation' };
 
   const session = await requireAdmin();
-  const result = await createUser(prisma, session.sub, parsed.data);
+  // exactOptionalPropertyTypes: CreateUserArgs различают «ключа нет» и «ключ = undefined».
+  const result = await createUser(prisma, session.sub, {
+    email: parsed.data.email,
+    name: parsed.data.name,
+    role: parsed.data.role,
+    ...(parsed.data.partnerId !== undefined ? { partnerId: parsed.data.partnerId } : {}),
+  });
   if (!result.ok) return result;
   const inviteUrl = `${appBaseUrl()}/reset-password?token=${result.inviteToken}`;
 
@@ -95,8 +101,14 @@ export async function updateUserAction(fd: FormData): Promise<ActionResult> {
   if (!parsed.success) return { ok: false, error: 'validation' };
 
   const session = await requireAdmin();
-  const { id, ...args } = parsed.data;
-  const result = await updateUser(prisma, session.sub, id, args);
+  const { id, name, role, partnerId, isActive } = parsed.data;
+  // exactOptionalPropertyTypes: UpdateUserArgs различают «ключа нет» и «ключ = undefined».
+  const result = await updateUser(prisma, session.sub, id, {
+    ...(name !== undefined ? { name } : {}),
+    ...(role !== undefined ? { role } : {}),
+    ...(partnerId !== undefined ? { partnerId } : {}),
+    ...(isActive !== undefined ? { isActive } : {}),
+  });
   if (!result.ok) return result;
   revalidatePath('/admin/users');
   revalidatePath(`/admin/users/${id}`);

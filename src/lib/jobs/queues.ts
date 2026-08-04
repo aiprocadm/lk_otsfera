@@ -25,7 +25,7 @@ export const QUEUE_NAMES = [
 
 export type QueueName = (typeof QUEUE_NAMES)[number];
 
-const defaultJobOpts: QueueOptions['defaultJobOptions'] = {
+const defaultJobOpts: NonNullable<QueueOptions['defaultJobOptions']> = {
   attempts: 5,
   backoff: { type: 'exponential', delay: 1000 },
   removeOnComplete: { count: 1000 },

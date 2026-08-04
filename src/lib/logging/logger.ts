@@ -34,7 +34,7 @@ type Level = 'debug' | 'info' | 'warn' | 'error';
 
 export interface CreateLoggerOptions {
   mode: 'json' | 'console';
-  level?: string;
+  level?: string | undefined;
   bindings?: Record<string, unknown>;
   /** Тестовый sink для json-режима (pino destination). */
   destination?: pino.DestinationStream;

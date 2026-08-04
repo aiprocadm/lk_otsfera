@@ -68,7 +68,12 @@ export async function sendWhatsAppMessage(phone: string, text: string): Promise<
 }
 
 /** Одно входящее сообщение Wazzup после парсинга — уже готово к `ingestInboundMessage`. */
-export type WazzupInbound = { externalId: string; phone: string; text: string; name?: string };
+export type WazzupInbound = {
+  externalId: string;
+  phone: string;
+  text: string;
+  name?: string | undefined;
+};
 
 type WazzupRawMessage = {
   messageId?: unknown;

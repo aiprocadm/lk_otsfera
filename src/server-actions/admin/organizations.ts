@@ -55,7 +55,12 @@ export async function createOrganizationAction(
   if (!parsed.success) return { ok: false, error: 'validation' };
 
   const session = await requireAdmin();
-  const res = await createOrganization(prisma, session.sub, parsed.data);
+  // exactOptionalPropertyTypes: CreateOrgArgs различает «ключа нет» и «ключ = undefined».
+  const res = await createOrganization(prisma, session.sub, {
+    name: parsed.data.name,
+    ...(parsed.data.inn !== undefined ? { inn: parsed.data.inn } : {}),
+    ...(parsed.data.kpp !== undefined ? { kpp: parsed.data.kpp } : {}),
+  });
   if (!res.ok) return { ok: false, error: res.error };
   revalidatePath('/admin/organizations');
   return { ok: true, id: res.id };
@@ -71,8 +76,13 @@ export async function updateOrganizationAction(fd: FormData): Promise<ActionResu
   if (!parsed.success) return { ok: false, error: 'validation' };
 
   const session = await requireAdmin();
-  const { id, ...args } = parsed.data;
-  const res = await updateOrganization(prisma, session.sub, id, args);
+  const { id, name, inn, kpp } = parsed.data;
+  // exactOptionalPropertyTypes: UpdateOrgArgs различает «ключа нет» и «ключ = undefined».
+  const res = await updateOrganization(prisma, session.sub, id, {
+    ...(name !== undefined ? { name } : {}),
+    ...(inn !== undefined ? { inn } : {}),
+    ...(kpp !== undefined ? { kpp } : {}),
+  });
   if (!res.ok) return { ok: false, error: res.error };
   revalidatePath('/admin/organizations');
   revalidatePath(`/admin/organizations/${id}`);

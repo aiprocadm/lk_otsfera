@@ -123,8 +123,10 @@ describe('getManagerFinanceOverview', () => {
       teamMode: false,
     });
 
+    // Ключ where не передаётся вовсе — для Prisma это то же самое, что прежнее
+    // `where: undefined` (фильтра по организациям нет).
     expect(prisma.organization.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: undefined })
+      expect.not.objectContaining({ where: expect.anything() })
     );
     expect(res.canSeeCommission).toBe(true);
     expect(orgFinance.getOrgIntermediaryCommissionForOrgs).toHaveBeenCalledTimes(1);

@@ -53,9 +53,9 @@ export async function deliverNotificationToUser(payload: {
   title: string;
   body: string;
   type: string;
-  url?: string;
-  channels?: ChannelKey[];
-  dedupKey?: string;
+  url?: string | undefined;
+  channels?: ChannelKey[] | undefined;
+  dedupKey?: string | undefined;
 }): Promise<DeliveryResults> {
   const user = await prisma.user.findUnique({
     where: { id: payload.userId },

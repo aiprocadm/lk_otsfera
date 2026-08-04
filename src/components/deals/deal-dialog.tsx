@@ -63,7 +63,7 @@ export function DealDialog({
   managers: DealDialogOption[];
   currentUserId: string;
   /** Этап 7 (ФТ-7.1): блок «Задачи» — только при флаге internal_tasks (пробрасывает страница). */
-  tasksEnabled?: boolean;
+  tasksEnabled?: boolean | undefined;
   onClose: () => void;
   onSaved: () => void;
 }) {

@@ -74,10 +74,15 @@ export async function createPartnerWithAdminAction(fd: FormData): Promise<
   if (!parsed.success) return { ok: false, error: 'validation' };
 
   const session = await requireAdmin();
+  const commissionRate =
+    parsed.data.commissionRate != null ? parsed.data.commissionRate / 100 : undefined;
+  // exactOptionalPropertyTypes: CreatePartnerWithAdminArgs различают «ключа нет» и «ключ = undefined».
   const serviceArgs = {
-    ...parsed.data,
-    commissionRate:
-      parsed.data.commissionRate != null ? parsed.data.commissionRate / 100 : undefined,
+    name: parsed.data.name,
+    slug: parsed.data.slug,
+    adminEmail: parsed.data.adminEmail,
+    adminName: parsed.data.adminName,
+    ...(commissionRate !== undefined ? { commissionRate } : {}),
   };
   const result = await createPartnerWithAdmin(prisma, session.sub, serviceArgs);
   if (!result.ok) return { ok: false, error: result.error };
@@ -111,10 +116,14 @@ export async function updatePartnerAction(fd: FormData): Promise<ActionResult> {
 
   const session = await requireAdmin();
   const { id, ...raw } = parsed.data;
+  const commissionRate = raw.commissionRate != null ? raw.commissionRate / 100 : raw.commissionRate;
+  // exactOptionalPropertyTypes: UpdatePartnerArgs различают «ключа нет» и «ключ = undefined»
+  // (null у commissionRate — осмысленное значение «сбросить ставку», его сохраняем).
   const args = {
-    ...raw,
-    commissionRate: raw.commissionRate != null ? raw.commissionRate / 100 : raw.commissionRate,
-    effectiveFrom: raw.effectiveFrom ? new Date(raw.effectiveFrom) : undefined,
+    ...(raw.name !== undefined ? { name: raw.name } : {}),
+    ...(raw.isActive !== undefined ? { isActive: raw.isActive } : {}),
+    ...(commissionRate !== undefined ? { commissionRate } : {}),
+    ...(raw.effectiveFrom ? { effectiveFrom: new Date(raw.effectiveFrom) } : {}),
   };
   const res = await updatePartner(prisma, session.sub, id, args);
   if (!res.ok) return { ok: false, error: res.error };

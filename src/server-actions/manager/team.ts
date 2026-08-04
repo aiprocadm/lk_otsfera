@@ -62,7 +62,17 @@ export async function leaderAssignManagerAction(formData: FormData): Promise<Lea
     return { ok: false, error: 'forbidden_org' };
   }
 
-  const result = await createAndAssignManager(prisma, parsed.data, session.sub);
+  // exactOptionalPropertyTypes: вход сервиса различает «ключа name нет» и «name = undefined».
+  const input =
+    parsed.data.mode === 'new'
+      ? {
+          mode: 'new' as const,
+          organizationId: parsed.data.organizationId,
+          email: parsed.data.email,
+          ...(parsed.data.name !== undefined ? { name: parsed.data.name } : {}),
+        }
+      : parsed.data;
+  const result = await createAndAssignManager(prisma, input, session.sub);
   if (!result.ok) return { ok: false, error: result.error };
 
   // ФТ-10.1 (этап 4): leader-путь шлёт то же письмо, что и admin-путь.

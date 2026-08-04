@@ -31,7 +31,7 @@ export function buildAuthHeader(token: string): Record<string, string> {
 // `nextCursor` — when present, there are more pages and the caller must request
 // the next one with PAGE_PARAM=nextCursor. The cursor is opaque to us (1C owns
 // its meaning); we only echo it back.
-export function parseEnvelope(raw: unknown): { items: unknown[]; nextCursor?: string } {
+export function parseEnvelope(raw: unknown): { items: unknown[]; nextCursor?: string | undefined } {
   if (Array.isArray(raw)) return { items: raw };
   if (raw && typeof raw === 'object' && Array.isArray((raw as { items?: unknown }).items)) {
     const o = raw as { items: unknown[]; nextCursor?: unknown };

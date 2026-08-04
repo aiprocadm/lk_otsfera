@@ -38,7 +38,13 @@ afterEach(() => {
   process.env = { ...ORIGINAL_ENV };
 });
 
-function makeSession(overrides: Partial<SessionPayload>): SessionPayload {
+// Явное `| undefined` в типе оверрайдов — сознательно: тесты ниже проверяют
+// ветки «поле сессии не задано» (email/managerRole), и при
+// exactOptionalPropertyTypes простой Partial<SessionPayload> такие литералы
+// не принимает.
+type SessionOverrides = { [K in keyof SessionPayload]?: SessionPayload[K] | undefined };
+
+function makeSession(overrides: SessionOverrides): SessionPayload {
   return {
     userId: 'u1',
     role: 'manager',

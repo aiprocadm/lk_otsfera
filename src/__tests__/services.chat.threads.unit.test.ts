@@ -26,7 +26,12 @@ vi.mock('@/lib/auth/organizationPolicy', () => ({
 import { canSeeThread } from '@/lib/services/chat/policy';
 const canSeeThreadMock = canSeeThread as ReturnType<typeof vi.fn>;
 
-function makeSession(overrides: Partial<SessionPayload> = {}): SessionPayload {
+// Явное `| undefined` в типе оверрайдов — сознательно: тесты ниже проверяют
+// sentinel-ветки «companyId / partnerId не задан», и при
+// exactOptionalPropertyTypes Partial<SessionPayload> такие литералы не принимает.
+type SessionOverrides = { [K in keyof SessionPayload]?: SessionPayload[K] | undefined };
+
+function makeSession(overrides: SessionOverrides = {}): SessionPayload {
   return { sub: 'u1', role: 'manager', companyId: 'c1', ...overrides } as SessionPayload;
 }
 

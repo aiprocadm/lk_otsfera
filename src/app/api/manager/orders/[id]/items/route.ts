@@ -53,7 +53,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     orderId: id,
     studentId: body.studentId,
     directionId: body.directionId,
-    note: body.note,
+    // exactOptionalPropertyTypes: сервис различает «ключа нет» и «ключ = undefined».
+    ...(body.note !== undefined ? { note: body.note } : {}),
   });
   if (!res.ok) return NextResponse.json({ error: res.error }, { status: mapError(res.error) });
   return NextResponse.json({ item: res.item }, { status: 201 });

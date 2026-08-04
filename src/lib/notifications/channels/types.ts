@@ -63,12 +63,12 @@ export type ChannelPayload = {
   type: string;
   title: string;
   body: string;
-  url?: string;
+  url?: string | undefined;
   /**
    * Rich-email контент. Отсутствует → email-канал возвращает `skipped`
    * (in-app-only уведомления, например партнёрский lead_status_changed).
    */
-  email?: EmailContentRef;
+  email?: EmailContentRef | undefined;
 };
 
 export type ChannelSendResult = {

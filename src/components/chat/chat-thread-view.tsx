@@ -9,7 +9,7 @@ export type ChatMessageVM = {
   body: string;
   /** Ready-to-render download URL (e.g. a signed URL or download route).
    *  Consumers MUST pass a signed/route URL per CLAUDE.md §10 — never a raw storage path. */
-  attachmentUrl?: string | null;
+  attachmentUrl?: string | null | undefined;
   createdAt: string | Date;
 };
 

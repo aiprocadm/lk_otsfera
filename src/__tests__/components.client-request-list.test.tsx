@@ -30,10 +30,14 @@ function row(overrides: Partial<ClientRequestRow> = {}): ClientRequestRow {
 
 /** renderToString вставляет <!-- --> между текстовыми узлами — срезаем для проверки текста. */
 function html(rows: ClientRequestRow[], detailHrefBase?: string): string {
-  return renderToString(React.createElement(ClientRequestList, { rows, detailHrefBase })).replace(
-    /<!-- -->/g,
-    ''
-  );
+  // detailHrefBase не задан → проп не передаём вовсе (exactOptionalPropertyTypes:
+  // «пропа нет» ≠ «проп = undefined»).
+  return renderToString(
+    React.createElement(ClientRequestList, {
+      rows,
+      ...(detailHrefBase !== undefined ? { detailHrefBase } : {}),
+    })
+  ).replace(/<!-- -->/g, '');
 }
 
 describe('ClientRequestList', () => {

@@ -4,10 +4,10 @@ import { cachedIntegrationSetting } from '@/lib/config/integrationSettingsCache'
 import type { InboundEmailAdapter, InboundEmailDto, InboundEmailFetchResult } from './adapter';
 
 export type ImapConfig = {
-  host?: string;
-  port?: number;
-  user?: string;
-  password?: string;
+  host?: string | undefined;
+  port?: number | undefined;
+  user?: string | undefined;
+  password?: string | undefined;
   tls: boolean;
 };
 

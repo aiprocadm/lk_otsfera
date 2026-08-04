@@ -84,7 +84,7 @@ function Paginator({
   skip: number;
   page: number;
   pages: number;
-  search?: string;
+  search?: string | undefined;
 }) {
   function link(targetSkip: number): string {
     const params = new URLSearchParams();

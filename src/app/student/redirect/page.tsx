@@ -83,10 +83,13 @@ export default async function StudentRedirectPage() {
   } = await signStudentBridgeToken({
     sub: session.sub,
     role: 'student',
-    organizationId: session.organizationId,
-    email: session.email,
-    name: session.name,
-    externalStudentId: session.externalStudentId,
+    // exactOptionalPropertyTypes: StudentBridgePayload различает «ключа нет» и «ключ = undefined».
+    ...(session.organizationId !== undefined ? { organizationId: session.organizationId } : {}),
+    ...(session.email !== undefined ? { email: session.email } : {}),
+    ...(session.name !== undefined ? { name: session.name } : {}),
+    ...(session.externalStudentId !== undefined
+      ? { externalStudentId: session.externalStudentId }
+      : {}),
   });
 
   const code = randomUUID();

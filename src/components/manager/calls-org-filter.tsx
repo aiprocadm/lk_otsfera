@@ -18,8 +18,8 @@ export function CallsOrgFilter({
   direction,
 }: {
   orgs: Pick<ManagerOrgListRow, 'id' | 'name'>[];
-  orgId?: string;
-  direction?: string;
+  orgId?: string | undefined;
+  direction?: string | undefined;
 }) {
   const router = useRouter();
 

@@ -19,7 +19,7 @@ const OPTIONAL_CHANNEL_KEYS = [
 ] as const satisfies readonly ChannelKey[];
 export type OptionalChannelKey = (typeof OPTIONAL_CHANNEL_KEYS)[number];
 
-export type ChannelPrefs = Partial<Record<OptionalChannelKey, boolean>>;
+export type ChannelPrefs = Partial<Record<OptionalChannelKey, boolean | undefined>>;
 
 const prefsSchema = z.object({
   telegram: z.boolean().optional(),

@@ -8,7 +8,7 @@ import { OrgSidebar, type OrgSidebarMembership } from './org-sidebar';
 import { OrganizationBottomTabBar } from './bottom-tab-bar';
 
 export function OrgAppShell(props: {
-  userEmail?: string | null;
+  userEmail?: string | null | undefined;
   activeOrgName: string;
   memberships: OrgSidebarMembership[];
   activeOrgId: string;

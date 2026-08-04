@@ -61,7 +61,9 @@ export async function submitEnrollmentRequest(
     partnerId = session.partnerId ?? null;
     if (organizationId) {
       const org = await prisma.organization.findFirst({
-        where: { id: organizationId, partnerId: partnerId ?? undefined },
+        // partnerId отсутствует в where ⇒ Prisma не фильтрует по нему (ровно
+        // прежняя семантика `partnerId: undefined`).
+        where: { id: organizationId, ...(partnerId !== null ? { partnerId } : {}) },
         select: { id: true },
       });
       if (!org) return { ok: false, error: 'forbidden' };

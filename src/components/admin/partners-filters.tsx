@@ -2,9 +2,9 @@ import React from 'react';
 import Link from 'next/link';
 
 type Props = {
-  active?: string;
-  filter?: string;
-  q?: string;
+  active?: string | undefined;
+  filter?: string | undefined;
+  q?: string | undefined;
 };
 
 export function PartnersFilters({ active, filter, q }: Props) {

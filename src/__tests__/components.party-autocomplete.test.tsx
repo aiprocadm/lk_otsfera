@@ -46,7 +46,9 @@ function Harness({
   const [value, setValue] = useState('');
   return (
     <PartyAutocomplete
-      id={noId ? undefined : 'pa'}
+      // noId → проп `id` не передаём вовсе (exactOptionalPropertyTypes:
+      // «пропа нет» ≠ «проп = undefined»); компонент получает тот же undefined.
+      {...(noId ? {} : { id: 'pa' })}
       value={value}
       onChange={setValue}
       onSelect={(s) => {

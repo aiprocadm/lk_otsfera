@@ -56,7 +56,7 @@ export type WebhookDiagInfo = {
   headerName: string | null;
   secretSet: boolean;
   lastEventAt: string | null;
-  note?: string;
+  note?: string | undefined;
 };
 
 export type IntegrationTestAction = (
@@ -76,7 +76,7 @@ export function IntegrationCheckPanel({
 }: {
   testAction: IntegrationTestAction;
   check: IntegrationCheckInfo | null;
-  webhook?: WebhookDiagInfo | null;
+  webhook?: WebhookDiagInfo | null | undefined;
 }) {
   const router = useRouter();
   const [result, testFormAction, testPending] = useActionState<

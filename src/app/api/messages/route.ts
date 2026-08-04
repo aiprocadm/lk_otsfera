@@ -28,7 +28,8 @@ export const POST = withAuth(
       orderId: body.orderId,
       side,
       body: body.body,
-      attachmentPath: body.attachmentPath,
+      // exactOptionalPropertyTypes: сервис различает «ключа нет» и «ключ = undefined».
+      ...(body.attachmentPath !== undefined ? { attachmentPath: body.attachmentPath } : {}),
     });
 
     if (!result.ok) {

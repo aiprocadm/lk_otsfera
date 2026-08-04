@@ -11,7 +11,7 @@ const RESEND_COOLDOWN_SEC = 30;
 const inputCls =
   'w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316] focus:border-transparent disabled:opacity-60 transition-all';
 
-export function LoginForm({ demoLogins }: { demoLogins?: DemoLogin[] }) {
+export function LoginForm({ demoLogins }: { demoLogins?: DemoLogin[] | undefined }) {
   const [step, setStep] = useState<'credentials' | 'code'>('credentials');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

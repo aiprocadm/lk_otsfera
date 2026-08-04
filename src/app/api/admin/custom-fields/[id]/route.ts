@@ -28,7 +28,18 @@ export const PATCH = withAuth(
   { guard: requireFieldsAdmin, body: patchBodySchema },
   async ({ session, body, params }) => {
     const { id } = await params;
-    const res = await updateDefinition(prisma, session, id, body);
+    // exactOptionalPropertyTypes: патч сервиса различает «ключа нет» и «ключ = undefined»,
+    // поэтому не передаём ключи, которых не было в теле запроса.
+    const res = await updateDefinition(prisma, session, id, {
+      ...(body.label !== undefined ? { label: body.label } : {}),
+      ...(body.options !== undefined ? { options: body.options } : {}),
+      ...(body.required !== undefined ? { required: body.required } : {}),
+      ...(body.sortOrder !== undefined ? { sortOrder: body.sortOrder } : {}),
+      ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
+      ...(body.helpText !== undefined ? { helpText: body.helpText } : {}),
+      ...(body.visibleToRoles !== undefined ? { visibleToRoles: body.visibleToRoles } : {}),
+      ...(body.editableByRoles !== undefined ? { editableByRoles: body.editableByRoles } : {}),
+    });
     if (!res.ok) return jsonError(res.error, mapErr(res.error));
     return NextResponse.json({ definition: res.definition });
   }

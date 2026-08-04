@@ -2,11 +2,11 @@ import React from 'react';
 import Link from 'next/link';
 
 type Props = {
-  role?: string;
-  active?: string;
-  q?: string;
-  partnerId?: string;
-  organizationId?: string;
+  role?: string | undefined;
+  active?: string | undefined;
+  q?: string | undefined;
+  partnerId?: string | undefined;
+  organizationId?: string | undefined;
 };
 
 const ROLES: Array<{ value: string; label: string }> = [

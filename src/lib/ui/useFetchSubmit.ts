@@ -18,7 +18,7 @@ export type FetchSubmitDescriptor = {
   /** Абсолютный или относительный URL API-роута. */
   url: string;
   /** HTTP-метод; default 'POST'. */
-  method?: FetchMethod;
+  method?: FetchMethod | undefined;
   /**
    * Тело запроса из FormData формы.
    * - Вернёт FormData → отправляем как есть (multipart, без content-type — браузер
@@ -26,7 +26,7 @@ export type FetchSubmitDescriptor = {
    * - Вернёт plain-object → JSON.stringify + `content-type: application/json`.
    * - Не задан → запрос без тела (например DELETE).
    */
-  body?: (formData: FormData) => FormData | object;
+  body?: ((formData: FormData) => FormData | object) | undefined;
 };
 
 type UseFetchSubmitOptions<T> = FetchSubmitDescriptor & {

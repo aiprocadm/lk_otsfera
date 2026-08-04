@@ -32,13 +32,14 @@ export type OrgOrderRow = {
   managerName: string | null;
 };
 
+// Фильтры списка: «ключа нет» и «ключ = undefined» — одно и то же (не фильтровать).
 export type ListOrgOrdersOptions = {
   organizationId: string;
-  executionStatus?: ExecutionStatus;
-  financialStatus?: FinancialStatus;
-  search?: string;
-  take?: number;
-  skip?: number;
+  executionStatus?: ExecutionStatus | undefined;
+  financialStatus?: FinancialStatus | undefined;
+  search?: string | undefined;
+  take?: number | undefined;
+  skip?: number | undefined;
 };
 
 export type ListOrgOrdersResult = {

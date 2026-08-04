@@ -10,7 +10,11 @@ const TABS: Array<{ value: string; label: string }> = [
   { value: 'rejected', label: 'Отклонены' },
 ];
 
-type Query = { status?: string; q?: string; assignedToMe?: string };
+type Query = {
+  status?: string | undefined;
+  q?: string | undefined;
+  assignedToMe?: string | undefined;
+};
 
 function href(q: Query, patch: Partial<Query>): string {
   const merged = { ...q, ...patch };

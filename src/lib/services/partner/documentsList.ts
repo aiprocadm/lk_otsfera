@@ -6,12 +6,13 @@ import {
 } from '@/lib/auth/documentChannelPolicy';
 import type { OrgDocumentRow } from './orgDocuments';
 
+// Фильтры списка: «ключа нет» и «ключ = undefined» — одно и то же (не фильтровать).
 export type PartnerDocumentsFilter = {
   partnerId: string;
-  scopeOrgIds?: string[];
-  type?: DocumentType;
-  search?: string;
-  orderLess?: boolean;
+  scopeOrgIds?: string[] | undefined;
+  type?: DocumentType | undefined;
+  search?: string | undefined;
+  orderLess?: boolean | undefined;
   take: number;
   skip: number;
 };
