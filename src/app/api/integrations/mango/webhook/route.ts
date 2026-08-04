@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db/prisma';
+import { readMultipart } from '@/lib/api/multipart';
 import { getSettingValue } from '@/lib/config/integrationSettings';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { verifyMangoSign } from '@/lib/telephony/mango/sign';
@@ -35,7 +36,9 @@ export async function POST(req: Request): Promise<Response> {
     return new Response(null, { status: 401 });
   }
 
-  const form = await req.formData().catch(() => null);
+  // Только чтение тела: разбор полей ниже намеренно защитный (кривой вход даёт
+  // 401/200, а не 400), поэтому formFields/readFile здесь не применяются.
+  const form = await readMultipart(req);
   const json = form?.get('json');
   const sign = form?.get('sign');
 

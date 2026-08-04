@@ -1,4 +1,5 @@
 import { type NextRequest } from 'next/server';
+import { readMultipart } from '@/lib/api/multipart';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
@@ -29,7 +30,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const session = await requireManager();
   const { id: orderId } = await params;
 
-  const form = await req.formData().catch(() => null);
+  // Разбор пар file/orderItemId позиционный (getAll), поэтому readFile здесь
+  // неприменим — нужен весь список сразу, с сохранением порядка.
+  const form = await readMultipart(req);
   if (!form) return Response.json({ ok: false, error: 'validation' }, { status: 400 });
 
   const rawFiles = form.getAll('file');

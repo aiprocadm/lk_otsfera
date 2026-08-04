@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
+import { formFields, readFileEntry, readMultipart } from '@/lib/api/multipart';
 import { requireOrderAccess, requireRole, requireSession } from '@/lib/auth/guard';
 import { deliverNotificationToUser, notifyDocumentCreated } from '@/lib/notifications';
 import { getPrimaryOrganizationId } from '@/lib/auth/organization';
@@ -33,6 +35,8 @@ const ALLOWED_EXTENSIONS = [
 ] as const;
 const ALLOWED_FORMATS_ERROR = `Unsupported file format. Allowed formats: ${ALLOWED_EXTENSIONS.join(', ')}`;
 
+const FIELDS = z.object({ orderId: z.coerce.string().default('') });
+
 const MAX_FILE_SIZE_MB = resolveMaxFileSizeMb();
 const MAX_FILE_SIZE_BYTES = maxFileSizeBytes();
 
@@ -61,13 +65,14 @@ export async function POST(req: Request) {
   const roleResult = requireRole(s, ['admin']);
   if (!roleResult.ok) return roleResult.response;
 
-  const form = await req.formData().catch(() => null);
+  const form = await readMultipart(req);
   if (!form)
     return errorResponse('BAD_REQUEST', 'Expected multipart form-data', 400, correlationId);
-  const orderId = String(form.get('orderId') ?? '');
-  const file = form.get('file');
+  const { orderId } = formFields(form, FIELDS);
+  // Буфер читаем ПОСЛЕ проверок размера/MIME — отсюда readFileEntry, а не readFile.
+  const file = readFileEntry(form, 'file');
 
-  if (!orderId || !(file instanceof File)) {
+  if (!orderId || !file) {
     return errorResponse('BAD_REQUEST', 'orderId and file are required', 400, correlationId);
   }
 
