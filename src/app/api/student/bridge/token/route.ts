@@ -1,5 +1,6 @@
 import { timingSafeEqual } from 'crypto';
 import { type NextRequest, NextResponse } from 'next/server';
+import type { AuditAction } from '@/lib/auth/audit';
 import { prisma } from '@/lib/db/prisma';
 import { requireRole, requireSession } from '@/lib/auth/guard';
 import { recordAudit } from '@/lib/auth/audit';
@@ -16,7 +17,7 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 async function auditBridgeFailure(params: {
-  action: string;
+  action: AuditAction;
   userId: string;
   entityId?: string;
   clientId?: string;
