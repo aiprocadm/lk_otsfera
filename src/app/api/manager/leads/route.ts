@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server';
-import type { LeadStatus } from '@prisma/client';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
+import { isLeadStatus } from '@/lib/leads/statuses';
 import { listManagerLeads } from '@/lib/services/manager/leads';
-
-const STATUSES = ['new', 'in_review', 'qualified', 'promoted_to_order', 'rejected'];
 
 export async function GET(req: Request) {
   const disabled = notFoundIfDisabled('manager_cabinet');
@@ -14,7 +12,7 @@ export async function GET(req: Request) {
   const session = await requireManager();
   const sp = new URL(req.url).searchParams;
   const statusRaw = sp.get('status');
-  const status = statusRaw && STATUSES.includes(statusRaw) ? (statusRaw as LeadStatus) : undefined;
+  const status = statusRaw && isLeadStatus(statusRaw) ? statusRaw : undefined;
 
   const result = await listManagerLeads(prisma, {
     session,
