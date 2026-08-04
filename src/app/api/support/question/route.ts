@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
+import { formFields, readFile, readMultipart } from '@/lib/api/multipart';
 import { getSession } from '@/lib/auth/session';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { submitCabinetQuestion } from '@/lib/services/inbound/cabinetQuestion';
@@ -8,6 +10,13 @@ import { submitCabinetQuestion } from '@/lib/services/inbound/cabinetQuestion';
  * Этап 9 (ФТ-11.1) — POST /api/support/question: вопрос из кабинета клиента.
  * Тонкий роут (§3 CLAUDE.md): только разбор multipart и маппинг Result→HTTP.
  */
+
+// Поле не строка (или его нет) → пустая строка: валидацию делает сервис,
+// роут обязан передать '' , а не undefined.
+const FIELDS = z.object({
+  subject: z.string().catch(''),
+  body: z.string().catch(''),
+});
 
 const STATUS: Record<string, number> = {
   forbidden: 403,
@@ -24,24 +33,12 @@ export async function POST(req: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const form = await req.formData().catch(() => null);
+  const form = await readMultipart(req);
   if (!form) return NextResponse.json({ error: 'validation' }, { status: 400 });
 
-  const subject = typeof form.get('subject') === 'string' ? (form.get('subject') as string) : '';
-  const body = typeof form.get('body') === 'string' ? (form.get('body') as string) : '';
-  const raw = form.get('file');
-  let file: { name: string; type: string; size: number; buffer: Buffer } | null = null;
-  if (raw && typeof raw === 'object' && 'arrayBuffer' in raw) {
-    const f = raw as File;
-    if (f.size > 0) {
-      file = {
-        name: f.name,
-        type: f.type,
-        size: f.size,
-        buffer: Buffer.from(await f.arrayBuffer()),
-      };
-    }
-  }
+  const { subject, body } = formFields(form, FIELDS);
+  // Пустой файл (браузер прислал input без выбранного файла) = файла нет.
+  const file = await readFile(form, 'file', { detect: 'duck', skipEmpty: true });
 
   const res = await submitCabinetQuestion(prisma, session, { subject, body, file });
   if (!res.ok) {

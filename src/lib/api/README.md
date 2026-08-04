@@ -8,6 +8,9 @@
 - [http.ts](http.ts) — низкоуровневые помощники: `parseJsonBody` / `parseQuery` (кривой вход →
   400 `invalid_request`), `jsonError`, `guardedRoute` (перехват необработанного throw → 500
   `internal`), `x-request-id` в каждом ответе.
+- [multipart.ts](multipart.ts) — разбор `multipart/form-data` для файловых роутов:
+  `readMultipart` (кривое тело → `null`), `readFileEntry` / `readFile` (файл без буфера / с
+  буфером), `formFields` (строковые поля по Zod-схеме).
 
 ## Когда что
 
@@ -15,6 +18,8 @@
   Эталон — [api/admin/custom-fields/route.ts](../../app/api/admin/custom-fields/route.ts).
 - Роут с redirect-стилевыми гардами из [`requireRole.ts`](../auth/requireRole.ts) —
   их в `withAuth` **не заворачивать**; брать `parseJsonBody`/`jsonError` напрямую.
+- Роут с загрузкой файла → `readMultipart` + `readFile`/`readFileEntry` + `formFields`
+  из [multipart.ts](multipart.ts). Ручной разбор `req.formData()` в роуте не заводить.
 
 ## Правила
 

@@ -1,4 +1,6 @@
 import type { ThreadSide } from '@prisma/client';
+import { z } from 'zod';
+import { formFields, readFile, readMultipart } from '@/lib/api/multipart';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { requireSession } from '@/lib/auth/guard';
 import { prisma } from '@/lib/db/prisma';
@@ -25,6 +27,12 @@ import { deriveSide } from '@/lib/services/chat/policy';
  * visibility on the message's parent thread/order.
  */
 
+const FIELDS = z.object({
+  // Не строка / поля нет → '' , и роут отвечает bad_request (как и раньше).
+  orderId: z.string().catch(''),
+  side: z.string().catch(''),
+});
+
 export async function POST(req: Request) {
   const off = notFoundIfDisabled('chat');
   if (off) return off;
@@ -33,33 +41,28 @@ export async function POST(req: Request) {
   if (!sess.ok) return sess.response;
   const s = sess.value;
 
-  let formData: FormData;
-  try {
-    formData = await req.formData();
-  } catch {
+  const formData = await readMultipart(req);
+  if (!formData) {
     return Response.json({ ok: false, error: 'bad_request' }, { status: 400 });
   }
 
-  const fileEntry = formData.get('file');
-  if (!fileEntry || !(fileEntry instanceof File)) {
+  const fileEntry = await readFile(formData, 'file');
+  if (fileEntry === null) {
     return Response.json({ ok: false, error: 'bad_request' }, { status: 400 });
   }
 
-  const orderId = formData.get('orderId');
-  if (!orderId || typeof orderId !== 'string') {
+  const { orderId, side: formSide } = formFields(formData, FIELDS);
+  if (!orderId) {
     return Response.json({ ok: false, error: 'bad_request' }, { status: 400 });
   }
 
   // External role (org/partner) forces its side; team (manager/admin) passes side explicitly.
-  const formSide = formData.get('side');
   const side: ThreadSide | null =
-    deriveSide(s) ?? (typeof formSide === 'string' ? (formSide as ThreadSide) : null);
+    deriveSide(s) ?? (formSide === 'org' || formSide === 'partner' ? formSide : null);
 
   if (side !== 'org' && side !== 'partner') {
     return Response.json({ ok: false, error: 'bad_request' }, { status: 400 });
   }
-
-  const buffer = Buffer.from(await fileEntry.arrayBuffer());
 
   const result = await uploadChatAttachment(prisma, s, {
     orderId,
@@ -68,7 +71,7 @@ export async function POST(req: Request) {
       name: fileEntry.name,
       size: fileEntry.size,
       mimeType: fileEntry.type,
-      buffer,
+      buffer: fileEntry.buffer,
     },
   });
 

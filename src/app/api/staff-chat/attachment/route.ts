@@ -1,3 +1,5 @@
+import { z } from 'zod';
+import { formFields, readFile, readMultipart } from '@/lib/api/multipart';
 import { requireSession, requireRole } from '@/lib/auth/guard';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { prisma } from '@/lib/db/prisma';
@@ -19,6 +21,9 @@ import {
  * on the given message, once it has cleared the async ClamAV scan.
  */
 
+// Не строка / поля нет → '' , и роут отвечает bad_request (как и раньше).
+const FIELDS = z.object({ conversationId: z.string().catch('') });
+
 export async function POST(req: Request) {
   const off = notFoundIfDisabled('staff_chat');
   if (off) return off;
@@ -27,24 +32,20 @@ export async function POST(req: Request) {
   const staff = requireRole(sess.value, ['admin', 'manager']);
   if (!staff.ok) return staff.response;
 
-  let formData: FormData;
-  try {
-    formData = await req.formData();
-  } catch {
+  const formData = await readMultipart(req);
+  if (!formData) {
     return Response.json({ ok: false, error: 'bad_request' }, { status: 400 });
   }
 
-  const fileEntry = formData.get('file');
-  if (!fileEntry || !(fileEntry instanceof File)) {
+  const fileEntry = await readFile(formData, 'file');
+  if (fileEntry === null) {
     return Response.json({ ok: false, error: 'bad_request' }, { status: 400 });
   }
 
-  const conversationId = formData.get('conversationId');
-  if (!conversationId || typeof conversationId !== 'string') {
+  const { conversationId } = formFields(formData, FIELDS);
+  if (!conversationId) {
     return Response.json({ ok: false, error: 'bad_request' }, { status: 400 });
   }
-
-  const buffer = Buffer.from(await fileEntry.arrayBuffer());
 
   const result = await uploadStaffAttachment(prisma, sess.value, {
     conversationId,
@@ -52,7 +53,7 @@ export async function POST(req: Request) {
       name: fileEntry.name,
       size: fileEntry.size,
       mimeType: fileEntry.type,
-      buffer,
+      buffer: fileEntry.buffer,
     },
   });
 

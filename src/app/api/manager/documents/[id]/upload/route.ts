@@ -1,8 +1,15 @@
 import { type NextRequest } from 'next/server';
+import { z } from 'zod';
+import { formFields, readFile, readMultipart } from '@/lib/api/multipart';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { createCounterpartyDocument } from '@/lib/services/manager/uploads';
+
+const FIELDS = z.object({
+  docType: z.coerce.string().default('other'),
+  recipient: z.coerce.string().default('organization'),
+});
 
 /**
  * POST /api/manager/documents/[id]/upload
@@ -38,20 +45,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const session = await requireManager();
   const { id: orderId } = await params;
 
-  const form = await req.formData().catch(() => null);
+  const form = await readMultipart(req);
   if (!form) {
     return Response.json({ ok: false, error: 'no_file' }, { status: 400 });
   }
-  const file = form.get('file');
-  const docType = String(form.get('docType') ?? 'other');
-  const recipientRaw = String(form.get('recipient') ?? 'organization');
+  const { docType, recipient: recipientRaw } = formFields(form, FIELDS);
   const recipient = recipientRaw === 'partner' ? 'partner' : 'organization';
 
-  if (!(file instanceof File)) {
+  const file = await readFile(form, 'file');
+  if (file === null) {
     return Response.json({ ok: false, error: 'no_file' }, { status: 400 });
   }
 
-  const buffer = Buffer.from(await file.arrayBuffer());
   const result = await createCounterpartyDocument(prisma, session, {
     orderId,
     recipient,
@@ -60,7 +65,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       name: file.name,
       size: file.size,
       mimeType: file.type,
-      buffer,
+      buffer: file.buffer,
     },
   });
 
