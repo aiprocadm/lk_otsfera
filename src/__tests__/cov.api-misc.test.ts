@@ -23,11 +23,10 @@ import { PrismaClient, Prisma } from '@prisma/client';
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── hoisted mocks ────────────────────────────────────────────────────────────
-const { requireSession, requireAdmin, requireRole, requireOrderAccess } = vi.hoisted(() => ({
+const { requireSession, requireAdmin, requireRole } = vi.hoisted(() => ({
   requireSession: vi.fn(),
   requireAdmin: vi.fn(),
   requireRole: vi.fn(),
-  requireOrderAccess: vi.fn(),
 }));
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
 const { getSession } = vi.hoisted(() => ({ getSession: vi.fn() }));
@@ -94,7 +93,7 @@ vi.mock('@/lib/auth/guard', () => ({
   requireSession,
   requireAdmin,
   requireRole,
-  requireOrderAccess,
+  forbiddenResponse: () => Response.json({ error: 'Forbidden' }, { status: 403 }),
 }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
 vi.mock('@/lib/auth/session', () => ({ getSession }));
@@ -383,7 +382,6 @@ describe('§F documents/upload fan-out: deliver throws after notify succeeds', (
     vi.clearAllMocks();
     requireSession.mockResolvedValue({ ok: true, value: adminSession });
     requireRole.mockReturnValue({ ok: true, value: adminSession });
-    requireOrderAccess.mockResolvedValue({ ok: true, value: adminSession });
     orderFindUnique.mockResolvedValue({ id: 'ord1', companyId: 'c1', organizationId: 'o1' });
     orgFindFirst.mockResolvedValue({ id: 'o1', partnerId: 'p1' });
     canReadOrder.mockResolvedValue(true);

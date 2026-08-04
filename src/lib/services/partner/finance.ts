@@ -1,4 +1,5 @@
 import { Prisma, type PrismaClient, type CommissionStatement } from '@prisma/client';
+import type { SessionPayload } from '@/lib/auth/jwt';
 
 export type FinanceKpis = {
   earnedTotal: number;
@@ -101,6 +102,51 @@ export async function listStatements(
     totalCommissionAmount: totalCommissionAmount.toFixed(2),
     itemCount: _count.items,
   }));
+}
+
+export type StatementFileFormat = 'pdf' | 'xlsx';
+
+export type StatementFilePathResult =
+  { ok: true; path: string } | { ok: false; error: 'not_found' | 'not_generated' };
+
+/**
+ * Путь к сгенерированному файлу акта (pdf/xlsx) в объектном хранилище.
+ *
+ * Скоуп (Model A): admin читает акт из `/admin`-зеркала без partnerId-фильтра,
+ * партнёр — только свои. `partnerId` берётся из сессии, а не из аргументов:
+ * так фильтр нельзя случайно не прокинуть. Сессия партнёра без `partnerId`
+ * (в роут такая не доходит — её отсекает `requirePartner`) трактуется как
+ * «ничего не видно», а не как «фильтра нет»: `partnerId: undefined` у Prisma
+ * снял бы фильтр целиком и открыл акты всех партнёров.
+ *
+ * `not_found` (записи нет / чужой партнёр) и `not_generated` (файл ещё не
+ * собран) различаются намеренно — роут отвечает 404 на оба, но с разным
+ * текстом.
+ */
+export async function getStatementFilePath(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  args: { id: string; format: StatementFileFormat }
+): Promise<StatementFilePathResult> {
+  let where: { id: string; partnerId?: string };
+  if (session.role === 'admin') {
+    where = { id: args.id };
+  } else {
+    if (!session.partnerId) return { ok: false, error: 'not_found' };
+    where = { id: args.id, partnerId: session.partnerId };
+  }
+
+  const statement =
+    args.format === 'pdf'
+      ? await prisma.commissionStatement.findFirst({ where, select: { pdfPath: true } })
+      : await prisma.commissionStatement.findFirst({ where, select: { xlsxPath: true } });
+
+  if (!statement) return { ok: false, error: 'not_found' };
+
+  const path = 'pdfPath' in statement ? statement.pdfPath : statement.xlsxPath;
+  if (!path) return { ok: false, error: 'not_generated' };
+
+  return { ok: true, path };
 }
 
 export async function getStatementWithItems(

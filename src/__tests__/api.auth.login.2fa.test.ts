@@ -7,6 +7,7 @@ const {
   isRateLimitedMock,
   isFeatureEnabledMock,
   createChallengeMock,
+  discardChallengeMock,
   sendMock,
   buildClaimsMock,
   signTokenMock,
@@ -19,6 +20,7 @@ const {
   isRateLimitedMock: vi.fn(),
   isFeatureEnabledMock: vi.fn(),
   createChallengeMock: vi.fn(),
+  discardChallengeMock: vi.fn(),
   sendMock: vi.fn(),
   buildClaimsMock: vi.fn(),
   signTokenMock: vi.fn(),
@@ -36,7 +38,10 @@ vi.mock('@/lib/db/prisma', () => ({
 vi.mock('bcryptjs', () => ({ default: { compare: compareMock } }));
 vi.mock('@/lib/rateLimit', () => ({ isRateLimited: isRateLimitedMock }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled: isFeatureEnabledMock }));
-vi.mock('@/lib/services/auth/twoFactor', () => ({ createTwoFactorChallenge: createChallengeMock }));
+vi.mock('@/lib/services/auth/twoFactor', () => ({
+  createTwoFactorChallenge: createChallengeMock,
+  discardTwoFactorChallenge: discardChallengeMock,
+}));
 vi.mock('@/lib/email/send', () => ({ send: sendMock }));
 vi.mock('@/lib/auth/buildSessionClaims', () => ({ buildSessionClaims: buildClaimsMock }));
 vi.mock('@/lib/auth/jwt', () => ({
@@ -75,6 +80,7 @@ beforeEach(() => {
   compareMock.mockResolvedValue(true);
   isFeatureEnabledMock.mockReturnValue(true);
   createChallengeMock.mockResolvedValue({ code: '123456' });
+  discardChallengeMock.mockResolvedValue(undefined);
   sendMock.mockResolvedValue(undefined);
   buildClaimsMock.mockResolvedValue({ ok: true, claims: { sub: 'u-mgr', role: 'manager' } });
   signTokenMock.mockResolvedValue('session-jwt');
@@ -147,6 +153,9 @@ describe('POST /api/auth/login — staff 2FA branch', () => {
 
     expect(res.status).toBe(502);
     expect((await res.json()).code).toBe('EMAIL_SEND_FAILED');
+    // Челлендж снимается сервисом (сам prisma-запрос проверяется в
+    // services.auth.login-flow.unit.test.ts).
+    expect(discardChallengeMock).toHaveBeenCalledWith(expect.anything(), 'u-mgr');
     expect(res.headers.get('set-cookie') ?? '').not.toContain('2fa_pending=');
   });
 

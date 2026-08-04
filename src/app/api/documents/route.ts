@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { requireRole, requireSession } from '@/lib/auth/guard';
-import { hideInfectedForSession } from '@/lib/services/scan/visibility';
+import { listAllDocuments } from '@/lib/services/documents/list';
 
 // This endpoint is consumed exclusively by the admin panel (DocumentsPanel).
 // organization and partner roles are excluded: they must use channel-scoped service
@@ -18,11 +18,7 @@ export async function GET() {
   const roleResult = requireRole(s, ['admin']);
   if (!roleResult.ok) return roleResult.response;
 
-  const docs = await prisma.document.findMany({
-    where: { ...hideInfectedForSession(s) },
-    orderBy: { createdAt: 'desc' },
-    select: { id: true, name: true, mimeType: true, createdAt: true, orderId: true },
-  });
+  const result = await listAllDocuments(prisma, s);
 
-  return NextResponse.json(docs);
+  return NextResponse.json(result.documents);
 }

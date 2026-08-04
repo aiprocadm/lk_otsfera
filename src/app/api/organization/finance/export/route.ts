@@ -3,9 +3,8 @@ import { cookies } from 'next/headers';
 import { getSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
 import { resolveActiveOrgId } from '@/lib/auth/orgContext';
-import { getOrgFinanceKpis, listOrgPaymentsForExport } from '@/lib/services/organization/finance';
+import { getPaymentsExportData } from '@/lib/services/finance/paymentsExport';
 import { renderPaymentsXlsx } from '@/lib/services/finance/xlsx';
-import { EXPORT_ROW_LIMIT } from '@/lib/services/export/xlsx';
 
 /**
  * Выгрузка платежей и задолженности организации (этап 9 PR-3, ФТ-12.2) —
@@ -30,18 +29,9 @@ export async function GET(req: Request) {
     cookieStore.get('org_ctx')?.value ?? null
   );
 
-  const [{ rows, total }, kpis, org] = await Promise.all([
-    listOrgPaymentsForExport(prisma, { organizationId, limit: EXPORT_ROW_LIMIT }),
-    getOrgFinanceKpis(prisma, organizationId),
-    prisma.organization.findUnique({ where: { id: organizationId }, select: { name: true } }),
-  ]);
+  const data = await getPaymentsExportData(prisma, organizationId);
 
-  const buf = await renderPaymentsXlsx({
-    rows,
-    total,
-    kpis,
-    organizationName: org?.name ?? '—',
-  });
+  const buf = await renderPaymentsXlsx(data);
   return new NextResponse(Buffer.from(buf), {
     headers: {
       'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
