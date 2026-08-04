@@ -5,10 +5,12 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { requirePartner } = vi.hoisted(() => ({ requirePartner: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requirePartner }));
 
-// Этап 4 (ФТ-10.4): страница читает welcomeSeenAt зрителя; не-null → welcome-блок
-// скрыт, старые сценарии этого файла его не касаются.
-const { userFindUnique } = vi.hoisted(() => ({ userFindUnique: vi.fn() }));
-vi.mock('@/lib/db/prisma', () => ({ prisma: { user: { findUnique: userFindUnique } } }));
+// Этап 4 (ФТ-10.4): страница читает зрителя через сервис welcome; welcomeSeenAt
+// не-null → блок скрыт, старые сценарии этого файла его не касаются. Форма
+// запроса пиннится в services.welcome.viewer.test.ts (аудит A1).
+const { getWelcomeViewer } = vi.hoisted(() => ({ getWelcomeViewer: vi.fn() }));
+vi.mock('@/lib/services/welcome/viewer', () => ({ getWelcomeViewer }));
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 // Флаги мокаем в off: этот файл пиннит базовый дашборд; карточки за флагами
 // (заявки/удостоверения) покрыты в pages.dashboard.enrollments.test.tsx. Без
@@ -43,8 +45,8 @@ describe('PartnerDashboard', () => {
     kpis.mockReset();
     attention.mockReset();
     recentEvents.mockReset();
-    userFindUnique.mockReset();
-    userFindUnique.mockResolvedValue({ name: 'Партнёр', welcomeSeenAt: new Date('2026-01-01') });
+    getWelcomeViewer.mockReset();
+    getWelcomeViewer.mockResolvedValue({ name: 'Партнёр', welcomeSeenAt: new Date('2026-01-01') });
     isFeatureEnabled.mockReset();
     isFeatureEnabled.mockReturnValue(false);
   });

@@ -9,10 +9,14 @@ const { requireManager, requireManagerLeader } = vi.hoisted(() => ({
 }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager, requireManagerLeader }));
 
-const { prismaMock } = vi.hoisted(() => ({
-  prismaMock: { organization: { findMany: vi.fn() } },
-}));
+const { prismaMock } = vi.hoisted(() => ({ prismaMock: {} }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: prismaMock }));
+
+// Справочник организаций компании уехал в сервис (A1): страница его только
+// вызывает, а пустой список для сессии без компании — забота сервиса
+// (регресс — services.manager.organizations.unit).
+const { listCompanyOrgOptions } = vi.hoisted(() => ({ listCompanyOrgOptions: vi.fn() }));
+vi.mock('@/lib/services/manager/organizations', () => ({ listCompanyOrgOptions }));
 
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
@@ -79,7 +83,7 @@ beforeEach(() => {
   nav.notFound.mockImplementation(() => {
     throw new Error('NOT_FOUND');
   });
-  prismaMock.organization.findMany.mockResolvedValue([{ id: 'org-1', name: 'ООО Ромашка' }]);
+  listCompanyOrgOptions.mockResolvedValue([{ id: 'org-1', name: 'ООО Ромашка' }]);
   listCompanyManagers.mockResolvedValue([
     { id: 'm-active', name: 'Иван', isActive: true },
     { id: 'm-inactive', name: 'Пётр', isActive: false },
@@ -120,11 +124,15 @@ describe('ManagerDealsPage', () => {
     // Страница обязана открыться с пустыми списками, а не упасть на запросе
     // «организации компании undefined».
     isFeatureEnabled.mockReturnValue(true);
-    requireManager.mockResolvedValue({ ...MANAGER_SESSION, companyId: null });
+    const session = { ...MANAGER_SESSION, companyId: null };
+    requireManager.mockResolvedValue(session);
+    listCompanyOrgOptions.mockResolvedValue([]);
 
     const { getByTestId } = await renderServerComponent(ManagerDealsPage());
 
-    expect(prismaMock.organization.findMany).not.toHaveBeenCalled();
+    // Сессия уходит в сервис как есть — пустой ответ без запроса к БД
+    // проверяется на его уровне.
+    expect(listCompanyOrgOptions).toHaveBeenCalledWith(prismaMock, session);
     expect(listCompanyManagers).not.toHaveBeenCalled();
     expect(getByTestId('new-deal-button').textContent).not.toContain('Иван');
   });
@@ -192,11 +200,13 @@ describe('LeaderDealsPage', () => {
 
   it('руководитель без компании: списки пустые, БД не опрашивается', async () => {
     isFeatureEnabled.mockReturnValue(true);
-    requireManagerLeader.mockResolvedValue({ ...LEADER_SESSION, companyId: null });
+    const session = { ...LEADER_SESSION, companyId: null };
+    requireManagerLeader.mockResolvedValue(session);
+    listCompanyOrgOptions.mockResolvedValue([]);
 
     await renderServerComponent(LeaderDealsPage({ searchParams: Promise.resolve({}) }));
 
-    expect(prismaMock.organization.findMany).not.toHaveBeenCalled();
+    expect(listCompanyOrgOptions).toHaveBeenCalledWith(prismaMock, session);
     expect(listCompanyManagers).not.toHaveBeenCalled();
   });
 

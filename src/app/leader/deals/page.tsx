@@ -4,6 +4,7 @@ import { requireManagerLeader } from '@/lib/auth/requireRole';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { prisma } from '@/lib/db/prisma';
 import { getDealBoard } from '@/lib/services/deals/board';
+import { listCompanyOrgOptions } from '@/lib/services/manager/organizations';
 import { listCompanyManagers } from '@/lib/services/manager/team';
 import { DealBoard } from '@/components/deals/deal-board';
 import { DealStageConfig } from '@/components/deals/deal-stage-config';
@@ -30,13 +31,7 @@ export default async function LeaderDealsPage({
   const [board, organizations, managers] = await Promise.all([
     // exactOptionalPropertyTypes: сервис различает «ключа нет» и «ключ = undefined».
     getDealBoard(prisma, session, { ...(managerId !== undefined ? { managerId } : {}) }),
-    session.companyId
-      ? prisma.organization.findMany({
-          where: { companyId: session.companyId },
-          select: { id: true, name: true },
-          orderBy: { name: 'asc' },
-        })
-      : Promise.resolve([]),
+    listCompanyOrgOptions(prisma, session),
     session.companyId ? listCompanyManagers(prisma, session.companyId) : Promise.resolve([]),
   ]);
 

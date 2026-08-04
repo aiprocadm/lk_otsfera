@@ -4,6 +4,7 @@ const { upsertPaymentRecord } = vi.hoisted(() => ({ upsertPaymentRecord: vi.fn()
 vi.mock('@/lib/services/oneCSync/writers', () => ({ upsertPaymentRecord, orgInScope: () => true }));
 
 import {
+  listQueueOrgNames,
   resolveQueueRow,
   dismissQueueRow,
 } from '@/lib/services/import/oneCAccountCard/resolve-queue';
@@ -173,5 +174,35 @@ describe('queue mutation is company-scoped for non-admin staff', () => {
     expect(res).toEqual({ ok: false, error: 'not_found' });
     expect(update).not.toHaveBeenCalled();
     expect(upsertPaymentRecord).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Аудит A1: подстановка названий организаций-кандидатов уехала со страниц
+ * очереди разбора оплат (admin/manager) в сервис — здесь пиннится форма запроса.
+ */
+describe('listQueueOrgNames', () => {
+  it('пустой список id → в базу не ходим', async () => {
+    const findMany = vi.fn();
+    const prisma = { organization: { findMany } } as never;
+
+    const names = await listQueueOrgNames(prisma, []);
+
+    expect(findMany).not.toHaveBeenCalled();
+    expect(names.size).toBe(0);
+  });
+
+  it('запрашивает ровно переданные id и отдаёт карту id → название', async () => {
+    const findMany = vi.fn().mockResolvedValue([{ id: 'org-1', name: 'Org One' }]);
+    const prisma = { organization: { findMany } } as never;
+
+    const names = await listQueueOrgNames(prisma, ['org-1', 'org-2']);
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: { id: { in: ['org-1', 'org-2'] } },
+      select: { id: true, name: true },
+    });
+    expect(names.get('org-1')).toBe('Org One');
+    expect(names.get('org-2')).toBeUndefined();
   });
 });

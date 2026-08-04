@@ -7,10 +7,11 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
 
-const { partnerFindMany } = vi.hoisted(() => ({ partnerFindMany: vi.fn() }));
-vi.mock('@/lib/db/prisma', () => ({
-  prisma: { partner: { findMany: partnerFindMany } },
-}));
+// Справочник партнёров уехал в сервис (аудит A1): страница мокает сервис,
+// форма запроса проверяется в services.admin.partners.test.ts.
+const { listActivePartnerOptions } = vi.hoisted(() => ({ listActivePartnerOptions: vi.fn() }));
+vi.mock('@/lib/services/admin/partners', () => ({ listActivePartnerOptions }));
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 const { getUser } = vi.hoisted(() => ({ getUser: vi.fn() }));
 vi.mock('@/lib/services/admin/users', () => ({ getUser }));
@@ -65,7 +66,7 @@ const USER = {
 describe('EditUserPage', () => {
   beforeEach(() => {
     requireAdmin.mockReset();
-    partnerFindMany.mockReset();
+    listActivePartnerOptions.mockReset();
     getUser.mockReset();
     nav.notFound.mockClear();
     isFeatureEnabled.mockReset();
@@ -75,7 +76,7 @@ describe('EditUserPage', () => {
   it('calls notFound() when user is missing', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     getUser.mockResolvedValue(null);
-    partnerFindMany.mockResolvedValue([]);
+    listActivePartnerOptions.mockResolvedValue([]);
 
     await expect(
       renderServerComponent(EditUserPage({ params: Promise.resolve({ id: 'missing' }) }))
@@ -85,7 +86,7 @@ describe('EditUserPage', () => {
   it('renders the manager role control block when user.role === "manager", isSelf:false', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     getUser.mockResolvedValue(USER);
-    partnerFindMany.mockResolvedValue([{ id: 'p1', name: 'Партнёр' }]);
+    listActivePartnerOptions.mockResolvedValue([{ id: 'p1', name: 'Партнёр' }]);
 
     const { container } = await renderServerComponent(
       EditUserPage({ params: Promise.resolve({ id: 'u1' }) })
@@ -102,7 +103,7 @@ describe('EditUserPage', () => {
   it('omits the manager role control block for non-manager roles and sets isSelf:true when session.sub === user.id', async () => {
     requireAdmin.mockResolvedValue({ sub: 'u1', role: 'admin' as const });
     getUser.mockResolvedValue({ ...USER, role: 'admin' });
-    partnerFindMany.mockResolvedValue([]);
+    listActivePartnerOptions.mockResolvedValue([]);
 
     const { container } = await renderServerComponent(
       EditUserPage({ params: Promise.resolve({ id: 'u1' }) })
@@ -116,7 +117,7 @@ describe('EditUserPage', () => {
   it('shows the admin backup-codes control for a staff user when staff_2fa is enabled', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     getUser.mockResolvedValue(USER); // role: manager = staff
-    partnerFindMany.mockResolvedValue([]);
+    listActivePartnerOptions.mockResolvedValue([]);
     isFeatureEnabled.mockReturnValue(true);
 
     const { container } = await renderServerComponent(
@@ -130,7 +131,7 @@ describe('EditUserPage', () => {
   it('hides the backup-codes control for a non-staff user even with the flag on', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     getUser.mockResolvedValue({ ...USER, role: 'organization' });
-    partnerFindMany.mockResolvedValue([]);
+    listActivePartnerOptions.mockResolvedValue([]);
     isFeatureEnabled.mockReturnValue(true);
 
     const { container } = await renderServerComponent(

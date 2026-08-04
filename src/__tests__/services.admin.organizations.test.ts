@@ -5,6 +5,7 @@ import type { PrismaClient } from '@prisma/client';
 import {
   listOrganizations,
   getOrganization,
+  getOrganizationMeta,
   updateOrganization,
   createOrganization,
   AdminOrgError,
@@ -552,5 +553,36 @@ describe('createOrganization()', () => {
     await expect(createOrganization(prisma, 'actor1', { name: 'Ошибка' })).rejects.toThrow(
       'db down'
     );
+  });
+});
+
+/**
+ * Аудит A1: «шапка» карточки организации уехала со страницы
+ * /admin/organizations/[id] в сервис — здесь пиннится форма запроса.
+ */
+describe('getOrganizationMeta()', () => {
+  it('тянет компанию-владельца и счётчики объёмов', async () => {
+    const findUnique = vi.fn().mockResolvedValue({
+      company: { id: 'c1', name: 'Компания' },
+      _count: { orders: 5, students: 10, organizationUsers: 2 },
+    });
+    const prisma = makePrisma({ organization: { findUnique } });
+
+    const meta = await getOrganizationMeta(prisma, 'org1');
+
+    expect(findUnique).toHaveBeenCalledWith({
+      where: { id: 'org1' },
+      include: {
+        company: { select: { id: true, name: true } },
+        _count: { select: { orders: true, students: true, organizationUsers: true } },
+      },
+    });
+    expect(meta?._count.orders).toBe(5);
+  });
+
+  it('отдаёт null, когда организации нет', async () => {
+    const prisma = makePrisma({ organization: { findUnique: vi.fn().mockResolvedValue(null) } });
+
+    expect(await getOrganizationMeta(prisma, 'missing')).toBeNull();
   });
 });

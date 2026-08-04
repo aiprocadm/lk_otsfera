@@ -68,3 +68,64 @@ export async function loadManagerOrderDetail(
 
   return { order, auditEntries, comments, documentRows, items };
 }
+
+export type OrderStudentOption = { id: string; name: string; email: string };
+
+/**
+ * Слушатели для селектов форм карточки заказа (позиции обучения).
+ *
+ * Скоуп наследуется от самой карточки: страница вызывает это только после
+ * `loadManagerOrderDetail` → `getOrder` → `canSeeOrder` (C8, teamMode-aware), а
+ * `organizationId` берётся из уже проверенного заказа. Отдельной проверки прав
+ * здесь нет намеренно — вызывать сервис с произвольной организацией нельзя.
+ *
+ * `organizationId = null` — защитная ветка: на странице она была записана как
+ * `organizationId ?? undefined`, то есть «фильтра нет» (для Prisma `undefined`
+ * и отсутствующий ключ — одно и то же). Здесь это записано пустым `where`:
+ * поведение то же, но проходит `exactOptionalPropertyTypes`. В реальных данных
+ * `Order.organizationId` не бывает null — ветка остаётся страховкой.
+ */
+export async function listOrderStudentOptions(
+  prisma: PrismaClient,
+  organizationId: string | null
+): Promise<OrderStudentOption[]> {
+  const where: Prisma.StudentWhereInput = organizationId === null ? {} : { organizationId };
+  return prisma.student.findMany({
+    where,
+    select: { id: true, name: true, email: true },
+    orderBy: { name: 'asc' },
+  });
+}
+
+export type OrderDealChain = {
+  title: string;
+  lead: {
+    id: string;
+    clientCompanyName: string;
+    sourceRequest: { id: string; subject: string } | null;
+  } | null;
+} | null;
+
+/**
+ * Цепочка «обращение → лид → сделка» для хлебных крошек карточки заказа
+ * (этап 11 PR-2, ФТ-15.6). Один запрос по заказу, доступ к которому страница
+ * уже проверила; крошки строит чистая `buildOrderBreadcrumbs`.
+ */
+export async function loadOrderDealChain(
+  prisma: PrismaClient,
+  orderId: string
+): Promise<OrderDealChain> {
+  return prisma.deal.findUnique({
+    where: { orderId },
+    select: {
+      title: true,
+      lead: {
+        select: {
+          id: true,
+          clientCompanyName: true,
+          sourceRequest: { select: { id: true, subject: true } },
+        },
+      },
+    },
+  });
+}

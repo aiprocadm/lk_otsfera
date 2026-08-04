@@ -25,16 +25,16 @@ vi.mock('@/lib/auth/orgPageContext', () => ({ getOrgPageContext }));
 const { requirePartner } = vi.hoisted(() => ({ requirePartner: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requirePartner }));
 
-const { trainingDirectionFindMany, organizationFindMany } = vi.hoisted(() => ({
-  trainingDirectionFindMany: vi.fn(),
-  organizationFindMany: vi.fn(),
+// Справочники фильтров уехали в сервисы (аудит A1). Форма запросов и граница
+// портфеля партнёра пиннятся в services.training.directionOptions.test.ts и
+// services.partner.orgOptions.test.ts.
+const { listDirectionFilterOptions, listVisiblePartnerOrgOptions } = vi.hoisted(() => ({
+  listDirectionFilterOptions: vi.fn(),
+  listVisiblePartnerOrgOptions: vi.fn(),
 }));
-vi.mock('@/lib/db/prisma', () => ({
-  prisma: {
-    trainingDirection: { findMany: trainingDirectionFindMany },
-    organization: { findMany: organizationFindMany },
-  },
-}));
+vi.mock('@/lib/services/training/directions', () => ({ listDirectionFilterOptions }));
+vi.mock('@/lib/services/partner/orgOptions', () => ({ listVisiblePartnerOrgOptions }));
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 const { listCertificates } = vi.hoisted(() => ({ listCertificates: vi.fn() }));
 vi.mock('@/lib/services/training/certificates', async (importOriginal) => {
@@ -96,8 +96,8 @@ beforeEach(() => {
   nav.notFound.mockImplementation(() => {
     throw new Error('NOT_FOUND');
   });
-  trainingDirectionFindMany.mockResolvedValue([{ id: 'd1', name: 'Охрана труда' }]);
-  organizationFindMany.mockResolvedValue([{ id: 'org-9', name: 'ООО Девятка' }]);
+  listDirectionFilterOptions.mockResolvedValue([{ id: 'd1', name: 'Охрана труда' }]);
+  listVisiblePartnerOrgOptions.mockResolvedValue([{ id: 'org-9', name: 'ООО Девятка' }]);
   listCertificates.mockResolvedValue({ ok: true, certificates: [CERT], total: 1 });
 });
 
@@ -179,9 +179,8 @@ describe('PartnerCertificatesPage', () => {
       PartnerCertificatesPage(props({ organization: 'org-9', status: 'expired' }))
     );
 
-    expect(organizationFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { partnerId: 'pt-1' } })
-    );
+    // Селект организаций строится по сессии — той же границей, что и реестр.
+    expect(listVisiblePartnerOrgOptions).toHaveBeenCalledWith(expect.anything(), PARTNER_ADMIN);
     expect(listCertificates).toHaveBeenCalledWith(
       expect.anything(),
       PARTNER_ADMIN,
@@ -194,15 +193,14 @@ describe('PartnerCertificatesPage', () => {
     ).toBe('/api/partner/certificates/export?organization=org-9&status=expired');
   });
 
-  it('partner-manager: селект организаций сужен до assignedOrgIds; экспорт без фильтров — базовый URL', async () => {
+  it('partner-manager: селект организаций строится по его сессии; экспорт без фильтров — базовый URL', async () => {
     isFeatureEnabled.mockReturnValue(true);
     requirePartner.mockResolvedValue(PARTNER_MANAGER);
 
     const { container } = await renderServerComponent(PartnerCertificatesPage(props()));
 
-    expect(organizationFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { partnerId: 'pt-1', id: { in: ['org-9'] } } })
-    );
+    // Сужение до assignedOrgIds — внутри сервиса (services.partner.orgOptions).
+    expect(listVisiblePartnerOrgOptions).toHaveBeenCalledWith(expect.anything(), PARTNER_MANAGER);
     expect(
       container.querySelector('a[href^="/api/partner/certificates/export"]')?.getAttribute('href')
     ).toBe('/api/partner/certificates/export');
@@ -247,14 +245,13 @@ describe('PartnerCertificatesPage', () => {
     );
   });
 
-  it('partner-manager без assignedOrgIds → пустое сужение (?? [])', async () => {
+  it('partner-manager без assignedOrgIds → сессия уходит в сервис как есть (пустое сужение считает он)', async () => {
     isFeatureEnabled.mockReturnValue(true);
-    requirePartner.mockResolvedValue({ ...PARTNER_MANAGER, assignedOrgIds: undefined });
+    const session = { ...PARTNER_MANAGER, assignedOrgIds: undefined };
+    requirePartner.mockResolvedValue(session);
 
     await renderServerComponent(PartnerCertificatesPage(props()));
 
-    expect(organizationFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { partnerId: 'pt-1', id: { in: [] } } })
-    );
+    expect(listVisiblePartnerOrgOptions).toHaveBeenCalledWith(expect.anything(), session);
   });
 });

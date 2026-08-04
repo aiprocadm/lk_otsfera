@@ -1,3 +1,4 @@
+import type { PrismaClient } from '@prisma/client';
 import { isTelegramEnabled } from '@/lib/telegram/client';
 import { isMaxEnabled } from '@/lib/max/client';
 import { isWhatsAppEnabled } from '@/lib/whatsapp/aggregator';
@@ -97,4 +98,27 @@ export function getIntegrationsStatus(): IntegrationStatus[] {
       envHint: 'включение и ключ — в форме ниже',
     },
   ];
+}
+
+/**
+ * Отметки проб «Проверить подключение» и входящих вебхуков (ФТ-14.3/14.4).
+ *
+ * Хранятся в `SyncState` под именами `integration.<key>` / `webhook.<name>`;
+ * страница /admin/integrations передаёт список интересующих её имён.
+ */
+export async function listIntegrationSyncStates(
+  prisma: PrismaClient,
+  entities: string[]
+): Promise<
+  Array<{
+    entity: string;
+    lastRunAt: Date | null;
+    lastSuccessAt: Date | null;
+    lastError: string | null;
+  }>
+> {
+  return prisma.syncState.findMany({
+    where: { entity: { in: entities } },
+    select: { entity: true, lastRunAt: true, lastSuccessAt: true, lastError: true },
+  });
 }

@@ -26,6 +26,11 @@ vi.mock('@/lib/services/intake/list', () => ({ listIntake }));
 const { listCompanyManagers } = vi.hoisted(() => ({ listCompanyManagers: vi.fn() }));
 vi.mock('@/lib/services/manager/team', () => ({ listCompanyManagers }));
 
+// Админ-зеркало берёт список менеджеров из сервиса (аудит A1) — форма запроса
+// проверяется в services.admin.users.test.ts.
+const { listActiveManagerOptions } = vi.hoisted(() => ({ listActiveManagerOptions: vi.fn() }));
+vi.mock('@/lib/services/admin/users', () => ({ listActiveManagerOptions }));
+
 const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
@@ -78,7 +83,7 @@ beforeEach(() => {
     { id: 'm2', name: 'Мария', isActive: true },
     { id: 'm3', name: 'Неактивный', isActive: false },
   ]);
-  userFindMany.mockResolvedValue([{ id: 'm2', name: 'Мария' }]);
+  listActiveManagerOptions.mockResolvedValue([{ id: 'm2', name: 'Мария' }]);
 });
 
 describe('ManagerIntakePage', () => {
@@ -202,7 +207,7 @@ describe('LeaderIntakePage', () => {
 describe('AdminIntakePage', () => {
   it('зеркало: staff-список из prisma, viewerPrefix /admin', async () => {
     const { container } = await renderServerComponent(AdminIntakePage(sp()));
-    expect(userFindMany).toHaveBeenCalled();
+    expect(listActiveManagerOptions).toHaveBeenCalled();
     expect(container.querySelector('[data-testid="intake-table"]')?.textContent).toContain(
       '/admin'
     );

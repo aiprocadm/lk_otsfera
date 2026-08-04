@@ -23,6 +23,39 @@ export async function listDirections(
   return { ok: true, directions };
 }
 
+/**
+ * Узкая строка справочника направлений для селектов и фильтров UI: ровно
+ * id+name, без служебных полей TrainingDirection.
+ */
+export type DirectionOption = { id: string; name: string };
+
+/**
+ * Активные направления для селектов форм (мастер заявки на обучение). Порядок —
+ * как у `listDirections` (sortOrder → name). Без Result-обёртки: у справочника
+ * нет доменных отказов, читает его любой, кто уже прошёл гард страницы.
+ */
+export async function listDirectionOptions(prisma: PrismaClient): Promise<DirectionOption[]> {
+  return prisma.trainingDirection.findMany({
+    where: { isActive: true },
+    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+    select: { id: true, name: true },
+  });
+}
+
+/**
+ * Активные направления для фильтра реестров удостоверений (ФТ-6.1/6.2).
+ * Отличие от `listDirectionOptions` — порядок только по sortOrder;
+ * исторический порядок реестров сохранён намеренно, оба варианта пиннятся
+ * тестами.
+ */
+export async function listDirectionFilterOptions(prisma: PrismaClient): Promise<DirectionOption[]> {
+  return prisma.trainingDirection.findMany({
+    where: { isActive: true },
+    orderBy: { sortOrder: 'asc' },
+    select: { id: true, name: true },
+  });
+}
+
 export async function createDirection(
   prisma: PrismaClient,
   session: SessionPayload,

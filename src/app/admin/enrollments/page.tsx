@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { listEnrollmentRequests } from '@/lib/services/enrollments/list';
+import { listDirectionOptions } from '@/lib/services/training/directions';
 import { EnrollmentQueue } from '@/components/enrollment/enrollment-queue';
 import { EnrollmentWizard } from '@/components/enrollment/enrollment-wizard';
 
@@ -14,11 +15,7 @@ export default async function AdminEnrollmentsPage() {
   const session = await requireAdmin();
   const [{ rows }, directions] = await Promise.all([
     listEnrollmentRequests(prisma, session, {}),
-    prisma.trainingDirection.findMany({
-      where: { isActive: true },
-      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-      select: { id: true, name: true },
-    }),
+    listDirectionOptions(prisma),
   ]);
   return (
     <div className="space-y-5">

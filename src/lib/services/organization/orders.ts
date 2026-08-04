@@ -293,3 +293,36 @@ export async function getOrgOrder(
     items: order.items,
   };
 }
+
+/** Строка комментария заказа для клиентского кабинета (та же форма, что у партнёра). */
+type OrgOrderCommentRow = {
+  id: string;
+  body: string;
+  createdAt: Date;
+  authorName: string;
+};
+
+/**
+ * Лента комментариев заказа для карточки заказа организации.
+ *
+ * Скоуп: функция намеренно фильтрует только по `orderId` — доступ к самому
+ * заказу уже проверен вызывающей страницей (`getOrgOrder` по активной
+ * организации + `canSeeOrder`, §4 defense-in-depth). Не звать её раньше этой
+ * пары гардов.
+ */
+export async function listOrgOrderComments(
+  prisma: PrismaClient,
+  orderId: string
+): Promise<OrgOrderCommentRow[]> {
+  const rows = await prisma.comment.findMany({
+    where: { orderId },
+    orderBy: { createdAt: 'asc' },
+    include: { author: { select: { name: true } } },
+  });
+  return rows.map((c) => ({
+    id: c.id,
+    body: c.body,
+    createdAt: c.createdAt,
+    authorName: c.author.name,
+  }));
+}

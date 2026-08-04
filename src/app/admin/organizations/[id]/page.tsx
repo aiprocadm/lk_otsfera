@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { BackLink, TableShell, THead, Th, Tr, Td } from '@/components/ui';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
-import { getOrganization } from '@/lib/services/admin/organizations';
+import { getOrganization, getOrganizationMeta } from '@/lib/services/admin/organizations';
 import { listOrgRateHistory } from '@/lib/services/commission/rateHistory';
 import { CustomerAccessSection } from '@/components/partner/customer-access-section';
 import { ManagersBlock } from '@/components/admin/managers-block';
@@ -30,13 +30,7 @@ export default async function AdminOrganizationDetailPage({
 
   const [org, meta, rateHistoryResult] = await Promise.all([
     getOrganization(prisma, id),
-    prisma.organization.findUnique({
-      where: { id },
-      include: {
-        company: { select: { id: true, name: true } },
-        _count: { select: { orders: true, students: true, organizationUsers: true } },
-      },
-    }),
+    getOrganizationMeta(prisma, id),
     listOrgRateHistory(prisma, session, id),
   ]);
   if (!org || !meta) notFound();

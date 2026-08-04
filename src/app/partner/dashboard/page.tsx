@@ -9,6 +9,7 @@ import {
   recentEnrollments,
   expiringCertificates,
 } from '@/lib/services/partner/dashboard';
+import { getWelcomeViewer } from '@/lib/services/welcome/viewer';
 import { KpiGrid } from '@/components/partner/kpi-grid';
 import { AttentionList } from '@/components/partner/attention-list';
 import { EventsFeed } from '@/components/partner/events-feed';
@@ -33,10 +34,7 @@ export default async function PartnerDashboard() {
     enrollmentsEnabled ? recentEnrollments(prisma, scope) : Promise.resolve([]),
     certificatesEnabled ? expiringCertificates(prisma, scope) : Promise.resolve(null),
     // ФТ-10.4: одноразовый welcome-блок — пока пользователь его не скрыл.
-    prisma.user.findUnique({
-      where: { id: session.sub },
-      select: { name: true, welcomeSeenAt: true },
-    }),
+    getWelcomeViewer(prisma, session),
   ]);
 
   return (

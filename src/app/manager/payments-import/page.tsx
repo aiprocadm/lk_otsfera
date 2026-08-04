@@ -3,7 +3,7 @@ import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { PaymentImportForm } from '@/components/import/payment-import-form';
 import { PaymentQueueTable, type QueueRow } from '@/components/import/payment-queue-table';
-import { listQueue } from '@/lib/services/import/oneCAccountCard';
+import { listQueue, listQueueOrgNames } from '@/lib/services/import/oneCAccountCard';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,13 +11,7 @@ export default async function ManagerPaymentsImportPage() {
   const session = await requireManager();
   const raw = await listQueue(prisma, session);
   const orgIds = raw.map((r) => r.candidateOrgId).filter((x): x is string => !!x);
-  const orgs = orgIds.length
-    ? await prisma.organization.findMany({
-        where: { id: { in: orgIds } },
-        select: { id: true, name: true },
-      })
-    : [];
-  const orgName = new Map(orgs.map((o) => [o.id, o.name]));
+  const orgName = await listQueueOrgNames(prisma, orgIds);
   const rows: QueueRow[] = raw.map((r) => ({
     id: r.id,
     externalId: r.externalId,

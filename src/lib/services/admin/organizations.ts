@@ -80,6 +80,23 @@ export async function listOrganizations(
   return { rows, total };
 }
 
+/**
+ * Служебная «шапка» карточки организации: компания-владелец и счётчики
+ * объёмов (заказы / сотрудники / пользователи кабинета).
+ *
+ * Дополняет `getOrganization` (реквизиты) — вместе они и есть карточка
+ * /admin/organizations/[id]. `null` — организации нет.
+ */
+export async function getOrganizationMeta(prisma: PrismaClient, id: string) {
+  return prisma.organization.findUnique({
+    where: { id },
+    include: {
+      company: { select: { id: true, name: true } },
+      _count: { select: { orders: true, students: true, organizationUsers: true } },
+    },
+  });
+}
+
 export type OrgDetail = {
   id: string;
   name: string;

@@ -8,6 +8,8 @@ import {
   CERTIFICATE_STATUS_FILTERS,
   type CertificateStatusFilter,
 } from '@/lib/services/training/certificates';
+import { listDirectionFilterOptions } from '@/lib/services/training/directions';
+import { listVisiblePartnerOrgOptions } from '@/lib/services/partner/orgOptions';
 import { CertificateRegistryTable } from '@/components/certificates/certificate-registry-table';
 import { CertificateRegistryFilters } from '@/components/certificates/certificate-registry-filters';
 import { Paginator } from '@/components/ui/paginator';
@@ -54,22 +56,9 @@ export default async function PartnerCertificatesPage({
   );
   const skip = Number.isFinite(Number(sp.skip)) && Number(sp.skip) > 0 ? Number(sp.skip) : 0;
 
-  const orgWhere = {
-    partnerId: session.partnerId,
-    ...(session.partnerRole === 'manager' ? { id: { in: session.assignedOrgIds ?? [] } } : {}),
-  };
-
   const [organizations, directions, result] = await Promise.all([
-    prisma.organization.findMany({
-      where: orgWhere,
-      orderBy: { name: 'asc' },
-      select: { id: true, name: true },
-    }),
-    prisma.trainingDirection.findMany({
-      where: { isActive: true },
-      orderBy: { sortOrder: 'asc' },
-      select: { id: true, name: true },
-    }),
+    listVisiblePartnerOrgOptions(prisma, session),
+    listDirectionFilterOptions(prisma),
     listCertificates(prisma, session, {
       organizationId: sp.organization || undefined,
       directionId: sp.direction || undefined,

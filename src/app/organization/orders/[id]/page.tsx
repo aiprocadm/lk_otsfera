@@ -14,8 +14,7 @@ import { DealComments } from '@/components/partner/deal-comments';
 import { OrganizationDocumentUploadForm } from '@/components/organization/organization-document-upload-form';
 import { OrderItemsSection } from '@/components/training/order-items-section';
 import { OrderCustomFields } from '@/components/orders/order-custom-fields';
-import type { DealCommentRow } from '@/lib/services/partner/dealDetail';
-import { getOrgOrder } from '@/lib/services/organization/orders';
+import { getOrgOrder, listOrgOrderComments } from '@/lib/services/organization/orders';
 import { getValuesForEntity } from '@/lib/services/customFields';
 
 type Params = { id: string };
@@ -41,20 +40,10 @@ export default async function OrganizationOrderDetailPage({
     notFound();
   }
 
-  const [commentRows, customFieldsResult] = await Promise.all([
-    prisma.comment.findMany({
-      where: { orderId: order.id },
-      orderBy: { createdAt: 'asc' },
-      include: { author: { select: { name: true } } },
-    }),
+  const [comments, customFieldsResult] = await Promise.all([
+    listOrgOrderComments(prisma, order.id),
     getValuesForEntity(prisma, ctx.session, 'order', order.id),
   ]);
-  const comments: DealCommentRow[] = commentRows.map((c) => ({
-    id: c.id,
-    body: c.body,
-    createdAt: c.createdAt,
-    authorName: c.author.name,
-  }));
   const customFields = customFieldsResult.ok ? customFieldsResult.fields : [];
 
   const backHref = sp.org

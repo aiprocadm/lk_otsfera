@@ -11,8 +11,11 @@ import React from 'react';
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 
-const { userFindUnique } = vi.hoisted(() => ({ userFindUnique: vi.fn() }));
-vi.mock('@/lib/db/prisma', () => ({ prisma: { user: { findUnique: userFindUnique } } }));
+// Зритель блока приезжает из сервиса welcome; форма запроса к БД пиннится в
+// services.welcome.viewer.test.ts (аудит A1).
+const { getWelcomeViewer } = vi.hoisted(() => ({ getWelcomeViewer: vi.fn() }));
+vi.mock('@/lib/services/welcome/viewer', () => ({ getWelcomeViewer }));
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 const { getOrgPageContext } = vi.hoisted(() => ({ getOrgPageContext: vi.fn() }));
 vi.mock('@/lib/auth/orgPageContext', () => ({ getOrgPageContext }));
@@ -99,16 +102,13 @@ beforeEach(() => {
 
 describe('OrganizationDashboardPage — welcome-блок', () => {
   it('welcomeSeenAt null → блок «Добро пожаловать» с именем и карточками', async () => {
-    userFindUnique.mockResolvedValue({ name: 'Иван', welcomeSeenAt: null });
+    getWelcomeViewer.mockResolvedValue({ name: 'Иван', welcomeSeenAt: null });
 
     const { container } = await renderServerComponent(
       OrganizationDashboardPage({ searchParams: Promise.resolve({}) })
     );
 
-    expect(userFindUnique).toHaveBeenCalledWith({
-      where: { id: 'u1' },
-      select: { name: true, welcomeSeenAt: true },
-    });
+    expect(getWelcomeViewer).toHaveBeenCalledWith(expect.anything(), ORG_CTX.session);
     expect(container.textContent).toContain('Добро пожаловать, Иван!');
     // Флаги off → «Документы» + фолбэки, ссылки ведут в кабинет организации.
     expect(container.textContent).toContain('Документы');
@@ -117,7 +117,7 @@ describe('OrganizationDashboardPage — welcome-блок', () => {
   });
 
   it('welcomeSeenAt не-null → блока нет, остальной дашборд живёт', async () => {
-    userFindUnique.mockResolvedValue({ name: 'Иван', welcomeSeenAt: new Date('2026-01-01') });
+    getWelcomeViewer.mockResolvedValue({ name: 'Иван', welcomeSeenAt: new Date('2026-01-01') });
 
     const { container } = await renderServerComponent(
       OrganizationDashboardPage({ searchParams: Promise.resolve({}) })
@@ -130,21 +130,18 @@ describe('OrganizationDashboardPage — welcome-блок', () => {
 
 describe('PartnerDashboard — welcome-блок', () => {
   it('welcomeSeenAt null → блок «Добро пожаловать» с карточками партнёрского кабинета', async () => {
-    userFindUnique.mockResolvedValue({ name: 'Пётр', welcomeSeenAt: null });
+    getWelcomeViewer.mockResolvedValue({ name: 'Пётр', welcomeSeenAt: null });
 
     const { container } = await renderServerComponent(PartnerDashboard());
 
-    expect(userFindUnique).toHaveBeenCalledWith({
-      where: { id: 'p1' },
-      select: { name: true, welcomeSeenAt: true },
-    });
+    expect(getWelcomeViewer).toHaveBeenCalledWith(expect.anything(), PARTNER_SESSION);
     expect(container.textContent).toContain('Добро пожаловать, Пётр!');
     expect(container.querySelector('a[href="/partner/documents"]')).toBeTruthy();
     expect(container.textContent).toContain('Скрыть');
   });
 
   it('welcomeSeenAt не-null → блока нет', async () => {
-    userFindUnique.mockResolvedValue({ name: 'Пётр', welcomeSeenAt: new Date('2026-01-01') });
+    getWelcomeViewer.mockResolvedValue({ name: 'Пётр', welcomeSeenAt: new Date('2026-01-01') });
 
     const { container } = await renderServerComponent(PartnerDashboard());
 
