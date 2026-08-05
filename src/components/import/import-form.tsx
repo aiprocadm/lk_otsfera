@@ -4,6 +4,9 @@ import React, { useRef, useState } from 'react';
 import { previewImportAction, commitImportAction } from '@/server-actions/import';
 import type { BatchSummary } from '@/lib/services/oneCSync/record-batch';
 import type { ImportDiagnostics } from '@/lib/services/import/diagnostics';
+import { IMPORT_MAX_FILE_BYTES, IMPORT_MAX_FILE_MB } from '@/lib/config/import-limits';
+import { clientLog } from '@/lib/logging/client';
+import { XLSX_IMPORT_ERRORS, errorMessage as messageFor, fileSizeMb } from './error-messages';
 
 type ImportReport = {
   orders: BatchSummary;
@@ -11,23 +14,25 @@ type ImportReport = {
   diagnostics: ImportDiagnostics;
 };
 
-type PreviewResult =
-  | { ok: true; report: ImportReport }
-  | { ok: false; error: string; diagnostics?: ImportDiagnostics };
-
-type CommitResult =
-  | { ok: true; report: ImportReport }
-  | { ok: false; error: string; diagnostics?: ImportDiagnostics };
-
-const ERROR_MESSAGES: Record<string, string> = {
-  forbidden: 'Недостаточно прав',
-  invalid_file: 'Выберите .xlsx файл (не более 20 МБ)',
-  empty: 'Файл пуст или нет валидных строк',
-  parse_failed: 'Не удалось разобрать файл',
+/** `detail` — уточнение к тексту ошибки (например фактический размер файла). */
+type Failure = {
+  ok: false;
+  error: string;
+  detail?: string;
+  diagnostics?: ImportDiagnostics;
 };
 
+type PreviewResult = { ok: true; report: ImportReport } | Failure;
+
+type CommitResult = { ok: true; report: ImportReport } | Failure;
+
 function errorMessage(code: string): string {
-  return ERROR_MESSAGES[code] ?? `Ошибка: ${code}`;
+  return messageFor(XLSX_IMPORT_ERRORS, code);
+}
+
+/** Отказ до отправки: слишком большой файл не имеет смысла везти на сервер (Т-6). */
+function tooLargeFailure(file: File): Failure {
+  return { ok: false, error: 'file_too_large', detail: `Ваш файл — ${fileSizeMb(file.size)} МБ.` };
 }
 
 /**
@@ -178,14 +183,25 @@ export function ImportForm() {
     e.preventDefault();
     const file = fileInputRef.current?.files?.[0];
     if (!file) return;
-    setIsPreviewing(true);
     setPreview(null);
     setCommitResult(null);
+    // Т-6: предпроверка размера — запрос не уходит вовсе, иначе Next обрежет
+    // тело и форма замолчит.
+    if (file.size > IMPORT_MAX_FILE_BYTES) {
+      setPreview(tooLargeFailure(file));
+      return;
+    }
+    setIsPreviewing(true);
     try {
       const form = new FormData();
       form.set('file', file);
       const result = await previewImportAction(form);
       setPreview(result as PreviewResult);
+    } catch (e) {
+      // Т-4: без этой ветки отклонённый промис не менял состояние — кнопка
+      // отщёлкивала, и на экране не появлялось ничего.
+      clientLog.error('[1c-import] запрос предпросмотра не дошёл до сервера', e);
+      setPreview({ ok: false, error: 'network_or_server' });
     } finally {
       setIsPreviewing(false);
     }
@@ -194,12 +210,19 @@ export function ImportForm() {
   async function handleCommit() {
     const file = fileInputRef.current?.files?.[0];
     if (!file) return;
+    if (file.size > IMPORT_MAX_FILE_BYTES) {
+      setCommitResult(tooLargeFailure(file));
+      return;
+    }
     setIsCommitting(true);
     try {
       const form = new FormData();
       form.set('file', file);
       const result = await commitImportAction(form);
       setCommitResult(result as CommitResult);
+    } catch (e) {
+      clientLog.error('[1c-import] запрос импорта не дошёл до сервера', e);
+      setCommitResult({ ok: false, error: 'network_or_server' });
     } finally {
       setIsCommitting(false);
     }
@@ -214,7 +237,9 @@ export function ImportForm() {
     <div className="space-y-6">
       <form onSubmit={handlePreview} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Файл Excel (.xlsx)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            {`Файл Excel (.xlsx, до ${IMPORT_MAX_FILE_MB} МБ)`}
+          </label>
           <input
             ref={fileInputRef}
             type="file"
@@ -245,6 +270,7 @@ export function ImportForm() {
           className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-4 py-2"
         >
           {errorMessage(preview.error)}
+          {preview.detail ? ` ${preview.detail}` : ''}
         </div>
       )}
 
@@ -302,7 +328,8 @@ export function ImportForm() {
           role="alert"
           className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-4 py-2"
         >
-          {errorMessage((commitResult as { ok: false; error: string }).error)}
+          {errorMessage(commitResult.error)}
+          {commitResult.detail ? ` ${commitResult.detail}` : ''}
         </div>
       )}
     </div>

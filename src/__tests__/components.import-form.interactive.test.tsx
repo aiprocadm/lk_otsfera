@@ -110,7 +110,7 @@ describe('ImportForm (interactive, jsdom)', () => {
 
   it('preview failure (invalid_file / empty / parse_failed) map to their Russian messages', async () => {
     for (const [code, expected] of [
-      ['invalid_file', 'Выберите .xlsx файл (не более 20 МБ)'],
+      ['invalid_file', 'Выберите файл .xlsx (не более 25 МБ)'],
       ['empty', 'Файл пуст или нет валидных строк'],
       ['parse_failed', 'Не удалось разобрать файл'],
     ] as const) {
@@ -398,5 +398,105 @@ describe('ImportForm — «Что увидела система в файле»'
 
     await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
     expect(screen.queryByTestId('import-diagnostics')).toBeNull();
+  });
+});
+
+/**
+ * Т-4/Т-6: форма перестала молчать. Раньше при отклонённом промисе состояние
+ * не менялось — кнопка отщёлкивала, на экране ноль изменений; а файл больше
+ * общего предела Next обрезал ещё до входа в наш код.
+ */
+describe('ImportForm — сбой и слишком большой файл', () => {
+  beforeEach(() => {
+    previewImportAction.mockReset();
+    commitImportAction.mockReset();
+  });
+
+  it('запрос не дошёл до сервера: красный блок вместо пустого экрана', async () => {
+    previewImportAction.mockRejectedValue(new Error('Body exceeded 25mb limit'));
+    render(React.createElement(ImportForm));
+    pickFile(
+      screen.getByTestId('import-file-input') as HTMLInputElement,
+      new File(['x'], 'orders.xlsx')
+    );
+    fireEvent.submit(screen.getByTestId('import-file-input').closest('form') as HTMLFormElement);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('Сервер не принял файл');
+    expect(alert.textContent).toContain('25 МБ');
+    // Кнопка снова активна — попытку можно повторить.
+    const button = screen.getByTestId('import-preview-button') as HTMLButtonElement;
+    expect(button.disabled).toBe(false);
+    expect(button.textContent).toBe('Загрузить и проверить');
+  });
+
+  it('файл больше предела: запрос НЕ уходит, показан его размер', async () => {
+    render(React.createElement(ImportForm));
+    const big = new File(['x'], 'big.xlsx');
+    Object.defineProperty(big, 'size', { value: 34 * 1024 * 1024 });
+    pickFile(screen.getByTestId('import-file-input') as HTMLInputElement, big);
+    fireEvent.submit(screen.getByTestId('import-file-input').closest('form') as HTMLFormElement);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('больше предела в 25 МБ');
+    expect(alert.textContent).toContain('34,0 МБ');
+    expect(previewImportAction).not.toHaveBeenCalled();
+  });
+
+  it('файл в пределах отправляется как обычно', async () => {
+    previewImportAction.mockResolvedValue({ ok: false, error: 'empty' });
+    render(React.createElement(ImportForm));
+    const ok = new File(['x'], 'ok.xlsx');
+    Object.defineProperty(ok, 'size', { value: 5 * 1024 * 1024 });
+    pickFile(screen.getByTestId('import-file-input') as HTMLInputElement, ok);
+    fireEvent.submit(screen.getByTestId('import-file-input').closest('form') as HTMLFormElement);
+
+    await waitFor(() => expect(previewImportAction).toHaveBeenCalled());
+  });
+
+  it('сбой на подтверждении импорта тоже виден', async () => {
+    previewImportAction.mockResolvedValue({
+      ok: true,
+      report: { orders: emptySummary({ pulled: 1 }), payments: emptySummary() },
+    });
+    commitImportAction.mockRejectedValue(new Error('network down'));
+    render(React.createElement(ImportForm));
+    pickFile(
+      screen.getByTestId('import-file-input') as HTMLInputElement,
+      new File(['x'], 'orders.xlsx')
+    );
+    fireEvent.submit(screen.getByTestId('import-file-input').closest('form') as HTMLFormElement);
+    fireEvent.click(await screen.findByTestId('import-commit-button'));
+
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole('alert').some((el) => el.textContent?.includes('Сервер не принял файл'))
+      ).toBe(true)
+    );
+  });
+
+  it('слишком большой файл не уходит и на подтверждении', async () => {
+    previewImportAction.mockResolvedValue({
+      ok: true,
+      report: { orders: emptySummary({ pulled: 1 }), payments: emptySummary() },
+    });
+    render(React.createElement(ImportForm));
+    const input = screen.getByTestId('import-file-input') as HTMLInputElement;
+    pickFile(input, new File(['x'], 'orders.xlsx'));
+    fireEvent.submit(input.closest('form') as HTMLFormElement);
+    const commit = await screen.findByTestId('import-commit-button');
+
+    // Пользователь подменил файл на большой между проверкой и подтверждением.
+    const big = new File(['x'], 'big.xlsx');
+    Object.defineProperty(big, 'size', { value: 40 * 1024 * 1024 });
+    Object.defineProperty(input, 'files', { value: [big], configurable: true });
+    fireEvent.click(commit);
+
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole('alert').some((el) => el.textContent?.includes('больше предела'))
+      ).toBe(true)
+    );
+    expect(commitImportAction).not.toHaveBeenCalled();
   });
 });

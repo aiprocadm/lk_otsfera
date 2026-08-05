@@ -6,6 +6,7 @@
  */
 declare module '*/next.config.mjs' {
   export const SETTINGS_HUB_REDIRECTS: ReadonlyArray<readonly [string, string]>;
+  export const SERVER_ACTIONS_BODY_LIMIT_MB: number;
   const nextConfig: unknown;
   export default nextConfig;
 }

@@ -41,7 +41,7 @@ describe('ImportForm (SSR structural contract)', () => {
   it('renders Russian UI strings', () => {
     const html = renderToString(React.createElement(ImportForm));
     expect(html).toContain('Загрузить и проверить');
-    expect(html).toContain('Файл Excel (.xlsx)');
+    expect(html).toContain('Файл Excel (.xlsx, до 25 МБ)');
   });
 
   it('uses orange brand colour on primary button', () => {

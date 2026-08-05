@@ -9,15 +9,15 @@ import {
   searchResolveOrgs,
   listResolveOrders,
 } from '@/lib/services/import/oneCAccountCard';
-
-const MAX_BYTES = 20 * 1024 * 1024;
+// Т-5: тот же предел, что у импорта Excel и в next.config.
+import { IMPORT_MAX_FILE_BYTES } from '@/lib/config/import-limits';
 
 async function guarded(
   form: FormData
 ): Promise<{ ok: true; buf: Buffer; name: string } | { ok: false; error: 'invalid_file' }> {
   const file = form.get('file');
   if (!(file instanceof File)) return { ok: false, error: 'invalid_file' };
-  if (file.size > MAX_BYTES) return { ok: false, error: 'invalid_file' };
+  if (file.size > IMPORT_MAX_FILE_BYTES) return { ok: false, error: 'invalid_file' };
   const name = file.name.toLowerCase();
   if (!name.endsWith('.xls') && !name.endsWith('.xlsx'))
     return { ok: false, error: 'invalid_file' };
