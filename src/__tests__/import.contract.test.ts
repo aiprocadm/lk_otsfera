@@ -58,6 +58,12 @@ function makePrisma() {
   } as any;
 }
 
+const DIAGNOSTICS = {
+  sheetsFound: ['Контрагенты', 'Реализации', 'Поступления'],
+  sheetsExpected: ['Контрагенты', 'Реализации', 'Поступления'],
+  unmatchedHeaders: {},
+};
+
 function makeAdapter(orders: unknown[], payments: unknown[]) {
   return {
     pullOrders: vi.fn().mockResolvedValue(orders),
@@ -65,6 +71,8 @@ function makeAdapter(orders: unknown[], payments: unknown[]) {
     pullOrganizations: vi.fn().mockResolvedValue([]),
     pullDocuments: vi.fn().mockResolvedValue([]),
     pushLead: vi.fn().mockRejectedValue(new Error('read-only')),
+    // Т-3: файловый адаптер отдаёт сервису диагностику разбора книги.
+    diagnostics: vi.fn().mockResolvedValue(DIAGNOSTICS),
   };
 }
 
@@ -109,7 +117,7 @@ describe('previewImport', () => {
     runRecordBatch.mockResolvedValue(EMPTY_SUMMARY());
     const prisma = makePrisma();
     const res = await previewImport(prisma, managerSession, { fileBuffer: Buffer.from('x') });
-    expect(res).toEqual({ ok: false, error: 'empty' });
+    expect(res).toEqual({ ok: false, error: 'empty', diagnostics: DIAGNOSTICS });
   });
 
   it('returns ok with report for one order, does NOT call order.create (shadow mode)', async () => {
@@ -138,7 +146,10 @@ describe('previewImport', () => {
     const prisma = makePrisma();
     const res = await previewImport(prisma, managerSession, { fileBuffer: Buffer.from('x') });
 
-    expect(res).toEqual({ ok: true, report: { orders: orderSummary, payments: paymentSummary } });
+    expect(res).toEqual({
+      ok: true,
+      report: { orders: orderSummary, payments: paymentSummary, diagnostics: DIAGNOSTICS },
+    });
     if (res.ok) {
       expect(res.report.orders.created).toBe(1);
     }
@@ -177,7 +188,10 @@ describe('commitImport', () => {
     const prisma = makePrisma();
     const res = await commitImport(prisma, adminSession, { fileBuffer: Buffer.from('x') });
 
-    expect(res).toEqual({ ok: true, report: { orders: orderSummary, payments: paymentSummary } });
+    expect(res).toEqual({
+      ok: true,
+      report: { orders: orderSummary, payments: paymentSummary, diagnostics: DIAGNOSTICS },
+    });
     expect(recordAudit).toHaveBeenCalledWith(
       prisma,
       expect.objectContaining({ action: 'one_c_import.commit', entity: 'one_c_import' })

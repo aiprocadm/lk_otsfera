@@ -3,12 +3,21 @@
 import React, { useRef, useState } from 'react';
 import { previewImportAction, commitImportAction } from '@/server-actions/import';
 import type { BatchSummary } from '@/lib/services/oneCSync/record-batch';
+import type { ImportDiagnostics } from '@/lib/services/import/diagnostics';
 
-type ImportReport = { orders: BatchSummary; payments: BatchSummary };
+type ImportReport = {
+  orders: BatchSummary;
+  payments: BatchSummary;
+  diagnostics: ImportDiagnostics;
+};
 
-type PreviewResult = { ok: true; report: ImportReport } | { ok: false; error: string };
+type PreviewResult =
+  | { ok: true; report: ImportReport }
+  | { ok: false; error: string; diagnostics?: ImportDiagnostics };
 
-type CommitResult = { ok: true; report: ImportReport } | { ok: false; error: string };
+type CommitResult =
+  | { ok: true; report: ImportReport }
+  | { ok: false; error: string; diagnostics?: ImportDiagnostics };
 
 const ERROR_MESSAGES: Record<string, string> = {
   forbidden: 'Недостаточно прав',
@@ -19,6 +28,52 @@ const ERROR_MESSAGES: Record<string, string> = {
 
 function errorMessage(code: string): string {
   return ERROR_MESSAGES[code] ?? `Ошибка: ${code}`;
+}
+
+/**
+ * «Что увидела система в файле» (ТЗ починки импорта 1С, Т-3).
+ *
+ * Блок серый, а не красный: сам по себе он не ошибка — его показывают и при
+ * успешном разборе. Нужен он прежде всего в обратном случае: раньше при нуле
+ * распознанных строк пользователь видел «Файл пуст» и не мог понять, что
+ * система вообще нашла в книге.
+ */
+function DiagnosticsPanel({ diagnostics }: { diagnostics: ImportDiagnostics }) {
+  const unmatched = Object.entries(diagnostics.unmatchedHeaders).filter(
+    ([, headers]) => headers.length > 0
+  );
+  return (
+    <div
+      className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm"
+      data-testid="import-diagnostics"
+    >
+      <h3 className="text-sm font-semibold text-[#111111] mb-2">Что увидела система в файле</h3>
+      <dl className="space-y-1">
+        <div className="flex flex-wrap gap-x-2">
+          <dt className="text-gray-600">Листы в файле:</dt>
+          <dd className="text-[#111111]" data-testid="diagnostics-sheets-found">
+            {diagnostics.sheetsFound.length > 0 ? diagnostics.sheetsFound.join(' · ') : '—'}
+          </dd>
+        </div>
+        <div className="flex flex-wrap gap-x-2">
+          <dt className="text-gray-600">Ожидаемые листы:</dt>
+          <dd className="text-[#111111]">{diagnostics.sheetsExpected.join(' · ')}</dd>
+        </div>
+      </dl>
+      {unmatched.length > 0 && (
+        <div className="mt-2">
+          <div className="text-gray-600">Не распознаны заголовки:</div>
+          <ul className="mt-1 space-y-0.5">
+            {unmatched.map(([sheet, headers]) => (
+              <li key={sheet} className="text-[#111111]">
+                {sheet} — {headers.map((h) => `«${h}»`).join(', ')}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function ReasonsTable({ entity, summary }: { entity: string; summary: BatchSummary }) {
@@ -151,6 +206,9 @@ export function ImportForm() {
   }
 
   const report = preview?.ok ? preview.report : null;
+  // Диагностика приходит и в успешном отчёте, и в ветке ошибки. `?? null` —
+  // страховка от ответа старой версии сервера без этого поля.
+  const diagnostics = (preview?.ok ? preview.report.diagnostics : preview?.diagnostics) ?? null;
 
   return (
     <div className="space-y-6">
@@ -189,6 +247,9 @@ export function ImportForm() {
           {errorMessage(preview.error)}
         </div>
       )}
+
+      {/* Что увидела система в файле — и при успехе, и при ошибке (Т-3) */}
+      {diagnostics && <DiagnosticsPanel diagnostics={diagnostics} />}
 
       {/* Preview report */}
       {report && (
