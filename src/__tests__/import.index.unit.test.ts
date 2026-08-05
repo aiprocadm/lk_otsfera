@@ -12,6 +12,7 @@ const { recordAudit, runRecordBatch, FileOneCAdapter, importScope } = vi.hoisted
   const importScope = vi.fn().mockReturnValue({});
   const recordAudit = vi.fn().mockResolvedValue(undefined);
   const FileOneCAdapter = vi.fn().mockImplementation(() => ({
+    pullOrganizations: vi.fn().mockResolvedValue([]),
     pullOrders: vi.fn().mockResolvedValue([]),
     pullPayments: vi.fn().mockResolvedValue([]),
     // Т-3: сервис обязан приложить диагностику к отчёту.
@@ -36,10 +37,12 @@ vi.mock('@/lib/services/oneCSync/adapter-file', () => ({ FileOneCAdapter }));
 vi.mock('@/lib/services/oneCSync/scope', () => ({ importScope }));
 vi.mock('@/lib/services/oneCSync/writers', () => ({
   upsertOrderRecord: vi.fn(),
+  upsertOrgRecord: vi.fn(),
   upsertPaymentRecord: vi.fn(),
 }));
 vi.mock('@/lib/services/oneCSync/schemas', () => ({
   OneCOrderSchema: {},
+  OneCOrgFileSchema: {},
   OneCPaymentSchema: {},
 }));
 
@@ -63,8 +66,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   // Default: successful batch run with 1 order
   runRecordBatch
-    .mockResolvedValueOnce({ pulled: 1, inserted: 1, updated: 0, errors: 0 })
-    .mockResolvedValueOnce({ pulled: 0, inserted: 0, updated: 0, errors: 0 });
+    .mockResolvedValueOnce({ pulled: 0, inserted: 0, updated: 0, errors: 0 }) // orgs (первым, Т-17)
+    .mockResolvedValueOnce({ pulled: 1, inserted: 1, updated: 0, errors: 0 }) // orders
+    .mockResolvedValueOnce({ pulled: 0, inserted: 0, updated: 0, errors: 0 }); // payments
 });
 
 describe('previewImport', () => {
@@ -83,6 +87,7 @@ describe('previewImport', () => {
     // С этапа 3 диагностика зовётся ПЕРВОЙ (гард распознавания до записей) —
     // битый файл падает уже там.
     FileOneCAdapter.mockImplementationOnce(() => ({
+      pullOrganizations: vi.fn(),
       pullOrders: vi.fn(),
       pullPayments: vi.fn(),
       diagnostics: vi.fn().mockRejectedValue(new Error('corrupt file')),
@@ -97,10 +102,7 @@ describe('previewImport', () => {
   });
 
   it('returns empty when both orders and payments pulled = 0', async () => {
-    runRecordBatch
-      .mockReset()
-      .mockResolvedValueOnce({ pulled: 0, inserted: 0, updated: 0, errors: 0 })
-      .mockResolvedValueOnce({ pulled: 0, inserted: 0, updated: 0, errors: 0 });
+    runRecordBatch.mockReset().mockResolvedValue({ pulled: 0, inserted: 0, updated: 0, errors: 0 });
     const result = await previewImport(fakePrisma, adminSession, { fileBuffer });
     // Диагностика приложена: именно в этой ветке она и нужна пользователю.
     expect(result).toEqual({ ok: false, error: 'empty', diagnostics: DIAGNOSTICS });
@@ -111,6 +113,7 @@ describe('previewImport', () => {
     expect(result).toEqual({
       ok: true,
       report: {
+        orgs: { pulled: 0, inserted: 0, updated: 0, errors: 0 },
         orders: { pulled: 1, inserted: 1, updated: 0, errors: 0 },
         payments: { pulled: 0, inserted: 0, updated: 0, errors: 0 },
         diagnostics: DIAGNOSTICS,
@@ -121,8 +124,9 @@ describe('previewImport', () => {
   it('returns ok:true when only payments > 0', async () => {
     runRecordBatch
       .mockReset()
-      .mockResolvedValueOnce({ pulled: 0, inserted: 0, updated: 0, errors: 0 })
-      .mockResolvedValueOnce({ pulled: 2, inserted: 2, updated: 0, errors: 0 });
+      .mockResolvedValueOnce({ pulled: 0, inserted: 0, updated: 0, errors: 0 }) // orgs
+      .mockResolvedValueOnce({ pulled: 0, inserted: 0, updated: 0, errors: 0 }) // orders
+      .mockResolvedValueOnce({ pulled: 2, inserted: 2, updated: 0, errors: 0 }); // payments
     const result = await previewImport(fakePrisma, adminSession, { fileBuffer });
     expect(result).toMatchObject({ ok: true });
   });
@@ -131,8 +135,8 @@ describe('previewImport', () => {
     await previewImport(fakePrisma, adminSession, { fileBuffer });
     // importScope called once
     expect(importScope).toHaveBeenCalledWith(adminSession);
-    // runRecordBatch called twice (orders + payments)
-    expect(runRecordBatch).toHaveBeenCalledTimes(2);
+    // Т-17: три батча — организации, заказы, оплаты
+    expect(runRecordBatch).toHaveBeenCalledTimes(3);
     // No audit in preview
     expect(recordAudit).not.toHaveBeenCalled();
   });
@@ -146,6 +150,7 @@ describe('commitImport', () => {
 
   it('returns parse_failed when run throws', async () => {
     FileOneCAdapter.mockImplementationOnce(() => ({
+      pullOrganizations: vi.fn(),
       pullOrders: vi.fn(),
       pullPayments: vi.fn(),
       diagnostics: vi.fn().mockRejectedValue(new Error('bad')),
@@ -205,14 +210,16 @@ describe('этап 3 — коды распознавания', () => {
   const EMPTY_SUMMARY = { pulled: 0, created: 0, updated: 0, errors: 0 };
 
   function adapterWithDiagnostics(diagnostics: unknown) {
+    const pullOrganizations = vi.fn().mockResolvedValue([]);
     const pullOrders = vi.fn().mockResolvedValue([]);
     const pullPayments = vi.fn().mockResolvedValue([]);
     FileOneCAdapter.mockImplementationOnce(() => ({
+      pullOrganizations,
       pullOrders,
       pullPayments,
       diagnostics: vi.fn().mockResolvedValue(diagnostics),
     }));
-    return { pullOrders, pullPayments };
+    return { pullOrganizations, pullOrders, pullPayments };
   }
 
   it('ни один лист не распознан → sheets_not_recognized, записи не начинались', async () => {
@@ -258,10 +265,7 @@ describe('этап 3 — коды распознавания', () => {
   it('расхождение имени и содержимого попадает замечанием в диагностику (Т-14)', async () => {
     // Буфер начинается с PK → xlsx, а имя говорит .xls.
     const xlsxNamedXls = Buffer.from('PK\x03\x04фейковый-zip');
-    runRecordBatch
-      .mockReset()
-      .mockResolvedValueOnce({ ...EMPTY_SUMMARY, pulled: 1 })
-      .mockResolvedValueOnce(EMPTY_SUMMARY);
+    runRecordBatch.mockReset().mockResolvedValue({ ...EMPTY_SUMMARY, pulled: 1 });
     const result = await previewImport(fakePrisma, adminSession, {
       fileBuffer: xlsxNamedXls,
       fileName: 'выгрузка.xls',
@@ -275,10 +279,7 @@ describe('этап 3 — коды распознавания', () => {
 
   it('замечание для содержимого-.xls под именем .xlsx — вторая ветка текста', async () => {
     const oleBuffer = Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0x00]);
-    runRecordBatch
-      .mockReset()
-      .mockResolvedValueOnce({ ...EMPTY_SUMMARY, pulled: 1 })
-      .mockResolvedValueOnce(EMPTY_SUMMARY);
+    runRecordBatch.mockReset().mockResolvedValue({ ...EMPTY_SUMMARY, pulled: 1 });
     const result = await previewImport(fakePrisma, adminSession, {
       fileBuffer: oleBuffer,
       fileName: 'выгрузка.xlsx',
@@ -291,6 +292,7 @@ describe('этап 3 — коды распознавания', () => {
 
   it('батчи упали ПОСЛЕ успешной диагностики → parse_failed с записью в журнал', async () => {
     FileOneCAdapter.mockImplementationOnce(() => ({
+      pullOrganizations: vi.fn().mockResolvedValue([]),
       pullOrders: vi.fn().mockRejectedValue(new Error('db exploded')),
       pullPayments: vi.fn(),
       diagnostics: vi.fn().mockResolvedValue({
@@ -310,10 +312,7 @@ describe('этап 3 — коды распознавания', () => {
   });
 
   it('совпадающее расширение замечания не даёт', async () => {
-    runRecordBatch
-      .mockReset()
-      .mockResolvedValueOnce({ ...EMPTY_SUMMARY, pulled: 1 })
-      .mockResolvedValueOnce(EMPTY_SUMMARY);
+    runRecordBatch.mockReset().mockResolvedValue({ ...EMPTY_SUMMARY, pulled: 1 });
     const result = await previewImport(fakePrisma, adminSession, {
       fileBuffer: Buffer.from('PK\x03\x04фейковый-zip'),
       fileName: 'выгрузка.xlsx',

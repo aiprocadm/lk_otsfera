@@ -4,15 +4,86 @@ vi.mock('@/lib/services/import/parse-workbook', () => ({ parseWorkbook }));
 import { FileOneCAdapter } from '@/lib/services/oneCSync/adapter-file';
 
 describe('FileOneCAdapter', () => {
-  it('orgs and documents are never created from Excel', async () => {
+  it('documents are never created from Excel (orgs — с этапа 5 создаются)', async () => {
     parseWorkbook.mockResolvedValue({
-      orgs: [{ name: 'A', inn: '77', partnerInn: null }],
+      orgs: [],
       orders: [],
       payments: [],
     });
     const a = new FileOneCAdapter(Buffer.from('x'));
-    expect(await a.pullOrganizations({})).toEqual([]);
     expect(await a.pullDocuments({})).toEqual([]);
+  });
+
+  // Этап 5 (Т-15/Т-16): контрагенты из листа превращаются в DTO с синтетическим ключом.
+  describe('pullOrganizations', () => {
+    it('валидный ИНН → DTO с ключом 1c-inn:, нормализацией и КПП', async () => {
+      parseWorkbook.mockResolvedValue({
+        orgs: [
+          {
+            name: ' ООО Ромашка ',
+            inn: ' 7707 083893 ',
+            kpp: '770701001',
+            partnerInn: '7707083893',
+          },
+        ],
+        orders: [],
+        payments: [],
+      });
+      const orgs = await new FileOneCAdapter(Buffer.from('x')).pullOrganizations({});
+      expect(orgs).toHaveLength(1);
+      expect(orgs[0]).toMatchObject({
+        externalId: '1c-inn:7707083893',
+        name: 'ООО Ромашка',
+        inn: '7707083893',
+        kpp: '770701001',
+        partnerExternalId: '7707083893',
+      });
+    });
+
+    it('число из Excel без ведущих нулей нормализуется в ключе и в ИНН', async () => {
+      // 0012345678 в Excel часто приходит числом — восстановленный ноль критичен
+      // для поиска существующей организации (Т-22). Контрольную сумму тут не
+      // проверяем — этот ИНН синтетический ключ не получит, важен сам паддинг.
+      parseWorkbook.mockResolvedValue({
+        orgs: [{ name: 'ООО Ноль', inn: 12345678, kpp: null, partnerInn: null }],
+        orders: [],
+        payments: [],
+      });
+      const orgs = await new FileOneCAdapter(Buffer.from('x')).pullOrganizations({});
+      expect(orgs[0]).toMatchObject({ inn: '0012345678' });
+    });
+
+    it('строка без ИНН получает наименование в externalId — для таблицы ошибок', async () => {
+      parseWorkbook.mockResolvedValue({
+        orgs: [{ name: 'ООО Без ИНН', inn: null, kpp: null, partnerInn: null }],
+        orders: [],
+        payments: [],
+      });
+      const orgs = await new FileOneCAdapter(Buffer.from('x')).pullOrganizations({});
+      // До writer'а строка не дойдёт (файловая схема отрежет с no_inn), но в
+      // таблице ошибок оператор увидит имя, а не прочерк.
+      expect(orgs[0]).toMatchObject({ externalId: 'ООО Без ИНН', name: 'ООО Без ИНН' });
+      expect(orgs[0]).not.toHaveProperty('inn');
+    });
+
+    it('битый ИНН синтетического ключа не получает', async () => {
+      parseWorkbook.mockResolvedValue({
+        orgs: [{ name: 'ООО Битый', inn: '7707083894', kpp: null, partnerInn: null }],
+        orders: [],
+        payments: [],
+      });
+      const orgs = await new FileOneCAdapter(Buffer.from('x')).pullOrganizations({});
+      expect(orgs[0]).toMatchObject({ externalId: 'ООО Битый', inn: '7707083894' });
+    });
+
+    it('строки без наименования (итоги, пустые хвосты) пропускаются', async () => {
+      parseWorkbook.mockResolvedValue({
+        orgs: [{ name: null, inn: '7707083893' }, { name: '  ' }],
+        orders: [],
+        payments: [],
+      });
+      expect(await new FileOneCAdapter(Buffer.from('x')).pullOrganizations({})).toEqual([]);
+    });
   });
   it('derives financialStatus from amounts when no status column', async () => {
     parseWorkbook.mockResolvedValue({

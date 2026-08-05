@@ -78,7 +78,8 @@ describe('parseWorkbook — диагностика', () => {
     const buf = (await wb.xlsx.writeBuffer()) as unknown as Buffer;
 
     const { diagnostics } = await parseWorkbook(buf);
-    expect(diagnostics.unmatchedHeaders[SHEET_NAMES.orgs[0]]).toEqual(['КПП', 'Адрес']);
+    // С этапа 5 «КПП» — известная колонка (ORG_COLS.kpp); чужим остался только адрес.
+    expect(diagnostics.unmatchedHeaders[SHEET_NAMES.orgs[0]]).toEqual(['Адрес']);
   });
 
   it('настояще чужое имя листа: имя видно, ключей нераспознанных заголовков нет', async () => {

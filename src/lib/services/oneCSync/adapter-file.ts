@@ -1,5 +1,6 @@
 import { parseWorkbook } from '@/lib/services/import/parse-workbook';
 import type { ImportDiagnostics } from '@/lib/services/import/diagnostics';
+import { isValidInn, normalizeInn, synthOrgExternalId } from './inn';
 import { translateFinancialStatus } from './translate';
 import type { OneCAdapter } from './adapter';
 import type {
@@ -25,6 +26,13 @@ function deriveFinStatus(total: number, paid: number, isRefund: boolean): FinSta
   if (paid > 0) return 'partially_paid';
   return 'billed';
 }
+
+type RawOrg = {
+  name?: unknown;
+  inn?: unknown;
+  kpp?: unknown;
+  partnerInn?: unknown;
+};
 
 type RawOrder = {
   externalId: string;
@@ -69,10 +77,35 @@ export class FileOneCAdapter implements OneCAdapter {
     return diagnostics;
   }
 
-  // Excel import only ATTACHES to existing orgs (resolved by INN); it never creates orgs or documents.
+  /**
+   * Контрагенты из листа «Контрагенты» (Т-15) — ядро починки: до этапа 5 метод
+   * намеренно возвращал `[]`, и организации из файла не создавались вовсе (П-1).
+   *
+   * Ключ синтезируется из ИНН (Т-16): `1c-inn:<нормализованный ИНН>`. Строка
+   * без валидного ИНН получает `externalId = наименование` — до writer'а её не
+   * пустит файловая схема (`no_inn`/`bad_inn`), а в таблице ошибок оператор
+   * увидит имя контрагента, а не прочерк.
+   */
   async pullOrganizations(cursor: SyncCursor): Promise<OneCOrgDto[]> {
     void cursor;
-    return [];
+    const { orgs } = await this.sheets();
+    const result: OneCOrgDto[] = [];
+    for (const raw of orgs as RawOrg[]) {
+      const name = raw?.name == null ? '' : String(raw.name).trim();
+      if (!name) continue; // строки-итоги и пустые хвосты листа
+      const inn = raw.inn == null ? '' : normalizeInn(String(raw.inn));
+      const kpp = raw.kpp == null ? '' : String(raw.kpp).trim();
+      const partnerRef = raw.partnerInn == null ? '' : String(raw.partnerInn).trim();
+      result.push({
+        externalId: inn && isValidInn(inn) ? synthOrgExternalId(inn) : name,
+        name,
+        ...(inn ? { inn } : {}),
+        ...(kpp ? { kpp } : {}),
+        ...(partnerRef ? { partnerExternalId: partnerRef } : {}),
+        updatedAt: EPOCH,
+      });
+    }
+    return result;
   }
 
   async pullDocuments(cursor: SyncCursor): Promise<OneCDocumentDto[]> {
