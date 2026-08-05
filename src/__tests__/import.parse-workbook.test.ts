@@ -141,7 +141,7 @@ describe('parseWorkbook — диагностика', () => {
     expect(diagnostics.missingColumns['Поступления']).toEqual(['Сумма', 'Дата']);
   });
 
-it('этап 3: распознанный, но совсем пустой лист — без падения, обязательные колонки в missing', async () => {
+  it('этап 3: распознанный, но совсем пустой лист — без падения, обязательные колонки в missing', async () => {
     const wb = new ExcelJS.Workbook();
     wb.addWorksheet('Контрагенты');
     const buf = (await wb.xlsx.writeBuffer()) as unknown as Buffer;

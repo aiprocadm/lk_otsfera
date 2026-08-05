@@ -273,7 +273,7 @@ describe('этап 3 — коды распознавания', () => {
     }
   });
 
-it('замечание для содержимого-.xls под именем .xlsx — вторая ветка текста', async () => {
+  it('замечание для содержимого-.xls под именем .xlsx — вторая ветка текста', async () => {
     const oleBuffer = Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0x00]);
     runRecordBatch
       .mockReset()
