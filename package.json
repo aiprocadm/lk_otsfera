@@ -16,6 +16,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
+    "inspect:1c": "tsx scripts/inspect-1c-xlsx.ts",
     "prisma:seed": "tsx prisma/seed.ts",
     "db:recreate-local": "tsx scripts/recreate-local-db.ts",
     "db:create-admin": "tsx scripts/create-admin.ts",

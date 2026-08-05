@@ -11,11 +11,25 @@ import {
 import { importScope } from '@/lib/services/oneCSync/scope';
 import { recordAudit } from '@/lib/auth/audit';
 import type { OneCOrderDto, OneCPaymentDto } from '@/lib/services/oneCSync/dto';
+import type { ImportDiagnostics } from '@/lib/services/import/diagnostics';
 import { log } from '@/lib/logging';
 
 type Args = { fileBuffer: Buffer };
 type Err = 'forbidden' | 'parse_failed' | 'empty';
-export type ImportReport = { orders: BatchSummary; payments: BatchSummary };
+export type ImportReport = {
+  orders: BatchSummary;
+  payments: BatchSummary;
+  /** Что система увидела в файле (Т-3) — показывается и при успехе, и при ошибке. */
+  diagnostics: ImportDiagnostics;
+};
+
+/**
+ * Отказ разбора. Диагностика прикладывается везде, где книгу удалось открыть:
+ * блок «что увидела система» нужнее всего именно тогда, когда не распозналось
+ * ничего. При `parse_failed` её нет — книгу открыть не удалось, причина ушла
+ * в журнал.
+ */
+type Failure = { ok: false; error: Err; diagnostics?: ImportDiagnostics };
 
 function isStaff(s: SessionPayload) {
   return s.role === 'admin' || s.role === 'manager';
@@ -44,22 +58,25 @@ async function run(
     (d) => d.externalId,
     (d, s) => upsertPaymentRecord(prisma, d, s, ctx)
   );
-  return { orders, payments };
+  return { orders, payments, diagnostics: await adapter.diagnostics() };
 }
 
 export async function previewImport(
   prisma: PrismaClient,
   session: SessionPayload,
   args: Args
-): Promise<{ ok: true; report: ImportReport } | { ok: false; error: Err }> {
+): Promise<{ ok: true; report: ImportReport } | Failure> {
   if (!isStaff(session)) return { ok: false, error: 'forbidden' };
   let report: ImportReport;
   try {
     report = await run(prisma, session, args.fileBuffer, 'shadow');
-  } catch {
+  } catch (e) {
+    log.error('[1c-import] не удалось разобрать файл', e);
     return { ok: false, error: 'parse_failed' };
   }
-  if (report.orders.pulled + report.payments.pulled === 0) return { ok: false, error: 'empty' };
+  if (report.orders.pulled + report.payments.pulled === 0) {
+    return { ok: false, error: 'empty', diagnostics: report.diagnostics };
+  }
   return { ok: true, report };
 }
 
@@ -67,12 +84,13 @@ export async function commitImport(
   prisma: PrismaClient,
   session: SessionPayload,
   args: Args
-): Promise<{ ok: true; report: ImportReport } | { ok: false; error: Err }> {
+): Promise<{ ok: true; report: ImportReport } | Failure> {
   if (!isStaff(session)) return { ok: false, error: 'forbidden' };
   let report: ImportReport;
   try {
     report = await run(prisma, session, args.fileBuffer, 'live');
-  } catch {
+  } catch (e) {
+    log.error('[1c-import] не удалось разобрать файл', e);
     return { ok: false, error: 'parse_failed' };
   }
   try {

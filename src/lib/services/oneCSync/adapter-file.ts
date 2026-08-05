@@ -1,4 +1,5 @@
 import { parseWorkbook } from '@/lib/services/import/parse-workbook';
+import type { ImportDiagnostics } from '@/lib/services/import/diagnostics';
 import { translateFinancialStatus } from './translate';
 import type { OneCAdapter } from './adapter';
 import type {
@@ -52,6 +53,20 @@ export class FileOneCAdapter implements OneCAdapter {
   private parsed?: ReturnType<typeof parseWorkbook>;
   private sheets() {
     return (this.parsed ??= parseWorkbook(this.buffer));
+  }
+
+  /**
+   * Что система увидела в книге (ТЗ починки импорта, Т-3): листы, ожидаемые
+   * листы, нераспознанные заголовки.
+   *
+   * Метод намеренно НЕ входит в интерфейс `OneCAdapter`: у сетевого адаптера
+   * никаких «листов книги» нет, и требовать от него заглушку — врать в типах.
+   * Сервис импорта конструирует `FileOneCAdapter` напрямую и зовёт метод как
+   * есть.
+   */
+  async diagnostics(): Promise<ImportDiagnostics> {
+    const { diagnostics } = await this.sheets();
+    return diagnostics;
   }
 
   // Excel import only ATTACHES to existing orgs (resolved by INN); it never creates orgs or documents.

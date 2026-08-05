@@ -350,3 +350,44 @@ describe('FileOneCAdapter', () => {
     expect(pays[0].vatAmount).toBe(0); // 0 is valid, must not collapse to undefined
   });
 });
+
+/**
+ * Т-3: файловый адаптер отдаёт сервису диагностику разбора книги. Метод
+ * намеренно живёт только здесь и не входит в общий интерфейс `OneCAdapter` —
+ * у сетевого адаптера листов книги нет.
+ */
+describe('FileOneCAdapter.diagnostics', () => {
+  const DIAGNOSTICS = {
+    sheetsFound: ['Реализация товаров и услуг'],
+    sheetsExpected: ['Контрагенты', 'Реализации', 'Поступления'],
+    unmatchedHeaders: {},
+  };
+
+  it('отдаёт то, что собрал парсер', async () => {
+    parseWorkbook.mockResolvedValue({
+      orgs: [],
+      orders: [],
+      payments: [],
+      diagnostics: DIAGNOSTICS,
+    });
+    const a = new FileOneCAdapter(Buffer.from('x'));
+    expect(await a.diagnostics()).toEqual(DIAGNOSTICS);
+  });
+
+  it('книга разбирается один раз: диагностика не ломает кэш адаптера', async () => {
+    parseWorkbook.mockClear();
+    parseWorkbook.mockResolvedValue({
+      orgs: [],
+      orders: [
+        { externalId: 'O1', orderNumber: 'O1', orgInn: '77', totalAmount: 100, paidAmount: 0 },
+      ],
+      payments: [],
+      diagnostics: DIAGNOSTICS,
+    });
+    const a = new FileOneCAdapter(Buffer.from('x'));
+    await a.diagnostics();
+    const orders = await a.pullOrders({});
+    expect(orders).toHaveLength(1);
+    expect(parseWorkbook).toHaveBeenCalledTimes(1);
+  });
+});

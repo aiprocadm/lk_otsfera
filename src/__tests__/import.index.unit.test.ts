@@ -14,11 +14,21 @@ const { recordAudit, runRecordBatch, FileOneCAdapter, importScope } = vi.hoisted
   const FileOneCAdapter = vi.fn().mockImplementation(() => ({
     pullOrders: vi.fn().mockResolvedValue([]),
     pullPayments: vi.fn().mockResolvedValue([]),
+    // Т-3: сервис обязан приложить диагностику к отчёту.
+    diagnostics: vi.fn().mockResolvedValue({
+      sheetsFound: ['Контрагенты'],
+      sheetsExpected: ['Контрагенты', 'Реализации', 'Поступления'],
+      unmatchedHeaders: { Контрагенты: ['КПП'] },
+    }),
   }));
   return { recordAudit, runRecordBatch, FileOneCAdapter, importScope };
 });
 
 vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
+
+// Т-2: пустой catch заменён на запись в журнал — проверяем, что она есть.
+const { logError } = vi.hoisted(() => ({ logError: vi.fn() }));
+vi.mock('@/lib/logging', () => ({ log: { error: logError, warn: vi.fn(), info: vi.fn() } }));
 vi.mock('@/lib/services/oneCSync/record-batch', () => ({ runRecordBatch }));
 vi.mock('@/lib/services/oneCSync/adapter-file', () => ({ FileOneCAdapter }));
 vi.mock('@/lib/services/oneCSync/scope', () => ({ importScope }));
@@ -35,6 +45,12 @@ import { previewImport, commitImport } from '@/lib/services/import/index';
 
 const adminSession = { sub: 'u-admin', role: 'admin', companyId: 'c1' } as never;
 const partnerSession = { sub: 'u-partner', role: 'partner' } as never;
+
+const DIAGNOSTICS = {
+  sheetsFound: ['Контрагенты'],
+  sheetsExpected: ['Контрагенты', 'Реализации', 'Поступления'],
+  unmatchedHeaders: { Контрагенты: ['КПП'] },
+};
 
 const fileBuffer = Buffer.from('fake-excel');
 const fakePrisma = {} as never;
@@ -63,9 +79,15 @@ describe('previewImport', () => {
     FileOneCAdapter.mockImplementationOnce(() => ({
       pullOrders: vi.fn().mockRejectedValue(new Error('corrupt file')),
       pullPayments: vi.fn().mockResolvedValue([]),
+      diagnostics: vi.fn(),
     }));
     const result = await previewImport(fakePrisma, adminSession, { fileBuffer });
+    // Код ответа прежний, но причина больше не теряется — она в журнале (Т-2).
     expect(result).toEqual({ ok: false, error: 'parse_failed' });
+    expect(logError).toHaveBeenCalledWith(
+      '[1c-import] не удалось разобрать файл',
+      expect.objectContaining({ message: 'corrupt file' })
+    );
   });
 
   it('returns empty when both orders and payments pulled = 0', async () => {
@@ -74,7 +96,8 @@ describe('previewImport', () => {
       .mockResolvedValueOnce({ pulled: 0, inserted: 0, updated: 0, errors: 0 })
       .mockResolvedValueOnce({ pulled: 0, inserted: 0, updated: 0, errors: 0 });
     const result = await previewImport(fakePrisma, adminSession, { fileBuffer });
-    expect(result).toEqual({ ok: false, error: 'empty' });
+    // Диагностика приложена: именно в этой ветке она и нужна пользователю.
+    expect(result).toEqual({ ok: false, error: 'empty', diagnostics: DIAGNOSTICS });
   });
 
   it('returns ok:true with report when orders > 0', async () => {
@@ -84,6 +107,7 @@ describe('previewImport', () => {
       report: {
         orders: { pulled: 1, inserted: 1, updated: 0, errors: 0 },
         payments: { pulled: 0, inserted: 0, updated: 0, errors: 0 },
+        diagnostics: DIAGNOSTICS,
       },
     });
   });
@@ -118,9 +142,20 @@ describe('commitImport', () => {
     FileOneCAdapter.mockImplementationOnce(() => ({
       pullOrders: vi.fn().mockRejectedValue(new Error('bad')),
       pullPayments: vi.fn().mockResolvedValue([]),
+      diagnostics: vi.fn(),
     }));
     const result = await commitImport(fakePrisma, adminSession, { fileBuffer });
     expect(result).toEqual({ ok: false, error: 'parse_failed' });
+    expect(logError).toHaveBeenCalledWith(
+      '[1c-import] не удалось разобрать файл',
+      expect.objectContaining({ message: 'bad' })
+    );
+  });
+
+  it('отказ по правам приходит без диагностики — файл даже не читался', async () => {
+    const result = await commitImport(fakePrisma, partnerSession, { fileBuffer });
+    expect(result).toEqual({ ok: false, error: 'forbidden' });
+    expect(result).not.toHaveProperty('diagnostics');
   });
 
   it('returns ok:true and writes audit log on success', async () => {

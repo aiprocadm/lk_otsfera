@@ -311,3 +311,92 @@ describe('ImportForm (interactive, jsdom)', () => {
     expect(commitImportAction).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * Блок «Что увидела система в файле» (Т-3) — ради него этап и делается:
+ * он обязан появляться и когда файл разобрался, и когда не распозналось ничего.
+ */
+describe('ImportForm — «Что увидела система в файле»', () => {
+  const DIAGNOSTICS = {
+    sheetsFound: ['Контрагенты', 'Реализация товаров и услуг'],
+    sheetsExpected: ['Контрагенты', 'Реализации', 'Поступления'],
+    unmatchedHeaders: { Контрагенты: ['КПП', 'Адрес'] },
+  };
+
+  beforeEach(() => {
+    previewImportAction.mockReset();
+    commitImportAction.mockReset();
+  });
+
+  it('файл не распознан: показаны найденные листы, ожидаемые и чужие заголовки', async () => {
+    previewImportAction.mockResolvedValue({
+      ok: false,
+      error: 'empty',
+      diagnostics: DIAGNOSTICS,
+    });
+    render(React.createElement(ImportForm));
+    pickFile(
+      screen.getByTestId('import-file-input') as HTMLInputElement,
+      new File(['x'], 'orders.xlsx')
+    );
+    fireEvent.submit(screen.getByTestId('import-file-input').closest('form') as HTMLFormElement);
+
+    const panel = await screen.findByTestId('import-diagnostics');
+    expect(panel.textContent).toContain('Реализация товаров и услуг');
+    expect(panel.textContent).toContain('Поступления');
+    expect(panel.textContent).toContain('«КПП»');
+    expect(panel.textContent).toContain('«Адрес»');
+    // Сообщение об ошибке при этом никуда не делось.
+    expect(screen.getByRole('alert').textContent).toContain('Файл пуст');
+  });
+
+  it('файл разобран: блок тоже виден, чужих заголовков нет — строку не рисуем', async () => {
+    previewImportAction.mockResolvedValue({
+      ok: true,
+      report: {
+        orders: emptySummary({ pulled: 1, created: 1 }),
+        payments: emptySummary(),
+        diagnostics: { ...DIAGNOSTICS, unmatchedHeaders: { Контрагенты: [] } },
+      },
+    });
+    render(React.createElement(ImportForm));
+    pickFile(
+      screen.getByTestId('import-file-input') as HTMLInputElement,
+      new File(['x'], 'orders.xlsx')
+    );
+    fireEvent.submit(screen.getByTestId('import-file-input').closest('form') as HTMLFormElement);
+
+    const panel = await screen.findByTestId('import-diagnostics');
+    expect(panel.textContent).toContain('Контрагенты');
+    expect(panel.textContent).not.toContain('Не распознаны заголовки');
+  });
+
+  it('листов в книге нет вовсе — вместо пустоты прочерк', async () => {
+    previewImportAction.mockResolvedValue({
+      ok: false,
+      error: 'empty',
+      diagnostics: { ...DIAGNOSTICS, sheetsFound: [], unmatchedHeaders: {} },
+    });
+    render(React.createElement(ImportForm));
+    pickFile(
+      screen.getByTestId('import-file-input') as HTMLInputElement,
+      new File(['x'], 'orders.xlsx')
+    );
+    fireEvent.submit(screen.getByTestId('import-file-input').closest('form') as HTMLFormElement);
+
+    expect((await screen.findByTestId('diagnostics-sheets-found')).textContent).toBe('—');
+  });
+
+  it('ответ без диагностики (старый сервер) блок не рисует и не роняет форму', async () => {
+    previewImportAction.mockResolvedValue({ ok: false, error: 'forbidden' });
+    render(React.createElement(ImportForm));
+    pickFile(
+      screen.getByTestId('import-file-input') as HTMLInputElement,
+      new File(['x'], 'orders.xlsx')
+    );
+    fireEvent.submit(screen.getByTestId('import-file-input').closest('form') as HTMLFormElement);
+
+    await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
+    expect(screen.queryByTestId('import-diagnostics')).toBeNull();
+  });
+});
