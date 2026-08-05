@@ -195,7 +195,7 @@ withLiveMode('syncOrganizationsProcessor pending capture failure (live mode)', a
       findUnique: vi.fn().mockResolvedValue(null),
       upsert: vi.fn().mockResolvedValue({}),
     },
-    partner: { findUnique: vi.fn().mockResolvedValue({ id: 'p1' }) },
+    partner: { findFirst: vi.fn().mockResolvedValue({ id: 'p1' }) },
     organization: {
       findUnique: vi.fn().mockResolvedValue({ id: 'org-existing', companyId: 'co1' }),
       update: vi.fn().mockResolvedValue({}),

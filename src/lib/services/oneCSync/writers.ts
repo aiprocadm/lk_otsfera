@@ -5,6 +5,7 @@ import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import { log } from '@/lib/logging';
 import { mapOrderDto, mapPaymentDto, mapOrgDto, mapDocumentDto } from './mappers';
+import { normalizeInn } from './inn';
 import { resolveOrganizationRef } from './resolve-org';
 import { fetchAndStore1CDocument } from './document-fetch';
 import type { OneCOrderDto, OneCPaymentDto, OneCOrgDto, OneCDocumentDto } from './dto';
@@ -285,20 +286,26 @@ export async function upsertOrgRecord(
   ctx: WriteCtx
 ) {
   const input = mapOrgDto(dto);
-  const partner = input.partnerExternalId
-    ? await db.partner.findUnique({
-        where: { slug: input.partnerExternalId },
-        select: { id: true },
-      })
-    : null;
-  const partnerId = partner?.id ?? null;
-  if (!partnerId) {
-    sum.skipped += 1;
-    sum.skips.push({
-      externalId: input.externalId,
-      reason: input.partnerExternalId ? 'partner_not_found' : 'no_partner_external_id',
+  // Т-19 (решение владельца №1): партнёр необязателен — пустая ссылка означает
+  // ПРЯМОГО клиента (partnerId: null), а не брак строки. Прежний код
+  // no_partner_external_id удалён полностью.
+  const rawPartnerRef = input.partnerExternalId?.trim() || null;
+  let partnerId: string | null = null;
+  if (rawPartnerRef) {
+    // Т-20: в файловой колонке лежит ИНН, а сетевой adapter-rest шлёт настоящий
+    // slug — поэтому ИНН И slug ищутся одним OR, иначе этап сломал бы работающую
+    // сетевую синхронизацию. Partner.inn @unique — коллизий OR не даёт.
+    const partner = await db.partner.findFirst({
+      where: { OR: [{ inn: normalizeInn(rawPartnerRef) }, { slug: rawPartnerRef }] },
+      select: { id: true },
     });
-    return;
+    if (!partner) {
+      // Указан, но не найден — не угадываем и не создаём партнёра молча.
+      sum.skipped += 1;
+      sum.skips.push({ externalId: input.externalId, reason: 'partner_not_found' });
+      return;
+    }
+    partnerId = partner.id;
   }
   // Resolve by externalId OR inn (Organization.inn is @unique). Matching only by
   // externalId would push an org that already exists under its INN (xlsx import or

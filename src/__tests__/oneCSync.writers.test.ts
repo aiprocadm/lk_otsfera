@@ -207,7 +207,7 @@ describe('upsertOrgRecord', () => {
   } as any;
   function odb(over = {}) {
     return {
-      partner: { findUnique: vi.fn().mockResolvedValue({ id: 'p1' }) },
+      partner: { findFirst: vi.fn().mockResolvedValue({ id: 'p1' }) },
       organization: {
         findUnique: vi.fn().mockResolvedValue(null),
         findFirst: vi.fn().mockResolvedValue(null),
@@ -230,7 +230,7 @@ describe('upsertOrgRecord', () => {
     expect(sum.created).toBe(1);
   });
   it('skips when partner not found', async () => {
-    const d = odb({ partner: { findUnique: vi.fn().mockResolvedValue(null) } });
+    const d = odb({ partner: { findFirst: vi.fn().mockResolvedValue(null) } });
     const sum = emptySummary();
     await upsertOrgRecord(d, orgDto, sum, { mode: 'live', notify: false });
     expect(sum.skipped).toBe(1);
@@ -1106,23 +1106,66 @@ describe('upsertOrgRecord — additional branch coverage', () => {
     updatedAt: '2026-04-01T00:00:00Z',
   } as any;
 
-  it('skips with no_partner_external_id when partnerExternalId is null', async () => {
+  // Этап 4 (Т-19): пустой партнёр — это ПРЯМОЙ клиент, а не брак строки.
+  it('создаёт организацию без партнёра как прямого клиента (partnerId: null)', async () => {
+    const orgCreate = vi.fn();
     const d = {
-      partner: { findUnique: vi.fn() },
-      organization: { findUnique: vi.fn(), update: vi.fn() },
-      $transaction: vi.fn(),
+      partner: { findFirst: vi.fn() },
+      organization: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        findFirst: vi.fn().mockResolvedValue(null),
+        update: vi.fn(),
+      },
+      $transaction: vi.fn(async (cb: any) =>
+        cb({
+          company: { create: vi.fn().mockResolvedValue({ id: 'co1' }) },
+          organization: { create: orgCreate },
+        })
+      ),
     } as any;
     const sum = emptySummary();
     await upsertOrgRecord(d, orgDto, sum, { mode: 'live', notify: false });
-    expect(sum.skipped).toBe(1);
-    expect(sum.skips[0]).toMatchObject({ reason: 'no_partner_external_id' });
-    expect(d.partner.findUnique).not.toHaveBeenCalled();
+    expect(sum.created).toBe(1);
+    expect(sum.skips).toEqual([]);
+    // Партнёрский поиск даже не выполнялся — искать нечего.
+    expect(d.partner.findFirst).not.toHaveBeenCalled();
+    expect(orgCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({ partnerId: null }),
+    });
+  });
+
+  // Этап 4 (Т-20): партнёр ищется по ИНН ИЛИ прежнему slug одним запросом —
+  // сетевой adapter-rest шлёт настоящие slug'и, файл — ИНН.
+  it('ищет партнёра одним OR-запросом: нормализованный ИНН + сырой slug', async () => {
+    const findFirst = vi.fn().mockResolvedValue({ id: 'p1' });
+    const d = {
+      partner: { findFirst },
+      organization: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        findFirst: vi.fn().mockResolvedValue(null),
+        update: vi.fn(),
+      },
+      $transaction: vi.fn(async (cb: any) =>
+        cb({
+          company: { create: vi.fn().mockResolvedValue({ id: 'co1' }) },
+          organization: { create: vi.fn() },
+        })
+      ),
+    } as any;
+    const sum = emptySummary();
+    const dto = { ...orgDto, partnerExternalId: ' 7712 345 678 ' } as any;
+    await upsertOrgRecord(d, dto, sum, { mode: 'live', notify: false });
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { OR: [{ inn: '7712345678' }, { slug: '7712 345 678' }] },
+      select: { id: true },
+    });
+    expect(sum.created).toBe(1);
   });
 
   it('shadow mode: skips $transaction and counts created', async () => {
     const orgDtoWithPartner = { ...orgDto, partnerExternalId: 'p-slug' } as any;
     const d = {
-      partner: { findUnique: vi.fn().mockResolvedValue({ id: 'p1' }) },
+      partner: { findFirst: vi.fn().mockResolvedValue({ id: 'p1' }) },
       organization: {
         findUnique: vi.fn().mockResolvedValue(null),
         findFirst: vi.fn().mockResolvedValue(null),
@@ -1139,7 +1182,7 @@ describe('upsertOrgRecord — additional branch coverage', () => {
   it('bump callback is called on existing org update', async () => {
     const orgDtoWithPartner = { ...orgDto, partnerExternalId: 'p-slug' } as any;
     const d = {
-      partner: { findUnique: vi.fn().mockResolvedValue({ id: 'p1' }) },
+      partner: { findFirst: vi.fn().mockResolvedValue({ id: 'p1' }) },
       organization: {
         findUnique: vi.fn().mockResolvedValue({ id: 'o1', companyId: 'co1' }),
         update: vi.fn(),
@@ -1156,7 +1199,7 @@ describe('upsertOrgRecord — additional branch coverage', () => {
   it('bump is called on org create', async () => {
     const orgDtoWithPartner = { ...orgDto, partnerExternalId: 'p-slug' } as any;
     const d = {
-      partner: { findUnique: vi.fn().mockResolvedValue({ id: 'p1' }) },
+      partner: { findFirst: vi.fn().mockResolvedValue({ id: 'p1' }) },
       organization: {
         findUnique: vi.fn().mockResolvedValue(null),
         findFirst: vi.fn().mockResolvedValue(null),

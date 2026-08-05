@@ -39,7 +39,7 @@ describe('syncOrganizationsProcessor shadow mode', () => {
     const upsert = vi.fn().mockResolvedValue({});
     const db = {
       syncState: { findUnique: vi.fn().mockResolvedValue(null), upsert },
-      partner: { findUnique: vi.fn().mockResolvedValue({ id: 'p1' }) },
+      partner: { findFirst: vi.fn().mockResolvedValue({ id: 'p1' }) },
       organization: {
         count: vi.fn().mockResolvedValue(0),
         findUnique: vi.fn().mockResolvedValue(null),
@@ -76,7 +76,7 @@ describe('syncOrganizationsProcessor live mode', () => {
     const upsert = vi.fn().mockResolvedValue({});
     const db = {
       syncState: { findUnique: vi.fn().mockResolvedValue(null), upsert },
-      partner: { findUnique: vi.fn().mockResolvedValue({ id: 'p1' }) },
+      partner: { findFirst: vi.fn().mockResolvedValue({ id: 'p1' }) },
       organization: {
         findUnique: vi.fn().mockResolvedValue({ id: 'org-existing', companyId: 'co1' }),
         update,
@@ -104,7 +104,7 @@ describe('syncOrganizationsProcessor live mode', () => {
     const orgCreate = vi.fn().mockResolvedValue({});
     const db = {
       syncState: { findUnique: vi.fn().mockResolvedValue(null), upsert },
-      partner: { findUnique: vi.fn().mockResolvedValue({ id: 'p1' }) },
+      partner: { findFirst: vi.fn().mockResolvedValue({ id: 'p1' }) },
       // Return null for both externalId (findUnique) and inn (findFirst) lookups →
       // upsertOrgRecord takes the CREATE path → $transaction called
       organization: {
@@ -143,14 +143,14 @@ describe('syncOrganizationsProcessor record-level handler failure', () => {
   });
 
   it('accumulates per-record failures and covers the getExternalId lambda', async () => {
-    // Making db.partner.findUnique throw causes upsertOrgRecord to fail per-record.
+    // Making db.partner.findFirst throw causes upsertOrgRecord to fail per-record.
     // runRecordBatch catches it and calls (dto) => dto.externalId to log the failure.
     const db = {
       syncState: {
         findUnique: vi.fn().mockResolvedValue(null),
         upsert: vi.fn().mockResolvedValue({}),
       },
-      partner: { findUnique: vi.fn().mockRejectedValue(new Error('partner_err')) },
+      partner: { findFirst: vi.fn().mockRejectedValue(new Error('partner_err')) },
       organization: { findUnique: vi.fn(), update: vi.fn(), count: vi.fn() },
       $transaction: vi.fn(),
       syncLog: { create: vi.fn().mockResolvedValue({}) },
@@ -257,7 +257,7 @@ describe('syncOrganizationsProcessor pending capture+replay (live mode)', () => 
     const upsert = vi.fn().mockResolvedValue({});
     const db = {
       syncState: { findUnique: vi.fn().mockResolvedValue(null), upsert },
-      partner: { findUnique: vi.fn().mockResolvedValue({ id: 'p1' }) },
+      partner: { findFirst: vi.fn().mockResolvedValue({ id: 'p1' }) },
       organization: {
         findUnique: vi.fn().mockResolvedValue({ id: 'org-existing', companyId: 'co1' }),
         update,
@@ -300,7 +300,7 @@ describe('syncOrganizationsProcessor pending capture+replay (shadow mode)', () =
         findUnique: vi.fn().mockResolvedValue(null),
         upsert: vi.fn().mockResolvedValue({}),
       },
-      partner: { findUnique: vi.fn().mockResolvedValue({ id: 'p1' }) },
+      partner: { findFirst: vi.fn().mockResolvedValue({ id: 'p1' }) },
       organization: {
         findUnique: vi.fn().mockResolvedValue({ id: 'org-existing', companyId: 'co1' }),
         update: vi.fn().mockResolvedValue({}),
