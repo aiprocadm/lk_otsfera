@@ -72,7 +72,7 @@ const docDto = {
 
 function orgDb(over: Record<string, unknown> = {}) {
   return {
-    partner: { findUnique: vi.fn().mockResolvedValue({ id: 'p1' }) },
+    partner: { findFirst: vi.fn().mockResolvedValue({ id: 'p1' }) },
     organization: {
       findUnique: vi.fn().mockResolvedValue(null),
       findFirst: vi.fn().mockResolvedValue(null),
