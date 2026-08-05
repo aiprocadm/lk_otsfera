@@ -39,6 +39,7 @@ import {
   resolveQueueRowAction,
   dismissQueueRowAction,
 } from '@/server-actions/payment-import';
+import { IMPORT_MAX_FILE_BYTES } from '@/lib/config/import-limits';
 
 const prisma = new PrismaClient();
 const STAMP = Date.now();
@@ -604,8 +605,10 @@ async function oneRowBuffer(): Promise<Buffer> {
 describe('payment-import server actions (cov)', () => {
   it('commitPaymentImportAction rejects a file over the size limit', async () => {
     requireSession.mockResolvedValue(adminSession);
-    // > 20 MiB → guarded() short-circuits before touching the service.
-    const big = new File([new Uint8Array(20 * 1024 * 1024 + 1)], 'big.xlsx');
+    // Больше предела → guarded() отсекает файл до сервиса. Число берём из
+    // константы (Т-5): раньше здесь было зашито 20 МБ, и подъём предела до 25
+    // уронил тест в integration-гейте, хотя unit-слой был зелёным.
+    const big = new File([new Uint8Array(IMPORT_MAX_FILE_BYTES + 1)], 'big.xlsx');
     const form = new FormData();
     form.set('file', big);
     const res = await commitPaymentImportAction(form);

@@ -118,7 +118,7 @@ describe('PaymentImportForm (interactive, jsdom)', () => {
 
   it('preview failure codes invalid_file / empty / parse_failed map to their messages', async () => {
     for (const [code, expected] of [
-      ['invalid_file', 'Выберите файл .xls или .xlsx (не более 20 МБ)'],
+      ['invalid_file', 'Выберите файл .xls или .xlsx (не более 25 МБ)'],
       ['empty', 'Файл пуст или нет строк-операций'],
       ['parse_failed', 'Не удалось разобрать файл'],
     ] as const) {
@@ -297,6 +297,113 @@ describe('PaymentImportForm (interactive, jsdom)', () => {
 
     Object.defineProperty(input, 'files', { value: [], configurable: true });
     fireEvent.click(screen.getByTestId('payment-import-commit-button'));
+    expect(commitPaymentImportAction).not.toHaveBeenCalled();
+  });
+});
+
+/** Т-4/Т-6 — то же самое для страницы импорта банковской выписки. */
+describe('PaymentImportForm — сбой и слишком большой файл', () => {
+  beforeEach(() => {
+    previewPaymentImportAction.mockReset();
+    commitPaymentImportAction.mockReset();
+  });
+
+  it('запрос не дошёл до сервера: красный блок вместо пустого экрана', async () => {
+    previewPaymentImportAction.mockRejectedValue(new Error('Body exceeded limit'));
+    render(React.createElement(PaymentImportForm));
+    pickFile(
+      screen.getByTestId('payment-import-file-input') as HTMLInputElement,
+      new File(['x'], 'card51.xlsx')
+    );
+    fireEvent.submit(
+      screen.getByTestId('payment-import-file-input').closest('form') as HTMLFormElement
+    );
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('Сервер не принял файл');
+    const button = screen.getByTestId('payment-import-preview-button') as HTMLButtonElement;
+    expect(button.disabled).toBe(false);
+  });
+
+  it('файл больше предела: запрос НЕ уходит, показан его размер', async () => {
+    render(React.createElement(PaymentImportForm));
+    const big = new File(['x'], 'card51.xls');
+    Object.defineProperty(big, 'size', { value: 30 * 1024 * 1024 });
+    pickFile(screen.getByTestId('payment-import-file-input') as HTMLInputElement, big);
+    fireEvent.submit(
+      screen.getByTestId('payment-import-file-input').closest('form') as HTMLFormElement
+    );
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('больше предела в 25 МБ');
+    expect(alert.textContent).toContain('30,0 МБ');
+    expect(previewPaymentImportAction).not.toHaveBeenCalled();
+  });
+
+  it('сбой на подтверждении импорта тоже виден', async () => {
+    previewPaymentImportAction.mockResolvedValue({
+      ok: true,
+      plan: {
+        counts: {
+          totalRows: 1,
+          imported: 1,
+          refunds: 0,
+          queued: 0,
+          excluded: 0,
+          excludedByReason: {},
+          parseErrors: 0,
+        },
+      },
+    });
+    commitPaymentImportAction.mockRejectedValue(new Error('network down'));
+    render(React.createElement(PaymentImportForm));
+    pickFile(
+      screen.getByTestId('payment-import-file-input') as HTMLInputElement,
+      new File(['x'], 'card51.xlsx')
+    );
+    fireEvent.submit(
+      screen.getByTestId('payment-import-file-input').closest('form') as HTMLFormElement
+    );
+    fireEvent.click(await screen.findByTestId('payment-import-commit-button'));
+
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole('alert').some((el) => el.textContent?.includes('Сервер не принял файл'))
+      ).toBe(true)
+    );
+  });
+
+  it('слишком большой файл не уходит и на подтверждении', async () => {
+    previewPaymentImportAction.mockResolvedValue({
+      ok: true,
+      plan: {
+        counts: {
+          totalRows: 1,
+          imported: 1,
+          refunds: 0,
+          queued: 0,
+          excluded: 0,
+          excludedByReason: {},
+          parseErrors: 0,
+        },
+      },
+    });
+    render(React.createElement(PaymentImportForm));
+    const input = screen.getByTestId('payment-import-file-input') as HTMLInputElement;
+    pickFile(input, new File(['x'], 'card51.xlsx'));
+    fireEvent.submit(input.closest('form') as HTMLFormElement);
+    const commit = await screen.findByTestId('payment-import-commit-button');
+
+    const big = new File(['x'], 'big.xlsx');
+    Object.defineProperty(big, 'size', { value: 40 * 1024 * 1024 });
+    Object.defineProperty(input, 'files', { value: [big], configurable: true });
+    fireEvent.click(commit);
+
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole('alert').some((el) => el.textContent?.includes('больше предела'))
+      ).toBe(true)
+    );
     expect(commitPaymentImportAction).not.toHaveBeenCalled();
   });
 });

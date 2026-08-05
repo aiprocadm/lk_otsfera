@@ -11,6 +11,7 @@ vi.mock('@/lib/auth/requireRole', () => ({ requireSession }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 import { previewImportAction, commitImportAction } from '@/server-actions/import';
+import { IMPORT_MAX_FILE_BYTES } from '@/lib/config/import-limits';
 
 const session = { sub: 'u1', role: 'manager', email: 'mgr@x.ru', name: 'M' };
 
@@ -56,9 +57,9 @@ describe('previewImportAction — file guard', () => {
     expect(previewImport).not.toHaveBeenCalled();
   });
 
-  it('returns invalid_file for oversized file (>20MB)', async () => {
-    // Create a File whose size property reports > 20MB
-    const bigFile = new File([new Uint8Array(20 * 1024 * 1024 + 1)], 'big.xlsx', {
+  it('returns invalid_file for oversized file (> предела из константы)', async () => {
+    // Предел один на конфиг, действие и текст формы (Т-5) — берём его из источника.
+    const bigFile = new File([new Uint8Array(IMPORT_MAX_FILE_BYTES + 1)], 'big.xlsx', {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     });
     const result = await previewImportAction(fd({ file: bigFile }));

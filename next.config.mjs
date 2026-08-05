@@ -51,9 +51,23 @@ function isSettingsHubEnabled() {
   return raw === '1' || raw === 'true' || raw === 'on';
 }
 
+/**
+ * Предел размера тела server action'а. Общий на все действия форм, поэтому
+ * обязан быть НЕ МЕНЬШЕ самого крупного файлового действия — иначе Next режет
+ * тело раньше, чем код успевает проверить размер и вежливо отказать (ТЗ
+ * починки импорта, Т-5; раньше здесь стояло 10 МБ при обещанных 20).
+ *
+ * Синхронизировано с `IMPORT_MAX_FILE_MB` из src/lib/config/import-limits.ts —
+ * конфиг читается до сборки и импортировать TS не может; расхождение ловит
+ * тест `lib.config.import-limits`.
+ */
+export const SERVER_ACTIONS_BODY_LIMIT_MB = 25;
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: { serverActions: { bodySizeLimit: '10mb' } },
+  experimental: {
+    serverActions: { bodySizeLimit: `${SERVER_ACTIONS_BODY_LIMIT_MB}mb` },
+  },
   // pino использует Node-API (streams/sonic-boom) — оставить внешним пакетом,
   // а не бандлить в серверный граф RSC.
   serverExternalPackages: ['pino'],

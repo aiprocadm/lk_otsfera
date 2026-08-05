@@ -5,6 +5,9 @@ import {
   previewPaymentImportAction,
   commitPaymentImportAction,
 } from '@/server-actions/payment-import';
+import { IMPORT_MAX_FILE_BYTES, IMPORT_MAX_FILE_MB } from '@/lib/config/import-limits';
+import { clientLog } from '@/lib/logging/client';
+import { PAYMENT_IMPORT_ERRORS, errorMessage as messageFor, fileSizeMb } from './error-messages';
 
 type Counts = {
   totalRows: number;
@@ -15,18 +18,18 @@ type Counts = {
   excludedByReason: Record<string, number>;
   parseErrors: number;
 };
-type PreviewResult = { ok: true; plan: { counts: Counts } } | { ok: false; error: string };
-type CommitResult =
-  { ok: true; result: { counts: Counts; batchId: string | null } } | { ok: false; error: string };
+/** `detail` — уточнение к тексту ошибки (например фактический размер файла). */
+type Failure = { ok: false; error: string; detail?: string };
+type PreviewResult = { ok: true; plan: { counts: Counts } } | Failure;
+type CommitResult = { ok: true; result: { counts: Counts; batchId: string | null } } | Failure;
 
-const ERROR_MESSAGES: Record<string, string> = {
-  forbidden: 'Недостаточно прав',
-  invalid_file: 'Выберите файл .xls или .xlsx (не более 20 МБ)',
-  empty: 'Файл пуст или нет строк-операций',
-  parse_failed: 'Не удалось разобрать файл',
-};
 function errorMessage(code: string): string {
-  return ERROR_MESSAGES[code] ?? `Ошибка: ${code}`;
+  return messageFor(PAYMENT_IMPORT_ERRORS, code);
+}
+
+/** Отказ до отправки: слишком большой файл не имеет смысла везти на сервер (Т-6). */
+function tooLargeFailure(file: File): Failure {
+  return { ok: false, error: 'file_too_large', detail: `Ваш файл — ${fileSizeMb(file.size)} МБ.` };
 }
 
 const REASON_RU: Record<string, string> = {
@@ -96,13 +99,23 @@ export function PaymentImportForm() {
     e.preventDefault();
     const file = fileInputRef.current?.files?.[0];
     if (!file) return;
-    setIsPreviewing(true);
     setPreview(null);
     setCommitResult(null);
+    // Т-6: слишком большой файл не отправляем — Next обрезал бы тело, и форма
+    // замолчала бы вместо внятного отказа.
+    if (file.size > IMPORT_MAX_FILE_BYTES) {
+      setPreview(tooLargeFailure(file));
+      return;
+    }
+    setIsPreviewing(true);
     try {
       const form = new FormData();
       form.set('file', file);
       setPreview((await previewPaymentImportAction(form)) as PreviewResult);
+    } catch (e) {
+      // Т-4: раньше отклонённый промис не менял состояние — экран не менялся.
+      clientLog.error('[1c-import] запрос предпросмотра выписки не дошёл до сервера', e);
+      setPreview({ ok: false, error: 'network_or_server' });
     } finally {
       setIsPreviewing(false);
     }
@@ -110,11 +123,18 @@ export function PaymentImportForm() {
   async function handleCommit() {
     const file = fileInputRef.current?.files?.[0];
     if (!file) return;
+    if (file.size > IMPORT_MAX_FILE_BYTES) {
+      setCommitResult(tooLargeFailure(file));
+      return;
+    }
     setIsCommitting(true);
     try {
       const form = new FormData();
       form.set('file', file);
       setCommitResult((await commitPaymentImportAction(form)) as CommitResult);
+    } catch (e) {
+      clientLog.error('[1c-import] запрос импорта выписки не дошёл до сервера', e);
+      setCommitResult({ ok: false, error: 'network_or_server' });
     } finally {
       setIsCommitting(false);
     }
@@ -127,7 +147,7 @@ export function PaymentImportForm() {
       <form onSubmit={handlePreview} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Файл «Карточка счёта 51» (.xls или .xlsx)
+            {`Файл «Карточка счёта 51» (.xls или .xlsx, до ${IMPORT_MAX_FILE_MB} МБ)`}
           </label>
           <input
             ref={fileInputRef}
@@ -154,6 +174,7 @@ export function PaymentImportForm() {
           className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-4 py-2"
         >
           {errorMessage(preview.error)}
+          {preview.detail ? ` ${preview.detail}` : ''}
         </div>
       )}
 
@@ -191,7 +212,8 @@ export function PaymentImportForm() {
           role="alert"
           className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-4 py-2"
         >
-          {errorMessage((commitResult as { ok: false; error: string }).error)}
+          {errorMessage(commitResult.error)}
+          {commitResult.detail ? ` ${commitResult.detail}` : ''}
         </div>
       )}
     </div>
