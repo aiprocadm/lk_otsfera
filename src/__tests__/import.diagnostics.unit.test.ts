@@ -6,7 +6,7 @@ import { unmatchedHeadersOf } from '@/lib/services/import/diagnostics';
  * колонок. Это и есть половина ответа на вопрос «почему файл не прочитался» —
  * оператор видит, как колонка называется в его выгрузке на самом деле.
  */
-const COLS = { name: 'Наименование', inn: 'ИНН' };
+const COLS = { name: ['Наименование'], inn: ['ИНН', 'ИНН контрагента'] };
 
 describe('unmatchedHeadersOf', () => {
   it('заголовки из карты в список не попадают', () => {
@@ -36,10 +36,22 @@ describe('unmatchedHeadersOf', () => {
     expect(unmatchedHeadersOf([], COLS)).toEqual([]);
   });
 
-  it('сравнение точное: лишний пробел делает заголовок нераспознанным', () => {
-    // Нормализация («ё/е», неразрывный пробел, регистр) — это Т-8 этапа 3.
-    // Здесь фиксируем текущее поведение, чтобы этап 3 было видно по диффу.
+  it('с этапа 3 сравнение нормализованное (Т-8): регистр, «ё/е», лишние пробелы', () => {
     expect(unmatchedHeadersOf(['ИНН '], COLS)).toEqual([]);
+    expect(unmatchedHeadersOf(['инн'], COLS)).toEqual([]);
+    expect(unmatchedHeadersOf(['НАИМЕНОВАНИЕ'], COLS)).toEqual([]);
+    // Неразрывный пробел и перенос строки внутри ячейки шапки.
+    expect(unmatchedHeadersOf(['ИНН\u00A0контрагента'], COLS)).toEqual([]);
+    expect(unmatchedHeadersOf(['ИНН\nконтрагента'], COLS)).toEqual([]);
+    // «И Н Н» с пробелами внутри слова — всё ещё чужой заголовок.
     expect(unmatchedHeadersOf(['И Н Н'], COLS)).toEqual(['И Н Н']);
+  });
+
+  it('«ё» и «е» считаются одной буквой', () => {
+    expect(unmatchedHeadersOf(['ИНН партнера'], { partnerInn: ['ИНН партнёра'] })).toEqual([]);
+  });
+
+  it('алиас из хвоста массива распознаётся так же, как основной', () => {
+    expect(unmatchedHeadersOf(['ИНН контрагента'], COLS)).toEqual([]);
   });
 });

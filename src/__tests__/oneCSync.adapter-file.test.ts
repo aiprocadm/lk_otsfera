@@ -360,7 +360,9 @@ describe('FileOneCAdapter.diagnostics', () => {
   const DIAGNOSTICS = {
     sheetsFound: ['Реализация товаров и услуг'],
     sheetsExpected: ['Контрагенты', 'Реализации', 'Поступления'],
-    unmatchedHeaders: {},
+    unmatchedHeaders: { 'Реализация товаров и услуг': [] },
+    missingColumns: {},
+    duplicateSheets: {},
   };
 
   it('отдаёт то, что собрал парсер', async () => {

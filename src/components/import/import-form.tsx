@@ -47,6 +47,9 @@ function DiagnosticsPanel({ diagnostics }: { diagnostics: ImportDiagnostics }) {
   const unmatched = Object.entries(diagnostics.unmatchedHeaders).filter(
     ([, headers]) => headers.length > 0
   );
+  // `?? {}` — страховка от ответа старой версии сервера без новых полей.
+  const missing = Object.entries(diagnostics.missingColumns ?? {});
+  const duplicates = Object.entries(diagnostics.duplicateSheets ?? {});
   return (
     <div
       className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm"
@@ -76,6 +79,35 @@ function DiagnosticsPanel({ diagnostics }: { diagnostics: ImportDiagnostics }) {
             ))}
           </ul>
         </div>
+      )}
+      {missing.length > 0 && (
+        <div className="mt-2" data-testid="diagnostics-missing-columns">
+          <div className="text-gray-600">Не найдены обязательные колонки:</div>
+          <ul className="mt-1 space-y-0.5">
+            {missing.map(([sheet, labels]) => (
+              <li key={sheet} className="text-[#111111]">
+                {sheet} — {labels.map((l) => `«${l}»`).join(', ')}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {duplicates.length > 0 && (
+        <div className="mt-2" data-testid="diagnostics-duplicate-sheets">
+          <div className="text-gray-600">Несколько листов подходят под один вид (взят первый):</div>
+          <ul className="mt-1 space-y-0.5">
+            {duplicates.map(([kind, names]) => (
+              <li key={kind} className="text-[#111111]">
+                {kind} — ещё {names.map((n) => `«${n}»`).join(', ')}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {diagnostics.formatNote && (
+        <p className="mt-2 text-gray-600" data-testid="diagnostics-format-note">
+          {diagnostics.formatNote}
+        </p>
       )}
     </div>
   );
@@ -238,12 +270,12 @@ export function ImportForm() {
       <form onSubmit={handlePreview} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            {`Файл Excel (.xlsx, до ${IMPORT_MAX_FILE_MB} МБ)`}
+            {`Файл Excel (.xls или .xlsx, до ${IMPORT_MAX_FILE_MB} МБ)`}
           </label>
           <input
             ref={fileInputRef}
             type="file"
-            accept=".xlsx"
+            accept=".xls,.xlsx"
             onChange={handleFileChange}
             className="block w-full text-sm text-gray-700 border border-gray-300 rounded px-3 py-2
               file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:font-medium
