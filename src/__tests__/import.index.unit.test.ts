@@ -19,6 +19,8 @@ const { recordAudit, runRecordBatch, FileOneCAdapter, importScope } = vi.hoisted
       sheetsFound: ['Контрагенты'],
       sheetsExpected: ['Контрагенты', 'Реализации', 'Поступления'],
       unmatchedHeaders: { Контрагенты: ['КПП'] },
+      missingColumns: {},
+      duplicateSheets: {},
     }),
   }));
   return { recordAudit, runRecordBatch, FileOneCAdapter, importScope };
@@ -50,6 +52,8 @@ const DIAGNOSTICS = {
   sheetsFound: ['Контрагенты'],
   sheetsExpected: ['Контрагенты', 'Реализации', 'Поступления'],
   unmatchedHeaders: { Контрагенты: ['КПП'] },
+  missingColumns: {},
+  duplicateSheets: {},
 };
 
 const fileBuffer = Buffer.from('fake-excel');
@@ -76,10 +80,12 @@ describe('previewImport', () => {
   });
 
   it('returns parse_failed when adapter throws', async () => {
+    // С этапа 3 диагностика зовётся ПЕРВОЙ (гард распознавания до записей) —
+    // битый файл падает уже там.
     FileOneCAdapter.mockImplementationOnce(() => ({
-      pullOrders: vi.fn().mockRejectedValue(new Error('corrupt file')),
-      pullPayments: vi.fn().mockResolvedValue([]),
-      diagnostics: vi.fn(),
+      pullOrders: vi.fn(),
+      pullPayments: vi.fn(),
+      diagnostics: vi.fn().mockRejectedValue(new Error('corrupt file')),
     }));
     const result = await previewImport(fakePrisma, adminSession, { fileBuffer });
     // Код ответа прежний, но причина больше не теряется — она в журнале (Т-2).
@@ -140,9 +146,9 @@ describe('commitImport', () => {
 
   it('returns parse_failed when run throws', async () => {
     FileOneCAdapter.mockImplementationOnce(() => ({
-      pullOrders: vi.fn().mockRejectedValue(new Error('bad')),
-      pullPayments: vi.fn().mockResolvedValue([]),
-      diagnostics: vi.fn(),
+      pullOrders: vi.fn(),
+      pullPayments: vi.fn(),
+      diagnostics: vi.fn().mockRejectedValue(new Error('bad')),
     }));
     const result = await commitImport(fakePrisma, adminSession, { fileBuffer });
     expect(result).toEqual({ ok: false, error: 'parse_failed' });
@@ -187,5 +193,132 @@ describe('commitImport', () => {
     const result = await commitImport(fakePrisma, adminSession, { fileBuffer });
     // Should still return ok:true — audit failure is swallowed
     expect(result).toMatchObject({ ok: true });
+  });
+});
+
+/**
+ * Этап 3 (Т-11/Т-12/Т-14): внятные отказы вместо «Файл пуст», и гарды
+ * распознавания срабатывают ДО записей — иначе live-режим успел бы записать
+ * распознанную половину файла.
+ */
+describe('этап 3 — коды распознавания', () => {
+  const EMPTY_SUMMARY = { pulled: 0, created: 0, updated: 0, errors: 0 };
+
+  function adapterWithDiagnostics(diagnostics: unknown) {
+    const pullOrders = vi.fn().mockResolvedValue([]);
+    const pullPayments = vi.fn().mockResolvedValue([]);
+    FileOneCAdapter.mockImplementationOnce(() => ({
+      pullOrders,
+      pullPayments,
+      diagnostics: vi.fn().mockResolvedValue(diagnostics),
+    }));
+    return { pullOrders, pullPayments };
+  }
+
+  it('ни один лист не распознан → sheets_not_recognized, записи не начинались', async () => {
+    const { pullOrders } = adapterWithDiagnostics({
+      sheetsFound: ['Лист1'],
+      sheetsExpected: ['Контрагенты', 'Реализации', 'Поступления'],
+      unmatchedHeaders: {},
+      missingColumns: {},
+      duplicateSheets: {},
+    });
+    const result = await commitImport(fakePrisma, adminSession, { fileBuffer });
+    expect(result).toMatchObject({ ok: false, error: 'sheets_not_recognized' });
+    expect((result as { diagnostics?: unknown }).diagnostics).toBeTruthy();
+    expect(pullOrders).not.toHaveBeenCalled();
+    expect(recordAudit).not.toHaveBeenCalled();
+  });
+
+  it('нет обязательной колонки → columns_not_recognized, записи не начинались', async () => {
+    const { pullOrders } = adapterWithDiagnostics({
+      sheetsFound: ['Поступления'],
+      sheetsExpected: ['Контрагенты', 'Реализации', 'Поступления'],
+      unmatchedHeaders: { Поступления: [] },
+      missingColumns: { Поступления: ['Сумма', 'Дата'] },
+      duplicateSheets: {},
+    });
+    const result = await commitImport(fakePrisma, adminSession, { fileBuffer });
+    expect(result).toMatchObject({ ok: false, error: 'columns_not_recognized' });
+    expect(pullOrders).not.toHaveBeenCalled();
+  });
+
+  it('содержимое не Excel → format_mismatch без записи в журнал ошибок разбора', async () => {
+    const { WorkbookFormatError } = await import('@/lib/services/import/workbook');
+    FileOneCAdapter.mockImplementationOnce(() => ({
+      pullOrders: vi.fn(),
+      pullPayments: vi.fn(),
+      diagnostics: vi.fn().mockRejectedValue(new WorkbookFormatError()),
+    }));
+    const result = await previewImport(fakePrisma, adminSession, { fileBuffer });
+    expect(result).toEqual({ ok: false, error: 'format_mismatch' });
+    expect(logError).not.toHaveBeenCalled();
+  });
+
+  it('расхождение имени и содержимого попадает замечанием в диагностику (Т-14)', async () => {
+    // Буфер начинается с PK → xlsx, а имя говорит .xls.
+    const xlsxNamedXls = Buffer.from('PK\x03\x04фейковый-zip');
+    runRecordBatch
+      .mockReset()
+      .mockResolvedValueOnce({ ...EMPTY_SUMMARY, pulled: 1 })
+      .mockResolvedValueOnce(EMPTY_SUMMARY);
+    const result = await previewImport(fakePrisma, adminSession, {
+      fileBuffer: xlsxNamedXls,
+      fileName: 'выгрузка.xls',
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.report.diagnostics.formatNote).toContain('выгрузка.xls');
+      expect(result.report.diagnostics.formatNote).toContain('.xlsx');
+    }
+  });
+
+  it('замечание для содержимого-.xls под именем .xlsx — вторая ветка текста', async () => {
+    const oleBuffer = Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0x00]);
+    runRecordBatch
+      .mockReset()
+      .mockResolvedValueOnce({ ...EMPTY_SUMMARY, pulled: 1 })
+      .mockResolvedValueOnce(EMPTY_SUMMARY);
+    const result = await previewImport(fakePrisma, adminSession, {
+      fileBuffer: oleBuffer,
+      fileName: 'выгрузка.xlsx',
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.report.diagnostics.formatNote).toContain('старый формат .xls');
+    }
+  });
+
+  it('батчи упали ПОСЛЕ успешной диагностики → parse_failed с записью в журнал', async () => {
+    FileOneCAdapter.mockImplementationOnce(() => ({
+      pullOrders: vi.fn().mockRejectedValue(new Error('db exploded')),
+      pullPayments: vi.fn(),
+      diagnostics: vi.fn().mockResolvedValue({
+        sheetsFound: ['Контрагенты'],
+        sheetsExpected: ['Контрагенты', 'Реализации', 'Поступления'],
+        unmatchedHeaders: { Контрагенты: [] },
+        missingColumns: {},
+        duplicateSheets: {},
+      }),
+    }));
+    const result = await previewImport(fakePrisma, adminSession, { fileBuffer });
+    expect(result).toEqual({ ok: false, error: 'parse_failed' });
+    expect(logError).toHaveBeenCalledWith(
+      '[1c-import] не удалось разобрать файл',
+      expect.objectContaining({ message: 'db exploded' })
+    );
+  });
+
+  it('совпадающее расширение замечания не даёт', async () => {
+    runRecordBatch
+      .mockReset()
+      .mockResolvedValueOnce({ ...EMPTY_SUMMARY, pulled: 1 })
+      .mockResolvedValueOnce(EMPTY_SUMMARY);
+    const result = await previewImport(fakePrisma, adminSession, {
+      fileBuffer: Buffer.from('PK\x03\x04фейковый-zip'),
+      fileName: 'выгрузка.xlsx',
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.report.diagnostics.formatNote).toBeUndefined();
   });
 });

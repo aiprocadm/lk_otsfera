@@ -196,6 +196,14 @@ describe('Test 1 — Excel import attaches order to org by INN', () => {
           orderRef: EXCEL_ORDER_EXT, // linked to the order by externalId ref
         },
       ],
+      // Этап 3: сервис требует диагностику с распознанными листами (гард Т-11/Т-12).
+      diagnostics: {
+        sheetsFound: ['Реализации', 'Поступления'],
+        sheetsExpected: ['Контрагенты', 'Реализации', 'Поступления'],
+        unmatchedHeaders: { Реализации: [], Поступления: [] },
+        missingColumns: {},
+        duplicateSheets: {},
+      },
     });
 
     // Act: fileBuffer can be anything — parse-workbook is mocked.
@@ -348,6 +356,14 @@ describe('Test 3 — Manager scope: order is skipped when org is out of scope', 
           },
         ],
         payments: [],
+        // Этап 3: сервис требует диагностику с распознанными листами (гард Т-11/Т-12).
+        diagnostics: {
+          sheetsFound: ['Реализации', 'Поступления'],
+          sheetsExpected: ['Контрагенты', 'Реализации', 'Поступления'],
+          unmatchedHeaders: { Реализации: [], Поступления: [] },
+          missingColumns: {},
+          duplicateSheets: {},
+        },
       });
 
       const result = await commitImport(prisma, managerSession, { fileBuffer: Buffer.from('x') });

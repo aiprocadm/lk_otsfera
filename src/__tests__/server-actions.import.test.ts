@@ -128,8 +128,19 @@ describe('commitImportAction — file guard', () => {
     expect(commitImport).not.toHaveBeenCalled();
   });
 
-  it('returns invalid_file for a non-.xlsx file', async () => {
+  it('этап 3 (Т-13): .xls теперь принимается и уходит в сервис с именем файла', async () => {
+    commitImport.mockResolvedValue({ ok: false, error: 'empty' });
     const file = new File([new Uint8Array(4)], 'data.xls', { type: 'application/vnd.ms-excel' });
+    await commitImportAction(fd({ file }));
+    expect(commitImport).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ fileName: 'data.xls' })
+    );
+  });
+
+  it('файл с чужим расширением по-прежнему отвергается', async () => {
+    const file = new File([new Uint8Array(4)], 'data.mxl');
     const result = await commitImportAction(fd({ file }));
     expect(result).toEqual({ ok: false, error: 'invalid_file' });
     expect(commitImport).not.toHaveBeenCalled();

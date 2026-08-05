@@ -11,10 +11,10 @@ vi.mock('@/server-actions/import', () => ({
 import { ImportForm } from '@/components/import/import-form';
 
 describe('ImportForm (SSR structural contract)', () => {
-  it('renders a file input accepting .xlsx', () => {
+  it('renders a file input accepting .xls and .xlsx (Т-13)', () => {
     const html = renderToString(React.createElement(ImportForm));
     expect(html).toContain('type="file"');
-    expect(html).toContain('accept=".xlsx"');
+    expect(html).toContain('accept=".xls,.xlsx"');
     expect(html).toContain('data-testid="import-file-input"');
   });
 
@@ -41,7 +41,7 @@ describe('ImportForm (SSR structural contract)', () => {
   it('renders Russian UI strings', () => {
     const html = renderToString(React.createElement(ImportForm));
     expect(html).toContain('Загрузить и проверить');
-    expect(html).toContain('Файл Excel (.xlsx, до 25 МБ)');
+    expect(html).toContain('Файл Excel (.xls или .xlsx, до 25 МБ)');
   });
 
   it('uses orange brand colour on primary button', () => {

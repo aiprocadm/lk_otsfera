@@ -110,7 +110,7 @@ describe('ImportForm (interactive, jsdom)', () => {
 
   it('preview failure (invalid_file / empty / parse_failed) map to their Russian messages', async () => {
     for (const [code, expected] of [
-      ['invalid_file', 'Выберите файл .xlsx (не более 25 МБ)'],
+      ['invalid_file', 'Выберите файл .xls или .xlsx (не более 25 МБ)'],
       ['empty', 'Файл пуст или нет валидных строк'],
       ['parse_failed', 'Не удалось разобрать файл'],
     ] as const) {
@@ -498,5 +498,89 @@ describe('ImportForm — сбой и слишком большой файл', ()
       ).toBe(true)
     );
     expect(commitImportAction).not.toHaveBeenCalled();
+  });
+});
+
+/** Этап 3: панель диагностики показывает недостающие колонки, дубли листов и формат. */
+describe('ImportForm — диагностика этапа 3', () => {
+  beforeEach(() => {
+    previewImportAction.mockReset();
+    commitImportAction.mockReset();
+  });
+
+  it('columns_not_recognized: перечислены недостающие колонки по листам', async () => {
+    previewImportAction.mockResolvedValue({
+      ok: false,
+      error: 'columns_not_recognized',
+      diagnostics: {
+        sheetsFound: ['Поступления'],
+        sheetsExpected: ['Контрагенты', 'Реализации', 'Поступления'],
+        unmatchedHeaders: { Поступления: [] },
+        missingColumns: { Поступления: ['Сумма', 'Дата'] },
+        duplicateSheets: {},
+      },
+    });
+    render(React.createElement(ImportForm));
+    pickFile(
+      screen.getByTestId('import-file-input') as HTMLInputElement,
+      new File(['x'], 'orders.xlsx')
+    );
+    fireEvent.submit(screen.getByTestId('import-file-input').closest('form') as HTMLFormElement);
+
+    const missing = await screen.findByTestId('diagnostics-missing-columns');
+    expect(missing.textContent).toContain('«Сумма»');
+    expect(missing.textContent).toContain('«Дата»');
+    expect(screen.getByRole('alert').textContent).toContain('обязательных колонок');
+  });
+
+  it('дубли листов и замечание о формате видны', async () => {
+    previewImportAction.mockResolvedValue({
+      ok: false,
+      error: 'empty',
+      diagnostics: {
+        sheetsFound: ['Контрагенты', 'Контрагенты (копия)'],
+        sheetsExpected: ['Контрагенты', 'Реализации', 'Поступления'],
+        unmatchedHeaders: { Контрагенты: [] },
+        missingColumns: {},
+        duplicateSheets: { Контрагенты: ['Контрагенты (копия)'] },
+        formatNote: 'Файл называется «в.xlsx», но внутри — старый формат .xls.',
+      },
+    });
+    render(React.createElement(ImportForm));
+    pickFile(
+      screen.getByTestId('import-file-input') as HTMLInputElement,
+      new File(['x'], 'в.xlsx')
+    );
+    fireEvent.submit(screen.getByTestId('import-file-input').closest('form') as HTMLFormElement);
+
+    expect((await screen.findByTestId('diagnostics-duplicate-sheets')).textContent).toContain(
+      'Контрагенты (копия)'
+    );
+    expect(screen.getByTestId('diagnostics-format-note').textContent).toContain(
+      'старый формат .xls'
+    );
+  });
+
+  it('диагностика этапа 1 (без новых полей) не роняет панель', async () => {
+    previewImportAction.mockResolvedValue({
+      ok: false,
+      error: 'empty',
+      diagnostics: {
+        sheetsFound: ['Контрагенты'],
+        sheetsExpected: ['Контрагенты', 'Реализации', 'Поступления'],
+        unmatchedHeaders: { Контрагенты: ['КПП'] },
+      },
+    });
+    render(React.createElement(ImportForm));
+    pickFile(
+      screen.getByTestId('import-file-input') as HTMLInputElement,
+      new File(['x'], 'orders.xlsx')
+    );
+    fireEvent.submit(screen.getByTestId('import-file-input').closest('form') as HTMLFormElement);
+
+    const panel = await screen.findByTestId('import-diagnostics');
+    expect(panel.textContent).toContain('«КПП»');
+    expect(screen.queryByTestId('diagnostics-missing-columns')).toBeNull();
+    expect(screen.queryByTestId('diagnostics-duplicate-sheets')).toBeNull();
   });
 });

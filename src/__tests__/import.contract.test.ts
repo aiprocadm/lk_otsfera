@@ -61,7 +61,10 @@ function makePrisma() {
 const DIAGNOSTICS = {
   sheetsFound: ['Контрагенты', 'Реализации', 'Поступления'],
   sheetsExpected: ['Контрагенты', 'Реализации', 'Поступления'],
-  unmatchedHeaders: {},
+  // Ключи — распознанные листы; пустые ключи означали бы sheets_not_recognized.
+  unmatchedHeaders: { Контрагенты: [], Реализации: [], Поступления: [] },
+  missingColumns: {},
+  duplicateSheets: {},
 };
 
 function makeAdapter(orders: unknown[], payments: unknown[]) {

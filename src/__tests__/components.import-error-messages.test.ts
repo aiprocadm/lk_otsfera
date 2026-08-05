@@ -34,9 +34,15 @@ describe('тексты ошибок импорта', () => {
     expect(XLSX_IMPORT_ERRORS.network_or_server).toContain(`${IMPORT_MAX_FILE_MB} МБ`);
   });
 
-  it('подсказки про формат у форм разные: одна ждёт только .xlsx', () => {
-    expect(XLSX_IMPORT_ERRORS.invalid_file).not.toContain('.xls ');
+  it('с этапа 3 обе формы принимают .xls (Т-13)', () => {
+    expect(XLSX_IMPORT_ERRORS.invalid_file).toContain('.xls или .xlsx');
     expect(PAYMENT_IMPORT_ERRORS.invalid_file).toContain('.xls или .xlsx');
+  });
+
+  it('новые коды этапа 3 отсылают к блоку диагностики или объясняют формат', () => {
+    expect(XLSX_IMPORT_ERRORS.sheets_not_recognized).toContain('лист');
+    expect(XLSX_IMPORT_ERRORS.columns_not_recognized).toContain('колонок');
+    expect(XLSX_IMPORT_ERRORS.format_mismatch).toContain('не похоже на файл Excel');
   });
 
   it('неизвестный код показывается как есть, а не проглатывается', () => {

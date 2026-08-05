@@ -3,8 +3,9 @@ import { IMPORT_MAX_FILE_MB } from '@/lib/config/import-limits';
 /**
  * Тексты ошибок обеих форм импорта (ТЗ починки импорта, Т-7).
  *
- * Список кодов один, а карты две: страница «Загрузка Excel» принимает только
- * `.xlsx`, страница выписки — ещё и `.xls`, поэтому подсказки разные.
+ * Список кодов один, а карты две: тексты «пустого файла» у страниц разные
+ * (валидные строки против строк-операций). С этапа 3 обе страницы принимают
+ * и `.xls`, и `.xlsx`.
  * `Record<ImportErrorCode, string>` намеренно exhaustive: новый код без текста
  * не соберётся, а не покажется пользователю как «Ошибка: parse_failed».
  *
@@ -15,6 +16,9 @@ export const IMPORT_ERROR_CODES = [
   'forbidden',
   'invalid_file',
   'file_too_large',
+  'format_mismatch',
+  'sheets_not_recognized',
+  'columns_not_recognized',
   'empty',
   'parse_failed',
   'network_or_server',
@@ -27,12 +31,20 @@ const SHARED = {
   forbidden: 'Недостаточно прав',
   file_too_large: `Файл больше предела в ${IMPORT_MAX_FILE_MB} МБ. Выгрузите период поменьше (например, по кварталам) и загрузите файлы по очереди.`,
   parse_failed: 'Не удалось разобрать файл',
+  // Т-14: содержимое — не книга Excel (например .mxl или PDF под чужим именем).
+  format_mismatch:
+    'Это не похоже на файл Excel. Проверьте, что выгружали из 1С именно «Лист Excel 2007-…(xlsx)», а не .mxl или PDF.',
+  // Т-11/Т-12: подробности — в блоке «Что увидела система в файле» под формой.
+  sheets_not_recognized:
+    'Не распознан ни один лист. Ниже показано, какие листы есть в файле и какие ожидаются.',
+  columns_not_recognized:
+    'В файле не хватает обязательных колонок — их список в блоке «Что увидела система в файле».',
   network_or_server: `Сервер не принял файл. Проверьте размер (до ${IMPORT_MAX_FILE_MB} МБ) и попробуйте ещё раз. Если файл заведомо меньше — повторите через минуту.`,
 } as const;
 
 export const XLSX_IMPORT_ERRORS: Record<ImportErrorCode, string> = {
   ...SHARED,
-  invalid_file: `Выберите файл .xlsx (не более ${IMPORT_MAX_FILE_MB} МБ)`,
+  invalid_file: `Выберите файл .xls или .xlsx (не более ${IMPORT_MAX_FILE_MB} МБ)`,
   empty: 'Файл пуст или нет валидных строк',
 };
 
