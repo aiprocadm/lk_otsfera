@@ -125,6 +125,7 @@ describe('syncOrganizationsProcessor live mode', () => {
 
     expect(orgCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({ companyId: 'co-sync' }),
+      select: { id: true },
     });
     expect(result.created).toBeGreaterThan(0);
     const logArg = (db.syncLog.create as ReturnType<typeof vi.fn>).mock.calls[0][0];

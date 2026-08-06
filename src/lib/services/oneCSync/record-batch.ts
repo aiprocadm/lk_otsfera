@@ -31,7 +31,9 @@ export async function runRecordBatch<T>(
   raw: unknown[],
   schema: ZodType<T>,
   getExternalId: (r: T) => string,
-  handler: (r: T, summary: BatchSummary) => Promise<void>
+  // Promise<unknown>: writer'ы с этапа 8 возвращают WriteOutcome (Т-34) —
+  // батчу результат не нужен, его собирает замыкание вызывающего.
+  handler: (r: T, summary: BatchSummary) => Promise<unknown>
 ): Promise<BatchSummary> {
   const summary = emptySummary();
   summary.pulled = raw.length;

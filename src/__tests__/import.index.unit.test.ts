@@ -35,9 +35,11 @@ vi.mock('@/lib/logging', () => ({ log: { error: logError, warn: vi.fn(), info: v
 vi.mock('@/lib/services/oneCSync/record-batch', () => ({ runRecordBatch }));
 vi.mock('@/lib/services/oneCSync/adapter-file', () => ({ FileOneCAdapter }));
 vi.mock('@/lib/services/oneCSync/scope', () => ({ importScope }));
+// Этап 8: результат writer-а собирается в историю — мок доступен по имени.
+const { upsertOrgRecordMock } = vi.hoisted(() => ({ upsertOrgRecordMock: vi.fn() }));
 vi.mock('@/lib/services/oneCSync/writers', () => ({
   upsertOrderRecord: vi.fn(),
-  upsertOrgRecord: vi.fn(),
+  upsertOrgRecord: upsertOrgRecordMock,
   upsertPaymentRecord: vi.fn(),
 }));
 vi.mock('@/lib/services/oneCSync/schemas', () => ({
@@ -391,5 +393,107 @@ describe('этап 6 — компания для новых организаци
     });
     expect(result).toMatchObject({ ok: false, error: 'company_required' });
     expect(runRecordBatch).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Этап 8 (Т-32/Т-33): история импорта. Батч пишется после успешного live-прогона;
+ * предпросмотр историю не ведёт; отказ записи — non-blocking (§4.4 спеки).
+ */
+describe('этап 8 — история импорта (Т-33)', () => {
+  const EMPTY = { pulled: 0, created: 0, updated: 0, skipped: 0, invalid: 0, failed: 0 };
+  function historyPrisma() {
+    return {
+      oneCImportBatch: { create: vi.fn().mockResolvedValue({ id: 'batch-1' }) },
+      oneCImportRow: { createMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    } as never;
+  }
+
+  it('commitImport пишет батч (кто/файл/счётчики/статус) и строки из результатов writer-ов', async () => {
+    const prisma = historyPrisma();
+    // runRecordBatch зовёт обработчик — результат writer-а попадает в строки истории.
+    upsertOrgRecordMock
+      .mockResolvedValueOnce({
+        entityId: 'org-1',
+        action: 'updated',
+        before: { name: 'Старое' },
+      })
+      .mockResolvedValueOnce({ entityId: 'org-2', action: 'created' });
+    runRecordBatch
+      .mockReset()
+      .mockImplementationOnce(async (_raw: unknown[], _s: never, _g: never, handler: never) => {
+        const h = handler as (r: unknown, s: unknown) => Promise<void>;
+        await h({ externalId: 'x' }, {});
+        await h({ externalId: 'y' }, {});
+        return { ...EMPTY, pulled: 2, updated: 1, created: 1 };
+      })
+      .mockResolvedValueOnce({ ...EMPTY, pulled: 0 })
+      .mockResolvedValueOnce({ ...EMPTY, pulled: 0 });
+
+    const result = await commitImport(prisma, adminSession, {
+      fileBuffer,
+      fileName: 'история.xlsx',
+    });
+    expect(result).toMatchObject({ ok: true });
+
+    const batchArg = (prisma as { oneCImportBatch: { create: ReturnType<typeof vi.fn> } })
+      .oneCImportBatch.create.mock.calls[0][0];
+    expect(batchArg.data).toMatchObject({
+      importedById: 'u-admin',
+      fileName: 'история.xlsx',
+      status: 'committed',
+    });
+    expect(batchArg.data.counts.orgs).toMatchObject({ pulled: 2, updated: 1, created: 1 });
+
+    const rowsArg = (prisma as { oneCImportRow: { createMany: ReturnType<typeof vi.fn> } })
+      .oneCImportRow.createMany.mock.calls[0][0];
+    expect(rowsArg.data).toEqual([
+      {
+        batchId: 'batch-1',
+        entity: 'organization',
+        entityId: 'org-1',
+        action: 'updated',
+        before: { name: 'Старое' },
+      },
+      // created — без before (снимок только у updated, Т-33).
+      {
+        batchId: 'batch-1',
+        entity: 'organization',
+        entityId: 'org-2',
+        action: 'created',
+      },
+    ]);
+  });
+
+  it('previewImport историю НЕ пишет', async () => {
+    const prisma = historyPrisma();
+    const result = await previewImport(prisma, adminSession, { fileBuffer });
+    expect(result).toMatchObject({ ok: true });
+    expect(
+      (prisma as { oneCImportBatch: { create: ReturnType<typeof vi.fn> } }).oneCImportBatch.create
+    ).not.toHaveBeenCalled();
+  });
+
+  it('отказ записи истории не роняет применённый импорт: ok + log.error (§4.4)', async () => {
+    const prisma = {
+      oneCImportBatch: { create: vi.fn().mockRejectedValue(new Error('history db down')) },
+      oneCImportRow: { createMany: vi.fn() },
+    } as never;
+    const result = await commitImport(prisma, adminSession, { fileBuffer });
+    expect(result).toMatchObject({ ok: true });
+    expect(logError).toHaveBeenCalledWith(
+      expect.stringContaining('история батча не записана'),
+      expect.objectContaining({ message: 'history db down' })
+    );
+  });
+
+  it('пустой список строк не зовёт createMany (нечего писать)', async () => {
+    const prisma = historyPrisma();
+    const result = await commitImport(prisma, adminSession, { fileBuffer });
+    expect(result).toMatchObject({ ok: true });
+    expect(
+      (prisma as { oneCImportRow: { createMany: ReturnType<typeof vi.fn> } }).oneCImportRow
+        .createMany
+    ).not.toHaveBeenCalled();
   });
 });
