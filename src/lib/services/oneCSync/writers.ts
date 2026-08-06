@@ -17,6 +17,12 @@ export type WriteCtx = {
   mode: OneCMode;
   notify: boolean;
   scope?: ImportScope;
+  /**
+   * Компания для НОВЫХ организаций (Т-41): admin передаёт выбор из формы
+   * импорта, воркер — `ONE_C_COMPANY_ID` из конфига. Для скоупа `company`
+   * поле игнорируется — компания руководителя всегда побеждает (C8).
+   */
+  createCompanyId?: string;
   bump?: (iso: string) => void;
 };
 const isLive = (c: WriteCtx) => c.mode === 'live';
@@ -34,16 +40,15 @@ export function orgInScope(
 }
 
 /**
- * May this scope mint a BRAND-NEW org — which necessarily also mints a NEW Company
- * (upsertOrgRecord's create branch)? Only the unscoped headless worker (scope
- * undefined) or an admin (kind:'global', Model A) may. A company- or org-scoped
- * actor (manager-leader / plain manager) creating here would attach the org to a
- * new company that is, by construction, NOT their own — a cross-company write. This
- * writer has no "create in my own company" path, so scoped actors are denied
- * outright (C8). Mirrors the intent of the pre-#192 `mayCreateOrgs` flag.
+ * May this scope create a BRAND-NEW org? Since stage 6 (Т-41/Т-43) creation no
+ * longer mints a Company: the new org is attached to an existing one — the
+ * leader's own for kind:'company' (C8 holds: the write stays INSIDE their
+ * tenant), the form-selected/configured one for admin (kind:'global', Model A)
+ * and the unscoped headless worker. Only an orgs-scoped actor (plain manager)
+ * is still denied: creating would silently widen their assigned-orgs scope.
  */
 export function mayCreateOrg(scope: ImportScope | undefined): boolean {
-  return !scope || scope.kind === 'global';
+  return !scope || scope.kind === 'global' || scope.kind === 'company';
 }
 
 export async function upsertOrderRecord(
@@ -342,26 +347,32 @@ export async function upsertOrgRecord(
     sum.updated += 1;
     ctx.bump?.(dto.updatedAt);
   } else {
-    // C8: creating a brand-new org mints a NEW company (cross-company by
-    // construction) — only admin/global or the unscoped worker may create.
     if (!mayCreateOrg(ctx.scope)) {
       sum.skipped += 1;
       sum.skips.push({ externalId: input.externalId, reason: 'out_of_scope' });
       return;
     }
+    // Т-41: организация создаётся в СУЩЕСТВУЮЩЕЙ компании — минт Company на
+    // каждого контрагента удалён (дефект §0.2). Скоуп `company` побеждает
+    // всегда: руководитель создаёт строго в своей компании (C8), подсунуть
+    // чужую через createCompanyId нельзя.
+    const companyId =
+      ctx.scope?.kind === 'company' ? ctx.scope.companyId : (ctx.createCompanyId ?? null);
+    if (!companyId) {
+      sum.failed += 1;
+      sum.failures.push({ externalId: input.externalId, error: 'company_not_configured' });
+      return;
+    }
     if (isLive(ctx)) {
-      await db.$transaction(async (tx) => {
-        const company = await tx.company.create({ data: { name: input.name } });
-        await tx.organization.create({
-          data: {
-            externalId: input.externalId,
-            name: input.name,
-            inn: input.inn,
-            kpp: input.kpp,
-            partnerId,
-            companyId: company.id,
-          },
-        });
+      await db.organization.create({
+        data: {
+          externalId: input.externalId,
+          name: input.name,
+          inn: input.inn,
+          kpp: input.kpp,
+          partnerId,
+          companyId,
+        },
       });
     }
     sum.created += 1;

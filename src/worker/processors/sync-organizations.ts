@@ -13,7 +13,7 @@ import {
   batchStatus,
   type BatchSummary,
 } from '@/lib/services/oneCSync/record-batch';
-import { oneCMode } from '@/lib/services/oneCSync/config';
+import { oneCMode, oneCDefaultCompanyId } from '@/lib/services/oneCSync/config';
 import { upsertOrgRecord } from '@/lib/services/oneCSync/writers';
 import { capturePendingSkips, replayPendingRecords } from '@/lib/services/oneCSync/pending';
 import { log } from '@/lib/logging';
@@ -42,11 +42,27 @@ export async function syncOrganizationsProcessor(
       if (!maxUpdatedAt || t > maxUpdatedAt) maxUpdatedAt = t;
     };
 
+    // Т-41: у воркера нет сессии — компанию для НОВЫХ организаций даёт конфиг.
+    // Не задана → каждая строка, требующая создания, честно падает
+    // `company_not_configured` (обновления существующих продолжают идти),
+    // а не минтит тенант молча (дефект §0.2).
+    const createCompanyId = oneCDefaultCompanyId();
+    if (!createCompanyId && raw.length > 0) {
+      log.error(
+        '[sync-organizations] ONE_C_COMPANY_ID не задан — новые организации создаваться не будут'
+      );
+    }
     const summary = await runRecordBatch<OneCOrgDto>(
       raw,
       OneCOrgSchema,
       (dto) => dto.externalId,
-      (dto, sum) => upsertOrgRecord(db, dto, sum, { mode, notify: true, bump })
+      (dto, sum) =>
+        upsertOrgRecord(db, dto, sum, {
+          mode,
+          notify: true,
+          bump,
+          ...(createCompanyId ? { createCompanyId } : {}),
+        })
     );
 
     if (mode === 'live') await advanceCursor(db, 'organization', maxUpdatedAt);

@@ -214,21 +214,45 @@ describe('upsertOrgRecord', () => {
         findUnique: vi.fn().mockResolvedValue(null),
         findFirst: vi.fn().mockResolvedValue(null),
         update: vi.fn(),
+        create: vi.fn(),
       },
-      $transaction: vi.fn(async (cb: any) =>
-        cb({
-          company: { create: vi.fn().mockResolvedValue({ id: 'co1' }) },
-          organization: { create: vi.fn() },
-        })
-      ),
       ...over,
     } as any;
   }
-  it('creates company+org for a new org with a resolvable partner (live)', async () => {
+  // Этап 6 (Т-41): Company больше не минтится — организация создаётся в
+  // переданной компании одним organization.create, без транзакции.
+  it('создаёт организацию в переданной компании (live, Т-41)', async () => {
+    const d = odb();
+    const sum = emptySummary();
+    await upsertOrgRecord(d, orgDto, sum, { mode: 'live', notify: false, createCompanyId: 'co1' });
+    expect(d.organization.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ companyId: 'co1', partnerId: 'p1' }),
+    });
+    expect(sum.created).toBe(1);
+  });
+  it('нет ни скоупа company, ни createCompanyId → failed: company_not_configured', async () => {
     const d = odb();
     const sum = emptySummary();
     await upsertOrgRecord(d, orgDto, sum, { mode: 'live', notify: false });
-    expect(d.$transaction).toHaveBeenCalled();
+    expect(sum.failed).toBe(1);
+    expect(sum.failures[0]).toMatchObject({
+      externalId: 'ORG-1',
+      error: 'company_not_configured',
+    });
+    expect(d.organization.create).not.toHaveBeenCalled();
+  });
+  it('скоуп company побеждает createCompanyId — руководитель создаёт строго в своей (C8)', async () => {
+    const d = odb();
+    const sum = emptySummary();
+    await upsertOrgRecord(d, orgDto, sum, {
+      mode: 'live',
+      notify: false,
+      scope: { kind: 'company', companyId: 'co-own' },
+      createCompanyId: 'co-foreign',
+    });
+    expect(d.organization.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ companyId: 'co-own' }),
+    });
     expect(sum.created).toBe(1);
   });
   it('skips when partner not found', async () => {
@@ -237,7 +261,7 @@ describe('upsertOrgRecord', () => {
     await upsertOrgRecord(d, orgDto, sum, { mode: 'live', notify: false });
     expect(sum.skipped).toBe(1);
     expect(sum.skips[0]).toMatchObject({ reason: 'partner_not_found' });
-    expect(d.$transaction).not.toHaveBeenCalled();
+    expect(d.organization.create).not.toHaveBeenCalled();
   });
   it('updates existing org (live), shadow writes nothing', async () => {
     const d = odb({
@@ -273,11 +297,12 @@ describe('upsertOrgRecord', () => {
         findUnique: vi.fn().mockResolvedValue(null), // no externalId match
         findFirst: vi.fn().mockResolvedValue({ id: 'o-inn', companyId: 'co1', externalId: null }), // INN match, no externalId yet
         update: vi.fn(),
+        create: vi.fn(),
       },
     });
     const sum = emptySummary();
     await upsertOrgRecord(d, orgDto, sum, { mode: 'live', notify: false });
-    expect(d.$transaction).not.toHaveBeenCalled();
+    expect(d.organization.create).not.toHaveBeenCalled();
     expect(d.organization.update).toHaveBeenCalledWith({
       where: { id: 'o-inn' },
       data: expect.objectContaining({ externalId: 'ORG-1', inn: '77', name: 'Acme' }),
@@ -294,11 +319,12 @@ describe('upsertOrgRecord', () => {
           .fn()
           .mockResolvedValue({ id: 'o-inn', companyId: 'co1', externalId: 'E-OLD' }), // already has an externalId
         update: vi.fn(),
+        create: vi.fn(),
       },
     });
     const sum = emptySummary();
     await upsertOrgRecord(d, orgDto, sum, { mode: 'live', notify: false });
-    expect(d.$transaction).not.toHaveBeenCalled();
+    expect(d.organization.create).not.toHaveBeenCalled();
     const data = d.organization.update.mock.calls[0][0].data;
     expect('externalId' in data).toBe(false); // preserve E-OLD, never clobber
     expect(data).toMatchObject({ inn: '77', name: 'Acme' });
@@ -1117,22 +1143,17 @@ describe('upsertOrgRecord — additional branch coverage', () => {
         findUnique: vi.fn().mockResolvedValue(null),
         findFirst: vi.fn().mockResolvedValue(null),
         update: vi.fn(),
+        create: orgCreate,
       },
-      $transaction: vi.fn(async (cb: any) =>
-        cb({
-          company: { create: vi.fn().mockResolvedValue({ id: 'co1' }) },
-          organization: { create: orgCreate },
-        })
-      ),
     } as any;
     const sum = emptySummary();
-    await upsertOrgRecord(d, orgDto, sum, { mode: 'live', notify: false });
+    await upsertOrgRecord(d, orgDto, sum, { mode: 'live', notify: false, createCompanyId: 'co1' });
     expect(sum.created).toBe(1);
     expect(sum.skips).toEqual([]);
     // Партнёрский поиск даже не выполнялся — искать нечего.
     expect(d.partner.findFirst).not.toHaveBeenCalled();
     expect(orgCreate).toHaveBeenCalledWith({
-      data: expect.objectContaining({ partnerId: null }),
+      data: expect.objectContaining({ partnerId: null, companyId: 'co1' }),
     });
   });
 
@@ -1146,17 +1167,12 @@ describe('upsertOrgRecord — additional branch coverage', () => {
         findUnique: vi.fn().mockResolvedValue(null),
         findFirst: vi.fn().mockResolvedValue(null),
         update: vi.fn(),
+        create: vi.fn(),
       },
-      $transaction: vi.fn(async (cb: any) =>
-        cb({
-          company: { create: vi.fn().mockResolvedValue({ id: 'co1' }) },
-          organization: { create: vi.fn() },
-        })
-      ),
     } as any;
     const sum = emptySummary();
     const dto = { ...orgDto, partnerExternalId: ' 7712 345 678 ' } as any;
-    await upsertOrgRecord(d, dto, sum, { mode: 'live', notify: false });
+    await upsertOrgRecord(d, dto, sum, { mode: 'live', notify: false, createCompanyId: 'co1' });
     expect(findFirst).toHaveBeenCalledWith({
       where: { OR: [{ inn: '7712345678' }, { slug: '7712 345 678' }] },
       select: { id: true },
@@ -1164,7 +1180,7 @@ describe('upsertOrgRecord — additional branch coverage', () => {
     expect(sum.created).toBe(1);
   });
 
-  it('shadow mode: skips $transaction and counts created', async () => {
+  it('shadow mode: не пишет, но честно считает created', async () => {
     const orgDtoWithPartner = { ...orgDto, partnerExternalId: 'p-slug' } as any;
     const d = {
       partner: { findFirst: vi.fn().mockResolvedValue({ id: 'p1' }) },
@@ -1172,12 +1188,16 @@ describe('upsertOrgRecord — additional branch coverage', () => {
         findUnique: vi.fn().mockResolvedValue(null),
         findFirst: vi.fn().mockResolvedValue(null),
         update: vi.fn(),
+        create: vi.fn(),
       },
-      $transaction: vi.fn(),
     } as any;
     const sum = emptySummary();
-    await upsertOrgRecord(d, orgDtoWithPartner, sum, { mode: 'shadow', notify: false });
-    expect(d.$transaction).not.toHaveBeenCalled();
+    await upsertOrgRecord(d, orgDtoWithPartner, sum, {
+      mode: 'shadow',
+      notify: false,
+      createCompanyId: 'co1',
+    });
+    expect(d.organization.create).not.toHaveBeenCalled();
     expect(sum.created).toBe(1);
   });
 
@@ -1189,7 +1209,6 @@ describe('upsertOrgRecord — additional branch coverage', () => {
         findUnique: vi.fn().mockResolvedValue({ id: 'o1', companyId: 'co1' }),
         update: vi.fn(),
       },
-      $transaction: vi.fn(),
     } as any;
     const sum = emptySummary();
     const bump = vi.fn();
@@ -1206,17 +1225,17 @@ describe('upsertOrgRecord — additional branch coverage', () => {
         findUnique: vi.fn().mockResolvedValue(null),
         findFirst: vi.fn().mockResolvedValue(null),
         update: vi.fn(),
+        create: vi.fn(),
       },
-      $transaction: vi.fn(async (cb: any) =>
-        cb({
-          company: { create: vi.fn().mockResolvedValue({ id: 'co1' }) },
-          organization: { create: vi.fn() },
-        })
-      ),
     } as any;
     const sum = emptySummary();
     const bump = vi.fn();
-    await upsertOrgRecord(d, orgDtoWithPartner, sum, { mode: 'live', notify: false, bump });
+    await upsertOrgRecord(d, orgDtoWithPartner, sum, {
+      mode: 'live',
+      notify: false,
+      bump,
+      createCompanyId: 'co1',
+    });
     expect(bump).toHaveBeenCalledWith(orgDtoWithPartner.updatedAt);
   });
 });

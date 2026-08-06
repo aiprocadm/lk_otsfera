@@ -31,6 +31,9 @@ const PARTNER_SLUG = FAKE_ORGS[0].partnerExternalId!;
 
 let prisma: PrismaClient;
 let partnerId: string;
+// Этап 6 (Т-41): организации больше не минтят Company — воркер кладёт их в
+// компанию из ONE_C_COMPANY_ID. Тест заводит её сам.
+let syncCompanyId: string;
 
 function job(): Job<SyncJobPayload> {
   return {
@@ -54,7 +57,11 @@ async function cleanupOrgs() {
     select: { id: true, companyId: true },
   });
   const orgIds = orgs.map((o) => o.id);
-  const companyIds = orgs.map((o) => o.companyId).filter((id): id is string => Boolean(id));
+  // Общую компанию синка (ONE_C_COMPANY_ID) между тестами не трогаем — в неё
+  // будут создаваться организации следующих прогонов.
+  const companyIds = orgs
+    .map((o) => o.companyId)
+    .filter((id): id is string => Boolean(id) && id !== syncCompanyId);
   if (orgIds.length) {
     // OrganizationUser must die before its parent Organization — seed may have
     // left memberships for org@demo.local in these orgs.
@@ -173,6 +180,11 @@ beforeAll(async () => {
   process.env.ONE_C_ADAPTER = 'fake';
   resetOneCAdapter();
   prisma = new PrismaClient();
+  const syncCompany = await prisma.company.create({
+    data: { name: 'OneCSyncTestCompany-' + Date.now() },
+  });
+  syncCompanyId = syncCompany.id;
+  process.env.ONE_C_COMPANY_ID = syncCompanyId;
   await deleteStalePartner();
   await cleanupAll();
   const partner = await prisma.partner.create({
@@ -182,11 +194,15 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  delete process.env.ONE_C_COMPANY_ID;
   await prisma.syncLog.deleteMany({
     where: { entity: { in: ['organization', 'order', 'payment', 'document'] } },
   });
   await prisma.syncState.deleteMany({});
   await deletePartnerCascade(partnerId);
+  // Каскад партнёра удаляет компании его организаций (включая общую компанию
+  // синка); страховка — если организаций к этому моменту уже не было.
+  await prisma.company.deleteMany({ where: { id: syncCompanyId } });
   resetOneCAdapter();
   await prisma.$disconnect();
 });
@@ -198,13 +214,16 @@ beforeEach(async () => {
 });
 
 describe('syncOrganizationsProcessor', () => {
-  it('creates orgs with resolved partner and auto-created companies', async () => {
+  it('creates orgs with resolved partner in the configured company (Т-41: no Company mint)', async () => {
     await cleanupAll();
+    const companiesBefore = await prisma.company.count();
     const result = await syncOrganizationsProcessor(job(), prisma);
 
     expect(result.pulled).toBe(FAKE_ORGS.length);
     expect(result.created).toBe(FAKE_ORGS.length);
     expect(result.skipped).toBe(0);
+    // Guardrail Т-44 и для сетевого пути: ни одной новой Company.
+    expect(await prisma.company.count()).toBe(companiesBefore);
 
     const orgs = await prisma.organization.findMany({
       where: { externalId: { in: FAKE_ORG_EXTERNAL_IDS } },
@@ -213,7 +232,7 @@ describe('syncOrganizationsProcessor', () => {
     expect(orgs).toHaveLength(FAKE_ORGS.length);
     for (const org of orgs) {
       expect(org.partnerId).toBe(partnerId);
-      expect(org.companyId).toBeTruthy();
+      expect(org.companyId).toBe(syncCompanyId);
       expect(org.inn).toBeTruthy();
     }
   });

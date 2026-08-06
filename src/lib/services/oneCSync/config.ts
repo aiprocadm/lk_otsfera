@@ -14,6 +14,17 @@ export function oneCCursorOverlapMinutes(): number {
   return Number.isFinite(raw) && raw >= 0 ? raw : 5;
 }
 
+/**
+ * Компания для организаций, создаваемых СЕТЕВОЙ синхронизацией (Т-41): у
+ * воркера нет сессии и скоупа, поэтому компания задаётся конфигом. Не задана →
+ * null: writer отбивает создание явной построчной ошибкой
+ * `company_not_configured`, а не минтит тенант молча (дефект §0.2).
+ */
+export function oneCDefaultCompanyId(): string | null {
+  const raw = (process.env.ONE_C_COMPANY_ID ?? '').trim();
+  return raw.length > 0 ? raw : null;
+}
+
 /** Max replay attempts before a pending record is dead-lettered. */
 export function oneCPendingMaxAttempts(): number {
   const raw = Number(process.env.ONE_C_PENDING_MAX_ATTEMPTS);

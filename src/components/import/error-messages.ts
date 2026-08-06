@@ -19,6 +19,7 @@ export const IMPORT_ERROR_CODES = [
   'format_mismatch',
   'sheets_not_recognized',
   'columns_not_recognized',
+  'company_required',
   'empty',
   'parse_failed',
   'network_or_server',
@@ -40,6 +41,9 @@ const SHARED = {
   columns_not_recognized:
     'В файле не хватает обязательных колонок — их список в блоке «Что увидела система в файле».',
   network_or_server: `Сервер не принял файл. Проверьте размер (до ${IMPORT_MAX_FILE_MB} МБ) и попробуйте ещё раз. Если файл заведомо меньше — повторите через минуту.`,
+  // Т-41: admin без выбранной компании — новые организации некуда привязывать.
+  company_required:
+    'Выберите компанию для новых организаций — в системе их несколько, и без выбора импорт не знает, куда привязать новых контрагентов.',
 } as const;
 
 export const XLSX_IMPORT_ERRORS: Record<ImportErrorCode, string> = {

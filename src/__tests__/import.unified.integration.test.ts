@@ -207,7 +207,11 @@ describe('Test 1 — Excel import attaches order to org by INN', () => {
     });
 
     // Act: fileBuffer can be anything — parse-workbook is mocked.
-    const result = await commitImport(prisma, adminSession, { fileBuffer: Buffer.from('x') });
+    // Т-41: admin (глобальный скоуп) обязан назвать компанию — в общей базе их много.
+    const result = await commitImport(prisma, adminSession, {
+      fileBuffer: Buffer.from('x'),
+      companyId,
+    });
 
     // Assert: import succeeded
     expect(result.ok).toBe(true);

@@ -608,3 +608,91 @@ describe('ImportForm — диагностика этапа 3', () => {
     expect(screen.queryByTestId('diagnostics-duplicate-sheets')).toBeNull();
   });
 });
+
+/**
+ * Этап 6 (Т-41): выбор компании для НОВЫХ организаций. Селект — только у
+ * админа с несколькими компаниями; единственная подставляется молча; страницы
+ * менеджера/руководителя проп не передают, и блока нет вовсе.
+ */
+describe('ImportForm — компания для новых организаций (Т-41)', () => {
+  const TWO = [
+    { id: 'co-a', name: 'Альфа' },
+    { id: 'co-b', name: 'Бета' },
+  ];
+  const okReport = {
+    ok: true,
+    report: { orgs: emptySummary(), orders: emptySummary(), payments: emptySummary() },
+  };
+
+  beforeEach(() => {
+    previewImportAction.mockReset().mockResolvedValue(okReport);
+    commitImportAction.mockReset().mockResolvedValue(okReport);
+  });
+
+  it('несколько компаний: обязательный селект, выбор уходит в FormData предпросмотра и импорта', async () => {
+    render(React.createElement(ImportForm, { companies: TWO }));
+    const select = screen.getByTestId('import-company-select') as HTMLSelectElement;
+    expect(select.required).toBe(true);
+    expect([...select.options].map((o) => o.textContent)).toEqual([
+      '— выберите компанию —',
+      'Альфа',
+      'Бета',
+    ]);
+
+    fireEvent.change(select, { target: { value: 'co-b' } });
+    pickFile(
+      screen.getByTestId('import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
+    fireEvent.click(screen.getByTestId('import-preview-button'));
+    await screen.findByTestId('import-plan');
+    expect((previewImportAction.mock.calls[0][0] as FormData).get('companyId')).toBe('co-b');
+
+    fireEvent.click(screen.getByTestId('import-commit-button'));
+    await waitFor(() => expect(commitImportAction).toHaveBeenCalled());
+    expect((commitImportAction.mock.calls[0][0] as FormData).get('companyId')).toBe('co-b');
+  });
+
+  it('смена компании сбрасывает уже посчитанный план — он считался для другой', async () => {
+    render(React.createElement(ImportForm, { companies: TWO }));
+    const select = screen.getByTestId('import-company-select') as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: 'co-a' } });
+    pickFile(
+      screen.getByTestId('import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
+    fireEvent.click(screen.getByTestId('import-preview-button'));
+    await screen.findByTestId('import-plan');
+
+    fireEvent.change(select, { target: { value: 'co-b' } });
+    expect(screen.queryByTestId('import-plan')).toBeNull();
+  });
+
+  it('единственная компания: селекта нет, подпись есть, companyId уходит сам', async () => {
+    render(React.createElement(ImportForm, { companies: [{ id: 'co-solo', name: 'Соло' }] }));
+    expect(screen.queryByTestId('import-company-select')).toBeNull();
+    expect(screen.getByTestId('import-company-single').textContent).toContain('Соло');
+
+    pickFile(
+      screen.getByTestId('import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
+    fireEvent.click(screen.getByTestId('import-preview-button'));
+    await screen.findByTestId('import-plan');
+    expect((previewImportAction.mock.calls[0][0] as FormData).get('companyId')).toBe('co-solo');
+  });
+
+  it('без пропа companies (страницы менеджера/руководителя) блока нет и companyId не передаётся', async () => {
+    render(React.createElement(ImportForm));
+    expect(screen.queryByTestId('import-company-select')).toBeNull();
+    expect(screen.queryByTestId('import-company-single')).toBeNull();
+
+    pickFile(
+      screen.getByTestId('import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
+    fireEvent.click(screen.getByTestId('import-preview-button'));
+    await screen.findByTestId('import-plan');
+    expect((previewImportAction.mock.calls[0][0] as FormData).get('companyId')).toBeNull();
+  });
+});

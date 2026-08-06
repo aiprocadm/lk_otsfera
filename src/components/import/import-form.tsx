@@ -197,13 +197,22 @@ function EntitySummary({
   );
 }
 
-export function ImportForm() {
+/**
+ * `companies` передаёт только админская страница (Т-41): admin — Model A, своей
+ * компании не имеет, поэтому выбирает, куда привязывать НОВЫЕ организации.
+ * Руководителю/менеджеру компанию задаёт скоуп сессии — их страницы проп не
+ * передают, и блок не рендерится вовсе.
+ */
+export function ImportForm({ companies }: { companies?: Array<{ id: string; name: string }> }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [hasFile, setHasFile] = useState(false);
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [commitResult, setCommitResult] = useState<CommitResult | null>(null);
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isCommitting, setIsCommitting] = useState(false);
+  // Единственная компания в системе — она же по умолчанию, без вопроса (Т-41).
+  const single = companies?.length === 1 ? companies[0] : undefined;
+  const [companyId, setCompanyId] = useState(single?.id ?? '');
 
   function handleFileChange() {
     setHasFile(!!fileInputRef.current?.files?.length);
@@ -228,6 +237,7 @@ export function ImportForm() {
     try {
       const form = new FormData();
       form.set('file', file);
+      if (companyId) form.set('companyId', companyId);
       const result = await previewImportAction(form);
       setPreview(result as PreviewResult);
     } catch (e) {
@@ -251,6 +261,7 @@ export function ImportForm() {
     try {
       const form = new FormData();
       form.set('file', file);
+      if (companyId) form.set('companyId', companyId);
       const result = await commitImportAction(form);
       setCommitResult(result as CommitResult);
     } catch (e) {
@@ -284,6 +295,43 @@ export function ImportForm() {
             data-testid="import-file-input"
           />
         </div>
+
+        {/* Т-41: несколько компаний — выбор обязателен; смена выбора сбрасывает
+            уже посчитанный план (он считался для другой компании). */}
+        {companies && companies.length > 1 && (
+          <div>
+            <label
+              htmlFor="import-company"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Компания для новых организаций
+            </label>
+            <select
+              id="import-company"
+              required
+              value={companyId}
+              onChange={(e) => {
+                setCompanyId(e.target.value);
+                setPreview(null);
+                setCommitResult(null);
+              }}
+              className="block w-full text-sm text-gray-700 border border-gray-300 rounded px-3 py-2 bg-white"
+              data-testid="import-company-select"
+            >
+              <option value="">— выберите компанию —</option>
+              {companies.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        {single && (
+          <p className="text-xs text-gray-500" data-testid="import-company-single">
+            Новые организации попадут в компанию «{single.name}».
+          </p>
+        )}
 
         <button
           type="submit"

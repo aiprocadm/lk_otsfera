@@ -24,6 +24,11 @@ type Args = {
   fileBuffer: Buffer;
   /** Имя файла — только для замечания о расхождении расширения и содержимого (Т-14). */
   fileName?: string;
+  /**
+   * Компания для НОВЫХ организаций (Т-41) — выбор admin'а из формы. Для
+   * руководителя/менеджера игнорируется: их компанию задаёт скоуп сессии.
+   */
+  companyId?: string;
 };
 type Err =
   | 'forbidden'
@@ -31,6 +36,7 @@ type Err =
   | 'format_mismatch'
   | 'sheets_not_recognized'
   | 'columns_not_recognized'
+  | 'company_required'
   | 'empty';
 export type ImportReport = {
   orgs: BatchSummary;
@@ -106,7 +112,35 @@ async function run(
     return { ok: false, error: 'columns_not_recognized', diagnostics };
   }
 
-  const ctx: WriteCtx = { mode, notify: false, scope: importScope(session) };
+  // Т-41: admin (Model A, своей компании нет) обязан назвать компанию для
+  // НОВЫХ организаций. Передана → проверяем существование; не передана → при
+  // единственной компании в системе берём её без вопроса (буква Т-41), иначе —
+  // отказ ДО записей, одинаковый в предпросмотре и применении (план честный).
+  // Руководителю/менеджеру компанию задаёт скоуп — параметр игнорируется.
+  const scope = importScope(session);
+  let createCompanyId: string | undefined;
+  if (scope.kind === 'global') {
+    if (args.companyId) {
+      const company = await prisma.company.findUnique({
+        where: { id: args.companyId },
+        select: { id: true },
+      });
+      if (!company) return { ok: false, error: 'company_required', diagnostics };
+      createCompanyId = company.id;
+    } else {
+      const companies = await prisma.company.findMany({ select: { id: true }, take: 2 });
+      const only = companies.length === 1 ? companies[0] : undefined;
+      if (!only) return { ok: false, error: 'company_required', diagnostics };
+      createCompanyId = only.id;
+    }
+  }
+
+  const ctx: WriteCtx = {
+    mode,
+    notify: false,
+    scope,
+    ...(createCompanyId ? { createCompanyId } : {}),
+  };
   let report: ImportReport;
   try {
     // Т-17: организации ПЕРВЫМИ — заказ из того же файла находит свою

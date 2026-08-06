@@ -32,6 +32,12 @@ import { previewImport, commitImport } from '@/lib/services/import';
 // A minimal prisma mock with the methods resolveOrganizationRef + writers call
 function makePrisma() {
   return {
+    // Т-41: admin (глобальный скоуп) резолвит компанию для новых организаций;
+    // одна компания в системе → берётся по умолчанию без параметра.
+    company: {
+      findUnique: vi.fn().mockResolvedValue({ id: 'co-1' }),
+      findMany: vi.fn().mockResolvedValue([{ id: 'co-1' }]),
+    },
     organization: {
       findFirst: vi
         .fn()
