@@ -1356,15 +1356,13 @@ describe('WriteOutcome (Т-34) — возврат результата writer-о
     const pdb = (existing: unknown = null) =>
       ({
         order: {
-          findUnique: vi
-            .fn()
-            .mockResolvedValue({
-              id: 'ord',
-              organizationId: 'o',
-              companyId: 'c',
-              orderNumber: 'O',
-              title: 't',
-            }),
+          findUnique: vi.fn().mockResolvedValue({
+            id: 'ord',
+            organizationId: 'o',
+            companyId: 'c',
+            orderNumber: 'O',
+            title: 't',
+          }),
         },
         payment: {
           findUnique: vi.fn().mockResolvedValue(existing),
