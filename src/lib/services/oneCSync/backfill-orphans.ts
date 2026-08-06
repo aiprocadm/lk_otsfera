@@ -23,7 +23,7 @@ export type OrphanCandidate = {
   ordersCount: number;
 };
 
-export type BackfillOutcome = {
+type BackfillOutcome = {
   companyId: string;
   companyName: string;
   ordersMoved: number;

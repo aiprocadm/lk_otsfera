@@ -44,6 +44,9 @@ async function main() {
     update: {},
     create: { id: 'demo-company', name: 'Demo LLC' },
   });
+  // Этап 6 (Т-41): create-ветка организаций требует компанию — fake-организации
+  // сида попадают в demo-company (раньше на каждую минтилась своя, дефект §0.2).
+  process.env.ONE_C_COMPANY_ID = company.id;
   const admin = await prisma.user.upsert({
     where: { email: 'admin@demo.local' },
     update: {},
