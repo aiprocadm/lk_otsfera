@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { FileOneCAdapter } from '@/lib/services/oneCSync/adapter-file';
 import {
@@ -12,6 +12,7 @@ import {
   upsertOrgRecord,
   upsertPaymentRecord,
   type WriteCtx,
+  type WriteOutcome,
 } from '@/lib/services/oneCSync/writers';
 import { importScope } from '@/lib/services/oneCSync/scope';
 import { mayImportOneC } from '@/lib/auth/managerPolicy';
@@ -46,6 +47,9 @@ export type ImportReport = {
   /** Что система увидела в файле (Т-3) — показывается и при успехе, и при ошибке. */
   diagnostics: ImportDiagnostics;
 };
+
+/** Строка истории импорта (Т-33): результат writer'а + вид сущности. */
+type HistoryRow = { entity: 'organization' | 'order' | 'payment' } & WriteOutcome;
 
 /**
  * Отказ разбора. Диагностика прикладывается везде, где книгу удалось открыть:
@@ -92,7 +96,9 @@ async function run(
   session: SessionPayload,
   args: Args,
   mode: 'shadow' | 'live'
-): Promise<{ ok: true; report: ImportReport } | Failure> {
+): Promise<
+  { ok: true; report: ImportReport; rows: HistoryRow[]; historyCompanyId: string | null } | Failure
+> {
   let adapter: FileOneCAdapter;
   let diagnostics: ImportDiagnostics;
   try {
@@ -141,6 +147,12 @@ async function run(
     scope,
     ...(createCompanyId ? { createCompanyId } : {}),
   };
+  // Т-33/Т-34: результаты writer'ов — сырьё истории импорта. В shadow writer'ы
+  // возвращают undefined (записи нет — откатывать нечего), массив пуст.
+  const rows: HistoryRow[] = [];
+  const collect = (entity: HistoryRow['entity'], outcome: WriteOutcome | undefined) => {
+    if (outcome) rows.push({ entity, ...outcome });
+  };
   let report: ImportReport;
   try {
     // Т-17: организации ПЕРВЫМИ — заказ из того же файла находит свою
@@ -151,27 +163,30 @@ async function run(
       orgsRaw,
       OneCOrgFileSchema,
       (d) => d.externalId,
-      (d, s) => upsertOrgRecord(prisma, d, s, ctx)
+      (d, s) => upsertOrgRecord(prisma, d, s, ctx).then((r) => collect('organization', r))
     );
     const ordersRaw = (await adapter.pullOrders({})) as unknown[];
     const orders = await runRecordBatch<OneCOrderDto>(
       ordersRaw,
       OneCOrderSchema,
       (d) => d.externalId,
-      (d, s) => upsertOrderRecord(prisma, d, s, ctx)
+      (d, s) => upsertOrderRecord(prisma, d, s, ctx).then((r) => collect('order', r))
     );
     const paymentsRaw = (await adapter.pullPayments({})) as unknown[];
     const payments = await runRecordBatch<OneCPaymentDto>(
       paymentsRaw,
       OneCPaymentSchema,
       (d) => d.externalId,
-      (d, s) => upsertPaymentRecord(prisma, d, s, ctx)
+      (d, s) => upsertPaymentRecord(prisma, d, s, ctx).then((r) => collect('payment', r))
     );
     report = { orgs, orders, payments, diagnostics };
   } catch (e) {
     return parseFailure(e);
   }
-  return { ok: true, report };
+  // Компания батча: у руководителя — его собственная (скоуп), у admin —
+  // выбранная в форме; для истории и фильтра «свои импорты» этапа 9.
+  const historyCompanyId = scope.kind === 'company' ? scope.companyId : (createCompanyId ?? null);
+  return { ok: true, report, rows, historyCompanyId };
 }
 
 export async function previewImport(
@@ -189,6 +204,18 @@ export async function previewImport(
   return { ok: true, report };
 }
 
+/** Шесть счётчиков сущности для `counts` батча — без массивов причин. */
+function countsOf(s: BatchSummary) {
+  return {
+    pulled: s.pulled,
+    created: s.created,
+    updated: s.updated,
+    skipped: s.skipped,
+    invalid: s.invalid,
+    failed: s.failed,
+  };
+}
+
 export async function commitImport(
   prisma: PrismaClient,
   session: SessionPayload,
@@ -197,7 +224,39 @@ export async function commitImport(
   if (!mayImportOneC(session)) return { ok: false, error: 'forbidden' };
   const result = await run(prisma, session, args, 'live');
   if (!result.ok) return result;
-  const { report } = result;
+  const { report, rows, historyCompanyId } = result;
+  // Т-32/Т-33: история импорта — фундамент отката (этап 9). Импорт к этому
+  // моменту уже применён, поэтому отказ записи истории НЕ роняет ответ
+  // (контракт аудита, §3): лог — и откат этого батча будет недоступен.
+  try {
+    const batch = await prisma.oneCImportBatch.create({
+      data: {
+        importedById: session.sub,
+        companyId: historyCompanyId,
+        fileName: args.fileName ?? '—',
+        counts: {
+          orgs: countsOf(report.orgs),
+          orders: countsOf(report.orders),
+          payments: countsOf(report.payments),
+        },
+        status: 'committed',
+      },
+      select: { id: true },
+    });
+    if (rows.length > 0) {
+      await prisma.oneCImportRow.createMany({
+        data: rows.map((r) => ({
+          batchId: batch.id,
+          entity: r.entity,
+          entityId: r.entityId,
+          action: r.action,
+          ...(r.before ? { before: r.before as Prisma.InputJsonValue } : {}),
+        })),
+      });
+    }
+  } catch (e) {
+    log.error('[1c-import] история батча не записана — откат этого импорта будет недоступен', e);
+  }
   try {
     await recordAudit(prisma, {
       userId: session.sub,

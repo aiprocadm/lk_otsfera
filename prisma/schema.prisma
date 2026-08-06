@@ -284,6 +284,7 @@ model User {
   enrollmentsReviewed          EnrollmentRequest[]       @relation("EnrollmentReviewer")
   paymentsEntered              Payment[]                 @relation("PaymentEnteredBy")
   paymentImportBatches         PaymentImportBatch[]      @relation("PaymentImportBatchBy")
+  oneCImportBatches            OneCImportBatch[]         @relation("OneCImportBatchBy")
   telegramChatId               String?                   @unique // null = Telegram не привязан (§18)
   telegramLinkCode             String? // одноразовый код привязки (deep-link start param)
   telegramLinkCodeExpiresAt    DateTime?
@@ -1607,6 +1608,40 @@ model CustomFieldValue {
 
   @@unique([definitionId, entityId])
   @@index([entityType, entityId])
+}
+
+// История файлового импорта 1С (ТЗ починки импорта, Т-32) — фундамент отката
+// (этап 9). По образцу PaymentImportBatch. Пишет только commitImport (Т-33);
+// сетевая синхронизация историю не ведёт.
+model OneCImportBatch {
+  id             String          @id @default(cuid())
+  createdAt      DateTime        @default(now())
+  importedById   String?
+  importedBy     User?           @relation("OneCImportBatchBy", fields: [importedById], references: [id])
+  companyId      String?
+  fileKey        String?
+  fileName       String
+  counts         Json
+  status         String // committed | rolled_back | rollback_partial
+  rolledBackAt   DateTime?
+  rolledBackById String?
+  rows           OneCImportRow[]
+
+  @@index([companyId, createdAt])
+}
+
+model OneCImportRow {
+  id       String          @id @default(cuid())
+  batchId  String
+  batch    OneCImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  entity   String // organization | order | payment
+  entityId String // id созданной/обновлённой записи
+  action   String // created | updated
+  before   Json? // снимок изменённых полей ДО (только для action=updated)
+  reverted Boolean         @default(false)
+
+  @@index([batchId, entity])
+  @@index([entityId])
 }
 
 model PaymentImportBatch {

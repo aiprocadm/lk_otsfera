@@ -27,6 +27,18 @@ export type WriteCtx = {
 };
 const isLive = (c: WriteCtx) => c.mode === 'live';
 
+/**
+ * Результат writer'а (ТЗ починки импорта, Т-34) — сырьё для истории импорта и
+ * отката (этап 9). `undefined` — запись не менялась: skip, shadow-режим
+ * (записи нет — откатывать нечего). `before` — только для `updated` и только
+ * поля, которые импорт трогает (список Т-33); Decimal/DateTime — строками.
+ */
+export type WriteOutcome = {
+  entityId: string;
+  action: 'created' | 'updated';
+  before?: Record<string, unknown>;
+};
+
 export function orgInScope(
   scope: ImportScope | undefined,
   target: { id: string | null; companyId: string | null }
@@ -56,7 +68,7 @@ export async function upsertOrderRecord(
   dto: OneCOrderDto,
   sum: BatchSummary,
   ctx: WriteCtx
-) {
+): Promise<WriteOutcome | undefined> {
   const input = mapOrderDto(dto);
   const org = await resolveOrganizationRef(
     db,
@@ -66,12 +78,12 @@ export async function upsertOrderRecord(
   if (!org || !org.companyId) {
     sum.skipped += 1;
     sum.skips.push({ externalId: input.externalId, reason: 'organization_not_found' });
-    return;
+    return undefined;
   }
   if (!orgInScope(ctx.scope, { id: org.id, companyId: org.companyId })) {
     sum.skipped += 1;
     sum.skips.push({ externalId: input.externalId, reason: 'out_of_scope' });
-    return;
+    return undefined;
   }
   const existing = await db.order.findUnique({
     where: { externalId: input.externalId },
@@ -81,6 +93,10 @@ export async function upsertOrderRecord(
       financialStatus: true,
       orderNumber: true,
       title: true,
+      // Снимок «до» для истории импорта (Т-33): финансовое ядро заказа.
+      totalAmount: true,
+      paidAmount: true,
+      executionStatus: true,
     },
   });
   const ownedBy1C = {
@@ -132,7 +148,19 @@ export async function upsertOrderRecord(
         log.warn('[1c] order status notifyOrgUsers failed', err);
       }
     }
+    if (!isLive(ctx)) return undefined;
+    return {
+      entityId: existing.id,
+      action: 'updated',
+      before: {
+        totalAmount: String(existing.totalAmount),
+        paidAmount: String(existing.paidAmount),
+        financialStatus: existing.financialStatus,
+        executionStatus: existing.executionStatus,
+      },
+    };
   } else {
+    let createdId: string | undefined;
     if (isLive(ctx)) {
       // B4 (§5.3): auto-assign the org's (or partner's) single attached manager at
       // creation. Best-effort — a resolver failure must not block the order import (§3).
@@ -145,7 +173,7 @@ export async function upsertOrderRecord(
       } catch (err) {
         log.warn('[1c] auto-assign manager failed', err);
       }
-      await db.order.create({
+      const created = await db.order.create({
         data: {
           ...ownedBy1C,
           externalId: input.externalId,
@@ -155,10 +183,13 @@ export async function upsertOrderRecord(
           organizationId: org.id,
           ...(managerId ? { managerId } : {}),
         },
+        select: { id: true },
       });
+      createdId = created.id;
     }
     sum.created += 1;
     ctx.bump?.(dto.updatedAt);
+    return createdId ? { entityId: createdId, action: 'created' } : undefined;
   }
 }
 
@@ -167,7 +198,7 @@ export async function upsertPaymentRecord(
   dto: OneCPaymentDto,
   sum: BatchSummary,
   ctx: WriteCtx
-) {
+): Promise<WriteOutcome | undefined> {
   const input = mapPaymentDto(dto);
   let orderId: string | null = null;
   let organizationId: string | null = null;
@@ -225,7 +256,8 @@ export async function upsertPaymentRecord(
 
   const existing = await db.payment.findUnique({
     where: { externalId: input.externalId },
-    select: { id: true },
+    // amount/paidAt/purpose — снимок «до» для истории импорта (Т-33).
+    select: { id: true, amount: true, paidAt: true, purpose: true },
   });
   const updatable = {
     amount: input.amount,
@@ -240,11 +272,22 @@ export async function upsertPaymentRecord(
     if (isLive(ctx)) await db.payment.update({ where: { id: existing.id }, data: updatable });
     sum.updated += 1;
     ctx.bump?.(dto.updatedAt);
+    if (!isLive(ctx)) return undefined;
+    return {
+      entityId: existing.id,
+      action: 'updated',
+      before: {
+        amount: String(existing.amount),
+        paidAt: existing.paidAt.toISOString(),
+        purpose: existing.purpose,
+      },
+    };
   } else {
+    let createdId: string | undefined;
     // enteredById: WriteCtx carries no acting-user id (1C sync / file import actor);
     // manual-entry wiring is future work (§7.1).
-    if (isLive(ctx))
-      await db.payment.create({
+    if (isLive(ctx)) {
+      const created = await db.payment.create({
         data: {
           ...updatable,
           externalId: input.externalId,
@@ -252,7 +295,10 @@ export async function upsertPaymentRecord(
           organizationId,
           enteredById: null,
         },
+        select: { id: true },
       });
+      createdId = created.id;
+    }
     sum.created += 1;
     ctx.bump?.(dto.updatedAt);
     if (ctx.notify && isLive(ctx) && order && order.organizationId && !input.isRefund) {
@@ -283,6 +329,7 @@ export async function upsertPaymentRecord(
         log.warn('[1c] payment notifyManagers failed', err);
       }
     }
+    return createdId ? { entityId: createdId, action: 'created' } : undefined;
   }
 }
 
@@ -291,7 +338,7 @@ export async function upsertOrgRecord(
   dto: OneCOrgDto,
   sum: BatchSummary,
   ctx: WriteCtx
-) {
+): Promise<WriteOutcome | undefined> {
   const input = mapOrgDto(dto);
   // Т-19 (решение владельца №1): партнёр необязателен — пустая ссылка означает
   // ПРЯМОГО клиента (partnerId: null), а не брак строки. Прежний код
@@ -318,14 +365,24 @@ export async function upsertOrgRecord(
   // externalId would push an org that already exists under its INN (xlsx import or
   // order-backfill) into the create branch and throw P2002 on inn every run. Mirrors
   // resolveOrganizationRef's externalId→inn fallback used by the order/payment writers.
+  // name/inn/kpp/partnerId в select — снимок «до» для истории импорта (Т-33).
+  const existingSelect = {
+    id: true,
+    companyId: true,
+    externalId: true,
+    name: true,
+    inn: true,
+    kpp: true,
+    partnerId: true,
+  } as const;
   let existing = await db.organization.findUnique({
     where: { externalId: input.externalId },
-    select: { id: true, companyId: true, externalId: true },
+    select: existingSelect,
   });
   if (!existing && input.inn) {
     existing = await db.organization.findFirst({
       where: { inn: input.inn },
-      select: { id: true, companyId: true, externalId: true },
+      select: existingSelect,
     });
   }
   if (existing) {
@@ -334,7 +391,7 @@ export async function upsertOrgRecord(
     if (!orgInScope(ctx.scope, { id: existing.id, companyId: existing.companyId })) {
       sum.skipped += 1;
       sum.skips.push({ externalId: input.externalId, reason: 'out_of_scope' });
-      return;
+      return undefined;
     }
     if (isLive(ctx)) {
       // Backfill the 1C externalId only when the matched org has none — never clobber a different identity.
@@ -346,6 +403,18 @@ export async function upsertOrgRecord(
     }
     sum.updated += 1;
     ctx.bump?.(dto.updatedAt);
+    if (!isLive(ctx)) return undefined;
+    return {
+      entityId: existing.id,
+      action: 'updated',
+      before: {
+        name: existing.name,
+        inn: existing.inn,
+        kpp: existing.kpp,
+        externalId: existing.externalId,
+        partnerId: existing.partnerId,
+      },
+    };
   } else {
     if (!mayCreateOrg(ctx.scope)) {
       sum.skipped += 1;
@@ -363,8 +432,9 @@ export async function upsertOrgRecord(
       sum.failures.push({ externalId: input.externalId, error: 'company_not_configured' });
       return;
     }
+    let createdId: string | undefined;
     if (isLive(ctx)) {
-      await db.organization.create({
+      const created = await db.organization.create({
         data: {
           externalId: input.externalId,
           name: input.name,
@@ -373,10 +443,13 @@ export async function upsertOrgRecord(
           partnerId,
           companyId,
         },
+        select: { id: true },
       });
+      createdId = created.id;
     }
     sum.created += 1;
     ctx.bump?.(dto.updatedAt);
+    return createdId ? { entityId: createdId, action: 'created' } : undefined;
   }
 }
 

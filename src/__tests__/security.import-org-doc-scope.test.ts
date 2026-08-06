@@ -77,7 +77,7 @@ function orgDb(over: Record<string, unknown> = {}) {
       findUnique: vi.fn().mockResolvedValue(null),
       findFirst: vi.fn().mockResolvedValue(null),
       update: vi.fn(),
-      create: vi.fn(),
+      create: vi.fn().mockResolvedValue({ id: 'org-new' }),
     },
     ...over,
   } as never;
@@ -180,6 +180,7 @@ describe('C8: upsertOrgRecord honours the company floor', () => {
       .create;
     expect(create).toHaveBeenCalledWith({
       data: expect.objectContaining({ companyId: 'companyA' }),
+      select: { id: true },
     });
     expect(sum.created).toBe(1);
   });
@@ -213,6 +214,7 @@ describe('C8: upsertOrgRecord honours the company floor', () => {
       .create;
     expect(create).toHaveBeenCalledWith({
       data: expect.objectContaining({ companyId: 'companyA' }),
+      select: { id: true },
     });
     expect(sum.created).toBe(1);
   });

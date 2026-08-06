@@ -35,7 +35,11 @@ const baseDto = {
 
 function db() {
   return {
-    order: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn(), update: vi.fn() },
+    order: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockResolvedValue({ id: 'new-id' }),
+      update: vi.fn(),
+    },
     // B4: resolveAutoManager runs for real; default = no attachment → managerId stays null.
     organizationManager: { findMany: vi.fn().mockResolvedValue([]) },
   } as any;
@@ -70,6 +74,7 @@ describe('upsertOrderRecord', () => {
         companyId: 'c',
         organizationId: 'o',
       }),
+      select: { id: true },
     });
     expect(sum.created).toBe(1);
   });
@@ -99,6 +104,7 @@ describe('upsertOrderRecord', () => {
     await upsertOrderRecord(d, baseDto, sum, { mode: 'live', notify: false });
     expect(d.order.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ managerId: 'mgr-auto' }),
+      select: { id: true },
     });
     expect(sum.created).toBe(1);
   });
@@ -214,7 +220,7 @@ describe('upsertOrgRecord', () => {
         findUnique: vi.fn().mockResolvedValue(null),
         findFirst: vi.fn().mockResolvedValue(null),
         update: vi.fn(),
-        create: vi.fn(),
+        create: vi.fn().mockResolvedValue({ id: 'new-id' }),
       },
       ...over,
     } as any;
@@ -227,6 +233,7 @@ describe('upsertOrgRecord', () => {
     await upsertOrgRecord(d, orgDto, sum, { mode: 'live', notify: false, createCompanyId: 'co1' });
     expect(d.organization.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ companyId: 'co1', partnerId: 'p1' }),
+      select: { id: true },
     });
     expect(sum.created).toBe(1);
   });
@@ -252,6 +259,7 @@ describe('upsertOrgRecord', () => {
     });
     expect(d.organization.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ companyId: 'co-own' }),
+      select: { id: true },
     });
     expect(sum.created).toBe(1);
   });
@@ -297,7 +305,7 @@ describe('upsertOrgRecord', () => {
         findUnique: vi.fn().mockResolvedValue(null), // no externalId match
         findFirst: vi.fn().mockResolvedValue({ id: 'o-inn', companyId: 'co1', externalId: null }), // INN match, no externalId yet
         update: vi.fn(),
-        create: vi.fn(),
+        create: vi.fn().mockResolvedValue({ id: 'new-id' }),
       },
     });
     const sum = emptySummary();
@@ -319,7 +327,7 @@ describe('upsertOrgRecord', () => {
           .fn()
           .mockResolvedValue({ id: 'o-inn', companyId: 'co1', externalId: 'E-OLD' }), // already has an externalId
         update: vi.fn(),
-        create: vi.fn(),
+        create: vi.fn().mockResolvedValue({ id: 'new-id' }),
       },
     });
     const sum = emptySummary();
@@ -350,7 +358,11 @@ describe('upsertDocumentRecord', () => {
           .fn()
           .mockResolvedValue({ id: 'ord1', organizationId: 'o1', orderNumber: 'O-1', title: 't' }),
       },
-      document: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn(), update: vi.fn() },
+      document: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockResolvedValue({ id: 'new-id' }),
+        update: vi.fn(),
+      },
       ...over,
     } as any;
   }
@@ -432,7 +444,7 @@ describe('upsertDocumentRecord', () => {
     const d = ddb({
       document: {
         findUnique: vi.fn().mockResolvedValue({ id: 'ex' }),
-        create: vi.fn(),
+        create: vi.fn().mockResolvedValue({ id: 'new-id' }),
         update: vi.fn(),
       },
     });
@@ -479,7 +491,11 @@ describe('upsertPaymentRecord', () => {
   function pdb() {
     return {
       order: { findUnique: vi.fn() },
-      payment: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn(), update: vi.fn() },
+      payment: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockResolvedValue({ id: 'new-id' }),
+        update: vi.fn(),
+      },
     } as any;
   }
 
@@ -495,6 +511,7 @@ describe('upsertPaymentRecord', () => {
     await upsertPaymentRecord(d, payOrderDto, sum, { mode: 'live', notify: false });
     expect(d.payment.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ externalId: 'P1', orderId: 'ord', organizationId: 'o' }),
+      select: { id: true },
     });
     expect(sum.created).toBe(1);
   });
@@ -527,6 +544,7 @@ describe('upsertPaymentRecord', () => {
         vatAmount: 30,
         enteredById: null,
       }),
+      select: { id: true },
     });
     expect(sum.created).toBe(1);
   });
@@ -539,7 +557,12 @@ describe('upsertPaymentRecord', () => {
       orderNumber: 'O1',
       title: 't',
     });
-    d.payment.findUnique.mockResolvedValue({ id: 'pay-existing' });
+    d.payment.findUnique.mockResolvedValue({
+      id: 'pay-existing',
+      amount: 100,
+      paidAt: new Date('2026-04-01T00:00:00Z'),
+      purpose: null,
+    });
     const sum = emptySummary();
     const richDto = {
       externalId: 'P-UPD',
@@ -575,6 +598,7 @@ describe('upsertPaymentRecord', () => {
     await upsertPaymentRecord(d, payOrgDto, sum, { mode: 'live', notify: false });
     expect(d.payment.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ externalId: 'P2', orderId: null, organizationId: 'o' }),
+      select: { id: true },
     });
     expect(sum.created).toBe(1);
   });
@@ -669,7 +693,12 @@ describe('upsertPaymentRecord', () => {
       orderNumber: 'O1',
       title: 't',
     });
-    d.payment.findUnique.mockResolvedValue({ id: 'pay-existing' });
+    d.payment.findUnique.mockResolvedValue({
+      id: 'pay-existing',
+      amount: 100,
+      paidAt: new Date('2026-04-01T00:00:00Z'),
+      purpose: null,
+    });
     const sum = emptySummary();
     await upsertPaymentRecord(d, payOrderDto, sum, { mode: 'live', notify: false });
     expect(d.payment.update).toHaveBeenCalled();
@@ -758,7 +787,12 @@ describe('upsertPaymentRecord', () => {
       orderNumber: 'O1',
       title: 't',
     });
-    d.payment.findUnique.mockResolvedValue({ id: 'pay-ex' });
+    d.payment.findUnique.mockResolvedValue({
+      id: 'pay-ex',
+      amount: 100,
+      paidAt: new Date('2026-04-01T00:00:00Z'),
+      purpose: null,
+    });
     const sum = emptySummary();
     const bump = vi.fn();
     await upsertPaymentRecord(d, payOrderDto, sum, { mode: 'live', notify: false, bump });
@@ -810,7 +844,11 @@ describe('upsertOrderRecord — additional branch coverage', () => {
       externalId: 'E-ORG',
     });
     const d = {
-      order: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn(), update: vi.fn() },
+      order: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockResolvedValue({ id: 'new-id' }),
+        update: vi.fn(),
+      },
       organizationManager: { findMany: vi.fn().mockResolvedValue([]) },
     } as any;
     const sum = emptySummary();
@@ -835,7 +873,7 @@ describe('upsertOrderRecord — additional branch coverage', () => {
           orderNumber: 'O-EXTRA',
           title: 'T',
         }),
-        create: vi.fn(),
+        create: vi.fn().mockResolvedValue({ id: 'new-id' }),
         update: vi.fn(),
       },
     } as any;
@@ -861,7 +899,7 @@ describe('upsertOrderRecord — additional branch coverage', () => {
           orderNumber: 'O-EXTRA',
           title: 'T',
         }),
-        create: vi.fn(),
+        create: vi.fn().mockResolvedValue({ id: 'new-id' }),
         update: vi.fn(),
       },
     } as any;
@@ -888,7 +926,7 @@ describe('upsertOrderRecord — additional branch coverage', () => {
           orderNumber: 'O-EXTRA',
           title: 'T',
         }),
-        create: vi.fn(),
+        create: vi.fn().mockResolvedValue({ id: 'new-id' }),
         update: vi.fn(),
       },
     } as any;
@@ -917,7 +955,7 @@ describe('upsertOrderRecord — additional branch coverage', () => {
           orderNumber: 'O-EXTRA',
           title: 'T',
         }),
-        create: vi.fn(),
+        create: vi.fn().mockResolvedValue({ id: 'new-id' }),
         update: vi.fn(),
       },
     } as any;
@@ -946,7 +984,7 @@ describe('upsertOrderRecord — additional branch coverage', () => {
           orderNumber: 'O-EXTRA',
           title: 'T',
         }),
-        create: vi.fn(),
+        create: vi.fn().mockResolvedValue({ id: 'new-id' }),
         update: vi.fn(),
       },
     } as any;
@@ -963,7 +1001,11 @@ describe('upsertOrderRecord — additional branch coverage', () => {
       externalId: 'E-ORG',
     });
     const d = {
-      order: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn(), update: vi.fn() },
+      order: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockResolvedValue({ id: 'new-id' }),
+        update: vi.fn(),
+      },
     } as any;
     const sum = emptySummary();
     await upsertOrderRecord(d, baseDto, sum, { mode: 'live', notify: false });
@@ -1072,7 +1114,7 @@ describe('upsertDocumentRecord — additional branch coverage', () => {
       },
       document: {
         findUnique: vi.fn().mockResolvedValue({ id: 'ex-doc' }),
-        create: vi.fn(),
+        create: vi.fn().mockResolvedValue({ id: 'new-id' }),
         update: vi.fn(),
       },
     } as any;
@@ -1091,7 +1133,7 @@ describe('upsertDocumentRecord — additional branch coverage', () => {
       },
       document: {
         findUnique: vi.fn().mockResolvedValue({ id: 'ex-doc' }),
-        create: vi.fn(),
+        create: vi.fn().mockResolvedValue({ id: 'new-id' }),
         update: vi.fn(),
       },
     } as any;
@@ -1136,7 +1178,7 @@ describe('upsertOrgRecord — additional branch coverage', () => {
 
   // Этап 4 (Т-19): пустой партнёр — это ПРЯМОЙ клиент, а не брак строки.
   it('создаёт организацию без партнёра как прямого клиента (partnerId: null)', async () => {
-    const orgCreate = vi.fn();
+    const orgCreate = vi.fn().mockResolvedValue({ id: 'new-id' });
     const d = {
       partner: { findFirst: vi.fn() },
       organization: {
@@ -1154,6 +1196,7 @@ describe('upsertOrgRecord — additional branch coverage', () => {
     expect(d.partner.findFirst).not.toHaveBeenCalled();
     expect(orgCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({ partnerId: null, companyId: 'co1' }),
+      select: { id: true },
     });
   });
 
@@ -1167,7 +1210,7 @@ describe('upsertOrgRecord — additional branch coverage', () => {
         findUnique: vi.fn().mockResolvedValue(null),
         findFirst: vi.fn().mockResolvedValue(null),
         update: vi.fn(),
-        create: vi.fn(),
+        create: vi.fn().mockResolvedValue({ id: 'new-id' }),
       },
     } as any;
     const sum = emptySummary();
@@ -1188,7 +1231,7 @@ describe('upsertOrgRecord — additional branch coverage', () => {
         findUnique: vi.fn().mockResolvedValue(null),
         findFirst: vi.fn().mockResolvedValue(null),
         update: vi.fn(),
-        create: vi.fn(),
+        create: vi.fn().mockResolvedValue({ id: 'new-id' }),
       },
     } as any;
     const sum = emptySummary();
@@ -1225,7 +1268,7 @@ describe('upsertOrgRecord — additional branch coverage', () => {
         findUnique: vi.fn().mockResolvedValue(null),
         findFirst: vi.fn().mockResolvedValue(null),
         update: vi.fn(),
-        create: vi.fn(),
+        create: vi.fn().mockResolvedValue({ id: 'new-id' }),
       },
     } as any;
     const sum = emptySummary();
@@ -1237,5 +1280,206 @@ describe('upsertOrgRecord — additional branch coverage', () => {
       createCompanyId: 'co1',
     });
     expect(bump).toHaveBeenCalledWith(orgDtoWithPartner.updatedAt);
+  });
+});
+
+/**
+ * Этап 8 (Т-33/Т-34): writer'ы возвращают WriteOutcome — сырьё истории импорта.
+ * created → id созданной записи; updated → снимок «до» строго по списку Т-33;
+ * shadow/skip → undefined (записи нет — откатывать нечего).
+ */
+describe('WriteOutcome (Т-34) — возврат результата writer-ов', () => {
+  const orderDb = (existing: unknown = null) =>
+    ({
+      order: {
+        findUnique: vi.fn().mockResolvedValue(existing),
+        create: vi.fn().mockResolvedValue({ id: 'ord-new' }),
+        update: vi.fn(),
+      },
+      organizationManager: { findMany: vi.fn().mockResolvedValue([]) },
+    }) as any;
+  const orderDto = {
+    externalId: 'O-out',
+    orderNumber: 'O-out',
+    title: 'x',
+    organizationExternalId: 'E-ORG',
+    totalAmount: 200,
+    paidAmount: 50,
+    vatIncluded: true,
+    executionStatus: 'pending',
+    financialStatus: 'billed',
+    productMix: [],
+    updatedAt: '2026-08-06T00:00:00Z',
+  } as any;
+
+  it('заказ: created с id; updated со снимком финансового ядра; shadow → undefined', async () => {
+    resolveOrganizationRef.mockResolvedValue({ id: 'o', companyId: 'c', partnerId: null });
+    const created = await upsertOrderRecord(orderDb(), orderDto, emptySummary(), {
+      mode: 'live',
+      notify: false,
+    });
+    expect(created).toEqual({ entityId: 'ord-new', action: 'created' });
+
+    const existing = {
+      id: 'ord-ex',
+      organizationId: 'o',
+      financialStatus: 'not_billed',
+      orderNumber: 'O-out',
+      title: 'x',
+      totalAmount: 100,
+      paidAmount: 0,
+      executionStatus: 'in_progress',
+    };
+    const updated = await upsertOrderRecord(orderDb(existing), orderDto, emptySummary(), {
+      mode: 'live',
+      notify: false,
+    });
+    expect(updated).toEqual({
+      entityId: 'ord-ex',
+      action: 'updated',
+      before: {
+        totalAmount: '100',
+        paidAmount: '0',
+        financialStatus: 'not_billed',
+        executionStatus: 'in_progress',
+      },
+    });
+
+    const shadow = await upsertOrderRecord(orderDb(existing), orderDto, emptySummary(), {
+      mode: 'shadow',
+      notify: false,
+    });
+    expect(shadow).toBeUndefined();
+  });
+
+  it('платёж: created с id; updated со снимком суммы/даты/назначения; shadow → undefined', async () => {
+    const pdb = (existing: unknown = null) =>
+      ({
+        order: {
+          findUnique: vi
+            .fn()
+            .mockResolvedValue({
+              id: 'ord',
+              organizationId: 'o',
+              companyId: 'c',
+              orderNumber: 'O',
+              title: 't',
+            }),
+        },
+        payment: {
+          findUnique: vi.fn().mockResolvedValue(existing),
+          create: vi.fn().mockResolvedValue({ id: 'pay-new' }),
+          update: vi.fn(),
+        },
+      }) as any;
+    const payDto = {
+      externalId: 'P-out',
+      orderExternalId: 'O-x',
+      amount: 500,
+      paidAt: '2026-08-01T00:00:00Z',
+      isRefund: false,
+      updatedAt: '2026-08-06T00:00:00Z',
+    } as any;
+
+    const created = await upsertPaymentRecord(pdb(), payDto, emptySummary(), {
+      mode: 'live',
+      notify: false,
+    });
+    expect(created).toEqual({ entityId: 'pay-new', action: 'created' });
+
+    const existing = {
+      id: 'pay-ex',
+      amount: 300,
+      paidAt: new Date('2026-07-01T00:00:00Z'),
+      purpose: 'старое назначение',
+    };
+    const updated = await upsertPaymentRecord(pdb(existing), payDto, emptySummary(), {
+      mode: 'live',
+      notify: false,
+    });
+    expect(updated).toEqual({
+      entityId: 'pay-ex',
+      action: 'updated',
+      before: {
+        amount: '300',
+        paidAt: '2026-07-01T00:00:00.000Z',
+        purpose: 'старое назначение',
+      },
+    });
+
+    const shadow = await upsertPaymentRecord(pdb(existing), payDto, emptySummary(), {
+      mode: 'shadow',
+      notify: false,
+    });
+    expect(shadow).toBeUndefined();
+  });
+
+  it('организация: created с id; updated со снимком реквизитов; shadow и skip → undefined', async () => {
+    const odb2 = (existing: unknown = null) =>
+      ({
+        partner: { findFirst: vi.fn().mockResolvedValue({ id: 'p1' }) },
+        organization: {
+          findUnique: vi.fn().mockResolvedValue(existing),
+          findFirst: vi.fn().mockResolvedValue(null),
+          update: vi.fn(),
+          create: vi.fn().mockResolvedValue({ id: 'org-new' }),
+        },
+      }) as any;
+    const dto = {
+      externalId: 'ORG-out',
+      name: 'Новое имя',
+      inn: '7707083893',
+      kpp: '01',
+      updatedAt: '2026-08-06T00:00:00Z',
+    } as any;
+
+    const created = await upsertOrgRecord(odb2(), dto, emptySummary(), {
+      mode: 'live',
+      notify: false,
+      createCompanyId: 'co1',
+    });
+    expect(created).toEqual({ entityId: 'org-new', action: 'created' });
+
+    const existing = {
+      id: 'org-ex',
+      companyId: 'co1',
+      externalId: null,
+      name: 'Старое имя',
+      inn: '7707083893',
+      kpp: '99',
+      partnerId: 'p-old',
+    };
+    const updated = await upsertOrgRecord(odb2(existing), dto, emptySummary(), {
+      mode: 'live',
+      notify: false,
+    });
+    expect(updated).toEqual({
+      entityId: 'org-ex',
+      action: 'updated',
+      before: {
+        name: 'Старое имя',
+        inn: '7707083893',
+        kpp: '99',
+        externalId: null,
+        partnerId: 'p-old',
+      },
+    });
+
+    const shadow = await upsertOrgRecord(odb2(existing), dto, emptySummary(), {
+      mode: 'shadow',
+      notify: false,
+    });
+    expect(shadow).toBeUndefined();
+
+    // Skip (партнёр не найден) → undefined.
+    const d = odb2();
+    d.partner.findFirst.mockResolvedValue(null);
+    const skipped = await upsertOrgRecord(
+      d,
+      { ...dto, partnerExternalId: 'ghost' },
+      emptySummary(),
+      { mode: 'live', notify: false, createCompanyId: 'co1' }
+    );
+    expect(skipped).toBeUndefined();
   });
 });
