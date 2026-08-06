@@ -225,11 +225,14 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
       group: 'Финансы',
     },
     {
+      // Т-25 (этап 7 ТЗ импорта): импорт — только админ и руководитель;
+      // обычный менеджер пункт не видит, страница за ним отбивает /forbidden.
       href: '/manager/import',
       label: 'Загрузка из 1С',
       icon: '📥',
       flag: 'manager_cabinet',
       group: 'Данные',
+      leaderOnly: true,
     },
     {
       href: '/manager/payments-import',
@@ -237,6 +240,7 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
       icon: '📥',
       flag: 'manager_cabinet',
       group: 'Финансы',
+      leaderOnly: true,
     },
     {
       href: '/manager/documents',

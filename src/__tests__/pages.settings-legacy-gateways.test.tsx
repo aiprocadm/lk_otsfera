@@ -48,6 +48,14 @@ vi.mock('@/app/admin/settings/integrations/1c/excel/page', () => ({
 vi.mock('@/app/admin/settings/integrations/1c/payments/page', () => ({
   default: () => React.createElement('div', null, 'СОДЕРЖИМОЕ:/admin/payments-import'),
 }));
+// Этап 7 ТЗ импорта: старые адреса менеджерского кабинета рендерят
+// leader-страницы (их гард отбивает обычного менеджера в /forbidden).
+vi.mock('@/app/leader/settings/integrations/1c/excel/page', () => ({
+  default: () => React.createElement('div', null, 'СОДЕРЖИМОЕ:/manager/import'),
+}));
+vi.mock('@/app/leader/settings/integrations/1c/payments/page', () => ({
+  default: () => React.createElement('div', null, 'СОДЕРЖИМОЕ:/manager/payments-import'),
+}));
 vi.mock('@/app/admin/settings/security/audit/page', () => ({
   default: () => React.createElement('div', null, 'СОДЕРЖИМОЕ:/admin/audit'),
 }));
@@ -66,6 +74,8 @@ import LeaderRolesLegacyPage from '@/app/leader/roles/page';
 import AdminSyncLegacyPage from '@/app/admin/sync/page';
 import AdminImportLegacyPage from '@/app/admin/import/page';
 import AdminPaymentsImportLegacyPage from '@/app/admin/payments-import/page';
+import ManagerImportLegacyPage from '@/app/manager/import/page';
+import ManagerPaymentsImportLegacyPage from '@/app/manager/payments-import/page';
 import AdminAuditLegacyPage from '@/app/admin/audit/page';
 import AdminPiiAccessLegacyPage from '@/app/admin/pii-access/page';
 
@@ -130,6 +140,18 @@ describe('шлюзы старых маршрутов настроек', () => {
     const { container } = await renderServerComponent(AdminSyncLegacyPage());
     expect(redirectToSettingsHub).toHaveBeenCalledWith('/admin/sync');
     expect(container.textContent).toContain('СОДЕРЖИМОЕ:/admin/sync');
+  });
+
+  it('/manager/import — руководителя уводит в ЕГО хаб, fallback = leader-страница (Т-25/Т-27)', async () => {
+    const { container } = await renderServerComponent(ManagerImportLegacyPage());
+    expect(redirectToSettingsHub).toHaveBeenCalledWith('/manager/import');
+    expect(container.textContent).toContain('СОДЕРЖИМОЕ:/manager/import');
+  });
+
+  it('/manager/payments-import — руководителя уводит в ЕГО хаб, fallback = leader-страница', async () => {
+    const { container } = await renderServerComponent(ManagerPaymentsImportLegacyPage());
+    expect(redirectToSettingsHub).toHaveBeenCalledWith('/manager/payments-import');
+    expect(container.textContent).toContain('СОДЕРЖИМОЕ:/manager/payments-import');
   });
 
   it('/admin/import — свой адрес в редиректе и прежняя страница при выключенном хабе', async () => {

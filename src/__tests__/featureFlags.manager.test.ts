@@ -134,18 +134,16 @@ describe('navByRole.manager — feature-flag gated', () => {
     expect(navItemsFor('manager')).toEqual([]);
   });
 
-  it('navItemsFor("manager") returns eleven items (no leader-only) when the flag is on but not a leader', () => {
+  it('navItemsFor("manager") без leader-only: обычный менеджер НЕ видит импорт (Т-25, этап 7)', () => {
     process.env.FEATURE_MANAGER_CABINET = '1';
     const items = navItemsFor('manager');
-    expect(items).toHaveLength(11);
+    expect(items).toHaveLength(9);
     expect(items.map((i) => i.label)).toEqual([
       'Главная',
       'Заказы',
       'Лиды',
       'Организации',
       'Финансы',
-      'Загрузка из 1С',
-      'Импорт оплат',
       'Документы',
       'Сотрудники',
       'Сообщения',
@@ -153,7 +151,7 @@ describe('navByRole.manager — feature-flag gated', () => {
     ]);
   });
 
-  it('navItemsFor("manager") returns twelve items (with Команда) when the flag is on and isManagerLeader=true', () => {
+  it('navItemsFor("manager") руководителю: импорт и «Команда» на месте (leaderOnly)', () => {
     process.env.FEATURE_MANAGER_CABINET = '1';
     const items = navItemsFor('manager', { isManagerLeader: true });
     expect(items).toHaveLength(12);

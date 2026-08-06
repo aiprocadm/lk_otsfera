@@ -1,17 +1,15 @@
-import React from 'react';
-import { requireManager } from '@/lib/auth/requireRole';
-import { ImportForm } from '@/components/import/import-form';
+import { redirectToSettingsHub } from '@/lib/navigation/settingsRedirect';
+import LeaderImportPage from '@/app/leader/settings/integrations/1c/excel/page';
 
-export default async function ManagerImportPage() {
-  await requireManager();
-  return (
-    <>
-      <h1 className="mb-1 text-2xl font-semibold text-[#111111]">Загрузка данных из 1С</h1>
-      <p className="text-sm text-gray-500 mb-6">
-        Загрузите файл Excel, сформированный в 1С. Сначала выполняется предварительная проверка — вы
-        увидите план изменений до их применения.
-      </p>
-      <ImportForm />
-    </>
-  );
+export const dynamic = 'force-dynamic';
+
+/**
+ * Старый адрес (этап 7 ТЗ импорта, Т-25/Т-27): при включённом хабе «Настройки»
+ * руководителя уводит на его вкладку, иначе рендерит её на месте. Гард страницы
+ * хаба отбивает обычного менеджера в `/forbidden` в обоих случаях — право
+ * импорта осталось только у админа и руководителя.
+ */
+export default async function ManagerImportLegacyPage() {
+  redirectToSettingsHub('/manager/import');
+  return LeaderImportPage();
 }

@@ -84,6 +84,10 @@ describe('реестр разделов настроек', () => {
       '/admin/sync': '/admin/settings/integrations/sync',
       '/admin/import': '/admin/settings/integrations/1c/excel',
       '/admin/payments-import': '/admin/settings/integrations/1c/payments',
+      // Этап 7 ТЗ импорта: старые адреса менеджерского кабинета уводят
+      // руководителя в ЕГО хаб (явный cabinet в LegacyRoute).
+      '/manager/import': '/leader/settings/integrations/1c/excel',
+      '/manager/payments-import': '/leader/settings/integrations/1c/payments',
       '/admin/roles': '/admin/settings/access/roles',
       '/leader/roles': '/leader/settings/access/roles',
       '/admin/order-statuses': '/admin/settings/catalogs/application-statuses',
@@ -100,9 +104,12 @@ describe('реестр разделов настроек', () => {
     expect(new Set(all).size).toBe(all.length);
   });
 
-  it('leader-путь редиректит в leader-хаб, admin-путь — в админский', () => {
+  it('leader-путь редиректит в leader-хаб, admin-путь — в админский, manager-путь — к руководителю', () => {
     for (const [from, to] of legacyRedirectMap()) {
-      const cabinet = from.startsWith('/leader') ? '/leader' : '/admin';
+      // Пути менеджерского кабинета — исключение с явным cabinet: 'leader'
+      // (этап 7 ТЗ импорта); остальные кабинеты выводятся из префикса.
+      const cabinet =
+        from.startsWith('/leader') || from.startsWith('/manager') ? '/leader' : '/admin';
       expect(to.startsWith(`${cabinet}/settings/`)).toBe(true);
     }
   });

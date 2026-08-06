@@ -4,6 +4,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { upsertPaymentRecord, type WriteCtx } from '@/lib/services/oneCSync/writers';
 import { emptySummary } from '@/lib/services/oneCSync/record-batch';
 import { importScope } from '@/lib/services/oneCSync/scope';
+import { mayImportOneC } from '@/lib/auth/managerPolicy';
 import { recordAudit } from '@/lib/auth/audit';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
 import { getObjectStorage } from '@/lib/storage';
@@ -15,9 +16,8 @@ import type { ParsedRow, CardImportCounts } from './types';
 
 export type Args = { fileBuffer: Buffer; fileName: string };
 
-function isStaff(s: SessionPayload) {
-  return s.role === 'admin' || s.role === 'manager';
-}
+// Т-25/Т-26: право импорта — admin и руководитель (mayImportOneC), общий
+// предикат с Excel-импортом. Прежний локальный isStaff() удалён.
 function emptyCounts(): CardImportCounts {
   return {
     totalRows: 0,
@@ -73,7 +73,7 @@ export async function previewPaymentImport(
   session: SessionPayload,
   args: Args
 ) {
-  if (!isStaff(session)) return { ok: false as const, error: 'forbidden' as const };
+  if (!mayImportOneC(session)) return { ok: false as const, error: 'forbidden' as const };
   let result: Awaited<ReturnType<typeof plan>>;
   try {
     result = await plan(prisma, args.fileBuffer, args.fileName);
@@ -89,7 +89,7 @@ export async function commitPaymentImport(
   session: SessionPayload,
   args: Args
 ) {
-  if (!isStaff(session)) return { ok: false as const, error: 'forbidden' as const };
+  if (!mayImportOneC(session)) return { ok: false as const, error: 'forbidden' as const };
   let result: Awaited<ReturnType<typeof plan>>;
   try {
     result = await plan(prisma, args.fileBuffer, args.fileName);

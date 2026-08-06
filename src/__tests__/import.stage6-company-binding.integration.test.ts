@@ -30,7 +30,11 @@ function makeInn10(seed9: string): string {
   return seed9 + String(control);
 }
 
-const INN_FILE = makeInn10(`6${String(STAMP).slice(-8)}`);
+// Все четыре ИНН — одинаковой длины с РАЗНЫМИ двузначными префиксами: смесь
+// `6${last8}` и `61${last7}` совпадала, когда 8-я с конца цифра timestamp —
+// «1» (окно ~2.8 часа) — тест 2 находил организацию теста 1 по ИНН в чужой
+// компании и честно получал out_of_scope вместо создания.
+const INN_FILE = makeInn10(`60${String(STAMP).slice(-7)}`);
 const INN_LEADER = makeInn10(`61${String(STAMP).slice(-7)}`);
 const INN_NOCONF = makeInn10(`62${String(STAMP).slice(-7)}`);
 const INN_ORPHAN = makeInn10(`63${String(STAMP).slice(-7)}`);

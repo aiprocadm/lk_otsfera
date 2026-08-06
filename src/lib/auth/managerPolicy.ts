@@ -136,6 +136,17 @@ export function isManagerLeader(session: SessionPayload): boolean {
 }
 
 /**
+ * Право на импорт из 1С — Excel-файл и банковская выписка (ТЗ починки импорта,
+ * Т-25/Т-26, решение владельца №2): admin и руководитель. Обычный менеджер —
+ * нет: импорт создаёт организации в компании (Т-41), а orgs-скоуп менеджера
+ * такой записи не допускает. Единственная точка правды — раньше предикат был
+ * продублирован `isStaff()` по сервисам и разошёлся со скоупом.
+ */
+export function mayImportOneC(session: SessionPayload): boolean {
+  return session.role === 'admin' || isManagerLeader(session);
+}
+
+/**
  * Лидер открывает любой заказ СВОЕЙ компании (инвариант C8: граница — компания).
  * companyId=null у лидера → false (деградирует в обычный scoped-путь, не deny-all).
  * Расширяет деталь заказа и держит scope-gate самозабора (claimOrder в

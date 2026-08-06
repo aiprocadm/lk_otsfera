@@ -5,16 +5,21 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const TABS = [
-  { href: '/admin/settings/integrations/1c/excel', label: 'Загрузка Excel' },
-  { href: '/admin/settings/integrations/1c/payments', label: 'Выписка (сч. 51)' },
+  { tail: 'excel', label: 'Загрузка Excel' },
+  { tail: 'payments', label: 'Выписка (сч. 51)' },
 ];
 
-/** Переключатель вкладок подраздела «Обмен с 1С». */
-export function OneCTabs() {
+/**
+ * Переключатель вкладок подраздела «Обмен с 1С». С этапа 7 ТЗ импорта у
+ * подраздела два дома — админский и хаб руководителя; вкладки строятся от
+ * кабинета (дефолт admin — существующие использования не меняются).
+ */
+export function OneCTabs({ cabinet = 'admin' }: { cabinet?: 'admin' | 'leader' }) {
   const pathname = usePathname();
   return (
     <nav aria-label="Разделы обмена с 1С" className="flex gap-1 border-b border-gray-200">
-      {TABS.map((tab) => {
+      {TABS.map(({ tail, label }) => {
+        const tab = { href: `/${cabinet}/settings/integrations/1c/${tail}`, label };
         const active = pathname === tab.href;
         return (
           <Link

@@ -77,6 +77,15 @@ describe('previewImport', () => {
     expect(result).toEqual({ ok: false, error: 'forbidden' });
   });
 
+  it('Т-25: обычный менеджер (без суб-роли leader) → forbidden, файл не разбирается', async () => {
+    const plainManager = { sub: 'u-m', role: 'manager', managedOrgIds: [] } as never;
+    const result = await previewImport(fakePrisma, plainManager, { fileBuffer });
+    expect(result).toEqual({ ok: false, error: 'forbidden' });
+    const denied = await commitImport(fakePrisma, plainManager, { fileBuffer });
+    expect(denied).toEqual({ ok: false, error: 'forbidden' });
+    expect(runRecordBatch).not.toHaveBeenCalled();
+  });
+
   it('returns forbidden for organization role', async () => {
     const orgSession = { sub: 'u-org', role: 'organization' } as never;
     const result = await previewImport(fakePrisma, orgSession, { fileBuffer });
@@ -187,7 +196,14 @@ describe('commitImport', () => {
       .mockReset()
       .mockResolvedValueOnce({ pulled: 1, inserted: 1, updated: 0, errors: 0 })
       .mockResolvedValueOnce({ pulled: 0, inserted: 0, updated: 0, errors: 0 });
-    const sessionNoCompany = { sub: 'u-mgr', role: 'manager', companyId: null } as never;
+    // Т-25: обычный менеджер импорт больше не запускает — сессия руководителя
+    // (без companyId право сохраняется, скоуп деградирует отдельно).
+    const sessionNoCompany = {
+      sub: 'u-mgr',
+      role: 'manager',
+      managerRole: 'leader',
+      companyId: null,
+    } as never;
     const result = await commitImport(fakePrisma, sessionNoCompany, { fileBuffer });
     expect(result).toMatchObject({ ok: true });
     expect(recordAudit.mock.calls[0][1].entityId).toBe('u-mgr');
