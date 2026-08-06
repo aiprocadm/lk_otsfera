@@ -14,6 +14,7 @@ import {
   type WriteCtx,
 } from '@/lib/services/oneCSync/writers';
 import { importScope } from '@/lib/services/oneCSync/scope';
+import { mayImportOneC } from '@/lib/auth/managerPolicy';
 import { recordAudit } from '@/lib/auth/audit';
 import type { OneCOrderDto, OneCOrgDto, OneCPaymentDto } from '@/lib/services/oneCSync/dto';
 import type { ImportDiagnostics } from '@/lib/services/import/diagnostics';
@@ -54,9 +55,8 @@ export type ImportReport = {
  */
 type Failure = { ok: false; error: Err; diagnostics?: ImportDiagnostics };
 
-function isStaff(s: SessionPayload) {
-  return s.role === 'admin' || s.role === 'manager';
-}
+// Т-25/Т-26: право импорта — admin и руководитель (mayImportOneC), обычный
+// менеджер отбивается кодом forbidden. Прежний локальный isStaff() удалён.
 
 /** Замечание для диагностики: имя файла говорит одно, содержимое — другое (Т-14). */
 function formatNoteFor(buffer: Buffer, fileName: string | undefined): string | undefined {
@@ -179,7 +179,7 @@ export async function previewImport(
   session: SessionPayload,
   args: Args
 ): Promise<{ ok: true; report: ImportReport } | Failure> {
-  if (!isStaff(session)) return { ok: false, error: 'forbidden' };
+  if (!mayImportOneC(session)) return { ok: false, error: 'forbidden' };
   const result = await run(prisma, session, args, 'shadow');
   if (!result.ok) return result;
   const { report } = result;
@@ -194,7 +194,7 @@ export async function commitImport(
   session: SessionPayload,
   args: Args
 ): Promise<{ ok: true; report: ImportReport } | Failure> {
-  if (!isStaff(session)) return { ok: false, error: 'forbidden' };
+  if (!mayImportOneC(session)) return { ok: false, error: 'forbidden' };
   const result = await run(prisma, session, args, 'live');
   if (!result.ok) return result;
   const { report } = result;

@@ -33,6 +33,7 @@ import {
   isManagerLeader,
   isLeaderSameCompany,
   managedOrgIds,
+  mayImportOneC,
 } from '@/lib/auth/managerPolicy';
 import { requireFieldsAdmin, requireAdmin, requireRole } from '@/lib/auth/guard';
 
@@ -78,6 +79,21 @@ describe('матрица доступа: руководитель против �
       organization: false,
       student: false,
     });
+  });
+
+  it('mayImportOneC (импорт из 1С, Т-25 ТЗ починки импорта): админ и руководитель, обычный менеджер — НЕТ', () => {
+    const actual = Object.fromEntries(ALL_ROLES.map((r) => [r, mayImportOneC(sess(r))]));
+    expect(actual).toEqual({
+      admin: true,
+      leader: true,
+      manager: false,
+      partner: false,
+      organization: false,
+      student: false,
+    });
+    // Право не зависит от companyId: руководитель без компании остаётся
+    // руководителем (скоуп при этом деградирует в orgs — см. importScope).
+    expect(mayImportOneC(sess('leader', { companyId: null } as never))).toBe(true);
   });
 
   it('requireFieldsAdmin (настройка полей и статусов, §4 ТЗ): админ и руководитель', () => {
@@ -163,6 +179,7 @@ describe('полнота матрицы', () => {
     'isManagerLeader',
     'isLeaderSameCompany',
     'managedOrgIds',
+    'mayImportOneC',
     // Скоуп-фильтры Prisma: роль в них не участвует напрямую, различие
     // приходит параметром teamMode/профилем — проверяется своими тестами
     // (auth.managerPolicy.test.ts, auth.managerPolicy.profile.unit.test.ts).

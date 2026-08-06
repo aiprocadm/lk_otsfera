@@ -116,6 +116,8 @@ describe('visibleSettingsSections / hasAnySettingsAccess', () => {
 
   it('руководитель видит только свои разделы', () => {
     expect(visibleSettingsSections(leader(), 'leader').map((s) => s.id)).toEqual([
+      // Этап 7 ТЗ импорта (Т-27): «Обмен с 1С» появился и в хабе руководителя.
+      'integrations.oneC',
       'integrations.notifications',
       'catalogs.applicationStatuses',
       'catalogs.customFields',

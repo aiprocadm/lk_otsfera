@@ -240,6 +240,8 @@ npm run test:integration
 
 Opt-in флаги означают: код в `main`, но эндпоинты возвращают 404 пока env-флаг не выставлен в `1/true/on`. Это поэтапная раскатка по операторам — см. [src/lib/featureFlags.ts](src/lib/featureFlags.ts) для семантики флагов. Пошаговая процедура включения (staging-smoke → флип флага на prod → наблюдение → откат) — в **[runbook staged-rollout](docs/runbook-staged-rollout-cabinets.md)** (smoke-чеклисты: [organization](docs/qa-staging-smoke-organization.md) · [manager](docs/qa-staging-smoke-manager.md)).
 
+**Импорт из 1С** (Т-25/Т-29 ТЗ починки импорта): право — только `admin` и руководитель (`mayImportOneC`), обычный менеджер получает `/forbidden`. Страницы — `/admin/settings/integrations/1c/*` и зеркала `/leader/settings/integrations/1c/*`; на проде достаточно дефолтных флагов (`FEATURE_SETTINGS_HUB` — opt-out, **не** выставлять в `0`; своего флага у раздела нет), для кабинета руководителя — включённый `FEATURE_MANAGER_CABINET`. Подробнее — [docs/RUNBOOK.md](docs/RUNBOOK.md) §4.
+
 ## Явная RBAC-матрица
 
 ### Web routes

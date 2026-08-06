@@ -35,6 +35,8 @@ export const SETTINGS_HUB_REDIRECTS = [
   ['/admin/sync', '/admin/settings/integrations/sync'],
   ['/admin/import', '/admin/settings/integrations/1c/excel'],
   ['/admin/payments-import', '/admin/settings/integrations/1c/payments'],
+  ['/manager/import', '/leader/settings/integrations/1c/excel'],
+  ['/manager/payments-import', '/leader/settings/integrations/1c/payments'],
   ['/admin/roles', '/admin/settings/access/roles'],
   ['/leader/roles', '/leader/settings/access/roles'],
   ['/admin/order-statuses', '/admin/settings/catalogs/application-statuses'],

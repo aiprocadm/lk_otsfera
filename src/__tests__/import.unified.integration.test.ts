@@ -70,13 +70,16 @@ const adminSession: SessionPayload = {
   role: 'admin',
 };
 
-// Plain manager scoped to a DIFFERENT org — should never see the seeded org.
-function buildOutOfScopeManagerSession(otherOrgId: string): SessionPayload {
+// Руководитель ЧУЖОЙ компании — company-скоуп не должен видеть наш seeded org (C8).
+// (Обычный менеджер с этапа 7 отбивается раньше — mayImportOneC, Т-25.)
+function buildForeignLeaderSession(otherCompanyId: string): SessionPayload {
   return {
-    sub: `${PREFIX}manager-user`,
+    sub: `${PREFIX}leader-user`,
     role: 'manager',
-    managedOrgIds: [otherOrgId], // NOT our seeded org
-  };
+    managerRole: 'leader',
+    companyId: otherCompanyId,
+    managedOrgIds: [],
+  } as SessionPayload;
 }
 
 // ── teardown helpers (FK-order matters) ─────────────────────────────────────
@@ -331,10 +334,10 @@ describe('Test 2 — API writer (upsertOrderRecord) produces identical domain fi
   });
 });
 
-// ── Test 3: Manager scope — out-of-scope order is skipped ────────────────────
-describe('Test 3 — Manager scope: order is skipped when org is out of scope', () => {
-  it('commitImport skips order when manager allowedOrgIds does not include the seeded org', async () => {
-    // Create a sentinel org so the manager session has SOME org — just not ours.
+// ── Test 3: права (Т-25) и скоуп (C8) ────────────────────────────────────────
+describe('Test 3 — обычный менеджер forbidden; руководитель чужой компании скипает out_of_scope', () => {
+  it('commitImport: менеджеру — forbidden; чужому руководителю — skip out_of_scope', async () => {
+    // Sentinel-компания и организация: дом «чужого» руководителя.
     const otherCompany = await prisma.company.create({ data: { name: `${PREFIX}OtherCompany` } });
     const otherOrg = await prisma.organization.create({
       data: {
@@ -345,7 +348,16 @@ describe('Test 3 — Manager scope: order is skipped when org is out of scope', 
     });
 
     try {
-      const managerSession = buildOutOfScopeManagerSession(otherOrg.id);
+      // Т-25: обычный менеджер отбивается на пороге сервиса — до разбора файла.
+      const plainManager: SessionPayload = {
+        sub: `${PREFIX}manager-user`,
+        role: 'manager',
+        managedOrgIds: [otherOrg.id],
+      };
+      const denied = await commitImport(prisma, plainManager, { fileBuffer: Buffer.from('x') });
+      expect(denied).toMatchObject({ ok: false, error: 'forbidden' });
+
+      const managerSession = buildForeignLeaderSession(otherCompany.id);
 
       // Mock parse-workbook: same order targeting our seeded org by INN.
       mockParseWorkbook.mockResolvedValueOnce({
@@ -372,7 +384,7 @@ describe('Test 3 — Manager scope: order is skipped when org is out of scope', 
 
       const result = await commitImport(prisma, managerSession, { fileBuffer: Buffer.from('x') });
 
-      // Import itself should succeed (manager is staff)
+      // Сам импорт руководителю разрешён (Т-25) — режет только скоуп.
       expect(result.ok).toBe(true);
       if (!result.ok) return;
 

@@ -39,8 +39,10 @@ export type SettingsSection = {
  * Старый маршрут раздела. `toPath` нужен там, где один раздел собирает
  * несколько прежних страниц во вкладки: «Обмен с 1С» — это две разные загрузки,
  * и каждая обязана приехать на свою вкладку, а не на общий корень подраздела.
+ * `cabinet` — для путей чужого префикса: `/manager/import` руководителя уезжает
+ * в leader-хаб, а по префиксу карта вывела бы админский (этап 7 ТЗ импорта).
  */
-type LegacyRoute = { from: string; toPath?: string };
+type LegacyRoute = { from: string; toPath?: string; cabinet?: SettingsCabinet };
 
 /** Порядок групп — из ТЗ §3 (Интеграции → Конфигурация → Доступ → Безопасность). */
 export const SETTINGS_GROUPS: ReadonlyArray<{ id: SettingsGroupId; title: string }> = [
@@ -81,10 +83,15 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     icon: '🏦',
     path: 'integrations/1c',
     capability: 'settings.integrations.manage',
-    cabinets: ['admin'],
+    // Этап 7 ТЗ импорта (Т-27): руководитель импортирует из своего хаба.
+    cabinets: ['admin', 'leader'],
     legacyHrefs: [
       { from: '/admin/import', toPath: 'integrations/1c/excel' },
       { from: '/admin/payments-import', toPath: 'integrations/1c/payments' },
+      // Старые адреса менеджерского кабинета — руководителя уводим в его хаб
+      // (обычному менеджеру страницы больше не положены, Т-25).
+      { from: '/manager/import', toPath: 'integrations/1c/excel', cabinet: 'leader' },
+      { from: '/manager/payments-import', toPath: 'integrations/1c/payments', cabinet: 'leader' },
     ],
   },
   {
@@ -234,14 +241,17 @@ export function sectionByPath(
 }
 
 /**
- * Старый путь → новый. Кабинет определяется префиксом самого старого пути:
- * `/leader/roles` уезжает в leader-хаб, `/admin/roles` — в админский.
+ * Старый путь → новый. Кабинет определяется префиксом самого старого пути
+ * (`/leader/roles` → leader-хаб, `/admin/roles` → админский); явный
+ * `legacy.cabinet` побеждает — для путей чужого префикса вроде
+ * `/manager/import`, уезжающего в хаб руководителя.
  */
 export function legacyRedirectMap(): ReadonlyMap<string, string> {
   const map = new Map<string, string>();
   for (const section of SETTINGS_SECTIONS) {
     for (const legacy of section.legacyHrefs) {
-      const cabinet: SettingsCabinet = legacy.from.startsWith('/leader') ? 'leader' : 'admin';
+      const cabinet: SettingsCabinet =
+        legacy.cabinet ?? (legacy.from.startsWith('/leader') ? 'leader' : 'admin');
       const target = legacy.toPath
         ? `${settingsRoot(cabinet)}/${legacy.toPath}`
         : settingsHref(section, cabinet);

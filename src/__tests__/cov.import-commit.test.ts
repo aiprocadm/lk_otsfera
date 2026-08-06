@@ -300,9 +300,19 @@ describe('previewPaymentImport (cov)', () => {
     expect(res).toEqual({ ok: false, error: 'parse_failed' });
   });
 
-  it('admits the manager role (isStaff) past the auth gate', async () => {
-    // manager passes isStaff (role==='manager' arm); unreadable buffer → parse_failed.
-    const res = await previewPaymentImport(prisma, managerInCompany, {
+  it('Т-25 (этап 7): обычный менеджер — forbidden, руководитель проходит гейт', async () => {
+    // Обычный менеджер отбивается mayImportOneC ещё до чтения файла.
+    const denied = await previewPaymentImport(prisma, managerInCompany, {
+      fileBuffer: Buffer.from('not a spreadsheet'),
+      fileName: 'broken.xlsx',
+    });
+    expect(denied).toEqual({ ok: false, error: 'forbidden' });
+    // Руководитель проходит гейт; нечитаемый буфер → parse_failed.
+    const leader = {
+      ...(managerInCompany as object),
+      managerRole: 'leader',
+    } as never;
+    const res = await previewPaymentImport(prisma, leader, {
       fileBuffer: Buffer.from('not a spreadsheet'),
       fileName: 'broken.xlsx',
     });

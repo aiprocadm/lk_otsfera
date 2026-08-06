@@ -146,4 +146,15 @@ describe('вкладки «Обмен с 1С»', () => {
     expect(links[1]?.getAttribute('data-active')).toBe('true');
     expect(links[0]?.getAttribute('data-active')).toBe('false');
   });
+
+  it('кабинет руководителя строит свои адреса (этап 7 ТЗ импорта, Т-27)', () => {
+    nav.pathname = '/leader/settings/integrations/1c/excel';
+    const { container } = render(<OneCTabs cabinet="leader" />);
+    const links = within(container).getAllByRole('link');
+    expect(links.map((l) => l.getAttribute('href'))).toEqual([
+      '/leader/settings/integrations/1c/excel',
+      '/leader/settings/integrations/1c/payments',
+    ]);
+    expect(links[0]?.getAttribute('data-active')).toBe('true');
+  });
 });
