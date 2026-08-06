@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import React from 'react';
 import { requireSettingsSection } from '@/lib/auth/requireSettings';
+import { prisma } from '@/lib/db/prisma';
 import { ImportForm } from '@/components/import/import-form';
 
 export const metadata: Metadata = { title: 'Загрузка Excel · Обмен с 1С · Настройки' };
@@ -9,6 +10,12 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminImportPage() {
   await requireSettingsSection('integrations.oneC', 'admin');
+  // Т-41: admin (Model A) выбирает, в какую компанию привязывать НОВЫЕ
+  // организации; единственная компания подставится по умолчанию без вопроса.
+  const companies = await prisma.company.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  });
   return (
     <div className="space-y-5">
       <div>
@@ -28,7 +35,7 @@ export default async function AdminImportPage() {
         «Синхронизация (авто)».
       </div>
       <div className="bg-white border border-gray-200 rounded-xl p-6">
-        <ImportForm />
+        <ImportForm companies={companies} />
       </div>
     </div>
   );

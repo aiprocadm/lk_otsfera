@@ -20,9 +20,11 @@ const ORG_INN_B = `52${String(STAMP).slice(-8)}`;
 const ORG_INN_DIRECT = `54${String(STAMP).slice(-8)}`;
 const EXT = (suffix: string) => `st4-${STAMP}-${suffix}`;
 
-const CTX: WriteCtx = { mode: 'live', notify: false, scope: { kind: 'global' } };
+// Этап 6 (Т-41): create-ветка больше не минтит Company — компания передаётся явно.
+let CTX: WriteCtx;
 
 let partnerId: string;
+let companyId: string;
 
 function orgDto(over: Partial<OneCOrgDto> & { externalId: string }): OneCOrgDto {
   return {
@@ -50,17 +52,16 @@ beforeAll(async () => {
     },
   });
   partnerId = partner.id;
+  const company = await prisma.company.create({ data: { name: `Компания этапа 4 ${STAMP}` } });
+  companyId = company.id;
+  CTX = { mode: 'live', notify: false, scope: { kind: 'global' }, createCompanyId: companyId };
 });
 
 afterAll(async () => {
-  // Организации ссылаются на Company (минт этапа до Т-41) — чистим каскадом снизу.
-  const orgs = await prisma.organization.findMany({
+  await prisma.organization.deleteMany({
     where: { externalId: { startsWith: `st4-${STAMP}-` } },
-    select: { id: true, companyId: true },
   });
-  await prisma.organization.deleteMany({ where: { id: { in: orgs.map((o) => o.id) } } });
-  const companyIds = orgs.map((o) => o.companyId).filter((x): x is string => x !== null);
-  await prisma.company.deleteMany({ where: { id: { in: companyIds }, users: { none: {} } } });
+  await prisma.company.deleteMany({ where: { id: companyId } });
   await prisma.partner.delete({ where: { id: partnerId } });
   await prisma.$disconnect();
 });

@@ -4,7 +4,7 @@
  * - previewImport empty arm
  * - commitImport audit failure (non-blocking)
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Hoisted mocks
 const { recordAudit, runRecordBatch, FileOneCAdapter, importScope } = vi.hoisted(() => {
@@ -319,5 +319,61 @@ describe('этап 3 — коды распознавания', () => {
     });
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.report.diagnostics.formatNote).toBeUndefined();
+  });
+});
+
+/**
+ * Этап 6 (Т-41): admin (скоуп global, Model A — своей компании нет) обязан
+ * назвать компанию для НОВЫХ организаций. Проверка идёт ДО батчей и одинакова
+ * в предпросмотре и применении. Руководителю/менеджеру компанию задаёт скоуп —
+ * их путь эти ветки не трогают (скоуп в этом файле замокан на {}).
+ */
+describe('этап 6 — компания для новых организаций (Т-41, скоуп global)', () => {
+  afterEach(() => {
+    importScope.mockReturnValue({});
+  });
+
+  it('передана и существует → проверена по базе, импорт идёт', async () => {
+    importScope.mockReturnValue({ kind: 'global' });
+    const findUnique = vi.fn().mockResolvedValue({ id: 'co-42' });
+    const result = await previewImport({ company: { findUnique } } as never, adminSession, {
+      fileBuffer,
+      companyId: 'co-42',
+    });
+    expect(findUnique).toHaveBeenCalledWith({ where: { id: 'co-42' }, select: { id: true } });
+    expect(result.ok).toBe(true);
+  });
+
+  it('передана, но в базе такой нет → company_required с диагностикой, батчи не начинались', async () => {
+    importScope.mockReturnValue({ kind: 'global' });
+    const findUnique = vi.fn().mockResolvedValue(null);
+    const result = await commitImport({ company: { findUnique } } as never, adminSession, {
+      fileBuffer,
+      companyId: 'co-ghost',
+    });
+    expect(result).toMatchObject({ ok: false, error: 'company_required' });
+    expect((result as { diagnostics?: unknown }).diagnostics).toBeTruthy();
+    expect(runRecordBatch).not.toHaveBeenCalled();
+    expect(recordAudit).not.toHaveBeenCalled();
+  });
+
+  it('не передана, компания в системе одна → берётся по умолчанию, без вопроса', async () => {
+    importScope.mockReturnValue({ kind: 'global' });
+    const findMany = vi.fn().mockResolvedValue([{ id: 'co-only' }]);
+    const result = await previewImport({ company: { findMany } } as never, adminSession, {
+      fileBuffer,
+    });
+    expect(findMany).toHaveBeenCalledWith({ select: { id: true }, take: 2 });
+    expect(result.ok).toBe(true);
+  });
+
+  it('не передана, компаний несколько → company_required ДО батчей', async () => {
+    importScope.mockReturnValue({ kind: 'global' });
+    const findMany = vi.fn().mockResolvedValue([{ id: 'co-1' }, { id: 'co-2' }]);
+    const result = await previewImport({ company: { findMany } } as never, adminSession, {
+      fileBuffer,
+    });
+    expect(result).toMatchObject({ ok: false, error: 'company_required' });
+    expect(runRecordBatch).not.toHaveBeenCalled();
   });
 });

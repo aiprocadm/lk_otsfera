@@ -20,16 +20,30 @@ async function guardedBuffer(
   return { ok: true, buf: Buffer.from(await file.arrayBuffer()), fileName: file.name };
 }
 
+/** Т-41: выбор компании для новых организаций (admin). Пусто → сервис решит сам. */
+function companyIdOf(form: FormData): { companyId?: string } {
+  const raw = form.get('companyId');
+  return typeof raw === 'string' && raw.trim() ? { companyId: raw.trim() } : {};
+}
+
 export async function previewImportAction(form: FormData) {
   const session = await requireSession();
   const g = await guardedBuffer(form);
   if (!g.ok) return { ok: false as const, error: g.error };
-  return previewImport(prisma, session, { fileBuffer: g.buf, fileName: g.fileName });
+  return previewImport(prisma, session, {
+    fileBuffer: g.buf,
+    fileName: g.fileName,
+    ...companyIdOf(form),
+  });
 }
 
 export async function commitImportAction(form: FormData) {
   const session = await requireSession();
   const g = await guardedBuffer(form);
   if (!g.ok) return { ok: false as const, error: g.error };
-  return commitImport(prisma, session, { fileBuffer: g.buf, fileName: g.fileName });
+  return commitImport(prisma, session, {
+    fileBuffer: g.buf,
+    fileName: g.fileName,
+    ...companyIdOf(form),
+  });
 }

@@ -3,6 +3,7 @@ import {
   oneCMode,
   oneCHttpTimeoutMs,
   oneCCursorOverlapMinutes,
+  oneCDefaultCompanyId,
 } from '@/lib/services/oneCSync/config';
 
 describe('oneCSync config', () => {
@@ -10,6 +11,7 @@ describe('oneCSync config', () => {
     delete process.env.ONE_C_MODE;
     delete process.env.ONE_C_HTTP_TIMEOUT_MS;
     delete process.env.ONE_C_CURSOR_OVERLAP_MINUTES;
+    delete process.env.ONE_C_COMPANY_ID;
   });
 
   it('oneCMode defaults to live and reads shadow case-insensitively', () => {
@@ -34,5 +36,16 @@ describe('oneCSync config', () => {
     expect(oneCCursorOverlapMinutes()).toBe(0);
     process.env.ONE_C_CURSOR_OVERLAP_MINUTES = 'bad';
     expect(oneCCursorOverlapMinutes()).toBe(5);
+  });
+
+  // Этап 6 (Т-41): компания для организаций, создаваемых сетевой синхронизацией.
+  it('oneCDefaultCompanyId: не задан/пусто/пробелы → null, значение тримится', () => {
+    expect(oneCDefaultCompanyId()).toBeNull();
+    process.env.ONE_C_COMPANY_ID = '';
+    expect(oneCDefaultCompanyId()).toBeNull();
+    process.env.ONE_C_COMPANY_ID = '   ';
+    expect(oneCDefaultCompanyId()).toBeNull();
+    process.env.ONE_C_COMPANY_ID = '  co-42  ';
+    expect(oneCDefaultCompanyId()).toBe('co-42');
   });
 });

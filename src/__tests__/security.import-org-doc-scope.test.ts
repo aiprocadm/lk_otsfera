@@ -2,14 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Regression for the C8 broken-tenant-isolation follow-up to PR #192: the org and
 // document writers of the full 1C sync must honour the SAME company floor that
-// #192 applied to the order/payment writers. #192 left them out of scope because
-// today only the headless worker reaches them (scope=undefined → global). This
-// test locks in the invariant so that if the org/document writers are ever wired
-// onto a session-scoped path (the file adapter already exposes pullOrganizations/
-// pullDocuments), a manager-leader cannot mint/mutate a Company-B org, mint a new
-// Company, or attribute a document to another company's order. Only admin (global)
-// / the unscoped worker may create brand-new orgs. Mirrors the shape of
-// security.import-leader-scope.test.ts.
+// #192 applied to the order/payment writers. Stage 6 (Т-41/Т-43) changed the
+// creation contract: a brand-new org no longer mints a Company — it is attached
+// to an existing one, and for a company-scoped leader that is ALWAYS their own
+// company (createCompanyId cannot override it). So creation is now allowed for
+// admin (global), the unscoped worker and the leader (inside their tenant), and
+// still denied for an orgs-scoped plain manager (it would silently widen their
+// assigned-orgs scope). Updates/documents keep the same company floor as before.
+// Mirrors the shape of security.import-leader-scope.test.ts.
 
 const { resolveOrganizationRef } = vi.hoisted(() => ({ resolveOrganizationRef: vi.fn() }));
 const { notifyOrgUsers, notifyManagers } = vi.hoisted(() => ({
@@ -77,13 +77,8 @@ function orgDb(over: Record<string, unknown> = {}) {
       findUnique: vi.fn().mockResolvedValue(null),
       findFirst: vi.fn().mockResolvedValue(null),
       update: vi.fn(),
+      create: vi.fn(),
     },
-    $transaction: vi.fn(async (cb: (tx: unknown) => unknown) =>
-      cb({
-        company: { create: vi.fn().mockResolvedValue({ id: 'co-new' }) },
-        organization: { create: vi.fn() },
-      })
-    ),
     ...over,
   } as never;
 }
@@ -117,7 +112,7 @@ beforeEach(() => {
   getQueue.mockReturnValue({ add: vi.fn() });
 });
 
-describe('C8: mayCreateOrg — only admin/unscoped-worker may mint a brand-new org+company', () => {
+describe('C8: mayCreateOrg — creation no longer mints a Company (stage 6, Т-43)', () => {
   it('allows an unscoped (worker) actor', () => {
     expect(mayCreateOrg(undefined)).toBe(true);
   });
@@ -125,10 +120,10 @@ describe('C8: mayCreateOrg — only admin/unscoped-worker may mint a brand-new o
     expect(mayCreateOrg(globalScope)).toBe(true);
     expect(mayCreateOrg({ kind: 'global' } as ImportScope)).toBe(true);
   });
-  it('denies a manager-leader (company-scoped)', () => {
-    expect(mayCreateOrg(companyScope)).toBe(false);
+  it('allows a manager-leader (company-scoped): the org is created INSIDE their company', () => {
+    expect(mayCreateOrg(companyScope)).toBe(true);
   });
-  it('denies a plain manager (org-scoped)', () => {
+  it('denies a plain manager (org-scoped): creating would widen their assigned-orgs scope', () => {
     expect(mayCreateOrg(importScope(plainMgrA))).toBe(false);
     expect(mayCreateOrg({ kind: 'orgs', allowedOrgIds: [] } as ImportScope)).toBe(false);
   });
@@ -172,20 +167,53 @@ describe('C8: upsertOrgRecord honours the company floor', () => {
     expect(sum.updated).toBe(1);
   });
 
-  it('leader CANNOT create a brand-new org (would mint a new Company — skip out_of_scope, no $transaction)', async () => {
+  it('leader CAN create a brand-new org — ONLY in their own company, createCompanyId cannot override (Т-41)', async () => {
     const d = orgDb();
     const sum = emptySummary();
-    await upsertOrgRecord(d, orgDto, sum, { mode: 'live', notify: true, scope: companyScope });
-    expect((d as { $transaction: ReturnType<typeof vi.fn> }).$transaction).not.toHaveBeenCalled();
+    await upsertOrgRecord(d, orgDto, sum, {
+      mode: 'live',
+      notify: true,
+      scope: companyScope,
+      createCompanyId: 'companyB', // попытка подсунуть чужую компанию
+    });
+    const create = (d as { organization: { create: ReturnType<typeof vi.fn> } }).organization
+      .create;
+    expect(create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ companyId: 'companyA' }),
+    });
+    expect(sum.created).toBe(1);
+  });
+
+  it('plain manager (org-scoped) CANNOT create (skip out_of_scope, no write)', async () => {
+    const d = orgDb();
+    const sum = emptySummary();
+    await upsertOrgRecord(d, orgDto, sum, {
+      mode: 'live',
+      notify: true,
+      scope: importScope(plainMgrA),
+      createCompanyId: 'companyA',
+    });
+    expect(
+      (d as { organization: { create: ReturnType<typeof vi.fn> } }).organization.create
+    ).not.toHaveBeenCalled();
     expect(sum.skipped).toBe(1);
     expect(sum.skips[0]).toMatchObject({ reason: 'out_of_scope' });
   });
 
-  it('admin (global) CAN create a brand-new org+company', async () => {
+  it('admin (global) CAN create a brand-new org in the passed company — no Company is minted', async () => {
     const d = orgDb();
     const sum = emptySummary();
-    await upsertOrgRecord(d, orgDto, sum, { mode: 'live', notify: true, scope: globalScope });
-    expect((d as { $transaction: ReturnType<typeof vi.fn> }).$transaction).toHaveBeenCalled();
+    await upsertOrgRecord(d, orgDto, sum, {
+      mode: 'live',
+      notify: true,
+      scope: globalScope,
+      createCompanyId: 'companyA',
+    });
+    const create = (d as { organization: { create: ReturnType<typeof vi.fn> } }).organization
+      .create;
+    expect(create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ companyId: 'companyA' }),
+    });
     expect(sum.created).toBe(1);
   });
 });

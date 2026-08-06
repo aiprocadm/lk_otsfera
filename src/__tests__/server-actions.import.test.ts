@@ -181,3 +181,30 @@ describe('commitImportAction — file guard', () => {
     expect(result).toEqual({ ok: true, report });
   });
 });
+
+/** Этап 6 (Т-41): выбор компании из формы уходит в сервис; пусто → поля нет. */
+describe('companyId из формы (Т-41)', () => {
+  it('передаётся в сервис с тримом на обоих шагах', async () => {
+    previewImport.mockResolvedValue({ ok: false, error: 'empty' });
+    commitImport.mockResolvedValue({ ok: false, error: 'empty' });
+    await previewImportAction(fd({ file: xlsxFile(), companyId: '  co-42  ' }));
+    expect(previewImport).toHaveBeenCalledWith(
+      {},
+      session,
+      expect.objectContaining({ companyId: 'co-42' })
+    );
+    await commitImportAction(fd({ file: xlsxFile(), companyId: 'co-42' }));
+    expect(commitImport).toHaveBeenCalledWith(
+      {},
+      session,
+      expect.objectContaining({ companyId: 'co-42' })
+    );
+  });
+
+  it('пустая строка не передаёт поле вовсе — сервис решает сам (дефолт одной компании)', async () => {
+    previewImport.mockResolvedValue({ ok: false, error: 'empty' });
+    await previewImportAction(fd({ file: xlsxFile(), companyId: '   ' }));
+    const args = previewImport.mock.calls[0][2];
+    expect('companyId' in args).toBe(false);
+  });
+});

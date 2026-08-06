@@ -58,6 +58,7 @@ async function dbCounts() {
 
 let book: Buffer;
 let adminUserId: string;
+let targetCompanyId: string;
 
 beforeAll(async () => {
   book = await buildBook();
@@ -73,22 +74,24 @@ beforeAll(async () => {
   });
   adminUserId = user.id;
   adminSession = { sub: user.id, role: 'admin' } as never;
+  // Этап 6 (Т-41): admin обязан назвать компанию для новых организаций —
+  // заводим целевую (в общей базе компаний много, дефолт не сработает).
+  const company = await prisma.company.create({ data: { name: `Компания этапа 5 ${STAMP}` } });
+  targetCompanyId = company.id;
 });
 
 afterAll(async () => {
-  // Снизу вверх: оплаты → заказы → организации → минтованные Company (до этапа 6).
+  // Снизу вверх: оплаты → заказы → организация → целевая компания теста.
   const org = await prisma.organization.findUnique({
     where: { externalId: ORG_KEY },
-    select: { id: true, companyId: true },
+    select: { id: true },
   });
   if (org) {
     await prisma.payment.deleteMany({ where: { order: { organizationId: org.id } } });
     await prisma.order.deleteMany({ where: { organizationId: org.id } });
     await prisma.organization.delete({ where: { id: org.id } });
-    if (org.companyId) {
-      await prisma.company.deleteMany({ where: { id: org.companyId, users: { none: {} } } });
-    }
   }
+  await prisma.company.deleteMany({ where: { id: targetCompanyId } });
   await prisma.auditLog.deleteMany({ where: { userId: adminUserId } });
   await prisma.user.delete({ where: { id: adminUserId } });
   await prisma.$disconnect();
@@ -100,6 +103,7 @@ describe('этап 5 — импорт организаций, сквозной �
     const res = await previewImport(prisma, adminSession, {
       fileBuffer: book,
       fileName: 'st5.xlsx',
+      companyId: targetCompanyId,
     });
     const after = await dbCounts();
 
@@ -125,6 +129,7 @@ describe('этап 5 — импорт организаций, сквозной �
     const res = await commitImport(prisma, adminSession, {
       fileBuffer: book,
       fileName: 'st5.xlsx',
+      companyId: targetCompanyId,
     });
     expect(res.ok).toBe(true);
     if (!res.ok) return;
@@ -134,12 +139,13 @@ describe('этап 5 — импорт организаций, сквозной �
 
     const org = await prisma.organization.findUnique({
       where: { externalId: ORG_KEY },
-      select: { id: true, inn: true, kpp: true, partnerId: true },
+      select: { id: true, inn: true, kpp: true, partnerId: true, companyId: true },
     });
     expect(org).not.toBeNull();
     expect(org?.inn).toBe(ORG_INN);
     expect(org?.kpp).toBe('770701001');
     expect(org?.partnerId).toBeNull(); // прямой клиент (этап 4)
+    expect(org?.companyId).toBe(targetCompanyId); // этап 6 (Т-41): выбранная компания, не минтованная
 
     // Заказ из того же файла привязался к свежесозданной организации (Т-17).
     const order = await prisma.order.findFirst({
@@ -159,6 +165,7 @@ describe('этап 5 — импорт организаций, сквозной �
     const res = await commitImport(prisma, adminSession, {
       fileBuffer: book,
       fileName: 'st5.xlsx',
+      companyId: targetCompanyId,
     });
     expect(res.ok).toBe(true);
     if (!res.ok) return;

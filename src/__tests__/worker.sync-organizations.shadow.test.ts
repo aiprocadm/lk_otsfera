@@ -26,15 +26,19 @@ describe('syncOrganizationsProcessor shadow mode', () => {
   beforeEach(() => {
     process.env.ONE_C_ADAPTER = 'fake';
     process.env.ONE_C_MODE = 'shadow';
+    // Этап 6 (Т-41): без компании create-ветка честно падает company_not_configured —
+    // для проверки «shadow не пишет, но считает» компания должна быть задана.
+    process.env.ONE_C_COMPANY_ID = 'co-sync';
     resetOneCAdapter();
   });
   afterEach(() => {
     delete process.env.ONE_C_MODE;
+    delete process.env.ONE_C_COMPANY_ID;
     resetOneCAdapter();
   });
 
-  it('does not run the create transaction or advance cursor', async () => {
-    const tx = vi.fn();
+  it('does not create records or advance cursor', async () => {
+    const create = vi.fn();
     const update = vi.fn().mockResolvedValue({});
     const upsert = vi.fn().mockResolvedValue({});
     const db = {
@@ -45,13 +49,13 @@ describe('syncOrganizationsProcessor shadow mode', () => {
         findUnique: vi.fn().mockResolvedValue(null),
         findFirst: vi.fn().mockResolvedValue(null),
         update,
+        create,
       },
-      $transaction: tx,
       syncLog: { create: vi.fn().mockResolvedValue({}) },
     } as unknown as PrismaClient;
 
     const result = await syncOrganizationsProcessor(job, db);
-    expect(tx).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
     expect(update).not.toHaveBeenCalled();
     expect(upsert).not.toHaveBeenCalled();
     expect(result.created).toBeGreaterThan(0);
@@ -62,10 +66,12 @@ describe('syncOrganizationsProcessor live mode', () => {
   beforeEach(() => {
     process.env.ONE_C_ADAPTER = 'fake';
     process.env.ONE_C_MODE = 'live';
+    process.env.ONE_C_COMPANY_ID = 'co-sync';
     resetOneCAdapter();
   });
   afterEach(() => {
     delete process.env.ONE_C_MODE;
+    delete process.env.ONE_C_COMPANY_ID;
     resetOneCAdapter();
   });
 
@@ -96,38 +102,60 @@ describe('syncOrganizationsProcessor live mode', () => {
   });
 
   // Covers the `summary.created > 0 ? 'create' : 'update'` TRUE branch in the
-  // writeSyncLog call. organization.findUnique returns null → CREATE path →
-  // $transaction runs the callback to create company + organization.
+  // writeSyncLog call. organization.findUnique returns null → CREATE path.
+  // Этап 6 (Т-41): Company не минтится — организация создаётся в компании из
+  // ONE_C_COMPANY_ID одним organization.create.
   it('writes create operation log when new organizations are created (created>0 branch)', async () => {
     const upsert = vi.fn().mockResolvedValue({});
-    const companyCreate = vi.fn().mockResolvedValue({ id: 'co-new' });
     const orgCreate = vi.fn().mockResolvedValue({});
     const db = {
       syncState: { findUnique: vi.fn().mockResolvedValue(null), upsert },
       partner: { findFirst: vi.fn().mockResolvedValue({ id: 'p1' }) },
       // Return null for both externalId (findUnique) and inn (findFirst) lookups →
-      // upsertOrgRecord takes the CREATE path → $transaction called
+      // upsertOrgRecord takes the CREATE path
       organization: {
         findUnique: vi.fn().mockResolvedValue(null),
         findFirst: vi.fn().mockResolvedValue(null),
+        create: orgCreate,
       },
-      $transaction: vi.fn().mockImplementation(async (fn: (tx: unknown) => Promise<void>) => {
-        await fn({
-          company: { create: companyCreate },
-          organization: { create: orgCreate },
-        });
-      }),
       syncLog: { create: vi.fn().mockResolvedValue({}) },
     } as unknown as PrismaClient;
 
     const result = await syncOrganizationsProcessor(job, db);
 
-    expect(companyCreate).toHaveBeenCalled();
-    expect(orgCreate).toHaveBeenCalled();
+    expect(orgCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({ companyId: 'co-sync' }),
+    });
     expect(result.created).toBeGreaterThan(0);
     const logArg = (db.syncLog.create as ReturnType<typeof vi.fn>).mock.calls[0][0];
     // summary.created > 0 → operation must be 'create' (not 'update')
     expect(logArg.data.operation).toBe('create');
+  });
+
+  // Т-41: конфиг не задан → создание невозможно, но это ЯВНАЯ построчная ошибка
+  // в отчёте + log.error, а не молчаливый минт тенанта (и не остановка обновлений).
+  it('без ONE_C_COMPANY_ID create-строки падают company_not_configured с log.error', async () => {
+    delete process.env.ONE_C_COMPANY_ID;
+    const orgCreate = vi.fn();
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const db = {
+      syncState: { findUnique: vi.fn().mockResolvedValue(null), upsert: vi.fn() },
+      partner: { findFirst: vi.fn().mockResolvedValue({ id: 'p1' }) },
+      organization: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        findFirst: vi.fn().mockResolvedValue(null),
+        create: orgCreate,
+      },
+      syncLog: { create: vi.fn().mockResolvedValue({}) },
+    } as unknown as PrismaClient;
+
+    const result = await syncOrganizationsProcessor(job, db);
+
+    expect(orgCreate).not.toHaveBeenCalled();
+    expect(result.failed).toBeGreaterThan(0);
+    expect(result.failures[0]).toMatchObject({ error: 'company_not_configured' });
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('ONE_C_COMPANY_ID'));
+    errorSpy.mockRestore();
   });
 });
 
