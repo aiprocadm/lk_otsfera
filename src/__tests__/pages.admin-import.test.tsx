@@ -10,6 +10,17 @@ vi.mock('@/lib/auth/requireSettings', () => ({ requireSettingsSection }));
 const { companyFindMany } = vi.hoisted(() => ({ companyFindMany: vi.fn() }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: { company: { findMany: companyFindMany } } }));
 
+// Этап 9 (Т-39): страница читает историю импортов и отдаёт её таблице.
+const { listImportBatches } = vi.hoisted(() => ({ listImportBatches: vi.fn() }));
+vi.mock('@/lib/services/import/rollback', () => ({ listImportBatches }));
+vi.mock('@/components/import/import-history', () => ({
+  ImportHistory: (props: { batches: unknown[] }) =>
+    React.createElement('div', {
+      'data-testid': 'import-history',
+      'data-batches': String(props.batches.length),
+    }),
+}));
+
 vi.mock('@/components/import/import-form', () => ({
   ImportForm: (props: { companies?: Array<{ id: string; name: string }> }) =>
     React.createElement('div', {
@@ -29,6 +40,9 @@ describe('AdminImportPage', () => {
       { id: 'co-1', name: 'Альфа' },
       { id: 'co-2', name: 'Бета' },
     ]);
+    listImportBatches
+      .mockReset()
+      .mockResolvedValue({ ok: true, batches: [{ id: 'b1' }, { id: 'b2' }] });
   });
 
   it('requires admin and renders the import form with companies (Т-41)', async () => {
@@ -45,5 +59,19 @@ describe('AdminImportPage', () => {
     expect(
       container.querySelector('[data-testid="import-form"]')?.getAttribute('data-companies')
     ).toBe('co-1,co-2');
+    // Этап 9 (Т-39): история импортов на странице.
+    expect(container.textContent).toContain('История импортов');
+    expect(
+      container.querySelector('[data-testid="import-history"]')?.getAttribute('data-batches')
+    ).toBe('2');
+  });
+
+  it('отказ сервиса истории не роняет страницу — таблица пустая', async () => {
+    requireSettingsSection.mockResolvedValue(SESSION);
+    listImportBatches.mockResolvedValue({ ok: false, error: 'forbidden' });
+    const { container } = await renderServerComponent(AdminImportPage());
+    expect(
+      container.querySelector('[data-testid="import-history"]')?.getAttribute('data-batches')
+    ).toBe('0');
   });
 });

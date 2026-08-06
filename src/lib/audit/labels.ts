@@ -108,6 +108,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   max_unlinked: 'Отвязка мессенджера Max',
   message_sent: 'Отправка сообщения',
   'one_c_import.commit': 'Загрузка данных из 1С',
+  'one_c_import.rollback': 'Откат импорта из 1С',
   one_c_pending_requeued: 'Повтор отложенной записи 1С',
   order_accounting_signed: 'Подписание закрывающих документов',
   order_deliverables_approved: 'Приёмка результата по заказу',

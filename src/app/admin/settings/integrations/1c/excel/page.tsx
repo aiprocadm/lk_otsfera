@@ -3,19 +3,23 @@ import React from 'react';
 import { requireSettingsSection } from '@/lib/auth/requireSettings';
 import { prisma } from '@/lib/db/prisma';
 import { ImportForm } from '@/components/import/import-form';
+import { ImportHistory } from '@/components/import/import-history';
+import { listImportBatches } from '@/lib/services/import/rollback';
 
 export const metadata: Metadata = { title: 'Загрузка Excel · Обмен с 1С · Настройки' };
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminImportPage() {
-  await requireSettingsSection('integrations.oneC', 'admin');
+  const session = await requireSettingsSection('integrations.oneC', 'admin');
   // Т-41: admin (Model A) выбирает, в какую компанию привязывать НОВЫЕ
   // организации; единственная компания подставится по умолчанию без вопроса.
   const companies = await prisma.company.findMany({
     select: { id: true, name: true },
     orderBy: { name: 'asc' },
   });
+  // Этап 9 (Т-39): история импортов с кнопкой отката.
+  const history = await listImportBatches(prisma, session);
   return (
     <div className="space-y-5">
       <div>
@@ -36,6 +40,10 @@ export default async function AdminImportPage() {
       </div>
       <div className="bg-white border border-gray-200 rounded-xl p-6">
         <ImportForm companies={companies} />
+      </div>
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <h2 className="text-base font-semibold text-[#111111] mb-3">История импортов</h2>
+        <ImportHistory batches={history.ok ? history.batches : []} />
       </div>
     </div>
   );
