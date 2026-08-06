@@ -9,6 +9,7 @@ import { clientLog } from '@/lib/logging/client';
 import { XLSX_IMPORT_ERRORS, errorMessage as messageFor, fileSizeMb } from './error-messages';
 
 type ImportReport = {
+  orgs: BatchSummary;
   orders: BatchSummary;
   payments: BatchSummary;
   diagnostics: ImportDiagnostics;
@@ -157,7 +158,7 @@ function EntitySummary({
 }: {
   label: string;
   summary: BatchSummary;
-  entityKey: 'orders' | 'payments';
+  entityKey: 'orgs' | 'orders' | 'payments';
 }) {
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4">
@@ -317,6 +318,8 @@ export function ImportForm() {
             <p className="text-xs text-gray-500">Режим: предпросмотр (данные не записаны)</p>
           </div>
 
+          {/* Т-18: организации — наравне с заказами и оплатами, и первыми (порядок импорта). */}
+          <EntitySummary label="Организации" summary={report.orgs} entityKey="orgs" />
           <EntitySummary label="Заказы" summary={report.orders} entityKey="orders" />
           <EntitySummary label="Оплаты" summary={report.payments} entityKey="payments" />
 
@@ -342,6 +345,11 @@ export function ImportForm() {
           <div className="bg-green-50 border border-green-200 rounded-xl p-4">
             <p className="text-sm font-semibold text-green-800">Импорт выполнен</p>
           </div>
+          <EntitySummary
+            label="Организации (итог)"
+            summary={commitResult.report.orgs}
+            entityKey="orgs"
+          />
           <EntitySummary
             label="Заказы (итог)"
             summary={commitResult.report.orders}

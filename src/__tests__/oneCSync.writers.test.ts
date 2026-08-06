@@ -167,9 +167,11 @@ describe('upsertOrderRecord', () => {
       updatedAt: '2026-04-01T00:00:00Z',
     } as any;
     await upsertOrderRecord(d, innDto, sum, { mode: 'live', notify: false });
+    // Третий аргумент — canWrite (Т-24): live-режим разрешает backfill.
     expect(resolveOrganizationRef).toHaveBeenCalledWith(
       d,
-      expect.objectContaining({ inn: '7700' })
+      expect.objectContaining({ inn: '7700' }),
+      true
     );
     expect(sum.created).toBe(1);
   });

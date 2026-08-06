@@ -140,9 +140,11 @@ describe('previewImport', () => {
     FileOneCAdapter.mockImplementation(() => adapter);
 
     // runRecordBatch returns a summary with created=1 pulled=1 for orders, empty for payments
+    const orgSummary = EMPTY_SUMMARY();
     const orderSummary = { ...EMPTY_SUMMARY(), pulled: 1, created: 1 };
     const paymentSummary = EMPTY_SUMMARY();
     runRecordBatch
+      .mockResolvedValueOnce(orgSummary) // orgs (Т-17: первым)
       .mockResolvedValueOnce(orderSummary) // orders
       .mockResolvedValueOnce(paymentSummary); // payments
 
@@ -151,7 +153,12 @@ describe('previewImport', () => {
 
     expect(res).toEqual({
       ok: true,
-      report: { orders: orderSummary, payments: paymentSummary, diagnostics: DIAGNOSTICS },
+      report: {
+        orgs: orgSummary,
+        orders: orderSummary,
+        payments: paymentSummary,
+        diagnostics: DIAGNOSTICS,
+      },
     });
     if (res.ok) {
       expect(res.report.orders.created).toBe(1);
@@ -182,9 +189,13 @@ describe('commitImport', () => {
     const adapter = makeAdapter([{ externalId: 'O-2' }], []);
     FileOneCAdapter.mockImplementation(() => adapter);
 
+    const orgSummary = EMPTY_SUMMARY();
     const orderSummary = { ...EMPTY_SUMMARY(), pulled: 1, created: 1 };
     const paymentSummary = EMPTY_SUMMARY();
-    runRecordBatch.mockResolvedValueOnce(orderSummary).mockResolvedValueOnce(paymentSummary);
+    runRecordBatch
+      .mockResolvedValueOnce(orgSummary)
+      .mockResolvedValueOnce(orderSummary)
+      .mockResolvedValueOnce(paymentSummary);
 
     recordAudit.mockResolvedValue(undefined);
 
@@ -193,7 +204,12 @@ describe('commitImport', () => {
 
     expect(res).toEqual({
       ok: true,
-      report: { orders: orderSummary, payments: paymentSummary, diagnostics: DIAGNOSTICS },
+      report: {
+        orgs: orgSummary,
+        orders: orderSummary,
+        payments: paymentSummary,
+        diagnostics: DIAGNOSTICS,
+      },
     });
     expect(recordAudit).toHaveBeenCalledWith(
       prisma,
@@ -205,9 +221,13 @@ describe('commitImport', () => {
     const adapter = makeAdapter([{ externalId: 'O-3' }], []);
     FileOneCAdapter.mockImplementation(() => adapter);
 
+    const orgSummary = EMPTY_SUMMARY();
     const orderSummary = { ...EMPTY_SUMMARY(), pulled: 1, updated: 1 };
     const paymentSummary = EMPTY_SUMMARY();
-    runRecordBatch.mockResolvedValueOnce(orderSummary).mockResolvedValueOnce(paymentSummary);
+    runRecordBatch
+      .mockResolvedValueOnce(orgSummary)
+      .mockResolvedValueOnce(orderSummary)
+      .mockResolvedValueOnce(paymentSummary);
 
     recordAudit.mockRejectedValue(new Error('audit db down'));
 

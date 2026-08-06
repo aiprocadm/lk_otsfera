@@ -59,6 +59,7 @@ describe('ImportForm (interactive, jsdom)', () => {
     previewImportAction.mockResolvedValue({
       ok: true,
       report: {
+        orgs: emptySummary(),
         orders: emptySummary({ pulled: 5, created: 3, updated: 2 }),
         payments: emptySummary({ pulled: 4, created: 4 }),
       },
@@ -91,7 +92,10 @@ describe('ImportForm (interactive, jsdom)', () => {
     fireEvent.click(screen.getByTestId('import-preview-button'));
 
     expect(await screen.findByText('Загрузка…')).toBeTruthy();
-    resolvePreview({ ok: true, report: { orders: emptySummary(), payments: emptySummary() } });
+    resolvePreview({
+      ok: true,
+      report: { orgs: emptySummary(), orders: emptySummary(), payments: emptySummary() },
+    });
     await waitFor(() => expect(screen.getByTestId('import-plan')).toBeTruthy());
   });
 
@@ -154,6 +158,7 @@ describe('ImportForm (interactive, jsdom)', () => {
     previewImportAction.mockResolvedValue({
       ok: true,
       report: {
+        orgs: emptySummary(),
         orders: emptySummary({
           pulled: 2,
           skipped: 1,
@@ -181,7 +186,11 @@ describe('ImportForm (interactive, jsdom)', () => {
   it('ReasonsTable renders nothing when there are no skips/invalids (rows.length===0 branch)', async () => {
     previewImportAction.mockResolvedValue({
       ok: true,
-      report: { orders: emptySummary({ pulled: 1, created: 1 }), payments: emptySummary() },
+      report: {
+        orgs: emptySummary(),
+        orders: emptySummary({ pulled: 1, created: 1 }),
+        payments: emptySummary(),
+      },
     });
     render(React.createElement(ImportForm));
     pickFile(
@@ -198,6 +207,7 @@ describe('ImportForm (interactive, jsdom)', () => {
     previewImportAction.mockResolvedValue({
       ok: true,
       report: {
+        orgs: emptySummary(),
         orders: emptySummary({
           pulled: 1,
           failed: 1,
@@ -221,6 +231,7 @@ describe('ImportForm (interactive, jsdom)', () => {
     previewImportAction.mockResolvedValue({
       ok: true,
       report: {
+        orgs: emptySummary(),
         orders: emptySummary({ pulled: 2, created: 2 }),
         payments: emptySummary({ pulled: 1, created: 1 }),
       },
@@ -228,6 +239,7 @@ describe('ImportForm (interactive, jsdom)', () => {
     commitImportAction.mockResolvedValue({
       ok: true,
       report: {
+        orgs: emptySummary(),
         orders: emptySummary({ pulled: 2, created: 2 }),
         payments: emptySummary({ pulled: 1, created: 1 }),
       },
@@ -249,7 +261,7 @@ describe('ImportForm (interactive, jsdom)', () => {
   it('commit shows a loading label while pending', async () => {
     previewImportAction.mockResolvedValue({
       ok: true,
-      report: { orders: emptySummary(), payments: emptySummary() },
+      report: { orgs: emptySummary(), orders: emptySummary(), payments: emptySummary() },
     });
     let resolveCommit: (v: unknown) => void = () => {};
     commitImportAction.mockImplementation(
@@ -268,14 +280,17 @@ describe('ImportForm (interactive, jsdom)', () => {
 
     fireEvent.click(screen.getByTestId('import-commit-button'));
     expect(await screen.findByText('Импорт…')).toBeTruthy();
-    resolveCommit({ ok: true, report: { orders: emptySummary(), payments: emptySummary() } });
+    resolveCommit({
+      ok: true,
+      report: { orgs: emptySummary(), orders: emptySummary(), payments: emptySummary() },
+    });
     await waitFor(() => expect(screen.getByText('Импорт выполнен')).toBeTruthy());
   });
 
   it('commit failure: shows the mapped error alert, no success banner', async () => {
     previewImportAction.mockResolvedValue({
       ok: true,
-      report: { orders: emptySummary(), payments: emptySummary() },
+      report: { orgs: emptySummary(), orders: emptySummary(), payments: emptySummary() },
     });
     commitImportAction.mockResolvedValue({ ok: false, error: 'parse_failed' });
     render(React.createElement(ImportForm));
@@ -298,7 +313,7 @@ describe('ImportForm (interactive, jsdom)', () => {
     // clearing files on the (still-mounted) input before invoking commit.
     previewImportAction.mockResolvedValue({
       ok: true,
-      report: { orders: emptySummary(), payments: emptySummary() },
+      report: { orgs: emptySummary(), orders: emptySummary(), payments: emptySummary() },
     });
     render(React.createElement(ImportForm));
     const input = screen.getByTestId('import-file-input') as HTMLInputElement;
@@ -354,6 +369,7 @@ describe('ImportForm — «Что увидела система в файле»'
     previewImportAction.mockResolvedValue({
       ok: true,
       report: {
+        orgs: emptySummary(),
         orders: emptySummary({ pulled: 1, created: 1 }),
         payments: emptySummary(),
         diagnostics: { ...DIAGNOSTICS, unmatchedHeaders: { Контрагенты: [] } },
@@ -457,7 +473,11 @@ describe('ImportForm — сбой и слишком большой файл', ()
   it('сбой на подтверждении импорта тоже виден', async () => {
     previewImportAction.mockResolvedValue({
       ok: true,
-      report: { orders: emptySummary({ pulled: 1 }), payments: emptySummary() },
+      report: {
+        orgs: emptySummary(),
+        orders: emptySummary({ pulled: 1 }),
+        payments: emptySummary(),
+      },
     });
     commitImportAction.mockRejectedValue(new Error('network down'));
     render(React.createElement(ImportForm));
@@ -478,7 +498,11 @@ describe('ImportForm — сбой и слишком большой файл', ()
   it('слишком большой файл не уходит и на подтверждении', async () => {
     previewImportAction.mockResolvedValue({
       ok: true,
-      report: { orders: emptySummary({ pulled: 1 }), payments: emptySummary() },
+      report: {
+        orgs: emptySummary(),
+        orders: emptySummary({ pulled: 1 }),
+        payments: emptySummary(),
+      },
     });
     render(React.createElement(ImportForm));
     const input = screen.getByTestId('import-file-input') as HTMLInputElement;

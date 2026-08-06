@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isValidInn } from './inn';
 
 // Accepts anything Date.parse understands; rejects garbage. Tightening to a strict
 // format is DECISION Q7 (datetime format from 1C) — keep permissive until confirmed.
@@ -14,6 +15,25 @@ export const OneCOrgSchema = z.object({
   kpp: z.string().optional(),
   partnerExternalId: z.string().optional(),
   updatedAt: isoDate,
+});
+
+/**
+ * Файловая схема контрагента (ТЗ починки импорта, Т-21). Ключ синтезируется из
+ * ИНН (Т-16), поэтому строка без валидного ИНН не может стать организацией:
+ * `no_inn` / `bad_inn` уходят в таблицу ошибок через штатный канал
+ * `parseRecords`, батч продолжается.
+ *
+ * НАМЕРЕННО отдельная от `OneCOrgSchema`: сетевой `adapter-rest` несёт
+ * настоящие externalId и не обязан проходить контрольную сумму ИНН — вшивать
+ * проверку в общий writer значило бы менять поведение сетевого обмена за
+ * рамками ТЗ.
+ */
+export const OneCOrgFileSchema = OneCOrgSchema.superRefine((org, ctx) => {
+  if (!org.inn) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'no_inn' });
+  } else if (!isValidInn(org.inn)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'bad_inn' });
+  }
 });
 
 export const OneCOrderSchema = z

@@ -1,16 +1,21 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { FileOneCAdapter } from '@/lib/services/oneCSync/adapter-file';
-import { OneCOrderSchema, OneCPaymentSchema } from '@/lib/services/oneCSync/schemas';
+import {
+  OneCOrderSchema,
+  OneCOrgFileSchema,
+  OneCPaymentSchema,
+} from '@/lib/services/oneCSync/schemas';
 import { runRecordBatch, type BatchSummary } from '@/lib/services/oneCSync/record-batch';
 import {
   upsertOrderRecord,
+  upsertOrgRecord,
   upsertPaymentRecord,
   type WriteCtx,
 } from '@/lib/services/oneCSync/writers';
 import { importScope } from '@/lib/services/oneCSync/scope';
 import { recordAudit } from '@/lib/auth/audit';
-import type { OneCOrderDto, OneCPaymentDto } from '@/lib/services/oneCSync/dto';
+import type { OneCOrderDto, OneCOrgDto, OneCPaymentDto } from '@/lib/services/oneCSync/dto';
 import type { ImportDiagnostics } from '@/lib/services/import/diagnostics';
 import { sniffWorkbookFormat, WorkbookFormatError } from '@/lib/services/import/workbook';
 import { log } from '@/lib/logging';
@@ -28,6 +33,7 @@ type Err =
   | 'columns_not_recognized'
   | 'empty';
 export type ImportReport = {
+  orgs: BatchSummary;
   orders: BatchSummary;
   payments: BatchSummary;
   /** Что система увидела в файле (Т-3) — показывается и при успехе, и при ошибке. */
@@ -103,7 +109,16 @@ async function run(
   const ctx: WriteCtx = { mode, notify: false, scope: importScope(session) };
   let report: ImportReport;
   try {
-    // Orders first so a same-file payment referencing a freshly-created order resolves in live mode; then payments.
+    // Т-17: организации ПЕРВЫМИ — заказ из того же файла находит свою
+    // свежесозданную организацию в live-режиме; затем заказы, затем оплаты.
+    // Файловая схема (Т-21) кладёт no_inn/bad_inn в таблицу ошибок, не роняя батч.
+    const orgsRaw = (await adapter.pullOrganizations({})) as unknown[];
+    const orgs = await runRecordBatch<OneCOrgDto>(
+      orgsRaw,
+      OneCOrgFileSchema,
+      (d) => d.externalId,
+      (d, s) => upsertOrgRecord(prisma, d, s, ctx)
+    );
     const ordersRaw = (await adapter.pullOrders({})) as unknown[];
     const orders = await runRecordBatch<OneCOrderDto>(
       ordersRaw,
@@ -118,7 +133,7 @@ async function run(
       (d) => d.externalId,
       (d, s) => upsertPaymentRecord(prisma, d, s, ctx)
     );
-    report = { orders, payments, diagnostics };
+    report = { orgs, orders, payments, diagnostics };
   } catch (e) {
     return parseFailure(e);
   }
@@ -134,7 +149,7 @@ export async function previewImport(
   const result = await run(prisma, session, args, 'shadow');
   if (!result.ok) return result;
   const { report } = result;
-  if (report.orders.pulled + report.payments.pulled === 0) {
+  if (report.orgs.pulled + report.orders.pulled + report.payments.pulled === 0) {
     return { ok: false, error: 'empty', diagnostics: report.diagnostics };
   }
   return { ok: true, report };
@@ -155,7 +170,7 @@ export async function commitImport(
       action: 'one_c_import.commit',
       entity: 'one_c_import',
       entityId: session.companyId ?? session.sub,
-      after: { orders: report.orders, payments: report.payments },
+      after: { orgs: report.orgs, orders: report.orders, payments: report.payments },
     });
   } catch (e) {
     log.error('one_c_import audit failed (non-blocking):', e);

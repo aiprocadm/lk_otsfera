@@ -53,10 +53,11 @@ export async function upsertOrderRecord(
   ctx: WriteCtx
 ) {
   const input = mapOrderDto(dto);
-  const org = await resolveOrganizationRef(db, {
-    externalId: input.organizationExternalId,
-    inn: input.organizationInn,
-  });
+  const org = await resolveOrganizationRef(
+    db,
+    { externalId: input.organizationExternalId, inn: input.organizationInn },
+    isLive(ctx)
+  );
   if (!org || !org.companyId) {
     sum.skipped += 1;
     sum.skips.push({ externalId: input.externalId, reason: 'organization_not_found' });
@@ -193,10 +194,11 @@ export async function upsertPaymentRecord(
     orderId = order.id;
     organizationId = order.organizationId;
   } else {
-    const org = await resolveOrganizationRef(db, {
-      externalId: input.organizationExternalId,
-      inn: input.organizationInn,
-    });
+    const org = await resolveOrganizationRef(
+      db,
+      { externalId: input.organizationExternalId, inn: input.organizationInn },
+      isLive(ctx)
+    );
     if (!org) {
       sum.skipped += 1;
       sum.skips.push({ externalId: input.externalId, reason: 'organization_not_found' });
