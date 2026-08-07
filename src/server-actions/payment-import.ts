@@ -1,4 +1,5 @@
 'use server';
+import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db/prisma';
 import { requireSession } from '@/lib/auth/requireRole';
 import {
@@ -8,6 +9,7 @@ import {
   dismissQueueRow,
   searchResolveOrgs,
   listResolveOrders,
+  createOrgFromQueueRow,
 } from '@/lib/services/import/oneCAccountCard';
 // Т-5: тот же предел, что у импорта Excel и в next.config.
 import { IMPORT_MAX_FILE_BYTES } from '@/lib/config/import-limits';
@@ -60,4 +62,21 @@ export async function searchResolveOrgsAction(args: { q?: string }) {
 export async function listResolveOrdersAction(args: { organizationId: string }) {
   const session = await requireSession();
   return listResolveOrders(prisma, session, args);
+}
+
+/** Этап 10 (Т-30): создание организации из строки очереди + привязка платежа. */
+export async function createOrgFromQueueRowAction(args: {
+  rowId: string;
+  name: string;
+  inn: string;
+  kpp?: string | null;
+  companyId?: string;
+}) {
+  const session = await requireSession();
+  const result = await createOrgFromQueueRow(prisma, session, args);
+  if (result.ok) {
+    revalidatePath('/admin/settings/integrations/1c/payments');
+    revalidatePath('/leader/settings/integrations/1c/payments');
+  }
+  return result;
 }

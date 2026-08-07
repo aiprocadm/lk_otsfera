@@ -6,6 +6,7 @@ import {
   resolveQueueRowAction,
   searchResolveOrgsAction,
   listResolveOrdersAction,
+  createOrgFromQueueRowAction,
 } from '@/server-actions/payment-import';
 import { Button, Dialog, Field, Input, Select } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
@@ -23,6 +24,8 @@ export type QueueRow = {
   candidateOrgId: string | null;
   candidateOrgName: string | null;
   matchMethod: string | null;
+  /** Компания батча — prefill селекта в диалоге создания организации (Т-30). */
+  batchCompanyId: string | null;
 };
 
 type OrgOption = { id: string; name: string; inn: string | null };
@@ -36,6 +39,13 @@ const ERROR_MESSAGES: Record<string, string> = {
   org_required: 'Выберите организацию',
   write_skipped:
     'Оплата не записана: организация вне вашей зоны доступа или нет данных для привязки',
+  // Этап 10 (Т-30): создание организации из очереди.
+  name_required: 'Укажите наименование организации',
+  bad_inn: 'ИНН некорректен: нужно 10 или 12 цифр с верной контрольной суммой',
+  org_exists: 'Организация с этим ИНН уже есть в базе — используйте кнопку «Привязать»',
+  company_required: 'Выберите компанию для новой организации',
+  bind_failed:
+    'Организация создана, но оплату привязать не удалось — привяжите её кнопкой «Привязать»',
 };
 function errorMessage(code: string): string {
   return ERROR_MESSAGES[code] ?? `Ошибка: ${code}`;
@@ -45,9 +55,21 @@ function orderLabel(o: OrderOption): string {
   return `${o.orderNumber ? `№${o.orderNumber} — ` : ''}${o.title}`;
 }
 
-export function PaymentQueueTable({ rows }: { rows: QueueRow[] }) {
+/**
+ * `companies` передаёт только админская страница (Т-30/Т-41): admin выбирает
+ * компанию новой организации в диалоге; руководителю компанию задаёт скоуп —
+ * его страница проп не передаёт, и селекта нет.
+ */
+export function PaymentQueueTable({
+  rows,
+  companies,
+}: {
+  rows: QueueRow[];
+  companies?: Array<{ id: string; name: string }>;
+}) {
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [active, setActive] = useState<QueueRow | null>(null);
+  const [creating, setCreating] = useState<QueueRow | null>(null);
   const visible = rows.filter((r) => !hidden.has(r.id));
 
   function hide(id: string) {
@@ -116,6 +138,17 @@ export function PaymentQueueTable({ rows }: { rows: QueueRow[] }) {
                   >
                     Привязать
                   </button>
+                  {/* Т-30: только у строк с ИНН — без него создавать не из чего. */}
+                  {r.counterpartyInn && (
+                    <button
+                      type="button"
+                      onClick={() => setCreating(r)}
+                      className="text-[#EA580C] hover:underline"
+                      data-testid={`create-org-${r.id}`}
+                    >
+                      Создать организацию
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => dismiss(r.id)}
@@ -141,7 +174,175 @@ export function PaymentQueueTable({ rows }: { rows: QueueRow[] }) {
           }}
         />
       )}
+
+      {creating && (
+        <CreateOrgDialog
+          row={creating}
+          companies={companies}
+          onClose={() => setCreating(null)}
+          onResolved={(id) => {
+            hide(id);
+            setCreating(null);
+            toast.success('Организация создана, оплата привязана');
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+/**
+ * Диалог Т-30: предзаполненные редактируемые поля, создание — только по кнопке
+ * оператора. Т-31: «Подтянуть по ИНН» через существующий DaData-прокси; нет
+ * ключа/не нашлось — тихая подсказка, ручной ввод работает как раньше.
+ */
+function CreateOrgDialog({
+  row,
+  companies,
+  onClose,
+  onResolved,
+}: {
+  row: QueueRow;
+  companies?: Array<{ id: string; name: string }> | undefined;
+  onClose: () => void;
+  onResolved: (id: string) => void;
+}) {
+  const [name, setName] = useState(row.counterpartyName ?? '');
+  const [inn, setInn] = useState(row.counterpartyInn ?? '');
+  const [kpp, setKpp] = useState('');
+  const [companyId, setCompanyId] = useState(row.batchCompanyId ?? '');
+  const [submitting, setSubmitting] = useState(false);
+  const [fetching, setFetching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hint, setHint] = useState<string | null>(null);
+
+  // Т-31: DaData по ИНН. Прокси деградирует в пустой список — не ошибка.
+  async function fetchByInn() {
+    setFetching(true);
+    setHint(null);
+    try {
+      const res = await fetch(`/api/suggest/party?query=${encodeURIComponent(inn.trim())}`);
+      const body = (await res.json()) as {
+        suggestions?: Array<{ name: string; inn: string; kpp: string | null }>;
+      };
+      const found = body.suggestions?.find((s) => s.inn === inn.trim()) ?? body.suggestions?.[0];
+      if (found) {
+        setName(found.name);
+        if (found.kpp) setKpp(found.kpp);
+      } else {
+        setHint('По этому ИНН ничего не нашлось — заполните поля вручную.');
+      }
+    } catch {
+      setHint('Подсказки недоступны — заполните поля вручную.');
+    } finally {
+      setFetching(false);
+    }
+  }
+
+  async function submit() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await createOrgFromQueueRowAction({
+        rowId: row.id,
+        name,
+        inn,
+        kpp: kpp.trim() || null,
+        ...(companies && companyId ? { companyId } : {}),
+      });
+      if (res.ok) {
+        onResolved(row.id);
+        return;
+      }
+      setError(errorMessage(res.error));
+    } catch {
+      setError('Сервер недоступен — попробуйте ещё раз');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title="Создать организацию и привязать"
+      busy={submitting}
+      error={error}
+      notice={hint}
+    >
+      <div className="space-y-4">
+        <p className="text-xs text-gray-500">
+          {row.externalId} · {row.amount} · оплата будет привязана к новой организации
+        </p>
+
+        <Field htmlFor="create-org-inn" label="ИНН">
+          <div className="flex gap-2">
+            <Input
+              id="create-org-inn"
+              value={inn}
+              onChange={(e) => setInn(e.target.value)}
+              invalid={!inn.trim()}
+            />
+            <Button
+              variant="secondary"
+              onClick={() => void fetchByInn()}
+              loading={fetching}
+              disabled={!inn.trim()}
+              data-testid="create-org-dadata"
+            >
+              Подтянуть по ИНН
+            </Button>
+          </div>
+        </Field>
+
+        <Field htmlFor="create-org-name" label="Наименование">
+          <Input
+            id="create-org-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            invalid={!name.trim()}
+          />
+        </Field>
+
+        <Field htmlFor="create-org-kpp" label="КПП (необязательно)">
+          <Input id="create-org-kpp" value={kpp} onChange={(e) => setKpp(e.target.value)} />
+        </Field>
+
+        {/* Т-41: admin выбирает компанию; руководителю её задаёт скоуп. */}
+        {companies && (
+          <Field htmlFor="create-org-company" label="Компания новой организации">
+            <Select
+              id="create-org-company"
+              value={companyId}
+              onChange={(e) => setCompanyId(e.target.value)}
+              invalid={!companyId}
+            >
+              <option value="">— выберите компанию —</option>
+              {companies.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
+
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="secondary" onClick={onClose} disabled={submitting}>
+            Отмена
+          </Button>
+          <Button
+            onClick={submit}
+            loading={submitting}
+            disabled={!name.trim() || !inn.trim() || (!!companies && !companyId)}
+            data-testid="create-org-submit"
+          >
+            Создать и привязать
+          </Button>
+        </div>
+      </div>
+    </Dialog>
   );
 }
 

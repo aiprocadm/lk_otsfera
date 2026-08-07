@@ -5,12 +5,17 @@ import { join } from 'node:path';
 describe('import/ has no second writer (all writes via oneCSync writers)', () => {
   it('contains no direct prisma order/payment/organization/document create-or-update', () => {
     const dir = join(process.cwd(), 'src/lib/services/import');
-    // Этап 9 (Т-35): откат — сознательный ОБРАТНЫЙ writer. Он восстанавливает
-    // поля из снимков истории (`before`) и удаляет созданное импортом; прогон
-    // через oneCSync-writer'ы превратил бы откат в новый импорт (со своей
-    // историей, скоупами и счётчиками). Единственное санкционированное
-    // исключение; любые другие прямые записи в import/ по-прежнему запрещены.
-    const ALLOWED = new Set(['rollback.ts']);
+    // Санкционированные исключения; любые другие прямые записи в import/
+    // по-прежнему запрещены:
+    // - Этап 9 (Т-35): откат — сознательный ОБРАТНЫЙ writer. Он восстанавливает
+    //   поля из снимков истории (`before`) и удаляет созданное импортом; прогон
+    //   через oneCSync-writer'ы превратил бы откат в новый импорт (со своей
+    //   историей, скоупами и счётчиками).
+    // - Этап 10 (Т-30): создание организации из очереди — РУЧНАЯ операция по
+    //   кнопке оператора, не импортная запись; oneCSync-writer создаёт
+    //   организации только из данных 1С, а здесь источник — форма диалога.
+    //   Автосоздание из выписки при этом запрещено (Т-30а, страж в матчере).
+    const ALLOWED = new Set(['rollback.ts', join('oneCAccountCard', 'create-org.ts')]);
     // Recursive: subdirectories (e.g. oneCAccountCard/) carry real write logic and
     // must be covered too — a non-recursive scan would silently exempt them.
     const files = readdirSync(dir, { recursive: true })

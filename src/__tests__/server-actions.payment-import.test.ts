@@ -1,13 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { requireSession } = vi.hoisted(() => ({ requireSession: vi.fn() }));
-const { previewPaymentImport, commitPaymentImport, searchResolveOrgs, listResolveOrders } =
-  vi.hoisted(() => ({
-    previewPaymentImport: vi.fn(),
-    commitPaymentImport: vi.fn(),
-    searchResolveOrgs: vi.fn(),
-    listResolveOrders: vi.fn(),
-  }));
+const {
+  previewPaymentImport,
+  commitPaymentImport,
+  searchResolveOrgs,
+  listResolveOrders,
+  createOrgFromQueueRow,
+} = vi.hoisted(() => ({
+  previewPaymentImport: vi.fn(),
+  commitPaymentImport: vi.fn(),
+  searchResolveOrgs: vi.fn(),
+  listResolveOrders: vi.fn(),
+  createOrgFromQueueRow: vi.fn(),
+}));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireSession }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
@@ -18,12 +24,16 @@ vi.mock('@/lib/services/import/oneCAccountCard', () => ({
   dismissQueueRow: vi.fn(),
   searchResolveOrgs,
   listResolveOrders,
+  createOrgFromQueueRow,
 }));
+const { revalidatePath } = vi.hoisted(() => ({ revalidatePath: vi.fn() }));
+vi.mock('next/cache', () => ({ revalidatePath }));
 
 import {
   previewPaymentImportAction,
   searchResolveOrgsAction,
   listResolveOrdersAction,
+  createOrgFromQueueRowAction,
 } from '@/server-actions/payment-import';
 
 beforeEach(() => {
@@ -81,5 +91,25 @@ describe('listResolveOrdersAction', () => {
       { sub: 'u1', role: 'admin' },
       { organizationId: 'o1' }
     );
+  });
+});
+
+/** Этап 10 (Т-30): экшен создания организации из очереди — тонкий адаптер. */
+describe('createOrgFromQueueRowAction', () => {
+  it('успех → ревалидация обеих payments-страниц', async () => {
+    createOrgFromQueueRow.mockResolvedValue({ ok: true, organizationId: 'o1', paymentId: 'p1' });
+    const args = { rowId: 'r1', name: 'ООО', inn: '7707083893', companyId: 'co-1' };
+    const res = await createOrgFromQueueRowAction(args);
+    expect(createOrgFromQueueRow).toHaveBeenCalledWith({}, { sub: 'u1', role: 'admin' }, args);
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/settings/integrations/1c/payments');
+    expect(revalidatePath).toHaveBeenCalledWith('/leader/settings/integrations/1c/payments');
+    expect(res).toMatchObject({ ok: true });
+  });
+
+  it('отказ → без ревалидации, результат пробрасывается', async () => {
+    createOrgFromQueueRow.mockResolvedValue({ ok: false, error: 'org_exists' });
+    const res = await createOrgFromQueueRowAction({ rowId: 'r1', name: 'x', inn: 'y' });
+    expect(res).toEqual({ ok: false, error: 'org_exists' });
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 });
