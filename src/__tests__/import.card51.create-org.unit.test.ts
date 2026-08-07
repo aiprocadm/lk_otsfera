@@ -82,13 +82,11 @@ describe('права и скоуп строки', () => {
   it('чужая компания для руководителя → not_found (существование не раскрываем)', async () => {
     const db = makeDb({
       paymentImportRow: {
-        findUnique: vi
-          .fn()
-          .mockResolvedValue({
-            id: 'row-1',
-            status: 'needs_review',
-            batch: { companyId: 'co-OTHER' },
-          }),
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'row-1',
+          status: 'needs_review',
+          batch: { companyId: 'co-OTHER' },
+        }),
       },
     });
     expect(await createOrgFromQueueRow(db, LEADER, baseArgs)).toEqual({
