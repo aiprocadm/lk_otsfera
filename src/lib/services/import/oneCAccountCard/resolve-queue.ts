@@ -47,6 +47,8 @@ export async function listQueue(prisma: PrismaClient, session: SessionPayload) {
       candidateOrgId: true,
       candidateOrderId: true,
       matchMethod: true,
+      // Этап 10 (Т-30): prefill компании в диалоге создания организации.
+      batch: { select: { companyId: true } },
     },
   });
 }

@@ -113,6 +113,7 @@ describe('вкладка «Выписка (сч. 51)» руководителя'
         accountCandidates: null,
         candidateOrgId: 'org-1',
         matchMethod: 'inn',
+        batch: { companyId: 'co-1' },
       },
       {
         // Кандидат есть, но имени в карте нет — ветка `?? null`.
@@ -127,6 +128,7 @@ describe('вкладка «Выписка (сч. 51)» руководителя'
         accountCandidates: null,
         candidateOrgId: 'org-ghost',
         matchMethod: 'account',
+        batch: { companyId: 'co-1' },
       },
       {
         // Строка без кандидата — вторая ветка маппинга (candidateOrgName: null).
@@ -141,6 +143,7 @@ describe('вкладка «Выписка (сч. 51)» руководителя'
         accountCandidates: ['40702810000000000001'],
         candidateOrgId: null,
         matchMethod: null,
+        batch: { companyId: 'co-1' },
       },
     ]);
     listQueueOrgNames.mockResolvedValue(new Map([['org-1', 'ООО Ромашка']]));

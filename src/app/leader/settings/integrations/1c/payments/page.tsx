@@ -33,6 +33,7 @@ export default async function LeaderPaymentsImportPage() {
     candidateOrgId: r.candidateOrgId,
     candidateOrgName: r.candidateOrgId ? (orgName.get(r.candidateOrgId) ?? null) : null,
     matchMethod: r.matchMethod,
+    batchCompanyId: r.batch.companyId,
   }));
   return (
     <div className="space-y-6">

@@ -26,6 +26,7 @@ function row(over: Partial<QueueRow> = {}): QueueRow {
     candidateOrgId: 'org1',
     candidateOrgName: 'ООО Ромашка',
     matchMethod: 'fuzzy',
+    batchCompanyId: 'co-1',
     ...over,
   };
 }

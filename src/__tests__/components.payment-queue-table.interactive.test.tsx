@@ -8,17 +8,20 @@ const {
   resolveQueueRowAction,
   searchResolveOrgsAction,
   listResolveOrdersAction,
+  createOrgFromQueueRowAction,
 } = vi.hoisted(() => ({
   dismissQueueRowAction: vi.fn(),
   resolveQueueRowAction: vi.fn(),
   searchResolveOrgsAction: vi.fn(),
   listResolveOrdersAction: vi.fn(),
+  createOrgFromQueueRowAction: vi.fn(),
 }));
 vi.mock('@/server-actions/payment-import', () => ({
   dismissQueueRowAction,
   resolveQueueRowAction,
   searchResolveOrgsAction,
   listResolveOrdersAction,
+  createOrgFromQueueRowAction,
 }));
 
 const { toastSuccess } = vi.hoisted(() => ({ toastSuccess: vi.fn() }));
@@ -40,6 +43,7 @@ function row(over: Partial<QueueRow> = {}): QueueRow {
     candidateOrgId: 'org1',
     candidateOrgName: 'ООО Ромашка',
     matchMethod: 'fuzzy',
+    batchCompanyId: 'co-1',
     ...over,
   };
 }
@@ -427,5 +431,161 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
     expect(() =>
       resolveOrders([{ id: 'ord1', orderNumber: 'ПЗ-01', title: 'Поставка' }])
     ).not.toThrow();
+  });
+});
+
+/**
+ * Этап 10 (Т-30/Т-31): диалог «Создать организацию и привязать» — кнопка
+ * только у строк с ИНН, prefill, селект компании только у admin, DaData-
+ * подтяжка с тихой деградацией, русские ошибки.
+ */
+describe('PaymentQueueTable — создание организации из очереди (Т-30)', () => {
+  const COMPANIES = [
+    { id: 'co-1', name: 'Альфа' },
+    { id: 'co-2', name: 'Бета' },
+  ];
+
+  beforeEach(() => {
+    createOrgFromQueueRowAction.mockReset();
+  });
+
+  const openDialog = () => document.querySelector('dialog[open]') as HTMLElement;
+
+  it('кнопка есть только у строк с ИНН', () => {
+    render(<PaymentQueueTable rows={[row(), row({ id: 'r2', counterpartyInn: null })]} />);
+    expect(screen.getByTestId('create-org-r1')).toBeTruthy();
+    expect(screen.queryByTestId('create-org-r2')).toBeNull();
+  });
+
+  it('диалог: prefill наименования и ИНН; без пропа companies селекта нет; успех прячет строку', async () => {
+    createOrgFromQueueRowAction.mockResolvedValue({
+      ok: true,
+      organizationId: 'org-new',
+      paymentId: 'pay-1',
+    });
+    render(<PaymentQueueTable rows={[row()]} />);
+    fireEvent.click(screen.getByTestId('create-org-r1'));
+
+    const dialog = openDialog();
+    expect((within(dialog).getByLabelText('Наименование') as HTMLInputElement).value).toBe(
+      'ООО Ромашка'
+    );
+    expect((within(dialog).getByLabelText('ИНН') as HTMLInputElement).value).toBe('7701234567');
+    expect(within(dialog).queryByLabelText('Компания новой организации')).toBeNull();
+
+    fireEvent.click(screen.getByTestId('create-org-submit'));
+    await waitFor(() =>
+      expect(createOrgFromQueueRowAction).toHaveBeenCalledWith({
+        rowId: 'r1',
+        name: 'ООО Ромашка',
+        inn: '7701234567',
+        kpp: null,
+      })
+    );
+    await waitFor(() =>
+      expect(toastSuccess).toHaveBeenCalledWith('Организация создана, оплата привязана')
+    );
+    expect(screen.queryByTestId('create-org-r1')).toBeNull(); // строка скрыта
+  });
+
+  it('admin: селект компании обязателен, prefill компанией батча, значение уходит в экшен', async () => {
+    createOrgFromQueueRowAction.mockResolvedValue({
+      ok: true,
+      organizationId: 'o',
+      paymentId: null,
+    });
+    render(<PaymentQueueTable rows={[row()]} companies={COMPANIES} />);
+    fireEvent.click(screen.getByTestId('create-org-r1'));
+
+    const select = within(openDialog()).getByLabelText(
+      'Компания новой организации'
+    ) as HTMLSelectElement;
+    expect(select.value).toBe('co-1'); // prefill компанией батча
+    fireEvent.change(select, { target: { value: 'co-2' } });
+
+    fireEvent.click(screen.getByTestId('create-org-submit'));
+    await waitFor(() =>
+      expect(createOrgFromQueueRowAction).toHaveBeenCalledWith(
+        expect.objectContaining({ companyId: 'co-2' })
+      )
+    );
+  });
+
+  it('Т-31: «Подтянуть по ИНН» заполняет поля из DaData; пусто → тихая подсказка', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        json: async () => ({
+          suggestions: [{ name: 'ООО ДаДата', inn: '7701234567', kpp: '770101001' }],
+        }),
+      })
+      .mockResolvedValueOnce({ json: async () => ({ suggestions: [] }) });
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      render(<PaymentQueueTable rows={[row()]} />);
+      fireEvent.click(screen.getByTestId('create-org-r1'));
+
+      fireEvent.click(screen.getByTestId('create-org-dadata'));
+      await waitFor(() =>
+        expect(
+          (within(openDialog()).getByLabelText('Наименование') as HTMLInputElement).value
+        ).toBe('ООО ДаДата')
+      );
+      expect(
+        (within(openDialog()).getByLabelText('КПП (необязательно)') as HTMLInputElement).value
+      ).toBe('770101001');
+      expect(fetchMock).toHaveBeenCalledWith('/api/suggest/party?query=7701234567');
+
+      fireEvent.click(screen.getByTestId('create-org-dadata'));
+      await waitFor(() =>
+        expect(openDialog().textContent).toContain('По этому ИНН ничего не нашлось')
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('Т-31: сеть упала — подсказка про ручной ввод, форма живёт', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('net down')));
+    try {
+      render(<PaymentQueueTable rows={[row()]} />);
+      fireEvent.click(screen.getByTestId('create-org-r1'));
+      fireEvent.click(screen.getByTestId('create-org-dadata'));
+      await waitFor(() => expect(openDialog().textContent).toContain('Подсказки недоступны'));
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('ошибки сервиса — по-русски: org_exists и bind_failed', async () => {
+    createOrgFromQueueRowAction
+      .mockResolvedValueOnce({ ok: false, error: 'org_exists' })
+      .mockResolvedValueOnce({
+        ok: false,
+        error: 'bind_failed',
+        organizationId: 'org-new',
+        bindError: 'write_skipped',
+      });
+    render(<PaymentQueueTable rows={[row()]} />);
+    fireEvent.click(screen.getByTestId('create-org-r1'));
+
+    fireEvent.click(screen.getByTestId('create-org-submit'));
+    await waitFor(() =>
+      expect(openDialog().textContent).toContain('Организация с этим ИНН уже есть в базе')
+    );
+    fireEvent.click(screen.getByTestId('create-org-submit'));
+    await waitFor(() =>
+      expect(openDialog().textContent).toContain(
+        'Организация создана, но оплату привязать не удалось'
+      )
+    );
+  });
+
+  it('сеть упала на создании — понятная ошибка', async () => {
+    createOrgFromQueueRowAction.mockRejectedValue(new Error('net down'));
+    render(<PaymentQueueTable rows={[row()]} />);
+    fireEvent.click(screen.getByTestId('create-org-r1'));
+    fireEvent.click(screen.getByTestId('create-org-submit'));
+    await waitFor(() => expect(openDialog().textContent).toContain('Сервер недоступен'));
   });
 });

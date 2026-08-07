@@ -9,7 +9,10 @@ vi.mock('@/lib/auth/requireSettings', () => ({ requireSettingsSection }));
 
 // Поиск названий организаций-кандидатов уехал в сервис (аудит A1): форма
 // запроса пиннится в import.card51.resolveQueue.unit.test.ts.
-vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+const { companyFindMany } = vi.hoisted(() => ({
+  companyFindMany: vi.fn().mockResolvedValue([{ id: 'co-1', name: 'Альфа' }]),
+}));
+vi.mock('@/lib/db/prisma', () => ({ prisma: { company: { findMany: companyFindMany } } }));
 
 const { listQueue, listQueueOrgNames } = vi.hoisted(() => ({
   listQueue: vi.fn(),
@@ -55,6 +58,7 @@ describe('AdminPaymentsImportPage', () => {
         accountCandidates: [],
         candidateOrgId: null,
         matchMethod: 'none',
+        batch: { companyId: 'co-1' },
       },
     ]);
 
@@ -82,6 +86,7 @@ describe('AdminPaymentsImportPage', () => {
         accountCandidates: ['a1', 'a2'],
         candidateOrgId: 'org-1',
         matchMethod: 'inn',
+        batch: { companyId: 'co-1' },
       },
       {
         id: 'q2',
@@ -95,6 +100,7 @@ describe('AdminPaymentsImportPage', () => {
         accountCandidates: null,
         candidateOrgId: 'org-2',
         matchMethod: 'manual',
+        batch: { companyId: 'co-1' },
       },
     ]);
     listQueueOrgNames.mockResolvedValue(new Map([['org-1', 'Org One']]));

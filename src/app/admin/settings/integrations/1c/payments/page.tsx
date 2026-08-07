@@ -15,6 +15,11 @@ export default async function AdminPaymentsImportPage() {
   const raw = await listQueue(prisma, session);
   const orgIds = raw.map((r) => r.candidateOrgId).filter((x): x is string => !!x);
   const orgName = await listQueueOrgNames(prisma, orgIds);
+  // Т-30/Т-41: admin выбирает компанию новой организации в диалоге создания.
+  const companies = await prisma.company.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  });
   const rows: QueueRow[] = raw.map((r) => ({
     id: r.id,
     externalId: r.externalId,
@@ -28,6 +33,7 @@ export default async function AdminPaymentsImportPage() {
     candidateOrgId: r.candidateOrgId,
     candidateOrgName: r.candidateOrgId ? (orgName.get(r.candidateOrgId) ?? null) : null,
     matchMethod: r.matchMethod,
+    batchCompanyId: r.batch.companyId,
   }));
   return (
     <div className="space-y-6">
@@ -51,7 +57,7 @@ export default async function AdminPaymentsImportPage() {
       </div>
       <div className="bg-white border border-gray-200 rounded-xl p-6">
         <h2 className="text-base font-semibold text-[#111111] mb-3">Очередь ручного разбора</h2>
-        <PaymentQueueTable rows={rows} />
+        <PaymentQueueTable rows={rows} companies={companies} />
       </div>
     </div>
   );

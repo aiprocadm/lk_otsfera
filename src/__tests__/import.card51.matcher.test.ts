@@ -100,4 +100,30 @@ describe('matchRow', () => {
     expect(out.route).toBe('queue');
     if (out.route === 'queue') expect(out.matchMethod).toBe('none');
   });
+
+  // Т-30а (страж, решение владельца №5): автосоздание организаций из выписки
+  // запрещено. ИНН, которого нет в базе, обязан уйти в очередь, а не породить
+  // запись — organization.create в матчере не существует и появиться не должен.
+  it('Т-30а: новый ИНН (организации нет в базе) → route queue, никаких create', async () => {
+    const orgFindFirst = vi.fn().mockResolvedValue(null); // организации с таким ИНН нет
+    const prisma = {
+      order: { findFirst: vi.fn().mockResolvedValue(null) },
+      organization: { findFirst: orgFindFirst, findMany: vi.fn().mockResolvedValue([]) },
+    } as never;
+    const out = await matchRow(prisma, {
+      externalId: 'p-new-inn',
+      paidAt: '2026-08-07T00:00:00Z',
+      amount: 100,
+      isRefund: false,
+      purpose: null,
+      counterpartyName: 'ООО Новая',
+      counterpartyInn: '7707083893',
+      accountCandidates: [],
+      paymentOrderNumber: null,
+      vatAmount: null,
+    } as never);
+    expect(out.route).toBe('queue');
+    // Мок призмы вообще не имеет organization.create — попытка создать упала бы TypeError.
+    expect(orgFindFirst).toHaveBeenCalled();
+  });
 });
