@@ -15,7 +15,9 @@ import { recordAudit } from '@/lib/auth/audit';
  * ВНУТРИ неё (план из диалога мог устареть), аудит — в той же транзакции.
  */
 
-export const ROLLBACK_WINDOW_DAYS = 30;
+// Срок отката (Т-40); наружу не экспортируется — тексты UI несут «30 дней»
+// словами, а не подстановкой (knip: неиспользуемый экспорт = красная сборка).
+const ROLLBACK_WINDOW_DAYS = 30;
 const WINDOW_MS = ROLLBACK_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 
 type Db = PrismaClient | Prisma.TransactionClient;
