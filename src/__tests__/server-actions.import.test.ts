@@ -10,7 +10,21 @@ vi.mock('@/lib/services/import', () => ({ previewImport, commitImport }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireSession }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
-import { previewImportAction, commitImportAction } from '@/server-actions/import';
+// Этап 9 (Т-35…Т-39): экшены плана и отката — тонкие адаптеры над сервисом.
+const { planImportRollback, rollbackImport } = vi.hoisted(() => ({
+  planImportRollback: vi.fn(),
+  rollbackImport: vi.fn(),
+}));
+vi.mock('@/lib/services/import/rollback', () => ({ planImportRollback, rollbackImport }));
+const { revalidatePath } = vi.hoisted(() => ({ revalidatePath: vi.fn() }));
+vi.mock('next/cache', () => ({ revalidatePath }));
+
+import {
+  previewImportAction,
+  commitImportAction,
+  planImportRollbackAction,
+  rollbackImportAction,
+} from '@/server-actions/import';
 import { IMPORT_MAX_FILE_BYTES } from '@/lib/config/import-limits';
 
 const session = { sub: 'u1', role: 'manager', email: 'mgr@x.ru', name: 'M' };
@@ -206,5 +220,32 @@ describe('companyId из формы (Т-41)', () => {
     await previewImportAction(fd({ file: xlsxFile(), companyId: '   ' }));
     const args = previewImport.mock.calls[0][2];
     expect('companyId' in args).toBe(false);
+  });
+});
+
+/** Этап 9 (Т-35…Т-39): экшены отката — сессия → сервис; успех обновляет обе страницы. */
+describe('экшены отката импорта', () => {
+  it('planImportRollbackAction пробрасывает результат сервиса', async () => {
+    planImportRollback.mockResolvedValue({ ok: true, plan: { conflicts: [] } });
+    const res = await planImportRollbackAction('b1');
+    expect(planImportRollback).toHaveBeenCalledWith({}, session, { batchId: 'b1' });
+    expect(res).toEqual({ ok: true, plan: { conflicts: [] } });
+  });
+
+  it('rollbackImportAction при успехе ревалидирует обе Excel-страницы', async () => {
+    rollbackImport.mockResolvedValue({ ok: true, status: 'rolled_back' });
+    const res = await rollbackImportAction('b1', false);
+    expect(rollbackImport).toHaveBeenCalledWith({}, session, { batchId: 'b1', partial: false });
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/settings/integrations/1c/excel');
+    expect(revalidatePath).toHaveBeenCalledWith('/leader/settings/integrations/1c/excel');
+    expect(res).toMatchObject({ ok: true });
+  });
+
+  it('rollbackImportAction при отказе ничего не ревалидирует', async () => {
+    revalidatePath.mockClear();
+    rollbackImport.mockResolvedValue({ ok: false, error: 'conflicts', conflicts: [] });
+    const res = await rollbackImportAction('b1', true);
+    expect(res).toMatchObject({ ok: false, error: 'conflicts' });
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 });

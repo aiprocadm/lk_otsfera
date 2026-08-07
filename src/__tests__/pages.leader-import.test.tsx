@@ -19,6 +19,17 @@ const { listQueue, listQueueOrgNames } = vi.hoisted(() => ({
 vi.mock('@/lib/services/import/oneCAccountCard', () => ({ listQueue, listQueueOrgNames }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
+// Этап 9 (Т-39): история импортов на excel-вкладке.
+const { listImportBatches } = vi.hoisted(() => ({ listImportBatches: vi.fn() }));
+vi.mock('@/lib/services/import/rollback', () => ({ listImportBatches }));
+vi.mock('@/components/import/import-history', () => ({
+  ImportHistory: (props: { batches: unknown[] }) =>
+    React.createElement('div', {
+      'data-testid': 'import-history',
+      'data-batches': String(props.batches.length),
+    }),
+}));
+
 const nav = vi.hoisted(() => ({
   redirect: vi.fn(() => {
     throw new Error('REDIRECT');
@@ -57,6 +68,7 @@ beforeEach(() => {
   requireSettingsSection.mockReset().mockResolvedValue(LEADER);
   listQueue.mockReset().mockResolvedValue([]);
   listQueueOrgNames.mockReset().mockResolvedValue(new Map());
+  listImportBatches.mockReset().mockResolvedValue({ ok: true, batches: [{ id: 'b1' }] });
   nav.redirect.mockClear();
 });
 
@@ -68,6 +80,21 @@ describe('вкладка «Загрузка Excel» руководителя', (
     expect(form).not.toBeNull();
     expect(form?.getAttribute('data-has-companies')).toBe('false');
     expect(container.textContent).toContain('Новые организации попадут в вашу компанию');
+    // Этап 9 (Т-39): история импортов и у руководителя.
+    expect(container.textContent).toContain('История импортов');
+    expect(
+      container.querySelector('[data-testid="import-history"]')?.getAttribute('data-batches')
+    ).toBe('1');
+  });
+});
+
+describe('вкладка «Загрузка Excel» — отказ истории', () => {
+  it('отказ сервиса истории не роняет страницу — таблица пустая', async () => {
+    listImportBatches.mockResolvedValue({ ok: false, error: 'forbidden' });
+    const { container } = await renderServerComponent(LeaderImportPage());
+    expect(
+      container.querySelector('[data-testid="import-history"]')?.getAttribute('data-batches')
+    ).toBe('0');
   });
 });
 

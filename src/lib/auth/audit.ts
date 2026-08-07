@@ -149,6 +149,7 @@ export const AUDIT_ACTIONS = [
   'max_unlinked',
   'message_sent',
   'one_c_import.commit',
+  'one_c_import.rollback',
   'one_c_pending_requeued',
   'order_accounting_signed',
   'order_deliverables_approved',
