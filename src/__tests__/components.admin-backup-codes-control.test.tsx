@@ -14,7 +14,12 @@ vi.mock('@/lib/ui/toast', () => ({ toast: { error: toastErrorMock, success: vi.f
 import { AdminBackupCodesControl } from '@/components/admin/admin-backup-codes-control';
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  // Именно reset, а не clear: clearAllMocks обнуляет только счётчики вызовов и
+  // оставляет невыбранную очередь mockResolvedValueOnce/mockImplementationOnce.
+  // Тест с висящим промисом расходует не все свои `Once` при падении — остаток
+  // протекал в следующий тест, и тот падал каскадом, пряча первопричину
+  // (ровно это видно в красном прогоне CI от 07.08.2026).
+  vi.resetAllMocks();
 });
 
 describe('AdminBackupCodesControl', () => {
@@ -52,7 +57,14 @@ describe('AdminBackupCodesControl', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Перевыпустить коды восстановления' }));
     await waitFor(() => expect(screen.getByText('AAAA')).toBeTruthy(), { timeout: 30000 });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Перевыпустить заново' }));
+    // Коды кладутся в state ВНУТРИ startTransition, а isPending спадает
+    // отдельным рендером — между «коды уже видны» и «кнопка снова активна»
+    // есть зазор, в котором подпись ещё «Генерирую…». Под нагрузкой CI зазор
+    // расширяется, поэтому кнопку ждём (findByRole), а не берём синхронно:
+    // синхронный getByRole ловил промежуточное состояние и валил прогон.
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Перевыпустить заново' }, { timeout: 30000 })
+    );
     await waitFor(() => expect(screen.getByRole('button', { name: 'Генерирую…' })).toBeTruthy(), {
       timeout: 30000,
     });
