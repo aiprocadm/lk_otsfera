@@ -75,7 +75,7 @@ describe('OrgSettingsPage', () => {
     ).rejects.toThrow('NOT_FOUND');
   });
 
-  it('renders the org card header and the rate override form with the current rate/note', async () => {
+  it('renders the org card header without any rate-editing form (У-1)', async () => {
     requirePartnerAdmin.mockResolvedValue(SESSION);
     canPartnerAccessOrg.mockResolvedValue(true);
     getOrgCard.mockResolvedValue(BASE_CARD);
@@ -87,5 +87,33 @@ describe('OrgSettingsPage', () => {
     expect(canPartnerAccessOrg).toHaveBeenCalledWith(SESSION, 'org-1');
     expect(getOrgCard).toHaveBeenCalledWith(expect.anything(), { orgId: 'org-1', partnerId: 'p1' });
     expect(container.textContent).toContain('ООО Ромашка');
+
+    // У-1/Р-4: ни поля ввода ставки, ни кнопки сохранения здесь быть не должно.
+    expect(container.querySelector('input')).toBeNull();
+    expect(container.querySelector('textarea')).toBeNull();
+    expect(container.querySelector('button')).toBeNull();
+    expect(container.textContent).not.toContain('Сохранить');
+    expect(container.textContent).not.toContain('Вернуть базовую ставку');
+  });
+
+  it('объясняет себя и даёт действие — §15 «где я / что здесь / что дальше»', async () => {
+    requirePartnerAdmin.mockResolvedValue(SESSION);
+    canPartnerAccessOrg.mockResolvedValue(true);
+    getOrgCard.mockResolvedValue(BASE_CARD);
+
+    const { container } = await renderServerComponent(
+      OrgSettingsPage({ params: Promise.resolve({ orgId: 'org-1' }) })
+    );
+
+    expect(container.textContent).toContain('Настройки организации');
+    expect(container.textContent).toContain('Ставку комиссии назначает учебный центр');
+    expect(container.textContent).toContain('Здесь пока нечего менять');
+
+    // Тот же адрес ведёт и вкладка «Комментарии», поэтому ищем среди всех ссылок
+    // именно кнопку-действие пустого состояния.
+    const links = Array.from(
+      container.querySelectorAll('a[href="/partner/portfolio/org-1?tab=comments"]')
+    );
+    expect(links.some((a) => a.textContent?.includes('Написать менеджеру'))).toBe(true);
   });
 });
