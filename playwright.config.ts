@@ -9,6 +9,23 @@ import { defineConfig, devices } from '@playwright/test';
  *
  * We split into two projects (mobile + desktop) rather than a parameterised
  * test, so each viewport has its own snapshot folder and parallel-safe ids.
+ *
+ * ВОСПРОИЗВОДИМОСТЬ (проверено 07.08.2026, 54/54 дважды подряд). Эталоны
+ * снимаются и сверяются ТОЛЬКО против свежей seed-базы — иначе снапшоты
+ * расходятся не по вёрстке, а по данным:
+ *
+ *   createdb  → prisma migrate deploy → prisma:seed → npm run dev → e2e:visual
+ *
+ * Почему база обязана быть свежей: логин пишет запись в журнал аудита
+ * (api/auth/login → recordAudit), поэтому каждый прогон auth.setup добавляет
+ * строки в /admin/settings/security/audit — на повторно используемой базе
+ * снимок журнала растёт от прогона к прогону. Столбцы с датами, которые
+ * меняются сами (создание пользователя = дата seed, «последний вход» = момент
+ * логина, время события аудита), маскируются в самих спеках через
+ * `mask: [page.getByTestId(...)]` — без этого эталон протухал бы за сутки.
+ *
+ * На сервере без sudo браузеру нужны библиотеки из ~/.local/pw-libs:
+ *   LD_LIBRARY_PATH=/home/aiproc/.local/pw-libs/root/usr/lib/x86_64-linux-gnu
  */
 export default defineConfig({
   testDir: './src/e2e',

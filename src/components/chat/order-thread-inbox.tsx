@@ -110,7 +110,7 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
   // `createdAt: string | Date` union is shared with ChatThreadView (which DOES
   // receive real Date values from other callers), so the type can't be narrowed
   // here without diverging the shared VM type.
-  /* v8 ignore next -- unreachable: `messages` state here is always populated via toVM(), which assigns a string createdAt */
+  /* v8 ignore next 2 -- unreachable: `messages` state here is always populated via toVM(), which assigns a string createdAt; охват — обе строки объявления, ветка живёт на строке с тернаром */
   const latestCreatedAt: string | null =
     rawLatest instanceof Date ? rawLatest.toISOString() : rawLatest;
 

@@ -47,7 +47,7 @@ const MAX_FILE_SIZE_MB = resolveMaxFileSizeMb();
 const MAX_FILE_SIZE_BYTES = maxFileSizeBytes();
 
 function errorResponse(code: string, message: string, status: number, correlationId?: string) {
-  /* v8 ignore next -- correlationId is always crypto.randomUUID(); the {} branch is unreachable in practice */
+  /* v8 ignore next 3 -- correlationId всегда crypto.randomUUID(): все шесть вызовов errorResponse передают его, поэтому плечо `: {}` из POST недостижимо (охват — все строки объекта, ветка живёт на строке с тернаром) */
   return NextResponse.json(
     { code, message, ...(correlationId ? { correlationId } : {}) },
     { status }

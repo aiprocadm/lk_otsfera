@@ -57,7 +57,7 @@ export class RestOneCAdapter implements OneCAdapter {
       all.push(...items);
       pageCursor = nextCursor;
       pages += 1;
-      /* v8 ignore next 3 -- MAX_PAGES=10_000 is a runaway guard; hitting it in a unit test would require 10k fetch mock calls */
+      /* v8 ignore next 5 -- MAX_PAGES=10_000 is a runaway guard; hitting it in a unit test would require 10k fetch mock calls. Диапазон покрывает ВЕСЬ блок (61-65): prettier разнёс `throw new Error(...)` на четыре строки, и прежний `next 3` не доставал до закрывающих `);`/`}`. */
       if (pages >= MAX_PAGES) {
         throw new Error(
           `1C pagination exceeded ${MAX_PAGES} pages for ${path} — aborting to avoid a runaway loop`

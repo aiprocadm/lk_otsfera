@@ -96,7 +96,7 @@ export function UserEditForm({
             // Defensive fallback: `r` is always a key of ROLE_LABELS_RU today (allowedRoles()
             // only returns values from the Role enum, which the map fully covers), so the
             // `?? r` side is unreachable unless the enum gains a role without a matching label.
-            /* v8 ignore next */
+            /* v8 ignore next 2 -- недостижимо: allowedRoles() возвращает только значения enum Role, и ROLE_LABELS_RU покрывает их все, поэтому плечо `?? r` мёртвое; охват — обе строки <option>, ветка живёт на строке со значением */
             <option key={r} value={r}>
               {ROLE_LABELS_RU[r] ?? r}
             </option>

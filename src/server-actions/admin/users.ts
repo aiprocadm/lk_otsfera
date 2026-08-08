@@ -69,6 +69,10 @@ export async function createUserAction(
     email: parsed.data.email,
     name: parsed.data.name,
     role: parsed.data.role,
+    // Ветка «ключа нет» недостижима: в safeParse выше partnerId читается как
+    // readField() || null — это строка или null, но никогда не undefined.
+    // Условный спред оставлен ради exactOptionalPropertyTypes.
+    /* v8 ignore next -- partnerId всегда определён (строка или null), альтернатива мертва */
     ...(parsed.data.partnerId !== undefined ? { partnerId: parsed.data.partnerId } : {}),
   });
   if (!result.ok) return result;
