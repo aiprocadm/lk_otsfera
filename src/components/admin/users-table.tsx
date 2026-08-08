@@ -56,10 +56,15 @@ export function UsersTable({ rows, currentUserId }: { rows: UserRow[]; currentUs
                   </div>
                 )}
               </Td>
-              <Td className="text-gray-500 text-xs">
+              {/* data-testid — якорь маски визуальных снапшотов: обе даты
+                  меняются от прогона к прогону (создание = дата seed, вход
+                  обновляется самим логином Playwright), иначе эталон протухает. */}
+              <Td className="text-gray-500 text-xs" data-testid="user-created-at">
                 {new Intl.DateTimeFormat('ru-RU').format(u.createdAt)}
               </Td>
-              <Td className="text-gray-500 text-xs">{fmtLastLogin(u.lastLoginAt)}</Td>
+              <Td className="text-gray-500 text-xs" data-testid="user-last-login">
+                {fmtLastLogin(u.lastLoginAt)}
+              </Td>
               <Td className="text-right">
                 <div className="flex items-center justify-end gap-2">
                   <Link

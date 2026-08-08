@@ -581,6 +581,123 @@ describe('PaymentQueueTable — создание организации из о�
     );
   });
 
+  it('оператор правит поля: изменённые ИНН/наименование/КПП уходят в экшен (КПП — без пробелов)', async () => {
+    createOrgFromQueueRowAction.mockResolvedValue({
+      ok: true,
+      organizationId: 'org-new',
+      paymentId: 'pay-1',
+    });
+    render(<PaymentQueueTable rows={[row()]} />);
+    fireEvent.click(screen.getByTestId('create-org-r1'));
+
+    const dialog = openDialog();
+    const innInput = within(dialog).getByLabelText('ИНН') as HTMLInputElement;
+    const nameInput = within(dialog).getByLabelText('Наименование') as HTMLInputElement;
+    const kppInput = within(dialog).getByLabelText('КПП (необязательно)') as HTMLInputElement;
+
+    fireEvent.change(innInput, { target: { value: '7712345678' } });
+    fireEvent.change(nameInput, { target: { value: 'ООО Новая' } });
+    fireEvent.change(kppInput, { target: { value: '  771201001  ' } });
+
+    // Поля управляемые: правка видна в самом поле…
+    expect(innInput.value).toBe('7712345678');
+    expect(nameInput.value).toBe('ООО Новая');
+    expect(kppInput.value).toBe('  771201001  ');
+
+    // …и именно правленые значения уходят на сервер.
+    fireEvent.click(screen.getByTestId('create-org-submit'));
+    await waitFor(() =>
+      expect(createOrgFromQueueRowAction).toHaveBeenCalledWith({
+        rowId: 'r1',
+        name: 'ООО Новая',
+        inn: '7712345678',
+        kpp: '771201001',
+      })
+    );
+  });
+
+  it('очистка обязательного поля блокирует кнопку создания', () => {
+    render(<PaymentQueueTable rows={[row()]} />);
+    fireEvent.click(screen.getByTestId('create-org-r1'));
+
+    const submit = screen.getByTestId('create-org-submit') as HTMLButtonElement;
+    expect(submit.disabled).toBe(false);
+
+    fireEvent.change(within(openDialog()).getByLabelText('Наименование'), {
+      target: { value: '   ' },
+    });
+    expect(submit.disabled).toBe(true);
+
+    fireEvent.change(within(openDialog()).getByLabelText('Наименование'), {
+      target: { value: 'ООО Ромашка' },
+    });
+    fireEvent.change(within(openDialog()).getByLabelText('ИНН'), { target: { value: '' } });
+    expect(submit.disabled).toBe(true);
+    expect(createOrgFromQueueRowAction).not.toHaveBeenCalled();
+  });
+
+  it('строка без наименования (но с ИНН): поле пустое, кнопка заблокирована до ручного ввода', async () => {
+    createOrgFromQueueRowAction.mockResolvedValue({
+      ok: true,
+      organizationId: 'org-new',
+      paymentId: null,
+    });
+    render(<PaymentQueueTable rows={[row({ counterpartyName: null })]} />);
+    fireEvent.click(screen.getByTestId('create-org-r1'));
+
+    const nameInput = within(openDialog()).getByLabelText('Наименование') as HTMLInputElement;
+    expect(nameInput.value).toBe(''); // фолбэк вместо null
+    const submit = screen.getByTestId('create-org-submit') as HTMLButtonElement;
+    expect(submit.disabled).toBe(true);
+
+    fireEvent.change(nameInput, { target: { value: 'ООО Без имени в выписке' } });
+    expect(submit.disabled).toBe(false);
+    fireEvent.click(submit);
+    await waitFor(() =>
+      expect(createOrgFromQueueRowAction).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'ООО Без имени в выписке' })
+      )
+    );
+  });
+
+  it('admin: у строки без компании батча селект пуст и кнопка заблокирована, пока компанию не выбрали', async () => {
+    createOrgFromQueueRowAction.mockResolvedValue({
+      ok: true,
+      organizationId: 'org-new',
+      paymentId: null,
+    });
+    render(<PaymentQueueTable rows={[row({ batchCompanyId: null })]} companies={COMPANIES} />);
+    fireEvent.click(screen.getByTestId('create-org-r1'));
+
+    const select = within(openDialog()).getByLabelText(
+      'Компания новой организации'
+    ) as HTMLSelectElement;
+    expect(select.value).toBe(''); // фолбэк вместо null — компания не предзаполнена
+    const submit = screen.getByTestId('create-org-submit') as HTMLButtonElement;
+    expect(submit.disabled).toBe(true);
+
+    fireEvent.change(select, { target: { value: 'co-2' } });
+    expect(submit.disabled).toBe(false);
+    fireEvent.click(submit);
+    await waitFor(() =>
+      expect(createOrgFromQueueRowAction).toHaveBeenCalledWith(
+        expect.objectContaining({ companyId: 'co-2' })
+      )
+    );
+  });
+
+  it('«Отмена» закрывает диалог создания: экшен не вызван, строка осталась в очереди', async () => {
+    render(<PaymentQueueTable rows={[row()]} />);
+    fireEvent.click(screen.getByTestId('create-org-r1'));
+    expect(within(openDialog()).getByText('Создать организацию и привязать')).toBeTruthy();
+
+    fireEvent.click(within(openDialog()).getByRole('button', { name: 'Отмена' }));
+
+    await waitFor(() => expect(screen.queryByText('Создать организацию и привязать')).toBeNull());
+    expect(createOrgFromQueueRowAction).not.toHaveBeenCalled();
+    expect(screen.getByTestId('create-org-r1')).toBeTruthy();
+  });
+
   it('сеть упала на создании — понятная ошибка', async () => {
     createOrgFromQueueRowAction.mockRejectedValue(new Error('net down'));
     render(<PaymentQueueTable rows={[row()]} />);

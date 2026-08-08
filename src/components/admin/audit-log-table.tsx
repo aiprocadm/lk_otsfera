@@ -39,7 +39,12 @@ export function AuditLogTable({ rows }: { rows: AuditRow[] }) {
           const status = statusOf(row.meta);
           return (
             <Tr key={row.id}>
-              <Td className="text-gray-500 text-xs whitespace-nowrap">
+              {/* data-testid — якорь маски визуальных снапшотов: время события
+                  всегда «сейчас» на свежей seed-базе, иначе эталон протухает. */}
+              <Td
+                className="text-gray-500 text-xs whitespace-nowrap"
+                data-testid="audit-created-at"
+              >
                 {formatAuditDateTime(row.createdAt)}
               </Td>
               <Td>

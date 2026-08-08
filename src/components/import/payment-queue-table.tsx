@@ -208,6 +208,7 @@ function CreateOrgDialog({
   onResolved: (id: string) => void;
 }) {
   const [name, setName] = useState(row.counterpartyName ?? '');
+  /* v8 ignore next -- фолбэк '' недостижим: кнопка «Создать организацию» рендерится только у строк с непустым counterpartyInn, других точек открытия диалога нет */
   const [inn, setInn] = useState(row.counterpartyInn ?? '');
   const [kpp, setKpp] = useState('');
   const [companyId, setCompanyId] = useState(row.batchCompanyId ?? '');
@@ -415,11 +416,12 @@ function BindRowDialog({
     // Defensive guard: unreachable via the UI since the only caller is the
     // submit Button, which is `disabled={!orgId}` — the click that would
     // invoke submit() never fires while orgId is falsy.
-    /* v8 ignore next -- unreachable: submit Button is disabled={!orgId}, so this branch never runs from a real click */
+    /* v8 ignore start -- unreachable: submit Button is disabled={!orgId}, so this branch never runs from a real click */
     if (!orgId) {
       setError(errorMessage('org_required'));
       return;
     }
+    /* v8 ignore stop */
     setSubmitting(true);
     setError(null);
     try {

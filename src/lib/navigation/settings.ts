@@ -272,6 +272,7 @@ export function buildSettingsBreadcrumbs(cabinet: SettingsCabinet, pathname: str
   const group = SETTINGS_GROUPS.find((g) => g.id === section.group);
   return [
     { label: 'Настройки', href: settingsRoot(cabinet) },
+    /* v8 ignore next -- `?? ''` недостижим: `section.group` типизирован союзом SettingsGroupId, и SETTINGS_GROUPS содержит ровно эти четыре id, поэтому find() всегда что-то находит (инвариант закреплён тестом «у каждого раздела есть своя группа») */
     { label: group?.title ?? '', href: null },
     { label: section.title, href: null },
   ];

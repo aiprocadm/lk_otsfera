@@ -18,10 +18,11 @@ const COL = { date: 0, document: 1, analyticsCr: 3, debit: 5, corr: 7, credit: 8
 
 // Callers always pass a guaranteed string (`document ?? ''`), so the `?? ''`
 // nullish fallbacks are unreachable defensive guards.
-/* v8 ignore next 2 */
+/* v8 ignore next 3 -- `s ?? ''` недостижим: единственный вызывающий передаёт `firstLine(document)`, где `document = row[COL.document] ?? ''` уже строка */
 function firstLine(s: string): string {
   return (s ?? '').split('\n')[0]!.trim(); // split всегда даёт минимум один элемент
 }
+/* v8 ignore next 3 -- то же самое для restLines: `document` гарантированно строка, ветка `?? ''` — защитный guard */
 function restLines(s: string): string {
   return (s ?? '').split('\n').slice(1).join('\n').trim();
 }
