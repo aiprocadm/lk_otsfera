@@ -15,7 +15,10 @@ vi.mock('@/lib/ui/toast', () => ({ toast: { error: toastErrorMock, success: toas
 import { StaffBackupCodesSection } from '@/components/settings/staff-backup-codes-section';
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  // reset, а не clear — см. комментарий-близнец в
+  // components.admin-backup-codes-control.test.tsx: недоиспользованная очередь
+  // `…Once` иначе протекает в следующий тест.
+  vi.resetAllMocks();
 });
 
 describe('StaffBackupCodesSection', () => {
@@ -53,7 +56,10 @@ describe('StaffBackupCodesSection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Сгенерировать коды восстановления' }));
     await waitFor(() => expect(screen.getByText('AAAA')).toBeTruthy());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Сгенерировать заново' }));
+    // См. комментарий-близнец в components.admin-backup-codes-control.test.tsx:
+    // isPending спадает отдельным рендером после появления кодов, поэтому
+    // кнопку с новой подписью ждём, а не берём синхронно.
+    fireEvent.click(await screen.findByRole('button', { name: 'Сгенерировать заново' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Генерирую…' })).toBeTruthy());
 
     releaseSecond({ ok: true, codes: ['CCCC', 'DDDD'] });
