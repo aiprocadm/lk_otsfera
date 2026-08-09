@@ -66,11 +66,23 @@ describe('OrgCardHeader', () => {
     expect(html).toContain('VIP-клиент');
   });
 
+  // У-3 / Р-6: ставка партнёру — только на чтение, с указанием, кто её назначает.
+  it('помечает ставку как назначаемую учебным центром (У-3)', () => {
+    const html = renderToString(
+      React.createElement(OrgCardHeader, {
+        card: makeCard({ partnerCommissionRate: '0.085', partnerCommissionRateNote: null }),
+      })
+    );
+    expect(html).toContain('Назначает учебный центр');
+    expect(html).toContain('ставка не редактируется');
+  });
+
   it('omits the commission-rate block entirely when partnerCommissionRate is null', () => {
     const html = renderToString(
       React.createElement(OrgCardHeader, { card: makeCard({ partnerCommissionRate: null }) })
     );
     expect(html).not.toContain('Индивидуальная ставка комиссии');
+    expect(html).not.toContain('Назначает учебный центр');
   });
 
   it('renders the rate block without the note span when partnerCommissionRateNote is null', () => {

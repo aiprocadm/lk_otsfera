@@ -29,6 +29,10 @@ export function OrgCardHeader({ card }: { card: OrgCard }) {
           {card.partnerCommissionRateNote && (
             <span className="ml-1 text-orange-600">· {card.partnerCommissionRateNote}</span>
           )}
+          {/* У-3 / Р-6: партнёр видит ставку только на чтение. */}
+          <div className="mt-1 text-[11px] text-orange-700">
+            Назначает учебный центр — в кабинете партнёра ставка не редактируется.
+          </div>
         </div>
       )}
     </div>
