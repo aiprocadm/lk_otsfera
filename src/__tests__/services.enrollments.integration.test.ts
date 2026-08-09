@@ -62,7 +62,10 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await prisma.enrollmentRequest.deleteMany({ where: { submittedByUserId: ACTOR } });
+  // У-29 (этап 5): одобрение заявки заводит сотрудников само, и у них может не
+  // быть почты — чистим по организации, а не только по email-префиксу.
   await prisma.student.deleteMany({ where: { email: { startsWith: T } } });
+  await prisma.student.deleteMany({ where: { organization: { name: { startsWith: T } } } });
   await prisma.organization.deleteMany({ where: { name: { startsWith: T } } });
   await prisma.trainingDirection.deleteMany({ where: { name: { startsWith: T } } });
   await prisma.auditLog.deleteMany({ where: { userId: ACTOR } });
