@@ -14,6 +14,11 @@ vi.mock('@/components/students/add-student-dialog', () => ({
   AddStudentDialog: () => React.createElement('button', null, 'Добавить сотрудника'),
 }));
 
+// Этап 5 PR-2 (У-27): рядом появилась загрузка списком — тоже клиентский диалог.
+vi.mock('@/components/students/import-students-dialog', () => ({
+  ImportStudentsDialog: () => React.createElement('button', null, 'Загрузить списком'),
+}));
+
 const { listOrgStudents } = vi.hoisted(() => ({ listOrgStudents: vi.fn() }));
 vi.mock('@/lib/services/organization/students', () => ({ listOrgStudents }));
 
