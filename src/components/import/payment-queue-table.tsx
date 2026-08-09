@@ -9,6 +9,7 @@ import {
   createOrgFromQueueRowAction,
 } from '@/server-actions/payment-import';
 import { Button, Dialog, Field, Input, Select } from '@/components/ui';
+import { CardList, Card, CardRow } from '@/components/ui/card-list';
 import { toast } from '@/lib/ui/toast';
 
 export type QueueRow = {
@@ -84,84 +85,100 @@ export function PaymentQueueTable({
   if (visible.length === 0)
     return <p className="text-sm text-gray-500">Очередь пуста — все оплаты сопоставлены.</p>;
 
+  // У-18: семь колонок — самая широкая таблица проекта; на телефоне карточки.
+  // Кнопки общие для обоих видов.
+  const rowActions = (r: (typeof visible)[number]) => (
+    <div className="flex gap-3">
+      <button type="button" onClick={() => setActive(r)} className="text-[#EA580C] hover:underline">
+        Привязать
+      </button>
+      {/* Т-30: только у строк с ИНН — без него создавать не из чего. */}
+      {r.counterpartyInn && (
+        <button
+          type="button"
+          onClick={() => setCreating(r)}
+          className="text-[#EA580C] hover:underline"
+          data-testid={`create-org-${r.id}`}
+        >
+          Создать организацию
+        </button>
+      )}
+      <button type="button" onClick={() => dismiss(r.id)} className="text-red-600 hover:underline">
+        Отклонить
+      </button>
+    </div>
+  );
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-xs border border-gray-200 rounded">
-        <thead className="bg-gray-50 text-gray-600">
-          <tr>
-            <th scope="col" className="text-left px-3 py-2 font-medium">
-              Документ
-            </th>
-            <th scope="col" className="text-left px-3 py-2 font-medium">
-              Дата
-            </th>
-            <th scope="col" className="text-left px-3 py-2 font-medium">
-              Сумма
-            </th>
-            <th scope="col" className="text-left px-3 py-2 font-medium">
-              Контрагент
-            </th>
-            <th scope="col" className="text-left px-3 py-2 font-medium">
-              № счёта (кандидаты)
-            </th>
-            <th scope="col" className="text-left px-3 py-2 font-medium">
-              Предложение
-            </th>
-            <th scope="col" className="text-left px-3 py-2 font-medium">
-              Действия
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {visible.map((r) => (
-            <tr key={r.id} className="border-t border-gray-100">
-              <td className="px-3 py-1.5 text-gray-700">
-                {r.externalId}
-                {r.isRefund ? ' (возврат)' : ''}
-              </td>
-              <td className="px-3 py-1.5 text-gray-700">
-                {new Date(r.paidAt).toLocaleDateString('ru-RU')}
-              </td>
-              <td className="px-3 py-1.5 text-gray-700">{r.amount}</td>
-              <td className="px-3 py-1.5 text-gray-700">
-                {r.counterpartyName ?? '—'}
-                {r.counterpartyInn ? ` (ИНН ${r.counterpartyInn})` : ''}
-              </td>
-              <td className="px-3 py-1.5 text-gray-700">{r.accountCandidates.join(', ') || '—'}</td>
-              <td className="px-3 py-1.5 text-gray-700">{r.candidateOrgName ?? '—'}</td>
-              <td className="px-3 py-1.5">
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setActive(r)}
-                    className="text-[#EA580C] hover:underline"
-                  >
-                    Привязать
-                  </button>
-                  {/* Т-30: только у строк с ИНН — без него создавать не из чего. */}
-                  {r.counterpartyInn && (
-                    <button
-                      type="button"
-                      onClick={() => setCreating(r)}
-                      className="text-[#EA580C] hover:underline"
-                      data-testid={`create-org-${r.id}`}
-                    >
-                      Создать организацию
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => dismiss(r.id)}
-                    className="text-red-600 hover:underline"
-                  >
-                    Отклонить
-                  </button>
-                </div>
-              </td>
+    <div>
+      <CardList>
+        {visible.map((r) => (
+          <Card key={r.id} title={`${r.externalId}${r.isRefund ? ' (возврат)' : ''}`}>
+            <CardRow label="Дата">{new Date(r.paidAt).toLocaleDateString('ru-RU')}</CardRow>
+            <CardRow label="Сумма">{r.amount}</CardRow>
+            <CardRow label="Контрагент">
+              {r.counterpartyName ?? '—'}
+              {r.counterpartyInn ? ` (ИНН ${r.counterpartyInn})` : ''}
+            </CardRow>
+            <CardRow label="№ счёта (кандидаты)">{r.accountCandidates.join(', ') || '—'}</CardRow>
+            <CardRow label="Предложение">{r.candidateOrgName ?? '—'}</CardRow>
+            <div className="pt-2 text-xs">{rowActions(r)}</div>
+          </Card>
+        ))}
+      </CardList>
+
+      <div className="hidden md:block overflow-x-auto">
+        <table className="w-full text-xs border border-gray-200 rounded">
+          <thead className="bg-gray-50 text-gray-600">
+            <tr>
+              <th scope="col" className="text-left px-3 py-2 font-medium">
+                Документ
+              </th>
+              <th scope="col" className="text-left px-3 py-2 font-medium">
+                Дата
+              </th>
+              <th scope="col" className="text-left px-3 py-2 font-medium">
+                Сумма
+              </th>
+              <th scope="col" className="text-left px-3 py-2 font-medium">
+                Контрагент
+              </th>
+              <th scope="col" className="text-left px-3 py-2 font-medium">
+                № счёта (кандидаты)
+              </th>
+              <th scope="col" className="text-left px-3 py-2 font-medium">
+                Предложение
+              </th>
+              <th scope="col" className="text-left px-3 py-2 font-medium">
+                Действия
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {visible.map((r) => (
+              <tr key={r.id} className="border-t border-gray-100">
+                <td className="px-3 py-1.5 text-gray-700">
+                  {r.externalId}
+                  {r.isRefund ? ' (возврат)' : ''}
+                </td>
+                <td className="px-3 py-1.5 text-gray-700">
+                  {new Date(r.paidAt).toLocaleDateString('ru-RU')}
+                </td>
+                <td className="px-3 py-1.5 text-gray-700">{r.amount}</td>
+                <td className="px-3 py-1.5 text-gray-700">
+                  {r.counterpartyName ?? '—'}
+                  {r.counterpartyInn ? ` (ИНН ${r.counterpartyInn})` : ''}
+                </td>
+                <td className="px-3 py-1.5 text-gray-700">
+                  {r.accountCandidates.join(', ') || '—'}
+                </td>
+                <td className="px-3 py-1.5 text-gray-700">{r.candidateOrgName ?? '—'}</td>
+                <td className="px-3 py-1.5">{rowActions(r)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {active && (
         <BindRowDialog

@@ -6,6 +6,7 @@ import { getSyncSummary, type SyncSummaryRow } from '@/lib/services/syncSummary'
 import { getQueueStats } from '@/lib/services/admin/queueStats';
 import { loadPausedSchedulerIds } from '@/lib/jobs/scheduling';
 import { SYNC_ENTITIES, type SyncControlEntity } from '@/lib/services/admin/syncControl';
+import { CardList, Card, CardRow } from '@/components/ui/card-list';
 import { listPendingRecords, type PendingRecordRow } from '@/lib/services/admin/pendingRecords';
 import { SyncTriggerButton } from '@/components/admin/sync-trigger-button';
 import { SyncScheduleToggle } from '@/components/admin/sync-schedule-toggle';
@@ -91,7 +92,40 @@ export default async function AdminSyncPage() {
         «Загрузка Excel» или «Импорт выписки (сч. 51)».
       </div>
 
-      <div className="overflow-x-auto bg-white border border-gray-200 rounded-xl">
+      {/* У-18: шесть колонок — на телефоне карточки. */}
+      <CardList>
+        {rows.map((r) => {
+          const cfg = SYNC_ENTITIES[r.entity as SyncControlEntity];
+          const active = activeByQueue.get(cfg.queueName) ?? 0;
+          const paused = pausedIds.has(cfg.schedulerId);
+          return (
+            <Card key={r.entity} title={ENTITY_RU[r.entity]}>
+              <CardRow label="Последний успех">{formatDate(r.lastSuccessAt)}</CardRow>
+              <CardRow label="Сейчас">{active > 0 ? 'выполняется' : '—'}</CardRow>
+              <div className="pt-2 flex flex-wrap gap-2">
+                <SyncTriggerButton entity={r.entity} />
+                <SyncScheduleToggle schedulerId={cfg.schedulerId} paused={paused} />
+                <SyncCursorDialog entity={r.entity} currentCursor={r.cursor ?? null} />
+              </div>
+            </Card>
+          );
+        })}
+        <Card title="Сверка (reconcile)">
+          <CardRow label="Последний успех">—</CardRow>
+          <CardRow label="Сейчас">
+            {(activeByQueue.get('oneCSync.reconcile') ?? 0) > 0 ? 'выполняется' : '—'}
+          </CardRow>
+          <div className="pt-2 flex flex-wrap gap-2">
+            <SyncTriggerButton entity="reconcile" />
+            <SyncScheduleToggle
+              schedulerId="oneCSync.reconcile.cron"
+              paused={pausedIds.has('oneCSync.reconcile.cron')}
+            />
+          </div>
+        </Card>
+      </CardList>
+
+      <div className="hidden md:block overflow-x-auto bg-white border border-gray-200 rounded-xl">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-gray-600">
             <tr>

@@ -9,6 +9,8 @@ import { isFeatureEnabled } from '@/lib/featureFlags';
 import { AskQuestionButton } from '@/components/support/ask-question-button';
 import { AppShell as CabinetShell } from '@/components/shell/app-shell';
 import { Sidebar } from '@/components/shell/sidebar';
+import { MobileNav } from '@/components/shell/mobile-nav';
+import { mobileTabsFor } from '@/lib/navigation/mobileTabs';
 
 /**
  * Кабинеты партнёра и слушателя (`/partner/*` и shared-entry `/student`).
@@ -51,6 +53,21 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           title={cabinetTitle[session.role] ?? roleLabel[session.role] ?? session.role}
           subtitle="Промтехносфера"
           testIdPrefix={session.role}
+        />
+      }
+      mobileNav={
+        <MobileNav
+          theme="dark"
+          tabs={mobileTabsFor(session.role, items)}
+          panel={
+            <Sidebar
+              items={items}
+              title={cabinetTitle[session.role] ?? roleLabel[session.role] ?? session.role}
+              subtitle="Промтехносфера"
+              testIdPrefix={session.role}
+              variant="panel"
+            />
+          }
         />
       }
       headerLeft={

@@ -68,6 +68,21 @@ describe('Sidebar (общий каркас)', () => {
     expect(render()).not.toContain('w-56');
   });
 
+  it('У-13: на телефоне колонка-сайдбар скрыта', () => {
+    const html = render();
+    expect(html).toContain('hidden md:flex');
+    expect(html).toContain('data-variant="desktop"');
+  });
+
+  it('вариант panel виден всегда — это меню внутри бургер-панели', () => {
+    const html = render({ variant: 'panel' });
+    expect(html).toContain('data-variant="panel"');
+    expect(html).not.toContain('hidden md:flex');
+    expect(html).not.toContain('min-h-screen');
+    // Пункты те же — панель не держит вторую разметку меню.
+    expect(html).toContain('Заказы');
+  });
+
   it('подсвечивает активный пункт по текущему пути', () => {
     const html = render();
     // /manager/orders активен, /manager/dashboard — нет

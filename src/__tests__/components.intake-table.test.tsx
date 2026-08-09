@@ -90,7 +90,7 @@ describe('IntakeTable', () => {
 
   it('пустое состояние «Всё разобрано»', () => {
     render(<IntakeTable items={[]} viewerPrefix="/manager" currentUserId="m1" />);
-    expect(screen.getByText('Всё разобрано')).toBeTruthy();
+    expect(screen.getAllByText('Всё разобрано').length).toBeGreaterThan(0);
   });
 
   it('строка: тип, от кого, суть, ожидание, «нет» ответственного, действия', () => {
@@ -101,12 +101,12 @@ describe('IntakeTable', () => {
         currentUserId="m1"
       />
     );
-    expect(screen.getByText('Заявка клиента')).toBeTruthy();
-    expect(screen.getByText('ООО Ромашка')).toBeTruthy();
-    expect(screen.getByText('30 ч')).toBeTruthy();
-    expect(screen.getByText('нет')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Взять в работу' })).toBeTruthy();
-    expect(screen.getByText('Открыть →')).toBeTruthy();
+    expect(screen.getAllByText('Заявка клиента').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('ООО Ромашка').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('30 ч').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('нет').length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: 'Взять в работу' })[0]).toBeTruthy();
+    expect(screen.getAllByText('Открыть →').length).toBeGreaterThan(0);
   });
 
   it('«Взять в работу» вызывает claim с типом и id; успех → toast + refresh', async () => {
@@ -118,7 +118,7 @@ describe('IntakeTable', () => {
         currentUserId="m1"
       />
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Взять в работу' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Взять в работу' })[0]);
     await waitFor(() => expect(claimIntakeAction).toHaveBeenCalled());
     const fd = claimIntakeAction.mock.calls[0]![0] as FormData;
     expect(fd.get('type')).toBe('inbound');
@@ -129,7 +129,7 @@ describe('IntakeTable', () => {
   it('ошибка claim → русский toast; already_assigned мапится', async () => {
     claimIntakeAction.mockResolvedValue({ ok: false, error: 'already_assigned' });
     render(<IntakeTable items={[item({})]} viewerPrefix="/manager" currentUserId="m1" />);
-    fireEvent.click(screen.getByRole('button', { name: 'Взять в работу' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Взять в работу' })[0]);
     await waitFor(() => expect(toastError).toHaveBeenCalledWith('Уже взято другим сотрудником.'));
     expect(refresh).not.toHaveBeenCalled();
   });
@@ -137,7 +137,7 @@ describe('IntakeTable', () => {
   it('отказ claim без кода ошибки → общий русский текст', async () => {
     claimIntakeAction.mockResolvedValue({ ok: false });
     render(<IntakeTable items={[item({})]} viewerPrefix="/manager" currentUserId="m1" />);
-    fireEvent.click(screen.getByRole('button', { name: 'Взять в работу' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Взять в работу' })[0]);
     await waitFor(() => expect(toastError).toHaveBeenCalledWith('Не удалось выполнить действие.'));
   });
 
@@ -146,7 +146,7 @@ describe('IntakeTable', () => {
     // увидеть осмысленную фразу, а не пустой toast.
     claimIntakeAction.mockResolvedValue({ ok: false, error: 'quota_exceeded' });
     render(<IntakeTable items={[item({})]} viewerPrefix="/manager" currentUserId="m1" />);
-    fireEvent.click(screen.getByRole('button', { name: 'Взять в работу' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Взять в работу' })[0]);
     await waitFor(() => expect(toastError).toHaveBeenCalledWith('Не удалось выполнить действие.'));
   });
 
@@ -160,7 +160,7 @@ describe('IntakeTable', () => {
         currentUserId="m1"
       />
     );
-    expect(screen.getByText('…')).toBeTruthy();
+    expect(screen.getAllByText('…').length).toBeGreaterThan(0);
   });
 
   it('у взятой единицы кнопки claim нет; отмечен «(вы)» для своей', () => {
@@ -172,13 +172,13 @@ describe('IntakeTable', () => {
       />
     );
     expect(screen.queryByRole('button', { name: 'Взять в работу' })).toBeNull();
-    expect(screen.getByText('(вы)')).toBeTruthy();
+    expect(screen.getAllByText('(вы)').length).toBeGreaterThan(0);
   });
 
   it('client_request: «Создать лид» дергает PATCH API и уводит на карточку лида', async () => {
     fetchMock.mockResolvedValue({ ok: true, json: () => Promise.resolve({ leadId: 'lead-9' }) });
     render(<IntakeTable items={[item({ id: 'r1' })]} viewerPrefix="/manager" currentUserId="m1" />);
-    fireEvent.click(screen.getByRole('button', { name: 'Создать лид' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Создать лид' })[0]);
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         '/api/client-requests/r1',
@@ -193,7 +193,7 @@ describe('IntakeTable', () => {
     // сконвертировано). Тогда правильнее обновить список, чем уводить в никуда.
     fetchMock.mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
     render(<IntakeTable items={[item({ id: 'r1' })]} viewerPrefix="/manager" currentUserId="m1" />);
-    fireEvent.click(screen.getByRole('button', { name: 'Создать лид' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Создать лид' })[0]);
     await waitFor(() => expect(refresh).toHaveBeenCalled());
     expect(push).not.toHaveBeenCalled();
   });
@@ -201,7 +201,7 @@ describe('IntakeTable', () => {
   it('client_request: ошибка API → toast без перехода', async () => {
     fetchMock.mockResolvedValue({ ok: false });
     render(<IntakeTable items={[item({ id: 'r1' })]} viewerPrefix="/manager" currentUserId="m1" />);
-    fireEvent.click(screen.getByRole('button', { name: 'Создать лид' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Создать лид' })[0]);
     await waitFor(() => expect(toastError).toHaveBeenCalled());
     expect(push).not.toHaveBeenCalled();
   });
@@ -221,7 +221,7 @@ describe('IntakeTable', () => {
         currentUserId="m1"
       />
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Создать лид' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Создать лид' })[0]);
     expect(screen.getByTestId('lead-dialog-stub')).toBeTruthy();
     expect(leadDialogSpy).toHaveBeenCalledWith(
       expect.objectContaining({ kind: 'call', sourceId: 'c1' })
@@ -245,7 +245,7 @@ describe('IntakeTable', () => {
         currentUserId="m1"
       />
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Создать лид' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Создать лид' })[0]);
     expect(leadDialogSpy).toHaveBeenCalledWith(
       expect.objectContaining({ kind: 'inbound', sourceId: 'i1' })
     );
@@ -269,12 +269,12 @@ describe('IntakeTable', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Создать лид' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Создать лид' })[0]);
     const leadClose = leadDialogSpy.mock.calls.at(-1)![0].onClose as () => void;
     await act(async () => leadClose());
     expect(screen.queryByTestId('lead-dialog-stub')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Задача' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Задача' })[0]);
     const taskClose = taskDialogSpy.mock.calls.at(-1)![0].onClose as () => void;
     await act(async () => taskClose());
     expect(screen.queryByTestId('task-dialog-stub')).toBeNull();
@@ -291,12 +291,12 @@ describe('IntakeTable', () => {
         currentUserId="m1"
       />
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Задача' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Задача' })[0]);
     expect(taskDialogSpy).toHaveBeenCalledWith(
       expect.objectContaining({ titlePrefill: 'Перезвонить: +7999' })
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Закрыть' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Закрыть' })[0]);
     await waitFor(() => expect(closeCallIntakeAction).toHaveBeenCalled());
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Звонок закрыт.'));
   });

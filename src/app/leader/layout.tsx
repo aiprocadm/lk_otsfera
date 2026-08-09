@@ -8,6 +8,8 @@ import { LogoutButton } from '@/components/ui';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { AppShell } from '@/components/shell/app-shell';
 import { Sidebar } from '@/components/shell/sidebar';
+import { MobileNav } from '@/components/shell/mobile-nav';
+import { mobileTabsFor } from '@/lib/navigation/mobileTabs';
 
 export default async function LeaderLayout({ children }: { children: ReactNode }) {
   // Третья точка гейтинга (после middleware и nav): прямой заход при выключенном флаге -> 404.
@@ -28,6 +30,20 @@ export default async function LeaderLayout({ children }: { children: ReactNode }
           title="Руководитель"
           subtitle="Промтехносфера"
           testIdPrefix="leader"
+        />
+      }
+      mobileNav={
+        <MobileNav
+          tabs={mobileTabsFor('leader', items)}
+          panel={
+            <Sidebar
+              items={items}
+              title="Руководитель"
+              subtitle="Промтехносфера"
+              testIdPrefix="leader"
+              variant="panel"
+            />
+          }
         />
       }
       headerLeft={

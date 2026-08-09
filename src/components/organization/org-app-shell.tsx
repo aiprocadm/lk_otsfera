@@ -5,8 +5,9 @@ import { NotificationBell } from '@/components/notifications/notification-bell';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { AskQuestionButton } from '@/components/support/ask-question-button';
 import { AppShell } from '@/components/shell/app-shell';
+import { MobileNav } from '@/components/shell/mobile-nav';
+import { mobileTabsFor } from '@/lib/navigation/mobileTabs';
 import { OrgSidebar, type OrgSidebarMembership } from './org-sidebar';
-import { OrganizationBottomTabBar } from './bottom-tab-bar';
 
 /**
  * Кабинет заказчика. Этап 2 (`У-11`): своего каркаса больше нет — переходник к
@@ -37,6 +38,21 @@ export function OrgAppShell(props: {
           viewerRole={props.viewerRole}
         />
       }
+      mobileNav={
+        <MobileNav
+          tabs={mobileTabsFor('organization', items)}
+          {...(props.memberships.length > 1 ? { tabQuery: `org=${props.activeOrgId}` } : {})}
+          panel={
+            <OrgSidebar
+              items={items}
+              memberships={props.memberships}
+              activeOrgId={props.activeOrgId}
+              viewerRole={props.viewerRole}
+              variant="panel"
+            />
+          }
+        />
+      }
       headerLeft={
         <>
           <span className="font-medium text-[#111111]">{props.activeOrgName}</span>
@@ -53,7 +69,6 @@ export function OrgAppShell(props: {
           <LogoutButton />
         </>
       }
-      bottomBar={<OrganizationBottomTabBar />}
     >
       {props.children}
     </AppShell>

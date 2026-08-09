@@ -4,6 +4,7 @@ import React, { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Badge, Button } from '@/components/ui';
+import { CardList, Card, CardRow } from '@/components/ui/card-list';
 import { toast } from '@/lib/ui/toast';
 import { claimIntakeAction, closeCallIntakeAction } from '@/server-actions/intake';
 import type { IntakeItem, IntakeSlaLevel, IntakeType } from '@/lib/services/intake/list';
@@ -137,112 +138,127 @@ export function IntakeTable({
     );
   }
 
+  // У-18: шесть колонок на телефон не помещаются. Кнопки одни и те же в обоих
+  // видах — иначе таблица и карточки разъедутся при следующей правке.
+  const renderActions = (item: IntakeItem) => {
+    const busy = busyId === item.id;
+    return (
+      <div className="flex flex-wrap gap-1.5">
+        {!item.responsibleUserId && (
+          <Button size="sm" variant="secondary" disabled={busy} onClick={() => claim(item)}>
+            Взять в работу
+          </Button>
+        )}
+        {item.type === 'client_request' && (
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={busy}
+            onClick={() => void convertRequest(item)}
+          >
+            Создать лид
+          </Button>
+        )}
+        {item.leadPrefill && (
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={busy}
+            onClick={() =>
+              setLeadDialog({
+                kind: item.type === 'call' ? 'call' : 'inbound',
+                sourceId: item.id,
+                prefill: item.leadPrefill!,
+              })
+            }
+          >
+            Создать лид
+          </Button>
+        )}
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={busy}
+          onClick={() =>
+            setTaskDialog({ title: item.taskTitle, organizationId: item.organizationId })
+          }
+        >
+          Задача
+        </Button>
+        {item.type === 'call' && (
+          <Button size="sm" variant="secondary" disabled={busy} onClick={() => closeCall(item)}>
+            Закрыть
+          </Button>
+        )}
+        <Link
+          href={sourceHref(item.type, viewerPrefix)}
+          className="inline-flex items-center px-2 py-1 text-sm text-[#F97316] hover:underline"
+        >
+          Открыть →
+        </Link>
+      </div>
+    );
+  };
+
   return (
-    <div className="overflow-x-auto rounded-xl border border-gray-200">
-      <table className="min-w-full text-sm">
-        <thead className="bg-[#F3F4F6] text-left text-xs text-gray-500">
-          <tr>
-            <th className="px-4 py-2 font-medium">Тип</th>
-            <th className="px-4 py-2 font-medium">От кого</th>
-            <th className="px-4 py-2 font-medium">Суть</th>
-            <th className="px-4 py-2 font-medium">Ждёт</th>
-            <th className="px-4 py-2 font-medium">Ответственный</th>
-            <th className="px-4 py-2 font-medium">Действия</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100">
-          {items.map((item) => {
-            const busy = busyId === item.id;
-            const mine = item.responsibleUserId === currentUserId;
-            return (
-              <tr key={`${item.type}:${item.id}`} className="align-top">
-                <td className="px-4 py-2.5">
-                  <Badge tone="neutral">{TYPE_LABEL[item.type]}</Badge>
-                </td>
-                <td className="px-4 py-2.5 font-medium text-[#111111]">{item.from}</td>
-                <td className="px-4 py-2.5 text-gray-600 max-w-md truncate">{item.essence}</td>
-                <td className={`px-4 py-2.5 whitespace-nowrap ${SLA_CLASS[item.slaLevel]}`}>
-                  {waitingLabel(item.waitingMs)}
-                </td>
-                <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">
-                  {item.responsibleName ??
-                    (item.responsibleUserId ? '…' : <span className="text-gray-400">нет</span>)}
-                  {mine && <span className="text-xs text-gray-400"> (вы)</span>}
-                </td>
-                <td className="px-4 py-2.5">
-                  <div className="flex flex-wrap gap-1.5">
-                    {!item.responsibleUserId && (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        disabled={busy}
-                        onClick={() => claim(item)}
-                      >
-                        Взять в работу
-                      </Button>
-                    )}
-                    {item.type === 'client_request' && (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        disabled={busy}
-                        onClick={() => void convertRequest(item)}
-                      >
-                        Создать лид
-                      </Button>
-                    )}
-                    {item.leadPrefill && (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        disabled={busy}
-                        onClick={() =>
-                          setLeadDialog({
-                            kind: item.type === 'call' ? 'call' : 'inbound',
-                            sourceId: item.id,
-                            prefill: item.leadPrefill!,
-                          })
-                        }
-                      >
-                        Создать лид
-                      </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      disabled={busy}
-                      onClick={() =>
-                        setTaskDialog({
-                          title: item.taskTitle,
-                          organizationId: item.organizationId,
-                        })
-                      }
-                    >
-                      Задача
-                    </Button>
-                    {item.type === 'call' && (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        disabled={busy}
-                        onClick={() => closeCall(item)}
-                      >
-                        Закрыть
-                      </Button>
-                    )}
-                    <Link
-                      href={sourceHref(item.type, viewerPrefix)}
-                      className="inline-flex items-center px-2 py-1 text-sm text-[#F97316] hover:underline"
-                    >
-                      Открыть →
-                    </Link>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <div>
+      <CardList>
+        {items.map((item) => (
+          <Card
+            key={`${item.type}:${item.id}`}
+            title={item.from}
+            actions={<Badge tone="neutral">{TYPE_LABEL[item.type]}</Badge>}
+          >
+            <CardRow label="Суть">{item.essence}</CardRow>
+            <CardRow label="Ждёт">
+              <span className={SLA_CLASS[item.slaLevel]}>{waitingLabel(item.waitingMs)}</span>
+            </CardRow>
+            <CardRow label="Ответственный">
+              {item.responsibleName ?? (item.responsibleUserId ? '…' : 'нет')}
+              {item.responsibleUserId === currentUserId ? ' (вы)' : ''}
+            </CardRow>
+            <div className="pt-2">{renderActions(item)}</div>
+          </Card>
+        ))}
+      </CardList>
+
+      <div className="hidden md:block overflow-x-auto rounded-xl border border-gray-200">
+        <table className="min-w-full text-sm">
+          <thead className="bg-[#F3F4F6] text-left text-xs text-gray-500">
+            <tr>
+              <th className="px-4 py-2 font-medium">Тип</th>
+              <th className="px-4 py-2 font-medium">От кого</th>
+              <th className="px-4 py-2 font-medium">Суть</th>
+              <th className="px-4 py-2 font-medium">Ждёт</th>
+              <th className="px-4 py-2 font-medium">Ответственный</th>
+              <th className="px-4 py-2 font-medium">Действия</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {items.map((item) => {
+              const mine = item.responsibleUserId === currentUserId;
+              return (
+                <tr key={`${item.type}:${item.id}`} className="align-top">
+                  <td className="px-4 py-2.5">
+                    <Badge tone="neutral">{TYPE_LABEL[item.type]}</Badge>
+                  </td>
+                  <td className="px-4 py-2.5 font-medium text-[#111111]">{item.from}</td>
+                  <td className="px-4 py-2.5 text-gray-600 max-w-md truncate">{item.essence}</td>
+                  <td className={`px-4 py-2.5 whitespace-nowrap ${SLA_CLASS[item.slaLevel]}`}>
+                    {waitingLabel(item.waitingMs)}
+                  </td>
+                  <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">
+                    {item.responsibleName ??
+                      (item.responsibleUserId ? '…' : <span className="text-gray-400">нет</span>)}
+                    {mine && <span className="text-xs text-gray-400"> (вы)</span>}
+                  </td>
+                  <td className="px-4 py-2.5">{renderActions(item)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
       {leadDialog && (
         <CreateLeadFromSourceDialog

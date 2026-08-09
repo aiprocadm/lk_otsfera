@@ -6,6 +6,8 @@ import { LogoutButton } from '@/components/ui';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { AppShell } from '@/components/shell/app-shell';
 import { Sidebar } from '@/components/shell/sidebar';
+import { MobileNav } from '@/components/shell/mobile-nav';
+import { mobileTabsFor } from '@/lib/navigation/mobileTabs';
 
 export default async function ManagerLayout({ children }: { children: ReactNode }) {
   const session = await requireManager();
@@ -16,6 +18,20 @@ export default async function ManagerLayout({ children }: { children: ReactNode 
     <AppShell
       sidebar={
         <Sidebar items={items} title="Менеджер" subtitle="Промтехносфера" testIdPrefix="manager" />
+      }
+      mobileNav={
+        <MobileNav
+          tabs={mobileTabsFor('manager', items)}
+          panel={
+            <Sidebar
+              items={items}
+              title="Менеджер"
+              subtitle="Промтехносфера"
+              testIdPrefix="manager"
+              variant="panel"
+            />
+          }
+        />
       }
       headerLeft={
         <>
