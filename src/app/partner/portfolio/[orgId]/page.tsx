@@ -9,7 +9,6 @@ import { OrgTabs, type TabKey } from '@/components/partner/org-tabs';
 import { EmployeesTab } from '@/components/partner/org-employees-tab';
 import { CommentsTab } from '@/components/partner/org-comments-tab';
 import { HistoryTab } from '@/components/partner/org-history-tab';
-import { CustomerAccessSection } from '@/components/partner/customer-access-section';
 
 const VALID_TABS: TabKey[] = ['employees', 'comments', 'history'];
 
@@ -39,11 +38,12 @@ export default async function OrgCardPage({
     <div className="space-y-4">
       <OrgCardHeader card={card} />
       <OrgTabs orgId={orgId} active={tab} isAdmin={isAdmin} />
+      {/* У-64: под вкладками не рендерится ничего вне переключателя. Блок
+          «Доступ к организации» уехал на вкладку «Настройки» (У-61) — раньше он
+          стоял здесь и был виден под всеми вкладками сразу. */}
       {tab === 'employees' && <EmployeesTab orgId={orgId} prisma={prisma} />}
       {tab === 'comments' && <CommentsTab orgId={orgId} prisma={prisma} />}
       {tab === 'history' && <HistoryTab orgId={orgId} prisma={prisma} />}
-
-      <CustomerAccessSection organizationId={orgId} prisma={prisma} canInvite={isAdmin} />
     </div>
   );
 }

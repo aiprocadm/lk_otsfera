@@ -40,6 +40,34 @@ function activeMembership(session: SessionPayload, orgId: string): { role: strin
   return m ? { role: m.roleInOrg } : null;
 }
 
+/**
+ * Этап 4 ТЗ понятности (`У-62`): реквизиты организации ведёт и **партнёр**,
+ * в чьём портфеле она состоит.
+ *
+ * Читать может любой партнёрский пользователь с доступом к организации,
+ * **править — только партнёр-администратор**. Проверка живёт здесь, в сервисе,
+ * а не в компоненте: скрытая форма — это внешний вид, а не защита (§4).
+ *
+ * Скоуп проверяется по БД (`Organization.partnerId`), а не по сессии: список
+ * организаций в токене может устареть, а привязка к партнёру — не может.
+ */
+async function partnerAccess(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  orgId: string
+): Promise<{ canRead: boolean; canWrite: boolean }> {
+  if (session.role !== 'partner' || !session.partnerId) return { canRead: false, canWrite: false };
+  const org = await prisma.organization.findFirst({
+    where: { id: orgId, partnerId: session.partnerId },
+    select: { id: true },
+  });
+  if (!org) return { canRead: false, canWrite: false };
+  // assignedOrgIds — суженный скоуп партнёрского пользователя (пустой = все).
+  const scope = session.assignedOrgIds ?? [];
+  if (scope.length > 0 && !scope.includes(orgId)) return { canRead: false, canWrite: false };
+  return { canRead: true, canWrite: session.partnerRole === 'admin' };
+}
+
 export async function getOrgRequisites(
   prisma: PrismaClient,
   session: SessionPayload,
@@ -47,7 +75,8 @@ export async function getOrgRequisites(
 ): Promise<
   { ok: true; requisites: OrgRequisites } | { ok: false; error: 'forbidden' | 'not_found' }
 > {
-  if (session.role !== 'organization' || !activeMembership(session, orgId))
+  const asOrgUser = session.role === 'organization' && activeMembership(session, orgId) !== null;
+  if (!asOrgUser && !(await partnerAccess(prisma, session, orgId)).canRead)
     return { ok: false, error: 'forbidden' };
   const org = await prisma.organization.findUnique({ where: { id: orgId }, select: REQ_SELECT });
   if (!org) return { ok: false, error: 'not_found' };
@@ -63,7 +92,11 @@ export async function setOrgRequisites(
   { ok: true } | { ok: false; error: 'forbidden' | 'not_found' | 'validation'; messages?: string[] }
 > {
   const membership = session.role === 'organization' ? activeMembership(session, orgId) : null;
-  if (!membership || (membership.role !== 'admin' && membership.role !== 'leader')) {
+  const orgUserMayWrite =
+    membership !== null && (membership.role === 'admin' || membership.role === 'leader');
+  // У-62: партнёр-администратор своей организации правит реквизиты наравне с
+  // администратором самой организации. Обычный партнёрский пользователь — нет.
+  if (!orgUserMayWrite && !(await partnerAccess(prisma, session, orgId)).canWrite) {
     return { ok: false, error: 'forbidden' };
   }
 

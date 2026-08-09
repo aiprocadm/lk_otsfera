@@ -129,7 +129,9 @@ describe('OrgCardPage', () => {
     expect(container.querySelector('[data-testid="employees-tab"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="comments-tab"]')).toBeNull();
     expect(container.querySelector('[data-testid="history-tab"]')).toBeNull();
-    expect(container.textContent).toContain('access:org-1:true');
+    // У-61/У-64 (этап 4): блок доступа уехал на вкладку «Настройки». Раньше он
+    // рендерился вне переключателя и висел под всеми вкладками сразу.
+    expect(container.textContent).not.toContain('access:org-1');
   });
 
   it('renders the "comments" tab and marks canInvite=false for a non-admin', async () => {
@@ -147,7 +149,7 @@ describe('OrgCardPage', () => {
 
     expect(container.querySelector('[data-testid="comments-tab"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="employees-tab"]')).toBeNull();
-    expect(container.textContent).toContain('access:org-1:false');
+    expect(container.textContent).not.toContain('access:org-1');
   });
 
   it('renders the "history" tab', async () => {

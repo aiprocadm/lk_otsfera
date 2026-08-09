@@ -475,7 +475,9 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     },
     { href: '/partner/documents', label: 'Документы', iconKey: 'documents' },
     { href: '/partner/finance', label: 'Финансы', iconKey: 'finance' },
-    { href: '/partner/team', label: 'Команда', iconKey: 'team', partnerAdminOnly: true },
+    // У-60 (этап 4): «Команда» уехала из главного меню на вкладку настроек —
+    // это служебный раздел, ему не место рядом с «Заказами». Адрес
+    // /partner/team остался редиректом.
     { href: '/partner/messages', label: 'Сообщения', iconKey: 'messages', flag: 'chat' },
     { href: '/partner/settings', label: 'Настройки', iconKey: 'settings' },
   ],

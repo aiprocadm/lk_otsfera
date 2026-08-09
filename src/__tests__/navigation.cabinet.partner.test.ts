@@ -17,7 +17,7 @@ describe('navByRole.partner', () => {
   it('contains all active items including Финансы (Phase 4 shipped)', () => {
     const labels = navByRole.partner.filter((i) => !i.disabled).map((i) => i.label);
     expect(labels).toEqual(
-      expect.arrayContaining(['Главная', 'Портфель', 'Заказы', 'Документы', 'Команда', 'Финансы'])
+      expect.arrayContaining(['Главная', 'Портфель', 'Заказы', 'Документы', 'Финансы'])
     );
   });
 
@@ -75,7 +75,7 @@ describe('navItemsFor — chat flag (partner)', () => {
     expect(labels).toContain('Сообщения');
     // Other items still present
     expect(labels).toEqual(
-      expect.arrayContaining(['Главная', 'Портфель', 'Заказы', 'Документы', 'Финансы', 'Команда'])
+      expect.arrayContaining(['Главная', 'Портфель', 'Заказы', 'Документы', 'Финансы'])
     );
   });
 
@@ -116,26 +116,22 @@ describe('navItemsFor — chat flag (organization)', () => {
   });
 });
 
-describe('navItemsFor — partnerAdminOnly гейтинг (/partner/team)', () => {
-  it('скрывает «Команда» для partner без opts (не-admin по умолчанию)', () => {
-    const labels = navItemsFor('partner').map((i) => i.label);
-    expect(labels).not.toContain('Команда');
+describe('У-60 (этап 4): «Команда» ушла из главного меню в настройки', () => {
+  it('пункта «Команда» в меню партнёра нет ни при каких opts', () => {
+    for (const opts of [undefined, { isPartnerAdmin: false }, { isPartnerAdmin: true }]) {
+      const labels = navItemsFor('partner', opts).map((i) => i.label);
+      expect(labels, `opts=${JSON.stringify(opts)}`).not.toContain('Команда');
+    }
   });
 
-  it('скрывает «Команда» для partner с isPartnerAdmin=false', () => {
-    const labels = navItemsFor('partner', { isPartnerAdmin: false }).map((i) => i.label);
-    expect(labels).not.toContain('Команда');
+  it('адреса /partner/team в меню тоже нет — он стал редиректом на вкладку настроек', () => {
+    expect(navByRole.partner.find((i) => i.href === '/partner/team')).toBeUndefined();
   });
 
-  it('показывает «Команда» для partner с isPartnerAdmin=true', () => {
-    const labels = navItemsFor('partner', { isPartnerAdmin: true }).map((i) => i.label);
-    expect(labels).toContain('Команда');
-  });
-
-  it('пункт /partner/team помечен partnerAdminOnly в navByRole', () => {
-    const item = navByRole.partner.find((i) => i.href === '/partner/team');
-    expect(item).toBeDefined();
-    expect(item!.partnerAdminOnly).toBe(true);
+  it('«Настройки» в меню остались — через них и попадают в «Команду»', () => {
+    expect(navItemsFor('partner', { isPartnerAdmin: true }).map((i) => i.href)).toContain(
+      '/partner/settings'
+    );
   });
 });
 
@@ -284,7 +280,7 @@ describe('navByRole.partner — состав по ФТ-15.4', () => {
       '/partner/certificates',
       '/partner/documents',
       '/partner/finance',
-      '/partner/team',
+      // У-60 (этап 4): '/partner/team' убран — «Команда» стала вкладкой настроек.
       '/partner/messages',
       '/partner/settings',
     ]);
