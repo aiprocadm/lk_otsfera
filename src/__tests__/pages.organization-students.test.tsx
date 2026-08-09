@@ -8,6 +8,12 @@ vi.mock('@/lib/auth/orgPageContext', () => ({ getOrgPageContext }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
+// Этап 5 (У-24): на странице появилась кнопка добавления — клиентский диалог с
+// useRouter. Здесь проверяется список, поэтому диалог подменяем заглушкой.
+vi.mock('@/components/students/add-student-dialog', () => ({
+  AddStudentDialog: () => React.createElement('button', null, 'Добавить сотрудника'),
+}));
+
 const { listOrgStudents } = vi.hoisted(() => ({ listOrgStudents: vi.fn() }));
 vi.mock('@/lib/services/organization/students', () => ({ listOrgStudents }));
 

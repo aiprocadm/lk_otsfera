@@ -43,8 +43,8 @@
 
 | Вердикт | Кол-во |
 |---|---|
-| `✅` соответствует | 23 (этапы 1–3 целиком + `У-60`, `У-61`, `У-62`, `У-64`) |
-| `⏳` запланировано этапами 5–9 | 54 (плюс кнопка `У-63` — уехала в этап 5 вместе с `У-25`) |
+| `✅` соответствует | 29 (этапы 1–4 + `У-20`…`У-22`, `У-24`…`У-26`, `У-32` из этапа 5) |
+| `⏳` запланировано этапами 6–9 | 48 (плюс `У-27`…`У-30` и хвосты `У-23`/`У-31` — PR-2 этапа 5) |
 | `❌` расхождение | 0 |
 | `⚠` вне объёма | 1 (см. раздел ниже) |
 
@@ -123,19 +123,19 @@
 
 | Требование | Что проверять | Якорь | Вердикт | Сверено |
 |---|---|---|---|---|
-| `У-20` | У `Student` есть `snils`, `birthDate`, `phone`, `note` | [schema.prisma:797](../../prisma/schema.prisma) — есть только `position` | ⏳ этап 5 | 08.08.2026 |
-| `У-21` | `Student.email` необязателен (`String?`); `@@unique([organizationId, email])` остаётся рабочим (в PostgreSQL много `NULL` допустимо) | [schema.prisma:801](../../prisma/schema.prisma) — сейчас `email String` | ⏳ этап 5 | 08.08.2026 |
-| `У-22` | Дедупликация: СНИЛС → `ФИО + дата рождения` → `ФИО + email`; совпадение показывается с выбором «Использовать существующего» / «Всё равно добавить» | — | ⏳ этап 5 | 08.08.2026 |
-| `У-23` | Сервис `services/students/` с `createStudent`, `updateStudent`, `deactivateStudent`, `findDuplicates`, `importStudents`; Result-тип §3 | нет каталога; **`student.create(` в бою не встречается ни разу** | ⏳ этап 5 | 08.08.2026 |
-| `У-24` | Кнопка «Добавить сотрудника» на `/organization/students` для `admin` и `leader` организации | [organization/students](../../src/app/organization/students) | ⏳ этап 5 | 08.08.2026 |
-| `У-25` | Кнопка в портфеле партнёра, вкладка «Сотрудники» | [org-employees-tab.tsx](../../src/components/partner/org-employees-tab.tsx) | ⏳ этап 5 | 08.08.2026 |
-| `У-26` | Кнопка в карточке организации у менеджера и администратора | `/manager/organizations/[id]`, `/admin/organizations/[id]` | ⏳ этап 5 | 08.08.2026 |
+| `У-20` | Поля `snils`/`birthDate`/`phone`/`note` есть в модели `Student` | миграция `20260809163936_stage5_student_directory` — только добавление колонок | ✅ соответствует | 09.08.2026 |
+| `У-21` | `Student.email` необязателен, уникальный индекс продолжает работать | та же миграция (`DROP NOT NULL`); PostgreSQL допускает много `NULL`. Разбор последствий: `typecheck` показал 8 мест в трёх сервисах и трёх компонентах, в выгрузке XLSX пустая почта печатается прочерком | ✅ соответствует | 09.08.2026 |
+| `У-22` | Дедупликация СНИЛС → ФИО+ДР → ФИО+email; дубль не блокирует, есть «Всё равно добавить» | [duplicates.ts](../../src/lib/services/students/duplicates.ts) — СНИЛС сравнивается по цифрам; страж проверяет порядок ключей и работу `force` | ✅ соответствует | 09.08.2026 |
+| `У-23` | Сервис `services/students/` с Result-контрактом | [crud.ts](../../src/lib/services/students/crud.ts) — `createStudent`/`updateStudent`/`deactivateStudent`. **`importStudents` — PR-2** (массовые операции) | ⚠ частично: CRUD ✅, `importStudents` ⏳ PR-2 | 09.08.2026 |
+| `У-24` | Кнопка «Добавить сотрудника» в кабинете организации (admin/leader) | [organization/students/page.tsx](../../src/app/organization/students/page.tsx) + [add-student-dialog.tsx](../../src/components/students/add-student-dialog.tsx) | ✅ соответствует | 09.08.2026 |
+| `У-25` | Кнопка в портфеле партнёра (вкладка «Сотрудники») | [org-employees-tab.tsx](../../src/components/partner/org-employees-tab.tsx) — закрывает и долг `У-63` этапа 4 | ✅ соответствует | 09.08.2026 |
+| `У-26` | Кнопка в карточке организации у менеджера и администратора | [manager/organizations/[id]](../../src/app/manager/organizations/[id]/page.tsx), [admin/organizations/[id]](../../src/app/admin/organizations/[id]/page.tsx) | ✅ соответствует | 09.08.2026 |
 | `У-27` | Импорт списком из Excel/CSV, шаблон скачивается с экрана; обязательна только ФИО | [services/organization/students-xlsx.ts](../../src/lib/services/organization/students-xlsx.ts) — смотреть на переиспользование | ⏳ этап 5 | 08.08.2026 |
 | `У-28` | Импорт двухшаговый: предпросмотр «создано N / обновлено M / дубликатов K» → подтверждение | образец — импорт 1С | ⏳ этап 5 | 08.08.2026 |
 | `У-29` | Перевод заявки в `approved` создаёт `Student` для каждой позиции со `studentId = null` и проставляет `studentId`; дедупликация по `У-22` | [services/enrollments](../../src/lib/services/enrollments) | ⏳ этап 5 | 08.08.2026 |
 | `У-30` | Карточка сотрудника показывает реквизиты, историю обучений, удостоверения и сроки | [organization/students/[id]](../../src/app/organization/students/[id]/page.tsx), [manager/students/[id]](../../src/app/manager/students/[id]/page.tsx) | ⏳ этап 5 | 08.08.2026 |
-| `У-31` | Операции над сотрудником — в `AuditLog`; просмотр СНИЛС и даты рождения — в `PiiAccessEvent` | [lib/pii/record.ts](../../src/lib/pii/record.ts) + [lib/pii/contexts.ts](../../src/lib/pii/contexts.ts), guardrail `pii.capture-coverage` | ⏳ этап 5 | 08.08.2026 |
-| `У-32` | **Партнёр и организация ведут сотрудников только своих организаций — проверка в сервисе, а не только в UI** (§4 defense-in-depth). Проверять обходом API, а не глазами по экрану | — | ⏳ этап 5 | 08.08.2026 |
+| `У-31` | Операции над сотрудником пишутся в `AuditLog`; просмотр СНИЛС и ДР — в `PiiAccessEvent` | действия `student_created`/`student_updated`/`student_deactivated` + сущность `student` заведены в `AUDIT_ACTIONS` и словаре русских названий; страж проверяет, что **ПДн в аудит не попадают**. **Журнал просмотра СНИЛС — PR-2** (вместе с карточкой) | ⚠ частично: аудит ✅, `PiiAccessEvent` ⏳ PR-2 | 09.08.2026 |
+| `У-32` | Партнёр и организация ведут сотрудников **только своих** организаций; проверка в сервисе | [access.ts](../../src/lib/services/students/access.ts) — таблица прав по ролям, менеджерский скоуп mode-aware (`teamMode` обязателен аргументом). Страж [services.students.guardrail](../../src/__tests__/services.students.guardrail.test.ts): 21 проверка, каждая отказная ветка смотрит **и** код, **и** отсутствие записи | ✅ соответствует | 09.08.2026 |
 
 ## Блок E. Заявка: много слушателей × много обучений — этап 6
 

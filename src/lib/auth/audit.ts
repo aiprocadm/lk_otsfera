@@ -20,6 +20,8 @@ export const AUDIT_ENTITIES = [
   'document',
   'partner_user',
   'student_bridge',
+  // У-31 (этап 5): справочник сотрудников — сущность операций над Student.
+  'student',
   'order_thread',
   'company',
   'sync_state',
@@ -186,6 +188,10 @@ export const AUDIT_ACTIONS = [
   'sessions_revoked',
   'sla_settings_changed',
   'staff_message_sent',
+  // У-31 (этап 5): операции над сотрудником справочника.
+  'student_created',
+  'student_deactivated',
+  'student_updated',
   'sync_dlq_bulk_retried',
   'sync_schedule_paused',
   'sync_schedule_resumed',

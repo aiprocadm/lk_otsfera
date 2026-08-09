@@ -795,12 +795,23 @@ model OrganizationManager {
 }
 
 model Student {
-  id                String                  @id @default(cuid())
-  createdAt         DateTime                @default(now())
-  updatedAt         DateTime                @updatedAt
-  email             String
-  name              String
-  status            String                  @default("active")
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  /// У-21 (этап 5): email НЕОБЯЗАТЕЛЕН. В охране труда обучают рабочих без
+  /// корпоративной почты, а обязательное поле блокировало ввод. Уникальный
+  /// индекс ниже остаётся рабочим: PostgreSQL допускает много NULL, поэтому
+  /// сотрудники без почты друг другу не мешают, а два одинаковых email в одной
+  /// организации по-прежнему запрещены.
+  email     String?
+  name      String
+  status    String   @default("active")
+  /// У-20 (этап 5): реквизиты сотрудника. СНИЛС и дата рождения — ПДн:
+  /// их просмотр пишется в PiiAccessEvent (152-ФЗ, §25.7 CLAUDE.md).
+  snils     String?
+  birthDate DateTime?
+  phone     String?
+  note      String?
   // Этап 9 (ФТ-12.2, PR-3): должность для выгрузки сотрудников организации.
   // Необязательная (решение заказчика §9-1 спеки: обучаться могут физлица);
   // заполняется в карточке сотрудника и автоматически из заявки на обучение.

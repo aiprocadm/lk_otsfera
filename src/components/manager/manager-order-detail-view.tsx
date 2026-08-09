@@ -20,7 +20,7 @@ import type { ManagerOrderDetailData } from '@/lib/services/manager/orderDetail'
 import type { FieldWithValue } from '@/lib/services/customFields';
 import type { ActivityItem } from '@/lib/services/manager/dealActivity';
 
-type Student = { id: string; name: string; email: string };
+type Student = { id: string; name: string; email: string | null };
 
 export function ManagerOrderDetailView({
   data,

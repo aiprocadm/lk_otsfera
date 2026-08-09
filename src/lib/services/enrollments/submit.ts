@@ -80,7 +80,7 @@ export async function submitEnrollmentRequest(
   // Позиции «из сотрудников»: каждый studentId принадлежит выбранной организации;
   // ФИО/email копируются из Student на момент подачи (снимок).
   const studentIds = validated.items.map((i) => i.studentId).filter((id): id is string => !!id);
-  const studentById = new Map<string, { name: string; email: string }>();
+  const studentById = new Map<string, { name: string; email: string | null }>();
   if (studentIds.length) {
     if (!organizationId) return { ok: false, error: 'forbidden' };
     const students = await prisma.student.findMany({

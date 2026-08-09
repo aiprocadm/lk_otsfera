@@ -3,7 +3,8 @@ import type { PrismaClient } from '@prisma/client';
 export type OrgStudentRow = {
   id: string;
   name: string;
-  email: string;
+  /** У-21 (этап 5): почта у сотрудника необязательна — рабочих обучают без неё. */
+  email: string | null;
   externalStudentId: string | null;
   createdAt: Date;
 };
@@ -145,7 +146,7 @@ export async function listOrgStudentsForExport(
 export type OrgStudentCard = {
   id: string;
   name: string;
-  email: string;
+  email: string | null;
   position: string | null;
   externalStudentId: string | null;
   createdAt: Date;

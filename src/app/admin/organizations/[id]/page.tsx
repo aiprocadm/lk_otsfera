@@ -1,5 +1,6 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
+import { AddStudentDialog } from '@/components/students/add-student-dialog';
 import { BackLink, TableShell, THead, Th, Tr, Td } from '@/components/ui';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
@@ -69,6 +70,10 @@ export default async function AdminOrganizationDetailPage({
           <div className="text-sm text-[#111111] mt-1">
             {meta._count.orders} заказов · {meta._count.students} сотрудников ·{' '}
             {meta._count.organizationUsers} в кабинете
+          </div>
+          {/* У-26 (этап 5): администратор заводит сотрудника прямо из карточки. */}
+          <div className="mt-3">
+            <AddStudentDialog organizationId={id} />
           </div>
         </div>
       </div>

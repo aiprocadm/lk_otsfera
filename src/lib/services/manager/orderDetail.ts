@@ -69,7 +69,7 @@ export async function loadManagerOrderDetail(
   return { order, auditEntries, comments, documentRows, items };
 }
 
-export type OrderStudentOption = { id: string; name: string; email: string };
+export type OrderStudentOption = { id: string; name: string; email: string | null };
 
 /**
  * Слушатели для селектов форм карточки заказа (позиции обучения).

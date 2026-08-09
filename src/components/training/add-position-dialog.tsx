@@ -7,7 +7,7 @@ import { errorMessageRu } from '@/lib/errors/messages';
 import { toast } from '@/lib/ui/toast';
 
 type Direction = { id: string; name: string };
-type Student = { id: string; name: string; email: string };
+type Student = { id: string; name: string; email: string | null };
 
 type Props = {
   open: boolean;
