@@ -71,8 +71,8 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
         rows: [row({ isRefund: true, counterpartyInn: '123456' })],
       })
     );
-    expect(screen.getByText('0000-9 (возврат)')).toBeTruthy();
-    expect(screen.getByText(/ИНН 123456/)).toBeTruthy();
+    expect(screen.getAllByText('0000-9 (возврат)').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/ИНН 123456/).length).toBeGreaterThan(0);
   });
 
   it('renders em dashes when counterpartyName and accountCandidates/candidateOrgName are absent', () => {
@@ -98,13 +98,13 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
         rows: [row({ accountCandidates: ['СЧ-1', 'СЧ-2'] })],
       })
     );
-    expect(screen.getByText('СЧ-1, СЧ-2')).toBeTruthy();
+    expect(screen.getAllByText('СЧ-1, СЧ-2').length).toBeGreaterThan(0);
   });
 
   it('dismiss: clicking Отклонить calls dismissQueueRowAction and hides the row', async () => {
     dismissQueueRowAction.mockResolvedValue(undefined);
     render(React.createElement(PaymentQueueTable, { rows: [row()] }));
-    fireEvent.click(screen.getByRole('button', { name: 'Отклонить' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Отклонить' })[0]);
     await waitFor(() => expect(dismissQueueRowAction).toHaveBeenCalledWith({ rowId: 'r1' }));
     await waitFor(() =>
       expect(screen.getByText('Очередь пуста — все оплаты сопоставлены.')).toBeTruthy()
@@ -121,12 +121,12 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
     const rejectButtons = screen.getAllByRole('button', { name: 'Отклонить' });
     fireEvent.click(rejectButtons[0]);
     await waitFor(() => expect(screen.queryByText('EXT-1')).toBeNull());
-    expect(screen.getByText('EXT-2')).toBeTruthy();
+    expect(screen.getAllByText('EXT-2').length).toBeGreaterThan(0);
   });
 
   it('opening the bind dialog shows the row summary with counterparty + INN', async () => {
     render(React.createElement(PaymentQueueTable, { rows: [row()] }));
-    fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     expect(await screen.findByText('Привязать оплату')).toBeTruthy();
     // Scope to the summary line (not the org <select>, which also renders
     // "ООО Ромашка" once the injected-candidate-option effect settles).
@@ -139,7 +139,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
         rows: [row({ counterpartyName: null, counterpartyInn: null })],
       })
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
     const dialogEl = document.querySelector('dialog') as HTMLElement;
     expect(within(dialogEl).getByText(/без контрагента/)).toBeTruthy();
@@ -150,7 +150,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
       { id: 'org1', name: 'ООО Ромашка', inn: '7701234567' },
     ]);
     render(React.createElement(PaymentQueueTable, { rows: [row()] }));
-    fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
 
     await waitFor(() => expect(searchResolveOrgsAction).toHaveBeenCalledWith({ q: '' }));
@@ -167,7 +167,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
         rows: [row({ candidateOrgId: 'org1', candidateOrgName: 'ООО Ромашка' })],
       })
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
 
     await waitFor(() => expect(searchResolveOrgsAction).toHaveBeenCalled());
@@ -181,7 +181,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
       { id: 'org1', name: 'ООО Ромашка (из поиска)', inn: '7701234567' },
     ]);
     render(React.createElement(PaymentQueueTable, { rows: [row()] }));
-    fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
 
     const orgSelect = screen.getByLabelText('Организация') as HTMLSelectElement;
@@ -195,7 +195,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
         rows: [row({ candidateOrgId: null, candidateOrgName: null })],
       })
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
     await waitFor(() => expect(searchResolveOrgsAction).toHaveBeenCalled());
     const orgSelect = screen.getByLabelText('Организация') as HTMLSelectElement;
@@ -204,7 +204,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
 
   it('typing in the org search input re-triggers searchResolveOrgsAction with the new query', async () => {
     render(React.createElement(PaymentQueueTable, { rows: [row()] }));
-    fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
     await waitFor(() => expect(searchResolveOrgsAction).toHaveBeenCalledWith({ q: '' }));
 
@@ -218,7 +218,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
       { id: 'ord2', orderNumber: null, title: 'Без номера' },
     ]);
     render(React.createElement(PaymentQueueTable, { rows: [row()] }));
-    fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
 
     await waitFor(() =>
@@ -236,7 +236,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
         rows: [row({ candidateOrgId: null, candidateOrgName: null })],
       })
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
     const orderSelect = screen.getByLabelText('Заказ (необязательно)') as HTMLSelectElement;
     expect(orderSelect.disabled).toBe(true);
@@ -251,7 +251,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
       { id: 'org2', name: 'ООО Лютик', inn: null },
     ]);
     render(React.createElement(PaymentQueueTable, { rows: [row()] }));
-    fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
     await waitFor(() =>
       expect(listResolveOrdersAction).toHaveBeenCalledWith({ organizationId: 'org1' })
@@ -269,7 +269,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
       { id: 'ord1', orderNumber: 'ПЗ-01', title: 'Поставка' },
     ]);
     render(React.createElement(PaymentQueueTable, { rows: [row()] }));
-    fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
     await waitFor(() => expect(listResolveOrdersAction).toHaveBeenCalledTimes(1));
 
@@ -293,7 +293,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
   it('submit success: calls resolveQueueRowAction, hides the row, shows success toast, closes the dialog', async () => {
     resolveQueueRowAction.mockResolvedValue({ ok: true });
     render(React.createElement(PaymentQueueTable, { rows: [row()] }));
-    fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
 
     const dialogEl = document.querySelector('dialog') as HTMLElement;
@@ -318,7 +318,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
     ]);
     resolveQueueRowAction.mockResolvedValue({ ok: true });
     render(React.createElement(PaymentQueueTable, { rows: [row()] }));
-    fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
     await waitFor(() => expect(listResolveOrdersAction).toHaveBeenCalled());
 
@@ -338,7 +338,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
   it('submit failure: shows the mapped server error inline, keeps the row and dialog open', async () => {
     resolveQueueRowAction.mockResolvedValue({ ok: false, error: 'write_skipped' });
     render(React.createElement(PaymentQueueTable, { rows: [row()] }));
-    fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
 
     const dialogEl = document.querySelector('dialog') as HTMLElement;
@@ -356,7 +356,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
   it('submit failure with an unmapped code falls back to "Ошибка: <code>"', async () => {
     resolveQueueRowAction.mockResolvedValue({ ok: false, error: 'weird' });
     render(React.createElement(PaymentQueueTable, { rows: [row()] }));
-    fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
 
     const dialogEl = document.querySelector('dialog') as HTMLElement;
@@ -367,7 +367,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
 
   it('cancel closes the dialog without submitting', async () => {
     render(React.createElement(PaymentQueueTable, { rows: [row()] }));
-    fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
 
     fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
@@ -381,7 +381,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
         rows: [row({ candidateOrgId: null, candidateOrgName: null })],
       })
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
     const dialogEl = document.querySelector('dialog') as HTMLElement;
     const submitBtn = within(dialogEl).getByRole('button', {
@@ -399,7 +399,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
         })
     );
     render(React.createElement(PaymentQueueTable, { rows: [row()] }));
-    fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
 
     fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
@@ -419,7 +419,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
         })
     );
     render(React.createElement(PaymentQueueTable, { rows: [row()] }));
-    fireEvent.click(screen.getByRole('button', { name: 'Привязать' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
     await waitFor(() =>
       expect(listResolveOrdersAction).toHaveBeenCalledWith({ organizationId: 'org1' })
@@ -453,7 +453,7 @@ describe('PaymentQueueTable — создание организации из о�
 
   it('кнопка есть только у строк с ИНН', () => {
     render(<PaymentQueueTable rows={[row(), row({ id: 'r2', counterpartyInn: null })]} />);
-    expect(screen.getByTestId('create-org-r1')).toBeTruthy();
+    expect(screen.getAllByTestId('create-org-r1')[0]).toBeTruthy();
     expect(screen.queryByTestId('create-org-r2')).toBeNull();
   });
 
@@ -464,7 +464,7 @@ describe('PaymentQueueTable — создание организации из о�
       paymentId: 'pay-1',
     });
     render(<PaymentQueueTable rows={[row()]} />);
-    fireEvent.click(screen.getByTestId('create-org-r1'));
+    fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
 
     const dialog = openDialog();
     expect((within(dialog).getByLabelText('Наименование') as HTMLInputElement).value).toBe(
@@ -495,7 +495,7 @@ describe('PaymentQueueTable — создание организации из о�
       paymentId: null,
     });
     render(<PaymentQueueTable rows={[row()]} companies={COMPANIES} />);
-    fireEvent.click(screen.getByTestId('create-org-r1'));
+    fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
 
     const select = within(openDialog()).getByLabelText(
       'Компания новой организации'
@@ -523,7 +523,7 @@ describe('PaymentQueueTable — создание организации из о�
     vi.stubGlobal('fetch', fetchMock);
     try {
       render(<PaymentQueueTable rows={[row()]} />);
-      fireEvent.click(screen.getByTestId('create-org-r1'));
+      fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
 
       fireEvent.click(screen.getByTestId('create-org-dadata'));
       await waitFor(() =>
@@ -549,7 +549,7 @@ describe('PaymentQueueTable — создание организации из о�
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('net down')));
     try {
       render(<PaymentQueueTable rows={[row()]} />);
-      fireEvent.click(screen.getByTestId('create-org-r1'));
+      fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
       fireEvent.click(screen.getByTestId('create-org-dadata'));
       await waitFor(() => expect(openDialog().textContent).toContain('Подсказки недоступны'));
     } finally {
@@ -567,7 +567,7 @@ describe('PaymentQueueTable — создание организации из о�
         bindError: 'write_skipped',
       });
     render(<PaymentQueueTable rows={[row()]} />);
-    fireEvent.click(screen.getByTestId('create-org-r1'));
+    fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
 
     fireEvent.click(screen.getByTestId('create-org-submit'));
     await waitFor(() =>
@@ -588,7 +588,7 @@ describe('PaymentQueueTable — создание организации из о�
       paymentId: 'pay-1',
     });
     render(<PaymentQueueTable rows={[row()]} />);
-    fireEvent.click(screen.getByTestId('create-org-r1'));
+    fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
 
     const dialog = openDialog();
     const innInput = within(dialog).getByLabelText('ИНН') as HTMLInputElement;
@@ -618,7 +618,7 @@ describe('PaymentQueueTable — создание организации из о�
 
   it('очистка обязательного поля блокирует кнопку создания', () => {
     render(<PaymentQueueTable rows={[row()]} />);
-    fireEvent.click(screen.getByTestId('create-org-r1'));
+    fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
 
     const submit = screen.getByTestId('create-org-submit') as HTMLButtonElement;
     expect(submit.disabled).toBe(false);
@@ -643,7 +643,7 @@ describe('PaymentQueueTable — создание организации из о�
       paymentId: null,
     });
     render(<PaymentQueueTable rows={[row({ counterpartyName: null })]} />);
-    fireEvent.click(screen.getByTestId('create-org-r1'));
+    fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
 
     const nameInput = within(openDialog()).getByLabelText('Наименование') as HTMLInputElement;
     expect(nameInput.value).toBe(''); // фолбэк вместо null
@@ -667,7 +667,7 @@ describe('PaymentQueueTable — создание организации из о�
       paymentId: null,
     });
     render(<PaymentQueueTable rows={[row({ batchCompanyId: null })]} companies={COMPANIES} />);
-    fireEvent.click(screen.getByTestId('create-org-r1'));
+    fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
 
     const select = within(openDialog()).getByLabelText(
       'Компания новой организации'
@@ -688,20 +688,20 @@ describe('PaymentQueueTable — создание организации из о�
 
   it('«Отмена» закрывает диалог создания: экшен не вызван, строка осталась в очереди', async () => {
     render(<PaymentQueueTable rows={[row()]} />);
-    fireEvent.click(screen.getByTestId('create-org-r1'));
+    fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
     expect(within(openDialog()).getByText('Создать организацию и привязать')).toBeTruthy();
 
     fireEvent.click(within(openDialog()).getByRole('button', { name: 'Отмена' }));
 
     await waitFor(() => expect(screen.queryByText('Создать организацию и привязать')).toBeNull());
     expect(createOrgFromQueueRowAction).not.toHaveBeenCalled();
-    expect(screen.getByTestId('create-org-r1')).toBeTruthy();
+    expect(screen.getAllByTestId('create-org-r1')[0]).toBeTruthy();
   });
 
   it('сеть упала на создании — понятная ошибка', async () => {
     createOrgFromQueueRowAction.mockRejectedValue(new Error('net down'));
     render(<PaymentQueueTable rows={[row()]} />);
-    fireEvent.click(screen.getByTestId('create-org-r1'));
+    fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
     fireEvent.click(screen.getByTestId('create-org-submit'));
     await waitFor(() => expect(openDialog().textContent).toContain('Сервер недоступен'));
   });

@@ -31,6 +31,15 @@ export function Sidebar(props: {
   top?: ReactNode;
   /** Кабинет заказчика дописывает к ссылке `?org=…`; остальные — как есть. */
   linkHref?: (href: string) => string;
+  /**
+   * `desktop` (по умолчанию) — колонка слева, скрытая на телефоне (`У-13`).
+   * `panel` — то же меню внутри выдвижной панели бургера (`У-14`): видимо
+   * всегда, без рамки и без `min-h-screen`.
+   *
+   * Вариант нужен, чтобы у бургер-панели была **та же** разметка меню, а не
+   * вторая копия, которая неизбежно разъедется с первой.
+   */
+  variant?: 'desktop' | 'panel';
 }) {
   const pathname = usePathname();
   const { items: mainItems, pinned } = splitPinnedItems(props.items);
@@ -73,8 +82,14 @@ export function Sidebar(props: {
     );
   };
 
+  // У-13: на телефоне колонка-сайдбар скрыта — меню приезжает из бургера.
+  const shellClass =
+    props.variant === 'panel'
+      ? 'w-full bg-white p-2'
+      : 'hidden md:flex md:flex-col w-60 min-h-screen bg-white border-r border-gray-200 p-4 flex-shrink-0';
+
   return (
-    <nav className="w-60 min-h-screen bg-white border-r border-gray-200 p-4 flex-shrink-0">
+    <nav className={shellClass} data-variant={props.variant ?? 'desktop'}>
       <div className="text-lg font-bold text-[#111111] mb-1 px-2">{props.title}</div>
       {props.subtitle ? (
         <div className="text-xs text-gray-500 mb-4 px-2 truncate">{props.subtitle}</div>

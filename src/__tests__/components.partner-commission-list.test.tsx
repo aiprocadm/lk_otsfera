@@ -181,14 +181,14 @@ describe('CommissionStatementsList — interactive (jsdom)', () => {
     expect(header.getAttribute('aria-expanded')).toBe('false');
     fireEvent.click(header);
     expect(header.getAttribute('aria-expanded')).toBe('true');
-    expect(screen.getByText('Заказ')).toBeTruthy();
+    expect(screen.getAllByText('Заказ').length).toBeGreaterThan(0);
   });
 
   it('while loading, shows the "Загружаю…" row', () => {
     useClientResourceMock.mockReturnValue({ data: null, loading: true });
     render(<CommissionStatementsList statements={[draft]} canManage={false} />);
     fireEvent.click(screen.getByRole('button', { name: /янв 2026/ }));
-    expect(screen.getByText('Загружаю…')).toBeTruthy();
+    expect(screen.getAllByText('Загружаю…').length).toBeGreaterThan(0);
   });
 
   it('once loaded with items, renders a row per item with formatted amounts and rate', () => {
@@ -207,9 +207,9 @@ describe('CommissionStatementsList — interactive (jsdom)', () => {
     });
     render(<CommissionStatementsList statements={[draft]} canManage={false} />);
     fireEvent.click(screen.getByRole('button', { name: /янв 2026/ }));
-    expect(screen.getByText('№7')).toBeTruthy();
-    expect(screen.getByText('ООО Ромашка')).toBeTruthy();
-    expect(screen.getByText('15.00%')).toBeTruthy();
+    expect(screen.getAllByText('№7').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('ООО Ромашка').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('15.00%').length).toBeGreaterThan(0);
   });
 
   it('the select mapper passed to useClientResource extracts statement.items from the raw response', () => {
@@ -239,14 +239,14 @@ describe('CommissionStatementsList — interactive (jsdom)', () => {
     });
     render(<CommissionStatementsList statements={[draft]} canManage={false} />);
     fireEvent.click(screen.getByRole('button', { name: /янв 2026/ }));
-    expect(screen.getByText('—')).toBeTruthy();
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
   });
 
   it('loaded with an empty items array shows the "Нет данных" row', () => {
     useClientResourceMock.mockReturnValue({ data: [], loading: false });
     render(<CommissionStatementsList statements={[draft]} canManage={false} />);
     fireEvent.click(screen.getByRole('button', { name: /янв 2026/ }));
-    expect(screen.getByText('Нет данных')).toBeTruthy();
+    expect(screen.getAllByText('Нет данных').length).toBeGreaterThan(0);
   });
 
   it('clicking an action button (e.g. PDF link) does not toggle the row open (stopPropagation)', () => {

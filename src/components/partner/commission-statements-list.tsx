@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { CommissionStatementItem } from '@prisma/client';
 import type { StatementListItem } from '@/lib/services/partner/finance';
 import { THead, Th, Tr, Td, EmptyState } from '@/components/ui';
+import { CardList, Card, CardRow } from '@/components/ui/card-list';
 import { fmtMoney, fmtDate, pluralizeRu } from '@/lib/format';
 import { toast } from '@/lib/ui/toast';
 import { useClientResource } from '@/hooks/useClientResource';
@@ -173,48 +174,67 @@ function StatementRow({ stmt, canManage }: { stmt: StatementListItem; canManage:
 
       {/* Expandable items */}
       {open && (
-        <div className="border-t border-gray-100 overflow-x-auto">
-          <table className="w-full text-sm">
-            <THead>
-              <Th className="py-2 text-gray-500">Заказ</Th>
-              <Th className="py-2 text-gray-500">Организация</Th>
-              <Th className="py-2 text-gray-500 text-right">База, ₽</Th>
-              <Th className="py-2 text-gray-500 text-right">Ставка</Th>
-              <Th className="py-2 text-gray-500 text-right">Комиссия, ₽</Th>
-            </THead>
-            <tbody>
-              {loadingItems && (
-                <Tr hover={false}>
-                  <Td colSpan={5} className="py-4 text-center text-gray-400 text-xs">
-                    Загружаю…
-                  </Td>
-                </Tr>
-              )}
-              {!loadingItems &&
-                items?.map((item) => (
-                  <Tr key={item.id} hover={false}>
-                    <Td className="py-2 text-gray-700">{item.orderNumber ?? '—'}</Td>
-                    <Td className="py-2 text-gray-700">{item.organizationName}</Td>
-                    <Td className="py-2 text-right text-gray-700">
-                      {fmtMoney(String(item.baseAmount))}
-                    </Td>
-                    <Td className="py-2 text-right text-gray-500">
-                      {(Number(item.rate) * 100).toFixed(2)}%
-                    </Td>
-                    <Td className="py-2 text-right font-medium text-gray-700">
-                      {fmtMoney(String(item.commissionAmount))}
+        <div className="border-t border-gray-100">
+          {/* У-18: пять колонок не помещаются на телефоне — там карточки. */}
+          <CardList className="p-3">
+            {loadingItems && <li className="text-xs text-gray-400">Загружаю…</li>}
+            {!loadingItems &&
+              items?.map((item) => (
+                <Card key={item.id} title={item.orderNumber ?? '—'}>
+                  <CardRow label="Организация">{item.organizationName}</CardRow>
+                  <CardRow label="База, ₽">{fmtMoney(String(item.baseAmount))}</CardRow>
+                  <CardRow label="Ставка">{(Number(item.rate) * 100).toFixed(2)}%</CardRow>
+                  <CardRow label="Комиссия, ₽">{fmtMoney(String(item.commissionAmount))}</CardRow>
+                </Card>
+              ))}
+            {!loadingItems && items !== null && items.length === 0 && (
+              <li className="text-xs text-gray-400">Нет данных</li>
+            )}
+          </CardList>
+
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-sm">
+              <THead>
+                <Th className="py-2 text-gray-500">Заказ</Th>
+                <Th className="py-2 text-gray-500">Организация</Th>
+                <Th className="py-2 text-gray-500 text-right">База, ₽</Th>
+                <Th className="py-2 text-gray-500 text-right">Ставка</Th>
+                <Th className="py-2 text-gray-500 text-right">Комиссия, ₽</Th>
+              </THead>
+              <tbody>
+                {loadingItems && (
+                  <Tr hover={false}>
+                    <Td colSpan={5} className="py-4 text-center text-gray-400 text-xs">
+                      Загружаю…
                     </Td>
                   </Tr>
-                ))}
-              {!loadingItems && items !== null && items.length === 0 && (
-                <Tr hover={false}>
-                  <Td colSpan={5} className="py-4 text-center text-gray-400 text-xs">
-                    Нет данных
-                  </Td>
-                </Tr>
-              )}
-            </tbody>
-          </table>
+                )}
+                {!loadingItems &&
+                  items?.map((item) => (
+                    <Tr key={item.id} hover={false}>
+                      <Td className="py-2 text-gray-700">{item.orderNumber ?? '—'}</Td>
+                      <Td className="py-2 text-gray-700">{item.organizationName}</Td>
+                      <Td className="py-2 text-right text-gray-700">
+                        {fmtMoney(String(item.baseAmount))}
+                      </Td>
+                      <Td className="py-2 text-right text-gray-500">
+                        {(Number(item.rate) * 100).toFixed(2)}%
+                      </Td>
+                      <Td className="py-2 text-right font-medium text-gray-700">
+                        {fmtMoney(String(item.commissionAmount))}
+                      </Td>
+                    </Tr>
+                  ))}
+                {!loadingItems && items !== null && items.length === 0 && (
+                  <Tr hover={false}>
+                    <Td colSpan={5} className="py-4 text-center text-gray-400 text-xs">
+                      Нет данных
+                    </Td>
+                  </Tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

@@ -94,7 +94,7 @@ describe('таблица истории', () => {
 
   it('Т-40: батч старше 30 дней — кнопка неактивна с подсказкой', () => {
     render(<ImportHistory batches={[batch({ rollback: 'expired' })]} />);
-    const btn = screen.getByTestId('rollback-b1') as HTMLButtonElement;
+    const btn = screen.getAllByTestId('rollback-b1')[0] as HTMLButtonElement;
     expect(btn.disabled).toBe(true);
     expect(btn.title).toContain('Срок отката (30 дней) истёк');
   });
@@ -125,7 +125,7 @@ describe('диалог подтверждения (Т-39)', () => {
       skippedConflicts: 0,
     });
     render(<ImportHistory batches={[batch()]} />);
-    fireEvent.click(screen.getByTestId('rollback-b1'));
+    fireEvent.click(screen.getAllByTestId('rollback-b1')[0]);
     await waitFor(() => expect(planImportRollbackAction).toHaveBeenCalledWith('b1'));
 
     const summary = await screen.findByTestId('rollback-summary');
@@ -150,7 +150,7 @@ describe('диалог подтверждения (Т-39)', () => {
       },
     });
     render(<ImportHistory batches={[batch()]} />);
-    fireEvent.click(screen.getByTestId('rollback-b1'));
+    fireEvent.click(screen.getAllByTestId('rollback-b1')[0]);
     await screen.findByTestId('rollback-summary');
     expect(openDialog().getByText(/Есть конфликты \(1\)/)).toBeTruthy();
   });
@@ -158,7 +158,7 @@ describe('диалог подтверждения (Т-39)', () => {
   it('отказ плана показывает русскую ошибку', async () => {
     planImportRollbackAction.mockResolvedValue({ ok: false, error: 'expired' });
     render(<ImportHistory batches={[batch()]} />);
-    fireEvent.click(screen.getByTestId('rollback-b1'));
+    fireEvent.click(screen.getAllByTestId('rollback-b1')[0]);
     await waitFor(() =>
       expect((document.querySelector('dialog[open]') as HTMLElement).textContent).toContain(
         'Срок отката (30 дней) истёк'
@@ -169,7 +169,7 @@ describe('диалог подтверждения (Т-39)', () => {
   it('неизвестный код отказа плана печатается как есть', async () => {
     planImportRollbackAction.mockResolvedValue({ ok: false, error: 'weird_plan' });
     render(<ImportHistory batches={[batch()]} />);
-    fireEvent.click(screen.getByTestId('rollback-b1'));
+    fireEvent.click(screen.getAllByTestId('rollback-b1')[0]);
     await waitFor(() =>
       expect((document.querySelector('dialog[open]') as HTMLElement).textContent).toContain(
         'Ошибка: weird_plan'
@@ -211,7 +211,7 @@ describe('диалог конфликтов (Т-36/Т-37)', () => {
         skippedConflicts: 2,
       });
     render(<ImportHistory batches={[batch()]} />);
-    fireEvent.click(screen.getByTestId('rollback-b1'));
+    fireEvent.click(screen.getAllByTestId('rollback-b1')[0]);
     await screen.findByTestId('rollback-summary');
     fireEvent.click(screen.getByTestId('rollback-confirm'));
 
@@ -233,7 +233,7 @@ describe('диалог конфликтов (Т-36/Т-37)', () => {
   it('«Отменить» закрывает без второго вызова (conflicts без списка — страховка `?? []`)', async () => {
     rollbackImportAction.mockResolvedValueOnce({ ok: false, error: 'conflicts' });
     render(<ImportHistory batches={[batch()]} />);
-    fireEvent.click(screen.getByTestId('rollback-b1'));
+    fireEvent.click(screen.getAllByTestId('rollback-b1')[0]);
     await screen.findByTestId('rollback-summary');
     fireEvent.click(screen.getByTestId('rollback-confirm'));
     await screen.findByTestId('rollback-conflicts');
@@ -247,7 +247,7 @@ describe('диалог конфликтов (Т-36/Т-37)', () => {
   it('серверная ошибка отката показывается в диалоге', async () => {
     rollbackImportAction.mockResolvedValueOnce({ ok: false, error: 'already_rolled_back' });
     render(<ImportHistory batches={[batch()]} />);
-    fireEvent.click(screen.getByTestId('rollback-b1'));
+    fireEvent.click(screen.getAllByTestId('rollback-b1')[0]);
     await screen.findByTestId('rollback-summary');
     fireEvent.click(screen.getByTestId('rollback-confirm'));
     await waitFor(() =>
@@ -260,7 +260,7 @@ describe('диалог конфликтов (Т-36/Т-37)', () => {
   it('недоступный сервер — понятная ошибка, не пустой экран', async () => {
     planImportRollbackAction.mockRejectedValue(new Error('net down'));
     render(<ImportHistory batches={[batch()]} />);
-    fireEvent.click(screen.getByTestId('rollback-b1'));
+    fireEvent.click(screen.getAllByTestId('rollback-b1')[0]);
     await waitFor(() =>
       expect((document.querySelector('dialog[open]') as HTMLElement).textContent).toContain(
         'Сервер недоступен'
@@ -271,7 +271,7 @@ describe('диалог конфликтов (Т-36/Т-37)', () => {
   it('сеть упала на самом откате — та же понятная ошибка', async () => {
     rollbackImportAction.mockRejectedValueOnce(new Error('net down'));
     render(<ImportHistory batches={[batch()]} />);
-    fireEvent.click(screen.getByTestId('rollback-b1'));
+    fireEvent.click(screen.getAllByTestId('rollback-b1')[0]);
     await screen.findByTestId('rollback-summary');
     fireEvent.click(screen.getByTestId('rollback-confirm'));
     await waitFor(() =>
@@ -284,7 +284,7 @@ describe('диалог конфликтов (Т-36/Т-37)', () => {
   it('неизвестный код ошибки печатается как есть', async () => {
     rollbackImportAction.mockResolvedValueOnce({ ok: false, error: 'weird_code' });
     render(<ImportHistory batches={[batch()]} />);
-    fireEvent.click(screen.getByTestId('rollback-b1'));
+    fireEvent.click(screen.getAllByTestId('rollback-b1')[0]);
     await screen.findByTestId('rollback-summary');
     fireEvent.click(screen.getByTestId('rollback-confirm'));
     await waitFor(() =>

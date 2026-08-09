@@ -115,7 +115,7 @@ describe('TaskList', () => {
 
   it('пустое состояние', () => {
     render(<TaskList board={makeBoard([])} options={options} />);
-    expect(screen.getByText('Задач нет.')).toBeTruthy();
+    expect(screen.getAllByText('Задач нет.').length).toBeGreaterThan(0);
   });
 
   it('строка: колонка, приоритет, исполнители, связи (лид/сделка), срок', () => {
@@ -129,11 +129,11 @@ describe('TaskList', () => {
       linkedDealTitle: 'Сделка-1',
     });
     render(<TaskList board={makeBoard([c])} options={options} />);
-    expect(screen.getByText('Проверить документы')).toBeTruthy();
-    expect(screen.getByText('К выполнению')).toBeTruthy();
-    expect(screen.getByText('Высокий')).toBeTruthy();
-    expect(screen.getByText('Иван')).toBeTruthy();
-    expect(screen.getByText(/Лид: Тема лида · Сделка: Сделка-1/)).toBeTruthy();
+    expect(screen.getAllByText('Проверить документы').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('К выполнению').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Высокий').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Иван').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Лид: Тема лида · Сделка: Сделка-1/).length).toBeGreaterThan(0);
     expect(screen.queryByText(/просрочена/)).toBeNull();
   });
 
@@ -146,13 +146,13 @@ describe('TaskList', () => {
       priority: 'critical' as never,
     });
     render(<TaskList board={makeBoard([c])} options={options} />);
-    expect(screen.getByText('Задача из будущего')).toBeTruthy();
+    expect(screen.getAllByText('Задача из будущего').length).toBeGreaterThan(0);
   });
 
   it('просроченная незавершённая задача подсвечивается', () => {
     const c = card({ id: 't2', title: 'Старая', dueDate: new Date('2020-01-01') });
     render(<TaskList board={makeBoard([c])} options={options} />);
-    expect(screen.getByText(/просрочена/)).toBeTruthy();
+    expect(screen.getAllByText(/просрочена/).length).toBeGreaterThan(0);
   });
 
   it('завершённая задача с прошедшим сроком НЕ считается просроченной', () => {
@@ -168,14 +168,14 @@ describe('TaskList', () => {
 
   it('без приоритета/срока/исполнителей — прочерки и «без исполнителя»', () => {
     render(<TaskList board={makeBoard([card({ id: 't4', title: 'Пустая' })])} options={options} />);
-    expect(screen.getByText('без исполнителя')).toBeTruthy();
+    expect(screen.getAllByText('без исполнителя').length).toBeGreaterThan(0);
     expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(2);
   });
 
   it('клик по строке открывает диалог; onSaved закрывает и обновляет роутер', () => {
     const c = card({ id: 't5', title: 'Кликни меня' });
     render(<TaskList board={makeBoard([c])} options={options} />);
-    fireEvent.click(screen.getByText('Кликни меня'));
+    fireEvent.click(screen.getAllByText('Кликни меня')[0]);
     expect(taskDialogSpy).toHaveBeenCalledWith(
       expect.objectContaining({ target: expect.objectContaining({ id: 't5' }) })
     );
@@ -187,7 +187,7 @@ describe('TaskList', () => {
 
   it('onClose просто закрывает диалог', () => {
     render(<TaskList board={makeBoard([card({ id: 't6', title: 'X' })])} options={options} />);
-    fireEvent.click(screen.getByText('X'));
+    fireEvent.click(screen.getAllByText('X')[0]);
     fireEvent.click(screen.getByText('stub-close'));
     expect(screen.queryByTestId('task-dialog-stub')).toBeNull();
     expect(refresh).not.toHaveBeenCalled();

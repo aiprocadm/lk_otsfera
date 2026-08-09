@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { CardList, Card, CardRow } from '@/components/ui/card-list';
 import { toast } from '@/lib/ui/toast';
 import { planImportRollbackAction, rollbackImportAction } from '@/server-actions/import';
 import type {
@@ -145,9 +146,42 @@ export function ImportHistory({ batches }: { batches: ImportBatchListItem[] }) {
     return <p className="text-sm text-gray-500">Импортов ещё не было.</p>;
   }
 
+  // У-18: шесть колонок на телефоне не читаются — там карточки. Кнопка отката
+  // одна и та же в обоих видах.
+  const rollbackButton = (b: ImportBatchListItem) =>
+    b.rollback === 'already_rolled_back' ? (
+      <span className="text-xs text-gray-400">откачен</span>
+    ) : (
+      <Button
+        variant="danger"
+        size="sm"
+        disabled={b.rollback === 'expired'}
+        title={
+          b.rollback === 'expired'
+            ? 'Срок отката (30 дней) истёк — данные живут слишком долго, на них уже могло что-то завязаться'
+            : undefined
+        }
+        onClick={() => void openDialog(b)}
+        data-testid={`rollback-${b.id}`}
+      >
+        Откатить
+      </Button>
+    );
+
   return (
     <div>
-      <div className="overflow-x-auto">
+      <CardList>
+        {batches.map((b) => (
+          <Card key={b.id} title={b.fileName} actions={rollbackButton(b)}>
+            <CardRow label="Дата">{new Date(b.createdAt).toLocaleString('ru-RU')}</CardRow>
+            <CardRow label="Кто">{b.importedByName ?? '—'}</CardRow>
+            <CardRow label="Создано/обновлено">{countsLine(b.counts)}</CardRow>
+            <CardRow label="Статус">{STATUS_RU[b.status] ?? b.status}</CardRow>
+          </Card>
+        ))}
+      </CardList>
+
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-gray-600">
             <tr>
@@ -183,26 +217,7 @@ export function ImportHistory({ batches }: { batches: ImportBatchListItem[] }) {
                   {countsLine(b.counts)}
                 </td>
                 <td className="px-3 py-2 text-gray-700">{STATUS_RU[b.status] ?? b.status}</td>
-                <td className="px-3 py-2">
-                  {b.rollback === 'already_rolled_back' ? (
-                    <span className="text-xs text-gray-400">откачен</span>
-                  ) : (
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      disabled={b.rollback === 'expired'}
-                      title={
-                        b.rollback === 'expired'
-                          ? 'Срок отката (30 дней) истёк — данные живут слишком долго, на них уже могло что-то завязаться'
-                          : undefined
-                      }
-                      onClick={() => void openDialog(b)}
-                      data-testid={`rollback-${b.id}`}
-                    >
-                      Откатить
-                    </Button>
-                  )}
-                </td>
+                <td className="px-3 py-2">{rollbackButton(b)}</td>
               </tr>
             ))}
           </tbody>

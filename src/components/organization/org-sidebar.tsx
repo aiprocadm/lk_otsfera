@@ -23,6 +23,8 @@ export function OrgSidebar(props: {
   memberships: OrgSidebarMembership[];
   activeOrgId: string;
   viewerRole: 'admin' | 'leader' | 'member';
+  /** `panel` — то же меню внутри выдвижной панели бургера (этап 3, `У-14`). */
+  variant?: 'desktop' | 'panel';
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -83,6 +85,7 @@ export function OrgSidebar(props: {
       testIdPrefix="org"
       top={selector}
       linkHref={buildHref}
+      {...(props.variant ? { variant: props.variant } : {})}
     />
   );
 }
