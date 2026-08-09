@@ -92,18 +92,18 @@ describe('канон leader', () => {
     const settings = navByRole.leader.find((i) => i.href === '/leader/settings');
     expect(settings).toBeDefined();
     expect(settings!.label).toBe('Настройки');
-    expect(settings!.icon).toBeTruthy();
+    expect(settings!.iconKey).toBeTruthy();
     expect(settings!.flag).toBeUndefined();
   });
 
   it('каждый пункт по-русски и с иконкой', () => {
     for (const item of navByRole.leader) {
       expect(item.label).toMatch(/[А-Яа-яЁё]/);
-      expect(item.icon).toBeTruthy();
+      expect(item.iconKey).toBeTruthy();
     }
   });
 
-  it('navItemsFor("leader") без opt-in флагов скрывает «Поиск», «Заявки на обучение», «Обращения клиентов», «Роли», «Воронку», «Сделки», «Аналитику», «Задачи» и «Календарь»', () => {
+  it('navItemsFor("leader") без opt-in флагов скрывает «Поиск», «Заявки на обучение», «Обращения», «Роли», «Воронку», «Сделки», «Аналитику», «Задачи» и «Календарь»', () => {
     const hrefs = navItemsFor('leader').map((i) => i.href);
     expect(hrefs).not.toContain('/leader/enrollments');
     expect(hrefs).not.toContain('/leader/requests');

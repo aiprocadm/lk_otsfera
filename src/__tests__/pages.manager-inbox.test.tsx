@@ -81,7 +81,9 @@ describe('ManagerInboxPage', () => {
     );
 
     expect(listInbox).toHaveBeenCalledWith({}, SESSION, { page: 1, pageSize: 25 });
-    expect(container.textContent).toContain('Обращения');
+    // У-8 (этап 2): раздел переименован — «Обращения» теперь только у обращений
+    // клиентов, входящая почта называется своим именем.
+    expect(container.textContent).toContain('Входящие письма');
     expect(container.textContent).toContain('msg1');
     expect(container.textContent).toContain('org-1');
   });

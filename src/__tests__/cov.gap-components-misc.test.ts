@@ -1,46 +1,23 @@
 // @vitest-environment jsdom
 /**
- * Добивка покрытия по группе «components-misc»: три ветки, до которых не
+ * Добивка покрытия по группе «components-misc»: ветки, до которых не
  * дотягивались соседние тест-файлы.
  *
- *  1. LeaderAppShell — фильтр пункта «Настройки» по hasAnySettingsAccess
- *     (ТЗ 2026-08-04 §5.2): правое плечо `||` не исполнялось, потому что в
- *     соседнем тесте меню не содержало /leader/settings;
- *  2. страница «Личная безопасность» руководителя — включённый флаг staff_2fa
+ *  1. страница «Личная безопасность» руководителя — включённый флаг staff_2fa
  *     (в соседнем тесте с флагом рендерилась только админская страница);
- *  3. AuditDiffDialog — пустая строка в значении поля показывается прочерком.
+ *  2. AuditDiffDialog — пустая строка в значении поля показывается прочерком.
+ *
+ * Пункт про `LeaderAppShell` (фильтр «Настройки» по `hasAnySettingsAccess`)
+ * уехал в `pages.cabinet-layouts.test.tsx`: этап 2 схлопнул пять шеллов в один,
+ * и фильтр теперь живёт в `app/leader/layout.tsx`.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { renderToString } from 'react-dom/server';
 import { render } from '@testing-library/react';
 import { renderServerComponent } from './helpers/renderServerComponent';
+import type { SessionPayload } from '@/lib/auth/jwt';
 
-// --- оболочка кабинета руководителя ---
-const { navItemsFor } = vi.hoisted(() => ({ navItemsFor: vi.fn() }));
-vi.mock('@/lib/navigation/cabinet', () => ({ navItemsFor }));
-
-const { hasAnySettingsAccess } = vi.hoisted(() => ({ hasAnySettingsAccess: vi.fn() }));
-vi.mock('@/lib/auth/settingsAccess', () => ({ hasAnySettingsAccess }));
-
-vi.mock('@/components/ui', () => ({
-  LogoutButton: () => React.createElement('button', null, 'Выйти'),
-}));
-
-vi.mock('@/components/leader/leader-sidebar', () => ({
-  LeaderSidebar: (props: { items: Array<{ href: string; label: string }> }) =>
-    React.createElement(
-      'nav',
-      { 'data-testid': 'leader-sidebar' },
-      props.items.map((item) =>
-        React.createElement('a', { key: item.href, href: item.href }, item.label)
-      )
-    ),
-}));
-
-vi.mock('@/components/notifications/notification-bell', () => ({
-  NotificationBell: () => React.createElement('span', null, '🔔'),
-}));
+const LEADER: SessionPayload = { sub: 'l1', role: 'manager', managerRole: 'leader' };
 
 // --- страница «Личная безопасность» руководителя ---
 const { requireSettingsSection } = vi.hoisted(() => ({ requireSettingsSection: vi.fn() }));
@@ -57,53 +34,8 @@ vi.mock('@/components/settings/staff-backup-codes-section', () => ({
     React.createElement('div', { 'data-testid': 'backup-codes' }, 'BACKUP'),
 }));
 
-import { LeaderAppShell } from '@/components/leader/leader-app-shell';
 import LeaderPersonalSecurityPage from '@/app/leader/settings/security/personal/page';
 import { AuditDiffDialog } from '@/components/admin/audit-diff-dialog';
-import type { SessionPayload } from '@/lib/auth/jwt';
-
-const LEADER: SessionPayload = { sub: 'l1', role: 'manager', managerRole: 'leader' };
-
-// children кладём в объект пропсов (а не третьим аргументом createElement):
-// у оболочки children обязателен, и перегрузки createElement требуют его сразу.
-// Тот же приём, что в components.leader-app-shell.test.tsx.
-function renderShell(session: SessionPayload): string {
-  const props: React.ComponentProps<typeof LeaderAppShell> = { session, children: 'контент' };
-  return renderToString(React.createElement(LeaderAppShell, props));
-}
-
-describe('LeaderAppShell — пункт «Настройки» в меню', () => {
-  beforeEach(() => {
-    navItemsFor.mockReset().mockReturnValue([
-      { href: '/leader/dashboard', label: 'Сводка' },
-      { href: '/leader/settings', label: 'Настройки' },
-    ]);
-    hasAnySettingsAccess.mockReset();
-  });
-
-  it('оставляет пункт, когда доступен хотя бы один раздел настроек', () => {
-    hasAnySettingsAccess.mockReturnValue(true);
-
-    const html = renderShell(LEADER);
-
-    // Право спрашивается именно для кабинета руководителя.
-    expect(hasAnySettingsAccess).toHaveBeenCalledWith(LEADER, 'leader');
-    expect(html).toContain('href="/leader/settings"');
-    expect(html).toContain('href="/leader/dashboard"');
-  });
-
-  it('убирает пункт, когда не доступен ни один раздел (остальное меню цело)', () => {
-    hasAnySettingsAccess.mockReturnValue(false);
-
-    const html = renderShell(LEADER);
-
-    expect(html).not.toContain('href="/leader/settings"');
-    // Проверка спрашивается только у пункта настроек — остальные не фильтруются.
-    expect(hasAnySettingsAccess).toHaveBeenCalledTimes(1);
-    expect(html).toContain('href="/leader/dashboard"');
-    expect(html).toContain('Сводка');
-  });
-});
 
 describe('Личная безопасность руководителя — флаг staff_2fa', () => {
   beforeEach(() => {

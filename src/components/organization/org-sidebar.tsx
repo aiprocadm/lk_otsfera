@@ -1,15 +1,23 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { NavItem } from '@/lib/navigation/cabinet';
+import { Sidebar } from '@/components/shell/sidebar';
 
 // Тип переехал в lib/auth/orgPageContext (правило lib-no-upward, фаза 3);
 // реэкспорт сохраняет публичный API компонента (org-app-shell импортирует отсюда).
 export type { OrgSidebarMembership } from '@/lib/auth/orgPageContext';
 import type { OrgSidebarMembership } from '@/lib/auth/orgPageContext';
 
+/**
+ * Сайдбар кабинета заказчика (`У-11`, этап 2).
+ *
+ * Своей разметки меню больше нет — она общая (`components/shell/sidebar`).
+ * Здесь остаётся только то, чего нет у других кабинетов: переключатель
+ * организаций (клиентский, cookie + `?org=`) и дописывание `?org=` к ссылкам,
+ * когда организаций у пользователя несколько.
+ */
 export function OrgSidebar(props: {
   items: NavItem[];
   memberships: OrgSidebarMembership[];
@@ -46,55 +54,35 @@ export function OrgSidebar(props: {
       !it.orgAdminOrLeaderOnly || props.viewerRole === 'admin' || props.viewerRole === 'leader'
   );
 
-  return (
-    <nav className="w-60 min-h-screen bg-white border-r border-gray-200 p-4 flex-shrink-0">
-      <div className="text-lg font-bold text-[#111111] mb-1 px-2">Заказчик</div>
-      <div className="text-xs text-gray-500 mb-4 px-2 truncate">
-        {activeOrg?.organizationName ?? 'Организация'}
+  const selector =
+    props.memberships.length > 1 ? (
+      <div className="mb-6 px-2">
+        <label className="block text-xs font-medium uppercase tracking-wider text-gray-500 mb-1">
+          Организация
+        </label>
+        <select
+          value={props.activeOrgId}
+          onChange={onOrgChange}
+          className="w-full text-sm border border-gray-300 rounded px-2 py-1.5 bg-white"
+          data-testid="org-selector"
+        >
+          {props.memberships.map((m) => (
+            <option key={m.organizationId} value={m.organizationId}>
+              {m.organizationName}
+            </option>
+          ))}
+        </select>
       </div>
+    ) : null;
 
-      {props.memberships.length > 1 ? (
-        <div className="mb-6 px-2">
-          <label className="block text-xs font-medium uppercase tracking-wider text-gray-500 mb-1">
-            Организация
-          </label>
-          <select
-            value={props.activeOrgId}
-            onChange={onOrgChange}
-            className="w-full text-sm border border-gray-300 rounded px-2 py-1.5 bg-white"
-            data-testid="org-selector"
-          >
-            {props.memberships.map((m) => (
-              <option key={m.organizationId} value={m.organizationId}>
-                {m.organizationName}
-              </option>
-            ))}
-          </select>
-        </div>
-      ) : null}
-
-      <ul className="space-y-0.5">
-        {items.map((item) => {
-          const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
-          return (
-            <li key={item.href}>
-              <Link
-                href={buildHref(item.href)}
-                className={`flex items-center gap-2 px-2 py-1.5 rounded text-sm transition-colors ${
-                  isActive
-                    ? 'bg-[#F97316] text-white font-medium'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-                data-testid={`org-nav-${item.href.replace(/\//g, '-')}`}
-                data-active={isActive ? 'true' : 'false'}
-              >
-                {item.icon ? <span className="text-base">{item.icon}</span> : null}
-                <span>{item.label}</span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
+  return (
+    <Sidebar
+      items={items}
+      title="Заказчик"
+      subtitle={activeOrg?.organizationName ?? 'Организация'}
+      testIdPrefix="org"
+      top={selector}
+      linkHref={buildHref}
+    />
   );
 }

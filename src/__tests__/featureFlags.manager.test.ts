@@ -64,7 +64,7 @@ describe('manager_cabinet (opt-in flag)', () => {
 });
 
 describe('navByRole.manager — feature-flag gated', () => {
-  it('lists all twenty-three manager cabinet items in the raw nav (including Поиск, Обращения клиентов, leader-only Команда + вход в /leader + Воронка + Сделки + Задачи + Календарь + Обращения + Звонки + Настройки)', () => {
+  it('lists all twenty-three manager cabinet items in the raw nav (including Поиск, Обращения, leader-only Команда + вход в /leader + Воронка + Сделки + Задачи + Календарь + Обращения + Звонки + Настройки)', () => {
     expect(navByRole.manager.map((i) => i.href)).toEqual([
       '/manager/dashboard',
       '/manager/search',

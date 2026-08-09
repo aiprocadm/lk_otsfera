@@ -344,7 +344,7 @@ describe('ManagerLeadDetailPage', () => {
       const { container } = await renderLead({ sourceRequestId: 'req-1' });
       const nav = container.querySelector('nav[aria-label="Хлебные крошки"]');
       expect(nav).not.toBeNull();
-      expect(nav!.textContent).toContain('Обращения клиентов');
+      expect(nav!.textContent).toContain('Обращения');
       expect(nav!.textContent).toContain('ООО Ромашка');
     });
 
@@ -352,7 +352,7 @@ describe('ManagerLeadDetailPage', () => {
       const { container } = await renderLead({ sourceRequestId: null, source: 'manual' });
       const nav = container.querySelector('nav[aria-label="Хлебные крошки"]');
       expect(nav!.textContent).toContain('Лиды');
-      expect(nav!.textContent).not.toContain('Обращения клиентов');
+      expect(nav!.textContent).not.toContain('Обращения');
     });
   });
 });

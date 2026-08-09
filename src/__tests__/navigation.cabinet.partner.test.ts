@@ -207,7 +207,7 @@ describe('navByRole.admin — русский канон с группами (в�
   it('каждый пункт по-русски, с иконкой и группой', () => {
     for (const item of navByRole.admin) {
       expect(item.label).toMatch(/[А-Яа-яЁё]/);
-      expect(item.icon).toBeTruthy();
+      expect(item.iconKey).toBeTruthy();
       // ТЗ 2026-08-04: «Настройки» стоят отдельным блоком внизу и группы не имеют.
       if (item.pinnedBottom) {
         expect(item.group).toBeUndefined();
@@ -225,7 +225,7 @@ describe('navByRole.admin — русский канон с группами (в�
 
 describe('navByRole.organization — единый источник (канон 11 пунктов)', () => {
   // Этап 11 PR-3 (ФТ-15.4): порядок задан ТЗ дословно и проверяется здесь —
-  // Главная · Заказы · Мои заявки · Заявки на обучение · Удостоверения ·
+  // Главная · Заказы · Обращения · Заявки на обучение · Удостоверения ·
   // Документы · Финансы · Сотрудники · Команда · Сообщения · Кабинет
   // слушателя · Настройки.
   it('состав и ПОРЯДОК пунктов совпадают с ФТ-15.4', () => {
@@ -246,9 +246,9 @@ describe('navByRole.organization — единый источник (канон 1
     ]);
   });
 
-  it('раздел обращений называется «Мои заявки» (термин ТЗ, решение §5-1)', () => {
+  it('раздел обращений называется «Обращения» (У-8, решение заказчика 09.08.2026)', () => {
     const requests = navByRole.organization.find((i) => i.href === '/organization/requests');
-    expect(requests?.label).toBe('Мои заявки');
+    expect(requests?.label).toBe('Обращения');
     // Роут и флаг не переименовываются — только user-facing строка.
     expect(requests?.flag).toBe('client_requests');
   });
@@ -260,7 +260,7 @@ describe('navByRole.organization — единый источник (канон 1
 
   it('каждый пункт имеет иконку', () => {
     expect(
-      navByRole.organization.every((i) => typeof i.icon === 'string' && i.icon.length > 0)
+      navByRole.organization.every((i) => typeof i.iconKey === 'string' && i.iconKey.length > 0)
     ).toBe(true);
   });
 
@@ -290,9 +290,9 @@ describe('navByRole.partner — состав по ФТ-15.4', () => {
     ]);
   });
 
-  it('раздел обращений называется «Мои заявки», роут не тронут', () => {
+  it('раздел обращений называется «Обращения», роут не тронут', () => {
     const requests = navByRole.partner.find((i) => i.href === '/partner/requests');
-    expect(requests?.label).toBe('Мои заявки');
+    expect(requests?.label).toBe('Обращения');
     expect(requests?.flag).toBe('client_requests');
   });
 });

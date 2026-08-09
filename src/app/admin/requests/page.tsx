@@ -15,7 +15,7 @@ export default async function AdminRequestsPage() {
   const { rows } = await listClientRequests(prisma, session, {});
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-semibold text-[#111111]">Обращения клиентов</h1>
+      <h1 className="text-2xl font-semibold text-[#111111]">Обращения</h1>
       <ClientRequestQueue rows={rows} />
     </div>
   );
