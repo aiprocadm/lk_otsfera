@@ -6,6 +6,7 @@ import { isFeatureEnabled } from '@/lib/featureFlags';
 import { OrgAppShell } from '@/components/organization/org-app-shell';
 import { listOrgStudents, type OrgStudentRow } from '@/lib/services/organization/students';
 import { TableShell, THead, Th, Tr, Td, EmptyState, ExportLink } from '@/components/ui';
+import { AddStudentDialog } from '@/components/students/add-student-dialog';
 
 type SearchParams = {
   org?: string;
@@ -59,6 +60,11 @@ export default async function OrganizationStudentsPage({
             </p>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            {/* У-24 (этап 5): добавление сотрудника — admin и leader организации.
+                Право всё равно проверяет сервис; кнопка лишь не мозолит глаза. */}
+            {(ctx.viewerRole === 'admin' || ctx.viewerRole === 'leader') && (
+              <AddStudentDialog organizationId={ctx.activeOrgId} />
+            )}
             <SearchForm initial={sp.search ?? ''} org={sp.org ?? ''} />
             {/* ФТ-12.2: выгрузка уважает активный поиск. */}
             <ExportLink
@@ -158,7 +164,7 @@ function StudentsTable({ rows, linkToCard }: { rows: OrgStudentRow[]; linkToCard
                 s.name
               )}
             </Td>
-            <Td className="text-gray-600">{s.email}</Td>
+            <Td className="text-gray-600">{s.email ?? '—'}</Td>
             <Td className="text-gray-500 font-mono text-xs">{s.externalStudentId ?? '—'}</Td>
             <Td className="text-gray-500">{fmtDate(s.createdAt)}</Td>
           </Tr>

@@ -40,7 +40,7 @@ export function renderOrgStudentsXlsx(args: {
     ws.addRow({
       num: idx + 1,
       name: safeText(s.name),
-      email: safeText(s.email),
+      email: s.email ? safeText(s.email) : '—',
       position: textOrDash(s.position),
       activeCertificates: s.activeCertificates,
       externalStudentId: textOrDash(s.externalStudentId),

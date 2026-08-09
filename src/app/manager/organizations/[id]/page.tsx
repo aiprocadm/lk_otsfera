@@ -1,5 +1,6 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
+import { AddStudentDialog } from '@/components/students/add-student-dialog';
 import { requireManagerForOrg } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { isFeatureEnabled } from '@/lib/featureFlags';
@@ -49,6 +50,11 @@ export default async function ManagerOrgDetailPage({
 
   return (
     <div className="space-y-5">
+      {/* У-26 (этап 5): менеджер заводит сотрудника прямо из карточки клиента —
+          раньше сотрудника в системе нельзя было создать вообще нигде. */}
+      <div className="flex justify-end">
+        <AddStudentDialog organizationId={id} />
+      </div>
       <OrgCardTabs card={card} activeTab={activeTab} tabs={visibleTabs} />
       <EntityCustomFields fields={customFields} entityType="organization" entityId={id} />
     </div>

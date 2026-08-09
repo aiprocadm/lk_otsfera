@@ -28,7 +28,7 @@ export const TRAINING_STATUS_RU: Record<string, string> = {
 };
 
 type Direction = { id: string; name: string };
-type Student = { id: string; name: string; email: string };
+type Student = { id: string; name: string; email: string | null };
 
 type Props = {
   orderId: string;

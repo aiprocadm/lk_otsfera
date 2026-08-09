@@ -3,6 +3,14 @@ import { renderToString } from 'react-dom/server';
 
 import type { PrismaClient } from '@prisma/client';
 
+import React from 'react';
+
+// Этап 5: во вкладке появилась кнопка добавления сотрудника (клиентский диалог
+// с useRouter). Тест проверяет список, а не диалог — подменяем заглушкой.
+vi.mock('@/components/students/add-student-dialog', () => ({
+  AddStudentDialog: () => React.createElement('button', null, 'Добавить сотрудника'),
+}));
+
 import { EmployeesTab } from '@/components/partner/org-employees-tab';
 
 const findMany = vi.fn();
