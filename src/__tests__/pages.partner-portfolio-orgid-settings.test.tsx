@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
@@ -12,6 +13,34 @@ vi.mock('@/lib/auth/policy', () => ({ canPartnerAccessOrg }));
 
 const { getOrgCard } = vi.hoisted(() => ({ getOrgCard: vi.fn() }));
 vi.mock('@/lib/services/partner/orgCard', () => ({ getOrgCard }));
+
+// Этап 4: на вкладке появились реквизиты организации (У-62) и блок доступа
+// (У-61). Сервис и оба компонента стабятся — у них своё покрытие.
+const { getOrgRequisites } = vi.hoisted(() => ({ getOrgRequisites: vi.fn() }));
+vi.mock('@/lib/services/organization/requisites', () => ({ getOrgRequisites }));
+vi.mock('@/server-actions/requisites', () => ({ setOrgRequisitesAction: vi.fn() }));
+vi.mock('@/components/requisites/requisites-card', () => ({
+  RequisitesCard: (props: { title: string; canEdit?: boolean }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'requisites-card' },
+      `${props.title} canEdit:${String(props.canEdit)}`
+    ),
+}));
+vi.mock('@/components/partner/customer-access-section', () => ({
+  CustomerAccessSection: ({
+    organizationId,
+    canInvite,
+  }: {
+    organizationId: string;
+    canInvite: boolean;
+  }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'customer-access' },
+      `access:${organizationId}:${String(canInvite)}`
+    ),
+}));
 
 const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
@@ -50,6 +79,7 @@ describe('OrgSettingsPage', () => {
     requirePartnerAdmin.mockReset();
     canPartnerAccessOrg.mockReset();
     getOrgCard.mockReset();
+    getOrgRequisites.mockReset().mockResolvedValue({ ok: false, error: 'forbidden' });
     nav.notFound.mockClear();
     nav.redirect.mockClear();
   });
@@ -88,15 +118,12 @@ describe('OrgSettingsPage', () => {
     expect(getOrgCard).toHaveBeenCalledWith(expect.anything(), { orgId: 'org-1', partnerId: 'p1' });
     expect(container.textContent).toContain('ООО Ромашка');
 
-    // У-1/Р-4: ни поля ввода ставки, ни кнопки сохранения здесь быть не должно.
-    expect(container.querySelector('input')).toBeNull();
-    expect(container.querySelector('textarea')).toBeNull();
-    expect(container.querySelector('button')).toBeNull();
-    expect(container.textContent).not.toContain('Сохранить');
+    // У-1/Р-4: формы смены ставки здесь нет и быть не должно.
     expect(container.textContent).not.toContain('Вернуть базовую ставку');
+    expect(container.textContent).not.toContain('Ставка комиссии партнёра для этой организации');
   });
 
-  it('объясняет себя и даёт действие — §15 «где я / что здесь / что дальше»', async () => {
+  it('§15: экран объясняет себя подзаголовком', async () => {
     requirePartnerAdmin.mockResolvedValue(SESSION);
     canPartnerAccessOrg.mockResolvedValue(true);
     getOrgCard.mockResolvedValue(BASE_CARD);
@@ -107,13 +134,46 @@ describe('OrgSettingsPage', () => {
 
     expect(container.textContent).toContain('Настройки организации');
     expect(container.textContent).toContain('Ставку комиссии назначает учебный центр');
-    expect(container.textContent).toContain('Здесь пока нечего менять');
+  });
 
-    // Тот же адрес ведёт и вкладка «Комментарии», поэтому ищем среди всех ссылок
-    // именно кнопку-действие пустого состояния.
-    const links = Array.from(
-      container.querySelectorAll('a[href="/partner/portfolio/org-1?tab=comments"]')
+  // ── этап 4 ───────────────────────────────────────────────────────────────
+  it('У-62: реквизиты организации показываются, когда сервис их отдал', async () => {
+    requirePartnerAdmin.mockResolvedValue(SESSION);
+    canPartnerAccessOrg.mockResolvedValue(true);
+    getOrgCard.mockResolvedValue(BASE_CARD);
+    getOrgRequisites.mockResolvedValue({ ok: true, requisites: { name: 'ООО Ромашка' } });
+
+    const { container } = await renderServerComponent(
+      OrgSettingsPage({ params: Promise.resolve({ orgId: 'org-1' }) })
     );
-    expect(links.some((a) => a.textContent?.includes('Написать менеджеру'))).toBe(true);
+
+    expect(getOrgRequisites).toHaveBeenCalledWith(expect.anything(), SESSION, 'org-1');
+    expect(container.textContent).toContain('Реквизиты организации canEdit:true');
+  });
+
+  it('У-62: сервис отказал — карточки реквизитов нет (право решает сервер)', async () => {
+    requirePartnerAdmin.mockResolvedValue(SESSION);
+    canPartnerAccessOrg.mockResolvedValue(true);
+    getOrgCard.mockResolvedValue(BASE_CARD);
+    getOrgRequisites.mockResolvedValue({ ok: false, error: 'forbidden' });
+
+    const { container } = await renderServerComponent(
+      OrgSettingsPage({ params: Promise.resolve({ orgId: 'org-1' }) })
+    );
+
+    expect(container.querySelector('[data-testid="requisites-card"]')).toBeNull();
+  });
+
+  it('У-61: блок «Доступ к организации» живёт здесь, а не под всеми вкладками', async () => {
+    requirePartnerAdmin.mockResolvedValue(SESSION);
+    canPartnerAccessOrg.mockResolvedValue(true);
+    getOrgCard.mockResolvedValue(BASE_CARD);
+    getOrgRequisites.mockResolvedValue({ ok: true, requisites: { name: 'ООО Ромашка' } });
+
+    const { container } = await renderServerComponent(
+      OrgSettingsPage({ params: Promise.resolve({ orgId: 'org-1' }) })
+    );
+
+    expect(container.textContent).toContain('access:org-1:true');
   });
 });
