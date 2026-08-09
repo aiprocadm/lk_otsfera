@@ -207,9 +207,13 @@ describe('OrgSidebar', () => {
     expect(html).toContain('>Организация<');
   });
 
-  it('renders a nav item without an icon (no leading icon span)', () => {
+  // У-6/У-7 (этап 2): пункта без значка больше не существует — `iconKey`
+  // обязателен на уровне типа, значок берётся из реестра `navigation/icons.ts`.
+  it('рисует значок раздела из реестра', () => {
     vi.mocked(usePathname).mockReturnValue('/organization/custom');
-    const items: NavItem[] = [{ href: '/organization/custom', label: 'Без иконки' }];
+    const items: NavItem[] = [
+      { href: '/organization/custom', label: 'Свой раздел', iconKey: 'documents' },
+    ];
     const html = renderToString(
       React.createElement(OrgSidebar, {
         items,
@@ -218,8 +222,8 @@ describe('OrgSidebar', () => {
         viewerRole: 'admin',
       })
     );
-    expect(html).toContain('Без иконки');
-    expect(html).not.toContain('text-base');
+    expect(html).toContain('Свой раздел');
+    expect(html).toContain('📄');
   });
 
   it('falls back to an empty query string when useSearchParams() returns undefined (buildHref + onOrgChange)', () => {

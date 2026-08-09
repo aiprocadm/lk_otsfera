@@ -16,11 +16,7 @@ describe('buildLeadBreadcrumbs', () => {
       title: 'ООО «Ромашка»',
       sourceRequest: { id: 'r1', subject: 'Нужно обучение' },
     });
-    expect(crumbs.map((c) => c.label)).toEqual([
-      'Обращения клиентов',
-      'Нужно обучение',
-      'ООО «Ромашка»',
-    ]);
+    expect(crumbs.map((c) => c.label)).toEqual(['Обращения', 'Нужно обучение', 'ООО «Ромашка»']);
     expect(last(crumbs).href).toBeNull();
   });
 
@@ -35,7 +31,7 @@ describe('buildLeadBreadcrumbs', () => {
       title: '   ',
       sourceRequest: { id: 'r1', subject: null },
     });
-    expect(crumbs.map((c) => c.label)).toEqual(['Обращения клиентов', 'Обращение', 'Лид']);
+    expect(crumbs.map((c) => c.label)).toEqual(['Обращения', 'Обращение', 'Лид']);
   });
 
   it('длинное название обрезается', () => {
@@ -60,7 +56,7 @@ describe('buildOrderBreadcrumbs', () => {
       },
     });
     expect(crumbs.map((c) => c.label)).toEqual([
-      'Обращения клиентов',
+      'Обращения',
       'Нужно обучение',
       'ООО «Ромашка»',
       'Сделки',

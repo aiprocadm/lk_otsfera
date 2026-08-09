@@ -29,7 +29,7 @@ export type LeadCrumbInput = {
 export function buildLeadBreadcrumbs(lead: LeadCrumbInput): Crumb[] {
   const crumbs: Crumb[] = [];
   if (lead.sourceRequest) {
-    crumbs.push({ label: 'Обращения клиентов', href: '/manager/requests' });
+    crumbs.push({ label: 'Обращения', href: '/manager/requests' });
     crumbs.push({
       label: short(lead.sourceRequest.subject, 'Обращение'),
       href: '/manager/requests',
@@ -61,7 +61,7 @@ export function buildOrderBreadcrumbs(order: OrderCrumbInput): Crumb[] {
   const lead = order.deal?.lead ?? null;
 
   if (lead?.sourceRequest) {
-    crumbs.push({ label: 'Обращения клиентов', href: '/manager/requests' });
+    crumbs.push({ label: 'Обращения', href: '/manager/requests' });
     crumbs.push({
       label: short(lead.sourceRequest.subject, 'Обращение'),
       href: '/manager/requests',

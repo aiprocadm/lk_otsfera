@@ -6,7 +6,8 @@ const { getSession } = vi.hoisted(() => ({ getSession: vi.fn() }));
 vi.mock('@/lib/auth/session', () => ({ getSession }));
 
 const { redirect } = vi.hoisted(() => ({ redirect: vi.fn() }));
-vi.mock('next/navigation', () => ({ redirect }));
+// usePathname нужен общему сайдбару (этап 2): подсветка активного пункта.
+vi.mock('next/navigation', () => ({ redirect, usePathname: () => '/partner/dashboard' }));
 
 const { navItemsFor } = vi.hoisted(() => ({ navItemsFor: vi.fn() }));
 vi.mock('@/lib/navigation/cabinet', () => ({ navItemsFor }));
@@ -66,7 +67,9 @@ describe('AppShell', () => {
       name: 'Иван Иванов',
       partnerRole: null,
     });
-    navItemsFor.mockReturnValue([{ href: '/admin/dashboard', label: 'Главная' }]);
+    navItemsFor.mockReturnValue([
+      { href: '/admin/dashboard', label: 'Главная', iconKey: 'dashboard' },
+    ]);
 
     const el = await AppShell({ children: React.createElement('p', null, 'дочерний контент') });
     const html = renderToString(el);
@@ -90,7 +93,9 @@ describe('AppShell', () => {
 
   it('renders disabled nav items with the "скоро" badge instead of a link', async () => {
     getSession.mockResolvedValue({ sub: 'u3', role: 'manager', name: 'M' });
-    navItemsFor.mockReturnValue([{ href: '/manager/team', label: 'Команда', disabled: true }]);
+    navItemsFor.mockReturnValue([
+      { href: '/manager/team', label: 'Команда', iconKey: 'team', disabled: true },
+    ]);
 
     const el = await AppShell({ children: 'c' });
     const html = renderToString(el);

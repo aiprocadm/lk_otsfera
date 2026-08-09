@@ -352,7 +352,7 @@ describe('очередь триажа: manager / leader / admin', () => {
 
       const { container } = await renderServerComponent(Page());
 
-      expect(container.textContent).toContain('Обращения клиентов');
+      expect(container.textContent).toContain('Обращения');
       expect(container.querySelector('[data-testid="cr-queue"]')?.textContent).toBe('R1,R2');
       expect(svc.listClientRequests).toHaveBeenCalledWith({}, session, {});
     });

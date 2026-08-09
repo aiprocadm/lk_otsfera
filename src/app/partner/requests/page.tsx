@@ -9,7 +9,7 @@ import { ClientRequestList } from '@/components/client-requests/client-request-l
 
 export const dynamic = 'force-dynamic';
 
-/** Мои заявки партнёра — обращения в поддержку (этап 5, ФТ-1.2/1.3): форма подачи + свои обращения. */
+/** Обращения партнёра — вопросы в поддержку (этап 5, ФТ-1.2/1.3): форма подачи + свои обращения. */
 export default async function PartnerRequestsPage() {
   if (!isFeatureEnabled('client_requests')) notFound();
   const session = await requirePartner();
@@ -17,9 +17,10 @@ export default async function PartnerRequestsPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-semibold text-[#111111]">Мои заявки</h1>
-        {/* Этап 11 PR-3 (решение §5-1): термин ТЗ — «Мои заявки». Чтобы он не
-            смешивался с «Заявкой на обучение», подзаголовок проговаривает суть. */}
+        <h1 className="text-2xl font-semibold text-[#111111]">Обращения</h1>
+        {/* Этап 2 ТЗ понятности (У-8, решение заказчика 09.08.2026): раздел
+            назывался «Мои заявки» и путался с «Заявкой на обучение». Теперь имя
+            одно во всех кабинетах; подзаголовок по-прежнему проговаривает суть. */}
         <p className="mt-1 text-sm text-gray-600">
           Обращения в поддержку: вопрос, запрос расчёта или новая потребность. Заявки на обучение
           слушателей подаются в разделе «Заявки на обучение».

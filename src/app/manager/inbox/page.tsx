@@ -58,7 +58,9 @@ export default async function ManagerInboxPage({
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">Обращения</h1>
+        {/* Этап 2 ТЗ понятности (У-8): раздел назывался «Обращения» — ровно так
+            же, как обращения клиентов, хотя это входящая почта и мессенджеры. */}
+        <h1 className="text-2xl font-bold text-[#111111]">Входящие письма</h1>
         <p className="mt-1 text-sm text-gray-500">
           Входящие сообщения из мессенджеров и почты. Привяжите обращение к организации, чтобы
           ответить.

@@ -358,7 +358,7 @@ describe('ManagerOrderDetailPage', () => {
       });
       const { container } = await renderOrder();
       expect(loadOrderDealChain).toHaveBeenCalledWith(prismaMock, 'order-1');
-      expect(container.textContent).toContain('Обращения клиентов');
+      expect(container.textContent).toContain('Обращения');
       expect(container.textContent).toContain('Нужно обучение');
       expect(container.textContent).toContain('/manager/leads/l1');
       expect(container.textContent).toContain('Заказ №2024-001');
@@ -369,7 +369,7 @@ describe('ManagerOrderDetailPage', () => {
       loadOrderDealChain.mockResolvedValue({ title: 'Прямая сделка', lead: null });
       const { container } = await renderOrder();
       expect(container.textContent).toContain('Прямая сделка');
-      expect(container.textContent).not.toContain('Обращения клиентов');
+      expect(container.textContent).not.toContain('Обращения');
     });
   });
 });
