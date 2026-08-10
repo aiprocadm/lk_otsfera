@@ -85,6 +85,84 @@ describe('PaymentImportForm (interactive, jsdom)', () => {
     expect(screen.getByTestId('payment-import-commit-button')).toBeTruthy();
   });
 
+  it('У-58: блок «Что система увидела в файле» объясняет непрочитанные строки', async () => {
+    // Ровно жалоба пользователя: строки есть, к импорту ноль. Экран обязан
+    // сказать ПОЧЕМУ, а не показать голое число ошибок.
+    previewPaymentImportAction.mockResolvedValue({
+      ok: true,
+      plan: {
+        counts: emptyCounts({ totalRows: 327, excluded: 198, parseErrors: 129 }),
+        diagnostics: {
+          columnSource: 'headers',
+          headerRow: 4,
+          matchedColumns: { document: 1, debit: 4 },
+          startMarkerFound: true,
+          rowsScanned: 327,
+          // Код без русской подписи (например добавленный позже на сервере)
+          // показывается как есть — экран не должен молчать.
+          parseErrorsByReason: { no_doc_number: 129, no_such_reason: 1 },
+          samples: [
+            {
+              rowNumber: 12,
+              reasons: ['no_doc_number'],
+              document: 'Поступление на расчетный счет б/н',
+              corr: '62.01',
+            },
+            // Строка, где колонка «Документ» пуста и корр-счёта нет; причина —
+            // с кодом, которого нет в словаре подписей.
+            { rowNumber: 13, reasons: ['no_amount', 'no_such_reason'], document: '', corr: '' },
+          ],
+          notes: ['Строка «Сальдо на начало» не найдена — таблица прочитана от заголовков.'],
+        },
+      },
+    });
+    render(React.createElement(PaymentImportForm));
+    pickFile(
+      screen.getByTestId('payment-import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
+    fireEvent.click(screen.getByTestId('payment-import-preview-button'));
+
+    const box = await screen.findByTestId('payment-import-diagnostics');
+    expect(box.textContent).toContain('найдены по заголовкам (строка 5)');
+    expect(box.textContent).toContain('Документ → колонка 2');
+    expect(box.textContent).toContain('не найден номер документа');
+    expect(box.textContent).toContain('no_such_reason');
+    expect(box.textContent).toContain('Строка 12');
+    expect(box.textContent).toContain('корр. счёт 62.01');
+    expect(box.textContent).toContain('(колонка «Документ» пуста)');
+    expect(box.textContent).toContain('Сальдо на начало');
+  });
+
+  it('У-58: отказ «файл пуст» тоже показывает, что система увидела', async () => {
+    previewPaymentImportAction.mockResolvedValue({
+      ok: false,
+      error: 'empty',
+      diagnostics: {
+        columnSource: 'fallback',
+        headerRow: null,
+        matchedColumns: {},
+        startMarkerFound: false,
+        rowsScanned: 0,
+        parseErrorsByReason: {},
+        samples: [],
+        notes: ['Похоже, это не карточка счёта 51.'],
+      },
+    });
+    render(React.createElement(PaymentImportForm));
+    pickFile(
+      screen.getByTestId('payment-import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
+    fireEvent.click(screen.getByTestId('payment-import-preview-button'));
+
+    const box = await screen.findByTestId('payment-import-diagnostics');
+    expect(box.textContent).toContain('заголовки не распознаны');
+    expect(box.textContent).toContain('не найдена');
+    expect(box.textContent).toContain('не карточка счёта 51');
+    expect(screen.getByRole('alert')).toBeTruthy();
+  });
+
   it('shows a loading label while preview is pending', async () => {
     let resolvePreview: (v: unknown) => void = () => {};
     previewPaymentImportAction.mockImplementation(

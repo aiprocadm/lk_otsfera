@@ -95,7 +95,7 @@ function cell(map: Record<number, string>): string[] {
 describe('parseAccountCard — uncovered branches', () => {
   it('returns [] when start marker absent (L31)', () => {
     const sheet: string[][] = [cell({ 0: 'просто шапка' }), cell({ 0: 'Обороты за период' })];
-    expect(parseAccountCard(sheet)).toEqual([]);
+    expect(parseAccountCard(sheet).rows).toEqual([]);
   });
 
   it('tolerates undefined rows and coalesces missing cells (L27,L35,L36,L37,L39,L44,L48,L59,L70)', () => {
@@ -123,7 +123,7 @@ describe('parseAccountCard — uncovered branches', () => {
       cell({ 0: 'Обороты за период' }), // end marker
     ] as unknown as string[][];
 
-    const rows = parseAccountCard(sheet);
+    const rows = parseAccountCard(sheet).rows;
     // The no-number payment row + the empty-doc/corr row survive; the two holes are skipped.
     expect(rows).toHaveLength(2);
 

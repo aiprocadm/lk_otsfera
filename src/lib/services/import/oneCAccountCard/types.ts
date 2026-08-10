@@ -31,6 +31,27 @@ export type MatchOutcome =
       matchMethod: 'name_fuzzy' | 'none';
     };
 
+/**
+ * «Что система увидела в файле» (`У-58`). Без этого блока пользователь видел
+ * только «Ошибок разбора: 129» и не мог понять ни причины, ни что чинить.
+ */
+export type CardParseDiagnostics = {
+  /** Колонки найдены по заголовкам или взяты жёсткие (`У-56`). */
+  columnSource: 'headers' | 'fallback';
+  headerRow: number | null;
+  matchedColumns: Partial<
+    Record<'date' | 'document' | 'analyticsCr' | 'debit' | 'corr' | 'credit', number>
+  >;
+  startMarkerFound: boolean;
+  rowsScanned: number;
+  /** Сколько строк не разобрано по каждой причине: no_doc_number | no_amount | no_date. */
+  parseErrorsByReason: Record<string, number>;
+  /** До пяти живых примеров непрочитанных строк — с номером строки в файле. */
+  samples: Array<{ rowNumber: number; reasons: string[]; document: string; corr: string }>;
+  /** Человеческие замечания к разбору (русский текст, показывается как есть). */
+  notes: string[];
+};
+
 export type CardImportCounts = {
   totalRows: number; // строк-операций (без шапки/итогов)
   imported: number; // exact → Payment (created+updated)

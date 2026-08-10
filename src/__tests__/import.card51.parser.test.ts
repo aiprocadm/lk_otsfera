@@ -44,12 +44,12 @@ const SHEET: string[][] = [
 
 describe('parseAccountCard', () => {
   it('returns only operation rows (between markers)', () => {
-    const rows = parseAccountCard(SHEET);
+    const rows = parseAccountCard(SHEET).rows;
     expect(rows).toHaveLength(3);
   });
 
   it('parses 62.01 incoming as payment with full fields', () => {
-    const p = parseAccountCard(SHEET).find((r) => r.externalId === '0000-001471')!;
+    const p = parseAccountCard(SHEET).rows.find((r) => r.externalId === '0000-001471')!;
     expect(p.kind).toBe('payment');
     expect(p.isRefund).toBe(false);
     expect(p.amount).toBe(14800);
@@ -61,14 +61,14 @@ describe('parseAccountCard', () => {
   });
 
   it('parses 62.02 advance as payment and reads INN', () => {
-    const p = parseAccountCard(SHEET).find((r) => r.externalId === '0000-001472')!;
+    const p = parseAccountCard(SHEET).rows.find((r) => r.externalId === '0000-001472')!;
     expect(p.kind).toBe('payment');
     expect(p.amount).toBe(2600.1);
     expect(p.counterpartyInn).toBe('9909676723');
   });
 
   it('marks corr-60 supplier row as excluded', () => {
-    const p = parseAccountCard(SHEET).find((r) => r.externalId === '0000-001473')!;
+    const p = parseAccountCard(SHEET).rows.find((r) => r.externalId === '0000-001473')!;
     expect(p.kind).toBe('excluded');
     expect(p.excludeReason).toBe('supplier');
   });
@@ -85,7 +85,7 @@ describe('parseAccountCard', () => {
       }),
       cell({ 0: 'Обороты за период' }),
     ];
-    const r = parseAccountCard(sheet)[0];
+    const r = parseAccountCard(sheet).rows[0];
     expect(r.kind).toBe('refund');
     expect(r.isRefund).toBe(true);
     expect(r.amount).toBe(1500);
@@ -103,7 +103,7 @@ describe('parseAccountCard', () => {
       }),
       cell({ 0: 'Обороты за период' }),
     ];
-    expect(parseAccountCard(sheet)[0].vatAmount).toBe(0);
+    expect(parseAccountCard(sheet).rows[0].vatAmount).toBe(0);
   });
 
   it('flags parseError when amount/date missing', () => {
@@ -112,7 +112,7 @@ describe('parseAccountCard', () => {
       cell({ 0: '', 1: 'Поступление на расчетный счет 0000-002001 от ...', 7: '62.01' }),
       cell({ 0: 'Обороты за период' }),
     ];
-    const r = parseAccountCard(sheet)[0];
+    const r = parseAccountCard(sheet).rows[0];
     expect(r.parseError).toBeTruthy();
   });
 });
