@@ -12,7 +12,7 @@ import { log } from '@/lib/logging';
 import { readSpreadsheet } from './read-spreadsheet';
 import { parseAccountCard } from './parser';
 import { matchRow } from './matcher';
-import type { ParsedRow, CardImportCounts } from './types';
+import type { ParsedRow, CardImportCounts, CardParseDiagnostics } from './types';
 
 export type Args = { fileBuffer: Buffer; fileName: string };
 
@@ -37,9 +37,9 @@ async function plan(
   prisma: PrismaClient,
   buffer: Buffer,
   fileName: string
-): Promise<{ counts: CardImportCounts; routed: Routed[] }> {
+): Promise<{ counts: CardImportCounts; routed: Routed[]; diagnostics: CardParseDiagnostics }> {
   const grid = await readSpreadsheet(buffer, fileName);
-  const rows = parseAccountCard(grid);
+  const { rows, diagnostics } = parseAccountCard(grid);
   const counts = emptyCounts();
   counts.totalRows = rows.length;
   const routed: Routed[] = [];
@@ -65,7 +65,7 @@ async function plan(
     } else counts.queued += 1;
     routed.push({ row, outcome });
   }
-  return { counts, routed };
+  return { counts, routed, diagnostics };
 }
 
 export async function previewPaymentImport(
@@ -80,8 +80,16 @@ export async function previewPaymentImport(
   } catch {
     return { ok: false as const, error: 'parse_failed' as const };
   }
-  if (result.counts.totalRows === 0) return { ok: false as const, error: 'empty' as const };
-  return { ok: true as const, plan: { counts: result.counts } };
+  // `У-57`/`У-58`: пустой разбор больше не «просто empty» — вместе с кодом
+  // ошибки отдаём то, что система увидела в файле, иначе человеку нечего чинить.
+  if (result.counts.totalRows === 0) {
+    return {
+      ok: false as const,
+      error: 'empty' as const,
+      diagnostics: result.diagnostics,
+    };
+  }
+  return { ok: true as const, plan: { counts: result.counts, diagnostics: result.diagnostics } };
 }
 
 export async function commitPaymentImport(
@@ -96,7 +104,9 @@ export async function commitPaymentImport(
   } catch {
     return { ok: false as const, error: 'parse_failed' as const };
   }
-  if (result.counts.totalRows === 0) return { ok: false as const, error: 'empty' as const };
+  if (result.counts.totalRows === 0) {
+    return { ok: false as const, error: 'empty' as const, diagnostics: result.diagnostics };
+  }
 
   const ctx: WriteCtx = { mode: 'live', notify: true, scope: importScope(session) };
   const writerSummary = emptySummary();
@@ -198,5 +208,8 @@ export async function commitPaymentImport(
     log.warn('[card51] audit failed (non-blocking):', e);
   }
 
-  return { ok: true as const, result: { counts: result.counts, batchId } };
+  return {
+    ok: true as const,
+    result: { counts: result.counts, batchId, diagnostics: result.diagnostics },
+  };
 }

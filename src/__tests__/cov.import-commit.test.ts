@@ -347,7 +347,10 @@ describe('commitPaymentImport (cov)', () => {
       fileBuffer: buf,
       fileName: 'headeronly.xlsx',
     });
-    expect(res).toEqual({ ok: false, error: 'empty' });
+    // У-58: вместе с отказом отдаётся диагностика — что система увидела.
+    expect(res).toMatchObject({ ok: false, error: 'empty' });
+    const diagnostics = (res as { diagnostics?: { notes: string[] } }).diagnostics;
+    expect(diagnostics?.notes.join(' ')).toContain('не карточка счёта 51');
   });
 
   it('commits: exact→Payment (incl. refund), queue, excluded, parse-error; best-effort sinks swallow failures', async () => {

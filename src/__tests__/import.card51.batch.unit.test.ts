@@ -71,10 +71,24 @@ function parsed() {
   ];
 }
 
+/** Разбор теперь отдаёт { rows, diagnostics } — мок обязан повторять контракт. */
+function emptyDiagnostics() {
+  return {
+    columnSource: 'headers' as const,
+    headerRow: 0,
+    matchedColumns: {},
+    startMarkerFound: true,
+    rowsScanned: 0,
+    parseErrorsByReason: {},
+    samples: [],
+    notes: [],
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   readSpreadsheet.mockResolvedValue([['Сальдо на начало'], ['Обороты за период']]);
-  parseAccountCard.mockReturnValue(parsed());
+  parseAccountCard.mockReturnValue({ rows: parsed(), diagnostics: emptyDiagnostics() });
   matchRow.mockImplementation(async (_p: unknown, r: { externalId: string }) =>
     r.externalId === '0000-1'
       ? {
@@ -110,12 +124,14 @@ describe('previewPaymentImport', () => {
   });
 
   it('returns empty when no operation rows', async () => {
-    parseAccountCard.mockReturnValue([]);
+    parseAccountCard.mockReturnValue({ rows: [], diagnostics: emptyDiagnostics() });
     const res = await previewPaymentImport({} as never, session, {
       fileBuffer: Buffer.from(''),
       fileName: 'c.xlsx',
     });
-    expect(res).toEqual({ ok: false, error: 'empty' });
+    // У-58: вместе с отказом отдаётся то, что система увидела в файле.
+    expect(res).toMatchObject({ ok: false, error: 'empty' });
+    expect((res as { diagnostics?: unknown }).diagnostics).toBeDefined();
   });
 });
 

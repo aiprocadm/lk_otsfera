@@ -18,10 +18,23 @@ type Counts = {
   excludedByReason: Record<string, number>;
   parseErrors: number;
 };
+/** «Что система увидела в файле» (`У-58`). */
+type Diagnostics = {
+  columnSource: 'headers' | 'fallback';
+  headerRow: number | null;
+  matchedColumns: Record<string, number>;
+  startMarkerFound: boolean;
+  rowsScanned: number;
+  parseErrorsByReason: Record<string, number>;
+  samples: Array<{ rowNumber: number; reasons: string[]; document: string; corr: string }>;
+  notes: string[];
+};
 /** `detail` — уточнение к тексту ошибки (например фактический размер файла). */
-type Failure = { ok: false; error: string; detail?: string };
-type PreviewResult = { ok: true; plan: { counts: Counts } } | Failure;
-type CommitResult = { ok: true; result: { counts: Counts; batchId: string | null } } | Failure;
+type Failure = { ok: false; error: string; detail?: string; diagnostics?: Diagnostics };
+type PreviewResult = { ok: true; plan: { counts: Counts; diagnostics?: Diagnostics } } | Failure;
+type CommitResult =
+  | { ok: true; result: { counts: Counts; batchId: string | null; diagnostics?: Diagnostics } }
+  | Failure;
 
 function errorMessage(code: string): string {
   return messageFor(PAYMENT_IMPORT_ERRORS, code);
@@ -38,6 +51,106 @@ const REASON_RU: Record<string, string> = {
   internal_transfer: 'Внутренние переводы',
   corr_other: 'Прочие корр-счета',
 };
+
+const PARSE_REASON_RU: Record<string, string> = {
+  no_doc_number: 'не найден номер документа',
+  no_amount: 'не найдена сумма',
+  no_date: 'не найдена дата',
+};
+
+/** Порядок и подписи колонок — перебираем известные поля, а не ключи объекта. */
+const COLUMN_ORDER = ['date', 'document', 'analyticsCr', 'corr', 'debit', 'credit'] as const;
+const COLUMN_RU: Record<(typeof COLUMN_ORDER)[number], string> = {
+  date: 'Дата',
+  document: 'Документ',
+  analyticsCr: 'Аналитика Кт',
+  corr: 'Корр. счёт',
+  debit: 'Дебет',
+  credit: 'Кредит',
+};
+
+/**
+ * `У-58`: «Что система увидела в файле». Раньше при неудаче человек видел
+ * только число «Ошибок разбора» и не мог понять ни причины, ни что чинить.
+ */
+function DiagnosticsCard({ d }: { d: Diagnostics }) {
+  const reasons = Object.entries(d.parseErrorsByReason);
+  const headerRowLabel = d.headerRow === null ? '' : ` (строка ${d.headerRow + 1})`;
+  const recognized = COLUMN_ORDER.filter((f) => d.matchedColumns[f] !== undefined).map(
+    (f) => `${COLUMN_RU[f]} → колонка ${d.matchedColumns[f]! + 1}`
+  );
+  return (
+    <div
+      className="bg-white border border-gray-200 rounded-xl p-4 space-y-3"
+      data-testid="payment-import-diagnostics"
+    >
+      <h3 className="text-sm font-semibold text-[#111111]">Что система увидела в файле</h3>
+
+      <ul className="text-xs text-gray-600 space-y-0.5">
+        <li>
+          Колонки:{' '}
+          <span className="font-medium text-[#111111]">
+            {d.columnSource === 'headers'
+              ? `найдены по заголовкам${headerRowLabel}`
+              : 'заголовки не распознаны, взята стандартная раскладка'}
+          </span>
+        </li>
+        {recognized.length > 0 && <li>Распознаны: {recognized.join(', ')}</li>}
+        <li>
+          Строка «Сальдо на начало»:{' '}
+          <span className="font-medium text-[#111111]">
+            {d.startMarkerFound ? 'найдена' : 'не найдена'}
+          </span>
+        </li>
+        <li>
+          Прочитано строк-операций:{' '}
+          <span className="font-medium text-[#111111]">{d.rowsScanned}</span>
+        </li>
+      </ul>
+
+      {d.notes.map((n) => (
+        <p
+          key={n}
+          className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded px-2 py-1"
+        >
+          {n}
+        </p>
+      ))}
+
+      {reasons.length > 0 && (
+        <div className="text-xs text-gray-600">
+          <div className="font-medium mb-1">Почему строки не прочитаны:</div>
+          <ul className="space-y-0.5">
+            {reasons.map(([code, n]) => (
+              <li key={code}>
+                {PARSE_REASON_RU[code] ?? code}:{' '}
+                <span className="font-medium text-[#111111]">{n}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {d.samples.length > 0 && (
+        <div className="text-xs text-gray-600">
+          <div className="font-medium mb-1">Примеры непрочитанных строк:</div>
+          <ul className="space-y-1">
+            {d.samples.map((s) => (
+              <li key={s.rowNumber} className="border-l-2 border-gray-200 pl-2">
+                <span className="font-medium text-[#111111]">Строка {s.rowNumber}</span> —{' '}
+                {s.reasons.map((r) => PARSE_REASON_RU[r] ?? r).join(', ')}
+                <div className="text-gray-500 break-words">
+                  {s.document || '(колонка «Документ» пуста)'}
+                  {s.corr ? ` · корр. счёт ${s.corr}` : ''}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function CountsCard({ title, counts }: { title: string; counts: Counts }) {
   return (
@@ -169,12 +282,15 @@ export function PaymentImportForm() {
       </form>
 
       {preview && !preview.ok && (
-        <div
-          role="alert"
-          className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-4 py-2"
-        >
-          {errorMessage(preview.error)}
-          {preview.detail ? ` ${preview.detail}` : ''}
+        <div className="space-y-4">
+          <div
+            role="alert"
+            className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-4 py-2"
+          >
+            {errorMessage(preview.error)}
+            {preview.detail ? ` ${preview.detail}` : ''}
+          </div>
+          {preview.diagnostics && <DiagnosticsCard d={preview.diagnostics} />}
         </div>
       )}
 
@@ -185,6 +301,9 @@ export function PaymentImportForm() {
             <p className="text-xs text-gray-500">Режим: предпросмотр (данные не записаны)</p>
           </div>
           <CountsCard title="План импорта" counts={counts} />
+          {preview?.ok && preview.plan.diagnostics && (
+            <DiagnosticsCard d={preview.plan.diagnostics} />
+          )}
           {commitResult === null && (
             <button
               type="button"
