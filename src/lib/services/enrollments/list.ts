@@ -15,16 +15,15 @@ export type EnrollmentItemRow = {
   status: EnrollmentStatus;
   externalStudentId: string | null;
   /**
-   * `У-43`: направление ЭТОЙ позиции. `null` у старых заявок, где направление
-   * есть только на шапке (пока её не убрал `У-36`) — экраны показывают такие
-   * позиции в группе «Направление не указано».
+   * `У-43`: направление ЭТОЙ позиции. С PR-3 «замок» оно обязательно —
+   * позиции без направления в базе больше нет.
    */
-  directionName: string | null;
+  directionName: string;
 };
 
 /** `У-43`: список различных направлений заявки в порядке появления позиций. */
 export function itemDirectionNames(items: Pick<EnrollmentItemRow, 'directionName'>[]): string[] {
-  return [...new Set(items.map((i) => i.directionName).filter((n): n is string => !!n))];
+  return [...new Set(items.map((i) => i.directionName))];
 }
 
 export type EnrollmentRow = {
@@ -138,7 +137,7 @@ export async function listEnrollmentRequests(
     rows: page.map((r) => {
       const items = r.items.map(({ direction, ...i }) => ({
         ...i,
-        directionName: direction?.name ?? null,
+        directionName: direction.name,
       }));
       return {
         id: r.id,

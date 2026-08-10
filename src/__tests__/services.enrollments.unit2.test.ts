@@ -322,7 +322,17 @@ describe('listEnrollmentRequests — additional branches', () => {
       partner: null,
       direction: null,
       legacyCourseTitle: 'ОТ',
-      items: [{ id: `${id}-i1`, fullName: 'Иван', email: 'i@x.ru', status: 'pending' }],
+      // PR-3 «замок»: направление у позиции обязательно, поэтому связь
+      // `direction` в выборке всегда непустая.
+      items: [
+        {
+          id: `${id}-i1`,
+          fullName: 'Иван',
+          email: 'i@x.ru',
+          status: 'pending',
+          direction: { name: 'Охрана труда' },
+        },
+      ],
       submitterRole: 'partner',
       submittedByUser: { name: 'Сергей' },
       rejectedReason: null,

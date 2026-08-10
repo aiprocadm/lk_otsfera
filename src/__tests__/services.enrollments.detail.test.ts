@@ -22,10 +22,10 @@ const item = (over: Record<string, unknown> = {}) => ({
   extra: null,
   status: 'certificates_ready',
   externalStudentId: null,
-  // У-33: у позиции своё направление. null = старая заявка, где оно только на
-  // шапке (до У-36) — тогда сервис берёт шапочное.
-  directionId: null,
-  direction: null,
+  // У-33 + PR-3 «замок»: направление у позиции ОБЯЗАТЕЛЬНО, позиции без него
+  // в базе больше нет.
+  directionId: 'd1',
+  direction: { name: 'Охрана труда' },
   ...over,
 });
 
@@ -87,13 +87,17 @@ describe('getEnrollmentRequest (деталка заявки, ФТ-2.3)', () => {
     expect(recordPiiAccess).not.toHaveBeenCalled();
   });
 
-  it('legacy-заявка без directionId: сертификаты не запрашиваются, ссылок нет', async () => {
+  it('legacy-заявка: заголовок из текста курса, но удостоверение ищется по направлению ПОЗИЦИИ', async () => {
+    // У старой заявки направления на шапке нет (курс вписан текстом), а у
+    // позиции оно есть — его проставил человек при разборе (`У-34а`). После
+    // «замка» это единственно возможное состояние, поэтому сертификаты
+    // запрашиваются как обычно.
     const { d, certFindMany } = db(
       reqRow({ directionId: null, direction: null, legacyCourseTitle: 'Старый курс' })
     );
     const r = await getEnrollmentRequest(d, s(), 'E1');
     if (!r.ok) throw new Error('expected ok');
-    expect(certFindMany).not.toHaveBeenCalled();
+    expect(certFindMany.mock.calls[0]![0].where).toMatchObject({ directionId: { in: ['d1'] } });
     expect(r.request.directionName).toBe('Старый курс');
     expect(r.request.items[0]!.certificateDocumentId).toBeNull();
   });
