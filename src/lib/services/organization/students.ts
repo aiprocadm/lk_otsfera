@@ -150,6 +150,11 @@ export type OrgStudentCard = {
   position: string | null;
   externalStudentId: string | null;
   createdAt: Date;
+  /** У-30 (этап 5): реквизиты справочника. СНИЛС и дата рождения — ПДн. */
+  snils: string | null;
+  birthDate: Date | null;
+  phone: string | null;
+  note: string | null;
 };
 
 /**
@@ -170,16 +175,15 @@ export async function getOrgStudent(
       position: true,
       externalStudentId: true,
       createdAt: true,
+      // У-30 (этап 5): реквизиты справочника сотрудников.
+      snils: true,
+      birthDate: true,
+      phone: true,
+      note: true,
     },
   });
 }
 
-/**
- * Правка должности сотрудника (этап 9 PR-3, ФТ-12.2). Скоуп — активная
- * организация кабинета: чужой сотрудник = `forbidden` (как и несуществующий —
- * существование чужой записи не подтверждаем). Пустая строка очищает поле:
- * должность необязательна (решение заказчика §9-1 спеки).
- */
 export async function updateOrgStudentPosition(
   prisma: PrismaClient,
   args: { organizationId: string; studentId: string; position: string }
