@@ -225,4 +225,42 @@ describe('OrganizationStudentDetailPage — должность', () => {
     const { container } = await renderServerComponent(OrganizationStudentDetailPage(props('s1')));
     expect(container.querySelector('[data-testid="position-form"]')!.textContent).toContain('null');
   });
+
+  // ── У-30 (этап 5): реквизиты справочника на карточке ─────────────────────
+  it('У-30: показывает СНИЛС, дату рождения, телефон и заметку', async () => {
+    isFeatureEnabled.mockReturnValue(true);
+    getOrgPageContext.mockResolvedValue(ORG_CTX);
+    getOrgStudent.mockResolvedValue({
+      ...STUDENT,
+      snils: '112-233-445 95',
+      birthDate: new Date('1990-02-01'),
+      phone: '+7 900 000-00-00',
+      note: 'цех №3',
+    });
+
+    const { container } = await renderServerComponent(OrganizationStudentDetailPage(props('st-1')));
+
+    expect(container.textContent).toContain('112-233-445 95');
+    expect(container.textContent).toContain('+7 900 000-00-00');
+    expect(container.textContent).toContain('цех №3');
+  });
+
+  it('§15: незаполненные реквизиты показываются прочерком, а не пропадают', async () => {
+    isFeatureEnabled.mockReturnValue(true);
+    getOrgPageContext.mockResolvedValue(ORG_CTX);
+    getOrgStudent.mockResolvedValue({
+      ...STUDENT,
+      email: null,
+      snils: null,
+      birthDate: null,
+      phone: null,
+      note: null,
+    });
+
+    const { container } = await renderServerComponent(OrganizationStudentDetailPage(props('st-1')));
+
+    expect(container.textContent).toContain('Почта не указана');
+    expect(container.textContent).toContain('СНИЛС');
+    expect(container.textContent).toContain('—');
+  });
 });

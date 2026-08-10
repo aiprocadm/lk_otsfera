@@ -72,11 +72,22 @@ export default async function OrganizationStudentDetailPage({
           </Link>
           <div className="bg-white border border-gray-200 rounded-xl p-6 mt-2 space-y-1">
             <h1 className="text-2xl font-semibold text-[#111111]">{student.name}</h1>
-            <p className="text-gray-500 text-sm">{student.email}</p>
+            <p className="text-gray-500 text-sm">{student.email ?? 'Почта не указана'}</p>
             <p className="text-gray-400 text-xs mt-1">
               {student.externalStudentId && <>ID студента {student.externalStudentId} · </>}
               Добавлен {fmtDate(student.createdAt)}
             </p>
+
+            {/* У-30 (этап 5): реквизиты справочника сотрудников. */}
+            <dl className="grid gap-x-6 gap-y-1 sm:grid-cols-2 pt-3 text-sm">
+              <Detail label="СНИЛС" value={student.snils} />
+              <Detail
+                label="Дата рождения"
+                value={student.birthDate ? fmtDate(student.birthDate) : null}
+              />
+              <Detail label="Телефон" value={student.phone} />
+              <Detail label="Заметка" value={student.note} />
+            </dl>
             {/* ФТ-12.2: должность попадает в выгрузку сотрудников. */}
             <div className="pt-3">
               <StudentPositionForm
@@ -133,5 +144,15 @@ export default async function OrganizationStudentDetailPage({
         <EntityCustomFields fields={customFields} entityType="student" entityId={id} />
       </div>
     </OrgAppShell>
+  );
+}
+
+/** Строка реквизита карточки: пустое значение показывается прочерком, а не пропадает (§15). */
+function Detail({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div className="flex gap-2">
+      <dt className="text-gray-500 flex-shrink-0">{label}:</dt>
+      <dd className="text-gray-800 break-words">{value ?? '—'}</dd>
+    </div>
   );
 }

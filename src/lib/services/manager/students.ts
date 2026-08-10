@@ -86,6 +86,13 @@ const DETAIL_SELECT = {
   email: true,
   organizationId: true,
   createdAt: true,
+  // У-30 (этап 5): реквизиты справочника. СНИЛС и дата рождения — ПДн,
+  // поэтому выдача карточки журналируется ниже (§25.7, У-31).
+  position: true,
+  snils: true,
+  birthDate: true,
+  phone: true,
+  note: true,
   organization: { select: { id: true, name: true } },
 } satisfies Prisma.StudentSelect;
 
