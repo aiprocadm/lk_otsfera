@@ -10,7 +10,8 @@
  * только на шапке (до `У-36`), собираются в понятную группу-заглушку, а не
  * теряются.
  */
-export const NO_DIRECTION_TITLE = 'Направление не указано';
+/** Не экспортируем: снаружи нужна сама функция, а не подпись (knip следит). */
+const NO_DIRECTION_TITLE = 'Направление не указано';
 
 export function groupItemsByDirection<T extends { directionName: string | null }>(
   items: T[]
