@@ -8,7 +8,7 @@
  * Жёсткие индексы остались **запасным вариантом** — если заголовки не
  * распознаны, поведение ровно прежнее (это тоже требование `У-56`).
  */
-export type CardColumns = {
+type CardColumns = {
   date: number;
   document: number;
   analyticsCr: number;
@@ -17,8 +17,8 @@ export type CardColumns = {
   credit: number;
 };
 
-/** Прежние жёсткие индексы — запасной вариант. */
-export const FALLBACK_COLUMNS: CardColumns = {
+/** Прежние жёсткие индексы — запасной вариант (наружу не нужны, knip следит). */
+const FALLBACK_COLUMNS: CardColumns = {
   date: 0,
   document: 1,
   analyticsCr: 3,

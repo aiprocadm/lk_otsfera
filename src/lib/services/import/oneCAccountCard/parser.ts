@@ -25,13 +25,6 @@ function restLines(s: string): string {
   return (s ?? '').split('\n').slice(1).join('\n').trim();
 }
 
-/** Русские подписи причин, по которым строка не разобралась (`У-58`). */
-export const PARSE_ERROR_LABELS: Record<string, string> = {
-  no_doc_number: 'не найден номер документа',
-  no_amount: 'не найдена сумма',
-  no_date: 'не найдена дата',
-};
-
 export type ParseResult = { rows: ParsedRow[]; diagnostics: CardParseDiagnostics };
 
 /**
