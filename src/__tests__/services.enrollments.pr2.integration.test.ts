@@ -61,6 +61,9 @@ beforeAll(async () => {
 afterAll(async () => {
   await prisma.notification.deleteMany({ where: { userId: { in: [SUBMITTER, REVIEWER] } } });
   await prisma.enrollmentRequest.deleteMany({ where: { submittedByUserId: SUBMITTER } });
+  // У-29 (этап 5): одобрение заявки теперь ЗАВОДИТ сотрудников в справочнике,
+  // поэтому организацию нельзя удалить, пока они есть (FK Student→Organization).
+  await prisma.student.deleteMany({ where: { organization: { name: { startsWith: T } } } });
   await prisma.organization.deleteMany({ where: { name: { startsWith: T } } });
   await prisma.trainingDirection.deleteMany({ where: { name: { startsWith: T } } });
   await prisma.auditLog.deleteMany({ where: { userId: { in: [SUBMITTER, REVIEWER] } } });

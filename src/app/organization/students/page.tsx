@@ -7,6 +7,7 @@ import { OrgAppShell } from '@/components/organization/org-app-shell';
 import { listOrgStudents, type OrgStudentRow } from '@/lib/services/organization/students';
 import { TableShell, THead, Th, Tr, Td, EmptyState, ExportLink } from '@/components/ui';
 import { AddStudentDialog } from '@/components/students/add-student-dialog';
+import { ImportStudentsDialog } from '@/components/students/import-students-dialog';
 
 type SearchParams = {
   org?: string;
@@ -63,7 +64,11 @@ export default async function OrganizationStudentsPage({
             {/* У-24 (этап 5): добавление сотрудника — admin и leader организации.
                 Право всё равно проверяет сервис; кнопка лишь не мозолит глаза. */}
             {(ctx.viewerRole === 'admin' || ctx.viewerRole === 'leader') && (
-              <AddStudentDialog organizationId={ctx.activeOrgId} />
+              <>
+                <AddStudentDialog organizationId={ctx.activeOrgId} />
+                {/* У-27/У-28: загрузка списком — тот же двухшаговый приём, что у импорта 1С. */}
+                <ImportStudentsDialog organizationId={ctx.activeOrgId} />
+              </>
             )}
             <SearchForm initial={sp.search ?? ''} org={sp.org ?? ''} />
             {/* ФТ-12.2: выгрузка уважает активный поиск. */}

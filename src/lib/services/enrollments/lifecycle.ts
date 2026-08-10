@@ -1,4 +1,5 @@
 import type { PrismaClient, EnrollmentRequest, EnrollmentStatus } from '@prisma/client';
+import { attachStudentsToApprovedItems } from '@/lib/services/students/fromEnrollment';
 import { recordAudit } from '@/lib/auth/audit';
 import { notifySubmitterEnrollmentStatus } from './notify';
 
@@ -43,7 +44,11 @@ export function aggregateEnrollmentHeaderStatus(
   return min === ENROLLMENT_PIPELINE.length ? 'rejected' : ENROLLMENT_PIPELINE[min]!;
 }
 async function loadRequest(prisma: PrismaClient, id: string) {
-  return prisma.enrollmentRequest.findUnique({ where: { id }, select: { id: true, status: true } });
+  return prisma.enrollmentRequest.findUnique({
+    where: { id },
+    // organizationId нужен У-29: одобрение заводит слушателей в организации заявки.
+    select: { id: true, status: true, organizationId: true },
+  });
 }
 
 export async function approveEnrollment(
@@ -65,6 +70,15 @@ export async function approveEnrollment(
       where: { requestId: r.id, status: 'pending' },
       data: { status: 'approved' },
     });
+    // У-29 (этап 5): каждая позиция без слушателя заводит запись в справочнике
+    // и получает studentId. В ТОЙ ЖЕ транзакции — «одобрено, но людей нет» хуже,
+    // чем неодобренная заявка (решение заказчика 09.08.2026).
+    if (r.organizationId) {
+      await attachStudentsToApprovedItems(tx, {
+        requestId: r.id,
+        organizationId: r.organizationId,
+      });
+    }
     return request;
   });
   await recordAudit(prisma, {
