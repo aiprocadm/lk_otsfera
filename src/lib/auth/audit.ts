@@ -117,6 +117,8 @@ export const AUDIT_ACTIONS = [
   'document_upload',
   'document_uploaded',
   'enrollment_approved',
+  // У-34а (этап 6): администратор проставил направление старой заявке.
+  'enrollment_legacy_direction_assigned',
   'enrollment_items_advanced',
   'enrollment_provisioned',
   'enrollment_rejected',
