@@ -1467,6 +1467,16 @@ model EnrollmentRequestItem {
   request           EnrollmentRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
   studentId         String?
   student           Student?          @relation(fields: [studentId], references: [id])
+  /// У-33 (этап 6): направление переехало с ШАПКИ заявки на позицию — иначе
+  /// нельзя одной заявкой отправить одного на электробезопасность, а другого
+  /// на работы на высоте (решение Р-5).
+  ///
+  /// Пока НЕОБЯЗАТЕЛЬНОЕ: у старых заявок курс вписан текстом
+  /// (EnrollmentRequest.legacyCourseTitle), их разбирает человек (У-34а).
+  /// Обязательным поле делает отдельная миграция-«замок» — только когда
+  /// неразобранных заявок не осталось.
+  directionId       String?
+  direction         TrainingDirection? @relation(fields: [directionId], references: [id])
   fullName          String
   email             String
   position          String?
@@ -1476,8 +1486,13 @@ model EnrollmentRequestItem {
   status            EnrollmentStatus  @default(pending)
   externalStudentId String?
 
+  /// У-35: один сотрудник может быть в заявке несколько раз с РАЗНЫМИ
+  /// направлениями, но не дважды с одним и тем же. Дословный образец —
+  /// @@unique([orderId, studentId, directionId]) у OrderItem.
+  @@unique([requestId, studentId, directionId])
   @@index([requestId])
   @@index([studentId])
+  @@index([directionId])
 }
 
 model TrainingDirection {
@@ -1491,6 +1506,8 @@ model TrainingDirection {
   orderItems         OrderItem[]
   certificates       Certificate[]
   enrollmentRequests EnrollmentRequest[]
+  // У-33 (этап 6): направление теперь и у позиции заявки, не только у шапки.
+  enrollmentItems    EnrollmentRequestItem[]
 
   @@index([isActive, sortOrder])
 }
