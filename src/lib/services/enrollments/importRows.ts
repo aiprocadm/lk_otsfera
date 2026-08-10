@@ -2,6 +2,7 @@ import type ExcelJS from 'exceljs';
 import { loadXlsxWorkbook } from '@/lib/services/import/load-xlsx';
 import { cellToString } from '@/lib/services/import/parse-workbook';
 import { validateEnrollmentItems, type ValidatedItem } from './validate';
+import { normalizeDirectionName } from './resolveDirections';
 
 /**
  * Разбор Excel-файла со слушателями для мастера заявки (этап 2 PR-2, ФТ-2.1).
@@ -18,11 +19,26 @@ export const ENROLLMENT_IMPORT_COLUMNS = {
   position: 'Должность',
   snils: 'СНИЛС',
   birthDate: 'Дата рождения',
+  // У-41 (этап 6): направление обучения указывается ДЛЯ КАЖДОГО слушателя —
+  // в одной заявке их теперь может быть несколько.
+  directionName: 'Направление обучения',
   extra: 'Дополнительно',
 } as const;
 
 export type EnrollmentImportResult =
-  | { ok: true; items: ValidatedItem[]; errors: string[]; warnings: string[] }
+  | {
+      ok: true;
+      items: ValidatedItem[];
+      /**
+       * `У-41`: название направления и номер строки файла по индексу `items`.
+       * В идентификаторы названия превращает вызывающий (у парсера нет
+       * справочника), а номер строки нужен ему, чтобы ошибка указывала на
+       * строку файла, а не на порядковый номер позиции.
+       */
+      itemDirections: Array<{ name: string | null; row: number }>;
+      errors: string[];
+      warnings: string[];
+    }
   | { ok: false; errors: string[] };
 
 const EXCEL_EPOCH_MS = Date.UTC(1899, 11, 30);
@@ -75,9 +91,16 @@ export async function parseEnrollmentImportWorkbook(
   }
 
   const items: ValidatedItem[] = [];
+  /** Названия направлений по индексу `items` — сверяет со справочником вызывающий (`У-41`). */
+  const itemDirections: Array<{ name: string | null; row: number }> = [];
   const errors: string[] = [];
   const warnings: string[] = [];
-  const seenEmails = new Set<string>();
+  /**
+   * `У-35`: повтором считается пара «слушатель + направление», а не один email.
+   * Один сотрудник в одном файле может идти на два разных обучения — это
+   * нормальная строка, а не дубликат.
+   */
+  const seenKeys = new Set<string>();
 
   for (let r = 2; r <= ws.rowCount; r++) {
     const row = ws.getRow(r);
@@ -93,6 +116,9 @@ export async function parseEnrollmentImportWorkbook(
       birthDate: cellToIsoDate(cellAt('birthDate')),
       extra: cellToString(cellAt('extra')),
     };
+    // Название направления живёт рядом с позицией: в id его превращает
+    // вызывающий, у которого есть справочник (парсер остаётся чистым).
+    const directionName = cellToString(cellAt('directionName')).trim();
     if (Object.values(input).every((v) => !v)) continue; // пустая строка листа
 
     const res = validateEnrollmentItems([input], () => `Строка ${r}`);
@@ -103,11 +129,17 @@ export async function parseEnrollmentImportWorkbook(
     // validateEnrollmentItems при ok:true на один вход всегда даёт ровно одну
     // позицию (дедуп внутри вызова отбрасывает только повтор уже виденного ключа).
     const item = res.items[0]!;
-    if (seenEmails.has(item.email)) {
-      warnings.push(`Строка ${r}: дубликат email «${item.email}» — строка пропущена`);
+    const key = `${item.email}|${normalizeDirectionName(directionName)}`;
+    if (seenKeys.has(key)) {
+      warnings.push(
+        directionName
+          ? `Строка ${r}: «${item.email}» уже записан на «${directionName}» — строка пропущена`
+          : `Строка ${r}: дубликат email «${item.email}» — строка пропущена`
+      );
       continue;
     }
-    seenEmails.add(item.email);
+    seenKeys.add(key);
+    itemDirections.push({ name: directionName || null, row: r });
     items.push(item);
   }
 
@@ -117,5 +149,5 @@ export async function parseEnrollmentImportWorkbook(
       errors: ['В файле нет ни одной строки со слушателями (заполняются строки со 2-й).'],
     };
   }
-  return { ok: true, items, errors, warnings };
+  return { ok: true, items, itemDirections, errors, warnings };
 }

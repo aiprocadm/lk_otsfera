@@ -20,6 +20,11 @@ const { parseEnrollmentImportWorkbook } = vi.hoisted(() => ({
 }));
 vi.mock('@/lib/services/enrollments/importRows', () => ({ parseEnrollmentImportWorkbook }));
 
+const { resolveDirectionNames } = vi.hoisted(() => ({ resolveDirectionNames: vi.fn() }));
+vi.mock('@/lib/services/enrollments/resolveDirections', () => ({ resolveDirectionNames }));
+
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+
 import { parseEnrollmentImportAction } from '@/server-actions/enrollment-import';
 
 const SESSION = { sub: 'u1', role: 'organization' } as never;
@@ -82,16 +87,79 @@ describe('parseEnrollmentImportAction', () => {
     expect(parseEnrollmentImportWorkbook).not.toHaveBeenCalled();
   });
 
-  it('успех → результат сервиса проброшен как есть, в сервис ушёл Buffer с содержимым файла', async () => {
-    const serviceResult = { ok: true, items: [{ fullName: 'И' }], errors: [], warnings: ['w'] };
-    parseEnrollmentImportWorkbook.mockResolvedValue(serviceResult);
+  it('успех → в сервис ушёл Buffer с содержимым файла, направления превращены в id (У-41)', async () => {
+    parseEnrollmentImportWorkbook.mockResolvedValue({
+      ok: true,
+      items: [{ fullName: 'И', email: 'i@x.ru' }],
+      itemDirections: [{ name: 'Работы на высоте', row: 2 }],
+      errors: [],
+      warnings: ['w'],
+    });
+    resolveDirectionNames.mockResolvedValue({ ids: ['d2'], errors: [] });
 
     const res = await parseEnrollmentImportAction(formWith(new File(['abc'], 'Слушатели.XLSX')));
 
-    expect(res).toBe(serviceResult);
+    expect(res).toEqual({
+      ok: true,
+      items: [{ fullName: 'И', email: 'i@x.ru', directionId: 'd2' }],
+      itemDirections: [{ name: 'Работы на высоте', row: 2 }],
+      errors: [],
+      warnings: ['w'],
+    });
     expect(parseEnrollmentImportWorkbook).toHaveBeenCalledTimes(1);
     const arg = parseEnrollmentImportWorkbook.mock.calls[0][0];
     expect(Buffer.isBuffer(arg)).toBe(true);
     expect((arg as Buffer).toString('utf8')).toBe('abc');
+    // Ошибка нумеруется по строке ФАЙЛА, а не по номеру позиции.
+    expect(resolveDirectionNames.mock.calls[0][1]).toEqual(['Работы на высоте']);
+    expect(resolveDirectionNames.mock.calls[0][2](0)).toBe('Строка 2');
+  });
+
+  it('ok:false из парсера отдаётся как есть — справочник не трогаем', async () => {
+    const fail = { ok: false, errors: ['не тот файл'] };
+    parseEnrollmentImportWorkbook.mockResolvedValue(fail);
+
+    const res = await parseEnrollmentImportAction(formWith(new File(['abc'], 'f.xlsx')));
+
+    expect(res).toBe(fail);
+    expect(resolveDirectionNames).not.toHaveBeenCalled();
+  });
+
+  it('У-41: строка с непонятным направлением отсеивается и даёт ошибку, остальные проходят', async () => {
+    parseEnrollmentImportWorkbook.mockResolvedValue({
+      ok: true,
+      items: [{ email: 'a@x.ru' }, { email: 'b@x.ru' }, { email: 'c@x.ru' }],
+      itemDirections: [
+        { name: 'Работы на высоте', row: 2 },
+        { name: 'Полёты на Марс', row: 3 },
+        { name: null, row: 4 },
+      ],
+      errors: ['Строка 9: без email'],
+      warnings: [],
+    });
+    resolveDirectionNames.mockResolvedValue({
+      ids: ['d2', null, null],
+      errors: ['Строка 3: направление «Полёты на Марс» не найдено в справочнике.'],
+    });
+
+    const res = await parseEnrollmentImportAction(formWith(new File(['abc'], 'f.xlsx')));
+
+    expect(res).toEqual({
+      ok: true,
+      // Строка 3 выброшена: молча импортировать её без направления нельзя.
+      items: [
+        { email: 'a@x.ru', directionId: 'd2' },
+        { email: 'c@x.ru', directionId: null },
+      ],
+      itemDirections: [
+        { name: 'Работы на высоте', row: 2 },
+        { name: null, row: 4 },
+      ],
+      errors: [
+        'Строка 9: без email',
+        'Строка 3: направление «Полёты на Марс» не найдено в справочнике.',
+      ],
+      warnings: [],
+    });
   });
 });

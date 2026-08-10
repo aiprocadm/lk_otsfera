@@ -237,4 +237,51 @@ describe('PR-2 конвейер позиций + уведомления + дет
     const foreignOrg = await getEnrollmentRequest(prisma, alienOrg, requestId);
     expect(foreignOrg).toEqual({ ok: false, error: 'not_found' });
   });
+
+  /**
+   * Этап 6 PR-2a (`У-33`, `У-35`, `У-44`): одна заявка — разные обучения.
+   * До этого направление лежало на шапке, и такую заявку пришлось бы делить
+   * надвое (решение `Р-5`).
+   */
+  it('одна заявка на РАЗНЫЕ направления: позиции хранят своё, уведомление перечисляет оба', async () => {
+    const second = await prisma.trainingDirection.create({
+      data: { name: `${T}-Работы на высоте`, sortOrder: 911 },
+    });
+
+    const res = await submitEnrollmentRequest(prisma, submitterSession, {
+      directionId,
+      organizationId: orgId,
+      items: [
+        { fullName: 'Вера ПР2а', email: `${T}-vera@org.test`, directionId },
+        { fullName: 'Вера ПР2а', email: `${T}-vera@org.test`, directionId: second.id },
+        { fullName: 'Глеб ПР2а', email: `${T}-gleb@org.test` },
+      ],
+    });
+    if (!res.ok) throw new Error(`submit failed: ${JSON.stringify(res)}`);
+
+    const items = await prisma.enrollmentRequestItem.findMany({
+      where: { requestId: res.request.id },
+      orderBy: { fullName: 'asc' },
+      select: { fullName: true, directionId: true },
+    });
+    // Вера — дважды: один человек, два разных обучения (это НЕ дубликат).
+    // Глеб — без своего направления, поэтому берётся направление шапки.
+    expect(items).toHaveLength(3);
+    expect(
+      items
+        .filter((i) => i.fullName === 'Вера ПР2а')
+        .map((i) => i.directionId)
+        .sort()
+    ).toEqual([directionId, second.id].sort());
+    expect(items.find((i) => i.fullName === 'Глеб ПР2а')?.directionId).toBe(directionId);
+
+    await approveEnrollment(prisma, { id: res.request.id, reviewerId: REVIEWER });
+    const note = await prisma.notification.findFirst({
+      where: { userId: SUBMITTER, type: 'enrollment_status_changed' },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(note?.body).toContain(`${T}-Пожарная безопасность`);
+    expect(note?.body).toContain(`${T}-Работы на высоте`);
+    expect(note?.body).toContain('направления');
+  });
 });

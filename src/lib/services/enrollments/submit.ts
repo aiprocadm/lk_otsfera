@@ -110,6 +110,10 @@ export async function submitEnrollmentRequest(
           studentId: item.studentId,
           fullName: snapshot?.name ?? item.fullName,
           email: snapshot?.email ?? item.email,
+          // У-33 (этап 6): направление у позиции. Пока заявка может прислать
+          // одно направление на всю форму (старый мастер) — тогда оно и
+          // достаётся каждой позиции. Шапочное поле остаётся до У-36.
+          directionId: item.directionId ?? directionId,
           position: item.position,
           snils: item.snils,
           birthDate: item.birthDate,

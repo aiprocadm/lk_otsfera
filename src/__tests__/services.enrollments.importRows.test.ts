@@ -25,6 +25,7 @@ describe('parseEnrollmentImportWorkbook (Excel-импорт слушателей
       position: 'Должность',
       snils: 'СНИЛС',
       birthDate: 'Дата рождения',
+      directionName: 'Направление обучения',
       extra: 'Дополнительно',
     });
   });
@@ -40,6 +41,7 @@ describe('parseEnrollmentImportWorkbook (Excel-импорт слушателей
     expect(r.items).toEqual([
       {
         studentId: null,
+        directionId: null,
         fullName: 'Иван Иванов',
         email: 'i@x.ru',
         position: 'инженер',
@@ -60,6 +62,7 @@ describe('parseEnrollmentImportWorkbook (Excel-импорт слушателей
     expect(r.items).toEqual([
       {
         studentId: null,
+        directionId: null,
         fullName: 'Иван Иванов',
         email: 'i@x.ru',
         position: null,
@@ -113,6 +116,30 @@ describe('parseEnrollmentImportWorkbook (Excel-импорт слушателей
     if (!r.ok) throw new Error('expected ok');
     expect(r.items).toHaveLength(1);
     expect(r.warnings).toEqual(['Строка 3: дубликат email «i@x.ru» — строка пропущена']);
+  });
+
+  it('У-35: один человек на ДВА разных направления — это две строки, а не дубликат', async () => {
+    const buf = await buildXlsx(
+      [
+        ['Иван Иванов', 'i@x.ru', '', '', '', 'Работы на высоте'],
+        ['Иван Иванов', 'I@X.RU', '', '', '', 'Электробезопасность'],
+        ['Иван Иванов', 'i@x.ru', '', '', '', ' работы  на  ВЫСОТЕ '],
+      ],
+      [...HEADERS.slice(0, 5), 'Направление обучения', 'Дополнительно']
+    );
+    const r = await parseEnrollmentImportWorkbook(buf);
+    if (!r.ok) throw new Error('expected ok');
+
+    expect(r.items).toHaveLength(2);
+    expect(r.itemDirections).toEqual([
+      { name: 'Работы на высоте', row: 2 },
+      { name: 'Электробезопасность', row: 3 },
+    ]);
+    // Третья строка — тот же человек и то же направление (регистр и лишние
+    // пробелы не считаются отличием) → повтор.
+    expect(r.warnings).toEqual([
+      'Строка 4: «i@x.ru» уже записан на «работы  на  ВЫСОТЕ» — строка пропущена',
+    ]);
   });
 
   it('заголовки регистронезависимы и со звёздочками («ФИО*», «EMAIL»)', async () => {

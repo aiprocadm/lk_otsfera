@@ -31,11 +31,31 @@ async function requestSummary(prisma: PrismaClient, requestId: string) {
       legacyCourseTitle: true,
       organization: { select: { name: true } },
       _count: { select: { items: true } },
+      // У-44 (этап 6): направлений в заявке теперь может быть несколько —
+      // перечисляем их, а не одно с шапки.
+      items: { select: { direction: { select: { name: true } } } },
     },
   });
   const count = detail?._count.items ?? 0;
+
+  const fromItems = [
+    ...new Set(
+      (detail?.items ?? [])
+        .map((i) => i.direction?.name)
+        .filter((n): n is string => typeof n === 'string' && n.length > 0)
+    ),
+  ];
+  // Пока у части заявок направление живёт на шапке (до У-36) — она и резерв.
+  const names =
+    fromItems.length > 0
+      ? fromItems
+      : [detail?.direction?.name ?? detail?.legacyCourseTitle].filter(
+          (n): n is string => typeof n === 'string' && n.length > 0
+        );
+
   return {
-    directionName: detail?.direction?.name ?? detail?.legacyCourseTitle ?? 'обучение',
+    directionName: names.length > 0 ? names.join(', ') : 'обучение',
+    directionsCount: names.length,
     orgName: detail?.organization?.name ?? null,
     countText: `${count} ${pluralizeRu(count, 'слушатель', 'слушателя', 'слушателей')}`,
   };
@@ -47,14 +67,14 @@ export async function notifySubmitterEnrollmentStatus(
   request: EnrollmentRequest
 ): Promise<void> {
   try {
-    const { directionName, countText } = await requestSummary(prisma, request.id);
+    const { directionName, directionsCount, countText } = await requestSummary(prisma, request.id);
     const statusLabel = ENROLLMENT_STATUS_LABEL[request.status];
     const title = `Заявка на обучение — статус «${statusLabel}»`;
     const reason =
       request.status === 'rejected' && request.rejectedReason
         ? ` Причина: ${request.rejectedReason}`
         : '';
-    const body = `Заявка на обучение: ${countText}, направление «${directionName}» — статус «${statusLabel}».${reason}`;
+    const body = `Заявка на обучение: ${countText}, ${directionsCount > 1 ? 'направления' : 'направление'} «${directionName}» — статус «${statusLabel}».${reason}`;
     const url = submitterEnrollmentUrl(request.submitterRole, request.id);
     const row = await createNotification({
       userId: request.submittedByUserId,
@@ -95,9 +115,12 @@ export async function notifyManagersEnrollmentSubmitted(
       excludeUserId: request.submittedByUserId,
     });
     if (!recipients.length) return;
-    const { directionName, orgName, countText } = await requestSummary(prisma, request.id);
+    const { directionName, directionsCount, orgName, countText } = await requestSummary(
+      prisma,
+      request.id
+    );
     const title = 'Новая заявка на обучение';
-    const body = `${orgName ? `Организация «${orgName}»: ` : ''}${countText}, направление «${directionName}».`;
+    const body = `${orgName ? `Организация «${orgName}»: ` : ''}${countText}, ${directionsCount > 1 ? 'направления' : 'направление'} «${directionName}».`;
     for (const r of recipients) {
       const row = await createNotification({
         userId: r.id,

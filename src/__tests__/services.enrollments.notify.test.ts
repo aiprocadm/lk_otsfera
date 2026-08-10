@@ -123,6 +123,33 @@ describe('notifySubmitterEnrollmentStatus (enrollment_status_changed подат�
     expect(body).toContain('направление «обучение»');
   });
 
+  it('У-44: направления берутся из позиций, повторы схлопываются, слово склоняется', async () => {
+    const { d } = db({
+      _count: { items: 3 },
+      items: [
+        { direction: { name: 'Работы на высоте' } },
+        { direction: { name: 'Электробезопасность' } },
+        { direction: { name: 'Работы на высоте' } },
+      ],
+    });
+    await notifySubmitterEnrollmentStatus(d, req());
+    const body = createNotification.mock.calls[0][0].body as string;
+
+    expect(body).toContain('направления «Работы на высоте, Электробезопасность»');
+    // Шапочное «Охрана труда» больше не главный источник — оно лишь резерв.
+    expect(body).not.toContain('Охрана труда');
+  });
+
+  it('У-44: одно направление на все позиции — слово в единственном числе', async () => {
+    const { d } = db({
+      items: [{ direction: { name: 'Пожарная безопасность' } }, { direction: null }],
+    });
+    await notifySubmitterEnrollmentStatus(d, req());
+    expect(createNotification.mock.calls[0][0].body).toContain(
+      'направление «Пожарная безопасность»'
+    );
+  });
+
   it('legacy-заявка без direction: имя направления из legacyCourseTitle', async () => {
     const { d } = db({ direction: null, legacyCourseTitle: 'Старый курс' });
     await notifySubmitterEnrollmentStatus(d, req());

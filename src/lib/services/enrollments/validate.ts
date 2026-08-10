@@ -9,6 +9,12 @@
 export type EnrollmentItemInput = {
   /** Существующий сотрудник организации; при studentId ФИО/email копируются сервисом. */
   studentId?: string | null;
+  /**
+   * У-33 (этап 6): направление обучения теперь у ПОЗИЦИИ, а не у заявки —
+   * иначе нельзя одной заявкой отправить одного на электробезопасность, а
+   * другого на работы на высоте (решение Р-5).
+   */
+  directionId?: string | null;
   fullName?: string | null;
   email?: string | null;
   position?: string | null;
@@ -19,6 +25,7 @@ export type EnrollmentItemInput = {
 
 export type ValidatedItem = {
   studentId: string | null;
+  directionId: string | null;
   fullName: string;
   email: string;
   position: string | null;
@@ -66,8 +73,9 @@ export function isValidEmail(raw: string): boolean {
  * — хотя бы одна позиция;
  * — для новых слушателей ФИО и email обязательны; email — валидный;
  * — СНИЛС/дата рождения проверяются, только если заполнены;
- * — дубликаты email внутри заявки склеиваются (первая позиция побеждает),
- *   об этом возвращается предупреждение (не ошибка).
+ * — дубликаты склеиваются по паре «слушатель + направление» (первая позиция
+ *   побеждает), об этом возвращается предупреждение (не ошибка). Один и тот же
+ *   человек с РАЗНЫМИ направлениями — это две законные позиции (У-35).
  * `label` — как называть позицию в сообщении (по умолчанию «Слушатель N»).
  */
 export function validateEnrollmentItems(
@@ -102,12 +110,16 @@ export function validateEnrollmentItems(
     const birthDate = parseBirthDate(input.birthDate);
     if (!birthDate.ok) errors.push(`${name}: некорректная дата рождения`);
 
-    // Дедупликация: по email (для новых) или по studentId (для существующих).
-    const dedupeKey = studentId ? `id:${studentId}` : email ? `email:${email}` : null;
+    // У-35 (этап 6): ключ дедупликации — «слушатель + направление». Один
+    // человек может учиться двум разным вещам в одной заявке, но дважды одному
+    // и тому же — нет. До этапа 6 ключом был только слушатель.
+    const directionId = input.directionId?.trim() || null;
+    const who = studentId ? `id:${studentId}` : email ? `email:${email}` : null;
+    const dedupeKey = who ? `${who}|dir:${directionId ?? ''}` : null;
     if (dedupeKey) {
       if (seenEmails.has(dedupeKey)) {
         warnings.push(
-          `${name}: дубликат (${studentId ? 'сотрудник уже выбран' : email}) — объединён`
+          `${name}: дубликат (${studentId ? 'сотрудник уже выбран' : email}) с тем же направлением — объединён`
         );
         return;
       }
@@ -116,6 +128,7 @@ export function validateEnrollmentItems(
 
     items.push({
       studentId,
+      directionId,
       fullName,
       email,
       position: input.position?.trim() || null,
