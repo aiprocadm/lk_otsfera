@@ -17,7 +17,8 @@
  * Из этой же пары берётся корр-счёт: у поступления это «Счет Кт», у списания —
  * «Счет Дт» (второй в паре всегда 51 — сам расчётный счёт).
  */
-export type CardColumns = {
+/** Наружу отдаётся только `ColumnDetection` — сам тип колонок внутренний. */
+type CardColumns = {
   date: number;
   document: number;
   analyticsDt: number;
