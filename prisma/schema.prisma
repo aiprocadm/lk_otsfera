@@ -36,29 +36,29 @@ enum ScopeLevel {
 /// `OrderStatus` снят в PR-4 после проверки, что его никто не читает
 /// (обмен с 1С на него не смотрел — там `status` про журнал синхронизации).
 model OrderStatusDefinition {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
   /// Задел на пер-компанийные наборы (решение заказчика Q2: сейчас всегда null).
-  companyId String?
+  companyId  String?
   /// Машинный ключ — неизменяем после создания.
-  key       String
+  key        String
   /// Название: переименовывается заказчиком.
-  label     String
-  sortOrder Int      @default(0)
-  isActive  Boolean  @default(true)
+  label      String
+  sortOrder  Int      @default(0)
+  isActive   Boolean  @default(true)
   /// Семь статусов §10 — удалить и деактивировать нельзя.
-  isSystem  Boolean  @default(false)
+  isSystem   Boolean  @default(false)
   /// Терминальный («Отменена»): доступен с любой стадии, в порядок не входит.
-  isTerminal Boolean @default(false)
+  isTerminal Boolean  @default(false)
   /// Привязка к производному факту: 'paid' | 'documents_issued' |
   /// 'accounting_signed' | 'closed'. Система сама переводит заявку в такой
   /// статус, когда факт наступил; оторвать якорь у системной строки нельзя.
-  anchor    String?
+  anchor     String?
 
-  orders       Order[]
-  changesFrom  OrderStatusChange[] @relation("StatusChangeFrom")
-  changesTo    OrderStatusChange[] @relation("StatusChangeTo")
+  orders      Order[]
+  changesFrom OrderStatusChange[] @relation("StatusChangeFrom")
+  changesTo   OrderStatusChange[] @relation("StatusChangeTo")
 
   @@unique([companyId, key])
   // Составной unique выше не ловит дубли общесистемных строк: в Postgres два
@@ -70,16 +70,16 @@ model OrderStatusDefinition {
 /// §10 ТЗ v0.5: журнал смен рабочего статуса. Отдельная таблица, а не поиск по
 /// аудиту: история статусов нужна карточке и выгрузкам быстрым запросом.
 model OrderStatusChange {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
+  id        String                 @id @default(cuid())
+  createdAt DateTime               @default(now())
   orderId   String
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order     Order                  @relation(fields: [orderId], references: [id], onDelete: Cascade)
   fromId    String?
   from      OrderStatusDefinition? @relation("StatusChangeFrom", fields: [fromId], references: [id])
   toId      String
   to        OrderStatusDefinition  @relation("StatusChangeTo", fields: [toId], references: [id])
   userId    String?
-  user      User?    @relation(fields: [userId], references: [id])
+  user      User?                  @relation(fields: [userId], references: [id])
   /// Причина/комментарий: обязательна при отмене менеджером и возврате назад.
   reason    String?
 
@@ -319,7 +319,7 @@ model User {
   // Этап 9 (ФТ-11.3): отметка последнего успешного входа (оба пути: пароль и 2FA).
   lastLoginAt                  DateTime?
   /// §10 ТЗ v0.5: кто менял рабочий статус заявки.
-  orderStatusChanges OrderStatusChange[]
+  orderStatusChanges           OrderStatusChange[]
 }
 
 model PartnerUser {
@@ -646,16 +646,16 @@ model Partner {
   slug                  String?                @unique
   inn                   String?                @unique
   // Этап 8 (ФТ-9.1, PR-1): реквизиты для автогенерации документов.
-  kpp            String?
-  ogrn           String?
-  legalAddress   String?
-  bankName       String?
-  bankAccount    String?
-  corrAccount    String?
-  bic            String?
-  signerName     String?
-  signerPosition String?
-  signerBasis    String?
+  kpp                   String?
+  ogrn                  String?
+  legalAddress          String?
+  bankName              String?
+  bankAccount           String?
+  corrAccount           String?
+  bic                   String?
+  signerName            String?
+  signerPosition        String?
+  signerBasis           String?
   commissionRate        Decimal                @default(0) @db.Decimal(6, 4)
   isActive              Boolean                @default(true)
   organizations         Organization[]
@@ -716,16 +716,16 @@ model Organization {
   inn                            String?                            @unique
   kpp                            String?
   // Этап 8 (ФТ-9.1, PR-1): реквизиты для автогенерации документов.
-  legalName      String?
-  ogrn           String?
-  legalAddress   String?
-  bankName       String?
-  bankAccount    String?
-  corrAccount    String?
-  bic            String?
-  signerName     String?
-  signerPosition String?
-  signerBasis    String?
+  legalName                      String?
+  ogrn                           String?
+  legalAddress                   String?
+  bankName                       String?
+  bankAccount                    String?
+  corrAccount                    String?
+  bic                            String?
+  signerName                     String?
+  signerPosition                 String?
+  signerBasis                    String?
   partnerId                      String?
   partner                        Partner?                           @relation(fields: [partnerId], references: [id])
   companyId                      String?
@@ -795,23 +795,23 @@ model OrganizationManager {
 }
 
 model Student {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String                  @id @default(cuid())
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
   /// У-21 (этап 5): email НЕОБЯЗАТЕЛЕН. В охране труда обучают рабочих без
   /// корпоративной почты, а обязательное поле блокировало ввод. Уникальный
   /// индекс ниже остаётся рабочим: PostgreSQL допускает много NULL, поэтому
   /// сотрудники без почты друг другу не мешают, а два одинаковых email в одной
   /// организации по-прежнему запрещены.
-  email     String?
-  name      String
-  status    String   @default("active")
+  email             String?
+  name              String
+  status            String                  @default("active")
   /// У-20 (этап 5): реквизиты сотрудника. СНИЛС и дата рождения — ПДн:
   /// их просмотр пишется в PiiAccessEvent (152-ФЗ, §25.7 CLAUDE.md).
-  snils     String?
-  birthDate DateTime?
-  phone     String?
-  note      String?
+  snils             String?
+  birthDate         DateTime?
+  phone             String?
+  note              String?
   // Этап 9 (ФТ-12.2, PR-3): должность для выгрузки сотрудников организации.
   // Необязательная (решение заказчика §9-1 спеки: обучаться могут физлица);
   // заполняется в карточке сотрудника и автоматически из заявки на обучение.
@@ -837,20 +837,20 @@ model Company {
   slaResponseHours      Int                 @default(24)
   slaWarningHours       Int                 @default(4)
   // Этап 8 (ФТ-9.1, PR-1): реквизиты для автогенерации документов.
-  legalName      String?
-  inn            String?
-  kpp            String?
-  ogrn           String?
-  phone          String?
-  email          String?
-  legalAddress   String?
-  bankName       String?
-  bankAccount    String?
-  corrAccount    String?
-  bic            String?
-  signerName     String?
-  signerPosition String?
-  signerBasis    String?
+  legalName             String?
+  inn                   String?
+  kpp                   String?
+  ogrn                  String?
+  phone                 String?
+  email                 String?
+  legalAddress          String?
+  bankName              String?
+  bankAccount           String?
+  corrAccount           String?
+  bic                   String?
+  signerName            String?
+  signerPosition        String?
+  signerBasis           String?
   users                 User[]
   orders                Order[]
   organizations         Organization[]
@@ -1049,68 +1049,68 @@ model TaskAssignee {
 }
 
 model Order {
-  id                 String                    @id @default(cuid())
-  createdAt          DateTime                  @default(now())
-  updatedAt          DateTime                  @updatedAt
-  externalId         String?                   @unique
-  orderNumber        String?
-  title              String
+  id                       String                    @id @default(cuid())
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  externalId               String?                   @unique
+  orderNumber              String?
+  title                    String
   /// §10 ТЗ v0.5 (этап 2): рабочий статус из справочника. Старый enum
   /// `OrderStatus` снят в PR-4 — источник правды один.
-  statusId           String?
-  statusDefinition   OrderStatusDefinition?    @relation(fields: [statusId], references: [id])
-  statusChanges      OrderStatusChange[]
-  executionStatus    ExecutionStatus           @default(pending)
-  financialStatus    FinancialStatus           @default(not_billed)
-  totalAmount        Decimal                   @default(0) @db.Decimal(14, 2)
-  paidAmount         Decimal                   @default(0) @db.Decimal(14, 2)
-  paidAt             DateTime?
-  contractSignedAt   DateTime?
-  completedAt        DateTime?
-  closedAt           DateTime?
-  lastSyncedAt       DateTime?
-  vatIncluded        Boolean                   @default(true)
-  vatRate            Decimal?                  @db.Decimal(5, 4)
-  productMix         String[]
-  serviceType        ServiceType               @default(training)
+  statusId                 String?
+  statusDefinition         OrderStatusDefinition?    @relation(fields: [statusId], references: [id])
+  statusChanges            OrderStatusChange[]
+  executionStatus          ExecutionStatus           @default(pending)
+  financialStatus          FinancialStatus           @default(not_billed)
+  totalAmount              Decimal                   @default(0) @db.Decimal(14, 2)
+  paidAmount               Decimal                   @default(0) @db.Decimal(14, 2)
+  paidAt                   DateTime?
+  contractSignedAt         DateTime?
+  completedAt              DateTime?
+  closedAt                 DateTime?
+  lastSyncedAt             DateTime?
+  vatIncluded              Boolean                   @default(true)
+  vatRate                  Decimal?                  @db.Decimal(5, 4)
+  productMix               String[]
+  serviceType              ServiceType               @default(training)
   // §5.6/§21: «галочка» менеджера «бухгалтерия подписана» — условие завершения (B2).
-  accountingSignedAt DateTime?
+  accountingSignedAt       DateTime?
   // Этап 12 (Модуль 5, ФТ-5.1, решение заказчика §6-2): для заказов на
   // разработку документов готовность НЕ выводится из факта загрузки файлов —
   // менеджер явно отмечает «работа согласована».
   deliverablesApprovedAt   DateTime?
   deliverablesApprovedById String?
-  deliverablesApprovedBy   User?                @relation("OrderDeliverablesApprover", fields: [deliverablesApprovedById], references: [id])
+  deliverablesApprovedBy   User?                     @relation("OrderDeliverablesApprover", fields: [deliverablesApprovedById], references: [id])
   // Этап 12 (ФТ-5.2): момент передачи результата клиенту. Ставится один раз
   // (решение §6-3): повторное нажатие — no-op, второго уведомления нет.
   resultDeliveredAt        DateTime?
   resultDeliveredById      String?
-  resultDeliveredBy        User?                @relation("OrderResultDeliverer", fields: [resultDeliveredById], references: [id])
+  resultDeliveredBy        User?                     @relation("OrderResultDeliverer", fields: [resultDeliveredById], references: [id])
   // §5.4: причина возврата на доработку, пока status=waiting_client (B3). Чистится при возврате в работу.
-  returnReason       String?
-  deadline           DateTime?
-  companyId          String
-  company            Company                   @relation(fields: [companyId], references: [id])
-  partnerId          String?
-  partner            Partner?                  @relation(fields: [partnerId], references: [id])
-  organizationId     String
-  organization       Organization              @relation("OrderOrganization", fields: [organizationId], references: [id])
-  managerId          String?
-  manager            User?                     @relation("OrderManager", fields: [managerId], references: [id])
-  documents          Document[]
-  comments           Comment[]
-  uploads            Upload[]
-  payments           Payment[]
-  promotedFromLead   Lead?                     @relation("LeadPromoted")
-  commissionItems    CommissionStatementItem[]
-  threads            OrderThread[]
-  items              OrderItem[]
-  tasks              Task[]                    @relation("TaskLinkedOrder")
-  dealNotes          DealNote[]                @relation("OrderDealNotes")
-  wonDeal            Deal?                     @relation("DealOrder")
-  calendarEvents     CalendarEvent[]           @relation("CalendarEventLinkedOrder")
-  primaryContactId   String?
-  primaryContact     Contact?                  @relation("OrderPrimaryContact", fields: [primaryContactId], references: [id], onDelete: SetNull)
+  returnReason             String?
+  deadline                 DateTime?
+  companyId                String
+  company                  Company                   @relation(fields: [companyId], references: [id])
+  partnerId                String?
+  partner                  Partner?                  @relation(fields: [partnerId], references: [id])
+  organizationId           String
+  organization             Organization              @relation("OrderOrganization", fields: [organizationId], references: [id])
+  managerId                String?
+  manager                  User?                     @relation("OrderManager", fields: [managerId], references: [id])
+  documents                Document[]
+  comments                 Comment[]
+  uploads                  Upload[]
+  payments                 Payment[]
+  promotedFromLead         Lead?                     @relation("LeadPromoted")
+  commissionItems          CommissionStatementItem[]
+  threads                  OrderThread[]
+  items                    OrderItem[]
+  tasks                    Task[]                    @relation("TaskLinkedOrder")
+  dealNotes                DealNote[]                @relation("OrderDealNotes")
+  wonDeal                  Deal?                     @relation("DealOrder")
+  calendarEvents           CalendarEvent[]           @relation("CalendarEventLinkedOrder")
+  primaryContactId         String?
+  primaryContact           Contact?                  @relation("OrderPrimaryContact", fields: [primaryContactId], references: [id], onDelete: SetNull)
 
   @@index([partnerId, executionStatus])
   @@index([partnerId, financialStatus])
@@ -1471,12 +1471,12 @@ model EnrollmentRequestItem {
   /// нельзя одной заявкой отправить одного на электробезопасность, а другого
   /// на работы на высоте (решение Р-5).
   ///
-  /// Пока НЕОБЯЗАТЕЛЬНОЕ: у старых заявок курс вписан текстом
-  /// (EnrollmentRequest.legacyCourseTitle), их разбирает человек (У-34а).
-  /// Обязательным поле делает отдельная миграция-«замок» — только когда
-  /// неразобранных заявок не осталось.
-  directionId       String?
-  direction         TrainingDirection? @relation(fields: [directionId], references: [id])
+  /// ОБЯЗАТЕЛЬНОЕ с PR-3 «замок» (миграция 20260810180000): старые заявки с
+  /// текстовым курсом разобраны вручную (У-34а), позиция без направления
+  /// больше невозможна. Связь — onDelete: Restrict: направление, на которое
+  /// кого-то записали, удалить нельзя (SET NULL положил бы NULL в NOT NULL).
+  directionId       String
+  direction         TrainingDirection @relation(fields: [directionId], references: [id], onDelete: Restrict)
   fullName          String
   email             String
   position          String?
@@ -1496,13 +1496,13 @@ model EnrollmentRequestItem {
 }
 
 model TrainingDirection {
-  id                 String              @id @default(cuid())
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  id                 String                  @id @default(cuid())
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
   name               String
-  slug               String?             @unique
-  isActive           Boolean             @default(true)
-  sortOrder          Int                 @default(0)
+  slug               String?                 @unique
+  isActive           Boolean                 @default(true)
+  sortOrder          Int                     @default(0)
   orderItems         OrderItem[]
   certificates       Certificate[]
   enrollmentRequests EnrollmentRequest[]
@@ -1525,7 +1525,7 @@ model OrderItem {
   trainingStatus TrainingStatus    @default(pending)
   note           String?
   // Этап 8 (решение §9-3): цена позиции — задел попозиционного счёта (v1 печатает одну строку).
-  amount         Decimal?  @db.Decimal(14, 2)
+  amount         Decimal?          @db.Decimal(14, 2)
   certificate    Certificate?
 
   @@unique([orderId, studentId, directionId])
@@ -1593,22 +1593,22 @@ enum CustomFieldType {
 /// Полиморфно по entityType — допустимые значения перечислены в
 /// CUSTOM_FIELD_ENTITIES (src/lib/services/customFields/entities.ts).
 model CustomFieldDefinition {
-  id         String             @id @default(cuid())
-  createdAt  DateTime           @default(now())
-  updatedAt  DateTime           @updatedAt
-  entityType String
-  key        String
-  label      String
-  fieldType  CustomFieldType
-  options    String[]
-  required   Boolean            @default(false)
-  sortOrder  Int                @default(0)
-  isActive   Boolean            @default(true)
+  id              String             @id @default(cuid())
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  entityType      String
+  key             String
+  label           String
+  fieldType       CustomFieldType
+  options         String[]
+  required        Boolean            @default(false)
+  sortOrder       Int                @default(0)
+  isActive        Boolean            @default(true)
   /// §11: подсказка под полем в карточке сущности.
-  helpText   String?
+  helpText        String?
   /// §11: роли, которые ВИДЯТ поле. Пустой массив = видят все, кому доступна
   /// сама карточка (дефолт; НЕ означает «никто»).
-  visibleToRoles String[]
+  visibleToRoles  String[]
   /// §11: роли, которые ПРАВЯТ поле. Пустой массив = admin + leader
   /// (решение заказчика Q1 от 29.07.2026; НЕ означает «никто»).
   /// Строки, созданные до этапа 1, получили явный ['admin','leader','manager']
@@ -1616,8 +1616,8 @@ model CustomFieldDefinition {
   editableByRoles String[]
   /// Задел: системное поле нельзя удалить/деактивировать. Системные поля §11 —
   /// это колонки Prisma, их реестр в systemFields.ts, поэтому сейчас всегда false.
-  isSystem   Boolean            @default(false)
-  values     CustomFieldValue[]
+  isSystem        Boolean            @default(false)
+  values          CustomFieldValue[]
 
   @@unique([entityType, key])
   @@index([entityType, isActive, sortOrder])
@@ -1715,33 +1715,33 @@ model PaymentImportRow {
 }
 
 model InboundMessage {
-  id             String    @id @default(cuid())
-  createdAt      DateTime  @default(now())
-  sentAt         DateTime?
-  channel        String
-  externalId     String    @unique
-  senderRef      String
-  senderDisplay  String?
-  subject        String?
-  body           String
-  attachmentPath String?
-  attachmentName String?
-  attachmentMime String?
-  scanStatus     String    @default("none")
-  scanReason     String?
-  resolvedOrgId  String?
-  resolvedUserId String?
-  threadId       String?
-  companyId      String?
-  status         String    @default("unresolved")
-  boundAt        DateTime?
-  boundById      String?
-  contactId      String?
+  id              String    @id @default(cuid())
+  createdAt       DateTime  @default(now())
+  sentAt          DateTime?
+  channel         String
+  externalId      String    @unique
+  senderRef       String
+  senderDisplay   String?
+  subject         String?
+  body            String
+  attachmentPath  String?
+  attachmentName  String?
+  attachmentMime  String?
+  scanStatus      String    @default("none")
+  scanReason      String?
+  resolvedOrgId   String?
+  resolvedUserId  String?
+  threadId        String?
+  companyId       String?
+  status          String    @default("unresolved")
+  boundAt         DateTime?
+  boundById       String?
+  contactId       String?
   // Этап 7 (ФТ-8.2): ответственный триажа Intake (плоский id — образец boundById).
   claimedByUserId String?
   claimedAt       DateTime?
   // Этап 7 (ФТ-1.6): лид, созданный из этого обращения.
-  lead            Lead?    @relation("LeadFromInbound")
+  lead            Lead?     @relation("LeadFromInbound")
 
   resolvedOrg  Organization? @relation("OrgInbound", fields: [resolvedOrgId], references: [id])
   resolvedUser User?         @relation("UserInbound", fields: [resolvedUserId], references: [id])
@@ -1781,16 +1781,16 @@ model Call {
   companyId           String?
   contactId           String?
 
-  resolvedOrg  Organization? @relation("OrgCalls", fields: [resolvedOrgId], references: [id])
-  resolvedUser User?         @relation("UserCalls", fields: [resolvedUserId], references: [id])
-  company      Company?      @relation(fields: [companyId], references: [id])
-  contact      Contact?      @relation("ContactCalls", fields: [contactId], references: [id], onDelete: SetNull)
+  resolvedOrg      Organization? @relation("OrgCalls", fields: [resolvedOrgId], references: [id])
+  resolvedUser     User?         @relation("UserCalls", fields: [resolvedUserId], references: [id])
+  company          Company?      @relation(fields: [companyId], references: [id])
+  contact          Contact?      @relation("ContactCalls", fields: [contactId], references: [id], onDelete: SetNull)
   // Этап 7 (ФТ-8.1/8.2): триаж Intake — ответственный и закрытие нецелевого звонка.
   claimedByUserId  String?
   claimedAt        DateTime?
   intakeClosedAt   DateTime?
   intakeClosedById String?
-  lead             Lead?    @relation("LeadFromCall")
+  lead             Lead?         @relation("LeadFromCall")
 
   @@unique([provider, externalId])
   @@index([companyId, createdAt])
@@ -2022,11 +2022,11 @@ model IntegrationSetting {
 // Этап 7 (ФТ-8.5, PR-3): журнал SLA-эскалаций — дедуп «одно уведомление на
 // единицу» (решение §10-2 спеки; образец CertificateReminder + P2002-skip).
 model SlaEscalation {
-  id          String   @id @default(cuid())
-  createdAt   DateTime @default(now())
-  sourceType  String // client_request | enrollment | inbound | call
-  sourceId    String
-  companyId   String?
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  sourceType String // client_request | enrollment | inbound | call
+  sourceId   String
+  companyId  String?
 
   @@unique([sourceType, sourceId])
   @@index([createdAt])

@@ -16,7 +16,7 @@ function item(overrides: Partial<EnrollmentItemRow> = {}): EnrollmentItemRow {
     extra: null,
     status: 'pending',
     externalStudentId: null,
-    directionName: null,
+    directionName: 'Охрана труда',
     ...overrides,
   };
 }
@@ -25,7 +25,7 @@ function row(overrides: Partial<EnrollmentRow> = {}): EnrollmentRow {
   return {
     id: 'e1',
     directionName: 'Охрана труда',
-    directionNames: [],
+    directionNames: ['Охрана труда'],
     studentCount: 1,
     firstStudentName: 'Иван Петров',
     items: [item()],

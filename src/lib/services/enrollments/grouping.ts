@@ -6,22 +6,17 @@
  * а на деле два общих компонента).
  *
  * Порядок групп — порядок первого появления позиции, чтобы разбивка не
- * «прыгала» между обновлениями. Позиции старых заявок, где направление есть
- * только на шапке (до `У-36`), собираются в понятную группу-заглушку, а не
- * теряются.
+ * «прыгала» между обновлениями. Группы-заглушки «направление не указано»
+ * больше нет: с PR-3 «замок» направление у позиции обязательно.
  */
-/** Не экспортируем: снаружи нужна сама функция, а не подпись (knip следит). */
-const NO_DIRECTION_TITLE = 'Направление не указано';
-
-export function groupItemsByDirection<T extends { directionName: string | null }>(
+export function groupItemsByDirection<T extends { directionName: string }>(
   items: T[]
 ): Array<{ title: string; items: T[] }> {
   const groups = new Map<string, T[]>();
   for (const item of items) {
-    const title = item.directionName ?? NO_DIRECTION_TITLE;
-    const bucket = groups.get(title);
+    const bucket = groups.get(item.directionName);
     if (bucket) bucket.push(item);
-    else groups.set(title, [item]);
+    else groups.set(item.directionName, [item]);
   }
   return [...groups.entries()].map(([title, list]) => ({ title, items: list }));
 }

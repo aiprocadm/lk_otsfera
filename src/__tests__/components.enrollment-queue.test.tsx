@@ -27,7 +27,7 @@ function item(overrides: Partial<EnrollmentItemRow> = {}): EnrollmentItemRow {
     extra: null,
     status: 'pending',
     externalStudentId: null,
-    directionName: null,
+    directionName: 'Охрана труда',
     ...overrides,
   };
 }
@@ -36,7 +36,7 @@ function row(overrides: Partial<EnrollmentRow> = {}): EnrollmentRow {
   return {
     id: 'e1',
     directionName: 'Охрана труда',
-    directionNames: [],
+    directionNames: ['Охрана труда'],
     studentCount: 1,
     firstStudentName: 'Иван Петров',
     items: [item()],
@@ -164,11 +164,15 @@ describe('EnrollmentQueue', () => {
     expect(screen.getByText('1. Пётр Сидоров')).toBeTruthy();
   });
 
-  it('У-43: старая заявка без направлений у позиций — заголовок шапки и группа-заглушка', () => {
-    render(React.createElement(EnrollmentQueue, { rows: [row()] }));
+  it('заявка совсем без позиций: колонка берёт направление шапки', () => {
+    // Позиций может не быть у очень старой заявки; строка очереди обязана
+    // остаться читаемой, а не показать пустую колонку.
+    render(
+      React.createElement(EnrollmentQueue, {
+        rows: [row({ directionNames: [], items: [], studentCount: 0 })],
+      })
+    );
     expect(screen.getByText('Охрана труда')).toBeTruthy();
-    fireEvent.click(screen.getByText(/показать/));
-    expect(screen.getByText('Направление не указано')).toBeTruthy();
   });
 
   it('счётчик «и ещё N» для многопозиционной заявки', () => {

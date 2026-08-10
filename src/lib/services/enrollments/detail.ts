@@ -73,16 +73,15 @@ export async function getEnrollmentRequest(
 
   /**
    * Удостоверение ищется по паре «слушатель + направление ЭТОЙ позиции»
-   * (`У-33`): в одной заявке направлений теперь может быть несколько, и по
-   * шапке человек с высотных работ получил бы чужую корочку. Направление
-   * шапки остаётся резервом для старых заявок (до `У-36`).
+   * (`У-33`): в одной заявке направлений несколько, и по шапке человек с
+   * высотных работ получил бы чужую корочку. С PR-3 «замок» направление у
+   * позиции есть всегда, поэтому резерв из шапки больше не нужен.
    */
   const certKey = (studentId: string, directionId: string) => `${studentId}|${directionId}`;
   const certByKey = new Map<string, string>();
   const ready = r.items
     .filter((i) => i.status === 'certificates_ready' && i.studentId)
-    .map((i) => ({ studentId: i.studentId as string, directionId: i.directionId ?? r.directionId }))
-    .filter((p): p is { studentId: string; directionId: string } => !!p.directionId);
+    .map((i) => ({ studentId: i.studentId as string, directionId: i.directionId }));
   if (ready.length) {
     const certs = await prisma.certificate.findMany({
       where: {
@@ -132,15 +131,13 @@ export async function getEnrollmentRequest(
     subjectIds: [r.id],
   });
 
-  const items = r.items.map(({ direction, directionId, ...i }) => {
-    const dirId = directionId ?? r.directionId;
-    return {
-      ...i,
-      directionName: direction?.name ?? null,
-      certificateDocumentId:
-        i.studentId && dirId ? (certByKey.get(certKey(i.studentId, dirId)) ?? null) : null,
-    };
-  });
+  const items = r.items.map(({ direction, directionId, ...i }) => ({
+    ...i,
+    directionName: direction.name,
+    certificateDocumentId: i.studentId
+      ? (certByKey.get(certKey(i.studentId, directionId)) ?? null)
+      : null,
+  }));
 
   return {
     ok: true,

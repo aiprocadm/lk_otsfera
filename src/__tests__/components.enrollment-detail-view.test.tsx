@@ -16,7 +16,7 @@ function item(overrides: Partial<EnrollmentDetailItem> = {}): EnrollmentDetailIt
     extra: null,
     status: 'pending',
     externalStudentId: null,
-    directionName: null,
+    directionName: 'Охрана труда',
     certificateDocumentId: null,
     ...overrides,
   };
@@ -26,7 +26,7 @@ function detail(overrides: Partial<EnrollmentDetail> = {}): EnrollmentDetail {
   return {
     id: 'e1',
     directionName: 'Охрана труда',
-    directionNames: [],
+    directionNames: ['Охрана труда'],
     status: 'pending',
     organizationName: null,
     partnerName: null,
@@ -111,11 +111,11 @@ describe('EnrollmentDetailView — несколько обучений в одн
     expect(html).toContain('2. Анна Кот');
   });
 
-  it('старая заявка без направления у позиций — понятная группа-заглушка', () => {
+  it('одно обучение на всю заявку — прежний заголовок и одна группа', () => {
     const html = renderView(detail());
-    expect(html).toContain('Направление не указано');
-    // Заголовок при одном направлении остаётся прежним.
     expect(html).toContain('Заявка: Охрана труда');
+    // Ровно одна группа: заголовок обучения встречается один раз в списке.
+    expect(html).toContain('(1 слушатель)');
   });
 });
 

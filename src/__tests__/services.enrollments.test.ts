@@ -305,8 +305,9 @@ describe('listEnrollmentRequests scope', () => {
     const rows = [
       row('R1', {
         items: [
-          { id: 'i1', fullName: 'Иван' },
-          { id: 'i2', fullName: 'Пётр' },
+          // PR-3 «замок»: направление у позиции обязательно — связь непустая.
+          { id: 'i1', fullName: 'Иван', direction: { name: 'Охрана труда' } },
+          { id: 'i2', fullName: 'Пётр', direction: { name: 'Работы на высоте' } },
         ],
       }),
       row('R2', { direction: null, legacyCourseTitle: 'Старый курс' }),
