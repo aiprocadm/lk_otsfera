@@ -267,9 +267,12 @@ describe('PR-2 конвейер позиций + уведомления + дет
     // Вера — дважды: один человек, два разных обучения (это НЕ дубликат).
     // Глеб — без своего направления, поэтому берётся направление шапки.
     expect(items).toHaveLength(3);
-    expect(items.filter((i) => i.fullName === 'Вера ПР2а').map((i) => i.directionId).sort()).toEqual(
-      [directionId, second.id].sort()
-    );
+    expect(
+      items
+        .filter((i) => i.fullName === 'Вера ПР2а')
+        .map((i) => i.directionId)
+        .sort()
+    ).toEqual([directionId, second.id].sort());
     expect(items.find((i) => i.fullName === 'Глеб ПР2а')?.directionId).toBe(directionId);
 
     await approveEnrollment(prisma, { id: res.request.id, reviewerId: REVIEWER });
