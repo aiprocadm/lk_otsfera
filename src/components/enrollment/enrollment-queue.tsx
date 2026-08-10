@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { EnrollmentRow } from '@/lib/services/enrollments/list';
+import { groupItemsByDirection } from '@/lib/services/enrollments/grouping';
 import { TableShell, THead, Th, Tr, Td, EmptyState, Button } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
 import { fmtDate } from '@/lib/format';
@@ -108,7 +109,19 @@ export function EnrollmentQueue({ rows }: { rows: EnrollmentRow[] }) {
                     </div>
                   </button>
                 </Td>
-                <Td className="text-gray-700">{r.directionName}</Td>
+                <Td className="text-gray-700">
+                  {/* У-43: заявка может нести несколько обучений — показываем
+                      все, иначе колонка врёт про содержимое заявки. */}
+                  {r.directionNames.length > 1 ? (
+                    <ul className="space-y-0.5">
+                      {r.directionNames.map((n) => (
+                        <li key={n}>{n}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    (r.directionNames[0] ?? r.directionName)
+                  )}
+                </Td>
                 <Td className="text-gray-600">
                   {r.partnerName ?? r.organizationName ?? r.submittedByName}
                   <div className="text-xs text-gray-400">{r.submitterRole}</div>
@@ -205,48 +218,56 @@ export function EnrollmentQueue({ rows }: { rows: EnrollmentRow[] }) {
               {open && (
                 <Tr>
                   <Td colSpan={6}>
-                    <ul className="space-y-1.5 py-1">
-                      {r.items.map((item, i) => (
-                        <li key={item.id} className="text-sm text-gray-700">
-                          {(item.status === 'provisioned' || item.status === 'in_training') && (
-                            <input
-                              type="checkbox"
-                              className="mr-1.5 align-middle accent-[#F97316]"
-                              checked={selected.has(item.id)}
-                              onChange={(e) => toggleItem(item.id, e.target.checked)}
-                              aria-label={`Выбрать позицию: ${item.fullName}`}
-                            />
-                          )}
-                          <span className="font-medium text-[#111111]">
-                            {i + 1}. {item.fullName}
-                          </span>{' '}
-                          <span className="text-xs text-gray-500">{item.email}</span>
-                          {item.position && (
-                            <span className="text-xs text-gray-500"> · {item.position}</span>
-                          )}
-                          {item.snils && (
-                            <span className="text-xs text-gray-500"> · СНИЛС {item.snils}</span>
-                          )}
-                          {item.birthDate && (
-                            <span className="text-xs text-gray-500">
-                              {' '}
-                              · род. {fmtDate(item.birthDate)}
-                            </span>
-                          )}
-                          {item.extra && (
-                            <span className="text-xs text-gray-500"> · {item.extra}</span>
-                          )}
-                          <span className="ml-2">
-                            <EnrollmentStatusBadge status={item.status} />
-                          </span>
-                          {item.externalStudentId && (
-                            <span className="text-xs text-gray-500 ml-1">
-                              LMS: {item.externalStudentId}
-                            </span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
+                    {/* У-43: раскрытая заявка группирует позиции по обучению —
+                        проверяющий видит, кого куда записали, и ведёт статусы
+                        по каждой позиции отдельно. */}
+                    {groupItemsByDirection(r.items).map((group) => (
+                      <div key={group.title} className="py-1">
+                        <div className="text-xs font-medium text-gray-500">{group.title}</div>
+                        <ul className="space-y-1.5 py-1">
+                          {group.items.map((item, i) => (
+                            <li key={item.id} className="text-sm text-gray-700">
+                              {(item.status === 'provisioned' || item.status === 'in_training') && (
+                                <input
+                                  type="checkbox"
+                                  className="mr-1.5 align-middle accent-[#F97316]"
+                                  checked={selected.has(item.id)}
+                                  onChange={(e) => toggleItem(item.id, e.target.checked)}
+                                  aria-label={`Выбрать позицию: ${item.fullName}`}
+                                />
+                              )}
+                              <span className="font-medium text-[#111111]">
+                                {i + 1}. {item.fullName}
+                              </span>{' '}
+                              <span className="text-xs text-gray-500">{item.email}</span>
+                              {item.position && (
+                                <span className="text-xs text-gray-500"> · {item.position}</span>
+                              )}
+                              {item.snils && (
+                                <span className="text-xs text-gray-500"> · СНИЛС {item.snils}</span>
+                              )}
+                              {item.birthDate && (
+                                <span className="text-xs text-gray-500">
+                                  {' '}
+                                  · род. {fmtDate(item.birthDate)}
+                                </span>
+                              )}
+                              {item.extra && (
+                                <span className="text-xs text-gray-500"> · {item.extra}</span>
+                              )}
+                              <span className="ml-2">
+                                <EnrollmentStatusBadge status={item.status} />
+                              </span>
+                              {item.externalStudentId && (
+                                <span className="text-xs text-gray-500 ml-1">
+                                  LMS: {item.externalStudentId}
+                                </span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
                     {r.note && (
                       <div className="text-xs text-gray-500 pb-1">Примечание: {r.note}</div>
                     )}

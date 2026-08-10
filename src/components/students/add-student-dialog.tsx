@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Dialog, Field, Input } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
@@ -27,11 +27,20 @@ const MATCH_LABEL: Record<DuplicateMatch, string> = {
 export function AddStudentDialog({
   organizationId,
   label = 'Добавить сотрудника',
+  onCreated,
 }: {
   organizationId: string;
   label?: string;
+  /**
+   * `У-40`: мастер заявки грузит список сотрудников сам (через API), поэтому
+   * `router.refresh()` его не обновляет — он просит перечитать список этим
+   * обратным вызовом и остаётся открытым. Со страниц кабинетов проп не
+   * передаётся: там достаточно обновления серверных данных.
+   */
+  onCreated?: () => void;
 }) {
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement | null>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +50,11 @@ export function AddStudentDialog({
   } | null>(null);
 
   function close() {
+    // Защита в глубину: до close() во время сохранения не добраться — кнопка
+    // «Отмена» disabled, а примитив Dialog сам не зовёт onClose при busy (ни
+    // Escape, ни клик по фону). Проверку не убираем: она страхует от будущего
+    // вызова close() в обход кнопок — поэтому ветка недостижима для теста.
+    /* v8 ignore next */
     if (busy) return;
     setOpen(false);
     setError(null);
@@ -61,6 +75,7 @@ export function AddStudentDialog({
         setOpen(false);
         setDuplicates(null);
         router.refresh();
+        onCreated?.();
         return;
       }
       if (res.error === 'duplicate_found') {
@@ -89,6 +104,7 @@ export function AddStudentDialog({
 
       <Dialog open={open} onClose={close} title="Новый сотрудник" size="md" busy={busy}>
         <form
+          ref={formRef}
           data-testid="add-student-form"
           action={(fd) => {
             void submit(fd, false);
@@ -145,13 +161,20 @@ export function AddStudentDialog({
                 Можно закрыть окно и работать с существующим сотрудником — или всё равно добавить
                 нового, если это однофамилец.
               </p>
+              {/* Обычная кнопка, а не второй submit с `formAction`: форму мы
+                  уже отправляли (дубли пришли с сервера), повторная браузерная
+                  валидация ничего не добавляет, зато поведение становится
+                  проверяемым тестом — jsdom не умеет запускать `formAction`. */}
               <Button
-                type="submit"
+                type="button"
                 variant="secondary"
                 disabled={busy}
                 data-testid="add-student-force"
-                formAction={(fd) => {
-                  void submit(fd, true);
+                onClick={() => {
+                  const form = formRef.current;
+                  /* v8 ignore next -- кнопка живёт внутри этой же формы */
+                  if (!form) return;
+                  void submit(new FormData(form), true);
                 }}
               >
                 Всё равно добавить

@@ -1,7 +1,8 @@
 import React from 'react';
 import Link from 'next/link';
 import type { EnrollmentDetail } from '@/lib/services/enrollments/detail';
-import { fmtDate } from '@/lib/format';
+import { groupItemsByDirection } from '@/lib/services/enrollments/grouping';
+import { fmtDate, pluralizeRu } from '@/lib/format';
 import { EnrollmentStatusBadge } from './enrollment-status-badge';
 import { EnrollmentStatusRibbon } from './enrollment-status-ribbon';
 import { CertificateDownloadButton } from './certificate-download-button';
@@ -27,9 +28,18 @@ export function EnrollmentDetailView({
           ← Все заявки на обучение
         </Link>
         <div className="flex flex-wrap items-center gap-3 mt-2">
-          <h1 className="text-2xl font-semibold text-[#111111]">Заявка: {detail.directionName}</h1>
+          {/* У-43: в заявке может быть несколько обучений — в заголовок лезет
+              только их количество, сами названия перечислены строкой ниже. */}
+          <h1 className="text-2xl font-semibold text-[#111111]">
+            {detail.directionNames.length > 1
+              ? `Заявка: ${detail.directionNames.length} ${pluralizeRu(detail.directionNames.length, 'обучение', 'обучения', 'обучений')}`
+              : `Заявка: ${detail.directionName}`}
+          </h1>
           <EnrollmentStatusBadge status={detail.status} />
         </div>
+        {detail.directionNames.length > 1 && (
+          <p className="text-sm text-gray-600 mt-1">{detail.directionNames.join(' · ')}</p>
+        )}
         <p className="text-xs text-gray-500 mt-1">
           Подана {fmtDate(detail.createdAt)} ({detail.submittedByName})
           {detail.organizationName && <> · организация {detail.organizationName}</>}
@@ -47,23 +57,39 @@ export function EnrollmentDetailView({
 
       <section className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
         <h2 className="font-semibold text-[#111111]">Слушатели ({detail.items.length})</h2>
-        <ul className="divide-y divide-gray-50 border border-gray-100 rounded-lg">
-          {detail.items.map((item, i) => (
-            <li key={item.id} className="px-3 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-              <span className="text-sm font-medium text-[#111111]">
-                {i + 1}. {item.fullName}
+        {/* У-43: позиции сгруппированы по обучению — в одной заявке их может
+            быть несколько, и списком вперемешку непонятно, кто куда идёт. */}
+        {groupItemsByDirection(detail.items).map((group) => (
+          <div key={group.title} className="space-y-1.5">
+            <h3 className="text-sm font-medium text-gray-700">
+              {group.title}{' '}
+              <span className="text-xs font-normal text-gray-500">
+                ({group.items.length}{' '}
+                {pluralizeRu(group.items.length, 'слушатель', 'слушателя', 'слушателей')})
               </span>
-              <span className="text-xs text-gray-500">{item.email}</span>
-              {item.position && <span className="text-xs text-gray-500">{item.position}</span>}
-              <span className="ml-auto flex items-center gap-3">
-                {item.certificateDocumentId && (
-                  <CertificateDownloadButton documentId={item.certificateDocumentId} />
-                )}
-                <EnrollmentStatusBadge status={item.status} />
-              </span>
-            </li>
-          ))}
-        </ul>
+            </h3>
+            <ul className="divide-y divide-gray-50 border border-gray-100 rounded-lg">
+              {group.items.map((item, i) => (
+                <li
+                  key={item.id}
+                  className="px-3 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1"
+                >
+                  <span className="text-sm font-medium text-[#111111]">
+                    {i + 1}. {item.fullName}
+                  </span>
+                  <span className="text-xs text-gray-500">{item.email}</span>
+                  {item.position && <span className="text-xs text-gray-500">{item.position}</span>}
+                  <span className="ml-auto flex items-center gap-3">
+                    {item.certificateDocumentId && (
+                      <CertificateDownloadButton documentId={item.certificateDocumentId} />
+                    )}
+                    <EnrollmentStatusBadge status={item.status} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
         {detail.status === 'certificates_ready' &&
           detail.items.every((i) => !i.certificateDocumentId) && (
             <p className="text-xs text-gray-500">

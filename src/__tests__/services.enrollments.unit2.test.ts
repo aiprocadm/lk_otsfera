@@ -102,6 +102,69 @@ describe('submitEnrollmentRequest — additional branches', () => {
     expect(res).toEqual({ ok: false, error: 'forbidden' });
   });
 
+  it('У-33: направление ПОЗИЦИИ тоже сверяется со справочником — чужой id даёт validation, а не 500', async () => {
+    // Направление шапки валидно, а у позиции — выдуманное: без проверки такой
+    // id дошёл бы до внешнего ключа и упал бы 500-й ошибкой.
+    const findMany = vi.fn().mockResolvedValue([]);
+    const d = db({
+      trainingDirection: { findFirst: vi.fn().mockResolvedValue({ id: 'd1' }), findMany },
+    });
+    const res = await submitEnrollmentRequest(d, sess({ role: 'admin' }), {
+      directionId: 'd1',
+      items: [{ ...ITEMS[0]!, directionId: 'd-чужой' }],
+    });
+    expect(res).toEqual({
+      ok: false,
+      error: 'validation',
+      messages: ['Направление слушателя не найдено или неактивно'],
+    });
+    expect(findMany).toHaveBeenCalledWith({
+      where: { id: { in: ['d-чужой'] }, isActive: true },
+      select: { id: true },
+    });
+    expect((d as { $transaction: ReturnType<typeof vi.fn> }).$transaction).not.toHaveBeenCalled();
+  });
+
+  it('У-33: направление позиции, совпавшее с шапочным, второй раз не запрашивается', async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const d = db({
+      trainingDirection: { findFirst: vi.fn().mockResolvedValue({ id: 'd1' }), findMany },
+    });
+    const res = await submitEnrollmentRequest(d, sess({ role: 'admin' }), {
+      directionId: 'd1',
+      items: [{ ...ITEMS[0]!, directionId: 'd1' }],
+    });
+    expect(res.ok).toBe(true);
+    expect(findMany).not.toHaveBeenCalled();
+  });
+
+  it('У-33: валидное направление позиции доезжает до записи позиции', async () => {
+    const createMany = vi.fn().mockResolvedValue({ count: 2 });
+    const d = db({
+      trainingDirection: {
+        findFirst: vi.fn().mockResolvedValue({ id: 'd1' }),
+        findMany: vi.fn().mockResolvedValue([{ id: 'd2' }]),
+      },
+      $transaction: vi.fn().mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
+        fn({
+          enrollmentRequest: { create: vi.fn().mockResolvedValue({ id: 'E1' }) },
+          enrollmentRequestItem: { createMany },
+        })
+      ),
+    });
+    const res = await submitEnrollmentRequest(d, sess({ role: 'admin' }), {
+      directionId: 'd1',
+      items: [
+        { fullName: 'Иван', email: 'i@x.ru', directionId: 'd2' },
+        // Позиция без своего направления берёт направление шапки (до У-36).
+        { fullName: 'Пётр', email: 'p@x.ru' },
+      ],
+    });
+    expect(res.ok).toBe(true);
+    const written = createMany.mock.calls[0]![0].data as Array<{ directionId: string }>;
+    expect(written.map((i) => i.directionId)).toEqual(['d2', 'd1']);
+  });
+
   it('happy path → ok:true with request.id and recordAudit called', async () => {
     const res = await submitEnrollmentRequest(db(), sess({ role: 'admin' }), {
       directionId: 'd1',

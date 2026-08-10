@@ -18,13 +18,20 @@ const { parseEnrollmentImportAction } = vi.hoisted(() => ({
 }));
 vi.mock('@/server-actions/enrollment-import', () => ({ parseEnrollmentImportAction }));
 
+const { createStudentAction } = vi.hoisted(() => ({ createStudentAction: vi.fn() }));
+vi.mock('@/server-actions/students', () => ({ createStudentAction }));
+
 import { EnrollmentWizard } from '@/components/enrollment/enrollment-wizard';
 
-const DIRECTIONS = [{ id: 'd1', name: 'Охрана труда' }];
+const DIRECTIONS = [
+  { id: 'd1', name: 'Охрана труда' },
+  { id: 'd2', name: 'Работы на высоте' },
+];
 
 function importedItem(overrides: Record<string, unknown> = {}) {
   return {
     studentId: null,
+    directionId: null,
     fullName: 'Мария Кузнецова',
     email: 'maria@example.com',
     position: null,
@@ -35,11 +42,9 @@ function importedItem(overrides: Record<string, unknown> = {}) {
   };
 }
 
-/** Шаг 1 → шаг 2 (как в базовом wizard-тесте): направление + «Далее». */
+/** Шаг 1 → шаг 2. Направления на первом шаге больше нет (`У-37`). */
 function goToStep2() {
   render(React.createElement(EnrollmentWizard, { directions: DIRECTIONS }));
-  const select = screen.getAllByRole('combobox')[0] as HTMLSelectElement;
-  fireEvent.change(select, { target: { value: 'd1' } });
   fireEvent.click(screen.getByRole('button', { name: 'Далее: слушатели' }));
   expect(screen.getByText(/Шаг 2 из 3/)).toBeTruthy();
 }
@@ -87,8 +92,8 @@ describe('EnrollmentWizard — импорт из Excel (шаг 2)', () => {
     goToStep2();
     const file = uploadFile();
 
-    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Импортировано слушателей: 2'));
-    expect(screen.getByText('Слушатели в заявке: 2')).toBeTruthy();
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Импортировано строк: 2'));
+    expect(screen.getByText('Строк в заявке: 2')).toBeTruthy();
     expect(screen.getByDisplayValue('Мария Кузнецова')).toBeTruthy();
     expect(screen.getByDisplayValue('oleg@example.com')).toBeTruthy();
     expect(screen.getByDisplayValue('инженер')).toBeTruthy();
@@ -98,6 +103,21 @@ describe('EnrollmentWizard — импорт из Excel (шаг 2)', () => {
     // Ни ошибок, ни предупреждений не показано
     expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('У-41: направление из файла подставляется в строку', async () => {
+    parseEnrollmentImportAction.mockResolvedValue({
+      ok: true,
+      items: [importedItem({ directionId: 'd2' })],
+      errors: [],
+      warnings: [],
+    });
+    goToStep2();
+    uploadFile();
+
+    await waitFor(() => expect(screen.getByDisplayValue('Мария Кузнецова')).toBeTruthy());
+    const rowSelect = screen.getByLabelText('Обучение для строки 1') as HTMLSelectElement;
+    expect(rowSelect.value).toBe('d2');
   });
 
   it('импортированная дата рождения приводится к формату поля даты', async () => {
@@ -135,7 +155,7 @@ describe('EnrollmentWizard — импорт из Excel (шаг 2)', () => {
 
     const alert = await screen.findByRole('alert');
     expect(alert.textContent).toContain('не найдены колонки «ФИО» и «Email»');
-    expect(screen.getByText('Слушатели в заявке: 0')).toBeTruthy();
+    expect(screen.getByText('Строк в заявке: 0')).toBeTruthy();
     expect(toastSuccess).not.toHaveBeenCalled();
   });
 
@@ -149,38 +169,46 @@ describe('EnrollmentWizard — импорт из Excel (шаг 2)', () => {
     goToStep2();
     uploadFile();
 
-    await waitFor(() => expect(screen.getByText('Слушатели в заявке: 1')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Строк в заявке: 1')).toBeTruthy());
     expect(screen.getByRole('alert').textContent).toContain('Строка 3: некорректный email');
     expect(screen.getByRole('status').textContent).toContain(
       'Строка 4: дубликат внутри файла — пропущена'
     );
-    expect(toastSuccess).toHaveBeenCalledWith('Импортировано слушателей: 1');
+    expect(toastSuccess).toHaveBeenCalledWith('Импортировано строк: 1');
   });
 
-  it('дубликат против уже набранной строки: предупреждение «уже в заявке», строка не добавлена', async () => {
+  it('У-35: тот же человек с ТЕМ ЖЕ обучением — пропуск, с другим — добавляется', async () => {
     parseEnrollmentImportAction.mockResolvedValue({
       ok: true,
-      items: [importedItem({ fullName: 'Мария Дубль', email: 'maria@example.com' })],
+      items: [
+        importedItem({ fullName: 'Мария Дубль', email: 'maria@example.com', directionId: 'd1' }),
+        importedItem({
+          fullName: 'Мария Кузнецова',
+          email: 'maria@example.com',
+          directionId: 'd2',
+        }),
+      ],
       errors: [],
       warnings: [],
     });
     goToStep2();
-    // Набираем строку вручную с тем же email
-    fireEvent.click(screen.getByRole('button', { name: '+ Добавить слушателя' }));
+    // Набираем строку вручную: тот же email и то же обучение d1.
+    fireEvent.click(screen.getByRole('button', { name: '+ Добавить слушателя вручную' }));
     fireEvent.change(screen.getByPlaceholderText('Email *'), {
       target: { value: 'maria@example.com' },
     });
-    expect(screen.getByText('Слушатели в заявке: 1')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Обучение для строки 1'), { target: { value: 'd1' } });
+    expect(screen.getByText('Строк в заявке: 1')).toBeTruthy();
 
     uploadFile();
 
     const status = await screen.findByRole('status');
     expect(status.textContent).toContain(
-      'Мария Дубль (maria@example.com): уже в заявке — пропущен'
+      'Мария Дубль (maria@example.com): это обучение уже в заявке — пропущен'
     );
-    // Строка-дубликат не добавилась, toast.success не показан
-    expect(screen.getByText('Слушатели в заявке: 1')).toBeTruthy();
-    expect(toastSuccess).not.toHaveBeenCalled();
+    // Первая строка — повтор пары, вторая (другое обучение) добавилась.
+    expect(screen.getByText('Строк в заявке: 2')).toBeTruthy();
+    expect(toastSuccess).toHaveBeenCalledWith('Импортировано строк: 1');
   });
 
   it('исключение в action → «Не удалось обработать файл…» в role=alert', async () => {
@@ -190,6 +218,6 @@ describe('EnrollmentWizard — импорт из Excel (шаг 2)', () => {
 
     const alert = await screen.findByRole('alert');
     expect(alert.textContent).toContain('Не удалось обработать файл — попробуйте ещё раз');
-    expect(screen.getByText('Слушатели в заявке: 0')).toBeTruthy();
+    expect(screen.getByText('Строк в заявке: 0')).toBeTruthy();
   });
 });

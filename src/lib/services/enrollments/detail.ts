@@ -2,7 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { canReadDocument } from '@/lib/auth/policy';
 import { recordPiiAccess } from '@/lib/pii/record';
-import { scopeWhere, type EnrollmentItemRow } from './list';
+import { itemDirectionNames, scopeWhere, type EnrollmentItemRow } from './list';
 
 export type EnrollmentDetailItem = EnrollmentItemRow & {
   /** Документ удостоверения по направлению заявки — только если податель вправе его скачать. */
@@ -12,6 +12,8 @@ export type EnrollmentDetailItem = EnrollmentItemRow & {
 export type EnrollmentDetail = {
   id: string;
   directionName: string;
+  /** `У-43`: направления позиций — их может быть несколько в одной заявке. */
+  directionNames: string[];
   status: EnrollmentItemRow['status'];
   organizationName: string | null;
   partnerName: string | null;
@@ -61,35 +63,43 @@ export async function getEnrollmentRequest(
           extra: true,
           status: true,
           externalStudentId: true,
+          directionId: true,
+          direction: { select: { name: true } },
         },
       },
     },
   });
   if (!r) return { ok: false, error: 'not_found' };
 
-  // Удостоверения: по (studentId, направление заявки), свежайшее с документом.
-  const certByStudent = new Map<string, string>();
-  const readyStudentIds = r.directionId
-    ? r.items
-        .filter((i) => i.status === 'certificates_ready' && i.studentId)
-        .map((i) => i.studentId as string)
-    : [];
-  if (readyStudentIds.length) {
+  /**
+   * Удостоверение ищется по паре «слушатель + направление ЭТОЙ позиции»
+   * (`У-33`): в одной заявке направлений теперь может быть несколько, и по
+   * шапке человек с высотных работ получил бы чужую корочку. Направление
+   * шапки остаётся резервом для старых заявок (до `У-36`).
+   */
+  const certKey = (studentId: string, directionId: string) => `${studentId}|${directionId}`;
+  const certByKey = new Map<string, string>();
+  const ready = r.items
+    .filter((i) => i.status === 'certificates_ready' && i.studentId)
+    .map((i) => ({ studentId: i.studentId as string, directionId: i.directionId ?? r.directionId }))
+    .filter((p): p is { studentId: string; directionId: string } => !!p.directionId);
+  if (ready.length) {
     const certs = await prisma.certificate.findMany({
       where: {
-        studentId: { in: readyStudentIds },
-        directionId: r.directionId!,
+        studentId: { in: [...new Set(ready.map((p) => p.studentId))] },
+        directionId: { in: [...new Set(ready.map((p) => p.directionId))] },
         documentId: { not: null },
       },
       orderBy: { issuedAt: 'desc' },
-      select: { studentId: true, documentId: true },
+      select: { studentId: true, directionId: true, documentId: true },
     });
     for (const c of certs) {
-      if (!certByStudent.has(c.studentId)) certByStudent.set(c.studentId, c.documentId!);
+      const key = certKey(c.studentId, c.directionId);
+      if (!certByKey.has(key)) certByKey.set(key, c.documentId!);
     }
     // Право на документ проверяем один раз на уникальный documentId.
     const docs = await prisma.document.findMany({
-      where: { id: { in: Array.from(new Set(certByStudent.values())) } },
+      where: { id: { in: Array.from(new Set(certByKey.values())) } },
       select: {
         id: true,
         orderId: true,
@@ -111,8 +121,8 @@ export async function getEnrollmentRequest(
         })
       );
     }
-    for (const [studentId, docId] of certByStudent) {
-      if (!allowed.get(docId)) certByStudent.delete(studentId);
+    for (const [key, docId] of certByKey) {
+      if (!allowed.get(docId)) certByKey.delete(key);
     }
   }
 
@@ -122,11 +132,22 @@ export async function getEnrollmentRequest(
     subjectIds: [r.id],
   });
 
+  const items = r.items.map(({ direction, directionId, ...i }) => {
+    const dirId = directionId ?? r.directionId;
+    return {
+      ...i,
+      directionName: direction?.name ?? null,
+      certificateDocumentId:
+        i.studentId && dirId ? (certByKey.get(certKey(i.studentId, dirId)) ?? null) : null,
+    };
+  });
+
   return {
     ok: true,
     request: {
       id: r.id,
       directionName: r.direction?.name ?? r.legacyCourseTitle ?? '—',
+      directionNames: itemDirectionNames(items),
       status: r.status,
       organizationName: r.organization?.name ?? null,
       partnerName: r.partner?.name ?? null,
@@ -137,10 +158,7 @@ export async function getEnrollmentRequest(
       createdAt: r.createdAt,
       reviewedAt: r.reviewedAt,
       provisionedAt: r.provisionedAt,
-      items: r.items.map((i) => ({
-        ...i,
-        certificateDocumentId: i.studentId ? (certByStudent.get(i.studentId) ?? null) : null,
-      })),
+      items,
     },
   };
 }

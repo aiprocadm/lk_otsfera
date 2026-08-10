@@ -18,6 +18,9 @@ function readItem(raw: unknown) {
   const str = (v: unknown) => (typeof v === 'string' ? v : null);
   return {
     studentId: str(rec.studentId),
+    // У-33: направление у каждой позиции — мастер шлёт своё на каждого
+    // слушателя; проверяет его сервис, роут только пробрасывает.
+    directionId: str(rec.directionId),
     fullName: str(rec.fullName),
     email: str(rec.email),
     position: str(rec.position),

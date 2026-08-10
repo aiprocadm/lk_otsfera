@@ -22,6 +22,10 @@ const item = (over: Record<string, unknown> = {}) => ({
   extra: null,
   status: 'certificates_ready',
   externalStudentId: null,
+  // У-33: у позиции своё направление. null = старая заявка, где оно только на
+  // шапке (до У-36) — тогда сервис берёт шапочное.
+  directionId: null,
+  direction: null,
   ...over,
 });
 
@@ -94,21 +98,56 @@ describe('getEnrollmentRequest (деталка заявки, ФТ-2.3)', () => {
     expect(r.request.items[0]!.certificateDocumentId).toBeNull();
   });
 
+  it('У-33: удостоверение подбирается по направлению ПОЗИЦИИ, а не по шапке заявки', async () => {
+    // Один и тот же человек в заявке дважды — на два разных обучения. По шапке
+    // обе позиции получили бы одну и ту же корочку; правильно — каждая свою.
+    const { d, certFindMany } = db(
+      reqRow({
+        items: [
+          item({ id: 'i1', studentId: 'st1', directionId: 'd1', direction: { name: 'Высота' } }),
+          item({ id: 'i2', studentId: 'st1', directionId: 'd2', direction: { name: 'Электро' } }),
+        ],
+      }),
+      [
+        { studentId: 'st1', directionId: 'd1', documentId: 'docВысота' },
+        { studentId: 'st1', directionId: 'd2', documentId: 'docЭлектро' },
+      ],
+      [
+        { ...DOC, id: 'docВысота' },
+        { ...DOC, id: 'docЭлектро' },
+      ]
+    );
+    const r = await getEnrollmentRequest(d, s(), 'E1');
+    if (!r.ok) throw new Error('expected ok');
+
+    expect(certFindMany.mock.calls[0]![0].where).toMatchObject({
+      studentId: { in: ['st1'] },
+      directionId: { in: ['d1', 'd2'] },
+    });
+    expect(r.request.items[0]!.certificateDocumentId).toBe('docВысота');
+    expect(r.request.items[1]!.certificateDocumentId).toBe('docЭлектро');
+    // У-43: имя направления позиции доезжает до экрана.
+    expect(r.request.items.map((i) => i.directionName)).toEqual(['Высота', 'Электро']);
+    expect(r.request.directionNames).toEqual(['Высота', 'Электро']);
+  });
+
   it('certificates_ready + Certificate с документом → certificateDocumentId; свежайший сертификат побеждает', async () => {
     const { d, certFindMany } = db(
       reqRow(),
       [
-        { studentId: 'st1', documentId: 'doc1' },
-        { studentId: 'st1', documentId: 'docOld' },
+        { studentId: 'st1', directionId: 'd1', documentId: 'doc1' },
+        { studentId: 'st1', directionId: 'd1', documentId: 'docOld' },
       ],
       [DOC]
     );
     const r = await getEnrollmentRequest(d, s(), 'E1');
     if (!r.ok) throw new Error('expected ok');
+    // У-33: сертификат ищется по паре «слушатель + направление ПОЗИЦИИ»
+    // (у позиции его нет → берётся направление шапки).
     expect(certFindMany).toHaveBeenCalledWith({
-      where: { studentId: { in: ['st1'] }, directionId: 'd1', documentId: { not: null } },
+      where: { studentId: { in: ['st1'] }, directionId: { in: ['d1'] }, documentId: { not: null } },
       orderBy: { issuedAt: 'desc' },
-      select: { studentId: true, documentId: true },
+      select: { studentId: true, directionId: true, documentId: true },
     });
     expect(canReadDocument).toHaveBeenCalledWith(
       s(),

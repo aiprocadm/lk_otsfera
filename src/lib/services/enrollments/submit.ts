@@ -54,6 +54,26 @@ export async function submitEnrollmentRequest(
   const validated = validateEnrollmentItems(input.items ?? []);
   if (!validated.ok) return { ok: false, error: 'validation', messages: validated.errors };
 
+  // `У-33`: направление каждой позиции тоже обязано быть из справочника.
+  // Без этой проверки чужой id из тела запроса дошёл бы до внешнего ключа и
+  // упал бы 500-й ошибкой вместо понятного сообщения (§3).
+  const itemDirectionIds = [
+    ...new Set(validated.items.map((i) => i.directionId).filter((id): id is string => !!id)),
+  ].filter((id) => id !== directionId);
+  if (itemDirectionIds.length) {
+    const found = await prisma.trainingDirection.findMany({
+      where: { id: { in: itemDirectionIds }, isActive: true },
+      select: { id: true },
+    });
+    if (found.length !== itemDirectionIds.length) {
+      return {
+        ok: false,
+        error: 'validation',
+        messages: ['Направление слушателя не найдено или неактивно'],
+      };
+    }
+  }
+
   let organizationId = input.organizationId?.trim() || null;
   let partnerId: string | null = null;
 
