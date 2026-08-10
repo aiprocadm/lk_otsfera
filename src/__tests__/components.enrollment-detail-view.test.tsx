@@ -16,6 +16,7 @@ function item(overrides: Partial<EnrollmentDetailItem> = {}): EnrollmentDetailIt
     extra: null,
     status: 'pending',
     externalStudentId: null,
+    directionName: null,
     certificateDocumentId: null,
     ...overrides,
   };
@@ -25,6 +26,7 @@ function detail(overrides: Partial<EnrollmentDetail> = {}): EnrollmentDetail {
   return {
     id: 'e1',
     directionName: 'Охрана труда',
+    directionNames: [],
     status: 'pending',
     organizationName: null,
     partnerName: null,
@@ -74,6 +76,46 @@ describe('EnrollmentDetailView — шапка', () => {
     expect(html).toContain('Заявка отклонена: Неполные данные');
     expect(html).not.toContain('aria-label="Статус заявки"');
     expect(html).not.toContain('Статусы обновляет менеджер');
+  });
+});
+
+describe('EnrollmentDetailView — несколько обучений в одной заявке (У-43)', () => {
+  it('заголовок считает обучения, названия перечислены строкой ниже', () => {
+    const html = renderView(
+      detail({
+        directionNames: ['Охрана труда', 'Работы на высоте'],
+        items: [
+          item({ id: 'i1', directionName: 'Охрана труда' }),
+          item({ id: 'i2', fullName: 'Пётр Сидоров', directionName: 'Работы на высоте' }),
+        ],
+      })
+    );
+    expect(html).toContain('Заявка: 2 обучения');
+    expect(html).toContain('Охрана труда · Работы на высоте');
+  });
+
+  it('позиции разложены по группам, у каждой — свой счётчик слушателей', () => {
+    const html = renderView(
+      detail({
+        directionNames: ['Охрана труда', 'Работы на высоте'],
+        items: [
+          item({ id: 'i1', directionName: 'Охрана труда' }),
+          item({ id: 'i2', fullName: 'Пётр Сидоров', directionName: 'Работы на высоте' }),
+          item({ id: 'i3', fullName: 'Анна Кот', directionName: 'Охрана труда' }),
+        ],
+      })
+    );
+    expect(html).toContain('(2 слушателя)');
+    expect(html).toContain('(1 слушатель)');
+    // Нумерация внутри группы своя: третья позиция — вторая в своей группе.
+    expect(html).toContain('2. Анна Кот');
+  });
+
+  it('старая заявка без направления у позиций — понятная группа-заглушка', () => {
+    const html = renderView(detail());
+    expect(html).toContain('Направление не указано');
+    // Заголовок при одном направлении остаётся прежним.
+    expect(html).toContain('Заявка: Охрана труда');
   });
 });
 

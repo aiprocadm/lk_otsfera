@@ -27,6 +27,7 @@ function item(overrides: Partial<EnrollmentItemRow> = {}): EnrollmentItemRow {
     extra: null,
     status: 'pending',
     externalStudentId: null,
+    directionName: null,
     ...overrides,
   };
 }
@@ -35,6 +36,7 @@ function row(overrides: Partial<EnrollmentRow> = {}): EnrollmentRow {
   return {
     id: 'e1',
     directionName: 'Охрана труда',
+    directionNames: [],
     studentCount: 1,
     firstStudentName: 'Иван Петров',
     items: [item()],
@@ -135,6 +137,38 @@ describe('EnrollmentQueue', () => {
 
     fireEvent.click(screen.getByText('Свернуть'));
     expect(screen.queryByText('ivan@example.com')).toBeNull();
+  });
+
+  it('У-43: колонка перечисляет все обучения заявки, раскрытие группирует позиции', () => {
+    render(
+      React.createElement(EnrollmentQueue, {
+        rows: [
+          row({
+            directionNames: ['Охрана труда', 'Работы на высоте'],
+            studentCount: 2,
+            items: [
+              item({ id: 'i1', directionName: 'Охрана труда' }),
+              item({ id: 'i2', fullName: 'Пётр Сидоров', directionName: 'Работы на высоте' }),
+            ],
+          }),
+        ],
+      })
+    );
+    // В колонке «Направление» — оба обучения, а не одно с шапки.
+    expect(screen.getByText('Охрана труда')).toBeTruthy();
+    expect(screen.getByText('Работы на высоте')).toBeTruthy();
+
+    fireEvent.click(screen.getByText(/показать/));
+    // Внутри каждой группы нумерация своя — оба слушателя под номером 1.
+    expect(screen.getByText('1. Иван Петров')).toBeTruthy();
+    expect(screen.getByText('1. Пётр Сидоров')).toBeTruthy();
+  });
+
+  it('У-43: старая заявка без направлений у позиций — заголовок шапки и группа-заглушка', () => {
+    render(React.createElement(EnrollmentQueue, { rows: [row()] }));
+    expect(screen.getByText('Охрана труда')).toBeTruthy();
+    fireEvent.click(screen.getByText(/показать/));
+    expect(screen.getByText('Направление не указано')).toBeTruthy();
   });
 
   it('счётчик «и ещё N» для многопозиционной заявки', () => {
