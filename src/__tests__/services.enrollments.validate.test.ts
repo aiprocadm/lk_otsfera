@@ -104,6 +104,7 @@ describe('validateEnrollmentItems', () => {
     if (!r.ok) throw new Error('expected ok');
     expect(r.items[0]).toEqual({
       studentId: null,
+      directionId: null,
       fullName: 'Иван Иванов',
       email: 'i@x.ru',
       position: null,
@@ -124,6 +125,23 @@ describe('validateEnrollmentItems', () => {
     if (!r.ok) throw new Error('expected ok');
     expect(r.items).toHaveLength(2);
     expect(r.warnings).toHaveLength(2);
+    expect(r.warnings[0]).toContain('дубликат');
+  });
+
+  it('У-35: один человек на два РАЗНЫХ направления — две позиции, не дубликат', () => {
+    const r = validateEnrollmentItems([
+      { fullName: 'Иван', email: 'i@x.ru', directionId: 'd1' },
+      { fullName: 'Иван', email: 'I@X.RU', directionId: 'd2' },
+      { fullName: 'Иван', email: 'i@x.ru', directionId: ' d1 ' },
+      { studentId: 'st1', directionId: 'd1' },
+      { studentId: 'st1' },
+    ]);
+    if (!r.ok) throw new Error('expected ok');
+
+    expect(r.items.map((i) => i.directionId)).toEqual(['d1', 'd2', 'd1', null]);
+    // Повторами считаются только третья строка (тот же человек и то же
+    // направление) — «без направления» и «с направлением» это разные позиции.
+    expect(r.warnings).toHaveLength(1);
     expect(r.warnings[0]).toContain('дубликат');
   });
 
