@@ -31,6 +31,32 @@ describe('parseAmount', () => {
   it('returns null when empty', () => {
     expect(parseAmount('')).toBeNull();
   });
+
+  // Жалоба 10.08.2026: живая выгрузка 1С пишет деньги по-английски —
+  // «14,800.00». Прежний парс менял первую запятую на точку («14.800.00») и
+  // получал NaN, поэтому ВСЕ платежи файла падали с «не найдена сумма».
+  it('английский формат: запятая — тысячи, точка — дробь', () => {
+    expect(parseAmount('14,800.00')).toBe(14800);
+    expect(parseAmount('1,234,567.89')).toBe(1234567.89);
+    expect(parseAmount('444.00')).toBe(444);
+  });
+
+  it('европейский формат: точка — тысячи, запятая — дробь', () => {
+    expect(parseAmount('1.200,50')).toBe(1200.5);
+    expect(parseAmount('1.234.567,89')).toBe(1234567.89);
+  });
+
+  it('единственный разделитель с тремя цифрами в хвосте — это тысячи', () => {
+    expect(parseAmount('14,800')).toBe(14800);
+    expect(parseAmount('14 800')).toBe(14800);
+    // А два знака после — уже дробная часть.
+    expect(parseAmount('14,80')).toBe(14.8);
+  });
+
+  it('мусор остаётся null', () => {
+    expect(parseAmount('—')).toBeNull();
+    expect(parseAmount(null)).toBeNull();
+  });
 });
 
 describe('extractDocNumber', () => {

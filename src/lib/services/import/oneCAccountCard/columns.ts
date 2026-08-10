@@ -1,30 +1,54 @@
 /**
  * Поиск колонок карточки счёта 51 **по заголовкам** (`У-56`).
  *
- * Раньше индексы были прибиты гвоздями (`COL`), и файл из другой конфигурации
- * 1С разбирался в мусор: колонка «Дебет» уезжала на соседнюю позицию, суммы и
- * даты не находились, и весь файл превращался в «ошибки разбора».
+ * Раньше индексы были прибиты гвоздями, и файл из другой конфигурации 1С
+ * разбирался в мусор. Жёсткие индексы остались **запасным вариантом** — если
+ * заголовки не распознаны, поведение ровно прежнее (это тоже требование `У-56`).
  *
- * Жёсткие индексы остались **запасным вариантом** — если заголовки не
- * распознаны, поведение ровно прежнее (это тоже требование `У-56`).
+ * Главная тонкость живой выгрузки (проверено на реальном файле 10.08.2026):
+ * шапка занимает ДВЕ строки, а под «Дебет» и «Кредит» есть подколонка «Счет»:
+ *
+ * ```
+ * Период | Документ | Аналитика Дт | Аналитика Кт | Дебет |   |   | Кредит |   |
+ *        |          |              |              | Счет  |   |   | Счет   |   |
+ * ```
+ *
+ * То есть в колонке «Дебет» лежит НЕ сумма, а счёт (51), сумма — в следующей.
+ * Из этой же пары берётся корр-счёт: у поступления это «Счет Кт», у списания —
+ * «Счет Дт» (второй в паре всегда 51 — сам расчётный счёт).
  */
-type CardColumns = {
+export type CardColumns = {
   date: number;
   document: number;
+  analyticsDt: number;
   analyticsCr: number;
-  debit: number;
-  corr: number;
-  credit: number;
+  /** Колонка «Счет» под «Дебет» (может отсутствовать). */
+  debitAccount: number | null;
+  debitAmount: number;
+  /**
+   * Колонка «Счет» под «Кредит». Если её нет, остаётся прежний индекс: это
+   * последний рубеж, откуда парсер берёт корр-счёт, поэтому не `null`.
+   */
+  creditAccount: number;
+  creditAmount: number;
+  /**
+   * Отдельная колонка «Корр. счет», если она есть в выгрузке. Тогда корр-счёт
+   * берётся из неё в обе стороны, а пара «Счет Дт / Счет Кт» не нужна.
+   */
+  corrAccount: number | null;
 };
 
 /** Прежние жёсткие индексы — запасной вариант (наружу не нужны, knip следит). */
 const FALLBACK_COLUMNS: CardColumns = {
   date: 0,
   document: 1,
+  analyticsDt: 2,
   analyticsCr: 3,
-  debit: 5,
-  corr: 7,
-  credit: 8,
+  debitAccount: null,
+  debitAmount: 5,
+  creditAccount: 7,
+  creditAmount: 8,
+  corrAccount: null,
 };
 
 export type ColumnDetection = {
@@ -46,82 +70,78 @@ function norm(s: string | undefined): string {
     .toLowerCase();
 }
 
-/**
- * Заголовки, по которым узнаём колонку. Проверяются в порядке объявления, так
- * что более точные («аналитика кт») стоят раньше общих.
- */
-const HEADER_PATTERNS: Array<{ field: keyof CardColumns; re: RegExp }> = [
-  { field: 'date', re: /^(период|дата)$/ },
-  { field: 'document', re: /^документ$/ },
-  { field: 'analyticsCr', re: /^аналитика кт/ },
-  { field: 'corr', re: /^(корр\.? ?сч[ет]+|счет кт|счет дт|кор\.? ?счет)$/ },
-  { field: 'debit', re: /^дебет$/ },
-  { field: 'credit', re: /^кредит$/ },
-];
+const IS_DATE = /^(период|дата)$/;
+const IS_DOCUMENT = /^документ$/;
+const IS_ANALYTICS_DT = /^аналитика дт/;
+const IS_ANALYTICS_CR = /^аналитика кт/;
+const IS_DEBIT = /^дебет$/;
+const IS_CREDIT = /^кредит$/;
+const IS_ACCOUNT = /^(счет|корр\.? ?счет|кор\.? ?счет)$/;
+const IS_CORR = /^(корр\.? ?счет|кор\.? ?счет|счет кт|счет дт)$/;
 
 /**
- * Ищем строку заголовков среди первых `limit` строк листа: это строка, где
- * нашлись минимум «Документ» и одна из сумм. Заголовки 1С часто разъезжаются
- * по двум-трём строкам из-за объединённых ячеек, поэтому подписи собираем
- * с самой строки и со следующей.
+ * Ищем строку заголовков среди первых `limit` строк: там обязаны быть
+ * «Документ» и хотя бы одна из денежных колонок.
  */
 export function detectColumns(sheet: string[][], limit = 20): ColumnDetection {
   const scanTo = Math.min(sheet.length, limit);
 
-  /** Подписи одной строки листа → поля. */
-  function collect(
-    rowIndexes: number[],
-    into: Partial<Record<keyof CardColumns, number>>
-  ): Partial<Record<keyof CardColumns, number>> {
-    for (const r of rowIndexes) {
-      const row = sheet[r];
-      if (!row) continue;
-      row.forEach((raw, i) => {
-        const value = norm(raw);
-        if (!value) return;
-        for (const { field, re } of HEADER_PATTERNS) {
-          // Первое совпадение выигрывает: «Дебет» из шапки важнее, чем то же
-          // слово, встреченное ниже в подписи итогов.
-          if (into[field] === undefined && re.test(value)) into[field] = i;
-        }
-      });
-    }
-    return into;
-  }
-
-  function enough(m: Partial<Record<keyof CardColumns, number>>): boolean {
-    return m.document !== undefined && (m.debit !== undefined || m.credit !== undefined);
-  }
-
-  function result(r: number, matched: Partial<Record<keyof CardColumns, number>>): ColumnDetection {
-    return {
-      columns: {
-        date: matched.date ?? FALLBACK_COLUMNS.date,
-        // `result()` зовётся только после `enough(matched)`, а он требует
-        // найденный «Документ» — поэтому здесь значение заведомо есть.
-        document: matched.document!,
-        analyticsCr: matched.analyticsCr ?? FALLBACK_COLUMNS.analyticsCr,
-        debit: matched.debit ?? FALLBACK_COLUMNS.debit,
-        corr: matched.corr ?? FALLBACK_COLUMNS.corr,
-        credit: matched.credit ?? FALLBACK_COLUMNS.credit,
-      },
-      source: 'headers',
-      headerRow: r,
-      matched,
-    };
-  }
-
-  // Проход 1 — заголовки целиком в одной строке (обычный случай). Идёт первым,
-  // иначе «шапка + следующая строка» находилась бы на строку раньше настоящей.
   for (let r = 0; r < scanTo; r++) {
-    const matched = collect([r], {});
-    if (enough(matched)) return result(r, matched);
-  }
+    const row = sheet[r];
+    if (!row) continue;
+    const below = sheet[r + 1] ?? [];
 
-  // Проход 2 — заголовки разъехались по двум строкам (объединённые ячейки 1С).
-  for (let r = 0; r < scanTo - 1; r++) {
-    const matched = collect([r, r + 1], {});
-    if (enough(matched)) return result(r + 1, matched);
+    const found: Partial<Record<keyof CardColumns, number>> = {};
+    let debitHeader: number | null = null;
+    let creditHeader: number | null = null;
+
+    row.forEach((raw, i) => {
+      const v = norm(raw);
+      if (!v) return;
+      if (found.date === undefined && IS_DATE.test(v)) found.date = i;
+      if (found.document === undefined && IS_DOCUMENT.test(v)) found.document = i;
+      if (found.analyticsDt === undefined && IS_ANALYTICS_DT.test(v)) found.analyticsDt = i;
+      if (found.analyticsCr === undefined && IS_ANALYTICS_CR.test(v)) found.analyticsCr = i;
+      if (found.corrAccount === undefined && IS_CORR.test(v)) found.corrAccount = i;
+      if (debitHeader === null && IS_DEBIT.test(v)) debitHeader = i;
+      if (creditHeader === null && IS_CREDIT.test(v)) creditHeader = i;
+    });
+
+    if (found.document === undefined || (debitHeader === null && creditHeader === null)) continue;
+
+    /** «Счет» под денежным заголовком ⇒ сумма съезжает на колонку правее. */
+    function moneyPair(header: number | null): { account: number | null; amount: number | null } {
+      if (header === null) return { account: null, amount: null };
+      if (IS_ACCOUNT.test(norm(below[header]))) return { account: header, amount: header + 1 };
+      return { account: null, amount: header };
+    }
+
+    const debit = moneyPair(debitHeader);
+    const credit = moneyPair(creditHeader);
+
+    const columns: CardColumns = {
+      date: found.date ?? FALLBACK_COLUMNS.date,
+      // Ниже по коду `document` заведомо найден — иначе мы бы уже вышли выше.
+      document: found.document,
+      analyticsDt: found.analyticsDt ?? FALLBACK_COLUMNS.analyticsDt,
+      analyticsCr: found.analyticsCr ?? FALLBACK_COLUMNS.analyticsCr,
+      debitAccount: debit.account,
+      debitAmount: debit.amount ?? FALLBACK_COLUMNS.debitAmount,
+      creditAccount: credit.account ?? FALLBACK_COLUMNS.creditAccount,
+      creditAmount: credit.amount ?? FALLBACK_COLUMNS.creditAmount,
+      corrAccount: found.corrAccount ?? null,
+    };
+
+    const matched: Partial<Record<keyof CardColumns, number>> = { ...found };
+    if (debit.amount !== null) matched.debitAmount = debit.amount;
+    if (debit.account !== null) matched.debitAccount = debit.account;
+    if (credit.amount !== null) matched.creditAmount = credit.amount;
+    if (credit.account !== null) matched.creditAccount = credit.account;
+
+    // Шапка занимает две строки, если под денежным заголовком стоит «Счет»:
+    // тело начинается под НИЖНЕЙ строкой.
+    const headerRow = debit.account !== null || credit.account !== null ? r + 1 : r;
+    return { columns, source: 'headers', headerRow, matched };
   }
 
   return { columns: FALLBACK_COLUMNS, source: 'fallback', headerRow: null, matched: {} };
