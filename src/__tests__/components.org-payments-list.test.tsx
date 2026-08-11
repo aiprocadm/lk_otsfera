@@ -11,30 +11,6 @@ describe('OrgPaymentsList', () => {
     expect(html).not.toContain('(0)');
   });
 
-  it('показывает назначение платежа и № платёжного поручения из выписки', () => {
-    // Жалоба 11.08.2026: в карточке заказа видно сумму и дату, а за что
-    // платили — нет, хотя назначение приходит вместе с выпиской.
-    const payments: OrgOrderPayment[] = [
-      {
-        id: 'p1',
-        amount: '14800.00',
-        paidAt: new Date('2026-06-01'),
-        method: 'bank',
-        isRefund: false,
-        note: null,
-        purpose: 'ОПЛАТА ПО ДОГОВОРУ 260509-1905 ЗА ОБУЧЕНИЕ. В Т.Ч. НДС (5%) 704-75',
-        paymentOrderNumber: '0000-001471',
-      },
-    ];
-    // SSR вставляет комментарии-разделители между текстом и выражением.
-    const html = renderToString(React.createElement(OrgPaymentsList, { payments })).replace(
-      /<!-- -->/g,
-      ''
-    );
-    expect(html).toContain('ЗА ОБУЧЕНИЕ');
-    expect(html).toContain('п/п № 0000-001471');
-  });
-
   it('renders count badge, method label, and note for a regular payment', () => {
     const payments: OrgOrderPayment[] = [
       {
@@ -44,8 +20,6 @@ describe('OrgPaymentsList', () => {
         method: 'bank',
         isRefund: false,
         note: 'Аванс',
-        purpose: null,
-        paymentOrderNumber: null,
       },
     ];
     const html = renderToString(React.createElement(OrgPaymentsList, { payments }));
@@ -64,8 +38,6 @@ describe('OrgPaymentsList', () => {
         method: 'crypto',
         isRefund: true,
         note: null,
-        purpose: null,
-        paymentOrderNumber: null,
       },
     ];
     const html = renderToString(React.createElement(OrgPaymentsList, { payments }));
@@ -82,8 +54,6 @@ describe('OrgPaymentsList', () => {
         method: null,
         isRefund: false,
         note: null,
-        purpose: null,
-        paymentOrderNumber: null,
       },
     ];
     const html = renderToString(React.createElement(OrgPaymentsList, { payments }));

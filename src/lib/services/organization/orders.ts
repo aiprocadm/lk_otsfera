@@ -148,14 +148,6 @@ export type OrgOrderPayment = {
   method: string | null;
   isRefund: boolean;
   note: string | null;
-  /**
-   * Назначение платежа из банковской выписки. Пришло вместе с импортом
-   * карточки счёта 51, но на карточку заказа не выводилось — человек видел
-   * сумму и дату без единого слова о том, за что платили.
-   */
-  purpose: string | null;
-  /** № платёжного поручения — по нему платёж ищут в банке. */
-  paymentOrderNumber: string | null;
 };
 
 export type OrgOrderDetail = {
@@ -237,8 +229,6 @@ export async function getOrgOrder(
           method: true,
           isRefund: true,
           note: true,
-          purpose: true,
-          paymentOrderNumber: true,
         },
       },
       _count: { select: { comments: true } },
@@ -298,8 +288,6 @@ export async function getOrgOrder(
       method: p.method,
       isRefund: p.isRefund,
       note: p.note,
-      purpose: p.purpose,
-      paymentOrderNumber: p.paymentOrderNumber,
     })),
     commentsCount: order._count.comments,
     items: order.items,
