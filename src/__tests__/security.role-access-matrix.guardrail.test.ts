@@ -81,12 +81,15 @@ describe('матрица доступа: руководитель против �
     });
   });
 
-  it('mayImportOneC (импорт из 1С, Т-25 ТЗ починки импорта): админ и руководитель, обычный менеджер — НЕТ', () => {
+  // Решение заказчика 11.08.2026 ОТМЕНИЛО прежнее правило `Т-25` («только
+  // админ и руководитель»). Менеджер импортирует, но границу держит скоуп:
+  // свои организации и запрет создавать новые (см. importScope и writers).
+  it('mayImportOneC (импорт из 1С): весь штат — админ, руководитель и менеджер; клиенты — нет', () => {
     const actual = Object.fromEntries(ALL_ROLES.map((r) => [r, mayImportOneC(sess(r))]));
     expect(actual).toEqual({
       admin: true,
       leader: true,
-      manager: false,
+      manager: true,
       partner: false,
       organization: false,
       student: false,

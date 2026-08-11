@@ -67,21 +67,20 @@ afterAll(async () => {
 });
 
 describe('этап 7 — роли на живом Postgres', () => {
-  it('обычный менеджер: forbidden от сервиса, запись не появляется', async () => {
+  // Решение заказчика 11.08.2026 отменило прежний запрет (`Т-25`): импорт
+  // доступен и обычному менеджеру. Но его скоуп — только закреплённые
+  // организации, поэтому НОВУЮ организацию он по-прежнему не заводит: это
+  // молча расширило бы его доступ. Проверяем именно это — право есть,
+  // запись не появляется.
+  it('обычный менеджер: импорт проходит, но новую организацию не создаёт (скоуп orgs)', async () => {
     const plain = {
       sub: leaderUserId,
       role: 'manager',
       companyId,
       managedOrgIds: [],
     } as never;
-    expect(await previewImport(prisma, plain, { fileBuffer: book })).toEqual({
-      ok: false,
-      error: 'forbidden',
-    });
-    expect(await commitImport(prisma, plain, { fileBuffer: book })).toEqual({
-      ok: false,
-      error: 'forbidden',
-    });
+    expect(await previewImport(prisma, plain, { fileBuffer: book })).toMatchObject({ ok: true });
+    expect(await commitImport(prisma, plain, { fileBuffer: book })).toMatchObject({ ok: true });
     expect(await prisma.organization.findUnique({ where: { externalId: ORG_KEY } })).toBeNull();
   });
 

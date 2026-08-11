@@ -247,14 +247,15 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
       group: 'Финансы',
     },
     {
-      // Т-25 (этап 7 ТЗ импорта): импорт — только админ и руководитель;
-      // обычный менеджер пункт не видит, страница за ним отбивает /forbidden.
+      // Решение заказчика 11.08.2026: импорт доступен администратору,
+      // руководителю И обычному менеджеру — прежнее ограничение `Т-25`
+      // (только руководитель) отменено. Границу режет не меню, а скоуп:
+      // менеджер работает со своими организациями и не создаёт новые.
       href: '/manager/import',
       label: 'Загрузка из 1С',
       iconKey: 'import',
       flag: 'manager_cabinet',
       group: 'Данные',
-      leaderOnly: true,
     },
     {
       href: '/manager/payments-import',
@@ -262,7 +263,6 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
       iconKey: 'paymentsImport',
       flag: 'manager_cabinet',
       group: 'Финансы',
-      leaderOnly: true,
     },
     {
       href: '/manager/documents',

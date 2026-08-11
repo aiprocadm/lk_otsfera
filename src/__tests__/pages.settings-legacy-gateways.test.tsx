@@ -75,8 +75,6 @@ import LeaderRolesLegacyPage from '@/app/leader/roles/page';
 import AdminSyncLegacyPage from '@/app/admin/sync/page';
 import AdminImportLegacyPage from '@/app/admin/import/page';
 import AdminPaymentsImportLegacyPage from '@/app/admin/payments-import/page';
-import ManagerImportLegacyPage from '@/app/manager/import/page';
-import ManagerPaymentsImportLegacyPage from '@/app/manager/payments-import/page';
 import AdminAuditLegacyPage from '@/app/admin/audit/page';
 import AdminPiiAccessLegacyPage from '@/app/admin/pii-access/page';
 
@@ -143,17 +141,9 @@ describe('шлюзы старых маршрутов настроек', () => {
     expect(container.textContent).toContain('СОДЕРЖИМОЕ:/admin/sync');
   });
 
-  it('/manager/import — руководителя уводит в ЕГО хаб, fallback = leader-страница (Т-25/Т-27)', async () => {
-    const { container } = await renderServerComponent(ManagerImportLegacyPage());
-    expect(redirectToSettingsHub).toHaveBeenCalledWith('/manager/import');
-    expect(container.textContent).toContain('СОДЕРЖИМОЕ:/manager/import');
-  });
-
-  it('/manager/payments-import — руководителя уводит в ЕГО хаб, fallback = leader-страница', async () => {
-    const { container } = await renderServerComponent(ManagerPaymentsImportLegacyPage());
-    expect(redirectToSettingsHub).toHaveBeenCalledWith('/manager/payments-import');
-    expect(container.textContent).toContain('СОДЕРЖИМОЕ:/manager/payments-import');
-  });
+  // Страницы менеджера с 11.08.2026 обслуживают ДВЕ роли, поэтому их поведение
+  // проверяется отдельным набором (pages.manager-import): руководителя уводят
+  // в его хаб, обычный менеджер получает страницу на месте.
 
   it('/admin/import — свой адрес в редиректе и прежняя страница при выключенном хабе', async () => {
     const { container } = await renderServerComponent(AdminImportLegacyPage());

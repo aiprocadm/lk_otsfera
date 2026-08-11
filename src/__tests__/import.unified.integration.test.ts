@@ -335,8 +335,8 @@ describe('Test 2 — API writer (upsertOrderRecord) produces identical domain fi
 });
 
 // ── Test 3: права (Т-25) и скоуп (C8) ────────────────────────────────────────
-describe('Test 3 — обычный менеджер forbidden; руководитель чужой компании скипает out_of_scope', () => {
-  it('commitImport: менеджеру — forbidden; чужому руководителю — skip out_of_scope', async () => {
+describe('Test 3 — права штата и скоуп: чужой руководитель скипает out_of_scope', () => {
+  it('commitImport: менеджер проходит право; чужому руководителю — skip out_of_scope', async () => {
     // Sentinel-компания и организация: дом «чужого» руководителя.
     const otherCompany = await prisma.company.create({ data: { name: `${PREFIX}OtherCompany` } });
     const otherOrg = await prisma.organization.create({
@@ -348,14 +348,17 @@ describe('Test 3 — обычный менеджер forbidden; руководи
     });
 
     try {
-      // Т-25: обычный менеджер отбивается на пороге сервиса — до разбора файла.
+      // Решение заказчика 11.08.2026 отменило `Т-25`: обычный менеджер проходит
+      // порог сервиса, поэтому битый буфер даёт parse_failed, а не forbidden.
+      // Границу его возможностей держит скоуп (свои организации, без создания
+      // новых) — это проверяет соседний блок про out_of_scope.
       const plainManager: SessionPayload = {
         sub: `${PREFIX}manager-user`,
         role: 'manager',
         managedOrgIds: [otherOrg.id],
       };
-      const denied = await commitImport(prisma, plainManager, { fileBuffer: Buffer.from('x') });
-      expect(denied).toMatchObject({ ok: false, error: 'forbidden' });
+      const passed = await commitImport(prisma, plainManager, { fileBuffer: Buffer.from('x') });
+      expect(passed).toMatchObject({ ok: false, error: 'parse_failed' });
 
       const managerSession = buildForeignLeaderSession(otherCompany.id);
 

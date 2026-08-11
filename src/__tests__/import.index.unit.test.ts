@@ -79,12 +79,25 @@ describe('previewImport', () => {
     expect(result).toEqual({ ok: false, error: 'forbidden' });
   });
 
-  it('Т-25: обычный менеджер (без суб-роли leader) → forbidden, файл не разбирается', async () => {
+  // Решение заказчика 11.08.2026 ОТМЕНИЛО прежнее правило `Т-25` («импорт
+  // только админу и руководителю»). Страж переписан под новое правило, а не
+  // «починен» откатом кода: менеджера пускаем, а границу держит скоуп.
+  it('обычный менеджер импорт запускает — граница остаётся за скоупом, а не за правом', async () => {
     const plainManager = { sub: 'u-m', role: 'manager', managedOrgIds: [] } as never;
     const result = await previewImport(fakePrisma, plainManager, { fileBuffer });
-    expect(result).toEqual({ ok: false, error: 'forbidden' });
-    const denied = await commitImport(fakePrisma, plainManager, { fileBuffer });
-    expect(denied).toEqual({ ok: false, error: 'forbidden' });
+    expect(result).toMatchObject({ ok: true });
+  });
+
+  it('роль вне штата (организация) импорт не запускает', async () => {
+    const orgSession = { sub: 'u-org', role: 'organization' } as never;
+    expect(await previewImport(fakePrisma, orgSession, { fileBuffer })).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+    expect(await commitImport(fakePrisma, orgSession, { fileBuffer })).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
     expect(runRecordBatch).not.toHaveBeenCalled();
   });
 
