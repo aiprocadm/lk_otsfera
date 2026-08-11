@@ -16,6 +16,7 @@ type Counts = {
   queued: number;
   excluded: number;
   excludedByReason: Record<string, number>;
+  queuedByReason?: Record<string, number>;
   parseErrors: number;
 };
 /** «Что система увидела в файле» (`У-58`). */
@@ -50,6 +51,12 @@ const REASON_RU: Record<string, string> = {
   bank_fee: 'Комиссии/услуги банка (91)',
   internal_transfer: 'Внутренние переводы',
   corr_other: 'Прочие корр-счета',
+};
+
+/** Почему строка ушла в очередь — словами, а не кодом матчера. */
+const QUEUE_REASON_RU: Record<string, string> = {
+  name_fuzzy: 'нашли похожую организацию — нужно подтвердить вручную',
+  none: 'не нашли ни счёт, ни ИНН, ни похожую организацию',
 };
 
 const PARSE_REASON_RU: Record<string, string> = {
@@ -178,6 +185,34 @@ function CountsCard({ title, counts }: { title: string; counts: Counts }) {
           </>
         )}
       </div>
+      {/* Строки разобраны, но привязать их не к чему — это НЕ отказ импорта,
+          и человек должен понять разницу (жалоба 11.08.2026). */}
+      {counts.imported === 0 && counts.queued > 0 && (
+        <p
+          role="status"
+          className="mt-3 text-xs text-amber-900 bg-amber-50 border border-amber-100 rounded px-3 py-2"
+          data-testid="payment-import-nothing-matched"
+        >
+          Операции прочитаны, но ни одна не привязалась к организации или заказу — все ушли в
+          очередь разбора. Обычно так бывает, когда в системе ещё нет клиентов и заказов из 1С:
+          загрузите их на вкладке «Загрузка Excel» и повторите импорт выписки — тогда платежи
+          привяжутся сами. Уже загруженные строки при этом не задвоятся.
+        </p>
+      )}
+
+      {counts.queuedByReason && Object.keys(counts.queuedByReason).length > 0 && (
+        <div className="mt-3 text-xs text-gray-600">
+          <div className="font-medium mb-1">В очередь разбора — почему:</div>
+          <ul className="space-y-0.5">
+            {Object.entries(counts.queuedByReason).map(([k, v]) => (
+              <li key={k}>
+                {QUEUE_REASON_RU[k] ?? k}: <span className="font-medium text-[#111111]">{v}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {Object.keys(counts.excludedByReason).length > 0 && (
         <div className="mt-3 text-xs text-gray-600">
           <div className="font-medium mb-1">Исключено по причинам:</div>
