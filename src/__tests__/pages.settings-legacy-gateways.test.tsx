@@ -39,7 +39,8 @@ vi.mock('@/app/admin/settings/access/roles/page', () => ({
 vi.mock('@/app/leader/settings/access/roles/page', () => ({
   default: () => React.createElement('div', null, 'СОДЕРЖИМОЕ:/leader/roles'),
 }));
-vi.mock('@/app/admin/settings/integrations/sync/page', () => ({
+// `У-46` (этап 7): страница «Синхронизации» переехала во вкладку «Автообмен».
+vi.mock('@/app/admin/settings/integrations/1c/auto/page', () => ({
   default: () => React.createElement('div', null, 'СОДЕРЖИМОЕ:/admin/sync'),
 }));
 vi.mock('@/app/admin/settings/integrations/1c/excel/page', () => ({

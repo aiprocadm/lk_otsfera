@@ -142,7 +142,14 @@ describe('вкладки «Обмен с 1С»', () => {
     nav.pathname = '/admin/settings/integrations/1c/payments';
     const { container } = render(<OneCTabs />);
     const links = within(container).getAllByRole('link');
-    expect(links.map((l) => l.textContent)).toEqual(['Загрузка Excel', 'Выписка (сч. 51)']);
+    // `У-45` (этап 7): вкладок стало четыре — автообмен и общая история
+    // переехали сюда, чтобы обмен не был «размазан» по трём местам меню.
+    expect(links.map((l) => l.textContent)).toEqual([
+      'Загрузка Excel',
+      'Выписка (сч. 51)',
+      'Автообмен',
+      'История',
+    ]);
     expect(links[1]?.getAttribute('data-active')).toBe('true');
     expect(links[0]?.getAttribute('data-active')).toBe('false');
   });
@@ -154,6 +161,8 @@ describe('вкладки «Обмен с 1С»', () => {
     expect(links.map((l) => l.getAttribute('href'))).toEqual([
       '/leader/settings/integrations/1c/excel',
       '/leader/settings/integrations/1c/payments',
+      '/leader/settings/integrations/1c/auto',
+      '/leader/settings/integrations/1c/history',
     ]);
     expect(links[0]?.getAttribute('data-active')).toBe('true');
   });

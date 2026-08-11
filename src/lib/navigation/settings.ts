@@ -65,21 +65,11 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     legacyHrefs: [{ from: '/admin/integrations' }],
   },
   {
-    id: 'integrations.sync',
-    group: 'integrations',
-    title: 'Синхронизация',
-    description: 'Расписания обмена, ручной запуск, история и очереди задач.',
-    icon: '🔄',
-    path: 'integrations/sync',
-    capability: 'settings.integrations.manage',
-    cabinets: ['admin'],
-    legacyHrefs: [{ from: '/admin/sync' }],
-  },
-  {
     id: 'integrations.oneC',
     group: 'integrations',
     title: 'Обмен с 1С',
-    description: 'Загрузка файлов из 1С: справочники (Excel) и выписка по счёту 51.',
+    description:
+      'Один экран: загрузка Excel, выписка по счёту 51, автообмен по расписанию и общая история.',
     icon: '🏦',
     path: 'integrations/1c',
     capability: 'settings.integrations.manage',
@@ -88,6 +78,8 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     legacyHrefs: [
       { from: '/admin/import', toPath: 'integrations/1c/excel' },
       { from: '/admin/payments-import', toPath: 'integrations/1c/payments' },
+      // `У-46`: «Синхронизация» больше не отдельный раздел — она вкладка здесь.
+      { from: '/admin/sync', toPath: 'integrations/1c/auto' },
       // Старые адреса менеджерского кабинета — руководителя уводим в его хаб
       // (обычному менеджеру страницы больше не положены, Т-25).
       { from: '/manager/import', toPath: 'integrations/1c/excel', cabinet: 'leader' },

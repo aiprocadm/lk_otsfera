@@ -32,7 +32,7 @@ const securityHeaders = [
 export const SETTINGS_HUB_REDIRECTS = [
   ['/admin/health', '/admin/settings/system/health'],
   ['/admin/integrations', '/admin/settings/integrations'],
-  ['/admin/sync', '/admin/settings/integrations/sync'],
+  ['/admin/sync', '/admin/settings/integrations/1c/auto'],
   ['/admin/import', '/admin/settings/integrations/1c/excel'],
   ['/admin/payments-import', '/admin/settings/integrations/1c/payments'],
   ['/manager/import', '/leader/settings/integrations/1c/excel'],

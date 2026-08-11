@@ -32,7 +32,7 @@ describe('redirectToSettingsHub', () => {
   it('флаг включён — уводит по карте редиректов', () => {
     isFeatureEnabled.mockReturnValue(true);
     expect(() => redirectToSettingsHub('/admin/sync')).toThrow('REDIRECT');
-    expect(redirect).toHaveBeenCalledWith('/admin/settings/integrations/sync');
+    expect(redirect).toHaveBeenCalledWith('/admin/settings/integrations/1c/auto');
   });
 
   it('две загрузки 1С приезжают каждая на свою вкладку, а не на общий корень', () => {
