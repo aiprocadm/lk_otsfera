@@ -26,6 +26,7 @@ function emptyCounts(): CardImportCounts {
     queued: 0,
     excluded: 0,
     excludedByReason: {},
+    queuedByReason: {},
     parseErrors: 0,
   };
 }
@@ -62,7 +63,13 @@ async function plan(
     if (outcome.route === 'exact') {
       counts.imported += 1;
       if (row.isRefund) counts.refunds += 1;
-    } else counts.queued += 1;
+    } else {
+      counts.queued += 1;
+      // Причина нужна человеку: «в очередь: 130» без объяснения выглядит как
+      // отказ импорта, хотя строки на самом деле разобраны.
+      const reason = outcome.matchMethod;
+      counts.queuedByReason[reason] = (counts.queuedByReason[reason] ?? 0) + 1;
+    }
     routed.push({ row, outcome });
   }
   return { counts, routed, diagnostics };

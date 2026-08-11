@@ -57,6 +57,13 @@ export type CardImportCounts = {
   imported: number; // exact → Payment (created+updated)
   refunds: number; // среди imported — возвраты
   queued: number; // строк в очередь
+  /**
+   * ПОЧЕМУ строки ушли в очередь: `name_fuzzy` — нашли похожую организацию и
+   * ждём подтверждения, `none` — не нашли ни счёта, ни ИНН, ни похожего имени.
+   * Без этой разбивки «В очередь разбора: 130» не говорит человеку ничего
+   * (жалоба 11.08.2026: «так и не работает импорт операций»).
+   */
+  queuedByReason: Record<string, number>;
   excluded: number; // corr 60/91/переводы
   excludedByReason: Record<string, number>;
   parseErrors: number;

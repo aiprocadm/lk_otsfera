@@ -21,6 +21,8 @@ type Counts = {
   queued: number;
   excluded: number;
   excludedByReason: Record<string, number>;
+  /** Почему строки ушли в очередь (добавлено 11.08.2026). */
+  queuedByReason?: Record<string, number>;
   parseErrors: number;
 };
 
@@ -161,6 +163,62 @@ describe('PaymentImportForm (interactive, jsdom)', () => {
     expect(box.textContent).toContain('не найдена');
     expect(box.textContent).toContain('не карточка счёта 51');
     expect(screen.getByRole('alert')).toBeTruthy();
+  });
+
+  it('строки разобраны, но не привязались — объясняем, что это не отказ (жалоба 11.08.2026)', async () => {
+    // Ровно случай пользователя: 130 операций прочитаны, ошибок нет, а
+    // «К импорту 0» — потому что в системе ещё нет клиентов и заказов из 1С.
+    previewPaymentImportAction.mockResolvedValue({
+      ok: true,
+      plan: {
+        counts: emptyCounts({
+          totalRows: 327,
+          imported: 0,
+          queued: 130,
+          excluded: 197,
+          queuedByReason: { none: 128, name_fuzzy: 2 },
+        }),
+      },
+    });
+    render(React.createElement(PaymentImportForm));
+    pickFile(
+      screen.getByTestId('payment-import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
+    fireEvent.click(screen.getByTestId('payment-import-preview-button'));
+
+    const hint = await screen.findByTestId('payment-import-nothing-matched');
+    expect(hint.textContent).toContain('Загрузка Excel');
+    expect(hint.textContent).toContain('не задвоятся');
+
+    const plan = screen.getByTestId('payment-import-plan');
+    expect(plan.textContent).toContain('не нашли ни счёт, ни ИНН, ни похожую организацию');
+    expect(plan.textContent).toContain('нужно подтвердить вручную');
+  });
+
+  it('когда часть строк импортирована — подсказки про «ничего не привязалось» нет', async () => {
+    previewPaymentImportAction.mockResolvedValue({
+      ok: true,
+      plan: {
+        counts: emptyCounts({
+          totalRows: 10,
+          imported: 7,
+          queued: 3,
+          // Незнакомый код причины показывается как есть, а не прячется.
+          queuedByReason: { somethingElse: 3 },
+        }),
+      },
+    });
+    render(React.createElement(PaymentImportForm));
+    pickFile(
+      screen.getByTestId('payment-import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
+    fireEvent.click(screen.getByTestId('payment-import-preview-button'));
+
+    await screen.findByTestId('payment-import-plan');
+    expect(screen.queryByTestId('payment-import-nothing-matched')).toBeNull();
+    expect(screen.getByTestId('payment-import-plan').textContent).toContain('somethingElse: 3');
   });
 
   it('shows a loading label while preview is pending', async () => {
