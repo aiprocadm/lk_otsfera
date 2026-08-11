@@ -105,11 +105,12 @@ beforeEach(() => {
 });
 
 describe('listImportBatches — список и скоуп (Т-39/Т-40)', () => {
-  it('обычному менеджеру — forbidden', async () => {
-    expect(await listImportBatches(makeDb(), PLAIN_MANAGER)).toEqual({
-      ok: false,
-      error: 'forbidden',
-    });
+  // Решение заказчика 11.08.2026 отменило прежний запрет: обычный менеджер
+  // тоже импортирует, значит и историю своих импортов видит. Границу режет
+  // скоуп (его организации), а не отказ по праву.
+  it('обычный менеджер историю получает — скоуп режет содержимое, а не право', async () => {
+    const res = await listImportBatches(makeDb(), PLAIN_MANAGER);
+    expect(res.ok).toBe(true);
   });
 
   it('руководитель видит только батчи своей компании; статусы кнопки выводятся', async () => {
@@ -213,8 +214,17 @@ describe('гейты отката (Т-38/Т-40)', () => {
     });
   });
 
-  it('обычный менеджер — forbidden; руководитель без компании — forbidden (скоуп orgs)', async () => {
+  it('откат чужого батча недоступен: orgs-скоуп (обычный менеджер и руководитель без компании)', async () => {
     const db = makeDb();
+    // Решение заказчика 11.08.2026: право импорта у менеджера ЕСТЬ, но откат
+    // чужого батча ему по-прежнему недоступен — режет скоуп, а не право.
+    db.oneCImportBatch.findUnique.mockResolvedValue({
+      id: 'b',
+      createdAt: FRESH,
+      companyId: 'co-1',
+      status: 'committed',
+      rows: [],
+    });
     expect(await rollbackImport(db, PLAIN_MANAGER, { batchId: 'b', partial: false })).toEqual({
       ok: false,
       error: 'forbidden',

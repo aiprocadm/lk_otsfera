@@ -300,13 +300,15 @@ describe('previewPaymentImport (cov)', () => {
     expect(res).toEqual({ ok: false, error: 'parse_failed' });
   });
 
-  it('Т-25 (этап 7): обычный менеджер — forbidden, руководитель проходит гейт', async () => {
-    // Обычный менеджер отбивается mayImportOneC ещё до чтения файла.
-    const denied = await previewPaymentImport(prisma, managerInCompany, {
+  // Решение заказчика 11.08.2026 отменило `Т-25`: обычный менеджер проходит
+  // гейт наравне с руководителем. Границу режет скоуп, а не право.
+  it('обычный менеджер и руководитель проходят гейт; клиентская роль — нет', async () => {
+    // Гейт пройден → дело доходит до чтения файла, и битый буфер даёт parse_failed.
+    const passed = await previewPaymentImport(prisma, managerInCompany, {
       fileBuffer: Buffer.from('not a spreadsheet'),
       fileName: 'broken.xlsx',
     });
-    expect(denied).toEqual({ ok: false, error: 'forbidden' });
+    expect(passed).toEqual({ ok: false, error: 'parse_failed' });
     // Руководитель проходит гейт; нечитаемый буфер → parse_failed.
     const leader = {
       ...(managerInCompany as object),

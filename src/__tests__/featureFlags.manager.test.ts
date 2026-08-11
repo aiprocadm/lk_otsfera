@@ -134,21 +134,25 @@ describe('navByRole.manager — feature-flag gated', () => {
     expect(navItemsFor('manager')).toEqual([]);
   });
 
-  it('navItemsFor("manager") без leader-only: обычный менеджер НЕ видит импорт (Т-25, этап 7)', () => {
+  // Решение заказчика 11.08.2026 отменило `Т-25`: импорт виден и обычному
+  // менеджеру. «Команда» осталась только у руководителя (leaderOnly).
+  it('navItemsFor("manager"): обычный менеджер видит импорт, но не «Команду»', () => {
     process.env.FEATURE_MANAGER_CABINET = '1';
     const items = navItemsFor('manager');
-    expect(items).toHaveLength(9);
     expect(items.map((i) => i.label)).toEqual([
       'Главная',
       'Заказы',
       'Лиды',
       'Организации',
       'Финансы',
+      'Загрузка из 1С',
+      'Импорт оплат',
       'Документы',
       'Сотрудники',
       'Сообщения',
       'Настройки',
     ]);
+    expect(items.map((i) => i.label)).not.toContain('Команда');
   });
 
   it('navItemsFor("manager") руководителю: импорт и «Команда» на месте (leaderOnly)', () => {
