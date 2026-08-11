@@ -2,10 +2,11 @@ import type { Prisma, PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { mayImportOneC } from '@/lib/auth/managerPolicy';
 import { importScope } from '@/lib/services/oneCSync/scope';
-import { recordAudit } from '@/lib/auth/audit';
+import { recordAudit, type AuditEntity } from '@/lib/auth/audit';
 
 /**
- * Откат импорта 1С (ТЗ починки импорта, Т-35…Т-40).
+ * Откат импорта 1С (ТЗ починки импорта, Т-35…Т-40) — теперь для двух каналов
+ * (`У-59`, этап 7): загрузки Excel и выписки по счёту 51.
  *
  * Права — те же, что на импорт (Т-25/Т-38): admin и руководитель; руководитель
  * видит и откатывает только батчи СВОЕЙ компании. Защита от разрушительного
@@ -13,6 +14,12 @@ import { recordAudit } from '@/lib/auth/audit';
  * конфликт» (§4.2 спеки): иначе DELETE упёрся бы в FK с невнятной ошибкой.
  * Весь откат — одна интерактивная транзакция, конфликты пересчитываются
  * ВНУТРИ неё (план из диалога мог устареть), аудит — в той же транзакции.
+ *
+ * **Каналы не копируют движок.** Правила конфликтов, окно 30 дней, порядок
+ * удаления «платежи → заказы → организации» и восстановление из снимка «до»
+ * общие; различаются ровно четыре операции — где лежит батч, где лежит след
+ * записи, как пометить батч откаченным и каким действием это записать в
+ * аудит. Они собраны в `CHANNEL_OPS`.
  */
 
 // Срок отката (Т-40); наружу не экспортируется — тексты UI несут «30 дней»
@@ -39,21 +46,30 @@ export type ImportBatchListItem = {
   importedByName: string | null;
   status: string;
   /** Производный признак для кнопки (Т-39/Т-40). */
-  rollback: 'available' | 'expired' | 'already_rolled_back';
+  rollback: RollbackState;
   counts: Prisma.JsonValue;
 };
+
+/** Состояние кнопки отката. `unsupported` добавляет история (`У-48`). */
+export type RollbackState = 'available' | 'expired' | 'already_rolled_back' | 'nothing_to_revert';
 
 /**
  * Можно ли откатить батч. Правило одно на все каналы (`У-48`):
  * `rollback_partial` можно добить повторно (§8.2 спеки), `rolled_back` — нет,
  * после окна — `expired`.
+ *
+ * `trailRows` — сколько строк следа записи у батча; передаётся там, где число
+ * под рукой. Ноль значит «откатывать нечего»: так выглядят импорты выписки до
+ * `У-59`. `undefined` — «не считали», состояние выводится по статусу и дате.
  */
 export function rollbackStateOf(
   status: string,
   createdAt: Date,
-  now: number
-): 'available' | 'expired' | 'already_rolled_back' {
+  now: number,
+  trailRows?: number
+): RollbackState {
   if (status === 'rolled_back') return 'already_rolled_back';
+  if (trailRows === 0) return 'nothing_to_revert';
   return now - createdAt.getTime() > WINDOW_MS ? 'expired' : 'available';
 }
 
@@ -419,18 +435,91 @@ function rowBlocked(
   return blocked.has(byEntityId.get(`${entity}:${entityId}`)!.id);
 }
 
-type BatchGateError = 'forbidden' | 'not_found' | 'already_rolled_back' | 'expired';
+type BatchGateError =
+  'forbidden' | 'not_found' | 'already_rolled_back' | 'expired' | 'nothing_to_revert';
+
+/**
+ * Канал импорта. Excel и выписка — два разных файловых потока с разными
+ * таблицами батчей и следа; всё остальное в откате у них общее.
+ */
+export type RollbackChannel = 'excel' | 'statement';
+
+type BatchRecord = {
+  createdAt: Date;
+  companyId: string | null;
+  status: string;
+  rows: ActiveRow[];
+};
+
+type ChannelOps = {
+  load(db: Db, batchId: string): Promise<BatchRecord | null>;
+  markRowsReverted(db: Db, rowIds: string[]): Promise<void>;
+  closeBatch(db: Db, batchId: string, status: string, userId: string): Promise<void>;
+  auditAction: 'one_c_import.rollback' | 'payment_import.rollback';
+  /** Своей сущности у батча выписки нет: её `commit` тоже пишется как `payment`. */
+  auditEntity: AuditEntity;
+};
+
+const CHANNEL_OPS: Record<RollbackChannel, ChannelOps> = {
+  excel: {
+    async load(db, batchId) {
+      const batch = await db.oneCImportBatch.findUnique({
+        where: { id: batchId },
+        select: { createdAt: true, companyId: true, status: true, rows: true },
+      });
+      if (!batch) return null;
+      return { ...batch, rows: batch.rows.filter((r) => !r.reverted) };
+    },
+    async markRowsReverted(db, rowIds) {
+      await db.oneCImportRow.updateMany({
+        where: { id: { in: rowIds } },
+        data: { reverted: true },
+      });
+    },
+    async closeBatch(db, batchId, status, userId) {
+      await db.oneCImportBatch.update({
+        where: { id: batchId },
+        data: { status, rolledBackAt: new Date(), rolledBackById: userId },
+      });
+    },
+    auditAction: 'one_c_import.rollback',
+    auditEntity: 'one_c_import',
+  },
+  statement: {
+    async load(db, batchId) {
+      const batch = await db.paymentImportBatch.findUnique({
+        where: { id: batchId },
+        select: { createdAt: true, companyId: true, status: true, writes: true },
+      });
+      if (!batch) return null;
+      const { writes, ...rest } = batch;
+      return { ...rest, rows: writes.filter((r) => !r.reverted) };
+    },
+    async markRowsReverted(db, rowIds) {
+      await db.paymentImportWrite.updateMany({
+        where: { id: { in: rowIds } },
+        data: { reverted: true },
+      });
+    },
+    async closeBatch(db, batchId, status, userId) {
+      await db.paymentImportBatch.update({
+        where: { id: batchId },
+        data: { status, rolledBackAt: new Date(), rolledBackById: userId },
+      });
+    },
+    auditAction: 'payment_import.rollback',
+    auditEntity: 'payment',
+  },
+};
 
 async function loadBatchForRollback(
   db: Db,
   session: SessionPayload,
+  channel: RollbackChannel,
   batchId: string
 ): Promise<{ ok: true; rows: ActiveRow[] } | { ok: false; error: BatchGateError }> {
   if (!mayImportOneC(session)) return { ok: false, error: 'forbidden' };
-  const batch = await db.oneCImportBatch.findUnique({
-    where: { id: batchId },
-    select: { id: true, createdAt: true, companyId: true, status: true, rows: true },
-  });
+  const batch = await CHANNEL_OPS[channel].load(db, batchId);
   if (!batch) return { ok: false, error: 'not_found' };
   const scope = importScope(session);
   // Чужая компания для руководителя = «нет такого батча»: существование не раскрываем.
@@ -440,7 +529,11 @@ async function loadBatchForRollback(
   if (scope.kind === 'orgs') return { ok: false, error: 'forbidden' };
   if (batch.status === 'rolled_back') return { ok: false, error: 'already_rolled_back' };
   if (Date.now() - batch.createdAt.getTime() > WINDOW_MS) return { ok: false, error: 'expired' };
-  return { ok: true, rows: batch.rows.filter((r) => !r.reverted) };
+  // Батч без следа записи откатывать нечем: так выглядят импорты выписки,
+  // сделанные до `У-59`, и те, у кого запись истории упала (§3, fail-open).
+  // Пустой список конфликтов вместо этого выглядел бы как «сломалось».
+  if (batch.rows.length === 0) return { ok: false, error: 'nothing_to_revert' };
+  return { ok: true, rows: batch.rows };
 }
 
 export type RollbackPlan = {
@@ -453,9 +546,9 @@ export type RollbackPlan = {
 export async function planImportRollback(
   prisma: PrismaClient,
   session: SessionPayload,
-  args: { batchId: string }
+  args: { batchId: string; channel?: RollbackChannel }
 ): Promise<{ ok: true; plan: RollbackPlan } | { ok: false; error: BatchGateError }> {
-  const gate = await loadBatchForRollback(prisma, session, args.batchId);
+  const gate = await loadBatchForRollback(prisma, session, args.channel ?? 'excel', args.batchId);
   if (!gate.ok) return gate;
   const { conflicts } = await computeConflicts(prisma, gate.rows);
   return {
@@ -517,10 +610,11 @@ export type RollbackResult =
 export async function rollbackImport(
   prisma: PrismaClient,
   session: SessionPayload,
-  args: { batchId: string; partial: boolean }
+  args: { batchId: string; partial: boolean; channel?: RollbackChannel }
 ): Promise<RollbackResult> {
+  const ops = CHANNEL_OPS[args.channel ?? 'excel'];
   return prisma.$transaction(async (tx): Promise<RollbackResult> => {
-    const gate = await loadBatchForRollback(tx, session, args.batchId);
+    const gate = await loadBatchForRollback(tx, session, args.channel ?? 'excel', args.batchId);
     if (!gate.ok) return gate;
     const { conflicts, blockedRowIds } = await computeConflicts(tx, gate.rows);
     if (conflicts.length > 0 && !args.partial) {
@@ -563,22 +657,19 @@ export async function rollbackImport(
       else restoredIds.payment.push(row.entityId);
     }
 
-    await tx.oneCImportRow.updateMany({
-      where: { id: { in: safe.map((r) => r.id) } },
-      data: { reverted: true },
-    });
+    await ops.markRowsReverted(
+      tx,
+      safe.map((r) => r.id)
+    );
     const remaining = gate.rows.length - safe.length;
     const status = remaining === 0 ? 'rolled_back' : 'rollback_partial';
-    await tx.oneCImportBatch.update({
-      where: { id: args.batchId },
-      data: { status, rolledBackAt: new Date(), rolledBackById: session.sub },
-    });
+    await ops.closeBatch(tx, args.batchId, status, session.sub);
 
     // Т-38: аудит обязателен и живёт в этой же транзакции.
     await recordAudit(tx, {
       userId: session.sub,
-      action: 'one_c_import.rollback',
-      entity: 'one_c_import',
+      action: ops.auditAction,
+      entity: ops.auditEntity,
       entityId: args.batchId,
       after: {
         mode: args.partial ? 'partial' : 'full',

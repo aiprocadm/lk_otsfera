@@ -91,6 +91,11 @@ function makeDb(over: Record<string, unknown> = {}) {
       update: vi.fn(),
     },
     oneCImportRow: { updateMany: vi.fn() },
+    paymentImportBatch: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      update: vi.fn(),
+    },
+    paymentImportWrite: { updateMany: vi.fn() },
     payment: delegate(),
     order: delegate(),
     organization: delegate(),
@@ -684,5 +689,127 @@ describe('сам откат (Т-35, Т-37, Т-38)', () => {
     const res = await rollbackImport(db, ADMIN, { batchId: 'b', partial: false });
     expect(res).toMatchObject({ ok: true, deleted: { payments: 0, orders: 1 } });
     expect(db.payment.deleteMany).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * `У-59` (этап 7): тот же движок отката обслуживает выписку по счёту 51.
+ * Проверяем ровно то, что различается между каналами — таблицы батча и следа,
+ * действие аудита — и то, что общая часть не разъехалась.
+ */
+describe('откат выписки — второй канал (У-59)', () => {
+  type FindArgs = { where?: { id?: { in?: string[] } }; select?: { _count?: unknown } };
+
+  function statementDb(writes: unknown[], status = 'committed', createdAt = FRESH) {
+    const db = makeDb();
+    db.paymentImportBatch.findUnique.mockResolvedValue({
+      createdAt,
+      companyId: 'co-1',
+      status,
+      writes,
+    });
+    db.payment.findMany.mockImplementation(async (args: FindArgs) =>
+      (args?.where?.id?.in ?? []).map((id: string) =>
+        args?.select?._count
+          ? {
+              id,
+              externalId: id,
+              orderId: null,
+              organizationId: 'org-x',
+              _count: { commissionItems: 0 },
+              commissionCorrection: null,
+            }
+          : { id }
+      )
+    );
+    return db;
+  }
+
+  it('план отката читает батч выписки, а НЕ Excel-батч', async () => {
+    const db = statementDb([row({ id: 'w1', entity: 'payment', entityId: 'pay-1' })]);
+    const res = await planImportRollback(db, ADMIN, { batchId: 'sb', channel: 'statement' });
+    expect(res).toMatchObject({ ok: true, plan: { toDelete: { payments: 1 } } });
+    expect(db.paymentImportBatch.findUnique).toHaveBeenCalled();
+    expect(db.oneCImportBatch.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('откат удаляет платежи, помечает след и закрывает батч выписки своим действием аудита', async () => {
+    const db = statementDb([
+      row({ id: 'w1', entity: 'payment', entityId: 'pay-1' }),
+      row({ id: 'w2', entity: 'payment', entityId: 'pay-2' }),
+    ]);
+    const res = await rollbackImport(db, ADMIN, {
+      batchId: 'sb',
+      partial: false,
+      channel: 'statement',
+    });
+
+    expect(res).toMatchObject({ ok: true, status: 'rolled_back', deleted: { payments: 2 } });
+    expect(db.payment.deleteMany).toHaveBeenCalledWith({
+      where: { id: { in: ['pay-1', 'pay-2'] } },
+    });
+    // След и батч — из таблиц выписки; Excel-таблицы не тронуты.
+    expect(db.paymentImportWrite.updateMany).toHaveBeenCalled();
+    expect(db.oneCImportRow.updateMany).not.toHaveBeenCalled();
+    expect(db.paymentImportBatch.update.mock.calls[0]![0].data).toMatchObject({
+      status: 'rolled_back',
+    });
+    expect(db.oneCImportBatch.update).not.toHaveBeenCalled();
+    expect(recordAudit.mock.calls[0]![1]).toMatchObject({
+      action: 'payment_import.rollback',
+      entityId: 'sb',
+    });
+  });
+
+  it('батч без следа записи — nothing_to_revert, а не пустой список конфликтов', async () => {
+    // Так выглядят импорты выписки, сделанные до `У-59`.
+    const db = statementDb([]);
+    expect(await planImportRollback(db, ADMIN, { batchId: 'sb', channel: 'statement' })).toEqual({
+      ok: false,
+      error: 'nothing_to_revert',
+    });
+    expect(
+      await rollbackImport(db, ADMIN, { batchId: 'sb', partial: false, channel: 'statement' })
+    ).toEqual({ ok: false, error: 'nothing_to_revert' });
+    expect(db.payment.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('гейты канала общие: чужая компания руководителю — not_found, уже откачен — already_rolled_back', async () => {
+    const foreign = statementDb([row({ id: 'w1', entity: 'payment', entityId: 'pay-1' })]);
+    foreign.paymentImportBatch.findUnique.mockResolvedValue({
+      createdAt: FRESH,
+      companyId: 'co-OTHER',
+      status: 'committed',
+      writes: [row({ id: 'w1', entity: 'payment', entityId: 'pay-1' })],
+    });
+    expect(
+      await planImportRollback(foreign, LEADER, { batchId: 'sb', channel: 'statement' })
+    ).toEqual({ ok: false, error: 'not_found' });
+
+    const done = statementDb([], 'rolled_back');
+    expect(await planImportRollback(done, ADMIN, { batchId: 'sb', channel: 'statement' })).toEqual({
+      ok: false,
+      error: 'already_rolled_back',
+    });
+
+    const old = statementDb(
+      [row({ id: 'w1', entity: 'payment', entityId: 'pay-1' })],
+      'committed',
+      OLD
+    );
+    expect(await planImportRollback(old, ADMIN, { batchId: 'sb', channel: 'statement' })).toEqual({
+      ok: false,
+      error: 'expired',
+    });
+  });
+
+  it('без канала откат остаётся Excel-овым — старые вызовы не меняют смысла', async () => {
+    const db = makeDb();
+    db.oneCImportBatch.findUnique.mockResolvedValue(null);
+    expect(await planImportRollback(db, ADMIN, { batchId: 'b' })).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
+    expect(db.paymentImportBatch.findUnique).not.toHaveBeenCalled();
   });
 });

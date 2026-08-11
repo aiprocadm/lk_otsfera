@@ -140,6 +140,7 @@ describe('commitPaymentImport', () => {
     const tx = {
       paymentImportBatch: { create: vi.fn().mockResolvedValue({ id: 'batch1' }), update: vi.fn() },
       paymentImportRow: { upsert: vi.fn(), updateMany: vi.fn() },
+      paymentImportWrite: { create: vi.fn() },
     };
     const prisma = {
       $transaction: vi.fn(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
@@ -161,5 +162,81 @@ describe('commitPaymentImport', () => {
     expect(upsertPaymentRecord).toHaveBeenCalledTimes(1); // only exact
     expect(tx.paymentImportRow.upsert).toHaveBeenCalledTimes(1); // only queue
     expect(tx.paymentImportBatch.create).toHaveBeenCalledTimes(1);
+  });
+
+  // `У-59`: без следа записи откатывать нечего — до этого writer возвращал
+  // и id, и снимок «до», а импорт выписки их выбрасывал.
+  it('созданный платёж попадает в след записи батча', async () => {
+    const tx = {
+      paymentImportBatch: { create: vi.fn().mockResolvedValue({ id: 'batch1' }), update: vi.fn() },
+      paymentImportRow: { upsert: vi.fn(), updateMany: vi.fn() },
+      paymentImportWrite: { create: vi.fn() },
+    };
+    const prisma = {
+      $transaction: vi.fn(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
+      paymentImportBatch: { update: vi.fn() },
+      auditLog: { create: vi.fn() },
+      syncLog: { create: vi.fn() },
+    } as never;
+    upsertPaymentRecord.mockResolvedValue({ entityId: 'pay-1', action: 'created' });
+
+    await commitPaymentImport(prisma, session, {
+      fileBuffer: Buffer.from(''),
+      fileName: 'c.xlsx',
+    });
+    expect(tx.paymentImportWrite.create).toHaveBeenCalledTimes(1);
+    expect(tx.paymentImportWrite.create.mock.calls[0]![0].data).toMatchObject({
+      batchId: 'batch1',
+      entity: 'payment',
+      entityId: 'pay-1',
+      action: 'created',
+    });
+  });
+
+  it('обновлённый платёж кладёт в след снимок «до» — иначе откат нечего восстанавливать', async () => {
+    const tx = {
+      paymentImportBatch: { create: vi.fn().mockResolvedValue({ id: 'batch1' }), update: vi.fn() },
+      paymentImportRow: { upsert: vi.fn(), updateMany: vi.fn() },
+      paymentImportWrite: { create: vi.fn() },
+    };
+    const prisma = {
+      $transaction: vi.fn(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
+      paymentImportBatch: { update: vi.fn() },
+      auditLog: { create: vi.fn() },
+      syncLog: { create: vi.fn() },
+    } as never;
+    const before = { amount: '100.00', paidAt: '2026-06-01T00:00:00.000Z', purpose: 'старое' };
+    upsertPaymentRecord.mockResolvedValue({ entityId: 'pay-1', action: 'updated', before });
+
+    await commitPaymentImport(prisma, session, {
+      fileBuffer: Buffer.from(''),
+      fileName: 'c.xlsx',
+    });
+    expect(tx.paymentImportWrite.create.mock.calls[0]![0].data).toMatchObject({
+      action: 'updated',
+      before,
+    });
+  });
+
+  it('пропущенная writer-ом строка следа не оставляет', async () => {
+    // `undefined` от writer = «не записал» (не в скоупе, заказа нет).
+    const tx = {
+      paymentImportBatch: { create: vi.fn().mockResolvedValue({ id: 'batch1' }), update: vi.fn() },
+      paymentImportRow: { upsert: vi.fn(), updateMany: vi.fn() },
+      paymentImportWrite: { create: vi.fn() },
+    };
+    const prisma = {
+      $transaction: vi.fn(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
+      paymentImportBatch: { update: vi.fn() },
+      auditLog: { create: vi.fn() },
+      syncLog: { create: vi.fn() },
+    } as never;
+    upsertPaymentRecord.mockResolvedValue(undefined);
+
+    await commitPaymentImport(prisma, session, {
+      fileBuffer: Buffer.from(''),
+      fileName: 'c.xlsx',
+    });
+    expect(tx.paymentImportWrite.create).not.toHaveBeenCalled();
   });
 });

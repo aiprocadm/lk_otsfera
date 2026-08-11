@@ -27,7 +27,9 @@ const { redirect } = vi.hoisted(() => ({
     throw new Error('NEXT_REDIRECT');
   }),
 }));
-vi.mock('next/navigation', () => ({ redirect }));
+// `useRouter` — из-за кнопки отката в общей истории (`У-59`): она обновляет
+// список после успешного отката.
+vi.mock('next/navigation', () => ({ redirect, useRouter: () => ({ refresh: vi.fn() }) }));
 
 import AdminOneCIndexPage from '@/app/admin/settings/integrations/1c/page';
 import AdminOneCHistoryPage from '@/app/admin/settings/integrations/1c/history/page';

@@ -3,7 +3,11 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db/prisma';
 import { requireSession } from '@/lib/auth/requireRole';
 import { previewImport, commitImport } from '@/lib/services/import';
-import { planImportRollback, rollbackImport } from '@/lib/services/import/rollback';
+import {
+  planImportRollback,
+  rollbackImport,
+  type RollbackChannel,
+} from '@/lib/services/import/rollback';
 // Т-5: предел один на конфиг, действие и текст в форме. Локальной копии больше нет.
 import { IMPORT_MAX_FILE_BYTES } from '@/lib/config/import-limits';
 
@@ -50,19 +54,33 @@ export async function commitImportAction(form: FormData) {
   });
 }
 
-/** Этап 9 (Т-39): план отката для диалога — счётчики и конфликты, без записи. */
-export async function planImportRollbackAction(batchId: string) {
+/**
+ * Этап 9 (Т-39): план отката для диалога — счётчики и конфликты, без записи.
+ * Канал по умолчанию — Excel: так действие звалось до `У-59`, и старые вызовы
+ * не должны молча начать откатывать другой канал.
+ */
+export async function planImportRollbackAction(batchId: string, channel?: RollbackChannel) {
   const session = await requireSession();
-  return planImportRollback(prisma, session, { batchId });
+  return planImportRollback(prisma, session, { batchId, ...(channel ? { channel } : {}) });
 }
 
-/** Этап 9 (Т-35…Т-38): сам откат; после успеха обновляем обе Excel-страницы. */
-export async function rollbackImportAction(batchId: string, partial: boolean) {
+/** Этап 9 (Т-35…Т-38) + `У-59`: сам откат; после успеха обновляем экраны обмена. */
+export async function rollbackImportAction(
+  batchId: string,
+  partial: boolean,
+  channel?: RollbackChannel
+) {
   const session = await requireSession();
-  const result = await rollbackImport(prisma, session, { batchId, partial });
+  const result = await rollbackImport(prisma, session, {
+    batchId,
+    partial,
+    ...(channel ? { channel } : {}),
+  });
   if (result.ok) {
-    revalidatePath('/admin/settings/integrations/1c/excel');
-    revalidatePath('/leader/settings/integrations/1c/excel');
+    for (const cabinet of ['/admin', '/leader']) {
+      revalidatePath(`${cabinet}/settings/integrations/1c/excel`);
+      revalidatePath(`${cabinet}/settings/integrations/1c/history`);
+    }
   }
   return result;
 }

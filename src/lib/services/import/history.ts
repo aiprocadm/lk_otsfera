@@ -2,7 +2,7 @@ import type { PrismaClient, Prisma } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { mayImportOneC } from '@/lib/auth/managerPolicy';
 import { importScope } from '@/lib/services/oneCSync/scope';
-import { rollbackStateOf } from './rollback';
+import { rollbackStateOf, type RollbackState } from './rollback';
 
 /**
  * Общая история обмена с 1С (`У-48`, этап 7).
@@ -32,7 +32,7 @@ export type ExchangeHistoryItem = {
   authorName: string | null;
   status: string;
   /** `unsupported` — канал в принципе не откатывается (автообмен). */
-  rollback: 'available' | 'expired' | 'already_rolled_back' | 'unsupported';
+  rollback: RollbackState | 'unsupported';
   counts: Prisma.JsonValue;
 };
 
@@ -94,6 +94,9 @@ export async function listExchangeHistory(
         status: true,
         counts: true,
         importedBy: { select: { name: true } },
+        // Число строк следа: батч без следа откатывать нечем, и кнопка обязана
+        // сказать это заранее, а не после нажатия (§15 «что делать дальше»).
+        _count: { select: { rows: true } },
       },
     });
     for (const b of rows) {
@@ -104,7 +107,7 @@ export async function listExchangeHistory(
         title: b.fileName,
         authorName: b.importedBy?.name ?? null,
         status: b.status,
-        rollback: rollbackStateOf(b.status, b.createdAt, now),
+        rollback: rollbackStateOf(b.status, b.createdAt, now, b._count.rows),
         counts: b.counts,
       });
     }
@@ -122,6 +125,7 @@ export async function listExchangeHistory(
         status: true,
         counts: true,
         importedBy: { select: { name: true } },
+        _count: { select: { writes: true } },
       },
     });
     for (const b of rows) {
@@ -132,9 +136,9 @@ export async function listExchangeHistory(
         title: b.fileName,
         authorName: b.importedBy?.name ?? null,
         status: b.status,
-        // Откат выписки приезжает следующим PR этапа (`У-59`); пока честно
-        // говорим, что кнопки нет, вместо неактивной кнопки без объяснения.
-        rollback: 'unsupported',
+        // `У-59`: откат у выписки такой же, как у Excel. Импорты, сделанные до
+        // появления следа записи, честно показывают «отменять нечего».
+        rollback: rollbackStateOf(b.status, b.createdAt, now, b._count.writes),
         counts: b.counts,
       });
     }

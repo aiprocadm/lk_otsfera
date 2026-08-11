@@ -12,6 +12,7 @@ import { log } from '@/lib/logging';
 import { readSpreadsheet } from './read-spreadsheet';
 import { parseAccountCard } from './parser';
 import { matchRow } from './matcher';
+import { collectNewCounterparties } from './new-counterparties';
 import type { ParsedRow, CardImportCounts, CardParseDiagnostics } from './types';
 
 export type Args = { fileBuffer: Buffer; fileName: string };
@@ -96,7 +97,15 @@ export async function previewPaymentImport(
       diagnostics: result.diagnostics,
     };
   }
-  return { ok: true as const, plan: { counts: result.counts, diagnostics: result.diagnostics } };
+  // `У-52`: что принесёт файл, человек должен увидеть ДО применения.
+  const newCounterparties = await collectNewCounterparties(
+    prisma,
+    result.routed.filter((r) => r.outcome.route === 'queue').map((r) => r.row)
+  );
+  return {
+    ok: true as const,
+    plan: { counts: result.counts, diagnostics: result.diagnostics, newCounterparties },
+  };
 }
 
 export async function commitPaymentImport(
@@ -130,7 +139,27 @@ export async function commitPaymentImport(
     });
     for (const { row, outcome } of result.routed) {
       if (outcome.route === 'exact') {
-        await upsertPaymentRecord(tx as unknown as PrismaClient, outcome.dto, writerSummary, ctx);
+        const written = await upsertPaymentRecord(
+          tx as unknown as PrismaClient,
+          outcome.dto,
+          writerSummary,
+          ctx
+        );
+        // `У-59`: след записи — фундамент отката. Без него откатывать нечего:
+        // именно поэтому у выписки отката не было, хотя writer снимок «до»
+        // отдавал всегда. `undefined` = writer строку пропустил (не в скоупе,
+        // заказ не найден) — записывать в след нечего.
+        if (written) {
+          await tx.paymentImportWrite.create({
+            data: {
+              batchId: batch.id,
+              entity: 'payment',
+              entityId: written.entityId,
+              action: written.action,
+              ...(written.before ? { before: written.before as Prisma.InputJsonValue } : {}),
+            },
+          });
+        }
         // если строка ранее была в очереди — закрыть её
         await tx.paymentImportRow.updateMany({
           where: { externalId: row.externalId, status: 'needs_review' },
