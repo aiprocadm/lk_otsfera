@@ -2,7 +2,7 @@ import type { PrismaClient, Prisma } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { mayImportOneC } from '@/lib/auth/managerPolicy';
 import { importScope } from '@/lib/services/oneCSync/scope';
-import { ROLLBACK_WINDOW_MS, rollbackStateOf } from './rollback';
+import { rollbackStateOf } from './rollback';
 
 /**
  * Общая история обмена с 1С (`У-48`, этап 7).
@@ -173,6 +173,3 @@ export async function listExchangeHistory(
   items.sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
   return { ok: true, items: items.slice(0, take) };
 }
-
-/** Окно отката — наружу для подсказки в интерфейсе. */
-export const HISTORY_ROLLBACK_WINDOW_MS = ROLLBACK_WINDOW_MS;

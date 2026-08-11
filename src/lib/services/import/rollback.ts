@@ -43,9 +43,6 @@ export type ImportBatchListItem = {
   counts: Prisma.JsonValue;
 };
 
-/** Окно отката в миллисекундах — общее правило для истории всех каналов. */
-export const ROLLBACK_WINDOW_MS = WINDOW_MS;
-
 /**
  * Можно ли откатить батч. Правило одно на все каналы (`У-48`):
  * `rollback_partial` можно добить повторно (§8.2 спеки), `rolled_back` — нет,
