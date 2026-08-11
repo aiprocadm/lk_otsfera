@@ -44,7 +44,13 @@ export function OrgPaymentsList({ payments }: { payments: OrgOrderPayment[] }) {
                 <div className="text-xs text-gray-500 mt-0.5">
                   {fmtDate(p.paidAt)}
                   {p.method && <span> · {METHOD_LABELS[p.method] ?? p.method}</span>}
+                  {p.paymentOrderNumber && <span> · п/п № {p.paymentOrderNumber}</span>}
                 </div>
+                {/* Назначение платежа из выписки: без него в карточке заказа
+                    видно только сумму и дату — за что платили, непонятно. */}
+                {p.purpose && (
+                  <div className="text-xs text-gray-600 mt-0.5 break-words">{p.purpose}</div>
+                )}
                 {p.note && <div className="text-xs text-gray-400 mt-0.5">{p.note}</div>}
               </div>
               {p.isRefund && (

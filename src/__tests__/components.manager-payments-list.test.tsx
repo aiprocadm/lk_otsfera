@@ -18,6 +18,32 @@ function makePayment(overrides: Partial<Payment>): Payment {
 }
 
 describe('ManagerPaymentsList', () => {
+  it('показывает назначение платежа и № платёжного поручения из выписки', () => {
+    // Жалоба 11.08.2026: менеджер видел сумму и дату, а за что платили — нет.
+    const html = renderToString(
+      React.createElement(ManagerPaymentsList, {
+        payments: [
+          makePayment({
+            purpose: 'ОПЛАТА ПО ДОГОВОРУ 260509-1905 ЗА ОБУЧЕНИЕ',
+            paymentOrderNumber: '0000-001471',
+          }),
+        ],
+      })
+    ).replace(/<!-- -->/g, '');
+    expect(html).toContain('ЗА ОБУЧЕНИЕ');
+    expect(html).toContain('п/п № 0000-001471');
+  });
+
+  it('платёж без назначения не рисует пустую строку', () => {
+    const html = renderToString(
+      React.createElement(ManagerPaymentsList, {
+        payments: [makePayment({ purpose: null, paymentOrderNumber: null, note: 'Аванс' })],
+      })
+    );
+    expect(html).toContain('Аванс');
+    expect(html).not.toContain('п/п №');
+  });
+
   it('empty: shows count-free header and "no payments" message', () => {
     const html = renderToString(React.createElement(ManagerPaymentsList, { payments: [] }));
     expect(html).toContain('Оплаты');
