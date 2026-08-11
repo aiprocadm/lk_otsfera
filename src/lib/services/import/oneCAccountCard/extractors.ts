@@ -13,12 +13,43 @@ export function parseRusDate(input: string | null | undefined): string | null {
   return Number.isNaN(t) ? null : new Date(t).toISOString();
 }
 
-/** Толерантный парс суммы: пробелы-разделители, запятая/точка как десятичный. */
+/**
+ * Толерантный парс суммы. 1С выгружает деньги в разных форматах, и от настроек
+ * базы зависит, что считается разделителем:
+ *   `1 200,50`   — русский (пробел тысячи, запятая дробь);
+ *   `14,800.00`  — английский (запятая тысячи, точка дробь);
+ *   `2600.1`, `14800` — без разделителей.
+ *
+ * Прежняя версия просто меняла первую запятую на точку, поэтому `14,800.00`
+ * превращалось в `14.800.00` → `NaN` → «не найдена сумма». На живой выписке
+ * (жалоба 10.08.2026) так падали ВСЕ 129 платежей.
+ */
 export function parseAmount(input: string | null | undefined): number | null {
   if (input == null) return null;
-  const cleaned = String(input).replace(/\s/g, '').replace(',', '.');
-  if (cleaned === '') return null;
-  const n = Number(cleaned);
+  let s = String(input).replace(/[\s  ]/g, '');
+  if (s === '') return null;
+
+  const lastComma = s.lastIndexOf(',');
+  const lastDot = s.lastIndexOf('.');
+
+  if (lastComma >= 0 && lastDot >= 0) {
+    // Есть оба знака: дробным считается тот, что правее, второй — тысячи.
+    const decimal = lastComma > lastDot ? ',' : '.';
+    const thousands = decimal === ',' ? '.' : ',';
+    s = s.split(thousands).join('').replace(decimal, '.');
+  } else {
+    const sep = lastComma >= 0 ? ',' : lastDot >= 0 ? '.' : '';
+    if (sep) {
+      const parts = s.split(sep);
+      const tail = parts[parts.length - 1]!;
+      // Разделитель один и хвост ровно из трёх цифр — это тысячи («14,800»),
+      // деньги пишут с двумя знаками после дробной части.
+      const isThousands = parts.length > 2 || (parts.length === 2 && /^\d{3}$/.test(tail));
+      s = isThousands ? parts.join('') : parts.join('.');
+    }
+  }
+
+  const n = Number(s);
   return Number.isFinite(n) ? n : null;
 }
 

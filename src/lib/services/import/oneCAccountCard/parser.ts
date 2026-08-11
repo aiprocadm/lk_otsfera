@@ -90,7 +90,24 @@ export function parseAccountCard(sheet: string[][]): ParseResult {
   for (let i = start + 1; i < end; i++) {
     const row = sheet[i] ?? [];
     const document = row[cols.document] ?? '';
-    const corr = (row[cols.corr] ?? '').trim();
+
+    /**
+     * Направление операции — по тому, в какой колонке стоит сумма: приход
+     * лежит в «Дебете» счёта 51, расход — в «Кредите». От направления зависит,
+     * какой счёт корреспондирующий: у прихода это «Счет Кт», у расхода —
+     * «Счет Дт» (вторым в паре всегда стоит сам расчётный счёт 51).
+     *
+     * Раньше корр-счёт всегда читался из одной колонки, поэтому возвраты
+     * клиенту (списание со счёта 62) выглядели как «прочие корр-счета».
+     */
+    const debitRaw = row[cols.debitAmount] ?? '';
+    const creditRaw = row[cols.creditAmount] ?? '';
+    const incoming = parseAmount(debitRaw) != null;
+    const corrColumn =
+      cols.corrAccount ??
+      (incoming ? cols.creditAccount : (cols.debitAccount ?? cols.creditAccount));
+    const corr = (row[corrColumn] ?? '').trim();
+
     // Пустые/служебные строки внутри среза пропускаем.
     if (!document.trim() && !corr) continue;
 
@@ -99,9 +116,15 @@ export function parseAccountCard(sheet: string[][]): ParseResult {
     const { kind, excludeReason } = classifyRow(docLine, corr);
     const externalId = extractDocNumber(docLine) ?? '';
     const isRefund = kind === 'refund';
-    const amount = isRefund ? parseAmount(row[cols.credit]) : parseAmount(row[cols.debit]);
+    const amount = isRefund ? parseAmount(creditRaw) : parseAmount(debitRaw);
     const paidAt = parseRusDate(row[cols.date]);
-    const col3 = row[cols.analyticsCr] ?? '';
+    // Контрагент — в аналитике «с той стороны», где не расчётный счёт: у
+    // прихода это «Аналитика Кт», у расхода — «Аналитика Дт». Если нужная
+    // колонка пуста (бывает в урезанных выгрузках), берём соседнюю — иначе
+    // потеряли бы имя и ИНН и отправили платёж в ручной разбор ни за что.
+    const analyticsPrimary = (incoming ? row[cols.analyticsCr] : row[cols.analyticsDt]) ?? '';
+    const analyticsOther = (incoming ? row[cols.analyticsDt] : row[cols.analyticsCr]) ?? '';
+    const col3 = analyticsPrimary.trim() ? analyticsPrimary : analyticsOther;
 
     const base: ParsedRow = {
       rowIndex: i,
