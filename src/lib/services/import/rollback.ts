@@ -43,6 +43,23 @@ export type ImportBatchListItem = {
   counts: Prisma.JsonValue;
 };
 
+/** Окно отката в миллисекундах — общее правило для истории всех каналов. */
+export const ROLLBACK_WINDOW_MS = WINDOW_MS;
+
+/**
+ * Можно ли откатить батч. Правило одно на все каналы (`У-48`):
+ * `rollback_partial` можно добить повторно (§8.2 спеки), `rolled_back` — нет,
+ * после окна — `expired`.
+ */
+export function rollbackStateOf(
+  status: string,
+  createdAt: Date,
+  now: number
+): 'available' | 'expired' | 'already_rolled_back' {
+  if (status === 'rolled_back') return 'already_rolled_back';
+  return now - createdAt.getTime() > WINDOW_MS ? 'expired' : 'available';
+}
+
 /** Последние 20 батчей истории (Т-39); руководитель — только своя компания. */
 export async function listImportBatches(
   prisma: PrismaClient,
@@ -72,13 +89,7 @@ export async function listImportBatches(
       fileName: b.fileName,
       importedByName: b.importedBy?.name ?? null,
       status: b.status,
-      // rollback_partial можно добить повторно (§8.2 спеки); rolled_back — нет.
-      rollback:
-        b.status === 'rolled_back'
-          ? 'already_rolled_back'
-          : now - b.createdAt.getTime() > WINDOW_MS
-            ? 'expired'
-            : 'available',
+      rollback: rollbackStateOf(b.status, b.createdAt, now),
       counts: b.counts,
     })),
   };

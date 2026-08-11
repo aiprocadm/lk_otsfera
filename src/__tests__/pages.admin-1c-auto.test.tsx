@@ -96,7 +96,7 @@ vi.mock('@/components/admin/sync-cursor-dialog', () => ({
     ),
 }));
 
-import AdminSyncPage from '@/app/admin/settings/integrations/sync/page';
+import AdminSyncPage from '@/app/admin/settings/integrations/1c/auto/page';
 
 const SESSION = { sub: 'admin1', role: 'admin' as const };
 

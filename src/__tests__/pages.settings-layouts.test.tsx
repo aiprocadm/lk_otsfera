@@ -35,7 +35,6 @@ vi.mock('next/navigation', () => ({
 import AdminSettingsLayout from '@/app/admin/settings/layout';
 import LeaderSettingsLayout from '@/app/leader/settings/layout';
 import AdminOneCLayout from '@/app/admin/settings/integrations/1c/layout';
-import AdminOneCIndexPage from '@/app/admin/settings/integrations/1c/page';
 import { SettingsShell } from '@/components/settings/settings-shell';
 import { sectionsForCabinet } from '@/lib/navigation/settings';
 
@@ -117,8 +116,9 @@ describe('подраздел «Обмен с 1С»', () => {
     expect(container.querySelector('h1')).toBeNull();
   });
 
-  it('корень подраздела открывает первую вкладку', () => {
-    expect(() => AdminOneCIndexPage()).toThrow('REDIRECT');
-    expect(nav.redirect).toHaveBeenCalledWith('/admin/settings/integrations/1c/excel');
+  // `У-47` (этап 7): корень больше НЕ редиректит на форму — он показывает
+  // навигатор задачи. Его содержимое проверяет pages.admin-1c-hub.
+  it('корень подраздела не уводит молча на форму загрузки', () => {
+    expect(nav.redirect).not.toHaveBeenCalled();
   });
 });

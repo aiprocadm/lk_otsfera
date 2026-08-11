@@ -56,8 +56,10 @@ describe('реестр разделов настроек', () => {
   });
 
   it('sectionByPath находит раздел, в том числе по вложенной вкладке', () => {
-    expect(sectionByPath('admin', '/admin/settings/integrations/sync')?.id).toBe(
-      'integrations.sync'
+    // `У-46` (этап 7): «Синхронизация» больше не отдельный раздел — она стала
+    // вкладкой «Обмена с 1С», поэтому её путь резолвится в него.
+    expect(sectionByPath('admin', '/admin/settings/integrations/1c/auto')?.id).toBe(
+      'integrations.oneC'
     );
     // Самое длинное совпадение: 1c/excel — это «Обмен с 1С», а не «Интеграции».
     expect(sectionByPath('admin', '/admin/settings/integrations/1c/excel')?.id).toBe(
@@ -81,7 +83,7 @@ describe('реестр разделов настроек', () => {
     expect(Object.fromEntries(map)).toEqual({
       '/admin/health': '/admin/settings/system/health',
       '/admin/integrations': '/admin/settings/integrations',
-      '/admin/sync': '/admin/settings/integrations/sync',
+      '/admin/sync': '/admin/settings/integrations/1c/auto',
       '/admin/import': '/admin/settings/integrations/1c/excel',
       '/admin/payments-import': '/admin/settings/integrations/1c/payments',
       // Этап 7 ТЗ импорта: старые адреса менеджерского кабинета уводят
