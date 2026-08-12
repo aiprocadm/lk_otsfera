@@ -1,17 +1,15 @@
 import type { Metadata } from 'next';
 import React from 'react';
 import { requireSettingsSection } from '@/lib/auth/requireSettings';
-import {
-  getIntegrationsStatus,
-  listIntegrationSyncStates,
-} from '@/lib/services/admin/integrations';
+import { listIntegrationSyncStates } from '@/lib/services/admin/integrations';
+import { getIntegrationsHealth } from '@/lib/services/admin/integrationsHealth';
+import { IntegrationsHealthPanel } from '@/components/admin/integrations-health-panel';
 import { prisma } from '@/lib/db/prisma';
 import {
   getSettingsView,
   type SettingKey,
   type SettingViewRow,
 } from '@/lib/config/integrationSettings';
-import { primeIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
 import { EmailSettingsForm } from '@/components/admin/email-settings-form';
 import {
   IntegrationSettingsForm,
@@ -71,10 +69,10 @@ const VIEW_KEYS: SettingKey[] = [
 const WEBHOOK_NAMES = ['telegram', 'max', 'whatsapp', 'mango'] as const;
 
 export default async function AdminIntegrationsPage() {
-  await requireSettingsSection('integrations.overview', 'admin');
-  // Статус-панель читает креды через кэш настроек — праймим до вызова.
-  await primeIntegrationSettingsCache(prisma);
-  const integrations = getIntegrationsStatus();
+  const session = await requireSettingsSection('integrations.overview', 'admin');
+  // `У-70`: светофор состояния собирается в сервисе (там же — переключатели
+  // каналов для `У-69`). Кэш настроек праймится внутри.
+  const health = await getIntegrationsHealth(prisma, session);
 
   // ФТ-14.3/14.4: результаты проб «Проверить подключение» и отметки вебхуков.
   const syncStates = await listIntegrationSyncStates(prisma, [
@@ -143,28 +141,13 @@ export default async function AdminIntegrationsPage() {
         (env), он используется как запасной вариант, пока не задан здесь.
       </div>
 
-      <ul className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100 overflow-hidden">
-        {integrations.map((it) => (
-          <li key={it.key} className="px-4 py-3.5 flex items-start gap-3">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-[#111111] text-sm">{it.label}</span>
-                {it.enabled ? (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">
-                    Подключено
-                  </span>
-                ) : (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200">
-                    Не настроено
-                  </span>
-                )}
-              </div>
-              <div className="text-xs text-gray-500 mt-0.5">{it.description}</div>
-              <div className="text-xs text-gray-400 mt-1 font-mono">{it.envHint}</div>
-            </div>
-          </li>
-        ))}
-      </ul>
+      {health.ok ? (
+        <IntegrationsHealthPanel rows={health.rows} />
+      ) : (
+        <p role="alert" className="text-sm text-red-600">
+          Недостаточно прав для просмотра состояния интеграций.
+        </p>
+      )}
 
       <div className="pt-2 space-y-4">
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
