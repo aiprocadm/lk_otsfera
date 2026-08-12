@@ -240,3 +240,232 @@ describe('commitPaymentImport', () => {
     expect(tx.paymentImportWrite.create).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * `У-49`/`У-50` (этап 7, PR-3): импорт заводит организации сам.
+ *
+ * Здесь проверяется решающая часть — ЧТО происходит с файлом, где есть
+ * контрагент с валидным ИНН, которого нет в системе. Само создание покрыто в
+ * `import.card51.auto-create`, живая цепочка — в интеграционном тесте.
+ */
+describe('автосоздание организаций при импорте (У-49, У-50)', () => {
+  const INN = '7707083893';
+
+  function rowWithInn() {
+    return {
+      kind: 'payment',
+      externalId: '0000-9',
+      amount: 500,
+      paidAt: '2026-06-03T00:00:00.000Z',
+      isRefund: false,
+      accountCandidates: [],
+      counterpartyName: 'ООО «Новая»',
+      counterpartyInn: INN,
+      vatAmount: null,
+      purpose: 'оплата',
+      paymentOrderNumber: '0000-9',
+      rawRow: [],
+      rowIndex: 9,
+    };
+  }
+
+  // Организация «появляется» ровно в момент её создания — дальше матчер обязан
+  // находить её по ИНН, как любую другую.
+  let orgExists = false;
+
+  function tx() {
+    return {
+      paymentImportBatch: { create: vi.fn().mockResolvedValue({ id: 'batch1' }), update: vi.fn() },
+      paymentImportRow: { upsert: vi.fn(), updateMany: vi.fn() },
+      paymentImportWrite: { create: vi.fn() },
+      organization: {
+        create: vi.fn().mockImplementation(async () => {
+          orgExists = true;
+          return { id: 'org-new' };
+        }),
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+      auditLog: { create: vi.fn() },
+    };
+  }
+
+  function prismaFor(t: ReturnType<typeof tx>) {
+    return {
+      $transaction: vi.fn(async (fn: (x: typeof t) => Promise<unknown>) => fn(t)),
+      organization: { findMany: vi.fn().mockResolvedValue([]) },
+      paymentImportBatch: { update: vi.fn() },
+      auditLog: { create: vi.fn() },
+      syncLog: { create: vi.fn() },
+    } as never;
+  }
+
+  beforeEach(() => {
+    parseAccountCard.mockReturnValue({ rows: [rowWithInn()], diagnostics: emptyDiagnostics() });
+    orgExists = false;
+    // Матчер: до создания организации — очередь, после — точная привязка.
+    matchRow.mockImplementation(async () =>
+      orgExists
+        ? {
+            route: 'exact',
+            dto: {
+              externalId: '0000-9',
+              amount: 500,
+              paidAt: '2026-06-03T00:00:00.000Z',
+              isRefund: false,
+              organizationInn: INN,
+              updatedAt: new Date(0).toISOString(),
+            },
+          }
+        : { route: 'queue', candidateOrgId: null, candidateOrderId: null, matchMethod: 'none' }
+    );
+    upsertPaymentRecord.mockResolvedValue({ entityId: 'pay-9', action: 'created' });
+  });
+
+  it('организация создаётся, а строка перестаёт быть очередью', async () => {
+    const t = tx();
+    const res = await commitPaymentImport(prismaFor(t), session, {
+      fileBuffer: Buffer.from(''),
+      fileName: 'c.xlsx',
+      companyId: 'co-7',
+    });
+
+    expect(res.ok).toBe(true);
+    expect(t.organization.create).toHaveBeenCalledTimes(1);
+    if (res.ok) {
+      expect(res.result.counts.orgsCreated).toBe(1);
+      // Строка ушла из очереди в импортированные — иначе человек увидел бы
+      // «создали организацию, но платёж всё равно в очереди».
+      expect(res.result.counts.imported).toBe(1);
+      expect(res.result.counts.queued).toBe(0);
+      expect(res.result.counts.queuedByReason.none).toBeUndefined();
+    }
+    expect(t.paymentImportRow.upsert).not.toHaveBeenCalled();
+    // Итоговые счётчики дописываются в батч: он создавался ДО автосоздания.
+    expect(t.paymentImportBatch.update).toHaveBeenCalled();
+  });
+
+  it('администратор без выбранной компании получает company_required и НИЧЕГО не записано', async () => {
+    const t = tx();
+    const prisma = prismaFor(t);
+    const res = await commitPaymentImport(prisma, { sub: 'u1', role: 'admin' } as never, {
+      fileBuffer: Buffer.from(''),
+      fileName: 'c.xlsx',
+    });
+    expect(res).toEqual({ ok: false, error: 'company_required' });
+    expect(t.paymentImportBatch.create).not.toHaveBeenCalled();
+  });
+
+  it('обычному менеджеру импорт не отказывает — его строки просто уходят в очередь', async () => {
+    const t = tx();
+    const manager = { sub: 'u2', role: 'manager', companyId: null, managedOrgIds: ['o1'] } as never;
+    const res = await commitPaymentImport(prismaFor(t), manager, {
+      fileBuffer: Buffer.from(''),
+      fileName: 'c.xlsx',
+    });
+    expect(res.ok).toBe(true);
+    expect(t.organization.create).not.toHaveBeenCalled();
+    expect(t.paymentImportRow.upsert).toHaveBeenCalledTimes(1);
+  });
+
+  it('админ без компании, но и без новых контрагентов — импорт работает как прежде', async () => {
+    // Отказ `company_required` уместен только когда создавать действительно
+    // нужно: иначе мы сломали бы обычный импорт в системе с одной компанией.
+    parseAccountCard.mockReturnValue({
+      rows: [{ ...rowWithInn(), counterpartyInn: null }],
+      diagnostics: emptyDiagnostics(),
+    });
+    const t = tx();
+    const res = await commitPaymentImport(prismaFor(t), { sub: 'u1', role: 'admin' } as never, {
+      fileBuffer: Buffer.from(''),
+      fileName: 'c.xlsx',
+    });
+    expect(res.ok).toBe(true);
+    expect(t.organization.create).not.toHaveBeenCalled();
+  });
+
+  it('две строки одной причины: после автосоздания причина не исчезает целиком', async () => {
+    // Счётчик «в очередь — почему» должен уменьшаться, а не обнуляться:
+    // иначе оставшаяся строка потеряла бы объяснение.
+    const second = { ...rowWithInn(), externalId: '0000-10', counterpartyInn: '7736207543' };
+    parseAccountCard.mockReturnValue({
+      rows: [rowWithInn(), second],
+      diagnostics: emptyDiagnostics(),
+    });
+    const t = tx();
+    // Организация появляется только для первого ИНН.
+    matchRow.mockImplementation(async (_db: unknown, r: { counterpartyInn: string }) =>
+      orgExists && r.counterpartyInn === INN
+        ? {
+            route: 'exact',
+            dto: {
+              externalId: r.counterpartyInn,
+              amount: 1,
+              paidAt: '2026-06-03T00:00:00.000Z',
+              isRefund: false,
+              organizationInn: INN,
+              updatedAt: new Date(0).toISOString(),
+            },
+          }
+        : { route: 'queue', candidateOrgId: null, candidateOrderId: null, matchMethod: 'none' }
+    );
+    const prisma = {
+      $transaction: vi.fn(async (fn: (x: typeof t) => Promise<unknown>) => fn(t)),
+      // В системе уже есть организация со вторым ИНН — создаём только первую.
+      organization: { findMany: vi.fn().mockResolvedValue([{ inn: '7736207543' }]) },
+      paymentImportBatch: { update: vi.fn() },
+      auditLog: { create: vi.fn() },
+      syncLog: { create: vi.fn() },
+    } as never;
+
+    const res = await commitPaymentImport(prisma, session, {
+      fileBuffer: Buffer.from(''),
+      fileName: 'c.xlsx',
+      companyId: 'co-7',
+    });
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.result.counts.orgsCreated).toBe(1);
+      expect(res.result.counts.queued).toBe(1);
+      expect(res.result.counts.queuedByReason.none).toBe(1);
+    }
+  });
+
+  it('возврат тоже привязывается к созданной организации и считается возвратом', async () => {
+    parseAccountCard.mockReturnValue({
+      rows: [{ ...rowWithInn(), isRefund: true }],
+      diagnostics: emptyDiagnostics(),
+    });
+    const t = tx();
+    const res = await commitPaymentImport(prismaFor(t), session, {
+      fileBuffer: Buffer.from(''),
+      fileName: 'c.xlsx',
+      companyId: 'co-7',
+    });
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.result.counts.orgsCreated).toBe(1);
+      expect(res.result.counts.refunds).toBe(1);
+    }
+  });
+
+  it('две строки с одной причиной складываются в счётчике очереди', async () => {
+    // Иначе «в очередь: 2» показывало бы причину для одной строки из двух.
+    const a = { ...rowWithInn(), counterpartyInn: null, externalId: '0000-21' };
+    const b = { ...rowWithInn(), counterpartyInn: null, externalId: '0000-22' };
+    parseAccountCard.mockReturnValue({ rows: [a, b], diagnostics: emptyDiagnostics() });
+    matchRow.mockResolvedValue({
+      route: 'queue',
+      candidateOrgId: null,
+      candidateOrderId: null,
+      matchMethod: 'none',
+    });
+    const prisma = { organization: { findMany: vi.fn().mockResolvedValue([]) } } as never;
+
+    const res = await previewPaymentImport(prisma, session, {
+      fileBuffer: Buffer.from(''),
+      fileName: 'c.xlsx',
+    });
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.plan.counts.queuedByReason.none).toBe(2);
+  });
+});

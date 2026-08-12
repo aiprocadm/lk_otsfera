@@ -16,6 +16,8 @@ import { AdminRateOverrideForm } from '@/components/admin/admin-rate-override-fo
 import { fmtDate } from '@/lib/format';
 import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fields';
 import { getFieldsForEntity } from '@/lib/services/customFields';
+import { getAutoCreatedFrom1C } from '@/lib/services/organization/autoCreated';
+import { AutoCreatedBadge } from '@/components/organization/auto-created-badge';
 
 const fmtRate = new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 2 });
 
@@ -41,6 +43,9 @@ export default async function AdminOrganizationDetailPage({
   // §11 ТЗ v0.5: настраиваемые поля организации (видимость и право правки —
   // на сервере, см. getValuesForEntity).
   const customFields = await getFieldsForEntity(prisma, session, 'organization', org.id);
+  // `У-54`: организацию мог завести импорт выписки — человек должен видеть это
+  // в карточке, а не выяснять по журналу аудита.
+  const autoCreated = await getAutoCreatedFrom1C(prisma, org.id);
 
   return (
     <div className="space-y-5">
@@ -51,6 +56,7 @@ export default async function AdminOrganizationDetailPage({
           Партнёр: {org.partner?.name ?? 'Без партнёра'}
           {meta.company && <span> · Компания: {meta.company.name}</span>}
         </p>
+        <AutoCreatedBadge mark={autoCreated} />
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">

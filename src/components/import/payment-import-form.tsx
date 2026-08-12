@@ -8,6 +8,7 @@ import {
 import { IMPORT_MAX_FILE_BYTES, IMPORT_MAX_FILE_MB } from '@/lib/config/import-limits';
 import { clientLog } from '@/lib/logging/client';
 import { PAYMENT_IMPORT_ERRORS, errorMessage as messageFor, fileSizeMb } from './error-messages';
+import { CompanyPicker } from './company-picker';
 
 type Counts = {
   totalRows: number;
@@ -18,6 +19,8 @@ type Counts = {
   excludedByReason: Record<string, number>;
   queuedByReason?: Record<string, number>;
   parseErrors: number;
+  /** `У-49`: сколько организаций импорт завёл сам. */
+  orgsCreated?: number;
 };
 /** «Что система увидела в файле» (`У-58`). */
 type Diagnostics = {
@@ -167,10 +170,9 @@ function DiagnosticsCard({ d }: { d: Diagnostics }) {
 }
 
 /**
- * `У-52`: контрагенты из файла, которых в системе ещё нет, — списком «название
- * + ИНН» ДО применения. Пока автосоздание не включено (следующий PR этапа),
- * блок честно говорит, куда такие строки уходят сейчас: обещать создание,
- * которого не будет, — это дефект понятности, а не мелочь формулировки.
+ * `У-52`: организации, которые импорт заведёт сам, — списком «название + ИНН»
+ * ДО применения. Это страховка к `У-49`: создание необратимо, поэтому человек
+ * видит список заранее, а если ошибся — отменяет импорт целиком (`У-59`).
  */
 function NewCounterpartiesCard({ list }: { list: NewCounterparty[] }) {
   if (list.length === 0) return null;
@@ -180,11 +182,11 @@ function NewCounterpartiesCard({ list }: { list: NewCounterparty[] }) {
       data-testid="payment-import-new-counterparties"
     >
       <h3 className="text-sm font-semibold text-[#111111]">
-        Новых контрагентов в файле: {list.length}
+        Будет создано организаций: {list.length}
       </h3>
       <p className="mt-1 text-xs text-gray-500">
-        Организаций с такими ИНН в системе нет. Сейчас их платежи уходят в очередь разбора — там
-        организацию можно завести кнопкой.
+        Организаций с такими ИНН в системе нет — импорт заведёт их сам, и платежи привяжутся к ним.
+        Если это ошибка, импорт можно отменить целиком на вкладке «История».
       </p>
       <ul className="mt-2 text-xs text-gray-700 space-y-0.5">
         {list.map((c) => (
@@ -218,6 +220,14 @@ function CountsCard({ title, counts }: { title: string; counts: Counts }) {
         </div>
         <div className="text-gray-600">Исключено</div>
         <div className="font-medium text-[#111111]">{counts.excluded}</div>
+        {counts.orgsCreated !== undefined && counts.orgsCreated > 0 && (
+          <>
+            <div className="text-gray-600">Заведено организаций</div>
+            <div className="font-medium text-[#111111]" data-testid="count-orgs-created">
+              {counts.orgsCreated}
+            </div>
+          </>
+        )}
         {counts.parseErrors > 0 && (
           <>
             <div className="text-gray-600">Ошибок разбора</div>
@@ -269,9 +279,19 @@ function CountsCard({ title, counts }: { title: string; counts: Counts }) {
   );
 }
 
-export function PaymentImportForm() {
+/**
+ * `companies` передаёт только админская страница (`У-50`): admin своей компании
+ * не имеет и выбирает, куда класть организации, которые заведёт импорт.
+ */
+export function PaymentImportForm({
+  companies,
+}: {
+  companies?: Array<{ id: string; name: string }>;
+}) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [hasFile, setHasFile] = useState(false);
+  const single = companies?.length === 1 ? companies[0] : undefined;
+  const [companyId, setCompanyId] = useState(single?.id ?? '');
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [commitResult, setCommitResult] = useState<CommitResult | null>(null);
   const [isPreviewing, setIsPreviewing] = useState(false);
@@ -299,6 +319,7 @@ export function PaymentImportForm() {
     try {
       const form = new FormData();
       form.set('file', file);
+      if (companyId) form.set('companyId', companyId);
       setPreview((await previewPaymentImportAction(form)) as PreviewResult);
     } catch (e) {
       // Т-4: раньше отклонённый промис не менял состояние — экран не менялся.
@@ -319,6 +340,7 @@ export function PaymentImportForm() {
     try {
       const form = new FormData();
       form.set('file', file);
+      if (companyId) form.set('companyId', companyId);
       setCommitResult((await commitPaymentImportAction(form)) as CommitResult);
     } catch (e) {
       clientLog.error('[1c-import] запрос импорта выписки не дошёл до сервера', e);
@@ -346,6 +368,17 @@ export function PaymentImportForm() {
             data-testid="payment-import-file-input"
           />
         </div>
+        <CompanyPicker
+          companies={companies}
+          value={companyId}
+          onChange={(id) => {
+            setCompanyId(id);
+            setPreview(null);
+            setCommitResult(null);
+          }}
+          idPrefix="payment-import"
+        />
+
         <button
           type="submit"
           disabled={!hasFile || isPreviewing}

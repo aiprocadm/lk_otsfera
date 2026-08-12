@@ -10,6 +10,8 @@ import {
   searchResolveOrgs,
   listResolveOrders,
   createOrgFromQueueRow,
+  planQueueOrgCreation,
+  createOrgsFromQueueRows,
 } from '@/lib/services/import/oneCAccountCard';
 // Т-5: тот же предел, что у импорта Excel и в next.config.
 import { IMPORT_MAX_FILE_BYTES } from '@/lib/config/import-limits';
@@ -26,18 +28,32 @@ async function guarded(
   return { ok: true, buf: Buffer.from(await file.arrayBuffer()), name: file.name };
 }
 
+/** `У-50`: компания для новых организаций (admin). Пусто → сервис решит сам. */
+function companyIdOf(form: FormData): { companyId?: string } {
+  const raw = form.get('companyId');
+  return typeof raw === 'string' && raw.trim() ? { companyId: raw.trim() } : {};
+}
+
 export async function previewPaymentImportAction(form: FormData) {
   const session = await requireSession();
   const g = await guarded(form);
   if (!g.ok) return { ok: false as const, error: g.error };
-  return previewPaymentImport(prisma, session, { fileBuffer: g.buf, fileName: g.name });
+  return previewPaymentImport(prisma, session, {
+    fileBuffer: g.buf,
+    fileName: g.name,
+    ...companyIdOf(form),
+  });
 }
 
 export async function commitPaymentImportAction(form: FormData) {
   const session = await requireSession();
   const g = await guarded(form);
   if (!g.ok) return { ok: false as const, error: g.error };
-  return commitPaymentImport(prisma, session, { fileBuffer: g.buf, fileName: g.name });
+  return commitPaymentImport(prisma, session, {
+    fileBuffer: g.buf,
+    fileName: g.name,
+    ...companyIdOf(form),
+  });
 }
 
 export async function resolveQueueRowAction(args: {
@@ -62,6 +78,31 @@ export async function searchResolveOrgsAction(args: { q?: string }) {
 export async function listResolveOrdersAction(args: { organizationId: string }) {
   const session = await requireSession();
   return listResolveOrders(prisma, session, args);
+}
+
+/**
+ * `У-53`, шаг 1 (`Р-10`): список того, что будет создано пакетно. Ничего не
+ * пишет — без показа списка второй шаг вызывать нельзя.
+ */
+export async function planQueueOrgCreationAction() {
+  const session = await requireSession();
+  return planQueueOrgCreation(prisma, session);
+}
+
+/** `У-53`, шаг 2: создать организации по отмеченным строкам очереди. */
+export async function createOrgsFromQueueRowsAction(args: {
+  rowIds: string[];
+  companyId?: string;
+}) {
+  const session = await requireSession();
+  const res = await createOrgsFromQueueRows(prisma, session, args);
+  if (res.ok) {
+    for (const cabinet of ['/admin', '/leader']) {
+      revalidatePath(`${cabinet}/settings/integrations/1c/payments`);
+    }
+    revalidatePath('/manager/payments-import');
+  }
+  return res;
 }
 
 /** Этап 10 (Т-30): создание организации из строки очереди + привязка платежа. */

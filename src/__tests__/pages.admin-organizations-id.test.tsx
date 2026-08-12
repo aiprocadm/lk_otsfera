@@ -17,6 +17,13 @@ vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
 // запроса пиннится в services.admin.organizations.test.ts.
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
+// `У-54`: карточка спрашивает журнал аудита, была ли организация заведена
+// импортом. По умолчанию — нет (обычная организация, плашки быть не должно).
+const { getAutoCreatedFrom1C } = vi.hoisted(() => ({
+  getAutoCreatedFrom1C: vi.fn(async () => null),
+}));
+vi.mock('@/lib/services/organization/autoCreated', () => ({ getAutoCreatedFrom1C }));
+
 const { getOrganization, getOrganizationMeta } = vi.hoisted(() => ({
   getOrganization: vi.fn(),
   getOrganizationMeta: vi.fn(),

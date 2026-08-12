@@ -2,6 +2,9 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { renderToString } from 'react-dom/server';
 
+// `У-53`: пакетное создание обновляет список после успеха.
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
+
 vi.mock('@/server-actions/payment-import', () => ({
   dismissQueueRowAction: vi.fn(),
   resolveQueueRowAction: vi.fn(),

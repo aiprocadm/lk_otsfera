@@ -118,6 +118,13 @@ describe('listImportBatches — список и скоуп (Т-39/Т-40)', () =>
     expect(res.ok).toBe(true);
   });
 
+  it('клиентская роль истории импортов не получает вовсе', async () => {
+    const db = makeDb();
+    const orgUser = { sub: 'u-org', role: 'organization' } as never;
+    expect(await listImportBatches(db, orgUser)).toEqual({ ok: false, error: 'forbidden' });
+    expect(db.oneCImportBatch.findMany).not.toHaveBeenCalled();
+  });
+
   it('руководитель видит только батчи своей компании; статусы кнопки выводятся', async () => {
     const db = makeDb();
     db.oneCImportBatch.findMany.mockResolvedValue([
@@ -811,5 +818,34 @@ describe('откат выписки — второй канал (У-59)', () => 
       error: 'not_found',
     });
     expect(db.paymentImportBatch.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('гейт прав канала выписки: чужая роль, отсутствующий батч, orgs-скоуп', async () => {
+    const db = makeDb();
+    // Клиентская роль импортом не занимается — в таблицу батчей не ходим вовсе.
+    const orgUser = { sub: 'u-org', role: 'organization' } as never;
+    expect(await planImportRollback(db, orgUser, { batchId: 'sb', channel: 'statement' })).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+    expect(db.paymentImportBatch.findUnique).not.toHaveBeenCalled();
+
+    // Батча нет вовсе → not_found (существование чужих батчей не раскрываем).
+    db.paymentImportBatch.findUnique.mockResolvedValue(null);
+    expect(await planImportRollback(db, ADMIN, { batchId: 'sb', channel: 'statement' })).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
+
+    // Обычный менеджер (скоуп по своим организациям) откатывать не может.
+    db.paymentImportBatch.findUnique.mockResolvedValue({
+      createdAt: FRESH,
+      companyId: null,
+      status: 'committed',
+      writes: [row({ id: 'w1', entity: 'payment', entityId: 'pay-1' })],
+    });
+    expect(
+      await planImportRollback(db, PLAIN_MANAGER, { batchId: 'sb', channel: 'statement' })
+    ).toEqual({ ok: false, error: 'forbidden' });
   });
 });

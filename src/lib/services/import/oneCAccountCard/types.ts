@@ -67,4 +67,6 @@ export type CardImportCounts = {
   excluded: number; // corr 60/91/переводы
   excludedByReason: Record<string, number>;
   parseErrors: number;
+  /** Сколько организаций импорт завёл сам (`У-49`). */
+  orgsCreated: number;
 };

@@ -6,6 +6,7 @@ import type { BatchSummary } from '@/lib/services/oneCSync/record-batch';
 import type { ImportDiagnostics } from '@/lib/services/import/diagnostics';
 import { IMPORT_MAX_FILE_BYTES, IMPORT_MAX_FILE_MB } from '@/lib/config/import-limits';
 import { clientLog } from '@/lib/logging/client';
+import { CompanyPicker } from './company-picker';
 import { XLSX_IMPORT_ERRORS, errorMessage as messageFor, fileSizeMb } from './error-messages';
 
 type ImportReport = {
@@ -296,42 +297,18 @@ export function ImportForm({ companies }: { companies?: Array<{ id: string; name
           />
         </div>
 
-        {/* Т-41: несколько компаний — выбор обязателен; смена выбора сбрасывает
-            уже посчитанный план (он считался для другой компании). */}
-        {companies && companies.length > 1 && (
-          <div>
-            <label
-              htmlFor="import-company"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Компания для новых организаций
-            </label>
-            <select
-              id="import-company"
-              required
-              value={companyId}
-              onChange={(e) => {
-                setCompanyId(e.target.value);
-                setPreview(null);
-                setCommitResult(null);
-              }}
-              className="block w-full text-sm text-gray-700 border border-gray-300 rounded px-3 py-2 bg-white"
-              data-testid="import-company-select"
-            >
-              <option value="">— выберите компанию —</option>
-              {companies.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-        {single && (
-          <p className="text-xs text-gray-500" data-testid="import-company-single">
-            Новые организации попадут в компанию «{single.name}».
-          </p>
-        )}
+        {/* Т-41/`У-50`: несколько компаний — выбор обязателен; смена выбора
+            сбрасывает уже посчитанный план (он считался для другой компании). */}
+        <CompanyPicker
+          companies={companies}
+          value={companyId}
+          onChange={(id) => {
+            setCompanyId(id);
+            setPreview(null);
+            setCommitResult(null);
+          }}
+          idPrefix="import"
+        />
 
         <button
           type="submit"
