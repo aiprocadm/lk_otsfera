@@ -9,13 +9,20 @@ import { recordAudit } from '@/lib/auth/audit';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
 import { getObjectStorage } from '@/lib/storage';
 import { log } from '@/lib/logging';
+import { normalizeInn } from '@/lib/services/oneCSync/inn';
 import { readSpreadsheet } from './read-spreadsheet';
 import { parseAccountCard } from './parser';
 import { matchRow } from './matcher';
 import { collectNewCounterparties } from './new-counterparties';
+import { resolveNewOrgCompany, createOrganizationsForImport } from './auto-create';
 import type { ParsedRow, CardImportCounts, CardParseDiagnostics } from './types';
 
-export type Args = { fileBuffer: Buffer; fileName: string };
+export type Args = {
+  fileBuffer: Buffer;
+  fileName: string;
+  /** Компания для новых организаций (`У-50`): нужна администратору. */
+  companyId?: string | undefined;
+};
 
 // Т-25/Т-26: право импорта — admin и руководитель (mayImportOneC), общий
 // предикат с Excel-импортом. Прежний локальный isStaff() удалён.
@@ -29,10 +36,37 @@ function emptyCounts(): CardImportCounts {
     excludedByReason: {},
     queuedByReason: {},
     parseErrors: 0,
+    orgsCreated: 0,
   };
 }
 
 type Routed = { row: ParsedRow; outcome: Awaited<ReturnType<typeof matchRow>> };
+
+/**
+ * Пересчёт «к импорту / в очередь» по итоговым маршрутам строк.
+ *
+ * Именно пересчёт, а не правка счётчиков по месту: после автосоздания
+ * организаций (`У-49`) часть строк переезжает из очереди в импортированные, и
+ * инкременты пришлось бы «откручивать назад» — источник тихих расхождений.
+ * Причина очереди нужна человеку: «в очередь: 130» без объяснения выглядит как
+ * отказ импорта, хотя строки на самом деле разобраны.
+ */
+function countRoutes(counts: CardImportCounts, routed: Routed[]) {
+  counts.imported = 0;
+  counts.refunds = 0;
+  counts.queued = 0;
+  counts.queuedByReason = {};
+  for (const { row, outcome } of routed) {
+    if (outcome.route === 'exact') {
+      counts.imported += 1;
+      if (row.isRefund) counts.refunds += 1;
+    } else {
+      counts.queued += 1;
+      const reason = outcome.matchMethod;
+      counts.queuedByReason[reason] = (counts.queuedByReason[reason] ?? 0) + 1;
+    }
+  }
+}
 
 /** Разбор файла + матчинг каждой импортируемой строки. Чистая фаза (read-only). */
 async function plan(
@@ -61,18 +95,9 @@ async function plan(
       continue;
     }
     const outcome = await matchRow(prisma, row);
-    if (outcome.route === 'exact') {
-      counts.imported += 1;
-      if (row.isRefund) counts.refunds += 1;
-    } else {
-      counts.queued += 1;
-      // Причина нужна человеку: «в очередь: 130» без объяснения выглядит как
-      // отказ импорта, хотя строки на самом деле разобраны.
-      const reason = outcome.matchMethod;
-      counts.queuedByReason[reason] = (counts.queuedByReason[reason] ?? 0) + 1;
-    }
     routed.push({ row, outcome });
   }
+  countRoutes(counts, routed);
   return { counts, routed, diagnostics };
 }
 
@@ -124,6 +149,21 @@ export async function commitPaymentImport(
     return { ok: false as const, error: 'empty' as const, diagnostics: result.diagnostics };
   }
 
+  // `У-49`: организации, которых нет в системе, заводим сами — но СНАЧАЛА
+  // проверяем, куда их класть (`У-50`). Отказать нужно ДО записи чего-либо,
+  // иначе половина файла уже применена.
+  const candidates = await collectNewCounterparties(
+    prisma,
+    result.routed.filter((r) => r.outcome.route === 'queue').map((r) => r.row)
+  );
+  const company = resolveNewOrgCompany(session, args.companyId);
+  if (!company.ok && company.error === 'company_required' && candidates.length > 0) {
+    return { ok: false as const, error: 'company_required' as const };
+  }
+  // `not_allowed` (обычный менеджер) — не отказ импорта: его строки просто
+  // уходят в очередь ручного разбора, как и раньше (`У-51`).
+  const creating = company.ok ? candidates : [];
+
   const ctx: WriteCtx = { mode: 'live', notify: true, scope: importScope(session) };
   const writerSummary = emptySummary();
 
@@ -137,7 +177,29 @@ export async function commitPaymentImport(
         status: 'committed',
       },
     });
-    for (const { row, outcome } of result.routed) {
+    // Организации создаются ДО записи платежей: матчер найдёт их по ИНН сам,
+    // и отдельной ветки «привязать вручную» не появляется.
+    const createdByInn = company.ok
+      ? await createOrganizationsForImport(tx, session, {
+          candidates: creating,
+          companyId: company.companyId,
+          batchId: batch.id,
+          fileName: args.fileName,
+        })
+      : new Map<string, string>();
+    result.counts.orgsCreated = createdByInn.size;
+
+    // Итоговые маршруты: после автосоздания часть строк уходит из очереди.
+    const finalRoutes: Routed[] = [];
+
+    for (const { row, outcome: initial } of result.routed) {
+      let outcome = initial;
+      // Строка ушла бы в очередь только потому, что организации не было —
+      // теперь она есть, и матчер привяжет платёж по ИНН.
+      if (outcome.route === 'queue' && createdByInn.has(normalizeInn(row.counterpartyInn ?? ''))) {
+        outcome = await matchRow(tx as unknown as PrismaClient, row);
+      }
+      finalRoutes.push({ row, outcome });
       if (outcome.route === 'exact') {
         const written = await upsertPaymentRecord(
           tx as unknown as PrismaClient,
@@ -203,6 +265,13 @@ export async function commitPaymentImport(
         });
       }
     }
+    countRoutes(result.counts, finalRoutes);
+    // Счётчики после автосоздания уже другие (часть строк ушла из очереди),
+    // а батч создавался раньше — записываем итог, иначе история соврёт.
+    await tx.paymentImportBatch.update({
+      where: { id: batch.id },
+      data: { counts: result.counts as unknown as Prisma.InputJsonValue },
+    });
     return batch.id;
   });
 

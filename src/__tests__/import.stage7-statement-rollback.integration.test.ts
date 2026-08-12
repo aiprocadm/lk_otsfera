@@ -2,9 +2,13 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient, type Prisma } from '@prisma/client';
 import ExcelJS from 'exceljs';
 
-import { commitPaymentImport } from '@/lib/services/import/oneCAccountCard/import-batch';
+import {
+  commitPaymentImport,
+  previewPaymentImport,
+} from '@/lib/services/import/oneCAccountCard/import-batch';
 import { planImportRollback, rollbackImport } from '@/lib/services/import/rollback';
 import { listExchangeHistory } from '@/lib/services/import/history';
+import { getAutoCreatedFrom1C } from '@/lib/services/organization/autoCreated';
 
 /**
  * Этап 7, `У-59`: откат импорта выписки на живом Postgres.
@@ -168,5 +172,111 @@ describe('этап 7 — откат импорта выписки (живой Po
     const history = await listExchangeHistory(prisma, session, { channel: 'statement' });
     if (!history.ok) throw new Error('expected ok');
     expect(history.items.find((i) => i.id === legacy.id)?.rollback).toBe('nothing_to_revert');
+  });
+});
+
+/**
+ * `У-49`…`У-54` (PR-3): импорт заводит организацию сам — и её тоже можно
+ * откатить. Это главная проверка этапа: раньше платёж от неизвестного
+ * плательщика уходил в очередь, и организацию заводили руками.
+ */
+describe('этап 7 — автосоздание организации по ИНН (живой Postgres)', () => {
+  const NEW_INN = '7736207543'; // валиден, организации с ним нет
+  const EXT_C = 'ST7-000003';
+
+  async function cardWithUnknownPayer(): Promise<Buffer> {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Лист1');
+    ws.addRow(['Сальдо на начало']);
+    ws.addRow([
+      '05.07.2026',
+      `Поступление на расчетный счет ${EXT_C} от 05.07.2026 10:00:00\nОплата по счёту`,
+      '',
+      `НОВЫЙ КЛИЕНТ ООО ИНН ${NEW_INN}`,
+      '',
+      '7000',
+      '',
+      '62.01',
+      '',
+    ]);
+    ws.addRow(['Обороты за период и сальдо на конец']);
+    return Buffer.from(await wb.xlsx.writeBuffer());
+  }
+
+  afterAll(async () => {
+    await prisma.payment.deleteMany({ where: { externalId: EXT_C } });
+    await prisma.paymentImportRow.deleteMany({ where: { externalId: EXT_C } });
+    await prisma.organization.deleteMany({ where: { inn: NEW_INN } });
+  });
+
+  it('предпросмотр обещает создание, импорт создаёт, платёж привязывается, откат убирает', async () => {
+    const fileBuffer = await cardWithUnknownPayer();
+
+    // `У-52`: список того, что будет создано, — ДО применения.
+    const preview = await previewPaymentImport(prisma, session, {
+      fileBuffer,
+      fileName: 'новый-клиент.xlsx',
+      companyId,
+    });
+    if (!preview.ok) throw new Error(`preview failed: ${preview.error}`);
+    expect(preview.plan.newCounterparties).toEqual([
+      { name: 'НОВЫЙ КЛИЕНТ ООО', inn: NEW_INN, rows: 1 },
+    ]);
+
+    const res = await commitPaymentImport(prisma, session, {
+      fileBuffer,
+      fileName: 'новый-клиент.xlsx',
+      companyId,
+    });
+    if (!res.ok) throw new Error(`commit failed: ${res.error}`);
+    expect(res.result.counts.orgsCreated).toBe(1);
+    // Платёж не остался в очереди — ради этого всё и затевалось.
+    expect(res.result.counts.imported).toBe(1);
+    expect(res.result.counts.queued).toBe(0);
+
+    const org = await prisma.organization.findFirst({ where: { inn: NEW_INN } });
+    expect(org?.companyId).toBe(companyId);
+    const payment = await prisma.payment.findUnique({ where: { externalId: EXT_C } });
+    expect(payment?.organizationId).toBe(org?.id);
+
+    // `У-54`: источник в аудите — по нему карточка рисует плашку.
+    const mark = await getAutoCreatedFrom1C(prisma, org!.id);
+    expect(mark?.fileName).toBe('новый-клиент.xlsx');
+
+    // `У-59`: автосозданная организация удаляется откатом вместе с платежом.
+    const back = await rollbackImport(prisma, session, {
+      batchId: res.result.batchId,
+      partial: false,
+      channel: 'statement',
+    });
+    expect(back).toMatchObject({ ok: true, deleted: { organizations: 1, payments: 1 } });
+    expect(await prisma.organization.count({ where: { inn: NEW_INN } })).toBe(0);
+  });
+
+  it('строка без ИНН и с кривым ИНН остаётся в очереди (`У-51`)', async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Лист1');
+    ws.addRow(['Сальдо на начало']);
+    ws.addRow([
+      '06.07.2026',
+      'Поступление на расчетный счет ST7-000004 от 06.07.2026 10:00:00\nОплата',
+      '',
+      'КОНТРАГЕНТ БЕЗ РЕКВИЗИТОВ ИНН 1234567890',
+      '',
+      '900',
+      '',
+      '62.01',
+      '',
+    ]);
+    ws.addRow(['Обороты за период и сальдо на конец']);
+    const res = await commitPaymentImport(prisma, session, {
+      fileBuffer: Buffer.from(await wb.xlsx.writeBuffer()),
+      fileName: 'кривой-инн.xlsx',
+      companyId,
+    });
+    if (!res.ok) throw new Error(`commit failed: ${res.error}`);
+    expect(res.result.counts.orgsCreated).toBe(0);
+    expect(res.result.counts.queued).toBe(1);
+    await prisma.paymentImportRow.deleteMany({ where: { externalId: 'ST7-000004' } });
   });
 });

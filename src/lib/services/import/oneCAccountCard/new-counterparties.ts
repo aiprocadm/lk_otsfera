@@ -14,7 +14,7 @@ import { normalizeInn, isValidInn } from '@/lib/services/oneCSync/inn';
  * к заказу или организации, по определению уже нашла своего клиента —
  * заводить ему дубль было бы вредом, а не пользой.
  */
-type NewCounterparty = {
+export type NewCounterparty = {
   name: string;
   inn: string;
   /** Сколько строк файла принадлежит этому контрагенту. */

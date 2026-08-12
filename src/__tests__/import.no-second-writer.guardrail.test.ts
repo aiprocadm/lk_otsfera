@@ -14,8 +14,17 @@ describe('import/ has no second writer (all writes via oneCSync writers)', () =>
     // - Этап 10 (Т-30): создание организации из очереди — РУЧНАЯ операция по
     //   кнопке оператора, не импортная запись; oneCSync-writer создаёт
     //   организации только из данных 1С, а здесь источник — форма диалога.
-    //   Автосоздание из выписки при этом запрещено (Т-30а, страж в матчере).
-    const ALLOWED = new Set(['rollback.ts', join('oneCAccountCard', 'create-org.ts')]);
+    // - Этап 7 (`У-49`): автосоздание организации из выписки. Прежний запрет
+    //   (Т-30а) отменён решением `Р-2`. Через oneCSync-writer это не идёт по
+    //   той же причине, что и ручное создание: у строки выписки есть только
+    //   название и ИНН плательщика, а не DTO контрагента из 1С с `externalId`.
+    //   Правило компании (`У-50`) и запись в след батча (`У-59`) живут тут же —
+    //   в writer'е их не выразить.
+    const ALLOWED = new Set([
+      'rollback.ts',
+      join('oneCAccountCard', 'create-org.ts'),
+      join('oneCAccountCard', 'auto-create.ts'),
+    ]);
     // Recursive: subdirectories (e.g. oneCAccountCard/) carry real write logic and
     // must be covered too — a non-recursive scan would silently exempt them.
     const files = readdirSync(dir, { recursive: true })

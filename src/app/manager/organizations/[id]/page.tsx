@@ -8,6 +8,8 @@ import { getOrganizationCard } from '@/lib/services/manager/organizationCard';
 import { OrgCardTabs, ORG_CARD_TABS, type OrgCardTab } from '@/components/manager/org-card-tabs';
 import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fields';
 import { getFieldsForEntity } from '@/lib/services/customFields';
+import { getAutoCreatedFrom1C } from '@/lib/services/organization/autoCreated';
+import { AutoCreatedBadge } from '@/components/organization/auto-created-badge';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,11 +49,14 @@ export default async function ManagerOrgDetailPage({
   // видны на любой из них (вкладки переключают историю/удостоверения, а поля
   // относятся к самой организации).
   const customFields = await getFieldsForEntity(prisma, session, 'organization', id);
+  // `У-54`: клиента мог завести импорт выписки — менеджеру это видно сразу.
+  const autoCreated = await getAutoCreatedFrom1C(prisma, id);
 
   return (
     <div className="space-y-5">
       {/* У-26 (этап 5): менеджер заводит сотрудника прямо из карточки клиента —
           раньше сотрудника в системе нельзя было создать вообще нигде. */}
+      <AutoCreatedBadge mark={autoCreated} />
       <div className="flex justify-end">
         <AddStudentDialog organizationId={id} />
       </div>

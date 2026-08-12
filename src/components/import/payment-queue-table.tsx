@@ -1,16 +1,20 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   dismissQueueRowAction,
   resolveQueueRowAction,
   searchResolveOrgsAction,
   listResolveOrdersAction,
   createOrgFromQueueRowAction,
+  planQueueOrgCreationAction,
+  createOrgsFromQueueRowsAction,
 } from '@/server-actions/payment-import';
 import { Button, Dialog, Field, Input, Select } from '@/components/ui';
 import { CardList, Card, CardRow } from '@/components/ui/card-list';
 import { toast } from '@/lib/ui/toast';
+import { CompanyPicker } from './company-picker';
 
 export type QueueRow = {
   id: string;
@@ -47,6 +51,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   company_required: 'Выберите компанию для новой организации',
   bind_failed:
     'Организация создана, но оплату привязать не удалось — привяжите её кнопкой «Привязать»',
+  // `У-53`: обычный менеджер организаций не заводит — ни по одной, ни пачкой.
+  not_allowed: 'Заводить организации может администратор или руководитель',
 };
 function errorMessage(code: string): string {
   return ERROR_MESSAGES[code] ?? `Ошибка: ${code}`;
@@ -71,6 +77,8 @@ export function PaymentQueueTable({
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [active, setActive] = useState<QueueRow | null>(null);
   const [creating, setCreating] = useState<QueueRow | null>(null);
+  const [bulk, setBulk] = useState(false);
+  const router = useRouter();
   const visible = rows.filter((r) => !hidden.has(r.id));
 
   function hide(id: string) {
@@ -109,8 +117,25 @@ export function PaymentQueueTable({
     </div>
   );
 
+  // `У-53`: накопленные строки заводятся пачкой, а не по одной. Действие
+  // обязательно двухшаговое (`Р-10`) — сам список живёт в диалоге.
+  const anyWithInn = visible.some((r) => r.counterpartyInn);
+
   return (
     <div>
+      {anyWithInn && (
+        <div className="mb-3">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setBulk(true)}
+            data-testid="bulk-create-orgs"
+          >
+            Создать организации по всем строкам с валидным ИНН
+          </Button>
+        </div>
+      )}
+
       <CardList>
         {visible.map((r) => (
           <Card key={r.id} title={`${r.externalId}${r.isRefund ? ' (возврат)' : ''}`}>
@@ -192,6 +217,20 @@ export function PaymentQueueTable({
         />
       )}
 
+      {bulk && (
+        <BulkCreateOrgsDialog
+          companies={companies}
+          onClose={() => setBulk(false)}
+          onDone={(created, bound) => {
+            setBulk(false);
+            toast.success(
+              `Создано организаций: ${created}` + (bound > 0 ? `, привязано оплат: ${bound}` : '')
+            );
+            router.refresh();
+          }}
+        />
+      )}
+
       {creating && (
         <CreateOrgDialog
           row={creating}
@@ -205,6 +244,156 @@ export function PaymentQueueTable({
         />
       )}
     </div>
+  );
+}
+
+/**
+ * `У-53` + решение `Р-10`: пакетное создание — строго два шага. Первый шаг
+ * показывает, ЧТО будет создано (название, ИНН, сколько строк подтянется);
+ * снятая галочка исключает контрагента. Без показанного списка второй шаг
+ * недоступен: кнопка «Создать» появляется только после загрузки плана.
+ */
+function BulkCreateOrgsDialog({
+  companies,
+  onClose,
+  onDone,
+}: {
+  companies?: Array<{ id: string; name: string }> | undefined;
+  onClose: () => void;
+  onDone: (created: number, bound: number) => void;
+}) {
+  const [candidates, setCandidates] = useState<Array<{
+    rowId: string;
+    name: string;
+    inn: string;
+    alsoRows: number;
+  }> | null>(null);
+  const [chosen, setChosen] = useState<Set<string>>(new Set());
+  // Единственная компания подставляется без вопроса — как в формах импорта.
+  const single = companies?.length === 1 ? companies[0] : undefined;
+  const [companyId, setCompanyId] = useState(single ? single.id : '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const res = await planQueueOrgCreationAction();
+        if (!alive) return;
+        if (res.ok) {
+          setCandidates(res.candidates);
+          setChosen(new Set(res.candidates.map((c) => c.rowId)));
+        } else {
+          setError(errorMessage(res.error));
+        }
+      } catch {
+        if (alive) setError('Сервер недоступен — попробуйте ещё раз');
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  function toggle(rowId: string) {
+    setChosen((prev) => {
+      const next = new Set(prev);
+      if (next.has(rowId)) next.delete(rowId);
+      else next.add(rowId);
+      return next;
+    });
+  }
+
+  async function submit() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await createOrgsFromQueueRowsAction({
+        rowIds: [...chosen],
+        ...(companyId ? { companyId } : {}),
+      });
+      if (res.ok) {
+        onDone(res.result.created, res.result.bound);
+        return;
+      }
+      setError(errorMessage(res.error));
+    } catch {
+      setError('Сервер недоступен — попробуйте ещё раз');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title="Создать организации по строкам очереди"
+      busy={busy}
+      error={error}
+    >
+      {candidates === null ? (
+        <p className="text-sm text-gray-500">Считаем, что можно создать…</p>
+      ) : candidates.length === 0 ? (
+        <div className="space-y-3 text-sm text-gray-700">
+          <p data-testid="bulk-empty">
+            Создавать нечего: в очереди нет строк с валидным ИНН, для которых организации ещё нет.
+            Такие строки привязывают кнопкой «Привязать».
+          </p>
+          <div className="flex justify-end">
+            <Button variant="secondary" onClick={onClose}>
+              Закрыть
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3 text-sm text-gray-700">
+          <p>
+            Будет создано организаций: <strong data-testid="bulk-count">{chosen.size}</strong> из{' '}
+            {candidates.length}. Снимите галочку, чтобы пропустить.
+          </p>
+          <ul className="space-y-1 max-h-64 overflow-y-auto" data-testid="bulk-candidates">
+            {candidates.map((c) => (
+              <li key={c.rowId}>
+                <label className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    checked={chosen.has(c.rowId)}
+                    onChange={() => toggle(c.rowId)}
+                    data-testid={`bulk-row-${c.rowId}`}
+                  />
+                  <span>
+                    <span className="font-medium text-[#111111]">{c.name || 'без названия'}</span> ·
+                    ИНН {c.inn}
+                    {c.alsoRows > 0 ? ` · подтянется оплат: ${c.alsoRows + 1}` : ''}
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+          <CompanyPicker
+            companies={companies}
+            value={companyId}
+            onChange={setCompanyId}
+            idPrefix="bulk-org"
+          />
+          <div className="flex gap-2 justify-end">
+            <Button variant="secondary" onClick={onClose} disabled={busy}>
+              Отмена
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => void submit()}
+              disabled={busy || chosen.size === 0}
+              data-testid="bulk-confirm"
+            >
+              Создать
+            </Button>
+          </div>
+        </div>
+      )}
+    </Dialog>
   );
 }
 

@@ -24,6 +24,8 @@ type Counts = {
   /** Почему строки ушли в очередь (добавлено 11.08.2026). */
   queuedByReason?: Record<string, number>;
   parseErrors: number;
+  /** `У-49`: сколько организаций импорт завёл сам. */
+  orgsCreated?: number;
 };
 
 function emptyCounts(overrides: Partial<Counts> = {}): Counts {
@@ -106,13 +108,65 @@ describe('PaymentImportForm (interactive, jsdom)', () => {
     fireEvent.click(screen.getByTestId('payment-import-preview-button'));
 
     const card = await screen.findByTestId('payment-import-new-counterparties');
-    expect(card.textContent).toContain('Новых контрагентов в файле: 2');
+    // `У-52` в финальном виде: обещание совпадает с тем, что импорт сделает.
+    expect(card.textContent).toContain('Будет создано организаций: 2');
     expect(card.textContent).toContain('ООО «Альфа»');
     expect(card.textContent).toContain('7707083893');
     // Контрагент без названия не превращается в пустую строку списка.
     expect(card.textContent).toContain('без названия');
     // Несколько строк одного контрагента — видно, что это не один платёж.
     expect(card.textContent).toContain('строк: 2');
+  });
+
+  it('У-50: администратор выбирает компанию, и она уезжает вместе с файлом', async () => {
+    previewPaymentImportAction.mockResolvedValue({
+      ok: true,
+      plan: { counts: emptyCounts({ totalRows: 1, imported: 1 }) },
+    });
+    render(
+      React.createElement(PaymentImportForm, {
+        companies: [
+          { id: 'co-1', name: 'Первая' },
+          { id: 'co-2', name: 'Вторая' },
+        ],
+      })
+    );
+    fireEvent.change(screen.getByTestId('payment-import-company-select'), {
+      target: { value: 'co-2' },
+    });
+    pickFile(
+      screen.getByTestId('payment-import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
+    fireEvent.click(screen.getByTestId('payment-import-preview-button'));
+
+    await waitFor(() => expect(previewPaymentImportAction).toHaveBeenCalled());
+    const form = previewPaymentImportAction.mock.calls[0][0] as FormData;
+    expect(form.get('companyId')).toBe('co-2');
+  });
+
+  it('единственная компания подставляется без вопроса', () => {
+    render(
+      React.createElement(PaymentImportForm, { companies: [{ id: 'co-1', name: 'Единственная' }] })
+    );
+    expect(screen.getByTestId('payment-import-company-single').textContent).toContain(
+      'Единственная'
+    );
+    expect(screen.queryByTestId('payment-import-company-select')).toBeNull();
+  });
+
+  it('У-49: в итогах импорта видно, сколько организаций заведено', async () => {
+    previewPaymentImportAction.mockResolvedValue({
+      ok: true,
+      plan: { counts: emptyCounts({ totalRows: 3, imported: 3, orgsCreated: 2 }) },
+    });
+    render(React.createElement(PaymentImportForm));
+    pickFile(
+      screen.getByTestId('payment-import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
+    fireEvent.click(screen.getByTestId('payment-import-preview-button'));
+    expect((await screen.findByTestId('count-orgs-created')).textContent).toBe('2');
   });
 
   it('У-52: когда новых контрагентов нет — блока нет вовсе, а не «0»', async () => {

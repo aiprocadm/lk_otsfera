@@ -4,6 +4,8 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 
 const {
+  planQueueOrgCreationAction,
+  createOrgsFromQueueRowsAction,
   dismissQueueRowAction,
   resolveQueueRowAction,
   searchResolveOrgsAction,
@@ -15,6 +17,8 @@ const {
   searchResolveOrgsAction: vi.fn(),
   listResolveOrdersAction: vi.fn(),
   createOrgFromQueueRowAction: vi.fn(),
+  planQueueOrgCreationAction: vi.fn(),
+  createOrgsFromQueueRowsAction: vi.fn(),
 }));
 vi.mock('@/server-actions/payment-import', () => ({
   dismissQueueRowAction,
@@ -22,7 +26,13 @@ vi.mock('@/server-actions/payment-import', () => ({
   searchResolveOrgsAction,
   listResolveOrdersAction,
   createOrgFromQueueRowAction,
+  planQueueOrgCreationAction,
+  createOrgsFromQueueRowsAction,
 }));
+
+// `У-53`: пакетное создание обновляет список после успеха.
+const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh, push: vi.fn() }) }));
 
 const { toastSuccess } = vi.hoisted(() => ({ toastSuccess: vi.fn() }));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess } }));
@@ -54,6 +64,9 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
     resolveQueueRowAction.mockReset();
     searchResolveOrgsAction.mockReset().mockResolvedValue([]);
     listResolveOrdersAction.mockReset().mockResolvedValue([]);
+    planQueueOrgCreationAction.mockReset();
+    createOrgsFromQueueRowsAction.mockReset();
+    refresh.mockClear();
     toastSuccess.mockClear();
 
     // jsdom has no native <dialog> behaviour — see the Dialog exemplar.
@@ -704,5 +717,238 @@ describe('PaymentQueueTable — создание организации из о�
     fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
     fireEvent.click(screen.getByTestId('create-org-submit'));
     await waitFor(() => expect(openDialog().textContent).toContain('Сервер недоступен'));
+  });
+});
+
+/**
+ * `У-53` + решение `Р-10`: пакетное создание организаций — строго два шага.
+ * Проверяем и то, ради чего шага два: без показанного списка создать нельзя,
+ * а снятая галочка исключает контрагента.
+ */
+describe('PaymentQueueTable — пакетное создание организаций (У-53)', () => {
+  beforeEach(() => {
+    planQueueOrgCreationAction.mockReset();
+    createOrgsFromQueueRowsAction.mockReset();
+    toastSuccess.mockClear();
+    refresh.mockClear();
+  });
+
+  const CANDIDATES = [
+    { rowId: 'r1', name: 'ООО «Альфа»', inn: '7707083893', alsoRows: 2 },
+    { rowId: 'r2', name: 'ООО «Бета»', inn: '7736207543', alsoRows: 0 },
+  ];
+
+  it('первый шаг показывает список, второй — создаёт только отмеченных', async () => {
+    planQueueOrgCreationAction.mockResolvedValue({ ok: true, candidates: CANDIDATES });
+    createOrgsFromQueueRowsAction.mockResolvedValue({
+      ok: true,
+      result: { created: 1, bound: 2, failed: [] },
+    });
+
+    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    fireEvent.click(screen.getByTestId('bulk-create-orgs'));
+
+    // Шаг 1: сначала список, а не молчаливое создание.
+    const list = await screen.findByTestId('bulk-candidates');
+    expect(list.textContent).toContain('ООО «Альфа»');
+    expect(list.textContent).toContain('7707083893');
+    // Видно, сколько оплат подтянется вместе с организацией.
+    expect(list.textContent).toContain('подтянется оплат: 3');
+    expect(screen.getByTestId('bulk-count').textContent).toBe('2');
+
+    // Снимаем галочку у «Беты» — она не должна уехать на сервер.
+    fireEvent.click(screen.getByTestId('bulk-row-r2'));
+    expect(screen.getByTestId('bulk-count').textContent).toBe('1');
+
+    fireEvent.click(screen.getByTestId('bulk-confirm'));
+    await waitFor(() =>
+      expect(createOrgsFromQueueRowsAction).toHaveBeenCalledWith({ rowIds: ['r1'] })
+    );
+    await waitFor(() =>
+      expect(toastSuccess).toHaveBeenCalledWith('Создано организаций: 1, привязано оплат: 2')
+    );
+    // Список перечитывается: созданные строки больше не в очереди.
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+  });
+
+  it('создавать нечего — говорим об этом словами и не даём кнопку', async () => {
+    planQueueOrgCreationAction.mockResolvedValue({ ok: true, candidates: [] });
+    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    fireEvent.click(screen.getByTestId('bulk-create-orgs'));
+
+    expect((await screen.findByTestId('bulk-empty')).textContent).toContain('Создавать нечего');
+    expect(screen.queryByTestId('bulk-confirm')).toBeNull();
+  });
+
+  it('отказ по правам показывается по-русски', async () => {
+    planQueueOrgCreationAction.mockResolvedValue({ ok: false, error: 'not_allowed' });
+    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    fireEvent.click(screen.getByTestId('bulk-create-orgs'));
+
+    await waitFor(() => {
+      const open = document.querySelector('dialog[open]');
+      expect(open).toBeTruthy();
+      expect(within(open as HTMLElement).getByText(/администратор или руководитель/)).toBeTruthy();
+    });
+  });
+
+  it('администратор выбирает компанию прямо в диалоге', async () => {
+    planQueueOrgCreationAction.mockResolvedValue({ ok: true, candidates: [CANDIDATES[0]] });
+    createOrgsFromQueueRowsAction.mockResolvedValue({
+      ok: true,
+      result: { created: 1, bound: 0, failed: [] },
+    });
+    render(
+      React.createElement(PaymentQueueTable, {
+        rows: [row()],
+        companies: [
+          { id: 'co-1', name: 'Первая' },
+          { id: 'co-2', name: 'Вторая' },
+        ],
+      })
+    );
+    fireEvent.click(screen.getByTestId('bulk-create-orgs'));
+    await screen.findByTestId('bulk-candidates');
+
+    fireEvent.change(screen.getByTestId('bulk-org-company-select'), {
+      target: { value: 'co-2' },
+    });
+    fireEvent.click(screen.getByTestId('bulk-confirm'));
+    await waitFor(() =>
+      expect(createOrgsFromQueueRowsAction).toHaveBeenCalledWith({
+        rowIds: ['r1'],
+        companyId: 'co-2',
+      })
+    );
+  });
+
+  it('строк с ИНН нет — кнопки пакетного создания нет вовсе', () => {
+    render(React.createElement(PaymentQueueTable, { rows: [row({ counterpartyInn: null })] }));
+    expect(screen.queryByTestId('bulk-create-orgs')).toBeNull();
+  });
+});
+
+/** Краевые пути пакетного диалога: отказы сервера, обрыв связи, отмена. */
+describe('PaymentQueueTable — пакетное создание: краевые случаи', () => {
+  beforeEach(() => {
+    planQueueOrgCreationAction.mockReset();
+    createOrgsFromQueueRowsAction.mockReset();
+    toastSuccess.mockClear();
+    refresh.mockClear();
+  });
+
+  const ONE = [{ rowId: 'r1', name: 'ООО «Альфа»', inn: '7707083893', alsoRows: 0 }];
+
+  it('сервер недоступен на шаге плана — экран не молчит', async () => {
+    planQueueOrgCreationAction.mockRejectedValue(new Error('offline'));
+    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    fireEvent.click(screen.getByTestId('bulk-create-orgs'));
+
+    await waitFor(() => {
+      const open = document.querySelector('dialog[open]');
+      expect(open).toBeTruthy();
+      expect(within(open as HTMLElement).getByText(/Сервер недоступен/)).toBeTruthy();
+    });
+  });
+
+  it('отказ на создании показывается по-русски, диалог не закрывается', async () => {
+    planQueueOrgCreationAction.mockResolvedValue({ ok: true, candidates: ONE });
+    createOrgsFromQueueRowsAction.mockResolvedValue({ ok: false, error: 'forbidden' });
+    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    fireEvent.click(screen.getByTestId('bulk-create-orgs'));
+    await screen.findByTestId('bulk-candidates');
+    fireEvent.click(screen.getByTestId('bulk-confirm'));
+
+    await waitFor(() => {
+      const open = document.querySelector('dialog[open]');
+      expect(within(open as HTMLElement).getByText('Недостаточно прав')).toBeTruthy();
+    });
+    expect(toastSuccess).not.toHaveBeenCalled();
+  });
+
+  it('обрыв связи на создании тоже виден', async () => {
+    planQueueOrgCreationAction.mockResolvedValue({ ok: true, candidates: ONE });
+    createOrgsFromQueueRowsAction.mockRejectedValue(new Error('offline'));
+    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    fireEvent.click(screen.getByTestId('bulk-create-orgs'));
+    await screen.findByTestId('bulk-candidates');
+    fireEvent.click(screen.getByTestId('bulk-confirm'));
+
+    await waitFor(() => {
+      const open = document.querySelector('dialog[open]');
+      expect(within(open as HTMLElement).getByText(/Сервер недоступен/)).toBeTruthy();
+    });
+  });
+
+  it('единственная компания подставляется без вопроса', async () => {
+    planQueueOrgCreationAction.mockResolvedValue({ ok: true, candidates: ONE });
+    createOrgsFromQueueRowsAction.mockResolvedValue({
+      ok: true,
+      result: { created: 1, bound: 0, failed: [] },
+    });
+    render(
+      React.createElement(PaymentQueueTable, {
+        rows: [row()],
+        companies: [{ id: 'co-only', name: 'Единственная' }],
+      })
+    );
+    fireEvent.click(screen.getByTestId('bulk-create-orgs'));
+    await screen.findByTestId('bulk-candidates');
+    // Выбора нет — есть поясняющая строка, а компания уже подставлена.
+    expect(screen.getByTestId('bulk-org-company-single').textContent).toContain('Единственная');
+    fireEvent.click(screen.getByTestId('bulk-confirm'));
+    await waitFor(() =>
+      expect(createOrgsFromQueueRowsAction).toHaveBeenCalledWith({
+        rowIds: ['r1'],
+        companyId: 'co-only',
+      })
+    );
+  });
+
+  it('галочку можно вернуть обратно, а диалог — закрыть без создания', async () => {
+    planQueueOrgCreationAction.mockResolvedValue({
+      ok: true,
+      candidates: [...ONE, { rowId: 'r2', name: 'ООО «Бета»', inn: '7736207543', alsoRows: 0 }],
+    });
+    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    fireEvent.click(screen.getByTestId('bulk-create-orgs'));
+    await screen.findByTestId('bulk-candidates');
+
+    fireEvent.click(screen.getByTestId('bulk-row-r2'));
+    expect(screen.getByTestId('bulk-count').textContent).toBe('1');
+    fireEvent.click(screen.getByTestId('bulk-row-r2'));
+    expect(screen.getByTestId('bulk-count').textContent).toBe('2');
+
+    // Закрытие без подтверждения ничего не создаёт (`Р-10`).
+    fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
+    await waitFor(() => expect(screen.queryByTestId('bulk-candidates')).toBeNull());
+    expect(createOrgsFromQueueRowsAction).not.toHaveBeenCalled();
+  });
+
+  it('контрагент без названия виден как «без названия», а не пустой строкой', async () => {
+    planQueueOrgCreationAction.mockResolvedValue({
+      ok: true,
+      candidates: [{ rowId: 'r1', name: '', inn: '7707083893', alsoRows: 0 }],
+    });
+    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    fireEvent.click(screen.getByTestId('bulk-create-orgs'));
+    const list = await screen.findByTestId('bulk-candidates');
+    expect(list.textContent).toContain('без названия');
+  });
+
+  it('диалог закрыли до ответа сервера — состояние размонтированного не трогаем', async () => {
+    // Иначе React ругается на setState после размонтирования, а пользователь
+    // видит призрачный список от прошлого открытия.
+    let release: (v: unknown) => void = () => {};
+    planQueueOrgCreationAction.mockReturnValue(
+      new Promise((resolve) => {
+        release = resolve;
+      })
+    );
+    const view = render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    fireEvent.click(screen.getByTestId('bulk-create-orgs'));
+    view.unmount();
+    release({ ok: true, candidates: [] });
+    await waitFor(() => expect(planQueueOrgCreationAction).toHaveBeenCalled());
   });
 });
