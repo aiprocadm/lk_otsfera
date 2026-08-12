@@ -184,6 +184,7 @@ export const AUDIT_ACTIONS = [
   'partner_updated',
   'password_reset',
   'payment_import.commit',
+  'payment_import.rollback',
   'requisites_changed',
   'sales_target_cleared',
   'sales_target_set',

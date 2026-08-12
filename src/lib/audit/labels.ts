@@ -140,6 +140,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   partner_updated: 'Изменение партнёра',
   password_reset: 'Сброс пароля',
   'payment_import.commit': 'Загрузка выписки по счёту',
+  'payment_import.rollback': 'Откат импорта выписки',
   requisites_changed: 'Изменение реквизитов',
   sales_target_cleared: 'Снятие плана продаж',
   sales_target_set: 'Установка плана продаж',

@@ -1673,18 +1673,39 @@ model OneCImportRow {
 }
 
 model PaymentImportBatch {
-  id           String             @id @default(cuid())
-  createdAt    DateTime           @default(now())
-  importedById String?
-  importedBy   User?              @relation("PaymentImportBatchBy", fields: [importedById], references: [id])
-  companyId    String?
-  fileKey      String?
-  fileName     String
-  counts       Json
-  status       String
-  rows         PaymentImportRow[]
+  id             String               @id @default(cuid())
+  createdAt      DateTime             @default(now())
+  importedById   String?
+  importedBy     User?                @relation("PaymentImportBatchBy", fields: [importedById], references: [id])
+  companyId      String?
+  fileKey        String?
+  fileName       String
+  counts         Json
+  status         String // committed | rolled_back | rollback_partial
+  rolledBackAt   DateTime?
+  rolledBackById String?
+  rows           PaymentImportRow[]
+  writes         PaymentImportWrite[]
 
   @@index([companyId, createdAt])
+}
+
+/// След записи импорта выписки (`У-59`): что именно импорт создал или изменил.
+/// Симметричен `OneCImportRow` Excel-канала — без него откат не на чем строить.
+/// Очередь разбора (`PaymentImportRow`) для этого не годится: там своя жизнь,
+/// глобально уникальный `externalId` и повторный импорт переписывает строку.
+model PaymentImportWrite {
+  id       String             @id @default(cuid())
+  batchId  String
+  batch    PaymentImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  entity   String // payment | organization (организации приезжают в PR-3, `У-49`)
+  entityId String
+  action   String // created | updated
+  before   Json? // снимок изменённых полей ДО (только для action=updated)
+  reverted Boolean            @default(false)
+
+  @@index([batchId, entity])
+  @@index([entityId])
 }
 
 model PaymentImportRow {

@@ -32,7 +32,14 @@ type Diagnostics = {
 };
 /** `detail` — уточнение к тексту ошибки (например фактический размер файла). */
 type Failure = { ok: false; error: string; detail?: string; diagnostics?: Diagnostics };
-type PreviewResult = { ok: true; plan: { counts: Counts; diagnostics?: Diagnostics } } | Failure;
+/** Контрагент из файла, которого нет в системе (`У-52`). */
+type NewCounterparty = { name: string; inn: string; rows: number };
+type PreviewResult =
+  | {
+      ok: true;
+      plan: { counts: Counts; diagnostics?: Diagnostics; newCounterparties?: NewCounterparty[] };
+    }
+  | Failure;
 type CommitResult =
   | { ok: true; result: { counts: Counts; batchId: string | null; diagnostics?: Diagnostics } }
   | Failure;
@@ -155,6 +162,39 @@ function DiagnosticsCard({ d }: { d: Diagnostics }) {
           </ul>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * `У-52`: контрагенты из файла, которых в системе ещё нет, — списком «название
+ * + ИНН» ДО применения. Пока автосоздание не включено (следующий PR этапа),
+ * блок честно говорит, куда такие строки уходят сейчас: обещать создание,
+ * которого не будет, — это дефект понятности, а не мелочь формулировки.
+ */
+function NewCounterpartiesCard({ list }: { list: NewCounterparty[] }) {
+  if (list.length === 0) return null;
+  return (
+    <div
+      className="bg-white border border-gray-200 rounded-xl p-4"
+      data-testid="payment-import-new-counterparties"
+    >
+      <h3 className="text-sm font-semibold text-[#111111]">
+        Новых контрагентов в файле: {list.length}
+      </h3>
+      <p className="mt-1 text-xs text-gray-500">
+        Организаций с такими ИНН в системе нет. Сейчас их платежи уходят в очередь разбора — там
+        организацию можно завести кнопкой.
+      </p>
+      <ul className="mt-2 text-xs text-gray-700 space-y-0.5">
+        {list.map((c) => (
+          <li key={c.inn}>
+            <span className="font-medium text-[#111111]">{c.name || 'без названия'}</span> · ИНН{' '}
+            {c.inn}
+            {c.rows > 1 ? ` · строк: ${c.rows}` : ''}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -336,6 +376,9 @@ export function PaymentImportForm() {
             <p className="text-xs text-gray-500">Режим: предпросмотр (данные не записаны)</p>
           </div>
           <CountsCard title="План импорта" counts={counts} />
+          {preview?.ok && preview.plan.newCounterparties && (
+            <NewCounterpartiesCard list={preview.plan.newCounterparties} />
+          )}
           {preview?.ok && preview.plan.diagnostics && (
             <DiagnosticsCard d={preview.plan.diagnostics} />
           )}

@@ -1,20 +1,24 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { EmptyState } from '@/components/ui';
+import { Button } from '@/components/ui/button';
 import { fmtDateTime } from '@/lib/format';
 import {
   CHANNEL_LABEL,
   type ExchangeChannel,
   type ExchangeHistoryItem,
 } from '@/lib/services/import/history';
+import { useRollbackFlow, RollbackDialogs } from './rollback-dialogs';
 
 /**
  * Общая история обмена с 1С (`У-48`, этап 7).
  *
  * До этого история была только у Excel-канала: загрузив выписку, человек не мог
  * даже убедиться, что файл вообще приняли. Здесь три канала в одном списке с
- * фильтром; откат живёт на своей странице — сюда он приедет вместе с `У-59`.
+ * фильтром и кнопкой отката там, где откат поддержан (`У-59` — оба файловых
+ * канала; автообмен не откатывается by design: это поток, а не файл).
  */
 const STATUS_RU: Record<string, string> = {
   committed: 'выполнен',
@@ -29,6 +33,7 @@ const ROLLBACK_RU: Record<ExchangeHistoryItem['rollback'], string> = {
   available: 'можно отменить',
   expired: 'срок отмены истёк',
   already_rolled_back: 'уже отменён',
+  nothing_to_revert: 'отменять нечего: загружено до появления отмены',
   unsupported: 'отмена не предусмотрена',
 };
 
@@ -62,6 +67,8 @@ function summarize(counts: unknown): string {
 
 export function ExchangeHistory({ items }: { items: ExchangeHistoryItem[] }) {
   const [channel, setChannel] = useState<ExchangeChannel | 'all'>('all');
+  const router = useRouter();
+  const flow = useRollbackFlow(() => router.refresh());
   const visible = useMemo(
     () => (channel === 'all' ? items : items.filter((i) => i.channel === channel)),
     [items, channel]
@@ -101,6 +108,10 @@ export function ExchangeHistory({ items }: { items: ExchangeHistoryItem[] }) {
         <ul className="space-y-2" data-testid="exchange-history-list">
           {visible.map((item) => {
             const numbers = summarize(item.counts);
+            // Канал в отдельной константе: сужение типа внутри обработчика
+            // клика по `item.channel` не доживает, а откат бывает только у
+            // файловых каналов.
+            const channelOf = item.channel === 'auto' ? null : item.channel;
             return (
               <li
                 key={`${item.channel}-${item.id}`}
@@ -110,6 +121,18 @@ export function ExchangeHistory({ items }: { items: ExchangeHistoryItem[] }) {
                   <span className="text-sm font-medium text-[#111111]">{item.title}</span>
                   <span className="text-xs text-gray-500">{CHANNEL_LABEL[item.channel]}</span>
                 </div>
+                {item.rollback === 'available' && channelOf && (
+                  <div className="mt-2">
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => void flow.open({ id: item.id, channel: channelOf })}
+                      data-testid={`exchange-rollback-${item.id}`}
+                    >
+                      Отменить импорт
+                    </Button>
+                  </div>
+                )}
                 <dl className="mt-2 grid gap-x-6 gap-y-1 text-xs sm:grid-cols-2">
                   <div className="flex gap-2">
                     <dt className="text-gray-500">Когда</dt>
@@ -139,6 +162,8 @@ export function ExchangeHistory({ items }: { items: ExchangeHistoryItem[] }) {
           })}
         </ul>
       )}
+
+      <RollbackDialogs flow={flow} />
     </section>
   );
 }

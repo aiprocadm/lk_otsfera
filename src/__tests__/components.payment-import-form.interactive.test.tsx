@@ -87,6 +87,50 @@ describe('PaymentImportForm (interactive, jsdom)', () => {
     expect(screen.getByTestId('payment-import-commit-button')).toBeTruthy();
   });
 
+  it('У-52: новые контрагенты показаны списком «название + ИНН» ДО применения', async () => {
+    previewPaymentImportAction.mockResolvedValue({
+      ok: true,
+      plan: {
+        counts: emptyCounts({ totalRows: 5, imported: 2, queued: 3 }),
+        newCounterparties: [
+          { name: 'ООО «Альфа»', inn: '7707083893', rows: 2 },
+          { name: '', inn: '7736207543', rows: 1 },
+        ],
+      },
+    });
+    render(React.createElement(PaymentImportForm));
+    pickFile(
+      screen.getByTestId('payment-import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
+    fireEvent.click(screen.getByTestId('payment-import-preview-button'));
+
+    const card = await screen.findByTestId('payment-import-new-counterparties');
+    expect(card.textContent).toContain('Новых контрагентов в файле: 2');
+    expect(card.textContent).toContain('ООО «Альфа»');
+    expect(card.textContent).toContain('7707083893');
+    // Контрагент без названия не превращается в пустую строку списка.
+    expect(card.textContent).toContain('без названия');
+    // Несколько строк одного контрагента — видно, что это не один платёж.
+    expect(card.textContent).toContain('строк: 2');
+  });
+
+  it('У-52: когда новых контрагентов нет — блока нет вовсе, а не «0»', async () => {
+    previewPaymentImportAction.mockResolvedValue({
+      ok: true,
+      plan: { counts: emptyCounts({ totalRows: 2, imported: 2 }), newCounterparties: [] },
+    });
+    render(React.createElement(PaymentImportForm));
+    pickFile(
+      screen.getByTestId('payment-import-file-input') as HTMLInputElement,
+      new File(['x'], 'a.xlsx')
+    );
+    fireEvent.click(screen.getByTestId('payment-import-preview-button'));
+
+    expect(await screen.findByTestId('payment-import-plan')).toBeTruthy();
+    expect(screen.queryByTestId('payment-import-new-counterparties')).toBeNull();
+  });
+
   it('У-58: блок «Что система увидела в файле» объясняет непрочитанные строки', async () => {
     // Ровно жалоба пользователя: строки есть, к импорту ноль. Экран обязан
     // сказать ПОЧЕМУ, а не показать голое число ошибок.

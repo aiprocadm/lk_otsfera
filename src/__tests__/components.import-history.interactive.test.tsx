@@ -99,6 +99,13 @@ describe('таблица истории', () => {
     expect(btn.title).toContain('Срок отката (30 дней) истёк');
   });
 
+  it('батч без следа записи — кнопка неактивна и объясняет причину (`У-59`)', () => {
+    render(<ImportHistory batches={[batch({ rollback: 'nothing_to_revert' })]} />);
+    const btn = screen.getAllByTestId('rollback-b1')[0] as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
+    expect(btn.title).toContain('отменять нечего');
+  });
+
   it('кривые данные не роняют таблицу: counts null → «—», пустые счётчики → нули, чужой статус — как есть', () => {
     render(
       <ImportHistory
@@ -126,7 +133,7 @@ describe('диалог подтверждения (Т-39)', () => {
     });
     render(<ImportHistory batches={[batch()]} />);
     fireEvent.click(screen.getAllByTestId('rollback-b1')[0]);
-    await waitFor(() => expect(planImportRollbackAction).toHaveBeenCalledWith('b1'));
+    await waitFor(() => expect(planImportRollbackAction).toHaveBeenCalledWith('b1', 'excel'));
 
     const summary = await screen.findByTestId('rollback-summary');
     expect(summary.textContent).toContain(
@@ -134,7 +141,7 @@ describe('диалог подтверждения (Т-39)', () => {
     );
 
     fireEvent.click(screen.getByTestId('rollback-confirm'));
-    await waitFor(() => expect(rollbackImportAction).toHaveBeenCalledWith('b1', false));
+    await waitFor(() => expect(rollbackImportAction).toHaveBeenCalledWith('b1', false, 'excel'));
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Импорт откачен полностью'));
     expect(refresh).toHaveBeenCalled();
   });
@@ -224,7 +231,7 @@ describe('диалог конфликтов (Т-36/Т-37)', () => {
 
     // Т-37: частичный откат — второе действие.
     fireEvent.click(screen.getByTestId('rollback-partial'));
-    await waitFor(() => expect(rollbackImportAction).toHaveBeenLastCalledWith('b1', true));
+    await waitFor(() => expect(rollbackImportAction).toHaveBeenLastCalledWith('b1', true, 'excel'));
     await waitFor(() =>
       expect(toastSuccess).toHaveBeenCalledWith('Откачено частично: конфликтных строк — 2')
     );

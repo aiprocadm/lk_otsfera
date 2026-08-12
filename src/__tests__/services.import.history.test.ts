@@ -29,6 +29,7 @@ function db(over: Record<string, unknown> = {}) {
       status: 'committed',
       counts: { created: 3, updated: 1, skipped: 0 },
       importedBy: { name: 'Админ' },
+      _count: { rows: 4 },
     },
   ]);
   const statement = vi.fn().mockResolvedValue([
@@ -39,6 +40,7 @@ function db(over: Record<string, unknown> = {}) {
       status: 'committed',
       counts: { totalRows: 327, imported: 129 },
       importedBy: { name: 'Бухгалтер' },
+      _count: { writes: 129 },
     },
   ]);
   const auto = vi.fn().mockResolvedValue([
@@ -86,8 +88,8 @@ describe('listExchangeHistory (У-48)', () => {
     expect(res.items[0]).toMatchObject({
       title: 'Карточка счета 51.xls',
       authorName: 'Бухгалтер',
-      // Откат выписки приезжает следующим PR — честно говорим, что кнопки нет.
-      rollback: 'unsupported',
+      // `У-59`: у выписки откат такой же, как у Excel.
+      rollback: 'available',
     });
     expect(res.items[1]!.rollback).toBe('available');
     expect(res.items[2]).toMatchObject({
@@ -132,6 +134,7 @@ describe('listExchangeHistory (У-48)', () => {
             status: 'committed',
             counts: {},
             importedBy: null,
+            _count: { rows: 2 },
           },
           {
             id: 'e2',
@@ -140,6 +143,7 @@ describe('listExchangeHistory (У-48)', () => {
             status: 'rolled_back',
             counts: {},
             importedBy: null,
+            _count: { rows: 2 },
           },
         ]),
       },
@@ -162,6 +166,7 @@ describe('listExchangeHistory (У-48)', () => {
             status: 'committed',
             counts: {},
             importedBy: null,
+            _count: { writes: 1 },
           },
           {
             id: 's2',
@@ -170,6 +175,7 @@ describe('listExchangeHistory (У-48)', () => {
             status: 'committed',
             counts: {},
             importedBy: null,
+            _count: { writes: 1 },
           },
         ]),
       },
@@ -178,6 +184,29 @@ describe('listExchangeHistory (У-48)', () => {
     if (!res.ok) throw new Error('expected ok');
     expect(res.items.map((i) => i.authorName)).toEqual([null, null]);
     expect(res.items.map((i) => i.id)).toEqual(['s1', 's2']);
+  });
+
+  it('выписка без следа записи честно говорит «отменять нечего» (`У-59`)', async () => {
+    // Так выглядят импорты, сделанные до появления отмены: система не помнит,
+    // что именно они записали. Активная кнопка тут была бы обманом.
+    const { prisma } = db({
+      paymentImportBatch: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 's-old',
+            createdAt: new Date(),
+            fileName: 'старая-выписка.xls',
+            status: 'committed',
+            counts: {},
+            importedBy: null,
+            _count: { writes: 0 },
+          },
+        ]),
+      },
+    });
+    const res = await listExchangeHistory(prisma, session, { channel: 'statement' });
+    if (!res.ok) throw new Error('expected ok');
+    expect(res.items[0]!.rollback).toBe('nothing_to_revert');
   });
 
   it('неизвестные сущность и операция автообмена показываются как есть, а не пустотой', async () => {
