@@ -2,6 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import { log } from '@/lib/logging';
 import { decryptSecret } from '@/lib/crypto/secrets';
 import { SETTING_SPECS, type SettingKey } from './integrationSettings';
+import { primeFeatureFlagCache } from './featureFlagStore';
 
 /**
  * Синхронно читаемый снапшот эффективных значений настроек интеграций
@@ -32,6 +33,9 @@ function envFallback(key: SettingKey): string | null {
  * применена) логируется и ставит backoff — читатели остаются на env-fallback.
  */
 export async function primeIntegrationSettingsCache(prisma: PrismaClient): Promise<void> {
+  // Значения feature-флагов живут в той же таблице и нужны тем же читателям —
+  // праймим заодно, чтобы не заводить второй список точек прайма (`У-65`).
+  await primeFeatureFlagCache(prisma);
   const now = Date.now();
   if (now - lastAttemptAt < TTL_MS) return;
   lastAttemptAt = now;
