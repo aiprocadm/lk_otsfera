@@ -25,6 +25,22 @@ const { primeIntegrationSettingsCache } = vi.hoisted(() => ({
 }));
 vi.mock('@/lib/config/integrationSettingsCache', () => ({ primeIntegrationSettingsCache }));
 
+// Этап 8 (`У-69`/`У-70`): светофор и переключатели каналов собирает сервис,
+// а рисует клиентская панель — здесь подменяем обоих.
+const { getIntegrationsHealth } = vi.hoisted(() => ({ getIntegrationsHealth: vi.fn() }));
+vi.mock('@/lib/services/admin/integrationsHealth', () => ({ getIntegrationsHealth }));
+const { healthRows } = vi.hoisted(() => ({ healthRows: [] as unknown[] }));
+vi.mock('@/components/admin/integrations-health-panel', async () => {
+  // React импортируем внутри фабрики: она поднимается выше импортов файла.
+  const R = await import('react');
+  return {
+    IntegrationsHealthPanel: (props: { rows: unknown[] }) => {
+      healthRows.splice(0, healthRows.length, ...props.rows);
+      return R.createElement('div', { 'data-testid': 'health-panel' }, 'HEALTH');
+    },
+  };
+});
+
 // Client-компоненты форм — заглушки (SSR-тест страницы их не драйвит).
 vi.mock('@/components/admin/email-settings-form', () => ({
   EmailSettingsForm: () => null,
@@ -118,39 +134,24 @@ describe('AdminIntegrationsPage', () => {
     );
   });
 
-  it('requires admin and renders the security notice + rows with status badges', async () => {
-    getIntegrationsStatus.mockReturnValue([
-      {
-        key: 'mango',
-        label: 'Телефония (Mango Office)',
-        enabled: true,
-        description: 'desc-mango',
-        envHint: 'HINT_MANGO',
-      },
-      {
-        key: 'telegram',
-        label: 'Telegram-бот',
-        enabled: false,
-        description: 'desc-tg',
-        envHint: 'HINT_TG',
-      },
-    ]);
+  it('requires admin and renders the security notice + панель состояния', async () => {
+    getIntegrationsHealth.mockResolvedValue({
+      ok: true,
+      rows: [
+        { key: 'mango', label: 'Телефония (Mango Office)', status: 'ok' },
+        { key: 'telegram', label: 'Telegram-бот', status: 'not_configured' },
+      ],
+    });
 
     const { container } = await renderServerComponent(AdminIntegrationsPage());
 
     expect(requireSettingsSection).toHaveBeenCalled();
-    // Статус-панель читает кэш настроек — страница обязана его праймить.
-    expect(primeIntegrationSettingsCache).toHaveBeenCalled();
     const text = container.textContent ?? '';
     // security notice: секреты в БД зашифрованы, env — запасной вариант
     expect(text).toContain('Секретные ключи хранятся в базе в зашифрованном виде');
-    // both rows + both badge states
-    expect(text).toContain('Телефония (Mango Office)');
-    expect(text).toContain('Подключено');
-    expect(text).toContain('Telegram-бот');
-    expect(text).toContain('Не настроено');
-    // env hints are shown (they are names, not secret values)
-    expect(text).toContain('HINT_MANGO');
+    // Состояние интеграций рисует панель — страница отдаёт ей строки сервиса.
+    expect(container.querySelector('[data-testid="health-panel"]')).not.toBeNull();
+    expect(healthRows).toHaveLength(2);
     // все группы настроек смонтированы
     expect(formTitles).toEqual([
       'Telegram-бот',
@@ -161,6 +162,13 @@ describe('AdminIntegrationsPage', () => {
       'Обмен с 1С',
       'DaData (подсказки по ИНН)',
     ]);
+  });
+
+  it('отказ сервиса состояния — понятный текст вместо пустой панели', async () => {
+    getIntegrationsHealth.mockResolvedValue({ ok: false, error: 'forbidden' });
+    const { container } = await renderServerComponent(AdminIntegrationsPage());
+    expect(container.querySelector('[data-testid="health-panel"]')).toBeNull();
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Недостаточно прав');
   });
 
   it('включённые настройки и секреты из окружения отражаются в формах', async () => {
