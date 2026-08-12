@@ -1,11 +1,19 @@
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/db/prisma';
+import { primeFeatureFlagCache } from '@/lib/config/featureFlagStore';
 import { verifyToken } from './jwt';
 
 /** Срок жизни session-cookie = сроку жизни JWT '7d' в jwt.ts (signToken). */
 export const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 
 export async function getSession() {
+  // `У-65`/`У-66`: единая точка обновления снимка значений флагов. Сессию
+  // читает каждая защищённая страница, роут и server-action, а сам прайм
+  // ходит в базу не чаще раза в 30 секунд (TTL снапшота). Отдельного списка
+  // «где праймить» не заводим — он неизбежно отстал бы от читателей флагов.
+  // Middleware сюда не заходит (у него свой `jwtVerify`), поэтому edge-среда
+  // остаётся на переменных окружения — см. `isRouteGatedFlag`.
+  await primeFeatureFlagCache(prisma);
   const token = (await cookies()).get('session')?.value;
   if (!token) return null;
   try {

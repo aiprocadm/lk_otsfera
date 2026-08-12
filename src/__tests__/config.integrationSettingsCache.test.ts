@@ -9,6 +9,18 @@ import { encryptSecret } from '@/lib/crypto/secrets';
 
 type Row = { key: string; value: string | null; isSecret: boolean };
 
+/**
+ * Этап 8: `primeIntegrationSettingsCache` заодно праймит значения
+ * feature-флагов — они лежат в этой же таблице. Поэтому в TTL-проверках
+ * считаем только «свои» вызовы: у настроек фильтр `key.in`, у флагов —
+ * `key.startsWith`.
+ */
+function settingsCalls(findMany: ReturnType<typeof vi.fn>): number {
+  return findMany.mock.calls.filter(
+    (c) => (c[0] as { where?: { key?: { in?: unknown } } })?.where?.key?.in !== undefined
+  ).length;
+}
+
 function prismaWith(rows: Row[]): { db: PrismaClient; findMany: ReturnType<typeof vi.fn> } {
   const findMany = vi.fn().mockResolvedValue(rows);
   return { db: { integrationSetting: { findMany } } as unknown as PrismaClient, findMany };
@@ -77,11 +89,11 @@ describe('integrationSettingsCache', () => {
     const { db, findMany } = prismaWith([]);
     await primeIntegrationSettingsCache(db);
     await primeIntegrationSettingsCache(db);
-    expect(findMany).toHaveBeenCalledTimes(1);
+    expect(settingsCalls(findMany)).toBe(1);
 
     resetIntegrationSettingsCache();
     await primeIntegrationSettingsCache(db);
-    expect(findMany).toHaveBeenCalledTimes(2);
+    expect(settingsCalls(findMany)).toBe(2);
   });
 
   it('TTL: по истечении окна prime перечитывает БД', async () => {
@@ -90,7 +102,7 @@ describe('integrationSettingsCache', () => {
     await primeIntegrationSettingsCache(db);
     vi.advanceTimersByTime(31_000);
     await primeIntegrationSettingsCache(db);
-    expect(findMany).toHaveBeenCalledTimes(2);
+    expect(settingsCalls(findMany)).toBe(2);
   });
 
   it('fail-open: ошибка БД не бросается, читатели остаются на env, backoff действует', async () => {

@@ -52,6 +52,15 @@ vi.mock('@/components/admin/feature-flags-matrix', () => ({
   FeatureFlagsMatrix: () => React.createElement('div', { 'data-testid': 'flags-matrix' }, 'FLAGS'),
 }));
 
+// Этап 8: страница флагов теперь спрашивает у сервиса значения и их источник.
+const { listFeatureFlags } = vi.hoisted(() => ({
+  listFeatureFlags: vi.fn(async (): Promise<{ ok: boolean; rows?: unknown[]; error?: string }> => ({
+    ok: true,
+    rows: [],
+  })),
+}));
+vi.mock('@/lib/services/admin/featureFlags', () => ({ listFeatureFlags }));
+
 import AdminNotificationChannelsPage from '@/app/admin/settings/integrations/notifications/page';
 import LeaderNotificationChannelsPage from '@/app/leader/settings/integrations/notifications/page';
 import AdminPersonalSecurityPage from '@/app/admin/settings/security/personal/page';
@@ -145,8 +154,18 @@ describe('реквизиты исполнителя', () => {
 
 describe('флаги функциональности', () => {
   it('гард раздела и смонтированная матрица', async () => {
+    listFeatureFlags.mockResolvedValueOnce({ ok: true, rows: [] });
     const { container } = await renderServerComponent(AdminFeatureFlagsPage());
     expect(requireSettingsSection).toHaveBeenCalledWith('system.featureFlags', 'admin');
     expect(container.querySelector('[data-testid="flags-matrix"]')).not.toBeNull();
+    // §15: экран говорит, что здесь делают, а не только как называется.
+    expect(container.textContent).toContain('можно включить или выключить');
+  });
+
+  it('отказ сервиса — понятный текст вместо пустого экрана', async () => {
+    listFeatureFlags.mockResolvedValueOnce({ ok: false, error: 'forbidden' });
+    const { container } = await renderServerComponent(AdminFeatureFlagsPage());
+    expect(container.querySelector('[data-testid="flags-matrix"]')).toBeNull();
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Недостаточно прав');
   });
 });
