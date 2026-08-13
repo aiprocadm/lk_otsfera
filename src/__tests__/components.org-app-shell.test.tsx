@@ -5,6 +5,12 @@ import React from 'react';
 const { navItemsFor } = vi.hoisted(() => ({ navItemsFor: vi.fn() }));
 vi.mock('@/lib/navigation/cabinet', () => ({ navItemsFor }));
 
+// Палитра Ctrl/Cmd+K (У-75) стоит в шапке каркаса и зовёт useRouter.
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  usePathname: () => '/organization/dashboard',
+}));
+
 vi.mock('@/components/ui', () => ({
   LogoutButton: () => React.createElement('button', null, 'Выйти'),
 }));
@@ -122,5 +128,37 @@ describe('OrgAppShell', () => {
       })
     );
     expect(html).not.toContain('·');
+  });
+
+  it('палитра: одна организация — ссылки разделов остаются короткими (У-75)', () => {
+    const html = renderToString(
+      renderShell({
+        userEmail: null,
+        activeOrgName: 'ООО Заря',
+        memberships: MEMBERSHIPS,
+        activeOrgId: 'org-A',
+        viewerRole: 'admin',
+        children: 'c',
+      })
+    );
+    expect(html).toContain('data-testid="palette-section-/organization/dashboard"');
+    expect(html).not.toContain('org=org-A"');
+  });
+
+  it('палитра: несколько организаций — ссылка несёт ?org=, иначе уведёт в чужую (У-75)', () => {
+    const html = renderToString(
+      renderShell({
+        userEmail: null,
+        activeOrgName: 'ООО Заря',
+        memberships: [
+          ...MEMBERSHIPS,
+          { organizationId: 'org-B', organizationName: 'ООО Восход', roleInOrg: 'member' },
+        ],
+        activeOrgId: 'org-A',
+        viewerRole: 'admin',
+        children: 'c',
+      })
+    );
+    expect(html).toContain('data-testid="palette-section-/organization/dashboard?org=org-A"');
   });
 });

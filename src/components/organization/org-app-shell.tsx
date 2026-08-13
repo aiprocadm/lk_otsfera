@@ -7,6 +7,7 @@ import { AskQuestionButton } from '@/components/support/ask-question-button';
 import { AppShell } from '@/components/shell/app-shell';
 import { MobileNav } from '@/components/shell/mobile-nav';
 import { mobileTabsFor } from '@/lib/navigation/mobileTabs';
+import { CommandPalette } from '@/components/shell/command-palette';
 import { OrgSidebar, type OrgSidebarMembership } from './org-sidebar';
 
 /**
@@ -27,6 +28,12 @@ export function OrgAppShell(props: {
   children: ReactNode;
 }) {
   const items = navItemsFor('organization');
+  // Как и у нижней панели: при нескольких организациях ссылка обязана нести
+  // `?org=`, иначе переход молча уведёт в другую организацию.
+  const paletteSections =
+    props.memberships.length > 1
+      ? items.map((i) => ({ href: `${i.href}?org=${props.activeOrgId}`, label: i.label }))
+      : items;
 
   return (
     <AppShell
@@ -59,6 +66,7 @@ export function OrgAppShell(props: {
           {props.userEmail ? <span className="ml-3 text-gray-500">· {props.userEmail}</span> : null}
         </>
       }
+      palette={<CommandPalette sections={paletteSections} />}
       headerRight={
         <>
           {/* Этап 9 (ФТ-11.1): «Задать вопрос» — светлая шапка org-кабинета. */}

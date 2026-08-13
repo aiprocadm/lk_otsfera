@@ -10,6 +10,7 @@ import { AppShell } from '@/components/shell/app-shell';
 import { Sidebar } from '@/components/shell/sidebar';
 import { MobileNav } from '@/components/shell/mobile-nav';
 import { mobileTabsFor } from '@/lib/navigation/mobileTabs';
+import { CommandPalette } from '@/components/shell/command-palette';
 
 export default async function LeaderLayout({ children }: { children: ReactNode }) {
   // Третья точка гейтинга (после middleware и nav): прямой заход при выключенном флаге -> 404.
@@ -51,6 +52,16 @@ export default async function LeaderLayout({ children }: { children: ReactNode }
           <span className="font-medium text-[#111111]">Кабинет руководителя</span>
           {userEmail ? <span className="ml-3 text-gray-500">· {userEmail}</span> : null}
         </>
+      }
+      palette={
+        // teamModeOverride — то же исключение, что у страницы /leader/search:
+        // руководитель смотрит на всю компанию мимо тумблера видимости команды.
+        <CommandPalette
+          sections={items}
+          searchEnabled
+          searchHref="/leader/search"
+          teamModeOverride
+        />
       }
       headerRight={
         <>

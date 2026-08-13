@@ -99,8 +99,14 @@ export function DirectionsAdmin({ directions }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-[#111111]">Направления обучения</h1>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-[#111111]">Направления обучения</h1>
+          {/* `У-73`: одна строка «что здесь делают». */}
+          <p className="mt-0.5 text-sm text-gray-500">
+            Справочник тем обучения — из него выбирают в заявках и заказах
+          </p>
+        </div>
         <Button onClick={() => setAddOpen(true)}>+ Добавить</Button>
       </div>
 
