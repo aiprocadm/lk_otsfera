@@ -264,6 +264,25 @@ describe('notifyManagersEnrollmentSubmitted (enrollment_submitted менедже
     });
   });
 
+  it('несколько направлений в заявке — слово склоняется во множественное число', async () => {
+    // `У-44`: заявка бывает «много слушателей × много обучений». Менеджер
+    // должен прочитать «направления», а не «направление».
+    resolveOrgManagerRecipients.mockResolvedValue([{ id: 'm1' }]);
+    createNotification.mockResolvedValue({ id: 'n1' });
+    const { d } = db({
+      items: [
+        { direction: { name: 'Работы на высоте' } },
+        { direction: { name: 'Электробезопасность' } },
+      ],
+    });
+
+    await notifyManagersEnrollmentSubmitted(d, req());
+
+    expect(createNotification.mock.calls[0][0].body).toContain(
+      'направления «Работы на высоте, Электробезопасность»'
+    );
+  });
+
   it('без названия организации письмо начинается со счётчика, а не с «Организация «»»', async () => {
     resolveOrgManagerRecipients.mockResolvedValue([{ id: 'm1' }]);
     createNotification.mockResolvedValue({ id: 'n1' });
