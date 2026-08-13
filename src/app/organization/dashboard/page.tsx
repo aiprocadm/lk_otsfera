@@ -14,9 +14,8 @@ import {
   recentEnrollments,
   expiringCertificates,
 } from '@/lib/services/organization/dashboard';
-import { getWelcomeViewer } from '@/lib/services/welcome/viewer';
-import { WelcomeCard } from '@/components/welcome/welcome-card';
-import { welcomeActionsFor } from '@/lib/welcomeActions';
+import { QuickTasks } from '@/components/dashboard/quick-tasks';
+import { quickTasksFor } from '@/lib/quickTasks';
 
 export default async function OrganizationDashboardPage({
   searchParams,
@@ -28,14 +27,13 @@ export default async function OrganizationDashboardPage({
 
   const enrollmentsEnabled = isFeatureEnabled('enrollment_requests');
   const certificatesEnabled = isFeatureEnabled('certificates_registry');
-  const [k, a, events, enrollments, expiringCerts, viewer] = await Promise.all([
+  const [k, a, events, enrollments, expiringCerts] = await Promise.all([
     kpis(prisma, ctx.activeOrgId),
     attention(prisma, ctx.activeOrgId),
     recentEvents(prisma, ctx.activeOrgId),
     enrollmentsEnabled ? recentEnrollments(prisma, ctx.activeOrgId) : Promise.resolve([]),
     certificatesEnabled ? expiringCertificates(prisma, ctx.activeOrgId) : Promise.resolve(null),
     // ФТ-10.4: одноразовый welcome-блок — пока пользователь его не скрыл.
-    getWelcomeViewer(prisma, ctx.session),
   ]);
 
   return (
@@ -51,9 +49,8 @@ export default async function OrganizationDashboardPage({
           <h1 className="text-2xl font-semibold text-[#111111]">Главная</h1>
           <p className="text-sm text-gray-500 mt-1">Обзор по {ctx.activeOrgName}</p>
         </div>
-        {viewer && viewer.welcomeSeenAt === null && (
-          <WelcomeCard name={viewer.name} actions={welcomeActionsFor('organization')} />
-        )}
+        {/* `У-71`: постоянный блок вместо одноразового welcome-блока. */}
+        <QuickTasks tasks={quickTasksFor('organization')} />
         <OrgKpiGrid kpis={k} expiringCertificates={expiringCerts} />
         {enrollmentsEnabled && <OrgEnrollmentsCard rows={enrollments} />}
         <div className="grid gap-4 md:grid-cols-2">

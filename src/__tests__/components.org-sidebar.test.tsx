@@ -64,7 +64,7 @@ describe('OrgSidebar', () => {
     document.cookie = '';
   });
 
-  it('renders all 12 nav links for admin viewer', () => {
+  it('renders all 13 nav links for admin viewer (+«Справка», `У-76`)', () => {
     vi.mocked(usePathname).mockReturnValue('/organization/dashboard');
     const html = renderToString(
       React.createElement(OrgSidebar, {
@@ -75,11 +75,11 @@ describe('OrgSidebar', () => {
       })
     );
     const matches = html.match(/data-testid="org-nav-/g);
-    expect(matches).toHaveLength(12);
+    expect(matches).toHaveLength(13);
     expect(html).toContain('href="/organization/team"');
   });
 
-  it('hides Команда for member viewer (11 links)', () => {
+  it('hides Команда for member viewer (12 links)', () => {
     vi.mocked(usePathname).mockReturnValue('/organization/dashboard');
     const html = renderToString(
       React.createElement(OrgSidebar, {
@@ -90,11 +90,11 @@ describe('OrgSidebar', () => {
       })
     );
     const matches = html.match(/data-testid="org-nav-/g);
-    expect(matches).toHaveLength(11);
+    expect(matches).toHaveLength(12);
     expect(html).not.toContain('href="/organization/team"');
   });
 
-  it('shows Команда for leader viewer (12 links)', () => {
+  it('shows Команда for leader viewer (13 links)', () => {
     vi.mocked(usePathname).mockReturnValue('/organization/dashboard');
     const html = renderToString(
       React.createElement(OrgSidebar, {
@@ -105,7 +105,7 @@ describe('OrgSidebar', () => {
       })
     );
     const matches = html.match(/data-testid="org-nav-/g);
-    expect(matches).toHaveLength(12);
+    expect(matches).toHaveLength(13);
     expect(html).toContain('href="/organization/team"');
   });
 

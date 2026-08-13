@@ -39,10 +39,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   const session = await getSession();
   if (!session) redirect('/login');
 
-  const items = navItemsFor(session.role, {
-    isManagerLeader: isManagerLeader(session),
-    isPartnerAdmin: session.partnerRole === 'admin',
-  });
+  const items = navItemsFor(session.role, { isManagerLeader: isManagerLeader(session) });
 
   return (
     <CabinetShell

@@ -188,7 +188,9 @@ function StatementRow({ stmt, canManage }: { stmt: StatementListItem; canManage:
                 </Card>
               ))}
             {!loadingItems && items !== null && items.length === 0 && (
-              <li className="text-xs text-gray-400">Нет данных</li>
+              <li className="text-xs text-gray-500">
+                В акте нет позиций — по этому периоду начислений не было.
+              </li>
             )}
           </CardList>
 
@@ -227,8 +229,8 @@ function StatementRow({ stmt, canManage }: { stmt: StatementListItem; canManage:
                   ))}
                 {!loadingItems && items !== null && items.length === 0 && (
                   <Tr hover={false}>
-                    <Td colSpan={5} className="py-4 text-center text-gray-400 text-xs">
-                      Нет данных
+                    <Td colSpan={5} className="py-4 text-center text-gray-500 text-xs">
+                      В акте нет позиций — по этому периоду начислений не было.
                     </Td>
                   </Tr>
                 )}

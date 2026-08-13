@@ -9,13 +9,12 @@ import {
   recentEnrollments,
   expiringCertificates,
 } from '@/lib/services/partner/dashboard';
-import { getWelcomeViewer } from '@/lib/services/welcome/viewer';
 import { KpiGrid } from '@/components/partner/kpi-grid';
 import { AttentionList } from '@/components/partner/attention-list';
 import { EventsFeed } from '@/components/partner/events-feed';
 import { PartnerEnrollmentsCard } from '@/components/partner/partner-enrollments-card';
-import { WelcomeCard } from '@/components/welcome/welcome-card';
-import { welcomeActionsFor } from '@/lib/welcomeActions';
+import { QuickTasks } from '@/components/dashboard/quick-tasks';
+import { quickTasksFor } from '@/lib/quickTasks';
 
 export default async function PartnerDashboard() {
   const session = await requirePartner();
@@ -27,14 +26,13 @@ export default async function PartnerDashboard() {
 
   const enrollmentsEnabled = isFeatureEnabled('enrollment_requests');
   const certificatesEnabled = isFeatureEnabled('certificates_registry');
-  const [k, a, events, enrollments, expiringCerts, viewer] = await Promise.all([
+  const [k, a, events, enrollments, expiringCerts] = await Promise.all([
     kpis(prisma, scope),
     attention(prisma, scope),
     recentEvents(prisma, scope, 10),
     enrollmentsEnabled ? recentEnrollments(prisma, scope) : Promise.resolve([]),
     certificatesEnabled ? expiringCertificates(prisma, scope) : Promise.resolve(null),
     // ФТ-10.4: одноразовый welcome-блок — пока пользователь его не скрыл.
-    getWelcomeViewer(prisma, session),
   ]);
 
   return (
@@ -44,9 +42,9 @@ export default async function PartnerDashboard() {
         <p className="text-sm text-gray-500 mt-0.5">Обзор ключевых показателей и активности</p>
       </div>
 
-      {viewer && viewer.welcomeSeenAt === null && (
-        <WelcomeCard name={viewer.name} actions={welcomeActionsFor('partner')} />
-      )}
+      {/* `У-71`: блок постоянный — он отвечает на вопрос «что делать»,
+          а не «как дела». Одноразовый welcome-блок заменён им. */}
+      <QuickTasks tasks={quickTasksFor('partner')} />
 
       <KpiGrid kpis={k} expiringCertificates={expiringCerts} />
 

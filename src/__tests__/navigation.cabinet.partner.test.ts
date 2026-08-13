@@ -42,7 +42,7 @@ describe('navByRole.partner', () => {
 
 describe('navItemsFor (feature-flag filter)', () => {
   it('пункта «Заявки» (лиды) у партнёра нет — домен внутренний (§3.2 ТЗ, этап 10)', () => {
-    const labels = navItemsFor('partner', { isPartnerAdmin: true }).map((i) => i.label);
+    const labels = navItemsFor('partner').map((i) => i.label);
     expect(labels).not.toContain('Заявки');
   });
   it('does not filter items without a flag annotation', () => {
@@ -71,7 +71,7 @@ describe('navItemsFor — chat flag (partner)', () => {
 
   it('shows "Сообщения" (/partner/messages) when FEATURE_CHAT=1', () => {
     process.env.FEATURE_CHAT = '1';
-    const labels = navItemsFor('partner', { isPartnerAdmin: true }).map((i) => i.label);
+    const labels = navItemsFor('partner').map((i) => i.label);
     expect(labels).toContain('Сообщения');
     // Other items still present
     expect(labels).toEqual(
@@ -118,7 +118,9 @@ describe('navItemsFor — chat flag (organization)', () => {
 
 describe('У-60 (этап 4): «Команда» ушла из главного меню в настройки', () => {
   it('пункта «Команда» в меню партнёра нет ни при каких opts', () => {
-    for (const opts of [undefined, { isPartnerAdmin: false }, { isPartnerAdmin: true }]) {
+    // Признак `partnerAdminOnly` удалён этапом 9 (его не носил ни один пункт),
+    // поэтому состав меню партнёра от опций больше не зависит.
+    for (const opts of [undefined, { isManagerLeader: false }]) {
       const labels = navItemsFor('partner', opts).map((i) => i.label);
       expect(labels, `opts=${JSON.stringify(opts)}`).not.toContain('Команда');
     }
@@ -129,9 +131,7 @@ describe('У-60 (этап 4): «Команда» ушла из главного 
   });
 
   it('«Настройки» в меню остались — через них и попадают в «Команду»', () => {
-    expect(navItemsFor('partner', { isPartnerAdmin: true }).map((i) => i.href)).toContain(
-      '/partner/settings'
-    );
+    expect(navItemsFor('partner').map((i) => i.href)).toContain('/partner/settings');
   });
 });
 
@@ -196,7 +196,9 @@ describe('navByRole.admin — русский канон с группами (в�
     expect(hrefs).toContain('/admin/payments-import');
     expect(hrefs).toContain('/admin/roles');
     expect(hrefs).toContain('/admin/pii-access');
-    expect(navByRole.admin).toHaveLength(24);
+    // `У-76` (этап 9): + «Справка» — словарь терминов, общий для всех кабинетов.
+    expect(hrefs).toContain('/help');
+    expect(navByRole.admin).toHaveLength(25);
     expect(hrefs).toContain('/admin/requests');
     expect(hrefs).toContain('/admin/intake');
   });
@@ -213,9 +215,9 @@ describe('navByRole.admin — русский канон с группами (в�
     }
   });
 
-  it('единственный закреплённый внизу пункт — «Настройки»', () => {
+  it('внизу закреплены «Настройки» и «Справка» — служебное отдельно от работы', () => {
     const pinned = navByRole.admin.filter((i) => i.pinnedBottom);
-    expect(pinned.map((i) => i.href)).toEqual(['/admin/settings']);
+    expect(pinned.map((i) => i.href)).toEqual(['/admin/settings', '/help']);
   });
 });
 
@@ -239,6 +241,8 @@ describe('navByRole.organization — единый источник (канон 1
       '/organization/messages',
       '/student',
       '/organization/settings',
+      // `У-76` (этап 9): словарь терминов, закреплён внизу.
+      '/help',
     ]);
   });
 
@@ -283,6 +287,8 @@ describe('navByRole.partner — состав по ФТ-15.4', () => {
       // У-60 (этап 4): '/partner/team' убран — «Команда» стала вкладкой настроек.
       '/partner/messages',
       '/partner/settings',
+      // `У-76` (этап 9): словарь терминов, закреплён внизу.
+      '/help',
     ]);
   });
 

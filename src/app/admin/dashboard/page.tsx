@@ -5,6 +5,8 @@ import { prisma } from '@/lib/db/prisma';
 import { kpis, attention, recentEvents } from '@/lib/services/admin/dashboard';
 import { auditActionRu } from '@/lib/i18n/auditActions';
 import { StatCard } from '@/components/dashboard/stat-card';
+import { QuickTasks } from '@/components/dashboard/quick-tasks';
+import { quickTasksFor } from '@/lib/quickTasks';
 import { fmtDateTime } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
@@ -24,6 +26,8 @@ export default async function AdminDashboardPage() {
         <h1 className="text-2xl font-bold text-[#111111]">Кабинет администратора</h1>
         <p className="text-sm text-gray-500 mt-0.5">Обзор платформы</p>
       </div>
+
+      <QuickTasks tasks={quickTasksFor('admin')} />
 
       {/* KPI Grid */}
       <div className="grid gap-3 grid-cols-2 md:grid-cols-4">

@@ -40,4 +40,25 @@ describe('EmptyState', () => {
     );
     expect(html).toContain('Создать');
   });
+
+  it('У-74: по умолчанию есть заголовок «Здесь пока пусто»', () => {
+    const html = renderToString(<EmptyState message="Заявок ещё не было." />);
+    expect(html).toContain('Здесь пока пусто');
+    expect(html).toContain('Заявок ещё не было.');
+  });
+
+  it('У-74: главное действие показывается отдельным блоком', () => {
+    const html = renderToString(
+      <EmptyState message="Заявок ещё не было." action={<a href="/x">Подать заявку</a>} />
+    );
+    expect(html).toContain('Подать заявку');
+    expect(html).toContain('href="/x"');
+  });
+
+  it('заголовок переопределяется — «пусто» не всегда проблема', () => {
+    // Например «Всё разобрано»: очередь пуста, и это хорошая новость.
+    const html = renderToString(<EmptyState title="Всё разобрано" message="Новых строк нет." />);
+    expect(html).toContain('Всё разобрано');
+    expect(html).not.toContain('Здесь пока пусто');
+  });
 });

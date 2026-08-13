@@ -8,7 +8,6 @@ export type NavItem = {
   disabled?: boolean;
   flag?: FeatureFlag;
   leaderOnly?: boolean;
-  partnerAdminOnly?: boolean;
   /**
    * Значок раздела — семантический ключ из реестра `navigation/icons.ts`
    * (`У-6`). Поле **обязательное**: до этапа 2 значок был свободной строкой и
@@ -166,6 +165,9 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
       flag: 'role_constructor',
       hiddenWhenFlag: 'settings_hub',
     },
+    // `У-76`: словарь терминов — один на все кабинеты, поэтому пункт одинаков
+    // у всех шести ролей и закреплён внизу рядом с «Настройками».
+    { href: '/help', label: 'Справка', iconKey: 'help', pinnedBottom: true },
   ],
   manager: [
     { href: '/manager/dashboard', label: 'Главная', iconKey: 'dashboard', flag: 'manager_cabinet' },
@@ -333,6 +335,9 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
       flag: 'manager_cabinet',
       group: 'Настройки',
     },
+    // `У-76`: словарь терминов — один на все кабинеты, поэтому пункт одинаков
+    // у всех шести ролей и закреплён внизу рядом с «Настройками».
+    { href: '/help', label: 'Справка', iconKey: 'help', pinnedBottom: true },
   ],
   // Пункты leader-меню намеренно БЕЗ flag: внутрь пускает middleware+layout;
   // флаг на каждом пункте дал бы пустой сайдбар при выключении.
@@ -452,6 +457,9 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
       group: 'Настройки',
       hiddenWhenFlag: 'settings_hub',
     },
+    // `У-76`: словарь терминов — один на все кабинеты, поэтому пункт одинаков
+    // у всех шести ролей и закреплён внизу рядом с «Настройками».
+    { href: '/help', label: 'Справка', iconKey: 'help', pinnedBottom: true },
   ],
   // У-7: до этапа 2 у партнёра не было НИ ОДНОГО значка — ровно потому, что
   // поле было необязательным. Теперь `iconKey` обязателен на уровне типа.
@@ -482,6 +490,9 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     // /partner/team остался редиректом.
     { href: '/partner/messages', label: 'Сообщения', iconKey: 'messages', flag: 'chat' },
     { href: '/partner/settings', label: 'Настройки', iconKey: 'settings' },
+    // `У-76`: словарь терминов — один на все кабинеты, поэтому пункт одинаков
+    // у всех шести ролей и закреплён внизу рядом с «Настройками».
+    { href: '/help', label: 'Справка', iconKey: 'help', pinnedBottom: true },
   ],
   // Этап 11 PR-3 (ФТ-15.4): состав и ПОРЯДОК заданы ТЗ дословно — Главная ·
   // Заказы · Обращения · Заявки на обучение · Удостоверения · Документы ·
@@ -554,28 +565,37 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
       iconKey: 'settings',
       flag: 'organization_cabinet',
     },
+    // `У-76`: словарь терминов — один на все кабинеты, поэтому пункт одинаков
+    // у всех шести ролей и закреплён внизу рядом с «Настройками».
+    { href: '/help', label: 'Справка', iconKey: 'help', pinnedBottom: true },
   ],
-  student: [{ href: '/student', label: 'Обучение', iconKey: 'learning' }],
+  student: [
+    { href: '/student', label: 'Обучение', iconKey: 'learning' },
+    // `У-76`: словарь терминов — один на все кабинеты, поэтому пункт одинаков
+    // у всех шести ролей и закреплён внизу рядом с «Настройками».
+    { href: '/help', label: 'Справка', iconKey: 'help', pinnedBottom: true },
+  ],
 };
 
 /**
- * Returns the static menu for a role minus items whose feature flag is off,
- * items marked `leaderOnly` when the caller is not a manager-leader, and items
- * marked `partnerAdminOnly` when the caller is not a partner-admin. Both
- * `isManagerLeader` and `isPartnerAdmin` default to false, so callers that
- * don't pass them simply hide the elevated items — that's the safe default.
+ * Меню роли минус пункты с выключенным флагом и минус `leaderOnly`-пункты,
+ * когда зовущий не руководитель (`isManagerLeader` по умолчанию false — то
+ * есть повышенные пункты по умолчанию скрыты, это безопасное поведение).
+ *
+ * Признака `partnerAdminOnly` больше нет: с этапа 4 его не носил ни один
+ * пункт («Команда» партнёра уехала во вкладку настроек), и фильтр стал
+ * недостижимой веткой — мёртвый код удалён этапом 9.
  *
  * `navByRole` stays exported for tests and any caller that wants the raw
  * shape; `navItemsFor` is what the app shell renders.
  */
 export function navItemsFor(
   role: Role | 'leader',
-  opts?: { isManagerLeader?: boolean; isPartnerAdmin?: boolean }
+  opts?: { isManagerLeader?: boolean }
 ): NavItem[] {
   return navByRole[role].filter((item) => {
     if (item.flag && !isFeatureEnabled(item.flag)) return false;
     if (item.leaderOnly && !opts?.isManagerLeader) return false;
-    if (item.partnerAdminOnly && !opts?.isPartnerAdmin) return false;
     if (item.hiddenWhenFlag && isFeatureEnabled(item.hiddenWhenFlag)) return false;
     return true;
   });

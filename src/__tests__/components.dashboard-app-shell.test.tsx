@@ -139,16 +139,15 @@ describe('AppShell', () => {
     expect(html).not.toContain('data-testid="notification-bell"');
   });
 
-  it('passes isManagerLeader and isPartnerAdmin through to navItemsFor', async () => {
+  it('прокидывает признак руководителя в реестр меню', async () => {
+    // `isPartnerAdmin` больше не передаётся: признак `partnerAdminOnly` удалён
+    // этапом 9 — его не носил ни один пункт меню с этапа 4.
     getSession.mockResolvedValue({ sub: 'u4', role: 'manager', name: 'M', partnerRole: 'admin' });
     isManagerLeader.mockReturnValue(true);
     navItemsFor.mockReturnValue([]);
 
     await AppShell({ children: 'c' });
 
-    expect(navItemsFor).toHaveBeenCalledWith('manager', {
-      isManagerLeader: true,
-      isPartnerAdmin: true,
-    });
+    expect(navItemsFor).toHaveBeenCalledWith('manager', { isManagerLeader: true });
   });
 });

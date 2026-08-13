@@ -89,6 +89,8 @@ describe('navByRole.manager — feature-flag gated', () => {
       '/manager/team',
       '/leader/dashboard',
       '/manager/settings',
+      // `У-76` (этап 9): словарь терминов, закреплён внизу.
+      '/help',
     ]);
   });
 
@@ -130,8 +132,11 @@ describe('navByRole.manager — feature-flag gated', () => {
     expect(leaderEntry?.flag).toBe('leader_cabinet');
   });
 
-  it('navItemsFor("manager") returns [] when the flag is off (default)', () => {
-    expect(navItemsFor('manager')).toEqual([]);
+  it('navItemsFor("manager") при выключенном флаге оставляет только «Справку»', () => {
+    // Все рабочие пункты гейтятся флагом кабинета, а словарь терминов (`У-76`)
+    // — нет: он общий для всех ролей и от кабинета не зависит. До меню в этом
+    // случае всё равно не доходит — middleware отдаёт 404 на весь префикс.
+    expect(navItemsFor('manager').map((i) => i.href)).toEqual(['/help']);
   });
 
   // Решение заказчика 11.08.2026 отменило `Т-25`: импорт виден и обычному
@@ -151,6 +156,7 @@ describe('navByRole.manager — feature-flag gated', () => {
       'Сотрудники',
       'Сообщения',
       'Настройки',
+      'Справка',
     ]);
     expect(items.map((i) => i.label)).not.toContain('Команда');
   });
@@ -158,7 +164,7 @@ describe('navByRole.manager — feature-flag gated', () => {
   it('navItemsFor("manager") руководителю: импорт и «Команда» на месте (leaderOnly)', () => {
     process.env.FEATURE_MANAGER_CABINET = '1';
     const items = navItemsFor('manager', { isManagerLeader: true });
-    expect(items).toHaveLength(12);
+    expect(items).toHaveLength(13); // +«Справка» (`У-76`)
     expect(items.map((i) => i.label)).toEqual([
       'Главная',
       'Заказы',
@@ -172,6 +178,7 @@ describe('navByRole.manager — feature-flag gated', () => {
       'Сообщения',
       'Команда',
       'Настройки',
+      'Справка',
     ]);
   });
 });

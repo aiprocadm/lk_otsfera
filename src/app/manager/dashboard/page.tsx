@@ -5,6 +5,8 @@ import { prisma } from '@/lib/db/prisma';
 import { kpis, attention, recentEvents } from '@/lib/services/manager/dashboard';
 import { getMyDay } from '@/lib/services/manager/myDay';
 import { MyDayCards } from '@/components/manager/my-day-cards';
+import { QuickTasks } from '@/components/dashboard/quick-tasks';
+import { quickTasksFor } from '@/lib/quickTasks';
 import { ManagerKpiGrid } from '@/components/manager/manager-kpi-grid';
 import { ManagerAttentionList } from '@/components/manager/manager-attention-list';
 import { ManagerEventsFeed } from '@/components/manager/manager-events-feed';
@@ -24,8 +26,15 @@ export default async function ManagerDashboard() {
   ]);
   return (
     <>
-      <h1 className="mb-4 text-2xl font-semibold">Главная</h1>
+      <div className="mb-4">
+        <h1 className="text-2xl font-semibold">Главная</h1>
+        {/* `У-73`: единственный дашборд, у которого не было подзаголовка. */}
+        <p className="text-sm text-gray-500 mt-0.5">
+          Что требует внимания прямо сейчас и с чего начать день
+        </p>
+      </div>
       <div className="space-y-4">
+        <QuickTasks tasks={quickTasksFor('manager')} />
         <MyDayCards data={myDay} />
         <ManagerKpiGrid data={kpiData} />
         <ManagerAttentionList items={attentionData} />

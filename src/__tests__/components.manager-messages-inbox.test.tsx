@@ -38,7 +38,7 @@ describe('ManagerMessagesInbox', () => {
     const html = renderToString(
       React.createElement(ManagerMessagesInbox, { rows: [], nextCursor: null })
     );
-    expect(html).toContain('Сообщений пока нет');
+    expect(html).toContain('Сообщения появятся, когда клиент напишет');
   });
 
   it('groups consecutive rows on the same order under a single header', () => {

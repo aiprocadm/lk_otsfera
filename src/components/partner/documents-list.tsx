@@ -1,6 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { EmptyState } from '@/components/ui';
 import type { OrgDocumentRow } from '@/lib/services/partner/orgDocuments';
 
 const TYPE_LABELS: Record<string, string> = {
@@ -96,12 +97,12 @@ export function DocumentsList({
 
   if (rows.length === 0) {
     return (
-      <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
-        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-          <span className="text-2xl">📄</span>
-        </div>
-        <p className="text-gray-500 text-sm">Документов по выбранному фильтру нет</p>
-      </div>
+      // `У-74`: вторая ручная копия разметки `EmptyState` — заменена компонентом.
+      <EmptyState
+        icon="📄"
+        title="Ничего не нашлось"
+        message="По выбранному фильтру документов нет — снимите фильтр или выберите другой период."
+      />
     );
   }
 

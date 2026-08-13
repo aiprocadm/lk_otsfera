@@ -38,6 +38,8 @@ describe('канон leader', () => {
       '/leader/settings/custom-fields',
       // §10 ТЗ v0.5: там же зеркало справочника статусов
       '/leader/settings/order-statuses',
+      // `У-76` (этап 9): словарь терминов, закреплён внизу.
+      '/help',
     ]);
   });
 
