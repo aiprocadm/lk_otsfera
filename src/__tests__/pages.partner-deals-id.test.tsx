@@ -169,4 +169,19 @@ describe('PartnerDealDetailPage', () => {
     // Documents heading with no count badge when there are zero documents.
     expect(container.textContent).not.toContain('Документы (0)');
   });
+
+  it('пока номера заказа нет, в крошке стоит название сделки (У-72)', async () => {
+    // Номер приходит из 1С не сразу: до этого сделку надо как-то называть.
+    requirePartner.mockResolvedValue(SESSION);
+    getPartnerDealDetail.mockResolvedValue({ ...BASE_DEAL, orderNumber: null });
+    getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
+    canPartnerAccessOrg.mockResolvedValue(true);
+
+    const { container } = await renderServerComponent(
+      PartnerDealDetailPage({ params: Promise.resolve({ id: 'deal-1' }) })
+    );
+
+    expect(container.textContent).toContain('Обучение по ОТ');
+    expect(container.textContent).not.toContain('№null');
+  });
 });

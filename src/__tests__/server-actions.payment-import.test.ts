@@ -7,12 +7,20 @@ const {
   searchResolveOrgs,
   listResolveOrders,
   createOrgFromQueueRow,
+  resolveQueueRow,
+  dismissQueueRow,
+  planQueueOrgCreation,
+  createOrgsFromQueueRows,
 } = vi.hoisted(() => ({
   previewPaymentImport: vi.fn(),
   commitPaymentImport: vi.fn(),
   searchResolveOrgs: vi.fn(),
   listResolveOrders: vi.fn(),
   createOrgFromQueueRow: vi.fn(),
+  resolveQueueRow: vi.fn(),
+  dismissQueueRow: vi.fn(),
+  planQueueOrgCreation: vi.fn(),
+  createOrgsFromQueueRows: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireSession }));
@@ -20,20 +28,27 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('@/lib/services/import/oneCAccountCard', () => ({
   previewPaymentImport,
   commitPaymentImport,
-  resolveQueueRow: vi.fn(),
-  dismissQueueRow: vi.fn(),
+  resolveQueueRow,
+  dismissQueueRow,
   searchResolveOrgs,
   listResolveOrders,
   createOrgFromQueueRow,
+  planQueueOrgCreation,
+  createOrgsFromQueueRows,
 }));
 const { revalidatePath } = vi.hoisted(() => ({ revalidatePath: vi.fn() }));
 vi.mock('next/cache', () => ({ revalidatePath }));
 
 import {
   previewPaymentImportAction,
+  commitPaymentImportAction,
   searchResolveOrgsAction,
   listResolveOrdersAction,
   createOrgFromQueueRowAction,
+  resolveQueueRowAction,
+  dismissQueueRowAction,
+  planQueueOrgCreationAction,
+  createOrgsFromQueueRowsAction,
 } from '@/server-actions/payment-import';
 
 beforeEach(() => {
@@ -110,6 +125,102 @@ describe('createOrgFromQueueRowAction', () => {
     createOrgFromQueueRow.mockResolvedValue({ ok: false, error: 'org_exists' });
     const res = await createOrgFromQueueRowAction({ rowId: 'r1', name: 'x', inn: 'y' });
     expect(res).toEqual({ ok: false, error: 'org_exists' });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Экшены, которых не касался ни один тест — половина файла не исполнялась
+ * (долг гейта покрытия). Все они тонкие адаптеры: важно, что сессия доходит до
+ * сервиса, что кривой файл не пропускается и что экраны обновляются только
+ * после успешной записи.
+ */
+describe('commitPaymentImportAction', () => {
+  it('кривой файл до сервиса не доходит', async () => {
+    expect(await commitPaymentImportAction(form())).toEqual({ ok: false, error: 'invalid_file' });
+    expect(commitPaymentImport).not.toHaveBeenCalled();
+  });
+
+  it('слишком большой файл отвергается по размеру, а не по имени', async () => {
+    // Предел общий с импортом Excel и next.config: иначе человек получил бы
+    // невнятную ошибку платформы вместо понятного отказа.
+    const huge = new File([new Uint8Array(1)], 'p.xlsx');
+    Object.defineProperty(huge, 'size', { value: 500 * 1024 * 1024 });
+    expect(await commitPaymentImportAction(form(huge))).toEqual({
+      ok: false,
+      error: 'invalid_file',
+    });
+    expect(commitPaymentImport).not.toHaveBeenCalled();
+  });
+
+  it('файл и его имя доходят до сервиса', async () => {
+    commitPaymentImport.mockResolvedValue({ ok: true, created: 2 });
+    const res = await commitPaymentImportAction(
+      form(new File([new Uint8Array([1])], 'Выписка.xlsx'))
+    );
+
+    expect(res).toEqual({ ok: true, created: 2 });
+    const args = commitPaymentImport.mock.calls[0][2];
+    expect(args.fileName).toBe('Выписка.xlsx');
+    expect(Buffer.isBuffer(args.fileBuffer)).toBe(true);
+  });
+
+  it('выбранная компания передаётся сервису, пустая — нет (У-50)', async () => {
+    commitPaymentImport.mockResolvedValue({ ok: true });
+
+    const withCompany = form(new File([new Uint8Array([1])], 'p.xlsx'));
+    withCompany.set('companyId', '  co-7  ');
+    await commitPaymentImportAction(withCompany);
+    expect(commitPaymentImport.mock.calls[0][2].companyId).toBe('co-7');
+
+    const blank = form(new File([new Uint8Array([1])], 'p.xlsx'));
+    blank.set('companyId', '   ');
+    await commitPaymentImportAction(blank);
+    // Пусто — пусть сервис решает сам, а не получает пустую строку.
+    expect(commitPaymentImport.mock.calls[1][2]).not.toHaveProperty('companyId');
+  });
+});
+
+describe('разбор очереди платежей', () => {
+  it('resolveQueueRowAction передаёт сессию и аргументы как есть', async () => {
+    resolveQueueRow.mockResolvedValue({ ok: true });
+    const args = { rowId: 'r1', organizationId: 'o1', orderId: null };
+    await expect(resolveQueueRowAction(args)).resolves.toEqual({ ok: true });
+    expect(resolveQueueRow).toHaveBeenCalledWith({}, { sub: 'u1', role: 'admin' }, args);
+  });
+
+  it('dismissQueueRowAction — тоже только адаптер', async () => {
+    dismissQueueRow.mockResolvedValue({ ok: true });
+    await expect(dismissQueueRowAction({ rowId: 'r1' })).resolves.toEqual({ ok: true });
+    expect(dismissQueueRow).toHaveBeenCalledWith({}, { sub: 'u1', role: 'admin' }, { rowId: 'r1' });
+  });
+});
+
+describe('пакетное создание организаций из очереди (У-53)', () => {
+  it('шаг 1 только показывает список и ничего не пишет', async () => {
+    planQueueOrgCreation.mockResolvedValue({ ok: true, rows: [] });
+    await expect(planQueueOrgCreationAction()).resolves.toEqual({ ok: true, rows: [] });
+    expect(createOrgsFromQueueRows).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('шаг 2 после успеха обновляет все три экрана очереди', async () => {
+    createOrgsFromQueueRows.mockResolvedValue({ ok: true, created: 3 });
+    const res = await createOrgsFromQueueRowsAction({ rowIds: ['r1', 'r2'] });
+
+    expect(res).toEqual({ ok: true, created: 3 });
+    expect(revalidatePath.mock.calls.map((c: unknown[]) => c[0])).toEqual([
+      '/admin/settings/integrations/1c/payments',
+      '/leader/settings/integrations/1c/payments',
+      '/manager/payments-import',
+    ]);
+  });
+
+  it('после отказа экраны не трогаем', async () => {
+    createOrgsFromQueueRows.mockResolvedValue({ ok: false, error: 'company_required' });
+    const res = await createOrgsFromQueueRowsAction({ rowIds: ['r1'] });
+
+    expect(res).toEqual({ ok: false, error: 'company_required' });
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 });

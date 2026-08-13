@@ -10,7 +10,8 @@ import { render, screen, within, fireEvent } from '@testing-library/react';
 import React from 'react';
 import type { NavItem } from '@/lib/navigation/cabinet';
 
-vi.mock('next/navigation', () => ({ usePathname: () => '/partner/deals' }));
+const { usePathname } = vi.hoisted(() => ({ usePathname: vi.fn(() => '/partner/deals') }));
+vi.mock('next/navigation', () => ({ usePathname }));
 // Пропы прокидываем целиком: без этого теряется aria-current и тест подсветки
 // проверял бы мок, а не компонент.
 vi.mock('next/link', () => ({
@@ -134,5 +135,15 @@ describe('MobileNav', () => {
   it('тёмная тема даёт светлый бургер на чёрной шапке', () => {
     renderNav({ theme: 'dark' });
     expect(screen.getByTestId('mobile-burger').className).toContain('text-white');
+  });
+
+  it('без известного адреса панель всё равно рисуется, просто без подсветки', () => {
+    // `usePathname` возвращает null вне роутера. Панель не должна падать —
+    // иначе на телефоне пропала бы вся навигация.
+    usePathname.mockReturnValueOnce(null as unknown as string);
+    renderNav();
+
+    expect(screen.getByTestId('mobile-burger')).toBeTruthy();
+    expect(document.querySelectorAll('[aria-current="page"]')).toHaveLength(0);
   });
 });

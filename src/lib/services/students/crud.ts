@@ -51,6 +51,9 @@ function validate(input: StudentInput): { ok: true } | { ok: false; messages: st
 
 function data(input: StudentInput) {
   return {
+    // `?? ''` недостижимо: сюда попадают только входы, прошедшие `validate`,
+    // а он не пускает пустое имя. Оставлено, чтобы тип поля оставался string.
+    /* v8 ignore next */
     name: clean(input.name) ?? '',
     position: clean(input.position),
     snils: clean(input.snils),
@@ -130,6 +133,9 @@ export async function updateStudent(
     entity: 'student',
     entityId: args.id,
     before: { name: existing.name },
+    // Запасное значение недостижимо по той же причине, что и в `data()`:
+    // пустое имя не проходит `validate` парой строк выше.
+    /* v8 ignore next */
     after: { name: clean(args.name) ?? existing.name },
   });
 

@@ -25,6 +25,10 @@ export function ImportStudentsDialog({ organizationId }: { organizationId: strin
   const [errors, setErrors] = useState<string[]>([]);
 
   function close() {
+    // Страховка на случай, если закрытие позовут в обход примитива: сам
+    // `Dialog` уже не пускает Escape, крестик и клик по фону во время записи
+    // (§9), поэтому через интерфейс эта ветка недостижима.
+    /* v8 ignore next */
     if (busy) return;
     setOpen(false);
     setPreview(null);
@@ -50,6 +54,9 @@ export function ImportStudentsDialog({ organizationId }: { organizationId: strin
   }
 
   async function onCommit() {
+    // Кнопка «Добавить» существует только вместе с предпросмотром — проверка
+    // нужна TypeScript'у и как страховка, через интерфейс не достижима.
+    /* v8 ignore next */
     if (!preview) return;
     setBusy(true);
     try {

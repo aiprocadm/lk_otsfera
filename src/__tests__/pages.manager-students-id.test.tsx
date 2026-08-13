@@ -100,4 +100,29 @@ describe('ManagerStudentDetailPage', () => {
 
     expect(container.textContent).toContain('Иван Иванов');
   });
+
+  it('без почты и даты рождения экран говорит об этом словами, а не пустотой (§15)', async () => {
+    // У рабочих почты часто нет, а СНИЛС и дату приносят позже (`У-21`).
+    requireManager.mockResolvedValue(SESSION);
+    getStudent.mockResolvedValue({ ...STUDENT, email: null, birthDate: null, snils: null });
+    listCertificates.mockResolvedValue({ ok: true, rows: [] });
+
+    const { container } = await renderServerComponent(
+      ManagerStudentDetailPage({ params: Promise.resolve({ id: 's1' }) })
+    );
+
+    expect(container.textContent).toContain('Почта не указана');
+  });
+
+  it('дата рождения показывается по-русски, когда она есть', async () => {
+    requireManager.mockResolvedValue(SESSION);
+    getStudent.mockResolvedValue({ ...STUDENT, birthDate: new Date('1990-02-01T00:00:00.000Z') });
+    listCertificates.mockResolvedValue({ ok: true, rows: [] });
+
+    const { container } = await renderServerComponent(
+      ManagerStudentDetailPage({ params: Promise.resolve({ id: 's1' }) })
+    );
+
+    expect(container.textContent).toContain('1990');
+  });
 });

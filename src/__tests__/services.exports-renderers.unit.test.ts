@@ -271,6 +271,15 @@ describe('renderOrgStudentsXlsx', () => {
     expect(row).toContain('0');
   });
 
+  it('пустая почта — тоже прочерк: у рабочих её часто нет (У-21)', async () => {
+    const wb = await load(
+      await renderOrgStudentsXlsx({ rows: [student({ email: null })], total: 1 })
+    );
+    const row = rowValues(wb.worksheets[0]!, 2);
+    expect(row).toContain('—');
+    expect(row).toContain('Иванов Иван');
+  });
+
   it('срез по лимиту + хвост в колонке ФИО', async () => {
     const rows = Array.from({ length: EXPORT_ROW_LIMIT + 1 }, (_, i) => student({ id: `s${i}` }));
     const wb = await load(await renderOrgStudentsXlsx({ rows, total: rows.length }));
