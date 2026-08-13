@@ -206,4 +206,19 @@ describe('TaskList', () => {
     rows = screen.getAllByRole('row').slice(1);
     expect(rows[0]!.textContent).toContain('А-без-срока');
   });
+
+  it('клик по строке таблицы открывает карточку задачи', () => {
+    // На широком экране задачу открывают кликом по строке — на телефоне это
+    // делает карточка. Проверялась только вторая половина.
+    const c = card({ id: 't1', title: 'Проверить документы' });
+    render(<TaskList board={makeBoard([c])} options={options} />);
+    taskDialogSpy.mockClear();
+
+    const row = screen.getAllByRole('row')[1]!;
+    fireEvent.click(row);
+
+    expect(taskDialogSpy).toHaveBeenCalled();
+    const last = taskDialogSpy.mock.calls.at(-1)![0];
+    expect(last.target?.id).toBe('t1');
+  });
 });

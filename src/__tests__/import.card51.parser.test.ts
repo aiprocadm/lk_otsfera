@@ -115,4 +115,19 @@ describe('parseAccountCard', () => {
     const r = parseAccountCard(sheet).rows[0];
     expect(r.parseError).toBeTruthy();
   });
+
+  it('обрезанная строка без колонок аналитики не роняет разбор', () => {
+    // В урезанных выгрузках строка кончается раньше — соседней колонки просто
+    // нет. Падать нельзя: строка должна дойти до списка ошибок разбора, а не
+    // обрушить весь файл.
+    const sheet: string[][] = [
+      cell({ 0: 'Сальдо на начало' }),
+      ['05.06.2026', 'Списание с расчетного счета 0000-002002 от 05.06.2026', ''],
+      cell({ 0: 'Обороты за период' }),
+    ];
+    const parsed = parseAccountCard(sheet);
+    expect(parsed.rows).toHaveLength(1);
+    // Имени контрагента взять неоткуда — строка уйдёт в ручной разбор.
+    expect(parsed.rows[0].counterpartyName).toBeNull();
+  });
 });

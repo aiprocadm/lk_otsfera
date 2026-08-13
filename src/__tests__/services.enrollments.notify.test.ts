@@ -263,4 +263,16 @@ describe('notifyManagersEnrollmentSubmitted (enrollment_submitted менедже
       error: 'соединение закрыто',
     });
   });
+
+  it('без названия организации письмо начинается со счётчика, а не с «Организация «»»', async () => {
+    resolveOrgManagerRecipients.mockResolvedValue([{ id: 'm1' }]);
+    createNotification.mockResolvedValue({ id: 'n1' });
+    const { d } = db({ organization: null });
+
+    await notifyManagersEnrollmentSubmitted(d, req());
+
+    const body = createNotification.mock.calls[0][0].body;
+    expect(body).not.toContain('Организация');
+    expect(body).toContain('5 слушателей');
+  });
 });

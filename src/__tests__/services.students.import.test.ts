@@ -140,6 +140,40 @@ describe('У-27: разбор файла', () => {
     expect(res.errors[0]).toContain('дата рождения не распознана');
   });
 
+  it('ячейка-дата (Excel отдаёт готовый Date) берётся как есть', async () => {
+    const buf = await buildXlsx([
+      ['Иванов Иван', '', '', new Date('1990-02-01T00:00:00.000Z'), '', ''],
+    ]);
+    const res = await parseStudentsWorkbook(buf);
+    if (!res.ok) throw new Error('ожидали ok');
+    expect(res.rows[0].birthDate?.getUTCFullYear()).toBe(1990);
+  });
+
+  it('несуществующий месяц отбивается, а не превращается в другую дату', async () => {
+    const buf = await buildXlsx([['Иванов Иван', '', '', '99.99.9999', '', '']]);
+    const res = await parseStudentsWorkbook(buf);
+    if (!res.ok) throw new Error('ожидали ok');
+    expect(res.rows).toHaveLength(0);
+    expect(res.errors[0]).toContain('дата рождения не распознана');
+  });
+
+  it('файл только с колонкой ФИО читается — остальные поля просто пустые', async () => {
+    // Человек мог удалить лишние колонки из шаблона: это не повод отказывать.
+    const buf = await buildXlsx([['Иванов Иван']], [`${STUDENT_IMPORT_COLUMNS.name}*`]);
+    const res = await parseStudentsWorkbook(buf);
+    if (!res.ok) throw new Error('ожидали ok');
+    expect(res.rows).toHaveLength(1);
+    expect(res.rows[0]).toMatchObject({ name: 'Иванов Иван', snils: null, birthDate: null });
+  });
+
+  it('книга без единого листа отбивается понятным текстом', async () => {
+    const wb = new ExcelJS.Workbook();
+    const empty = Buffer.from((await wb.xlsx.writeBuffer()) as ArrayBuffer);
+    const res = await parseStudentsWorkbook(empty);
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.errors[0]).toContain('нет ни одного листа');
+  });
+
   it('файл без колонки ФИО отбивается целиком с подсказкой про шаблон', async () => {
     const buf = await buildXlsx([['x']], ['Что-то не то']);
     const res = await parseStudentsWorkbook(buf);
@@ -214,6 +248,22 @@ describe('У-28: предпросмотр и подтверждение', () => 
       rows: [
         { name: 'Иванов Иван', line: 2, snils: null, birthDate, email: null },
         { name: 'Иванов Иван', line: 3, snils: null, birthDate, email: null },
+      ] as never,
+    });
+
+    if (!res.ok) throw new Error('ожидали ok');
+    expect(res.preview.toCreate).toHaveLength(1);
+    expect(res.preview.duplicates).toHaveLength(1);
+  });
+
+  it('третий ключ — «ФИО + почта»: без СНИЛС и даты ловим дубль по ней', async () => {
+    const { prisma } = prismaWith();
+    const res = await previewStudentImport(prisma, admin(), {
+      organizationId: ORG,
+      teamMode: false,
+      rows: [
+        { name: 'Иванов Иван', line: 2, snils: null, birthDate: null, email: 'i@e.ru' },
+        { name: 'Иванов Иван', line: 3, snils: null, birthDate: null, email: 'i@e.ru' },
       ] as never,
     });
 
