@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import { EmptyState } from '@/components/ui';
 import type { ManagerInboxItem } from '@/lib/services/manager/messages';
 import { fmtDateTime } from '@/lib/format';
 
@@ -53,13 +54,14 @@ function buildNextHref(cursor: string): string {
 
 export function ManagerMessagesInbox({ rows, nextCursor }: Props) {
   if (rows.length === 0) {
+    // `У-74`: здесь была ручная копия разметки `EmptyState` — теперь общий
+    // компонент. Кнопки нет намеренно: переписку начинает клиент, менеджеру
+    // нечего нажать, и это сказано словами, а не молчанием.
     return (
-      <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
-        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-          <span className="text-2xl">✉️</span>
-        </div>
-        <p className="text-gray-500 text-sm">Сообщений пока нет.</p>
-      </div>
+      <EmptyState
+        icon="✉️"
+        message="Сообщения появятся, когда клиент напишет по заказу. Начать переписку можно из карточки заказа."
+      />
     );
   }
 

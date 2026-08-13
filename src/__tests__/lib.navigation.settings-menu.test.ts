@@ -50,7 +50,8 @@ describe('меню админа при включённом хабе', () => {
     const items = navItemsFor('admin');
     const settings = items.filter((i) => i.href === '/admin/settings');
     expect(settings).toHaveLength(1);
-    expect(splitPinnedItems(items).pinned.map((i) => i.href)).toEqual(['/admin/settings']);
+    // `У-76` (этап 9): рядом с «Настройками» внизу закреплена «Справка».
+    expect(splitPinnedItems(items).pinned.map((i) => i.href)).toEqual(['/admin/settings', '/help']);
   });
 
   it('группа «Обмен с 1С» исчезает целиком', () => {
@@ -97,6 +98,8 @@ describe('меню руководителя', () => {
     expect(hrefs).toContain('/leader/settings');
     expect(splitPinnedItems(navItemsFor('leader')).pinned.map((i) => i.href)).toEqual([
       '/leader/settings',
+      // `У-76` (этап 9): словарь терминов.
+      '/help',
     ]);
   });
 

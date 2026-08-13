@@ -75,7 +75,9 @@ describe('OrganizationStudentsPage', () => {
       OrganizationStudentsPage({ searchParams: Promise.resolve({}) })
     );
 
-    expect(container.textContent).toContain('пока нет сотрудников');
+    // `У-74`: пустой экран теперь говорит, ЧТО делать, а не только что пусто.
+    expect(container.textContent).toContain('Заведите сотрудников');
+    expect(container.textContent).toContain('Здесь пока пусто');
   });
 
   it('renders a students table with pagination when there is more than one page', async () => {

@@ -66,6 +66,7 @@ export const NAV_ICONS = {
   paymentsImport: '💳',
 
   // Служебное и справочники
+  help: '❓',
   leaderCabinet: '🧭',
   roles: '🎭',
   security: '🛡️',

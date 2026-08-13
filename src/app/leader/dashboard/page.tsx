@@ -4,6 +4,8 @@ import { prisma } from '@/lib/db/prisma';
 import { leaderDashboard } from '@/lib/services/leader/dashboard';
 import { recentEvents } from '@/lib/services/manager/dashboard';
 import { StatCard } from '@/components/dashboard/stat-card';
+import { QuickTasks } from '@/components/dashboard/quick-tasks';
+import { quickTasksFor } from '@/lib/quickTasks';
 import { fmtMoney } from '@/lib/format';
 import { LeaderManagersTable } from '@/components/leader/leader-managers-table';
 import { ManagerEventsFeed } from '@/components/manager/manager-events-feed';
@@ -23,6 +25,8 @@ export default async function LeaderDashboardPage() {
         <h1 className="text-2xl font-bold text-[#111111]">Сводка по команде</h1>
         <p className="text-sm text-gray-500 mt-0.5">Все менеджеры и заказы компании</p>
       </div>
+
+      <QuickTasks tasks={quickTasksFor('leader')} />
       <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
         <StatCard title="Менеджеров" value={data.kpis.managers} href="/leader/team" />
         <StatCard title="Заказы в работе" value={data.kpis.activeOrders} href="/leader/orders" />

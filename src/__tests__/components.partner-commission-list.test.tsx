@@ -242,11 +242,14 @@ describe('CommissionStatementsList — interactive (jsdom)', () => {
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
   });
 
-  it('loaded with an empty items array shows the "Нет данных" row', () => {
+  it('loaded with an empty items array объясняет пустой акт, а не молчит «Нет данных»', () => {
     useClientResourceMock.mockReturnValue({ data: [], loading: false });
     render(<CommissionStatementsList statements={[draft]} canManage={false} />);
     fireEvent.click(screen.getByRole('button', { name: /янв 2026/ }));
-    expect(screen.getAllByText('Нет данных').length).toBeGreaterThan(0);
+    // Текст разбит по строкам вёрсткой — ищем по подстроке узла.
+    expect(
+      screen.getAllByText((_t, el) => (el?.textContent ?? '').includes('В акте нет позиций')).length
+    ).toBeGreaterThan(0);
   });
 
   it('clicking an action button (e.g. PDF link) does not toggle the row open (stopPropagation)', () => {

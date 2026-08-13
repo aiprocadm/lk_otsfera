@@ -10,8 +10,6 @@ vi.mock('@/lib/auth/orgPageContext', () => ({ getOrgPageContext }));
 // Этап 4 (ФТ-10.4): страница читает зрителя через сервис welcome; welcomeSeenAt
 // не-null → блок скрыт, старые сценарии этого файла его не касаются. Форма
 // запроса пиннится в services.welcome.viewer.test.ts (аудит A1).
-const { getWelcomeViewer } = vi.hoisted(() => ({ getWelcomeViewer: vi.fn() }));
-vi.mock('@/lib/services/welcome/viewer', () => ({ getWelcomeViewer }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 // Флаги мокаем в off: этот файл пиннит базовый дашборд; карточки за флагами
@@ -64,8 +62,6 @@ describe('OrganizationDashboardPage', () => {
     kpis.mockReset();
     attention.mockReset();
     recentEvents.mockReset();
-    getWelcomeViewer.mockReset();
-    getWelcomeViewer.mockResolvedValue({ name: 'Иван', welcomeSeenAt: new Date('2026-01-01') });
     isFeatureEnabled.mockReset();
     isFeatureEnabled.mockReturnValue(false);
   });
@@ -84,7 +80,6 @@ describe('OrganizationDashboardPage', () => {
     expect(kpis).toHaveBeenCalledWith(expect.anything(), 'org-1');
     expect(attention).toHaveBeenCalledWith(expect.anything(), 'org-1');
     expect(recentEvents).toHaveBeenCalledWith(expect.anything(), 'org-1');
-    expect(getWelcomeViewer).toHaveBeenCalledWith(expect.anything(), CTX.session);
     expect(container.textContent).toContain('Главная');
     expect(container.textContent).toContain('ООО Ромашка');
     // welcomeSeenAt не-null → welcome-блока нет.

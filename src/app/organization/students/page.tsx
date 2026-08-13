@@ -85,8 +85,14 @@ export default async function OrganizationStudentsPage({
             message={
               sp.search
                 ? 'По запросу никого не нашли — попробуйте другой текст.'
-                : 'У вашей организации пока нет сотрудников на обучении.'
+                : 'Заведите сотрудников, чтобы выбирать их в заявках на обучение.'
             }
+            // `У-74`: пустой экран обязан предлагать действие, а не только
+            // сообщать о пустоте. При поиске кнопка не нужна — там ответ
+            // «измените запрос», и он уже в тексте.
+            {...(sp.search
+              ? {}
+              : { action: <AddStudentDialog organizationId={ctx.activeOrgId} /> })}
           />
         ) : (
           <StudentsTable rows={rows} linkToCard={isFeatureEnabled('certificates_registry')} />

@@ -49,7 +49,7 @@ describe('DocumentsList order-less label', () => {
 describe('DocumentsList — empty and formatting', () => {
   it('renders the empty state when rows is empty', () => {
     const html = renderToString(<DocumentsList rows={[]} />);
-    expect(html).toContain('Документов по выбранному фильтру нет');
+    expect(html).toContain('По выбранному фильтру документов нет');
   });
 
   it('formats sizes: null/0 as em-dash, sub-1024KB as КБ, larger as МБ', () => {
