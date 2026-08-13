@@ -8,6 +8,7 @@ import { AppShell } from '@/components/shell/app-shell';
 import { Sidebar } from '@/components/shell/sidebar';
 import { MobileNav } from '@/components/shell/mobile-nav';
 import { mobileTabsFor } from '@/lib/navigation/mobileTabs';
+import { CommandPalette } from '@/components/shell/command-palette';
 
 export default async function ManagerLayout({ children }: { children: ReactNode }) {
   const session = await requireManager();
@@ -39,6 +40,7 @@ export default async function ManagerLayout({ children }: { children: ReactNode 
           {userEmail ? <span className="ml-3 text-gray-500">· {userEmail}</span> : null}
         </>
       }
+      palette={<CommandPalette sections={items} searchEnabled searchHref="/manager/search" />}
       headerRight={
         <>
           <NotificationBell role="manager" />

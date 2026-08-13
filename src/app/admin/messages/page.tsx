@@ -17,9 +17,13 @@ export default async function AdminMessagesPage() {
 
   return (
     <>
-      <h1 className="mb-4 text-2xl font-semibold text-[#111111]">
+      <h1 className="text-2xl font-semibold text-[#111111]">
         Сообщения{chatEnabled && <UnreadBadge />}
       </h1>
+      {/* `У-73`: одна строка «что здесь делают». */}
+      <p className="mb-4 mt-0.5 text-sm text-gray-500">
+        Переписка по заказам и внутренний чат сотрудников
+      </p>
       {chatEnabled && chat ? (
         <section>
           <h2 className="mb-3 text-lg font-medium text-gray-700">Чат</h2>

@@ -11,6 +11,7 @@ import { AppShell as CabinetShell } from '@/components/shell/app-shell';
 import { Sidebar } from '@/components/shell/sidebar';
 import { MobileNav } from '@/components/shell/mobile-nav';
 import { mobileTabsFor } from '@/lib/navigation/mobileTabs';
+import { CommandPalette } from '@/components/shell/command-palette';
 
 /**
  * Кабинеты партнёра и слушателя (`/partner/*` и shared-entry `/student`).
@@ -73,6 +74,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           {session.name ? <span className="ml-3 text-gray-400">· {session.name}</span> : null}
         </>
       }
+      palette={<CommandPalette sections={items} />}
       headerRight={
         <>
           {/* У слушателя нет notifications-скоупа (NotificationRole) —

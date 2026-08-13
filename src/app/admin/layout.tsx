@@ -8,6 +8,7 @@ import { AppShell } from '@/components/shell/app-shell';
 import { Sidebar } from '@/components/shell/sidebar';
 import { MobileNav } from '@/components/shell/mobile-nav';
 import { mobileTabsFor } from '@/lib/navigation/mobileTabs';
+import { CommandPalette } from '@/components/shell/command-palette';
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const session = await requireAdmin();
@@ -28,6 +29,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         />
       }
       headerLeft={session.email}
+      palette={
+        // Своей страницы поиска у админа нет — палитра даёт только переходы.
+        <CommandPalette sections={items} />
+      }
       headerRight={
         <>
           <NotificationBell role="admin" />

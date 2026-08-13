@@ -28,7 +28,12 @@ const { notFound } = vi.hoisted(() => ({
     throw new Error('NOT_FOUND');
   }),
 }));
-vi.mock('next/navigation', () => ({ notFound, usePathname: () => '/admin/dashboard' }));
+vi.mock('next/navigation', () => ({
+  notFound,
+  usePathname: () => '/admin/dashboard',
+  // Палитра Ctrl/Cmd+K (У-75) стоит в шапке каркаса и зовёт useRouter.
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+}));
 
 vi.mock('next/link', () => ({
   default: ({ href, children }: { href: string; children: React.ReactNode }) =>

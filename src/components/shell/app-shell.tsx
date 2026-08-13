@@ -27,6 +27,12 @@ export function AppShell(props: {
   mobileNav?: ReactNode;
   headerLeft: ReactNode;
   headerRight: ReactNode;
+  /**
+   * Командная палитра Ctrl/Cmd+K (`У-75`, этап 9). Приходит пропсом, потому
+   * что список разделов знает только вызывающий — он же его и фильтрует по
+   * флагам и правам. Каркас лишь ставит её в шапку слева от кнопок.
+   */
+  palette?: ReactNode;
   children: ReactNode;
 }) {
   const dark = props.theme === 'dark';
@@ -49,7 +55,10 @@ export function AppShell(props: {
               {props.headerLeft}
             </div>
           </div>
-          <div className="flex items-center gap-2">{props.headerRight}</div>
+          <div className="flex items-center gap-2">
+            {props.palette}
+            {props.headerRight}
+          </div>
         </header>
         <main className="flex-1 px-4 md:px-6 py-6">
           {/* Отступ снизу — чтобы нижняя панель не накрывала контент на телефоне. */}

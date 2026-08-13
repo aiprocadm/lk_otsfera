@@ -7,7 +7,12 @@ vi.mock('@/lib/auth/session', () => ({ getSession }));
 
 const { redirect } = vi.hoisted(() => ({ redirect: vi.fn() }));
 // usePathname нужен общему сайдбару (этап 2): подсветка активного пункта.
-vi.mock('next/navigation', () => ({ redirect, usePathname: () => '/partner/dashboard' }));
+vi.mock('next/navigation', () => ({
+  redirect,
+  usePathname: () => '/partner/dashboard',
+  // Палитра Ctrl/Cmd+K (У-75) стоит в шапке каркаса и зовёт useRouter.
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+}));
 
 const { navItemsFor } = vi.hoisted(() => ({ navItemsFor: vi.fn() }));
 vi.mock('@/lib/navigation/cabinet', () => ({ navItemsFor }));
