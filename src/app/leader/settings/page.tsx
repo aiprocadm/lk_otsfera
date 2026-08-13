@@ -12,6 +12,8 @@ export default async function LeaderSettingsPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-[#111111]">Настройки</h1>
+      {/* `У-73`: одна строка «что здесь делают». */}
+      <p className="text-sm text-gray-500 mt-0.5">Служебные разделы вашей команды и компании</p>
       <SettingsHubCards cabinet="leader" sections={visibleSettingsSections(session, 'leader')} />
     </div>
   );

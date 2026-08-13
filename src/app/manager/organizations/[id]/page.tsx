@@ -10,6 +10,8 @@ import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fie
 import { getFieldsForEntity } from '@/lib/services/customFields';
 import { getAutoCreatedFrom1C } from '@/lib/services/organization/autoCreated';
 import { AutoCreatedBadge } from '@/components/organization/auto-created-badge';
+import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
+import { Breadcrumbs } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,6 +56,10 @@ export default async function ManagerOrgDetailPage({
 
   return (
     <div className="space-y-5">
+      {/* `У-72`: человек видит, из какого раздела пришёл и к кому. */}
+      <Breadcrumbs
+        items={buildCabinetBreadcrumbs('manager', '/manager/organizations', [{ label: card.name }])}
+      />
       {/* У-26 (этап 5): менеджер заводит сотрудника прямо из карточки клиента —
           раньше сотрудника в системе нельзя было создать вообще нигде. */}
       <AutoCreatedBadge mark={autoCreated} />

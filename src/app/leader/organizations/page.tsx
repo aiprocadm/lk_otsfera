@@ -12,6 +12,8 @@ export default async function LeaderOrganizationsPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold text-[#111111]">Организации</h1>
+      {/* `У-73`: одна строка «что здесь делают». */}
+      <p className="text-sm text-gray-500 mt-0.5">Клиенты компании и менеджеры, которые их ведут</p>
       <ManagerOrgsList orgs={orgs} />
     </div>
   );

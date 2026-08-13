@@ -1,6 +1,6 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
-import { BackLink } from '@/components/ui';
+import { Breadcrumbs } from '@/components/ui';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { prisma } from '@/lib/db/prisma';
@@ -9,6 +9,7 @@ import { listActivePartnerOptions } from '@/lib/services/admin/partners';
 import { UserEditForm } from '@/components/admin/user-edit-form';
 import { ManagerRoleControl } from '@/components/admin/manager-role-control';
 import { AdminBackupCodesControl } from '@/components/admin/admin-backup-codes-control';
+import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +24,12 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
   return (
     <div className="space-y-4 max-w-3xl">
       <div>
-        <BackLink href="/admin/users" label="Все пользователи" />
+        {/* `У-72`: полный путь до экрана вместо одиночного «назад». */}
+        <Breadcrumbs
+          items={buildCabinetBreadcrumbs('admin', '/admin/users', [
+            { label: user.name || user.email },
+          ])}
+        />
         <h1 className="text-2xl font-bold text-[#111111] mt-1">{user.name}</h1>
         <p className="text-sm text-gray-500">{user.email}</p>
       </div>

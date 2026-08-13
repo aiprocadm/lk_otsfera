@@ -20,6 +20,10 @@ export default async function AdminRequisitesPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-[#111111]">Реквизиты исполнителя</h1>
+      {/* `У-73`: одна строка «что здесь делают». */}
+      <p className="text-sm text-gray-500 mt-0.5">
+        Реквизиты вашей компании — их подставляют счета и акты
+      </p>
       {companies.ok &&
         companies.companies.map((c) => (
           <RequisitesCard

@@ -16,6 +16,8 @@ export default async function LeaderRequestsPage() {
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-semibold text-[#111111]">Обращения</h1>
+      {/* `У-73`: одна строка «что здесь делают». */}
+      <p className="text-sm text-gray-500 mt-0.5">Вопросы и запросы клиентов по всей компании</p>
       <ClientRequestQueue rows={rows} />
     </div>
   );

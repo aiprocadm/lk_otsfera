@@ -95,6 +95,8 @@ export default async function ManagerDocumentsPage({
     return (
       <div className="space-y-4">
         <h1 className="text-2xl font-semibold text-[#111111]">Документы</h1>
+        {/* `У-73`: одна строка «что здесь делают». */}
+        <p className="text-sm text-gray-500 mt-0.5">Договоры, счета и акты по вашим клиентам</p>
         <TabChips activeTab="general" ordersHref="/manager/documents" />
         <ManagerOrderLessUploadForm organizations={cps.organizations} partners={cps.partners} />
         <DocumentsList

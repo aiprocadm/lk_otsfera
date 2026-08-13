@@ -15,6 +15,8 @@ import { Badge, TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/u
 import { fmtDate } from '@/lib/format';
 import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fields';
 import { getFieldsForEntity } from '@/lib/services/customFields';
+import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
+import { Breadcrumbs } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,9 +69,12 @@ export default async function OrganizationStudentDetailPage({
     >
       <div className="space-y-5">
         <div>
-          <Link href="/organization/students" className="text-sm text-[#F97316] hover:underline">
-            ← Сотрудники
-          </Link>
+          {/* `У-72`: крошки вместо самодельной ссылки «назад». */}
+          <Breadcrumbs
+            items={buildCabinetBreadcrumbs('organization', '/organization/students', [
+              { label: student.name },
+            ])}
+          />
           <div className="bg-white border border-gray-200 rounded-xl p-6 mt-2 space-y-1">
             <h1 className="text-2xl font-semibold text-[#111111]">{student.name}</h1>
             <p className="text-gray-500 text-sm">{student.email ?? 'Почта не указана'}</p>

@@ -30,6 +30,8 @@ export default async function ManagerStudentsPage({
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold text-[#111111]">Сотрудники</h1>
+      {/* `У-73`: одна строка «что здесь делают». */}
+      <p className="text-sm text-gray-500 mt-0.5">Сотрудники клиентов, которых обучают</p>
 
       <form method="get" className="flex flex-wrap items-center gap-2">
         <input

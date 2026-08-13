@@ -22,6 +22,8 @@ export default async function OrganizationMessagesPage() {
         Сообщения
         <UnreadBadge />
       </h1>
+      {/* `У-73`: одна строка «что здесь делают». */}
+      <p className="text-sm text-gray-500 mt-0.5">Переписка с менеджером по вашим заказам</p>
       <OrderThreadInbox threads={threads} currentUserId={session.sub} variant="role" />
     </div>
   );

@@ -16,6 +16,10 @@ export default async function AdminSettingsPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-[#111111]">Настройки</h1>
+      {/* `У-73`: одна строка «что здесь делают». */}
+      <p className="text-sm text-gray-500 mt-0.5">
+        Служебные разделы: доступ, справочники, интеграции и система
+      </p>
       <SettingsHubCards cabinet="admin" sections={visibleSettingsSections(session, 'admin')} />
     </div>
   );

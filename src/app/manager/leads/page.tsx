@@ -37,6 +37,10 @@ export default async function ManagerLeadsPage({
     <>
       <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Лиды</h1>
+        {/* `У-73`: одна строка «что здесь делают». */}
+        <p className="text-sm text-gray-500 mt-0.5">
+          Возможные продажи — внутренние карточки, клиент их не видит
+        </p>
         <LeadCreateStaffForm organizations={organizations} />
       </div>
       <ManagerLeadsFilter query={{ status: sp.status, q: sp.q, assignedToMe: sp.assignedToMe }} />

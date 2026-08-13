@@ -9,6 +9,8 @@ import { CertificateList } from '@/components/training/certificate-list';
 import { fmtDate } from '@/lib/format';
 import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fields';
 import { getFieldsForEntity } from '@/lib/services/customFields';
+import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
+import { Breadcrumbs } from '@/components/ui';
 
 export default async function ManagerStudentDetailPage({
   params,
@@ -30,11 +32,10 @@ export default async function ManagerStudentDetailPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Link href="/manager/students" className="text-sm text-[#F97316] hover:underline">
-          ← Сотрудники
-        </Link>
-      </div>
+      {/* `У-72`: путь до экрана вместо одиночной ссылки «назад». */}
+      <Breadcrumbs
+        items={buildCabinetBreadcrumbs('manager', '/manager/students', [{ label: student.name }])}
+      />
 
       <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-1">
         <h1 className="text-2xl font-semibold text-[#111111]">{student.name}</h1>

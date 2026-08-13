@@ -28,6 +28,10 @@ export default async function OrganizationEnrollmentsPage() {
     >
       <div className="space-y-5">
         <h1 className="text-2xl font-semibold text-[#111111]">Заявки на обучение</h1>
+        {/* `У-73`: одна строка «что здесь делают». */}
+        <p className="text-sm text-gray-500 mt-0.5">
+          Списки сотрудников, которых вы отправили на обучение
+        </p>
         <EnrollmentWizard directions={directions} defaultOrganizationId={ctx.activeOrgId} />
         <EnrollmentList rows={rows} detailHrefBase="/organization/enrollments" />
       </div>

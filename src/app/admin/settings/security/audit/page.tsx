@@ -51,6 +51,10 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold text-[#111111]">Аудит</h1>
+      {/* `У-73`: одна строка «что здесь делают». */}
+      <p className="text-sm text-gray-500 mt-0.5">
+        Кто и что менял в системе — для разбора спорных случаев
+      </p>
       <AuditLogFilters
         basePath="/admin/settings/security/audit"
         entities={options.entities}

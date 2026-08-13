@@ -20,6 +20,8 @@ export default async function ManagerSettingsPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-[#111111]">Настройки</h1>
+      {/* `У-73`: одна строка «что здесь делают». */}
+      <p className="text-sm text-gray-500 mt-0.5">Ваш профиль, безопасность и уведомления</p>
       <TelegramLinkCard status={status} />
       <NotificationChannelsCard settings={settings.view} />
       <InternalPhoneCard initialInternalPhone={internalPhone} />

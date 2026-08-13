@@ -1,6 +1,6 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
-import { BackLink } from '@/components/ui';
+import { Breadcrumbs } from '@/components/ui';
 import { prisma } from '@/lib/db/prisma';
 import { getOrgPageContext } from '@/lib/auth/orgPageContext';
 import { canSeeOrder } from '@/lib/auth/organizationPolicy';
@@ -16,6 +16,7 @@ import { OrderItemsSection } from '@/components/training/order-items-section';
 import { OrderCustomFields } from '@/components/orders/order-custom-fields';
 import { getOrgOrder, listOrgOrderComments } from '@/lib/services/organization/orders';
 import { getValuesForEntity } from '@/lib/services/customFields';
+import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 
 type Params = { id: string };
 type SearchParams = { org?: string };
@@ -59,9 +60,16 @@ export default async function OrganizationOrderDetailPage({
       viewerRole={ctx.viewerRole}
     >
       <div className="space-y-4">
-        <div className="text-sm">
-          <BackLink href={backHref} label="Все заказы" />
-        </div>
+        {/* `У-72`: крошки вместо одиночной ссылки «назад» — человек видит и
+            раздел, и где он внутри него. */}
+        <Breadcrumbs
+          items={buildCabinetBreadcrumbs(
+            'organization',
+            '/organization/orders',
+            [{ label: order.orderNumber ? `Заказ №${order.orderNumber}` : 'Заказ' }],
+            { sectionHref: backHref }
+          )}
+        />
 
         <OrgOrderHeader order={order} />
 

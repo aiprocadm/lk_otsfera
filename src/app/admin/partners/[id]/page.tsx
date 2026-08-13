@@ -1,7 +1,7 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { BackLink, TableShell, THead, Th, Tr, Td } from '@/components/ui';
+import { TableShell, THead, Th, Tr, Td, Breadcrumbs } from '@/components/ui';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { getPartner } from '@/lib/services/admin/partners';
@@ -13,6 +13,7 @@ import { setPartnerRequisitesByAdminAction } from '@/server-actions/requisites';
 import { fmtDate } from '@/lib/format';
 import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fields';
 import { getFieldsForEntity } from '@/lib/services/customFields';
+import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 
 const fmtRate = new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 2 });
 
@@ -35,7 +36,10 @@ export default async function EditPartnerPage({ params }: { params: Promise<{ id
   return (
     <div className="space-y-4 max-w-3xl">
       <div>
-        <BackLink href="/admin/partners" label="Все партнёры" />
+        {/* `У-72`: полный путь до экрана вместо одиночного «назад». */}
+        <Breadcrumbs
+          items={buildCabinetBreadcrumbs('admin', '/admin/partners', [{ label: partner.name }])}
+        />
         <h1 className="text-2xl font-bold text-[#111111] mt-1">Партнёр: {partner.name}</h1>
         <p className="text-sm text-gray-500">slug: {partner.slug}</p>
       </div>
