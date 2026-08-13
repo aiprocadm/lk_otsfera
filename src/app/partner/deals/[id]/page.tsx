@@ -1,6 +1,6 @@
 import React from 'react';
 import { notFound, redirect } from 'next/navigation';
-import { BackLink } from '@/components/ui';
+import { Breadcrumbs } from '@/components/ui';
 import { prisma } from '@/lib/db/prisma';
 import { requirePartner } from '@/lib/auth/requireRole';
 import { getPartnerDealDetail } from '@/lib/services/partner/dealDetail';
@@ -14,6 +14,7 @@ import { PartnerDocumentUploadForm } from '@/components/partner/partner-document
 import { OrderItemsSection } from '@/components/training/order-items-section';
 import { OrderCustomFields } from '@/components/orders/order-custom-fields';
 import { getValuesForEntity } from '@/lib/services/customFields';
+import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 
 export default async function PartnerDealDetailPage({
   params,
@@ -41,7 +42,12 @@ export default async function PartnerDealDetailPage({
   return (
     <div className="space-y-4">
       <div className="text-sm">
-        <BackLink href="/partner/deals" label="Все заказы" />
+        {/* `У-72`: полный путь до экрана вместо одиночного «назад». */}
+        <Breadcrumbs
+          items={buildCabinetBreadcrumbs('partner', '/partner/deals', [
+            { label: deal.orderNumber ? `Заказ №${deal.orderNumber}` : deal.title },
+          ])}
+        />
       </div>
 
       <DealHeader deal={deal} />

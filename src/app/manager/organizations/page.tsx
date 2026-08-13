@@ -10,6 +10,10 @@ export default async function ManagerOrganizationsPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold text-[#111111]">Организации</h1>
+      {/* `У-73`: одна строка «что здесь делают». */}
+      <p className="text-sm text-gray-500 mt-0.5">
+        Ваши клиенты: в карточке собрана вся история работы
+      </p>
       <ManagerOrgsList orgs={orgs} />
     </div>
   );

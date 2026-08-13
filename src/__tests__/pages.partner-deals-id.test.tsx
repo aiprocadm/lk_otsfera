@@ -146,7 +146,8 @@ describe('PartnerDealDetailPage', () => {
       'order',
       'deal-1'
     );
-    expect(container.textContent).toContain('Все заказы');
+    // `У-72`: путь «Заказы → Заказ №…» вместо ссылки «Все заказы».
+    expect(container.querySelector('nav a[href="/partner/deals"]')).not.toBeNull();
     expect(container.textContent).toContain('Документы');
     expect(container.textContent).toContain('(1)');
   });

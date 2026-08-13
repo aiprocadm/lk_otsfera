@@ -1,12 +1,13 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
-import { BackLink } from '@/components/ui';
+import { Breadcrumbs } from '@/components/ui';
 import { CardList, Card, CardRow } from '@/components/ui/card-list';
 import { prisma } from '@/lib/db/prisma';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { getAdminStatement, getStatementAuditLog } from '@/lib/services/admin/commissionStatements';
 import { MarkPaidForm } from '@/components/admin/mark-paid-form';
 import { fmtMoney, fmtDate, fmtDateTime } from '@/lib/format';
+import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Черновик',
@@ -68,7 +69,14 @@ export default async function AdminCommissionStatementDetailPage({
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3 text-sm text-gray-500">
-        <BackLink href="/admin/commission-statements" label="Все отчёты" />
+        {/* `У-72`: полный путь до экрана вместо одиночного «назад». */}
+        <Breadcrumbs
+          items={buildCabinetBreadcrumbs('admin', '/admin/commission-statements', [
+            {
+              label: `${statement.partner.name} · ${fmtPeriod(statement.periodFrom, statement.periodTo)}`,
+            },
+          ])}
+        />
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">

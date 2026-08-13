@@ -125,7 +125,7 @@ describe('OrganizationOrderDetailPage', () => {
     expect(canSeeOrder).toHaveBeenCalledWith(CTX.session, { organizationId: 'org-1' });
   });
 
-  it('renders the full order detail with comments, custom fields, an org-scoped back link, and a document count badge', async () => {
+  it('renders the full order detail with comments, custom fields, крошки с org-scoped ссылкой раздела, and a document count badge', async () => {
     getOrgPageContext.mockResolvedValue(CTX);
     getOrgOrder.mockResolvedValue({
       ...BASE_ORDER,
@@ -182,7 +182,10 @@ describe('OrganizationOrderDetailPage', () => {
       'order',
       'order-1'
     );
-    expect(container.textContent).toContain('Все заказы');
+    // `У-72`: вместо одиночной ссылки «назад» — путь «Заказы → Заказ №…»,
+    // причём ссылка раздела несёт ?org= активной организации.
+    expect(container.textContent).toContain('Заказы');
+    expect(container.querySelector('nav a[href^="/organization/orders"]')).not.toBeNull();
     expect(container.textContent).toContain('Комментарий');
     expect(container.textContent).toContain('Документы');
     expect(container.textContent).toContain('(1)');

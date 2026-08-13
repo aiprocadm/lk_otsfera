@@ -27,6 +27,8 @@ export default async function ManagerTeamPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold text-[#111111]">Команда</h1>
+      {/* `У-73`: одна строка «что здесь делают». */}
+      <p className="text-sm text-gray-500 mt-0.5">Менеджеры компании и их нагрузка</p>
       <TeamVisibilityToggle initial={teamMode} />
       <ManagerRosterPanel roster={roster} />
     </div>

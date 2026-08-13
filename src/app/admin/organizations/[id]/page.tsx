@@ -1,7 +1,7 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
 import { AddStudentDialog } from '@/components/students/add-student-dialog';
-import { BackLink, TableShell, THead, Th, Tr, Td } from '@/components/ui';
+import { TableShell, THead, Th, Tr, Td, Breadcrumbs } from '@/components/ui';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { getOrganization, getOrganizationMeta } from '@/lib/services/admin/organizations';
@@ -18,6 +18,7 @@ import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fie
 import { getFieldsForEntity } from '@/lib/services/customFields';
 import { getAutoCreatedFrom1C } from '@/lib/services/organization/autoCreated';
 import { AutoCreatedBadge } from '@/components/organization/auto-created-badge';
+import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 
 const fmtRate = new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 2 });
 
@@ -50,7 +51,10 @@ export default async function AdminOrganizationDetailPage({
   return (
     <div className="space-y-5">
       <div>
-        <BackLink href="/admin/organizations" label="Все организации" />
+        {/* `У-72`: полный путь до экрана вместо одиночного «назад». */}
+        <Breadcrumbs
+          items={buildCabinetBreadcrumbs('admin', '/admin/organizations', [{ label: org.name }])}
+        />
         <h1 className="text-2xl font-bold text-[#111111] mt-1">{org.name}</h1>
         <p className="text-sm text-gray-500 mt-0.5">
           Партнёр: {org.partner?.name ?? 'Без партнёра'}

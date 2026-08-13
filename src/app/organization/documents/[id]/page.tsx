@@ -7,6 +7,8 @@ import { getFieldsForEntity } from '@/lib/services/customFields';
 import { OrgAppShell } from '@/components/organization/org-app-shell';
 import { DocumentDetailView } from '@/components/documents/document-detail-view';
 import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fields';
+import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
+import { Breadcrumbs } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,6 +36,11 @@ export default async function OrganizationDocumentDetailPage({
       activeOrgId={ctx.activeOrgId}
       viewerRole={ctx.viewerRole}
     >
+      <Breadcrumbs
+        items={buildCabinetBreadcrumbs('organization', '/organization/documents', [
+          { label: res.document.name },
+        ])}
+      />
       <DocumentDetailView
         document={res.document}
         backHref="/organization/documents"
