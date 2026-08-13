@@ -2,7 +2,8 @@
 
 **Дата:** 13.08.2026 · **Спека:** [2026-08-12-stage9-orientation-design.md](../specs/2026-08-12-stage9-orientation-design.md)
 **PR:** [#361](https://github.com/aiprocadm/lk_otsfera/pull/361) «опоры» ·
-[#362](https://github.com/aiprocadm/lk_otsfera/pull/362) «где я» · PR-3 «палитра и приёмка»
+[#362](https://github.com/aiprocadm/lk_otsfera/pull/362) «где я» ·
+[#363](https://github.com/aiprocadm/lk_otsfera/pull/363) «палитра и приёмка»
 
 Этап 9 — **последний в программе** ТЗ понятности (08.08.2026). Он же — приёмка
 всего ТЗ: §0 требует, чтобы пользователь легко ориентировался в функционале,
