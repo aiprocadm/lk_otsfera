@@ -6,6 +6,8 @@
  * префиксом «Строка N: …». Ни одна функция не бросает исключений.
  */
 
+import { parseIsoCalendarDate } from '@/lib/dates/calendar';
+
 export type EnrollmentItemInput = {
   /** Существующий сотрудник организации; при studentId ФИО/email копируются сервисом. */
   studentId?: string | null;
@@ -57,9 +59,10 @@ export function parseBirthDate(
 ): { ok: true; value: Date | null } | { ok: false } {
   const trimmed = raw?.trim();
   if (!trimmed) return { ok: true, value: null };
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return { ok: false };
-  const d = new Date(`${trimmed}T00:00:00.000Z`);
-  if (Number.isNaN(d.getTime())) return { ok: false };
+  // `parseIsoCalendarDate` отвергает и несуществующие дни: «31.04» иначе
+  // молча превратилось бы в 1 мая — чужая дата рождения в личном деле.
+  const d = parseIsoCalendarDate(trimmed);
+  if (!d) return { ok: false };
   if (d.getTime() > Date.now()) return { ok: false };
   return { ok: true, value: d };
 }

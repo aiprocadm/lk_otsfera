@@ -16,6 +16,15 @@ describe('parseRusDate', () => {
   it('returns null on garbage', () => {
     expect(parseRusDate('—')).toBeNull();
   });
+
+  it('несуществующий день не «переезжает»: платёж не должен лечь чужим числом', () => {
+    // `31.04.2025` в JavaScript — это 1 мая. Дата платежа сдвинулась бы молча.
+    expect(parseRusDate('31.04.2025')).toBeNull();
+    expect(parseRusDate('30.02.1990')).toBeNull();
+    expect(parseRusDate('29.02.2023')).toBeNull();
+    // Високосный год — законная дата.
+    expect(parseRusDate('29.02.2024')).toBe('2024-02-29T00:00:00.000Z');
+  });
 });
 
 describe('parseAmount', () => {

@@ -39,6 +39,16 @@ describe('parseBirthDate', () => {
     expect(parseBirthDate('1990-13-45')).toEqual({ ok: false });
     expect(parseBirthDate('2999-01-01')).toEqual({ ok: false });
   });
+
+  it('несуществующий день месяца не «переезжает» на следующий', () => {
+    // JS считает 30 февраля законной датой и отдаёт 2 марта. Через Excel-импорт
+    // заявки так в личное дело попадала бы чужая дата рождения, без ошибок.
+    expect(parseBirthDate('1990-02-30')).toEqual({ ok: false });
+    expect(parseBirthDate('2025-04-31')).toEqual({ ok: false });
+    expect(parseBirthDate('2023-02-29')).toEqual({ ok: false });
+    // Високосный год — законная дата, её отвергать нельзя.
+    expect(parseBirthDate('2024-02-29')).toMatchObject({ ok: true });
+  });
 });
 
 describe('isValidEmail', () => {

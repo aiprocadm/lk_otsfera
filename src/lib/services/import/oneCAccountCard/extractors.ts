@@ -1,16 +1,21 @@
 /** Чистые экстракторы полей карточки счёта 51. Без Prisma/HTTP — ядро TDD. */
+import { parseIsoCalendarDate } from '@/lib/dates/calendar';
 
 const DDMMYYYY = /\b(\d{2})\.(\d{2})\.(\d{4})\b/;
 
-/** 'ДД.ММ.ГГГГ' → ISO (UTC midnight) или null. */
+/**
+ * 'ДД.ММ.ГГГГ' → ISO (UTC midnight) или null. Дата ищется внутри строки:
+ * в выгрузке она стоит рядом с номером документа.
+ *
+ * Несуществующий день отвергается, а не «переносится»: `31.04.2025` в
+ * JavaScript превращается в 1 мая, и платёж лёг бы не тем днём.
+ */
 export function parseRusDate(input: string | null | undefined): string | null {
   if (!input) return null;
   const m = String(input).match(DDMMYYYY);
   if (!m) return null;
   const [, dd, mm, yyyy] = m;
-  const iso = `${yyyy}-${mm}-${dd}T00:00:00.000Z`;
-  const t = Date.parse(iso);
-  return Number.isNaN(t) ? null : new Date(t).toISOString();
+  return parseIsoCalendarDate(`${yyyy}-${mm}-${dd}`)?.toISOString() ?? null;
 }
 
 /**

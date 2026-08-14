@@ -113,6 +113,18 @@ describe('createDeal — валидация входа', () => {
     });
   });
 
+  it('несуществующий день не «переезжает» на следующий месяц', async () => {
+    // «2026-02-30» проходит и шаблон, и проверку на Invalid Date — JS отдаёт
+    // 2 марта. Сделка получила бы срок, которого человек не ставил.
+    const { prisma } = makePrisma();
+    for (const bad of ['2026-02-30', '2026-04-31', '2026-02-29']) {
+      expect(
+        await createDeal(prisma, MGR, { title: 'X', expectedCloseAt: bad }),
+        bad
+      ).toMatchObject({ ok: false, error: 'validation' });
+    }
+  });
+
   it('несколько ошибок склеиваются в один список (title+amount+date)', async () => {
     const { prisma } = makePrisma();
     expect(
