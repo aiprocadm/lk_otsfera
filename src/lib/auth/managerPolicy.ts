@@ -45,7 +45,16 @@ export function canSeeOrder(
     companyId?: string | null;
     commentsCountByMe?: number;
   },
-  teamMode = false
+  /**
+   * Режим видимости команды (C8). **Аргумент обязателен намеренно.** Раньше у
+   * него было значение по умолчанию `false`, и забытый аргумент молча сужал
+   * выборку до «свои заказы» — ошибка проходила и типы, и ревью (CLAUDE.md §4
+   * предупреждал об этом словами). Теперь пропуск ловит компилятор.
+   *
+   * Ролям, у которых команды нет (заказчик, партнёр), передавайте `false`
+   * явно — это видно в коде и не выглядит забывчивостью.
+   */
+  teamMode: boolean
 ): boolean {
   // G1: профиль имеет приоритет над teamMode. Company-floor (C8) — первым:
   // профиль не пускает за пределы своей компании (companyId отсутствует/чужой → deny).
@@ -70,7 +79,8 @@ export function canSeeDocument(
   doc: {
     order: { managerId: string | null; organizationId: string | null; companyId?: string | null };
   },
-  teamMode = false
+  /** Обязателен по той же причине, что у `canSeeOrder`. */
+  teamMode: boolean
 ): boolean {
   return canSeeOrder(session, doc.order, teamMode);
 }
