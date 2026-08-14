@@ -7,7 +7,12 @@ import { prisma } from '@/lib/db/prisma';
 // `canReadOrder` — проверка доступа к заказу теперь тоже в сервисе.
 import { formFields, readFileEntry, readMultipart } from '@/lib/api/multipart';
 import { forbiddenResponse, requireRole, requireSession } from '@/lib/auth/guard';
-import { resolveMaxFileSizeMb, maxFileSizeBytes } from '@/lib/config/upload';
+import {
+  resolveMaxFileSizeMb,
+  maxFileSizeBytes,
+  ALLOWED_MIME_TYPES as DOCUMENT_MIME_TYPES,
+  ALLOWED_EXTENSIONS as DOCUMENT_EXTENSIONS,
+} from '@/lib/config/upload';
 import { uploadAdminDocument } from '@/lib/services/documents/adminUpload';
 
 /**
@@ -19,26 +24,18 @@ import { uploadAdminDocument } from '@/lib/services/documents/adminUpload';
  * а доменные проверки (заказ, доступ, magic bytes, хранилище) живут в сервисе.
  */
 
-const ALLOWED_MIME_TYPES = [
-  'application/pdf',
-  'application/msword', // .doc (legacy, §13)
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'image/png',
-  'image/jpeg',
-  'application/zip',
-] as const;
-
-const ALLOWED_EXTENSIONS = [
-  '.pdf',
-  '.doc',
-  '.docx',
-  '.xlsx',
-  '.png',
-  '.jpg',
-  '.jpeg',
-  '.zip',
-] as const;
+/**
+ * Ранний фильтр этого канала = общий allow-list (§12b, единый источник) плюс
+ * одно **осознанное** исключение: архив. Архивы сканов заливают только из
+ * админ-панели; magic bytes для zip не проверяются, страхует асинхронный
+ * ClamAV (§10).
+ *
+ * До этого здесь лежала копия списка, и она разъехалась с общей: `.xls`
+ * общий список принимал, а роут отвергал.
+ */
+const ARCHIVE_MIME = 'application/zip';
+const ALLOWED_MIME_TYPES = new Set<string>([...DOCUMENT_MIME_TYPES, ARCHIVE_MIME]);
+const ALLOWED_EXTENSIONS: readonly string[] = [...DOCUMENT_EXTENSIONS, '.zip'];
 const ALLOWED_FORMATS_ERROR = `Unsupported file format. Allowed formats: ${ALLOWED_EXTENSIONS.join(', ')}`;
 
 const FIELDS = z.object({ orderId: z.coerce.string().default('') });
@@ -81,10 +78,7 @@ export async function POST(req: Request) {
   const fileName = file.name.toLowerCase();
   const hasAllowedExtension = ALLOWED_EXTENSIONS.some((ext) => fileName.endsWith(ext));
 
-  if (
-    !ALLOWED_MIME_TYPES.includes(file.type as (typeof ALLOWED_MIME_TYPES)[number]) ||
-    !hasAllowedExtension
-  ) {
+  if (!ALLOWED_MIME_TYPES.has(file.type) || !hasAllowedExtension) {
     return errorResponse('INVALID_FILE_FORMAT', ALLOWED_FORMATS_ERROR, 400, correlationId);
   }
 
