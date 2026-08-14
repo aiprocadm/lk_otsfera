@@ -3,7 +3,7 @@ import type { PrismaClient, ThreadSide } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { getObjectStorage } from '@/lib/storage';
 import { validateMagicBytes, SUPPORTED_MIME_TYPES } from '@/lib/storage/mimeValidator';
-import { maxFileSizeBytes } from '@/lib/config/upload';
+import { maxFileSizeBytes, ALLOWED_MIME_TYPES } from '@/lib/config/upload';
 import { log } from '@/lib/logging';
 import { canSeeThread } from './policy';
 
@@ -22,15 +22,14 @@ import { canSeeThread } from './policy';
  * No Document row is created; no scan is enqueued.
  */
 
-// Reuse the same MIME allow-list as the document upload service (manager/uploads.ts).
-const ALLOWED_MIME_TYPES = new Set<string>([
-  'application/pdf',
-  'image/jpeg',
-  'image/png',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-]);
+/**
+ * Список форматов — общий (§12b, `lib/config/upload`).
+ *
+ * Раньше здесь лежала копия с комментарием «тот же список, что у загрузки
+ * документов». Комментарий врал: копия разъехалась и не принимала
+ * `application/msword` — старый Word прикладывался к заказу, но не к
+ * сообщению, и человек видел «формат не поддерживается» без объяснения.
+ */
 
 function sanitizeFilename(filename: string): string {
   return filename.replace(/[^a-zA-Z0-9._-]/g, '_');

@@ -77,6 +77,19 @@ describe('uploadChatAttachment — unit', () => {
     expect(result).toEqual({ ok: false, error: 'too_large' });
   });
 
+  it('старый Word (.doc) принимается — как и при загрузке к заказу', async () => {
+    // Копия списка форматов в этом сервисе не принимала application/msword:
+    // один и тот же файл шёл к заказу, но не в сообщение по нему.
+    uploadMock.mockResolvedValue(undefined);
+    canSeeThreadMock.mockReturnValue(true);
+    const result = await uploadChatAttachment(makePrisma(), session, {
+      orderId: 'o1',
+      side: 'org',
+      file: { ...validFile, mimeType: 'application/msword', name: 'akt.doc' },
+    });
+    expect(result).toMatchObject({ ok: true });
+  });
+
   it('rejects unsupported MIME type', async () => {
     const badFile = { ...validFile, mimeType: 'text/plain' };
     const result = await uploadChatAttachment(makePrisma(), session, {

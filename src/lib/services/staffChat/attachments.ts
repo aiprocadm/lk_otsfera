@@ -3,7 +3,7 @@ import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { getObjectStorage } from '@/lib/storage';
 import { validateMagicBytes, SUPPORTED_MIME_TYPES } from '@/lib/storage/mimeValidator';
-import { maxFileSizeBytes } from '@/lib/config/upload';
+import { maxFileSizeBytes, ALLOWED_MIME_TYPES } from '@/lib/config/upload';
 import { log } from '@/lib/logging';
 import { canSeeStaffConversation } from './policy';
 
@@ -24,14 +24,11 @@ import { canSeeStaffConversation } from './policy';
  */
 
 // Reuse the same MIME allow-list as the document/chat upload services.
-const ALLOWED_MIME_TYPES = new Set<string>([
-  'application/pdf',
-  'image/jpeg',
-  'image/png',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-]);
+/**
+ * Список форматов — общий (§12b, `lib/config/upload`). Третья копия этого
+ * списка тоже разъехалась: не принимала `application/msword`, хотя к заказу
+ * старый Word прикладывается.
+ */
 
 function sanitizeFilename(filename: string): string {
   return filename.replace(/[^a-zA-Z0-9._-]/g, '_');
