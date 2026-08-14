@@ -161,19 +161,31 @@ export async function transitionOrderStatus(
   // отсюда — иначе клиент просто перестал бы их получать.
   //
   // Названия берём из справочника, а не хардкодом: заказчик их переименовывает.
+  //
+  // Best-effort — как и рассылка коллегам ниже (§3, degrade gracefully). Без
+  // этого сбой рассылки ронял бы весь вызов, хотя статус, строка истории и
+  // запись аудита к этому моменту УЖЕ сохранены: менеджер видел бы ошибку по
+  // успешному действию и, нажав повторно, получал второй след в истории.
   if (order.organizationId) {
-    await notifyOrgUsers(prisma, {
-      organizationId: order.organizationId,
-      type: 'order_status_changed',
-      payload: {
+    try {
+      await notifyOrgUsers(prisma, {
+        organizationId: order.organizationId,
+        type: 'order_status_changed',
+        payload: {
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          orderTitle: order.title,
+          dimension: 'execution',
+          oldStatus: current?.label ?? '—',
+          newStatus: target.label,
+        },
+      });
+    } catch (err) {
+      log.warn('[orderStatuses] notifyOrgUsers failed', {
         orderId: order.id,
-        orderNumber: order.orderNumber,
-        orderTitle: order.title,
-        dimension: 'execution',
-        oldStatus: current?.label ?? '—',
-        newStatus: target.label,
-      },
-    });
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   // Коллегам — best-effort: сбой рассылки не откатывает смену статуса
