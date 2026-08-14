@@ -23,6 +23,25 @@ vi.mock('@/components/settings/security-card', () => ({
   SecurityCard: () => React.createElement('div', { 'data-testid': 'security-card' }, 'SECURITY'),
 }));
 
+const { listTeam, listPartnerOrgOptions } = vi.hoisted(() => ({
+  listTeam: vi.fn(),
+  listPartnerOrgOptions: vi.fn(),
+}));
+vi.mock('@/lib/services/partner/team', () => ({ listTeam }));
+vi.mock('@/lib/services/partner/orgOptions', () => ({ listPartnerOrgOptions }));
+
+// Команда: таблица и карточки — интерактивные клиентские компоненты со своими
+// тестами; здесь важен только факт, что страница их показывает.
+vi.mock('@/components/partner/team-table', () => ({
+  TeamTable: () => React.createElement('div', { 'data-testid': 'team-table' }),
+}));
+vi.mock('@/components/partner/team-card-list', () => ({
+  TeamCardList: () => React.createElement('div', { 'data-testid': 'team-cards' }),
+}));
+vi.mock('@/components/partner/invite-member-form', () => ({
+  InviteMemberForm: () => React.createElement('div', { 'data-testid': 'invite-form' }),
+}));
+
 vi.mock('@/components/requisites/requisites-card', () => ({
   RequisitesCard: (props: { title: string; canEdit?: boolean }) =>
     React.createElement(
@@ -46,6 +65,8 @@ describe('PartnerSettingsPage', () => {
     getPartnerRequisites.mockReset().mockResolvedValue({ ok: false, error: 'forbidden' });
     getTelegramStatus.mockReset();
     getNotificationSettings.mockReset();
+    listTeam.mockReset();
+    listPartnerOrgOptions.mockReset();
   });
 
   it('карточка реквизитов появляется, когда сервис их отдал; правка — только у админа партнёра', async () => {
@@ -170,5 +191,89 @@ describe('PartnerSettingsPage', () => {
     );
 
     expect(container.textContent).toContain('Реквизиты для документов');
+  });
+
+  /**
+   * Вкладки «Команда» и «Безопасность» не открывал ни один тест — четверть
+   * страницы не исполнялась вовсе (долг гейта покрытия). Заодно проверяем то,
+   * ради чего вкладки разделены: данные грузятся **только для активной**.
+   */
+  describe('вкладка «Команда» (только партнёр-администратор)', () => {
+    const rows = [
+      { id: 'u1', name: 'Иванов', isActive: true },
+      { id: 'u2', name: 'Петров', isActive: false },
+    ];
+
+    it('показывает счётчик активных и сколько деактивировано', async () => {
+      requirePartner.mockResolvedValue({ ...SESSION, partnerRole: 'admin' });
+      listTeam.mockResolvedValue(rows);
+      listPartnerOrgOptions.mockResolvedValue([{ id: 'o1', name: 'ООО Заря' }]);
+
+      const { container } = await renderServerComponent(
+        PartnerSettingsPage({ searchParams: Promise.resolve({ tab: 'team' }) })
+      );
+
+      expect(container.textContent).toContain('1 активный сотрудник');
+      expect(container.textContent).toContain('1 деактивирован');
+      expect(container.querySelector('[data-testid="team-table"]')).toBeTruthy();
+      expect(container.querySelector('[data-testid="team-cards"]')).toBeTruthy();
+    });
+
+    it('склонения считаются по числу, а не «1 активных сотрудников»', async () => {
+      requirePartner.mockResolvedValue({ ...SESSION, partnerRole: 'admin' });
+      listTeam.mockResolvedValue([
+        { id: 'u1', name: 'A', isActive: true },
+        { id: 'u2', name: 'B', isActive: true },
+        { id: 'u3', name: 'C', isActive: false },
+        { id: 'u4', name: 'D', isActive: false },
+      ]);
+      listPartnerOrgOptions.mockResolvedValue([]);
+
+      const { container } = await renderServerComponent(
+        PartnerSettingsPage({ searchParams: Promise.resolve({ tab: 'team' }) })
+      );
+
+      expect(container.textContent).toContain('2 активных сотрудника');
+      // Двое погашенных — окончание «деактивировано», а не «деактивирован».
+      expect(container.textContent).toContain('2 деактивировано');
+    });
+
+    it('когда погашенных нет — про них и не пишем', async () => {
+      requirePartner.mockResolvedValue({ ...SESSION, partnerRole: 'admin' });
+      listTeam.mockResolvedValue([{ id: 'u1', name: 'A', isActive: true }]);
+      listPartnerOrgOptions.mockResolvedValue([]);
+
+      const { container } = await renderServerComponent(
+        PartnerSettingsPage({ searchParams: Promise.resolve({ tab: 'team' }) })
+      );
+
+      expect(container.textContent).not.toContain('деактивирован');
+    });
+
+    it('за телеграмом и реквизитами на этой вкладке в базу не ходим', async () => {
+      requirePartner.mockResolvedValue({ ...SESSION, partnerRole: 'admin' });
+      listTeam.mockResolvedValue([]);
+      listPartnerOrgOptions.mockResolvedValue([]);
+
+      await renderServerComponent(
+        PartnerSettingsPage({ searchParams: Promise.resolve({ tab: 'team' }) })
+      );
+
+      expect(getPartnerRequisites).not.toHaveBeenCalled();
+      expect(getTelegramStatus).not.toHaveBeenCalled();
+    });
+  });
+
+  it('вкладка «Безопасность» показывает свою карточку и больше ничего не грузит', async () => {
+    requirePartner.mockResolvedValue({ ...SESSION, partnerRole: 'admin' });
+
+    const { container } = await renderServerComponent(
+      PartnerSettingsPage({ searchParams: Promise.resolve({ tab: 'security' }) })
+    );
+
+    expect(container.querySelector('[data-testid="security-card"]')).toBeTruthy();
+    expect(listTeam).not.toHaveBeenCalled();
+    expect(getPartnerRequisites).not.toHaveBeenCalled();
+    expect(getTelegramStatus).not.toHaveBeenCalled();
   });
 });

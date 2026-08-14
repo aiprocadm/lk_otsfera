@@ -79,6 +79,22 @@ describe('OrgSidebar', () => {
     expect(html).toContain('href="/organization/team"');
   });
 
+  it('в выдвижном меню телефона показывает те же пункты (variant=panel)', () => {
+    // Тот же список, другой вид: мобильная панель переиспользует сайдбар, а не
+    // заводит второй реестр пунктов (`У-16`).
+    vi.mocked(usePathname).mockReturnValue('/organization/dashboard');
+    const html = renderToString(
+      React.createElement(OrgSidebar, {
+        items: ALL_ORG_ITEMS,
+        memberships: SINGLE_ADMIN,
+        activeOrgId: 'org-A',
+        viewerRole: 'admin',
+        variant: 'panel',
+      })
+    );
+    expect(html.match(/data-testid="org-nav-/g)).toHaveLength(13);
+  });
+
   it('hides Команда for member viewer (12 links)', () => {
     vi.mocked(usePathname).mockReturnValue('/organization/dashboard');
     const html = renderToString(

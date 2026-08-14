@@ -46,17 +46,31 @@ export type StudentImportPreview = {
 
 const EXCEL_EPOCH_MS = Date.UTC(1899, 11, 30);
 
-function cellToDate(value: ExcelJS.CellValue): Date | null {
+/**
+ * Дата из ячейки. `undefined` — «в ячейке что-то есть, но это не дата»:
+ * вызывающий превращает это в построчную ошибку, как с СНИЛС.
+ *
+ * Форматов ровно два — `ДД.ММ.ГГГГ` и `ГГГГ-ММ-ДД`. Отдавать остальное на
+ * откуп `new Date` нельзя: JS понимает `«5»` как май 2001 года, и человек
+ * молча получал бы выдуманную дату рождения в личном деле.
+ */
+function cellToDate(value: ExcelJS.CellValue): Date | null | undefined {
   if (value instanceof Date) return value;
   if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
     return new Date(EXCEL_EPOCH_MS + Math.round(value) * 86_400_000);
   }
   const text = cellToString(value).trim();
   if (!text) return null;
+
   const ru = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(text);
   const iso = ru ? `${ru[3]}-${ru[2]}-${ru[1]}` : text;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return undefined;
+
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? null : d;
+  if (Number.isNaN(d.getTime())) return undefined;
+  // «30.02.1990» JS не считает ошибкой — молча переносит на 2 марта. Сверяем,
+  // что дата не «переехала»: иначе в личном деле окажется чужой день рождения.
+  return d.toISOString().slice(0, 10) === iso ? d : undefined;
 }
 
 function normalizeHeader(text: string): string {
@@ -120,12 +134,18 @@ export async function parseStudentsWorkbook(
     }
 
     const birthCol = col('birthDate');
+    const birthDate = birthCol ? cellToDate(r.getCell(birthCol).value) : null;
+    if (birthDate === undefined) {
+      errors.push(`Строка ${line}: дата рождения не распознана — нужен формат 01.02.1990.`);
+      continue;
+    }
+
     rows.push({
       line,
       name,
       position: text('position') || null,
       snils: snils || null,
-      birthDate: birthCol ? cellToDate(r.getCell(birthCol).value) : null,
+      birthDate,
       email: text('email') || null,
       phone: text('phone') || null,
     });

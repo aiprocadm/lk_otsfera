@@ -241,6 +241,25 @@ describe('экшены отката импорта', () => {
     expect(res).toMatchObject({ ok: true });
   });
 
+  it('канал передаётся сервису, когда его указали явно (У-59)', async () => {
+    // Без аргумента откатывается Excel — так действие звалось до `У-59`, и
+    // старые вызовы не должны молча начать откатывать выписку.
+    planImportRollback.mockResolvedValue({ ok: true, plan: { conflicts: [] } });
+    await planImportRollbackAction('b1', 'statement');
+    expect(planImportRollback).toHaveBeenCalledWith({}, session, {
+      batchId: 'b1',
+      channel: 'statement',
+    });
+
+    rollbackImport.mockResolvedValue({ ok: true, status: 'rolled_back' });
+    await rollbackImportAction('b1', true, 'statement');
+    expect(rollbackImport).toHaveBeenCalledWith({}, session, {
+      batchId: 'b1',
+      partial: true,
+      channel: 'statement',
+    });
+  });
+
   it('rollbackImportAction при отказе ничего не ревалидирует', async () => {
     revalidatePath.mockClear();
     rollbackImport.mockResolvedValue({ ok: false, error: 'conflicts', conflicts: [] });

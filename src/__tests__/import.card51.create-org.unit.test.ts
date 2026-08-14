@@ -53,6 +53,19 @@ beforeEach(() => {
 });
 
 describe('права и скоуп строки', () => {
+  it('клиентские роли к созданию организаций не допускаются вовсе', async () => {
+    // Обычный менеджер не проходит дальше по скоупу (тест ниже), а вот
+    // партнёр, заказчик и слушатель отсекаются самым первым гардом — эту
+    // ветку не звал ни один тест.
+    for (const role of ['partner', 'organization', 'student']) {
+      const outsider = { sub: 'u-x', role } as never;
+      expect(await createOrgFromQueueRow(makeDb(), outsider, baseArgs)).toEqual({
+        ok: false,
+        error: 'forbidden',
+      });
+    }
+  });
+
   it('обычный менеджер → forbidden', async () => {
     expect(await createOrgFromQueueRow(makeDb(), PLAIN_MANAGER, baseArgs)).toEqual({
       ok: false,

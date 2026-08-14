@@ -135,6 +135,15 @@ describe('AppShell', () => {
     }
   });
 
+  it('сессия без имени — в шапке только роль, без висящей точки-разделителя', async () => {
+    getSession.mockResolvedValue({ sub: 'u7', role: 'partner' });
+
+    const html = renderToString(await AppShell({ children: 'c' }));
+
+    expect(html).toContain('Партнёр');
+    expect(html).not.toContain('·');
+  });
+
   it('non-partner session (student fallback of /student) does not render NotificationBell', async () => {
     getSession.mockResolvedValue({ sub: 'u6', role: 'student', name: 'S' });
 

@@ -222,4 +222,40 @@ describe('OrganizationStudentsPage — выгрузка в Excel', () => {
     expect(href).toContain('org=org-1');
     expect(href).toContain('search=');
   });
+
+  it('рядовому сотруднику кнопок добавления не показываем (У-24)', async () => {
+    // Право всё равно проверяет сервис — кнопка лишь не мозолит глаза (§4).
+    getOrgPageContext.mockResolvedValue({ ...CTX, viewerRole: 'member' });
+
+    const { container } = await renderServerComponent(
+      OrganizationStudentsPage({ searchParams: Promise.resolve({}) })
+    );
+
+    expect(container.querySelector('[data-testid="add-student-dialog"]')).toBeNull();
+    expect(container.querySelector('[data-testid="import-students-open"]')).toBeNull();
+  });
+
+  it('сотрудник без почты показан прочерком, а не пустой ячейкой (§15)', async () => {
+    listOrgStudents.mockResolvedValue({
+      rows: [
+        {
+          id: 's1',
+          name: 'Иванов Иван',
+          email: null,
+          position: null,
+          externalStudentId: null,
+          activeCertificates: 0,
+          createdAt: new Date('2026-01-01'),
+        },
+      ],
+      total: 1,
+    });
+
+    const { container } = await renderServerComponent(
+      OrganizationStudentsPage({ searchParams: Promise.resolve({}) })
+    );
+
+    expect(container.textContent).toContain('Иванов Иван');
+    expect(container.textContent).toContain('—');
+  });
 });

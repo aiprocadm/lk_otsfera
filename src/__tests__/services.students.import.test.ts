@@ -104,6 +104,76 @@ describe('У-27: разбор файла', () => {
     expect(res.rows[0].birthDate?.getUTCFullYear()).toBe(1990);
   });
 
+  it('дата, набранная в Excel как дата, тоже понимается', async () => {
+    // Excel хранит такие ячейки числом «дней с 1900 года». Человек видит дату,
+    // а в файле лежит 32874 — без разбора этого случая поле молча терялось бы.
+    const buf = await buildXlsx([['Иванов Иван', '', '', 32874, '', '']]);
+    const res = await parseStudentsWorkbook(buf);
+    if (!res.ok) throw new Error('ожидали ok');
+    expect(res.rows[0].birthDate?.getUTCFullYear()).toBe(1990);
+  });
+
+  it('мусор в графе даты — построчная ошибка, а не выдуманная дата', async () => {
+    // JS понимает `new Date('5')` как май 2001 года. До этой правки такая
+    // ячейка молча давала человеку чужую дату рождения в личном деле.
+    const buf = await buildXlsx([['Иванов Иван', '', '', '5', '', '']]);
+    const res = await parseStudentsWorkbook(buf);
+    if (!res.ok) throw new Error('ожидали ok');
+
+    expect(res.rows).toHaveLength(0);
+    expect(res.errors[0]).toContain('дата рождения не распознана');
+    expect(res.errors[0]).toContain('01.02.1990');
+  });
+
+  it('дата в формате ГГГГ-ММ-ДД тоже понимается', async () => {
+    const buf = await buildXlsx([['Иванов Иван', '', '', '1990-02-01', '', '']]);
+    const res = await parseStudentsWorkbook(buf);
+    if (!res.ok) throw new Error('ожидали ok');
+    expect(res.rows[0].birthDate?.getUTCFullYear()).toBe(1990);
+  });
+
+  it('несуществующая дата (30 февраля) тоже отбивается', async () => {
+    const buf = await buildXlsx([['Иванов Иван', '', '', '30.02.1990', '', '']]);
+    const res = await parseStudentsWorkbook(buf);
+    if (!res.ok) throw new Error('ожидали ok');
+    expect(res.rows).toHaveLength(0);
+    expect(res.errors[0]).toContain('дата рождения не распознана');
+  });
+
+  it('ячейка-дата (Excel отдаёт готовый Date) берётся как есть', async () => {
+    const buf = await buildXlsx([
+      ['Иванов Иван', '', '', new Date('1990-02-01T00:00:00.000Z'), '', ''],
+    ]);
+    const res = await parseStudentsWorkbook(buf);
+    if (!res.ok) throw new Error('ожидали ok');
+    expect(res.rows[0].birthDate?.getUTCFullYear()).toBe(1990);
+  });
+
+  it('несуществующий месяц отбивается, а не превращается в другую дату', async () => {
+    const buf = await buildXlsx([['Иванов Иван', '', '', '99.99.9999', '', '']]);
+    const res = await parseStudentsWorkbook(buf);
+    if (!res.ok) throw new Error('ожидали ok');
+    expect(res.rows).toHaveLength(0);
+    expect(res.errors[0]).toContain('дата рождения не распознана');
+  });
+
+  it('файл только с колонкой ФИО читается — остальные поля просто пустые', async () => {
+    // Человек мог удалить лишние колонки из шаблона: это не повод отказывать.
+    const buf = await buildXlsx([['Иванов Иван']], [`${STUDENT_IMPORT_COLUMNS.name}*`]);
+    const res = await parseStudentsWorkbook(buf);
+    if (!res.ok) throw new Error('ожидали ok');
+    expect(res.rows).toHaveLength(1);
+    expect(res.rows[0]).toMatchObject({ name: 'Иванов Иван', snils: null, birthDate: null });
+  });
+
+  it('книга без единого листа отбивается понятным текстом', async () => {
+    const wb = new ExcelJS.Workbook();
+    const empty = Buffer.from((await wb.xlsx.writeBuffer()) as ArrayBuffer);
+    const res = await parseStudentsWorkbook(empty);
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.errors[0]).toContain('нет ни одного листа');
+  });
+
   it('файл без колонки ФИО отбивается целиком с подсказкой про шаблон', async () => {
     const buf = await buildXlsx([['x']], ['Что-то не то']);
     const res = await parseStudentsWorkbook(buf);
@@ -165,6 +235,69 @@ describe('У-28: предпросмотр и подтверждение', () => 
     if (!res.ok) throw new Error('ожидали ok');
     expect(res.preview.toCreate).toHaveLength(1);
     expect(res.preview.duplicates).toHaveLength(1);
+  });
+
+  it('внутри файла дубль ловится и по «ФИО + дата рождения», без СНИЛС', async () => {
+    // Второй ключ дедупликации (`У-22`). Без него один и тот же человек,
+    // записанный в файле дважды без СНИЛС, попал бы в справочник дважды.
+    const birthDate = new Date('1990-01-01T00:00:00.000Z');
+    const { prisma } = prismaWith();
+    const res = await previewStudentImport(prisma, admin(), {
+      organizationId: ORG,
+      teamMode: false,
+      rows: [
+        { name: 'Иванов Иван', line: 2, snils: null, birthDate, email: null },
+        { name: 'Иванов Иван', line: 3, snils: null, birthDate, email: null },
+      ] as never,
+    });
+
+    if (!res.ok) throw new Error('ожидали ok');
+    expect(res.preview.toCreate).toHaveLength(1);
+    expect(res.preview.duplicates).toHaveLength(1);
+  });
+
+  it('третий ключ — «ФИО + почта»: без СНИЛС и даты ловим дубль по ней', async () => {
+    const { prisma } = prismaWith();
+    const res = await previewStudentImport(prisma, admin(), {
+      organizationId: ORG,
+      teamMode: false,
+      rows: [
+        { name: 'Иванов Иван', line: 2, snils: null, birthDate: null, email: 'i@e.ru' },
+        { name: 'Иванов Иван', line: 3, snils: null, birthDate: null, email: 'i@e.ru' },
+      ] as never,
+    });
+
+    if (!res.ok) throw new Error('ожидали ok');
+    expect(res.preview.toCreate).toHaveLength(1);
+    expect(res.preview.duplicates).toHaveLength(1);
+  });
+
+  it('однофамильцы с разными датами рождения — оба попадают в справочник', async () => {
+    const { prisma } = prismaWith();
+    const res = await previewStudentImport(prisma, admin(), {
+      organizationId: ORG,
+      teamMode: false,
+      rows: [
+        {
+          name: 'Иванов Иван',
+          line: 2,
+          snils: null,
+          birthDate: new Date('1990-01-01T00:00:00.000Z'),
+          email: null,
+        },
+        {
+          name: 'Иванов Иван',
+          line: 3,
+          snils: null,
+          birthDate: new Date('1985-05-05T00:00:00.000Z'),
+          email: null,
+        },
+      ] as never,
+    });
+
+    if (!res.ok) throw new Error('ожидали ok');
+    expect(res.preview.toCreate).toHaveLength(2);
+    expect(res.preview.duplicates).toHaveLength(0);
   });
 
   it('подтверждение пишет ровно то, что показал предпросмотр — одной транзакцией', async () => {
@@ -283,6 +416,83 @@ describe('У-29: одобрение заявки заводит слушател
     const res = await attachStudentsToApprovedItems(tx, { requestId: 'r', organizationId: ORG });
 
     expect(res).toEqual({ created: 1, reused: 1 });
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Второй ключ дедупликации (`У-22`) — «ФИО + дата рождения». Его не проверял
+   * ни один тест: без СНИЛС одобрение заявки заводило бы второго Иванова.
+   */
+  it('без СНИЛС совпадение по ФИО и дате рождения переиспользует существующего', async () => {
+    const birthDate = new Date('1990-01-01T00:00:00.000Z');
+    const { tx, create, update } = txWith(
+      [
+        {
+          id: 'it-1',
+          fullName: 'Иванов Иван',
+          email: null,
+          position: null,
+          snils: null,
+          birthDate,
+        },
+      ],
+      [{ id: 'st-old', name: 'Иванов Иван', snils: null, birthDate, email: null }]
+    );
+
+    const res = await attachStudentsToApprovedItems(tx, { requestId: 'r', organizationId: ORG });
+
+    expect(res).toEqual({ created: 0, reused: 1 });
+    expect(create).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledWith({ where: { id: 'it-1' }, data: { studentId: 'st-old' } });
+  });
+
+  it('однофамилец с другой датой рождения — это другой человек', async () => {
+    const { tx, create } = txWith(
+      [
+        {
+          id: 'it-1',
+          fullName: 'Иванов Иван',
+          email: null,
+          position: null,
+          snils: null,
+          birthDate: new Date('1990-01-01T00:00:00.000Z'),
+        },
+      ],
+      [
+        {
+          id: 'st-old',
+          name: 'Иванов Иван',
+          snils: null,
+          birthDate: new Date('1985-05-05T00:00:00.000Z'),
+          email: null,
+        },
+      ]
+    );
+
+    const res = await attachStudentsToApprovedItems(tx, { requestId: 'r', organizationId: ORG });
+
+    expect(res).toEqual({ created: 1, reused: 0 });
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it('у существующего сотрудника даты рождения нет — совпадением это не считаем', async () => {
+    const { tx, create } = txWith(
+      [
+        {
+          id: 'it-1',
+          fullName: 'Иванов Иван',
+          email: null,
+          position: null,
+          snils: null,
+          birthDate: new Date('1990-01-01T00:00:00.000Z'),
+        },
+      ],
+      [{ id: 'st-old', name: 'Иванов Иван', snils: null, birthDate: null, email: null }]
+    );
+
+    expect(
+      await attachStudentsToApprovedItems(tx, { requestId: 'r', organizationId: ORG })
+    ).toEqual({ created: 1, reused: 0 });
     expect(create).toHaveBeenCalledTimes(1);
   });
 });

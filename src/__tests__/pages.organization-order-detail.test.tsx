@@ -211,4 +211,22 @@ describe('OrganizationOrderDetailPage', () => {
     const backLink = container.querySelector('a[href*="/organization/orders"]');
     expect(backLink?.getAttribute('href')).toBe('/organization/orders');
   });
+
+  it('у заказа без номера крошка говорит просто «Заказ», а не «Заказ №null» (У-72)', async () => {
+    getOrgPageContext.mockResolvedValue(CTX);
+    getOrgOrder.mockResolvedValue({ ...BASE_ORDER, orderNumber: null });
+    canSeeOrder.mockReturnValue(true);
+    listOrgOrderComments.mockResolvedValue([]);
+    getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
+
+    const { container } = await renderServerComponent(
+      OrganizationOrderDetailPage({
+        params: Promise.resolve({ id: 'o1' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(container.textContent).toContain('Заказ');
+    expect(container.textContent).not.toContain('№null');
+  });
 });

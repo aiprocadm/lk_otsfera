@@ -140,4 +140,17 @@ describe('EditUserPage', () => {
 
     expect(container.querySelector('[data-testid="admin-backup-codes"]')).toBeNull();
   });
+
+  it('у пользователя без имени в крошке стоит почта, а не пустое место (У-72)', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    getUser.mockResolvedValue({ ...USER, name: null });
+    listActivePartnerOptions.mockResolvedValue([]);
+    isFeatureEnabled.mockReturnValue(true);
+
+    const { container } = await renderServerComponent(
+      EditUserPage({ params: Promise.resolve({ id: 'u1' }) })
+    );
+
+    expect(container.textContent).toContain('ivan@x.com');
+  });
 });
