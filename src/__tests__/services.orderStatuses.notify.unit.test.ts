@@ -108,6 +108,38 @@ describe('смена статуса — сбой рассылки коллега
     );
   });
 
+  it('сбой рассылки КЛИЕНТУ не роняет смену статуса', async () => {
+    // Статус, строка истории и запись аудита к этому моменту уже сохранены.
+    // Раньше этот вызов не был обёрнут: менеджер видел ошибку по успешному
+    // действию и, нажав повторно, оставлял второй след в истории.
+    notifyOrgUsers.mockRejectedValue(new Error('очередь недоступна'));
+    notifyManagers.mockResolvedValue(undefined);
+
+    const res = await transitionOrderStatus(prismaStub(), admin, { orderId: 'o1', toId: 'a' });
+
+    expect(res).toMatchObject({ ok: true, changed: true });
+    expect(logWarn).toHaveBeenCalledWith(
+      '[orderStatuses] notifyOrgUsers failed',
+      expect.objectContaining({ orderId: 'o1', error: 'очередь недоступна' })
+    );
+    // Коллегам рассылка всё равно ушла — сбой одной не отменяет другую.
+    expect(notifyManagers).toHaveBeenCalled();
+  });
+
+  it('рассылка клиенту упала не ошибкой, а строкой — логгер это переживает', async () => {
+    // Такое прилетает из чужих библиотек: reject('текст') вместо Error.
+    notifyOrgUsers.mockRejectedValue('очередь легла');
+    notifyManagers.mockResolvedValue(undefined);
+
+    const res = await transitionOrderStatus(prismaStub(), admin, { orderId: 'o1', toId: 'a' });
+
+    expect(res.ok).toBe(true);
+    expect(logWarn).toHaveBeenCalledWith(
+      '[orderStatuses] notifyOrgUsers failed',
+      expect.objectContaining({ error: 'очередь легла' })
+    );
+  });
+
   it('заявка без организации — клиентам не шлём, статус меняется', async () => {
     notifyManagers.mockResolvedValue(undefined);
     const prisma = {
