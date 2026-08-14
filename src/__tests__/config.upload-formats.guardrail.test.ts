@@ -1,7 +1,18 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join, relative, sep } from 'node:path';
 import { ALLOWED_MIME_TYPES, ALLOWED_EXTENSIONS } from '@/lib/config/upload';
+
+const SRC = join(__dirname, '..');
+
+function walk(dir: string, out: string[] = []): string[] {
+  for (const name of readdirSync(dir)) {
+    const p = join(dir, name);
+    if (statSync(p).isDirectory()) walk(p, out);
+    else if (name.endsWith('.ts') || name.endsWith('.tsx')) out.push(p);
+  }
+  return out;
+}
 
 /**
  * Единый список форматов документа (§13 ТЗ, §12b CLAUDE.md).
@@ -39,6 +50,37 @@ describe('форматы документов объявлены в одном �
     // Архив в общий список не просочился: остальные каналы его не принимают.
     expect(ALLOWED_MIME_TYPES.has('application/zip')).toBe(false);
     expect(ALLOWED_EXTENSIONS).not.toContain('.zip');
+  });
+
+  /**
+   * Первая версия этого стража смотрела ровно на один роут — и пропустила ещё
+   * две копии, в чате и в служебном чате. Обе тоже разъехались (не принимали
+   * `application/msword`). Поэтому проверка идёт по всему коду.
+   */
+  it('нигде в коде нет второго списка форматов документа', () => {
+    const copies: string[] = [];
+    for (const file of walk(SRC)) {
+      const rel = relative(SRC, file);
+      if (rel.startsWith(`__tests__${sep}`) || rel === join('lib', 'config', 'upload.ts')) continue;
+      const src = readFileSync(file, 'utf8');
+      // Признак именно allow-list, а не заголовка ответа: набор из
+      // нескольких офисных типов подряд в одном литерале-множестве.
+      const set = /new Set<string>\(\[[^\]]*application\/vnd\.[^\]]*\]/s.test(src);
+      if (set) copies.push(rel);
+    }
+    expect(copies, 'копия allow-list форматов появилась заново').toEqual([]);
+  });
+
+  it('оба чата берут список из общего модуля', () => {
+    for (const rel of [
+      join('lib', 'services', 'chat', 'attachments.ts'),
+      join('lib', 'services', 'staffChat', 'attachments.ts'),
+    ]) {
+      const src = readFileSync(join(SRC, rel), 'utf8');
+      expect(src, `${rel}: список форматов должен приходить из lib/config/upload`).toMatch(
+        /ALLOWED_MIME_TYPES.*from '@\/lib\/config\/upload'/
+      );
+    }
   });
 });
 
