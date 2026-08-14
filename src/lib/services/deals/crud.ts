@@ -1,6 +1,7 @@
 import type { Deal, PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
+import { parseIsoCalendarDate } from '@/lib/dates/calendar';
 import { dealScopeWhere } from './board';
 
 export type DealInput = {
@@ -44,10 +45,11 @@ function parseInput(
   let expectedCloseAt: Date | null = null;
   const rawDate = input.expectedCloseAt?.trim();
   if (rawDate) {
-    const parsed = new Date(`${rawDate}T00:00:00.000Z`);
-    // Формат + реальная календарная дата: «2026-13-99» проходит регулярку,
-    // но даёт Invalid Date — тоже отклоняем сообщением, а не падением вставки.
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(rawDate) || Number.isNaN(parsed.getTime())) {
+    // Формат + реальная календарная дата: «2026-13-99» даёт Invalid Date, а
+    // «2026-02-30» разбирается, но означает 2 марта — оба случая отклоняем
+    // сообщением, а не падением вставки и не молча сдвинутой датой.
+    const parsed = parseIsoCalendarDate(rawDate);
+    if (!parsed) {
       messages.push('Некорректная дата закрытия');
     } else {
       expectedCloseAt = parsed;

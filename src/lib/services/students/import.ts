@@ -4,6 +4,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { loadXlsxWorkbook } from '@/lib/services/import/load-xlsx';
 import { cellToString } from '@/lib/services/import/parse-workbook';
 import { recordAudit } from '@/lib/auth/audit';
+import { parseIsoCalendarDate, parseRuCalendarDate } from '@/lib/dates/calendar';
 import { studentOrgAccess } from './access';
 import { normalizeSnils } from './duplicates';
 
@@ -62,15 +63,9 @@ function cellToDate(value: ExcelJS.CellValue): Date | null | undefined {
   const text = cellToString(value).trim();
   if (!text) return null;
 
-  const ru = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(text);
-  const iso = ru ? `${ru[3]}-${ru[2]}-${ru[1]}` : text;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return undefined;
-
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return undefined;
-  // «30.02.1990» JS не считает ошибкой — молча переносит на 2 марта. Сверяем,
-  // что дата не «переехала»: иначе в личном деле окажется чужой день рождения.
-  return d.toISOString().slice(0, 10) === iso ? d : undefined;
+  // Оба формата и проверка «дата не переехала» — в общем помощнике
+  // (`lib/dates/calendar`): тот же промах жил ещё в трёх местах.
+  return parseRuCalendarDate(text) ?? parseIsoCalendarDate(text) ?? undefined;
 }
 
 function normalizeHeader(text: string): string {
