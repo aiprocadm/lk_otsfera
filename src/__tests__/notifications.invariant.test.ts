@@ -198,11 +198,18 @@ describe('notifyManagers / managerOrderScopeFilter visibility invariant', () => 
         const commentsCountByMe = await prisma.comment.count({
           where: { orderId, authorId: m.id },
         });
-        const visible = canSeeOrder(m.session, {
-          managerId: order!.managerId,
-          organizationId: order!.organizationId,
-          commentsCountByMe,
-        });
+        // teamMode=false: инвариант проверяется в scoped-режиме — при
+        // видимости команды рассылка не меняется (уведомления намеренно
+        // остаются scoped, см. CLAUDE.md §5).
+        const visible = canSeeOrder(
+          m.session,
+          {
+            managerId: order!.managerId,
+            organizationId: order!.organizationId,
+            commentsCountByMe,
+          },
+          false
+        );
         if (visible) visibleIds.push(m.id);
       }
       visibleIds.sort();

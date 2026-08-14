@@ -95,60 +95,62 @@ describe('managerOrgScopeFilter', () => {
 describe('canSeeOrder', () => {
   it('true when managerId equals session.sub', () => {
     const session = makeSession();
-    expect(canSeeOrder(session, { managerId: 'user-1', organizationId: null })).toBe(true);
+    expect(canSeeOrder(session, { managerId: 'user-1', organizationId: null }, false)).toBe(true);
   });
 
   it('true when organizationId is in managed scope', () => {
     const session = makeSession({ managedOrgIds: ['org-A'] });
-    expect(canSeeOrder(session, { managerId: 'someone-else', organizationId: 'org-A' })).toBe(true);
+    expect(
+      canSeeOrder(session, { managerId: 'someone-else', organizationId: 'org-A' }, false)
+    ).toBe(true);
   });
 
   it('true when commentsCountByMe > 0 (historical access)', () => {
     const session = makeSession();
     expect(
-      canSeeOrder(session, {
-        managerId: 'someone-else',
-        organizationId: 'org-X',
-        commentsCountByMe: 2,
-      })
+      canSeeOrder(
+        session,
+        { managerId: 'someone-else', organizationId: 'org-X', commentsCountByMe: 2 },
+        false
+      )
     ).toBe(true);
   });
 
   it('false when nothing matches', () => {
     const session = makeSession({ managedOrgIds: ['org-A'] });
     expect(
-      canSeeOrder(session, {
-        managerId: 'someone-else',
-        organizationId: 'org-X',
-        commentsCountByMe: 0,
-      })
+      canSeeOrder(
+        session,
+        { managerId: 'someone-else', organizationId: 'org-X', commentsCountByMe: 0 },
+        false
+      )
     ).toBe(false);
   });
 
   it('false for orphan order (null managerId, null organizationId, no comments)', () => {
     const session = makeSession({ managedOrgIds: ['org-A'] });
-    expect(canSeeOrder(session, { managerId: null, organizationId: null })).toBe(false);
+    expect(canSeeOrder(session, { managerId: null, organizationId: null }, false)).toBe(false);
   });
 
   it('false when commentsCountByMe is undefined and no other match', () => {
     const session = makeSession({ managedOrgIds: ['org-A'] });
-    expect(canSeeOrder(session, { managerId: null, organizationId: 'org-X' })).toBe(false);
+    expect(canSeeOrder(session, { managerId: null, organizationId: 'org-X' }, false)).toBe(false);
   });
 });
 
 describe('canSeeDocument', () => {
   it('delegates to canSeeOrder via doc.order', () => {
     const session = makeSession({ managedOrgIds: ['org-A'] });
-    expect(canSeeDocument(session, { order: { managerId: null, organizationId: 'org-A' } })).toBe(
-      true
-    );
+    expect(
+      canSeeDocument(session, { order: { managerId: null, organizationId: 'org-A' } }, false)
+    ).toBe(true);
   });
 
   it('false when underlying order is not visible', () => {
     const session = makeSession({ managedOrgIds: ['org-A'] });
-    expect(canSeeDocument(session, { order: { managerId: null, organizationId: 'org-X' } })).toBe(
-      false
-    );
+    expect(
+      canSeeDocument(session, { order: { managerId: null, organizationId: 'org-X' } }, false)
+    ).toBe(false);
   });
 });
 
