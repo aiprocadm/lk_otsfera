@@ -126,6 +126,20 @@ describe('смена статуса — сбой рассылки коллега
     expect(notifyManagers).toHaveBeenCalled();
   });
 
+  it('рассылка клиенту упала не ошибкой, а строкой — логгер это переживает', async () => {
+    // Такое прилетает из чужих библиотек: reject('текст') вместо Error.
+    notifyOrgUsers.mockRejectedValue('очередь легла');
+    notifyManagers.mockResolvedValue(undefined);
+
+    const res = await transitionOrderStatus(prismaStub(), admin, { orderId: 'o1', toId: 'a' });
+
+    expect(res.ok).toBe(true);
+    expect(logWarn).toHaveBeenCalledWith(
+      '[orderStatuses] notifyOrgUsers failed',
+      expect.objectContaining({ error: 'очередь легла' })
+    );
+  });
+
   it('заявка без организации — клиентам не шлём, статус меняется', async () => {
     notifyManagers.mockResolvedValue(undefined);
     const prisma = {
