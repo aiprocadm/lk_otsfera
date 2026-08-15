@@ -67,7 +67,9 @@ describe('AdminPaymentsImportPage', () => {
     expect(requireSettingsSection).toHaveBeenCalled();
     expect(listQueue).toHaveBeenCalledWith(expect.anything(), SESSION);
     expect(listQueueOrgNames).toHaveBeenCalledWith(expect.anything(), []);
-    expect(container.textContent).toContain('Импорт выписки');
+    // Название экрана едино во всех кабинетах (`У-76`): бухгалтерская
+    // подробность про счёт 51 живёт в подзаголовке, а не в заголовке.
+    expect(container.textContent).toContain('Импорт оплат');
     expect(container.textContent).toContain('ext1');
   });
 

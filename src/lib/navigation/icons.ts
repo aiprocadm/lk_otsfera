@@ -62,7 +62,6 @@ export const NAV_ICONS = {
   // Обмен с 1С и данные
   sync: '🔄',
   import: '📤',
-  bankStatement: '🏦',
   paymentsImport: '💳',
 
   // Служебное и справочники
