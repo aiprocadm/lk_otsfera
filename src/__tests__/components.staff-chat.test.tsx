@@ -594,6 +594,25 @@ describe('StaffComposer', () => {
   });
 
   it('falls back to a generic message for an unmapped upload error code', async () => {
+    // Раньше примером служил `conversation_not_found`, но у него появился свой
+    // русский текст (§15). Смысл проверки прежний — нужен код, которого нет
+    // ни в одном словаре.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        json: async () => ({ ok: false, error: 'нет_такого_кода' }),
+      })
+    );
+    render(<StaffComposer conversationId="c1" colleagues={[]} onSend={vi.fn()} />);
+    const input = screen.getByTitle('Прикрепить файл').nextElementSibling as HTMLInputElement;
+    const file = new File(['x'], 'x.pdf', { type: 'application/pdf' });
+    Object.defineProperty(input, 'files', { value: [file] });
+    fireEvent.change(input);
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Не удалось загрузить файл.'));
+  });
+
+  it('исчезнувшая переписка объясняется по существу, а не общей фразой (§15)', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({
@@ -606,7 +625,7 @@ describe('StaffComposer', () => {
     const file = new File(['x'], 'x.pdf', { type: 'application/pdf' });
     Object.defineProperty(input, 'files', { value: [file] });
     fireEvent.change(input);
-    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Не удалось загрузить файл.'));
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Переписка не найдена.'));
   });
 
   it('falls back to a generic message when the response JSON cannot be parsed', async () => {
