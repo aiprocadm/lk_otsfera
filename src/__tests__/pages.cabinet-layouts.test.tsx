@@ -14,6 +14,7 @@ const guards = vi.hoisted(() => ({
   requireAdmin: vi.fn(),
   requireManager: vi.fn(),
   requireManagerLeader: vi.fn(),
+  requireOrganization: vi.fn(),
 }));
 vi.mock('@/lib/auth/requireRole', () => guards);
 
@@ -53,6 +54,7 @@ vi.mock('@/components/navigation/nav-badge', () => ({
 import AdminLayout from '@/app/admin/layout';
 import ManagerLayout from '@/app/manager/layout';
 import LeaderLayout from '@/app/leader/layout';
+import OrganizationLayout from '@/app/organization/layout';
 
 const CHILD = React.createElement('p', null, 'дочерний контент');
 
@@ -106,6 +108,36 @@ describe('ManagerLayout', () => {
     guards.requireManager.mockResolvedValue({ sub: 'm1', role: 'manager' });
     const html = renderToString(await ManagerLayout({ children: CHILD }));
     expect(html).toContain('Кабинет менеджера');
+  });
+
+  it('при выключенном флаге manager_cabinet — 404 (третья точка гейтинга)', async () => {
+    // У кабинета руководителя такая проверка была с самого начала, у менеджера
+    // и заказчика — нет: раздел закрывался одним лишь списком префиксов
+    // middleware, хотя §5 требует трёх точек.
+    guards.requireManager.mockResolvedValue({ sub: 'm1', role: 'manager' });
+    isFeatureEnabled.mockReturnValue(false);
+
+    await expect(ManagerLayout({ children: CHILD })).rejects.toThrow('NOT_FOUND');
+    expect(notFound).toHaveBeenCalled();
+  });
+});
+
+describe('OrganizationLayout', () => {
+  it('пропускает дальше при включённом флаге', async () => {
+    guards.requireOrganization.mockResolvedValue({ sub: 'o1', role: 'organization' });
+
+    const html = renderToString(await OrganizationLayout({ children: CHILD }));
+
+    expect(guards.requireOrganization).toHaveBeenCalled();
+    expect(html).toContain('дочерний контент');
+  });
+
+  it('при выключенном флаге organization_cabinet — 404 (третья точка гейтинга)', async () => {
+    guards.requireOrganization.mockResolvedValue({ sub: 'o1', role: 'organization' });
+    isFeatureEnabled.mockReturnValue(false);
+
+    await expect(OrganizationLayout({ children: CHILD })).rejects.toThrow('NOT_FOUND');
+    expect(notFound).toHaveBeenCalled();
   });
 });
 

@@ -1,5 +1,7 @@
 import React, { type ReactNode } from 'react';
+import { notFound } from 'next/navigation';
 import { requireManager } from '@/lib/auth/requireRole';
+import { isFeatureEnabled } from '@/lib/featureFlags';
 import { navItemsFor } from '@/lib/navigation/cabinet';
 import { isManagerLeader } from '@/lib/auth/managerPolicy';
 import { LogoutButton } from '@/components/ui';
@@ -12,6 +14,9 @@ import { CommandPalette } from '@/components/shell/command-palette';
 
 export default async function ManagerLayout({ children }: { children: ReactNode }) {
   const session = await requireManager();
+  // Третья точка гейтинга флага (§5) — как в кабинете руководителя. Сначала
+  // авторизация, потом флаг: иначе существование раздела утекало бы гостю.
+  if (!isFeatureEnabled('manager_cabinet')) notFound();
   const items = navItemsFor('manager', { isManagerLeader: isManagerLeader(session) });
   const userEmail = session.email ?? null;
 
