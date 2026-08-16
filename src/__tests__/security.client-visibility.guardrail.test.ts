@@ -28,6 +28,11 @@ const CLIENT_DIRS = [
   'src/lib/services/organization',
   'src/server-actions/partner',
   'src/server-actions/organization',
+  // Компоненты клиентских кабинетов: ссылка в интерфейсе живёт именно здесь,
+  // а не в сервисе. Раздел был пропущен — проверено мутацией: ссылка на
+  // удалённый раздел лидов в `components/partner/**` не ловилась вовсе.
+  'src/components/partner',
+  'src/components/organization',
 ];
 
 function walk(dir: string): string[] {
