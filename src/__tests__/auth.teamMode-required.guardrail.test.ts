@@ -20,9 +20,12 @@ describe('teamMode остаётся обязательным аргументо�
   const src = readFileSync(POLICY, 'utf8');
 
   it('ни у одной функции политики нет значения по умолчанию для teamMode', () => {
-    // Ловим и `teamMode = false`, и `teamMode=false`, и `teamMode = true`.
+    // Ловим все написания: `teamMode = false`, `teamMode=false` и — главное —
+    // `teamMode: boolean = false`. Первая версия стража пропускала именно
+    // последнее, самое вероятное: тип на месте, а дефолт вернулся. Проверено
+    // мутацией: без аннотации в шаблоне страж молчал на сломанном коде.
     expect(src, 'у teamMode снова появилось значение по умолчанию').not.toMatch(
-      /teamMode\s*=\s*(true|false)/
+      /teamMode\s*(?::\s*boolean\s*)?=\s*(true|false)/
     );
   });
 
