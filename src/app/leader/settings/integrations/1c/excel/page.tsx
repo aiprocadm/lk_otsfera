@@ -33,7 +33,7 @@ export default async function LeaderImportPage() {
         <span aria-hidden className="mr-1">
           ℹ️
         </span>
-        Это не то же самое, что «Импорт выписки (сч. 51)»: там загружается банковская выписка одним
+        Это не то же самое, что «Импорт оплат»: там загружается банковская выписка одним
         листом.
       </div>
       <div className="bg-white border border-gray-200 rounded-xl p-6">

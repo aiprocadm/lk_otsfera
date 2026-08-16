@@ -49,7 +49,7 @@ export default async function ManagerPaymentsImportPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">Импорт выписки (Карточка счёта 51)</h1>
+        <h1 className="text-2xl font-bold text-[#111111]">Импорт оплат</h1>
         <p className="text-sm text-gray-500 mt-0.5">
           Загрузите выгрузку 1С «Карточка счёта 51» — банковскую выписку по расчётному счёту. Оплаты
           клиентов привязываются к заказам; непонятные строки попадают в очередь разбора ниже.

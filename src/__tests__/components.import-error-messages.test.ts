@@ -17,7 +17,7 @@ const CYRILLIC = /[А-Яа-яЁё]/;
 describe('тексты ошибок импорта', () => {
   for (const [name, map] of [
     ['Загрузка Excel', XLSX_IMPORT_ERRORS],
-    ['Импорт выписки', PAYMENT_IMPORT_ERRORS],
+    ['Импорт оплат', PAYMENT_IMPORT_ERRORS],
   ] as const) {
     it(`${name}: текст есть у каждого кода и он на русском`, () => {
       for (const code of IMPORT_ERROR_CODES) {
