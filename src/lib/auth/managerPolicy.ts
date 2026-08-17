@@ -141,8 +141,28 @@ export function managerOrgScope(
     : managerOrgScopeFilter(session);
 }
 
+/**
+ * «Это руководитель?» — понимает ОБЕ модели (программа «роль Руководитель»,
+ * ТЗ 2026-08-17, Р-Л-2): новую top-level роль `leader` и старую пару
+ * `manager + managerRole='leader'` (токены живут 7 дней после миграции
+ * данных в PR-3). Старая половина условия снимается PR-4 вместе с колонкой
+ * `managerRole`. Имя оставлено прежним — у предиката ~36 вызовов.
+ */
 export function isManagerLeader(session: SessionPayload): boolean {
-  return session.role === 'manager' && session.managerRole === 'leader';
+  return (
+    session.role === 'leader' ||
+    (session.role === 'manager' && session.managerRole === 'leader')
+  );
+}
+
+/**
+ * «Сотрудник менеджерского контура?» (Р-Л-4, шаблон 1): рядовой менеджер ИЛИ
+ * руководитель — в любой из двух моделей. Единая точка для мест вида
+ * `role === 'manager'`, где смысл — контур, а не именно рядовой: без хелпера
+ * ~99 таких мест при выделении роли разбирались бы по одному и часть — неверно.
+ */
+export function isStaffManagerSide(session: SessionPayload): boolean {
+  return session.role === 'manager' || session.role === 'leader';
 }
 
 /**

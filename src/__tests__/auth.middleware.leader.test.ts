@@ -110,3 +110,63 @@ describe('middleware — leader cabinet', () => {
     expect(res.headers.get('location')).toBeNull();
   });
 });
+
+// ─── Новая модель: top-level роль `leader` (ТЗ 2026-08-17, PR-1) ─────────────
+// Токены с ней появятся после миграции данных (PR-3), но middleware обязан
+// отвечать роли так же, как переходной паре, уже сейчас.
+
+describe('middleware — top-level роль leader (обе модели эквивалентны)', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    process.env.JWT_SECRET = 'middleware-test-secret-with-at-least-32-chars';
+    process.env.FEATURE_MANAGER_CABINET = '1';
+    delete process.env.FEATURE_LEADER_CABINET;
+  });
+
+  it('роль leader при FEATURE_LEADER_CABINET=1: / -> /leader/dashboard', async () => {
+    process.env.FEATURE_LEADER_CABINET = '1';
+    vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'leader' } } as any);
+
+    const res = await middleware(req('/', 'tkn'));
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toBe('https://app.local/leader/dashboard');
+  });
+
+  it('роль leader при выключенном флаге: / -> /manager/dashboard (как старая пара)', async () => {
+    vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'leader' } } as any);
+
+    const res = await middleware(req('/', 'tkn'));
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toBe('https://app.local/manager/dashboard');
+  });
+
+  it('роль leader проходит в /manager/* («играющий тренер», Р-Л-3)', async () => {
+    vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'leader' } } as any);
+
+    const res = await middleware(req('/manager/orders', 'tkn'));
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('location')).toBeNull();
+  });
+
+  it('роль leader проходит в /leader/* при включённом флаге', async () => {
+    process.env.FEATURE_LEADER_CABINET = '1';
+    vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'leader' } } as any);
+
+    const res = await middleware(req('/leader/team', 'tkn'));
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('location')).toBeNull();
+  });
+
+  it('роль leader НЕ проходит в /admin/* (мост только к manager-спискам)', async () => {
+    vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'leader' } } as any);
+
+    const res = await middleware(req('/admin/dashboard', 'tkn'));
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toBe('https://app.local/forbidden');
+  });
+});

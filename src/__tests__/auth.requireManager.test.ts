@@ -91,6 +91,55 @@ describe('requireManager', () => {
     getSession.mockResolvedValue(PARTNER_SESSION);
     await expect(requireManager()).rejects.toThrow('NEXT_REDIRECT:/forbidden');
   });
+
+  // ТЗ 2026-08-17 (PR-1): кабинет менеджера открыт top-level роли leader
+  // («играющий тренер», Р-Л-3) — как раньше старой паре manager+managerRole.
+  it('returns session for top-level leader role (Р-Л-3)', async () => {
+    const leader: SessionPayload = {
+      sub: 'ldr-1',
+      role: 'leader',
+      managedOrgIds: [],
+    } as SessionPayload;
+    getSession.mockResolvedValue(leader);
+    const result = await requireManager();
+    expect(result).toEqual(leader);
+    expect(redirect).not.toHaveBeenCalled();
+  });
+});
+
+describe('requireManagerLeader — обе модели руководителя (ТЗ 2026-08-17)', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    redirect.mockImplementation((to: string) => {
+      throw new Error(`NEXT_REDIRECT:${to}`);
+    });
+  });
+
+  it('пускает старую пару manager + managerRole=leader', async () => {
+    getSession.mockResolvedValue({
+      sub: 'ldr-old',
+      role: 'manager',
+      managerRole: 'leader',
+      managedOrgIds: [],
+    } as SessionPayload);
+    const result = await requireManagerLeader();
+    expect(result.sub).toBe('ldr-old');
+  });
+
+  it('пускает новую top-level роль leader', async () => {
+    getSession.mockResolvedValue({
+      sub: 'ldr-new',
+      role: 'leader',
+      managedOrgIds: [],
+    } as SessionPayload);
+    const result = await requireManagerLeader();
+    expect(result.sub).toBe('ldr-new');
+  });
+
+  it('рядового менеджера по-прежнему бьёт /forbidden', async () => {
+    getSession.mockResolvedValue(MANAGER_WITH_SCOPE);
+    await expect(requireManagerLeader()).rejects.toThrow('NEXT_REDIRECT:/forbidden');
+  });
 });
 
 describe('requireManagerForOrg', () => {

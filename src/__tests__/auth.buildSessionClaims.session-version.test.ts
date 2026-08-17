@@ -78,6 +78,32 @@ describe('buildSessionClaims — клейм sessionVersion', () => {
     expect(result.claims.managedOrgIds).toEqual(['org-1']);
   });
 
+  it('роль leader получает managedOrgIds/managerRole как менеджер (ТЗ 2026-08-17, PR-1)', async () => {
+    // Без этой ветки лидер после миграции данных (PR-3) остался бы без
+    // managedOrgIds — и requireManager() выбрасывал бы его на /login.
+    const prisma = makePrisma({
+      organizationManager: { findMany: vi.fn().mockResolvedValue([]) },
+    });
+
+    const result = await buildSessionClaims(
+      prisma,
+      makeUser({
+        id: 'ldr-1',
+        role: 'leader' as never,
+        managerRole: 'leader',
+        companyId: 'co-1',
+        sessionVersion: 4,
+      })
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.claims.role).toBe('leader');
+    expect(result.claims.managedOrgIds).toEqual([]);
+    expect(result.claims.managerRole).toBe('leader');
+    expect(result.claims.sessionVersion).toBe(4);
+  });
+
   it('проставляет версию партнёру с активным членством', async () => {
     const prisma = makePrisma({
       partnerUser: {

@@ -17,8 +17,12 @@ function assertSecretStrength(secret: string, varName: string): string {
   return secret;
 }
 
-/** Единый источник top-level ролей (дедупликация C2: тип Role + roleSchema). */
-const ROLE_VALUES = ['admin', 'manager', 'partner', 'organization', 'student'] as const;
+/** Единый источник top-level ролей (дедупликация C2: тип Role + roleSchema).
+ * `leader` добавлен PR-1 программы «роль Руководитель» (ТЗ 2026-08-17):
+ * до миграции данных (PR-3) токенов с этой ролью не существует — руководитель
+ * пока ездит как `manager` + `managerRole='leader'`, и обе модели обязаны
+ * пониматься одинаково (хелперы в managerPolicy.ts). */
+const ROLE_VALUES = ['admin', 'manager', 'leader', 'partner', 'organization', 'student'] as const;
 
 export type Role = (typeof ROLE_VALUES)[number];
 

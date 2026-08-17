@@ -6,6 +6,8 @@ import {
   isOrgInScope,
   getCompanyTeamVisibility,
   isLeaderSameCompany,
+  isManagerLeader,
+  isStaffManagerSide,
 } from '@/lib/auth/managerPolicy';
 import { getSession } from './session';
 import type { SessionPayload } from './jwt';
@@ -93,7 +95,9 @@ export async function requireOrganizationAdminOrLeader(orgId?: string): Promise<
  */
 export async function requireManager(): Promise<SessionPayload> {
   const session = await requireSession();
-  if (session.role !== 'manager') redirect('/forbidden');
+  // Кабинет менеджера открыт всему менеджерскому контуру: рядовому И
+  // руководителю в обеих моделях («играющий тренер», Р-Л-3 ТЗ 2026-08-17).
+  if (!isStaffManagerSide(session)) redirect('/forbidden');
   if (session.managedOrgIds === undefined) redirect('/login');
   return session;
 }
@@ -102,7 +106,8 @@ export async function requireManagerLeader(): Promise<SessionPayload> {
   const session = await requireManager();
   // Единый redirect-контракт под-ролей (ось 1 аудита): нехватка elevation →
   // /forbidden, как requirePartnerAdmin и requireOrganizationAdminOrLeader.
-  if (session.managerRole !== 'leader') redirect('/forbidden');
+  // isManagerLeader понимает обе модели (Р-Л-2): роль `leader` и старую пару.
+  if (!isManagerLeader(session)) redirect('/forbidden');
   return session;
 }
 
