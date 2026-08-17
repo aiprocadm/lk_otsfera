@@ -302,4 +302,16 @@ describe('GET /api/messages/attachment', () => {
     const res = await GET(getReq('msg-1'));
     expect(res.status).toBe(502);
   });
+
+  it('scan not finished (not_ready) → 409', async () => {
+    getChatAttachmentSignedUrlMock.mockResolvedValue({ ok: false, error: 'not_ready' });
+    const res = await GET(getReq('msg-1'));
+    expect(res.status).toBe(409);
+  });
+
+  it('quarantined attachment (infected) → 410 Gone (§10 CLAUDE.md)', async () => {
+    getChatAttachmentSignedUrlMock.mockResolvedValue({ ok: false, error: 'infected' });
+    const res = await GET(getReq('msg-1'));
+    expect(res.status).toBe(410);
+  });
 });

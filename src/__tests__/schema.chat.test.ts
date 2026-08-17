@@ -22,4 +22,12 @@ describe('chat schema', () => {
     const e = Prisma.dmmf.datamodel.enums.find((x) => x.name === 'ThreadSide')!;
     expect(e.values.map((v) => v.name).sort()).toEqual(['org', 'partner']);
   });
+
+  it('Message несёт scanStatus с дефолтом none (антивирус вложений чата)', () => {
+    const m = Prisma.dmmf.datamodel.models.find((x) => x.name === 'Message')!;
+    const scanStatus = m.fields.find((f) => f.name === 'scanStatus');
+    expect(scanStatus).toBeDefined();
+    expect(scanStatus!.type).toBe('String');
+    expect(scanStatus!.default).toBe('none');
+  });
 });

@@ -1,6 +1,13 @@
-import { describe, it, expect, beforeEach, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
+
+// AV-скан вложения ставится в очередь — тест живой базы не должен зависеть от
+// Redis (образец: services.certificateScans.integration).
+vi.mock('@/lib/jobs/queues', () => ({
+  getQueue: () => ({ add: vi.fn().mockResolvedValue({}) }),
+}));
+
 import { sendMessage } from '@/lib/services/chat/messages';
 
 // new PrismaClient() auto-marks this as integration-mode (see vitest.config.ts)

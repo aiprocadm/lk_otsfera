@@ -12,14 +12,16 @@ import { canSeeThread } from './policy';
  *
  * Validation is SYNCHRONOUS: MIME allow-list + magic-byte fingerprint +
  * config-driven size cap (maxFileSizeBytes() from @/lib/config/upload).
- * There is NO async ClamAV scan for chat attachments in v1 — the
- * scan worker only processes `Document` rows, and chat attachments have no
- * corresponding Document record. AV scanning for chat attachments is deferred
- * to v1.1 (planned: store attachment metadata in a dedicated table and enqueue
- * a scan job from there).
+ *
+ * Async ClamAV scan (added 2026-08-17, closing the v1 deferral): `sendMessage`
+ * stores the row with `scanStatus='pending'` and enqueues `docs.scanDocument`
+ * with `{kind:'chat_attachment', id: messageId}`; the shared worker flips the
+ * status, the hourly backfill sweep re-collects stuck `pending` rows. Download
+ * is gated below: only `clean` gets a signed URL — `infected` → 'infected'
+ * (410), anything else → 'not_ready' (409), mirroring the staff chat.
  *
  * Storage path: `chat/<orderId>/<uuid>-<sanitized-filename>`
- * No Document row is created; no scan is enqueued.
+ * No Document row is created — the scan tracks `Message.scanStatus`.
  */
 
 /**
@@ -120,7 +122,8 @@ export async function uploadChatAttachment(
 // ---------------------------------------------------------------------------
 
 export type GetChatAttachmentSignedUrlResult =
-  { ok: true; url: string } | { ok: false; error: 'forbidden' | 'not_found' | 'storage' };
+  | { ok: true; url: string }
+  | { ok: false; error: 'forbidden' | 'not_found' | 'not_ready' | 'infected' | 'storage' };
 
 export async function getChatAttachmentSignedUrl(
   prisma: PrismaClient,
@@ -132,6 +135,7 @@ export async function getChatAttachmentSignedUrl(
     select: {
       id: true,
       attachmentPath: true,
+      scanStatus: true,
       thread: {
         select: {
           side: true,
@@ -153,6 +157,17 @@ export async function getChatAttachmentSignedUrl(
 
   if (!canSeeThread(session, message.thread.side, message.thread.order)) {
     return { ok: false, error: 'forbidden' };
+  }
+
+  // AV-гейт (зеркало staffChat): наружу уходит только проверенный файл.
+  // `infected` — карантин (роут отвечает 410); всё, что не `clean`
+  // (pending/error/none-с-вложением), — «ещё не проверено» (409), а не отказ
+  // навсегда: часовой sweep добьёт pending, и ссылка оживёт.
+  if (message.scanStatus === 'infected') {
+    return { ok: false, error: 'infected' };
+  }
+  if (message.scanStatus !== 'clean') {
+    return { ok: false, error: 'not_ready' };
   }
 
   try {

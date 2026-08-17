@@ -1391,9 +1391,11 @@ model Message {
   author         User        @relation("MessageAuthor", fields: [authorId], references: [id])
   body           String
   attachmentPath String?
+  scanStatus     String      @default("none") // none|pending|clean|infected|error (как StaffMessage)
   createdAt      DateTime    @default(now())
 
   @@index([threadId, createdAt])
+  @@index([scanStatus])
 }
 
 model ThreadReadState {

@@ -69,6 +69,7 @@ function toVM(r: {
   body: string;
   createdAt: string;
   hasAttachment?: boolean;
+  scanStatus?: string;
 }): ChatMessageVM {
   return {
     id: r.id,
@@ -79,6 +80,8 @@ function toVM(r: {
     attachmentUrl: r.hasAttachment
       ? `/api/messages/attachment?messageId=${encodeURIComponent(r.id)}`
       : undefined,
+    // AV-статус: не-clean рисуется бейджем, а не ссылкой (см. ChatThreadView).
+    scanStatus: r.scanStatus,
     createdAt: r.createdAt,
   };
 }

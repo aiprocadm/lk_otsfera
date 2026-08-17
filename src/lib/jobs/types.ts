@@ -35,6 +35,7 @@ export type ScanDocumentTarget =
   | 'inbound_attachment'
   | 'call_recording'
   | 'staff_attachment'
+  | 'chat_attachment'
   | 'client_request_attachment';
 
 export type ScanDocumentPayload = {

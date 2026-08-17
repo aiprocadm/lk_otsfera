@@ -104,6 +104,14 @@ async function loadTarget(
     if (!row || !row.attachmentPath) return null;
     return { id: row.id, path: row.attachmentPath };
   }
+  if (kind === 'chat_attachment') {
+    const row = await db.message.findUnique({
+      where: { id },
+      select: { id: true, attachmentPath: true },
+    });
+    if (!row || !row.attachmentPath) return null;
+    return { id: row.id, path: row.attachmentPath };
+  }
   if (kind === 'client_request_attachment') {
     return db.clientRequestAttachment.findUnique({
       where: { id },
@@ -136,6 +144,9 @@ async function persistResult(
     // StaffMessage has neither a scan-reason column nor `scannedAt` (unlike Document) —
     // only `scanStatus` is persisted here (reason stays in SyncLog, mirroring call_recording).
     await db.staffMessage.update({ where: { id }, data: { scanStatus } });
+  } else if (kind === 'chat_attachment') {
+    // Message mirrors StaffMessage: only `scanStatus`, no scan-reason/`scannedAt` columns.
+    await db.message.update({ where: { id }, data: { scanStatus } });
   } else if (kind === 'client_request_attachment') {
     // Этап 5: вложения заявок клиентов — полный набор колонок, как LeadAttachment.
     await db.clientRequestAttachment.update({

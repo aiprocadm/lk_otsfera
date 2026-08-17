@@ -10,8 +10,49 @@ export type ChatMessageVM = {
   /** Ready-to-render download URL (e.g. a signed URL or download route).
    *  Consumers MUST pass a signed/route URL per CLAUDE.md §10 — never a raw storage path. */
   attachmentUrl?: string | null | undefined;
+  /** none|pending|clean|infected|error — не-clean прячет ссылку за бейджем
+   *  (иначе она выглядела бы рабочей и падала 409/410 — молчаливый дефект §15). */
+  scanStatus?: string | undefined;
   createdAt: string | Date;
 };
+
+/**
+ * Вложение под текстом пузыря. Sibling к staff-chat AttachmentLine — общий
+ * компонент не заводим осознанно (§4 CLAUDE.md, staff-чат — отдельный домен).
+ */
+function AttachmentLine({ msg, isMine }: { msg: ChatMessageVM; isMine: boolean }) {
+  if (!msg.attachmentUrl) return null;
+  if (msg.scanStatus === 'infected') {
+    return (
+      <span style={{ display: 'inline-block', marginTop: '6px', fontSize: '12px', color: isMine ? 'rgba(255,255,255,0.85)' : '#DC2626' }}>
+        ⛔ файл заражён
+      </span>
+    );
+  }
+  // Не-clean (pending/error/none-с-вложением) — файл ещё не проверен антивирусом.
+  // Отсутствующий scanStatus (старый потребитель VM) трактуем как clean.
+  if (msg.scanStatus !== undefined && msg.scanStatus !== 'clean') {
+    return (
+      <span style={{ display: 'inline-block', marginTop: '6px', fontSize: '12px', color: isMine ? 'rgba(255,255,255,0.85)' : '#9CA3AF' }}>
+        ⏳ файл проверяется
+      </span>
+    );
+  }
+  return (
+    <a
+      href={msg.attachmentUrl}
+      style={{
+        display: 'inline-block',
+        marginTop: '6px',
+        fontSize: '12px',
+        color: isMine ? 'rgba(255,255,255,0.85)' : '#F97316',
+        textDecoration: 'underline',
+      }}
+    >
+      📎 вложение
+    </a>
+  );
+}
 
 function formatTime(createdAt: string | Date): string {
   try {
@@ -84,20 +125,7 @@ export function ChatThreadView({
               }}
             >
               <p style={{ margin: 0 }}>{msg.body}</p>
-              {msg.attachmentUrl && (
-                <a
-                  href={msg.attachmentUrl}
-                  style={{
-                    display: 'inline-block',
-                    marginTop: '6px',
-                    fontSize: '12px',
-                    color: isMine ? 'rgba(255,255,255,0.85)' : '#F97316',
-                    textDecoration: 'underline',
-                  }}
-                >
-                  📎 вложение
-                </a>
-              )}
+              <AttachmentLine msg={msg} isMine={isMine} />
             </div>
             <span
               style={{
