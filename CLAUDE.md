@@ -221,7 +221,7 @@ removeOnComplete: { count: 1000 }, removeOnFail: false
 
 - **`src/app/api/manager/documents/`**: внутри только один сегмент `[id]`. Не создавай рядом `[orderId]`/`[documentId]` — Next.js упадёт со startup-ошибкой. Это исправленный ранее блокер.
 - **`.github/workflows/ci.yml` — единственный workflow** (добавлен PR-серией укрепления, 2026-07): серверное зеркало лестницы хуков. Локальный гейтинг Husky остаётся первой линией; CI страхует от `--no-verify`. Новые workflow не добавляй без обсуждения; шаги CI не должны дрейфовать от npm-скриптов хуков.
-- **Sibling-pages для документов**: org-кабинет не имеет API-роута upload (использует server-action), у manager-кабинета — есть API-роут. При синхронизации UX между ролями учти это асимметричное расхождение.
+- **Загрузка документов — только через API-роуты, не через server actions.** С 17.08.2026 все три кабинета (manager, partner, organization) грузят документы API-роутами. Причина: на server actions действует общий `bodySizeLimit` 25 МБ (next.config.mjs, синхронизирован с импортом 1С), и файл больше предела отбрасывается **до входа в action** — форма молчит, при обещанных `DOCUMENT_MAX_FILE_SIZE_MB` = 200 МБ. Новую форму загрузки файлов строй на `useFetchSubmit` + файловый роут (`readMultipart`/`readFile`/`formFields`), а не на server action; цифру предела в подсказке бери из `DEFAULT_MAX_FILE_SIZE_MB` (страж `components.upload-size-hint.guardrail`).
 - **Vitest на холодном кэше**: первый запуск pre-commit может занять ~30-60 сек из-за `transform`/`prepare`. На втором коммите подряд — 5-10 сек. Не паникуй при первом долгом запуске.
 
 ## 12. Безопасность

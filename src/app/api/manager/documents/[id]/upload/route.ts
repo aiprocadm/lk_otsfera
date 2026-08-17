@@ -33,7 +33,7 @@ const FIELDS = z.object({
  *   400 — no `file` field in form data, or invalid_recipient
  *   403 — order is out of the manager's three-way visibility scope
  *   404 — order does not exist
- *   413 — file exceeds 20 MB
+ *   413 — file exceeds the configured max size (200 MB default)
  *   415 — MIME type not in the allow-list
  *   500 — object-storage upload failed
  */
