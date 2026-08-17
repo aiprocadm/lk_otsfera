@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { isFeatureEnabled } from '@/lib/featureFlags';
-import { getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
+import { getCompanyTeamVisibility, isManagerLeader } from '@/lib/auth/managerPolicy';
 import { recordPiiAccess } from '@/lib/pii/record';
 import { searchScopes } from './scopes';
 
@@ -69,8 +69,13 @@ export async function globalSearch(
     /**
      * Зеркало `teamModeOverride` списков лидера (leader/orders, leader/organizations):
      * страница /leader/search смотрит на всю компанию независимо от тумблера
-     * managerTeamVisibility. Гейт — requireManagerLeader на самой странице;
-     * сервис доверяет вызывающему так же, как listOrders.
+     * managerTeamVisibility.
+     *
+     * Право на override сервис проверяет САМ (`isManagerLeader`), а не доверяет
+     * вызывающему: флаг доезжает сюда и из палитры (server action
+     * `paletteSearchAction`), где гард — только `requireSession`. До проверки
+     * рядовой менеджер мог прислать `true` и получить company-wide выдачу в
+     * обход C8-скоупа (§4 defense-in-depth: запрет живёт в сервисе).
      */
     teamModeOverride?: boolean;
   }
@@ -86,7 +91,7 @@ export async function globalSearch(
   const teamMode =
     session.role !== 'manager'
       ? false
-      : args.teamModeOverride === true
+      : args.teamModeOverride === true && isManagerLeader(session)
         ? true
         : await getCompanyTeamVisibility(prisma, session.companyId);
   const scopes = searchScopes(session, teamMode);

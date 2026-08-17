@@ -20,6 +20,13 @@ const manager = {
   companyId: 'c1',
   managedOrgIds: ['org1'],
 } as unknown as SessionPayload;
+const leader = {
+  sub: 'l1',
+  role: 'manager',
+  managerRole: 'leader',
+  companyId: 'c1',
+  managedOrgIds: ['org1'],
+} as unknown as SessionPayload;
 const admin = { sub: 'a1', role: 'admin', companyId: 'c1' } as unknown as SessionPayload;
 const partner = { sub: 'p1', role: 'partner', companyId: 'c1' } as unknown as SessionPayload;
 
@@ -155,17 +162,29 @@ describe('globalSearch — teamMode', () => {
     expect(companyFindUnique).not.toHaveBeenCalled();
   });
 
-  it('teamModeOverride (страница лидера): company-wide без чтения тумблера', async () => {
+  it('teamModeOverride у РУКОВОДИТЕЛЯ: company-wide без чтения тумблера', async () => {
     const { prisma, companyFindUnique, order } = makePrisma();
-    await globalSearch(prisma, manager, { q: 'тест', teamModeOverride: true });
+    await globalSearch(prisma, leader, { q: 'тест', teamModeOverride: true });
     expect(companyFindUnique).not.toHaveBeenCalled();
     // company-wide: заказы скоупятся только компанией (зеркало leader/orders)
     expect(order.mock.calls[0][0].where.AND[0]).toEqual({ companyId: 'c1' });
   });
 
+  // Страж дыры (найдена разведкой 17.08.2026): флаг доезжает и из палитры
+  // (paletteSearchAction, гард — только requireSession), поэтому право на
+  // override сервис проверяет сам. До починки рядовой менеджер получал
+  // company-wide выдачу, прислав teamModeOverride=true руками.
+  it('teamModeOverride у РЯДОВОГО менеджера игнорируется: тумблер читается, company-wide нет', async () => {
+    const { prisma, companyFindUnique, order } = makePrisma();
+    await globalSearch(prisma, manager, { q: 'тест', teamModeOverride: true });
+    expect(companyFindUnique).toHaveBeenCalledTimes(1);
+    // Скоуп остался трёхсторонним (не «вся компания»): в where есть OR-ветки менеджера.
+    expect(order.mock.calls[0][0].where.AND[0]).not.toEqual({ companyId: 'c1' });
+  });
+
   it('teamModeOverride=false ведёт себя как отсутствие флага (читает тумблер)', async () => {
     const { prisma, companyFindUnique } = makePrisma();
-    await globalSearch(prisma, manager, { q: 'тест', teamModeOverride: false });
+    await globalSearch(prisma, leader, { q: 'тест', teamModeOverride: false });
     expect(companyFindUnique).toHaveBeenCalledTimes(1);
   });
 });

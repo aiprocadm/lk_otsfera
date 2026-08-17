@@ -10,8 +10,9 @@ import { globalSearch } from '@/lib/services/search/globalSearch';
  * поиска, — со всеми его скоупами и журналом доступа к ПДн. Иначе появилась
  * бы вторая, более слабая дверь к тем же данным.
  *
- * `teamModeOverride` передаёт только руководитель — ровно как страница
- * `/leader/search`: он смотрит на всю компанию.
+ * `teamModeOverride` имеет силу только у руководителя: право на него
+ * проверяет САМ сервис (`isManagerLeader` внутри `globalSearch`) — у рядового
+ * менеджера флаг игнорируется, даже если прислан руками.
  */
 export async function paletteSearchAction(q: string, teamModeOverride?: boolean) {
   const session = await requireSession();
