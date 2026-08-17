@@ -117,6 +117,51 @@ describe('team.inviteMember', () => {
     expect(team.find((t) => t.userId === result.user.id)?.invitePending).toBe(true);
   });
 
+  // Все три пути getAppBaseUrl — явно. Раньше ветки «APP_URL задан/не задан»
+  // покрывались СЛУЧАЙНО: тесты одного worker-процесса делят process.env, и
+  // покрытие зависело от того, какой файл успел выставить/снять переменную
+  // раньше. Смена состава тестовых файлов двигала порядок, и гейт 100 % мигал.
+  it('inviteUrl: база из APP_URL; пустой/неустановленный APP_URL → дефолт', async () => {
+    const prev = process.env.APP_URL;
+    try {
+      process.env.APP_URL = 'https://app.example.test';
+      const withEnv = await inviteMember(prisma, {
+        partnerId,
+        email: 'url1@x.local',
+        name: 'U',
+        roleInPartner: 'manager',
+        assignedOrgIds: [],
+      });
+      if (!withEnv.ok) throw new Error('expected ok');
+      expect(withEnv.inviteUrl.startsWith('https://app.example.test/reset-password')).toBe(true);
+
+      process.env.APP_URL = '   ';
+      const blankEnv = await inviteMember(prisma, {
+        partnerId,
+        email: 'url2@x.local',
+        name: 'U',
+        roleInPartner: 'manager',
+        assignedOrgIds: [],
+      });
+      if (!blankEnv.ok) throw new Error('expected ok');
+      expect(blankEnv.inviteUrl.startsWith('https://lk.otsfera.ru/reset-password')).toBe(true);
+
+      delete process.env.APP_URL;
+      const noEnv = await inviteMember(prisma, {
+        partnerId,
+        email: 'url3@x.local',
+        name: 'U',
+        roleInPartner: 'manager',
+        assignedOrgIds: [],
+      });
+      if (!noEnv.ok) throw new Error('expected ok');
+      expect(noEnv.inviteUrl.startsWith('https://lk.otsfera.ru/reset-password')).toBe(true);
+    } finally {
+      if (prev === undefined) delete process.env.APP_URL;
+      else process.env.APP_URL = prev;
+    }
+  });
+
   it('rejects duplicate email', async () => {
     await prisma.user.create({
       data: { email: 'dup@x.local', passwordHash: 'h', name: 'D', role: 'partner', partnerId },

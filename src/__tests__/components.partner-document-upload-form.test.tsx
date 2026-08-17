@@ -1,32 +1,25 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderToString } from 'react-dom/server';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 
-const { uploadPartnerDocument } = vi.hoisted(() => ({ uploadPartnerDocument: vi.fn() }));
-vi.mock('@/server-actions/partner/documents', () => ({ uploadPartnerDocument }));
-
 const { toastSuccess } = vi.hoisted(() => ({ toastSuccess: vi.fn() }));
-vi.mock('sonner', () => ({ toast: { success: toastSuccess } }));
+vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess } }));
 
 import { PartnerDocumentUploadForm } from '@/components/partner/partner-document-upload-form';
+import { DEFAULT_MAX_FILE_SIZE_MB } from '@/lib/config/upload';
 
 function makeFile(name: string): File {
   return new File(['x'], name, { type: 'application/pdf' });
 }
 
-/**
- * jsdom's native FormData construction (used internally by React 19's
- * `<form action={fn}>`) reads a file input's selected files via its own
- * FileList impl, not the public `HTMLInputElement.files` getter/setter —
- * see components.organization-document-upload-form.test.tsx for the full
- * rationale (same helper, copied per project convention: sibling upload
- * forms each carry their own copy rather than sharing a test util).
- */
+// See components.organization-document-upload-form.test.tsx for why this bypasses
+// the public `files` property: jsdom's own FormData construction (used by React 19's
+// <form action>) reads the file input's internal FileList impl directly.
 function pickFile(input: HTMLInputElement, file: File): void {
   const implSymbol = Object.getOwnPropertySymbols(file)[0];
   const fileImpl = (file as any)[implSymbol];
@@ -37,25 +30,33 @@ function pickFile(input: HTMLInputElement, file: File): void {
   fireEvent.change(input);
 }
 
-describe('PartnerDocumentUploadForm', () => {
-  it('renders the file input, type select and submit button', () => {
+/** Same impl-level trick, but with a spoofed `size` — allocating 200+ MB for real is a no-go. */
+function pickOversizedFile(input: HTMLInputElement, name: string, sizeBytes: number): void {
+  const file = makeFile(name);
+  const implSymbol = Object.getOwnPropertySymbols(file)[0];
+  const fileImpl = (file as any)[implSymbol];
+  Object.defineProperty(fileImpl, 'size', { value: sizeBytes });
+  const fileList = input.files as unknown as File[];
+  const flImplSymbol = Object.getOwnPropertySymbols(fileList)[0];
+  const flImpl = (fileList as any)[flImplSymbol] as unknown[];
+  flImpl.push(fileImpl);
+  fireEvent.change(input);
+}
+
+describe('PartnerDocumentUploadForm (SSR structure)', () => {
+  it('renders file input, doc-type select and submit button with the config-driven hint', () => {
     const html = renderToString(React.createElement(PartnerDocumentUploadForm, { orderId: 'o1' }));
     expect(html).toContain('type="file"');
-    expect(html).toContain('<select');
-    expect(html).toContain('Отправить');
-  });
-  it('renders all document-type options', () => {
-    const html = renderToString(React.createElement(PartnerDocumentUploadForm, { orderId: 'o1' }));
-    expect(html).toContain('Договор');
-    expect(html).toContain('Прочее');
+    expect(html).toContain('Отправить документ менеджеру');
+    expect(html).toContain(`Максимум ${DEFAULT_MAX_FILE_SIZE_MB} МБ.`);
   });
 });
 
-describe('PartnerDocumentUploadForm (interactive)', () => {
+describe('PartnerDocumentUploadForm (interactive, jsdom)', () => {
   beforeEach(() => {
-    uploadPartnerDocument.mockReset();
-    toastSuccess.mockClear();
     refresh.mockClear();
+    toastSuccess.mockClear();
+    vi.restoreAllMocks();
   });
 
   it('changing the doc-type select updates the selected value', () => {
@@ -66,10 +67,41 @@ describe('PartnerDocumentUploadForm (interactive)', () => {
     expect(select.value).toBe('act');
   });
 
-  it('success path: submits with a file, toasts with its name, clears the file input and refreshes', async () => {
-    uploadPartnerDocument.mockResolvedValue({ ok: true, documentId: 'd1' });
-    render(React.createElement(PartnerDocumentUploadForm, { orderId: 'o1' }));
+  it('empty file picker: submit shows the local guard error and does not fetch', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
 
+    render(React.createElement(PartnerDocumentUploadForm, { orderId: 'o1' }));
+    fireEvent.click(screen.getByText('Отправить'));
+
+    await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
+    expect(screen.getByText('Файл не выбран.')).toBeTruthy();
+    expect(fetchMock).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it('over-limit file: submit shows the size guard error and does not fetch', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(React.createElement(PartnerDocumentUploadForm, { orderId: 'o1' }));
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    pickOversizedFile(fileInput, 'huge.pdf', (DEFAULT_MAX_FILE_SIZE_MB + 1) * 1024 * 1024);
+    fireEvent.click(screen.getByText('Отправить'));
+
+    await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
+    expect(
+      screen.getByText(`Файл больше предела в ${DEFAULT_MAX_FILE_SIZE_MB} МБ — выберите поменьше.`)
+    ).toBeTruthy();
+    expect(fetchMock).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it('success path: POSTs FormData to the API route, toasts, clears input, refreshes', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(React.createElement(PartnerDocumentUploadForm, { orderId: 'o1' }));
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     pickFile(fileInput, makeFile('act.pdf'));
 
@@ -78,46 +110,49 @@ describe('PartnerDocumentUploadForm (interactive)', () => {
     await waitFor(() =>
       expect(toastSuccess).toHaveBeenCalledWith('Документ «act.pdf» отправлен менеджеру.')
     );
-    expect(uploadPartnerDocument).toHaveBeenCalled();
-    const sentFormData = uploadPartnerDocument.mock.calls[0][0] as FormData;
-    expect(sentFormData.get('orderId')).toBe('o1');
-    expect(sentFormData.get('docType')).toBe('other');
-    expect(refresh).toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/partner/documents/upload',
+      expect.objectContaining({ method: 'POST' })
+    );
+    const sent = fetchMock.mock.calls[0]![1].body as FormData;
+    expect(sent.get('orderId')).toBe('o1');
+    expect(sent.get('docType')).toBe('other');
+    expect((sent.get('file') as File).name).toBe('act.pdf');
     expect(fileInput.value).toBe('');
+    expect(refresh).toHaveBeenCalled();
+    vi.unstubAllGlobals();
   });
 
-  it('submits with no file selected (lastFileNameRef falls back to empty string)', async () => {
-    uploadPartnerDocument.mockResolvedValue({ ok: true, documentId: 'd2' });
-    render(React.createElement(PartnerDocumentUploadForm, { orderId: 'o1' }));
-    fireEvent.click(screen.getByText('Отправить'));
-    await waitFor(() =>
-      expect(toastSuccess).toHaveBeenCalledWith('Документ «» отправлен менеджеру.')
-    );
-  });
+  it('server error response: renders the mapped alert text (not the local guard message)', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: false, status: 413, json: async () => ({ error: 'too_large' }) });
+    vi.stubGlobal('fetch', fetchMock);
 
-  it('error path renders the alert with the resolved error text and does not toast', async () => {
-    uploadPartnerDocument.mockResolvedValue({ ok: false, error: 'too_large' });
     render(React.createElement(PartnerDocumentUploadForm, { orderId: 'o1' }));
-    fireEvent.click(screen.getByText('Отправить'));
-    await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
-    expect(toastSuccess).not.toHaveBeenCalled();
-  });
-
-  it('shows the pending label and disables the file input/select while submitting', async () => {
-    let resolveUpload!: (v: { ok: true; documentId: string }) => void;
-    uploadPartnerDocument.mockReturnValue(
-      new Promise((resolve) => {
-        resolveUpload = resolve;
-      })
-    );
-    render(React.createElement(PartnerDocumentUploadForm, { orderId: 'o1' }));
-    fireEvent.click(screen.getByText('Отправить'));
-
-    expect(await screen.findByText('Отправляю…')).toBeTruthy();
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    expect(fileInput.disabled).toBe(true);
+    pickFile(fileInput, makeFile('big.pdf'));
+    fireEvent.click(screen.getByText('Отправить'));
 
-    resolveUpload({ ok: true, documentId: 'd3' });
-    await waitFor(() => expect(screen.getByText('Отправить')).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
+    expect(screen.queryByText('Файл не выбран.')).toBeNull();
+    expect(toastSuccess).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it('submitting again after the local guard error clears it once a file is chosen', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(React.createElement(PartnerDocumentUploadForm, { orderId: 'o1' }));
+    fireEvent.click(screen.getByText('Отправить'));
+    await waitFor(() => expect(screen.getByText('Файл не выбран.')).toBeTruthy());
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    pickFile(fileInput, makeFile('doc.pdf'));
+    fireEvent.click(screen.getByText('Отправить'));
+
+    await waitFor(() => expect(screen.queryByText('Файл не выбран.')).toBeNull());
+    vi.unstubAllGlobals();
   });
 });

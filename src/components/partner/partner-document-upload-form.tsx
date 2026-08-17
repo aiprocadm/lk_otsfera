@@ -1,12 +1,19 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { uploadPartnerDocument } from '@/server-actions/partner/documents';
+import { DEFAULT_MAX_FILE_SIZE_MB } from '@/lib/config/upload';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Field } from '@/components/ui/field';
 import { toast } from '@/lib/ui/toast';
-import { useFormAction } from '@/lib/ui/useFormAction';
+import { useFetchSubmit } from '@/lib/ui/useFetchSubmit';
+
+/**
+ * Client-side multipart upload form for the partner deal detail page.
+ * POSTs to /api/partner/documents/upload — an API route, not a server action:
+ * server actions share the global 25 MB bodySizeLimit and silently dropped
+ * bigger files while the app promises DOCUMENT_MAX_FILE_SIZE_MB.
+ */
 
 const DOC_TYPE_OPTIONS: Array<{ value: string; label: string }> = [
   { value: 'contract', label: 'Договор' },
@@ -22,11 +29,22 @@ const DOC_TYPE_OPTIONS: Array<{ value: string; label: string }> = [
 export function PartnerDocumentUploadForm({ orderId }: { orderId: string }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [docType, setDocType] = useState('other');
-  // Имя файла фиксируем на сабмите: useActionState сбрасывает file-input до onSuccess.
+  const [localError, setLocalError] = useState<string | null>(null);
   const lastFileNameRef = useRef<string>('');
 
-  const { formAction, pending, errorText } = useFormAction<{ documentId: string }>({
-    action: uploadPartnerDocument,
+  const { formAction, pending, errorText } = useFetchSubmit<{ documentId: string }>({
+    url: '/api/partner/documents/upload',
+    body: () => {
+      const formData = new FormData();
+      const file = fileInputRef.current?.files?.[0];
+      if (file) {
+        formData.set('file', file);
+        lastFileNameRef.current = file.name;
+      }
+      formData.set('orderId', orderId);
+      formData.set('docType', docType);
+      return formData;
+    },
     refresh: true,
     onSuccess: () => {
       toast.success(`Документ «${lastFileNameRef.current}» отправлен менеджеру.`);
@@ -34,26 +52,32 @@ export function PartnerDocumentUploadForm({ orderId }: { orderId: string }) {
     },
   });
 
-  function action(formData: FormData) {
-    formData.set('orderId', orderId);
-    formData.set('docType', docType);
-    const file = formData.get('file');
-    // A <form>'s FormData always yields a File for a file input — the spec (and jsdom) synthesize
-    // an empty-name placeholder File when nothing is selected, never null/string — so the ': ''"
-    // branch is structurally unreachable via the rendered form (defensive fallback only).
-    /* v8 ignore next */
-    lastFileNameRef.current = file instanceof File ? file.name : '';
-    return formAction(formData);
+  // Pre-submit guards: an empty picker or an over-limit file should not POST —
+  // surface the inline message instead of shipping hundreds of megabytes.
+  function guardedAction(formData: FormData) {
+    const file = fileInputRef.current?.files?.[0];
+    if (!file) {
+      setLocalError('Файл не выбран.');
+      return;
+    }
+    if (file.size > DEFAULT_MAX_FILE_SIZE_MB * 1024 * 1024) {
+      setLocalError(`Файл больше предела в ${DEFAULT_MAX_FILE_SIZE_MB} МБ — выберите поменьше.`);
+      return;
+    }
+    setLocalError(null);
+    formAction(formData);
   }
+
+  const error = localError ?? errorText;
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5">
       <h2 className="text-sm font-semibold text-[#111111] mb-3">Отправить документ менеджеру</h2>
-      <form action={action} className="flex flex-col gap-3">
+      <form action={guardedAction} className="flex flex-col gap-3">
         <Field
           htmlFor="partner-doc-file"
           label="Файл"
-          hint="Допустимые форматы: PDF, JPG, PNG, DOCX, XLS, XLSX. Максимум 20 МБ."
+          hint={`Допустимые форматы: PDF, JPG, PNG, DOCX, XLS, XLSX. Максимум ${DEFAULT_MAX_FILE_SIZE_MB} МБ.`}
         >
           <input
             id="partner-doc-file"
@@ -86,9 +110,9 @@ export function PartnerDocumentUploadForm({ orderId }: { orderId: string }) {
           </Button>
         </div>
 
-        {errorText && (
+        {error && (
           <p role="alert" className="text-sm text-red-600">
-            {errorText}
+            {error}
           </p>
         )}
       </form>

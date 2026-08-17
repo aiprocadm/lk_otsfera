@@ -1,5 +1,6 @@
 'use client';
 import React, { useState } from 'react';
+import { DEFAULT_MAX_FILE_SIZE_MB } from '@/lib/config/upload';
 import { useFetchSubmit } from '@/lib/ui/useFetchSubmit';
 
 type Option = { id: string; name: string };
@@ -104,7 +105,9 @@ export function ManagerOrderLessUploadForm({
           className="block w-full text-sm"
         />
       </div>
-      <p className="text-xs text-gray-400">PDF, JPG, PNG, DOCX, XLSX · до 20 МБ</p>
+      <p className="text-xs text-gray-400">
+        PDF, JPG, PNG, DOCX, XLSX · до {DEFAULT_MAX_FILE_SIZE_MB} МБ
+      </p>
       <button
         type="submit"
         disabled={pending}

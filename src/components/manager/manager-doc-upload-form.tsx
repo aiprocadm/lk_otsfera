@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
+import { DEFAULT_MAX_FILE_SIZE_MB } from '@/lib/config/upload';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Field } from '@/components/ui/field';
@@ -81,7 +82,7 @@ export function ManagerDocUploadForm({ orderId }: Props) {
         <Field
           htmlFor="mgr-doc-file"
           label="Файл"
-          hint="Допустимые форматы: PDF, JPG, PNG, DOCX, XLS, XLSX. Максимум 20 МБ."
+          hint={`Допустимые форматы: PDF, JPG, PNG, DOCX, XLS, XLSX. Максимум ${DEFAULT_MAX_FILE_SIZE_MB} МБ.`}
         >
           <input
             id="mgr-doc-file"
