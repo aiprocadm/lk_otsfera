@@ -5,6 +5,10 @@ const { notifyManagers, notifyOrgUsers } = vi.hoisted(() => ({
 }));
 vi.mock('@/lib/notifications', () => ({ notifyManagers, notifyOrgUsers }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit: vi.fn() }));
+// AV-скан вложения ставится в очередь — в unit-среде BullMQ/Redis нет.
+vi.mock('@/lib/jobs/queues', () => ({
+  getQueue: () => ({ add: vi.fn().mockResolvedValue({}) }),
+}));
 import { sendMessage } from '@/lib/services/chat/messages';
 
 const order = {

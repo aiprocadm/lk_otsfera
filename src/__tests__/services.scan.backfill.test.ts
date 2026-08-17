@@ -71,6 +71,7 @@ describe('runBackfill', () => {
   let leadFindMany: ReturnType<typeof vi.fn>;
   let inboundFindMany: ReturnType<typeof vi.fn>;
   let staffFindMany: ReturnType<typeof vi.fn>;
+  let chatFindMany: ReturnType<typeof vi.fn>;
   let queueAdd: ReturnType<typeof vi.fn>;
   let db: Parameters<typeof runBackfill>[0];
 
@@ -79,12 +80,14 @@ describe('runBackfill', () => {
     leadFindMany = vi.fn();
     inboundFindMany = vi.fn().mockResolvedValue([]);
     staffFindMany = vi.fn().mockResolvedValue([]);
+    chatFindMany = vi.fn().mockResolvedValue([]);
     queueAdd = vi.fn().mockResolvedValue({});
     db = {
       document: { findMany: documentFindMany },
       leadAttachment: { findMany: leadFindMany },
       inboundMessage: { findMany: inboundFindMany },
       staffMessage: { findMany: staffFindMany },
+      message: { findMany: chatFindMany },
     } as any;
   });
 
@@ -100,6 +103,7 @@ describe('runBackfill', () => {
       leadAttachments: 1,
       inboundAttachments: 0,
       staffAttachments: 0,
+      chatAttachments: 0,
     });
     expect(queueAdd).toHaveBeenCalledTimes(3);
     expect(queueAdd).toHaveBeenCalledWith('scan', { kind: 'document', id: 'd1' });
@@ -123,6 +127,7 @@ describe('runBackfill', () => {
       leadAttachments: 0,
       inboundAttachments: 0,
       staffAttachments: 0,
+      chatAttachments: 0,
     });
   });
 
@@ -193,6 +198,7 @@ describe('runBackfill', () => {
       leadAttachments: 0,
       inboundAttachments: 1,
       staffAttachments: 0,
+      chatAttachments: 0,
     });
     expect(queueAdd).toHaveBeenCalledWith('scan', { kind: 'inbound_attachment', id: 'im1' });
     expect(inboundFindMany.mock.calls[0][0]).toMatchObject({
@@ -228,6 +234,7 @@ describe('runBackfill', () => {
       leadAttachments: 0,
       inboundAttachments: 0,
       staffAttachments: 1,
+      chatAttachments: 0,
     });
     expect(queueAdd).toHaveBeenCalledWith('scan', { kind: 'staff_attachment', id: 'sm1' });
     expect(staffFindMany.mock.calls[0][0]).toMatchObject({
@@ -245,6 +252,42 @@ describe('runBackfill', () => {
     expect(staffFindMany.mock.calls[0][0]).not.toHaveProperty('cursor');
     expect(staffFindMany.mock.calls[1][0]).toMatchObject({
       cursor: { id: 'sm2' },
+      skip: 1,
+    });
+  });
+
+  it('enqueues pending chat-attachment rows (Message) with kind:chat_attachment', async () => {
+    documentFindMany.mockResolvedValueOnce([]);
+    leadFindMany.mockResolvedValueOnce([]);
+    chatFindMany.mockReset();
+    chatFindMany.mockResolvedValueOnce([{ id: 'cm1' }]).mockResolvedValueOnce([]);
+
+    const result = await runBackfill(db, { add: queueAdd }, 100);
+
+    expect(result).toEqual({
+      enqueued: 1,
+      documents: 0,
+      leadAttachments: 0,
+      inboundAttachments: 0,
+      staffAttachments: 0,
+      chatAttachments: 1,
+    });
+    expect(queueAdd).toHaveBeenCalledWith('scan', { kind: 'chat_attachment', id: 'cm1' });
+    expect(chatFindMany.mock.calls[0][0]).toMatchObject({
+      where: { scanStatus: 'pending', attachmentPath: { not: null } },
+      take: 100,
+    });
+  });
+
+  it('Message table also uses cursor on subsequent pages', async () => {
+    documentFindMany.mockResolvedValueOnce([]);
+    leadFindMany.mockResolvedValueOnce([]);
+    chatFindMany.mockReset();
+    chatFindMany.mockResolvedValueOnce([{ id: 'cm1' }, { id: 'cm2' }]).mockResolvedValueOnce([]);
+    await runBackfill(db, { add: queueAdd }, 2);
+    expect(chatFindMany.mock.calls[0][0]).not.toHaveProperty('cursor');
+    expect(chatFindMany.mock.calls[1][0]).toMatchObject({
+      cursor: { id: 'cm2' },
       skip: 1,
     });
   });

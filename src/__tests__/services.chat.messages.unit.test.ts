@@ -4,13 +4,15 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { notifyManagers, notifyOrgUsers } = vi.hoisted(() => ({
+const { notifyManagers, notifyOrgUsers, addJob } = vi.hoisted(() => ({
   notifyManagers: vi.fn(),
   notifyOrgUsers: vi.fn(),
+  addJob: vi.fn(),
 }));
 vi.mock('@/lib/notifications', () => ({ notifyManagers, notifyOrgUsers }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit: vi.fn() }));
 vi.mock('@/lib/services/chat/policy', () => ({ canSeeThread: vi.fn() }));
+vi.mock('@/lib/jobs/queues', () => ({ getQueue: () => ({ add: addJob }) }));
 
 import { listMessages, sendMessage } from '@/lib/services/chat/messages';
 import { canSeeThread } from '@/lib/services/chat/policy';
@@ -53,6 +55,8 @@ beforeEach(() => {
   canSeeThreadMock.mockReset();
   notifyManagers.mockReset();
   notifyOrgUsers.mockReset();
+  addJob.mockReset();
+  addJob.mockResolvedValue({});
 });
 
 // ─── listMessages ─────────────────────────────────────────────────────────────
@@ -152,6 +156,82 @@ describe('listMessages — null author name fallback', () => {
     const result = await listMessages(prisma, orgSession, { threadId: 't1' });
     if (result.ok) {
       expect(result.rows[0].authorName).toBe('');
+    }
+  });
+});
+
+describe('sendMessage — антивирус вложения', () => {
+  it('вложение: строка создаётся со scanStatus=pending и ставится скан chat_attachment', async () => {
+    canSeeThreadMock.mockReturnValue(true);
+    const prisma = makeSendPrisma(order);
+    const result = await sendMessage(prisma, orgSession, {
+      orderId: 'o1',
+      side: 'org',
+      body: 'см. файл',
+      attachmentPath: 'chat/o1/f.pdf',
+    });
+    expect(result).toEqual({ ok: true, messageId: 'm1' });
+    expect(prisma.message.create.mock.calls[0][0].data.scanStatus).toBe('pending');
+    expect(addJob).toHaveBeenCalledWith('scan', { kind: 'chat_attachment', id: 'm1' });
+  });
+
+  it('без вложения: scanStatus=none и скан не ставится', async () => {
+    canSeeThreadMock.mockReturnValue(true);
+    const prisma = makeSendPrisma(order);
+    await sendMessage(prisma, orgSession, { orderId: 'o1', side: 'org', body: 'привет' });
+    expect(prisma.message.create.mock.calls[0][0].data.scanStatus).toBe('none');
+    expect(addJob).not.toHaveBeenCalled();
+  });
+
+  it('сбой постановки скана логируется и не роняет отправку (§3)', async () => {
+    canSeeThreadMock.mockReturnValue(true);
+    addJob.mockRejectedValue(new Error('redis down'));
+    const prisma = makeSendPrisma(order);
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = await sendMessage(prisma, orgSession, {
+      orderId: 'o1',
+      side: 'org',
+      body: 'см. файл',
+      attachmentPath: 'chat/o1/f.pdf',
+    });
+    expect(result).toEqual({ ok: true, messageId: 'm1' });
+    consoleSpy.mockRestore();
+  });
+
+  it('сбой постановки скана с не-Error значением тоже проглатывается', async () => {
+    canSeeThreadMock.mockReturnValue(true);
+    addJob.mockRejectedValue('string failure');
+    const prisma = makeSendPrisma(order);
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = await sendMessage(prisma, orgSession, {
+      orderId: 'o1',
+      side: 'org',
+      body: 'см. файл',
+      attachmentPath: 'chat/o1/f.pdf',
+    });
+    expect(result).toEqual({ ok: true, messageId: 'm1' });
+    consoleSpy.mockRestore();
+  });
+});
+
+describe('listMessages — scanStatus в VM', () => {
+  it('отдаёт scanStatus строки наружу', async () => {
+    canSeeThreadMock.mockReturnValue(true);
+    const msgs = [
+      {
+        id: 'm3',
+        authorId: 'u1',
+        body: 'файл',
+        attachmentPath: 'chat/o1/f.pdf',
+        scanStatus: 'pending',
+        createdAt: new Date('2024-06-03'),
+        author: { name: 'U' },
+      },
+    ];
+    const prisma = makePrisma(thread, msgs);
+    const result = await listMessages(prisma, orgSession, { threadId: 't1' });
+    if (result.ok) {
+      expect(result.rows[0].scanStatus).toBe('pending');
     }
   });
 });

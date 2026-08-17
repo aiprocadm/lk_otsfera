@@ -92,6 +92,100 @@ describe('ChatThreadView', () => {
     expect(html).toContain('rgba(255,255,255,0.85)');
   });
 
+  it('clean scan renders the link as before', () => {
+    const messages: ChatMessageVM[] = [
+      {
+        id: 'm4',
+        authorId: 'u2',
+        authorName: 'Коллега',
+        body: 'проверенный файл',
+        attachmentUrl: '/api/messages/attachment?messageId=m4',
+        scanStatus: 'clean',
+        createdAt: new Date('2024-01-15T10:03:00Z'),
+      },
+    ];
+    const html = renderToString(
+      React.createElement(ChatThreadView, { messages, currentUserId: 'u1' })
+    );
+    expect(html).toContain('href="/api/messages/attachment?messageId=m4"');
+  });
+
+  it('pending scan hides the link behind a «файл проверяется» badge', () => {
+    const messages: ChatMessageVM[] = [
+      {
+        id: 'm5',
+        authorId: 'u2',
+        authorName: 'Коллега',
+        body: 'ещё сканируется',
+        attachmentUrl: '/api/messages/attachment?messageId=m5',
+        scanStatus: 'pending',
+        createdAt: new Date('2024-01-15T10:04:00Z'),
+      },
+    ];
+    const html = renderToString(
+      React.createElement(ChatThreadView, { messages, currentUserId: 'u1' })
+    );
+    expect(html).toContain('файл проверяется');
+    expect(html).not.toContain('href="/api/messages/attachment?messageId=m5"');
+  });
+
+  it('pending scan in my own bubble uses the "mine" color branch', () => {
+    const messages: ChatMessageVM[] = [
+      {
+        id: 'm5b',
+        authorId: 'u1',
+        authorName: 'Я',
+        body: 'моё, сканируется',
+        attachmentUrl: '/api/messages/attachment?messageId=m5b',
+        scanStatus: 'pending',
+        createdAt: new Date('2024-01-15T10:04:30Z'),
+      },
+    ];
+    const html = renderToString(
+      React.createElement(ChatThreadView, { messages, currentUserId: 'u1' })
+    );
+    expect(html).toContain('файл проверяется');
+    expect(html).toContain('rgba(255,255,255,0.85)');
+  });
+
+  it('infected scan shows the quarantine badge instead of a link', () => {
+    const messages: ChatMessageVM[] = [
+      {
+        id: 'm6',
+        authorId: 'u2',
+        authorName: 'Коллега',
+        body: 'опасный файл',
+        attachmentUrl: '/api/messages/attachment?messageId=m6',
+        scanStatus: 'infected',
+        createdAt: new Date('2024-01-15T10:05:00Z'),
+      },
+    ];
+    const html = renderToString(
+      React.createElement(ChatThreadView, { messages, currentUserId: 'u1' })
+    );
+    expect(html).toContain('файл заражён');
+    expect(html).not.toContain('href="/api/messages/attachment?messageId=m6"');
+  });
+
+  it('infected scan in my own bubble uses the "mine" color branch', () => {
+    const messages: ChatMessageVM[] = [
+      {
+        id: 'm6b',
+        authorId: 'u1',
+        authorName: 'Я',
+        body: 'моё заражённое',
+        attachmentUrl: '/api/messages/attachment?messageId=m6b',
+        scanStatus: 'infected',
+        createdAt: new Date('2024-01-15T10:05:30Z'),
+      },
+    ];
+    const html = renderToString(
+      React.createElement(ChatThreadView, { messages, currentUserId: 'u1' })
+    );
+    expect(html).toContain('файл заражён');
+    expect(html).toContain('rgba(255,255,255,0.85)');
+  });
+
   it('accepts a string createdAt and formats it (Date-branch not taken)', () => {
     const messages: ChatMessageVM[] = [
       {

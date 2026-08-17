@@ -1,6 +1,8 @@
 import type { PrismaClient, ThreadSide } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
+import { getQueue } from '@/lib/jobs/queues';
+import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import { notifyManagers, notifyOrgUsers } from '@/lib/notifications';
 import { log } from '@/lib/logging';
 import { canSeeThread } from './policy';
@@ -14,6 +16,8 @@ export type ListMessagesResult =
         authorName: string;
         body: string;
         hasAttachment: boolean;
+        /** none|pending|clean|infected|error — UI решает, рисовать ссылку или бейдж. */
+        scanStatus: string;
         createdAt: Date;
       }>;
     }
@@ -49,6 +53,7 @@ export async function listMessages(
       authorId: true,
       body: true,
       attachmentPath: true,
+      scanStatus: true,
       createdAt: true,
       author: { select: { name: true } },
     },
@@ -64,6 +69,7 @@ export async function listMessages(
       body: m.body,
       // FIX 2: never expose raw storage path — only signal presence
       hasAttachment: m.attachmentPath !== null,
+      scanStatus: m.scanStatus,
       createdAt: m.createdAt,
     })),
   };
@@ -117,8 +123,23 @@ export async function sendMessage(
       authorId: session.sub,
       body,
       attachmentPath: args.attachmentPath ?? null,
+      scanStatus: args.attachmentPath ? 'pending' : 'none',
     },
   });
+
+  // AV-скан вложения — best-effort enqueue (образец staffChat; §3 degrade gracefully).
+  // Упавшая постановка не теряет файл насовсем: часовой sweep добирает pending.
+  if (args.attachmentPath) {
+    try {
+      const payload: ScanDocumentPayload = { kind: 'chat_attachment', id: message.id };
+      await getQueue('docs.scanDocument').add('scan', payload);
+    } catch (err) {
+      log.warn('[chat/sendMessage] scan enqueue failed', {
+        messageId: message.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
 
   await recordAudit(prisma, {
     action: 'message_sent',

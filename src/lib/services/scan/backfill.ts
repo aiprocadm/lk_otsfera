@@ -10,6 +10,7 @@ export type BackfillResult = {
   leadAttachments: number;
   inboundAttachments: number;
   staffAttachments: number;
+  chatAttachments: number;
 };
 
 type PendingRow = { id: string };
@@ -41,8 +42,8 @@ export async function backfillTable(
 
 /**
  * Enqueues a `docs.scanDocument` job for every Document, LeadAttachment,
- * inbound-attachment (InboundMessage), and staff-chat attachment (StaffMessage)
- * row stuck in `scanStatus='pending'`.
+ * inbound-attachment (InboundMessage), staff-chat attachment (StaffMessage)
+ * and client-chat attachment (Message) row stuck in `scanStatus='pending'`.
  * Idempotent by design — once the processor flips a row, the WHERE clause
  * naturally skips it on the next pass.
  */
@@ -107,11 +108,26 @@ export async function runBackfill(
     batchSize
   );
 
+  const chatAttachments = await backfillTable(
+    'chat_attachment',
+    (cursor, take) =>
+      db.message.findMany({
+        where: { scanStatus: 'pending', attachmentPath: { not: null } },
+        select: { id: true },
+        orderBy: { id: 'asc' },
+        take,
+        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+      }),
+    queue,
+    batchSize
+  );
+
   return {
-    enqueued: documents + leadAttachments + inboundAttachments + staffAttachments,
+    enqueued: documents + leadAttachments + inboundAttachments + staffAttachments + chatAttachments,
     documents,
     leadAttachments,
     inboundAttachments,
     staffAttachments,
+    chatAttachments,
   };
 }

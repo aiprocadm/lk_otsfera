@@ -17,14 +17,17 @@ import { deriveSide } from '@/lib/services/chat/policy';
  * Returns 201 { ok: true, attachmentPath } on success. The attachmentPath
  * can then be passed to POST /api/messages as `attachmentPath`.
  *
- * Validation is SYNCHRONOUS: MIME allow-list + magic-byte check + 20 MB cap.
- * No ClamAV scan in v1; AV scanning for chat attachments is deferred to v1.1.
+ * Validation is SYNCHRONOUS: MIME allow-list + magic-byte check + size cap.
+ * Async ClamAV scan is enqueued by POST /api/messages (sendMessage) once the
+ * attachment is bound to a Message row.
  *
  * GET /api/messages/attachment?messageId=<id>
  *
  * Returns a 302 redirect to a short-lived (600 s) object-storage presigned URL
  * for the attachment on the given message. Requires the caller to have
- * visibility on the message's parent thread/order.
+ * visibility on the message's parent thread/order. Scan gate (mirror of the
+ * staff chat): 409 while the scan has not finished (`not_ready`), 410 Gone for
+ * quarantined files (`infected`, §10 CLAUDE.md).
  */
 
 const FIELDS = z.object({
@@ -105,9 +108,17 @@ export async function GET(req: Request) {
   const result = await getChatAttachmentSignedUrl(prisma, sess.value, messageId);
 
   if (!result.ok) {
-    return new Response(null, {
-      status: result.error === 'forbidden' ? 403 : result.error === 'storage' ? 502 : 404,
-    });
+    const status =
+      result.error === 'forbidden'
+        ? 403
+        : result.error === 'not_ready'
+          ? 409
+          : result.error === 'infected'
+            ? 410
+            : result.error === 'storage'
+              ? 502
+              : 404;
+    return new Response(null, { status });
   }
 
   return Response.redirect(result.url, 302);

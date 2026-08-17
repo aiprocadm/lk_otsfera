@@ -332,6 +332,7 @@ describe('getChatAttachmentSignedUrl integration', () => {
         authorId: managerId,
         body: 'see attachment',
         attachmentPath: uploadResult.attachmentPath,
+        scanStatus: 'clean', // AV-гейт: наружу уходит только проверенный файл
       },
     });
 
@@ -394,6 +395,48 @@ describe('getChatAttachmentSignedUrl integration', () => {
     };
     const result = await getChatAttachmentSignedUrl(prisma, wrongOrgSession, msg.id);
     expect(result).toEqual({ ok: false, error: 'forbidden' });
+    expect(createSignedUrlMock).not.toHaveBeenCalled();
+  });
+
+  it('pending scan → not_ready, no signed URL (живая строка с дефолтной колонкой)', async () => {
+    const thread = await prisma.orderThread.upsert({
+      where: { orderId_side: { orderId, side: 'org' } },
+      update: {},
+      create: { orderId, side: 'org' },
+    });
+    const msg = await prisma.message.create({
+      data: {
+        threadId: thread.id,
+        authorId: managerId,
+        body: 'ещё проверяется',
+        attachmentPath: `chat/${orderId}/pending-file.pdf`,
+        scanStatus: 'pending',
+      },
+    });
+
+    const result = await getChatAttachmentSignedUrl(prisma, teamSession, msg.id);
+    expect(result).toEqual({ ok: false, error: 'not_ready' });
+    expect(createSignedUrlMock).not.toHaveBeenCalled();
+  });
+
+  it('infected scan → infected (карантин), no signed URL', async () => {
+    const thread = await prisma.orderThread.upsert({
+      where: { orderId_side: { orderId, side: 'org' } },
+      update: {},
+      create: { orderId, side: 'org' },
+    });
+    const msg = await prisma.message.create({
+      data: {
+        threadId: thread.id,
+        authorId: managerId,
+        body: 'заражённый файл',
+        attachmentPath: `chat/${orderId}/infected-file.pdf`,
+        scanStatus: 'infected',
+      },
+    });
+
+    const result = await getChatAttachmentSignedUrl(prisma, teamSession, msg.id);
+    expect(result).toEqual({ ok: false, error: 'infected' });
     expect(createSignedUrlMock).not.toHaveBeenCalled();
   });
 
