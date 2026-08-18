@@ -12,7 +12,6 @@ import {
 } from '@/lib/services/manager/invite';
 import { getOrganizationName } from '@/lib/services/organization/lookup';
 import { sendManagerInviteEmail } from '@/lib/email/send';
-import { setManagerRole } from '@/lib/services/admin/managerRole';
 import { assignOrderManager } from '@/lib/services/manager/distribution';
 import { log } from '@/lib/logging';
 
@@ -211,31 +210,4 @@ export async function assignOrderManagerAction(
   // No-op (manager unchanged) skips revalidation — preserves prior behaviour.
   if (result.changed) revalidatePath(`/admin/orders/${parsed.data.orderId}`);
   return { ok: true, changed: result.changed };
-}
-
-const setManagerRoleSchema = z.object({
-  userId: z.string().min(1),
-  role: z.enum(['leader', 'member']),
-});
-
-export type SetManagerRoleActionResult =
-  { ok: true } | { ok: false; error: 'validation' | 'user_not_found' | 'not_a_manager' };
-
-export async function setManagerRoleAction(
-  formData: FormData
-): Promise<SetManagerRoleActionResult> {
-  const parsed = setManagerRoleSchema.safeParse({
-    userId: readForm(formData, 'userId'),
-    role: readForm(formData, 'role'),
-  });
-  if (!parsed.success) return { ok: false, error: 'validation' };
-
-  const session = await requireAdmin();
-  const role: 'leader' | null = parsed.data.role === 'leader' ? 'leader' : null;
-  const result = await setManagerRole(prisma, session.sub, parsed.data.userId, role);
-  if (!result.ok) return result;
-
-  revalidatePath('/admin/users');
-  revalidatePath(`/admin/users/${parsed.data.userId}`);
-  return { ok: true };
 }

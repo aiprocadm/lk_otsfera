@@ -91,7 +91,7 @@ describe('UserEditForm', () => {
     expect(screen.queryByText('— выберите —')).toBeNull();
   });
 
-  it('role=manager: single fixed option (allowedRoles default/manager branch), select disabled', () => {
+  it('role=manager: переход в «Руководитель» доступен формой (ТЗ 2026-08-17)', () => {
     render(
       React.createElement(UserEditForm, {
         user: user({ role: 'manager' }),
@@ -100,7 +100,23 @@ describe('UserEditForm', () => {
       })
     );
     const roleSelect = screen.getByDisplayValue('Менеджер') as HTMLSelectElement;
-    expect(roleSelect.disabled).toBe(true);
+    expect(roleSelect.disabled).toBe(false);
+    const labels = Array.from(roleSelect.options).map((o) => o.textContent);
+    expect(labels).toEqual(['Менеджер', 'Руководитель']);
+  });
+
+  it('role=leader: разжалование в «Менеджер» доступно формой (ТЗ 2026-08-17)', () => {
+    render(
+      React.createElement(UserEditForm, {
+        user: user({ role: 'leader' }),
+        partners: PARTNERS,
+        isSelf: false,
+      })
+    );
+    const roleSelect = screen.getByDisplayValue('Руководитель') as HTMLSelectElement;
+    expect(roleSelect.disabled).toBe(false);
+    const labels = Array.from(roleSelect.options).map((o) => o.textContent);
+    expect(labels).toEqual(['Руководитель', 'Менеджер']);
   });
 
   it('role=admin (fallback branch of allowedRoles): single fixed "Админ" option', () => {

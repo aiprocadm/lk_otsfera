@@ -10,6 +10,7 @@ type Partner = { id: string; name: string };
 const ROLE_LABELS_RU: Record<string, string> = {
   admin: 'Админ',
   manager: 'Менеджер',
+  leader: 'Руководитель',
   partner: 'Партнёр',
   organization: 'Организация',
   student: 'Студент',
@@ -19,7 +20,10 @@ function allowedRoles(currentRole: string): string[] {
   if (currentRole === 'partner') return ['partner', 'student'];
   if (currentRole === 'student') return ['student', 'partner'];
   if (currentRole === 'organization') return ['organization'];
-  if (currentRole === 'manager') return ['manager'];
+  // ТЗ 2026-08-17 (PR-3): назначение/разжалование руководителя — обычной
+  // сменой роли (прежний отдельный переключатель суб-роли снят).
+  if (currentRole === 'manager') return ['manager', 'leader'];
+  if (currentRole === 'leader') return ['leader', 'manager'];
   return [currentRole];
 }
 

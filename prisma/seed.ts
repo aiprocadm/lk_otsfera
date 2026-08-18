@@ -279,7 +279,7 @@ async function main() {
     await prisma.user.upsert({
       where: { email: 'leader@demo.local' },
       update: {
-        role: 'manager',
+        role: 'leader',
         managerRole: 'leader',
         isActive: true,
         passwordHash,
@@ -290,7 +290,7 @@ async function main() {
         email: 'leader@demo.local',
         name: 'Demo Leader',
         passwordHash,
-        role: 'manager',
+        role: 'leader',
         managerRole: 'leader',
         companyId: demoCompanyId,
       },
@@ -421,7 +421,7 @@ async function main() {
   );
   console.log('  - org@demo.local (organization admin, membership in firstOrg)');
   console.log('  - manager@demo.local (cabinet manager, assigned to firstOrg)');
-  console.log('  - leader@demo.local (manager-leader, company-wide)');
+  console.log('  - leader@demo.local (role=leader, company-wide)');
   console.log('  - student@demo.local (role=student, лендинг /student)');
   console.log('[seed] done');
 }

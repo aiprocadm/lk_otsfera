@@ -722,6 +722,119 @@ describe('updateUser', () => {
     });
   });
 
+  // ТЗ 2026-08-17 (PR-3): назначение/разжалование руководителя — формой роли.
+  it('manager → leader: пишет role+managerRole и БАМПАЕТ sessionVersion (ревокация токена)', async () => {
+    const before = { id: 'u1', role: 'manager' as const, isActive: true, partnerId: null, name: 'M' };
+    const detail = {
+      id: 'u1',
+      email: 'm@x',
+      name: 'M',
+      role: 'leader' as const,
+      isActive: true,
+      createdAt: new Date(),
+      partnerId: null,
+      partner: null,
+      organizationUsers: [],
+      managedOrganizations: [],
+    };
+    const txMock = {
+      user: {
+        findUnique: vi.fn().mockResolvedValueOnce(before).mockResolvedValueOnce(detail),
+        update: vi
+          .fn()
+          .mockResolvedValue({ role: 'leader', isActive: true, partnerId: null, name: 'M' }),
+        count: vi.fn(),
+      },
+      partnerUser: { deleteMany: vi.fn(), create: vi.fn() },
+      auditLog: { create: vi.fn() },
+    };
+    const prisma = {
+      $transaction: vi
+        .fn()
+        .mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)),
+    } as unknown as Parameters<typeof updateUser>[0];
+
+    const result = await updateUser(prisma, 'actor', 'u1', { role: 'leader' });
+    if (!result.ok) throw new Error('expected ok');
+    expect(txMock.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          role: 'leader',
+          managerRole: 'leader',
+          sessionVersion: { increment: 1 },
+        }),
+      })
+    );
+  });
+
+  it('leader → manager (разжалование): managerRole=null + бамп sessionVersion — company-wide гаснет сразу', async () => {
+    const before = { id: 'u1', role: 'leader' as const, isActive: true, partnerId: null, name: 'L' };
+    const detail = {
+      id: 'u1',
+      email: 'l@x',
+      name: 'L',
+      role: 'manager' as const,
+      isActive: true,
+      createdAt: new Date(),
+      partnerId: null,
+      partner: null,
+      organizationUsers: [],
+      managedOrganizations: [],
+    };
+    const txMock = {
+      user: {
+        findUnique: vi.fn().mockResolvedValueOnce(before).mockResolvedValueOnce(detail),
+        update: vi
+          .fn()
+          .mockResolvedValue({ role: 'manager', isActive: true, partnerId: null, name: 'L' }),
+        count: vi.fn(),
+      },
+      partnerUser: { deleteMany: vi.fn(), create: vi.fn() },
+      auditLog: { create: vi.fn() },
+    };
+    const prisma = {
+      $transaction: vi
+        .fn()
+        .mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)),
+    } as unknown as Parameters<typeof updateUser>[0];
+
+    const result = await updateUser(prisma, 'actor', 'u1', { role: 'manager' });
+    if (!result.ok) throw new Error('expected ok');
+    expect(txMock.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          role: 'manager',
+          managerRole: null,
+          sessionVersion: { increment: 1 },
+        }),
+      })
+    );
+  });
+
+  it('organization → leader остаётся запрещённым переходом', async () => {
+    const txMock = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'u1',
+          role: 'organization',
+          isActive: true,
+          partnerId: null,
+          name: 'O',
+        }),
+      },
+    };
+    const prisma = {
+      $transaction: vi
+        .fn()
+        .mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)),
+    } as unknown as Parameters<typeof updateUser>[0];
+
+    expect(await updateUser(prisma, 'actor', 'u1', { role: 'leader' as never })).toEqual({
+      ok: false,
+      error: 'role_transition_forbidden',
+    });
+  });
+
   it('partner → student: удаляет partnerUser, обновляет user, пишет user_role_changed, возвращает UserDetail', async () => {
     const before = {
       id: 'u1',
