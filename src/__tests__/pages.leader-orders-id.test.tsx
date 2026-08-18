@@ -100,8 +100,7 @@ import LeaderOrderDetailPage from '@/app/leader/orders/[id]/page';
 
 const SESSION = {
   sub: 'u1',
-  role: 'manager' as const,
-  managerRole: 'leader' as const,
+  role: 'leader' as const,
   companyId: 'c1',
 };
 
@@ -246,13 +245,15 @@ describe('LeaderOrderDetailPage', () => {
     getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
     getDealActivity.mockResolvedValue({ ok: true, items: [] });
     isFeatureEnabled.mockReturnValue(false);
+    // Третья строка — сам руководитель (ТЗ 2026-08-17: isLeader выводится из
+    // role='leader'). Он остаётся в кандидатах: фильтр только по isActive.
     listCompanyManagers.mockResolvedValue([
       {
         id: 'm1',
         name: 'Анна',
         email: 'anna@x.com',
         isActive: true,
-        managerRole: null,
+        isLeader: false,
         assignments: [],
       },
       {
@@ -260,7 +261,7 @@ describe('LeaderOrderDetailPage', () => {
         name: 'Борис',
         email: 'boris@x.com',
         isActive: false,
-        managerRole: null,
+        isLeader: false,
         assignments: [],
       },
       {
@@ -268,7 +269,7 @@ describe('LeaderOrderDetailPage', () => {
         name: 'Вера',
         email: 'vera@x.com',
         isActive: true,
-        managerRole: 'leader',
+        isLeader: true,
         assignments: [],
       },
     ]);

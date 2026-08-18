@@ -33,10 +33,7 @@ async function loadCompanies(prisma: PrismaClient): Promise<CompanyInfo[]> {
       id: true,
       slaResponseHours: true,
       users: {
-        where: {
-          OR: [{ role: 'leader' }, { role: 'manager', managerRole: 'leader' }],
-          isActive: true,
-        },
+        where: { role: 'leader', isActive: true },
         select: { id: true },
       },
     },

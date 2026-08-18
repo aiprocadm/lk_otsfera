@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db/prisma';
 import { openDm } from '@/lib/services/staffChat/conversations';
 
 const requireStaff = (session: Parameters<typeof requireRole>[0]) =>
-  requireRole(session, ['admin', 'manager']);
+  requireRole(session, ['admin', 'manager', 'leader']);
 
 /** Форма входа; существование/доступность собеседника проверяет сервис. */
 const dmBodySchema = z.object({

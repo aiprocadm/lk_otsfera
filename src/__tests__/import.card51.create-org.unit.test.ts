@@ -18,8 +18,7 @@ import { createOrgFromQueueRow } from '@/lib/services/import/oneCAccountCard/cre
 const ADMIN = { sub: 'u-admin', role: 'admin' } as never;
 const LEADER = {
   sub: 'u-leader',
-  role: 'manager',
-  managerRole: 'leader',
+  role: 'leader',
   companyId: 'co-1',
   managedOrgIds: [],
 } as never;
@@ -111,8 +110,7 @@ describe('права и скоуп строки', () => {
   it('руководитель без companyId (скоуп orgs) → forbidden', async () => {
     const leaderNoCompany = {
       sub: 'l2',
-      role: 'manager',
-      managerRole: 'leader',
+      role: 'leader',
       companyId: null,
       managedOrgIds: [],
     } as never;

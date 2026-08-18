@@ -62,12 +62,12 @@ describe('ролевая модель — снимок (PR-0 «шумящие с
 
   it('protectedPrefixes: точный снимок «префикс → роли»', () => {
     // Р-Л-3 («играющий тренер»): '/manager' пускает обе роли контура.
-    // '/leader' до PR-4 тоже обе: старые токены руководителя несут 'manager'
-    // (суб-роль бьёт серверный гард layout). PR-4 сузит '/leader' до ['leader'].
+    // '/leader' после снятия лесов (PR-4) — строго ['leader']: переходных
+    // токенов с role='manager' у руководителя больше не существует.
     expect(protectedPrefixes).toEqual({
       '/admin': ['admin'],
       '/manager': ['manager', 'leader'],
-      '/leader': ['manager', 'leader'],
+      '/leader': ['leader'],
       '/partner': ['partner'],
       '/organization': ['organization'],
       '/student': ['student', 'organization', 'admin', 'manager', 'leader'],
@@ -86,11 +86,12 @@ describe('ролевая модель — снимок (PR-0 «шумящие с
     expect(Object.keys(MOBILE_TABS).sort()).toEqual(expected);
   });
 
-  it('middleware понимает ОБЕ модели руководителя (вторая половина уйдёт в PR-4)', () => {
+  it('middleware решает по роли, а не по суб-роли из клейма', () => {
+    // До программы дом руководителя вычислялся из клейма managerRole. Теперь
+    // роль говорит сама за себя; возврат чтения клейма = возврат старой модели.
     const src = readFileSync(join(SRC, 'middleware.ts'), 'utf8');
-    expect(src).toContain("role === 'leader' ||");
-    // Переходная пара: старые токены живут 7 дней после миграции данных (PR-3).
-    expect(src).toContain(".managerRole === 'leader'");
+    expect(src).toContain("role === 'leader'");
+    expect(src, 'middleware снова читает суб-роль из клейма').not.toContain('managerRole');
   });
 
   it('buildSessionClaims: контур менеджера — одна ветка на обе роли', () => {
@@ -116,13 +117,11 @@ describe('ролевая модель — снимок (PR-0 «шумящие с
 
 describe('инвентарь «это менеджер?» — по файлам (Р-Л-4)', () => {
   it("Prisma-литералы role: 'manager' — точный инвентарь", () => {
-    // PR-2 разобрал контур-выборки в `role: { in: ['manager','leader'] }`.
-    // Осталось три ОСОЗНАННЫХ литерала:
-    //  - manager/invite.ts — data-литерал: приглашение всегда создаёт РЯДОВОГО
-    //    менеджера (шаблон 2 Р-Л-4), руководителя назначает админ отдельно;
-    //  - оба воркера — литерал живёт ВНУТРИ OR обеих моделей руководителя
-    //    ({role:'leader'} ∨ {role:'manager', managerRole:'leader'}); вторая
-    //    половина снимается PR-4 вместе с колонкой managerRole.
+    // PR-2 разобрал контур-выборки в `role: { in: ['manager','leader'] }`,
+    // PR-4 перевёл оба воркера на прямой `role: 'leader'`. Остался ОДИН
+    // осознанный литерал: manager/invite.ts — data-литерал, приглашение всегда
+    // создаёт РЯДОВОГО менеджера (шаблон 2 Р-Л-4), руководителя назначает
+    // админ отдельно формой роли.
     const inventory: Record<string, number> = {};
     for (const f of prodFiles()) {
       const n = countMatches(readFileSync(f, 'utf8'), /role: 'manager'/g);
@@ -130,8 +129,6 @@ describe('инвентарь «это менеджер?» — по файлам 
     }
     expect(inventory).toEqual({
       'lib/services/manager/invite.ts': 1,
-      'worker/processors/certificate-expiry.ts': 1,
-      'worker/processors/sla-escalation.ts': 1,
     });
   });
 
@@ -163,5 +160,55 @@ describe('инвентарь «это менеджер?» — по файлам 
         "role === 'leader'"
       );
     }
+  });
+});
+
+// ─── Леса сняты: суб-роль managerRole не может вернуться (PR-4) ──────────────
+
+describe('суб-роль managerRole удалена окончательно', () => {
+  /**
+   * Главный инвариант финального PR программы: руководитель — top-level роль,
+   * а не пометка на менеджере. Пока колонка/клейм существовали, каждое новое
+   * правило рисковало снова разъехаться между двумя моделями (ровно из-за
+   * этого затевалась программа). Страж ловит возврат ЛЮБОЙ из трёх форм:
+   * колонка в схеме, клейм/поле в коде, обращение к нему.
+   *
+   * Слово `managerRole` в историческом комментарии допустимо — тест смотрит
+   * только на код: объявление ключа (`managerRole:`) и обращение (`.managerRole`).
+   */
+  const CODE_USE = /(^|[^\w.])managerRole\s*[:?]|\.managerRole\b/;
+
+  it('в схеме Prisma нет колонки managerRole', () => {
+    const schema = readFileSync(join(SRC, '..', 'prisma', 'schema.prisma'), 'utf8');
+    const declared = schema
+      .split('\n')
+      .filter((l) => /^\s*managerRole\s+/.test(l))
+      .map((l) => l.trim());
+    expect(declared, 'колонка managerRole вернулась в schema.prisma').toEqual([]);
+  });
+
+  it('боевой код нигде не объявляет и не читает managerRole', () => {
+    // Единственное исключение — словарь русских подписей журнала аудита:
+    // записи AuditLog с полем managerRole остались в базе навсегда, и без
+    // подписи журнал показывал бы машинный ключ. Это данные, не модель.
+    const ALLOWED = new Set(['lib/audit/labels.ts']);
+    const offenders: string[] = [];
+    for (const f of prodFiles()) {
+      const rel = relative(SRC, f).split(sep).join('/');
+      if (ALLOWED.has(rel)) continue;
+      const lines = readFileSync(f, 'utf8').split('\n');
+      for (const [i, line] of lines.entries()) {
+        const t = line.trim();
+        // комментарии с историей — не нарушение
+        if (t.startsWith('*') || t.startsWith('//') || t.startsWith('/*')) continue;
+        if (CODE_USE.test(line)) offenders.push(`${relative(SRC, f).split(sep).join('/')}:${i + 1}`);
+      }
+    }
+    expect(offenders, 'суб-роль managerRole вернулась в код').toEqual([]);
+  });
+
+  it('isManagerLeader смотрит ровно на роль (без второй половины условия)', () => {
+    const src = readFileSync(join(SRC, 'lib', 'auth', 'roleModel.ts'), 'utf8');
+    expect(src).toContain("return session.role === 'leader';");
   });
 });

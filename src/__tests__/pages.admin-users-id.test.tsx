@@ -51,7 +51,6 @@ const USER = {
   name: 'Иван Иванов',
   email: 'ivan@x.com',
   role: 'manager',
-  managerRole: 'member',
 };
 
 describe('EditUserPage', () => {

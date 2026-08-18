@@ -69,7 +69,7 @@ import AdminRequisitesPage from '@/app/admin/settings/catalogs/requisites/page';
 import AdminFeatureFlagsPage from '@/app/admin/settings/system/feature-flags/page';
 
 const ADMIN = { sub: 'a1', role: 'admin' as const };
-const LEADER = { sub: 'l1', role: 'manager' as const, managerRole: 'leader' as const };
+const LEADER = { sub: 'l1', role: 'leader' as const };
 
 beforeEach(() => {
   requireSettingsSection

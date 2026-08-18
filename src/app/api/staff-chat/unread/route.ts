@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { staffUnreadCount } from '@/lib/services/staffChat/conversations';
 
 const requireStaff = (session: Parameters<typeof requireRole>[0]) =>
-  requireRole(session, ['admin', 'manager']);
+  requireRole(session, ['admin', 'manager', 'leader']);
 
 export const GET = withAuth({ feature: 'staff_chat', guard: requireStaff }, async ({ session }) => {
   const result = await staffUnreadCount(prisma, session);

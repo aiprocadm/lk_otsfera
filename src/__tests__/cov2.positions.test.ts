@@ -70,7 +70,7 @@ vi.mock('@/lib/services/tasks/columns', () => ({
 import { createFunnelStageAction } from '@/server-actions/funnel';
 import { createTaskColumnAction } from '@/server-actions/tasks';
 
-const SESSION = { sub: 'u1', role: 'manager', managerRole: 'leader', companyId: 'co-A' };
+const SESSION = { sub: 'u1', role: 'leader', companyId: 'co-A' };
 
 beforeEach(() => {
   vi.clearAllMocks();

@@ -1,14 +1,14 @@
 /**
  * §11 ТЗ v0.5 — роли для видимости и права правки настраиваемого поля.
  *
- * Это НЕ `Role` из jwt.ts: руководитель там не отдельная роль, а суб-роль
- * менеджера (`managerRole='leader'`, §4 CLAUDE.md). Для настройки полей
- * заказчику нужно различать менеджера и руководителя, поэтому здесь свой
- * плоский список из пяти значений. Слушателя нет: у него нет карточек (§14 ТЗ).
+ * Это НЕ `Role` из jwt.ts: набор значений свой (плоский список из пяти),
+ * потому что заказчику для настройки полей нужно различать менеджера и
+ * руководителя, а слушателя в списке нет вовсе — у него нет карточек (§14 ТЗ).
+ * Значения хранятся в БД (`visibleToRoles`/`editableByRoles`), поэтому список
+ * стабилен и не следует за изменениями `Role` автоматически.
  */
 
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { isManagerLeader } from '@/lib/auth/managerPolicy';
 
 export const CUSTOM_FIELD_ROLES = [
   'admin',
@@ -56,8 +56,8 @@ export function sanitizeRoles(values: string[] | undefined | null): CustomFieldR
 /**
  * Роль сессии в терминах настраиваемых полей.
  *
- * Руководитель приходит как role='manager' + managerRole='leader', поэтому
- * разворачиваем его в отдельное значение. Слушатель к полям не допускается.
+ * Руководитель — самостоятельная роль (ТЗ 2026-08-17). Слушатель к полям не
+ * допускается.
  */
 export function sessionFieldRole(session: SessionPayload): CustomFieldRole | null {
   switch (session.role) {
@@ -66,7 +66,7 @@ export function sessionFieldRole(session: SessionPayload): CustomFieldRole | nul
     case 'leader':
       return 'leader';
     case 'manager':
-      return isManagerLeader(session) ? 'leader' : 'manager';
+      return 'manager';
     case 'partner':
       return 'partner';
     case 'organization':

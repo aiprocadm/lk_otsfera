@@ -34,13 +34,9 @@ function session(role: string, extra: Partial<SessionPayload> = {}): SessionPayl
 }
 
 describe('roles — роль сессии', () => {
-  it('руководитель разворачивается из суб-роли менеджера', () => {
-    expect(sessionFieldRole(session('manager', { managerRole: 'leader' }))).toBe('leader');
-    expect(sessionFieldRole(session('manager'))).toBe('manager');
-  });
-
-  it('top-level роль leader (ТЗ 2026-08-17) даёт то же значение, что старая пара', () => {
+  it('роль leader и рядовой менеджер разводятся по разным значениям', () => {
     expect(sessionFieldRole(session('leader'))).toBe('leader');
+    expect(sessionFieldRole(session('manager'))).toBe('manager');
   });
 
   it('клиентские роли и админ — как есть', () => {

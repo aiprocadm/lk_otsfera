@@ -7,8 +7,9 @@ import {
 } from '@/lib/services/import/oneCAccountCard/resolve-picker';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
-// Regression for the C8 broken-tenant-isolation finding: a manager-leader
-// (role='manager' + managerRole='leader') must be bounded to their OWN company
+// Regression for the C8 broken-tenant-isolation finding: a leader
+// (top-level role='leader'; before ТЗ 2026-08-17 it was the transitional pair
+// role='manager' + managerRole='leader') must be bounded to their OWN company
 // for the 1C account-card payment import, exactly like every other manager
 // primitive (managerPolicy.companyWideOrderFilter / isLeaderSameCompany /
 // managerOrgScope). Only admin is cross-company unscoped (Model A). The prior
@@ -17,8 +18,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 // Company-B's orgs via the resolve pickers.
 const leaderA = {
   sub: 'L',
-  role: 'manager',
-  managerRole: 'leader',
+  role: 'leader',
   companyId: 'companyA',
   managedOrgIds: [],
 } as unknown as SessionPayload;

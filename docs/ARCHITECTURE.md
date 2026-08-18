@@ -74,9 +74,13 @@ flowchart TD
 
 ## 4. Роли и границы видимости
 
-Роль лежит в `User.role` (enum: admin, manager, partner, organization,
-student); «руководитель» — это `role=manager` + `managerRole='leader'`.
-Маршрутные префиксы — в [src/lib/auth/access.ts](../src/lib/auth/access.ts).
+Роль лежит в `User.role` (enum: admin, manager, **leader**, partner,
+organization, student). Руководитель — самостоятельная роль с 18.08.2026
+(программа [ТЗ 2026-08-17](tz/2026-08-17-tz-leader-role.md); прежняя суб-роль
+`User.managerRole` снята вместе с колонкой). Предикаты контура —
+`isManagerLeader` / `isStaffManagerSide` в
+[src/lib/auth/roleModel.ts](../src/lib/auth/roleModel.ts); маршрутные
+префиксы — в [src/lib/auth/access.ts](../src/lib/auth/access.ts).
 
 | Роль | Кабинет | Граница видимости |
 |---|---|---|

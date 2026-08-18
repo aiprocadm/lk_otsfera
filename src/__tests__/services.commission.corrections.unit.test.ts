@@ -49,8 +49,7 @@ function refundRow(over: any = {}) {
 
 const adminSession = { role: 'admin', sub: 'u-admin', companyId: null } as any;
 const leaderSession = {
-  role: 'manager',
-  managerRole: 'leader',
+  role: 'leader',
   sub: 'u-leader',
   companyId: 'co-1',
 } as any;

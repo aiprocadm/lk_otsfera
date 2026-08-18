@@ -38,8 +38,7 @@ vi.mock('@/components/access/role-editor', () => ({
 
 const SESSION = {
   sub: 'u1',
-  role: 'manager' as const,
-  managerRole: 'leader' as const,
+  role: 'leader' as const,
   companyId: 'c1',
 };
 

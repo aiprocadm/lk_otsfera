@@ -65,9 +65,9 @@ export default async function LeaderLayout({ children }: { children: ReactNode }
       }
       headerRight={
         <>
-          {/* role='manager': leader — это manager с managerRole=leader,
-              notifications-scope у него менеджерский
-              (см. src/lib/services/notifications/scope.ts). */}
+          {/* role="manager" намеренно: notifications-scope и deep-link'и
+              руководителя — менеджерские (лидер-веток там нет; см.
+              src/lib/services/notifications/scope.ts, notifications/href.ts). */}
           <NotificationBell role="manager" />
           <LogoutButton />
         </>

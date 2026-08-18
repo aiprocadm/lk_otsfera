@@ -280,7 +280,6 @@ async function main() {
       where: { email: 'leader@demo.local' },
       update: {
         role: 'leader',
-        managerRole: 'leader',
         isActive: true,
         passwordHash,
         name: 'Demo Leader',
@@ -291,7 +290,6 @@ async function main() {
         name: 'Demo Leader',
         passwordHash,
         role: 'leader',
-        managerRole: 'leader',
         companyId: demoCompanyId,
       },
     });

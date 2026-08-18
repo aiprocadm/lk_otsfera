@@ -86,15 +86,13 @@ const managerA = (): SessionPayload =>
 const leaderA = (): SessionPayload =>
   ({
     sub: 'l1',
-    role: 'manager',
-    managerRole: 'leader',
+    role: 'leader',
     companyId: 'co-A',
   }) as unknown as SessionPayload;
 const plainA = (): SessionPayload =>
   ({
     sub: 'p1',
     role: 'manager',
-    managerRole: null,
     companyId: 'co-A',
   }) as unknown as SessionPayload;
 const adminA = (): SessionPayload =>

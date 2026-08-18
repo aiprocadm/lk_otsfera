@@ -17,6 +17,8 @@ import {
 
 const D = (v: Prisma.Decimal.Value) => new Prisma.Decimal(v);
 
+// Актёр-сотрудник, проходящий гард аналитики. Это admin (Model A, §4 CLAUDE.md);
+// отдельный кейс с role='leader' — в тестах upsertSalesTarget ниже.
 const leaderSession = { sub: 'leader1', role: 'admin', companyId: 'c1' } as never;
 
 function fakePrisma(over: Record<string, unknown> = {}) {
@@ -169,7 +171,6 @@ describe('getFunnelAnalytics', () => {
         name: 'Иванов',
         email: 'i@x.ru',
         isActive: true,
-        managerRole: null,
         assignments: [],
       },
       {
@@ -177,7 +178,6 @@ describe('getFunnelAnalytics', () => {
         name: 'Петров',
         email: 'p@x.ru',
         isActive: true,
-        managerRole: null,
         assignments: [],
       },
       {
@@ -185,7 +185,6 @@ describe('getFunnelAnalytics', () => {
         name: 'Сидоров',
         email: 's@x.ru',
         isActive: true,
-        managerRole: null,
         assignments: [],
       },
     ]);
@@ -264,7 +263,6 @@ describe('getFunnelAnalytics', () => {
         name: 'Иванов',
         email: 'i@x.ru',
         isActive: true,
-        managerRole: null,
         assignments: [],
       },
     ]);
@@ -347,7 +345,6 @@ describe('getPlanFact', () => {
         name: 'Иванов',
         email: 'i@x.ru',
         isActive: true,
-        managerRole: null,
         assignments: [],
       },
       {
@@ -355,7 +352,6 @@ describe('getPlanFact', () => {
         name: 'Петров',
         email: 'p@x.ru',
         isActive: true,
-        managerRole: null,
         assignments: [],
       },
       {
@@ -363,7 +359,6 @@ describe('getPlanFact', () => {
         name: 'Сидоров',
         email: 's@x.ru',
         isActive: true,
-        managerRole: null,
         assignments: [],
       },
     ]);
@@ -451,7 +446,6 @@ describe('getPlanFact', () => {
         name: 'Иванов',
         email: 'i@x.ru',
         isActive: true,
-        managerRole: null,
         assignments: [],
       },
     ]);
@@ -498,7 +492,6 @@ describe('getPlanFact', () => {
         name: 'Иванов',
         email: 'i@x.ru',
         isActive: true,
-        managerRole: null,
         assignments: [],
       },
       {
@@ -506,7 +499,6 @@ describe('getPlanFact', () => {
         name: 'Петров',
         email: 'p@x.ru',
         isActive: true,
-        managerRole: null,
         assignments: [],
       },
     ]);
@@ -552,7 +544,6 @@ describe('getPlanFact', () => {
         name: 'Иванов',
         email: 'i@x.ru',
         isActive: true,
-        managerRole: null,
         assignments: [],
       },
     ]);
@@ -575,8 +566,10 @@ describe('getPlanFact', () => {
 describe('upsertSalesTarget', () => {
   const args = { managerId: 'm1', year: 2026, month: 7, targetAmount: '1500' as string | null };
 
-  it('manager without managerRole=leader → forbidden', async () => {
-    const session = { sub: 'u1', role: 'manager', companyId: 'c1', managerRole: null } as never;
+  // ТЗ 2026-08-17: руководитель — это top-level роль 'leader'; рядовой менеджер
+  // ('manager') планы не правит.
+  it("рядовой manager (role='manager') → forbidden", async () => {
+    const session = { sub: 'u1', role: 'manager', companyId: 'c1' } as never;
     const res = await upsertSalesTarget(fakePrisma(), session, args);
     expect(res).toEqual({ ok: false, error: 'forbidden' });
   });
@@ -633,12 +626,11 @@ describe('upsertSalesTarget', () => {
     );
   });
 
-  it('leader manager (managerRole=leader) → ok', async () => {
+  it("руководитель (role='leader') → ok", async () => {
     const session = {
       sub: 'leader2',
-      role: 'manager',
+      role: 'leader',
       companyId: 'c1',
-      managerRole: 'leader',
     } as never;
     const user = {
       findUnique: vi.fn().mockResolvedValue({ id: 'm1', role: 'manager', companyId: 'c1' }),

@@ -1,5 +1,7 @@
 # Runbook — staged rollout кабинетов Organization + Manager (C7)
 
+> **С 18.08.2026 руководитель — самостоятельная роль `leader`** (программа [ТЗ 2026-08-17](tz/2026-08-17-tz-leader-role.md)): колонка `User.managerRole` снята, назначение и разжалование делаются обычной формой роли в карточке пользователя. Ниже по тексту `managerRole='leader'` читайте как «роль `leader`», `managerRole=null` — как «роль `manager`».
+
 **Owner**: тех.лид Промтехносфера (флип флагов) + QA (smoke) + ops (наблюдение)
 **Scope**: feature-флаги `organization_cabinet` и `manager_cabinet` — оба **opt-in**, в prod **OFF**.
 **Roadmap**: пункт **C7** «Staged rollout кабинетов org+manager» в [completion-roadmap §C7](superpowers/specs/2026-06-02-completion-roadmap.md). Последний гейт перед «проект готов».

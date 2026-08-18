@@ -69,7 +69,8 @@ describe('listIncomingComments', () => {
     const p = { comment: { findMany }, company: { findUnique: vi.fn() } } as never;
     await listIncomingComments(p, { session: SESSION, withOutgoing: true });
     const where = findMany.mock.calls[0][0].where;
-    expect(where.author).toEqual({ role: { in: ['organization', 'manager'] } });
+    // Ответ руководителя — тоже исходящее сообщение команды (ТЗ 2026-08-17).
+    expect(where.author).toEqual({ role: { in: ['organization', 'manager', 'leader'] } });
   });
 
   it('uses default 30-day since when not provided', async () => {

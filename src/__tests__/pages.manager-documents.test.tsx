@@ -44,7 +44,6 @@ vi.mock('@/components/manager/manager-order-less-upload-form', () => ({
 const SESSION = {
   sub: 'u1',
   role: 'manager' as const,
-  managerRole: 'member' as const,
   companyId: 'c1',
 };
 

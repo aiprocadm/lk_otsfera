@@ -21,22 +21,19 @@ let leaderA: string, plainA: string, leaderB: string;
 const leaderASession = (): SessionPayload =>
   ({
     sub: leaderA,
-    role: 'manager',
-    managerRole: 'leader',
+    role: 'leader',
     companyId: companyA,
   }) as unknown as SessionPayload;
 const plainASession = (): SessionPayload =>
   ({
     sub: plainA,
     role: 'manager',
-    managerRole: null,
     companyId: companyA,
   }) as unknown as SessionPayload;
 const leaderBSession = (): SessionPayload =>
   ({
     sub: leaderB,
-    role: 'manager',
-    managerRole: 'leader',
+    role: 'leader',
     companyId: companyB,
   }) as unknown as SessionPayload;
 
@@ -49,8 +46,7 @@ beforeAll(async () => {
       data: {
         email: `g35la-${STAMP}@t.local`,
         name: 'LA',
-        role: 'manager',
-        managerRole: 'leader',
+        role: 'leader',
         companyId: companyA,
       },
     })
@@ -65,8 +61,7 @@ beforeAll(async () => {
       data: {
         email: `g35lb-${STAMP}@t.local`,
         name: 'LB',
-        role: 'manager',
-        managerRole: 'leader',
+        role: 'leader',
         companyId: companyB,
       },
     })

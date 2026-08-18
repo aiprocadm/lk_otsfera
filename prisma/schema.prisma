@@ -15,9 +15,8 @@ datasource db {
 enum Role {
   admin
   manager
-  // Программа «роль Руководитель» (ТЗ 2026-08-17, Р-Л-1). PR-1 только заводит
-  // значение; данные мигрируют в PR-3, когда весь код понимает обе модели
-  // (до того руководитель остаётся manager + managerRole='leader').
+  // Руководитель — самостоятельная роль (программа ТЗ 2026-08-17, закрыта
+  // PR-4: прежняя суб-роль managerRole снята вместе с колонкой).
   leader
   partner
   organization
@@ -245,7 +244,6 @@ model User {
   role                         Role                      @default(organization)
   // Этап 4 (ФТ-10.4): одноразовый welcome-блок клиентских дашбордов; null = ещё не скрыт.
   welcomeSeenAt                DateTime?
-  managerRole                  String? // null = regular manager, 'leader' = руководитель
   companyId                    String?
   company                      Company?                  @relation(fields: [companyId], references: [id])
   // Трек G1: кастомный профиль доступа (nullable; null = legacy teamMode-поведение).

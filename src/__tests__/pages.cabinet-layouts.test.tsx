@@ -143,7 +143,7 @@ describe('OrganizationLayout', () => {
 
 describe('LeaderLayout', () => {
   it('рендерит шапку руководителя; колокольчик — менеджерский (scope тот же)', async () => {
-    guards.requireManagerLeader.mockResolvedValue({ sub: 'l1', role: 'manager', email: 'l@b.c' });
+    guards.requireManagerLeader.mockResolvedValue({ sub: 'l1', role: 'leader', email: 'l@b.c' });
 
     const html = renderToString(await LeaderLayout({ children: CHILD }));
 
@@ -163,7 +163,7 @@ describe('LeaderLayout', () => {
   // которого больше нет): ТЗ 2026-08-04 §5.2 — нет доступа ни к одному разделу,
   // нет и пункта «Настройки».
   it('оставляет «Настройки», когда доступен хотя бы один раздел', async () => {
-    const session = { sub: 'l1', role: 'manager', managerRole: 'leader' };
+    const session = { sub: 'l1', role: 'leader' };
     guards.requireManagerLeader.mockResolvedValue(session);
     hasAnySettingsAccess.mockReturnValue(true);
 
@@ -177,8 +177,7 @@ describe('LeaderLayout', () => {
   it('убирает «Настройки», когда не доступен ни один раздел (остальное меню цело)', async () => {
     guards.requireManagerLeader.mockResolvedValue({
       sub: 'l1',
-      role: 'manager',
-      managerRole: 'leader',
+      role: 'leader',
     });
     hasAnySettingsAccess.mockReturnValue(false);
 

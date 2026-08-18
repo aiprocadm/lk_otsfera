@@ -33,7 +33,8 @@ import { taskFiltersWhere } from '@/lib/services/tasks/board';
  *                          который для лидов — пустой where без company-floor).
  *  - задачи:               нет профиля ⇔ company-wide ('all' с company-floor).
  *  - can('see_commission'): нет профиля ⇔ старое leader-правило
- *                          (admin ∨ (manager ∧ managerRole='leader')).
+ *                          (admin ∨ role='leader'; до ТЗ 2026-08-17 руководитель
+ *                          изображался парой manager + managerRole='leader').
  * Разворот любой «нет профиля»-ветки в сторону расширения или сужения
  * видимости роняет этот тест (см. мутационную проверку фазы 6).
  */
@@ -196,7 +197,7 @@ describe('Инвариант: без профиля задачи — company-wid
 describe("Инвариант: без профиля can('see_commission') == leader-правило", () => {
   it('admin → true; manager-leader → true; рядовой manager → false; клиентские роли → false', () => {
     expect(can(session({ role: 'admin' }), 'see_commission')).toBe(true);
-    expect(can(session({ managerRole: 'leader' }), 'see_commission')).toBe(true);
+    expect(can(session({ role: 'leader' }), 'see_commission')).toBe(true);
     expect(can(session(), 'see_commission')).toBe(false);
     expect(can(session({ role: 'partner' }), 'see_commission')).toBe(false);
     expect(can(session({ role: 'organization' }), 'see_commission')).toBe(false);
@@ -211,7 +212,7 @@ describe("Инвариант: без профиля can('see_commission') == lea
       'manage_users',
       'assign_orders',
     ] as const) {
-      expect(can(session({ managerRole: 'leader' }), cap)).toBe(false);
+      expect(can(session({ role: 'leader' }), cap)).toBe(false);
       expect(can(session(), cap)).toBe(false);
       expect(can(session({ role: 'admin' }), cap)).toBe(true);
     }

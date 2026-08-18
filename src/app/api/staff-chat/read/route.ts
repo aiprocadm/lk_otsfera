@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db/prisma';
 import { markStaffRead } from '@/lib/services/staffChat/conversations';
 
 const requireStaff = (session: Parameters<typeof requireRole>[0]) =>
-  requireRole(session, ['admin', 'manager']);
+  requireRole(session, ['admin', 'manager', 'leader']);
 
 /** Форма входа; доступ к разговору проверяет сервис. */
 const readBodySchema = z.object({

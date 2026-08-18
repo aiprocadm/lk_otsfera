@@ -49,8 +49,7 @@ import { GET as orgPaymentsExport } from '@/app/api/manager/organizations/[id]/p
 const managerSession = { sub: 'm1', role: 'manager', companyId: 'c1' } as never;
 const leaderSession = {
   sub: 'l1',
-  role: 'manager',
-  managerRole: 'leader',
+  role: 'leader',
   companyId: 'c1',
 } as never;
 const orgSession = { sub: 'o1', role: 'organization' } as never;

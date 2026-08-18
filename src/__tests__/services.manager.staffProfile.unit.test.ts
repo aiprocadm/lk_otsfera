@@ -10,8 +10,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 const SESSION: SessionPayload = {
   sub: 'u1',
   role: 'manager',
-  // Обычный менеджер = отсутствие под-роли; 'leader' — единственное значение ManagerRole.
-  managerRole: null,
+  // Руководитель — отдельная роль 'leader' (ТЗ 2026-08-17), суб-роли больше нет.
   companyId: 'co-1',
 };
 

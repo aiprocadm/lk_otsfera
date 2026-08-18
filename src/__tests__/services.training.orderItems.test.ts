@@ -11,7 +11,7 @@ vi.mock('@/lib/pii/record', () => ({ recordPiiAccess }));
 import { listOrderItems, addOrderItem, updateItemStatus } from '@/lib/services/training/orderItems';
 
 function session(role: string) {
-  return { sub: 'u1', role, managerRole: null, companyId: 'c1' } as any;
+  return { sub: 'u1', role, companyId: 'c1' } as any;
 }
 
 const prisma = {

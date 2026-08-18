@@ -55,8 +55,11 @@ export async function listIncomingComments(
     ? orderWhereForLevel(opts.session, opts.session.accessProfile.threads)
     : managerOrderScope(opts.session, teamMode);
 
+  // withOutgoing = «показать и наши ответы»: автором ответа может быть любой
+  // сотрудник менеджерского контура, включая руководителя (ТЗ 2026-08-17 — до
+  // выделения роли он писал как manager и попадал в ленту сам собой).
   const authorWhere: Prisma.UserWhereInput = opts.withOutgoing
-    ? { role: { in: ['organization', 'manager'] } }
+    ? { role: { in: ['organization', 'manager', 'leader'] } }
     : { role: 'organization' };
 
   const rows = await prisma.comment.findMany({

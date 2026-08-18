@@ -47,7 +47,6 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const SESSION = {
   sub: 'u1',
   role: 'manager' as const,
-  managerRole: 'member' as const,
   companyId: 'c1',
 };
 

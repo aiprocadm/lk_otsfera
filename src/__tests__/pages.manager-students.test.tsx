@@ -21,7 +21,6 @@ import ManagerStudentsPage from '@/app/manager/students/page';
 const SESSION = {
   sub: 'u1',
   role: 'manager' as const,
-  managerRole: 'member' as const,
   companyId: 'c1',
 };
 

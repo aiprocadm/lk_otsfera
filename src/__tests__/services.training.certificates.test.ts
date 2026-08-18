@@ -16,7 +16,7 @@ import {
 } from '@/lib/services/training/certificates';
 
 function session(role: string, extra: Record<string, unknown> = {}) {
-  return { sub: 'u1', role, managerRole: null, companyId: 'c1', ...extra } as any;
+  return { sub: 'u1', role, companyId: 'c1', ...extra } as any;
 }
 
 const prisma = {

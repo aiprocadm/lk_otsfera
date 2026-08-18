@@ -66,13 +66,11 @@ import LeaderDealsPage from '@/app/leader/deals/page';
 const MANAGER_SESSION = {
   sub: 'u1',
   role: 'manager' as const,
-  managerRole: 'member' as const,
   companyId: 'c1',
 };
 const LEADER_SESSION = {
   sub: 'u2',
-  role: 'manager' as const,
-  managerRole: 'leader' as const,
+  role: 'leader' as const,
   companyId: 'c1',
 };
 

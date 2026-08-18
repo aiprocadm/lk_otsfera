@@ -184,12 +184,6 @@ export async function updateUser(
         data: {
           ...(args.name !== undefined ? { name: args.name } : {}),
           ...(args.role !== undefined ? { role: args.role } : {}),
-          // Переходная колонка managerRole (снимается PR-4) обязана оставаться
-          // консистентной с ролью: воркеры и стражи смотрят обе модели.
-          ...(args.role === 'leader' ? { managerRole: 'leader' } : {}),
-          ...(isRoleChange && before.role === 'leader' && args.role === 'manager'
-            ? { managerRole: null }
-            : {}),
           ...(args.partnerId !== undefined ? { partnerId: args.partnerId } : {}),
           ...(args.isActive !== undefined ? { isActive: args.isActive } : {}),
           // Смена роли меняет полномочия — старый токен (до 7 дней жизни) обязан

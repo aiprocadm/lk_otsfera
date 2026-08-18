@@ -10,14 +10,14 @@ describe('importScope', () => {
     expect(importScope(base({ role: 'admin' }))).toEqual({ kind: 'global' });
   });
   it('manager-leader → bounded to their OWN company (C8), NOT global', () => {
-    expect(importScope(base({ role: 'manager', managerRole: 'leader', companyId: 'c1' }))).toEqual({
+    expect(importScope(base({ role: 'leader', companyId: 'c1' }))).toEqual({
       kind: 'company',
       companyId: 'c1',
     });
   });
   it('manager-leader with no companyId → degrades to assigned-orgs (never global)', () => {
     const s = importScope(
-      base({ role: 'manager', managerRole: 'leader', companyId: null, managedOrgIds: ['o1'] })
+      base({ role: 'leader', companyId: null, managedOrgIds: ['o1'] })
     );
     expect(s).toEqual({ kind: 'orgs', allowedOrgIds: ['o1'] });
   });

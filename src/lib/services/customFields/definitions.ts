@@ -33,7 +33,7 @@ function isValidKey(key: string): boolean {
 
 /**
  * §4 ТЗ v0.5: «Настройка полей и статусов» — администратор И руководитель.
- * Руководитель — суб-роль менеджера (`managerRole='leader'`, §4 CLAUDE.md),
+ * Руководитель — самостоятельная роль `leader` (ТЗ 2026-08-17),
  * поэтому проверяется не top-level Role, а `isManagerLeader`.
  * Обычный менеджер — forbidden.
  */

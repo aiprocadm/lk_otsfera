@@ -55,7 +55,6 @@ vi.mock('@/components/staff-chat/staff-unread-badge', () => ({
 const SESSION = {
   sub: 'u1',
   role: 'manager' as const,
-  managerRole: 'member' as const,
   companyId: 'c1',
 };
 

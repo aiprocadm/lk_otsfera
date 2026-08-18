@@ -45,7 +45,6 @@ vi.mock('@/components/manager/manager-events-feed', () => ({
 const SESSION = {
   sub: 'u1',
   role: 'manager' as const,
-  managerRole: 'member' as const,
   companyId: 'c1',
 };
 

@@ -12,7 +12,7 @@ export async function GET() {
   if (!sessionResult.ok) return sessionResult.response;
   const session = sessionResult.value;
 
-  const roleResult = requireRole(session, ['admin', 'manager']);
+  const roleResult = requireRole(session, ['admin', 'manager', 'leader']);
   if (!roleResult.ok) return roleResult.response;
 
   const badges = await getStaffBadges(prisma, session);

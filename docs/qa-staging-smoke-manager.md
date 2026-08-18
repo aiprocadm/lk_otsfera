@@ -1,5 +1,7 @@
 # Stage-2 staging smoke — Manager cabinet (Phase 8 + C8)
 
+> **С 18.08.2026 руководитель — самостоятельная роль `leader`** (программа [ТЗ 2026-08-17](tz/2026-08-17-tz-leader-role.md)): колонка `User.managerRole` снята, назначение и разжалование делаются обычной формой роли в карточке пользователя. Ниже по тексту `managerRole='leader'` читайте как «роль `leader`», `managerRole=null` — как «роль `manager`».
+
 **Owner**: QA + Промтехносфера team
 **Trigger**: после merge Phase 8 + C8 в `main` со скрытым флагом (Stage-1 done).
 **Goal**: подтвердить, что кабинет `/manager/*` под `FEATURE_MANAGER_CABINET=1` корректно работает на staging: визуально, по данным, по **RBAC-скоупу (включая C8 company-wide и cross-company изоляцию)**, по интеграциям (S3 object storage, Resend, ClamAV, BullMQ-worker).

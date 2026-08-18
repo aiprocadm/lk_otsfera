@@ -32,8 +32,21 @@ function admin(over: Partial<SessionPayload> = {}): SessionPayload {
 function leader(over: Partial<SessionPayload> = {}): SessionPayload {
   return {
     sub: 'm1',
+    role: 'leader',
+    companyId: 'co-1',
+    managedOrgIds: [],
+    ...over,
+  } as unknown as SessionPayload;
+}
+/**
+ * Рядовой менеджер — отдельная top-level роль `manager` (ТЗ 2026-08-17, PR-4:
+ * колонка `managerRole` снята, «руководитель» = role 'leader'). Раньше тот же
+ * случай изображался как leader-сессия с `managerRole: null`.
+ */
+function manager(over: Partial<SessionPayload> = {}): SessionPayload {
+  return {
+    sub: 'm2',
     role: 'manager',
-    managerRole: 'leader',
     companyId: 'co-1',
     managedOrgIds: [],
     ...over,
@@ -58,7 +71,7 @@ describe('settingsCabinetFor', () => {
   it('admin → админский хаб, руководитель → свой, обычный менеджер → никакой', () => {
     expect(settingsCabinetFor(admin())).toBe('admin');
     expect(settingsCabinetFor(leader())).toBe('leader');
-    expect(settingsCabinetFor(leader({ managerRole: null } as never))).toBeNull();
+    expect(settingsCabinetFor(manager())).toBeNull();
     expect(settingsCabinetFor({ sub: 'p', role: 'partner' } as never)).toBeNull();
   });
 });
@@ -92,8 +105,8 @@ describe('canAccessSettingsSection', () => {
     expect(canAccessSettingsSection(admin(), section('access.roles'), 'leader')).toBe(false);
   });
 
-  it('обычный менеджер (без роли руководителя) не видит ничего', () => {
-    const s = leader({ managerRole: null } as never);
+  it('обычный менеджер (роль manager, не leader) не видит ничего', () => {
+    const s = manager();
     expect(canAccessSettingsSection(s, section('catalogs.customFields'))).toBe(false);
     expect(hasAnySettingsAccess(s, 'leader')).toBe(false);
   });

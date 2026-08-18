@@ -325,8 +325,7 @@ describe('очередь триажа: manager / leader / admin', () => {
       guard: auth.requireManagerLeader,
       session: {
         sub: 'l1',
-        role: 'manager' as const,
-        managerRole: 'leader' as const,
+        role: 'leader' as const,
         companyId: 'c1',
       },
     },

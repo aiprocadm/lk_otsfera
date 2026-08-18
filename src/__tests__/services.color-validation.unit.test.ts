@@ -19,8 +19,7 @@ import { createTaskColumn, type TaskColumnInput } from '@/lib/services/tasks/col
 const leaderA = (): SessionPayload =>
   ({
     sub: 'l1',
-    role: 'manager',
-    managerRole: 'leader',
+    role: 'leader',
     companyId: 'co-A',
   }) as unknown as SessionPayload;
 

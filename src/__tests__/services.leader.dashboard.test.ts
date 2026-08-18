@@ -13,8 +13,7 @@ import { leaderDashboard } from '@/lib/services/leader/dashboard';
 const session = (over: Partial<SessionPayload> = {}): SessionPayload =>
   ({
     sub: 'leader1',
-    role: 'manager',
-    managerRole: 'leader',
+    role: 'leader',
     companyId: 'c1',
     ...over,
   }) as unknown as SessionPayload;
@@ -51,7 +50,6 @@ beforeEach(() => {
       name: 'Manager One',
       email: 'm1@x',
       isActive: true,
-      managerRole: null,
       assignments: [],
     },
     {
@@ -59,7 +57,6 @@ beforeEach(() => {
       name: 'Manager Two',
       email: 'm2@x',
       isActive: true,
-      managerRole: null,
       assignments: [],
     },
     {
@@ -67,7 +64,6 @@ beforeEach(() => {
       name: 'Manager Three',
       email: 'm3@x',
       isActive: true,
-      managerRole: null,
       assignments: [],
     },
     {
@@ -75,7 +71,6 @@ beforeEach(() => {
       name: 'Manager Four',
       email: 'm4@x',
       isActive: true,
-      managerRole: null,
       assignments: [],
     },
   ]);

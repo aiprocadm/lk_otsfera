@@ -9,16 +9,13 @@ import type { SessionPayload } from '@/lib/auth/jwt';
  */
 
 /**
- * «Это руководитель?» — понимает ОБЕ модели (Р-Л-2): новую top-level роль
- * `leader` и переходную пару `manager + managerRole='leader'` (токены живут
- * 7 дней после миграции данных в PR-3). Старая половина условия снимается
- * PR-4 вместе с колонкой `managerRole`.
+ * «Это руководитель?» — top-level роль `leader` (программа ТЗ 2026-08-17
+ * закрыта PR-4: переходная пара manager+managerRole снята вместе с колонкой,
+ * все сессии руководителей ревокнуты миграцией). Имя историческое — у
+ * предиката ~36 вызовов.
  */
 export function isManagerLeader(session: SessionPayload): boolean {
-  return (
-    session.role === 'leader' ||
-    (session.role === 'manager' && session.managerRole === 'leader')
-  );
+  return session.role === 'leader';
 }
 
 /**

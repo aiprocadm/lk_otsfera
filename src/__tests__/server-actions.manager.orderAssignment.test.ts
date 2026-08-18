@@ -28,8 +28,7 @@ import {
 const MGR = { sub: 'mgr-1', role: 'manager', managedOrgIds: [], companyId: 'co-1' };
 const LEADER = {
   sub: 'ldr-1',
-  role: 'manager',
-  managerRole: 'leader',
+  role: 'leader',
   managedOrgIds: [],
   companyId: 'co-1',
 };

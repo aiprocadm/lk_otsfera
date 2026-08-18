@@ -18,7 +18,6 @@ export type UserRow = {
 
 export type UserDetail = UserRow & {
   partnerId: string | null;
-  managerRole: string | null;
   organizationMemberships: Array<{
     organizationUserId: string;
     organizationId: string;
@@ -100,7 +99,6 @@ export async function fetchUserDetail(
     invitePending: u.passwordHash === null,
     lastLoginAt: u.lastLoginAt,
     partnerId: u.partnerId,
-    managerRole: u.managerRole ?? null,
     organizationMemberships: u.organizationUsers.map((ou) => ({
       organizationUserId: ou.id,
       organizationId: ou.organizationId,

@@ -7,7 +7,7 @@ import {
 const admin = { sub: 'a1', role: 'admin', companyId: 'c1' } as never;
 const manager = { sub: 'm1', role: 'manager', companyId: 'c1', managedOrgIds: ['orgA'] } as never;
 const managerNoOrgs = { sub: 'm2', role: 'manager', companyId: 'c1', managedOrgIds: [] } as never;
-const leader = { sub: 'l1', role: 'manager', managerRole: 'leader', companyId: 'c1' } as never;
+const leader = { sub: 'l1', role: 'leader', companyId: 'c1' } as never;
 const partner = { sub: 'p1', role: 'partner' } as never;
 
 describe('searchResolveOrgs', () => {

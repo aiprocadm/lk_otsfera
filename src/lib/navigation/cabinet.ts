@@ -29,7 +29,7 @@ export type NavItem = {
   badgeKey?: 'intake' | 'tasksOverdue' | 'clientRequestsNew' | 'messagesUnread';
 };
 
-// 'leader' — НЕ новая JWT-роль (это manager + managerRole='leader'); ключ существует только в каноне меню.
+// 'leader' — полноценная JWT-роль (ТЗ 2026-08-17); ключ канона меню совпадает с ней.
 export const navByRole: Record<Role | 'leader', NavItem[]> = {
   // /admin/orders намеренно НЕ в меню: это deprecated-redirect на дашборд (реальна только деталь /admin/orders/[id]).
   admin: [

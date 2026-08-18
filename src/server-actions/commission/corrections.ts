@@ -6,7 +6,7 @@ import { prisma } from '@/lib/db/prisma';
 import { requireSession } from '@/lib/auth/requireRole';
 import { resolveCorrection } from '@/lib/services/commission/corrections';
 
-// RBAC намеренно НЕ здесь: leader = manager + managerRole='leader' (нет top-level
+// RBAC намеренно НЕ здесь: гард живёт в сервисе (нет отдельного top-level
 // роли 'leader'), поэтому аутентифицируем requireSession() и отдаём гейт сервису —
 // resolveCorrection() сам возвращает 'forbidden' для не-admin/не-leader.
 const schema = z.object({

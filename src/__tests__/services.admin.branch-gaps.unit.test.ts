@@ -813,7 +813,6 @@ describe('admin/users/queries — computeAttachmentLabel missed arms', () => {
           partner: null,
           organizationUsers: [],
           managedOrganizations: [],
-          managerRole: null,
         }),
       },
     } as unknown as PrismaClient;
@@ -836,7 +835,6 @@ describe('admin/users/queries — computeAttachmentLabel missed arms', () => {
           partner: null,
           organizationUsers: [],
           managedOrganizations: [],
-          managerRole: null,
         }),
       },
     } as unknown as PrismaClient;

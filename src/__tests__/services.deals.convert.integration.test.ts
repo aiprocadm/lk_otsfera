@@ -24,8 +24,7 @@ let leadId: string;
 
 const leaderA = (): SessionPayload => ({
   sub: leaderAId,
-  role: 'manager',
-  managerRole: 'leader',
+  role: 'leader',
   companyId: companyA,
 });
 const mgrA = (): SessionPayload => ({ sub: mgrAId, role: 'manager', companyId: companyA });
@@ -82,8 +81,7 @@ beforeAll(async () => {
       data: {
         email: `${P}-leaderA@t.local`,
         name: 'Лидер А',
-        role: 'manager',
-        managerRole: 'leader',
+        role: 'leader',
         companyId: companyA,
       },
     })

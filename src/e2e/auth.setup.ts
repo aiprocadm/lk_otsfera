@@ -113,7 +113,7 @@ setup('authenticate as leader', async ({ page, context }) => {
   await page.locator('input[type="password"]').fill(LEADER_PASSWORD);
   await page.getByRole('button', { name: /войти|sign in|log in/i }).click();
 
-  // leader@demo.local is a manager with managerRole='leader'. With
+  // leader@demo.local carries the standalone role='leader' (ТЗ 2026-08-17). With
   // FEATURE_LEADER_CABINET=1 (set on the test dev-server), middleware routes the
   // role-home to /leader/dashboard rather than /manager/dashboard (see
   // src/middleware.ts — the leader home is flag-conditional).

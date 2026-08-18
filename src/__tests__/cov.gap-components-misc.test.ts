@@ -17,7 +17,7 @@ import { render } from '@testing-library/react';
 import { renderServerComponent } from './helpers/renderServerComponent';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
-const LEADER: SessionPayload = { sub: 'l1', role: 'manager', managerRole: 'leader' };
+const LEADER: SessionPayload = { sub: 'l1', role: 'leader' };
 
 // --- страница «Личная безопасность» руководителя ---
 const { requireSettingsSection } = vi.hoisted(() => ({ requireSettingsSection: vi.fn() }));

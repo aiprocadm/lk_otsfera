@@ -35,8 +35,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 
 const leaderA = {
   sub: 'L',
-  role: 'manager',
-  managerRole: 'leader',
+  role: 'leader',
   companyId: 'companyA',
   managedOrgIds: [],
 } as unknown as SessionPayload;

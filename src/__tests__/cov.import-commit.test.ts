@@ -310,9 +310,11 @@ describe('previewPaymentImport (cov)', () => {
     });
     expect(passed).toEqual({ ok: false, error: 'parse_failed' });
     // Руководитель проходит гейт; нечитаемый буфер → parse_failed.
+    // ТЗ 2026-08-17 (PR-4): руководитель — top-level роль 'leader',
+    // прежняя пара manager + managerRole='leader' снята вместе с колонкой.
     const leader = {
       ...(managerInCompany as object),
-      managerRole: 'leader',
+      role: 'leader',
     } as never;
     const res = await previewPaymentImport(prisma, leader, {
       fileBuffer: Buffer.from('not a spreadsheet'),

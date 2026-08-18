@@ -81,7 +81,7 @@ function managerASession(): SessionPayload {
 
 /** Руководитель компании A — leader-инвариант C8 не расширяет за компанию. */
 function leaderASession(): SessionPayload {
-  return { ...managerASession(), managerRole: 'leader' } as SessionPayload;
+  return { ...managerASession(), role: 'leader' } as SessionPayload;
 }
 
 async function setTeamVisibility(on: boolean) {

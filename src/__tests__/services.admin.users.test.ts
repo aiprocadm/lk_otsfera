@@ -723,7 +723,7 @@ describe('updateUser', () => {
   });
 
   // ТЗ 2026-08-17 (PR-3): назначение/разжалование руководителя — формой роли.
-  it('manager → leader: пишет role+managerRole и БАМПАЕТ sessionVersion (ревокация токена)', async () => {
+  it('manager → leader: пишет role=leader и БАМПАЕТ sessionVersion (ревокация токена)', async () => {
     const before = { id: 'u1', role: 'manager' as const, isActive: true, partnerId: null, name: 'M' };
     const detail = {
       id: 'u1',
@@ -760,14 +760,13 @@ describe('updateUser', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           role: 'leader',
-          managerRole: 'leader',
           sessionVersion: { increment: 1 },
         }),
       })
     );
   });
 
-  it('leader → manager (разжалование): managerRole=null + бамп sessionVersion — company-wide гаснет сразу', async () => {
+  it('leader → manager (разжалование): role=manager + бамп sessionVersion — company-wide гаснет сразу', async () => {
     const before = { id: 'u1', role: 'leader' as const, isActive: true, partnerId: null, name: 'L' };
     const detail = {
       id: 'u1',
@@ -804,7 +803,6 @@ describe('updateUser', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           role: 'manager',
-          managerRole: null,
           sessionVersion: { increment: 1 },
         }),
       })
@@ -829,7 +827,7 @@ describe('updateUser', () => {
         .mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)),
     } as unknown as Parameters<typeof updateUser>[0];
 
-    expect(await updateUser(prisma, 'actor', 'u1', { role: 'leader' as never })).toEqual({
+    expect(await updateUser(prisma, 'actor', 'u1', { role: 'leader' })).toEqual({
       ok: false,
       error: 'role_transition_forbidden',
     });

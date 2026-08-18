@@ -76,7 +76,7 @@ describe('canManagerAccessOrg', () => {
  */
 describe('canManagerAccessOrg — руководитель (лидер-инвариант C8)', () => {
   const leader = (over: Partial<SessionPayload> = {}): SessionPayload =>
-    session({ managerRole: 'leader', managedOrgIds: [], ...over });
+    session({ role: 'leader', managedOrgIds: [], ...over });
 
   it('teamMode=OFF: руководитель всё равно проходит в организацию своей компании', async () => {
     const p = fakePrisma({ teamMode: false, orgCompanyId: 'co-1' });

@@ -47,16 +47,18 @@ describe('can()', () => {
   });
 
   it('no-profile leader sees commission (legacy backward-compat)', () => {
-    expect(can(mgr({ managerRole: 'leader' }), 'see_commission')).toBe(true);
+    expect(can(mgr({ role: 'leader' }), 'see_commission')).toBe(true);
   });
 
+  // Руководитель — top-level роль `leader` (ТЗ 2026-08-17, PR-4), поэтому
+  // «не руководитель» задаётся ролью `manager`, а не пустой суб-ролью.
   it('no-profile plain manager does NOT see commission (legacy backward-compat)', () => {
-    expect(can(mgr({ managerRole: null }), 'see_commission')).toBe(false);
+    expect(can(mgr(), 'see_commission')).toBe(false);
   });
 
   it('no-profile session denies non-commission capabilities', () => {
-    expect(can(mgr({ managerRole: 'leader' }), 'export')).toBe(false);
-    expect(can(mgr({ managerRole: 'leader' }), 'manage_users')).toBe(false);
+    expect(can(mgr({ role: 'leader' }), 'export')).toBe(false);
+    expect(can(mgr({ role: 'leader' }), 'manage_users')).toBe(false);
   });
 
   it('profiled: capability granted only if present (default-deny)', () => {
@@ -78,7 +80,7 @@ describe('can()', () => {
   });
 
   it('profile overrides leader: leader-built role without flag cannot see commission', () => {
-    const s = mgr({ managerRole: 'leader', accessProfile: fullProfile({ capabilities: [] }) });
+    const s = mgr({ role: 'leader', accessProfile: fullProfile({ capabilities: [] }) });
     expect(can(s, 'see_commission')).toBe(false);
   });
 });

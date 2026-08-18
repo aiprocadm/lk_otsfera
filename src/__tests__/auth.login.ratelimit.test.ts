@@ -50,7 +50,6 @@ const adminUser = {
   name: 'Admin',
   externalStudentId: null,
   passwordHash: 'hash',
-  managerRole: null,
 };
 
 beforeEach(() => {

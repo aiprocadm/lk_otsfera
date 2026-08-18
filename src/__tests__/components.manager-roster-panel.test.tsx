@@ -17,7 +17,10 @@ function makeManager(overrides: Partial<CompanyManagerRow>): CompanyManagerRow {
     id: 'm1',
     name: 'Иван Иванов',
     email: 'ivan@example.com',
-    managerRole: null,
+    isActive: true,
+    // ТЗ 2026-08-17: руководитель — самостоятельная роль; строка ростера несёт
+    // производный флаг isLeader (role === 'leader'), суб-роли managerRole нет.
+    isLeader: false,
     lastLoginAt: null,
     assignments: [
       { id: 'as1', organizationId: 'o1', organizationName: 'ООО Ромашка', isActive: true },
@@ -41,13 +44,13 @@ describe('ManagerRosterPanel (SSR structure)', () => {
   });
 
   it('leader manager: renders the "Руководитель" badge', () => {
-    const roster = [makeManager({ managerRole: 'leader' })];
+    const roster = [makeManager({ isLeader: true })];
     const html = renderToString(React.createElement(ManagerRosterPanel, { roster }));
     expect(html).toContain('Руководитель');
   });
 
   it('non-leader manager: no badge rendered', () => {
-    const roster = [makeManager({ managerRole: null })];
+    const roster = [makeManager({ isLeader: false })];
     const html = renderToString(React.createElement(ManagerRosterPanel, { roster }));
     expect(html).not.toContain('Руководитель');
   });

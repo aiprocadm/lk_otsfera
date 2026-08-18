@@ -105,7 +105,7 @@ export async function POST(req: Request) {
   // Staff 2FA (спека 2026-07-11): для сотрудников при включённом флаге сессия
   // НЕ выдаётся — вместо неё одноразовый email-код + pre-auth cookie. Ветка
   // стоит ПОСЛЕ buildSessionClaims, чтобы деактивированный аккаунт не получал
-  // письмо. leader — это manager с managerRole='leader', отдельной ветки нет.
+  // письмо. leader — самостоятельная staff-роль (ТЗ 2026-08-17).
   const isStaff = user.role === 'admin' || user.role === 'manager' || user.role === 'leader';
   if (isStaff && isFeatureEnabled('staff_2fa')) {
     const { code } = await createTwoFactorChallenge(prisma, user.id);

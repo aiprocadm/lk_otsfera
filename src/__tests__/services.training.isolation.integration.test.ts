@@ -58,7 +58,6 @@ describe('training cross-org isolation', () => {
     const session = {
       sub: 'm1',
       role: 'manager',
-      managerRole: null,
       companyId: ids.company,
       managedOrgIds: [ids.orgA],
     } as any;

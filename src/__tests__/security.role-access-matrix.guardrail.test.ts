@@ -1,16 +1,16 @@
 /**
  * Guardrail: матрица «роль × доступ».
  *
- * **Зачем.** Руководитель — не отдельная роль, а суб-роль менеджера
- * (`role='manager'` + `managerRole='leader'`, §4 CLAUDE.md). Из-за этого новое
- * правило доступа пишут «для менеджера» и про руководителя забывают. Так уже
- * было: лидер-инвариант C8 применили к заказам и не применили к организациям —
- * руководитель не мог открыть карточку организации, всплыло только через месяц
- * (PR #273).
+ * **Зачем.** Правило доступа пишут «для менеджера» и про руководителя
+ * забывают. Так уже было: лидер-инвариант C8 применили к заказам и не
+ * применили к организациям — руководитель не мог открыть карточку
+ * организации, всплыло только через месяц (PR #273).
  *
- * Заказчик 30.07.2026 рассмотрел выделение полноценной роли
- * ([спека](../../docs/superpowers/specs/2026-07-30-leader-role-extraction-design.md))
- * и выбрал вместо неё **этот тест** — дешёвую защиту от той же ошибки.
+ * Тест появился 30.07.2026 как дешёвая замена выделению роли. Роль в итоге
+ * выделена программой [ТЗ 2026-08-17](../../docs/tz/2026-08-17-tz-leader-role.md)
+ * (руководитель = `role='leader'`, суб-роль `managerRole` снята финальным
+ * PR-4), но матрица осталась и продолжает ловить ту же ошибку: теперь она
+ * фиксирует ответы предикатов уже для шести полноценных ролей.
  *
  * **Что он делает.**
  *   1. Держит ЯВНУЮ таблицу: какой предикат доступа что отвечает каждой роли,
@@ -23,7 +23,7 @@
  * Тест намеренно unit-уровня: он про правила, а не про данные.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import {
@@ -50,8 +50,7 @@ function sess(role: RoleKey, over: Partial<SessionPayload> = {}): SessionPayload
   if (role === 'leader') {
     return {
       ...base,
-      role: 'manager',
-      managerRole: 'leader',
+      role: 'leader',
       managedOrgIds: [],
       ...over,
     } as SessionPayload;
@@ -64,20 +63,6 @@ function sess(role: RoleKey, over: Partial<SessionPayload> = {}): SessionPayload
 
 const ALL_ROLES: RoleKey[] = ['admin', 'leader', 'manager', 'partner', 'organization', 'student'];
 
-/**
- * ВТОРАЯ модель руководителя (ТЗ 2026-08-17, Р-Л-1): top-level роль `leader`.
- * До PR-3 токенов с ней не существует, но инфраструктура PR-1 обязана отвечать
- * ей так же, как старой паре — эквивалентность держит describe ниже.
- */
-function newLeaderSess(over: Partial<SessionPayload> = {}): SessionPayload {
-  return {
-    sub: 'u-leader-new',
-    companyId: COMPANY,
-    role: 'leader',
-    managedOrgIds: [],
-    ...over,
-  } as SessionPayload;
-}
 
 /** Заказ чужой компании — для проверки, что граница компании держится всегда. */
 const FOREIGN_ORDER = { managerId: 'someone', organizationId: 'org-x', companyId: 'co-OTHER' };
@@ -85,7 +70,7 @@ const FOREIGN_ORDER = { managerId: 'someone', organizationId: 'org-x', companyId
 const COMPANY_ORDER = { managerId: 'someone', organizationId: 'org-9', companyId: COMPANY };
 
 describe('матрица доступа: руководитель против рядового менеджера', () => {
-  it('isManagerLeader: только суб-роль leader', () => {
+  it('isManagerLeader: только роль leader', () => {
     const actual = Object.fromEntries(ALL_ROLES.map((r) => [r, isManagerLeader(sess(r))]));
     expect(actual).toEqual({
       admin: false,
@@ -169,7 +154,9 @@ describe('матрица доступа: руководитель против �
 
   it('requireRole со списком ролей не пускает руководителя туда, где ждут админа', () => {
     expect(requireRole(sess('leader'), ['admin']).ok).toBe(false);
-    expect(requireRole(sess('leader'), ['manager']).ok).toBe(true); // leader = manager по JWT
+    // Список означает ровно то, что в нём написано (мост снят PR-4 —
+    // подробности в describe «requireRole больше не мостит…» ниже).
+    expect(requireRole(sess('leader'), ['leader']).ok).toBe(true);
     expect(requireRole(sess('manager'), ['manager']).ok).toBe(true);
   });
 
@@ -183,7 +170,7 @@ describe('матрица доступа: руководитель против �
       organization: false,
       student: false,
     });
-    expect(isStaffManagerSide(newLeaderSess())).toBe(true);
+    expect(isStaffManagerSide(sess('leader'))).toBe(true);
   });
 
   it('managedOrgIds: пустой скоуп у руководителя — это норма, доступ он получает иначе', () => {
@@ -194,33 +181,96 @@ describe('матрица доступа: руководитель против �
   });
 });
 
-// ─── Переходный период (ТЗ 2026-08-17): обе модели руководителя эквивалентны ─
+// ─── Мост снят (PR-4): списки ролей обязаны быть явными ─────────────────────
 
-describe('обе модели руководителя дают одинаковые ответы (PR-1)', () => {
-  // Пока разобранные PR-1 предикаты; PR-2 доводит список до всех мест
-  // «это менеджер?» (инвентарь — security.role-model-inventory.guardrail).
-  it('isManagerLeader / isStaffManagerSide / requireFieldsAdmin / mayImportOneC', () => {
-    const oldModel = sess('leader');
-    const newModel = newLeaderSess();
-    expect(isManagerLeader(newModel)).toBe(isManagerLeader(oldModel));
-    expect(isStaffManagerSide(newModel)).toBe(isStaffManagerSide(oldModel));
-    expect(requireFieldsAdmin(newModel).ok).toBe(requireFieldsAdmin(oldModel).ok);
-    expect(mayImportOneC(newModel)).toBe(mayImportOneC(oldModel));
+describe('requireRole больше не мостит руководителя под менеджера', () => {
+  /**
+   * До PR-4 руководитель проходил по любому списку с 'manager' — переходный
+   * мост тянулся с тех пор, когда он БЫЛ менеджером. Мост снят: теперь список
+   * ролей означает ровно то, что в нём написано.
+   *
+   * Обратная сторона: список, который забыли расширить, МОЛЧА отрезает
+   * руководителя от раздела (он же больше не manager). Второй тест ниже
+   * держит именно это.
+   */
+  it('список без leader не пускает руководителя, даже если в нём есть manager', () => {
+    expect(requireRole(sess('leader'), ['manager']).ok).toBe(false);
+    expect(requireRole(sess('leader'), ['admin', 'manager']).ok).toBe(false);
+    expect(requireRole(sess('leader'), ['admin', 'manager', 'leader']).ok).toBe(true);
+    expect(requireRole(sess('leader'), ['admin']).ok).toBe(false);
+    // Рядовой менеджер от расширения списка ничего не получает.
+    expect(requireRole(sess('manager'), ['admin', 'manager', 'leader']).ok).toBe(true);
+    expect(requireRole(sess('manager'), ['admin', 'leader']).ok).toBe(false);
   });
 
-  it('isLeaderSameCompany: граница компании одинакова в обеих моделях', () => {
-    expect(isLeaderSameCompany(newLeaderSess(), COMPANY)).toBe(true);
-    expect(isLeaderSameCompany(newLeaderSess(), 'co-OTHER')).toBe(false);
-    expect(isLeaderSameCompany(newLeaderSess({ companyId: null } as never), COMPANY)).toBe(false);
+  it('каждая Prisma-выборка по списку ролей перечисляет leader рядом с manager', () => {
+    /**
+     * Второй способ молча отрезать руководителя — выборка вида
+     * `role: { in: ['admin','manager'] }`. Инвентарь PR-2 смотрел только на
+     * литерал `role: 'manager'` и эту форму пропускал; ревизия PR-4 нашла три
+     * живых потери: участники события календаря (нельзя было позвать
+     * руководителя), список кандидатов в участники и лента исходящих
+     * сообщений (ответы руководителя пропадали из инбокса менеджера).
+     * Исключение возможно, но объявляется здесь явно — молчаливых нет.
+     */
+    const ONLY_PLAIN_MANAGER = new Set<string>([
+      // выборок «именно рядовой менеджер» по списку сейчас нет
+    ]);
+    const offenders: string[] = [];
+    const srcDir = path.join(process.cwd(), 'src');
+    const walk = (dir: string): void => {
+      for (const name of readdirSync(dir)) {
+        const full = path.join(dir, name);
+        const rel = path.relative(process.cwd(), full);
+        if (rel.includes('__tests__')) continue;
+        if (statSync(full).isDirectory()) walk(full);
+        else if (name.endsWith('.ts') || name.endsWith('.tsx')) {
+          const src = readFileSync(full, 'utf8');
+          for (const [i, line] of src.split('\n').entries()) {
+            const m = /role:\s*\{\s*in:\s*(\[[^\]]*\])/.exec(line);
+            if (!m) continue;
+            const list = m[1]!;
+            if (!list.includes("'manager'") || list.includes("'leader'")) continue;
+            const at = `${rel}:${i + 1}`;
+            if (!ONLY_PLAIN_MANAGER.has(at)) offenders.push(at);
+          }
+        }
+      }
+    };
+    walk(srcDir);
+    expect(
+      offenders,
+      'выборка ролей содержит manager без leader — руководитель молча выпадет из списка'
+    ).toEqual([]);
   });
 
-  it('requireRole-мост: роль leader проходит по спискам с manager, но не к админу', () => {
-    // 14 API-списков вида ['admin','manager'] исторически пускали руководителя
-    // (он был manager); мост сохраняет это до разбора в PR-2, снимается PR-4.
-    expect(requireRole(newLeaderSess(), ['manager']).ok).toBe(true);
-    expect(requireRole(newLeaderSess(), ['admin', 'manager']).ok).toBe(true);
-    expect(requireRole(newLeaderSess(), ['admin']).ok).toBe(false);
-    expect(requireRole(newLeaderSess(), ['partner']).ok).toBe(false);
+  it('каждый staff-вызов requireRole в API перечисляет leader рядом с manager', () => {
+    // Инвентарь по исходникам: пропущенный 'leader' = молчаливая потеря
+    // доступа руководителя к разделу (симптом «раньше работало»).
+    const apiDir = path.join(process.cwd(), 'src', 'app', 'api');
+    const offenders: string[] = [];
+    const walk = (dir: string): void => {
+      for (const name of readdirSync(dir)) {
+        const full = path.join(dir, name);
+        if (statSync(full).isDirectory()) walk(full);
+        else if (name.endsWith('.ts')) {
+          const src = readFileSync(full, 'utf8');
+          for (const [i, line] of src.split('\n').entries()) {
+            const m = /requireRole\([^,]+,\s*(\[[^\]]*\])/.exec(line);
+            if (!m) continue;
+            const list = m[1]!;
+            if (list.includes("'manager'") && !list.includes("'leader'")) {
+              offenders.push(`${path.relative(process.cwd(), full)}:${i + 1}`);
+            }
+          }
+        }
+      }
+    };
+    walk(apiDir);
+    expect(
+      offenders,
+      'список ролей содержит manager без leader — руководитель молча потеряет доступ'
+    ).toEqual([]);
   });
 });
 

@@ -22,8 +22,7 @@ const manager = {
 } as unknown as SessionPayload;
 const leader = {
   sub: 'l1',
-  role: 'manager',
-  managerRole: 'leader',
+  role: 'leader',
   companyId: 'c1',
   managedOrgIds: ['org1'],
 } as unknown as SessionPayload;

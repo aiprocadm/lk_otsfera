@@ -10,8 +10,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 const MANAGER: SessionPayload = { sub: 'u-mgr', role: 'manager', companyId: 'co-1' };
 const LEADER: SessionPayload = {
   sub: 'u-led',
-  role: 'manager',
-  managerRole: 'leader',
+  role: 'leader',
   companyId: 'co-1',
 };
 const ADMIN: SessionPayload = { sub: 'u-adm', role: 'admin' };
@@ -59,16 +58,13 @@ describe('recordPiiAccess', () => {
     });
   });
 
-  it('leader-снапшот: manager с managerRole=leader пишется как leader', async () => {
+  // ТЗ 2026-08-17: руководитель — самостоятельная роль. Прежняя пара кейсов
+  // (суб-роль managerRole='leader' и top-level role='leader') описывала две
+  // модели одновременно; после снятия колонки это один и тот же случай.
+  it('роль leader: staff-гейт пускает, userRole снапшотится как leader', async () => {
     const p = makePrisma();
     await recordPiiAccess(p, { session: LEADER, context: 'enrollments_list', subjectIds: ['e1'] });
-    expect((p as any).piiAccessEvent.create.mock.calls[0][0].data.userRole).toBe('leader');
-  });
-
-  it('top-level роль leader (ТЗ 2026-08-17): staff-гейт пускает, снапшот тот же', async () => {
-    const p = makePrisma();
-    const newLeader = { ...LEADER, role: 'leader', managerRole: undefined } as never;
-    await recordPiiAccess(p, { session: newLeader, context: 'enrollments_list', subjectIds: ['e1'] });
+    expect((p as any).piiAccessEvent.create).toHaveBeenCalledTimes(1);
     expect((p as any).piiAccessEvent.create.mock.calls[0][0].data.userRole).toBe('leader');
   });
 

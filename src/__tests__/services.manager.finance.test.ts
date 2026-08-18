@@ -101,7 +101,7 @@ describe('getManagerFinanceOverview', () => {
     const prisma = fakePrisma([{ id: 'o1', name: 'A' }]);
     const res = await getManagerFinanceOverview(
       prisma,
-      session({ managerRole: 'leader', companyId: 'c1' }),
+      session({ role: 'leader', companyId: 'c1' }),
       { teamMode: true }
     );
 
@@ -137,7 +137,7 @@ describe('getManagerFinanceOverview', () => {
     const res = await getManagerFinanceOverview(
       prisma,
       session({
-        managerRole: 'leader',
+        role: 'leader',
         companyId: 'c1',
         accessProfile: profile({ capabilities: [] }),
       }),
@@ -177,7 +177,7 @@ describe('getManagerFinanceOverview', () => {
     ]);
     const res = await getManagerFinanceOverview(
       prisma,
-      session({ managerRole: 'leader', companyId: 'c1' }),
+      session({ role: 'leader', companyId: 'c1' }),
       { teamMode: true, includePayments: false }
     );
 

@@ -177,7 +177,7 @@ describe('справочник статусов — настройка', () => {
     });
     expect((await listStatusDefinitions(prisma, sess(adminId, 'admin'))).ok).toBe(true);
     expect(
-      (await listStatusDefinitions(prisma, sess(leaderId, 'manager', { managerRole: 'leader' }))).ok
+      (await listStatusDefinitions(prisma, sess(leaderId, 'leader'))).ok
     ).toBe(true);
   });
 
@@ -365,7 +365,7 @@ describe('переходы статуса — права §10', () => {
   });
 
   it('руководитель возвращает назад — это его право по §10', async () => {
-    const leader = sess(leaderId, 'manager', { companyId, managerRole: 'leader' });
+    const leader = sess(leaderId, 'leader', { companyId });
     const res = await transitionOrderStatus(prisma, leader, { orderId, toId: draft });
     expect(res.ok).toBe(true);
     // возвращаем вперёд для следующих проверок

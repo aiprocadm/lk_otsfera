@@ -68,7 +68,6 @@ vi.mock('@/components/manager/manager-lead-actions', () => ({
 const SESSION = {
   sub: 'u1',
   role: 'manager' as const,
-  managerRole: 'member' as const,
   companyId: 'c1',
 };
 
@@ -238,7 +237,6 @@ describe('ManagerLeadDetailPage', () => {
         name: 'Я сам',
         email: 'me@x.ru',
         isActive: true,
-        managerRole: 'member',
         assignments: [],
       },
       {
@@ -246,7 +244,6 @@ describe('ManagerLeadDetailPage', () => {
         name: 'Мария',
         email: 'm@x.ru',
         isActive: true,
-        managerRole: null,
         assignments: [],
       },
       {
@@ -254,7 +251,6 @@ describe('ManagerLeadDetailPage', () => {
         name: 'Неактивный',
         email: 'off@x.ru',
         isActive: false,
-        managerRole: null,
         assignments: [],
       },
     ]);
