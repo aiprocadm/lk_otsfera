@@ -97,12 +97,12 @@ PR #381).
       инвентари Prisma-литералов и staff-идиом, проверен мутациями) +
       примечание о программе в STATUS.md + этот раздел. **PR
       [#382](https://github.com/aiprocadm/lk_otsfera/pull/382) ✅ влит.**
-- [ ] **PR-1 «фундамент»** — enum + значение в БД (данные НЕ мигрируются —
+- [x] **PR-1 «фундамент»** — enum + значение в БД (данные НЕ мигрируются —
       **уточнение порядка**: UPDATE перенесён в PR-3, иначе между PR-1 и
       PR-2 руководитель терял staff-доступ в 29 идиомах; expand → migrate →
       contract), обе модели в isManagerLeader/middleware/гардах,
       requireRole-мост для manager-списков, `isStaffManagerSide`, ветка
-      leader в buildSessionClaims, префиксы Р-Л-3. **PR [#383](https://github.com/aiprocadm/lk_otsfera/pull/383)** — галочка после мержа.
+      leader в buildSessionClaims, префиксы Р-Л-3. **PR [#383](https://github.com/aiprocadm/lk_otsfera/pull/383) ✅ влит.**
 - [ ] **PR-2 «99 мест»** — разбор по трём шаблонам Р-Л-4. **PR [#384](https://github.com/aiprocadm/lk_otsfera/pull/384)** — галочка после мержа.
 - [ ] **PR-3 «периферия + миграция данных»** — UPDATE role='leader',
       воркеры, меню, admin-экран, seed/e2e, тесты.
