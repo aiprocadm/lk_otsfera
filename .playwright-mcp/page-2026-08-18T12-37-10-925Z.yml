@@ -1,0 +1,267 @@
+- generic [active] [ref=f7e1]:
+  - generic [ref=f7e242]:
+    - navigation [ref=f7e243]:
+      - generic [ref=f7e244]: Менеджер
+      - generic [ref=f7e245]: Промтехносфера
+      - list [ref=f7e247]:
+        - listitem [ref=f7e248]:
+          - link "⌂ Главная" [ref=f7e249] [cursor=pointer]:
+            - /url: /manager/dashboard
+            - generic [ref=f7e250]: ⌂
+            - generic [ref=f7e251]: Главная
+        - listitem [ref=f7e252]:
+          - link "🔎 Поиск" [ref=f7e253] [cursor=pointer]:
+            - /url: /manager/search
+            - generic [ref=f7e254]: 🔎
+            - generic [ref=f7e255]: Поиск
+      - generic [ref=f7e256]:
+        - generic [ref=f7e257]: Работа
+        - list [ref=f7e258]:
+          - listitem [ref=f7e259]:
+            - link "📋 Заказы" [ref=f7e260] [cursor=pointer]:
+              - /url: /manager/orders
+              - generic [ref=f7e261]: 📋
+              - generic [ref=f7e262]: Заказы
+          - listitem [ref=f7e263]:
+            - link "📥 Входящие в работу" [ref=f7e264] [cursor=pointer]:
+              - /url: /manager/intake
+              - generic [ref=f7e265]: 📥
+              - generic [ref=f7e266]: Входящие в работу
+          - listitem [ref=f7e267]:
+            - link "✅ Задачи Просроченные задачи" [ref=f7e268] [cursor=pointer]:
+              - /url: /manager/tasks
+              - generic [ref=f7e269]: ✅
+              - generic [ref=f7e270]: Задачи
+              - generic "Просроченные задачи" [ref=f7e271]: "1"
+          - listitem [ref=f7e272]:
+            - link "📅 Календарь" [ref=f7e273] [cursor=pointer]:
+              - /url: /manager/calendar
+              - generic [ref=f7e274]: 📅
+              - generic [ref=f7e275]: Календарь
+      - generic [ref=f7e276]:
+        - generic [ref=f7e277]: Продажи
+        - list [ref=f7e278]:
+          - listitem [ref=f7e279]:
+            - link "📬 Лиды" [ref=f7e280] [cursor=pointer]:
+              - /url: /manager/leads
+              - generic [ref=f7e281]: 📬
+              - generic [ref=f7e282]: Лиды
+          - listitem [ref=f7e283]:
+            - link "📮 Обращения" [ref=f7e284] [cursor=pointer]:
+              - /url: /manager/requests
+              - generic [ref=f7e285]: 📮
+              - generic [ref=f7e286]: Обращения
+          - listitem [ref=f7e287]:
+            - link "📈 Воронка" [ref=f7e288] [cursor=pointer]:
+              - /url: /manager/funnel
+              - generic [ref=f7e289]: 📈
+              - generic [ref=f7e290]: Воронка
+          - listitem [ref=f7e291]:
+            - link "🤝 Сделки" [ref=f7e292] [cursor=pointer]:
+              - /url: /manager/deals
+              - generic [ref=f7e293]: 🤝
+              - generic [ref=f7e294]: Сделки
+      - generic [ref=f7e295]:
+        - generic [ref=f7e296]: Клиенты
+        - list [ref=f7e297]:
+          - listitem [ref=f7e298]:
+            - link "🏢 Организации" [ref=f7e299] [cursor=pointer]:
+              - /url: /manager/organizations
+              - generic [ref=f7e300]: 🏢
+              - generic [ref=f7e301]: Организации
+          - listitem [ref=f7e302]:
+            - link "👥 Сотрудники" [ref=f7e303] [cursor=pointer]:
+              - /url: /manager/students
+              - generic [ref=f7e304]: 👥
+              - generic [ref=f7e305]: Сотрудники
+          - listitem [ref=f7e306]:
+            - link "🎓 Заявки на обучение" [ref=f7e307] [cursor=pointer]:
+              - /url: /manager/enrollments
+              - generic [ref=f7e308]: 🎓
+              - generic [ref=f7e309]: Заявки на обучение
+      - generic [ref=f7e310]:
+        - generic [ref=f7e311]: Финансы
+        - list [ref=f7e312]:
+          - listitem [ref=f7e313]:
+            - link "₽ Финансы" [ref=f7e314] [cursor=pointer]:
+              - /url: /manager/finance
+              - generic [ref=f7e315]: ₽
+              - generic [ref=f7e316]: Финансы
+          - listitem [ref=f7e317]:
+            - link "💳 Импорт оплат" [ref=f7e318] [cursor=pointer]:
+              - /url: /manager/payments-import
+              - generic [ref=f7e319]: 💳
+              - generic [ref=f7e320]: Импорт оплат
+      - generic [ref=f7e321]:
+        - generic [ref=f7e322]: Данные
+        - list [ref=f7e323]:
+          - listitem [ref=f7e324]:
+            - link "📤 Загрузка из 1С" [ref=f7e325] [cursor=pointer]:
+              - /url: /manager/import
+              - generic [ref=f7e326]: 📤
+              - generic [ref=f7e327]: Загрузка из 1С
+          - listitem [ref=f7e328]:
+            - link "📄 Документы" [ref=f7e329] [cursor=pointer]:
+              - /url: /manager/documents
+              - generic [ref=f7e330]: 📄
+              - generic [ref=f7e331]: Документы
+      - generic [ref=f7e332]:
+        - generic [ref=f7e333]: Коммуникации
+        - list [ref=f7e334]:
+          - listitem [ref=f7e335]:
+            - link "💬 Сообщения" [ref=f7e336] [cursor=pointer]:
+              - /url: /manager/messages
+              - generic [ref=f7e337]: 💬
+              - generic [ref=f7e338]: Сообщения
+          - listitem [ref=f7e339]:
+            - link "📨 Входящие письма" [ref=f7e340] [cursor=pointer]:
+              - /url: /manager/inbox
+              - generic [ref=f7e341]: 📨
+              - generic [ref=f7e342]: Входящие письма
+      - generic [ref=f7e343]:
+        - generic [ref=f7e344]: Настройки
+        - list [ref=f7e345]:
+          - listitem [ref=f7e346]:
+            - link "⚙ Настройки" [ref=f7e347] [cursor=pointer]:
+              - /url: /manager/settings
+              - generic [ref=f7e348]: ⚙
+              - generic [ref=f7e349]: Настройки
+      - list [ref=f7e351]:
+        - listitem [ref=f7e352]:
+          - link "❓ Справка" [ref=f7e353] [cursor=pointer]:
+            - /url: /help
+            - generic [ref=f7e354]: ❓
+            - generic [ref=f7e355]: Справка
+    - generic [ref=f7e356]:
+      - banner [ref=f7e357]:
+        - generic [ref=f7e358]:
+          - navigation "Мобильная навигация" [ref=f7e359]:
+            - link "⌂ Главная" [ref=f7e360] [cursor=pointer]:
+              - /url: /manager/dashboard
+              - generic [ref=f7e361]: ⌂
+              - text: Главная
+            - link "📋 Заказы" [ref=f7e362] [cursor=pointer]:
+              - /url: /manager/orders
+              - generic [ref=f7e363]: 📋
+              - text: Заказы
+            - link "📥 Входящие в работу" [ref=f7e364] [cursor=pointer]:
+              - /url: /manager/intake
+              - generic [ref=f7e365]: 📥
+              - text: Входящие в работу
+            - link "✅ Задачи" [ref=f7e366] [cursor=pointer]:
+              - /url: /manager/tasks
+              - generic [ref=f7e367]: ✅
+              - text: Задачи
+            - button "☰ Ещё" [ref=f7e368] [cursor=pointer]:
+              - generic [ref=f7e369]: ☰
+              - text: Ещё
+          - generic [ref=f7e370]:
+            - text: Кабинет менеджера
+            - generic [ref=f7e371]: · manager@demo.local
+        - generic [ref=f7e372]:
+          - button "Быстрый переход Ctrl K" [ref=f7e373] [cursor=pointer]:
+            - generic [ref=f7e374]: 🔎
+            - text: Быстрый переход
+            - generic [ref=f7e375]: Ctrl K
+          - button "Уведомления" [ref=f7e377] [cursor=pointer]:
+            - generic [ref=f7e378]: 🔔
+          - button "Выйти" [ref=f7e379] [cursor=pointer]
+      - main [ref=f7e380]:
+        - generic [ref=f7e381]:
+          - generic [ref=f7e382]:
+            - heading "Главная" [level=1] [ref=f7e383]
+            - paragraph [ref=f7e384]: Что требует внимания прямо сейчас и с чего начать день
+          - generic [ref=f7e385]:
+            - generic [ref=f7e386]:
+              - heading "Частые задачи" [level=2] [ref=f7e387]
+              - paragraph [ref=f7e388]: С чего обычно начинают работу в этом кабинете.
+              - list [ref=f7e389]:
+                - listitem [ref=f7e390]:
+                  - link "Разобрать входящие Обращения, заявки, письма и звонки в одной очереди Перейти →" [ref=f7e391] [cursor=pointer]:
+                    - /url: /manager/intake
+                    - generic [ref=f7e392]: Разобрать входящие
+                    - generic [ref=f7e393]: Обращения, заявки, письма и звонки в одной очереди
+                    - generic [ref=f7e394]: Перейти →
+                - listitem [ref=f7e395]:
+                  - link "Создать сделку Переговоры со стадиями на доске Перейти →" [ref=f7e396] [cursor=pointer]:
+                    - /url: /manager/deals
+                    - generic [ref=f7e397]: Создать сделку
+                    - generic [ref=f7e398]: Переговоры со стадиями на доске
+                    - generic [ref=f7e399]: Перейти →
+                - listitem [ref=f7e400]:
+                  - link "Загрузить данные из 1С Клиенты и заказы из выгрузки Перейти →" [ref=f7e401] [cursor=pointer]:
+                    - /url: /manager/import
+                    - generic [ref=f7e402]: Загрузить данные из 1С
+                    - generic [ref=f7e403]: Клиенты и заказы из выгрузки
+                    - generic [ref=f7e404]: Перейти →
+                - listitem [ref=f7e405]:
+                  - link "Разнести оплаты из банка Выписка по счёту 51 Перейти →" [ref=f7e406] [cursor=pointer]:
+                    - /url: /manager/payments-import
+                    - generic [ref=f7e407]: Разнести оплаты из банка
+                    - generic [ref=f7e408]: Выписка по счёту 51
+                    - generic [ref=f7e409]: Перейти →
+                - listitem [ref=f7e410]:
+                  - link "Найти клиента Карточка со всей историей Перейти →" [ref=f7e411] [cursor=pointer]:
+                    - /url: /manager/organizations
+                    - generic [ref=f7e412]: Найти клиента
+                    - generic [ref=f7e413]: Карточка со всей историей
+                    - generic [ref=f7e414]: Перейти →
+            - region [ref=f7e415]:
+              - heading "Мой день" [level=2] [ref=f7e416]
+              - generic [ref=f7e417]:
+                - link "Задачи на сегодня 0 На сегодня задач нет" [ref=f7e418] [cursor=pointer]:
+                  - /url: /manager/tasks
+                  - generic [ref=f7e419]: Задачи на сегодня
+                  - generic [ref=f7e420]: "0"
+                  - generic [ref=f7e421]: На сегодня задач нет
+                - link "Просроченные задачи 1 Срок уже прошёл" [ref=f7e422] [cursor=pointer]:
+                  - /url: /manager/tasks?overdue=1
+                  - generic [ref=f7e423]: Просроченные задачи
+                  - generic [ref=f7e424]: "1"
+                  - generic [ref=f7e425]: Срок уже прошёл
+                - link "Поступило 0 Новых обращений и звонков нет" [ref=f7e426] [cursor=pointer]:
+                  - /url: /manager/intake
+                  - generic [ref=f7e427]: Поступило
+                  - generic [ref=f7e428]: "0"
+                  - generic [ref=f7e429]: Новых обращений и звонков нет
+                - link "Готово к передаче 0 Готовых к передаче заказов нет" [ref=f7e430] [cursor=pointer]:
+                  - /url: /manager/orders
+                  - generic [ref=f7e431]: Готово к передаче
+                  - generic [ref=f7e432]: "0"
+                  - generic [ref=f7e433]: Готовых к передаче заказов нет
+                - link "Мои сделки 0 Открытых сделок нет" [ref=f7e434] [cursor=pointer]:
+                  - /url: /manager/deals
+                  - generic [ref=f7e435]: Мои сделки
+                  - generic [ref=f7e436]: "0"
+                  - generic [ref=f7e437]: Открытых сделок нет
+                - 'link "Свежие обращения 0 За сутки новых нет Пропущенные звонки за сутки: 0" [ref=f7e438] [cursor=pointer]':
+                  - /url: /manager/inbox
+                  - generic [ref=f7e439]: Свежие обращения
+                  - generic [ref=f7e440]: "0"
+                  - generic [ref=f7e441]: За сутки новых нет
+                  - generic [ref=f7e442]: "Пропущенные звонки за сутки: 0"
+            - generic [ref=f7e443]:
+              - link "Активные заказы 0 (±0 / 30д)" [ref=f7e444] [cursor=pointer]:
+                - /url: /manager/orders
+                - generic [ref=f7e445]:
+                  - generic [ref=f7e446]: Активные заказы
+                  - generic [ref=f7e447]: 0 (±0 / 30д)
+              - link "Требует внимания 0" [ref=f7e448] [cursor=pointer]:
+                - /url: /manager/orders
+                - generic [ref=f7e449]:
+                  - generic [ref=f7e450]: Требует внимания
+                  - generic [ref=f7e451]: "0"
+              - link "Непрочитанные комментарии 0" [ref=f7e452] [cursor=pointer]:
+                - /url: /manager/messages
+                - generic [ref=f7e453]:
+                  - generic [ref=f7e454]: Непрочитанные комментарии
+                  - generic [ref=f7e455]: "0"
+              - link "Срочные дедлайны 0" [ref=f7e456] [cursor=pointer]:
+                - /url: /manager/orders
+                - generic [ref=f7e457]:
+                  - generic [ref=f7e458]: Срочные дедлайны
+                  - generic [ref=f7e459]: "0"
+            - generic [ref=f7e460]: Ничего срочного — отдохните.
+            - generic [ref=f7e461]: Нет событий за последний период.
+  - region "Notifications alt+T"
+  - alert [ref=f7e217]

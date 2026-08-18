@@ -1,0 +1,253 @@
+- generic [active] [ref=f12e1]:
+  - generic [ref=f12e2]:
+    - navigation [ref=f12e3]:
+      - generic [ref=f12e4]: Руководитель
+      - generic [ref=f12e5]: Промтехносфера
+      - list [ref=f12e7]:
+        - listitem [ref=f12e8]:
+          - link "⌂ Главная" [ref=f12e9] [cursor=pointer]:
+            - /url: /leader/dashboard
+            - generic [ref=f12e10]: ⌂
+            - generic [ref=f12e11]: Главная
+        - listitem [ref=f12e12]:
+          - link "🔎 Поиск" [ref=f12e13] [cursor=pointer]:
+            - /url: /leader/search
+            - generic [ref=f12e14]: 🔎
+            - generic [ref=f12e15]: Поиск
+        - listitem [ref=f12e16]:
+          - link "💬 Сообщения" [ref=f12e17] [cursor=pointer]:
+            - /url: /manager/messages
+            - generic [ref=f12e18]: 💬
+            - generic [ref=f12e19]: Сообщения
+        - listitem [ref=f12e20]:
+          - link "↩ Мои заказы" [ref=f12e21] [cursor=pointer]:
+            - /url: /manager/dashboard
+            - generic [ref=f12e22]: ↩
+            - generic [ref=f12e23]: Мои заказы
+      - generic [ref=f12e24]:
+        - generic [ref=f12e25]: Настройки
+        - list [ref=f12e26]:
+          - listitem [ref=f12e27]:
+            - link "👔 Команда" [ref=f12e28] [cursor=pointer]:
+              - /url: /leader/team
+              - generic [ref=f12e29]: 👔
+              - generic [ref=f12e30]: Команда
+      - generic [ref=f12e31]:
+        - generic [ref=f12e32]: Финансы
+        - list [ref=f12e33]:
+          - listitem [ref=f12e34]:
+            - link "₽ Финансы" [ref=f12e35] [cursor=pointer]:
+              - /url: /leader/finance
+              - generic [ref=f12e36]: ₽
+              - generic [ref=f12e37]: Финансы
+          - listitem [ref=f12e38]:
+            - link "🔁 Корректировки" [ref=f12e39] [cursor=pointer]:
+              - /url: /leader/commission-corrections
+              - generic [ref=f12e40]: 🔁
+              - generic [ref=f12e41]: Корректировки
+      - generic [ref=f12e42]:
+        - generic [ref=f12e43]: Работа
+        - list [ref=f12e44]:
+          - listitem [ref=f12e45]:
+            - link "📋 Заказы" [ref=f12e46] [cursor=pointer]:
+              - /url: /leader/orders
+              - generic [ref=f12e47]: 📋
+              - generic [ref=f12e48]: Заказы
+          - listitem [ref=f12e49]:
+            - link "✅ Задачи" [ref=f12e50] [cursor=pointer]:
+              - /url: /leader/tasks
+              - generic [ref=f12e51]: ✅
+              - generic [ref=f12e52]: Задачи
+          - listitem [ref=f12e53]:
+            - link "📅 Календарь" [ref=f12e54] [cursor=pointer]:
+              - /url: /leader/calendar
+              - generic [ref=f12e55]: 📅
+              - generic [ref=f12e56]: Календарь
+          - listitem [ref=f12e57]:
+            - link "📥 Входящие в работу" [ref=f12e58] [cursor=pointer]:
+              - /url: /leader/intake
+              - generic [ref=f12e59]: 📥
+              - generic [ref=f12e60]: Входящие в работу
+      - generic [ref=f12e61]:
+        - generic [ref=f12e62]: Клиенты
+        - list [ref=f12e63]:
+          - listitem [ref=f12e64]:
+            - link "🏢 Организации" [ref=f12e65] [cursor=pointer]:
+              - /url: /leader/organizations
+              - generic [ref=f12e66]: 🏢
+              - generic [ref=f12e67]: Организации
+          - listitem [ref=f12e68]:
+            - link "🎓 Заявки на обучение" [ref=f12e69] [cursor=pointer]:
+              - /url: /leader/enrollments
+              - generic [ref=f12e70]: 🎓
+              - generic [ref=f12e71]: Заявки на обучение
+      - generic [ref=f12e72]:
+        - generic [ref=f12e73]: Продажи
+        - list [ref=f12e74]:
+          - listitem [ref=f12e75]:
+            - link "📈 Воронка" [ref=f12e76] [cursor=pointer]:
+              - /url: /leader/funnel
+              - generic [ref=f12e77]: 📈
+              - generic [ref=f12e78]: Воронка
+          - listitem [ref=f12e79]:
+            - link "🤝 Сделки" [ref=f12e80] [cursor=pointer]:
+              - /url: /leader/deals
+              - generic [ref=f12e81]: 🤝
+              - generic [ref=f12e82]: Сделки
+          - listitem [ref=f12e83]:
+            - link "📮 Обращения" [ref=f12e84] [cursor=pointer]:
+              - /url: /leader/requests
+              - generic [ref=f12e85]: 📮
+              - generic [ref=f12e86]: Обращения
+      - generic [ref=f12e87]:
+        - generic [ref=f12e88]: Аналитика
+        - list [ref=f12e89]:
+          - listitem [ref=f12e90]:
+            - link "📊 Аналитика" [ref=f12e91] [cursor=pointer]:
+              - /url: /leader/analytics
+              - generic [ref=f12e92]: 📊
+              - generic [ref=f12e93]: Аналитика
+      - list [ref=f12e95]:
+        - listitem [ref=f12e96]:
+          - link "⚙ Настройки" [ref=f12e97] [cursor=pointer]:
+            - /url: /leader/settings
+            - generic [ref=f12e98]: ⚙
+            - generic [ref=f12e99]: Настройки
+        - listitem [ref=f12e100]:
+          - link "❓ Справка" [ref=f12e101] [cursor=pointer]:
+            - /url: /help
+            - generic [ref=f12e102]: ❓
+            - generic [ref=f12e103]: Справка
+    - generic [ref=f12e104]:
+      - banner [ref=f12e105]:
+        - generic [ref=f12e106]:
+          - navigation "Мобильная навигация" [ref=f12e107]:
+            - link "⌂ Главная" [ref=f12e108] [cursor=pointer]:
+              - /url: /leader/dashboard
+              - generic [ref=f12e109]: ⌂
+              - text: Главная
+            - link "📋 Заказы" [ref=f12e110] [cursor=pointer]:
+              - /url: /leader/orders
+              - generic [ref=f12e111]: 📋
+              - text: Заказы
+            - link "₽ Финансы" [ref=f12e112] [cursor=pointer]:
+              - /url: /leader/finance
+              - generic [ref=f12e113]: ₽
+              - text: Финансы
+            - link "✅ Задачи" [ref=f12e114] [cursor=pointer]:
+              - /url: /leader/tasks
+              - generic [ref=f12e115]: ✅
+              - text: Задачи
+            - button "☰ Ещё" [ref=f12e116] [cursor=pointer]:
+              - generic [ref=f12e117]: ☰
+              - text: Ещё
+          - generic [ref=f12e118]:
+            - text: Кабинет руководителя
+            - generic [ref=f12e119]: · leader@demo.local
+        - generic [ref=f12e120]:
+          - button "Быстрый переход Ctrl K" [ref=f12e121] [cursor=pointer]:
+            - generic [ref=f12e122]: 🔎
+            - text: Быстрый переход
+            - generic [ref=f12e123]: Ctrl K
+          - button "Уведомления" [ref=f12e125] [cursor=pointer]:
+            - generic [ref=f12e126]: 🔔
+          - button "Выйти" [ref=f12e127] [cursor=pointer]
+      - main [ref=f12e128]:
+        - generic [ref=f12e130]:
+          - generic [ref=f12e131]:
+            - heading "Сводка по команде" [level=1] [ref=f12e132]
+            - paragraph [ref=f12e133]: Все менеджеры и заказы компании
+          - generic [ref=f12e134]:
+            - heading "Частые задачи" [level=2] [ref=f12e135]
+            - paragraph [ref=f12e136]: С чего обычно начинают работу в этом кабинете.
+            - list [ref=f12e137]:
+              - listitem [ref=f12e138]:
+                - link "Посмотреть команду Нагрузка и результаты менеджеров Перейти →" [ref=f12e139] [cursor=pointer]:
+                  - /url: /leader/team
+                  - generic [ref=f12e140]: Посмотреть команду
+                  - generic [ref=f12e141]: Нагрузка и результаты менеджеров
+                  - generic [ref=f12e142]: Перейти →
+              - listitem [ref=f12e143]:
+                - link "Заказы компании Все заказы, а не только свои Перейти →" [ref=f12e144] [cursor=pointer]:
+                  - /url: /leader/orders
+                  - generic [ref=f12e145]: Заказы компании
+                  - generic [ref=f12e146]: Все заказы, а не только свои
+                  - generic [ref=f12e147]: Перейти →
+              - listitem [ref=f12e148]:
+                - link "Проверить долги Кто не оплатил и на сколько Перейти →" [ref=f12e149] [cursor=pointer]:
+                  - /url: /leader/finance
+                  - generic [ref=f12e150]: Проверить долги
+                  - generic [ref=f12e151]: Кто не оплатил и на сколько
+                  - generic [ref=f12e152]: Перейти →
+              - listitem [ref=f12e153]:
+                - link "Аналитика План и факт продаж Перейти →" [ref=f12e154] [cursor=pointer]:
+                  - /url: /leader/analytics
+                  - generic [ref=f12e155]: Аналитика
+                  - generic [ref=f12e156]: План и факт продаж
+                  - generic [ref=f12e157]: Перейти →
+              - listitem [ref=f12e158]:
+                - link "Обмен с 1С Загрузка данных и разнесение оплат Перейти →" [ref=f12e159] [cursor=pointer]:
+                  - /url: /leader/settings/integrations/1c
+                  - generic [ref=f12e160]: Обмен с 1С
+                  - generic [ref=f12e161]: Загрузка данных и разнесение оплат
+                  - generic [ref=f12e162]: Перейти →
+          - generic [ref=f12e163]:
+            - link "Менеджеров 2" [ref=f12e164] [cursor=pointer]:
+              - /url: /leader/team
+              - generic [ref=f12e165]:
+                - generic [ref=f12e166]: Менеджеров
+                - generic [ref=f12e167]: "2"
+            - link "Заказы в работе 0" [ref=f12e168] [cursor=pointer]:
+              - /url: /leader/orders
+              - generic [ref=f12e169]:
+                - generic [ref=f12e170]: Заказы в работе
+                - generic [ref=f12e171]: "0"
+            - link "Долг клиентов 100 000 ₽" [ref=f12e172] [cursor=pointer]:
+              - /url: /leader/finance
+              - generic [ref=f12e173]:
+                - generic [ref=f12e174]: Долг клиентов
+                - generic [ref=f12e175]: 100 000 ₽
+            - link "Комиссия (оценка) 52 500 ₽" [ref=f12e176] [cursor=pointer]:
+              - /url: /leader/finance
+              - generic [ref=f12e177]:
+                - generic [ref=f12e178]: Комиссия (оценка)
+                - generic [ref=f12e179]: 52 500 ₽
+          - generic [ref=f12e180]:
+            - generic [ref=f12e181]:
+              - heading "Менеджеры команды" [level=2] [ref=f12e182]
+              - paragraph [ref=f12e183]: Суммы — по заказам в работе у каждого менеджера; не сводятся с «Долгом клиентов» (он считается по выставленным к оплате заказам компании).
+            - table [ref=f12e185]:
+              - rowgroup [ref=f12e186]:
+                - row [ref=f12e187]:
+                  - columnheader "Менеджер" [ref=f12e188]
+                  - columnheader "Активных заказов" [ref=f12e189]
+                  - columnheader "Сумма в работе" [ref=f12e190]
+                  - columnheader "Оплачено" [ref=f12e191]
+                  - columnheader "Просрочено" [ref=f12e192]
+              - rowgroup [ref=f12e193]:
+                - row [ref=f12e194]:
+                  - cell "Demo Leader leader@demo.local" [ref=f12e195]:
+                    - generic [ref=f12e196]: Demo Leader
+                    - generic [ref=f12e197]: leader@demo.local
+                  - cell "0" [ref=f12e198]
+                  - cell "0 ₽" [ref=f12e199]
+                  - cell "0 ₽" [ref=f12e200]
+                  - cell "0" [ref=f12e201]
+                - row [ref=f12e202]:
+                  - cell "Demo Manager manager@demo.local" [ref=f12e203]:
+                    - generic [ref=f12e204]: Demo Manager
+                    - generic [ref=f12e205]: manager@demo.local
+                  - cell "0" [ref=f12e206]
+                  - cell "0 ₽" [ref=f12e207]
+                  - cell "0 ₽" [ref=f12e208]
+                  - cell "0" [ref=f12e209]
+          - generic [ref=f12e210]:
+            - heading "Последние события" [level=2] [ref=f12e211]
+            - list [ref=f12e212]:
+              - listitem [ref=f12e213]:
+                - link "Поступила оплата 250 000 ₽ по заказу 2410-15 20.04.2026, 17:00" [ref=f12e214] [cursor=pointer]:
+                  - /url: /manager/orders/cms3vfqkj000l1keuhti5fh9o
+                  - generic [ref=f12e215]: Поступила оплата 250 000 ₽ по заказу 2410-15
+                  - generic [ref=f12e216]: 20.04.2026, 17:00
+  - region "Notifications alt+T"
+  - alert [ref=f12e217]

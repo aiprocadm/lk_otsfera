@@ -1,0 +1,214 @@
+- generic [active] [ref=f9e1]:
+  - generic [ref=f9e250]:
+    - navigation [ref=f9e251]:
+      - generic [ref=f9e252]: Админ
+      - generic [ref=f9e253]:
+        - generic [ref=f9e254]: Платформа
+        - list [ref=f9e255]:
+          - listitem [ref=f9e256]:
+            - link "⌂ Главная" [ref=f9e257] [cursor=pointer]:
+              - /url: /admin/dashboard
+              - generic [ref=f9e258]: ⌂
+              - generic [ref=f9e259]: Главная
+      - generic [ref=f9e260]:
+        - generic [ref=f9e261]: Операции
+        - list [ref=f9e262]:
+          - listitem [ref=f9e263]:
+            - link "📄 Документы" [ref=f9e264] [cursor=pointer]:
+              - /url: /admin/documents
+              - generic [ref=f9e265]: 📄
+              - generic [ref=f9e266]: Документы
+          - listitem [ref=f9e267]:
+            - link "💬 Сообщения" [ref=f9e268] [cursor=pointer]:
+              - /url: /admin/messages
+              - generic [ref=f9e269]: 💬
+              - generic [ref=f9e270]: Сообщения
+          - listitem [ref=f9e271]:
+            - link "💰 Комиссии" [ref=f9e272] [cursor=pointer]:
+              - /url: /admin/commission-statements
+              - generic [ref=f9e273]: 💰
+              - generic [ref=f9e274]: Комиссии
+          - listitem [ref=f9e275]:
+            - link "🔁 Корректировки" [ref=f9e276] [cursor=pointer]:
+              - /url: /admin/commission-corrections
+              - generic [ref=f9e277]: 🔁
+              - generic [ref=f9e278]: Корректировки
+          - listitem [ref=f9e279]:
+            - link "₽ Финансы" [ref=f9e280] [cursor=pointer]:
+              - /url: /admin/finance
+              - generic [ref=f9e281]: ₽
+              - generic [ref=f9e282]: Финансы
+          - listitem [ref=f9e283]:
+            - link "🎓 Заявки на обучение" [ref=f9e284] [cursor=pointer]:
+              - /url: /admin/enrollments
+              - generic [ref=f9e285]: 🎓
+              - generic [ref=f9e286]: Заявки на обучение
+          - listitem [ref=f9e287]:
+            - link "📮 Обращения" [ref=f9e288] [cursor=pointer]:
+              - /url: /admin/requests
+              - generic [ref=f9e289]: 📮
+              - generic [ref=f9e290]: Обращения
+          - listitem [ref=f9e291]:
+            - link "📥 Входящие в работу" [ref=f9e292] [cursor=pointer]:
+              - /url: /admin/intake
+              - generic [ref=f9e293]: 📥
+              - generic [ref=f9e294]: Входящие в работу
+      - generic [ref=f9e295]:
+        - generic [ref=f9e296]: Справочники
+        - list [ref=f9e297]:
+          - listitem [ref=f9e298]:
+            - link "👤 Пользователи" [ref=f9e299] [cursor=pointer]:
+              - /url: /admin/users
+              - generic [ref=f9e300]: 👤
+              - generic [ref=f9e301]: Пользователи
+          - listitem [ref=f9e302]:
+            - link "🏬 Партнёры" [ref=f9e303] [cursor=pointer]:
+              - /url: /admin/partners
+              - generic [ref=f9e304]: 🏬
+              - generic [ref=f9e305]: Партнёры
+          - listitem [ref=f9e306]:
+            - link "🏢 Организации" [ref=f9e307] [cursor=pointer]:
+              - /url: /admin/organizations
+              - generic [ref=f9e308]: 🏢
+              - generic [ref=f9e309]: Организации
+          - listitem [ref=f9e310]:
+            - link "🎯 Направления обучения" [ref=f9e311] [cursor=pointer]:
+              - /url: /admin/training-directions
+              - generic [ref=f9e312]: 🎯
+              - generic [ref=f9e313]: Направления обучения
+      - list [ref=f9e315]:
+        - listitem [ref=f9e316]:
+          - link "⚙ Настройки" [ref=f9e317] [cursor=pointer]:
+            - /url: /admin/settings
+            - generic [ref=f9e318]: ⚙
+            - generic [ref=f9e319]: Настройки
+        - listitem [ref=f9e320]:
+          - link "❓ Справка" [ref=f9e321] [cursor=pointer]:
+            - /url: /help
+            - generic [ref=f9e322]: ❓
+            - generic [ref=f9e323]: Справка
+    - generic [ref=f9e324]:
+      - banner [ref=f9e325]:
+        - generic [ref=f9e326]:
+          - navigation "Мобильная навигация" [ref=f9e327]:
+            - link "⌂ Главная" [ref=f9e328] [cursor=pointer]:
+              - /url: /admin/dashboard
+              - generic [ref=f9e329]: ⌂
+              - text: Главная
+            - link "🏢 Организации" [ref=f9e330] [cursor=pointer]:
+              - /url: /admin/organizations
+              - generic [ref=f9e331]: 🏢
+              - text: Организации
+            - link "📄 Документы" [ref=f9e332] [cursor=pointer]:
+              - /url: /admin/documents
+              - generic [ref=f9e333]: 📄
+              - text: Документы
+            - link "📮 Обращения" [ref=f9e334] [cursor=pointer]:
+              - /url: /admin/requests
+              - generic [ref=f9e335]: 📮
+              - text: Обращения
+            - button "☰ Ещё" [ref=f9e336] [cursor=pointer]:
+              - generic [ref=f9e337]: ☰
+              - text: Ещё
+          - generic [ref=f9e338]: admin@demo.local
+        - generic [ref=f9e339]:
+          - button "Быстрый переход Ctrl K" [ref=f9e340] [cursor=pointer]:
+            - generic [ref=f9e341]: 🔎
+            - text: Быстрый переход
+            - generic [ref=f9e342]: Ctrl K
+          - button "Уведомления" [ref=f9e344] [cursor=pointer]:
+            - generic [ref=f9e345]: 🔔
+          - button "Выйти" [ref=f9e346] [cursor=pointer]
+      - main [ref=f9e347]:
+        - generic [ref=f9e349]:
+          - generic [ref=f9e350]:
+            - heading "Кабинет администратора" [level=1] [ref=f9e351]
+            - paragraph [ref=f9e352]: Обзор платформы
+          - generic [ref=f9e353]:
+            - heading "Частые задачи" [level=2] [ref=f9e354]
+            - paragraph [ref=f9e355]: С чего обычно начинают работу в этом кабинете.
+            - list [ref=f9e356]:
+              - listitem [ref=f9e357]:
+                - link "Завести пользователя Доступ в кабинет и роль Перейти →" [ref=f9e358] [cursor=pointer]:
+                  - /url: /admin/users
+                  - generic [ref=f9e359]: Завести пользователя
+                  - generic [ref=f9e360]: Доступ в кабинет и роль
+                  - generic [ref=f9e361]: Перейти →
+              - listitem [ref=f9e362]:
+                - link "Организации Клиенты и их реквизиты Перейти →" [ref=f9e363] [cursor=pointer]:
+                  - /url: /admin/organizations
+                  - generic [ref=f9e364]: Организации
+                  - generic [ref=f9e365]: Клиенты и их реквизиты
+                  - generic [ref=f9e366]: Перейти →
+              - listitem [ref=f9e367]:
+                - link "Обмен с 1С Загрузка данных и разнесение оплат Перейти →" [ref=f9e368] [cursor=pointer]:
+                  - /url: /admin/settings/integrations/1c
+                  - generic [ref=f9e369]: Обмен с 1С
+                  - generic [ref=f9e370]: Загрузка данных и разнесение оплат
+                  - generic [ref=f9e371]: Перейти →
+              - listitem [ref=f9e372]:
+                - link "Функции платформы Что включено в системе Перейти →" [ref=f9e373] [cursor=pointer]:
+                  - /url: /admin/settings/system/feature-flags
+                  - generic [ref=f9e374]: Функции платформы
+                  - generic [ref=f9e375]: Что включено в системе
+                  - generic [ref=f9e376]: Перейти →
+              - listitem [ref=f9e377]:
+                - link "Журнал действий Кто и что менял Перейти →" [ref=f9e378] [cursor=pointer]:
+                  - /url: /admin/audit
+                  - generic [ref=f9e379]: Журнал действий
+                  - generic [ref=f9e380]: Кто и что менял
+                  - generic [ref=f9e381]: Перейти →
+          - generic [ref=f9e382]:
+            - link "Партнёры активные 2" [ref=f9e383] [cursor=pointer]:
+              - /url: /admin/partners
+              - generic [ref=f9e384]:
+                - generic [ref=f9e385]: Партнёры активные
+                - generic [ref=f9e386]: "2"
+            - link "Организации 3" [ref=f9e387] [cursor=pointer]:
+              - /url: /admin/organizations
+              - generic [ref=f9e388]:
+                - generic [ref=f9e389]: Организации
+                - generic [ref=f9e390]: "3"
+            - generic [ref=f9e391]:
+              - generic [ref=f9e392]: Закрытые заказы (месяц)
+              - generic [ref=f9e393]: 0 (0 ₽)
+            - link "К выплате партнёрам 0 ₽" [ref=f9e394] [cursor=pointer]:
+              - /url: /admin/commission-statements
+              - generic [ref=f9e395]:
+                - generic [ref=f9e396]: К выплате партнёрам
+                - generic [ref=f9e397]: 0 ₽
+          - generic [ref=f9e398]:
+            - generic [ref=f9e399]:
+              - heading "Требует внимания" [level=2] [ref=f9e400]
+              - list [ref=f9e401]:
+                - listitem [ref=f9e402]:
+                  - 'link "⚠ Лаг синхронизации: 3 сущ." [ref=f9e403] [cursor=pointer]':
+                    - /url: /admin/settings/system/health
+                - listitem [ref=f9e404]:
+                  - 'link "🕒 Партнёры без ставки: 1" [ref=f9e405] [cursor=pointer]':
+                    - /url: /admin/partners?filter=norate
+            - generic [ref=f9e406]:
+              - heading "Последние события" [level=2] [ref=f9e407]
+              - list [ref=f9e408]:
+                - listitem [ref=f9e409]:
+                  - link "Admin утвердил отчёт по комиссии" [ref=f9e410] [cursor=pointer]:
+                    - /url: /admin/audit?entity=commission_statement&action=commission_statement_approved
+                  - generic [ref=f9e411]: 28.07.2026, 02:42
+                - listitem [ref=f9e412]:
+                  - link "Admin изменил роль пользователя" [ref=f9e413] [cursor=pointer]:
+                    - /url: /admin/audit?entity=user&action=user_role_changed
+                  - generic [ref=f9e414]: 28.07.2026, 02:42
+                - listitem [ref=f9e415]:
+                  - link "Admin назначил индивидуальную ставку организации" [ref=f9e416] [cursor=pointer]:
+                    - /url: /admin/audit?entity=organization&action=organization_rate_override
+                  - generic [ref=f9e417]: 28.07.2026, 02:42
+                - listitem [ref=f9e418]:
+                  - link "Admin изменил ставку партнёра" [ref=f9e419] [cursor=pointer]:
+                    - /url: /admin/audit?entity=partner&action=partner_commission_rate_changed
+                  - generic [ref=f9e420]: 28.07.2026, 02:42
+                - listitem [ref=f9e421]:
+                  - link "Admin создал партнёра" [ref=f9e422] [cursor=pointer]:
+                    - /url: /admin/audit?entity=partner&action=partner_created
+                  - generic [ref=f9e423]: 28.07.2026, 02:42
+  - region "Notifications alt+T"
+  - alert [ref=f9e225]
