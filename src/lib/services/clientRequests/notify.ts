@@ -51,7 +51,7 @@ export async function notifyManagersClientRequestSubmitted(
       );
       if (ids.length) {
         recipients = await prisma.user.findMany({
-          where: { id: { in: ids }, role: 'manager', isActive: true },
+          where: { id: { in: ids }, role: { in: ['manager', 'leader'] }, isActive: true },
           select: CHANNEL_RECIPIENT_SELECT,
         });
       }

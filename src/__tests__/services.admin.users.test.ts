@@ -130,6 +130,30 @@ describe('listUsers', () => {
     expect(rows[0].attachmentLabel).toBe('ManagedOrg');
   });
 
+  it('роль leader получает менеджерский attachmentLabel (ТЗ 2026-08-17)', async () => {
+    const prisma = {
+      user: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'u3l',
+            email: 'l@x',
+            name: 'L',
+            role: 'leader',
+            isActive: true,
+            createdAt: new Date(),
+            partner: null,
+            organizationUsers: [],
+            managedOrganizations: [{ organization: { name: 'LeaderOrg' } }],
+          },
+        ]),
+        count: vi.fn().mockResolvedValue(1),
+      },
+    } as unknown as Parameters<typeof listUsers>[0];
+
+    const { rows } = await listUsers(prisma, ADMIN_SESSION, {});
+    expect(rows[0].attachmentLabel).toBe('LeaderOrg');
+  });
+
   it('возвращает "—" для admin и student ролей', async () => {
     const makeUser = (role: 'admin' | 'student') => ({
       id: 'u4',
@@ -1054,6 +1078,11 @@ describe('adminRegenerateBackupCodes', () => {
     expect((await adminRegenerateBackupCodes(prisma, 'admin1', 'a2')).ok).toBe(true);
   });
 
+  it('leader target: allowed — руководитель тоже staff (ТЗ 2026-08-17)', async () => {
+    const { prisma } = makePrisma({ id: 'ldr1', role: 'leader' });
+    expect((await adminRegenerateBackupCodes(prisma, 'admin1', 'ldr1')).ok).toBe(true);
+  });
+
   it('missing target → not_found', async () => {
     const { prisma, bcCreateMany } = makePrisma(null);
     expect(await adminRegenerateBackupCodes(prisma, 'admin1', 'ghost')).toEqual({
@@ -1094,7 +1123,8 @@ describe('listActiveManagerOptions', () => {
     const rows = await listActiveManagerOptions(prisma);
 
     expect(findMany).toHaveBeenCalledWith({
-      where: { role: 'manager', isActive: true },
+      // Контур обеих моделей (ТЗ 2026-08-17): руководитель тоже кандидат.
+      where: { role: { in: ['manager', 'leader'] }, isActive: true },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
       take: 200,
@@ -1111,7 +1141,7 @@ describe('listManagerCandidates', () => {
     const rows = await listManagerCandidates(prisma);
 
     expect(findMany).toHaveBeenCalledWith({
-      where: { role: 'manager', isActive: true },
+      where: { role: { in: ['manager', 'leader'] }, isActive: true },
       select: { id: true, name: true, email: true },
       orderBy: { email: 'asc' },
     });

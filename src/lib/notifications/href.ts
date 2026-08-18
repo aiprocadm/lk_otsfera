@@ -21,7 +21,7 @@
  *    создаются без meta — deliverAlert).
  * 4. Иначе null (например, воркеры certificate_expiring/sync_error без url).
  */
-export type NotificationRole = 'admin' | 'manager' | 'partner' | 'organization';
+export type NotificationRole = 'admin' | 'manager' | 'leader' | 'partner' | 'organization';
 
 /** Дублирует NotifyManagersType из manager.ts — как Set строк для рантайм-проверки. */
 const MANAGER_ORDER_TYPES: ReadonlySet<string> = new Set([
@@ -62,7 +62,7 @@ export function notificationHref(
     if (path) return path;
   }
 
-  if (role === 'manager' && MANAGER_ORDER_TYPES.has(type)) {
+  if ((role === 'manager' || role === 'leader') && MANAGER_ORDER_TYPES.has(type)) {
     const orderId = m?.orderId;
     if (typeof orderId === 'string' && orderId.length > 0) return `/manager/orders/${orderId}`;
   }

@@ -1,5 +1,6 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import { isManagerLeader } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
 import type { DealStageView } from '@/lib/services/deals/stages';
@@ -38,7 +39,7 @@ class DealStageError extends Error {
 
 function canManage(session: SessionPayload): boolean {
   if (session.role === 'admin') return true;
-  return session.role === 'manager' && session.managerRole === 'leader';
+  return isManagerLeader(session);
 }
 function gate(session: SessionPayload): { companyId: string } | { error: 'forbidden' } {
   if (!canManage(session) || !session.companyId) return { error: 'forbidden' };

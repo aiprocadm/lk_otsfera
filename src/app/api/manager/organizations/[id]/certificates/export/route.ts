@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import { getSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
 import { canManagerAccessOrg } from '@/lib/auth/managerPolicy';
@@ -27,7 +28,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (session.role !== 'manager') return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  if (!isStaffManagerSide(session)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   const { id } = await ctx.params;
   if (!(await canManagerAccessOrg(prisma, session, id))) {

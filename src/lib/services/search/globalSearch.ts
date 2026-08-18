@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { getCompanyTeamVisibility, isManagerLeader } from '@/lib/auth/managerPolicy';
@@ -82,18 +83,17 @@ export async function globalSearch(
 ): Promise<GlobalSearchResult> {
   // Гейты: флаг (defense-in-depth к page-гейту) + staff-идиома (G3/M5).
   if (!isFeatureEnabled('global_search')) return { ok: false, error: 'forbidden' };
-  const isStaff = session.role === 'admin' || session.role === 'manager';
+  const isStaff = session.role === 'admin' || isStaffManagerSide(session);
   if (!isStaff || !session.companyId) return { ok: false, error: 'forbidden' };
 
   const q = args.q.trim().slice(0, 100);
   if (q.length < 2) return { ok: false, error: 'too_short' };
 
-  const teamMode =
-    session.role !== 'manager'
-      ? false
-      : args.teamModeOverride === true && isManagerLeader(session)
-        ? true
-        : await getCompanyTeamVisibility(prisma, session.companyId);
+  const teamMode = !isStaffManagerSide(session)
+    ? false // admin ходит без teamMode (Model A)
+    : args.teamModeOverride === true && isManagerLeader(session)
+      ? true
+      : await getCompanyTeamVisibility(prisma, session.companyId);
   const scopes = searchScopes(session, teamMode);
   const insensitive = 'insensitive' as const;
 

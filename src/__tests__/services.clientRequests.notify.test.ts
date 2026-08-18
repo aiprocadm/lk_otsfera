@@ -138,7 +138,7 @@ describe('notifyManagersClientRequestSubmitted — партнёрская зая
       select: { userId: true },
     });
     expect(userFindMany).toHaveBeenCalledWith({
-      where: { id: { in: ['m1', 'm2'] }, role: 'manager', isActive: true },
+      where: { id: { in: ['m1', 'm2'] }, role: { in: ['manager', 'leader'] }, isActive: true },
       select: CHANNEL_RECIPIENT_SELECT,
     });
     expect(createNotification).toHaveBeenCalledTimes(2);

@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { managerOrgScope } from '@/lib/auth/managerPolicy';
 
@@ -54,7 +55,7 @@ export async function studentOrgAccess(
     return { canRead: true, canWrite: true };
   }
 
-  if (session.role === 'manager') {
+  if (isStaffManagerSide(session)) {
     const org = await prisma.organization.findFirst({
       where: { AND: [{ id: orgId }, managerOrgScope(session, teamMode)] },
       select: { id: true },

@@ -1,4 +1,5 @@
 import type { PrismaClient, Prisma, TrainingStatus } from '@prisma/client';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { getOrder } from '@/lib/services/manager/orders';
 import { recordAudit } from '@/lib/auth/audit';
@@ -22,7 +23,7 @@ const ITEM_INCLUDE = {
 export type OrderItemRow = Prisma.OrderItemGetPayload<{ include: typeof ITEM_INCLUDE }>;
 
 function canEditPositions(session: SessionPayload): boolean {
-  return session.role === 'admin' || session.role === 'manager';
+  return session.role === 'admin' || isStaffManagerSide(session);
 }
 
 async function visibleOrder(prisma: PrismaClient, session: SessionPayload, orderId: string) {

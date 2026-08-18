@@ -9,6 +9,7 @@
  */
 import { Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import { managedOrgIds, managerOrderScopeFilter } from '@/lib/auth/managerPolicy';
 
 import type { SessionPayload } from '@/lib/auth/jwt';
@@ -22,7 +23,7 @@ export async function buildNotificationScopeWhere(
 ) {
   if (session.role === 'admin') return {};
 
-  if (session.role === 'manager') {
+  if (isStaffManagerSide(session)) {
     // Manager visibility follows managerOrderScopeFilter (per-order ownership +
     // per-org scope from session.managedOrgIds + historical commenter access).
     // Notification has no direct Order FK, so we hydrate the in-scope order IDs

@@ -1,5 +1,6 @@
 import { type PrismaClient, type Prisma } from '@prisma/client';
 import { z } from 'zod';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
 import { canSeeEvent } from './policy';
@@ -46,7 +47,7 @@ class CalendarError extends Error {
 }
 
 function staffGate(session: SessionPayload): { companyId: string } | { error: 'forbidden' } {
-  const isStaff = session.role === 'admin' || session.role === 'manager';
+  const isStaff = session.role === 'admin' || isStaffManagerSide(session);
   if (!isStaff || !session.companyId) return { error: 'forbidden' };
   return { companyId: session.companyId };
 }

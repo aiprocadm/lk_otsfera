@@ -90,7 +90,12 @@ export function canReadOrderLessDocument(
   doc: { counterpartyType: CounterpartyType; counterpartyId: string; companyId: string | null }
 ): boolean {
   if (session.role === 'admin') return true;
-  if (session.role === 'manager') return !!doc.companyId && doc.companyId === session.companyId;
+  // Контур менеджера (Р-Л-4): рядовой и руководитель — company-scoped.
+  // Литерал, а не isStaffManagerSide: параметр здесь — структурная выжимка
+  // сессии (role: string), не SessionPayload.
+  if (session.role === 'manager' || session.role === 'leader') {
+    return !!doc.companyId && doc.companyId === session.companyId;
+  }
   if (session.role === 'organization') {
     return doc.counterpartyType === 'organization' && doc.counterpartyId === session.organizationId;
   }

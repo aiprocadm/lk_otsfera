@@ -1,4 +1,5 @@
 import type { Deal, Lead, Order, PrismaClient } from '@prisma/client';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
 import { getInitialStatusId } from '@/lib/services/orderStatuses';
@@ -12,7 +13,7 @@ import { resolveDealStages } from './stages';
  */
 
 function isStaff(session: SessionPayload): boolean {
-  return session.role === 'admin' || session.role === 'manager';
+  return session.role === 'admin' || isStaffManagerSide(session);
 }
 
 export type ConvertLeadResult =

@@ -67,6 +67,17 @@ it('openDm is idempotent by dmKey (P2002 → findUnique)', async () => {
   expect(findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { dmKey: 'm1:m2' } }));
 });
 
+it('openDm: цель с ролью leader — staff, диалог открывается (ТЗ 2026-08-17)', async () => {
+  const target = { id: 'ldr2', role: 'leader', companyId: 'c1', isActive: true, name: 'Лидер' };
+  const create = vi.fn().mockResolvedValue({ id: 'dm2' });
+  const prisma = {
+    user: { findUnique: vi.fn().mockResolvedValue(target) },
+    staffConversation: { create, findUnique: vi.fn() },
+  } as never;
+  const res = await openDm(prisma, manager, { targetUserId: 'ldr2' });
+  expect(res).toEqual({ ok: true, conversationId: 'dm2' });
+});
+
 it('staffUnreadCount: считает беседы с lastMessageAt > lastReadAt', async () => {
   const findMany = vi.fn().mockResolvedValue([
     { id: 'g1', lastMessageAt: new Date('2026-07-17T10:00:00Z'), readStates: [] },

@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import { prisma } from '@/lib/db/prisma';
 import { requireSession } from '@/lib/auth/requireRole';
 import { isFeatureEnabled } from '@/lib/featureFlags';
@@ -45,7 +46,7 @@ export type RequestRequisitesResult =
 export async function requestRequisitesAction(fd: FormData): Promise<RequestRequisitesResult> {
   if (!isFeatureEnabled('document_generation')) return { ok: false, error: 'forbidden' };
   const session = await requireSession();
-  if (session.role !== 'manager' && session.role !== 'admin')
+  if (!isStaffManagerSide(session) && session.role !== 'admin')
     return { ok: false, error: 'forbidden' };
   const orderId = typeof fd.get('orderId') === 'string' ? (fd.get('orderId') as string) : '';
   if (!orderId) return { ok: false, error: 'not_found' };

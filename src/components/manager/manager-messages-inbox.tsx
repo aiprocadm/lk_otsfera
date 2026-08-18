@@ -26,6 +26,13 @@ function authorTone(role: string): { dot: string; label: string; badge: string }
       badge: 'bg-orange-50 text-orange-700 border-orange-200',
     };
   }
+  if (role === 'leader') {
+    return {
+      dot: 'bg-[#F97316]',
+      label: 'Руководитель',
+      badge: 'bg-orange-50 text-orange-700 border-orange-200',
+    };
+  }
   return {
     dot: 'bg-gray-400',
     label: role,

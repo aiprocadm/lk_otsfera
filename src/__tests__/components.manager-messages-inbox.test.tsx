@@ -72,6 +72,15 @@ describe('ManagerMessagesInbox', () => {
     expect(html).toContain('Организация');
   });
 
+  it('leader author: оранжевый тон и подпись «Руководитель» (ТЗ 2026-08-17)', () => {
+    const rows = [makeItem({ author: { role: 'leader', name: 'Лев', email: 'l@x.com' } })];
+    const html = renderToString(
+      React.createElement(ManagerMessagesInbox, { rows, nextCursor: null })
+    );
+    expect(html).toContain('bg-[#F97316]');
+    expect(html).toContain('Руководитель');
+  });
+
   it('manager author: orange tone/label', () => {
     const rows = [makeItem({ author: { role: 'manager', name: 'Пётр', email: 'p@x.com' } })];
     const html = renderToString(

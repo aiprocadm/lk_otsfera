@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient, TaskPriority } from '@prisma/client';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { taskWhereForLevel, canSeeTask, NO_COMPANY_SENTINEL } from '@/lib/auth/accessProfile';
 import { resolveTaskColumns, columnForTask, type TaskColumnView } from '@/lib/tasks/columns';
@@ -155,7 +156,7 @@ export async function listLinkedTasks(
   session: SessionPayload,
   link: { leadId: string } | { dealId: string }
 ): Promise<TaskCard[]> {
-  const isStaff = session.role === 'admin' || session.role === 'manager';
+  const isStaff = session.role === 'admin' || isStaffManagerSide(session);
   if (!isStaff || !session.companyId) return [];
   const columns = await resolveTaskColumns(prisma, session.companyId);
   const base = taskWhereForLevel(session, session.accessProfile?.tasks ?? 'all');
@@ -194,7 +195,7 @@ export async function getTaskFormOptions(
   const companyId = session.companyId ?? NO_COMPANY_SENTINEL; // нет компании → пустые списки (fail-safe)
   const [users, organizations, orders] = await Promise.all([
     prisma.user.findMany({
-      where: { companyId, role: 'manager', isActive: true },
+      where: { companyId, role: { in: ['manager', 'leader'] }, isActive: true },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
       take: 200,

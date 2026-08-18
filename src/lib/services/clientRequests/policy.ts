@@ -1,4 +1,5 @@
 import type { SessionPayload } from '@/lib/auth/jwt';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 
 /**
  * Этап 5 (Модуль 1): RBAC заявок клиентов. Подают ТОЛЬКО клиентские роли
@@ -10,5 +11,5 @@ export function canSubmitClientRequest(session: SessionPayload): boolean {
 }
 
 export function canTriageClientRequests(session: SessionPayload): boolean {
-  return session.role === 'manager' || session.role === 'admin';
+  return session.role === 'admin' || isStaffManagerSide(session);
 }

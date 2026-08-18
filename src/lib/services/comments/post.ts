@@ -1,4 +1,5 @@
 import type { Comment, PrismaClient } from '@prisma/client';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { canSeeOrder } from '@/lib/auth/organizationPolicy';
 import {
@@ -106,7 +107,7 @@ export async function postOrderComment(
   // Manager-cabinet users: three-way visibility via managerPolicy (per-order,
   // per-org, or historical comments). Mirrors the upload service hot-path:
   // count comments only when the cheaper per-order/per-org checks miss.
-  if (session.role === 'manager') {
+  if (isStaffManagerSide(session)) {
     const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
     const order = await prisma.order.findUnique({
       where: { id: orderId },

@@ -54,6 +54,10 @@ describe('enrollment policy', () => {
     expect(submitterRoleLabel(s({ role: 'manager' }))).toBe('manager');
     expect(submitterRoleLabel(s({ role: 'partner' }))).toBe('partner');
   });
+  it('обе модели руководителя дают один label и право подачи (ТЗ 2026-08-17)', () => {
+    expect(submitterRoleLabel(s({ role: 'leader' }))).toBe('leader');
+    expect(canSubmitEnrollments(s({ role: 'leader' }))).toBe(true);
+  });
 });
 
 // Аудит A1: скоуп организации мастера заявки (был приватной функцией роута

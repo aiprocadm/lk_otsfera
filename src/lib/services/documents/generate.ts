@@ -1,4 +1,5 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
 import { canSeeOrder, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
@@ -125,7 +126,7 @@ export async function generateOrderDocument(
   session: SessionPayload,
   args: { orderId: string; docType: GenerateDocType; now?: Date }
 ): Promise<GenerateResult> {
-  if (session.role !== 'manager' && session.role !== 'admin')
+  if (!isStaffManagerSide(session) && session.role !== 'admin')
     return { ok: false, error: 'forbidden' };
 
   const order = await prisma.order.findUnique({
@@ -152,7 +153,7 @@ export async function generateOrderDocument(
   });
   if (!order) return { ok: false, error: 'not_found' };
 
-  if (session.role === 'manager') {
+  if (isStaffManagerSide(session)) {
     const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
     const visible = canSeeOrder(
       session,

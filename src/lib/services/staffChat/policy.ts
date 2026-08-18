@@ -1,4 +1,5 @@
 import type { SessionPayload } from '@/lib/auth/jwt';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 
 /** C8-sentinel: companyId=null у staff-сессии режет выборку в ноль, а не «во всё» (паттерн chat/threads.ts). */
 export const NO_COMPANY_SENTINEL = '__no_company__';
@@ -6,7 +7,7 @@ export const NO_COMPANY_SENTINEL = '__no_company__';
 export type StaffConversationView = { kind: 'dm' | 'general'; companyId: string };
 
 export function isStaff(session: SessionPayload): boolean {
-  return session.role === 'admin' || session.role === 'manager';
+  return session.role === 'admin' || isStaffManagerSide(session);
 }
 
 /**

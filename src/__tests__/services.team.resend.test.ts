@@ -305,6 +305,21 @@ describe('resendInvite — скоуп manager-leader', () => {
     });
   });
 
+  it('обе модели (ТЗ 2026-08-17): цель с ролью leader тоже в скоупе руководителя', async () => {
+    const { prisma } = makePrisma(
+      makeTarget({ role: 'leader', partnerId: null, companyId: 'c1' }),
+      {
+        organizationManager: {
+          findFirst: vi.fn().mockResolvedValue({ organization: { name: 'Орг Л' } }),
+        },
+      }
+    );
+    expect(await resendInvite(prisma, MANAGER_LEADER, { userId: 'u-t' })).toMatchObject({
+      ok: true,
+      emailStatus: 'sent',
+    });
+  });
+
   it('forbidden: обычный manager (без managerRole=leader)', async () => {
     const session: SessionPayload = { sub: 'm-1', role: 'manager', companyId: 'c1' };
     const { prisma } = makePrisma(

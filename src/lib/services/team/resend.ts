@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { isManagerLeader } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { createInviteToken } from '@/lib/auth/passwordReset';
 import { recordAudit } from '@/lib/auth/audit';
@@ -131,9 +132,11 @@ async function isInScope(
     return !!member?.isActive;
   }
 
-  if (session.role === 'manager' && session.managerRole === 'leader') {
+  if (isManagerLeader(session)) {
     return (
-      target.role === 'manager' && !!session.companyId && target.companyId === session.companyId
+      (target.role === 'manager' || target.role === 'leader') &&
+      !!session.companyId &&
+      target.companyId === session.companyId
     );
   }
 
@@ -180,7 +183,7 @@ async function sendInviteEmailFor(
       });
       return sent.status === 'sent' ? 'sent' : 'skipped';
     }
-    if (target.role === 'manager') {
+    if (target.role === 'manager' || target.role === 'leader') {
       const assignment = await prisma.organizationManager.findFirst({
         where: { userId: target.id, isActive: true },
         select: { organization: { select: { name: true } } },

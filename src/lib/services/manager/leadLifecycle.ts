@@ -62,7 +62,11 @@ export async function assignLead(
       where: { id: assignee },
       select: { role: true, isActive: true },
     });
-    if (!candidate || candidate.role !== 'manager' || !candidate.isActive) {
+    if (
+      !candidate ||
+      (candidate.role !== 'manager' && candidate.role !== 'leader') ||
+      !candidate.isActive
+    ) {
       return { ok: false, error: 'invalid_manager' };
     }
   }

@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
+import { isManagerLeader, isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { log } from '@/lib/logging';
@@ -19,11 +20,11 @@ export type PiiAccessArgs = {
 };
 
 function isStaff(session: SessionPayload): boolean {
-  return session.role === 'admin' || session.role === 'manager';
+  return session.role === 'admin' || isStaffManagerSide(session);
 }
 
 function roleSnapshot(session: SessionPayload): string {
-  return session.role === 'manager' && session.managerRole === 'leader' ? 'leader' : session.role;
+  return isManagerLeader(session) ? 'leader' : session.role;
 }
 
 function toRow(args: PiiAccessArgs) {

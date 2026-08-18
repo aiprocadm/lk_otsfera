@@ -128,6 +128,19 @@ describe('EditUserPage', () => {
     expect(container.querySelector('[data-testid="admin-backup-codes"]')).not.toBeNull();
   });
 
+  it('роль leader — staff: секция кодов видна (ТЗ 2026-08-17)', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    getUser.mockResolvedValue({ ...USER, role: 'leader' });
+    listActivePartnerOptions.mockResolvedValue([]);
+    isFeatureEnabled.mockReturnValue(true);
+
+    const { container } = await renderServerComponent(
+      EditUserPage({ params: Promise.resolve({ id: 'u1' }) })
+    );
+
+    expect(container.querySelector('[data-testid="admin-backup-codes"]')).not.toBeNull();
+  });
+
   it('hides the backup-codes control for a non-staff user even with the flag on', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     getUser.mockResolvedValue({ ...USER, role: 'organization' });

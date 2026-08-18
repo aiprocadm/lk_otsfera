@@ -57,7 +57,7 @@ function computeAttachmentLabel(u: {
     const extra = u.organizationUsers.length - 1;
     return first ? (extra > 0 ? `${first} (+${extra})` : first) : '—';
   }
-  if (u.role === 'manager') {
+  if (u.role === 'manager' || u.role === 'leader') {
     const first = u.managedOrganizations[0]?.organization.name;
     const extra = u.managedOrganizations.length - 1;
     return first ? (extra > 0 ? `${first} (+${extra})` : first) : '—';
@@ -214,7 +214,7 @@ export async function listActiveManagerOptions(
   prisma: PrismaClient
 ): Promise<Array<{ id: string; name: string }>> {
   return prisma.user.findMany({
-    where: { role: 'manager', isActive: true },
+    where: { role: { in: ['manager', 'leader'] }, isActive: true },
     select: { id: true, name: true },
     orderBy: { name: 'asc' },
     take: 200,
@@ -232,7 +232,7 @@ export async function listManagerCandidates(
   prisma: PrismaClient
 ): Promise<Array<{ id: string; name: string; email: string }>> {
   return prisma.user.findMany({
-    where: { role: 'manager', isActive: true },
+    where: { role: { in: ['manager', 'leader'] }, isActive: true },
     select: { id: true, name: true, email: true },
     orderBy: { email: 'asc' },
   });

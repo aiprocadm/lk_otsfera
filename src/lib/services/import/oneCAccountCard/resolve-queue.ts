@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { upsertPaymentRecord, type WriteCtx } from '@/lib/services/oneCSync/writers';
 import { emptySummary } from '@/lib/services/oneCSync/record-batch';
@@ -8,7 +9,7 @@ import type { OneCPaymentDto } from '@/lib/services/oneCSync/dto';
 const EPOCH = new Date(0).toISOString();
 type Err = 'forbidden' | 'not_found' | 'org_required' | 'write_skipped';
 function isStaff(s: SessionPayload) {
-  return s.role === 'admin' || s.role === 'manager';
+  return s.role === 'admin' || isStaffManagerSide(s);
 }
 
 /** C8: a non-admin may act on a queue row only when its batch belongs to their company.

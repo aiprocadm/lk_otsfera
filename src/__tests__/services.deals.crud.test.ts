@@ -238,6 +238,14 @@ describe('createDeal — ответственный менеджер', () => {
     });
   });
 
+  it('кандидат с ролью leader валиден (контур Р-Л-4, ТЗ 2026-08-17)', async () => {
+    const { prisma } = makePrisma({
+      candidate: { role: 'leader', isActive: true, companyId: 'c1' },
+    });
+    const res = await createDeal(prisma, MGR, { ...VALID, managerId: 'ldr-1' });
+    expect(res.ok).toBe(true);
+  });
+
   it('happy: активный менеджер своей компании + аудит deal_created', async () => {
     const { prisma, dealCreate } = makePrisma({
       candidate: { role: 'manager', isActive: true, companyId: 'c1' },
