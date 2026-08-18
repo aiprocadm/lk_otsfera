@@ -1,4 +1,5 @@
 import type { Lead, PrismaClient } from '@prisma/client';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
 import { validateClientRequestInput } from '@/lib/services/clientRequests/submit';
@@ -28,7 +29,7 @@ export async function createLeadByStaff(
   session: SessionPayload,
   input: CreateLeadByStaffInput
 ): Promise<CreateLeadByStaffResult> {
-  if (session.role !== 'manager' && session.role !== 'admin') {
+  if (!isStaffManagerSide(session) && session.role !== 'admin') {
     return { ok: false, error: 'forbidden' };
   }
 
@@ -42,7 +43,7 @@ export async function createLeadByStaff(
       select: { companyId: true },
     });
     if (!org) return { ok: false, error: 'validation', messages: ['Организация не найдена'] };
-    if (session.role === 'manager' && (!session.companyId || org.companyId !== session.companyId)) {
+    if (isStaffManagerSide(session) && (!session.companyId || org.companyId !== session.companyId)) {
       return { ok: false, error: 'forbidden' };
     }
   }

@@ -106,7 +106,7 @@ export async function POST(req: Request) {
   // НЕ выдаётся — вместо неё одноразовый email-код + pre-auth cookie. Ветка
   // стоит ПОСЛЕ buildSessionClaims, чтобы деактивированный аккаунт не получал
   // письмо. leader — это manager с managerRole='leader', отдельной ветки нет.
-  const isStaff = user.role === 'admin' || user.role === 'manager';
+  const isStaff = user.role === 'admin' || user.role === 'manager' || user.role === 'leader';
   if (isStaff && isFeatureEnabled('staff_2fa')) {
     const { code } = await createTwoFactorChallenge(prisma, user.id);
     try {

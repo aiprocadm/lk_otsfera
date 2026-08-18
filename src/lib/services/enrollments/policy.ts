@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { isManagerLeader, isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 /**
@@ -8,14 +9,14 @@ import type { SessionPayload } from '@/lib/auth/jwt';
  * already covers them.
  */
 export function canReviewEnrollments(session: SessionPayload): boolean {
-  return session.role === 'manager' || session.role === 'admin';
+  return session.role === 'admin' || isStaffManagerSide(session);
 }
 
 export function canSubmitEnrollments(session: SessionPayload): boolean {
   return (
     session.role === 'partner' ||
     session.role === 'organization' ||
-    session.role === 'manager' ||
+    isStaffManagerSide(session) ||
     session.role === 'admin'
   );
 }
@@ -38,7 +39,7 @@ export async function canAccessEnrollmentOrg(
   session: SessionPayload,
   organizationId: string
 ): Promise<boolean> {
-  if (session.role === 'manager' || session.role === 'admin') return true;
+  if (session.role === 'admin' || isStaffManagerSide(session)) return true;
   if (session.role === 'organization') {
     return (session.organizationMemberships ?? []).some(
       (m) => m.isActive && m.organizationId === organizationId
@@ -53,6 +54,6 @@ export async function canAccessEnrollmentOrg(
 
 /** Snapshot label stored on the request (distinguishes leader from plain manager). */
 export function submitterRoleLabel(session: SessionPayload): string {
-  if (session.role === 'manager' && session.managerRole === 'leader') return 'leader';
+  if (isManagerLeader(session)) return 'leader';
   return session.role;
 }

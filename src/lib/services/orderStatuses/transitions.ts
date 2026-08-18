@@ -13,6 +13,7 @@
  */
 
 import type { PrismaClient, OrderStatusDefinition } from '@prisma/client';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { canSeeOrder, getCompanyTeamVisibility, isManagerLeader } from '@/lib/auth/managerPolicy';
 import { recordAudit } from '@/lib/auth/audit';
@@ -36,7 +37,7 @@ export type TransitionResult =
 
 /** Может ли роль двигать статус вообще (клиенты — нет). */
 function isStaff(session: SessionPayload): boolean {
-  return session.role === 'admin' || session.role === 'manager';
+  return session.role === 'admin' || isStaffManagerSide(session);
 }
 
 /** Админ и руководитель: возврат назад и подъём из отмены. */
@@ -83,7 +84,7 @@ export async function transitionOrderStatus(
   });
   if (!order) return { ok: false, error: 'not_found' };
 
-  if (session.role === 'manager') {
+  if (isStaffManagerSide(session)) {
     const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
     const inScope =
       (isManagerLeader(session) && !!session.companyId && order.companyId === session.companyId) ||

@@ -1,4 +1,5 @@
 import type { PrismaClient, Prisma, Certificate } from '@prisma/client';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { managedOrgIds, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { recordAudit } from '@/lib/auth/audit';
@@ -17,7 +18,7 @@ const CERT_INCLUDE = {
 export type CertificateRow = Prisma.CertificateGetPayload<{ include: typeof CERT_INCLUDE }>;
 
 function canEditCertificates(session: SessionPayload): boolean {
-  return session.role === 'admin' || session.role === 'manager';
+  return session.role === 'admin' || isStaffManagerSide(session);
 }
 
 /**
@@ -30,7 +31,7 @@ async function scopeOrgIds(
 ): Promise<string[] | null> {
   if (session.role === 'admin') return null;
 
-  if (session.role === 'manager') {
+  if (isStaffManagerSide(session)) {
     const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
     if (teamMode && session.companyId) {
       const orgs = await prisma.organization.findMany({

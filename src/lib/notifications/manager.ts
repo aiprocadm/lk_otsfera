@@ -135,7 +135,7 @@ export async function resolveManagerRecipients(
 
   // c) historical: any manager who commented on this order
   const historical = await db.comment.findMany({
-    where: { orderId, author: { role: 'manager' } },
+    where: { orderId, author: { role: { in: ['manager', 'leader'] } } },
     select: { authorId: true },
     distinct: ['authorId'],
   });
@@ -296,7 +296,7 @@ export async function resolveOrgManagerRecipients(
   if (opts?.excludeUserId) ids.delete(opts.excludeUserId);
   if (ids.size === 0) return [];
   return db.user.findMany({
-    where: { id: { in: Array.from(ids) }, role: 'manager', isActive: true },
+    where: { id: { in: Array.from(ids) }, role: { in: ['manager', 'leader'] }, isActive: true },
     select: CHANNEL_RECIPIENT_SELECT,
   });
 }

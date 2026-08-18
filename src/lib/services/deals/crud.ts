@@ -1,4 +1,5 @@
 import type { Deal, PrismaClient } from '@prisma/client';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
 import { parseIsoCalendarDate } from '@/lib/dates/calendar';
@@ -17,7 +18,7 @@ export type DealCrudResult =
   | { ok: false; error: 'forbidden' | 'not_found' | 'validation'; messages?: string[] };
 
 function isStaff(session: SessionPayload): boolean {
-  return session.role === 'admin' || session.role === 'manager';
+  return session.role === 'admin' || isStaffManagerSide(session);
 }
 
 type ParsedInput = {
@@ -89,7 +90,12 @@ async function resolveManagerId(
     where: { id: managerId },
     select: { role: true, isActive: true, companyId: true },
   });
-  if (!candidate || candidate.role !== 'manager' || !candidate.isActive) return { ok: false };
+  if (
+    !candidate ||
+    (candidate.role !== 'manager' && candidate.role !== 'leader') ||
+    !candidate.isActive
+  )
+    return { ok: false };
   if (session.role !== 'admin' && candidate.companyId !== session.companyId) return { ok: false };
   return { ok: true, managerId };
 }

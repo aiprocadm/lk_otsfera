@@ -1,4 +1,5 @@
 import type { Lead, PrismaClient } from '@prisma/client';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
 import { validateClientRequestInput } from '@/lib/services/clientRequests/submit';
@@ -32,7 +33,7 @@ export type ConvertSourceResult =
     };
 
 function staffGate(session: SessionPayload): boolean {
-  return session.role === 'manager' || session.role === 'admin';
+  return session.role === 'admin' || isStaffManagerSide(session);
 }
 
 export async function createLeadFromInbound(

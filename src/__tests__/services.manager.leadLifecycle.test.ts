@@ -105,6 +105,12 @@ describe('assignLead', () => {
       error: 'invalid_manager',
     });
   });
+  it('кандидат с ролью leader валиден (контур Р-Л-4, ТЗ 2026-08-17)', async () => {
+    const d = db({ id: 'L1', status: 'new', partnerId: 'p1', organizationId: 'o1' });
+    (d as any).user.findUnique.mockResolvedValue({ role: 'leader', isActive: true });
+    const r = await assignLead(d, { leadId: 'L1', managerId: 'm1', assignToUserId: 'ldr-1' });
+    expect(r.ok).toBe(true);
+  });
   it('B1: self-assign skips candidate lookup entirely (behaviour unchanged)', async () => {
     const d = db({ id: 'L1', status: 'new', partnerId: 'p1', organizationId: 'o1' });
     const r = await assignLead(d, { leadId: 'L1', managerId: 'm1' });

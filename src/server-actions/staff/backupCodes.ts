@@ -1,4 +1,5 @@
 'use server';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import { prisma } from '@/lib/db/prisma';
 import { getSession } from '@/lib/auth/session';
 import { isFeatureEnabled } from '@/lib/featureFlags';
@@ -12,7 +13,7 @@ export async function regenerateBackupCodesAction(): Promise<
   { ok: true; codes: string[] } | { ok: false; error: 'forbidden' }
 > {
   const session = await getSession();
-  const isStaff = !!session && (session.role === 'admin' || session.role === 'manager');
+  const isStaff = !!session && (session.role === 'admin' || isStaffManagerSide(session));
   if (!isStaff || !isFeatureEnabled('staff_2fa')) return { ok: false, error: 'forbidden' };
 
   const { codes } = await generateBackupCodes(prisma, session.sub);

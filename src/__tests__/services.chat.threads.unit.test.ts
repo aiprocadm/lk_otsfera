@@ -210,7 +210,8 @@ function sqlOf(queryRaw: ReturnType<typeof vi.fn>): { text: string; values: unkn
 describe('unreadCount — unit', () => {
   it('returns count:0 for roles with null scope (query never fired)', async () => {
     const { prisma, queryRaw } = queryRawPrisma();
-    const result = await unreadCount(prisma, makeSession({ role: 'leader' as any }));
+    // 'leader' теперь настоящая роль контура (ТЗ 2026-08-17) — null-скоуп даёт student.
+    const result = await unreadCount(prisma, makeSession({ role: 'student' as any }));
     expect(result).toEqual({ ok: true, count: 0 });
     expect(queryRaw).not.toHaveBeenCalled();
   });

@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
+import { isManagerLeader, isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
 import { resolveDealStages, stageForDeal, type DealStageView } from './stages';
@@ -13,12 +14,12 @@ import { resolveDealStages, stageForDeal, type DealStageView } from './stages';
  */
 
 function isStaff(session: SessionPayload): boolean {
-  return session.role === 'admin' || session.role === 'manager';
+  return session.role === 'admin' || isStaffManagerSide(session);
 }
 
 function isLeaderOrAdmin(session: SessionPayload): boolean {
   return (
-    session.role === 'admin' || (session.role === 'manager' && session.managerRole === 'leader')
+    session.role === 'admin' || isManagerLeader(session)
   );
 }
 

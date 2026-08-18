@@ -156,6 +156,20 @@ describe('assignOrderManager', () => {
     expect(update).toHaveBeenCalledWith({ where: { id: 'o1' }, data: { managerId: 'u2' } });
   });
 
+  it('кандидат с ролью leader валиден (контур Р-Л-4, ТЗ 2026-08-17)', async () => {
+    const update = vi.fn().mockResolvedValue({});
+    const prisma = {
+      user: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ role: 'leader', isActive: true, companyId: 'co-1' }),
+      },
+      order: { findUnique: vi.fn().mockResolvedValue({ managerId: null }), update },
+    } as never;
+    const r = await assignOrderManager(prisma, SESSION, { orderId: 'o1', managerUserId: 'ldr-1' });
+    expect(r).toEqual({ ok: true, changed: true });
+  });
+
   it('order_not_found when the order is missing', async () => {
     const prisma = {
       user: {

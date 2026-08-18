@@ -7,6 +7,7 @@
  */
 
 import type { PrismaClient } from '@prisma/client';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { isManagerLeader } from '@/lib/auth/managerPolicy';
 import { getOrderedStatuses } from './definitions';
@@ -62,7 +63,7 @@ export async function getOrderStatusPanel(
   const terminalRow = all.find((s) => s.isActive && s.isTerminal) ?? null;
 
   const elevated = session.role === 'admin' || isManagerLeader(session);
-  const staff = session.role === 'admin' || session.role === 'manager';
+  const staff = session.role === 'admin' || isStaffManagerSide(session);
 
   const idx = current ? pipeline.findIndex((s) => s.id === current.id) : -1;
 

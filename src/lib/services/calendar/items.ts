@@ -1,4 +1,5 @@
 import type { PrismaClient, Prisma, TaskPriority } from '@prisma/client';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { taskWhereForLevel, NO_COMPANY_SENTINEL } from '@/lib/auth/accessProfile';
 
@@ -67,7 +68,7 @@ export async function listCalendarItems(
   session: SessionPayload,
   range: CalendarRange
 ): Promise<CalendarItem[]> {
-  const isStaff = session.role === 'admin' || session.role === 'manager';
+  const isStaff = session.role === 'admin' || isStaffManagerSide(session);
   if (!isStaff || !session.companyId) return [];
 
   const [events, tasks] = await Promise.all([

@@ -16,6 +16,7 @@
  */
 
 import type { PrismaClient } from '@prisma/client';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import {
   canSeeOrder,
@@ -111,7 +112,7 @@ async function resolveOrder(
   });
   if (!order) return DENIED;
 
-  if (session.role === 'manager') {
+  if (isStaffManagerSide(session)) {
     const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
     const commentsCountByMe = order.comments.length;
     if (isLeaderSameCompany(session, order.companyId)) return GRANTED;
@@ -139,7 +140,7 @@ async function resolveOrganization(
   });
   if (!org) return DENIED;
 
-  if (session.role === 'manager') {
+  if (isStaffManagerSide(session)) {
     return (await canManagerAccessOrg(prisma, session, orgId)) ? GRANTED : DENIED;
   }
 
@@ -168,7 +169,7 @@ async function resolvePartner(
     return session.partnerId === partnerId ? GRANTED : DENIED;
   }
 
-  if (session.role === 'manager') {
+  if (isStaffManagerSide(session)) {
     // Карточка партнёра живёт только у администратора (решение Q4), но чтение
     // значений менеджеру не запрещаем, если партнёр относится к его компании:
     // иначе будущий экран пришлось бы «открывать» правкой этого файла.
@@ -232,7 +233,7 @@ async function resolveDocument(
 
   // Документ заказа — доступ наследуется от заказа.
   if (doc.order) {
-    if (session.role === 'manager') {
+    if (isStaffManagerSide(session)) {
       const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
       const commentsCountByMe = doc.order.comments.length;
       if (isLeaderSameCompany(session, doc.order.companyId)) return GRANTED;

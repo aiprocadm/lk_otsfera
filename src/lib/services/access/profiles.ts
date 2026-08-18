@@ -1,5 +1,6 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import { isManagerLeader } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
 import {
@@ -56,7 +57,7 @@ const inputSchema = z.object({
 
 function canManageProfiles(session: SessionPayload): boolean {
   if (session.role === 'admin') return true;
-  return session.role === 'manager' && session.managerRole === 'leader';
+  return isManagerLeader(session);
 }
 
 /** Actor-guard shared by all mutations: role + presence of a company scope. */
@@ -132,7 +133,7 @@ export async function listAssignableUsers(
   if ('error' in gate) return { ok: false, error: gate.error };
 
   const rows = await prisma.user.findMany({
-    where: { companyId: gate.companyId, role: 'manager' },
+    where: { companyId: gate.companyId, role: { in: ['manager', 'leader'] } },
     select: { id: true, name: true, email: true, accessProfileId: true },
     orderBy: { name: 'asc' },
   });

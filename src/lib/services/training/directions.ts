@@ -1,4 +1,5 @@
 import type { PrismaClient, TrainingDirection } from '@prisma/client';
+import { isManagerLeader } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 type DirectionsError = 'forbidden' | 'validation' | 'not_found';
@@ -7,7 +8,7 @@ type Result<T> = ({ ok: true } & T) | { ok: false; error: DirectionsError };
 /** admin или руководитель (manager+managerRole='leader') настраивают справочники (§10/§11). */
 function canManageSettings(session: SessionPayload): boolean {
   return (
-    session.role === 'admin' || (session.role === 'manager' && session.managerRole === 'leader')
+    session.role === 'admin' || isManagerLeader(session)
   );
 }
 

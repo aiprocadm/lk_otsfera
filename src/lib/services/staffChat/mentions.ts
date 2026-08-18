@@ -44,7 +44,7 @@ export async function listColleagues(
       isActive: true,
       OR: [
         {
-          role: 'manager',
+          role: { in: ['manager', 'leader'] },
           // admin (Model A) видит менеджеров всех компаний: ключ companyId в
           // where отсутствует ⇒ Prisma не фильтрует по нему.
           ...(session.role === 'admin'

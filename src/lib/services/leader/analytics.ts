@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
+import { isManagerLeader, isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { resolveFunnelStages, stageForLead } from '@/lib/funnel/stages';
 import { listCompanyManagers } from '@/lib/services/manager/team';
@@ -12,7 +13,7 @@ import { recordAudit } from '@/lib/auth/audit';
  */
 
 function isStaff(session: SessionPayload): boolean {
-  return session.role === 'admin' || session.role === 'manager';
+  return session.role === 'admin' || isStaffManagerSide(session);
 }
 
 const OPEN_LEAD_STATUSES = ['new', 'in_review', 'qualified'] as const;
@@ -397,7 +398,7 @@ export async function upsertSalesTarget(
   args: UpsertSalesTargetArgs
 ): Promise<{ ok: true } | { ok: false; error: UpsertSalesTargetError }> {
   const isLeader =
-    session.role === 'admin' || (session.role === 'manager' && session.managerRole === 'leader');
+    session.role === 'admin' || isManagerLeader(session);
   if (!isLeader || !session.companyId) return { ok: false, error: 'forbidden' };
   const companyId = session.companyId;
   const { managerId, year, month, targetAmount } = args;
@@ -408,7 +409,8 @@ export async function upsertSalesTarget(
     where: { id: managerId },
     select: { id: true, role: true, companyId: true },
   });
-  if (!target || target.role !== 'manager') return { ok: false, error: 'not_found' };
+  if (!target || (target.role !== 'manager' && target.role !== 'leader'))
+    return { ok: false, error: 'not_found' };
   if (target.companyId !== companyId) return { ok: false, error: 'forbidden' };
 
   if (targetAmount === null) {

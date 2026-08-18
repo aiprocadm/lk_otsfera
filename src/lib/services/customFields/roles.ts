@@ -63,6 +63,8 @@ export function sessionFieldRole(session: SessionPayload): CustomFieldRole | nul
   switch (session.role) {
     case 'admin':
       return 'admin';
+    case 'leader':
+      return 'leader';
     case 'manager':
       return isManagerLeader(session) ? 'leader' : 'manager';
     case 'partner':

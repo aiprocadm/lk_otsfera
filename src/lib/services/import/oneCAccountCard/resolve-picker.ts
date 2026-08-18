@@ -1,4 +1,5 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { importScope } from '@/lib/services/oneCSync/scope';
 
@@ -19,7 +20,7 @@ export type ResolveOrgOption = { id: string; name: string; inn: string | null };
 export type ResolveOrderOption = { id: string; orderNumber: string | null; title: string };
 
 function isStaff(s: SessionPayload) {
-  return s.role === 'admin' || s.role === 'manager';
+  return s.role === 'admin' || isStaffManagerSide(s);
 }
 
 export async function searchResolveOrgs(

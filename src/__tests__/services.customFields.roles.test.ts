@@ -39,6 +39,10 @@ describe('roles — роль сессии', () => {
     expect(sessionFieldRole(session('manager'))).toBe('manager');
   });
 
+  it('top-level роль leader (ТЗ 2026-08-17) даёт то же значение, что старая пара', () => {
+    expect(sessionFieldRole(session('leader'))).toBe('leader');
+  });
+
   it('клиентские роли и админ — как есть', () => {
     expect(sessionFieldRole(session('admin'))).toBe('admin');
     expect(sessionFieldRole(session('partner'))).toBe('partner');

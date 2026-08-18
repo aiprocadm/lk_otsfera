@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db/prisma';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { canReadOrderLessDocument } from '@/lib/auth/documentChannelPolicy';
 
@@ -38,7 +39,7 @@ export async function canAccessOrganization(
     return session.organizationId === organizationId;
   }
 
-  if (session.role === 'manager') {
+  if (isStaffManagerSide(session)) {
     const { canSeeOrganization, getCompanyTeamVisibility } =
       await import('@/lib/auth/managerPolicy');
     const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
@@ -76,7 +77,7 @@ export async function canReadOrder(session: SessionPayload, order: OrderLike) {
     return Boolean(organization);
   }
 
-  if (session.role === 'manager') {
+  if (isStaffManagerSide(session)) {
     const { canSeeOrder, getCompanyTeamVisibility } = await import('@/lib/auth/managerPolicy');
     const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
     // `order` already carries companyId, so company-wide is a pure comparison.

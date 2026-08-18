@@ -282,9 +282,11 @@ describe('values service — coverage closure', () => {
   });
 
   it('setValues: unexpected role → forbidden fallthrough (branch @102, lines 104-105)', async () => {
-    // A role outside {admin,manager,organization,partner,student} hits the final
-    // defensive `return { ok: false, error: 'forbidden' }` before any DB access.
-    const weird = makeSession('weird-user', 'leader');
+    // A role outside {admin,manager,leader,organization,partner,student} hits the
+    // final defensive `return { ok: false, error: 'forbidden' }` before any DB
+    // access. ('leader' стал настоящей ролью контура — ТЗ 2026-08-17 — поэтому
+    // фиктивной здесь служит заведомо неведомая строка.)
+    const weird = makeSession('weird-user', 'ghost' as never);
     const res = await setValues(prisma, weird, ET, orderId, { [defTextId]: 'x' });
     expect(res).toEqual({ ok: false, error: 'forbidden' });
   });

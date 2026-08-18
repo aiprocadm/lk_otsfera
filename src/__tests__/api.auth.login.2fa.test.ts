@@ -121,6 +121,15 @@ describe('POST /api/auth/login — staff 2FA branch', () => {
     expect(await res.json()).toEqual({ ok: true, twoFactorRequired: true });
   });
 
+  it('leader + flag ON → challenge issued (руководитель тоже staff, ТЗ 2026-08-17)', async () => {
+    findUniqueMock.mockResolvedValue({ ...MANAGER, id: 'u-ldr', role: 'leader', email: 'l@x.ru' });
+    buildClaimsMock.mockResolvedValue({ ok: true, claims: { sub: 'u-ldr', role: 'leader' } });
+
+    const res = await POST(req({ email: 'l@x.ru', password: 'pw' }));
+
+    expect(await res.json()).toEqual({ ok: true, twoFactorRequired: true });
+  });
+
   it('partner + flag ON → ordinary session, no challenge', async () => {
     findUniqueMock.mockResolvedValue({ ...MANAGER, id: 'u-p', role: 'partner', partnerId: 'p1' });
     buildClaimsMock.mockResolvedValue({ ok: true, claims: { sub: 'u-p', role: 'partner' } });

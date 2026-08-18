@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { leadWhereForLevel, canSeeLead } from '@/lib/auth/accessProfile';
 import { resolveFunnelStages, stageForLead, type FunnelStageView } from '@/lib/funnel/stages';
@@ -19,7 +20,7 @@ import { convertLeadToDeal } from '@/lib/services/deals/convert';
  */
 
 function isStaff(session: SessionPayload): boolean {
-  return session.role === 'admin' || session.role === 'manager';
+  return session.role === 'admin' || isStaffManagerSide(session);
 }
 
 type FunnelCard = {

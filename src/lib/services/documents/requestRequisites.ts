@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { canSeeOrder, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { listMissingRequisites } from '@/lib/documents/requisites-check';
@@ -50,7 +51,7 @@ export async function requestRequisites(
   });
   if (!order || !order.organizationId || !order.companyId) return { ok: false, error: 'not_found' };
 
-  if (session.role === 'manager') {
+  if (isStaffManagerSide(session)) {
     const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
     const visible = canSeeOrder(
       session,

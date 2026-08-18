@@ -307,7 +307,7 @@ export async function adminRegenerateBackupCodes(
     });
     if (!target) throw new AdminUserError('not_found');
     // Только staff пользуется 2FA (admin/manager, включая leader).
-    if (target.role !== 'admin' && target.role !== 'manager') {
+    if (target.role !== 'admin' && target.role !== 'manager' && target.role !== 'leader') {
       throw new AdminUserError('not_staff');
     }
 

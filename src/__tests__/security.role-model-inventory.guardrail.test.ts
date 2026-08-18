@@ -100,12 +100,12 @@ describe('ролевая модель — снимок (PR-0 «шумящие с
     expect(src).toContain("user.role === 'manager' || user.role === 'leader'");
   });
 
-  it('словари-типы без leader: NotificationRole и QuickTasksRole', () => {
-    // NotificationRole без leader = deep-link'и уведомлений руководителя
-    // станут null; QuickTasksRole уже несёт 'leader' как НЕ-JWT ключ.
+  it('словари-типы знают leader: NotificationRole и QuickTasksRole', () => {
+    // PR-2: NotificationRole расширен — иначе deep-link'и уведомлений
+    // руководителя стали бы null после миграции данных (PR-3).
     const href = readFileSync(join(SRC, 'lib', 'notifications', 'href.ts'), 'utf8');
     expect(href).toContain(
-      "export type NotificationRole = 'admin' | 'manager' | 'partner' | 'organization'"
+      "export type NotificationRole = 'admin' | 'manager' | 'leader' | 'partner' | 'organization'"
     );
     const quick = readFileSync(join(SRC, 'lib', 'quickTasks.ts'), 'utf8');
     expect(quick).toContain(
@@ -116,31 +116,31 @@ describe('ролевая модель — снимок (PR-0 «шумящие с
 
 describe('инвентарь «это менеджер?» — по файлам (Р-Л-4)', () => {
   it("Prisma-литералы role: 'manager' — точный инвентарь", () => {
-    // Эти выборки при смене модели МОЛЧА перестанут находить руководителей:
-    // воркеры SLA/сертификатов, @-упоминания, ростер, кандидаты назначения,
-    // уведомления. PR-2 разбирает каждую по трём шаблонам Р-Л-4.
+    // PR-2 разобрал контур-выборки в `role: { in: ['manager','leader'] }`.
+    // Осталось три ОСОЗНАННЫХ литерала:
+    //  - manager/invite.ts — data-литерал: приглашение всегда создаёт РЯДОВОГО
+    //    менеджера (шаблон 2 Р-Л-4), руководителя назначает админ отдельно;
+    //  - оба воркера — литерал живёт ВНУТРИ OR обеих моделей руководителя
+    //    ({role:'leader'} ∨ {role:'manager', managerRole:'leader'}); вторая
+    //    половина снимается PR-4 вместе с колонкой managerRole.
     const inventory: Record<string, number> = {};
     for (const f of prodFiles()) {
       const n = countMatches(readFileSync(f, 'utf8'), /role: 'manager'/g);
       if (n > 0) inventory[relative(SRC, f).split(sep).join('/')] = n;
     }
     expect(inventory).toEqual({
-      'lib/notifications/manager.ts': 2,
-      'lib/services/access/profiles.ts': 1,
-      'lib/services/admin/users/queries.ts': 2,
-      'lib/services/clientRequests/notify.ts': 1,
       'lib/services/manager/invite.ts': 1,
-      'lib/services/manager/team.ts': 1,
-      'lib/services/staffChat/mentions.ts': 1,
-      'lib/services/tasks/board.ts': 1,
       'worker/processors/certificate-expiry.ts': 1,
       'worker/processors/sla-escalation.ts': 1,
     });
   });
 
   it("staff-идиома `admin || manager` — точный инвентарь", () => {
-    // Каждая из этих проверок при выделении роли МОЛЧА выключит руководителя
-    // из staff-контура (сделки, задачи, календарь, чаты, статусы, ПДн-журнал).
+    // PR-2 разобрал сессионные идиомы через isStaffManagerSide. Остались три
+    // ОСОЗНАННЫЕ — все про БД-роль (user/target, не SessionPayload), все уже
+    // расширены третьим слагаемым `|| role === 'leader'` (регэксп ловит первые
+    // два): staff-гейт 2FA при логине, staff-секция кодов восстановления в
+    // админ-карточке и цель staff-диалога в служебном чате.
     const RE = /role === 'admin' \|\| [a-zA-Z.]*role === 'manager'|role === 'manager' \|\| [a-zA-Z.]*role === 'admin'/g;
     const inventory: Record<string, number> = {};
     for (const f of prodFiles()) {
@@ -150,32 +150,18 @@ describe('инвентарь «это менеджер?» — по файлам 
     expect(inventory).toEqual({
       'app/admin/users/[id]/page.tsx': 1,
       'app/api/auth/login/route.ts': 1,
-      'lib/auth/managerPolicy.ts': 1,
-      'lib/pii/record.ts': 1,
-      'lib/services/calendar/events.ts': 1,
-      'lib/services/calendar/items.ts': 1,
-      'lib/services/chat/messages.ts': 1,
-      'lib/services/clientRequests/policy.ts': 1,
-      'lib/services/deals/board.ts': 1,
-      'lib/services/deals/convert.ts': 1,
-      'lib/services/deals/crud.ts': 1,
-      'lib/services/deals/notes.ts': 1,
-      'lib/services/enrollments/policy.ts': 2,
-      'lib/services/funnel/board.ts': 1,
-      'lib/services/import/oneCAccountCard/resolve-picker.ts': 1,
-      'lib/services/import/oneCAccountCard/resolve-queue.ts': 1,
-      'lib/services/intake/convert.ts': 1,
-      'lib/services/leader/analytics.ts': 1,
-      'lib/services/orderStatuses/panel.ts': 1,
-      'lib/services/orderStatuses/transitions.ts': 1,
-      'lib/services/search/globalSearch.ts': 1,
       'lib/services/staffChat/conversations.ts': 1,
-      'lib/services/staffChat/policy.ts': 1,
-      'lib/services/tasks/board.ts': 1,
-      'lib/services/tasks/tasks.ts': 1,
-      'lib/services/training/certificates.ts': 1,
-      'lib/services/training/orderItems.ts': 1,
-      'server-actions/staff/backupCodes.ts': 1,
     });
+    // Каждое место обязано включать третье слагаемое — leader тоже staff.
+    for (const rel of [
+      'app/admin/users/[id]/page.tsx',
+      'app/api/auth/login/route.ts',
+      'lib/services/staffChat/conversations.ts',
+    ]) {
+      const src = readFileSync(join(SRC, ...rel.split('/')), 'utf8');
+      expect(src, `${rel}: staff-условие обязано включать 'leader'`).toContain(
+        "role === 'leader'"
+      );
+    }
   });
 });

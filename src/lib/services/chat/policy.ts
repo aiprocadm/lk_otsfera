@@ -1,4 +1,5 @@
 import type { ThreadSide } from '@prisma/client';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { isOrgMember } from '@/lib/auth/organizationPolicy';
 
@@ -26,7 +27,7 @@ export function canSeeThread(
   // держится независимо от managerTeamVisibility. companyId=null → deny
   // (как sentinel-ветки в managerPolicy: деградация в «ничего», не в «всё»).
   if (session.role === 'admin') return true;
-  if (session.role === 'manager') {
+  if (isStaffManagerSide(session)) {
     return !!session.companyId && order.companyId === session.companyId;
   }
   if (session.role === 'organization') {

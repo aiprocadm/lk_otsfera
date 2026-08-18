@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
+import { isManagerLeader } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
 import { resolveEffectiveRate, type RateChange, type OrgRateChange } from './rateResolve';
@@ -115,7 +116,7 @@ export type CorrectionError = 'forbidden' | 'not_found' | 'invalid_state' | 'rea
 
 /** admin или руководитель (manager + managerRole='leader') могут разбирать очередь. */
 function canResolve(s: SessionPayload): boolean {
-  return s.role === 'admin' || (s.role === 'manager' && s.managerRole === 'leader');
+  return s.role === 'admin' || isManagerLeader(s);
 }
 
 /**
@@ -172,7 +173,7 @@ export async function resolveCorrection(
   if (!corr) return { ok: false, error: 'not_found' };
   if (corr.status !== 'needs_review') return { ok: false, error: 'invalid_state' };
 
-  if (session.role === 'manager' && session.managerRole === 'leader') {
+  if (isManagerLeader(session)) {
     const inScope = await prisma.commissionCorrection.findFirst({
       where: {
         id: corr.id,

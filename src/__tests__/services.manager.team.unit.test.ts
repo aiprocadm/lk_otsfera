@@ -161,7 +161,7 @@ describe('listCompanyManagers', () => {
     await listCompanyManagers(p, 'co-xyz');
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { role: 'manager', companyId: 'co-xyz' },
+        where: { role: { in: ['manager', 'leader'] }, companyId: 'co-xyz' },
       })
     );
   });

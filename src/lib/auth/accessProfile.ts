@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
+import { isManagerLeader, isStaffManagerSide } from '@/lib/auth/roleModel';
 
 /**
  * Трек G1 — конструктор ролей. Права как данные: матрица охватов по типам
@@ -140,7 +141,7 @@ export function canSeeTask(
   }
 ): boolean {
   if (session.role === 'admin') return true;
-  if (session.role !== 'manager') return false;
+  if (!isStaffManagerSide(session)) return false;
   // company-floor (C8): чужая компания или сессия без компании — deny.
   if (!session.companyId || task.companyId !== session.companyId) return false;
   const level = session.accessProfile?.tasks;
@@ -167,7 +168,7 @@ export function can(session: SessionPayload, capability: Capability): boolean {
   if (session.role === 'admin') return true;
   if (session.accessProfile) return session.accessProfile.capabilities.includes(capability);
   if (capability === 'see_commission') {
-    return session.role === 'manager' && session.managerRole === 'leader';
+    return isManagerLeader(session);
   }
   return false;
 }

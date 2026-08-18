@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import { getSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
 import { listOrdersForExport } from '@/lib/services/manager/orders';
@@ -20,7 +21,7 @@ import { renderOrdersXlsx } from '@/lib/services/orders/xlsx';
 export async function GET(req: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (session.role !== 'manager') return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  if (!isStaffManagerSide(session)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   const url = new URL(req.url);
   const companyWide =

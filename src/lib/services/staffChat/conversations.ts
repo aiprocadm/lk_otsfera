@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { log } from '@/lib/logging';
 import { isStaff, canSeeStaffConversation, NO_COMPANY_SENTINEL } from './policy';
@@ -77,7 +78,8 @@ export async function openDm(
     select: { id: true, role: true, companyId: true, isActive: true },
   });
   if (!target || !target.isActive) return { ok: false, error: 'target_not_found' };
-  const targetStaff = target.role === 'admin' || target.role === 'manager';
+  const targetStaff =
+    target.role === 'admin' || target.role === 'manager' || target.role === 'leader';
   if (!targetStaff) return { ok: false, error: 'forbidden' };
   // C8: DM staff↔staff — внутри одной компании; admin (Model A) может писать любому.
   // companyId беседы = компания не-админ участника (admin.companyId может быть null).
@@ -135,7 +137,7 @@ export async function listConversations(
   session: SessionPayload
 ): Promise<ListConversationsResult> {
   if (!isStaff(session)) return { ok: true, rows: [] };
-  if (session.role === 'manager' && session.companyId) {
+  if (isStaffManagerSide(session) && session.companyId) {
     await ensureGeneral(prisma, session.companyId); // лениво, идемпотентно
   }
   const rows = await prisma.staffConversation.findMany({

@@ -86,6 +86,12 @@ describe('notificationHref', () => {
       expect(notificationHref('manager', type, { orderId: 'ord-1' })).toBe('/manager/orders/ord-1');
     });
 
+    it('роль leader получает те же order-bound ссылки (ТЗ 2026-08-17)', () => {
+      expect(notificationHref('leader', 'chat_message', { orderId: 'ord-1' })).toBe(
+        '/manager/orders/ord-1'
+      );
+    });
+
     it('без orderId → null', () => {
       expect(notificationHref('manager', 'chat_message', {})).toBeNull();
       expect(notificationHref('manager', 'chat_message', null)).toBeNull();

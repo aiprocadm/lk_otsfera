@@ -10,6 +10,7 @@ import {
   type SettingsSection,
 } from '@/lib/navigation/settings';
 import type { SessionPayload } from '@/lib/auth/jwt';
+import { isManagerLeader } from '@/lib/auth/roleModel';
 
 /**
  * Права на разделы хаба «Настройки» (ТЗ 2026-08-04 §5.2).
@@ -38,7 +39,7 @@ function isSettingsCapability(c: Capability): c is SettingsCapability {
 /** Кабинет сотрудника по сессии: admin → админский, руководитель → свой. */
 export function settingsCabinetFor(session: SessionPayload): SettingsCabinet | null {
   if (session.role === 'admin') return 'admin';
-  if (session.role === 'manager' && session.managerRole === 'leader') return 'leader';
+  if (isManagerLeader(session)) return 'leader';
   return null;
 }
 

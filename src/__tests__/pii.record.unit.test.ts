@@ -65,6 +65,13 @@ describe('recordPiiAccess', () => {
     expect((p as any).piiAccessEvent.create.mock.calls[0][0].data.userRole).toBe('leader');
   });
 
+  it('top-level роль leader (ТЗ 2026-08-17): staff-гейт пускает, снапшот тот же', async () => {
+    const p = makePrisma();
+    const newLeader = { ...LEADER, role: 'leader', managerRole: undefined } as never;
+    await recordPiiAccess(p, { session: newLeader, context: 'enrollments_list', subjectIds: ['e1'] });
+    expect((p as any).piiAccessEvent.create.mock.calls[0][0].data.userRole).toBe('leader');
+  });
+
   it('admin без companyId → companyId: null; meta отсутствует, если не передана', async () => {
     const p = makePrisma();
     await recordPiiAccess(p, { session: ADMIN, context: 'admin_user_view', subjectIds: ['u9'] });

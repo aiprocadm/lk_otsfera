@@ -199,12 +199,13 @@ describe('матрица доступа: руководитель против �
 describe('обе модели руководителя дают одинаковые ответы (PR-1)', () => {
   // Пока разобранные PR-1 предикаты; PR-2 доводит список до всех мест
   // «это менеджер?» (инвентарь — security.role-model-inventory.guardrail).
-  it('isManagerLeader / isStaffManagerSide / requireFieldsAdmin', () => {
+  it('isManagerLeader / isStaffManagerSide / requireFieldsAdmin / mayImportOneC', () => {
     const oldModel = sess('leader');
     const newModel = newLeaderSess();
     expect(isManagerLeader(newModel)).toBe(isManagerLeader(oldModel));
     expect(isStaffManagerSide(newModel)).toBe(isStaffManagerSide(oldModel));
     expect(requireFieldsAdmin(newModel).ok).toBe(requireFieldsAdmin(oldModel).ok);
+    expect(mayImportOneC(newModel)).toBe(mayImportOneC(oldModel));
   });
 
   it('isLeaderSameCompany: граница компании одинакова в обеих моделях', () => {

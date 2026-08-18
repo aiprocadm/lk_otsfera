@@ -40,7 +40,7 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
           <ManagerRoleControl userId={user.id} current={user.managerRole} />
         </div>
       )}
-      {isFeatureEnabled('staff_2fa') && (user.role === 'admin' || user.role === 'manager') && (
+      {isFeatureEnabled('staff_2fa') && (user.role === 'admin' || user.role === 'manager' || user.role === 'leader') && (
         <AdminBackupCodesControl userId={user.id} />
       )}
     </div>

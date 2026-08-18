@@ -1,4 +1,5 @@
 import type { PrismaClient, ThreadSide } from '@prisma/client';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
 import { getQueue } from '@/lib/jobs/queues';
@@ -149,7 +150,7 @@ export async function sendMessage(
     after: { messageId: message.id, side: args.side },
   });
 
-  const isTeam = session.role === 'manager' || session.role === 'admin';
+  const isTeam = session.role === 'admin' || isStaffManagerSide(session);
   try {
     if (isTeam) {
       if (args.side === 'org' && order.organizationId) {

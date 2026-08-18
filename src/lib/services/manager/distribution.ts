@@ -65,7 +65,11 @@ export async function assignOrderManager(
       where: { id: args.managerUserId },
       select: { role: true, isActive: true, companyId: true },
     });
-    if (!candidate || candidate.role !== 'manager' || !candidate.isActive) {
+    if (
+      !candidate ||
+      (candidate.role !== 'manager' && candidate.role !== 'leader') ||
+      !candidate.isActive
+    ) {
       return { ok: false, error: 'invalid_manager' };
     }
     if (

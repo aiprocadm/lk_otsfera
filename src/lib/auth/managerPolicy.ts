@@ -1,6 +1,7 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { orderWhereForLevel, NO_COMPANY_SENTINEL } from '@/lib/auth/accessProfile';
+import { isManagerLeader, isStaffManagerSide } from '@/lib/auth/roleModel';
 
 /**
  * Manager RBAC primitives — three-way visibility OR:
@@ -141,29 +142,11 @@ export function managerOrgScope(
     : managerOrgScopeFilter(session);
 }
 
-/**
- * «Это руководитель?» — понимает ОБЕ модели (программа «роль Руководитель»,
- * ТЗ 2026-08-17, Р-Л-2): новую top-level роль `leader` и старую пару
- * `manager + managerRole='leader'` (токены живут 7 дней после миграции
- * данных в PR-3). Старая половина условия снимается PR-4 вместе с колонкой
- * `managerRole`. Имя оставлено прежним — у предиката ~36 вызовов.
- */
-export function isManagerLeader(session: SessionPayload): boolean {
-  return (
-    session.role === 'leader' ||
-    (session.role === 'manager' && session.managerRole === 'leader')
-  );
-}
-
-/**
- * «Сотрудник менеджерского контура?» (Р-Л-4, шаблон 1): рядовой менеджер ИЛИ
- * руководитель — в любой из двух моделей. Единая точка для мест вида
- * `role === 'manager'`, где смысл — контур, а не именно рядовой: без хелпера
- * ~99 таких мест при выделении роли разбирались бы по одному и часть — неверно.
- */
-export function isStaffManagerSide(session: SessionPayload): boolean {
-  return session.role === 'manager' || session.role === 'leader';
-}
+// Базовые предикаты живут в roleModel.ts (без зависимостей — их импортируют и
+// модули ниже по графу: accessProfile, documentChannelPolicy). Реэкспорт
+// сохраняет ~36 исторических вызовов через managerPolicy; сами функции нужны
+// и здесь (isLeaderSameCompany, canManagerAccessOrg).
+export { isManagerLeader, isStaffManagerSide };
 
 /**
  * Право на импорт из 1С — Excel-файл и банковская выписка.
@@ -185,7 +168,8 @@ export function isStaffManagerSide(session: SessionPayload): boolean {
  * сервисам и разошёлся со скоупом.
  */
 export function mayImportOneC(session: SessionPayload): boolean {
-  return session.role === 'admin' || session.role === 'manager';
+  // Шаблон «контур» (Р-Л-4): импортируют admin и весь менеджерский контур.
+  return session.role === 'admin' || isStaffManagerSide(session);
 }
 
 /**

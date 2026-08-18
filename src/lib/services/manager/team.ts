@@ -87,7 +87,7 @@ export async function listCompanyManagers(
   companyId: string
 ): Promise<CompanyManagerRow[]> {
   const users = await prisma.user.findMany({
-    where: { role: 'manager', companyId },
+    where: { role: { in: ['manager', 'leader'] }, companyId },
     select: {
       id: true,
       name: true,

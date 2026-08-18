@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import type { PrismaClient, ThreadSide, OrderThread } from '@prisma/client';
+import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { activeOrgIds } from '@/lib/auth/organizationPolicy';
 import { canSeeThread } from './policy';
@@ -32,7 +33,7 @@ function scopeWhere(session: SessionPayload): Prisma.OrderThreadWhereInput | nul
   if (session.role === 'admin') {
     return {}; // admin sees ALL threads (Model A)
   }
-  if (session.role === 'manager') {
+  if (isStaffManagerSide(session)) {
     // Both sides, but only within the manager's company — cross-company
     // isolation (C8 invariant) holds regardless of managerTeamVisibility.
     // The sentinel keeps companyId=null sessions at zero threads, not all.
@@ -59,7 +60,7 @@ function scopeSql(session: SessionPayload): Prisma.Sql | null {
   if (session.role === 'admin') {
     return Prisma.sql`TRUE`;
   }
-  if (session.role === 'manager') {
+  if (isStaffManagerSide(session)) {
     return Prisma.sql`o."companyId" = ${session.companyId ?? '__no_company__'}`;
   }
   if (session.role === 'organization') {

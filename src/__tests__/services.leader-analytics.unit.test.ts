@@ -673,6 +673,15 @@ describe('upsertSalesTarget', () => {
     expect(res).toEqual({ ok: false, error: 'not_found' });
   });
 
+  it('цель с ролью leader валидна (контур Р-Л-4, ТЗ 2026-08-17)', async () => {
+    const user = {
+      findUnique: vi.fn().mockResolvedValue({ id: 'ldr-2', role: 'leader', companyId: 'c1' }),
+    };
+    const prisma = fakePrisma({ user });
+    const res = await upsertSalesTarget(prisma, leaderSession, { ...args, managerId: 'ldr-2' });
+    expect(res).toEqual({ ok: true });
+  });
+
   it.each(['0', '-5', 'abc', '1000000000000', 'NaN', 'Infinity', '-Infinity'])(
     'targetAmount %s → invalid',
     async (bad) => {
