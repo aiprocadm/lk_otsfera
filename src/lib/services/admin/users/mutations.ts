@@ -113,6 +113,10 @@ const ALLOWED_TRANSITIONS: ReadonlyArray<[Role, Role]> = [
   ['partner', 'partner'],
   ['partner', 'student'],
   ['student', 'partner'],
+  // ТЗ 2026-08-17 (PR-3): руководитель — самостоятельная роль; назначение и
+  // разжалование — обычной формой роли (прежний manager-role-control снят).
+  ['manager', 'leader'],
+  ['leader', 'manager'],
 ];
 
 function isAllowedRoleTransition(from: Role, to: Role): boolean {
@@ -174,17 +178,26 @@ export async function updateUser(
         });
       }
 
+      const isRoleChange = args.role !== undefined && args.role !== before.role;
       const updated = await tx.user.update({
         where: { id },
         data: {
           ...(args.name !== undefined ? { name: args.name } : {}),
           ...(args.role !== undefined ? { role: args.role } : {}),
+          // Переходная колонка managerRole (снимается PR-4) обязана оставаться
+          // консистентной с ролью: воркеры и стражи смотрят обе модели.
+          ...(args.role === 'leader' ? { managerRole: 'leader' } : {}),
+          ...(isRoleChange && before.role === 'leader' && args.role === 'manager'
+            ? { managerRole: null }
+            : {}),
           ...(args.partnerId !== undefined ? { partnerId: args.partnerId } : {}),
           ...(args.isActive !== undefined ? { isActive: args.isActive } : {}),
+          // Смена роли меняет полномочия — старый токен (до 7 дней жизни) обязан
+          // умереть сразу, иначе разжалованный руководитель сохранял бы
+          // company-wide доступ до истечения токена (ФТ-11.2, sessionVersion).
+          ...(isRoleChange ? { sessionVersion: { increment: 1 } } : {}),
         },
       });
-
-      const isRoleChange = args.role !== undefined && args.role !== before.role;
       await recordAudit(tx, {
         userId: actorUserId,
         action: isRoleChange ? 'user_role_changed' : 'user_updated',

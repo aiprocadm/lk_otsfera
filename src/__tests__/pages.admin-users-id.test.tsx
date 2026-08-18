@@ -35,15 +35,6 @@ vi.mock('@/components/admin/user-edit-form', () => ({
     ),
 }));
 
-vi.mock('@/components/admin/manager-role-control', () => ({
-  ManagerRoleControl: (props: { userId: string; current: unknown }) =>
-    React.createElement(
-      'div',
-      { 'data-testid': 'manager-role-control' },
-      props.userId,
-      String(props.current)
-    ),
-}));
 
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
@@ -83,7 +74,7 @@ describe('EditUserPage', () => {
     ).rejects.toThrow('NOT_FOUND');
   });
 
-  it('renders the manager role control block when user.role === "manager", isSelf:false', async () => {
+  it('рендерит карточку менеджера БЕЗ прежнего переключателя суб-роли (ТЗ 2026-08-17: роль меняется формой)', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     getUser.mockResolvedValue(USER);
     listActivePartnerOptions.mockResolvedValue([{ id: 'p1', name: 'Партнёр' }]);
@@ -95,12 +86,12 @@ describe('EditUserPage', () => {
     expect(getUser).toHaveBeenCalledWith(expect.anything(), SESSION, 'u1');
     expect(container.textContent).toContain('Иван Иванов');
     expect(container.textContent).toContain('ivan@x.com');
-    expect(container.querySelector('[data-testid="manager-role-control"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="manager-role-control"]')).toBeNull();
     const editForm = container.querySelector('[data-testid="user-edit-form"]');
     expect(editForm?.textContent).toContain('false');
   });
 
-  it('omits the manager role control block for non-manager roles and sets isSelf:true when session.sub === user.id', async () => {
+  it('sets isSelf:true when session.sub === user.id', async () => {
     requireAdmin.mockResolvedValue({ sub: 'u1', role: 'admin' as const });
     getUser.mockResolvedValue({ ...USER, role: 'admin' });
     listActivePartnerOptions.mockResolvedValue([]);
@@ -109,7 +100,6 @@ describe('EditUserPage', () => {
       EditUserPage({ params: Promise.resolve({ id: 'u1' }) })
     );
 
-    expect(container.querySelector('[data-testid="manager-role-control"]')).toBeNull();
     const editForm = container.querySelector('[data-testid="user-edit-form"]');
     expect(editForm?.textContent).toContain('true');
   });

@@ -26,6 +26,7 @@ import { CommandPalette } from '@/components/shell/command-palette';
 const roleLabel: Record<string, string> = {
   admin: 'Администратор',
   manager: 'Менеджер',
+  leader: 'Руководитель',
   partner: 'Партнёр',
   organization: 'Организация',
   student: 'Студент',

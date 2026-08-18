@@ -9,6 +9,7 @@ import { fmtLastLogin } from '@/lib/format';
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Админ',
   manager: 'Менеджер',
+  leader: 'Руководитель',
   partner: 'Партнёр',
   organization: 'Организация',
   student: 'Студент',
