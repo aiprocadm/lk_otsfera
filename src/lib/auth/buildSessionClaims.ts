@@ -54,7 +54,11 @@ export async function buildSessionClaims(
   let managerRole: 'leader' | null | undefined;
   let accessProfile: SessionAccessProfile | undefined;
 
-  if (user.role === 'manager') {
+  // Роль `leader` (ТЗ 2026-08-17) — часть менеджерского контура: ей нужны те же
+  // managedOrgIds/accessProfile, иначе requireManager() выбросит руководителя
+  // на /login (managedOrgIds === undefined = «loader не отработал»). До
+  // миграции данных (PR-3) эта ветка исполняется только для 'manager'.
+  if (user.role === 'manager' || user.role === 'leader') {
     // C8 company floor: a manager's scope is bounded by their own company.
     // Without the `organization.companyId === user.companyId` filter, a stale or
     // legacy cross-company OrganizationManager row would widen managedOrgIds

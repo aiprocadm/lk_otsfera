@@ -9,8 +9,9 @@ const SRC = join(__dirname, '..');
 
 // Локальная копия ROLE_VALUES (сам массив в jwt.ts намеренно не экспортируется,
 // §12b); совпадение с исходником держит первый тест ниже — разъехаться молча
-// они не могут.
-const CURRENT_ROLES = ['admin', 'manager', 'partner', 'organization', 'student'] as const;
+// они не могут. `leader` добавлен PR-1 (Р-Л-1) — снимки ниже обновлены
+// решениями Р-Л-2/Р-Л-3, а не автозаменой.
+const CURRENT_ROLES = ['admin', 'manager', 'leader', 'partner', 'organization', 'student'] as const;
 
 /**
  * PR-0 программы «роль Руководитель» (ТЗ 2026-08-17-tz-leader-role, Р-Л-5):
@@ -50,8 +51,8 @@ function countMatches(src: string, re: RegExp): number {
 }
 
 describe('ролевая модель — снимок (PR-0 «шумящие стражи»)', () => {
-  it('ROLE_VALUES: ровно пять ролей; добавляя шестую — пройди весь этот файл', () => {
-    // Это «главный рубильник» инвентаря: PR-1 добавит 'leader' и обязан
+  it('ROLE_VALUES: ровно шесть ролей; добавляя новую — пройди весь этот файл', () => {
+    // «Главный рубильник» инвентаря: любое изменение набора ролей обязано
     // осознанно обновить каждый снимок ниже решением, а не автозаменой.
     const jwt = readFileSync(join(SRC, 'lib', 'auth', 'jwt.ts'), 'utf8');
     expect(jwt).toContain(
@@ -60,16 +61,16 @@ describe('ролевая модель — снимок (PR-0 «шумящие с
   });
 
   it('protectedPrefixes: точный снимок «префикс → роли»', () => {
-    // Р-Л-3: после выделения роли '/manager' обязан пускать ['manager','leader']
-    // («играющий тренер»), '/leader' — ['leader']. Пока модель старая —
-    // фиксируем сегодняшнее состояние, чтобы смена была явной.
+    // Р-Л-3 («играющий тренер»): '/manager' пускает обе роли контура.
+    // '/leader' до PR-4 тоже обе: старые токены руководителя несут 'manager'
+    // (суб-роль бьёт серверный гард layout). PR-4 сузит '/leader' до ['leader'].
     expect(protectedPrefixes).toEqual({
       '/admin': ['admin'],
-      '/manager': ['manager'],
-      '/leader': ['manager'],
+      '/manager': ['manager', 'leader'],
+      '/leader': ['manager', 'leader'],
       '/partner': ['partner'],
       '/organization': ['organization'],
-      '/student': ['student', 'organization', 'admin', 'manager'],
+      '/student': ['student', 'organization', 'admin', 'manager', 'leader'],
     });
   });
 
@@ -77,23 +78,26 @@ describe('ролевая модель — снимок (PR-0 «шумящие с
     expect(Object.keys(roleHome).sort()).toEqual([...CURRENT_ROLES].sort());
   });
 
-  it('navByRole и MOBILE_TABS: ключи = роли + канонический ключ leader', () => {
-    const expected = [...CURRENT_ROLES, 'leader'].sort();
+  it('navByRole и MOBILE_TABS: ключи = все роли (leader теперь настоящая)', () => {
+    // До PR-1 'leader' был НЕ-JWT ключом канона меню; теперь это роль из
+    // ROLE_VALUES, и наборы совпадают один в один.
+    const expected = [...CURRENT_ROLES].sort();
     expect(Object.keys(navByRole).sort()).toEqual(expected);
     expect(Object.keys(MOBILE_TABS).sort()).toEqual(expected);
   });
 
-  it('middleware вычисляет isLeader из клейма managerRole (уйдёт в PR-1)', () => {
+  it('middleware понимает ОБЕ модели руководителя (вторая половина уйдёт в PR-4)', () => {
     const src = readFileSync(join(SRC, 'middleware.ts'), 'utf8');
+    expect(src).toContain("role === 'leader' ||");
+    // Переходная пара: старые токены живут 7 дней после миграции данных (PR-3).
     expect(src).toContain(".managerRole === 'leader'");
   });
 
-  it('buildSessionClaims: менеджерская ветка одна; leader-ветки нет (появится в PR-1)', () => {
-    // Без ветки для новой роли лидер не получит managedOrgIds/accessProfile,
-    // и requireManager() выбросит его на /login. Снимок заставит PR-1 решить.
+  it('buildSessionClaims: контур менеджера — одна ветка на обе роли', () => {
+    // Без ветки для роли leader лидер не получил бы managedOrgIds/accessProfile,
+    // и requireManager() выбросил бы его на /login.
     const src = readFileSync(join(SRC, 'lib', 'auth', 'buildSessionClaims.ts'), 'utf8');
-    expect(countMatches(src, /user\.role === 'manager'/g)).toBe(1);
-    expect(src).not.toContain("user.role === 'leader'");
+    expect(src).toContain("user.role === 'manager' || user.role === 'leader'");
   });
 
   it('словари-типы без leader: NotificationRole и QuickTasksRole', () => {

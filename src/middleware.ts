@@ -42,13 +42,19 @@ export async function middleware(req: NextRequest) {
     const { payload } = await jwtVerify(token, secret);
     const role = payload.role as Role;
 
-    // Руководитель менеджеров при включённом кабинете попадает в /leader.
-    // managerRole — контрактный claim JWT (C8); флаг проверяем здесь же,
-    // чтобы при выключенном leader_cabinet редирект вёл в обычный кабинет.
+    // Руководитель при включённом кабинете попадает в /leader. Обе модели
+    // (Р-Л-2 ТЗ 2026-08-17): новая роль `leader` и переходная пара
+    // manager+managerRole (старые токены живут 7 дней; PR-4 снимет вторую
+    // половину). Флаг проверяем здесь же, чтобы при выключенном leader_cabinet
+    // редирект вёл в обычный кабинет менеджера.
     const isLeader =
-      role === 'manager' && (payload as { managerRole?: string }).managerRole === 'leader';
-    const home =
-      isLeader && isFeatureEnabled('leader_cabinet') ? '/leader/dashboard' : roleHome[role];
+      role === 'leader' ||
+      (role === 'manager' && (payload as { managerRole?: string }).managerRole === 'leader');
+    const home = isLeader
+      ? isFeatureEnabled('leader_cabinet')
+        ? '/leader/dashboard'
+        : roleHome.manager
+      : roleHome[role];
 
     if (isAuthPage) {
       return NextResponse.redirect(new URL(home, req.url));

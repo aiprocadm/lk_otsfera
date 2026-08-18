@@ -140,6 +140,22 @@ describe('signToken + verifyToken', () => {
     expect(verified.role).toBe('admin');
   });
 
+  it('signs and verifies a top-level leader payload (ТЗ 2026-08-17, PR-1)', async () => {
+    // До PR-1 roleSchema отверг бы такой токен; после миграции данных (PR-3)
+    // это основная модель руководителя.
+    const payload: SessionPayload = {
+      sub: 'ldr-1',
+      role: 'leader',
+      companyId: 'co-1',
+      managedOrgIds: [],
+    };
+
+    const token = await signToken(payload);
+    const verified = await verifyToken(token);
+    expect(verified.role).toBe('leader');
+    expect(verified.managedOrgIds).toEqual([]);
+  });
+
   it('signs and verifies a student session payload', async () => {
     const payload: SessionPayload = {
       sub: 'stu-1',

@@ -31,6 +31,7 @@ import {
   canSeeDocument,
   canSeeOrganization,
   isManagerLeader,
+  isStaffManagerSide,
   isLeaderSameCompany,
   managedOrgIds,
   mayImportOneC,
@@ -62,6 +63,21 @@ function sess(role: RoleKey, over: Partial<SessionPayload> = {}): SessionPayload
 }
 
 const ALL_ROLES: RoleKey[] = ['admin', 'leader', 'manager', 'partner', 'organization', 'student'];
+
+/**
+ * ВТОРАЯ модель руководителя (ТЗ 2026-08-17, Р-Л-1): top-level роль `leader`.
+ * До PR-3 токенов с ней не существует, но инфраструктура PR-1 обязана отвечать
+ * ей так же, как старой паре — эквивалентность держит describe ниже.
+ */
+function newLeaderSess(over: Partial<SessionPayload> = {}): SessionPayload {
+  return {
+    sub: 'u-leader-new',
+    companyId: COMPANY,
+    role: 'leader',
+    managedOrgIds: [],
+    ...over,
+  } as SessionPayload;
+}
 
 /** Заказ чужой компании — для проверки, что граница компании держится всегда. */
 const FOREIGN_ORDER = { managerId: 'someone', organizationId: 'org-x', companyId: 'co-OTHER' };
@@ -157,11 +173,53 @@ describe('матрица доступа: руководитель против �
     expect(requireRole(sess('manager'), ['manager']).ok).toBe(true);
   });
 
+  it('isStaffManagerSide (Р-Л-4, шаблон «контур»): менеджер и руководитель — да, прочие — нет', () => {
+    const actual = Object.fromEntries(ALL_ROLES.map((r) => [r, isStaffManagerSide(sess(r))]));
+    expect(actual).toEqual({
+      admin: false,
+      leader: true,
+      manager: true,
+      partner: false,
+      organization: false,
+      student: false,
+    });
+    expect(isStaffManagerSide(newLeaderSess())).toBe(true);
+  });
+
   it('managedOrgIds: пустой скоуп у руководителя — это норма, доступ он получает иначе', () => {
     // Руководитель обычно не закреплён ни за одной организацией: его доступ —
     // company-wide. Если правило смотрит ТОЛЬКО на managedOrgIds, руководитель
     // окажется без доступа — ровно эта ошибка была с карточкой организации.
     expect(managedOrgIds(sess('leader'))).toEqual([]);
+  });
+});
+
+// ─── Переходный период (ТЗ 2026-08-17): обе модели руководителя эквивалентны ─
+
+describe('обе модели руководителя дают одинаковые ответы (PR-1)', () => {
+  // Пока разобранные PR-1 предикаты; PR-2 доводит список до всех мест
+  // «это менеджер?» (инвентарь — security.role-model-inventory.guardrail).
+  it('isManagerLeader / isStaffManagerSide / requireFieldsAdmin', () => {
+    const oldModel = sess('leader');
+    const newModel = newLeaderSess();
+    expect(isManagerLeader(newModel)).toBe(isManagerLeader(oldModel));
+    expect(isStaffManagerSide(newModel)).toBe(isStaffManagerSide(oldModel));
+    expect(requireFieldsAdmin(newModel).ok).toBe(requireFieldsAdmin(oldModel).ok);
+  });
+
+  it('isLeaderSameCompany: граница компании одинакова в обеих моделях', () => {
+    expect(isLeaderSameCompany(newLeaderSess(), COMPANY)).toBe(true);
+    expect(isLeaderSameCompany(newLeaderSess(), 'co-OTHER')).toBe(false);
+    expect(isLeaderSameCompany(newLeaderSess({ companyId: null } as never), COMPANY)).toBe(false);
+  });
+
+  it('requireRole-мост: роль leader проходит по спискам с manager, но не к админу', () => {
+    // 14 API-списков вида ['admin','manager'] исторически пускали руководителя
+    // (он был manager); мост сохраняет это до разбора в PR-2, снимается PR-4.
+    expect(requireRole(newLeaderSess(), ['manager']).ok).toBe(true);
+    expect(requireRole(newLeaderSess(), ['admin', 'manager']).ok).toBe(true);
+    expect(requireRole(newLeaderSess(), ['admin']).ok).toBe(false);
+    expect(requireRole(newLeaderSess(), ['partner']).ok).toBe(false);
   });
 });
 
@@ -180,6 +238,7 @@ describe('полнота матрицы', () => {
     'canSeeDocument',
     'canSeeOrganization',
     'isManagerLeader',
+    'isStaffManagerSide',
     'isLeaderSameCompany',
     'managedOrgIds',
     'mayImportOneC',
