@@ -80,7 +80,9 @@ async function validateRefs(
   if (data.attendeeIds && data.attendeeIds.length > 0) {
     const ids = [...new Set(data.attendeeIds)];
     const count = await tx.user.count({
-      where: { id: { in: ids }, companyId, role: { in: ['admin', 'manager'] } },
+      // Контур сотрудников компании: руководитель — участник события наравне
+      // с менеджером (ТЗ 2026-08-17: до выделения роли он проходил как manager).
+      where: { id: { in: ids }, companyId, role: { in: ['admin', 'manager', 'leader'] } },
     });
     if (count !== ids.length) throw new CalendarError('validation');
   }

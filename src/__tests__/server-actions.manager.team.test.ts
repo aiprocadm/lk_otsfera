@@ -39,8 +39,7 @@ function fd(data: Record<string, string>): FormData {
 
 const LEADER_SESSION_CO_A = {
   sub: 'leader-1',
-  role: 'manager' as const,
-  managerRole: 'leader' as const,
+  role: 'leader' as const,
   companyId: 'co-A',
   managedOrgIds: ['org-1'],
 };

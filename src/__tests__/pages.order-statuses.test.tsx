@@ -25,7 +25,7 @@ import LeaderOrderStatusesPage from '@/app/leader/settings/catalogs/application-
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const ADMIN = { sub: 'a1', role: 'admin' as const };
-const LEADER = { sub: 'l1', role: 'manager' as const, managerRole: 'leader' as const };
+const LEADER = { sub: 'l1', role: 'leader' as const };
 
 beforeEach(() => {
   // Один гард на оба кабинета: что вернуть — решает второй аргумент.

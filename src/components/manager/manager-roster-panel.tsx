@@ -18,7 +18,7 @@ export function ManagerRosterPanel({ roster }: { roster: CompanyManagerRow[] }) 
             <div>
               <p className="font-medium text-[#111111]">
                 {m.name}{' '}
-                {m.managerRole === 'leader' && (
+                {m.isLeader && (
                   <span className="ml-1 rounded bg-[#F97316] px-2 py-0.5 text-xs text-white">
                     Руководитель
                   </span>

@@ -44,18 +44,17 @@ describe('enrollment policy', () => {
     expect(canReviewEnrollments(s({ role: 'partner' }))).toBe(false);
     expect(canReviewEnrollments(s({ role: 'organization' }))).toBe(false);
   });
-  it('submitters = all 5 roles (leader=manager), not student', () => {
+  it('submitters: весь штат и клиенты, кроме слушателя', () => {
     for (const r of ['partner', 'organization', 'manager', 'admin'])
       expect(canSubmitEnrollments(s({ role: r }))).toBe(true);
     expect(canSubmitEnrollments(s({ role: 'student' }))).toBe(false);
   });
   it('labels leader distinctly', () => {
-    expect(submitterRoleLabel(s({ role: 'manager', managerRole: 'leader' }))).toBe('leader');
+    expect(submitterRoleLabel(s({ role: 'leader' }))).toBe('leader');
     expect(submitterRoleLabel(s({ role: 'manager' }))).toBe('manager');
     expect(submitterRoleLabel(s({ role: 'partner' }))).toBe('partner');
   });
-  it('обе модели руководителя дают один label и право подачи (ТЗ 2026-08-17)', () => {
-    expect(submitterRoleLabel(s({ role: 'leader' }))).toBe('leader');
+  it('руководитель тоже подаёт заявки (ТЗ 2026-08-17)', () => {
     expect(canSubmitEnrollments(s({ role: 'leader' }))).toBe(true);
   });
 });

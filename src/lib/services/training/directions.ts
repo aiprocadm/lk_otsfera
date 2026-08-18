@@ -5,7 +5,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 type DirectionsError = 'forbidden' | 'validation' | 'not_found';
 type Result<T> = ({ ok: true } & T) | { ok: false; error: DirectionsError };
 
-/** admin или руководитель (manager+managerRole='leader') настраивают справочники (§10/§11). */
+/** admin или руководитель (role='leader') настраивают справочники (§10/§11). */
 function canManageSettings(session: SessionPayload): boolean {
   return (
     session.role === 'admin' || isManagerLeader(session)

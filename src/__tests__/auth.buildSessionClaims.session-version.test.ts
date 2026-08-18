@@ -37,7 +37,6 @@ function makeUser(overrides: Partial<User> = {}): User {
     partnerId: null,
     organizationId: null,
     externalStudentId: null,
-    managerRole: null,
     accessProfileId: null,
     sessionVersion: 0,
     ...overrides,
@@ -78,9 +77,10 @@ describe('buildSessionClaims — клейм sessionVersion', () => {
     expect(result.claims.managedOrgIds).toEqual(['org-1']);
   });
 
-  it('роль leader получает managedOrgIds/managerRole как менеджер (ТЗ 2026-08-17, PR-1)', async () => {
-    // Без этой ветки лидер после миграции данных (PR-3) остался бы без
-    // managedOrgIds — и requireManager() выбрасывал бы его на /login.
+  it('роль leader идёт по менеджерской ветке и получает managedOrgIds (ТЗ 2026-08-17)', async () => {
+    // Без этой ветки руководитель остался бы без managedOrgIds — и
+    // requireManager() выбрасывал бы его на /login. Роль top-level `leader` —
+    // единственная модель руководителя (PR-4 снял суб-роль managerRole).
     const prisma = makePrisma({
       organizationManager: { findMany: vi.fn().mockResolvedValue([]) },
     });
@@ -89,8 +89,7 @@ describe('buildSessionClaims — клейм sessionVersion', () => {
       prisma,
       makeUser({
         id: 'ldr-1',
-        role: 'leader' as never,
-        managerRole: 'leader',
+        role: 'leader',
         companyId: 'co-1',
         sessionVersion: 4,
       })
@@ -100,7 +99,8 @@ describe('buildSessionClaims — клейм sessionVersion', () => {
     if (!result.ok) return;
     expect(result.claims.role).toBe('leader');
     expect(result.claims.managedOrgIds).toEqual([]);
-    expect(result.claims.managerRole).toBe('leader');
+    // Снятый клейм не должен вернуться в сборку токена (PR-4).
+    expect('managerRole' in result.claims).toBe(false);
     expect(result.claims.sessionVersion).toBe(4);
   });
 

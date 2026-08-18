@@ -76,7 +76,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   isFeatureEnabled.mockReturnValue(true);
   requireManager.mockResolvedValue(SESSION);
-  requireManagerLeader.mockResolvedValue({ ...SESSION, managerRole: 'leader' });
+  requireManagerLeader.mockResolvedValue({ ...SESSION, role: 'leader' });
   requireAdmin.mockResolvedValue({ sub: 'a1', role: 'admin' });
   listIntake.mockResolvedValue(OK_RESULT);
   listCompanyManagers.mockResolvedValue([
@@ -151,7 +151,7 @@ describe('пагинация и фильтры из адреса — крайн�
     await renderServerComponent(LeaderIntakePage(sp({ assignee: '' })));
     expect(listIntake).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ managerRole: 'leader' }),
+      expect.objectContaining({ role: 'leader' }),
       expect.objectContaining({ assigneeId: null })
     );
   });
@@ -182,7 +182,7 @@ describe('LeaderIntakePage', () => {
     );
     expect(listIntake).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ managerRole: 'leader' }),
+      expect.objectContaining({ role: 'leader' }),
       expect.objectContaining({ assigneeId: 'm2', onlyUnassigned: true })
     );
     const filters = container.querySelector('[data-testid="intake-filters"]');
@@ -198,7 +198,7 @@ describe('LeaderIntakePage', () => {
   });
 
   it('companyId=null → без менеджеров, listCompanyManagers не зовётся', async () => {
-    requireManagerLeader.mockResolvedValue({ ...SESSION, companyId: null, managerRole: 'leader' });
+    requireManagerLeader.mockResolvedValue({ ...SESSION, companyId: null, role: 'leader' });
     await renderServerComponent(LeaderIntakePage(sp()));
     expect(listCompanyManagers).not.toHaveBeenCalled();
   });

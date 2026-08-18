@@ -5,8 +5,10 @@ import {
   deactivateDirection,
 } from '@/lib/services/training/directions';
 
-function session(role: string, managerRole: string | null = null) {
-  return { sub: 'u1', role, managerRole, companyId: 'c1' } as any;
+// Руководитель — самостоятельная top-level роль 'leader' (ТЗ 2026-08-17);
+// переходной пары manager+managerRole больше нет.
+function session(role: string) {
+  return { sub: 'u1', role, companyId: 'c1' } as any;
 }
 
 const prisma = {
@@ -40,7 +42,7 @@ describe('directions service', () => {
 
   it('createDirection разрешён руководителю', async () => {
     prisma.trainingDirection.create.mockResolvedValue({ id: 'd2', name: 'X' });
-    const res = await createDirection(prisma, session('manager', 'leader'), { name: 'X' });
+    const res = await createDirection(prisma, session('leader'), { name: 'X' });
     expect(res.ok).toBe(true);
   });
 

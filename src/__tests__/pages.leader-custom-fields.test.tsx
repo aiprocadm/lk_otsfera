@@ -31,7 +31,7 @@ vi.mock('@/components/admin/custom-fields-admin', () => ({
 
 import LeaderCustomFieldsPage from '@/app/leader/settings/catalogs/custom-fields/page';
 
-const LEADER = { sub: 'leader1', role: 'manager' as const, managerRole: 'leader' as const };
+const LEADER = { sub: 'leader1', role: 'leader' as const };
 
 describe('LeaderCustomFieldsPage', () => {
   beforeEach(() => {

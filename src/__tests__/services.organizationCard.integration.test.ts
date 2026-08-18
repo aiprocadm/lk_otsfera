@@ -19,8 +19,7 @@ let dealA: string, dealNoAmount: string, certA: string, studentA: string, direct
 const leaderSession = (): SessionPayload =>
   ({
     sub: leaderA,
-    role: 'manager',
-    managerRole: 'leader',
+    role: 'leader',
     companyId: companyA,
     managedOrgIds: [],
   }) as unknown as SessionPayload;
@@ -28,7 +27,6 @@ const plainSession = (): SessionPayload =>
   ({
     sub: plainA,
     role: 'manager',
-    managerRole: null,
     companyId: companyA,
     managedOrgIds: [],
   }) as unknown as SessionPayload;
@@ -51,8 +49,7 @@ beforeAll(async () => {
       data: {
         email: `g4la-${STAMP}@t.local`,
         name: 'LA',
-        role: 'manager',
-        managerRole: 'leader',
+        role: 'leader',
         companyId: companyA,
       },
     })
@@ -300,8 +297,7 @@ describe('карточка организации — руководитель �
   it('видит организацию своей компании', async () => {
     const leaderB = {
       sub: mB,
-      role: 'manager',
-      managerRole: 'leader',
+      role: 'leader',
       companyId: companyB,
       managedOrgIds: [],
     } as unknown as SessionPayload;
@@ -313,8 +309,7 @@ describe('карточка организации — руководитель �
   it('НЕ видит организацию чужой компании', async () => {
     const leaderB = {
       sub: mB,
-      role: 'manager',
-      managerRole: 'leader',
+      role: 'leader',
       companyId: companyB,
       managedOrgIds: [],
     } as unknown as SessionPayload;

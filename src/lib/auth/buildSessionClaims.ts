@@ -51,7 +51,6 @@ export async function buildSessionClaims(
   }
 
   let managedOrgIds: string[] | undefined;
-  let managerRole: 'leader' | null | undefined;
   let accessProfile: SessionAccessProfile | undefined;
 
   // Роль `leader` (ТЗ 2026-08-17) — часть менеджерского контура: ей нужны те же
@@ -71,10 +70,6 @@ export async function buildSessionClaims(
         })
       : [];
     managedOrgIds = assigned.map((a) => a.organizationId);
-    // Preserve 'leader' explicitly. Mirrors the org-membership narrowing warning
-    // above: collapsing this to null silently kills the leader feature for the
-    // whole 7d token lifetime.
-    managerRole = user.managerRole === 'leader' ? 'leader' : null;
     // G1: денормализуем кастомный профиль доступа в токен (single indexed lookup,
     // как managedOrgIds). null accessProfileId → профиля нет → legacy-поведение.
     if (user.accessProfileId) {
@@ -101,7 +96,6 @@ export async function buildSessionClaims(
       ...(assignedOrgIds !== undefined ? { assignedOrgIds } : {}),
       ...(organizationMemberships !== undefined ? { organizationMemberships } : {}),
       ...(managedOrgIds !== undefined ? { managedOrgIds } : {}),
-      ...(managerRole !== undefined ? { managerRole } : {}),
       ...(accessProfile !== undefined ? { accessProfile } : {}),
     },
   };

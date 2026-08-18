@@ -25,8 +25,7 @@ let leaderAId: string, plainMgrAId: string, targetMgrAId: string, userBId: strin
 const leaderA = (): SessionPayload =>
   ({
     sub: leaderAId,
-    role: 'manager',
-    managerRole: 'leader',
+    role: 'leader',
     companyId: companyA,
   }) as unknown as SessionPayload;
 const adminA = (): SessionPayload =>
@@ -56,8 +55,7 @@ beforeAll(async () => {
       data: {
         email: `apLeader-${STAMP}@t.local`,
         name: 'Leader A',
-        role: 'manager',
-        managerRole: 'leader',
+        role: 'leader',
         companyId: companyA,
       },
     })

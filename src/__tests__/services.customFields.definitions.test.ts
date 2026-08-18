@@ -157,7 +157,7 @@ describe('definitions service — этап 1 ТЗ v0.5', () => {
   });
 
   it('createDefinition: руководитель тоже настраивает поля (§4 ТЗ)', async () => {
-    const leaderSession = makeSession(managerSession.sub, 'manager', { managerRole: 'leader' });
+    const leaderSession = makeSession(managerSession.sub, 'leader');
     const res = await createDefinition(prisma, leaderSession, {
       entityType: ET,
       key: `by_leader_${stamp}`,

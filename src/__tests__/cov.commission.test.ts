@@ -219,14 +219,12 @@ describe('detectLateRefundCorrections — stray branches', () => {
 // ═════════════════════════════════════════════════════════════════════════════
 
 const leaderNoCompany = {
-  role: 'manager',
-  managerRole: 'leader',
+  role: 'leader',
   sub: 'u-leader',
   companyId: undefined,
 } as any;
 const leaderSession = {
-  role: 'manager',
-  managerRole: 'leader',
+  role: 'leader',
   sub: 'u-leader',
   companyId: 'co-1',
 } as any;

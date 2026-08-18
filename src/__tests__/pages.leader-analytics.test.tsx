@@ -41,8 +41,7 @@ vi.mock('@/components/leader/analytics/plan-fact-table', () => ({
 
 const SESSION = {
   sub: 'u1',
-  role: 'manager' as const,
-  managerRole: 'leader' as const,
+  role: 'leader' as const,
   companyId: 'c1',
 };
 

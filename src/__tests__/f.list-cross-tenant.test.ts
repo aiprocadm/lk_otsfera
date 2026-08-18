@@ -28,7 +28,9 @@ let paymentA: string, paymentB: string;
 let docA: string, docB: string;
 
 function mgrSession(companyId: string, managedOrgId: string, sub: string): SessionPayload {
-  // No managerRole → ordinary member (leader/commission paths intentionally off).
+  // role='manager' (not 'leader') → ordinary member: leader/commission paths
+  // intentionally off. Since ТЗ 2026-08-17 the leader is a top-level role, so
+  // an ordinary manager is simply a session that is not 'leader'.
   return {
     sub,
     role: 'manager',

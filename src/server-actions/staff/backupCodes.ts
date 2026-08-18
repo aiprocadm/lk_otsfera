@@ -7,7 +7,7 @@ import { generateBackupCodes } from '@/lib/services/auth/twoFactor';
 import { recordAudit } from '@/lib/auth/audit';
 
 // Self-service перевыпуск кодов восстановления 2FA. Staff-гейт: admin | manager
-// (leader — это manager с managerRole='leader', отдельной ветки нет). За флагом
+// (leader — самостоятельная staff-роль, ТЗ 2026-08-17). За флагом
 // staff_2fa — без него секция не рендерится и action недоступен.
 export async function regenerateBackupCodesAction(): Promise<
   { ok: true; codes: string[] } | { ok: false; error: 'forbidden' }

@@ -328,14 +328,14 @@ describe('manager/organizationCard — residual aggregation branches (integratio
   let leaderId: string;
   let orgNoMoney: string;
 
-  // Leader (has see_commission via managerRole=leader in legacy no-profile mode)
-  // in a teamMode=OFF company, so visibility flows through canSeeOrganization
-  // (managedOrgIds includes the org).
+  // Leader (has see_commission via role='leader' in legacy no-profile mode —
+  // ТЗ 2026-08-17: руководитель это самостоятельная роль, суб-роль managerRole
+  // снята) in a teamMode=OFF company, so visibility flows through
+  // canSeeOrganization (managedOrgIds includes the org).
   const leaderSession = (): SessionPayload =>
     ({
       sub: leaderId,
-      role: 'manager',
-      managerRole: 'leader',
+      role: 'leader',
       companyId,
       managedOrgIds: [orgNoMoney],
     }) as unknown as SessionPayload;
@@ -348,8 +348,7 @@ describe('manager/organizationCard — residual aggregation branches (integratio
         data: {
           email: `covAM-leader-${STAMP}@t.local`,
           name: 'Leader',
-          role: 'manager',
-          managerRole: 'leader',
+          role: 'leader',
           companyId,
         },
       })

@@ -38,7 +38,7 @@ describe('GET /api/staff/badges', () => {
     const denied = new Response('no', { status: 403 });
     requireRole.mockReturnValue({ ok: false, response: denied });
     expect(await GET()).toBe(denied);
-    expect(requireRole).toHaveBeenCalledWith(expect.anything(), ['admin', 'manager']);
+    expect(requireRole).toHaveBeenCalledWith(expect.anything(), ['admin', 'manager', 'leader']);
     expect(getStaffBadges).not.toHaveBeenCalled();
   });
 

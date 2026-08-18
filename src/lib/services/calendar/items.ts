@@ -185,7 +185,9 @@ export async function getEventFormOptions(
   const companyId = session.companyId ?? NO_COMPANY_SENTINEL; // нет компании → пустые списки (fail-safe)
   const [users, organizations, orders] = await Promise.all([
     prisma.user.findMany({
-      where: { companyId, role: { in: ['admin', 'manager'] }, isActive: true },
+      // Кого можно позвать в событие: весь штат компании, включая руководителя
+      // (ТЗ 2026-08-17 — до выделения роли он попадал сюда как manager).
+      where: { companyId, role: { in: ['admin', 'manager', 'leader'] }, isActive: true },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
       take: 200,

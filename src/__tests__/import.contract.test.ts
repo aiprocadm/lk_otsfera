@@ -87,8 +87,7 @@ function makeAdapter(orders: unknown[], payments: unknown[]) {
 
 const managerSession = {
   sub: 'u1',
-  role: 'manager',
-  managerRole: 'leader',
+  role: 'leader',
   companyId: 'co-1',
 } as any;
 const adminSession = { sub: 'admin1', role: 'admin', companyId: 'co-1' } as any;

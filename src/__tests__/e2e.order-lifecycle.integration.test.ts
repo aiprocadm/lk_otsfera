@@ -279,9 +279,9 @@ describe('E2E order lifecycle — full path through real services', () => {
     });
     expect(mgr).toEqual({ ok: false, error: 'backward_forbidden' });
 
-    // тот же пользователь, но с суб-ролью руководителя — проверяем именно
-    // право, а не конкретного человека
-    const leaderSession = { ...managerSession(managerAId), managerRole: 'leader' as const };
+    // тот же пользователь, но в роли руководителя (ТЗ 2026-08-17: руководитель —
+    // самостоятельная top-level роль) — проверяем именно право, а не человека
+    const leaderSession = { ...managerSession(managerAId), role: 'leader' as const };
     const r = await transitionOrderStatus(prisma, leaderSession, {
       orderId,
       toId: await statusId('accepted'),

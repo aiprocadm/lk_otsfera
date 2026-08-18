@@ -46,7 +46,6 @@ vi.mock('@/components/manager/manager-leads-table', () => ({
 const SESSION = {
   sub: 'u1',
   role: 'manager' as const,
-  managerRole: 'member' as const,
   companyId: 'c1',
 };
 

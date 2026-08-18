@@ -139,12 +139,12 @@ describe('Инвариант: can(see_commission) в staff-контуре — т
 
   it('рядовой менеджер без профиля комиссию не видит, руководитель — видит (legacy-правило)', () => {
     expect(can(managerSession(), 'see_commission')).toBe(false);
-    expect(can(managerSession({ managerRole: 'leader' }), 'see_commission')).toBe(true);
+    expect(can(managerSession({ role: 'leader' }), 'see_commission')).toBe(true);
   });
 
   it('профиль доступа — default-deny: без флага комиссии не видит даже руководитель, с флагом — видит и рядовой', () => {
     expect(
-      can(managerSession({ managerRole: 'leader', accessProfile: profile([]) }), 'see_commission')
+      can(managerSession({ role: 'leader', accessProfile: profile([]) }), 'see_commission')
     ).toBe(false);
     expect(
       can(managerSession({ accessProfile: profile(['see_commission']) }), 'see_commission')

@@ -69,7 +69,7 @@ describe('GET /api/notifications/unread', () => {
     expect(notificationCount).not.toHaveBeenCalled();
   });
 
-  it('returns 403 when requireRole fails (student role) — та же четвёрка ролей', async () => {
+  it('returns 403 when requireRole fails (student role) — тот же список ролей', async () => {
     const studentSession = { sub: 'u-student', role: 'student' as const };
     requireSession.mockResolvedValue({ ok: true, value: studentSession });
     requireRole.mockReturnValue({ ok: false, response: forbiddenResponse });
@@ -79,6 +79,7 @@ describe('GET /api/notifications/unread', () => {
     expect(requireRole).toHaveBeenCalledWith(studentSession, [
       'admin',
       'manager',
+      'leader',
       'partner',
       'organization',
     ]);

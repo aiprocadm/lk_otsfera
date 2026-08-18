@@ -13,7 +13,7 @@ vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled }));
 import { prisma } from '@/lib/db/prisma';
 import { upsertSalesTargetAction } from '@/server-actions/leader/analytics';
 
-const session = { sub: 'u1', role: 'manager', managerRole: 'leader', companyId: 'c1' };
+const session = { sub: 'u1', role: 'leader', companyId: 'c1' };
 
 beforeEach(() => {
   vi.clearAllMocks();

@@ -20,8 +20,7 @@ import { assignOrderManagerAsLeader } from '@/lib/services/manager/leaderOrderAs
 
 const LEADER: SessionPayload = {
   sub: 'ldr-1',
-  role: 'manager',
-  managerRole: 'leader',
+  role: 'leader',
   managedOrgIds: [],
   companyId: 'co-1',
 };

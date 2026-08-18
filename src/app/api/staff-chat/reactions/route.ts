@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db/prisma';
 import { toggleReaction } from '@/lib/services/staffChat/messages';
 
 const requireStaff = (session: Parameters<typeof requireRole>[0]) =>
-  requireRole(session, ['admin', 'manager']);
+  requireRole(session, ['admin', 'manager', 'leader']);
 
 /** Форма входа; допустимость emoji ('invalid') проверяет сервис. */
 const reactionBodySchema = z.object({

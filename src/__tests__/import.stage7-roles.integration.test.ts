@@ -45,8 +45,7 @@ beforeAll(async () => {
   leaderUserId = user.id;
   leaderSession = {
     sub: user.id,
-    role: 'manager',
-    managerRole: 'leader',
+    role: 'leader',
     companyId,
     managedOrgIds: [],
   } as never;

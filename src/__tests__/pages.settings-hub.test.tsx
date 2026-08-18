@@ -31,7 +31,7 @@ import AdminSettingsPage from '@/app/admin/settings/page';
 import LeaderSettingsPage from '@/app/leader/settings/page';
 
 const ADMIN = { sub: 'a1', role: 'admin' as const };
-const LEADER = { sub: 'l1', role: 'manager' as const, managerRole: 'leader' as const };
+const LEADER = { sub: 'l1', role: 'leader' as const };
 
 beforeEach(() => {
   requireAdmin.mockReset().mockResolvedValue(ADMIN);

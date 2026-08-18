@@ -245,7 +245,13 @@ describe('getEventFormOptions', () => {
     });
     expect(userFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { companyId: 'c1', role: { in: ['admin', 'manager'] }, isActive: true },
+        // Руководитель — тоже штат компании: его можно позвать в событие
+        // (ТЗ 2026-08-17; до выделения роли он попадал сюда как manager).
+        where: {
+          companyId: 'c1',
+          role: { in: ['admin', 'manager', 'leader'] },
+          isActive: true,
+        },
       })
     );
     expect(orgFindMany).toHaveBeenCalledWith(

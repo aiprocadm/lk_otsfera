@@ -227,7 +227,7 @@ describe('resolveEntityAccess — заявка', () => {
   });
 
   it('руководитель видит заявки своей компании и не видит чужую', async () => {
-    const leader = sess(leaderAId, 'manager', { companyId: companyA, managerRole: 'leader' });
+    const leader = sess(leaderAId, 'leader', { companyId: companyA });
     expect((await resolveEntityAccess(prisma, leader, 'order', orderA)).canRead).toBe(true);
     expect((await resolveEntityAccess(prisma, leader, 'order', orderB)).canRead).toBe(false);
   });
@@ -332,7 +332,7 @@ describe('resolveEntityAccess — документ', () => {
   });
 
   it('документ заказа: руководитель — по своей компании', async () => {
-    const leader = sess(leaderAId, 'manager', { companyId: companyA, managerRole: 'leader' });
+    const leader = sess(leaderAId, 'leader', { companyId: companyA });
     expect((await resolveEntityAccess(prisma, leader, 'document', docA)).canRead).toBe(true);
   });
 
@@ -424,7 +424,7 @@ describe('setValues — скоуп и роль перемножаются', () =
   });
 
   it('руководитель правит по дефолту (заявка своей компании)', async () => {
-    const leader = sess(leaderAId, 'manager', { companyId: companyA, managerRole: 'leader' });
+    const leader = sess(leaderAId, 'leader', { companyId: companyA });
     const res = await setValues(prisma, leader, 'order', orderA, {
       [defOrderId]: 'от руководителя',
     });
@@ -436,7 +436,7 @@ describe('setValues — скоуп и роль перемножаются', () =
     // на организации. До этого руководитель без закреплённых организаций не мог
     // ни открыть карточку, ни заполнить поля §11, хотя §4 ТЗ даёт ему настройку
     // полей. Граница компании при этом сохраняется — см. следующую проверку.
-    const leader = sess(leaderAId, 'manager', { companyId: companyA, managerRole: 'leader' });
+    const leader = sess(leaderAId, 'leader', { companyId: companyA });
     const res = await setValues(prisma, leader, 'organization', orgA, {
       [defOrgId]: 'от руководителя',
     });
@@ -444,7 +444,7 @@ describe('setValues — скоуп и роль перемножаются', () =
   });
 
   it('руководитель НЕ дотягивается до организации чужой компании', async () => {
-    const leader = sess(leaderAId, 'manager', { companyId: companyA, managerRole: 'leader' });
+    const leader = sess(leaderAId, 'leader', { companyId: companyA });
     const res = await setValues(prisma, leader, 'organization', orgB, { [defOrgId]: 'чужое' });
     expect(res).toEqual({ ok: false, error: 'not_found' });
   });
@@ -526,7 +526,7 @@ describe('getValuesForEntity — фильтр по ролям на сервер�
 
   it('флаг editable считается по роли, а не по кабинету', async () => {
     const mgr = sess(managerAId, 'manager', { companyId: companyA, managedOrgIds: [orgA] });
-    const leader = sess(leaderAId, 'manager', { companyId: companyA, managerRole: 'leader' });
+    const leader = sess(leaderAId, 'leader', { companyId: companyA });
 
     const forMgr = await getValuesForEntity(prisma, mgr, 'organization', orgA);
     const forLeader = await getValuesForEntity(prisma, leader, 'organization', orgA);

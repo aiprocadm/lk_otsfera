@@ -90,8 +90,7 @@ const PARTNER_ADMIN: SessionPayload = {
 };
 const MANAGER_LEADER: SessionPayload = {
   sub: 'ml-1',
-  role: 'manager',
-  managerRole: 'leader',
+  role: 'leader',
   companyId: 'c1',
 };
 
@@ -305,7 +304,7 @@ describe('resendInvite — скоуп manager-leader', () => {
     });
   });
 
-  it('обе модели (ТЗ 2026-08-17): цель с ролью leader тоже в скоупе руководителя', async () => {
+  it('цель с ролью leader тоже в скоупе руководителя (ТЗ 2026-08-17)', async () => {
     const { prisma } = makePrisma(
       makeTarget({ role: 'leader', partnerId: null, companyId: 'c1' }),
       {
@@ -320,7 +319,7 @@ describe('resendInvite — скоуп manager-leader', () => {
     });
   });
 
-  it('forbidden: обычный manager (без managerRole=leader)', async () => {
+  it("forbidden: рядовой manager (role='manager', не 'leader')", async () => {
     const session: SessionPayload = { sub: 'm-1', role: 'manager', companyId: 'c1' };
     const { prisma } = makePrisma(
       makeTarget({ role: 'manager', partnerId: null, companyId: 'c1' })

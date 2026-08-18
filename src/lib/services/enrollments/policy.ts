@@ -5,7 +5,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 /**
  * T5 enrollment-request RBAC. Reviewers (approve/reject/provision) are our side:
  * managers (incl. leader sub-role) and admins. Submitters are all five roles.
- * Leaders carry role='manager' + managerRole='leader', so the manager branch
+ * Leaders carry the standalone role='leader' (ТЗ 2026-08-17), so the contour branch
  * already covers them.
  */
 export function canReviewEnrollments(session: SessionPayload): boolean {

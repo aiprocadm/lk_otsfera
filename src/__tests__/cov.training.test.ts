@@ -27,8 +27,10 @@ import {
   deactivateDirection,
 } from '@/lib/services/training/directions';
 
+// Руководитель — самостоятельная top-level роль 'leader' (ТЗ 2026-08-17);
+// переходной пары manager+managerRole больше нет.
 function session(role: string, extra: Record<string, unknown> = {}) {
-  return { sub: 'u1', role, managerRole: null, companyId: 'c1', ...extra } as any;
+  return { sub: 'u1', role, companyId: 'c1', ...extra } as any;
 }
 
 const prisma = {
@@ -472,7 +474,7 @@ describe('cov directions.updateDirection', () => {
 
   it('updates name + sortOrder [L48-52]', async () => {
     prisma.trainingDirection.update.mockResolvedValue({ id: 'd1', name: 'Y', sortOrder: 5 });
-    const res = await updateDirection(prisma, session('manager', { managerRole: 'leader' }), {
+    const res = await updateDirection(prisma, session('leader'), {
       id: 'd1',
       name: '  Y  ',
       sortOrder: 5,

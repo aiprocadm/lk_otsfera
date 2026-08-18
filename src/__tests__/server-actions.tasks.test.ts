@@ -49,7 +49,7 @@ import {
   deleteTaskColumnAction,
 } from '@/server-actions/tasks';
 
-const SESSION = { sub: 'u1', role: 'manager', managerRole: 'leader', companyId: 'co-A' };
+const SESSION = { sub: 'u1', role: 'leader', companyId: 'co-A' };
 
 beforeEach(() => {
   vi.clearAllMocks();

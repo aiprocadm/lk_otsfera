@@ -62,7 +62,7 @@ import LeaderPaymentsImportPage from '@/app/leader/settings/integrations/1c/paym
 import LeaderOneCLayout from '@/app/leader/settings/integrations/1c/layout';
 import LeaderOneCIndexPage from '@/app/leader/settings/integrations/1c/page';
 
-const LEADER = { sub: 'l1', role: 'manager' as const, managerRole: 'leader' as const };
+const LEADER = { sub: 'l1', role: 'leader' as const };
 
 beforeEach(() => {
   requireSettingsSection.mockReset().mockResolvedValue(LEADER);

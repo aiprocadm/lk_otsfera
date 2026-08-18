@@ -215,8 +215,7 @@ describe('commitImport', () => {
     // (без companyId право сохраняется, скоуп деградирует отдельно).
     const sessionNoCompany = {
       sub: 'u-mgr',
-      role: 'manager',
-      managerRole: 'leader',
+      role: 'leader',
       companyId: null,
     } as never;
     const result = await commitImport(fakePrisma, sessionNoCompany, { fileBuffer });

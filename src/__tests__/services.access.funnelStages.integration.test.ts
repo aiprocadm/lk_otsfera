@@ -23,8 +23,7 @@ let companyA: string,
 const leaderA = (): SessionPayload =>
   ({
     sub: leaderAId,
-    role: 'manager',
-    managerRole: 'leader',
+    role: 'leader',
     companyId: companyA,
   }) as unknown as SessionPayload;
 const plainMgrA = (): SessionPayload =>
@@ -50,8 +49,7 @@ beforeAll(async () => {
       data: {
         email: `fsLeader-${STAMP}@t.local`,
         name: 'L',
-        role: 'manager',
-        managerRole: 'leader',
+        role: 'leader',
         companyId: companyA,
       },
     })

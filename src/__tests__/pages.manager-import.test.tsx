@@ -72,7 +72,7 @@ import ManagerImportPage from '@/app/manager/import/page';
 import ManagerPaymentsImportPage from '@/app/manager/payments-import/page';
 
 const PLAIN = { sub: 'm1', role: 'manager' as const, managedOrgIds: ['o1'] };
-const LEADER = { sub: 'l1', role: 'manager' as const, managerRole: 'leader' as const };
+const LEADER = { sub: 'l1', role: 'leader' as const };
 
 beforeEach(() => {
   requireManager.mockReset().mockResolvedValue(PLAIN);

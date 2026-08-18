@@ -100,7 +100,7 @@ describe('getOrderStatusPanel', () => {
   it('руководитель и админ видят возврат назад', async () => {
     const leader = await getOrderStatusPanel(
       prismaWith('p'),
-      sess('manager', { managerRole: 'leader' }),
+      sess('leader'),
       'o1'
     );
     expect(leader.backward.map((s) => s.label)).toEqual(['Черновик заявки', 'Принято в работу']);

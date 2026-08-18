@@ -108,8 +108,7 @@ describe('setSlaSettingsAction', () => {
 
     requireManagerLeader.mockResolvedValue({
       sub: 'u1',
-      role: 'manager',
-      managerRole: 'leader',
+      role: 'leader',
       companyId: null,
     });
     expect(await setSlaSettingsAction({ slaResponseHours: 24, slaWarningHours: 4 })).toEqual({
@@ -119,8 +118,7 @@ describe('setSlaSettingsAction', () => {
 
     requireManagerLeader.mockResolvedValue({
       sub: 'u1',
-      role: 'manager',
-      managerRole: 'leader',
+      role: 'leader',
       companyId: 'c1',
     });
     setSlaSettingsService.mockResolvedValue({ ok: true, changed: true });

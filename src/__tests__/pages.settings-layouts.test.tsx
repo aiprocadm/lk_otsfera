@@ -39,7 +39,7 @@ import { SettingsShell } from '@/components/settings/settings-shell';
 import { sectionsForCabinet } from '@/lib/navigation/settings';
 
 const ADMIN = { sub: 'a1', role: 'admin' as const };
-const LEADER = { sub: 'l1', role: 'manager' as const, managerRole: 'leader' as const };
+const LEADER = { sub: 'l1', role: 'leader' as const };
 
 beforeEach(() => {
   requireAdmin.mockReset().mockResolvedValue(ADMIN);

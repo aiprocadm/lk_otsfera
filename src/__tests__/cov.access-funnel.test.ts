@@ -65,8 +65,7 @@ let leaderAId: string,
 const leaderA = (): SessionPayload =>
   ({
     sub: leaderAId,
-    role: 'manager',
-    managerRole: 'leader',
+    role: 'leader',
     companyId: companyA,
   }) as unknown as SessionPayload;
 // Dedicated company that NEVER gets custom funnel stages → resolveFunnelStages
@@ -76,8 +75,7 @@ const leaderA = (): SessionPayload =>
 const cleanLeader = (): SessionPayload =>
   ({
     sub: cleanLeaderId,
-    role: 'manager',
-    managerRole: 'leader',
+    role: 'leader',
     companyId: cleanCo,
   }) as unknown as SessionPayload;
 const plainMgrA = (): SessionPayload =>
@@ -128,8 +126,7 @@ beforeAll(async () => {
       data: {
         email: `e1Clean-${STAMP}@t.local`,
         name: 'Clean Leader',
-        role: 'manager',
-        managerRole: 'leader',
+        role: 'leader',
         companyId: cleanCo,
       },
     })
@@ -139,8 +136,7 @@ beforeAll(async () => {
       data: {
         email: `e1Leader-${STAMP}@t.local`,
         name: 'Leader A',
-        role: 'manager',
-        managerRole: 'leader',
+        role: 'leader',
         companyId: companyA,
       },
     })

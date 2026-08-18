@@ -29,7 +29,7 @@ export async function POST(req: Request) {
   if (off) return off;
   const sess = await requireSession();
   if (!sess.ok) return sess.response;
-  const staff = requireRole(sess.value, ['admin', 'manager']);
+  const staff = requireRole(sess.value, ['admin', 'manager', 'leader']);
   if (!staff.ok) return staff.response;
 
   const formData = await readMultipart(req);
@@ -79,7 +79,7 @@ export async function GET(req: Request) {
   if (off) return off;
   const sess = await requireSession();
   if (!sess.ok) return sess.response;
-  const staff = requireRole(sess.value, ['admin', 'manager']);
+  const staff = requireRole(sess.value, ['admin', 'manager', 'leader']);
   if (!staff.ok) return staff.response;
 
   const url = new URL(req.url);

@@ -18,10 +18,8 @@ function assertSecretStrength(secret: string, varName: string): string {
 }
 
 /** Единый источник top-level ролей (дедупликация C2: тип Role + roleSchema).
- * `leader` добавлен PR-1 программы «роль Руководитель» (ТЗ 2026-08-17):
- * до миграции данных (PR-3) токенов с этой ролью не существует — руководитель
- * пока ездит как `manager` + `managerRole='leader'`, и обе модели обязаны
- * пониматься одинаково (хелперы в managerPolicy.ts). */
+ * `leader` — самостоятельная роль руководителя (программа ТЗ 2026-08-17;
+ * прежняя суб-роль managerRole снята PR-4 вместе с колонкой). */
 const ROLE_VALUES = ['admin', 'manager', 'leader', 'partner', 'organization', 'student'] as const;
 
 export type Role = (typeof ROLE_VALUES)[number];
@@ -33,14 +31,13 @@ export type Role = (typeof ROLE_VALUES)[number];
 //    — наоборот, обычный scoped-партнёр (дефолт), НЕ админ; строка 'manager' здесь
 //    не связана с top-level Role 'manager' (разные поля/namespace).
 //  - roleInOrg='leader'     = старший в организации (+ 'admin'). Гард requireOrganizationAdminOrLeader.
-//  - managerRole='leader'   = старший менеджер (company-wide, C8). Гард requireManagerLeader.
+//    (Прежняя третья под-роль managerRole='leader' стала top-level ролью 'leader' — ТЗ 2026-08-17.)
 // Значения СТАБИЛЬНЫ (миграция дорогая). Контракт отказа по под-роли единый:
 // redirect → /forbidden (см. requireRole.ts).
 export type PartnerRoleInPartner = 'admin' | 'manager';
 
 export type OrgRoleInOrg = 'admin' | 'leader' | 'member';
 
-type ManagerRole = 'leader';
 
 export type OrganizationMembership = {
   organizationId: string;
@@ -56,7 +53,6 @@ export type SessionPayload = {
   partnerRole?: PartnerRoleInPartner | null;
   assignedOrgIds?: string[];
   managedOrgIds?: string[];
-  managerRole?: ManagerRole | null;
   organizationId?: string | null;
   organizationMemberships?: OrganizationMembership[];
   email?: string;
@@ -97,7 +93,6 @@ const sessionPayloadSchema = z.object({
   partnerRole: z.enum(['admin', 'manager']).nullish(),
   assignedOrgIds: z.array(z.string()).optional(),
   managedOrgIds: z.array(z.string()).optional(),
-  managerRole: z.literal('leader').nullish(),
   organizationId: z.string().nullish(),
   organizationMemberships: z.array(organizationMembershipSchema).optional(),
   email: z.string().optional(),

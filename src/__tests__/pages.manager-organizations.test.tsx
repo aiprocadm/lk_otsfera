@@ -21,7 +21,6 @@ import ManagerOrganizationsPage from '@/app/manager/organizations/page';
 const SESSION = {
   sub: 'u1',
   role: 'manager' as const,
-  managerRole: 'member' as const,
   companyId: 'c1',
 };
 

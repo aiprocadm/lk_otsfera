@@ -18,8 +18,7 @@ import {
 const ADMIN = { sub: 'u-admin', role: 'admin', companyId: null } as never;
 const LEADER = {
   sub: 'u-leader',
-  role: 'manager',
-  managerRole: 'leader',
+  role: 'leader',
   companyId: 'co-1',
   managedOrgIds: [],
 } as never;

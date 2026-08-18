@@ -31,13 +31,13 @@ let foreignOrderId: string; // unassigned order in foreignCompanyId
 
 function session(sub: string, opts: { leader?: boolean } = {}): SessionPayload {
   // managedOrgIds ПУСТ намеренно: заказ вне персонального scope, весь доступ
-  // держится (или не держится) на managerRole='leader' + companyId.
+  // держится (или не держится) на top-level роли 'leader' + companyId
+  // (ТЗ 2026-08-17: суб-роль managerRole снята).
   return {
     sub,
-    role: 'manager',
+    role: opts.leader ? 'leader' : 'manager',
     companyId,
     managedOrgIds: [],
-    ...(opts.leader ? { managerRole: 'leader' } : {}),
   } as SessionPayload;
 }
 
@@ -68,7 +68,8 @@ beforeAll(async () => {
     data: {
       email: `claim-leader-${STAMP}@example.test`,
       name: `Claim Leader ${STAMP}`,
-      role: 'manager',
+      // ТЗ 2026-08-17: руководитель — самостоятельная роль в enum Role.
+      role: 'leader',
       companyId,
     },
   });

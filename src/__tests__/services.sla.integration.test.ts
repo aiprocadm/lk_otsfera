@@ -23,8 +23,7 @@ const sLeader = (): SessionPayload =>
   // managedOrgIds: карточка организации скоупится через canSeeOrganization (без teamMode).
   ({
     sub: leader,
-    role: 'manager',
-    managerRole: 'leader',
+    role: 'leader',
     companyId: companyA,
     managedOrgIds: [orgA],
   }) as unknown as SessionPayload;
@@ -37,8 +36,7 @@ beforeAll(async () => {
       data: {
         email: `s7p3-l-${STAMP}@t.local`,
         name: 'Лидер',
-        role: 'manager',
-        managerRole: 'leader',
+        role: 'leader',
         companyId: companyA,
       },
     })

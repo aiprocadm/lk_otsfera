@@ -1,8 +1,8 @@
 /**
  * Этап 1 ТЗ v0.5 (§4) — гейт настройки полей и статусов: администратор ИЛИ
- * руководитель. Руководитель — суб-роль менеджера (`managerRole='leader'`),
- * поэтому обычной проверки роли недостаточно, а обычный менеджер обязан
- * получать 403.
+ * руководитель. Руководитель — самостоятельная top-level роль `leader`
+ * (ТЗ 2026-08-17, PR-4: прежняя суб-роль `managerRole` снята), а обычный
+ * менеджер обязан получать 403.
  */
 import { describe, it, expect, vi } from 'vitest';
 import type { SessionPayload } from '@/lib/auth/jwt';
@@ -22,7 +22,7 @@ describe('requireFieldsAdmin', () => {
   });
 
   it('руководитель проходит', () => {
-    const res = requireFieldsAdmin(sess('manager', { managerRole: 'leader' }));
+    const res = requireFieldsAdmin(sess('leader'));
     expect(res.ok).toBe(true);
   });
 

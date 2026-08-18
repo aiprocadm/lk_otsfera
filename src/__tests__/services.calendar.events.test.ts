@@ -153,7 +153,12 @@ describe('createEvent', () => {
     );
     expect(res).toEqual({ ok: true, id: 'e1' });
     expect(tx.user.count).toHaveBeenCalledWith({
-      where: { id: { in: ['u2'] }, companyId: 'c1', role: { in: ['admin', 'manager'] } },
+      // Валидация участников пускает и руководителя (ТЗ 2026-08-17).
+      where: {
+        id: { in: ['u2'] },
+        companyId: 'c1',
+        role: { in: ['admin', 'manager', 'leader'] },
+      },
     });
     expect(tx.calendarEvent.create).toHaveBeenCalledWith({
       data: expect.objectContaining({

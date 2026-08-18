@@ -114,7 +114,7 @@ export async function detectLateRefundCorrections(prisma: PrismaClient): Promise
 
 export type CorrectionError = 'forbidden' | 'not_found' | 'invalid_state' | 'reason_required';
 
-/** admin или руководитель (manager + managerRole='leader') могут разбирать очередь. */
+/** admin или руководитель (role='leader') могут разбирать очередь. */
 function canResolve(s: SessionPayload): boolean {
   return s.role === 'admin' || isManagerLeader(s);
 }

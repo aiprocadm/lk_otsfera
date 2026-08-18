@@ -32,8 +32,7 @@ vi.mock('@/components/search/search-results', () => ({
 
 const SESSION = {
   sub: 'l1',
-  role: 'manager' as const,
-  managerRole: 'leader' as const,
+  role: 'leader' as const,
   companyId: 'c1',
 };
 

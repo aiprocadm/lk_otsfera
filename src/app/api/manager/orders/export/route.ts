@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { isStaffManagerSide } from '@/lib/auth/roleModel';
+import { isManagerLeader, isStaffManagerSide } from '@/lib/auth/roleModel';
 import { getSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
 import { listOrdersForExport } from '@/lib/services/manager/orders';
@@ -25,7 +25,7 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const companyWide =
-    url.searchParams.get('scope') === 'company' && session.managerRole === 'leader';
+    url.searchParams.get('scope') === 'company' && isManagerLeader(session);
 
   const { rows, total } = await listOrdersForExport(prisma, {
     session,

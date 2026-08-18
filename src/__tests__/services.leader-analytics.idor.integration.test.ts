@@ -43,7 +43,7 @@ let paymentIds: string[] = [];
 let leadIds: string[] = [];
 
 function leaderSession(sub: string, companyId: string): SessionPayload {
-  return { sub, role: 'manager', managerRole: 'leader', companyId } as unknown as SessionPayload;
+  return { sub, role: 'leader', companyId } as unknown as SessionPayload;
 }
 
 beforeAll(async () => {
@@ -56,8 +56,7 @@ beforeAll(async () => {
     data: {
       email: `${STAMP}-leaderA@x.local`,
       name: `Leader A ${STAMP}`,
-      role: 'manager',
-      managerRole: 'leader',
+      role: 'leader',
       companyId: companyA,
       passwordHash: 'x',
     },

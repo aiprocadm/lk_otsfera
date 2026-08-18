@@ -24,9 +24,6 @@ export const protectedPrefixes: Record<string, Role[]> = {
   '/manager': ['manager', 'leader'],
   '/partner': ['partner'],
   '/organization': ['organization'],
-  // /leader: до PR-4 пускает и role=manager — старые токены руководителя несут
-  // её (пара manager+managerRole бьётся серверным гардом requireManagerLeader
-  // на layout, middleware суб-роль не режет). После снятия лесов — ['leader'].
-  '/leader': ['manager', 'leader'],
+  '/leader': ['leader'],
   '/student': ['student', 'organization', 'admin', 'manager', 'leader'],
 };

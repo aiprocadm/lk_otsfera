@@ -34,8 +34,7 @@ const SESSION: SessionPayload = {
 };
 const LEADER: SessionPayload = {
   sub: 'lead-1',
-  role: 'manager',
-  managerRole: 'leader',
+  role: 'leader',
   managedOrgIds: [],
   companyId: 'co-1',
 };

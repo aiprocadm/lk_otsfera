@@ -92,8 +92,8 @@ describe('requireManager', () => {
     await expect(requireManager()).rejects.toThrow('NEXT_REDIRECT:/forbidden');
   });
 
-  // ТЗ 2026-08-17 (PR-1): кабинет менеджера открыт top-level роли leader
-  // («играющий тренер», Р-Л-3) — как раньше старой паре manager+managerRole.
+  // ТЗ 2026-08-17: кабинет менеджера открыт и роли leader («играющий тренер»,
+  // Р-Л-3) — руководитель работает в обоих кабинетах.
   it('returns session for top-level leader role (Р-Л-3)', async () => {
     const leader: SessionPayload = {
       sub: 'ldr-1',
@@ -107,40 +107,11 @@ describe('requireManager', () => {
   });
 });
 
-describe('requireManagerLeader — обе модели руководителя (ТЗ 2026-08-17)', () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-    redirect.mockImplementation((to: string) => {
-      throw new Error(`NEXT_REDIRECT:${to}`);
-    });
-  });
-
-  it('пускает старую пару manager + managerRole=leader', async () => {
-    getSession.mockResolvedValue({
-      sub: 'ldr-old',
-      role: 'manager',
-      managerRole: 'leader',
-      managedOrgIds: [],
-    } as SessionPayload);
-    const result = await requireManagerLeader();
-    expect(result.sub).toBe('ldr-old');
-  });
-
-  it('пускает новую top-level роль leader', async () => {
-    getSession.mockResolvedValue({
-      sub: 'ldr-new',
-      role: 'leader',
-      managedOrgIds: [],
-    } as SessionPayload);
-    const result = await requireManagerLeader();
-    expect(result.sub).toBe('ldr-new');
-  });
-
-  it('рядового менеджера по-прежнему бьёт /forbidden', async () => {
-    getSession.mockResolvedValue(MANAGER_WITH_SCOPE);
-    await expect(requireManagerLeader()).rejects.toThrow('NEXT_REDIRECT:/forbidden');
-  });
-});
+// Прежний describe «requireManagerLeader — обе модели руководителя» удалён как
+// отработавшие леса (ТЗ 2026-08-17, PR-4: переходная пара manager+managerRole
+// снята, моделей руководителя больше не две). Оба его позитивных кейса
+// проверяли одну и ту же роль `leader`, а негативный («рядового менеджера
+// бьёт /forbidden») дословно повторён в describe('requireManagerLeader') ниже.
 
 describe('requireManagerForOrg', () => {
   beforeEach(() => {
@@ -263,9 +234,8 @@ describe('requireManagerForOrder', () => {
 
   const LEADER_C1: SessionPayload = {
     sub: 'mgr-leader',
-    role: 'manager',
+    role: 'leader',
     managedOrgIds: [],
-    managerRole: 'leader',
     companyId: 'c1',
   };
 
@@ -305,9 +275,8 @@ describe('requireManagerForOrder', () => {
   it('leader с companyId=null → правило не срабатывает, нормальный three-way (deny)', async () => {
     getSession.mockResolvedValue({
       sub: 'mgr-leader-nocompany',
-      role: 'manager',
+      role: 'leader',
       managedOrgIds: [],
-      managerRole: 'leader',
       // companyId отсутствует
     } as SessionPayload);
     orderFindUnique.mockResolvedValue({
@@ -335,21 +304,20 @@ describe('requireManagerLeader', () => {
     });
   });
 
-  const MANAGER_LEADER: SessionPayload = {
+  const LEADER: SessionPayload = {
     sub: 'mgr-leader',
-    role: 'manager',
+    role: 'leader',
     managedOrgIds: [],
-    managerRole: 'leader',
   };
 
-  it('возвращает сессию для manager-leader', async () => {
-    getSession.mockResolvedValue(MANAGER_LEADER);
+  it('возвращает сессию для роли leader', async () => {
+    getSession.mockResolvedValue(LEADER);
     const result = await requireManagerLeader();
-    expect(result).toEqual(MANAGER_LEADER);
+    expect(result).toEqual(LEADER);
     expect(redirect).not.toHaveBeenCalled();
   });
 
-  it('редиректит manager-не-leader на /forbidden (единый контракт под-ролей)', async () => {
+  it('редиректит рядового менеджера на /forbidden (единый контракт elevation)', async () => {
     getSession.mockResolvedValue(MANAGER_WITH_SCOPE);
     await expect(requireManagerLeader()).rejects.toThrow('NEXT_REDIRECT:/forbidden');
   });

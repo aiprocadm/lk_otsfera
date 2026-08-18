@@ -53,7 +53,6 @@ describe('auth login route — manager managedOrgIds', () => {
       name: 'Manager User',
       externalStudentId: null,
       passwordHash: 'hash',
-      managerRole: null,
       ...overrides,
     };
   }
@@ -177,8 +176,12 @@ describe('auth login route — manager managedOrgIds', () => {
     expect(callArg).not.toHaveProperty('managedOrgIds');
   });
 
-  it('passes managerRole: "leader" to signToken when user.managerRole is "leader"', async () => {
-    findUniqueUser.mockResolvedValue(managerUser({ managerRole: 'leader' }));
+  it('руководитель (role=leader) получает managedOrgIds тем же контуром (ТЗ 2026-08-17)', async () => {
+    // Руководитель — самостоятельная top-level роль (PR-4 снял суб-роль
+    // managerRole вместе с колонкой), но денормализация managedOrgIds для него
+    // обязана работать как для менеджера: без неё requireManager() выбросит
+    // руководителя на /login.
+    findUniqueUser.mockResolvedValue(managerUser({ role: 'leader' }));
     findManyManagedOrgs.mockResolvedValue([{ organizationId: 'org-A' }]);
 
     const res = await POST(loginRequest());
@@ -187,15 +190,14 @@ describe('auth login route — manager managedOrgIds', () => {
     expect(signToken).toHaveBeenCalledWith(
       expect.objectContaining({
         sub: 'u-mgr-1',
-        role: 'manager',
+        role: 'leader',
         managedOrgIds: ['org-A'],
-        managerRole: 'leader',
       })
     );
   });
 
-  it('still signs and includes managedOrgIds when user.managerRole is null (non-leader manager)', async () => {
-    findUniqueUser.mockResolvedValue(managerUser({ managerRole: null }));
+  it('рядовой менеджер подписывается без снятого клейма managerRole (ТЗ 2026-08-17)', async () => {
+    findUniqueUser.mockResolvedValue(managerUser());
     findManyManagedOrgs.mockResolvedValue([{ organizationId: 'org-B' }]);
 
     const res = await POST(loginRequest());
@@ -205,9 +207,10 @@ describe('auth login route — manager managedOrgIds', () => {
     expect(signToken).toHaveBeenCalled();
     const callArg = signToken.mock.calls[0]?.[0] as Record<string, unknown> | undefined;
     expect(callArg).toBeDefined();
+    expect(callArg).toHaveProperty('role', 'manager');
     expect(callArg).toHaveProperty('managedOrgIds', ['org-B']);
-    // managerRole: null is passed through (spreading conditional keeps it)
-    expect(callArg).toHaveProperty('managerRole', null);
+    // Клейм снят PR-4 — если он вернётся в сборку токена, тест упадёт.
+    expect(callArg).not.toHaveProperty('managerRole');
   });
 
   // G1: денормализация AccessProfile в токен при логине менеджера.

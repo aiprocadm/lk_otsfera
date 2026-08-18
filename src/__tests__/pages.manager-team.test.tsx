@@ -38,14 +38,12 @@ vi.mock('@/components/manager/manager-roster-panel', () => ({
 
 const SESSION = {
   sub: 'u1',
-  role: 'manager' as const,
-  managerRole: 'leader' as const,
+  role: 'leader' as const,
   companyId: 'c1',
 };
 const SESSION_NO_COMPANY = {
   sub: 'u2',
-  role: 'manager' as const,
-  managerRole: 'leader' as const,
+  role: 'leader' as const,
   companyId: null,
 };
 

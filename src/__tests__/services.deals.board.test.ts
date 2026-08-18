@@ -23,8 +23,7 @@ const ADMIN: SessionPayload = { sub: 'adm-1', role: 'admin', companyId: 'c1' };
 const ADMIN_NO_CO: SessionPayload = { sub: 'adm-0', role: 'admin' };
 const LEADER: SessionPayload = {
   sub: 'ld-1',
-  role: 'manager',
-  managerRole: 'leader',
+  role: 'leader',
   companyId: 'c1',
 };
 const MGR: SessionPayload = { sub: 'm-1', role: 'manager', companyId: 'c1' };
@@ -146,7 +145,7 @@ describe('dealScopeWhere', () => {
   });
 
   it('companyId null → sentinel __none__ (ничего не матчится)', () => {
-    expect(dealScopeWhere({ sub: 'ld-0', role: 'manager', managerRole: 'leader' })).toEqual({
+    expect(dealScopeWhere({ sub: 'ld-0', role: 'leader' })).toEqual({
       companyId: '__none__',
     });
     expect(dealScopeWhere({ sub: 'm-0', role: 'manager', companyId: null })).toEqual({

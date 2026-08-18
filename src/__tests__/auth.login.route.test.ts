@@ -155,7 +155,6 @@ describe('auth login route', () => {
       name: 'User',
       externalStudentId: null,
       passwordHash: 'hash',
-      managerRole: null,
     });
     compare.mockResolvedValue(true);
     signToken.mockResolvedValue('signed-token');
@@ -184,7 +183,6 @@ describe('auth login route', () => {
       name: 'Partner',
       externalStudentId: null,
       passwordHash: 'hash',
-      managerRole: null,
     });
     compare.mockResolvedValue(true);
     signToken.mockResolvedValue('signed-token');
@@ -213,7 +211,6 @@ describe('auth login route', () => {
       name: 'Partner Manager',
       externalStudentId: null,
       passwordHash: 'hash',
-      managerRole: null,
     });
     compare.mockResolvedValue(true);
     signToken.mockResolvedValue('signed-token');
@@ -241,7 +238,6 @@ describe('auth login route', () => {
       name: 'Partner',
       externalStudentId: null,
       passwordHash: 'hash',
-      managerRole: null,
     });
     compare.mockResolvedValue(true);
     signToken.mockResolvedValue('tok');
@@ -268,7 +264,6 @@ describe('auth login route', () => {
       name: 'No Partner',
       externalStudentId: null,
       passwordHash: 'hash',
-      managerRole: null,
     });
     compare.mockResolvedValue(true);
     signToken.mockResolvedValue('tok');
@@ -289,7 +284,6 @@ describe('auth login route', () => {
       name: 'Org User',
       externalStudentId: null,
       passwordHash: 'hash',
-      managerRole: null,
     });
     compare.mockResolvedValue(true);
     signToken.mockResolvedValue('tok');
@@ -313,7 +307,7 @@ describe('auth login route', () => {
     );
   });
 
-  it('200 for manager user (covers L124 if-taken branch + L148/L149 spread ternaries)', async () => {
+  it('200 for manager user (covers the manager branch + managedOrgIds spread)', async () => {
     findUnique.mockResolvedValue({
       id: 'u5',
       role: 'manager',
@@ -324,7 +318,6 @@ describe('auth login route', () => {
       name: 'Manager',
       externalStudentId: null,
       passwordHash: 'hash',
-      managerRole: 'leader',
     });
     compare.mockResolvedValue(true);
     signToken.mockResolvedValue('tok');
@@ -335,33 +328,44 @@ describe('auth login route', () => {
     expect(res.status).toBe(200);
     expect(signToken).toHaveBeenCalledWith(
       expect.objectContaining({
+        role: 'manager',
         managedOrgIds: ['org1'],
-        managerRole: 'leader',
       })
     );
   });
 
-  it('200 for manager user with managerRole=null (covers L133 null branch)', async () => {
+  it('200 for leader user — та же ветка контура, роль в токене leader (ТЗ 2026-08-17)', async () => {
+    // Прежний кейс проверял ветку managerRole=null у рядового менеджера; после
+    // PR-4 суб-роли нет, а различие «руководитель vs рядовой» живёт в top-level
+    // роли. Проверяем именно его: leader проходит менеджерскую ветку сборки
+    // клеймов (managedOrgIds денормализуются) и приходит в токен как 'leader'.
     findUnique.mockResolvedValue({
       id: 'u6',
-      role: 'manager',
+      role: 'leader',
       companyId: 'c1',
       partnerId: null,
       organizationId: null,
-      email: 'mgr2@example.com',
-      name: 'Manager2',
+      email: 'leader@example.com',
+      name: 'Leader',
       externalStudentId: null,
       passwordHash: 'hash',
-      managerRole: null,
     });
     compare.mockResolvedValue(true);
     signToken.mockResolvedValue('tok');
-    orgManagerFindMany.mockResolvedValue([]);
+    orgManagerFindMany.mockResolvedValue([{ organizationId: 'org2' }]);
 
-    const res = await POST(makeReq({ email: 'mgr2@example.com', password: 'secret' }));
+    const res = await POST(makeReq({ email: 'leader@example.com', password: 'secret' }));
 
     expect(res.status).toBe(200);
-    // managerRole=null → managerRole !== undefined is true → spread { managerRole: null }
-    expect(signToken).toHaveBeenCalledWith(expect.objectContaining({ managerRole: null }));
+    expect(signToken).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role: 'leader',
+        managedOrgIds: ['org2'],
+      })
+    );
+    // Снятый клейм не должен вернуться в токен (PR-4).
+    const claims = signToken.mock.calls[0]?.[0] as Record<string, unknown> | undefined;
+    expect(claims).toBeDefined();
+    expect(claims).not.toHaveProperty('managerRole');
   });
 });

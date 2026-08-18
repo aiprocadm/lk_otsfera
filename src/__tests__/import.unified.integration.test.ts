@@ -75,8 +75,7 @@ const adminSession: SessionPayload = {
 function buildForeignLeaderSession(otherCompanyId: string): SessionPayload {
   return {
     sub: `${PREFIX}leader-user`,
-    role: 'manager',
-    managerRole: 'leader',
+    role: 'leader',
     companyId: otherCompanyId,
     managedOrgIds: [],
   } as SessionPayload;

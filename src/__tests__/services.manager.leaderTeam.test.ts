@@ -44,8 +44,7 @@ import {
 
 const LEADER_CO_A: SessionPayload = {
   sub: 'leader-1',
-  role: 'manager',
-  managerRole: 'leader',
+  role: 'leader',
   companyId: 'co-A',
   managedOrgIds: ['org-1'],
 };

@@ -19,7 +19,11 @@ const ORIGINAL_ENV = {
   FEATURE_LEADER_CABINET: process.env.FEATURE_LEADER_CABINET,
 };
 
-describe('middleware — leader cabinet', () => {
+// Модель ролей после PR-4 ТЗ 2026-08-17: руководитель — top-level роль
+// `leader` (суб-роли managerRole больше нет). Прежний describe «обе модели
+// эквивалентны» удалён как отработавшие леса: он проверял ту же самую роль
+// `leader` вторым набором кейсов; уникальные кейсы оттуда перенесены сюда.
+describe('middleware — роль leader и кабинет руководителя', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     process.env.JWT_SECRET = 'middleware-test-secret-with-at-least-32-chars';
@@ -35,10 +39,10 @@ describe('middleware — leader cabinet', () => {
     }
   });
 
-  it('менеджер-лидер при FEATURE_LEADER_CABINET=1: / -> /leader/dashboard', async () => {
+  it('руководитель при FEATURE_LEADER_CABINET=1: / -> /leader/dashboard', async () => {
     process.env.FEATURE_LEADER_CABINET = '1';
     vi.mocked(jwtVerify).mockResolvedValue({
-      payload: { role: 'manager', managerRole: 'leader' },
+      payload: { role: 'leader' },
     } as any);
 
     const res = await middleware(req('/', 'tkn'));
@@ -47,9 +51,9 @@ describe('middleware — leader cabinet', () => {
     expect(res.headers.get('location')).toBe('https://app.local/leader/dashboard');
   });
 
-  it('менеджер-лидер при выключенном флаге: / -> /manager/dashboard', async () => {
+  it('руководитель при выключенном флаге: / -> /manager/dashboard', async () => {
     vi.mocked(jwtVerify).mockResolvedValue({
-      payload: { role: 'manager', managerRole: 'leader' },
+      payload: { role: 'leader' },
     } as any);
 
     const res = await middleware(req('/', 'tkn'));
@@ -58,7 +62,7 @@ describe('middleware — leader cabinet', () => {
     expect(res.headers.get('location')).toBe('https://app.local/manager/dashboard');
   });
 
-  it('рядовой менеджер при включённом флаге: / -> /manager/dashboard (managerRole отсутствует)', async () => {
+  it('рядовой менеджер при включённом флаге: / -> /manager/dashboard (роль manager, не leader)', async () => {
     process.env.FEATURE_LEADER_CABINET = '1';
     vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'manager' } } as any);
 
@@ -68,10 +72,10 @@ describe('middleware — leader cabinet', () => {
     expect(res.headers.get('location')).toBe('https://app.local/manager/dashboard');
   });
 
-  it('менеджер-лидер при включённом флаге: /login -> /leader/dashboard (auth-страница)', async () => {
+  it('руководитель при включённом флаге: /login -> /leader/dashboard (auth-страница)', async () => {
     process.env.FEATURE_LEADER_CABINET = '1';
     vi.mocked(jwtVerify).mockResolvedValue({
-      payload: { role: 'manager', managerRole: 'leader' },
+      payload: { role: 'leader' },
     } as any);
 
     const res = await middleware(req('/login', 'tkn'));
@@ -90,9 +94,9 @@ describe('middleware — leader cabinet', () => {
     expect(res.headers.get('location')).toBe('https://app.local/forbidden');
   });
 
-  it('менеджер на /leader/team при ВЫКЛЮЧЕННОМ флаге -> 404 (FEATURE_PREFIXES)', async () => {
+  it('руководитель на /leader/team при ВЫКЛЮЧЕННОМ флаге -> 404 (FEATURE_PREFIXES)', async () => {
     vi.mocked(jwtVerify).mockResolvedValue({
-      payload: { role: 'manager', managerRole: 'leader' },
+      payload: { role: 'leader' },
     } as any);
 
     const res = await middleware(req('/leader/team', 'tkn'));
@@ -100,49 +104,17 @@ describe('middleware — leader cabinet', () => {
     expect(res.status).toBe(404);
   });
 
-  it('менеджер (не лидер) на /leader/team при включённом флаге -> next (суб-роль бьёт серверный гард, не middleware)', async () => {
+  it('рядовой менеджер на /leader/team при включённом флаге -> /forbidden (protectedPrefixes["/leader"]=["leader"])', async () => {
     process.env.FEATURE_LEADER_CABINET = '1';
     vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'manager' } } as any);
 
     const res = await middleware(req('/leader/team', 'tkn'));
 
-    expect(res.status).toBe(200);
-    expect(res.headers.get('location')).toBeNull();
-  });
-});
-
-// ─── Новая модель: top-level роль `leader` (ТЗ 2026-08-17, PR-1) ─────────────
-// Токены с ней появятся после миграции данных (PR-3), но middleware обязан
-// отвечать роли так же, как переходной паре, уже сейчас.
-
-describe('middleware — top-level роль leader (обе модели эквивалентны)', () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-    process.env.JWT_SECRET = 'middleware-test-secret-with-at-least-32-chars';
-    process.env.FEATURE_MANAGER_CABINET = '1';
-    delete process.env.FEATURE_LEADER_CABINET;
-  });
-
-  it('роль leader при FEATURE_LEADER_CABINET=1: / -> /leader/dashboard', async () => {
-    process.env.FEATURE_LEADER_CABINET = '1';
-    vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'leader' } } as any);
-
-    const res = await middleware(req('/', 'tkn'));
-
     expect(res.status).toBe(307);
-    expect(res.headers.get('location')).toBe('https://app.local/leader/dashboard');
+    expect(res.headers.get('location')).toBe('https://app.local/forbidden');
   });
 
-  it('роль leader при выключенном флаге: / -> /manager/dashboard (как старая пара)', async () => {
-    vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'leader' } } as any);
-
-    const res = await middleware(req('/', 'tkn'));
-
-    expect(res.status).toBe(307);
-    expect(res.headers.get('location')).toBe('https://app.local/manager/dashboard');
-  });
-
-  it('роль leader проходит в /manager/* («играющий тренер», Р-Л-3)', async () => {
+  it('руководитель проходит в /manager/* («играющий тренер», Р-Л-3)', async () => {
     vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'leader' } } as any);
 
     const res = await middleware(req('/manager/orders', 'tkn'));
@@ -151,7 +123,7 @@ describe('middleware — top-level роль leader (обе модели экви
     expect(res.headers.get('location')).toBeNull();
   });
 
-  it('роль leader проходит в /leader/* при включённом флаге', async () => {
+  it('руководитель проходит в /leader/* при включённом флаге', async () => {
     process.env.FEATURE_LEADER_CABINET = '1';
     vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'leader' } } as any);
 
@@ -161,7 +133,7 @@ describe('middleware — top-level роль leader (обе модели экви
     expect(res.headers.get('location')).toBeNull();
   });
 
-  it('роль leader НЕ проходит в /admin/* (мост только к manager-спискам)', async () => {
+  it('руководитель НЕ проходит в /admin/* (Model A: чужой кабинет закрыт)', async () => {
     vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'leader' } } as any);
 
     const res = await middleware(req('/admin/dashboard', 'tkn'));

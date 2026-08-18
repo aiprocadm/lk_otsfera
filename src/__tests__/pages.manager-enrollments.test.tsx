@@ -42,7 +42,6 @@ vi.mock('@/components/enrollment/enrollment-wizard', () => ({
 const SESSION = {
   sub: 'u1',
   role: 'manager' as const,
-  managerRole: 'member' as const,
   companyId: 'c1',
 };
 

@@ -251,26 +251,37 @@ describe('managerDocumentScope (resolver)', () => {
 });
 
 describe('isManagerLeader', () => {
-  it('true only for role=manager + managerRole=leader', () => {
-    expect(isManagerLeader(makeSession({ managerRole: 'leader' }))).toBe(true);
-    expect(isManagerLeader(makeSession())).toBe(false);
-    expect(isManagerLeader(makeSession({ role: 'admin', managerRole: 'leader' }))).toBe(false);
+  // ТЗ 2026-08-17 (PR-4): руководитель — top-level роль `leader`, суб-роли
+  // managerRole больше нет. Негативы обязаны падать при регрессе «пустить весь
+  // менеджерский контур» — это разные предикаты (isStaffManagerSide ≠ leader).
+  it('true only for the top-level leader role', () => {
+    expect(isManagerLeader(makeSession({ role: 'leader' }))).toBe(true);
+    expect(isManagerLeader(makeSession())).toBe(false); // рядовой менеджер
+    expect(isManagerLeader(makeSession({ role: 'admin' }))).toBe(false); // Model A: админ — не лидер
+  });
+
+  it('старший в организации (roleInOrg=leader) руководителем НЕ считается — другое поле', () => {
+    const orgLeader = makeSession({
+      role: 'organization',
+      organizationMemberships: [{ organizationId: 'org-A', roleInOrg: 'leader', isActive: true }],
+    });
+    expect(isManagerLeader(orgLeader)).toBe(false);
   });
 });
 
 describe('isLeaderSameCompany', () => {
   it('true for leader + matching companyId', () => {
-    const session = makeSession({ managerRole: 'leader', companyId: 'co-1' });
+    const session = makeSession({ role: 'leader', companyId: 'co-1' });
     expect(isLeaderSameCompany(session, 'co-1')).toBe(true);
   });
 
   it('false for leader + different companyId', () => {
-    const session = makeSession({ managerRole: 'leader', companyId: 'co-1' });
+    const session = makeSession({ role: 'leader', companyId: 'co-1' });
     expect(isLeaderSameCompany(session, 'co-2')).toBe(false);
   });
 
   it('false for leader with null session.companyId (degrades to scoped path)', () => {
-    const session = makeSession({ managerRole: 'leader' });
+    const session = makeSession({ role: 'leader' });
     expect(isLeaderSameCompany(session, 'co-1')).toBe(false);
   });
 

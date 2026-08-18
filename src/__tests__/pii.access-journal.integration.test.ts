@@ -63,12 +63,12 @@ describe('PII access journal (integration)', () => {
   it('createMany: два события organizationCard одним вызовом; leader-снапшот', async () => {
     await recordPiiAccessMany(prisma, [
       {
-        session: session({ managerRole: 'leader' }),
+        session: session({ role: 'leader' }),
         context: 'org_card_inbound',
         subjectIds: [`${RUN}-m1`],
       },
       {
-        session: session({ managerRole: 'leader' }),
+        session: session({ role: 'leader' }),
         context: 'org_card_calls',
         subjectIds: [`${RUN}-c1`],
       },

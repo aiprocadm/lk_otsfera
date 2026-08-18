@@ -118,19 +118,43 @@ describe('signToken + verifyToken', () => {
     expect(verified.organizationId).toBe('org-5');
   });
 
-  it('signs and verifies a manager session payload with managerRole', async () => {
+  it('signs and verifies a manager session payload', async () => {
+    // Клейм managerRole снят вместе с колонкой (ТЗ 2026-08-17, PR-4): в токене
+    // рядового менеджера остаются только роль и денормализованные managedOrgIds.
     const payload: SessionPayload = {
       sub: 'mgr-1',
       role: 'manager',
       companyId: 'co-1',
       managedOrgIds: ['org-A'],
-      managerRole: 'leader',
     };
 
     const token = await signToken(payload);
     const verified = await verifyToken(token);
-    expect(verified.managerRole).toBe('leader');
+    expect(verified.role).toBe('manager');
     expect(verified.managedOrgIds).toEqual(['org-A']);
+  });
+
+  it('срезает клейм managerRole из токена, выданного до PR-4 (ТЗ 2026-08-17)', async () => {
+    // Токены живут 7 дней, поэтому после релиза какое-то время ходят старые
+    // токены вида { role: 'manager', managerRole: 'leader' }. Схема их НЕ
+    // отвергает (иначе релиз разлогинил бы всех), но снятый клейм срезается —
+    // такой пользователь работает как рядовой менеджер до перелогина. Если
+    // клейм когда-нибудь вернётся в схему, этот тест упадёт.
+    const { SignJWT } = await import('jose');
+    const secret = new TextEncoder().encode(STRONG_SECRET);
+    const legacyToken = await new SignJWT({
+      sub: 'legacy-leader',
+      role: 'manager',
+      managerRole: 'leader',
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setExpirationTime('7d')
+      .sign(secret);
+
+    const verified = await verifyToken(legacyToken);
+
+    expect(verified.role).toBe('manager');
+    expect('managerRole' in verified).toBe(false);
   });
 
   it('signs and verifies an admin session payload', async () => {
@@ -140,9 +164,9 @@ describe('signToken + verifyToken', () => {
     expect(verified.role).toBe('admin');
   });
 
-  it('signs and verifies a top-level leader payload (ТЗ 2026-08-17, PR-1)', async () => {
-    // До PR-1 roleSchema отверг бы такой токен; после миграции данных (PR-3)
-    // это основная модель руководителя.
+  it('signs and verifies a top-level leader payload (ТЗ 2026-08-17)', async () => {
+    // После PR-4 (снятие лесов) это ЕДИНСТВЕННАЯ модель руководителя:
+    // прежняя пара role='manager' + managerRole='leader' снята вместе с колонкой.
     const payload: SessionPayload = {
       sub: 'ldr-1',
       role: 'leader',

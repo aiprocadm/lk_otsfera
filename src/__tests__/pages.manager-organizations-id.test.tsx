@@ -71,7 +71,6 @@ vi.mock('@/components/manager/org-card-tabs', () => ({
 const SESSION = {
   sub: 'u1',
   role: 'manager' as const,
-  managerRole: 'member' as const,
   companyId: 'c1',
 };
 const CARD = { id: 'org-1', name: 'Org' };

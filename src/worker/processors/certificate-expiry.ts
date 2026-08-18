@@ -30,11 +30,7 @@ async function recipientsForOrg(prisma: PrismaClient, organizationId: string): P
 
   if (org.companyId) {
     const leaders = await prisma.user.findMany({
-      where: {
-        companyId: org.companyId,
-        OR: [{ role: 'leader' }, { role: 'manager', managerRole: 'leader' }],
-        isActive: true,
-      },
+      where: { companyId: org.companyId, role: 'leader', isActive: true },
       select: { id: true },
     });
     leaders.forEach((l) => ids.add(l.id));

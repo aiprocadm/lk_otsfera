@@ -31,7 +31,7 @@ vi.mock('next/navigation', () => nav);
 import { requireSettingsSection } from '@/lib/auth/requireSettings';
 
 const ADMIN = { sub: 'a1', role: 'admin' };
-const LEADER = { sub: 'l1', role: 'manager', managerRole: 'leader' };
+const LEADER = { sub: 'l1', role: 'leader' };
 
 beforeEach(() => {
   requireAdmin.mockReset().mockResolvedValue(ADMIN);

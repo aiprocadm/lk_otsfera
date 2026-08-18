@@ -28,8 +28,7 @@ import {
 const ADMIN: SessionPayload = { sub: 'adm-1', role: 'admin', companyId: 'c1' };
 const LEADER: SessionPayload = {
   sub: 'ld-1',
-  role: 'manager',
-  managerRole: 'leader',
+  role: 'leader',
   companyId: 'c1',
 };
 const PLAIN_MGR: SessionPayload = { sub: 'm-1', role: 'manager', companyId: 'c1' };

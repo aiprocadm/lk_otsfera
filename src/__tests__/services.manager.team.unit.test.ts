@@ -105,7 +105,9 @@ function companyUser(id: string, overrides: Record<string, unknown> = {}) {
     name: `Mgr ${id}`,
     email: `${id}@co.local`,
     isActive: true,
-    managerRole: null,
+    // Руководитель = top-level роль 'leader' (ТЗ 2026-08-17); рядовой — 'manager'.
+    role: 'manager',
+    lastLoginAt: null,
     managedOrganizations: [],
     ...overrides,
   };
@@ -120,12 +122,14 @@ describe('listCompanyManagers', () => {
     expect(result).toEqual([]);
   });
 
-  it('maps user rows to CompanyManagerRow shape', async () => {
+  it('maps user rows to CompanyManagerRow shape (role=leader → isLeader:true)', async () => {
+    const lastLoginAt = new Date('2026-08-10T09:00:00Z');
     const p = {
       user: {
         findMany: vi.fn().mockResolvedValue([
           companyUser('m1', {
-            managerRole: 'leader',
+            role: 'leader',
+            lastLoginAt,
             managedOrganizations: [
               {
                 id: 'assign-1',
@@ -143,7 +147,9 @@ describe('listCompanyManagers', () => {
       name: 'Mgr m1',
       email: 'm1@co.local',
       isActive: true,
-      managerRole: 'leader',
+      // ТЗ 2026-08-17: бейдж руководителя выводится из top-level роли 'leader'.
+      isLeader: true,
+      lastLoginAt,
       assignments: [
         {
           id: 'assign-1',
@@ -174,7 +180,9 @@ describe('listCompanyManagers', () => {
     } as never;
     const [row] = await listCompanyManagers(p, 'co-1');
     expect(row.assignments).toEqual([]);
-    expect(row.managerRole).toBeNull();
+    // Рядовой менеджер (role='manager') бейджа руководителя не получает.
+    expect(row.isLeader).toBe(false);
+    expect(row.lastLoginAt).toBeNull();
   });
 });
 
