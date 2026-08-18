@@ -4,7 +4,7 @@ import { EmailLayout, emailStyles } from './layout';
 export type AdminUserInviteProps = {
   inviteUrl: string;
   name: string;
-  role: 'organization' | 'partner' | 'manager' | 'student';
+  role: 'organization' | 'partner' | 'manager' | 'leader' | 'student';
   invitedByName?: string | undefined;
 };
 
@@ -12,6 +12,7 @@ const ROLE_LABELS: Record<AdminUserInviteProps['role'], string> = {
   organization: 'кабинету организации',
   partner: 'партнёрскому кабинету',
   manager: 'кабинету менеджера',
+  leader: 'кабинету руководителя',
   student: 'учебному порталу',
 };
 

@@ -177,6 +177,20 @@ describe('updateUserAction', () => {
     expect(updateUser).not.toHaveBeenCalled();
   });
 
+  // Страж дефекта приёмки стенда 18.08.2026 (ТЗ 2026-08-17): ROLE_ENUM формы
+  // не знал 'leader' — разжалование проходило, а повышение в руководителя
+  // падало «Проверьте корректность полей». Роль обязана проходить Zod.
+  it('role=leader проходит Zod-схему и доезжает до сервиса', async () => {
+    updateUser.mockResolvedValue({ ok: true });
+
+    const res = await updateUserAction(fd({ id: 'u-10', role: 'leader' }));
+
+    expect(res).toEqual({ ok: true });
+    expect(updateUser).toHaveBeenCalledWith(expect.anything(), 'admin-1', 'u-10', {
+      role: 'leader',
+    });
+  });
+
   it('maps service failure(not_found) to Failure', async () => {
     updateUser.mockResolvedValue({ ok: false, error: 'not_found' });
     const res = await updateUserAction(fd({ id: 'gone-1', name: 'X' }));

@@ -1,0 +1,178 @@
+- generic [active] [ref=f10e1]:
+  - generic [ref=f10e2]:
+    - navigation [ref=f10e3]:
+      - generic [ref=f10e4]: Админ
+      - generic [ref=f10e5]:
+        - generic [ref=f10e6]: Платформа
+        - list [ref=f10e7]:
+          - listitem [ref=f10e8]:
+            - link "⌂ Главная" [ref=f10e9] [cursor=pointer]:
+              - /url: /admin/dashboard
+              - generic [ref=f10e10]: ⌂
+              - generic [ref=f10e11]: Главная
+      - generic [ref=f10e12]:
+        - generic [ref=f10e13]: Операции
+        - list [ref=f10e14]:
+          - listitem [ref=f10e15]:
+            - link "📄 Документы" [ref=f10e16] [cursor=pointer]:
+              - /url: /admin/documents
+              - generic [ref=f10e17]: 📄
+              - generic [ref=f10e18]: Документы
+          - listitem [ref=f10e19]:
+            - link "💬 Сообщения" [ref=f10e20] [cursor=pointer]:
+              - /url: /admin/messages
+              - generic [ref=f10e21]: 💬
+              - generic [ref=f10e22]: Сообщения
+          - listitem [ref=f10e23]:
+            - link "💰 Комиссии" [ref=f10e24] [cursor=pointer]:
+              - /url: /admin/commission-statements
+              - generic [ref=f10e25]: 💰
+              - generic [ref=f10e26]: Комиссии
+          - listitem [ref=f10e27]:
+            - link "🔁 Корректировки" [ref=f10e28] [cursor=pointer]:
+              - /url: /admin/commission-corrections
+              - generic [ref=f10e29]: 🔁
+              - generic [ref=f10e30]: Корректировки
+          - listitem [ref=f10e31]:
+            - link "₽ Финансы" [ref=f10e32] [cursor=pointer]:
+              - /url: /admin/finance
+              - generic [ref=f10e33]: ₽
+              - generic [ref=f10e34]: Финансы
+          - listitem [ref=f10e35]:
+            - link "🎓 Заявки на обучение" [ref=f10e36] [cursor=pointer]:
+              - /url: /admin/enrollments
+              - generic [ref=f10e37]: 🎓
+              - generic [ref=f10e38]: Заявки на обучение
+          - listitem [ref=f10e39]:
+            - link "📮 Обращения" [ref=f10e40] [cursor=pointer]:
+              - /url: /admin/requests
+              - generic [ref=f10e41]: 📮
+              - generic [ref=f10e42]: Обращения
+          - listitem [ref=f10e43]:
+            - link "📥 Входящие в работу" [ref=f10e44] [cursor=pointer]:
+              - /url: /admin/intake
+              - generic [ref=f10e45]: 📥
+              - generic [ref=f10e46]: Входящие в работу
+      - generic [ref=f10e47]:
+        - generic [ref=f10e48]: Справочники
+        - list [ref=f10e49]:
+          - listitem [ref=f10e50]:
+            - link "👤 Пользователи" [ref=f10e51] [cursor=pointer]:
+              - /url: /admin/users
+              - generic [ref=f10e52]: 👤
+              - generic [ref=f10e53]: Пользователи
+          - listitem [ref=f10e54]:
+            - link "🏬 Партнёры" [ref=f10e55] [cursor=pointer]:
+              - /url: /admin/partners
+              - generic [ref=f10e56]: 🏬
+              - generic [ref=f10e57]: Партнёры
+          - listitem [ref=f10e58]:
+            - link "🏢 Организации" [ref=f10e59] [cursor=pointer]:
+              - /url: /admin/organizations
+              - generic [ref=f10e60]: 🏢
+              - generic [ref=f10e61]: Организации
+          - listitem [ref=f10e62]:
+            - link "🎯 Направления обучения" [ref=f10e63] [cursor=pointer]:
+              - /url: /admin/training-directions
+              - generic [ref=f10e64]: 🎯
+              - generic [ref=f10e65]: Направления обучения
+      - list [ref=f10e67]:
+        - listitem [ref=f10e68]:
+          - link "⚙ Настройки" [ref=f10e69] [cursor=pointer]:
+            - /url: /admin/settings
+            - generic [ref=f10e70]: ⚙
+            - generic [ref=f10e71]: Настройки
+        - listitem [ref=f10e72]:
+          - link "❓ Справка" [ref=f10e73] [cursor=pointer]:
+            - /url: /help
+            - generic [ref=f10e74]: ❓
+            - generic [ref=f10e75]: Справка
+    - generic [ref=f10e76]:
+      - banner [ref=f10e77]:
+        - generic [ref=f10e78]:
+          - navigation "Мобильная навигация" [ref=f10e79]:
+            - link "⌂ Главная" [ref=f10e80] [cursor=pointer]:
+              - /url: /admin/dashboard
+              - generic [ref=f10e81]: ⌂
+              - text: Главная
+            - link "🏢 Организации" [ref=f10e82] [cursor=pointer]:
+              - /url: /admin/organizations
+              - generic [ref=f10e83]: 🏢
+              - text: Организации
+            - link "📄 Документы" [ref=f10e84] [cursor=pointer]:
+              - /url: /admin/documents
+              - generic [ref=f10e85]: 📄
+              - text: Документы
+            - link "📮 Обращения" [ref=f10e86] [cursor=pointer]:
+              - /url: /admin/requests
+              - generic [ref=f10e87]: 📮
+              - text: Обращения
+            - button "☰ Ещё" [ref=f10e88] [cursor=pointer]:
+              - generic [ref=f10e89]: ☰
+              - text: Ещё
+          - generic [ref=f10e90]: admin@demo.local
+        - generic [ref=f10e91]:
+          - button "Быстрый переход Ctrl K" [ref=f10e92] [cursor=pointer]:
+            - generic [ref=f10e93]: 🔎
+            - text: Быстрый переход
+            - generic [ref=f10e94]: Ctrl K
+          - button "Уведомления" [ref=f10e96] [cursor=pointer]:
+            - generic [ref=f10e97]: 🔔
+          - button "Выйти" [ref=f10e98] [cursor=pointer]
+      - main [ref=f10e99]:
+        - generic [ref=f10e101]:
+          - generic [ref=f10e102]:
+            - generic [ref=f10e103]:
+              - heading "Пользователи" [level=1] [ref=f10e104]
+              - paragraph [ref=f10e105]: 1 всего
+            - link "+ Пригласить" [ref=f10e106] [cursor=pointer]:
+              - /url: /admin/users/new
+          - generic [ref=f10e107]:
+            - generic [ref=f10e108]:
+              - text: Роль
+              - combobox "Роль" [ref=f10e109]:
+                - option "Все роли" [selected]
+                - option "Админы"
+                - option "Менеджеры"
+                - option "Партнёры"
+                - option "Организации"
+                - option "Студенты"
+            - generic [ref=f10e110]:
+              - text: Активность
+              - combobox "Активность" [ref=f10e111]:
+                - option "Все" [selected]
+                - option "Активные"
+                - option "Деактивированные"
+            - generic [ref=f10e112]:
+              - text: Поиск
+              - searchbox "Поиск" [ref=f10e113]: leader
+            - button "Применить" [ref=f10e114] [cursor=pointer]
+            - link "Сбросить" [ref=f10e115] [cursor=pointer]:
+              - /url: /admin/users
+          - table [ref=f10e117]:
+            - rowgroup [ref=f10e118]:
+              - row [ref=f10e119]:
+                - columnheader "Email" [ref=f10e120]
+                - columnheader "Имя" [ref=f10e121]
+                - columnheader "Роль" [ref=f10e122]
+                - columnheader "Привязка" [ref=f10e123]
+                - columnheader "Активен" [ref=f10e124]
+                - columnheader "Создан" [ref=f10e125]
+                - columnheader "Последний вход" [ref=f10e126]
+                - columnheader "Действия" [ref=f10e127]
+            - rowgroup [ref=f10e128]:
+              - row [ref=f10e129]:
+                - cell "leader@demo.local" [ref=f10e130]
+                - cell "Demo Leader" [ref=f10e131]
+                - cell "Руководитель" [ref=f10e132]
+                - cell "—" [ref=f10e133]
+                - cell "●" [ref=f10e134]
+                - cell "27.07.2026" [ref=f10e135]
+                - cell "сегодня, 15:35" [ref=f10e136]
+                - cell [ref=f10e137]:
+                  - generic [ref=f10e138]:
+                    - link "Редактировать" [ref=f10e139] [cursor=pointer]:
+                      - /url: /admin/users/cms3vfxrn001h1keu64k99ubj
+                    - button "Деактивировать" [ref=f10e141] [cursor=pointer]
+  - region "Notifications alt+T"
+  - alert [ref=f10e142]

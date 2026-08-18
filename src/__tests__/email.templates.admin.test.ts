@@ -55,6 +55,17 @@ describe('AdminUserInviteTemplate — render smoke', () => {
     expect(html).toContain(expectedLabel);
   });
 
+  it('роль leader получает свой label «кабинету руководителя» (ТЗ 2026-08-17)', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(AdminUserInviteTemplate, {
+        inviteUrl: 'https://lk.otsfera.ru/reset',
+        name: 'Лев',
+        role: 'leader',
+      })
+    );
+    expect(html).toContain('кабинету руководителя');
+  });
+
   it('содержит срок действия ссылки', () => {
     const html = renderToStaticMarkup(
       React.createElement(AdminUserInviteTemplate, {

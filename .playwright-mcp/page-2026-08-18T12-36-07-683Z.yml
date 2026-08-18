@@ -1,0 +1,10 @@
+- generic [active] [ref=f6e1]:
+  - main [ref=f6e2]:
+    - generic [ref=f6e3]:
+      - generic [ref=f6e4]: "403"
+      - heading "Доступ запрещён" [level=1] [ref=f6e5]
+      - paragraph [ref=f6e6]: У вас недостаточно прав для просмотра этого раздела.
+      - link "Вернуться назад" [ref=f6e7] [cursor=pointer]:
+        - /url: /dashboard
+  - region "Notifications alt+T"
+  - alert [ref=f6e8]

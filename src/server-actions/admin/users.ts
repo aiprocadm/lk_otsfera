@@ -19,7 +19,7 @@ type Failure = { ok: false; error: 'validation' | AdminUserErrorCode };
 type Success<T> = T extends void ? { ok: true } : { ok: true } & T;
 type ActionResult<T = void> = Success<T> | Failure;
 
-const ROLE_ENUM = z.enum(['organization', 'partner', 'manager', 'student']);
+const ROLE_ENUM = z.enum(['organization', 'partner', 'manager', 'leader', 'student']);
 
 const createSchema = z
   .object({

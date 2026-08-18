@@ -104,11 +104,19 @@ PR #381).
       requireRole-мост для manager-списков, `isStaffManagerSide`, ветка
       leader в buildSessionClaims, префиксы Р-Л-3. **PR [#383](https://github.com/aiprocadm/lk_otsfera/pull/383) ✅ влит.**
 - [x] **PR-2 «99 мест»** — разбор по трём шаблонам Р-Л-4. **PR [#384](https://github.com/aiprocadm/lk_otsfera/pull/384) ✅ влит.**
-- [ ] **PR-3 «периферия + миграция данных»** — UPDATE role='leader',
+- [x] **PR-3 «периферия + миграция данных»** — UPDATE role='leader',
       admin-экран через форму роли (+sessionVersion-ревокация при смене),
       seed, словари; фабрики 132 тест-файлов намеренно ждут PR-4.
-      **PR [#385](https://github.com/aiprocadm/lk_otsfera/pull/385)** —
-      галочка после мержа.
-- [ ] **Приёмка на стенде всеми шестью ролями** (Р-Л-5).
+      **PR [#385](https://github.com/aiprocadm/lk_otsfera/pull/385) ✅ влит.**
+- [x] **Приёмка на стенде всеми шестью ролями** (Р-Л-5) — **пройдена
+      18.08.2026** (стенд ec129812, миграция применена, руководитель на
+      роли `leader`): leader — кабинет/заказы компании/мост в `/manager`/
+      запрет `/admin`; manager — свой кабинет, `/leader` → forbidden;
+      admin — список и карточка с ролью «Руководитель», живое разжалование
+      с ревокацией; partner/organization/student — smoke + серверный запрет
+      `/leader` (проверен curl'ом со свежей сессией). **Найден и закрыт
+      1 дефект**: ROLE_ENUM формы не знал `leader` — повышение падало
+      валидацией (хотфикс [#386](https://github.com/aiprocadm/lk_otsfera/pull/386)).
+      Пауза ≥7 дней до PR-4 отсчитывается от мержа #385 (18.08.2026).
 - [ ] **PR-4 «снятие лесов»** — совместимость и колонка `managerRole`
       (после приёмки и паузы ≥7 дней).

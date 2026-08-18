@@ -1,0 +1,26 @@
+- generic [active] [ref=f9e1]:
+  - main [ref=f9e226]:
+    - generic [ref=f9e227]:
+      - generic [ref=f9e228]:
+        - generic [ref=f9e229]: П
+        - generic [ref=f9e230]: Промтехносфера
+      - generic [ref=f9e231]:
+        - heading "Личный кабинет B2B платформы" [level=1] [ref=f9e232]: Личный кабинетB2B платформы
+        - paragraph [ref=f9e233]: Управление заказами, документами и командой в одном месте.
+      - generic [ref=f9e234]: © 2026 Промтехносфера. Все права защищены.
+    - generic [ref=f9e237]:
+      - heading "Вход в систему" [level=2] [ref=f9e238]
+      - paragraph [ref=f9e239]: Введите данные вашего аккаунта
+      - generic [ref=f9e240]:
+        - generic [ref=f9e241]:
+          - generic [ref=f9e242]: Email
+          - textbox "admin@company.ru" [ref=f9e243]
+        - generic [ref=f9e244]:
+          - generic [ref=f9e245]:
+            - generic [ref=f9e246]: Пароль
+            - link "Забыли пароль?" [ref=f9e247] [cursor=pointer]:
+              - /url: /reset-password
+          - textbox "••••••••" [ref=f9e248]
+        - button "Войти" [ref=f9e249] [cursor=pointer]
+  - region "Notifications alt+T"
+  - alert [ref=f9e225]

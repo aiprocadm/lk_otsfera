@@ -1,0 +1,6 @@
+[   30266ms] [ERROR] Access to fetch at 'http://localhost:3000/leader/dashboard' (redirected from 'http://127.0.0.1:3000/dashboard?_rsc=nmyFLQq3sV5huFjw') from origin 'http://127.0.0.1:3000' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: Redirect is not allowed for a preflight request. @ http://127.0.0.1:3000/login:0
+[   30268ms] [ERROR] Failed to load resource: net::ERR_FAILED @ http://localhost:3000/leader/dashboard:0
+[   30268ms] [ERROR] Failed to fetch RSC payload for http://127.0.0.1:3000/dashboard. Falling back to browser navigation. TypeError: Failed to fetch
+    at y (http://127.0.0.1:3000/_next/static/chunks/1255-cf02c4775860a5ab.js:1:44440)
+    at async _ (http://127.0.0.1:3000/_next/static/chunks/1255-cf02c4775860a5ab.js:1:43298)
+    at async Object.o [as task] (http://127.0.0.1:3000/_next/static/chunks/1255-cf02c4775860a5ab.js:1:123650) @ http://127.0.0.1:3000/_next/static/chunks/1255-cf02c4775860a5ab.js:0
