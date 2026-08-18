@@ -105,7 +105,10 @@ PR #381).
       leader в buildSessionClaims, префиксы Р-Л-3. **PR [#383](https://github.com/aiprocadm/lk_otsfera/pull/383) ✅ влит.**
 - [x] **PR-2 «99 мест»** — разбор по трём шаблонам Р-Л-4. **PR [#384](https://github.com/aiprocadm/lk_otsfera/pull/384) ✅ влит.**
 - [ ] **PR-3 «периферия + миграция данных»** — UPDATE role='leader',
-      воркеры, меню, admin-экран, seed/e2e, тесты.
+      admin-экран через форму роли (+sessionVersion-ревокация при смене),
+      seed, словари; фабрики 132 тест-файлов намеренно ждут PR-4.
+      **PR [#385](https://github.com/aiprocadm/lk_otsfera/pull/385)** —
+      галочка после мержа.
 - [ ] **Приёмка на стенде всеми шестью ролями** (Р-Л-5).
 - [ ] **PR-4 «снятие лесов»** — совместимость и колонка `managerRole`
       (после приёмки и паузы ≥7 дней).
