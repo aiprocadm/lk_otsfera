@@ -31,3 +31,4 @@ npm-ci.log
 dev.log
 worker.dev.log
 worker.dev.err.log
+.playwright-mcp/
