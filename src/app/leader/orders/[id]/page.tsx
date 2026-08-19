@@ -16,6 +16,7 @@ import { LeaderAssignOrderManagerForm } from '@/components/leader/leader-assign-
 import { getOrderStatusPanel } from '@/lib/services/orderStatuses';
 import { loadOrderDeal } from '@/lib/services/manager/orderDetail';
 import { OrderDealPanel } from '@/components/orders/order-deal-panel';
+import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 
 export default async function LeaderOrderDetailPage({
   params,
@@ -60,6 +61,13 @@ export default async function LeaderOrderDetailPage({
   return (
     <div className="space-y-5">
       <ManagerOrderDetailView
+        breadcrumbs={buildCabinetBreadcrumbs('leader', '/leader/orders', [
+          {
+            label: data.order.orderNumber
+              ? `Заказ №${data.order.orderNumber}`
+              : data.order.title,
+          },
+        ])}
         statusPanel={statusPanel}
         data={data}
         backHref="/leader/orders"

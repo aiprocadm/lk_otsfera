@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db/prisma';
 import { getDocumentDetail } from '@/lib/services/documents/detail';
 import { getFieldsForEntity } from '@/lib/services/customFields';
 import { DocumentDetailView } from '@/components/documents/document-detail-view';
+import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fields';
 
 export const dynamic = 'force-dynamic';
@@ -26,6 +27,9 @@ export default async function AdminDocumentDetailPage({
     <DocumentDetailView
       document={res.document}
       backHref="/admin/documents"
+      breadcrumbs={buildCabinetBreadcrumbs('admin', '/admin/documents', [
+        { label: res.document.name },
+      ])}
       orderHrefBase="/admin/orders"
     >
       <EntityCustomFields fields={customFields} entityType="document" entityId={id} />

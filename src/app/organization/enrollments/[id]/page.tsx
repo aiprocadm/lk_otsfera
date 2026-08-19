@@ -5,7 +5,11 @@ import { getOrgPageContext } from '@/lib/auth/orgPageContext';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { getEnrollmentRequest } from '@/lib/services/enrollments/detail';
 import { OrgAppShell } from '@/components/organization/org-app-shell';
-import { EnrollmentDetailView } from '@/components/enrollment/enrollment-detail-view';
+import {
+  EnrollmentDetailView,
+  enrollmentTitle,
+} from '@/components/enrollment/enrollment-detail-view';
+import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +33,13 @@ export default async function OrganizationEnrollmentDetailPage({
       activeOrgId={ctx.activeOrgId}
       viewerRole={ctx.viewerRole}
     >
-      <EnrollmentDetailView detail={r.request} backHref="/organization/enrollments" />
+      <EnrollmentDetailView
+      detail={r.request}
+      backHref="/organization/enrollments"
+      breadcrumbs={buildCabinetBreadcrumbs('organization', '/organization/enrollments', [
+        { label: enrollmentTitle(r.request) },
+      ])}
+    />
     </OrgAppShell>
   );
 }

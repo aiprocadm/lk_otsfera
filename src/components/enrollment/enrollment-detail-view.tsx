@@ -1,11 +1,27 @@
 import React from 'react';
 import Link from 'next/link';
+import type { Crumb } from '@/lib/navigation/breadcrumbs';
+import { Breadcrumbs } from '@/components/ui';
 import type { EnrollmentDetail } from '@/lib/services/enrollments/detail';
 import { groupItemsByDirection } from '@/lib/services/enrollments/grouping';
 import { fmtDate, pluralizeRu } from '@/lib/format';
 import { EnrollmentStatusBadge } from './enrollment-status-badge';
 import { EnrollmentStatusRibbon } from './enrollment-status-ribbon';
 import { CertificateDownloadButton } from './certificate-download-button';
+
+/**
+ * Подпись заявки — одна на заголовок и на хлебную крошку (`У-72`): если бы
+ * крошка считала её сама, две надписи разъехались бы при первой же правке.
+ * `У-43`: несколько обучений сворачиваются в количество, названия — строкой ниже.
+ */
+export function enrollmentTitle(detail: {
+  directionName: string;
+  directionNames: string[];
+}): string {
+  return detail.directionNames.length > 1
+    ? `Заявка: ${detail.directionNames.length} ${pluralizeRu(detail.directionNames.length, 'обучение', 'обучения', 'обучений')}`
+    : `Заявка: ${detail.directionName}`;
+}
 
 /**
  * Деталка заявки подателя (этап 2 PR-2, ФТ-2.3): статусная лента, таблица
@@ -17,24 +33,29 @@ import { CertificateDownloadButton } from './certificate-download-button';
 export function EnrollmentDetailView({
   detail,
   backHref,
+  breadcrumbs,
 }: {
   detail: EnrollmentDetail;
   backHref: string;
+  /**
+   * Крошки вместо ссылки «назад» (`У-72`): первая крошка ведёт в тот же
+   * раздел, два навигационных элемента подряд не нужны. Проп опциональный —
+   * экран без крошек показывает прежнюю ссылку.
+   */
+  breadcrumbs?: Crumb[];
 }) {
   return (
     <div className="space-y-5">
       <div>
-        <Link href={backHref} className="text-sm text-[#F97316] hover:underline">
-          ← Все заявки на обучение
-        </Link>
+        {breadcrumbs && breadcrumbs.length > 0 ? (
+          <Breadcrumbs items={breadcrumbs} />
+        ) : (
+          <Link href={backHref} className="text-sm text-[#F97316] hover:underline">
+            ← Все заявки на обучение
+          </Link>
+        )}
         <div className="flex flex-wrap items-center gap-3 mt-2">
-          {/* У-43: в заявке может быть несколько обучений — в заголовок лезет
-              только их количество, сами названия перечислены строкой ниже. */}
-          <h1 className="text-2xl font-semibold text-[#111111]">
-            {detail.directionNames.length > 1
-              ? `Заявка: ${detail.directionNames.length} ${pluralizeRu(detail.directionNames.length, 'обучение', 'обучения', 'обучений')}`
-              : `Заявка: ${detail.directionName}`}
-          </h1>
+          <h1 className="text-2xl font-semibold text-[#111111]">{enrollmentTitle(detail)}</h1>
           <EnrollmentStatusBadge status={detail.status} />
         </div>
         {detail.directionNames.length > 1 && (

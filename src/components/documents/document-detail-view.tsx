@@ -14,7 +14,8 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Button, Badge } from '@/components/ui';
+import type { Crumb } from '@/lib/navigation/breadcrumbs';
+import { Button, Badge, Breadcrumbs } from '@/components/ui';
 import type { DocumentDetail } from '@/lib/services/documents/detail';
 
 const TYPE_LABELS: Record<string, string> = {
@@ -110,6 +111,12 @@ export type DocumentDetailViewProps = {
   document: DocumentDetail;
   /** Куда ведёт «назад» — список документов своего кабинета. */
   backHref: string;
+  /**
+   * Крошки вместо ссылки «назад» (`У-72`): первая крошка ведёт в тот же
+   * раздел, два навигационных элемента подряд не нужны. Проп опциональный —
+   * экран без крошек показывает прежнюю ссылку.
+   */
+  breadcrumbs?: Crumb[];
   /** База ссылки на заказ в этом кабинете, например `/manager/orders`. Нет — ссылка не рисуется. */
   orderHrefBase?: string;
   /** Секция настраиваемых полей §11 (рендерится страницей). */
@@ -119,6 +126,7 @@ export type DocumentDetailViewProps = {
 export function DocumentDetailView({
   document: doc,
   backHref,
+  breadcrumbs,
   orderHrefBase,
   children,
 }: DocumentDetailViewProps) {
@@ -127,9 +135,13 @@ export function DocumentDetailView({
   return (
     <div className="space-y-5">
       <div>
-        <Link href={backHref} className="text-sm text-[#F97316] hover:underline">
-          ← Документы
-        </Link>
+        {breadcrumbs && breadcrumbs.length > 0 ? (
+          <Breadcrumbs items={breadcrumbs} />
+        ) : (
+          <Link href={backHref} className="text-sm text-[#F97316] hover:underline">
+            ← Документы
+          </Link>
+        )}
         <h1 className="text-2xl font-bold text-[#111111] mt-1">{doc.name}</h1>
         <p className="text-sm text-gray-500">
           {TYPE_LABELS[doc.type] ?? doc.type} · {DIRECTION_LABELS[doc.direction] ?? doc.direction} ·

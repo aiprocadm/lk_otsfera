@@ -85,6 +85,7 @@ vi.mock('@/components/manager/manager-order-detail-view', () => ({
     inboundEnabled?: boolean;
     telephonyEnabled?: boolean;
     dealPanel?: React.ReactNode;
+    breadcrumbs?: Array<{ label: string; href: string | null }>;
   }) =>
     React.createElement(
       'div',
@@ -96,7 +97,8 @@ vi.mock('@/components/manager/manager-order-detail-view', () => ({
       JSON.stringify(props.activityItems),
       String(props.inboundEnabled),
       String(props.telephonyEnabled),
-      props.dealPanel
+      props.dealPanel,
+      JSON.stringify(props.breadcrumbs ?? [])
     ),
 }));
 
@@ -379,6 +381,27 @@ describe('LeaderOrderDetailPage', () => {
 
       expect(loadOrderDeal).not.toHaveBeenCalled();
       expect(container.textContent).not.toContain('Переговоры, из которых вырос этот заказ');
+    });
+
+    it('у заказа без номера крошка берёт его название', async () => {
+      isFeatureEnabled.mockReturnValue(false);
+      requireManagerLeader.mockResolvedValue(SESSION);
+      loadManagerOrderDetail.mockResolvedValue({
+        ...BASE_DATA,
+        order: { ...BASE_DATA.order, orderNumber: null },
+      });
+      listOrderStudentOptions.mockResolvedValue([]);
+      listDirections.mockResolvedValue({ ok: true, directions: [] });
+      getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
+      getDealActivity.mockResolvedValue({ ok: true, items: [] });
+
+      const { container } = await renderServerComponent(
+        LeaderOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
+      );
+
+      expect(container.textContent).toContain('Обучение по ОТ');
+      expect(container.textContent).not.toContain('Заказ №');
+      expect(container.textContent).toContain('Заказы');
     });
 
     it('заказ не из сделки → панели нет', async () => {

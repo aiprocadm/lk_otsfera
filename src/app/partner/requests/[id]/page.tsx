@@ -6,6 +6,7 @@ import { isFeatureEnabled } from '@/lib/featureFlags';
 import { getClientRequest } from '@/lib/services/clientRequests/list';
 import { listClientRequestAttachments } from '@/lib/services/clientRequests/attachments';
 import { ClientRequestDetailView } from '@/components/client-requests/client-request-detail-view';
+import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,6 +36,9 @@ export default async function PartnerRequestDetailPage({
         createdByUserName: a.createdByUserName,
       }))}
       backHref="/partner/requests"
+      breadcrumbs={buildCabinetBreadcrumbs('partner', '/partner/requests', [
+        { label: r.request.subject },
+      ])}
     />
   );
 }

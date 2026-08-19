@@ -5,6 +5,8 @@ import { requirePartner } from '@/lib/auth/requireRole';
 import { canPartnerAccessOrg, isPartnerAdmin } from '@/lib/auth/policy';
 import { getOrgCard } from '@/lib/services/partner/orgCard';
 import { OrgCardHeader } from '@/components/partner/org-card-header';
+import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
+import { Breadcrumbs } from '@/components/ui';
 import { OrgTabs, type TabKey } from '@/components/partner/org-tabs';
 import { EmployeesTab } from '@/components/partner/org-employees-tab';
 import { CommentsTab } from '@/components/partner/org-comments-tab';
@@ -36,6 +38,11 @@ export default async function OrgCardPage({
 
   return (
     <div className="space-y-4">
+      <Breadcrumbs
+        items={buildCabinetBreadcrumbs('partner', '/partner/portfolio', [
+          { label: card.name },
+        ])}
+      />
       <OrgCardHeader card={card} />
       <OrgTabs orgId={orgId} active={tab} isAdmin={isAdmin} />
       {/* У-64: под вкладками не рендерится ничего вне переключателя. Блок

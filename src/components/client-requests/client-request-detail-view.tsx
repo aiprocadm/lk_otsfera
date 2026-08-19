@@ -1,5 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
+import { Breadcrumbs } from '@/components/ui';
+import type { Crumb } from '@/lib/navigation/breadcrumbs';
 import type { ClientRequestRow } from '@/lib/services/clientRequests/list';
 import { fmtDateTime } from '@/lib/format';
 import { ClientRequestStatusBadge } from './client-request-status-badge';
@@ -19,19 +21,30 @@ export function ClientRequestDetailView({
   request,
   attachments,
   backHref,
+  breadcrumbs,
 }: {
   request: ClientRequestRow;
   attachments: ClientRequestAttachmentRowVM[];
   backHref: string;
+  /**
+   * Крошки вместо ссылки «назад» (`У-72`): первая крошка ведёт в тот же
+   * раздел, два навигационных элемента подряд не нужны. Проп опциональный —
+   * экран без крошек показывает прежнюю ссылку.
+   */
+  breadcrumbs?: Crumb[];
 }) {
   const canEditAttachments = request.status === 'submitted' || request.status === 'in_triage';
 
   return (
     <div className="space-y-5 max-w-3xl">
       <div>
-        <Link href={backHref} className="text-sm text-[#F97316] hover:underline">
-          ← Все обращения
-        </Link>
+        {breadcrumbs && breadcrumbs.length > 0 ? (
+          <Breadcrumbs items={breadcrumbs} />
+        ) : (
+          <Link href={backHref} className="text-sm text-[#F97316] hover:underline">
+            ← Все обращения
+          </Link>
+        )}
         <div className="flex flex-wrap items-center gap-3 mt-2">
           <h1 className="text-2xl font-semibold text-[#111111]">{request.subject}</h1>
           <ClientRequestStatusBadge status={request.status} />
