@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db/prisma';
 import {
   loadManagerOrderDetail,
   listOrderStudentOptions,
-  loadOrderDealChain,
+  loadOrderDeal,
 } from '@/lib/services/manager/orderDetail';
 import { getDealActivity } from '@/lib/services/manager/dealActivity';
 import { listDirections } from '@/lib/services/training';
@@ -19,6 +19,7 @@ import { OrderReadinessPanel } from '@/components/manager/order-readiness-panel'
 import { listCertificateScanTargets } from '@/lib/services/manager/certificateScans';
 import { CertificateScansPanel } from '@/components/manager/certificate-scans-panel';
 import { buildOrderBreadcrumbs } from '@/lib/navigation/breadcrumbs';
+import { OrderDealPanel } from '@/components/orders/order-deal-panel';
 import { getOrderStatusPanel } from '@/lib/services/orderStatuses';
 
 export default async function ManagerOrderDetailPage({
@@ -97,7 +98,12 @@ export default async function ManagerOrderDetailPage({
   // Этап 11 PR-2 (ФТ-15.6): цепочка обращение → лид → сделка → заказ.
   // Дочитывается одним запросом и только когда сделки включены — иначе крошка
   // вела бы на выключенный флагом раздел.
-  const deal = isFeatureEnabled('deals_pipeline') ? await loadOrderDealChain(prisma, id) : null;
+  // Сотрудник без компании границы изоляции не имеет — деградируем в
+  // «ничего», а не в «видно всё» (тот же принцип, что у sentinel-веток чата).
+  const deal =
+    isFeatureEnabled('deals_pipeline') && session.companyId
+      ? await loadOrderDeal(prisma, id, { companyId: session.companyId })
+      : null;
   const breadcrumbs = buildOrderBreadcrumbs({
     orderNumber: data.order.orderNumber,
     title: data.order.title,
@@ -130,6 +136,11 @@ export default async function ManagerOrderDetailPage({
       generatePanel={generatePanel}
       readinessPanel={readinessPanel}
       certificateScansPanel={certificateScansPanel}
+      dealPanel={
+        deal ? (
+          <OrderDealPanel deal={deal} dealsHref="/manager/deals" leadHrefBase="/manager/leads" />
+        ) : null
+      }
     />
   );
 }

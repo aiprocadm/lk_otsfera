@@ -1,4 +1,4 @@
-import type { PrismaClient, AuditLog, Prisma } from '@prisma/client';
+import type { PrismaClient, AuditLog, Prisma, DealStatus } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { getOrder, type ManagerOrderDetail } from '@/lib/services/manager/orders';
 import type { OrgDocumentRow } from '@/lib/services/partner/orgDocuments';
@@ -97,8 +97,15 @@ export async function listOrderStudentOptions(
   });
 }
 
-export type OrderDealChain = {
+export type OrderDeal = {
+  id: string;
   title: string;
+  /** Строкой (`toFixed(2)`) — как на доске сделок: Decimal до клиента не доезжает. */
+  amount: string | null;
+  status: DealStatus;
+  wonAt: Date | null;
+  stageName: string | null;
+  managerName: string | null;
   lead: {
     id: string;
     clientCompanyName: string;
@@ -107,18 +114,41 @@ export type OrderDealChain = {
 } | null;
 
 /**
- * Цепочка «обращение → лид → сделка» для хлебных крошек карточки заказа
- * (этап 11 PR-2, ФТ-15.6). Один запрос по заказу, доступ к которому страница
- * уже проверила; крошки строит чистая `buildOrderBreadcrumbs`.
+ * Кому какие сделки видны. Union, а не `string | null`, намеренно: «смотреть
+ * без границы компании» нельзя получить случайно — это надо попросить словом
+ * `allCompanies`. С `string | null` сотрудник без компании (`companyId` в
+ * сессии пуст) молча проваливался бы в админский режим, то есть деградировал
+ * бы в «видно всё» вместо «ничего» — против канона проекта (sentinel-ветки
+ * `managerPolicy` и `chat/policy.ts`).
  */
-export async function loadOrderDealChain(
+export type OrderDealScope = { allCompanies: true } | { companyId: string };
+
+/**
+ * Сделка, из которой вырос заказ. Обслуживает двух потребителей одним
+ * запросом: хлебные крошки «обращение → лид → сделка» (этап 11 PR-2, ФТ-15.6)
+ * и панель «Сделка» на карточке заказа (19.08.2026, спека
+ * `2026-08-19-order-deal-link-design.md`).
+ *
+ * `scope` — граница изоляции C8 (§4 CLAUDE.md). Доступ к самому заказу
+ * страница уже проверила политикой, но связь 1:1 не доказывает, что сделка
+ * той же компании: данные могли разъехаться импортом. `allCompanies` просит
+ * только админ — он по Model A видит всё.
+ */
+export async function loadOrderDeal(
   prisma: PrismaClient,
-  orderId: string
-): Promise<OrderDealChain> {
-  return prisma.deal.findUnique({
-    where: { orderId },
+  orderId: string,
+  scope: OrderDealScope
+): Promise<OrderDeal> {
+  const deal = await prisma.deal.findFirst({
+    where: { orderId, ...('companyId' in scope ? { companyId: scope.companyId } : {}) },
     select: {
+      id: true,
       title: true,
+      amount: true,
+      status: true,
+      wonAt: true,
+      stage: { select: { name: true } },
+      manager: { select: { name: true } },
       lead: {
         select: {
           id: true,
@@ -128,4 +158,15 @@ export async function loadOrderDealChain(
       },
     },
   });
+  if (!deal) return null;
+  return {
+    id: deal.id,
+    title: deal.title,
+    amount: deal.amount ? deal.amount.toFixed(2) : null,
+    status: deal.status,
+    wonAt: deal.wonAt,
+    stageName: deal.stage?.name ?? null,
+    managerName: deal.manager?.name ?? null,
+    lead: deal.lead,
+  };
 }

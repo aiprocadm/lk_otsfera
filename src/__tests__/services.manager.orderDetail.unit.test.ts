@@ -17,7 +17,7 @@ vi.mock('@/lib/services/training', () => ({ listOrderItems }));
 import {
   loadManagerOrderDetail,
   listOrderStudentOptions,
-  loadOrderDealChain,
+  loadOrderDeal,
 } from '@/lib/services/manager/orderDetail';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
@@ -164,20 +164,42 @@ describe('listOrderStudentOptions', () => {
   });
 });
 
-describe('loadOrderDealChain', () => {
-  it('читает сделку по заказу с лидом и обращением', async () => {
-    const chain = {
-      title: 'Сделка',
-      lead: { id: 'l1', clientCompanyName: 'ООО', sourceRequest: { id: 'r1', subject: 'Тема' } },
-    };
-    const findUnique = vi.fn().mockResolvedValue(chain);
-    const prisma = { deal: { findUnique } } as never;
+describe('loadOrderDeal', () => {
+  const raw = {
+    id: 'd1',
+    title: 'Сделка на обучение',
+    amount: { toFixed: (n: number) => (120000).toFixed(n) },
+    status: 'won',
+    wonAt: new Date('2026-08-01T10:00:00Z'),
+    stage: { name: 'Выиграна' },
+    manager: { name: 'Иванова А.' },
+    lead: { id: 'l1', clientCompanyName: 'ООО', sourceRequest: { id: 'r1', subject: 'Тема' } },
+  };
 
-    expect(await loadOrderDealChain(prisma, 'order-1')).toEqual(chain);
-    expect(findUnique).toHaveBeenCalledWith({
-      where: { orderId: 'order-1' },
+  it('сотруднику отдаёт сделку только своей компании (C8) и раскладывает поля', async () => {
+    const findFirst = vi.fn().mockResolvedValue(raw);
+    const prisma = { deal: { findFirst } } as never;
+
+    expect(await loadOrderDeal(prisma, 'order-1', { companyId: 'c1' })).toEqual({
+      id: 'd1',
+      title: 'Сделка на обучение',
+      amount: '120000.00',
+      status: 'won',
+      wonAt: raw.wonAt,
+      stageName: 'Выиграна',
+      managerName: 'Иванова А.',
+      lead: raw.lead,
+    });
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { orderId: 'order-1', companyId: 'c1' },
       select: {
+        id: true,
         title: true,
+        amount: true,
+        status: true,
+        wonAt: true,
+        stage: { select: { name: true } },
+        manager: { select: { name: true } },
         lead: {
           select: {
             id: true,
@@ -189,9 +211,34 @@ describe('loadOrderDealChain', () => {
     });
   });
 
-  it('заказ не из сделки → null', async () => {
-    const prisma = { deal: { findUnique: vi.fn().mockResolvedValue(null) } } as never;
+  it('админ просит `allCompanies` — читает без границы компании (Model A)', async () => {
+    const findFirst = vi.fn().mockResolvedValue(raw);
+    const prisma = { deal: { findFirst } } as never;
 
-    expect(await loadOrderDealChain(prisma, 'order-1')).toBeNull();
+    await loadOrderDeal(prisma, 'order-1', { allCompanies: true });
+
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { orderId: 'order-1' } })
+    );
+  });
+
+  it('пустые сумма, стадия и ответственный отдаются как null', async () => {
+    const findFirst = vi
+      .fn()
+      .mockResolvedValue({ ...raw, amount: null, stage: null, manager: null, lead: null });
+    const prisma = { deal: { findFirst } } as never;
+
+    expect(await loadOrderDeal(prisma, 'order-1', { companyId: 'c1' })).toMatchObject({
+      amount: null,
+      stageName: null,
+      managerName: null,
+      lead: null,
+    });
+  });
+
+  it('заказ не из сделки → null', async () => {
+    const prisma = { deal: { findFirst: vi.fn().mockResolvedValue(null) } } as never;
+
+    expect(await loadOrderDeal(prisma, 'order-1', { companyId: 'c1' })).toBeNull();
   });
 });

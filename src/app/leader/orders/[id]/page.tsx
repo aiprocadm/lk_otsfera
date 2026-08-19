@@ -14,6 +14,8 @@ import { listCompanyManagers } from '@/lib/services/manager/team';
 import { ManagerOrderDetailView } from '@/components/manager/manager-order-detail-view';
 import { LeaderAssignOrderManagerForm } from '@/components/leader/leader-assign-order-manager-form';
 import { getOrderStatusPanel } from '@/lib/services/orderStatuses';
+import { loadOrderDeal } from '@/lib/services/manager/orderDetail';
+import { OrderDealPanel } from '@/components/orders/order-deal-panel';
 
 export default async function LeaderOrderDetailPage({
   params,
@@ -48,6 +50,13 @@ export default async function LeaderOrderDetailPage({
   // кнопки совпадали с тем, что реально разрешит сервис перехода.
   const statusPanel = await getOrderStatusPanel(prisma, session, id);
 
+  // Сделка, из которой вырос заказ (19.08.2026). Флаг уважаем: при
+  // выключенном `deals_pipeline` раздела сделок нет, панель не читается.
+  const deal =
+    isFeatureEnabled('deals_pipeline') && session.companyId
+      ? await loadOrderDeal(prisma, id, { companyId: session.companyId })
+      : null;
+
   return (
     <div className="space-y-5">
       <ManagerOrderDetailView
@@ -60,6 +69,12 @@ export default async function LeaderOrderDetailPage({
         activityItems={activityItems}
         inboundEnabled={inboundEnabled}
         telephonyEnabled={telephonyEnabled}
+        dealPanel={
+          deal ? (
+            /* Лидов в кабинете руководителя нет — имя лида остаётся текстом. */
+            <OrderDealPanel deal={deal} dealsHref="/leader/deals" leadHrefBase={null} />
+          ) : null
+        }
       />
       {/* Форма назначения — leader-only, поэтому монтируется рядом с общей
           деталкой (после неё: back-link и h1 заказа остаются первыми в потоке),

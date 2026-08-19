@@ -35,6 +35,7 @@ export function ManagerOrderDetailView({
   readinessPanel = null,
   certificateScansPanel = null,
   statusPanel = null,
+  dealPanel = null,
   breadcrumbs = [],
 }: {
   data: ManagerOrderDetailData;
@@ -53,6 +54,8 @@ export function ManagerOrderDetailView({
   readinessPanel?: React.ReactNode;
   /** Этап 12 PR-2 (ФТ-5.3): массовая загрузка сканов удостоверений (только обучение). */
   certificateScansPanel?: React.ReactNode;
+  /** Панель «Сделка» — обратная половина связи заказ ↔ сделка (19.08.2026). */
+  dealPanel?: React.ReactNode;
   /** Этап 11 PR-2 (ФТ-15.6): цепочка обращение → лид → сделка → заказ. */
   breadcrumbs?: Crumb[];
 }) {
@@ -109,6 +112,7 @@ export function ManagerOrderDetailView({
         </div>
 
         <div className="space-y-4">
+          {dealPanel}
           <ManagerOrderTimeline order={order} auditEntries={auditEntries} />
           {/* §10 ТЗ v0.5, решение заказчика Q3: операционный статус
               (`executionStatus`) убран из интерфейса — у заявки один видимый
