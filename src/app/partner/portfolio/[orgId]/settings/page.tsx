@@ -7,6 +7,8 @@ import { getOrgCard } from '@/lib/services/partner/orgCard';
 import { getOrgRequisites } from '@/lib/services/organization/requisites';
 import { setOrgRequisitesAction } from '@/server-actions/requisites';
 import { OrgCardHeader } from '@/components/partner/org-card-header';
+import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
+import { Breadcrumbs } from '@/components/ui';
 import { OrgTabs } from '@/components/partner/org-tabs';
 import { CustomerAccessSection } from '@/components/partner/customer-access-section';
 import { RequisitesCard } from '@/components/requisites/requisites-card';
@@ -27,6 +29,12 @@ export default async function OrgSettingsPage({ params }: { params: Promise<{ or
 
   return (
     <div className="space-y-4">
+      <Breadcrumbs
+        items={buildCabinetBreadcrumbs('partner', '/partner/portfolio', [
+          { label: card.name, href: `/partner/portfolio/${orgId}` },
+          { label: 'Настройки' },
+        ])}
+      />
       <OrgCardHeader card={card} />
       <OrgTabs orgId={orgId} active="settings" isAdmin={true} />
 

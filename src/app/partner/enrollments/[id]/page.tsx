@@ -4,7 +4,11 @@ import { requirePartner } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { getEnrollmentRequest } from '@/lib/services/enrollments/detail';
-import { EnrollmentDetailView } from '@/components/enrollment/enrollment-detail-view';
+import {
+  EnrollmentDetailView,
+  enrollmentTitle,
+} from '@/components/enrollment/enrollment-detail-view';
+import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,5 +24,11 @@ export default async function PartnerEnrollmentDetailPage({
   // canSee-чек (§4): getEnrollmentRequest скоупит по сессии — чужая заявка = not_found.
   const r = await getEnrollmentRequest(prisma, session, id);
   if (!r.ok) notFound();
-  return <EnrollmentDetailView detail={r.request} backHref="/partner/enrollments" />;
+  return <EnrollmentDetailView
+      detail={r.request}
+      backHref="/partner/enrollments"
+      breadcrumbs={buildCabinetBreadcrumbs('partner', '/partner/enrollments', [
+        { label: enrollmentTitle(r.request) },
+      ])}
+    />;
 }

@@ -8,6 +8,8 @@ import { canPartnerAccessOrg, isPartnerAdmin } from '@/lib/auth/policy';
 import { getOrgCard } from '@/lib/services/partner/orgCard';
 import { getOrgDocuments } from '@/lib/services/partner/orgDocuments';
 import { OrgCardHeader } from '@/components/partner/org-card-header';
+import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
+import { Breadcrumbs } from '@/components/ui';
 import { OrgTabs } from '@/components/partner/org-tabs';
 import { DocumentsList } from '@/components/partner/documents-list';
 
@@ -65,6 +67,12 @@ export default async function OrgDocumentsPage({
 
   return (
     <div className="space-y-4">
+      <Breadcrumbs
+        items={buildCabinetBreadcrumbs('partner', '/partner/portfolio', [
+          { label: card.name, href: `/partner/portfolio/${orgId}` },
+          { label: 'Документы' },
+        ])}
+      />
       <OrgCardHeader card={card} />
       <OrgTabs orgId={orgId} active="documents" isAdmin={isPartnerAdmin(session)} />
 

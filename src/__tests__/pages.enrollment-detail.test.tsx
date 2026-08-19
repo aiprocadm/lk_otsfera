@@ -43,12 +43,22 @@ vi.mock('@/components/organization/org-app-shell', () => ({
 // Презентационная деталка покрыта своими W1-тестами; здесь — стаб с
 // направлением и backHref, чтобы проверить, что страница прокинула detail.
 vi.mock('@/components/enrollment/enrollment-detail-view', () => ({
-  EnrollmentDetailView: (props: { detail: { directionName: string }; backHref: string }) =>
+  EnrollmentDetailView: (props: {
+    detail: { directionName: string };
+    backHref: string;
+    breadcrumbs?: Array<{ label: string; href: string | null }>;
+  }) =>
     React.createElement(
       'div',
-      { 'data-testid': 'enrollment-detail-view', 'data-back': props.backHref },
+      {
+        'data-testid': 'enrollment-detail-view',
+        'data-back': props.backHref,
+        'data-crumbs': JSON.stringify(props.breadcrumbs ?? []),
+      },
       props.detail.directionName
     ),
+  // Страница берёт подпись отсюда же (У-72: крошка и заголовок — одна строка).
+  enrollmentTitle: (d: { directionName: string }) => `Заявка: ${d.directionName}`,
 }));
 
 import OrganizationEnrollmentDetailPage from '@/app/organization/enrollments/[id]/page';
@@ -143,3 +153,41 @@ describe('PartnerEnrollmentDetailPage', () => {
     ).toBe('/partner/enrollments');
   });
 });
+
+describe('крошки на деталке заявки (У-72)', () => {
+  it('организация: раздел из меню плюс подпись заявки последней крошкой', async () => {
+    isFeatureEnabled.mockReturnValue(true);
+    getOrgPageContext.mockResolvedValue(ORG_CTX);
+    getEnrollmentRequest.mockResolvedValue({ ok: true, request: DETAIL });
+
+    const { container } = await renderServerComponent(
+      OrganizationEnrollmentDetailPage(props('E1'))
+    );
+    const crumbs = JSON.parse(
+      container
+        .querySelector('[data-testid="enrollment-detail-view"]')
+        ?.getAttribute('data-crumbs') ?? '[]'
+    );
+
+    expect(crumbs.length).toBeGreaterThan(1);
+    expect(crumbs.at(-1).label).toContain('Заявка');
+    // Последняя крошка — текущая страница, ссылки не имеет.
+    expect(crumbs.at(-1).href).toBeNull();
+  });
+
+  it('партнёр: первая крошка ведёт в его раздел заявок', async () => {
+    isFeatureEnabled.mockReturnValue(true);
+    requirePartner.mockResolvedValue(PARTNER_SESSION);
+    getEnrollmentRequest.mockResolvedValue({ ok: true, request: DETAIL });
+
+    const { container } = await renderServerComponent(PartnerEnrollmentDetailPage(props('E1')));
+    const crumbs = JSON.parse(
+      container
+        .querySelector('[data-testid="enrollment-detail-view"]')
+        ?.getAttribute('data-crumbs') ?? '[]'
+    );
+
+    expect(crumbs[0].href).toBe('/partner/enrollments');
+  });
+});
+

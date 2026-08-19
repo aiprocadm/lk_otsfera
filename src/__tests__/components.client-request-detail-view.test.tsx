@@ -50,10 +50,11 @@ function attachment(
 function html(
   request: ClientRequestRow,
   attachments: ClientRequestAttachmentRowVM[] = [],
-  backHref = '/partner/requests'
+  backHref = '/partner/requests',
+  breadcrumbs?: Array<{ label: string; href: string | null }>
 ): string {
   return renderToString(
-    React.createElement(ClientRequestDetailView, { request, attachments, backHref })
+    React.createElement(ClientRequestDetailView, { request, attachments, backHref, breadcrumbs })
   ).replace(/<!-- -->/g, '');
 }
 
@@ -137,4 +138,20 @@ describe('ClientRequestDetailView', () => {
   it('пустой список вложений → «Пока нет вложений»', () => {
     expect(html(row(), [])).toContain('Пока нет вложений');
   });
+
+describe('ClientRequestDetailView — крошки вместо ссылки «назад» (У-72)', () => {
+  it('с крошками рисует их, а прежнюю ссылку убирает', () => {
+    const out = html(row(), [], '/partner/requests', [
+      { label: 'Обращения', href: '/partner/requests' },
+      { label: 'Нужно обучение', href: null },
+    ]);
+
+    expect(out).toContain('Обращения');
+    expect(out).not.toContain('← Все обращения');
+  });
+
+  it('пустой список крошек равносилен их отсутствию', () => {
+    expect(html(row(), [], '/partner/requests', [])).toContain('← Все обращения');
+  });
+});
 });

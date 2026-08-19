@@ -1,7 +1,8 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { BackLink } from '@/components/ui';
+import { Breadcrumbs } from '@/components/ui';
+import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { AssignOrderManagerForm } from '@/components/admin/assign-order-manager-form';
@@ -53,7 +54,14 @@ export default async function AdminOrderDetailPage({
   return (
     <div className="space-y-5">
       <div>
-        <BackLink href="/admin/dashboard" label="Главная" />
+        {/* `У-72`. Раздела заказов в меню админа нет намеренно (`/admin/orders`
+            — deprecated-redirect, реальна только эта деталь), поэтому крошка
+            ведёт на «Главную» — туда же, куда вела прежняя ссылка «назад». */}
+        <Breadcrumbs
+          items={buildCabinetBreadcrumbs('admin', '/admin/dashboard', [
+            { label: `Заказ № ${order.orderNumber}` },
+          ])}
+        />
         <h1 className="text-2xl font-bold text-[#111111] mt-1">Заказ № {order.orderNumber}</h1>
         <p className="text-sm text-gray-500 mt-0.5">{order.title}</p>
       </div>

@@ -7,6 +7,7 @@ import { getClientRequest } from '@/lib/services/clientRequests/list';
 import { listClientRequestAttachments } from '@/lib/services/clientRequests/attachments';
 import { OrgAppShell } from '@/components/organization/org-app-shell';
 import { ClientRequestDetailView } from '@/components/client-requests/client-request-detail-view';
+import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,6 +46,9 @@ export default async function OrganizationRequestDetailPage({
           createdByUserName: a.createdByUserName,
         }))}
         backHref="/organization/requests"
+      breadcrumbs={buildCabinetBreadcrumbs('organization', '/organization/requests', [
+        { label: r.request.subject },
+      ])}
       />
     </OrgAppShell>
   );

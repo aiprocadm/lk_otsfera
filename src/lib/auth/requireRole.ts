@@ -95,8 +95,8 @@ export async function requireOrganizationAdminOrLeader(orgId?: string): Promise<
  */
 export async function requireManager(): Promise<SessionPayload> {
   const session = await requireSession();
-  // Кабинет менеджера открыт всему менеджерскому контуру: рядовому И
-  // руководителю в обеих моделях («играющий тренер», Р-Л-3 ТЗ 2026-08-17).
+  // Кабинет менеджера открыт всему менеджерскому контуру: и рядовому, и
+  // руководителю («играющий тренер», Р-Л-3 ТЗ 2026-08-17).
   if (!isStaffManagerSide(session)) redirect('/forbidden');
   if (session.managedOrgIds === undefined) redirect('/login');
   return session;
@@ -106,7 +106,6 @@ export async function requireManagerLeader(): Promise<SessionPayload> {
   const session = await requireManager();
   // Единый redirect-контракт под-ролей (ось 1 аудита): нехватка elevation →
   // /forbidden, как requirePartnerAdmin и requireOrganizationAdminOrLeader.
-  // isManagerLeader понимает обе модели (Р-Л-2): роль `leader` и старую пару.
   if (!isManagerLeader(session)) redirect('/forbidden');
   return session;
 }

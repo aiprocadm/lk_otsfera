@@ -247,4 +247,28 @@ describe('fmtSize', () => {
     expect(fmtSize(2048)).toBe('2 КБ');
     expect(fmtSize(5 * 1024 * 1024)).toBe('5.0 МБ');
   });
+
+describe('DocumentDetailView — крошки вместо ссылки «назад» (У-72)', () => {
+  it('с крошками рисует их, а прежнюю ссылку убирает', () => {
+    render(
+      <DocumentDetailView
+        document={doc()}
+        backHref="/admin/documents"
+        breadcrumbs={[
+          { label: 'Документы', href: '/admin/documents' },
+          { label: 'Договор.pdf', href: null },
+        ]}
+      />
+    );
+
+    expect(screen.getByText('Документы')).toBeTruthy();
+    expect(screen.queryByText('← Документы')).toBeNull();
+  });
+
+  it('пустой список крошек равносилен их отсутствию', () => {
+    render(<DocumentDetailView document={doc()} backHref="/admin/documents" breadcrumbs={[]} />);
+
+    expect(screen.getByText('← Документы')).toBeTruthy();
+  });
+});
 });
