@@ -31,7 +31,7 @@ export function ClientRequestDetailView({
    * раздел, два навигационных элемента подряд не нужны. Проп опциональный —
    * экран без крошек показывает прежнюю ссылку.
    */
-  breadcrumbs?: Crumb[];
+  breadcrumbs?: Crumb[] | undefined;
 }) {
   const canEditAttachments = request.status === 'submitted' || request.status === 'in_triage';
 

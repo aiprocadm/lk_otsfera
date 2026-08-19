@@ -150,6 +150,40 @@ describe('протокол «продолжай по ТЗ» — согласов
     ).toEqual([]);
   });
 
+  /**
+   * Якорь — это адрес, по которому проверяют требование. Если файл переехал
+   * или его удалили, ссылка молча превращается в тупик: следующий
+   * проверяющий открывает её, не находит кода и либо решает, что требование
+   * не выполнено, либо проверяет наугад.
+   *
+   * Так и было: `У-16` полтора месяца ссылался на два `bottom-tab-bar.tsx`,
+   * удалённых при объединении в `shell/mobile-nav.tsx` — то есть ссылка
+   * ломалась ровно тогда, когда требование выполняли. Найдено сверкой
+   * 19.08.2026.
+   */
+  it('все якоря реестра ведут на существующие файлы', () => {
+    const audit = readFileSync(AUDIT_PATH, 'utf8');
+    const dead: string[] = [];
+
+    for (const line of audit.split('\n')) {
+      const req = /^\| `(У-\d+а?)` \|/.exec(line);
+      if (!req) continue;
+      for (const m of line.matchAll(/\]\(\.\.\/\.\.\/([^)]+)\)/g)) {
+        const target = (m[1] ?? '').split('#')[0] ?? '';
+        if (!target) continue;
+        if (!existsSync(path.join(ROOT, target))) {
+          dead.push(`${req[1]} → ${target}`);
+        }
+      }
+    }
+
+    expect(
+      dead,
+      'Битые якоря в docs/tz/AUDIT.md — проверять требование будет нечем (CLAUDE.md §16):\n' +
+        dead.join('\n')
+    ).toEqual([]);
+  });
+
   it('каждое требование действующего ТЗ заведено в реестре сверки AUDIT.md', () => {
     const declared = declaredRequirements(activeTzFile());
     const audited = auditedRequirements();
