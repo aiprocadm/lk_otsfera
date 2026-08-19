@@ -23,13 +23,15 @@ vi.mock('@/lib/auth/requireRole', () => ({ requireManagerLeader }));
 const { prismaMock } = vi.hoisted(() => ({ prismaMock: { student: {} } }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: prismaMock }));
 
-const { loadManagerOrderDetail, listOrderStudentOptions } = vi.hoisted(() => ({
+const { loadManagerOrderDetail, listOrderStudentOptions, loadOrderDeal } = vi.hoisted(() => ({
   loadManagerOrderDetail: vi.fn(),
   listOrderStudentOptions: vi.fn(),
+  loadOrderDeal: vi.fn(),
 }));
 vi.mock('@/lib/services/manager/orderDetail', () => ({
   loadManagerOrderDetail,
   listOrderStudentOptions,
+  loadOrderDeal,
 }));
 
 const { getDealActivity } = vi.hoisted(() => ({ getDealActivity: vi.fn() }));
@@ -82,6 +84,7 @@ vi.mock('@/components/manager/manager-order-detail-view', () => ({
     activityItems?: unknown[];
     inboundEnabled?: boolean;
     telephonyEnabled?: boolean;
+    dealPanel?: React.ReactNode;
   }) =>
     React.createElement(
       'div',
@@ -92,7 +95,8 @@ vi.mock('@/components/manager/manager-order-detail-view', () => ({
       JSON.stringify(props.customFields),
       JSON.stringify(props.activityItems),
       String(props.inboundEnabled),
-      String(props.telephonyEnabled)
+      String(props.telephonyEnabled),
+      props.dealPanel
     ),
 }));
 
@@ -131,6 +135,8 @@ describe('LeaderOrderDetailPage', () => {
     listDirections.mockReset();
     getValuesForEntity.mockReset();
     isFeatureEnabled.mockReset();
+    loadOrderDeal.mockReset();
+    loadOrderDeal.mockResolvedValue(null);
     listCompanyManagers.mockReset();
     listCompanyManagers.mockResolvedValue([]);
     nav.notFound.mockClear();
@@ -314,5 +320,74 @@ describe('LeaderOrderDetailPage', () => {
     expect(listCompanyManagers).not.toHaveBeenCalled();
     const formProps = JSON.parse(getByTestId('leader-assign-form').textContent ?? '{}');
     expect(formProps).toEqual({ orderId: 'order-1', currentManagerId: null, candidates: [] });
+  });
+
+  describe('панель «Сделка» (19.08.2026)', () => {
+    const DEAL = {
+      id: 'd1',
+      title: 'Сделка с Ромашкой',
+      amount: '120000.00',
+      status: 'won' as const,
+      wonAt: new Date('2026-08-01T10:00:00Z'),
+      stageName: 'Выиграна',
+      managerName: 'Иванова А.',
+      lead: {
+        id: 'l1',
+        clientCompanyName: 'ООО «Ромашка»',
+        sourceRequest: { id: 'r1', subject: 'Нужно обучение' },
+      },
+    };
+
+    async function render() {
+      requireManagerLeader.mockResolvedValue(SESSION);
+      loadManagerOrderDetail.mockResolvedValue(BASE_DATA);
+      listOrderStudentOptions.mockResolvedValue([]);
+      listDirections.mockResolvedValue({ ok: true, directions: [] });
+      getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
+      getDealActivity.mockResolvedValue({ ok: true, items: [] });
+      return renderServerComponent(
+        LeaderOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
+      );
+    }
+
+    it('со включённым флагом показывает сделку в границах своей компании', async () => {
+      isFeatureEnabled.mockImplementation((flag: string) => flag === 'deals_pipeline');
+      loadOrderDeal.mockResolvedValue(DEAL);
+
+      const { container } = await render();
+
+      expect(loadOrderDeal).toHaveBeenCalledWith(prismaMock, 'order-1', { companyId: 'c1' });
+      expect(container.textContent).toContain('Переговоры, из которых вырос этот заказ');
+      expect(container.innerHTML).toContain('/leader/deals');
+    });
+
+    it('лидов в кабинете руководителя нет — имя лида остаётся текстом, без ссылки', async () => {
+      isFeatureEnabled.mockImplementation((flag: string) => flag === 'deals_pipeline');
+      loadOrderDeal.mockResolvedValue(DEAL);
+
+      const { container } = await render();
+
+      expect(container.textContent).toContain('ООО «Ромашка»');
+      expect(container.innerHTML).not.toContain('/leader/leads');
+      expect(container.innerHTML).not.toContain('/manager/leads');
+    });
+
+    it('флаг выключен → сделка не читается и панели нет', async () => {
+      isFeatureEnabled.mockReturnValue(false);
+
+      const { container } = await render();
+
+      expect(loadOrderDeal).not.toHaveBeenCalled();
+      expect(container.textContent).not.toContain('Переговоры, из которых вырос этот заказ');
+    });
+
+    it('заказ не из сделки → панели нет', async () => {
+      isFeatureEnabled.mockImplementation((flag: string) => flag === 'deals_pipeline');
+      loadOrderDeal.mockResolvedValue(null);
+
+      const { container } = await render();
+
+      expect(container.textContent).not.toContain('Переговоры, из которых вырос этот заказ');
+    });
   });
 });

@@ -16,6 +16,9 @@ import { getValuesForEntity } from '@/lib/services/customFields';
 import { getOrderForAdmin } from '@/lib/services/admin/orders';
 import { listManagerCandidates } from '@/lib/services/admin/users';
 import { OrderCustomFields } from '@/components/orders/order-custom-fields';
+import { OrderDealPanel } from '@/components/orders/order-deal-panel';
+import { loadOrderDeal } from '@/lib/services/manager/orderDetail';
+import { isFeatureEnabled } from '@/lib/featureFlags';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,10 +36,15 @@ export default async function AdminOrderDetailPage({
   const session = await requireAdmin();
   const { id } = await params;
 
-  const [order, candidates, customFieldsResult] = await Promise.all([
+  const [order, candidates, customFieldsResult, deal] = await Promise.all([
     getOrderForAdmin(prisma, id),
     listManagerCandidates(prisma),
     getValuesForEntity(prisma, session, 'order', id),
+    // Сделка, из которой вырос заказ (19.08.2026). Админ по Model A видит
+    // всё, поэтому границы компании у запроса нет.
+    isFeatureEnabled('deals_pipeline')
+      ? loadOrderDeal(prisma, id, { allCompanies: true })
+      : Promise.resolve(null),
   ]);
   if (!order) notFound();
 
@@ -111,6 +119,10 @@ export default async function AdminOrderDetailPage({
           </div>
         </div>
       </div>
+
+      {/* Зеркала сделок в /admin/* нет (Model A), поэтому панель справочная:
+          ни доски, ни карточки лида админу отсюда не предлагаем. */}
+      {deal && <OrderDealPanel deal={deal} dealsHref={null} leadHrefBase={null} />}
 
       <OrderCustomFields fields={customFields} orderId={order.id} editable={true} />
 

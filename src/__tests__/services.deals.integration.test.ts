@@ -13,6 +13,7 @@ import { PrismaClient } from '@prisma/client';
 import { createDeal } from '@/lib/services/deals/crud';
 import { getDealBoard, moveDeal } from '@/lib/services/deals/board';
 import { createDealStage, deleteDealStage } from '@/lib/services/access/dealStages';
+import { loadOrderDeal } from '@/lib/services/manager/orderDetail';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 const P = 'deal6-int';
@@ -47,6 +48,7 @@ async function cleanup() {
   if (userIds.length) await prisma.auditLog.deleteMany({ where: { userId: { in: userIds } } });
   if (companyIds.length) {
     await prisma.deal.deleteMany({ where: { companyId: { in: companyIds } } });
+    await prisma.order.deleteMany({ where: { companyId: { in: companyIds } } });
     await prisma.dealStage.deleteMany({ where: { companyId: { in: companyIds } } });
     await prisma.organization.deleteMany({ where: { companyId: { in: companyIds } } });
   }
@@ -255,5 +257,72 @@ describe('полный цикл сделки', () => {
     const board = await getDealBoard(prisma, leaderA());
     const firstCol = board.columns.find((c) => c.stage.id === stFirst)!;
     expect(firstCol.cards.some((c) => c.id === deal2)).toBe(true);
+  });
+
+  describe('loadOrderDeal — обратная связь «заказ → сделка» (19.08.2026)', () => {
+    let orderAId: string;
+    let dealAId: string;
+
+    beforeAll(async () => {
+      orderAId = (
+        await prisma.order.create({
+          data: {
+            title: `${P}-orderA`,
+            companyId: companyA,
+            organizationId: orgA,
+            productMix: [],
+          },
+        })
+      ).id;
+      dealAId = (
+        await prisma.deal.create({
+          data: {
+            title: `${P}-dealA`,
+            companyId: companyA,
+            organizationId: orgA,
+            managerId: mgrA1Id,
+            status: 'won',
+            wonAt: new Date('2026-08-01T10:00:00Z'),
+            amount: '120000',
+            orderId: orderAId,
+          },
+        })
+      ).id;
+    });
+
+    it('сотрудник своей компании видит сделку заказа', async () => {
+      const deal = await loadOrderDeal(prisma, orderAId, { companyId: companyA });
+
+      expect(deal).toMatchObject({
+        id: dealAId,
+        title: `${P}-dealA`,
+        amount: '120000.00',
+        status: 'won',
+        managerName: 'Менеджер А1',
+      });
+    });
+
+    it('сотрудник ЧУЖОЙ компании не видит сделку, даже зная id заказа (C8)', async () => {
+      expect(await loadOrderDeal(prisma, orderAId, { companyId: companyB })).toBeNull();
+    });
+
+    it('админ с `allCompanies` видит сделку любой компании (Model A)', async () => {
+      expect(await loadOrderDeal(prisma, orderAId, { allCompanies: true })).toMatchObject({
+        id: dealAId,
+      });
+    });
+
+    it('заказ без сделки (заведён вручную или из 1С) → null, панели не будет', async () => {
+      const plain = await prisma.order.create({
+        data: {
+          title: `${P}-orderPlain`,
+          companyId: companyA,
+          organizationId: orgA,
+          productMix: [],
+        },
+      });
+
+      expect(await loadOrderDeal(prisma, plain.id, { companyId: companyA })).toBeNull();
+    });
   });
 });
