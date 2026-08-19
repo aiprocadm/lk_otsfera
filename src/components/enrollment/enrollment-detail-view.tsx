@@ -42,7 +42,7 @@ export function EnrollmentDetailView({
    * раздел, два навигационных элемента подряд не нужны. Проп опциональный —
    * экран без крошек показывает прежнюю ссылку.
    */
-  breadcrumbs?: Crumb[];
+  breadcrumbs?: Crumb[] | undefined;
 }) {
   return (
     <div className="space-y-5">
