@@ -161,6 +161,45 @@ describe('протокол «продолжай по ТЗ» — согласов
    * ломалась ровно тогда, когда требование выполняли. Найдено сверкой
    * 19.08.2026.
    */
+  /**
+   * Сводка вверху реестра — единственное, что читают, когда спрашивают «всё
+   * ли сделано». Если её цифры разъезжаются с таблицами, врёт именно она.
+   *
+   * Так и было: при закрытии программы 13.08.2026 сводка сообщала «78 × ✅,
+   * 0 × ⏳», хотя строка `У-36` всё это время стояла с `⏳` (поле
+   * `EnrollmentRequest.directionId` помечено устаревшим, но не удалено).
+   * Ошибка подсчёта прятала незакрытое требование: программа выглядела
+   * выполненной целиком. Найдено сверкой 19.08.2026.
+   */
+  it('цифры сводки сходятся с вердиктами в таблицах', () => {
+    const audit = readFileSync(AUDIT_PATH, 'utf8');
+
+    const actual = { ok: 0, planned: 0, drift: 0 };
+    for (const line of audit.split('\n')) {
+      if (!/^\| `У-\d+а?` \|/.test(line)) continue;
+      const cells = line.split('|');
+      // Строка: | У-N | что проверять | якорь | вердикт | дата |
+      // split даёт пустые ячейки по краям, поэтому вердикт — третий с конца.
+      const verdict = cells[cells.length - 3] ?? '';
+      if (verdict.includes('✅')) actual.ok += 1;
+      else if (verdict.includes('⏳')) actual.planned += 1;
+      else if (verdict.includes('❌')) actual.drift += 1;
+    }
+
+    const claimed = (label: string): number => {
+      const row = new RegExp(`\\| \`${label}\`[^|]*\\| \\*{0,2}(\\d+)`).exec(audit);
+      expect(row, `в сводке AUDIT.md нет строки «${label}»`).not.toBeNull();
+      return Number(row?.[1] ?? -1);
+    };
+
+    expect(claimed('✅'), 'сводка завышает или занижает число ✅').toBe(actual.ok);
+    expect(
+      claimed('⏳'),
+      'сводка расходится с таблицами по ⏳ — так незакрытое требование становится невидимым'
+    ).toBe(actual.planned);
+    expect(claimed('❌'), 'сводка расходится с таблицами по ❌').toBe(actual.drift);
+  });
+
   it('все якоря реестра ведут на существующие файлы', () => {
     const audit = readFileSync(AUDIT_PATH, 'utf8');
     const dead: string[] = [];
