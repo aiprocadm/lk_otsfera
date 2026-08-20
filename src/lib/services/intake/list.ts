@@ -144,8 +144,8 @@ export async function listIntake(
         legacyCourseTitle: true,
         organization: { select: { name: true } },
         partner: { select: { name: true } },
-        direction: { select: { name: true } },
-        items: { select: { id: true }, take: 100 },
+        // `У-36`: направление живёт в позициях — берём его оттуда.
+        items: { select: { id: true, direction: { select: { name: true } } }, take: 100 },
       },
     }),
     prisma.inboundMessage.findMany({
@@ -200,7 +200,12 @@ export async function listIntake(
   }
 
   for (const e of enrollments) {
-    const direction = e.direction?.name ?? e.legacyCourseTitle ?? 'Заявка на обучение';
+    // `У-36`: направление берётся из позиций (шапочного поля больше нет);
+    // текстовый курс старых заявок остаётся резервом.
+    const direction =
+      e.items.find((i) => i.direction?.name)?.direction?.name ??
+      e.legacyCourseTitle ??
+      'Заявка на обучение';
     items.push({
       type: 'enrollment',
       id: e.id,

@@ -27,7 +27,6 @@ async function requestSummary(prisma: PrismaClient, requestId: string) {
   const detail = await prisma.enrollmentRequest.findUnique({
     where: { id: requestId },
     select: {
-      direction: { select: { name: true } },
       legacyCourseTitle: true,
       organization: { select: { name: true } },
       _count: { select: { items: true } },
@@ -45,11 +44,12 @@ async function requestSummary(prisma: PrismaClient, requestId: string) {
         .filter((n): n is string => typeof n === 'string' && n.length > 0)
     ),
   ];
-  // Пока у части заявок направление живёт на шапке (до У-36) — она и резерв.
+  // `У-36`: шапочного направления больше нет. Резерв — только текстовый курс
+  // старых заявок; для остальных направления всегда лежат в позициях.
   const names =
     fromItems.length > 0
       ? fromItems
-      : [detail?.direction?.name ?? detail?.legacyCourseTitle].filter(
+      : [detail?.legacyCourseTitle].filter(
           (n): n is string => typeof n === 'string' && n.length > 0
         );
 

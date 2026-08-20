@@ -192,11 +192,10 @@ describe('должность из заявки на обучение (integratio
   it('подхватывается для пустой должности и НЕ затирает заполненную', async () => {
     // sWithCerts уже с должностью из предыдущего блока, sExpired — пустой
     const res = await submitEnrollmentRequest(prisma, session(), {
-      directionId,
       organizationId: orgId,
       items: [
-        { studentId: sWithCerts, position: 'Слесарь' },
-        { studentId: sExpired, position: 'Электромонтёр' },
+        { studentId: sWithCerts, position: 'Слесарь', directionId },
+        { studentId: sExpired, position: 'Электромонтёр', directionId },
       ],
     });
     expect(res.ok).toBe(true);

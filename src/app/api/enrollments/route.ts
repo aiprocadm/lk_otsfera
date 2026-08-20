@@ -45,7 +45,6 @@ export async function POST(req: Request) {
   if (!parsed.ok) return parsed.response;
   const body = parsed.data;
   const res = await submitEnrollmentRequest(prisma, session, {
-    directionId: String(body.directionId ?? ''),
     organizationId: (body.organizationId ?? null) as string | null,
     note: (body.note ?? null) as string | null,
     items: Array.isArray(body.items) ? body.items.map(readItem) : [],
