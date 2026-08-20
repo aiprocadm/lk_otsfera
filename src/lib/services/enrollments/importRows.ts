@@ -121,7 +121,12 @@ export async function parseEnrollmentImportWorkbook(
     const directionName = cellToString(cellAt('directionName')).trim();
     if (Object.values(input).every((v) => !v)) continue; // пустая строка листа
 
-    const res = validateEnrollmentItems([input], () => `Строка ${r}`);
+    // Направление здесь ещё название, а не id (см. комментарий выше и `У-41`),
+    // поэтому проверку «выбрано ли обучение» парсер не делает: пустое или
+    // непонятное название отсеет `resolveDirectionNames` у вызывающего.
+    const res = validateEnrollmentItems([input], () => `Строка ${r}`, {
+      requireDirection: false,
+    });
     if (!res.ok) {
       errors.push(...res.errors);
       continue;

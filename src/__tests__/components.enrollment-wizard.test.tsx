@@ -433,11 +433,11 @@ describe('EnrollmentWizard — шаг 3 и отправка', () => {
     const submitCall = fetchMock.mock.calls.find((c: unknown[]) => c[0] === '/api/enrollments')!;
     const body = JSON.parse((submitCall[1] as { body: string }).body);
     expect(body).toMatchObject({
-      // Шапочное направление — обучение первой строки (резерв до У-36).
-      directionId: 'd1',
       organizationId: 'o1',
       note: 'срочно',
     });
+    // `У-36`: шапочного направления в теле больше нет — источник один, позиции.
+    expect(body.directionId).toBeUndefined();
     expect(body.items).toEqual([
       expect.objectContaining({ studentId: 'st1', directionId: 'd1' }),
       expect.objectContaining({ studentId: 'st2', directionId: 'd1' }),

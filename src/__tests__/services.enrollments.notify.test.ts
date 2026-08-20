@@ -22,8 +22,9 @@ import {
 import { enrollmentStatusLabel, ENROLLMENT_STATUS_LABEL } from '@/lib/services/enrollments/labels';
 
 function db(summaryOver: Record<string, unknown> = {}) {
+  // `У-36`: направление читается из ПОЗИЦИЙ заявки — шапочного поля больше нет.
   const findUnique = vi.fn().mockResolvedValue({
-    direction: { name: 'Охрана труда' },
+    items: [{ direction: { name: 'Охрана труда' } }],
     legacyCourseTitle: null,
     organization: { name: 'Ромашка' },
     _count: { items: 5 },
@@ -150,8 +151,8 @@ describe('notifySubmitterEnrollmentStatus (enrollment_status_changed подат�
     );
   });
 
-  it('legacy-заявка без direction: имя направления из legacyCourseTitle', async () => {
-    const { d } = db({ direction: null, legacyCourseTitle: 'Старый курс' });
+  it('legacy-заявка без позиций: имя направления из legacyCourseTitle', async () => {
+    const { d } = db({ items: [], legacyCourseTitle: 'Старый курс' });
     await notifySubmitterEnrollmentStatus(d, req());
     expect(createNotification.mock.calls[0][0].body).toContain('направление «Старый курс»');
   });

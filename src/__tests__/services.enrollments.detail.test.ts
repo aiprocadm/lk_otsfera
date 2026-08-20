@@ -87,19 +87,27 @@ describe('getEnrollmentRequest (деталка заявки, ФТ-2.3)', () => {
     expect(recordPiiAccess).not.toHaveBeenCalled();
   });
 
-  it('legacy-заявка: заголовок из текста курса, но удостоверение ищется по направлению ПОЗИЦИИ', async () => {
-    // У старой заявки направления на шапке нет (курс вписан текстом), а у
-    // позиции оно есть — его проставил человек при разборе (`У-34а`). После
-    // «замка» это единственно возможное состояние, поэтому сертификаты
-    // запрашиваются как обычно.
-    const { d, certFindMany } = db(
-      reqRow({ directionId: null, direction: null, legacyCourseTitle: 'Старый курс' })
-    );
+  it('`У-36`: подпись берётся из позиции, а текст старого курса — только запасной вариант', async () => {
+    // У старой заявки курс был вписан текстом, а у позиции направление есть —
+    // его проставил человек при разборе (`У-34а`). После `У-36` шапочного
+    // направления нет вовсе, поэтому подпись заявки даёт ПОЗИЦИЯ, а
+    // `legacyCourseTitle` остаётся запасным вариантом (см. следующий тест).
+    const { d, certFindMany } = db(reqRow({ legacyCourseTitle: 'Старый курс' }));
     const r = await getEnrollmentRequest(d, s(), 'E1');
     if (!r.ok) throw new Error('expected ok');
     expect(certFindMany.mock.calls[0]![0].where).toMatchObject({ directionId: { in: ['d1'] } });
-    expect(r.request.directionName).toBe('Старый курс');
+    expect(r.request.directionName).toBe('Охрана труда');
     expect(r.request.items[0]!.certificateDocumentId).toBeNull();
+  });
+
+  it('`У-36`: заявка БЕЗ позиций подписывается текстом старого курса', async () => {
+    // Единственное состояние, где `legacyCourseTitle` ещё нужен: миграция
+    // перенесла в него название у заявок, которым нечего показать из позиций.
+    const { d } = db(reqRow({ items: [], legacyCourseTitle: 'Старый курс' }));
+    const r = await getEnrollmentRequest(d, s(), 'E1');
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.request.directionName).toBe('Старый курс');
+    expect(r.request.directionNames).toEqual([]);
   });
 
   it('У-33: удостоверение подбирается по направлению ПОЗИЦИИ, а не по шапке заявки', async () => {

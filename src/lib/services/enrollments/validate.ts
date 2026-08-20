@@ -80,10 +80,19 @@ export function isValidEmail(raw: string): boolean {
  *   побеждает), об этом возвращается предупреждение (не ошибка). Один и тот же
  *   человек с РАЗНЫМИ направлениями — это две законные позиции (У-35).
  * `label` — как называть позицию в сообщении (по умолчанию «Слушатель N»).
+ *
+ * `requireDirection` — требовать ли `directionId` у каждой позиции (`У-36`:
+ * шапочного направления больше нет, поэтому при подаче заявки — да). Выключается
+ * ровно для одного вызывающего — построчного разбора Excel-файла: там обучение
+ * приходит **названием** из колонки файла, а в `directionId` его превращает
+ * server-action, у которого есть справочник (`У-41`). Требовать id внутри
+ * парсера значит отвергнуть каждую строку любого файла — ровно это и случилось
+ * между слиянием `У-36` и этой правкой.
  */
 export function validateEnrollmentItems(
   inputs: EnrollmentItemInput[],
-  label: (index: number) => string = (i) => `Слушатель ${i + 1}`
+  label: (index: number) => string = (i) => `Слушатель ${i + 1}`,
+  { requireDirection = true }: { requireDirection?: boolean } = {}
 ): ItemsValidation {
   if (!inputs.length) return { ok: false, errors: ['Добавьте хотя бы одного слушателя'] };
 
@@ -121,7 +130,7 @@ export function validateEnrollmentItems(
     // нечего — значит каждая строка обязана назвать своё обучение сама.
     // Раньше пустое значение молча заменялось шапочным; теперь это ошибка
     // формы, а не 500-я от обязательной колонки `EnrollmentRequestItem`.
-    if (!directionId) errors.push(`${name}: не выбрано обучение`);
+    if (requireDirection && !directionId) errors.push(`${name}: не выбрано обучение`);
     const who = studentId ? `id:${studentId}` : email ? `email:${email}` : null;
     const dedupeKey = who ? `${who}|dir:${directionId ?? ''}` : null;
     if (dedupeKey) {

@@ -50,8 +50,8 @@ async function buildXlsx(rows: unknown[][]): Promise<Buffer> {
 describe('Дедупликация слушателя: фактический ключ — email (в границах заявки и организации); СНИЛС дедуп-ключом не является', () => {
   it('позиции с одинаковым email склеиваются в одного слушателя (первая побеждает), даже при РАЗНЫХ СНИЛС — ключ именно email', () => {
     const r = validateEnrollmentItems([
-      { fullName: 'Иванов Иван', email: 'dup@x.ru', snils: '111-222-333 44' },
-      { fullName: 'Иванов И.', email: 'DUP@x.ru', snils: '555-666-777 88' },
+      { fullName: 'Иванов Иван', email: 'dup@x.ru', snils: '111-222-333 44', directionId: 'd1' },
+      { fullName: 'Иванов И.', email: 'DUP@x.ru', snils: '555-666-777 88', directionId: 'd1' },
     ]);
     if (!r.ok) throw new Error(`expected ok, got ${JSON.stringify(r.errors)}`);
     expect(r.items).toHaveLength(1);
@@ -62,7 +62,10 @@ describe('Дедупликация слушателя: фактический к
   });
 
   it('повторный выбор того же сотрудника организации (studentId) склеивается в одну позицию', () => {
-    const r = validateEnrollmentItems([{ studentId: 'stu-1' }, { studentId: 'stu-1' }]);
+    const r = validateEnrollmentItems([
+      { studentId: 'stu-1', directionId: 'd1' },
+      { studentId: 'stu-1', directionId: 'd1' },
+    ]);
     if (!r.ok) throw new Error('expected ok');
     expect(r.items).toHaveLength(1);
     expect(r.warnings).toHaveLength(1);
@@ -70,8 +73,8 @@ describe('Дедупликация слушателя: фактический к
 
   it('одинаковый СНИЛС при разных email — ДВЕ позиции: СНИЛС не является ключом дедупликации', () => {
     const r = validateEnrollmentItems([
-      { fullName: 'Иванов Иван', email: 'a@x.ru', snils: '112-233-445 95' },
-      { fullName: 'Иванов Иван', email: 'b@x.ru', snils: '112-233-445 95' },
+      { fullName: 'Иванов Иван', email: 'a@x.ru', snils: '112-233-445 95', directionId: 'd1' },
+      { fullName: 'Иванов Иван', email: 'b@x.ru', snils: '112-233-445 95', directionId: 'd1' },
     ]);
     if (!r.ok) throw new Error('expected ok');
     // Разворот (склейка по СНИЛС) — осознанное решение заказчика, не дрейф.
@@ -81,8 +84,8 @@ describe('Дедупликация слушателя: фактический к
 
   it('одинаковые ФИО и дата рождения при разных email — ДВЕ позиции: резервного ключа «ФИО + дата рождения» нет', () => {
     const r = validateEnrollmentItems([
-      { fullName: 'Петров Пётр', email: 'p1@x.ru', birthDate: '1990-01-01' },
-      { fullName: 'Петров Пётр', email: 'p2@x.ru', birthDate: '1990-01-01' },
+      { fullName: 'Петров Пётр', email: 'p1@x.ru', birthDate: '1990-01-01', directionId: 'd1' },
+      { fullName: 'Петров Пётр', email: 'p2@x.ru', birthDate: '1990-01-01', directionId: 'd1' },
     ]);
     if (!r.ok) throw new Error('expected ok');
     expect(r.items).toHaveLength(2);
