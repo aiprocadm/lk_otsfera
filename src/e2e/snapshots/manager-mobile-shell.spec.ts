@@ -1,3 +1,3 @@
 import { mobileShellChecks } from '../mobile-shell-check';
 
-mobileShellChecks('менеджер', '/manager/dashboard');
+mobileShellChecks('менеджер', '/manager/dashboard', ['/manager/orders', '/manager/documents']);

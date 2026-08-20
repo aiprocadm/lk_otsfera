@@ -11,7 +11,7 @@ import { test, expect, type Page } from '@playwright/test';
  * главной страницы. Файлы-обёртки нужны из-за префиксов `testMatch` в
  * `playwright.config.ts` (кабинет выбирается именем файла, а не параметром).
  */
-export function mobileShellChecks(cabinet: string, homeUrl: string) {
+export function mobileShellChecks(cabinet: string, homeUrl: string, alsoWide: string[] = []) {
   test.describe(`Мобильный каркас: ${cabinet}`, () => {
     // На десктопных проектах этот файл тоже подхватывается — там проверять нечего.
     test.skip(({ viewport }) => (viewport?.width ?? 0) >= 768, 'только мобильный вьюпорт');
@@ -36,6 +36,32 @@ export function mobileShellChecks(cabinet: string, homeUrl: string) {
       await page.keyboard.press('Escape');
       await expect(panel).toBeHidden();
     });
+
+    // `У-13`/`У-17`: экран кабинета обязан помещаться в ширину телефона.
+    // Страж именно на расхождение: когда содержимое шире экрана, Chrome на
+    // мобильном вьюпорте уменьшает всю страницу (visual viewport становится
+    // шире layout-вьюпорта), текст мельчает, а координаты нажатий уезжают —
+    // из-за этого «Ещё» в нижней панели переставала нажиматься.
+    for (const url of [homeUrl, ...alsoWide]) {
+      test(`страница не шире экрана телефона: ${url}`, async ({ page }: { page: Page }) => {
+        await page.goto(url);
+        await page.waitForLoadState('networkidle');
+
+        const { screenWidth, pageWidth, visualWidth } = await page.evaluate(() => ({
+          screenWidth: document.documentElement.clientWidth,
+          pageWidth: document.documentElement.scrollWidth,
+          visualWidth: window.innerWidth,
+        }));
+
+        expect(
+          pageWidth,
+          `${url} шире экрана: ${pageWidth}px против ${screenWidth}px — браузер уменьшит страницу целиком`
+        ).toBeLessThanOrEqual(screenWidth + 1);
+        expect(visualWidth, 'браузер уменьшил страницу, чтобы она поместилась').toBeLessThanOrEqual(
+          screenWidth + 1
+        );
+      });
+    }
 
     test('«Ещё» в нижней панели открывает то же меню', async ({ page }: { page: Page }) => {
       await page.goto(homeUrl);

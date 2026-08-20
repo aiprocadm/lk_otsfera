@@ -50,7 +50,7 @@ export default async function PartnerDashboard() {
 
       {enrollmentsEnabled && <PartnerEnrollmentsCard rows={enrollments} />}
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <AttentionList data={a} />
         <EventsFeed events={events} />
       </div>

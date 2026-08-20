@@ -53,7 +53,7 @@ export default async function OrganizationDashboardPage({
         <QuickTasks tasks={quickTasksFor('organization')} />
         <OrgKpiGrid kpis={k} expiringCertificates={expiringCerts} />
         {enrollmentsEnabled && <OrgEnrollmentsCard rows={enrollments} />}
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <OrgAttentionList data={a} />
           <OrgEventsFeed events={events} />
         </div>

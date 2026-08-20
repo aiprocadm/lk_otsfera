@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
+import { CardList, Card, CardRow } from '@/components/ui/card-list';
 import { prisma } from '@/lib/db/prisma';
 import { listOrganizations } from '@/lib/services/admin/organizations';
 import { listActivePartnerOptions } from '@/lib/services/admin/partners';
@@ -49,7 +50,9 @@ export default async function AdminOrganizationsPage({
     <div className="space-y-5">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
-          <div className="flex items-center gap-3">
+          {/* `У-13`: на телефоне заголовок и кнопка не помещаются в одну строку
+              (406px против 390px) — разрешаем перенос вместо распирания. */}
+          <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-bold text-[#111111]">Организации</h1>
             <CreateOrganizationDialog />
           </div>
@@ -107,35 +110,69 @@ export default async function AdminOrganizationsPage({
       {orgs.length === 0 ? (
         <EmptyState icon="🏛" message="По заданному фильтру организаций не нашлось." />
       ) : (
-        <TableShell>
-          <THead>
-            <Th>Название</Th>
-            <Th>ИНН</Th>
-            <Th>Партнёр</Th>
-            <Th className="text-right">Заказы</Th>
-            <Th className="text-right">Доступ</Th>
-          </THead>
-          <tbody>
+        <>
+          {/* `У-18`: колонок пять — на телефоне таблица уступает место карточкам.
+              Без этого страница шире экрана (422px против 390px), и браузер
+              уменьшает её целиком. */}
+          <CardList>
             {orgs.map((o) => (
-              <Tr key={o.id}>
-                <Td className="font-medium text-[#111111]">
+              <Card
+                key={o.id}
+                title={
                   <Link href={`/admin/organizations/${o.id}`} className="hover:text-[#F97316]">
                     {o.name}
+                    {o.partnerCommissionRate !== null && (
+                      <span
+                        title="Ставка override задана"
+                        className="ml-1.5 text-[#F97316] text-xs"
+                      >
+                        ●
+                      </span>
+                    )}
                   </Link>
-                  {o.partnerCommissionRate !== null && (
-                    <span title="Ставка override задана" className="ml-1.5 text-[#F97316] text-xs">
-                      ●
-                    </span>
-                  )}
-                </Td>
-                <Td className="text-gray-500 font-mono text-xs">{o.inn ?? '—'}</Td>
-                <Td className="text-gray-600">{o.partner?.name ?? 'Без партнёра'}</Td>
-                <Td className="text-right text-gray-600">{o.ordersCount}</Td>
-                <Td className="text-right text-gray-600">{o.organizationUsersCount}</Td>
-              </Tr>
+                }
+              >
+                <CardRow label="ИНН">{o.inn ?? '—'}</CardRow>
+                <CardRow label="Партнёр">{o.partner?.name ?? 'Без партнёра'}</CardRow>
+                <CardRow label="Заказы">{o.ordersCount}</CardRow>
+                <CardRow label="Доступ">{o.organizationUsersCount}</CardRow>
+              </Card>
             ))}
-          </tbody>
-        </TableShell>
+          </CardList>
+
+          <TableShell className="hidden md:block">
+            <THead>
+              <Th>Название</Th>
+              <Th>ИНН</Th>
+              <Th>Партнёр</Th>
+              <Th className="text-right">Заказы</Th>
+              <Th className="text-right">Доступ</Th>
+            </THead>
+            <tbody>
+              {orgs.map((o) => (
+                <Tr key={o.id}>
+                  <Td className="font-medium text-[#111111]">
+                    <Link href={`/admin/organizations/${o.id}`} className="hover:text-[#F97316]">
+                      {o.name}
+                    </Link>
+                    {o.partnerCommissionRate !== null && (
+                      <span
+                        title="Ставка override задана"
+                        className="ml-1.5 text-[#F97316] text-xs"
+                      >
+                        ●
+                      </span>
+                    )}
+                  </Td>
+                  <Td className="text-gray-500 font-mono text-xs">{o.inn ?? '—'}</Td>
+                  <Td className="text-gray-600">{o.partner?.name ?? 'Без партнёра'}</Td>
+                  <Td className="text-right text-gray-600">{o.ordersCount}</Td>
+                  <Td className="text-right text-gray-600">{o.organizationUsersCount}</Td>
+                </Tr>
+              ))}
+            </tbody>
+          </TableShell>
+        </>
       )}
 
       {total > PAGE_SIZE && (
