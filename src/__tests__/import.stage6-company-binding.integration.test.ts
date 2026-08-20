@@ -89,6 +89,10 @@ afterAll(async () => {
   await prisma.company.deleteMany({ where: { name: { contains: `этапа 6 ${STAMP}` } } });
   await prisma.company.deleteMany({ where: { name: ORPHAN_NAME } });
   await prisma.company.deleteMany({ where: { id: { in: [companyAId, companyBId] } } });
+  // Батчи импорта: удаляем ДО пользователя. importedById nullable (SetNull),
+  // поэтому удаление автора оставляет батч сиротой навсегда — такие сироты
+  // копились и вытесняли состаренный батч из списка (take: 20) в тесте Т-40.
+  await prisma.oneCImportBatch.deleteMany({ where: { importedById: adminUserId } });
   await prisma.auditLog.deleteMany({ where: { userId: adminUserId } });
   await prisma.user.delete({ where: { id: adminUserId } });
   await prisma.$disconnect();
