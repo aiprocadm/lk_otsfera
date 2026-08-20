@@ -36,7 +36,7 @@ export default async function AdminDashboardPage() {
         ))}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {/* Attention List */}
         {a.length === 0 ? (
           <div className="bg-white border border-gray-200 rounded-xl p-6 text-sm text-gray-500">

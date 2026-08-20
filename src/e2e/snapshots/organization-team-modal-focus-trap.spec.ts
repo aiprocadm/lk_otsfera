@@ -1,12 +1,16 @@
 import { test, expect, type Page } from '@playwright/test';
 
 const TRIGGER = 'button:has-text("Пригласить участника")';
-// Scope in-dialog controls to the native <dialog> element: the org layout's
-// header logout button is also type="submit", so an unscoped selector matches
-// two elements and trips Playwright strict mode.
-const EMAIL_INPUT = 'dialog input[name="email"]';
-const SUBMIT = 'dialog button[type="submit"]';
-const CLOSE_X = 'dialog button[aria-label="Закрыть"]';
+// Scope in-dialog controls to the *open* native <dialog>: the org layout's
+// header logout button is also type="submit", and since the mobile shell
+// arrived the page carries three <dialog> elements at once (burger menu and
+// friends), each with its own «Закрыть». An unscoped `dialog …` selector
+// matches all of them and trips Playwright strict mode — the guard then stops
+// guarding instead of failing loudly. `[open]` leaves exactly the modal under
+// test.
+const EMAIL_INPUT = 'dialog[open] input[name="email"]';
+const SUBMIT = 'dialog[open] button[type="submit"]';
+const CLOSE_X = 'dialog[open] button[aria-label="Закрыть"]';
 
 // Native <dialog> traps focus via `inert`: at the Tab cycle boundary focus may
 // rest on <body>/the dialog, but it must never reach a *background* control.
