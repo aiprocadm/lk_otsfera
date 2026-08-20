@@ -7,12 +7,14 @@ function db(rows: unknown[] = []) {
   return { d: { enrollmentRequest: { findMany } } as never, findMany };
 }
 
+// `У-36`: шапочного направления у заявки больше нет — подпись даёт ПЕРВАЯ
+// позиция, `legacyCourseTitle` остаётся запасным вариантом для старых заявок.
 const row = (id: string, over: Record<string, unknown> = {}) => ({
   id,
   status: 'pending',
   createdAt: new Date('2026-01-02T00:00:00.000Z'),
   legacyCourseTitle: null,
-  direction: { name: 'Охрана труда' },
+  items: [{ direction: { name: 'Охрана труда' } }],
   _count: { items: 3 },
   ...over,
 });
@@ -37,8 +39,8 @@ describe('organization/dashboard recentEnrollments (ФТ-2.4)', () => {
   it('маппинг: directionName из справочника / legacy / «—», studentCount из _count.items', async () => {
     const { d } = db([
       row('R1'),
-      row('R2', { direction: null, legacyCourseTitle: 'Старый курс', _count: { items: 1 } }),
-      row('R3', { direction: null, _count: { items: 0 }, status: 'approved' }),
+      row('R2', { items: [], legacyCourseTitle: 'Старый курс', _count: { items: 1 } }),
+      row('R3', { items: [], _count: { items: 0 }, status: 'approved' }),
     ]);
     const res = await orgRecentEnrollments(d, 'o1');
     expect(res).toEqual([
@@ -92,8 +94,8 @@ describe('partner/dashboard recentEnrollments (ФТ-2.4)', () => {
     // названия нет вовсе — там должен стоять прочерк, а не пустое место.
     const { d } = db([
       row('R1', { _count: { items: 2 }, status: 'in_training' }),
-      row('R2', { direction: null, legacyCourseTitle: 'Старый курс', _count: { items: 1 } }),
-      row('R3', { direction: null, _count: { items: 0 }, status: 'approved' }),
+      row('R2', { items: [], legacyCourseTitle: 'Старый курс', _count: { items: 1 } }),
+      row('R3', { items: [], _count: { items: 0 }, status: 'approved' }),
     ]);
     const res = await partnerRecentEnrollments(d, { partnerId: 'p1', scopeOrgIds: [] });
     expect(res).toEqual([

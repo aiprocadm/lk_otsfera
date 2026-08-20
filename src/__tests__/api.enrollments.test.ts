@@ -57,7 +57,7 @@ describe('POST /api/enrollments', () => {
     });
     expect((await POST(req)).status).toBe(400);
   });
-  it('201 when a partner submits (новый контракт: directionId + items)', async () => {
+  it('201 when a partner submits (`У-36`: направление у каждой позиции, шапки нет)', async () => {
     vi.mocked(getSession).mockResolvedValue(partner);
     vi.mocked(submitEnrollmentRequest).mockResolvedValue({
       ok: true,
@@ -67,6 +67,9 @@ describe('POST /api/enrollments', () => {
     } as never);
     const res = await POST(
       jsonReq({
+        // `directionId` в шапке тела больше не читается — направление обязано
+        // стоять у каждой позиции; шапочное значение сюда положено намеренно,
+        // чтобы проверить, что роут его НЕ прокидывает.
         directionId: 'd1',
         items: [
           {
@@ -74,9 +77,10 @@ describe('POST /api/enrollments', () => {
             email: 'i@x.ru',
             snils: '112-233-445 95',
             birthDate: '1990-01-02',
+            directionId: 'd1',
             notAString: 5,
           },
-          { studentId: 'st1' },
+          { studentId: 'st1', directionId: 'd2' },
         ],
       })
     );
@@ -87,15 +91,20 @@ describe('POST /api/enrollments', () => {
       {},
       partner,
       expect.objectContaining({
-        directionId: 'd1',
         items: [
           expect.objectContaining({
             fullName: 'И',
             email: 'i@x.ru',
             snils: '112-233-445 95',
             birthDate: '1990-01-02',
+            directionId: 'd1',
           }),
-          expect.objectContaining({ studentId: 'st1', fullName: null, email: null }),
+          expect.objectContaining({
+            studentId: 'st1',
+            directionId: 'd2',
+            fullName: null,
+            email: null,
+          }),
         ],
       })
     );
@@ -107,7 +116,7 @@ describe('POST /api/enrollments', () => {
       error: 'validation',
       messages: ['Добавьте хотя бы одного слушателя'],
     } as never);
-    await POST(jsonReq({ directionId: 'd1', items: 'oops' }));
+    await POST(jsonReq({ items: 'oops' }));
     expect(vi.mocked(submitEnrollmentRequest)).toHaveBeenCalledWith(
       {},
       partner,

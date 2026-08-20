@@ -124,8 +124,11 @@ describe('listIntake', () => {
             legacyCourseTitle: null,
             organization: { name: 'ООО Лютик' },
             partner: null,
-            direction: { name: 'Высота' },
-            items: [{ id: 'x' }, { id: 'y' }],
+            // `У-36`: направление живёт в позициях, шапочного поля больше нет.
+            items: [
+              { id: 'x', direction: { name: 'Высота' } },
+              { id: 'y', direction: { name: 'Высота' } },
+            ],
           },
         ]),
         count: vi.fn(),

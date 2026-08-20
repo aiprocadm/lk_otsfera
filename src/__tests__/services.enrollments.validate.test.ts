@@ -85,10 +85,24 @@ describe('validateEnrollmentItems', () => {
   });
 
   it('позиция со studentId не требует ФИО/email, но проверяет заполненный email', () => {
-    const ok = validateEnrollmentItems([{ studentId: 'st1' }]);
+    const ok = validateEnrollmentItems([{ studentId: 'st1', directionId: 'd1' }]);
     expect(ok.ok).toBe(true);
-    const bad = validateEnrollmentItems([{ studentId: 'st1', email: 'плохо' }]);
+    const bad = validateEnrollmentItems([{ studentId: 'st1', directionId: 'd1', email: 'плохо' }]);
     expect(bad.ok).toBe(false);
+  });
+
+  it('`У-36`: позиция без обучения — ошибка (шапочного направления больше нет)', () => {
+    const r = validateEnrollmentItems([{ fullName: 'Иван', email: 'i@x.ru' }]);
+    expect(r.ok).toBe(false);
+    expect((r as { errors: string[] }).errors).toContain('Слушатель 1: не выбрано обучение');
+  });
+
+  it('`requireDirection: false` — обучение не требуется (построчный Excel-импорт, `У-41`)', () => {
+    const r = validateEnrollmentItems([{ fullName: 'Иван', email: 'i@x.ru' }], undefined, {
+      requireDirection: false,
+    });
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.items[0]!.directionId).toBeNull();
   });
 
   it('СНИЛС и дата рождения валидируются только если заполнены', () => {
@@ -109,12 +123,13 @@ describe('validateEnrollmentItems', () => {
         snils: '112-233-445 95',
         birthDate: '1990-01-02',
         extra: ' примечание ',
+        directionId: ' d1 ',
       },
     ]);
     if (!r.ok) throw new Error('expected ok');
     expect(r.items[0]).toEqual({
       studentId: null,
-      directionId: null,
+      directionId: 'd1',
       fullName: 'Иван Иванов',
       email: 'i@x.ru',
       position: null,
@@ -127,10 +142,10 @@ describe('validateEnrollmentItems', () => {
 
   it('дубликаты email (регистронезависимо) и studentId склеиваются с warning', () => {
     const r = validateEnrollmentItems([
-      { fullName: 'Иван', email: 'i@x.ru' },
-      { fullName: 'Иван Дубль', email: 'I@X.RU' },
-      { studentId: 'st1' },
-      { studentId: 'st1' },
+      { fullName: 'Иван', email: 'i@x.ru', directionId: 'd1' },
+      { fullName: 'Иван Дубль', email: 'I@X.RU', directionId: 'd1' },
+      { studentId: 'st1', directionId: 'd1' },
+      { studentId: 'st1', directionId: 'd1' },
     ]);
     if (!r.ok) throw new Error('expected ok');
     expect(r.items).toHaveLength(2);
@@ -139,13 +154,17 @@ describe('validateEnrollmentItems', () => {
   });
 
   it('У-35: один человек на два РАЗНЫХ направления — две позиции, не дубликат', () => {
-    const r = validateEnrollmentItems([
-      { fullName: 'Иван', email: 'i@x.ru', directionId: 'd1' },
-      { fullName: 'Иван', email: 'I@X.RU', directionId: 'd2' },
-      { fullName: 'Иван', email: 'i@x.ru', directionId: ' d1 ' },
-      { studentId: 'st1', directionId: 'd1' },
-      { studentId: 'st1' },
-    ]);
+    const r = validateEnrollmentItems(
+      [
+        { fullName: 'Иван', email: 'i@x.ru', directionId: 'd1' },
+        { fullName: 'Иван', email: 'I@X.RU', directionId: 'd2' },
+        { fullName: 'Иван', email: 'i@x.ru', directionId: ' d1 ' },
+        { studentId: 'st1', directionId: 'd1' },
+        { studentId: 'st1' },
+      ],
+      undefined,
+      { requireDirection: false }
+    );
     if (!r.ok) throw new Error('expected ok');
 
     expect(r.items.map((i) => i.directionId)).toEqual(['d1', 'd2', 'd1', null]);
@@ -157,8 +176,8 @@ describe('validateEnrollmentItems', () => {
 
   it('все позиции — дубликаты одной → остаётся одна (ошибки нет)', () => {
     const r = validateEnrollmentItems([
-      { fullName: 'Иван', email: 'i@x.ru' },
-      { fullName: 'Иван', email: 'i@x.ru' },
+      { fullName: 'Иван', email: 'i@x.ru', directionId: 'd1' },
+      { fullName: 'Иван', email: 'i@x.ru', directionId: 'd1' },
     ]);
     if (!r.ok) throw new Error('expected ok');
     expect(r.items).toHaveLength(1);
