@@ -66,7 +66,8 @@ async function loadUnassignedUnits(prisma: PrismaClient): Promise<Unit[]> {
         id: true,
         createdAt: true,
         organization: { select: { name: true, companyId: true } },
-        direction: { select: { name: true } },
+        // `У-36`: направление живёт в позициях — для подписи хватит первой.
+        items: { select: { direction: { select: { name: true } } }, take: 1 },
         legacyCourseTitle: true,
       },
       orderBy: { createdAt: 'asc' },
@@ -111,7 +112,7 @@ async function loadUnassignedUnits(prisma: PrismaClient): Promise<Unit[]> {
     });
   }
   for (const e of enrollments) {
-    const direction = e.direction?.name ?? e.legacyCourseTitle ?? 'обучение';
+    const direction = e.items[0]?.direction?.name ?? e.legacyCourseTitle ?? 'обучение';
     units.push({
       sourceType: 'enrollment',
       sourceId: e.id,

@@ -35,7 +35,8 @@ beforeEach(() => {
 const sess = (over: Record<string, unknown> = {}) =>
   ({ sub: 'u1', role: 'manager', ...over }) as never;
 
-const ITEMS = [{ fullName: 'Иван', email: 'i@x.ru' }];
+// У-36: направление снято с шапки — каждая позиция обязана назвать своё.
+const ITEMS = [{ fullName: 'Иван', email: 'i@x.ru', directionId: 'd1' }];
 
 // ───────────────────────────────────────────
 // submitEnrollmentRequest — uncovered branches
@@ -55,7 +56,12 @@ describe('submitEnrollmentRequest — additional branches', () => {
         ...data,
       }));
     const base = {
-      trainingDirection: { findFirst: vi.fn().mockResolvedValue({ id: 'd1' }) },
+      // У-36: шапочной проверки больше нет — сервис проверяет направления
+      // позиций одним findMany, поэтому мок обязан его отдавать.
+      trainingDirection: {
+        findFirst: vi.fn().mockResolvedValue({ id: 'd1' }),
+        findMany: vi.fn().mockResolvedValue([{ id: 'd1' }]),
+      },
       organization: { findFirst: vi.fn().mockResolvedValue({ id: 'o1' }) },
       student: { findMany: vi.fn().mockResolvedValue([]) },
       $transaction: vi.fn().mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
@@ -74,7 +80,6 @@ describe('submitEnrollmentRequest — additional branches', () => {
     canSubmitEnrollments.mockReturnValue(false);
     const d = db();
     const res = await submitEnrollmentRequest(d, sess({ role: 'student' }), {
-      directionId: 'd1',
       items: ITEMS,
     });
     expect(res).toEqual({ ok: false, error: 'forbidden' });
@@ -84,8 +89,7 @@ describe('submitEnrollmentRequest — additional branches', () => {
   it('validation: невалидный email позиции — русское сообщение, без tx', async () => {
     const d = db();
     const res = await submitEnrollmentRequest(d, sess({ role: 'admin' }), {
-      directionId: 'd1',
-      items: [{ fullName: 'Иван', email: 'not-an-email' }],
+      items: [{ fullName: 'Иван', email: 'not-an-email', directionId: 'd1' }],
     });
     expect(res).toMatchObject({ ok: false, error: 'validation' });
     expect((res as { messages: string[] }).messages[0]).toContain('некорректный email');
@@ -95,7 +99,6 @@ describe('submitEnrollmentRequest — additional branches', () => {
   it('partner with organizationId not under partner (findFirst → null) → forbidden', async () => {
     const d = db({ organization: { findFirst: vi.fn().mockResolvedValue(null) } });
     const res = await submitEnrollmentRequest(d, sess({ role: 'partner', partnerId: 'p1' }), {
-      directionId: 'd1',
       organizationId: 'o-other',
       items: ITEMS,
     });
@@ -110,7 +113,6 @@ describe('submitEnrollmentRequest — additional branches', () => {
       trainingDirection: { findFirst: vi.fn().mockResolvedValue({ id: 'd1' }), findMany },
     });
     const res = await submitEnrollmentRequest(d, sess({ role: 'admin' }), {
-      directionId: 'd1',
       items: [{ ...ITEMS[0]!, directionId: 'd-чужой' }],
     });
     expect(res).toEqual({
@@ -125,17 +127,19 @@ describe('submitEnrollmentRequest — additional branches', () => {
     expect((d as { $transaction: ReturnType<typeof vi.fn> }).$transaction).not.toHaveBeenCalled();
   });
 
-  it('У-33: направление позиции, совпавшее с шапочным, второй раз не запрашивается', async () => {
-    const findMany = vi.fn().mockResolvedValue([]);
+  it('У-36: направление позиции проверяется всегда — вычитать шапочное больше нечего', async () => {
+    const findMany = vi.fn().mockResolvedValue([{ id: 'd1' }]);
     const d = db({
       trainingDirection: { findFirst: vi.fn().mockResolvedValue({ id: 'd1' }), findMany },
     });
     const res = await submitEnrollmentRequest(d, sess({ role: 'admin' }), {
-      directionId: 'd1',
       items: [{ ...ITEMS[0]!, directionId: 'd1' }],
     });
     expect(res.ok).toBe(true);
-    expect(findMany).not.toHaveBeenCalled();
+    // Раньше это направление совпадало с шапочным и из проверки вычиталось.
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: ['d1'] }, isActive: true } })
+    );
   });
 
   it('У-33: валидное направление позиции доезжает до записи позиции', async () => {
@@ -153,21 +157,19 @@ describe('submitEnrollmentRequest — additional branches', () => {
       ),
     });
     const res = await submitEnrollmentRequest(d, sess({ role: 'admin' }), {
-      directionId: 'd1',
       items: [
         { fullName: 'Иван', email: 'i@x.ru', directionId: 'd2' },
-        // Позиция без своего направления берёт направление шапки (до У-36).
-        { fullName: 'Пётр', email: 'p@x.ru' },
+        // `У-36`: направление шапки снято — вторая позиция обязана назвать своё.
+        { fullName: 'Пётр', email: 'p@x.ru', directionId: 'd2' },
       ],
     });
     expect(res.ok).toBe(true);
     const written = createMany.mock.calls[0]![0].data as Array<{ directionId: string }>;
-    expect(written.map((i) => i.directionId)).toEqual(['d2', 'd1']);
+    expect(written.map((i) => i.directionId)).toEqual(['d2', 'd2']);
   });
 
   it('happy path → ok:true with request.id and recordAudit called', async () => {
     const res = await submitEnrollmentRequest(db(), sess({ role: 'admin' }), {
-      directionId: 'd1',
       items: ITEMS,
     });
     expect(res.ok).toBe(true);
@@ -182,7 +184,6 @@ describe('submitEnrollmentRequest — additional branches', () => {
       organizationMemberships: [{ organizationId: 'o-explicit', isActive: true }],
     });
     const r = await submitEnrollmentRequest(db(), s, {
-      directionId: 'd1',
       organizationId: 'o-explicit',
       items: ITEMS,
     });
@@ -196,7 +197,6 @@ describe('submitEnrollmentRequest — additional branches', () => {
       organizationMemberships: [{ organizationId: 'o-mine', isActive: true }],
     });
     const r = await submitEnrollmentRequest(db(), s, {
-      directionId: 'd1',
       organizationId: 'o-OTHER',
       items: ITEMS,
     });
@@ -209,7 +209,7 @@ describe('submitEnrollmentRequest — additional branches', () => {
       organizationId: null,
       organizationMemberships: [{ organizationId: 'o-first', isActive: true }],
     });
-    const r = await submitEnrollmentRequest(db(), s, { directionId: 'd1', items: ITEMS });
+    const r = await submitEnrollmentRequest(db(), s, { items: ITEMS });
     expect(r.ok && r.request.organizationId).toBe('o-first');
   });
 
@@ -219,7 +219,7 @@ describe('submitEnrollmentRequest — additional branches', () => {
       organizationId: null,
       organizationMemberships: [],
     });
-    const r = await submitEnrollmentRequest(db(), s, { directionId: 'd1', items: ITEMS });
+    const r = await submitEnrollmentRequest(db(), s, { items: ITEMS });
     expect(r.ok && r.request.organizationId).toBeNull();
   });
 
@@ -229,13 +229,12 @@ describe('submitEnrollmentRequest — additional branches', () => {
       organizationId: 'o-session',
       organizationMemberships: undefined,
     });
-    const r = await submitEnrollmentRequest(db(), s, { directionId: 'd1', items: ITEMS });
+    const r = await submitEnrollmentRequest(db(), s, { items: ITEMS });
     expect(r.ok && r.request.organizationId).toBe('o-session');
   });
 
   it('partner role with NO organizationId → partnerId set, organizationId null', async () => {
     const r = await submitEnrollmentRequest(db(), sess({ role: 'partner', partnerId: 'p1' }), {
-      directionId: 'd1',
       items: ITEMS,
     });
     expect(r.ok && r.request.partnerId).toBe('p1');
@@ -246,7 +245,6 @@ describe('submitEnrollmentRequest — additional branches', () => {
     const orgFindFirst = vi.fn().mockResolvedValue({ id: 'o-scoped' });
     const d = db({ organization: { findFirst: orgFindFirst } });
     const r = await submitEnrollmentRequest(d, sess({ role: 'partner', partnerId: 'p-real' }), {
-      directionId: 'd1',
       organizationId: 'o-scoped',
       items: ITEMS,
     });
@@ -258,7 +256,6 @@ describe('submitEnrollmentRequest — additional branches', () => {
 
   it('partner role with no partnerId in session → partnerId=null', async () => {
     const r = await submitEnrollmentRequest(db(), sess({ role: 'partner', partnerId: undefined }), {
-      directionId: 'd1',
       items: ITEMS,
     });
     expect(r.ok && r.request.partnerId).toBeNull();
@@ -268,7 +265,6 @@ describe('submitEnrollmentRequest — additional branches', () => {
     const orgFindFirst = vi.fn().mockResolvedValue({ id: 'o-unscoped' });
     const d = db({ organization: { findFirst: orgFindFirst } });
     const r = await submitEnrollmentRequest(d, sess({ role: 'partner', partnerId: null }), {
-      directionId: 'd1',
       organizationId: 'o-unscoped',
       items: ITEMS,
     });
@@ -284,7 +280,6 @@ describe('submitEnrollmentRequest — additional branches', () => {
 
   it('note trimmed to null when empty string', async () => {
     const r = await submitEnrollmentRequest(db(), sess({ role: 'admin' }), {
-      directionId: 'd1',
       items: ITEMS,
       note: '   ',
     });
@@ -293,7 +288,6 @@ describe('submitEnrollmentRequest — additional branches', () => {
 
   it('note preserved when non-empty', async () => {
     const r = await submitEnrollmentRequest(db(), sess({ role: 'admin' }), {
-      directionId: 'd1',
       items: ITEMS,
       note: 'спецкурс',
     });
@@ -302,7 +296,6 @@ describe('submitEnrollmentRequest — additional branches', () => {
 
   it('items=undefined трактуется как пустой список → validation', async () => {
     const r = await submitEnrollmentRequest(db(), sess({ role: 'admin' }), {
-      directionId: 'd1',
       items: undefined as never,
     });
     expect(r).toMatchObject({ ok: false, error: 'validation' });
@@ -411,7 +404,10 @@ describe('listEnrollmentRequests — additional branches', () => {
     const and = findMany.mock.calls[0][0].where.AND;
     const searchClause = and.find((c: Record<string, unknown>) => 'OR' in c);
     expect(searchClause).toBeDefined();
-    expect(searchClause.OR[0]).toMatchObject({ direction: { name: { contains: 'тест' } } });
+    // `У-36`: направление живёт в позициях — поиск ищет там.
+    expect(searchClause.OR[0]).toMatchObject({
+      items: { some: { direction: { name: { contains: 'тест' } } } },
+    });
   });
 
   it('uses cursor when opts.cursor provided', async () => {

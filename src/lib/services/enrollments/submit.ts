@@ -6,7 +6,6 @@ import { notifyManagersEnrollmentSubmitted } from './notify';
 import { validateEnrollmentItems, type EnrollmentItemInput } from './validate';
 
 export type SubmitEnrollmentInput = {
-  directionId: string;
   organizationId?: string | null;
   note?: string | null;
   items: EnrollmentItemInput[];
@@ -39,27 +38,18 @@ export async function submitEnrollmentRequest(
 ): Promise<SubmitEnrollmentResult> {
   if (!canSubmitEnrollments(session)) return { ok: false, error: 'forbidden' };
 
-  const directionId = input.directionId?.trim();
-  if (!directionId) {
-    return { ok: false, error: 'validation', messages: ['Выберите направление обучения'] };
-  }
-  const direction = await prisma.trainingDirection.findFirst({
-    where: { id: directionId, isActive: true },
-    select: { id: true },
-  });
-  if (!direction) {
-    return { ok: false, error: 'validation', messages: ['Направление не найдено или неактивно'] };
-  }
-
   const validated = validateEnrollmentItems(input.items ?? []);
   if (!validated.ok) return { ok: false, error: 'validation', messages: validated.errors };
 
-  // `У-33`: направление каждой позиции тоже обязано быть из справочника.
-  // Без этой проверки чужой id из тела запроса дошёл бы до внешнего ключа и
-  // упал бы 500-й ошибкой вместо понятного сообщения (§3).
+  // `У-33`: направление каждой позиции обязано быть из справочника. Без этой
+  // проверки чужой id из тела запроса дошёл бы до внешнего ключа и упал бы
+  // 500-й ошибкой вместо понятного сообщения (§3).
+  //
+  // `У-36`: раньше отсюда вычиталось направление шапки — оно проверялось
+  // отдельно. Шапки больше нет, поэтому проверяются все направления позиций.
   const itemDirectionIds = [
     ...new Set(validated.items.map((i) => i.directionId).filter((id): id is string => !!id)),
-  ].filter((id) => id !== directionId);
+  ];
   if (itemDirectionIds.length) {
     const found = await prisma.trainingDirection.findMany({
       where: { id: { in: itemDirectionIds }, isActive: true },
@@ -118,7 +108,6 @@ export async function submitEnrollmentRequest(
         submitterRole: submitterRoleLabel(session),
         partnerId,
         organizationId,
-        directionId,
         note: input.note?.trim() || null,
       },
     });
@@ -133,7 +122,9 @@ export async function submitEnrollmentRequest(
           // У-33 (этап 6): направление у позиции. Пока заявка может прислать
           // одно направление на всю форму (старый мастер) — тогда оно и
           // достаётся каждой позиции. Шапочное поле остаётся до У-36.
-          directionId: item.directionId ?? directionId,
+          // `У-36`: направление позиции обязательно (проверено валидатором),
+          // подставлять из шапки больше нечего.
+          directionId: item.directionId ?? '',
           position: item.position,
           snils: item.snils,
           birthDate: item.birthDate,
@@ -165,7 +156,9 @@ export async function submitEnrollmentRequest(
     // Только счётчики и ссылки — ПДн слушателей в аудит не пишем.
     after: {
       organizationId,
-      directionId,
+      // `У-36`: вместо снятого шапочного поля — направления позиций, иначе
+      // след «на что подавали» исчез бы из журнала.
+      directionIds: itemDirectionIds,
       itemCount: validated.items.length,
       submitterRole: created.submitterRole,
     },

@@ -78,13 +78,14 @@ afterAll(async () => {
 describe('submitEnrollmentRequest (integration)', () => {
   it('создаёт шапку с направлением и позиции одной транзакцией (снимок Student + ручные строки)', async () => {
     const res = await submitEnrollmentRequest(prisma, admin, {
-      directionId,
       organizationId: orgId,
       note: 'интеграционный прогон',
       items: [
-        { studentId },
+        // `У-36`: направление шапки снято — его называет каждая позиция.
+        { studentId, directionId },
         {
           fullName: 'Иван Ручной',
+          directionId,
           email: `${T}-ivan@org.test`,
           position: 'инженер',
           snils: '112-233-445 95',
@@ -98,9 +99,12 @@ describe('submitEnrollmentRequest (integration)', () => {
 
     const saved = await prisma.enrollmentRequest.findUniqueOrThrow({
       where: { id: res.request.id },
-      include: { items: { orderBy: { createdAt: 'asc' } }, direction: true },
+      include: {
+        items: { orderBy: { createdAt: 'asc' }, include: { direction: true } },
+      },
     });
-    expect(saved.direction?.name).toBe(`${T}-Охрана труда`);
+    // Направление проверяем там, где оно теперь и хранится, — в позициях.
+    expect(saved.items.every((i) => i.direction.name === `${T}-Охрана труда`)).toBe(true);
     expect(saved.items).toHaveLength(2);
     const fromStudent = saved.items.find((i) => i.studentId === studentId)!;
     expect(fromStudent.fullName).toBe('Пётр Интеграционный');
@@ -118,16 +122,15 @@ describe('submitEnrollmentRequest (integration)', () => {
     const before = await prisma.enrollmentRequest.count({ where: { submittedByUserId: ACTOR } });
 
     const badDir = await submitEnrollmentRequest(prisma, admin, {
-      directionId: inactiveDirectionId,
       organizationId: orgId,
-      items: [{ fullName: 'X', email: `${T}-x@org.test` }],
+      // У-36: неактивное направление проверяется у позиции — шапки нет.
+      items: [{ fullName: 'X', email: `${T}-x@org.test`, directionId: inactiveDirectionId }],
     });
     expect(badDir).toMatchObject({ ok: false, error: 'validation' });
 
     const alien = await submitEnrollmentRequest(prisma, admin, {
-      directionId,
       organizationId: orgId,
-      items: [{ studentId: foreignStudentId }],
+      items: [{ studentId: foreignStudentId, directionId }],
     });
     expect(alien).toEqual({ ok: false, error: 'forbidden' });
 
@@ -140,11 +143,10 @@ describe('submitEnrollmentRequest (integration)', () => {
 describe('lifecycle (integration): статусы зеркалируются в позиции', () => {
   async function createRequest() {
     const res = await submitEnrollmentRequest(prisma, admin, {
-      directionId,
       organizationId: orgId,
       items: [
-        { fullName: 'А', email: `${T}-a-${Date.now()}@org.test` },
-        { fullName: 'Б', email: `${T}-b-${Date.now()}@org.test` },
+        { fullName: 'А', email: `${T}-a-${Date.now()}@org.test`, directionId },
+        { fullName: 'Б', email: `${T}-b-${Date.now()}@org.test`, directionId },
       ],
     });
     if (!res.ok) throw new Error('seed failed');

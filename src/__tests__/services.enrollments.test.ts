@@ -30,7 +30,8 @@ import {
 const s = (over: Record<string, unknown> = {}) =>
   ({ sub: 'u1', role: 'manager', ...over }) as never;
 
-const ITEM = { fullName: 'Иван Иванов', email: 'i@x.ru' };
+// `У-36`: направление снято с шапки — каждая позиция называет своё.
+const ITEM = { fullName: 'Иван Иванов', email: 'i@x.ru', directionId: 'd1' };
 
 beforeEach(() => {
   recordAudit.mockReset();
@@ -113,7 +114,10 @@ describe('submitEnrollmentRequest (этап 2: шапка + позиции)', ()
       }));
     const itemCreateMany = vi.fn().mockResolvedValue({ count: 1 });
     const base = {
-      trainingDirection: { findFirst: vi.fn().mockResolvedValue({ id: 'd1' }) },
+      trainingDirection: {
+        findFirst: vi.fn().mockResolvedValue({ id: 'd1' }),
+        findMany: vi.fn().mockResolvedValue([{ id: 'd1' }]),
+      },
       organization: { findFirst: vi.fn().mockResolvedValue({ id: 'o1' }) },
       student: { findMany: vi.fn().mockResolvedValue([]) },
       $transaction: vi.fn().mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
@@ -129,38 +133,46 @@ describe('submitEnrollmentRequest (этап 2: шапка + позиции)', ()
 
   it('validation: нет направления / нет позиций — русские сообщения', async () => {
     const { d } = db();
+    // `У-36`: направление спрашивают у КАЖДОЙ строки — шапки, где его можно
+    // было указать один раз на всю заявку, больше нет.
     expect(
-      await submitEnrollmentRequest(d, s({ role: 'admin' }), { directionId: '', items: [ITEM] })
+      await submitEnrollmentRequest(d, s({ role: 'admin' }), {
+        items: [{ fullName: 'Иван Иванов', email: 'i@x.ru' }],
+      })
     ).toEqual({
       ok: false,
       error: 'validation',
-      messages: ['Выберите направление обучения'],
+      messages: ['Слушатель 1: не выбрано обучение'],
     });
     const r = await submitEnrollmentRequest(d, s({ role: 'admin' }), {
-      directionId: 'd1',
       items: [],
     });
     expect(r).toMatchObject({ ok: false, error: 'validation' });
     expect((r as { messages: string[] }).messages).toEqual(['Добавьте хотя бы одного слушателя']);
   });
 
-  it('validation: направление неактивно/не найдено', async () => {
-    const { d } = db({ trainingDirection: { findFirst: vi.fn().mockResolvedValue(null) } });
+  it('validation: направление позиции неактивно/не найдено', async () => {
+    // `У-36`: проверка направления переехала с шапки на позиции — сервис
+    // спрашивает справочник одним `findMany` по всем строкам сразу.
+    const { d } = db({
+      trainingDirection: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+    });
     const r = await submitEnrollmentRequest(d, s({ role: 'admin' }), {
-      directionId: 'dX',
       items: [ITEM],
     });
     expect(r).toMatchObject({
       ok: false,
       error: 'validation',
-      messages: ['Направление не найдено или неактивно'],
+      messages: ['Направление слушателя не найдено или неактивно'],
     });
   });
 
   it('шапка+позиции создаются в транзакции; snapshot submitterRole/partnerId партнёра', async () => {
     const { d, requestCreate, itemCreateMany } = db();
     const r = await submitEnrollmentRequest(d, s({ role: 'partner', partnerId: 'p1' }), {
-      directionId: 'd1',
       organizationId: 'o1',
       items: [
         {
@@ -176,7 +188,9 @@ describe('submitEnrollmentRequest (этап 2: шапка + позиции)', ()
     expect(r.request.submitterRole).toBe('partner');
     expect(r.request.partnerId).toBe('p1');
     expect(r.itemCount).toBe(1);
-    expect(requestCreate.mock.calls[0][0].data.directionId).toBe('d1');
+    // `У-36`: шапочного направления в записи заявки больше нет — оно
+    // хранится только в позициях.
+    expect(requestCreate.mock.calls[0][0].data.directionId).toBeUndefined();
     const item = itemCreateMany.mock.calls[0][0].data[0];
     expect(item).toMatchObject({
       requestId: 'E1',
@@ -192,7 +206,6 @@ describe('submitEnrollmentRequest (этап 2: шапка + позиции)', ()
   it('blocks a partner targeting an org outside its scope', async () => {
     const { d } = db({ organization: { findFirst: vi.fn().mockResolvedValue(null) } });
     const r = await submitEnrollmentRequest(d, s({ role: 'partner', partnerId: 'p1' }), {
-      directionId: 'd1',
       organizationId: 'oX',
       items: [ITEM],
     });
@@ -202,7 +215,6 @@ describe('submitEnrollmentRequest (этап 2: шапка + позиции)', ()
   it('forbids a role that cannot submit (student)', async () => {
     const { d } = db();
     const r = await submitEnrollmentRequest(d, s({ role: 'student' }), {
-      directionId: 'd1',
       items: [ITEM],
     });
     expect(r).toEqual({ ok: false, error: 'forbidden' });
@@ -218,8 +230,7 @@ describe('submitEnrollmentRequest (этап 2: шапка + позиции)', ()
         organizationMemberships: [{ organizationId: 'o1', isActive: true }],
       }),
       {
-        directionId: 'd1',
-        items: [{ studentId: 'stX' }],
+        items: [{ studentId: 'stX', directionId: 'd1' }],
       }
     );
     expect(r).toEqual({ ok: false, error: 'forbidden' });
@@ -228,8 +239,7 @@ describe('submitEnrollmentRequest (этап 2: шапка + позиции)', ()
   it('studentId без организации (admin, org не выбрана) → forbidden', async () => {
     const { d } = db();
     const r = await submitEnrollmentRequest(d, s({ role: 'admin' }), {
-      directionId: 'd1',
-      items: [{ studentId: 'st1' }],
+      items: [{ studentId: 'st1', directionId: 'd1' }],
     });
     expect(r).toEqual({ ok: false, error: 'forbidden' });
   });
@@ -248,8 +258,7 @@ describe('submitEnrollmentRequest (этап 2: шапка + позиции)', ()
       organizationMemberships: [{ organizationId: 'o1', isActive: true }],
     });
     const r = await submitEnrollmentRequest(d, session, {
-      directionId: 'd1',
-      items: [{ studentId: 'st1' }],
+      items: [{ studentId: 'st1', directionId: 'd1' }],
     });
     if (!r.ok) throw new Error('expected ok');
     expect(itemCreateMany.mock.calls[0][0].data[0]).toMatchObject({
@@ -262,8 +271,8 @@ describe('submitEnrollmentRequest (этап 2: шапка + позиции)', ()
   it('дубликаты склеиваются с warning; аудит без ПДн (только счётчики)', async () => {
     const { d, itemCreateMany } = db();
     const r = await submitEnrollmentRequest(d, s({ role: 'admin' }), {
-      directionId: 'd1',
-      items: [ITEM, { fullName: 'Дубль', email: 'I@X.RU' }],
+      // У-36: дубль обязан назвать то же обучение — иначе это разные строки.
+      items: [ITEM, { fullName: 'Дубль', email: 'I@X.RU', directionId: 'd1' }],
     });
     if (!r.ok) throw new Error('expected ok');
     expect(r.itemCount).toBe(1);
@@ -272,7 +281,8 @@ describe('submitEnrollmentRequest (этап 2: шапка + позиции)', ()
     const audit = recordAudit.mock.calls[0][1];
     expect(audit.after).toEqual({
       organizationId: null,
-      directionId: 'd1',
+      // У-36: вместо снятого шапочного поля в журнал идут направления позиций.
+      directionIds: ['d1'],
       itemCount: 1,
       submitterRole: 'admin',
     });
@@ -335,7 +345,8 @@ describe('listEnrollmentRequests scope', () => {
     await listEnrollmentRequests(d, s({ role: 'manager' }), { search: 'иван' });
     const or = findMany.mock.calls[0][0].where.AND[1].OR;
     expect(or).toEqual([
-      { direction: { name: { contains: 'иван', mode: 'insensitive' } } },
+      // У-36: направление живёт в позициях — поиск ищет там.
+      { items: { some: { direction: { name: { contains: 'иван', mode: 'insensitive' } } } } },
       { legacyCourseTitle: { contains: 'иван', mode: 'insensitive' } },
       { items: { some: { fullName: { contains: 'иван', mode: 'insensitive' } } } },
       { items: { some: { email: { contains: 'иван', mode: 'insensitive' } } } },

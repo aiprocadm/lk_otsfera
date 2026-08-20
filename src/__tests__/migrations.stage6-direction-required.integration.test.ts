@@ -49,7 +49,6 @@ beforeAll(async () => {
       submittedByUserId: user.id,
       submitterRole: 'organization',
       organizationId: org.id,
-      directionId: dir.id,
     },
   });
   requestId = request.id;

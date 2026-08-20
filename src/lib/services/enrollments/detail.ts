@@ -49,7 +49,6 @@ export async function getEnrollmentRequest(
       organization: { select: { name: true } },
       partner: { select: { name: true } },
       submittedByUser: { select: { name: true } },
-      direction: { select: { name: true } },
       items: {
         orderBy: { createdAt: 'asc' },
         select: {
@@ -143,7 +142,10 @@ export async function getEnrollmentRequest(
     ok: true,
     request: {
       id: r.id,
-      directionName: r.direction?.name ?? r.legacyCourseTitle ?? '—',
+      // `У-36`: шапочного направления больше нет — подпись заявки берётся
+      // из позиций. `legacyCourseTitle` остаётся для старых заявок, где
+      // курс был вписан текстом и позиций может не быть вовсе.
+      directionName: itemDirectionNames(items)[0] ?? r.legacyCourseTitle ?? '—',
       directionNames: itemDirectionNames(items),
       status: r.status,
       organizationName: r.organization?.name ?? null,

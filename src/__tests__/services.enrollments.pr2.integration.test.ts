@@ -95,11 +95,10 @@ describe('PR-2 конвейер позиций + уведомления + дет
 
   it('submit (2 позиции) → approve → markProvisioned: позиции зеркалируются', async () => {
     const res = await submitEnrollmentRequest(prisma, submitterSession, {
-      directionId,
       organizationId: orgId,
       items: [
-        { fullName: 'Анна ПР2', email: `${T}-anna@org.test` },
-        { fullName: 'Борис ПР2', email: `${T}-boris@org.test` },
+        { fullName: 'Анна ПР2', email: `${T}-anna@org.test`, directionId },
+        { fullName: 'Борис ПР2', email: `${T}-boris@org.test`, directionId },
       ],
     });
     if (!res.ok) throw new Error(`submit failed: ${JSON.stringify(res)}`);
@@ -249,12 +248,11 @@ describe('PR-2 конвейер позиций + уведомления + дет
     });
 
     const res = await submitEnrollmentRequest(prisma, submitterSession, {
-      directionId,
       organizationId: orgId,
       items: [
         { fullName: 'Вера ПР2а', email: `${T}-vera@org.test`, directionId },
         { fullName: 'Вера ПР2а', email: `${T}-vera@org.test`, directionId: second.id },
-        { fullName: 'Глеб ПР2а', email: `${T}-gleb@org.test` },
+        { fullName: 'Глеб ПР2а', email: `${T}-gleb@org.test`, directionId },
       ],
     });
     if (!res.ok) throw new Error(`submit failed: ${JSON.stringify(res)}`);

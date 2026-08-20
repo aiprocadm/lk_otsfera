@@ -660,6 +660,7 @@ model Partner {
   signerBasis           String?
   commissionRate        Decimal                @default(0) @db.Decimal(6, 4)
   isActive              Boolean                @default(true)
+  enrollmentRequests EnrollmentRequest[]
   organizations         Organization[]
   users                 User[]
   orders                Order[]
@@ -668,7 +669,6 @@ model Partner {
   clientRequests        ClientRequest[]
   commissionStatements  CommissionStatement[]
   notifications         Notification[]
-  enrollmentRequests    EnrollmentRequest[]
   commissionRateChanges CommissionRateChange[]
   commissionCorrections CommissionCorrection[]
 }
@@ -1445,8 +1445,6 @@ model EnrollmentRequest {
   partner           Partner?                @relation(fields: [partnerId], references: [id])
   organizationId    String?
   organization      Organization?           @relation(fields: [organizationId], references: [id])
-  directionId       String?
-  direction         TrainingDirection?      @relation(fields: [directionId], references: [id])
   legacyCourseTitle String?
   note              String?
   status            EnrollmentStatus        @default(pending)
@@ -1463,7 +1461,6 @@ model EnrollmentRequest {
   @@index([status])
   @@index([partnerId])
   @@index([submittedByUserId])
-  @@index([directionId])
 }
 
 // Позиция заявки на обучение: один слушатель — либо существующий Student
@@ -1518,7 +1515,6 @@ model TrainingDirection {
   sortOrder          Int                     @default(0)
   orderItems         OrderItem[]
   certificates       Certificate[]
-  enrollmentRequests EnrollmentRequest[]
   // У-33 (этап 6): направление теперь и у позиции заявки, не только у шапки.
   enrollmentItems    EnrollmentRequestItem[]
 

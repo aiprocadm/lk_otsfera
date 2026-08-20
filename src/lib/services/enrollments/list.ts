@@ -86,7 +86,8 @@ export async function listEnrollmentRequests(
   if (opts.search) {
     and.push({
       OR: [
-        { direction: { name: { contains: opts.search, mode: 'insensitive' } } },
+        // `У-36`: направление живёт в позициях, шапочного поля больше нет.
+        { items: { some: { direction: { name: { contains: opts.search, mode: 'insensitive' } } } } },
         { legacyCourseTitle: { contains: opts.search, mode: 'insensitive' } },
         { items: { some: { fullName: { contains: opts.search, mode: 'insensitive' } } } },
         { items: { some: { email: { contains: opts.search, mode: 'insensitive' } } } },
@@ -103,7 +104,6 @@ export async function listEnrollmentRequests(
       organization: { select: { name: true } },
       partner: { select: { name: true } },
       submittedByUser: { select: { name: true } },
-      direction: { select: { name: true } },
       items: {
         orderBy: { createdAt: 'asc' },
         select: {
@@ -141,7 +141,9 @@ export async function listEnrollmentRequests(
       }));
       return {
         id: r.id,
-        directionName: r.direction?.name ?? r.legacyCourseTitle ?? '—',
+        // `У-36`: подпись берётся из позиций; `legacyCourseTitle` — резерв
+        // для старых заявок, где курс вписан текстом.
+        directionName: itemDirectionNames(items)[0] ?? r.legacyCourseTitle ?? '—',
         directionNames: itemDirectionNames(items),
         studentCount: items.length,
         firstStudentName: items[0]?.fullName ?? null,

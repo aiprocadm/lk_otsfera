@@ -261,13 +261,14 @@ export async function recentEnrollments(
       status: true,
       createdAt: true,
       legacyCourseTitle: true,
-      direction: { select: { name: true } },
+      // `У-36`: направление живёт в позициях — берём первое из них.
+      items: { select: { direction: { select: { name: true } } }, take: 1 },
       _count: { select: { items: true } },
     },
   });
   return rows.map((r) => ({
     id: r.id,
-    directionName: r.direction?.name ?? r.legacyCourseTitle ?? '—',
+    directionName: r.items[0]?.direction?.name ?? r.legacyCourseTitle ?? '—',
     studentCount: r._count.items,
     status: r.status,
     createdAt: r.createdAt,

@@ -330,11 +330,6 @@ export function EnrollmentWizard({
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          // Шапочное направление ещё обязательно на сервере — до `У-36`
-          // (удаление поля) кладём туда обучение первой строки, чтобы старые
-          // экраны показывали осмысленное значение. Строка заведомо есть:
-          // до шага 3 не пускает валидация «добавьте хотя бы одного».
-          directionId: rows[0]!.directionId,
           organizationId: organizationId || null,
           note: note.trim() || null,
           items: rows.map((r) => ({

@@ -117,6 +117,11 @@ export function validateEnrollmentItems(
     // человек может учиться двум разным вещам в одной заявке, но дважды одному
     // и тому же — нет. До этапа 6 ключом был только слушатель.
     const directionId = input.directionId?.trim() || null;
+    // `У-36`: направления на шапке заявки больше нет, подставлять позиции
+    // нечего — значит каждая строка обязана назвать своё обучение сама.
+    // Раньше пустое значение молча заменялось шапочным; теперь это ошибка
+    // формы, а не 500-я от обязательной колонки `EnrollmentRequestItem`.
+    if (!directionId) errors.push(`${name}: не выбрано обучение`);
     const who = studentId ? `id:${studentId}` : email ? `email:${email}` : null;
     const dedupeKey = who ? `${who}|dir:${directionId ?? ''}` : null;
     if (dedupeKey) {
