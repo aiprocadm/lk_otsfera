@@ -3,6 +3,7 @@ import Link from 'next/link';
 import type { ManagerLeadRow } from '@/lib/services/manager/leads';
 import { LeadStatusBadge } from '@/components/partner/lead-status-badge';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
+import { CardList, Card, CardRow } from '@/components/ui/card-list';
 import { fmtMoney } from '@/lib/format';
 
 type Props = {
@@ -27,7 +28,34 @@ export function ManagerLeadsTable({ rows, nextCursor, query }: Props) {
 
   return (
     <div className="space-y-3">
-      <TableShell>
+      {/* `У-18`: колонок шесть — на телефоне таблица уступает место карточкам,
+          иначе страница шире экрана (441px против 390px). */}
+      <CardList>
+        {rows.map((l) => (
+          <Card
+            key={l.id}
+            title={
+              <Link
+                href={`/manager/leads/${l.id}`}
+                className="font-medium text-[#111111] hover:text-[#F97316]"
+              >
+                {l.clientCompanyName}
+              </Link>
+            }
+            actions={<LeadStatusBadge status={l.status} />}
+          >
+            <CardRow label="ИНН">{l.clientInn}</CardRow>
+            <CardRow label="Тема">{l.subject}</CardRow>
+            <CardRow label="Партнёр">{l.partnerName}</CardRow>
+            <CardRow label="Оценка">
+              {l.estimatedAmount ? fmtMoney(l.estimatedAmount) : null}
+            </CardRow>
+            <CardRow label="Менеджер">{l.assignedManagerName}</CardRow>
+          </Card>
+        ))}
+      </CardList>
+
+      <TableShell className="hidden md:block">
         <THead>
           <Th>Клиент</Th>
           <Th>Тема</Th>

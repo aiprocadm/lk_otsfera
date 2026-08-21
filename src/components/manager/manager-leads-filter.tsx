@@ -45,8 +45,11 @@ export function ManagerLeadsFilter({ query }: { query: Query }) {
           </Link>
         ))}
       </div>
-      <div className="flex items-center gap-3">
-        <form method="get" action="/manager/leads" className="flex gap-2">
+      {/* `У-13`: поиск шириной 256px + кнопка + ссылка не помещаются в строку
+          телефона (424px против 390px) — разрешаем перенос, а поле делаем
+          растяжимым вместо жёсткой ширины. */}
+      <div className="flex flex-wrap items-center gap-3">
+        <form method="get" action="/manager/leads" className="flex w-full gap-2 sm:w-auto">
           {query.status && <input type="hidden" name="status" value={query.status} />}
           {mine && <input type="hidden" name="assignedToMe" value="1" />}
           <input
@@ -54,7 +57,7 @@ export function ManagerLeadsFilter({ query }: { query: Query }) {
             name="q"
             defaultValue={query.q ?? ''}
             placeholder="Поиск: клиент, тема, ИНН"
-            className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg w-64"
+            className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg w-full min-w-0 sm:w-64"
           />
           <button
             type="submit"

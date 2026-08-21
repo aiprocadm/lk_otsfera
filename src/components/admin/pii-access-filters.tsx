@@ -18,7 +18,10 @@ type Props = {
   };
 };
 
-const inputCls = 'mt-1 border border-gray-200 rounded px-2 py-1.5 text-sm';
+// `У-13`: на телефоне поле занимает всю ширину строки и может сжиматься —
+// иначе `<select>` распирает страницу по самому длинному варианту списка
+// («Все контексты», «Список слушателей», …), и экран становится 431px при 390px.
+const inputCls = 'mt-1 w-full min-w-0 border border-gray-200 rounded px-2 py-1.5 text-sm';
 
 export function PiiAccessFilters({ basePath, contexts, subjectTypes, actors, current }: Props) {
   const hasActive =
@@ -35,7 +38,7 @@ export function PiiAccessFilters({ basePath, contexts, subjectTypes, actors, cur
       method="get"
       className="flex flex-wrap items-end gap-2 bg-white border border-gray-200 rounded-xl p-3"
     >
-      <label className="flex flex-col text-xs text-gray-500">
+      <label className="flex w-full flex-col text-xs text-gray-500 sm:w-auto">
         Сотрудник
         <select name="actorUserId" defaultValue={current.actorUserId ?? ''} className={inputCls}>
           <option value="">Все сотрудники</option>
@@ -44,7 +47,7 @@ export function PiiAccessFilters({ basePath, contexts, subjectTypes, actors, cur
           ))}
         </select>
       </label>
-      <label className="flex flex-col text-xs text-gray-500">
+      <label className="flex w-full flex-col text-xs text-gray-500 sm:w-auto">
         Роль
         <select name="userRole" defaultValue={current.userRole ?? ''} className={inputCls}>
           <option value="">Все роли</option>
@@ -53,7 +56,7 @@ export function PiiAccessFilters({ basePath, contexts, subjectTypes, actors, cur
           <option value="leader">leader</option>
         </select>
       </label>
-      <label className="flex flex-col text-xs text-gray-500">
+      <label className="flex w-full flex-col text-xs text-gray-500 sm:w-auto">
         Контекст
         <select name="context" defaultValue={current.context ?? ''} className={inputCls}>
           <option value="">Все контексты</option>
@@ -64,7 +67,7 @@ export function PiiAccessFilters({ basePath, contexts, subjectTypes, actors, cur
           ))}
         </select>
       </label>
-      <label className="flex flex-col text-xs text-gray-500">
+      <label className="flex w-full flex-col text-xs text-gray-500 sm:w-auto">
         Тип субъекта
         <select name="subjectType" defaultValue={current.subjectType ?? ''} className={inputCls}>
           <option value="">Все типы</option>
@@ -75,7 +78,7 @@ export function PiiAccessFilters({ basePath, contexts, subjectTypes, actors, cur
           ))}
         </select>
       </label>
-      <label className="flex flex-col text-xs text-gray-500">
+      <label className="flex w-full flex-col text-xs text-gray-500 sm:w-auto">
         ID субъекта
         <input
           type="text"
@@ -85,11 +88,11 @@ export function PiiAccessFilters({ basePath, contexts, subjectTypes, actors, cur
           className={inputCls}
         />
       </label>
-      <label className="flex flex-col text-xs text-gray-500">
+      <label className="flex w-full flex-col text-xs text-gray-500 sm:w-auto">
         С
         <input type="date" name="from" defaultValue={current.from ?? ''} className={inputCls} />
       </label>
-      <label className="flex flex-col text-xs text-gray-500">
+      <label className="flex w-full flex-col text-xs text-gray-500 sm:w-auto">
         По
         <input type="date" name="to" defaultValue={current.to ?? ''} className={inputCls} />
       </label>

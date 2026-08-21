@@ -56,13 +56,24 @@ describe('ManagerLeadsTable', () => {
     expect(html).toContain('Менеджер Петров');
   });
 
-  it('renders — for missing clientInn, estimatedAmount, and assignedManagerName', () => {
+  it('пустые ИНН, оценка и менеджер: в таблице строки нет, в карточке — прочерк', () => {
     const rows = [makeRow({ clientInn: null, estimatedAmount: null, assignedManagerName: null })];
     const html = renderToString(
       React.createElement(ManagerLeadsTable, { rows, nextCursor: null, query: {} })
     );
-    expect(html).not.toContain('ИНН');
+    // `У-18`: рядом с таблицей живёт карточный вид для телефона. В таблице
+    // строка ИНН не рисуется вовсе, а карточка по правилу примитива
+    // показывает подпись с прочерком — поэтому слово встречается РОВНО раз.
+    expect(html.split('ИНН').length - 1).toBe(1);
     expect(html).toContain('—');
+  });
+
+  it('заполненный ИНН виден и в таблице, и в карточке', () => {
+    const rows = [makeRow({ clientInn: '7712345678' })];
+    const html = renderToString(
+      React.createElement(ManagerLeadsTable, { rows, nextCursor: null, query: {} })
+    );
+    expect(html.split('7712345678').length - 1).toBe(2);
   });
 
   it('renders "Дальше" link carrying status/q/assignedToMe + cursor', () => {
