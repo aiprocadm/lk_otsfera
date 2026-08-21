@@ -45,7 +45,9 @@ describe('AdminDocumentsPage', () => {
 
     expect(requireAdmin).toHaveBeenCalled();
     expect(listGeneralDocuments).not.toHaveBeenCalled();
-    expect(container.textContent).toContain('Admin · Documents');
+    // `У-73`: обе вкладки отвечают на «где я» и «что здесь делают» по-русски.
+    expect(container.querySelector('h1')?.textContent).toBe('Документы');
+    expect(container.textContent).toContain('привязанные к заказам клиентов');
     expect(container.querySelector('[data-testid="documents-panel"]')).not.toBeNull();
     const ordersChip = Array.from(container.querySelectorAll('a')).find((a) =>
       a.textContent?.includes('По заказам')
