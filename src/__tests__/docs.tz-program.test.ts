@@ -22,6 +22,7 @@ const STATUS_PATH = path.join(TZ_DIR, 'STATUS.md');
 const AUDIT_PATH = path.join(TZ_DIR, 'AUDIT.md');
 const CLAUDE_PATH = path.join(ROOT, 'CLAUDE.md');
 const ARCHITECTURE_PATH = path.join(ROOT, 'docs', 'ARCHITECTURE.md');
+const MAINTENANCE_PATH = path.join(TZ_DIR, 'MAINTENANCE.md');
 
 function read(file: string): string {
   return readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
@@ -232,5 +233,84 @@ describe('протокол «продолжай по ТЗ» — согласов
       'Эти требования отсутствуют в docs/tz/AUDIT.md — сверить код с ТЗ по ним будет нечем ' +
         `(CLAUDE.md §16): ${missing.map((n) => `У-${n}`).join(', ')}`
     ).toEqual([]);
+  });
+});
+
+/**
+ * Режим сопровождения (`У-80`…`У-82` ТЗ 21.08.2026, CLAUDE.md §14).
+ *
+ * Когда все этапы действующего ТЗ стоят в `✅`, фраза «продолжай по ТЗ» ведёт
+ * не к ответу «работы нет», а к реестру проверок `docs/tz/MAINTENANCE.md`:
+ * агент берёт проверку с самой старой датой прогона и выполняет её. Если у
+ * проверки нет колонки «Последний прогон» — выбирать не по чему, и режим
+ * молча вырождается обратно в «работы нет». Поэтому структура реестра
+ * охраняется здесь, а не только описанием в CLAUDE.md.
+ */
+describe('режим сопровождения — реестр проверок MAINTENANCE.md', () => {
+  const CHECK_IDS = Array.from({ length: 10 }, (_, i) => `С-${i + 1}`);
+
+  it('реестр существует, а CLAUDE.md §14 описывает режим сопровождения', () => {
+    expect(
+      existsSync(MAINTENANCE_PATH),
+      'Нет docs/tz/MAINTENANCE.md — по фразе «продолжай по ТЗ» в закрытой программе агенту ' +
+        'нечего выбирать (CLAUDE.md §14, блок «Режим сопровождения»).'
+    ).toBe(true);
+    expect(
+      /^### Режим сопровождения/m.test(read(CLAUDE_PATH)),
+      'В CLAUDE.md §14 нет блока «### Режим сопровождения…» — протокол на случай закрытой ' +
+        'программы потерян, и следующая сессия снова ответит «работы нет».'
+    ).toBe(true);
+  });
+
+  it('у каждой проверки С-1…С-10 есть строка с процедурой и колонкой «Последний прогон»', () => {
+    const lines = read(MAINTENANCE_PATH).split('\n');
+    const header = lines.find((l) => /^\| № \| Проверка \|/.test(l));
+    expect(
+      header,
+      'В MAINTENANCE.md нет таблицы проверок с шапкой «| № | Проверка | … |».'
+    ).toBeDefined();
+    const columns = (header ?? '')
+      .split('|')
+      .map((c) => c.trim())
+      .filter(Boolean);
+    const runIdx = columns.indexOf('Последний прогон');
+    expect(
+      runIdx,
+      'В таблице проверок нет колонки «Последний прогон» — без неё нельзя выбрать самую ' +
+        'старую проверку (шаг 2 режима сопровождения).'
+    ).toBeGreaterThan(-1);
+
+    const missing: string[] = [];
+    const emptyRun: string[] = [];
+    for (const id of CHECK_IDS) {
+      const row = lines.find((l) => l.startsWith(`| ${id} |`));
+      if (!row) {
+        missing.push(id);
+        continue;
+      }
+      const cells = row
+        .split('|')
+        .slice(1, -1)
+        .map((c) => c.trim());
+      if (!cells[runIdx]) emptyRun.push(id);
+    }
+    expect(missing, `В реестре нет проверок: ${missing.join(', ')}`).toEqual([]);
+    expect(
+      emptyRun,
+      'У этих проверок пуста колонка «Последний прогон» (допустимо «не выполнялась», но не ' +
+        `пустота): ${emptyRun.join(', ')}`
+    ).toEqual([]);
+  });
+
+  it('все относительные ссылки реестра ведут на существующие файлы', () => {
+    const dead: string[] = [];
+    for (const m of read(MAINTENANCE_PATH).matchAll(
+      /\]\(((?:\.\.\/)*[^)#:]+\.(?:md|ts|tsx))(?:#[^)]*)?\)/g
+    )) {
+      const target = m[1] ?? '';
+      if (!target) continue;
+      if (!existsSync(path.resolve(TZ_DIR, target))) dead.push(target);
+    }
+    expect(dead, 'Битые ссылки в docs/tz/MAINTENANCE.md:\n' + dead.join('\n')).toEqual([]);
   });
 });

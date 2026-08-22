@@ -6,7 +6,12 @@
 проверено, чем именно и с каким результатом**.
 
 Протокол — [CLAUDE.md §16](../../CLAUDE.md). Прогресс по этапам — [STATUS.md](STATUS.md).
-Действующее ТЗ — [2026-08-08-tz-usability-and-core-gaps.md](2026-08-08-tz-usability-and-core-gaps.md).
+Действующее ТЗ — [2026-08-21-tz-cabinets-documents-integrations.md](2026-08-21-tz-cabinets-documents-integrations.md)
+(требования `У-78`…`У-176`; реестр дефектов `Д-1`…`Д-40` — §3.6 ТЗ, каждый дефект
+закрывается внутри своего `У-N`). Строки `У-1`…`У-77` относятся к закрытому
+[ТЗ понятности](2026-08-08-tz-usability-and-core-gaps.md): они по-прежнему
+описывают ожидаемое поведение и сверяются в режиме сопровождения
+([MAINTENANCE.md](MAINTENANCE.md), проверка `С-2`).
 
 ## Как пользоваться
 
@@ -152,15 +157,18 @@
 > а недоступные роли/флагу разделы пишем в лог прогона отдельной строкой
 > «ПРОПУЩЕН» — чтобы пропуск не выглядел проверкой.
 
-Состояние на **13.08.2026** — **программа закрыта**, финальный полный проход
-по всем требованиям выполнен (§16, закрытие программы):
+Состояние на **21.08.2026** — заведена программа ТЗ кабинетов, документов и
+интеграций: 99 строк `У-78`…`У-176` добавлены; этап 0 (`У-78`…`У-81` —
+указатель, реестры, блок в CLAUDE.md) и `У-82` (страж, проверен мутацией)
+выполнены PR ввода ТЗ; этапы 1–9 — `⏳`. Программа ТЗ понятности закрыта 13.08.2026 полным проходом
+(78 × `✅`):
 
 | Вердикт | Кол-во |
 |---|---|
-| `✅` соответствует | **78** |
-| `⏳` запланировано | 0 |
+| `✅` соответствует | **83** |
+| `⏳` запланировано | **94** |
 | `❌` расхождение | 0 |
-| `⚠` вне объёма | 1 (см. раздел ниже) — расхождение в тексте самого ТЗ, чинить нечего |
+| `⚠` вне объёма | 1 (см. раздел ниже) — расхождение в тексте ТЗ понятности, чинить нечего |
 
 > **Цифры исправлены 19.08.2026, затем требование закрыто.** Сначала здесь
 > стояло «78 × `✅`, 0 × `⏳`», хотя в таблице всё это время была строка `У-36`
@@ -180,6 +188,159 @@
 было отгружено, нарушать было нечего. За этапы 6–9 расхождения появлялись и
 чинились в тех же PR (самое крупное — `У-73`, четыре экрана без подзаголовка,
 найдено приёмкой `У-77`), поэтому итог снова нулевой.
+
+# Программа ТЗ кабинетов, документов и интеграций (21.08.2026) — этапы 0–9
+
+## Блок Q. Ввод ТЗ в действие и режим сопровождения — этап 0
+
+| Требование | Что проверять (наблюдаемое поведение) | Якорь | Вердикт | Сверено |
+|---|---|---|---|---|
+| `У-78` | Указатель на действующее ТЗ одинаков в `CLAUDE.md` §14, `STATUS.md`, `ARCHITECTURE.md`, `AUDIT.md`; первая секция `## Этапы (программа …)` в STATUS.md — таблица этого ТЗ; `docs.tz-program` зелёный | [CLAUDE.md](../../CLAUDE.md) · [STATUS.md](../../docs/tz/STATUS.md) · [ARCHITECTURE.md](../../docs/ARCHITECTURE.md) · [docs.tz-program.test.ts](../../src/__tests__/docs.tz-program.test.ts) | ✅ соответствует (этап 0, PR ввода ТЗ) | 21.08.2026 |
+| `У-79` | На каждое `У-78`…`У-176` есть строка в этом реестре; сводка сходится с таблицами (тест `цифры сводки`) | [AUDIT.md](../../docs/tz/AUDIT.md) — этот файл; проверка — `docs.tz-program` | ✅ соответствует (этап 0, PR ввода ТЗ) | 21.08.2026 |
+| `У-80` | Существует `docs/tz/MAINTENANCE.md` с таблицей `С-1`…`С-10` (процедура, последний прогон, итог), журналом находок и журналом прогонов | [MAINTENANCE.md](../../docs/tz/MAINTENANCE.md) | ✅ соответствует (этап 0, PR ввода ТЗ) | 21.08.2026 |
+| `У-81` | В `CLAUDE.md` §14 вместо блока «Программа закрыта» стоит «Режим сопровождения» с шагами 1–6 и границами; шаг 0 протокола ссылается на него | [CLAUDE.md §14](../../CLAUDE.md) | ✅ соответствует (этап 0, PR ввода ТЗ) | 21.08.2026 |
+| `У-82` | Страж `docs.tz-program`: без `MAINTENANCE.md`, без строки любой из `С-1`…`С-10`, с пустой/переименованной колонкой «Последний прогон», с битой ссылкой или без блока «### Режим сопровождения» в CLAUDE.md — тест падает; проверен мутацией (три поломки, все пойманы) | [docs.tz-program.test.ts](../../src/__tests__/docs.tz-program.test.ts) — `describe('режим сопровождения…')` | ✅ соответствует (этап 0, PR ввода ТЗ) | 21.08.2026 |
+
+## Блок J. Выписка по счёту 51: организации без ИНН — этап 1
+
+| Требование | Что проверять (наблюдаемое поведение) | Якорь | Вердикт | Сверено |
+|---|---|---|---|---|
+| `У-83` | У строки выписки без ИНН в `PaymentImportRow.counterpartyKey` лежит нормализованное название (без кавычек, орг-формы, регистра, `ё`); ключ один и тот же для «ООО Ромашка», «РОМАШКА, ООО» и «ромашка ооо»; у строк, лежавших в очереди до миграции, ключ заполнен бэкфиллом | [matcher.ts](../../src/lib/services/import/oneCAccountCard/matcher.ts) (`normalizeName` — основа), новый модуль `counterparty-key.ts` | ⏳ этап 1 | — |
+| `У-84` | `Organization.nameKey` заполнен у всех организаций после миграции и обновляется при переименовании; индекс есть | [schema.prisma](../../prisma/schema.prisma) | ⏳ этап 1 | — |
+| `У-85` | Контрагент без ИНН получает ИНН из DaData только при одной действующей подсказке с совпавшим ключом; источник `dadata` записан; при выключенной DaData — строка в диагностике | [suggestParty.ts](../../src/lib/services/dadata/suggestParty.ts) | ⏳ этап 1 | — |
+| `У-86` | Импорт выписки создаёт организацию для контрагента без ИНН (с `inn = null` или ИНН из DaData); повторный импорт того же названия не создаёт дубль, а привязывает платёж; аудит `organization_created_auto` с `innSource` | [auto-create.ts](../../src/lib/services/import/oneCAccountCard/auto-create.ts) · [new-counterparties.ts](../../src/lib/services/import/oneCAccountCard/new-counterparties.ts) | ⏳ этап 1 | — |
+| `У-87` | Предпросмотр показывает три группы («с ИНН из файла», «ИНН из DaData», «без ИНН»), галочки и редактируемый ИНН с валидацией; применить без показа списка нельзя | `payment-import-form.tsx` | ⏳ этап 1 | — |
+| `У-88` | Строка с названием, совпадающим по `nameKey` с организацией компании, получает `route: exact` без ИНН; «похожее, но другое» название — в очередь | [matcher.ts](../../src/lib/services/import/oneCAccountCard/matcher.ts) | ⏳ этап 1 | — |
+| `У-89` | Пакетное «Создать организации» в очереди группирует и строки без ИНН; ИНН редактируем, пустой — с предупреждением; после создания все строки того же ключа привязаны | [queue-bulk.ts](../../src/lib/services/import/oneCAccountCard/queue-bulk.ts) · [create-org.ts](../../src/lib/services/import/oneCAccountCard/create-org.ts) | ⏳ этап 1 | — |
+| `У-90` | Очередь из 250 строк показывает счётчик «всего 250», страницы по 50, фильтры и сортировку; `take: 200` удалён | [resolve-queue.ts](../../src/lib/services/import/oneCAccountCard/resolve-queue.ts) | ⏳ этап 1 | — |
+| `У-91` | `extractInn` находит ИНН в «ИНН/КПП …/…» и «ИНН: …» (сейчас — нет); формы «ИНН … КПП», «(ИНН …)», «ИНН…» закреплены регрессами; `extractCounterparty` возвращает чистое название без хвостов ИНН/КПП и скобок | [extractors.ts](../../src/lib/services/import/oneCAccountCard/extractors.ts) | ⏳ этап 1 | — |
+| `У-92` | Диагностика предпросмотра содержит блок «Контрагенты: в файле / с ИНН / через DaData / без ИНН / уже есть / будет создано»; блок «В очередь разбора — почему» расширен причинами создания, словарь причин — в `errors/messages.ts` | [import-batch.ts](../../src/lib/services/import/oneCAccountCard/import-batch.ts) · [payment-import-form.tsx](../../src/components/import/payment-import-form.tsx) · [messages.ts](../../src/lib/errors/messages.ts) | ⏳ этап 1 | — |
+| `У-93` | Интеграционный тест: фикстура реальной раскладки, 5 контрагентов, ИНН у одного, DaData-мок на двух → 5 организаций, 5 платежей, очередь пуста; откат батча возвращает состояние | [import.card51.real-layout.test.ts](../../src/__tests__/import.card51.real-layout.test.ts) · [rollback.ts](../../src/lib/services/import/rollback.ts) | ⏳ этап 1 | — |
+| `У-94` | Карточка организации без ИНН показывает плашку и кнопку «Найти в ЕГРЮЛ» в единой карточке (admin/leader/manager); выбор подсказки заполняет ИНН/КПП/юр. название/ОГРН/адрес; список организаций фильтруется «без ИНН» | [suggestParty.ts](../../src/lib/services/dadata/suggestParty.ts) | ⏳ этап 2 | — |
+
+## Блок K. Единая карточка организации и сотрудники во вкладке — этап 2
+
+| Требование | Что проверять (наблюдаемое поведение) | Якорь | Вердикт | Сверено |
+|---|---|---|---|---|
+| `У-95` | Вкладки карточки организации во всех кабинетах берутся из одного реестра `orgCardTabs.ts`; страж: одинаковый ключ ⇒ одинаковые название и значок | `src/lib/navigation/orgCardTabs.ts` (новый); сейчас — [org-card-tabs.tsx](../../src/components/manager/org-card-tabs.tsx) и [org-tabs.tsx](../../src/components/partner/org-tabs.tsx) | ⏳ этап 2 | — |
+| `У-96` | Порядок вкладок: Обзор · Сотрудники · Заказы · Заявки на обучение · Документы · Оплаты · Удостоверения · Обращения · Комментарии · История · Настройки (+ Лиды · Сделки · Переписка · Звонки · Входящие письма у сотрудников ЦО); названия по глоссарию; плитка партнёра — «Заказов» | [glossary.md](../../docs/glossary.md) · [org-card-header.tsx](../../src/components/partner/org-card-header.tsx) | ⏳ этап 2 | — |
+| `У-97` | Вкладка «Сотрудники» у партнёра, менеджера, руководителя, админа показывает `Student`; добавленный через кнопку сотрудник появляется в этом же списке; карточка сотрудника открывается внутри карточки организации с крошками | [orgEmployees.ts](../../src/lib/services/partner/orgEmployees.ts) · [org-employees-tab.tsx](../../src/components/partner/org-employees-tab.tsx) | ⏳ этап 2 | — |
+| `У-98` | `OrganizationUser` везде подписан «Доступ в кабинет» и живёт на вкладке «Настройки» карточки; строка есть в глоссарии; старых подписей в UI нет (grep) | [customer-access-section.tsx](../../src/components/partner/customer-access-section.tsx) · [glossary.md](../../docs/glossary.md) | ⏳ этап 2 | — |
+| `У-99` | Вкладка «Настройки» карточки: реквизиты, доступ в кабинет, ответственные менеджеры, ставка комиссии (admin/leader; партнёру — чтение по `У-3`), доп. поля | [requisites-card.tsx](../../src/components/requisites/requisites-card.tsx) | ⏳ этап 2 | — |
+| `У-100` | У заказчика есть `/organization/company` с вкладками реестра (Обзор · Сотрудники · Заказы · Заявки на обучение · Документы · Удостоверения · Комментарии · История · Настройки; реквизиты и доступ в кабинет — на «Настройках»); `/organization/students` и `/organization/team` редиректят на вкладки; порядок меню — новый; тест порядка переписан | [cabinet.ts](../../src/lib/navigation/cabinet.ts) | ⏳ этап 2 | — |
+| `У-101` | `/leader/organizations/[id]` существует, крошки ведут в `/leader/organizations`; `/admin/organizations/[id]` — вкладки того же реестра, а не простыня | [manager/organizations/[id]/page.tsx](../../src/app/manager/organizations/[id]/page.tsx) · [admin/organizations/[id]/page.tsx](../../src/app/admin/organizations/[id]/page.tsx) | ⏳ этап 2 | — |
+| `У-102` | Плитки «Заказы / Сотрудники / Доступ в кабинет / Задолженность» показывают одинаковые числа для одной организации во всех кабинетах; `Organization.users` в плитках не используется | [organizationCard.ts](../../src/lib/services/manager/organizationCard.ts) · [admin/organizations.ts](../../src/lib/services/admin/organizations.ts) | ⏳ этап 2 | — |
+| `У-103` | Пункта «Сотрудники» в меню менеджера нет; `/manager/students` редиректит с подсказкой; поиск по сотрудникам работает из палитры; `createStudentAction` ревалидирует все экраны сотрудника | [students.ts](../../src/server-actions/students.ts) | ⏳ этап 2 | — |
+| `У-104` | `manager-org-card.tsx` удалён (knip зелёный); самостоятельных кнопок «Добавить сотрудника» вне вкладки нет | [manager-org-card.tsx](../../src/components/manager/manager-org-card.tsx) | ⏳ этап 2 | — |
+| `У-105` | Каждая плитка «Частых задач» ведёт на экран, где есть обещанная главная кнопка (страж по реестру) | [quickTasks.ts](../../src/lib/quickTasks.ts) | ⏳ этап 2 | — |
+
+## Блок L. Зеркальная логика кабинетов — этап 3
+
+| Требование | Что проверять (наблюдаемое поведение) | Якорь | Вердикт | Сверено |
+|---|---|---|---|---|
+| `У-106` | У каждого пункта `navByRole` есть `sectionKey`; `label` берётся из `sectionLabels.ts`; страж: одинаковый `sectionKey` ⇒ одинаковые `label` и `iconKey`, H1 страницы = label | [cabinet.ts](../../src/lib/navigation/cabinet.ts) · [navigation.same-section-same-name.guardrail.test.ts](../../src/__tests__/navigation.same-section-same-name.guardrail.test.ts) | ⏳ этап 3 | — |
+| `У-107` | Пункты меню и H1 совпадают: «Комиссионные отчёты», «Корректировки комиссии», «Загрузка Excel из 1С», «Выписка по счёту 51», «Дополнительные поля», «Роли доступа», «Здоровье системы», «Доступ к персональным данным», «Автообмен с 1С», «Воронка продаж», «Главная» у руководителя, «Кабинет слушателя»; глоссарий обновлён | [one-c-tabs.tsx](../../src/components/settings/one-c-tabs.tsx) · [leader/dashboard/page.tsx](../../src/app/leader/dashboard/page.tsx) | ⏳ этап 3 | — |
+| `У-108` | Подпись любой вкладки карточки берётся из `orgCardTabs.ts`, подпись плитки — из реестра плиток; страж падает на подписи вне реестров (проверен мутацией) | `src/lib/navigation/orgCardTabs.ts` (новый) · [org-card-tabs.tsx](../../src/components/manager/org-card-tabs.tsx) | ⏳ этап 3 | — |
+| `У-109` | `/partner/orders` открывает заказы партнёра; `/partner/deals` отвечает постоянным редиректом; компонентов `partner/deal*` нет; `MOBILE_TABS.partner` обновлён тем же PR | [partner/deals/page.tsx](../../src/app/partner/deals/page.tsx) · [mobileTabs.ts](../../src/lib/navigation/mobileTabs.ts) | ⏳ этап 3 | — |
+| `У-110` | У руководителя есть `/leader/documents`, `/leader/messages`, карточка организации; колокольчик `/leader` — для роли `leader` | [leader/layout.tsx](../../src/app/leader/layout.tsx) · [cabinet.ts](../../src/lib/navigation/cabinet.ts) | ⏳ этап 3 | — |
+| `У-111` | В шапке роли `leader` — переключатель «Руководитель / Менеджер»; пунктов «Кабинет руководителя» и «Мои заказы» в меню нет; переход сохраняет раздел | [cabinet.ts](../../src/lib/navigation/cabinet.ts) | ⏳ этап 3 | — |
+| `У-112` | `/admin/orders` — таблица заказов по всем компаниям с фильтрами; карточка заказа админа содержит список документов и загрузку (генерация — `У-144`); «Поиск» в меню админа (сознательное расширение `У-75`); шапка «Кабинет администратора · e-mail» | [admin/orders/page.tsx](../../src/app/admin/orders/page.tsx) · [admin/layout.tsx](../../src/app/admin/layout.tsx) | ⏳ этап 3 | — |
+| `У-113` | Группы меню admin/leader/manager идут в одном порядке (Главная · Работа · Продажи · Клиенты · Документы · Финансы · Коммуникации · Аналитика · Настройки · Справка); у менеджера один пункт «Обмен с 1С» с вкладками | [cabinet.ts](../../src/lib/navigation/cabinet.ts) | ⏳ этап 3 | — |
+| `У-114` | «Настройки» закреплены внизу во всех кабинетах; личные настройки — один компонент; у admin/leader раздел «Личные настройки» в хабе; у manager/partner/organization вкладки Профиль · Уведомления · Безопасность | [settings.ts](../../src/lib/navigation/settings.ts) · [manager/settings/page.tsx](../../src/app/manager/settings/page.tsx) | ⏳ этап 3 | — |
+| `У-115` | Меню заказчика и партнёра — одинаковый порядок; H1 главной «Главная» у обоих; одинаковая шапка; загрузка документа без заказа на экране «Документы» и экспорт финансов есть у обоих | [partner/documents/page.tsx](../../src/app/partner/documents/page.tsx) · [partner/finance/page.tsx](../../src/app/partner/finance/page.tsx) | ⏳ этап 3 | — |
+| `У-116` | У admin/leader/manager открываются `/…/enrollments/[id]` и `/…/requests/[id]` с действиями сотрудника | `src/app/{admin,leader,manager}/enrollments/[id]` (новые) | ⏳ этап 3 | — |
+| `У-117` | При выключенных opt-in флагах нижняя панель админа и менеджера показывает четыре вкладки (запасные пункты), а не две | [mobileTabs.ts](../../src/lib/navigation/mobileTabs.ts) | ⏳ этап 3 | — |
+| `У-118` | `/leader/settings/integrations/1c` показывает навигатор; вкладки «Автообмен» и «История» у руководителя открываются (200, скоуп компании) | [leader/settings/integrations/1c/page.tsx](../../src/app/leader/settings/integrations/1c/page.tsx) | ⏳ этап 3 | — |
+| `У-119` | В `/admin/users` руководителя можно пригласить и отфильтровать (отображение и повышение менеджера уже работают и сохранены); есть фильтр по компании | [admin/users/page.tsx](../../src/app/admin/users/page.tsx) · [users-filters.tsx](../../src/components/admin/users-filters.tsx) · [user-invite-form.tsx](../../src/components/admin/user-invite-form.tsx) | ⏳ этап 3 | — |
+| `У-120` | Все экраны используют `PageHeader`; страж подзаголовков проверяет каждый H1 файла, а не первый | [pages.subtitles.guardrail.test.ts](../../src/__tests__/pages.subtitles.guardrail.test.ts) | ⏳ этап 3 | — |
+| `У-121` | Страж зеркальности падает на расхождении реестров пар кабинетов, не внесённом в `mirrorExceptions.ts` с причиной; список исключений показан заказчику | `src/lib/navigation/mirrorExceptions.ts` (новый) | ⏳ этап 3 | — |
+
+## Блок P. Всё настраивается из интерфейса — этап 4
+
+| Требование | Что проверять (наблюдаемое поведение) | Якорь | Вердикт | Сверено |
+|---|---|---|---|---|
+| `У-122` | Страж: `process.env.X` в `src/**` вне списка `У-122` (инфраструктура + edge-флаги с причиной) — красная сборка; список задокументирован в `.env.example`; страж включён тем же PR, что закрыл последнюю переехавшую переменную | [.env.example](../../.env.example) | ⏳ этап 4 | — |
+| `У-123` | В форме Telegram/Max/WhatsApp есть «Сгенерировать секрет», адрес вебхука, «Зарегистрировать вебхук»; роуты вебхуков читают секрет через `getSettingValue`; индикатор «задан» читает БД (Mango — `apiSalt` от провайдера, не генерируется) | [telegram/webhook/route.ts](../../src/app/api/integrations/telegram/webhook/route.ts) · [max/webhook/route.ts](../../src/app/api/integrations/max/webhook/route.ts) · [whatsapp/webhook/route.ts](../../src/app/api/integrations/whatsapp/webhook/route.ts) | ⏳ этап 4 | — |
+| `У-124` | `telephony_mango` снят с `FEATURE_PREFIXES`; при выключенном флаге `/manager/calls` и `/api/manager/calls*` отвечают 404, при включённом из БД — 200 без перезапуска; IP-allowlist и адаптер — поля формы; `integrations.ts` и `integrationsHealth.ts` читают флаг одинаково | [featureFlags.ts](../../src/lib/featureFlags.ts) · [integrations.ts](../../src/lib/services/admin/integrations.ts) · [integrationsHealth.ts](../../src/lib/services/admin/integrationsHealth.ts) · [ip.ts](../../src/lib/telephony/mango/ip.ts) | ⏳ этап 4 | — |
+| `У-125` | Форма «Автообмен → Параметры» (только admin): режим live/shadow (подтверждение), таймаут, overlap, компания по умолчанию, лимиты pending, cron каждой задачи с пресетами; воркер подхватывает без рестарта; `cronLabel` удалён; руководитель видит параметры на чтение | [config.ts](../../src/lib/services/oneCSync/config.ts) · [scheduling.ts](../../src/lib/jobs/scheduling.ts) · [syncControl.ts](../../src/lib/services/admin/syncControl.ts) | ⏳ этап 4 | — |
+| `У-126` | Форма «Оповещения»: пороги, канал, тестовая отправка, история срабатываний | [thresholds.ts](../../src/lib/monitoring/thresholds.ts) · [deliver.ts](../../src/lib/monitoring/deliver.ts) | ⏳ этап 4 | — |
+| `У-127` | Экран «Уведомления → Правила»: матрица событие × роль × канал, «вернуть стандартные»; у руководителя — правила компании; диспетчер читает правила из БД с приоритетом компания → платформа → код | [notifications/registry.ts](../../src/lib/notifications/registry.ts) · [channels/dispatch.ts](../../src/lib/notifications/channels/dispatch.ts) | ⏳ этап 4 | — |
+| `У-128` | Шаблоны писем редактируются с подстановками, предпросмотром и тестовой отправкой; неизвестная подстановка — ошибка сохранения | `src/lib/email/templates/` (значения по умолчанию) | ⏳ этап 4 | — |
+| `У-129` | Форма «Политики входа»: TTL кода 2FA, попытки, резервные коды, лимиты входа, TTL приглашения и сброса — с границами | [twoFactor.ts](../../src/lib/services/auth/twoFactor.ts) · [passwordReset.ts](../../src/lib/auth/passwordReset.ts) | ⏳ этап 4 | — |
+| `У-130` | «SLA входящих в работу» — раздел хаба у admin и leader; на `/leader/team` карточки SLA нет; интервал задачи настраивается администратором | [sla-settings-card.tsx](../../src/components/manager/sla-settings-card.tsx) · [settings.ts](../../src/lib/navigation/settings.ts) | ⏳ этап 4 | — |
+| `У-131` | У сохранённого секрета есть «Сбросить — использовать значение сервера» (`clear` доходит до `saveSettings`); `whatsapp.channelId` показывается | [integrationSettings.ts](../../src/lib/config/integrationSettings.ts) · [server-actions/admin/integrationSettings.ts](../../src/server-actions/admin/integrationSettings.ts) | ⏳ этап 4 | — |
+| `У-132` | `APP_ENCRYPTION_KEY` обязателен в production-схеме и шаблоне; без него страница интеграций показывает баннер до сохранения; `/api/health` отражает | [env.ts](../../src/lib/env.ts) · [.env.production.example](../../.env.production.example) | ⏳ этап 4 | — |
+| `У-133` | Тест «холодный процесс, `staff_2fa` включён только в БД» → логин требует 2FA; прайм снапшота флагов (`primeFeatureFlagCache`) при старте и в роутах аутентификации | [login/route.ts](../../src/app/api/auth/login/route.ts) · [featureFlagStore.ts](../../src/lib/config/featureFlagStore.ts) · [instrumentation.ts](../../src/instrumentation.ts) | ⏳ этап 4 | — |
+| `У-134` | Каждая переменная из кода есть в `.env.example` с пометкой «инфраструктура» или «устарело: в интерфейсе»; страж падает на новой переменной без строки | [.env.example](../../.env.example) | ⏳ этап 4 | — |
+| `У-135` | Руководитель видит разделы по `Р-22` (каталог и шаблоны — по мере появления); запрос секрета платформы или параметров подключения 1С ролью `leader` через API → `403` (тест); страж матрицы доступа расширен | [settings.ts](../../src/lib/navigation/settings.ts) · [settingsAccess.ts](../../src/lib/auth/settingsAccess.ts) | ⏳ этап 4 | — |
+
+## Блок M. Каталог услуг и цены — этап 5
+
+| Требование | Что проверять (наблюдаемое поведение) | Якорь | Вердикт | Сверено |
+|---|---|---|---|---|
+| `У-136` | Модель `CatalogItem` и экран «Каталог услуг и цены» у admin/leader: добавление, правка, деактивация, история цен в аудите | [schema.prisma](../../prisma/schema.prisma) | ⏳ этап 5 | — |
+| `У-137` | Импорт каталога из Excel в два шага с сопоставлением по `code`; экспорт | [commission/xlsx.ts](../../src/lib/services/commission/xlsx.ts) | ⏳ этап 5 | — |
+| `У-138` | В реквизитах исполнителя: ставка НДС по умолчанию, «цены включают НДС», логотип, подпись, печать (скан антивирусом), шаблон нумерации; редактирует admin и leader своей компании | [companyRequisites.ts](../../src/lib/services/admin/companyRequisites.ts) | ⏳ этап 5 | — |
+| `У-139` | Модель `OrderLine` отдельно от `OrderItem`; `OrderItem.amount` удалён отдельной миграцией (падает, если хоть одно значение не `null`); «Собрать строки из позиций» группирует по направлению; цена строки не меняется при изменении каталога | [schema.prisma](../../prisma/schema.prisma) · [invariants.price-snapshot.integration.test.ts](../../src/__tests__/invariants.price-snapshot.integration.test.ts) | ⏳ этап 5 | — |
+| `У-140` | Блок «Состав и стоимость» на карточке заказа у сотрудников ЦО: выбор из каталога, количество, цена, скидка, НДС, итоги; `totalAmount` из строк; ручная правка помечена; заказы из 1С — только чтение; инвариант снимка переписан (снимок у строки, прежняя формулировка — для заказов без строк и из 1С) | `src/app/{manager,leader,admin}/orders/[id]` (блок) · [invariants.price-snapshot.integration.test.ts](../../src/__tests__/invariants.price-snapshot.integration.test.ts) | ⏳ этап 5 | — |
+| `У-141` | PDF счёта и акта: таблица № · Наименование · Кол-во · Ед. · Цена · Сумма, «Итого», «В том числе НДС (ставка) — сумма» или «НДС не облагается», «Всего наименований N…», сумма прописью | [orderDocumentPdf.ts](../../src/lib/services/documents/orderDocumentPdf.ts) | ⏳ этап 6 | — |
+| `У-142` | Заказ без строк → одна строка на `totalAmount` со ставкой компании по умолчанию; строку можно отредактировать перед выпуском | [services/documents/generate.ts](../../src/lib/services/documents/generate.ts) | ⏳ этап 6 | — |
+| `У-143` | Расхождение суммы строк и `totalAmount` перед выпуском → предупреждение с тремя вариантами | [services/documents/generate.ts](../../src/lib/services/documents/generate.ts) | ⏳ этап 6 | — |
+
+## Блок N. Документы для заказчика: счёт, акт, договор, ДС — этап 6
+
+| Требование | Что проверять (наблюдаемое поведение) | Якорь | Вердикт | Сверено |
+|---|---|---|---|---|
+| `У-144` | Панель генерации есть на карточке заказа у manager, leader, admin; флаг `document_generation` opt-out, переключается в UI, есть в `.env.example` | [generate-documents-panel.tsx](../../src/components/manager/generate-documents-panel.tsx) · [featureFlags.ts](../../src/lib/featureFlags.ts) | ⏳ этап 6 | — |
+| `У-145` | «Создать документ» на вкладке «Документы» карточки организации и на сделке выпускает счёт/договор/ДС без заказа | [services/documents/generate.ts](../../src/lib/services/documents/generate.ts) | ⏳ этап 6 | — |
+| `У-146` | У документа есть `DocumentLine` и итоги `amountNet/amountVat/amountGross`; правка заказа после выпуска документ не меняет; документы до этапа 6 показывают «—» без бэкфилла | [schema.prisma](../../prisma/schema.prisma) | ⏳ этап 6 | — |
+| `У-147` | Диалог выпуска: тип, контрагент, строки, дата, поля договора/акта/ДС, выбор счёта для акта из списка, предпросмотр PDF | [generate-documents-panel.tsx](../../src/components/manager/generate-documents-panel.tsx) | ⏳ этап 6 | — |
+| `У-148` | Единый `DocumentStatus` (`draft/issued/sent/accepted/rejected/expired/cancelled`) с матрицей переходов по типу (страж `invalid_transition`); существующие документы получили `issued`/`accepted`; у счёта признак оплаты по платежам с привязкой по номеру; статус виден в списках всех кабинетов | [schema.prisma](../../prisma/schema.prisma) | ⏳ этап 6 | — |
+| `У-149` | «Отправить заказчику» шлёт письмо с PDF и ссылкой, ставит `sentAt`; повторная отправка — новое событие аудита | [send.tsx](../../src/lib/email/send.tsx) | ⏳ этап 6 | — |
+| `У-150` | Заказчик видит номер/тип/дату/сумму/статус/версию, скачивает, нажимает «Принять/Подписать» у акта и договора (отметка + аудит + уведомление); «Оплачено» вручную не ставится | [organization/documents.ts](../../src/lib/services/organization/documents.ts) | ⏳ этап 6 | — |
+| `У-151` | Перевыпуск сохраняет номер (версия +1); второй счёт по заказу получает новый номер и не «заменяет» первый; акт ссылается на выбранный счёт через `parentDocumentId`; `@@unique([companyId,type,number,version])` + проверка сервиса «один номер — одна цепочка»; FK у `DocumentCounter`; год по Europe/Moscow; счёт из 1С без номера не активирует «Акт» молча; миграция данных — отдельным PR с `npm run report:document-numbers` до и стражем после | [services/documents/generate.ts](../../src/lib/services/documents/generate.ts) · [generationPanel.ts](../../src/lib/services/documents/generationPanel.ts) · [services.documents.generate.integration.test.ts](../../src/__tests__/services.documents.generate.integration.test.ts) | ⏳ этап 6 | — |
+| `У-152` | Номер резервируется короткой транзакцией; рендер и upload вне транзакции; ключ с UUID; при сбое объект удаляется; коды ошибок по-русски | [services/documents/generate.ts](../../src/lib/services/documents/generate.ts) | ⏳ этап 6 | — |
+| `У-153` | PDF печатает логотип, подпись и печать, если загружены | [orderDocumentPdf.ts](../../src/lib/services/documents/orderDocumentPdf.ts) · [contractDocumentPdf.ts](../../src/lib/services/documents/contractDocumentPdf.ts) | ⏳ этап 6 | — |
+| `У-154` | Скачивание сохраняет файл как «Счёт С-2026-17 от 21.08.2026.pdf» во всех трёх роутах (через существующий `contentDisposition` из `s3.ts`); списки показывают номер и версию | [s3.ts](../../src/lib/storage/s3.ts) · [api/documents/[id]/download/route.ts](../../src/app/api/documents/[id]/download/route.ts) · [api/organization/documents/[id]/download/route.ts](../../src/app/api/organization/documents/[id]/download/route.ts) · [api/manager/documents/[id]/download/route.ts](../../src/app/api/manager/documents/[id]/download/route.ts) | ⏳ этап 6 | — |
+| `У-155` | Партнёр видит счета/акты/договоры организаций портфеля на вкладке «Документы» (чтение); документы организаций вне портфеля — не видит (тест изоляции) | [partner/orgDocuments.ts](../../src/lib/services/partner/orgDocuments.ts) | ⏳ этап 6 | — |
+| `У-156` | Проверка реквизитов зависит от типа документа; ИНН/ОГРН/счёт по контрольным суммам; реквизиты исполнителя правит leader своей компании; списка без `take: 50` | [requisites-check.ts](../../src/lib/documents/requisites-check.ts) · [validate.ts](../../src/lib/requisites/validate.ts) · [companyRequisites.ts](../../src/lib/services/admin/companyRequisites.ts) | ⏳ этап 6 | — |
+| `У-157` | «Запросить реквизиты» пишет аудит и неактивна в течение суток после запроса | [requestRequisites.ts](../../src/lib/services/documents/requestRequisites.ts) | ⏳ этап 6 | — |
+| `У-158` | Менеджер и руководитель загружают документ в заказ с карточки; `adminUpload` ставит тип/направление/размер и путь по `counterpartyId` | [manager-doc-upload-form.tsx](../../src/components/manager/manager-doc-upload-form.tsx) · [adminUpload.ts](../../src/lib/services/documents/adminUpload.ts) | ⏳ этап 6 | — |
+| `У-159` | Каждое действие над документом — в `AuditLog` с русским названием; уведомления `document_published` (номер, сумма), `document_accepted`, `invoice_paid` в реестре и под правилами `У-127` | [audit.ts](../../src/lib/auth/audit.ts) · [labels.ts](../../src/lib/audit/labels.ts) · [notifications/registry.ts](../../src/lib/notifications/registry.ts) | ⏳ этап 6 | — |
+| `У-160` | Раздел «Шаблоны документов»: тексты договора и ДС с подстановками, версия шаблона в документе, «вернуть стандартный» | [contractDocumentPdf.ts](../../src/lib/services/documents/contractDocumentPdf.ts) | ⏳ этап 6 | — |
+
+## Блок N2. Коммерческое предложение — этап 7
+
+| Требование | Что проверять (наблюдаемое поведение) | Якорь | Вердикт | Сверено |
+|---|---|---|---|---|
+| `У-161` | `commercial_proposal` в `DocumentType`; КП создаётся из сделки, обращения, лида, карточки организации без заказа и без полных реквизитов | [schema.prisma](../../prisma/schema.prisma) | ⏳ этап 7 | — |
+| `У-162` | Форма КП: строки, вводный текст, условия, срок действия (умолчание 14 дней — настройка), контактное лицо, предпросмотр | [stages.ts](../../src/lib/services/deals/stages.ts) | ⏳ этап 7 | — |
+| `У-163` | PDF КП с логотипом, таблицей, итогами, условиями, сроком, подписью менеджера; номер `КП-{год}-{N}` из `kind = proposal` | [schema.prisma](../../prisma/schema.prisma) | ⏳ этап 7 | — |
+| `У-164` | Статусы КП — подмножество `DocumentStatus` (`draft → sent → accepted/rejected/expired`, `cancelled`); истечение по `validUntil`; отправка двигает сделку на «КП отправлено»; принятие создаёт заказ со строками и уведомляет | [stages.ts](../../src/lib/services/deals/stages.ts) · [convert.ts](../../src/lib/services/deals/convert.ts) | ⏳ этап 7 | — |
+| `У-165` | Заказчик видит КП, принимает или отклоняет (комментарий обязателен); перевыпуск сохраняет номер | [organization/documents.ts](../../src/lib/services/organization/documents.ts) | ⏳ этап 7 | — |
+| `У-166` | Блок «КП» на карточке сделки и организации; воронка руководителя показывает конверсию «КП отправлено → принято» | `src/app/{manager,leader}/deals/[id]`, `src/app/leader/funnel` | ⏳ этап 7 | — |
+
+## Блок O. Выгрузка документов в 1С — этап 8
+
+| Требование | Что проверять (наблюдаемое поведение) | Якорь | Вердикт | Сверено |
+|---|---|---|---|---|
+| `У-167` | `docs/integrations/1c-contract.md` описывает `POST /api/documents` (ключ `documentPush`) с телом по `У-167`, `lines`/`totals` допускают `null` для legacy; идемпотентность по `externalId` ЛК; КП не выгружается (`Р-14`) | [1c-contract.md](../../docs/integrations/1c-contract.md) | ⏳ этап 8 | — |
+| `У-168` | На `Document` поля `oneCExternalId/oneCPushStatus/oneCPushedAt/oneCPushAttempts/oneCPushError/oneCPushedVersion`; очередь `oneCSync.pushDocument` с процессором и интеграционным тестом; `pushDocument` у fake и rest адаптеров; `mock-1c` принимает и показывает в `/__state` | [adapter.ts](../../src/lib/services/oneCSync/adapter.ts) · [rest-wire.ts](../../src/lib/services/oneCSync/rest-wire.ts) · [queues.ts](../../src/lib/jobs/queues.ts) · [mock-1c/server.ts](../../mock-1c/server.ts) | ⏳ этап 8 | — |
+| `У-169` | Поля `Company.oneCDocumentPushMode`/`oneCDocumentPushTypes` редактируются admin и leader своей компании; на карточке документа статус и кнопки «Выгрузить / Повторить»; массовое действие и фильтр в списке | [schema.prisma](../../prisma/schema.prisma) | ⏳ этап 8 | — |
+| `У-170` | Входящий документ с тем же `externalId` или типом+номером обновляет документ ЛК, не дублируя; файл обновляется с повторным сканом; `direction`/`number` из DTO | [writers.ts](../../src/lib/services/oneCSync/writers.ts) · [schemas.ts](../../src/lib/services/oneCSync/schemas.ts) | ⏳ этап 8 | — |
+| `У-171` | `legalName`, `kpp`, `ogrn`, `legalAddress`, банковские реквизиты и подписант приходят из 1С и пишутся в `Organization`; пустые значения не затирают ручные | [mappers.ts](../../src/lib/services/oneCSync/mappers.ts) · [schemas.ts](../../src/lib/services/oneCSync/schemas.ts) · [writers.ts](../../src/lib/services/oneCSync/writers.ts) | ⏳ этап 8 | — |
+| `У-172` | `reconcile` помечает `pushed`-документы, отсутствующие в 1С, как `failed: missing_in_1c`; зависшие лиды переотправляются или помечаются | [sync-reconcile.ts](../../src/worker/processors/sync-reconcile.ts) · [push.ts](../../src/lib/services/oneCSync/push.ts) | ⏳ этап 8 | — |
+| `У-173` | Вкладка «Выгрузка документов»: фильтр → пакет Excel (листы «Документы», «Строки») + ZIP с PDF; отметка `exported_file`; запись в «Истории» | [one-c-tabs.tsx](../../src/components/settings/one-c-tabs.tsx) | ⏳ этап 8 | — |
+| `У-174` | Светофор 1С показывает «документов не выгружено: N»; история — каждую попытку; порог алерта настраивается | [integrationsHealth.ts](../../src/lib/services/admin/integrationsHealth.ts) | ⏳ этап 8 | — |
+
+## Блок R. Приёмка и закрытие — этап 9
+
+| Требование | Что проверять (наблюдаемое поведение) | Якорь | Вердикт | Сверено |
+|---|---|---|---|---|
+| `У-175` | Чек-лист §0.1/§0.2 пройден по новым и изменённым экранам (воспроизводимая выборка); мобильные эталоны сняты; глоссарий содержит новые термины | [glossary.md](../../docs/glossary.md) · [playwright.config.ts](../../playwright.config.ts) | ⏳ этап 9 | — |
+| `У-176` | Полный drift-аудит `У-1`…`У-176` выполнен, сводка пересчитана; в `MAINTENANCE.md` есть первый полный прогон `С-1`…`С-10` | [AUDIT.md](../../docs/tz/AUDIT.md) · [MAINTENANCE.md](../../docs/tz/MAINTENANCE.md) | ⏳ этап 9 | — |
+
+# Программа ТЗ понятности (08.08.2026, закрыта 13.08.2026) — этапы 1–9
 
 ## Блок A. Безопасность денег — этап 1
 
@@ -339,12 +500,26 @@
 | Расхождение в тексте ТЗ: §0 и `У-73` говорят про «287 маршрутов», фактически `src/app` содержит **143** `page.tsx` и **86** `route.ts` | [STATUS.md](STATUS.md), раздел «Разведка по коду» | Документ заказчика не правим. Приёмку `У-73`/`У-77` считать по 143 экранам; если заказчик имел в виду другое множество — уточнить до этапа 9 |
 | ~~Вложения чата не проверяются антивирусом~~ **✅ ЗАКРЫТО 17.08.2026 по явному выбору заказчика** (PR [#379](https://github.com/aiprocadm/lk_otsfera/pull/379), [спека](../superpowers/specs/2026-08-17-chat-attachment-scan-design.md)). Была дыра: файл, приложенный к сообщению, проходил только синхронные проверки и не попадал в `docs.scanDocument`; направление опасное — грузит клиент, открывает сотрудник | [chat/attachments.ts](../../src/lib/services/chat/attachments.ts) — гейт `clean`-only; `Message.scanStatus` (миграция `20260817120000_chat_attachment_scan`); kind `chat_attachment` в [scan-document.ts](../../src/worker/processors/scan-document.ts) и [scan/backfill.ts](../../src/lib/services/scan/backfill.ts) | Сделано зеркалом служебного чата: `pending` при отправке + постановка скана, скачивание `409 not_ready`/`410 infected`, бейджи «файл проверяется»/«файл заражён» в чате, существующие вложения добраны бэкфиллом миграции + часовым sweep. Найдено 14.08.2026, закрыто 17.08.2026 |
 
-Прежние хвосты, которые действующее ТЗ **явно** вынесло за границу объёма (§6
-ТЗ), перечислены в разделе «Задел на будущее» [STATUS.md](STATUS.md): роль
-руководителя, загрузка документов через API-роут вместо server action, отделы
-(`Department`), визуальные тесты в CI. Сюда их не дублируем.
+Прежние хвосты, которые ТЗ понятности **явно** вынесло за границу объёма (§6
+того ТЗ), перечислены в разделе «Задел на будущее» [STATUS.md](STATUS.md): отделы
+(`Department`), визуальные тесты в CI (роль руководителя и загрузка документов
+через API-роут с тех пор закрыты). Действующее ТЗ кабинетов и документов ведёт
+собственный список «вне объёма» в своём §6 (ЭДО, онлайн-оплата, синхронизация
+номенклатуры, docx-шаблоны, мажорные обновления). Сюда их не дублируем.
 
 ## Журнал сверок
+
+- **21.08.2026 — заведение программы ТЗ кабинетов, документов и интеграций.**
+  Реестр получил 99 строк `У-78`…`У-176` (вердикт `⏳ этап N`, якоря из §3
+  ТЗ); `У-78`…`У-82` закрыты самим PR ввода ТЗ (страж `У-82` проверен
+  мутацией). Их `✅` стоит **до мержа** намеренно: вердикт реестра — про
+  поведение в дереве PR, а не про статус этапа (`✅ готов` в `STATUS.md`
+  ставится после мержа); если PR будет отклонён, исчезнут и строки.
+  Сводка пересчитана: 83 × `✅` (78 прежних + 5 этапа 0), 94 × `⏳`. Дефекты `Д-1`…`Д-40`, найденные
+  тремя аудитами кода `92c683e`, **не заводятся сюда отдельными строками** —
+  каждый привязан к требованию и проверяется внутри него (колонка «Требование»
+  в §3.6 ТЗ). Строки `У-1`…`У-77` закрытой программы остаются в реестре и
+  сверяются проверкой `С-2` режима сопровождения.
 
 - **15.08.2026 — мутационная проверка ВСЕХ сторожей репозитория** (§16, новое
   правило «страж обязан быть проверен мутацией»). Приём: сломать инвариант →
