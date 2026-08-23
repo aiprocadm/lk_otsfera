@@ -12,6 +12,7 @@ import { log } from '@/lib/logging';
 import { normalizeInn } from '@/lib/services/oneCSync/inn';
 import { readSpreadsheet } from './read-spreadsheet';
 import { parseAccountCard } from './parser';
+import { organizationNameKey } from './counterparty-key';
 import { matchRow } from './matcher';
 import { collectNewCounterparties } from './new-counterparties';
 import { resolveNewOrgCompany, createOrganizationsForImport } from './auto-create';
@@ -241,6 +242,9 @@ export async function commitPaymentImport(
             vatAmount: row.vatAmount,
             counterpartyName: row.counterpartyName,
             counterpartyInn: row.counterpartyInn,
+            // `У-83`: ключ контрагента — группировка очереди и привязка
+            // «все строки того же ключа».
+            counterpartyKey: organizationNameKey(row.counterpartyName ?? ''),
             accountCandidates: row.accountCandidates as unknown as Prisma.InputJsonValue,
             status: 'needs_review',
             candidateOrgId: outcome.candidateOrgId,
@@ -257,6 +261,7 @@ export async function commitPaymentImport(
             vatAmount: row.vatAmount,
             counterpartyName: row.counterpartyName,
             counterpartyInn: row.counterpartyInn,
+            counterpartyKey: organizationNameKey(row.counterpartyName ?? ''),
             accountCandidates: row.accountCandidates as unknown as Prisma.InputJsonValue,
             candidateOrgId: outcome.candidateOrgId,
             candidateOrderId: outcome.candidateOrderId,

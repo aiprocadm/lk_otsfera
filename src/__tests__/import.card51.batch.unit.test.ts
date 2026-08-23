@@ -162,6 +162,38 @@ describe('commitPaymentImport', () => {
     expect(upsertPaymentRecord).toHaveBeenCalledTimes(1); // only exact
     expect(tx.paymentImportRow.upsert).toHaveBeenCalledTimes(1); // only queue
     expect(tx.paymentImportBatch.create).toHaveBeenCalledTimes(1);
+    // `У-83`: строка очереди несёт ключ контрагента — обе ветки upsert'а
+    // (повторный импорт того же externalId обязан освежить ключ).
+    const up = tx.paymentImportRow.upsert.mock.calls[0]![0];
+    expect(up.create.counterpartyKey).toBe('B');
+    expect(up.update.counterpartyKey).toBe('B');
+  });
+
+  it('У-83: строка очереди без названия получает counterpartyKey = null', async () => {
+    const tx = {
+      paymentImportBatch: { create: vi.fn().mockResolvedValue({ id: 'batch1' }), update: vi.fn() },
+      paymentImportRow: { upsert: vi.fn(), updateMany: vi.fn() },
+      paymentImportWrite: { create: vi.fn() },
+    };
+    const prisma = {
+      $transaction: vi.fn(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
+      paymentImportBatch: { update: vi.fn() },
+      auditLog: { create: vi.fn() },
+      syncLog: { create: vi.fn() },
+    } as never;
+    const [, second] = parsed();
+    parseAccountCard.mockReturnValue({
+      rows: [{ ...second, counterpartyName: null }],
+      diagnostics: emptyDiagnostics(),
+    });
+
+    await commitPaymentImport(prisma, session, {
+      fileBuffer: Buffer.from(''),
+      fileName: 'c.xlsx',
+    });
+    const up = tx.paymentImportRow.upsert.mock.calls[0]![0];
+    expect(up.create.counterpartyKey).toBeNull();
+    expect(up.update.counterpartyKey).toBeNull();
   });
 
   // `У-59`: без следа записи откатывать нечего — до этого writer возвращал

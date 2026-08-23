@@ -365,7 +365,8 @@ describe('updateOrganization()', () => {
 
     expect(tx.organization.update).toHaveBeenCalledWith({
       where: { id: 'org1' },
-      data: { name: 'New Name' },
+      // `У-84`: переименование пересчитывает ключ названия.
+      data: { name: 'New Name', nameKey: 'NEW NAME' },
     });
   });
 
@@ -508,6 +509,8 @@ describe('createOrganization()', () => {
     const orgData = orgCreate.mock.calls[0][0].data;
     expect(orgData).toMatchObject({
       name: 'ООО Ромашка',
+      // `У-84`: ключ названия — при каждом создании.
+      nameKey: 'РОМАШКА',
       inn: '7712345678',
       kpp: '771201001',
       externalId: null,

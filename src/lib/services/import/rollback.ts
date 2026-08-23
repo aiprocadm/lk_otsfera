@@ -3,6 +3,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { mayImportOneC } from '@/lib/auth/managerPolicy';
 import { importScope } from '@/lib/services/oneCSync/scope';
 import { recordAudit, type AuditEntity } from '@/lib/auth/audit';
+import { organizationNameKey } from './oneCAccountCard/counterparty-key';
 
 /**
  * Откат импорта 1С (ТЗ починки импорта, Т-35…Т-40) — теперь для двух каналов
@@ -571,6 +572,10 @@ function restoreData(entity: string, before: Record<string, unknown>): Record<st
   if (entity === 'organization') {
     return {
       name: before.name,
+      // `У-84`: восстановили имя — пересчитали и ключ; иначе ключ остался бы
+      // от отменённого переименования. Снимки старше колонки nameKey имени не
+      // несут — тогда и ключ не трогаем.
+      ...(typeof before.name === 'string' ? { nameKey: organizationNameKey(before.name) } : {}),
       inn: before.inn,
       kpp: before.kpp,
       externalId: before.externalId,

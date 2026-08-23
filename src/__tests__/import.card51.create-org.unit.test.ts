@@ -172,7 +172,14 @@ describe('создание и привязка', () => {
     expect(
       (db as { organization: { create: ReturnType<typeof vi.fn> } }).organization.create
     ).toHaveBeenCalledWith({
-      data: { name: 'ООО Новая', inn: VALID_INN, kpp: '770701001', companyId: 'co-1' },
+      data: {
+        name: 'ООО Новая',
+        // `У-84`: ключ названия — при каждом создании.
+        nameKey: 'НОВАЯ',
+        inn: VALID_INN,
+        kpp: '770701001',
+        companyId: 'co-1',
+      },
       select: { id: true },
     });
     expect(resolveQueueRow).toHaveBeenCalledWith(db, LEADER, {
@@ -197,7 +204,7 @@ describe('создание и привязка', () => {
     expect(
       (db as { organization: { create: ReturnType<typeof vi.fn> } }).organization.create
     ).toHaveBeenCalledWith({
-      data: { name: 'ООО Новая', inn: VALID_INN, kpp: null, companyId: 'co-x' },
+      data: { name: 'ООО Новая', nameKey: 'НОВАЯ', inn: VALID_INN, kpp: null, companyId: 'co-x' },
       select: { id: true },
     });
   });

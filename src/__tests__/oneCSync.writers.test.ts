@@ -232,7 +232,8 @@ describe('upsertOrgRecord', () => {
     const sum = emptySummary();
     await upsertOrgRecord(d, orgDto, sum, { mode: 'live', notify: false, createCompanyId: 'co1' });
     expect(d.organization.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ companyId: 'co1', partnerId: 'p1' }),
+      // `У-84`: создание из 1С-синка тоже пишет ключ названия.
+      data: expect.objectContaining({ companyId: 'co1', partnerId: 'p1', nameKey: 'ACME' }),
       select: { id: true },
     });
     expect(sum.created).toBe(1);
@@ -313,7 +314,13 @@ describe('upsertOrgRecord', () => {
     expect(d.organization.create).not.toHaveBeenCalled();
     expect(d.organization.update).toHaveBeenCalledWith({
       where: { id: 'o-inn' },
-      data: expect.objectContaining({ externalId: 'ORG-1', inn: '77', name: 'Acme' }),
+      // `У-84`: 1С-синк при обновлении имени пересчитывает ключ названия.
+      data: expect.objectContaining({
+        externalId: 'ORG-1',
+        inn: '77',
+        name: 'Acme',
+        nameKey: 'ACME',
+      }),
     });
     expect(sum.updated).toBe(1);
     expect(sum.created).toBe(0);
@@ -335,7 +342,7 @@ describe('upsertOrgRecord', () => {
     expect(d.organization.create).not.toHaveBeenCalled();
     const data = d.organization.update.mock.calls[0][0].data;
     expect('externalId' in data).toBe(false); // preserve E-OLD, never clobber
-    expect(data).toMatchObject({ inn: '77', name: 'Acme' });
+    expect(data).toMatchObject({ inn: '77', name: 'Acme', nameKey: 'ACME' });
     expect(sum.updated).toBe(1);
   });
 });

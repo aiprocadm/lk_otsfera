@@ -714,6 +714,10 @@ model Organization {
   createdAt                      DateTime                           @default(now())
   updatedAt                      DateTime                           @updatedAt
   name                           String
+  // `У-84`: нормализованный ключ названия (алгоритм counterparty-key.ts) для
+  // дедупликации и точного сопоставления без ИНН; пишется при создании и
+  // переименовании, существующие строки заполнены бэкфиллом миграции.
+  nameKey                        String?
   externalId                     String?                            @unique
   inn                            String?                            @unique
   kpp                            String?
@@ -762,6 +766,8 @@ model Organization {
   // (managerPolicy.managerOrgScope → manager/organizations listOrganizations,
   // manager/finance overview). companyId had no index at all.
   @@index([companyId])
+  // `У-84`/`У-88`: точный поиск по ключу названия в скоупе компании.
+  @@index([companyId, nameKey])
 }
 
 model OrganizationUser {
@@ -1733,6 +1739,11 @@ model PaymentImportRow {
   counterpartyName   String?
   counterpartyInn    String?
   accountCandidates  Json
+  // `У-83`: ключ контрагента (counterparty-key.ts) — группировка очереди и
+  // привязка «все строки того же ключа»; старые строки заполнены бэкфиллом.
+  counterpartyKey    String?
+  // `У-85`: источник ИНН — 'file' | 'dadata' | 'manual'; заполняет PR-3.
+  counterpartyInnSource String?
   status             String             @default("needs_review")
   candidateOrgId     String?
   candidateOrderId   String?
@@ -1742,6 +1753,7 @@ model PaymentImportRow {
 
   @@index([status, createdAt])
   @@index([batchId])
+  @@index([counterpartyKey])
 }
 
 model InboundMessage {

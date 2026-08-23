@@ -5,6 +5,7 @@ import { importScope } from '@/lib/services/oneCSync/scope';
 import { normalizeInn, isValidInn } from '@/lib/services/oneCSync/inn';
 import { recordAudit } from '@/lib/auth/audit';
 import { log } from '@/lib/logging';
+import { organizationNameKey } from './counterparty-key';
 import { resolveQueueRow } from './resolve-queue';
 
 /**
@@ -68,7 +69,14 @@ export async function createOrgFromQueueRow(
   }
 
   const created = await prisma.organization.create({
-    data: { name, inn, kpp: args.kpp?.trim() || null, companyId },
+    // `У-84`: ключ названия — при каждом создании.
+    data: {
+      name,
+      nameKey: organizationNameKey(name),
+      inn,
+      kpp: args.kpp?.trim() || null,
+      companyId,
+    },
     select: { id: true },
   });
   try {

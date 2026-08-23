@@ -119,19 +119,27 @@ export function extractAccountCandidates(text: string | null | undefined): strin
   return found;
 }
 
-/** Наименование контрагента — строка 1 col[3], без хвостового 'ИНН <digits>'. */
+/**
+ * Наименование контрагента — строка 1 col[3], без хвостов с ИНН (`У-91`):
+ * «ИНН <цифры>», «ИНН: <цифры>», «ИНН/КПП <цифры>/<цифры>» в конце строки и
+ * скобки с ИНН/КПП в любом месте.
+ */
 export function extractCounterparty(col3: string | null | undefined): string | null {
   if (!col3) return null;
   // String.split всегда возвращает минимум один элемент — [0] существует.
   const line1 = col3.split('\n')[0]!.trim();
-  const cleaned = line1.replace(/\s*ИНН\s*\d{10,12}\s*$/i, '').trim();
+  const cleaned = line1
+    .replace(/\s*\(\s*ИНН[^)]*\)/gi, ' ')
+    .replace(/\s*ИНН(?:\s*\/\s*КПП)?\s*:?\s*\d{10,12}(?:\s*\/\s*\d{9})?\s*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
   return cleaned || null;
 }
 
-/** ИНН рядом с маркером 'ИНН'. */
+/** ИНН рядом с маркером 'ИНН' — включая формы «ИНН: …» и «ИНН/КПП …/…» (`У-91`). */
 export function extractInn(text: string | null | undefined): string | null {
   if (!text) return null;
-  const m = text.match(/ИНН\s*(\d{10,12})\b/i);
+  const m = text.match(/ИНН(?:\s*\/\s*КПП)?\s*:?\s*(\d{10,12})\b/i);
   // Группа 1 обязательна в паттерне: если match сработал, она заполнена.
   return m ? m[1]! : null;
 }

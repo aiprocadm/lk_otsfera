@@ -1,5 +1,6 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
 import { recordAudit } from '@/lib/auth/audit';
+import { organizationNameKey } from '@/lib/services/import/oneCAccountCard/counterparty-key';
 
 export type AdminOrgErrorCode = 'forbidden' | 'not_found' | 'validation' | 'inn_exists';
 
@@ -174,7 +175,15 @@ export async function createOrganization(
     const id = await prisma.$transaction(async (tx) => {
       const company = await tx.company.create({ data: { name } });
       const org = await tx.organization.create({
-        data: { name, inn, kpp, externalId: null, companyId: company.id },
+        // `У-84`: ключ названия — при каждом создании.
+        data: {
+          name,
+          nameKey: organizationNameKey(name),
+          inn,
+          kpp,
+          externalId: null,
+          companyId: company.id,
+        },
       });
       await recordAudit(tx, {
         userId: actorUserId,
@@ -218,7 +227,10 @@ export async function updateOrganization(
       await tx.organization.update({
         where: { id },
         data: {
-          ...(args.name !== undefined ? { name: args.name } : {}),
+          // `У-84`: переименование пересчитывает ключ названия.
+          ...(args.name !== undefined
+            ? { name: args.name, nameKey: organizationNameKey(args.name) }
+            : {}),
           ...(args.inn !== undefined ? { inn: args.inn } : {}),
           ...(args.kpp !== undefined ? { kpp: args.kpp } : {}),
         },
