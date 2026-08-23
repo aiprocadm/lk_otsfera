@@ -399,24 +399,25 @@ describe('commitPaymentImport (cov)', () => {
 
 describe('listQueue (cov)', () => {
   it('returns [] for a non-staff role', async () => {
-    expect(await listQueue(prisma, orgSession)).toEqual([]);
+    // `У-90`: сервис отдаёт страницу со счётчиком, а не голый массив.
+    expect(await listQueue(prisma, orgSession)).toEqual({ rows: [], total: 0 });
   });
 
   it('admin sees needs_review rows unscoped by company', async () => {
-    const rows = await listQueue(prisma, adminSession);
+    const { rows } = await listQueue(prisma, adminSession);
     const ids = rows.map((r) => r.externalId);
     expect(ids).toContain(ROW_EXT.scope);
     expect(ids).not.toContain(ROW_EXT.resolved);
   });
 
   it('manager is scoped to its own company batches', async () => {
-    const rows = await listQueue(prisma, managerInCompany);
+    const { rows } = await listQueue(prisma, managerInCompany);
     expect(rows.every((r) => typeof r.id === 'string')).toBe(true);
     expect(rows.map((r) => r.externalId)).toContain(ROW_EXT.scope);
   });
 
   it('manager without a company matches the __none__ sentinel → no rows', async () => {
-    const rows = await listQueue(prisma, managerNoCompany);
+    const { rows } = await listQueue(prisma, managerNoCompany);
     expect(rows.map((r) => r.externalId)).not.toContain(ROW_EXT.scope);
   });
 });

@@ -609,6 +609,36 @@ describe('upsertPaymentRecord', () => {
     });
     expect(sum.created).toBe(1);
   });
+  // `У-88`: локальная адресация организации по id ЛК доезжает до резолвера.
+  it('передаёт organizationId в resolveOrganizationRef (организация без ИНН)', async () => {
+    const d = pdb();
+    resolveOrganizationRef.mockResolvedValue({
+      id: 'org-local',
+      companyId: 'c',
+      partnerId: null,
+      externalId: null,
+    });
+    const sum = emptySummary();
+    const dto = {
+      externalId: 'P3',
+      organizationId: 'org-local',
+      amount: 50,
+      paidAt: '2026-04-01T00:00:00Z',
+      isRefund: false,
+      updatedAt: '2026-04-01T00:00:00Z',
+    } as any;
+    await upsertPaymentRecord(d, dto, sum, { mode: 'live', notify: false });
+    expect(resolveOrganizationRef).toHaveBeenCalledWith(
+      d,
+      expect.objectContaining({ id: 'org-local' }),
+      true
+    );
+    expect(d.payment.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ externalId: 'P3', organizationId: 'org-local' }),
+      select: { id: true },
+    });
+    expect(sum.created).toBe(1);
+  });
   it('skips when order not found', async () => {
     const d = pdb();
     d.order.findUnique.mockResolvedValue(null);

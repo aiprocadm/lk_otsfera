@@ -158,3 +158,120 @@ describe('matchRow', () => {
     if (out.route === 'exact') expect(out.dto.organizationInn).toBe('7707083893');
   });
 });
+
+/**
+ * `У-88`: ступень «ключ названия → организация» между ИНН и fuzzy. Мок
+ * `organization.findFirst` отвечает по форме `where`: ступень ИНН (`where.inn`),
+ * ступень ключа (`where.nameKey`), fuzzy (`where.name`).
+ */
+function orgStages(byStage: { inn?: unknown; nameKey?: unknown; name?: unknown }) {
+  const findFirst = vi.fn(async (arg: { where: Record<string, unknown> }) => {
+    if ('inn' in arg.where) return byStage.inn ?? null;
+    if ('nameKey' in arg.where) return byStage.nameKey ?? null;
+    return byStage.name ?? null;
+  });
+  return { prisma: db({ organization: { findFirst } }), findFirst };
+}
+
+describe('matchRow: ступень «ключ названия → организация» (У-88)', () => {
+  it('то же название с другой орг-формой → exact по организации', async () => {
+    const { prisma, findFirst } = orgStages({
+      nameKey: { id: 'org-1', inn: null, companyId: 'co-1' },
+    });
+    const out = await matchRow(prisma, row({ counterpartyName: 'РОМАШКА АО' }), {
+      companyId: 'co-1',
+    });
+    expect(out.route).toBe('exact');
+    if (out.route === 'exact') {
+      // Организация без ИНН адресуется локальным id — иначе writer её не найдёт.
+      expect(out.dto.organizationId).toBe('org-1');
+    }
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { companyId: 'co-1', nameKey: 'РОМАШКА' } })
+    );
+  });
+
+  it('название в кавычках и без — один и тот же ключ', async () => {
+    const { prisma, findFirst } = orgStages({
+      nameKey: { id: 'org-1', inn: null, companyId: 'co-1' },
+    });
+    const out = await matchRow(prisma, row({ counterpartyName: 'ООО «Ромашка»' }), {
+      companyId: 'co-1',
+    });
+    expect(out.route).toBe('exact');
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { companyId: 'co-1', nameKey: 'РОМАШКА' } })
+    );
+  });
+
+  it('похожее, но другое название → очередь (ключ не совпал)', async () => {
+    // Ключа нет, но fuzzy по первому слову находит кандидата — это очередь.
+    const { prisma } = orgStages({ nameKey: null, name: { id: 'org-cand' } });
+    const out = await matchRow(prisma, row({ counterpartyName: 'РОМАШКА-СЕРВИС ООО' }), {
+      companyId: 'co-1',
+    });
+    expect(out.route).toBe('queue');
+    if (out.route === 'queue') {
+      expect(out.candidateOrgId).toBe('org-cand');
+      expect(out.matchMethod).toBe('name_fuzzy');
+    }
+  });
+
+  it('организация другой компании по ключу не матчится (C8)', async () => {
+    // Скоуп зашит в `where`: findFirst с чужой компанией ничего не вернёт.
+    const { prisma, findFirst } = orgStages({ nameKey: null, name: null });
+    const out = await matchRow(prisma, row({ counterpartyName: 'ООО «Ромашка»' }), {
+      companyId: 'co-mine',
+    });
+    expect(out.route).toBe('queue');
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { companyId: 'co-mine', nameKey: 'РОМАШКА' } })
+    );
+  });
+
+  it('компания не определена → ступень пропускается (матчить «во всех» нельзя)', async () => {
+    const { prisma, findFirst } = orgStages({ name: null });
+    await matchRow(prisma, row({ counterpartyName: 'ООО «Ромашка»' }));
+    const stages = findFirst.mock.calls.map((c) => Object.keys(c[0].where));
+    expect(stages.some((keys) => keys.includes('nameKey'))).toBe(false);
+  });
+
+  it('ИНН важнее ключа: ступень ключа не запускается', async () => {
+    const { prisma, findFirst } = orgStages({
+      inn: { id: 'org-inn', inn: '7707083893' },
+      nameKey: { id: 'org-key', inn: null, companyId: 'co-1' },
+    });
+    const out = await matchRow(
+      prisma,
+      row({ counterpartyInn: '7707083893', counterpartyName: 'ООО «Ромашка»' }),
+      { companyId: 'co-1' }
+    );
+    expect(out.route).toBe('exact');
+    if (out.route === 'exact') expect(out.dto.organizationInn).toBe('7707083893');
+    const stages = findFirst.mock.calls.map((c) => Object.keys(c[0].where));
+    expect(stages.some((keys) => keys.includes('nameKey'))).toBe(false);
+  });
+
+  it('пустой ключ (название из одной орг-формы) ступень не запускает', async () => {
+    const { prisma, findFirst } = orgStages({ name: null });
+    await matchRow(prisma, row({ counterpartyName: 'ООО' }), { companyId: 'co-1' });
+    const stages = findFirst.mock.calls.map((c) => Object.keys(c[0].where));
+    expect(stages.some((keys) => keys.includes('nameKey'))).toBe(false);
+  });
+});
+
+// Ступень ИНН искала СЫРОЕ значение из файла, а автосоздание кладёт в базу
+// нормализованное (`normalizeInn` восстанавливает ведущие нули). На
+// 11-значном ИНН это расходилось: организация создана с `0…`, а ре-матч по
+// сырому её не находил — строка оставалась в очереди при созданной компании.
+describe('matchRow: ступень ИНН нормализует значение из файла', () => {
+  it('11 цифр из файла ищутся как 12 с ведущим нулём', async () => {
+    const findFirst = vi.fn().mockResolvedValue({ id: 'org-1', inn: '012345678901' });
+    const prisma = db({ organization: { findFirst } });
+    const out = await matchRow(prisma, row({ counterpartyInn: '12345678901' }));
+    expect(out.route).toBe('exact');
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { inn: '012345678901' } })
+    );
+  });
+});

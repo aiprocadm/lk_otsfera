@@ -501,3 +501,62 @@ describe('автосоздание организаций при импорте 
     if (res.ok) expect(res.plan.counts.queuedByReason.none).toBe(2);
   });
 });
+
+// `У-88`: компания импорта доезжает до матчера — без неё ступень «ключ
+// названия → организация» молчит, и строки без ИНН остаются в очереди.
+describe('компания импорта в матчере (У-88)', () => {
+  function tx() {
+    return {
+      paymentImportBatch: { create: vi.fn().mockResolvedValue({ id: 'batch1' }), update: vi.fn() },
+      paymentImportRow: { upsert: vi.fn(), updateMany: vi.fn() },
+      paymentImportWrite: { create: vi.fn() },
+    };
+  }
+  function prismaWith(t: ReturnType<typeof tx>) {
+    return {
+      $transaction: vi.fn(async (fn: (x: typeof t) => Promise<unknown>) => fn(t)),
+      paymentImportBatch: { update: vi.fn() },
+      auditLog: { create: vi.fn() },
+      syncLog: { create: vi.fn() },
+      company: { findUnique: vi.fn().mockResolvedValue({ id: 'co-form' }) },
+    } as never;
+  }
+  const opts = (call: unknown[]) => call[2] as { companyId?: string | null } | undefined;
+
+  it('предпросмотр админа берёт компанию из формы', async () => {
+    await previewPaymentImport({} as never, session, {
+      fileBuffer: Buffer.from(''),
+      fileName: 'c.xlsx',
+      companyId: 'co-form',
+    });
+    expect(opts(matchRow.mock.calls[0]!)).toMatchObject({ companyId: 'co-form' });
+  });
+
+  it('админ без выбранной компании → ступень пропускается (companyId = null)', async () => {
+    await previewPaymentImport({} as never, session, {
+      fileBuffer: Buffer.from(''),
+      fileName: 'c.xlsx',
+    });
+    expect(opts(matchRow.mock.calls[0]!)?.companyId ?? null).toBeNull();
+  });
+
+  it('руководитель матчит в своей компании, выбор формы игнорируется (C8)', async () => {
+    const leader = { sub: 'u2', role: 'leader', companyId: 'co-own' } as never;
+    await previewPaymentImport({} as never, leader, {
+      fileBuffer: Buffer.from(''),
+      fileName: 'c.xlsx',
+      companyId: 'co-foreign',
+    });
+    expect(opts(matchRow.mock.calls[0]!)).toMatchObject({ companyId: 'co-own' });
+  });
+
+  it('применение передаёт ту же компанию, что и предпросмотр', async () => {
+    const t = tx();
+    await commitPaymentImport(prismaWith(t), session, {
+      fileBuffer: Buffer.from(''),
+      fileName: 'c.xlsx',
+      companyId: 'co-form',
+    });
+    expect(opts(matchRow.mock.calls[0]!)).toMatchObject({ companyId: 'co-form' });
+  });
+});

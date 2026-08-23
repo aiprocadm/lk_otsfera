@@ -24,34 +24,86 @@ function rowInCompanyScope(
   return s.role === 'admin' || (!!s.companyId && row.batch.companyId === s.companyId);
 }
 
-/** Список строк, требующих ручного разбора (scoped по компании для не-админа). */
-export async function listQueue(prisma: PrismaClient, session: SessionPayload) {
-  if (!isStaff(session)) return [];
-  const where =
-    session.role === 'admin'
-      ? { status: 'needs_review' }
-      : { status: 'needs_review', batch: { companyId: session.companyId ?? '__none__' } };
-  return prisma.paymentImportRow.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-    take: 200,
-    select: {
-      id: true,
-      externalId: true,
-      paidAt: true,
-      amount: true,
-      isRefund: true,
-      purpose: true,
-      counterpartyName: true,
-      counterpartyInn: true,
-      accountCandidates: true,
-      candidateOrgId: true,
-      candidateOrderId: true,
-      matchMethod: true,
-      // Этап 10 (Т-30): prefill компании в диалоге создания организации.
-      batch: { select: { companyId: true } },
-    },
-  });
+/**
+ * Запрос очереди ручного разбора (`У-90`). Всё необязательно: без параметров —
+ * первая страница по 50 строк, порядок «свежие сверху».
+ */
+export type QueueQuery = {
+  take?: number;
+  skip?: number;
+  /** `with` — только строки с ИНН, `without` — только без него. */
+  inn?: 'with' | 'without';
+  /** Есть предложенный кандидат: организация или заказ. */
+  candidate?: 'org' | 'order';
+  sort?: 'date' | 'amount' | 'counterparty';
+  dir?: 'asc' | 'desc';
+};
+
+export const QUEUE_PAGE_SIZE = 50;
+const QUEUE_MAX_TAKE = 200;
+
+function queueOrderBy(q: QueueQuery) {
+  const dir = q.dir ?? 'desc';
+  if (q.sort === 'amount') return { amount: dir };
+  if (q.sort === 'date') return { paidAt: dir };
+  // По контрагенту сортируем по КЛЮЧУ (`У-83`): варианты написания одного
+  // названия обязаны встать рядом, иначе группировка в UI разъедется.
+  if (q.sort === 'counterparty')
+    return [{ counterpartyKey: q.dir ?? 'asc' }, { paidAt: 'desc' as const }];
+  return { createdAt: dir };
+}
+
+function queueWhere(session: SessionPayload, q: QueueQuery) {
+  const where: Record<string, unknown> = { status: 'needs_review' };
+  // C8: не-админ видит только батчи своей компании; сессия без компании —
+  // deny-all через sentinel (никогда не `null === null`).
+  if (session.role !== 'admin') where.batch = { companyId: session.companyId ?? '__none__' };
+  if (q.inn === 'with') where.counterpartyInn = { not: null };
+  if (q.inn === 'without') where.counterpartyInn = null;
+  if (q.candidate === 'org') where.candidateOrgId = { not: null };
+  if (q.candidate === 'order') where.candidateOrderId = { not: null };
+  return where;
+}
+
+/**
+ * Страница очереди ручного разбора со счётчиком (scoped по компании для
+ * не-админа). Прежняя выдача была `take: 200` без счётчика: при большой
+ * очереди человек видел первые 200 строк и не знал, что есть ещё (`У-90` —
+ * молчаливое усечение списка это дефект, CLAUDE.md §16).
+ */
+export async function listQueue(prisma: PrismaClient, session: SessionPayload, query: QueueQuery = {}) {
+  if (!isStaff(session)) return { rows: [], total: 0 };
+  const where = queueWhere(session, query);
+  const take = Math.min(Math.max(query.take ?? QUEUE_PAGE_SIZE, 1), QUEUE_MAX_TAKE);
+  const skip = Math.max(query.skip ?? 0, 0);
+  const [rows, total] = await Promise.all([
+    prisma.paymentImportRow.findMany({
+      where,
+      orderBy: queueOrderBy(query),
+      take,
+      skip,
+      select: {
+        id: true,
+        externalId: true,
+        paidAt: true,
+        amount: true,
+        isRefund: true,
+        purpose: true,
+        counterpartyName: true,
+        counterpartyInn: true,
+        // `У-83`: ключ контрагента — по нему UI группирует строки.
+        counterpartyKey: true,
+        accountCandidates: true,
+        candidateOrgId: true,
+        candidateOrderId: true,
+        matchMethod: true,
+        // Этап 10 (Т-30): prefill компании в диалоге создания организации.
+        batch: { select: { companyId: true } },
+      },
+    }),
+    prisma.paymentImportRow.count({ where }),
+  ]);
+  return { rows, total };
 }
 
 /**

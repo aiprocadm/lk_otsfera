@@ -60,3 +60,51 @@ describe('resolveOrganizationRef', () => {
     expect(db.organization.update).not.toHaveBeenCalled();
   });
 });
+
+// `У-88`: локальный импорт выписки умеет адресовать организацию по её id в ЛК.
+// Без этого организация без ИНН и без 1С-ключа (создана вручную или импортом
+// по названию) не адресуема writer'ом, и платёж молча ушёл бы в `skipped`
+// вместо очереди — потеря строки, а не «нужен ручной разбор».
+describe('resolveOrganizationRef: адрес по id ЛК (У-88)', () => {
+  it('находит организацию по id, не трогая externalId и inn', async () => {
+    const findFirst = vi.fn().mockResolvedValue(null);
+    const findUnique = vi
+      .fn()
+      .mockResolvedValue({ id: 'org-1', partnerId: null, companyId: 'c1', externalId: null });
+    const db = { organization: { findFirst, findUnique, update: vi.fn() } } as never;
+
+    const res = await resolveOrganizationRef(db, { id: 'org-1' }, false);
+
+    expect(res).toMatchObject({ id: 'org-1', companyId: 'c1' });
+    expect(findUnique).toHaveBeenCalledWith({
+      where: { id: 'org-1' },
+      select: { id: true, partnerId: true, companyId: true, externalId: true },
+    });
+    expect(findFirst).not.toHaveBeenCalled();
+  });
+
+  it('id важнее ИНН: адрес ЛК точнее, чем поиск по реквизиту', async () => {
+    const findUnique = vi
+      .fn()
+      .mockResolvedValue({ id: 'org-1', partnerId: null, companyId: 'c1', externalId: null });
+    const findFirst = vi.fn().mockResolvedValue({ id: 'org-other', companyId: 'c2' });
+    const db = { organization: { findFirst, findUnique, update: vi.fn() } } as never;
+
+    const res = await resolveOrganizationRef(db, { id: 'org-1', inn: '7707083893' }, false);
+
+    expect(res).toMatchObject({ id: 'org-1' });
+    expect(findFirst).not.toHaveBeenCalled();
+  });
+
+  it('несуществующий id → падаем на прежние ступени (externalId/ИНН)', async () => {
+    const findUnique = vi.fn().mockResolvedValue(null);
+    const findFirst = vi
+      .fn()
+      .mockResolvedValue({ id: 'by-inn', partnerId: null, companyId: 'c1', externalId: null });
+    const db = { organization: { findFirst, findUnique, update: vi.fn() } } as never;
+
+    const res = await resolveOrganizationRef(db, { id: 'gone', inn: '7707083893' }, false);
+
+    expect(res).toMatchObject({ id: 'by-inn' });
+  });
+});

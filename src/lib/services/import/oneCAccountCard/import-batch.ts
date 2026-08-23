@@ -69,11 +69,26 @@ function countRoutes(counts: CardImportCounts, routed: Routed[]) {
   }
 }
 
+/**
+ * Компания, в скоупе которой матчим строку по ключу названия (`У-88`).
+ * Руководитель — своя (C8, выбор формы игнорируется); рядовой менеджер — своя
+ * (организаций он не заводит, но матчить в своей компании безопасно); админ —
+ * выбранная в форме. Без компании ступень пропускается: матч по названию «во
+ * всех компаниях» ломал бы изоляцию.
+ */
+function matchScopeCompanyId(session: SessionPayload, formCompanyId?: string): string | null {
+  const scope = importScope(session);
+  if (scope.kind === 'company') return scope.companyId;
+  if (scope.kind === 'orgs') return session.companyId ?? null;
+  return formCompanyId ?? null;
+}
+
 /** Разбор файла + матчинг каждой импортируемой строки. Чистая фаза (read-only). */
 async function plan(
   prisma: PrismaClient,
   buffer: Buffer,
-  fileName: string
+  fileName: string,
+  matchCompanyId: string | null
 ): Promise<{ counts: CardImportCounts; routed: Routed[]; diagnostics: CardParseDiagnostics }> {
   const grid = await readSpreadsheet(buffer, fileName);
   const { rows, diagnostics } = parseAccountCard(grid);
@@ -95,7 +110,7 @@ async function plan(
       counts.parseErrors += 1;
       continue;
     }
-    const outcome = await matchRow(prisma, row);
+    const outcome = await matchRow(prisma, row, { companyId: matchCompanyId });
     routed.push({ row, outcome });
   }
   countRoutes(counts, routed);
@@ -110,7 +125,12 @@ export async function previewPaymentImport(
   if (!mayImportOneC(session)) return { ok: false as const, error: 'forbidden' as const };
   let result: Awaited<ReturnType<typeof plan>>;
   try {
-    result = await plan(prisma, args.fileBuffer, args.fileName);
+    result = await plan(
+      prisma,
+      args.fileBuffer,
+      args.fileName,
+      matchScopeCompanyId(session, args.companyId)
+    );
   } catch {
     return { ok: false as const, error: 'parse_failed' as const };
   }
@@ -142,7 +162,12 @@ export async function commitPaymentImport(
   if (!mayImportOneC(session)) return { ok: false as const, error: 'forbidden' as const };
   let result: Awaited<ReturnType<typeof plan>>;
   try {
-    result = await plan(prisma, args.fileBuffer, args.fileName);
+    result = await plan(
+      prisma,
+      args.fileBuffer,
+      args.fileName,
+      matchScopeCompanyId(session, args.companyId)
+    );
   } catch {
     return { ok: false as const, error: 'parse_failed' as const };
   }
@@ -198,9 +223,12 @@ export async function commitPaymentImport(
       // Строка ушла бы в очередь только потому, что организации не было —
       // теперь она есть, и матчер привяжет платёж по ИНН.
       if (outcome.route === 'queue' && createdByInn.has(normalizeInn(row.counterpartyInn ?? ''))) {
-        outcome = await matchRow(tx as unknown as PrismaClient, row);
+        outcome = await matchRow(tx as unknown as PrismaClient, row, {
+          companyId: matchScopeCompanyId(session, args.companyId),
+        });
       }
       finalRoutes.push({ row, outcome });
+
       if (outcome.route === 'exact') {
         const written = await upsertPaymentRecord(
           tx as unknown as PrismaClient,

@@ -47,11 +47,10 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 const { listImportBatches } = vi.hoisted(() => ({ listImportBatches: vi.fn() }));
 vi.mock('@/lib/services/import/rollback', () => ({ listImportBatches }));
 
-const { listQueue, listQueueOrgNames } = vi.hoisted(() => ({
-  listQueue: vi.fn(),
-  listQueueOrgNames: vi.fn(),
+const { loadQueuePage } = vi.hoisted(() => ({
+  loadQueuePage: vi.fn(),
 }));
-vi.mock('@/lib/services/import/oneCAccountCard', () => ({ listQueue, listQueueOrgNames }));
+vi.mock('@/lib/services/import/oneCAccountCard/queue-view', () => ({ loadQueuePage }));
 
 vi.mock('@/components/import/import-form', () => ({
   ImportForm: () => React.createElement('div', { 'data-testid': 'import-form' }),
@@ -80,8 +79,7 @@ beforeEach(() => {
   redirectToSettingsHub.mockReset();
   redirect.mockClear();
   listImportBatches.mockReset().mockResolvedValue({ ok: true, batches: [{ id: 'b1' }] });
-  listQueue.mockReset().mockResolvedValue([]);
-  listQueueOrgNames.mockReset().mockResolvedValue(new Map());
+  loadQueuePage.mockReset().mockResolvedValue({ rows: [], total: 0, take: 50, skip: 0 });
 });
 
 describe('«Загрузка из 1С» в кабинете менеджера', () => {
@@ -118,70 +116,36 @@ describe('«Загрузка из 1С» в кабинете менеджера',
 });
 
 describe('«Импорт оплат» в кабинете менеджера', () => {
-  it('обычный менеджер получает форму и очередь своих строк', async () => {
-    listQueue.mockResolvedValue([
-      {
-        id: 'q1',
-        externalId: 'p-1',
-        paidAt: new Date('2026-08-01T00:00:00Z'),
-        amount: 100,
-        isRefund: false,
-        purpose: 'оплата по счёту',
-        counterpartyName: 'ООО Ромашка',
-        counterpartyInn: null,
-        accountCandidates: null,
-        candidateOrgId: 'o1',
-        matchMethod: 'name_fuzzy',
-        batch: { companyId: 'co-1' },
-      },
-      {
-        // Кандидата нет — вторая ветка маппинга имени организации.
-        id: 'q2',
-        externalId: 'p-2',
-        paidAt: new Date('2026-08-02T00:00:00Z'),
-        amount: 50,
-        isRefund: true,
-        purpose: null,
-        counterpartyName: null,
-        counterpartyInn: null,
-        accountCandidates: ['260509-1905'],
-        candidateOrgId: null,
-        matchMethod: null,
-        batch: { companyId: 'co-1' },
-      },
-      {
-        // Кандидат есть, а имени в карте нет — ветка `?? null`.
-        id: 'q3',
-        externalId: 'p-3',
-        paidAt: new Date('2026-08-03T00:00:00Z'),
-        amount: 70,
-        isRefund: false,
-        purpose: null,
-        counterpartyName: null,
-        counterpartyInn: null,
-        accountCandidates: null,
-        candidateOrgId: 'o-ghost',
-        matchMethod: 'name_fuzzy',
-        batch: { companyId: 'co-1' },
-      },
-    ]);
-    listQueueOrgNames.mockResolvedValue(new Map([['o1', 'ООО Ромашка']]));
+  it('обычный менеджер получает форму и страницу очереди своих строк', async () => {
+    // `У-90`: строки уже приведены сервисом; экран отвечает за гарды, адрес и
+    // проброс счётчика.
+    loadQueuePage.mockResolvedValue({
+      rows: [{ id: 'q1' }, { id: 'q2' }, { id: 'q3' }],
+      total: 3,
+      take: 50,
+      skip: 0,
+    });
 
-    const { container } = await renderServerComponent(ManagerPaymentsImportPage());
+    const { container } = await renderServerComponent(
+      ManagerPaymentsImportPage({ searchParams: Promise.resolve({ inn: 'without' }) })
+    );
     expect(redirect).not.toHaveBeenCalled();
+    expect(loadQueuePage).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
+      inn: 'without',
+    });
     expect(container.querySelector('[data-testid="payment-form"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="queue"]')?.getAttribute('data-n')).toBe('3');
   });
 
   it('право проверяется и на выписке', async () => {
     mayImportOneC.mockReturnValue(false);
-    await expect(renderServerComponent(ManagerPaymentsImportPage())).rejects.toThrow('REDIRECT');
+    await expect(renderServerComponent(ManagerPaymentsImportPage({}))).rejects.toThrow('REDIRECT');
     expect(redirect).toHaveBeenCalledWith('/forbidden');
   });
 
   it('руководителя уводит в его хаб', async () => {
     requireManager.mockResolvedValue(LEADER);
-    const { container } = await renderServerComponent(ManagerPaymentsImportPage());
+    const { container } = await renderServerComponent(ManagerPaymentsImportPage({}));
     expect(redirectToSettingsHub).toHaveBeenCalledWith('/manager/payments-import');
     expect(container.textContent).toContain('ЛИДЕРСКАЯ:payments');
   });

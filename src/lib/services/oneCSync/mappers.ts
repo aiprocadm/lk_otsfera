@@ -66,6 +66,8 @@ export function mapOrderDto(dto: OneCOrderDto): OrderUpsertInput {
 export type PaymentUpsertInput = {
   externalId: string;
   orderExternalId: string | null;
+  /** `У-88`: локальный адрес организации (без ИНН/1С-ключа), см. OneCPaymentDto. */
+  organizationId: string | null;
   organizationExternalId: string | null;
   organizationInn: string | null;
   amount: number;
@@ -82,6 +84,7 @@ export function mapPaymentDto(dto: OneCPaymentDto): PaymentUpsertInput {
   return {
     externalId: dto.externalId,
     orderExternalId: dto.orderExternalId ?? null,
+    organizationId: dto.organizationId ?? null,
     organizationExternalId: dto.organizationExternalId ?? null,
     organizationInn: dto.organizationInn ?? null,
     amount: dto.amount,
