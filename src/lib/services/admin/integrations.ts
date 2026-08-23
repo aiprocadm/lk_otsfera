@@ -43,7 +43,8 @@ function isMangoTelephonyEnabled(): boolean {
   );
 }
 
-function isDadataEnabled(): boolean {
+/** `У-85`: тот же предикат нужен обогащению ИНН при импорте выписки. */
+export function isDadataEnabled(): boolean {
   const flag = (cachedIntegrationSetting('dadata.enabled') ?? '').trim().toLowerCase();
   const flagOn = ['1', 'true', 'on', 'yes'].includes(flag);
   return flagOn && !!cachedIntegrationSetting('dadata.apiKey');

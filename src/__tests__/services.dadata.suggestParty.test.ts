@@ -38,8 +38,16 @@ describe('normalizeParty', () => {
       ],
     };
     expect(normalizeParty(body)).toEqual([
-      { name: 'ООО Ромашка', inn: '7701', kpp: '770101001', ogrn: '102', address: 'Москва' },
-      { name: 'Мин поля', inn: '7703', kpp: null, ogrn: null, address: null },
+      {
+        name: 'ООО Ромашка',
+        inn: '7701',
+        kpp: '770101001',
+        ogrn: '102',
+        address: 'Москва',
+        status: null,
+        opf: null,
+      },
+      { name: 'Мин поля', inn: '7703', kpp: null, ogrn: null, address: null, status: null, opf: null },
     ]);
   });
 
@@ -47,7 +55,9 @@ describe('normalizeParty', () => {
     expect(normalizeParty({ suggestions: [{ value: 'X', data: null }] })).toEqual([]);
     expect(
       normalizeParty({ suggestions: [{ value: 'X', data: { inn: '1', address: null } }] })
-    ).toEqual([{ name: 'X', inn: '1', kpp: null, ogrn: null, address: null }]);
+    ).toEqual([
+      { name: 'X', inn: '1', kpp: null, ogrn: null, address: null, status: null, opf: null },
+    ]);
   });
 });
 
@@ -85,7 +95,9 @@ describe('suggestParty', () => {
     });
 
     const res = await suggestParty(prisma, ' сбер ');
-    expect(res).toEqual([{ name: 'Сбербанк', inn: '7707', kpp: null, ogrn: null, address: null }]);
+    expect(res).toEqual([
+      { name: 'Сбербанк', inn: '7707', kpp: null, ogrn: null, address: null, status: null, opf: null },
+    ]);
 
     const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(url).toContain('suggestions.dadata.ru');
@@ -116,5 +128,42 @@ describe('suggestParty', () => {
       '[dadata] suggest party failed — degrading to empty',
       expect.objectContaining({ error: 'The operation was aborted' })
     );
+  });
+});
+
+// `У-85`: правило «ИНН принимается только от ОДНОЙ действующей организации с
+// совпавшим ключом названия» невыполнимо без статуса и орг-формы — DaData их
+// отдаёт, а нормализатор выбрасывал.
+describe('normalizeParty: статус и орг-форма (У-85)', () => {
+  it('протаскивает state.status и opf.short', () => {
+    const [one] = normalizeParty({
+      suggestions: [
+        {
+          value: 'ООО «Ромашка»',
+          data: {
+            inn: '7707083893',
+            state: { status: 'ACTIVE' },
+            opf: { short: 'ООО', full: 'Общество с ограниченной ответственностью' },
+          },
+        },
+      ],
+    });
+    expect(one).toMatchObject({ inn: '7707083893', status: 'ACTIVE', opf: 'ООО' });
+  });
+
+  it('ликвидированная организация приходит со своим статусом, а не отбрасывается', () => {
+    const [one] = normalizeParty({
+      suggestions: [
+        { value: 'ООО «Тень»', data: { inn: '7736207543', state: { status: 'LIQUIDATED' } } },
+      ],
+    });
+    expect(one).toMatchObject({ status: 'LIQUIDATED', opf: null });
+  });
+
+  it('подсказка без state/opf не ломает разбор (поля = null)', () => {
+    const [one] = normalizeParty({
+      suggestions: [{ value: 'ООО «Без данных»', data: { inn: '7707083893' } }],
+    });
+    expect(one).toMatchObject({ status: null, opf: null });
   });
 });

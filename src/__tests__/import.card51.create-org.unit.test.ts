@@ -230,3 +230,43 @@ describe('создание и привязка', () => {
     );
   });
 });
+
+// `У-89`: организацию можно завести и без ИНН — иначе строки выписки без
+// реквизита снова разбирались бы только «привязкой» к уже существующим.
+describe('createOrgFromQueueRow: пустой ИНН (У-89)', () => {
+  it('пустой ИНН разрешён: организация создаётся с inn = null', async () => {
+    const db = makeDb();
+    const res = await createOrgFromQueueRow(db, LEADER, { ...baseArgs, inn: '' });
+    expect(res).toMatchObject({ ok: true });
+    expect(
+      (db as { organization: { create: ReturnType<typeof vi.fn> } }).organization.create
+    ).toHaveBeenCalledWith({
+      data: expect.objectContaining({ inn: null, nameKey: 'НОВАЯ' }),
+      select: { id: true },
+    });
+  });
+
+  it('пробелы вместо ИНН — тоже «без ИНН», а не ошибка', async () => {
+    const db = makeDb();
+    const res = await createOrgFromQueueRow(db, LEADER, { ...baseArgs, inn: '   ' });
+    expect(res).toMatchObject({ ok: true });
+  });
+
+  it('НЕпустой кривой ИНН по-прежнему bad_inn — молча его не глотаем', async () => {
+    const db = makeDb();
+    const res = await createOrgFromQueueRow(db, LEADER, { ...baseArgs, inn: '123' });
+    expect(res).toEqual({ ok: false, error: 'bad_inn' });
+  });
+
+  it('без ИНН дубль ловится по ключу названия в своей компании', async () => {
+    const db = makeDb({
+      organization: {
+        // Поиск по ИНН не выполняется (его нет) — findFirst зовётся для ключа.
+        findFirst: vi.fn().mockResolvedValue({ id: 'org-existing' }),
+        create: vi.fn(),
+      },
+    });
+    const res = await createOrgFromQueueRow(db, LEADER, { ...baseArgs, inn: '' });
+    expect(res).toEqual({ ok: false, error: 'org_exists' });
+  });
+});

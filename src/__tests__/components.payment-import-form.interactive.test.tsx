@@ -94,9 +94,10 @@ describe('PaymentImportForm (interactive, jsdom)', () => {
       ok: true,
       plan: {
         counts: emptyCounts({ totalRows: 5, imported: 2, queued: 3 }),
+        // `У-87`: кандидат несёт ключ и источник ИНН — от них зависит группа.
         newCounterparties: [
-          { name: 'ООО «Альфа»', inn: '7707083893', rows: 2 },
-          { name: '', inn: '7736207543', rows: 1 },
+          { key: 'АЛЬФА', name: 'ООО «Альфа»', inn: '7707083893', innSource: 'file', rows: 2 },
+          { key: '', name: '', inn: '7736207543', innSource: 'file', rows: 1 },
         ],
       },
     });
@@ -111,7 +112,11 @@ describe('PaymentImportForm (interactive, jsdom)', () => {
     // `У-52` в финальном виде: обещание совпадает с тем, что импорт сделает.
     expect(card.textContent).toContain('Будет создано организаций: 2');
     expect(card.textContent).toContain('ООО «Альфа»');
-    expect(card.textContent).toContain('7707083893');
+    // `У-87`: ИНН теперь редактируемое поле, а не текст — человек может его
+    // исправить до применения.
+    expect(
+      (screen.getByLabelText('ИНН — ООО «Альфа»') as HTMLInputElement).value
+    ).toBe('7707083893');
     // Контрагент без названия не превращается в пустую строку списка.
     expect(card.textContent).toContain('без названия');
     // Несколько строк одного контрагента — видно, что это не один платёж.

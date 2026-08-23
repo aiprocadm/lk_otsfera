@@ -14,7 +14,7 @@ import { readSpreadsheet } from './read-spreadsheet';
 import { parseAccountCard } from './parser';
 import { organizationNameKey } from './counterparty-key';
 import { matchRow } from './matcher';
-import { collectNewCounterparties } from './new-counterparties';
+import { collectNewCounterparties, type CounterpartyOverride } from './new-counterparties';
 import { resolveNewOrgCompany, createOrganizationsForImport } from './auto-create';
 import type { ParsedRow, CardImportCounts, CardParseDiagnostics } from './types';
 
@@ -23,6 +23,13 @@ export type Args = {
   fileName: string;
   /** Компания для новых организаций (`У-50`): нужна администратору. */
   companyId?: string | undefined;
+  /**
+   * Правки предпросмотра (`У-87`): снятые галочки и вписанные вручную ИНН.
+   * Состояние предпросмотра на сервере не хранится (файл пересчитывается
+   * заново), поэтому решения человека едут вместе с применением — по ключу
+   * контрагента, а не по номеру строки.
+   */
+  overrides?: CounterpartyOverride[] | undefined;
 };
 
 // Т-25/Т-26: право импорта — admin и руководитель (mayImportOneC), общий
@@ -81,6 +88,26 @@ function matchScopeCompanyId(session: SessionPayload, formCompanyId?: string): s
   if (scope.kind === 'company') return scope.companyId;
   if (scope.kind === 'orgs') return session.companyId ?? null;
   return formCompanyId ?? null;
+}
+
+/**
+ * Сводка по контрагентам файла (`У-92`). Фраза «создано 3 организации» обязана
+ * сопровождаться ответом «а остальные — почему нет»: сколько контрагентов
+ * увидели, у скольких ИНН из файла, скольким его нашёл ЕГРЮЛ, сколько
+ * останется без ИНН, сколько уже есть в системе и сколько будет создано.
+ */
+function counterpartySummary(c: Awaited<ReturnType<typeof collectNewCounterparties>>) {
+  return {
+    total: c.total,
+    innFromFile: c.candidates.filter((x) => x.innSource === 'file').length,
+    innFromDadata: c.candidates.filter((x) => x.innSource === 'dadata').length,
+    withoutInn: c.candidates.filter((x) => !x.inn).length,
+    alreadyKnown: c.existing.length,
+    willCreate: c.candidates.length,
+    reasons: c.reasons,
+    dadataUsed: c.dadata.used,
+    ...(c.dadata.reason ? { dadataReason: c.dadata.reason } : {}),
+  };
 }
 
 /** Разбор файла + матчинг каждой импортируемой строки. Чистая фаза (read-only). */
@@ -144,13 +171,22 @@ export async function previewPaymentImport(
     };
   }
   // `У-52`: что принесёт файл, человек должен увидеть ДО применения.
-  const newCounterparties = await collectNewCounterparties(
+  const collected = await collectNewCounterparties(
     prisma,
-    result.routed.filter((r) => r.outcome.route === 'queue').map((r) => r.row)
+    result.routed.filter((r) => r.outcome.route === 'queue').map((r) => r.row),
+    {
+      companyId: matchScopeCompanyId(session, args.companyId),
+      ...(args.overrides ? { overrides: args.overrides } : {}),
+    }
   );
   return {
     ok: true as const,
-    plan: { counts: result.counts, diagnostics: result.diagnostics, newCounterparties },
+    plan: {
+      counts: result.counts,
+      diagnostics: result.diagnostics,
+      newCounterparties: collected.candidates,
+      counterparties: counterpartySummary(collected),
+    },
   };
 }
 
@@ -178,17 +214,26 @@ export async function commitPaymentImport(
   // `У-49`: организации, которых нет в системе, заводим сами — но СНАЧАЛА
   // проверяем, куда их класть (`У-50`). Отказать нужно ДО записи чего-либо,
   // иначе половина файла уже применена.
-  const candidates = await collectNewCounterparties(
+  const collected = await collectNewCounterparties(
     prisma,
-    result.routed.filter((r) => r.outcome.route === 'queue').map((r) => r.row)
+    result.routed.filter((r) => r.outcome.route === 'queue').map((r) => r.row),
+    {
+      companyId: matchScopeCompanyId(session, args.companyId),
+      ...(args.overrides ? { overrides: args.overrides } : {}),
+    }
   );
+  // `У-87`: негодный ИНН, вписанный руками, — отказ ДО записи, а не молчаливое
+  // «создали без ИНН»: человек ждёт, что его цифра поедет в карточку.
+  if (collected.badOverrides.length > 0) {
+    return { ok: false as const, error: 'bad_inn' as const };
+  }
   const company = resolveNewOrgCompany(session, args.companyId);
-  if (!company.ok && company.error === 'company_required' && candidates.length > 0) {
+  if (!company.ok && company.error === 'company_required' && collected.candidates.length > 0) {
     return { ok: false as const, error: 'company_required' as const };
   }
   // `not_allowed` (обычный менеджер) — не отказ импорта: его строки просто
   // уходят в очередь ручного разбора, как и раньше (`У-51`).
-  const creating = company.ok ? candidates : [];
+  const creating = company.ok ? collected.candidates : [];
 
   const ctx: WriteCtx = { mode: 'live', notify: true, scope: importScope(session) };
   const writerSummary = emptySummary();
@@ -205,15 +250,15 @@ export async function commitPaymentImport(
     });
     // Организации создаются ДО записи платежей: матчер найдёт их по ИНН сам,
     // и отдельной ветки «привязать вручную» не появляется.
-    const createdByInn = company.ok
+    const created = company.ok
       ? await createOrganizationsForImport(tx, session, {
           candidates: creating,
           companyId: company.companyId,
           batchId: batch.id,
           fileName: args.fileName,
         })
-      : new Map<string, string>();
-    result.counts.orgsCreated = createdByInn.size;
+      : { byInn: new Map<string, string>(), byKey: new Map<string, string>() };
+    result.counts.orgsCreated = creating.length;
 
     // Итоговые маршруты: после автосоздания часть строк уходит из очереди.
     const finalRoutes: Routed[] = [];
@@ -221,8 +266,13 @@ export async function commitPaymentImport(
     for (const { row, outcome: initial } of result.routed) {
       let outcome = initial;
       // Строка ушла бы в очередь только потому, что организации не было —
-      // теперь она есть, и матчер привяжет платёж по ИНН.
-      if (outcome.route === 'queue' && createdByInn.has(normalizeInn(row.counterpartyInn ?? ''))) {
+      // теперь она есть, и матчер привяжет платёж: по ИНН, а у организации,
+      // заведённой по названию (`У-86`), — по ключу контрагента.
+      const rowKey = organizationNameKey(row.counterpartyName ?? '');
+      const justCreated =
+        created.byInn.has(normalizeInn(row.counterpartyInn ?? '')) ||
+        (!!rowKey && created.byKey.has(rowKey));
+      if (outcome.route === 'queue' && justCreated) {
         outcome = await matchRow(tx as unknown as PrismaClient, row, {
           companyId: matchScopeCompanyId(session, args.companyId),
         });

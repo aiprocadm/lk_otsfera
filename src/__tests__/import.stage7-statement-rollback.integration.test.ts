@@ -204,9 +204,14 @@ describe('этап 7 — автосоздание организации по И
   }
 
   afterAll(async () => {
-    await prisma.payment.deleteMany({ where: { externalId: EXT_C } });
-    await prisma.paymentImportRow.deleteMany({ where: { externalId: EXT_C } });
-    await prisma.organization.deleteMany({ where: { inn: NEW_INN } });
+    const EXT_ALL = [EXT_C, 'ST7-000004', 'ST7-000005'];
+    await prisma.payment.deleteMany({ where: { externalId: { in: EXT_ALL } } });
+    await prisma.paymentImportRow.deleteMany({ where: { externalId: { in: EXT_ALL } } });
+    // Организации, заведённые импортом по названию (`У-86`), — тоже мусор теста:
+    // без уборки удаление компании во внешнем afterAll упрётся во внешний ключ.
+    await prisma.organization.deleteMany({
+      where: { companyId, id: { not: orgId }, OR: [{ inn: NEW_INN }, { inn: null }] },
+    });
   });
 
   it('предпросмотр обещает создание, импорт создаёт, платёж привязывается, откат убирает', async () => {
@@ -219,8 +224,10 @@ describe('этап 7 — автосоздание организации по И
       companyId,
     });
     if (!preview.ok) throw new Error(`preview failed: ${preview.error}`);
+    // `У-83`: единица группировки — ключ названия; `У-85`: рядом видно, откуда
+    // взялся ИНН (здесь — из самого файла).
     expect(preview.plan.newCounterparties).toEqual([
-      { name: 'НОВЫЙ КЛИЕНТ ООО', inn: NEW_INN, rows: 1 },
+      { key: 'НОВЫЙ КЛИЕНТ', name: 'НОВЫЙ КЛИЕНТ ООО', inn: NEW_INN, innSource: 'file', rows: 1 },
     ]);
 
     const res = await commitPaymentImport(prisma, session, {
@@ -253,10 +260,15 @@ describe('этап 7 — автосоздание организации по И
     expect(await prisma.organization.count({ where: { inn: NEW_INN } })).toBe(0);
   });
 
-  it('строка без ИНН и с кривым ИНН остаётся в очереди (`У-51`)', async () => {
+  // `Р-11`/`У-86` отменили прежнее правило «нет ИНН → очередь» (`У-51`): кривой
+  // ИНН больше не мешает — контрагента опознаёт название. В очереди остаётся
+  // только строка, у которой нет НИ названия, НИ ИНН.
+  it('кривой ИНН не мешает: организация заводится по названию, без реквизитов — в очередь (`У-86`, `Р-11`)', async () => {
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('Лист1');
     ws.addRow(['Сальдо на начало']);
+    // Название есть, ИНН не проходит контрольную сумму → организация создаётся
+    // по названию, а негодный ИНН просто не записывается.
     ws.addRow([
       '06.07.2026',
       'Поступление на расчетный счет ST7-000004 от 06.07.2026 10:00:00\nОплата',
@@ -268,6 +280,18 @@ describe('этап 7 — автосоздание организации по И
       '62.01',
       '',
     ]);
+    // Ни названия, ни ИНН — создавать нечего, строка ждёт человека (`У-51`).
+    ws.addRow([
+      '07.07.2026',
+      'Поступление на расчетный счет ST7-000005 от 07.07.2026 10:00:00\nОплата',
+      '',
+      '',
+      '',
+      '700',
+      '',
+      '62.01',
+      '',
+    ]);
     ws.addRow(['Обороты за период и сальдо на конец']);
     const res = await commitPaymentImport(prisma, session, {
       fileBuffer: Buffer.from(await wb.xlsx.writeBuffer()),
@@ -275,8 +299,34 @@ describe('этап 7 — автосоздание организации по И
       companyId,
     });
     if (!res.ok) throw new Error(`commit failed: ${res.error}`);
-    expect(res.result.counts.orgsCreated).toBe(0);
+    expect(res.result.counts.orgsCreated).toBe(1);
+    expect(res.result.counts.imported).toBe(1);
     expect(res.result.counts.queued).toBe(1);
-    await prisma.paymentImportRow.deleteMany({ where: { externalId: 'ST7-000004' } });
+
+    // Организация заведена по названию — БЕЗ ИНН: негодные цифры не записаны.
+    const created = await prisma.organization.findFirst({
+      where: { companyId, nameKey: 'КОНТРАГЕНТ БЕЗ РЕКВИЗИТОВ' },
+      select: { id: true, inn: true },
+    });
+    expect(created).not.toBeNull();
+    expect(created?.inn).toBeNull();
+    const payment = await prisma.payment.findUnique({ where: { externalId: 'ST7-000004' } });
+    expect(payment?.organizationId).toBe(created?.id);
+    expect(
+      await prisma.paymentImportRow.count({ where: { externalId: 'ST7-000004' } })
+    ).toBe(0);
+
+    // Строка без реквизитов не потеряна — она в ручном разборе.
+    const queued = await prisma.paymentImportRow.findUnique({
+      where: { externalId: 'ST7-000005' },
+    });
+    expect(queued?.status).toBe('needs_review');
+    expect(await prisma.payment.count({ where: { externalId: 'ST7-000005' } })).toBe(0);
+
+    await prisma.payment.deleteMany({ where: { externalId: 'ST7-000004' } });
+    await prisma.paymentImportRow.deleteMany({
+      where: { externalId: { in: ['ST7-000004', 'ST7-000005'] } },
+    });
+    await prisma.organization.deleteMany({ where: { id: created!.id } });
   });
 });

@@ -12,6 +12,9 @@ vi.mock('@/lib/services/import/oneCAccountCard/read-spreadsheet', () => ({
   sniffFormat: () => 'xlsx',
 }));
 vi.mock('@/lib/services/import/oneCAccountCard/parser', () => ({ parseAccountCard }));
+// `У-85`: обогащение ИНН через ЕГРЮЛ — побочный канал; в unit-слое он выключен,
+// его поведение проверяется своим набором (import.card51.dadata-inn).
+vi.mock('@/lib/services/admin/integrations', () => ({ isDadataEnabled: () => false }));
 
 import {
   previewPaymentImport,
@@ -108,7 +111,7 @@ beforeEach(() => {
 
 describe('previewPaymentImport', () => {
   it('counts exact/queued/excluded without writing', async () => {
-    const prisma = {} as never;
+    const prisma = { organization: { findMany: vi.fn().mockResolvedValue([]) } } as never;
     const res = await previewPaymentImport(prisma, session, {
       fileBuffer: Buffer.from(''),
       fileName: 'c.xlsx',
@@ -125,7 +128,10 @@ describe('previewPaymentImport', () => {
 
   it('returns empty when no operation rows', async () => {
     parseAccountCard.mockReturnValue({ rows: [], diagnostics: emptyDiagnostics() });
-    const res = await previewPaymentImport({} as never, session, {
+    const res = await previewPaymentImport(
+      { organization: { findMany: vi.fn().mockResolvedValue([]) } } as never,
+      session,
+      {
       fileBuffer: Buffer.from(''),
       fileName: 'c.xlsx',
     });
@@ -141,12 +147,19 @@ describe('commitPaymentImport', () => {
       paymentImportBatch: { create: vi.fn().mockResolvedValue({ id: 'batch1' }), update: vi.fn() },
       paymentImportRow: { upsert: vi.fn(), updateMany: vi.fn() },
       paymentImportWrite: { create: vi.fn() },
+      // `У-86`: контрагент без ИНН теперь заводится — транзакция это делает.
+      organization: {
+        create: vi.fn().mockResolvedValue({ id: 'org-new' }),
+        findMany: vi.fn().mockResolvedValue([]),
+      },
     };
     const prisma = {
       $transaction: vi.fn(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
       paymentImportBatch: { update: vi.fn() },
       auditLog: { create: vi.fn() },
       syncLog: { create: vi.fn() },
+      // `У-86`: дедуп кандидатов ходит в организации (по ИНН и по ключу).
+      organization: { findMany: vi.fn().mockResolvedValue([]) },
     } as never;
     upsertPaymentRecord.mockImplementation(
       async (_db: unknown, _dto: unknown, sum: { created: number }) => {
@@ -154,9 +167,12 @@ describe('commitPaymentImport', () => {
       }
     );
 
+    // `У-86`: контрагент без ИНН — тоже кандидат, поэтому админ обязан
+    // выбрать компанию (раньше такие строки просто уходили в очередь).
     const res = await commitPaymentImport(prisma, session, {
       fileBuffer: Buffer.from(''),
       fileName: 'c.xlsx',
+      companyId: 'co-1',
     });
     expect(res.ok).toBe(true);
     expect(upsertPaymentRecord).toHaveBeenCalledTimes(1); // only exact
@@ -174,12 +190,19 @@ describe('commitPaymentImport', () => {
       paymentImportBatch: { create: vi.fn().mockResolvedValue({ id: 'batch1' }), update: vi.fn() },
       paymentImportRow: { upsert: vi.fn(), updateMany: vi.fn() },
       paymentImportWrite: { create: vi.fn() },
+      // `У-86`: контрагент без ИНН теперь заводится — транзакция это делает.
+      organization: {
+        create: vi.fn().mockResolvedValue({ id: 'org-new' }),
+        findMany: vi.fn().mockResolvedValue([]),
+      },
     };
     const prisma = {
       $transaction: vi.fn(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
       paymentImportBatch: { update: vi.fn() },
       auditLog: { create: vi.fn() },
       syncLog: { create: vi.fn() },
+      // `У-86`: дедуп кандидатов ходит в организации (по ИНН и по ключу).
+      organization: { findMany: vi.fn().mockResolvedValue([]) },
     } as never;
     const [, second] = parsed();
     parseAccountCard.mockReturnValue({
@@ -203,26 +226,40 @@ describe('commitPaymentImport', () => {
       paymentImportBatch: { create: vi.fn().mockResolvedValue({ id: 'batch1' }), update: vi.fn() },
       paymentImportRow: { upsert: vi.fn(), updateMany: vi.fn() },
       paymentImportWrite: { create: vi.fn() },
+      // `У-86`: контрагент без ИНН теперь заводится — транзакция это делает.
+      organization: {
+        create: vi.fn().mockResolvedValue({ id: 'org-new' }),
+        findMany: vi.fn().mockResolvedValue([]),
+      },
     };
     const prisma = {
       $transaction: vi.fn(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
       paymentImportBatch: { update: vi.fn() },
       auditLog: { create: vi.fn() },
       syncLog: { create: vi.fn() },
+      // `У-86`: дедуп кандидатов ходит в организации (по ИНН и по ключу).
+      organization: { findMany: vi.fn().mockResolvedValue([]) },
     } as never;
     upsertPaymentRecord.mockResolvedValue({ entityId: 'pay-1', action: 'created' });
 
     await commitPaymentImport(prisma, session, {
       fileBuffer: Buffer.from(''),
       fileName: 'c.xlsx',
+      companyId: 'co-1',
     });
-    expect(tx.paymentImportWrite.create).toHaveBeenCalledTimes(1);
-    expect(tx.paymentImportWrite.create.mock.calls[0]![0].data).toMatchObject({
-      batchId: 'batch1',
-      entity: 'payment',
-      entityId: 'pay-1',
-      action: 'created',
-    });
+    // След батча ведут и организации (`У-86`), и платежи — ищем платёжную
+    // запись, а не «первый вызов».
+    const paymentTrail = tx.paymentImportWrite.create.mock.calls
+      .map((c) => c[0].data)
+      .filter((d: { entity: string }) => d.entity === 'payment');
+    expect(paymentTrail).toEqual([
+      expect.objectContaining({
+        batchId: 'batch1',
+        entity: 'payment',
+        entityId: 'pay-1',
+        action: 'created',
+      }),
+    ]);
   });
 
   it('обновлённый платёж кладёт в след снимок «до» — иначе откат нечего восстанавливать', async () => {
@@ -230,12 +267,19 @@ describe('commitPaymentImport', () => {
       paymentImportBatch: { create: vi.fn().mockResolvedValue({ id: 'batch1' }), update: vi.fn() },
       paymentImportRow: { upsert: vi.fn(), updateMany: vi.fn() },
       paymentImportWrite: { create: vi.fn() },
+      // `У-86`: контрагент без ИНН теперь заводится — транзакция это делает.
+      organization: {
+        create: vi.fn().mockResolvedValue({ id: 'org-new' }),
+        findMany: vi.fn().mockResolvedValue([]),
+      },
     };
     const prisma = {
       $transaction: vi.fn(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
       paymentImportBatch: { update: vi.fn() },
       auditLog: { create: vi.fn() },
       syncLog: { create: vi.fn() },
+      // `У-86`: дедуп кандидатов ходит в организации (по ИНН и по ключу).
+      organization: { findMany: vi.fn().mockResolvedValue([]) },
     } as never;
     const before = { amount: '100.00', paidAt: '2026-06-01T00:00:00.000Z', purpose: 'старое' };
     upsertPaymentRecord.mockResolvedValue({ entityId: 'pay-1', action: 'updated', before });
@@ -243,11 +287,12 @@ describe('commitPaymentImport', () => {
     await commitPaymentImport(prisma, session, {
       fileBuffer: Buffer.from(''),
       fileName: 'c.xlsx',
+      companyId: 'co-1',
     });
-    expect(tx.paymentImportWrite.create.mock.calls[0]![0].data).toMatchObject({
-      action: 'updated',
-      before,
-    });
+    const paymentTrail = tx.paymentImportWrite.create.mock.calls
+      .map((c) => c[0].data)
+      .filter((d: { entity: string }) => d.entity === 'payment');
+    expect(paymentTrail[0]).toMatchObject({ action: 'updated', before });
   });
 
   it('пропущенная writer-ом строка следа не оставляет', async () => {
@@ -256,12 +301,19 @@ describe('commitPaymentImport', () => {
       paymentImportBatch: { create: vi.fn().mockResolvedValue({ id: 'batch1' }), update: vi.fn() },
       paymentImportRow: { upsert: vi.fn(), updateMany: vi.fn() },
       paymentImportWrite: { create: vi.fn() },
+      // `У-86`: контрагент без ИНН теперь заводится — транзакция это делает.
+      organization: {
+        create: vi.fn().mockResolvedValue({ id: 'org-new' }),
+        findMany: vi.fn().mockResolvedValue([]),
+      },
     };
     const prisma = {
       $transaction: vi.fn(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
       paymentImportBatch: { update: vi.fn() },
       auditLog: { create: vi.fn() },
       syncLog: { create: vi.fn() },
+      // `У-86`: дедуп кандидатов ходит в организации (по ИНН и по ключу).
+      organization: { findMany: vi.fn().mockResolvedValue([]) },
     } as never;
     upsertPaymentRecord.mockResolvedValue(undefined);
 
@@ -402,8 +454,10 @@ describe('автосоздание организаций при импорте 
   it('админ без компании, но и без новых контрагентов — импорт работает как прежде', async () => {
     // Отказ `company_required` уместен только когда создавать действительно
     // нужно: иначе мы сломали бы обычный импорт в системе с одной компанией.
+    // `У-86`: «нечего создавать» теперь означает «нет ни ИНН, ни названия» —
+    // контрагент с одним лишь названием стал полноценным кандидатом.
     parseAccountCard.mockReturnValue({
-      rows: [{ ...rowWithInn(), counterpartyInn: null }],
+      rows: [{ ...rowWithInn(), counterpartyInn: null, counterpartyName: null }],
       diagnostics: emptyDiagnostics(),
     });
     const t = tx();
@@ -510,6 +564,10 @@ describe('компания импорта в матчере (У-88)', () => {
       paymentImportBatch: { create: vi.fn().mockResolvedValue({ id: 'batch1' }), update: vi.fn() },
       paymentImportRow: { upsert: vi.fn(), updateMany: vi.fn() },
       paymentImportWrite: { create: vi.fn() },
+      organization: {
+        create: vi.fn().mockResolvedValue({ id: 'org-new' }),
+        findMany: vi.fn().mockResolvedValue([]),
+      },
     };
   }
   function prismaWith(t: ReturnType<typeof tx>) {
@@ -519,12 +577,16 @@ describe('компания импорта в матчере (У-88)', () => {
       auditLog: { create: vi.fn() },
       syncLog: { create: vi.fn() },
       company: { findUnique: vi.fn().mockResolvedValue({ id: 'co-form' }) },
+      organization: { findMany: vi.fn().mockResolvedValue([]) },
     } as never;
   }
   const opts = (call: unknown[]) => call[2] as { companyId?: string | null } | undefined;
 
   it('предпросмотр админа берёт компанию из формы', async () => {
-    await previewPaymentImport({} as never, session, {
+    await previewPaymentImport(
+      { organization: { findMany: vi.fn().mockResolvedValue([]) } } as never,
+      session,
+      {
       fileBuffer: Buffer.from(''),
       fileName: 'c.xlsx',
       companyId: 'co-form',
@@ -533,7 +595,10 @@ describe('компания импорта в матчере (У-88)', () => {
   });
 
   it('админ без выбранной компании → ступень пропускается (companyId = null)', async () => {
-    await previewPaymentImport({} as never, session, {
+    await previewPaymentImport(
+      { organization: { findMany: vi.fn().mockResolvedValue([]) } } as never,
+      session,
+      {
       fileBuffer: Buffer.from(''),
       fileName: 'c.xlsx',
     });
@@ -542,7 +607,10 @@ describe('компания импорта в матчере (У-88)', () => {
 
   it('руководитель матчит в своей компании, выбор формы игнорируется (C8)', async () => {
     const leader = { sub: 'u2', role: 'leader', companyId: 'co-own' } as never;
-    await previewPaymentImport({} as never, leader, {
+    await previewPaymentImport(
+      { organization: { findMany: vi.fn().mockResolvedValue([]) } } as never,
+      leader,
+      {
       fileBuffer: Buffer.from(''),
       fileName: 'c.xlsx',
       companyId: 'co-foreign',
@@ -558,5 +626,121 @@ describe('компания импорта в матчере (У-88)', () => {
       companyId: 'co-form',
     });
     expect(opts(matchRow.mock.calls[0]!)).toMatchObject({ companyId: 'co-form' });
+  });
+});
+
+// `У-86`/`У-87`/`У-92`: контрагент без ИНН доходит до создания, правки
+// предпросмотра доезжают до применения, а диагностика отвечает на вопрос
+// «а остальные почему не созданы».
+describe('импорт контрагентов без ИНН (У-86, У-87, У-92)', () => {
+  function tx() {
+    return {
+      paymentImportBatch: { create: vi.fn().mockResolvedValue({ id: 'batch1' }), update: vi.fn() },
+      paymentImportRow: { upsert: vi.fn(), updateMany: vi.fn() },
+      paymentImportWrite: { create: vi.fn() },
+      organization: {
+        create: vi.fn().mockResolvedValue({ id: 'org-new' }),
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+    };
+  }
+  function prismaWith(t: ReturnType<typeof tx>) {
+    return {
+      $transaction: vi.fn(async (fn: (x: typeof t) => Promise<unknown>) => fn(t)),
+      paymentImportBatch: { update: vi.fn() },
+      auditLog: { create: vi.fn() },
+      syncLog: { create: vi.fn() },
+      organization: { findMany: vi.fn().mockResolvedValue([]) },
+    } as never;
+  }
+
+  beforeEach(() => {
+    // Обе строки файла — без ИНН, с одним и тем же контрагентом.
+    const [a, b] = parsed();
+    parseAccountCard.mockReturnValue({
+      rows: [
+        { ...a, counterpartyName: 'ООО «Ромашка»', counterpartyInn: null },
+        { ...b, counterpartyName: 'РОМАШКА, ООО', counterpartyInn: null },
+      ],
+      diagnostics: emptyDiagnostics(),
+    });
+    matchRow.mockResolvedValue({
+      route: 'queue',
+      candidateOrgId: null,
+      candidateOrderId: null,
+      matchMethod: 'none',
+    });
+  });
+
+  it('предпросмотр показывает кандидата без ИНН и сводку по контрагентам', async () => {
+    const res = await previewPaymentImport(
+      { organization: { findMany: vi.fn().mockResolvedValue([]) } } as never,
+      session,
+      { fileBuffer: Buffer.from(''), fileName: 'c.xlsx', companyId: 'co-1' }
+    );
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.plan.newCounterparties).toEqual([
+      expect.objectContaining({ key: 'РОМАШКА', inn: null, rows: 2 }),
+    ]);
+    // `У-92`: цифры, которыми экран объясняет «создано N, остальные — почему нет».
+    expect(res.plan.counterparties).toMatchObject({ total: 1, willCreate: 1, withoutInn: 1 });
+  });
+
+  it('применение создаёт организацию без ИНН и привязывает обе строки по ключу', async () => {
+    const t = tx();
+    matchRow
+      .mockResolvedValueOnce({ route: 'queue', candidateOrgId: null, candidateOrderId: null, matchMethod: 'none' })
+      .mockResolvedValueOnce({ route: 'queue', candidateOrgId: null, candidateOrderId: null, matchMethod: 'none' })
+      // ре-матч после создания — обе строки находят организацию по ключу
+      .mockResolvedValue({
+        route: 'exact',
+        dto: {
+          externalId: 'x',
+          organizationId: 'org-new',
+          amount: 1,
+          paidAt: '2026-06-01T00:00:00.000Z',
+          isRefund: false,
+          updatedAt: new Date(0).toISOString(),
+        },
+      });
+    upsertPaymentRecord.mockResolvedValue({ entityId: 'pay-1', action: 'created' });
+
+    const res = await commitPaymentImport(prismaWith(t), session, {
+      fileBuffer: Buffer.from(''),
+      fileName: 'c.xlsx',
+      companyId: 'co-1',
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.result.counts.orgsCreated).toBe(1);
+    expect(t.organization.create).toHaveBeenCalledTimes(1);
+    // Обе строки ушли из очереди — платежи записаны, строк очереди нет.
+    expect(upsertPaymentRecord).toHaveBeenCalledTimes(2);
+    expect(t.paymentImportRow.upsert).not.toHaveBeenCalled();
+  });
+
+  it('снятая в предпросмотре галочка не создаёт организацию (У-87)', async () => {
+    const t = tx();
+    const res = await commitPaymentImport(prismaWith(t), session, {
+      fileBuffer: Buffer.from(''),
+      fileName: 'c.xlsx',
+      companyId: 'co-1',
+      overrides: [{ key: 'РОМАШКА', create: false }],
+    });
+    expect(res.ok).toBe(true);
+    expect(t.organization.create).not.toHaveBeenCalled();
+  });
+
+  it('негодный ручной ИНН отклоняется ДО записи (У-87)', async () => {
+    const t = tx();
+    const res = await commitPaymentImport(prismaWith(t), session, {
+      fileBuffer: Buffer.from(''),
+      fileName: 'c.xlsx',
+      companyId: 'co-1',
+      overrides: [{ key: 'РОМАШКА', inn: '123' }],
+    });
+    expect(res).toMatchObject({ ok: false, error: 'bad_inn' });
+    expect(t.paymentImportBatch.create).not.toHaveBeenCalled();
   });
 });

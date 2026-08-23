@@ -485,10 +485,25 @@ describe('PaymentQueueTable — создание организации из о�
 
   const openDialog = () => document.querySelector('dialog[open]') as HTMLElement;
 
-  it('кнопка есть только у строк с ИНН', () => {
-    render(<PaymentQueueTable rows={[row(), row({ id: 'r2', counterpartyInn: null })]}  total={1} take={50} skip={0} basePath="/x" searchParams={{}} />);
+  // `У-89`: кнопка исчезает только у строки, где создавать не из чего.
+  it('кнопка есть у строки с ИНН и у строки с одним названием; без обоих — нет', () => {
+    render(
+      <PaymentQueueTable
+        rows={[
+          row(),
+          row({ id: 'r2', counterpartyInn: null }),
+          row({ id: 'r3', counterpartyInn: null, counterpartyName: null }),
+        ]}
+        total={3}
+        take={50}
+        skip={0}
+        basePath="/x"
+        searchParams={{}}
+      />
+    );
     expect(screen.getAllByTestId('create-org-r1')[0]).toBeTruthy();
-    expect(screen.queryByTestId('create-org-r2')).toBeNull();
+    expect(screen.getAllByTestId('create-org-r2')[0]).toBeTruthy();
+    expect(screen.queryByTestId('create-org-r3')).toBeNull();
   });
 
   it('диалог: prefill наименования и ИНН; без пропа companies селекта нет; успех прячет строку', async () => {
@@ -844,9 +859,26 @@ describe('PaymentQueueTable — пакетное создание организ
     );
   });
 
-  it('строк с ИНН нет — кнопки пакетного создания нет вовсе', () => {
-    render(React.createElement(PaymentQueueTable, { ...tableProps, rows: [row({ counterpartyInn: null })] }));
+  // `У-89`: кнопка пропадает, только когда создавать НЕ ИЗ ЧЕГО — то есть ни
+  // ИНН, ни названия. Строка без ИНН, но с названием — законный кандидат.
+  it('ни ИНН, ни названия — кнопки пакетного создания нет вовсе', () => {
+    render(
+      React.createElement(PaymentQueueTable, {
+        ...tableProps,
+        rows: [row({ counterpartyInn: null, counterpartyName: null })],
+      })
+    );
     expect(screen.queryByTestId('bulk-create-orgs')).toBeNull();
+  });
+
+  it('строка без ИНН, но с названием — кнопка есть', () => {
+    render(
+      React.createElement(PaymentQueueTable, {
+        ...tableProps,
+        rows: [row({ counterpartyInn: null })],
+      })
+    );
+    expect(screen.getByTestId('bulk-create-orgs')).toBeTruthy();
   });
 });
 

@@ -23,6 +23,14 @@ export type PartySuggestion = {
   kpp: string | null;
   ogrn: string | null;
   address: string | null;
+  /**
+   * `У-85`: состояние по ЕГРЮЛ (`ACTIVE` | `LIQUIDATING` | `LIQUIDATED` |
+   * `BANKRUPT` | `REORGANIZING`) и краткая орг-форма. Нужны правилу «ИНН
+   * принимается только от ОДНОЙ действующей организации»: без статуса
+   * автосоздание молча подставило бы ИНН ликвидированного тёзки.
+   */
+  status: string | null;
+  opf: string | null;
 };
 
 type RawSuggestion = {
@@ -32,6 +40,8 @@ type RawSuggestion = {
     kpp?: unknown;
     ogrn?: unknown;
     address?: { value?: unknown } | null;
+    state?: { status?: unknown } | null;
+    opf?: { short?: unknown } | null;
   } | null;
 };
 
@@ -56,6 +66,8 @@ export function normalizeParty(body: unknown): PartySuggestion[] {
       kpp: typeof rec.data?.kpp === 'string' ? rec.data.kpp : null,
       ogrn: typeof rec.data?.ogrn === 'string' ? rec.data.ogrn : null,
       address: typeof rec.data?.address?.value === 'string' ? rec.data.address.value : null,
+      status: typeof rec.data?.state?.status === 'string' ? rec.data.state.status : null,
+      opf: typeof rec.data?.opf?.short === 'string' ? rec.data.opf.short : null,
     });
   }
   return out;
