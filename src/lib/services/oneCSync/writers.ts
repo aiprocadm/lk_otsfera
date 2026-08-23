@@ -4,6 +4,7 @@ import { resolveAutoManager } from '@/lib/services/manager/distribution';
 import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import { log } from '@/lib/logging';
+import { organizationNameKey } from '@/lib/services/import/oneCAccountCard/counterparty-key';
 import { mapOrderDto, mapPaymentDto, mapOrgDto, mapDocumentDto } from './mappers';
 import { normalizeInn } from './inn';
 import { resolveOrganizationRef } from './resolve-org';
@@ -395,10 +396,18 @@ export async function upsertOrgRecord(
     }
     if (isLive(ctx)) {
       // Backfill the 1C externalId only when the matched org has none — never clobber a different identity.
+      // `У-84`: имя приходит из 1С — ключ названия пересчитывается вместе с ним.
+      const nameKey = organizationNameKey(input.name);
       const data =
         input.externalId && !existing.externalId
-          ? { name: input.name, inn: input.inn, kpp: input.kpp, externalId: input.externalId }
-          : { name: input.name, inn: input.inn, kpp: input.kpp };
+          ? {
+              name: input.name,
+              nameKey,
+              inn: input.inn,
+              kpp: input.kpp,
+              externalId: input.externalId,
+            }
+          : { name: input.name, nameKey, inn: input.inn, kpp: input.kpp };
       await db.organization.update({ where: { id: existing.id }, data });
     }
     sum.updated += 1;
@@ -438,6 +447,8 @@ export async function upsertOrgRecord(
         data: {
           externalId: input.externalId,
           name: input.name,
+          // `У-84`: ключ названия — при каждом создании.
+          nameKey: organizationNameKey(input.name),
           inn: input.inn,
           kpp: input.kpp,
           partnerId,

@@ -1,18 +1,9 @@
 import type { PrismaClient } from '@prisma/client';
 import type { OneCPaymentDto } from '@/lib/services/oneCSync/dto';
+import { counterpartyKey } from './counterparty-key';
 import type { ParsedRow, MatchOutcome } from './types';
 
 const EPOCH = new Date(0).toISOString();
-
-/** Нормализация наименования для fuzzy: upper-case, схлопывание пробелов, убрать орг-формы и пунктуацию. */
-function normalizeName(name: string): string {
-  return name
-    .toUpperCase()
-    .replace(/[«»"'().,]/g, ' ')
-    .replace(/\b(ООО|АО|ПАО|ЗАО|ИП|ОАО|НКО)\b/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
 
 function baseDto(
   r: ParsedRow
@@ -76,7 +67,7 @@ export async function matchRow(prisma: PrismaClient, r: ParsedRow): Promise<Matc
 
   // 3) fuzzy-имя → кандидат в очередь (не авто)
   if (r.counterpartyName) {
-    const norm = normalizeName(r.counterpartyName);
+    const norm = counterpartyKey(r.counterpartyName).key;
     if (norm.length >= 3) {
       const org = await prisma.organization.findFirst({
         // String.split всегда возвращает минимум один элемент — [0] существует.

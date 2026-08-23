@@ -157,16 +157,16 @@
 > а недоступные роли/флагу разделы пишем в лог прогона отдельной строкой
 > «ПРОПУЩЕН» — чтобы пропуск не выглядел проверкой.
 
-Состояние на **21.08.2026** — заведена программа ТЗ кабинетов, документов и
-интеграций: 99 строк `У-78`…`У-176` добавлены; этап 0 (`У-78`…`У-81` —
-указатель, реестры, блок в CLAUDE.md) и `У-82` (страж, проверен мутацией)
-выполнены PR ввода ТЗ; этапы 1–9 — `⏳`. Программа ТЗ понятности закрыта 13.08.2026 полным проходом
-(78 × `✅`):
+Состояние на **23.08.2026** — программа ТЗ кабинетов, документов и
+интеграций: 99 строк `У-78`…`У-176`; этап 0 (`У-78`…`У-82`) выполнен PR ввода
+ТЗ (#401); **этап 1 в работе** — PR-1 «ключ контрагента» закрыл `У-83`,
+`У-84`, `У-91`; остальные требования этапов 1–9 — `⏳`. Программа ТЗ
+понятности закрыта 13.08.2026 полным проходом (78 × `✅`):
 
 | Вердикт | Кол-во |
 |---|---|
-| `✅` соответствует | **83** |
-| `⏳` запланировано | **94** |
+| `✅` соответствует | **86** |
+| `⏳` запланировано | **91** |
 | `❌` расхождение | 0 |
 | `⚠` вне объёма | 1 (см. раздел ниже) — расхождение в тексте ТЗ понятности, чинить нечего |
 
@@ -205,15 +205,15 @@
 
 | Требование | Что проверять (наблюдаемое поведение) | Якорь | Вердикт | Сверено |
 |---|---|---|---|---|
-| `У-83` | У строки выписки без ИНН в `PaymentImportRow.counterpartyKey` лежит нормализованное название (без кавычек, орг-формы, регистра, `ё`); ключ один и тот же для «ООО Ромашка», «РОМАШКА, ООО» и «ромашка ооо»; у строк, лежавших в очереди до миграции, ключ заполнен бэкфиллом | [matcher.ts](../../src/lib/services/import/oneCAccountCard/matcher.ts) (`normalizeName` — основа), новый модуль `counterparty-key.ts` | ⏳ этап 1 | — |
-| `У-84` | `Organization.nameKey` заполнен у всех организаций после миграции и обновляется при переименовании; индекс есть | [schema.prisma](../../prisma/schema.prisma) | ⏳ этап 1 | — |
+| `У-83` | У строки выписки без ИНН в `PaymentImportRow.counterpartyKey` лежит нормализованное название (без кавычек, орг-формы, регистра, `ё`); ключ один и тот же для «ООО Ромашка», «РОМАШКА, ООО» и «ромашка ооо»; у строк, лежавших в очереди до миграции, ключ заполнен бэкфиллом | [counterparty-key.ts](../../src/lib/services/import/oneCAccountCard/counterparty-key.ts) (таблица пар — [import.card51.counterparty-key.test.ts](../../src/__tests__/import.card51.counterparty-key.test.ts)); запись при upsert строки — [import-batch.ts](../../src/lib/services/import/oneCAccountCard/import-batch.ts); бэкфилл — миграция `20260823090000_stage1_counterparty_key`, паритет SQL ≡ TS — [import.card51.counterparty-key.sql-parity.integration.test.ts](../../src/__tests__/import.card51.counterparty-key.sql-parity.integration.test.ts) (проверен мутацией) | ✅ соответствует (этап 1, PR-1) | 23.08.2026 |
+| `У-84` | `Organization.nameKey` заполнен у всех организаций после миграции и обновляется при переименовании; индекс есть | [schema.prisma](../../prisma/schema.prisma) (`nameKey` + `@@index([companyId, nameKey])`); шесть точек записи `name` пишут ключ (auto-create, create-org, admin/organizations create+update, oneCSync/writers create+update, восстановление отката в [rollback.ts](../../src/lib/services/import/rollback.ts)); страж точек — [import.org-name-key.guardrail.test.ts](../../src/__tests__/import.org-name-key.guardrail.test.ts) (проверен мутацией) | ✅ соответствует (этап 1, PR-1) | 23.08.2026 |
 | `У-85` | Контрагент без ИНН получает ИНН из DaData только при одной действующей подсказке с совпавшим ключом; источник `dadata` записан; при выключенной DaData — строка в диагностике | [suggestParty.ts](../../src/lib/services/dadata/suggestParty.ts) | ⏳ этап 1 | — |
 | `У-86` | Импорт выписки создаёт организацию для контрагента без ИНН (с `inn = null` или ИНН из DaData); повторный импорт того же названия не создаёт дубль, а привязывает платёж; аудит `organization_created_auto` с `innSource` | [auto-create.ts](../../src/lib/services/import/oneCAccountCard/auto-create.ts) · [new-counterparties.ts](../../src/lib/services/import/oneCAccountCard/new-counterparties.ts) | ⏳ этап 1 | — |
 | `У-87` | Предпросмотр показывает три группы («с ИНН из файла», «ИНН из DaData», «без ИНН»), галочки и редактируемый ИНН с валидацией; применить без показа списка нельзя | `payment-import-form.tsx` | ⏳ этап 1 | — |
 | `У-88` | Строка с названием, совпадающим по `nameKey` с организацией компании, получает `route: exact` без ИНН; «похожее, но другое» название — в очередь | [matcher.ts](../../src/lib/services/import/oneCAccountCard/matcher.ts) | ⏳ этап 1 | — |
 | `У-89` | Пакетное «Создать организации» в очереди группирует и строки без ИНН; ИНН редактируем, пустой — с предупреждением; после создания все строки того же ключа привязаны | [queue-bulk.ts](../../src/lib/services/import/oneCAccountCard/queue-bulk.ts) · [create-org.ts](../../src/lib/services/import/oneCAccountCard/create-org.ts) | ⏳ этап 1 | — |
 | `У-90` | Очередь из 250 строк показывает счётчик «всего 250», страницы по 50, фильтры и сортировку; `take: 200` удалён | [resolve-queue.ts](../../src/lib/services/import/oneCAccountCard/resolve-queue.ts) | ⏳ этап 1 | — |
-| `У-91` | `extractInn` находит ИНН в «ИНН/КПП …/…» и «ИНН: …» (сейчас — нет); формы «ИНН … КПП», «(ИНН …)», «ИНН…» закреплены регрессами; `extractCounterparty` возвращает чистое название без хвостов ИНН/КПП и скобок | [extractors.ts](../../src/lib/services/import/oneCAccountCard/extractors.ts) | ⏳ этап 1 | — |
+| `У-91` | `extractInn` находит ИНН в «ИНН/КПП …/…» и «ИНН: …» (сейчас — нет); формы «ИНН … КПП», «(ИНН …)», «ИНН…» закреплены регрессами; `extractCounterparty` возвращает чистое название без хвостов ИНН/КПП и скобок | [extractors.ts](../../src/lib/services/import/oneCAccountCard/extractors.ts); регрессы новых и прежних форм — [import.card51.extractors.test.ts](../../src/__tests__/import.card51.extractors.test.ts), фикстура реального файла не сдвинулась — [import.card51.real-layout.test.ts](../../src/__tests__/import.card51.real-layout.test.ts) | ✅ соответствует (этап 1, PR-1) | 23.08.2026 |
 | `У-92` | Диагностика предпросмотра содержит блок «Контрагенты: в файле / с ИНН / через DaData / без ИНН / уже есть / будет создано»; блок «В очередь разбора — почему» расширен причинами создания, словарь причин — в `errors/messages.ts` | [import-batch.ts](../../src/lib/services/import/oneCAccountCard/import-batch.ts) · [payment-import-form.tsx](../../src/components/import/payment-import-form.tsx) · [messages.ts](../../src/lib/errors/messages.ts) | ⏳ этап 1 | — |
 | `У-93` | Интеграционный тест: фикстура реальной раскладки, 5 контрагентов, ИНН у одного, DaData-мок на двух → 5 организаций, 5 платежей, очередь пуста; откат батча возвращает состояние | [import.card51.real-layout.test.ts](../../src/__tests__/import.card51.real-layout.test.ts) · [rollback.ts](../../src/lib/services/import/rollback.ts) | ⏳ этап 1 | — |
 | `У-94` | Карточка организации без ИНН показывает плашку и кнопку «Найти в ЕГРЮЛ» в единой карточке (admin/leader/manager); выбор подсказки заполняет ИНН/КПП/юр. название/ОГРН/адрес; список организаций фильтруется «без ИНН» | [suggestParty.ts](../../src/lib/services/dadata/suggestParty.ts) | ⏳ этап 2 | — |

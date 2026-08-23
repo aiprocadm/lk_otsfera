@@ -574,6 +574,14 @@ describe('сам откат (Т-35, Т-37, Т-38)', () => {
       }),
       // Снимка нет — восстанавливать нечего, строка просто помечается.
       row({ id: 'r7', entity: 'payment', entityId: 'pay-nobefore', action: 'updated' }),
+      // `У-84`: снимок БЕЗ имени (менялись только реквизиты) — ключ не трогаем.
+      row({
+        id: 'r8',
+        entity: 'organization',
+        entityId: 'org-upd2',
+        action: 'updated',
+        before: { inn: '7712345678', kpp: null, externalId: null, partnerId: null },
+      }),
     ];
     const db = happyDb(rows);
     const calls: string[] = [];
@@ -586,7 +594,7 @@ describe('сам откат (Т-35, Т-37, Т-38)', () => {
       ok: true,
       status: 'rolled_back',
       deleted: { organizations: 1, orders: 1, payments: 1 },
-      restored: 4,
+      restored: 5,
       skippedConflicts: 0,
     });
     // Т-35: обратный порядок.
@@ -602,16 +610,30 @@ describe('сам откат (Т-35, Т-37, Т-38)', () => {
     });
     expect(db.organization.update).toHaveBeenCalledWith({
       where: { id: 'org-upd' },
-      data: { name: 'Старое имя', inn: null, kpp: null, externalId: null, partnerId: null },
+      // `У-84`: откат восстанавливает имя — ключ пересчитывается, а не
+      // остаётся от отменённого переименования.
+      data: {
+        name: 'Старое имя',
+        nameKey: 'СТАРОЕ ИМЯ',
+        inn: null,
+        kpp: null,
+        externalId: null,
+        partnerId: null,
+      },
     });
     expect(db.payment.update).toHaveBeenCalledWith({
       where: { id: 'pay-upd' },
       data: { amount: '300', paidAt: new Date('2026-07-01T00:00:00.000Z'), purpose: null },
     });
+    // `У-84`: снимок без имени — nameKey в restore-данных отсутствует.
+    const orgNoName = db.organization.update.mock.calls.find(
+      (c: [{ where: { id: string } }]) => c[0].where.id === 'org-upd2'
+    );
+    expect(orgNoName![0]).not.toHaveProperty('data.nameKey');
     // Строка без снимка запись не трогает, но помечается откаченной.
     expect(db.payment.update).toHaveBeenCalledTimes(1);
     expect(db.oneCImportRow.updateMany).toHaveBeenCalledWith({
-      where: { id: { in: ['r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7'] } },
+      where: { id: { in: ['r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8'] } },
       data: { reverted: true },
     });
     expect(db.oneCImportBatch.update).toHaveBeenCalledWith({

@@ -3,6 +3,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { importScope } from '@/lib/services/oneCSync/scope';
 import { recordAudit } from '@/lib/auth/audit';
 import { log } from '@/lib/logging';
+import { organizationNameKey } from './counterparty-key';
 import type { NewCounterparty } from './new-counterparties';
 
 /**
@@ -55,11 +56,14 @@ export async function createOrganizationsForImport(
 ): Promise<Map<string, string>> {
   const byInn = new Map<string, string>();
   for (const c of args.candidates) {
+    // Название в выписке бывает пустым — тогда человеку нужен хоть
+    // какой-то опознаваемый ярлык, а не пустая строка в списке.
+    const name = c.name || `Организация по ИНН ${c.inn}`;
     const created = await db.organization.create({
       data: {
-        // Название в выписке бывает пустым — тогда человеку нужен хоть
-        // какой-то опознаваемый ярлык, а не пустая строка в списке.
-        name: c.name || `Организация по ИНН ${c.inn}`,
+        name,
+        // `У-84`: ключ названия — при каждом создании (дедуп и матчер по ключу).
+        nameKey: organizationNameKey(name),
         inn: c.inn,
         companyId: args.companyId,
       },

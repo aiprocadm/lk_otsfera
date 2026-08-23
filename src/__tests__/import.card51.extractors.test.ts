@@ -125,6 +125,19 @@ describe('extractCounterparty', () => {
   it('strips trailing ИНН from the name', () => {
     expect(extractCounterparty('РОМАШКА ООО ИНН 9909676723')).toBe('РОМАШКА ООО');
   });
+  // `У-91`: чистим и новые формы хвостов, и скобки с ИНН/КПП.
+  it('У-91: strips trailing "ИНН/КПП NNN/NNN"', () => {
+    expect(extractCounterparty('РОМАШКА ООО ИНН/КПП 9909676723/770101001')).toBe('РОМАШКА ООО');
+  });
+  it('У-91: strips trailing "ИНН: NNN"', () => {
+    expect(extractCounterparty('РОМАШКА ООО ИНН: 9909676723')).toBe('РОМАШКА ООО');
+  });
+  it('У-91: strips bracketed ИНН/КПП anywhere in the line', () => {
+    expect(extractCounterparty('РОМАШКА ООО (ИНН 9909676723) г. Москва')).toBe(
+      'РОМАШКА ООО г. Москва'
+    );
+    expect(extractCounterparty('РОМАШКА ООО (ИНН/КПП 9909676723/770101001)')).toBe('РОМАШКА ООО');
+  });
 });
 
 describe('extractInn', () => {
@@ -133,6 +146,20 @@ describe('extractInn', () => {
   });
   it('returns null when absent', () => {
     expect(extractInn('ХОЛДИНГ ГЕФЕСТ ООО')).toBeNull();
+  });
+  // `У-91`: прежние работающие формы закреплены регрессами…
+  it('regression: "(ИНН NNN)", "ИННNNN", "ИНН NNN КПП …"', () => {
+    expect(extractInn('РОМАШКА ООО (ИНН 9909676723)')).toBe('9909676723');
+    expect(extractInn('РОМАШКА ООО ИНН9909676723')).toBe('9909676723');
+    expect(extractInn('РОМАШКА ООО ИНН 9909676723 КПП 770101001')).toBe('9909676723');
+  });
+  // …а новые — добавлены.
+  it('У-91: recognizes "ИНН/КПП NNN/NNN"', () => {
+    expect(extractInn('РОМАШКА ООО ИНН/КПП 9909676723/770101001')).toBe('9909676723');
+  });
+  it('У-91: recognizes "ИНН: NNN"', () => {
+    expect(extractInn('РОМАШКА ООО ИНН: 9909676723')).toBe('9909676723');
+    expect(extractInn('ИНН:9909676723')).toBe('9909676723');
   });
 });
 

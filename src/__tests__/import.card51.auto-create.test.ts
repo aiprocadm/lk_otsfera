@@ -81,6 +81,8 @@ describe('createOrganizationsForImport (У-49, У-54, след для У-59)', (
     expect(map.get('7707083893')).toBe('org-7707083893');
     expect(create.mock.calls[0]![0].data).toMatchObject({
       name: 'ООО «Альфа»',
+      // `У-84`: ключ названия пишется при создании — на нём дедуп и матчер.
+      nameKey: 'АЛЬФА',
       inn: '7707083893',
       companyId: 'co-7',
     });
@@ -108,6 +110,7 @@ describe('createOrganizationsForImport (У-49, У-54, след для У-59)', (
       fileName: 'f.xls',
     });
     expect(create.mock.calls[0]![0].data.name).toBe('Организация по ИНН 7736207543');
+    expect(create.mock.calls[0]![0].data.nameKey).toBe('ОРГАНИЗАЦИЯ ПО ИНН 7736207543');
   });
 
   it('упавший аудит не рвёт импорт — организация уже создана', async () => {
