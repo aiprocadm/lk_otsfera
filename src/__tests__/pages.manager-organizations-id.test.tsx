@@ -39,7 +39,7 @@ const nav = vi.hoisted(() => ({
 }));
 vi.mock('next/navigation', () => nav);
 
-// Зеркалим полный реальный ORG_CARD_TABS (вкл. флаг-гейтед inbound_messages/calls),
+// `У-95`: состав вкладок страница берёт из реестра `lib/navigation/orgCardTabs`,
 // чтобы .filter в странице прогонял обе ветки `||` предиката видимости.
 vi.mock('@/components/manager/org-card-tabs', () => ({
   OrgCardTabs: (props: { card: unknown; activeTab: string; tabs?: { key: string }[] }) =>
@@ -52,20 +52,6 @@ vi.mock('@/components/manager/org-card-tabs', () => ({
       ' ',
       JSON.stringify(props.card)
     ),
-  ORG_CARD_TABS: [
-    { key: 'history', label: 'История' },
-    { key: 'orders', label: 'Заявки' },
-    { key: 'documents', label: 'Документы' },
-    { key: 'payments', label: 'Оплаты' },
-    { key: 'threads', label: 'Переписка' },
-    { key: 'inbound_messages', label: 'Обращения' },
-    { key: 'calls', label: 'Звонки' },
-    { key: 'client_requests', label: 'Заявки клиентов' },
-    { key: 'leads', label: 'Лиды' },
-    { key: 'deals', label: 'Сделки' },
-    { key: 'certificates', label: 'Удостоверения' },
-    { key: 'details', label: 'Реквизиты' },
-  ],
 }));
 
 const SESSION = {
@@ -169,7 +155,7 @@ describe('ManagerOrgDetailPage', () => {
       })
     );
 
-    expect(container.textContent).toContain('inbound_messages');
+    expect(container.textContent).toContain('inbound');
     expect(container.textContent).toContain('calls');
   });
 
@@ -186,7 +172,7 @@ describe('ManagerOrgDetailPage', () => {
     );
 
     const tabsLine = container.textContent ?? '';
-    expect(tabsLine).not.toContain('inbound_messages');
+    expect(tabsLine).not.toContain('inbound');
     expect(tabsLine).not.toContain('calls');
     expect(tabsLine).toContain('active:history');
   });
@@ -205,7 +191,7 @@ describe('ManagerOrgDetailPage', () => {
 
     expect(container.textContent).toContain('active:calls');
     // «Обращения» остаётся скрытой — флаги независимы.
-    expect(container.textContent).not.toContain('inbound_messages');
+    expect(container.textContent).not.toContain('inbound');
   });
 
   it('falls back to "history" when ?tab=calls but the telephony flag is off', async () => {
@@ -235,7 +221,7 @@ describe('ManagerOrgDetailPage', () => {
     );
     let tabs = res.container.textContent ?? '';
     expect(tabs).toContain('leads');
-    expect(tabs).not.toContain('client_requests');
+    expect(tabs).not.toContain('requests');
     expect(tabs).not.toContain('deals');
 
     isFeatureEnabled.mockImplementation(
@@ -248,7 +234,7 @@ describe('ManagerOrgDetailPage', () => {
       })
     );
     tabs = res.container.textContent ?? '';
-    expect(tabs).toContain('client_requests');
+    expect(tabs).toContain('requests');
     expect(tabs).toContain('active:deals');
   });
 });

@@ -1,7 +1,7 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
 import { AddStudentDialog } from '@/components/students/add-student-dialog';
-import { requireManagerForOrg } from '@/lib/auth/requireRole';
+import { requireManagerLeader } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { getOrganizationCard } from '@/lib/services/manager/organizationCard';
@@ -16,7 +16,17 @@ import { Breadcrumbs } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
 
-export default async function ManagerOrgDetailPage({
+/**
+ * Карточка организации в кабинете руководителя (`У-101`).
+ *
+ * До этапа 2 своей карточки у руководителя не было: список
+ * `/leader/organizations` вёл в `/manager/organizations/[id]` — чужой кабинет с
+ * чужими хлебными крошками, из которых нельзя было вернуться к себе. Экран
+ * повторяет менеджерский **тем же компонентом** (`Р-23`: общий вид, данные и
+ * права — от сервиса роли): `getOrganizationCard` сам держит границу компании
+ * (C8), поэтому чужую организацию руководитель не откроет.
+ */
+export default async function LeaderOrgDetailPage({
   params,
   searchParams,
 }: {
@@ -26,34 +36,26 @@ export default async function ManagerOrgDetailPage({
   const { id } = await params;
   const sp = await searchParams;
 
-  // `У-95`: состав вкладок — фильтр общего реестра по кабинету и флагам, а не
-  // свой список в экране (раньше условия флагов дублировались в каждой роли).
-  const visibleTabs = orgCardTabsFor('manager', { flags: isFeatureEnabled });
-
+  // `У-95`: состав вкладок — фильтр общего реестра, тот же, что у менеджера.
+  const visibleTabs = orgCardTabsFor('leader', { flags: isFeatureEnabled });
   const rawTab = typeof sp.tab === 'string' ? sp.tab : undefined;
   const activeTab: OrgCardTabKey = visibleTabs.some((t) => t.key === rawTab)
     ? (rawTab as OrgCardTabKey)
     : 'history';
 
-  const session = await requireManagerForOrg(id);
+  const session = await requireManagerLeader();
   const card = await getOrganizationCard(prisma, session, id);
   if (!card) notFound();
 
-  // §11 ТЗ v0.5: настраиваемые поля организации — под вкладками, чтобы были
-  // видны на любой из них (вкладки переключают историю/удостоверения, а поля
-  // относятся к самой организации).
   const customFields = await getFieldsForEntity(prisma, session, 'organization', id);
-  // `У-54`: клиента мог завести импорт выписки — менеджеру это видно сразу.
   const autoCreated = await getAutoCreatedFrom1C(prisma, id);
 
   return (
     <div className="space-y-5">
-      {/* `У-72`: человек видит, из какого раздела пришёл и к кому. */}
+      {/* `У-101`: крошки ведут в СВОЙ список, а не в кабинет менеджера. */}
       <Breadcrumbs
-        items={buildCabinetBreadcrumbs('manager', '/manager/organizations', [{ label: card.name }])}
+        items={buildCabinetBreadcrumbs('leader', '/leader/organizations', [{ label: card.name }])}
       />
-      {/* У-26 (этап 5): менеджер заводит сотрудника прямо из карточки клиента —
-          раньше сотрудника в системе нельзя было создать вообще нигде. */}
       <AutoCreatedBadge mark={autoCreated} />
       <div className="flex justify-end">
         <AddStudentDialog organizationId={id} />

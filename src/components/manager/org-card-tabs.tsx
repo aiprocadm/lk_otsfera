@@ -5,6 +5,8 @@ import { Badge, EmptyState, ExportLink, TableShell, THead, Th, Tr, Td } from '@/
 import { CallsList } from '@/components/manager/calls-list';
 import { LeadStatusBadge } from '@/components/partner/lead-status-badge';
 import { clientRequestStatusLabel } from '@/lib/services/clientRequests/labels';
+import { orgCardTiles } from '@/lib/navigation/orgCardTiles';
+import type { OrgCardTabKey } from '@/lib/navigation/orgCardTabs';
 import type { OrganizationCard } from '@/lib/services/manager/organizationCard';
 
 /**
@@ -14,36 +16,10 @@ import type { OrganizationCard } from '@/lib/services/manager/organizationCard';
  * cross-role общим (§4 sibling-rule).
  */
 
-export type OrgCardTab =
-  | 'history'
-  | 'orders'
-  | 'documents'
-  | 'payments'
-  | 'threads'
-  | 'inbound_messages'
-  | 'calls'
-  // Этап 7 (PR-3, §9 этапа 7): внутренний контур организации.
-  | 'client_requests'
-  | 'leads'
-  | 'deals'
-  // Этап 9 (ФТ-12.2, PR-3): реестр удостоверений организации + его выгрузка.
-  | 'certificates'
-  | 'details';
-
-export const ORG_CARD_TABS: { key: OrgCardTab; label: string }[] = [
-  { key: 'history', label: 'История' },
-  { key: 'orders', label: 'Заявки' },
-  { key: 'documents', label: 'Документы' },
-  { key: 'payments', label: 'Оплаты' },
-  { key: 'threads', label: 'Переписка' },
-  { key: 'inbound_messages', label: 'Обращения' },
-  { key: 'calls', label: 'Звонки' },
-  { key: 'client_requests', label: 'Заявки клиентов' },
-  { key: 'leads', label: 'Лиды' },
-  { key: 'deals', label: 'Сделки' },
-  { key: 'certificates', label: 'Удостоверения' },
-  { key: 'details', label: 'Реквизиты' },
-];
+// `У-95`: состав, названия, значки и порядок вкладок — в реестре
+// `lib/navigation/orgCardTabs.ts`, один на все кабинеты. Здесь остаётся только
+// отрисовка. Тип реэкспортируем: компонент — публичная точка для страниц.
+export type { OrgCardTabKey as OrgCardTab } from '@/lib/navigation/orgCardTabs';
 
 const money = (v: string) => `${v} ₽`;
 const dateRu = (d: Date) => new Date(d).toLocaleDateString('ru-RU');
@@ -60,12 +36,12 @@ function Tile({ label, value }: { label: string; value: React.ReactNode }) {
 export function OrgCardTabs({
   card,
   activeTab,
-  tabs = ORG_CARD_TABS,
+  tabs,
 }: {
   card: OrganizationCard;
-  activeTab: OrgCardTab;
-  /** Отфильтрованный список табов (напр. без `inbound_messages` при выключенном флаге `inbound_messaging`). */
-  tabs?: { key: OrgCardTab; label: string }[];
+  activeTab: OrgCardTabKey;
+  /** Вкладки кабинета — результат `orgCardTabsFor` (фильтр реестра по роли и флагам). */
+  tabs: ReadonlyArray<{ key: OrgCardTabKey; label: string }>;
 }) {
   return (
     <div className="space-y-6">
@@ -74,11 +50,19 @@ export function OrgCardTabs({
         {card.partner && <p className="text-sm text-gray-500 mt-1">Партнёр: {card.partner.name}</p>}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <Tile label="Заявки" value={card.counts.orders} />
+      {/* `У-102`: подписи и источники чисел — из реестра плиток, одни на все
+          кабинеты. «Активные» и «Оплачено» остаются рядом как справочные KPI
+          менеджера, но общие четыре плитки идут первыми и в общем порядке. */}
+      <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
+        {orgCardTiles({
+          orders: card.counts.orders,
+          students: card.counts.students,
+          cabinetUsers: card.counts.cabinetUsers,
+          debt: card.kpis.debt,
+        }).map((tile) => (
+          <Tile key={tile.key} label={tile.label} value={tile.value} />
+        ))}
         <Tile label="Активные" value={card.kpis.activeOrders} />
-        <Tile label="Сотрудники" value={card.counts.students} />
-        <Tile label="Пользователи" value={card.counts.users} />
         <Tile label="Оплачено" value={money(card.kpis.totalPaid)} />
       </div>
 
@@ -105,7 +89,7 @@ export function OrgCardTabs({
   );
 }
 
-function renderSection(card: OrganizationCard, tab: OrgCardTab): React.ReactNode {
+function renderSection(card: OrganizationCard, tab: OrgCardTabKey): React.ReactNode {
   switch (tab) {
     case 'orders':
       return <OrdersSection orders={card.orders} />;
@@ -117,17 +101,17 @@ function renderSection(card: OrganizationCard, tab: OrgCardTab): React.ReactNode
       return <CertificatesSection certificates={card.certificates} orgId={card.id} />;
     case 'threads':
       return <ThreadsSection activity={card.activity} />;
-    case 'inbound_messages':
+    case 'inbound':
       return <InboundMessagesSection inboundMessages={card.inboundMessages} />;
     case 'calls':
       return <CallsList items={card.calls} />;
-    case 'client_requests':
+    case 'requests':
       return <ClientRequestsSection requests={card.clientRequests} />;
     case 'leads':
       return <LeadsSection leads={card.leads} />;
     case 'deals':
       return <DealsSection deals={card.deals} />;
-    case 'details':
+    case 'settings':
       return <DetailsSection card={card} />;
     case 'history':
     default:

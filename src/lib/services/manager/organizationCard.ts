@@ -37,7 +37,17 @@ const CARD_SELECT = {
   companyId: true,
   partnerCommissionRate: true,
   partner: { select: { id: true, name: true } },
-  _count: { select: { orders: true, students: true, users: true } },
+  // `У-102`/`Д-29`: «Доступ в кабинет» считается по активным
+  // `OrganizationUser`, а НЕ по связи `Organization.users`
+  // (`User.organizationId`) — из-за неё менеджер и админ показывали разные
+  // числа про один и тот же объект.
+  _count: {
+    select: {
+      orders: true,
+      students: true,
+      organizationUsers: { where: { isActive: true } },
+    },
+  },
 } satisfies Prisma.OrganizationSelect;
 
 type OrgCardOrder = {
@@ -145,8 +155,8 @@ export type OrganizationCard = {
   kpp: string | null;
   requisites: OrgCardRequisites;
   partner: { id: string; name: string } | null;
-  counts: { orders: number; students: number; users: number };
-  kpis: { activeOrders: number; totalPaid: string; totalRefunded: string };
+  counts: { orders: number; students: number; cabinetUsers: number };
+  kpis: { activeOrders: number; totalPaid: string; totalRefunded: string; debt: string };
   orders: OrgCardOrder[];
   documents: OrgCardDocument[];
   payments: OrgCardPayment[];
@@ -312,6 +322,12 @@ export async function getOrganizationCard(
 
   const paid = paidAgg._sum.amount ?? new Prisma.Decimal(0);
   const refunded = refundAgg._sum.amount ?? new Prisma.Decimal(0);
+  // `У-102`: «Задолженность» — сумма `totalAmount − paidAmount` по заказам
+  // организации. Считается здесь, чтобы плитка во всех кабинетах брала одно и
+  // то же число (реестр `orgCardTiles`).
+  const debt = orders
+    .reduce((acc, o) => acc.plus(o.totalAmount).minus(o.paidAmount), new Prisma.Decimal(0))
+    .toFixed(2);
 
   await recordPiiAccessMany(prisma, [
     {
@@ -349,11 +365,16 @@ export async function getOrganizationCard(
       signerBasis: org.signerBasis,
     },
     partner: org.partner,
-    counts: { orders: org._count.orders, students: org._count.students, users: org._count.users },
+    counts: {
+      orders: org._count.orders,
+      students: org._count.students,
+      cabinetUsers: org._count.organizationUsers,
+    },
     kpis: {
       activeOrders,
       totalPaid: paid.minus(refunded).toFixed(2),
       totalRefunded: refunded.toFixed(2),
+      debt,
     },
     orders: orders.map((o) => ({
       id: o.id,
