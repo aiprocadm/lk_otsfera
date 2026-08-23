@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import type { OneCPaymentDto } from '@/lib/services/oneCSync/dto';
+import { normalizeInn } from '@/lib/services/oneCSync/inn';
 import { counterpartyKey } from './counterparty-key';
 import type { ParsedRow, MatchOutcome } from './types';
 
@@ -23,10 +24,19 @@ function baseDto(
 
 /**
  * Сопоставление строки с заказом/организацией.
- * Точное (№ счёта→заказ, ИНН→орг) → route 'exact' с готовым DTO для writer.
- * Неточное (fuzzy-имя) / ничего → route 'queue' (кандидат на ручное подтверждение).
+ * Точное (№ счёта→заказ, ИНН→орг, ключ названия→орг) → route 'exact' с готовым
+ * DTO для writer. Неточное (fuzzy-имя) / ничего → route 'queue' (кандидат на
+ * ручное подтверждение).
+ *
+ * `opts.companyId` (`У-88`) — компания импорта: в её пределах разрешено точное
+ * совпадение по ключу названия. Без компании ступень пропускается: матчить по
+ * названию «во всех компаниях» нельзя (C8 — граница изоляции).
  */
-export async function matchRow(prisma: PrismaClient, r: ParsedRow): Promise<MatchOutcome> {
+export async function matchRow(
+  prisma: PrismaClient,
+  r: ParsedRow,
+  opts?: { companyId?: string | null }
+): Promise<MatchOutcome> {
   // 1) № счёта → заказ (по orderNumber или externalId)
   for (const cand of r.accountCandidates) {
     const order = await prisma.order.findFirst({
@@ -58,16 +68,38 @@ export async function matchRow(prisma: PrismaClient, r: ParsedRow): Promise<Matc
 
   // 2) ИНН → организация (точно)
   if (r.counterpartyInn) {
+    // Ищем нормализованный ИНН: автосоздание кладёт в базу именно его
+    // (`normalizeInn` восстанавливает ведущие нули), и на 11-значном значении
+    // поиск по сырому не находил только что созданную организацию.
     const org = await prisma.organization.findFirst({
-      where: { inn: r.counterpartyInn },
+      where: { inn: normalizeInn(r.counterpartyInn) },
       select: { id: true, inn: true },
     });
     if (org?.inn) return { route: 'exact', dto: { ...baseDto(r), organizationInn: org.inn } };
   }
 
-  // 3) fuzzy-имя → кандидат в очередь (не авто)
+  // 3) ключ названия → организация в компании импорта (точно, `У-88`)
+  const key = r.counterpartyName ? counterpartyKey(r.counterpartyName).key : '';
+  if (opts?.companyId && key) {
+    const org = await prisma.organization.findFirst({
+      where: { companyId: opts.companyId, nameKey: key },
+      select: { id: true, inn: true },
+    });
+    if (org) {
+      // ИНН может отсутствовать (организация заведена по названию) — тогда
+      // адресуем локальным id, иначе writer не нашёл бы её (`resolve-org`).
+      return {
+        route: 'exact',
+        dto: org.inn
+          ? { ...baseDto(r), organizationInn: org.inn }
+          : { ...baseDto(r), organizationId: org.id },
+      };
+    }
+  }
+
+  // 4) fuzzy-имя → кандидат в очередь (не авто)
   if (r.counterpartyName) {
-    const norm = counterpartyKey(r.counterpartyName).key;
+    const norm = key;
     if (norm.length >= 3) {
       const org = await prisma.organization.findFirst({
         // String.split всегда возвращает минимум один элемент — [0] существует.
@@ -84,6 +116,6 @@ export async function matchRow(prisma: PrismaClient, r: ParsedRow): Promise<Matc
     }
   }
 
-  // 4) ничего
+  // 5) ничего
   return { route: 'queue', candidateOrgId: null, candidateOrderId: null, matchMethod: 'none' };
 }

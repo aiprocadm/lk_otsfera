@@ -14,24 +14,13 @@ import {
 import { Button, Dialog, Field, Input, Select } from '@/components/ui';
 import { CardList, Card, CardRow } from '@/components/ui/card-list';
 import { toast } from '@/lib/ui/toast';
+import { Paginator } from '@/components/ui/paginator';
+import type { QueueRow } from '@/lib/services/import/oneCAccountCard/queue-view';
 import { CompanyPicker } from './company-picker';
+import { PaymentQueueToolbar } from './payment-queue-toolbar';
 
-export type QueueRow = {
-  id: string;
-  externalId: string;
-  paidAt: string;
-  amount: string;
-  isRefund: boolean;
-  purpose: string | null;
-  counterpartyName: string | null;
-  counterpartyInn: string | null;
-  accountCandidates: string[];
-  candidateOrgId: string | null;
-  candidateOrgName: string | null;
-  matchMethod: string | null;
-  /** Компания батча — prefill селекта в диалоге создания организации (Т-30). */
-  batchCompanyId: string | null;
-};
+// Тип строки живёт в lib (нужен и странице, и компоненту) — CLAUDE.md §2.
+export type { QueueRow } from '@/lib/services/import/oneCAccountCard/queue-view';
 
 type OrgOption = { id: string; name: string; inn: string | null };
 type OrderOption = { id: string; orderNumber: string | null; title: string };
@@ -70,11 +59,23 @@ function orderLabel(o: OrderOption): string {
 export function PaymentQueueTable({
   rows,
   companies,
+  total,
+  take,
+  skip,
+  basePath,
+  searchParams,
 }: {
   rows: QueueRow[];
   companies?: Array<{ id: string; name: string }>;
+  /** `У-90`: сколько строк в очереди всего — без счётчика список врёт. */
+  total: number;
+  take: number;
+  skip: number;
+  basePath: string;
+  searchParams: Record<string, string | string[] | undefined>;
 }) {
   const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const [grouped, setGrouped] = useState(false);
   const [active, setActive] = useState<QueueRow | null>(null);
   const [creating, setCreating] = useState<QueueRow | null>(null);
   const [bulk, setBulk] = useState(false);
@@ -90,8 +91,26 @@ export function PaymentQueueTable({
     hide(id);
   }
 
+  // Пустой экран отвечает на «почему пусто»: отфильтровали или разобрали
+  // (`У-74` — пустое состояние обязано объяснять себя).
+  const filtered = !!(searchParams.inn || searchParams.candidate);
   if (visible.length === 0)
-    return <p className="text-sm text-gray-500">Очередь пуста — все оплаты сопоставлены.</p>;
+    return (
+      <div>
+        <PaymentQueueToolbar
+          basePath={basePath}
+          searchParams={searchParams}
+          total={total}
+          take={take}
+          skip={skip}
+        />
+        <p className="text-sm text-gray-500">
+          {rows.length === 0 && filtered
+            ? 'Под фильтр ничего не попало — снимите фильтры, чтобы увидеть очередь.'
+            : 'Очередь пуста — все оплаты сопоставлены.'}
+        </p>
+      </div>
+    );
 
   // У-18: семь колонок — самая широкая таблица проекта; на телефоне карточки.
   // Кнопки общие для обоих видов.
@@ -121,10 +140,30 @@ export function PaymentQueueTable({
   // обязательно двухшаговое (`Р-10`) — сам список живёт в диалоге.
   const anyWithInn = visible.some((r) => r.counterpartyInn);
 
+  // `У-90`: строки одного контрагента (варианты написания дают один ключ
+  // `У-83`) сворачиваются в группу — сорок платежей «Ромашки» это одна задача,
+  // а не сорок. Группировка идёт по открытой странице: список уже отсортирован
+  // по ключу, когда выбрана сортировка «по контрагенту».
+  const groups = new Map<string, { title: string; rows: QueueRow[] }>();
+  for (const r of visible) {
+    const key = r.counterpartyKey ?? '';
+    const g = groups.get(key);
+    if (g) g.rows.push(r);
+    else groups.set(key, { title: r.counterpartyName ?? 'Без контрагента', rows: [r] });
+  }
+
   return (
     <div>
-      {anyWithInn && (
-        <div className="mb-3">
+      <PaymentQueueToolbar
+        basePath={basePath}
+        searchParams={searchParams}
+        total={total}
+        take={take}
+        skip={skip}
+      />
+
+      <div className="mb-3 flex flex-wrap gap-2">
+        {anyWithInn && (
           <Button
             variant="secondary"
             size="sm"
@@ -133,9 +172,43 @@ export function PaymentQueueTable({
           >
             Создать организации по всем строкам с валидным ИНН
           </Button>
+        )}
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => setGrouped((g) => !g)}
+          aria-pressed={grouped}
+          data-testid="toggle-grouping"
+        >
+          {grouped ? 'Показать списком' : 'Группировать по контрагенту'}
+        </Button>
+      </div>
+
+      {grouped && (
+        <div className="mb-4 space-y-2" data-testid="queue-groups">
+          {[...groups.entries()].map(([key, g]) => (
+            <details
+              key={key || 'none'}
+              className="rounded border border-gray-200"
+              data-testid={`queue-group-${key || 'none'}`}
+            >
+              <summary className="cursor-pointer px-3 py-2 text-sm text-gray-700">
+                {`${g.title} · строк: ${g.rows.length}`}
+              </summary>
+              <ul className="px-3 pb-2 text-xs text-gray-600">
+                {g.rows.map((r) => (
+                  <li key={r.id} className="flex flex-wrap items-center gap-2 border-t py-1.5">
+                    <span>{`${r.externalId} · ${new Date(r.paidAt).toLocaleDateString('ru-RU')} · ${r.amount}`}</span>
+                    {rowActions(r)}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          ))}
         </div>
       )}
 
+      {!grouped && (
       <CardList>
         {visible.map((r) => (
           <Card key={r.id} title={`${r.externalId}${r.isRefund ? ' (возврат)' : ''}`}>
@@ -151,7 +224,9 @@ export function PaymentQueueTable({
           </Card>
         ))}
       </CardList>
+      )}
 
+      {!grouped && (
       <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-xs border border-gray-200 rounded">
           <thead className="bg-gray-50 text-gray-600">
@@ -204,6 +279,15 @@ export function PaymentQueueTable({
           </tbody>
         </table>
       </div>
+      )}
+
+      <Paginator
+        basePath={basePath}
+        searchParams={searchParams}
+        take={take}
+        skip={skip}
+        total={total}
+      />
 
       {active && (
         <BindRowDialog

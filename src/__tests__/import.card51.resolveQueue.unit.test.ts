@@ -4,6 +4,7 @@ const { upsertPaymentRecord } = vi.hoisted(() => ({ upsertPaymentRecord: vi.fn()
 vi.mock('@/lib/services/oneCSync/writers', () => ({ upsertPaymentRecord, orgInScope: () => true }));
 
 import {
+  listQueue,
   listQueueOrgNames,
   resolveQueueRow,
   dismissQueueRow,
@@ -204,5 +205,99 @@ describe('listQueueOrgNames', () => {
     });
     expect(names.get('org-1')).toBe('Org One');
     expect(names.get('org-2')).toBeUndefined();
+  });
+});
+
+/**
+ * `У-90`: очередь больше не обрезается молча на 200 строках. Сервис отдаёт
+ * `{ rows, total }`, страницами по 50, с фильтрами и сортировкой.
+ */
+describe('listQueue: страницы, счётчик, фильтры, сортировка (У-90)', () => {
+  function qdb(rows: unknown[] = [], total = 0) {
+    const findMany = vi.fn().mockResolvedValue(rows);
+    const count = vi.fn().mockResolvedValue(total);
+    return { prisma: { paymentImportRow: { findMany, count } } as never, findMany, count };
+  }
+
+  it('отдаёт строки и общее число (усечения без счётчика больше нет)', async () => {
+    const { prisma, findMany, count } = qdb([{ id: 'r1' }], 250);
+    const res = await listQueue(prisma, session);
+    expect(res).toEqual({ rows: [{ id: 'r1' }], total: 250 });
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 50, skip: 0 }));
+    expect(count).toHaveBeenCalledWith({ where: { status: 'needs_review' } });
+  });
+
+  it('страница задаётся skip/take, take ограничен сверху', async () => {
+    const { prisma, findMany } = qdb();
+    await listQueue(prisma, session, { take: 5000, skip: 100 });
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 200, skip: 100 }));
+  });
+
+  it('фильтр «без ИНН» и «с ИНН»', async () => {
+    const { prisma, findMany, count } = qdb();
+    await listQueue(prisma, session, { inn: 'without' });
+    expect(findMany.mock.calls[0]![0].where).toMatchObject({
+      counterpartyInn: null,
+    });
+    expect(count.mock.calls[0]![0].where).toMatchObject({ counterpartyInn: null });
+
+    const second = qdb();
+    await listQueue(second.prisma, session, { inn: 'with' });
+    expect(second.findMany.mock.calls[0]![0].where).toMatchObject({
+      counterpartyInn: { not: null },
+    });
+  });
+
+  it('фильтры кандидатов: организация и заказ', async () => {
+    const org = qdb();
+    await listQueue(org.prisma, session, { candidate: 'org' });
+    expect(org.findMany.mock.calls[0]![0].where).toMatchObject({ candidateOrgId: { not: null } });
+
+    const order = qdb();
+    await listQueue(order.prisma, session, { candidate: 'order' });
+    expect(order.findMany.mock.calls[0]![0].where).toMatchObject({
+      candidateOrderId: { not: null },
+    });
+  });
+
+  it('сортировка по дате платежа, сумме и контрагенту', async () => {
+    const date = qdb();
+    await listQueue(date.prisma, session, { sort: 'date' });
+    expect(date.findMany.mock.calls[0]![0].orderBy).toEqual({ paidAt: 'desc' });
+
+    const amount = qdb();
+    await listQueue(amount.prisma, session, { sort: 'amount', dir: 'asc' });
+    expect(amount.findMany.mock.calls[0]![0].orderBy).toEqual({ amount: 'asc' });
+
+    // По контрагенту сортируем по КЛЮЧУ: «ООО «Ромашка»» и «РОМАШКА, ООО» —
+    // один контрагент, и в списке они обязаны стоять рядом (группировка UI).
+    const cp = qdb();
+    await listQueue(cp.prisma, session, { sort: 'counterparty' });
+    expect(cp.findMany.mock.calls[0]![0].orderBy).toEqual([
+      { counterpartyKey: 'asc' },
+      { paidAt: 'desc' },
+    ]);
+  });
+
+  it('строка несёт ключ контрагента — по нему UI группирует', async () => {
+    const { prisma, findMany } = qdb();
+    await listQueue(prisma, session);
+    expect(findMany.mock.calls[0]![0].select).toMatchObject({ counterpartyKey: true });
+  });
+
+  it('C8: не-админ видит только строки батчей своей компании', async () => {
+    const manager = { sub: 'm', role: 'manager', companyId: 'co-1' } as never;
+    const { prisma, findMany, count } = qdb();
+    await listQueue(prisma, manager);
+    const scoped = { status: 'needs_review', batch: { companyId: 'co-1' } };
+    expect(findMany.mock.calls[0]![0].where).toMatchObject(scoped);
+    expect(count.mock.calls[0]![0].where).toMatchObject(scoped);
+  });
+
+  it('не-сотрудник получает пустую страницу, а не выборку', async () => {
+    const { prisma, findMany } = qdb();
+    const res = await listQueue(prisma, { sub: 'p', role: 'partner' } as never);
+    expect(res).toEqual({ rows: [], total: 0 });
+    expect(findMany).not.toHaveBeenCalled();
   });
 });

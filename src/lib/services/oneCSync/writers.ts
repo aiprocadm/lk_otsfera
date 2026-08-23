@@ -233,7 +233,13 @@ export async function upsertPaymentRecord(
   } else {
     const org = await resolveOrganizationRef(
       db,
-      { externalId: input.organizationExternalId, inn: input.organizationInn },
+      {
+        // `У-88`: локальный адрес — первым; по нему адресуются организации без
+        // ИНН, которые иначе резолвер не нашёл бы.
+        id: input.organizationId,
+        externalId: input.organizationExternalId,
+        inn: input.organizationInn,
+      },
       isLive(ctx)
     );
     if (!org) {

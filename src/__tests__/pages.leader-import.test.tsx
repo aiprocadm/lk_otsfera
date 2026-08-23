@@ -12,11 +12,10 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { requireSettingsSection } = vi.hoisted(() => ({ requireSettingsSection: vi.fn() }));
 vi.mock('@/lib/auth/requireSettings', () => ({ requireSettingsSection }));
 
-const { listQueue, listQueueOrgNames } = vi.hoisted(() => ({
-  listQueue: vi.fn(),
-  listQueueOrgNames: vi.fn(),
+const { loadQueuePage } = vi.hoisted(() => ({
+  loadQueuePage: vi.fn(),
 }));
-vi.mock('@/lib/services/import/oneCAccountCard', () => ({ listQueue, listQueueOrgNames }));
+vi.mock('@/lib/services/import/oneCAccountCard/queue-view', () => ({ loadQueuePage }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 // Этап 9 (Т-39): история импортов на excel-вкладке.
@@ -66,8 +65,7 @@ const LEADER = { sub: 'l1', role: 'leader' as const };
 
 beforeEach(() => {
   requireSettingsSection.mockReset().mockResolvedValue(LEADER);
-  listQueue.mockReset().mockResolvedValue([]);
-  listQueueOrgNames.mockReset().mockResolvedValue(new Map());
+  loadQueuePage.mockReset().mockResolvedValue({ rows: [], total: 0, take: 50, skip: 0 });
   listImportBatches.mockReset().mockResolvedValue({ ok: true, batches: [{ id: 'b1' }] });
   nav.redirect.mockClear();
 });
@@ -99,58 +97,29 @@ describe('вкладка «Загрузка Excel» — отказ истори�
 });
 
 describe('вкладка «Выписка (сч. 51)» руководителя', () => {
-  it('leader-гард, форма выписки и очередь разбора', async () => {
-    listQueue.mockResolvedValue([
-      {
-        id: 'q1',
-        externalId: 'p-1',
-        paidAt: new Date('2026-08-01T00:00:00Z'),
-        amount: 100,
-        isRefund: false,
-        purpose: 'оплата',
-        counterpartyName: 'ООО Ромашка',
-        counterpartyInn: '7707083893',
-        accountCandidates: null,
-        candidateOrgId: 'org-1',
-        matchMethod: 'inn',
-        batch: { companyId: 'co-1' },
-      },
-      {
-        // Кандидат есть, но имени в карте нет — ветка `?? null`.
-        id: 'q3',
-        externalId: 'p-3',
-        paidAt: new Date('2026-08-03T00:00:00Z'),
-        amount: 75,
-        isRefund: false,
-        purpose: 'оплата без имени',
-        counterpartyName: 'ООО Безымянное',
-        counterpartyInn: null,
-        accountCandidates: null,
-        candidateOrgId: 'org-ghost',
-        matchMethod: 'account',
-        batch: { companyId: 'co-1' },
-      },
-      {
-        // Строка без кандидата — вторая ветка маппинга (candidateOrgName: null).
-        id: 'q2',
-        externalId: 'p-2',
-        paidAt: new Date('2026-08-02T00:00:00Z'),
-        amount: 50,
-        isRefund: false,
-        purpose: 'неопознанная оплата',
-        counterpartyName: 'ИП Незнакомец',
-        counterpartyInn: null,
-        accountCandidates: ['40702810000000000001'],
-        candidateOrgId: null,
-        matchMethod: null,
-        batch: { companyId: 'co-1' },
-      },
-    ]);
-    listQueueOrgNames.mockResolvedValue(new Map([['org-1', 'ООО Ромашка']]));
-    const { container } = await renderServerComponent(LeaderPaymentsImportPage());
+  it('leader-гард, форма выписки и страница очереди из адреса', async () => {
+    // `У-90`: страница тонкая — маппинг строк живёт в сервисе; экран отвечает
+    // за гард, параметры адреса и проброс счётчика в таблицу.
+    loadQueuePage.mockResolvedValue({
+      rows: [{ id: 'q1' }, { id: 'q2' }, { id: 'q3' }],
+      total: 120,
+      take: 50,
+      skip: 50,
+    });
+    const { container } = await renderServerComponent(
+      LeaderPaymentsImportPage({ searchParams: Promise.resolve({ skip: '50' }) })
+    );
     expect(requireSettingsSection).toHaveBeenCalledWith('integrations.oneC', 'leader');
+    expect(loadQueuePage).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
+      skip: '50',
+    });
     expect(container.querySelector('[data-testid="payment-import-form"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="queue"]')?.getAttribute('data-rows')).toBe('3');
+  });
+
+  it('без параметров адреса — первая страница очереди', async () => {
+    await renderServerComponent(LeaderPaymentsImportPage({}));
+    expect(loadQueuePage).toHaveBeenCalledWith(expect.anything(), expect.anything(), {});
   });
 });
 

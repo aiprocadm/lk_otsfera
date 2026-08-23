@@ -152,7 +152,8 @@ describe('шлюзы старых маршрутов настроек', () => {
   });
 
   it('/admin/payments-import — свой адрес в редиректе и прежняя страница при выключенном хабе', async () => {
-    const { container } = await renderServerComponent(AdminPaymentsImportLegacyPage());
+    // `У-90`: шлюз переносит параметры адреса (фильтры очереди) как есть.
+    const { container } = await renderServerComponent(AdminPaymentsImportLegacyPage({}));
     expect(redirectToSettingsHub).toHaveBeenCalledWith('/admin/payments-import');
     expect(container.textContent).toContain('СОДЕРЖИМОЕ:/admin/payments-import');
   });

@@ -50,13 +50,25 @@ function row(over: Partial<QueueRow> = {}): QueueRow {
     counterpartyName: 'ООО Ромашка',
     counterpartyInn: '7701234567',
     accountCandidates: ['СЧ-1'],
+    counterpartyKey: 'РОМАШКА',
     candidateOrgId: 'org1',
     candidateOrgName: 'ООО Ромашка',
+    candidateOrderId: null,
     matchMethod: 'fuzzy',
     batchCompanyId: 'co-1',
     ...over,
   };
 }
+
+// `У-90`: у таблицы появились обязательные пропсы страницы (счётчик, страница,
+// адрес для фильтров) — в тестах они одинаковы и вынесены сюда.
+const tableProps = {
+  total: 1,
+  take: 50,
+  skip: 0,
+  basePath: '/x',
+  searchParams: {} as Record<string, string | string[] | undefined>,
+};
 
 describe('PaymentQueueTable (interactive, jsdom)', () => {
   beforeEach(() => {
@@ -81,6 +93,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
   it('renders the isRefund suffix and the counterparty INN suffix', () => {
     render(
       React.createElement(PaymentQueueTable, {
+        ...tableProps,
         rows: [row({ isRefund: true, counterpartyInn: '123456' })],
       })
     );
@@ -91,6 +104,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
   it('renders em dashes when counterpartyName and accountCandidates/candidateOrgName are absent', () => {
     render(
       React.createElement(PaymentQueueTable, {
+        ...tableProps,
         rows: [
           row({
             counterpartyName: null,
@@ -108,6 +122,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
   it('joins multiple accountCandidates with a comma', () => {
     render(
       React.createElement(PaymentQueueTable, {
+        ...tableProps,
         rows: [row({ accountCandidates: ['СЧ-1', 'СЧ-2'] })],
       })
     );
@@ -116,7 +131,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
 
   it('dismiss: clicking Отклонить calls dismissQueueRowAction and hides the row', async () => {
     dismissQueueRowAction.mockResolvedValue(undefined);
-    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    render(React.createElement(PaymentQueueTable, { ...tableProps, rows: [row()] }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Отклонить' })[0]);
     await waitFor(() => expect(dismissQueueRowAction).toHaveBeenCalledWith({ rowId: 'r1' }));
     await waitFor(() =>
@@ -128,6 +143,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
     dismissQueueRowAction.mockResolvedValue(undefined);
     render(
       React.createElement(PaymentQueueTable, {
+        ...tableProps,
         rows: [row({ id: 'r1', externalId: 'EXT-1' }), row({ id: 'r2', externalId: 'EXT-2' })],
       })
     );
@@ -138,7 +154,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
   });
 
   it('opening the bind dialog shows the row summary with counterparty + INN', async () => {
-    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    render(React.createElement(PaymentQueueTable, { ...tableProps, rows: [row()] }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     expect(await screen.findByText('Привязать оплату')).toBeTruthy();
     // Scope to the summary line (not the org <select>, which also renders
@@ -149,6 +165,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
   it('opening the bind dialog for a row without a counterparty shows the "без контрагента" fallback', async () => {
     render(
       React.createElement(PaymentQueueTable, {
+        ...tableProps,
         rows: [row({ counterpartyName: null, counterpartyInn: null })],
       })
     );
@@ -162,7 +179,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
     searchResolveOrgsAction.mockResolvedValue([
       { id: 'org1', name: 'ООО Ромашка', inn: '7701234567' },
     ]);
-    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    render(React.createElement(PaymentQueueTable, { ...tableProps, rows: [row()] }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
 
@@ -177,6 +194,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
     ]);
     render(
       React.createElement(PaymentQueueTable, {
+        ...tableProps,
         rows: [row({ candidateOrgId: 'org1', candidateOrgName: 'ООО Ромашка' })],
       })
     );
@@ -193,7 +211,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
     searchResolveOrgsAction.mockResolvedValue([
       { id: 'org1', name: 'ООО Ромашка (из поиска)', inn: '7701234567' },
     ]);
-    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    render(React.createElement(PaymentQueueTable, { ...tableProps, rows: [row()] }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
 
@@ -205,6 +223,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
     searchResolveOrgsAction.mockResolvedValue([]);
     render(
       React.createElement(PaymentQueueTable, {
+        ...tableProps,
         rows: [row({ candidateOrgId: null, candidateOrgName: null })],
       })
     );
@@ -216,7 +235,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
   });
 
   it('typing in the org search input re-triggers searchResolveOrgsAction with the new query', async () => {
-    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    render(React.createElement(PaymentQueueTable, { ...tableProps, rows: [row()] }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
     await waitFor(() => expect(searchResolveOrgsAction).toHaveBeenCalledWith({ q: '' }));
@@ -230,7 +249,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
       { id: 'ord1', orderNumber: 'ПЗ-01', title: 'Поставка' },
       { id: 'ord2', orderNumber: null, title: 'Без номера' },
     ]);
-    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    render(React.createElement(PaymentQueueTable, { ...tableProps, rows: [row()] }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
 
@@ -246,6 +265,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
   it('order select stays disabled while no org is chosen (no candidate org on this row)', async () => {
     render(
       React.createElement(PaymentQueueTable, {
+        ...tableProps,
         rows: [row({ candidateOrgId: null, candidateOrgName: null })],
       })
     );
@@ -263,7 +283,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
       { id: 'org1', name: 'ООО Ромашка', inn: null },
       { id: 'org2', name: 'ООО Лютик', inn: null },
     ]);
-    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    render(React.createElement(PaymentQueueTable, { ...tableProps, rows: [row()] }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
     await waitFor(() =>
@@ -281,7 +301,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
     listResolveOrdersAction.mockResolvedValueOnce([
       { id: 'ord1', orderNumber: 'ПЗ-01', title: 'Поставка' },
     ]);
-    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    render(React.createElement(PaymentQueueTable, { ...tableProps, rows: [row()] }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
     await waitFor(() => expect(listResolveOrdersAction).toHaveBeenCalledTimes(1));
@@ -305,7 +325,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
 
   it('submit success: calls resolveQueueRowAction, hides the row, shows success toast, closes the dialog', async () => {
     resolveQueueRowAction.mockResolvedValue({ ok: true });
-    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    render(React.createElement(PaymentQueueTable, { ...tableProps, rows: [row()] }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
 
@@ -330,7 +350,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
       { id: 'ord1', orderNumber: 'ПЗ-01', title: 'Поставка' },
     ]);
     resolveQueueRowAction.mockResolvedValue({ ok: true });
-    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    render(React.createElement(PaymentQueueTable, { ...tableProps, rows: [row()] }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
     await waitFor(() => expect(listResolveOrdersAction).toHaveBeenCalled());
@@ -350,7 +370,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
 
   it('submit failure: shows the mapped server error inline, keeps the row and dialog open', async () => {
     resolveQueueRowAction.mockResolvedValue({ ok: false, error: 'write_skipped' });
-    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    render(React.createElement(PaymentQueueTable, { ...tableProps, rows: [row()] }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
 
@@ -368,7 +388,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
 
   it('submit failure with an unmapped code falls back to "Ошибка: <code>"', async () => {
     resolveQueueRowAction.mockResolvedValue({ ok: false, error: 'weird' });
-    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    render(React.createElement(PaymentQueueTable, { ...tableProps, rows: [row()] }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
 
@@ -379,7 +399,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
   });
 
   it('cancel closes the dialog without submitting', async () => {
-    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    render(React.createElement(PaymentQueueTable, { ...tableProps, rows: [row()] }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
 
@@ -391,6 +411,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
   it('submit button is disabled while no org is selected', async () => {
     render(
       React.createElement(PaymentQueueTable, {
+        ...tableProps,
         rows: [row({ candidateOrgId: null, candidateOrgName: null })],
       })
     );
@@ -411,7 +432,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
           resolveSearch = resolve;
         })
     );
-    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    render(React.createElement(PaymentQueueTable, { ...tableProps, rows: [row()] }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
 
@@ -431,7 +452,7 @@ describe('PaymentQueueTable (interactive, jsdom)', () => {
           resolveOrders = resolve;
         })
     );
-    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    render(React.createElement(PaymentQueueTable, { ...tableProps, rows: [row()] }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Привязать' })[0]);
     await screen.findByText('Привязать оплату');
     await waitFor(() =>
@@ -465,7 +486,7 @@ describe('PaymentQueueTable — создание организации из о�
   const openDialog = () => document.querySelector('dialog[open]') as HTMLElement;
 
   it('кнопка есть только у строк с ИНН', () => {
-    render(<PaymentQueueTable rows={[row(), row({ id: 'r2', counterpartyInn: null })]} />);
+    render(<PaymentQueueTable rows={[row(), row({ id: 'r2', counterpartyInn: null })]}  total={1} take={50} skip={0} basePath="/x" searchParams={{}} />);
     expect(screen.getAllByTestId('create-org-r1')[0]).toBeTruthy();
     expect(screen.queryByTestId('create-org-r2')).toBeNull();
   });
@@ -476,7 +497,7 @@ describe('PaymentQueueTable — создание организации из о�
       organizationId: 'org-new',
       paymentId: 'pay-1',
     });
-    render(<PaymentQueueTable rows={[row()]} />);
+    render(<PaymentQueueTable rows={[row()]}  total={1} take={50} skip={0} basePath="/x" searchParams={{}} />);
     fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
 
     const dialog = openDialog();
@@ -507,7 +528,7 @@ describe('PaymentQueueTable — создание организации из о�
       organizationId: 'o',
       paymentId: null,
     });
-    render(<PaymentQueueTable rows={[row()]} companies={COMPANIES} />);
+    render(<PaymentQueueTable rows={[row()]} companies={COMPANIES}  total={1} take={50} skip={0} basePath="/x" searchParams={{}} />);
     fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
 
     const select = within(openDialog()).getByLabelText(
@@ -535,7 +556,7 @@ describe('PaymentQueueTable — создание организации из о�
       .mockResolvedValueOnce({ json: async () => ({ suggestions: [] }) });
     vi.stubGlobal('fetch', fetchMock);
     try {
-      render(<PaymentQueueTable rows={[row()]} />);
+      render(<PaymentQueueTable rows={[row()]}  total={1} take={50} skip={0} basePath="/x" searchParams={{}} />);
       fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
 
       fireEvent.click(screen.getByTestId('create-org-dadata'));
@@ -561,7 +582,7 @@ describe('PaymentQueueTable — создание организации из о�
   it('Т-31: сеть упала — подсказка про ручной ввод, форма живёт', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('net down')));
     try {
-      render(<PaymentQueueTable rows={[row()]} />);
+      render(<PaymentQueueTable rows={[row()]}  total={1} take={50} skip={0} basePath="/x" searchParams={{}} />);
       fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
       fireEvent.click(screen.getByTestId('create-org-dadata'));
       await waitFor(() => expect(openDialog().textContent).toContain('Подсказки недоступны'));
@@ -579,7 +600,7 @@ describe('PaymentQueueTable — создание организации из о�
         organizationId: 'org-new',
         bindError: 'write_skipped',
       });
-    render(<PaymentQueueTable rows={[row()]} />);
+    render(<PaymentQueueTable rows={[row()]}  total={1} take={50} skip={0} basePath="/x" searchParams={{}} />);
     fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
 
     fireEvent.click(screen.getByTestId('create-org-submit'));
@@ -600,7 +621,7 @@ describe('PaymentQueueTable — создание организации из о�
       organizationId: 'org-new',
       paymentId: 'pay-1',
     });
-    render(<PaymentQueueTable rows={[row()]} />);
+    render(<PaymentQueueTable rows={[row()]}  total={1} take={50} skip={0} basePath="/x" searchParams={{}} />);
     fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
 
     const dialog = openDialog();
@@ -630,7 +651,7 @@ describe('PaymentQueueTable — создание организации из о�
   });
 
   it('очистка обязательного поля блокирует кнопку создания', () => {
-    render(<PaymentQueueTable rows={[row()]} />);
+    render(<PaymentQueueTable rows={[row()]}  total={1} take={50} skip={0} basePath="/x" searchParams={{}} />);
     fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
 
     const submit = screen.getByTestId('create-org-submit') as HTMLButtonElement;
@@ -655,7 +676,7 @@ describe('PaymentQueueTable — создание организации из о�
       organizationId: 'org-new',
       paymentId: null,
     });
-    render(<PaymentQueueTable rows={[row({ counterpartyName: null })]} />);
+    render(<PaymentQueueTable rows={[row({ counterpartyName: null })]}  total={1} take={50} skip={0} basePath="/x" searchParams={{}} />);
     fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
 
     const nameInput = within(openDialog()).getByLabelText('Наименование') as HTMLInputElement;
@@ -679,7 +700,7 @@ describe('PaymentQueueTable — создание организации из о�
       organizationId: 'org-new',
       paymentId: null,
     });
-    render(<PaymentQueueTable rows={[row({ batchCompanyId: null })]} companies={COMPANIES} />);
+    render(<PaymentQueueTable rows={[row({ batchCompanyId: null })]} companies={COMPANIES}  total={1} take={50} skip={0} basePath="/x" searchParams={{}} />);
     fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
 
     const select = within(openDialog()).getByLabelText(
@@ -700,7 +721,7 @@ describe('PaymentQueueTable — создание организации из о�
   });
 
   it('«Отмена» закрывает диалог создания: экшен не вызван, строка осталась в очереди', async () => {
-    render(<PaymentQueueTable rows={[row()]} />);
+    render(<PaymentQueueTable rows={[row()]}  total={1} take={50} skip={0} basePath="/x" searchParams={{}} />);
     fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
     expect(within(openDialog()).getByText('Создать организацию и привязать')).toBeTruthy();
 
@@ -713,7 +734,7 @@ describe('PaymentQueueTable — создание организации из о�
 
   it('сеть упала на создании — понятная ошибка', async () => {
     createOrgFromQueueRowAction.mockRejectedValue(new Error('net down'));
-    render(<PaymentQueueTable rows={[row()]} />);
+    render(<PaymentQueueTable rows={[row()]}  total={1} take={50} skip={0} basePath="/x" searchParams={{}} />);
     fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
     fireEvent.click(screen.getByTestId('create-org-submit'));
     await waitFor(() => expect(openDialog().textContent).toContain('Сервер недоступен'));
@@ -745,7 +766,7 @@ describe('PaymentQueueTable — пакетное создание организ
       result: { created: 1, bound: 2, failed: [] },
     });
 
-    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    render(React.createElement(PaymentQueueTable, { ...tableProps, rows: [row()] }));
     fireEvent.click(screen.getByTestId('bulk-create-orgs'));
 
     // Шаг 1: сначала список, а не молчаливое создание.
@@ -773,7 +794,7 @@ describe('PaymentQueueTable — пакетное создание организ
 
   it('создавать нечего — говорим об этом словами и не даём кнопку', async () => {
     planQueueOrgCreationAction.mockResolvedValue({ ok: true, candidates: [] });
-    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    render(React.createElement(PaymentQueueTable, { ...tableProps, rows: [row()] }));
     fireEvent.click(screen.getByTestId('bulk-create-orgs'));
 
     expect((await screen.findByTestId('bulk-empty')).textContent).toContain('Создавать нечего');
@@ -782,7 +803,7 @@ describe('PaymentQueueTable — пакетное создание организ
 
   it('отказ по правам показывается по-русски', async () => {
     planQueueOrgCreationAction.mockResolvedValue({ ok: false, error: 'not_allowed' });
-    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    render(React.createElement(PaymentQueueTable, { ...tableProps, rows: [row()] }));
     fireEvent.click(screen.getByTestId('bulk-create-orgs'));
 
     await waitFor(() => {
@@ -800,6 +821,7 @@ describe('PaymentQueueTable — пакетное создание организ
     });
     render(
       React.createElement(PaymentQueueTable, {
+        ...tableProps,
         rows: [row()],
         companies: [
           { id: 'co-1', name: 'Первая' },
@@ -823,7 +845,7 @@ describe('PaymentQueueTable — пакетное создание организ
   });
 
   it('строк с ИНН нет — кнопки пакетного создания нет вовсе', () => {
-    render(React.createElement(PaymentQueueTable, { rows: [row({ counterpartyInn: null })] }));
+    render(React.createElement(PaymentQueueTable, { ...tableProps, rows: [row({ counterpartyInn: null })] }));
     expect(screen.queryByTestId('bulk-create-orgs')).toBeNull();
   });
 });
@@ -841,7 +863,7 @@ describe('PaymentQueueTable — пакетное создание: краевы�
 
   it('сервер недоступен на шаге плана — экран не молчит', async () => {
     planQueueOrgCreationAction.mockRejectedValue(new Error('offline'));
-    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    render(React.createElement(PaymentQueueTable, { ...tableProps, rows: [row()] }));
     fireEvent.click(screen.getByTestId('bulk-create-orgs'));
 
     await waitFor(() => {
@@ -854,7 +876,7 @@ describe('PaymentQueueTable — пакетное создание: краевы�
   it('отказ на создании показывается по-русски, диалог не закрывается', async () => {
     planQueueOrgCreationAction.mockResolvedValue({ ok: true, candidates: ONE });
     createOrgsFromQueueRowsAction.mockResolvedValue({ ok: false, error: 'forbidden' });
-    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    render(React.createElement(PaymentQueueTable, { ...tableProps, rows: [row()] }));
     fireEvent.click(screen.getByTestId('bulk-create-orgs'));
     await screen.findByTestId('bulk-candidates');
     fireEvent.click(screen.getByTestId('bulk-confirm'));
@@ -869,7 +891,7 @@ describe('PaymentQueueTable — пакетное создание: краевы�
   it('обрыв связи на создании тоже виден', async () => {
     planQueueOrgCreationAction.mockResolvedValue({ ok: true, candidates: ONE });
     createOrgsFromQueueRowsAction.mockRejectedValue(new Error('offline'));
-    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    render(React.createElement(PaymentQueueTable, { ...tableProps, rows: [row()] }));
     fireEvent.click(screen.getByTestId('bulk-create-orgs'));
     await screen.findByTestId('bulk-candidates');
     fireEvent.click(screen.getByTestId('bulk-confirm'));
@@ -888,6 +910,7 @@ describe('PaymentQueueTable — пакетное создание: краевы�
     });
     render(
       React.createElement(PaymentQueueTable, {
+        ...tableProps,
         rows: [row()],
         companies: [{ id: 'co-only', name: 'Единственная' }],
       })
@@ -910,7 +933,7 @@ describe('PaymentQueueTable — пакетное создание: краевы�
       ok: true,
       candidates: [...ONE, { rowId: 'r2', name: 'ООО «Бета»', inn: '7736207543', alsoRows: 0 }],
     });
-    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    render(React.createElement(PaymentQueueTable, { ...tableProps, rows: [row()] }));
     fireEvent.click(screen.getByTestId('bulk-create-orgs'));
     await screen.findByTestId('bulk-candidates');
 
@@ -930,7 +953,7 @@ describe('PaymentQueueTable — пакетное создание: краевы�
       ok: true,
       candidates: [{ rowId: 'r1', name: '', inn: '7707083893', alsoRows: 0 }],
     });
-    render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    render(React.createElement(PaymentQueueTable, { ...tableProps, rows: [row()] }));
     fireEvent.click(screen.getByTestId('bulk-create-orgs'));
     const list = await screen.findByTestId('bulk-candidates');
     expect(list.textContent).toContain('без названия');
@@ -945,7 +968,7 @@ describe('PaymentQueueTable — пакетное создание: краевы�
         release = resolve;
       })
     );
-    const view = render(React.createElement(PaymentQueueTable, { rows: [row()] }));
+    const view = render(React.createElement(PaymentQueueTable, { ...tableProps, rows: [row()] }));
     fireEvent.click(screen.getByTestId('bulk-create-orgs'));
     view.unmount();
     release({ ok: true, candidates: [] });

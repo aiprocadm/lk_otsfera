@@ -3,8 +3,8 @@ import React from 'react';
 import { requireSettingsSection } from '@/lib/auth/requireSettings';
 import { prisma } from '@/lib/db/prisma';
 import { PaymentImportForm } from '@/components/import/payment-import-form';
-import { PaymentQueueTable, type QueueRow } from '@/components/import/payment-queue-table';
-import { listQueue, listQueueOrgNames } from '@/lib/services/import/oneCAccountCard';
+import { PaymentQueueTable } from '@/components/import/payment-queue-table';
+import { loadQueuePage } from '@/lib/services/import/oneCAccountCard/queue-view';
 
 export const metadata: Metadata = { title: 'Выписка по счёту 51 · Обмен с 1С · Настройки' };
 
@@ -15,26 +15,17 @@ export const dynamic = 'force-dynamic';
  * Очередь разбора уже company-scoped по сессии — руководитель видит только
  * строки своей компании.
  */
-export default async function LeaderPaymentsImportPage() {
+const BASE_PATH = '/leader/settings/integrations/1c/payments';
+
+export default async function LeaderPaymentsImportPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const session = await requireSettingsSection('integrations.oneC', 'leader');
-  const raw = await listQueue(prisma, session);
-  const orgIds = raw.map((r) => r.candidateOrgId).filter((x): x is string => !!x);
-  const orgName = await listQueueOrgNames(prisma, orgIds);
-  const rows: QueueRow[] = raw.map((r) => ({
-    id: r.id,
-    externalId: r.externalId,
-    paidAt: r.paidAt.toISOString(),
-    amount: String(r.amount),
-    isRefund: r.isRefund,
-    purpose: r.purpose,
-    counterpartyName: r.counterpartyName,
-    counterpartyInn: r.counterpartyInn,
-    accountCandidates: (r.accountCandidates as string[]) ?? [],
-    candidateOrgId: r.candidateOrgId,
-    candidateOrgName: r.candidateOrgId ? (orgName.get(r.candidateOrgId) ?? null) : null,
-    matchMethod: r.matchMethod,
-    batchCompanyId: r.batch.companyId,
-  }));
+  const sp = (await searchParams) ?? {};
+  // `У-90`: страница очереди со счётчиком и фильтрами.
+  const queue = await loadQueuePage(prisma, session, sp);
   return (
     <div className="space-y-6">
       <div>
@@ -56,7 +47,14 @@ export default async function LeaderPaymentsImportPage() {
       </div>
       <div className="bg-white border border-gray-200 rounded-xl p-6">
         <h2 className="text-base font-semibold text-[#111111] mb-3">Очередь ручного разбора</h2>
-        <PaymentQueueTable rows={rows} />
+        <PaymentQueueTable
+          rows={queue.rows}
+          total={queue.total}
+          take={queue.take}
+          skip={queue.skip}
+          basePath={BASE_PATH}
+          searchParams={sp}
+        />
       </div>
     </div>
   );

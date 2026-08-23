@@ -9,7 +9,15 @@ import type {
 
 export type OneCOrgDto = z.infer<typeof OneCOrgSchema>;
 export type OneCOrderDto = z.infer<typeof OneCOrderSchema>;
-export type OneCPaymentDto = z.infer<typeof OneCPaymentSchema>;
+/**
+ * Платёж. Схема описывает контракт 1С; поле `organizationId` — локальное
+ * расширение (`У-88`): его ставят только пути внутри ЛК (импорт выписки, матч
+ * по ключу названия), чтобы адресовать организацию БЕЗ ИНН и без 1С-ключа.
+ * В схему оно намеренно не входит — из 1С такой адрес прийти не может.
+ */
+export type OneCPaymentDto = z.infer<typeof OneCPaymentSchema> & {
+  organizationId?: string;
+};
 export type OneCDocumentDto = z.infer<typeof OneCDocumentSchema>;
 export type OneCLeadPushResult = z.infer<typeof OneCLeadPushResultSchema>;
 
