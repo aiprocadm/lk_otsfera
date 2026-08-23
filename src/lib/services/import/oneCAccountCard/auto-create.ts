@@ -41,7 +41,10 @@ export function resolveNewOrgCompany(
 }
 
 /**
- * Создаёт организации по списку предпросмотра и возвращает их id по ИНН.
+ * Создаёт организации по списку предпросмотра и возвращает их id **двумя
+ * картами**: по ИНН и по ключу названия (`У-86`). Вторая нужна потому, что у
+ * организации, заведённой по названию, ИНН может не быть вовсе — тогда ре-матч
+ * строки находит её только по ключу.
  *
  * Каждая созданная организация попадает **и в аудит** с источником
  * `payment_import_auto` (`У-54`), **и в след записи батча** (`У-59`) — иначе
@@ -53,8 +56,9 @@ export async function createOrganizationsForImport(
   db: Db,
   session: SessionPayload,
   args: { candidates: NewCounterparty[]; companyId: string; batchId: string; fileName: string }
-): Promise<Map<string, string>> {
+): Promise<{ byInn: Map<string, string>; byKey: Map<string, string> }> {
   const byInn = new Map<string, string>();
+  const byKey = new Map<string, string>();
   for (const c of args.candidates) {
     // Название в выписке бывает пустым — тогда человеку нужен хоть
     // какой-то опознаваемый ярлык, а не пустая строка в списке.
@@ -69,7 +73,8 @@ export async function createOrganizationsForImport(
       },
       select: { id: true },
     });
-    byInn.set(c.inn, created.id);
+    if (c.inn) byInn.set(c.inn, created.id);
+    if (c.key) byKey.set(c.key, created.id);
     await db.paymentImportWrite.create({
       data: {
         batchId: args.batchId,
@@ -93,6 +98,8 @@ export async function createOrganizationsForImport(
           batchId: args.batchId,
           name: c.name,
           inn: c.inn,
+          // `У-85`: откуда взялся ИНН — из файла, из ЕГРЮЛ или от оператора.
+          innSource: c.innSource,
           companyId: args.companyId,
         },
       });
@@ -100,5 +107,5 @@ export async function createOrganizationsForImport(
       log.error('[card51] аудит автосоздания организации не записан:', e);
     }
   }
-  return byInn;
+  return { byInn, byKey };
 }

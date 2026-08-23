@@ -10,14 +10,19 @@ import { createOrgFromQueueRow } from '@/lib/services/import/oneCAccountCard/cre
  * **Страж Т-30а переписан, а не «починен»:** он утверждал, что новый валидный
  * ИНН НЕ должен порождать организацию (решение владельца №5). Решение `Р-2`
  * действующего ТЗ это отменило — теперь проверяем новое правило: валидный ИНН
- * заводит организацию сам (`У-49`), а ручной путь остаётся для строк, где ИНН
- * кривой или пустой (`У-51`) — их-то оператор и разбирает диалогом.
+ * заводит организацию сам (`У-49`).
+ *
+ * **Ручной путь тоже сузился (`У-86`, решение `Р-11`):** кривой или пустой ИНН
+ * больше не отправляет строку в очередь — контрагента опознаёт название. В
+ * очередь попадает только строка, у которой нет НИ названия, НИ ИНН, — её-то
+ * оператор и разбирает диалогом «создать организацию».
  *
  * Сквозной путь:
  *  - `У-49`: выписка с новым валидным ИНН → организация создана, платежи
  *    привязаны, в очереди пусто;
- *  - Т-30: создание из очереди по кнопке (строка с кривым ИНН) — организация
- *    в выбранной компании, платёж привязан, строка resolved, аудит записан;
+ *  - Т-30: создание из очереди по кнопке (строка без реквизитов вовсе) —
+ *    организация в выбранной компании, платёж привязан, строка resolved,
+ *    аудит записан;
  *  - повторная строка с тем же ИНН → org_exists (молчаливой привязки нет).
  */
 const prisma = new PrismaClient();
@@ -38,11 +43,7 @@ const DOC2 = `${String(STAMP).slice(-6)}-102`;
 const DOC3 = `${String(STAMP).slice(-6)}-103`;
 const DOC4 = `${String(STAMP).slice(-6)}-104`;
 const ORG_NAME = `НОВАЯ ФИРМА ООО ${STAMP}`;
-// `У-88`: у строк ручного пути название ДРУГОЕ — иначе они привяжутся сами по
-// ключу названия к организации, которую завёл первый импорт, и ручной путь
-// проверять станет не на чем. Совпадение названия проверяется отдельным тестом.
-const OTHER_NAME = `ДРУГАЯ КОНТОРА ООО ${STAMP}`;
-// Ручной путь заводит СВОЮ организацию: ИНН из файла оператор исправляет в диалоге.
+// Ручной путь заводит СВОЮ организацию: название и ИНН оператор вписывает в диалоге.
 const MANUAL_INN = makeInn10(`96${String(STAMP).slice(-7)}`);
 
 let adminSession: never;
@@ -69,8 +70,12 @@ async function statementBuffer(): Promise<Buffer> {
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
 
-/** Та же выписка, но ИНН плательщика кривой — строки обязаны уйти в очередь. */
-async function statementWithBadInn(): Promise<Buffer> {
+/**
+ * Выписка, у строк которой контрагент не указан вовсе (пустая аналитика).
+ * `У-86`: только такие строки теперь уходят в очередь — заводить организацию
+ * не из чего, ни названия, ни ИНН. Это и есть материал для ручного разбора.
+ */
+async function statementWithoutCounterparty(): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('Лист1');
   ws.addRow(['Сальдо на начало']);
@@ -79,7 +84,7 @@ async function statementWithBadInn(): Promise<Buffer> {
       '02.08.2026',
       `Поступление на расчетный счет ${doc} от 02.08.2026 10:00:00\nОплата по счету № X-${doc}`,
       '',
-      `${OTHER_NAME} ИНН 1234567890`,
+      '',
       '',
       '4000',
       '',
@@ -111,7 +116,7 @@ afterAll(async () => {
     where: { externalId: { in: [DOC1, DOC2, DOC3, DOC4] } },
   });
   await prisma.paymentImportBatch.deleteMany({ where: { importedById: adminUserId } });
-  await prisma.organization.deleteMany({ where: { inn: { in: [NEW_INN, MANUAL_INN] } } });
+  await prisma.organization.deleteMany({ where: { companyId } });
   await prisma.company.deleteMany({ where: { id: companyId } });
   await prisma.auditLog.deleteMany({ where: { userId: adminUserId } });
   await prisma.user.delete({ where: { id: adminUserId } });
@@ -151,15 +156,19 @@ describe('этап 10 — создание организации из очер�
     });
     expect(audit).not.toBeNull();
 
-    // Ручной путь дальше проверяем на строках, которые остались в очереди
-    // по `У-51`: ИНН в файле кривой, автосоздание к ним неприменимо.
+    // Ручной путь дальше проверяем на строках, которые остались в очереди по
+    // `У-51` в его нынешнем виде (`У-86`, `Р-11`): контрагента в файле нет
+    // вовсе, поэтому создавать организацию не из чего.
     const bad = await commitPaymentImport(prisma, adminSession, {
-      fileBuffer: await statementWithBadInn(),
+      fileBuffer: await statementWithoutCounterparty(),
       fileName: 'st10-bad.xlsx',
       companyId,
     });
     expect(bad.ok).toBe(true);
-    if (bad.ok) expect(bad.result.counts.orgsCreated).toBe(0);
+    if (bad.ok) {
+      expect(bad.result.counts.orgsCreated).toBe(0);
+      expect(bad.result.counts.queued).toBe(2);
+    }
     const rows = await prisma.paymentImportRow.findMany({
       where: { externalId: { in: [DOC3, DOC4] } },
       orderBy: { externalId: 'asc' },

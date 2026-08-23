@@ -16,6 +16,7 @@ import { CardList, Card, CardRow } from '@/components/ui/card-list';
 import { toast } from '@/lib/ui/toast';
 import { Paginator } from '@/components/ui/paginator';
 import type { QueueRow } from '@/lib/services/import/oneCAccountCard/queue-view';
+import type { QueueOrgCandidate } from '@/lib/services/import/oneCAccountCard/queue-bulk';
 import { CompanyPicker } from './company-picker';
 import { PaymentQueueToolbar } from './payment-queue-toolbar';
 
@@ -119,8 +120,8 @@ export function PaymentQueueTable({
       <button type="button" onClick={() => setActive(r)} className="text-[#EA580C] hover:underline">
         Привязать
       </button>
-      {/* Т-30: только у строк с ИНН — без него создавать не из чего. */}
-      {r.counterpartyInn && (
+      {/* `У-89`: создаём и без ИНН — было бы название. */}
+      {(r.counterpartyInn || r.counterpartyName) && (
         <button
           type="button"
           onClick={() => setCreating(r)}
@@ -138,7 +139,8 @@ export function PaymentQueueTable({
 
   // `У-53`: накопленные строки заводятся пачкой, а не по одной. Действие
   // обязательно двухшаговое (`Р-10`) — сам список живёт в диалоге.
-  const anyWithInn = visible.some((r) => r.counterpartyInn);
+  // `У-89`: пакетное создание берёт и строки без ИНН — лишь бы было название.
+  const anyCreatable = visible.some((r) => r.counterpartyInn || r.counterpartyName);
 
   // `У-90`: строки одного контрагента (варианты написания дают один ключ
   // `У-83`) сворачиваются в группу — сорок платежей «Ромашки» это одна задача,
@@ -163,14 +165,14 @@ export function PaymentQueueTable({
       />
 
       <div className="mb-3 flex flex-wrap gap-2">
-        {anyWithInn && (
+        {anyCreatable && (
           <Button
             variant="secondary"
             size="sm"
             onClick={() => setBulk(true)}
             data-testid="bulk-create-orgs"
           >
-            Создать организации по всем строкам с валидным ИНН
+            Создать организации по всем контрагентам очереди
           </Button>
         )}
         <Button
@@ -346,12 +348,7 @@ function BulkCreateOrgsDialog({
   onClose: () => void;
   onDone: (created: number, bound: number) => void;
 }) {
-  const [candidates, setCandidates] = useState<Array<{
-    rowId: string;
-    name: string;
-    inn: string;
-    alsoRows: number;
-  }> | null>(null);
+  const [candidates, setCandidates] = useState<QueueOrgCandidate[] | null>(null);
   const [chosen, setChosen] = useState<Set<string>>(new Set());
   // Единственная компания подставляется без вопроса — как в формах импорта.
   const single = companies?.length === 1 ? companies[0] : undefined;
@@ -422,7 +419,7 @@ function BulkCreateOrgsDialog({
       ) : candidates.length === 0 ? (
         <div className="space-y-3 text-sm text-gray-700">
           <p data-testid="bulk-empty">
-            Создавать нечего: в очереди нет строк с валидным ИНН, для которых организации ещё нет.
+            Создавать нечего: в очереди нет контрагентов, для которых организации ещё нет.
             Такие строки привязывают кнопкой «Привязать».
           </p>
           <div className="flex justify-end">
@@ -448,8 +445,10 @@ function BulkCreateOrgsDialog({
                     data-testid={`bulk-row-${c.rowId}`}
                   />
                   <span>
-                    <span className="font-medium text-[#111111]">{c.name || 'без названия'}</span> ·
-                    ИНН {c.inn}
+                    <span className="font-medium text-[#111111]">{c.name || 'без названия'}</span>
+                    {/* `У-89`: пустой ИНН разрешён — но человек должен видеть,
+                        что организация заведётся без реквизита. */}
+                    {c.inn ? ` · ИНН ${c.inn}` : ' · без ИНН — организация будет создана без него'}
                     {c.alsoRows > 0 ? ` · подтянется оплат: ${c.alsoRows + 1}` : ''}
                   </span>
                 </label>

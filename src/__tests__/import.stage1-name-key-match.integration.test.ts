@@ -9,7 +9,9 @@ import { commitPaymentImport } from '@/lib/services/import/oneCAccountCard/impor
  * по ключу названия (`У-83`), без ручного разбора.
  *
  * Проверяется и граница изоляции (C8): организация ДРУГОЙ компании с тем же
- * названием не матчится, такая строка уходит в очередь.
+ * названием НЕ используется для привязки. По `У-86` (решение `Р-11`) такая
+ * строка уже не уходит в очередь — импорт заводит СВОЮ организацию в компании
+ * импорта, а тёзка чужой компании остаётся без платежей.
  */
 const prisma = new PrismaClient();
 const STAMP = Date.now();
@@ -26,6 +28,7 @@ let adminSession: never;
 let adminUserId: string;
 let companyId = '';
 let foreignCompanyId = '';
+let foreignOrgId = '';
 
 async function statement(): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
@@ -72,9 +75,10 @@ beforeAll(async () => {
     data: { name: ORG_IN_DB, nameKey: `РОМАШКА ${STAMP}`, companyId },
   });
   // Тёзка в чужой компании — по ключу матчиться НЕ должен (C8).
-  await prisma.organization.create({
+  const foreignOrg = await prisma.organization.create({
     data: { name: FOREIGN_IN_FILE, nameKey: `ВЕКТОР ${STAMP}`, companyId: foreignCompanyId },
   });
+  foreignOrgId = foreignOrg.id;
 });
 
 afterAll(async () => {
@@ -93,7 +97,7 @@ afterAll(async () => {
 });
 
 describe('У-88 — привязка по ключу названия (живой Postgres)', () => {
-  it('строка без ИНН привязывается к организации своей компании; тёзка чужой компании — в очередь', async () => {
+  it('строка без ИНН привязывается к организации своей компании; тёзка чужой компании для привязки не используется', async () => {
     const res = await commitPaymentImport(prisma, adminSession, {
       fileBuffer: await statement(),
       fileName: 'st1-namekey.xlsx',
@@ -101,8 +105,12 @@ describe('У-88 — привязка по ключу названия (живо�
     });
     expect(res.ok).toBe(true);
     if (!res.ok) return;
-    // Организаций импорт не заводил — обе строки решились или ушли в очередь.
-    expect(res.result.counts.orgsCreated).toBe(0);
+    // Своя «Ромашка» нашлась по ключу — её не дублируем; «Вектор» в компании
+    // импорта неизвестен, поэтому по `У-86` заводится ровно одна организация.
+    expect(res.result.counts.orgsCreated).toBe(1);
+    // Обе строки разобраны сразу: ручного разбора не осталось.
+    expect(res.result.counts.imported).toBe(2);
+    expect(res.result.counts.queued).toBe(0);
 
     const own = await prisma.organization.findFirst({
       where: { companyId, nameKey: `РОМАШКА ${STAMP}` },
@@ -115,14 +123,24 @@ describe('У-88 — привязка по ключу названия (живо�
     expect(paid).toHaveLength(1);
     expect(paid[0]!.organizationId).toBe(own!.id);
 
-    // Чужая компания: платёж не записан, строка ждёт ручного разбора.
-    expect(await prisma.payment.count({ where: { externalId: DOC_FOREIGN } })).toBe(0);
-    const queued = await prisma.paymentImportRow.findFirst({
-      where: { externalId: DOC_FOREIGN },
-      select: { status: true, counterpartyKey: true },
+    // C8: тёзка чужой компании к привязке не допущена. Организация заведена
+    // СВОЯ — в компании импорта, с тем же ключом названия (`У-83`).
+    const created = await prisma.organization.findFirst({
+      where: { companyId, nameKey: `ВЕКТОР ${STAMP}` },
+      select: { id: true, name: true, inn: true },
     });
-    expect(queued?.status).toBe('needs_review');
-    // `У-83`: у строки очереди есть ключ — по нему её найдёт группировка.
-    expect(queued?.counterpartyKey).toBe(`ВЕКТОР ${STAMP}`);
+    expect(created).not.toBeNull();
+    expect(created!.id).not.toBe(foreignOrgId);
+    expect(created!.inn).toBeNull();
+    const foreignPaid = await prisma.payment.findMany({
+      where: { externalId: DOC_FOREIGN },
+      select: { organizationId: true },
+    });
+    expect(foreignPaid).toHaveLength(1);
+    expect(foreignPaid[0]!.organizationId).toBe(created!.id);
+    // Ни одного платежа у организации чужой компании — граница изоляции цела.
+    expect(await prisma.payment.count({ where: { organizationId: foreignOrgId } })).toBe(0);
+    // Строка разобрана импортом — в очереди её нет.
+    expect(await prisma.paymentImportRow.count({ where: { externalId: DOC_FOREIGN } })).toBe(0);
   });
 });

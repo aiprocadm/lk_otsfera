@@ -52,7 +52,10 @@ beforeEach(() => {
 });
 
 describe('planQueueOrgCreation — шаг 1 (Р-10)', () => {
-  it('строки одного ИНН схлопываются, невалидные и существующие отсеиваются', async () => {
+  // `Р-11`/`У-89`: правило «кандидат = валидный ИНН» отменено. Строки без ИНН
+  // и с кривым ИНН теперь кандидаты по названию; отсеиваются только те, чья
+  // организация уже есть, и строки без названия и без ИНН.
+  it('строки одного контрагента схлопываются, существующие отсеиваются', async () => {
     const { prisma } = db(
       [
         { id: 'r1', counterpartyName: 'ООО «Альфа»', counterpartyInn: INN_A },
@@ -65,7 +68,11 @@ describe('planQueueOrgCreation — шаг 1 (Р-10)', () => {
     );
     const res = await planQueueOrgCreation(prisma, SESSION);
     if (!res.ok) throw new Error('expected ok');
-    expect(res.candidates).toEqual([{ rowId: 'r1', name: 'ООО «Альфа»', inn: INN_A, alsoRows: 1 }]);
+    expect(res.candidates).toEqual([
+      { rowId: 'r5', key: 'БЕЗ ИНН', name: 'Без ИНН', inn: null, alsoRows: 0 },
+      { rowId: 'r1', key: 'АЛЬФА', name: 'ООО «Альфа»', inn: INN_A, alsoRows: 1 },
+      { rowId: 'r4', key: 'КРИВОЙ', name: 'ООО «Кривой»', inn: null, alsoRows: 0 },
+    ]);
   });
 
   it('без права импорта — forbidden, обычному менеджеру — not_allowed', async () => {
@@ -89,9 +96,9 @@ describe('planQueueOrgCreation — шаг 1 (Р-10)', () => {
     expect(findMany.mock.calls[0]![0].where).toMatchObject({ batch: { companyId: 'co-1' } });
   });
 
-  it('ни одного валидного ИНН — пустой список, в организации не ходим', async () => {
+  it('ни названия, ни ИНН — пустой список, в организации не ходим', async () => {
     const { prisma, orgFindMany } = db([
-      { id: 'r1', counterpartyName: 'X', counterpartyInn: null },
+      { id: 'r1', counterpartyName: null, counterpartyInn: null },
     ]);
     const res = await planQueueOrgCreation(prisma, SESSION);
     if (!res.ok) throw new Error('expected ok');
@@ -152,7 +159,8 @@ describe('createOrgsFromQueueRows — шаг 2', () => {
     const res = await createOrgsFromQueueRows(prisma, SESSION, { rowIds: ['r1', 'r3'] });
     if (!res.ok) throw new Error('expected ok');
     expect(res.result.created).toBe(1);
-    expect(res.result.failed).toEqual([{ inn: INN_A, error: 'company_required' }]);
+    // `У-89`: в списке неудач стоит ИНН, а у контрагента без него — название.
+    expect(res.result.failed).toEqual([{ label: INN_A, error: 'company_required' }]);
   });
 
   it('право проверяется и на втором шаге — id строк подделать бесполезно', async () => {
@@ -233,5 +241,57 @@ describe('createOrgsFromQueueRows — шаг 2', () => {
     // Довязка ограничена компанией руководителя.
     expect(findMany.mock.calls[1]![0].where).toMatchObject({ batch: { companyId: 'co-1' } });
     expect(res.result.bound).toBe(2);
+  });
+});
+
+// `У-89`: пакетное создание перестало быть привилегией строк с ИНН — иначе
+// очередь, набитая контрагентами без ИНН, разбиралась бы по одной строке.
+describe('planQueueOrgCreation: строки без ИНН (У-89)', () => {
+  it('группирует по ключу контрагента и отдаёт кандидата без ИНН', async () => {
+    const prisma = {
+      paymentImportRow: {
+        findMany: vi.fn().mockResolvedValue([
+          { id: 'r1', counterpartyName: 'ООО «Ромашка»', counterpartyInn: null, counterpartyKey: 'РОМАШКА' },
+          { id: 'r2', counterpartyName: 'РОМАШКА, ООО', counterpartyInn: null, counterpartyKey: 'РОМАШКА' },
+        ]),
+      },
+      organization: { findMany: vi.fn().mockResolvedValue([]) },
+    } as never;
+
+    const res = await planQueueOrgCreation(prisma, SESSION);
+    expect(res).toMatchObject({ ok: true });
+    if (!res.ok) return;
+    expect(res.candidates).toEqual([
+      expect.objectContaining({ rowId: 'r1', key: 'РОМАШКА', inn: null, alsoRows: 1 }),
+    ]);
+  });
+
+  it('организация с тем же ключом уже есть → кандидата нет (дубль не заводим)', async () => {
+    const prisma = {
+      paymentImportRow: {
+        findMany: vi.fn().mockResolvedValue([
+          { id: 'r1', counterpartyName: 'ООО «Ромашка»', counterpartyInn: null, counterpartyKey: 'РОМАШКА' },
+        ]),
+      },
+      organization: {
+        findMany: vi.fn().mockResolvedValue([{ inn: null, nameKey: 'РОМАШКА' }]),
+      },
+    } as never;
+
+    const res = await planQueueOrgCreation(prisma, SESSION);
+    expect(res).toMatchObject({ ok: true, candidates: [] });
+  });
+
+  it('строка без названия и без ИНН кандидатом не становится', async () => {
+    const prisma = {
+      paymentImportRow: {
+        findMany: vi.fn().mockResolvedValue([
+          { id: 'r1', counterpartyName: null, counterpartyInn: null, counterpartyKey: null },
+        ]),
+      },
+      organization: { findMany: vi.fn().mockResolvedValue([]) },
+    } as never;
+    const res = await planQueueOrgCreation(prisma, SESSION);
+    expect(res).toMatchObject({ ok: true, candidates: [] });
   });
 });

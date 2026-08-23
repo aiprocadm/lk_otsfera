@@ -142,12 +142,16 @@ async function commitBuffer(): Promise<Buffer> {
     '62.01',
     '3000',
   ]);
-  // queue (нет ИНН, неизвестное имя) → queued
+  // queue: контрагента нет вовсе (ни названия, ни ИНН) → queued.
+  // `У-86`/решение `Р-11`: незнакомое ИМЯ больше не повод для очереди — по нему
+  // импорт заводит организацию. Строка без реквизитов — единственный путь в
+  // ручной разбор, и здесь нужен именно он: администратор зовёт сервис БЕЗ
+  // companyId, а при наличии кандидата это был бы отказ `company_required`.
   ws.addRow([
     '03.07.2026',
     'Поступление на расчетный счет 0000-000703 от 03.07.2026 10:00:00\nОплата',
     '',
-    'НЕИЗВЕСТНАЯ ФИРМА',
+    '',
     '',
     '5000',
     '',
@@ -372,7 +376,16 @@ describe('commitPaymentImport (cov)', () => {
       expect(res.result.counts.excluded).toBe(1);
       expect(res.result.counts.excludedByReason.supplier).toBe(1);
       expect(res.result.counts.parseErrors).toBe(1);
+      // Создавать было не из чего → организаций импорт не заводил (`У-86`).
+      expect(res.result.counts.orgsCreated).toBe(0);
     }
+    // Строка без реквизитов не потеряна — она в очереди ручного разбора.
+    const queued = await prisma.paymentImportRow.findUnique({
+      where: { externalId: '0000-000703' },
+      select: { status: true, counterpartyName: true },
+    });
+    expect(queued?.status).toBe('needs_review');
+    expect(queued?.counterpartyName).toBeNull();
     // exact rows materialised as Payments (mocked S3/log/audit did not block them).
     const pay = await prisma.payment.findUnique({
       where: { externalId: '0000-000701' },

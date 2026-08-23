@@ -50,12 +50,18 @@ export async function createOrgFromQueueRow(
 
   const name = args.name.trim();
   if (!name) return { ok: false, error: 'name_required' };
-  const inn = normalizeInn(args.inn);
-  if (!isValidInn(inn)) return { ok: false, error: 'bad_inn' };
-  // Организация с таким ИНН уже есть → оператор привязывает ОСОЗНАННО штатной
-  // кнопкой «Привязать», молча подменять его выбор нельзя (решение §8.2 спеки).
-  const existing = await prisma.organization.findFirst({ where: { inn }, select: { id: true } });
-  if (existing) return { ok: false, error: 'org_exists' };
+  // `У-89`: пустой ИНН разрешён — организация заводится по названию (в карточке
+  // счёта 51 ИНН чаще всего нет). `bad_inn` остаётся для НЕПУСТОГО кривого:
+  // человек вписал цифры, и молча их проглотить нельзя.
+  const raw = normalizeInn(args.inn ?? '');
+  const inn = raw === '' ? null : raw;
+  if (inn !== null && !isValidInn(inn)) return { ok: false, error: 'bad_inn' };
+  if (inn) {
+    // Организация с таким ИНН уже есть → оператор привязывает ОСОЗНАННО штатной
+    // кнопкой «Привязать», молча подменять его выбор нельзя (решение §8.2 спеки).
+    const existing = await prisma.organization.findFirst({ where: { inn }, select: { id: true } });
+    if (existing) return { ok: false, error: 'org_exists' };
+  }
 
   // Т-41: руководитель — своя компания; admin — выбор из диалога, с проверкой.
   const companyId = scope.kind === 'company' ? scope.companyId : (args.companyId ?? null);
@@ -66,6 +72,15 @@ export async function createOrgFromQueueRow(
       select: { id: true },
     });
     if (!company) return { ok: false, error: 'company_required' };
+  }
+
+  // Без ИНН дубль ловится по ключу названия в пределах компании (`У-86`).
+  if (!inn) {
+    const twin = await prisma.organization.findFirst({
+      where: { companyId, nameKey: organizationNameKey(name) },
+      select: { id: true },
+    });
+    if (twin) return { ok: false, error: 'org_exists' };
   }
 
   const created = await prisma.organization.create({

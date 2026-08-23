@@ -1,6 +1,7 @@
 'use server';
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db/prisma';
+import type { CounterpartyOverride } from '@/lib/services/import/oneCAccountCard/new-counterparties';
 import { requireSession } from '@/lib/auth/requireRole';
 import {
   previewPaymentImport,
@@ -45,6 +46,31 @@ export async function previewPaymentImportAction(form: FormData) {
   });
 }
 
+/**
+ * `У-87`: правки предпросмотра. Форма шлёт их JSON-строкой (снятые галочки и
+ * вписанные ИНН); негодный JSON — просто отсутствие правок, а не отказ импорта:
+ * сервер всё равно перепроверит каждую правку по ключу контрагента.
+ */
+function overridesOf(form: FormData): { overrides?: CounterpartyOverride[] } {
+  const raw = form.get('overrides');
+  if (typeof raw !== 'string' || !raw.trim()) return {};
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return {};
+    const clean = parsed
+      .filter((o): o is Record<string, unknown> => !!o && typeof o === 'object')
+      .filter((o) => typeof o.key === 'string')
+      .map((o) => ({
+        key: o.key as string,
+        ...(typeof o.create === 'boolean' ? { create: o.create } : {}),
+        ...(typeof o.inn === 'string' ? { inn: o.inn } : {}),
+      }));
+    return clean.length > 0 ? { overrides: clean } : {};
+  } catch {
+    return {};
+  }
+}
+
 export async function commitPaymentImportAction(form: FormData) {
   const session = await requireSession();
   const g = await guarded(form);
@@ -53,6 +79,7 @@ export async function commitPaymentImportAction(form: FormData) {
     fileBuffer: g.buf,
     fileName: g.name,
     ...companyIdOf(form),
+    ...overridesOf(form),
   });
 }
 

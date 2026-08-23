@@ -7,6 +7,12 @@ import {
 } from '@/server-actions/payment-import';
 import { IMPORT_MAX_FILE_BYTES, IMPORT_MAX_FILE_MB } from '@/lib/config/import-limits';
 import { clientLog } from '@/lib/logging/client';
+import { importQueueReasonRu } from '@/lib/errors/messages';
+import type {
+  CounterpartyOverride,
+  NewCounterparty,
+} from '@/lib/services/import/oneCAccountCard/new-counterparties';
+import { CounterpartiesPreview } from './counterparties-preview';
 import { PAYMENT_IMPORT_ERRORS, errorMessage as messageFor, fileSizeMb } from './error-messages';
 import { CompanyPicker } from './company-picker';
 
@@ -35,12 +41,27 @@ type Diagnostics = {
 };
 /** `detail` — уточнение к тексту ошибки (например фактический размер файла). */
 type Failure = { ok: false; error: string; detail?: string; diagnostics?: Diagnostics };
-/** Контрагент из файла, которого нет в системе (`У-52`). */
-type NewCounterparty = { name: string; inn: string; rows: number };
+/** Сводка по контрагентам файла (`У-92`). */
+type CounterpartySummary = {
+  total: number;
+  innFromFile: number;
+  innFromDadata: number;
+  withoutInn: number;
+  alreadyKnown: number;
+  willCreate: number;
+  reasons: Record<string, number>;
+  dadataUsed: boolean;
+  dadataReason?: string;
+};
 type PreviewResult =
   | {
       ok: true;
-      plan: { counts: Counts; diagnostics?: Diagnostics; newCounterparties?: NewCounterparty[] };
+      plan: {
+        counts: Counts;
+        diagnostics?: Diagnostics;
+        newCounterparties?: NewCounterparty[];
+        counterparties?: CounterpartySummary;
+      };
     }
   | Failure;
 type CommitResult =
@@ -64,11 +85,6 @@ const REASON_RU: Record<string, string> = {
 };
 
 /** Почему строка ушла в очередь — словами, а не кодом матчера. */
-const QUEUE_REASON_RU: Record<string, string> = {
-  name_fuzzy: 'нашли похожую организацию — нужно подтвердить вручную',
-  none: 'не нашли ни счёт, ни ИНН, ни похожую организацию',
-};
-
 const PARSE_REASON_RU: Record<string, string> = {
   no_doc_number: 'не найден номер документа',
   no_amount: 'не найдена сумма',
@@ -174,29 +190,55 @@ function DiagnosticsCard({ d }: { d: Diagnostics }) {
  * ДО применения. Это страховка к `У-49`: создание необратимо, поэтому человек
  * видит список заранее, а если ошибся — отменяет импорт целиком (`У-59`).
  */
-function NewCounterpartiesCard({ list }: { list: NewCounterparty[] }) {
-  if (list.length === 0) return null;
+/**
+ * Сводка «Контрагенты» (`У-92`). Фраза «создано 3 организации» без ответа
+ * «а остальные почему нет» — это и была исходная жалоба заказчика.
+ */
+function CounterpartiesSummaryCard({ s }: { s: CounterpartySummary }) {
+  const lines: Array<[string, number]> = [
+    ['в файле', s.total],
+    ['с ИНН из файла', s.innFromFile],
+    ['ИНН найден в ЕГРЮЛ', s.innFromDadata],
+    ['без ИНН', s.withoutInn],
+    ['уже есть в системе', s.alreadyKnown],
+    ['будет создано', s.willCreate],
+  ];
+  const reasons = Object.entries(s.reasons);
   return (
     <div
       className="bg-white border border-gray-200 rounded-xl p-4"
-      data-testid="payment-import-new-counterparties"
+      data-testid="payment-import-counterparties"
     >
-      <h3 className="text-sm font-semibold text-[#111111]">
-        Будет создано организаций: {list.length}
-      </h3>
-      <p className="mt-1 text-xs text-gray-500">
-        Организаций с такими ИНН в системе нет — импорт заведёт их сам, и платежи привяжутся к ним.
-        Если это ошибка, импорт можно отменить целиком на вкладке «История».
-      </p>
-      <ul className="mt-2 text-xs text-gray-700 space-y-0.5">
-        {list.map((c) => (
-          <li key={c.inn}>
-            <span className="font-medium text-[#111111]">{c.name || 'без названия'}</span> · ИНН{' '}
-            {c.inn}
-            {c.rows > 1 ? ` · строк: ${c.rows}` : ''}
-          </li>
+      <h3 className="text-sm font-semibold text-[#111111]">Контрагенты</h3>
+      <dl className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-1 text-xs text-gray-700">
+        {lines.map(([label, value]) => (
+          <div key={label} className="flex justify-between gap-2">
+            <dt className="text-gray-500">{label}</dt>
+            <dd className="font-medium text-[#111111]">{value}</dd>
+          </div>
         ))}
-      </ul>
+      </dl>
+      {reasons.length > 0 && (
+        <div className="mt-2 text-xs text-gray-700">
+          <p className="text-gray-500">Почему не будут созданы:</p>
+          <ul className="mt-0.5 space-y-0.5">
+            {reasons.map(([code, n]) => (
+              <li key={code}>
+                {importQueueReasonRu(code)}: <span className="font-medium text-[#111111]">{n}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {!s.dadataUsed && (
+        <p className="mt-2 text-xs text-amber-700">
+          {s.dadataReason === 'disabled'
+            ? 'ЕГРЮЛ не использовался: справочник DaData не включён в настройках интеграций.'
+            : s.dadataReason === 'failed'
+              ? 'ЕГРЮЛ не использовался: справочник DaData не ответил — организации будут созданы без ИНН.'
+              : 'ЕГРЮЛ не понадобился: у всех контрагентов ИНН есть в файле.'}
+        </p>
+      )}
     </div>
   );
 }
@@ -256,7 +298,7 @@ function CountsCard({ title, counts }: { title: string; counts: Counts }) {
           <ul className="space-y-0.5">
             {Object.entries(counts.queuedByReason).map(([k, v]) => (
               <li key={k}>
-                {QUEUE_REASON_RU[k] ?? k}: <span className="font-medium text-[#111111]">{v}</span>
+                {importQueueReasonRu(k)}: <span className="font-medium text-[#111111]">{v}</span>
               </li>
             ))}
           </ul>
@@ -295,12 +337,17 @@ export function PaymentImportForm({
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [commitResult, setCommitResult] = useState<CommitResult | null>(null);
   const [isPreviewing, setIsPreviewing] = useState(false);
+  // `У-87`: решения человека по кандидатам (снять создание, вписать ИНН).
+  // Состояние предпросмотра на сервере не хранится — правки едут вместе с
+  // применением, по ключу контрагента.
+  const [overrides, setOverrides] = useState<CounterpartyOverride[]>([]);
   const [isCommitting, setIsCommitting] = useState(false);
 
   function handleFileChange() {
     setHasFile(!!fileInputRef.current?.files?.length);
     setPreview(null);
     setCommitResult(null);
+    setOverrides([]);
   }
 
   async function handlePreview(e: React.FormEvent) {
@@ -309,6 +356,7 @@ export function PaymentImportForm({
     if (!file) return;
     setPreview(null);
     setCommitResult(null);
+    setOverrides([]);
     // Т-6: слишком большой файл не отправляем — Next обрезал бы тело, и форма
     // замолчала бы вместо внятного отказа.
     if (file.size > IMPORT_MAX_FILE_BYTES) {
@@ -341,6 +389,7 @@ export function PaymentImportForm({
       const form = new FormData();
       form.set('file', file);
       if (companyId) form.set('companyId', companyId);
+      if (overrides.length > 0) form.set('overrides', JSON.stringify(overrides));
       setCommitResult((await commitPaymentImportAction(form)) as CommitResult);
     } catch (e) {
       clientLog.error('[1c-import] запрос импорта выписки не дошёл до сервера', e);
@@ -409,8 +458,15 @@ export function PaymentImportForm({
             <p className="text-xs text-gray-500">Режим: предпросмотр (данные не записаны)</p>
           </div>
           <CountsCard title="План импорта" counts={counts} />
+          {preview?.ok && preview.plan.counterparties && (
+            <CounterpartiesSummaryCard s={preview.plan.counterparties} />
+          )}
           {preview?.ok && preview.plan.newCounterparties && (
-            <NewCounterpartiesCard list={preview.plan.newCounterparties} />
+            <CounterpartiesPreview
+              list={preview.plan.newCounterparties}
+              overrides={overrides}
+              onChange={setOverrides}
+            />
           )}
           {preview?.ok && preview.plan.diagnostics && (
             <DiagnosticsCard d={preview.plan.diagnostics} />
