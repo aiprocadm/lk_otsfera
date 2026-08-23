@@ -23,7 +23,8 @@ vi.mock('next/link', () => ({
     ),
 }));
 
-import { OrgCardTabs, ORG_CARD_TABS } from '@/components/manager/org-card-tabs';
+import { OrgCardTabs } from '@/components/manager/org-card-tabs';
+import { ORG_CARD_TABS, orgCardTabsFor } from '@/lib/navigation/orgCardTabs';
 import type { OrganizationCard } from '@/lib/services/manager/organizationCard';
 
 function makeCard(overrides: Partial<OrganizationCard>): OrganizationCard {
@@ -33,8 +34,10 @@ function makeCard(overrides: Partial<OrganizationCard>): OrganizationCard {
     inn: '1234567890',
     kpp: '987654321',
     commission: null,
-    counts: { orders: 3, students: 5, users: 2 },
-    kpis: { activeOrders: 2, totalPaid: '100.00' },
+    // `У-102`: «Доступ в кабинет» = активные `OrganizationUser`; «Задолженность»
+    // считает сервис карточки — плитки берут подписи из общего реестра.
+    counts: { orders: 3, students: 5, cabinetUsers: 2 },
+    kpis: { activeOrders: 2, totalPaid: '100.00', debt: '250.00' },
     orders: [],
     documents: [],
     payments: [],
@@ -58,33 +61,40 @@ function makeCard(overrides: Partial<OrganizationCard>): OrganizationCard {
   } as unknown as OrganizationCard;
 }
 
+const MANAGER_TABS = orgCardTabsFor('manager', { flags: () => true });
+
 describe('OrgCardTabs — header + nav', () => {
   it('renders org name and partner name', () => {
     const card = makeCard({});
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'history' }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'history', tabs: MANAGER_TABS }));
     expect(html).toContain('ООО Ромашка');
     expect(html).toContain('Партнёр Иванов');
   });
 
   it('omits the partner line when partner is null', () => {
     const card = makeCard({ partner: null });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'history' }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'history', tabs: MANAGER_TABS }));
     expect(html).not.toContain('Партнёр:');
   });
 
   it('renders all KPI tiles', () => {
     const card = makeCard({});
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'history' }));
-    expect(html).toContain('Заявки');
-    expect(html).toContain('Активные');
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'history', tabs: MANAGER_TABS }));
+    // `У-102`: общие плитки — по глоссарию и в общем порядке. Дореформенные
+    // подписи «Заявки» и «Пользователи» из карточки ушли.
+    expect(html).toContain('Заказы');
     expect(html).toContain('Сотрудники');
-    expect(html).toContain('Пользователи');
+    expect(html).toContain('Доступ в кабинет');
+    expect(html).toContain('Задолженность');
+    expect(html).not.toContain('>Пользователи<');
+    // Справочные KPI менеджера остаются рядом.
+    expect(html).toContain('Активные');
     expect(html).toContain('Оплачено');
   });
 
   it('renders a nav link for every tab and marks the active one', () => {
     const card = makeCard({});
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'orders' }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'orders', tabs: MANAGER_TABS }));
     for (const t of ORG_CARD_TABS) {
       expect(html).toContain(`data-testid="org-tab-${t.key}"`);
     }
@@ -96,7 +106,7 @@ describe('OrgCardTabs — header + nav', () => {
 describe('OrgCardTabs — orders section', () => {
   it('empty: renders EmptyState', () => {
     const card = makeCard({ orders: [] });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'orders' }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'orders', tabs: MANAGER_TABS }));
     expect(html).toContain('Заявок пока нет');
   });
 
@@ -115,7 +125,7 @@ describe('OrgCardTabs — orders section', () => {
         },
       ],
     });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'orders' }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'orders', tabs: MANAGER_TABS }));
     expect(html).toContain('A-1');
     expect(html).toContain('Заказ X');
     expect(html).toContain('in_progress');
@@ -139,7 +149,7 @@ describe('OrgCardTabs — orders section', () => {
         },
       ],
     });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'orders' }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'orders', tabs: MANAGER_TABS }));
     expect(html).toContain('—');
   });
 });
@@ -147,7 +157,7 @@ describe('OrgCardTabs — orders section', () => {
 describe('OrgCardTabs — documents section', () => {
   it('empty: renders EmptyState', () => {
     const card = makeCard({ documents: [] });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'documents' }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'documents', tabs: MANAGER_TABS }));
     expect(html).toContain('Документов пока нет');
   });
 
@@ -163,7 +173,7 @@ describe('OrgCardTabs — documents section', () => {
         },
       ],
     });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'documents' }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'documents', tabs: MANAGER_TABS }));
     expect(html).toContain('Договор.pdf');
     expect(html).toContain('contract');
     expect(html).toContain('to_organization');
@@ -176,7 +186,7 @@ describe('OrgCardTabs — payments section', () => {
       payments: [],
       kpis: { activeOrders: 0, totalPaid: '0.00', totalRefunded: '0.00' } as never,
     });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'payments' }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'payments', tabs: MANAGER_TABS }));
     expect(html).toContain('Оплачено (нетто)');
     expect(html).toContain('Возвраты');
     expect(html).toContain('Оплат пока нет');
@@ -194,7 +204,7 @@ describe('OrgCardTabs — payments section', () => {
         },
       ],
     });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'payments' }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'payments', tabs: MANAGER_TABS }));
     expect(html).toContain('100.00 ₽');
     expect(html).toContain('Оплата');
   });
@@ -211,7 +221,7 @@ describe('OrgCardTabs — payments section', () => {
         },
       ],
     });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'payments' }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'payments', tabs: MANAGER_TABS }));
     expect(html).toContain('Возврат');
   });
 });
@@ -219,7 +229,7 @@ describe('OrgCardTabs — payments section', () => {
 describe('OrgCardTabs — threads section', () => {
   it('empty: renders EmptyState', () => {
     const card = makeCard({ activity: [] });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'threads' }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'threads', tabs: MANAGER_TABS }));
     expect(html).toContain('Переписки пока нет');
   });
 
@@ -235,7 +245,7 @@ describe('OrgCardTabs — threads section', () => {
         },
       ],
     });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'threads' }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'threads', tabs: MANAGER_TABS }));
     expect(html).toContain('Иван');
     expect(html).toContain('Комментарий тест');
   });
@@ -244,7 +254,7 @@ describe('OrgCardTabs — threads section', () => {
 describe('OrgCardTabs — details section', () => {
   it('renders name, partner, inn, kpp when present', () => {
     const card = makeCard({ partner: { id: 'p1', name: 'Партнёр Х' }, inn: '111', kpp: '222' });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'details' }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'settings', tabs: MANAGER_TABS }));
     expect(html).toContain('Название');
     expect(html).toContain('Партнёр Х');
     expect(html).toContain('111');
@@ -253,7 +263,7 @@ describe('OrgCardTabs — details section', () => {
 
   it('renders — fallbacks when partner/inn/kpp are missing', () => {
     const card = makeCard({ partner: null, inn: null, kpp: null });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'details' }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'settings', tabs: MANAGER_TABS }));
     expect(html).toContain('—');
   });
 
@@ -264,14 +274,14 @@ describe('OrgCardTabs — details section', () => {
       requisites: { signerName: 'Иванов И.И.', signerPosition: 'Директор' },
     } as never);
     expect(
-      renderToString(React.createElement(OrgCardTabs, { card: withPosition, activeTab: 'details' }))
+      renderToString(React.createElement(OrgCardTabs, { card: withPosition, activeTab: 'settings', tabs: MANAGER_TABS }))
     ).toContain('Иванов И.И., Директор');
 
     const withoutPosition = makeCard({
       requisites: { signerName: 'Иванов И.И.', signerPosition: null },
     } as never);
     const html = renderToString(
-      React.createElement(OrgCardTabs, { card: withoutPosition, activeTab: 'details' })
+      React.createElement(OrgCardTabs, { card: withoutPosition, activeTab: 'settings', tabs: MANAGER_TABS })
     );
     expect(html).toContain('Иванов И.И.');
     expect(html).not.toContain('Иванов И.И.,');
@@ -279,21 +289,21 @@ describe('OrgCardTabs — details section', () => {
 
   it('renders commission rate detail when card.commission is present', () => {
     const card = makeCard({ commission: { partnerCommissionRate: '10%' } as never });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'details' }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'settings', tabs: MANAGER_TABS }));
     expect(html).toContain('Ставка комиссии партнёра');
     expect(html).toContain('10%');
   });
 
   it('renders — for the commission rate when card.commission.partnerCommissionRate is null', () => {
     const card = makeCard({ commission: { partnerCommissionRate: null } as never });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'details' }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'settings', tabs: MANAGER_TABS }));
     expect(html).toContain('Ставка комиссии партнёра');
     expect(html).toContain('—');
   });
 
   it('omits the commission detail row when card.commission is null', () => {
     const card = makeCard({ commission: null });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'details' }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'settings', tabs: MANAGER_TABS }));
     expect(html).not.toContain('Ставка комиссии партнёра');
   });
 });
@@ -301,7 +311,7 @@ describe('OrgCardTabs — details section', () => {
 describe('OrgCardTabs — history section (default tab)', () => {
   it('all empty: renders the top-level EmptyState', () => {
     const card = makeCard({ orders: [], payments: [], activity: [] });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'history' }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'history', tabs: MANAGER_TABS }));
     expect(html).toContain('Истории пока нет');
   });
 
@@ -321,7 +331,7 @@ describe('OrgCardTabs — history section (default tab)', () => {
         } as never,
       ],
     });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'history' }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'history', tabs: MANAGER_TABS }));
     expect(html).toContain('Последние заявки');
     expect(html).toContain('Заказ 1');
     expect(html).toContain('Последние оплаты');
@@ -338,7 +348,7 @@ describe('OrgCardTabs — history section (default tab)', () => {
         { id: 'c1', authorName: 'X', createdAt: new Date('2026-01-06'), body: 'непусто' } as never,
       ],
     });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'history' }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'history', tabs: MANAGER_TABS }));
     const dashCount = (html.match(/text-xs text-gray-400">—</g) ?? []).length;
     expect(dashCount).toBe(2);
   });
@@ -346,7 +356,7 @@ describe('OrgCardTabs — history section (default tab)', () => {
   it('falls through to history when an unknown/undefined tab value is passed', () => {
     const card = makeCard({ orders: [], payments: [], activity: [] });
     const html = renderToString(
-      React.createElement(OrgCardTabs, { card, activeTab: 'nonsense' as never })
+      React.createElement(OrgCardTabs, { card, activeTab: 'nonsense' as never, tabs: MANAGER_TABS })
     );
     expect(html).toContain('Истории пока нет');
   });
@@ -355,7 +365,7 @@ describe('OrgCardTabs — history section (default tab)', () => {
 describe('OrgCardTabs — calls tab (G4)', () => {
   it('renders the read-only CallsList (empty state)', () => {
     const card = makeCard({ calls: [] });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'calls' }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'calls', tabs: MANAGER_TABS }));
     expect(html).toContain('Звонков нет');
   });
 });
@@ -364,7 +374,7 @@ describe('OrgCardTabs — inbound messages tab (G4, read-only)', () => {
   it('empty: renders EmptyState', () => {
     const card = makeCard({ inboundMessages: [] });
     const html = renderToString(
-      React.createElement(OrgCardTabs, { card, activeTab: 'inbound_messages' })
+      React.createElement(OrgCardTabs, { card, activeTab: 'inbound', tabs: MANAGER_TABS })
     );
     expect(html).toContain('Обращений нет');
   });
@@ -387,7 +397,7 @@ describe('OrgCardTabs — inbound messages tab (G4, read-only)', () => {
       ],
     });
     const html = renderToString(
-      React.createElement(OrgCardTabs, { card, activeTab: 'inbound_messages' })
+      React.createElement(OrgCardTabs, { card, activeTab: 'inbound', tabs: MANAGER_TABS })
     );
     expect(html).toContain('Telegram');
     expect(html).toContain('Привязано');
@@ -415,7 +425,7 @@ describe('OrgCardTabs — inbound messages tab (G4, read-only)', () => {
       ],
     });
     const html = renderToString(
-      React.createElement(OrgCardTabs, { card, activeTab: 'inbound_messages' })
+      React.createElement(OrgCardTabs, { card, activeTab: 'inbound', tabs: MANAGER_TABS })
     );
     expect(html).toContain('pigeon');
     expect(html).toContain('strange');
@@ -456,9 +466,10 @@ describe('вкладки внутреннего контура (этап 7 PR-3)
     ],
   };
 
-  it('канон табов содержит три новых ключа', () => {
+  it('канон табов содержит три ключа внутреннего контура (У-96: по глоссарию)', () => {
     const keys = ORG_CARD_TABS.map((t) => t.key);
-    expect(keys).toContain('client_requests');
+    // `client_requests` переименован в `requests` — «Обращения» по глоссарию.
+    expect(keys).toContain('requests');
     expect(keys).toContain('leads');
     expect(keys).toContain('deals');
   });
@@ -467,7 +478,8 @@ describe('вкладки внутреннего контура (этап 7 PR-3)
     const html = renderToString(
       React.createElement(OrgCardTabs, {
         card: makeCard(internal as never),
-        activeTab: 'client_requests',
+        activeTab: 'requests',
+        tabs: MANAGER_TABS,
       })
     );
     expect(html).toContain('Обучение по ОТ');
@@ -477,7 +489,7 @@ describe('вкладки внутреннего контура (этап 7 PR-3)
 
   it('лиды: ссылка на карточку лида + статус-бейдж', () => {
     const html = renderToString(
-      React.createElement(OrgCardTabs, { card: makeCard(internal as never), activeTab: 'leads' })
+      React.createElement(OrgCardTabs, { card: makeCard(internal as never), activeTab: 'leads', tabs: MANAGER_TABS })
     );
     expect(html).toContain('/manager/leads/l1');
     expect(html).toContain('Лид-тема');
@@ -485,7 +497,7 @@ describe('вкладки внутреннего контура (этап 7 PR-3)
 
   it('сделки: русские статусы и сумма с прочерком для null', () => {
     const html = renderToString(
-      React.createElement(OrgCardTabs, { card: makeCard(internal as never), activeTab: 'deals' })
+      React.createElement(OrgCardTabs, { card: makeCard(internal as never), activeTab: 'deals', tabs: MANAGER_TABS })
     );
     expect(html).toContain('Сделка-1');
     expect(html).toContain('Выиграна');
@@ -510,7 +522,7 @@ describe('вкладки внутреннего контура (этап 7 PR-3)
       ],
     };
     const html = renderToString(
-      React.createElement(OrgCardTabs, { card: makeCard(odd as never), activeTab: 'deals' })
+      React.createElement(OrgCardTabs, { card: makeCard(odd as never), activeTab: 'deals', tabs: MANAGER_TABS })
     );
     expect(html).toContain('Сделка-9');
     expect(html).toContain('frozen');
@@ -520,14 +532,14 @@ describe('вкладки внутреннего контура (этап 7 PR-3)
     const empty = makeCard({ clientRequests: [], leads: [], deals: [] } as never);
     expect(
       renderToString(
-        React.createElement(OrgCardTabs, { card: empty, activeTab: 'client_requests' })
+        React.createElement(OrgCardTabs, { card: empty, activeTab: 'requests', tabs: MANAGER_TABS })
       )
     ).toContain('Заявок клиентов пока нет.');
     expect(
-      renderToString(React.createElement(OrgCardTabs, { card: empty, activeTab: 'leads' }))
+      renderToString(React.createElement(OrgCardTabs, { card: empty, activeTab: 'leads', tabs: MANAGER_TABS }))
     ).toContain('Лидов пока нет.');
     expect(
-      renderToString(React.createElement(OrgCardTabs, { card: empty, activeTab: 'deals' }))
+      renderToString(React.createElement(OrgCardTabs, { card: empty, activeTab: 'deals', tabs: MANAGER_TABS }))
     ).toContain('Сделок пока нет.');
   });
 });
@@ -553,7 +565,7 @@ describe('OrgCardTabs — вкладка «Удостоверения» и вы�
   it('таблица удостоверений и ссылка на выгрузку', () => {
     const card = makeCard({ id: 'org1', certificates: [CERT] } as never);
     const html = renderToString(
-      React.createElement(OrgCardTabs, { card, activeTab: 'certificates' })
+      React.createElement(OrgCardTabs, { card, activeTab: 'certificates', tabs: MANAGER_TABS })
     );
     expect(html).toContain('УД-77');
     expect(html).toContain('Иванов Иван');
@@ -569,7 +581,7 @@ describe('OrgCardTabs — вкладка «Удостоверения» и вы�
       certificates: [{ ...CERT, validUntil: null, hasScan: false }],
     } as never);
     const html = renderToString(
-      React.createElement(OrgCardTabs, { card, activeTab: 'certificates' })
+      React.createElement(OrgCardTabs, { card, activeTab: 'certificates', tabs: MANAGER_TABS })
     );
     expect(html).toContain('бессрочно');
     expect(html).toContain('готовится');
@@ -578,7 +590,7 @@ describe('OrgCardTabs — вкладка «Удостоверения» и вы�
   it('пустой реестр: пустое состояние, но кнопка выгрузки остаётся', () => {
     const card = makeCard({ id: 'org1', certificates: [] } as never);
     const html = renderToString(
-      React.createElement(OrgCardTabs, { card, activeTab: 'certificates' })
+      React.createElement(OrgCardTabs, { card, activeTab: 'certificates', tabs: MANAGER_TABS })
     );
     expect(html).toContain('Удостоверений пока нет.');
     expect(html).toContain('/api/manager/organizations/org1/certificates/export');
@@ -586,7 +598,7 @@ describe('OrgCardTabs — вкладка «Удостоверения» и вы�
 
   it('вкладка «Оплаты» несёт свою выгрузку', () => {
     const card = makeCard({ id: 'org1', payments: [] } as never);
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'payments' }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'payments', tabs: MANAGER_TABS }));
     expect(html).toContain('/api/manager/organizations/org1/payments/export');
   });
 });

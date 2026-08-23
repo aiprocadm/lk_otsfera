@@ -1,11 +1,6 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import {
-  managerOrgScope,
-  canSeeOrganization,
-  getCompanyTeamVisibility,
-  isLeaderSameCompany,
-} from '@/lib/auth/managerPolicy';
+import { managerOrgScope, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 
 /**
  * Manager-facing organizations service.
@@ -73,37 +68,3 @@ export async function listCompanyOrgOptions(
   });
 }
 
-const DETAIL_INCLUDE = {
-  _count: {
-    select: {
-      orders: true,
-      students: true,
-      users: true,
-    },
-  },
-  partner: { select: { id: true, name: true } },
-} satisfies Prisma.OrganizationInclude;
-
-export type ManagerOrgDetail = Prisma.OrganizationGetPayload<{ include: typeof DETAIL_INCLUDE }>;
-
-export async function getOrganization(
-  prisma: PrismaClient,
-  session: SessionPayload,
-  orgId: string
-): Promise<ManagerOrgDetail | null> {
-  const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
-  // Fetch by id, then check scope in-process so a foreign org returns null
-  // (no existence-leak) — company-wide needs org.companyId.
-  const org = await prisma.organization.findUnique({
-    where: { id: orgId },
-    include: DETAIL_INCLUDE,
-  });
-  if (!org) return null;
-  if (teamMode) {
-    return !!session.companyId && org.companyId === session.companyId ? org : null;
-  }
-  // Лидер-инвариант C8 — тот же, что в карточке организации (см. комментарий там).
-  return canSeeOrganization(session, orgId) || isLeaderSameCompany(session, org.companyId)
-    ? org
-    : null;
-}

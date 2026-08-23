@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
-import { listOrganizations, getOrganization } from '@/lib/services/manager/organizations';
+import { listOrganizations } from '@/lib/services/manager/organizations';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 let prisma: PrismaClient;
@@ -88,7 +88,7 @@ beforeAll(async () => {
   });
 
   // Counts seed: one student in orgA, one order each in orgA / orgB so the
-  // `_count` aggregate in listOrganizations and getOrganization is exercised.
+  // `_count` aggregate in listOrganizations is exercised.
   const studentA = await prisma.student.create({
     data: {
       email: `mgr-org-stud-${stamp}@t.local`,
@@ -188,36 +188,3 @@ describe('services/manager/organizations — listOrganizations RBAC scope', () =
   });
 });
 
-describe('services/manager/organizations — getOrganization RBAC + payload', () => {
-  it('returns the org with counts and partner ref for an in-scope id', async () => {
-    const session = managerSession(userAId, [orgAId, orgBId]);
-    const org = await getOrganization(prisma, session, orgAId);
-    expect(org).not.toBeNull();
-    expect(org!.id).toBe(orgAId);
-    expect(org!._count.orders).toBe(1);
-    expect(org!._count.students).toBe(1);
-    expect(org!._count.users).toBeGreaterThanOrEqual(0);
-    expect(org!.partner?.id).toBe(partnerId);
-  });
-
-  it('returns null for an out-of-scope org id', async () => {
-    const session = managerSession(userAId, [orgAId, orgBId]);
-    const org = await getOrganization(prisma, session, orgCId);
-    expect(org).toBeNull();
-  });
-
-  it('returns null for a non-existent org id even if it appears in managedOrgIds (defensive)', async () => {
-    // Edge case: the session claims access to an id that doesn't exist in DB.
-    // managedOrgIds passes canSeeOrganization, but the by-id findUnique returns
-    // null — we want null, not a thrown error.
-    const session = managerSession(userAId, ['nonexistent-cuid']);
-    const org = await getOrganization(prisma, session, 'nonexistent-cuid');
-    expect(org).toBeNull();
-  });
-
-  it('returns null for an assignmentless manager calling getOrganization on any id', async () => {
-    const session = managerSession(userGhostId, []);
-    const org = await getOrganization(prisma, session, orgAId);
-    expect(org).toBeNull();
-  });
-});

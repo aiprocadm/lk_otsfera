@@ -1,0 +1,115 @@
+import type { FeatureFlag } from '@/lib/featureFlags';
+import type { IconKey } from './icons';
+
+/**
+ * Реестр вкладок карточки организации (`У-95`, `У-96`).
+ *
+ * Единственный источник правды: название, значок, порядок, флаг и список
+ * кабинетов. **Состав вкладок в кабинете — фильтр этого реестра**, а не свой
+ * список в каждом экране: до этапа 2 у менеджера был массив из 12 вкладок в
+ * компоненте, у партнёра — свой из 5, у админа вкладок не было вовсе, и один и
+ * тот же объект назывался «Заявки» в одном кабинете и «Заказы» в другом.
+ *
+ * Названия — из глоссария: `Order` → «Заказы», `ClientRequest` → «Обращения»,
+ * `InboundMessage` → «Входящие письма». Дореформенные подписи («Заявки»,
+ * «Заявки клиентов», «Реквизиты») запрещены стражем
+ * `navigation.org-card-tabs.guardrail`.
+ *
+ * Состав реестра растёт вместе с экранами: вкладки «Обзор», «Сотрудники»
+ * (`У-97`), «Заявки на обучение» и «Комментарии» появятся здесь в PR-2 этапа —
+ * вместе с данными, которые они показывают. Пустая вкладка — дефект приёмки
+ * (`У-74`), поэтому объявлять её заранее нельзя.
+ */
+export type OrgCardCabinet = 'admin' | 'leader' | 'manager' | 'partner' | 'organization';
+
+export type OrgCardTabKey =
+  | 'orders'
+  | 'documents'
+  | 'payments'
+  | 'certificates'
+  | 'requests'
+  | 'leads'
+  | 'deals'
+  | 'threads'
+  | 'calls'
+  | 'inbound'
+  | 'history'
+  | 'settings';
+
+export type OrgCardTab = {
+  key: OrgCardTabKey;
+  /** Название по глоссарию — одно на все кабинеты (`У-96`). */
+  label: string;
+  /** Значок из семантического реестра (`У-9`), не подбирается на глаз. */
+  iconKey: IconKey;
+  /** Кабинеты, где вкладка положена. Разница — только объём данных и права. */
+  cabinets: readonly OrgCardCabinet[];
+  /** Флаг, без которого вкладки нет ни у кого. */
+  flag?: FeatureFlag;
+};
+
+const ALL: readonly OrgCardCabinet[] = ['admin', 'leader', 'manager', 'partner', 'organization'];
+const STAFF: readonly OrgCardCabinet[] = ['admin', 'leader', 'manager'];
+/** Сотрудники ЦО + партнёр: клиентские данные, которые заказчику про себя не нужны. */
+const STAFF_AND_PARTNER: readonly OrgCardCabinet[] = ['admin', 'leader', 'manager', 'partner'];
+
+/**
+ * Порядок здесь — общий порядок вкладок во всех кабинетах (`У-96`).
+ * Кабинет может показать подмножество, но не может переставить.
+ */
+export const ORG_CARD_TABS: readonly OrgCardTab[] = [
+  { key: 'orders', label: 'Заказы', iconKey: 'orders', cabinets: ALL },
+  { key: 'documents', label: 'Документы', iconKey: 'documents', cabinets: ALL },
+  { key: 'payments', label: 'Оплаты', iconKey: 'finance', cabinets: STAFF },
+  {
+    key: 'certificates',
+    label: 'Удостоверения',
+    iconKey: 'certificates',
+    cabinets: ALL,
+    flag: 'certificates_registry',
+  },
+  {
+    key: 'requests',
+    label: 'Обращения',
+    iconKey: 'requests',
+    cabinets: STAFF_AND_PARTNER,
+    flag: 'client_requests',
+  },
+  // Отдельного флага у лидов нет: раздел закрывается флагом кабинета, как и
+  // пункт меню «Лиды» у менеджера.
+  { key: 'leads', label: 'Лиды', iconKey: 'leads', cabinets: STAFF },
+  { key: 'deals', label: 'Сделки', iconKey: 'deals', cabinets: STAFF, flag: 'deals_pipeline' },
+  { key: 'threads', label: 'Переписка', iconKey: 'inbox', cabinets: STAFF, flag: 'chat' },
+  { key: 'calls', label: 'Звонки', iconKey: 'calls', cabinets: STAFF, flag: 'telephony_mango' },
+  {
+    key: 'inbound',
+    label: 'Входящие письма',
+    iconKey: 'messages',
+    cabinets: STAFF,
+    flag: 'inbound_messaging',
+  },
+  { key: 'history', label: 'История', iconKey: 'audit', cabinets: ALL },
+  { key: 'settings', label: 'Настройки', iconKey: 'settings', cabinets: ALL },
+];
+
+/**
+ * Вкладки кабинета: фильтр реестра по роли и флагам. `flags` передаётся
+ * вызывающим (страница знает, читать ли флаг синхронно), поэтому реестр
+ * остаётся чистым и тестируемым.
+ */
+export function orgCardTabsFor(
+  cabinet: OrgCardCabinet,
+  opts: { flags: (flag: FeatureFlag) => boolean }
+): OrgCardTab[] {
+  return ORG_CARD_TABS.filter(
+    (tab) => tab.cabinets.includes(cabinet) && (!tab.flag || opts.flags(tab.flag))
+  );
+}
+
+/** Подпись вкладки по ключу — для крошек и заголовков (`У-108`). */
+export function orgCardTabLabel(key: OrgCardTabKey): string {
+  const tab = ORG_CARD_TABS.find((t) => t.key === key);
+  // Ключ приходит из типа, поэтому промах возможен только при правке реестра.
+  /* v8 ignore next */
+  return tab ? tab.label : key;
+}

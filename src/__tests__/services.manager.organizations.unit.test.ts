@@ -1,8 +1,11 @@
 /**
  * Unit tests for src/lib/services/manager/organizations.ts
- * Covers: teamMode=ON branch in listOrganizations + getOrganization,
- * getOrganization with teamMode=ON (companyId mismatch → null),
- * teamMode=OFF and canSeeOrganization=false → null.
+ * Covers: teamMode=ON branch in listOrganizations, скоуп компании в
+ * listCompanyOrgOptions.
+ *
+ * `У-104` (этап 2): деталка `getOrganization` удалена вместе с мёртвым
+ * `manager-org-card.tsx` — карточку организации во всех кабинетах отдаёт
+ * `services/manager/organizationCard.ts`, её RBAC проверяется там.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -23,11 +26,7 @@ vi.mock('@/lib/auth/managerPolicy', () => ({
   isLeaderSameCompany,
 }));
 
-import {
-  listOrganizations,
-  getOrganization,
-  listCompanyOrgOptions,
-} from '@/lib/services/manager/organizations';
+import { listOrganizations, listCompanyOrgOptions } from '@/lib/services/manager/organizations';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 const SESSION: SessionPayload = {
@@ -114,54 +113,3 @@ describe('listCompanyOrgOptions', () => {
   });
 });
 
-describe('getOrganization', () => {
-  it('returns null when org not found in DB', async () => {
-    const p = { organization: { findUnique: vi.fn().mockResolvedValue(null) } } as never;
-    const result = await getOrganization(p, SESSION, 'nonexistent');
-    expect(result).toBeNull();
-  });
-
-  it('teamMode=OFF: returns org when canSeeOrganization=true', async () => {
-    getCompanyTeamVisibility.mockResolvedValue(false);
-    canSeeOrganization.mockReturnValue(true);
-    const org = orgRow('org-1');
-    const p = { organization: { findUnique: vi.fn().mockResolvedValue(org) } } as never;
-    const result = await getOrganization(p, SESSION, 'org-1');
-    expect(result).toMatchObject({ id: 'org-1' });
-  });
-
-  it('teamMode=OFF: returns null when canSeeOrganization=false', async () => {
-    getCompanyTeamVisibility.mockResolvedValue(false);
-    canSeeOrganization.mockReturnValue(false);
-    const org = orgRow('org-1');
-    const p = { organization: { findUnique: vi.fn().mockResolvedValue(org) } } as never;
-    const result = await getOrganization(p, SESSION, 'org-1');
-    expect(result).toBeNull();
-  });
-
-  it('teamMode=ON: returns org when companyId matches session.companyId', async () => {
-    getCompanyTeamVisibility.mockResolvedValue(true);
-    const org = orgRow('org-1', 'co-1');
-    const p = { organization: { findUnique: vi.fn().mockResolvedValue(org) } } as never;
-    const result = await getOrganization(p, SESSION, 'org-1');
-    expect(result).toMatchObject({ id: 'org-1' });
-  });
-
-  it('teamMode=ON: returns null when org.companyId does not match session.companyId', async () => {
-    getCompanyTeamVisibility.mockResolvedValue(true);
-    const org = orgRow('org-1', 'co-foreign');
-    const p = { organization: { findUnique: vi.fn().mockResolvedValue(org) } } as never;
-    const result = await getOrganization(p, SESSION, 'org-1');
-    expect(result).toBeNull();
-  });
-
-  it('teamMode=ON: returns null when session.companyId is null', async () => {
-    getCompanyTeamVisibility.mockResolvedValue(true);
-    const nullSession = { ...SESSION, companyId: null };
-    const org = orgRow('org-1', 'co-1');
-    const p = { organization: { findUnique: vi.fn().mockResolvedValue(org) } } as never;
-    const result = await getOrganization(p, nullSession as never, 'org-1');
-    // !!null && ... = false → null
-    expect(result).toBeNull();
-  });
-});
