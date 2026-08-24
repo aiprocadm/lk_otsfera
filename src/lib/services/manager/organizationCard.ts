@@ -36,6 +36,9 @@ const CARD_SELECT = {
   signerBasis: true,
   companyId: true,
   partnerCommissionRate: true,
+  // `У-99`: на вкладке «Настройки» рядом со ставкой видно её основание —
+  // иначе человек видит число и не знает, откуда оно взялось.
+  partnerCommissionRateNote: true,
   partner: { select: { id: true, name: true } },
   // `У-102`/`Д-29`: «Доступ в кабинет» считается по активным
   // `OrganizationUser`, а НЕ по связи `Organization.users`
@@ -168,7 +171,7 @@ export type OrganizationCard = {
   deals: OrgCardDeal[];
   certificates: OrgCardCertificate[];
   // null в менеджерском контуре (нет capability see_commission).
-  commission: { partnerCommissionRate: string | null } | null;
+  commission: { partnerCommissionRate: string | null; note: string | null } | null;
 };
 
 export async function getOrganizationCard(
@@ -457,6 +460,7 @@ export async function getOrganizationCard(
           partnerCommissionRate: org.partnerCommissionRate
             ? org.partnerCommissionRate.toFixed(4)
             : null,
+          note: org.partnerCommissionRateNote,
         }
       : null,
   };

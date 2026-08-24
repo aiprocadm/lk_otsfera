@@ -128,3 +128,50 @@ describe('listOrgRateHistory (unit)', () => {
     expect(result.rows[0].changedByName).toBeNull();
   });
 });
+
+
+/**
+ * `У-99`: историю ставки видит и руководитель — но только по организациям
+ * СВОЕЙ компании (C8). Раньше сервис отвечал `forbidden` всем, кроме админа, и
+ * руководителю приходилось просить админа посмотреть за него.
+ */
+describe('listOrgRateHistory — руководитель (У-99, граница компании C8)', () => {
+  function makeDbWithOrg(orgCompanyId: string | null, changes: unknown[] = []) {
+    return {
+      organization: { findUnique: vi.fn().mockResolvedValue(orgCompanyId === null ? null : { companyId: orgCompanyId }) },
+      organizationCommissionRateChange: { findMany: vi.fn().mockResolvedValue(changes) },
+      user: { findMany: vi.fn().mockResolvedValue([]) },
+    } as any;
+  }
+
+  const leader = (companyId: string | null) =>
+    ({ sub: 'leader-1', role: 'leader', companyId }) as SessionPayload;
+
+  it('своя компания: историю отдаёт', async () => {
+    const db = makeDbWithOrg('co-1', [changeRow()]);
+    const result = await listOrgRateHistory(db, leader('co-1'), 'org-1');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.rows).toHaveLength(1);
+  });
+
+  it('чужая компания: forbidden и историю не читает', async () => {
+    const db = makeDbWithOrg('co-2', [changeRow()]);
+    const result = await listOrgRateHistory(db, leader('co-1'), 'org-1');
+    expect(result).toEqual({ ok: false, error: 'forbidden' });
+    expect(db.organizationCommissionRateChange.findMany).not.toHaveBeenCalled();
+  });
+
+  it('организации нет: forbidden (существование чужой орг не подтверждаем)', async () => {
+    const db = makeDbWithOrg(null);
+    const result = await listOrgRateHistory(db, leader('co-1'), 'org-1');
+    expect(result).toEqual({ ok: false, error: 'forbidden' });
+  });
+
+  it('руководитель без компании: forbidden, в базу не ходим', async () => {
+    const db = makeDbWithOrg('co-1');
+    const result = await listOrgRateHistory(db, leader(null), 'org-1');
+    expect(result).toEqual({ ok: false, error: 'forbidden' });
+    expect(db.organization.findUnique).not.toHaveBeenCalled();
+  });
+});

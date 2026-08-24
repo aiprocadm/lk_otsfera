@@ -8,7 +8,7 @@ import { OrgCardTabs } from '@/components/manager/org-card-tabs';
 import { orgCardTabsFor, type OrgCardTabKey } from '@/lib/navigation/orgCardTabs';
 import { listOrgCardEmployees } from '@/lib/services/organization/orgCardEmployees';
 import { OrgEmployeesSection } from '@/components/organization/org-employees-section';
-import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fields';
+import { OrgStaffSettings } from '@/components/organization/org-staff-settings';
 import { getFieldsForEntity } from '@/lib/services/customFields';
 import { getAutoCreatedFrom1C } from '@/lib/services/organization/autoCreated';
 import { AutoCreatedBadge } from '@/components/organization/auto-created-badge';
@@ -40,9 +40,6 @@ export default async function ManagerOrgDetailPage({
   const card = await getOrganizationCard(prisma, session, id);
   if (!card) notFound();
 
-  // §11 ТЗ v0.5: настраиваемые поля организации — под вкладками, чтобы были
-  // видны на любой из них (вкладки переключают историю/удостоверения, а поля
-  // относятся к самой организации).
   // `У-97`: список грузим только когда вкладка открыта — лишний запрос на
   // каждой вкладке карточки не нужен.
   const skipRaw = Number(typeof sp.skip === 'string' ? sp.skip : '');
@@ -53,7 +50,13 @@ export default async function ManagerOrgDetailPage({
       ? await listOrgCardEmployees(prisma, session, { orgId: id, ...(q ? { q } : {}), skip })
       : null;
 
-  const customFields = await getFieldsForEntity(prisma, session, 'organization', id);
+  // §11 ТЗ v0.5: настраиваемые поля организации. `У-99`: живут на вкладке
+  // «Настройки», а не под всеми вкладками сразу — под переключателем не должно
+  // висеть ничего постороннего (`У-64`).
+  const customFields =
+    activeTab === 'settings'
+      ? await getFieldsForEntity(prisma, session, 'organization', id)
+      : null;
   // `У-54`: клиента мог завести импорт выписки — менеджеру это видно сразу.
   const autoCreated = await getAutoCreatedFrom1C(prisma, id);
 
@@ -84,8 +87,18 @@ export default async function ManagerOrgDetailPage({
             />
           ) : null
         }
+        settings={
+          customFields ? (
+            <OrgStaffSettings
+              cabinet="manager"
+              card={card}
+              session={session}
+              prisma={prisma}
+              customFields={customFields}
+            />
+          ) : null
+        }
       />
-      <EntityCustomFields fields={customFields} entityType="organization" entityId={id} />
     </div>
   );
 }

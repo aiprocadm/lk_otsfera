@@ -29,12 +29,23 @@ const { notFound } = vi.hoisted(() => ({
 vi.mock('next/navigation', () => ({ notFound }));
 
 vi.mock('@/components/manager/org-card-tabs', () => ({
-  OrgCardTabs: (props: { activeTab: string; tabs: Array<{ key: string }> }) =>
+  OrgCardTabs: (props: {
+    activeTab: string;
+    tabs: Array<{ key: string }>;
+    settings?: React.ReactNode;
+  }) =>
     React.createElement(
       'div',
       { 'data-testid': 'org-card', 'data-active': props.activeTab },
-      props.tabs.map((t) => t.key).join(',')
+      props.tabs.map((t) => t.key).join(','),
+      props.settings
     ),
+}));
+// `У-99`: настройки собирает отдельный серверный компонент — он ходит в
+// сервисы, поэтому здесь его подменяем.
+vi.mock('@/components/organization/org-staff-settings', () => ({
+  OrgStaffSettings: (p: { cabinet: string }) =>
+    React.createElement('div', null, `НАСТРОЙКИ:${p.cabinet}`),
 }));
 vi.mock('@/components/students/add-student-dialog', () => ({
   AddStudentDialog: () => React.createElement('div', { 'data-testid': 'add-student' }),
@@ -137,5 +148,30 @@ describe('LeaderOrgDetailPage (У-101)', () => {
     expect(
       junk.container.querySelector('[data-testid="org-card"]')?.getAttribute('data-active')
     ).toBe('history');
+  });
+});
+
+
+describe('LeaderOrgDetailPage — вкладка «Настройки» (У-99)', () => {
+  it('на вкладке настроек подключает сборщик кабинета руководителя', async () => {
+    const { container } = await renderServerComponent(
+      LeaderOrgDetailPage({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({ tab: 'settings' }),
+      })
+    );
+    expect(container.textContent).toContain('НАСТРОЙКИ:leader');
+    expect(getFieldsForEntity).toHaveBeenCalled();
+  });
+
+  it('на других вкладках поля не грузятся (У-64: под вкладками ничего лишнего)', async () => {
+    const { container } = await renderServerComponent(
+      LeaderOrgDetailPage({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+    expect(container.textContent).not.toContain('НАСТРОЙКИ:');
+    expect(getFieldsForEntity).not.toHaveBeenCalled();
   });
 });

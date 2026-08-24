@@ -25,6 +25,7 @@ import {
   requireManagerForOrg,
   requireManagerForOrder,
   requireManagerLeader,
+  requireAdminOrManagerLeader,
 } from '@/lib/auth/requireRole';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
@@ -325,5 +326,45 @@ describe('requireManagerLeader', () => {
   it('редиректит не-manager на /forbidden (делегирует requireManager)', async () => {
     getSession.mockResolvedValue(PARTNER_SESSION);
     await expect(requireManagerLeader()).rejects.toThrow('NEXT_REDIRECT:/forbidden');
+  });
+});
+
+
+/**
+ * `У-99`: ставку комиссии по организации ведут администратор И руководитель.
+ * Гард проверяет только роль — границу компании руководителя (C8) проверяет
+ * вызывающий, иначе руководитель дотянулся бы до чужой компании.
+ */
+describe('requireAdminOrManagerLeader', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    redirect.mockImplementation((to: string) => {
+      throw new Error(`NEXT_REDIRECT:${to}`);
+    });
+  });
+
+  const ADMIN: SessionPayload = { sub: 'adm-1', role: 'admin' };
+  const LEADER: SessionPayload = { sub: 'ldr-1', role: 'leader', managedOrgIds: [] };
+
+  it('пускает администратора', async () => {
+    getSession.mockResolvedValue(ADMIN);
+    expect(await requireAdminOrManagerLeader()).toEqual(ADMIN);
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it('пускает руководителя', async () => {
+    getSession.mockResolvedValue(LEADER);
+    expect(await requireAdminOrManagerLeader()).toEqual(LEADER);
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it('рядового менеджера бьёт /forbidden', async () => {
+    getSession.mockResolvedValue(MANAGER_WITH_SCOPE);
+    await expect(requireAdminOrManagerLeader()).rejects.toThrow('NEXT_REDIRECT:/forbidden');
+  });
+
+  it('партнёра бьёт /forbidden', async () => {
+    getSession.mockResolvedValue(PARTNER_SESSION);
+    await expect(requireAdminOrManagerLeader()).rejects.toThrow('NEXT_REDIRECT:/forbidden');
   });
 });

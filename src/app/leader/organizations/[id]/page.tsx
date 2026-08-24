@@ -8,7 +8,7 @@ import { OrgCardTabs } from '@/components/manager/org-card-tabs';
 import { orgCardTabsFor, type OrgCardTabKey } from '@/lib/navigation/orgCardTabs';
 import { listOrgCardEmployees } from '@/lib/services/organization/orgCardEmployees';
 import { OrgEmployeesSection } from '@/components/organization/org-employees-section';
-import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fields';
+import { OrgStaffSettings } from '@/components/organization/org-staff-settings';
 import { getFieldsForEntity } from '@/lib/services/customFields';
 import { getAutoCreatedFrom1C } from '@/lib/services/organization/autoCreated';
 import { AutoCreatedBadge } from '@/components/organization/auto-created-badge';
@@ -58,7 +58,12 @@ export default async function LeaderOrgDetailPage({
       ? await listOrgCardEmployees(prisma, session, { orgId: id, ...(q ? { q } : {}), skip })
       : null;
 
-  const customFields = await getFieldsForEntity(prisma, session, 'organization', id);
+  // `У-99`: настраиваемые поля живут на вкладке «Настройки», а не под всеми
+  // вкладками сразу — под переключателем не должно висеть постороннее (`У-64`).
+  const customFields =
+    activeTab === 'settings'
+      ? await getFieldsForEntity(prisma, session, 'organization', id)
+      : null;
   const autoCreated = await getAutoCreatedFrom1C(prisma, id);
 
   return (
@@ -86,8 +91,18 @@ export default async function LeaderOrgDetailPage({
             />
           ) : null
         }
+        settings={
+          customFields ? (
+            <OrgStaffSettings
+              cabinet="leader"
+              card={card}
+              session={session}
+              prisma={prisma}
+              customFields={customFields}
+            />
+          ) : null
+        }
       />
-      <EntityCustomFields fields={customFields} entityType="organization" entityId={id} />
     </div>
   );
 }

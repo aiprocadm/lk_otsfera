@@ -58,7 +58,17 @@ export async function listOrgRateHistory(
   session: SessionPayload,
   organizationId: string
 ): Promise<{ ok: true; rows: OrgRateHistoryRow[] } | { ok: false; error: 'forbidden' }> {
-  if (session.role !== 'admin') return { ok: false, error: 'forbidden' };
+  // `У-99`: историю ставки видят администратор и руководитель. У руководителя
+  // граница — своя компания (C8): чужую организацию он не смотрит даже на
+  // чтение, иначе через историю утекли бы ставки соседней компании.
+  if (session.role !== 'admin') {
+    if (session.role !== 'leader' || !session.companyId) return { ok: false, error: 'forbidden' };
+    const org = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { companyId: true },
+    });
+    if (!org || org.companyId !== session.companyId) return { ok: false, error: 'forbidden' };
+  }
 
   const changes = await prisma.organizationCommissionRateChange.findMany({
     where: { organizationId },

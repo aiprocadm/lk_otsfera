@@ -22,8 +22,13 @@ export function RequisitesCard({
   canEdit = true,
   children,
 }: {
-  title: string;
-  description: string;
+  /**
+   * `У-99`: внутри вкладки «Настройки» карточки организации заголовок и
+   * пояснение даёт реестр секций, поэтому здесь их не передают — иначе секция
+   * несла бы два заголовка подряд. На самостоятельных экранах заголовок нужен.
+   */
+  title?: string;
+  description?: string;
   defaults: RequisitesDefaults;
   idPrefix: string;
   action: (fd: FormData) => Promise<RequisitesActionResult>;
@@ -54,8 +59,10 @@ export function RequisitesCard({
 
   return (
     <div className="rounded-xl border border-gray-200 p-4">
-      <h2 className="font-semibold text-[#111111]">{title}</h2>
-      <p className="text-sm text-gray-600 mt-0.5 mb-3">{description}</p>
+      {title !== undefined && <h2 className="font-semibold text-[#111111]">{title}</h2>}
+      {description !== undefined && (
+        <p className="text-sm text-gray-600 mt-0.5 mb-3">{description}</p>
+      )}
       {canEdit ? (
         <form onSubmit={onSubmit} className="space-y-3">
           <RequisitesFields defaults={defaults} idPrefix={idPrefix} />

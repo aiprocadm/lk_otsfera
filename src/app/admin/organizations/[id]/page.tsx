@@ -1,7 +1,7 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
 import { AddStudentDialog } from '@/components/students/add-student-dialog';
-import { TableShell, THead, Th, Tr, Td, Breadcrumbs } from '@/components/ui';
+import { Breadcrumbs } from '@/components/ui';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { getOrganization, getOrganizationMeta } from '@/lib/services/admin/organizations';
@@ -13,14 +13,13 @@ import { RequisitesCard } from '@/components/requisites/requisites-card';
 import { getOrgRequisitesByAdmin } from '@/lib/services/admin/counterpartyRequisites';
 import { setOrgRequisitesByAdminAction } from '@/server-actions/requisites';
 import { AdminRateOverrideForm } from '@/components/admin/admin-rate-override-form';
-import { fmtDate } from '@/lib/format';
+import { OrgSettingsTab } from '@/components/organization/org-settings-tab';
+import { OrgCommissionSection } from '@/components/organization/org-commission-section';
 import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fields';
 import { getFieldsForEntity } from '@/lib/services/customFields';
 import { getAutoCreatedFrom1C } from '@/lib/services/organization/autoCreated';
 import { AutoCreatedBadge } from '@/components/organization/auto-created-badge';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
-
-const fmtRate = new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 2 });
 
 export const dynamic = 'force-dynamic';
 
@@ -88,75 +87,59 @@ export default async function AdminOrganizationDetailPage({
         </div>
       </div>
 
-      <section className="space-y-3">
-        <h2 className="text-base font-semibold text-[#111111]">Реквизиты</h2>
-        <OrganizationEditForm org={org} />
-        {requisites && (
-          <div className="mt-4">
-            <RequisitesCard
-              title="Реквизиты для документов"
-              description="Полный набор для автогенерации счетов и актов (этап 8). Начните вводить название или ИНН — DaData подставит остальное."
-              defaults={requisites}
-              idPrefix="adm-org-req"
-              action={setOrgRequisitesByAdminAction}
-              hidden={{ orgId: org.id }}
+      {/* `У-99`: набор настроек организации, его названия и порядок — из
+          реестра `orgSettingsSections`, общего на все кабинеты. Раньше это была
+          простыня из разрозненных секций, а у партнёра тот же набор назывался
+          и лежал иначе (§0.2, правило зеркала). */}
+      <OrgSettingsTab
+        cabinet="admin"
+        slots={{
+          requisites: (
+            <div className="space-y-4">
+              <OrganizationEditForm org={org} />
+              {requisites && (
+                <RequisitesCard
+                  description="Начните вводить название или ИНН — DaData подставит остальное."
+                  defaults={requisites}
+                  idPrefix="adm-org-req"
+                  action={setOrgRequisitesByAdminAction}
+                  hidden={{ orgId: org.id }}
+                />
+              )}
+            </div>
+          ),
+          cabinetAccess: (
+            <CustomerAccessSection
+              organizationId={org.id}
+              prisma={prisma}
+              canInvite={true}
+              source="admin"
             />
-          </div>
-        )}
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="text-base font-semibold text-[#111111]">Ставка комиссии</h2>
-        <p className="text-sm text-gray-500">
-          Базовая ставка партнёра действует, если переопределение не задано.
-        </p>
-        <AdminRateOverrideForm
-          organizationId={org.id}
-          initialRate={org.partnerCommissionRate}
-          initialNote={org.partnerCommissionRateNote}
-        />
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="text-base font-semibold text-[#111111]">История ставок</h2>
-        {rateHistory.length === 0 ? (
-          <p className="text-sm text-gray-500">Изменений не было.</p>
-        ) : (
-          <TableShell>
-            <THead className="bg-[#F3F4F6]">
-              <Th className="py-2 text-[#111111]">Дата</Th>
-              <Th className="py-2 text-[#111111]">Было</Th>
-              <Th className="py-2 text-[#111111]">Стало</Th>
-              <Th className="py-2 text-[#111111]">Кто</Th>
-            </THead>
-            <tbody>
-              {rateHistory.map((row) => (
-                <Tr key={row.id} hover={false} className="border-gray-100">
-                  <Td className="py-2 text-gray-700">{fmtDate(row.effectiveFrom)}</Td>
-                  <Td className="py-2 text-gray-700">
-                    {row.oldRate !== null ? fmtRate.format(row.oldRate) : '—'}
-                  </Td>
-                  <Td className="py-2 text-gray-700">
-                    {row.newRate !== null ? fmtRate.format(row.newRate) : 'сброс (ставка партнёра)'}
-                  </Td>
-                  <Td className="py-2 text-gray-500">{row.changedByName ?? '—'}</Td>
-                </Tr>
-              ))}
-            </tbody>
-          </TableShell>
-        )}
-      </section>
-
-      <EntityCustomFields fields={customFields} entityType="organization" entityId={org.id} />
-
-      <CustomerAccessSection
-        organizationId={org.id}
-        prisma={prisma}
-        canInvite={true}
-        source="admin"
+          ),
+          managers: <ManagersBlock orgId={org.id} prisma={prisma} />,
+          commission: (
+            <OrgCommissionSection
+              rate={org.partnerCommissionRate}
+              note={org.partnerCommissionRateNote}
+              history={rateHistory}
+              form={
+                <AdminRateOverrideForm
+                  organizationId={org.id}
+                  initialRate={org.partnerCommissionRate}
+                  initialNote={org.partnerCommissionRateNote}
+                />
+              }
+            />
+          ),
+          customFields: (
+            <EntityCustomFields
+              fields={customFields}
+              entityType="organization"
+              entityId={org.id}
+            />
+          ),
+        }}
       />
-
-      <ManagersBlock orgId={org.id} prisma={prisma} />
     </div>
   );
 }

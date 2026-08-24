@@ -38,6 +38,7 @@ export function OrgCardTabs({
   activeTab,
   tabs,
   employees,
+  settings,
 }: {
   card: OrganizationCard;
   activeTab: OrgCardTabKey;
@@ -48,6 +49,13 @@ export function OrgCardTabs({
    * компонент остаётся презентационным и не ходит в базу.
    */
   employees?: React.ReactNode;
+  /**
+   * `У-99`: готовая вкладка «Настройки» (реквизиты, доступ в кабинет,
+   * менеджеры, ставка, доп. поля). Собирается страницей своей роли — состав и
+   * права у кабинетов разные, а названия и порядок общие (реестр
+   * `orgSettingsSections`).
+   */
+  settings?: React.ReactNode;
 }) {
   return (
     <div className="space-y-6">
@@ -90,7 +98,13 @@ export function OrgCardTabs({
         ))}
       </nav>
 
-      <section>{activeTab === 'employees' ? employees : renderSection(card, activeTab)}</section>
+      <section>
+        {activeTab === 'employees'
+          ? employees
+          : activeTab === 'settings'
+            ? settings
+            : renderSection(card, activeTab)}
+      </section>
     </div>
   );
 }
@@ -117,8 +131,6 @@ function renderSection(card: OrganizationCard, tab: OrgCardTabKey): React.ReactN
       return <LeadsSection leads={card.leads} />;
     case 'deals':
       return <DealsSection deals={card.deals} />;
-    case 'settings':
-      return <DetailsSection card={card} />;
     case 'history':
     default:
       return <HistorySection card={card} />;
@@ -366,47 +378,6 @@ function InboundMessagesSection({
         ))}
       </tbody>
     </TableShell>
-  );
-}
-
-function DetailsSection({ card }: { card: OrganizationCard }) {
-  return (
-    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl">
-      <Detail label="Название" value={card.name} />
-      <Detail label="Партнёр" value={card.partner?.name ?? '—'} />
-      <Detail label="ИНН" value={card.inn ?? '—'} />
-      <Detail label="КПП" value={card.kpp ?? '—'} />
-      <Detail label="Юр. название" value={card.requisites.legalName ?? '—'} />
-      <Detail label="ОГРН" value={card.requisites.ogrn ?? '—'} />
-      <Detail label="Юр. адрес" value={card.requisites.legalAddress ?? '—'} />
-      <Detail label="Банк" value={card.requisites.bankName ?? '—'} />
-      <Detail label="Р/с" value={card.requisites.bankAccount ?? '—'} />
-      <Detail label="К/с" value={card.requisites.corrAccount ?? '—'} />
-      <Detail label="БИК" value={card.requisites.bic ?? '—'} />
-      <Detail
-        label="Подписант"
-        value={
-          card.requisites.signerName
-            ? `${card.requisites.signerName}${card.requisites.signerPosition ? `, ${card.requisites.signerPosition}` : ''}`
-            : '—'
-        }
-      />
-      {card.commission && (
-        <Detail
-          label="Ставка комиссии партнёра"
-          value={card.commission.partnerCommissionRate ?? '—'}
-        />
-      )}
-    </dl>
-  );
-}
-
-function Detail({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-gray-200 px-4 py-2">
-      <dt className="text-xs text-gray-500">{label}</dt>
-      <dd className="text-sm font-medium text-[#111111]">{value}</dd>
-    </div>
   );
 }
 
