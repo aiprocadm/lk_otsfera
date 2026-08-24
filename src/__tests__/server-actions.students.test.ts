@@ -144,12 +144,15 @@ describe('createStudentAction (У-24…У-26)', () => {
     expect(createStudent.mock.calls[0][2].teamMode).toBe(false);
   });
 
-  it('после успеха обновляются все четыре экрана, где сотрудник виден', async () => {
+  // `У-103`: экранов пять — вкладка «Сотрудники» появилась и у руководителя
+  // (`У-101`). Пропуск пути = «добавил, а в соседнем кабинете не видно».
+  it('после успеха обновляются все пять экранов, где сотрудник виден', async () => {
     await createStudentAction(form({ organizationId: ORG, name: 'Иванов' }));
     expect(revalidatePath.mock.calls.map((c) => c[0])).toEqual([
       '/organization/students',
       `/partner/portfolio/${ORG}`,
       `/manager/organizations/${ORG}`,
+      `/leader/organizations/${ORG}`,
       `/admin/organizations/${ORG}`,
     ]);
   });

@@ -64,7 +64,9 @@ describe('manager_cabinet (opt-in flag)', () => {
 });
 
 describe('navByRole.manager — feature-flag gated', () => {
-  it('lists all twenty-three manager cabinet items in the raw nav (including Поиск, Обращения, leader-only Команда + вход в /leader + Воронка + Сделки + Задачи + Календарь + Обращения + Звонки + Настройки)', () => {
+  // `У-103`: пункт «Сотрудники» снят — сотрудники ведутся в карточке
+  // организации, сквозной список показывал людей вперемешку из разных клиентов.
+  it('lists all twenty-two manager cabinet items in the raw nav (including Поиск, Обращения, leader-only Команда + вход в /leader + Воронка + Сделки + Задачи + Календарь + Обращения + Звонки + Настройки)', () => {
     expect(navByRole.manager.map((i) => i.href)).toEqual([
       '/manager/dashboard',
       '/manager/search',
@@ -81,7 +83,6 @@ describe('navByRole.manager — feature-flag gated', () => {
       '/manager/import',
       '/manager/payments-import',
       '/manager/documents',
-      '/manager/students',
       '/manager/enrollments',
       '/manager/messages',
       '/manager/inbox',
@@ -153,7 +154,6 @@ describe('navByRole.manager — feature-flag gated', () => {
       'Загрузка из 1С',
       'Импорт оплат',
       'Документы',
-      'Сотрудники',
       'Сообщения',
       'Настройки',
       'Справка',
@@ -164,7 +164,8 @@ describe('navByRole.manager — feature-flag gated', () => {
   it('navItemsFor("manager") руководителю: импорт и «Команда» на месте (leaderOnly)', () => {
     process.env.FEATURE_MANAGER_CABINET = '1';
     const items = navItemsFor('manager', { isManagerLeader: true });
-    expect(items).toHaveLength(13); // +«Справка» (`У-76`)
+    // `У-103`: пункт «Сотрудники» снят — было 13.
+    expect(items).toHaveLength(12); // +«Справка» (`У-76`)
     expect(items.map((i) => i.label)).toEqual([
       'Главная',
       'Заказы',
@@ -174,7 +175,6 @@ describe('navByRole.manager — feature-flag gated', () => {
       'Загрузка из 1С',
       'Импорт оплат',
       'Документы',
-      'Сотрудники',
       'Сообщения',
       'Команда',
       'Настройки',

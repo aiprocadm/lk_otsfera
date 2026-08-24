@@ -61,6 +61,8 @@ describe('реестр вкладок карточки организации (�
     expect(byKey.get('requests')).toBe('Обращения');
     expect(byKey.get('inbound')).toBe('Входящие письма');
     expect(byKey.get('settings')).toBe('Настройки');
+    // `У-97`: «Сотрудники» — люди организации во всех кабинетах.
+    expect(byKey.get('employees')).toBe('Сотрудники');
     // Дореформенных подписей в реестре быть не должно.
     const labels = [...byKey.values()];
     expect(labels).not.toContain('Заявки');
@@ -74,12 +76,14 @@ describe('реестр вкладок карточки организации (�
       expect(partner).not.toContain(forbidden as OrgCardTabKey);
     }
     // Но общие вкладки у него есть — иначе фильтр вырезал бы всё.
+    expect(partner).toContain('employees');
     expect(partner).toContain('documents');
     expect(partner).toContain('history');
   });
 
   it('заказчик видит свою организацию без служебных вкладок ЦО', () => {
     const org = orgCardTabsFor('organization', { flags: () => true }).map((t) => t.key);
+    expect(org).toContain('employees');
     expect(org).toContain('settings');
     for (const forbidden of ['leads', 'deals', 'calls', 'inbound', 'payments']) {
       expect(org).not.toContain(forbidden as OrgCardTabKey);
@@ -94,10 +98,11 @@ describe('реестр вкладок карточки организации (�
   });
 
   it('значок вкладки — из семантического реестра, а не подобран на глаз (У-9)', () => {
-    // Вкладка «Сотрудники» (`У-97`) приезжает в PR-2 вместе со списком; здесь
-    // фиксируем правило для всех вкладок, которые уже есть.
     for (const tab of ORG_CARD_TABS) {
       expect(Object.keys(NAV_ICONS)).toContain(tab.iconKey);
     }
+    // `У-9`: вкладка «Сотрудники» несёт тот же значок, что и одноимённый
+    // пункт меню — одно название, один знак.
+    expect(ORG_CARD_TABS.find((t) => t.key === 'employees')?.iconKey).toBe('employees');
   });
 });

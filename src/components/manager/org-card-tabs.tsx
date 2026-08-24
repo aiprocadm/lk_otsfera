@@ -37,11 +37,17 @@ export function OrgCardTabs({
   card,
   activeTab,
   tabs,
+  employees,
 }: {
   card: OrganizationCard;
   activeTab: OrgCardTabKey;
   /** Вкладки кабинета — результат `orgCardTabsFor` (фильтр реестра по роли и флагам). */
   tabs: ReadonlyArray<{ key: OrgCardTabKey; label: string }>;
+  /**
+   * `У-97`: готовая секция сотрудников. Данные грузит страница своей роли —
+   * компонент остаётся презентационным и не ходит в базу.
+   */
+  employees?: React.ReactNode;
 }) {
   return (
     <div className="space-y-6">
@@ -84,7 +90,7 @@ export function OrgCardTabs({
         ))}
       </nav>
 
-      <section>{renderSection(card, activeTab)}</section>
+      <section>{activeTab === 'employees' ? employees : renderSection(card, activeTab)}</section>
     </div>
   );
 }

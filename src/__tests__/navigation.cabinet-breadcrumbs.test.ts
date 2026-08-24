@@ -12,11 +12,14 @@ import { navByRole } from '@/lib/navigation/cabinet';
  */
 describe('buildCabinetBreadcrumbs (У-72)', () => {
   it('название раздела берётся из реестра меню, а не пишется руками', () => {
-    const section = navByRole.manager.find((i) => i.href === '/manager/students');
-    const crumbs = buildCabinetBreadcrumbs('manager', '/manager/students', [
-      { label: 'Иванов Иван' },
+    // `У-103`: пункт «Сотрудники» у менеджера снят (люди ведутся в карточке
+    // организации), поэтому пример взят на «Организациях» — том разделе,
+    // внутрь которого сотрудники и переехали.
+    const section = navByRole.manager.find((i) => i.href === '/manager/organizations');
+    const crumbs = buildCabinetBreadcrumbs('manager', '/manager/organizations', [
+      { label: 'ООО «Ромашка»' },
     ]);
-    expect(crumbs[0]).toEqual({ label: section?.label, href: '/manager/students' });
+    expect(crumbs[0]).toEqual({ label: section?.label, href: '/manager/organizations' });
   });
 
   it('последняя крошка — текущая страница и ссылки не имеет', () => {
