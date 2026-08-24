@@ -2,20 +2,28 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   requireAdmin,
+  requireAdminOrManagerLeader,
   updateOrganization,
   createOrganization,
   applyOrgRateOverride,
   revalidatePath,
 } = vi.hoisted(() => ({
   requireAdmin: vi.fn(),
+  requireAdminOrManagerLeader: vi.fn(),
   updateOrganization: vi.fn(),
   createOrganization: vi.fn(),
   applyOrgRateOverride: vi.fn(),
   revalidatePath: vi.fn(),
 }));
 
-vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
-vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+// `У-99`: у руководителя действие проверяет границу компании (C8) — значит
+// ходит в базу за `companyId` организации. У админа этой ветки нет.
+const { prismaMock } = vi.hoisted(() => ({
+  prismaMock: { organization: { findUnique: vi.fn() } },
+}));
+
+vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin, requireAdminOrManagerLeader }));
+vi.mock('@/lib/db/prisma', () => ({ prisma: prismaMock }));
 vi.mock('next/cache', () => ({ revalidatePath }));
 
 vi.mock('@/lib/services/admin/organizations', async () => {
@@ -44,6 +52,13 @@ function fd(data: Record<string, string>): FormData {
 beforeEach(() => {
   vi.clearAllMocks();
   requireAdmin.mockResolvedValue({ sub: 'admin-1', name: 'Admin User' });
+  // `У-99`: ставку ведут админ и руководитель. По умолчанию — админ: у него
+  // границы компании нет, поэтому проверка scope не срабатывает.
+  requireAdminOrManagerLeader.mockResolvedValue({
+    sub: 'admin-1',
+    name: 'Admin User',
+    role: 'admin',
+  });
 });
 
 describe('createOrganizationAction', () => {
@@ -244,5 +259,59 @@ describe('form-action wrappers (discard result, log on failure)', () => {
     expect(result).toBeUndefined();
     expect(warnSpy).toHaveBeenCalled();
     warnSpy.mockRestore();
+  });
+});
+
+
+describe('setOrgRateOverrideAction — руководитель (У-99, граница компании C8)', () => {
+  const leader = (companyId: string | null) => ({
+    sub: 'leader-1',
+    role: 'leader' as const,
+    companyId,
+  });
+
+  const form = () => fd({ organizationId: 'org-1', ratePercent: '8', reason: 'VIP' });
+
+  it('своя компания: ставка применяется', async () => {
+    requireAdminOrManagerLeader.mockResolvedValue(leader('co-1'));
+    prismaMock.organization.findUnique.mockResolvedValue({ companyId: 'co-1' });
+    applyOrgRateOverride.mockResolvedValue({ ok: true });
+
+    const res = await setOrgRateOverrideAction(form());
+
+    expect(res).toEqual({ ok: true });
+    expect(applyOrgRateOverride).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ organizationId: 'org-1', changedByUserId: 'leader-1' })
+    );
+    // Карточка есть у трёх кабинетов — обновиться должны все три.
+    expect(revalidatePath).toHaveBeenCalledWith('/leader/organizations/org-1');
+    expect(revalidatePath).toHaveBeenCalledWith('/manager/organizations/org-1');
+  });
+
+  it('чужая компания: not_found и сервис не зовётся', async () => {
+    requireAdminOrManagerLeader.mockResolvedValue(leader('co-1'));
+    prismaMock.organization.findUnique.mockResolvedValue({ companyId: 'co-2' });
+
+    const res = await setOrgRateOverrideAction(form());
+
+    expect(res).toEqual({ ok: false, error: 'not_found' });
+    expect(applyOrgRateOverride).not.toHaveBeenCalled();
+  });
+
+  it('организации нет: not_found', async () => {
+    requireAdminOrManagerLeader.mockResolvedValue(leader('co-1'));
+    prismaMock.organization.findUnique.mockResolvedValue(null);
+
+    expect(await setOrgRateOverrideAction(form())).toEqual({ ok: false, error: 'not_found' });
+    expect(applyOrgRateOverride).not.toHaveBeenCalled();
+  });
+
+  it('руководитель без компании: not_found', async () => {
+    requireAdminOrManagerLeader.mockResolvedValue(leader(null));
+    prismaMock.organization.findUnique.mockResolvedValue({ companyId: 'co-1' });
+
+    expect(await setOrgRateOverrideAction(form())).toEqual({ ok: false, error: 'not_found' });
+    expect(applyOrgRateOverride).not.toHaveBeenCalled();
   });
 });

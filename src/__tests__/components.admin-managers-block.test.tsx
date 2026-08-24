@@ -143,3 +143,30 @@ describe('ManagersBlock', () => {
     expect(html).toContain('Архив');
   });
 });
+
+
+/**
+ * `У-99`: состав менеджеров видят все сотрудники ЦО, а назначать и снимать их
+ * может только администратор. Скрытая кнопка — это внешний вид; право
+ * по-прежнему держит серверное действие. Здесь проверяем, что в режиме чтения
+ * управляющих элементов нет вовсе.
+ */
+describe('ManagersBlock — режим только чтение (У-99)', () => {
+  beforeEach(() => listManagersForOrg.mockReset());
+
+  it('canManage=false: ни кнопки назначения, ни «Деактивировать», ни «Возобновить»', async () => {
+    listManagersForOrg.mockResolvedValue({
+      active: [makeAssignment()],
+      inactive: [makeAssignment({ id: 'a2', deactivatedAt: new Date('2026-02-01') })],
+    });
+
+    const html = renderToString(
+      await ManagersBlock({ orgId: 'org-1', prisma, canManage: false })
+    );
+
+    expect(html).toContain('Иван Иванов');
+    expect(html).not.toContain('assign-form');
+    expect(html).not.toContain('Деактивировать');
+    expect(html).not.toContain('Возобновить');
+  });
+});

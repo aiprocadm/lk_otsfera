@@ -56,11 +56,9 @@ export function AdminRateOverrideForm({
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
-      <h2 className="text-sm font-semibold text-[#111111]">
-        Ставка комиссии партнёра для этой организации
-      </h2>
-
+    // `У-99`: название секции даёт реестр `orgSettingsSections`, здесь только
+    // тело формы — иначе «Ставка комиссии» была бы подписана дважды подряд.
+    <div className="space-y-4">
       <label className="block">
         <span className="text-sm text-gray-700">Ставка, %</span>
         <input

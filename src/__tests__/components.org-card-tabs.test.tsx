@@ -251,62 +251,38 @@ describe('OrgCardTabs — threads section', () => {
   });
 });
 
-describe('OrgCardTabs — details section', () => {
-  it('renders name, partner, inn, kpp when present', () => {
-    const card = makeCard({ partner: { id: 'p1', name: 'Партнёр Х' }, inn: '111', kpp: '222' });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'settings', tabs: MANAGER_TABS }));
-    expect(html).toContain('Название');
-    expect(html).toContain('Партнёр Х');
-    expect(html).toContain('111');
-    expect(html).toContain('222');
-  });
+// `У-99`: содержимое вкладки «Настройки» собирает страница своей роли и
+// передаёт готовым узлом — карточка в базу не ходит и прав не решает. Раньше
+// здесь была своя read-only простыня реквизитов, из-за чего один и тот же
+// набор настроек выглядел в каждом кабинете по-своему.
+describe('OrgCardTabs — вкладка «Настройки» (У-99)', () => {
+  const settings = React.createElement('p', null, 'НАСТРОЙКИ РОЛИ');
 
-  it('renders — fallbacks when partner/inn/kpp are missing', () => {
-    const card = makeCard({ partner: null, inn: null, kpp: null });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'settings', tabs: MANAGER_TABS }));
-    expect(html).toContain('—');
-  });
-
-  it('подписант: должность добавляется через запятую, без неё — только ФИО', () => {
-    // Подписант уходит в шапку документов. Если должности нет, в строке не
-    // должно оставаться висящей запятой.
-    const withPosition = makeCard({
-      requisites: { signerName: 'Иванов И.И.', signerPosition: 'Директор' },
-    } as never);
-    expect(
-      renderToString(React.createElement(OrgCardTabs, { card: withPosition, activeTab: 'settings', tabs: MANAGER_TABS }))
-    ).toContain('Иванов И.И., Директор');
-
-    const withoutPosition = makeCard({
-      requisites: { signerName: 'Иванов И.И.', signerPosition: null },
-    } as never);
+  it('показывает переданный узел настроек', () => {
     const html = renderToString(
-      React.createElement(OrgCardTabs, { card: withoutPosition, activeTab: 'settings', tabs: MANAGER_TABS })
+      React.createElement(OrgCardTabs, {
+        card: makeCard({}),
+        activeTab: 'settings',
+        tabs: MANAGER_TABS,
+        settings,
+      })
     );
-    expect(html).toContain('Иванов И.И.');
-    expect(html).not.toContain('Иванов И.И.,');
+    expect(html).toContain('НАСТРОЙКИ РОЛИ');
   });
 
-  it('renders commission rate detail when card.commission is present', () => {
-    const card = makeCard({ commission: { partnerCommissionRate: '10%' } as never });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'settings', tabs: MANAGER_TABS }));
-    expect(html).toContain('Ставка комиссии партнёра');
-    expect(html).toContain('10%');
-  });
-
-  it('renders — for the commission rate when card.commission.partnerCommissionRate is null', () => {
-    const card = makeCard({ commission: { partnerCommissionRate: null } as never });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'settings', tabs: MANAGER_TABS }));
-    expect(html).toContain('Ставка комиссии партнёра');
-    expect(html).toContain('—');
-  });
-
-  it('omits the commission detail row when card.commission is null', () => {
-    const card = makeCard({ commission: null });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'settings', tabs: MANAGER_TABS }));
-    expect(html).not.toContain('Ставка комиссии партнёра');
+  it('на других вкладках узел настроек не рендерится', () => {
+    const html = renderToString(
+      React.createElement(OrgCardTabs, {
+        card: makeCard({}),
+        activeTab: 'history',
+        tabs: MANAGER_TABS,
+        settings,
+      })
+    );
+    expect(html).not.toContain('НАСТРОЙКИ РОЛИ');
   });
 });
+
 
 describe('OrgCardTabs — history section (default tab)', () => {
   it('all empty: renders the top-level EmptyState', () => {

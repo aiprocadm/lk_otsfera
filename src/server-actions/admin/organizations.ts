@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db/prisma';
-import { requireAdmin } from '@/lib/auth/requireRole';
+import { requireAdmin, requireAdminOrManagerLeader } from '@/lib/auth/requireRole';
 import {
   createOrganization,
   updateOrganization,
@@ -98,9 +98,24 @@ export async function setOrgRateOverrideAction(fd: FormData): Promise<ActionResu
   });
   if (!parsed.success) return { ok: false, error: 'validation' };
 
-  const session = await requireAdmin();
+  // `У-99`: ставку по организации ведут администратор и руководитель. Раньше
+  // это мог только администратор, и руководителю приходилось просить.
+  const session = await requireAdminOrManagerLeader();
 
   const { organizationId, ratePercent, reason, clear } = parsed.data;
+
+  // C8: у руководителя граница — своя компания. Чужая организация отвечает
+  // `not_found`, а не `forbidden`: существование чужой организации не
+  // подтверждаем (тот же приём, что в карточке организации).
+  if (session.role !== 'admin') {
+    const org = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { companyId: true },
+    });
+    if (!org || !session.companyId || org.companyId !== session.companyId) {
+      return { ok: false, error: 'not_found' };
+    }
+  }
 
   // exactOptionalPropertyTypes: аргументы сервиса различают «ключа нет» и «ключ = undefined».
   const res = await applyOrgRateOverride(prisma, {
@@ -112,6 +127,10 @@ export async function setOrgRateOverrideAction(fd: FormData): Promise<ActionResu
   });
   if (!res.ok) return { ok: false, error: res.error };
   revalidatePath(`/admin/organizations/${organizationId}`);
+  // Карточка организации есть у трёх кабинетов — ставка меняется во всех
+  // сразу, иначе руководитель увидит старое число до перезагрузки.
+  revalidatePath(`/leader/organizations/${organizationId}`);
+  revalidatePath(`/manager/organizations/${organizationId}`);
   return { ok: true };
 }
 

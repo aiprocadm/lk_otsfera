@@ -203,3 +203,17 @@ describe('RequisitesCard', () => {
     expect((action.mock.calls[0]![0] as FormData).get('phone')).toBe('+7');
   });
 });
+
+
+describe('RequisitesCard без заголовка (У-99)', () => {
+  it('внутри секции «Настройки» карточка не рисует свой заголовок', () => {
+    // Название секции даёт реестр `orgSettingsSections`; если карточка тоже
+    // напишет своё, человек увидит два заголовка подряд.
+    const { container } = render(
+      <RequisitesCard defaults={DEFAULTS} idPrefix="req-no-heading" action={vi.fn()} />
+    );
+    expect(container.querySelector('h2')).toBeNull();
+    // Поля при этом на месте — исчез только заголовок.
+    expect(container.querySelector('form')).not.toBeNull();
+  });
+});

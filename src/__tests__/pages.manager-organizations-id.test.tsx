@@ -8,9 +8,20 @@ const { requireManagerForOrg } = vi.hoisted(() => ({ requireManagerForOrg: vi.fn
 // §11 ТЗ v0.5 (этап 1 PR-3): страница подтягивает настраиваемые поля — мокаем
 // сервис, иначе он полезет в реальный prisma. Обычная функция, а не vi.fn:
 // в файле есть resetAllMocks, он снёс бы заготовленный ответ.
-vi.mock('@/lib/services/customFields', () => ({
-  getFieldsForEntity: async () => [],
+const { getFieldsForEntity } = vi.hoisted(() => ({ getFieldsForEntity: vi.fn() }));
+vi.mock('@/lib/services/customFields', () => ({ getFieldsForEntity }));
+
+// `У-99`: содержимое вкладки «Настройки» собирает отдельный серверный
+// компонент — здесь проверяем, что страница его подключает и грузит поля
+// ТОЛЬКО на этой вкладке.
+vi.mock('@/components/organization/org-staff-settings', () => ({
+  OrgStaffSettings: (p: { cabinet: string }) =>
+    React.createElement('div', null, `НАСТРОЙКИ:${p.cabinet}`),
 }));
+
+// `У-97`: список сотрудников грузится сервисом только на своей вкладке.
+const { listOrgCardEmployees } = vi.hoisted(() => ({ listOrgCardEmployees: vi.fn() }));
+vi.mock('@/lib/services/organization/orgCardEmployees', () => ({ listOrgCardEmployees }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireManagerForOrg }));
 
@@ -42,7 +53,13 @@ vi.mock('next/navigation', () => nav);
 // `У-95`: состав вкладок страница берёт из реестра `lib/navigation/orgCardTabs`,
 // чтобы .filter в странице прогонял обе ветки `||` предиката видимости.
 vi.mock('@/components/manager/org-card-tabs', () => ({
-  OrgCardTabs: (props: { card: unknown; activeTab: string; tabs?: { key: string }[] }) =>
+  OrgCardTabs: (props: {
+    card: unknown;
+    activeTab: string;
+    tabs?: { key: string }[];
+    employees?: React.ReactNode;
+    settings?: React.ReactNode;
+  }) =>
     React.createElement(
       'div',
       { 'data-testid': 'org-card-tabs' },
@@ -50,7 +67,9 @@ vi.mock('@/components/manager/org-card-tabs', () => ({
       ' tabs:',
       (props.tabs ?? []).map((t) => t.key).join(','),
       ' ',
-      JSON.stringify(props.card)
+      JSON.stringify(props.card),
+      props.employees,
+      props.settings
     ),
 }));
 
@@ -273,5 +292,42 @@ describe('ManagerOrgDetailPage — вкладка удостоверений', (
       })
     );
     expect(container.textContent).toContain('active:history');
+  });
+});
+
+
+// ─── `У-99`: вкладка «Настройки» карточки ────────────────────────────────────
+
+describe('ManagerOrgDetailPage — вкладка «Настройки» (У-99)', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    isFeatureEnabled.mockReturnValue(false);
+    getFieldsForEntity.mockResolvedValue([]);
+    requireManagerForOrg.mockResolvedValue(SESSION);
+    getOrganizationCard.mockResolvedValue(CARD);
+  });
+
+  it('на вкладке «Настройки» подключает сборщик настроек своего кабинета', async () => {
+    const { container } = await renderServerComponent(
+      ManagerOrgDetailPage({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({ tab: 'settings' }),
+      })
+    );
+    expect(container.textContent).toContain('НАСТРОЙКИ:manager');
+    expect(getFieldsForEntity).toHaveBeenCalled();
+  });
+
+  it('на других вкладках настраиваемые поля не грузятся и под вкладками не висят', async () => {
+    // `У-64`: раньше блок дополнительных полей рендерился под переключателем на
+    // ЛЮБОЙ вкладке — и запрос к базе шёл всегда.
+    const { container } = await renderServerComponent(
+      ManagerOrgDetailPage({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+    expect(container.textContent).not.toContain('НАСТРОЙКИ:');
+    expect(getFieldsForEntity).not.toHaveBeenCalled();
   });
 });

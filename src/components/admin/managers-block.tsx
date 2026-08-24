@@ -15,21 +15,33 @@ function fmtDate(d: Date): string {
   }).format(d);
 }
 
-export async function ManagersBlock({ orgId, prisma }: { orgId: string; prisma: PrismaClient }) {
+export async function ManagersBlock({
+  orgId,
+  prisma,
+  canManage = true,
+}: {
+  orgId: string;
+  prisma: PrismaClient;
+  /**
+   * `У-99`: состав менеджеров видят все сотрудники ЦО, а назначать и снимать
+   * их по-прежнему может только администратор. ТЗ расширяет права только по
+   * ставке комиссии (`admin`/`leader`) — трогать назначения оно не просило,
+   * поэтому право не расширяем «заодно».
+   */
+  canManage?: boolean;
+}) {
   const { active, inactive } = await listManagersForOrg(prisma, orgId);
   const hasAny = active.length + inactive.length > 0;
 
   return (
-    <section className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <div>
-          <h2 className="text-base font-semibold text-[#111111]">Менеджеры организации</h2>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Менеджеры Промтехносферы, которые видят заказы этой организации в своём кабинете.
-          </p>
+    <div>
+      {/* Название и пояснение секции дают реестр `orgSettingsSections` и рамка
+          `OrgSettingsTab` — здесь только тело. */}
+      {canManage && (
+        <div className="flex justify-end mb-3">
+          <AssignOrInviteManagerForm organizationId={orgId} />
         </div>
-        <AssignOrInviteManagerForm organizationId={orgId} />
-      </div>
+      )}
 
       {!hasAny && (
         <div className="text-sm text-gray-500 bg-gray-50 border border-gray-100 rounded p-3">
@@ -46,15 +58,17 @@ export async function ManagersBlock({ orgId, prisma }: { orgId: string; prisma: 
                 <span className="text-gray-500 ml-2">{a.user.email}</span>
                 <span className="text-xs text-gray-400 ml-2">с {fmtDate(a.assignedAt)}</span>
               </div>
-              <form action={deactivateManagerAssignmentFormAction}>
-                <input type="hidden" name="assignmentId" value={a.id} />
-                <button
-                  type="submit"
-                  className="text-xs text-red-600 hover:text-red-700 hover:underline"
-                >
-                  Деактивировать
-                </button>
-              </form>
+              {canManage && (
+                <form action={deactivateManagerAssignmentFormAction}>
+                  <input type="hidden" name="assignmentId" value={a.id} />
+                  <button
+                    type="submit"
+                    className="text-xs text-red-600 hover:text-red-700 hover:underline"
+                  >
+                    Деактивировать
+                  </button>
+                </form>
+              )}
             </li>
           ))}
         </ul>
@@ -78,20 +92,22 @@ export async function ManagersBlock({ orgId, prisma }: { orgId: string; prisma: 
                     </span>
                   )}
                 </div>
-                <form action={reactivateManagerAssignmentFormAction}>
-                  <input type="hidden" name="assignmentId" value={a.id} />
-                  <button
-                    type="submit"
-                    className="text-xs text-[#F97316] hover:text-[#EA580C] hover:underline"
-                  >
-                    Возобновить
-                  </button>
-                </form>
+                {canManage && (
+                  <form action={reactivateManagerAssignmentFormAction}>
+                    <input type="hidden" name="assignmentId" value={a.id} />
+                    <button
+                      type="submit"
+                      className="text-xs text-[#F97316] hover:text-[#EA580C] hover:underline"
+                    >
+                      Возобновить
+                    </button>
+                  </form>
+                )}
               </li>
             ))}
           </ul>
         </>
       )}
-    </section>
+    </div>
   );
 }

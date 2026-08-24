@@ -132,8 +132,10 @@ describe('OrgSettingsPage', () => {
       OrgSettingsPage({ params: Promise.resolve({ orgId: 'org-1' }) })
     );
 
-    expect(container.textContent).toContain('Настройки организации');
     expect(container.textContent).toContain('Ставку комиссии назначает учебный центр');
+    // `У-99`: названия секций — из общего реестра, одни на все кабинеты.
+    expect(container.textContent).toContain('Реквизиты');
+    expect(container.textContent).toContain('Доступ в кабинет');
   });
 
   // ── этап 4 ───────────────────────────────────────────────────────────────
@@ -148,7 +150,7 @@ describe('OrgSettingsPage', () => {
     );
 
     expect(getOrgRequisites).toHaveBeenCalledWith(expect.anything(), SESSION, 'org-1');
-    expect(container.textContent).toContain('Реквизиты организации canEdit:true');
+    expect(container.textContent).toContain('canEdit:true');
   });
 
   it('У-62: сервис отказал — карточки реквизитов нет (право решает сервер)', async () => {

@@ -12,6 +12,8 @@ import { Breadcrumbs } from '@/components/ui';
 import { OrgTabs } from '@/components/partner/org-tabs';
 import { CustomerAccessSection } from '@/components/partner/customer-access-section';
 import { RequisitesCard } from '@/components/requisites/requisites-card';
+import { OrgSettingsTab } from '@/components/organization/org-settings-tab';
+import { OrgCommissionSection } from '@/components/organization/org-commission-section';
 
 export default async function OrgSettingsPage({ params }: { params: Promise<{ orgId: string }> }) {
   const session = await requirePartnerAdmin();
@@ -38,30 +40,43 @@ export default async function OrgSettingsPage({ params }: { params: Promise<{ or
       <OrgCardHeader card={card} />
       <OrgTabs orgId={orgId} active="settings" isAdmin={true} />
 
-      <section className="bg-white border border-gray-200 rounded-xl p-5 space-y-1">
-        <h2 className="text-sm font-semibold text-[#111111]">Настройки организации</h2>
-        <p className="text-sm text-gray-600">
-          Реквизиты для документов и доступ сотрудников организации в их кабинет. Ставку комиссии
-          назначает учебный центр.
-        </p>
-      </section>
+      <p className="text-sm text-gray-600">
+        Реквизиты для документов и доступ сотрудников организации в их кабинет. Ставку комиссии
+        назначает учебный центр.
+      </p>
 
-      {/* У-62: та же карточка, что в кабинете организации, — не пишем вторую. */}
-      {requisites.ok && (
-        <RequisitesCard
-          title="Реквизиты организации"
-          description="Нужны для автоматического формирования документов. Начните вводить название или ИНН — остальное подставится само."
-          defaults={requisites.requisites}
-          idPrefix="org-req"
-          action={setOrgRequisitesAction}
-          canEdit={true}
-          hidden={{ orgId }}
-        />
-      )}
-
-      {/* У-61: блок доступа переехал сюда из общей области карточки, где он
-          висел под всеми вкладками сразу. */}
-      <CustomerAccessSection organizationId={orgId} prisma={prisma} canInvite={true} />
+      {/* `У-99`: тот же набор секций, те же названия и тот же порядок, что у
+          сотрудников учебного центра, — различаются только данные и права
+          (§0.2, правило зеркала). У-62: реквизиты ведёт та же карточка, что в
+          кабинете организации; У-61: доступ живёт здесь, а не под всеми
+          вкладками сразу. */}
+      <OrgSettingsTab
+        cabinet="partner"
+        slots={{
+          requisites: requisites.ok ? (
+            <RequisitesCard
+              description="Начните вводить название или ИНН — остальное подставится само."
+              defaults={requisites.requisites}
+              idPrefix="org-req"
+              action={setOrgRequisitesAction}
+              canEdit={true}
+              hidden={{ orgId }}
+            />
+          ) : undefined,
+          cabinetAccess: (
+            <CustomerAccessSection organizationId={orgId} prisma={prisma} canInvite={true} />
+          ),
+          // `У-3` (решение `Р-4`): партнёр ставку только видит. Формы правки
+          // здесь нет и быть не может — это закреплено стражем.
+          commission: (
+            <OrgCommissionSection
+              rate={card.partnerCommissionRate !== null ? Number(card.partnerCommissionRate) : null}
+              note={card.partnerCommissionRateNote}
+              history={[]}
+            />
+          ),
+        }}
+      />
     </div>
   );
 }

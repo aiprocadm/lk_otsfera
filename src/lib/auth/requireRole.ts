@@ -25,6 +25,20 @@ export async function requireAdmin(): Promise<SessionPayload> {
 }
 
 /**
+ * Администратор **или** руководитель (`У-99`): ставку комиссии по организации
+ * ведут оба. Гард проверяет только роль — **границу компании руководителя
+ * (C8) обязан проверить вызывающий**, иначе руководитель одной компании
+ * дотянется до организации другой. Отдельный гард, а не список в `requireRole`,
+ * потому что `requireRole` не мостит роли и не умеет говорить «менеджер — нет,
+ * руководитель — да» (§4).
+ */
+export async function requireAdminOrManagerLeader(): Promise<SessionPayload> {
+  const session = await requireSession();
+  if (session.role !== 'admin' && !isManagerLeader(session)) redirect('/forbidden');
+  return session;
+}
+
+/**
  * Узкий тип сессии партнёра: `partnerId` гарантированно `string` (не null/undefined).
  * Гарды `requirePartner`/`requirePartnerAdmin` отдают именно его, чтобы страницы
  * использовали `session.partnerId` как `string` без `!` (defense-in-depth §4).

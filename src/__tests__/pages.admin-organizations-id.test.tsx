@@ -91,8 +91,10 @@ vi.mock('@/server-actions/requisites', () => ({
   setPartnerRequisitesByAdminAction: vi.fn(),
 }));
 vi.mock('@/components/requisites/requisites-card', () => ({
-  RequisitesCard: (props: { title: string }) =>
-    React.createElement('div', { 'data-testid': 'requisites-card' }, props.title),
+  // `У-99`: заголовок секции даёт реестр `orgSettingsSections`, поэтому
+  // карточка реквизитов внутри вкладки «Настройки» рисуется без своего.
+  RequisitesCard: (props: { description?: string }) =>
+    React.createElement('div', { 'data-testid': 'requisites-card' }, props.description),
 }));
 
 import AdminOrganizationDetailPage from '@/app/admin/organizations/[id]/page';
@@ -196,8 +198,12 @@ describe('AdminOrganizationDetailPage', () => {
       AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }) })
     );
 
+    // Название секции — из реестра, подсказка про DaData — от самой карточки.
+    expect(container.querySelector('[data-testid="org-settings-requisites"]')?.textContent).toContain(
+      'Реквизиты'
+    );
     expect(container.querySelector('[data-testid="requisites-card"]')?.textContent).toContain(
-      'Реквизиты для документов'
+      'DaData'
     );
   });
 
@@ -242,11 +248,11 @@ describe('AdminOrganizationDetailPage', () => {
     );
 
     expect(listOrgRateHistory).toHaveBeenCalledWith(expect.anything(), SESSION, 'org-1');
-    expect(container.textContent).toContain('История ставок');
+    expect(container.textContent).toContain('История изменений');
     expect(container.textContent).toMatch(/5\s*%/);
     expect(container.textContent).toMatch(/10\s*%/);
     expect(container.textContent).toContain('Admin One');
-    expect(container.textContent).not.toContain('Изменений не было');
+    expect(container.textContent).not.toContain('ещё не меняли');
   });
 
   it('renders "—" for oldRate:null and «сброс (ставка партнёра)» for newRate:null', async () => {
@@ -274,7 +280,7 @@ describe('AdminOrganizationDetailPage', () => {
     expect(container.textContent).toContain('сброс (ставка партнёра)');
   });
 
-  it('renders the empty state «Изменений не было» when history has no rows', async () => {
+  it('renders the empty state «ставку ещё не меняли» when history has no rows', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     getOrganization.mockResolvedValue(ORG);
     getOrganizationMeta.mockResolvedValue(META);
@@ -284,7 +290,7 @@ describe('AdminOrganizationDetailPage', () => {
       AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }) })
     );
 
-    expect(container.textContent).toContain('Изменений не было');
+    expect(container.textContent).toContain('Ставку по этой организации ещё не меняли');
   });
 
   it('gracefully falls back to the empty state when listOrgRateHistory returns ok:false', async () => {
@@ -297,6 +303,6 @@ describe('AdminOrganizationDetailPage', () => {
       AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }) })
     );
 
-    expect(container.textContent).toContain('Изменений не было');
+    expect(container.textContent).toContain('Ставку по этой организации ещё не меняли');
   });
 });

@@ -34,22 +34,19 @@ export async function CustomerAccessSection({
   const hasActiveAdmin = activeAdmins.length > 0;
 
   return (
-    <section className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <div>
-          <h2 className="text-base font-semibold text-[#111111]">Доступ в кабинет</h2>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Кто из сотрудников заказчика может зайти в личный кабинет организации.
-          </p>
-        </div>
-        {canInvite && (
+    <div>
+      {/* `У-99`: название и пояснение секции дают реестр `orgSettingsSections`
+          и рамка `OrgSettingsTab` — здесь остаётся только тело, иначе один и
+          тот же блок нёс бы два заголовка. */}
+      {canInvite && (
+        <div className="flex justify-end mb-3">
           <InviteCustomerAdminForm
             organizationId={organizationId}
             source={source}
             label={hasActiveAdmin ? 'Пригласить ещё' : 'Пригласить администратора'}
           />
-        )}
-      </div>
+        </div>
+      )}
 
       {hasActiveAdmin ? (
         <ul className="divide-y divide-gray-100 -mx-5">
@@ -74,6 +71,6 @@ export async function CustomerAccessSection({
             : 'Партнёр-администратор может пригласить первого через эту страницу.'}
         </div>
       )}
-    </section>
+    </div>
   );
 }
