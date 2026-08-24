@@ -45,7 +45,7 @@ export default async function OrganizationCompanyPage({
   const rawTab = typeof sp.tab === 'string' ? sp.tab : undefined;
   const activeTab: OrgCardTabKey = visibleTabs.some((t) => t.key === rawTab)
     ? (rawTab as OrgCardTabKey)
-    : 'history';
+    : 'overview';
 
   const card = await getOrganizationCard(prisma, ctx.session, ctx.activeOrgId);
   if (!card) notFound();

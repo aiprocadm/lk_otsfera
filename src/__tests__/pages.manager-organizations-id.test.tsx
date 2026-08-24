@@ -104,7 +104,7 @@ describe('ManagerOrgDetailPage', () => {
     ).rejects.toThrow('NOT_FOUND');
   });
 
-  it('defaults to the "history" tab when no ?tab= is present', async () => {
+  it('defaults to the "overview" tab when no ?tab= is present', async () => {
     requireManagerForOrg.mockResolvedValue(SESSION);
     getOrganizationCard.mockResolvedValue(CARD);
 
@@ -117,7 +117,7 @@ describe('ManagerOrgDetailPage', () => {
 
     expect(requireManagerForOrg).toHaveBeenCalledWith('org-1');
     expect(getOrganizationCard).toHaveBeenCalledWith({}, SESSION, 'org-1');
-    expect(container.textContent).toContain('active:history');
+    expect(container.textContent).toContain('active:overview');
   });
 
   it('uses a recognized ?tab= value verbatim', async () => {
@@ -134,7 +134,7 @@ describe('ManagerOrgDetailPage', () => {
     expect(container.textContent).toContain('active:payments');
   });
 
-  it('falls back to "history" for an unrecognized ?tab= value', async () => {
+  it('falls back to "overview" for an unrecognized ?tab= value', async () => {
     requireManagerForOrg.mockResolvedValue(SESSION);
     getOrganizationCard.mockResolvedValue(CARD);
 
@@ -145,10 +145,10 @@ describe('ManagerOrgDetailPage', () => {
       })
     );
 
-    expect(container.textContent).toContain('active:history');
+    expect(container.textContent).toContain('active:overview');
   });
 
-  it('falls back to "history" when ?tab= is a string[] (not typeof string)', async () => {
+  it('falls back to "overview" when ?tab= is a string[] (not typeof string)', async () => {
     requireManagerForOrg.mockResolvedValue(SESSION);
     getOrganizationCard.mockResolvedValue(CARD);
 
@@ -159,7 +159,7 @@ describe('ManagerOrgDetailPage', () => {
       })
     );
 
-    expect(container.textContent).toContain('active:history');
+    expect(container.textContent).toContain('active:overview');
   });
 
   it('shows the «Обращения»/«Звонки» tabs when both feature flags are enabled', async () => {
@@ -193,7 +193,7 @@ describe('ManagerOrgDetailPage', () => {
     const tabsLine = container.textContent ?? '';
     expect(tabsLine).not.toContain('inbound');
     expect(tabsLine).not.toContain('calls');
-    expect(tabsLine).toContain('active:history');
+    expect(tabsLine).toContain('active:overview');
   });
 
   it('honors ?tab=calls only while the telephony flag is on (independent of inbound)', async () => {
@@ -213,7 +213,7 @@ describe('ManagerOrgDetailPage', () => {
     expect(container.textContent).not.toContain('inbound');
   });
 
-  it('falls back to "history" when ?tab=calls but the telephony flag is off', async () => {
+  it('falls back to "overview" when ?tab=calls but the telephony flag is off', async () => {
     requireManagerForOrg.mockResolvedValue(SESSION);
     getOrganizationCard.mockResolvedValue(CARD);
     // beforeEach keeps telephony_mango off → «Звонки» filtered out of visibleTabs.
@@ -225,7 +225,7 @@ describe('ManagerOrgDetailPage', () => {
       })
     );
 
-    expect(container.textContent).toContain('active:history');
+    expect(container.textContent).toContain('active:overview');
   });
 
   it('этап 7 PR-3: вкладки client_requests/deals гейтятся флагами, leads — всегда', async () => {
@@ -281,7 +281,7 @@ describe('ManagerOrgDetailPage — вкладка удостоверений', (
     expect(container.textContent).toContain('active:certificates');
   });
 
-  it('скрыта при выключенном флаге — ?tab=certificates падает на «Историю»', async () => {
+  it('скрыта при выключенном флаге — ?tab=certificates падает на «Обзор»', async () => {
     requireManagerForOrg.mockResolvedValue(SESSION);
     getOrganizationCard.mockResolvedValue(CARD);
 
@@ -291,7 +291,7 @@ describe('ManagerOrgDetailPage — вкладка удостоверений', (
         searchParams: Promise.resolve({ tab: 'certificates' }),
       })
     );
-    expect(container.textContent).toContain('active:history');
+    expect(container.textContent).toContain('active:overview');
   });
 });
 

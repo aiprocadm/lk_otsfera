@@ -128,7 +128,7 @@ describe('LeaderOrgDetailPage (У-101)', () => {
     }
   });
 
-  it('вкладка из адреса подхватывается, мусор откатывается к «Истории»', async () => {
+  it('вкладка из адреса подхватывается, мусор откатывается к «Обзору»', async () => {
     const ok = await renderServerComponent(
       LeaderOrgDetailPage({
         params: Promise.resolve({ id: 'org-1' }),
@@ -147,7 +147,7 @@ describe('LeaderOrgDetailPage (У-101)', () => {
     );
     expect(
       junk.container.querySelector('[data-testid="org-card"]')?.getAttribute('data-active')
-    ).toBe('history');
+    ).toBe('overview');
   });
 });
 

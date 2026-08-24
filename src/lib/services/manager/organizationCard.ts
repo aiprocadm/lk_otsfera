@@ -128,6 +128,32 @@ type OrgCardDeal = {
   createdAt: Date;
 };
 
+/**
+ * `У-96`: вкладка «Заявки на обучение» — список слушателей, которых надо
+ * обучить. Раньше в карточке организации её не было: заявки клиента жили
+ * только в своём разделе, и менеджер не видел их рядом с историей клиента.
+ */
+type OrgCardEnrollment = {
+  id: string;
+  status: string;
+  createdAt: Date;
+  courseTitle: string | null;
+  studentsCount: number;
+};
+
+/**
+ * `У-96`: вкладка «История» — журнал действий по организации. До этого шага
+ * «Историей» называлась сводка последних событий, а настоящего журнала в
+ * карточке не было вовсе: кто и когда правил реквизиты или ставку, приходилось
+ * искать в общем журнале аудита.
+ */
+type OrgCardAuditEntry = {
+  id: string;
+  action: string;
+  createdAt: Date;
+  actorName: string | null;
+};
+
 // Этап 9 (ФТ-12.2, PR-3): вкладка «Удостоверения» карточки + её выгрузка.
 type OrgCardCertificate = {
   id: string;
@@ -171,6 +197,9 @@ export type OrganizationCard = {
   leads: OrgCardLead[];
   deals: OrgCardDeal[];
   certificates: OrgCardCertificate[];
+  enrollments: OrgCardEnrollment[];
+  /** Пустой у клиентских ролей: журнал действий — внутренняя информация ЦО. */
+  auditTrail: OrgCardAuditEntry[];
   // null в менеджерском контуре (нет capability see_commission).
   commission: { partnerCommissionRate: string | null; note: string | null } | null;
 };
@@ -208,6 +237,7 @@ export async function getOrganizationCard(
     paidAgg,
     refundAgg,
     activity,
+    enrollments,
     certificatesRes,
   ] = await Promise.all([
     prisma.order.findMany({
@@ -263,6 +293,19 @@ export async function getOrganizationCard(
       orderBy: { createdAt: 'desc' },
       take: 20,
     }),
+    // `У-96`: заявки на обучение этой организации — вкладка карточки.
+    prisma.enrollmentRequest.findMany({
+      where: { organizationId: orgId },
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        legacyCourseTitle: true,
+        _count: { select: { items: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    }),
     // Этап 9 (ФТ-12.2): вкладка «Удостоверения». Идём через сервис реестра, а
     // не прямым запросом — он пересекает orgId со скоупом сессии и сам пишет
     // PiiAccessEvent `certificates_list` (§12: ФИО слушателей — ПДн).
@@ -274,6 +317,23 @@ export async function getOrganizationCard(
   // только сотрудникам учебного центра). Раньше они всё равно грузились бы
   // и уехали бы в браузер заказчика вместе с карточкой — вкладки нет, а
   // данные есть. Поэтому запросы выполняются только для staff-просмотра.
+  // `У-96`: журнал действий по организации. Кто и что менял — внутренняя
+  // информация учебного центра, клиенту и партнёру её не показывают, поэтому и
+  // не грузим.
+  const auditTrail = isStaffView
+    ? await prisma.auditLog.findMany({
+        where: { entity: 'organization', entityId: orgId },
+        select: {
+          id: true,
+          action: true,
+          createdAt: true,
+          user: { select: { name: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      })
+    : [];
+
   const [inboundMessages, calls, clientRequests, leads, deals] = isStaffView
     ? await Promise.all([
       prisma.inboundMessage.findMany({
@@ -466,6 +526,19 @@ export async function getOrganizationCard(
       status: d.status,
       amount: d.amount ? d.amount.toFixed(2) : null,
       createdAt: d.createdAt,
+    })),
+    enrollments: enrollments.map((e) => ({
+      id: e.id,
+      status: e.status,
+      createdAt: e.createdAt,
+      courseTitle: e.legacyCourseTitle,
+      studentsCount: e._count.items,
+    })),
+    auditTrail: auditTrail.map((a) => ({
+      id: a.id,
+      action: a.action,
+      createdAt: a.createdAt,
+      actorName: a.user.name,
     })),
     commission:
       isStaffView && can(session, 'see_commission')

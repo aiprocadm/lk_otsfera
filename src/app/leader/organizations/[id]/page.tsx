@@ -43,7 +43,7 @@ export default async function LeaderOrgDetailPage({
   const rawTab = typeof sp.tab === 'string' ? sp.tab : undefined;
   const activeTab: OrgCardTabKey = visibleTabs.some((t) => t.key === rawTab)
     ? (rawTab as OrgCardTabKey)
-    : 'history';
+    : 'overview';
 
   const session = await requireManagerLeader();
   const card = await getOrganizationCard(prisma, session, id);

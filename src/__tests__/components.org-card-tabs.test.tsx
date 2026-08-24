@@ -66,20 +66,20 @@ const MANAGER_TABS = orgCardTabsFor('manager', { flags: () => true });
 describe('OrgCardTabs — header + nav', () => {
   it('renders org name and partner name', () => {
     const card = makeCard({});
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'history', tabs: MANAGER_TABS }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'overview', tabs: MANAGER_TABS }));
     expect(html).toContain('ООО Ромашка');
     expect(html).toContain('Партнёр Иванов');
   });
 
   it('omits the partner line when partner is null', () => {
     const card = makeCard({ partner: null });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'history', tabs: MANAGER_TABS }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'overview', tabs: MANAGER_TABS }));
     expect(html).not.toContain('Партнёр:');
   });
 
   it('renders all KPI tiles', () => {
     const card = makeCard({});
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'history', tabs: MANAGER_TABS }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'overview', tabs: MANAGER_TABS }));
     // `У-102`: общие плитки — по глоссарию и в общем порядке. Дореформенные
     // подписи «Заявки» и «Пользователи» из карточки ушли.
     expect(html).toContain('Заказы');
@@ -274,7 +274,7 @@ describe('OrgCardTabs — вкладка «Настройки» (У-99)', () => 
     const html = renderToString(
       React.createElement(OrgCardTabs, {
         card: makeCard({}),
-        activeTab: 'history',
+        activeTab: 'overview',
         tabs: MANAGER_TABS,
         settings,
       })
@@ -284,11 +284,11 @@ describe('OrgCardTabs — вкладка «Настройки» (У-99)', () => 
 });
 
 
-describe('OrgCardTabs — history section (default tab)', () => {
+describe('OrgCardTabs — вкладка «Обзор» (У-96)', () => {
   it('all empty: renders the top-level EmptyState', () => {
     const card = makeCard({ orders: [], payments: [], activity: [] });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'history', tabs: MANAGER_TABS }));
-    expect(html).toContain('Истории пока нет');
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'overview', tabs: MANAGER_TABS }));
+    expect(html).toContain('Работа с этим клиентом ещё не начиналась');
   });
 
   it('with orders/payments/activity: renders mini-panels with rows (regular + refund payments)', () => {
@@ -307,7 +307,7 @@ describe('OrgCardTabs — history section (default tab)', () => {
         } as never,
       ],
     });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'history', tabs: MANAGER_TABS }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'overview', tabs: MANAGER_TABS }));
     expect(html).toContain('Последние заявки');
     expect(html).toContain('Заказ 1');
     expect(html).toContain('Последние оплаты');
@@ -324,17 +324,17 @@ describe('OrgCardTabs — history section (default tab)', () => {
         { id: 'c1', authorName: 'X', createdAt: new Date('2026-01-06'), body: 'непусто' } as never,
       ],
     });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'history', tabs: MANAGER_TABS }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'overview', tabs: MANAGER_TABS }));
     const dashCount = (html.match(/text-xs text-gray-400">—</g) ?? []).length;
     expect(dashCount).toBe(2);
   });
 
-  it('falls through to history when an unknown/undefined tab value is passed', () => {
+  it('falls through to overview when an unknown/undefined tab value is passed', () => {
     const card = makeCard({ orders: [], payments: [], activity: [] });
     const html = renderToString(
       React.createElement(OrgCardTabs, { card, activeTab: 'nonsense' as never, tabs: MANAGER_TABS })
     );
-    expect(html).toContain('Истории пока нет');
+    expect(html).toContain('Работа с этим клиентом ещё не начиналась');
   });
 });
 

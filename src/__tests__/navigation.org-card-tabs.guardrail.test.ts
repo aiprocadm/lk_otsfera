@@ -72,13 +72,16 @@ describe('реестр вкладок карточки организации (�
 
   it('`У-96`: у партнёра нет вкладок внутреннего контура и оплат', () => {
     const partner = orgCardTabsFor('partner', { flags: () => true }).map((t) => t.key);
-    for (const forbidden of ['payments', 'leads', 'deals', 'threads', 'calls', 'inbound']) {
+    for (const forbidden of ['payments', 'leads', 'deals', 'calls', 'inbound']) {
       expect(partner).not.toContain(forbidden as OrgCardTabKey);
     }
+    // `У-96`: «История» — журнал действий учебного центра (кто и что менял).
+    // Партнёру он не положен; сводку по клиенту ему даёт «Обзор».
+    expect(partner).not.toContain('history');
     // Но общие вкладки у него есть — иначе фильтр вырезал бы всё.
+    expect(partner).toContain('overview');
     expect(partner).toContain('employees');
     expect(partner).toContain('documents');
-    expect(partner).toContain('history');
   });
 
   it('заказчик видит свою организацию без служебных вкладок ЦО', () => {
