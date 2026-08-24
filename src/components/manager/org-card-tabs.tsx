@@ -39,6 +39,7 @@ export function OrgCardTabs({
   tabs,
   employees,
   settings,
+  egrulAction,
 }: {
   card: OrganizationCard;
   activeTab: OrgCardTabKey;
@@ -56,6 +57,12 @@ export function OrgCardTabs({
    * `orgSettingsSections`).
    */
   settings?: React.ReactNode;
+  /**
+   * `У-94`: кнопка «Найти в ЕГРЮЛ». Приходит от страницы своей роли — право на
+   * подстановку решает сервис, а не карточка. Без неё плашка «ИНН не указан»
+   * всё равно показывается: факт от прав не зависит.
+   */
+  egrulAction?: React.ReactNode;
 }) {
   return (
     <div className="space-y-6">
@@ -68,6 +75,19 @@ export function OrgCardTabs({
         </p>
         {card.partner && <p className="text-sm text-gray-500 mt-1">Партнёр: {card.partner.name}</p>}
       </div>
+
+      {/* `У-94`: организации из выписки приходят без ИНН — человек должен
+          видеть это сразу и иметь кнопку, а не выяснять по пустой строке в
+          реквизитах. */}
+      {card.inn === null && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+          <p className="text-sm text-[#111111]">
+            <strong>ИНН не указан.</strong> Без него не собрать счёт и акт, а импорт из 1С не свяжет
+            организацию по ИНН.
+          </p>
+          {egrulAction}
+        </div>
+      )}
 
       {/* `У-102`: подписи и источники чисел — из реестра плиток, одни на все
           кабинеты. «Активные» и «Оплачено» остаются рядом как справочные KPI

@@ -18,6 +18,7 @@ type SearchParams = {
   skip?: string;
   partnerId?: string;
   withRateOverride?: string;
+  inn?: string;
 };
 
 export default async function AdminOrganizationsPage({
@@ -32,11 +33,15 @@ export default async function AdminOrganizationsPage({
   const partnerId = sp.partnerId || undefined;
   const withRateOverride =
     sp.withRateOverride === 'true' ? true : sp.withRateOverride === 'false' ? false : undefined;
+  // `У-94`: отбор «без ИНН» — та же подпись и то же значение адреса, что в
+  // списках менеджера и руководителя (§0.2, правило зеркала).
+  const withoutInn = sp.inn === 'without';
 
   const filters: OrgFilters = {
     q: q || undefined,
     partnerId,
     withRateOverride,
+    withoutInn,
     take: PAGE_SIZE,
     skip,
   };
@@ -89,6 +94,14 @@ export default async function AdminOrganizationsPage({
             <option value="">— любые —</option>
             <option value="true">только со ставкой override</option>
             <option value="false">только без override</option>
+          </select>
+          <select
+            name="inn"
+            defaultValue={sp.inn ?? ''}
+            className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]"
+          >
+            <option value="">— ИНН любой —</option>
+            <option value="without">только без ИНН</option>
           </select>
           <button
             type="submit"

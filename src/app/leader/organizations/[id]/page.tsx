@@ -8,6 +8,7 @@ import { OrgCardTabs } from '@/components/manager/org-card-tabs';
 import { orgCardTabsFor, type OrgCardTabKey } from '@/lib/navigation/orgCardTabs';
 import { listOrgCardEmployees } from '@/lib/services/organization/orgCardEmployees';
 import { OrgEmployeesSection } from '@/components/organization/org-employees-section';
+import { EgrulFillDialog } from '@/components/organization/egrul-fill-dialog';
 import { OrgStaffSettings } from '@/components/organization/org-staff-settings';
 import { getFieldsForEntity } from '@/lib/services/customFields';
 import { getAutoCreatedFrom1C } from '@/lib/services/organization/autoCreated';
@@ -91,6 +92,7 @@ export default async function LeaderOrgDetailPage({
             />
           ) : null
         }
+        egrulAction={<EgrulFillDialog organizationId={id} organizationName={card.name} />}
         settings={
           customFields ? (
             <OrgStaffSettings

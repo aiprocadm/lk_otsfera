@@ -34,10 +34,11 @@ describe('LeaderOrganizationsPage', () => {
     requireManagerLeader.mockResolvedValue(SESSION);
     listOrganizations.mockResolvedValue([{ id: 'org1', name: 'Org' }]);
 
-    const { container } = await renderServerComponent(LeaderOrganizationsPage());
+    const { container } = await renderServerComponent(LeaderOrganizationsPage({ searchParams: Promise.resolve({}) }));
 
     expect(requireManagerLeader).toHaveBeenCalled();
-    expect(listOrganizations).toHaveBeenCalledWith({}, SESSION, true);
+    // `У-94`: отбор «без ИНН» — четвёртый аргумент, по умолчанию выключен.
+    expect(listOrganizations).toHaveBeenCalledWith({}, SESSION, true, { withoutInn: false });
     expect(container.textContent).toContain('Организации');
     expect(container.textContent).toContain('Org');
   });
@@ -46,7 +47,7 @@ describe('LeaderOrganizationsPage', () => {
     requireManagerLeader.mockResolvedValue(SESSION);
     listOrganizations.mockResolvedValue([]);
 
-    const { container } = await renderServerComponent(LeaderOrganizationsPage());
+    const { container } = await renderServerComponent(LeaderOrganizationsPage({ searchParams: Promise.resolve({}) }));
 
     expect(container.textContent).toContain('Организации');
   });

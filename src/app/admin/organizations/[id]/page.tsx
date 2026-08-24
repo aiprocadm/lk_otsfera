@@ -13,6 +13,7 @@ import { getOrgRequisitesByAdmin } from '@/lib/services/admin/counterpartyRequis
 import { setOrgRequisitesByAdminAction } from '@/server-actions/requisites';
 import { AdminRateOverrideForm } from '@/components/admin/admin-rate-override-form';
 import { OrgSettingsTab } from '@/components/organization/org-settings-tab';
+import { EgrulFillDialog } from '@/components/organization/egrul-fill-dialog';
 import { OrgEmployeesSection } from '@/components/organization/org-employees-section';
 import { listOrgCardEmployees } from '@/lib/services/organization/orgCardEmployees';
 import { OrgCommissionSection } from '@/components/organization/org-commission-section';
@@ -100,6 +101,18 @@ export default async function AdminOrganizationDetailPage({
               двух одинаковых действий на экране быть не должно. */}
         </div>
       </div>
+
+      {/* `У-94`: организации из выписки приходят без ИНН — человек должен
+          видеть это сразу и иметь кнопку, а не выяснять по пустой строке. */}
+      {org.inn === null && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+          <p className="text-sm text-[#111111]">
+            <strong>ИНН не указан.</strong> Без него не собрать счёт и акт, а импорт из 1С не свяжет
+            организацию по ИНН.
+          </p>
+          <EgrulFillDialog organizationId={org.id} organizationName={org.name} />
+        </div>
+      )}
 
       <section className="space-y-3">
         <h2 className="text-base font-semibold text-[#111111]">Сотрудники</h2>

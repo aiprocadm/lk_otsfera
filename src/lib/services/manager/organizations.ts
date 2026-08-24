@@ -21,6 +21,9 @@ import { managerOrgScope, getCompanyTeamVisibility } from '@/lib/auth/managerPol
 const LIST_SELECT = {
   id: true,
   name: true,
+  // `У-94`: список показывает, у кого ИНН не заполнен, и умеет отобрать таких —
+  // это очередь работы после импорта выписки, а не справочная колонка.
+  inn: true,
   _count: {
     select: {
       orders: true,
@@ -34,11 +37,15 @@ export type ManagerOrgListRow = Prisma.OrganizationGetPayload<{ select: typeof L
 export async function listOrganizations(
   prisma: PrismaClient,
   session: SessionPayload,
-  teamModeOverride?: boolean
+  teamModeOverride?: boolean,
+  opts?: { withoutInn?: boolean }
 ): Promise<ManagerOrgListRow[]> {
   const teamMode = teamModeOverride ?? (await getCompanyTeamVisibility(prisma, session.companyId));
   return prisma.organization.findMany({
-    where: managerOrgScope(session, teamMode),
+    // Фильтр сужает скоуп, а не заменяет его: граница роли остаётся первой.
+    where: opts?.withoutInn
+      ? { AND: [managerOrgScope(session, teamMode), { inn: null }] }
+      : managerOrgScope(session, teamMode),
     select: LIST_SELECT,
     orderBy: { name: 'asc' },
   });

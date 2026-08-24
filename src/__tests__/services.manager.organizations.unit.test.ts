@@ -113,3 +113,32 @@ describe('listCompanyOrgOptions', () => {
   });
 });
 
+
+/**
+ * `У-94`: отбор «без ИНН» — очередь работы после импорта выписки (организации
+ * оттуда приходят без ИНН). Отбор обязан **сужать** скоуп роли, а не заменять
+ * его: иначе менеджер увидел бы чужих клиентов, лишь бы у них не было ИНН.
+ */
+describe('listOrganizations — отбор «без ИНН» (У-94)', () => {
+  it('фильтр добавляется К скоупу роли, а не вместо него', async () => {
+    managerOrgScope.mockReturnValue({ id: { in: ['org-1'] } });
+    const findMany = vi.fn().mockResolvedValue([]);
+    const prisma = { organization: { findMany } } as never;
+
+    await listOrganizations(prisma, SESSION, false, { withoutInn: true });
+
+    expect(findMany.mock.calls[0]![0].where).toEqual({
+      AND: [{ id: { in: ['org-1'] } }, { inn: null }],
+    });
+  });
+
+  it('без отбора запрос прежний — скоуп роли как был', async () => {
+    managerOrgScope.mockReturnValue({ id: { in: ['org-1'] } });
+    const findMany = vi.fn().mockResolvedValue([]);
+    const prisma = { organization: { findMany } } as never;
+
+    await listOrganizations(prisma, SESSION, false);
+
+    expect(findMany.mock.calls[0]![0].where).toEqual({ id: { in: ['org-1'] } });
+  });
+});
