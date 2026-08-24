@@ -33,6 +33,15 @@ vi.mock('@/lib/services/admin/organizations', () => ({ getOrganization, getOrgan
 const { listOrgRateHistory } = vi.hoisted(() => ({ listOrgRateHistory: vi.fn() }));
 vi.mock('@/lib/services/commission/rateHistory', () => ({ listOrgRateHistory }));
 
+// `У-97`: на карточке появился список сотрудников организации — он ходит в
+// базу, поэтому сервис подменяем.
+const { listOrgCardEmployees } = vi.hoisted(() => ({ listOrgCardEmployees: vi.fn() }));
+vi.mock('@/lib/services/organization/orgCardEmployees', () => ({ listOrgCardEmployees }));
+vi.mock('@/components/organization/org-employees-section', () => ({
+  OrgEmployeesSection: (p: { total: number }) =>
+    React.createElement('div', { 'data-testid': 'org-employees' }, `сотрудников:${p.total}`),
+}));
+
 const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
@@ -124,6 +133,8 @@ describe('AdminOrganizationDetailPage', () => {
     getOrganization.mockReset();
     listOrgRateHistory.mockReset();
     listOrgRateHistory.mockResolvedValue({ ok: true, rows: [] });
+    listOrgCardEmployees.mockReset();
+    listOrgCardEmployees.mockResolvedValue({ rows: [], total: 0, canWrite: true });
     nav.notFound.mockClear();
   });
 
@@ -134,7 +145,7 @@ describe('AdminOrganizationDetailPage', () => {
 
     await expect(
       renderServerComponent(
-        AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'missing' }) })
+        AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'missing' }), searchParams: Promise.resolve({}) })
       )
     ).rejects.toThrow('NOT_FOUND');
   });
@@ -146,7 +157,7 @@ describe('AdminOrganizationDetailPage', () => {
 
     await expect(
       renderServerComponent(
-        AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }) })
+        AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }), searchParams: Promise.resolve({}) })
       )
     ).rejects.toThrow('NOT_FOUND');
   });
@@ -157,7 +168,7 @@ describe('AdminOrganizationDetailPage', () => {
     getOrganizationMeta.mockResolvedValue(META);
 
     const { container } = await renderServerComponent(
-      AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }) })
+      AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }), searchParams: Promise.resolve({}) })
     );
 
     expect(getOrganization).toHaveBeenCalledWith(expect.anything(), 'org-1');
@@ -195,7 +206,7 @@ describe('AdminOrganizationDetailPage', () => {
     });
 
     const { container } = await renderServerComponent(
-      AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }) })
+      AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }), searchParams: Promise.resolve({}) })
     );
 
     // Название секции — из реестра, подсказка про DaData — от самой карточки.
@@ -219,7 +230,7 @@ describe('AdminOrganizationDetailPage', () => {
     getOrganizationMeta.mockResolvedValue({ ...META, company: null });
 
     const { container } = await renderServerComponent(
-      AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }) })
+      AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }), searchParams: Promise.resolve({}) })
     );
 
     expect(container.textContent).toContain('Без партнёра');
@@ -244,7 +255,7 @@ describe('AdminOrganizationDetailPage', () => {
     });
 
     const { container } = await renderServerComponent(
-      AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }) })
+      AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }), searchParams: Promise.resolve({}) })
     );
 
     expect(listOrgRateHistory).toHaveBeenCalledWith(expect.anything(), SESSION, 'org-1');
@@ -273,7 +284,7 @@ describe('AdminOrganizationDetailPage', () => {
     });
 
     const { container } = await renderServerComponent(
-      AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }) })
+      AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }), searchParams: Promise.resolve({}) })
     );
 
     expect(container.textContent).toContain('—');
@@ -287,7 +298,7 @@ describe('AdminOrganizationDetailPage', () => {
     listOrgRateHistory.mockResolvedValue({ ok: true, rows: [] });
 
     const { container } = await renderServerComponent(
-      AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }) })
+      AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }), searchParams: Promise.resolve({}) })
     );
 
     expect(container.textContent).toContain('Ставку по этой организации ещё не меняли');
@@ -300,7 +311,7 @@ describe('AdminOrganizationDetailPage', () => {
     listOrgRateHistory.mockResolvedValue({ ok: false, error: 'forbidden' });
 
     const { container } = await renderServerComponent(
-      AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }) })
+      AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }), searchParams: Promise.resolve({}) })
     );
 
     expect(container.textContent).toContain('Ставку по этой организации ещё не меняли');
