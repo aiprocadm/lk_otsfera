@@ -2,6 +2,7 @@ import type { PrismaClient, Prisma } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { studentOrgAccess } from '@/lib/services/students/access';
+import { recordPiiAccess } from '@/lib/pii/record';
 
 /**
  * Сотрудники организации для вкладки «Сотрудники» карточки (`У-97`).
@@ -78,4 +79,65 @@ export async function listOrgCardEmployees(
   ]);
 
   return { rows, total, canWrite: access.canWrite };
+}
+
+
+/**
+ * Карточка одного сотрудника **внутри карточки организации** (`У-97`).
+ *
+ * Организация в адресе — не украшение, а граница: сотрудник ищется
+ * `{ id, organizationId }` вместе. Подставить чужой `studentId` в свой адрес
+ * не выйдет — вернётся `null`, и страница ответит «не найдено», не
+ * подтверждая существование чужого человека.
+ *
+ * Выдача карточки журналируется (§25.7): здесь видны СНИЛС, дата рождения и
+ * телефон — это персональные данные физлица клиентского контура. Хелпер сам
+ * отсеивает клиентские роли, поэтому запись появляется только для сотрудников
+ * учебного центра.
+ */
+export type OrgCardEmployeeDetail = {
+  id: string;
+  name: string;
+  email: string | null;
+  position: string | null;
+  snils: string | null;
+  birthDate: Date | null;
+  phone: string | null;
+  note: string | null;
+  status: string;
+  createdAt: Date;
+};
+
+export async function getOrgCardEmployee(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  args: { orgId: string; studentId: string }
+): Promise<OrgCardEmployeeDetail | null> {
+  const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
+  const access = await studentOrgAccess(prisma, session, args.orgId, teamMode);
+  if (!access.canRead) return null;
+
+  const student = await prisma.student.findFirst({
+    where: { id: args.studentId, organizationId: args.orgId },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      position: true,
+      snils: true,
+      birthDate: true,
+      phone: true,
+      note: true,
+      status: true,
+      createdAt: true,
+    },
+  });
+  if (!student) return null;
+
+  await recordPiiAccess(prisma, {
+    session,
+    context: 'org_card_employee_view',
+    subjectIds: [student.id],
+  });
+  return student;
 }

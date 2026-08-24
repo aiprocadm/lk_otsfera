@@ -42,6 +42,15 @@ export const PII_CONTEXTS = {
     labelRu: 'Карточка слушателя',
     callSite: 'src/lib/services/manager/students.ts',
   },
+  // `У-97`: карточка сотрудника открывается внутри карточки организации и
+  // одинакова во всех кабинетах сотрудников ЦО — поэтому у неё свой контекст,
+  // а не менеджерский `manager_student_view` (тот остался у справочника).
+  org_card_employee_view: {
+    subjectType: 'student',
+    action: 'view',
+    labelRu: 'Карточка организации: карточка сотрудника',
+    callSite: 'src/lib/services/organization/orgCardEmployees.ts',
+  },
   manager_lead_view: {
     subjectType: 'lead',
     action: 'view',

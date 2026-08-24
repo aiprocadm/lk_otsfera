@@ -1,6 +1,5 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
-import { AddStudentDialog } from '@/components/students/add-student-dialog';
 import { Breadcrumbs } from '@/components/ui';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
@@ -14,6 +13,8 @@ import { getOrgRequisitesByAdmin } from '@/lib/services/admin/counterpartyRequis
 import { setOrgRequisitesByAdminAction } from '@/server-actions/requisites';
 import { AdminRateOverrideForm } from '@/components/admin/admin-rate-override-form';
 import { OrgSettingsTab } from '@/components/organization/org-settings-tab';
+import { OrgEmployeesSection } from '@/components/organization/org-employees-section';
+import { listOrgCardEmployees } from '@/lib/services/organization/orgCardEmployees';
 import { OrgCommissionSection } from '@/components/organization/org-commission-section';
 import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fields';
 import { getFieldsForEntity } from '@/lib/services/customFields';
@@ -25,11 +26,14 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminOrganizationDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const session = await requireAdmin();
   const { id } = await params;
+  const sp = await searchParams;
 
   const [org, meta, rateHistoryResult] = await Promise.all([
     getOrganization(prisma, id),
@@ -46,6 +50,17 @@ export default async function AdminOrganizationDetailPage({
   // `У-54`: организацию мог завести импорт выписки — человек должен видеть это
   // в карточке, а не выяснять по журналу аудита.
   const autoCreated = await getAutoCreatedFrom1C(prisma, org.id);
+  // `У-97`: сотрудники организации — те самые люди, которых заводит кнопка
+  // «Добавить сотрудника». До этого шага у администратора кнопка была, а
+  // списка не было вовсе: добавленного человека негде было увидеть.
+  const q = typeof sp.q === 'string' ? sp.q : undefined;
+  const skipRaw = Number(typeof sp.skip === 'string' ? sp.skip : '');
+  const skip = Number.isFinite(skipRaw) && skipRaw > 0 ? Math.floor(skipRaw) : 0;
+  const employees = await listOrgCardEmployees(prisma, session, {
+    orgId: id,
+    ...(q ? { q } : {}),
+    skip,
+  });
 
   return (
     <div className="space-y-5">
@@ -80,12 +95,25 @@ export default async function AdminOrganizationDetailPage({
             {meta._count.orders} заказов · {meta._count.students} сотрудников ·{' '}
             {meta._count.organizationUsers} в кабинете
           </div>
-          {/* У-26 (этап 5): администратор заводит сотрудника прямо из карточки. */}
-          <div className="mt-3">
-            <AddStudentDialog organizationId={id} />
-          </div>
+          {/* `У-104`: кнопка «Добавить сотрудника» жила здесь отдельно от
+              списка. Теперь она одна и стоит рядом с людьми, которых заводит —
+              двух одинаковых действий на экране быть не должно. */}
         </div>
       </div>
+
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold text-[#111111]">Сотрудники</h2>
+        <OrgEmployeesSection
+          orgId={id}
+          basePath={`/admin/organizations/${id}`}
+          searchParams={sp}
+          rows={employees.rows}
+          total={employees.total}
+          canWrite={employees.canWrite}
+          take={25}
+          skip={skip}
+        />
+      </section>
 
       {/* `У-99`: набор настроек организации, его названия и порядок — из
           реестра `orgSettingsSections`, общего на все кабинеты. Раньше это была

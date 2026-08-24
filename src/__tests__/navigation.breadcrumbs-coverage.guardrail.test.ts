@@ -45,6 +45,16 @@ function rel(p: string): string {
   return path.relative(path.join(__dirname, '..'), p).split(path.sep).join('/');
 }
 
+/**
+ * Шлюз — страница, которая ничего не рисует, а уводит на новый адрес (старые
+ * ссылки и закладки продолжают работать). Крошек у неё быть не может: экрана
+ * нет. Это правило, а не список исключений: страница, которая хоть что-то
+ * рендерит, проверку проходит наравне со всеми.
+ */
+function isGateway(src: string): boolean {
+  return /\bredirect\(/.test(src) && !/return\s*\(/.test(src);
+}
+
 describe('У-72: крошки на всех вложенных экранах', () => {
   const pages = nestedPages(APP).map(rel).sort();
 
@@ -58,6 +68,7 @@ describe('У-72: крошки на всех вложенных экранах', 
       .filter((p) => !exempt.has(p))
       .filter((p) => {
         const src = readFileSync(path.join(__dirname, '..', p), 'utf8');
+        if (isGateway(src)) return false;
         // Либо страница рисует крошки сама, либо передаёт их своей вьюхе.
         return !/breadcrumbs|Breadcrumbs/.test(src);
       });

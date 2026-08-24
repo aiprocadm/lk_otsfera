@@ -8,7 +8,13 @@ const { getCompanyTeamVisibility } = vi.hoisted(() => ({
 }));
 vi.mock('@/lib/auth/managerPolicy', () => ({ getCompanyTeamVisibility }));
 
-import { listOrgCardEmployees } from '@/lib/services/organization/orgCardEmployees';
+const { recordPiiAccess } = vi.hoisted(() => ({ recordPiiAccess: vi.fn() }));
+vi.mock('@/lib/pii/record', () => ({ recordPiiAccess }));
+
+import {
+  listOrgCardEmployees,
+  getOrgCardEmployee,
+} from '@/lib/services/organization/orgCardEmployees';
 
 const MANAGER = { sub: 'm1', role: 'manager', companyId: 'co-1', managedOrgIds: ['org-1'] } as never;
 const PARTNER = { sub: 'p1', role: 'partner', partnerId: 'pt-1' } as never;
@@ -90,5 +96,60 @@ describe('listOrgCardEmployees (У-97)', () => {
     const { prisma, findMany } = db([], 300);
     await listOrgCardEmployees(prisma, MANAGER, { orgId: 'org-1', skip: 50 });
     expect(findMany.mock.calls[0]![0]).toMatchObject({ take: 25, skip: 50 });
+  });
+});
+
+
+/**
+ * `У-97`: карточка сотрудника открывается ВНУТРИ карточки организации.
+ * Организация в адресе — граница, а не украшение.
+ */
+describe('getOrgCardEmployee (У-97)', () => {
+  function detailDb(student: unknown) {
+    const findFirst = vi.fn().mockResolvedValue(student);
+    return { prisma: { student: { findFirst } } as never, findFirst };
+  }
+
+  const STUDENT = { id: 's1', name: 'Иванов', snils: '111', status: 'active' };
+
+  it('ищет сотрудника ВМЕСТЕ с организацией — чужой id в своём адресе не сработает', async () => {
+    const { prisma, findFirst } = detailDb(STUDENT);
+    const res = await getOrgCardEmployee(prisma, MANAGER, { orgId: 'org-1', studentId: 's1' });
+
+    expect(res).toMatchObject({ id: 's1' });
+    expect(findFirst.mock.calls[0]![0].where).toEqual({ id: 's1', organizationId: 'org-1' });
+  });
+
+  it('нет доступа к организации → null, в базу не ходим (гард в сервисе)', async () => {
+    studentOrgAccess.mockResolvedValue({ canRead: false, canWrite: false });
+    const { prisma, findFirst } = detailDb(STUDENT);
+
+    expect(await getOrgCardEmployee(prisma, PARTNER, { orgId: 'org-9', studentId: 's1' })).toBeNull();
+    expect(findFirst).not.toHaveBeenCalled();
+    expect(recordPiiAccess).not.toHaveBeenCalled();
+  });
+
+  it('сотрудник другой организации → null и в журнал ПДн ничего не пишем', async () => {
+    const { prisma } = detailDb(null);
+    expect(await getOrgCardEmployee(prisma, MANAGER, { orgId: 'org-1', studentId: 'alien' })).toBeNull();
+    expect(recordPiiAccess).not.toHaveBeenCalled();
+  });
+
+  it('выдача карточки журналируется — здесь видны СНИЛС и телефон (§25.7)', async () => {
+    const { prisma } = detailDb(STUDENT);
+    await getOrgCardEmployee(prisma, MANAGER, { orgId: 'org-1', studentId: 's1' });
+
+    expect(recordPiiAccess).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ context: 'org_card_employee_view', subjectIds: ['s1'] })
+    );
+  });
+
+  it('режим видимости команды читается свежим и передаётся в политику (C8)', async () => {
+    getCompanyTeamVisibility.mockResolvedValue(true);
+    const { prisma } = detailDb(STUDENT);
+    await getOrgCardEmployee(prisma, MANAGER, { orgId: 'org-1', studentId: 's1' });
+
+    expect(studentOrgAccess).toHaveBeenCalledWith(prisma, MANAGER, 'org-1', true);
   });
 });

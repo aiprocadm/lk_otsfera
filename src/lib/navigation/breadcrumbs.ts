@@ -1,4 +1,5 @@
 import { navByRole } from './cabinet';
+import { orgCardTabLabel } from './orgCardTabs';
 
 /**
  * Этап 11 PR-2 (Модуль 15, ФТ-15.6) — хлебные крошки цепочки
@@ -51,6 +52,26 @@ export function buildCabinetBreadcrumbs(
     crumbs.push({ label: t.label, href: isLast ? null : (t.href ?? null) });
   });
   return crumbs;
+}
+
+/**
+ * Крошки карточки сотрудника внутри карточки организации (`У-97`):
+ * «Организации › <название> › Сотрудники › ФИО».
+ *
+ * Подпись «Сотрудники» берётся из реестра вкладок карточки, а не пишется
+ * строкой в каждом кабинете: переименование вкладки не должно разъезжаться с
+ * крошкой (§0.2, правило зеркала).
+ */
+export function buildOrgEmployeeBreadcrumbs(
+  role: keyof typeof navByRole,
+  section: string,
+  args: { orgCardHref: string; orgName: string; employeeName: string }
+): Crumb[] {
+  return buildCabinetBreadcrumbs(role, section, [
+    { label: args.orgName, href: args.orgCardHref },
+    { label: orgCardTabLabel('employees'), href: `${args.orgCardHref}?tab=employees` },
+    { label: args.employeeName },
+  ]);
 }
 
 /** Короткая подпись сущности: номер/название с ограничением длины. */

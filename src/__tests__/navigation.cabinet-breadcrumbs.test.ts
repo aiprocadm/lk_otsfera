@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
+import {
+  buildCabinetBreadcrumbs,
+  buildOrgEmployeeBreadcrumbs,
+} from '@/lib/navigation/breadcrumbs';
+import { orgCardTabLabel } from '@/lib/navigation/orgCardTabs';
 import { navByRole } from '@/lib/navigation/cabinet';
 
 /**
@@ -76,5 +80,52 @@ describe('buildCabinetBreadcrumbs (У-72)', () => {
     ]);
     expect(crumbs[1]).toEqual({ label: 'ООО «Ромашка»', href: null });
     expect(crumbs[2]).toEqual({ label: 'Документы', href: null });
+  });
+});
+
+
+/**
+ * `У-97`: карточка сотрудника лежит внутри карточки организации, и путь до
+ * неё обязан это показывать. Раньше карточка менеджера ссылалась на снятый
+ * раздел «Сотрудники» — крошка молча исчезала, и человек оставался на экране
+ * с одной фамилией и без пути назад.
+ */
+describe('buildOrgEmployeeBreadcrumbs (У-97)', () => {
+  const crumbs = buildOrgEmployeeBreadcrumbs('manager', '/manager/organizations', {
+    orgCardHref: '/manager/organizations/org-1',
+    orgName: 'ООО «Ромашка»',
+    employeeName: 'Иванов Иван',
+  });
+
+  it('путь целиком: раздел → организация → сотрудники → человек', () => {
+    expect(crumbs.map((c) => c.label)).toEqual([
+      'Организации',
+      'ООО «Ромашка»',
+      orgCardTabLabel('employees'),
+      'Иванов Иван',
+    ]);
+  });
+
+  it('крошка «Сотрудники» открывает ту самую вкладку карточки', () => {
+    expect(crumbs[2]!.href).toBe('/manager/organizations/org-1?tab=employees');
+  });
+
+  it('подпись вкладки берётся из реестра, а не пишется строкой', () => {
+    // Переименование вкладки в реестре обязано менять и крошку.
+    expect(crumbs[2]!.label).toBe(orgCardTabLabel('employees'));
+  });
+
+  it('последняя крошка — текущая страница, ссылки не имеет', () => {
+    expect(crumbs[3]!.href).toBeNull();
+  });
+
+  it('у партнёра свой раздел, но структура пути та же', () => {
+    const partner = buildOrgEmployeeBreadcrumbs('partner', '/partner/portfolio', {
+      orgCardHref: '/partner/portfolio/org-1',
+      orgName: 'ООО «Ромашка»',
+      employeeName: 'Иванов Иван',
+    });
+    expect(partner).toHaveLength(4);
+    expect(partner[2]!.href).toBe('/partner/portfolio/org-1?tab=employees');
   });
 });

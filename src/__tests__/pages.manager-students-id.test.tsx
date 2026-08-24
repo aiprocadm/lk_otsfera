@@ -1,127 +1,77 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import React from 'react';
-import ManagerStudentDetailPage from '@/app/manager/students/[id]/page';
-import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
-// §11 ТЗ v0.5 (этап 1 PR-3): страница подтягивает настраиваемые поля — мокаем
-// сервис, иначе он полезет в реальный prisma. Обычная функция, а не vi.fn:
-// в файле есть resetAllMocks, он снёс бы заготовленный ответ.
-vi.mock('@/lib/services/customFields', () => ({
-  getFieldsForEntity: async () => [],
-}));
-
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
 
-vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
-
-const { getStudent } = vi.hoisted(() => ({ getStudent: vi.fn() }));
-vi.mock('@/lib/services/manager/students', () => ({ getStudent }));
-
-const { listCertificates } = vi.hoisted(() => ({ listCertificates: vi.fn() }));
-vi.mock('@/lib/services/training', () => ({ listCertificates }));
-
-const nav = vi.hoisted(() => ({
+const { redirect, notFound } = vi.hoisted(() => ({
+  redirect: vi.fn(() => {
+    throw new Error('REDIRECT');
+  }),
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
-vi.mock('next/navigation', () => nav);
+vi.mock('next/navigation', () => ({ redirect, notFound }));
 
-vi.mock('@/components/training/certificate-list', () => ({
-  CertificateList: (props: { certificates: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'cert-list' }, JSON.stringify(props.certificates)),
+const { findUnique } = vi.hoisted(() => ({ findUnique: vi.fn() }));
+vi.mock('@/lib/db/prisma', () => ({ prisma: { student: { findUnique } } }));
+
+const { getCompanyTeamVisibility } = vi.hoisted(() => ({
+  getCompanyTeamVisibility: vi.fn(),
 }));
+vi.mock('@/lib/auth/managerPolicy', () => ({ getCompanyTeamVisibility }));
 
-const SESSION = {
-  sub: 'u1',
-  role: 'manager' as const,
-  companyId: 'c1',
-};
+const { studentOrgAccess } = vi.hoisted(() => ({ studentOrgAccess: vi.fn() }));
+vi.mock('@/lib/services/students/access', () => ({ studentOrgAccess }));
 
-const STUDENT = {
-  id: 's1',
-  name: 'Иван Иванов',
-  email: 'ivan@x.com',
-  organizationId: 'org-1',
-  createdAt: new Date('2024-01-01'),
-  organization: { id: 'org-1', name: 'Org' },
-};
+import ManagerStudentGatewayPage from '@/app/manager/students/[id]/page';
 
-// Scope-ветки (teamMode ON/OFF, чужая организация/company) переехали из
-// страницы в сервис getStudent — покрываются unit-тестами
-// services.manager.students.unit.test.ts, здесь остаётся контракт страницы.
-describe('ManagerStudentDetailPage', () => {
-  beforeEach(() => {
-    requireManager.mockReset();
-    getStudent.mockReset();
-    listCertificates.mockReset();
-    nav.notFound.mockClear();
-  });
+beforeEach(() => {
+  vi.clearAllMocks();
+  requireManager.mockResolvedValue({ sub: 'm1', role: 'manager', companyId: 'co-1' });
+  getCompanyTeamVisibility.mockResolvedValue(false);
+  studentOrgAccess.mockResolvedValue({ canRead: true, canWrite: true });
+  findUnique.mockResolvedValue({ organizationId: 'org-1' });
+});
 
-  it('calls notFound() when getStudent returns null (missing or out of scope)', async () => {
-    requireManager.mockResolvedValue(SESSION);
-    getStudent.mockResolvedValue(null);
-
+/**
+ * `У-97`: карточка сотрудника живёт внутри карточки организации. Прежний
+ * адрес остаётся рабочим шлюзом — по нему есть закладки, — но своего экрана
+ * больше не рисует: у него не было бы даже крошек, ведь раздел «Сотрудники»
+ * снят из меню требованием `У-103`.
+ */
+describe('/manager/students/[id] — шлюз в карточку организации (У-97)', () => {
+  it('уводит на карточку сотрудника внутри его организации', async () => {
     await expect(
-      renderServerComponent(
-        ManagerStudentDetailPage({ params: Promise.resolve({ id: 'missing' }) })
-      )
+      ManagerStudentGatewayPage({ params: Promise.resolve({ id: 'stu-1' }) })
+    ).rejects.toThrow('REDIRECT');
+    expect(redirect).toHaveBeenCalledWith('/manager/organizations/org-1/students/stu-1');
+  });
+
+  it('несуществующий сотрудник — «не найдено», без редиректа', async () => {
+    findUnique.mockResolvedValue(null);
+    await expect(
+      ManagerStudentGatewayPage({ params: Promise.resolve({ id: 'ghost' }) })
     ).rejects.toThrow('NOT_FOUND');
-
-    expect(listCertificates).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
   });
 
-  it('renders the student card with certificates', async () => {
-    requireManager.mockResolvedValue(SESSION);
-    getStudent.mockResolvedValue(STUDENT);
-    listCertificates.mockResolvedValue({ ok: true, certificates: [{ id: 'cert1' }] });
-
-    const { container } = await renderServerComponent(
-      ManagerStudentDetailPage({ params: Promise.resolve({ id: 's1' }) })
-    );
-
-    expect(container.textContent).toContain('Иван Иванов');
-    expect(container.textContent).toContain('Org');
-    expect(container.textContent).toContain('cert1');
+  it('чужой сотрудник — «не найдено»: адрес чужой организации не утекает', async () => {
+    // Без этой проверки шлюз выдал бы id чужой организации любому менеджеру,
+    // подставившему чужой id в адрес.
+    studentOrgAccess.mockResolvedValue({ canRead: false, canWrite: false });
+    await expect(
+      ManagerStudentGatewayPage({ params: Promise.resolve({ id: 'stu-foreign' }) })
+    ).rejects.toThrow('NOT_FOUND');
+    expect(redirect).not.toHaveBeenCalled();
   });
 
-  it('falls back to empty certificates when listCertificates returns ok:false', async () => {
-    requireManager.mockResolvedValue(SESSION);
-    getStudent.mockResolvedValue(STUDENT);
-    listCertificates.mockResolvedValue({ ok: false, error: 'forbidden' });
-
-    const { container } = await renderServerComponent(
-      ManagerStudentDetailPage({ params: Promise.resolve({ id: 's1' }) })
-    );
-
-    expect(container.textContent).toContain('Иван Иванов');
-  });
-
-  it('без почты и даты рождения экран говорит об этом словами, а не пустотой (§15)', async () => {
-    // У рабочих почты часто нет, а СНИЛС и дату приносят позже (`У-21`).
-    requireManager.mockResolvedValue(SESSION);
-    getStudent.mockResolvedValue({ ...STUDENT, email: null, birthDate: null, snils: null });
-    listCertificates.mockResolvedValue({ ok: true, rows: [] });
-
-    const { container } = await renderServerComponent(
-      ManagerStudentDetailPage({ params: Promise.resolve({ id: 's1' }) })
-    );
-
-    expect(container.textContent).toContain('Почта не указана');
-  });
-
-  it('дата рождения показывается по-русски, когда она есть', async () => {
-    requireManager.mockResolvedValue(SESSION);
-    getStudent.mockResolvedValue({ ...STUDENT, birthDate: new Date('1990-02-01T00:00:00.000Z') });
-    listCertificates.mockResolvedValue({ ok: true, rows: [] });
-
-    const { container } = await renderServerComponent(
-      ManagerStudentDetailPage({ params: Promise.resolve({ id: 's1' }) })
-    );
-
-    expect(container.textContent).toContain('1990');
+  it('режим видимости команды читается свежим и передаётся в политику (C8)', async () => {
+    getCompanyTeamVisibility.mockResolvedValue(true);
+    await expect(
+      ManagerStudentGatewayPage({ params: Promise.resolve({ id: 'stu-1' }) })
+    ).rejects.toThrow('REDIRECT');
+    expect(studentOrgAccess).toHaveBeenCalledWith(expect.anything(), expect.anything(), 'org-1', true);
   });
 });

@@ -19,6 +19,16 @@ export type QuickTask = {
   title: string;
   /** Одна строка: что произойдёт после нажатия. */
   hint: string;
+  /**
+   * Подпись кнопки, которую человек ищет на экране назначения (`У-105`).
+   *
+   * Плитка не имеет права обещать действие, которого на экране нет: это
+   * тупик, а не подсказка. Страж `navigation.quick-tasks.guardrail`
+   * открывает страницу назначения вместе с её компонентами и требует, чтобы
+   * подпись там действительно нашлась. Плитки-переходы («Документы»,
+   * «Проверить долги») действия не обещают и поля не имеют.
+   */
+  action?: string;
 };
 
 export type QuickTasksRole = 'admin' | 'manager' | 'leader' | 'partner' | 'organization';
@@ -40,12 +50,16 @@ const BUILDERS: Record<QuickTasksRole, () => QuickTask[]> = {
         href: '/partner/enrollments',
         title: 'Подать заявку на обучение',
         hint: 'Список сотрудников и направление обучения',
+        action: 'Подать заявку на обучение',
       });
     }
+    // `У-105`: раньше плитка обещала «Добавить сотрудника», а вела в список
+    // организаций, где такой кнопки нет вовсе — она внутри карточки клиента,
+    // на вкладке «Сотрудники». Плитка теперь честно ведёт к выбору клиента.
     t.push({
       href: '/partner/portfolio',
-      title: 'Добавить сотрудника',
-      hint: 'В карточке организации из вашего портфеля',
+      title: 'Открыть карточку клиента',
+      hint: 'Сотрудники, документы и история по каждой организации',
     });
     if (isFeatureEnabled('certificates_registry')) {
       t.push({
@@ -72,12 +86,14 @@ const BUILDERS: Record<QuickTasksRole, () => QuickTask[]> = {
         href: '/organization/enrollments',
         title: 'Подать заявку на обучение',
         hint: 'Список сотрудников и направление обучения',
+        action: 'Подать заявку на обучение',
       });
     }
     t.push({
       href: '/organization/students',
       title: 'Добавить сотрудника',
       hint: 'В справочник, чтобы выбирать его в заявках',
+      action: 'Добавить сотрудника',
     });
     if (isFeatureEnabled('certificates_registry')) {
       t.push({
@@ -111,6 +127,7 @@ const BUILDERS: Record<QuickTasksRole, () => QuickTask[]> = {
         href: '/manager/deals',
         title: 'Создать сделку',
         hint: 'Переговоры со стадиями на доске',
+        action: 'Новая сделка',
       });
     }
     t.push(
@@ -118,11 +135,13 @@ const BUILDERS: Record<QuickTasksRole, () => QuickTask[]> = {
         href: '/manager/import',
         title: 'Загрузить данные из 1С',
         hint: 'Клиенты и заказы из выгрузки',
+        action: 'Загрузить и проверить',
       },
       {
         href: '/manager/payments-import',
         title: 'Разнести оплаты из банка',
         hint: 'Выписка по счёту 51',
+        action: 'Загрузить и проверить',
       },
       { href: '/manager/organizations', title: 'Найти клиента', hint: 'Карточка со всей историей' }
     );
@@ -151,7 +170,12 @@ const BUILDERS: Record<QuickTasksRole, () => QuickTask[]> = {
   },
 
   admin: () => [
-    { href: '/admin/users', title: 'Завести пользователя', hint: 'Доступ в кабинет и роль' },
+    {
+      href: '/admin/users',
+      title: 'Завести пользователя',
+      hint: 'Доступ в кабинет и роль',
+      action: 'Пригласить',
+    },
     { href: '/admin/organizations', title: 'Организации', hint: 'Клиенты и их реквизиты' },
     {
       href: '/admin/settings/integrations/1c',
