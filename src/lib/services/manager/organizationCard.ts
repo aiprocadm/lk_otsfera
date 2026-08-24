@@ -6,6 +6,7 @@ import {
   isLeaderSameCompany,
 } from '@/lib/auth/managerPolicy';
 import { can } from '@/lib/auth/accessProfile';
+import { activeOrgIds } from '@/lib/auth/organizationPolicy';
 import { recordPiiAccessMany } from '@/lib/pii/record';
 import { listCertificates } from '@/lib/services/training/certificates';
 
@@ -179,7 +180,11 @@ export async function getOrganizationCard(
   session: SessionPayload,
   orgId: string
 ): Promise<OrganizationCard | null> {
-  const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
+  // `У-100`: карточку своей организации открывает и заказчик. Для него граница
+  // — активное членство, а не менеджерский скоуп; режим видимости команды к
+  // нему не относится, поэтому и не спрашиваем.
+  const isStaffView = session.role !== 'organization';
+  const teamMode = isStaffView ? await getCompanyTeamVisibility(prisma, session.companyId) : false;
   const org = await prisma.organization.findUnique({ where: { id: orgId }, select: CARD_SELECT });
   if (!org) return null;
   // Scope-guard (не leak-аем существование чужой орг).
@@ -188,9 +193,11 @@ export async function getOrganizationCard(
   // карточки продолжал фильтровать по закреплению — гард пускал, карточка
   // отдавала null, и страница показывала «не найдено». Поймано живой проверкой
   // на стенде 30.07.2026.
-  const visible = teamMode
-    ? !!session.companyId && org.companyId === session.companyId
-    : canSeeOrganization(session, orgId) || isLeaderSameCompany(session, org.companyId);
+  const visible = !isStaffView
+    ? activeOrgIds(session).includes(orgId)
+    : teamMode
+      ? !!session.companyId && org.companyId === session.companyId
+      : canSeeOrganization(session, orgId) || isLeaderSameCompany(session, org.companyId);
   if (!visible) return null;
 
   const [
@@ -201,11 +208,6 @@ export async function getOrganizationCard(
     paidAgg,
     refundAgg,
     activity,
-    inboundMessages,
-    calls,
-    clientRequests,
-    leads,
-    deals,
     certificatesRes,
   ] = await Promise.all([
     prisma.order.findMany({
@@ -261,67 +263,77 @@ export async function getOrganizationCard(
       orderBy: { createdAt: 'desc' },
       take: 20,
     }),
-    prisma.inboundMessage.findMany({
-      where: { resolvedOrgId: orgId },
-      select: {
-        id: true,
-        channel: true,
-        senderRef: true,
-        senderDisplay: true,
-        subject: true,
-        body: true,
-        createdAt: true,
-        status: true,
-        scanStatus: true,
-        attachmentName: true,
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 20,
-    }),
-    // Не селектим `recordingPath` — карточке нужен только boolean hasRecording,
-    // сырой object-storage путь не должен уходить в RSC-payload (mirrors listCalls.ts).
-    prisma.call.findMany({
-      where: { resolvedOrgId: orgId },
-      select: {
-        id: true,
-        direction: true,
-        callerNumber: true,
-        internalNumber: true,
-        status: true,
-        durationSec: true,
-        startedAt: true,
-        createdAt: true,
-        resolvedOrgId: true,
-        recordingScanStatus: true,
-        recordingPath: true,
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 20,
-    }),
-    // Этап 7 (PR-3): внутренний контур — заявки клиентов / лиды / сделки организации.
-    prisma.clientRequest.findMany({
-      where: { organizationId: orgId },
-      select: { id: true, subject: true, status: true, rejectedReason: true, createdAt: true },
-      orderBy: { createdAt: 'desc' },
-      take: 20,
-    }),
-    prisma.lead.findMany({
-      where: { organizationId: orgId },
-      select: { id: true, subject: true, status: true, createdAt: true },
-      orderBy: { createdAt: 'desc' },
-      take: 20,
-    }),
-    prisma.deal.findMany({
-      where: { organizationId: orgId },
-      select: { id: true, title: true, status: true, amount: true, createdAt: true },
-      orderBy: { createdAt: 'desc' },
-      take: 20,
-    }),
     // Этап 9 (ФТ-12.2): вкладка «Удостоверения». Идём через сервис реестра, а
     // не прямым запросом — он пересекает orgId со скоупом сессии и сам пишет
     // PiiAccessEvent `certificates_list` (§12: ФИО слушателей — ПДн).
     listCertificates(prisma, session, { organizationId: orgId, take: 20 }),
   ]);
+
+  // `У-100`: заказчику эти блоки не показывают вовсе (реестр вкладок
+  // отдаёт «Входящие письма», «Звонки», «Обращения», «Лиды» и «Сделки»
+  // только сотрудникам учебного центра). Раньше они всё равно грузились бы
+  // и уехали бы в браузер заказчика вместе с карточкой — вкладки нет, а
+  // данные есть. Поэтому запросы выполняются только для staff-просмотра.
+  const [inboundMessages, calls, clientRequests, leads, deals] = isStaffView
+    ? await Promise.all([
+      prisma.inboundMessage.findMany({
+        where: { resolvedOrgId: orgId },
+        select: {
+          id: true,
+          channel: true,
+          senderRef: true,
+          senderDisplay: true,
+          subject: true,
+          body: true,
+          createdAt: true,
+          status: true,
+          scanStatus: true,
+          attachmentName: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      }),
+      // Не селектим `recordingPath` — карточке нужен только boolean hasRecording,
+      // сырой object-storage путь не должен уходить в RSC-payload (mirrors listCalls.ts).
+      prisma.call.findMany({
+        where: { resolvedOrgId: orgId },
+        select: {
+          id: true,
+          direction: true,
+          callerNumber: true,
+          internalNumber: true,
+          status: true,
+          durationSec: true,
+          startedAt: true,
+          createdAt: true,
+          resolvedOrgId: true,
+          recordingScanStatus: true,
+          recordingPath: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      }),
+      // Этап 7 (PR-3): внутренний контур — заявки клиентов / лиды / сделки организации.
+      prisma.clientRequest.findMany({
+        where: { organizationId: orgId },
+        select: { id: true, subject: true, status: true, rejectedReason: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      }),
+      prisma.lead.findMany({
+        where: { organizationId: orgId },
+        select: { id: true, subject: true, status: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      }),
+      prisma.deal.findMany({
+        where: { organizationId: orgId },
+        select: { id: true, title: true, status: true, amount: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      }),
+      ])
+    : ([[], [], [], [], []] as const);
 
   const paid = paidAgg._sum.amount ?? new Prisma.Decimal(0);
   const refunded = refundAgg._sum.amount ?? new Prisma.Decimal(0);
@@ -455,7 +467,8 @@ export async function getOrganizationCard(
       amount: d.amount ? d.amount.toFixed(2) : null,
       createdAt: d.createdAt,
     })),
-    commission: can(session, 'see_commission')
+    commission:
+      isStaffView && can(session, 'see_commission')
       ? {
           partnerCommissionRate: org.partnerCommissionRate
             ? org.partnerCommissionRate.toFixed(4)

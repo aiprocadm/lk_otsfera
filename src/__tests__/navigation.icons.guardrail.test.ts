@@ -16,6 +16,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { navByRole } from '@/lib/navigation/cabinet';
+import { ORG_CARD_TABS } from '@/lib/navigation/orgCardTabs';
 import { NAV_ICONS, navIcon, type IconKey } from '@/lib/navigation/icons';
 
 type Row = { role: string; label: string; iconKey: IconKey; href: string };
@@ -78,7 +79,12 @@ describe('У-9: значок ↔ название', () => {
   });
 
   it('в реестре нет ключей, которыми никто не пользуется (knip для значков)', () => {
-    const used = new Set(rows.map((r) => r.iconKey));
+    // Значки носят не только пункты меню, но и вкладки карточки организации
+    // (`У-95`). Проверки «значок ↔ название» выше остаются про меню: свести
+    // подписи вкладок и разделов в один словарь — работа `У-108`, отдельного
+    // требования. Здесь важно другое: ключ, которым пользуется вкладка, не
+    // должен считаться брошенным и быть удалён «как неиспользуемый».
+    const used = new Set([...rows.map((r) => r.iconKey), ...ORG_CARD_TABS.map((t) => t.iconKey)]);
     const unused = (Object.keys(NAV_ICONS) as IconKey[]).filter((k) => !used.has(k));
     expect(
       unused,

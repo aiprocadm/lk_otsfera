@@ -48,13 +48,11 @@ export function OrgSidebar(props: {
     router.push(`${pathname}?${sp.toString()}`);
   }
 
-  // orgAdminOrLeaderOnly items (Команда) видны admin И leader — оба управляют
-  // командой (server action enforces per-row privilege). Флаг-фильтрация (chat)
-  // уже сделана на сервере в navItemsFor — сюда приходит готовый список.
-  const items = props.items.filter(
-    (it) =>
-      !it.orgAdminOrLeaderOnly || props.viewerRole === 'admin' || props.viewerRole === 'leader'
-  );
+  // `У-100`: признака `orgAdminOrLeaderOnly` больше нет. Его носил один пункт
+  // — «Доступ в кабинет», — а он уехал во вкладку «Настройки» раздела «Моя
+  // организация». Фильтр без единого пункта — мёртвый код (§12b), поэтому
+  // снят вместе с ним; право по-прежнему проверяет сервер.
+  const items = props.items;
 
   const selector =
     props.memberships.length > 1 ? (

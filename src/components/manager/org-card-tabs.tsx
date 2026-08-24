@@ -61,6 +61,11 @@ export function OrgCardTabs({
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-[#111111]">{card.name}</h1>
+        {/* §15 «что здесь делают»: одна строка простыми словами. Без неё
+            карточка отвечала только на «где я» — заголовком с названием. */}
+        <p className="text-sm text-gray-500 mt-1">
+          Всё об организации в одном месте: сотрудники, заказы, документы и настройки.
+        </p>
         {card.partner && <p className="text-sm text-gray-500 mt-1">Партнёр: {card.partner.name}</p>}
       </div>
 
@@ -119,8 +124,8 @@ function renderSection(card: OrganizationCard, tab: OrgCardTabKey): React.ReactN
       return <PaymentsSection payments={card.payments} kpis={card.kpis} orgId={card.id} />;
     case 'certificates':
       return <CertificatesSection certificates={card.certificates} orgId={card.id} />;
-    case 'threads':
-      return <ThreadsSection activity={card.activity} />;
+    case 'comments':
+      return <CommentsSection activity={card.activity} />;
     case 'inbound':
       return <InboundMessagesSection inboundMessages={card.inboundMessages} />;
     case 'calls':
@@ -296,8 +301,9 @@ function CertificatesSection({
   );
 }
 
-function ThreadsSection({ activity }: { activity: OrganizationCard['activity'] }) {
-  if (activity.length === 0) return <EmptyState message="Переписки пока нет." />;
+function CommentsSection({ activity }: { activity: OrganizationCard['activity'] }) {
+  if (activity.length === 0)
+    return <EmptyState message="Комментариев по заказам пока нет." />;
   return (
     <ul className="space-y-2">
       {activity.map((c) => (
@@ -400,7 +406,7 @@ function HistorySection({ card }: { card: OrganizationCard }) {
           />
         ))}
       </MiniPanel>
-      <MiniPanel title="Последняя переписка">
+      <MiniPanel title="Последние комментарии">
         {card.activity.slice(0, 5).map((c) => (
           <MiniRow key={c.id} left={c.body.slice(0, 40)} right={dateRu(c.createdAt)} />
         ))}
