@@ -129,6 +129,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   org_member_reactivated: 'Возврат сотрудника организации',
   org_member_role_changed: 'Изменение роли сотрудника организации',
   organization_created_auto: 'Автосоздание организации из выгрузки 1С',
+  organization_egrul_filled: 'Заполнение реквизитов из ЕГРЮЛ',
   organization_created_manual: 'Создание организации вручную',
   organization_rate_override: 'Индивидуальная ставка организации',
   organization_updated: 'Изменение организации',

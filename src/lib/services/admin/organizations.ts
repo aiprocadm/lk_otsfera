@@ -18,6 +18,8 @@ export type OrgFilters = {
   q?: string | undefined;
   partnerId?: string | undefined;
   withRateOverride?: boolean | undefined;
+  /** `У-94`: только организации без ИНН — очередь работы после импорта выписки. */
+  withoutInn?: boolean | undefined;
   take?: number | undefined;
   skip?: number | undefined;
 };
@@ -51,6 +53,7 @@ export async function listOrganizations(
   if (filters.partnerId) where.partnerId = filters.partnerId;
   if (filters.withRateOverride === true) where.partnerCommissionRate = { not: null };
   if (filters.withRateOverride === false) where.partnerCommissionRate = null;
+  if (filters.withoutInn) where.inn = null;
 
   const [orgs, total] = await Promise.all([
     prisma.organization.findMany({
