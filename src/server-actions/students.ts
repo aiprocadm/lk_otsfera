@@ -49,10 +49,13 @@ export async function createStudentAction(fd: FormData): Promise<CreateStudentRe
   });
 
   if (res.ok) {
-    // Сотрудник виден из четырёх кабинетов — обновляем все входы разом.
+    // `У-103` (вторая половина `Д-28`): сотрудник виден из ПЯТИ мест — вкладка
+    // «Сотрудники» есть теперь и у руководителя. Пропущенный путь означает, что
+    // человек добавил сотрудника и не увидел его в соседнем кабинете.
     revalidatePath('/organization/students');
     revalidatePath(`/partner/portfolio/${organizationId}`);
     revalidatePath(`/manager/organizations/${organizationId}`);
+    revalidatePath(`/leader/organizations/${organizationId}`);
     revalidatePath(`/admin/organizations/${organizationId}`);
   }
   return res;

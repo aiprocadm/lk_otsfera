@@ -15,14 +15,14 @@ import type { IconKey } from './icons';
  * «Заявки клиентов», «Реквизиты») запрещены стражем
  * `navigation.org-card-tabs.guardrail`.
  *
- * Состав реестра растёт вместе с экранами: вкладки «Обзор», «Сотрудники»
- * (`У-97`), «Заявки на обучение» и «Комментарии» появятся здесь в PR-2 этапа —
- * вместе с данными, которые они показывают. Пустая вкладка — дефект приёмки
- * (`У-74`), поэтому объявлять её заранее нельзя.
+ * Состав реестра растёт вместе с экранами: вкладки «Обзор», «Заявки на
+ * обучение» и «Комментарии» появятся здесь, когда появятся их данные. Пустая
+ * вкладка — дефект приёмки (`У-74`), поэтому объявлять её заранее нельзя.
  */
 export type OrgCardCabinet = 'admin' | 'leader' | 'manager' | 'partner' | 'organization';
 
 export type OrgCardTabKey =
+  | 'employees'
   | 'orders'
   | 'documents'
   | 'payments'
@@ -58,6 +58,9 @@ const STAFF_AND_PARTNER: readonly OrgCardCabinet[] = ['admin', 'leader', 'manage
  * Кабинет может показать подмножество, но не может переставить.
  */
 export const ORG_CARD_TABS: readonly OrgCardTab[] = [
+  // `У-97`: «Сотрудники» — это `Student` (люди организации), а не пользователи
+  // кабинета: их заводит кнопка «Добавить сотрудника» на этой же вкладке.
+  { key: 'employees', label: 'Сотрудники', iconKey: 'employees', cabinets: ALL },
   { key: 'orders', label: 'Заказы', iconKey: 'orders', cabinets: ALL },
   { key: 'documents', label: 'Документы', iconKey: 'documents', cabinets: ALL },
   { key: 'payments', label: 'Оплаты', iconKey: 'finance', cabinets: STAFF },

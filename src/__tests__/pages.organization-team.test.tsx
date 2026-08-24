@@ -86,7 +86,7 @@ describe('OrganizationTeamPage', () => {
       OrganizationTeamPage({ searchParams: Promise.resolve({ org: 'org-1' }) })
     );
 
-    expect(container.textContent).toContain('Команда');
+    expect(container.textContent).toContain('Доступ в кабинет');
     expect(container.textContent).toContain('2 участника');
     expect(container.textContent).toContain('1 администратор');
   });

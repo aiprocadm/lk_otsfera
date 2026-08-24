@@ -19,7 +19,7 @@ export default async function OrgCardPage({
   searchParams,
 }: {
   params: Promise<{ orgId: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const session = await requirePartner();
 
@@ -32,7 +32,8 @@ export default async function OrgCardPage({
   if (!card) notFound();
 
   const sp = await searchParams;
-  const tab: TabKey = VALID_TABS.includes(sp.tab as TabKey) ? (sp.tab as TabKey) : 'employees';
+  const rawTab = typeof sp.tab === 'string' ? sp.tab : undefined;
+  const tab: TabKey = VALID_TABS.includes(rawTab as TabKey) ? (rawTab as TabKey) : 'employees';
 
   const isAdmin = isPartnerAdmin(session);
 
@@ -48,7 +49,9 @@ export default async function OrgCardPage({
       {/* У-64: под вкладками не рендерится ничего вне переключателя. Блок
           «Доступ к организации» уехал на вкладку «Настройки» (У-61) — раньше он
           стоял здесь и был виден под всеми вкладками сразу. */}
-      {tab === 'employees' && <EmployeesTab orgId={orgId} prisma={prisma} />}
+      {tab === 'employees' && (
+        <EmployeesTab orgId={orgId} prisma={prisma} session={session} searchParams={sp} />
+      )}
       {tab === 'comments' && <CommentsTab orgId={orgId} prisma={prisma} />}
       {tab === 'history' && <HistoryTab orgId={orgId} prisma={prisma} />}
     </div>

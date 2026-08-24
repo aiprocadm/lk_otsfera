@@ -279,13 +279,6 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
       group: 'Данные',
     },
     {
-      href: '/manager/students',
-      label: 'Сотрудники',
-      iconKey: 'employees',
-      flag: 'manager_cabinet',
-      group: 'Клиенты',
-    },
-    {
       href: '/manager/enrollments',
       label: 'Заявки на обучение',
       iconKey: 'enrollments',
@@ -555,8 +548,10 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     },
     {
       href: '/organization/team',
-      label: 'Команда',
-      iconKey: 'team',
+      // `У-98`: один объект — одно название. «Команда» у заказчика означала
+      // пользователей кабинета, а у сотрудников ЦО — менеджеров компании.
+      label: 'Доступ в кабинет',
+      iconKey: 'cabinetAccess',
       orgAdminOrLeaderOnly: true,
       flag: 'organization_cabinet',
     },

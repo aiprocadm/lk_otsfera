@@ -40,7 +40,7 @@ export default async function OrganizationTeamPage({
       <div className="space-y-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold text-[#111111]">Команда</h1>
+            <h1 className="text-2xl font-semibold text-[#111111]">Доступ в кабинет</h1>
             <p className="text-sm text-gray-500 mt-0.5">
               {members.length} {pluralizeRu(members.length, 'участник', 'участника', 'участников')}{' '}
               в {ctx.activeOrgName}
