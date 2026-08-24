@@ -91,10 +91,20 @@ describe('реестр вкладок карточки организации (�
   });
 
   it('выключенный флаг убирает вкладку у всех кабинетов сразу', () => {
-    const withChat = orgCardTabsFor('manager', { flags: () => true }).map((t) => t.key);
-    const withoutChat = orgCardTabsFor('manager', { flags: (f) => f !== 'chat' }).map((t) => t.key);
-    expect(withChat).toContain('threads');
-    expect(withoutChat).not.toContain('threads');
+    const withDeals = orgCardTabsFor('manager', { flags: () => true }).map((t) => t.key);
+    const without = orgCardTabsFor('manager', { flags: (f) => f !== 'deals_pipeline' }).map(
+      (t) => t.key
+    );
+    expect(withDeals).toContain('deals');
+    expect(without).not.toContain('deals');
+  });
+
+  it('«Комментарии» флагом не гейтятся — это разговор по заказу, а не чат (У-96)', () => {
+    // Вкладка называлась «Переписка» и стояла под флагом `chat`, хотя
+    // показывала `Comment`: при выключенном чате человек терял и комментарии.
+    const off = orgCardTabsFor('manager', { flags: () => false });
+    expect(off.map((t) => t.key)).toContain('comments');
+    expect(ORG_CARD_TABS.find((t) => t.key === 'comments')?.flag).toBeUndefined();
   });
 
   it('значок вкладки — из семантического реестра, а не подобран на глаз (У-9)', () => {

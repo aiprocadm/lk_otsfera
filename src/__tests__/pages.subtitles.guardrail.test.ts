@@ -25,10 +25,10 @@ const CABINETS = ['admin', 'manager', 'leader', 'partner', 'organization', 'stud
  * просочился.
  */
 const ENTITY_CARDS = [
-  '/manager/students/[id]',
+  // `У-97`/`У-100`: `/manager/students/[id]` и `/organization/students/[id]`
+  // стали шлюзами — своего экрана у них нет, и в списке им больше не место.
   '/organization/orders/[id]',
   '/organization/requests/[id]',
-  '/organization/students/[id]',
   '/partner/deals/[id]',
   '/partner/portfolio/[orgId]',
   '/partner/portfolio/[orgId]/documents',

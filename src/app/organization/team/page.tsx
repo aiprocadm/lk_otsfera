@@ -1,79 +1,19 @@
-import React from 'react';
 import { redirect } from 'next/navigation';
-import { prisma } from '@/lib/db/prisma';
-import { getOrgPageContext } from '@/lib/auth/orgPageContext';
-import { OrgAppShell } from '@/components/organization/org-app-shell';
-import { TeamTable } from '@/components/organization/team-table';
-import { InviteOrgUserForm } from '@/components/organization/invite-org-user-form';
-import { listMembers } from '@/lib/services/organization/team';
-import { pluralizeRu } from '@/lib/format';
+import { requireOrganization } from '@/lib/auth/requireRole';
 
-type SearchParams = {
-  org?: string;
-};
+export const dynamic = 'force-dynamic';
 
-export default async function OrganizationTeamPage({
-  searchParams,
-}: {
-  searchParams: Promise<SearchParams>;
-}) {
-  const sp = await searchParams;
-  const ctx = await getOrgPageContext(sp);
-
-  // Team management is admin/leader only — non-managers shouldn't reach this
-  // page via direct URL. Sidebar already hides the link from members.
-  if (ctx.viewerRole !== 'admin' && ctx.viewerRole !== 'leader') {
-    redirect('/forbidden');
-  }
-
-  const members = await listMembers(prisma, ctx.activeOrgId);
-  const activeAdminCount = members.filter((m) => m.isActive && m.roleInOrg === 'admin').length;
-
-  return (
-    <OrgAppShell
-      userEmail={ctx.session.email}
-      activeOrgName={ctx.activeOrgName}
-      memberships={ctx.memberships}
-      activeOrgId={ctx.activeOrgId}
-      viewerRole={ctx.viewerRole}
-    >
-      <div className="space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold text-[#111111]">Доступ в кабинет</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
-              {members.length} {pluralizeRu(members.length, 'участник', 'участника', 'участников')}{' '}
-              в {ctx.activeOrgName}
-              {activeAdminCount > 0 && (
-                <span className="text-gray-400">
-                  {' '}
-                  · {activeAdminCount}{' '}
-                  {pluralizeRu(
-                    activeAdminCount,
-                    'администратор',
-                    'администратора',
-                    'администраторов'
-                  )}
-                </span>
-              )}
-            </p>
-          </div>
-          <InviteOrgUserForm organizationId={ctx.activeOrgId} viewerRole={ctx.viewerRole} />
-        </div>
-
-        <TeamTable
-          members={members}
-          organizationId={ctx.activeOrgId}
-          currentUserId={ctx.session.sub}
-          viewerRole={ctx.viewerRole}
-        />
-
-        <p className="text-xs text-gray-400 mt-2">
-          Администраторы и руководители могут приглашать участников, менять роли и деактивировать
-          доступ; роль «Администратор» назначают только администраторы. Последнего активного
-          администратора деактивировать нельзя.
-        </p>
-      </div>
-    </OrgAppShell>
-  );
+/**
+ * Шлюз со старого адреса «Доступ в кабинет» (`У-98`, `У-100`).
+ *
+ * Кто может зайти в кабинет — это настройка своей организации, поэтому список
+ * живёт на вкладке «Настройки» раздела «Моя организация». Прежний адрес
+ * остаётся рабочим: по нему приходят из старых писем-приглашений.
+ *
+ * Права здесь не проверяем: на вкладке они проверяются как раньше — и на
+ * показ, и на каждое действие.
+ */
+export default async function OrganizationTeamGatewayPage() {
+  await requireOrganization();
+  redirect('/organization/company?tab=settings');
 }

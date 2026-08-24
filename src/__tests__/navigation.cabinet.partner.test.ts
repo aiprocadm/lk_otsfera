@@ -221,12 +221,14 @@ describe('navByRole.admin — русский канон с группами (в�
   });
 });
 
-describe('navByRole.organization — единый источник (канон 11 пунктов)', () => {
-  // Этап 11 PR-3 (ФТ-15.4): порядок задан ТЗ дословно и проверяется здесь —
+describe('navByRole.organization — единый источник', () => {
+  // `У-100` (решение `Р-12`) прямо отменяет прежний порядок ФТ-15.4 в части
+  // сотрудников и доступа в кабинет: два пункта заменены одним разделом «Моя
+  // организация», внутри которого они стали вкладками. Порядок из `У-100`:
   // Главная · Заказы · Обращения · Заявки на обучение · Удостоверения ·
-  // Документы · Финансы · Сотрудники · Команда · Сообщения · Кабинет
-  // слушателя · Настройки.
-  it('состав и ПОРЯДОК пунктов совпадают с ФТ-15.4', () => {
+  // Документы · Финансы · Моя организация · Сообщения · Кабинет слушателя ·
+  // Настройки · Справка.
+  it('состав и ПОРЯДОК пунктов совпадают с У-100', () => {
     const hrefs = navByRole.organization.map((i) => i.href);
     expect(hrefs).toEqual([
       '/organization/dashboard',
@@ -236,14 +238,19 @@ describe('navByRole.organization — единый источник (канон 1
       '/organization/certificates',
       '/organization/documents',
       '/organization/finance',
-      '/organization/students',
-      '/organization/team',
+      '/organization/company',
       '/organization/messages',
       '/student',
       '/organization/settings',
       // `У-76` (этап 9): словарь терминов, закреплён внизу.
       '/help',
     ]);
+  });
+
+  it('пунктов «Сотрудники» и «Доступ в кабинет» в меню больше нет (У-100)', () => {
+    const hrefs = navByRole.organization.map((i) => i.href);
+    expect(hrefs).not.toContain('/organization/students');
+    expect(hrefs).not.toContain('/organization/team');
   });
 
   it('раздел обращений называется «Обращения» (У-8, решение заказчика 09.08.2026)', () => {
@@ -253,9 +260,10 @@ describe('navByRole.organization — единый источник (канон 1
     expect(requests?.flag).toBe('client_requests');
   });
 
-  it('«Команда» помечена orgAdminOrLeaderOnly', () => {
-    const team = navByRole.organization.find((i) => i.href === '/organization/team');
-    expect(team?.orgAdminOrLeaderOnly).toBe(true);
+  it('«Моя организация» — свой значок, а не значок списка чужих организаций', () => {
+    const company = navByRole.organization.find((i) => i.href === '/organization/company');
+    expect(company?.label).toBe('Моя организация');
+    expect(company?.iconKey).toBe('myOrganization');
   });
 
   it('каждый пункт имеет иконку', () => {

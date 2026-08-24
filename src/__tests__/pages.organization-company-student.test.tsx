@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import OrganizationStudentDetailPage from '@/app/organization/students/[id]/page';
+import OrganizationCompanyStudentPage from '@/app/organization/company/students/[studentId]/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 /**
@@ -73,7 +73,7 @@ const STUDENT = {
 };
 
 const props = (id: string) => ({
-  params: Promise.resolve({ id }),
+  params: Promise.resolve({ studentId: id }),
   searchParams: Promise.resolve({}),
 });
 
@@ -86,10 +86,10 @@ beforeEach(() => {
   listOrgStudentTraining.mockResolvedValue([]);
 });
 
-describe('OrganizationStudentDetailPage', () => {
+describe('Карточка сотрудника в «Моей организации» (У-97, У-100)', () => {
   it('флаг off → notFound, контекст не запрашивается', async () => {
     isFeatureEnabled.mockReturnValue(false);
-    await expect(renderServerComponent(OrganizationStudentDetailPage(props('s1')))).rejects.toThrow(
+    await expect(renderServerComponent(OrganizationCompanyStudentPage(props('s1')))).rejects.toThrow(
       'NOT_FOUND'
     );
     expect(getOrgPageContext).not.toHaveBeenCalled();
@@ -100,7 +100,7 @@ describe('OrganizationStudentDetailPage', () => {
     getOrgPageContext.mockResolvedValue(ORG_CTX);
     getOrgStudent.mockResolvedValue(null);
     await expect(
-      renderServerComponent(OrganizationStudentDetailPage(props('foreign')))
+      renderServerComponent(OrganizationCompanyStudentPage(props('foreign')))
     ).rejects.toThrow('NOT_FOUND');
     expect(getOrgStudent).toHaveBeenCalledWith(expect.anything(), {
       organizationId: 'org-1',
@@ -118,7 +118,7 @@ describe('OrganizationStudentDetailPage', () => {
     listCertificates.mockResolvedValue({ ok: false, error: 'forbidden' });
     listOrgStudentTraining.mockResolvedValue([]);
 
-    const { container } = await renderServerComponent(OrganizationStudentDetailPage(props('s1')));
+    const { container } = await renderServerComponent(OrganizationCompanyStudentPage(props('s1')));
 
     expect(container.textContent).toContain('Иванов Иван');
     expect(container.textContent).not.toContain('УД-1');
@@ -161,7 +161,7 @@ describe('OrganizationStudentDetailPage', () => {
       },
     ]);
 
-    const { container } = await renderServerComponent(OrganizationStudentDetailPage(props('s1')));
+    const { container } = await renderServerComponent(OrganizationCompanyStudentPage(props('s1')));
 
     expect(listCertificates).toHaveBeenCalledWith(expect.anything(), ORG_CTX.session, {
       organizationId: 'org-1',
@@ -183,7 +183,7 @@ describe('OrganizationStudentDetailPage', () => {
     getOrgPageContext.mockResolvedValue(ORG_CTX);
     getOrgStudent.mockResolvedValue({ ...STUDENT, externalStudentId: null });
 
-    const { container } = await renderServerComponent(OrganizationStudentDetailPage(props('s1')));
+    const { container } = await renderServerComponent(OrganizationCompanyStudentPage(props('s1')));
 
     expect(container.textContent).toContain('Обучение сотрудника пока не оформлялось');
     expect(container.textContent).not.toContain('EXT-9');
@@ -205,13 +205,13 @@ vi.mock('@/components/organization/student-position-form', () => ({
     ),
 }));
 
-describe('OrganizationStudentDetailPage — должность', () => {
+describe('Карточка сотрудника в «Моей организации» — должность', () => {
   it('форма получает скоуп организации и текущее значение', async () => {
     isFeatureEnabled.mockReturnValue(true);
     getOrgPageContext.mockResolvedValue(ORG_CTX);
     getOrgStudent.mockResolvedValue({ ...STUDENT, position: 'Инженер' });
 
-    const { container } = await renderServerComponent(OrganizationStudentDetailPage(props('s1')));
+    const { container } = await renderServerComponent(OrganizationCompanyStudentPage(props('s1')));
     expect(container.querySelector('[data-testid="position-form"]')!.textContent).toBe(
       'org-1|s1|Инженер'
     );
@@ -222,7 +222,7 @@ describe('OrganizationStudentDetailPage — должность', () => {
     getOrgPageContext.mockResolvedValue(ORG_CTX);
     getOrgStudent.mockResolvedValue({ ...STUDENT, position: null });
 
-    const { container } = await renderServerComponent(OrganizationStudentDetailPage(props('s1')));
+    const { container } = await renderServerComponent(OrganizationCompanyStudentPage(props('s1')));
     expect(container.querySelector('[data-testid="position-form"]')!.textContent).toContain('null');
   });
 
@@ -238,7 +238,7 @@ describe('OrganizationStudentDetailPage — должность', () => {
       note: 'цех №3',
     });
 
-    const { container } = await renderServerComponent(OrganizationStudentDetailPage(props('st-1')));
+    const { container } = await renderServerComponent(OrganizationCompanyStudentPage(props('st-1')));
 
     expect(container.textContent).toContain('112-233-445 95');
     expect(container.textContent).toContain('+7 900 000-00-00');
@@ -257,7 +257,7 @@ describe('OrganizationStudentDetailPage — должность', () => {
       note: null,
     });
 
-    const { container } = await renderServerComponent(OrganizationStudentDetailPage(props('st-1')));
+    const { container } = await renderServerComponent(OrganizationCompanyStudentPage(props('st-1')));
 
     expect(container.textContent).toContain('Почта не указана');
     expect(container.textContent).toContain('СНИЛС');

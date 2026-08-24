@@ -64,7 +64,7 @@ describe('OrgSidebar', () => {
     document.cookie = '';
   });
 
-  it('renders all 13 nav links for admin viewer (+«Справка», `У-76`)', () => {
+  it('renders all 12 nav links for admin viewer (+«Справка», `У-76`)', () => {
     vi.mocked(usePathname).mockReturnValue('/organization/dashboard');
     const html = renderToString(
       React.createElement(OrgSidebar, {
@@ -75,8 +75,11 @@ describe('OrgSidebar', () => {
       })
     );
     const matches = html.match(/data-testid="org-nav-/g);
-    expect(matches).toHaveLength(13);
-    expect(html).toContain('href="/organization/team"');
+    // `У-100`: «Сотрудники» и «Доступ в кабинет» стали вкладками раздела «Моя
+    // организация» — двух пунктов не стало, один появился.
+    expect(matches).toHaveLength(12);
+    expect(html).toContain('href="/organization/company"');
+    expect(html).not.toContain('href="/organization/team"');
   });
 
   it('в выдвижном меню телефона показывает те же пункты (variant=panel)', () => {
@@ -92,10 +95,13 @@ describe('OrgSidebar', () => {
         variant: 'panel',
       })
     );
-    expect(html.match(/data-testid="org-nav-/g)).toHaveLength(13);
+    expect(html.match(/data-testid="org-nav-/g)).toHaveLength(12);
   });
 
-  it('hides Команда for member viewer (12 links)', () => {
+  // `У-100`: признака `orgAdminOrLeaderOnly` больше нет — его носил один пункт,
+  // и он уехал во вкладку. Меню теперь одинаково у всех ролей организации, а
+  // право на управление доступом проверяет сервер на самой вкладке.
+  it('участник видит то же меню, что администратор (12 пунктов)', () => {
     vi.mocked(usePathname).mockReturnValue('/organization/dashboard');
     const html = renderToString(
       React.createElement(OrgSidebar, {
@@ -110,7 +116,7 @@ describe('OrgSidebar', () => {
     expect(html).not.toContain('href="/organization/team"');
   });
 
-  it('shows Команда for leader viewer (13 links)', () => {
+  it('руководитель организации видит то же меню (12 пунктов)', () => {
     vi.mocked(usePathname).mockReturnValue('/organization/dashboard');
     const html = renderToString(
       React.createElement(OrgSidebar, {
@@ -121,8 +127,8 @@ describe('OrgSidebar', () => {
       })
     );
     const matches = html.match(/data-testid="org-nav-/g);
-    expect(matches).toHaveLength(13);
-    expect(html).toContain('href="/organization/team"');
+    expect(matches).toHaveLength(12);
+    expect(html).toContain('href="/organization/company"');
   });
 
   it('marks exactly one link active on /organization/dashboard', () => {

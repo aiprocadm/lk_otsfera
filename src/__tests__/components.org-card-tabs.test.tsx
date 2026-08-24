@@ -226,11 +226,11 @@ describe('OrgCardTabs — payments section', () => {
   });
 });
 
-describe('OrgCardTabs — threads section', () => {
+describe('OrgCardTabs — вкладка «Комментарии» (У-96)', () => {
   it('empty: renders EmptyState', () => {
     const card = makeCard({ activity: [] });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'threads', tabs: MANAGER_TABS }));
-    expect(html).toContain('Переписки пока нет');
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'comments', tabs: MANAGER_TABS }));
+    expect(html).toContain('Комментариев по заказам пока нет');
   });
 
   it('non-empty: renders author, date, body', () => {
@@ -245,7 +245,7 @@ describe('OrgCardTabs — threads section', () => {
         },
       ],
     });
-    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'threads', tabs: MANAGER_TABS }));
+    const html = renderToString(React.createElement(OrgCardTabs, { card, activeTab: 'comments', tabs: MANAGER_TABS }));
     expect(html).toContain('Иван');
     expect(html).toContain('Комментарий тест');
   });
@@ -313,7 +313,7 @@ describe('OrgCardTabs — history section (default tab)', () => {
     expect(html).toContain('Последние оплаты');
     expect(html).toContain('100.00 ₽');
     expect(html).toContain('− 20.00 ₽');
-    expect(html).toContain('Последняя переписка');
+    expect(html).toContain('Последние комментарии');
   });
 
   it('empty orders/payments/activity individually: each mini-panel renders its own dash', () => {

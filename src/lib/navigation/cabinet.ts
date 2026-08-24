@@ -14,8 +14,6 @@ export type NavItem = {
    * необязательным, из-за чего у партнёра и слушателя не было ни одного.
    */
   iconKey: IconKey;
-  /** Виден только org-admin и org-leader (фильтруется в OrgSidebar по viewerRole, НЕ в navItemsFor). */
-  orgAdminOrLeaderOnly?: boolean;
   /** Секция админского сайдбара («Платформа» / «Операции» / «Справочники»). Прочие шеллы игнорируют. */
   group?: string;
   /** Скрыть пункт, когда флаг ВКЛЮЧЁН (обратный гейт: «Команда» менеджера уезжает в /leader). */
@@ -540,19 +538,14 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
       iconKey: 'finance',
       flag: 'organization_cabinet',
     },
+    // `У-100`: сотрудники и доступ в кабинет — это части ОДНОГО объекта, своей
+    // организации, а были двумя отдельными пунктами меню. Теперь это один
+    // раздел с вкладками, как карточка организации у сотрудников ЦО и
+    // партнёра (§0.2, правило зеркала). Старые адреса остались шлюзами.
     {
-      href: '/organization/students',
-      label: 'Сотрудники',
-      iconKey: 'employees',
-      flag: 'organization_cabinet',
-    },
-    {
-      href: '/organization/team',
-      // `У-98`: один объект — одно название. «Команда» у заказчика означала
-      // пользователей кабинета, а у сотрудников ЦО — менеджеров компании.
-      label: 'Доступ в кабинет',
-      iconKey: 'cabinetAccess',
-      orgAdminOrLeaderOnly: true,
+      href: '/organization/company',
+      label: 'Моя организация',
+      iconKey: 'myOrganization',
       flag: 'organization_cabinet',
     },
     // «Сообщения» намеренно под более узким флагом chat (см. CLAUDE.md §5);
