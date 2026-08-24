@@ -22,8 +22,10 @@ import type { IconKey } from './icons';
 export type OrgCardCabinet = 'admin' | 'leader' | 'manager' | 'partner' | 'organization';
 
 export type OrgCardTabKey =
+  | 'overview'
   | 'employees'
   | 'orders'
+  | 'enrollments'
   | 'documents'
   | 'payments'
   | 'certificates'
@@ -58,10 +60,22 @@ const STAFF_AND_PARTNER: readonly OrgCardCabinet[] = ['admin', 'leader', 'manage
  * Кабинет может показать подмножество, но не может переставить.
  */
 export const ORG_CARD_TABS: readonly OrgCardTab[] = [
+  // `У-96`: «Обзор» — первая вкладка и вкладка по умолчанию: человек, открывший
+  // карточку, сразу видит, что происходит с клиентом. Раньше её роль исполняла
+  // вкладка «История», из-за чего настоящей истории (журнала действий) в
+  // карточке не было вовсе.
+  { key: 'overview', label: 'Обзор', iconKey: 'overview', cabinets: ALL },
   // `У-97`: «Сотрудники» — это `Student` (люди организации), а не пользователи
   // кабинета: их заводит кнопка «Добавить сотрудника» на этой же вкладке.
   { key: 'employees', label: 'Сотрудники', iconKey: 'employees', cabinets: ALL },
   { key: 'orders', label: 'Заказы', iconKey: 'orders', cabinets: ALL },
+  {
+    key: 'enrollments',
+    label: 'Заявки на обучение',
+    iconKey: 'enrollments',
+    cabinets: ALL,
+    flag: 'enrollment_requests',
+  },
   { key: 'documents', label: 'Документы', iconKey: 'documents', cabinets: ALL },
   { key: 'payments', label: 'Оплаты', iconKey: 'finance', cabinets: STAFF },
   {
@@ -78,16 +92,17 @@ export const ORG_CARD_TABS: readonly OrgCardTab[] = [
     cabinets: STAFF_AND_PARTNER,
     flag: 'client_requests',
   },
-  // Отдельного флага у лидов нет: раздел закрывается флагом кабинета, как и
-  // пункт меню «Лиды» у менеджера.
-  { key: 'leads', label: 'Лиды', iconKey: 'leads', cabinets: STAFF },
-  { key: 'deals', label: 'Сделки', iconKey: 'deals', cabinets: STAFF, flag: 'deals_pipeline' },
   // `У-96`: вкладка показывает `Comment` — разговор клиента и менеджера по
   // заказам. Называлась «Переписка» и стояла под флагом `chat`, хотя чат — это
   // другой домен (`OrderThread`): человек открывал «Переписку» и видел
   // комментарии, а при выключенном `chat` не видел и их. Комментарии флагом не
   // гейтятся (CLAUDE.md §5), поэтому вкладка есть во всех кабинетах.
   { key: 'comments', label: 'Комментарии', iconKey: 'inbox', cabinets: ALL },
+  // Отдельного флага у лидов нет: раздел закрывается флагом кабинета, как и
+  // пункт меню «Лиды» у менеджера.
+  { key: 'leads', label: 'Лиды', iconKey: 'leads', cabinets: STAFF },
+  { key: 'deals', label: 'Сделки', iconKey: 'deals', cabinets: STAFF, flag: 'deals_pipeline' },
+
   { key: 'calls', label: 'Звонки', iconKey: 'calls', cabinets: STAFF, flag: 'telephony_mango' },
   {
     key: 'inbound',
@@ -96,7 +111,10 @@ export const ORG_CARD_TABS: readonly OrgCardTab[] = [
     cabinets: STAFF,
     flag: 'inbound_messaging',
   },
-  { key: 'history', label: 'История', iconKey: 'audit', cabinets: ALL },
+  // `У-96`: «История» — журнал действий по организации (кто и что менял). Это
+  // внутренняя информация учебного центра, поэтому вкладка только у его
+  // сотрудников; клиенту и партнёру полагается «Обзор».
+  { key: 'history', label: 'История', iconKey: 'audit', cabinets: STAFF },
   { key: 'settings', label: 'Настройки', iconKey: 'settings', cabinets: ALL },
 ];
 

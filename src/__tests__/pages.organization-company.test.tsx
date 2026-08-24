@@ -125,7 +125,7 @@ describe('«Моя организация» (У-100)', () => {
     expect(keys).not.toContain('calls');
   });
 
-  it('вкладка выбирается адресом, неизвестная — падает на «Историю»', async () => {
+  it('вкладка выбирается адресом, неизвестная — падает на «Обзор»', async () => {
     const employees = await render({ tab: 'employees' });
     expect(employees.container.querySelector('[data-testid="card"]')?.getAttribute('data-active')).toBe(
       'employees'
@@ -133,7 +133,7 @@ describe('«Моя организация» (У-100)', () => {
 
     const bogus = await render({ tab: 'leads' });
     expect(bogus.container.querySelector('[data-testid="card"]')?.getAttribute('data-active')).toBe(
-      'history'
+      'overview'
     );
   });
 

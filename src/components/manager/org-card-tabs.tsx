@@ -1,10 +1,12 @@
 import React from 'react';
 import Link from 'next/link';
-import type { LeadStatus, ClientRequestStatus } from '@prisma/client';
+import type { LeadStatus, ClientRequestStatus, EnrollmentStatus } from '@prisma/client';
 import { Badge, EmptyState, ExportLink, TableShell, THead, Th, Tr, Td } from '@/components/ui';
 import { CallsList } from '@/components/manager/calls-list';
 import { LeadStatusBadge } from '@/components/partner/lead-status-badge';
 import { clientRequestStatusLabel } from '@/lib/services/clientRequests/labels';
+import { enrollmentStatusLabel } from '@/lib/services/enrollments/labels';
+import { auditActionLabel } from '@/lib/audit/labels';
 import { orgCardTiles } from '@/lib/navigation/orgCardTiles';
 import type { OrgCardTabKey } from '@/lib/navigation/orgCardTabs';
 import type { OrganizationCard } from '@/lib/services/manager/organizationCard';
@@ -156,10 +158,74 @@ function renderSection(card: OrganizationCard, tab: OrgCardTabKey): React.ReactN
       return <LeadsSection leads={card.leads} />;
     case 'deals':
       return <DealsSection deals={card.deals} />;
+    case 'enrollments':
+      return <EnrollmentsSection enrollments={card.enrollments} />;
     case 'history':
+      return <AuditTrailSection entries={card.auditTrail} />;
+    case 'overview':
     default:
-      return <HistorySection card={card} />;
+      return <OverviewSection card={card} />;
   }
+}
+
+/**
+ * `У-96`: «Заявки на обучение» — список слушателей, которых надо обучить.
+ * Раньше их не было видно рядом с историей клиента.
+ */
+function EnrollmentsSection({ enrollments }: { enrollments: OrganizationCard['enrollments'] }) {
+  if (enrollments.length === 0) return <EmptyState message="Заявок на обучение пока нет." />;
+  return (
+    <TableShell>
+      <THead>
+        <Th>Обучение</Th>
+        <Th>Слушателей</Th>
+        <Th>Статус</Th>
+        <Th>Подана</Th>
+      </THead>
+      <tbody>
+        {enrollments.map((e) => (
+          <Tr key={e.id}>
+            <Td className="font-medium">{e.courseTitle ?? 'Без названия'}</Td>
+            <Td>{e.studentsCount}</Td>
+            <Td>
+              <Badge tone="neutral">
+                {enrollmentStatusLabel(e.status as EnrollmentStatus)}
+              </Badge>
+            </Td>
+            <Td>{dateRu(e.createdAt)}</Td>
+          </Tr>
+        ))}
+      </tbody>
+    </TableShell>
+  );
+}
+
+/**
+ * `У-96`: «История» — журнал действий по организации. Названия действий берутся
+ * из общего словаря: в базе они машинные, человеку показываем по-русски.
+ */
+function AuditTrailSection({ entries }: { entries: OrganizationCard['auditTrail'] }) {
+  if (entries.length === 0) {
+    return <EmptyState message="Изменений по этой организации ещё не было." />;
+  }
+  return (
+    <TableShell>
+      <THead>
+        <Th>Что сделали</Th>
+        <Th>Кто</Th>
+        <Th>Когда</Th>
+      </THead>
+      <tbody>
+        {entries.map((e) => (
+          <Tr key={e.id}>
+            <Td className="font-medium">{auditActionLabel(e.action)}</Td>
+            <Td className="text-gray-700">{e.actorName ?? '—'}</Td>
+            <Td className="whitespace-nowrap text-gray-500">{dateRu(e.createdAt)}</Td>
+          </Tr>
+        ))}
+      </tbody>
+    </TableShell>
+  );
 }
 
 function OrdersSection({ orders }: { orders: OrganizationCard['orders'] }) {
@@ -407,9 +473,16 @@ function InboundMessagesSection({
   );
 }
 
-function HistorySection({ card }: { card: OrganizationCard }) {
+/**
+ * `У-96`: «Обзор» — сводка по клиенту: что заказывали, что оплатили, о чём
+ * говорили. Раньше эта сводка называлась «Историей», из-за чего настоящего
+ * журнала действий в карточке не было.
+ */
+function OverviewSection({ card }: { card: OrganizationCard }) {
   const hasAny = card.orders.length + card.payments.length + card.activity.length > 0;
-  if (!hasAny) return <EmptyState message="Истории пока нет." />;
+  if (!hasAny) {
+    return <EmptyState message="Работа с этим клиентом ещё не начиналась." />;
+  }
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <MiniPanel title="Последние заявки">
