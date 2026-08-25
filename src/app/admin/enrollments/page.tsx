@@ -21,7 +21,7 @@ export default async function AdminEnrollmentsPage() {
   return (
     <div className="space-y-5">
       <PageHeader title="Заявки на обучение" subtitle="Заявки на обучение от всех клиентов" />
-      <EnrollmentQueue rows={rows} />
+      <EnrollmentQueue rows={rows} cardHrefBase="/admin/enrollments" />
       <EnrollmentWizard directions={directions} />
     </div>
   );

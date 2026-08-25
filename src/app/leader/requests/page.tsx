@@ -17,7 +17,7 @@ export default async function LeaderRequestsPage() {
   return (
     <div className="space-y-5">
       <PageHeader title="Обращения" subtitle="Вопросы и запросы клиентов по всей компании" />
-      <ClientRequestQueue rows={rows} />
+      <ClientRequestQueue rows={rows} cardHrefBase="/leader/requests" />
     </div>
   );
 }

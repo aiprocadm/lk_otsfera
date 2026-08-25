@@ -92,7 +92,12 @@ describe('EnrollmentQueue — bulk-переходы позиций (PR-2)', () =
   it('provisioned-позиции → кнопка «Идёт обучение»; клик без чекбоксов шлёт PATCH без itemIds', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal('fetch', fetchMock);
-    render(React.createElement(EnrollmentQueue, { rows: [provisionedRow()] }));
+    render(
+      React.createElement(EnrollmentQueue, {
+        rows: [provisionedRow()],
+        cardHrefBase: '/manager/enrollments',
+      })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Идёт обучение' }));
 
@@ -108,7 +113,12 @@ describe('EnrollmentQueue — bulk-переходы позиций (PR-2)', () =
   it('с отмеченным чекбоксом: PATCH уходит с itemIds=[выбранный id]', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal('fetch', fetchMock);
-    render(React.createElement(EnrollmentQueue, { rows: [provisionedRow()] }));
+    render(
+      React.createElement(EnrollmentQueue, {
+        rows: [provisionedRow()],
+        cardHrefBase: '/manager/enrollments',
+      })
+    );
 
     // Раскрываем строку и отмечаем одну позицию
     fireEvent.click(screen.getByText(/2 слушателя — показать/));
@@ -124,7 +134,12 @@ describe('EnrollmentQueue — bulk-переходы позиций (PR-2)', () =
   it('снятый обратно чекбокс не попадает в itemIds (пустой выбор → без itemIds)', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal('fetch', fetchMock);
-    render(React.createElement(EnrollmentQueue, { rows: [provisionedRow()] }));
+    render(
+      React.createElement(EnrollmentQueue, {
+        rows: [provisionedRow()],
+        cardHrefBase: '/manager/enrollments',
+      })
+    );
 
     fireEvent.click(screen.getByText(/2 слушателя — показать/));
     const cb = screen.getByRole('checkbox', { name: 'Выбрать позицию: Анна Иванова' });
@@ -142,6 +157,7 @@ describe('EnrollmentQueue — bulk-переходы позиций (PR-2)', () =
     vi.stubGlobal('fetch', fetchMock);
     render(
       React.createElement(EnrollmentQueue, {
+        cardHrefBase: '/manager/enrollments',
         rows: [
           row({
             status: 'in_training',
@@ -175,6 +191,7 @@ describe('EnrollmentQueue — bulk-переходы позиций (PR-2)', () =
     vi.stubGlobal('fetch', vi.fn());
     render(
       React.createElement(EnrollmentQueue, {
+        cardHrefBase: '/manager/enrollments',
         rows: [
           row({
             status: 'provisioned',
@@ -210,7 +227,12 @@ describe('EnrollmentQueue — bulk-переходы позиций (PR-2)', () =
 
   it('у pending-заявки кнопок переходов нет', () => {
     vi.stubGlobal('fetch', vi.fn());
-    render(React.createElement(EnrollmentQueue, { rows: [row({ status: 'pending' })] }));
+    render(
+      React.createElement(EnrollmentQueue, {
+        rows: [row({ status: 'pending' })],
+        cardHrefBase: '/manager/enrollments',
+      })
+    );
     expect(screen.queryByRole('button', { name: 'Идёт обучение' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Удостоверения готовы' })).toBeNull();
   });
@@ -222,7 +244,12 @@ describe('EnrollmentQueue — bulk-переходы позиций (PR-2)', () =
       json: async () => ({ error: 'lifecycle_violation' }),
     });
     vi.stubGlobal('fetch', fetchMock);
-    render(React.createElement(EnrollmentQueue, { rows: [provisionedRow()] }));
+    render(
+      React.createElement(EnrollmentQueue, {
+        rows: [provisionedRow()],
+        cardHrefBase: '/manager/enrollments',
+      })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Идёт обучение' }));
 
@@ -232,7 +259,12 @@ describe('EnrollmentQueue — bulk-переходы позиций (PR-2)', () =
 
   it('сетевая ошибка → «Сетевая ошибка»', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('down')));
-    render(React.createElement(EnrollmentQueue, { rows: [provisionedRow()] }));
+    render(
+      React.createElement(EnrollmentQueue, {
+        rows: [provisionedRow()],
+        cardHrefBase: '/manager/enrollments',
+      })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Идёт обучение' }));
 
