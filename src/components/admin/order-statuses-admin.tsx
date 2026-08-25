@@ -30,6 +30,7 @@ import {
 import { toast } from '@/lib/ui/toast';
 import { errorMessageRu } from '@/lib/errors/messages';
 
+import { PageHeader } from '@/components/ui/page-header';
 /** Пояснение к якорю: что именно ставит статус автоматически. */
 const ANCHOR_HINTS: Record<string, string> = {
   paid: 'ставится автоматически, когда поступила оплата',
@@ -170,16 +171,11 @@ export function OrderStatusesAdmin({ rows }: OrderStatusesAdminProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Статусы заявок</h1>
-        <Button onClick={() => setAddOpen(true)}>+ Добавить</Button>
-      </div>
-
-      <p className="text-sm text-gray-500">
-        Порядок статусов — это порядок стадий заявки. Вперёд заявку двигает менеджер, вернуть на
-        предыдущую стадию могут только администратор и руководитель. Семь статусов из технического
-        задания удалить и выключить нельзя.
-      </p>
+      <PageHeader
+        title="Статусы заявок"
+        subtitle="Порядок статусов — это порядок стадий заявки. Вперёд заявку двигает менеджер, вернуть на предыдущую стадию могут только администратор и руководитель. Семь статусов из технического задания удалить и выключить нельзя."
+        action={<Button onClick={() => setAddOpen(true)}>+ Добавить</Button>}
+      />
 
       <TableShell>
         <THead>

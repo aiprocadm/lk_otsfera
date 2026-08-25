@@ -63,9 +63,7 @@ export default async function LeaderOrderDetailPage({
       <ManagerOrderDetailView
         breadcrumbs={buildCabinetBreadcrumbs('leader', '/leader/orders', [
           {
-            label: data.order.orderNumber
-              ? `Заказ №${data.order.orderNumber}`
-              : data.order.title,
+            label: data.order.orderNumber ? `Заказ №${data.order.orderNumber}` : data.order.title,
           },
         ])}
         statusPanel={statusPanel}

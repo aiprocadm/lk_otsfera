@@ -33,6 +33,7 @@ import {
 import { getAppBaseUrl } from '@/lib/notifications/shared';
 import { fmtDateTime } from '@/lib/format';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const metadata: Metadata = { title: 'Интеграции · Настройки' };
 
 export const dynamic = 'force-dynamic';
@@ -127,10 +128,10 @@ export default async function AdminIntegrationsPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">Интеграции</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Статус внешних сервисов платформы: телефония, мессенджеры и обмен с 1С.
-        </p>
+        <PageHeader
+          title="Интеграции"
+          subtitle="Статус внешних сервисов платформы: телефония, мессенджеры и обмен с 1С."
+        />
       </div>
 
       <div className="text-sm text-blue-800 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">

@@ -13,6 +13,7 @@ import type { PiiContextKey, PiiSubjectType } from '@/lib/pii/contexts';
 import { PiiAccessFilters } from '@/components/admin/pii-access-filters';
 import { PiiAccessTable } from '@/components/admin/pii-access-table';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const metadata: Metadata = { title: 'Доступ к персональным данным · Настройки' };
 
 export const dynamic = 'force-dynamic';
@@ -74,14 +75,19 @@ export default async function AdminPiiAccessPage({ searchParams }: { searchParam
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">Доступ к ПДн</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Журнал чтения персональных данных сотрудниками (§25.7). Скачивания файлов — в разделе{' '}
-          <Link href="/admin/settings/security/audit" className="underline">
-            Аудит
-          </Link>
-          .
-        </p>
+        <PageHeader
+          title="Доступ к ПДн"
+          subtitle={
+            <>
+              Журнал чтения персональных данных сотрудниками (§25.7). Скачивания файлов — в разделе{' '}
+              <Link href="/admin/settings/security/audit" className="underline">
+                {' '}
+                Аудит{' '}
+              </Link>{' '}
+              .
+            </>
+          }
+        />
       </div>
       {!recordingEnabled && (
         <div

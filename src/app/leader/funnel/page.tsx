@@ -7,6 +7,7 @@ import { getFunnelBoard } from '@/lib/services/funnel/board';
 import { FunnelBoard } from '@/components/funnel/funnel-board';
 import { StageConfig } from '@/components/funnel/stage-config';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 export default async function LeaderFunnelPage() {
@@ -18,11 +19,10 @@ export default async function LeaderFunnelPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">Воронка продаж</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Перетаскивайте карточки между стадиями. «Передано в работу» создаёт заказ, «Отказ» требует
-          причину.
-        </p>
+        <PageHeader
+          title="Воронка продаж"
+          subtitle="Перетаскивайте карточки между стадиями. «Передано в работу» создаёт заказ, «Отказ» требует причину."
+        />
       </div>
       <FunnelBoard board={board} />
       <StageConfig stages={board.stages} isDefault={isDefault} />

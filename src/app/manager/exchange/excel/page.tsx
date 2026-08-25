@@ -5,6 +5,7 @@ import { requireManager } from '@/lib/auth/requireRole';
 import { isManagerLeader, mayImportOneC } from '@/lib/auth/managerPolicy';
 import { ImportForm } from '@/components/import/import-form';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 /**
@@ -32,11 +33,10 @@ export default async function ManagerExchangeExcelPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">Загрузка Excel из 1С</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Разовая ручная загрузка «чистого» Excel-файла из 1С с тремя листами: «Контрагенты»,
-          «Реализации», «Поступления». Предпросмотр покажет план изменений до применения.
-        </p>
+        <PageHeader
+          title="Загрузка Excel из 1С"
+          subtitle="Разовая ручная загрузка «чистого» Excel-файла из 1С с тремя листами: «Контрагенты», «Реализации», «Поступления». Предпросмотр покажет план изменений до применения."
+        />
       </div>
       <div className="text-sm text-blue-800 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
         <span aria-hidden className="mr-1">

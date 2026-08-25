@@ -10,6 +10,7 @@ import { UserEditForm } from '@/components/admin/user-edit-form';
 import { AdminBackupCodesControl } from '@/components/admin/admin-backup-codes-control';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 export default async function EditUserPage({ params }: { params: Promise<{ id: string }> }) {
@@ -29,13 +30,13 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
             { label: user.name || user.email },
           ])}
         />
-        <h1 className="text-2xl font-bold text-[#111111] mt-1">{user.name}</h1>
-        <p className="text-sm text-gray-500">{user.email}</p>
+        <PageHeader title={user.name} subtitle={user.email} />
       </div>
       <UserEditForm user={user} partners={partners} isSelf={session.sub === user.id} />
-      {isFeatureEnabled('staff_2fa') && (user.role === 'admin' || user.role === 'manager' || user.role === 'leader') && (
-        <AdminBackupCodesControl userId={user.id} />
-      )}
+      {isFeatureEnabled('staff_2fa') &&
+        (user.role === 'admin' || user.role === 'manager' || user.role === 'leader') && (
+          <AdminBackupCodesControl userId={user.id} />
+        )}
     </div>
   );
 }

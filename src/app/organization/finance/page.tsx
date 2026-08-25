@@ -7,6 +7,7 @@ import { OrgFinancePayments } from '@/components/organization/org-finance-paymen
 import { ExportLink } from '@/components/ui';
 import { getOrgFinanceKpis, listOrgPayments } from '@/lib/services/organization/finance';
 
+import { PageHeader } from '@/components/ui/page-header';
 export default async function OrganizationFinancePage({
   searchParams,
 }: {
@@ -31,10 +32,10 @@ export default async function OrganizationFinancePage({
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold text-[#111111]">Финансы</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
-              Платежи и задолженность по {ctx.activeOrgName}
-            </p>
+            <PageHeader
+              title="Финансы"
+              subtitle={<>Платежи и задолженность по {ctx.activeOrgName}</>}
+            />
           </div>
           {/* ФТ-12.2: платежи и задолженность в Excel (лист «Итоги» — KPI). */}
           <ExportLink base="/api/organization/finance/export" params={{ org: ctx.activeOrgId }} />

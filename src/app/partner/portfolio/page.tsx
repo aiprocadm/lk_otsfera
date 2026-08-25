@@ -6,6 +6,7 @@ import { PortfolioSearch } from '@/components/partner/portfolio-search';
 import { PortfolioTable } from '@/components/partner/portfolio-table';
 import { PortfolioCardList } from '@/components/partner/portfolio-card-list';
 
+import { PageHeader } from '@/components/ui/page-header';
 type SearchParams = { search?: string; take?: string; skip?: string };
 
 const DEFAULT_TAKE = 20;
@@ -46,10 +47,14 @@ export default async function PortfolioPage({
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-[#111111]">Портфель</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {total} {total === 1 ? 'организация' : total < 5 ? 'организации' : 'организаций'}
-          </p>
+          <PageHeader
+            title="Портфель"
+            subtitle={
+              <>
+                {total} {total === 1 ? 'организация' : total < 5 ? 'организации' : 'организаций'}
+              </>
+            }
+          />
         </div>
         <PortfolioSearch />
       </div>

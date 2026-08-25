@@ -9,6 +9,7 @@ import { listDirectionOptions } from '@/lib/services/training/directions';
 import { EnrollmentWizard } from '@/components/enrollment/enrollment-wizard';
 import { EnrollmentList } from '@/components/enrollment/enrollment-list';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 export default async function PartnerEnrollmentsPage() {
@@ -21,11 +22,10 @@ export default async function PartnerEnrollmentsPage() {
   ]);
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-semibold text-[#111111]">Заявки на обучение</h1>
-      {/* `У-73`: одна строка «что здесь делают». */}
-      <p className="text-sm text-gray-500 mt-0.5">
-        Списки сотрудников на обучение по вашим клиентам
-      </p>
+      <PageHeader
+        title="Заявки на обучение"
+        subtitle="Списки сотрудников на обучение по вашим клиентам"
+      />
       <EnrollmentWizard directions={directions} organizations={orgs} />
       <EnrollmentList rows={rows} detailHrefBase="/partner/enrollments" />
     </div>

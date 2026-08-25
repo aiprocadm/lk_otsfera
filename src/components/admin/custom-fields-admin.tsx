@@ -43,6 +43,7 @@ import {
 import { FIELD_TYPE_LABELS, requiresOptions } from '@/lib/services/customFields/coerce';
 import type { SystemFieldDescriptor } from '@/lib/services/customFields/systemFields';
 
+import { PageHeader } from '@/components/ui/page-header';
 const FIELD_TYPE_OPTIONS: { value: CustomFieldType; label: string }[] = (
   Object.keys(FIELD_TYPE_LABELS) as CustomFieldType[]
 ).map((value) => ({ value, label: FIELD_TYPE_LABELS[value] }));
@@ -201,11 +202,10 @@ export function CustomFieldsAdmin({
     <div className="space-y-4">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Настраиваемые поля</h1>
-          {/* `У-73`: одна строка «что здесь делают». */}
-          <p className="mt-0.5 text-sm text-gray-500">
-            Свои поля в карточках — появятся в формах и выгрузках
-          </p>
+          <PageHeader
+            title="Настраиваемые поля"
+            subtitle="Свои поля в карточках — появятся в формах и выгрузках"
+          />
         </div>
         <Button onClick={() => setAddOpen(true)}>+ Добавить</Button>
       </div>

@@ -13,6 +13,7 @@ import { PendingRecordsSection } from '@/components/admin/pending-records-sectio
 import type { SessionPayload } from '@/lib/auth/jwt';
 import type { SettingsCabinet } from '@/lib/navigation/settings';
 
+import { PageHeader } from '@/components/ui/page-header';
 /**
  * Вкладка «Автообмен» экрана «Обмен с 1С» — одна на кабинет администратора и
  * кабинет руководителя (`У-118`, закрывает дефект `Д-33`).
@@ -110,20 +111,25 @@ export async function OneCAutoExchange({
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">Автообмен</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          {isAdmin ? (
-            <>
-              Запуск, пауза расписания и перемотка курсора по сущностям. Bulk-retry упавших задач —{' '}
-              <a href="/admin/settings/system/health" className="text-[#F97316] hover:underline">
-                на странице Здоровья
-              </a>
-              .
-            </>
-          ) : (
-            'Состояние обмена по расписанию и ручной запуск, когда данные нужны прямо сейчас.'
-          )}
-        </p>
+        <PageHeader
+          title="Автообмен"
+          subtitle={
+            isAdmin ? (
+              <>
+                {' '}
+                Запуск, пауза расписания и перемотка курсора по сущностям. Bulk-retry упавших задач
+                —{' '}
+                <a href="/admin/settings/system/health" className="text-[#F97316] hover:underline">
+                  {' '}
+                  на странице Здоровья{' '}
+                </a>{' '}
+                .{' '}
+              </>
+            ) : (
+              'Состояние обмена по расписанию и ручной запуск, когда данные нужны прямо сейчас.'
+            )
+          }
+        />
       </div>
 
       <div className="text-sm text-blue-800 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">

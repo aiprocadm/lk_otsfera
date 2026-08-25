@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { getManagerFinanceOverview } from '@/lib/services/manager/finance';
 import { ManagerFinanceView } from '@/components/manager/manager-finance-view';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 export default async function AdminFinancePage() {
@@ -13,8 +14,7 @@ export default async function AdminFinancePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-[#111111]">Финансы</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Оплаты по всем организациям</p>
+        <PageHeader title="Финансы" subtitle="Оплаты по всем организациям" />
       </div>
       <ManagerFinanceView data={data} ordersBasePath="/admin" />
     </div>

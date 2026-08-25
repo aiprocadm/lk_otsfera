@@ -8,6 +8,7 @@ import { ManagerLeadsFilter } from '@/components/manager/manager-leads-filter';
 import { ManagerLeadsTable } from '@/components/manager/manager-leads-table';
 import { LeadCreateStaffForm } from '@/components/manager/lead-create-staff-form';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 type SearchParams = { status?: string; q?: string; assignedToMe?: string; cursor?: string };
@@ -39,11 +40,10 @@ export default async function ManagerLeadsPage({
           телефона (424px против 390px) — на узком экране они идут столбиком. */}
       <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Лиды</h1>
-          {/* `У-73`: одна строка «что здесь делают». */}
-          <p className="text-sm text-gray-500 mt-0.5">
-            Возможные продажи — внутренние карточки, клиент их не видит
-          </p>
+          <PageHeader
+            title="Лиды"
+            subtitle="Возможные продажи — внутренние карточки, клиент их не видит"
+          />
         </div>
         <LeadCreateStaffForm organizations={organizations} />
       </div>

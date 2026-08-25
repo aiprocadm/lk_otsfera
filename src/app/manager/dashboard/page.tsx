@@ -11,6 +11,7 @@ import { ManagerKpiGrid } from '@/components/manager/manager-kpi-grid';
 import { ManagerAttentionList } from '@/components/manager/manager-attention-list';
 import { ManagerEventsFeed } from '@/components/manager/manager-events-feed';
 
+import { PageHeader } from '@/components/ui/page-header';
 export default async function ManagerDashboard() {
   const session = await requireManager();
   // Один свежий рид флага на запрос вместо трёх одинаковых внутри сервисов
@@ -27,11 +28,10 @@ export default async function ManagerDashboard() {
   return (
     <>
       <div className="mb-4">
-        <h1 className="text-2xl font-semibold">Главная</h1>
-        {/* `У-73`: единственный дашборд, у которого не было подзаголовка. */}
-        <p className="text-sm text-gray-500 mt-0.5">
-          Что требует внимания прямо сейчас и с чего начать день
-        </p>
+        <PageHeader
+          title="Главная"
+          subtitle="Что требует внимания прямо сейчас и с чего начать день"
+        />
       </div>
       <div className="space-y-4">
         <QuickTasks tasks={quickTasksFor('manager')} />

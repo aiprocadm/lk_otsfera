@@ -8,6 +8,7 @@ import { SearchForm } from '@/components/search/search-form';
 import { SearchResults } from '@/components/search/search-results';
 import { sectionLabel } from '@/lib/navigation/sectionLabels';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 /**
@@ -32,11 +33,10 @@ export default async function AdminSearchPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">{sectionLabel('search')}</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Единый поиск по заказам, организациям, заявкам, задачам, календарю, документам, слушателям
-          и чату команды.
-        </p>
+        <PageHeader
+          title={sectionLabel('search')}
+          subtitle="Единый поиск по заказам, организациям, заявкам, задачам, календарю, документам, слушателям и чату команды."
+        />
       </div>
       <SearchForm action="/admin/search" initialQuery={q} />
       {result === null ? (

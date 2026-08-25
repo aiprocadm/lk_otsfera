@@ -20,6 +20,7 @@ import { toast } from '@/lib/ui/toast';
 import { errorMessageRu } from '@/lib/errors/messages';
 import type { ScopeLevel, Capability, AccessObjectType } from '@/lib/auth/accessProfile';
 import type { AccessProfileListRow, AssignableUser } from '@/lib/services/access/profiles';
+import { PageHeader } from '@/components/ui/page-header';
 import {
   createAccessProfileAction,
   updateAccessProfileAction,
@@ -93,11 +94,10 @@ export function RoleEditor({ profiles, users }: Props) {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#111111]">Роли доступа</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Настраиваемые профили прав: охват по типам объектов + возможности. Системные роли не
-            меняются.
-          </p>
+          <PageHeader
+            title="Роли доступа"
+            subtitle="Настраиваемые профили прав: охват по типам объектов + возможности. Системные роли не меняются."
+          />
         </div>
         <Button onClick={() => setForm({ mode: 'create' })}>+ Новая роль</Button>
       </div>

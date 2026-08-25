@@ -8,6 +8,7 @@ import { listCompanyManagers } from '@/lib/services/manager/team';
 import { TeamVisibilityToggle } from '@/components/manager/team-visibility-toggle';
 import { ManagerRosterPanel } from '@/components/manager/manager-roster-panel';
 
+import { PageHeader } from '@/components/ui/page-header';
 // «Команда» переехала в кабинет руководителя. Старый адрес остаётся
 // redirect-ом, чтобы закладки/ссылки не ломались. При выключенном
 // leader_cabinet страница работает по-старому — см. git-историю этого файла.
@@ -26,9 +27,7 @@ export default async function ManagerTeamPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold text-[#111111]">Команда</h1>
-      {/* `У-73`: одна строка «что здесь делают». */}
-      <p className="text-sm text-gray-500 mt-0.5">Менеджеры компании и их нагрузка</p>
+      <PageHeader title="Команда" subtitle="Менеджеры компании и их нагрузка" />
       <TeamVisibilityToggle initial={teamMode} />
       <ManagerRosterPanel roster={roster} />
     </div>

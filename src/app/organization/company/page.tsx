@@ -65,7 +65,8 @@ export default async function OrganizationCompanyPage({
   // `У-99`: у заказчика на «Настройках» реквизиты и доступ в кабинет — без
   // ставки комиссии и менеджеров. Право правки решает сервис (`У-62`):
   // участник без прав видит значения, но не форму.
-  const requisites = activeTab === 'settings' ? await getOrgRequisites(prisma, ctx.session, ctx.activeOrgId) : null;
+  const requisites =
+    activeTab === 'settings' ? await getOrgRequisites(prisma, ctx.session, ctx.activeOrgId) : null;
   const canEditRequisites = ctx.viewerRole === 'admin' || ctx.viewerRole === 'leader';
 
   return (

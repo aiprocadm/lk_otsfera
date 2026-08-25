@@ -9,6 +9,7 @@ import { OrgAppShell } from '@/components/organization/org-app-shell';
 import { EnrollmentWizard } from '@/components/enrollment/enrollment-wizard';
 import { EnrollmentList } from '@/components/enrollment/enrollment-list';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 export default async function OrganizationEnrollmentsPage() {
@@ -27,11 +28,10 @@ export default async function OrganizationEnrollmentsPage() {
       viewerRole={ctx.viewerRole}
     >
       <div className="space-y-5">
-        <h1 className="text-2xl font-semibold text-[#111111]">Заявки на обучение</h1>
-        {/* `У-73`: одна строка «что здесь делают». */}
-        <p className="text-sm text-gray-500 mt-0.5">
-          Списки сотрудников, которых вы отправили на обучение
-        </p>
+        <PageHeader
+          title="Заявки на обучение"
+          subtitle="Списки сотрудников, которых вы отправили на обучение"
+        />
         <EnrollmentWizard directions={directions} defaultOrganizationId={ctx.activeOrgId} />
         <EnrollmentList rows={rows} detailHrefBase="/organization/enrollments" />
       </div>

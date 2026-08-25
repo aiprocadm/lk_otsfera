@@ -16,6 +16,7 @@ import { PERSONAL_SETTINGS_SUBTITLE } from '@/lib/navigation/personalSettings';
 import type { SettingsCabinet } from '@/lib/navigation/settings';
 import { isManagerLeader } from '@/lib/auth/roleModel';
 
+import { PageHeader } from '@/components/ui/page-header';
 /**
  * Раздел хаба «Личные настройки» (`У-114`) — общий для админа и руководителя.
  *
@@ -56,8 +57,7 @@ export async function StaffPersonalSettings({
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-[#111111]">Личные настройки</h1>
-      <p className="text-sm text-gray-500">{PERSONAL_SETTINGS_SUBTITLE}</p>
+      <PageHeader title="Личные настройки" subtitle={PERSONAL_SETTINGS_SUBTITLE} />
       <PersonalSettings
         basePath={`/${cabinet}/settings/personal`}
         activeTab={tab}

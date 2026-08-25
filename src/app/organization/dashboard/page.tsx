@@ -17,6 +17,7 @@ import {
 import { QuickTasks } from '@/components/dashboard/quick-tasks';
 import { quickTasksFor } from '@/lib/quickTasks';
 
+import { PageHeader } from '@/components/ui/page-header';
 export default async function OrganizationDashboardPage({
   searchParams,
 }: {
@@ -46,8 +47,7 @@ export default async function OrganizationDashboardPage({
     >
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-semibold text-[#111111]">Главная</h1>
-          <p className="text-sm text-gray-500 mt-1">Обзор по {ctx.activeOrgName}</p>
+          <PageHeader title="Главная" subtitle={<>Обзор по {ctx.activeOrgName}</>} />
         </div>
         {/* `У-71`: постоянный блок вместо одноразового welcome-блока. */}
         <QuickTasks tasks={quickTasksFor('organization')} />

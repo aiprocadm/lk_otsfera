@@ -18,6 +18,7 @@ import type { Crumb } from '@/lib/navigation/breadcrumbs';
 import { Button, Badge, Breadcrumbs } from '@/components/ui';
 import type { DocumentDetail } from '@/lib/services/documents/detail';
 
+import { PageHeader } from '@/components/ui/page-header';
 const TYPE_LABELS: Record<string, string> = {
   contract: 'Договор',
   extra_agreement: 'Доп. соглашение',
@@ -142,11 +143,16 @@ export function DocumentDetailView({
             ← Документы
           </Link>
         )}
-        <h1 className="text-2xl font-bold text-[#111111] mt-1">{doc.name}</h1>
-        <p className="text-sm text-gray-500">
-          {TYPE_LABELS[doc.type] ?? doc.type} · {DIRECTION_LABELS[doc.direction] ?? doc.direction} ·
-          загружен {fmtDate(doc.createdAt)}
-        </p>
+        {/* `У-120`: карточка сущности — подзаголовок из её же данных. */}
+        <PageHeader
+          title={doc.name}
+          subtitle={
+            <>
+              {TYPE_LABELS[doc.type] ?? doc.type} ·{' '}
+              {DIRECTION_LABELS[doc.direction] ?? doc.direction} · загружен {fmtDate(doc.createdAt)}
+            </>
+          }
+        />
       </div>
 
       {infected && (

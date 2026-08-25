@@ -5,6 +5,7 @@ import { peekTokenPurpose } from '@/lib/auth/passwordReset';
 import { ForgotPasswordForm } from '@/components/auth/forgot-password-form';
 import { ResetPasswordForm } from '@/components/auth/reset-password-form';
 
+import { PageHeader } from '@/components/ui/page-header';
 type SearchParams = Promise<{ token?: string }>;
 
 export default async function ResetPasswordPage({ searchParams }: { searchParams: SearchParams }) {
@@ -15,10 +16,10 @@ export default async function ResetPasswordPage({ searchParams }: { searchParams
       <main className="min-h-screen flex items-center justify-center px-4 bg-gray-50">
         <div className="w-full max-w-md bg-white border border-gray-100 rounded-2xl shadow-xl p-8 space-y-5">
           <div>
-            <h1 className="text-2xl font-bold text-[#111111]">Восстановление пароля</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
-              Укажите email вашего аккаунта — мы отправим ссылку для сброса пароля.
-            </p>
+            <PageHeader
+              title="Восстановление пароля"
+              subtitle="Укажите email вашего аккаунта — мы отправим ссылку для сброса пароля."
+            />
           </div>
           <ForgotPasswordForm />
           <Link href="/login" className="inline-block text-sm text-[#F97316] hover:underline">
@@ -38,14 +39,14 @@ export default async function ResetPasswordPage({ searchParams }: { searchParams
     <main className="min-h-screen flex items-center justify-center px-4 bg-gray-50">
       <div className="w-full max-w-md bg-white border border-gray-100 rounded-2xl shadow-xl p-8 space-y-5">
         <div>
-          <h1 className="text-2xl font-bold text-[#111111]">
-            {isInvite ? 'Добро пожаловать!' : 'Установка пароля'}
-          </h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {isInvite
-              ? 'Аккаунт создан для вас — осталось придумать пароль, и можно начинать работу.'
-              : 'Создайте новый пароль для входа в кабинет.'}
-          </p>
+          <PageHeader
+            title={isInvite ? 'Добро пожаловать!' : 'Установка пароля'}
+            subtitle={
+              isInvite
+                ? 'Аккаунт создан для вас — осталось придумать пароль, и можно начинать работу.'
+                : 'Создайте новый пароль для входа в кабинет.'
+            }
+          />
         </div>
         <ResetPasswordForm token={token} />
       </div>

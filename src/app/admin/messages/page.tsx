@@ -8,6 +8,7 @@ import { UnreadBadge } from '@/components/chat/unread-badge';
 import { StaffChatSection } from '@/components/staff-chat/staff-chat-section';
 import { StaffUnreadBadge } from '@/components/staff-chat/staff-unread-badge';
 
+import { PageHeader } from '@/components/ui/page-header';
 export default async function AdminMessagesPage() {
   const session = await requireAdmin();
 
@@ -17,13 +18,10 @@ export default async function AdminMessagesPage() {
 
   return (
     <>
-      <h1 className="text-2xl font-semibold text-[#111111]">
-        Сообщения{chatEnabled && <UnreadBadge />}
-      </h1>
-      {/* `У-73`: одна строка «что здесь делают». */}
-      <p className="mb-4 mt-0.5 text-sm text-gray-500">
-        Переписка по заказам и внутренний чат сотрудников
-      </p>
+      <PageHeader
+        title={<>Сообщения{chatEnabled && <UnreadBadge />}</>}
+        subtitle="Переписка по заказам и внутренний чат сотрудников"
+      />
       {chatEnabled && chat ? (
         <section>
           <h2 className="mb-3 text-lg font-medium text-gray-700">Чат</h2>

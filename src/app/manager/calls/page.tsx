@@ -10,6 +10,7 @@ import { CallsOrgFilter } from '@/components/manager/calls-org-filter';
 import { CallsList } from '@/components/manager/calls-list';
 import { Paginator } from '@/components/ui';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 type SearchParams = {
@@ -53,10 +54,10 @@ export default async function ManagerCallsPage({
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">Звонки</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Журнал звонков телефонии. Запись доступна после проверки антивирусом.
-        </p>
+        <PageHeader
+          title="Звонки"
+          subtitle="Журнал звонков телефонии. Запись доступна после проверки антивирусом."
+        />
       </div>
 
       <CallsFiltersBar direction={direction} orgId={sp.orgId}>

@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db/prisma';
 import { listFeatureFlags } from '@/lib/services/admin/featureFlags';
 import { FeatureFlagsMatrix } from '@/components/admin/feature-flags-matrix';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const metadata: Metadata = { title: 'Флаги функциональности · Настройки' };
 
 export const dynamic = 'force-dynamic';
@@ -19,10 +20,10 @@ export default async function AdminFeatureFlagsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">Функции платформы</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Что включено в системе и кто это менял — здесь же можно включить или выключить.
-        </p>
+        <PageHeader
+          title="Функции платформы"
+          subtitle="Что включено в системе и кто это менял — здесь же можно включить или выключить."
+        />
       </div>
       {res.ok ? (
         <FeatureFlagsMatrix rows={res.rows} />

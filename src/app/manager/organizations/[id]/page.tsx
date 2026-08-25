@@ -55,9 +55,7 @@ export default async function ManagerOrgDetailPage({
   // «Настройки», а не под всеми вкладками сразу — под переключателем не должно
   // висеть ничего постороннего (`У-64`).
   const customFields =
-    activeTab === 'settings'
-      ? await getFieldsForEntity(prisma, session, 'organization', id)
-      : null;
+    activeTab === 'settings' ? await getFieldsForEntity(prisma, session, 'organization', id) : null;
   // `У-54`: клиента мог завести импорт выписки — менеджеру это видно сразу.
   const autoCreated = await getAutoCreatedFrom1C(prisma, id);
 

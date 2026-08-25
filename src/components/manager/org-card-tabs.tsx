@@ -11,6 +11,7 @@ import { orgCardTiles } from '@/lib/navigation/orgCardTiles';
 import type { OrgCardTabKey } from '@/lib/navigation/orgCardTabs';
 import type { OrganizationCard } from '@/lib/services/manager/organizationCard';
 
+import { PageHeader } from '@/components/ui/page-header';
 /**
  * G4 — презентация CRM-карточки организации. Табы через query-param (?tab=) —
  * серверный рендер, без клиентского JS. manager-специфичный компонент (лидер
@@ -77,12 +78,10 @@ export function OrgCardTabs({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">{card.name}</h1>
-        {/* §15 «что здесь делают»: одна строка простыми словами. Без неё
-            карточка отвечала только на «где я» — заголовком с названием. */}
-        <p className="text-sm text-gray-500 mt-1">
-          Всё об организации в одном месте: сотрудники, заказы, документы и настройки.
-        </p>
+        <PageHeader
+          title={card.name}
+          subtitle="Всё об организации в одном месте: сотрудники, заказы, документы и настройки."
+        />
         {card.partner && <p className="text-sm text-gray-500 mt-1">Партнёр: {card.partner.name}</p>}
       </div>
 
@@ -225,9 +224,7 @@ function EnrollmentsSection({ enrollments }: { enrollments: OrganizationCard['en
             <Td className="font-medium">{e.courseTitle ?? 'Без названия'}</Td>
             <Td>{e.studentsCount}</Td>
             <Td>
-              <Badge tone="neutral">
-                {enrollmentStatusLabel(e.status as EnrollmentStatus)}
-              </Badge>
+              <Badge tone="neutral">{enrollmentStatusLabel(e.status as EnrollmentStatus)}</Badge>
             </Td>
             <Td>{dateRu(e.createdAt)}</Td>
           </Tr>
@@ -425,8 +422,7 @@ function CertificatesSection({
 }
 
 function CommentsSection({ activity }: { activity: OrganizationCard['activity'] }) {
-  if (activity.length === 0)
-    return <EmptyState message="Комментариев по заказам пока нет." />;
+  if (activity.length === 0) return <EmptyState message="Комментариев по заказам пока нет." />;
   return (
     <ul className="space-y-2">
       {activity.map((c) => (

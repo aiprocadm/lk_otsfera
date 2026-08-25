@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db/prisma';
 import { DocumentsList } from '@/components/partner/documents-list';
 import { DocumentsPanel } from '@/components/documents/documents-panel';
 import { listGeneralDocuments } from '@/lib/services/documents/generalList';
+import { PageHeader } from '@/components/ui/page-header';
 
 type SearchParams = { tab?: string };
 
@@ -49,11 +50,10 @@ export default async function AdminDocumentsPage({
 
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-semibold text-[#111111]">Документы</h1>
-        {/* `У-73`: одна строка «что здесь делают». */}
-        <p className="text-sm text-gray-500 mt-0.5">
-          Договоры, счета и акты по всем клиентам платформы
-        </p>
+        <PageHeader
+          title="Документы"
+          subtitle="Договоры, счета и акты по всем клиентам платформы"
+        />
         <TabChips activeTab="general" />
         <DocumentsList
           rows={documentRows}
@@ -67,14 +67,14 @@ export default async function AdminDocumentsPage({
   return (
     <div className="space-y-4">
       {/* Вкладка «По заказам» открывается по умолчанию — и до 21.08.2026 несла
-          английский заголовок без подзаголовка: `У-73` закрывали по вкладке
-          «Общие», а сторож по исходникам нашёл подзаголовок у первого `<h1>`
-          в файле и на второй уже не смотрел. */}
-      <h1 className="text-2xl font-semibold text-[#111111]">Документы</h1>
-      {/* `У-73`: одна строка «что здесь делают». */}
-      <p className="text-sm text-gray-500 mt-0.5">
-        Договоры, счета и акты, привязанные к заказам клиентов
-      </p>
+          английский заголовок без подзаголовка: сторож искал подзаголовок у
+          ПЕРВОГО `<h1>` файла и на вторую ветку уже не смотрел. `У-120` это
+          чинит: теперь шапку рисует общий компонент, а сторож проверяет
+          каждое его появление. */}
+      <PageHeader
+        title="Документы"
+        subtitle="Договоры, счета и акты, привязанные к заказам клиентов"
+      />
       <TabChips activeTab="orders" />
       <DocumentsPanel />
     </div>

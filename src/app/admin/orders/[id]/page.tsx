@@ -22,6 +22,7 @@ import { loadOrderDeal } from '@/lib/services/manager/orderDetail';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { DocumentsPanel } from '@/components/documents/documents-panel';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 function fmtMoney(amount: { toNumber(): number } | number | null | undefined): string {
@@ -62,8 +63,7 @@ export default async function AdminOrderDetailPage({
             { label: `Заказ № ${order.orderNumber}` },
           ])}
         />
-        <h1 className="text-2xl font-bold text-[#111111] mt-1">Заказ № {order.orderNumber}</h1>
-        <p className="text-sm text-gray-500 mt-0.5">{order.title}</p>
+        <PageHeader title={<>Заказ № {order.orderNumber}</>} subtitle={order.title} />
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl p-4">

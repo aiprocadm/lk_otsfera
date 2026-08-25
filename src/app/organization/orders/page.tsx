@@ -9,6 +9,7 @@ import { listOrgOrders } from '@/lib/services/organization/orders';
 import { pluralizeRu } from '@/lib/format';
 import { Paginator } from '@/components/ui';
 
+import { PageHeader } from '@/components/ui/page-header';
 type SearchParams = {
   org?: string;
   search?: string;
@@ -76,10 +77,14 @@ export default async function OrganizationOrdersPage({
     >
       <div className="space-y-4">
         <div>
-          <h1 className="text-2xl font-semibold text-[#111111]">Заказы</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {total} {pluralizeRu(total, 'заказ', 'заказа', 'заказов')} · {ctx.activeOrgName}
-          </p>
+          <PageHeader
+            title="Заказы"
+            subtitle={
+              <>
+                {total} {pluralizeRu(total, 'заказ', 'заказа', 'заказов')} · {ctx.activeOrgName}
+              </>
+            }
+          />
         </div>
 
         <OrgOrdersFilter />

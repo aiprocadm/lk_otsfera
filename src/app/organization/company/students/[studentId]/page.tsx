@@ -18,6 +18,7 @@ import { getFieldsForEntity } from '@/lib/services/customFields';
 import { buildOrgEmployeeBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import { Breadcrumbs } from '@/components/ui';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 // Ключ — enum TrainingStatus целиком: карта тотальна, поэтому обращение по
@@ -84,12 +85,10 @@ export default async function OrganizationCompanyStudentPage({
             })}
           />
           <div className="bg-white border border-gray-200 rounded-xl p-6 mt-2 space-y-1">
-            <h1 className="text-2xl font-semibold text-[#111111]">{student.name}</h1>
-            {/* §15 «что здесь делают» — та же строка, что на карточке
-                сотрудника у учебного центра и партнёра (§0.2). */}
-            <p className="text-sm text-gray-500">
-              Сотрудник организации: его обучают, ему выдают удостоверения.
-            </p>
+            <PageHeader
+              title={student.name}
+              subtitle="Сотрудник организации: его обучают, ему выдают удостоверения."
+            />
             <p className="text-sm text-gray-500">{student.email ?? 'Почта не указана'}</p>
             <p className="text-gray-400 text-xs mt-1">
               {student.externalStudentId && <>ID студента {student.externalStudentId} · </>}

@@ -7,6 +7,7 @@ import { listIntake } from '@/lib/services/intake/list';
 import { IntakeTable } from '@/components/intake/intake-table';
 import { Paginator } from '@/components/ui';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 const TAKE = 50;
@@ -30,10 +31,10 @@ export default async function ManagerIntakePage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">Входящие в работу</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Всё неразобранное в одном месте: заявки, обращения и звонки. Самое залежавшееся — сверху.
-        </p>
+        <PageHeader
+          title="Входящие в работу"
+          subtitle="Всё неразобранное в одном месте: заявки, обращения и звонки. Самое залежавшееся — сверху."
+        />
       </div>
       <IntakeTable items={res.result.items} viewerPrefix="/manager" currentUserId={session.sub} />
       <Paginator

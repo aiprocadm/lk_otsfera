@@ -24,11 +24,13 @@ export default async function PartnerEnrollmentDetailPage({
   // canSee-чек (§4): getEnrollmentRequest скоупит по сессии — чужая заявка = not_found.
   const r = await getEnrollmentRequest(prisma, session, id);
   if (!r.ok) notFound();
-  return <EnrollmentDetailView
+  return (
+    <EnrollmentDetailView
       detail={r.request}
       backHref="/partner/enrollments"
       breadcrumbs={buildCabinetBreadcrumbs('partner', '/partner/enrollments', [
         { label: enrollmentTitle(r.request) },
       ])}
-    />;
+    />
+  );
 }

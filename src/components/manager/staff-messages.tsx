@@ -11,6 +11,7 @@ import { StaffUnreadBadge } from '@/components/staff-chat/staff-unread-badge';
 import { sectionLabel } from '@/lib/navigation/sectionLabels';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
+import { PageHeader } from '@/components/ui/page-header';
 /**
  * Экран «Сообщения» сотрудников ЦО — один на кабинет менеджера и кабинет
  * руководителя (`У-110`).
@@ -47,12 +48,14 @@ export async function StaffMessages({
 
   return (
     <>
-      <h1 className="mb-4 text-2xl font-semibold text-[#111111]">
-        {sectionLabel('messages')}
-        {chatEnabled && <UnreadBadge />}
-      </h1>
-      {/* `У-73`: одна строка «что здесь делают». */}
-      <p className="text-sm text-gray-500 mt-0.5">Переписка с клиентами по заказам</p>
+      <PageHeader
+        title={
+          <>
+            {sectionLabel('messages')} {chatEnabled && <UnreadBadge />}
+          </>
+        }
+        subtitle="Переписка с клиентами по заказам"
+      />
       <h2 className="mb-3 text-lg font-medium text-gray-700">Комментарии к заказам</h2>
       <ManagerMessagesInbox rows={rows} nextCursor={nextCursor} />
       {chatEnabled && chat && (

@@ -9,6 +9,7 @@ import { IntakeTable } from '@/components/intake/intake-table';
 import { IntakeFilters } from '@/components/intake/intake-filters';
 import { Paginator } from '@/components/ui';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 const TAKE = 50;
@@ -40,8 +41,7 @@ export default async function AdminIntakePage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">Входящие в работу</h1>
-        <p className="text-sm text-gray-500 mt-1">Неразобранные единицы по всей платформе.</p>
+        <PageHeader title="Входящие в работу" subtitle="Неразобранные единицы по всей платформе." />
       </div>
       <IntakeFilters managers={staff} assigneeId={assigneeId} onlyUnassigned={onlyUnassigned} />
       <IntakeTable items={res.result.items} viewerPrefix="/admin" currentUserId={session.sub} />

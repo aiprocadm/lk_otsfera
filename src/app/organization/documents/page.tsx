@@ -12,6 +12,7 @@ import { OrganizationOrderLessUploadForm } from '@/components/organization/organ
 import { Paginator } from '@/components/ui';
 import { pluralizeRu } from '@/lib/format';
 
+import { PageHeader } from '@/components/ui/page-header';
 type SearchParams = {
   org?: string;
   tab?: string;
@@ -99,11 +100,15 @@ export default async function OrganizationDocumentsPage({
       <div className="space-y-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold text-[#111111]">Документы</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
-              {total} {pluralizeRu(total, 'документ', 'документа', 'документов')}
-              {sp.search && <span className="text-gray-400"> · по запросу «{sp.search}»</span>}
-            </p>
+            <PageHeader
+              title="Документы"
+              subtitle={
+                <>
+                  {total} {pluralizeRu(total, 'документ', 'документа', 'документов')}{' '}
+                  {sp.search && <span className="text-gray-400"> · по запросу «{sp.search}»</span>}
+                </>
+              }
+            />
           </div>
           <OrgDocumentsSearch />
         </div>

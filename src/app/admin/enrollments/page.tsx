@@ -8,6 +8,7 @@ import { listDirectionOptions } from '@/lib/services/training/directions';
 import { EnrollmentQueue } from '@/components/enrollment/enrollment-queue';
 import { EnrollmentWizard } from '@/components/enrollment/enrollment-wizard';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 export default async function AdminEnrollmentsPage() {
@@ -19,9 +20,7 @@ export default async function AdminEnrollmentsPage() {
   ]);
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-semibold text-[#111111]">Заявки на обучение</h1>
-      {/* `У-73`: одна строка «что здесь делают». */}
-      <p className="text-sm text-gray-500 mt-0.5">Заявки на обучение от всех клиентов</p>
+      <PageHeader title="Заявки на обучение" subtitle="Заявки на обучение от всех клиентов" />
       <EnrollmentQueue rows={rows} />
       <EnrollmentWizard directions={directions} />
     </div>

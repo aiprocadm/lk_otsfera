@@ -9,6 +9,7 @@ import { ManagerOrdersCardList } from '@/components/manager/manager-orders-card-
 import { ExportLink } from '@/components/ui';
 import { getOrderedStatuses } from '@/lib/services/orderStatuses';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 type SearchParams = {
@@ -45,8 +46,7 @@ export default async function LeaderOrdersPage({
     <>
       <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-[#111111]">Заказы</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Все заказы компании</p>
+          <PageHeader title="Заказы" subtitle="Все заказы компании" />
         </div>
         {/* ФТ-12.2: `scope=company` повторяет company-wide режим экрана лидера. */}
         <ExportLink

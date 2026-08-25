@@ -9,6 +9,7 @@ import type { OrgDocumentRow } from '@/lib/services/partner/orgDocuments';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { sectionLabel } from '@/lib/navigation/sectionLabels';
 
+import { PageHeader } from '@/components/ui/page-header';
 /**
  * Экран «Документы» сотрудников ЦО — один компонент на кабинет менеджера и
  * кабинет руководителя (`У-110`, решение `Р-23`).
@@ -74,9 +75,10 @@ function TabChips({
 function Header() {
   return (
     <>
-      <h1 className="text-2xl font-semibold text-[#111111]">{sectionLabel('documents')}</h1>
-      {/* `У-73`: одна строка «что здесь делают». */}
-      <p className="text-sm text-gray-500 mt-0.5">Договоры, счета и акты по вашим клиентам</p>
+      <PageHeader
+        title={sectionLabel('documents')}
+        subtitle="Договоры, счета и акты по вашим клиентам"
+      />
     </>
   );
 }

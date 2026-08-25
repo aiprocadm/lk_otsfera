@@ -12,6 +12,7 @@ import { RetryAllButton } from '@/components/admin/retry-all-button';
 import { AlertsSection } from '@/components/admin/alerts-section';
 import { SyncErrorsSection } from '@/components/admin/sync-errors-section';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const metadata: Metadata = { title: 'Здоровье системы · Настройки' };
 
 export const dynamic = 'force-dynamic';
@@ -62,11 +63,10 @@ export default async function AdminHealthPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">Здоровье системы</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Свежесть синхронизации с 1С, глубина BullMQ очередей и список упавших задач, алерты и
-          последние ошибки синхронизации.
-        </p>
+        <PageHeader
+          title="Здоровье системы"
+          subtitle="Свежесть синхронизации с 1С, глубина BullMQ очередей и список упавших задач, алерты и последние ошибки синхронизации."
+        />
       </div>
 
       {/* Алерты первыми: firing — самый высокосигнальный блок страницы */}

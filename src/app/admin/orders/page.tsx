@@ -8,6 +8,7 @@ import { ManagerOrdersTable } from '@/components/manager/manager-orders-table';
 import { ManagerOrdersCardList } from '@/components/manager/manager-orders-card-list';
 import { sectionLabel } from '@/lib/navigation/sectionLabels';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 type SearchParams = {
@@ -52,9 +53,7 @@ export default async function AdminOrdersPage({
   return (
     <>
       <div className="mb-4">
-        <h1 className="text-2xl font-semibold text-[#111111]">{sectionLabel('orders')}</h1>
-        {/* `У-73`: одна строка «что здесь делают». */}
-        <p className="text-sm text-gray-500 mt-0.5">Заказы всех компаний в одном списке</p>
+        <PageHeader title={sectionLabel('orders')} subtitle="Заказы всех компаний в одном списке" />
       </div>
       <ManagerOrdersFilter
         companies={companies}

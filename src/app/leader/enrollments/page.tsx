@@ -6,6 +6,7 @@ import { isFeatureEnabled } from '@/lib/featureFlags';
 import { listEnrollmentRequests } from '@/lib/services/enrollments/list';
 import { EnrollmentQueue } from '@/components/enrollment/enrollment-queue';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 export default async function LeaderEnrollmentsPage() {
@@ -14,9 +15,7 @@ export default async function LeaderEnrollmentsPage() {
   const { rows } = await listEnrollmentRequests(prisma, session, {});
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-semibold text-[#111111]">Заявки на обучение</h1>
-      {/* `У-73`: одна строка «что здесь делают». */}
-      <p className="text-sm text-gray-500 mt-0.5">Заявки на обучение по всей компании</p>
+      <PageHeader title="Заявки на обучение" subtitle="Заявки на обучение по всей компании" />
       <EnrollmentQueue rows={rows} />
     </div>
   );

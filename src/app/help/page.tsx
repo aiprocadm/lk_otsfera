@@ -4,6 +4,7 @@ import { requireSession } from '@/lib/auth/requireRole';
 import { BackLink } from '@/components/ui';
 import { GLOSSARY } from '@/lib/help/glossary';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const metadata: Metadata = { title: 'Справка · Словарь терминов' };
 
 /**
@@ -24,10 +25,10 @@ export default async function HelpPage() {
             middleware уводит его в кабинет по роли. */}
         <BackLink href="/dashboard" label="Вернуться в кабинет" />
         <div>
-          <h1 className="text-2xl font-bold text-[#111111]">Справка</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Что означают слова, которыми говорит кабинет, — простыми словами и без сокращений.
-          </p>
+          <PageHeader
+            title="Справка"
+            subtitle="Что означают слова, которыми говорит кабинет, — простыми словами и без сокращений."
+          />
         </div>
 
         {GLOSSARY.map((section) => (

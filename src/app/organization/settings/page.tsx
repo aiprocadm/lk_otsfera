@@ -11,6 +11,7 @@ import { PersonalSettings } from '@/components/settings/personal-settings';
 import { readPersonalSettingsTab } from '@/lib/navigation/personalSettingsTab';
 import { PERSONAL_SETTINGS_SUBTITLE } from '@/lib/navigation/personalSettings';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 /**
@@ -43,8 +44,7 @@ export default async function OrganizationSettingsPage({
       viewerRole={ctx.viewerRole}
     >
       <div className="space-y-4">
-        <h1 className="text-2xl font-semibold text-[#111111]">Настройки</h1>
-        <p className="text-sm text-gray-500">{PERSONAL_SETTINGS_SUBTITLE}</p>
+        <PageHeader title="Настройки" subtitle={PERSONAL_SETTINGS_SUBTITLE} />
         <PersonalSettings
           basePath="/organization/settings"
           activeTab={tab}

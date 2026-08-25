@@ -15,6 +15,7 @@ import { Breadcrumbs } from '@/components/ui';
 import { buildLeadBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import { fmtDate, fmtMoney } from '@/lib/format';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 export default async function ManagerLeadDetailPage({
@@ -89,11 +90,17 @@ export default async function ManagerLeadDetailPage({
         <Link href="/manager/leads" className="text-sm text-gray-500 hover:text-[#F97316]">
           ← Все заявки
         </Link>
-        <div className="mt-1 flex items-center gap-3">
-          <h1 className="text-2xl font-semibold text-[#111111]">{lead.clientCompanyName}</h1>
-          <LeadStatusBadge status={lead.status} />
-        </div>
-        <p className="text-sm text-gray-600 mt-0.5">{lead.subject}</p>
+        {/* `У-120`: карточка сущности — подзаголовок берётся из её данных
+            (тема обращения), а не выдумывается. */}
+        <PageHeader
+          title={
+            <span className="inline-flex items-center gap-3">
+              {lead.clientCompanyName}
+              <LeadStatusBadge status={lead.status} />
+            </span>
+          }
+          subtitle={lead.subject}
+        />
       </div>
 
       <div className="rounded-xl border border-gray-200 p-4">

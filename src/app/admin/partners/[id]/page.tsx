@@ -15,6 +15,7 @@ import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fie
 import { getFieldsForEntity } from '@/lib/services/customFields';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 
+import { PageHeader } from '@/components/ui/page-header';
 const fmtRate = new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 2 });
 
 export const dynamic = 'force-dynamic';
@@ -40,8 +41,7 @@ export default async function EditPartnerPage({ params }: { params: Promise<{ id
         <Breadcrumbs
           items={buildCabinetBreadcrumbs('admin', '/admin/partners', [{ label: partner.name }])}
         />
-        <h1 className="text-2xl font-bold text-[#111111] mt-1">Партнёр: {partner.name}</h1>
-        <p className="text-sm text-gray-500">slug: {partner.slug}</p>
+        <PageHeader title={<>Партнёр: {partner.name}</>} subtitle={<>slug: {partner.slug}</>} />
       </div>
 
       <PartnerEditForm partner={partner} />

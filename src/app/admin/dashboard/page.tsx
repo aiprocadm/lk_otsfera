@@ -9,6 +9,7 @@ import { QuickTasks } from '@/components/dashboard/quick-tasks';
 import { quickTasksFor } from '@/lib/quickTasks';
 import { fmtDateTime } from '@/lib/format';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 export default async function AdminDashboardPage() {
@@ -23,8 +24,7 @@ export default async function AdminDashboardPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">Главная</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Обзор платформы</p>
+        <PageHeader title="Главная" subtitle="Обзор платформы" />
       </div>
 
       <QuickTasks tasks={quickTasksFor('admin')} />

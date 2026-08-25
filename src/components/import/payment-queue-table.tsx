@@ -211,76 +211,76 @@ export function PaymentQueueTable({
       )}
 
       {!grouped && (
-      <CardList>
-        {visible.map((r) => (
-          <Card key={r.id} title={`${r.externalId}${r.isRefund ? ' (возврат)' : ''}`}>
-            <CardRow label="Дата">{new Date(r.paidAt).toLocaleDateString('ru-RU')}</CardRow>
-            <CardRow label="Сумма">{r.amount}</CardRow>
-            <CardRow label="Контрагент">
-              {r.counterpartyName ?? '—'}
-              {r.counterpartyInn ? ` (ИНН ${r.counterpartyInn})` : ''}
-            </CardRow>
-            <CardRow label="№ счёта (кандидаты)">{r.accountCandidates.join(', ') || '—'}</CardRow>
-            <CardRow label="Предложение">{r.candidateOrgName ?? '—'}</CardRow>
-            <div className="pt-2 text-xs">{rowActions(r)}</div>
-          </Card>
-        ))}
-      </CardList>
+        <CardList>
+          {visible.map((r) => (
+            <Card key={r.id} title={`${r.externalId}${r.isRefund ? ' (возврат)' : ''}`}>
+              <CardRow label="Дата">{new Date(r.paidAt).toLocaleDateString('ru-RU')}</CardRow>
+              <CardRow label="Сумма">{r.amount}</CardRow>
+              <CardRow label="Контрагент">
+                {r.counterpartyName ?? '—'}
+                {r.counterpartyInn ? ` (ИНН ${r.counterpartyInn})` : ''}
+              </CardRow>
+              <CardRow label="№ счёта (кандидаты)">{r.accountCandidates.join(', ') || '—'}</CardRow>
+              <CardRow label="Предложение">{r.candidateOrgName ?? '—'}</CardRow>
+              <div className="pt-2 text-xs">{rowActions(r)}</div>
+            </Card>
+          ))}
+        </CardList>
       )}
 
       {!grouped && (
-      <div className="hidden md:block overflow-x-auto">
-        <table className="w-full text-xs border border-gray-200 rounded">
-          <thead className="bg-gray-50 text-gray-600">
-            <tr>
-              <th scope="col" className="text-left px-3 py-2 font-medium">
-                Документ
-              </th>
-              <th scope="col" className="text-left px-3 py-2 font-medium">
-                Дата
-              </th>
-              <th scope="col" className="text-left px-3 py-2 font-medium">
-                Сумма
-              </th>
-              <th scope="col" className="text-left px-3 py-2 font-medium">
-                Контрагент
-              </th>
-              <th scope="col" className="text-left px-3 py-2 font-medium">
-                № счёта (кандидаты)
-              </th>
-              <th scope="col" className="text-left px-3 py-2 font-medium">
-                Предложение
-              </th>
-              <th scope="col" className="text-left px-3 py-2 font-medium">
-                Действия
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {visible.map((r) => (
-              <tr key={r.id} className="border-t border-gray-100">
-                <td className="px-3 py-1.5 text-gray-700">
-                  {r.externalId}
-                  {r.isRefund ? ' (возврат)' : ''}
-                </td>
-                <td className="px-3 py-1.5 text-gray-700">
-                  {new Date(r.paidAt).toLocaleDateString('ru-RU')}
-                </td>
-                <td className="px-3 py-1.5 text-gray-700">{r.amount}</td>
-                <td className="px-3 py-1.5 text-gray-700">
-                  {r.counterpartyName ?? '—'}
-                  {r.counterpartyInn ? ` (ИНН ${r.counterpartyInn})` : ''}
-                </td>
-                <td className="px-3 py-1.5 text-gray-700">
-                  {r.accountCandidates.join(', ') || '—'}
-                </td>
-                <td className="px-3 py-1.5 text-gray-700">{r.candidateOrgName ?? '—'}</td>
-                <td className="px-3 py-1.5">{rowActions(r)}</td>
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-xs border border-gray-200 rounded">
+            <thead className="bg-gray-50 text-gray-600">
+              <tr>
+                <th scope="col" className="text-left px-3 py-2 font-medium">
+                  Документ
+                </th>
+                <th scope="col" className="text-left px-3 py-2 font-medium">
+                  Дата
+                </th>
+                <th scope="col" className="text-left px-3 py-2 font-medium">
+                  Сумма
+                </th>
+                <th scope="col" className="text-left px-3 py-2 font-medium">
+                  Контрагент
+                </th>
+                <th scope="col" className="text-left px-3 py-2 font-medium">
+                  № счёта (кандидаты)
+                </th>
+                <th scope="col" className="text-left px-3 py-2 font-medium">
+                  Предложение
+                </th>
+                <th scope="col" className="text-left px-3 py-2 font-medium">
+                  Действия
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {visible.map((r) => (
+                <tr key={r.id} className="border-t border-gray-100">
+                  <td className="px-3 py-1.5 text-gray-700">
+                    {r.externalId}
+                    {r.isRefund ? ' (возврат)' : ''}
+                  </td>
+                  <td className="px-3 py-1.5 text-gray-700">
+                    {new Date(r.paidAt).toLocaleDateString('ru-RU')}
+                  </td>
+                  <td className="px-3 py-1.5 text-gray-700">{r.amount}</td>
+                  <td className="px-3 py-1.5 text-gray-700">
+                    {r.counterpartyName ?? '—'}
+                    {r.counterpartyInn ? ` (ИНН ${r.counterpartyInn})` : ''}
+                  </td>
+                  <td className="px-3 py-1.5 text-gray-700">
+                    {r.accountCandidates.join(', ') || '—'}
+                  </td>
+                  <td className="px-3 py-1.5 text-gray-700">{r.candidateOrgName ?? '—'}</td>
+                  <td className="px-3 py-1.5">{rowActions(r)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       <Paginator
@@ -419,8 +419,8 @@ function BulkCreateOrgsDialog({
       ) : candidates.length === 0 ? (
         <div className="space-y-3 text-sm text-gray-700">
           <p data-testid="bulk-empty">
-            Создавать нечего: в очереди нет контрагентов, для которых организации ещё нет.
-            Такие строки привязывают кнопкой «Привязать».
+            Создавать нечего: в очереди нет контрагентов, для которых организации ещё нет. Такие
+            строки привязывают кнопкой «Привязать».
           </p>
           <div className="flex justify-end">
             <Button variant="secondary" onClick={onClose}>
