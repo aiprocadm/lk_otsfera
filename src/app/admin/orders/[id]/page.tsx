@@ -20,6 +20,7 @@ import { OrderCustomFields } from '@/components/orders/order-custom-fields';
 import { OrderDealPanel } from '@/components/orders/order-deal-panel';
 import { loadOrderDeal } from '@/lib/services/manager/orderDetail';
 import { isFeatureEnabled } from '@/lib/featureFlags';
+import { DocumentsPanel } from '@/components/documents/documents-panel';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,11 +55,10 @@ export default async function AdminOrderDetailPage({
   return (
     <div className="space-y-5">
       <div>
-        {/* `У-72`. Раздела заказов в меню админа нет намеренно (`/admin/orders`
-            — deprecated-redirect, реальна только эта деталь), поэтому крошка
-            ведёт на «Главную» — туда же, куда вела прежняя ссылка «назад». */}
+        {/* `У-112`: список заказов у админа появился — крошка ведёт в него,
+            а не на «Главную», как было при deprecated-редиректе. */}
         <Breadcrumbs
-          items={buildCabinetBreadcrumbs('admin', '/admin/dashboard', [
+          items={buildCabinetBreadcrumbs('admin', '/admin/orders', [
             { label: `Заказ № ${order.orderNumber}` },
           ])}
         />
@@ -131,6 +131,11 @@ export default async function AdminOrderDetailPage({
       {/* Зеркала сделок в /admin/* нет (Model A), поэтому панель справочная:
           ни доски, ни карточки лида админу отсюда не предлагаем. */}
       {deal && <OrderDealPanel deal={deal} dealsHref={null} leadHrefBase={null} />}
+
+      {/* `У-112`: тот же состав блоков, что у менеджера. Панель генерации
+          документов придёт этапом 6 (`У-144`) — здесь пока список и загрузка,
+          причём номер заказа панель берёт сама, а не спрашивает у человека. */}
+      <DocumentsPanel orderId={order.id} />
 
       <OrderCustomFields fields={customFields} orderId={order.id} editable={true} />
 

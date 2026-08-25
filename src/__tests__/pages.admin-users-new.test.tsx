@@ -12,6 +12,10 @@ const { listActivePartnerOptions } = vi.hoisted(() => ({ listActivePartnerOption
 vi.mock('@/lib/services/admin/partners', () => ({ listActivePartnerOptions }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
+// `У-119`: экран берёт список компаний для фильтра/формы — сервис стабим.
+const { listCompanyOptions } = vi.hoisted(() => ({ listCompanyOptions: vi.fn(async () => []) }));
+vi.mock('@/lib/services/admin/orders', () => ({ listCompanyOptions }));
+
 vi.mock('@/components/admin/user-invite-form', () => ({
   UserInviteForm: (props: { partners: unknown[] }) =>
     React.createElement(

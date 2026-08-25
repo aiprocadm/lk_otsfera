@@ -40,6 +40,8 @@ export type UserFilters = {
   q?: string | undefined;
   partnerId?: string | undefined;
   organizationId?: string | undefined;
+  /** `У-119` (дефект `Д-34`): сотрудники одной компании-продавца. */
+  companyId?: string | undefined;
   take?: number | undefined;
   skip?: number | undefined;
 };
@@ -138,6 +140,7 @@ export async function listUsers(
   if (filters.role) where.role = filters.role;
   if (filters.active !== undefined) where.isActive = filters.active;
   if (filters.partnerId) where.partnerId = filters.partnerId;
+  if (filters.companyId) where.companyId = filters.companyId;
 
   const qOrClauses = filters.q
     ? [

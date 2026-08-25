@@ -57,6 +57,7 @@ const RU: Record<string, string> = {
   period_overlap: 'Период пересекается с существующей ведомостью.',
   duplicate_slug: 'Партнёр с таким URL-идентификатором уже существует.',
   duplicate_email: 'Пользователь с такой почтой уже существует.',
+  company_required: 'Выберите компанию — без неё сотрудник не увидит ни одного раздела.',
   admin_role_via_ui: 'Роль администратора не выдаётся через интерфейс.',
   role_transition_forbidden: 'Такой переход роли запрещён.',
   // Task 11 — омниканальный инбокс (bindInboundMessageAction/replyInboundAction)

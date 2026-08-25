@@ -7,7 +7,8 @@ export type AdminUserErrorCode =
   | 'duplicate_email'
   | 'member_limit_reached'
   | 'role_transition_forbidden'
-  | 'not_staff';
+  | 'not_staff'
+  | 'company_required';
 
 export class AdminUserError extends Error {
   readonly code: AdminUserErrorCode;

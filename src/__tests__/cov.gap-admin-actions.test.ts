@@ -134,11 +134,11 @@ describe('updateUserAction — необязательные поля доезж�
   });
 });
 
-describe('createUserAction — ключ partnerId уходит в сервис всегда', () => {
-  // Инвариант, на который опирается v8-ignore в users.ts: форма читается через
-  // readField() + `|| null`, поэтому partnerId — это строка или null, но НИКОГДА
-  // не undefined; ветка «ключа нет» недостижима.
-  it('без partnerId в форме сервис получает partnerId: null', async () => {
+describe('createUserAction — ключи partnerId и companyId уходят в сервис всегда', () => {
+  // Инвариант, на который опирается v8-ignore в users.ts: оба поля читаются
+  // через readField() + `|| null`, поэтому это строка или null, но НИКОГДА не
+  // undefined; ветка «ключа нет» недостижима.
+  it('без partnerId и companyId в форме сервис получает null', async () => {
     createUser.mockResolvedValue({
       ok: true,
       user: { id: 'u-4', email: 'a@t.local' },
@@ -149,7 +149,15 @@ describe('createUserAction — ключ partnerId уходит в сервис �
 
     const args = createUser.mock.calls[0][2];
     expect(args).toHaveProperty('partnerId', null);
-    expect(Object.keys(args).sort()).toEqual(['email', 'name', 'partnerId', 'role']);
+    // `У-119`: компания сотрудника ЦО едет тем же путём.
+    expect(args).toHaveProperty('companyId', null);
+    expect(Object.keys(args).sort()).toEqual([
+      'companyId',
+      'email',
+      'name',
+      'partnerId',
+      'role',
+    ]);
   });
 });
 

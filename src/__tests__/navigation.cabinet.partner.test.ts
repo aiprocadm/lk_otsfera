@@ -52,6 +52,8 @@ describe('navItemsFor (feature-flag filter)', () => {
     process.env.FEATURE_ROLE_CONSTRUCTOR = '1';
     process.env.FEATURE_CLIENT_REQUESTS = '1';
     process.env.FEATURE_INTAKE_INBOX = '1';
+    // `У-112`: «Поиск» появился и у админа — под тем же флагом, что у менеджера.
+    process.env.FEATURE_GLOBAL_SEARCH = '1';
     const items = navItemsFor('admin');
     expect(items.length).toBe(navByRole.admin.length);
   });
@@ -175,7 +177,7 @@ describe('navByRole — Финансы (manager + admin)', () => {
   });
 });
 
-describe('navByRole.admin — русский канон с группами (все 24 страницы)', () => {
+describe('navByRole.admin — русский канон с группами', () => {
   it('содержит все админские страницы, включая ранее потерянные documents/messages/finance + корректировки комиссии + заявки на обучение + настройки', () => {
     const hrefs = navByRole.admin.map((i) => i.href);
     for (const lost of [
@@ -197,7 +199,11 @@ describe('navByRole.admin — русский канон с группами (в�
     expect(hrefs).toContain('/admin/pii-access');
     // `У-76` (этап 9): + «Справка» — словарь терминов, общий для всех кабинетов.
     expect(hrefs).toContain('/help');
-    expect(navByRole.admin).toHaveLength(25);
+    // `У-112`: у админа появились «Заказы» (был пункт-обманка с редиректом на
+    // дашборд) и «Поиск» (сознательное расширение решения `У-75`).
+    expect(hrefs).toContain('/admin/orders');
+    expect(hrefs).toContain('/admin/search');
+    expect(navByRole.admin).toHaveLength(27);
     expect(hrefs).toContain('/admin/requests');
     expect(hrefs).toContain('/admin/intake');
   });

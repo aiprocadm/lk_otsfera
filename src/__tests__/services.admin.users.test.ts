@@ -523,6 +523,35 @@ describe('createUser', () => {
     );
   });
 
+  /**
+   * `У-119`: сотрудник ЦО без компании нерабочий — `session.companyId` пустой,
+   * скоупы отвечают deny-all, и человек входит в кабинет, где ничего нет.
+   * Раньше приглашение заводило именно такого.
+   */
+  it.each(['manager', 'leader'] as const)(
+    'бросает company_required, если %s приглашают без компании',
+    async (role) => {
+      const prisma = { $transaction: vi.fn() } as unknown as Parameters<typeof createUser>[0];
+      expect(await createUser(prisma, 'actor', { email: 'a@x', name: 'A', role })).toEqual({
+        ok: false,
+        error: 'company_required',
+      });
+      // До транзакции дело не доходит: пользователя не создаём вовсе.
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    }
+  );
+
+  it('клиентским ролям компания не нужна — проверка их не трогает', async () => {
+    const prisma = {
+      $transaction: vi.fn(async () => {
+        throw new Error('дошли до транзакции');
+      }),
+    } as unknown as Parameters<typeof createUser>[0];
+    await expect(
+      createUser(prisma, 'actor', { email: 'a@x', name: 'A', role: 'organization' })
+    ).rejects.toThrow('дошли до транзакции');
+  });
+
   it('бросает duplicate_email при существующем email', async () => {
     const txMock = {
       user: { findUnique: vi.fn().mockResolvedValue({ id: 'existing' }) },
@@ -724,7 +753,13 @@ describe('updateUser', () => {
 
   // ТЗ 2026-08-17 (PR-3): назначение/разжалование руководителя — формой роли.
   it('manager → leader: пишет role=leader и БАМПАЕТ sessionVersion (ревокация токена)', async () => {
-    const before = { id: 'u1', role: 'manager' as const, isActive: true, partnerId: null, name: 'M' };
+    const before = {
+      id: 'u1',
+      role: 'manager' as const,
+      isActive: true,
+      partnerId: null,
+      name: 'M',
+    };
     const detail = {
       id: 'u1',
       email: 'm@x',
@@ -767,7 +802,13 @@ describe('updateUser', () => {
   });
 
   it('leader → manager (разжалование): role=manager + бамп sessionVersion — company-wide гаснет сразу', async () => {
-    const before = { id: 'u1', role: 'leader' as const, isActive: true, partnerId: null, name: 'L' };
+    const before = {
+      id: 'u1',
+      role: 'leader' as const,
+      isActive: true,
+      partnerId: null,
+      name: 'L',
+    };
     const detail = {
       id: 'u1',
       email: 'l@x',

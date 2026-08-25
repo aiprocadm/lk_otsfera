@@ -4,6 +4,7 @@ import type { Role } from '@prisma/client';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { listUsers } from '@/lib/services/admin/users';
+import { listCompanyOptions } from '@/lib/services/admin/orders';
 import { UsersFilters } from '@/components/admin/users-filters';
 import { UsersTable } from '@/components/admin/users-table';
 
@@ -17,11 +18,14 @@ type SP = {
   q?: string;
   partnerId?: string;
   organizationId?: string;
+  companyId?: string;
   skip?: string;
 };
 
 function parseRole(v?: string): Role | undefined {
-  const allowed = ['admin', 'manager', 'partner', 'organization', 'student'];
+  // `У-119`: `leader` — самостоятельная роль. Без неё фильтр «Руководители»
+  // молча превращался в «все роли»: значение приходило и отбрасывалось.
+  const allowed = ['admin', 'manager', 'leader', 'partner', 'organization', 'student'];
   return allowed.includes(v ?? '') ? (v as Role) : undefined;
 }
 
@@ -36,11 +40,15 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
     q: sp.q?.trim() || undefined,
     partnerId: sp.partnerId || undefined,
     organizationId: sp.organizationId || undefined,
+    companyId: sp.companyId || undefined,
     take: PAGE_SIZE,
     skip,
   };
 
-  const { rows, total } = await listUsers(prisma, session, filters);
+  const [{ rows, total }, companies] = await Promise.all([
+    listUsers(prisma, session, filters),
+    listCompanyOptions(prisma),
+  ]);
 
   return (
     <div className="space-y-4">
@@ -63,6 +71,8 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
         q={sp.q}
         partnerId={sp.partnerId}
         organizationId={sp.organizationId}
+        companyId={sp.companyId}
+        companies={companies}
       />
 
       <UsersTable rows={rows} currentUserId={session.sub} />

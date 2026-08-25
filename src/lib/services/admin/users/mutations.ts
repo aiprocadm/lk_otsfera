@@ -10,6 +10,13 @@ export type CreateUserArgs = {
   email: string;
   name: string;
   role: Exclude<Role, 'admin'>;
+  /**
+   * Компания-продавец сотрудника ЦО (`У-119`). Без неё приглашённый менеджер
+   * или руководитель заводился «без компании»: `session.companyId` пустой,
+   * скоупы отвечают deny-all — человек входил в кабинет, где ничего нет, и
+   * не понимал почему.
+   */
+  companyId?: string | null;
   partnerId?: string | null;
 };
 
@@ -30,6 +37,10 @@ export async function createUser(
     if (args.role === 'partner' && !args.partnerId) {
       throw new AdminUserError('not_found');
     }
+    // Сотрудник ЦО без компании нерабочий — не заводим молча (`У-119`).
+    if ((args.role === 'manager' || args.role === 'leader') && !args.companyId) {
+      throw new AdminUserError('company_required');
+    }
 
     const data = await prisma.$transaction(async (tx) => {
       const existing = await tx.user.findUnique({ where: { email: args.email } });
@@ -41,6 +52,7 @@ export async function createUser(
           name: args.name,
           role: args.role,
           partnerId: args.partnerId ?? null,
+          companyId: args.companyId ?? null,
           passwordHash: null,
           isActive: true,
         },

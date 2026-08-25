@@ -9,6 +9,10 @@ vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
+// `У-119`: экран берёт список компаний для фильтра/формы — сервис стабим.
+const { listCompanyOptions } = vi.hoisted(() => ({ listCompanyOptions: vi.fn(async () => []) }));
+vi.mock('@/lib/services/admin/orders', () => ({ listCompanyOptions }));
+
 const { listUsers } = vi.hoisted(() => ({ listUsers: vi.fn() }));
 vi.mock('@/lib/services/admin/users', () => ({ listUsers }));
 
@@ -33,6 +37,26 @@ describe('AdminUsersPage', () => {
   beforeEach(() => {
     requireAdmin.mockReset();
     listUsers.mockReset();
+  });
+
+  /**
+   * `У-119`: `parseRole` не знал про `leader`, и фильтр «Руководители» молча
+   * превращался во «все роли» — значение приходило из адреса и отбрасывалось.
+   * Список выглядел рабочим, а показывал не то.
+   */
+  it('фильтр «Руководители» доезжает до сервиса, а не отбрасывается', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    listUsers.mockResolvedValue({ rows: [], total: 0 });
+
+    await renderServerComponent(
+      AdminUsersPage({ searchParams: Promise.resolve({ role: 'leader', companyId: 'c1' }) })
+    );
+
+    expect(listUsers).toHaveBeenCalledWith(
+      {},
+      SESSION,
+      expect.objectContaining({ role: 'leader', companyId: 'c1' })
+    );
   });
 
   it('parses role/active/q/partnerId/organizationId/skip filters and renders the users table + total', async () => {

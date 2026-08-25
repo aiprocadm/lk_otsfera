@@ -6,8 +6,16 @@ import { createUserAction } from '@/server-actions/admin/users';
 import { useFormAction } from '@/lib/ui/useFormAction';
 
 type Partner = { id: string; name: string };
+type Company = { id: string; name: string };
 
-export function UserInviteForm({ partners }: { partners: Partner[] }) {
+export function UserInviteForm({
+  partners,
+  companies = [],
+}: {
+  partners: Partner[];
+  /** Компании-продавцы: обязательны сотруднику ЦО (`У-119`). */
+  companies?: Company[];
+}) {
   const router = useRouter();
   // Коды ошибок локализуются централизованно через errorMessageRu (см. useFormAction);
   // admin-специфичные коды (duplicate_email/admin_role_via_ui) живут в lib/errors/messages.
@@ -16,7 +24,9 @@ export function UserInviteForm({ partners }: { partners: Partner[] }) {
     inviteUrl: string;
   }>({ action: createUserAction });
   const inviteUrl = data?.inviteUrl ?? null;
-  const [role, setRole] = useState<'organization' | 'partner' | 'manager' | 'student'>(
+  // `У-119`: руководителя заводят приглашением, а не только «пригласить
+  // менеджером → повысить». Прежний путь остаётся рабочим.
+  const [role, setRole] = useState<'organization' | 'partner' | 'manager' | 'leader' | 'student'>(
     'organization'
   );
 
@@ -54,10 +64,33 @@ export function UserInviteForm({ partners }: { partners: Partner[] }) {
           <option value="organization">Организация</option>
           <option value="partner">Партнёр</option>
           <option value="manager">Менеджер</option>
+          <option value="leader">Руководитель</option>
           <option value="student">Студент</option>
         </select>
         <p className="text-xs text-gray-500 mt-1">Создание admin&apos;а через UI недоступно.</p>
       </div>
+      {(role === 'manager' || role === 'leader') && (
+        <div>
+          <label className="block text-sm font-medium text-[#111111] mb-1">Компания</label>
+          <select
+            name="companyId"
+            required
+            className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]"
+          >
+            <option value="">— выберите —</option>
+            {companies.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          {/* Без компании сотрудник входит в кабинет, где ничего нет: скоупы
+              считают его «ничьим» и не показывают ни заказов, ни клиентов. */}
+          <p className="text-xs text-gray-500 mt-1">
+            Определяет, чьи заказы и клиентов человек увидит.
+          </p>
+        </div>
+      )}
       {role === 'partner' && (
         <div>
           <label className="block text-sm font-medium text-[#111111] mb-1">Партнёр</label>

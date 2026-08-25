@@ -25,8 +25,14 @@ const SHELLS = [
   { file: 'src/components/organization/org-app-shell.tsx', cabinet: 'заказчик' },
 ];
 
-/** Роли, у которых поиск по данным уже есть своей страницей. */
+/**
+ * Роли, у которых поиск по данным есть своей страницей. Админ добавлен
+ * решением `У-112`: прежнее `У-75` отдавало поиск только менеджеру и
+ * руководителю, и администратор — у которого разделов больше всех — искать не
+ * мог вовсе. Это записанное расширение, а не дрейф.
+ */
 const SEARCH_ROLES = [
+  { file: 'src/app/admin/layout.tsx', href: '/admin/search' },
   { file: 'src/app/manager/layout.tsx', href: '/manager/search' },
   { file: 'src/app/leader/layout.tsx', href: '/leader/search' },
 ];

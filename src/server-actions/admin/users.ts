@@ -27,6 +27,7 @@ const createSchema = z
     name: z.string().min(1).max(200),
     role: ROLE_ENUM,
     partnerId: z.string().optional().nullable(),
+    companyId: z.string().optional().nullable(),
   })
   .refine((d) => d.role !== 'partner' || (d.partnerId && d.partnerId.length > 0), {
     message: 'partnerId required for partner role',
@@ -60,6 +61,7 @@ export async function createUserAction(
     name: readField(fd, 'name'),
     role: readField(fd, 'role'),
     partnerId: readField(fd, 'partnerId') || null,
+    companyId: readField(fd, 'companyId') || null,
   });
   if (!parsed.success) return { ok: false, error: 'validation' };
 
@@ -74,6 +76,8 @@ export async function createUserAction(
     // Условный спред оставлен ради exactOptionalPropertyTypes.
     /* v8 ignore next -- partnerId всегда определён (строка или null), альтернатива мертва */
     ...(parsed.data.partnerId !== undefined ? { partnerId: parsed.data.partnerId } : {}),
+    /* v8 ignore next -- companyId читается так же и всегда определён */
+    ...(parsed.data.companyId !== undefined ? { companyId: parsed.data.companyId } : {}),
   });
   if (!result.ok) return result;
   const inviteUrl = `${appBaseUrl()}/reset-password?token=${result.inviteToken}`;
