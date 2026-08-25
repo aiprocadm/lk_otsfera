@@ -15,16 +15,21 @@ import { TeamTable } from '@/components/partner/team-table';
 import { TeamCardList } from '@/components/partner/team-card-list';
 import { InviteMemberForm } from '@/components/partner/invite-member-form';
 import { pluralizeRu } from '@/lib/format';
-import { PartnerSettingsTabs, type PartnerSettingsTab } from '@/components/partner/settings-tabs';
+import { PersonalSettings } from '@/components/settings/personal-settings';
+import { readPersonalSettingsTab } from '@/lib/navigation/personalSettingsTab';
+import { PERSONAL_SETTINGS_SUBTITLE } from '@/lib/navigation/personalSettings';
 
-const VALID_TABS: PartnerSettingsTab[] = ['profile', 'team', 'notifications', 'security'];
+export const dynamic = 'force-dynamic';
 
 /**
- * Настройки партнёра (`У-60`, этап 4): четыре вкладки вместо одной длинной
- * страницы. Служебная «Команда» переехала сюда из главного меню; старый адрес
- * `/partner/team` остался редиректом.
+ * Личные настройки партнёра (`У-60`, `У-114`).
  *
- * Данные грузятся **только для активной вкладки** — открывая «Безопасность», не
+ * Вкладки были свои (`partner/settings-tabs.tsx`), из-за чего один и тот же
+ * набор настроек в кабинете партнёра выглядел иначе, чем у менеджера и
+ * заказчика. Теперь переключатель общий, а «Команда» — единственное отличие:
+ * ею управляет только партнёр-администратор (`У-60`).
+ *
+ * Данные грузятся **только для активной вкладки**: открывая «Безопасность», не
  * надо ходить в базу за командой и телеграмом.
  */
 export default async function PartnerSettingsPage({
@@ -34,16 +39,15 @@ export default async function PartnerSettingsPage({
 }) {
   const session = await requirePartner();
   const isAdmin = session.partnerRole === 'admin';
+  const tab = readPersonalSettingsTab((await searchParams).tab, { team: isAdmin });
 
-  const sp = await searchParams;
-  const requested = VALID_TABS.includes(sp.tab as PartnerSettingsTab)
-    ? (sp.tab as PartnerSettingsTab)
-    : 'profile';
-  // Вкладка «Команда» — только партнёру-администратору. Обычный пользователь,
-  // пришедший по прямой ссылке, попадает на «Профиль», а не на пустой экран.
-  const tab: PartnerSettingsTab = requested === 'team' && !isAdmin ? 'profile' : requested;
-
-  const requisites = tab === 'profile' ? await getPartnerRequisites(prisma, session) : null;
+  const profile =
+    tab === 'profile'
+      ? {
+          requisites: await getPartnerRequisites(prisma, session),
+          telegram: await getTelegramStatus(prisma, session),
+        }
+      : null;
   const team =
     tab === 'team'
       ? {
@@ -52,77 +56,70 @@ export default async function PartnerSettingsPage({
         }
       : null;
   const notifications =
-    tab === 'notifications'
-      ? {
-          status: await getTelegramStatus(prisma, session),
-          settings: await getNotificationSettings(prisma, session),
-        }
-      : null;
+    tab === 'notifications' ? await getNotificationSettings(prisma, session) : null;
 
   const activeCount = team ? team.rows.filter((r) => r.isActive).length : 0;
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold text-[#111111]">Настройки</h1>
-        <p className="text-sm text-gray-600 mt-1">
-          Реквизиты для документов, сотрудники вашей компании, уведомления и вход.
-        </p>
-      </div>
-
-      <PartnerSettingsTabs active={tab} isAdmin={isAdmin} />
-
-      {tab === 'profile' &&
-        (requisites?.ok ? (
-          <RequisitesCard
-            title="Реквизиты партнёра"
-            description="Нужны для автоматического формирования документов. Начните вводить название или ИНН — остальное подставится само."
-            defaults={requisites.requisites}
-            idPrefix="pt-req"
-            action={setPartnerRequisitesAction}
-            canEdit={isAdmin}
-          />
-        ) : (
-          <p className="text-sm text-gray-500">
-            Реквизиты недоступны — обратитесь к администратору партнёра.
-          </p>
-        ))}
-
-      {tab === 'team' && team && (
-        <div className="space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-            <p className="text-sm text-gray-500">
-              {activeCount}{' '}
-              {pluralizeRu(
-                activeCount,
-                'активный сотрудник',
-                'активных сотрудника',
-                'активных сотрудников'
+      <h1 className="text-2xl font-bold text-[#111111]">Настройки</h1>
+      <p className="text-sm text-gray-500">{PERSONAL_SETTINGS_SUBTITLE}</p>
+      <PersonalSettings
+        basePath="/partner/settings"
+        activeTab={tab}
+        team={isAdmin}
+        slots={{
+          profile: profile ? (
+            <>
+              {profile.requisites.ok ? (
+                <RequisitesCard
+                  title="Реквизиты партнёра"
+                  description="Нужны для автоматического формирования документов. Начните вводить название или ИНН — остальное подставится само."
+                  defaults={profile.requisites.requisites}
+                  idPrefix="pt-req"
+                  action={setPartnerRequisitesAction}
+                  canEdit={isAdmin}
+                />
+              ) : (
+                <p className="text-sm text-gray-500">
+                  Реквизиты недоступны — обратитесь к администратору партнёра.
+                </p>
               )}
-              {team.rows.length > activeCount && (
-                <span className="text-gray-400">
-                  {' '}
-                  · {team.rows.length - activeCount} деактивирован
-                  {team.rows.length - activeCount === 1 ? '' : 'о'}
-                </span>
-              )}
-            </p>
-            <InviteMemberForm orgs={team.orgs} />
-          </div>
+              <TelegramLinkCard status={profile.telegram} />
+            </>
+          ) : null,
+          team: team ? (
+            <div className="space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <p className="text-sm text-gray-500">
+                  {activeCount}{' '}
+                  {pluralizeRu(
+                    activeCount,
+                    'активный сотрудник',
+                    'активных сотрудника',
+                    'активных сотрудников'
+                  )}
+                  {team.rows.length > activeCount && (
+                    <span className="text-gray-400">
+                      {' '}
+                      · {team.rows.length - activeCount} деактивирован
+                      {team.rows.length - activeCount === 1 ? '' : 'о'}
+                    </span>
+                  )}
+                </p>
+                <InviteMemberForm orgs={team.orgs} />
+              </div>
 
-          <TeamTable rows={team.rows} orgs={team.orgs} currentUserId={session.sub} />
-          <TeamCardList rows={team.rows} orgs={team.orgs} currentUserId={session.sub} />
-        </div>
-      )}
-
-      {tab === 'notifications' && notifications && (
-        <div className="space-y-6">
-          <TelegramLinkCard status={notifications.status} />
-          <NotificationChannelsCard settings={notifications.settings.view} />
-        </div>
-      )}
-
-      {tab === 'security' && <SecurityCard />}
+              <TeamTable rows={team.rows} orgs={team.orgs} currentUserId={session.sub} />
+              <TeamCardList rows={team.rows} orgs={team.orgs} currentUserId={session.sub} />
+            </div>
+          ) : null,
+          notifications: notifications ? (
+            <NotificationChannelsCard settings={notifications.view} />
+          ) : null,
+          security: <SecurityCard />,
+        }}
+      />
     </div>
   );
 }

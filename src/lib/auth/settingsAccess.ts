@@ -54,6 +54,10 @@ export function canAccessSettingsSection(
   if (settingsCabinetFor(session) !== target) return false;
   if (section.flag && !isFeatureEnabled(section.flag)) return false;
 
+  // `У-114`: личные настройки — не власть, а свои же данные. Разметка профиля
+  // доступа их не отнимает: иначе сотрудник не смог бы отвязать свой Telegram.
+  if (section.capability === 'own') return true;
+
   if (session.role === 'admin') return true;
 
   const profile = session.accessProfile;

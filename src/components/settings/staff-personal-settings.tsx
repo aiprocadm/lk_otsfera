@@ -1,6 +1,6 @@
 import React from 'react';
 import { prisma } from '@/lib/db/prisma';
-import { requireManager } from '@/lib/auth/requireRole';
+import { requireSettingsSection } from '@/lib/auth/requireSettings';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { getTelegramStatus } from '@/lib/services/telegram/link';
 import { getNotificationSettings } from '@/lib/services/notifications/preferences';
@@ -13,30 +13,42 @@ import { InternalPhoneCard } from '@/components/manager/settings/internal-phone-
 import { PersonalSettings } from '@/components/settings/personal-settings';
 import { readPersonalSettingsTab } from '@/lib/navigation/personalSettingsTab';
 import { PERSONAL_SETTINGS_SUBTITLE } from '@/lib/navigation/personalSettings';
-
-export const dynamic = 'force-dynamic';
+import type { SettingsCabinet } from '@/lib/navigation/settings';
+import { isManagerLeader } from '@/lib/auth/roleModel';
 
 /**
- * Личные настройки менеджера (`У-114`).
+ * Раздел хаба «Личные настройки» (`У-114`) — общий для админа и руководителя.
  *
- * Раньше это была одна длинная страница со всеми карточками подряд, а у
- * партнёра — четыре вкладки: один и тот же набор выглядел в двух кабинетах
- * по-разному. Теперь экран общий, вкладки из реестра, а данные грузятся
- * **только для открытой вкладки**.
+ * Раньше это были два разных раздела в двух разных группах хаба («Каналы
+ * уведомлений» в «Интеграциях» и «Личная безопасность» в «Безопасности»), хотя
+ * у менеджера, партнёра и заказчика тот же набор всегда лежал на одном экране.
+ * Теперь везде один компонент с одними вкладками (`Р-23`, правило зеркала).
+ *
+ * Гард раздела вызывается на КАЖДЫЙ запрос (§2b): скрытая карточка — это
+ * внешний вид, а не право доступа.
+ *
+ * Данные грузятся только для открытой вкладки: открывая «Безопасность», не идём
+ * в базу за телеграмом и каналами.
  */
-export default async function ManagerSettingsPage({
+export async function StaffPersonalSettings({
+  cabinet,
   searchParams,
 }: {
+  cabinet: SettingsCabinet;
   searchParams: Promise<{ tab?: string }>;
 }) {
-  const session = await requireManager();
+  const session = await requireSettingsSection('personal.settings', cabinet);
   const tab = readPersonalSettingsTab((await searchParams).tab);
+
+  // Внутренний номер — только менеджерский контур: click-to-call через Mango
+  // инициирует руководитель, а `updateInternalPhoneAction` админа и не пустит.
+  const withPhone = isManagerLeader(session);
 
   const profile =
     tab === 'profile'
       ? {
           telegram: await getTelegramStatus(prisma, session),
-          internalPhone: await getStaffInternalPhone(prisma, session),
+          internalPhone: withPhone ? await getStaffInternalPhone(prisma, session) : null,
         }
       : null;
   const notifications =
@@ -44,16 +56,16 @@ export default async function ManagerSettingsPage({
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-[#111111]">Настройки</h1>
+      <h1 className="text-2xl font-bold text-[#111111]">Личные настройки</h1>
       <p className="text-sm text-gray-500">{PERSONAL_SETTINGS_SUBTITLE}</p>
       <PersonalSettings
-        basePath="/manager/settings"
+        basePath={`/${cabinet}/settings/personal`}
         activeTab={tab}
         slots={{
           profile: profile ? (
             <>
               <TelegramLinkCard status={profile.telegram} />
-              <InternalPhoneCard initialInternalPhone={profile.internalPhone} />
+              {withPhone && <InternalPhoneCard initialInternalPhone={profile.internalPhone} />}
             </>
           ) : null,
           notifications: notifications ? (

@@ -19,6 +19,15 @@ vi.mock('@/lib/services/notifications/preferences', () => ({ getNotificationSett
 const { getOrgRequisites } = vi.hoisted(() => ({ getOrgRequisites: vi.fn() }));
 vi.mock('@/lib/services/organization/requisites', () => ({ getOrgRequisites }));
 vi.mock('@/server-actions/requisites', () => ({ setOrgRequisitesAction: vi.fn() }));
+vi.mock('@/components/settings/telegram-link-card', () => ({
+  TelegramLinkCard: () => React.createElement('div', { 'data-testid': 'telegram-card' }, 'TG'),
+}));
+
+vi.mock('@/components/settings/notification-channels-card', () => ({
+  NotificationChannelsCard: () =>
+    React.createElement('div', { 'data-testid': 'notif-card' }, 'NOTIF'),
+}));
+
 vi.mock('@/components/settings/security-card', () => ({
   SecurityCard: () => React.createElement('div', { 'data-testid': 'security-card' }, 'SECURITY'),
 }));
@@ -55,116 +64,66 @@ const CTX = {
   viewerRole: 'admin' as const,
 };
 
-describe('OrganizationSettingsPage', () => {
+/**
+ * `У-114`: личные настройки заказчика — те же вкладки, что у менеджера и
+ * партнёра. Раньше здесь же лежали реквизиты организации: настройки СЕБЯ и
+ * настройки СВОЕЙ КОМПАНИИ были свалены на один экран. Реквизиты переехали в
+ * раздел «Моя организация» (`У-100`).
+ */
+describe('OrganizationSettingsPage (У-114)', () => {
   beforeEach(() => {
-    getOrgPageContext.mockReset();
-    getOrgRequisites.mockReset().mockResolvedValue({ ok: false, error: 'forbidden' });
-    getTelegramStatus.mockReset();
-    getNotificationSettings.mockReset();
+    getOrgPageContext.mockReset().mockResolvedValue(CTX);
+    getOrgRequisites.mockReset().mockResolvedValue({ ok: true, requisites: {} });
+    getTelegramStatus.mockReset().mockResolvedValue({ linked: false });
+    getNotificationSettings.mockReset().mockResolvedValue({ view: { email: true } });
   });
 
-  it('карточка реквизитов организации: право правки только у admin/leader', async () => {
-    getOrgPageContext.mockResolvedValue(CTX);
-    getTelegramStatus.mockResolvedValue({ ok: true, linked: false, enabled: true });
-    getNotificationSettings.mockResolvedValue({
-      ok: true,
-      view: {
-        emailAlwaysOn: true,
-        telegram: { available: true, linked: false, enabled: true },
-        max: { available: false, linked: false, enabled: false },
-        whatsapp: { available: false, phone: null, enabled: false },
-      },
-    });
-    getOrgRequisites.mockResolvedValue({
-      ok: true,
-      requisites: {
-        legalName: 'ООО Ромашка',
-        inn: '7707083893',
-        kpp: null,
-        ogrn: null,
-        legalAddress: null,
-        bankName: null,
-        bankAccount: null,
-        corrAccount: null,
-        bic: null,
-        signerName: null,
-        signerPosition: null,
-        signerBasis: null,
-      },
-    });
-    const { container } = await renderServerComponent(OrganizationSettingsPage());
-    expect(container.textContent).toContain('Реквизиты организации');
+  const render = (tab?: string) =>
+    renderServerComponent(
+      OrganizationSettingsPage({ searchParams: Promise.resolve(tab ? { tab } : {}) })
+    );
+
+  it('вкладки те же и в том же порядке, что у менеджера', async () => {
+    const { container } = await render();
+    const tabs = [...container.querySelectorAll('[data-testid^="personal-tab-"]')].map((el) =>
+      el.getAttribute('data-testid')
+    );
+    expect(tabs).toEqual([
+      'personal-tab-profile',
+      'personal-tab-notifications',
+      'personal-tab-security',
+    ]);
   });
 
-  it('участник без прав (member): карточка реквизитов есть, но canEdit=false', async () => {
-    getOrgPageContext.mockResolvedValue({ ...CTX, viewerRole: 'member' as const });
-    getTelegramStatus.mockResolvedValue({ ok: true, linked: false, enabled: true });
-    getNotificationSettings.mockResolvedValue({
-      ok: true,
-      view: {
-        emailAlwaysOn: true,
-        telegram: { available: true, linked: false, enabled: true },
-        max: { available: false, linked: false, enabled: false },
-        whatsapp: { available: false, phone: null, enabled: false },
-      },
-    });
-    getOrgRequisites.mockResolvedValue({
-      ok: true,
-      requisites: {
-        legalName: 'ООО Ромашка',
-        inn: null,
-        kpp: null,
-        ogrn: null,
-        legalAddress: null,
-        bankName: null,
-        bankAccount: null,
-        corrAccount: null,
-        bic: null,
-        signerName: null,
-        signerPosition: null,
-        signerBasis: null,
-      },
-    });
-    const { container } = await renderServerComponent(OrganizationSettingsPage());
-    expect(container.textContent).toContain('Реквизиты организации');
-  });
-
-  it('сессия без активной организации: карточки реквизитов нет, сервис не зовётся', async () => {
-    getOrgPageContext.mockResolvedValue({ ...CTX, activeOrgId: null });
-    getTelegramStatus.mockResolvedValue({ ok: true, linked: false, enabled: true });
-    getNotificationSettings.mockResolvedValue({
-      ok: true,
-      view: {
-        emailAlwaysOn: true,
-        telegram: { available: true, linked: false, enabled: true },
-        max: { available: false, linked: false, enabled: false },
-        whatsapp: { available: false, phone: null, enabled: false },
-      },
-    });
-    const { container } = await renderServerComponent(OrganizationSettingsPage());
+  it('реквизитов организации здесь больше нет — они в «Моей организации» (У-100)', async () => {
+    for (const tab of ['profile', 'notifications', 'security']) {
+      const { container } = await render(tab);
+      expect(container.querySelector('[data-testid="requisites-card"]'), tab).toBeNull();
+    }
     expect(getOrgRequisites).not.toHaveBeenCalled();
-    expect(container.textContent).not.toContain('Реквизиты организации');
   });
 
-  it('fetches telegram status + notification settings for the session and renders both cards', async () => {
-    getOrgPageContext.mockResolvedValue(CTX);
-    getTelegramStatus.mockResolvedValue({ ok: true, linked: false, enabled: true });
-    getNotificationSettings.mockResolvedValue({
-      ok: true,
-      view: {
-        emailAlwaysOn: true,
-        telegram: { available: true, linked: false, enabled: true },
-        max: { available: false, linked: false, enabled: false },
-        whatsapp: { available: false, phone: null, enabled: false },
-      },
-    });
+  it('«Профиль»: привязка Telegram', async () => {
+    const { container } = await render('profile');
+    expect(container.querySelector('[data-testid="telegram-card"]')).not.toBeNull();
+  });
 
-    const { container } = await renderServerComponent(OrganizationSettingsPage());
+  it('«Уведомления»: каналы, и сервис зовётся только здесь', async () => {
+    const { container } = await render('notifications');
+    expect(container.querySelector('[data-testid="notif-card"]')).not.toBeNull();
+    expect(getNotificationSettings).toHaveBeenCalled();
+    expect(getTelegramStatus).not.toHaveBeenCalled();
+  });
 
-    expect(getOrgPageContext).toHaveBeenCalledWith({});
-    expect(getTelegramStatus).toHaveBeenCalledWith({}, CTX.session);
-    expect(getNotificationSettings).toHaveBeenCalledWith({}, CTX.session);
-    expect(container.textContent).toContain('Настройки');
-    expect(container.textContent).toContain('ООО Ромашка');
+  it('«Безопасность»: активные сессии', async () => {
+    const { container } = await render('security');
+    expect(container.querySelector('[data-testid="security-card"]')).not.toBeNull();
+  });
+
+  it('экран рисуется в оболочке кабинета заказчика', async () => {
+    const { container } = await render();
+    expect(container.querySelector('[data-testid="org-app-shell"]')?.textContent).toContain(
+      'ООО Ромашка'
+    );
   });
 });

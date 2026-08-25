@@ -13,7 +13,7 @@ import type { SettingsCapability } from '@/lib/auth/accessProfileSchema';
  * а сам путь собирается из кабинета и `path` — зеркала не расходятся.
  */
 
-type SettingsGroupId = 'integrations' | 'catalogs' | 'access' | 'security';
+type SettingsGroupId = 'personal' | 'integrations' | 'catalogs' | 'access' | 'security';
 export type SettingsCabinet = 'admin' | 'leader';
 
 export type SettingsSection = {
@@ -27,7 +27,12 @@ export type SettingsSection = {
   icon: string;
   /** Хвост маршрута после `/<кабинет>/settings`. */
   path: string;
-  capability: SettingsCapability;
+  /**
+   * Право на раздел. `'own'` — «право быть собой»: личные настройки не
+   * являются админской властью, их нельзя потерять из-за разметки профиля
+   * доступа (иначе сотрудник лишился бы собственной привязки Telegram).
+   */
+  capability: SettingsCapability | 'own';
   /** Раздел скрыт целиком, пока флаг выключен (например role_constructor). */
   flag?: FeatureFlag | undefined;
   cabinets: readonly SettingsCabinet[];
@@ -46,6 +51,8 @@ type LegacyRoute = { from: string; toPath?: string; cabinet?: SettingsCabinet };
 
 /** Порядок групп — из ТЗ §3 (Интеграции → Конфигурация → Доступ → Безопасность). */
 export const SETTINGS_GROUPS: ReadonlyArray<{ id: SettingsGroupId; title: string }> = [
+  // `У-114`: своё — первым. Человек чаще правит свои уведомления, чем адаптер 1С.
+  { id: 'personal', title: 'Личное' },
   { id: 'integrations', title: 'Интеграции' },
   { id: 'catalogs', title: 'Конфигурация процессов' },
   { id: 'access', title: 'Доступ и роли' },
@@ -53,6 +60,24 @@ export const SETTINGS_GROUPS: ReadonlyArray<{ id: SettingsGroupId; title: string
 ];
 
 export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
+  {
+    /**
+     * `У-114`: «Каналы уведомлений» и «Личная безопасность» были двумя
+     * разделами в двух разных группах хаба — хотя это одно и то же: настройки
+     * себя. У менеджера, партнёра и заказчика они всегда лежали на одном
+     * экране. Теперь и здесь один раздел с теми же вкладками, что в остальных
+     * кабинетах (`Р-23`, правило зеркала §0.2).
+     */
+    id: 'personal.settings',
+    group: 'personal',
+    title: 'Личные настройки',
+    description: 'Ваш профиль, каналы уведомлений и безопасность входа.',
+    icon: '🙋',
+    path: 'personal',
+    capability: 'own',
+    cabinets: ['admin', 'leader'],
+    legacyHrefs: [],
+  },
   {
     id: 'integrations.overview',
     group: 'integrations',
@@ -85,17 +110,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
       { from: '/manager/import', toPath: 'integrations/1c/excel', cabinet: 'leader' },
       { from: '/manager/payments-import', toPath: 'integrations/1c/payments', cabinet: 'leader' },
     ],
-  },
-  {
-    id: 'integrations.notifications',
-    group: 'integrations',
-    title: 'Каналы уведомлений',
-    description: 'Telegram, Max, WhatsApp и почта: привязка и выбор событий.',
-    icon: '🔔',
-    path: 'integrations/notifications',
-    capability: 'settings.integrations.view',
-    cabinets: ['admin', 'leader'],
-    legacyHrefs: [],
   },
   {
     id: 'catalogs.applicationStatuses',
@@ -163,17 +177,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     capability: 'settings.personal_data.view',
     cabinets: ['admin'],
     legacyHrefs: [{ from: '/admin/pii-access' }],
-  },
-  {
-    id: 'security.personal',
-    group: 'security',
-    title: 'Личная безопасность',
-    description: 'Коды восстановления двухфакторного входа и активные сессии.',
-    icon: '🔐',
-    path: 'security/personal',
-    capability: 'settings.system.view',
-    cabinets: ['admin', 'leader'],
-    legacyHrefs: [],
   },
   {
     id: 'system.health',
@@ -264,7 +267,7 @@ export function buildSettingsBreadcrumbs(cabinet: SettingsCabinet, pathname: str
   const group = SETTINGS_GROUPS.find((g) => g.id === section.group);
   return [
     { label: 'Настройки', href: settingsRoot(cabinet) },
-    /* v8 ignore next -- `?? ''` недостижим: `section.group` типизирован союзом SettingsGroupId, и SETTINGS_GROUPS содержит ровно эти четыре id, поэтому find() всегда что-то находит (инвариант закреплён тестом «у каждого раздела есть своя группа») */
+    /* v8 ignore next -- `?? ''` недостижим: `section.group` типизирован союзом SettingsGroupId, и SETTINGS_GROUPS содержит ровно эти пять id, поэтому find() всегда что-то находит (инвариант закреплён тестом «у каждого раздела есть своя группа») */
     { label: group?.title ?? '', href: null },
     { label: section.title, href: null },
   ];

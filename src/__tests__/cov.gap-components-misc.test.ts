@@ -14,7 +14,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { render } from '@testing-library/react';
-import { renderServerComponent } from './helpers/renderServerComponent';
+
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 const LEADER: SessionPayload = { sub: 'l1', role: 'leader' };
@@ -22,6 +22,9 @@ const LEADER: SessionPayload = { sub: 'l1', role: 'leader' };
 // --- страница «Личная безопасность» руководителя ---
 const { requireSettingsSection } = vi.hoisted(() => ({ requireSettingsSection: vi.fn() }));
 vi.mock('@/lib/auth/requireSettings', () => ({ requireSettingsSection }));
+
+const { redirect } = vi.hoisted(() => ({ redirect: vi.fn() }));
+vi.mock('next/navigation', () => ({ redirect }));
 
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
@@ -37,21 +40,16 @@ vi.mock('@/components/settings/staff-backup-codes-section', () => ({
 import LeaderPersonalSecurityPage from '@/app/leader/settings/security/personal/page';
 import { AuditDiffDialog } from '@/components/admin/audit-diff-dialog';
 
-describe('Личная безопасность руководителя — флаг staff_2fa', () => {
+describe('Личная безопасность руководителя — старый адрес (`У-114`)', () => {
   beforeEach(() => {
     requireSettingsSection.mockReset().mockResolvedValue(LEADER);
     isFeatureEnabled.mockReset();
+    redirect.mockReset();
   });
 
-  it('с включённым staff_2fa показывает секцию кодов восстановления', async () => {
-    isFeatureEnabled.mockReturnValue(true);
-
-    const { container } = await renderServerComponent(LeaderPersonalSecurityPage());
-
-    expect(requireSettingsSection).toHaveBeenCalledWith('security.personal', 'leader');
-    expect(isFeatureEnabled).toHaveBeenCalledWith('staff_2fa');
-    expect(container.querySelector('[data-testid="backup-codes"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="security-card"]')).not.toBeNull();
+  it('уводит на вкладку «Безопасность» нового раздела, а не в 404', () => {
+    LeaderPersonalSecurityPage();
+    expect(redirect).toHaveBeenCalledWith('/leader/settings/personal?tab=security');
   });
 });
 

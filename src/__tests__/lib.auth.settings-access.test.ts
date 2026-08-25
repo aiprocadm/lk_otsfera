@@ -129,18 +129,31 @@ describe('visibleSettingsSections / hasAnySettingsAccess', () => {
 
   it('руководитель видит только свои разделы', () => {
     expect(visibleSettingsSections(leader(), 'leader').map((s) => s.id)).toEqual([
+      // `У-114`: свои настройки — первым разделом и во всех кабинетах.
+      'personal.settings',
       // Этап 7 ТЗ импорта (Т-27): «Обмен с 1С» появился и в хабе руководителя.
       'integrations.oneC',
-      'integrations.notifications',
       'catalogs.applicationStatuses',
       'catalogs.customFields',
       'access.roles',
-      'security.personal',
     ]);
   });
 
-  it('профиль, где размечен только чужой раздел, оставляет пункт меню скрытым', () => {
+  /**
+   * `У-114`: право `'own'` — «право быть собой». Разметка профиля доступа
+   * отнимает админские разделы, но не личные: иначе сотрудник не смог бы
+   * отвязать собственный Telegram или посмотреть свои сессии.
+   */
+  it('профиль, где размечен только чужой раздел, оставляет от хаба ровно личные настройки', () => {
     const s = leader({ accessProfile: profile(['settings.audit.view']) } as never);
+    expect(visibleSettingsSections(s, 'leader').map((x) => x.id)).toEqual(['personal.settings']);
+    // Пункт меню остаётся: зайти всё-таки есть зачем.
+    expect(hasAnySettingsAccess(s, 'leader')).toBe(true);
+  });
+
+  it('обычный менеджер в хаб не попадает вовсе — ни в свой, ни в чужой', () => {
+    const s = leader({ role: 'manager' } as never);
+    expect(visibleSettingsSections(s, 'leader')).toEqual([]);
     expect(hasAnySettingsAccess(s, 'leader')).toBe(false);
   });
 

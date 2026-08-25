@@ -30,10 +30,12 @@ beforeEach(() => {
 });
 
 describe('карточки хаба', () => {
-  it('четыре группы ТЗ и карточка на каждый доступный раздел', () => {
+  it('группы хаба в порядке реестра и карточка на каждый доступный раздел', () => {
     const { container } = render(<SettingsHubCards cabinet="admin" sections={adminSections} />);
     const headings = [...container.querySelectorAll('h2')].map((h) => h.textContent);
     expect(headings).toEqual([
+      // `У-114`: «Личное» — первой группой: свои настройки правят чаще адаптеров.
+      'Личное',
       'Интеграции',
       'Конфигурация процессов',
       'Доступ и роли',

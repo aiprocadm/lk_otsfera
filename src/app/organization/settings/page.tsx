@@ -6,20 +6,33 @@ import { getNotificationSettings } from '@/lib/services/notifications/preference
 import { OrgAppShell } from '@/components/organization/org-app-shell';
 import { TelegramLinkCard } from '@/components/settings/telegram-link-card';
 import { NotificationChannelsCard } from '@/components/settings/notification-channels-card';
-import { RequisitesCard } from '@/components/requisites/requisites-card';
 import { SecurityCard } from '@/components/settings/security-card';
-import { getOrgRequisites } from '@/lib/services/organization/requisites';
-import { setOrgRequisitesAction } from '@/server-actions/requisites';
+import { PersonalSettings } from '@/components/settings/personal-settings';
+import { readPersonalSettingsTab } from '@/lib/navigation/personalSettingsTab';
+import { PERSONAL_SETTINGS_SUBTITLE } from '@/lib/navigation/personalSettings';
 
-export default async function OrganizationSettingsPage() {
-  const ctx = await getOrgPageContext({});
-  const status = await getTelegramStatus(prisma, ctx.session);
-  const settings = await getNotificationSettings(prisma, ctx.session);
-  // Этап 8 (ФТ-9.2): реквизиты активной организации; правка — admin|leader.
-  const requisites = ctx.activeOrgId
-    ? await getOrgRequisites(prisma, ctx.session, ctx.activeOrgId)
-    : null;
-  const canEditRequisites = ctx.viewerRole === 'admin' || ctx.viewerRole === 'leader';
+export const dynamic = 'force-dynamic';
+
+/**
+ * Личные настройки заказчика (`У-114`).
+ *
+ * Раньше здесь же лежали реквизиты организации — то есть настройки **себя** и
+ * настройки **своей компании** были свалены на один экран. Реквизиты переехали
+ * в раздел «Моя организация» (`У-100`), а здесь остались вкладки Профиль ·
+ * Уведомления · Безопасность — те же, что у менеджера и партнёра.
+ */
+export default async function OrganizationSettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string; org?: string }>;
+}) {
+  const sp = await searchParams;
+  const ctx = await getOrgPageContext(sp);
+  const tab = readPersonalSettingsTab(sp.tab);
+
+  const telegram = tab === 'profile' ? await getTelegramStatus(prisma, ctx.session) : null;
+  const notifications =
+    tab === 'notifications' ? await getNotificationSettings(prisma, ctx.session) : null;
 
   return (
     <OrgAppShell
@@ -29,26 +42,20 @@ export default async function OrganizationSettingsPage() {
       activeOrgId={ctx.activeOrgId}
       viewerRole={ctx.viewerRole}
     >
-      <div className="space-y-6">
+      <div className="space-y-4">
         <h1 className="text-2xl font-semibold text-[#111111]">Настройки</h1>
-        {/* `У-73`: одна строка «что здесь делают». */}
-        <p className="text-sm text-gray-500 mt-0.5">
-          Профиль, реквизиты организации и доступ сотрудников
-        </p>
-        <TelegramLinkCard status={status} />
-        <NotificationChannelsCard settings={settings.view} />
-        {requisites?.ok && ctx.activeOrgId && (
-          <RequisitesCard
-            title="Реквизиты организации"
-            description="Нужны для автоматического формирования счетов и актов. Начните вводить название или ИНН — остальное подставится само."
-            defaults={requisites.requisites}
-            idPrefix="org-req"
-            action={setOrgRequisitesAction}
-            hidden={{ orgId: ctx.activeOrgId }}
-            canEdit={canEditRequisites}
-          />
-        )}
-        <SecurityCard />
+        <p className="text-sm text-gray-500">{PERSONAL_SETTINGS_SUBTITLE}</p>
+        <PersonalSettings
+          basePath="/organization/settings"
+          activeTab={tab}
+          slots={{
+            profile: telegram ? <TelegramLinkCard status={telegram} /> : null,
+            notifications: notifications ? (
+              <NotificationChannelsCard settings={notifications.view} />
+            ) : null,
+            security: <SecurityCard />,
+          }}
+        />
       </div>
     </OrgAppShell>
   );
