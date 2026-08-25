@@ -27,7 +27,23 @@ vi.mock('@/server-actions/requisites', () => ({ setCompanyRequisitesAction: vi.f
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
+const { redirect } = vi.hoisted(() => ({ redirect: vi.fn() }));
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  redirect,
+}));
+
+vi.mock('@/components/manager/settings/internal-phone-card', () => ({
+  InternalPhoneCard: (props: { initialInternalPhone: string | null }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'internal-phone-card' },
+      String(props.initialInternalPhone)
+    ),
+}));
+
+const { getStaffInternalPhone } = vi.hoisted(() => ({ getStaffInternalPhone: vi.fn() }));
+vi.mock('@/lib/services/manager/staffProfile', () => ({ getStaffInternalPhone }));
 
 vi.mock('@/components/settings/telegram-link-card', () => ({
   TelegramLinkCard: (props: { status: unknown }) =>
@@ -65,6 +81,9 @@ import AdminNotificationChannelsPage from '@/app/admin/settings/integrations/not
 import LeaderNotificationChannelsPage from '@/app/leader/settings/integrations/notifications/page';
 import AdminPersonalSecurityPage from '@/app/admin/settings/security/personal/page';
 import LeaderPersonalSecurityPage from '@/app/leader/settings/security/personal/page';
+import AdminPersonalSettingsPage from '@/app/admin/settings/personal/page';
+import LeaderPersonalSettingsPage from '@/app/leader/settings/personal/page';
+import { personalSettingsTabsFor } from '@/lib/navigation/personalSettings';
 import AdminRequisitesPage from '@/app/admin/settings/catalogs/requisites/page';
 import AdminFeatureFlagsPage from '@/app/admin/settings/system/feature-flags/page';
 
@@ -81,49 +100,99 @@ beforeEach(() => {
   getNotificationSettings.mockReset().mockResolvedValue({ view: { email: true } });
   listCompaniesRequisites.mockReset().mockResolvedValue({ ok: true, companies: [] });
   isFeatureEnabled.mockReset().mockReturnValue(false);
+  getStaffInternalPhone.mockReset().mockResolvedValue(null);
+  redirect.mockReset();
 });
 
-describe('каналы уведомлений', () => {
-  it('админ: гард раздела, привязка Telegram и карточка каналов', async () => {
-    const { container } = await renderServerComponent(AdminNotificationChannelsPage());
+/**
+ * `У-114`: «Каналы уведомлений» и «Личная безопасность» были двумя разделами в
+ * двух разных группах хаба, хотя это одно и то же — настройки себя. Теперь один
+ * раздел с теми же вкладками, что у менеджера, партнёра и заказчика.
+ */
+describe('личные настройки в хабе (У-114)', () => {
+  const render = (
+    page: (a: { searchParams: Promise<{ tab?: string }> }) => unknown,
+    tab?: string
+  ) =>
+    renderServerComponent(
+      page({ searchParams: Promise.resolve(tab ? { tab } : {}) }) as Promise<React.ReactNode>
+    );
 
-    expect(requireSettingsSection).toHaveBeenCalledWith('integrations.notifications', 'admin');
-    expect(getTelegramStatus).toHaveBeenCalledWith({}, ADMIN);
-    expect(getNotificationSettings).toHaveBeenCalledWith({}, ADMIN);
-    expect(container.querySelector('h1')?.textContent).toBe('Каналы уведомлений');
-    expect(container.textContent).toContain('linked');
-    expect(container.textContent).toContain('email');
+  it('админ: гард раздела и те же вкладки в том же порядке', async () => {
+    const { container } = await render(AdminPersonalSettingsPage);
+
+    expect(requireSettingsSection).toHaveBeenCalledWith('personal.settings', 'admin');
+    expect(container.querySelector('h1')?.textContent).toBe('Личные настройки');
+    const shown = [...container.querySelectorAll('[data-testid^="personal-tab-"]')].map(
+      (el) => el.textContent
+    );
+    expect(shown).toEqual(personalSettingsTabsFor().map((t) => t.label));
   });
 
-  it('руководитель: тот же экран в своём кабинете', async () => {
-    const { container } = await renderServerComponent(LeaderNotificationChannelsPage());
+  it('«Профиль» админа: привязка Telegram, но без внутреннего номера', async () => {
+    // Внутренний номер — менеджерский контур: click-to-call через Mango, и
+    // `updateInternalPhoneAction` админа всё равно не пустит.
+    const { container } = await render(AdminPersonalSettingsPage, 'profile');
+    expect(container.querySelector('[data-testid="telegram-card"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="internal-phone-card"]')).toBeNull();
+    expect(getStaffInternalPhone).not.toHaveBeenCalled();
+  });
 
-    expect(requireSettingsSection).toHaveBeenCalledWith('integrations.notifications', 'leader');
-    expect(getTelegramStatus).toHaveBeenCalledWith({}, LEADER);
+  it('«Профиль» руководителя: и Telegram, и внутренний номер', async () => {
+    getStaffInternalPhone.mockResolvedValue('1234');
+    const { container } = await render(LeaderPersonalSettingsPage, 'profile');
+
+    expect(requireSettingsSection).toHaveBeenCalledWith('personal.settings', 'leader');
+    expect(container.querySelector('[data-testid="internal-phone-card"]')?.textContent).toBe(
+      '1234'
+    );
+  });
+
+  it('«Уведомления»: каналы, и за телеграмом сюда не ходим', async () => {
+    const { container } = await render(AdminPersonalSettingsPage, 'notifications');
     expect(container.querySelector('[data-testid="notif-card"]')).not.toBeNull();
+    expect(getNotificationSettings).toHaveBeenCalledWith({}, ADMIN);
+    expect(getTelegramStatus).not.toHaveBeenCalled();
+  });
+
+  it('«Безопасность»: сессии всегда, коды восстановления — под флагом', async () => {
+    const off = await render(AdminPersonalSettingsPage, 'security');
+    expect(off.container.querySelector('[data-testid="security-card"]')).not.toBeNull();
+    expect(off.container.querySelector('[data-testid="backup-codes"]')).toBeNull();
+    expect(isFeatureEnabled).toHaveBeenCalledWith('staff_2fa');
+
+    isFeatureEnabled.mockReturnValue(true);
+    const on = await render(AdminPersonalSettingsPage, 'security');
+    expect(on.container.querySelector('[data-testid="backup-codes"]')).not.toBeNull();
+  });
+
+  it('незнакомая вкладка открывает «Профиль», а не пустой экран', async () => {
+    const { container } = await render(LeaderPersonalSettingsPage, 'нет-такой');
+    expect(container.querySelector('[data-testid="telegram-card"]')).not.toBeNull();
   });
 });
 
-describe('личная безопасность', () => {
-  it('без флага staff_2fa секции кодов восстановления нет', async () => {
-    const { container } = await renderServerComponent(AdminPersonalSecurityPage());
-
-    expect(requireSettingsSection).toHaveBeenCalledWith('security.personal', 'admin');
-    expect(isFeatureEnabled).toHaveBeenCalledWith('staff_2fa');
-    expect(container.querySelector('[data-testid="backup-codes"]')).toBeNull();
-    expect(container.querySelector('[data-testid="security-card"]')).not.toBeNull();
-  });
-
-  it('с флагом staff_2fa секция кодов восстановления появляется', async () => {
-    isFeatureEnabled.mockReturnValue(true);
-    const { container } = await renderServerComponent(AdminPersonalSecurityPage());
-    expect(container.querySelector('[data-testid="backup-codes"]')).not.toBeNull();
-  });
-
-  it('руководитель: тот же экран в своём кабинете', async () => {
-    const { container } = await renderServerComponent(LeaderPersonalSecurityPage());
-    expect(requireSettingsSection).toHaveBeenCalledWith('security.personal', 'leader');
-    expect(container.querySelector('[data-testid="security-card"]')).not.toBeNull();
+describe('старые адреса разделов остаются живыми (У-114)', () => {
+  it.each([
+    [
+      'админ · уведомления',
+      AdminNotificationChannelsPage,
+      '/admin/settings/personal?tab=notifications',
+    ],
+    [
+      'руководитель · уведомления',
+      LeaderNotificationChannelsPage,
+      '/leader/settings/personal?tab=notifications',
+    ],
+    ['админ · безопасность', AdminPersonalSecurityPage, '/admin/settings/personal?tab=security'],
+    [
+      'руководитель · безопасность',
+      LeaderPersonalSecurityPage,
+      '/leader/settings/personal?tab=security',
+    ],
+  ])('%s → своя вкладка нового раздела', (_name, page, to) => {
+    (page as () => void)();
+    expect(redirect).toHaveBeenCalledWith(to);
   });
 });
 

@@ -3,6 +3,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import PartnerSettingsPage from '@/app/partner/settings/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
+import { personalSettingsTabsFor } from '@/lib/navigation/personalSettings';
 
 const { requirePartner } = vi.hoisted(() => ({ requirePartner: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requirePartner }));
@@ -63,7 +64,9 @@ describe('PartnerSettingsPage', () => {
   beforeEach(() => {
     requirePartner.mockReset();
     getPartnerRequisites.mockReset().mockResolvedValue({ ok: false, error: 'forbidden' });
-    getTelegramStatus.mockReset();
+    // «Профиль» теперь показывает и привязку Telegram — карточка настоящая,
+    // без статуса она падает. Дефолт даём здесь, тесты его переопределяют.
+    getTelegramStatus.mockReset().mockResolvedValue({ ok: true, linked: false, enabled: true });
     getNotificationSettings.mockReset();
     listTeam.mockReset();
     listPartnerOrgOptions.mockReset();
@@ -108,7 +111,7 @@ describe('PartnerSettingsPage', () => {
     expect(container.textContent).toContain('Реквизиты партнёра');
   });
 
-  it('renders the telegram link card and notification channels card', async () => {
+  it('«Уведомления»: каналы связи, за телеграмом сюда не ходим', async () => {
     requirePartner.mockResolvedValue(SESSION);
     getTelegramStatus.mockResolvedValue({ ok: true, linked: false, enabled: true });
     getNotificationSettings.mockResolvedValue({
@@ -126,7 +129,8 @@ describe('PartnerSettingsPage', () => {
       PartnerSettingsPage({ searchParams: Promise.resolve({ tab: 'notifications' }) })
     );
 
-    expect(getTelegramStatus).toHaveBeenCalledWith(expect.anything(), SESSION);
+    // `У-114`: привязка Telegram — это «Профиль», а каналы — «Уведомления».
+    expect(getTelegramStatus).not.toHaveBeenCalled();
     expect(getNotificationSettings).toHaveBeenCalledWith(expect.anything(), SESSION);
     expect(container.textContent).toContain('Настройки');
   });
@@ -140,7 +144,7 @@ describe('PartnerSettingsPage', () => {
     );
 
     for (const key of ['profile', 'team', 'notifications', 'security']) {
-      expect(container.querySelector(`[data-testid="partner-settings-tab-${key}"]`)).not.toBeNull();
+      expect(container.querySelector(`[data-testid="personal-tab-${key}"]`)).not.toBeNull();
     }
   });
 
@@ -151,7 +155,7 @@ describe('PartnerSettingsPage', () => {
       PartnerSettingsPage({ searchParams: Promise.resolve({}) })
     );
 
-    expect(container.querySelector('[data-testid="partner-settings-tab-team"]')).toBeNull();
+    expect(container.querySelector('[data-testid="personal-tab-team"]')).toBeNull();
   });
 
   it('прямая ссылка на «Команду» от не-админа открывает «Профиль», а не пустой экран', async () => {
@@ -163,9 +167,7 @@ describe('PartnerSettingsPage', () => {
     );
 
     expect(
-      container
-        .querySelector('[data-testid="partner-settings-tab-profile"]')
-        ?.getAttribute('data-active')
+      container.querySelector('[data-testid="personal-tab-profile"]')?.getAttribute('data-active')
     ).toBe('true');
   });
 
@@ -177,20 +179,33 @@ describe('PartnerSettingsPage', () => {
     );
 
     expect(
-      container
-        .querySelector('[data-testid="partner-settings-tab-profile"]')
-        ?.getAttribute('data-active')
+      container.querySelector('[data-testid="personal-tab-profile"]')?.getAttribute('data-active')
     ).toBe('true');
   });
 
-  it('§15: у экрана есть подзаголовок, объясняющий, что здесь делают', async () => {
+  it('§15: у каждой вкладки свой подзаголовок — и он тот же, что в других кабинетах', async () => {
+    requirePartner.mockResolvedValue({ ...SESSION, partnerRole: 'admin' });
+    getPartnerRequisites.mockResolvedValue({ ok: false, error: 'forbidden' });
+    getTelegramStatus.mockResolvedValue({ ok: true, linked: false, enabled: true });
+
+    const { container } = await renderServerComponent(
+      PartnerSettingsPage({ searchParams: Promise.resolve({}) })
+    );
+
+    expect(container.textContent).toContain(personalSettingsTabsFor()[0]?.description);
+  });
+
+  it('`У-114`: вкладки и их порядок берутся из общего реестра, а не пишутся в кабинете', async () => {
     requirePartner.mockResolvedValue({ ...SESSION, partnerRole: 'admin' });
 
     const { container } = await renderServerComponent(
       PartnerSettingsPage({ searchParams: Promise.resolve({}) })
     );
 
-    expect(container.textContent).toContain('Реквизиты для документов');
+    const shown = [...container.querySelectorAll('[data-testid^="personal-tab-"]')].map(
+      (el) => el.textContent
+    );
+    expect(shown).toEqual(personalSettingsTabsFor({ team: true }).map((t) => t.label));
   });
 
   /**

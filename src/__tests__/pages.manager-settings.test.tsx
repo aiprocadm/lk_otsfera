@@ -58,58 +58,77 @@ const SESSION = {
   companyId: 'c1',
 };
 
-describe('ManagerSettingsPage', () => {
+/**
+ * `У-114`: личные настройки — один экран с вкладками во всех пяти кабинетах.
+ * Раньше у менеджера это была одна длинная страница со всеми карточками
+ * подряд, а у партнёра — четыре вкладки: один и тот же набор выглядел
+ * по-разному.
+ */
+describe('ManagerSettingsPage (У-114)', () => {
   beforeEach(() => {
-    requireManager.mockReset();
-    getTelegramStatus.mockReset();
-    getNotificationSettings.mockReset();
-    getStaffInternalPhone.mockReset();
-    getStaffInternalPhone.mockResolvedValue(null);
-    isFeatureEnabled.mockReset();
-    isFeatureEnabled.mockReturnValue(false);
+    requireManager.mockReset().mockResolvedValue(SESSION);
+    getTelegramStatus.mockReset().mockResolvedValue({ linked: true });
+    getNotificationSettings.mockReset().mockResolvedValue({ view: { email: true } });
+    getStaffInternalPhone.mockReset().mockResolvedValue(null);
+    isFeatureEnabled.mockReset().mockReturnValue(false);
   });
 
-  it('renders telegram + notification settings + internal-phone cards', async () => {
-    requireManager.mockResolvedValue(SESSION);
-    getTelegramStatus.mockResolvedValue({ linked: true });
-    getNotificationSettings.mockResolvedValue({ view: { email: true } });
-    getStaffInternalPhone.mockResolvedValue('101');
-
-    const { container } = await renderServerComponent(ManagerSettingsPage());
-
-    expect(requireManager).toHaveBeenCalled();
-    expect(getTelegramStatus).toHaveBeenCalledWith(prismaMock, SESSION);
-    expect(getNotificationSettings).toHaveBeenCalledWith(prismaMock, SESSION);
-    expect(getStaffInternalPhone).toHaveBeenCalledWith(prismaMock, SESSION);
-    expect(container.textContent).toContain('Настройки');
-    expect(container.textContent).toContain('linked');
-    expect(container.textContent).toContain('email');
-    expect(container.querySelector('[data-testid="internal-phone-card"]')?.textContent).toBe('101');
-    expect(container.querySelector('[data-testid="backup-codes-section"]')).toBeNull();
-  });
-
-  it('passes null to the internal-phone card when the user has no number set', async () => {
-    requireManager.mockResolvedValue(SESSION);
-    getTelegramStatus.mockResolvedValue({ linked: true });
-    getNotificationSettings.mockResolvedValue({ view: { email: true } });
-    getStaffInternalPhone.mockResolvedValue(null);
-
-    const { container } = await renderServerComponent(ManagerSettingsPage());
-
-    expect(container.querySelector('[data-testid="internal-phone-card"]')?.textContent).toBe(
-      'null'
+  const render = (tab?: string) =>
+    renderServerComponent(
+      ManagerSettingsPage({ searchParams: Promise.resolve(tab ? { tab } : {}) })
     );
+
+  it('вкладки одни и те же во всех кабинетах и в одном порядке', async () => {
+    const { container } = await render();
+    const tabs = [...container.querySelectorAll('[data-testid^="personal-tab-"]')].map((el) =>
+      el.getAttribute('data-testid')
+    );
+    expect(tabs).toEqual([
+      'personal-tab-profile',
+      'personal-tab-notifications',
+      'personal-tab-security',
+    ]);
+    // «Команда» есть только у партнёра-администратора.
+    expect(tabs).not.toContain('personal-tab-team');
   });
 
-  it('shows the backup-codes section when staff_2fa is enabled', async () => {
-    requireManager.mockResolvedValue(SESSION);
-    getTelegramStatus.mockResolvedValue({ linked: true });
-    getNotificationSettings.mockResolvedValue({ view: { email: true } });
+  it('«Профиль»: привязка Telegram и внутренний номер', async () => {
+    getStaffInternalPhone.mockResolvedValue('1234');
+    const { container } = await render('profile');
+    expect(container.querySelector('[data-testid="telegram-card"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="internal-phone-card"]')?.textContent).toBe(
+      '1234'
+    );
+    // Каналы уведомлений сюда не попадают — у них своя вкладка.
+    expect(container.querySelector('[data-testid="notif-card"]')).toBeNull();
+  });
+
+  it('«Уведомления»: каналы, и сервис зовётся только здесь', async () => {
+    const { container } = await render('notifications');
+    expect(container.querySelector('[data-testid="notif-card"]')).not.toBeNull();
+    expect(getNotificationSettings).toHaveBeenCalled();
+    expect(getTelegramStatus).not.toHaveBeenCalled();
+  });
+
+  it('«Безопасность»: сессии, а коды восстановления — под флагом', async () => {
+    const off = await render('security');
+    expect(off.container.querySelector('[data-testid="security-card"]')).not.toBeNull();
+    expect(off.container.querySelector('[data-testid="backup-codes-section"]')).toBeNull();
+
     isFeatureEnabled.mockReturnValue(true);
+    const on = await render('security');
+    expect(on.container.querySelector('[data-testid="backup-codes-section"]')).not.toBeNull();
+  });
 
-    const { container } = await renderServerComponent(ManagerSettingsPage());
+  it('данные грузятся только для открытой вкладки', async () => {
+    await render('security');
+    expect(getTelegramStatus).not.toHaveBeenCalled();
+    expect(getNotificationSettings).not.toHaveBeenCalled();
+    expect(getStaffInternalPhone).not.toHaveBeenCalled();
+  });
 
-    expect(isFeatureEnabled).toHaveBeenCalledWith('staff_2fa');
-    expect(container.querySelector('[data-testid="backup-codes-section"]')).not.toBeNull();
+  it('незнакомая вкладка в адресе открывает «Профиль», а не пустой экран', async () => {
+    const { container } = await render('нет-такой');
+    expect(container.querySelector('[data-testid="telegram-card"]')).not.toBeNull();
   });
 });
