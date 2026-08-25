@@ -49,7 +49,7 @@ describe('AdminDashboardPage', () => {
     expect(kpis).toHaveBeenCalledWith({});
     expect(attention).toHaveBeenCalledWith({});
     expect(recentEvents).toHaveBeenCalledWith({}, 20);
-    expect(container.textContent).toContain('Кабинет администратора');
+    expect(container.textContent).toContain('Главная');
     expect(container.textContent).toContain('Заказы');
     expect(container.textContent).toContain('Просрочен');
     expect(container.textContent).toContain('Скоро');

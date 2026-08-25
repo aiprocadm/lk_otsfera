@@ -23,7 +23,7 @@ export default async function AdminDashboardPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">Кабинет администратора</h1>
+        <h1 className="text-2xl font-bold text-[#111111]">Главная</h1>
         <p className="text-sm text-gray-500 mt-0.5">Обзор платформы</p>
       </div>
 

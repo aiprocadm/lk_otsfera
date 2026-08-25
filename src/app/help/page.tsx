@@ -24,7 +24,7 @@ export default async function HelpPage() {
             middleware уводит его в кабинет по роли. */}
         <BackLink href="/dashboard" label="Вернуться в кабинет" />
         <div>
-          <h1 className="text-2xl font-bold text-[#111111]">Справка: словарь терминов</h1>
+          <h1 className="text-2xl font-bold text-[#111111]">Справка</h1>
           <p className="text-sm text-gray-500 mt-0.5">
             Что означают слова, которыми говорит кабинет, — простыми словами и без сокращений.
           </p>

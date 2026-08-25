@@ -76,7 +76,7 @@ describe('PartnerDashboard', () => {
       { partnerId: 'p1', scopeOrgIds: ['org-1'] },
       10
     );
-    expect(container.textContent).toContain('Кабинет партнёра');
+    expect(container.textContent).toContain('Главная');
     // welcomeSeenAt не-null → welcome-блока нет.
     expect(container.textContent).not.toContain('Добро пожаловать');
   });

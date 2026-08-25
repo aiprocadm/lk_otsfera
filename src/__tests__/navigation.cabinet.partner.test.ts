@@ -139,7 +139,7 @@ describe('navByRole.manager — Загрузка из 1С item', () => {
   it('содержит пункт /manager/import с флагом manager_cabinet', () => {
     const item = navByRole.manager.find((i) => i.href === '/manager/import');
     expect(item).toBeDefined();
-    expect(item!.label).toBe('Загрузка из 1С');
+    expect(item!.label).toBe('Загрузка Excel из 1С');
     expect(item!.flag).toBe('manager_cabinet');
   });
 

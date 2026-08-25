@@ -234,7 +234,7 @@ describe('OrgSidebar', () => {
   it('рисует значок раздела из реестра', () => {
     vi.mocked(usePathname).mockReturnValue('/organization/custom');
     const items: NavItem[] = [
-      { href: '/organization/custom', label: 'Свой раздел', iconKey: 'documents' },
+      { href: '/organization/custom', label: 'Свой раздел', sectionKey: 'documents', iconKey: 'documents' },
     ];
     const html = renderToString(
       React.createElement(OrgSidebar, {

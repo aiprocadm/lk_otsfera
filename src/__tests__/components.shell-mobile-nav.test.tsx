@@ -32,8 +32,8 @@ vi.mock('next/link', () => ({
 import { MobileNav } from '@/components/shell/mobile-nav';
 
 const TABS: NavItem[] = [
-  { href: '/partner/dashboard', label: 'Главная', iconKey: 'dashboard' },
-  { href: '/partner/deals', label: 'Заказы', iconKey: 'orders' },
+  { href: '/partner/dashboard', label: 'Главная', sectionKey: 'dashboard', iconKey: 'dashboard' },
+  { href: '/partner/deals', label: 'Заказы', sectionKey: 'orders', iconKey: 'orders' },
 ];
 
 function renderNav(extra?: Partial<React.ComponentProps<typeof MobileNav>>) {
