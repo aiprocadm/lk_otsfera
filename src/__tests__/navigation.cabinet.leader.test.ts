@@ -80,10 +80,10 @@ describe('канон leader', () => {
     expect(item!.href.startsWith('/admin')).toBe(false);
   });
 
-  it('«Доп-поля» ведут в кабинет руководителя, без флага (§11 ТЗ v0.5)', () => {
+  it('«Дополнительные поля» ведут в кабинет руководителя, без флага (§11 ТЗ v0.5)', () => {
     const item = navByRole.leader.find((i) => i.href === '/leader/settings/custom-fields');
     expect(item).toBeDefined();
-    expect(item!.label).toBe('Доп-поля');
+    expect(item!.label).toBe('Дополнительные поля');
     expect(item!.group).toBe('Настройки');
     expect(item!.flag).toBeUndefined();
     // ключевое: ссылка НЕ в админский кабинет

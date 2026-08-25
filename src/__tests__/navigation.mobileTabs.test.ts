@@ -36,9 +36,9 @@ describe('MOBILE_TABS', () => {
 
 describe('mobileTabsFor', () => {
   const items: NavItem[] = [
-    { href: '/partner/dashboard', label: 'Главная', iconKey: 'dashboard' },
-    { href: '/partner/deals', label: 'Заказы', iconKey: 'orders' },
-    { href: '/partner/documents', label: 'Документы', iconKey: 'documents' },
+    { href: '/partner/dashboard', label: 'Главная', sectionKey: 'dashboard', iconKey: 'dashboard' },
+    { href: '/partner/deals', label: 'Заказы', sectionKey: 'orders', iconKey: 'orders' },
+    { href: '/partner/documents', label: 'Документы', sectionKey: 'documents', iconKey: 'documents' },
   ];
 
   it('возвращает пункты в порядке MOBILE_TABS, а не в порядке меню', () => {
@@ -62,7 +62,7 @@ describe('mobileTabsFor', () => {
   });
 
   it('у слушателя одна вкладка', () => {
-    const studentItems: NavItem[] = [{ href: '/student', label: 'Обучение', iconKey: 'learning' }];
+    const studentItems: NavItem[] = [{ href: '/student', label: 'Обучение', sectionKey: 'learning', iconKey: 'learning' }];
     expect(mobileTabsFor('student', studentItems)).toHaveLength(1);
   });
 });

@@ -2,105 +2,122 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { navByRole } from '@/lib/navigation/cabinet';
+import { SECTIONS, type SectionKey } from '@/lib/navigation/sectionLabels';
+import { ORG_CARD_TABS } from '@/lib/navigation/orgCardTabs';
+import { ORG_CARD_TILES } from '@/lib/navigation/orgCardTiles';
 
 /**
- * Сторож единого названия раздела (§15, `У-76`).
+ * Сторож единого названия раздела (`У-106`, `У-108`, §0.2 — правило зеркала).
  *
  * «Один и тот же объект называется одинаково во всех шести кабинетах.»
  *
- * Правило держалось на внимательности и разъехалось: экран загрузки банковской
- * выписки назывался «Импорт выписки (сч. 51)» у админа, «Импорт оплат» у
- * менеджера, а **заголовок самой страницы** не совпадал ни с тем ни с другим.
- * Плюс два разных значка на один экран. Человек кликал одно название, попадал
- * на другое — и не мог сослаться на экран в разговоре с коллегой из соседнего
- * кабинета.
+ * **Что изменилось на этапе 3.** Раньше сторож сравнивал разделы по последнему
+ * куску адреса: `/admin/payments-import` и `/manager/payments-import` — один
+ * экран. Приём рабочий, но косвенный — это совпадение путей, а не смысла:
+ * `/leader/team` и `/manager/team` совпали случайно, а близкие разделы с
+ * разными адресами он не сравнивал вовсе. Теперь у пункта меню есть **ключ
+ * раздела**, и сравнение идёт по нему.
  *
- * Проверка идёт по последнему сегменту адреса: `/admin/payments-import` и
- * `/manager/payments-import` — это один экран, показанный двум ролям.
+ * Главная проверка здесь — не равенство строк (оно теперь выполняется по
+ * построению), а то, что **обойти словарь нельзя**: пункт меню не имеет права
+ * нести своё название.
  */
 const SRC = join(__dirname, '..');
 
-/**
- * Сегменты, у которых разные названия ОСОЗНАННЫ — за каждым стоит другой
- * объект, а не оплошность. Список короткий намеренно.
- */
-const DIFFERENT_BY_DESIGN = new Map<string, string>([
-  ['dashboard', 'у каждой роли своя главная; в чужих меню это ссылка-вход с названием кабинета'],
-  ['deals', 'у партнёра по этому адресу его портфель заказов, а не канбан сделок (см. §5)'],
-  ['student', 'у заказчика это вход в кабинет слушателя, у слушателя — его собственный раздел'],
-  [
-    'team',
-    // `У-98`: объекты РАЗНЫЕ — у заказчика это пользователи его кабинета
-    // («Доступ в кабинет»), у сотрудников ЦО — менеджеры компании («Команда»).
-    // Исключение временное: по `У-100` адрес `/organization/team` станет
-    // шлюзом на вкладку карточки, и сегмент останется только у ЦО.
-    'у заказчика — доступ в его кабинет, у сотрудников ЦО — команда компании; адрес заказчика уходит в шлюз по У-100',
-  ],
-]);
-
-function labelsBySegment(): Map<string, Map<string, string>> {
-  const out = new Map<string, Map<string, string>>();
-  for (const [role, items] of Object.entries(navByRole)) {
-    for (const item of items) {
-      const parts = item.href.split('/').filter(Boolean);
-      const segment = parts[parts.length - 1];
-      if (!segment) continue;
-      const byRole = out.get(segment) ?? new Map<string, string>();
-      byRole.set(role, item.label);
-      out.set(segment, byRole);
-    }
-  }
-  return out;
-}
-
-describe('один раздел — одно название во всех кабинетах (У-76)', () => {
-  const segments = labelsBySegment();
+describe('один раздел — одно название (У-106)', () => {
+  const items = Object.entries(navByRole).flatMap(([role, list]) =>
+    list.map((i) => ({ role, ...i }))
+  );
 
   it('реестр разобран — есть что проверять', () => {
-    expect(segments.size).toBeGreaterThan(15);
+    expect(items.length).toBeGreaterThan(80);
   });
 
-  it('названия одного раздела совпадают у всех ролей', () => {
-    const drift: string[] = [];
+  it('пункт меню не носит своего названия — оно приходит из словаря', () => {
+    // Это и есть механизм: пока названия нет в реестре, разъехаться ему негде.
+    // Ищем ГДЕ УГОДНО в строке, а не с её начала: однострочный пункт
+    // `{ href: '…', sectionKey: '…', label: '…' }` — самый вероятный вид
+    // регресса, и якорь `^\s*` его пропускал (проверено мутацией, §16).
+    const src = readFileSync(join(SRC, 'lib/navigation/cabinet.ts'), 'utf8');
+    expect(src).not.toMatch(/\blabel:\s*'/);
+    expect(src).not.toMatch(/\biconKey:\s*'/);
+  });
 
-    for (const [segment, byRole] of segments) {
-      if (DIFFERENT_BY_DESIGN.has(segment)) continue;
-      const labels = new Set(byRole.values());
-      if (labels.size > 1) {
-        const shown = [...byRole].map(([r, l]) => `${r}: «${l}»`).join(', ');
-        drift.push(`/${segment} — ${shown}`);
-      }
+  it('одинаковый ключ ⇒ одинаковые название и значок в любой роли', () => {
+    for (const item of items) {
+      const meta = SECTIONS[item.sectionKey];
+      expect(meta, `${item.role}: неизвестный ключ ${item.sectionKey}`).toBeDefined();
+      expect(item.label, `${item.role} ${item.href}`).toBe(meta.label);
+      expect(item.iconKey, `${item.role} ${item.href}`).toBe(meta.iconKey);
     }
-
-    expect(drift, 'один экран называется по-разному в разных кабинетах').toEqual([]);
   });
 
-  it('исключения объяснены, а список не разрастается', () => {
-    for (const [, reason] of DIFFERENT_BY_DESIGN) {
-      expect(reason.length, 'у исключения должна быть причина словами').toBeGreaterThan(20);
+  it('два ключа не делят одно название', () => {
+    // Иначе «Заказы» окажется двумя разными разделами, и человек не поймёт, о
+    // каком из них речь.
+    const byLabel = new Map<string, SectionKey[]>();
+    for (const [key, meta] of Object.entries(SECTIONS) as [SectionKey, { label: string }][]) {
+      byLabel.set(meta.label, [...(byLabel.get(meta.label) ?? []), key]);
     }
-    expect(DIFFERENT_BY_DESIGN.size).toBeLessThanOrEqual(4);
+    const dup = [...byLabel.entries()]
+      .filter(([, keys]) => keys.length > 1)
+      .map(([label, keys]) => `«${label}» → ${keys.join(', ')}`);
+    expect(dup, 'одно название на несколько ключей раздела').toEqual([]);
   });
 
-  it('заголовок экрана импорта оплат совпадает с пунктом меню', () => {
-    // Именно это расхождение и было: клик по «Импорт оплат» приводил на экран
-    // с заголовком «Импорт выписки (Карточка счёта 51)».
-    const menuLabel = navByRole.manager.find((i) => i.href.endsWith('/payments-import'))?.label;
-    expect(menuLabel).toBe('Импорт оплат');
-
-    for (const page of [
-      join(SRC, 'app', 'manager', 'payments-import', 'page.tsx'),
-      join(SRC, 'app', 'admin', 'settings', 'integrations', '1c', 'payments', 'page.tsx'),
-      join(SRC, 'app', 'leader', 'settings', 'integrations', '1c', 'payments', 'page.tsx'),
+  it('`У-107`: дореформенных названий в словаре не осталось', () => {
+    const labels = Object.values(SECTIONS).map((s) => s.label);
+    for (const old of [
+      'Комиссии',
+      'Корректировки',
+      'Загрузка из 1С',
+      'Импорт оплат',
+      'Доп-поля',
+      'Роли',
+      'Воронка',
+      'Здоровье',
+      'Доступ к ПДн',
+      'Синхронизация (авто)',
     ]) {
-      const src = readFileSync(page, 'utf8');
-      expect(src, `${page}: заголовок должен совпадать с пунктом меню`).toContain(
-        `>${menuLabel}</h1>`
-      );
-      // Бухгалтерская подробность остаётся — но в подзаголовке, где объясняет.
-      expect(src, `${page}: подзаголовок должен подсказывать, какой файл взять`).toContain(
-        'Карточка счёта 51'
-      );
+      expect(labels, `осталось старое название «${old}»`).not.toContain(old);
     }
+  });
+});
+
+/**
+ * `У-108`: тот же сторож покрывает вкладки карточки организации и плитки.
+ * Названия вкладок живут в своём реестре — механизм должен не дать им
+ * разъехаться с названиями разделов.
+ */
+describe('вкладки карточки не расходятся с разделами (У-108)', () => {
+  it('вкладка с ключом раздела называется и рисуется так же, как раздел', () => {
+    for (const tab of ORG_CARD_TABS) {
+      const meta = SECTIONS[tab.key as SectionKey];
+      if (!meta) continue; // вкладки без одноимённого раздела — «Обзор», «Сотрудники», «Комментарии»
+      expect(tab.label, `вкладка ${tab.key}`).toBe(meta.label);
+      expect(tab.iconKey, `вкладка ${tab.key}`).toBe(meta.iconKey);
+    }
+  });
+
+  it('одинаковое название ⇒ одинаковый значок, даже если это раздел и вкладка', () => {
+    // Ловит расхождение вида «Входящие письма» пунктом меню с одним значком и
+    // вкладкой карточки — с другим.
+    const byLabel = new Map<string, Set<string>>();
+    for (const meta of Object.values(SECTIONS)) {
+      byLabel.set(meta.label, new Set([...(byLabel.get(meta.label) ?? []), meta.iconKey]));
+    }
+    for (const tab of ORG_CARD_TABS) {
+      byLabel.set(tab.label, new Set([...(byLabel.get(tab.label) ?? []), tab.iconKey]));
+    }
+    const broken = [...byLabel.entries()]
+      .filter(([, icons]) => icons.size > 1)
+      .map(([label, icons]) => `«${label}» → ${[...icons].join(', ')}`);
+    expect(broken, 'один и тот же раздел нарисован разными значками').toEqual([]);
+  });
+
+  it('подписи плиток заданы один раз и не пустые', () => {
+    const labels = ORG_CARD_TILES.map((t) => t.label);
+    expect(new Set(labels).size).toBe(labels.length);
+    for (const l of labels) expect(l.trim().length).toBeGreaterThan(0);
   });
 });

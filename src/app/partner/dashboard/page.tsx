@@ -38,7 +38,7 @@ export default async function PartnerDashboard() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">Кабинет партнёра</h1>
+        <h1 className="text-2xl font-bold text-[#111111]">Главная</h1>
         <p className="text-sm text-gray-500 mt-0.5">Обзор ключевых показателей и активности</p>
       </div>
 

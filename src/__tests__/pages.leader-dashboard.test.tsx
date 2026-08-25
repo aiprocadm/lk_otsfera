@@ -62,7 +62,7 @@ describe('LeaderDashboardPage', () => {
     expect(leaderDashboard).toHaveBeenCalledWith({}, SESSION);
     // company-wide always: teamModeOverride=true (4th arg)
     expect(recentEvents).toHaveBeenCalledWith({}, SESSION, undefined, true);
-    expect(container.textContent).toContain('Сводка по команде');
+    expect(container.textContent).toContain('Главная');
     expect(container.textContent).toContain('Менеджеров');
     expect(container.textContent).toContain('250');
   });

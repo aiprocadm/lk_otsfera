@@ -20,7 +20,11 @@ describe('страница /help (У-76)', () => {
     const { container } = await renderServerComponent(HelpPage());
     expect(requireSession).toHaveBeenCalled();
 
-    expect(container.querySelector('h1')?.textContent).toContain('словарь терминов');
+    // `У-106`: заголовок экрана равен пункту меню, а пояснение живёт
+    // подзаголовком — иначе человек кликает «Справку», а попадает на
+    // «Справку: словарь терминов» и не уверен, туда ли он пришёл.
+    expect(container.querySelector('h1')?.textContent).toBe('Справка');
+    expect(container.textContent).toContain('простыми словами');
     // §15: подзаголовок «что здесь делают».
     expect(container.textContent).toContain('Что означают слова');
     // Все четыре раздела смонтированы.

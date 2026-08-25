@@ -1,19 +1,24 @@
 import type { Role } from '@/lib/auth/jwt';
 import { isFeatureEnabled, type FeatureFlag } from '@/lib/featureFlags';
 import type { IconKey } from './icons';
+import { SECTIONS, type SectionKey } from './sectionLabels';
 
-export type NavItem = {
+/**
+ * Пункт меню как он записан в реестре (`У-106`).
+ *
+ * Названия и значка здесь **нет**: пункт объявляет ключ раздела, а название и
+ * значок приходят из словаря [sectionLabels.ts](./sectionLabels.ts). Раньше
+ * строка писалась в каждой роли заново — и разъезжалась: «Комиссии» у
+ * администратора против «Комиссионных отчётов» в разговоре, «Импорт оплат»
+ * против «Выписки (сч. 51)» про один и тот же экран.
+ */
+export type NavItemSpec = {
   href: string;
-  label: string;
+  /** Ключ раздела — из него выводятся название и значок (`У-106`). */
+  sectionKey: SectionKey;
   disabled?: boolean;
   flag?: FeatureFlag;
   leaderOnly?: boolean;
-  /**
-   * Значок раздела — семантический ключ из реестра `navigation/icons.ts`
-   * (`У-6`). Поле **обязательное**: до этапа 2 значок был свободной строкой и
-   * необязательным, из-за чего у партнёра и слушателя не было ни одного.
-   */
-  iconKey: IconKey;
   /** Секция админского сайдбара («Платформа» / «Операции» / «Справочники»). Прочие шеллы игнорируют. */
   group?: string;
   /** Скрыть пункт, когда флаг ВКЛЮЧЁН (обратный гейт: «Команда» менеджера уезжает в /leader). */
@@ -27,74 +32,76 @@ export type NavItem = {
   badgeKey?: 'intake' | 'tasksOverdue' | 'clientRequestsNew' | 'messagesUnread';
 };
 
+/**
+ * Пункт меню, готовый к отрисовке: спецификация плюс выведенные из ключа
+ * название и значок. Потребители (сайдбар, крошки, мобильная панель) работают
+ * с ним и о словаре не знают.
+ */
+export type NavItem = NavItemSpec & { label: string; iconKey: IconKey };
+
+function withSection(spec: NavItemSpec): NavItem {
+  return { ...spec, ...SECTIONS[spec.sectionKey] };
+}
+
 // 'leader' — полноценная JWT-роль (ТЗ 2026-08-17); ключ канона меню совпадает с ней.
-export const navByRole: Record<Role | 'leader', NavItem[]> = {
+const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
   // /admin/orders намеренно НЕ в меню: это deprecated-redirect на дашборд (реальна только деталь /admin/orders/[id]).
   admin: [
-    { href: '/admin/dashboard', label: 'Главная', iconKey: 'dashboard', group: 'Платформа' },
+    { href: '/admin/dashboard', sectionKey: 'dashboard', group: 'Платформа' },
     {
       href: '/admin/health',
-      label: 'Здоровье',
-      iconKey: 'health',
+      sectionKey: 'health',
       group: 'Платформа',
       hiddenWhenFlag: 'settings_hub',
     },
     // ТЗ 2026-08-04: единственный служебный пункт при включённом хабе; закреплён внизу.
-    { href: '/admin/settings', label: 'Настройки', iconKey: 'settings', pinnedBottom: true },
+    { href: '/admin/settings', sectionKey: 'settings', pinnedBottom: true },
     {
       href: '/admin/integrations',
-      label: 'Интеграции',
-      iconKey: 'integrations',
+      sectionKey: 'integrations',
       group: 'Платформа',
       hiddenWhenFlag: 'settings_hub',
     },
-    { href: '/admin/documents', label: 'Документы', iconKey: 'documents', group: 'Операции' },
-    { href: '/admin/messages', label: 'Сообщения', iconKey: 'messages', group: 'Операции' },
+    { href: '/admin/documents', sectionKey: 'documents', group: 'Операции' },
+    { href: '/admin/messages', sectionKey: 'messages', group: 'Операции' },
     {
       href: '/admin/commission-statements',
-      label: 'Комиссии',
-      iconKey: 'commissions',
+      sectionKey: 'commissions',
       group: 'Операции',
     },
     {
       href: '/admin/commission-corrections',
-      label: 'Корректировки',
-      iconKey: 'corrections',
+      sectionKey: 'corrections',
       group: 'Операции',
     },
-    { href: '/admin/finance', label: 'Финансы', iconKey: 'finance', group: 'Операции' },
+    { href: '/admin/finance', sectionKey: 'finance', group: 'Операции' },
     {
       href: '/admin/enrollments',
-      label: 'Заявки на обучение',
-      iconKey: 'enrollments',
+      sectionKey: 'enrollments',
       group: 'Операции',
       flag: 'enrollment_requests',
     },
     {
       href: '/admin/requests',
-      label: 'Обращения',
-      iconKey: 'requests',
+      sectionKey: 'requests',
       group: 'Операции',
       flag: 'client_requests',
     },
     {
       href: '/admin/intake',
-      label: 'Входящие в работу',
-      iconKey: 'intake',
+      sectionKey: 'intake',
       group: 'Операции',
       flag: 'intake_inbox',
     },
     {
       href: '/admin/audit',
-      label: 'Аудит',
-      iconKey: 'audit',
+      sectionKey: 'audit',
       group: 'Операции',
       hiddenWhenFlag: 'settings_hub',
     },
     {
       href: '/admin/pii-access',
-      label: 'Доступ к ПДн',
-      iconKey: 'security',
+      sectionKey: 'piiAccess',
       group: 'Операции',
       hiddenWhenFlag: 'settings_hub',
     },
@@ -105,8 +112,7 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     // обратимой (страж `lib.navigation.settings-menu` это проверяет).
     {
       href: '/admin/sync',
-      label: 'Синхронизация (авто)',
-      iconKey: 'sync',
+      sectionKey: 'sync',
       group: 'Обмен с 1С',
       hiddenWhenFlag: 'settings_hub',
     },
@@ -114,78 +120,69 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
       // У-8: было «Загрузка Excel» — тот же раздел, что «Загрузка из 1С» у
       // менеджера; одно название на два кабинета (решение заказчика 09.08.2026).
       href: '/admin/import',
-      label: 'Загрузка из 1С',
-      iconKey: 'import',
+      sectionKey: 'import',
       group: 'Обмен с 1С',
       hiddenWhenFlag: 'settings_hub',
     },
     {
       href: '/admin/payments-import',
+      sectionKey: 'paymentsImport',
       // Один экран — одно название во всех кабинетах (§15, `У-76`). Раньше у
       // админа стояло «Импорт выписки (сч. 51)», у менеджера — «Импорт оплат»,
       // а заголовок самой страницы не совпадал ни с тем ни с другим.
       // Бухгалтерская подробность («Карточка счёта 51») переехала в
       // подзаголовок — там она объясняет, какой файл взять из 1С.
-      label: 'Импорт оплат',
-      iconKey: 'paymentsImport',
       group: 'Обмен с 1С',
       hiddenWhenFlag: 'settings_hub',
     },
-    { href: '/admin/users', label: 'Пользователи', iconKey: 'users', group: 'Справочники' },
-    { href: '/admin/partners', label: 'Партнёры', iconKey: 'partners', group: 'Справочники' },
+    { href: '/admin/users', sectionKey: 'users', group: 'Справочники' },
+    { href: '/admin/partners', sectionKey: 'partners', group: 'Справочники' },
     {
       href: '/admin/organizations',
-      label: 'Организации',
-      iconKey: 'organizations',
+      sectionKey: 'organizations',
       group: 'Справочники',
     },
     {
       href: '/admin/training-directions',
-      label: 'Направления обучения',
-      iconKey: 'trainingDirections',
+      sectionKey: 'trainingDirections',
       group: 'Справочники',
     },
     {
       href: '/admin/custom-fields',
-      label: 'Доп-поля',
-      iconKey: 'customFields',
+      sectionKey: 'customFields',
       group: 'Справочники',
       hiddenWhenFlag: 'settings_hub',
     },
     // §10 ТЗ v0.5: настраиваемый справочник рабочих статусов заявки.
     {
       href: '/admin/order-statuses',
-      label: 'Статусы заявок',
-      iconKey: 'orderStatuses',
+      sectionKey: 'orderStatuses',
       group: 'Справочники',
       hiddenWhenFlag: 'settings_hub',
     },
     {
       href: '/admin/roles',
-      label: 'Роли',
-      iconKey: 'roles',
+      sectionKey: 'roles',
       group: 'Справочники',
       flag: 'role_constructor',
       hiddenWhenFlag: 'settings_hub',
     },
     // `У-76`: словарь терминов — один на все кабинеты, поэтому пункт одинаков
     // у всех шести ролей и закреплён внизу рядом с «Настройками».
-    { href: '/help', label: 'Справка', iconKey: 'help', pinnedBottom: true },
+    { href: '/help', sectionKey: 'help', pinnedBottom: true },
   ],
   manager: [
-    { href: '/manager/dashboard', label: 'Главная', iconKey: 'dashboard', flag: 'manager_cabinet' },
-    { href: '/manager/search', label: 'Поиск', iconKey: 'search', flag: 'global_search' },
+    { href: '/manager/dashboard', sectionKey: 'dashboard', flag: 'manager_cabinet' },
+    { href: '/manager/search', sectionKey: 'search', flag: 'global_search' },
     {
       href: '/manager/orders',
-      label: 'Заказы',
-      iconKey: 'orders',
+      sectionKey: 'orders',
       flag: 'manager_cabinet',
       group: 'Работа',
     },
     {
       href: '/manager/leads',
-      label: 'Лиды',
-      iconKey: 'leads',
+      sectionKey: 'leads',
       flag: 'manager_cabinet',
       group: 'Продажи',
     },
@@ -194,60 +191,52 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
       // кабинетах (У-76). Название «Обращения» освободилось: /manager/inbox
       // переименован во «Входящие письма».
       href: '/manager/requests',
-      label: 'Обращения',
-      iconKey: 'requests',
+      sectionKey: 'requests',
       flag: 'client_requests',
       badgeKey: 'clientRequestsNew',
       group: 'Продажи',
     },
     {
       href: '/manager/intake',
-      label: 'Входящие в работу',
-      iconKey: 'intake',
+      sectionKey: 'intake',
       flag: 'intake_inbox',
       badgeKey: 'intake',
       group: 'Работа',
     },
     {
       href: '/manager/funnel',
-      label: 'Воронка',
-      iconKey: 'funnel',
+      sectionKey: 'funnel',
       flag: 'sales_funnel',
       group: 'Продажи',
     },
     {
       href: '/manager/deals',
-      label: 'Сделки',
-      iconKey: 'deals',
+      sectionKey: 'deals',
       flag: 'deals_pipeline',
       group: 'Продажи',
     },
     {
       href: '/manager/tasks',
-      label: 'Задачи',
-      iconKey: 'tasks',
+      sectionKey: 'tasks',
       flag: 'internal_tasks',
       badgeKey: 'tasksOverdue',
       group: 'Работа',
     },
     {
       href: '/manager/calendar',
-      label: 'Календарь',
-      iconKey: 'calendar',
+      sectionKey: 'calendar',
       flag: 'staff_calendar',
       group: 'Работа',
     },
     {
       href: '/manager/organizations',
-      label: 'Организации',
-      iconKey: 'organizations',
+      sectionKey: 'organizations',
       flag: 'manager_cabinet',
       group: 'Клиенты',
     },
     {
       href: '/manager/finance',
-      label: 'Финансы',
-      iconKey: 'finance',
+      sectionKey: 'finance',
       flag: 'manager_cabinet',
       group: 'Финансы',
     },
@@ -257,36 +246,31 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
       // (только руководитель) отменено. Границу режет не меню, а скоуп:
       // менеджер работает со своими организациями и не создаёт новые.
       href: '/manager/import',
-      label: 'Загрузка из 1С',
-      iconKey: 'import',
+      sectionKey: 'import',
       flag: 'manager_cabinet',
       group: 'Данные',
     },
     {
       href: '/manager/payments-import',
-      label: 'Импорт оплат',
-      iconKey: 'paymentsImport',
+      sectionKey: 'paymentsImport',
       flag: 'manager_cabinet',
       group: 'Финансы',
     },
     {
       href: '/manager/documents',
-      label: 'Документы',
-      iconKey: 'documents',
+      sectionKey: 'documents',
       flag: 'manager_cabinet',
       group: 'Данные',
     },
     {
       href: '/manager/enrollments',
-      label: 'Заявки на обучение',
-      iconKey: 'enrollments',
+      sectionKey: 'enrollments',
       flag: 'enrollment_requests',
       group: 'Клиенты',
     },
     {
       href: '/manager/messages',
-      label: 'Сообщения',
-      iconKey: 'messages',
+      sectionKey: 'messages',
       flag: 'manager_cabinet',
       badgeKey: 'messagesUnread',
       group: 'Коммуникации',
@@ -295,22 +279,19 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
       // У-8: было «Обращения» — путалось с обращениями клиентов, хотя это
       // совсем другой раздел (входящая почта).
       href: '/manager/inbox',
-      label: 'Входящие письма',
-      iconKey: 'inbox',
+      sectionKey: 'inbox',
       flag: 'inbound_messaging',
       group: 'Коммуникации',
     },
     {
       href: '/manager/calls',
-      label: 'Звонки',
-      iconKey: 'calls',
+      sectionKey: 'calls',
       flag: 'telephony_mango',
       group: 'Коммуникации',
     },
     {
       href: '/manager/team',
-      label: 'Команда',
-      iconKey: 'team',
+      sectionKey: 'team',
       flag: 'manager_cabinet',
       leaderOnly: true,
       hiddenWhenFlag: 'leader_cabinet',
@@ -318,22 +299,20 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     },
     {
       href: '/leader/dashboard',
-      label: 'Кабинет руководителя',
-      iconKey: 'leaderCabinet',
+      sectionKey: 'leaderCabinet',
       flag: 'leader_cabinet',
       leaderOnly: true,
       group: 'Настройки',
     },
     {
       href: '/manager/settings',
-      label: 'Настройки',
-      iconKey: 'settings',
+      sectionKey: 'settings',
       flag: 'manager_cabinet',
       group: 'Настройки',
     },
     // `У-76`: словарь терминов — один на все кабинеты, поэтому пункт одинаков
     // у всех шести ролей и закреплён внизу рядом с «Настройками».
-    { href: '/help', label: 'Справка', iconKey: 'help', pinnedBottom: true },
+    { href: '/help', sectionKey: 'help', pinnedBottom: true },
   ],
   // Пункты leader-меню намеренно БЕЗ flag: внутрь пускает middleware+layout;
   // флаг на каждом пункте дал бы пустой сайдбар при выключении.
@@ -342,153 +321,138 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
   // иначе эти два пункта 404-ят. На практике лидер всегда и менеджер; см. runbook.
   leader: [
     // У-8: было «Сводка» — тот же экран, что «Главная» у остальных ролей.
-    { href: '/leader/dashboard', label: 'Главная', iconKey: 'dashboard' },
+    { href: '/leader/dashboard', sectionKey: 'dashboard' },
     // global_search — отдельный флаг (как role_constructor): гейтит только пункт.
-    { href: '/leader/search', label: 'Поиск', iconKey: 'search', flag: 'global_search' },
-    { href: '/leader/team', label: 'Команда', iconKey: 'team', group: 'Настройки' },
-    { href: '/leader/finance', label: 'Финансы', iconKey: 'finance', group: 'Финансы' },
+    { href: '/leader/search', sectionKey: 'search', flag: 'global_search' },
+    { href: '/leader/team', sectionKey: 'team', group: 'Настройки' },
+    { href: '/leader/finance', sectionKey: 'finance', group: 'Финансы' },
     {
       href: '/leader/commission-corrections',
-      label: 'Корректировки',
-      iconKey: 'corrections',
+      sectionKey: 'corrections',
       group: 'Финансы',
     },
-    { href: '/leader/orders', label: 'Заказы', iconKey: 'orders', group: 'Работа' },
+    { href: '/leader/orders', sectionKey: 'orders', group: 'Работа' },
     {
       href: '/leader/organizations',
-      label: 'Организации',
-      iconKey: 'organizations',
+      sectionKey: 'organizations',
       group: 'Клиенты',
     },
     // role_constructor — отдельный feature-флаг (НЕ leader_cabinet): гейтит только
     // этот пункт, не опустошает сайдбар при выключении.
     {
       href: '/leader/roles',
-      label: 'Роли',
-      iconKey: 'roles',
+      sectionKey: 'roles',
       flag: 'role_constructor',
       group: 'Настройки',
       hiddenWhenFlag: 'settings_hub',
     },
     {
       href: '/leader/funnel',
-      label: 'Воронка',
-      iconKey: 'funnel',
+      sectionKey: 'funnel',
       flag: 'sales_funnel',
       group: 'Продажи',
     },
     // deals_pipeline — свой opt-in флаг (НЕ путать с /partner/deals — «Заказы» партнёра).
     {
       href: '/leader/deals',
-      label: 'Сделки',
-      iconKey: 'deals',
+      sectionKey: 'deals',
       flag: 'deals_pipeline',
       group: 'Продажи',
     },
     {
       href: '/leader/analytics',
-      label: 'Аналитика',
-      iconKey: 'analytics',
+      sectionKey: 'analytics',
       flag: 'leader_analytics',
       group: 'Аналитика',
     },
     {
       href: '/leader/tasks',
-      label: 'Задачи',
-      iconKey: 'tasks',
+      sectionKey: 'tasks',
       flag: 'internal_tasks',
       badgeKey: 'tasksOverdue',
       group: 'Работа',
     },
     {
       href: '/leader/calendar',
-      label: 'Календарь',
-      iconKey: 'calendar',
+      sectionKey: 'calendar',
       flag: 'staff_calendar',
       group: 'Работа',
     },
     {
       href: '/leader/enrollments',
-      label: 'Заявки на обучение',
-      iconKey: 'enrollments',
+      sectionKey: 'enrollments',
       flag: 'enrollment_requests',
       group: 'Клиенты',
     },
     {
       // У-8: было «Обращения клиентов» (см. менеджера).
       href: '/leader/requests',
-      label: 'Обращения',
-      iconKey: 'requests',
+      sectionKey: 'requests',
       flag: 'client_requests',
       badgeKey: 'clientRequestsNew',
       group: 'Продажи',
     },
     {
       href: '/leader/intake',
-      label: 'Входящие в работу',
-      iconKey: 'intake',
+      sectionKey: 'intake',
       flag: 'intake_inbox',
       badgeKey: 'intake',
       group: 'Работа',
     },
     // Личный inbox (комментарии+чат) живёт в кабинете менеджера — см. план, «Отклонение от спеки».
-    { href: '/manager/messages', label: 'Сообщения', iconKey: 'messages' },
+    { href: '/manager/messages', sectionKey: 'messages' },
     // Переключатель «играющего тренера» в личный кабинет менеджера.
-    { href: '/manager/dashboard', label: 'Мои заказы', iconKey: 'myOrders' },
-    { href: '/leader/settings', label: 'Настройки', iconKey: 'settings', pinnedBottom: true },
+    { href: '/manager/dashboard', sectionKey: 'myOrders' },
+    { href: '/leader/settings', sectionKey: 'settings', pinnedBottom: true },
     // §11 ТЗ v0.5: настройку полей ведёт и руководитель — зеркало админского
     // экрана в его кабинете (в /admin/* руководителя не пускаем, Model A).
     {
       href: '/leader/settings/custom-fields',
-      label: 'Доп-поля',
-      iconKey: 'customFields',
+      sectionKey: 'customFields',
       group: 'Настройки',
       hiddenWhenFlag: 'settings_hub',
     },
     // §10 ТЗ v0.5: зеркало справочника статусов — руководителя в /admin/* не пускаем.
     {
       href: '/leader/settings/order-statuses',
-      label: 'Статусы заявок',
-      iconKey: 'orderStatuses',
+      sectionKey: 'orderStatuses',
       group: 'Настройки',
       hiddenWhenFlag: 'settings_hub',
     },
     // `У-76`: словарь терминов — один на все кабинеты, поэтому пункт одинаков
     // у всех шести ролей и закреплён внизу рядом с «Настройками».
-    { href: '/help', label: 'Справка', iconKey: 'help', pinnedBottom: true },
+    { href: '/help', sectionKey: 'help', pinnedBottom: true },
   ],
   // У-7: до этапа 2 у партнёра не было НИ ОДНОГО значка — ровно потому, что
   // поле было необязательным. Теперь `iconKey` обязателен на уровне типа.
   partner: [
-    { href: '/partner/dashboard', label: 'Главная', iconKey: 'dashboard' },
-    { href: '/partner/portfolio', label: 'Портфель', iconKey: 'portfolio' },
-    { href: '/partner/deals', label: 'Заказы', iconKey: 'orders' },
+    { href: '/partner/dashboard', sectionKey: 'dashboard' },
+    { href: '/partner/portfolio', sectionKey: 'portfolio' },
+    { href: '/partner/deals', sectionKey: 'orders' },
     // Было «Мои заявки» (решение §5-1 этапа 11 прошлой программы). У-8/У-76
     // требуют одного имени на объект во всех кабинетах, поэтому здесь и в
     // кабинете организации теперь «Обращения» (решение заказчика 09.08.2026).
-    { href: '/partner/requests', label: 'Обращения', iconKey: 'requests', flag: 'client_requests' },
+    { href: '/partner/requests', sectionKey: 'requests', flag: 'client_requests' },
     {
       href: '/partner/enrollments',
-      label: 'Заявки на обучение',
-      iconKey: 'enrollments',
+      sectionKey: 'enrollments',
       flag: 'enrollment_requests',
     },
     {
       href: '/partner/certificates',
-      label: 'Удостоверения',
-      iconKey: 'certificates',
+      sectionKey: 'certificates',
       flag: 'certificates_registry',
     },
-    { href: '/partner/documents', label: 'Документы', iconKey: 'documents' },
-    { href: '/partner/finance', label: 'Финансы', iconKey: 'finance' },
+    { href: '/partner/documents', sectionKey: 'documents' },
+    { href: '/partner/finance', sectionKey: 'finance' },
     // У-60 (этап 4): «Команда» уехала из главного меню на вкладку настроек —
     // это служебный раздел, ему не место рядом с «Заказами». Адрес
     // /partner/team остался редиректом.
-    { href: '/partner/messages', label: 'Сообщения', iconKey: 'messages', flag: 'chat' },
-    { href: '/partner/settings', label: 'Настройки', iconKey: 'settings' },
+    { href: '/partner/messages', sectionKey: 'messages', flag: 'chat' },
+    { href: '/partner/settings', sectionKey: 'settings' },
     // `У-76`: словарь терминов — один на все кабинеты, поэтому пункт одинаков
     // у всех шести ролей и закреплён внизу рядом с «Настройками».
-    { href: '/help', label: 'Справка', iconKey: 'help', pinnedBottom: true },
+    { href: '/help', sectionKey: 'help', pinnedBottom: true },
   ],
   // Этап 11 PR-3 (ФТ-15.4): состав и ПОРЯДОК заданы ТЗ дословно — Главная ·
   // Заказы · Обращения · Заявки на обучение · Удостоверения · Документы ·
@@ -497,45 +461,38 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
   organization: [
     {
       href: '/organization/dashboard',
-      label: 'Главная',
-      iconKey: 'dashboard',
+      sectionKey: 'dashboard',
       flag: 'organization_cabinet',
     },
     {
       href: '/organization/orders',
-      label: 'Заказы',
-      iconKey: 'orders',
+      sectionKey: 'orders',
       flag: 'organization_cabinet',
     },
     // Было «Мои заявки» — см. комментарий у партнёра.
     {
       href: '/organization/requests',
-      label: 'Обращения',
-      iconKey: 'requests',
+      sectionKey: 'requests',
       flag: 'client_requests',
     },
     {
       href: '/organization/enrollments',
-      label: 'Заявки на обучение',
-      iconKey: 'enrollments',
+      sectionKey: 'enrollments',
       flag: 'enrollment_requests',
     },
     {
       href: '/organization/certificates',
-      label: 'Удостоверения',
-      iconKey: 'certificates',
+      sectionKey: 'certificates',
       flag: 'certificates_registry',
     },
     {
       href: '/organization/documents',
-      label: 'Документы',
-      iconKey: 'documents',
+      sectionKey: 'documents',
       flag: 'organization_cabinet',
     },
     {
       href: '/organization/finance',
-      label: 'Финансы',
-      iconKey: 'finance',
+      sectionKey: 'finance',
       flag: 'organization_cabinet',
     },
     // `У-100`: сотрудники и доступ в кабинет — это части ОДНОГО объекта, своей
@@ -544,31 +501,38 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = {
     // партнёра (§0.2, правило зеркала). Старые адреса остались шлюзами.
     {
       href: '/organization/company',
-      label: 'Моя организация',
-      iconKey: 'myOrganization',
+      sectionKey: 'myOrganization',
       flag: 'organization_cabinet',
     },
     // «Сообщения» намеренно под более узким флагом chat (см. CLAUDE.md §5);
     // /student — отдельный shared-entry домен, не часть organization_cabinet.
-    { href: '/organization/messages', label: 'Сообщения', iconKey: 'messages', flag: 'chat' },
-    { href: '/student', label: 'Кабинет слушателя', iconKey: 'studentCabinet' },
+    { href: '/organization/messages', sectionKey: 'messages', flag: 'chat' },
+    { href: '/student', sectionKey: 'studentCabinet' },
     {
       href: '/organization/settings',
-      label: 'Настройки',
-      iconKey: 'settings',
+      sectionKey: 'settings',
       flag: 'organization_cabinet',
     },
     // `У-76`: словарь терминов — один на все кабинеты, поэтому пункт одинаков
     // у всех шести ролей и закреплён внизу рядом с «Настройками».
-    { href: '/help', label: 'Справка', iconKey: 'help', pinnedBottom: true },
+    { href: '/help', sectionKey: 'help', pinnedBottom: true },
   ],
   student: [
-    { href: '/student', label: 'Обучение', iconKey: 'learning' },
+    { href: '/student', sectionKey: 'learning' },
     // `У-76`: словарь терминов — один на все кабинеты, поэтому пункт одинаков
     // у всех шести ролей и закреплён внизу рядом с «Настройками».
-    { href: '/help', label: 'Справка', iconKey: 'help', pinnedBottom: true },
+    { href: '/help', sectionKey: 'help', pinnedBottom: true },
   ],
 };
+
+/**
+ * Реестр меню, готовый к отрисовке: названия и значки подставлены из словаря
+ * разделов. Экспортируется под прежним именем — потребителей и тестов у него
+ * много, и менять их ради переименования не за что.
+ */
+export const navByRole: Record<Role | 'leader', NavItem[]> = Object.fromEntries(
+  Object.entries(NAV_SPECS).map(([role, items]) => [role, items.map(withSection)])
+) as Record<Role | 'leader', NavItem[]>;
 
 /**
  * Меню роли минус пункты с выключенным флагом и минус `leaderOnly`-пункты,

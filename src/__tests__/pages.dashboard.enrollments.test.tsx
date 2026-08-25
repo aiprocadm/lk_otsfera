@@ -138,7 +138,7 @@ describe('PartnerDashboard — карточка заявок', () => {
 
     expect(partner.recentEnrollments).not.toHaveBeenCalled();
     expect(container.textContent).not.toContain('Заявки на обучение');
-    expect(container.textContent).toContain('Кабинет партнёра');
+    expect(container.textContent).toContain('Главная');
     expect(partner.recentEvents).toHaveBeenCalledWith(expect.anything(), PARTNER_SCOPE, 10);
   });
 });

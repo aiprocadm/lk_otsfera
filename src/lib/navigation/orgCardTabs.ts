@@ -97,7 +97,7 @@ export const ORG_CARD_TABS: readonly OrgCardTab[] = [
   // другой домен (`OrderThread`): человек открывал «Переписку» и видел
   // комментарии, а при выключенном `chat` не видел и их. Комментарии флагом не
   // гейтятся (CLAUDE.md §5), поэтому вкладка есть во всех кабинетах.
-  { key: 'comments', label: 'Комментарии', iconKey: 'inbox', cabinets: ALL },
+  { key: 'comments', label: 'Комментарии', iconKey: 'comments', cabinets: ALL },
   // Отдельного флага у лидов нет: раздел закрывается флагом кабинета, как и
   // пункт меню «Лиды» у менеджера.
   { key: 'leads', label: 'Лиды', iconKey: 'leads', cabinets: STAFF },
@@ -107,7 +107,9 @@ export const ORG_CARD_TABS: readonly OrgCardTab[] = [
   {
     key: 'inbound',
     label: 'Входящие письма',
-    iconKey: 'messages',
+    // `У-108`: вкладка рисовалась значком «Сообщений», хотя одноимённый раздел
+    // меню носит `inbox`. Один объект — один знак.
+    iconKey: 'inbox',
     cabinets: STAFF,
     flag: 'inbound_messaging',
   },
