@@ -107,7 +107,9 @@ describe('OrgDocumentsPage', () => {
       expect.anything(),
       expect.objectContaining({ orgId: 'org-1', partnerId: 'p1', type: undefined })
     );
-    expect(container.querySelector('nav.flex.flex-wrap')).toBeNull();
+    // `У-96`: рядом теперь стоит переключатель вкладок — он тоже <nav>,
+    // поэтому отбор по типам ищем по своему признаку, а не по классам.
+    expect(container.querySelector('[data-testid="doc-type-filter"]')).toBeNull();
   });
 
   it('parses a valid type filter and renders the TypeFilter chips when total > 0', async () => {

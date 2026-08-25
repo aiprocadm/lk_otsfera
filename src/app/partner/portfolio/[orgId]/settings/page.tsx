@@ -9,7 +9,10 @@ import { setOrgRequisitesAction } from '@/server-actions/requisites';
 import { OrgCardHeader } from '@/components/partner/org-card-header';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import { Breadcrumbs } from '@/components/ui';
-import { OrgTabs } from '@/components/partner/org-tabs';
+import { isFeatureEnabled } from '@/lib/featureFlags';
+import { orgCardTabsFor } from '@/lib/navigation/orgCardTabs';
+import { OrgCardTabsNav } from '@/components/manager/org-card-tabs';
+import { partnerOrgTabHref } from '@/lib/navigation/partnerOrgCard';
 import { CustomerAccessSection } from '@/components/partner/customer-access-section';
 import { RequisitesCard } from '@/components/requisites/requisites-card';
 import { OrgSettingsTab } from '@/components/organization/org-settings-tab';
@@ -38,7 +41,12 @@ export default async function OrgSettingsPage({ params }: { params: Promise<{ or
         ])}
       />
       <OrgCardHeader card={card} />
-      <OrgTabs orgId={orgId} active="settings" isAdmin={true} />
+      {/* `У-96`: состав вкладок — фильтр общего реестра, а не свой список. */}
+      <OrgCardTabsNav
+        tabs={orgCardTabsFor('partner', { flags: isFeatureEnabled })}
+        activeTab="settings"
+        hrefFor={(key) => partnerOrgTabHref(orgId, key)}
+      />
 
       <p className="text-sm text-gray-600">
         Реквизиты для документов и доступ сотрудников организации в их кабинет. Ставку комиссии

@@ -40,6 +40,7 @@ const CARD_SELECT = {
   // `У-99`: на вкладке «Настройки» рядом со ставкой видно её основание —
   // иначе человек видит число и не знает, откуда оно взялось.
   partnerCommissionRateNote: true,
+  partnerId: true,
   partner: { select: { id: true, name: true } },
   // `У-102`/`Д-29`: «Доступ в кабинет» считается по активным
   // `OrganizationUser`, а НЕ по связи `Organization.users`
@@ -209,10 +210,16 @@ export async function getOrganizationCard(
   session: SessionPayload,
   orgId: string
 ): Promise<OrganizationCard | null> {
-  // `У-100`: карточку своей организации открывает и заказчик. Для него граница
-  // — активное членство, а не менеджерский скоуп; режим видимости команды к
-  // нему не относится, поэтому и не спрашиваем.
-  const isStaffView = session.role !== 'organization';
+  // Карточку открывают все пять кабинетов, и граница у каждого своя:
+  //  · заказчик (`У-100`) — активное членство в организации;
+  //  · партнёр (`У-96`) — организация его портфеля;
+  //  · сотрудники ЦО — менеджерский скоуп с режимом видимости команды (C8).
+  // `isStaffView` решает не «пускать ли», а «какие блоки грузить»: внутренние
+  // данные учебного центра клиентским ролям не показывают вовсе.
+  const isStaffView = session.role !== 'organization' && session.role !== 'partner';
+  // Платежи организации — не партнёрское дело: у него своя комиссия, а вкладки
+  // «Оплаты» реестр ему не даёт. Раньше карточка партнёра их и не грузила.
+  const seesPayments = session.role !== 'partner';
   const teamMode = isStaffView ? await getCompanyTeamVisibility(prisma, session.companyId) : false;
   const org = await prisma.organization.findUnique({ where: { id: orgId }, select: CARD_SELECT });
   if (!org) return null;
@@ -222,9 +229,17 @@ export async function getOrganizationCard(
   // карточки продолжал фильтровать по закреплению — гард пускал, карточка
   // отдавала null, и страница показывала «не найдено». Поймано живой проверкой
   // на стенде 30.07.2026.
-  const visible = !isStaffView
+  const visible = session.role === 'organization'
     ? activeOrgIds(session).includes(orgId)
-    : teamMode
+    : session.role === 'partner'
+      ? // Принадлежность портфелю — по БД, а не по сессии: список организаций
+        // в токене устаревает, привязка к партнёру — нет. Дополнительный
+        // персональный скоуп (`assignedOrgIds`) сужает её ещё раз.
+        !!session.partnerId &&
+        org.partnerId === session.partnerId &&
+        ((session.assignedOrgIds ?? []).length === 0 ||
+          (session.assignedOrgIds ?? []).includes(orgId))
+      : teamMode
       ? !!session.companyId && org.companyId === session.companyId
       : canSeeOrganization(session, orgId) || isLeaderSameCompany(session, org.companyId);
   if (!visible) return null;
@@ -267,20 +282,26 @@ export async function getOrganizationCard(
       orderBy: { createdAt: 'desc' },
       take: 20,
     }),
-    prisma.payment.findMany({
-      where: { organizationId: orgId },
-      select: { id: true, amount: true, paidAt: true, isRefund: true, orderId: true },
-      orderBy: { paidAt: 'desc' },
-      take: 20,
-    }),
-    prisma.payment.aggregate({
-      where: { organizationId: orgId, isRefund: false },
-      _sum: { amount: true },
-    }),
-    prisma.payment.aggregate({
-      where: { organizationId: orgId, isRefund: true },
-      _sum: { amount: true },
-    }),
+    seesPayments
+      ? prisma.payment.findMany({
+          where: { organizationId: orgId },
+          select: { id: true, amount: true, paidAt: true, isRefund: true, orderId: true },
+          orderBy: { paidAt: 'desc' },
+          take: 20,
+        })
+      : [],
+    seesPayments
+      ? prisma.payment.aggregate({
+          where: { organizationId: orgId, isRefund: false },
+          _sum: { amount: true },
+        })
+      : { _sum: { amount: null } },
+    seesPayments
+      ? prisma.payment.aggregate({
+          where: { organizationId: orgId, isRefund: true },
+          _sum: { amount: true },
+        })
+      : { _sum: { amount: null } },
     prisma.comment.findMany({
       where: { order: { organizationId: orgId } },
       select: {
@@ -334,7 +355,19 @@ export async function getOrganizationCard(
       })
     : [];
 
-  const [inboundMessages, calls, clientRequests, leads, deals] = isStaffView
+  // `У-96`: вкладка «Обращения» положена и партнёру, поэтому запрос живёт
+  // отдельно от внутренних блоков учебного центра.
+  const clientRequests =
+    session.role !== 'organization'
+      ? await prisma.clientRequest.findMany({
+          where: { organizationId: orgId },
+          select: { id: true, subject: true, status: true, rejectedReason: true, createdAt: true },
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+        })
+      : [];
+
+  const [inboundMessages, calls, leads, deals] = isStaffView
     ? await Promise.all([
       prisma.inboundMessage.findMany({
         where: { resolvedOrgId: orgId },
@@ -373,13 +406,7 @@ export async function getOrganizationCard(
         orderBy: { createdAt: 'desc' },
         take: 20,
       }),
-      // Этап 7 (PR-3): внутренний контур — заявки клиентов / лиды / сделки организации.
-      prisma.clientRequest.findMany({
-        where: { organizationId: orgId },
-        select: { id: true, subject: true, status: true, rejectedReason: true, createdAt: true },
-        orderBy: { createdAt: 'desc' },
-        take: 20,
-      }),
+      // Этап 7 (PR-3): внутренний контур — лиды и сделки организации.
       prisma.lead.findMany({
         where: { organizationId: orgId },
         select: { id: true, subject: true, status: true, createdAt: true },
@@ -393,7 +420,7 @@ export async function getOrganizationCard(
         take: 20,
       }),
       ])
-    : ([[], [], [], [], []] as const);
+    : ([[], [], [], []] as const);
 
   const paid = paidAgg._sum.amount ?? new Prisma.Decimal(0);
   const refunded = refundAgg._sum.amount ?? new Prisma.Decimal(0);

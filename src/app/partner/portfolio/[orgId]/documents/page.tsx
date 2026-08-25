@@ -10,7 +10,10 @@ import { getOrgDocuments } from '@/lib/services/partner/orgDocuments';
 import { OrgCardHeader } from '@/components/partner/org-card-header';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import { Breadcrumbs } from '@/components/ui';
-import { OrgTabs } from '@/components/partner/org-tabs';
+import { isFeatureEnabled } from '@/lib/featureFlags';
+import { orgCardTabsFor } from '@/lib/navigation/orgCardTabs';
+import { OrgCardTabsNav } from '@/components/manager/org-card-tabs';
+import { partnerOrgTabHref } from '@/lib/navigation/partnerOrgCard';
 import { DocumentsList } from '@/components/partner/documents-list';
 
 const VALID_TYPES: DocumentType[] = [
@@ -74,7 +77,14 @@ export default async function OrgDocumentsPage({
         ])}
       />
       <OrgCardHeader card={card} />
-      <OrgTabs orgId={orgId} active="documents" isAdmin={isPartnerAdmin(session)} />
+      {/* `У-96`: состав вкладок — фильтр общего реестра, а не свой список. */}
+      <OrgCardTabsNav
+        tabs={orgCardTabsFor('partner', { flags: isFeatureEnabled }).filter(
+          (t) => t.key !== 'settings' || isPartnerAdmin(session)
+        )}
+        activeTab="documents"
+        hrefFor={(key) => partnerOrgTabHref(orgId, key)}
+      />
 
       <TypeFilter orgId={orgId} active={typeFilter} countsByType={countsByType} total={total} />
 
@@ -100,7 +110,7 @@ function TypeFilter({
   if (total === 0) return null;
 
   return (
-    <nav className="flex flex-wrap gap-1.5">
+    <nav data-testid="doc-type-filter" className="flex flex-wrap gap-1.5">
       <Chip href={base} active={!active} label="Все" count={total} />
       {present.map((t) => (
         <Chip

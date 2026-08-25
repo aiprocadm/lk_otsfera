@@ -3,17 +3,31 @@ import { notFound, redirect } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
 import { requirePartner } from '@/lib/auth/requireRole';
 import { canPartnerAccessOrg, isPartnerAdmin } from '@/lib/auth/policy';
-import { getOrgCard } from '@/lib/services/partner/orgCard';
-import { OrgCardHeader } from '@/components/partner/org-card-header';
+import { isFeatureEnabled } from '@/lib/featureFlags';
+import { getOrganizationCard } from '@/lib/services/manager/organizationCard';
+import { listOrgCardEmployees } from '@/lib/services/organization/orgCardEmployees';
+import { orgCardTabsFor, type OrgCardTabKey } from '@/lib/navigation/orgCardTabs';
+import { OrgCardTabs } from '@/components/manager/org-card-tabs';
+import { OrgEmployeesSection } from '@/components/organization/org-employees-section';
+import { partnerOrgTabHref } from '@/lib/navigation/partnerOrgCard';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import { Breadcrumbs } from '@/components/ui';
-import { OrgTabs, type TabKey } from '@/components/partner/org-tabs';
-import { EmployeesTab } from '@/components/partner/org-employees-tab';
-import { CommentsTab } from '@/components/partner/org-comments-tab';
-import { HistoryTab } from '@/components/partner/org-history-tab';
 
-const VALID_TABS: TabKey[] = ['employees', 'comments', 'history'];
+export const dynamic = 'force-dynamic';
 
+/**
+ * Карточка организации в кабинете партнёра (`У-96`).
+ *
+ * До этого шага у партнёра был **свой** список из пяти вкладок, из которых две
+ * были отдельными страницами: состав его карточки разъезжался с остальными
+ * кабинетами, а «Заказы», «Обзор» и «Заявки на обучение» ему не показывались
+ * вовсе. Теперь состав — фильтр общего реестра, а данные даёт тот же сервис
+ * карточки со своей границей (организация его портфеля) и без внутренних
+ * блоков учебного центра.
+ *
+ * «Документы» и «Настройки» остались самостоятельными экранами: там свои
+ * фильтры и формы. Реестр ведёт на них — вкладка не может оказаться пустой.
+ */
 export default async function OrgCardPage({
   params,
   searchParams,
@@ -22,38 +36,57 @@ export default async function OrgCardPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const session = await requirePartner();
-
   const { orgId } = await params;
 
-  const access = await canPartnerAccessOrg(session, orgId);
-  if (!access) redirect('/forbidden');
-
-  const card = await getOrgCard(prisma, { orgId, partnerId: session.partnerId });
-  if (!card) notFound();
+  if (!(await canPartnerAccessOrg(session, orgId))) redirect('/forbidden');
 
   const sp = await searchParams;
+  const visibleTabs = orgCardTabsFor('partner', { flags: isFeatureEnabled }).filter(
+    // Настройки организации ведёт партнёр-администратор: у остальных этой
+    // страницы нет, и вкладка вела бы в отказ.
+    (t) => t.key !== 'settings' || isPartnerAdmin(session)
+  );
   const rawTab = typeof sp.tab === 'string' ? sp.tab : undefined;
-  const tab: TabKey = VALID_TABS.includes(rawTab as TabKey) ? (rawTab as TabKey) : 'employees';
+  const activeTab: OrgCardTabKey = visibleTabs.some((t) => t.key === rawTab)
+    ? (rawTab as OrgCardTabKey)
+    : 'overview';
 
-  const isAdmin = isPartnerAdmin(session);
+  const card = await getOrganizationCard(prisma, session, orgId);
+  if (!card) notFound();
+
+  const q = typeof sp.q === 'string' ? sp.q : undefined;
+  const skipRaw = Number(typeof sp.skip === 'string' ? sp.skip : '');
+  const skip = Number.isFinite(skipRaw) && skipRaw > 0 ? Math.floor(skipRaw) : 0;
+  const employees =
+    activeTab === 'employees'
+      ? await listOrgCardEmployees(prisma, session, { orgId, ...(q ? { q } : {}), skip })
+      : null;
 
   return (
     <div className="space-y-4">
       <Breadcrumbs
-        items={buildCabinetBreadcrumbs('partner', '/partner/portfolio', [
-          { label: card.name },
-        ])}
+        items={buildCabinetBreadcrumbs('partner', '/partner/portfolio', [{ label: card.name }])}
       />
-      <OrgCardHeader card={card} />
-      <OrgTabs orgId={orgId} active={tab} isAdmin={isAdmin} />
-      {/* У-64: под вкладками не рендерится ничего вне переключателя. Блок
-          «Доступ к организации» уехал на вкладку «Настройки» (У-61) — раньше он
-          стоял здесь и был виден под всеми вкладками сразу. */}
-      {tab === 'employees' && (
-        <EmployeesTab orgId={orgId} prisma={prisma} session={session} searchParams={sp} />
-      )}
-      {tab === 'comments' && <CommentsTab orgId={orgId} prisma={prisma} />}
-      {tab === 'history' && <HistoryTab orgId={orgId} prisma={prisma} />}
+      <OrgCardTabs
+        card={card}
+        activeTab={activeTab}
+        tabs={visibleTabs}
+        hrefFor={(key) => partnerOrgTabHref(orgId, key)}
+        employees={
+          employees ? (
+            <OrgEmployeesSection
+              orgId={orgId}
+              basePath={`/partner/portfolio/${orgId}`}
+              searchParams={sp}
+              rows={employees.rows}
+              total={employees.total}
+              canWrite={employees.canWrite}
+              take={25}
+              skip={skip}
+            />
+          ) : null
+        }
+      />
     </div>
   );
 }
