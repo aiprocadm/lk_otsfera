@@ -6,6 +6,7 @@ import { PaymentImportForm } from '@/components/import/payment-import-form';
 import { PaymentQueueTable } from '@/components/import/payment-queue-table';
 import { loadQueuePage } from '@/lib/services/import/oneCAccountCard/queue-view';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const metadata: Metadata = { title: 'Выписка по счёту 51 · Обмен с 1С · Настройки' };
 
 export const dynamic = 'force-dynamic';
@@ -31,11 +32,10 @@ export default async function AdminPaymentsImportPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">Импорт оплат</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Загрузите выгрузку 1С «Карточка счёта 51» — банковскую выписку по расчётному счёту. Оплаты
-          клиентов (корр-счёт 62) импортируются; несопоставленные попадают в очередь разбора ниже.
-        </p>
+        <PageHeader
+          title="Импорт оплат"
+          subtitle="Загрузите выгрузку 1С «Карточка счёта 51» — банковскую выписку по расчётному счёту. Оплаты клиентов (корр-счёт 62) импортируются; несопоставленные попадают в очередь разбора ниже."
+        />
       </div>
       <div className="text-sm text-blue-800 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
         <span aria-hidden className="mr-1">

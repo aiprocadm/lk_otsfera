@@ -8,6 +8,7 @@ import { MonthPicker } from '@/components/leader/analytics/month-picker';
 import { FunnelAnalyticsPanel } from '@/components/leader/analytics/funnel-analytics-panel';
 import { PlanFactTable } from '@/components/leader/analytics/plan-fact-table';
 
+import { PageHeader } from '@/components/ui/page-header';
 /**
  * M3 (Task 3) — /leader/analytics: когортная конверсия воронки + план/факт
  * продаж по менеджерам за месяц. Гейт флагом `leader_analytics` (page-точка
@@ -54,10 +55,10 @@ export default async function LeaderAnalyticsPage({
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">Аналитика</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Конверсия воронки за период и выполнение плана продаж по менеджерам.
-        </p>
+        <PageHeader
+          title="Аналитика"
+          subtitle="Конверсия воронки за период и выполнение плана продаж по менеджерам."
+        />
       </div>
 
       <MonthPicker month={monthValue} />

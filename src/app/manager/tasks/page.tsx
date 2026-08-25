@@ -9,6 +9,7 @@ import { TaskBoard } from '@/components/tasks/task-board';
 import { TaskList } from '@/components/tasks/task-list';
 import { TasksToolbar } from '@/components/tasks/tasks-toolbar';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 export default async function ManagerTasksPage({
@@ -27,10 +28,10 @@ export default async function ManagerTasksPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">Задачи</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Внутренний канбан задач. Перетаскивайте карточки между колонками.
-        </p>
+        <PageHeader
+          title="Задачи"
+          subtitle="Внутренний канбан задач. Перетаскивайте карточки между колонками."
+        />
       </div>
       <TasksToolbar state={state} assigneeOptions={null} />
       {state.view === 'list' ? (

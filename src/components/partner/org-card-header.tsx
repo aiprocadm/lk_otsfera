@@ -1,6 +1,7 @@
 import React from 'react';
 import type { OrgCard } from '@/lib/services/partner/orgCard';
 
+import { PageHeader } from '@/components/ui/page-header';
 function fmtMoney(s: string): string {
   return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(Number(s)) + ' ₽';
 }
@@ -8,20 +9,26 @@ function fmtMoney(s: string): string {
 export function OrgCardHeader({ card }: { card: OrgCard }) {
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5">
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold text-[#111111]">{card.name}</h1>
-          <div className="text-sm text-gray-500 mt-1">
+      {/* `У-120`: карточка сущности — подзаголовком идут её реквизиты,
+          сводка справа — тот же проп `action`, что у кнопки на списках. */}
+      <PageHeader
+        title={card.name}
+        subtitle={
+          <>
             ИНН {card.inn ?? '—'}
             {card.kpp ? ` · КПП ${card.kpp}` : ''}
+            {card.legalName && (
+              <span className="block text-xs text-gray-400">{card.legalName}</span>
+            )}
+          </>
+        }
+        action={
+          <div className="grid grid-cols-2 gap-3 md:gap-4 md:min-w-[280px]">
+            <Tile label="Сделок" value={String(card.kpi.ordersCount)} />
+            <Tile label="Долг" value={fmtMoney(card.kpi.debt)} accent={Number(card.kpi.debt) > 0} />
           </div>
-          {card.legalName && <div className="text-xs text-gray-400 mt-0.5">{card.legalName}</div>}
-        </div>
-        <div className="grid grid-cols-2 gap-3 md:gap-4 md:min-w-[280px]">
-          <Tile label="Сделок" value={String(card.kpi.ordersCount)} />
-          <Tile label="Долг" value={fmtMoney(card.kpi.debt)} accent={Number(card.kpi.debt) > 0} />
-        </div>
-      </div>
+        }
+      />
       {card.partnerCommissionRate !== null && (
         <div className="mt-3 px-3 py-2 bg-[#FFF7ED] border border-orange-100 rounded-lg text-xs text-orange-800">
           Индивидуальная ставка комиссии:{' '}

@@ -3,6 +3,7 @@ import React from 'react';
 import { requireSettingsSection } from '@/lib/auth/requireSettings';
 import { OneCNavigator } from '@/components/settings/one-c-navigator';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const metadata: Metadata = { title: 'Обмен с 1С · Настройки' };
 
 /**
@@ -16,10 +17,10 @@ export default async function LeaderOneCIndexPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold text-[#111111]">Обмен с 1С</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Загрузка файлов из 1С и постоянный обмен по сети — в одном месте.
-        </p>
+        <PageHeader
+          title="Обмен с 1С"
+          subtitle="Загрузка файлов из 1С и постоянный обмен по сети — в одном месте."
+        />
       </div>
       <OneCNavigator cabinet="leader" />
     </div>

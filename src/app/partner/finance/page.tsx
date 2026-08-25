@@ -8,6 +8,7 @@ import { CommissionStatementsList } from '@/components/partner/commission-statem
 import { ManualCalcForm } from '@/components/partner/manual-calc-form';
 import { fmtMoney } from '@/lib/format';
 
+import { PageHeader } from '@/components/ui/page-header';
 export default async function FinancePage() {
   const session = await requirePartner();
 
@@ -23,8 +24,7 @@ export default async function FinancePage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-[#111111]">Финансы</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Комиссионные отчёты и выплаты</p>
+          <PageHeader title="Финансы" subtitle="Комиссионные отчёты и выплаты" />
         </div>
         {canManage && <ManualCalcForm />}
       </div>

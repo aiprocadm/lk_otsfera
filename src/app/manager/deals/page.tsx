@@ -9,6 +9,7 @@ import { listCompanyManagers } from '@/lib/services/manager/team';
 import { DealBoard } from '@/components/deals/deal-board';
 import { NewDealButton } from '@/components/deals/deal-dialog';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 /**
@@ -33,10 +34,10 @@ export default async function ManagerDealsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-[#111111]">Сделки</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Перетаскивайте карточки между стадиями. «Проиграна» требует причину.
-          </p>
+          <PageHeader
+            title="Сделки"
+            subtitle="Перетаскивайте карточки между стадиями. «Проиграна» требует причину."
+          />
         </div>
         <NewDealButton
           organizations={organizations}

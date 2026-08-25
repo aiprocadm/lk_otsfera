@@ -9,6 +9,7 @@ import { InboxFiltersBar } from '@/components/manager/inbox-filters';
 import { InboxList } from '@/components/manager/inbox-list';
 import { Paginator } from '@/components/ui';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 type SearchParams = {
@@ -60,11 +61,10 @@ export default async function ManagerInboxPage({
       <div>
         {/* Этап 2 ТЗ понятности (У-8): раздел назывался «Обращения» — ровно так
             же, как обращения клиентов, хотя это входящая почта и мессенджеры. */}
-        <h1 className="text-2xl font-bold text-[#111111]">Входящие письма</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Входящие сообщения из мессенджеров и почты. Привяжите обращение к организации, чтобы
-          ответить.
-        </p>
+        <PageHeader
+          title="Входящие письма"
+          subtitle="Входящие сообщения из мессенджеров и почты. Привяжите обращение к организации, чтобы ответить."
+        />
       </div>
 
       <InboxFiltersBar channel={channel} status={status} />

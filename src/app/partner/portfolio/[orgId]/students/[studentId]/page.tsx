@@ -30,7 +30,10 @@ export default async function PartnerOrgEmployeePage({
 
   if (!(await canPartnerAccessOrg(session, orgId))) redirect('/forbidden');
 
-  const org = await prisma.organization.findUnique({ where: { id: orgId }, select: { name: true } });
+  const org = await prisma.organization.findUnique({
+    where: { id: orgId },
+    select: { name: true },
+  });
   const employee = await getOrgCardEmployee(prisma, session, { orgId, studentId });
   if (!org || !employee) notFound();
 

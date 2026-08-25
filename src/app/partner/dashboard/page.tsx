@@ -16,6 +16,7 @@ import { PartnerEnrollmentsCard } from '@/components/partner/partner-enrollments
 import { QuickTasks } from '@/components/dashboard/quick-tasks';
 import { quickTasksFor } from '@/lib/quickTasks';
 
+import { PageHeader } from '@/components/ui/page-header';
 export default async function PartnerDashboard() {
   const session = await requirePartner();
 
@@ -38,8 +39,7 @@ export default async function PartnerDashboard() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">Главная</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Обзор ключевых показателей и активности</p>
+        <PageHeader title="Главная" subtitle="Обзор ключевых показателей и активности" />
       </div>
 
       {/* `У-71`: блок постоянный — он отвечает на вопрос «что делать»,

@@ -4,6 +4,7 @@ import { fmtDate } from '@/lib/format';
 import { CertificateList, type CertificateListItem } from '@/components/training/certificate-list';
 import type { OrgCardEmployeeDetail } from '@/lib/services/organization/orgCardEmployees';
 
+import { PageHeader } from '@/components/ui/page-header';
 /**
  * Карточка сотрудника **внутри карточки организации** (`У-97`).
  *
@@ -31,14 +32,15 @@ export function OrgEmployeeCard({
   return (
     <div className="space-y-5">
       <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-semibold text-[#111111]">{employee.name}</h1>
-          {employee.status !== 'active' && <Badge tone="neutral">В архиве</Badge>}
-        </div>
-        {/* §15 «что здесь делают»: одна строка простыми словами. */}
-        <p className="text-sm text-gray-500">
-          Сотрудник организации: его обучают, ему выдают удостоверения.
-        </p>
+        <PageHeader
+          title={
+            <span className="inline-flex flex-wrap items-center gap-2">
+              {employee.name}
+              {employee.status !== 'active' && <Badge tone="neutral">В архиве</Badge>}
+            </span>
+          }
+          subtitle="Сотрудник организации: его обучают, ему выдают удостоверения."
+        />
         <p className="text-gray-400 text-xs pt-1">
           {employee.email ?? 'Почта не указана'} · Добавлен {fmtDate(employee.createdAt)}
         </p>

@@ -4,12 +4,14 @@ import { Badge } from '@/components/ui';
 import { fmtDate, fmtMoney } from '@/lib/format';
 import type { OrderDeal } from '@/lib/services/manager/orderDetail';
 
-const STATUS: Record<'open' | 'won' | 'lost', { label: string; tone: 'info' | 'success' | 'danger' }> =
-  {
-    open: { label: 'В работе', tone: 'info' },
-    won: { label: 'Выиграна', tone: 'success' },
-    lost: { label: 'Проиграна', tone: 'danger' },
-  };
+const STATUS: Record<
+  'open' | 'won' | 'lost',
+  { label: string; tone: 'info' | 'success' | 'danger' }
+> = {
+  open: { label: 'В работе', tone: 'info' },
+  won: { label: 'Выиграна', tone: 'success' },
+  lost: { label: 'Проиграна', tone: 'danger' },
+};
 
 type Props = {
   deal: NonNullable<OrderDeal>;

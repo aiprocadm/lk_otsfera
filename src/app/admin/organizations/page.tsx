@@ -9,6 +9,7 @@ import { listActivePartnerOptions } from '@/lib/services/admin/partners';
 import type { OrgFilters } from '@/lib/services/admin/organizations';
 import { CreateOrganizationDialog } from '@/components/admin/create-organization-dialog';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 50;
@@ -55,16 +56,19 @@ export default async function AdminOrganizationsPage({
     <div className="space-y-5">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
-          {/* `У-13`: на телефоне заголовок и кнопка не помещаются в одну строку
-              (406px против 390px) — разрешаем перенос вместо распирания. */}
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-bold text-[#111111]">Организации</h1>
-            <CreateOrganizationDialog />
-          </div>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {total} {pluralize(total)} на платформе
-            {q && <span className="text-gray-400"> · по запросу «{q}»</span>}
-          </p>
+          {/* `У-120`: кнопка — проп `action` шапки, а не самодельный flex рядом
+              с заголовком. `У-13`: перенос кнопки под заголовок на телефоне
+              шапка делает сама, ручной `flex-wrap` больше не нужен. */}
+          <PageHeader
+            title="Организации"
+            subtitle={
+              <>
+                {total} {pluralize(total)} на платформе
+                {q && <span className="text-gray-400"> · по запросу «{q}»</span>}
+              </>
+            }
+            action={<CreateOrganizationDialog />}
+          />
         </div>
         <form method="get" className="flex flex-wrap gap-2">
           <input

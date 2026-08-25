@@ -18,6 +18,7 @@ import {
 import { toast } from '@/lib/ui/toast';
 import { errorMessageRu } from '@/lib/errors/messages';
 
+import { PageHeader } from '@/components/ui/page-header';
 type Props = {
   directions: TrainingDirection[];
 };
@@ -101,11 +102,10 @@ export function DirectionsAdmin({ directions }: Props) {
     <div className="space-y-4">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#111111]">Направления обучения</h1>
-          {/* `У-73`: одна строка «что здесь делают». */}
-          <p className="mt-0.5 text-sm text-gray-500">
-            Справочник тем обучения — из него выбирают в заявках и заказах
-          </p>
+          <PageHeader
+            title="Направления обучения"
+            subtitle="Справочник тем обучения — из него выбирают в заявках и заказах"
+          />
         </div>
         <Button onClick={() => setAddOpen(true)}>+ Добавить</Button>
       </div>

@@ -5,13 +5,13 @@ import { OrgAppShell } from '@/components/organization/org-app-shell';
 import { getSession } from '@/lib/auth/session';
 import { getOrgPageContext } from '@/lib/auth/orgPageContext';
 
+import { PageHeader } from '@/components/ui/page-header';
 const CONTENT = (
   <>
-    <h1 className="text-2xl font-semibold text-[#111111] mb-3">Кабинет слушателя</h1>
-    <p className="text-sm text-gray-600 mb-4 max-w-prose">
-      Обучение проходит на отдельной учебной площадке. Нажмите кнопку — вход выполнится
-      автоматически, отдельный пароль не понадобится.
-    </p>
+    <PageHeader
+      title="Кабинет слушателя"
+      subtitle="Обучение проходит на отдельной учебной площадке. Нажмите кнопку — вход выполнится автоматически, отдельный пароль не понадобится."
+    />
     <Link
       href="/student/redirect"
       className="inline-block rounded-lg bg-[#F97316] hover:bg-[#EA580C] text-white px-4 py-2 text-sm font-semibold transition-colors"

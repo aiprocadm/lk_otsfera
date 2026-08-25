@@ -4,6 +4,7 @@ import { requireManagerLeader } from '@/lib/auth/requireRole';
 import { visibleSettingsSections } from '@/lib/auth/settingsAccess';
 import { SettingsHubCards } from '@/components/settings/settings-hub-cards';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const metadata: Metadata = { title: 'Настройки' };
 
 /** Корень хаба настроек руководителя: карточки доступных ему разделов. */
@@ -11,9 +12,7 @@ export default async function LeaderSettingsPage() {
   const session = await requireManagerLeader();
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-[#111111]">Настройки</h1>
-      {/* `У-73`: одна строка «что здесь делают». */}
-      <p className="text-sm text-gray-500 mt-0.5">Служебные разделы вашей команды и компании</p>
+      <PageHeader title="Настройки" subtitle="Служебные разделы вашей команды и компании" />
       <SettingsHubCards cabinet="leader" sections={visibleSettingsSections(session, 'leader')} />
     </div>
   );

@@ -10,6 +10,7 @@ import { fmtMoney } from '@/lib/format';
 import { LeaderManagersTable } from '@/components/leader/leader-managers-table';
 import { ManagerEventsFeed } from '@/components/manager/manager-events-feed';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 export default async function LeaderDashboardPage() {
@@ -22,8 +23,7 @@ export default async function LeaderDashboardPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">Главная</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Все менеджеры и заказы компании</p>
+        <PageHeader title="Главная" subtitle="Все менеджеры и заказы компании" />
       </div>
 
       <QuickTasks tasks={quickTasksFor('leader')} />

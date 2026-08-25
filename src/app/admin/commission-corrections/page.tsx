@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { listCorrectionQueue } from '@/lib/services/commission/corrections';
 import { CorrectionsQueueTable } from '@/components/commission/corrections-queue-table';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 export default async function AdminCommissionCorrectionsPage() {
@@ -22,10 +23,10 @@ export default async function AdminCommissionCorrectionsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">Корректировки комиссии</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Поздние возвраты в закрытые периоды — требуют решения (§9.5).
-        </p>
+        <PageHeader
+          title="Корректировки комиссии"
+          subtitle="Поздние возвраты в закрытые периоды — требуют решения (§9.5)."
+        />
       </div>
       <CorrectionsQueueTable rows={serialized} />
     </div>

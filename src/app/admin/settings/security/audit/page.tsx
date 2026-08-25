@@ -8,6 +8,7 @@ import { listAudit, listAuditFilters } from '@/lib/services/admin/auditLog';
 import { AuditLogFilters } from '@/components/admin/audit-log-filters';
 import { AuditLogTable } from '@/components/admin/audit-log-table';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const metadata: Metadata = { title: 'Аудит · Настройки' };
 
 export const dynamic = 'force-dynamic';
@@ -50,11 +51,10 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-[#111111]">Аудит</h1>
-      {/* `У-73`: одна строка «что здесь делают». */}
-      <p className="text-sm text-gray-500 mt-0.5">
-        Кто и что менял в системе — для разбора спорных случаев
-      </p>
+      <PageHeader
+        title="Аудит"
+        subtitle="Кто и что менял в системе — для разбора спорных случаев"
+      />
       <AuditLogFilters
         basePath="/admin/settings/security/audit"
         entities={options.entities}

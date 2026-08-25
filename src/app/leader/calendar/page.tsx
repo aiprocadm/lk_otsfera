@@ -7,6 +7,7 @@ import { listCalendarItems, getEventFormOptions } from '@/lib/services/calendar/
 import { normalizeMonthParam, monthGridRange } from '@/lib/calendar/month';
 import { CalendarMonthView } from '@/components/calendar/calendar-month-view';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 export default async function LeaderCalendarPage({
@@ -27,11 +28,10 @@ export default async function LeaderCalendarPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">Календарь</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          События команды и задачи со сроком — в одной сетке. Кликните по дню, чтобы создать
-          событие.
-        </p>
+        <PageHeader
+          title="Календарь"
+          subtitle="События команды и задачи со сроком — в одной сетке. Кликните по дню, чтобы создать событие."
+        />
       </div>
       <CalendarMonthView
         items={items}

@@ -4,6 +4,7 @@ import { DealStatusBadge } from '@/components/partner/deal-status-badge';
 import { orderWorkingStage, WORKING_STAGE_LABELS } from '@/lib/orders/humanStage';
 import { OrderStageStepper } from '@/components/orders/order-stage-stepper';
 
+import { PageHeader } from '@/components/ui/page-header';
 export function OrgOrderHeader({ order }: { order: OrgOrderDetail }) {
   const workingStage = orderWorkingStage({
     executionStatus: order.executionStatus,
@@ -15,23 +16,25 @@ export function OrgOrderHeader({ order }: { order: OrgOrderDetail }) {
   });
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5">
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            {order.orderNumber && (
-              <span className="text-xs text-gray-500 font-mono">№ {order.orderNumber}</span>
-            )}
-            <DealStatusBadge stage={order.stage} />
-          </div>
-          <h1 className="text-2xl font-bold text-[#111111]">{order.title}</h1>
-        </div>
-        {order.managerName && (
-          <div className="text-right text-sm text-gray-500 md:min-w-[180px]">
-            <div className="text-[10px] uppercase tracking-wider text-gray-400">Менеджер</div>
-            <div className="font-medium text-[#111111]">{order.managerName}</div>
-          </div>
+      {/* `У-120`: зеркало менеджерской карточки заказа — та же шапка. */}
+      <div className="flex items-center gap-2 mb-1">
+        {order.orderNumber && (
+          <span className="text-xs text-gray-500 font-mono">№ {order.orderNumber}</span>
         )}
+        <DealStatusBadge stage={order.stage} />
       </div>
+      <PageHeader
+        title={order.title}
+        subtitle={null}
+        action={
+          order.managerName ? (
+            <div className="text-sm text-gray-500 md:min-w-[180px] md:text-right">
+              <div className="text-[10px] uppercase tracking-wider text-gray-400">Менеджер</div>
+              <div className="font-medium text-[#111111]">{order.managerName}</div>
+            </div>
+          ) : null
+        }
+      />
       <div className="mt-4">
         <OrderStageStepper stage={workingStage} labels={[...WORKING_STAGE_LABELS]} />
       </div>

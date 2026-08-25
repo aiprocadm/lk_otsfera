@@ -10,6 +10,7 @@ import {
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 import { fmtDate } from '@/lib/format';
 
+import { PageHeader } from '@/components/ui/page-header';
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Черновик',
   approved: 'Утверждён',
@@ -86,11 +87,10 @@ export default async function AdminCommissionStatementsPage({
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">Комиссионные отчёты</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Все партнёры. По умолчанию показаны утверждённые и выплаченные. Кликните по отчёту, чтобы
-          открыть карточку.
-        </p>
+        <PageHeader
+          title="Комиссионные отчёты"
+          subtitle="Все партнёры. По умолчанию показаны утверждённые и выплаченные. Кликните по отчёту, чтобы открыть карточку."
+        />
       </div>
 
       <form

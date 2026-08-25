@@ -24,7 +24,14 @@ function AttachmentLine({ msg, isMine }: { msg: ChatMessageVM; isMine: boolean }
   if (!msg.attachmentUrl) return null;
   if (msg.scanStatus === 'infected') {
     return (
-      <span style={{ display: 'inline-block', marginTop: '6px', fontSize: '12px', color: isMine ? 'rgba(255,255,255,0.85)' : '#DC2626' }}>
+      <span
+        style={{
+          display: 'inline-block',
+          marginTop: '6px',
+          fontSize: '12px',
+          color: isMine ? 'rgba(255,255,255,0.85)' : '#DC2626',
+        }}
+      >
         ⛔ файл заражён
       </span>
     );
@@ -33,7 +40,14 @@ function AttachmentLine({ msg, isMine }: { msg: ChatMessageVM; isMine: boolean }
   // Отсутствующий scanStatus (старый потребитель VM) трактуем как clean.
   if (msg.scanStatus !== undefined && msg.scanStatus !== 'clean') {
     return (
-      <span style={{ display: 'inline-block', marginTop: '6px', fontSize: '12px', color: isMine ? 'rgba(255,255,255,0.85)' : '#9CA3AF' }}>
+      <span
+        style={{
+          display: 'inline-block',
+          marginTop: '6px',
+          fontSize: '12px',
+          color: isMine ? 'rgba(255,255,255,0.85)' : '#9CA3AF',
+        }}
+      >
         ⏳ файл проверяется
       </span>
     );

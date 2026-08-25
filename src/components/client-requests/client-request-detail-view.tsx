@@ -4,6 +4,7 @@ import { Breadcrumbs } from '@/components/ui';
 import type { Crumb } from '@/lib/navigation/breadcrumbs';
 import type { ClientRequestRow } from '@/lib/services/clientRequests/list';
 import { fmtDateTime } from '@/lib/format';
+import { PageHeader } from '@/components/ui/page-header';
 import { ClientRequestStatusBadge } from './client-request-status-badge';
 import { ClientRequestAttachmentDropzone } from './client-request-attachment-dropzone';
 import {
@@ -45,13 +46,20 @@ export function ClientRequestDetailView({
             ← Все обращения
           </Link>
         )}
-        <div className="flex flex-wrap items-center gap-3 mt-2">
-          <h1 className="text-2xl font-semibold text-[#111111]">{request.subject}</h1>
-          <ClientRequestStatusBadge status={request.status} />
-        </div>
-        <p className="text-xs text-gray-500 mt-1">
-          Подано {fmtDateTime(request.createdAt)} ({request.submittedByName})
-        </p>
+        {/* `У-120`: карточка сущности — подзаголовок из её же данных. */}
+        <PageHeader
+          title={
+            <span className="inline-flex flex-wrap items-center gap-3">
+              {request.subject}
+              <ClientRequestStatusBadge status={request.status} />
+            </span>
+          }
+          subtitle={
+            <>
+              Подано {fmtDateTime(request.createdAt)} ({request.submittedByName})
+            </>
+          }
+        />
       </div>
 
       {request.status === 'rejected' && request.rejectedReason && (

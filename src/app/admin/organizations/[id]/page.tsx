@@ -23,6 +23,7 @@ import { getAutoCreatedFrom1C } from '@/lib/services/organization/autoCreated';
 import { AutoCreatedBadge } from '@/components/organization/auto-created-badge';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 export default async function AdminOrganizationDetailPage({
@@ -70,11 +71,15 @@ export default async function AdminOrganizationDetailPage({
         <Breadcrumbs
           items={buildCabinetBreadcrumbs('admin', '/admin/organizations', [{ label: org.name }])}
         />
-        <h1 className="text-2xl font-bold text-[#111111] mt-1">{org.name}</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Партнёр: {org.partner?.name ?? 'Без партнёра'}
-          {meta.company && <span> · Компания: {meta.company.name}</span>}
-        </p>
+        <PageHeader
+          title={org.name}
+          subtitle={
+            <>
+              Партнёр: {org.partner?.name ?? 'Без партнёра'}{' '}
+              {meta.company && <span> · Компания: {meta.company.name}</span>}
+            </>
+          }
+        />
         <AutoCreatedBadge mark={autoCreated} />
       </div>
 
@@ -173,11 +178,7 @@ export default async function AdminOrganizationDetailPage({
             />
           ),
           customFields: (
-            <EntityCustomFields
-              fields={customFields}
-              entityType="organization"
-              entityId={org.id}
-            />
+            <EntityCustomFields fields={customFields} entityType="organization" entityId={org.id} />
           ),
         }}
       />

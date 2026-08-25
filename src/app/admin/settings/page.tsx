@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/auth/requireRole';
 import { visibleSettingsSections } from '@/lib/auth/settingsAccess';
 import { SettingsHubCards } from '@/components/settings/settings-hub-cards';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const metadata: Metadata = { title: 'Настройки' };
 
 /**
@@ -15,11 +16,10 @@ export default async function AdminSettingsPage() {
   const session = await requireAdmin();
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-[#111111]">Настройки</h1>
-      {/* `У-73`: одна строка «что здесь делают». */}
-      <p className="text-sm text-gray-500 mt-0.5">
-        Служебные разделы: доступ, справочники, интеграции и система
-      </p>
+      <PageHeader
+        title="Настройки"
+        subtitle="Служебные разделы: доступ, справочники, интеграции и система"
+      />
       <SettingsHubCards cabinet="admin" sections={visibleSettingsSections(session, 'admin')} />
     </div>
   );

@@ -11,6 +11,7 @@ import { DealStageConfig } from '@/components/deals/deal-stage-config';
 import { DealsManagerFilter } from '@/components/deals/deals-manager-filter';
 import { NewDealButton } from '@/components/deals/deal-dialog';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 /**
@@ -44,11 +45,10 @@ export default async function LeaderDealsPage({
     <div className="space-y-8">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-[#111111]">Сделки</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Перетаскивайте карточки между стадиями. «Проиграна» требует причину, «Выиграна»
-            завершает сделку.
-          </p>
+          <PageHeader
+            title="Сделки"
+            subtitle="Перетаскивайте карточки между стадиями. «Проиграна» требует причину, «Выиграна» завершает сделку."
+          />
         </div>
         <NewDealButton
           organizations={organizations}

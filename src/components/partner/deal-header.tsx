@@ -4,6 +4,7 @@ import type { DealDetail } from '@/lib/services/partner/dealDetail';
 import { orderTypeRu } from '@/lib/i18n/labels';
 import { orderWorkingStage, WORKING_STAGE_LABELS } from '@/lib/orders/humanStage';
 import { OrderStageStepper } from '@/components/orders/order-stage-stepper';
+import { PageHeader } from '@/components/ui/page-header';
 import { DealStatusBadge } from './deal-status-badge';
 
 export function DealHeader({ deal }: { deal: DealDetail }) {
@@ -17,17 +18,18 @@ export function DealHeader({ deal }: { deal: DealDetail }) {
   });
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5">
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            {deal.orderNumber && (
-              <span className="text-xs text-gray-500 font-mono">№ {deal.orderNumber}</span>
-            )}
-            <DealStatusBadge stage={deal.stage} />
-          </div>
-          <h1 className="text-2xl font-bold text-[#111111]">{deal.title}</h1>
-          {deal.organization && (
-            <div className="text-sm text-gray-500 mt-1">
+      {/* `У-120`: зеркало карточки заказа у менеджера и заказчика. */}
+      <div className="flex items-center gap-2 mb-1">
+        {deal.orderNumber && (
+          <span className="text-xs text-gray-500 font-mono">№ {deal.orderNumber}</span>
+        )}
+        <DealStatusBadge stage={deal.stage} />
+      </div>
+      <PageHeader
+        title={deal.title}
+        subtitle={
+          deal.organization ? (
+            <>
               <Link
                 href={`/partner/portfolio/${deal.organization.id}`}
                 className="hover:text-[#F97316]"
@@ -37,16 +39,18 @@ export function DealHeader({ deal }: { deal: DealDetail }) {
               {deal.organization.inn && (
                 <span className="text-gray-400"> · ИНН {deal.organization.inn}</span>
               )}
+            </>
+          ) : null
+        }
+        action={
+          deal.managerName ? (
+            <div className="text-sm text-gray-500 md:min-w-[180px] md:text-right">
+              <div className="text-[10px] uppercase tracking-wider text-gray-400">Менеджер</div>
+              <div className="font-medium text-[#111111]">{deal.managerName}</div>
             </div>
-          )}
-        </div>
-        {deal.managerName && (
-          <div className="text-right text-sm text-gray-500 md:min-w-[180px]">
-            <div className="text-[10px] uppercase tracking-wider text-gray-400">Менеджер</div>
-            <div className="font-medium text-[#111111]">{deal.managerName}</div>
-          </div>
-        )}
-      </div>
+          ) : null
+        }
+      />
       <div className="mt-4">
         <OrderStageStepper stage={workingStage} labels={[...WORKING_STAGE_LABELS]} />
       </div>

@@ -96,11 +96,7 @@ export async function OrgStaffSettings({
           />
         ) : undefined,
         customFields: (
-          <EntityCustomFields
-            fields={customFields}
-            entityType="organization"
-            entityId={card.id}
-          />
+          <EntityCustomFields fields={customFields} entityType="organization" entityId={card.id} />
         ),
       }}
     />

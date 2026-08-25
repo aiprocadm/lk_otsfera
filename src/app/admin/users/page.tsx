@@ -8,6 +8,7 @@ import { listCompanyOptions } from '@/lib/services/admin/orders';
 import { UsersFilters } from '@/components/admin/users-filters';
 import { UsersTable } from '@/components/admin/users-table';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 50;
@@ -54,8 +55,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#111111]">Пользователи</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{total} всего</p>
+          <PageHeader title="Пользователи" subtitle={<>{total} всего</>} />
         </div>
         <Link
           href="/admin/users/new"

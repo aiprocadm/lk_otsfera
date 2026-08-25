@@ -5,6 +5,7 @@ import { Breadcrumbs } from '@/components/ui';
 import type { EnrollmentDetail } from '@/lib/services/enrollments/detail';
 import { groupItemsByDirection } from '@/lib/services/enrollments/grouping';
 import { fmtDate, pluralizeRu } from '@/lib/format';
+import { PageHeader } from '@/components/ui/page-header';
 import { EnrollmentStatusBadge } from './enrollment-status-badge';
 import { EnrollmentStatusRibbon } from './enrollment-status-ribbon';
 import { CertificateDownloadButton } from './certificate-download-button';
@@ -54,13 +55,16 @@ export function EnrollmentDetailView({
             ← Все заявки на обучение
           </Link>
         )}
-        <div className="flex flex-wrap items-center gap-3 mt-2">
-          <h1 className="text-2xl font-semibold text-[#111111]">{enrollmentTitle(detail)}</h1>
-          <EnrollmentStatusBadge status={detail.status} />
-        </div>
-        {detail.directionNames.length > 1 && (
-          <p className="text-sm text-gray-600 mt-1">{detail.directionNames.join(' · ')}</p>
-        )}
+        {/* `У-120`: карточка сущности — подзаголовок из её же данных. */}
+        <PageHeader
+          title={
+            <span className="inline-flex flex-wrap items-center gap-3">
+              {enrollmentTitle(detail)}
+              <EnrollmentStatusBadge status={detail.status} />
+            </span>
+          }
+          subtitle={detail.directionNames.length > 1 ? detail.directionNames.join(' · ') : null}
+        />
         <p className="text-xs text-gray-500 mt-1">
           Подана {fmtDate(detail.createdAt)} ({detail.submittedByName})
           {detail.organizationName && <> · организация {detail.organizationName}</>}

@@ -7,6 +7,7 @@ import { listCompanyOptions } from '@/lib/services/admin/orders';
 import { UserInviteForm } from '@/components/admin/user-invite-form';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 export default async function NewUserPage() {
@@ -25,11 +26,10 @@ export default async function NewUserPage() {
             { label: 'Новый пользователь' },
           ])}
         />
-        <h1 className="text-2xl font-bold text-[#111111] mt-1">Пригласить пользователя</h1>
-        {/* `У-73`: одна строка «что здесь делают». */}
-        <p className="text-sm text-gray-500 mt-0.5">
-          Заведите человека и дайте ему доступ в нужный кабинет
-        </p>
+        <PageHeader
+          title="Пригласить пользователя"
+          subtitle="Заведите человека и дайте ему доступ в нужный кабинет"
+        />
       </div>
       <UserInviteForm partners={partners} companies={companies} />
     </div>

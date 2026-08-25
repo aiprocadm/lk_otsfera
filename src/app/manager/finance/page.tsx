@@ -5,6 +5,7 @@ import { getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { getManagerFinanceOverview } from '@/lib/services/manager/finance';
 import { ManagerFinanceView } from '@/components/manager/manager-finance-view';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 export default async function ManagerFinancePage() {
@@ -14,8 +15,7 @@ export default async function ManagerFinancePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-[#111111]">Финансы</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Оплаты по вашим организациям</p>
+        <PageHeader title="Финансы" subtitle="Оплаты по вашим организациям" />
       </div>
       <ManagerFinanceView data={data} ordersBasePath="/manager" />
     </div>

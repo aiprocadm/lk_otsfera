@@ -62,9 +62,7 @@ export default async function LeaderOrgDetailPage({
   // `У-99`: настраиваемые поля живут на вкладке «Настройки», а не под всеми
   // вкладками сразу — под переключателем не должно висеть постороннее (`У-64`).
   const customFields =
-    activeTab === 'settings'
-      ? await getFieldsForEntity(prisma, session, 'organization', id)
-      : null;
+    activeTab === 'settings' ? await getFieldsForEntity(prisma, session, 'organization', id) : null;
   const autoCreated = await getAutoCreatedFrom1C(prisma, id);
 
   return (

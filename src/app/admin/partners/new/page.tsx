@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/auth/requireRole';
 import { PartnerCreateForm } from '@/components/admin/partner-create-form';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 export default async function NewPartnerPage() {
@@ -15,11 +16,10 @@ export default async function NewPartnerPage() {
         <Breadcrumbs
           items={buildCabinetBreadcrumbs('admin', '/admin/partners', [{ label: 'Новый партнёр' }])}
         />
-        <h1 className="text-2xl font-bold text-[#111111] mt-1">Новый партнёр</h1>
-        {/* `У-73`: одна строка «что здесь делают». */}
-        <p className="text-sm text-gray-500 mt-0.5">
-          Заведите партнёра, который будет приводить клиентов и получать комиссию
-        </p>
+        <PageHeader
+          title="Новый партнёр"
+          subtitle="Заведите партнёра, который будет приводить клиентов и получать комиссию"
+        />
       </div>
       <PartnerCreateForm />
     </div>

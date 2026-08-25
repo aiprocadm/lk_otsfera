@@ -34,12 +34,12 @@ export default async function OrganizationEnrollmentDetailPage({
       viewerRole={ctx.viewerRole}
     >
       <EnrollmentDetailView
-      detail={r.request}
-      backHref="/organization/enrollments"
-      breadcrumbs={buildCabinetBreadcrumbs('organization', '/organization/enrollments', [
-        { label: enrollmentTitle(r.request) },
-      ])}
-    />
+        detail={r.request}
+        backHref="/organization/enrollments"
+        breadcrumbs={buildCabinetBreadcrumbs('organization', '/organization/enrollments', [
+          { label: enrollmentTitle(r.request) },
+        ])}
+      />
     </OrgAppShell>
   );
 }

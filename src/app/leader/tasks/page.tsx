@@ -10,6 +10,7 @@ import { TaskList } from '@/components/tasks/task-list';
 import { TasksToolbar } from '@/components/tasks/tasks-toolbar';
 import { ColumnConfig } from '@/components/tasks/column-config';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 export default async function LeaderTasksPage({
@@ -33,11 +34,10 @@ export default async function LeaderTasksPage({
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">Задачи</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Внутренний канбан задач. Перетаскивайте карточки между колонками; настройте колонки под
-          процесс команды.
-        </p>
+        <PageHeader
+          title="Задачи"
+          subtitle="Внутренний канбан задач. Перетаскивайте карточки между колонками; настройте колонки под процесс команды."
+        />
       </div>
       <TasksToolbar state={state} assigneeOptions={options.users} />
       {state.view === 'list' ? (

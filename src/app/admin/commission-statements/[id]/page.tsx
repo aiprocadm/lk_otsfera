@@ -9,6 +9,7 @@ import { MarkPaidForm } from '@/components/admin/mark-paid-form';
 import { fmtMoney, fmtDate, fmtDateTime } from '@/lib/format';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 
+import { PageHeader } from '@/components/ui/page-header';
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Черновик',
   approved: 'Утверждён',
@@ -82,10 +83,14 @@ export default async function AdminCommissionStatementDetailPage({
       <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-[#111111]">
-              {statement.partner.name} · {fmtPeriod(statement.periodFrom, statement.periodTo)}
-            </h1>
-            <p className="text-sm text-gray-500 mt-0.5">Statement #{statement.id}</p>
+            <PageHeader
+              title={
+                <>
+                  {statement.partner.name} · {fmtPeriod(statement.periodFrom, statement.periodTo)}
+                </>
+              }
+              subtitle={<>Statement #{statement.id}</>}
+            />
           </div>
           <span
             className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${

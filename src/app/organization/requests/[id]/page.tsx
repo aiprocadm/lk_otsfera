@@ -46,9 +46,9 @@ export default async function OrganizationRequestDetailPage({
           createdByUserName: a.createdByUserName,
         }))}
         backHref="/organization/requests"
-      breadcrumbs={buildCabinetBreadcrumbs('organization', '/organization/requests', [
-        { label: r.request.subject },
-      ])}
+        breadcrumbs={buildCabinetBreadcrumbs('organization', '/organization/requests', [
+          { label: r.request.subject },
+        ])}
       />
     </OrgAppShell>
   );

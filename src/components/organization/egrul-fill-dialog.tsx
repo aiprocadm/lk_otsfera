@@ -5,7 +5,11 @@ import { useRouter } from 'next/navigation';
 import { Button, Dialog, Input } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
 import { fillOrgFromEgrulAction } from '@/server-actions/organization/egrul';
-import { EGRUL_FIELDS, EGRUL_FIELD_LABELS, type EgrulField } from '@/lib/services/organization/egrul';
+import {
+  EGRUL_FIELDS,
+  EGRUL_FIELD_LABELS,
+  type EgrulField,
+} from '@/lib/services/organization/egrul';
 
 /**
  * «Найти в ЕГРЮЛ» — подстановка реквизитов организации по названию (`У-94`).

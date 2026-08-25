@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db/prisma';
 import { getFunnelBoard } from '@/lib/services/funnel/board';
 import { FunnelBoard } from '@/components/funnel/funnel-board';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 export default async function ManagerFunnelPage() {
@@ -16,10 +17,10 @@ export default async function ManagerFunnelPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#111111]">Воронка продаж</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Перетаскивайте карточки между стадиями воронки.
-        </p>
+        <PageHeader
+          title="Воронка продаж"
+          subtitle="Перетаскивайте карточки между стадиями воронки."
+        />
       </div>
       <FunnelBoard board={board} />
     </div>

@@ -15,6 +15,7 @@ import { CertificateRegistryFilters } from '@/components/certificates/certificat
 import { Paginator } from '@/components/ui/paginator';
 import { exportHref } from '@/lib/ui/exportHref';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 type SearchParams = {
@@ -76,10 +77,14 @@ export default async function OrganizationCertificatesPage({
       <div className="space-y-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-[#111111]">Удостоверения</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
-              {result.total} всего в {ctx.activeOrgName}
-            </p>
+            <PageHeader
+              title="Удостоверения"
+              subtitle={
+                <>
+                  {result.total} всего в {ctx.activeOrgName}
+                </>
+              }
+            />
           </div>
           {/* ФТ-6.5: экспорт уважает активные фильтры (те же query-параметры). */}
           <a

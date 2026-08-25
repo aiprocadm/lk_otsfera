@@ -5,6 +5,7 @@ import { requireSettingsSection } from '@/lib/auth/requireSettings';
 import { listExchangeHistory } from '@/lib/services/import/history';
 import { ExchangeHistory } from '@/components/import/exchange-history';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const metadata: Metadata = { title: 'История обмена · Обмен с 1С' };
 export const dynamic = 'force-dynamic';
 
@@ -21,10 +22,10 @@ export default async function LeaderOneCHistoryPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold text-[#111111]">История обмена</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Что загружали и когда — по всем каналам сразу: файлы Excel и выписки.
-        </p>
+        <PageHeader
+          title="История обмена"
+          subtitle="Что загружали и когда — по всем каналам сразу: файлы Excel и выписки."
+        />
       </div>
       {res.ok ? (
         <ExchangeHistory items={res.items} />

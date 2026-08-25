@@ -6,6 +6,7 @@ import { listPartners } from '@/lib/services/admin/partners';
 import { PartnersFilters } from '@/components/admin/partners-filters';
 import { PartnersTable } from '@/components/admin/partners-table';
 
+import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 50;
@@ -31,8 +32,7 @@ export default async function AdminPartnersPage({ searchParams }: { searchParams
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#111111]">Партнёры</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{total} всего</p>
+          <PageHeader title="Партнёры" subtitle={<>{total} всего</>} />
         </div>
         <Link
           href="/admin/partners/new"
