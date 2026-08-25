@@ -42,6 +42,7 @@ export function OrgCardTabs({
   employees,
   settings,
   egrulAction,
+  hrefFor,
 }: {
   card: OrganizationCard;
   activeTab: OrgCardTabKey;
@@ -65,6 +66,13 @@ export function OrgCardTabs({
    * всё равно показывается: факт от прав не зависит.
    */
   egrulAction?: React.ReactNode;
+  /**
+   * Адрес вкладки. По умолчанию `?tab=<ключ>` — вкладка живёт на этой же
+   * странице. Партнёру нужен другой ответ: «Документы» и «Настройки» у него
+   * остались отдельными экранами (там свои фильтры и формы), и реестр обязан
+   * вести на них, а не рисовать пустую вкладку.
+   */
+  hrefFor?: (key: OrgCardTabKey) => string;
 }) {
   return (
     <div className="space-y-6">
@@ -103,27 +111,18 @@ export function OrgCardTabs({
         }).map((tile) => (
           <Tile key={tile.key} label={tile.label} value={tile.value} />
         ))}
-        <Tile label="Активные" value={card.kpis.activeOrders} />
-        <Tile label="Оплачено" value={money(card.kpis.totalPaid)} />
+        {/* Финансовые KPI — только там, где положена вкладка «Оплаты»
+            (`У-96`): партнёру платежи клиента не показывают, у него своя
+            комиссия. Правило одно и берётся из состава вкладок, а не из роли. */}
+        {tabs.some((t) => t.key === 'payments') && (
+          <>
+            <Tile label="Активные" value={card.kpis.activeOrders} />
+            <Tile label="Оплачено" value={money(card.kpis.totalPaid)} />
+          </>
+        )}
       </div>
 
-      <nav className="flex flex-wrap gap-1 border-b border-gray-200">
-        {tabs.map((t) => (
-          <Link
-            key={t.key}
-            href={`?tab=${t.key}`}
-            data-testid={`org-tab-${t.key}`}
-            data-active={t.key === activeTab}
-            className={`px-3 py-2 text-sm rounded-t-md -mb-px border-b-2 ${
-              t.key === activeTab
-                ? 'border-[#F97316] text-[#EA580C] font-semibold'
-                : 'border-transparent text-gray-500 hover:text-[#111111]'
-            }`}
-          >
-            {t.label}
-          </Link>
-        ))}
-      </nav>
+      <OrgCardTabsNav tabs={tabs} activeTab={activeTab} {...(hrefFor ? { hrefFor } : {})} />
 
       <section>
         {activeTab === 'employees'
@@ -133,6 +132,44 @@ export function OrgCardTabs({
             : renderSection(card, activeTab)}
       </section>
     </div>
+  );
+}
+
+/**
+ * Переключатель вкладок карточки организации (`У-95`).
+ *
+ * Вынесен отдельно, потому что у партнёра две вкладки — «Документы» и
+ * «Настройки» — остались самостоятельными экранами со своими фильтрами и
+ * формами. Раньше у него был свой список вкладок из пяти ключей, и состав
+ * карточки разъезжался с остальными кабинетами.
+ */
+export function OrgCardTabsNav({
+  tabs,
+  activeTab,
+  hrefFor = (key) => `?tab=${key}`,
+}: {
+  tabs: ReadonlyArray<{ key: OrgCardTabKey; label: string }>;
+  activeTab: OrgCardTabKey;
+  hrefFor?: (key: OrgCardTabKey) => string;
+}) {
+  return (
+    <nav className="flex flex-wrap gap-1 border-b border-gray-200">
+      {tabs.map((t) => (
+        <Link
+          key={t.key}
+          href={hrefFor(t.key)}
+          data-testid={`org-tab-${t.key}`}
+          data-active={t.key === activeTab}
+          className={`px-3 py-2 text-sm rounded-t-md -mb-px border-b-2 ${
+            t.key === activeTab
+              ? 'border-[#F97316] text-[#EA580C] font-semibold'
+              : 'border-transparent text-gray-500 hover:text-[#111111]'
+          }`}
+        >
+          {t.label}
+        </Link>
+      ))}
+    </nav>
   );
 }
 
