@@ -29,6 +29,10 @@ const ListDocumentsOptionsSchema = z.object({
   type: z.string().optional(),
   take: z.number().int().min(1).max(100).default(50),
   cursor: z.string().optional(),
+  // `У-110`: кабинет руководителя форсит company-wide независимо от toggle —
+  // тот же приём, что у `listOrders`. Личный /manager-кабинет руководителя
+  // («играющий тренер») остаётся scoped, поэтому это override, а не роль.
+  teamModeOverride: z.boolean().optional(),
 });
 
 export type ListDocumentsOptions = z.input<typeof ListDocumentsOptionsSchema>;
@@ -57,7 +61,8 @@ export async function listDocuments(
   optsRaw: ListDocumentsOptions
 ): Promise<ListDocumentsResult> {
   const opts = ListDocumentsOptionsSchema.parse(optsRaw);
-  const teamMode = await getCompanyTeamVisibility(prisma, opts.session.companyId);
+  const teamMode =
+    opts.teamModeOverride ?? (await getCompanyTeamVisibility(prisma, opts.session.companyId));
   const scope = managerDocumentScope(opts.session, teamMode);
   const filters: Prisma.DocumentWhereInput[] = [scope];
   if (opts.orderId) filters.push({ orderId: opts.orderId });

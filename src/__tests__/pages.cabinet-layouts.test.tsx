@@ -147,7 +147,9 @@ describe('LeaderLayout', () => {
 
     const html = renderToString(await LeaderLayout({ children: CHILD }));
 
-    expect(html).toContain('Кабинет руководителя');
+    // `У-111`: вместо статичной подписи «Кабинет руководителя» — переключатель
+    // кабинетов; он же и говорит, где человек сейчас.
+    expect(html).toContain('data-testid="cabinet-switcher"');
     expect(html).toContain('data-role="manager"');
     expect(html).toContain('Руководитель');
   });

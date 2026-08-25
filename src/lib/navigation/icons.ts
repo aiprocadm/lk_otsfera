@@ -28,7 +28,6 @@ export const NAV_ICONS = {
 
   // Работа с заказами и продажами
   orders: '📋',
-  myOrders: '↩',
   leads: '📬',
   requests: '📮',
   intake: '📥',
@@ -78,7 +77,6 @@ export const NAV_ICONS = {
 
   // Служебное и справочники
   help: '❓',
-  leaderCabinet: '🧭',
   roles: '🎭',
   security: '🛡️',
   audit: '🧾',

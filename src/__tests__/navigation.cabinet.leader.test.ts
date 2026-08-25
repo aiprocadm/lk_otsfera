@@ -13,7 +13,7 @@ afterEach(() => {
 });
 
 describe('канон leader', () => {
-  it('21 пункт: сводка/поиск/команда/финансы/корректировки/заказы/организации/роли/воронка/сделки/аналитика/задачи/календарь/обучение/обращения клиентов/сообщения/мои заказы/настройки/доп-поля', () => {
+  it('состав меню руководителя: свои «Сообщения» и «Документы», без пунктов-мостов в чужой кабинет', () => {
     expect(navByRole.leader.map((i) => i.href)).toEqual([
       '/leader/dashboard',
       '/leader/search',
@@ -31,8 +31,11 @@ describe('канон leader', () => {
       '/leader/enrollments',
       '/leader/requests',
       '/leader/intake',
-      '/manager/messages',
-      '/manager/dashboard',
+      // `У-110`: раздел свой, а не мост в кабинет менеджера.
+      '/leader/messages',
+      '/leader/documents',
+      // `У-111`: пункта «Мои заказы» здесь больше нет — кабинет переключается
+      // в шапке, а не пунктом меню, спрятанным среди разделов работы.
       '/leader/settings',
       // §11 ТЗ v0.5: зеркало настройки полей — руководителя в /admin/* не пускаем
       '/leader/settings/custom-fields',
@@ -147,27 +150,24 @@ describe('канон leader', () => {
 });
 
 describe('меню менеджера при включённом leader_cabinet', () => {
-  it('лидер: «Команда» уезжает, появляется «Кабинет руководителя»', () => {
+  it('лидер: «Команда» уезжает в свой кабинет', () => {
     process.env.FEATURE_LEADER_CABINET = '1';
     process.env.FEATURE_MANAGER_CABINET = '1';
     const labels = navItemsFor('manager', { isManagerLeader: true }).map((i) => i.label);
     expect(labels).not.toContain('Команда');
-    expect(labels).toContain('Кабинет руководителя');
   });
 
-  it('при выключенном флаге всё как раньше: «Команда» у лидера, входа в /leader нет', () => {
+  it('при выключенном флаге всё как раньше: «Команда» у лидера на месте', () => {
     process.env.FEATURE_MANAGER_CABINET = '1';
     const labels = navItemsFor('manager', { isManagerLeader: true }).map((i) => i.label);
     expect(labels).toContain('Команда');
-    expect(labels).not.toContain('Кабинет руководителя');
   });
 
-  it('рядовой менеджер не видит ни «Команду», ни «Кабинет руководителя» ни при каком флаге', () => {
+  it('рядовой менеджер не видит «Команду» ни при каком флаге', () => {
     process.env.FEATURE_LEADER_CABINET = '1';
     process.env.FEATURE_MANAGER_CABINET = '1';
     const labels = navItemsFor('manager').map((i) => i.label);
     expect(labels).not.toContain('Команда');
-    expect(labels).not.toContain('Кабинет руководителя');
   });
 
   it('пункт /manager/team помечен hiddenWhenFlag: leader_cabinet', () => {
@@ -176,10 +176,11 @@ describe('меню менеджера при включённом leader_cabinet
     expect(team!.hiddenWhenFlag).toBe('leader_cabinet');
   });
 
-  it('пункт-вход /leader/dashboard в меню менеджера гейтится leader_cabinet + leaderOnly', () => {
-    const entry = navByRole.manager.find((i) => i.href === '/leader/dashboard');
-    expect(entry).toBeDefined();
-    expect(entry!.flag).toBe('leader_cabinet');
-    expect(entry!.leaderOnly).toBe(true);
+  it('`У-111`: пункта-входа в кабинет руководителя в меню менеджера больше нет', () => {
+    // Он был закреплён внизу и назывался «Кабинет руководителя», а в меню
+    // руководителя то же действие звалось «Мои заказы». Теперь смена кабинета
+    // живёт в шапке одним переключателем, и её не надо искать среди разделов.
+    expect(navByRole.manager.find((i) => i.href === '/leader/dashboard')).toBeUndefined();
+    expect(navByRole.manager.filter((i) => i.href.startsWith('/leader/'))).toEqual([]);
   });
 });

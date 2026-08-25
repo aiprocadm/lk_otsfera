@@ -1,0 +1,330 @@
+import React from 'react';
+import { prisma } from '@/lib/db/prisma';
+import { getSyncSummary, type SyncSummaryRow } from '@/lib/services/syncSummary';
+import { getQueueStats } from '@/lib/services/admin/queueStats';
+import { loadPausedSchedulerIds } from '@/lib/jobs/scheduling';
+import { SYNC_ENTITIES, type SyncControlEntity } from '@/lib/services/admin/syncControl';
+import { CardList, Card, CardRow } from '@/components/ui/card-list';
+import { listPendingRecords, type PendingRecordRow } from '@/lib/services/admin/pendingRecords';
+import { SyncTriggerButton } from '@/components/admin/sync-trigger-button';
+import { SyncScheduleToggle } from '@/components/admin/sync-schedule-toggle';
+import { SyncCursorDialog } from '@/components/admin/sync-cursor-dialog';
+import { PendingRecordsSection } from '@/components/admin/pending-records-section';
+import type { SessionPayload } from '@/lib/auth/jwt';
+import type { SettingsCabinet } from '@/lib/navigation/settings';
+
+/**
+ * Вкладка «Автообмен» экрана «Обмен с 1С» — одна на кабинет администратора и
+ * кабинет руководителя (`У-118`, закрывает дефект `Д-33`).
+ *
+ * У руководителя этой вкладки не существовало: переключатель её показывал, а
+ * клик приводил на «страница не найдена». При вставшем обмене руководитель
+ * ничего не мог ни увидеть, ни сделать.
+ *
+ * Что различается и почему:
+ *
+ * | Возможность | Админ | Руководитель |
+ * |---|---|---|
+ * | Состояние расписаний, «сейчас выполняется» | да | да |
+ * | Ручной запуск | да | да |
+ * | Пауза расписания, перемотка курсора | да | нет |
+ * | Прочие фоновые задачи, очередь разбора | да | нет |
+ *
+ * Пауза и курсор — рычаги платформенные: обмен с 1С один на все компании, и
+ * остановка расписания задевает чужие данные. Запуск же означает «сходить за
+ * свежими данными сейчас» — последствия обратимы.
+ */
+const ENTITY_RU: Record<SyncSummaryRow['entity'], string> = {
+  organization: 'Организации',
+  order: 'Заказы',
+  payment: 'Платежи',
+  document: 'Документы',
+};
+
+/**
+ * Отдельные cron-задачи вне 1С-синка. Результаты видны не здесь, а в своих
+ * разделах — поэтому у каждой подписан адрес результата. Тумблер паузы здесь не
+ * выводится: у `certExpiry`/`commissions` его нет by design, а `email`/`mango`
+ * управляются как 1С-синки на сервисном уровне.
+ */
+const BACKGROUND_JOBS: ReadonlyArray<{
+  entity: SyncControlEntity;
+  label: string;
+  resultHint: string;
+}> = [
+  {
+    entity: 'certificateExpiry',
+    label: 'Напоминания об истечении удостоверений',
+    resultHint: 'уведомления',
+  },
+  { entity: 'emailPoll', label: 'Поллинг входящей почты', resultHint: 'инбокс' },
+  { entity: 'mangoBackfill', label: 'Бэкфилл звонков Mango', resultHint: 'звонки' },
+  { entity: 'monthlyCommissions', label: 'Расчёт ежемесячных комиссий', resultHint: 'ведомости' },
+];
+
+function formatDate(d: Date | null): string {
+  if (!d) return '—';
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(d);
+}
+
+function RunningBadge({ active }: { active: number }) {
+  return active > 0 ? (
+    <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">
+      выполняется
+    </span>
+  ) : (
+    <span className="text-gray-400 text-xs">—</span>
+  );
+}
+
+export async function OneCAutoExchange({
+  session,
+  cabinet,
+}: {
+  session: SessionPayload;
+  cabinet: SettingsCabinet;
+}) {
+  const isAdmin = cabinet === 'admin';
+
+  const [rows, queueStats, pausedIds, pendingRecords] = await Promise.all([
+    getSyncSummary(prisma),
+    getQueueStats().catch(() => []),
+    loadPausedSchedulerIds(prisma).catch(() => new Set<string>()),
+    // Очередь разбора — админская (сервис отвечает `forbidden` остальным).
+    // Сбой БД деградирует в пустую секцию, как соседние загрузки (§3).
+    isAdmin
+      ? listPendingRecords(prisma, session)
+          .then((r) => (r.ok ? r.records : []))
+          .catch(() => [] as PendingRecordRow[])
+      : Promise.resolve([] as PendingRecordRow[]),
+  ]);
+
+  const activeByQueue = new Map(queueStats.map((q) => [q.queue, q.counts.active]));
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-2xl font-bold text-[#111111]">Автообмен</h1>
+        <p className="text-sm text-gray-500 mt-0.5">
+          {isAdmin ? (
+            <>
+              Запуск, пауза расписания и перемотка курсора по сущностям. Bulk-retry упавших задач —{' '}
+              <a href="/admin/settings/system/health" className="text-[#F97316] hover:underline">
+                на странице Здоровья
+              </a>
+              .
+            </>
+          ) : (
+            'Состояние обмена по расписанию и ручной запуск, когда данные нужны прямо сейчас.'
+          )}
+        </p>
+      </div>
+
+      <div className="text-sm text-blue-800 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
+        <span aria-hidden className="mr-1">
+          ℹ️
+        </span>
+        Это автоматический обмен с 1С по сети: программа сама забирает организации, заказы, оплаты и
+        документы по расписанию. Здесь файлы не загружаются — для ручной загрузки используйте
+        «Загрузка Excel» или «Выписка по счёту 51».
+      </div>
+
+      {/* `У-18`: широкая таблица на телефоне превращается в карточки. */}
+      <CardList>
+        {rows.map((r) => {
+          const cfg = SYNC_ENTITIES[r.entity as SyncControlEntity];
+          const active = activeByQueue.get(cfg.queueName) ?? 0;
+          const paused = pausedIds.has(cfg.schedulerId);
+          return (
+            <Card key={r.entity} title={ENTITY_RU[r.entity]}>
+              <CardRow label="Последний успех">{formatDate(r.lastSuccessAt)}</CardRow>
+              <CardRow label="Сейчас">{active > 0 ? 'выполняется' : '—'}</CardRow>
+              {!isAdmin && <CardRow label="Расписание">{paused ? 'на паузе' : 'работает'}</CardRow>}
+              <div className="pt-2 flex flex-wrap gap-2">
+                <SyncTriggerButton entity={r.entity} />
+                {isAdmin && (
+                  <>
+                    <SyncScheduleToggle schedulerId={cfg.schedulerId} paused={paused} />
+                    <SyncCursorDialog entity={r.entity} currentCursor={r.cursor ?? null} />
+                  </>
+                )}
+              </div>
+            </Card>
+          );
+        })}
+        <Card title="Сверка (reconcile)">
+          <CardRow label="Последний успех">—</CardRow>
+          <CardRow label="Сейчас">
+            {(activeByQueue.get('oneCSync.reconcile') ?? 0) > 0 ? 'выполняется' : '—'}
+          </CardRow>
+          {!isAdmin && (
+            <CardRow label="Расписание">
+              {pausedIds.has('oneCSync.reconcile.cron') ? 'на паузе' : 'работает'}
+            </CardRow>
+          )}
+          <div className="pt-2 flex flex-wrap gap-2">
+            <SyncTriggerButton entity="reconcile" />
+            {isAdmin && (
+              <SyncScheduleToggle
+                schedulerId="oneCSync.reconcile.cron"
+                paused={pausedIds.has('oneCSync.reconcile.cron')}
+              />
+            )}
+          </div>
+        </Card>
+      </CardList>
+
+      <div className="hidden md:block overflow-x-auto bg-white border border-gray-200 rounded-xl">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 text-gray-600">
+            <tr>
+              <th scope="col" className="text-left px-4 py-3 font-medium">
+                Сущность
+              </th>
+              <th scope="col" className="text-left px-4 py-3 font-medium">
+                Последний успех
+              </th>
+              <th scope="col" className="text-left px-4 py-3 font-medium">
+                Сейчас
+              </th>
+              <th scope="col" className="text-left px-4 py-3 font-medium">
+                Запуск
+              </th>
+              <th scope="col" className="text-left px-4 py-3 font-medium">
+                Расписание
+              </th>
+              {isAdmin && (
+                <th scope="col" className="text-left px-4 py-3 font-medium">
+                  Курсор
+                </th>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const cfg = SYNC_ENTITIES[r.entity as SyncControlEntity];
+              const active = activeByQueue.get(cfg.queueName) ?? 0;
+              const paused = pausedIds.has(cfg.schedulerId);
+              return (
+                <tr key={r.entity} className="border-t border-gray-100">
+                  <td className="px-4 py-3 text-[#111111] font-medium">{ENTITY_RU[r.entity]}</td>
+                  <td className="px-4 py-3 text-gray-700">{formatDate(r.lastSuccessAt)}</td>
+                  <td className="px-4 py-3">
+                    <RunningBadge active={active} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <SyncTriggerButton entity={r.entity} />
+                  </td>
+                  <td className="px-4 py-3">
+                    {isAdmin ? (
+                      <SyncScheduleToggle schedulerId={cfg.schedulerId} paused={paused} />
+                    ) : (
+                      <span className="text-xs text-gray-500">
+                        {paused ? 'на паузе' : 'работает'}
+                      </span>
+                    )}
+                  </td>
+                  {isAdmin && (
+                    <td className="px-4 py-3">
+                      <SyncCursorDialog entity={r.entity} currentCursor={r.cursor ?? null} />
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+            <tr className="border-t border-gray-100 bg-gray-50/50">
+              <td className="px-4 py-3 text-[#111111] font-medium">Сверка (reconcile)</td>
+              <td className="px-4 py-3 text-gray-400">—</td>
+              <td className="px-4 py-3">
+                <RunningBadge active={activeByQueue.get('oneCSync.reconcile') ?? 0} />
+              </td>
+              <td className="px-4 py-3">
+                <SyncTriggerButton entity="reconcile" />
+              </td>
+              <td className="px-4 py-3">
+                {isAdmin ? (
+                  <SyncScheduleToggle
+                    schedulerId="oneCSync.reconcile.cron"
+                    paused={pausedIds.has('oneCSync.reconcile.cron')}
+                  />
+                ) : (
+                  <span className="text-xs text-gray-500">
+                    {pausedIds.has('oneCSync.reconcile.cron') ? 'на паузе' : 'работает'}
+                  </span>
+                )}
+              </td>
+              {isAdmin && <td className="px-4 py-3 text-gray-400 text-xs">нет курсора</td>}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      {isAdmin && (
+        <>
+          <div>
+            <h2 className="text-lg font-semibold text-[#111111]">Прочие фоновые задачи</h2>
+            <p className="text-sm text-gray-500 mt-0.5">
+              Ручной запуск cron-задач вне 1С-синка. Результаты выполнения — в соответствующих
+              разделах: сертификаты → уведомления, почта → инбокс, Mango → звонки, комиссии →
+              ведомости.
+            </p>
+          </div>
+
+          <div className="overflow-x-auto bg-white border border-gray-200 rounded-xl">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-gray-600">
+                <tr>
+                  <th scope="col" className="text-left px-4 py-3 font-medium">
+                    Задача
+                  </th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium">
+                    Расписание (cron)
+                  </th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium">
+                    Сейчас
+                  </th>
+                  <th scope="col" className="text-left px-4 py-3 font-medium">
+                    Запуск
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {BACKGROUND_JOBS.map((job) => (
+                  <tr key={job.entity} className="border-t border-gray-100">
+                    <td className="px-4 py-3">
+                      <div className="text-[#111111] font-medium">{job.label}</div>
+                      <div className="text-xs text-gray-400">
+                        результаты — раздел «{job.resultHint}»
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <code className="text-xs text-gray-700 bg-gray-50 px-1.5 py-0.5 rounded">
+                        {SYNC_ENTITIES[job.entity].cronLabel}
+                      </code>
+                    </td>
+                    <td className="px-4 py-3">
+                      <RunningBadge
+                        active={activeByQueue.get(SYNC_ENTITIES[job.entity].queueName) ?? 0}
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <SyncTriggerButton entity={job.entity} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <PendingRecordsSection records={pendingRecords} />
+        </>
+      )}
+    </div>
+  );
+}

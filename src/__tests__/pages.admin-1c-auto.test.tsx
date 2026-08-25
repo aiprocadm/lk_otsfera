@@ -124,7 +124,8 @@ describe('AdminSyncPage', () => {
     const { container } = await renderServerComponent(AdminSyncPage());
 
     expect(requireSettingsSection).toHaveBeenCalled();
-    expect(container.textContent).toContain('Синхронизация с 1С');
+    // `У-106`/`У-118`: заголовок равен подписи вкладки — «Автообмен».
+    expect(container.querySelector('h1')?.textContent).toBe('Автообмен');
     expect(container.textContent).toContain('Организации');
     expect(container.textContent).toContain('выполняется');
     expect(container.textContent).toContain('—');

@@ -66,7 +66,7 @@ describe('manager_cabinet (opt-in flag)', () => {
 describe('navByRole.manager — feature-flag gated', () => {
   // `У-103`: пункт «Сотрудники» снят — сотрудники ведутся в карточке
   // организации, сквозной список показывал людей вперемешку из разных клиентов.
-  it('lists all twenty-one manager cabinet items in the raw nav (including Поиск, Обращения, leader-only Команда + вход в /leader + Воронка + Сделки + Задачи + Календарь + Обращения + Звонки + Настройки)', () => {
+  it('состав меню менеджера: свои разделы и «Справка», без входа в чужой кабинет', () => {
     expect(navByRole.manager.map((i) => i.href)).toEqual([
       '/manager/dashboard',
       '/manager/search',
@@ -81,20 +81,21 @@ describe('navByRole.manager — feature-flag gated', () => {
       '/manager/organizations',
       '/manager/finance',
       '/manager/exchange',
-            '/manager/documents',
+      '/manager/documents',
       '/manager/enrollments',
       '/manager/messages',
       '/manager/inbox',
       '/manager/calls',
       '/manager/team',
-      '/leader/dashboard',
+      // `У-111`: пункта-входа в кабинет руководителя здесь больше нет — смена
+      // кабинета живёт в шапке.
       '/manager/settings',
       // `У-76` (этап 9): словарь терминов, закреплён внизу.
       '/help',
     ]);
   });
 
-  it('every manager item carries flag=manager_cabinet (so they hide together), кроме search/requests/enrollments/funnel/deals/tasks/calendar/inbox/calls (свои флаги) и входа в /leader (leader_cabinet)', () => {
+  it('every manager item carries flag=manager_cabinet (so they hide together), кроме search/requests/enrollments/funnel/deals/tasks/calendar/inbox/calls (свои флаги)', () => {
     const ownItems = navByRole.manager.filter(
       (i) =>
         i.href.startsWith('/manager/') &&
@@ -128,8 +129,6 @@ describe('navByRole.manager — feature-flag gated', () => {
     expect(inbox?.flag).toBe('inbound_messaging');
     const calls = navByRole.manager.find((i) => i.href === '/manager/calls');
     expect(calls?.flag).toBe('telephony_mango');
-    const leaderEntry = navByRole.manager.find((i) => i.href === '/leader/dashboard');
-    expect(leaderEntry?.flag).toBe('leader_cabinet');
   });
 
   it('navItemsFor("manager") при выключенном флаге оставляет только «Справку»', () => {

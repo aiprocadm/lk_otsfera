@@ -5,7 +5,10 @@ const { triggerSync, setSchedulePaused, rewindCursor } = vi.hoisted(() => ({
   setSchedulePaused: vi.fn(),
   rewindCursor: vi.fn(),
 }));
-const { requireAdmin } = vi.hoisted(() => ({ requireAdmin: vi.fn() }));
+const { requireAdmin, requireAdminOrManagerLeader } = vi.hoisted(() => ({
+  requireAdmin: vi.fn(),
+  requireAdminOrManagerLeader: vi.fn(),
+}));
 const { revalidatePath } = vi.hoisted(() => ({ revalidatePath: vi.fn() }));
 
 vi.mock('@/lib/services/admin/syncControl', () => ({
@@ -13,7 +16,7 @@ vi.mock('@/lib/services/admin/syncControl', () => ({
   setSchedulePaused,
   rewindCursor,
 }));
-vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
+vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin, requireAdminOrManagerLeader }));
 vi.mock('next/cache', () => ({ revalidatePath }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
@@ -32,15 +35,23 @@ function fd(entries: Record<string, string>) {
 beforeEach(() => {
   vi.clearAllMocks();
   requireAdmin.mockResolvedValue({ sub: 'admin-1' });
+  requireAdminOrManagerLeader.mockResolvedValue({ sub: 'admin-1' });
 });
 
 describe('triggerSyncAction', () => {
-  it('calls requireAdmin, service, and revalidates on success', async () => {
+  /**
+   * `У-118`: ручной запуск открыт и руководителю — при вставшем обмене он
+   * должен мочь что-то сделать сам, не дожидаясь администратора. Пауза
+   * расписания и перемотка курсора остаются админскими: они платформенные.
+   */
+  it('пускает и админа, и руководителя; обновляет оба кабинета', async () => {
     triggerSync.mockResolvedValue({ ok: true, jobId: 'manual:order:1' });
     const res = await triggerSyncAction(fd({ entity: 'order' }));
-    expect(requireAdmin).toHaveBeenCalled();
+    expect(requireAdminOrManagerLeader).toHaveBeenCalled();
+    expect(requireAdmin).not.toHaveBeenCalled();
     expect(triggerSync).toHaveBeenCalledWith({}, 'admin-1', 'order');
-    expect(revalidatePath).toHaveBeenCalledWith('/admin/settings/integrations/sync');
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/settings/integrations/1c/auto');
+    expect(revalidatePath).toHaveBeenCalledWith('/leader/settings/integrations/1c/auto');
     expect(res).toEqual({ ok: true, jobId: 'manual:order:1' });
   });
 
