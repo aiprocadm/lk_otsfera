@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { navByRole, navItemsFor } from '@/lib/navigation/cabinet';
+import { MENU_GROUP_ORDER } from '@/lib/navigation/menuGroups';
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -211,7 +212,13 @@ describe('navByRole.admin — русский канон с группами (в�
         expect(item.group).toBeUndefined();
         continue;
       }
-      expect(['Платформа', 'Операции', 'Обмен с 1С', 'Справочники']).toContain(item.group);
+      // `У-113`: группы и их порядок — общие для всех кабинетов сотрудников;
+      // «Главная» и «Поиск» стоят выше групп и группы не имеют.
+      if (item.sectionKey === 'dashboard' || item.sectionKey === 'search') {
+        expect(item.group).toBeUndefined();
+        continue;
+      }
+      expect(MENU_GROUP_ORDER as readonly string[]).toContain(item.group);
     }
   });
 

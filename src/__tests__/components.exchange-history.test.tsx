@@ -80,7 +80,7 @@ describe('ExchangeHistory (У-48)', () => {
     );
     const list = screen.getByTestId('exchange-history-list');
     expect(within(list).getAllByRole('listitem')).toHaveLength(3);
-    expect(within(list).getByText('Выписка (сч. 51)')).toBeTruthy();
+    expect(within(list).getByText('Выписка по счёту 51')).toBeTruthy();
     expect(within(list).getAllByText('можно отменить')).toHaveLength(1);
     expect(within(list).getAllByText('отмена не предусмотрена')).toHaveLength(2);
     // Автообмен идёт по расписанию — автора у него нет, и это сказано словами.

@@ -239,7 +239,7 @@ describe('listExchangeHistory (У-48)', () => {
   it('подписи каналов — по-русски (их видит человек)', () => {
     expect(CHANNEL_LABEL).toEqual({
       excel: 'Загрузка Excel',
-      statement: 'Выписка (сч. 51)',
+      statement: 'Выписка по счёту 51',
       auto: 'Автообмен',
     });
   });
