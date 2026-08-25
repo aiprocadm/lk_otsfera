@@ -19,12 +19,31 @@ const TABS = [
   { tail: 'history', label: 'История' },
 ] as const;
 
-export function OneCTabs({ cabinet = 'admin' }: { cabinet?: 'admin' | 'leader' }) {
+export function OneCTabs({
+  cabinet = 'admin',
+  basePath,
+  only,
+}: {
+  cabinet?: 'admin' | 'leader';
+  /**
+   * `У-113`: у менеджера обмен живёт своим разделом `/manager/exchange`, а не в
+   * хабе настроек — хаба у него нет. Вкладки те же, меняется только основание
+   * адреса.
+   */
+  basePath?: string;
+  /**
+   * Какие вкладки показывать. Менеджеру не дают «Автообмен»: расписаниями
+   * управляют администратор и руководитель, а не тот, кто грузит файлы.
+   */
+  only?: readonly (typeof TABS)[number]['tail'][];
+}) {
   const pathname = usePathname();
+  const base = basePath ?? `/${cabinet}/settings/integrations/1c`;
+  const tabs = only ? TABS.filter((t) => only.includes(t.tail)) : TABS;
   return (
     <nav aria-label="Разделы обмена с 1С" className="flex flex-wrap gap-1 border-b border-gray-200">
-      {TABS.map(({ tail, label }) => {
-        const href = `/${cabinet}/settings/integrations/1c/${tail}`;
+      {tabs.map(({ tail, label }) => {
+        const href = `${base}/${tail}`;
         const active = pathname === href;
         return (
           <Link

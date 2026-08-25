@@ -67,8 +67,10 @@ vi.mock('@/components/import/payment-queue-table', () => ({
     React.createElement('div', { 'data-testid': 'queue', 'data-n': String(p.rows.length) }),
 }));
 
-import ManagerImportPage from '@/app/manager/import/page';
-import ManagerPaymentsImportPage from '@/app/manager/payments-import/page';
+import ManagerExcelTab from '@/app/manager/exchange/excel/page';
+import ManagerPaymentsTab from '@/app/manager/exchange/payments/page';
+import ManagerImportGateway from '@/app/manager/import/page';
+import ManagerPaymentsImportGateway from '@/app/manager/payments-import/page';
 
 const PLAIN = { sub: 'm1', role: 'manager' as const, managedOrgIds: ['o1'] };
 const LEADER = { sub: 'l1', role: 'leader' as const };
@@ -82,21 +84,26 @@ beforeEach(() => {
   loadQueuePage.mockReset().mockResolvedValue({ rows: [], total: 0, take: 50, skip: 0 });
 });
 
-describe('«Загрузка из 1С» в кабинете менеджера', () => {
+/**
+ * `У-113`: обмен с 1С стал ОДНИМ разделом с вкладками. Экраны те же, адреса
+ * новые; старые остались шлюзами — по ним ходят из закладок и инструкций.
+ */
+describe('вкладка «Загрузка Excel» раздела «Обмен с 1С»', () => {
   it('обычный менеджер получает страницу, а не /forbidden', async () => {
-    const { container } = await renderServerComponent(ManagerImportPage());
+    const { container } = await renderServerComponent(ManagerExcelTab());
     expect(redirect).not.toHaveBeenCalled();
     expect(container.querySelector('[data-testid="import-form"]')).not.toBeNull();
     expect(container.querySelector('h1')?.textContent).toBe('Загрузка Excel из 1С');
     // Честно предупреждаем о границе: новых организаций менеджер не заводит.
     expect(container.textContent).toContain('новую карточку не заводят');
-    expect(container.querySelector('[data-testid="history"]')?.getAttribute('data-n')).toBe('1');
+    // `У-113`: история переехала на свою вкладку — двух историй на экране быть
+    // не должно.
+    expect(container.querySelector('[data-testid="history"]')).toBeNull();
   });
 
-  it('руководителя уводит в его хаб и рисует прежнюю страницу при выключенном флаге', async () => {
+  it('руководителю показываем его же экран из хаба, а не второй такой же', async () => {
     requireManager.mockResolvedValue(LEADER);
-    const { container } = await renderServerComponent(ManagerImportPage());
-    expect(redirectToSettingsHub).toHaveBeenCalledWith('/manager/import');
+    const { container } = await renderServerComponent(ManagerExcelTab());
     expect(container.textContent).toContain('ЛИДЕРСКАЯ:excel');
   });
 
@@ -104,18 +111,17 @@ describe('«Загрузка из 1С» в кабинете менеджера',
     // Сегодня предикат пускает всех менеджеров, но страница обязана следовать
     // за ним: поменяется правило — поменяется и доступ (§4, defense-in-depth).
     mayImportOneC.mockReturnValue(false);
-    await expect(renderServerComponent(ManagerImportPage())).rejects.toThrow('REDIRECT');
+    await expect(renderServerComponent(ManagerExcelTab())).rejects.toThrow('REDIRECT');
     expect(redirect).toHaveBeenCalledWith('/forbidden');
   });
 
-  it('отказ сервиса истории не роняет страницу', async () => {
-    listImportBatches.mockResolvedValue({ ok: false, error: 'forbidden' });
-    const { container } = await renderServerComponent(ManagerImportPage());
-    expect(container.querySelector('[data-testid="history"]')?.getAttribute('data-n')).toBe('0');
+  it('история загрузок живёт на своей вкладке, а не на этой', () => {
+    // Сервис истории вкладке загрузки больше не нужен: она о загрузке.
+    expect(listImportBatches).not.toHaveBeenCalled();
   });
 });
 
-describe('«Импорт оплат» в кабинете менеджера', () => {
+describe('вкладка «Выписка по счёту 51» раздела «Обмен с 1С»', () => {
   it('обычный менеджер получает форму и страницу очереди своих строк', async () => {
     // `У-90`: строки уже приведены сервисом; экран отвечает за гарды, адрес и
     // проброс счётчика.
@@ -127,7 +133,7 @@ describe('«Импорт оплат» в кабинете менеджера', (
     });
 
     const { container } = await renderServerComponent(
-      ManagerPaymentsImportPage({ searchParams: Promise.resolve({ inn: 'without' }) })
+      ManagerPaymentsTab({ searchParams: Promise.resolve({ inn: 'without' }) })
     );
     expect(redirect).not.toHaveBeenCalled();
     expect(loadQueuePage).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
@@ -139,14 +145,30 @@ describe('«Импорт оплат» в кабинете менеджера', (
 
   it('право проверяется и на выписке', async () => {
     mayImportOneC.mockReturnValue(false);
-    await expect(renderServerComponent(ManagerPaymentsImportPage({}))).rejects.toThrow('REDIRECT');
+    await expect(renderServerComponent(ManagerPaymentsTab({}))).rejects.toThrow('REDIRECT');
     expect(redirect).toHaveBeenCalledWith('/forbidden');
   });
 
-  it('руководителя уводит в его хаб', async () => {
+  it('руководителю показываем его же экран из хаба', async () => {
     requireManager.mockResolvedValue(LEADER);
-    const { container } = await renderServerComponent(ManagerPaymentsImportPage({}));
-    expect(redirectToSettingsHub).toHaveBeenCalledWith('/manager/payments-import');
+    const { container } = await renderServerComponent(ManagerPaymentsTab({}));
     expect(container.textContent).toContain('ЛИДЕРСКАЯ:payments');
+  });
+});
+
+describe('старые адреса обмена остались рабочими шлюзами (У-113)', () => {
+  it('/manager/import ведёт на вкладку «Загрузка Excel»', async () => {
+    await expect(ManagerImportGateway()).rejects.toThrow('REDIRECT');
+    expect(redirect).toHaveBeenCalledWith('/manager/exchange/excel');
+  });
+
+  it('/manager/payments-import ведёт на вкладку «Выписка по счёту 51»', async () => {
+    await expect(ManagerPaymentsImportGateway()).rejects.toThrow('REDIRECT');
+    expect(redirect).toHaveBeenCalledWith('/manager/exchange/payments');
+  });
+
+  it('гард роли на шлюзах остаётся', async () => {
+    await expect(ManagerImportGateway()).rejects.toThrow('REDIRECT');
+    expect(requireManager).toHaveBeenCalled();
   });
 });

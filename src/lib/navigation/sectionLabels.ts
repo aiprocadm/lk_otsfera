@@ -42,6 +42,7 @@ export type SectionKey =
   | 'corrections'
   | 'import'
   | 'paymentsImport'
+  | 'exchange'
   | 'sync'
   | 'integrations'
   | 'messages'
@@ -110,6 +111,9 @@ export const SECTIONS: Record<SectionKey, SectionMeta> = {
   // `У-107`: было «Импорт оплат» у менеджера и «Выписка (сч. 51)» у админа —
   // один экран под двумя именами.
   paymentsImport: { label: 'Выписка по счёту 51', iconKey: 'paymentsImport' },
+  // `У-113`: у менеджера две загрузки схлопнуты в один раздел с вкладками —
+  // человеку не нужно помнить, что обмен «размазан» по двум пунктам меню.
+  exchange: { label: 'Обмен с 1С', iconKey: 'exchange' },
   // `У-107`: было «Синхронизация (авто)».
   sync: { label: 'Автообмен с 1С', iconKey: 'sync' },
   integrations: { label: 'Интеграции', iconKey: 'integrations' },
