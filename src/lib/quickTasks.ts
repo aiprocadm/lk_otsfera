@@ -135,13 +135,15 @@ const BUILDERS: Record<QuickTasksRole, () => QuickTask[]> = {
     }
     t.push(
       {
-        href: '/manager/import',
+        // `У-113`: обмен с 1С стал одним разделом с вкладками — плитка ведёт
+        // на нужную вкладку, а не на бывший экран (он теперь шлюз).
+        href: '/manager/exchange/excel',
         title: 'Загрузить данные из 1С',
         hint: 'Клиенты и заказы из выгрузки',
         action: 'Загрузить и проверить',
       },
       {
-        href: '/manager/payments-import',
+        href: '/manager/exchange/payments',
         title: 'Разнести оплаты из банка',
         hint: 'Выписка по счёту 51',
         action: 'Загрузить и проверить',

@@ -66,7 +66,7 @@ describe('manager_cabinet (opt-in flag)', () => {
 describe('navByRole.manager — feature-flag gated', () => {
   // `У-103`: пункт «Сотрудники» снят — сотрудники ведутся в карточке
   // организации, сквозной список показывал людей вперемешку из разных клиентов.
-  it('lists all twenty-two manager cabinet items in the raw nav (including Поиск, Обращения, leader-only Команда + вход в /leader + Воронка + Сделки + Задачи + Календарь + Обращения + Звонки + Настройки)', () => {
+  it('lists all twenty-one manager cabinet items in the raw nav (including Поиск, Обращения, leader-only Команда + вход в /leader + Воронка + Сделки + Задачи + Календарь + Обращения + Звонки + Настройки)', () => {
     expect(navByRole.manager.map((i) => i.href)).toEqual([
       '/manager/dashboard',
       '/manager/search',
@@ -80,9 +80,8 @@ describe('navByRole.manager — feature-flag gated', () => {
       '/manager/calendar',
       '/manager/organizations',
       '/manager/finance',
-      '/manager/import',
-      '/manager/payments-import',
-      '/manager/documents',
+      '/manager/exchange',
+            '/manager/documents',
       '/manager/enrollments',
       '/manager/messages',
       '/manager/inbox',
@@ -151,8 +150,8 @@ describe('navByRole.manager — feature-flag gated', () => {
       'Лиды',
       'Организации',
       'Финансы',
-      'Загрузка Excel из 1С',
-      'Выписка по счёту 51',
+      // `У-113`: две загрузки схлопнуты в один раздел с вкладками.
+      'Обмен с 1С',
       'Документы',
       'Сообщения',
       'Настройки',
@@ -164,16 +163,16 @@ describe('navByRole.manager — feature-flag gated', () => {
   it('navItemsFor("manager") руководителю: импорт и «Команда» на месте (leaderOnly)', () => {
     process.env.FEATURE_MANAGER_CABINET = '1';
     const items = navItemsFor('manager', { isManagerLeader: true });
-    // `У-103`: пункт «Сотрудники» снят — было 13.
-    expect(items).toHaveLength(12); // +«Справка» (`У-76`)
+    // `У-103`: пункт «Сотрудники» снят — было 13. `У-113`: две загрузки
+    // схлопнуты в один «Обмен с 1С» — стало 11.
+    expect(items).toHaveLength(11); // +«Справка» (`У-76`)
     expect(items.map((i) => i.label)).toEqual([
       'Главная',
       'Заказы',
       'Лиды',
       'Организации',
       'Финансы',
-      'Загрузка Excel из 1С',
-      'Выписка по счёту 51',
+      'Обмен с 1С',
       'Документы',
       'Сообщения',
       'Команда',

@@ -136,21 +136,19 @@ describe('У-60 (этап 4): «Команда» ушла из главного 
   });
 });
 
-describe('navByRole.manager — Загрузка из 1С item', () => {
-  it('содержит пункт /manager/import с флагом manager_cabinet', () => {
-    const item = navByRole.manager.find((i) => i.href === '/manager/import');
+describe('navByRole.manager — «Обмен с 1С» одним пунктом (У-113)', () => {
+  it('вместо двух загрузок один пункт /manager/exchange с флагом кабинета', () => {
+    const item = navByRole.manager.find((i) => i.href === '/manager/exchange');
     expect(item).toBeDefined();
-    expect(item!.label).toBe('Загрузка Excel из 1С');
+    expect(item!.label).toBe('Обмен с 1С');
     expect(item!.flag).toBe('manager_cabinet');
+    expect(item!.group).toBe('Финансы');
   });
 
-  it('пункт /manager/import стоит после Организации и до Документы', () => {
+  it('прежних двух пунктов в меню больше нет — адреса остались шлюзами', () => {
     const hrefs = navByRole.manager.map((i) => i.href);
-    const orgIdx = hrefs.indexOf('/manager/organizations');
-    const importIdx = hrefs.indexOf('/manager/import');
-    const docsIdx = hrefs.indexOf('/manager/documents');
-    expect(importIdx).toBeGreaterThan(orgIdx);
-    expect(importIdx).toBeLessThan(docsIdx);
+    expect(hrefs).not.toContain('/manager/import');
+    expect(hrefs).not.toContain('/manager/payments-import');
   });
 });
 
