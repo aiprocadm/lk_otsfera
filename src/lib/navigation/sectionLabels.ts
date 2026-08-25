@@ -15,14 +15,13 @@ import type { IconKey } from './icons';
  * **Правило добавления.** Новый раздел — новый ключ здесь и только здесь. Если
  * кажется, что нужен «тот же раздел, но с другим названием», — это два разных
  * раздела, и у них два разных ключа (так живут пункты-мосты между кабинетами:
- * `leaderCabinet`, `myOrders`). Одно название на два ключа запрещено стражем
+ * `documents`, `messages`). Одно название на два ключа запрещено стражем
  * `navigation.same-section-same-name.guardrail`.
  */
 export type SectionKey =
   | 'dashboard'
   | 'search'
   | 'orders'
-  | 'myOrders'
   | 'leads'
   | 'requests'
   | 'intake'
@@ -59,7 +58,6 @@ export type SectionKey =
   | 'piiAccess'
   | 'health'
   | 'settings'
-  | 'leaderCabinet'
   | 'studentCabinet'
   | 'learning'
   | 'help';
@@ -79,7 +77,6 @@ export const SECTIONS: Record<SectionKey, SectionMeta> = {
   orders: { label: 'Заказы', iconKey: 'orders' },
   // Пункт-мост из кабинета руководителя в менеджерский. Снимается в PR-3
   // этапа 3 (`У-111`) вместе с появлением переключателя кабинетов в шапке.
-  myOrders: { label: 'Мои заказы', iconKey: 'myOrders' },
   leads: { label: 'Лиды', iconKey: 'leads' },
   requests: { label: 'Обращения', iconKey: 'requests' },
   intake: { label: 'Входящие в работу', iconKey: 'intake' },
@@ -144,7 +141,6 @@ export const SECTIONS: Record<SectionKey, SectionMeta> = {
 
   // ── Входы в соседние кабинеты ─────────────────────────────────────────────
   // Пункт-мост из кабинета менеджера. Снимается в PR-3 этапа 3 (`У-111`).
-  leaderCabinet: { label: 'Кабинет руководителя', iconKey: 'leaderCabinet' },
   studentCabinet: { label: 'Кабинет слушателя', iconKey: 'studentCabinet' },
   learning: { label: 'Обучение', iconKey: 'learning' },
   help: { label: 'Справка', iconKey: 'help' },

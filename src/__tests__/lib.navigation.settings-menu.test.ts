@@ -109,10 +109,8 @@ describe('меню руководителя', () => {
     expect(hrefs).not.toContain('/leader/settings/order-statuses');
     expect(hrefs).toContain('/leader/settings');
     expect(splitPinnedItems(navItemsFor('leader')).pinned.map((i) => i.href)).toEqual([
-      // `У-114`: пункт-мост в кабинет менеджера — переключение кабинета, а не
-      // раздел работы, поэтому он внизу. В PR-3 этапа 3 его заменит
-      // переключатель в шапке (`У-111`), и строка отсюда уйдёт.
-      '/manager/dashboard',
+      // `У-111`: пункта-моста в кабинет менеджера здесь больше нет — кабинет
+      // переключается в шапке. Внизу остаются только «Настройки» и «Справка».
       '/leader/settings',
       // `У-76` (этап 9): словарь терминов.
       '/help',

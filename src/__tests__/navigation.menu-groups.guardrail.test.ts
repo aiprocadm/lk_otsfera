@@ -55,7 +55,10 @@ describe('порядок групп меню общий для сотрудни�
       const a = sequences[0] as string[];
       const b = sequences[i] as string[];
       const common = a.filter((t) => b.includes(t));
-      expect(b.filter((t) => a.includes(t)), `${STAFF[i]} против ${STAFF[0]}`).toEqual(common);
+      expect(
+        b.filter((t) => a.includes(t)),
+        `${STAFF[i]} против ${STAFF[0]}`
+      ).toEqual(common);
     }
   });
 
@@ -64,7 +67,10 @@ describe('порядок групп меню общий для сотрудни�
       const { items } = splitPinnedItems(navByRole[role]);
       const first = groupNavItems(items)[0];
       expect(first?.title, role).toBe('');
-      expect(first?.items.map((i) => i.sectionKey), role).toContain('dashboard');
+      expect(
+        first?.items.map((i) => i.sectionKey),
+        role
+      ).toContain('dashboard');
     }
   });
 });
@@ -84,17 +90,17 @@ describe('«Настройки» и «Справка» закреплены вн
     }
   );
 
-  it('пункты-мосты в соседний кабинет тоже внизу, а не в операционных группах', () => {
-    // «Кабинет руководителя» и «Мои заказы» — переключение кабинета, а не
-    // раздел работы. В PR-3 они уступят место переключателю в шапке (`У-111`).
+  it('`У-111`: пунктов-мостов в соседний кабинет в меню больше нет', () => {
+    // «Кабинет руководителя» и «Мои заказы» были одним и тем же действием под
+    // двумя именами и выглядели как разделы работы. Их заменил переключатель в
+    // шапке; вернуть пункт обратно — значит снова спрятать смену кабинета.
     for (const role of ['manager', 'leader'] as const) {
-      const bridges = navByRole[role].filter((i) =>
-        ['leaderCabinet', 'myOrders'].includes(i.sectionKey)
-      );
-      for (const b of bridges) {
-        expect(b.pinnedBottom, `${role}: ${b.href}`).toBe(true);
-        expect(b.group, `${role}: ${b.href}`).toBeUndefined();
-      }
+      const other = role === 'manager' ? '/leader/' : '/manager/';
+      const bridges = navByRole[role].filter((i) => i.href.startsWith(other));
+      expect(
+        bridges.map((b) => b.href),
+        role
+      ).toEqual([]);
     }
   });
 });

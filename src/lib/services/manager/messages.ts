@@ -26,6 +26,9 @@ const ListIncomingCommentsOptionsSchema = z.object({
   take: z.number().int().min(1).max(MAX_TAKE).default(DEFAULT_TAKE),
   cursor: z.string().optional(),
   withOutgoing: z.boolean().optional(),
+  // `У-110`: кабинет руководителя форсит company-wide — как у `listOrders` и
+  // `listDocuments`. Его личный /manager-кабинет остаётся scoped.
+  teamModeOverride: z.boolean().optional(),
 });
 
 export type ListIncomingCommentsOptions = z.input<typeof ListIncomingCommentsOptionsSchema>;
@@ -48,7 +51,8 @@ export async function listIncomingComments(
 ): Promise<ListIncomingCommentsResult> {
   const opts = ListIncomingCommentsOptionsSchema.parse(optsRaw);
   const since = opts.since ?? new Date(Date.now() - DEFAULT_WINDOW_MS);
-  const teamMode = await getCompanyTeamVisibility(prisma, opts.session.companyId);
+  const teamMode =
+    opts.teamModeOverride ?? (await getCompanyTeamVisibility(prisma, opts.session.companyId));
 
   // G1: тред-охват берётся из профиля (threads-уровень), иначе legacy order-scope.
   const orderWhere = opts.session.accessProfile

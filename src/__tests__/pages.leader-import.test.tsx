@@ -140,8 +140,13 @@ describe('оболочка подраздела руководителя', () =>
     expect(container.querySelector('[data-testid="tab"]')).not.toBeNull();
   });
 
-  it('корень подраздела открывает первую вкладку', () => {
-    expect(() => LeaderOneCIndexPage()).toThrow('REDIRECT');
-    expect(nav.redirect).toHaveBeenCalledWith('/leader/settings/integrations/1c/excel');
+  it('`У-118`: корень подраздела спрашивает, что делать, а не бросает в форму', async () => {
+    // Раньше здесь стоял молчаливый редирект на загрузку Excel — человек
+    // оказывался в форме, не поняв, туда ли пришёл. Теперь, как у админа
+    // (`У-47`), первым делом навигатор задачи.
+    const { container } = await renderServerComponent(LeaderOneCIndexPage());
+    expect(nav.redirect).not.toHaveBeenCalled();
+    expect(container.querySelector('h1')?.textContent).toBe('Обмен с 1С');
+    expect(container.textContent).toContain('Что вы хотите сделать?');
   });
 });

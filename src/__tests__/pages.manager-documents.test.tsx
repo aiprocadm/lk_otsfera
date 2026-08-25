@@ -196,7 +196,9 @@ describe('ManagerDocumentsPage', () => {
       );
 
       expect(listManagerOrderLessDocuments).toHaveBeenCalledWith({}, SESSION);
-      expect(listManagerCounterparties).toHaveBeenCalledWith({}, SESSION);
+      // Третий аргумент — охват (`У-110`). У рядового менеджера его нет:
+      // он видит своих контрагентов, а не всех контрагентов компании.
+      expect(listManagerCounterparties).toHaveBeenCalledWith({}, SESSION, undefined);
       expect(listDocuments).not.toHaveBeenCalled();
       expect(container.textContent).toContain('Общие документы');
       expect(container.textContent).toContain('Org');

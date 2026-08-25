@@ -18,12 +18,18 @@ export type ManagerCounterparties = {
  */
 export async function listManagerCounterparties(
   prisma: PrismaClient,
-  session: SessionPayload
+  session: SessionPayload,
+  /**
+   * `У-110`: кабинет руководителя видит контрагентов всей компании независимо
+   * от toggle — иначе на его экране документов список получателей оказался бы
+   * уже, чем список самих документов.
+   */
+  teamModeOverride?: boolean
 ): Promise<ManagerCounterparties> {
   const companyId = session.companyId;
   if (!companyId) return { organizations: [], partners: [] };
 
-  const teamMode = await getCompanyTeamVisibility(prisma, companyId);
+  const teamMode = teamModeOverride ?? (await getCompanyTeamVisibility(prisma, companyId));
   const orgs = await prisma.organization.findMany({
     where: teamMode ? { companyId } : { id: { in: managedOrgIds(session) } },
     select: { id: true, name: true },

@@ -11,6 +11,7 @@ import { Sidebar } from '@/components/shell/sidebar';
 import { MobileNav } from '@/components/shell/mobile-nav';
 import { mobileTabsFor } from '@/lib/navigation/mobileTabs';
 import { CommandPalette } from '@/components/shell/command-palette';
+import { CabinetSwitcher } from '@/components/shell/cabinet-switcher';
 
 export default async function LeaderLayout({ children }: { children: ReactNode }) {
   // Третья точка гейтинга (после middleware и nav): прямой заход при выключенном флаге -> 404.
@@ -49,7 +50,9 @@ export default async function LeaderLayout({ children }: { children: ReactNode }
       }
       headerLeft={
         <>
-          <span className="font-medium text-[#111111]">Кабинет руководителя</span>
+          {/* `У-111`: смена кабинета — одним переключателем в шапке, а не
+              пунктом меню, спрятанным среди разделов работы. */}
+          <CabinetSwitcher current="leader" />
           {userEmail ? <span className="ml-3 text-gray-500">· {userEmail}</span> : null}
         </>
       }

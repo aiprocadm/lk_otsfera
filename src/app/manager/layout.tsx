@@ -11,13 +11,15 @@ import { Sidebar } from '@/components/shell/sidebar';
 import { MobileNav } from '@/components/shell/mobile-nav';
 import { mobileTabsFor } from '@/lib/navigation/mobileTabs';
 import { CommandPalette } from '@/components/shell/command-palette';
+import { CabinetSwitcher } from '@/components/shell/cabinet-switcher';
 
 export default async function ManagerLayout({ children }: { children: ReactNode }) {
   const session = await requireManager();
   // Третья точка гейтинга флага (§5) — как в кабинете руководителя. Сначала
   // авторизация, потом флаг: иначе существование раздела утекало бы гостю.
   if (!isFeatureEnabled('manager_cabinet')) notFound();
-  const items = navItemsFor('manager', { isManagerLeader: isManagerLeader(session) });
+  const isLeader = isManagerLeader(session);
+  const items = navItemsFor('manager', { isManagerLeader: isLeader });
   const userEmail = session.email ?? null;
 
   return (
@@ -41,7 +43,13 @@ export default async function ManagerLayout({ children }: { children: ReactNode 
       }
       headerLeft={
         <>
-          <span className="font-medium text-[#111111]">Кабинет менеджера</span>
+          {/* `У-111`: у руководителя два кабинета — даём переключатель. У
+              рядового менеджера кабинет один, выбирать нечего. */}
+          {isLeader ? (
+            <CabinetSwitcher current="manager" />
+          ) : (
+            <span className="font-medium text-[#111111]">Кабинет менеджера</span>
+          )}
           {userEmail ? <span className="ml-3 text-gray-500">· {userEmail}</span> : null}
         </>
       }

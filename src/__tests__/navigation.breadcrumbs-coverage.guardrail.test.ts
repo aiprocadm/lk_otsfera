@@ -17,7 +17,7 @@
  * роняет тест.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 const APP = path.join(__dirname, '..', 'app');
@@ -55,6 +55,28 @@ function isGateway(src: string): boolean {
   return /\bredirect\(/.test(src) && !/return\s*\(/.test(src);
 }
 
+/**
+ * Страница + её компоненты на один уровень вглубь. Экран деталки может быть
+ * общим на два кабинета (`У-110`: карточка документа менеджера и руководителя —
+ * один компонент), и тогда крошки живут в нём, а не в `page.tsx`. Смотреть
+ * только на страницу — значит объявить дефектом ровно то переиспользование,
+ * которого требует правило зеркала.
+ */
+function chainOf(page: string): string[] {
+  const src = readFileSync(page, 'utf8');
+  const out = [src];
+  for (const m of src.matchAll(/from '(@\/components\/[^']+)'/g)) {
+    const base = path.join(__dirname, '..', (m[1] as string).slice('@/'.length));
+    for (const cand of [`${base}.tsx`, `${base}.ts`, path.join(base, 'index.tsx')]) {
+      if (existsSync(cand)) {
+        out.push(readFileSync(cand, 'utf8'));
+        break;
+      }
+    }
+  }
+  return out;
+}
+
 describe('У-72: крошки на всех вложенных экранах', () => {
   const pages = nestedPages(APP).map(rel).sort();
 
@@ -67,10 +89,13 @@ describe('У-72: крошки на всех вложенных экранах', 
     const without = pages
       .filter((p) => !exempt.has(p))
       .filter((p) => {
-        const src = readFileSync(path.join(__dirname, '..', p), 'utf8');
-        if (isGateway(src)) return false;
-        // Либо страница рисует крошки сама, либо передаёт их своей вьюхе.
-        return !/breadcrumbs|Breadcrumbs/.test(src);
+        const chain = chainOf(path.join(__dirname, '..', p));
+        if (isGateway(chain[0] as string)) return false;
+        // Крошки рисует либо сама страница, либо её вьюха — но рисует кто-то.
+        // Ищем именно ОТРИСОВКУ (`<Breadcrumbs`) или передачу вьюхе
+        // (`breadcrumbs={`): по одному упоминанию слова тест зеленел бы от
+        // осиротевшего импорта — проверено мутацией.
+        return !chain.some((src) => /<Breadcrumbs\b|breadcrumbs=\{/.test(src));
       });
 
     expect(without).toEqual([]);

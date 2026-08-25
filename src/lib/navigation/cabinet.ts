@@ -302,13 +302,6 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       hiddenWhenFlag: 'leader_cabinet',
     },
     {
-      href: '/leader/dashboard',
-      sectionKey: 'leaderCabinet',
-      flag: 'leader_cabinet',
-      leaderOnly: true,
-      pinnedBottom: true,
-    },
-    {
       href: '/manager/settings',
       sectionKey: 'settings',
       flag: 'manager_cabinet',
@@ -320,9 +313,9 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
   ],
   // Пункты leader-меню намеренно БЕЗ flag: внутрь пускает middleware+layout;
   // флаг на каждом пункте дал бы пустой сайдбар при выключении.
-  // ЗАВИСИМОСТЬ ФЛАГОВ: пункты-мосты в /manager/* (Сообщения, Мои заказы) живут под
-  // флагом manager_cabinet — поэтому leader_cabinet включать ТОЛЬКО вместе с manager_cabinet,
-  // иначе эти два пункта 404-ят. На практике лидер всегда и менеджер; см. runbook.
+  // `У-110`/`У-111`: пунктов-мостов в /manager/* больше нет — «Сообщения» и
+  // «Документы» у руководителя свои, а кабинет переключается в шапке. Прежняя
+  // связка флагов (leader_cabinet только вместе с manager_cabinet) отпала.
   leader: [
     // У-8: было «Сводка» — тот же экран, что «Главная» у остальных ролей.
     { href: '/leader/dashboard', sectionKey: 'dashboard' },
@@ -403,10 +396,12 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       flag: 'intake_inbox',
       badgeKey: 'intake',
     },
-    // Личный inbox (комментарии+чат) живёт в кабинете менеджера — см. план, «Отклонение от спеки».
-    { href: '/manager/messages', group: 'Коммуникации', sectionKey: 'messages' },
-    // Переключатель «играющего тренера» в личный кабинет менеджера.
-    { href: '/manager/dashboard', sectionKey: 'myOrders', pinnedBottom: true },
+    // `У-110`: раздел свой, а не мост в кабинет менеджера — раньше человек
+    // нажимал пункт своего меню и оказывался в чужом кабинете.
+    { href: '/leader/messages', group: 'Коммуникации', sectionKey: 'messages' },
+    { href: '/leader/documents', group: 'Документы', sectionKey: 'documents' },
+    // `У-111`: пункта «Мои заказы» больше нет — кабинет переключается одним
+    // переключателем в шапке, а не пунктом меню, спрятанным среди разделов.
     { href: '/leader/settings', sectionKey: 'settings', pinnedBottom: true },
     // §11 ТЗ v0.5: настройку полей ведёт и руководитель — зеркало админского
     // экрана в его кабинете (в /admin/* руководителя не пускаем, Model A).
