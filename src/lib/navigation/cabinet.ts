@@ -53,6 +53,12 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
   // /admin/orders намеренно НЕ в меню: это deprecated-redirect на дашборд (реальна только деталь /admin/orders/[id]).
   admin: [
     { href: '/admin/dashboard', sectionKey: 'dashboard' },
+    // `У-112`: раздел «Заказы» у админа был пунктом-обманкой — адрес уводил на
+    // дашборд. Теперь это список заказов всех компаний.
+    { href: '/admin/orders', group: 'Работа', sectionKey: 'orders' },
+    // `У-112`: поиск отдан и админу — сознательное расширение решения `У-75`
+    // («поиск по данным — менеджеру и руководителю»), а не дрейф.
+    { href: '/admin/search', sectionKey: 'search', flag: 'global_search' },
     {
       href: '/admin/health',
       group: 'Платформа',

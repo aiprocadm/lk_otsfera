@@ -23,10 +23,12 @@ const UPLOAD_ERROR_RU: Record<string, string> = {
   STORAGE_UPLOAD_FAILED: 'Не удалось сохранить файл в хранилище. Попробуйте ещё раз.',
 };
 
-export function DocumentsPanel() {
+export function DocumentsPanel({ orderId: fixedOrderId }: { orderId?: string } = {}) {
   const { data: docsData, refetch } = useClientResource<DocumentItem[]>('/api/documents');
-  const docs = docsData ?? [];
-  const [orderId, setOrderId] = useState('');
+  // `У-112`: на карточке заказа панель показывает документы ЭТОГО заказа и не
+  // спрашивает его номер — он уже известен. На общем экране всё как было.
+  const docs = (docsData ?? []).filter((d) => !fixedOrderId || d.orderId === fixedOrderId);
+  const [orderId, setOrderId] = useState(fixedOrderId ?? '');
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -45,7 +47,7 @@ export function DocumentsPanel() {
     setUploading(false);
     if (res.ok) {
       setFile(null);
-      setOrderId('');
+      setOrderId(fixedOrderId ?? '');
       refetch();
     } else {
       const body = (await res.json().catch(() => null)) as { code?: string } | null;
@@ -82,12 +84,14 @@ export function DocumentsPanel() {
           Загрузить документ
         </h2>
         <form onSubmit={onUpload} className="space-y-3">
-          <input
-            value={orderId}
-            onChange={(e) => setOrderId(e.target.value)}
-            placeholder="ID заказа"
-            className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316] focus:border-transparent"
-          />
+          {!fixedOrderId && (
+            <input
+              value={orderId}
+              onChange={(e) => setOrderId(e.target.value)}
+              placeholder="ID заказа"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316] focus:border-transparent"
+            />
+          )}
           <div className="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center hover:border-[#F97316] transition-colors">
             <input
               type="file"

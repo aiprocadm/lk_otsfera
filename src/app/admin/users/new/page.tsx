@@ -3,6 +3,7 @@ import { Breadcrumbs } from '@/components/ui';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { listActivePartnerOptions } from '@/lib/services/admin/partners';
+import { listCompanyOptions } from '@/lib/services/admin/orders';
 import { UserInviteForm } from '@/components/admin/user-invite-form';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 
@@ -10,7 +11,10 @@ export const dynamic = 'force-dynamic';
 
 export default async function NewUserPage() {
   await requireAdmin();
-  const partners = await listActivePartnerOptions(prisma);
+  const [partners, companies] = await Promise.all([
+    listActivePartnerOptions(prisma),
+    listCompanyOptions(prisma),
+  ]);
 
   return (
     <div className="space-y-4 max-w-3xl">
@@ -27,7 +31,7 @@ export default async function NewUserPage() {
           Заведите человека и дайте ему доступ в нужный кабинет
         </p>
       </div>
-      <UserInviteForm partners={partners} />
+      <UserInviteForm partners={partners} companies={companies} />
     </div>
   );
 }

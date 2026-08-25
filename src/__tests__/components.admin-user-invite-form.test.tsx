@@ -49,11 +49,15 @@ describe('UserInviteForm', () => {
   });
 
   it('switching back away from partner hides the partner select again', () => {
-    render(React.createElement(UserInviteForm, { partners: PARTNERS }));
+    const { container } = render(React.createElement(UserInviteForm, { partners: PARTNERS }));
     const roleSelect = screen.getByDisplayValue('Организация') as HTMLSelectElement;
     fireEvent.change(roleSelect, { target: { value: 'partner' } });
+    expect(container.querySelector('select[name="partnerId"]')).not.toBeNull();
     fireEvent.change(roleSelect, { target: { value: 'manager' } });
-    expect(screen.queryByText('— выберите —')).toBeNull();
+    // Ищем именно селект партнёра: «— выберите —» теперь есть и у компании
+    // сотрудника ЦО (`У-119`), и проверка по тексту ловила бы не то поле.
+    expect(container.querySelector('select[name="partnerId"]')).toBeNull();
+    expect(screen.queryByText('Партнёр А')).toBeNull();
   });
 
   it('success path: shows the invite link block, hides the submit button; "К списку" navigates', async () => {

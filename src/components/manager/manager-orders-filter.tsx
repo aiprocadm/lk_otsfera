@@ -19,17 +19,29 @@ const FINANCIAL_OPTIONS: { value: string; label: string }[] = [
 ];
 
 type Props = {
-  orgs: Array<{ id: string; name: string }>;
+  /**
+   * Организации для выпадающего списка. У админа его нет: организаций в системе
+   * тысячи, и список пришлось бы молча обрезать — вместо этого он фильтрует по
+   * компании и ищет по названию и номеру заказа.
+   */
+  orgs?: Array<{ id: string; name: string }>;
   initial: {
     search?: string;
     statusId?: string;
     financialStatus?: string;
     organizationId?: string;
+    companyId?: string;
     unassigned?: string;
   };
   basePath?: string;
   /** §10 ТЗ v0.5: рабочие статусы из справочника для выпадающего списка. */
   statuses?: { id: string; label: string }[];
+  /**
+   * `У-112`: выбор компании-продавца. Есть только у администратора — менеджер
+   * и руководитель всегда внутри одной компании, и выбирать им нечего.
+   * Не передан — селект не рисуется вовсе.
+   */
+  companies?: Array<{ id: string; name: string }>;
 };
 
 export function ManagerOrdersFilter({
@@ -37,6 +49,7 @@ export function ManagerOrdersFilter({
   initial,
   statuses = [],
   basePath = '/manager',
+  companies,
 }: Props) {
   const unassigned = initial.unassigned === '1';
   const hasFilter =
@@ -44,6 +57,7 @@ export function ManagerOrdersFilter({
     !!initial.statusId ||
     !!initial.financialStatus ||
     !!initial.organizationId ||
+    !!initial.companyId ||
     unassigned;
 
   return (
@@ -86,18 +100,36 @@ export function ManagerOrdersFilter({
         ))}
       </select>
 
-      <select
-        name="organizationId"
-        defaultValue={initial.organizationId ?? ''}
-        className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]"
-      >
-        <option value="">Все организации</option>
-        {orgs.map((o) => (
-          <option key={o.id} value={o.id}>
-            {o.name}
-          </option>
-        ))}
-      </select>
+      {companies && (
+        <select
+          name="companyId"
+          defaultValue={initial.companyId ?? ''}
+          aria-label="Компания"
+          className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]"
+        >
+          <option value="">Все компании</option>
+          {companies.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      )}
+
+      {orgs && (
+        <select
+          name="organizationId"
+          defaultValue={initial.organizationId ?? ''}
+          className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]"
+        >
+          <option value="">Все организации</option>
+          {orgs.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.name}
+            </option>
+          ))}
+        </select>
+      )}
 
       <label className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 cursor-pointer whitespace-nowrap">
         <input

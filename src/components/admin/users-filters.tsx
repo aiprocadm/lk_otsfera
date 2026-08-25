@@ -7,19 +7,33 @@ type Props = {
   q?: string | undefined;
   partnerId?: string | undefined;
   organizationId?: string | undefined;
+  companyId?: string | undefined;
+  /** `У-119`: компании-продавцы для фильтра (закрывает дефект `Д-34`). */
+  companies?: Array<{ id: string; name: string }>;
 };
 
 const ROLES: Array<{ value: string; label: string }> = [
   { value: '', label: 'Все роли' },
   { value: 'admin', label: 'Админы' },
   { value: 'manager', label: 'Менеджеры' },
+  // `У-119`: руководитель — самостоятельная роль, и фильтроваться должен
+  // наравне с менеджером, а не прятаться внутри него.
+  { value: 'leader', label: 'Руководители' },
   { value: 'partner', label: 'Партнёры' },
   { value: 'organization', label: 'Организации' },
   { value: 'student', label: 'Студенты' },
 ];
 
-export function UsersFilters({ role, active, q, partnerId, organizationId }: Props) {
-  const hasActive = role || active || q || partnerId || organizationId;
+export function UsersFilters({
+  role,
+  active,
+  q,
+  partnerId,
+  organizationId,
+  companyId,
+  companies,
+}: Props) {
+  const hasActive = role || active || q || partnerId || organizationId || companyId;
   return (
     <form
       method="get"
@@ -51,6 +65,23 @@ export function UsersFilters({ role, active, q, partnerId, organizationId }: Pro
           <option value="false">Деактивированные</option>
         </select>
       </label>
+      {companies && (
+        <label className="flex flex-col text-xs text-gray-500">
+          Компания
+          <select
+            name="companyId"
+            defaultValue={companyId ?? ''}
+            className="mt-1 border border-gray-200 rounded px-2 py-1.5 text-sm"
+          >
+            <option value="">Все компании</option>
+            {companies.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <label className="flex flex-col text-xs text-gray-500 flex-1 min-w-[200px]">
         Поиск
         <input

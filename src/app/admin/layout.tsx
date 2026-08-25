@@ -28,11 +28,15 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           panel={<Sidebar items={items} title="Админ" testIdPrefix="admin" variant="panel" />}
         />
       }
-      headerLeft={session.email}
-      palette={
-        // Своей страницы поиска у админа нет — палитра даёт только переходы.
-        <CommandPalette sections={items} />
+      headerLeft={
+        <>
+          {/* `У-112`: раньше в шапке был голый e-mail — единственный кабинет,
+              который не говорил, где ты находишься (§15, «где я»). */}
+          <span className="font-medium text-[#111111]">Кабинет администратора</span>
+          {session.email ? <span className="ml-3 text-gray-500">· {session.email}</span> : null}
+        </>
       }
+      palette={<CommandPalette sections={items} searchEnabled searchHref="/admin/search" />}
       headerRight={
         <>
           <NotificationBell role="admin" />

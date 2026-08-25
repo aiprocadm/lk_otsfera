@@ -15,15 +15,23 @@ type SearchParams = {
   statusId?: string;
   financialStatus?: string;
   organizationId?: string;
+  companyId?: string;
   unassigned?: string;
   cursor?: string;
 };
 
 type Props = {
-  rows: ManagerOrderRow[];
+  /**
+   * `У-112`: у админа в строке есть ещё и компания-продавец — он смотрит на
+   * все компании сразу. У менеджера и руководителя такого поля нет: они всегда
+   * внутри одной компании, и колонка была бы столбцом одного значения.
+   */
+  rows: Array<ManagerOrderRow & { company?: { name: string } | null }>;
   nextCursor: string | null;
   searchParams: SearchParams;
   basePath?: string;
+  /** Показывать колонку «Компания» (только админский список). */
+  showCompany?: boolean;
 };
 
 function buildNextHref(searchParams: SearchParams, cursor: string, basePath: string): string {
@@ -32,6 +40,7 @@ function buildNextHref(searchParams: SearchParams, cursor: string, basePath: str
   if (searchParams.statusId) params.set('statusId', searchParams.statusId);
   if (searchParams.financialStatus) params.set('financialStatus', searchParams.financialStatus);
   if (searchParams.organizationId) params.set('organizationId', searchParams.organizationId);
+  if (searchParams.companyId) params.set('companyId', searchParams.companyId);
   if (searchParams.unassigned) params.set('unassigned', searchParams.unassigned);
   params.set('cursor', cursor);
   return `${basePath}/orders?${params.toString()}`;
@@ -42,6 +51,7 @@ export function ManagerOrdersTable({
   nextCursor,
   searchParams,
   basePath = '/manager',
+  showCompany = false,
 }: Props) {
   if (rows.length === 0) {
     return <EmptyState icon="📋" message="По выбранным фильтрам заказов нет" />;
@@ -53,9 +63,11 @@ export function ManagerOrdersTable({
         <THead>
           <Th>№</Th>
           <Th>Название</Th>
+          {showCompany && <Th>Компания</Th>}
           <Th>Организация</Th>
           <Th className="text-right">Сумма</Th>
           <Th className="text-right">Оплачено</Th>
+          <Th className="text-right">Долг</Th>
           <Th>Исполнение</Th>
           <Th>Финансы</Th>
           <Th>Менеджер</Th>
@@ -72,9 +84,15 @@ export function ManagerOrdersTable({
                   {o.title}
                 </Link>
               </Td>
+              {showCompany && <Td className="text-gray-600">{o.company?.name ?? '—'}</Td>}
               <Td className="text-gray-600">{o.organization.name}</Td>
               <Td className="text-right text-gray-700">{fmtMoney(o.totalAmount.toString())}</Td>
               <Td className="text-right text-gray-700">{fmtMoney(o.paidAmount.toString())}</Td>
+              {/* `У-112`: долг считаем здесь, а не в базе — это разность двух
+                  соседних колонок, и отдельное поле разъезжалось бы с ними. */}
+              <Td className="text-right text-gray-700">
+                {fmtMoney(Number(o.totalAmount) - Number(o.paidAmount))}
+              </Td>
               <Td>
                 {/* §10 ТЗ v0.5: рабочий статус из справочника. */}
                 <Badge tone={o.statusDefinition?.isTerminal ? 'warning' : 'info'}>
