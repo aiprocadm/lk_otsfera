@@ -13,7 +13,8 @@ import { usePathname } from 'next/navigation';
  */
 const TABS = [
   { tail: 'excel', label: 'Загрузка Excel' },
-  { tail: 'payments', label: 'Выписка (сч. 51)' },
+  // `У-107`: «Выписка по счёту 51» — одно название везде, включая эту вкладку.
+  { tail: 'payments', label: 'Выписка по счёту 51' },
   { tail: 'auto', label: 'Автообмен' },
   { tail: 'history', label: 'История' },
 ] as const;

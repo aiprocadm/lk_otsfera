@@ -1,4 +1,5 @@
 import type { NavItem } from './cabinet';
+import { menuGroupRank } from './menuGroups';
 
 export type NavGroup = { title: string; items: NavItem[] };
 
@@ -26,7 +27,11 @@ export function groupNavItems(items: NavItem[]): NavGroup[] {
     }
     group.items.push(item);
   }
-  return groups;
+  // `У-113`: порядок групп — общий для всех кабинетов и задан реестром, а не
+  // тем, в каком порядке пункты попали в меню роли. Раньше меню начиналось
+  // у администратора с «Платформы», у менеджера с «Работы», у руководителя
+  // с «Настроек» — и человек искал раздел заново в каждом кабинете.
+  return groups.sort((a, b) => menuGroupRank(a.title) - menuGroupRank(b.title));
 }
 
 /**

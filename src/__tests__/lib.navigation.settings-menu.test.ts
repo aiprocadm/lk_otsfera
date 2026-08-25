@@ -54,8 +54,20 @@ describe('меню админа при включённом хабе', () => {
     expect(splitPinnedItems(items).pinned.map((i) => i.href)).toEqual(['/admin/settings', '/help']);
   });
 
-  it('группа «Обмен с 1С» исчезает целиком', () => {
-    expect(navItemsFor('admin').some((i) => i.group === 'Обмен с 1С')).toBe(false);
+  it('`У-113`: группы «Обмен с 1С» больше нет — её пункты живут в «Финансах»', () => {
+    // Отдельная группа под обмен была четвёртой в меню админа и не встречалась
+    // ни у менеджера, ни у руководителя. Порядок групп теперь общий.
+    // При включённом хабе трёх пунктов обмена в меню нет вовсе — их заменяет
+    // карточка хаба. Проверяем и это, и то, что при выключенном хабе они лежат
+    // в общей группе «Финансы», а не в своей.
+    expect(navItemsFor('admin').map((i) => i.group)).not.toContain('Обмен с 1С');
+
+    process.env.FEATURE_SETTINGS_HUB = '0';
+    const exchange = navItemsFor('admin').filter((i) =>
+      ['/admin/sync', '/admin/import', '/admin/payments-import'].includes(i.href)
+    );
+    expect(exchange.length).toBe(3);
+    for (const item of exchange) expect(item.group).toBe('Финансы');
   });
 
   it('операционные разделы остаются на месте', () => {
@@ -97,6 +109,10 @@ describe('меню руководителя', () => {
     expect(hrefs).not.toContain('/leader/settings/order-statuses');
     expect(hrefs).toContain('/leader/settings');
     expect(splitPinnedItems(navItemsFor('leader')).pinned.map((i) => i.href)).toEqual([
+      // `У-114`: пункт-мост в кабинет менеджера — переключение кабинета, а не
+      // раздел работы, поэтому он внизу. В PR-3 этапа 3 его заменит
+      // переключатель в шапке (`У-111`), и строка отсюда уйдёт.
+      '/manager/dashboard',
       '/leader/settings',
       // `У-76` (этап 9): словарь терминов.
       '/help',

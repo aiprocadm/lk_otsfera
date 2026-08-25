@@ -75,7 +75,7 @@ describe('канон leader', () => {
     const item = navByRole.leader.find((i) => i.href === '/leader/settings/order-statuses');
     expect(item).toBeDefined();
     expect(item!.label).toBe('Статусы заявок');
-    expect(item!.group).toBe('Настройки');
+    expect(item!.group).toBe('Справочники');
     expect(item!.flag).toBeUndefined();
     expect(item!.href.startsWith('/admin')).toBe(false);
   });
@@ -84,7 +84,7 @@ describe('канон leader', () => {
     const item = navByRole.leader.find((i) => i.href === '/leader/settings/custom-fields');
     expect(item).toBeDefined();
     expect(item!.label).toBe('Дополнительные поля');
-    expect(item!.group).toBe('Настройки');
+    expect(item!.group).toBe('Справочники');
     expect(item!.flag).toBeUndefined();
     // ключевое: ссылка НЕ в админский кабинет
     expect(item!.href.startsWith('/admin')).toBe(false);

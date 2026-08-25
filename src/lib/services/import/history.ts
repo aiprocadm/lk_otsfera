@@ -19,7 +19,7 @@ export type ExchangeChannel = 'excel' | 'statement' | 'auto';
 
 export const CHANNEL_LABEL: Record<ExchangeChannel, string> = {
   excel: 'Загрузка Excel',
-  statement: 'Выписка (сч. 51)',
+  statement: 'Выписка по счёту 51',
   auto: 'Автообмен',
 };
 

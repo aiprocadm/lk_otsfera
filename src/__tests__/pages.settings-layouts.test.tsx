@@ -110,7 +110,7 @@ describe('подраздел «Обмен с 1С»', () => {
       AdminOneCLayout({ children: <div data-testid="tab">ВКЛАДКА</div> }) as React.ReactElement
     );
     expect(container.textContent).toContain('Загрузка Excel');
-    expect(container.textContent).toContain('Выписка (сч. 51)');
+    expect(container.textContent).toContain('Выписка по счёту 51');
     expect(container.querySelector('[data-testid="tab"]')).not.toBeNull();
     // Заголовок первого уровня держит сама вкладка — в оболочке его быть не должно.
     expect(container.querySelector('h1')).toBeNull();
