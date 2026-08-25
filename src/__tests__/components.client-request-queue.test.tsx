@@ -59,12 +59,19 @@ describe('ClientRequestQueue', () => {
   });
 
   it('пустая очередь → «Обращений клиентов нет»', () => {
-    render(React.createElement(ClientRequestQueue, { rows: [] }));
+    render(
+      React.createElement(ClientRequestQueue, { rows: [], cardHrefBase: '/manager/requests' })
+    );
     expect(screen.getByText('Обращений клиентов нет')).toBeTruthy();
   });
 
   it('строка: компания, контакт, тема, податель (партнёр приоритетнее) и метка источника', () => {
-    render(React.createElement(ClientRequestQueue, { rows: [row({ inn: '7701234567' })] }));
+    render(
+      React.createElement(ClientRequestQueue, {
+        rows: [row({ inn: '7701234567' })],
+        cardHrefBase: '/manager/requests',
+      })
+    );
     expect(screen.getByText('ООО Ромашка')).toBeTruthy();
     expect(screen.getByText(/Иван Петров/)).toBeTruthy();
     expect(screen.getByText('Обучение по охране труда')).toBeTruthy();
@@ -72,6 +79,23 @@ describe('ClientRequestQueue', () => {
     expect(screen.getByText('Партнёр')).toBeTruthy(); // SOURCE_LABEL partner_cabinet
     expect(screen.getByText(/ИНН 7701234567/)).toBeTruthy();
     expect(screen.getByText('Подана')).toBeTruthy();
+  });
+
+  /**
+   * `У-116`: очередь осталась списком, но строка ведёт в деталку. Раньше
+   * посмотреть обращение целиком можно было только развернув строку — ссылкой
+   * на него нельзя было поделиться.
+   */
+  it('название компании — ссылка в деталку своего кабинета', () => {
+    const { container } = render(
+      React.createElement(ClientRequestQueue, {
+        rows: [row({ id: 'req-7' })],
+        cardHrefBase: '/manager/requests',
+      })
+    );
+    const link = container.querySelector('a[href="/manager/requests/req-7"]');
+    expect(link, 'строка очереди не ведёт в деталку').not.toBeNull();
+    expect(link?.textContent).toBe('ООО Ромашка');
   });
 
   it('раскрытие строки: описание + ленивая подгрузка вложений, «Свернуть» скрывает', async () => {
@@ -93,6 +117,7 @@ describe('ClientRequestQueue', () => {
     vi.stubGlobal('fetch', fetchMock);
     render(
       React.createElement(ClientRequestQueue, {
+        cardHrefBase: '/manager/requests',
         rows: [row({ body: 'Нужно обучить 10 сотрудников', attachmentCount: 1 })],
       })
     );
@@ -110,7 +135,12 @@ describe('ClientRequestQueue', () => {
 
   it('раскрытие без описания → «Без описания»; сбой подгрузки вложений → тихо пустой список', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('down')));
-    render(React.createElement(ClientRequestQueue, { rows: [row({ body: null })] }));
+    render(
+      React.createElement(ClientRequestQueue, {
+        rows: [row({ body: null })],
+        cardHrefBase: '/manager/requests',
+      })
+    );
 
     fireEvent.click(screen.getByText('Подробнее'));
 
@@ -126,7 +156,12 @@ describe('ClientRequestQueue', () => {
       'fetch',
       vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) })
     );
-    render(React.createElement(ClientRequestQueue, { rows: [row({ body: 'Текст обращения' })] }));
+    render(
+      React.createElement(ClientRequestQueue, {
+        rows: [row({ body: 'Текст обращения' })],
+        cardHrefBase: '/manager/requests',
+      })
+    );
 
     fireEvent.click(screen.getByText('Подробнее'));
 
@@ -141,6 +176,7 @@ describe('ClientRequestQueue', () => {
     // бесполезной.
     render(
       React.createElement(ClientRequestQueue, {
+        cardHrefBase: '/manager/requests',
         rows: [
           row({ id: 'cr-org', partnerName: null, organizationName: 'ООО Заказчик' }),
           row({
@@ -159,6 +195,7 @@ describe('ClientRequestQueue', () => {
   it('контакты: телефон и почта склеиваются, при полном отсутствии — прочерк', () => {
     render(
       React.createElement(ClientRequestQueue, {
+        cardHrefBase: '/manager/requests',
         rows: [
           row({ id: 'cr-both', contactPhone: '+79990001122', contactEmail: 'i@x.ru' }),
           row({ id: 'cr-none', contactPhone: null, contactEmail: null }),
@@ -176,7 +213,12 @@ describe('ClientRequestQueue', () => {
       'fetch',
       vi.fn().mockResolvedValue({ ok: true, json: async () => ({ rows: [], duplicates: null }) })
     );
-    render(React.createElement(ClientRequestQueue, { rows: [row({ inn: '7707083893' })] }));
+    render(
+      React.createElement(ClientRequestQueue, {
+        rows: [row({ inn: '7707083893' })],
+        cardHrefBase: '/manager/requests',
+      })
+    );
 
     fireEvent.click(screen.getByText('Подробнее'));
 
@@ -193,14 +235,24 @@ describe('ClientRequestQueue', () => {
   });
 
   it('submitted: все три кнопки — «Взять в работу», «Принять → создать лид», «Отклонить»', () => {
-    render(React.createElement(ClientRequestQueue, { rows: [row({ status: 'submitted' })] }));
+    render(
+      React.createElement(ClientRequestQueue, {
+        rows: [row({ status: 'submitted' })],
+        cardHrefBase: '/manager/requests',
+      })
+    );
     expect(screen.getByRole('button', { name: 'Взять в работу' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Принять → создать лид' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Отклонить' })).toBeTruthy();
   });
 
   it('in_triage: «Взять в работу» скрыта, принять/отклонить доступны', () => {
-    render(React.createElement(ClientRequestQueue, { rows: [row({ status: 'in_triage' })] }));
+    render(
+      React.createElement(ClientRequestQueue, {
+        rows: [row({ status: 'in_triage' })],
+        cardHrefBase: '/manager/requests',
+      })
+    );
     expect(screen.queryByRole('button', { name: 'Взять в работу' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Принять → создать лид' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Отклонить' })).toBeTruthy();
@@ -209,6 +261,7 @@ describe('ClientRequestQueue', () => {
   it('терминальные статусы (converted/rejected): кнопок действий нет, у rejected видна причина', () => {
     render(
       React.createElement(ClientRequestQueue, {
+        cardHrefBase: '/manager/requests',
         rows: [
           row({ id: 'cr-c', status: 'converted' }),
           row({ id: 'cr-r', status: 'rejected', rejectedReason: 'Дубликат', subject: 'Второе' }),
@@ -224,7 +277,12 @@ describe('ClientRequestQueue', () => {
   it('«Взять в работу»: PATCH takeInTriage, тост успеха, refresh', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
     vi.stubGlobal('fetch', fetchMock);
-    render(React.createElement(ClientRequestQueue, { rows: [row({ status: 'submitted' })] }));
+    render(
+      React.createElement(ClientRequestQueue, {
+        rows: [row({ status: 'submitted' })],
+        cardHrefBase: '/manager/requests',
+      })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Взять в работу' }));
 
@@ -242,7 +300,12 @@ describe('ClientRequestQueue', () => {
       .fn()
       .mockResolvedValue({ ok: true, json: async () => ({ leadId: 'lead-9' }) });
     vi.stubGlobal('fetch', fetchMock);
-    render(React.createElement(ClientRequestQueue, { rows: [row({ status: 'in_triage' })] }));
+    render(
+      React.createElement(ClientRequestQueue, {
+        rows: [row({ status: 'in_triage' })],
+        cardHrefBase: '/manager/requests',
+      })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Принять → создать лид' }));
 
@@ -259,7 +322,12 @@ describe('ClientRequestQueue', () => {
 
   it('convertToLead без leadId в ответе → обычный текстовый тост «Лид создан»', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }));
-    render(React.createElement(ClientRequestQueue, { rows: [row({ status: 'in_triage' })] }));
+    render(
+      React.createElement(ClientRequestQueue, {
+        rows: [row({ status: 'in_triage' })],
+        cardHrefBase: '/manager/requests',
+      })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Принять → создать лид' }));
 
@@ -270,7 +338,12 @@ describe('ClientRequestQueue', () => {
     vi.spyOn(window, 'prompt').mockReturnValue('Спам');
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
     vi.stubGlobal('fetch', fetchMock);
-    render(React.createElement(ClientRequestQueue, { rows: [row({ status: 'submitted' })] }));
+    render(
+      React.createElement(ClientRequestQueue, {
+        rows: [row({ status: 'submitted' })],
+        cardHrefBase: '/manager/requests',
+      })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Отклонить' }));
 
@@ -283,7 +356,12 @@ describe('ClientRequestQueue', () => {
     vi.spyOn(window, 'prompt').mockReturnValue(null);
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
-    render(React.createElement(ClientRequestQueue, { rows: [row({ status: 'submitted' })] }));
+    render(
+      React.createElement(ClientRequestQueue, {
+        rows: [row({ status: 'submitted' })],
+        cardHrefBase: '/manager/requests',
+      })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Отклонить' }));
     expect(fetchMock).not.toHaveBeenCalled();
@@ -298,7 +376,12 @@ describe('ClientRequestQueue', () => {
         json: async () => ({ error: 'invalid_status' }),
       })
     );
-    render(React.createElement(ClientRequestQueue, { rows: [row({ status: 'submitted' })] }));
+    render(
+      React.createElement(ClientRequestQueue, {
+        rows: [row({ status: 'submitted' })],
+        cardHrefBase: '/manager/requests',
+      })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Взять в работу' }));
 
@@ -317,7 +400,12 @@ describe('ClientRequestQueue', () => {
         },
       })
     );
-    render(React.createElement(ClientRequestQueue, { rows: [row({ status: 'submitted' })] }));
+    render(
+      React.createElement(ClientRequestQueue, {
+        rows: [row({ status: 'submitted' })],
+        cardHrefBase: '/manager/requests',
+      })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Взять в работу' }));
 
@@ -326,7 +414,12 @@ describe('ClientRequestQueue', () => {
 
   it('сетевой сбой → «Сетевая ошибка»', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('down')));
-    render(React.createElement(ClientRequestQueue, { rows: [row({ status: 'submitted' })] }));
+    render(
+      React.createElement(ClientRequestQueue, {
+        rows: [row({ status: 'submitted' })],
+        cardHrefBase: '/manager/requests',
+      })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Взять в работу' }));
 
@@ -344,7 +437,12 @@ describe('ClientRequestQueue', () => {
           })
       )
     );
-    render(React.createElement(ClientRequestQueue, { rows: [row({ status: 'submitted' })] }));
+    render(
+      React.createElement(ClientRequestQueue, {
+        rows: [row({ status: 'submitted' })],
+        cardHrefBase: '/manager/requests',
+      })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Взять в работу' }));
 

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { EnrollmentRow } from '@/lib/services/enrollments/list';
 import { groupItemsByDirection } from '@/lib/services/enrollments/grouping';
@@ -18,7 +19,14 @@ import { EnrollmentStatusBadge } from './enrollment-status-badge';
  * «Удостоверения готовы» — по отмеченным чекбоксами позициям, без отметок —
  * по всем позициям на предыдущем шаге (решение §10-4 спеки этапа 2).
  */
-export function EnrollmentQueue({ rows }: { rows: EnrollmentRow[] }) {
+export function EnrollmentQueue({
+  rows,
+  cardHrefBase,
+}: {
+  rows: EnrollmentRow[];
+  /** `У-116`: очередь осталась списком, но строка ведёт в деталку. */
+  cardHrefBase: string;
+}) {
   const router = useRouter();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -90,24 +98,27 @@ export function EnrollmentQueue({ rows }: { rows: EnrollmentRow[] }) {
             <React.Fragment key={r.id}>
               <Tr>
                 <Td>
-                  <button
-                    type="button"
-                    onClick={() => toggleOpen(r.id, open)}
-                    className="text-left"
-                    aria-expanded={open}
+                  <Link
+                    href={`${cardHrefBase}/${r.id}`}
+                    className="font-medium text-[#111111] hover:text-[#F97316]"
                   >
-                    <div className="font-medium text-[#111111]">
-                      {r.firstStudentName ?? '—'}
-                      {r.studentCount > 1 && (
-                        <span className="text-gray-500"> и ещё {r.studentCount - 1}</span>
-                      )}
-                    </div>
-                    <div className="text-xs text-[#F97316]">
+                    {r.firstStudentName ?? '—'}
+                    {r.studentCount > 1 && (
+                      <span className="text-gray-500"> и ещё {r.studentCount - 1}</span>
+                    )}
+                  </Link>
+                  <div className="text-xs">
+                    <button
+                      type="button"
+                      onClick={() => toggleOpen(r.id, open)}
+                      className="text-[#F97316]"
+                      aria-expanded={open}
+                    >
                       {open
                         ? 'Свернуть'
                         : `${r.studentCount} ${pluralizeRu(r.studentCount, 'слушатель', 'слушателя', 'слушателей')} — показать`}
-                    </div>
-                  </button>
+                    </button>
+                  </div>
                 </Td>
                 <Td className="text-gray-700">
                   {/* У-43: заявка может нести несколько обучений — показываем

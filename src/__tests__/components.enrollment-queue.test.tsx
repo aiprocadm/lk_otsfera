@@ -68,13 +68,16 @@ describe('EnrollmentQueue', () => {
   });
 
   it('renders the empty state when there are no rows', () => {
-    render(React.createElement(EnrollmentQueue, { rows: [] }));
+    render(
+      React.createElement(EnrollmentQueue, { rows: [], cardHrefBase: '/manager/enrollments' })
+    );
     expect(screen.getByText('Заявок на обучение нет')).toBeTruthy();
   });
 
   it('renders partnerName preferentially over organizationName/submittedByName, with submitterRole below', () => {
     render(
       React.createElement(EnrollmentQueue, {
+        cardHrefBase: '/manager/enrollments',
         rows: [
           row({
             partnerName: 'ООО Партнёр',
@@ -91,6 +94,7 @@ describe('EnrollmentQueue', () => {
   it('falls back to organizationName when partnerName is null', () => {
     render(
       React.createElement(EnrollmentQueue, {
+        cardHrefBase: '/manager/enrollments',
         rows: [row({ partnerName: null, organizationName: 'ООО Заказчик' })],
       })
     );
@@ -100,6 +104,7 @@ describe('EnrollmentQueue', () => {
   it('falls back to submittedByName when both partnerName and organizationName are null', () => {
     render(
       React.createElement(EnrollmentQueue, {
+        cardHrefBase: '/manager/enrollments',
         rows: [row({ partnerName: null, organizationName: null, submittedByName: 'Сам подал' })],
       })
     );
@@ -109,6 +114,7 @@ describe('EnrollmentQueue', () => {
   it('раскрытие позиций: доп. поля и LMS-id видны, повторный клик сворачивает', () => {
     render(
       React.createElement(EnrollmentQueue, {
+        cardHrefBase: '/manager/enrollments',
         rows: [
           row({
             status: 'provisioned',
@@ -142,6 +148,7 @@ describe('EnrollmentQueue', () => {
   it('У-43: колонка перечисляет все обучения заявки, раскрытие группирует позиции', () => {
     render(
       React.createElement(EnrollmentQueue, {
+        cardHrefBase: '/manager/enrollments',
         rows: [
           row({
             directionNames: ['Охрана труда', 'Работы на высоте'],
@@ -169,6 +176,7 @@ describe('EnrollmentQueue', () => {
     // остаться читаемой, а не показать пустую колонку.
     render(
       React.createElement(EnrollmentQueue, {
+        cardHrefBase: '/manager/enrollments',
         rows: [row({ directionNames: [], items: [], studentCount: 0 })],
       })
     );
@@ -178,6 +186,7 @@ describe('EnrollmentQueue', () => {
   it('счётчик «и ещё N» для многопозиционной заявки', () => {
     render(
       React.createElement(EnrollmentQueue, {
+        cardHrefBase: '/manager/enrollments',
         rows: [row({ studentCount: 3, items: [item(), item({ id: 'i2' }), item({ id: 'i3' })] })],
       })
     );
@@ -190,6 +199,7 @@ describe('EnrollmentQueue', () => {
     // заполнены. Строка очереди обязана остаться кликабельной и читаемой.
     render(
       React.createElement(EnrollmentQueue, {
+        cardHrefBase: '/manager/enrollments',
         rows: [row({ firstStudentName: null, studentCount: 1 })],
       })
     );
@@ -197,14 +207,24 @@ describe('EnrollmentQueue', () => {
   });
 
   it('pending row shows Утвердить + Отклонить, but not Зачислены', () => {
-    render(React.createElement(EnrollmentQueue, { rows: [row({ status: 'pending' })] }));
+    render(
+      React.createElement(EnrollmentQueue, {
+        rows: [row({ status: 'pending' })],
+        cardHrefBase: '/manager/enrollments',
+      })
+    );
     expect(screen.getByRole('button', { name: 'Утвердить' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Отклонить' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Зачислены' })).toBeNull();
   });
 
   it('approved row shows Зачислены + Отклонить, but not Утвердить', () => {
-    render(React.createElement(EnrollmentQueue, { rows: [row({ status: 'approved' })] }));
+    render(
+      React.createElement(EnrollmentQueue, {
+        rows: [row({ status: 'approved' })],
+        cardHrefBase: '/manager/enrollments',
+      })
+    );
     expect(screen.getByRole('button', { name: 'Зачислены' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Отклонить' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Утвердить' })).toBeNull();
@@ -213,6 +233,7 @@ describe('EnrollmentQueue', () => {
   it('rejected/provisioned rows show no action buttons (+ причина отклонения в строке)', () => {
     render(
       React.createElement(EnrollmentQueue, {
+        cardHrefBase: '/manager/enrollments',
         rows: [row({ status: 'rejected', rejectedReason: 'Неполные данные' })],
       })
     );
@@ -225,7 +246,12 @@ describe('EnrollmentQueue', () => {
   it('approve action: PATCH success shows success toast and router.refresh()', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal('fetch', fetchMock);
-    render(React.createElement(EnrollmentQueue, { rows: [row({ status: 'pending' })] }));
+    render(
+      React.createElement(EnrollmentQueue, {
+        rows: [row({ status: 'pending' })],
+        cardHrefBase: '/manager/enrollments',
+      })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Утвердить' }));
 
@@ -244,7 +270,12 @@ describe('EnrollmentQueue', () => {
       json: async () => ({ error: 'not_found' }),
     });
     vi.stubGlobal('fetch', fetchMock);
-    render(React.createElement(EnrollmentQueue, { rows: [row({ status: 'pending' })] }));
+    render(
+      React.createElement(EnrollmentQueue, {
+        rows: [row({ status: 'pending' })],
+        cardHrefBase: '/manager/enrollments',
+      })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Утвердить' }));
 
@@ -261,7 +292,12 @@ describe('EnrollmentQueue', () => {
       },
     });
     vi.stubGlobal('fetch', fetchMock);
-    render(React.createElement(EnrollmentQueue, { rows: [row({ status: 'pending' })] }));
+    render(
+      React.createElement(EnrollmentQueue, {
+        rows: [row({ status: 'pending' })],
+        cardHrefBase: '/manager/enrollments',
+      })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Утвердить' }));
 
@@ -271,7 +307,12 @@ describe('EnrollmentQueue', () => {
   it('approve action: network error shows generic network-error toast', async () => {
     const fetchMock = vi.fn().mockRejectedValue(new Error('down'));
     vi.stubGlobal('fetch', fetchMock);
-    render(React.createElement(EnrollmentQueue, { rows: [row({ status: 'pending' })] }));
+    render(
+      React.createElement(EnrollmentQueue, {
+        rows: [row({ status: 'pending' })],
+        cardHrefBase: '/manager/enrollments',
+      })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Утвердить' }));
 
@@ -282,7 +323,12 @@ describe('EnrollmentQueue', () => {
     const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue('  LMS-7  ');
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal('fetch', fetchMock);
-    render(React.createElement(EnrollmentQueue, { rows: [row({ status: 'approved' })] }));
+    render(
+      React.createElement(EnrollmentQueue, {
+        rows: [row({ status: 'approved' })],
+        cardHrefBase: '/manager/enrollments',
+      })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Зачислены' }));
 
@@ -305,6 +351,7 @@ describe('EnrollmentQueue', () => {
     vi.stubGlobal('fetch', fetchMock);
     render(
       React.createElement(EnrollmentQueue, {
+        cardHrefBase: '/manager/enrollments',
         rows: [row({ status: 'approved', studentCount: 2, items: [item(), item({ id: 'i2' })] })],
       })
     );
@@ -325,7 +372,12 @@ describe('EnrollmentQueue', () => {
     vi.spyOn(window, 'prompt').mockReturnValue(null);
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
-    render(React.createElement(EnrollmentQueue, { rows: [row({ status: 'approved' })] }));
+    render(
+      React.createElement(EnrollmentQueue, {
+        rows: [row({ status: 'approved' })],
+        cardHrefBase: '/manager/enrollments',
+      })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Зачислены' }));
     expect(fetchMock).not.toHaveBeenCalled();
@@ -335,7 +387,12 @@ describe('EnrollmentQueue', () => {
     vi.spyOn(window, 'prompt').mockReturnValue('   ');
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
-    render(React.createElement(EnrollmentQueue, { rows: [row({ status: 'approved' })] }));
+    render(
+      React.createElement(EnrollmentQueue, {
+        rows: [row({ status: 'approved' })],
+        cardHrefBase: '/manager/enrollments',
+      })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Зачислены' }));
     expect(fetchMock).not.toHaveBeenCalled();
@@ -345,7 +402,12 @@ describe('EnrollmentQueue', () => {
     vi.spyOn(window, 'prompt').mockReturnValue('Причина отказа');
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal('fetch', fetchMock);
-    render(React.createElement(EnrollmentQueue, { rows: [row({ status: 'pending' })] }));
+    render(
+      React.createElement(EnrollmentQueue, {
+        rows: [row({ status: 'pending' })],
+        cardHrefBase: '/manager/enrollments',
+      })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Отклонить' }));
 
@@ -365,7 +427,12 @@ describe('EnrollmentQueue', () => {
     vi.spyOn(window, 'prompt').mockReturnValue('');
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal('fetch', fetchMock);
-    render(React.createElement(EnrollmentQueue, { rows: [row({ status: 'pending' })] }));
+    render(
+      React.createElement(EnrollmentQueue, {
+        rows: [row({ status: 'pending' })],
+        cardHrefBase: '/manager/enrollments',
+      })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Отклонить' }));
 
@@ -381,7 +448,12 @@ describe('EnrollmentQueue', () => {
     vi.spyOn(window, 'prompt').mockReturnValue(null);
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
-    render(React.createElement(EnrollmentQueue, { rows: [row({ status: 'pending' })] }));
+    render(
+      React.createElement(EnrollmentQueue, {
+        rows: [row({ status: 'pending' })],
+        cardHrefBase: '/manager/enrollments',
+      })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Отклонить' }));
     expect(fetchMock).not.toHaveBeenCalled();
@@ -396,7 +468,12 @@ describe('EnrollmentQueue', () => {
         })
     );
     vi.stubGlobal('fetch', fetchMock);
-    render(React.createElement(EnrollmentQueue, { rows: [row({ status: 'pending' })] }));
+    render(
+      React.createElement(EnrollmentQueue, {
+        rows: [row({ status: 'pending' })],
+        cardHrefBase: '/manager/enrollments',
+      })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Утвердить' }));
     // Button becomes disabled while busy (loading prop wired through to Button)

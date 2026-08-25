@@ -23,6 +23,7 @@ export function ClientRequestDetailView({
   attachments,
   backHref,
   breadcrumbs,
+  actions,
 }: {
   request: ClientRequestRow;
   attachments: ClientRequestAttachmentRowVM[];
@@ -33,6 +34,11 @@ export function ClientRequestDetailView({
    * экран без крошек показывает прежнюю ссылку.
    */
   breadcrumbs?: Crumb[] | undefined;
+  /**
+   * `У-116`: действия сотрудника ЦО. У клиента их нет — он подаёт и смотрит,
+   * поэтому проп опциональный, а не «пустой блок у всех».
+   */
+  actions?: React.ReactNode;
 }) {
   const canEditAttachments = request.status === 'submitted' || request.status === 'in_triage';
 
@@ -61,6 +67,15 @@ export function ClientRequestDetailView({
           }
         />
       </div>
+
+      {actions && (
+        <section className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+          {/* §15 «что делать дальше»: действия — первым блоком после шапки,
+              чтобы за ними не приходилось прокручивать всю карточку. */}
+          <h2 className="text-sm font-semibold text-[#111111]">Действия</h2>
+          {actions}
+        </section>
+      )}
 
       {request.status === 'rejected' && request.rejectedReason && (
         <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm">

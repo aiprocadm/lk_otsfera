@@ -20,7 +20,7 @@ export default async function AdminRequestsPage() {
         title="Обращения"
         subtitle="Вопросы и запросы клиентов — то, с чего обычно начинается работа"
       />
-      <ClientRequestQueue rows={rows} />
+      <ClientRequestQueue rows={rows} cardHrefBase="/admin/requests" />
     </div>
   );
 }

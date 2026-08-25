@@ -16,7 +16,7 @@ export default async function LeaderEnrollmentsPage() {
   return (
     <div className="space-y-5">
       <PageHeader title="Заявки на обучение" subtitle="Заявки на обучение по всей компании" />
-      <EnrollmentQueue rows={rows} />
+      <EnrollmentQueue rows={rows} cardHrefBase="/leader/enrollments" />
     </div>
   );
 }

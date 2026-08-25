@@ -35,6 +35,7 @@ export function EnrollmentDetailView({
   detail,
   backHref,
   breadcrumbs,
+  actions,
 }: {
   detail: EnrollmentDetail;
   backHref: string;
@@ -44,6 +45,11 @@ export function EnrollmentDetailView({
    * экран без крошек показывает прежнюю ссылку.
    */
   breadcrumbs?: Crumb[] | undefined;
+  /**
+   * `У-116`: действия сотрудника ЦО. У клиента их нет — он подаёт и смотрит,
+   * поэтому проп опциональный, а не «пустой блок у всех».
+   */
+  actions?: React.ReactNode;
 }) {
   return (
     <div className="space-y-5">
@@ -70,6 +76,14 @@ export function EnrollmentDetailView({
           {detail.organizationName && <> · организация {detail.organizationName}</>}
         </p>
       </div>
+
+      {actions && (
+        <section className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+          {/* §15 «что делать дальше»: действия — первым блоком после шапки. */}
+          <h2 className="text-sm font-semibold text-[#111111]">Действия</h2>
+          {actions}
+        </section>
+      )}
 
       <section className="bg-white border border-gray-200 rounded-xl p-5">
         <EnrollmentStatusRibbon status={detail.status} rejectedReason={detail.rejectedReason} />

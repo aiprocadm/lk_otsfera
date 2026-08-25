@@ -21,7 +21,7 @@ export default async function ManagerEnrollmentsPage() {
   return (
     <div className="space-y-5">
       <PageHeader title="Заявки на обучение" subtitle="Списки сотрудников, которых нужно обучить" />
-      <EnrollmentQueue rows={rows} />
+      <EnrollmentQueue rows={rows} cardHrefBase="/manager/enrollments" />
       <EnrollmentWizard directions={directions} />
     </div>
   );
