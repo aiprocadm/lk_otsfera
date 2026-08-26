@@ -111,10 +111,14 @@ describe('У-130: SLA переехал из «Команды» в хаб', () =>
   });
 
   it('руководитель правит СВОЮ компанию, а не выбранную в адресе', () => {
-    const src = read('components/settings/sla-intake-screen.tsx');
+    // Выборка живёт в сервисе, а не в компоненте (`components-no-db`):
+    // скоуп держит `listCompaniesSla`, экран лишь показывает данные.
+    const src = read('lib/services/manager/slaSettings.ts');
     expect(src).toContain('session.companyId');
     // Админ видит все компании — это его картина целиком.
     expect(src).toContain('orderBy: { name:');
+    // А компонент в базу не ходит вовсе.
+    expect(read('components/settings/sla-intake-screen.tsx')).not.toContain('@/lib/db');
   });
 
   it('интервал задачи SLA стал настраиваемым', () => {

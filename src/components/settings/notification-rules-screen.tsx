@@ -1,30 +1,31 @@
 import React from 'react';
-import { prisma } from '@/lib/db/prisma';
-import { listRoutingRules } from '@/lib/notifications/routing';
 import { PageHeader } from '@/components/ui/page-header';
 import type { SettingsCabinet } from '@/lib/navigation/settings';
-import type { SessionPayload } from '@/lib/auth/jwt';
+import type { RuleRow } from '@/lib/notifications/routing';
 import { NotificationRulesTable } from './notification-rules-table';
 
 /**
  * «Правила уведомлений» — экран общий для администратора и руководителя
  * (`У-127`, решение `Р-23`).
  *
- * Разметка одна, различается только область действия, и её задаёт **сервер**
- * по роли: администратор видит и правит правила платформы, руководитель —
- * своей компании поверх платформенных. Компанию берём из сессии, а не из
- * адреса: иначе руководитель одной компании читал бы правила другой.
+ * Компонент **презентационный**: данные приходят пропсами, в базу он не ходит
+ * (правило `components-no-db`). Разметка одна, различается только область
+ * действия, и её задаёт **сервер** по роли: администратор видит и правит
+ * правила платформы, руководитель — своей компании поверх платформенных.
+ * Компанию страница берёт из сессии, а не из адреса: иначе руководитель одной
+ * компании читал бы правила другой.
  */
-export async function NotificationRulesScreen({
-  session,
+export function NotificationRulesScreen({
   cabinet,
+  hasCompany,
+  rows,
 }: {
-  session: SessionPayload;
   cabinet: SettingsCabinet;
+  /** У руководителя без компании настраивать нечего — экран объясняет это. */
+  hasCompany: boolean;
+  rows: RuleRow[];
 }) {
   const isAdmin = cabinet === 'admin';
-  const companyId = isAdmin ? null : (session.companyId ?? null);
-  const rows = await listRoutingRules(prisma, companyId);
 
   return (
     <div className="space-y-5">
@@ -37,7 +38,7 @@ export async function NotificationRulesScreen({
         }
       />
 
-      {!isAdmin && !companyId ? (
+      {!isAdmin && !hasCompany ? (
         <p role="alert" className="text-sm text-red-600">
           У вашей учётной записи не указана компания — правила настроить нельзя. Обратитесь к
           администратору.

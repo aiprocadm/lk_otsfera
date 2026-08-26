@@ -1,12 +1,9 @@
 import React from 'react';
-import { notFound } from 'next/navigation';
-import { prisma } from '@/lib/db/prisma';
-import { getClientRequest } from '@/lib/services/clientRequests/list';
-import { listClientRequestAttachments } from '@/lib/services/clientRequests/attachments';
+import type { ClientRequestRow } from '@/lib/services/clientRequests/list';
+import type { ClientRequestAttachmentRow } from '@/lib/services/clientRequests/attachments';
 import { ClientRequestDetailView } from '@/components/client-requests/client-request-detail-view';
 import { ClientRequestStaffActions } from '@/components/client-requests/client-request-staff-actions';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
-import type { SessionPayload } from '@/lib/auth/jwt';
 
 /**
  * Деталка обращения у сотрудника ЦО (`У-116`).
@@ -15,30 +12,26 @@ import type { SessionPayload } from '@/lib/auth/jwt';
  * очереди. Ссылкой на обращение нельзя было поделиться, а в разговоре «открой
  * вот это обращение» означало «найди его в списке и разверни».
  *
- * Экран — ТОТ ЖЕ компонент, что видит клиент, плюс действия сотрудника. Скоуп
+ * Экран — ТОТ ЖЕ компонент, что видит клиент, плюс действия сотрудника.
+ * Компонент **презентационный**: данные приходят пропсами, в базу он не ходит
+ * (правило `components-no-db`). Выборку делает страница своей роли, скоуп
  * режет сервис (`getClientRequest` фильтрует по сессии): чужое обращение — это
- * `not_found`, а не пустая карточка.
+ * `not_found` на странице, а не пустая карточка.
  */
-export async function StaffClientRequestDetail({
-  session,
+export function StaffClientRequestDetail({
   cabinet,
-  params,
+  request,
+  attachments,
 }: {
-  session: SessionPayload;
   cabinet: 'admin' | 'manager' | 'leader';
-  params: Promise<{ id: string }>;
+  request: ClientRequestRow;
+  attachments: ClientRequestAttachmentRow[];
 }) {
-  const { id } = await params;
-  const res = await getClientRequest(prisma, session, id);
-  if (!res.ok) notFound();
-
-  const attachmentsResult = await listClientRequestAttachments(prisma, session, { requestId: id });
-  const attachments = attachmentsResult.ok ? attachmentsResult.rows : [];
   const listHref = `/${cabinet}/requests`;
 
   return (
     <ClientRequestDetailView
-      request={res.request}
+      request={request}
       attachments={attachments.map((a) => ({
         id: a.id,
         name: a.name,
@@ -48,10 +41,10 @@ export async function StaffClientRequestDetail({
         createdByUserName: a.createdByUserName,
       }))}
       backHref={listHref}
-      breadcrumbs={buildCabinetBreadcrumbs(cabinet, listHref, [{ label: res.request.subject }])}
+      breadcrumbs={buildCabinetBreadcrumbs(cabinet, listHref, [{ label: request.subject }])}
       actions={
         <ClientRequestStaffActions
-          request={res.request}
+          request={request}
           // Лид живёт в кабинете менеджера: у админа и руководителя своего
           // раздела лидов нет, поэтому ссылка ведёт туда, где он открывается.
           leadHrefBase="/manager/leads"

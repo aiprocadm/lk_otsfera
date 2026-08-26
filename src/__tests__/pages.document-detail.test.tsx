@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
 /**
- * §11 ТЗ v0.5 (этап 1 PR-4) — страницы карточки документа в четырёх кабинетах.
- *
- * Руководителю отдельной страницы нет намеренно: у него роль `manager`,
- * префикс `/manager` ему открыт (§4 CLAUDE.md), список документов живёт там же.
+ * §11 ТЗ v0.5 (этап 1 PR-4) — страницы карточки документа по кабинетам.
+ * С `У-110` у руководителя своя страница: экран общий с менеджером
+ * (`StaffDocumentDetail`), различается только кабинет ссылок.
  *
  * Проверяем три вещи: сработал гард своего кабинета, отказ сервиса даёт 404
  * (а не пустую страницу), ссылки ведут в СВОЙ кабинет, а не в чужой.
@@ -11,12 +10,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 
-const { requireAdmin, requireManager, requirePartner } = vi.hoisted(() => ({
+const { requireAdmin, requireManager, requireManagerLeader, requirePartner } = vi.hoisted(() => ({
   requireAdmin: vi.fn(),
   requireManager: vi.fn(),
+  requireManagerLeader: vi.fn(),
   requirePartner: vi.fn(),
 }));
-vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin, requireManager, requirePartner }));
+vi.mock('@/lib/auth/requireRole', () => ({
+  requireAdmin,
+  requireManager,
+  requireManagerLeader,
+  requirePartner,
+}));
 
 const { getOrgPageContext } = vi.hoisted(() => ({ getOrgPageContext: vi.fn() }));
 vi.mock('@/lib/auth/orgPageContext', () => ({ getOrgPageContext }));
@@ -65,6 +70,7 @@ vi.mock('@/components/organization/org-app-shell', () => ({
 
 import AdminDocumentPage from '@/app/admin/documents/[id]/page';
 import ManagerDocumentPage from '@/app/manager/documents/[id]/page';
+import LeaderDocumentPage from '@/app/leader/documents/[id]/page';
 import PartnerDocumentPage from '@/app/partner/documents/[id]/page';
 import OrganizationDocumentPage from '@/app/organization/documents/[id]/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
@@ -82,6 +88,7 @@ const ORG_CTX = {
 beforeEach(() => {
   requireAdmin.mockReset().mockResolvedValue({ sub: 'a1', role: 'admin' });
   requireManager.mockReset().mockResolvedValue({ sub: 'm1', role: 'manager' });
+  requireManagerLeader.mockReset().mockResolvedValue({ sub: 'l1', role: 'leader' });
   requirePartner.mockReset().mockResolvedValue({ sub: 'p1', role: 'partner', partnerId: 'pp1' });
   getOrgPageContext.mockReset().mockResolvedValue(ORG_CTX);
   getDocumentDetail.mockReset().mockResolvedValue(DOC);
@@ -122,6 +129,25 @@ describe('Карточка документа — кабинет менедже�
     getDocumentDetail.mockResolvedValue({ ok: false, error: 'not_found' });
     await expect(
       renderServerComponent(ManagerDocumentPage({ params: Promise.resolve({ id: 'x' }) }))
+    ).rejects.toThrow('NEXT_NOT_FOUND');
+  });
+});
+
+describe('Карточка документа — кабинет руководителя (У-110)', () => {
+  it('гард руководителя, ссылки в свой кабинет, а не в менеджерский', async () => {
+    const { container } = await renderServerComponent(
+      LeaderDocumentPage({ params: Promise.resolve({ id: 'd1' }) })
+    );
+    expect(requireManagerLeader).toHaveBeenCalled();
+    expect(container.textContent).toContain('"backHref":"/leader/documents"');
+    expect(container.textContent).toContain('"orderHrefBase":"/leader/orders"');
+    expect(container.textContent).not.toContain('/manager/');
+  });
+
+  it('недоступный документ → notFound()', async () => {
+    getDocumentDetail.mockResolvedValue({ ok: false, error: 'not_found' });
+    await expect(
+      renderServerComponent(LeaderDocumentPage({ params: Promise.resolve({ id: 'x' }) }))
     ).rejects.toThrow('NEXT_NOT_FOUND');
   });
 });

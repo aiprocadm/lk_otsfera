@@ -1,46 +1,41 @@
 import React from 'react';
-import { notFound } from 'next/navigation';
-import { prisma } from '@/lib/db/prisma';
-import { getDocumentDetail } from '@/lib/services/documents/detail';
-import { getFieldsForEntity } from '@/lib/services/customFields';
 import { DocumentDetailView } from '@/components/documents/document-detail-view';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fields';
-import type { SessionPayload } from '@/lib/auth/jwt';
+import type { DocumentDetail } from '@/lib/services/documents/detail';
+import type { FieldWithValue } from '@/lib/services/customFields';
 
 /**
  * Карточка документа сотрудника ЦО — одна на кабинет менеджера и кабинет
  * руководителя (`У-110`). Раньше страница была только у менеджера, и из списка
  * руководителя (которого тоже не было) уходить было некуда.
  *
+ * Компонент **презентационный**: данные приходят пропсами, в базу он не ходит
+ * (правило `components-no-db`). Выборку, скоуп сессии и `notFound()` делает
+ * страница своего кабинета.
+ *
  * Все адреса — список, крошки, ссылка на заказ — собираются из `cabinet`:
  * человек остаётся в своём кабинете, а не проваливается в чужой.
  */
-export async function StaffDocumentDetail({
-  session,
+export function StaffDocumentDetail({
   cabinet,
-  params,
+  document,
+  customFields,
 }: {
-  session: SessionPayload;
   cabinet: 'manager' | 'leader';
-  params: Promise<{ id: string }>;
+  document: DocumentDetail;
+  customFields: FieldWithValue[];
 }) {
-  const { id } = await params;
-
-  const res = await getDocumentDetail(prisma, session, id);
-  if (!res.ok) notFound();
-
-  const customFields = await getFieldsForEntity(prisma, session, 'document', id);
   const listHref = `/${cabinet}/documents`;
 
   return (
     <DocumentDetailView
-      document={res.document}
+      document={document}
       backHref={listHref}
-      breadcrumbs={buildCabinetBreadcrumbs(cabinet, listHref, [{ label: res.document.name }])}
+      breadcrumbs={buildCabinetBreadcrumbs(cabinet, listHref, [{ label: document.name }])}
       orderHrefBase={`/${cabinet}/orders`}
     >
-      <EntityCustomFields fields={customFields} entityType="document" entityId={id} />
+      <EntityCustomFields fields={customFields} entityType="document" entityId={document.id} />
     </DocumentDetailView>
   );
 }

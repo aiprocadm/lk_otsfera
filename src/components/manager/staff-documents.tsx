@@ -1,12 +1,10 @@
 import React from 'react';
 import Link from 'next/link';
-import { prisma } from '@/lib/db/prisma';
-import { listDocuments, listManagerOrderLessDocuments } from '@/lib/services/manager/documents';
-import { listManagerCounterparties } from '@/lib/services/manager/counterparties';
 import { DocumentsList } from '@/components/partner/documents-list';
 import { ManagerOrderLessUploadForm } from '@/components/manager/manager-order-less-upload-form';
 import type { OrgDocumentRow } from '@/lib/services/partner/orgDocuments';
-import type { SessionPayload } from '@/lib/auth/jwt';
+import type { ListDocumentsResult, ManagerOrderLessRow } from '@/lib/services/manager/documents';
+import type { ManagerCounterparties } from '@/lib/services/manager/counterparties';
 import { sectionLabel } from '@/lib/navigation/sectionLabels';
 
 import { PageHeader } from '@/components/ui/page-header';
@@ -17,8 +15,11 @@ import { PageHeader } from '@/components/ui/page-header';
  * У руководителя этого раздела не было вовсе: чтобы посмотреть документы, он
  * уходил в кабинет менеджера — и видел там **свой** срез, а не срез компании.
  * Теперь экран общий, а разница ровно одна и она про данные: руководитель
- * смотрит по всей компании (`teamModeOverride`), рядовой менеджер — по своему
- * охвату.
+ * смотрит по всей компании, рядовой менеджер — по своему охвату.
+ *
+ * Компонент **презентационный**: данные приходят пропсами, в базу он не ходит
+ * (правило `components-no-db`). Выборку — со своим охватом (`teamModeOverride`)
+ * — делает страница своей роли, скоуп держит сервис.
  *
  * Все адреса собираются из `cabinet`, поэтому переезд одной ссылки не может
  * «расщепить» кабинеты.
@@ -30,6 +31,14 @@ export type StaffDocumentsSearchParams = {
   cursor?: string;
   tab?: string;
 };
+
+/**
+ * Данные экрана готовит страница-потребитель: вкладку выбирает `sp.tab`,
+ * страница грузит ровно её срез и передаёт сюда готовые строки сервисов.
+ */
+type StaffDocumentsData =
+  | { tab: 'general'; rows: ManagerOrderLessRow[]; counterparties: ManagerCounterparties }
+  | { tab: 'orders'; rows: ListDocumentsResult['rows']; nextCursor: string | null };
 
 /**
  * Значения — литералы `enum DocumentType` из prisma/schema.prisma; подписи —
@@ -83,28 +92,20 @@ function Header() {
   );
 }
 
-export async function StaffDocuments({
-  session,
+export function StaffDocuments({
   cabinet,
-  searchParams,
-  teamModeOverride,
+  sp,
+  data,
 }: {
-  session: SessionPayload;
   cabinet: 'manager' | 'leader';
-  searchParams: Promise<StaffDocumentsSearchParams>;
-  /** `true` — смотреть по всей компании (кабинет руководителя). */
-  teamModeOverride?: boolean;
+  /** Уже развёрнутые query-параметры — из них собираются ссылки фильтров. */
+  sp: StaffDocumentsSearchParams;
+  data: StaffDocumentsData;
 }) {
   const base = `/${cabinet}/documents`;
-  const sp = await searchParams;
 
-  if (sp.tab === 'general') {
-    const [{ rows }, cps] = await Promise.all([
-      listManagerOrderLessDocuments(prisma, session),
-      listManagerCounterparties(prisma, session, teamModeOverride),
-    ]);
-
-    const documentRows: OrgDocumentRow[] = rows.map((d) => ({
+  if (data.tab === 'general') {
+    const documentRows: OrgDocumentRow[] = data.rows.map((d) => ({
       id: d.id,
       name: d.name,
       type: d.type,
@@ -121,7 +122,10 @@ export async function StaffDocuments({
       <div className="space-y-4">
         <Header />
         <TabChips activeTab="general" ordersHref={base} generalHref={`${base}?tab=general`} />
-        <ManagerOrderLessUploadForm organizations={cps.organizations} partners={cps.partners} />
+        <ManagerOrderLessUploadForm
+          organizations={data.counterparties.organizations}
+          partners={data.counterparties.partners}
+        />
         <DocumentsList
           rows={documentRows}
           downloadEndpointBase="/api/manager/documents"
@@ -131,19 +135,10 @@ export async function StaffDocuments({
     );
   }
 
-  const { rows, nextCursor } = await listDocuments(prisma, {
-    session,
-    search: sp.search,
-    type: sp.type || undefined,
-    orderId: sp.orderId,
-    cursor: sp.cursor,
-    ...(teamModeOverride === undefined ? {} : { teamModeOverride }),
-  });
-
-  // `listDocuments` отдаёт сырые строки `Document` с включённым заказом, а
-  // общий список (тот же, что у партнёра и заказчика) ждёт `OrgDocumentRow` —
-  // складываем контекст заказа здесь.
-  const documentRows: OrgDocumentRow[] = rows.map((d) => ({
+  // Сервис отдаёт сырые строки `Document` с включённым заказом, а общий список
+  // (тот же, что у партнёра и заказчика) ждёт `OrgDocumentRow` — складываем
+  // контекст заказа здесь.
+  const documentRows: OrgDocumentRow[] = data.rows.map((d) => ({
     id: d.id,
     name: d.name,
     type: d.type,
@@ -208,10 +203,10 @@ export async function StaffDocuments({
         cardHrefBase={base}
       />
 
-      {nextCursor && (
+      {data.nextCursor && (
         <div>
           <Link
-            href={withFilters({ cursor: nextCursor })}
+            href={withFilters({ cursor: data.nextCursor })}
             className="inline-block text-sm text-[#F97316] hover:underline"
           >
             Дальше →
