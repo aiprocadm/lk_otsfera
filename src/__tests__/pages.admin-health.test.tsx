@@ -36,6 +36,20 @@ vi.mock('@/components/admin/retry-all-button', () => ({
     React.createElement('div', { 'data-testid': 'retry-all-button' }, props.queue),
 }));
 
+// `У-126`: форма оповещений — клиентский компонент, ей нужен роутер. Тест
+// проверяет серверную страницу, а не её внутренности.
+vi.mock('@/components/admin/alert-settings-form', () => ({
+  AlertSettingsForm: (props: { initial: { queueWaitingMax: string } }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'alert-settings-form' },
+      props.initial.queueWaitingMax
+    ),
+}));
+
+// Настройки читаются со страницы; пустой список = умолчания из кода.
+vi.mock('@/lib/config/integrationSettings', () => ({ getSettingsView: async () => [] }));
+
 vi.mock('@/components/admin/alerts-section', () => ({
   AlertsSection: (props: { alerts: unknown[] }) =>
     React.createElement('div', { 'data-testid': 'alerts-section' }, JSON.stringify(props.alerts)),

@@ -10,6 +10,21 @@ import { QueueStatsGrid } from '@/components/admin/queue-stats-grid';
 import { DlqTable } from '@/components/admin/dlq-table';
 import { RetryAllButton } from '@/components/admin/retry-all-button';
 import { AlertsSection } from '@/components/admin/alerts-section';
+import { AlertSettingsForm } from '@/components/admin/alert-settings-form';
+import { saveAlertSettingsAction } from '@/server-actions/admin/alerts';
+import { getSettingsView, type SettingKey } from '@/lib/config/integrationSettings';
+
+/** `У-126`: настройки ops-оповещений, которые правит администратор. */
+const ALERT_SETTING_KEYS: SettingKey[] = [
+  'alerts.queueWaitingMax',
+  'alerts.dlqMax',
+  'alerts.syncLagMaxHours',
+  'alerts.renotifyCooldownHours',
+  'alerts.oneCDeadLetterMax',
+  'alerts.telegramBotToken',
+  'alerts.telegramChatId',
+  'alerts.emailRecipients',
+];
 import { SyncErrorsSection } from '@/components/admin/sync-errors-section';
 
 import { PageHeader } from '@/components/ui/page-header';
@@ -60,6 +75,10 @@ export default async function AdminHealthPage() {
     listSyncErrors(prisma).catch(() => [] as SyncErrorRow[]),
   ]);
 
+  // `У-126`: пороги и канал доставки — форма на этом же экране.
+  const alertSettings = await getSettingsView(prisma, ALERT_SETTING_KEYS).catch(() => []);
+  const settingOf = (key: string) => alertSettings.find((r) => r.key === key)?.value ?? '';
+
   return (
     <div className="space-y-8">
       <div>
@@ -71,6 +90,22 @@ export default async function AdminHealthPage() {
 
       {/* Алерты первыми: firing — самый высокосигнальный блок страницы */}
       <AlertsSection alerts={alertRows} />
+
+      <AlertSettingsForm
+        initial={{
+          queueWaitingMax: settingOf('alerts.queueWaitingMax'),
+          dlqMax: settingOf('alerts.dlqMax'),
+          syncLagMaxHours: settingOf('alerts.syncLagMaxHours'),
+          renotifyCooldownHours: settingOf('alerts.renotifyCooldownHours'),
+          oneCDeadLetterMax: settingOf('alerts.oneCDeadLetterMax'),
+          telegramChatId: settingOf('alerts.telegramChatId'),
+          emailRecipients: settingOf('alerts.emailRecipients'),
+        }}
+        telegramTokenSet={
+          alertSettings.find((r) => r.key === 'alerts.telegramBotToken')?.isSet ?? false
+        }
+        action={saveAlertSettingsAction}
+      />
 
       <section className="space-y-3">
         <h2 className="text-base font-semibold text-[#111111]">Лаг синхронизации</h2>

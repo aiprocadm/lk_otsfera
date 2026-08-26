@@ -26,6 +26,8 @@ export const AUDIT_ENTITIES = [
   'company',
   'sync_state',
   'sync_schedule',
+  // `У-126`: настройки ops-оповещений.
+  'alert_settings',
   'job_queue',
   'payment',
   'feature_flag',
@@ -205,6 +207,9 @@ export const AUDIT_ACTIONS = [
   // `У-125`: расписание правится из интерфейса — правку видно в журнале.
   'sync_schedule_pattern_changed',
   'onec_params_changed',
+  // `У-126`: пороги и канал ops-оповещений.
+  'alert_settings_changed',
+  'alert_test_sent',
   'sync_triggered',
   'task_assigned',
   'task_column_created',

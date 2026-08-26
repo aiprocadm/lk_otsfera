@@ -22,7 +22,9 @@ let snapshot: Map<SettingKey, string> | null = null;
 let lastAttemptAt = 0;
 
 function envFallback(key: SettingKey): string | null {
-  return process.env[SETTING_SPECS[key].envVar]?.trim() || null;
+  const envVar = SETTING_SPECS[key].envVar;
+  // `null` — у настройки нет переменной окружения (`У-126`).
+  return envVar ? process.env[envVar]?.trim() || null : null;
 }
 
 /**

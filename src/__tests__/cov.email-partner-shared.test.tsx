@@ -41,8 +41,11 @@ vi.mock('@/lib/config/integrationSettings', async (importOriginal) => {
   const mod = await importOriginal<typeof import('@/lib/config/integrationSettings')>();
   return {
     ...mod,
-    getSettingValue: async (_prisma: unknown, key: keyof typeof mod.SETTING_SPECS) =>
-      process.env[mod.SETTING_SPECS[key].envVar]?.trim() || null,
+    getSettingValue: async (_prisma: unknown, key: keyof typeof mod.SETTING_SPECS) => {
+      // `У-126`: у части настроек переменной окружения нет вовсе.
+      const envVar = mod.SETTING_SPECS[key].envVar;
+      return envVar ? process.env[envVar]?.trim() || null : null;
+    },
   };
 });
 
