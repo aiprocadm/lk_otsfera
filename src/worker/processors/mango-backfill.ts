@@ -2,7 +2,10 @@ import type { PrismaClient } from '@prisma/client';
 import type { Job } from 'bullmq';
 import { prisma } from '@/lib/db/prisma';
 import { getMangoAdapter } from '@/lib/telephony/mango';
-import { primeIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
+import {
+  cachedIntegrationSetting,
+  primeIntegrationSettingsCache,
+} from '@/lib/config/integrationSettingsCache';
 import { parseMangoEvent } from '@/lib/telephony/mango/parse';
 import { ingestCallEvent } from '@/lib/services/telephony/ingestCall';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
@@ -13,8 +16,17 @@ const DEFAULT_LOOKBACK_MS = 24 * 60 * 60 * 1000;
 const MAX_POLL_ATTEMPTS = 10;
 const DEFAULT_POLL_DELAY_MS = 3000;
 
-function pollDelayMsFromEnv(): number {
-  const raw = Number(process.env.MANGO_STATS_POLL_DELAY_MS);
+/**
+ * Задержка между опросами статистики Mango.
+ *
+ * `У-124`: значение настраивается в интерфейсе; переменная сервера остаётся
+ * запасным вариантом. Отрицательное или нечисловое значение — умолчание, а не
+ * падение: настройка не должна ронять фоновую задачу.
+ */
+function configuredPollDelayMs(): number {
+  const raw = Number(
+    cachedIntegrationSetting('mango.statsPollDelayMs') ?? process.env.MANGO_STATS_POLL_DELAY_MS
+  );
   return Number.isFinite(raw) && raw >= 0 ? raw : DEFAULT_POLL_DELAY_MS;
 }
 
@@ -34,7 +46,7 @@ export async function mangoBackfillProcessor(
   _job: Job,
   db: PrismaClient = prisma,
   now: Date = new Date(),
-  pollDelayMs: number = pollDelayMsFromEnv()
+  pollDelayMs: number = configuredPollDelayMs()
 ): Promise<MangoBackfillResult> {
   // REST-адаптер читает креды Mango из кэша настроек интеграций — праймим,
   // чтобы значения из /admin/integrations доезжали до воркера без рестарта.

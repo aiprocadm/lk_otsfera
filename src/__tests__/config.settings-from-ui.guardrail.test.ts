@@ -85,7 +85,10 @@ describe('У-131: заданное в интерфейсе значение мо
     const src = read('server-actions/admin/integrationSettings.ts');
     expect(src).toContain('resetSettingToServerValueAction');
     // Чужая строка из формы не должна удалять произвольную запись настроек.
-    expect(src, 'сброс не проверяет ключ по реестру').toContain('in SETTING_SPECS');
+    // `hasOwn`, а не `in`: через `in` прошла бы строка `__proto__`.
+    expect(src, 'сброс не проверяет ключ по реестру').toContain(
+      'Object.hasOwn(SETTING_SPECS, rawKey)'
+    );
   });
 
   it('кнопка сброса показывается только при реальном перекрытии', () => {

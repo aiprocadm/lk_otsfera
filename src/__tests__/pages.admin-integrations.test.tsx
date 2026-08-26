@@ -83,34 +83,28 @@ import AdminIntegrationsPage from '@/app/admin/settings/integrations/page';
 
 const SESSION = { sub: 'admin1', role: 'admin' as const };
 
-const VIEW_KEYS = [
-  'email.enabled',
-  'email.from',
-  'email.resendApiKey',
-  'telegram.botToken',
-  'telegram.botUsername',
-  'max.botToken',
-  'max.botUsername',
-  'max.baseUrl',
-  'whatsapp.apiKey',
-  'whatsapp.channelId',
-  'whatsapp.baseUrl',
-  'mango.apiKey',
-  'mango.apiSalt',
-  'mango.vpbxBaseUrl',
-  'imap.adapter',
-  'imap.host',
-  'imap.port',
-  'imap.user',
-  'imap.password',
-  'imap.tls',
-  'onec.adapter',
-  'onec.apiUrl',
-  'onec.apiToken',
-  'onec.healthPath',
-  'dadata.enabled',
-  'dadata.apiKey',
-];
+// Список ключей у страницы свой; дублировать его здесь нельзя — он уже
+// разъезжался, когда страница добавила новые настройки, а тест продолжал
+// возвращать старый набор, и `byKey()` падал на undefined. Отвечаем на то,
+// что страница РЕАЛЬНО спросила.
+type ViewRow = {
+  key: string;
+  isSecret: boolean;
+  isSet: boolean;
+  value: string | null;
+  source: string;
+};
+
+function viewFor(keys: string[], make: (key: string) => Partial<ViewRow>): ViewRow[] {
+  return keys.map((key) => ({
+    key,
+    isSecret: key.endsWith('Key') || key.endsWith('Token') || key.endsWith('password'),
+    isSet: false,
+    value: null,
+    source: 'none',
+    ...make(key),
+  }));
+}
 
 describe('AdminIntegrationsPage', () => {
   beforeEach(() => {
@@ -123,14 +117,8 @@ describe('AdminIntegrationsPage', () => {
     formTitles.length = 0;
     formProps.length = 0;
     requireSettingsSection.mockResolvedValue(SESSION);
-    getSettingsView.mockResolvedValue(
-      VIEW_KEYS.map((key) => ({
-        key,
-        isSecret: key.endsWith('Key') || key.endsWith('Token') || key.endsWith('password'),
-        isSet: false,
-        value: null,
-        source: 'none',
-      }))
+    getSettingsView.mockImplementation(async (_prisma: unknown, keys: string[]) =>
+      viewFor(keys, () => ({}))
     );
   });
 
@@ -179,10 +167,8 @@ describe('AdminIntegrationsPage', () => {
     // включено. Если бы разбор значений сломался, всё выглядело бы выключенным,
     // и админ полез бы «чинить» работающие интеграции.
     getIntegrationsStatus.mockReturnValue([]);
-    getSettingsView.mockResolvedValue(
-      VIEW_KEYS.map((key) => ({
-        key,
-        isSecret: key.endsWith('Key') || key.endsWith('Token') || key.endsWith('password'),
+    getSettingsView.mockImplementation(async (_prisma: unknown, keys: string[]) =>
+      viewFor(keys, (key) => ({
         // Значения приходят строками из БД — с регистром и пробелами.
         isSet: key === 'mango.apiKey' || key === 'mango.apiSalt',
         value:

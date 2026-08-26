@@ -43,7 +43,12 @@ export const FEATURE_FLAGS = [
   'internal_tasks',
   // PR-A: омниканальный инбокс. Гейтит /manager/inbox (экран построен: src/app/manager/inbox).
   'inbound_messaging',
-  // PR-B: телефония Mango. Гейтит /manager/calls (экран построен: src/app/manager/calls).
+  // Телефония Mango. `У-124` (решение `Р-24`): ПОВЕДЕНЧЕСКИЙ флаг, не route —
+  // снят с `FEATURE_PREFIXES`, чтобы его можно было включить из интерфейса
+  // (edge-middleware базы не видит). Точки чтения: страница
+  // `/manager/calls` (`notFoundIfDisabled`), пункт меню, гарды роутов
+  // `/api/manager/calls*` и вебхука Mango, вкладка «Звонки» карточки
+  // организации, деталки заказов и `deal-activity`.
   'telephony_mango',
   // 2FA сотрудников (email-код). Поведенческий флаг (не route): точки чтения —
   // login/verify/resend-роуты + секция настроек. Спека 2026-07-11-staff-2fa.
@@ -150,8 +155,13 @@ export const FEATURE_PREFIXES: Array<{ prefix: string; flag: FeatureFlag }> = [
   { prefix: '/leader/tasks', flag: 'internal_tasks' },
   // PR-A: омниканальный инбокс (экран придёт отдельной задачей).
   { prefix: '/manager/inbox', flag: 'inbound_messaging' },
-  // PR-B: телефония Mango (экран придёт отдельной задачей).
-  { prefix: '/manager/calls', flag: 'telephony_mango' },
+  // `У-124` (решение `Р-24`, дефект `Д-38`): телефония Mango СНЯТА с
+  // edge-гейта и стала поведенческим флагом. Причина — edge-middleware не
+  // видит базу: выключить флаг из интерфейса получалось, а включить нет, и
+  // переключатель создавал иллюзию управления. Взамен раздел закрывают три
+  // серверные точки: страница (`notFoundIfDisabled`), пункт меню и гарды
+  // роутов `/api/manager/calls*`. Осознанное отступление от «трёх точек»
+  // §5 CLAUDE.md ровно для одного флага — остальные route-флаги не трогаем.
   // Этап 3 (Модуль 6): клиентские реестры удостоверений. Карточка сотрудника
   // /organization/students/[id] гейтится на странице (список живёт без флага).
   { prefix: '/organization/certificates', flag: 'certificates_registry' },
@@ -220,8 +230,12 @@ export function featureFlagEnvVar(flag: FeatureFlag): string {
  * спеки этапа 8): middleware выполняется в edge-среде, где базы нет.
  * Выключить флаг из базы получилось бы (сработали бы меню и гейт страницы), а
  * **включить — нет**: middleware отдал бы 404 раньше, чем страница заглянула
- * бы в базу. Переключатель в интерфейсе создавал бы иллюзию управления —
- * ровно поэтому телефония Mango в своё время не переехала в настройки.
+ * бы в базу. Переключатель в интерфейсе создавал бы иллюзию управления.
+ *
+ * `У-124` (решение `Р-24`): именно поэтому телефония Mango **ушла отсюда** —
+ * её флаг снят с `FEATURE_PREFIXES` и закрывается серверными гардами. Это
+ * образец перевода route-флага в поведенческий; остальные переводятся своими
+ * требованиями, а не «заодно».
  */
 export function isRouteGatedFlag(flag: FeatureFlag): boolean {
   return FEATURE_PREFIXES.some((p) => p.flag === flag);

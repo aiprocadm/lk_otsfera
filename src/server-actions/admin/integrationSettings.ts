@@ -13,7 +13,13 @@ import { resetIntegrationSettingsCache } from '@/lib/config/integrationSettingsC
 import { resetEmailTransportCache } from '@/lib/email/transport';
 import { __resetInboundEmailAdapter } from '@/lib/inbound/email';
 import { resetOneCAdapter } from '@/lib/services/oneCSync';
+import { resetMangoAdapter } from '@/lib/telephony/mango';
 import { testIntegration } from '@/lib/services/admin/testIntegration';
+import {
+  generateWebhookSecret,
+  isWebhookProvider,
+  registerWebhook,
+} from '@/lib/services/admin/webhookSecrets';
 
 export type IntegrationSaveResult =
   { ok: true } | { ok: false; error: 'secrets_key_missing' | 'validation' };
@@ -82,8 +88,47 @@ export async function resetSettingToServerValueAction(
   rawKey: string
 ): Promise<IntegrationSaveResult> {
   const session = await requireAdmin();
-  if (!(rawKey in SETTING_SPECS)) return { ok: false, error: 'validation' };
+  // `hasOwn`, а не `in`: `'__proto__' in obj` истинно, и строка из формы
+  // прошла бы проверку «известный ли ключ» перед удалением записи настроек.
+  if (!Object.hasOwn(SETTING_SPECS, rawKey)) return { ok: false, error: 'validation' };
   return saveGroup(session.sub, [{ key: rawKey as SettingKey, clear: true }]);
+}
+
+export type GenerateWebhookSecretResult =
+  | { ok: true; secret: string }
+  | { ok: false; error: 'secrets_key_missing' | 'validation' };
+
+/**
+ * Сгенерировать секрет вебхука (`У-123`).
+ *
+ * Значение показывается ОДИН раз: дальше оно лежит зашифрованным и прочитать
+ * его нельзя. Поэтому возвращаем его прямо в ответе — но в журнал не пишем.
+ */
+export async function generateWebhookSecretAction(
+  rawProvider: string
+): Promise<GenerateWebhookSecretResult> {
+  const session = await requireAdmin();
+  if (!isWebhookProvider(rawProvider)) return { ok: false, error: 'validation' };
+  const res = await generateWebhookSecret(prisma, session.sub, rawProvider);
+  if (!res.ok) return res;
+  resetIntegrationSettingsCache();
+  revalidatePath('/admin/settings/integrations');
+  return res;
+}
+
+export type RegisterWebhookActionResult =
+  | { ok: true; message: string }
+  | { ok: false; error: 'not_supported' | 'no_token' | 'no_secret' | 'provider_error' | 'validation' };
+
+/** Зарегистрировать адрес вебхука у провайдера (`У-123`). */
+export async function registerWebhookAction(
+  rawProvider: string
+): Promise<RegisterWebhookActionResult> {
+  await requireAdmin();
+  if (!isWebhookProvider(rawProvider)) return { ok: false, error: 'validation' };
+  const res = await registerWebhook(prisma, rawProvider);
+  if (res.ok) revalidatePath('/admin/settings/integrations');
+  return res;
 }
 
 /** Пара «несекретное поле + секрет»: у ботов Telegram/Max одинаковая форма. */
@@ -127,10 +172,17 @@ export async function saveWhatsappSettingsAction(fd: FormData): Promise<Integrat
 
 export async function saveMangoSettingsAction(fd: FormData): Promise<IntegrationSaveResult> {
   const session = await requireAdmin();
+  // `У-124`: адаптер кэшируется на весь процесс — без сброса переключение
+  // «тестовый ↔ боевой» не подействовало бы до перезапуска.
+  resetMangoAdapter();
   return saveGroup(session.sub, [
     { key: 'mango.vpbxBaseUrl', value: readField(fd, 'mango_vpbxBaseUrl').trim() },
     { key: 'mango.apiKey', value: readField(fd, 'mango_apiKey') },
     { key: 'mango.apiSalt', value: readField(fd, 'mango_apiSalt') },
+    // `У-124`: то, что раньше требовало правки конфига сервера.
+    { key: 'mango.adapter', value: readField(fd, 'mango_adapter').trim() },
+    { key: 'mango.allowedIps', value: readField(fd, 'mango_allowedIps').trim() },
+    { key: 'mango.statsPollDelayMs', value: readField(fd, 'mango_statsPollDelayMs').trim() },
   ]);
 }
 

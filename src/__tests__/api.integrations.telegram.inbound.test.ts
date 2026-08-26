@@ -11,7 +11,7 @@ const {
 } = vi.hoisted(() => ({
   linkByCodeMock: vi.fn(),
   sendTelegramMessageMock: vi.fn(),
-  prismaMock: {},
+  prismaMock: { integrationSetting: { findUnique: async () => null } },
   ingestMock: vi.fn(),
   isFeatureEnabledMock: vi.fn(),
   recordWebhookEvent: vi.fn().mockResolvedValue(undefined),

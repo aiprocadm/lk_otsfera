@@ -33,14 +33,34 @@ export const SETTING_SPECS = {
   'imap.user': { key: 'imap.user', envVar: 'IMAP_USER', isSecret: false },
   'imap.password': { key: 'imap.password', envVar: 'IMAP_PASSWORD', isSecret: true },
   'imap.tls': { key: 'imap.tls', envVar: 'IMAP_TLS', isSecret: false },
-  // Телефония Mango. Включение (FEATURE_TELEPHONY_MANGO) намеренно НЕ здесь:
-  // флаг читается в edge-middleware, где БД недоступна — переключатель в БД
-  // не смог бы влиять на route-гейт и создавал бы иллюзию управления.
+  // Телефония Mango. Само включение — флаг `telephony_mango`; с `У-124` он
+  // поведенческий и переключается в разделе «Функции платформы», а не на
+  // сервере (прежний комментарий про edge-middleware больше не действует —
+  // флаг снят с `FEATURE_PREFIXES`).
   'mango.apiKey': { key: 'mango.apiKey', envVar: 'MANGO_API_KEY', isSecret: true },
+  // `apiSalt` выдаёт провайдер — сгенерировать его на нашей стороне нельзя
+  // (в отличие от секретов вебхуков `У-123`).
   'mango.apiSalt': { key: 'mango.apiSalt', envVar: 'MANGO_API_SALT', isSecret: true },
   'mango.vpbxBaseUrl': { key: 'mango.vpbxBaseUrl', envVar: 'MANGO_VPBX_BASE_URL', isSecret: false },
+  // `У-124`: адаптер, список разрешённых адресов и задержка поллинга — поля
+  // формы, а не переменные сервера.
+  'mango.adapter': { key: 'mango.adapter', envVar: 'MANGO_ADAPTER', isSecret: false },
+  'mango.allowedIps': { key: 'mango.allowedIps', envVar: 'MANGO_ALLOWED_IPS', isSecret: false },
+  'mango.statsPollDelayMs': {
+    key: 'mango.statsPollDelayMs',
+    envVar: 'MANGO_STATS_POLL_DELAY_MS',
+    isSecret: false,
+  },
   // Telegram
   'telegram.botToken': { key: 'telegram.botToken', envVar: 'TELEGRAM_BOT_TOKEN', isSecret: true },
+  // `У-123`: секрет вебхука генерируется в интерфейсе и сверяется роутом
+  // через `getSettingValue`. Раньше он жил только в переменной сервера, и
+  // подключить бота без доступа к серверу было нельзя.
+  'telegram.webhookSecret': {
+    key: 'telegram.webhookSecret',
+    envVar: 'TELEGRAM_WEBHOOK_SECRET',
+    isSecret: true,
+  },
   'telegram.botUsername': {
     key: 'telegram.botUsername',
     envVar: 'TELEGRAM_BOT_USERNAME',
@@ -50,6 +70,8 @@ export const SETTING_SPECS = {
   'max.botToken': { key: 'max.botToken', envVar: 'MAX_BOT_TOKEN', isSecret: true },
   'max.botUsername': { key: 'max.botUsername', envVar: 'MAX_BOT_USERNAME', isSecret: false },
   'max.baseUrl': { key: 'max.baseUrl', envVar: 'MAX_API_BASE_URL', isSecret: false },
+  // `У-123`: то же, что у Telegram.
+  'max.webhookSecret': { key: 'max.webhookSecret', envVar: 'MAX_WEBHOOK_SECRET', isSecret: true },
   // WhatsApp
   'whatsapp.apiKey': {
     key: 'whatsapp.apiKey',
@@ -68,6 +90,12 @@ export const SETTING_SPECS = {
     key: 'whatsapp.baseUrl',
     envVar: 'WHATSAPP_AGGREGATOR_BASE_URL',
     isSecret: false,
+  },
+  // `У-123`: то же, что у Telegram.
+  'whatsapp.webhookSecret': {
+    key: 'whatsapp.webhookSecret',
+    envVar: 'WHATSAPP_WEBHOOK_SECRET',
+    isSecret: true,
   },
   // Обмен с 1С. Выбор адаптера (fake|rest), адрес API, токен и опциональный
   // путь для проверки связи — всё настраивается в UI (env — fallback).

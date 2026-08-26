@@ -7,6 +7,10 @@ import { IntegrationsHealthPanel } from '@/components/admin/integrations-health-
 import { prisma } from '@/lib/db/prisma';
 import { isSecretsKeyConfigured } from '@/lib/crypto/secrets';
 import {
+  WEBHOOK_PROVIDERS,
+  isWebhookProvider,
+} from '@/lib/services/admin/webhookSecrets';
+import {
   getSettingsView,
   type SettingKey,
   type SettingViewRow,
@@ -45,15 +49,25 @@ const VIEW_KEYS: SettingKey[] = [
   'email.resendApiKey',
   'telegram.botToken',
   'telegram.botUsername',
+  // `У-123`: индикатор «секрет вебхука задан» читает БАЗУ, а не переменную
+  // сервера — иначе сгенерированный в интерфейсе секрет отображался бы как
+  // «не задан».
+  'telegram.webhookSecret',
   'max.botToken',
   'max.botUsername',
   'max.baseUrl',
+  'max.webhookSecret',
   'whatsapp.apiKey',
   'whatsapp.channelId',
   'whatsapp.baseUrl',
+  'whatsapp.webhookSecret',
   'mango.apiKey',
   'mango.apiSalt',
   'mango.vpbxBaseUrl',
+  // `У-124`: адаптер, разрешённые адреса и задержка поллинга — поля формы.
+  'mango.adapter',
+  'mango.allowedIps',
+  'mango.statsPollDelayMs',
   'imap.adapter',
   'imap.host',
   'imap.port',
@@ -102,12 +116,17 @@ export default async function AdminIntegrationsPage() {
     note?: string
   ): WebhookDiagInfo => {
     const s = stateOf(`webhook.${name}`);
+    // `У-123`: кнопки генерации показываем только у провайдеров, чей секрет
+    // придумываем мы. У Mango это `apiSalt` от провайдера — генерировать его
+    // нельзя, поэтому его здесь нет.
+    const managed = isWebhookProvider(name) ? WEBHOOK_PROVIDERS[name] : null;
     return {
       url: `${appUrl}/api/integrations/${name}/webhook`,
       headerName,
       secretSet,
       lastEventAt: s?.lastSuccessAt ? fmtDateTime(s.lastSuccessAt) : null,
       note,
+      ...(managed ? { provider: name, canRegister: managed.canRegister } : {}),
     };
   };
   const testOf = (key: IntegrationTestKey) => testIntegrationAction.bind(null, key);
@@ -214,7 +233,7 @@ export default async function AdminIntegrationsPage() {
           webhook={webhookOf(
             'telegram',
             'x-telegram-bot-api-secret-token',
-            !!process.env.TELEGRAM_WEBHOOK_SECRET?.trim()
+            byKey('telegram.webhookSecret').isSet
           )}
         />
 
@@ -253,7 +272,7 @@ export default async function AdminIntegrationsPage() {
           webhook={webhookOf(
             'max',
             'x-max-webhook-secret',
-            !!process.env.MAX_WEBHOOK_SECRET?.trim()
+            byKey('max.webhookSecret').isSet
           )}
         />
 
@@ -290,14 +309,14 @@ export default async function AdminIntegrationsPage() {
           webhook={webhookOf(
             'whatsapp',
             'x-wazzup-secret',
-            !!process.env.WHATSAPP_WEBHOOK_SECRET?.trim()
+            byKey('whatsapp.webhookSecret').isSet
           )}
         />
 
         <IntegrationSettingsForm
           title="Телефония Mango Office"
           description="Ключи VPBX API: подпись вебхуков, записи разговоров, click-to-call."
-          note="Телефония включается флагом FEATURE_TELEPHONY_MANGO=1 в конфиге сервера (гейт страниц не читает базу); здесь задаются ключи."
+          note="Телефония включается переключателем в разделе «Функции платформы» — заходить на сервер не нужно (`У-124`)."
           action={saveMangoSettingsAction}
           fields={[
             {
@@ -320,6 +339,36 @@ export default async function AdminIntegrationsPage() {
               label: 'Соль подписи (api_salt)',
               kind: 'secret',
               ...secretProps('mango.apiSalt'),
+            },
+            {
+              name: 'mango_adapter',
+              label: 'Адаптер',
+              kind: 'select',
+              initialValue: (byKey('mango.adapter').value ?? 'fake').trim().toLowerCase(),
+              settingKey: 'mango.adapter',
+              source: byKey('mango.adapter').source,
+              options: [
+                { value: 'fake', label: 'Тестовый (без обращений к Mango)' },
+                { value: 'rest', label: 'Боевой REST' },
+              ],
+            },
+            {
+              name: 'mango_allowedIps',
+              label: 'Разрешённые адреса вебхука (через запятую)',
+              kind: 'text',
+              initialValue: byKey('mango.allowedIps').value ?? '',
+              settingKey: 'mango.allowedIps',
+              source: byKey('mango.allowedIps').source,
+              placeholder: '81.88.80.132,81.88.80.133,81.88.82.36',
+            },
+            {
+              name: 'mango_statsPollDelayMs',
+              label: 'Задержка между опросами статистики, мс',
+              kind: 'text',
+              initialValue: byKey('mango.statsPollDelayMs').value ?? '',
+              settingKey: 'mango.statsPollDelayMs',
+              source: byKey('mango.statsPollDelayMs').source,
+              placeholder: '3000',
             },
           ]}
           testAction={testOf('mango')}

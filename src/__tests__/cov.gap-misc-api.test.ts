@@ -18,7 +18,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const { notFoundIfDisabled } = vi.hoisted(() => ({ notFoundIfDisabled: vi.fn() }));
 vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled }));
 
-vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+vi.mock('@/lib/db/prisma', () => ({ prisma: { integrationSetting: { findUnique: async () => null } } }));
 
 // order-statuses: гарды и сервис справочника
 const { requireSession, requireFieldsAdmin } = vi.hoisted(() => ({
@@ -99,7 +99,7 @@ describe('POST /api/admin/order-statuses — терминальный стату
       definition: { id: 'st10', key: 'closed', isTerminal: true },
     });
     expect(createStatusDefinition).toHaveBeenCalledWith(
-      {},
+      expect.anything(),
       ADMIN,
       expect.objectContaining({ key: 'closed', label: 'Закрыт', isTerminal: true })
     );
@@ -127,7 +127,7 @@ describe('POST /api/integrations/whatsapp/webhook — имя контакта', 
     );
     expect(res.status).toBe(200);
     expect(ingest).toHaveBeenCalledWith(
-      {},
+      expect.anything(),
       expect.objectContaining({
         channel: 'whatsapp',
         externalId: 'wa:W9',
@@ -172,7 +172,7 @@ describe('PATCH /api/enrollments/[id] — нечитаемое тело и от�
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ error: 'not_found' });
     expect(rejectEnrollment).toHaveBeenCalledWith(
-      {},
+      expect.anything(),
       expect.objectContaining({ id: 'missing', reviewerId: 'm1', reason: 'дубль' })
     );
   });

@@ -4,6 +4,7 @@ import React, { useActionState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFormAction, resolveErrorText, type ActionResult } from '@/lib/ui/useFormAction';
 import { ResetSettingButton } from './reset-setting-button';
+import { WebhookSecretControls } from './webhook-secret-controls';
 
 /**
  * Генерик-форма группы настроек интеграций на /admin/integrations
@@ -64,6 +65,14 @@ export type IntegrationCheckInfo = {
 /** Диагностика вебхука (SyncState `webhook.<name>`): подсказка регистрации + последнее входящее. */
 export type WebhookDiagInfo = {
   url: string;
+  /**
+   * Ключ провайдера для действий с секретом (`У-123`). Необязательный: у
+   * провайдера без генерируемого нами секрета (Mango — `apiSalt` выдаёт он
+   * сам) кнопок быть не должно.
+   */
+  provider?: string | undefined;
+  /** Есть ли у провайдера API регистрации вебхука. */
+  canRegister?: boolean | undefined;
   /** Имя секрет-заголовка; null — аутентификация не заголовком (например подпись Mango). */
   headerName: string | null;
   secretSet: boolean;
@@ -121,6 +130,13 @@ export function IntegrationCheckPanel({
           )}
           {webhook.note && <div>{webhook.note}</div>}
           <div>Последнее входящее: {webhook.lastEventAt ?? '—'}</div>
+          {/* `У-123`: секрет генерируется здесь, а не задаётся на сервере. */}
+          {webhook.provider && (
+            <WebhookSecretControls
+              provider={webhook.provider}
+              canRegister={webhook.canRegister ?? false}
+            />
+          )}
         </div>
       )}
 

@@ -99,8 +99,10 @@ describe('getIntegrationsHealth (У-70)', () => {
 
     expect(res.rows[0]).toMatchObject({ flag: 'max_channel', flagEditable: true });
     expect(res.rows[1]).toMatchObject({ flag: 'whatsapp_channel', flagEditable: true });
-    // Телефония читается в middleware — переключать её из интерфейса нельзя.
-    expect(res.rows[2]).toMatchObject({ flag: 'telephony_mango', flagEditable: false });
+    // `У-124`: телефония СНЯТА с edge-гейта и теперь переключается из
+    // интерфейса. Раньше здесь стояло `flagEditable: false` — переключатель
+    // был виден, но включить телефонию не мог (дефект `Д-38`).
+    expect(res.rows[2]).toMatchObject({ flag: 'telephony_mango', flagEditable: true });
     // У Telegram флага канала нет вовсе: он включается наличием токена.
     expect(res.rows[3]).toMatchObject({ flag: null, flagEnabled: false, flagEditable: false });
   });
