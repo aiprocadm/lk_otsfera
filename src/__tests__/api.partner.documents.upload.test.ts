@@ -90,12 +90,25 @@ describe('POST /api/partner/documents/upload', () => {
     expect(createPartnerDocumentMock).not.toHaveBeenCalled();
   });
 
-  it('returns 400 validation when orderId is missing', async () => {
+  it('пустой orderId — это общий документ партнёра, а не ошибка (У-115)', async () => {
+    // Раньше отвечали 400 «validation»: приложить договор было некуда.
+    // Теперь это ветка «документ без заказа» — как в кабинете заказчика.
+    createPartnerDocumentMock.mockResolvedValue({ ok: true, documentId: 'doc-9' });
     const res = await uploadPost(buildReq({ file: pdf() }) as never);
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(201);
+    expect(createPartnerDocumentMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ orderId: null })
+    );
+  });
+
+  it('общий документ без выводимой компании отвечает 409 и понятным кодом', async () => {
+    createPartnerDocumentMock.mockResolvedValue({ ok: false, error: 'company_required' });
+    const res = await uploadPost(buildReq({ file: pdf() }) as never);
+    expect(res.status).toBe(409);
     const body = (await res.json()) as { ok: boolean; error: string };
-    expect(body).toEqual({ ok: false, error: 'validation' });
-    expect(createPartnerDocumentMock).not.toHaveBeenCalled();
+    expect(body).toEqual({ ok: false, error: 'company_required' });
   });
 
   it('returns 400 when no file field is present', async () => {

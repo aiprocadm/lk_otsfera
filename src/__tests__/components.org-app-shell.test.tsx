@@ -57,7 +57,6 @@ describe('OrgAppShell', () => {
   it('renders the org sidebar via navItemsFor("organization"), header with org name + email, and children', () => {
     const html = renderToString(
       renderShell({
-        userEmail: 'org@example.com',
         activeOrgName: 'ООО Заря',
         memberships: MEMBERSHIPS,
         activeOrgId: 'org-A',
@@ -67,8 +66,9 @@ describe('OrgAppShell', () => {
     );
 
     expect(navItemsFor).toHaveBeenCalledWith('organization');
+    // `У-115`: подпись шапки — «<Кабинет> · <организация>», одна на все кабинеты.
+    expect(html).toContain('Кабинет заказчика');
     expect(html).toContain('ООО Заря');
-    expect(html).toContain('org@example.com');
     expect(html).toContain('дочерний контент');
     expect(html).toContain('Главная');
     expect(html).toContain('data-testid="org-sidebar"');
@@ -77,7 +77,6 @@ describe('OrgAppShell', () => {
   it('renders NotificationBell with role="organization" in the header', () => {
     const html = renderToString(
       renderShell({
-        userEmail: null,
         activeOrgName: 'ООО Заря',
         memberships: MEMBERSHIPS,
         activeOrgId: 'org-A',
@@ -100,7 +99,6 @@ describe('OrgAppShell', () => {
     try {
       const html = renderToString(
         renderShell({
-          userEmail: 'org@example.com',
           activeOrgName: 'ООО Заря',
           memberships: MEMBERSHIPS,
           activeOrgId: 'org-A',
@@ -116,24 +114,23 @@ describe('OrgAppShell', () => {
     }
   });
 
-  it('omits the email span when userEmail is null/undefined', () => {
+  it('без названия организации показывает только кабинет, без висящей точки', () => {
     const html = renderToString(
       renderShell({
-        userEmail: null,
-        activeOrgName: 'ООО Заря',
-        memberships: MEMBERSHIPS,
+        activeOrgName: '',
+        memberships: [],
         activeOrgId: 'org-A',
-        viewerRole: 'admin',
-        children: 'c',
+        viewerRole: 'member',
+        children: React.createElement('div', null, 'x'),
       })
     );
+    expect(html).toContain('Кабинет заказчика');
     expect(html).not.toContain('·');
   });
 
   it('палитра: одна организация — ссылки разделов остаются короткими (У-75)', () => {
     const html = renderToString(
       renderShell({
-        userEmail: null,
         activeOrgName: 'ООО Заря',
         memberships: MEMBERSHIPS,
         activeOrgId: 'org-A',
@@ -148,7 +145,6 @@ describe('OrgAppShell', () => {
   it('палитра: несколько организаций — ссылка несёт ?org=, иначе уведёт в чужую (У-75)', () => {
     const html = renderToString(
       renderShell({
-        userEmail: null,
         activeOrgName: 'ООО Заря',
         memberships: [
           ...MEMBERSHIPS,

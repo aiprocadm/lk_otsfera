@@ -296,13 +296,16 @@ describe('navByRole.partner — состав по ФТ-15.4', () => {
   it('порядок пунктов совпадает с ТЗ', () => {
     expect(navByRole.partner.map((i) => i.href)).toEqual([
       '/partner/dashboard',
-      '/partner/portfolio',
       '/partner/orders',
       '/partner/requests',
       '/partner/enrollments',
       '/partner/certificates',
       '/partner/documents',
       '/partner/finance',
+      // `У-115`: «Портфель» стоит там же, где у заказчика «Моя организация», —
+      // восьмым. Раньше он был вторым, и два зеркальных меню расходились с
+      // самого верха.
+      '/partner/portfolio',
       // У-60 (этап 4): '/partner/team' убран — «Команда» стала вкладкой настроек.
       '/partner/messages',
       '/partner/settings',

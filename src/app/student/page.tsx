@@ -34,7 +34,6 @@ export default async function StudentPage({
     const ctx = await getOrgPageContext(await searchParams);
     return (
       <OrgAppShell
-        userEmail={ctx.session.email}
         activeOrgName={ctx.activeOrgName}
         memberships={ctx.memberships}
         activeOrgId={ctx.activeOrgId}

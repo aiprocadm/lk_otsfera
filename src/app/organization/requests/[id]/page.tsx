@@ -29,7 +29,6 @@ export default async function OrganizationRequestDetailPage({
   const attachments = attachmentsResult.ok ? attachmentsResult.rows : [];
   return (
     <OrgAppShell
-      userEmail={ctx.session.email}
       activeOrgName={ctx.activeOrgName}
       memberships={ctx.memberships}
       activeOrgId={ctx.activeOrgId}

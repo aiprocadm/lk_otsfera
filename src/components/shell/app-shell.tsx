@@ -12,15 +12,16 @@ import React, { type ReactNode } from 'react';
  * навигация. Гарды и фильтрация прав остаются у вызывающего (CLAUDE.md §4) —
  * каркас ничего не решает про доступ.
  *
- * `theme='dark'` сохраняет тёмную шапку кабинета партнёра и слушателя
- * (решение заказчика 09.08.2026): меняется цвет шапки, а не устройство экрана.
+ * `У-115`: тёмной темы у каркаса больше **нет**. Она была ровно у одного
+ * кабинета (партнёр и слушатель), а ТЗ требует одинаковой шапки — поэтому
+ * проп убран целиком, а не переставлен: пока он существует, шапка может
+ * разъехаться обратно одной строкой.
  *
  * Этап 3 (`У-17`): отступ под нижнюю панель `pb-16 md:pb-0` живёт **здесь и
  * только здесь** — панель теперь во всех шести кабинетах, поэтому условие не
  * нужно, а дубли по страницам убраны.
  */
 export function AppShell(props: {
-  theme?: 'light' | 'dark';
   /** Готовый сайдбар: обычно `<Sidebar …/>`, у заказчика — своя обёртка с переключателем организаций. */
   sidebar: ReactNode;
   /** Бургер + нижняя панель + выдвижное меню (`<MobileNav …/>`), клиентский. */
@@ -35,25 +36,17 @@ export function AppShell(props: {
   palette?: ReactNode;
   children: ReactNode;
 }) {
-  const dark = props.theme === 'dark';
-
   return (
     <div className="flex min-h-screen bg-gray-50">
       {props.sidebar}
       <div className="flex-1 flex flex-col min-w-0">
         <header
-          className={
-            dark
-              ? 'bg-[#111111] text-white px-4 md:px-6 py-3 flex items-center justify-between'
-              : 'bg-white border-b border-gray-200 px-4 md:px-6 py-3 flex items-center justify-between'
-          }
-          data-theme={dark ? 'dark' : 'light'}
+          className="bg-white border-b border-gray-200 px-4 md:px-6 py-3 flex items-center justify-between"
+          data-theme="light"
         >
           <div className="flex items-center min-w-0">
             {props.mobileNav}
-            <div className={`text-sm truncate ${dark ? 'text-gray-200' : 'text-gray-700'}`}>
-              {props.headerLeft}
-            </div>
+            <div className="text-sm truncate text-gray-700">{props.headerLeft}</div>
           </div>
           <div className="flex items-center gap-2">
             {props.palette}

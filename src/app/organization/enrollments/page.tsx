@@ -21,7 +21,6 @@ export default async function OrganizationEnrollmentsPage() {
   ]);
   return (
     <OrgAppShell
-      userEmail={ctx.session.email}
       activeOrgName={ctx.activeOrgName}
       memberships={ctx.memberships}
       activeOrgId={ctx.activeOrgId}

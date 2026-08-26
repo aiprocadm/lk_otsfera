@@ -8,7 +8,7 @@ import { OrgDocumentsSearch } from '@/components/organization/org-documents-sear
 import { DocumentsList } from '@/components/partner/documents-list';
 import { listOrgDocuments } from '@/lib/services/organization/documents';
 import { viewedDocumentIds } from '@/lib/services/documents/viewMarks';
-import { OrganizationOrderLessUploadForm } from '@/components/organization/organization-order-less-upload-form';
+import { OrderLessUploadForm } from '@/components/documents/order-less-upload-form';
 import { Paginator } from '@/components/ui';
 import { pluralizeRu } from '@/lib/format';
 
@@ -91,7 +91,6 @@ export default async function OrganizationDocumentsPage({
 
   return (
     <OrgAppShell
-      userEmail={ctx.session.email}
       activeOrgName={ctx.activeOrgName}
       memberships={ctx.memberships}
       activeOrgId={ctx.activeOrgId}
@@ -145,7 +144,14 @@ export default async function OrganizationDocumentsPage({
           tab={tab}
         />
 
-        {tab === 'general' && <OrganizationOrderLessUploadForm organizationId={ctx.activeOrgId} />}
+        {tab === 'general' && (
+          <OrderLessUploadForm
+            url="/api/organization/documents/upload"
+            fields={{ organizationId: ctx.activeOrgId }}
+            // not_found здесь про организацию, а не про заказ (ветка без заказа).
+            errorMap={{ not_found: 'Организация не найдена.' }}
+          />
+        )}
 
         <DocumentsList
           rows={rows}

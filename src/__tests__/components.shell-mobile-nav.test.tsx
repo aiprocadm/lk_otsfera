@@ -132,9 +132,13 @@ describe('MobileNav', () => {
     );
   });
 
-  it('тёмная тема даёт светлый бургер на чёрной шапке', () => {
-    renderNav({ theme: 'dark' });
-    expect(screen.getByTestId('mobile-burger').className).toContain('text-white');
+  it('бургер тёмный на светлой шапке — тёмной темы больше нет (У-115)', () => {
+    // Тема была ровно у одного кабинета и разъезжалась с остальными пятью.
+    // Проп убран целиком: вернуть чёрную шапку одной строкой теперь нельзя.
+    renderNav();
+    const cls = screen.getByTestId('mobile-burger').className;
+    expect(cls).toContain('text-gray-700');
+    expect(cls).not.toContain('text-white');
   });
 
   it('без известного адреса панель всё равно рисуется, просто без подсветки', () => {

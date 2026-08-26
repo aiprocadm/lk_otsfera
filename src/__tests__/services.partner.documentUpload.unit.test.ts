@@ -7,9 +7,16 @@
  */
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 
-const { core, notify } = vi.hoisted(() => ({ core: vi.fn(), notify: vi.fn() }));
+const { core, notify, notifyOrderLess } = vi.hoisted(() => ({
+  core: vi.fn(),
+  notify: vi.fn(),
+  notifyOrderLess: vi.fn(),
+}));
 vi.mock('@/lib/services/documents/upload-core', () => ({ persistUploadedDocument: core }));
-vi.mock('@/lib/notifications', () => ({ notifyManagers: notify }));
+vi.mock('@/lib/notifications', () => ({
+  notifyManagers: notify,
+  notifyManagersPartnerOrderLess: notifyOrderLess,
+}));
 
 import { createPartnerDocument } from '@/lib/services/partner/documentUpload';
 import type { SessionPayload } from '@/lib/auth/jwt';
@@ -17,6 +24,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 const db = {
   order: { findUnique: vi.fn() },
   partner: { findUnique: vi.fn() },
+  organization: { findMany: vi.fn() },
 };
 const prisma = db as never;
 
@@ -153,5 +161,91 @@ describe('createPartnerDocument — happy path + graceful degradation', () => {
     expect(r).toEqual({ ok: true, documentId: 'doc3' });
     expect(warnSpy).toHaveBeenCalled();
     warnSpy.mockRestore();
+  });
+});
+
+/**
+ * `У-115`: общий документ партнёра — тот же канал, что у заказчика. Компания
+ * выводится из портфеля; вывести не из чего — честный отказ, а не молчаливый
+ * выбор одной из компаний.
+ */
+describe('createPartnerDocument — общий документ без заказа (У-115)', () => {
+  const generalArgs = () => ({ orderId: null, docType: 'contract', file: file() });
+
+  it('пишет документ на компанию портфеля и не трогает заказы', async () => {
+    db.organization.findMany.mockResolvedValue([{ companyId: 'c1' }, { companyId: 'c1' }]);
+    core.mockResolvedValue({ ok: true, documentId: 'd7' });
+    db.partner.findUnique.mockResolvedValue({ name: 'ООО Партнёр' });
+
+    const r = await createPartnerDocument(prisma, partnerSession, generalArgs());
+
+    expect(r).toEqual({ ok: true, documentId: 'd7' });
+    expect(db.order.findUnique).not.toHaveBeenCalled();
+    expect(core).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({
+        orderId: null,
+        companyId: 'c1',
+        counterparty: { type: 'partner', id: 'p1' },
+        direction: 'incoming',
+      })
+    );
+    expect(notifyOrderLess).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({ partnerId: 'p1', partnerName: 'ООО Партнёр' })
+    );
+  });
+
+  it('пустой портфель — company_required, ничего не пишем', async () => {
+    db.organization.findMany.mockResolvedValue([]);
+    const r = await createPartnerDocument(prisma, partnerSession, generalArgs());
+    expect(r).toEqual({ ok: false, error: 'company_required' });
+    expect(core).not.toHaveBeenCalled();
+  });
+
+  it('портфель по двум компаниям — company_required, а не молчаливый выбор', async () => {
+    db.organization.findMany.mockResolvedValue([{ companyId: 'c1' }, { companyId: 'c2' }]);
+    const r = await createPartnerDocument(prisma, partnerSession, generalArgs());
+    expect(r).toEqual({ ok: false, error: 'company_required' });
+    expect(core).not.toHaveBeenCalled();
+  });
+
+  it('организации без компании в расчёт не идут', async () => {
+    db.organization.findMany.mockResolvedValue([{ companyId: null }, { companyId: 'c9' }]);
+    core.mockResolvedValue({ ok: true, documentId: 'd8' });
+    db.partner.findUnique.mockResolvedValue({ name: 'P' });
+    const r = await createPartnerDocument(prisma, partnerSession, generalArgs());
+    expect(r).toEqual({ ok: true, documentId: 'd8' });
+    expect(core).toHaveBeenCalledWith(prisma, expect.objectContaining({ companyId: 'c9' }));
+  });
+
+  it('сбой хранилища возвращается как есть, рассылки не будет', async () => {
+    db.organization.findMany.mockResolvedValue([{ companyId: 'c1' }]);
+    core.mockResolvedValue({ ok: false, error: 'storage' });
+    const r = await createPartnerDocument(prisma, partnerSession, generalArgs());
+    expect(r).toEqual({ ok: false, error: 'storage' });
+    expect(notifyOrderLess).not.toHaveBeenCalled();
+  });
+
+  it('падение рассылки не откатывает загрузку (§3 degrade gracefully)', async () => {
+    db.organization.findMany.mockResolvedValue([{ companyId: 'c1' }]);
+    core.mockResolvedValue({ ok: true, documentId: 'd9' });
+    db.partner.findUnique.mockResolvedValue(null);
+    notifyOrderLess.mockRejectedValue(new Error('smtp down'));
+    const r = await createPartnerDocument(prisma, partnerSession, generalArgs());
+    expect(r).toEqual({ ok: true, documentId: 'd9' });
+    expect(notifyOrderLess).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({ partnerName: 'партнёр' })
+    );
+  });
+
+  it('строка-не-Error в рассылке тоже проглатывается', async () => {
+    db.organization.findMany.mockResolvedValue([{ companyId: 'c1' }]);
+    core.mockResolvedValue({ ok: true, documentId: 'd10' });
+    db.partner.findUnique.mockResolvedValue({ name: 'P' });
+    notifyOrderLess.mockRejectedValue('строка вместо ошибки');
+    const r = await createPartnerDocument(prisma, partnerSession, generalArgs());
+    expect(r).toEqual({ ok: true, documentId: 'd10' });
   });
 });

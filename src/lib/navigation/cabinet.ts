@@ -87,12 +87,6 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
     },
     { href: '/admin/finance', group: 'Финансы', sectionKey: 'finance' },
     {
-      href: '/admin/enrollments',
-      group: 'Клиенты',
-      sectionKey: 'enrollments',
-      flag: 'enrollment_requests',
-    },
-    {
       href: '/admin/requests',
       group: 'Продажи',
       sectionKey: 'requests',
@@ -152,6 +146,15 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       href: '/admin/organizations',
       group: 'Клиенты',
       sectionKey: 'organizations',
+    },
+    // `У-121`: «Заявки на обучение» идут ПОСЛЕ «Организаций» — как у менеджера
+    // и руководителя. Порядок внутри группы у админа был свой, и страж
+    // зеркальности это увидел.
+    {
+      href: '/admin/enrollments',
+      group: 'Клиенты',
+      sectionKey: 'enrollments',
+      flag: 'enrollment_requests',
     },
     {
       href: '/admin/training-directions',
@@ -432,7 +435,6 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
   // поле было необязательным. Теперь `iconKey` обязателен на уровне типа.
   partner: [
     { href: '/partner/dashboard', sectionKey: 'dashboard' },
-    { href: '/partner/portfolio', sectionKey: 'portfolio' },
     { href: '/partner/orders', sectionKey: 'orders' },
     // Было «Мои заявки» (решение §5-1 этапа 11 прошлой программы). У-8/У-76
     // требуют одного имени на объект во всех кабинетах, поэтому здесь и в
@@ -450,6 +452,11 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
     },
     { href: '/partner/documents', sectionKey: 'documents' },
     { href: '/partner/finance', sectionKey: 'finance' },
+    // `У-115`: «Портфель» стоит там же, где у заказчика «Моя организация» —
+    // восьмым пунктом. Это разные объекты (у партнёра список его клиентов, у
+    // заказчика — своя организация), поэтому расхождение записано в
+    // `mirrorExceptions.ts` с причиной; МЕСТО в меню при этом общее.
+    { href: '/partner/portfolio', sectionKey: 'portfolio' },
     // У-60 (этап 4): «Команда» уехала из главного меню на вкладку настроек —
     // это служебный раздел, ему не место рядом с «Заказами». Адрес
     // /partner/team остался редиректом.

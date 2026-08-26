@@ -360,6 +360,99 @@ export async function notifyManagersOrderLess(
   };
 }
 
+/**
+ * Получатели для документа партнёра **без заказа** (`У-115`).
+ *
+ * Заказа нет, значит `resolveManagerRecipients` (он весь построен вокруг
+ * заказа) неприменим — как и у заказчика. Целимся в менеджеров организаций
+ * этого партнёра: это ровно те люди, которые с ним работают. Партнёр без
+ * единой организации в портфеле не получит адресата — рассылка просто пустая,
+ * загрузка от этого не падает (§3, degrade gracefully).
+ */
+export async function resolvePartnerManagerRecipients(
+  db: PrismaClient,
+  partnerId: string,
+  opts?: NotifyManagersOptions
+): Promise<ManagerRecipient[]> {
+  const orgs = await db.organization.findMany({ where: { partnerId }, select: { id: true } });
+  if (orgs.length === 0) return [];
+  const assigned = await db.organizationManager.findMany({
+    where: { organizationId: { in: orgs.map((o) => o.id) }, isActive: true },
+    select: { userId: true },
+  });
+  const ids = new Set(assigned.map((a) => a.userId));
+  if (opts?.excludeUserId) ids.delete(opts.excludeUserId);
+  if (ids.size === 0) return [];
+  return db.user.findMany({
+    where: { id: { in: Array.from(ids) }, role: { in: ['manager', 'leader'] }, isActive: true },
+    select: CHANNEL_RECIPIENT_SELECT,
+  });
+}
+
+/**
+ * Документ партнёра без заказа → менеджерам (`У-115`). Зеркало
+ * `notifyManagersOrderLess`: та же форма письма, тот же «Общий документ»
+ * вместо номера заказа, та же вкладка «Общие» в адресе.
+ */
+export async function notifyManagersPartnerOrderLess(
+  db: PrismaClient,
+  input: { partnerId: string; partnerName: string; documentName: string; documentType: string },
+  opts?: NotifyManagersOptions
+): Promise<NotifyManagersSummary> {
+  const recipients = await resolvePartnerManagerRecipients(db, input.partnerId, opts);
+  if (recipients.length === 0) return { recipientsNotified: 0, emailsSent: 0, emailsSkipped: 0 };
+
+  const props = {
+    partnerName: input.partnerName,
+    orderNumber: 'Общий документ',
+    documentName: input.documentName,
+    documentType: input.documentType,
+    orderUrl: `${getAppBaseUrl()}/manager/documents?tab=general`,
+  };
+  const subject = managerDocumentUploadedByPartnerSubject(props);
+  const shortBody = managerDocumentUploadedByPartnerText(props);
+  const meta = { ...input, orderId: null } as Prisma.InputJsonValue;
+  const channelPayload: ChannelPayload = {
+    type: 'document_uploaded_by_partner',
+    title: subject,
+    body: shortBody,
+    url: props.orderUrl,
+    email: { template: 'managerDocumentUploadedByPartner', props },
+  };
+
+  let emailsSent = 0,
+    emailsSkipped = 0,
+    emailsQueued = 0,
+    recipientsNotified = 0;
+  for (const r of recipients) {
+    const row = await db.notification.create({
+      data: {
+        userId: r.id,
+        type: 'document_uploaded_by_partner',
+        title: subject,
+        body: shortBody,
+        meta,
+      },
+    });
+    recipientsNotified += 1;
+
+    const outcome = await dispatchToRecipient(r, channelPayload, { dedupKey: row.id });
+    if (outcome.mode === 'queued') {
+      if (outcome.channels.includes('email')) emailsQueued += 1;
+      else emailsSkipped += 1;
+      continue;
+    }
+    if (outcome.results.email?.status === 'sent') emailsSent += 1;
+    else emailsSkipped += 1;
+  }
+  return {
+    recipientsNotified,
+    emailsSent,
+    emailsSkipped,
+    ...(emailsQueued > 0 ? { emailsQueued } : {}),
+  };
+}
+
 function getManagerOrderUrl(orderId: string): string {
   return `${getAppBaseUrl()}/manager/orders/${orderId}`;
 }

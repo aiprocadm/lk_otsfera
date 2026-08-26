@@ -3,6 +3,7 @@
 import React, { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { CommissionStatementItem } from '@prisma/client';
+import { COMMISSION_STATUS_LABELS } from '@/lib/i18n/commissionStatus';
 import type { StatementListItem } from '@/lib/services/partner/finance';
 import { THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 import { CardList, Card, CardRow } from '@/components/ui/card-list';
@@ -13,13 +14,6 @@ import { useClientResource } from '@/hooks/useClientResource';
 type Props = {
   statements: StatementListItem[];
   canManage: boolean;
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  draft: 'Черновик',
-  approved: 'Утверждён',
-  paid: 'Выплачен',
-  superseded: 'Заменён',
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -126,7 +120,7 @@ function StatementRow({ stmt, canManage }: { stmt: StatementListItem; canManage:
             <span
               className={`px-2 py-0.5 text-xs font-medium rounded-full ${STATUS_COLORS[stmt.status] ?? 'bg-gray-100 text-gray-500'}`}
             >
-              {STATUS_LABELS[stmt.status] ?? stmt.status}
+              {COMMISSION_STATUS_LABELS[stmt.status] ?? stmt.status}
             </span>
           </div>
           <div className="text-sm text-gray-500 mt-0.5">

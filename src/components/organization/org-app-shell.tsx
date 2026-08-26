@@ -8,6 +8,7 @@ import { AppShell } from '@/components/shell/app-shell';
 import { MobileNav } from '@/components/shell/mobile-nav';
 import { mobileTabsFor } from '@/lib/navigation/mobileTabs';
 import { CommandPalette } from '@/components/shell/command-palette';
+import { CabinetHeaderTitle } from '@/components/shell/cabinet-header-title';
 import { OrgSidebar, type OrgSidebarMembership } from './org-sidebar';
 
 /**
@@ -20,7 +21,6 @@ import { OrgSidebar, type OrgSidebarMembership } from './org-sidebar';
  * оборачивает себя сама**.
  */
 export function OrgAppShell(props: {
-  userEmail?: string | null | undefined;
   activeOrgName: string;
   memberships: OrgSidebarMembership[];
   activeOrgId: string;
@@ -60,12 +60,7 @@ export function OrgAppShell(props: {
           }
         />
       }
-      headerLeft={
-        <>
-          <span className="font-medium text-[#111111]">{props.activeOrgName}</span>
-          {props.userEmail ? <span className="ml-3 text-gray-500">· {props.userEmail}</span> : null}
-        </>
-      }
+      headerLeft={<CabinetHeaderTitle role="organization" subject={props.activeOrgName} />}
       palette={<CommandPalette sections={paletteSections} />}
       headerRight={
         <>

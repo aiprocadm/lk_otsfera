@@ -68,7 +68,6 @@ export default async function OrganizationCertificatesPage({
 
   return (
     <OrgAppShell
-      userEmail={ctx.session.email}
       activeOrgName={ctx.activeOrgName}
       memberships={ctx.memberships}
       activeOrgId={ctx.activeOrgId}

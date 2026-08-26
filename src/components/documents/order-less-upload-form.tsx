@@ -6,11 +6,20 @@ import { toast } from '@/lib/ui/toast';
 import { useFetchSubmit } from '@/lib/ui/useFetchSubmit';
 
 /**
- * Order-less upload form of the organization documents page (a general
- * document pinned to the organization, no orderId sent → order-less branch).
- * POSTs to /api/organization/documents/upload — an API route, not a server
- * action: server actions share the global 25 MB bodySizeLimit and silently
- * dropped bigger files while the hint below promises DOCUMENT_MAX_FILE_SIZE_MB.
+ * «Загрузить общий документ» — один компонент на кабинеты заказчика и партнёра
+ * (`У-115`, решение `Р-23`).
+ *
+ * Форма была только у заказчика: партнёр мог приложить файл лишь к конкретному
+ * заказу, а общий документ (договор, свидетельство) приложить было некуда.
+ * Раздел один и тот же, значит и экран должен быть один — §0.2 «правило
+ * зеркала».
+ *
+ * Компонент строго презентационный: адрес роута, скрытые поля и словарь ошибок
+ * приходят пропсами, а права и скоуп остаются в сервисе своей роли (§4).
+ *
+ * Роут, а не server action: у server actions общий предел тела 25 МБ, и файл
+ * больше него отбрасывался ДО входа в действие — форма молчала, хотя подсказка
+ * обещает {DEFAULT_MAX_FILE_SIZE_MB} МБ.
  */
 
 const DOC_TYPES: Array<{ value: string; label: string }> = [
@@ -20,19 +29,25 @@ const DOC_TYPES: Array<{ value: string; label: string }> = [
   { value: 'other', label: 'Прочее' },
 ];
 
-// not_found здесь означает «организация не найдена», а не «заказ» (order-less ветка).
-const ERROR_MAP: Record<string, string> = {
-  not_found: 'Организация не найдена.',
-};
-
-export function OrganizationOrderLessUploadForm({ organizationId }: { organizationId: string }) {
+export function OrderLessUploadForm({
+  url,
+  fields,
+  errorMap,
+}: {
+  /** Адрес API-роута своей роли. */
+  url: string;
+  /** Скрытые поля, которые роут ждёт помимо файла и типа (например `organizationId`). */
+  fields?: Record<string, string>;
+  /** Коды ошибок → русские строки, специфичные для роли. */
+  errorMap?: Record<string, string>;
+}) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [docType, setDocType] = useState('other');
   const [localError, setLocalError] = useState<string | null>(null);
   const lastFileNameRef = useRef<string>('');
 
   const { formAction, pending, errorText } = useFetchSubmit<{ documentId: string }>({
-    url: '/api/organization/documents/upload',
+    url,
     body: () => {
       const formData = new FormData();
       const file = fileInputRef.current?.files?.[0];
@@ -40,12 +55,12 @@ export function OrganizationOrderLessUploadForm({ organizationId }: { organizati
         formData.set('file', file);
         lastFileNameRef.current = file.name;
       }
-      formData.set('organizationId', organizationId);
-      // no orderId → order-less branch
+      for (const [k, v] of Object.entries(fields ?? {})) formData.set(k, v);
+      // orderId не отправляется — это и есть ветка «документ без заказа».
       formData.set('docType', docType);
       return formData;
     },
-    errorMap: ERROR_MAP,
+    ...(errorMap ? { errorMap } : {}),
     refresh: true,
     onSuccess: () => {
       toast.success(`Документ «${lastFileNameRef.current}» загружен.`);
@@ -53,8 +68,8 @@ export function OrganizationOrderLessUploadForm({ organizationId }: { organizati
     },
   });
 
-  // Pre-submit guards: an empty picker or an over-limit file should not POST —
-  // surface the inline message instead of shipping hundreds of megabytes.
+  // Проверки до отправки: пустой выбор или файл сверх предела не должны уходить
+  // на сервер — человек видит строку сразу, а не после сотен мегабайт.
   function guardedAction(formData: FormData) {
     const file = fileInputRef.current?.files?.[0];
     if (!file) {

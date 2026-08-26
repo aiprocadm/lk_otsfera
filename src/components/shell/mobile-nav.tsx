@@ -39,8 +39,6 @@ export function MobileNav(props: {
    * границу сервер→клиент не проходят.
    */
   tabQuery?: string;
-  /** Тёмная шапка партнёра и слушателя: бургер должен быть виден на чёрном. */
-  theme?: 'light' | 'dark';
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname() ?? '';
@@ -56,11 +54,7 @@ export function MobileNav(props: {
         aria-label="Открыть меню"
         aria-expanded={open}
         data-testid="mobile-burger"
-        className={`md:hidden mr-2 h-9 w-9 rounded-lg text-xl leading-none ${
-          props.theme === 'dark'
-            ? 'text-white hover:bg-white/10'
-            : 'text-gray-700 hover:bg-gray-100'
-        }`}
+        className="md:hidden mr-2 h-9 w-9 rounded-lg text-xl leading-none text-gray-700 hover:bg-gray-100"
       >
         ☰
       </button>

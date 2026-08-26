@@ -24,10 +24,16 @@ const FIELDS = z.object({
  * validation, object-storage upload, persistence, ClamAV scan enqueue, audit
  * log and manager notification.
  *
+ * `У-115`: пустой `orderId` больше не ошибка, а **общий документ партнёра** —
+ * ровно как в кабинете заказчика. Компанию сервис выводит из портфеля; когда
+ * вывести нельзя, отвечает `company_required` (409), и человек видит русскую
+ * строку с выходом, а не молчаливый отказ.
+ *
  * Status codes:
  *   201 — upload succeeded; body: { ok: true, documentId }
- *   400 — non-multipart body / no `file` field / empty `orderId`
+ *   400 — non-multipart body / no `file` field
  *   403 — order is outside the partner's portfolio scope
+ *   409 — общий документ, но компанию продавца вывести не из чего
  *   404 — order does not exist
  *   413 — file exceeds the configured max size (200 MB default)
  *   415 — MIME type not in the allow-list
@@ -42,9 +48,6 @@ export async function POST(req: NextRequest) {
     return Response.json({ ok: false, error: 'no_file' }, { status: 400 });
   }
   const { orderId, docType } = formFields(form, FIELDS);
-  if (orderId === '') {
-    return Response.json({ ok: false, error: 'validation' }, { status: 400 });
-  }
 
   const file = await readFile(form, 'file');
   if (file === null) {
@@ -52,7 +55,8 @@ export async function POST(req: NextRequest) {
   }
 
   const result = await createPartnerDocument(prisma, session, {
-    orderId,
+    // Пусто → общий документ партнёра (ветка без заказа, `У-115`).
+    orderId: orderId === '' ? null : orderId,
     docType,
     file: {
       name: file.name,
@@ -66,13 +70,15 @@ export async function POST(req: NextRequest) {
     const status =
       result.error === 'forbidden'
         ? 403
-        : result.error === 'not_found'
-          ? 404
-          : result.error === 'too_large'
-            ? 413
-            : result.error === 'invalid_mime'
-              ? 415
-              : 500;
+        : result.error === 'company_required'
+          ? 409
+          : result.error === 'not_found'
+            ? 404
+            : result.error === 'too_large'
+              ? 413
+              : result.error === 'invalid_mime'
+                ? 415
+                : 500;
     return Response.json({ ok: false, error: result.error }, { status });
   }
 
