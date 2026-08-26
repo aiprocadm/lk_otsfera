@@ -75,7 +75,9 @@ describe('StudentPage', () => {
     expect(getOrgPageContext).toHaveBeenCalledWith({ org: 'org-1' });
     expect(container.querySelector('[data-testid="org-app-shell"]')).toBeTruthy();
     expect(container.textContent).toContain('ООО Ромашка');
-    expect(container.textContent).toContain('org@example.com');
+    // `У-115`: подпись шапки — «<Кабинет> · <организация>»; почта из неё ушла,
+    // потому что кабинет важнее адреса почты (одна строка на все кабинеты).
+    expect(container.textContent).not.toContain('org@example.com');
     expect(container.textContent).toContain('Кабинет слушателя');
   });
 

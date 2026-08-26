@@ -65,7 +65,7 @@ describe('AppShell', () => {
     expect(redirect).toHaveBeenCalledWith('/login');
   });
 
-  it('renders role label from the known map, name, and children', async () => {
+  it('шапка называет кабинет и того, кто в нём (У-115)', async () => {
     getSession.mockResolvedValue({
       sub: 'u1',
       role: 'admin',
@@ -79,7 +79,8 @@ describe('AppShell', () => {
     const el = await AppShell({ children: React.createElement('p', null, 'дочерний контент') });
     const html = renderToString(el);
 
-    expect(html).toContain('Администратор');
+    // `У-115`: подпись одна на все шесть кабинетов — «<Кабинет> · <кто>».
+    expect(html).toContain('Кабинет администратора');
     expect(html).toContain('Иван Иванов');
     expect(html).toContain('дочерний контент');
     expect(html).toContain('Главная');
@@ -110,14 +111,15 @@ describe('AppShell', () => {
     expect(html).not.toContain('href="/manager/team"');
   });
 
-  it('partner session renders NotificationBell with role="partner" and dark-header hover variant', async () => {
+  it('партнёру рисуется колокольчик — и уже без тёмной подложки (У-115)', async () => {
     getSession.mockResolvedValue({ sub: 'u5', role: 'partner', name: 'P', partnerRole: null });
 
     const el = await AppShell({ children: 'c' });
     const html = renderToString(el);
 
     expect(html).toContain('data-role="partner"');
-    expect(html).toContain('data-button-class="hover:bg-white/10"');
+    // Подложка под чёрную шапку уехала вместе с самой чёрной шапкой.
+    expect(html).not.toContain('hover:bg-white/10');
   });
 
   it('«Задать вопрос» показывается партнёру только при включённом флаге', async () => {

@@ -18,7 +18,6 @@ export default async function OrganizationRequestsPage() {
   const { rows } = await listClientRequests(prisma, ctx.session, {});
   return (
     <OrgAppShell
-      userEmail={ctx.session.email}
       activeOrgName={ctx.activeOrgName}
       memberships={ctx.memberships}
       activeOrgId={ctx.activeOrgId}

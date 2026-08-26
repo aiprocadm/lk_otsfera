@@ -7,6 +7,7 @@ import { StatCard } from '@/components/dashboard/stat-card';
 import { CommissionStatementsList } from '@/components/partner/commission-statements-list';
 import { ManualCalcForm } from '@/components/partner/manual-calc-form';
 import { fmtMoney } from '@/lib/format';
+import { ExportLink } from '@/components/ui/export-link';
 
 import { PageHeader } from '@/components/ui/page-header';
 export default async function FinancePage() {
@@ -26,7 +27,12 @@ export default async function FinancePage() {
         <div>
           <PageHeader title="Финансы" subtitle="Комиссионные отчёты и выплаты" />
         </div>
-        {canManage && <ManualCalcForm />}
+        <div className="flex items-center gap-2">
+          {/* `У-115`: выгрузка в Excel есть и у заказчика, и у партнёра —
+              содержание разное (платежи против комиссии), кнопка одна. */}
+          <ExportLink base="/api/partner/finance/export" />
+          {canManage && <ManualCalcForm />}
+        </div>
       </div>
 
       <div className="grid gap-3 grid-cols-2 md:grid-cols-3">

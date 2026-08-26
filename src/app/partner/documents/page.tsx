@@ -11,6 +11,7 @@ import { Paginator } from '@/components/ui';
 import { pluralizeRu } from '@/lib/format';
 
 import { PageHeader } from '@/components/ui/page-header';
+import { OrderLessUploadForm } from '@/components/documents/order-less-upload-form';
 const VALID_TYPES: DocumentType[] = [
   'contract',
   'extra_agreement',
@@ -126,6 +127,16 @@ export default async function PartnerDocumentsPage({
         search={sp.search}
         tab={tab}
       />
+
+      {tab === 'general' && (
+        <OrderLessUploadForm
+          url="/api/partner/documents/upload"
+          errorMap={{
+            company_required:
+              'Общий документ пока приложить некуда: в вашем портфеле нет организаций одной компании. Приложите файл к конкретному заказу.',
+          }}
+        />
+      )}
 
       <DocumentsList
         rows={rows}

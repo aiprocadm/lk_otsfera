@@ -10,7 +10,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 const { toastSuccess } = vi.hoisted(() => ({ toastSuccess: vi.fn() }));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess } }));
 
-import { OrganizationOrderLessUploadForm } from '@/components/organization/organization-order-less-upload-form';
+import { OrderLessUploadForm } from '@/components/documents/order-less-upload-form';
 import { DEFAULT_MAX_FILE_SIZE_MB } from '@/lib/config/upload';
 
 function makeFile(name: string): File {
@@ -43,10 +43,14 @@ function pickOversizedFile(input: HTMLInputElement, name: string, sizeBytes: num
   fireEvent.change(input);
 }
 
-describe('OrganizationOrderLessUploadForm (SSR structure)', () => {
+describe('OrderLessUploadForm (SSR structure)', () => {
   it('renders the heading, submit button and the config-driven size hint', () => {
     const html = renderToString(
-      React.createElement(OrganizationOrderLessUploadForm, { organizationId: 'org1' })
+      React.createElement(OrderLessUploadForm, {
+        url: '/api/organization/documents/upload',
+        fields: { organizationId: 'org1' },
+        errorMap: { not_found: 'Организация не найдена.' },
+      })
     );
     expect(html).toContain('type="file"');
     expect(html).toContain('Загрузить общий документ');
@@ -56,7 +60,7 @@ describe('OrganizationOrderLessUploadForm (SSR structure)', () => {
   });
 });
 
-describe('OrganizationOrderLessUploadForm (interactive, jsdom)', () => {
+describe('OrderLessUploadForm (interactive, jsdom)', () => {
   beforeEach(() => {
     refresh.mockClear();
     toastSuccess.mockClear();
@@ -64,7 +68,13 @@ describe('OrganizationOrderLessUploadForm (interactive, jsdom)', () => {
   });
 
   it('changing the doc-type select updates the selected value', () => {
-    render(React.createElement(OrganizationOrderLessUploadForm, { organizationId: 'org1' }));
+    render(
+      React.createElement(OrderLessUploadForm, {
+        url: '/api/organization/documents/upload',
+        fields: { organizationId: 'org1' },
+        errorMap: { not_found: 'Организация не найдена.' },
+      })
+    );
     const select = screen.getByRole('combobox') as HTMLSelectElement;
     expect(select.value).toBe('other');
     fireEvent.change(select, { target: { value: 'report' } });
@@ -75,7 +85,13 @@ describe('OrganizationOrderLessUploadForm (interactive, jsdom)', () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
 
-    render(React.createElement(OrganizationOrderLessUploadForm, { organizationId: 'org1' }));
+    render(
+      React.createElement(OrderLessUploadForm, {
+        url: '/api/organization/documents/upload',
+        fields: { organizationId: 'org1' },
+        errorMap: { not_found: 'Организация не найдена.' },
+      })
+    );
     fireEvent.click(screen.getByText('Загрузить'));
 
     await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
@@ -88,7 +104,13 @@ describe('OrganizationOrderLessUploadForm (interactive, jsdom)', () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
 
-    render(React.createElement(OrganizationOrderLessUploadForm, { organizationId: 'org1' }));
+    render(
+      React.createElement(OrderLessUploadForm, {
+        url: '/api/organization/documents/upload',
+        fields: { organizationId: 'org1' },
+        errorMap: { not_found: 'Организация не найдена.' },
+      })
+    );
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     pickOversizedFile(fileInput, 'huge.pdf', (DEFAULT_MAX_FILE_SIZE_MB + 1) * 1024 * 1024);
     fireEvent.click(screen.getByText('Загрузить'));
@@ -105,7 +127,13 @@ describe('OrganizationOrderLessUploadForm (interactive, jsdom)', () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
     vi.stubGlobal('fetch', fetchMock);
 
-    render(React.createElement(OrganizationOrderLessUploadForm, { organizationId: 'org1' }));
+    render(
+      React.createElement(OrderLessUploadForm, {
+        url: '/api/organization/documents/upload',
+        fields: { organizationId: 'org1' },
+        errorMap: { not_found: 'Организация не найдена.' },
+      })
+    );
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     pickFile(fileInput, makeFile('report.pdf'));
 
@@ -134,7 +162,13 @@ describe('OrganizationOrderLessUploadForm (interactive, jsdom)', () => {
       .mockResolvedValue({ ok: false, status: 404, json: async () => ({ error: 'not_found' }) });
     vi.stubGlobal('fetch', fetchMock);
 
-    render(React.createElement(OrganizationOrderLessUploadForm, { organizationId: 'org1' }));
+    render(
+      React.createElement(OrderLessUploadForm, {
+        url: '/api/organization/documents/upload',
+        fields: { organizationId: 'org1' },
+        errorMap: { not_found: 'Организация не найдена.' },
+      })
+    );
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     pickFile(fileInput, makeFile('doc.pdf'));
     fireEvent.click(screen.getByText('Загрузить'));
@@ -149,7 +183,13 @@ describe('OrganizationOrderLessUploadForm (interactive, jsdom)', () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
     vi.stubGlobal('fetch', fetchMock);
 
-    render(React.createElement(OrganizationOrderLessUploadForm, { organizationId: 'org1' }));
+    render(
+      React.createElement(OrderLessUploadForm, {
+        url: '/api/organization/documents/upload',
+        fields: { organizationId: 'org1' },
+        errorMap: { not_found: 'Организация не найдена.' },
+      })
+    );
     fireEvent.click(screen.getByText('Загрузить'));
     await waitFor(() => expect(screen.getByText('Файл не выбран.')).toBeTruthy());
 

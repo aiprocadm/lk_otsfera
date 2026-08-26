@@ -37,10 +37,14 @@ describe('AppShell (общий каркас)', () => {
     expect(html).toContain('bg-white border-b border-gray-200');
   });
 
-  it('theme=dark даёт тёмную шапку кабинета партнёра и слушателя', () => {
-    const html = render({ theme: 'dark' });
-    expect(html).toContain('data-theme="dark"');
-    expect(html).toContain('bg-[#111111]');
+  it('тёмной темы у каркаса больше нет — шапка одна на все кабинеты (У-115)', () => {
+    // Тёмной была ровно одна шапка (партнёр и слушатель), и она расходилась с
+    // остальными пятью. Проп убран целиком, а не переставлен: пока он жив,
+    // шапка возвращается в тёмное одной строкой.
+    const html = render();
+    expect(html).toContain('data-theme="light"');
+    expect(html).not.toContain('data-theme="dark"');
+    expect(html).not.toContain('bg-[#111111]');
   });
 
   // У-17 (этап 3): отступ под нижнюю панель — в шелле и только здесь. Панель

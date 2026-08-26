@@ -12,6 +12,7 @@ import { Sidebar } from '@/components/shell/sidebar';
 import { MobileNav } from '@/components/shell/mobile-nav';
 import { mobileTabsFor } from '@/lib/navigation/mobileTabs';
 import { CommandPalette } from '@/components/shell/command-palette';
+import { CabinetHeaderTitle } from '@/components/shell/cabinet-header-title';
 
 /**
  * Кабинеты партнёра и слушателя (`/partner/*` и shared-entry `/student`).
@@ -21,17 +22,14 @@ import { CommandPalette } from '@/components/shell/command-palette';
  * которые жили только здесь: серая точка вместо значка, ширина `w-56` вместо
  * `w-60` и отсутствие подсветки активного пункта.
  *
- * Тёмная шапка сохранена (решение заказчика 09.08.2026) — `theme='dark'`.
+ * `У-115`: шапка стала **светлой**, как у остальных пяти кабинетов. Тёмная
+ * была решением заказчика от 09.08.2026, но действующее ТЗ требует одинаковой
+ * шапки у заказчика и партнёра, а тёмной оставался только этот каркас — то
+ * есть выравнивать нужно было именно его (`CLAUDE.md` §14: при конфликте
+ * исторического решения и действующего ТЗ побеждает ТЗ). Кабинет слушателя
+ * делит этот же каркас и светлеет вместе с ним — это и требовалось: он был
+ * единственным тёмным экраном во всей системе.
  */
-const roleLabel: Record<string, string> = {
-  admin: 'Администратор',
-  manager: 'Менеджер',
-  leader: 'Руководитель',
-  partner: 'Партнёр',
-  organization: 'Организация',
-  student: 'Студент',
-};
-
 const cabinetTitle: Record<string, string> = {
   partner: 'Партнёр',
   student: 'Слушатель',
@@ -45,23 +43,21 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <CabinetShell
-      theme="dark"
       sidebar={
         <Sidebar
           items={items}
-          title={cabinetTitle[session.role] ?? roleLabel[session.role] ?? session.role}
+          title={cabinetTitle[session.role] ?? session.role}
           subtitle="Промтехносфера"
           testIdPrefix={session.role}
         />
       }
       mobileNav={
         <MobileNav
-          theme="dark"
           tabs={mobileTabsFor(session.role, items)}
           panel={
             <Sidebar
               items={items}
-              title={cabinetTitle[session.role] ?? roleLabel[session.role] ?? session.role}
+              title={cabinetTitle[session.role] ?? session.role}
               subtitle="Промтехносфера"
               testIdPrefix={session.role}
               variant="panel"
@@ -69,25 +65,18 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           }
         />
       }
-      headerLeft={
-        <>
-          <span className="font-medium text-white">{roleLabel[session.role] ?? session.role}</span>
-          {session.name ? <span className="ml-3 text-gray-400">· {session.name}</span> : null}
-        </>
-      }
+      headerLeft={<CabinetHeaderTitle role={session.role} subject={session.name ?? null} />}
       palette={<CommandPalette sections={items} />}
       headerRight={
         <>
           {/* У слушателя нет notifications-скоупа (NotificationRole) —
-              колокольчик только партнёру. Тёмная шапка → нейтральная подложка. */}
-          {session.role === 'partner' ? (
-            <NotificationBell role="partner" buttonClassName="hover:bg-white/10" />
-          ) : null}
+              колокольчик только партнёру. */}
+          {session.role === 'partner' ? <NotificationBell role="partner" /> : null}
           {/* Этап 9 (ФТ-11.1): «Задать вопрос» — только клиентским ролям кабинета. */}
           {session.role === 'partner' && isFeatureEnabled('cabinet_questions') ? (
             <AskQuestionButton />
           ) : null}
-          <LogoutButton className="text-xs text-gray-400 hover:text-[#F97316] transition-colors px-2 py-1 border border-gray-700 rounded hover:border-[#F97316] disabled:opacity-60" />
+          <LogoutButton />
         </>
       }
     >

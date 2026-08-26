@@ -45,13 +45,14 @@ describe('подсказки о размере файла берут цифру 
     expect(offenders, 'цифра предела снова захардкожена в подсказке').toEqual([]);
   });
 
-  it('все пять документных форм загрузки показывают предел из DEFAULT_MAX_FILE_SIZE_MB', () => {
+  it('все документные формы загрузки показывают предел из DEFAULT_MAX_FILE_SIZE_MB', () => {
     for (const rel of [
       join('components', 'partner', 'partner-document-upload-form.tsx'),
       join('components', 'manager', 'manager-doc-upload-form.tsx'),
       join('components', 'manager', 'manager-order-less-upload-form.tsx'),
       join('components', 'organization', 'organization-document-upload-form.tsx'),
-      join('components', 'organization', 'organization-order-less-upload-form.tsx'),
+      // `У-115`: форма «общего документа» стала общей для заказчика и партнёра.
+      join('components', 'documents', 'order-less-upload-form.tsx'),
     ]) {
       const src = readFileSync(join(SRC, rel), 'utf8');
       expect(src, `${rel}: подсказка должна использовать DEFAULT_MAX_FILE_SIZE_MB`).toContain(

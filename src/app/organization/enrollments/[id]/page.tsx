@@ -27,7 +27,6 @@ export default async function OrganizationEnrollmentDetailPage({
   if (!r.ok) notFound();
   return (
     <OrgAppShell
-      userEmail={ctx.session.email}
       activeOrgName={ctx.activeOrgName}
       memberships={ctx.memberships}
       activeOrgId={ctx.activeOrgId}
