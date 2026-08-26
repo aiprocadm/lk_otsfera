@@ -134,6 +134,8 @@ describe('visibleSettingsSections / hasAnySettingsAccess', () => {
       // Этап 7 ТЗ импорта (Т-27): «Обмен с 1С» появился и в хабе руководителя.
       'integrations.oneC',
       'catalogs.applicationStatuses',
+      // `У-127`: правила уведомлений — руководитель настраивает свою компанию.
+      'catalogs.notificationRules',
       'catalogs.customFields',
       'access.roles',
     ]);

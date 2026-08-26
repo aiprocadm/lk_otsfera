@@ -6,6 +6,7 @@ import {
   type ChannelPayload,
   type EmailContentRef,
 } from './channels/types';
+import { allowedChannels } from './routing';
 import { getAppBaseUrl, orderLabel } from './shared';
 
 type OrgNotifyInput =
@@ -332,6 +333,8 @@ export async function notifyOrgUsers(
     select: {
       id: true,
       name: true,
+      // `У-127`: правила уведомлений бывают компанийскими — нужна компания.
+      companyId: true,
       organizationUsers: {
         where: { isActive: true, user: { isActive: true } },
         select: {
@@ -358,6 +361,14 @@ export async function notifyOrgUsers(
     email: buildOrgEmailRef(input, org.name, orderUrl),
   };
 
+  // `У-127`: правила читаются с учётом компании-продавца — руководитель
+  // настраивает доставку своим клиентам, не задевая чужие.
+  const routed = await allowedChannels(db, {
+    eventType: input.type,
+    audience: 'organization',
+    companyId: org.companyId,
+  });
+
   let emailsSent = 0;
   let emailsSkipped = 0;
   let emailsQueued = 0;
@@ -378,7 +389,10 @@ export async function notifyOrgUsers(
 
     // Best-effort: канальный слой изолирует ошибки per-channel — сбой одного
     // получателя/канала не прерывает fan-out (in-app строки — источник истины).
-    const outcome = await dispatchToRecipient(member.user, channelPayload, { dedupKey: row.id });
+    const outcome = await dispatchToRecipient(member.user, channelPayload, {
+      dedupKey: row.id,
+      ...(routed ? { channels: routed } : {}),
+    });
     if (outcome.mode === 'queued') {
       if (outcome.channels.includes('email')) emailsQueued += 1;
       else emailsSkipped += 1;

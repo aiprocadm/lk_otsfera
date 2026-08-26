@@ -7,6 +7,7 @@ import {
   type EmailContentRef,
 } from './channels/types';
 import { getAppBaseUrl, orderLabel } from './shared';
+import { allowedChannels } from './routing';
 
 /**
  * Fan-out to all active users of a partner (in-app + каналы через единый
@@ -141,6 +142,9 @@ export async function notifyPartnerUsers(
     email: view.email,
   };
 
+  // `У-127`: маршрутизация — один запрос на рассылку, а не на получателя.
+  const routed = await allowedChannels(db, { eventType: input.type, audience: 'partner' });
+
   let emailsSent = 0;
   let emailsSkipped = 0;
   let emailsQueued = 0;
@@ -160,7 +164,10 @@ export async function notifyPartnerUsers(
     });
     recipientsNotified += 1;
 
-    const outcome = await dispatchToRecipient(u, channelPayload, { dedupKey: row.id });
+    const outcome = await dispatchToRecipient(u, channelPayload, {
+      dedupKey: row.id,
+      ...(routed ? { channels: routed } : {}),
+    });
     if (outcome.mode === 'queued') {
       if (outcome.channels.includes('email')) emailsQueued += 1;
       else emailsSkipped += 1;

@@ -28,6 +28,8 @@ export const AUDIT_ENTITIES = [
   'sync_schedule',
   // `У-126`: настройки ops-оповещений.
   'alert_settings',
+  // `У-127`: правило маршрутизации уведомлений.
+  'notification_rule',
   'job_queue',
   'payment',
   'feature_flag',
@@ -210,6 +212,9 @@ export const AUDIT_ACTIONS = [
   // `У-126`: пороги и канал ops-оповещений.
   'alert_settings_changed',
   'alert_test_sent',
+  // `У-127`: правила маршрутизации уведомлений.
+  'notification_rule_changed',
+  'notification_rules_reset',
   'sync_triggered',
   'task_assigned',
   'task_column_created',

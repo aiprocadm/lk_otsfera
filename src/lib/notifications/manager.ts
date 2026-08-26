@@ -20,6 +20,7 @@ import {
   type EmailContentRef,
 } from './channels/types';
 import { getAppBaseUrl, orderLabel } from './shared';
+import { allowedChannels } from './routing';
 
 type NotifyManagersType =
   | 'comment_from_org'
@@ -327,6 +328,11 @@ export async function notifyManagersOrderLess(
     email: { template: 'managerDocumentUploadedByOrg', props },
   };
 
+  // `У-127`: маршрутизация — один запрос на рассылку, а не на получателя.
+  const routed = await allowedChannels(db, {
+    eventType: channelPayload.type,
+    audience: 'manager',
+  });
   let emailsSent = 0,
     emailsSkipped = 0,
     emailsQueued = 0,
@@ -343,7 +349,10 @@ export async function notifyManagersOrderLess(
     });
     recipientsNotified += 1;
 
-    const outcome = await dispatchToRecipient(r, channelPayload, { dedupKey: row.id });
+    const outcome = await dispatchToRecipient(r, channelPayload, {
+      dedupKey: row.id,
+      ...(routed ? { channels: routed } : {}),
+    });
     if (outcome.mode === 'queued') {
       if (outcome.channels.includes('email')) emailsQueued += 1;
       else emailsSkipped += 1;
@@ -420,6 +429,11 @@ export async function notifyManagersPartnerOrderLess(
     email: { template: 'managerDocumentUploadedByPartner', props },
   };
 
+  // `У-127`: маршрутизация — один запрос на рассылку, а не на получателя.
+  const routed = await allowedChannels(db, {
+    eventType: channelPayload.type,
+    audience: 'manager',
+  });
   let emailsSent = 0,
     emailsSkipped = 0,
     emailsQueued = 0,
@@ -436,7 +450,10 @@ export async function notifyManagersPartnerOrderLess(
     });
     recipientsNotified += 1;
 
-    const outcome = await dispatchToRecipient(r, channelPayload, { dedupKey: row.id });
+    const outcome = await dispatchToRecipient(r, channelPayload, {
+      dedupKey: row.id,
+      ...(routed ? { channels: routed } : {}),
+    });
     if (outcome.mode === 'queued') {
       if (outcome.channels.includes('email')) emailsQueued += 1;
       else emailsSkipped += 1;
@@ -517,6 +534,9 @@ export async function notifyManagers(
     email,
   };
 
+  // `У-127`: маршрутизация — один запрос на рассылку, а не на получателя.
+  const routed = await allowedChannels(db, { eventType: input.type, audience: 'manager' });
+
   let emailsSent = 0;
   let emailsSkipped = 0;
   let emailsQueued = 0;
@@ -536,7 +556,10 @@ export async function notifyManagers(
 
     // Best-effort: канальный слой изолирует ошибки per-channel — сбой одного
     // получателя/канала не прерывает fan-out.
-    const outcome = await dispatchToRecipient(r, channelPayload, { dedupKey: row.id });
+    const outcome = await dispatchToRecipient(r, channelPayload, {
+      dedupKey: row.id,
+      ...(routed ? { channels: routed } : {}),
+    });
     if (outcome.mode === 'queued') {
       if (outcome.channels.includes('email')) emailsQueued += 1;
       else emailsSkipped += 1;
