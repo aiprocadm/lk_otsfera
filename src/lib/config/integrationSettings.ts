@@ -16,7 +16,15 @@ import { encryptSecret, decryptSecret, isSecretsKeyConfigured } from '@/lib/cryp
 export type SettingSpec = {
   key: string;
   /** env-переменная, откуда брать значение, если в БД ключа нет. */
-  envVar: string;
+  /**
+   * Имя переменной окружения — источник запасного значения.
+   *
+   * `null` означает «переменной нет и не было»: настройка появилась сразу как
+   * настройка (`У-126`: список получателей ops-оповещений). Заводить ей
+   * выдуманное имя переменной значило бы соврать реестру и сбить стражи
+   * `У-122`/`У-134`, которые сверяют реестр с `.env.example`.
+   */
+  envVar: string | null;
   isSecret: boolean;
 };
 
@@ -134,6 +142,44 @@ export const SETTING_SPECS = {
     isSecret: false,
   },
   // DaData (подсказки по ИНН). Включение + ключ; сам ключ на клиент не уходит.
+  // `У-126`: ops-оповещения — пороги и канал доставки. Раньше правились только
+  // в конфиге сервера: чтобы перестать получать ложные алерты, требовалась
+  // выкладка.
+  'alerts.queueWaitingMax': {
+    key: 'alerts.queueWaitingMax',
+    envVar: 'ALERT_QUEUE_WAITING_MAX',
+    isSecret: false,
+  },
+  'alerts.dlqMax': { key: 'alerts.dlqMax', envVar: 'ALERT_DLQ_MAX', isSecret: false },
+  'alerts.syncLagMaxHours': {
+    key: 'alerts.syncLagMaxHours',
+    envVar: 'ALERT_SYNC_LAG_MAX_HOURS',
+    isSecret: false,
+  },
+  'alerts.renotifyCooldownHours': {
+    key: 'alerts.renotifyCooldownHours',
+    envVar: 'ALERT_RENOTIFY_COOLDOWN_HOURS',
+    isSecret: false,
+  },
+  'alerts.oneCDeadLetterMax': {
+    key: 'alerts.oneCDeadLetterMax',
+    envVar: 'ALERT_ONEC_DEADLETTER_MAX',
+    isSecret: false,
+  },
+  'alerts.telegramBotToken': {
+    key: 'alerts.telegramBotToken',
+    envVar: 'ALERT_TELEGRAM_BOT_TOKEN',
+    isSecret: true,
+  },
+  'alerts.telegramChatId': {
+    key: 'alerts.telegramChatId',
+    envVar: 'ALERT_TELEGRAM_CHAT_ID',
+    isSecret: false,
+  },
+  // Переменной окружения у списка получателей НЕТ и не было: до `У-126`
+  // оповещения уходили всем администраторам без возможности это изменить.
+  // Пустой список сохраняет прежнее поведение.
+  'alerts.emailRecipients': { key: 'alerts.emailRecipients', envVar: null, isSecret: false },
   'dadata.enabled': { key: 'dadata.enabled', envVar: 'DADATA_ENABLED', isSecret: false },
   'dadata.apiKey': { key: 'dadata.apiKey', envVar: 'DADATA_API_KEY', isSecret: true },
 } as const satisfies Record<string, SettingSpec>;
@@ -163,12 +209,12 @@ export async function getSettingValue(
         return decryptSecret(row.value);
       } catch {
         // Порча/смена ключа — не роняем вызывающего, уходим в fallback.
-        return process.env[spec.envVar]?.trim() || null;
+        return spec.envVar ? (process.env[spec.envVar]?.trim() || null) : null;
       }
     }
     return row.value;
   }
-  return process.env[spec.envVar]?.trim() || null;
+  return spec.envVar ? process.env[spec.envVar]?.trim() || null : null;
 }
 
 /** Пачкой — эффективные значения нескольких настроек. */
@@ -227,7 +273,7 @@ export async function getSettingsView(
     const spec = specOf(key);
     const dbRow = byKey.get(key);
     const dbSet = !!dbRow && dbRow.value !== null && dbRow.value !== '';
-    const envVal = process.env[spec.envVar]?.trim();
+    const envVal = spec.envVar ? process.env[spec.envVar]?.trim() : undefined;
     const envSet = !!envVal;
     const source: 'db' | 'env' | 'none' = dbSet ? 'db' : envSet ? 'env' : 'none';
     return {
