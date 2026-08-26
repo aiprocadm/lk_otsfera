@@ -30,6 +30,8 @@ export const AUDIT_ENTITIES = [
   'alert_settings',
   // `У-127`: правило маршрутизации уведомлений.
   'notification_rule',
+  // `У-128`: текст письма.
+  'email_template',
   'job_queue',
   'payment',
   'feature_flag',
@@ -215,6 +217,10 @@ export const AUDIT_ACTIONS = [
   // `У-127`: правила маршрутизации уведомлений.
   'notification_rule_changed',
   'notification_rules_reset',
+  // `У-128`: свои тексты писем.
+  'email_template_changed',
+  'email_template_reset',
+  'email_template_test_sent',
   'sync_triggered',
   'task_assigned',
   'task_column_created',

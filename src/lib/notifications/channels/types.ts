@@ -69,6 +69,12 @@ export type ChannelPayload = {
    * (in-app-only уведомления, например партнёрский lead_status_changed).
    */
   email?: EmailContentRef | undefined;
+  /**
+   * Компания, чьи тексты писем применять (`У-128`). Не задана — действуют
+   * тексты платформы. Компания получателя тут ни при чём: письмо пишет
+   * учебный центр, поэтому берётся компания-продавец.
+   */
+  companyId?: string | null | undefined;
 };
 
 export type ChannelSendResult = {

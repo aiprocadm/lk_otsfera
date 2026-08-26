@@ -112,6 +112,18 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     ],
   },
   {
+    // `У-128`: тексты писем — рядом с правилами уведомлений, это одна тема.
+    id: 'catalogs.emailTemplates',
+    group: 'catalogs',
+    title: 'Тексты писем',
+    description: 'Своя тема и текст писем вместо стандартных.',
+    icon: '✉️',
+    path: 'catalogs/email-templates',
+    capability: 'settings.catalogs.manage',
+    cabinets: ['admin', 'leader'],
+    legacyHrefs: [],
+  },
+  {
     id: 'catalogs.applicationStatuses',
     group: 'catalogs',
     title: 'Статусы заявок',

@@ -1,10 +1,10 @@
 import React from 'react';
 import { prisma } from '@/lib/db/prisma';
 import { listRoutingRules } from '@/lib/notifications/routing';
-import { NotificationRulesTable } from './notification-rules-table';
 import { PageHeader } from '@/components/ui/page-header';
 import type { SettingsCabinet } from '@/lib/navigation/settings';
 import type { SessionPayload } from '@/lib/auth/jwt';
+import { NotificationRulesTable } from './notification-rules-table';
 
 /**
  * «Правила уведомлений» — экран общий для администратора и руководителя

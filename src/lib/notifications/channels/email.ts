@@ -22,6 +22,7 @@ import {
   sendCommissionReadyEmail,
   type SendResult,
 } from '@/lib/email/send';
+import { applyOverride, getTemplateOverride } from '@/lib/email/templateOverrides';
 import type { EmailTemplateKey, NotificationChannel } from './types';
 
 type EmailSender = (args: { to: string } & Record<string, unknown>) => Promise<SendResult>;
@@ -57,8 +58,29 @@ export const emailChannel: NotificationChannel = {
     if (!payload.email) {
       return { status: 'skipped', reason: 'no_email_content' };
     }
-    const sender = EMAIL_TEMPLATES[payload.email.template]();
-    const result = await sender({ to: user.email, ...payload.email.props });
+    const key = payload.email.template;
+    const props = payload.email.props as Record<string, unknown>;
+
+    // `У-128`: если тема и текст переопределены, письмо собирается из них —
+    // но в ТОЙ ЖЕ вёрстке (`NotificationTemplate` поверх `layout.tsx`).
+    // Иначе первое же отредактированное письмо потеряло бы фирменный вид.
+    const { prisma } = await import('@/lib/db/prisma');
+    const override = await getTemplateOverride(prisma, key, payload.companyId);
+    if (override) {
+      const { subject, text } = applyOverride(key, override, props);
+      const result = await sendNotificationEmail({
+        to: user.email,
+        recipientName: user.name ?? 'коллега',
+        title: subject,
+        body: text,
+        ...(typeof props.orderUrl === 'string' ? { url: props.orderUrl } : {}),
+      });
+      if (result.status === 'sent') return { status: 'sent' };
+      return { status: 'skipped', reason: result.reason };
+    }
+
+    const sender = EMAIL_TEMPLATES[key]();
+    const result = await sender({ to: user.email, ...props });
     if (result.status === 'sent') return { status: 'sent' };
     return { status: 'skipped', reason: result.reason };
   },
