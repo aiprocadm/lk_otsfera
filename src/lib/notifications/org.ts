@@ -359,6 +359,9 @@ export async function notifyOrgUsers(
     body,
     url: orderUrl,
     email: buildOrgEmailRef(input, org.name, orderUrl),
+    // `У-128`: письмо пишет учебный центр — берём компанию-продавца, а не
+    // компанию получателя.
+    companyId: org.companyId,
   };
 
   // `У-127`: правила читаются с учётом компании-продавца — руководитель

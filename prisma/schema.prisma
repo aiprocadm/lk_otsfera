@@ -1393,6 +1393,35 @@ model NotificationRule {
   @@index([companyId])
 }
 
+/// `У-128` (ТЗ 2026-08-21): свои тексты писем и сообщений.
+///
+/// Хранятся ТОЛЬКО переопределения. Пустая строка/отсутствие записи означает
+/// «письмо собирает программа, как раньше» — копии стандартного текста здесь
+/// нет и быть не должно: она разъехалась бы с самим шаблоном при первой же
+/// правке вёрстки.
+///
+/// `companyId = null` — текст платформы (администратор), заполненный — текст
+/// компании (руководитель). Приоритет: компания → платформа → код.
+model NotificationTemplate {
+  id          String   @id @default(cuid())
+  /// null — шаблон платформы; иначе шаблон конкретной компании.
+  companyId   String?
+  /// Ключ письма из EMAIL_TEMPLATE_REGISTRY.
+  templateKey String
+  /// Тема письма с подстановками вида {{order.number}}.
+  subject     String
+  /// Текст письма с подстановками. Вёрстку по-прежнему даёт layout.tsx.
+  body        String
+  updatedAt   DateTime @updatedAt
+  updatedBy   String?
+
+  /// Защищает шаблоны КОМПАНИИ. Платформенные (`companyId IS NULL`) им не
+  /// защищены — в Postgres два NULL не равны; для них в миграции заведён
+  /// частичный уникальный индекс `NotificationTemplate_platform_key`.
+  @@unique([companyId, templateKey])
+  @@index([companyId])
+}
+
 model AlertState {
   key            String    @id
   status         String // "firing" | "resolved"
