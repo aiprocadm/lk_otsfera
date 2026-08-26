@@ -1362,6 +1362,37 @@ model StudentBridgeTokenJti {
   @@index([expiresAt])
 }
 
+/// `У-127` (ТЗ 2026-08-21): правила маршрутизации уведомлений.
+///
+/// Хранятся ТОЛЬКО отклонения от реестра в коде (`notifications/registry.ts`) —
+/// он остаётся значением по умолчанию. Пустая таблица = прежнее поведение.
+///
+/// `companyId = null` — платформенное правило (администратор), заполненный —
+/// правило компании (руководитель). Приоритет чтения: компания → платформа →
+/// код. Хранить оба уровня в одной таблице, а не в двух, сознательно: правило
+/// — это одна и та же сущность, у которой меняется только область действия.
+model NotificationRule {
+  id        String   @id @default(cuid())
+  /// null — правило платформы; иначе правило конкретной компании.
+  companyId String?
+  /// Ключ события из NOTIFICATION_TYPES.
+  eventType String
+  /// Роль-получатель (NotificationAudience).
+  audience  String
+  /// Канал доставки (ChannelKey): email | telegram | max | whatsapp | inapp.
+  channel   String
+  enabled   Boolean
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  /// Защищает правила КОМПАНИИ. Платформенные (`companyId IS NULL`) им не
+  /// защищены: в Postgres два NULL не равны. Для них в миграции заведён
+  /// частичный уникальный индекс `NotificationRule_platform_key` — Prisma
+  /// частичные индексы не описывает, поэтому его нет в этой схеме.
+  @@unique([companyId, eventType, audience, channel])
+  @@index([companyId])
+}
+
 model AlertState {
   key            String    @id
   status         String // "firing" | "resolved"

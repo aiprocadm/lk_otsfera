@@ -123,6 +123,20 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     legacyHrefs: [{ from: '/admin/order-statuses' }, { from: '/leader/settings/order-statuses' }],
   },
   {
+    // `У-127`: куда уходит каждое событие. Раздел «Конфигурация процессов»:
+    // это правило работы, а не подключение к внешней системе.
+    id: 'catalogs.notificationRules',
+    group: 'catalogs',
+    title: 'Правила уведомлений',
+    description: 'Какое событие кому и каким каналом отправлять.',
+    icon: '🔔',
+    path: 'catalogs/notification-rules',
+    capability: 'settings.catalogs.manage',
+    cabinets: ['admin', 'leader'],
+    // Старого адреса нет: раздел появился сразу в хабе.
+    legacyHrefs: [],
+  },
+  {
     id: 'catalogs.customFields',
     group: 'catalogs',
     title: 'Дополнительные поля',
