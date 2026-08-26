@@ -202,6 +202,9 @@ export const AUDIT_ACTIONS = [
   'sync_dlq_bulk_retried',
   'sync_schedule_paused',
   'sync_schedule_resumed',
+  // `У-125`: расписание правится из интерфейса — правку видно в журнале.
+  'sync_schedule_pattern_changed',
+  'onec_params_changed',
   'sync_triggered',
   'task_assigned',
   'task_column_created',

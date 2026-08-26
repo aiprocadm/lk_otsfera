@@ -1,7 +1,7 @@
+import { cachedIntegrationSetting } from '@/lib/config/integrationSettingsCache';
 import { FakeMangoAdapter } from './adapter-fake';
 import { RestMangoAdapter } from './adapter-rest';
 import type { MangoAdapter } from './types';
-import { cachedIntegrationSetting } from '@/lib/config/integrationSettingsCache';
 
 export type { MangoAdapter } from './types';
 
@@ -11,11 +11,7 @@ export function getMangoAdapter(): MangoAdapter {
   if (cached) return cached;
   // `У-124`: вид адаптера — поле формы. Приоритет тот же, что у остальных
   // настроек: база → переменная сервера → умолчание.
-  const kind = (
-    cachedIntegrationSetting('mango.adapter') ??
-    process.env.MANGO_ADAPTER ??
-    'fake'
-  )
+  const kind = (cachedIntegrationSetting('mango.adapter') ?? process.env.MANGO_ADAPTER ?? 'fake')
     .trim()
     .toLowerCase();
   switch (kind) {
