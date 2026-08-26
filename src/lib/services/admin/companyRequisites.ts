@@ -43,8 +43,15 @@ export async function listCompaniesRequisites(
   prisma: PrismaClient,
   session: SessionPayload
 ): Promise<{ ok: true; companies: CompanyRequisites[] } | { ok: false; error: 'forbidden' }> {
-  if (session.role !== 'admin') return { ok: false, error: 'forbidden' };
+  // `У-135` (решение `Р-22`): реквизиты исполнителя правит и руководитель —
+  // но только своей компании. Админ видит все.
+  if (session.role !== 'admin' && session.role !== 'leader') {
+    return { ok: false, error: 'forbidden' };
+  }
   const companies = await prisma.company.findMany({
+    // Sentinel-скоуп: руководитель без компании не видит НИЧЕГО, а не всё —
+    // `undefined` в where снял бы фильтр целиком (та же грабля, что в C8).
+    where: session.role === 'leader' ? { id: session.companyId ?? '__none__' } : {},
     select: REQ_SELECT,
     orderBy: { name: 'asc' },
     take: 50,
@@ -60,7 +67,14 @@ export async function setCompanyRequisites(
 ): Promise<
   { ok: true } | { ok: false; error: 'forbidden' | 'not_found' | 'validation'; messages?: string[] }
 > {
-  if (session.role !== 'admin') return { ok: false, error: 'forbidden' };
+  if (session.role !== 'admin' && session.role !== 'leader') {
+    return { ok: false, error: 'forbidden' };
+  }
+  // `У-135`: руководитель меняет ТОЛЬКО свою компанию. Сравнение, а не тихая
+  // подмена: чужой id из формы — это ошибка вызова, и её надо видеть.
+  if (session.role === 'leader' && companyId !== session.companyId) {
+    return { ok: false, error: 'forbidden' };
+  }
 
   const validated = validateRequisites(input);
   if (!validated.ok) return { ok: false, error: 'validation', messages: validated.errors };

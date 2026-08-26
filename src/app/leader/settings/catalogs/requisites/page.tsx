@@ -8,18 +8,18 @@ import { RequisitesScreen } from '@/components/settings/requisites-screen';
 export const metadata: Metadata = { title: 'Реквизиты исполнителя · Настройки' };
 
 /**
- * Этап 8 (ФТ-9.2): реквизиты исполнителя (Company) — шапка счетов и актов.
- * `У-135`: экран стал общим с руководителем; админ видит все компании.
- * База — здесь, в слое app: компонент презентационный (`components-no-db`).
+ * «Реквизиты исполнителя» руководителя (`У-135`): только своя компания —
+ * скоуп держит сервис, а не видимость карточки. Экран общий с админом;
+ * база — здесь, в слое app: компонент презентационный (`components-no-db`).
  */
-export default async function AdminRequisitesPage() {
-  const session = await requireSettingsSection('catalogs.requisites', 'admin');
+export default async function LeaderRequisitesPage() {
+  const session = await requireSettingsSection('catalogs.requisites', 'leader');
   const companies = await listCompaniesRequisites(prisma, session);
 
   return (
     <RequisitesScreen
-      cabinet="admin"
-      hasCompany
+      cabinet="leader"
+      hasCompany={Boolean(session.companyId)}
       companies={companies.ok ? companies.companies : []}
     />
   );

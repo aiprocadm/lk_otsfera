@@ -86,7 +86,9 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     icon: '🔌',
     path: 'integrations',
     capability: 'settings.integrations.view',
-    cabinets: ['admin'],
+    // `У-135` (решение `Р-22`): руководитель видит светофор и чек-листы, но
+    // НЕ секреты платформы — у него своя страница без форм подключений.
+    cabinets: ['admin', 'leader'],
     legacyHrefs: [{ from: '/admin/integrations' }],
   },
   {
@@ -183,7 +185,9 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     icon: '🧾',
     path: 'catalogs/requisites',
     capability: 'settings.catalogs.manage',
-    cabinets: ['admin'],
+    // `У-135`: руководитель правит реквизиты СВОЕЙ компании — скоуп держит
+    // сервис, а не видимость карточки.
+    cabinets: ['admin', 'leader'],
     legacyHrefs: [],
   },
   {

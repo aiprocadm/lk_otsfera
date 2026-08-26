@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
+import { log } from '@/lib/logging';
 import type { ChannelKey } from './channels/types';
 import { NOTIFICATION_TYPES, type NotificationAudience } from './registry';
-import { log } from '@/lib/logging';
 
 /**
  * Правила маршрутизации уведомлений (`У-127`).

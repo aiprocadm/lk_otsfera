@@ -67,6 +67,20 @@ vi.mock('@/components/requisites/requisites-card', () => ({
 vi.mock('@/components/admin/feature-flags-matrix', () => ({
   FeatureFlagsMatrix: () => React.createElement('div', { 'data-testid': 'flags-matrix' }, 'FLAGS'),
 }));
+vi.mock('@/components/admin/integrations-health-panel', () => ({
+  IntegrationsHealthPanel: (props: {
+    rows: Array<{ flagEditable?: boolean }>;
+    lockedLabel?: string;
+  }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'health-panel' },
+      `${props.rows.map((r) => String(r.flagEditable)).join(',')}|${props.lockedLabel}`
+    ),
+}));
+
+const { getIntegrationsHealth } = vi.hoisted(() => ({ getIntegrationsHealth: vi.fn() }));
+vi.mock('@/lib/services/admin/integrationsHealth', () => ({ getIntegrationsHealth }));
 
 // Этап 8: страница флагов теперь спрашивает у сервиса значения и их источник.
 const { listFeatureFlags } = vi.hoisted(() => ({
@@ -85,6 +99,8 @@ import AdminPersonalSettingsPage from '@/app/admin/settings/personal/page';
 import LeaderPersonalSettingsPage from '@/app/leader/settings/personal/page';
 import { personalSettingsTabsFor } from '@/lib/navigation/personalSettings';
 import AdminRequisitesPage from '@/app/admin/settings/catalogs/requisites/page';
+import LeaderRequisitesPage from '@/app/leader/settings/catalogs/requisites/page';
+import LeaderIntegrationsPage from '@/app/leader/settings/integrations/page';
 import AdminFeatureFlagsPage from '@/app/admin/settings/system/feature-flags/page';
 
 const ADMIN = { sub: 'a1', role: 'admin' as const };
@@ -218,6 +234,61 @@ describe('реквизиты исполнителя', () => {
     const { container } = await renderServerComponent(AdminRequisitesPage());
     expect(container.querySelector('[data-testid="requisites-card"]')).toBeNull();
     expect(container.querySelector('h1')?.textContent).toBe('Реквизиты исполнителя');
+  });
+
+  // `У-135`: тот же экран у руководителя — карточка только своей компании
+  // (скоуп даёт сервис), гард своего кабинета.
+  it('руководитель: гард раздела и карточка своей компании', async () => {
+    requireSettingsSection.mockResolvedValueOnce({ ...LEADER, companyId: 'c1' });
+    listCompaniesRequisites.mockResolvedValue({
+      ok: true,
+      companies: [{ id: 'c1', name: 'Промтехносфера', phone: null, email: null }],
+    });
+
+    const { container } = await renderServerComponent(LeaderRequisitesPage());
+
+    expect(requireSettingsSection).toHaveBeenCalledWith('catalogs.requisites', 'leader');
+    expect(container.textContent).toContain('Реквизиты исполнителя: Промтехносфера');
+  });
+
+  it('руководитель без компании: объяснение вместо пустоты', async () => {
+    // В LEADER нет companyId — hasCompany=false. Сервис при этом отвечает
+    // отказом — страница не падает, а объясняет.
+    listCompaniesRequisites.mockResolvedValue({ ok: false, error: 'forbidden' });
+    const { container } = await renderServerComponent(LeaderRequisitesPage());
+    expect(container.querySelector('[data-testid="requisites-card"]')).toBeNull();
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('не указана компания');
+  });
+});
+
+// `У-135` (решение `Р-22`): «Интеграции» руководителя — светофор без секретов.
+describe('интеграции руководителя', () => {
+  it('гард раздела, светофор read-only (flagEditable=false у каждой строки)', async () => {
+    getIntegrationsHealth.mockResolvedValue({
+      ok: true,
+      rows: [
+        { key: 'one_c', flagEditable: true },
+        { key: 'mail', flagEditable: true },
+      ],
+    });
+
+    const { container } = await renderServerComponent(LeaderIntegrationsPage());
+
+    expect(requireSettingsSection).toHaveBeenCalledWith('integrations.overview', 'leader');
+    // Панель получила обе строки, у обеих переключатель погашен, и подпись
+    // говорит правду: канал переключает администратор, а не «сервер».
+    expect(container.querySelector('[data-testid="health-panel"]')?.textContent).toBe(
+      'false,false|переключает администратор'
+    );
+    // §15: экран объясняет, кто настраивает подключения.
+    expect(container.textContent).toContain('Настраивает их администратор');
+  });
+
+  it('отказ сервиса — понятный текст вместо пустого экрана', async () => {
+    getIntegrationsHealth.mockResolvedValue({ ok: false, error: 'forbidden' });
+    const { container } = await renderServerComponent(LeaderIntegrationsPage());
+    expect(container.querySelector('[data-testid="health-panel"]')).toBeNull();
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Недостаточно прав');
   });
 });
 
