@@ -135,6 +135,10 @@ describe('bot/whatsapp/mango group actions', () => {
       { key: 'mango.vpbxBaseUrl', value: 'https://vpbx/' },
       { key: 'mango.apiKey', value: 'k' },
       { key: 'mango.apiSalt', value: 's' },
+      // `У-124`: то, что раньше правилось только в конфиге сервера.
+      { key: 'mango.adapter', value: '' },
+      { key: 'mango.allowedIps', value: '' },
+      { key: 'mango.statsPollDelayMs', value: '' },
     ]);
     expect(resetIntegrationSettingsCache).not.toHaveBeenCalled();
   });

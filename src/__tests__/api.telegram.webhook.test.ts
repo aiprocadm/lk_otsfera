@@ -5,7 +5,7 @@ const { linkByCodeMock, sendTelegramMessageMock, prismaMock, recordWebhookEvent 
   () => ({
     linkByCodeMock: vi.fn(),
     sendTelegramMessageMock: vi.fn(),
-    prismaMock: {},
+    prismaMock: { integrationSetting: { findUnique: async () => null } },
     recordWebhookEvent: vi.fn().mockResolvedValue(undefined),
   })
 );

@@ -3,6 +3,7 @@ import { isTelegramEnabled } from '@/lib/telegram/client';
 import { isMaxEnabled } from '@/lib/max/client';
 import { isWhatsAppEnabled } from '@/lib/whatsapp/aggregator';
 import { cachedIntegrationSetting } from '@/lib/config/integrationSettingsCache';
+import { isFeatureEnabled } from '@/lib/featureFlags';
 
 /**
  * Read-only статус платформенных интеграций для /admin/integrations.
@@ -16,9 +17,12 @@ import { cachedIntegrationSetting } from '@/lib/config/integrationSettingsCache'
  * (`cachedIntegrationSetting` / `getSettingValue`, env — fallback) — здесь и в
  * `telegram/client.ts`, `max/client.ts`, `whatsapp/aggregator.ts`, воркере.
  * Применение без рестарта обеспечивает сброс кэша при сохранении
- * (`resetIntegrationSettingsCache` в server-actions). Env остаются только
- * рубильники фич (`FEATURE_TELEPHONY_MANGO`) и выбор адаптеров — это
- * деплой-решения, а не настройки из UI.
+ * (`resetIntegrationSettingsCache` в server-actions).
+ *
+ * `У-124` отменил прежнюю оговорку «рубильники фич и выбор адаптеров остаются
+ * в env как деплой-решения»: телефония включается переключателем в разделе
+ * «Функции платформы», а её адаптер — поле формы. Оговорка была верна, пока
+ * флаг закрывал раздел в edge-middleware; теперь он поведенческий.
  */
 
 export type IntegrationStatus = {
@@ -33,11 +37,12 @@ export type IntegrationStatus = {
 };
 
 function isMangoTelephonyEnabled(): boolean {
-  const flagOn = ['1', 'true', 'on', 'yes'].includes(
-    (process.env.FEATURE_TELEPHONY_MANGO ?? '').trim().toLowerCase()
-  );
+  // `У-124`: флаг читается ТЕМ ЖЕ способом, что в `integrationsHealth.ts`.
+  // Здесь стояло сырое чтение `process.env`, и после переключения флага из
+  // интерфейса два экрана про одну телефонию показывали разное: светофор
+  // «включено», а карточка статуса «выключено».
   return (
-    flagOn &&
+    isFeatureEnabled('telephony_mango') &&
     !!cachedIntegrationSetting('mango.apiKey') &&
     !!cachedIntegrationSetting('mango.apiSalt')
   );
@@ -68,7 +73,7 @@ export function getIntegrationsStatus(): IntegrationStatus[] {
       label: 'Телефония (Mango Office)',
       enabled: isMangoTelephonyEnabled(),
       description: 'Приём звонков, запись разговоров и click-to-call через Mango Office.',
-      envHint: 'FEATURE_TELEPHONY_MANGO=1 (на сервере) + ключи в форме ниже',
+      envHint: 'включается в разделе «Функции платформы» + ключи в форме ниже',
     },
     {
       key: 'telegram',

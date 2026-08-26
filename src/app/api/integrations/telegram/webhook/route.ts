@@ -6,9 +6,12 @@ import { isFeatureEnabled } from '@/lib/featureFlags';
 import { secretEquals } from '@/lib/security/secretCompare';
 import { recordWebhookEvent } from '@/lib/services/admin/webhookDiagnostics';
 import { log } from '@/lib/logging';
+import { getSettingValue } from '@/lib/config/integrationSettings';
 
 export async function POST(req: Request): Promise<Response> {
-  const secret = process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
+  // `У-123`: секрет вебхука берётся из настроек (база, затем переменная
+  // сервера). Задать его теперь можно из интерфейса, не заходя на сервер.
+  const secret = (await getSettingValue(prisma, 'telegram.webhookSecret'))?.trim();
   const provided = req.headers.get('x-telegram-bot-api-secret-token');
 
   // 401 when secret is not configured or header doesn't match

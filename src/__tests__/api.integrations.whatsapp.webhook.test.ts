@@ -6,7 +6,7 @@ const { ingest, notFoundIfDisabled, recordWebhookEvent } = vi.hoisted(() => ({
   recordWebhookEvent: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+vi.mock('@/lib/db/prisma', () => ({ prisma: { integrationSetting: { findUnique: async () => null } } }));
 vi.mock('@/lib/services/inbound/ingest', () => ({ ingestInboundMessage: ingest }));
 vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled }));
 vi.mock('@/lib/services/admin/webhookDiagnostics', () => ({ recordWebhookEvent }));
@@ -65,7 +65,7 @@ describe('POST /api/integrations/whatsapp/webhook', () => {
     );
     expect(res.status).toBe(200);
     expect(ingest).toHaveBeenCalledWith(
-      {},
+      expect.anything(),
       expect.objectContaining({
         channel: 'whatsapp',
         externalId: 'wa:W1',

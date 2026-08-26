@@ -5,6 +5,7 @@ import { ingestInboundMessage } from '@/lib/services/inbound/ingest';
 import { secretEquals } from '@/lib/security/secretCompare';
 import { recordWebhookEvent } from '@/lib/services/admin/webhookDiagnostics';
 import { log } from '@/lib/logging';
+import { getSettingValue } from '@/lib/config/integrationSettings';
 
 /**
  * Webhook входящих сообщений WhatsApp через агрегатор Wazzup (D-inbound) —
@@ -21,7 +22,9 @@ export async function POST(req: Request): Promise<Response> {
   const disabled = notFoundIfDisabled('inbound_messaging');
   if (disabled) return disabled;
 
-  const secret = process.env.WHATSAPP_WEBHOOK_SECRET?.trim();
+  // `У-123`: секрет вебхука берётся из настроек (база, затем переменная
+  // сервера). Задать его теперь можно из интерфейса, не заходя на сервер.
+  const secret = (await getSettingValue(prisma, 'whatsapp.webhookSecret'))?.trim();
   const provided = req.headers.get('x-wazzup-secret');
   if (!secret || !secretEquals(provided, secret)) {
     return new Response(null, { status: 401 });

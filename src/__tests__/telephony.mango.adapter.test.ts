@@ -1,5 +1,5 @@
 import { describe, expect, it, afterEach } from 'vitest';
-import { getMangoAdapter, __resetMangoAdapter } from '@/lib/telephony/mango';
+import { getMangoAdapter, resetMangoAdapter } from '@/lib/telephony/mango';
 import { FakeMangoAdapter } from '@/lib/telephony/mango/adapter-fake';
 import { RestMangoAdapter, readMangoConfig } from '@/lib/telephony/mango/adapter-rest';
 
@@ -8,7 +8,7 @@ describe('MangoAdapter factory', () => {
     delete process.env.MANGO_ADAPTER;
     delete process.env.FAKE_MANGO_RECORDING;
     delete process.env.FAKE_MANGO_STATS;
-    __resetMangoAdapter();
+    resetMangoAdapter();
   });
 
   it('returns FakeMangoAdapter when MANGO_ADAPTER=fake', () => {
@@ -31,7 +31,7 @@ describe('MangoAdapter factory', () => {
 
   it('throws for an unknown MANGO_ADAPTER value', () => {
     process.env.MANGO_ADAPTER = 'bogus';
-    expect(() => getMangoAdapter()).toThrow('Unknown MANGO_ADAPTER value: bogus');
+    expect(() => getMangoAdapter()).toThrow('Unknown Mango adapter value: bogus');
   });
 
   it('caches the adapter instance until reset', () => {
@@ -39,7 +39,7 @@ describe('MangoAdapter factory', () => {
     const a1 = getMangoAdapter();
     const a2 = getMangoAdapter();
     expect(a1).toBe(a2);
-    __resetMangoAdapter();
+    resetMangoAdapter();
     const a3 = getMangoAdapter();
     expect(a1).not.toBe(a3);
   });
