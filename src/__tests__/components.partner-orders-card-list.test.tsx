@@ -14,10 +14,10 @@ vi.mock('next/link', () => ({
   }) => React.createElement('a', { href, className }, children),
 }));
 
-import { DealsCardList } from '@/components/partner/deals-card-list';
-import type { DealRow } from '@/lib/services/partner/deals';
+import { PartnerOrdersCardList } from '@/components/partner/orders-card-list';
+import type { PartnerOrderRow } from '@/lib/services/partner/orders';
 
-function makeRow(overrides: Partial<DealRow> = {}): DealRow {
+function makeRow(overrides: Partial<PartnerOrderRow> = {}): PartnerOrderRow {
   return {
     id: 'd1',
     orderNumber: 'A-1',
@@ -37,15 +37,15 @@ function makeRow(overrides: Partial<DealRow> = {}): DealRow {
   };
 }
 
-describe('DealsCardList', () => {
+describe('PartnerOrdersCardList', () => {
   it('empty: renders nothing', () => {
-    const html = renderToString(React.createElement(DealsCardList, { rows: [] }));
+    const html = renderToString(React.createElement(PartnerOrdersCardList, { rows: [] }));
     expect(html).toBe('');
   });
 
   it('renders card with order number, org name, debt and deadline', () => {
-    const html = renderToString(React.createElement(DealsCardList, { rows: [makeRow()] }));
-    expect(html).toContain('href="/partner/deals/d1"');
+    const html = renderToString(React.createElement(PartnerOrdersCardList, { rows: [makeRow()] }));
+    expect(html).toContain('href="/partner/orders/d1"');
     expect(html).toContain('Заказ X');
     expect(html).toContain('№ <!-- -->A-1<!-- --> · ');
     expect(html).toContain('ООО Ромашка');
@@ -55,14 +55,14 @@ describe('DealsCardList', () => {
 
   it('omits the order-number prefix when orderNumber is null', () => {
     const html = renderToString(
-      React.createElement(DealsCardList, { rows: [makeRow({ orderNumber: null })] })
+      React.createElement(PartnerOrdersCardList, { rows: [makeRow({ orderNumber: null })] })
     );
     expect(html).not.toContain('№ <!-- -->');
   });
 
   it('shows "Без долга" (gray) when debt is 0', () => {
     const html = renderToString(
-      React.createElement(DealsCardList, { rows: [makeRow({ debt: '0.00' })] })
+      React.createElement(PartnerOrdersCardList, { rows: [makeRow({ debt: '0.00' })] })
     );
     expect(html).toContain('Без долга');
     expect(html).not.toContain('text-red-700 font-medium');
@@ -70,7 +70,7 @@ describe('DealsCardList', () => {
 
   it('omits the deadline row when deadline is null', () => {
     const html = renderToString(
-      React.createElement(DealsCardList, { rows: [makeRow({ deadline: null })] })
+      React.createElement(PartnerOrdersCardList, { rows: [makeRow({ deadline: null })] })
     );
     expect(html).not.toContain('Срок:');
   });

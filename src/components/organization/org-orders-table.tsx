@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import type { OrgOrderRow } from '@/lib/services/organization/orders';
-import { DealStatusBadge } from '@/components/partner/deal-status-badge';
+import { OrderStageBadge } from '@/components/partner/order-stage-badge';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 
 function fmtMoney(s: string): string {
@@ -59,7 +59,7 @@ export function OrgOrdersTable({
             </Td>
             <Td className="text-gray-600">{o.managerName ?? '—'}</Td>
             <Td>
-              <DealStatusBadge stage={o.stage} />
+              <OrderStageBadge stage={o.stage} />
             </Td>
             <Td className="text-right text-gray-700">{fmtMoney(o.totalAmount)}</Td>
             <Td
@@ -100,7 +100,7 @@ export function OrgOrdersCardList({
                 №{o.orderNumber ?? '—'} · {o.managerName ?? 'без менеджера'}
               </div>
             </div>
-            <DealStatusBadge stage={o.stage} />
+            <OrderStageBadge stage={o.stage} />
           </div>
           <div className="mt-2 flex items-center justify-between text-xs">
             <span className="text-gray-500">

@@ -1,5 +1,5 @@
 import React from 'react';
-import type { DealDetail } from '@/lib/services/partner/dealDetail';
+import type { PartnerOrderDetail } from '@/lib/services/partner/orderDetail';
 
 function fmtDate(d: Date | null): string {
   if (!d) return '—';
@@ -10,7 +10,7 @@ function fmtDate(d: Date | null): string {
   }).format(d);
 }
 
-export function DealTimeline({ deal }: { deal: DealDetail }) {
+export function OrderTimeline({ deal }: { deal: PartnerOrderDetail }) {
   const events: { label: string; date: Date | null; tone?: 'success' | 'warning' }[] = [
     { label: 'Создан', date: deal.createdAt },
     { label: 'Договор подписан', date: deal.contractSignedAt },

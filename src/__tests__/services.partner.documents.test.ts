@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import { getOrgDocuments } from '@/lib/services/partner/orgDocuments';
 import { listPartnerDocuments } from '@/lib/services/partner/documentsList';
-import { getPartnerDealDetail } from '@/lib/services/partner/dealDetail';
+import { getPartnerOrderDetail } from '@/lib/services/partner/orderDetail';
 
 let prisma: PrismaClient;
 
@@ -66,7 +66,7 @@ beforeAll(async () => {
   orderB1Id = orderB1.id;
 
   // F2: the partner sees a deal only via its own lead — promote orderA1 from a lead
-  // so getPartnerDealDetail(orderA1) resolves (the document-channel assertions below
+  // so getPartnerOrderDetail(orderA1) resolves (the document-channel assertions below
   // are about doc isolation, unaffected by this linkage).
   const u = await prisma.user.create({
     data: {
@@ -293,25 +293,25 @@ describe('services/partner/documentsList — listPartnerDocuments', () => {
 });
 
 // ---------------------------------------------------------------------------
-// getPartnerDealDetail — documents embed
+// getPartnerOrderDetail — documents embed
 // ---------------------------------------------------------------------------
 describe('services/partner/dealDetail — documents embed channel isolation', () => {
   it('includes partner-channel doc in deal detail documents', async () => {
-    const detail = await getPartnerDealDetail(prisma, { dealId: orderA1Id, partnerId });
+    const detail = await getPartnerOrderDetail(prisma, { orderId: orderA1Id, partnerId });
     expect(detail).not.toBeNull();
     const docIds = detail!.documents.map((d) => d.id);
     expect(docIds).toContain(partnerDocAct);
   });
 
   it('does NOT include organization-channel doc in deal detail documents', async () => {
-    const detail = await getPartnerDealDetail(prisma, { dealId: orderA1Id, partnerId });
+    const detail = await getPartnerOrderDetail(prisma, { orderId: orderA1Id, partnerId });
     expect(detail).not.toBeNull();
     const docIds = detail!.documents.map((d) => d.id);
     expect(docIds).not.toContain(orgChannelDoc);
   });
 
   it('does NOT include infected partner-channel doc in deal detail documents', async () => {
-    const detail = await getPartnerDealDetail(prisma, { dealId: orderA1Id, partnerId });
+    const detail = await getPartnerOrderDetail(prisma, { orderId: orderA1Id, partnerId });
     expect(detail).not.toBeNull();
     const docIds = detail!.documents.map((d) => d.id);
     expect(docIds).not.toContain(infectedDoc);

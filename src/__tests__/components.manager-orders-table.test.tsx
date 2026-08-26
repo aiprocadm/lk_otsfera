@@ -13,8 +13,8 @@ vi.mock('next/link', () => ({
     className?: string;
   }) => React.createElement('a', { href, className }, children),
 }));
-vi.mock('@/components/partner/deal-status-badge', () => ({
-  DealStatusBadge: ({ stage }: { stage: { label: string } }) =>
+vi.mock('@/components/partner/order-stage-badge', () => ({
+  OrderStageBadge: ({ stage }: { stage: { label: string } }) =>
     React.createElement('span', null, stage.label),
 }));
 

@@ -30,7 +30,7 @@ export default async function PartnerDocumentDetailPage({
       breadcrumbs={buildCabinetBreadcrumbs('partner', '/partner/documents', [
         { label: res.document.name },
       ])}
-      orderHrefBase="/partner/deals"
+      orderHrefBase="/partner/orders"
     >
       <EntityCustomFields fields={customFields} entityType="document" entityId={id} />
     </DocumentDetailView>

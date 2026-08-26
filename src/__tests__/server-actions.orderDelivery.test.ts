@@ -54,7 +54,7 @@ describe('deliverOrderResultAction', () => {
     expect(paths).toContain('/manager/orders/o1');
     expect(paths).toContain('/leader/orders/o1');
     expect(paths).toContain('/organization/orders/o1');
-    expect(paths).toContain('/partner/deals/o1');
+    expect(paths).toContain('/partner/orders/o1');
   });
 
   it('not_ready прокидывает расшифровку готовности', async () => {

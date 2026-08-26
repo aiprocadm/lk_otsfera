@@ -52,7 +52,7 @@ describe('Paginator', () => {
   it('последняя страница: «Назад» есть, «Вперёд» нет', () => {
     const html = renderToString(
       React.createElement(Paginator, {
-        basePath: '/partner/deals',
+        basePath: '/partner/orders',
         searchParams: {},
         take: 25,
         skip: 50,

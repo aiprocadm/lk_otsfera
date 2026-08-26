@@ -4,7 +4,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
-import { getPartnerDealDetail } from '@/lib/services/partner/dealDetail';
+import { getPartnerOrderDetail } from '@/lib/services/partner/orderDetail';
 
 vi.mock('@/lib/auth/documentChannelPolicy', () => ({
   partnerChannelWhere: vi.fn(() => ({ counterpartyType: 'partner', counterpartyId: 'p1' })),
@@ -44,16 +44,16 @@ function makePrisma(order: object | null) {
   } as any;
 }
 
-describe('getPartnerDealDetail — unit', () => {
+describe('getPartnerOrderDetail — unit', () => {
   it('returns null when order not found (no lead-linkage)', async () => {
     const prisma = makePrisma(null);
-    const result = await getPartnerDealDetail(prisma, { dealId: 'x', partnerId: 'p1' });
+    const result = await getPartnerOrderDetail(prisma, { orderId: 'x', partnerId: 'p1' });
     expect(result).toBeNull();
   });
 
   it('returns full deal detail with organization and manager name', async () => {
     const prisma = makePrisma(baseOrder);
-    const result = await getPartnerDealDetail(prisma, { dealId: 'o1', partnerId: 'p1' });
+    const result = await getPartnerOrderDetail(prisma, { orderId: 'o1', partnerId: 'p1' });
     expect(result).not.toBeNull();
     expect(result!.id).toBe('o1');
     expect(result!.organization?.name).toBe('ООО Тест'); // via org.name
@@ -64,21 +64,21 @@ describe('getPartnerDealDetail — unit', () => {
   it('uses null for vatRate when vatRate field is null', async () => {
     const order = { ...baseOrder, vatRate: null };
     const prisma = makePrisma(order);
-    const result = await getPartnerDealDetail(prisma, { dealId: 'o1', partnerId: 'p1' });
+    const result = await getPartnerOrderDetail(prisma, { orderId: 'o1', partnerId: 'p1' });
     expect(result!.vatRate).toBeNull();
   });
 
   it('uses null for managerName when manager is null', async () => {
     const order = { ...baseOrder, manager: null };
     const prisma = makePrisma(order);
-    const result = await getPartnerDealDetail(prisma, { dealId: 'o1', partnerId: 'p1' });
+    const result = await getPartnerOrderDetail(prisma, { orderId: 'o1', partnerId: 'p1' });
     expect(result!.managerName).toBeNull();
   });
 
   it('sets organization to null when order has no organization', async () => {
     const order = { ...baseOrder, organization: null };
     const prisma = makePrisma(order);
-    const result = await getPartnerDealDetail(prisma, { dealId: 'o1', partnerId: 'p1' });
+    const result = await getPartnerOrderDetail(prisma, { orderId: 'o1', partnerId: 'p1' });
     expect(result!.organization).toBeNull();
   });
 
@@ -99,7 +99,7 @@ describe('getPartnerDealDetail — unit', () => {
       ],
     };
     const prisma = makePrisma(order);
-    const result = await getPartnerDealDetail(prisma, { dealId: 'o1', partnerId: 'p1' });
+    const result = await getPartnerOrderDetail(prisma, { orderId: 'o1', partnerId: 'p1' });
     expect(result!.documents).toHaveLength(1);
     expect(result!.documents[0]).toMatchObject({
       id: 'd1',
@@ -122,7 +122,7 @@ describe('getPartnerDealDetail — unit', () => {
       ],
     };
     const prisma = makePrisma(order);
-    const result = await getPartnerDealDetail(prisma, { dealId: 'o1', partnerId: 'p1' });
+    const result = await getPartnerOrderDetail(prisma, { orderId: 'o1', partnerId: 'p1' });
     expect(result!.comments).toHaveLength(1);
     expect(result!.comments[0].authorName).toBe('Автор Петров');
   });
@@ -146,7 +146,7 @@ describe('getPartnerDealDetail — unit', () => {
       ],
     };
     const prisma = makePrisma(orderWithItems);
-    const result = await getPartnerDealDetail(prisma, { dealId: 'o1', partnerId: 'p1' });
+    const result = await getPartnerOrderDetail(prisma, { orderId: 'o1', partnerId: 'p1' });
     expect(result).not.toBeNull();
     expect(result!.items).toHaveLength(1);
     expect(result!.items[0].student.name).toBe('Иван Слушатель');
@@ -157,7 +157,7 @@ describe('getPartnerDealDetail — unit', () => {
   it('exposes empty items array when no positions exist', async () => {
     const orderWithNoItems = { ...baseOrder, items: [] };
     const prisma = makePrisma(orderWithNoItems);
-    const result = await getPartnerDealDetail(prisma, { dealId: 'o1', partnerId: 'p1' });
+    const result = await getPartnerOrderDetail(prisma, { orderId: 'o1', partnerId: 'p1' });
     expect(result!.items).toEqual([]);
   });
 });

@@ -355,7 +355,7 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       sectionKey: 'funnel',
       flag: 'sales_funnel',
     },
-    // deals_pipeline — свой opt-in флаг (НЕ путать с /partner/deals — «Заказы» партнёра).
+    // deals_pipeline — свой opt-in флаг (НЕ путать с /partner/orders — «Заказы» партнёра).
     {
       href: '/leader/deals',
       group: 'Продажи',
@@ -433,7 +433,7 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
   partner: [
     { href: '/partner/dashboard', sectionKey: 'dashboard' },
     { href: '/partner/portfolio', sectionKey: 'portfolio' },
-    { href: '/partner/deals', sectionKey: 'orders' },
+    { href: '/partner/orders', sectionKey: 'orders' },
     // Было «Мои заявки» (решение §5-1 этапа 11 прошлой программы). У-8/У-76
     // требуют одного имени на объект во всех кабинетах, поэтому здесь и в
     // кабинете организации теперь «Обращения» (решение заказчика 09.08.2026).

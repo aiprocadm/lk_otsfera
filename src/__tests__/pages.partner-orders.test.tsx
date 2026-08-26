@@ -7,28 +7,28 @@ vi.mock('@/lib/auth/requireRole', () => ({ requirePartner }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
-const { listPartnerDeals } = vi.hoisted(() => ({ listPartnerDeals: vi.fn() }));
-vi.mock('@/lib/services/partner/deals', () => ({ listPartnerDeals }));
+const { listPartnerOrders } = vi.hoisted(() => ({ listPartnerOrders: vi.fn() }));
+vi.mock('@/lib/services/partner/orders', () => ({ listPartnerOrders }));
 
-// DealsFilter ('use client') calls useRouter()/useSearchParams() -- stub next/navigation.
+// PartnerOrdersFilter ('use client') calls useRouter()/useSearchParams() -- stub next/navigation.
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
 }));
 
-import PartnerDealsPage from '@/app/partner/deals/page';
+import PartnerDealsPage from '@/app/partner/orders/page';
 
 const SESSION = { sub: 'u1', role: 'partner' as const, partnerId: 'p1', assignedOrgIds: ['org-1'] };
 
 describe('PartnerDealsPage', () => {
   beforeEach(() => {
     requirePartner.mockReset();
-    listPartnerDeals.mockReset();
+    listPartnerOrders.mockReset();
   });
 
   it('applies default pagination and passes undefined status filters when unrecognized', async () => {
     requirePartner.mockResolvedValue(SESSION);
-    listPartnerDeals.mockResolvedValue({ rows: [], total: 0 });
+    listPartnerOrders.mockResolvedValue({ rows: [], total: 0 });
 
     const { container } = await renderServerComponent(
       PartnerDealsPage({
@@ -36,7 +36,7 @@ describe('PartnerDealsPage', () => {
       })
     );
 
-    expect(listPartnerDeals).toHaveBeenCalledWith(
+    expect(listPartnerOrders).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
         partnerId: 'p1',
@@ -53,7 +53,7 @@ describe('PartnerDealsPage', () => {
 
   it('parses valid filters, take/skip, and clamps to MAX_TAKE; no org scope when assignedOrgIds is empty', async () => {
     requirePartner.mockResolvedValue({ ...SESSION, assignedOrgIds: [] });
-    listPartnerDeals.mockResolvedValue({
+    listPartnerOrders.mockResolvedValue({
       rows: [
         {
           id: 'd1',
@@ -87,7 +87,7 @@ describe('PartnerDealsPage', () => {
       })
     );
 
-    expect(listPartnerDeals).toHaveBeenCalledWith(
+    expect(listPartnerOrders).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
         partnerId: 'p1',
@@ -103,7 +103,7 @@ describe('PartnerDealsPage', () => {
 
   it('falls back to DEFAULT_TAKE and skip:0 when take/skip are non-numeric', async () => {
     requirePartner.mockResolvedValue(SESSION);
-    listPartnerDeals.mockResolvedValue({ rows: [], total: 0 });
+    listPartnerOrders.mockResolvedValue({ rows: [], total: 0 });
 
     await renderServerComponent(
       PartnerDealsPage({
@@ -111,7 +111,7 @@ describe('PartnerDealsPage', () => {
       })
     );
 
-    expect(listPartnerDeals).toHaveBeenCalledWith(
+    expect(listPartnerOrders).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ take: 25, skip: 0 })
     );

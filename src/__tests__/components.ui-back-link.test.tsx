@@ -19,9 +19,9 @@ import { BackLink } from '@/components/ui/back-link';
 describe('BackLink', () => {
   it('рендерит «← <label>» со ссылкой', () => {
     const html = renderToString(
-      React.createElement(BackLink, { href: '/partner/deals', label: 'Все заказы' })
+      React.createElement(BackLink, { href: '/partner/orders', label: 'Все заказы' })
     );
-    expect(html).toContain('href="/partner/deals"');
+    expect(html).toContain('href="/partner/orders"');
     expect(html).toContain('← Все заказы');
   });
 });

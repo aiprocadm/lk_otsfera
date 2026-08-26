@@ -142,7 +142,7 @@ describe('sendLeadPromotedEmail()', () => {
         partnerName: 'Партнёр',
         leadSubject: 'Покупка станка',
         orderNumber: 'ORD-2026-0042',
-        url: 'https://lk.otsfera.ru/partner/deals/ord-1',
+        url: 'https://lk.otsfera.ru/partner/orders/ord-1',
       },
       { transport }
     );
@@ -164,7 +164,7 @@ describe('sendDocumentUploadedEmail()', () => {
         partnerName: 'Партнёр',
         orderNumber: 'ORD-007',
         filename: 'spec.pdf',
-        url: 'https://lk.otsfera.ru/partner/deals/ord-007',
+        url: 'https://lk.otsfera.ru/partner/orders/ord-007',
       },
       { transport }
     );

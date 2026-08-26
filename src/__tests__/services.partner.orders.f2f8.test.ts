@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
-import { listPartnerDeals } from '@/lib/services/partner/deals';
+import { listPartnerOrders } from '@/lib/services/partner/orders';
 
 // T3 F2 + F8: a partner sees an order ONLY via its own lead (promotedFromLead),
 // and each deal shows its OWN organization (no companyId→org map collision when
@@ -87,9 +87,9 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
-describe('listPartnerDeals — F2 (lead-based visibility)', () => {
+describe('listPartnerOrders — F2 (lead-based visibility)', () => {
   it('shows only lead-promoted orders, not imported partnerId-only orders', async () => {
-    const { rows } = await listPartnerDeals(prisma, { partnerId, take: 50, skip: 0 });
+    const { rows } = await listPartnerOrders(prisma, { partnerId, take: 50, skip: 0 });
     const ids = rows.map((r) => r.id);
     expect(ids).toContain(visibleAId);
     expect(ids).toContain(visibleBId);
@@ -97,9 +97,9 @@ describe('listPartnerDeals — F2 (lead-based visibility)', () => {
   });
 });
 
-describe('listPartnerDeals — F8 (per-order organization, no collision)', () => {
+describe('listPartnerOrders — F8 (per-order organization, no collision)', () => {
   it('each deal shows its own organization even when two orgs share a company', async () => {
-    const { rows } = await listPartnerDeals(prisma, { partnerId, take: 50, skip: 0 });
+    const { rows } = await listPartnerOrders(prisma, { partnerId, take: 50, skip: 0 });
     const a = rows.find((r) => r.id === visibleAId);
     const b = rows.find((r) => r.id === visibleBId);
     expect(a?.organizationName).toBe('OrgA');

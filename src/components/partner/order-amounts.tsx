@@ -1,11 +1,11 @@
 import React from 'react';
-import type { DealDetail } from '@/lib/services/partner/dealDetail';
+import type { PartnerOrderDetail } from '@/lib/services/partner/orderDetail';
 
 function fmtMoney(s: string): string {
   return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(Number(s)) + ' ₽';
 }
 
-export function DealAmounts({ deal }: { deal: DealDetail }) {
+export function OrderAmounts({ deal }: { deal: PartnerOrderDetail }) {
   const paidPct =
     Number(deal.totalAmount) > 0
       ? Math.min(100, Math.round((Number(deal.paidAmount) / Number(deal.totalAmount)) * 100))

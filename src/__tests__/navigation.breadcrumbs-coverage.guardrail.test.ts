@@ -52,7 +52,9 @@ function rel(p: string): string {
  * рендерит, проверку проходит наравне со всеми.
  */
 function isGateway(src: string): boolean {
-  return /\bredirect\(/.test(src) && !/return\s*\(/.test(src);
+  // `permanentRedirect(` — тот же шлюз, только постоянный (`У-109`). Регистр
+  // важен: шаблон `\bredirect\(` его НЕ ловит, буква `R` заглавная.
+  return /\b(?:permanentRedirect|redirect)\(/.test(src) && !/return\s*\(/.test(src);
 }
 
 /**

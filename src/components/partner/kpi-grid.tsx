@@ -18,7 +18,7 @@ export function KpiGrid({
 }) {
   return (
     <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
-      <StatCard title="Открытые заказы" value={kpis.openOrders} href="/partner/deals" />
+      <StatCard title="Открытые заказы" value={kpis.openOrders} href="/partner/orders" />
       <StatCard title="К оплате" value={fmtMoney(kpis.outstanding)} href="/partner/finance" />
       <StatCard
         title="Комиссия за месяц"

@@ -3,9 +3,9 @@ import { orderStage, type Stage } from '@/lib/orders/humanStage';
 import { partnerChannelWhere } from '@/lib/auth/documentChannelPolicy';
 import type { OrgDocumentRow } from './orgDocuments';
 
-type DealDocumentRow = OrgDocumentRow;
+type PartnerOrderDocumentRow = OrgDocumentRow;
 
-export type DealCommentRow = {
+export type PartnerOrderCommentRow = {
   id: string;
   body: string;
   createdAt: Date;
@@ -18,9 +18,9 @@ const ORDER_ITEM_INCLUDE = {
   certificate: { select: { id: true, number: true, validUntil: true } },
 } satisfies Prisma.OrderItemInclude;
 
-type DealOrderItemRow = Prisma.OrderItemGetPayload<{ include: typeof ORDER_ITEM_INCLUDE }>;
+type PartnerOrderItemRow = Prisma.OrderItemGetPayload<{ include: typeof ORDER_ITEM_INCLUDE }>;
 
-export type DealDetail = {
+export type PartnerOrderDetail = {
   id: string;
   orderNumber: string | null;
   title: string;
@@ -42,20 +42,20 @@ export type DealDetail = {
   lastSyncedAt: Date | null;
   organization: { id: string; name: string; inn: string | null } | null;
   managerName: string | null;
-  documents: DealDocumentRow[];
-  comments: DealCommentRow[];
-  items: DealOrderItemRow[];
+  documents: PartnerOrderDocumentRow[];
+  comments: PartnerOrderCommentRow[];
+  items: PartnerOrderItemRow[];
 };
 
-export async function getPartnerDealDetail(
+export async function getPartnerOrderDetail(
   prisma: PrismaClient,
-  args: { dealId: string; partnerId: string }
-): Promise<DealDetail | null> {
+  args: { orderId: string; partnerId: string }
+): Promise<PartnerOrderDetail | null> {
   const order = await prisma.order.findFirst({
     // F2: visible only via the partner's own lead, not legacy Order.partnerId.
-    where: { id: args.dealId, promotedFromLead: { partnerId: args.partnerId } },
+    where: { id: args.orderId, promotedFromLead: { partnerId: args.partnerId } },
     // Этап 10 (§7 ТЗ): явный select — клиенту не уезжают внутренние поля заказа
-    // (managerId, companyId, 1С-курсоры и т.п.). Список ровно под `DealDetail`.
+    // (managerId, companyId, 1С-курсоры и т.п.). Список ровно под `PartnerOrderDetail`.
     select: {
       id: true,
       orderNumber: true,

@@ -1,13 +1,13 @@
 import React from 'react';
 import Link from 'next/link';
-import type { DealDetail } from '@/lib/services/partner/dealDetail';
+import type { PartnerOrderDetail } from '@/lib/services/partner/orderDetail';
 import { orderTypeRu } from '@/lib/i18n/labels';
 import { orderWorkingStage, WORKING_STAGE_LABELS } from '@/lib/orders/humanStage';
 import { OrderStageStepper } from '@/components/orders/order-stage-stepper';
 import { PageHeader } from '@/components/ui/page-header';
-import { DealStatusBadge } from './deal-status-badge';
+import { OrderStageBadge } from './order-stage-badge';
 
-export function DealHeader({ deal }: { deal: DealDetail }) {
+export function PartnerOrderHeader({ deal }: { deal: PartnerOrderDetail }) {
   const workingStage = orderWorkingStage({
     executionStatus: deal.executionStatus,
     contractSignedAt: deal.contractSignedAt,
@@ -23,7 +23,7 @@ export function DealHeader({ deal }: { deal: DealDetail }) {
         {deal.orderNumber && (
           <span className="text-xs text-gray-500 font-mono">№ {deal.orderNumber}</span>
         )}
-        <DealStatusBadge stage={deal.stage} />
+        <OrderStageBadge stage={deal.stage} />
       </div>
       <PageHeader
         title={deal.title}

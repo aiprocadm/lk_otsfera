@@ -10,7 +10,7 @@ import { OrgOrderAmounts } from '@/components/organization/org-order-amounts';
 import { OrgOrderTimeline } from '@/components/organization/org-order-timeline';
 import { OrgPaymentsList } from '@/components/organization/org-payments-list';
 import { DocumentsList } from '@/components/partner/documents-list';
-import { DealComments } from '@/components/partner/deal-comments';
+import { OrderComments } from '@/components/partner/order-comments';
 import { OrganizationDocumentUploadForm } from '@/components/organization/organization-document-upload-form';
 import { OrderItemsSection } from '@/components/training/order-items-section';
 import { OrderCustomFields } from '@/components/orders/order-custom-fields';
@@ -104,7 +104,7 @@ export default async function OrganizationOrderDetailPage({
 
             <OrderCustomFields fields={customFields} orderId={order.id} editable={false} />
 
-            <DealComments comments={comments} orderId={order.id} />
+            <OrderComments comments={comments} orderId={order.id} />
           </div>
 
           <div className="space-y-4">

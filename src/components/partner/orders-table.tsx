@@ -1,8 +1,8 @@
 import React from 'react';
 import Link from 'next/link';
-import type { DealRow } from '@/lib/services/partner/deals';
+import type { PartnerOrderRow } from '@/lib/services/partner/orders';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
-import { DealStatusBadge } from './deal-status-badge';
+import { OrderStageBadge } from './order-stage-badge';
 
 function fmtMoney(s: string): string {
   return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(Number(s)) + ' ₽';
@@ -17,7 +17,7 @@ function fmtDate(d: Date | null): string {
   }).format(d);
 }
 
-export function DealsTable({ rows }: { rows: DealRow[] }) {
+export function PartnerOrdersTable({ rows }: { rows: PartnerOrderRow[] }) {
   if (rows.length === 0) {
     return <EmptyState icon="📋" message="По выбранным фильтрам заказов нет" />;
   }
@@ -39,7 +39,7 @@ export function DealsTable({ rows }: { rows: DealRow[] }) {
             <Td className="text-gray-500">{d.orderNumber ?? '—'}</Td>
             <Td>
               <Link
-                href={`/partner/deals/${d.id}`}
+                href={`/partner/orders/${d.id}`}
                 className="font-medium text-[#111111] hover:text-[#F97316]"
               >
                 {d.title}
@@ -58,7 +58,7 @@ export function DealsTable({ rows }: { rows: DealRow[] }) {
               )}
             </Td>
             <Td>
-              <DealStatusBadge stage={d.stage} />
+              <OrderStageBadge stage={d.stage} />
             </Td>
             <Td className="text-right text-gray-700">{fmtMoney(d.totalAmount)}</Td>
             <Td

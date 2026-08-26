@@ -40,7 +40,7 @@ describe('AttentionList', () => {
       ],
     };
     const html = renderToString(React.createElement(AttentionList, { data }));
-    expect(html).toContain('/partner/deals/o1');
+    expect(html).toContain('/partner/orders/o1');
     expect(html).toContain('Заказ А');
     expect(html).toContain('завис');
   });

@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
-import type { DealRow } from '@/lib/services/partner/deals';
-import { DealStatusBadge } from './deal-status-badge';
+import type { PartnerOrderRow } from '@/lib/services/partner/orders';
+import { OrderStageBadge } from './order-stage-badge';
 
 function fmtMoney(s: string): string {
   return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(Number(s)) + ' ₽';
@@ -17,7 +17,7 @@ function fmtDate(d: Date): string {
   }).format(d);
 }
 
-export function DealsCardList({ rows }: { rows: DealRow[] }) {
+export function PartnerOrdersCardList({ rows }: { rows: PartnerOrderRow[] }) {
   if (rows.length === 0) return null;
 
   return (
@@ -25,7 +25,7 @@ export function DealsCardList({ rows }: { rows: DealRow[] }) {
       {rows.map((d) => (
         <li key={d.id}>
           <Link
-            href={`/partner/deals/${d.id}`}
+            href={`/partner/orders/${d.id}`}
             className="block bg-white border border-gray-200 rounded-xl p-4 active:bg-[#FFF7ED]"
           >
             <div className="flex items-start justify-between gap-2">
@@ -36,7 +36,7 @@ export function DealsCardList({ rows }: { rows: DealRow[] }) {
                   {d.organizationName}
                 </div>
               </div>
-              <DealStatusBadge stage={d.stage} />
+              <OrderStageBadge stage={d.stage} />
             </div>
 
             <div className="mt-2.5 flex items-center justify-between text-sm">

@@ -31,7 +31,7 @@ describe('KpiGrid', () => {
     expect(html).toContain('Комиссия за месяц');
     // The accent card (commission) uses the brand background.
     expect(html).toContain('bg-[#F97316] border-[#EA580C]');
-    expect(html).toContain('href="/partner/deals"');
+    expect(html).toContain('href="/partner/orders"');
     expect(html).toContain('href="/partner/finance"');
   });
 });

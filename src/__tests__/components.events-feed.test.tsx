@@ -33,7 +33,7 @@ describe('EventsFeed', () => {
       },
     ];
     const html = renderToString(React.createElement(EventsFeed, { events }));
-    expect(html).toContain('href="/partner/deals/o1"');
+    expect(html).toContain('href="/partner/orders/o1"');
     expect(html).toContain('Заказ обновлён');
   });
 

@@ -1,10 +1,10 @@
 /**
- * Unit tests for src/lib/services/partner/deals.ts
+ * Unit tests for src/lib/services/partner/orders.ts
  * Covers branches missed by the integration-only f2f8 test.
  */
 import { describe, it, expect, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
-import { listPartnerDeals } from '@/lib/services/partner/deals';
+import { listPartnerOrders } from '@/lib/services/partner/orders';
 
 function dec(n: number) {
   return new Prisma.Decimal(n);
@@ -33,10 +33,10 @@ const baseOrder = {
   organization: { id: 'org1', name: 'ООО Тест' },
 };
 
-describe('listPartnerDeals — unit', () => {
+describe('listPartnerOrders — unit', () => {
   it('returns mapped rows with organization name and id', async () => {
     const prisma = makePrisma([baseOrder]);
-    const result = await listPartnerDeals(prisma, {
+    const result = await listPartnerOrders(prisma, {
       partnerId: 'p1',
       take: 10,
       skip: 0,
@@ -55,14 +55,14 @@ describe('listPartnerDeals — unit', () => {
   it('uses fallback "—" and null orgId when organization is null', async () => {
     const orderNoOrg = { ...baseOrder, organization: null };
     const prisma = makePrisma([orderNoOrg]);
-    const result = await listPartnerDeals(prisma, { partnerId: 'p1', take: 10, skip: 0 });
+    const result = await listPartnerOrders(prisma, { partnerId: 'p1', take: 10, skip: 0 });
     expect(result.rows[0].organizationName).toBe('—');
     expect(result.rows[0].organizationId).toBeNull();
   });
 
   it('applies scopeOrgIds filter to where clause', async () => {
     const prisma = makePrisma([]);
-    await listPartnerDeals(prisma, {
+    await listPartnerOrders(prisma, {
       partnerId: 'p1',
       scopeOrgIds: ['org1', 'org2'],
       take: 10,
@@ -74,7 +74,7 @@ describe('listPartnerDeals — unit', () => {
 
   it('does NOT add organizationId filter when scopeOrgIds is empty', async () => {
     const prisma = makePrisma([]);
-    await listPartnerDeals(prisma, {
+    await listPartnerOrders(prisma, {
       partnerId: 'p1',
       scopeOrgIds: [],
       take: 10,
@@ -86,7 +86,7 @@ describe('listPartnerDeals — unit', () => {
 
   it('applies executionStatus filter when provided', async () => {
     const prisma = makePrisma([]);
-    await listPartnerDeals(prisma, {
+    await listPartnerOrders(prisma, {
       partnerId: 'p1',
       executionStatus: 'completed',
       take: 10,
@@ -98,7 +98,7 @@ describe('listPartnerDeals — unit', () => {
 
   it('applies financialStatus filter when provided', async () => {
     const prisma = makePrisma([]);
-    await listPartnerDeals(prisma, {
+    await listPartnerOrders(prisma, {
       partnerId: 'p1',
       financialStatus: 'paid',
       take: 10,
@@ -110,7 +110,7 @@ describe('listPartnerDeals — unit', () => {
 
   it('applies search OR filter when search is provided', async () => {
     const prisma = makePrisma([]);
-    await listPartnerDeals(prisma, {
+    await listPartnerOrders(prisma, {
       partnerId: 'p1',
       search: 'тест',
       take: 10,
@@ -127,7 +127,7 @@ describe('listPartnerDeals — unit', () => {
 
   it('returns empty rows and zero total when no orders found', async () => {
     const prisma = makePrisma([], 0);
-    const result = await listPartnerDeals(prisma, { partnerId: 'p1', take: 10, skip: 0 });
+    const result = await listPartnerOrders(prisma, { partnerId: 'p1', take: 10, skip: 0 });
     expect(result.rows).toEqual([]);
     expect(result.total).toBe(0);
   });
