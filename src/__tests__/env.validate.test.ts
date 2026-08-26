@@ -13,6 +13,9 @@ function validEnv(overrides: Record<string, string | undefined> = {}): NodeJS.Pr
     APP_URL: 'https://lk.example.ru',
     JWT_SECRET: 'a'.repeat(32),
     HEALTH_TOKEN: 'h'.repeat(40),
+    // `У-132`: мастер-ключ секретов интеграций обязателен в production —
+    // сервер, на котором интеграции нельзя настроить, не поднимается.
+    APP_ENCRYPTION_KEY: 'k'.repeat(64),
     REDIS_URL: 'redis://redis:6379',
     S3_ENDPOINT: 'https://s3.provider.ru',
     S3_ACCESS_KEY_ID: 'real-access-key',
@@ -57,6 +60,12 @@ describe('validateProductionEnv — базовый набор', () => {
     const issues = issuesFor({ JWT_SECRET: 'replace_with_at_least_32_chars__' });
     expect(issues.join('\n')).toContain('JWT_SECRET');
     expect(issues.join('\n')).toContain('плейсхолдер');
+  });
+
+  it('отсутствующий APP_ENCRYPTION_KEY → issue (У-132, дефект Д-36)', () => {
+    // Без ключа секреты, введённые в интерфейсе, сохранить нельзя, а узнавал
+    // об этом человек только нажав «Сохранить».
+    expect(issuesFor({ APP_ENCRYPTION_KEY: undefined }).join('\n')).toContain('APP_ENCRYPTION_KEY');
   });
 
   it('отсутствующий HEALTH_TOKEN → issue (плейсхолдер стал бы публично известным bearer)', () => {

@@ -3,6 +3,7 @@
 import React, { useActionState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFormAction, resolveErrorText, type ActionResult } from '@/lib/ui/useFormAction';
+import { ResetSettingButton } from './reset-setting-button';
 
 /**
  * Генерик-форма группы настроек интеграций на /admin/integrations
@@ -31,6 +32,17 @@ export type IntegrationFormField = {
   secretSet?: boolean;
   /** Источник секрета — чтобы показать «в конфиге сервера» для env. */
   secretSource?: 'db' | 'env' | 'none';
+  /**
+   * Ключ настройки в реестре. Нужен кнопке «использовать значение сервера»
+   * (`У-131`): без него сбрасывать нечего, поэтому поле необязательное.
+   */
+  settingKey?: string;
+  /**
+   * Источник ЛЮБОГО (не только секретного) значения. Кнопка сброса появляется
+   * только при `'db'` — то есть когда заданное здесь значение действительно
+   * перекрывает серверное.
+   */
+  source?: 'db' | 'env' | 'none';
 };
 
 const ERROR_MAP: Record<string, string> = {
@@ -213,6 +225,10 @@ export function IntegrationSettingsForm({
                 <span className="ml-2 text-xs text-green-700">
                   задан{f.secretSource === 'env' ? ' (в конфиге сервера)' : ''}
                 </span>
+              )}
+              {/* `У-131`: сбросить можно только то, что реально перекрыто. */}
+              {f.settingKey && (f.source ?? f.secretSource) === 'db' && (
+                <ResetSettingButton settingKey={f.settingKey} label={f.label} />
               )}
             </span>
             {f.kind === 'select' ? (

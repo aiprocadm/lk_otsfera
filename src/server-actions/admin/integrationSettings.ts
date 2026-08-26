@@ -3,7 +3,12 @@
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db/prisma';
 import { requireAdmin } from '@/lib/auth/requireRole';
-import { saveSettings, type SaveEntry, type SettingKey } from '@/lib/config/integrationSettings';
+import {
+  SETTING_SPECS,
+  saveSettings,
+  type SaveEntry,
+  type SettingKey,
+} from '@/lib/config/integrationSettings';
 import { resetIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
 import { resetEmailTransportCache } from '@/lib/email/transport';
 import { __resetInboundEmailAdapter } from '@/lib/inbound/email';
@@ -60,6 +65,25 @@ async function saveGroup(
   resetIntegrationSettingsCache();
   revalidatePath('/admin/settings/integrations');
   return { ok: true };
+}
+
+/**
+ * Сброс одной настройки к значению сервера (`У-131`).
+ *
+ * Введённый в интерфейсе параметр перекрывает переменную окружения — и вернуть
+ * его обратно было нельзя: пустое поле для секрета означает «не менять», а не
+ * «убрать». Приходилось лезть в базу руками. Теперь есть явное действие:
+ * строка удаляется, и снова начинает действовать значение с сервера.
+ *
+ * Ключ проверяется по реестру: чужая строка из формы не должна удалять
+ * произвольную запись настроек.
+ */
+export async function resetSettingToServerValueAction(
+  rawKey: string
+): Promise<IntegrationSaveResult> {
+  const session = await requireAdmin();
+  if (!(rawKey in SETTING_SPECS)) return { ok: false, error: 'validation' };
+  return saveGroup(session.sub, [{ key: rawKey as SettingKey, clear: true }]);
 }
 
 /** Пара «несекретное поле + секрет»: у ботов Telegram/Max одинаковая форма. */

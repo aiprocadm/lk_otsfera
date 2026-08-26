@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import * as React from 'react';
 import { prisma } from '@/lib/db/prisma';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
+import { primeFeatureFlagCache } from '@/lib/config/featureFlagStore';
 import { verifyTwoFactorPendingToken } from '@/lib/auth/jwt';
 import { createTwoFactorChallenge, discardTwoFactorChallenge } from '@/lib/services/auth/twoFactor';
 import { getActiveUserForCodeDelivery } from '@/lib/services/auth/login';
@@ -23,6 +24,11 @@ async function renderHtml(element: React.ReactElement): Promise<string> {
 // Переотправка email-кода 2FA. Двухключевой лимит по образцу reset-request:
 // cooldown 30с между отправками + ≤3 переотправки на 10-минутное окно challenge.
 export async function POST(req: NextRequest) {
+  // `У-133`: снапшот флагов может быть пуст — этот роут работает ДО всякой
+  // сессии, а праймил снапшот только `getSession()`. Без прайма флаг,
+  // включённый в интерфейсе, здесь не виден (дефект `Д-37`). Прайм дешёвый:
+  // внутри стоит TTL 30 с, лишнего запроса в базу не будет.
+  await primeFeatureFlagCache(prisma);
   const disabled = notFoundIfDisabled('staff_2fa');
   if (disabled) return disabled;
 

@@ -20,6 +20,7 @@ import {
   loadPausedSchedulerIds,
 } from '@/lib/jobs/scheduling';
 import { prisma } from '@/lib/db/prisma';
+import { primeFeatureFlagCache } from '@/lib/config/featureFlagStore';
 import type { PushLeadJobPayload } from '@/lib/jobs/types';
 import { toBullProcessor } from './to-bull-processor';
 import { syncOrdersProcessor } from './processors/sync-orders';
@@ -136,6 +137,9 @@ async function main() {
   // R0.2 fail-fast: воркер не стартует с невалидным production-окружением
   // (no-op вне production). Ошибка уйдёт в main().catch → Sentry + exit(1).
   assertEnvOnBoot();
+  // `У-133`: снапшот флагов до первого джоба — процессоры читают флаги
+  // синхронно и своей сессии не имеют, поэтому праймить некому.
+  await primeFeatureFlagCache(prisma);
   log.info('[worker] starting...');
   startWorker('oneCSync.pullOrganizations', syncOrganizationsProcessor as Processor);
   startWorker('oneCSync.pullOrders', syncOrdersProcessor as Processor);

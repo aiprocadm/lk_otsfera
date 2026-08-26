@@ -7,6 +7,7 @@ import { SESSION_COOKIE_MAX_AGE_SECONDS } from '@/lib/auth/session';
 import { buildSessionClaims } from '@/lib/auth/buildSessionClaims';
 import { isRateLimited } from '@/lib/rateLimit';
 import { isFeatureEnabled } from '@/lib/featureFlags';
+import { primeFeatureFlagCache } from '@/lib/config/featureFlagStore';
 import { createTwoFactorChallenge, discardTwoFactorChallenge } from '@/lib/services/auth/twoFactor';
 import { authenticateWithPassword, recordLastLogin } from '@/lib/services/auth/login';
 import { send } from '@/lib/email/send';
@@ -107,6 +108,11 @@ export async function POST(req: Request) {
   // стоит ПОСЛЕ buildSessionClaims, чтобы деактивированный аккаунт не получал
   // письмо. leader — самостоятельная staff-роль (ТЗ 2026-08-17).
   const isStaff = user.role === 'admin' || user.role === 'manager' || user.role === 'leader';
+  // `У-133`: вход происходит ДО всякой сессии, а снапшот флагов праймил только
+  // `getSession()`. На холодном процессе включённая в интерфейсе 2FA здесь не
+  // виделась — замкнутый круг (дефект `Д-37`). Прайм с TTL 30 с, поэтому
+  // лишнего запроса в базу на каждый вход не будет.
+  await primeFeatureFlagCache(prisma);
   if (isStaff && isFeatureEnabled('staff_2fa')) {
     const { code } = await createTwoFactorChallenge(prisma, user.id);
     try {

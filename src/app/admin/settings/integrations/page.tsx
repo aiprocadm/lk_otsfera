@@ -5,6 +5,7 @@ import { listIntegrationSyncStates } from '@/lib/services/admin/integrations';
 import { getIntegrationsHealth } from '@/lib/services/admin/integrationsHealth';
 import { IntegrationsHealthPanel } from '@/components/admin/integrations-health-panel';
 import { prisma } from '@/lib/db/prisma';
+import { isSecretsKeyConfigured } from '@/lib/crypto/secrets';
 import {
   getSettingsView,
   type SettingKey,
@@ -111,6 +112,9 @@ export default async function AdminIntegrationsPage() {
   };
   const testOf = (key: IntegrationTestKey) => testIntegrationAction.bind(null, key);
 
+  // `У-132`: состояние мастер-ключа считается один раз и на сервере — форма
+  // узнаёт о нём до того, как человек начнёт вводить секреты.
+  const secretsKeyReady = isSecretsKeyConfigured();
   const view = await getSettingsView(prisma, VIEW_KEYS);
   const byKey = (k: SettingKey): SettingViewRow => view.find((r) => r.key === k)!;
   const emailEnabled = byKey('email.enabled').value?.trim().toLowerCase() === 'true';
@@ -123,6 +127,9 @@ export default async function AdminIntegrationsPage() {
   const secretProps = (k: SettingKey) => ({
     secretSet: byKey(k).isSet,
     secretSource: byKey(k).source,
+    // `У-131`: кнопка «использовать значение сервера» появляется у секрета
+    // ровно тогда, когда он задан здесь и перекрывает серверный.
+    settingKey: k,
   });
 
   return (
@@ -133,6 +140,23 @@ export default async function AdminIntegrationsPage() {
           subtitle="Статус внешних сервисов платформы: телефония, мессенджеры и обмен с 1С."
         />
       </div>
+
+      {/* `У-132` (дефект `Д-36`): предупреждение стоит ДО форм. Раньше об
+          отсутствии ключа человек узнавал только нажав «Сохранить» — то есть
+          заполнив форму секретами впустую. */}
+      {secretsKeyReady ? null : (
+        <div
+          role="alert"
+          className="text-sm text-red-800 bg-red-50 border border-red-200 rounded-lg px-4 py-3"
+        >
+          <span aria-hidden className="mr-1">
+            ⚠️
+          </span>
+          <strong>Сохранение секретов недоступно:</strong> на сервере не задан ключ шифрования (
+          <code>APP_ENCRYPTION_KEY</code>). Несекретные поля сохранить можно, секретные — нет.
+          Задайте ключ в конфиге сервера и перезапустите приложение.
+        </div>
+      )}
 
       <div className="text-sm text-blue-800 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
         <span aria-hidden className="mr-1">
@@ -173,6 +197,8 @@ export default async function AdminIntegrationsPage() {
               label: 'Имя бота (username, без @)',
               kind: 'text',
               initialValue: byKey('telegram.botUsername').value ?? '',
+              settingKey: 'telegram.botUsername',
+              source: byKey('telegram.botUsername').source,
               placeholder: 'otsfera_bot',
             },
             {
@@ -203,6 +229,8 @@ export default async function AdminIntegrationsPage() {
               label: 'Имя бота (username)',
               kind: 'text',
               initialValue: byKey('max.botUsername').value ?? '',
+              settingKey: 'max.botUsername',
+              source: byKey('max.botUsername').source,
             },
             {
               name: 'max_botToken',
@@ -215,6 +243,8 @@ export default async function AdminIntegrationsPage() {
               label: 'Базовый URL API (необязательно)',
               kind: 'text',
               initialValue: byKey('max.baseUrl').value ?? '',
+              settingKey: 'max.baseUrl',
+              source: byKey('max.baseUrl').source,
               placeholder: 'https://botapi.max.ru',
             },
           ]}
@@ -250,6 +280,8 @@ export default async function AdminIntegrationsPage() {
               label: 'Базовый URL агрегатора (необязательно)',
               kind: 'text',
               initialValue: byKey('whatsapp.baseUrl').value ?? '',
+              settingKey: 'whatsapp.baseUrl',
+              source: byKey('whatsapp.baseUrl').source,
               placeholder: 'https://api.wazzup24.com',
             },
           ]}
@@ -273,6 +305,8 @@ export default async function AdminIntegrationsPage() {
               label: 'Базовый URL VPBX API',
               kind: 'text',
               initialValue: byKey('mango.vpbxBaseUrl').value ?? '',
+              settingKey: 'mango.vpbxBaseUrl',
+              source: byKey('mango.vpbxBaseUrl').source,
               placeholder: 'https://app.mango-office.ru/vpbx/',
             },
             {
@@ -318,6 +352,8 @@ export default async function AdminIntegrationsPage() {
               label: 'Сервер (host)',
               kind: 'text',
               initialValue: byKey('imap.host').value ?? '',
+              settingKey: 'imap.host',
+              source: byKey('imap.host').source,
               placeholder: 'imap.yandex.ru',
             },
             {
@@ -325,6 +361,8 @@ export default async function AdminIntegrationsPage() {
               label: 'Порт',
               kind: 'text',
               initialValue: byKey('imap.port').value ?? '',
+              settingKey: 'imap.port',
+              source: byKey('imap.port').source,
               placeholder: '993',
             },
             {
@@ -332,6 +370,8 @@ export default async function AdminIntegrationsPage() {
               label: 'Логин',
               kind: 'text',
               initialValue: byKey('imap.user').value ?? '',
+              settingKey: 'imap.user',
+              source: byKey('imap.user').source,
             },
             {
               name: 'imap_password',
@@ -371,6 +411,8 @@ export default async function AdminIntegrationsPage() {
               label: 'Адрес API 1С',
               kind: 'text',
               initialValue: byKey('onec.apiUrl').value ?? '',
+              settingKey: 'onec.apiUrl',
+              source: byKey('onec.apiUrl').source,
               placeholder: 'https://1c.example.ru/base/hs/exchange/',
             },
             {
@@ -378,6 +420,8 @@ export default async function AdminIntegrationsPage() {
               label: 'Путь для проверки связи (необязательно)',
               kind: 'text',
               initialValue: byKey('onec.healthPath').value ?? '',
+              settingKey: 'onec.healthPath',
+              source: byKey('onec.healthPath').source,
               placeholder: 'health',
             },
             {

@@ -168,7 +168,10 @@ describe('AdminIntegrationsPage', () => {
     getIntegrationsHealth.mockResolvedValue({ ok: false, error: 'forbidden' });
     const { container } = await renderServerComponent(AdminIntegrationsPage());
     expect(container.querySelector('[data-testid="health-panel"]')).toBeNull();
-    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Недостаточно прав');
+    // Берём ВСЕ предупреждения: с `У-132` первым на странице может стоять
+    // баннер об отсутствии ключа шифрования, и «первый alert» — уже не он.
+    const alerts = [...container.querySelectorAll('[role="alert"]')].map((n) => n.textContent);
+    expect(alerts.join(' | ')).toContain('Недостаточно прав');
   });
 
   it('включённые настройки и секреты из окружения отражаются в формах', async () => {
