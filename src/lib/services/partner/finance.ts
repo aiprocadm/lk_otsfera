@@ -9,8 +9,8 @@ export type FinanceKpis = {
 
 // RSC-safe DTO: Prisma.Decimal is a class instance and cannot cross the
 // Server→Client component boundary (Next would throw "Decimal objects are not
-// supported"). Mirror the DealRow pattern in partner/deals.ts — serialize the
-// Decimal to a fixed-precision string at the service boundary so the page can
+// supported"). Mirror the PartnerOrderRow pattern in partner/orders.ts —
+// serialize the Decimal to a fixed-precision string at the boundary so the page can
 // hand it straight to the client list.
 export type StatementListItem = {
   id: string;

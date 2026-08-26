@@ -21,7 +21,7 @@ const ALLOWED = new Set([
   // Мелкие пустоты внутри карточек и диалогов — родитель уже всё объяснил.
   join('chat', 'chat-thread-view.tsx'),
   join('staff-chat', 'staff-thread-view.tsx'),
-  join('partner', 'deal-comments.tsx'),
+  join('partner', 'order-comments.tsx'),
   join('manager', 'deal-activity', 'deal-activity-thread.tsx'),
   join('manager', 'manager-payments-list.tsx'),
   join('organization', 'org-payments-list.tsx'),

@@ -7,8 +7,8 @@ vi.mock('@/lib/auth/requireRole', () => ({ requirePartner }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
-const { getPartnerDealDetail } = vi.hoisted(() => ({ getPartnerDealDetail: vi.fn() }));
-vi.mock('@/lib/services/partner/dealDetail', () => ({ getPartnerDealDetail }));
+const { getPartnerOrderDetail } = vi.hoisted(() => ({ getPartnerOrderDetail: vi.fn() }));
+vi.mock('@/lib/services/partner/orderDetail', () => ({ getPartnerOrderDetail }));
 
 const { canPartnerAccessOrg } = vi.hoisted(() => ({ canPartnerAccessOrg: vi.fn() }));
 vi.mock('@/lib/auth/policy', () => ({ canPartnerAccessOrg }));
@@ -30,7 +30,7 @@ vi.mock('next/navigation', () => nav);
 // order-items-section and order-custom-fields are 'use client' components that
 // call useRouter() -- stub next/navigation above covers that.
 
-import PartnerDealDetailPage from '@/app/partner/deals/[id]/page';
+import PartnerDealDetailPage from '@/app/partner/orders/[id]/page';
 
 const SESSION = { sub: 'u1', role: 'partner' as const, partnerId: 'p1', assignedOrgIds: ['org-1'] };
 
@@ -64,16 +64,16 @@ const BASE_DEAL = {
 describe('PartnerDealDetailPage', () => {
   beforeEach(() => {
     requirePartner.mockReset();
-    getPartnerDealDetail.mockReset();
+    getPartnerOrderDetail.mockReset();
     canPartnerAccessOrg.mockReset();
     getValuesForEntity.mockReset();
     nav.notFound.mockClear();
     nav.redirect.mockClear();
   });
 
-  it('calls notFound() when getPartnerDealDetail returns null', async () => {
+  it('calls notFound() when getPartnerOrderDetail returns null', async () => {
     requirePartner.mockResolvedValue(SESSION);
-    getPartnerDealDetail.mockResolvedValue(null);
+    getPartnerOrderDetail.mockResolvedValue(null);
 
     await expect(
       renderServerComponent(PartnerDealDetailPage({ params: Promise.resolve({ id: 'missing' }) }))
@@ -84,7 +84,7 @@ describe('PartnerDealDetailPage', () => {
 
   it('redirects to /forbidden when the deal has an organization the partner cannot access', async () => {
     requirePartner.mockResolvedValue(SESSION);
-    getPartnerDealDetail.mockResolvedValue({
+    getPartnerOrderDetail.mockResolvedValue({
       ...BASE_DEAL,
       organization: { id: 'org-1', name: 'ООО Ромашка', inn: '123' },
     });
@@ -100,7 +100,7 @@ describe('PartnerDealDetailPage', () => {
 
   it('renders the full deal detail with custom fields when organization is null (no access re-check)', async () => {
     requirePartner.mockResolvedValue(SESSION);
-    getPartnerDealDetail.mockResolvedValue({
+    getPartnerOrderDetail.mockResolvedValue({
       ...BASE_DEAL,
       documents: [
         {
@@ -147,14 +147,14 @@ describe('PartnerDealDetailPage', () => {
       'deal-1'
     );
     // `У-72`: путь «Заказы → Заказ №…» вместо ссылки «Все заказы».
-    expect(container.querySelector('nav a[href="/partner/deals"]')).not.toBeNull();
+    expect(container.querySelector('nav a[href="/partner/orders"]')).not.toBeNull();
     expect(container.textContent).toContain('Документы');
     expect(container.textContent).toContain('(1)');
   });
 
   it('allows access and renders when canPartnerAccessOrg grants access with a present organization', async () => {
     requirePartner.mockResolvedValue(SESSION);
-    getPartnerDealDetail.mockResolvedValue({
+    getPartnerOrderDetail.mockResolvedValue({
       ...BASE_DEAL,
       organization: { id: 'org-1', name: 'ООО Ромашка', inn: '123' },
     });
@@ -173,7 +173,7 @@ describe('PartnerDealDetailPage', () => {
   it('пока номера заказа нет, в крошке стоит название сделки (У-72)', async () => {
     // Номер приходит из 1С не сразу: до этого сделку надо как-то называть.
     requirePartner.mockResolvedValue(SESSION);
-    getPartnerDealDetail.mockResolvedValue({ ...BASE_DEAL, orderNumber: null });
+    getPartnerOrderDetail.mockResolvedValue({ ...BASE_DEAL, orderNumber: null });
     getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
     canPartnerAccessOrg.mockResolvedValue(true);
 

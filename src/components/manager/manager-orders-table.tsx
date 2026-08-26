@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import type { ManagerOrderRow } from '@/lib/services/manager/orders';
-import { DealStatusBadge } from '@/components/partner/deal-status-badge';
+import { OrderStageBadge } from '@/components/partner/order-stage-badge';
 import { Badge } from '@/components/ui';
 import { paymentStage } from '@/lib/orders/humanStage';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
@@ -100,7 +100,7 @@ export function ManagerOrdersTable({
                 </Badge>
               </Td>
               <Td>
-                <DealStatusBadge
+                <OrderStageBadge
                   stage={paymentStage({
                     financialStatus: o.financialStatus,
                     amount: Number(o.totalAmount),

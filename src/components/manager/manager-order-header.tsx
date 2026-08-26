@@ -1,7 +1,7 @@
 import React from 'react';
 import type { ManagerOrderDetail } from '@/lib/services/manager/orders';
 import { orderStage, orderWorkingStage, WORKING_STAGE_LABELS } from '@/lib/orders/humanStage';
-import { DealStatusBadge } from '@/components/partner/deal-status-badge';
+import { OrderStageBadge } from '@/components/partner/order-stage-badge';
 import { OrderStageStepper } from '@/components/orders/order-stage-stepper';
 
 import { PageHeader } from '@/components/ui/page-header';
@@ -39,7 +39,7 @@ export function ManagerOrderHeader({ order }: { order: ManagerOrderDetail }) {
         {order.orderNumber && (
           <span className="text-xs text-gray-500 font-mono">№ {order.orderNumber}</span>
         )}
-        <DealStatusBadge stage={stage} />
+        <OrderStageBadge stage={stage} />
       </div>
       <PageHeader
         title={order.title}

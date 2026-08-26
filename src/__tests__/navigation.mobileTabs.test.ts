@@ -62,19 +62,19 @@ describe('mobileTabsFor (У-117)', () => {
     const items = [
       item('/partner/documents', 'documents'),
       item('/partner/dashboard', 'dashboard'),
-      item('/partner/deals', 'orders'),
+      item('/partner/orders', 'orders'),
       item('/partner/requests', 'requests'),
     ];
     expect(mobileTabsFor('partner', items).map((t) => t.href)).toEqual([
       '/partner/dashboard',
-      '/partner/deals',
+      '/partner/orders',
       '/partner/requests',
       '/partner/documents',
     ]);
   });
 
   it('раздел ищется по ключу, а не по адресу — переименование панель не ломает', () => {
-    // `У-109` переименует `/partner/deals` в `/partner/orders`. Ключ раздела
+    // `У-109` переименует `/partner/orders` в `/partner/orders`. Ключ раздела
     // при этом не меняется, и вкладка обязана остаться на месте.
     const items = [item('/partner/orders', 'orders'), item('/partner/dashboard', 'dashboard')];
     expect(mobileTabsFor('partner', items).map((t) => t.href)).toContain('/partner/orders');
@@ -84,7 +84,7 @@ describe('mobileTabsFor (У-117)', () => {
     // «Обращения» выключены — их место занимает «Портфель», следующий в списке.
     const items = [
       item('/partner/dashboard', 'dashboard'),
-      item('/partner/deals', 'orders'),
+      item('/partner/orders', 'orders'),
       item('/partner/documents', 'documents'),
       item('/partner/portfolio', 'portfolio'),
     ];
@@ -137,7 +137,7 @@ describe('mobileTabsFor (У-117)', () => {
   });
 
   it('меньше четырёх доступных разделов — показываем сколько есть', () => {
-    const items = [item('/partner/dashboard', 'dashboard'), item('/partner/deals', 'orders')];
+    const items = [item('/partner/dashboard', 'dashboard'), item('/partner/orders', 'orders')];
     expect(mobileTabsFor('partner', items)).toHaveLength(2);
   });
 

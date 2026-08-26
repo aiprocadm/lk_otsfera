@@ -21,7 +21,7 @@ export function AttentionList({ data }: { data: Attention }) {
         {data.stuckOrders.map((o) => (
           <li key={`stuck-${o.id}`} className="flex items-center justify-between gap-3">
             <Link
-              href={`/partner/deals/${o.id}`}
+              href={`/partner/orders/${o.id}`}
               className="text-gray-700 hover:text-[#F97316] flex-1 min-w-0 truncate"
             >
               🕒 Заказ «{o.title}» завис
@@ -34,7 +34,7 @@ export function AttentionList({ data }: { data: Attention }) {
         {data.overdueOrders.map((o) => (
           <li key={`overdue-${o.id}`} className="flex items-center justify-between gap-3">
             <Link
-              href={`/partner/deals/${o.id}`}
+              href={`/partner/orders/${o.id}`}
               className="text-red-700 hover:underline flex-1 min-w-0 truncate"
             >
               ⚠ Просрочка: «{o.title}»

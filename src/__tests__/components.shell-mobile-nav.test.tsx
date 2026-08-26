@@ -10,7 +10,7 @@ import { render, screen, within, fireEvent } from '@testing-library/react';
 import React from 'react';
 import type { NavItem } from '@/lib/navigation/cabinet';
 
-const { usePathname } = vi.hoisted(() => ({ usePathname: vi.fn(() => '/partner/deals') }));
+const { usePathname } = vi.hoisted(() => ({ usePathname: vi.fn(() => '/partner/orders') }));
 vi.mock('next/navigation', () => ({ usePathname }));
 // Пропы прокидываем целиком: без этого теряется aria-current и тест подсветки
 // проверял бы мок, а не компонент.
@@ -33,7 +33,7 @@ import { MobileNav } from '@/components/shell/mobile-nav';
 
 const TABS: NavItem[] = [
   { href: '/partner/dashboard', label: 'Главная', sectionKey: 'dashboard', iconKey: 'dashboard' },
-  { href: '/partner/deals', label: 'Заказы', sectionKey: 'orders', iconKey: 'orders' },
+  { href: '/partner/orders', label: 'Заказы', sectionKey: 'orders', iconKey: 'orders' },
 ];
 
 function renderNav(extra?: Partial<React.ComponentProps<typeof MobileNav>>) {
@@ -128,7 +128,7 @@ describe('MobileNav', () => {
     renderNav({ tabQuery: 'org=o1' });
     const bar = screen.getByTestId('mobile-bottom-bar');
     expect(within(bar).getByText('Заказы').closest('a')?.getAttribute('href')).toBe(
-      '/partner/deals?org=o1'
+      '/partner/orders?org=o1'
     );
   });
 

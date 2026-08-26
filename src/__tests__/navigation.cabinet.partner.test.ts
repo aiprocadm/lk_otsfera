@@ -297,7 +297,7 @@ describe('navByRole.partner — состав по ФТ-15.4', () => {
     expect(navByRole.partner.map((i) => i.href)).toEqual([
       '/partner/dashboard',
       '/partner/portfolio',
-      '/partner/deals',
+      '/partner/orders',
       '/partner/requests',
       '/partner/enrollments',
       '/partner/certificates',

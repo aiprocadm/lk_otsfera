@@ -1,5 +1,5 @@
 import React from 'react';
-import type { DealCommentRow } from '@/lib/services/partner/dealDetail';
+import type { PartnerOrderCommentRow } from '@/lib/services/partner/orderDetail';
 import { AddCommentForm } from './add-comment-form';
 
 function fmtDateTime(d: Date): string {
@@ -12,11 +12,11 @@ function fmtDateTime(d: Date): string {
   }).format(d);
 }
 
-export function DealComments({
+export function OrderComments({
   comments,
   orderId,
 }: {
-  comments: DealCommentRow[];
+  comments: PartnerOrderCommentRow[];
   orderId: string;
 }) {
   return (

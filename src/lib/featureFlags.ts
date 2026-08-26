@@ -84,8 +84,9 @@ export const FEATURE_FLAGS = [
   'client_requests',
   // Этап 6 (Модуль 4): канбан сделок менеджера/руководителя. Route-флаг: middleware
   // (/manager/deals, /leader/deals), nav «Сделки» (manager, leader), page-гейты
-  // (notFound). ВНИМАНИЕ: /partner/deals — другой домен (портфолио заказов
-  // партнёра), под этим флагом НЕ живёт. Спека 2026-07-25-stage6-deals-kanban.
+  // (notFound). ВНИМАНИЕ: заказы партнёра (/partner/orders, до `У-109` —
+  // /partner/deals) — другой домен и под этим флагом НЕ живут.
+  // Спека 2026-07-25-stage6-deals-kanban.
   'deals_pipeline',
   // Этап 7 (ФТ-8.1): экран «Входящие в работу» (route-флаг: middleware + nav + page).
   'intake_inbox',
@@ -155,8 +156,8 @@ export const FEATURE_PREFIXES: Array<{ prefix: string; flag: FeatureFlag }> = [
   // /organization/students/[id] гейтится на странице (список живёт без флага).
   { prefix: '/organization/certificates', flag: 'certificates_registry' },
   { prefix: '/partner/certificates', flag: 'certificates_registry' },
-  // Этап 6 (Модуль 4): канбан сделок. /partner/deals — существующее портфолио
-  // заказов партнёра, оно под этот флаг НЕ попадает (префиксы не пересекаются).
+  // Этап 6 (Модуль 4): канбан сделок. Заказы партнёра (/partner/orders, до
+  // `У-109` — /partner/deals) под этот флаг НЕ попадают.
   { prefix: '/manager/deals', flag: 'deals_pipeline' },
   { prefix: '/leader/deals', flag: 'deals_pipeline' },
   // Этап 7 (Модуль 8): «Входящие в работу» — единый тёмный запуск всех поверхностей.

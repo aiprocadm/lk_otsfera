@@ -1,7 +1,7 @@
 import type { PrismaClient, ExecutionStatus, FinancialStatus } from '@prisma/client';
 import { orderStage, type Stage } from '@/lib/orders/humanStage';
 
-export type DealRow = {
+export type PartnerOrderRow = {
   id: string;
   orderNumber: string | null;
   title: string;
@@ -19,7 +19,7 @@ export type DealRow = {
 };
 
 // Фильтры списка: «ключа нет» и «ключ = undefined» — одно и то же (не фильтровать).
-export type DealsFilter = {
+export type PartnerOrdersFilter = {
   partnerId: string;
   scopeOrgIds?: string[] | undefined;
   search?: string | undefined;
@@ -29,15 +29,15 @@ export type DealsFilter = {
   skip: number;
 };
 
-export type DealsResult = {
-  rows: DealRow[];
+export type PartnerOrdersResult = {
+  rows: PartnerOrderRow[];
   total: number;
 };
 
-export async function listPartnerDeals(
+export async function listPartnerOrders(
   prisma: PrismaClient,
-  filter: DealsFilter
-): Promise<DealsResult> {
+  filter: PartnerOrdersFilter
+): Promise<PartnerOrdersResult> {
   // F2: the partner sees an order ONLY through its own lead (Order.promotedFromLead
   // → Lead.partnerId), not via the legacy direct Order.partnerId. F8: organization
   // name is read from the order's own organization relation (exact per-order),
@@ -82,7 +82,7 @@ export async function listPartnerDeals(
     }),
   ]);
 
-  const rows: DealRow[] = orders.map((o) => {
+  const rows: PartnerOrderRow[] = orders.map((o) => {
     const debt = o.totalAmount.minus(o.paidAmount).toFixed(2);
 
     return {

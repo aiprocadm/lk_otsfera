@@ -9,7 +9,7 @@ const kindIcon: Record<DashboardEvent['kind'], string> = {
 };
 
 function refHref(ref: NonNullable<DashboardEvent['ref']>): string {
-  return `/partner/deals/${ref.id}`;
+  return `/partner/orders/${ref.id}`;
 }
 
 export function EventsFeed({ events }: { events: DashboardEvent[] }) {

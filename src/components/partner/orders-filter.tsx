@@ -20,7 +20,7 @@ const FINANCIAL_OPTIONS: { value: string; label: string }[] = [
   { value: 'refunded', label: 'Возврат' },
 ];
 
-export function DealsFilter() {
+export function PartnerOrdersFilter() {
   const router = useRouter();
   const sp = useSearchParams();
   const [search, setSearch] = useState(sp.get('search') ?? '');
@@ -36,14 +36,14 @@ export function DealsFilter() {
     if (s) params.set('search', s);
     if (e) params.set('execution', e);
     if (f) params.set('financial', f);
-    startTransition(() => router.replace(`/partner/deals?${params.toString()}`));
+    startTransition(() => router.replace(`/partner/orders?${params.toString()}`));
   }
 
   function reset() {
     setSearch('');
     setExecution('');
     setFinancial('');
-    startTransition(() => router.replace('/partner/deals'));
+    startTransition(() => router.replace('/partner/orders'));
   }
 
   const hasFilter = search || execution || financial;

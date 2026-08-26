@@ -1,6 +1,6 @@
 import React from 'react';
 import type { OrgOrderDetail } from '@/lib/services/organization/orders';
-import { DealStatusBadge } from '@/components/partner/deal-status-badge';
+import { OrderStageBadge } from '@/components/partner/order-stage-badge';
 import { orderWorkingStage, WORKING_STAGE_LABELS } from '@/lib/orders/humanStage';
 import { OrderStageStepper } from '@/components/orders/order-stage-stepper';
 
@@ -21,7 +21,7 @@ export function OrgOrderHeader({ order }: { order: OrgOrderDetail }) {
         {order.orderNumber && (
           <span className="text-xs text-gray-500 font-mono">№ {order.orderNumber}</span>
         )}
-        <DealStatusBadge stage={order.stage} />
+        <OrderStageBadge stage={order.stage} />
       </div>
       <PageHeader
         title={order.title}

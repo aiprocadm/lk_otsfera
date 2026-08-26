@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import type { ManagerOrderRow } from '@/lib/services/manager/orders';
-import { DealStatusBadge } from '@/components/partner/deal-status-badge';
+import { OrderStageBadge } from '@/components/partner/order-stage-badge';
 import { Badge } from '@/components/ui';
 import { paymentStage } from '@/lib/orders/humanStage';
 
@@ -44,7 +44,7 @@ export function ManagerOrdersCardList({
             <span className="text-gray-500">
               {fmtMoney(o.totalAmount.toString())} · оплачено {fmtMoney(o.paidAmount.toString())}
             </span>
-            <DealStatusBadge
+            <OrderStageBadge
               stage={paymentStage({
                 financialStatus: o.financialStatus,
                 amount: Number(o.totalAmount),

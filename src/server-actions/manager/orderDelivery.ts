@@ -28,7 +28,7 @@ function revalidateOrder(orderId: string): void {
   revalidatePath(`/leader/orders/${orderId}`);
   // Клиентские деталки показывают точку «Результат передан» (ФТ-5.4).
   revalidatePath(`/organization/orders/${orderId}`);
-  revalidatePath(`/partner/deals/${orderId}`);
+  revalidatePath(`/partner/orders/${orderId}`);
 }
 
 export async function deliverOrderResultAction(input: {

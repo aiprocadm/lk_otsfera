@@ -84,14 +84,14 @@ describe('PartnerDocumentPublished template', () => {
         orderTitle: 'Игнор',
         documentName: 'contract.pdf',
         documentType: 'contract',
-        orderUrl: 'https://lk.otsfera.ru/partner/deals/ord-1',
+        orderUrl: 'https://lk.otsfera.ru/partner/orders/ord-1',
       })
     );
     expect(html).toContain('№ ORD-2026-0042');
     expect(html).toContain('договор');
     expect(html).toContain('«contract.pdf»');
     expect(html).toContain('Открыть портфолио');
-    expect(html).toContain('https://lk.otsfera.ru/partner/deals/ord-1');
+    expect(html).toContain('https://lk.otsfera.ru/partner/orders/ord-1');
   });
 
   it('falls back to orderTitle when orderNumber is null (unknown doc type → документ)', () => {
@@ -251,7 +251,7 @@ describe('sendPartnerDocumentPublishedEmail()', () => {
         orderTitle: 'Курс',
         documentName: 'contract.pdf',
         documentType: 'contract',
-        orderUrl: 'https://lk.otsfera.ru/partner/deals/ord-1',
+        orderUrl: 'https://lk.otsfera.ru/partner/orders/ord-1',
       },
       { transport }
     );
@@ -263,7 +263,7 @@ describe('sendPartnerDocumentPublishedEmail()', () => {
     expect(call.html).toMatch(/^<!DOCTYPE html>/);
     expect(call.html).toContain('№ ORD-2026-0042');
     expect(call.html).toContain('«contract.pdf»');
-    expect(call.text).toContain('Открыть портфолио: https://lk.otsfera.ru/partner/deals/ord-1');
+    expect(call.text).toContain('Открыть портфолио: https://lk.otsfera.ru/partner/orders/ord-1');
   });
 
   it('builds subject from orderTitle when orderNumber is null', async () => {

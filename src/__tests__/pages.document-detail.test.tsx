@@ -133,7 +133,7 @@ describe('Карточка документа — кабинет партнёр�
     );
     expect(requirePartner).toHaveBeenCalled();
     expect(container.textContent).toContain('"backHref":"/partner/documents"');
-    expect(container.textContent).toContain('"orderHrefBase":"/partner/deals"');
+    expect(container.textContent).toContain('"orderHrefBase":"/partner/orders"');
   });
 
   it('недоступный документ → notFound()', async () => {

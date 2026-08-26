@@ -8,7 +8,7 @@ const TONE_CLASSES: Record<Stage['tone'], string> = {
   danger: 'bg-red-50 text-red-800 border-red-200',
 };
 
-export function DealStatusBadge({ stage }: { stage: Stage }) {
+export function OrderStageBadge({ stage }: { stage: Stage }) {
   return (
     <span
       className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded border ${TONE_CLASSES[stage.tone]}`}
