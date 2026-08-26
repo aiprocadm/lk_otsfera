@@ -1,19 +1,24 @@
 import { createHash, randomBytes } from 'crypto';
 import type { PrismaClient, Prisma } from '@prisma/client';
+import { cachedIntegrationSetting } from '@/lib/config/integrationSettingsCache';
 
 type PrismaLike = PrismaClient | Prisma.TransactionClient;
 
 const DEFAULT_INVITE_TTL_DAYS = 7;
 const DEFAULT_RESET_TTL_HOURS = 2;
 
+/**
+ * `У-129`: сроки жизни ссылок настраиваются в интерфейсе. Приоритет прежний —
+ * база → переменная сервера → умолчание; переменные из чтения не удалены.
+ */
 function ttlDaysFromEnv(): number {
-  const raw = process.env.INVITE_TOKEN_TTL_DAYS;
+  const raw = cachedIntegrationSetting('login.inviteTtlDays') ?? process.env.INVITE_TOKEN_TTL_DAYS;
   const parsed = raw ? parseInt(raw, 10) : NaN;
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_INVITE_TTL_DAYS;
 }
 
 function resetTtlHoursFromEnv(): number {
-  const raw = process.env.RESET_TOKEN_TTL_HOURS;
+  const raw = cachedIntegrationSetting('login.resetTtlHours') ?? process.env.RESET_TOKEN_TTL_HOURS;
   const parsed = raw ? parseInt(raw, 10) : NaN;
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_RESET_TTL_HOURS;
 }

@@ -112,6 +112,22 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     ],
   },
   {
+    // `У-130`: SLA переехал из «Команды» — там ему не место, это настройка
+    // процесса, а не раздел про людей. Название по глоссарию: эскалирует
+    // очередь «Входящие в работу», а не «Обращения».
+    id: 'catalogs.slaIntake',
+    group: 'catalogs',
+    title: 'SLA входящих в работу',
+    description: 'Через сколько часов подсветить и через сколько эскалировать.',
+    icon: '⏱️',
+    path: 'catalogs/sla-intake',
+    capability: 'settings.catalogs.manage',
+    cabinets: ['admin', 'leader'],
+    // Старый адрес — вкладка «Команда» руководителя; карточка оттуда убрана,
+    // отдельного шлюза не нужно (это была секция экрана, а не свой маршрут).
+    legacyHrefs: [],
+  },
+  {
     // `У-128`: тексты писем — рядом с правилами уведомлений, это одна тема.
     id: 'catalogs.emailTemplates',
     group: 'catalogs',
@@ -181,6 +197,19 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     flag: 'role_constructor',
     cabinets: ['admin', 'leader'],
     legacyHrefs: [{ from: '/admin/roles' }, { from: '/leader/roles' }],
+  },
+  {
+    // `У-129`: сроки и лимиты входа. Раздел платформенный — вход один на всю
+    // систему, компанийского уровня у него нет.
+    id: 'security.loginPolicies',
+    group: 'security',
+    title: 'Политики входа',
+    description: 'Сроки кода и ссылок, число попыток, лимиты входа.',
+    icon: '🔐',
+    path: 'security/login-policies',
+    capability: 'settings.system.view',
+    cabinets: ['admin'],
+    legacyHrefs: [],
   },
   {
     id: 'security.audit',

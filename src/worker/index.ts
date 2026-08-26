@@ -191,7 +191,7 @@ async function main() {
     const certExpirySchedules = await registerCertExpirySchedules();
     const calendarReminderSchedules = await registerCalendarReminderSchedules();
     const taskDueSoonSchedules = await registerTaskDueSoonSchedules();
-    const slaEscalationSchedules = await registerSlaEscalationSchedules();
+    const slaEscalationSchedules = await registerSlaEscalationSchedules(getQueue, patterns);
     for (const r of [
       ...syncSchedules,
       ...commissionSchedules,

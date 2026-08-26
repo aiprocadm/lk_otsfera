@@ -4,8 +4,6 @@ import { prisma } from '@/lib/db/prisma';
 import { getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { listCompanyManagers } from '@/lib/services/manager/team';
 import { TeamVisibilityToggle } from '@/components/manager/team-visibility-toggle';
-import { SlaSettingsCard } from '@/components/manager/sla-settings-card';
-import { getSlaSettings } from '@/lib/services/manager/slaSettings';
 import { ManagerRosterPanel } from '@/components/manager/manager-roster-panel';
 
 import { PageHeader } from '@/components/ui/page-header';
@@ -17,8 +15,6 @@ export default async function LeaderTeamPage() {
     ? await getCompanyTeamVisibility(prisma, session.companyId)
     : false;
   const roster = session.companyId ? await listCompanyManagers(prisma, session.companyId) : [];
-  // Этап 7 (PR-3): пороги SLA входящих — карточка рядом с видимостью команды.
-  const sla = session.companyId ? await getSlaSettings(prisma, session.companyId) : null;
 
   return (
     <div className="space-y-6">
@@ -27,7 +23,9 @@ export default async function LeaderTeamPage() {
         subtitle="Менеджеры команды: нагрузка, планы продаж и видимость заказов"
       />
       <TeamVisibilityToggle initial={teamMode} />
-      {sla && <SlaSettingsCard initial={sla} />}
+      {/* `У-130`: пороги SLA уехали в «Настройки → Конфигурация процессов →
+          SLA входящих в работу». Здесь им было не место: это настройка
+          процесса, а не раздел про людей. */}
       <ManagerRosterPanel roster={roster} />
     </div>
   );
