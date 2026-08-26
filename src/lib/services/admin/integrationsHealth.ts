@@ -49,7 +49,12 @@ export async function getIntegrationsHealth(
   prisma: PrismaClient,
   session: SessionPayload
 ): Promise<{ ok: true; rows: IntegrationHealthRow[] } | { ok: false; error: 'forbidden' }> {
-  if (session.role !== 'admin') return { ok: false, error: 'forbidden' };
+  // `У-135` (решение `Р-22`): светофор открыт и руководителю — в строках нет
+  // секретов, только статусы, времена проверок и тексты ошибок. Секреты живут
+  // в формах админской страницы, куда руководитель не попадает.
+  if (session.role !== 'admin' && session.role !== 'leader') {
+    return { ok: false, error: 'forbidden' };
+  }
 
   // Статус читает креды через кэш настроек — праймим до вызова (заодно
   // подтягиваются значения флагов, они лежат в той же таблице).

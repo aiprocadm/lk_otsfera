@@ -131,6 +131,8 @@ describe('visibleSettingsSections / hasAnySettingsAccess', () => {
     expect(visibleSettingsSections(leader(), 'leader').map((s) => s.id)).toEqual([
       // `У-114`: свои настройки — первым разделом и во всех кабинетах.
       'personal.settings',
+      // `У-135` (Р-22): светофор интеграций — без секретов платформы.
+      'integrations.overview',
       // Этап 7 ТЗ импорта (Т-27): «Обмен с 1С» появился и в хабе руководителя.
       'integrations.oneC',
       // `У-130`: SLA переехал из «Команды» в хаб.
@@ -141,6 +143,8 @@ describe('visibleSettingsSections / hasAnySettingsAccess', () => {
       // `У-127`: правила уведомлений — руководитель настраивает свою компанию.
       'catalogs.notificationRules',
       'catalogs.customFields',
+      // `У-135` (Р-22): реквизиты исполнителя своей компании.
+      'catalogs.requisites',
       'access.roles',
     ]);
   });

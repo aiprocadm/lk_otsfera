@@ -51,7 +51,16 @@ const ERRORS_RU: Record<string, string> = {
   not_editable: 'Этот канал включается на сервере: он проверяется до обращения к базе',
 };
 
-export function IntegrationsHealthPanel({ rows }: { rows: IntegrationHealthRow[] }) {
+export function IntegrationsHealthPanel({
+  rows,
+  // У админа непереключаемы только edge-флаги — там подпись честная. Кабинет
+  // руководителя блокирует ВСЕ переключатели и передаёт свою подпись: для него
+  // канал включает администратор из интерфейса, а не «сервер» (`У-135`).
+  lockedLabel = 'включается на сервере',
+}: {
+  rows: IntegrationHealthRow[];
+  lockedLabel?: string;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -143,7 +152,7 @@ export function IntegrationsHealthPanel({ rows }: { rows: IntegrationHealthRow[]
                       className="text-xs text-gray-500"
                       data-testid={`channel-locked-${row.key}`}
                     >
-                      включается на сервере
+                      {lockedLabel}
                     </span>
                   )}
                 </div>
