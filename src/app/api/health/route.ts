@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { checkDb, checkRedis, checkS3 } from '@/lib/health/checks';
 import { secretEquals } from '@/lib/security/secretCompare';
+import { isSecretsKeyConfigured } from '@/lib/crypto/secrets';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,9 +26,15 @@ export async function GET(req: NextRequest) {
   }
 
   const [db, redis, s3] = await Promise.all([checkDb(prisma), checkRedis(), checkS3()]);
+  // `У-132` (дефект `Д-36`): без мастер-ключа секреты интеграций сохранить
+  // нельзя. Это не мешает отдавать трафик, поэтому в `status` состояние ключа
+  // НЕ входит — иначе балансировщик снял бы живой сервер из-за настройки. Но в
+  // ответе оно видно: раньше узнать об отсутствии ключа можно было только
+  // нажав «Сохранить» в форме интеграций.
+  const secretsKey = { ok: isSecretsKeyConfigured(), ms: 0 };
   const ok = db.ok && redis.ok && s3.ok;
   return Response.json(
-    { status: ok ? 'ok' : 'down', checks: { db, redis, s3 } },
+    { status: ok ? 'ok' : 'down', checks: { db, redis, s3, secretsKey } },
     { status: ok ? 200 : 503 }
   );
 }

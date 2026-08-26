@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
+import { primeFeatureFlagCache } from '@/lib/config/featureFlagStore';
 import { verifyTwoFactorPendingToken, signToken } from '@/lib/auth/jwt';
 import { SESSION_COOKIE_MAX_AGE_SECONDS } from '@/lib/auth/session';
 import { verifyTwoFactorCode } from '@/lib/services/auth/twoFactor';
@@ -22,6 +23,11 @@ function clientIp(req: NextRequest): string {
 // вся доменная логика — в services/auth/twoFactor; здесь только маппинг кодов
 // в HTTP и cookie-механика.
 export async function POST(req: NextRequest) {
+  // `У-133`: снапшот флагов может быть пуст — этот роут работает ДО всякой
+  // сессии, а праймил снапшот только `getSession()`. Без прайма флаг,
+  // включённый в интерфейсе, здесь не виден (дефект `Д-37`). Прайм дешёвый:
+  // внутри стоит TTL 30 с, лишнего запроса в базу не будет.
+  await primeFeatureFlagCache(prisma);
   const disabled = notFoundIfDisabled('staff_2fa');
   if (disabled) return disabled;
 

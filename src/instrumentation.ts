@@ -15,6 +15,33 @@
 import { scrubSentryEvent } from '@/lib/logging/scrub';
 import { assertEnvOnBoot } from '@/lib/env';
 
+/**
+ * Прайм снапшота feature-флагов на старте процесса (`У-133`, дефект `Д-37`).
+ *
+ * Снапшот заполнялся только внутри `getSession()`. До первого входа в кабинет
+ * его не было, а `api/auth/login` и `api/auth/2fa/*` читают флаг `staff_2fa`
+ * ДО всякой сессии — то есть на холодном процессе флаг, включённый в
+ * интерфейсе, не действовал, пока кто-нибудь не залогинится. Замкнутый круг:
+ * чтобы 2FA включилась, нужно войти; чтобы войти по новым правилам, нужна
+ * включённая 2FA.
+ *
+ * Fail-open сохраняется: любая ошибка базы логируется внутри `prime` и
+ * оставляет читателей на переменных окружения. Импорт динамический — на
+ * edge-runtime Prisma не грузится.
+ */
+async function primeFeatureFlagsOnBoot(): Promise<void> {
+  try {
+    const [{ prisma }, { primeFeatureFlagCache }] = await Promise.all([
+      import('@/lib/db/prisma'),
+      import('@/lib/config/featureFlagStore'),
+    ]);
+    await primeFeatureFlagCache(prisma);
+  } catch {
+    // База может быть ещё не поднята — это не повод не стартовать.
+    // Первый же `getSession()` или запрос логина повторит прайм.
+  }
+}
+
 export async function register(): Promise<void> {
   const runtime = process.env.NEXT_RUNTIME;
   // R0.2 fail-fast: production-сервер не поднимается с пустыми/плейсхолдерными
@@ -23,6 +50,7 @@ export async function register(): Promise<void> {
   // production assertEnvOnBoot — no-op.
   if (runtime === 'nodejs') {
     assertEnvOnBoot();
+    await primeFeatureFlagsOnBoot();
   }
   const dsn = process.env.SENTRY_DSN;
   if (!dsn) return;

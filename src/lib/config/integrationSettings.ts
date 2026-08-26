@@ -59,7 +59,10 @@ export const SETTING_SPECS = {
   'whatsapp.channelId': {
     key: 'whatsapp.channelId',
     envVar: 'WHATSAPP_AGGREGATOR_CHANNEL_ID',
-    isSecret: true,
+    // `У-131` (дефект `Д-35`): идентификатор канала — не секрет, а адрес.
+    // Пока он был помечен секретом, форма его не показывала, и человек не
+    // мог проверить, тот ли канал подключён.
+    isSecret: false,
   },
   'whatsapp.baseUrl': {
     key: 'whatsapp.baseUrl',
@@ -124,6 +127,22 @@ export async function getSettingValues(
   return out;
 }
 
+/**
+ * Открытое значение строки настройки. Строка помнит СВОЙ `isSecret` — тот, с
+ * которым её записали. Если настройка потом перестала быть секретной, значение
+ * в базе всё равно зашифровано, и читать его как обычный текст нельзя.
+ */
+function plainValue(row: { value: string | null; isSecret: boolean }): string | null {
+  if (row.value === null || row.value === '') return null;
+  if (!row.isSecret) return row.value;
+  try {
+    return decryptSecret(row.value);
+  } catch {
+    // Порча или смена ключа: показываем «не задано», а не шифротекст.
+    return null;
+  }
+}
+
 export type SettingViewRow = {
   key: SettingKey;
   isSecret: boolean;
@@ -157,7 +176,11 @@ export async function getSettingsView(
       key,
       isSecret: spec.isSecret,
       isSet: dbSet || envSet,
-      value: spec.isSecret ? null : dbSet ? dbRow!.value : (envVal ?? null),
+      // Расшифровываем по флагу СТРОКИ, а не спецификации. Настройка может
+      // перестать быть секретом (`У-131`: `whatsapp.channelId`), и тогда в базе
+      // остаётся строка, записанная зашифрованной. Без этой ветки форма
+      // показала бы человеку шифротекст и предложила его «поправить».
+      value: spec.isSecret ? null : dbSet ? plainValue(dbRow!) : (envVal ?? null),
       source,
     };
   });
