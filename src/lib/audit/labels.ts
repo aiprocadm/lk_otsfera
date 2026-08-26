@@ -156,6 +156,8 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   sync_dlq_bulk_retried: 'Повтор задач из очереди ошибок',
   sync_schedule_paused: 'Пауза расписания обмена',
   sync_schedule_resumed: 'Возобновление расписания обмена',
+  sync_schedule_pattern_changed: 'Изменение расписания обмена',
+  onec_params_changed: 'Изменение параметров обмена с 1С',
   sync_triggered: 'Ручной запуск обмена',
   task_assigned: 'Назначение исполнителя задачи',
   task_column_created: 'Создание колонки задач',

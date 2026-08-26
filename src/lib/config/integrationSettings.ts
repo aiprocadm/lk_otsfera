@@ -103,6 +103,36 @@ export const SETTING_SPECS = {
   'onec.apiUrl': { key: 'onec.apiUrl', envVar: 'ONE_C_API_URL', isSecret: false },
   'onec.apiToken': { key: 'onec.apiToken', envVar: 'ONE_C_API_TOKEN', isSecret: true },
   'onec.healthPath': { key: 'onec.healthPath', envVar: 'ONE_C_HEALTH_PATH', isSecret: false },
+  // `У-125`: параметры обмена — форма «Автообмен → Параметры», только
+  // администратор (это подключение всей платформы, решение `Р-22`).
+  'onec.mode': { key: 'onec.mode', envVar: 'ONE_C_MODE', isSecret: false },
+  'onec.httpTimeoutMs': {
+    key: 'onec.httpTimeoutMs',
+    envVar: 'ONE_C_HTTP_TIMEOUT_MS',
+    isSecret: false,
+  },
+  'onec.cursorOverlapMinutes': {
+    key: 'onec.cursorOverlapMinutes',
+    envVar: 'ONE_C_CURSOR_OVERLAP_MINUTES',
+    isSecret: false,
+  },
+  // Компания по умолчанию для сетевого синка: выбор из списка вместо ручного
+  // идентификатора в переменной сервера.
+  'onec.defaultCompanyId': {
+    key: 'onec.defaultCompanyId',
+    envVar: 'ONE_C_COMPANY_ID',
+    isSecret: false,
+  },
+  'onec.pendingMaxAttempts': {
+    key: 'onec.pendingMaxAttempts',
+    envVar: 'ONE_C_PENDING_MAX_ATTEMPTS',
+    isSecret: false,
+  },
+  'onec.pendingMaxAgeDays': {
+    key: 'onec.pendingMaxAgeDays',
+    envVar: 'ONE_C_PENDING_MAX_AGE_DAYS',
+    isSecret: false,
+  },
   // DaData (подсказки по ИНН). Включение + ключ; сам ключ на клиент не уходит.
   'dadata.enabled': { key: 'dadata.enabled', envVar: 'DADATA_ENABLED', isSecret: false },
   'dadata.apiKey': { key: 'dadata.apiKey', envVar: 'DADATA_API_KEY', isSecret: true },

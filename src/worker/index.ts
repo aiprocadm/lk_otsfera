@@ -21,6 +21,7 @@ import {
 } from '@/lib/jobs/scheduling';
 import { prisma } from '@/lib/db/prisma';
 import { primeFeatureFlagCache } from '@/lib/config/featureFlagStore';
+import { getSchedulePatterns } from '@/lib/services/admin/syncSchedules';
 import type { PushLeadJobPayload } from '@/lib/jobs/types';
 import { toBullProcessor } from './to-bull-processor';
 import { syncOrdersProcessor } from './processors/sync-orders';
@@ -181,7 +182,10 @@ async function main() {
 
   if (process.env.ENABLE_SYNC_CRON === '1') {
     const pausedIds = await loadPausedSchedulerIds(prisma);
-    const syncSchedules = await registerSyncSchedules(getQueue, pausedIds);
+    // `У-125`: расписания читаются из базы — правка в интерфейсе доезжает до
+    // воркера при следующей регистрации, без выкладки и правки кода.
+    const patterns = await getSchedulePatterns(prisma);
+    const syncSchedules = await registerSyncSchedules(getQueue, pausedIds, patterns);
     const commissionSchedules = await registerCommissionSchedules();
     const alertSchedules = await registerAlertSchedules();
     const certExpirySchedules = await registerCertExpirySchedules();

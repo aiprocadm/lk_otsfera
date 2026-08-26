@@ -115,14 +115,24 @@ export async function registerCommissionSchedules(
   return results;
 }
 
+/**
+ * Регистрация расписаний обмена.
+ *
+ * `У-125`: паттерн берётся из `patterns` — их отдаёт `getSchedulePatterns`,
+ * который накладывает заданное в интерфейсе поверх умолчаний из кода. Без
+ * аргумента (тесты, вызов из скрипта) действуют умолчания — прежнее
+ * поведение.
+ */
 export async function registerSyncSchedules(
   getQueueFn: GetQueueFn = getQueue,
-  pausedSchedulerIds: ReadonlySet<string> = new Set()
+  pausedSchedulerIds: ReadonlySet<string> = new Set(),
+  patterns: ReadonlyMap<string, string> = new Map()
 ): Promise<RegisteredSchedule[]> {
   const results: RegisteredSchedule[] = [];
   const registeredAt = new Date().toISOString();
   for (const schedule of SYNC_SCHEDULES) {
     if (pausedSchedulerIds.has(schedule.schedulerId)) continue;
+    const pattern = patterns.get(schedule.schedulerId) ?? schedule.pattern;
     const queue = getQueueFn(schedule.queueName);
     const payload: SyncJobPayload = {
       triggeredAt: registeredAt,
@@ -130,13 +140,13 @@ export async function registerSyncSchedules(
     };
     await queue.upsertJobScheduler(
       schedule.schedulerId,
-      { pattern: schedule.pattern, tz: schedule.tz },
+      { pattern, tz: schedule.tz },
       { data: payload }
     );
     results.push({
       schedulerId: schedule.schedulerId,
       queueName: schedule.queueName,
-      pattern: schedule.pattern,
+      pattern,
       tz: schedule.tz,
     });
   }
@@ -343,4 +353,36 @@ export async function registerCertExpirySchedules(
     });
   }
   return results;
+}
+
+/**
+ * Все расписания платформы одним списком — «id задачи → паттерн и пояс»
+ * (`У-125`).
+ *
+ * До этого экран «Автообмен» держал СВОЮ копию паттернов (`cronLabel` в
+ * `syncControl.ts`) «только для UI», и её приходилось стеречь отдельным
+ * drift-тестом. Копия удалена: и воркер, и экран смотрят сюда.
+ *
+ * Правятся из интерфейса пока только `SYNC_SCHEDULES` (это объём `У-125`);
+ * остальные показываются на чтение — у них своя очередь требований.
+ */
+export const ALL_SCHEDULES: ReadonlyArray<{
+  schedulerId: string;
+  pattern: string;
+  tz: string;
+  /** Можно ли задать расписание из интерфейса. */
+  editable: boolean;
+}> = [
+  ...SYNC_SCHEDULES.map((s) => ({ ...s, editable: true })),
+  ...COMMISSION_SCHEDULES.map((s) => ({ ...s, editable: false })),
+  ...ALERT_SCHEDULES.map((s) => ({ ...s, editable: false })),
+  ...CALENDAR_REMINDER_SCHEDULES.map((s) => ({ ...s, editable: false })),
+  ...TASK_DUE_SOON_SCHEDULES.map((s) => ({ ...s, editable: false })),
+  ...SLA_ESCALATION_SCHEDULES.map((s) => ({ ...s, editable: false })),
+  ...CERT_EXPIRY_SCHEDULES.map((s) => ({ ...s, editable: false })),
+].map(({ schedulerId, pattern, tz, editable }) => ({ schedulerId, pattern, tz, editable }));
+
+/** Паттерн по умолчанию для задачи; `null` — такой задачи в реестрах нет. */
+export function defaultPatternFor(schedulerId: string): string | null {
+  return ALL_SCHEDULES.find((s) => s.schedulerId === schedulerId)?.pattern ?? null;
 }

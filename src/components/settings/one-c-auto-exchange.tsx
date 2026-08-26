@@ -2,7 +2,12 @@ import React from 'react';
 import { prisma } from '@/lib/db/prisma';
 import { getSyncSummary, type SyncSummaryRow } from '@/lib/services/syncSummary';
 import { getQueueStats } from '@/lib/services/admin/queueStats';
-import { loadPausedSchedulerIds } from '@/lib/jobs/scheduling';
+import { loadPausedSchedulerIds, defaultPatternFor, DEFAULT_SYNC_TZ } from '@/lib/jobs/scheduling';
+import { getSchedulePatterns } from '@/lib/services/admin/syncSchedules';
+import { getSettingsView, type SettingKey } from '@/lib/config/integrationSettings';
+import { SyncScheduleEditor } from '@/components/admin/sync-schedule-editor';
+import { OneCParamsForm } from '@/components/admin/one-c-params-form';
+import { saveOneCParamsAction } from '@/server-actions/admin/syncControl';
 import { SYNC_ENTITIES, type SyncControlEntity } from '@/lib/services/admin/syncControl';
 import { CardList, Card, CardRow } from '@/components/ui/card-list';
 import { listPendingRecords, type PendingRecordRow } from '@/lib/services/admin/pendingRecords';
@@ -35,6 +40,16 @@ import { PageHeader } from '@/components/ui/page-header';
  * остановка расписания задевает чужие данные. Запуск же означает «сходить за
  * свежими данными сейчас» — последствия обратимы.
  */
+/** `У-125`: параметры обмена, которые правит администратор. */
+const ONEC_PARAM_KEYS: SettingKey[] = [
+  'onec.mode',
+  'onec.httpTimeoutMs',
+  'onec.cursorOverlapMinutes',
+  'onec.defaultCompanyId',
+  'onec.pendingMaxAttempts',
+  'onec.pendingMaxAgeDays',
+];
+
 const ENTITY_RU: Record<SyncSummaryRow['entity'], string> = {
   organization: 'Организации',
   order: 'Заказы',
@@ -93,18 +108,31 @@ export async function OneCAutoExchange({
 }) {
   const isAdmin = cabinet === 'admin';
 
-  const [rows, queueStats, pausedIds, pendingRecords] = await Promise.all([
-    getSyncSummary(prisma),
-    getQueueStats().catch(() => []),
-    loadPausedSchedulerIds(prisma).catch(() => new Set<string>()),
-    // Очередь разбора — админская (сервис отвечает `forbidden` остальным).
-    // Сбой БД деградирует в пустую секцию, как соседние загрузки (§3).
-    isAdmin
-      ? listPendingRecords(prisma, session)
-          .then((r) => (r.ok ? r.records : []))
-          .catch(() => [] as PendingRecordRow[])
-      : Promise.resolve([] as PendingRecordRow[]),
-  ]);
+  const [rows, queueStats, pausedIds, pendingRecords, patterns, paramsView, companies] =
+    await Promise.all([
+      getSyncSummary(prisma),
+      getQueueStats().catch(() => []),
+      loadPausedSchedulerIds(prisma).catch(() => new Set<string>()),
+      // Очередь разбора — админская (сервис отвечает `forbidden` остальным).
+      // Сбой БД деградирует в пустую секцию, как соседние загрузки (§3).
+      isAdmin
+        ? listPendingRecords(prisma, session)
+            .then((r) => (r.ok ? r.records : []))
+            .catch(() => [] as PendingRecordRow[])
+        : Promise.resolve([] as PendingRecordRow[]),
+      // `У-125`: расписание и параметры — из базы, с умолчаниями из кода.
+      getSchedulePatterns(prisma).catch(() => new Map<string, string>()),
+      getSettingsView(prisma, ONEC_PARAM_KEYS).catch(() => []),
+      isAdmin
+        ? prisma.company
+            .findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } })
+            .catch(() => [] as Array<{ id: string; name: string }>)
+        : Promise.resolve([] as Array<{ id: string; name: string }>),
+    ]);
+
+  const paramOf = (key: string) => paramsView.find((r) => r.key === key)?.value ?? '';
+  const patternOf = (schedulerId: string) =>
+    patterns.get(schedulerId) ?? defaultPatternFor(schedulerId) ?? '—';
 
   const activeByQueue = new Map(queueStats.map((q) => [q.queue, q.counts.active]));
 
@@ -158,7 +186,18 @@ export async function OneCAutoExchange({
                   <>
                     <SyncScheduleToggle schedulerId={cfg.schedulerId} paused={paused} />
                     <SyncCursorDialog entity={r.entity} currentCursor={r.cursor ?? null} />
+                    <SyncScheduleEditor
+                      schedulerId={cfg.schedulerId}
+                      tz={DEFAULT_SYNC_TZ}
+                      current={patternOf(cfg.schedulerId)}
+                      isDefault={!patterns.has(cfg.schedulerId)}
+                    />
                   </>
+                )}
+                {!isAdmin && (
+                  <span className="text-xs text-gray-500 self-center">
+                    Расписание: <code className="font-mono">{patternOf(cfg.schedulerId)}</code>
+                  </span>
                 )}
               </div>
             </Card>
@@ -311,7 +350,7 @@ export async function OneCAutoExchange({
                     </td>
                     <td className="px-4 py-3">
                       <code className="text-xs text-gray-700 bg-gray-50 px-1.5 py-0.5 rounded">
-                        {SYNC_ENTITIES[job.entity].cronLabel}
+                        {patternOf(SYNC_ENTITIES[job.entity].schedulerId)}
                       </code>
                     </td>
                     <td className="px-4 py-3">
@@ -328,8 +367,47 @@ export async function OneCAutoExchange({
             </table>
           </div>
 
+          {/* `У-125`: параметры обмена — форма у администратора. */}
+          <OneCParamsForm
+            initial={{
+              mode: paramOf('onec.mode') || 'live',
+              httpTimeoutMs: paramOf('onec.httpTimeoutMs'),
+              cursorOverlapMinutes: paramOf('onec.cursorOverlapMinutes'),
+              defaultCompanyId: paramOf('onec.defaultCompanyId'),
+              pendingMaxAttempts: paramOf('onec.pendingMaxAttempts'),
+              pendingMaxAgeDays: paramOf('onec.pendingMaxAgeDays'),
+            }}
+            companies={companies}
+            action={saveOneCParamsAction}
+          />
+
           <PendingRecordsSection records={pendingRecords} />
         </>
+      )}
+
+      {/* `У-125`: руководитель видит те же параметры — только на чтение. */}
+      {!isAdmin && (
+        <div className="bg-white border border-gray-200 rounded-xl p-5">
+          <h2 className="text-sm font-semibold text-[#111111] mb-3">Параметры обмена</h2>
+          <CardList>
+            <Card title="Как настроено">
+              <CardRow label="Режим">
+                {(paramOf('onec.mode') || 'live') === 'shadow'
+                  ? 'теневой — в 1С не пишем'
+                  : 'боевой — читаем и пишем'}
+              </CardRow>
+              <CardRow label="Таймаут запроса">
+                {paramOf('onec.httpTimeoutMs') || '15000'} мс
+              </CardRow>
+              <CardRow label="Перекрытие курсора">
+                {paramOf('onec.cursorOverlapMinutes') || '5'} мин
+              </CardRow>
+            </Card>
+          </CardList>
+          <p className="text-xs text-gray-400 mt-2">
+            Обмен с 1С один на всю платформу, поэтому его параметры меняет администратор.
+          </p>
+        </div>
       )}
     </div>
   );

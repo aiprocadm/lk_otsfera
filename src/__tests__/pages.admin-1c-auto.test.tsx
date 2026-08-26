@@ -6,7 +6,12 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { requireSettingsSection } = vi.hoisted(() => ({ requireSettingsSection: vi.fn() }));
 vi.mock('@/lib/auth/requireSettings', () => ({ requireSettingsSection }));
 
-vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+vi.mock('@/lib/db/prisma', () => ({
+  prisma: {
+    integrationSetting: { findMany: async () => [] },
+    company: { findMany: async () => [] },
+  },
+}));
 
 const { getSyncSummary } = vi.hoisted(() => ({ getSyncSummary: vi.fn() }));
 vi.mock('@/lib/services/syncSummary', () => ({ getSyncSummary }));
@@ -15,7 +20,10 @@ const { getQueueStats } = vi.hoisted(() => ({ getQueueStats: vi.fn() }));
 vi.mock('@/lib/services/admin/queueStats', () => ({ getQueueStats }));
 
 const { loadPausedSchedulerIds } = vi.hoisted(() => ({ loadPausedSchedulerIds: vi.fn() }));
-vi.mock('@/lib/jobs/scheduling', () => ({ loadPausedSchedulerIds }));
+vi.mock('@/lib/jobs/scheduling', async (orig) => {
+  const actual = await orig<typeof import('@/lib/jobs/scheduling')>();
+  return { ...actual, loadPausedSchedulerIds };
+});
 
 const { listPendingRecords } = vi.hoisted(() => ({ listPendingRecords: vi.fn() }));
 vi.mock('@/lib/services/admin/pendingRecords', () => ({ listPendingRecords }));
@@ -70,6 +78,21 @@ const { SYNC_ENTITIES } = vi.hoisted(() => ({
   },
 }));
 vi.mock('@/lib/services/admin/syncControl', () => ({ SYNC_ENTITIES }));
+
+vi.mock('@/components/admin/sync-schedule-editor', () => ({
+  SyncScheduleEditor: (props: { schedulerId: string; current: string }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'sync-schedule-editor' },
+      props.schedulerId,
+      props.current
+    ),
+}));
+
+vi.mock('@/components/admin/one-c-params-form', () => ({
+  OneCParamsForm: (props: { initial: { mode: string } }) =>
+    React.createElement('div', { 'data-testid': 'onec-params-form' }, props.initial.mode),
+}));
 
 vi.mock('@/components/admin/sync-trigger-button', () => ({
   SyncTriggerButton: (props: { entity: string }) =>
@@ -235,7 +258,7 @@ describe('AdminSyncPage', () => {
 
     const { container } = await renderServerComponent(AdminSyncPage());
 
-    expect(listPendingRecords).toHaveBeenCalledWith({}, SESSION);
+    expect(listPendingRecords).toHaveBeenCalledWith(expect.anything(), SESSION);
     expect(container.textContent).toContain('Отложенные записи 1С');
     expect(container.textContent).toContain('ORD-1');
     expect(container.textContent).toContain('PAY-1');

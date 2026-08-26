@@ -230,13 +230,16 @@ describe('triggerSync — background cron jobs (G3)', () => {
     }
   );
 
-  it('cronLabel/queueName match the schedule registries for every scheduled entity (drift guard)', () => {
+  it('каждая задача есть в реестре расписаний и очередь совпадает', () => {
+    // `У-125`: поля `cronLabel` больше нет — дублировать паттерн было нечем и
+    // незачем, поэтому и стеречь его дрейф не нужно. Осталась связь «задача →
+    // расписание → очередь», без которой кнопка «запустить» ушла бы не туда.
     const all = [...SYNC_SCHEDULES, ...CERT_EXPIRY_SCHEDULES, ...COMMISSION_SCHEDULES];
     for (const [entity, cfg] of Object.entries(SYNC_ENTITIES)) {
       const schedule = all.find((s) => s.schedulerId === cfg.schedulerId);
       expect(schedule, `schedule registry entry for ${entity}`).toBeDefined();
-      expect(cfg.cronLabel, `cronLabel of ${entity}`).toBe(schedule!.pattern);
       expect(cfg.queueName, `queueName of ${entity}`).toBe(schedule!.queueName);
+      expect(cfg, `у ${entity} снова появился дубль расписания`).not.toHaveProperty('cronLabel');
     }
   });
 });

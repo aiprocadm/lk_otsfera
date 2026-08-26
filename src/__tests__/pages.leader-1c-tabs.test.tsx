@@ -6,7 +6,12 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { requireSettingsSection } = vi.hoisted(() => ({ requireSettingsSection: vi.fn() }));
 vi.mock('@/lib/auth/requireSettings', () => ({ requireSettingsSection }));
 
-vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+vi.mock('@/lib/db/prisma', () => ({
+  prisma: {
+    integrationSetting: { findMany: async () => [] },
+    company: { findMany: async () => [] },
+  },
+}));
 
 const { getSyncSummary } = vi.hoisted(() => ({ getSyncSummary: vi.fn() }));
 vi.mock('@/lib/services/syncSummary', () => ({ getSyncSummary }));
@@ -15,13 +20,31 @@ const { getQueueStats } = vi.hoisted(() => ({ getQueueStats: vi.fn() }));
 vi.mock('@/lib/services/admin/queueStats', () => ({ getQueueStats }));
 
 const { loadPausedSchedulerIds } = vi.hoisted(() => ({ loadPausedSchedulerIds: vi.fn() }));
-vi.mock('@/lib/jobs/scheduling', () => ({ loadPausedSchedulerIds }));
+vi.mock('@/lib/jobs/scheduling', async (orig) => {
+  const actual = await orig<typeof import('@/lib/jobs/scheduling')>();
+  return { ...actual, loadPausedSchedulerIds };
+});
 
 const { listPendingRecords } = vi.hoisted(() => ({ listPendingRecords: vi.fn() }));
 vi.mock('@/lib/services/admin/pendingRecords', () => ({ listPendingRecords }));
 
 const { listExchangeHistory } = vi.hoisted(() => ({ listExchangeHistory: vi.fn() }));
 vi.mock('@/lib/services/import/history', () => ({ listExchangeHistory }));
+
+vi.mock('@/components/admin/sync-schedule-editor', () => ({
+  SyncScheduleEditor: (props: { schedulerId: string; current: string }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'sync-schedule-editor' },
+      props.schedulerId,
+      props.current
+    ),
+}));
+
+vi.mock('@/components/admin/one-c-params-form', () => ({
+  OneCParamsForm: (props: { initial: { mode: string } }) =>
+    React.createElement('div', { 'data-testid': 'onec-params-form' }, props.initial.mode),
+}));
 
 vi.mock('@/components/admin/sync-trigger-button', () => ({
   SyncTriggerButton: (props: { entity: string }) =>
@@ -117,7 +140,7 @@ describe('«Обмен с 1С» руководителя: вкладки сущ�
   it('«История»: экран есть, скоуп режет сервис', async () => {
     const { container } = await renderServerComponent(LeaderOneCHistoryPage());
     expect(requireSettingsSection).toHaveBeenCalledWith('integrations.oneC', 'leader');
-    expect(listExchangeHistory).toHaveBeenCalledWith({}, LEADER);
+    expect(listExchangeHistory).toHaveBeenCalledWith(expect.anything(), LEADER);
     expect(container.querySelector('[data-testid="exchange-history"]')).not.toBeNull();
   });
 
