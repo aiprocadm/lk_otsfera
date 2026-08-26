@@ -296,21 +296,25 @@ export const SLA_ESCALATION_SCHEDULES: ReadonlyArray<SlaEscalationSchedule> = [
 ] as const;
 
 export async function registerSlaEscalationSchedules(
-  getQueueFn: GetQueueFn = getQueue
+  getQueueFn: GetQueueFn = getQueue,
+  // `У-130`: интервал задачи SLA настраивается из интерфейса — как и у обмена
+  // с 1С (`У-125`). Без аргумента действует умолчание из кода.
+  patterns: ReadonlyMap<string, string> = new Map()
 ): Promise<Array<{ schedulerId: string; queueName: string; pattern: string; tz: string }>> {
   const results = [];
   const triggeredAt = new Date().toISOString();
   for (const schedule of SLA_ESCALATION_SCHEDULES) {
+    const pattern = patterns.get(schedule.schedulerId) ?? schedule.pattern;
     const queue = getQueueFn(schedule.queueName);
     await queue.upsertJobScheduler(
       schedule.schedulerId,
-      { pattern: schedule.pattern, tz: schedule.tz },
+      { pattern, tz: schedule.tz },
       { data: { triggeredAt, reason: 'cron' } }
     );
     results.push({
       schedulerId: schedule.schedulerId,
       queueName: schedule.queueName,
-      pattern: schedule.pattern,
+      pattern,
       tz: schedule.tz,
     });
   }
@@ -378,7 +382,8 @@ export const ALL_SCHEDULES: ReadonlyArray<{
   ...ALERT_SCHEDULES.map((s) => ({ ...s, editable: false })),
   ...CALENDAR_REMINDER_SCHEDULES.map((s) => ({ ...s, editable: false })),
   ...TASK_DUE_SOON_SCHEDULES.map((s) => ({ ...s, editable: false })),
-  ...SLA_ESCALATION_SCHEDULES.map((s) => ({ ...s, editable: false })),
+  // `У-130`: интервал задачи SLA настраивается там же, где пороги.
+  ...SLA_ESCALATION_SCHEDULES.map((s) => ({ ...s, editable: true })),
   ...CERT_EXPIRY_SCHEDULES.map((s) => ({ ...s, editable: false })),
 ].map(({ schedulerId, pattern, tz, editable }) => ({ schedulerId, pattern, tz, editable }));
 

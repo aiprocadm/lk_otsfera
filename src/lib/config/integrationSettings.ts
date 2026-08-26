@@ -180,6 +180,39 @@ export const SETTING_SPECS = {
   // оповещения уходили всем администраторам без возможности это изменить.
   // Пустой список сохраняет прежнее поведение.
   'alerts.emailRecipients': { key: 'alerts.emailRecipients', envVar: null, isSecret: false },
+  // `У-129`: политики входа. Часть из них была КОНСТАНТАМИ в коде — у таких
+  // переменной окружения нет и не было (`envVar: null`).
+  'login.twoFactorCodeTtlMinutes': {
+    key: 'login.twoFactorCodeTtlMinutes',
+    envVar: null,
+    isSecret: false,
+  },
+  'login.twoFactorMaxAttempts': {
+    key: 'login.twoFactorMaxAttempts',
+    envVar: null,
+    isSecret: false,
+  },
+  'login.backupCodesCount': { key: 'login.backupCodesCount', envVar: null, isSecret: false },
+  'login.rateLimitWindowMs': {
+    key: 'login.rateLimitWindowMs',
+    envVar: 'LOGIN_RATE_LIMIT_WINDOW_MS',
+    isSecret: false,
+  },
+  'login.rateLimitMax': {
+    key: 'login.rateLimitMax',
+    envVar: 'LOGIN_RATE_LIMIT_MAX',
+    isSecret: false,
+  },
+  'login.inviteTtlDays': {
+    key: 'login.inviteTtlDays',
+    envVar: 'INVITE_TOKEN_TTL_DAYS',
+    isSecret: false,
+  },
+  'login.resetTtlHours': {
+    key: 'login.resetTtlHours',
+    envVar: 'RESET_TOKEN_TTL_HOURS',
+    isSecret: false,
+  },
   'dadata.enabled': { key: 'dadata.enabled', envVar: 'DADATA_ENABLED', isSecret: false },
   'dadata.apiKey': { key: 'dadata.apiKey', envVar: 'DADATA_API_KEY', isSecret: true },
 } as const satisfies Record<string, SettingSpec>;
@@ -209,7 +242,7 @@ export async function getSettingValue(
         return decryptSecret(row.value);
       } catch {
         // Порча/смена ключа — не роняем вызывающего, уходим в fallback.
-        return spec.envVar ? (process.env[spec.envVar]?.trim() || null) : null;
+        return spec.envVar ? process.env[spec.envVar]?.trim() || null : null;
       }
     }
     return row.value;

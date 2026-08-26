@@ -1,9 +1,39 @@
 import { createHash, randomBytes, randomInt } from 'crypto';
 import type { PrismaClient } from '@prisma/client';
+import { cachedIntegrationSetting } from '@/lib/config/integrationSettingsCache';
 
-const CODE_TTL_MS = 10 * 60 * 1000;
-const MAX_ATTEMPTS = 5;
-const BACKUP_COUNT = 10;
+/**
+ * `У-129`: сроки и лимиты второго шага входа настраиваются в интерфейсе
+ * («Безопасность → Политики входа»). Раньше это были константы: чтобы дать
+ * людям больше минуты на ввод кода из письма, требовалась выкладка.
+ *
+ * Значения читаются на КАЖДЫЙ вызов, а не один раз при загрузке модуля —
+ * иначе правка подействовала бы только после перезапуска.
+ */
+const DEFAULT_CODE_TTL_MINUTES = 10;
+const DEFAULT_MAX_ATTEMPTS = 5;
+const DEFAULT_BACKUP_COUNT = 10;
+
+function numericSetting(
+  key: Parameters<typeof cachedIntegrationSetting>[0],
+  fallback: number
+): number {
+  const raw = Number(cachedIntegrationSetting(key));
+  return Number.isFinite(raw) && raw > 0 ? raw : fallback;
+}
+
+function codeTtlMs(): number {
+  return numericSetting('login.twoFactorCodeTtlMinutes', DEFAULT_CODE_TTL_MINUTES) * 60 * 1000;
+}
+
+function maxAttempts(): number {
+  return numericSetting('login.twoFactorMaxAttempts', DEFAULT_MAX_ATTEMPTS);
+}
+
+function backupCount(): number {
+  return numericSetting('login.backupCodesCount', DEFAULT_BACKUP_COUNT);
+}
+
 const BACKUP_LEN = 10;
 // base32-подобный алфавит без похожих глифов (0/O, 1/I/L) — коды диктуются голосом
 const BACKUP_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -24,7 +54,7 @@ export async function createTwoFactorChallenge(
   userId: string
 ): Promise<{ code: string }> {
   const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
-  const expiresAt = new Date(Date.now() + CODE_TTL_MS);
+  const expiresAt = new Date(Date.now() + codeTtlMs());
   await prisma.twoFactorChallenge.upsert({
     where: { userId },
     create: { userId, codeHash: hashCode(code), expiresAt },
@@ -57,7 +87,7 @@ export async function verifyTwoFactorCode(
     await prisma.twoFactorChallenge.delete({ where: { userId } });
     return { ok: false, error: 'code_expired' };
   }
-  if (challenge.attempts >= MAX_ATTEMPTS) {
+  if (challenge.attempts >= maxAttempts()) {
     await prisma.twoFactorChallenge.delete({ where: { userId } });
     return { ok: false, error: 'too_many_attempts' };
   }
@@ -99,7 +129,7 @@ export async function generateBackupCodes(
   prisma: PrismaClient,
   userId: string
 ): Promise<{ codes: string[] }> {
-  const codes = Array.from({ length: BACKUP_COUNT }, () => randomBackupCode());
+  const codes = Array.from({ length: backupCount() }, () => randomBackupCode());
   await prisma.$transaction(async (tx) => {
     await tx.twoFactorBackupCode.deleteMany({ where: { userId } });
     await tx.twoFactorBackupCode.createMany({

@@ -87,13 +87,19 @@ describe('У-125: расписание задаётся из интерфейс�
     expect(ids.size).toBeGreaterThanOrEqual(SYNC_SCHEDULES.length);
   });
 
-  it('редактируемые расписания — ровно синхронизация с 1С и её спутники', () => {
-    // Остальные (комиссии, алерты, напоминания) правятся своими требованиями,
-    // а не «заодно»: иначе форма пообещала бы то, чего не делает.
+  it('редактируемые расписания — ровно те, у которых есть свой экран', () => {
+    // Остальные (комиссии, напоминания, ops-алерты) правятся своими
+    // требованиями, а не «заодно»: иначе форма пообещала бы то, чего не делает.
     const editable = ALL_SCHEDULES.filter((s) => s.editable)
       .map((s) => s.schedulerId)
       .sort();
-    expect(editable).toEqual(SYNC_SCHEDULES.map((s) => s.schedulerId).sort());
+    expect(editable).toEqual(
+      [
+        ...SYNC_SCHEDULES.map((s) => s.schedulerId),
+        // `У-130`: интервал задачи SLA настраивается на экране «SLA входящих».
+        'monitoring.slaEscalation.cron',
+      ].sort()
+    );
   });
 
   it('все зашитые в коде расписания разбираются нашим же разбором', () => {

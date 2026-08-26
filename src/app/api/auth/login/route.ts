@@ -8,6 +8,10 @@ import { buildSessionClaims } from '@/lib/auth/buildSessionClaims';
 import { isRateLimited } from '@/lib/rateLimit';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { primeFeatureFlagCache } from '@/lib/config/featureFlagStore';
+import {
+  cachedIntegrationSetting,
+  primeIntegrationSettingsCache,
+} from '@/lib/config/integrationSettingsCache';
 import { createTwoFactorChallenge, discardTwoFactorChallenge } from '@/lib/services/auth/twoFactor';
 import { authenticateWithPassword, recordLastLogin } from '@/lib/services/auth/login';
 import { send } from '@/lib/email/send';
@@ -31,8 +35,23 @@ const loginSchema = z.object({
   password: z.string().min(1).max(256),
 });
 
-const WINDOW_MS = Number(process.env.LOGIN_RATE_LIMIT_WINDOW_MS ?? 60_000);
-const MAX_ATTEMPTS = Number(process.env.LOGIN_RATE_LIMIT_MAX ?? 10);
+/**
+ * `У-129`: лимиты входа настраиваются в интерфейсе. Читаются НА КАЖДЫЙ запрос,
+ * а не один раз при загрузке модуля: иначе правка подействовала бы только
+ * после перезапуска — ровно та беда, которую этап и чинит.
+ */
+function loginLimits(): { windowMs: number; maxAttempts: number } {
+  const windowMs = Number(
+    cachedIntegrationSetting('login.rateLimitWindowMs') ?? process.env.LOGIN_RATE_LIMIT_WINDOW_MS
+  );
+  const maxAttempts = Number(
+    cachedIntegrationSetting('login.rateLimitMax') ?? process.env.LOGIN_RATE_LIMIT_MAX
+  );
+  return {
+    windowMs: Number.isFinite(windowMs) && windowMs > 0 ? windowMs : 60_000,
+    maxAttempts: Number.isFinite(maxAttempts) && maxAttempts > 0 ? maxAttempts : 10,
+  };
+}
 
 // Общий Redis-backed лимитер (@/lib/rateLimit): счётчик делится между всеми
 // инстансами и переживает cold start; при недоступном Redis сам деградирует
@@ -49,7 +68,12 @@ function clientIp(req: Request): string {
 export async function POST(req: Request) {
   const ip = clientIp(req);
 
-  if (await isRateLimited(`login:${ip}`, { windowMs: WINDOW_MS, max: MAX_ATTEMPTS })) {
+  // `У-129`: лимиты живут в базе — снапшот настроек нужен ДО первой проверки.
+  // Вход происходит до всякой сессии, праймить его больше некому (`У-133`).
+  await primeIntegrationSettingsCache(prisma);
+  const { windowMs, maxAttempts } = loginLimits();
+
+  if (await isRateLimited(`login:${ip}`, { windowMs, max: maxAttempts })) {
     return NextResponse.json(
       { code: 'TOO_MANY_REQUESTS', message: 'Too many login attempts. Try again later.' },
       { status: 429 }

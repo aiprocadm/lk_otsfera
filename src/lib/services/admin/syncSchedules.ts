@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { SYNC_SCHEDULES } from '@/lib/jobs/scheduling';
+import { ALL_SCHEDULES } from '@/lib/jobs/scheduling';
 import { parseCron } from '@/lib/jobs/cron';
 import { recordAudit } from '@/lib/auth/audit';
 
@@ -39,7 +39,11 @@ export type SchedulePatterns = Map<string, string>;
  * пропустит, но база переживает и ручные правки.
  */
 export async function getSchedulePatterns(prisma: PrismaClient): Promise<SchedulePatterns> {
-  const out: SchedulePatterns = new Map(SYNC_SCHEDULES.map((s) => [s.schedulerId, s.pattern]));
+  // Умолчания — по ВСЕМ редактируемым расписаниям (`У-125` обмен с 1С,
+  // `У-130` задача SLA): реестр один, чтобы не заводить второй список.
+  const out: SchedulePatterns = new Map(
+    ALL_SCHEDULES.filter((s) => s.editable).map((s) => [s.schedulerId, s.pattern])
+  );
 
   const rows = await prisma.integrationSetting.findMany({
     where: { key: { startsWith: KEY_PREFIX } },
@@ -70,7 +74,7 @@ export async function saveSchedulePattern(
   schedulerId: string,
   pattern: string
 ): Promise<SaveScheduleResult> {
-  if (!SYNC_SCHEDULES.some((s) => s.schedulerId === schedulerId)) {
+  if (!ALL_SCHEDULES.some((s) => s.editable && s.schedulerId === schedulerId)) {
     return { ok: false, error: 'unknown_schedule' };
   }
 

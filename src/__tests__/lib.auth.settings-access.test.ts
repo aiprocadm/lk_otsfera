@@ -133,6 +133,8 @@ describe('visibleSettingsSections / hasAnySettingsAccess', () => {
       'personal.settings',
       // Этап 7 ТЗ импорта (Т-27): «Обмен с 1С» появился и в хабе руководителя.
       'integrations.oneC',
+      // `У-130`: SLA переехал из «Команды» в хаб.
+      'catalogs.slaIntake',
       // `У-128`: свои тексты писем — руководитель пишет для своей компании.
       'catalogs.emailTemplates',
       'catalogs.applicationStatuses',
