@@ -7,10 +7,13 @@ import { recordAudit } from '@/lib/auth/audit';
 
 const LINK_CODE_EXPIRY_MINUTES = 15;
 
+/** Статус привязки Telegram — его карточка личных настроек получает пропсом. */
+export type TelegramStatus = { ok: true; linked: boolean; enabled: boolean };
+
 export async function getTelegramStatus(
   prisma: PrismaClient,
   session: SessionPayload
-): Promise<{ ok: true; linked: boolean; enabled: boolean }> {
+): Promise<TelegramStatus> {
   await primeIntegrationSettingsCache(prisma);
   const user = await prisma.user.findUnique({
     where: { id: session.sub },

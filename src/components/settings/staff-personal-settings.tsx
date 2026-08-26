@@ -1,20 +1,18 @@
 import React from 'react';
-import { prisma } from '@/lib/db/prisma';
-import { requireSettingsSection } from '@/lib/auth/requireSettings';
 import { isFeatureEnabled } from '@/lib/featureFlags';
-import { getTelegramStatus } from '@/lib/services/telegram/link';
-import { getNotificationSettings } from '@/lib/services/notifications/preferences';
-import { getStaffInternalPhone } from '@/lib/services/manager/staffProfile';
 import { TelegramLinkCard } from '@/components/settings/telegram-link-card';
 import { NotificationChannelsCard } from '@/components/settings/notification-channels-card';
 import { StaffBackupCodesSection } from '@/components/settings/staff-backup-codes-section';
 import { SecurityCard } from '@/components/settings/security-card';
 import { InternalPhoneCard } from '@/components/manager/settings/internal-phone-card';
 import { PersonalSettings } from '@/components/settings/personal-settings';
-import { readPersonalSettingsTab } from '@/lib/navigation/personalSettingsTab';
-import { PERSONAL_SETTINGS_SUBTITLE } from '@/lib/navigation/personalSettings';
+import {
+  PERSONAL_SETTINGS_SUBTITLE,
+  type PersonalSettingsTabKey,
+} from '@/lib/navigation/personalSettings';
 import type { SettingsCabinet } from '@/lib/navigation/settings';
-import { isManagerLeader } from '@/lib/auth/roleModel';
+import type { TelegramStatus } from '@/lib/services/telegram/link';
+import type { NotificationSettingsView } from '@/lib/services/notifications/preferences';
 
 import { PageHeader } from '@/components/ui/page-header';
 /**
@@ -25,42 +23,31 @@ import { PageHeader } from '@/components/ui/page-header';
  * у менеджера, партнёра и заказчика тот же набор всегда лежал на одном экране.
  * Теперь везде один компонент с одними вкладками (`Р-23`, правило зеркала).
  *
- * Гард раздела вызывается на КАЖДЫЙ запрос (§2b): скрытая карточка — это
- * внешний вид, а не право доступа.
- *
- * Данные грузятся только для открытой вкладки: открывая «Безопасность», не идём
- * в базу за телеграмом и каналами.
+ * Компонент **презентационный**: данные приходят пропсами, в базу он не ходит
+ * (правило `components-no-db`). Гард раздела и выборки живут на странице
+ * своего кабинета — она грузит данные только для открытой вкладки: открывая
+ * «Безопасность», не идём в базу за телеграмом и каналами.
  */
-export async function StaffPersonalSettings({
+export function StaffPersonalSettings({
   cabinet,
-  searchParams,
+  activeTab,
+  withPhone,
+  profile,
+  notifications,
 }: {
   cabinet: SettingsCabinet;
-  searchParams: Promise<{ tab?: string }>;
+  activeTab: PersonalSettingsTabKey;
+  /** Внутренний номер — только менеджерский контур (руководитель, не админ). */
+  withPhone: boolean;
+  profile: { telegram: TelegramStatus; internalPhone: string | null } | null;
+  notifications: NotificationSettingsView | null;
 }) {
-  const session = await requireSettingsSection('personal.settings', cabinet);
-  const tab = readPersonalSettingsTab((await searchParams).tab);
-
-  // Внутренний номер — только менеджерский контур: click-to-call через Mango
-  // инициирует руководитель, а `updateInternalPhoneAction` админа и не пустит.
-  const withPhone = isManagerLeader(session);
-
-  const profile =
-    tab === 'profile'
-      ? {
-          telegram: await getTelegramStatus(prisma, session),
-          internalPhone: withPhone ? await getStaffInternalPhone(prisma, session) : null,
-        }
-      : null;
-  const notifications =
-    tab === 'notifications' ? await getNotificationSettings(prisma, session) : null;
-
   return (
     <div className="space-y-4">
       <PageHeader title="Личные настройки" subtitle={PERSONAL_SETTINGS_SUBTITLE} />
       <PersonalSettings
         basePath={`/${cabinet}/settings/personal`}
-        activeTab={tab}
+        activeTab={activeTab}
         slots={{
           profile: profile ? (
             <>
@@ -69,7 +56,7 @@ export async function StaffPersonalSettings({
             </>
           ) : null,
           notifications: notifications ? (
-            <NotificationChannelsCard settings={notifications.view} />
+            <NotificationChannelsCard settings={notifications} />
           ) : null,
           security: (
             <>

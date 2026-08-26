@@ -1,13 +1,11 @@
 import React from 'react';
-import { prisma } from '@/lib/db/prisma';
-import { getSchedulePatterns } from '@/lib/services/admin/syncSchedules';
 import { DEFAULT_SYNC_TZ } from '@/lib/jobs/scheduling';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SlaSettingsCard } from '@/components/manager/sla-settings-card';
 import { SyncScheduleEditor } from '@/components/admin/sync-schedule-editor';
 import type { SettingsCabinet } from '@/lib/navigation/settings';
-import type { SessionPayload } from '@/lib/auth/jwt';
+import type { CompanySla } from '@/lib/services/manager/slaSettings';
 
 /**
  * «Конфигурация процессов → SLA входящих в работу» (`У-130`).
@@ -20,43 +18,29 @@ import type { SessionPayload } from '@/lib/auth/jwt';
  * администратор видит **все** компании: пороги задаёт каждая компания сама, а
  * администратору нужно видеть картину целиком.
  *
+ * Компонент **презентационный**: данные приходят пропсами, в базу он не ходит
+ * (правило `components-no-db`). Выборку делает страница своей роли, скоуп —
+ * сервис `listCompaniesSla` (админ — все компании, руководитель — своя).
+ *
  * Название по глоссарию: эскалирует очередь «Входящие в работу», а не
  * «Обращения» — это разные объекты.
  */
 const SLA_SCHEDULER_ID = 'monitoring.slaEscalation.cron';
 
-export async function SlaIntakeScreen({
-  session,
+export function SlaIntakeScreen({
   cabinet,
+  hasCompany,
+  companies,
+  patterns,
 }: {
-  session: SessionPayload;
   cabinet: SettingsCabinet;
+  /** У руководителя без компании настраивать нечего — экран объясняет это. */
+  hasCompany: boolean;
+  companies: CompanySla[];
+  /** Расписания задач (`У-125`); нужны только администратору. */
+  patterns: ReadonlyMap<string, string>;
 }) {
   const isAdmin = cabinet === 'admin';
-  const companyId = isAdmin ? null : (session.companyId ?? null);
-
-  const [companies, patterns] = await Promise.all([
-    isAdmin
-      ? prisma.company
-          .findMany({
-            select: { id: true, name: true, slaResponseHours: true, slaWarningHours: true },
-            orderBy: { name: 'asc' },
-          })
-          .catch(() => [])
-      : companyId
-        ? prisma.company
-            .findMany({
-              where: { id: companyId },
-              select: { id: true, name: true, slaResponseHours: true, slaWarningHours: true },
-            })
-            .catch(() => [])
-        : Promise.resolve([]),
-    // `У-130`: интервал задачи SLA настраивается тем же механизмом, что
-    // расписания обмена (`У-125`) — только администратором.
-    isAdmin
-      ? getSchedulePatterns(prisma).catch(() => new Map<string, string>())
-      : Promise.resolve(new Map<string, string>()),
-  ]);
 
   return (
     <div className="space-y-5">
@@ -69,7 +53,7 @@ export async function SlaIntakeScreen({
         }
       />
 
-      {!isAdmin && !companyId ? (
+      {!isAdmin && !hasCompany ? (
         <p role="alert" className="text-sm text-red-600">
           У вашей учётной записи не указана компания — пороги настроить нельзя. Обратитесь к
           администратору.

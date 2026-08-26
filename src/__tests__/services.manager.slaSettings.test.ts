@@ -16,7 +16,12 @@ vi.mock('next/cache', () => ({ revalidatePath }));
 
 const { setSlaSettingsService } = vi.hoisted(() => ({ setSlaSettingsService: vi.fn() }));
 
-import { getSlaSettings, setSlaSettings } from '@/lib/services/manager/slaSettings';
+import type { SessionPayload } from '@/lib/auth/jwt';
+import {
+  getSlaSettings,
+  listCompaniesSla,
+  setSlaSettings,
+} from '@/lib/services/manager/slaSettings';
 
 function fakePrisma(row: { slaResponseHours: number; slaWarningHours: number } | null) {
   const findUnique = vi.fn().mockResolvedValue(row);
@@ -95,6 +100,71 @@ describe('getSlaSettings / setSlaSettings', () => {
       ok: false,
       error: 'company_not_found',
     });
+  });
+});
+
+/**
+ * `У-130` + `components-no-db` (хотфикс): выборка экрана «SLA входящих в
+ * работу» переехала из компонента в сервис — скоуп проверяем здесь.
+ */
+describe('listCompaniesSla', () => {
+  const session = (role: string, companyId: string | null = null): SessionPayload =>
+    ({ sub: 'u1', role, companyId }) as unknown as SessionPayload;
+  const rows = [{ id: 'c1', name: 'А', slaResponseHours: 24, slaWarningHours: 4 }];
+
+  function listPrisma(result: unknown[] | Error) {
+    const findMany =
+      result instanceof Error
+        ? vi.fn().mockRejectedValue(result)
+        : vi.fn().mockResolvedValue(result);
+    return { prisma: { company: { findMany } } as unknown as PrismaClient, findMany };
+  }
+
+  it('админ: все компании по алфавиту', async () => {
+    const { prisma, findMany } = listPrisma(rows);
+    expect(await listCompaniesSla(prisma, session('admin'))).toEqual({ ok: true, companies: rows });
+    expect(findMany).toHaveBeenCalledWith({
+      select: { id: true, name: true, slaResponseHours: true, slaWarningHours: true },
+      orderBy: { name: 'asc' },
+    });
+  });
+
+  it('руководитель: только СВОЯ компания, без компании — в базу не ходим', async () => {
+    const { prisma, findMany } = listPrisma(rows);
+    expect(await listCompaniesSla(prisma, session('leader', 'c1'))).toEqual({
+      ok: true,
+      companies: rows,
+    });
+    expect(findMany).toHaveBeenCalledWith({
+      where: { id: 'c1' },
+      select: { id: true, name: true, slaResponseHours: true, slaWarningHours: true },
+    });
+
+    const empty = listPrisma(rows);
+    expect(await listCompaniesSla(empty.prisma, session('leader'))).toEqual({
+      ok: true,
+      companies: [],
+    });
+    expect(empty.findMany).not.toHaveBeenCalled();
+  });
+
+  it('чужая роль — forbidden без похода в базу', async () => {
+    const { prisma, findMany } = listPrisma(rows);
+    expect(await listCompaniesSla(prisma, session('partner'))).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+    expect(findMany).not.toHaveBeenCalled();
+  });
+
+  it('ошибка базы проглатывается в пустой список (экран покажет пустое состояние)', async () => {
+    // Оба пути — админский и руководительский — деградируют одинаково.
+    expect(
+      await listCompaniesSla(listPrisma(new Error('db down')).prisma, session('admin'))
+    ).toEqual({ ok: true, companies: [] });
+    expect(
+      await listCompaniesSla(listPrisma(new Error('db down')).prisma, session('leader', 'c1'))
+    ).toEqual({ ok: true, companies: [] });
   });
 });
 

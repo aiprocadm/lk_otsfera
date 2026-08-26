@@ -1,9 +1,8 @@
 import React from 'react';
-import { prisma } from '@/lib/db/prisma';
-import { listIncomingComments } from '@/lib/services/manager/messages';
+import type { ManagerInboxItem } from '@/lib/services/manager/messages';
 import { ManagerMessagesInbox } from '@/components/manager/manager-messages-inbox';
 import { isFeatureEnabled } from '@/lib/featureFlags';
-import { listThreads } from '@/lib/services/chat/threads';
+import type { ListThreadsResult } from '@/lib/services/chat/threads';
 import { OrderThreadInbox } from '@/components/chat/order-thread-inbox';
 import { UnreadBadge } from '@/components/chat/unread-badge';
 import { StaffChatSection } from '@/components/staff-chat/staff-chat-section';
@@ -19,31 +18,28 @@ import { PageHeader } from '@/components/ui/page-header';
  * У руководителя пункт меню вёл **в чужой кабинет** (`/manager/messages`):
  * человек нажимал раздел своего меню и оказывался в другом кабинете, с чужой
  * подсветкой и чужим охватом. Теперь раздел свой, а переписка — по всей
- * компании (`teamModeOverride`).
+ * компании (`teamModeOverride` на странице руководителя).
+ *
+ * Компонент **презентационный**: данные приходят пропсами, в базу он не ходит
+ * (правило `components-no-db`). Выборку делает страница своей роли — она же
+ * решает охват (менеджер — свой скоуп, руководитель — вся компания).
  *
  * Гейтинг флага `chat` не выравниваем (§5 CLAUDE.md): комментарии к заказам —
  * до-`chat` фича и видны всегда, чат-секции — только при флаге.
  */
-export async function StaffMessages({
+export function StaffMessages({
   session,
-  teamModeOverride,
-  searchParams,
+  rows,
+  nextCursor,
+  chat,
 }: {
   session: SessionPayload;
-  /** `true` — переписка по всей компании (кабинет руководителя). */
-  teamModeOverride?: boolean;
-  searchParams: Promise<{ cursor?: string }>;
+  rows: ManagerInboxItem[];
+  nextCursor: string | null;
+  /** Треды чата; `null` — флаг `chat` выключен, чат-секция не рендерится. */
+  chat: ListThreadsResult | null;
 }) {
-  const sp = await searchParams;
-  const { rows, nextCursor } = await listIncomingComments(prisma, {
-    session,
-    withOutgoing: true,
-    ...(sp.cursor ? { cursor: sp.cursor } : {}),
-    ...(teamModeOverride === undefined ? {} : { teamModeOverride }),
-  });
-
-  const chatEnabled = isFeatureEnabled('chat');
-  const chat = chatEnabled ? await listThreads(prisma, session) : null;
+  const chatEnabled = chat !== null;
   const staffChatEnabled = isFeatureEnabled('staff_chat');
 
   return (
@@ -58,7 +54,7 @@ export async function StaffMessages({
       />
       <h2 className="mb-3 text-lg font-medium text-gray-700">Комментарии к заказам</h2>
       <ManagerMessagesInbox rows={rows} nextCursor={nextCursor} />
-      {chatEnabled && chat && (
+      {chat && (
         <section className="mt-8">
           <h2 className="mb-3 text-lg font-medium text-gray-700">Чат</h2>
           <OrderThreadInbox

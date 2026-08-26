@@ -1,27 +1,30 @@
 import React from 'react';
-import { prisma } from '@/lib/db/prisma';
-import { getSyncSummary, type SyncSummaryRow } from '@/lib/services/syncSummary';
-import { getQueueStats } from '@/lib/services/admin/queueStats';
-import { loadPausedSchedulerIds, defaultPatternFor, DEFAULT_SYNC_TZ } from '@/lib/jobs/scheduling';
-import { getSchedulePatterns } from '@/lib/services/admin/syncSchedules';
-import { getSettingsView, type SettingKey } from '@/lib/config/integrationSettings';
+import type { SyncSummaryRow } from '@/lib/services/syncSummary';
+import type { QueueStatsRow } from '@/lib/services/admin/queueStats';
+import { defaultPatternFor, DEFAULT_SYNC_TZ } from '@/lib/jobs/scheduling';
+import type { SchedulePatterns } from '@/lib/services/admin/syncSchedules';
+import type { SettingKey, SettingViewRow } from '@/lib/config/integrationSettings';
 import { SyncScheduleEditor } from '@/components/admin/sync-schedule-editor';
 import { OneCParamsForm } from '@/components/admin/one-c-params-form';
 import { saveOneCParamsAction } from '@/server-actions/admin/syncControl';
 import { SYNC_ENTITIES, type SyncControlEntity } from '@/lib/services/admin/syncControl';
 import { CardList, Card, CardRow } from '@/components/ui/card-list';
-import { listPendingRecords, type PendingRecordRow } from '@/lib/services/admin/pendingRecords';
+import type { PendingRecordRow } from '@/lib/services/admin/pendingRecords';
 import { SyncTriggerButton } from '@/components/admin/sync-trigger-button';
 import { SyncScheduleToggle } from '@/components/admin/sync-schedule-toggle';
 import { SyncCursorDialog } from '@/components/admin/sync-cursor-dialog';
 import { PendingRecordsSection } from '@/components/admin/pending-records-section';
-import type { SessionPayload } from '@/lib/auth/jwt';
 import type { SettingsCabinet } from '@/lib/navigation/settings';
 
 import { PageHeader } from '@/components/ui/page-header';
 /**
  * Вкладка «Автообмен» экрана «Обмен с 1С» — одна на кабинет администратора и
  * кабинет руководителя (`У-118`, закрывает дефект `Д-33`).
+ *
+ * Компонент **презентационный**: данные приходят пропсами, в базу он не ходит
+ * (правило `components-no-db`). Выборки делает страница своей роли — админская
+ * грузит и админские секции (очередь разбора, компании), страница руководителя
+ * их даже не запрашивает.
  *
  * У руководителя этой вкладки не существовало: переключатель её показывал, а
  * клик приводил на «страница не найдена». При вставшем обмене руководитель
@@ -40,8 +43,8 @@ import { PageHeader } from '@/components/ui/page-header';
  * остановка расписания задевает чужие данные. Запуск же означает «сходить за
  * свежими данными сейчас» — последствия обратимы.
  */
-/** `У-125`: параметры обмена, которые правит администратор. */
-const ONEC_PARAM_KEYS: SettingKey[] = [
+/** `У-125`: параметры обмена, которые правит администратор (страницы грузят их через `getSettingsView`). */
+export const ONEC_PARAM_KEYS: SettingKey[] = [
   'onec.mode',
   'onec.httpTimeoutMs',
   'onec.cursorOverlapMinutes',
@@ -99,36 +102,28 @@ function RunningBadge({ active }: { active: number }) {
   );
 }
 
-export async function OneCAutoExchange({
-  session,
+export function OneCAutoExchange({
   cabinet,
+  rows,
+  queueStats,
+  pausedIds,
+  pendingRecords,
+  patterns,
+  paramsView,
+  companies,
 }: {
-  session: SessionPayload;
   cabinet: SettingsCabinet;
+  rows: SyncSummaryRow[];
+  queueStats: QueueStatsRow[];
+  pausedIds: ReadonlySet<string>;
+  /** Очередь разбора — админская; страница руководителя передаёт пустой список. */
+  pendingRecords: PendingRecordRow[];
+  patterns: SchedulePatterns;
+  paramsView: SettingViewRow[];
+  /** Компании для формы параметров — тоже только у админа. */
+  companies: Array<{ id: string; name: string }>;
 }) {
   const isAdmin = cabinet === 'admin';
-
-  const [rows, queueStats, pausedIds, pendingRecords, patterns, paramsView, companies] =
-    await Promise.all([
-      getSyncSummary(prisma),
-      getQueueStats().catch(() => []),
-      loadPausedSchedulerIds(prisma).catch(() => new Set<string>()),
-      // Очередь разбора — админская (сервис отвечает `forbidden` остальным).
-      // Сбой БД деградирует в пустую секцию, как соседние загрузки (§3).
-      isAdmin
-        ? listPendingRecords(prisma, session)
-            .then((r) => (r.ok ? r.records : []))
-            .catch(() => [] as PendingRecordRow[])
-        : Promise.resolve([] as PendingRecordRow[]),
-      // `У-125`: расписание и параметры — из базы, с умолчаниями из кода.
-      getSchedulePatterns(prisma).catch(() => new Map<string, string>()),
-      getSettingsView(prisma, ONEC_PARAM_KEYS).catch(() => []),
-      isAdmin
-        ? prisma.company
-            .findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } })
-            .catch(() => [] as Array<{ id: string; name: string }>)
-        : Promise.resolve([] as Array<{ id: string; name: string }>),
-    ]);
 
   const paramOf = (key: string) => paramsView.find((r) => r.key === key)?.value ?? '';
   const patternOf = (schedulerId: string) =>
