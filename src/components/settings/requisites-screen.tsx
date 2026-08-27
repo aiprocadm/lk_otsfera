@@ -48,7 +48,9 @@ export function RequisitesScreen({
             description="Подставляются в шапку формируемых счетов и актов (этап 8)."
             defaults={c}
             idPrefix={`co-req-${c.id}`}
-            action={setCompanyRequisitesAction}
+            // bind: server-action с предвязанным кабинетом сериализуется в
+            // клиентский компонент штатно (в отличие от стрелки).
+            action={setCompanyRequisitesAction.bind(null, cabinet)}
             hidden={{ companyId: c.id }}
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
