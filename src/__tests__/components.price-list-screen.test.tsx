@@ -17,6 +17,10 @@ vi.mock('@/server-actions/admin/catalogItems', () => ({
   updateCatalogItemAction: vi.fn(),
   setCatalogItemActiveAction: vi.fn(),
 }));
+vi.mock('@/server-actions/admin/catalogImport', () => ({
+  previewCatalogImportAction: vi.fn(),
+  commitCatalogImportAction: vi.fn(),
+}));
 
 import { PriceListScreen } from '@/components/settings/price-list-screen';
 import type { CatalogItemRow } from '@/lib/services/admin/catalogItems';
@@ -133,6 +137,14 @@ describe('PriceListScreen — admin с данными', () => {
   it('сноска про 500 не показывается, пока строк меньше', () => {
     expect(out).not.toContain('первые 500');
   });
+
+  it('панель Excel: шаблон для скачивания, «Импорт из Excel», экспорт компании', () => {
+    expect(out).toContain('href="/api/catalog/import-template"');
+    expect(out).toContain('Шаблон Excel');
+    expect(out).toContain('Импорт из Excel');
+    expect(out).toContain('href="/api/catalog/export?company=co-1"');
+    expect(out).toContain('Экспорт');
+  });
 });
 
 describe('PriceListScreen — ветки НДС и фильтров', () => {
@@ -189,6 +201,9 @@ describe('PriceListScreen — пустые состояния', () => {
     const out = html({ companies: [], activeCompanyId: null });
     expect(out).toContain('В системе ещё нет ни одной компании');
     expect(out).not.toContain('Найти');
+    // Панель Excel без компании тоже не показывается — некуда импортировать.
+    expect(out).not.toContain('Импорт из Excel');
+    expect(out).not.toContain('/api/catalog/export');
   });
 });
 

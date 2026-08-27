@@ -230,6 +230,7 @@ export const AUDIT_ACTIONS = [
   // `У-136`: каталог услуг и цены; история изменений цены — before/after
   // в catalog_item_updated.
   'catalog_item_created',
+  'catalog_imported',
   'catalog_item_updated',
   'catalog_item_deactivated',
   'catalog_item_activated',

@@ -51,12 +51,14 @@ const dbRow = (over: Record<string, unknown> = {}) => ({
 
 function fake(over: { rows?: unknown[]; row?: unknown } = {}) {
   const findMany = vi.fn().mockResolvedValue(over.rows ?? []);
+  const count = vi.fn().mockResolvedValue((over.rows ?? []).length);
   const findUnique = vi.fn().mockResolvedValue(over.row ?? null);
   const create = vi.fn().mockResolvedValue({ id: 'ci-new' });
   const update = vi.fn().mockResolvedValue({});
   return {
-    prisma: { catalogItem: { findMany, findUnique, create, update } } as unknown as PrismaClient,
+    prisma: { catalogItem: { findMany, count, findUnique, create, update } } as unknown as PrismaClient,
     findMany,
+    count,
     findUnique,
     create,
     update,
