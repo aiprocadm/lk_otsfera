@@ -165,6 +165,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   login_policies_changed: 'Изменение политик входа',
   email_template_changed: 'Изменение текста письма',
   catalog_item_created: 'Добавление услуги в каталог',
+  catalog_imported: 'Импорт каталога из Excel',
   catalog_item_updated: 'Изменение услуги каталога',
   catalog_item_deactivated: 'Деактивация услуги каталога',
   catalog_item_activated: 'Возврат услуги в каталог',

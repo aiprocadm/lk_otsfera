@@ -113,10 +113,16 @@ function normalizePrice(raw: string): string | null {
   const cleaned = raw.replace(/\s| /g, '').replace(',', '.');
   if (!/^\d+(\.\d{1,2})?$/.test(cleaned)) return null;
   if (Number(cleaned) > 999_999_999_999.99) return null;
-  return cleaned;
+  // Всегда две цифры после точки: иначе аудит показывал бы фантомную смену
+  // «100 → 100.00» (тот же класс, что формат vatRate — ревью PR-2).
+  return Number(cleaned).toFixed(2);
 }
 
-function validateInput(input: CatalogItemInput):
+/**
+ * Общая построчная валидация: её же использует Excel-импорт (`У-137`) —
+ * правила у формы и файла одни, дублирование разъехалось бы молча.
+ */
+export function validateCatalogItemInput(input: CatalogItemInput):
   | { ok: true; data: Omit<CatalogItemInput, 'price' | 'vatRate'> & { price: string; vatRate: string | null } }
   | Validation {
   const messages: string[] = [];
@@ -150,25 +156,31 @@ function validateInput(input: CatalogItemInput):
 export async function listCatalogItems(
   prisma: PrismaClient,
   session: SessionPayload,
-  args: { companyId: string; q?: string; includeInactive?: boolean }
-): Promise<{ ok: true; items: CatalogItemRow[] } | Forbidden> {
+  args: { companyId: string; q?: string; includeInactive?: boolean; limit?: number }
+): Promise<{ ok: true; items: CatalogItemRow[]; total: number } | Forbidden> {
   const denied = guardCompany(session, args.companyId);
   if (denied) return denied;
   const q = args.q?.trim();
-  const items = await prisma.catalogItem.findMany({
-    where: {
-      companyId: args.companyId,
-      ...(args.includeInactive ? {} : { isActive: true }),
-      ...(q
-        ? { OR: [{ name: { contains: q, mode: 'insensitive' } }, { code: { contains: q, mode: 'insensitive' } }] }
-        : {}),
-    },
-    select: ROW_SELECT,
-    orderBy: [{ isActive: 'desc' }, { sortOrder: 'asc' }, { name: 'asc' }],
-    // Каталог компании невелик; страж молчаливого усечения — сноска на экране.
-    take: 500,
-  });
-  return { ok: true, items: items.map(toRow) };
+  const where = {
+    companyId: args.companyId,
+    ...(args.includeInactive ? {} : { isActive: true }),
+    ...(q
+      ? { OR: [{ name: { contains: q, mode: 'insensitive' as const } }, { code: { contains: q, mode: 'insensitive' as const } }] }
+      : {}),
+  };
+  // Экран режет на 500 (сноска «первые 500»), экспорт — на 10 000 (сноска в
+  // файле, EXPORT_ROW_LIMIT). `total` — честная цифра для обеих сносок:
+  // молчаливое усечение — дефект (§15).
+  const [items, total] = await Promise.all([
+    prisma.catalogItem.findMany({
+      where,
+      select: ROW_SELECT,
+      orderBy: [{ isActive: 'desc' }, { sortOrder: 'asc' }, { name: 'asc' }],
+      take: args.limit ?? 500,
+    }),
+    prisma.catalogItem.count({ where }),
+  ]);
+  return { ok: true, items: items.map(toRow), total };
 }
 
 export async function createCatalogItem(
@@ -179,7 +191,7 @@ export async function createCatalogItem(
 ): Promise<{ ok: true; id: string } | Forbidden | Validation | DuplicateCode> {
   const denied = guardCompany(session, companyId);
   if (denied) return denied;
-  const validated = validateInput(input);
+  const validated = validateCatalogItemInput(input);
   if (!validated.ok) return validated;
   const d = validated.data;
   try {
@@ -234,7 +246,7 @@ export async function updateCatalogItem(
   if (!existing) return { ok: false, error: 'not_found' };
   const denied = guardCompany(session, existing.companyId);
   if (denied) return denied;
-  const validated = validateInput(input);
+  const validated = validateCatalogItemInput(input);
   if (!validated.ok) return validated;
   const d = validated.data;
   try {

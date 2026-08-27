@@ -16,6 +16,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import type { SettingsCabinet } from '@/lib/navigation/settings';
 import { CATALOG_UNIT_LABELS, type CatalogItemRow } from '@/lib/services/admin/catalogItems';
 import { CatalogItemActiveButton, CatalogItemDialog } from './catalog-item-dialog';
+import { ImportCatalogDialog } from './import-catalog-dialog';
 
 /**
  * «Каталог услуг и цены» — экран общий для администратора и руководителя
@@ -120,6 +121,26 @@ export function PriceListScreen({
               Найти
             </Button>
           </form>
+
+          {/* Обмен с Excel (`У-137`): шаблон → импорт с предпросмотром → выгрузка. */}
+          <div className="flex flex-wrap items-center gap-3">
+            <a
+              href="/api/catalog/import-template"
+              download
+              className="text-sm text-[#EA580C] hover:underline"
+              data-testid="price-list-template"
+            >
+              Шаблон Excel
+            </a>
+            <ImportCatalogDialog cabinet={cabinet} companyId={activeCompanyId} />
+            <a
+              href={`/api/catalog/export?company=${activeCompanyId}`}
+              className="text-sm text-[#EA580C] hover:underline"
+              data-testid="price-list-export"
+            >
+              Экспорт
+            </a>
+          </div>
 
           {items.length === 0 ? (
             <EmptyState

@@ -57,6 +57,18 @@ export async function listDirectionFilterOptions(prisma: PrismaClient): Promise<
   });
 }
 
+/**
+ * ВСЕ направления, включая неактивные, — для сопоставления Excel-импорта
+ * каталога по имени (`У-137`): позиция может ссылаться на направление,
+ * деактивированное после экспорта, и round-trip не должен ломаться.
+ */
+export async function listAllDirectionOptions(prisma: PrismaClient): Promise<DirectionOption[]> {
+  return prisma.trainingDirection.findMany({
+    orderBy: { sortOrder: 'asc' },
+    select: { id: true, name: true },
+  });
+}
+
 export async function createDirection(
   prisma: PrismaClient,
   session: SessionPayload,
