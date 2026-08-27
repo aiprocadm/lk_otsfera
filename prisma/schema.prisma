@@ -1711,8 +1711,6 @@ model OrderItem {
   direction      TrainingDirection @relation(fields: [directionId], references: [id])
   trainingStatus TrainingStatus    @default(pending)
   note           String?
-  // Этап 8 (решение §9-3): цена позиции — задел попозиционного счёта (v1 печатает одну строку).
-  amount         Decimal?          @db.Decimal(14, 2)
   certificate    Certificate?
 
   @@unique([orderId, studentId, directionId])

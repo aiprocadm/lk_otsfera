@@ -324,13 +324,14 @@ describe('Заказ БЕЗ строк: сумма-снимок на момен�
     });
     if (!added.ok) throw new Error(`addOrderItem failed: ${added.error}`);
 
-    const item = await prisma.orderItem.findUniqueOrThrow({
-      where: { id: added.item.id },
-      select: { amount: true },
-    });
-    // OrderItem.amount — незаполняемый задел: деньги живут в OrderLine (Р-13),
-    // а учебная позиция остаётся «слушатель × направление».
-    expect(item.amount).toBeNull();
+    // `У-139` (PR-5): колонки `OrderItem.amount` больше нет — деньги живут в
+    // `OrderLine` (`Р-13`), а учебная позиция осталась «слушатель ×
+    // направление». Проверяем это по схеме, а не по значению поля.
+    const columns = await prisma.$queryRaw<Array<{ column_name: string }>>`
+      SELECT column_name FROM information_schema.columns
+       WHERE table_name = 'OrderItem'
+    `;
+    expect(columns.map((c) => c.column_name)).not.toContain('amount');
     // Сумма заявки не пересчитана добавлением позиции.
     expect(await orderTotal(orderId)).toBe('10000.50');
     expect((await linesOf(orderId)).lines).toEqual([]);
