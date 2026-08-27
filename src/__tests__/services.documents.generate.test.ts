@@ -10,6 +10,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 const {
   recordAuditMock,
   uploadMock,
+  downloadMock,
   renderMock,
   renderContractMock,
   notifyOrgUsers,
@@ -18,6 +19,7 @@ const {
 } = vi.hoisted(() => ({
   recordAuditMock: vi.fn(),
   uploadMock: vi.fn(),
+  downloadMock: vi.fn(),
   renderMock: vi.fn(),
   renderContractMock: vi.fn(),
   notifyOrgUsers: vi.fn(),
@@ -25,7 +27,9 @@ const {
   canSeeOrderMock: vi.fn(),
 }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit: recordAuditMock }));
-vi.mock('@/lib/storage', () => ({ getObjectStorage: () => ({ upload: uploadMock }) }));
+vi.mock('@/lib/storage', () => ({
+  getObjectStorage: () => ({ upload: uploadMock, download: downloadMock }),
+}));
 vi.mock('@/lib/services/documents/orderDocumentPdf', () => ({
   renderOrderDocumentPdf: renderMock,
 }));
@@ -60,6 +64,21 @@ const FULL_PARTY = {
   email: null,
 };
 
+/** Финансовая строка заказа (`У-139`) в том виде, в каком её читает генератор. */
+function line(title: string, unitPrice = '5000', over: Record<string, unknown> = {}) {
+  return {
+    title,
+    quantity: 1,
+    unit: 'service',
+    unitPrice,
+    discountPercent: null,
+    vatRate: 0.2,
+    vatIncluded: true,
+    sortOrder: 0,
+    ...over,
+  };
+}
+
 const ORDER = {
   id: 'ord-1',
   title: 'Обучение по ОТ',
@@ -87,6 +106,8 @@ function makePrisma(over: Record<string, unknown> = {}) {
   };
   const prisma = {
     order: { findUnique: vi.fn().mockResolvedValue(over.order === undefined ? ORDER : over.order) },
+    // `У-153`: слоты оформления компании — по умолчанию пусто.
+    companyBrandingAsset: { findMany: vi.fn().mockResolvedValue(over.branding ?? []) },
     company: {
       findUnique: vi.fn().mockResolvedValue(over.company === undefined ? FULL_PARTY : over.company),
     },
@@ -105,6 +126,7 @@ beforeEach(() => {
   renderMock.mockResolvedValue(Buffer.from('%PDF-fake'));
   renderContractMock.mockResolvedValue(Buffer.from('%PDF-contract'));
   uploadMock.mockResolvedValue(undefined);
+  downloadMock.mockResolvedValue(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d]));
   notifyOrgUsers.mockResolvedValue({});
   getCompanyTeamVisibility.mockResolvedValue(false);
   canSeeOrderMock.mockReturnValue(true);
@@ -192,51 +214,80 @@ describe('generateOrderDocument', () => {
     const now = new Date('2026-07-26T12:00:00Z');
     const { prisma } = makePrisma();
     await generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice', now });
-    let data = renderMock.mock.calls[0]![0];
-    expect(data.items).toHaveLength(1);
-    expect(data.items[0].name).toContain('Услуги по заказу №123');
+    let table = renderMock.mock.calls[0]![0].table;
+    expect(table.rows).toHaveLength(1);
+    expect(table.rows[0].name).toContain('Услуги по заказу №123');
+    // `У-142`: итог заглушки — ровно сумма заказа, ни копейкой больше.
+    expect(table.gross).toBe('15000.00');
 
     renderMock.mockClear();
-    const priced = makePrisma({
-      order: {
-        ...ORDER,
-        lines: [
-          { title: 'Высота — Петров', amount: 5000, sortOrder: 0 },
-          { title: 'ОТ', amount: 7000, sortOrder: 1 },
-        ],
-      },
-    });
+    const priced = makePrisma({ order: { ...ORDER, lines: [line('Высота'), line('ОТ', '7000')] } });
     await generateOrderDocument(priced.prisma, manager(), {
       orderId: 'ord-1',
       docType: 'invoice',
       now,
     });
-    data = renderMock.mock.calls[0]![0];
-    expect(data.items).toHaveLength(2);
-    expect(data.items[0].name).toBe('Высота — Петров');
-    expect(data.total).toContain('12');
+    table = renderMock.mock.calls[0]![0].table;
+    expect(table.rows).toHaveLength(2);
+    expect(table.rows[0].name).toBe('Высота');
+    expect(table.gross).toBe('12000.00');
   });
 
-  it('строки НДС: без ставки — просто «В том числе НДС», без vatIncluded — «НДС не облагается»', async () => {
+  it('строка НДС: ставка заказа печатается суммой, её отсутствие — «не облагается»', async () => {
     // Строка НДС уходит в печатную форму счёта — бухгалтерия клиента сверяет
     // по ней сумму налога. Неверная формулировка = вопросы к каждому счёту.
+    //
+    // До этапа 6 «цены без НДС» (`vatIncluded: false`) печаталось как «НДС не
+    // облагается» — это разные вещи: первое про способ расчёта, второе про
+    // освобождение от налога. Освобождение задаёт ТОЛЬКО пустая ставка.
     const now = new Date('2026-07-26T12:00:00Z');
-    const noRate = makePrisma({ order: { ...ORDER, vatIncluded: true, vatRate: null } });
+    const withRate = makePrisma();
+    await generateOrderDocument(withRate.prisma, manager(), {
+      orderId: 'ord-1',
+      docType: 'invoice',
+      now,
+    });
+    expect(renderMock.mock.calls[0]![0].table.vatLine).toBe(
+      'В том числе НДС 20% — 2\u00a0500,00 ₽'
+    );
+
+    renderMock.mockClear();
+    const noRate = makePrisma({
+      order: { ...ORDER, vatIncluded: false, vatRate: null },
+      company: { ...FULL_PARTY, defaultVatRate: null },
+    });
     await generateOrderDocument(noRate.prisma, manager(), {
       orderId: 'ord-1',
       docType: 'invoice',
       now,
     });
-    expect(renderMock.mock.calls[0]![0].vatLine).toBe('В том числе НДС.');
+    expect(renderMock.mock.calls[0]![0].table.vatLine).toBe('НДС не облагается');
+  });
 
-    renderMock.mockClear();
-    const noVat = makePrisma({ order: { ...ORDER, vatIncluded: false, vatRate: null } });
-    await generateOrderDocument(noVat.prisma, manager(), {
-      orderId: 'ord-1',
-      docType: 'invoice',
-      now,
+  it('`У-153`: логотип, подпись и печать компании доезжают до шаблона', async () => {
+    const now = new Date('2026-07-26T12:00:00Z');
+    const { prisma } = makePrisma({
+      branding: [
+        { slot: 'logo', path: 'company/co-A/branding/logo.png' },
+        { slot: 'stamp', path: 'company/co-A/branding/stamp.png' },
+      ],
     });
-    expect(renderMock.mock.calls[0]![0].vatLine).toBe('НДС не облагается.');
+    await generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice', now });
+    const branding = renderMock.mock.calls[0]![0].branding;
+    expect(branding.logo).toBeInstanceOf(Buffer);
+    expect(branding.stamp).toBeInstanceOf(Buffer);
+    // Подпись не загружали — слот остаётся пустым, документ печатается как прежде.
+    expect(branding.signature).toBeNull();
+  });
+
+  it('`У-142`: у заказа без ставки берётся ставка по умолчанию компании', async () => {
+    const now = new Date('2026-07-26T12:00:00Z');
+    const { prisma } = makePrisma({
+      order: { ...ORDER, vatRate: null },
+      company: { ...FULL_PARTY, defaultVatRate: 0.1 },
+    });
+    await generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice', now });
+    expect(renderMock.mock.calls[0]![0].table.vatLine).toContain('НДС 10%');
   });
 
   it('строки печатаются своими наименованиями в порядке sortOrder', async () => {
@@ -244,24 +295,21 @@ describe('generateOrderDocument', () => {
     const { prisma } = makePrisma({
       order: {
         ...ORDER,
-        lines: [
-          { title: 'Разработка инструкции', amount: 3000, sortOrder: 0 },
-          { title: 'Услуга', amount: 2000, sortOrder: 1 },
-        ],
+        lines: [line('Разработка инструкции', '3000'), line('Услуга', '2000')],
       },
     });
     await generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice', now });
-    const items = renderMock.mock.calls[0]![0].items;
-    expect(items[0].name).toBe('Разработка инструкции');
-    expect(items[1].name).toBe('Услуга');
+    const rows = renderMock.mock.calls[0]![0].table.rows;
+    expect(rows[0].name).toBe('Разработка инструкции');
+    expect(rows[1].name).toBe('Услуга');
   });
 
   it('заказ без номера: строка услуг без «№», заголовок не ломается', async () => {
     const now = new Date('2026-07-26T12:00:00Z');
     const { prisma } = makePrisma({ order: { ...ORDER, orderNumber: null } });
     await generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice', now });
-    const item = renderMock.mock.calls[0]![0].items[0];
-    expect(item.name).toBe('Услуги по заказу : Обучение по ОТ');
+    const row = renderMock.mock.calls[0]![0].table.rows[0];
+    expect(row.name).toBe('Услуги по заказу: Обучение по ОТ');
   });
 
   it('displayName стороны: юр. название приоритетнее рабочего, пустые оба → пустая строка', async () => {
