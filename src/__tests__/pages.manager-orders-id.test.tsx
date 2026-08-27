@@ -82,14 +82,18 @@ vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 vi.mock('@/components/manager/generate-documents-panel', () => ({
   GenerateDocumentsPanel: (props: {
     orderId: string;
-    missing: unknown[];
+    counterpartyName: string;
+    orderLines: unknown[];
+    missingByType: Record<string, unknown[]>;
     hasInvoice: boolean;
     hasContract: boolean;
   }) =>
     React.createElement(
       'div',
       { 'data-testid': 'generate-panel' },
-      `${props.orderId}:missing=${props.missing.length}:invoice=${props.hasInvoice}:contract=${props.hasContract}`
+      `${props.orderId}:missing=${props.missingByType.invoice?.length ?? 0}` +
+        `:invoice=${props.hasInvoice}:contract=${props.hasContract}` +
+        `:party=${props.counterpartyName}:lines=${props.orderLines.length}`
     ),
 }));
 
@@ -508,9 +512,12 @@ describe('панель генерации документов (этап 8, ФТ
     listCertificateScanTargets.mockResolvedValue({ ok: true, targets: [] });
     isFeatureEnabled.mockImplementation((flag: string) => flag === 'document_generation');
     getDocumentGenerationPanel.mockResolvedValue({
-      missing: [],
+      missingByType: { invoice: [], act: [], contract: [], extra_agreement: [] },
       hasInvoice: true,
       hasContract: false,
+      baseDocuments: [],
+      counterpartyName: 'ООО «Ромашка»',
+      orderLines: [],
     });
     return renderServerComponent(
       ManagerOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
@@ -522,7 +529,9 @@ describe('панель генерации документов (этап 8, ФТ
     // страница передаёт их в компонент — от них зависит активность кнопок.
     const { container } = await renderWithGeneration();
     const panel = container.querySelector('[data-testid="generate-panel"]');
-    expect(panel?.textContent).toBe('order-1:missing=0:invoice=true:contract=false');
+    expect(panel?.textContent).toBe(
+      'order-1:missing=0:invoice=true:contract=false:party=ООО «Ромашка»:lines=0'
+    );
     expect(getDocumentGenerationPanel).toHaveBeenCalledWith(prismaMock, {
       orderId: 'order-1',
       companyId: 'co-1',
@@ -551,9 +560,12 @@ describe('панель генерации документов (этап 8, ФТ
     listCertificateScanTargets.mockResolvedValue({ ok: true, targets: [] });
     isFeatureEnabled.mockImplementation((flag: string) => flag === 'document_generation');
     getDocumentGenerationPanel.mockResolvedValue({
-      missing: [],
+      missingByType: { invoice: [], act: [], contract: [], extra_agreement: [] },
       hasInvoice: false,
       hasContract: false,
+      baseDocuments: [],
+      counterpartyName: 'ООО «Ромашка»',
+      orderLines: [],
     });
     const { container } = await renderServerComponent(
       ManagerOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })

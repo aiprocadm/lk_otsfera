@@ -1,0 +1,507 @@
+'use client';
+
+import React, { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import type { CatalogUnit } from '@prisma/client';
+import { Button, Dialog, Field, Input, Select, Textarea } from '@/components/ui';
+import { toast } from '@/lib/ui/toast';
+import { CATALOG_UNIT_LABELS, VAT_RATES } from '@/lib/services/admin/catalogItems';
+import { errorMessageRu } from '@/lib/errors/messages';
+import { generateOrderDocumentAction } from '@/server-actions/documents/generate';
+import type { MissingRequisite } from '@/lib/documents/requisites-check';
+import type { IssueBaseDocument } from '@/lib/services/documents/generationPanel';
+
+/**
+ * Форма выпуска документа (`У-147`).
+ *
+ * Один диалог на все четыре типа: тип · контрагент · состав · дата · поля
+ * своего типа · предпросмотр · выпуск. До этапа 6 документы выпускались
+ * четырьмя кнопками «в один клик» — сотрудник не видел, что уйдёт клиенту, и
+ * не мог поправить ни строку, ни дату.
+ *
+ * Компонент презентационно-интерактивный: суммы считает сервер (и показывает
+ * их в предпросмотре), права и полнота реквизитов — тоже сервер. Считать
+ * деньги здесь второй раз означало бы иметь две арифметики.
+ */
+
+export type IssueLine = {
+  title: string;
+  quantity: string;
+  unit: CatalogUnit;
+  unitPrice: string;
+  discountPercent: string | null;
+  vatRate: string | null;
+  vatIncluded: boolean;
+};
+
+export type IssueDocType = 'invoice' | 'act' | 'contract' | 'extra_agreement';
+
+const DOC_LABEL: Record<IssueDocType, string> = {
+  invoice: 'Счёт',
+  act: 'Акт',
+  contract: 'Договор',
+  extra_agreement: 'Доп. соглашение',
+};
+
+/** Что этот документ делает — одной строкой, без внутренних терминов. */
+const DOC_HINT: Record<IssueDocType, string> = {
+  invoice: 'Счёт на оплату: заказчик платит по нему в банке.',
+  act: 'Акт: подтверждает, что услуги оказаны. Выпускается по счёту.',
+  contract: 'Договор на оказание услуг.',
+  extra_agreement: 'Доп. соглашение: меняет условия уже подписанного договора.',
+};
+
+function emptyLine(): IssueLine {
+  return {
+    title: '',
+    quantity: '1',
+    unit: 'service',
+    unitPrice: '0',
+    discountPercent: null,
+    vatRate: null,
+    vatIncluded: true,
+  };
+}
+
+function today(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
+export function IssueDocumentDialog({
+  open,
+  onClose,
+  orderId,
+  counterpartyName,
+  orderLines,
+  missingByType,
+  baseDocuments,
+  hasInvoice,
+  hasContract,
+}: {
+  open: boolean;
+  onClose: () => void;
+  orderId: string;
+  counterpartyName: string;
+  orderLines: IssueLine[];
+  missingByType: Record<IssueDocType, MissingRequisite[]>;
+  baseDocuments: IssueBaseDocument[];
+  hasInvoice: boolean;
+  hasContract: boolean;
+}) {
+  const router = useRouter();
+  const [, startTransition] = useTransition();
+  const [docType, setDocType] = useState<IssueDocType>('invoice');
+  const [lines, setLines] = useState<IssueLine[]>(
+    orderLines.length > 0 ? orderLines : [emptyLine()]
+  );
+  const [documentDate, setDocumentDate] = useState(today());
+  const [subject, setSubject] = useState('');
+  const [validUntil, setValidUntil] = useState('');
+  const [paymentTerms, setPaymentTerms] = useState('');
+  const [changeText, setChangeText] = useState('');
+  const [periodFrom, setPeriodFrom] = useState('');
+  const [periodTo, setPeriodTo] = useState('');
+  const [parentDocumentId, setParentDocumentId] = useState('');
+  const [busy, setBusy] = useState<'preview' | 'issue' | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [mismatch, setMismatch] = useState<{ linesTotal: string; orderTotal: string } | null>(null);
+
+  const missing = missingByType[docType] ?? [];
+  const needsInvoice = docType === 'act' && !hasInvoice;
+  const needsContract = docType === 'extra_agreement' && !hasContract;
+  const blocked = missing.length > 0 || needsInvoice || needsContract;
+  const parentType = docType === 'act' ? 'invoice' : 'contract';
+  const parentOptions = baseDocuments.filter((d) => d.type === parentType);
+
+  function payload(onAmountMismatch?: 'update_order' | 'keep_order') {
+    return JSON.stringify({
+      orderId,
+      docType,
+      lines,
+      documentDate,
+      ...(onAmountMismatch ? { onAmountMismatch } : {}),
+      ...(subject.trim() ? { subject: subject.trim() } : {}),
+      ...(validUntil ? { validUntil } : {}),
+      ...(paymentTerms.trim() ? { paymentTerms: paymentTerms.trim() } : {}),
+      ...(changeText.trim() ? { changeText: changeText.trim() } : {}),
+      ...(periodFrom ? { periodFrom } : {}),
+      ...(periodTo ? { periodTo } : {}),
+      ...(parentDocumentId ? { parentDocumentId } : {}),
+    });
+  }
+
+  async function preview() {
+    setBusy('preview');
+    setError(null);
+    try {
+      const res = await fetch('/api/manager/documents/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload(),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(errorMessageRu(data.error ?? 'network'));
+        return;
+      }
+      const blob = await res.blob();
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(URL.createObjectURL(blob));
+    } catch {
+      setError(errorMessageRu('network'));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function issue(onAmountMismatch?: 'update_order' | 'keep_order') {
+    setBusy('issue');
+    setError(null);
+    const fd = new FormData();
+    fd.set('payload', payload(onAmountMismatch));
+    const res = await generateOrderDocumentAction(fd);
+    setBusy(null);
+    if (!res.ok) {
+      if (res.error === 'amount_mismatch') {
+        // `У-143`: не выбираем цифру за человека — показываем обе и спрашиваем.
+        setMismatch({ linesTotal: res.linesTotal, orderTotal: res.orderTotal });
+        return;
+      }
+      setError(errorMessageRu(res.error));
+      return;
+    }
+    toast.success(`${DOC_LABEL[docType]} № ${res.number} выпущен.`);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    setMismatch(null);
+    onClose();
+    startTransition(() => router.refresh());
+  }
+
+  function patchLine(index: number, patch: Partial<IssueLine>) {
+    setLines((prev) => prev.map((line, i) => (i === index ? { ...line, ...patch } : line)));
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title="Выпуск документа"
+      size="xl"
+      busy={busy !== null}
+      error={error}
+    >
+      <div className="flex flex-col gap-4">
+        <p className="text-sm text-gray-600">
+          Проверьте состав и даты, посмотрите готовый файл — и выпустите документ. До выпуска
+          заказчик его не видит.
+        </p>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Field htmlFor="issue-type" label="Тип документа" hint={DOC_HINT[docType]}>
+            <Select
+              id="issue-type"
+              value={docType}
+              onChange={(e) => {
+                setDocType(e.target.value as IssueDocType);
+                setParentDocumentId('');
+                setMismatch(null);
+              }}
+            >
+              {(Object.keys(DOC_LABEL) as IssueDocType[]).map((kind) => (
+                <option key={kind} value={kind}>
+                  {DOC_LABEL[kind]}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field htmlFor="issue-counterparty" label="Контрагент">
+            <Input id="issue-counterparty" value={counterpartyName} readOnly />
+          </Field>
+          <Field htmlFor="issue-date" label="Дата документа">
+            <Input
+              id="issue-date"
+              type="date"
+              value={documentDate}
+              onChange={(e) => setDocumentDate(e.target.value)}
+            />
+          </Field>
+        </div>
+
+        {(docType === 'act' || docType === 'extra_agreement') && (
+          <Field
+            htmlFor="issue-parent"
+            label={docType === 'act' ? 'Счёт-основание' : 'Договор-основание'}
+            hint={
+              parentOptions.length > 0
+                ? 'Документ наследует номер основания.'
+                : docType === 'act'
+                  ? 'Сначала выпустите счёт.'
+                  : 'Сначала выпустите договор.'
+            }
+          >
+            <Select
+              id="issue-parent"
+              value={parentDocumentId}
+              onChange={(e) => setParentDocumentId(e.target.value)}
+            >
+              <option value="">Последний по дате</option>
+              {parentOptions.map((doc) => (
+                <option key={doc.id} value={doc.id}>
+                  {doc.number} от {new Date(doc.date).toLocaleDateString('ru-RU')}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
+
+        {docType === 'act' && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field htmlFor="issue-period-from" label="Услуги оказаны с">
+              <Input
+                id="issue-period-from"
+                type="date"
+                value={periodFrom}
+                onChange={(e) => setPeriodFrom(e.target.value)}
+              />
+            </Field>
+            <Field htmlFor="issue-period-to" label="по">
+              <Input
+                id="issue-period-to"
+                type="date"
+                value={periodTo}
+                onChange={(e) => setPeriodTo(e.target.value)}
+              />
+            </Field>
+          </div>
+        )}
+
+        {docType === 'contract' && (
+          <div className="flex flex-col gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field htmlFor="issue-subject" label="Предмет договора" hint="Пусто — название заказа">
+                <Input
+                  id="issue-subject"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                />
+              </Field>
+              <Field htmlFor="issue-valid-until" label="Действует до">
+                <Input
+                  id="issue-valid-until"
+                  type="date"
+                  value={validUntil}
+                  onChange={(e) => setValidUntil(e.target.value)}
+                />
+              </Field>
+            </div>
+            <Field
+              htmlFor="issue-payment-terms"
+              label="Порядок оплаты"
+              hint="Пусто — типовая формулировка"
+            >
+              <Textarea
+                id="issue-payment-terms"
+                rows={2}
+                value={paymentTerms}
+                onChange={(e) => setPaymentTerms(e.target.value)}
+              />
+            </Field>
+          </div>
+        )}
+
+        {docType === 'extra_agreement' && (
+          <Field
+            htmlFor="issue-change-text"
+            label="Что меняется"
+            hint="Пусто — типовая формулировка"
+          >
+            <Textarea
+              id="issue-change-text"
+              rows={3}
+              value={changeText}
+              onChange={(e) => setChangeText(e.target.value)}
+            />
+          </Field>
+        )}
+
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-[#111111]">Состав</h3>
+            <Button
+              size="sm"
+              variant="secondary"
+              type="button"
+              onClick={() => setLines((prev) => [...prev, emptyLine()])}
+            >
+              Добавить строку
+            </Button>
+          </div>
+          {lines.map((line, index) => (
+            <div key={index} className="grid gap-2 sm:grid-cols-12 items-end">
+              <div className="sm:col-span-4">
+                <Field htmlFor={`line-title-${index}`} label="Наименование">
+                  <Input
+                    id={`line-title-${index}`}
+                    value={line.title}
+                    onChange={(e) => patchLine(index, { title: e.target.value })}
+                  />
+                </Field>
+              </div>
+              <div className="sm:col-span-2">
+                <Field htmlFor={`line-qty-${index}`} label="Кол-во">
+                  <Input
+                    id={`line-qty-${index}`}
+                    value={line.quantity}
+                    onChange={(e) => patchLine(index, { quantity: e.target.value })}
+                  />
+                </Field>
+              </div>
+              <div className="sm:col-span-2">
+                <Field htmlFor={`line-unit-${index}`} label="Ед.">
+                  <Select
+                    id={`line-unit-${index}`}
+                    value={line.unit}
+                    onChange={(e) => patchLine(index, { unit: e.target.value as CatalogUnit })}
+                  >
+                    {Object.entries(CATALOG_UNIT_LABELS).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              </div>
+              <div className="sm:col-span-2">
+                <Field htmlFor={`line-price-${index}`} label="Цена">
+                  <Input
+                    id={`line-price-${index}`}
+                    value={line.unitPrice}
+                    onChange={(e) => patchLine(index, { unitPrice: e.target.value })}
+                  />
+                </Field>
+              </div>
+              <div className="sm:col-span-1">
+                <Field htmlFor={`line-vat-${index}`} label="НДС">
+                  <Select
+                    id={`line-vat-${index}`}
+                    value={line.vatRate ?? ''}
+                    onChange={(e) =>
+                      patchLine(index, { vatRate: e.target.value === '' ? null : e.target.value })
+                    }
+                  >
+                    <option value="">без НДС</option>
+                    {VAT_RATES.map((rate) => (
+                      <option key={rate} value={rate.toFixed(4)}>
+                        {(rate * 100).toFixed(0)}%
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              </div>
+              <div className="sm:col-span-1">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  type="button"
+                  disabled={lines.length === 1}
+                  onClick={() => setLines((prev) => prev.filter((_, i) => i !== index))}
+                >
+                  Убрать
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {blocked && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-3" data-testid="issue-blocked">
+            {missing.length > 0 && (
+              <>
+                <p className="text-sm text-gray-800">
+                  Для документа «{DOC_LABEL[docType]}» не хватает реквизитов:
+                </p>
+                <ul className="text-sm text-red-700 list-disc pl-5 mt-1 space-y-0.5">
+                  {missing.map((m) => (
+                    <li key={`${m.side}:${m.label}`}>{m.label}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {needsInvoice && (
+              <p className="text-sm text-gray-800">Сначала выпустите счёт — акт наследует номер.</p>
+            )}
+            {needsContract && (
+              <p className="text-sm text-gray-800">
+                Сначала выпустите договор — доп. соглашение наследует его номер.
+              </p>
+            )}
+          </div>
+        )}
+
+        {mismatch && (
+          <div
+            className="rounded-lg border border-amber-300 bg-amber-50 p-3"
+            data-testid="issue-mismatch"
+          >
+            <p className="text-sm text-gray-900">
+              Сумма по строкам — {mismatch.linesTotal} ₽, а сумма заказа — {mismatch.orderTotal} ₽.
+              Что делать?
+            </p>
+            <div className="flex flex-wrap gap-2 mt-2">
+              <Button size="sm" disabled={busy !== null} onClick={() => void issue('update_order')}>
+                Обновить сумму заказа
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={busy !== null}
+                onClick={() => void issue('keep_order')}
+              >
+                Выпустить по строкам
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={busy !== null}
+                onClick={() => setMismatch(null)}
+              >
+                Отмена
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {previewUrl && (
+          <iframe
+            title="Предпросмотр документа"
+            src={previewUrl}
+            className="w-full h-96 rounded-lg border border-gray-200"
+          />
+        )}
+
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="secondary"
+            type="button"
+            disabled={busy !== null}
+            onClick={() => void preview()}
+          >
+            {busy === 'preview' ? 'Готовлю…' : 'Предпросмотр'}
+          </Button>
+          <Button
+            type="button"
+            disabled={busy !== null || blocked || mismatch !== null}
+            onClick={() => void issue()}
+          >
+            {busy === 'issue' ? 'Выпускаю…' : 'Выпустить'}
+          </Button>
+        </div>
+      </div>
+    </Dialog>
+  );
+}

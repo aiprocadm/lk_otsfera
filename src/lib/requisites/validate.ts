@@ -1,3 +1,6 @@
+import { isValidInn } from '@/lib/services/oneCSync/inn';
+import { isValidBankAccount, isValidCorrAccount, isValidOgrn } from './checksum';
+
 /**
  * Этап 8 (ФТ-9.1/9.2, PR-1) — чистая валидация реквизитов юрлица. Все поля
  * опциональны (реквизиты заполняются постепенно), но ЗАПОЛНЕННОЕ поле обязано
@@ -67,7 +70,13 @@ export function validateRequisites(
 
   if (values.inn) {
     values.inn = digits(values.inn);
-    if (!/^(\d{10}|\d{12})$/.test(values.inn)) errors.push('ИНН должен содержать 10 или 12 цифр');
+    if (!/^(\d{10}|\d{12})$/.test(values.inn)) {
+      errors.push('ИНН должен содержать 10 или 12 цифр');
+    } else if (!isValidInn(values.inn)) {
+      // `У-156` (дефект `Д-11`): до этапа 6 проверялась только длина, и
+      // опечатка в одной цифре молча уезжала в счёт клиенту.
+      errors.push('ИНН не проходит проверку контрольной суммы — проверьте цифры');
+    }
   }
   if (values.kpp) {
     values.kpp = digits(values.kpp);
@@ -75,8 +84,11 @@ export function validateRequisites(
   }
   if (values.ogrn) {
     values.ogrn = digits(values.ogrn);
-    if (!/^(\d{13}|\d{15})$/.test(values.ogrn))
+    if (!/^(\d{13}|\d{15})$/.test(values.ogrn)) {
       errors.push('ОГРН должен содержать 13 цифр (или 15 для ИП)');
+    } else if (!isValidOgrn(values.ogrn)) {
+      errors.push('ОГРН не проходит проверку контрольной суммы — проверьте цифры');
+    }
   }
   if (values.bic) {
     values.bic = digits(values.bic);
@@ -84,13 +96,25 @@ export function validateRequisites(
   }
   if (values.bankAccount) {
     values.bankAccount = digits(values.bankAccount);
-    if (!/^\d{20}$/.test(values.bankAccount))
+    if (!/^\d{20}$/.test(values.bankAccount)) {
       errors.push('Расчётный счёт должен содержать 20 цифр');
+    } else if (values.bic && /^\d{9}$/.test(values.bic)) {
+      // Счёт проверяется ТОЛЬКО вместе с БИК: без него контрольную сумму
+      // считать не из чего, и придираться к счёту было бы неправдой.
+      if (!isValidBankAccount(values.bankAccount, values.bic)) {
+        errors.push('Расчётный счёт не сходится с БИК — проверьте цифры');
+      }
+    }
   }
   if (values.corrAccount) {
     values.corrAccount = digits(values.corrAccount);
-    if (!/^\d{20}$/.test(values.corrAccount))
+    if (!/^\d{20}$/.test(values.corrAccount)) {
       errors.push('Корреспондентский счёт должен содержать 20 цифр');
+    } else if (values.bic && /^\d{9}$/.test(values.bic)) {
+      if (!isValidCorrAccount(values.corrAccount, values.bic)) {
+        errors.push('Корреспондентский счёт не сходится с БИК — проверьте цифры');
+      }
+    }
   }
 
   if (errors.length > 0) return { ok: false, errors };

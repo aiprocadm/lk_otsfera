@@ -34,17 +34,18 @@ const FULL = {
   kpp: '770701001',
   legalAddress: 'Москва',
   bankName: 'Т-Банк',
-  bankAccount: '40702810400000000001',
+  bankAccount: '40702810400000000005',
   corrAccount: '30101810400000000225',
   bic: '044525225',
   signerName: 'Иванов И.И.',
   signerPosition: 'Директор',
+  signerBasis: 'Устава',
 };
 
 beforeAll(async () => {
   prisma = new PrismaClient();
   companyA = (
-    await prisma.company.create({ data: { name: `s8p2-${STAMP}`, ...FULL, inn: '7708123456' } })
+    await prisma.company.create({ data: { name: `s8p2-${STAMP}`, ...FULL, inn: '7708123450' } })
   ).id;
   orgA = (
     await prisma.organization.create({
@@ -205,7 +206,10 @@ describe('полный путь генерации', () => {
       expect(r.ok).toBe(false);
       if (!r.ok) {
         expect(r.error).toBe('missing_requisites');
-        expect(r.missing!.some((m) => m.label === 'ИНН заказчика')).toBe(true);
+        // Сужение: у ветки amount_mismatch поля `missing` нет.
+        if (r.error === 'missing_requisites') {
+          expect(r.missing!.some((m) => m.label === 'ИНН заказчика')).toBe(true);
+        }
       }
     } finally {
       await prisma.order.delete({ where: { id: bareOrder.id } });

@@ -231,6 +231,7 @@ export const AUDIT_ACTIONS = [
   // в catalog_item_updated.
   // `У-148` (этап 6): жизненный цикл документа.
   'document_status_changed',
+  'order_total_synced',
   'catalog_item_created',
   // `У-139`/`У-140`: финансовые строки заказа и ручная сумма.
   'order_line_added',

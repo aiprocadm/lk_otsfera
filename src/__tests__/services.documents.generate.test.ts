@@ -11,6 +11,7 @@ const {
   recordAuditMock,
   uploadMock,
   downloadMock,
+  removeMock,
   renderMock,
   renderContractMock,
   notifyOrgUsers,
@@ -20,6 +21,7 @@ const {
   recordAuditMock: vi.fn(),
   uploadMock: vi.fn(),
   downloadMock: vi.fn(),
+  removeMock: vi.fn(),
   renderMock: vi.fn(),
   renderContractMock: vi.fn(),
   notifyOrgUsers: vi.fn(),
@@ -28,7 +30,7 @@ const {
 }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit: recordAuditMock }));
 vi.mock('@/lib/storage', () => ({
-  getObjectStorage: () => ({ upload: uploadMock, download: downloadMock }),
+  getObjectStorage: () => ({ upload: uploadMock, download: downloadMock, remove: removeMock }),
 }));
 vi.mock('@/lib/services/documents/orderDocumentPdf', () => ({
   renderOrderDocumentPdf: renderMock,
@@ -55,11 +57,13 @@ const FULL_PARTY = {
   kpp: '770701001',
   legalAddress: 'Москва',
   bankName: 'Банк',
-  bankAccount: '40702810400000000001',
+  bankAccount: '40702810400000000005',
   corrAccount: '30101810400000000225',
   bic: '044525225',
+  ogrn: '1027700132195',
   signerName: 'Иванов',
   signerPosition: 'Директор',
+  signerBasis: 'Устава',
   phone: null,
   email: null,
 };
@@ -126,6 +130,7 @@ beforeEach(() => {
   renderMock.mockResolvedValue(Buffer.from('%PDF-fake'));
   renderContractMock.mockResolvedValue(Buffer.from('%PDF-contract'));
   uploadMock.mockResolvedValue(undefined);
+  removeMock.mockResolvedValue(undefined);
   downloadMock.mockResolvedValue(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d]));
   notifyOrgUsers.mockResolvedValue({});
   getCompanyTeamVisibility.mockResolvedValue(false);
@@ -163,9 +168,12 @@ describe('generateOrderDocument', () => {
     expect(r.ok).toBe(false);
     if (!r.ok) {
       expect(r.error).toBe('missing_requisites');
-      expect(r.missing!.map((m) => m.label)).toEqual(
-        expect.arrayContaining(['БИК исполнителя', 'подписант исполнителя (ФИО)'])
-      );
+      // Сужение: у ветки amount_mismatch поля `missing` нет.
+      if (r.error === 'missing_requisites') {
+        expect(r.missing!.map((m) => m.label)).toEqual(
+          expect.arrayContaining(['БИК исполнителя', 'подписант исполнителя (ФИО)'])
+        );
+      }
     }
     expect(uploadMock).not.toHaveBeenCalled();
   });
@@ -226,6 +234,9 @@ describe('generateOrderDocument', () => {
       orderId: 'ord-1',
       docType: 'invoice',
       now,
+      // Строки дешевле суммы заказа — это отдельный вопрос `У-143`,
+      // здесь проверяется печать состава.
+      onAmountMismatch: 'keep_order',
     });
     table = renderMock.mock.calls[0]![0].table;
     expect(table.rows).toHaveLength(2);
@@ -298,7 +309,12 @@ describe('generateOrderDocument', () => {
         lines: [line('Разработка инструкции', '3000'), line('Услуга', '2000')],
       },
     });
-    await generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice', now });
+    await generateOrderDocument(prisma, manager(), {
+      orderId: 'ord-1',
+      docType: 'invoice',
+      now,
+      onAmountMismatch: 'keep_order',
+    });
     const rows = renderMock.mock.calls[0]![0].table.rows;
     expect(rows[0].name).toBe('Разработка инструкции');
     expect(rows[1].name).toBe('Услуга');
@@ -524,5 +540,191 @@ describe('договор и доп. соглашение (PR-3)', () => {
       ok: false,
       error: 'contract_required',
     });
+  });
+});
+
+describe('`У-143`: сумма строк разошлась с суммой заказа', () => {
+  const now = new Date('2026-07-26T12:00:00Z');
+  const cheaper = () => makePrisma({ order: { ...ORDER, lines: [line('Обучение', '9000')] } });
+
+  it('без ответа человека документ НЕ выпускается — возвращаются обе цифры', async () => {
+    // Дефект `Д-8`: раньше система молча печатала одну из двух сумм.
+    const { prisma } = cheaper();
+    const r = await generateOrderDocument(prisma, manager(), {
+      orderId: 'ord-1',
+      docType: 'invoice',
+      now,
+    });
+    expect(r).toEqual({
+      ok: false,
+      error: 'amount_mismatch',
+      linesTotal: '9000.00',
+      orderTotal: '15000.00',
+    });
+    expect(uploadMock).not.toHaveBeenCalled();
+  });
+
+  it('«обновить сумму заказа» — заказ выравнивается по строкам, с записью в журнал', async () => {
+    const { prisma } = cheaper();
+    const orderUpdate = vi.fn().mockResolvedValue({});
+    (prisma as unknown as { order: { update: unknown } }).order.update = orderUpdate;
+
+    const r = await generateOrderDocument(prisma, manager(), {
+      orderId: 'ord-1',
+      docType: 'invoice',
+      now,
+      onAmountMismatch: 'update_order',
+    });
+    expect(r.ok).toBe(true);
+    expect(orderUpdate).toHaveBeenCalledWith({
+      where: { id: 'ord-1' },
+      data: { totalAmount: '9000.00', totalAmountIsManual: false },
+    });
+    expect(recordAuditMock).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({ action: 'order_total_synced' })
+    );
+  });
+
+  it('«выпустить по строкам» — сумма заказа не трогается', async () => {
+    const { prisma } = cheaper();
+    const orderUpdate = vi.fn().mockResolvedValue({});
+    (prisma as unknown as { order: { update: unknown } }).order.update = orderUpdate;
+
+    const r = await generateOrderDocument(prisma, manager(), {
+      orderId: 'ord-1',
+      docType: 'invoice',
+      now,
+      onAmountMismatch: 'keep_order',
+    });
+    expect(r.ok).toBe(true);
+    expect(orderUpdate).not.toHaveBeenCalled();
+  });
+
+  it('у договора расхождение не спрашивается — деньги платят по счёту', async () => {
+    const { prisma } = cheaper();
+    const r = await generateOrderDocument(prisma, manager(), {
+      orderId: 'ord-1',
+      docType: 'contract',
+      now,
+    });
+    expect(r.ok).toBe(true);
+  });
+});
+
+describe('`У-152`: рендер и загрузка вне транзакции', () => {
+  const now = new Date('2026-07-26T12:00:00Z');
+
+  it('номер резервируется ОТДЕЛЬНОЙ транзакцией, а не одной длинной', async () => {
+    // Дефект `Д-1`: одна транзакция держала строку счётчика номеров на время
+    // рендера PDF и загрузки в хранилище.
+    const { prisma } = makePrisma();
+    await generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice', now });
+    expect((prisma.$transaction as unknown as { mock: { calls: unknown[] } }).mock.calls).toHaveLength(2);
+  });
+
+  it('ключ файла содержит UUID — повтор не перезаписывает прежний', async () => {
+    // Дефект `Д-2`: ключ был детерминированным, и повторная попытка затирала
+    // файл предыдущей версии.
+    const first = makePrisma();
+    await generateOrderDocument(first.prisma, manager(), {
+      orderId: 'ord-1',
+      docType: 'invoice',
+      now,
+    });
+    const second = makePrisma();
+    await generateOrderDocument(second.prisma, manager(), {
+      orderId: 'ord-1',
+      docType: 'invoice',
+      now,
+    });
+    const pathA = uploadMock.mock.calls[0]![0] as string;
+    const pathB = uploadMock.mock.calls[1]![0] as string;
+    expect(pathA).not.toBe(pathB);
+    expect(pathA).toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-/);
+  });
+
+  it('сбой записи документа убирает уже загруженный файл', async () => {
+    // Иначе в хранилище копились бы файлы-сироты, за которые никто не отвечает.
+    const { prisma, tx } = makePrisma();
+    (tx.document.create as unknown as { mockRejectedValue: (e: Error) => void }).mockRejectedValue(
+      new Error('db down')
+    );
+    await expect(
+      generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice', now })
+    ).rejects.toThrow('db down');
+    expect(removeMock).toHaveBeenCalledWith([uploadMock.mock.calls[0]![0]]);
+  });
+
+  it('сбой уборки не превращается в ошибку выпуска — исходная ошибка сохраняется', async () => {
+    const { prisma, tx } = makePrisma();
+    (tx.document.create as unknown as { mockRejectedValue: (e: Error) => void }).mockRejectedValue(
+      new Error('db down')
+    );
+    removeMock.mockRejectedValue(new Error('s3 down'));
+    await expect(
+      generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice', now })
+    ).rejects.toThrow('db down');
+  });
+});
+
+describe('`У-146`: строки документа — снимок состава', () => {
+  it('документ сохраняет свои строки и итоги, а не ссылку на заказ', async () => {
+    const now = new Date('2026-07-26T12:00:00Z');
+    const { prisma, documentCreate } = makePrisma({
+      order: { ...ORDER, totalAmount: 5000, lines: [line('Обучение')] },
+    });
+    await generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice', now });
+    const data = documentCreate.mock.calls[0]![0].data;
+    expect(data.amountGross).toBe('5000.00');
+    expect(data.currency).toBe('RUB');
+    expect(data.lines.create).toEqual([
+      expect.objectContaining({ title: 'Обучение', amount: '5000.00', sortOrder: 0 }),
+    ]);
+  });
+});
+
+describe('`У-147`: основание выбирается, а не угадывается', () => {
+  const now = new Date('2026-07-26T12:00:00Z');
+
+  it('выбранный счёт становится основанием акта и попадает в `parentDocumentId`', async () => {
+    const findFirst = vi
+      .fn()
+      .mockResolvedValueOnce({ id: 'inv-7', number: 'С-2026-7', createdAt: now })
+      .mockResolvedValue(null);
+    const { prisma, documentCreate } = makePrisma({
+      tx: {
+        documentCounter: { upsert: vi.fn() },
+        document: {
+          findFirst,
+          create: vi.fn().mockResolvedValue({ id: 'doc-2' }),
+        },
+      },
+    });
+    (prisma as unknown as { order: { findUnique: unknown } }).order.findUnique = vi
+      .fn()
+      .mockResolvedValue({ ...ORDER, totalAmount: 15000, lines: [] });
+
+    const r = await generateOrderDocument(prisma, manager(), {
+      orderId: 'ord-1',
+      docType: 'act',
+      now,
+      extras: { parentDocumentId: 'inv-7' },
+    });
+    expect(r).toEqual({ ok: true, documentId: 'doc-2', number: 'А-2026-7' });
+    // Выбор основания ищется ПО ИДЕНТИФИКАТОРУ, а не «последний по дате».
+    expect(findFirst.mock.calls[0]![0].where).toMatchObject({ id: 'inv-7', orderId: 'ord-1' });
+    void documentCreate;
+  });
+
+  it('выбранного основания нет в этом заказе → parent_not_found, а не чужой счёт', async () => {
+    const { prisma } = makePrisma();
+    const r = await generateOrderDocument(prisma, manager(), {
+      orderId: 'ord-1',
+      docType: 'act',
+      now,
+      extras: { parentDocumentId: 'inv-from-other-order' },
+    });
+    expect(r).toEqual({ ok: false, error: 'parent_not_found' });
   });
 });

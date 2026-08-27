@@ -44,6 +44,13 @@ export type OrderDocumentData = {
   table: PrintTable;
   /** Логотип, подпись и печать исполнителя (`У-153`); пусто — печатаем как прежде. */
   branding: DocumentBranding;
+  /** Период оказания услуг (`У-147`, поле формы выпуска акта). */
+  servicePeriod: { from: Date; to: Date } | null;
+  /**
+   * Пометка предпросмотра (`У-147`): человек должен с одного взгляда видеть,
+   * что перед ним ещё не выпущенный документ, иначе такой PDF уедет клиенту.
+   */
+  draftNote: string | null;
 };
 
 const e = React.createElement;
@@ -82,6 +89,13 @@ const styles = StyleSheet.create({
   totals: { marginTop: 8, alignItems: 'flex-end' },
   totalLine: { fontSize: 10, fontWeight: 'bold', marginTop: 2 },
   vatLine: { fontSize: 9, color: '#444', marginTop: 1 },
+  draftNote: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#EA580C',
+    marginBottom: 8,
+  },
+  periodLine: { fontSize: 9, marginBottom: 6 },
   summaryLine: { fontSize: 9, marginTop: 10 },
   wordsLine: { fontSize: 9, fontWeight: 'bold', marginTop: 2 },
   actNote: { fontSize: 9, marginTop: 14, lineHeight: 1.5 },
@@ -152,6 +166,7 @@ export function OrderDocumentPdf({ data }: { data: OrderDocumentData }) {
       Page,
       { size: 'A4', style: styles.page },
       data.branding.logo ? e(Image, { src: data.branding.logo, style: styles.logo }) : null,
+      data.draftNote ? e(Text, { style: styles.draftNote }, data.draftNote) : null,
       // Банковская шапка — только у счёта.
       isInvoice
         ? e(
@@ -179,6 +194,17 @@ export function OrderDocumentPdf({ data }: { data: OrderDocumentData }) {
         `${isInvoice ? 'Счёт' : 'Акт'} № ${data.number} от ${dateStr}`
       ),
       e(Text, { style: styles.subtitle }, data.orderLabel),
+      data.servicePeriod
+        ? e(
+            Text,
+            { style: styles.periodLine },
+            // Период — в акте главное: он отвечает на вопрос «за что платим».
+            'Период оказания услуг: ' +
+              new Date(data.servicePeriod.from).toLocaleDateString('ru-RU') +
+              ' — ' +
+              new Date(data.servicePeriod.to).toLocaleDateString('ru-RU')
+          )
+        : null,
       e(Text, { style: styles.partyLabel }, 'ИСПОЛНИТЕЛЬ'),
       e(Text, { style: styles.partyText }, partyLine(data.company)),
       e(Text, { style: styles.partyLabel }, 'ЗАКАЗЧИК'),
