@@ -178,6 +178,19 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     legacyHrefs: [{ from: '/admin/custom-fields' }, { from: '/leader/settings/custom-fields' }],
   },
   {
+    id: 'catalogs.priceList',
+    group: 'catalogs',
+    title: 'Каталог услуг и цены',
+    description: 'Услуги и товары с ценами — из них собираются строки заказов и документов.',
+    icon: '🏷️',
+    path: 'catalogs/price-list',
+    capability: 'settings.catalogs.manage',
+    // `У-136`/`Р-22`: руководитель ведёт каталог СВОЕЙ компании — скоуп
+    // держит сервис, а не видимость карточки.
+    cabinets: ['admin', 'leader'],
+    legacyHrefs: [],
+  },
+  {
     id: 'catalogs.requisites',
     group: 'catalogs',
     title: 'Реквизиты исполнителя',

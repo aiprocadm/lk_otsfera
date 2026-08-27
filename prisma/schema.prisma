@@ -114,6 +114,16 @@ enum ServiceType {
   document_development
 }
 
+// Этап 5 ТЗ (У-136): единицы измерения каталога — закрытый список из ТЗ
+// (чел · шт · услуга · час · месяц), без свободного ввода (спека §7-2).
+enum CatalogUnit {
+  person
+  piece
+  service
+  hour
+  month
+}
+
 enum DocumentType {
   contract
   extra_agreement
@@ -875,6 +885,7 @@ model Company {
   salesTargets          SalesTarget[]
   staffConversations    StaffConversation[]
   calendarEvents        CalendarEvent[]
+  catalogItems          CatalogItem[]
 }
 
 // Трек G1 (§3.2 ТЗ): роль-профиль как данные. Матрица охватов по типам объектов
@@ -1583,8 +1594,40 @@ model TrainingDirection {
   certificates       Certificate[]
   // У-33 (этап 6): направление теперь и у позиции заявки, не только у шапки.
   enrollmentItems    EnrollmentRequestItem[]
+  catalogItems       CatalogItem[]
 
   @@index([isActive, sortOrder])
+}
+
+// Этап 5 ТЗ (У-136, решение Р-13): каталог услуг и товаров компании — из него
+// собираются строки заказов и документов. Цена в строке — СНИМОК на момент
+// добавления: правка каталога не меняет существующие строки. Использованный
+// элемент не удаляется физически — только `isActive = false`.
+model CatalogItem {
+  id          String            @id @default(cuid())
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  companyId   String
+  company     Company           @relation(fields: [companyId], references: [id])
+  name        String
+  // Артикул: уникален в компании, ключ сопоставления Excel-импорта (У-137).
+  code        String
+  unit        CatalogUnit       @default(person)
+  price       Decimal           @db.Decimal(14, 2)
+  // null = «не облагается» (УСН); значение — доля (0.20 = 20%).
+  vatRate     Decimal?          @db.Decimal(5, 4)
+  vatIncluded Boolean           @default(true)
+  // Связь с направлением обучения — необязательная; по ней «Собрать строки
+  // из позиций» (У-139) находит цену для направления.
+  directionId String?
+  direction   TrainingDirection? @relation(fields: [directionId], references: [id])
+  description String?
+  isActive    Boolean           @default(true)
+  sortOrder   Int               @default(0)
+
+  @@unique([companyId, code])
+  @@index([companyId, isActive, sortOrder])
+  @@index([directionId])
 }
 
 model OrderItem {

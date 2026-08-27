@@ -31,6 +31,9 @@ const LEADER_SECTIONS = [
   'catalogs.applicationStatuses',
   'catalogs.notificationRules', // правила уведомлений компании (`У-127`)
   'catalogs.customFields',
+  // `У-136`/`Р-22`: каталог услуг и цен СВОЕЙ компании — границу держит сервис;
+  // раздел этапа 5 добавлен тем же PR, что его завёл (так велит `У-135`).
+  'catalogs.priceList',
   'catalogs.requisites', // реквизиты исполнителя СВОЕЙ компании
   'access.roles',
 ] as const;

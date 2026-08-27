@@ -59,6 +59,8 @@ export const AUDIT_ENTITIES = [
   'calendar_event',
   'integration_setting',
   'order_status_definition',
+  // `У-136`: каталог услуг и цены.
+  'catalog_item',
 ] as const;
 
 export type AuditEntity = (typeof AUDIT_ENTITIES)[number];
@@ -225,6 +227,12 @@ export const AUDIT_ACTIONS = [
   'email_template_changed',
   'email_template_reset',
   'email_template_test_sent',
+  // `У-136`: каталог услуг и цены; история изменений цены — before/after
+  // в catalog_item_updated.
+  'catalog_item_created',
+  'catalog_item_updated',
+  'catalog_item_deactivated',
+  'catalog_item_activated',
   'sync_triggered',
   'task_assigned',
   'task_column_created',
