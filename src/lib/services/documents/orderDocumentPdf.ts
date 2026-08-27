@@ -1,12 +1,19 @@
-import { renderToBuffer, Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+import { renderToBuffer, Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
 import React from 'react';
 import { registerPdfFonts, PDF_FONT_FAMILY } from '@/lib/pdf/fonts';
+import type { PrintTable } from './printTable';
+import type { DocumentBranding } from './branding';
 
 /**
  * Этап 8 (ФТ-9.3/9.4, PR-2) — встроенные PDF-шаблоны счёта и акта (решение
  * §9-1: v1 без docx). Разметка через React.createElement (стиль
  * commission/pdf.ts); шрифт DejaVu — кириллица. Данные собирает
  * services/documents/generate.ts — рендер чистый и синхронный.
+ *
+ * Этап 6 ТЗ кабинетов (`У-141`, `У-153`): табличная часть — шесть колонок
+ * (№ · Наименование · Кол-во · Ед. · Цена · Сумма), итоги, строка НДС,
+ * «Всего наименований N» и сумма прописью; логотип, подпись и печать
+ * компании — если они загружены и прошли антивирус.
  */
 
 export type PartyBlock = {
@@ -33,15 +40,17 @@ export type OrderDocumentData = {
   company: PartyBlock;
   organization: PartyBlock;
   orderLabel: string; // «Заказ №123: Обучение по ОТ»
-  items: Array<{ name: string; amount: string }>;
-  total: string;
-  vatLine: string;
+  /** Табличная часть и итоги (`У-141`) — собирает `printTable.ts`. */
+  table: PrintTable;
+  /** Логотип, подпись и печать исполнителя (`У-153`); пусто — печатаем как прежде. */
+  branding: DocumentBranding;
 };
 
 const e = React.createElement;
 
 const styles = StyleSheet.create({
   page: { fontFamily: PDF_FONT_FAMILY, fontSize: 9, padding: 40, color: '#111' },
+  logo: { height: 40, marginBottom: 10 },
   title: { fontSize: 14, fontWeight: 'bold', marginBottom: 2 },
   subtitle: { fontSize: 9, color: '#555', marginBottom: 12 },
   bankBox: { borderWidth: 1, borderColor: '#111', marginBottom: 14 },
@@ -64,16 +73,25 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 5,
   },
-  colN: { width: '6%' },
-  colName: { width: '70%' },
-  colAmount: { width: '24%', textAlign: 'right' },
+  colN: { width: '5%' },
+  colName: { width: '39%' },
+  colQuantity: { width: '10%', textAlign: 'right' },
+  colUnit: { width: '8%', textAlign: 'center' },
+  colPrice: { width: '19%', textAlign: 'right' },
+  colAmount: { width: '19%', textAlign: 'right' },
   totals: { marginTop: 8, alignItems: 'flex-end' },
   totalLine: { fontSize: 10, fontWeight: 'bold', marginTop: 2 },
   vatLine: { fontSize: 9, color: '#444', marginTop: 1 },
+  summaryLine: { fontSize: 9, marginTop: 10 },
+  wordsLine: { fontSize: 9, fontWeight: 'bold', marginTop: 2 },
   actNote: { fontSize: 9, marginTop: 14, lineHeight: 1.5 },
   signatures: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 36 },
   signBlock: { width: '45%' },
-  signRole: { fontSize: 8, color: '#888', marginBottom: 18 },
+  signRole: { fontSize: 8, color: '#888', marginBottom: 4 },
+  signMarks: { flexDirection: 'row', alignItems: 'flex-end', height: 56 },
+  signImage: { height: 46 },
+  stampImage: { height: 56, marginLeft: 8 },
+  signSpacer: { height: 56 },
   signLine: {
     borderTopWidth: 0.5,
     borderTopColor: '#111',
@@ -98,10 +116,26 @@ function signerLabel(p: PartyBlock): string {
   return p.signerPosition ? `${p.signerPosition}: ${p.signerName}` : p.signerName;
 }
 
-function OrderDocumentPdf({ data }: { data: OrderDocumentData }) {
+/**
+ * Место под подпись и печать. Высота одинаковая с картинками и без них —
+ * иначе документ с загруженной подписью «прыгал» бы относительно того же
+ * документа без неё, и две версии счёта выглядели бы по-разному свёрстанными.
+ */
+function signatureMarks(branding: DocumentBranding) {
+  if (!branding.signature && !branding.stamp) return e(View, { style: styles.signSpacer });
+  return e(
+    View,
+    { style: styles.signMarks },
+    branding.signature ? e(Image, { src: branding.signature, style: styles.signImage }) : null,
+    branding.stamp ? e(Image, { src: branding.stamp, style: styles.stampImage }) : null
+  );
+}
+
+export function OrderDocumentPdf({ data }: { data: OrderDocumentData }) {
   const dateStr = new Date(data.date).toLocaleDateString('ru-RU');
   const isInvoice = data.docType === 'invoice';
   const c = data.company;
+  const t = data.table;
 
   const bankRows: Array<[string, string]> = [
     [`${c.bankName ?? ''} БИК ${c.bic ?? ''}`, `К/с ${c.corrAccount ?? ''}`],
@@ -117,6 +151,7 @@ function OrderDocumentPdf({ data }: { data: OrderDocumentData }) {
     e(
       Page,
       { size: 'A4', style: styles.page },
+      data.branding.logo ? e(Image, { src: data.branding.logo, style: styles.logo }) : null,
       // Банковская шапка — только у счёта.
       isInvoice
         ? e(
@@ -157,23 +192,32 @@ function OrderDocumentPdf({ data }: { data: OrderDocumentData }) {
           { style: styles.colName },
           isInvoice ? 'Наименование услуги' : 'Наименование выполненных услуг'
         ),
+        e(Text, { style: styles.colQuantity }, 'Кол-во'),
+        e(Text, { style: styles.colUnit }, 'Ед.'),
+        e(Text, { style: styles.colPrice }, 'Цена, ₽'),
         e(Text, { style: styles.colAmount }, 'Сумма, ₽')
       ),
-      ...data.items.map((item, i) =>
+      ...t.rows.map((row) =>
         e(
           View,
-          { key: String(i), style: styles.tableRow },
-          e(Text, { style: styles.colN }, String(i + 1)),
-          e(Text, { style: styles.colName }, item.name),
-          e(Text, { style: styles.colAmount }, item.amount)
+          { key: String(row.index), style: styles.tableRow },
+          e(Text, { style: styles.colN }, String(row.index)),
+          e(Text, { style: styles.colName }, row.name),
+          e(Text, { style: styles.colQuantity }, row.quantity),
+          e(Text, { style: styles.colUnit }, row.unit),
+          e(Text, { style: styles.colPrice }, row.unitPrice),
+          e(Text, { style: styles.colAmount }, row.amount)
         )
       ),
       e(
         View,
         { style: styles.totals },
-        e(Text, { style: styles.totalLine }, `Итого: ${data.total} ₽`),
-        e(Text, { style: styles.vatLine }, data.vatLine)
+        e(Text, { style: styles.totalLine }, t.subtotalLine),
+        e(Text, { style: styles.vatLine }, t.vatLine),
+        t.payableLine ? e(Text, { style: styles.totalLine }, t.payableLine) : null
       ),
+      e(Text, { style: styles.summaryLine }, t.itemsSummary),
+      e(Text, { style: styles.wordsLine }, t.totalInWords),
       !isInvoice
         ? e(
             Text,
@@ -188,6 +232,7 @@ function OrderDocumentPdf({ data }: { data: OrderDocumentData }) {
           View,
           { style: styles.signBlock },
           e(Text, { style: styles.signRole }, 'Исполнитель'),
+          signatureMarks(data.branding),
           e(Text, { style: styles.signLine }, signerLabel(data.company) || 'подпись')
         ),
         isInvoice
@@ -196,6 +241,8 @@ function OrderDocumentPdf({ data }: { data: OrderDocumentData }) {
               View,
               { style: styles.signBlock },
               e(Text, { style: styles.signRole }, 'Заказчик'),
+              // У заказчика своих печатей в системе нет — только место под них.
+              e(View, { style: styles.signSpacer }),
               e(Text, { style: styles.signLine }, signerLabel(data.organization) || 'подпись')
             )
       )

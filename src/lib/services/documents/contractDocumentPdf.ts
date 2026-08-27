@@ -1,7 +1,9 @@
-import { renderToBuffer, Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+import { renderToBuffer, Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
 import React from 'react';
 import { registerPdfFonts, PDF_FONT_FAMILY } from '@/lib/pdf/fonts';
 import type { PartyBlock } from './orderDocumentPdf';
+import { formatMoney, type PrintTable } from './printTable';
+import type { DocumentBranding } from './branding';
 
 /**
  * Этап 8 (ФТ-9.3/9.4, PR-3) — встроенные шаблоны договора и доп. соглашения.
@@ -18,9 +20,10 @@ export type ContractDocumentData = {
   company: PartyBlock;
   organization: PartyBlock;
   subject: string; // предмет — название заказа
-  items: Array<{ name: string; amount: string }>;
-  total: string;
-  vatLine: string;
+  /** Состав услуг и итоги (`У-141`) — тот же расчёт, что в счёте и акте. */
+  table: PrintTable;
+  /** Логотип, подпись и печать исполнителя (`У-153`). */
+  branding: DocumentBranding;
   /** Для доп. соглашения — номер и дата исходного договора. */
   baseContract: { number: string; date: Date } | null;
 };
@@ -49,9 +52,16 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     paddingHorizontal: 4,
   },
-  colN: { width: '6%' },
-  colName: { width: '70%' },
-  colAmount: { width: '24%', textAlign: 'right' },
+  colN: { width: '5%' },
+  colName: { width: '39%' },
+  colQuantity: { width: '10%', textAlign: 'right' },
+  colUnit: { width: '8%', textAlign: 'center' },
+  colPrice: { width: '19%', textAlign: 'right' },
+  colAmount: { width: '19%', textAlign: 'right' },
+  logo: { height: 36, marginBottom: 8 },
+  signMarks: { flexDirection: 'row', alignItems: 'flex-end', height: 50, marginTop: 6 },
+  signImage: { height: 42 },
+  stampImage: { height: 50, marginLeft: 8 },
   requisites: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 18 },
   reqBlock: { width: '48%' },
   reqTitle: { fontSize: 9, fontWeight: 'bold', marginBottom: 3 },
@@ -85,6 +95,20 @@ function signerPhrase(p: PartyBlock): string {
   return `${role}${p.signerName}`;
 }
 
+/**
+ * Подпись и печать исполнителя над линией подписи (`У-153`). Нет файлов —
+ * возвращаем `null`, и договор печатается как прежде.
+ */
+function signatureMarks(branding: DocumentBranding) {
+  if (!branding.signature && !branding.stamp) return null;
+  return e(
+    View,
+    { style: styles.signMarks },
+    branding.signature ? e(Image, { src: branding.signature, style: styles.signImage }) : null,
+    branding.stamp ? e(Image, { src: branding.stamp, style: styles.stampImage }) : null
+  );
+}
+
 function ContractPdf({ data }: { data: ContractDocumentData }) {
   const dateStr = new Date(data.date).toLocaleDateString('ru-RU');
   const isExtra = data.docType === 'extra_agreement';
@@ -101,6 +125,7 @@ function ContractPdf({ data }: { data: ContractDocumentData }) {
     e(
       Page,
       { size: 'A4', style: styles.page },
+      data.branding.logo ? e(Image, { src: data.branding.logo, style: styles.logo }) : null,
       e(
         Text,
         { style: styles.title },
@@ -134,15 +159,21 @@ function ContractPdf({ data }: { data: ContractDocumentData }) {
         { style: styles.tableHeader },
         e(Text, { style: styles.colN }, '№'),
         e(Text, { style: styles.colName }, 'Наименование услуги'),
-        e(Text, { style: styles.colAmount }, 'Стоимость, ₽')
+        e(Text, { style: styles.colQuantity }, 'Кол-во'),
+        e(Text, { style: styles.colUnit }, 'Ед.'),
+        e(Text, { style: styles.colPrice }, 'Цена, ₽'),
+        e(Text, { style: styles.colAmount }, 'Сумма, ₽')
       ),
-      ...data.items.map((item, i) =>
+      ...data.table.rows.map((row) =>
         e(
           View,
-          { key: String(i), style: styles.tableRow },
-          e(Text, { style: styles.colN }, String(i + 1)),
-          e(Text, { style: styles.colName }, item.name),
-          e(Text, { style: styles.colAmount }, item.amount)
+          { key: String(row.index), style: styles.tableRow },
+          e(Text, { style: styles.colN }, String(row.index)),
+          e(Text, { style: styles.colName }, row.name),
+          e(Text, { style: styles.colQuantity }, row.quantity),
+          e(Text, { style: styles.colUnit }, row.unit),
+          e(Text, { style: styles.colPrice }, row.unitPrice),
+          e(Text, { style: styles.colAmount }, row.amount)
         )
       ),
 
@@ -150,7 +181,7 @@ function ContractPdf({ data }: { data: ContractDocumentData }) {
       e(
         Text,
         { style: styles.paragraph },
-        `2.1. Общая стоимость услуг составляет ${data.total} ₽. ${data.vatLine}`
+        `2.1. Общая стоимость услуг составляет ${formatMoney(data.table.gross)} ₽ (${data.table.totalInWords}). ${data.table.vatLine}.`
       ),
       e(
         Text,
@@ -193,6 +224,7 @@ function ContractPdf({ data }: { data: ContractDocumentData }) {
           { style: styles.reqBlock },
           e(Text, { style: styles.reqTitle }, 'Исполнитель'),
           ...requisiteLines(c).map((l, i) => e(Text, { key: String(i), style: styles.reqLine }, l)),
+          signatureMarks(data.branding),
           e(Text, { style: styles.signLine }, signerPhrase(c))
         ),
         e(

@@ -13,6 +13,8 @@ import {
   type OrderDocumentData,
   type PartyBlock,
 } from './orderDocumentPdf';
+import { buildPrintTable, fallbackPrintLine, type PrintLineInput } from './printTable';
+import { loadDocumentBranding } from './branding';
 
 /**
  * Этап 8 (ФТ-9.4/9.5, PR-2) — генерация счёта/акта по заказу в 1 клик.
@@ -65,9 +67,6 @@ const COUNTER_KIND: Record<GenerateDocType, string> = {
   contract: 'contract',
   extra_agreement: 'contract',
 };
-
-const fmtMoney = (v: unknown): string =>
-  Number(v).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function party(row: {
   name?: string | null;
@@ -145,7 +144,16 @@ export async function generateOrderDocument(
       // `OrderItem` здесь больше не нужен — его поле `amount` никем не
       // заполнялось и удаляется миграцией PR-5.
       lines: {
-        select: { title: true, amount: true, sortOrder: true },
+        select: {
+          title: true,
+          quantity: true,
+          unit: true,
+          unitPrice: true,
+          discountPercent: true,
+          vatRate: true,
+          vatIncluded: true,
+          sortOrder: true,
+        },
         orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
       },
     },
@@ -176,7 +184,8 @@ export async function generateOrderDocument(
   const [company, organization] = await Promise.all([
     prisma.company.findUnique({
       where: { id: order.companyId },
-      select: { ...PARTY_SELECT, phone: true, email: true },
+      // Ставка НДС по умолчанию нужна заказу без состава (`У-142`).
+      select: { ...PARTY_SELECT, phone: true, email: true, defaultVatRate: true },
     }),
     prisma.organization.findUnique({ where: { id: order.organizationId }, select: PARTY_SELECT }),
   ]);
@@ -188,30 +197,41 @@ export async function generateOrderDocument(
   const now = args.now ?? new Date();
   const year = now.getFullYear();
 
-  // Табличная часть (`У-139`, этап 5): печатаем ФИНАНСОВЫЕ строки заказа
-  // (`OrderLine`), если они есть, иначе — одну строку на сумму заказа.
+  // Табличная часть (`У-141`, `У-142`): печатаем ФИНАНСОВЫЕ строки заказа
+  // (`OrderLine` этапа 5), а у заказа без состава — одну строку-заглушку на
+  // сумму заказа со ставкой НДС по умолчанию компании.
   //
   // Прежняя ветка читала `OrderItem.amount` — поле, которое никто никогда не
   // заполнял (задел этапа 8 v1.0). Решением `Р-13` деньги переехали в
-  // `OrderLine`, и колонка удаляется миграцией PR-5; чтение убрано здесь,
-  // чтобы к моменту миграции её действительно никто не читал.
-  const items =
+  // `OrderLine`, и колонка удалена миграцией этапа 5.
+  const printLines: PrintLineInput[] =
     order.lines.length > 0
-      ? order.lines.map((l) => ({ name: l.title, amount: fmtMoney(l.amount) }))
+      ? order.lines.map((l) => ({
+          title: l.title,
+          quantity: l.quantity.toString(),
+          unit: l.unit,
+          unitPrice: l.unitPrice.toString(),
+          discountPercent: l.discountPercent?.toString() ?? null,
+          vatRate: l.vatRate?.toString() ?? null,
+          vatIncluded: l.vatIncluded,
+        }))
       : [
-          {
-            name: `Услуги по заказу ${order.orderNumber ? `№${order.orderNumber}` : ''}: ${order.title}`.trim(),
-            amount: fmtMoney(order.totalAmount),
-          },
+          fallbackPrintLine({
+            orderNumber: order.orderNumber,
+            title: order.title,
+            totalAmount: order.totalAmount.toString(),
+            // Своя ставка заказа важнее умолчания компании: заказ мог быть
+            // заведён по другой ставке, и подменить её умолчанием — значит
+            // выставить клиенту не тот налог.
+            vatRate: order.vatRate?.toString() ?? company.defaultVatRate?.toString() ?? null,
+            vatIncluded: order.vatIncluded,
+          }),
         ];
-  const total = fmtMoney(
-    order.lines.length > 0
-      ? order.lines.reduce((sum, l) => sum + Number(l.amount), 0)
-      : Number(order.totalAmount)
-  );
-  const vatLine = order.vatIncluded
-    ? `В том числе НДС${order.vatRate ? ` ${(Number(order.vatRate) * 100).toFixed(0)}%` : ''}.`
-    : 'НДС не облагается.';
+  const table = buildPrintTable(printLines);
+
+  // Оформление (`У-153`) читаем ДО транзакции: картинки не зависят от номера,
+  // а держать транзакцию на время скачивания из хранилища незачем.
+  const branding = await loadDocumentBranding(prisma, order.companyId);
 
   // Номер + строка Document — в одной транзакции (конкурентная безопасность счётчика).
   let created: { id: string; number: string };
@@ -269,9 +289,8 @@ export async function generateOrderDocument(
           company: party(company),
           organization: party(organization),
           subject: order.title,
-          items,
-          total,
-          vatLine,
+          table,
+          branding,
           baseContract: baseDoc ? { number: baseDoc.number, date: baseDoc.createdAt } : null,
         };
         buffer = await renderContractDocumentPdf(contractData);
@@ -283,9 +302,8 @@ export async function generateOrderDocument(
           company: party(company),
           organization: party(organization),
           orderLabel: `Заказ ${order.orderNumber ? `№${order.orderNumber} ` : ''}«${order.title}»`,
-          items,
-          total,
-          vatLine,
+          table,
+          branding,
         };
         buffer = await renderOrderDocumentPdf(data);
       }
