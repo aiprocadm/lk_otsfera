@@ -143,6 +143,8 @@ describe('visibleSettingsSections / hasAnySettingsAccess', () => {
       // `У-127`: правила уведомлений — руководитель настраивает свою компанию.
       'catalogs.notificationRules',
       'catalogs.customFields',
+      // `У-136` (Р-22): каталог услуг и цены — руководитель ведёт свою компанию.
+      'catalogs.priceList',
       // `У-135` (Р-22): реквизиты исполнителя своей компании.
       'catalogs.requisites',
       'access.roles',

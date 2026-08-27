@@ -164,6 +164,10 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   notification_rules_reset: 'Возврат правил уведомлений к стандартным',
   login_policies_changed: 'Изменение политик входа',
   email_template_changed: 'Изменение текста письма',
+  catalog_item_created: 'Добавление услуги в каталог',
+  catalog_item_updated: 'Изменение услуги каталога',
+  catalog_item_deactivated: 'Деактивация услуги каталога',
+  catalog_item_activated: 'Возврат услуги в каталог',
   email_template_reset: 'Возврат стандартного текста письма',
   email_template_test_sent: 'Отправка пробного письма',
   sync_triggered: 'Ручной запуск обмена',
@@ -208,6 +212,7 @@ const ENTITY_LABELS: Record<AuditEntity, string> = {
   funnel_stage: 'Стадия воронки',
   inbound_message: 'Входящее сообщение',
   integration_setting: 'Настройка интеграции',
+  catalog_item: 'Услуга каталога',
   job_queue: 'Очередь задач',
   lead: 'Заявка',
   lead_attachment: 'Вложение заявки',
@@ -295,6 +300,13 @@ const FIELD_LABELS: Record<string, string> = {
   signerName: 'Подписант',
   signerPosition: 'Должность подписанта',
   signerBasis: 'Основание полномочий',
+  // `У-136`: дифф изменения услуги каталога (история цены). Ключ `article`,
+  // а не `code`: диалог диффа маскирует поля по имени `code` (bridge-коды).
+  article: 'Артикул',
+  price: 'Цена',
+  vatRate: 'Ставка НДС',
+  vatIncluded: 'Цена включает НДС',
+  unit: 'Единица измерения',
 };
 
 /** Заголовки колонок таблицы журнала (ТЗ §6.2). */
