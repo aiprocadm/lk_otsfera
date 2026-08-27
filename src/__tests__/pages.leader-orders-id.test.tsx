@@ -37,6 +37,18 @@ vi.mock('@/lib/services/manager/orderDetail', () => ({
 const { getDealActivity } = vi.hoisted(() => ({ getDealActivity: vi.fn() }));
 vi.mock('@/lib/services/manager/dealActivity', () => ({ getDealActivity }));
 
+// Этап 5 (`У-139`): блок «Состав и стоимость» — тот же, что у менеджера.
+const { getOrderLinesPanel } = vi.hoisted(() => ({ getOrderLinesPanel: vi.fn() }));
+vi.mock('@/lib/services/orders/linesPanel', () => ({ getOrderLinesPanel }));
+vi.mock('@/components/orders/order-lines-section', () => ({
+  OrderLinesSection: (props: { orderId: string; canEdit: boolean; catalog: unknown[] }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'order-lines' },
+      `${props.orderId}:${String(props.canEdit)}:${props.catalog.length}`
+    ),
+}));
+
 const { listDirections } = vi.hoisted(() => ({ listDirections: vi.fn() }));
 vi.mock('@/lib/services/training', () => ({ listDirections }));
 
@@ -84,12 +96,14 @@ vi.mock('@/components/manager/manager-order-detail-view', () => ({
     activityItems?: unknown[];
     inboundEnabled?: boolean;
     telephonyEnabled?: boolean;
+    linesSection?: React.ReactNode;
     dealPanel?: React.ReactNode;
     breadcrumbs?: Array<{ label: string; href: string | null }>;
   }) =>
     React.createElement(
       'div',
       { 'data-testid': 'order-detail-view' },
+      props.linesSection,
       props.backHref,
       JSON.stringify(props.directions),
       JSON.stringify(props.students),
@@ -141,7 +155,58 @@ describe('LeaderOrderDetailPage', () => {
     loadOrderDeal.mockResolvedValue(null);
     listCompanyManagers.mockReset();
     listCompanyManagers.mockResolvedValue([]);
+    getOrderLinesPanel.mockReset();
+    getOrderLinesPanel.mockResolvedValue(null);
     nav.notFound.mockClear();
+  });
+
+  it('монтирует блок «Состав и стоимость» — зеркало карточки менеджера', async () => {
+    requireManagerLeader.mockResolvedValue(SESSION);
+    loadManagerOrderDetail.mockResolvedValue(BASE_DATA);
+    listDirections.mockResolvedValue({ ok: true, directions: [] });
+    listOrderStudentOptions.mockResolvedValue([]);
+    getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
+    getDealActivity.mockResolvedValue({ ok: true, items: [] });
+    isFeatureEnabled.mockReturnValue(false);
+    getOrderLinesPanel.mockResolvedValue({
+      view: {
+        lines: [],
+        totals: { net: '0.00', vat: '0.00', gross: '0.00' },
+        readOnly: false,
+        totalAmount: '0.00',
+        totalAmountIsManual: false,
+      },
+      catalog: [],
+    });
+
+    const { container } = await renderServerComponent(
+      LeaderOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
+    );
+
+    expect(getOrderLinesPanel).toHaveBeenCalledWith(
+      expect.objectContaining({ student: expect.anything() }),
+      SESSION,
+      'order-1'
+    );
+    expect(container.querySelector('[data-testid="order-lines"]')?.textContent).toBe(
+      'order-1:true:0'
+    );
+  });
+
+  it('без доступа к строкам блок не монтируется', async () => {
+    requireManagerLeader.mockResolvedValue(SESSION);
+    loadManagerOrderDetail.mockResolvedValue(BASE_DATA);
+    listDirections.mockResolvedValue({ ok: true, directions: [] });
+    listOrderStudentOptions.mockResolvedValue([]);
+    getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
+    getDealActivity.mockResolvedValue({ ok: true, items: [] });
+    isFeatureEnabled.mockReturnValue(false);
+
+    const { container } = await renderServerComponent(
+      LeaderOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
+    );
+
+    expect(container.querySelector('[data-testid="order-lines"]')).toBeNull();
   });
 
   it('calls notFound() when loadManagerOrderDetail returns null', async () => {
