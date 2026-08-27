@@ -27,6 +27,19 @@ vi.mock('@/lib/services/manager/orderDetail', () => ({ loadOrderDeal }));
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 
+// Этап 5 (`У-139`): блок «Состав и стоимость» — тот же, что в кабинетах
+// менеджера и руководителя (правило зеркала).
+const { getOrderLinesPanel } = vi.hoisted(() => ({ getOrderLinesPanel: vi.fn() }));
+vi.mock('@/lib/services/orders/linesPanel', () => ({ getOrderLinesPanel }));
+vi.mock('@/components/orders/order-lines-section', () => ({
+  OrderLinesSection: (props: { orderId: string; canEdit: boolean; catalog: unknown[] }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'order-lines' },
+      `${props.orderId}:${String(props.canEdit)}:${props.catalog.length}`
+    ),
+}));
+
 const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
@@ -99,7 +112,48 @@ describe('AdminOrderDetailPage', () => {
     loadOrderDeal.mockReset();
     loadOrderDeal.mockResolvedValue(null);
     isFeatureEnabled.mockReset();
+    getOrderLinesPanel.mockReset();
+    getOrderLinesPanel.mockResolvedValue(null);
     nav.notFound.mockClear();
+  });
+
+  it('монтирует блок «Состав и стоимость», когда сервис отдал строки', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    getOrderForAdmin.mockResolvedValue({ ...BASE_ORDER });
+    listManagerCandidates.mockResolvedValue([]);
+    getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
+    getOrderLinesPanel.mockResolvedValue({
+      view: {
+        lines: [],
+        totals: { net: '0.00', vat: '0.00', gross: '0.00' },
+        readOnly: false,
+        totalAmount: '0.00',
+        totalAmountIsManual: false,
+      },
+      catalog: [{ id: 'ci-1' }, { id: 'ci-2' }],
+    });
+
+    const { container } = await renderServerComponent(
+      AdminOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
+    );
+
+    expect(getOrderLinesPanel).toHaveBeenCalledWith(expect.anything(), SESSION, 'order-1');
+    expect(container.querySelector('[data-testid="order-lines"]')?.textContent).toBe(
+      'order-1:true:2'
+    );
+  });
+
+  it('без доступа к строкам блок не монтируется', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    getOrderForAdmin.mockResolvedValue({ ...BASE_ORDER });
+    listManagerCandidates.mockResolvedValue([]);
+    getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
+
+    const { container } = await renderServerComponent(
+      AdminOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
+    );
+
+    expect(container.querySelector('[data-testid="order-lines"]')).toBeNull();
   });
 
   it('calls notFound() when the order is missing', async () => {

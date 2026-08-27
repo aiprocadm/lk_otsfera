@@ -17,6 +17,8 @@ import { getOrderStatusPanel } from '@/lib/services/orderStatuses';
 import { loadOrderDeal } from '@/lib/services/manager/orderDetail';
 import { OrderDealPanel } from '@/components/orders/order-deal-panel';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
+import { getOrderLinesPanel } from '@/lib/services/orders/linesPanel';
+import { OrderLinesSection } from '@/components/orders/order-lines-section';
 
 export default async function LeaderOrderDetailPage({
   params,
@@ -51,6 +53,10 @@ export default async function LeaderOrderDetailPage({
   // кнопки совпадали с тем, что реально разрешит сервис перехода.
   const statusPanel = await getOrderStatusPanel(prisma, session, id);
 
+  // Этап 5 (`У-139`, `У-140`): состав и стоимость — тот же блок, что у
+  // менеджера и админа (правило зеркала §0.2: один объект — одно место).
+  const linesPanel = await getOrderLinesPanel(prisma, session, id);
+
   // Сделка, из которой вырос заказ (19.08.2026). Флаг уважаем: при
   // выключенном `deals_pipeline` раздела сделок нет, панель не читается.
   const deal =
@@ -75,6 +81,16 @@ export default async function LeaderOrderDetailPage({
         activityItems={activityItems}
         inboundEnabled={inboundEnabled}
         telephonyEnabled={telephonyEnabled}
+        linesSection={
+          linesPanel ? (
+            <OrderLinesSection
+              orderId={id}
+              view={linesPanel.view}
+              catalog={linesPanel.catalog}
+              canEdit
+            />
+          ) : null
+        }
         dealPanel={
           deal ? (
             /* Лидов в кабинете руководителя нет — имя лида остаётся текстом. */

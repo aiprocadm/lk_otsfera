@@ -32,6 +32,7 @@ export function ManagerOrderDetailView({
   inboundEnabled = false,
   telephonyEnabled = false,
   generatePanel = null,
+  linesSection = null,
   readinessPanel = null,
   certificateScansPanel = null,
   statusPanel = null,
@@ -48,6 +49,12 @@ export function ManagerOrderDetailView({
   telephonyEnabled?: boolean;
   /** Этап 8 (PR-2): панель «Сформировать документы» (страница собирает данные). */
   generatePanel?: React.ReactNode;
+  /**
+   * Этап 5 (`У-139`, `У-140`): блок «Состав и стоимость» — строки заказа и
+   * итоги. Приходит готовым узлом: данные для него собирает страница
+   * (`getOrderLinesPanel`), деталка остаётся презентационной.
+   */
+  linesSection?: React.ReactNode;
   /** §10 ТЗ v0.5: данные панели рабочего статуса (страница считает их сервером). */
   statusPanel?: Omit<OrderStatusPanelProps, 'orderId'> | null;
   /** Этап 12 (ФТ-5.1/5.2): блок «Готовность к передаче». */
@@ -76,6 +83,10 @@ export function ManagerOrderDetailView({
       <div className="grid gap-4 md:grid-cols-3">
         <div className="md:col-span-2 space-y-4">
           <ManagerOrderAmounts order={order} />
+
+          {/* Состав и стоимость — сразу под «Финансами»: сначала итог, потом
+              из чего он сложился (`У-139`). */}
+          {linesSection}
 
           {readinessPanel}
           {certificateScansPanel}

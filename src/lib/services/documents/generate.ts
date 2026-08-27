@@ -141,13 +141,12 @@ export async function generateOrderDocument(
       totalAmount: true,
       vatIncluded: true,
       vatRate: true,
-      items: {
-        select: {
-          amount: true,
-          note: true,
-          direction: { select: { name: true } },
-          student: { select: { name: true } },
-        },
+      // `У-139` (этап 5): табличную часть печатают ФИНАНСОВЫЕ строки заказа.
+      // `OrderItem` здесь больше не нужен — его поле `amount` никем не
+      // заполнялось и удаляется миграцией PR-5.
+      lines: {
+        select: { title: true, amount: true, sortOrder: true },
+        orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
       },
     },
   });
@@ -189,15 +188,16 @@ export async function generateOrderDocument(
   const now = args.now ?? new Date();
   const year = now.getFullYear();
 
-  // Позиции: попозиционно при заполненных amount, иначе одна строка на сумму заказа (§9-3).
-  const priced = order.items.filter((i) => i.amount != null);
+  // Табличная часть (`У-139`, этап 5): печатаем ФИНАНСОВЫЕ строки заказа
+  // (`OrderLine`), если они есть, иначе — одну строку на сумму заказа.
+  //
+  // Прежняя ветка читала `OrderItem.amount` — поле, которое никто никогда не
+  // заполнял (задел этапа 8 v1.0). Решением `Р-13` деньги переехали в
+  // `OrderLine`, и колонка удаляется миграцией PR-5; чтение убрано здесь,
+  // чтобы к моменту миграции её действительно никто не читал.
   const items =
-    priced.length > 0
-      ? priced.map((i) => ({
-          name:
-            [i.direction?.name, i.student?.name].filter(Boolean).join(' — ') || i.note || 'Услуга',
-          amount: fmtMoney(i.amount),
-        }))
+    order.lines.length > 0
+      ? order.lines.map((l) => ({ name: l.title, amount: fmtMoney(l.amount) }))
       : [
           {
             name: `Услуги по заказу ${order.orderNumber ? `№${order.orderNumber}` : ''}: ${order.title}`.trim(),
@@ -205,8 +205,8 @@ export async function generateOrderDocument(
           },
         ];
   const total = fmtMoney(
-    priced.length > 0
-      ? priced.reduce((sum, i) => sum + Number(i.amount), 0)
+    order.lines.length > 0
+      ? order.lines.reduce((sum, l) => sum + Number(l.amount), 0)
       : Number(order.totalAmount)
   );
   const vatLine = order.vatIncluded

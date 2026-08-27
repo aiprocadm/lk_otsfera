@@ -157,6 +157,31 @@ describe('ManagerOrderDetailView', () => {
     expect(withoutPanel).not.toContain('status-panel');
   });
 
+  it('блок «Состав и стоимость» монтируется готовым узлом от страницы', () => {
+    // Этап 5 (`У-139`): данные для блока собирает страница — деталка остаётся
+    // презентационной и про строки заказа ничего не знает.
+    const withLines = renderToString(
+      React.createElement(ManagerOrderDetailView, {
+        data: makeData({}),
+        backHref: '/manager/orders',
+        directions: [],
+        students: [],
+        linesSection: React.createElement('div', { 'data-testid': 'order-lines' }, 'строки'),
+      })
+    );
+    expect(withLines).toContain('order-lines');
+
+    const without = renderToString(
+      React.createElement(ManagerOrderDetailView, {
+        data: makeData({}),
+        backHref: '/manager/orders',
+        directions: [],
+        students: [],
+      })
+    );
+    expect(without).not.toContain('order-lines');
+  });
+
   it('documentRows count is shown in the "Документы" header when non-empty', () => {
     const html = renderToString(
       React.createElement(ManagerOrderDetailView, {

@@ -21,6 +21,8 @@ import { OrderDealPanel } from '@/components/orders/order-deal-panel';
 import { loadOrderDeal } from '@/lib/services/manager/orderDetail';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { DocumentsPanel } from '@/components/documents/documents-panel';
+import { getOrderLinesPanel } from '@/lib/services/orders/linesPanel';
+import { OrderLinesSection } from '@/components/orders/order-lines-section';
 
 import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
@@ -52,6 +54,9 @@ export default async function AdminOrderDetailPage({
   if (!order) notFound();
 
   const customFields = customFieldsResult.ok ? customFieldsResult.fields : [];
+  // Этап 5 (`У-139`, `У-140`): состав и стоимость. Тот же блок, что у
+  // менеджера и руководителя — правило зеркала (§0.2).
+  const linesPanel = await getOrderLinesPanel(prisma, session, id);
 
   return (
     <div className="space-y-5">
@@ -127,6 +132,15 @@ export default async function AdminOrderDetailPage({
           </div>
         </div>
       </div>
+
+      {linesPanel && (
+        <OrderLinesSection
+          orderId={id}
+          view={linesPanel.view}
+          catalog={linesPanel.catalog}
+          canEdit
+        />
+      )}
 
       {/* Зеркала сделок в /admin/* нет (Model A), поэтому панель справочная:
           ни доски, ни карточки лида админу отсюда не предлагаем. */}

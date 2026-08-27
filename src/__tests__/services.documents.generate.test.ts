@@ -70,7 +70,8 @@ const ORDER = {
   totalAmount: 15000,
   vatIncluded: true,
   vatRate: 0.2,
-  items: [] as unknown[],
+  // `У-139` (этап 5): табличную часть печатают финансовые строки заказа.
+  lines: [] as unknown[],
 };
 
 function makePrisma(over: Record<string, unknown> = {}) {
@@ -187,7 +188,7 @@ describe('generateOrderDocument', () => {
     );
   });
 
-  it('одна строка на сумму заказа без цен позиций; попозиционно при amount', async () => {
+  it('одна строка на сумму заказа без финансовых строк; построчно при их наличии', async () => {
     const now = new Date('2026-07-26T12:00:00Z');
     const { prisma } = makePrisma();
     await generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice', now });
@@ -199,9 +200,9 @@ describe('generateOrderDocument', () => {
     const priced = makePrisma({
       order: {
         ...ORDER,
-        items: [
-          { amount: 5000, note: null, direction: { name: 'Высота' }, student: { name: 'Петров' } },
-          { amount: 7000, note: null, direction: { name: 'ОТ' }, student: null },
+        lines: [
+          { title: 'Высота — Петров', amount: 5000, sortOrder: 0 },
+          { title: 'ОТ', amount: 7000, sortOrder: 1 },
         ],
       },
     });
@@ -238,14 +239,14 @@ describe('generateOrderDocument', () => {
     expect(renderMock.mock.calls[0]![0].vatLine).toBe('НДС не облагается.');
   });
 
-  it('позиция без направления и слушателя подписывается note, совсем пустая — «Услуга»', async () => {
+  it('строки печатаются своими наименованиями в порядке sortOrder', async () => {
     const now = new Date('2026-07-26T12:00:00Z');
     const { prisma } = makePrisma({
       order: {
         ...ORDER,
-        items: [
-          { amount: 3000, note: 'Разработка инструкции', direction: null, student: null },
-          { amount: 2000, note: null, direction: null, student: null },
+        lines: [
+          { title: 'Разработка инструкции', amount: 3000, sortOrder: 0 },
+          { title: 'Услуга', amount: 2000, sortOrder: 1 },
         ],
       },
     });

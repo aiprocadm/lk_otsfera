@@ -21,6 +21,8 @@ import { CertificateScansPanel } from '@/components/manager/certificate-scans-pa
 import { buildOrderBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import { OrderDealPanel } from '@/components/orders/order-deal-panel';
 import { getOrderStatusPanel } from '@/lib/services/orderStatuses';
+import { getOrderLinesPanel } from '@/lib/services/orders/linesPanel';
+import { OrderLinesSection } from '@/components/orders/order-lines-section';
 
 export default async function ManagerOrderDetailPage({
   params,
@@ -71,6 +73,11 @@ export default async function ManagerOrderDetailPage({
   // §10 ТЗ v0.5: данные панели рабочего статуса — считает сервер, чтобы
   // кнопки совпадали с тем, что реально разрешит сервис перехода.
   const statusPanel = await getOrderStatusPanel(prisma, session, id);
+
+  // Этап 5 (`У-139`, `У-140`): строки заказа и каталог для подстановки.
+  // Права и режим «только чтение» (заказ из 1С) решает сервис — страница
+  // просто монтирует блок, если он вообще доступен.
+  const linesPanel = await getOrderLinesPanel(prisma, session, id);
 
   const readinessResult = await getOrderReadiness(prisma, session, id);
   const readinessPanel = readinessResult.ok ? (
@@ -134,6 +141,16 @@ export default async function ManagerOrderDetailPage({
       inboundEnabled={inboundEnabled}
       telephonyEnabled={telephonyEnabled}
       generatePanel={generatePanel}
+      linesSection={
+        linesPanel ? (
+          <OrderLinesSection
+            orderId={id}
+            view={linesPanel.view}
+            catalog={linesPanel.catalog}
+            canEdit
+          />
+        ) : null
+      }
       readinessPanel={readinessPanel}
       certificateScansPanel={certificateScansPanel}
       dealPanel={

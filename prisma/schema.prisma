@@ -1125,6 +1125,9 @@ model Order {
   lastSyncedAt             DateTime?
   vatIncluded              Boolean                   @default(true)
   vatRate                  Decimal?                  @db.Decimal(5, 4)
+  // Этап 5 (`У-140`): сумма заказа задана человеком вручную при наличии
+  // строк — плашка на карточке и повод спросить «пересчитать по строкам?».
+  totalAmountIsManual      Boolean                   @default(false)
   productMix               String[]
   serviceType              ServiceType               @default(training)
   // §5.6/§21: «галочка» менеджера «бухгалтерия подписана» — условие завершения (B2).
@@ -1159,6 +1162,7 @@ model Order {
   commissionItems          CommissionStatementItem[]
   threads                  OrderThread[]
   items                    OrderItem[]
+  lines                    OrderLine[]
   tasks                    Task[]                    @relation("TaskLinkedOrder")
   dealNotes                DealNote[]                @relation("OrderDealNotes")
   wonDeal                  Deal?                     @relation("DealOrder")
@@ -1660,9 +1664,39 @@ model CatalogItem {
   isActive    Boolean           @default(true)
   sortOrder   Int               @default(0)
 
+  orderLines  OrderLine[]
+
   @@unique([companyId, code])
   @@index([companyId, isActive, sortOrder])
   @@index([directionId])
+}
+
+// Этап 5 ТЗ (`У-139`, решение `Р-13`): ФИНАНСОВЫЕ строки заказа — отдельно от
+// учебных позиций (`OrderItem` = слушатель × направление). Цена и ставка —
+// СНИМОК на момент добавления: правка каталога не меняет уже созданные строки.
+model OrderLine {
+  id              String       @id @default(cuid())
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  orderId         String
+  order           Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  // Элемент каталога, из которого строку собрали. Restrict: использованный
+  // элемент не удаляется физически — только деактивируется (`У-136`).
+  catalogItemId   String?
+  catalogItem     CatalogItem? @relation(fields: [catalogItemId], references: [id], onDelete: Restrict)
+  title           String
+  quantity        Decimal      @db.Decimal(12, 3)
+  unit            CatalogUnit
+  unitPrice       Decimal      @db.Decimal(14, 2)
+  discountPercent Decimal?     @db.Decimal(5, 2)
+  vatRate         Decimal?     @db.Decimal(5, 4)
+  vatIncluded     Boolean      @default(true)
+  /// Снимок суммы строки: quantity × unitPrice − скидка.
+  amount          Decimal      @db.Decimal(14, 2)
+  sortOrder       Int          @default(0)
+
+  @@index([orderId, sortOrder])
+  @@index([catalogItemId])
 }
 
 model OrderItem {
