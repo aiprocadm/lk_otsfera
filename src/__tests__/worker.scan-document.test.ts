@@ -26,6 +26,7 @@ function makeDb(
     staffAttachmentPath?: string | null;
     chatAttachmentPath?: string | null;
     clientRequestAttachmentPath?: string | null;
+    brandingPath?: string | null;
   } = {}
 ) {
   const documentUpdate = vi.fn().mockResolvedValue({});
@@ -35,6 +36,7 @@ function makeDb(
   const staffMessageUpdate = vi.fn().mockResolvedValue({});
   const chatMessageUpdate = vi.fn().mockResolvedValue({});
   const clientRequestAttachmentUpdate = vi.fn().mockResolvedValue({});
+  const companyBrandingAssetUpdate = vi.fn().mockResolvedValue({});
   const syncLogCreate = vi.fn().mockResolvedValue({});
   return {
     document: {
@@ -120,6 +122,18 @@ function makeDb(
               : { id: 'cra-1', path: opts.clientRequestAttachmentPath }
         ),
       update: clientRequestAttachmentUpdate,
+    },
+    companyBrandingAsset: {
+      findUnique: vi
+        .fn()
+        .mockResolvedValue(
+          opts.brandingPath === undefined
+            ? { id: 'brand-1', path: 'company/co-1/branding/logo-1.png' }
+            : opts.brandingPath === null
+              ? null
+              : { id: 'brand-1', path: opts.brandingPath }
+        ),
+      update: companyBrandingAssetUpdate,
     },
     syncLog: { create: syncLogCreate },
   } as any;
@@ -437,6 +451,66 @@ describe('scanDocumentProcessor', () => {
     });
     expect(db.leadAttachment.update).not.toHaveBeenCalled();
     expect(db.staffMessage.update).not.toHaveBeenCalled();
+  });
+
+  it('оформление компании (kind=company_branding): clean пишет полный набор колонок', async () => {
+    // Этап 5 (У-138): логотип/подпись/печать компании проходят тот же
+    // антивирус; набор колонок полный, как у Document — карантин расследуем.
+    process.env.CLAMAV_HOST = 'clamav.local';
+    const db = makeDb();
+    const deps = makeDeps({ scan: vi.fn().mockResolvedValue('stream: OK') });
+
+    const result = await scanDocumentProcessor(
+      makeJob({ kind: 'company_branding', id: 'brand-1' }),
+      db,
+      deps
+    );
+
+    expect(result).toEqual({
+      kind: 'company_branding',
+      id: 'brand-1',
+      scanStatus: 'clean',
+      scanReason: null,
+    });
+    expect(db.companyBrandingAsset.update).toHaveBeenCalledWith({
+      where: { id: 'brand-1' },
+      data: { scanStatus: 'clean', scanReason: null, scannedAt: expect.any(Date) },
+    });
+    expect(db.document.update).not.toHaveBeenCalled();
+    expect(db.leadAttachment.update).not.toHaveBeenCalled();
+  });
+
+  it('оформление компании: infected с именем вируса из ответа "FOUND"', async () => {
+    process.env.CLAMAV_HOST = 'clamav.local';
+    const db = makeDb();
+    const deps = makeDeps({
+      scan: vi.fn().mockResolvedValue('stream: Eicar-Test-Signature FOUND'),
+    });
+
+    const result = await scanDocumentProcessor(
+      makeJob({ kind: 'company_branding', id: 'brand-1' }),
+      db,
+      deps
+    );
+
+    expect(result.scanStatus).toBe('infected');
+    expect(db.companyBrandingAsset.update).toHaveBeenCalledWith({
+      where: { id: 'brand-1' },
+      data: expect.objectContaining({
+        scanStatus: 'infected',
+        scanReason: 'Eicar-Test-Signature',
+      }),
+    });
+  });
+
+  it('throws NOT_FOUND when the CompanyBrandingAsset row is missing', async () => {
+    const db = makeDb({ brandingPath: null });
+    const deps = makeDeps();
+
+    await expect(
+      scanDocumentProcessor(makeJob({ kind: 'company_branding', id: 'brand-1' }), db, deps)
+    ).rejects.toThrow(/NOT_FOUND/);
+    expect(db.companyBrandingAsset.update).not.toHaveBeenCalled();
   });
 
   it('updates StaffMessage row when kind=staff_attachment (no scanReason/scannedAt columns)', async () => {

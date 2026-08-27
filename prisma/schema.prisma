@@ -124,6 +124,13 @@ enum CatalogUnit {
   month
 }
 
+// Этап 5 ТЗ (У-138): слоты оформления документов компании.
+enum CompanyBrandingSlot {
+  logo
+  signature
+  stamp
+}
+
 enum DocumentType {
   contract
   extra_agreement
@@ -869,6 +876,14 @@ model Company {
   signerName            String?
   signerPosition        String?
   signerBasis           String?
+  // Этап 5 (У-138): налоговые настройки исполнителя. null = «не облагается
+  // (УСН)»; значение — доля (0.2000 = 20%). Применяются генератором этапа 6
+  // и умолчаниями строк заказа.
+  defaultVatRate        Decimal?            @db.Decimal(5, 4)
+  pricesIncludeVat      Boolean             @default(true)
+  // Этап 5 (У-138): шаблон нумерации документов — JSON со схемой Zod в
+  // сервисе (prefixes по типам + resetYearly). Применяет генератор этапа 6.
+  documentNumbering     Json?
   users                 User[]
   orders                Order[]
   organizations         Organization[]
@@ -886,6 +901,26 @@ model Company {
   staffConversations    StaffConversation[]
   calendarEvents        CalendarEvent[]
   catalogItems          CatalogItem[]
+  brandingAssets        CompanyBrandingAsset[]
+}
+
+// Этап 5 (У-138): логотип, подпись и печать компании — по строке на слот.
+// Отдельная модель, а не поля Company: скан-механика адресует цель по id
+// строки (как остальные ScanDocumentTarget), у файла свой статус антивируса.
+model CompanyBrandingAsset {
+  id         String              @id @default(cuid())
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  companyId  String
+  company    Company             @relation(fields: [companyId], references: [id])
+  slot       CompanyBrandingSlot
+  path       String
+  mime       String
+  scanStatus String              @default("pending")
+  scanReason String?
+  scannedAt  DateTime?
+
+  @@unique([companyId, slot])
 }
 
 // Трек G1 (§3.2 ТЗ): роль-профиль как данные. Матрица охватов по типам объектов

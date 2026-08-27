@@ -6,6 +6,7 @@ import {
   type RequisitesInput,
   type RequisitesValues,
 } from '@/lib/requisites/validate';
+import { parseDocumentNumbering, type DocumentNumbering } from './companyBranding';
 
 /**
  * Этап 8 (ФТ-9.2, PR-1) — реквизиты Company (исполнитель). Только admin
@@ -18,6 +19,10 @@ export type CompanyRequisites = RequisitesValues & {
   name: string;
   phone: string | null;
   email: string | null;
+  // `У-138`: налоги и нумерация — блоки того же экрана «Реквизиты исполнителя».
+  defaultVatRate: string | null;
+  pricesIncludeVat: boolean;
+  numbering: DocumentNumbering | null;
 };
 
 const REQ_SELECT = {
@@ -37,6 +42,9 @@ const REQ_SELECT = {
   signerBasis: true,
   phone: true,
   email: true,
+  defaultVatRate: true,
+  pricesIncludeVat: true,
+  documentNumbering: true,
 } as const;
 
 export async function listCompaniesRequisites(
@@ -48,7 +56,7 @@ export async function listCompaniesRequisites(
   if (session.role !== 'admin' && session.role !== 'leader') {
     return { ok: false, error: 'forbidden' };
   }
-  const companies = await prisma.company.findMany({
+  const rows = await prisma.company.findMany({
     // Sentinel-скоуп: руководитель без компании не видит НИЧЕГО, а не всё —
     // `undefined` в where снял бы фильтр целиком (та же грабля, что в C8).
     where: session.role === 'leader' ? { id: session.companyId ?? '__none__' } : {},
@@ -56,6 +64,12 @@ export async function listCompaniesRequisites(
     orderBy: { name: 'asc' },
     take: 50,
   });
+  const companies = rows.map(({ defaultVatRate, documentNumbering, ...rest }) => ({
+    ...rest,
+    // Decimal через границу не проходит; кривой JSON нумерации = «нет настроек».
+    defaultVatRate: defaultVatRate == null ? null : defaultVatRate.toFixed(4),
+    numbering: parseDocumentNumbering(documentNumbering),
+  }));
   return { ok: true, companies };
 }
 

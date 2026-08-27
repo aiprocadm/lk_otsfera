@@ -222,7 +222,10 @@ describe('ImportCatalogDialog — запись', () => {
       expect(toastSuccess).toHaveBeenCalledWith('Каталог обновлён: создано 3 · обновлено 2')
     );
     expect(refresh).toHaveBeenCalledTimes(1);
-    expect(document.querySelector('dialog[open]')).toBeNull();
+    // Закрытие идёт эффектом (декларативный `open` → императивный `close()`),
+    // и под нагрузкой полного прогона оно отстаёт от тоста — ждём схождения,
+    // а не проверяем в тот же тик (иначе тест мигает).
+    await waitFor(() => expect(document.querySelector('dialog[open]')).toBeNull());
   });
 
   it('отказ сервиса показывается в диалоге, а он остаётся открытым', async () => {
