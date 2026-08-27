@@ -18,6 +18,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "inspect:1c": "tsx scripts/inspect-1c-xlsx.ts",
     "backfill:orphan-companies": "tsx scripts/backfill-orphan-companies.ts",
+    "report:order-item-amounts": "tsx scripts/report-order-item-amounts.ts",
     "prisma:seed": "tsx prisma/seed.ts",
     "db:recreate-local": "tsx scripts/recreate-local-db.ts",
     "db:create-admin": "tsx scripts/create-admin.ts",
