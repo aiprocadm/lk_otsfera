@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   requireSession,
+  requireSettingsSection,
   revalidatePath,
   setOrgRequisites,
   setPartnerRequisites,
@@ -14,6 +15,7 @@ const {
   setPartnerRequisitesByAdmin,
 } = vi.hoisted(() => ({
   requireSession: vi.fn(),
+  requireSettingsSection: vi.fn(),
   revalidatePath: vi.fn(),
   setOrgRequisites: vi.fn(),
   setPartnerRequisites: vi.fn(),
@@ -23,6 +25,7 @@ const {
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireSession }));
+vi.mock('@/lib/auth/requireSettings', () => ({ requireSettingsSection }));
 vi.mock('next/cache', () => ({ revalidatePath }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('@/lib/services/organization/requisites', () => ({ setOrgRequisites }));
@@ -52,6 +55,7 @@ function form(entries: Record<string, string>): FormData {
 beforeEach(() => {
   vi.clearAllMocks();
   requireSession.mockResolvedValue(SESSION);
+  requireSettingsSection.mockResolvedValue(SESSION);
 });
 
 describe('requisites actions', () => {
@@ -87,14 +91,14 @@ describe('requisites actions', () => {
     expect(revalidatePath).toHaveBeenCalledWith('/partner/settings');
 
     setCompanyRequisites.mockResolvedValue({ ok: true });
-    await setCompanyRequisitesAction(form({ companyId: 'c1', phone: '+7', email: 'a@b.ru' }));
+    await setCompanyRequisitesAction('admin', form({ companyId: 'c1', phone: '+7', email: 'a@b.ru' }));
     expect(setCompanyRequisites).toHaveBeenCalledWith(
       {},
       SESSION,
       'c1',
       expect.objectContaining({ phone: '+7', email: 'a@b.ru' })
     );
-    expect(await setCompanyRequisitesAction(form({}))).toEqual({ ok: false, error: 'validation' });
+    expect(await setCompanyRequisitesAction('admin', form({}))).toEqual({ ok: false, error: 'validation' });
   });
 
   it('отказ сервиса не ревалидирует страницу ни в одном из вариантов', async () => {
@@ -105,7 +109,7 @@ describe('requisites actions', () => {
     expect(await setPartnerRequisitesAction(form({}))).toEqual({ ok: false, error: 'forbidden' });
 
     setCompanyRequisites.mockResolvedValue({ ok: false, error: 'not_found' });
-    expect(await setCompanyRequisitesAction(form({ companyId: 'c1' }))).toEqual({
+    expect(await setCompanyRequisitesAction('admin', form({ companyId: 'c1' }))).toEqual({
       ok: false,
       error: 'not_found',
     });
@@ -130,11 +134,26 @@ describe('requisites actions', () => {
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 
+  it('company-action гардится правом раздела, отказ — до сервиса (хотфикс по ревью #440)', async () => {
+    // Класс «скрытая карточка — внешний вид, а не защита» (§2b): руководитель
+    // с default-deny профилем без settings.catalogs.manage не должен менять
+    // реквизиты прямым POST.
+    await setCompanyRequisitesAction('leader', form({ companyId: 'c1' }));
+    expect(requireSettingsSection).toHaveBeenCalledWith('catalogs.requisites', 'leader');
+
+    requireSettingsSection.mockRejectedValue(new Error('REDIRECT:/forbidden'));
+    setCompanyRequisites.mockClear();
+    await expect(setCompanyRequisitesAction('leader', form({ companyId: 'c1' }))).rejects.toThrow(
+      'REDIRECT:/forbidden'
+    );
+    expect(setCompanyRequisites).not.toHaveBeenCalled();
+  });
+
   it('пустые телефон и почта компании превращаются в null, а не в пустые строки', async () => {
     // Пустая строка в базе — это «есть значение, но пустое»; в шапке документов
     // из-за неё появится висящий разделитель. Нужен именно null.
     setCompanyRequisites.mockResolvedValue({ ok: true });
-    await setCompanyRequisitesAction(form({ companyId: 'c1', phone: '', email: '' }));
+    await setCompanyRequisitesAction('leader', form({ companyId: 'c1', phone: '', email: '' }));
     expect(setCompanyRequisites).toHaveBeenCalledWith(
       {},
       SESSION,

@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { str } from '@/lib/actions/form';
 import { prisma } from '@/lib/db/prisma';
 import { requireSession } from '@/lib/auth/requireRole';
+import { requireSettingsSection } from '@/lib/auth/requireSettings';
 import { setOrgRequisites } from '@/lib/services/organization/requisites';
 import { setPartnerRequisites } from '@/lib/services/partner/requisites';
 import { setCompanyRequisites } from '@/lib/services/admin/companyRequisites';
@@ -58,8 +59,17 @@ export async function setPartnerRequisitesAction(fd: FormData): Promise<Requisit
   return { ok: true };
 }
 
-export async function setCompanyRequisitesAction(fd: FormData): Promise<RequisitesActionResult> {
-  const session = await requireSession();
+export async function setCompanyRequisitesAction(
+  cabinet: 'admin' | 'leader',
+  fd: FormData
+): Promise<RequisitesActionResult> {
+  // Хотфикс по ревью PR #440 (класс «скрытая карточка — внешний вид, а не
+  // защита», §2b): раньше здесь стоял только requireSession, и руководитель
+  // с default-deny профилем БЕЗ права settings.catalogs.manage не видел
+  // раздел, но менял реквизиты компании прямым POST server-action. Гард
+  // раздела — как у соседей по хабу; границу компании дополнительно держит
+  // сервис.
+  const session = await requireSettingsSection('catalogs.requisites', cabinet);
   const companyId = str(fd, 'companyId');
   if (!companyId) return { ok: false, error: 'validation' };
   const res = await setCompanyRequisites(prisma, session, companyId, {
