@@ -165,6 +165,10 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   login_policies_changed: 'Изменение политик входа',
   email_template_changed: 'Изменение текста письма',
   catalog_item_created: 'Добавление услуги в каталог',
+  company_tax_settings_changed: 'Изменение налоговых настроек компании',
+  company_numbering_changed: 'Изменение нумерации документов',
+  company_branding_uploaded: 'Загрузка оформления документов',
+  company_branding_removed: 'Удаление оформления документов',
   catalog_imported: 'Импорт каталога из Excel',
   catalog_item_updated: 'Изменение услуги каталога',
   catalog_item_deactivated: 'Деактивация услуги каталога',
@@ -307,6 +311,10 @@ const FIELD_LABELS: Record<string, string> = {
   price: 'Цена',
   vatRate: 'Ставка НДС',
   vatIncluded: 'Цена включает НДС',
+  defaultVatRate: 'Ставка НДС по умолчанию',
+  pricesIncludeVat: 'Цены включают НДС',
+  documentNumbering: 'Нумерация документов',
+  slot: 'Слот оформления',
   unit: 'Единица измерения',
 };
 

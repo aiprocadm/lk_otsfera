@@ -22,6 +22,9 @@ vi.mock('@/lib/services/notifications/preferences', () => ({ getNotificationSett
 
 const { listCompaniesRequisites } = vi.hoisted(() => ({ listCompaniesRequisites: vi.fn() }));
 vi.mock('@/lib/services/admin/companyRequisites', () => ({ listCompaniesRequisites }));
+// `У-138`: страница реквизитов дозапрашивает слоты оформления по каждой компании.
+const { listCompanyBranding } = vi.hoisted(() => ({ listCompanyBranding: vi.fn() }));
+vi.mock('@/lib/services/admin/companyBranding', () => ({ listCompanyBranding }));
 vi.mock('@/server-actions/requisites', () => ({ setCompanyRequisitesAction: vi.fn() }));
 
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
@@ -115,6 +118,7 @@ beforeEach(() => {
   getTelegramStatus.mockReset().mockResolvedValue({ linked: true });
   getNotificationSettings.mockReset().mockResolvedValue({ view: { email: true } });
   listCompaniesRequisites.mockReset().mockResolvedValue({ ok: true, companies: [] });
+  listCompanyBranding.mockReset().mockResolvedValue({ ok: true, slots: [] });
   isFeatureEnabled.mockReset().mockReturnValue(false);
   getStaffInternalPhone.mockReset().mockResolvedValue(null);
   redirect.mockReset();

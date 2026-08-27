@@ -230,6 +230,11 @@ export const AUDIT_ACTIONS = [
   // `У-136`: каталог услуг и цены; история изменений цены — before/after
   // в catalog_item_updated.
   'catalog_item_created',
+  // `У-138`: налоги, нумерация и оформление компании-исполнителя.
+  'company_tax_settings_changed',
+  'company_numbering_changed',
+  'company_branding_uploaded',
+  'company_branding_removed',
   'catalog_imported',
   'catalog_item_updated',
   'catalog_item_deactivated',

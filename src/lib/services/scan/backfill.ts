@@ -11,6 +11,8 @@ export type BackfillResult = {
   inboundAttachments: number;
   staffAttachments: number;
   chatAttachments: number;
+  /** `У-138`: логотип/подпись/печать компании (этап 5). */
+  companyBranding: number;
 };
 
 type PendingRow = { id: string };
@@ -122,12 +124,35 @@ export async function runBackfill(
     batchSize
   );
 
+  // `У-138` (этап 5): оформление документов компании — та же механика, тот же
+  // риск «постановка в очередь сорвалась → файл навсегда pending».
+  const companyBranding = await backfillTable(
+    'company_branding',
+    (cursor, take) =>
+      db.companyBrandingAsset.findMany({
+        where: { scanStatus: 'pending' },
+        select: { id: true },
+        orderBy: { id: 'asc' },
+        take,
+        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+      }),
+    queue,
+    batchSize
+  );
+
   return {
-    enqueued: documents + leadAttachments + inboundAttachments + staffAttachments + chatAttachments,
+    enqueued:
+      documents +
+      leadAttachments +
+      inboundAttachments +
+      staffAttachments +
+      chatAttachments +
+      companyBranding,
     documents,
     leadAttachments,
     inboundAttachments,
     staffAttachments,
     chatAttachments,
+    companyBranding,
   };
 }

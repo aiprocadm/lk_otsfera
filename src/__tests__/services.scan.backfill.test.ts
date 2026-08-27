@@ -72,6 +72,8 @@ describe('runBackfill', () => {
   let inboundFindMany: ReturnType<typeof vi.fn>;
   let staffFindMany: ReturnType<typeof vi.fn>;
   let chatFindMany: ReturnType<typeof vi.fn>;
+  // `У-138`: слоты оформления компании — та же механика подметания.
+  let brandingFindMany: ReturnType<typeof vi.fn>;
   let queueAdd: ReturnType<typeof vi.fn>;
   let db: Parameters<typeof runBackfill>[0];
 
@@ -81,6 +83,7 @@ describe('runBackfill', () => {
     inboundFindMany = vi.fn().mockResolvedValue([]);
     staffFindMany = vi.fn().mockResolvedValue([]);
     chatFindMany = vi.fn().mockResolvedValue([]);
+    brandingFindMany = vi.fn().mockResolvedValue([]);
     queueAdd = vi.fn().mockResolvedValue({});
     db = {
       document: { findMany: documentFindMany },
@@ -88,6 +91,7 @@ describe('runBackfill', () => {
       inboundMessage: { findMany: inboundFindMany },
       staffMessage: { findMany: staffFindMany },
       message: { findMany: chatFindMany },
+      companyBrandingAsset: { findMany: brandingFindMany },
     } as any;
   });
 
@@ -104,6 +108,7 @@ describe('runBackfill', () => {
       inboundAttachments: 0,
       staffAttachments: 0,
       chatAttachments: 0,
+      companyBranding: 0,
     });
     expect(queueAdd).toHaveBeenCalledTimes(3);
     expect(queueAdd).toHaveBeenCalledWith('scan', { kind: 'document', id: 'd1' });
@@ -128,6 +133,7 @@ describe('runBackfill', () => {
       inboundAttachments: 0,
       staffAttachments: 0,
       chatAttachments: 0,
+      companyBranding: 0,
     });
   });
 
@@ -199,6 +205,7 @@ describe('runBackfill', () => {
       inboundAttachments: 1,
       staffAttachments: 0,
       chatAttachments: 0,
+      companyBranding: 0,
     });
     expect(queueAdd).toHaveBeenCalledWith('scan', { kind: 'inbound_attachment', id: 'im1' });
     expect(inboundFindMany.mock.calls[0][0]).toMatchObject({
@@ -235,6 +242,7 @@ describe('runBackfill', () => {
       inboundAttachments: 0,
       staffAttachments: 1,
       chatAttachments: 0,
+      companyBranding: 0,
     });
     expect(queueAdd).toHaveBeenCalledWith('scan', { kind: 'staff_attachment', id: 'sm1' });
     expect(staffFindMany.mock.calls[0][0]).toMatchObject({
@@ -260,6 +268,7 @@ describe('runBackfill', () => {
     documentFindMany.mockResolvedValueOnce([]);
     leadFindMany.mockResolvedValueOnce([]);
     chatFindMany.mockReset();
+    brandingFindMany.mockReset().mockResolvedValue([]);
     chatFindMany.mockResolvedValueOnce([{ id: 'cm1' }]).mockResolvedValueOnce([]);
 
     const result = await runBackfill(db, { add: queueAdd }, 100);
@@ -271,6 +280,7 @@ describe('runBackfill', () => {
       inboundAttachments: 0,
       staffAttachments: 0,
       chatAttachments: 1,
+      companyBranding: 0,
     });
     expect(queueAdd).toHaveBeenCalledWith('scan', { kind: 'chat_attachment', id: 'cm1' });
     expect(chatFindMany.mock.calls[0][0]).toMatchObject({

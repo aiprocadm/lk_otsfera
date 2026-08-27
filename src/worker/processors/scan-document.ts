@@ -118,6 +118,9 @@ async function loadTarget(
       select: { id: true, path: true },
     });
   }
+  if (kind === 'company_branding') {
+    return db.companyBrandingAsset.findUnique({ where: { id }, select: { id: true, path: true } });
+  }
   return db.leadAttachment.findUnique({ where: { id }, select: { id: true, path: true } });
 }
 
@@ -147,6 +150,12 @@ async function persistResult(
   } else if (kind === 'chat_attachment') {
     // Message mirrors StaffMessage: only `scanStatus`, no scan-reason/`scannedAt` columns.
     await db.message.update({ where: { id }, data: { scanStatus } });
+  } else if (kind === 'company_branding') {
+    // Этап 5 (У-138): полный набор колонок, как Document/LeadAttachment.
+    await db.companyBrandingAsset.update({
+      where: { id },
+      data: { scanStatus, scanReason, scannedAt: new Date() },
+    });
   } else if (kind === 'client_request_attachment') {
     // Этап 5: вложения заявок клиентов — полный набор колонок, как LeadAttachment.
     await db.clientRequestAttachment.update({

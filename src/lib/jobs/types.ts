@@ -36,7 +36,9 @@ export type ScanDocumentTarget =
   | 'call_recording'
   | 'staff_attachment'
   | 'chat_attachment'
-  | 'client_request_attachment';
+  | 'client_request_attachment'
+  // Этап 5 (У-138): логотип/подпись/печать компании — id строки CompanyBrandingAsset.
+  | 'company_branding';
 
 export type ScanDocumentPayload = {
   kind: ScanDocumentTarget;
