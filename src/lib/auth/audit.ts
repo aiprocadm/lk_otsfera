@@ -229,6 +229,8 @@ export const AUDIT_ACTIONS = [
   'email_template_test_sent',
   // `У-136`: каталог услуг и цены; история изменений цены — before/after
   // в catalog_item_updated.
+  // `У-148` (этап 6): жизненный цикл документа.
+  'document_status_changed',
   'catalog_item_created',
   // `У-139`/`У-140`: финансовые строки заказа и ручная сумма.
   'order_line_added',

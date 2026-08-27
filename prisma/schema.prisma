@@ -143,6 +143,19 @@ enum DocumentType {
   other
 }
 
+// Этап 6 ТЗ (`У-148`): единый набор статусов для всех типов документов,
+// включая КП этапа 7. `draft` — только у КП; `rejected`/`expired` — тоже
+// (у остальных типов их отсекает матрица переходов в коде).
+enum DocumentStatus {
+  draft
+  issued
+  sent
+  accepted
+  rejected
+  expired
+  cancelled
+}
+
 enum DocumentDirection {
   incoming
   outgoing
@@ -1215,6 +1228,31 @@ model Document {
   scanStatus         String             @default("pending")
   scanReason         String?
   scannedAt          DateTime?
+  // --- Этап 6 (`У-146`, `У-148`) ---
+  // Статус жизненного цикла. Существующие документы получают `issued`
+  // (а при заполненном `signedAt` — `accepted`) миграцией этого этапа.
+  status             DocumentStatus     @default(issued)
+  // Итоги на момент выпуска — нужны и списку заказчика, и выгрузке в 1С.
+  // Необязательные: документы, выпущенные ДО этапа 6, их не получают —
+  // бэкфилл выдумал бы суммы задним числом (`У-146` прямо это запрещает).
+  amountNet          Decimal?           @db.Decimal(14, 2)
+  amountVat          Decimal?           @db.Decimal(14, 2)
+  amountGross        Decimal?           @db.Decimal(14, 2)
+  currency           String?
+  // Связь «акт → счёт», «ДС → договор» — явным полем, а не догадкой
+  // «последний по типу» (`У-147`, `У-151`).
+  parentDocumentId   String?
+  parentDocument     Document?          @relation("DocumentParent", fields: [parentDocumentId], references: [id])
+  children           Document[]         @relation("DocumentParent")
+  sentAt             DateTime?
+  sentById           String?
+  acceptedAt         DateTime?
+  acceptedByUserId   String?
+  cancelledAt        DateTime?
+  cancelReason       String?
+  // Версия шаблона текста договора/ДС на момент выпуска (`У-160`).
+  templateVersion    Int?
+  lines              DocumentLine[]
   viewMarks          DocumentViewMark[]
 
   @@index([orderId, type])
@@ -1223,6 +1261,31 @@ model Document {
   @@index([externalId])
   @@index([scanStatus])
   @@index([companyId])
+  @@index([status])
+  @@index([parentDocumentId])
+}
+
+/// Этап 6 ТЗ (`У-146`): строки документа — СНИМОК на момент выпуска.
+/// Документ неизменяем после выпуска: правка заказа его не трогает, поэтому
+/// строки копируются, а не берутся ссылкой на `OrderLine`.
+model DocumentLine {
+  id              String      @id @default(cuid())
+  createdAt       DateTime    @default(now())
+  documentId      String
+  document        Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  title           String
+  quantity        Decimal     @db.Decimal(12, 3)
+  unit            CatalogUnit
+  unitPrice       Decimal     @db.Decimal(14, 2)
+  discountPercent Decimal?    @db.Decimal(5, 2)
+  vatRate         Decimal?    @db.Decimal(5, 4)
+  /// Сумма налога по строке — снимок, а не вычисление на лету: ставка в
+  /// каталоге могла поменяться после выпуска.
+  vatAmount       Decimal     @db.Decimal(14, 2)
+  amount          Decimal     @db.Decimal(14, 2)
+  sortOrder       Int         @default(0)
+
+  @@index([documentId, sortOrder])
 }
 
 /// Этап 3 PR-2 (ФТ-6.6): отметка «пользователь видел документ» — бейдж «новый»
