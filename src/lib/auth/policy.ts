@@ -134,8 +134,18 @@ export async function canReadDocument(session: SessionPayload, document: Documen
   // a partner reads only its partner-channel; an organization only org-channel.
   // Managers/admins see both channels within their order scope (unchanged).
   if (session.role === 'partner') {
-    if (doc.counterpartyType !== 'partner' || doc.counterpartyId !== session.partnerId)
-      return false;
+    const ownChannel =
+      doc.counterpartyType === 'partner' && doc.counterpartyId === session.partnerId;
+    if (!ownChannel) {
+      // `У-155` (дефект `Д-15`, решение `Р-18`): партнёр читает и документы
+      // ОРГАНИЗАЦИЙ своего портфеля — счета, акты, договоры клиента. Право
+      // даёт портфель, а не канал: партнёр ведёт этих клиентов и должен
+      // видеть их бумаги. Изоляция здесь же и точная — `canPartnerAccessOrg`
+      // сверяет и принадлежность портфелю, и назначенный скоуп; без неё
+      // партнёр дотянулся бы до чужой организации той же компании.
+      if (doc.counterpartyType !== 'organization') return false;
+      if (!(await canPartnerAccessOrg(session, doc.counterpartyId))) return false;
+    }
   } else if (session.role === 'organization') {
     // Pin BOTH type and counterpartyId (DOC-01): canReadOrder() below is company-level
     // for orgs and does NOT isolate to a specific organization, so without this an org

@@ -4,7 +4,7 @@ const { findUnique } = vi.hoisted(() => ({ findUnique: vi.fn() }));
 
 const { db } = vi.hoisted(() => ({
   db: {
-    organization: { findFirst: vi.fn(), findMany: vi.fn() },
+    organization: { findFirst: vi.fn(), findMany: vi.fn(), findUnique: vi.fn() },
     document: { findUnique },
     order: { findUnique: vi.fn() },
   },
@@ -21,7 +21,10 @@ beforeEach(() => {
 });
 
 describe('canReadDocument -- channel isolation', () => {
-  it('denies a partner reading an organization-channel document (no order lookup)', async () => {
+  it('партнёр НЕ читает документ организации вне своего портфеля', async () => {
+    // `У-155` открыл партнёру документы организаций ЕГО портфеля. Организация
+    // из чужого портфеля остаётся закрытой, и до гейта заказа дело не доходит.
+    db.organization.findUnique.mockResolvedValue({ partnerId: 'p-other' });
     const doc = {
       id: 'd',
       orderId: 'o',
@@ -31,6 +34,19 @@ describe('canReadDocument -- channel isolation', () => {
     };
     expect(await canReadDocument(partnerSession, doc)).toBe(false);
     expect(db.organization.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('`У-155`: документ организации СВОЕГО портфеля партнёр читает', async () => {
+    db.organization.findUnique.mockResolvedValue({ partnerId: 'p1' });
+    db.organization.findFirst.mockResolvedValue({ id: 'org1' });
+    const doc = {
+      id: 'd',
+      orderId: 'o',
+      order: { companyId: 'c' },
+      counterpartyType: 'organization' as const,
+      counterpartyId: 'org1',
+    };
+    expect(await canReadDocument(partnerSession, doc)).toBe(true);
   });
 
   it('allows a partner reading its own partner-channel document', async () => {

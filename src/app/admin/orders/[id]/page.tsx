@@ -23,6 +23,8 @@ import { isFeatureEnabled } from '@/lib/featureFlags';
 import { DocumentsPanel } from '@/components/documents/documents-panel';
 import { getOrderLinesPanel } from '@/lib/services/orders/linesPanel';
 import { OrderLinesSection } from '@/components/orders/order-lines-section';
+import { GenerateDocumentsPanel } from '@/components/manager/generate-documents-panel';
+import { getDocumentGenerationPanel } from '@/lib/services/documents/generationPanel';
 
 import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
@@ -57,6 +59,18 @@ export default async function AdminOrderDetailPage({
   // Этап 5 (`У-139`, `У-140`): состав и стоимость. Тот же блок, что у
   // менеджера и руководителя — правило зеркала (§0.2).
   const linesPanel = await getOrderLinesPanel(prisma, session, id);
+
+  // `У-144`: панель выпуска документов — ТОТ ЖЕ компонент, что у менеджера и
+  // руководителя (правило зеркала §0.2). До этапа 6 админ выпустить документ
+  // не мог (`Д-13`).
+  const documentsPanel =
+    isFeatureEnabled('document_generation') && order.organizationId && order.companyId
+      ? await getDocumentGenerationPanel(prisma, {
+          orderId: id,
+          companyId: order.companyId,
+          organizationId: order.organizationId,
+        })
+      : null;
 
   return (
     <div className="space-y-5">
@@ -146,9 +160,20 @@ export default async function AdminOrderDetailPage({
           ни доски, ни карточки лида админу отсюда не предлагаем. */}
       {deal && <OrderDealPanel deal={deal} dealsHref={null} leadHrefBase={null} />}
 
-      {/* `У-112`: тот же состав блоков, что у менеджера. Панель генерации
-          документов придёт этапом 6 (`У-144`) — здесь пока список и загрузка,
-          причём номер заказа панель берёт сама, а не спрашивает у человека. */}
+      {documentsPanel && (
+        <GenerateDocumentsPanel
+          orderId={order.id}
+          counterpartyName={documentsPanel.counterpartyName}
+          orderLines={documentsPanel.orderLines}
+          missingByType={documentsPanel.missingByType}
+          baseDocuments={documentsPanel.baseDocuments}
+          hasInvoice={documentsPanel.hasInvoice}
+          hasContract={documentsPanel.hasContract}
+        />
+      )}
+
+      {/* `У-112`: тот же состав блоков, что у менеджера — список документов и
+          загрузка, причём номер заказа панель берёт сама. */}
       <DocumentsPanel orderId={order.id} />
 
       <OrderCustomFields fields={customFields} orderId={order.id} editable={true} />

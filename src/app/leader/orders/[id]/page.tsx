@@ -12,6 +12,8 @@ import { getValuesForEntity } from '@/lib/services/customFields';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { listCompanyManagers } from '@/lib/services/manager/team';
 import { ManagerOrderDetailView } from '@/components/manager/manager-order-detail-view';
+import { GenerateDocumentsPanel } from '@/components/manager/generate-documents-panel';
+import { getDocumentGenerationPanel } from '@/lib/services/documents/generationPanel';
 import { LeaderAssignOrderManagerForm } from '@/components/leader/leader-assign-order-manager-form';
 import { getOrderStatusPanel } from '@/lib/services/orderStatuses';
 import { loadOrderDeal } from '@/lib/services/manager/orderDetail';
@@ -51,6 +53,33 @@ export default async function LeaderOrderDetailPage({
 
   // §10 ТЗ v0.5: данные панели рабочего статуса — считает сервер, чтобы
   // кнопки совпадали с тем, что реально разрешит сервис перехода.
+  // `У-144`: панель выпуска документов — ТОТ ЖЕ компонент, что у менеджера и
+  // админа (правило зеркала §0.2). До этапа 6 она была смонтирована только у
+  // менеджера, и руководитель с админом выпустить документ не могли (`Д-13`).
+  let generatePanel: React.ReactNode = null;
+  if (
+    isFeatureEnabled('document_generation') &&
+    data.order.organizationId &&
+    data.order.companyId
+  ) {
+    const panel = await getDocumentGenerationPanel(prisma, {
+      orderId: id,
+      companyId: data.order.companyId,
+      organizationId: data.order.organizationId,
+    });
+    generatePanel = (
+      <GenerateDocumentsPanel
+        orderId={id}
+        counterpartyName={panel.counterpartyName}
+        orderLines={panel.orderLines}
+        missingByType={panel.missingByType}
+        baseDocuments={panel.baseDocuments}
+        hasInvoice={panel.hasInvoice}
+        hasContract={panel.hasContract}
+      />
+    );
+  }
+
   const statusPanel = await getOrderStatusPanel(prisma, session, id);
 
   // Этап 5 (`У-139`, `У-140`): состав и стоимость — тот же блок, что у
@@ -81,6 +110,7 @@ export default async function LeaderOrderDetailPage({
         activityItems={activityItems}
         inboundEnabled={inboundEnabled}
         telephonyEnabled={telephonyEnabled}
+        generatePanel={generatePanel}
         linesSection={
           linesPanel ? (
             <OrderLinesSection

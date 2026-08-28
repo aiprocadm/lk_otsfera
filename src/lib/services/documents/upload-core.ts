@@ -48,7 +48,7 @@ const VALID_DOC_TYPES = new Set<DocumentType>([
   'other',
 ]);
 
-type UploadSource = 'manager' | 'organization' | 'partner';
+type UploadSource = 'manager' | 'organization' | 'partner' | 'admin';
 
 export type PersistDocumentArgs = {
   counterparty: { type: 'organization' | 'partner'; id: string };
@@ -62,7 +62,13 @@ export type PersistDocumentArgs = {
 };
 
 export type PersistDocumentResult =
-  { ok: true; documentId: string } | { ok: false; error: 'too_large' | 'invalid_mime' | 'storage' };
+  | {
+      ok: true;
+      documentId: string;
+      /** Строка документа — чтобы вызывающему не ходить за ней вторым запросом. */
+      document: { id: string; name: string; mimeType: string; createdAt: Date };
+    }
+  | { ok: false; error: 'too_large' | 'invalid_mime' | 'storage' };
 
 function sanitizeFilename(filename: string): string {
   return filename.replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -152,5 +158,9 @@ export async function persistUploadedDocument(
     },
   });
 
-  return { ok: true, documentId: doc.id };
+  return {
+    ok: true,
+    documentId: doc.id,
+    document: { id: doc.id, name: doc.name, mimeType: doc.mimeType, createdAt: doc.createdAt },
+  };
 }

@@ -67,7 +67,9 @@ describe('documents guards', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     getSession.mockResolvedValue({ role: 'admin', sub: 'u1', partnerId: 'p1' });
-    findUnique.mockResolvedValue({ id: 'ord1', companyId: 'c1' });
+    // `У-158`: контрагент документа — организация ЭТОГО заказа, поэтому
+    // заказ в фикстуре её несёт (раньше бралась первая попавшаяся).
+    findUnique.mockResolvedValue({ id: 'ord1', companyId: 'c1', organizationId: 'o1' });
     orgFindFirst.mockResolvedValue({ id: 'o1', partnerId: 'p1' });
     canReadOrder.mockResolvedValue(true);
     upload.mockResolvedValue(undefined);
@@ -456,8 +458,8 @@ describe('documents/upload missing branches', () => {
     expect(res.status).toBe(404);
   });
 
-  it('400 when organization context not found for order', async () => {
-    orgFindFirst.mockResolvedValue(null);
+  it('400, когда у заказа нет организации-контрагента', async () => {
+    findUnique.mockResolvedValue({ id: 'ord1', companyId: 'c1', organizationId: null });
     const fd = new FormData();
     fd.set('orderId', 'ord1');
     fd.set('file', new File(['%PDF-1.4 minimal'], 'good.pdf', { type: 'application/pdf' }));

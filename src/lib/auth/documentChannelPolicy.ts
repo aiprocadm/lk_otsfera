@@ -36,6 +36,28 @@ export function partnerChannelWhere(partnerId: string): Prisma.DocumentWhereInpu
 }
 
 /**
+ * `У-155` (решение `Р-18`) — что видит партнёр на вкладке «Документы» карточки
+ * организации своего портфеля: свои документы (партнёрский канал) И документы
+ * самой организации (счета, акты, договоры клиента).
+ *
+ * Право даёт **портфель**, а не канал: партнёр ведёт этого клиента. Сам факт
+ * принадлежности организации портфелю проверяет вызывающий — здесь только
+ * форма выборки. Заражённые файлы скрыты, как и в остальных каналах.
+ */
+export function partnerPortfolioDocumentsWhere(scope: {
+  partnerId: string;
+  orgId: string;
+}): Prisma.DocumentWhereInput {
+  return {
+    OR: [
+      { counterpartyType: 'partner', counterpartyId: scope.partnerId },
+      { counterpartyType: 'organization', counterpartyId: scope.orgId },
+    ],
+    ...INFECTED_HIDDEN_WHERE,
+  };
+}
+
+/**
  * Membership check for a fetched document — used by download guards to return a
  * silent `not_found` when a document is outside the caller's channel (no
  * existence leak).

@@ -31,6 +31,11 @@ vi.mock('@/components/manager/order-lifecycle-panel', () => ({
 }));
 vi.mock('@/components/manager/manager-payments-list', () => ({ ManagerPaymentsList: () => null }));
 vi.mock('@/components/partner/documents-list', () => ({ DocumentsList: () => null }));
+// `У-158`: форма загрузки — клиентская (нужен роутер), деталку она не
+// касается по существу: здесь проверяется состав блоков.
+vi.mock('@/components/manager/manager-doc-upload-form', () => ({
+  ManagerDocUploadForm: () => null,
+}));
 vi.mock('@/components/training/order-items-section', () => ({ OrderItemsSection: () => null }));
 vi.mock('@/components/orders/order-custom-fields', () => ({ OrderCustomFields: () => null }));
 vi.mock('@/components/orders/order-status-panel', () => ({

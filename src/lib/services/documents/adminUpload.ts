@@ -3,12 +3,8 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { canReadOrder } from '@/lib/auth/policy';
 import { deliverNotificationToUser, notifyDocumentCreated } from '@/lib/notifications';
 import { getPrimaryOrganizationId } from '@/lib/auth/organization';
-import { getObjectStorage } from '@/lib/storage';
-import { getQueue } from '@/lib/jobs/queues';
-import type { ScanDocumentPayload } from '@/lib/jobs/types';
-import { recordAudit } from '@/lib/auth/audit';
-import { validateMagicBytes, SUPPORTED_MIME_TYPES } from '@/lib/storage/mimeValidator';
 import { log } from '@/lib/logging';
+import { persistUploadedDocument } from './upload-core';
 
 /**
  * Загрузка документа из админ-панели (legacy-канал POST /api/documents/upload).
@@ -25,6 +21,13 @@ import { log } from '@/lib/logging';
  *
  * Деградация (§3): постановка скана в очередь и рассылка уведомлений
  * логируются и проглатываются — документ уже записан, повтор создал бы дубль.
+ *
+ * `У-158` (дефект `Д-18`): запись документа делает ОБЩИЙ движок
+ * `persistUploadedDocument`, а не своя ветка. Прежняя писала документ с типом
+ * «прочее», направлением «входящий», без размера файла и по пути **случайной**
+ * организации компании (`findFirst`) — то есть документ заказчика мог лечь в
+ * папку другого клиента той же компании. Теперь путь, тип, направление и
+ * размер такие же, как у остальных загрузок.
  */
 
 type AdminUploadError =
@@ -33,16 +36,14 @@ type AdminUploadError =
 export type UploadAdminDocumentArgs = {
   orderId: string;
   correlationId: string;
+  /** Тип документа из формы; неизвестный движок сведёт к «прочему». */
+  docType?: string;
   file: { name: string; size: number; mimeType: string; buffer: Buffer };
 };
 
 export type UploadAdminDocumentResult =
   | { ok: true; document: { id: string; name: string; mimeType: string; createdAt: Date } }
   | { ok: false; error: AdminUploadError };
-
-function sanitizeFilename(filename: string) {
-  return filename.replace(/[^a-zA-Z0-9._-]/g, '_');
-}
 
 export async function uploadAdminDocument(
   prisma: PrismaClient,
@@ -55,71 +56,34 @@ export async function uploadAdminDocument(
   if (!order) return { ok: false, error: 'not_found' };
   if (!(await canReadOrder(session, order))) return { ok: false, error: 'forbidden' };
 
-  const organization = await prisma.organization.findFirst({
-    where: { companyId: order.companyId },
-    select: { id: true, partnerId: true },
+  // Контрагент документа — организация ЭТОГО заказа, а не первая попавшаяся
+  // организация компании: иначе бумага клиента ложилась в чужую папку.
+  if (!order.organizationId) return { ok: false, error: 'organization_context_not_found' };
+
+  const persisted = await persistUploadedDocument(prisma, {
+    counterparty: { type: 'organization', id: order.organizationId },
+    orderId,
+    direction: 'outgoing',
+    docType: args.docType ?? 'other',
+    uploadedById: session.sub,
+    source: 'admin',
+    file,
   });
-  if (!organization) return { ok: false, error: 'organization_context_not_found' };
-
-  const tenantPath = `partner/${organization.partnerId}/org/${organization.id}/order/${order.id}`;
-  const internalPath = `${tenantPath}/${Date.now()}-${sanitizeFilename(file.name)}`;
-
-  // Defense-in-depth: when the declared MIME is one we can fingerprint, the
-  // file's magic bytes must match — defeats content-type/extension spoofing.
-  // Types the validator can't fingerprint (e.g. application/zip) fall through
-  // to the allow-list + async ClamAV scan.
-  if ((SUPPORTED_MIME_TYPES as readonly string[]).includes(file.mimeType)) {
-    const validation = validateMagicBytes(file.mimeType, file.buffer);
-    if (!validation.ok) return { ok: false, error: 'invalid_file_format' };
-  }
-
-  try {
-    await getObjectStorage().upload(internalPath, file.buffer, { contentType: file.mimeType });
-  } catch (uploadError) {
-    log.error('Document upload failed', {
+  if (!persisted.ok) {
+    log.warn('[documents/adminUpload] persist failed', {
       correlationId,
       orderId,
-      fileName: file.name,
-      fileSize: file.size,
-      mimeType: file.mimeType,
-      storagePath: internalPath,
-      providerError: uploadError instanceof Error ? uploadError.message : String(uploadError),
+      error: persisted.error,
     });
-    return { ok: false, error: 'storage' };
+    return {
+      ok: false,
+      error: persisted.error === 'storage' ? 'storage' : 'invalid_file_format',
+    };
   }
+  const doc = persisted.document;
 
-  const doc = await prisma.document.create({
-    data: {
-      orderId,
-      counterpartyType: 'organization',
-      counterpartyId: order.organizationId,
-      name: file.name,
-      path: internalPath,
-      mimeType: file.mimeType,
-      uploadedById: session.sub,
-    },
-  });
-
-  await recordAudit(prisma, {
-    action: 'document_upload',
-    entity: 'document',
-    entityId: doc.id,
-    userId: session.sub,
-    after: { orderId, path: internalPath, mimeType: file.mimeType, size: file.size },
-  });
-
-  // Best-effort enqueue of async ClamAV scan. Failure leaves scanStatus='pending'
-  // (graceful — file stays usable; backfill job sweeps stuck rows separately).
-  try {
-    const payload: ScanDocumentPayload = { kind: 'document', id: doc.id };
-    await getQueue('docs.scanDocument').add('scan', payload);
-  } catch (err) {
-    log.warn('[documents/upload] enqueue scan failed', {
-      correlationId,
-      documentId: doc.id,
-      error: err instanceof Error ? err.message : String(err),
-    });
-  }
+  // Антивирусную проверку ставит в очередь сам движок загрузки — вторая
+  // постановка создала бы дубль задачи.
 
   // Best-effort fan-out: the document row is already committed; a notification
   // or email transport failure must not surface as an upload error (the client
