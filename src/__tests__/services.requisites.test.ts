@@ -261,8 +261,11 @@ describe('партнёр (самообслуживание)', () => {
 
 describe('компания (админ)', () => {
   it('список — только admin; запись валидирует email и пишет phone/email', async () => {
-    const { prisma, update } = fake('company', { id: 'c1', name: 'К' });
+    const { prisma, update, findMany } = fake('company', { id: 'c1', name: 'К' });
     expect((await listCompaniesRequisites(prisma, adminSession())).ok).toBe(true);
+    // `У-156` (дефект `Д-19`): молчаливое усечение списка убрано — админ,
+    // не нашедший свою компанию на 51-й строке, решил бы, что её нет.
+    expect('take' in findMany.mock.calls[0]![0]).toBe(false);
     expect(await listCompaniesRequisites(prisma, partnerSession('admin'))).toEqual({
       ok: false,
       error: 'forbidden',

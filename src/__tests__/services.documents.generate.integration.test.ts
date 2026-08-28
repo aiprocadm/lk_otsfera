@@ -131,6 +131,29 @@ describe('полный путь генерации', () => {
     });
     expect(act.ok && act.number).toBe(`А-${YEAR}-1`);
 
+    // ~У-146~ + ~У-151~: у документа СВОИ строки-снимок, свои итоги и явная
+    // ссылка на основание. Проверяется только на живой базе — вложенная
+    // запись строк и внешний ключ существуют лишь там.
+    if (!act.ok) return;
+    const saved = await prisma.document.findUnique({
+      where: { id: act.documentId },
+      select: {
+        status: true,
+        currency: true,
+        amountGross: true,
+        parentDocumentId: true,
+        lines: { select: { title: true, amount: true, sortOrder: true } },
+      },
+    });
+    expect(saved?.status).toBe('issued');
+    expect(saved?.currency).toBe('RUB');
+    expect(saved?.amountGross?.toFixed(2)).toBe('15000.00');
+    expect(saved?.parentDocumentId).toBe(invoice.documentId);
+    expect(saved?.lines).toHaveLength(1);
+    // Состава у заказа нет — строка-заглушка `У-142` на сумму заказа.
+    expect(saved?.lines[0]?.title).toContain('Услуги по заказу');
+    expect(saved?.lines[0]?.amount.toFixed(2)).toBe('15000.00');
+
     const invoice2 = await generateOrderDocument(prisma, sManager(), {
       orderId: order1,
       docType: 'invoice',

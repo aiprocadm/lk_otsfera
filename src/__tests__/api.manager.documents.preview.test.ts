@@ -33,6 +33,11 @@ function post(body: unknown): Request {
   });
 }
 
+/** Роут Next 15 всегда принимает второй аргумент; у этого роута параметров нет. */
+const NO_PARAMS = { params: Promise.resolve({}) };
+
+const call = (body: unknown) => POST(post(body), NO_PARAMS);
+
 const VALID = { orderId: 'ord-1', docType: 'invoice' };
 
 beforeEach(() => {
@@ -47,7 +52,7 @@ beforeEach(() => {
 
 describe('POST /api/manager/documents/preview', () => {
   it('отдаёт PDF на просмотр, а не на скачивание', async () => {
-    const res = await POST(post(VALID));
+    const res = await call(VALID);
     expect(res.status).toBe(200);
     expect(res.headers.get('Content-Type')).toBe('application/pdf');
     expect(res.headers.get('Content-Disposition')).toContain('inline');
@@ -61,51 +66,49 @@ describe('POST /api/manager/documents/preview', () => {
       ok: true,
       value: { sub: 'o1', role: 'organization' },
     });
-    expect((await POST(post(VALID))).status).toBe(403);
+    expect((await call(VALID)).status).toBe(403);
     expect(previewMock).not.toHaveBeenCalled();
   });
 
   it('руководитель и админ допускаются — это тот же контур', async () => {
     for (const role of ['leader', 'admin']) {
       requireSessionMock.mockResolvedValue({ ok: true, value: { sub: 'u', role } });
-      expect((await POST(post(VALID))).status).toBe(200);
+      expect((await call(VALID)).status).toBe(200);
     }
   });
 
   it('кривая форма входа → 400, сервис не зовётся', async () => {
-    expect((await POST(post({ orderId: 'ord-1', docType: 'waybill' }))).status).toBe(400);
-    expect((await POST(post({ docType: 'invoice' }))).status).toBe(400);
+    expect((await call({ orderId: 'ord-1', docType: 'waybill' })).status).toBe(400);
+    expect((await call({ docType: 'invoice' })).status).toBe(400);
     expect(previewMock).not.toHaveBeenCalled();
   });
 
   it('коды сервиса превращаются в статусы: not_found → 404, forbidden → 403', async () => {
     previewMock.mockResolvedValue({ ok: false, error: 'not_found' });
-    expect((await POST(post(VALID))).status).toBe(404);
+    expect((await call(VALID)).status).toBe(404);
 
     previewMock.mockResolvedValue({ ok: false, error: 'forbidden' });
-    expect((await POST(post(VALID))).status).toBe(403);
+    expect((await call(VALID)).status).toBe(403);
 
     previewMock.mockResolvedValue({ ok: false, error: 'missing_requisites' });
-    expect((await POST(post(VALID))).status).toBe(400);
+    expect((await call(VALID)).status).toBe(400);
   });
 
   it('выключенный флаг закрывает раздел, не раскрывая его существования', async () => {
     notFoundIfDisabledMock.mockReturnValue(new Response('not found', { status: 404 }));
-    expect((await POST(post(VALID))).status).toBe(404);
+    expect((await call(VALID)).status).toBe(404);
     expect(previewMock).not.toHaveBeenCalled();
   });
 
   it('поля формы доезжают до сервиса разобранными датами', async () => {
-    await POST(
-      post({
-        ...VALID,
-        docType: 'act',
-        documentDate: '2026-08-27',
-        periodFrom: '2026-08-01',
-        periodTo: '2026-08-31',
-        parentDocumentId: 'inv-7',
-      })
-    );
+    await call({
+      ...VALID,
+      docType: 'act',
+      documentDate: '2026-08-27',
+      periodFrom: '2026-08-01',
+      periodTo: '2026-08-31',
+      parentDocumentId: 'inv-7',
+    });
     const args = previewMock.mock.calls[0]![2];
     expect(args.extras.documentDate).toBeInstanceOf(Date);
     expect(args.extras.periodFrom.toISOString()).toContain('2026-08-01');

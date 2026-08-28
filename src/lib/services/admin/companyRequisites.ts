@@ -62,7 +62,9 @@ export async function listCompaniesRequisites(
     where: session.role === 'leader' ? { id: session.companyId ?? '__none__' } : {},
     select: REQ_SELECT,
     orderBy: { name: 'asc' },
-    take: 50,
+    // `У-156` (дефект `Д-19`): без `take` — молчаливое усечение списка хуже
+    // длинного списка. Компаний-исполнителей единицы, а админ, не нашедший
+    // свою на 51-й строке, решил бы, что её вообще нет.
   });
   const companies = rows.map(({ defaultVatRate, documentNumbering, ...rest }) => ({
     ...rest,
