@@ -116,6 +116,8 @@ export function StaffDocuments({
       orderId: null,
       orderNumber: null,
       orderTitle: null,
+      number: d.number,
+      version: d.version,
     }));
 
     return (
@@ -149,6 +151,8 @@ export function StaffDocuments({
     orderId: d.orderId,
     orderNumber: d.order?.orderNumber ?? null,
     orderTitle: d.order?.title ?? null,
+    number: d.number,
+    version: d.version,
   }));
 
   // Фильтры переносим в ссылку «Дальше» — иначе постраничный переход молча

@@ -1,5 +1,6 @@
 import type { PrismaClient, DocumentType, DocumentDirection } from '@prisma/client';
 import type { Prisma } from '@prisma/client';
+import { documentDownloadName } from '@/lib/documents/fileName';
 import {
   organizationChannelWhere,
   documentInChannel,
@@ -8,6 +9,9 @@ import {
 } from '@/lib/auth/documentChannelPolicy';
 
 type OrgDocRow = {
+  /** `У-154`: номер и версия выпущенного документа. */
+  number: string | null;
+  version: number;
   id: string;
   name: string;
   type: DocumentType;
@@ -100,6 +104,10 @@ export async function listOrgDocuments(
         createdAt: true,
         size: true,
         orderId: true,
+        // `У-154` (дефект `Д-16`): номер и версия — по ним человек отличает
+        // «тот самый счёт» от его переизданной версии.
+        number: true,
+        version: true,
         order: { select: { orderNumber: true, title: true } },
       },
     }),
@@ -126,13 +134,15 @@ export async function listOrgDocuments(
     orderId: d.orderId,
     orderNumber: d.order?.orderNumber ?? null,
     orderTitle: d.order?.title ?? null,
+    number: d.number,
+    version: d.version,
   }));
 
   return { rows, total, countsByType };
 }
 
 export type DownloadResult =
-  | { ok: true; path: string; mimeType: string; name: string }
+  | { ok: true; path: string; mimeType: string; name: string; downloadName: string }
   | { ok: false; error: 'not_found' }
   | { ok: false; error: 'infected'; scanReason: string | null };
 
@@ -152,6 +162,10 @@ export async function getOrgDocumentForDownload(
       scanReason: true,
       counterpartyType: true,
       counterpartyId: true,
+      // `У-154`: имя файла при скачивании собирается по типу, номеру и дате.
+      type: true,
+      number: true,
+      createdAt: true,
     },
   });
 
@@ -171,5 +185,6 @@ export async function getOrgDocumentForDownload(
     path: doc.path,
     mimeType: doc.mimeType,
     name: doc.name,
+    downloadName: documentDownloadName(doc),
   };
 }

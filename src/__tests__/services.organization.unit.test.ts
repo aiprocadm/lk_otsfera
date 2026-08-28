@@ -952,6 +952,8 @@ describe('organization/documents (unit)', () => {
       path: 'fake://5',
       mimeType: 'application/pdf',
       name: 'clean.pdf',
+      // `У-154`: у документа без номера имя файла остаётся своим.
+      downloadName: 'clean.pdf',
     });
   });
 

@@ -49,7 +49,11 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
   let signedUrl: string;
   try {
-    signedUrl = await getObjectStorage().createSignedUrl(result.path, SIGNED_URL_TTL_SEC);
+    // `У-154`: имя файла для клиента, а не ключ хранилища — иначе в папке
+    // «Загрузки» лежит россыпь одинаковых `invoice-v1-…pdf`.
+    signedUrl = await getObjectStorage().createSignedUrl(result.path, SIGNED_URL_TTL_SEC, {
+      download: result.downloadName,
+    });
   } catch (error) {
     log.error('Failed to create manager document signed URL', {
       correlationId,
@@ -72,6 +76,6 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   return Response.json({
     downloadUrl: signedUrl,
     expiresInSec: SIGNED_URL_TTL_SEC,
-    fileName: result.name,
+    fileName: result.downloadName,
   });
 }

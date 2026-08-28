@@ -44,7 +44,11 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const ttl = resolveTtl(new URL(_req.url).searchParams.get('ttl'));
   let signedUrl: string;
   try {
-    signedUrl = await getObjectStorage().createSignedUrl(doc.path, ttl);
+    // `У-154`: имя файла для клиента, а не ключ хранилища — иначе в папке
+    // «Загрузки» лежит россыпь одинаковых `invoice-v1-…pdf`.
+    signedUrl = await getObjectStorage().createSignedUrl(doc.path, ttl, {
+      download: doc.downloadName,
+    });
   } catch (error) {
     log.error('Failed to create document signed URL', {
       correlationId,
@@ -69,5 +73,5 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   // Этап 3 PR-2 (ФТ-6.6): скачивание гасит бейдж «новый» (best-effort внутри).
   await markDocumentViewed(prisma, { documentId: doc.id, userId: s.sub });
 
-  return NextResponse.json({ downloadUrl: signedUrl, expiresInSec: ttl, fileName: doc.name });
+  return NextResponse.json({ downloadUrl: signedUrl, expiresInSec: ttl, fileName: doc.downloadName });
 }

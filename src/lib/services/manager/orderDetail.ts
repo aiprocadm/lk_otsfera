@@ -62,6 +62,8 @@ export async function loadManagerOrderDetail(
     orderId: order.id,
     orderNumber: order.orderNumber,
     orderTitle: order.title,
+    number: d.number,
+    version: d.version,
   }));
 
   const items = itemsResult.ok ? itemsResult.items : [];

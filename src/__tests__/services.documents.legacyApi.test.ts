@@ -191,6 +191,8 @@ describe('getDocumentForSignedDownload', () => {
       id: 'd1',
       path: 'p/d1.pdf',
       name: 'd1.pdf',
+      // `У-154`: у документа без номера имя файла остаётся своим.
+      downloadName: 'd1.pdf',
     });
   });
 

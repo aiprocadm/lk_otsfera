@@ -76,7 +76,7 @@ export function DocumentsList({
         );
         return;
       }
-      const body = (await res.json()) as { downloadUrl?: string };
+      const body = (await res.json()) as { downloadUrl?: string; fileName?: string };
       if (!body.downloadUrl) {
         setError('Ссылка не вернулась — попробуйте ещё раз');
         return;
@@ -84,7 +84,9 @@ export function DocumentsList({
       setSeen((prev) => new Set(prev).add(docId));
       const a = document.createElement('a');
       a.href = body.downloadUrl;
-      a.download = name;
+      // `У-154`: имя даёт сервер («Счёт С-2026-7 от 26.07.2026.pdf»);
+      // имя строки — запасной вариант для старых ответов.
+      a.download = body.fileName ?? name;
       a.rel = 'noopener noreferrer';
       a.target = '_blank';
       document.body.appendChild(a);
@@ -129,6 +131,20 @@ export function DocumentsList({
         </div>
         <div className="text-xs text-gray-500 mt-0.5 flex flex-wrap items-center gap-x-2">
           <span>{TYPE_LABELS[doc.type] ?? doc.type}</span>
+          {doc.number && (
+            <>
+              <span aria-hidden>·</span>
+              <span className="text-[#111111]">{`№ ${doc.number}`}</span>
+            </>
+          )}
+          {doc.version > 1 && (
+            <>
+              <span aria-hidden>·</span>
+              {/* Версия 1 есть у каждого документа — показывать её значило бы
+                  сорить. Видна только у переизданного (`У-151`). */}
+              <span>{`версия ${doc.version}`}</span>
+            </>
+          )}
           <span aria-hidden>·</span>
           <span>{fmtDate(doc.createdAt)}</span>
           <span aria-hidden>·</span>

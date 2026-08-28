@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { canReadDocument } from '@/lib/auth/policy';
+import { documentDownloadName } from '@/lib/documents/fileName';
 
 /**
  * Разрешение на скачивание документа общим (не кабинетным) роутом
@@ -19,7 +20,7 @@ import { canReadDocument } from '@/lib/auth/policy';
  */
 
 export type DocumentDownloadTarget =
-  | { ok: true; id: string; path: string; name: string }
+  | { ok: true; id: string; path: string; name: string; downloadName: string }
   | { ok: false; error: 'not_found' }
   | { ok: false; error: 'forbidden' }
   | { ok: false; error: 'infected'; scanReason: string | null };
@@ -41,6 +42,10 @@ export async function getDocumentForSignedDownload(
       companyId: true,
       counterpartyType: true,
       counterpartyId: true,
+      // `У-154`: имя файла при скачивании собирается по типу, номеру и дате.
+      type: true,
+      number: true,
+      createdAt: true,
       order: { select: { companyId: true } },
     },
   });
@@ -50,5 +55,11 @@ export async function getDocumentForSignedDownload(
     return { ok: false, error: 'infected', scanReason: doc.scanReason };
   }
 
-  return { ok: true, id: doc.id, path: doc.path, name: doc.name };
+  return {
+    ok: true,
+    id: doc.id,
+    path: doc.path,
+    name: doc.name,
+    downloadName: documentDownloadName(doc),
+  };
 }

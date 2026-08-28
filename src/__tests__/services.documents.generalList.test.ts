@@ -29,6 +29,9 @@ describe('listGeneralDocuments()', () => {
         signedAt: true,
         createdAt: true,
         size: true,
+        // `У-154`: номер и версия — их показывает список.
+        number: true,
+        version: true,
       },
     });
   });
