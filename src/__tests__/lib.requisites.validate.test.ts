@@ -17,7 +17,7 @@ describe('validateRequisites', () => {
       legalName: '  ООО «Ромашка»  ',
       inn: ' 7707-083893 ',
       bic: '04 452 5225',
-      bankAccount: '4070 2810 4000 0000 0001',
+      bankAccount: '4070 2810 4000 0000 0005',
       kpp: '',
       signerName: '   ',
     });
@@ -26,7 +26,7 @@ describe('validateRequisites', () => {
       expect(r.values.legalName).toBe('ООО «Ромашка»');
       expect(r.values.inn).toBe('7707083893');
       expect(r.values.bic).toBe('044525225');
-      expect(r.values.bankAccount).toBe('40702810400000000001');
+      expect(r.values.bankAccount).toBe('40702810400000000005');
       expect(r.values.kpp).toBeNull();
       expect(r.values.signerName).toBeNull();
     }
@@ -50,13 +50,29 @@ describe('validateRequisites', () => {
   it('валидные форматы проходят: ИНН 10/12, ОГРН 13/15, счета 20', () => {
     for (const input of [
       { inn: '7707083893' },
-      { inn: '770708389301' },
+      { inn: '770708389324' },
       { ogrn: '1027700132195' },
-      { ogrn: '304770000000000' },
-      { corrAccount: '30101810400000000225' },
+      { ogrn: '304770000000008' },
+      { corrAccount: '30101810400000000225', bic: '044525225' },
+      { bankAccount: '40702810400000000005', bic: '044525225' },
+      // Счёт без БИК проверять не из чего — это не повод браковать ввод.
+      { bankAccount: '40702810400000000001' },
     ]) {
       expect(validateRequisites(input).ok).toBe(true);
     }
+  });
+
+  it.each([
+    [{ inn: '7707083890' }, 'контрольной суммы'],
+    [{ ogrn: '1027700132190' }, 'контрольной суммы'],
+    [{ bankAccount: '40702810400000000001', bic: '044525225' }, 'не сходится с БИК'],
+    [{ corrAccount: '30101810400000000221', bic: '044525225' }, 'не сходится с БИК'],
+  ])('`У-156`: верная длина, но битая контрольная сумма %j → ошибка', (input, word) => {
+    // Дефект `Д-11`: до этапа 6 такие значения проходили молча и уезжали в
+    // счёт клиенту — опечатка в одной цифре не ловилась ничем.
+    const r = validateRequisites(input);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(' ')).toContain(word);
   });
 
   it('сверхдлинный текст → ошибка с названием поля; несколько ошибок копятся', () => {

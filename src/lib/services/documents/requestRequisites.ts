@@ -13,6 +13,7 @@ const REQ = {
   legalName: true,
   inn: true,
   kpp: true,
+  ogrn: true,
   legalAddress: true,
   bankName: true,
   bankAccount: true,
@@ -20,6 +21,7 @@ const REQ = {
   bic: true,
   signerName: true,
   signerPosition: true,
+  signerBasis: true,
 } as const;
 
 /**
@@ -71,9 +73,15 @@ export async function requestRequisites(
   ]);
   if (!company || !organization) return { ok: false, error: 'not_found' };
 
-  const missing = listMissingRequisites(company, organization).filter(
-    (m) => m.side === 'organization'
-  );
+  // Спрашиваем разом всё, что нужно ЛЮБОМУ документу (`У-156`): счёт требует
+  // ИНН и КПП, договор — ещё и подписанта с основанием. Просить по частям
+  // значило бы дёргать клиента дважды.
+  const labels = new Set<string>();
+  for (const kind of ['invoice', 'contract'] as const) {
+    for (const item of listMissingRequisites(company, organization, kind)) {
+      if (item.side === 'organization') labels.add(item.label);
+    }
+  }
   try {
     await notifyOrgUsers(prisma, {
       organizationId: order.organizationId,
@@ -82,7 +90,7 @@ export async function requestRequisites(
         orderId: order.id,
         orderNumber: order.orderNumber,
         orderTitle: order.title,
-        missingLabels: missing.map((m) => m.label),
+        missingLabels: [...labels],
       },
     });
   } catch (err) {

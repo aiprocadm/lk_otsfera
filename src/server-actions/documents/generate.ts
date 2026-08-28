@@ -5,11 +5,8 @@ import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import { prisma } from '@/lib/db/prisma';
 import { requireSession } from '@/lib/auth/requireRole';
 import { isFeatureEnabled } from '@/lib/featureFlags';
-import {
-  generateOrderDocument,
-  type GenerateDocType,
-  type GenerateResult,
-} from '@/lib/services/documents/generate';
+import { generateOrderDocument, type GenerateResult } from '@/lib/services/documents/generate';
+import { issueInputSchema, toGenerateArgs } from '@/lib/documents/issueInput';
 import { requestRequisites } from '@/lib/services/documents/requestRequisites';
 
 /**
@@ -21,17 +18,21 @@ import { requestRequisites } from '@/lib/services/documents/requestRequisites';
 export async function generateOrderDocumentAction(fd: FormData): Promise<GenerateResult> {
   if (!isFeatureEnabled('document_generation')) return { ok: false, error: 'forbidden' };
   const session = await requireSession();
-  const orderId = typeof fd.get('orderId') === 'string' ? (fd.get('orderId') as string) : '';
-  const docType = fd.get('docType');
-  const allowed = ['invoice', 'act', 'contract', 'extra_agreement'];
-  if (!orderId || typeof docType !== 'string' || !allowed.includes(docType))
+  // Форма выпуска (`У-147`) присылает поля одним JSON: та же схема, что у
+  // предпросмотра, — иначе предпросмотр и выпуск разъехались бы.
+  const raw = fd.get('payload');
+  if (typeof raw !== 'string') return { ok: false, error: 'not_found' };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
     return { ok: false, error: 'not_found' };
+  }
+  const input = issueInputSchema.safeParse(parsed);
+  if (!input.success) return { ok: false, error: 'not_found' };
 
-  const res = await generateOrderDocument(prisma, session, {
-    orderId,
-    docType: docType as GenerateDocType,
-  });
-  if (res.ok) revalidatePath(`/manager/orders/${orderId}`);
+  const res = await generateOrderDocument(prisma, session, toGenerateArgs(input.data));
+  if (res.ok) revalidatePath(`/manager/orders/${input.data.orderId}`);
   return res;
 }
 

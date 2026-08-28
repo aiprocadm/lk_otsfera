@@ -26,6 +26,15 @@ export type ContractDocumentData = {
   branding: DocumentBranding;
   /** Для доп. соглашения — номер и дата исходного договора. */
   baseContract: { number: string; date: Date } | null;
+  /** Поля формы выпуска (`У-147`): срок действия, порядок оплаты, текст изменения. */
+  validUntil: Date | null;
+  paymentTerms: string | null;
+  changeText: string | null;
+  /**
+   * Пометка предпросмотра (`У-147`): человек должен с одного взгляда видеть,
+   * что перед ним ещё не выпущенный документ, иначе такой PDF уедет клиенту.
+   */
+  draftNote: string | null;
 };
 
 const e = React.createElement;
@@ -59,6 +68,13 @@ const styles = StyleSheet.create({
   colPrice: { width: '19%', textAlign: 'right' },
   colAmount: { width: '19%', textAlign: 'right' },
   logo: { height: 36, marginBottom: 8 },
+  draftNote: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#EA580C',
+    marginBottom: 8,
+  },
+
   signMarks: { flexDirection: 'row', alignItems: 'flex-end', height: 50, marginTop: 6 },
   signImage: { height: 42 },
   stampImage: { height: 50, marginLeft: 8 },
@@ -126,6 +142,7 @@ function ContractPdf({ data }: { data: ContractDocumentData }) {
       Page,
       { size: 'A4', style: styles.page },
       data.branding.logo ? e(Image, { src: data.branding.logo, style: styles.logo }) : null,
+      data.draftNote ? e(Text, { style: styles.draftNote }, data.draftNote) : null,
       e(
         Text,
         { style: styles.title },
@@ -151,7 +168,9 @@ function ContractPdf({ data }: { data: ContractDocumentData }) {
         Text,
         { style: styles.paragraph },
         isExtra
-          ? `1.1. Стороны договорились изложить условия оказания услуг по договору в следующей редакции: ${data.subject}.`
+          ? // Текст изменения пишет сотрудник; без него — прежняя формулировка.
+            (data.changeText ??
+            `1.1. Стороны договорились изложить условия оказания услуг по договору в следующей редакции: ${data.subject}.`)
           : `1.1. Исполнитель обязуется оказать Заказчику услуги: ${data.subject}, а Заказчик — принять и оплатить их в порядке и на условиях настоящего договора.`
       ),
       e(
@@ -186,7 +205,8 @@ function ContractPdf({ data }: { data: ContractDocumentData }) {
       e(
         Text,
         { style: styles.paragraph },
-        '2.2. Оплата производится в безналичном порядке на расчётный счёт Исполнителя на основании выставленного счёта в течение 5 (пяти) рабочих дней с даты его получения.'
+        data.paymentTerms ??
+          '2.2. Оплата производится в безналичном порядке на расчётный счёт Исполнителя на основании выставленного счёта в течение 5 (пяти) рабочих дней с даты его получения.'
       ),
 
       e(Text, { style: styles.sectionTitle }, '3. Сроки и порядок сдачи-приёмки'),
@@ -212,7 +232,9 @@ function ContractPdf({ data }: { data: ContractDocumentData }) {
         { style: styles.paragraph },
         isExtra
           ? '4.2. Остальные условия договора остаются без изменений. Настоящее соглашение является его неотъемлемой частью и вступает в силу с даты подписания.'
-          : '4.2. Договор вступает в силу с даты подписания и действует до полного исполнения Сторонами обязательств. Документы, направленные через личный кабинет, признаются юридически значимыми.'
+          : data.validUntil
+            ? `4.2. Договор вступает в силу с даты подписания и действует до ${new Date(data.validUntil).toLocaleDateString('ru-RU')}. Документы, направленные через личный кабинет, признаются юридически значимыми.`
+            : '4.2. Договор вступает в силу с даты подписания и действует до полного исполнения Сторонами обязательств. Документы, направленные через личный кабинет, признаются юридически значимыми.'
       ),
 
       e(Text, { style: styles.sectionTitle }, '5. Реквизиты и подписи Сторон'),

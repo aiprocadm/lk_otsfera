@@ -81,7 +81,18 @@ describe('requestRequisites', () => {
     expect(res).toEqual({ ok: true });
     const payload = notifyOrgUsers.mock.calls[0]![1];
     expect(payload.type).toBe('requisites_requested');
-    expect(payload.payload.missingLabels).toEqual(['ИНН заказчика', 'юр. адрес заказчика']);
+    // `У-156`: спрашиваем разом всё, что нужно ЛЮБОМУ документу — счёт требует
+    // ИНН и адрес, договор ещё и основание полномочий. Дёргать клиента дважды
+    // ради одного и того же пакета бумаг незачем.
+    expect(payload.payload.missingLabels).toEqual(
+      expect.arrayContaining([
+        'ИНН заказчика',
+        'юр. адрес заказчика',
+        'основание полномочий заказчика',
+      ])
+    );
+    // Дыры компании клиенту не показываем — это не его забота.
+    expect(payload.payload.missingLabels.join(' ')).not.toContain('исполнителя');
   });
 
   it('заказ без организации или компании → not_found: запрашивать реквизиты не у кого', async () => {

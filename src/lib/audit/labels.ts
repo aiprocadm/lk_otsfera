@@ -165,6 +165,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   login_policies_changed: 'Изменение политик входа',
   email_template_changed: 'Изменение текста письма',
   document_status_changed: 'Смена статуса документа',
+  order_total_synced: 'Сумма заказа выровнена по строкам документа',
   catalog_item_created: 'Добавление услуги в каталог',
   order_line_added: 'Добавление строки заказа',
   order_line_updated: 'Изменение строки заказа',

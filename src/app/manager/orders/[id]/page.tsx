@@ -62,7 +62,10 @@ export default async function ManagerOrderDetailPage({
     generatePanel = (
       <GenerateDocumentsPanel
         orderId={id}
-        missing={panel.missing}
+        counterpartyName={panel.counterpartyName}
+        orderLines={panel.orderLines}
+        missingByType={panel.missingByType}
+        baseDocuments={panel.baseDocuments}
         hasInvoice={panel.hasInvoice}
         hasContract={panel.hasContract}
       />

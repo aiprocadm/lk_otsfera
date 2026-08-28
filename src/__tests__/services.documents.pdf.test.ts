@@ -24,7 +24,7 @@ const PARTY = {
   kpp: '770701001',
   legalAddress: 'г. Москва, ул. Тестовая, 1',
   bankName: 'Т-Банк',
-  bankAccount: '40702810400000000001',
+  bankAccount: '40702810400000000005',
   corrAccount: '30101810400000000225',
   bic: '044525225',
   signerName: 'Иванов И.И.',
@@ -57,6 +57,8 @@ function data(docType: 'invoice' | 'act'): OrderDocumentData {
     orderLabel: 'Заказ №123 «Обучение по охране труда»',
     table: TABLE,
     branding: NO_BRANDING,
+    servicePeriod: null,
+    draftNote: null,
   };
 }
 
@@ -261,13 +263,13 @@ describe('listMissingRequisites', () => {
   const full = { name: 'Раб', ...PARTY, legalName: PARTY.displayName } as never;
 
   it('полные реквизиты → пусто', () => {
-    expect(listMissingRequisites(full, full)).toEqual([]);
+    expect(listMissingRequisites(full, full, 'invoice')).toEqual([]);
   });
 
   it('недостающие поля исполнителя и заказчика — с русскими подписями и стороной', () => {
     const company = { ...(full as Record<string, unknown>), bic: null, signerName: '' };
     const org = { ...(full as Record<string, unknown>), inn: null, legalName: null, name: null };
-    const missing = listMissingRequisites(company as never, org as never);
+    const missing = listMissingRequisites(company as never, org as never, 'invoice');
     expect(missing).toEqual(
       expect.arrayContaining([
         { side: 'company', label: 'БИК исполнителя' },
@@ -285,7 +287,7 @@ describe('listMissingRequisites', () => {
       name: 'ООО Ромашка (раб.)',
     };
     expect(
-      listMissingRequisites(full, org as never).some((m) => m.label.includes('название'))
+      listMissingRequisites(full, org as never, 'invoice').some((m) => m.label.includes('название'))
     ).toBe(false);
   });
 });
@@ -300,6 +302,10 @@ describe('renderContractDocumentPdf (PR-3)', () => {
     subject: 'Обучение по охране труда',
     table: TABLE,
     branding: NO_BRANDING,
+    validUntil: null,
+    paymentTerms: null,
+    changeText: null,
+    draftNote: null,
     baseContract:
       docType === 'extra_agreement' ? { number: 'Д-2026-4', date: new Date('2026-07-01') } : null,
   });
