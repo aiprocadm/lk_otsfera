@@ -56,7 +56,14 @@ function scopeOf(
  * Значения нарочно узнаваемые: увидев в письме «ООО «Ромашка»», человек
  * понимает, что это подстановка, а не настоящий клиент.
  */
-export function sampleProps(key: string): Record<string, string> {
+/*
+ * НЕ экспортируется намеренно: в файле с `'use server'` каждый экспорт обязан
+ * быть async-функцией (Next.js делает из него серверное действие). Синхронный
+ * экспорт роняет production-сборку — `npm run build` падает с «Server Actions
+ * must be async functions», хотя typecheck, lint и тесты остаются зелёными.
+ * Функция нужна только внутри этого файла (§12b: без `export`).
+ */
+function sampleProps(key: string): Record<string, string> {
   const spec = isEmailTemplateKey(key) ? EMAIL_TEMPLATE_REGISTRY[key] : null;
   const values: Record<string, string> = {
     orderNumber: 'З-2026-001',

@@ -5,7 +5,8 @@ import { prisma } from '@/lib/db/prisma';
 import { getSettingsView } from '@/lib/config/integrationSettings';
 import { PageHeader } from '@/components/ui/page-header';
 import { LoginPoliciesForm } from '@/components/settings/login-policies-form';
-import { LOGIN_POLICY_FIELDS, saveLoginPoliciesAction } from '@/server-actions/admin/loginPolicies';
+import { saveLoginPoliciesAction } from '@/server-actions/admin/loginPolicies';
+import { LOGIN_POLICY_FIELDS } from '@/lib/auth/loginPolicyFields';
 
 export const metadata: Metadata = { title: 'Политики входа · Настройки' };
 
