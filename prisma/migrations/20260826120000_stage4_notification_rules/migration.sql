@@ -28,17 +28,6 @@ CREATE INDEX "NotificationRule_companyId_idx" ON "NotificationRule"("companyId")
 -- CreateIndex
 CREATE UNIQUE INDEX "NotificationRule_companyId_eventType_audience_channel_key" ON "NotificationRule"("companyId", "eventType", "audience", "channel");
 
-[90m[90m┌─[39m[90m[90m────────────────────────────────────────────────────────┐[39m[90m
-[90m│[39m[90m  [0m[34mUpdate available[39m[90m 5.22.0 -> 8.0.0-rc.11[0m                 [90m│[39m[90m
-[90m│[39m[90m  [0m[0m                                                       [90m│[39m[90m
-[90m│[39m[90m  [0mThis is a major update - please follow the guide at[0m    [90m│[39m[90m
-[90m│[39m[90m  [0mhttps://pris.ly/d/major-version-upgrade[0m                [90m│[39m[90m
-[90m│[39m[90m  [0m[0m                                                       [90m│[39m[90m
-[90m│[39m[90m  [0mRun the following to update[0m                            [90m│[39m[90m
-[90m│[39m[90m  [0m  [1mnpm i --save-dev prisma@latest[22m[0m                       [90m│[39m[90m
-[90m│[39m[90m  [0m  [1mnpm i @prisma/client@latest[22m[0m                          [90m│[39m[90m
-└─────────────────────────────────────────────────────────┘[39m
-
 -- ВАЖНО: составной уникальный индекс выше НЕ защищает платформенные правила.
 -- В Postgres два NULL не считаются равными, поэтому строк с `companyId IS NULL`
 -- и одинаковой тройкой (событие, роль, канал) могло бы появиться сколько
