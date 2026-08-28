@@ -32,6 +32,13 @@ export type DocumentDetail = {
   signedAt: Date | null;
   createdAt: Date;
   uploadedByName: string | null;
+  /** Состояние документа (`У-148`): выставлен · отправлен · принят · аннулирован. */
+  status: string;
+  /** Итог с НДС строкой; у документов до этапа 6 его нет — показываем «—». */
+  amountGross: string | null;
+  /** Когда и кем документ отправлен клиенту и принят им (`У-149`, `У-150`). */
+  sentAt: Date | null;
+  acceptedAt: Date | null;
   /** Заказ, к которому относится документ (у общих документов — null). */
   order: { id: string; title: string; orderNumber: string | null } | null;
   counterparty: { type: string; id: string; name: string | null };
@@ -73,6 +80,11 @@ export async function getDocumentDetail(
       scanReason: true,
       signedAt: true,
       createdAt: true,
+      // `У-148`, `У-150`: состояние, сумма и отметки жизненного цикла.
+      status: true,
+      amountGross: true,
+      sentAt: true,
+      acceptedAt: true,
       orderId: true,
       companyId: true,
       counterpartyType: true,
@@ -87,6 +99,8 @@ export async function getDocumentDetail(
 
   const allowed = await canReadDocument(session, doc);
   if (!allowed) return { ok: false, error: 'not_found' };
+
+  const gross = doc.amountGross ?? null;
 
   return {
     ok: true,
@@ -103,6 +117,12 @@ export async function getDocumentDetail(
       scanReason: doc.scanReason,
       signedAt: doc.signedAt,
       createdAt: doc.createdAt,
+      status: doc.status,
+      // Decimal через границу server→client не проходит. `?? null` покрывает и
+      // документы, выпущенные до этапа 6: итогов у них нет (`У-146`).
+      amountGross: gross === null ? null : gross.toFixed(2),
+      sentAt: doc.sentAt ?? null,
+      acceptedAt: doc.acceptedAt ?? null,
       uploadedByName: doc.uploadedBy?.name ?? doc.uploadedBy?.email ?? null,
       order: doc.order
         ? { id: doc.order.id, title: doc.order.title, orderNumber: doc.order.orderNumber }

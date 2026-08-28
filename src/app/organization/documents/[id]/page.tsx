@@ -44,6 +44,9 @@ export default async function OrganizationDocumentDetailPage({
         document={res.document}
         backHref="/organization/documents"
         orderHrefBase="/organization/orders"
+        // `У-150`: принять акт или договор может только заказчик — в кабинетах
+        // сотрудников той же карточкой кнопка не показывается.
+        canAccept
       >
         <EntityCustomFields fields={customFields} entityType="document" entityId={id} />
       </DocumentDetailView>

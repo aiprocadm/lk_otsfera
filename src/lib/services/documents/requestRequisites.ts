@@ -4,9 +4,17 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { canSeeOrder, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { listMissingRequisites } from '@/lib/documents/requisites-check';
 import { notifyOrgUsers } from '@/lib/notifications';
+import { recordAudit } from '@/lib/auth/audit';
 import { log } from '@/lib/logging';
 
-export type RequestRequisitesServiceResult = { ok: true } | { ok: false; error: 'not_found' };
+export type RequestRequisitesServiceResult =
+  | { ok: true }
+  | { ok: false; error: 'not_found' }
+  /** `У-157`: повторный запрос той же организации — не чаще раза в сутки. */
+  | { ok: false; error: 'requested_recently'; requestedAt: Date };
+
+/** Сколько ждать до повторного запроса реквизитов у той же организации. */
+const REQUEST_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 const REQ = {
   name: true,
@@ -67,6 +75,24 @@ export async function requestRequisites(
     if (!visible) return { ok: false, error: 'not_found' };
   }
 
+  // `У-157` (дефект `Д-12`): запрос уходит письмом клиенту. Без ограничения
+  // кнопку можно было нажимать без конца, и заказчик получал десяток
+  // одинаковых писем за минуту. Считаем по журналу: отдельного поля под
+  // «когда просили» заводить не нужно — событие уже пишется.
+  const lastRequest = await prisma.auditLog.findFirst({
+    where: {
+      action: 'requisites_requested',
+      entity: 'organization',
+      entityId: order.organizationId,
+      createdAt: { gte: new Date(Date.now() - REQUEST_COOLDOWN_MS) },
+    },
+    orderBy: { createdAt: 'desc' },
+    select: { createdAt: true },
+  });
+  if (lastRequest) {
+    return { ok: false, error: 'requested_recently', requestedAt: lastRequest.createdAt };
+  }
+
   const [company, organization] = await Promise.all([
     prisma.company.findUnique({ where: { id: order.companyId }, select: REQ }),
     prisma.organization.findUnique({ where: { id: order.organizationId }, select: REQ }),
@@ -82,6 +108,17 @@ export async function requestRequisites(
       if (item.side === 'organization') labels.add(item.label);
     }
   }
+  // Журнал пишем ДО отправки: он же служит счётчиком «раз в сутки», и запись
+  // после best-effort доставки означала бы, что сбой письма снимает
+  // ограничение — и клиент получит второй запрос сразу.
+  await recordAudit(prisma, {
+    userId: session.sub,
+    action: 'requisites_requested',
+    entity: 'organization',
+    entityId: order.organizationId,
+    after: { orderId: order.id, missingLabels: [...labels] },
+  });
+
   try {
     await notifyOrgUsers(prisma, {
       organizationId: order.organizationId,

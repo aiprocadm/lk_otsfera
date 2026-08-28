@@ -37,6 +37,9 @@ export function GenerateDocumentsPanel({
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  // `У-157`: когда реквизиты запрашивали в прошлый раз — показываем рядом
+  // с кнопкой, чтобы повтор не выглядел молчаливым отказом.
+  const [requestedAt, setRequestedAt] = useState<string | null>(null);
 
   // Реквизиты счёта — самый частый случай; их нехватку показываем сразу, не
   // заставляя открывать форму, чтобы узнать, что выпустить нечего.
@@ -51,9 +54,18 @@ export function GenerateDocumentsPanel({
     const res = await requestRequisitesAction(fd);
     setBusy(false);
     if (!res.ok) {
+      if (res.error === 'requested_recently') {
+        // `У-157`: молчаливый отказ выглядел бы как поломка кнопки — говорим,
+        // когда просили в прошлый раз.
+        const when = new Date(res.requestedAt).toLocaleString('ru-RU');
+        setRequestedAt(when);
+        toast.error(`Реквизиты уже запрашивали ${when}. Повторить можно через сутки.`);
+        return;
+      }
       toast.error('Не удалось отправить запрос.');
       return;
     }
+    setRequestedAt(new Date().toLocaleString('ru-RU'));
     toast.success('Запрос реквизитов отправлен организации.');
   }
 
@@ -85,6 +97,9 @@ export function GenerateDocumentsPanel({
             >
               {busy ? 'Отправляю…' : 'Запросить у клиента'}
             </Button>
+          )}
+          {requestedAt && (
+            <p className="text-xs text-gray-500 mt-1">Запрошено {requestedAt}.</p>
           )}
           {companyMissing.length > 0 && (
             <p className="text-xs text-gray-500 mt-2">

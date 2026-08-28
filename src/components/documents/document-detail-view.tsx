@@ -17,6 +17,10 @@ import Link from 'next/link';
 import type { Crumb } from '@/lib/navigation/breadcrumbs';
 import { Button, Badge, Breadcrumbs } from '@/components/ui';
 import type { DocumentDetail } from '@/lib/services/documents/detail';
+import { STATUS_LABELS } from '@/lib/documents/statusMatrix';
+import { errorMessageRu } from '@/lib/errors/messages';
+import { toast } from '@/lib/ui/toast';
+import { acceptDocumentAction } from '@/server-actions/documents/accept';
 
 import { PageHeader } from '@/components/ui/page-header';
 const TYPE_LABELS: Record<string, string> = {
@@ -120,18 +124,53 @@ export type DocumentDetailViewProps = {
   breadcrumbs?: Crumb[] | undefined;
   /** База ссылки на заказ в этом кабинете, например `/manager/orders`. Нет — ссылка не рисуется. */
   orderHrefBase?: string;
+  /**
+   * `У-150`: кабинет заказчика показывает кнопку «Принять» для акта, договора
+   * и доп. соглашения. У сотрудников кнопки нет — они принимают документ
+   * своим действием, и общая карточка не должна давать им чужую.
+   */
+  canAccept?: boolean;
   /** Секция настраиваемых полей §11 (рендерится страницей). */
   children?: React.ReactNode;
 };
+
+/** Состояние по-русски; незнакомый код показываем прочерком, а не сырым словом. */
+function statusLabel(status: string): string {
+  return (STATUS_LABELS as Record<string, string>)[status] ?? '—';
+}
 
 export function DocumentDetailView({
   document: doc,
   backHref,
   breadcrumbs,
   orderHrefBase,
+  canAccept = false,
   children,
 }: DocumentDetailViewProps) {
   const infected = doc.scanStatus === 'infected';
+  const [accepting, setAccepting] = useState(false);
+  const [acceptError, setAcceptError] = useState<string | null>(null);
+  const [accepted, setAccepted] = useState(doc.status === 'accepted');
+  // Принимают подписываемые бумаги. Счёт не принимают вручную: его состояние
+  // определяют платежи (`У-148`), кнопка «Оплачено» у клиента была бы
+  // способом объявить оплату, которой не было.
+  const acceptable = ['act', 'contract', 'extra_agreement'].includes(doc.type);
+  const showAccept = canAccept && acceptable && !accepted && doc.status !== 'cancelled';
+
+  async function accept() {
+    setAccepting(true);
+    setAcceptError(null);
+    const fd = new FormData();
+    fd.set('documentId', doc.id);
+    const res = await acceptDocumentAction(fd);
+    setAccepting(false);
+    if (!res.ok) {
+      setAcceptError(errorMessageRu(res.error));
+      return;
+    }
+    setAccepted(true);
+    toast.success('Документ принят.');
+  }
 
   return (
     <div className="space-y-5">
@@ -170,6 +209,10 @@ export function DocumentDetailView({
         <dl className="space-y-2">
           <Row label="Номер">{doc.number ?? '—'}</Row>
           <Row label="Версия">{doc.version}</Row>
+          <Row label="Состояние">{statusLabel(accepted ? 'accepted' : doc.status)}</Row>
+          <Row label="Сумма">{doc.amountGross === null ? '—' : `${doc.amountGross} ₽`}</Row>
+          <Row label="Отправлен">{doc.sentAt ? fmtDate(doc.sentAt) : '—'}</Row>
+          <Row label="Принят">{doc.acceptedAt ? fmtDate(doc.acceptedAt) : '—'}</Row>
           <Row label="Размер">{fmtSize(doc.size)}</Row>
           <Row label="Формат файла">{doc.mimeType}</Row>
           <Row label="Подписан">{doc.signedAt ? fmtDate(doc.signedAt) : '—'}</Row>
@@ -204,7 +247,24 @@ export function DocumentDetailView({
           </Row>
         </dl>
 
-        {!infected && <DownloadButton documentId={doc.id} />}
+        <div className="flex flex-wrap items-center gap-2">
+          {!infected && <DownloadButton documentId={doc.id} />}
+          {showAccept && (
+            <Button variant="secondary" disabled={accepting} onClick={() => void accept()}>
+              {accepting ? 'Принимаю…' : doc.type === 'act' ? 'Принять' : 'Подписать'}
+            </Button>
+          )}
+        </div>
+        {accepted && (
+          <p className="text-sm text-green-700">
+            Документ принят — менеджер уведомлён.
+          </p>
+        )}
+        {acceptError && (
+          <p role="alert" className="text-sm text-red-600">
+            {acceptError}
+          </p>
+        )}
       </div>
 
       {children}

@@ -14,6 +14,8 @@ const {
   organizationFindUnique,
   getCompanyTeamVisibility,
   canSeeOrderMock,
+  auditFindFirst,
+  recordAuditMock,
 } = vi.hoisted(() => ({
   notifyOrgUsers: vi.fn(),
   orderFindUnique: vi.fn(),
@@ -21,6 +23,8 @@ const {
   organizationFindUnique: vi.fn(),
   getCompanyTeamVisibility: vi.fn(),
   canSeeOrderMock: vi.fn(),
+  auditFindFirst: vi.fn(),
+  recordAuditMock: vi.fn(),
 }));
 
 vi.mock('@/lib/notifications', () => ({ notifyOrgUsers }));
@@ -29,11 +33,14 @@ vi.mock('@/lib/auth/managerPolicy', () => ({
   canSeeOrder: canSeeOrderMock,
 }));
 vi.mock('@/lib/logging', () => ({ log: { warn: vi.fn(), error: vi.fn() } }));
+vi.mock('@/lib/auth/audit', () => ({ recordAudit: recordAuditMock }));
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     order: { findUnique: orderFindUnique },
     company: { findUnique: companyFindUnique },
     organization: { findUnique: organizationFindUnique },
+    // `У-157`: журнал служит счётчиком «раз в сутки».
+    auditLog: { findFirst: auditFindFirst, create: vi.fn() },
   },
 }));
 
@@ -65,6 +72,8 @@ const FULL = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // `У-157`: по умолчанию за сутки запросов не было.
+  auditFindFirst.mockResolvedValue(null);
   orderFindUnique.mockResolvedValue(ORDER);
   companyFindUnique.mockResolvedValue(FULL);
   organizationFindUnique.mockResolvedValue(FULL);
@@ -162,5 +171,44 @@ describe('requestRequisites', () => {
   it('сбой доставки уведомления не ломает действие (best-effort)', async () => {
     notifyOrgUsers.mockRejectedValue(new Error('down'));
     expect(await requestRequisites(prisma, SESSION, { orderId: 'ord-1' })).toEqual({ ok: true });
+  });
+});
+
+describe('`У-157`: не чаще раза в сутки', () => {
+  it('повторный запрос отвечает «уже просили» и НЕ шлёт письмо', async () => {
+    // Дефект `Д-12`: кнопку можно было нажимать без конца, и заказчик получал
+    // десяток одинаковых писем за минуту.
+    const requestedAt = new Date('2026-08-28T09:00:00Z');
+    auditFindFirst.mockResolvedValue({ createdAt: requestedAt });
+
+    expect(await requestRequisites(prisma, SESSION, { orderId: 'ord-1' })).toEqual({
+      ok: false,
+      error: 'requested_recently',
+      requestedAt,
+    });
+    expect(notifyOrgUsers).not.toHaveBeenCalled();
+  });
+
+  it('счётчик считает по журналу и только за последние сутки', async () => {
+    await requestRequisites(prisma, SESSION, { orderId: 'ord-1' });
+    const where = auditFindFirst.mock.calls[0]![0].where;
+    expect(where).toMatchObject({ action: 'requisites_requested', entityId: 'org-1' });
+    expect(where.createdAt.gte).toBeInstanceOf(Date);
+  });
+
+  it('запись в журнал идёт ДО отправки письма', async () => {
+    // Иначе сбой доставки снимал бы ограничение, и клиент получил бы второй
+    // запрос сразу же.
+    const order: string[] = [];
+    recordAuditMock.mockImplementation(() => {
+      order.push('audit');
+      return Promise.resolve();
+    });
+    notifyOrgUsers.mockImplementation(() => {
+      order.push('notify');
+      return Promise.resolve({});
+    });
+    await requestRequisites(prisma, SESSION, { orderId: 'ord-1' });
+    expect(order).toEqual(['audit', 'notify']);
   });
 });

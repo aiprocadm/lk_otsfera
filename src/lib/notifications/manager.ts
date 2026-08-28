@@ -28,7 +28,8 @@ type NotifyManagersType =
   | 'document_uploaded_by_partner'
   | 'order_marked_paid_by_1c'
   | 'order_status_changed_by_manager'
-  | 'chat_message';
+  | 'chat_message'
+  | 'document_accepted';
 
 export type NotifyManagersInput =
   | {
@@ -81,7 +82,26 @@ export type NotifyManagersInput =
         excerpt: string;
         side: string;
       };
+    }
+  | {
+      // `У-150`: заказчик принял акт или договор — менеджер должен узнать
+      // об этом сам, а не обнаружить при следующем открытии карточки.
+      orderId: string;
+      type: 'document_accepted';
+      payload: {
+        documentId: string;
+        documentType: string;
+        documentNumber: string | null;
+        orderNumber: string | null;
+      };
     };
+
+/** Русские названия типов документов — те же слова, что в интерфейсе. */
+const DOC_LABELS: Record<string, string> = {
+  act: 'Акт',
+  contract: 'Договор',
+  extra_agreement: 'Доп. соглашение',
+};
 
 export type NotifyManagersOptions = { excludeUserId?: string };
 
@@ -253,6 +273,23 @@ const MANAGER_TEMPLATES: Record<
       subject: managerOrderStatusChangedSubject(props),
       shortBody: managerOrderStatusChangedText(props),
       email: { template: 'managerOrderStatusChanged', props },
+    };
+  },
+  document_accepted: (input, ctx) => {
+    /* v8 ignore next -- defensive guard: structurally unreachable via typed API */
+    if (input.type !== 'document_accepted') throw new Error('type mismatch');
+    const orderRef = orderLabel(ctx.orderNumber, ctx.orderTitle);
+    const what = DOC_LABELS[input.payload.documentType] ?? 'Документ';
+    const number = input.payload.documentNumber ? ` № ${input.payload.documentNumber}` : '';
+    const subject = `${what}${number} принят заказчиком`;
+    const shortBody = `Заказчик принял документ по заказу ${orderRef}.`;
+    return {
+      subject,
+      shortBody,
+      email: {
+        template: 'notification',
+        props: { title: subject, body: shortBody, recipientName: 'менеджер', url: ctx.orderUrl },
+      },
     };
   },
   chat_message: (input, ctx) => {
