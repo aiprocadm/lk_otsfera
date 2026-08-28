@@ -37,7 +37,10 @@ export async function generateOrderDocumentAction(fd: FormData): Promise<Generat
 }
 
 export type RequestRequisitesResult =
-  { ok: true } | { ok: false; error: 'forbidden' | 'not_found' };
+  | { ok: true }
+  | { ok: false; error: 'forbidden' | 'not_found' }
+  /** `У-157`: повтор раньше суток — говорим, когда просили в прошлый раз. */
+  | { ok: false; error: 'requested_recently'; requestedAt: Date };
 
 /**
  * «Запросить у клиента» — тонкий адаптер над `requestRequisites`

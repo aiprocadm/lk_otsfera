@@ -68,6 +68,11 @@ export const NOTIFICATION_TYPES = {
     audience: ['organization', 'manager'],
     producer: 'src/lib/notifications/org.ts',
   },
+  document_accepted: {
+    label: 'Заказчик принял документ',
+    audience: ['manager'],
+    producer: 'src/lib/notifications/manager.ts',
+  },
 
   // ── Клиентский контур: партнёр ──────────────────────────────────────────
   commission_statement_ready: {
