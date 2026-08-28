@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { SETTING_SPECS } from '@/lib/config/integrationSettings';
 import { SETTINGS_SECTIONS } from '@/lib/navigation/settings';
 import { ALL_SCHEDULES } from '@/lib/jobs/scheduling';
-import { LOGIN_POLICY_FIELDS } from '@/server-actions/admin/loginPolicies';
+import { LOGIN_POLICY_FIELDS } from '@/lib/auth/loginPolicyFields';
 
 /**
  * Страж PR-7 этапа 4: политики входа (`У-129`) и переезд SLA (`У-130`).
