@@ -59,7 +59,7 @@ describe('persistUploadedDocument', () => {
     const create = vi.fn().mockResolvedValue({ id: 'doc-9' });
     const prisma = { document: { create } } as never;
     const r = await persistUploadedDocument(prisma, baseArgs);
-    expect(r).toEqual({ ok: true, documentId: 'doc-9' });
+    expect(r).toMatchObject({ ok: true, documentId: 'doc-9' });
     const data = create.mock.calls[0][0].data;
     expect(data.counterpartyType).toBe('organization');
     expect(data.counterpartyId).toBe('org-1');

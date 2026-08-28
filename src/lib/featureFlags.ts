@@ -95,9 +95,12 @@ export const FEATURE_FLAGS = [
   'deals_pipeline',
   // Этап 7 (ФТ-8.1): экран «Входящие в работу» (route-флаг: middleware + nav + page).
   'intake_inbox',
-  // Этап 8 (ФТ-9.4): генерация счёта/акта по заказу. Поведенческий флаг (не route):
-  // точки чтения — деталка заказа менеджера (панель «Сформировать документы») и
-  // server-action generateOrderDocumentAction/requestRequisitesAction.
+  // Этап 8 (ФТ-9.4): выпуск документов по заказу. Поведенческий флаг (не route):
+  // точки чтения — деталка заказа во ВСЕХ ТРЁХ кабинетах сотрудников (панель
+  // «Документы по заказу»), server-action выпуска и запроса реквизитов, роут
+  // предпросмотра. `У-144` этапа 6: флаг переведён в **opt-out** (включён по
+  // умолчанию) — выпуск документов давно не эксперимент, а основная работа, и
+  // держать его выключенным значило бы прятать половину кабинета.
   'document_generation',
   // Этап 9 (ФТ-11.1): кнопка «Задать вопрос» в кабинетах. Поведенческий флаг
   // (не route): точки чтения — шеллы partner/organization и POST /api/support/question.
@@ -205,7 +208,7 @@ const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'client_requests',
   'deals_pipeline',
   'intake_inbox',
-  'document_generation',
+  // `У-144`: выпуск документов включён по умолчанию — из opt-in снят.
   'cabinet_questions',
   'settings_hub',
 ]);

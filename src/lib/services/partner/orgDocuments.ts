@@ -1,5 +1,5 @@
 import type { PrismaClient, DocumentType, DocumentDirection } from '@prisma/client';
-import { partnerChannelWhere } from '@/lib/auth/documentChannelPolicy';
+import { partnerPortfolioDocumentsWhere } from '@/lib/auth/documentChannelPolicy';
 
 export type OrgDocumentRow = {
   id: string;
@@ -44,8 +44,11 @@ export async function getOrgDocuments(
     return { rows: [], countsByType: {}, total: 0 };
   }
 
+  // `У-155`: вкладка показывает и партнёрские документы, и документы самой
+  // организации — партнёр ведёт этого клиента. Принадлежность портфелю уже
+  // проверена выше (`org.partnerId !== filter.partnerId` → пусто).
   const docWhere = {
-    ...partnerChannelWhere(filter.partnerId),
+    ...partnerPortfolioDocumentsWhere({ partnerId: filter.partnerId, orgId: filter.orgId }),
     order: { organizationId: filter.orgId },
     ...(filter.type ? { type: filter.type } : {}),
   };
@@ -74,7 +77,7 @@ export async function getOrgDocuments(
     prisma.document.groupBy({
       by: ['type'],
       where: {
-        ...partnerChannelWhere(filter.partnerId),
+        ...partnerPortfolioDocumentsWhere({ partnerId: filter.partnerId, orgId: filter.orgId }),
         order: { organizationId: filter.orgId },
       },
       _count: { _all: true },

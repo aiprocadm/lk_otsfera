@@ -99,7 +99,7 @@ describe('persistUploadedDocument — storage upload failure', () => {
     const prisma = { document: { create } } as never;
     // Should not throw even if queue throws
     const r = await persistUploadedDocument(prisma, baseArgs);
-    expect(r).toEqual({ ok: true, documentId: 'doc-scan-fail' });
+    expect(r).toMatchObject({ ok: true, documentId: 'doc-scan-fail' });
     expect(auditMock).toHaveBeenCalledOnce();
   });
 
@@ -118,7 +118,7 @@ describe('persistUploadedDocument — storage upload failure', () => {
     const create = vi.fn().mockResolvedValue({ id: 'doc-string-err' });
     const prisma = { document: { create } } as never;
     const r = await persistUploadedDocument(prisma, baseArgs);
-    expect(r).toEqual({ ok: true, documentId: 'doc-string-err' });
+    expect(r).toMatchObject({ ok: true, documentId: 'doc-string-err' });
   });
 
   it('sanitizes filename with special chars', async () => {

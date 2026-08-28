@@ -13,6 +13,7 @@ import {
 } from '@/components/orders/order-status-panel';
 import { ManagerPaymentsList } from '@/components/manager/manager-payments-list';
 import { DocumentsList } from '@/components/partner/documents-list';
+import { ManagerDocUploadForm } from '@/components/manager/manager-doc-upload-form';
 import { OrderItemsSection } from '@/components/training/order-items-section';
 import { OrderCustomFields } from '@/components/orders/order-custom-fields';
 import { DealActivityThread } from '@/components/manager/deal-activity/deal-activity-thread';
@@ -100,6 +101,12 @@ export function ManagerOrderDetailView({
               )}
             </h2>
             <DocumentsList rows={documentRows} downloadEndpointBase="/api/manager/documents" />
+            {/* `У-158` (дефект `Д-14`): форма загрузки существовала, но не была
+                смонтирована нигде — сотрудник не мог приложить к заказу
+                подписанный скан. Здесь же, где список: положить документ и
+                увидеть его — одно действие. Кабинет руководителя рисует ту же
+                деталку, значит форма появляется и у него (правило зеркала). */}
+            <ManagerDocUploadForm orderId={order.id} />
           </div>
 
           <ManagerPaymentsList payments={order.payments} />

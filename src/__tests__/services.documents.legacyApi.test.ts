@@ -99,8 +99,15 @@ describe('uploadAdminDocument', () => {
       counterpartyId: 'o1',
       uploadedById: 'a1',
     });
-    // Путь пришпилен к тенанту: партнёр/организация/заказ.
-    expect(created.path).toMatch(/^partner\/p1\/org\/o1\/order\/ord1\//);
+    // `У-158` (дефект `Д-18`): путь, тип, направление и размер теперь такие
+    // же, как у остальных загрузок — запись делает общий движок.
+    expect(created.path).toMatch(/^orders\/ord1\//);
+    expect(created).toMatchObject({
+      direction: 'outgoing',
+      size: PDF.length,
+      type: 'other',
+      generatedBy: 'user',
+    });
     expect(upload).toHaveBeenCalledWith(created.path, PDF, { contentType: 'application/pdf' });
     expect(enqueueAdd).toHaveBeenCalledWith('scan', { kind: 'document', id: 'd1' });
     expect(prisma.auditLog.create).toHaveBeenCalled();
@@ -125,8 +132,14 @@ describe('uploadAdminDocument', () => {
     expect(upload).not.toHaveBeenCalled();
   });
 
-  it('нет организации у компании заказа → organization_context_not_found', async () => {
-    const prisma = db({ organization: { findFirst: vi.fn().mockResolvedValue(null) } });
+  it('заказ без организации → organization_context_not_found', async () => {
+    // Раньше контрагент искался `findFirst` по компании — документ клиента мог
+    // лечь в папку другой организации той же компании (`Д-18`).
+    const prisma = db({
+      order: {
+        findUnique: vi.fn().mockResolvedValue({ id: 'ord1', companyId: 'c1', organizationId: null }),
+      },
+    });
     expect(await uploadAdminDocument(prisma as never, admin, args)).toEqual({
       ok: false,
       error: 'organization_context_not_found',

@@ -6,9 +6,12 @@ import { describe, it, expect, vi } from 'vitest';
 import { getOrgDocuments } from '@/lib/services/partner/orgDocuments';
 
 vi.mock('@/lib/auth/documentChannelPolicy', () => ({
-  partnerChannelWhere: vi.fn(() => ({
-    counterpartyType: 'partner',
-    counterpartyId: 'p1',
+  // `У-155`: вкладка берёт ОБА канала — партнёрский и организации.
+  partnerPortfolioDocumentsWhere: vi.fn(() => ({
+    OR: [
+      { counterpartyType: 'partner', counterpartyId: 'p1' },
+      { counterpartyType: 'organization', counterpartyId: 'org1' },
+    ],
     scanStatus: { not: 'infected' },
   })),
 }));
