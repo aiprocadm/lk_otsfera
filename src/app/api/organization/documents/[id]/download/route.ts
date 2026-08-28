@@ -55,7 +55,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const ttl = resolveTtl(url.searchParams.get('ttl'));
   let signedUrl: string;
   try {
-    signedUrl = await getObjectStorage().createSignedUrl(result.path, ttl);
+    // `У-154`: имя файла для клиента, а не ключ хранилища — иначе в папке
+    // «Загрузки» лежит россыпь одинаковых `invoice-v1-…pdf`.
+    signedUrl = await getObjectStorage().createSignedUrl(result.path, ttl, {
+      download: result.downloadName,
+    });
   } catch (error) {
     log.error('Failed to create org document signed URL', {
       correlationId,
@@ -83,6 +87,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   return NextResponse.json({
     downloadUrl: signedUrl,
     expiresInSec: ttl,
-    fileName: result.name,
+    fileName: result.downloadName,
   });
 }

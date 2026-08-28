@@ -89,6 +89,9 @@ export async function getPartnerOrderDetail(
           signedAt: true,
           createdAt: true,
           size: true,
+          // `У-154`: номер и версия документа — их показывает список.
+          number: true,
+          version: true,
         },
       },
       comments: {
@@ -153,6 +156,8 @@ export async function getPartnerOrderDetail(
       orderId: order.id,
       orderNumber: order.orderNumber,
       orderTitle: order.title,
+      number: d.number,
+      version: d.version,
     })),
     comments: order.comments.map((c) => ({
       id: c.id,

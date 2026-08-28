@@ -12,6 +12,10 @@ export type OrgDocumentRow = {
   orderId: string | null;
   orderNumber: string | null;
   orderTitle: string | null;
+  /** Номер выпущенного документа; у загруженного вручную его нет. */
+  number: string | null;
+  /** Версия: 1 — первая, больше — переизданный документ (`У-151`). */
+  version: number;
 };
 
 // Фильтры списка: «ключа нет» и «ключ = undefined» — одно и то же (не фильтровать).
@@ -60,6 +64,10 @@ export async function getOrgDocuments(
         createdAt: true,
         size: true,
         orderId: true,
+        // `У-154` (дефект `Д-16`): номер и версия — по ним человек отличает
+        // «тот самый счёт» от его переизданной версии.
+        number: true,
+        version: true,
         order: { select: { orderNumber: true, title: true } },
       },
     }),
@@ -91,6 +99,8 @@ export async function getOrgDocuments(
     orderId: d.orderId,
     orderNumber: d.order?.orderNumber ?? null,
     orderTitle: d.order?.title ?? null,
+    number: d.number,
+    version: d.version,
   }));
 
   return { rows, countsByType, total };

@@ -129,6 +129,9 @@ export async function listOrgOrders(
 }
 
 type OrgOrderDocument = {
+  /** `У-154`: номер и версия выпущенного документа. */
+  number: string | null;
+  version: number;
   id: string;
   name: string;
   type: DocumentType;
@@ -218,6 +221,8 @@ export async function getOrgOrder(
           signedAt: true,
           createdAt: true,
           size: true,
+          number: true,
+          version: true,
         },
       },
       payments: {
@@ -280,6 +285,8 @@ export async function getOrgOrder(
       orderId: order.id,
       orderNumber: order.orderNumber,
       orderTitle: order.title,
+      number: d.number,
+      version: d.version,
     })),
     payments: order.payments.map((p) => ({
       id: p.id,

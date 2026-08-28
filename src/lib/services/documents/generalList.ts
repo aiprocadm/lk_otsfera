@@ -20,6 +20,9 @@ export async function listGeneralDocuments(prisma: PrismaClient): Promise<OrgDoc
       signedAt: true,
       createdAt: true,
       size: true,
+      // `У-154`: номер и версия документа — их показывает список.
+      number: true,
+      version: true,
     },
   });
 
@@ -34,5 +37,7 @@ export async function listGeneralDocuments(prisma: PrismaClient): Promise<OrgDoc
     orderId: null,
     orderNumber: null,
     orderTitle: null,
+    number: d.number,
+    version: d.version,
   }));
 }

@@ -92,7 +92,9 @@ describe('POST /api/organization/documents/[id]/download', () => {
     // Request TTL=200 (within 60-300 range)
     const res = await downloadPost(postReq('?ttl=200'), paramsP);
     expect(res.status).toBe(200);
-    expect(createSignedUrl).toHaveBeenCalledWith('org-a/contract.pdf', 200);
+    expect(createSignedUrl).toHaveBeenCalledWith('org-a/contract.pdf', 200, {
+      download: expect.any(String),
+    });
     // Этап 3 PR-2 (ФТ-6.6): скачивание гасит бейдж «новый».
     expect(markDocumentViewed).toHaveBeenCalledWith(expect.anything(), {
       documentId: 'd1',
@@ -117,7 +119,9 @@ describe('POST /api/organization/documents/[id]/download', () => {
     const res = await downloadPost(postReq('?ttl=9999'), paramsP);
     expect(res.status).toBe(200);
     // Should be clamped to MAX_TTL=300
-    expect(createSignedUrl).toHaveBeenCalledWith('org-a/x.pdf', 300);
+    expect(createSignedUrl).toHaveBeenCalledWith('org-a/x.pdf', 300, {
+      download: expect.any(String),
+    });
   });
 
   it('clamps ?ttl= below MIN_TTL (60) to 60', async () => {
@@ -137,7 +141,9 @@ describe('POST /api/organization/documents/[id]/download', () => {
     const res = await downloadPost(postReq('?ttl=5'), paramsP);
     expect(res.status).toBe(200);
     // Should be clamped to MIN_TTL=60
-    expect(createSignedUrl).toHaveBeenCalledWith('org-a/x.pdf', 60);
+    expect(createSignedUrl).toHaveBeenCalledWith('org-a/x.pdf', 60, {
+      download: expect.any(String),
+    });
   });
 
   it('uses DEFAULT_TTL when ?ttl= is non-numeric', async () => {
@@ -157,7 +163,9 @@ describe('POST /api/organization/documents/[id]/download', () => {
     const res = await downloadPost(postReq('?ttl=abc'), paramsP);
     expect(res.status).toBe(200);
     // DEFAULT_TTL=120 is within bounds, so it passes through
-    expect(createSignedUrl).toHaveBeenCalledWith('org-a/x.pdf', 120);
+    expect(createSignedUrl).toHaveBeenCalledWith('org-a/x.pdf', 120, {
+      download: expect.any(String),
+    });
   });
 
   it('uses org context from org_ctx cookie when ?org= is not in query', async () => {
@@ -271,7 +279,9 @@ describe('POST /api/organization/documents/[id]/download', () => {
     const body = (await res.json()) as { downloadUrl: string; fileName: string };
     expect(body.downloadUrl).toBe('https://signed.test/x');
     expect(body.fileName).toBe('contract.pdf');
-    expect(createSignedUrl).toHaveBeenCalledWith('org-a/contract.pdf', expect.any(Number));
+    expect(createSignedUrl).toHaveBeenCalledWith('org-a/contract.pdf', expect.any(Number), {
+      download: expect.any(String),
+    });
     expect(auditCreate).toHaveBeenCalled();
   });
 

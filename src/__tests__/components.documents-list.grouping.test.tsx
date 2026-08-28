@@ -18,6 +18,8 @@ const row = (over: Partial<OrgDocumentRow>): OrgDocumentRow => ({
   signedAt: null,
   createdAt: new Date('2026-07-01'),
   size: 1024,
+  number: null,
+  version: 1,
   orderId: null,
   orderNumber: null,
   orderTitle: null,

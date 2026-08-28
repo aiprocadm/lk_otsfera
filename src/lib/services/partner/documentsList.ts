@@ -68,6 +68,9 @@ export async function listPartnerDocuments(
         createdAt: true,
         size: true,
         orderId: true,
+        // `У-154`: номер и версия документа — их показывает список.
+        number: true,
+        version: true,
         order: { select: { orderNumber: true, title: true } },
       },
     }),
@@ -94,6 +97,8 @@ export async function listPartnerDocuments(
     orderId: d.orderId,
     orderNumber: d.order?.orderNumber ?? null,
     orderTitle: d.order?.title ?? null,
+    number: d.number,
+    version: d.version,
   }));
 
   return { rows, total, countsByType };

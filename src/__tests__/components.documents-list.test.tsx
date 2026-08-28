@@ -17,6 +17,8 @@ const base: OrgDocumentRow = {
   orderId: null,
   orderNumber: null,
   orderTitle: null,
+  number: null,
+  version: 1,
 };
 
 describe('DocumentsList order-less label', () => {
@@ -263,5 +265,37 @@ describe('DocumentsList — download (interactive, jsdom)', () => {
     await waitFor(() =>
       expect(screen.queryByText('Не удалось получить ссылку для скачивания')).toBeNull()
     );
+  });
+});
+
+describe('`У-154`: номер и версия в списке (дефект `Д-16`)', () => {
+  it('выпущенный документ показывает свой номер', () => {
+    const html = renderToString(
+      <DocumentsList
+        rows={[{ ...base, type: 'invoice', number: 'С-2026-7', version: 1 }]}
+        downloadEndpointBase="/api/documents"
+      />
+    );
+    expect(html).toContain('С-2026-7');
+    // Версия 1 есть у каждого документа — в списке это был бы шум.
+    expect(html).not.toContain('версия 1');
+  });
+
+  it('переизданный документ виден по версии', () => {
+    const html = renderToString(
+      <DocumentsList
+        rows={[{ ...base, type: 'invoice', number: 'С-2026-7', version: 2 }]}
+        downloadEndpointBase="/api/documents"
+      />
+    );
+    expect(html).toContain('версия 2');
+  });
+
+  it('у загруженного вручную документа номера нет — строка не ломается', () => {
+    const html = renderToString(
+      <DocumentsList rows={[base]} downloadEndpointBase="/api/documents" />
+    );
+    expect(html).toContain('gen.pdf');
+    expect(html).not.toContain('№');
   });
 });

@@ -7,6 +7,7 @@ import {
   getCompanyTeamVisibility,
 } from '@/lib/auth/managerPolicy';
 import { managerOrderLessWhere, canReadOrderLessDocument } from '@/lib/auth/documentChannelPolicy';
+import { documentDownloadName } from '@/lib/documents/fileName';
 
 /**
  * Manager-facing documents service.
@@ -86,7 +87,7 @@ export async function listDocuments(
 }
 
 export type DownloadResult =
-  | { ok: true; path: string; mimeType: string; name: string }
+  | { ok: true; path: string; mimeType: string; name: string; downloadName: string }
   | { ok: false; error: 'not_found' }
   | { ok: false; error: 'infected'; scanReason: string | null };
 
@@ -109,6 +110,10 @@ export async function getDocumentForDownload(
       companyId: true,
       counterpartyType: true,
       counterpartyId: true,
+      // `У-154`: имя файла при скачивании собирается по типу, номеру и дате.
+      type: true,
+      number: true,
+      createdAt: true,
       order: {
         select: {
           managerId: true,
@@ -133,7 +138,13 @@ export async function getDocumentForDownload(
     }
     if (doc.scanStatus === 'infected')
       return { ok: false, error: 'infected', scanReason: doc.scanReason ?? null };
-    return { ok: true, path: doc.path, mimeType: doc.mimeType, name: doc.name };
+    return {
+      ok: true,
+      path: doc.path,
+      mimeType: doc.mimeType,
+      name: doc.name,
+      downloadName: documentDownloadName(doc),
+    };
   }
 
   const ord = doc.order!;
@@ -165,10 +176,14 @@ export async function getDocumentForDownload(
     path: doc.path,
     mimeType: doc.mimeType,
     name: doc.name,
+    downloadName: documentDownloadName(doc),
   };
 }
 
 export type ManagerOrderLessRow = {
+  /** `У-154`: номер и версия выпущенного документа. */
+  number: string | null;
+  version: number;
   id: string;
   name: string;
   type: DocumentType;

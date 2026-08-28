@@ -207,6 +207,7 @@ describe('getDocumentForDownload', () => {
       path: 'order-less/f.pdf',
       mimeType: 'application/pdf',
       name: 'f.pdf',
+      downloadName: 'f.pdf',
     });
   });
 
@@ -228,7 +229,13 @@ describe('getDocumentForDownload', () => {
       company: { findUnique: vi.fn() },
     } as never;
     const result = await getDocumentForDownload(p, SESSION, 'd1');
-    expect(result).toEqual({ ok: true, path: 'x.pdf', mimeType: 'application/pdf', name: 'x.pdf' });
+    expect(result).toEqual({
+      ok: true,
+      path: 'x.pdf',
+      mimeType: 'application/pdf',
+      name: 'x.pdf',
+      downloadName: 'x.pdf',
+    });
     expect(canReadOrderLessDocument).toHaveBeenCalledWith(
       SESSION,
       expect.objectContaining({ companyId: null })
@@ -350,7 +357,13 @@ describe('getDocumentForDownload', () => {
       company: { findUnique: vi.fn() },
     } as never;
     const result = await getDocumentForDownload(p, SESSION, 'd1');
-    expect(result).toEqual({ ok: true, path: 'x.pdf', mimeType: 'application/pdf', name: 'x.pdf' });
+    expect(result).toEqual({
+      ok: true,
+      path: 'x.pdf',
+      mimeType: 'application/pdf',
+      name: 'x.pdf',
+      downloadName: 'x.pdf',
+    });
     // canReadOrderLessDocument called with non-null companyId
     expect(canReadOrderLessDocument).toHaveBeenCalledWith(
       SESSION,
@@ -403,6 +416,7 @@ describe('getDocumentForDownload', () => {
       path: 'orders/o1/d1.pdf',
       mimeType: 'application/pdf',
       name: 'contract.pdf',
+      downloadName: 'contract.pdf',
     });
   });
 });

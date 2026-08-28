@@ -140,7 +140,9 @@ describe('POST /api/manager/documents/[id]/download', () => {
       expiresInSec: expect.any(Number),
       fileName: 'contract.pdf',
     });
-    expect(createSignedUrl).toHaveBeenCalledWith('org-a/contract.pdf', expect.any(Number));
+    expect(createSignedUrl).toHaveBeenCalledWith('org-a/contract.pdf', expect.any(Number), {
+      download: expect.any(String),
+    });
     expect(auditCreate).toHaveBeenCalled();
   });
 
