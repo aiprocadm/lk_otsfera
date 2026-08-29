@@ -21,6 +21,9 @@ let companyA: string;
 let orgA: string, orgB: string, partnerA: string;
 let manager: string, orgUser: string, partnerUser: string;
 
+/** ИНН второй организации — им же проверяется отказ по дублю. */
+const DUP_INN = '7709123453';
+
 const sOrg = (roleInOrg: string): SessionPayload =>
   ({
     sub: orgUser,
@@ -51,7 +54,10 @@ beforeAll(async () => {
   ).id;
   orgB = (
     await prisma.organization.create({
-      data: { name: `s8p1-orgB-${STAMP}`, companyId: companyA, inn: `77${STAMP}`.slice(0, 10) },
+      // ИНН постоянный, а не из времени: `У-156` ввёл проверку контрольной
+      // суммы, и `77<время>` проходил её лишь случайно — тест краснел по
+      // календарю, а не по делу.
+      data: { name: `s8p1-orgB-${STAMP}`, companyId: companyA, inn: DUP_INN },
     })
   ).id;
   partnerA = (
@@ -94,7 +100,10 @@ describe('реквизиты организации', () => {
       ogrn: '1027700132195',
       legalAddress: 'г. Москва, ул. Тестовая, 1',
       bankName: 'Т-Банк',
-      bankAccount: '40702810400000000001',
+      // `У-156` (этап 6): счёт проверяется контрольной суммой по БИК. Прежний
+      // «…0001» был выдуман и теперь честно не проходит проверку — заменён на
+      // сходящийся с БИК 044525225.
+      bankAccount: '40702810400000000005',
       corrAccount: '30101810400000000225',
       bic: '044525225',
       signerName: 'Иванов И.И.',
@@ -115,7 +124,7 @@ describe('реквизиты организации', () => {
   });
 
   it('дубль ИНН другой организации → русская валидация', async () => {
-    const dupInn = `77${STAMP}`.slice(0, 10);
+    const dupInn = DUP_INN;
     const res = await setOrgRequisites(prisma, sOrg('admin'), orgA, { inn: dupInn });
     expect(res).toEqual({
       ok: false,
@@ -142,7 +151,9 @@ describe('партнёр и компания', () => {
   it('admin сохраняет реквизиты Company (+phone/email) и видит их в списке', async () => {
     const res = await setCompanyRequisites(prisma, sAdmin(), companyA, {
       legalName: 'ООО «Промтехносфера»',
-      inn: '7708123456',
+      // `У-156`: ИНН тоже проверяется контрольной суммой — выдуманный
+      // «…3456» её не проходит.
+      inn: '7708123450',
       phone: '+7 495 000-00-00',
       email: 'docs@pts.ru',
     });

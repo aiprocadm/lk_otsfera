@@ -80,11 +80,16 @@ describe('channel isolation invariant (org ⟂ partner on a shared order)', () =
     expect(r).toEqual({ ok: false, error: 'not_found' });
   });
 
-  it('partner sees only its channel', async () => {
+  it('партнёр видит свой канал И документы организации своего портфеля (`У-155`)', async () => {
+    // Изоляция осталась, но проходит по ДРУГОЙ границе: не «канал», а
+    // «портфель» (решение `Р-18`, этап 6). Партнёр ведёт этого клиента —
+    // прятать от него счёт клиента значило показывать пустую вкладку.
+    // Что изоляция всё ещё работает, проверяет соседний тест: организация
+    // партнёрский документ не видит и не скачивает.
     const { rows } = await getOrgDocuments(prisma, { orgId, partnerId });
     const ids = rows.map((r) => r.id);
     expect(ids).toContain(partnerDocId);
-    expect(ids).not.toContain(orgDocId);
+    expect(ids).toContain(orgDocId);
   });
 
   it('order-detail embed isolates channels too', async () => {
