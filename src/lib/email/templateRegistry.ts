@@ -64,6 +64,18 @@ export const EMAIL_TEMPLATE_REGISTRY: Record<EmailTemplateKey, EmailTemplateSpec
     label: 'Заказчику: опубликован документ',
     placeholders: [ORG, ...ORDER, ...DOC],
   },
+  orgDocumentSent: {
+    label: 'Заказчику: документ отправлен письмом',
+    placeholders: [
+      ORG,
+      { token: 'document.name', prop: 'documentName', label: 'Название документа' },
+      { token: 'document.type', prop: 'documentType', label: 'Тип документа' },
+      { token: 'document.number', prop: 'documentNumber', label: 'Номер документа' },
+      { token: 'document.url', prop: 'documentUrl', label: 'Ссылка на документ' },
+      { token: 'order.number', prop: 'orderNumber', label: 'Номер заказа' },
+      { token: 'order.title', prop: 'orderTitle', label: 'Название заказа' },
+    ],
+  },
   orgPaymentReceived: {
     label: 'Заказчику: поступила оплата',
     placeholders: [

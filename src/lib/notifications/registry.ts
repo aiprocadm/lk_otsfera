@@ -73,6 +73,11 @@ export const NOTIFICATION_TYPES = {
     audience: ['manager'],
     producer: 'src/lib/notifications/manager.ts',
   },
+  invoice_paid: {
+    label: 'Счёт оплачен',
+    audience: ['manager'],
+    producer: 'src/lib/notifications/manager.ts',
+  },
 
   // ── Клиентский контур: партнёр ──────────────────────────────────────────
   commission_statement_ready: {

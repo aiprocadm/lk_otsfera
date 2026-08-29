@@ -21,6 +21,8 @@ import { STATUS_LABELS } from '@/lib/documents/statusMatrix';
 import { errorMessageRu } from '@/lib/errors/messages';
 import { toast } from '@/lib/ui/toast';
 import { acceptDocumentAction } from '@/server-actions/documents/accept';
+import { sendDocumentAction } from '@/server-actions/documents/send';
+import { PAYMENT_STATE_LABELS } from '@/lib/documents/invoicePayment';
 
 import { PageHeader } from '@/components/ui/page-header';
 const TYPE_LABELS: Record<string, string> = {
@@ -130,6 +132,11 @@ export type DocumentDetailViewProps = {
    * своим действием, и общая карточка не должна давать им чужую.
    */
   canAccept?: boolean;
+  /**
+   * `У-149`: сотрудник исполнителя отправляет документ заказчику письмом.
+   * У заказчика этой кнопки нет — документ и так лежит в его кабинете.
+   */
+  canSend?: boolean;
   /** Секция настраиваемых полей §11 (рендерится страницей). */
   children?: React.ReactNode;
 };
@@ -145,6 +152,7 @@ export function DocumentDetailView({
   breadcrumbs,
   orderHrefBase,
   canAccept = false,
+  canSend = false,
   children,
 }: DocumentDetailViewProps) {
   const infected = doc.scanStatus === 'infected';
@@ -156,6 +164,17 @@ export function DocumentDetailView({
   // способом объявить оплату, которой не было.
   const acceptable = ['act', 'contract', 'extra_agreement'].includes(doc.type);
   const showAccept = canAccept && acceptable && !accepted && doc.status !== 'cancelled';
+
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [sentNote, setSentNote] = useState<string | null>(null);
+  // Отправляют письмом бумаги с жизненным циклом и только заказчику. Скан,
+  // отчёт и документы партнёра этой кнопки не получают: адресата у них нет.
+  const sendable =
+    ['invoice', 'act', 'contract', 'extra_agreement'].includes(doc.type) &&
+    doc.counterparty.type === 'organization' &&
+    ['issued', 'sent', 'accepted'].includes(doc.status);
+  const showSend = canSend && sendable && !infected;
 
   async function accept() {
     setAccepting(true);
@@ -170,6 +189,27 @@ export function DocumentDetailView({
     }
     setAccepted(true);
     toast.success('Документ принят.');
+  }
+
+  async function sendToCustomer() {
+    setSending(true);
+    setSendError(null);
+    setSentNote(null);
+    const fd = new FormData();
+    fd.set('documentId', doc.id);
+    const res = await sendDocumentAction(fd);
+    setSending(false);
+    if (!res.ok) {
+      setSendError(errorMessageRu(res.error));
+      return;
+    }
+    const addressees = res.recipients === 1 ? 'на 1 адрес' : `на ${res.recipients} адр.`;
+    setSentNote(
+      res.attached
+        ? `Документ отправлен ${addressees} — файл приложен к письму.`
+        : `Письмо отправлено ${addressees}, но приложить файл не удалось — клиент откроет документ по ссылке.`
+    );
+    toast.success('Документ отправлен заказчику.');
   }
 
   return (
@@ -211,6 +251,21 @@ export function DocumentDetailView({
           <Row label="Версия">{doc.version}</Row>
           <Row label="Состояние">{statusLabel(accepted ? 'accepted' : doc.status)}</Row>
           <Row label="Сумма">{doc.amountGross === null ? '—' : `${doc.amountGross} ₽`}</Row>
+          {doc.payment && (
+            <Row label="Оплата">
+              {PAYMENT_STATE_LABELS[doc.payment.state]}
+              {doc.payment.paid > 0 && doc.payment.state !== 'paid'
+                ? ` — поступило ${doc.payment.paid.toLocaleString('ru-RU')} ₽`
+                : ''}
+              {!doc.payment.matched && (
+                <span className="block text-gray-500">
+                  {doc.payment.ambiguous
+                    ? 'В назначении платежа названо несколько счетов — сумму не разнести.'
+                    : 'Платежей с ссылкой на этот счёт не найдено.'}
+                </span>
+              )}
+            </Row>
+          )}
           <Row label="Отправлен">{doc.sentAt ? fmtDate(doc.sentAt) : '—'}</Row>
           <Row label="Принят">{doc.acceptedAt ? fmtDate(doc.acceptedAt) : '—'}</Row>
           <Row label="Размер">{fmtSize(doc.size)}</Row>
@@ -254,11 +309,20 @@ export function DocumentDetailView({
               {accepting ? 'Принимаю…' : doc.type === 'act' ? 'Принять' : 'Подписать'}
             </Button>
           )}
+          {showSend && (
+            <Button variant="secondary" disabled={sending} onClick={() => void sendToCustomer()}>
+              {sending ? 'Отправляю…' : doc.sentAt ? 'Отправить ещё раз' : 'Отправить заказчику'}
+            </Button>
+          )}
         </div>
-        {accepted && (
-          <p className="text-sm text-green-700">
-            Документ принят — менеджер уведомлён.
+        {sentNote && <p className="text-sm text-green-700">{sentNote}</p>}
+        {sendError && (
+          <p role="alert" className="text-sm text-red-600">
+            {sendError}
           </p>
+        )}
+        {accepted && (
+          <p className="text-sm text-green-700">Документ принят — менеджер уведомлён.</p>
         )}
         {acceptError && (
           <p role="alert" className="text-sm text-red-600">

@@ -16,6 +16,10 @@ import type { FieldWithValue } from '@/lib/services/customFields';
  *
  * Все адреса — список, крошки, ссылка на заказ — собираются из `cabinet`:
  * человек остаётся в своём кабинете, а не проваливается в чужой.
+ *
+ * `canSend` (`У-149`) включён у обоих кабинетов сотрудников: отправлять
+ * документ заказчику письмом — их работа. Сервис ещё раз проверит права и
+ * тип документа: кнопка на экране правами не считается.
  */
 export function StaffDocumentDetail({
   cabinet,
@@ -34,6 +38,7 @@ export function StaffDocumentDetail({
       backHref={listHref}
       breadcrumbs={buildCabinetBreadcrumbs(cabinet, listHref, [{ label: document.name }])}
       orderHrefBase={`/${cabinet}/orders`}
+      canSend
     >
       <EntityCustomFields fields={customFields} entityType="document" entityId={document.id} />
     </DocumentDetailView>

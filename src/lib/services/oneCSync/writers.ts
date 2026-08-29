@@ -4,6 +4,7 @@ import { resolveAutoManager } from '@/lib/services/manager/distribution';
 import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import { log } from '@/lib/logging';
+import { notifyInvoicesPaid } from '@/lib/services/documents/invoicePaidNotice';
 import { organizationNameKey } from '@/lib/services/import/oneCAccountCard/counterparty-key';
 import { mapOrderDto, mapPaymentDto, mapOrgDto, mapDocumentDto } from './mappers';
 import { normalizeInn } from './inn';
@@ -280,6 +281,14 @@ export async function upsertPaymentRecord(
     sum.updated += 1;
     ctx.bump?.(dto.updatedAt);
     if (!isLive(ctx)) return undefined;
+    // `У-148`: исправленная сумма тоже способна закрыть счёт.
+    if (ctx.notify && orderId) {
+      try {
+        await notifyInvoicesPaid(db, orderId);
+      } catch (err) {
+        log.warn('[1c] invoice paid notice failed', err);
+      }
+    }
     return {
       entityId: existing.id,
       action: 'updated',
@@ -334,6 +343,15 @@ export async function upsertPaymentRecord(
         });
       } catch (err) {
         log.warn('[1c] payment notifyManagers failed', err);
+      }
+    }
+    // `У-148`, `У-159`: приход денег — единственный момент, когда счёт может
+    // стать оплаченным. Считаем и сообщаем здесь же.
+    if (ctx.notify && isLive(ctx) && orderId) {
+      try {
+        await notifyInvoicesPaid(db, orderId);
+      } catch (err) {
+        log.warn('[1c] invoice paid notice failed', err);
       }
     }
     return createdId ? { entityId: createdId, action: 'created' } : undefined;

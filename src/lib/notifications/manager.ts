@@ -29,7 +29,8 @@ type NotifyManagersType =
   | 'order_marked_paid_by_1c'
   | 'order_status_changed_by_manager'
   | 'chat_message'
-  | 'document_accepted';
+  | 'document_accepted'
+  | 'invoice_paid';
 
 export type NotifyManagersInput =
   | {
@@ -92,6 +93,20 @@ export type NotifyManagersInput =
         documentId: string;
         documentType: string;
         documentNumber: string | null;
+        orderNumber: string | null;
+      };
+    }
+  | {
+      // `У-148`, `У-159`: счёт закрыт платежами. Признак оплаты вычисляется по
+      // выписке, и без уведомления менеджер узнавал бы об этом, только открыв
+      // карточку и сверив суммы руками.
+      orderId: string;
+      type: 'invoice_paid';
+      payload: {
+        documentId: string;
+        documentNumber: string | null;
+        /** Итог счёта с НДС, строкой (Decimal через границу не ходит). */
+        amount: string;
         orderNumber: string | null;
       };
     };
@@ -273,6 +288,22 @@ const MANAGER_TEMPLATES: Record<
       subject: managerOrderStatusChangedSubject(props),
       shortBody: managerOrderStatusChangedText(props),
       email: { template: 'managerOrderStatusChanged', props },
+    };
+  },
+  invoice_paid: (input, ctx) => {
+    /* v8 ignore next -- defensive guard: structurally unreachable via typed API */
+    if (input.type !== 'invoice_paid') throw new Error('type mismatch');
+    const orderRef = orderLabel(ctx.orderNumber, ctx.orderTitle);
+    const number = input.payload.documentNumber ? ` № ${input.payload.documentNumber}` : '';
+    const subject = `Счёт${number} оплачен`;
+    const shortBody = `По заказу ${orderRef} поступила оплата счёта на сумму ${input.payload.amount} ₽.`;
+    return {
+      subject,
+      shortBody,
+      email: {
+        template: 'notification',
+        props: { title: subject, body: shortBody, recipientName: 'менеджер', url: ctx.orderUrl },
+      },
     };
   },
   document_accepted: (input, ctx) => {

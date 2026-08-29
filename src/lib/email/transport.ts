@@ -12,6 +12,16 @@ import { log } from '@/lib/logging';
 import { prisma } from '@/lib/db/prisma';
 import { getSettingValue } from '@/lib/config/integrationSettings';
 
+/**
+ * Вложение письма (`У-149`): документ уходит заказчику файлом, а не только
+ * ссылкой — бухгалтерия работает с PDF, а не с личным кабинетом.
+ */
+export type EmailAttachment = {
+  /** Имя файла у получателя — «Счёт С-2026-17 от 28.08.2026.pdf». */
+  filename: string;
+  content: Buffer;
+};
+
 export type EmailTransport = {
   send(input: {
     from: string;
@@ -19,6 +29,7 @@ export type EmailTransport = {
     subject: string;
     html: string;
     text?: string | undefined;
+    attachments?: EmailAttachment[] | undefined;
   }): Promise<{ id: string | null }>;
 };
 
@@ -64,6 +75,14 @@ export async function defaultTransport(): Promise<EmailTransport | null> {
         // Resend SDK различает «поля нет» и «поле = undefined» (CreateEmailOptions
         // под exactOptionalPropertyTypes) — text отдаём только когда он есть.
         ...(input.text !== undefined ? { text: input.text } : {}),
+        ...(input.attachments && input.attachments.length > 0
+          ? {
+              attachments: input.attachments.map((a) => ({
+                filename: a.filename,
+                content: a.content,
+              })),
+            }
+          : {}),
       });
       // Surface Resend-side failures (invalid recipient, rate limit, revoked
       // key). Without this they were swallowed and reported upstream as "sent"

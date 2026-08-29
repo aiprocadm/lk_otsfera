@@ -1,6 +1,12 @@
 import * as React from 'react';
 import { log } from '@/lib/logging';
-import { defaultTransport, getEmailFrom, isEmailEnabled, type EmailTransport } from './transport';
+import {
+  defaultTransport,
+  getEmailFrom,
+  isEmailEnabled,
+  type EmailAttachment,
+  type EmailTransport,
+} from './transport';
 import {
   CommissionReadyTemplate,
   commissionReadySubject,
@@ -16,6 +22,9 @@ import {
   OrgDocumentPublishedTemplate,
   orgDocumentPublishedSubject,
   orgDocumentPublishedText,
+  OrgDocumentSentTemplate,
+  orgDocumentSentSubject,
+  orgDocumentSentText,
   OrgInviteTemplate,
   orgInviteSubject,
   PartnerInviteTemplate,
@@ -61,6 +70,7 @@ import {
   type LeadPromotedProps,
   type NotificationProps,
   type OrgDocumentPublishedProps,
+  type OrgDocumentSentProps,
   type OrgInviteProps,
   type PartnerInviteProps,
   type OrgOrderStatusChangedProps,
@@ -100,7 +110,14 @@ async function renderHtml(element: React.ReactElement): Promise<string> {
  * a best-effort side effect, so a thrown error would be a regression.
  */
 export async function send(
-  input: { to: string; subject: string; html: string; text?: string },
+  input: {
+    to: string;
+    subject: string;
+    html: string;
+    text?: string;
+    /** Файлы письма (`У-149`): документ уходит клиенту вложением. */
+    attachments?: EmailAttachment[];
+  },
   options: SendOptions = {}
 ): Promise<SendResult> {
   if (!input.to) return { status: 'skipped', reason: 'no-recipient' };
@@ -120,6 +137,7 @@ export async function send(
     subject: input.subject,
     html: input.html,
     text: input.text,
+    attachments: input.attachments,
   });
   return { status: 'sent', id: result.id };
 }
@@ -234,6 +252,47 @@ export async function sendOrgDocumentPublishedEmail(
     },
     options
   );
+}
+
+/**
+ * `У-149` — документ заказчику письмом: тот же конвейер, но с вложением.
+ * Вложение опционально: если файл прочитать не удалось, письмо со ссылкой в
+ * кабинет всё равно полезнее молчания.
+ */
+export async function sendOrgDocumentSentEmail(
+  args: {
+    to: string;
+    attachments?: EmailAttachment[];
+    /**
+     * Свой текст письма (`У-128`). Берутся только тема и текст — вёрстка
+     * остаётся общей (`NotificationTemplate` поверх `layout.tsx`), как и в
+     * email-канале: иначе первое же отредактированное письмо потеряло бы
+     * фирменный вид и выглядело бы как спам.
+     */
+    override?: { subject: string; text: string; recipientName: string };
+  } & OrgDocumentSentProps,
+  options: SendOptions = {}
+): Promise<SendResult> {
+  const { to, attachments, override, ...props } = args;
+  const content = override
+    ? {
+        subject: override.subject,
+        html: await renderHtml(
+          <NotificationTemplate
+            recipientName={override.recipientName}
+            title={override.subject}
+            body={override.text}
+            url={props.documentUrl}
+          />
+        ),
+        text: override.text,
+      }
+    : {
+        subject: orgDocumentSentSubject(props),
+        html: await renderHtml(<OrgDocumentSentTemplate {...props} />),
+        text: orgDocumentSentText(props),
+      };
+  return send({ to, ...content, ...(attachments ? { attachments } : {}) }, options);
 }
 
 export async function sendOrgPaymentReceivedEmail(

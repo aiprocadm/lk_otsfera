@@ -31,6 +31,9 @@ export default async function AdminDocumentDetailPage({
         { label: res.document.name },
       ])}
       orderHrefBase="/admin/orders"
+      // `У-149`: администратор — тот же сотрудник исполнителя, что менеджер и
+      // руководитель; правило зеркала (§0.2) не терпит кнопки «через одного».
+      canSend
     >
       <EntityCustomFields fields={customFields} entityType="document" entityId={id} />
     </DocumentDetailView>

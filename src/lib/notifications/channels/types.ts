@@ -21,6 +21,7 @@ import type {
   sendPartnerDocumentPublishedEmail,
   sendCommissionReadyEmail,
 } from '@/lib/email/send';
+import type { OrgDocumentSentProps } from '@/lib/email/templates';
 
 export type ChannelKey = 'email' | 'telegram' | 'max' | 'whatsapp';
 
@@ -35,6 +36,11 @@ type PropsOf<F> = F extends (args: infer A) => unknown ? Omit<A, 'to'> : never;
 type EmailTemplatePropsMap = {
   notification: PropsOf<typeof sendNotificationEmail>;
   orgDocumentPublished: PropsOf<typeof sendOrgDocumentPublishedEmail>;
+  // Пропсы взяты у шаблона, а не у sender-функции: у неё есть ещё вложение
+  // (`Buffer`), а `EmailContentRef` обязан оставаться JSON-совместимым —
+  // он кладётся в очередь. Письмо `У-149` отправляется прямым вызовом
+  // sender-а, через очередь не ходит, и Buffer туда попасть не должен.
+  orgDocumentSent: OrgDocumentSentProps;
   orgPaymentReceived: PropsOf<typeof sendOrgPaymentReceivedEmail>;
   orgManagerReplied: PropsOf<typeof sendOrgManagerRepliedEmail>;
   orgOrderStatusChanged: PropsOf<typeof sendOrgOrderStatusChangedEmail>;
