@@ -675,3 +675,91 @@ describe('MANAGER_TEMPLATES type-guard defensive arms', () => {
     // input.type. TypeScript makes the mismatch impossible statically; v8 ignore covers it.
   });
 });
+
+/**
+ * `У-148`, `У-159` — «счёт оплачен» и «заказчик принял документ».
+ *
+ * Оба письма собираются общим шаблоном уведомления, поэтому проверяем текст:
+ * менеджер должен понять из заголовка, какой документ и на какую сумму, не
+ * открывая систему.
+ */
+describe('notifyManagers — документы этапа 6', () => {
+  it('invoice_paid: в заголовке номер счёта, в тексте — сумма и заказ', async () => {
+    sendNotification.mockResolvedValue({ status: 'sent' });
+    const { db, createFn } = makeDb({ managers: ONE_MANAGER });
+
+    const r = await notifyManagers(db, {
+      orderId: 'o1',
+      type: 'invoice_paid',
+      payload: {
+        documentId: 'doc-1',
+        documentNumber: 'С-2026-17',
+        amount: '12000.00',
+        orderNumber: 'ON-1',
+      },
+    });
+
+    expect(r.recipientsNotified).toBe(1);
+    const row = createFn.mock.calls[0][0].data;
+    expect(row.type).toBe('invoice_paid');
+    expect(row.title).toBe('Счёт № С-2026-17 оплачен');
+    expect(row.body).toContain('12000.00');
+    expect(sendNotification).toHaveBeenCalledOnce();
+  });
+
+  it('invoice_paid без номера: заголовок остаётся осмысленным', async () => {
+    sendNotification.mockResolvedValue({ status: 'sent' });
+    const { db, createFn } = makeDb({ managers: ONE_MANAGER });
+
+    await notifyManagers(db, {
+      orderId: 'o1',
+      type: 'invoice_paid',
+      payload: {
+        documentId: 'doc-1',
+        documentNumber: null,
+        amount: '900.00',
+        orderNumber: 'ON-1',
+      },
+    });
+
+    expect(createFn.mock.calls[0][0].data.title).toBe('Счёт оплачен');
+  });
+
+  it('document_accepted: видно, какой документ принял заказчик', async () => {
+    sendNotification.mockResolvedValue({ status: 'sent' });
+    const { db, createFn } = makeDb({ managers: ONE_MANAGER });
+
+    await notifyManagers(db, {
+      orderId: 'o1',
+      type: 'document_accepted',
+      payload: {
+        documentId: 'doc-2',
+        documentType: 'act',
+        documentNumber: 'А-2026-7',
+        orderNumber: 'ON-1',
+      },
+    });
+
+    const row = createFn.mock.calls[0][0].data;
+    expect(row.title).toBe('Акт № А-2026-7 принят заказчиком');
+    expect(row.body).toContain('Заказчик принял документ');
+  });
+
+  it('document_accepted: незнакомый тип не оставляет пустоту в заголовке', async () => {
+    sendNotification.mockResolvedValue({ status: 'sent' });
+    const { db, createFn } = makeDb({ managers: ONE_MANAGER });
+
+    await notifyManagers(db, {
+      orderId: 'o1',
+      type: 'document_accepted',
+      payload: {
+        documentId: 'doc-3',
+        documentType: 'weird',
+        documentNumber: null,
+        orderNumber: 'ON-1',
+      },
+    });
+
+    expect(createFn.mock.calls[0][0].data.title).toBe('Документ принят заказчиком');
+  });
+});

@@ -231,6 +231,8 @@ export const AUDIT_ACTIONS = [
   // в catalog_item_updated.
   // `У-148` (этап 6): жизненный цикл документа.
   'document_status_changed',
+  // `У-149`: отправка документа заказчику письмом, в том числе повторная.
+  'document_sent',
   'order_total_synced',
   'requisites_requested',
   'catalog_item_created',

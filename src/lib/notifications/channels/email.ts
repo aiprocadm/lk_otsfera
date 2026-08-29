@@ -10,6 +10,7 @@
 import {
   sendNotificationEmail,
   sendOrgDocumentPublishedEmail,
+  sendOrgDocumentSentEmail,
   sendOrgPaymentReceivedEmail,
   sendOrgManagerRepliedEmail,
   sendOrgOrderStatusChangedEmail,
@@ -37,6 +38,7 @@ type EmailSender = (args: { to: string } & Record<string, unknown>) => Promise<S
 const EMAIL_TEMPLATES: Record<EmailTemplateKey, () => EmailSender> = {
   notification: () => sendNotificationEmail as EmailSender,
   orgDocumentPublished: () => sendOrgDocumentPublishedEmail as EmailSender,
+  orgDocumentSent: () => sendOrgDocumentSentEmail as EmailSender,
   orgPaymentReceived: () => sendOrgPaymentReceivedEmail as EmailSender,
   orgManagerReplied: () => sendOrgManagerRepliedEmail as EmailSender,
   orgOrderStatusChanged: () => sendOrgOrderStatusChangedEmail as EmailSender,

@@ -15,6 +15,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { canReadDocument } from '@/lib/auth/policy';
+import { invoicePaymentState, type InvoicePaymentResult } from '@/lib/documents/invoicePayment';
 
 type DocumentDetailError = 'not_found';
 
@@ -38,6 +39,11 @@ export type DocumentDetail = {
   amountGross: string | null;
   /** Когда и кем документ отправлен клиенту и принят им (`У-149`, `У-150`). */
   sentAt: Date | null;
+  /**
+   * Признак оплаты счёта (`У-148`) — вычисляемый, по платежам заказа.
+   * `null` — судить не по чему: это не счёт, у него нет номера или суммы.
+   */
+  payment: InvoicePaymentResult | null;
   acceptedAt: Date | null;
   /** Заказ, к которому относится документ (у общих документов — null). */
   order: { id: string; title: string; orderNumber: string | null } | null;
@@ -102,6 +108,27 @@ export async function getDocumentDetail(
 
   const gross = doc.amountGross ?? null;
 
+  // `У-148`: признак оплаты считается только у счёта и только по платежам
+  // ЕГО заказа. Отдельным запросом, а не вложенным select: у остальных типов
+  // документов платежи не спрашиваются вовсе.
+  let payment: InvoicePaymentResult | null = null;
+  if (doc.type === 'invoice' && doc.orderId && doc.number && gross !== null) {
+    const payments = await prisma.payment.findMany({
+      where: { orderId: doc.orderId },
+      select: { amount: true, isRefund: true, purpose: true, note: true },
+    });
+    payment = invoicePaymentState({
+      number: doc.number,
+      amountGross: gross.toFixed(2),
+      payments: payments.map((p) => ({
+        amount: p.amount.toFixed(2),
+        isRefund: p.isRefund,
+        purpose: p.purpose,
+        note: p.note,
+      })),
+    });
+  }
+
   return {
     ok: true,
     document: {
@@ -123,6 +150,7 @@ export async function getDocumentDetail(
       amountGross: gross === null ? null : gross.toFixed(2),
       sentAt: doc.sentAt ?? null,
       acceptedAt: doc.acceptedAt ?? null,
+      payment,
       uploadedByName: doc.uploadedBy?.name ?? doc.uploadedBy?.email ?? null,
       order: doc.order
         ? { id: doc.order.id, title: doc.order.title, orderNumber: doc.order.orderNumber }

@@ -36,6 +36,13 @@ export {
 export type { OrgDocumentPublishedProps } from './organization/document-published';
 
 export {
+  OrgDocumentSentTemplate,
+  orgDocumentSentSubject,
+  orgDocumentSentText,
+} from './organization/document-sent';
+export type { OrgDocumentSentProps } from './organization/document-sent';
+
+export {
   OrgPaymentReceivedTemplate,
   orgPaymentReceivedSubject,
   orgPaymentReceivedText,
