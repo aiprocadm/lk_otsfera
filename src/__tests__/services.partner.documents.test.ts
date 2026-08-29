@@ -119,7 +119,9 @@ beforeAll(async () => {
   });
   partnerDocInvoice = dInvoice.id;
 
-  // Org-channel doc on orderA1 — must NOT be visible to the partner
+  // Документ канала организации на orderA1. `У-155` (этап 6): партнёр ВИДИТ
+  // такие документы у организаций СВОЕГО портфеля — он ведёт этого клиента.
+  // Видимость даёт скоуп портфеля, а не канал (решение `Р-18`).
   const dOrgChannel = await prisma.document.create({
     data: {
       name: 'contract-org-channel-A1.pdf',
@@ -172,10 +174,13 @@ describe('services/partner/orgDocuments — getOrgDocuments', () => {
     expect(total).toBeGreaterThanOrEqual(1);
   });
 
-  it('does NOT leak organization-channel docs to the partner', async () => {
+  it('показывает и документы самой организации портфеля (`У-155`)', async () => {
+    // До этапа 6 партнёру отдавали только партнёрский канал, и вкладка
+    // «Документы» у клиента выглядела почти пустой. Решение `Р-18` изменило
+    // правило: изоляция — по портфелю, а не по каналу.
     const { rows } = await getOrgDocuments(prisma, { orgId: orgAId, partnerId });
     const ids = rows.map((r) => r.id);
-    expect(ids).not.toContain(orgChannelDoc);
+    expect(ids).toContain(orgChannelDoc);
     expect(ids).toContain(partnerDocAct);
   });
 

@@ -19,8 +19,15 @@ const USER_ID = `st8-admin-${STAMP}`;
 const admin = { sub: USER_ID, role: 'admin' } as never;
 const manager = { sub: USER_ID, role: 'manager', managedOrgIds: [] } as never;
 
-/** Поведенческий флаг (не закрывает раздел) — его и переключаем. */
-const FLAG = 'document_generation';
+/**
+ * Поведенческий флаг (не закрывает раздел) — его и переключаем.
+ *
+ * Нужен именно **opt-in** флаг: тест начинается с «умолчание — выключено».
+ * Раньше здесь стоял `document_generation`, но `У-144` (этап 6) перевёл его в
+ * opt-out — выпуск документов давно не эксперимент. Тест остался на старом
+ * умолчании и покраснел, хотя код изменился намеренно.
+ */
+const FLAG = 'cabinet_questions';
 const ROUTE_FLAG = 'manager_cabinet';
 
 beforeAll(async () => {
