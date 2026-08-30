@@ -154,7 +154,18 @@ export function IssueDocumentDialog({
   const parentType = docType === 'act' ? 'invoice' : 'contract';
   const parentOptions = baseDocuments.filter((d) => d.type === parentType);
 
+  /**
+   * Пакет для сервера. Уезжают ТОЛЬКО те поля, которые форма показала для
+   * выбранного типа: значения живут в состоянии диалога и при смене типа не
+   * стираются, поэтому набранный для договора «Порядок оплаты» иначе уехал бы
+   * в доп. соглашение — и напечатался бы в бумаге пунктом, которого человек
+   * на экране уже не видел. Заодно он глушил бы текст, настроенный компанией
+   * в шаблоне (`У-160`).
+   */
   function payload(onAmountMismatch?: 'update_order' | 'keep_order') {
+    const isContract = docType === 'contract';
+    const isExtra = docType === 'extra_agreement';
+    const isAct = docType === 'act';
     return JSON.stringify({
       ...(target.kind === 'order'
         ? { orderId: target.orderId }
@@ -163,13 +174,13 @@ export function IssueDocumentDialog({
       lines,
       documentDate,
       ...(onAmountMismatch ? { onAmountMismatch } : {}),
-      ...(subject.trim() ? { subject: subject.trim() } : {}),
-      ...(validUntil ? { validUntil } : {}),
-      ...(paymentTerms.trim() ? { paymentTerms: paymentTerms.trim() } : {}),
-      ...(changeText.trim() ? { changeText: changeText.trim() } : {}),
-      ...(periodFrom ? { periodFrom } : {}),
-      ...(periodTo ? { periodTo } : {}),
-      ...(parentDocumentId ? { parentDocumentId } : {}),
+      ...(isContract && subject.trim() ? { subject: subject.trim() } : {}),
+      ...(isContract && validUntil ? { validUntil } : {}),
+      ...(isContract && paymentTerms.trim() ? { paymentTerms: paymentTerms.trim() } : {}),
+      ...(isExtra && changeText.trim() ? { changeText: changeText.trim() } : {}),
+      ...(isAct && periodFrom ? { periodFrom } : {}),
+      ...(isAct && periodTo ? { periodTo } : {}),
+      ...((isAct || isExtra) && parentDocumentId ? { parentDocumentId } : {}),
     });
   }
 
@@ -367,10 +378,13 @@ export function IssueDocumentDialog({
                 />
               </Field>
             </div>
+            {/* `У-160`: «типовая формулировка» перестала быть правдой, как
+                только у компании появился свой текст. Подсказка обязана
+                называть то, что подставится на самом деле. */}
             <Field
               htmlFor="issue-payment-terms"
               label="Порядок оплаты"
-              hint="Пусто — типовая формулировка"
+              hint="Пусто — текст из шаблона документов. Номер пункта проставится сам."
             >
               <Textarea
                 id="issue-payment-terms"
@@ -386,7 +400,7 @@ export function IssueDocumentDialog({
           <Field
             htmlFor="issue-change-text"
             label="Что меняется"
-            hint="Пусто — типовая формулировка"
+            hint="Пусто — текст из шаблона документов. Номер пункта проставится сам."
           >
             <Textarea
               id="issue-change-text"

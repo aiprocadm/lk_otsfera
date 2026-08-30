@@ -1,4 +1,10 @@
 import type { EmailTemplateKey } from '@/lib/notifications/channels/types';
+import {
+  applyPlaceholders,
+  extractPlaceholders,
+  findUnknownPlaceholders,
+  type TemplatePlaceholder,
+} from '@/lib/templates/placeholders';
 
 /**
  * Реестр шаблонов писем: какие подстановки допустимы в каждом (`У-128`).
@@ -18,14 +24,13 @@ import type { EmailTemplateKey } from '@/lib/notifications/channels/types';
  * при первой же правке вёрстки.
  */
 
-export type TemplatePlaceholder = {
-  /** Как пишется в тексте письма. */
-  token: string;
-  /** Поле в данных письма. */
-  prop: string;
-  /** Что это, по-русски — показывается рядом с редактором. */
-  label: string;
-};
+/**
+ * Подстановка. Тип общий с текстами документов (`У-160`): механика поиска и
+ * замены живёт в `lib/templates/placeholders`, а здесь остаётся то, что
+ * относится именно к письмам — список допустимых подстановок и правило
+ * «пустое значение → прочерк».
+ */
+export type { TemplatePlaceholder };
 
 export type EmailTemplateSpec = {
   /** Название письма для человека. */
@@ -166,7 +171,7 @@ export function isEmailTemplateKey(value: string): value is EmailTemplateKey {
 
 /** Все подстановки, встреченные в тексте. */
 export function extractTokens(text: string): string[] {
-  return [...text.matchAll(/\{\{\s*([^}]+?)\s*\}\}/g)].map((m) => m[1]!);
+  return extractPlaceholders(text);
 }
 
 export type ValidateResult = { ok: true } | { ok: false; unknown: string[] };
@@ -179,9 +184,10 @@ export type ValidateResult = { ok: true } | { ok: false; unknown: string[] };
  * теме прошла бы незамеченной.
  */
 export function validateTemplateText(key: EmailTemplateKey, ...texts: string[]): ValidateResult {
-  const allowed = new Set(EMAIL_TEMPLATE_REGISTRY[key].placeholders.map((p) => p.token));
-  const unknown = [...new Set(texts.flatMap(extractTokens))].filter((t) => !allowed.has(t));
-  return unknown.length === 0 ? { ok: true } : { ok: false, unknown };
+  return findUnknownPlaceholders(
+    EMAIL_TEMPLATE_REGISTRY[key].placeholders.map((p) => p.token),
+    ...texts
+  );
 }
 
 /**
@@ -195,12 +201,16 @@ export function renderTemplateText(
   text: string,
   props: Record<string, unknown>
 ): string {
-  const byToken = new Map(EMAIL_TEMPLATE_REGISTRY[key].placeholders.map((p) => [p.token, p.prop]));
-  return text.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (whole, token: string) => {
-    const prop = byToken.get(token);
-    if (!prop) return whole; // до сюда не доходит: сохранение уже отказало
-    const value = props[prop];
-    if (value === null || value === undefined || value === '') return '—';
-    return String(value);
-  });
+  // Прочерки расставляются ЗДЕСЬ, а не в общем движке: правило «пусто —
+  // прочерк» придумано для письма и в договор не переезжает («действует до —»
+  // означало бы бумагу без срока).
+  const values = new Map<string, string>();
+  for (const p of EMAIL_TEMPLATE_REGISTRY[key].placeholders) {
+    const value = props[p.prop];
+    values.set(
+      p.token,
+      value === null || value === undefined || value === '' ? '—' : String(value)
+    );
+  }
+  return applyPlaceholders(text, values);
 }

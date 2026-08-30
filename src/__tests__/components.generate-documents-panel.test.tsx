@@ -123,6 +123,43 @@ describe('GenerateDocumentsPanel', () => {
 });
 
 describe('IssueDocumentDialog — выпуск (`У-147`, `У-143`)', () => {
+  /**
+   * Значения полей живут в состоянии диалога и при смене типа не стираются.
+   * Пока пакет собирался безусловно, набранный для договора «Порядок оплаты»
+   * уезжал в доп. соглашение и печатался пунктом 2.2 — человек этого поля на
+   * экране уже не видел, а с `У-160` он ещё и глушил текст, настроенный
+   * компанией в шаблоне.
+   */
+  it('поля, скрытые для выбранного типа, в пакет не попадают', async () => {
+    generateOrderDocumentAction.mockResolvedValue({
+      ok: true,
+      documentId: 'd1',
+      number: 'ДС-2026-1',
+    });
+    panel({ hasContract: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Выпустить документ' }));
+    const dialog = document.querySelector('dialog[open]') as HTMLElement;
+
+    fireEvent.change(within(dialog).getByLabelText('Тип документа'), {
+      target: { value: 'contract' },
+    });
+    fireEvent.change(within(dialog).getByLabelText('Порядок оплаты'), {
+      target: { value: '100% предоплата до начала обучения' },
+    });
+    fireEvent.change(within(dialog).getByLabelText('Тип документа'), {
+      target: { value: 'extra_agreement' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Выпустить' }));
+    await waitFor(() => expect(generateOrderDocumentAction).toHaveBeenCalled());
+
+    const fd = generateOrderDocumentAction.mock.calls[0]![0] as FormData;
+    const payload = JSON.parse(fd.get('payload') as string);
+    expect(payload.docType).toBe('extra_agreement');
+    expect('paymentTerms' in payload).toBe(false);
+    expect('subject' in payload).toBe(false);
+    expect('validUntil' in payload).toBe(false);
+  });
+
   function openDialog(over: Partial<React.ComponentProps<typeof GenerateDocumentsPanel>> = {}) {
     panel(over);
     fireEvent.click(screen.getByRole('button', { name: 'Выпустить документ' }));
@@ -130,7 +167,11 @@ describe('IssueDocumentDialog — выпуск (`У-147`, `У-143`)', () => {
   }
 
   it('выпуск отправляет тип, дату и строки одним пакетом', async () => {
-    generateOrderDocumentAction.mockResolvedValue({ ok: true, documentId: 'd1', number: 'С-2026-7' });
+    generateOrderDocumentAction.mockResolvedValue({
+      ok: true,
+      documentId: 'd1',
+      number: 'С-2026-7',
+    });
     const dialog = openDialog();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Выпустить' }));
     await waitFor(() => expect(generateOrderDocumentAction).toHaveBeenCalled());

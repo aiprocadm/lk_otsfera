@@ -191,6 +191,22 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     legacyHrefs: [],
   },
   {
+    id: 'catalogs.documentTemplates',
+    group: 'catalogs',
+    title: 'Шаблоны документов',
+    description:
+      'Тексты пунктов договора и доп. соглашения: предмет, оплата, сроки, ответственность.',
+    // `У-9`: свой знак. «📄» занят документами, «🧾» — реквизитами исполнителя;
+    // один знак на два объекта означал бы, что они об одном и том же.
+    icon: '📑',
+    path: 'catalogs/document-templates',
+    capability: 'settings.catalogs.manage',
+    // `У-160`/`Р-22`: руководитель правит тексты СВОЕЙ компании — границу
+    // держит сервис сравнением companyId, а не видимость карточки.
+    cabinets: ['admin', 'leader'],
+    legacyHrefs: [],
+  },
+  {
     id: 'catalogs.requisites',
     group: 'catalogs',
     title: 'Реквизиты исполнителя',

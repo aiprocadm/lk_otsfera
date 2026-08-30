@@ -309,7 +309,13 @@ describe('выпуск документа без заказа (`У-145`)', () =>
       lines: [LINE],
     });
     expect(r.ok).toBe(true);
-    expect(renderContractMock.mock.calls[0]![0]).toMatchObject({ subject: 'Оказание услуг' });
+    // `У-160`: предмет больше не отдельное поле шаблона печати — он попадает
+    // внутрь готового абзаца 1.1 подстановкой.
+    const clauses = renderContractMock.mock.calls[0]![0].clauses as Array<{
+      key: string;
+      text: string;
+    }>;
+    expect(clauses.find((c) => c.key === 'subject.contract')?.text).toContain('Оказание услуг');
   });
 
   it('предпросмотр счёта без заказа не печатает подзаголовок заказа и не тратит номер', async () => {
