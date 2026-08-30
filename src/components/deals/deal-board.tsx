@@ -7,6 +7,8 @@ import { toast } from '@/lib/ui/toast';
 import { fmtDate, fmtMoney } from '@/lib/format';
 import { moveDealAction, winDealAction } from '@/server-actions/deals';
 import type { DealBoard as DealBoardData, DealCard, DealColumn } from '@/lib/services/deals/board';
+import type { IssueLine } from '@/components/manager/issue-document-dialog';
+import { IssueOrderLessDocumentDialog } from '@/components/documents/issue-order-less-document-button';
 import { DealDialog, type DealDialogOption, type DealDialogTarget } from './deal-dialog';
 
 /**
@@ -29,6 +31,27 @@ const WIN_ERRORS: Record<string, string> = {
   lifecycle_violation: 'Такой переход недопустим: сделка уже завершена.',
   forbidden: 'Нет доступа.',
 };
+
+/**
+ * Чем заполняется состав документа из сделки (`У-145`): название сделки и её
+ * сумма одной строкой. Сумма — «с НДС по умолчанию компании»: ставку и цену
+ * человек правит в форме до выпуска, а пустой состав заставил бы набирать
+ * всё заново.
+ */
+function dealPrefillLines(deal: DealDialogTarget): IssueLine[] {
+  if (!deal.amount) return [];
+  return [
+    {
+      title: deal.title,
+      quantity: '1',
+      unit: 'service',
+      unitPrice: deal.amount,
+      discountPercent: null,
+      vatRate: null,
+      vatIncluded: true,
+    },
+  ];
+}
 
 function columnAmount(col: DealColumn): string | null {
   let sum = 0;
@@ -65,6 +88,9 @@ export function DealBoard({
   const [wonError, setWonError] = useState<string | null>(null);
   const [wonBusy, setWonBusy] = useState(false);
   const [editTarget, setEditTarget] = useState<DealDialogTarget | null>(null);
+  // `У-145`: форма выпуска живёт на доске, а не внутри карточки сделки —
+  // иначе модалка открывалась бы поверх модалки.
+  const [issueFor, setIssueFor] = useState<DealDialogTarget | null>(null);
   const canEdit =
     organizations !== undefined && managers !== undefined && currentUserId !== undefined;
 
@@ -270,11 +296,30 @@ export function DealBoard({
           managers={managers}
           currentUserId={currentUserId}
           tasksEnabled={tasksEnabled}
+          // Сделка без организации — выпускать не на кого: контрагент документа
+          // берётся из неё, а не выбирается в форме.
+          onIssueDocument={
+            editTarget.organizationId
+              ? () => {
+                  setIssueFor(editTarget);
+                  setEditTarget(null);
+                }
+              : undefined
+          }
           onClose={() => setEditTarget(null)}
           onSaved={() => {
             setEditTarget(null);
             startTransition(() => router.refresh());
           }}
+        />
+      )}
+
+      {issueFor?.organizationId && (
+        <IssueOrderLessDocumentDialog
+          organizationId={issueFor.organizationId}
+          defaultSubject={issueFor.title}
+          prefillLines={dealPrefillLines(issueFor)}
+          onClose={() => setIssueFor(null)}
         />
       )}
     </div>

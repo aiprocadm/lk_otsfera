@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Breadcrumbs } from '@/components/ui';
 import { requireAdmin } from '@/lib/auth/requireRole';
@@ -21,6 +22,8 @@ import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fie
 import { getFieldsForEntity } from '@/lib/services/customFields';
 import { getAutoCreatedFrom1C } from '@/lib/services/organization/autoCreated';
 import { AutoCreatedBadge } from '@/components/organization/auto-created-badge';
+import { IssueOrderLessDocumentButton } from '@/components/documents/issue-order-less-document-button';
+import { isFeatureEnabled } from '@/lib/featureFlags';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 
 import { PageHeader } from '@/components/ui/page-header';
@@ -117,6 +120,23 @@ export default async function AdminOrganizationDetailPage({
           </p>
           <EgrulFillDialog organizationId={org.id} organizationName={org.name} />
         </div>
+      )}
+
+      {/* `У-145`: счёт, договор и доп. соглашение выставляются и **без
+          заказа** — прямо из карточки организации. У администратора карточка
+          пока плоская (реестр вкладок `orgCardTabs` она не использует —
+          расхождение записано в AUDIT.md), поэтому выпуск живёт отдельным
+          блоком; кнопка и форма — тот же компонент, что у менеджера. */}
+      {isFeatureEnabled('document_generation') && (
+        <section className="space-y-3">
+          <h2 className="text-base font-semibold text-[#111111]">Документы</h2>
+          <div className="flex flex-wrap items-center gap-3">
+            <IssueOrderLessDocumentButton organizationId={id} />
+            <Link href="/admin/documents?tab=general" className="text-sm text-[#EA580C] underline">
+              Все общие документы
+            </Link>
+          </div>
+        </section>
       )}
 
       <section className="space-y-3">

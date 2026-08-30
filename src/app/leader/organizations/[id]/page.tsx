@@ -13,6 +13,7 @@ import { OrgStaffSettings } from '@/components/organization/org-staff-settings';
 import { getFieldsForEntity } from '@/lib/services/customFields';
 import { getAutoCreatedFrom1C } from '@/lib/services/organization/autoCreated';
 import { AutoCreatedBadge } from '@/components/organization/auto-created-badge';
+import { IssueOrderLessDocumentButton } from '@/components/documents/issue-order-less-document-button';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import { Breadcrumbs } from '@/components/ui';
 
@@ -91,6 +92,13 @@ export default async function LeaderOrgDetailPage({
           ) : null
         }
         egrulAction={<EgrulFillDialog organizationId={id} organizationName={card.name} />}
+        documentsAction={
+          // `У-145`: счёт, договор и ДС можно выставить и без заказа. Право на
+          // выпуск проверяет сервер — кнопка только открывает форму.
+          isFeatureEnabled('document_generation') ? (
+            <IssueOrderLessDocumentButton organizationId={id} />
+          ) : null
+        }
         settings={
           customFields ? (
             <OrgStaffSettings

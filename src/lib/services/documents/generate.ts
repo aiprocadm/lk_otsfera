@@ -17,11 +17,17 @@ import {
 } from './orderDocumentPdf';
 import { buildPrintTable, fallbackPrintLine, type PrintLineInput } from './printTable';
 import { loadDocumentBranding } from './branding';
+import { resolveOrgIssueScope } from './issueScope';
 
 /**
- * Выпуск счёта, акта, договора и доп. соглашения по заказу.
+ * Выпуск счёта, акта, договора и доп. соглашения по заказу — и **без заказа**
+ * (`У-145`): из карточки организации и из сделки. Цель ровно одна: либо
+ * `orderId`, либо `organizationId`. Различаются только гейт, происхождение
+ * строк и круг «соседних» документов; реквизиты, номер, печать и запись —
+ * общие, чтобы документ без заказа не стал вторым, отдельно живущим выпуском.
  *
- * Гейты: staff (manager|leader|admin) + `canSeeOrder` (C8 teamMode-aware).
+ * Гейты: staff (manager|leader|admin) + `canSeeOrder` (C8 teamMode-aware) для
+ * документа заказа, скоуп организации — для документа без заказа.
  * Полнота реквизитов — до всего, и **набор зависит от типа** (`У-156`).
  * Номер: ведущий тип берёт его атомарным upsert+increment
  * `DocumentCounter(companyId, year, kind)`, ведомый (акт, ДС) наследует номер
@@ -71,7 +77,13 @@ export type IssueExtras = {
 };
 
 export type GenerateArgs = {
-  orderId: string;
+  /**
+   * Заказ, по которому выпускается документ. Взаимоисключим с
+   * `organizationId`: документ без заказа (`У-145`) якорится организацией.
+   */
+  orderId?: string;
+  /** Организация-заказчик документа **без заказа** (`У-145`). */
+  organizationId?: string;
   docType: GenerateDocType;
   now?: Date;
   /**
@@ -98,6 +110,8 @@ export type GenerateResult =
         | 'contract_required'
         | 'no_organization'
         | 'parent_not_found'
+        | 'act_requires_order'
+        | 'lines_required'
         | 'storage';
       missing?: MissingRequisite[];
     }
@@ -186,65 +200,81 @@ const PARTY_SELECT = {
 /** Ошибки, общие для выпуска и предпросмотра. */
 type IssueFailure = Extract<GenerateResult, { ok: false; error: string }>;
 
+/**
+ * Кому и по чему выпускаем: заказ ЛИБО организация (`У-145`). Обе двери дают
+ * одну и ту же тройку «организация + компания-исполнитель (+ заказ)», поэтому
+ * дальше выпуск не различает, откуда пришёл вызов.
+ */
+type IssueTarget = {
+  /** `null` — документ без заказа. */
+  order: OrderRow | null;
+  organizationId: string;
+  companyId: string;
+};
+
 type IssueContext = {
+  /** `null` — документ без заказа (`У-145`): якорь у него — организация. */
   order: {
     id: string;
     title: string;
     orderNumber: string | null;
-    organizationId: string;
-  };
+    /**
+     * Сумма заказа строкой фиксированной точности — для сверки (`У-143`).
+     * Живёт ВНУТРИ заказа, а не рядом: без заказа сверять не с чем, и
+     * отдельное поле-«может быть» пришлось бы проверять вторым условием.
+     */
+    total: string;
+  } | null;
+  organizationId: string;
   companyId: string;
   company: PartyBlock;
   organization: PartyBlock;
   printLines: PrintLineInput[];
   table: ReturnType<typeof buildPrintTable>;
   branding: Awaited<ReturnType<typeof loadDocumentBranding>>;
-  /** Сумма заказа строкой фиксированной точности — для сверки (`У-143`). */
-  orderTotal: string;
   documentDate: Date;
 };
 
 /**
- * Общая половина выпуска и предпросмотра (`У-147`): гейты, реквизиты, строки,
- * итоги и оформление. Номер здесь НЕ резервируется — предпросмотр не должен
- * тратить номера из счётчика, иначе в нумерации появлялись бы дыры от каждой
- * «посмотреть, как получится».
+ * Заказ как цель выпуска: гейт `canSeeOrder` (C8, teamMode-aware) и состав
+ * заказа для табличной части.
  */
-async function loadIssueContext(
+const ORDER_TARGET_SELECT = {
+  id: true,
+  title: true,
+  orderNumber: true,
+  companyId: true,
+  organizationId: true,
+  managerId: true,
+  totalAmount: true,
+  vatIncluded: true,
+  vatRate: true,
+  // `У-139` (этап 5): табличную часть печатают ФИНАНСОВЫЕ строки заказа.
+  lines: {
+    select: {
+      title: true,
+      quantity: true,
+      unit: true,
+      unitPrice: true,
+      discountPercent: true,
+      vatRate: true,
+      vatIncluded: true,
+      sortOrder: true,
+    },
+    orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+  },
+} satisfies Prisma.OrderSelect;
+
+type OrderRow = Prisma.OrderGetPayload<{ select: typeof ORDER_TARGET_SELECT }>;
+
+async function loadOrderTarget(
   prisma: PrismaClient,
   session: SessionPayload,
-  args: GenerateArgs
-): Promise<{ ok: true; ctx: IssueContext } | IssueFailure> {
-  if (!isStaffManagerSide(session) && session.role !== 'admin')
-    return { ok: false, error: 'forbidden' };
-
+  orderId: string
+): Promise<{ ok: true; target: IssueTarget } | IssueFailure> {
   const order = await prisma.order.findUnique({
-    where: { id: args.orderId },
-    select: {
-      id: true,
-      title: true,
-      orderNumber: true,
-      companyId: true,
-      organizationId: true,
-      managerId: true,
-      totalAmount: true,
-      vatIncluded: true,
-      vatRate: true,
-      // `У-139` (этап 5): табличную часть печатают ФИНАНСОВЫЕ строки заказа.
-      lines: {
-        select: {
-          title: true,
-          quantity: true,
-          unit: true,
-          unitPrice: true,
-          discountPercent: true,
-          vatRate: true,
-          vatIncluded: true,
-          sortOrder: true,
-        },
-        orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
-      },
-    },
+    where: { id: orderId },
+    select: ORDER_TARGET_SELECT,
   });
   if (!order) return { ok: false, error: 'not_found' };
 
@@ -270,13 +300,81 @@ async function loadIssueContext(
       missing: [{ side: 'company', label: 'компания-исполнитель заказа' }],
     };
 
+  return {
+    ok: true,
+    target: { order, organizationId: order.organizationId, companyId },
+  };
+}
+
+/**
+ * Организация как цель выпуска — документ **без заказа** (`У-145`).
+ *
+ * Скоуп здесь свой, и это не дублирование `canSeeOrder`: у документа без
+ * заказа нет заказа, по которому проверять видимость. Правило то же, что у
+ * карточки организации: админ видит всё, сотрудник ЦО — свою компанию, а вне
+ * `teamMode` ещё и только закреплённые за ним организации. Компания берётся
+ * **из организации**, а не из формы: подменить её вызовом нельзя.
+ */
+async function loadOrganizationTarget(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  organizationId: string
+): Promise<{ ok: true; target: IssueTarget } | IssueFailure> {
+  const scope = await resolveOrgIssueScope(prisma, session, organizationId);
+  if (!scope.ok) {
+    // «Нет компании-исполнителя» — это нехватка реквизитов, а не отказ по
+    // правам: иначе сотрудник искал бы у себя недостающий доступ.
+    if (scope.error === 'org_no_company')
+      return {
+        ok: false,
+        error: 'missing_requisites',
+        missing: [{ side: 'company', label: 'компания-исполнитель организации' }],
+      };
+    return { ok: false, error: scope.error };
+  }
+  return { ok: true, target: { order: null, organizationId, companyId: scope.companyId } };
+}
+
+/**
+ * Общая половина выпуска и предпросмотра (`У-147`): гейты, реквизиты, строки,
+ * итоги и оформление. Номер здесь НЕ резервируется — предпросмотр не должен
+ * тратить номера из счётчика, иначе в нумерации появлялись бы дыры от каждой
+ * «посмотреть, как получится».
+ *
+ * Дверей две (`У-145`): заказ или организация. Различаются только цель и
+ * происхождение строк — реквизиты, итоги, оформление и печать общие.
+ */
+async function loadIssueContext(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  args: GenerateArgs
+): Promise<{ ok: true; ctx: IssueContext } | IssueFailure> {
+  if (!isStaffManagerSide(session) && session.role !== 'admin')
+    return { ok: false, error: 'forbidden' };
+
+  // Ровно одна цель. «И заказ, и организация» или «ни того, ни другого» —
+  // сломанный вызов; отвечаем как на несуществующий объект, чтобы перебором
+  // нельзя было выяснить, что существует (§4).
+  if (!!args.orderId === !!args.organizationId) return { ok: false, error: 'not_found' };
+
+  const loaded = args.orderId
+    ? await loadOrderTarget(prisma, session, args.orderId)
+    : await loadOrganizationTarget(prisma, session, args.organizationId ?? '');
+  if (!loaded.ok) return loaded;
+  const { order, organizationId, companyId } = loaded.target;
+
+  // `У-145` перечисляет три типа без заказа: счёт, договор, ДС. Акт наследует
+  // номер счёта ЗАКАЗА — наследовать без заказа нечего, поэтому запрет живёт
+  // на сервере, а не только в наборе вариантов формы.
+  if (!order && args.docType === 'act') return { ok: false, error: 'act_requires_order' };
+
   const [company, organization] = await Promise.all([
     prisma.company.findUnique({
       where: { id: companyId },
       // Ставка НДС по умолчанию нужна заказу без состава (`У-142`).
       select: { ...PARTY_SELECT, phone: true, email: true, defaultVatRate: true },
     }),
-    prisma.organization.findUnique({ where: { id: order.organizationId }, select: PARTY_SELECT }),
+    prisma.organization.findUnique({ where: { id: organizationId }, select: PARTY_SELECT }),
   ]);
   if (!company || !organization) return { ok: false, error: 'not_found' };
 
@@ -288,10 +386,13 @@ async function loadIssueContext(
 
   // Табличная часть (`У-141`, `У-142`): строки из формы выпуска, иначе состав
   // заказа, иначе одна строка-заглушка на сумму заказа.
-  const printLines: PrintLineInput[] =
-    args.lines && args.lines.length > 0
-      ? args.lines
-      : order.lines.length > 0
+  const formLines = args.lines && args.lines.length > 0 ? args.lines : null;
+  let printLines: PrintLineInput[];
+  if (formLines) {
+    printLines = formLines;
+  } else if (order) {
+    printLines =
+      order.lines.length > 0
         ? order.lines.map((l) => ({
             title: l.title,
             quantity: l.quantity.toString(),
@@ -313,6 +414,11 @@ async function loadIssueContext(
               vatIncluded: order.vatIncluded,
             }),
           ];
+  } else {
+    // `У-145`: состав документа без заказа вводится в форме. Запасной строки
+    // здесь взять неоткуда — придумать сумму «за клиента» хуже, чем отказать.
+    return { ok: false, error: 'lines_required' };
+  }
   const table = buildPrintTable(printLines);
 
   // Оформление (`У-153`) читаем ДО транзакции: картинки не зависят от номера,
@@ -322,19 +428,21 @@ async function loadIssueContext(
   return {
     ok: true,
     ctx: {
-      order: {
-        id: order.id,
-        title: order.title,
-        orderNumber: order.orderNumber,
-        organizationId: order.organizationId,
-      },
+      order: order
+        ? {
+            id: order.id,
+            title: order.title,
+            orderNumber: order.orderNumber,
+            total: order.totalAmount.toFixed(2),
+          }
+        : null,
+      organizationId,
       companyId,
       company: party(company),
       organization: party(organization),
       printLines,
       table,
       branding,
-      orderTotal: order.totalAmount.toFixed(2),
       documentDate,
     },
   };
@@ -354,7 +462,9 @@ function renderDocument(
       date: ctx.documentDate,
       company: ctx.company,
       organization: ctx.organization,
-      subject: args.extras?.subject?.trim() || ctx.order.title,
+      // Без заказа названия заказа нет — типовая формулировка честнее пустой
+      // строки в предмете договора.
+      subject: args.extras?.subject?.trim() || ctx.order?.title || 'Оказание услуг',
       table: ctx.table,
       branding: ctx.branding,
       baseContract: args.baseContract ?? null,
@@ -371,7 +481,11 @@ function renderDocument(
     date: ctx.documentDate,
     company: ctx.company,
     organization: ctx.organization,
-    orderLabel: `Заказ ${ctx.order.orderNumber ? `№${ctx.order.orderNumber} ` : ''}«${ctx.order.title}»`,
+    // `У-145`: у документа без заказа подзаголовка нет — печатать «Заказ
+    // «без названия»» значило бы придумать несуществующую связь.
+    orderLabel: ctx.order
+      ? `Заказ ${ctx.order.orderNumber ? `№${ctx.order.orderNumber} ` : ''}«${ctx.order.title}»`
+      : null,
     table: ctx.table,
     branding: ctx.branding,
     servicePeriod:
@@ -412,20 +526,36 @@ export async function generateOrderDocument(
   const loaded = await loadIssueContext(prisma, session, args);
   if (!loaded.ok) return loaded;
   const { ctx } = loaded;
-  const { order, companyId, table, printLines } = ctx;
+  const { order, companyId, organizationId, table, printLines } = ctx;
   const now = args.now ?? new Date();
   const year = ctx.documentDate.getFullYear();
 
+  /**
+   * Соседи документа — те, среди которых ищутся основание и предыдущая версия
+   * (`У-147`, `У-151`). У документа заказа это документы заказа, у документа
+   * без заказа — документы той же организации, тоже без заказа: смешивать
+   * нельзя, иначе ДС организации привязалось бы к договору чужого заказа.
+   */
+  const siblingWhere: Prisma.DocumentWhereInput = order
+    ? { orderId: order.id }
+    : {
+        orderId: null,
+        companyId,
+        counterpartyType: 'organization',
+        counterpartyId: organizationId,
+      };
+
   // `У-143` (дефект `Д-8`): расхождение суммы строк с суммой заказа — вопрос
-  // человеку, а не молчаливый выбор одной из двух цифр.
+  // человеку, а не молчаливый выбор одной из двух цифр. Без заказа сверять не
+  // с чем: сумма документа и есть сумма строк.
   const isMoneyDocument = args.docType === 'invoice' || args.docType === 'act';
-  if (isMoneyDocument && table.gross !== ctx.orderTotal) {
+  if (isMoneyDocument && order && table.gross !== order.total) {
     if (!args.onAmountMismatch) {
       return {
         ok: false,
         error: 'amount_mismatch',
         linesTotal: table.gross,
-        orderTotal: ctx.orderTotal,
+        orderTotal: order.total,
       };
     }
     if (args.onAmountMismatch === 'update_order') {
@@ -438,7 +568,7 @@ export async function generateOrderDocument(
         action: 'order_total_synced',
         entity: 'order',
         entityId: order.id,
-        after: { before: ctx.orderTotal, after: table.gross, reason: 'document_issue' },
+        after: { before: order.total, after: table.gross, reason: 'document_issue' },
       });
     }
   }
@@ -472,7 +602,7 @@ export async function generateOrderDocument(
           ? await tx.document.findFirst({
               where: {
                 id: args.extras.parentDocumentId,
-                orderId: order.id,
+                ...siblingWhere,
                 type: leader,
                 number: { not: null },
               },
@@ -480,7 +610,7 @@ export async function generateOrderDocument(
             })
           : await tx.document.findFirst({
               where: {
-                orderId: order.id,
+                ...siblingWhere,
                 type: leader,
                 generatedBy: 'system',
                 number: { not: null },
@@ -503,7 +633,7 @@ export async function generateOrderDocument(
       }
 
       const previous = await tx.document.findFirst({
-        where: { orderId: order.id, type: args.docType, generatedBy: 'system' },
+        where: { ...siblingWhere, type: args.docType, generatedBy: 'system' },
         orderBy: { version: 'desc' },
         select: { id: true, version: true },
       });
@@ -518,7 +648,10 @@ export async function generateOrderDocument(
   } catch (e) {
     if (e instanceof ParentNotFoundError) return { ok: false, error: 'parent_not_found' };
     if (e instanceof LeaderRequiredError) {
-      return { ok: false, error: e.leader === 'invoice' ? 'invoice_required' : 'contract_required' };
+      return {
+        ok: false,
+        error: e.leader === 'invoice' ? 'invoice_required' : 'contract_required',
+      };
     }
     throw e;
   }
@@ -533,12 +666,16 @@ export async function generateOrderDocument(
 
   // Ключ с UUID (`Д-2`): повторный выпуск не перезаписывает прежний файл, а
   // сбойная попытка не оставляет за собой «занятое» имя.
-  const path = `orders/${order.id}/generated/${args.docType}-v${reserved.version}-${randomUUID()}.pdf`;
+  // Документ без заказа кладём под организацию: путь `orders/<id>/…` для него
+  // назвал бы несуществующий заказ, а разбор хранилища идёт по префиксу.
+  const pathPrefix = order ? `orders/${order.id}` : `organizations/${organizationId}`;
+  const path = `${pathPrefix}/generated/${args.docType}-v${reserved.version}-${randomUUID()}.pdf`;
   try {
     await getObjectStorage().upload(path, buffer, { contentType: 'application/pdf' });
   } catch (e) {
     log.error('[documents/generate] upload failed', {
-      orderId: order.id,
+      orderId: order?.id ?? null,
+      organizationId,
       docType: args.docType,
       error: e instanceof Error ? e.message : String(e),
     });
@@ -567,9 +704,11 @@ export async function generateOrderDocument(
           amountGross: table.gross,
           currency: 'RUB',
           generatedBy: 'system',
-          orderId: order.id,
+          // XOR-инвариант схемы (`Document_order_xor_company`): документ либо
+          // при заказе, либо при компании — никогда при обоих сразу.
+          ...(order ? { orderId: order.id } : { companyId }),
           counterpartyType: 'organization',
-          counterpartyId: order.organizationId,
+          counterpartyId: organizationId,
           uploadedById: session.sub,
           scanStatus: 'clean',
           scannedAt: now,
@@ -586,7 +725,8 @@ export async function generateOrderDocument(
         entity: 'document',
         entityId: doc.id,
         after: {
-          orderId: order.id,
+          orderId: order?.id ?? null,
+          organizationId,
           docType: args.docType,
           number: reserved.number,
           version: reserved.version,
@@ -612,19 +752,22 @@ export async function generateOrderDocument(
   // Уведомление клиенту — best-effort (не откатывает выпуск).
   try {
     await notifyOrgUsers(prisma, {
-      organizationId: order.organizationId,
+      organizationId,
       type: 'document_published',
       payload: {
-        orderId: order.id,
-        orderNumber: order.orderNumber,
-        orderTitle: order.title,
+        // Пустой заказ письмо уже умеет (`orderId === null` ведёт в раздел
+        // общих документов кабинета) — своей ветки уведомления не заводим.
+        orderId: order?.id ?? null,
+        orderNumber: order?.orderNumber ?? null,
+        orderTitle: order?.title ?? null,
         documentName: `${reserved.number}.pdf`,
         documentType: args.docType,
       },
     });
   } catch (err) {
     log.warn('[documents/generate] notify failed', {
-      orderId: order.id,
+      orderId: order?.id ?? null,
+      organizationId,
       error: (err as Error).message,
     });
   }

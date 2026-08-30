@@ -5,7 +5,10 @@
  * реквизитов.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { getDocumentGenerationPanel } from '@/lib/services/documents/generationPanel';
+import {
+  getDocumentGenerationPanel,
+  getOrgDocumentIssuePanel,
+} from '@/lib/services/documents/generationPanel';
 
 const FULL = {
   name: 'Раб',
@@ -160,5 +163,154 @@ describe('getDocumentGenerationPanel', () => {
       vatRate: '0.2',
       vatIncluded: true,
     });
+  });
+});
+
+/**
+ * `У-145` — панель выпуска БЕЗ заказа. Проверяем ровно то, чем она отличается
+ * от панели заказа: круг «соседей» (документы организации без заказа) и
+ * каталог компании, из которого набирается состав.
+ */
+describe('getOrgDocumentIssuePanel', () => {
+  function orgPrisma(over: Record<string, unknown> = {}) {
+    const documentFindMany = vi.fn().mockResolvedValue(over.baseDocuments ?? []);
+    const catalogFindMany = vi.fn().mockResolvedValue(over.catalog ?? []);
+    const prisma = {
+      company: { findUnique: vi.fn().mockResolvedValue(over.company ?? FULL) },
+      organization: {
+        // `?? ` здесь нельзя: тест «сторона исчезла» передаёт именно null.
+        findUnique: vi
+          .fn()
+          .mockResolvedValue(
+            'organization' in over ? over.organization : { ...FULL, name: 'Клиент' }
+          ),
+      },
+      document: { findMany: documentFindMany },
+      catalogItem: { findMany: catalogFindMany },
+    } as never;
+    return { prisma, documentFindMany, catalogFindMany };
+  }
+
+  it('основания ДС ищутся среди документов организации БЕЗ заказа', async () => {
+    const { prisma, documentFindMany } = orgPrisma({
+      baseDocuments: [
+        { id: 'd1', type: 'contract', number: 'Д-2026-1', createdAt: new Date('2026-08-01') },
+      ],
+    });
+    const panel = await getOrgDocumentIssuePanel(prisma, {
+      organizationId: 'org-1',
+      companyId: 'co-A',
+    });
+    expect(documentFindMany.mock.calls[0]![0].where).toMatchObject({
+      orderId: null,
+      companyId: 'co-A',
+      counterpartyType: 'organization',
+      counterpartyId: 'org-1',
+      type: 'contract',
+    });
+    expect(panel.hasContract).toBe(true);
+    expect(panel.baseDocuments[0]!.number).toBe('Д-2026-1');
+  });
+
+  it('без договоров организации ДС выпускать не из чего', async () => {
+    const { prisma } = orgPrisma();
+    const panel = await getOrgDocumentIssuePanel(prisma, {
+      organizationId: 'org-1',
+      companyId: 'co-A',
+    });
+    expect(panel.hasContract).toBe(false);
+    expect(panel.baseDocuments).toEqual([]);
+  });
+
+  it('каталог — только активные позиции компании, суммы строками', async () => {
+    const { prisma, catalogFindMany } = orgPrisma({
+      catalog: [
+        {
+          id: 'c1',
+          name: 'Обучение',
+          code: 'A-1',
+          unit: 'person',
+          price: { toFixed: (n: number) => (5000).toFixed(n) },
+          vatRate: { toFixed: (n: number) => (0.2).toFixed(n) },
+          vatIncluded: true,
+        },
+        {
+          id: 'c2',
+          name: 'Без НДС',
+          code: 'A-2',
+          unit: 'service',
+          price: { toFixed: (n: number) => (100).toFixed(n) },
+          vatRate: null,
+          vatIncluded: false,
+        },
+      ],
+    });
+    const panel = await getOrgDocumentIssuePanel(prisma, {
+      organizationId: 'org-1',
+      companyId: 'co-A',
+    });
+    expect(catalogFindMany.mock.calls[0]![0].where).toEqual({
+      companyId: 'co-A',
+      isActive: true,
+    });
+    expect(panel.catalog).toEqual([
+      {
+        id: 'c1',
+        name: 'Обучение',
+        code: 'A-1',
+        unit: 'person',
+        price: '5000.00',
+        vatRate: '0.2000',
+        vatIncluded: true,
+      },
+      {
+        id: 'c2',
+        name: 'Без НДС',
+        code: 'A-2',
+        unit: 'service',
+        price: '100.00',
+        vatRate: null,
+        vatIncluded: false,
+      },
+    ]);
+  });
+
+  it('ставка НДС компании отдаётся строкой; её отсутствие — это null, а не ноль', async () => {
+    const withRate = orgPrisma({
+      company: { ...FULL, defaultVatRate: { toFixed: (n: number) => (0.2).toFixed(n) } },
+    });
+    const panel = await getOrgDocumentIssuePanel(withRate.prisma, {
+      organizationId: 'org-1',
+      companyId: 'co-A',
+    });
+    expect(panel.defaultVatRate).toBe('0.2000');
+
+    // УСН: ставки нет. Ноль сюда подставлять нельзя — «0 %» и «не облагается»
+    // печатаются по-разному.
+    const noRate = orgPrisma({ company: { ...FULL, defaultVatRate: null } });
+    const plain = await getOrgDocumentIssuePanel(noRate.prisma, {
+      organizationId: 'org-1',
+      companyId: 'co-A',
+    });
+    expect(plain.defaultVatRate).toBeNull();
+  });
+
+  it('нехватка реквизитов считается по типам; исчезнувшая сторона не роняет панель', async () => {
+    const withGaps = orgPrisma({ company: { ...FULL, bic: null } });
+    const panel = await getOrgDocumentIssuePanel(withGaps.prisma, {
+      organizationId: 'org-1',
+      companyId: 'co-A',
+    });
+    expect(panel.missingByType.invoice.map((m) => m.label)).toContain('БИК исполнителя');
+    // Договору банковские реквизиты не нужны — списки по типам разные.
+    expect(panel.missingByType.contract.map((m) => m.label)).not.toContain('БИК исполнителя');
+
+    const gone = orgPrisma({ organization: null });
+    const empty = await getOrgDocumentIssuePanel(gone.prisma, {
+      organizationId: 'org-1',
+      companyId: 'co-A',
+    });
+    expect(empty.missingByType.invoice).toEqual([]);
+    expect(empty.counterpartyName).toBe('заказчик');
   });
 });

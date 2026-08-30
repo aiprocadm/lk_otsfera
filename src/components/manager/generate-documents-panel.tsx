@@ -98,9 +98,7 @@ export function GenerateDocumentsPanel({
               {busy ? 'Отправляю…' : 'Запросить у клиента'}
             </Button>
           )}
-          {requestedAt && (
-            <p className="text-xs text-gray-500 mt-1">Запрошено {requestedAt}.</p>
-          )}
+          {requestedAt && <p className="text-xs text-gray-500 mt-1">Запрошено {requestedAt}.</p>}
           {companyMissing.length > 0 && (
             <p className="text-xs text-gray-500 mt-2">
               Реквизиты исполнителя заполняются в настройках: «Реквизиты исполнителя».
@@ -112,7 +110,7 @@ export function GenerateDocumentsPanel({
       <IssueDocumentDialog
         open={open}
         onClose={() => setOpen(false)}
-        orderId={orderId}
+        target={{ kind: 'order', orderId }}
         counterpartyName={counterpartyName}
         orderLines={orderLines}
         missingByType={missingByType}

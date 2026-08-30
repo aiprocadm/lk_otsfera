@@ -33,6 +33,11 @@ vi.mock('@/lib/services/admin/organizations', () => ({ getOrganization, getOrgan
 const { listOrgRateHistory } = vi.hoisted(() => ({ listOrgRateHistory: vi.fn() }));
 vi.mock('@/lib/services/commission/rateHistory', () => ({ listOrgRateHistory }));
 
+// `У-145`: блок выпуска документа без заказа гейтится флагом генерации —
+// управляем им детерминированно, а не полагаемся на умолчание реестра.
+const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn(() => true) }));
+vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
+
 // `У-97`: на карточке появился список сотрудников организации — он ходит в
 // базу, поэтому сервис подменяем.
 const { listOrgCardEmployees } = vi.hoisted(() => ({ listOrgCardEmployees: vi.fn() }));
@@ -145,7 +150,10 @@ describe('AdminOrganizationDetailPage', () => {
 
     await expect(
       renderServerComponent(
-        AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'missing' }), searchParams: Promise.resolve({}) })
+        AdminOrganizationDetailPage({
+          params: Promise.resolve({ id: 'missing' }),
+          searchParams: Promise.resolve({}),
+        })
       )
     ).rejects.toThrow('NOT_FOUND');
   });
@@ -157,7 +165,10 @@ describe('AdminOrganizationDetailPage', () => {
 
     await expect(
       renderServerComponent(
-        AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }), searchParams: Promise.resolve({}) })
+        AdminOrganizationDetailPage({
+          params: Promise.resolve({ id: 'org-1' }),
+          searchParams: Promise.resolve({}),
+        })
       )
     ).rejects.toThrow('NOT_FOUND');
   });
@@ -168,7 +179,10 @@ describe('AdminOrganizationDetailPage', () => {
     getOrganizationMeta.mockResolvedValue(META);
 
     const { container } = await renderServerComponent(
-      AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }), searchParams: Promise.resolve({}) })
+      AdminOrganizationDetailPage({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({}),
+      })
     );
 
     expect(getOrganization).toHaveBeenCalledWith(expect.anything(), 'org-1');
@@ -206,13 +220,16 @@ describe('AdminOrganizationDetailPage', () => {
     });
 
     const { container } = await renderServerComponent(
-      AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }), searchParams: Promise.resolve({}) })
+      AdminOrganizationDetailPage({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({}),
+      })
     );
 
     // Название секции — из реестра, подсказка про DaData — от самой карточки.
-    expect(container.querySelector('[data-testid="org-settings-requisites"]')?.textContent).toContain(
-      'Реквизиты'
-    );
+    expect(
+      container.querySelector('[data-testid="org-settings-requisites"]')?.textContent
+    ).toContain('Реквизиты');
     expect(container.querySelector('[data-testid="requisites-card"]')?.textContent).toContain(
       'DaData'
     );
@@ -230,7 +247,10 @@ describe('AdminOrganizationDetailPage', () => {
     getOrganizationMeta.mockResolvedValue({ ...META, company: null });
 
     const { container } = await renderServerComponent(
-      AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }), searchParams: Promise.resolve({}) })
+      AdminOrganizationDetailPage({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({}),
+      })
     );
 
     expect(container.textContent).toContain('Без партнёра');
@@ -255,7 +275,10 @@ describe('AdminOrganizationDetailPage', () => {
     });
 
     const { container } = await renderServerComponent(
-      AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }), searchParams: Promise.resolve({}) })
+      AdminOrganizationDetailPage({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({}),
+      })
     );
 
     expect(listOrgRateHistory).toHaveBeenCalledWith(expect.anything(), SESSION, 'org-1');
@@ -284,7 +307,10 @@ describe('AdminOrganizationDetailPage', () => {
     });
 
     const { container } = await renderServerComponent(
-      AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }), searchParams: Promise.resolve({}) })
+      AdminOrganizationDetailPage({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({}),
+      })
     );
 
     expect(container.textContent).toContain('—');
@@ -298,7 +324,10 @@ describe('AdminOrganizationDetailPage', () => {
     listOrgRateHistory.mockResolvedValue({ ok: true, rows: [] });
 
     const { container } = await renderServerComponent(
-      AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }), searchParams: Promise.resolve({}) })
+      AdminOrganizationDetailPage({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({}),
+      })
     );
 
     expect(container.textContent).toContain('Ставку по этой организации ещё не меняли');
@@ -311,9 +340,51 @@ describe('AdminOrganizationDetailPage', () => {
     listOrgRateHistory.mockResolvedValue({ ok: false, error: 'forbidden' });
 
     const { container } = await renderServerComponent(
-      AdminOrganizationDetailPage({ params: Promise.resolve({ id: 'org-1' }), searchParams: Promise.resolve({}) })
+      AdminOrganizationDetailPage({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({}),
+      })
     );
 
     expect(container.textContent).toContain('Ставку по этой организации ещё не меняли');
+  });
+
+  /**
+   * `У-145`: администратору выпуск без заказа доступен тем же компонентом, что
+   * менеджеру и руководителю. Карточка администратора пока плоская (реестр
+   * вкладок она не использует — расхождение записано в AUDIT.md), поэтому
+   * блок отдельный, а условие то же.
+   */
+  it('блок «Документы» с кнопкой выпуска есть, когда генерация включена', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    getOrganization.mockResolvedValue(ORG);
+    getOrganizationMeta.mockResolvedValue(META);
+    listOrgRateHistory.mockResolvedValue({ ok: true, rows: [] });
+    isFeatureEnabled.mockReturnValue(true);
+
+    const { container } = await renderServerComponent(
+      AdminOrganizationDetailPage({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+    expect(container.textContent).toContain('Создать документ');
+    expect(container.innerHTML).toContain('/admin/documents?tab=general');
+  });
+
+  it('выключенная генерация документов блок убирает целиком', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    getOrganization.mockResolvedValue(ORG);
+    getOrganizationMeta.mockResolvedValue(META);
+    listOrgRateHistory.mockResolvedValue({ ok: true, rows: [] });
+    isFeatureEnabled.mockReturnValue(false);
+
+    const { container } = await renderServerComponent(
+      AdminOrganizationDetailPage({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+    expect(container.textContent).not.toContain('Создать документ');
   });
 });

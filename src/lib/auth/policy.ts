@@ -120,11 +120,23 @@ export async function canReadDocument(session: SessionPayload, document: Documen
 
   // Order-less branch: order is null, company anchor lives on the doc.
   if (doc.orderId === null) {
-    return canReadOrderLessDocument(session, {
-      counterpartyType: doc.counterpartyType,
-      counterpartyId: doc.counterpartyId,
-      companyId: doc.companyId ?? null,
-    });
+    if (
+      canReadOrderLessDocument(session, {
+        counterpartyType: doc.counterpartyType,
+        counterpartyId: doc.counterpartyId,
+        companyId: doc.companyId ?? null,
+      })
+    )
+      return true;
+    // `У-155` (решение `Р-18`): партнёр читает документы ОРГАНИЗАЦИЙ своего
+    // портфеля. У документов заказа это правило уже действовало; с `У-145`
+    // такие документы бывают и без заказа — без этой ветки выпуск из карточки
+    // организации создавал бы бумаги, невидимые ведущему клиента партнёру.
+    // Проверка асинхронная (портфель + назначенный скоуп), поэтому живёт
+    // здесь, а не в чистом `canReadOrderLessDocument`.
+    if (session.role === 'partner' && doc.counterpartyType === 'organization')
+      return canPartnerAccessOrg(session, doc.counterpartyId);
+    return false;
   }
 
   // Order-bound branch (unchanged from Phase A).

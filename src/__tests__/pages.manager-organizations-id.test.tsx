@@ -59,6 +59,7 @@ vi.mock('@/components/manager/org-card-tabs', () => ({
     tabs?: { key: string }[];
     employees?: React.ReactNode;
     settings?: React.ReactNode;
+    documentsAction?: React.ReactNode;
   }) =>
     React.createElement(
       'div',
@@ -69,7 +70,8 @@ vi.mock('@/components/manager/org-card-tabs', () => ({
       ' ',
       JSON.stringify(props.card),
       props.employees,
-      props.settings
+      props.settings,
+      props.documentsAction
     ),
 }));
 
@@ -295,7 +297,6 @@ describe('ManagerOrgDetailPage — вкладка удостоверений', (
   });
 });
 
-
 // ─── `У-99`: вкладка «Настройки» карточки ────────────────────────────────────
 
 describe('ManagerOrgDetailPage — вкладка «Настройки» (У-99)', () => {
@@ -329,5 +330,33 @@ describe('ManagerOrgDetailPage — вкладка «Настройки» (У-99)
     );
     expect(container.textContent).not.toContain('НАСТРОЙКИ:');
     expect(getFieldsForEntity).not.toHaveBeenCalled();
+  });
+
+  /**
+   * `У-145`: выпуск документа без заказа — часть карточки организации, но
+   * только когда генерация документов включена (`document_generation`,
+   * opt-out после `У-144`). «Ничего не включается на сервере»: выключенный
+   * флаг убирает и кнопку.
+   */
+  it('«Создать документ» приходит во вкладку «Документы», когда генерация включена', async () => {
+    isFeatureEnabled.mockImplementation((flag: string) => flag === 'document_generation');
+    const { container } = await renderServerComponent(
+      ManagerOrgDetailPage({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({ tab: 'documents' }),
+      })
+    );
+    expect(container.textContent).toContain('Создать документ');
+  });
+
+  it('выключенная генерация документов кнопку не даёт', async () => {
+    isFeatureEnabled.mockReturnValue(false);
+    const { container } = await renderServerComponent(
+      ManagerOrgDetailPage({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({ tab: 'documents' }),
+      })
+    );
+    expect(container.textContent).not.toContain('Создать документ');
   });
 });

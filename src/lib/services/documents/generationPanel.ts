@@ -144,3 +144,132 @@ export async function getDocumentGenerationPanel(
     })),
   };
 }
+
+/**
+ * Читающая половина выпуска документа **без заказа** (`У-145`) — для вкладки
+ * «Документы» карточки организации и для карточки сделки.
+ *
+ * Отличий от панели заказа три, и все они следуют из отсутствия заказа:
+ * состава для предзаполнения нет (строки вводятся в форме), «соседями» для
+ * выбора основания служат документы той же организации **без заказа**, а
+ * каталог услуг компании нужен здесь всегда — иначе строку пришлось бы
+ * набирать руками целиком.
+ *
+ * Скоуп: доступ к организации проверяет вызывающая страница (карточка
+ * организации уже прошла `requireManagerForOrg`), а `companyId` читается из
+ * организации, а не приходит из формы. Гард выпуска — в мутации.
+ */
+
+/** Позиция каталога для подстановки строки (`У-145`). */
+export type IssueCatalogOption = {
+  id: string;
+  name: string;
+  code: string;
+  unit: CatalogUnit;
+  /** `Decimal` через границу server→client не проходит — строки. */
+  price: string;
+  vatRate: string | null;
+  vatIncluded: boolean;
+};
+
+export type OrgDocumentIssuePanel = {
+  missingByType: Record<RequisitesDocKind, MissingRequisite[]>;
+  /**
+   * Ставка НДС по умолчанию компании-исполнителя (`У-138`). Ей заполняются
+   * строки, набранные вручную: оставить их «без НДС» значило бы выставить
+   * плательщику НДС документ без налога — и человек этого не заметит, потому
+   * что поле выглядит просто пустым.
+   */
+  defaultVatRate: string | null;
+  /** Договоры организации без заказа — из них выбирают основание ДС. */
+  baseDocuments: IssueBaseDocument[];
+  hasContract: boolean;
+  counterpartyName: string;
+  catalog: IssueCatalogOption[];
+};
+
+/**
+ * Каталог целиком, но не бесконечно: форма ищет по названию на клиенте, а
+ * тащить в браузер десятки тысяч позиций незачем (тот же предел, что у
+ * блока «Состав и стоимость» заказа).
+ */
+const CATALOG_LIMIT = 500;
+
+export async function getOrgDocumentIssuePanel(
+  prisma: PrismaClient,
+  args: { organizationId: string; companyId: string }
+): Promise<OrgDocumentIssuePanel> {
+  const [company, organization, baseRows, catalogRows] = await Promise.all([
+    prisma.company.findUnique({
+      where: { id: args.companyId },
+      select: { ...REQUISITES_SELECT, defaultVatRate: true },
+    }),
+    prisma.organization.findUnique({
+      where: { id: args.organizationId },
+      select: REQUISITES_SELECT,
+    }),
+    prisma.document.findMany({
+      where: {
+        // Ровно те же «соседи», что видит выпуск: документы этой организации
+        // без заказа. Договор ЗАКАЗА в основания ДС без заказа не попадает —
+        // иначе форма предлагала бы связь, которую сервис отклонит.
+        orderId: null,
+        companyId: args.companyId,
+        counterpartyType: 'organization',
+        counterpartyId: args.organizationId,
+        type: 'contract',
+        generatedBy: 'system',
+        number: { not: null },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, type: true, number: true, createdAt: true },
+    }),
+    prisma.catalogItem.findMany({
+      where: { companyId: args.companyId, isActive: true },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        unit: true,
+        price: true,
+        vatRate: true,
+        vatIncluded: true,
+      },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      take: CATALOG_LIMIT,
+    }),
+  ]);
+
+  const missingByType = {} as Record<RequisitesDocKind, MissingRequisite[]>;
+  for (const kind of DOC_KINDS) {
+    missingByType[kind] =
+      company && organization ? listMissingRequisites(company, organization, kind) : [];
+  }
+
+  return {
+    missingByType,
+    // Формат — как у строк заказа (4 знака): форма сравнивает предзаполненное
+    // значение со списком ставок, разный формат ломал бы выбор.
+    defaultVatRate: company?.defaultVatRate ? company.defaultVatRate.toFixed(4) : null,
+    baseDocuments: baseRows.map((row) => ({
+      id: row.id,
+      type: row.type,
+      // Номер не пуст по условию выборки; хвост оставлен ради типа.
+      number: row.number ?? '',
+      date: row.createdAt.toISOString(),
+    })),
+    hasContract: baseRows.length > 0,
+    counterpartyName: organization?.legalName?.trim() || organization?.name?.trim() || 'заказчик',
+    catalog: catalogRows.map((item) => ({
+      id: item.id,
+      name: item.name,
+      code: item.code,
+      unit: item.unit,
+      price: item.price.toFixed(2),
+      // Формат ставки — как у строк заказа (4 знака): форма сравнивает
+      // предзаполненное значение с текущим, разный формат ломал бы выбор.
+      vatRate: item.vatRate === null ? null : item.vatRate.toFixed(4),
+      vatIncluded: item.vatIncluded,
+    })),
+  };
+}

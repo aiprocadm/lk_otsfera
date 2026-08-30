@@ -39,7 +39,8 @@ export type OrderDocumentData = {
   date: Date;
   company: PartyBlock;
   organization: PartyBlock;
-  orderLabel: string; // «Заказ №123: Обучение по ОТ»
+  /** «Заказ №123: Обучение по ОТ»; `null` — документ без заказа (`У-145`). */
+  orderLabel: string | null;
   /** Табличная часть и итоги (`У-141`) — собирает `printTable.ts`. */
   table: PrintTable;
   /** Логотип, подпись и печать исполнителя (`У-153`); пусто — печатаем как прежде. */
@@ -193,7 +194,7 @@ export function OrderDocumentPdf({ data }: { data: OrderDocumentData }) {
         { style: styles.title },
         `${isInvoice ? 'Счёт' : 'Акт'} № ${data.number} от ${dateStr}`
       ),
-      e(Text, { style: styles.subtitle }, data.orderLabel),
+      data.orderLabel ? e(Text, { style: styles.subtitle }, data.orderLabel) : null,
       data.servicePeriod
         ? e(
             Text,

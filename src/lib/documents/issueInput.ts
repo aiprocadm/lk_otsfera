@@ -21,21 +21,32 @@ const lineSchema = z.object({
   vatIncluded: z.boolean(),
 });
 
-export const issueInputSchema = z.object({
-  orderId: z.string().min(1),
-  docType: z.enum(['invoice', 'act', 'contract', 'extra_agreement']),
-  /** Строки формы; пусто — берётся состав заказа. */
-  lines: z.array(lineSchema).max(200).optional(),
-  onAmountMismatch: z.enum(['update_order', 'keep_order']).optional(),
-  documentDate: z.string().max(40).optional(),
-  subject: z.string().max(500).optional(),
-  validUntil: z.string().max(40).optional(),
-  paymentTerms: z.string().max(4000).optional(),
-  changeText: z.string().max(8000).optional(),
-  periodFrom: z.string().max(40).optional(),
-  periodTo: z.string().max(40).optional(),
-  parentDocumentId: z.string().max(64).optional(),
-});
+export const issueInputSchema = z
+  .object({
+    /** Заказ, по которому выпускается документ. */
+    orderId: z.string().min(1).optional(),
+    /** Организация — цель документа **без заказа** (`У-145`). */
+    organizationId: z.string().min(1).optional(),
+    docType: z.enum(['invoice', 'act', 'contract', 'extra_agreement']),
+    /** Строки формы; пусто — берётся состав заказа. */
+    lines: z.array(lineSchema).max(200).optional(),
+    onAmountMismatch: z.enum(['update_order', 'keep_order']).optional(),
+    documentDate: z.string().max(40).optional(),
+    subject: z.string().max(500).optional(),
+    validUntil: z.string().max(40).optional(),
+    paymentTerms: z.string().max(4000).optional(),
+    changeText: z.string().max(8000).optional(),
+    periodFrom: z.string().max(40).optional(),
+    periodTo: z.string().max(40).optional(),
+    parentDocumentId: z.string().max(64).optional(),
+  })
+  // `У-145`: цель ровно одна. Проверка формы, а не домена: «и заказ, и
+  // организация» — это сломанный вызов, а не отказ по правам, и ловить его
+  // должен вход, пока сервис не начал ходить в базу.
+  .refine((v) => !!v.orderId !== !!v.organizationId, {
+    message: 'Нужен либо заказ, либо организация',
+    path: ['orderId'],
+  });
 
 export type IssueInput = z.infer<typeof issueInputSchema>;
 
@@ -67,7 +78,8 @@ export function toGenerateArgs(input: IssueInput): GenerateArgs {
     ...(input.parentDocumentId ? { parentDocumentId: input.parentDocumentId } : {}),
   };
   return {
-    orderId: input.orderId,
+    ...(input.orderId ? { orderId: input.orderId } : {}),
+    ...(input.organizationId ? { organizationId: input.organizationId } : {}),
     docType: input.docType,
     ...(input.lines && input.lines.length > 0 ? { lines: input.lines } : {}),
     ...(input.onAmountMismatch ? { onAmountMismatch: input.onAmountMismatch } : {}),

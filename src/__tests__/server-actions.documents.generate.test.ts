@@ -10,12 +10,16 @@ const {
   isFeatureEnabled,
   generateOrderDocument,
   requestRequisites,
+  resolveOrgIssueScope,
+  getOrgDocumentIssuePanel,
 } = vi.hoisted(() => ({
   requireSession: vi.fn(),
   revalidatePath: vi.fn(),
   isFeatureEnabled: vi.fn(),
   generateOrderDocument: vi.fn(),
   requestRequisites: vi.fn(),
+  resolveOrgIssueScope: vi.fn(),
+  getOrgDocumentIssuePanel: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireSession }));
@@ -23,11 +27,14 @@ vi.mock('next/cache', () => ({ revalidatePath }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 vi.mock('@/lib/services/documents/generate', () => ({ generateOrderDocument }));
 vi.mock('@/lib/services/documents/requestRequisites', () => ({ requestRequisites }));
+vi.mock('@/lib/services/documents/issueScope', () => ({ resolveOrgIssueScope }));
+vi.mock('@/lib/services/documents/generationPanel', () => ({ getOrgDocumentIssuePanel }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 import { prisma } from '@/lib/db/prisma';
 import {
   generateOrderDocumentAction,
+  orgIssuePanelAction,
   requestRequisitesAction,
 } from '@/server-actions/documents/generate';
 
@@ -92,6 +99,29 @@ describe('generateOrderDocumentAction', () => {
     expect(revalidatePath).toHaveBeenCalledWith('/manager/orders/ord-1');
   });
 
+  it('`У-145`: выпуск без заказа обновляет карточку организации, а не адрес заказа', async () => {
+    generateOrderDocument.mockResolvedValue({ ok: true, documentId: 'd9', number: 'С-2026-9' });
+    await generateOrderDocumentAction(
+      issueForm({
+        organizationId: 'org-1',
+        docType: 'invoice',
+        lines: [
+          {
+            title: 'Консультация',
+            quantity: '1',
+            unit: 'service',
+            unitPrice: '1000',
+            discountPercent: null,
+            vatRate: null,
+            vatIncluded: true,
+          },
+        ],
+      })
+    );
+    expect(revalidatePath).toHaveBeenCalledWith('/manager/organizations/org-1');
+    expect(revalidatePath).not.toHaveBeenCalledWith('/manager/orders/undefined');
+  });
+
   it('`У-147`: строки, дата и ответ о суммах доезжают до сервиса', async () => {
     generateOrderDocument.mockResolvedValue({ ok: true, documentId: 'd3', number: 'С-2026-2' });
     await generateOrderDocumentAction(
@@ -145,7 +175,9 @@ describe('generateOrderDocumentAction', () => {
 
   it('ошибка сервиса пробрасывается без ревалидации', async () => {
     generateOrderDocument.mockResolvedValue({ ok: false, error: 'invoice_required' });
-    expect(await generateOrderDocumentAction(issueForm({ orderId: 'ord-1', docType: 'act' }))).toEqual({
+    expect(
+      await generateOrderDocumentAction(issueForm({ orderId: 'ord-1', docType: 'act' }))
+    ).toEqual({
       ok: false,
       error: 'invoice_required',
     });
@@ -198,6 +230,52 @@ describe('requestRequisitesAction', () => {
     expect(await requestRequisitesAction(form({ orderId: 'ord-1' }))).toEqual({
       ok: false,
       error: 'not_found',
+    });
+  });
+});
+
+/**
+ * `У-145` — данные формы выпуска без заказа. Гейт свой (флаг + скоуп
+ * организации), потому что кнопка живёт в трёх кабинетах и на доске сделок:
+ * скрытая кнопка запретом не является (§4).
+ */
+describe('orgIssuePanelAction', () => {
+  beforeEach(() => {
+    isFeatureEnabled.mockReturnValue(true);
+    requireSession.mockResolvedValue(SESSION);
+    resolveOrgIssueScope.mockResolvedValue({ ok: true, companyId: 'co-A' });
+    getOrgDocumentIssuePanel.mockResolvedValue({ counterpartyName: 'ООО «Клиент»' });
+  });
+
+  it('выключенный флаг не пускает даже до сессии', async () => {
+    isFeatureEnabled.mockReturnValue(false);
+    expect(await orgIssuePanelAction(form({ organizationId: 'org-1' }))).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+    expect(requireSession).not.toHaveBeenCalled();
+  });
+
+  it('без организации во входе — not_found, в базу не ходим', async () => {
+    expect(await orgIssuePanelAction(new FormData())).toEqual({ ok: false, error: 'not_found' });
+    expect(resolveOrgIssueScope).not.toHaveBeenCalled();
+  });
+
+  it('отказ скоупа прокидывается как есть, панель не считается', async () => {
+    resolveOrgIssueScope.mockResolvedValue({ ok: false, error: 'org_no_company' });
+    expect(await orgIssuePanelAction(form({ organizationId: 'org-1' }))).toEqual({
+      ok: false,
+      error: 'org_no_company',
+    });
+    expect(getOrgDocumentIssuePanel).not.toHaveBeenCalled();
+  });
+
+  it('успех: панель считается по компании ИЗ организации, а не из формы', async () => {
+    const res = await orgIssuePanelAction(form({ organizationId: 'org-1' }));
+    expect(res).toEqual({ ok: true, panel: { counterpartyName: 'ООО «Клиент»' } });
+    expect(getOrgDocumentIssuePanel).toHaveBeenCalledWith(prisma, {
+      organizationId: 'org-1',
+      companyId: 'co-A',
     });
   });
 });

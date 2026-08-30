@@ -508,6 +508,52 @@ describe('canReadDocument', () => {
     expect(result).toBe(true);
   });
 
+  /**
+   * `У-155` (решение `Р-18`) + `У-145`: партнёр ведёт клиента и читает его
+   * бумаги — в том числе выпущенные БЕЗ заказа. До PR-6 таких документов не
+   * существовало, и ветка портфеля жила только в order-bound-половине.
+   */
+  it('order-less branch: партнёр читает документ организации своего портфеля', async () => {
+    canReadOrderLessDocumentMock.mockReturnValue(false);
+    organizationFindUnique.mockResolvedValue({ partnerId: 'p-1' });
+    const doc = {
+      id: 'doc-ol-org',
+      orderId: null,
+      companyId: 'co-1',
+      counterpartyType: 'organization' as const,
+      counterpartyId: 'org-1',
+      order: null,
+    };
+    expect(await canReadDocument(PARTNER_ADMIN, doc)).toBe(true);
+  });
+
+  it('order-less branch: организация ВНЕ портфеля партнёру не видна', async () => {
+    canReadOrderLessDocumentMock.mockReturnValue(false);
+    organizationFindUnique.mockResolvedValue({ partnerId: 'p-other' });
+    const doc = {
+      id: 'doc-ol-foreign',
+      orderId: null,
+      companyId: 'co-1',
+      counterpartyType: 'organization' as const,
+      counterpartyId: 'org-9',
+      order: null,
+    };
+    expect(await canReadDocument(PARTNER_ADMIN, doc)).toBe(false);
+  });
+
+  it('order-less branch: партнёрский канал чужого партнёра портфелем не спасается', async () => {
+    canReadOrderLessDocumentMock.mockReturnValue(false);
+    const doc = {
+      id: 'doc-ol-p2',
+      orderId: null,
+      companyId: 'co-1',
+      counterpartyType: 'partner' as const,
+      counterpartyId: 'p-other',
+      order: null,
+    };
+    expect(await canReadDocument(PARTNER_ADMIN, doc)).toBe(false);
+  });
+
   it('order-less branch: re-fetched doc has null companyId → passed as null to canReadOrderLessDocument', async () => {
     canReadOrderLessDocumentMock.mockReturnValue(false);
     // Re-fetch returns a doc with orderId=null and companyId=null

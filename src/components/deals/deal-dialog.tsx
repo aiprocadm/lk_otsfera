@@ -55,6 +55,7 @@ export function DealDialog({
   managers,
   currentUserId,
   tasksEnabled = false,
+  onIssueDocument,
   onClose,
   onSaved,
 }: {
@@ -64,6 +65,12 @@ export function DealDialog({
   currentUserId: string;
   /** Этап 7 (ФТ-7.1): блок «Задачи» — только при флаге internal_tasks (пробрасывает страница). */
   tasksEnabled?: boolean | undefined;
+  /**
+   * `У-145`: «Выпустить документ» из сделки. Обработчик, а не сам диалог
+   * выпуска: он открылся бы модалкой поверх модалки — форму показывает доска,
+   * закрыв карточку сделки.
+   */
+  onIssueDocument?: (() => void) | undefined;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -233,6 +240,23 @@ export function DealDialog({
               onCreated={() => reloadTasks(target.id)}
             />
           )}
+        </div>
+      )}
+
+      {/* `У-145`: счёт, договор и ДС выставляются и до заказа — прямо из
+          сделки. Контрагент берётся из сделки, поэтому без организации
+          выпускать не на кого и кнопки нет. */}
+      {target && onIssueDocument && (
+        <div className="mt-4 border-t border-gray-200 pt-3 flex items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-semibold text-[#111111]">Документы</h3>
+            <p className="text-xs text-gray-500">
+              Счёт, договор или доп. соглашение по этой сделке — без заказа.
+            </p>
+          </div>
+          <Button size="sm" variant="secondary" type="button" onClick={onIssueDocument}>
+            Выпустить документ
+          </Button>
         </div>
       )}
 

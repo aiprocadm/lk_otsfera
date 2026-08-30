@@ -9,7 +9,10 @@ import { CATALOG_UNIT_LABELS, VAT_RATES } from '@/lib/services/admin/catalogItem
 import { errorMessageRu } from '@/lib/errors/messages';
 import { generateOrderDocumentAction } from '@/server-actions/documents/generate';
 import type { MissingRequisite } from '@/lib/documents/requisites-check';
-import type { IssueBaseDocument } from '@/lib/services/documents/generationPanel';
+import type {
+  IssueBaseDocument,
+  IssueCatalogOption,
+} from '@/lib/services/documents/generationPanel';
 
 /**
  * Форма выпуска документа (`У-147`).
@@ -36,6 +39,15 @@ export type IssueLine = {
 
 export type IssueDocType = 'invoice' | 'act' | 'contract' | 'extra_agreement';
 
+/**
+ * Кому выпускаем (`У-145`): заказ или организация. Разные ветки, а не
+ * «необязательный номер заказа»: форма без заказа не показывает акт, не
+ * сверяет суммы и не предзаполняет состав — сделать это одним полем-«может
+ * быть» значило бы прятать три разных правила за пустой строкой.
+ */
+export type IssueTargetRef =
+  { kind: 'order'; orderId: string } | { kind: 'organization'; organizationId: string };
+
 const DOC_LABEL: Record<IssueDocType, string> = {
   invoice: 'Счёт',
   act: 'Акт',
@@ -51,14 +63,20 @@ const DOC_HINT: Record<IssueDocType, string> = {
   extra_agreement: 'Доп. соглашение: меняет условия уже подписанного договора.',
 };
 
-function emptyLine(): IssueLine {
+/**
+ * Новая строка состава. Ставка НДС берётся из умолчания компании (`У-138`):
+ * пустое поле у плательщика НДС выглядит нормально, а печатается «НДС не
+ * облагается» — то есть документ уходит клиенту без налога, и никто этого не
+ * замечает. Ставку по-прежнему можно поменять в самой строке.
+ */
+function emptyLine(defaultVatRate: string | null): IssueLine {
   return {
     title: '',
     quantity: '1',
     unit: 'service',
     unitPrice: '0',
     discountPercent: null,
-    vatRate: null,
+    vatRate: defaultVatRate,
     vatIncluded: true,
   };
 }
@@ -73,32 +91,46 @@ function today(): string {
 export function IssueDocumentDialog({
   open,
   onClose,
-  orderId,
+  target,
   counterpartyName,
   orderLines,
   missingByType,
   baseDocuments,
   hasInvoice,
   hasContract,
+  catalog = [],
+  defaultSubject = '',
+  defaultVatRate = null,
 }: {
   open: boolean;
   onClose: () => void;
-  orderId: string;
+  target: IssueTargetRef;
   counterpartyName: string;
+  /** Состав заказа для предзаполнения; без заказа — пусто. */
   orderLines: IssueLine[];
   missingByType: Record<IssueDocType, MissingRequisite[]>;
   baseDocuments: IssueBaseDocument[];
   hasInvoice: boolean;
   hasContract: boolean;
+  /** `У-145`: каталог услуг компании — строку можно взять из него, а не набирать. */
+  catalog?: IssueCatalogOption[];
+  /** Предмет договора по умолчанию: без заказа его подсказывает сделка. */
+  defaultSubject?: string;
+  /** Ставка НДС компании-исполнителя для строк, набранных вручную (`У-138`). */
+  defaultVatRate?: string | null;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
+  const withOrder = target.kind === 'order';
   const [docType, setDocType] = useState<IssueDocType>('invoice');
+  // Строки приходят со своими ставками (состав заказа или предзаполнение) и
+  // здесь не переписываются: `null` у строки заказа — это «не облагается», а
+  // не «ставку забыли». Умолчание компании получают только НОВЫЕ строки.
   const [lines, setLines] = useState<IssueLine[]>(
-    orderLines.length > 0 ? orderLines : [emptyLine()]
+    orderLines.length > 0 ? orderLines : [emptyLine(defaultVatRate)]
   );
   const [documentDate, setDocumentDate] = useState(today());
-  const [subject, setSubject] = useState('');
+  const [subject, setSubject] = useState(defaultSubject);
   const [validUntil, setValidUntil] = useState('');
   const [paymentTerms, setPaymentTerms] = useState('');
   const [changeText, setChangeText] = useState('');
@@ -111,6 +143,11 @@ export function IssueDocumentDialog({
   const [mismatch, setMismatch] = useState<{ linesTotal: string; orderTotal: string } | null>(null);
 
   const missing = missingByType[docType] ?? [];
+  // `У-145`: акт наследует номер счёта ЗАКАЗА — без заказа его не предлагаем.
+  // Сервер запрещает то же самое отдельно (`act_requires_order`).
+  const docTypes: IssueDocType[] = withOrder
+    ? ['invoice', 'act', 'contract', 'extra_agreement']
+    : ['invoice', 'contract', 'extra_agreement'];
   const needsInvoice = docType === 'act' && !hasInvoice;
   const needsContract = docType === 'extra_agreement' && !hasContract;
   const blocked = missing.length > 0 || needsInvoice || needsContract;
@@ -119,7 +156,9 @@ export function IssueDocumentDialog({
 
   function payload(onAmountMismatch?: 'update_order' | 'keep_order') {
     return JSON.stringify({
-      orderId,
+      ...(target.kind === 'order'
+        ? { orderId: target.orderId }
+        : { organizationId: target.organizationId }),
       docType,
       lines,
       documentDate,
@@ -186,6 +225,29 @@ export function IssueDocumentDialog({
     setLines((prev) => prev.map((line, i) => (i === index ? { ...line, ...patch } : line)));
   }
 
+  /**
+   * `У-145`: строка из каталога. Цена и ставка — **снимок** позиции на момент
+   * подстановки: строку потом правят руками, и последующее изменение прайса
+   * уже выпущенный документ не трогает.
+   */
+  function addFromCatalog(itemId: string) {
+    const item = catalog.find((c) => c.id === itemId);
+    // Пустое значение — это подпись «Из каталога…», а не позиция.
+    if (!item) return;
+    setLines((prev) => [
+      ...prev,
+      {
+        title: item.name,
+        quantity: '1',
+        unit: item.unit,
+        unitPrice: item.price,
+        discountPercent: null,
+        vatRate: item.vatRate,
+        vatIncluded: item.vatIncluded,
+      },
+    ]);
+  }
+
   return (
     <Dialog
       open={open}
@@ -212,7 +274,7 @@ export function IssueDocumentDialog({
                 setMismatch(null);
               }}
             >
-              {(Object.keys(DOC_LABEL) as IssueDocType[]).map((kind) => (
+              {docTypes.map((kind) => (
                 <option key={kind} value={kind}>
                   {DOC_LABEL[kind]}
                 </option>
@@ -283,7 +345,13 @@ export function IssueDocumentDialog({
         {docType === 'contract' && (
           <div className="flex flex-col gap-3">
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field htmlFor="issue-subject" label="Предмет договора" hint="Пусто — название заказа">
+              {/* Подсказка обязана называть то, что подставится на самом деле:
+                  без заказа названия заказа не существует (`У-145`). */}
+              <Field
+                htmlFor="issue-subject"
+                label="Предмет договора"
+                hint={withOrder ? 'Пусто — название заказа' : 'Пусто — «Оказание услуг»'}
+              >
                 <Input
                   id="issue-subject"
                   value={subject}
@@ -330,16 +398,33 @@ export function IssueDocumentDialog({
         )}
 
         <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <h3 className="text-sm font-semibold text-[#111111]">Состав</h3>
-            <Button
-              size="sm"
-              variant="secondary"
-              type="button"
-              onClick={() => setLines((prev) => [...prev, emptyLine()])}
-            >
-              Добавить строку
-            </Button>
+            <div className="flex items-center gap-2">
+              {catalog.length > 0 && (
+                <Select
+                  aria-label="Добавить из каталога"
+                  data-testid="issue-catalog-picker"
+                  value=""
+                  onChange={(e) => addFromCatalog(e.target.value)}
+                >
+                  <option value="">Из каталога…</option>
+                  {catalog.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} · {item.code} · {item.price} ₽
+                    </option>
+                  ))}
+                </Select>
+              )}
+              <Button
+                size="sm"
+                variant="secondary"
+                type="button"
+                onClick={() => setLines((prev) => [...prev, emptyLine(defaultVatRate)])}
+              >
+                Добавить строку
+              </Button>
+            </div>
           </div>
           {lines.map((line, index) => (
             <div key={index} className="grid gap-2 sm:grid-cols-12 items-end">
@@ -419,7 +504,10 @@ export function IssueDocumentDialog({
         </div>
 
         {blocked && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-3" data-testid="issue-blocked">
+          <div
+            className="rounded-lg border border-red-200 bg-red-50 p-3"
+            data-testid="issue-blocked"
+          >
             {missing.length > 0 && (
               <>
                 <p className="text-sm text-gray-800">
