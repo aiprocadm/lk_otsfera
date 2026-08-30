@@ -43,6 +43,7 @@ export function OrgCardTabs({
   employees,
   settings,
   egrulAction,
+  documentsAction,
   hrefFor,
 }: {
   card: OrganizationCard;
@@ -67,6 +68,13 @@ export function OrgCardTabs({
    * всё равно показывается: факт от прав не зависит.
    */
   egrulAction?: React.ReactNode;
+  /**
+   * `У-145`: кнопка «Создать документ» над списком документов. Приходит от
+   * страницы своей роли: выпускать документы вправе сотрудники ЦО, а карточку
+   * рисует один компонент на все кабинеты — партнёр и заказчик просто не
+   * передают её (а сервер запрещает выпуск и без этого).
+   */
+  documentsAction?: React.ReactNode;
   /**
    * Адрес вкладки. По умолчанию `?tab=<ключ>` — вкладка живёт на этой же
    * странице. Партнёру нужен другой ответ: «Документы» и «Настройки» у него
@@ -124,11 +132,18 @@ export function OrgCardTabs({
       <OrgCardTabsNav tabs={tabs} activeTab={activeTab} {...(hrefFor ? { hrefFor } : {})} />
 
       <section>
-        {activeTab === 'employees'
-          ? employees
-          : activeTab === 'settings'
-            ? settings
-            : renderSection(card, activeTab)}
+        {activeTab === 'employees' ? (
+          employees
+        ) : activeTab === 'settings' ? (
+          settings
+        ) : activeTab === 'documents' ? (
+          <div className="space-y-3">
+            {documentsAction && <div className="flex justify-end">{documentsAction}</div>}
+            {renderSection(card, activeTab)}
+          </div>
+        ) : (
+          renderSection(card, activeTab)
+        )}
       </section>
     </div>
   );

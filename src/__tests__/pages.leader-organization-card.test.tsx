@@ -33,12 +33,14 @@ vi.mock('@/components/manager/org-card-tabs', () => ({
     activeTab: string;
     tabs: Array<{ key: string }>;
     settings?: React.ReactNode;
+    documentsAction?: React.ReactNode;
   }) =>
     React.createElement(
       'div',
       { 'data-testid': 'org-card', 'data-active': props.activeTab },
       props.tabs.map((t) => t.key).join(','),
-      props.settings
+      props.settings,
+      props.documentsAction
     ),
 }));
 // `У-99`: настройки собирает отдельный серверный компонент — он ходит в
@@ -135,9 +137,9 @@ describe('LeaderOrgDetailPage (У-101)', () => {
         searchParams: Promise.resolve({ tab: 'documents' }),
       })
     );
-    expect(ok.container.querySelector('[data-testid="org-card"]')?.getAttribute('data-active')).toBe(
-      'documents'
-    );
+    expect(
+      ok.container.querySelector('[data-testid="org-card"]')?.getAttribute('data-active')
+    ).toBe('documents');
 
     const junk = await renderServerComponent(
       LeaderOrgDetailPage({
@@ -150,7 +152,6 @@ describe('LeaderOrgDetailPage (У-101)', () => {
     ).toBe('overview');
   });
 });
-
 
 describe('LeaderOrgDetailPage — вкладка «Настройки» (У-99)', () => {
   it('на вкладке настроек подключает сборщик кабинета руководителя', async () => {
@@ -173,5 +174,33 @@ describe('LeaderOrgDetailPage — вкладка «Настройки» (У-99)'
     );
     expect(container.textContent).not.toContain('НАСТРОЙКИ:');
     expect(getFieldsForEntity).not.toHaveBeenCalled();
+  });
+
+  /**
+   * `У-145`: у руководителя та же кнопка и то же условие, что у менеджера —
+   * зеркальность кабинетов (§0.2), а не своя ветка на каждый кабинет.
+   */
+  it('«Создать документ» приходит во вкладку «Документы» при включённой генерации', async () => {
+    // Мок объявлен без параметров (`vi.fn(() => false)`) — включаем все флаги
+    // разом: вкладки от этого только прибавляются, а проверяем мы кнопку.
+    isFeatureEnabled.mockReturnValue(true);
+    const { container } = await renderServerComponent(
+      LeaderOrgDetailPage({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({ tab: 'documents' }),
+      })
+    );
+    expect(container.textContent).toContain('Создать документ');
+  });
+
+  it('выключенная генерация документов кнопку не даёт', async () => {
+    isFeatureEnabled.mockReturnValue(false);
+    const { container } = await renderServerComponent(
+      LeaderOrgDetailPage({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({ tab: 'documents' }),
+      })
+    );
+    expect(container.textContent).not.toContain('Создать документ');
   });
 });

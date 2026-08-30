@@ -36,6 +36,23 @@ const { toastSuccess, toastError } = vi.hoisted(() => ({
 }));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
+// `У-145`: форма выпуска — отдельный компонент со своей загрузкой данных;
+// доске важно только то, что она открывается с нужной организацией и
+// предзаполнением, поэтому подменяем её целиком.
+vi.mock('@/components/documents/issue-order-less-document-button', () => ({
+  IssueOrderLessDocumentDialog: (props: {
+    organizationId: string;
+    defaultSubject?: string;
+    prefillLines?: { unitPrice: string }[];
+    onClose: () => void;
+  }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'issue-dialog' },
+      `${props.organizationId}|${props.defaultSubject ?? ''}|${props.prefillLines?.[0]?.unitPrice ?? '—'}`
+    ),
+}));
+
 import { DealBoard } from '@/components/deals/deal-board';
 import type { DealBoard as DealBoardData, DealCard } from '@/lib/services/deals/board';
 
@@ -470,6 +487,45 @@ describe('DealBoard', () => {
       render(React.createElement(DealBoard, { board }));
       fireEvent.click(screen.getByText('Сделка Ромашка').closest('article') as HTMLElement);
       expect(screen.queryByLabelText('Название')).toBeNull();
+    });
+
+    /**
+     * `У-145`: «Выпустить документ» из сделки. Форма живёт на доске, а не
+     * внутри карточки сделки: вложенная модалка поверх модалки — не диалог,
+     * а ловушка для клавиатуры.
+     */
+    it('«Выпустить документ» закрывает карточку сделки и открывает форму выпуска', async () => {
+      render(React.createElement(DealBoard, editProps));
+      fireEvent.click(screen.getByText('Сделка Ромашка').closest('article') as HTMLElement);
+      await screen.findByText('Сделка');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Выпустить документ' }));
+      const issue = await screen.findByTestId('issue-dialog');
+      // Организация, предмет и сумма приезжают из сделки — набирать заново нечего.
+      expect(issue.textContent).toBe('org-1|Сделка Ромашка|100.00');
+      expect(screen.queryByLabelText('Название')).toBeNull();
+    });
+
+    it('сделка без суммы открывает форму с пустым составом, а не с нулевой строкой', async () => {
+      const noAmount: DealCard = { ...cardOpen, id: 'deal-3', title: 'Без суммы', amount: null };
+      render(
+        React.createElement(DealBoard, {
+          ...editProps,
+          board: { stages: board.stages, columns: [{ stage: stNew, cards: [noAmount] }] },
+        })
+      );
+      fireEvent.click(screen.getByText('Без суммы').closest('article') as HTMLElement);
+      await screen.findByText('Сделка');
+      fireEvent.click(screen.getByRole('button', { name: 'Выпустить документ' }));
+      const issue = await screen.findByTestId('issue-dialog');
+      expect(issue.textContent).toBe('org-1|Без суммы|—');
+    });
+
+    it('сделка без организации кнопки выпуска не даёт: выставлять не на кого', async () => {
+      render(React.createElement(DealBoard, editProps));
+      fireEvent.click(screen.getByText('Сделка Лютик').closest('article') as HTMLElement);
+      await screen.findByText('Сделка');
+      expect(screen.queryByRole('button', { name: 'Выпустить документ' })).toBeNull();
     });
 
     it('saving from the edit dialog closes it and refreshes the router', async () => {

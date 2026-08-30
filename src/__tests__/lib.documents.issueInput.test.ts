@@ -66,6 +66,24 @@ describe('toGenerateArgs', () => {
     expect('lines' in toGenerateArgs({ orderId: 'o1', docType: 'invoice', lines: [] })).toBe(false);
   });
 
+  it('`У-145`: цель ровно одна — обе или ни одной схема не принимает', () => {
+    expect(
+      issueInputSchema.safeParse({ orderId: 'o1', organizationId: 'org-1', docType: 'invoice' })
+        .success
+    ).toBe(false);
+    expect(issueInputSchema.safeParse({ docType: 'invoice' }).success).toBe(false);
+    expect(
+      issueInputSchema.safeParse({ organizationId: 'org-1', docType: 'invoice' }).success
+    ).toBe(true);
+  });
+
+  it('`У-145`: организация доезжает до сервиса, а поля заказа не появляется', () => {
+    const args = toGenerateArgs({ organizationId: 'org-1', docType: 'invoice' });
+    expect(args.organizationId).toBe('org-1');
+    // `exactOptionalPropertyTypes`: «поля нет» и «поле undefined» — разное.
+    expect('orderId' in args).toBe(false);
+  });
+
   it('ответ на вопрос о суммах доезжает до сервиса', () => {
     const args = toGenerateArgs({
       orderId: 'o1',
