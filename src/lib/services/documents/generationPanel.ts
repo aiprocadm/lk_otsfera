@@ -86,6 +86,11 @@ export async function getDocumentGenerationPanel(
         orderId: args.orderId,
         type: { in: ['invoice', 'contract'] },
         generatedBy: 'system',
+        // `Д-5`: счёт, приехавший из 1С, приходит БЕЗ номера. Раньше он
+        // включал кнопку «Акт», а выпуск падал «сначала выпустите счёт» —
+        // человек видел счёт на экране и не понимал отказа. Основанием
+        // считается только документ, которому есть что наследовать.
+        number: { not: null },
       },
       _count: { _all: true },
     }),
@@ -94,6 +99,9 @@ export async function getDocumentGenerationPanel(
         orderId: args.orderId,
         type: { in: ['invoice', 'contract'] },
         number: { not: null },
+        // Заменённая версия основанием быть не может: акт привязался бы к
+        // бумаге, которой у заказчика уже нет.
+        supersededAt: null,
       },
       orderBy: { createdAt: 'desc' },
       select: { id: true, type: true, number: true, createdAt: true },
@@ -220,6 +228,9 @@ export async function getOrgDocumentIssuePanel(
         type: 'contract',
         generatedBy: 'system',
         number: { not: null },
+        // Заменённая версия основанием быть не может — так же, как у панели
+        // заказа: ДС привязалось бы к бумаге, которой у заказчика уже нет.
+        supersededAt: null,
       },
       orderBy: { createdAt: 'desc' },
       select: { id: true, type: true, number: true, createdAt: true },
@@ -273,3 +284,26 @@ export async function getOrgDocumentIssuePanel(
     })),
   };
 }
+
+/**
+ * Данные формы ПЕРЕВЫПУСКА (`У-151`).
+ *
+ * Перевыпуск начинается не с пустой формы, а с того, что напечатано в самом
+ * документе: строки берутся его снимком (`У-146`), а не текущим составом
+ * заказа. Иначе «перевыпустить с исправленной опечаткой» молча подтянуло бы
+ * заказ, изменившийся с тех пор, и новая версия разошлась бы со старой не там,
+ * где человек ожидал.
+ */
+export type ReissuePanel = {
+  docType: string;
+  /** Куда выпускать: заказ или организация (`У-145`). */
+  target: { kind: 'order'; orderId: string } | { kind: 'organization'; organizationId: string };
+  counterpartyName: string;
+  missingByType: Record<RequisitesDocKind, MissingRequisite[]>;
+  baseDocuments: IssueBaseDocument[];
+  hasInvoice: boolean;
+  hasContract: boolean;
+  /** Состав заменяемой версии — им открывается форма. */
+  lines: IssuePrefillLine[];
+  catalog: IssueCatalogOption[];
+};

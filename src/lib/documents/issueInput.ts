@@ -39,6 +39,8 @@ export const issueInputSchema = z
     periodFrom: z.string().max(40).optional(),
     periodTo: z.string().max(40).optional(),
     parentDocumentId: z.string().max(64).optional(),
+    /** `У-151`: перевыпуск конкретного документа вместо выпуска нового. */
+    reissueOfDocumentId: z.string().max(64).optional(),
   })
   // `У-145`: цель ровно одна. Проверка формы, а не домена: «и заказ, и
   // организация» — это сломанный вызов, а не отказ по правам, и ловить его
@@ -76,6 +78,7 @@ export function toGenerateArgs(input: IssueInput): GenerateArgs {
     ...(input.paymentTerms ? { paymentTerms: input.paymentTerms } : {}),
     ...(input.changeText ? { changeText: input.changeText } : {}),
     ...(input.parentDocumentId ? { parentDocumentId: input.parentDocumentId } : {}),
+    ...(input.reissueOfDocumentId ? { reissueOfDocumentId: input.reissueOfDocumentId } : {}),
   };
   return {
     ...(input.orderId ? { orderId: input.orderId } : {}),

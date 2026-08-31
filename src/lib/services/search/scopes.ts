@@ -43,8 +43,10 @@ export function searchScopes(session: SessionPayload, teamMode: boolean): Search
     // company-floor и admin-ветку — переиспользуем шов целиком.
     tasks: taskWhereForLevel(session, session.accessProfile?.tasks ?? 'all'),
     events: eventScopeWhere(session),
+    // `У-151`: поиск находит действующую версию. Две строки с одним номером
+    // в выдаче человек прочитал бы как дубль в системе.
     documents: isAdmin
-      ? { ...floor, scanStatus: { not: 'infected' } }
+      ? { ...floor, scanStatus: { not: 'infected' }, supersededAt: null }
       : managerDocumentScope(session, teamMode),
     // Student не несёт companyId — скоупится через организацию (зеркало listStudents).
     students:

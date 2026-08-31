@@ -170,7 +170,7 @@ describe('выпуск без заказа на живой базе (`У-145`)',
     expect(byOrder.number).toBe(`С-${YEAR}-2`);
   });
 
-  it('ДС без заказа наследует номер договора ТОЙ ЖЕ организации без заказа', async () => {
+  it('ДС без заказа связывается с договором ТОЙ ЖЕ организации, а номер берёт свой', async () => {
     const now = new Date(`${YEAR}-07-26T12:00:00Z`);
     const contract = await generateOrderDocument(prisma, sManager(), {
       organizationId: orgB,
@@ -190,7 +190,8 @@ describe('выпуск без заказа на живой базе (`У-145`)',
     });
     expect(extra.ok).toBe(true);
     if (!extra.ok) return;
-    expect(extra.number).toBe(`ДС-${YEAR}-1`);
+    // `У-151`: ДС получает свой номер из общей с договором последовательности.
+    expect(extra.number).toBe(`ДС-${YEAR}-2`);
 
     const doc = await prisma.document.findUniqueOrThrow({
       where: { id: extra.documentId },
@@ -209,21 +210,40 @@ describe('выпуск без заказа на живой базе (`У-145`)',
     ).toEqual({ ok: false, error: 'contract_required' });
   });
 
-  it('повторный выпуск без заказа даёт версию 2 и ссылку на прежнюю', async () => {
+  it('перевыпуск без заказа сохраняет номер, даёт версию 2 и гасит прежнюю', async () => {
     const now = new Date(`${YEAR}-07-26T12:00:00Z`);
-    const again = await generateOrderDocument(prisma, sManager(), {
+    const first = await generateOrderDocument(prisma, sManager(), {
       organizationId: orgB,
       docType: 'invoice',
       lines: [LINE],
       now,
     });
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+
+    const again = await generateOrderDocument(prisma, sManager(), {
+      organizationId: orgB,
+      docType: 'invoice',
+      lines: [LINE],
+      now,
+      extras: { reissueOfDocumentId: first.documentId },
+    });
     expect(again.ok).toBe(true);
     if (!again.ok) return;
+    // Перевыпуск — та же бумага: номер сохраняется, счётчик не тратится.
+    expect(again.number).toBe(first.number);
+
     const doc = await prisma.document.findUniqueOrThrow({
       where: { id: again.documentId },
-      select: { version: true, replacesDocumentId: true },
+      select: { version: true, replacesDocumentId: true, number: true },
     });
     expect(doc.version).toBe(2);
-    expect(doc.replacesDocumentId).not.toBeNull();
+    expect(doc.replacesDocumentId).toBe(first.documentId);
+
+    const old = await prisma.document.findUniqueOrThrow({
+      where: { id: first.documentId },
+      select: { supersededAt: true },
+    });
+    expect(old.supersededAt).not.toBeNull();
   });
 });

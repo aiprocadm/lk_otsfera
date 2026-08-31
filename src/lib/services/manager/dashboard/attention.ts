@@ -68,6 +68,9 @@ export async function attention(
         signedAt: null,
         createdAt: { lt: threeDaysAgo },
         scanStatus: { not: 'infected' },
+        // `У-151`: заменённый перевыпуском акт подписывать уже не нужно —
+        // в ленте «требует внимания» он был бы вечным ложным долгом.
+        supersededAt: null,
         // orderId: { not: null } — order-less docs must not enter this order-centric feed
         orderId: { not: null },
         order: scope,

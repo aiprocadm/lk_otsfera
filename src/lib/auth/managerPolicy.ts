@@ -31,6 +31,9 @@ export function managerDocumentScopeFilter(session: SessionPayload): Prisma.Docu
   return {
     order: managerOrderScopeFilter(session),
     scanStatus: { not: 'infected' },
+    // `У-151`: заменённая перевыпуском версия из списков скрыта — иначе
+    // сотрудник видит две строки с ОДНИМ номером и не знает, какая настоящая.
+    supersededAt: null,
   };
 }
 
@@ -123,7 +126,7 @@ export function managerDocumentScope(
   const orderWhere = level
     ? orderWhereForLevel(session, level)
     : managerOrderScope(session, teamMode);
-  return { order: orderWhere, scanStatus: { not: 'infected' } };
+  return { order: orderWhere, scanStatus: { not: 'infected' }, supersededAt: null };
 }
 
 export function managerOrgScope(

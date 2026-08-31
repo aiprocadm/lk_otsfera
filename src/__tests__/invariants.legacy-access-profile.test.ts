@@ -85,6 +85,8 @@ describe('Инвариант: без профиля managerDocumentScope = legac
     expect(managerDocumentScope(session(), false)).toEqual({
       order: LEGACY_SCOPED_ORDER_WHERE,
       scanStatus: { not: 'infected' },
+      // `У-151`: заменённая перевыпуском версия из списков скрыта.
+      supersededAt: null,
     });
   });
 
@@ -92,6 +94,8 @@ describe('Инвариант: без профиля managerDocumentScope = legac
     expect(managerDocumentScope(session(), true)).toEqual({
       order: LEGACY_TEAM_ORDER_WHERE,
       scanStatus: { not: 'infected' },
+      // `У-151`: заменённая перевыпуском версия из списков скрыта.
+      supersededAt: null,
     });
   });
 });

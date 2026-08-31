@@ -105,12 +105,20 @@ function makePrisma(over: Record<string, unknown> = {}) {
     );
   const tx = {
     documentCounter: { upsert: vi.fn().mockResolvedValue({ lastNumber: 7 }) },
-    document: { findFirst: vi.fn().mockResolvedValue(null), create: documentCreate },
+    document: {
+      findFirst: vi.fn().mockResolvedValue(null),
+      create: documentCreate,
+      // `У-151`: прежняя версия гасится той же транзакцией.
+      update: vi.fn().mockResolvedValue({}),
+    },
     ...((over.tx as Record<string, unknown>) ?? {}),
   };
   const prisma = {
     order: { findUnique: vi.fn().mockResolvedValue(over.order === undefined ? ORDER : over.order) },
     // `У-153`: слоты оформления компании — по умолчанию пусто.
+    // `У-151`: сервис проверяет занятость номера ДО рендера — своим
+    // запросом, а не внутри транзакции резервирования.
+    document: { findFirst: vi.fn().mockResolvedValue(null) },
     companyBrandingAsset: { findMany: vi.fn().mockResolvedValue(over.branding ?? []) },
     company: {
       findUnique: vi.fn().mockResolvedValue(over.company === undefined ? FULL_PARTY : over.company),
@@ -392,16 +400,22 @@ describe('generateOrderDocument', () => {
     ).rejects.toThrow('deadlock');
   });
 
-  it('акт наследует номер последнего счёта; без счёта → invoice_required', async () => {
+  it('`У-151`: акт получает СВОЙ номер, а со счётом его связывает явное поле', async () => {
+    // Раньше акт выдёргивал число из номера счёта и склеивал его со своим
+    // префиксом. Из-за этого два доп. соглашения к одному договору получали
+    // один номер (`Д-4`), а акт, выпущенный в январе, носил номер
+    // прошлогоднего счёта с новым годом. Связь теперь держит
+    // `parentDocumentId`, а номер приходит из счётчика.
     const now = new Date('2026-07-26T12:00:00Z');
     const withInvoice = makePrisma({
       tx: {
-        documentCounter: { upsert: vi.fn() },
+        documentCounter: { upsert: vi.fn().mockResolvedValue({ lastNumber: 18 }) },
         document: {
-          findFirst: vi
-            .fn()
-            .mockResolvedValueOnce({ number: 'С-2026-17', createdAt: new Date('2026-07-01') }) // последний счёт
-            .mockResolvedValueOnce({ id: 'act-old', version: 2 }), // прежний акт
+          findFirst: vi.fn().mockResolvedValueOnce({
+            id: 'inv-1',
+            number: 'С-2026-17',
+            createdAt: new Date('2026-07-01'),
+          }),
           create: vi
             .fn()
             .mockImplementation(({ data }: { data: Record<string, unknown> }) =>
@@ -415,10 +429,10 @@ describe('generateOrderDocument', () => {
       docType: 'act',
       now,
     });
-    expect(r).toEqual({ ok: true, documentId: 'doc-2', number: 'А-2026-17' });
-    expect(
-      withInvoice.tx.documentCounter.upsert as ReturnType<typeof vi.fn>
-    ).not.toHaveBeenCalled();
+    expect(r).toEqual({ ok: true, documentId: 'doc-2', number: 'А-2026-18' });
+    const created = (withInvoice.tx.document.create as ReturnType<typeof vi.fn>).mock.calls[0]![0]
+      .data;
+    expect(created).toMatchObject({ parentDocumentId: 'inv-1', version: 1 });
 
     const noInvoice = makePrisma();
     expect(
@@ -430,17 +444,63 @@ describe('generateOrderDocument', () => {
     ).toEqual({ ok: false, error: 'invoice_required' });
   });
 
-  it('повторная генерация → version+1 и replacesDocumentId', async () => {
+  it('`Д-4`: второй счёт по заказу — НОВЫЙ документ со своим номером, а не версия первого', async () => {
+    // Раньше версия считалась «по типу»: второй счёт молча притворялся
+    // версией первого, первый исчезал из работы, а его номер сгорал.
     const { prisma, documentCreate, tx } = makePrisma();
     (tx.document.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: 'doc-old',
       version: 3,
+      number: 'С-2026-1',
     });
     await generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice' });
     expect(documentCreate.mock.calls[0]![0].data).toMatchObject({
-      version: 4,
+      version: 1,
+      replacesDocumentId: null,
+      number: 'С-2026-7',
+    });
+  });
+
+  it('`Д-3`: перевыпуск сохраняет номер, растит версию и гасит прежнюю', async () => {
+    const { prisma, documentCreate, tx } = makePrisma();
+    (tx.document.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 'doc-old',
+      number: 'С-2026-1',
+      version: 2,
+      parentDocumentId: null,
+    });
+    const r = await generateOrderDocument(prisma, manager(), {
+      orderId: 'ord-1',
+      docType: 'invoice',
+      extras: { reissueOfDocumentId: 'doc-old' },
+    });
+    expect(r).toMatchObject({ ok: true, number: 'С-2026-1' });
+    expect(documentCreate.mock.calls[0]![0].data).toMatchObject({
+      number: 'С-2026-1',
+      version: 3,
       replacesDocumentId: 'doc-old',
     });
+    // Номер из счётчика не берётся: перевыпуск — та же бумага, а не новая.
+    expect(tx.documentCounter.upsert as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+    // Прежняя версия помечена заменённой ТОЙ ЖЕ транзакцией.
+    expect(tx.document.update as ReturnType<typeof vi.fn>).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'doc-old' },
+        data: { supersededAt: expect.anything() },
+      })
+    );
+  });
+
+  it('перевыпускать нечего — понятный отказ, а не молчаливый новый номер', async () => {
+    const { prisma, tx } = makePrisma();
+    (tx.document.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    expect(
+      await generateOrderDocument(prisma, manager(), {
+        orderId: 'ord-1',
+        docType: 'invoice',
+        extras: { reissueOfDocumentId: 'нет-такого' },
+      })
+    ).toEqual({ ok: false, error: 'reissue_not_found' });
   });
 
   it('сбой notify не валит результат; StorageError → storage', async () => {
@@ -498,12 +558,13 @@ describe('договор и доп. соглашение (PR-3)', () => {
     const now = new Date('2026-07-26T12:00:00Z');
     const withContract = makePrisma({
       tx: {
-        documentCounter: { upsert: vi.fn() },
+        documentCounter: { upsert: vi.fn().mockResolvedValue({ lastNumber: 9 }) },
         document: {
-          findFirst: vi
-            .fn()
-            .mockResolvedValueOnce({ number: 'Д-2026-4', createdAt: new Date('2026-07-02') })
-            .mockResolvedValueOnce(null),
+          findFirst: vi.fn().mockResolvedValueOnce({
+            id: 'contract-1',
+            number: 'Д-2026-4',
+            createdAt: new Date('2026-07-02'),
+          }),
           create: vi
             .fn()
             .mockImplementation(({ data }: { data: Record<string, unknown> }) =>
@@ -517,10 +578,10 @@ describe('договор и доп. соглашение (PR-3)', () => {
       docType: 'extra_agreement',
       now,
     });
-    expect(r).toEqual({ ok: true, documentId: 'doc-3', number: 'ДС-2026-4' });
-    expect(
-      withContract.tx.documentCounter.upsert as ReturnType<typeof vi.fn>
-    ).not.toHaveBeenCalled();
+    // `У-151`: ДС получает СВОЙ номер из счётчика, а с договором его связывает
+    // `parentDocumentId`. Раньше два ДС к одному договору носили один номер.
+    expect(r).toEqual({ ok: true, documentId: 'doc-3', number: 'ДС-2026-9' });
+    expect(withContract.tx.documentCounter.upsert as ReturnType<typeof vi.fn>).toHaveBeenCalled();
     // Шаблон ДС получает ссылку на исходный договор.
     expect(renderContractMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -620,7 +681,9 @@ describe('`У-152`: рендер и загрузка вне транзакции
     // рендера PDF и загрузки в хранилище.
     const { prisma } = makePrisma();
     await generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice', now });
-    expect((prisma.$transaction as unknown as { mock: { calls: unknown[] } }).mock.calls).toHaveLength(2);
+    expect(
+      (prisma.$transaction as unknown as { mock: { calls: unknown[] } }).mock.calls
+    ).toHaveLength(2);
   });
 
   it('ключ файла содержит UUID — повтор не перезаписывает прежний', async () => {
@@ -694,10 +757,11 @@ describe('`У-147`: основание выбирается, а не угады�
       .mockResolvedValue(null);
     const { prisma, documentCreate } = makePrisma({
       tx: {
-        documentCounter: { upsert: vi.fn() },
+        documentCounter: { upsert: vi.fn().mockResolvedValue({ lastNumber: 8 }) },
         document: {
           findFirst,
           create: vi.fn().mockResolvedValue({ id: 'doc-2' }),
+          update: vi.fn().mockResolvedValue({}),
         },
       },
     });
@@ -711,7 +775,8 @@ describe('`У-147`: основание выбирается, а не угады�
       now,
       extras: { parentDocumentId: 'inv-7' },
     });
-    expect(r).toEqual({ ok: true, documentId: 'doc-2', number: 'А-2026-7' });
+    // `У-151`: номер у акта свой, из счётчика; со счётом его связывает поле.
+    expect(r).toEqual({ ok: true, documentId: 'doc-2', number: 'А-2026-8' });
     // Выбор основания ищется ПО ИДЕНТИФИКАТОРУ, а не «последний по дате».
     expect(findFirst.mock.calls[0]![0].where).toMatchObject({ id: 'inv-7', orderId: 'ord-1' });
     void documentCreate;

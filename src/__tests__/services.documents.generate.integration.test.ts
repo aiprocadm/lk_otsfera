@@ -104,7 +104,7 @@ afterAll(async () => {
 });
 
 describe('полный путь генерации', () => {
-  it('счёт С-{год}-1 → акт наследует номер → повтор счёта v2 с replaces', async () => {
+  it('`У-151`: счёт, акт со своим номером и связью, второй счёт и перевыпуск первого', async () => {
     const now = new Date(`${YEAR}-07-26T12:00:00Z`);
 
     // Акт до счёта — отказ.
@@ -129,7 +129,8 @@ describe('полный путь генерации', () => {
       docType: 'act',
       now,
     });
-    expect(act.ok && act.number).toBe(`А-${YEAR}-1`);
+    // `У-151`: акт получает СВОЙ номер из общей со счётом последовательности.
+    expect(act.ok && act.number).toBe(`А-${YEAR}-2`);
 
     // ~У-146~ + ~У-151~: у документа СВОИ строки-снимок, свои итоги и явная
     // ссылка на основание. Проверяется только на живой базе — вложенная
@@ -154,39 +155,66 @@ describe('полный путь генерации', () => {
     expect(saved?.lines[0]?.title).toContain('Услуги по заказу');
     expect(saved?.lines[0]?.amount.toFixed(2)).toBe('15000.00');
 
+    // `Д-4`: второй счёт по заказу — это ВТОРОЙ ДОКУМЕНТ, а не версия первого.
+    // До `У-151` он молча «заменял» первый, и номер первого сгорал.
     const invoice2 = await generateOrderDocument(prisma, sManager(), {
       orderId: order1,
       docType: 'invoice',
       now,
     });
-    expect(invoice2.ok && invoice2.number).toBe(`С-${YEAR}-2`);
+    // Счёт и акт делят одну последовательность (COUNTER_KIND), поэтому второй
+    // счёт получает третий номер: второй ушёл акту. Пропуски в ряду — плата за
+    // то, что номера НИКОГДА не сталкиваются с уже выданными.
+    expect(invoice2.ok && invoice2.number).toBe(`С-${YEAR}-3`);
+
+    // `Д-3`: перевыпуск ПЕРВОГО счёта сохраняет его номер и растит версию.
+    const reissue = await generateOrderDocument(prisma, sManager(), {
+      orderId: order1,
+      docType: 'invoice',
+      now,
+      extras: { reissueOfDocumentId: invoice.ok ? invoice.documentId : '' },
+    });
+    expect(reissue.ok && reissue.number).toBe(`С-${YEAR}-1`);
 
     const docs = await prisma.document.findMany({
       where: { orderId: order1, type: 'invoice' },
-      orderBy: { version: 'asc' },
+      orderBy: [{ number: 'asc' }, { version: 'asc' }],
       select: {
         id: true,
         version: true,
         replacesDocumentId: true,
+        supersededAt: true,
         number: true,
         generatedBy: true,
         scanStatus: true,
         direction: true,
       },
     });
-    expect(docs).toHaveLength(2);
+    expect(docs).toHaveLength(3);
+    // Первая версия первого счёта — помечена заменённой.
     expect(docs[0]).toMatchObject({
+      number: `С-${YEAR}-1`,
       version: 1,
       replacesDocumentId: null,
       generatedBy: 'system',
       scanStatus: 'clean',
       direction: 'outgoing',
     });
+    expect(docs[0]!.supersededAt).not.toBeNull();
+    // Вторая версия ТОГО ЖЕ номера.
     expect(docs[1]).toMatchObject({
+      number: `С-${YEAR}-1`,
       version: 2,
       replacesDocumentId: docs[0]!.id,
-      number: `С-${YEAR}-2`,
     });
+    expect(docs[1]!.supersededAt).toBeNull();
+    // Отдельный второй счёт — своя цепочка, версия 1, никого не заменяет.
+    expect(docs[2]).toMatchObject({
+      number: `С-${YEAR}-3`,
+      version: 1,
+      replacesDocumentId: null,
+    });
+    expect(docs[2]!.supersededAt).toBeNull();
     expect(uploadMock).toHaveBeenCalled();
 
     // Клиенту ушло document_published.
@@ -242,7 +270,7 @@ describe('полный путь генерации', () => {
 });
 
 describe('договор и доп. соглашение (PR-3)', () => {
-  it('договор нумеруется независимо от счёта; ДС наследует номер договора', async () => {
+  it('договор нумеруется независимо от счёта; ДС получает свой номер и связь с договором', async () => {
     const now = new Date(`${YEAR}-07-26T14:00:00Z`);
     const orderC = await prisma.order.create({
       data: {
@@ -278,7 +306,8 @@ describe('договор и доп. соглашение (PR-3)', () => {
         docType: 'extra_agreement',
         now,
       });
-      expect(extra.ok && extra.number).toBe(`ДС-${YEAR}-1`);
+      // `У-151`: ДС получает свой номер; с договором его связывает parentDocumentId.
+      expect(extra.ok && extra.number).toBe(`ДС-${YEAR}-2`);
 
       // Счёт по тому же заказу берёт номер из СВОЕЙ последовательности (не «2»).
       const invoice = await generateOrderDocument(prisma, sManager(), {
@@ -293,7 +322,8 @@ describe('договор и доп. соглашение (PR-3)', () => {
         select: { kind: true, lastNumber: true },
         orderBy: { kind: 'asc' },
       });
-      expect(counters.find((c) => c.kind === 'contract')!.lastNumber).toBe(1);
+      // Договор и ДС делят последовательность 'contract': два выпуска — два номера.
+      expect(counters.find((c) => c.kind === 'contract')!.lastNumber).toBe(2);
       expect(counters.find((c) => c.kind === 'invoice')!.lastNumber).toBeGreaterThanOrEqual(1);
     } finally {
       await prisma.document.deleteMany({ where: { orderId: orderC.id } });

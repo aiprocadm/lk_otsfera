@@ -101,6 +101,8 @@ export function IssueDocumentDialog({
   catalog = [],
   defaultSubject = '',
   defaultVatRate = null,
+  reissueOfDocumentId,
+  lockedDocType,
 }: {
   open: boolean;
   onClose: () => void;
@@ -118,11 +120,19 @@ export function IssueDocumentDialog({
   defaultSubject?: string;
   /** Ставка НДС компании-исполнителя для строк, набранных вручную (`У-138`). */
   defaultVatRate?: string | null;
+  /**
+   * `У-151`: перевыпуск ИМЕННО этого документа — номер сохранится, версия
+   * вырастет, прежняя версия погаснет. Без него форма выпускает новый
+   * документ с новым номером.
+   */
+  reissueOfDocumentId?: string;
+  /** У перевыпуска тип менять нельзя: это та же бумага. */
+  lockedDocType?: IssueDocType;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const withOrder = target.kind === 'order';
-  const [docType, setDocType] = useState<IssueDocType>('invoice');
+  const [docType, setDocType] = useState<IssueDocType>(lockedDocType ?? 'invoice');
   // Строки приходят со своими ставками (состав заказа или предзаполнение) и
   // здесь не переписываются: `null` у строки заказа — это «не облагается», а
   // не «ставку забыли». Умолчание компании получают только НОВЫЕ строки.
@@ -181,6 +191,7 @@ export function IssueDocumentDialog({
       ...(isAct && periodFrom ? { periodFrom } : {}),
       ...(isAct && periodTo ? { periodTo } : {}),
       ...((isAct || isExtra) && parentDocumentId ? { parentDocumentId } : {}),
+      ...(reissueOfDocumentId ? { reissueOfDocumentId } : {}),
     });
   }
 
@@ -270,8 +281,9 @@ export function IssueDocumentDialog({
     >
       <div className="flex flex-col gap-4">
         <p className="text-sm text-gray-600">
-          Проверьте состав и даты, посмотрите готовый файл — и выпустите документ. До выпуска
-          заказчик его не видит.
+          {reissueOfDocumentId
+            ? 'Перевыпуск сохранит номер документа и создаст новую версию. Прежняя версия останется в истории, но из списков пропадёт.'
+            : 'Проверьте состав и даты, посмотрите готовый файл — и выпустите документ. До выпуска заказчик его не видит.'}
         </p>
 
         <div className="grid gap-3 sm:grid-cols-3">
@@ -279,6 +291,7 @@ export function IssueDocumentDialog({
             <Select
               id="issue-type"
               value={docType}
+              disabled={Boolean(lockedDocType)}
               onChange={(e) => {
                 setDocType(e.target.value as IssueDocType);
                 setParentDocumentId('');

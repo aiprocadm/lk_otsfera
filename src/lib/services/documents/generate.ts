@@ -34,10 +34,14 @@ import { resolveOrgIssueScope } from './issueScope';
  * Гейты: staff (manager|leader|admin) + `canSeeOrder` (C8 teamMode-aware) для
  * документа заказа, скоуп организации — для документа без заказа.
  * Полнота реквизитов — до всего, и **набор зависит от типа** (`У-156`).
- * Номер: ведущий тип берёт его атомарным upsert+increment
- * `DocumentCounter(companyId, year, kind)`, ведомый (акт, ДС) наследует номер
- * документа-основания. Повторный выпуск — новый `Document` с `version+1` и
- * `replacesDocumentId`. Файл генерируем сами → `scanStatus='clean'`
+ * Номер (`У-151`): КАЖДЫЙ документ берёт свой номер атомарным upsert+increment
+ * `DocumentCounter(companyId, year, kind)` — счёт и акт делят одну
+ * последовательность, договор и ДС другую. Ведомый тип (акт, ДС) номер
+ * основания НЕ наследует: связь держит `parentDocumentId`, иначе два ДС к
+ * одному договору носили бы один номер (`Д-4`). Год считается по
+ * `Europe/Moscow` (`Д-22`). Перевыпуск — только по явной просьбе
+ * (`extras.reissueOfDocumentId`): он сохраняет номер, растит версию и гасит
+ * прежнюю; без просьбы выпускается НОВЫЙ документ со своим номером (`Д-3`). Файл генерируем сами → `scanStatus='clean'`
  * (антивирус для собственных байтов бессмыслен), `generatedBy='system'`,
  * `direction='outgoing'`.
  *
@@ -79,6 +83,14 @@ export type IssueExtras = {
    * Без него берётся последний по типу — прежнее поведение.
    */
   parentDocumentId?: string;
+  /**
+   * `У-151`: перевыпуск ИМЕННО ЭТОГО документа. Новая версия сохраняет его
+   * номер, а прежняя помечается заменённой. Поля нет — значит выпускается
+   * НОВЫЙ документ, и он получает новый номер: до этапа 6 второй счёт по
+   * заказу молча «заменял» первый, потому что версия считалась по типу, а не
+   * по цепочке (дефект `Д-4`).
+   */
+  reissueOfDocumentId?: string;
 };
 
 export type GenerateArgs = {
@@ -117,6 +129,9 @@ export type GenerateResult =
         | 'parent_not_found'
         | 'act_requires_order'
         | 'lines_required'
+        | 'leader_number_required'
+        | 'reissue_not_found'
+        | 'number_taken'
         | 'storage';
       missing?: MissingRequisite[];
     }
@@ -127,6 +142,35 @@ export type GenerateResult =
       linesTotal: string;
       orderTotal: string;
     };
+
+/**
+ * Все документы компании-исполнителя (`У-151`).
+ *
+ * Одного поля мало: у документа заказа компания лежит в заказе, а у документа
+ * без заказа — в самом документе (инвариант `У-145`). Наивная выборка по
+ * `Document.companyId` увидела бы пустоту там, где живёт большинство
+ * документов, и проверка уникальности молча ничего бы не проверяла.
+ */
+export function companyScopeWhere(companyId: string): Prisma.DocumentWhereInput {
+  return { OR: [{ companyId }, { order: { companyId } }] };
+}
+
+/**
+ * Год номера — по московскому времени (`У-151`, дефект `Д-22`).
+ *
+ * `getFullYear()` считает год в часовом поясе процесса: документ, выпущенный
+ * 1 января в 02:00 по Москве, на UTC-сервере попал бы в счётчик ПРОШЛОГО года
+ * и получил номер, который там уже занят. Расписания в проекте уже живут по
+ * `Europe/Moscow` — номер обязан жить там же.
+ */
+function moscowYear(date: Date): number {
+  // `en-CA`, а не `ru-RU`: русская локаль в части сборок ICU форматирует
+  // одиночный год как «2026 г.», и `Number()` дал бы `NaN` — номер вышел бы
+  // «С-NaN-7». Локаль здесь ни на что не влияет: наружу идёт только число.
+  return Number(
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow', year: 'numeric' }).format(date)
+  );
+}
 
 /** Ведущий документ пары (номер наследуется) — решение заказчика по акту, зеркально для ДС. */
 const LEADER_OF: Record<GenerateDocType, 'invoice' | 'contract' | null> = {
@@ -618,7 +662,7 @@ export async function generateOrderDocument(
   const { ctx } = loaded;
   const { order, companyId, organizationId, table, printLines } = ctx;
   const now = args.now ?? new Date();
-  const year = ctx.documentDate.getFullYear();
+  const year = moscowYear(ctx.documentDate);
 
   /**
    * Соседи документа — те, среди которых ищутся основание и предыдущая версия
@@ -663,7 +707,7 @@ export async function generateOrderDocument(
     }
   }
 
-  // --- Шаг 1: короткая транзакция — номер и версия (`У-152`) -----------------
+  // --- Шаг 1: короткая транзакция — номер и версия (`У-152`, `У-151`) --------
   let reserved: {
     number: string;
     version: number;
@@ -673,28 +717,25 @@ export async function generateOrderDocument(
   };
   try {
     reserved = await prisma.$transaction(async (tx) => {
+      // `У-151`: основание акта и ДС — ЯВНОЕ поле, а не совпадение номеров.
+      // До этапа 6 ведомый документ выдёргивал число из номера основания и
+      // склеивал его со своим префиксом и своим годом: два доп. соглашения к
+      // одному договору получали один номер (`Д-4`), а акт, выпущенный в
+      // январе, получал номер прошлогоднего счёта с новым годом.
       const leader = LEADER_OF[args.docType];
-      let numeric: number;
       let baseDoc: { number: string; date: Date } | null = null;
       let parentId: string | null = null;
-      if (leader === null) {
-        const counter = await tx.documentCounter.upsert({
-          where: { companyId_year_kind: { companyId, year, kind: COUNTER_KIND[args.docType] } },
-          create: { companyId, year, kind: COUNTER_KIND[args.docType], lastNumber: 1 },
-          update: { lastNumber: { increment: 1 } },
-        });
-        numeric = counter.lastNumber;
-      } else {
-        // `У-147`: основание выбирается в форме. Без выбора — последний по
-        // типу, как раньше: «последний» был единственным вариантом и молча
-        // привязывал акт не к тому счёту, если счетов у заказа несколько.
+      if (leader !== null) {
         const found = args.extras?.parentDocumentId
           ? await tx.document.findFirst({
               where: {
                 id: args.extras.parentDocumentId,
                 ...siblingWhere,
                 type: leader,
-                number: { not: null },
+                // Заменённая версия основанием быть не может: акт привязался
+                // бы к бумаге, которой у заказчика уже нет. Форма её и не
+                // предлагает — но форма могла быть открыта до перевыпуска.
+                supersededAt: null,
               },
               select: { id: true, number: true, createdAt: true },
             })
@@ -703,7 +744,7 @@ export async function generateOrderDocument(
                 ...siblingWhere,
                 type: leader,
                 generatedBy: 'system',
-                number: { not: null },
+                supersededAt: null,
               },
               orderBy: { createdAt: 'desc' },
               select: { id: true, number: true, createdAt: true },
@@ -713,30 +754,61 @@ export async function generateOrderDocument(
             ? new ParentNotFoundError()
             : new LeaderRequiredError(leader);
         }
-        const parsed = found.number?.match(/(\d+)$/);
-        if (!parsed) throw new LeaderRequiredError(leader);
-        numeric = Number(parsed[1]);
-        // `У-151`: связь «акт → счёт», «ДС → договор» — явным полем, а не
-        // догадкой «последний по типу» при каждом чтении.
+        // `Д-5`: ведущий документ из 1С приходит БЕЗ номера. Раньше это давало
+        // «сначала выпустите счёт» — человек видел счёт на экране и не понимал
+        // отказа. Теперь отвечаем честно: номер нужно указать.
+        if (!found.number) throw new LeaderNumberRequiredError();
         parentId = found.id;
-        baseDoc = { number: found.number ?? '', date: found.createdAt };
+        baseDoc = { number: found.number, date: found.createdAt };
       }
 
-      const previous = await tx.document.findFirst({
-        where: { ...siblingWhere, type: args.docType, generatedBy: 'system' },
-        orderBy: { version: 'desc' },
-        select: { id: true, version: true },
+      // Перевыпуск (`У-151`): номер сохраняется, версия растёт, прежняя
+      // помечается заменённой. Без указания документа выпускается НОВЫЙ, и он
+      // всегда получает свой номер — «второй документ того же типа» больше не
+      // притворяется версией первого (`Д-4`), а перевыпуск больше не жжёт
+      // номер из счётчика (`Д-3`).
+      if (args.extras?.reissueOfDocumentId) {
+        const previous = await tx.document.findFirst({
+          where: {
+            id: args.extras.reissueOfDocumentId,
+            ...siblingWhere,
+            type: args.docType,
+            number: { not: null },
+            supersededAt: null,
+          },
+          select: { id: true, number: true, version: true, parentDocumentId: true },
+        });
+        if (!previous) throw new ReissueNotFoundError();
+        return {
+          // Номер не берётся из счётчика: перевыпуск — это та же бумага.
+          number: previous.number!,
+          version: previous.version + 1,
+          previousId: previous.id,
+          // Основание наследуется от заменяемой версии, если его не выбрали
+          // заново: иначе акт перевыпуском отвязался бы от своего счёта.
+          parentId: parentId ?? previous.parentDocumentId,
+          baseDoc,
+        };
+      }
+
+      const counter = await tx.documentCounter.upsert({
+        where: { companyId_year_kind: { companyId, year, kind: COUNTER_KIND[args.docType] } },
+        create: { companyId, year, kind: COUNTER_KIND[args.docType], lastNumber: 1 },
+        update: { lastNumber: { increment: 1 } },
       });
       return {
-        number: `${NUMBER_PREFIX[args.docType]}-${year}-${numeric}`,
-        version: (previous?.version ?? 0) + 1,
-        previousId: previous?.id ?? null,
+        number: `${NUMBER_PREFIX[args.docType]}-${year}-${counter.lastNumber}`,
+        version: 1,
+        previousId: null,
         parentId,
         baseDoc,
       };
     });
   } catch (e) {
     if (e instanceof ParentNotFoundError) return { ok: false, error: 'parent_not_found' };
+    if (e instanceof LeaderNumberRequiredError)
+      return { ok: false, error: 'leader_number_required' };
+    if (e instanceof ReissueNotFoundError) return { ok: false, error: 'reissue_not_found' };
     if (e instanceof LeaderRequiredError) {
       return {
         ok: false,
@@ -745,6 +817,21 @@ export async function generateOrderDocument(
     }
     throw e;
   }
+
+  // `У-151`: «две разные цепочки с одним номером невозможны — проверяется
+  // сервисом при выпуске, а не только индексом». Индекс появится миграцией
+  // данных (PR-8b) и защитит от гонки; здесь — понятный отказ вместо ошибки
+  // базы, и работает он уже сейчас.
+  const clash = await prisma.document.findFirst({
+    where: {
+      ...companyScopeWhere(companyId),
+      type: args.docType,
+      number: reserved.number,
+      version: reserved.version,
+    },
+    select: { id: true },
+  });
+  if (clash) return { ok: false, error: 'number_taken' };
 
   // --- Шаг 2: рендер и загрузка ВНЕ транзакции (`У-152`) ---------------------
   const rendered = await renderDocument(
@@ -814,6 +901,17 @@ export async function generateOrderDocument(
         select: { id: true },
       });
 
+      // `У-151`: прежняя версия помечается заменённой ТОЙ ЖЕ транзакцией, что
+      // создаёт новую. Пометь мы её раньше — сбой записи оставил бы заказ без
+      // действующего документа вовсе; позже — на секунду показались бы две
+      // действующие версии одного номера.
+      if (reserved.previousId) {
+        await tx.document.update({
+          where: { id: reserved.previousId },
+          data: { supersededAt: now },
+        });
+      }
+
       await recordAudit(tx, {
         userId: session.sub,
         action: 'document_generated',
@@ -830,6 +928,9 @@ export async function generateOrderDocument(
           // остаётся только «какой абзац откуда взят».
           templateVersion: rendered.templateVersion,
           templateSources: rendered.templateSources,
+          // `У-151`: по журналу должно быть видно, перевыпуск это или новый
+          // документ, — номер у них одинаковый, а смысл разный.
+          reissueOf: reserved.previousId,
         },
       });
       return { id: doc.id };
@@ -897,6 +998,22 @@ class LeaderRequiredError extends Error {
   constructor(readonly leader: 'invoice' | 'contract') {
     super(`${leader}_required`);
     this.name = 'LeaderRequiredError';
+  }
+}
+
+/** Ведущий документ есть, но у него нет номера (пришёл из 1С) — `Д-5`. */
+class LeaderNumberRequiredError extends Error {
+  constructor() {
+    super('leader_number_required');
+    this.name = 'LeaderNumberRequiredError';
+  }
+}
+
+/** Перевыпускать нечего: документ не найден, без номера или уже заменён. */
+class ReissueNotFoundError extends Error {
+  constructor() {
+    super('reissue_not_found');
+    this.name = 'ReissueNotFoundError';
   }
 }
 

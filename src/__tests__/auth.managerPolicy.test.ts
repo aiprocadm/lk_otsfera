@@ -77,6 +77,8 @@ describe('managerDocumentScopeFilter', () => {
         ],
       },
       scanStatus: { not: 'infected' },
+      // `У-151`: заменённая перевыпуском версия из списков скрыта.
+      supersededAt: null,
     });
   });
 });
@@ -239,6 +241,8 @@ describe('managerDocumentScope (resolver)', () => {
     expect(managerDocumentScope(session, false)).toEqual({
       order: managerOrderScopeFilter(session),
       scanStatus: { not: 'infected' },
+      // `У-151`: заменённая перевыпуском версия из списков скрыта.
+      supersededAt: null,
     });
   });
   it('teamMode=true uses company-wide order filter + excludes infected', () => {
@@ -246,6 +250,8 @@ describe('managerDocumentScope (resolver)', () => {
     expect(managerDocumentScope(session, true)).toEqual({
       order: { companyId: 'co-1' },
       scanStatus: { not: 'infected' },
+      // `У-151`: заменённая перевыпуском версия из списков скрыта.
+      supersededAt: null,
     });
   });
 });

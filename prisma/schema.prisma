@@ -1249,6 +1249,12 @@ model Document {
   parentDocumentId   String?
   parentDocument     Document?          @relation("DocumentParent", fields: [parentDocumentId], references: [id])
   children           Document[]         @relation("DocumentParent")
+  /// `У-151`: когда этот документ заменён перевыпуском. Отдельная отметка, а
+  /// не значение `status`: матрица переходов (`У-148`) про жизненный цикл
+  /// документа, а «заменён» — про место в цепочке версий, и смешивать их
+  /// значило бы запретить, например, отправку заменённой версии задним числом.
+  /// Списки по умолчанию показывают только строки с `supersededAt = null`.
+  supersededAt       DateTime?
   sentAt             DateTime?
   sentById           String?
   acceptedAt         DateTime?
@@ -1273,6 +1279,7 @@ model Document {
   @@index([companyId])
   @@index([status])
   @@index([parentDocumentId])
+  @@index([supersededAt])
 }
 
 /// Этап 6 ТЗ (`У-160`): свои тексты абзацев договора и доп. соглашения.

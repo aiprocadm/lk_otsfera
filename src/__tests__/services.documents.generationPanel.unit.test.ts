@@ -77,6 +77,9 @@ describe('getDocumentGenerationPanel', () => {
         orderId: 'order-1',
         type: { in: ['invoice', 'contract'] },
         generatedBy: 'system',
+        // `Д-5`: счёт из 1С приходит без номера — основанием он не считается,
+        // иначе кнопка «Акт» включалась бы, а выпуск падал непонятным отказом.
+        number: { not: null },
       },
       _count: { _all: true },
     });

@@ -18,7 +18,7 @@ describe('listGeneralDocuments()', () => {
     await listGeneralDocuments(makePrisma(findMany));
 
     expect(findMany).toHaveBeenCalledWith({
-      where: { orderId: null },
+      where: { orderId: null, supersededAt: null },
       orderBy: { createdAt: 'desc' },
       take: 200,
       select: {

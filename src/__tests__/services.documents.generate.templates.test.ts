@@ -101,6 +101,9 @@ function makePrisma(over: Record<string, unknown> = {}) {
     vi.fn().mockResolvedValue(over.templates ?? []);
   const prisma = {
     order: { findUnique: vi.fn().mockResolvedValue(ORDER) },
+    // `У-151`: сервис проверяет занятость номера ДО рендера — своим
+    // запросом, а не внутри транзакции резервирования.
+    document: { findFirst: vi.fn().mockResolvedValue(null) },
     companyBrandingAsset: { findMany: vi.fn().mockResolvedValue([]) },
     company: { findUnique: vi.fn().mockResolvedValue(FULL_PARTY) },
     organization: { findUnique: vi.fn().mockResolvedValue(FULL_PARTY) },

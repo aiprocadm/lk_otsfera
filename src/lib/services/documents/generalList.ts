@@ -9,7 +9,9 @@ import type { OrgDocumentRow } from '@/lib/services/partner/orgDocuments';
  */
 export async function listGeneralDocuments(prisma: PrismaClient): Promise<OrgDocumentRow[]> {
   const rows = await prisma.document.findMany({
-    where: { orderId: null },
+    // `У-151`: заменённая перевыпуском версия из списка скрыта — два
+    // одинаковых номера рядом человек прочитал бы как дубль в системе.
+    where: { orderId: null, supersededAt: null },
     orderBy: { createdAt: 'desc' },
     take: 200,
     select: {

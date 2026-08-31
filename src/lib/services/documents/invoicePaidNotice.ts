@@ -27,6 +27,11 @@ export async function notifyInvoicesPaid(db: PrismaClient, orderId: string): Pro
       status: { not: 'cancelled' },
       number: { not: null },
       amountGross: { not: null },
+      // `У-151`: перевыпуск даёт двум версиям ОДИН номер и одну сумму. Без
+      // этого фильтра обе стали бы «оплаченными», и менеджеру пришло бы два
+      // уведомления об оплате одного счёта: защита от повтора ищет прежнее
+      // уведомление по id документа, а id у версий разные.
+      supersededAt: null,
     },
     select: { id: true, number: true, amountGross: true },
   });

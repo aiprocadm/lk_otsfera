@@ -25,7 +25,8 @@ export async function listAllDocuments(
   session: SessionPayload
 ): Promise<{ ok: true; documents: DocumentListRow[] }> {
   const documents = await prisma.document.findMany({
-    where: { ...hideInfectedForSession(session) },
+    // `У-151`: действующая версия документа, а не вся цепочка перевыпусков.
+    where: { ...hideInfectedForSession(session), supersededAt: null },
     orderBy: { createdAt: 'desc' },
     select: { id: true, name: true, mimeType: true, createdAt: true, orderId: true },
   });
