@@ -229,19 +229,20 @@ export async function getOrganizationCard(
   // карточки продолжал фильтровать по закреплению — гард пускал, карточка
   // отдавала null, и страница показывала «не найдено». Поймано живой проверкой
   // на стенде 30.07.2026.
-  const visible = session.role === 'organization'
-    ? activeOrgIds(session).includes(orgId)
-    : session.role === 'partner'
-      ? // Принадлежность портфелю — по БД, а не по сессии: список организаций
-        // в токене устаревает, привязка к партнёру — нет. Дополнительный
-        // персональный скоуп (`assignedOrgIds`) сужает её ещё раз.
-        !!session.partnerId &&
-        org.partnerId === session.partnerId &&
-        ((session.assignedOrgIds ?? []).length === 0 ||
-          (session.assignedOrgIds ?? []).includes(orgId))
-      : teamMode
-      ? !!session.companyId && org.companyId === session.companyId
-      : canSeeOrganization(session, orgId) || isLeaderSameCompany(session, org.companyId);
+  const visible =
+    session.role === 'organization'
+      ? activeOrgIds(session).includes(orgId)
+      : session.role === 'partner'
+        ? // Принадлежность портфелю — по БД, а не по сессии: список организаций
+          // в токене устаревает, привязка к партнёру — нет. Дополнительный
+          // персональный скоуп (`assignedOrgIds`) сужает её ещё раз.
+          !!session.partnerId &&
+          org.partnerId === session.partnerId &&
+          ((session.assignedOrgIds ?? []).length === 0 ||
+            (session.assignedOrgIds ?? []).includes(orgId))
+        : teamMode
+          ? !!session.companyId && org.companyId === session.companyId
+          : canSeeOrganization(session, orgId) || isLeaderSameCompany(session, org.companyId);
   if (!visible) return null;
 
   const [
@@ -277,7 +278,13 @@ export async function getOrganizationCard(
       },
     }),
     prisma.document.findMany({
-      where: { order: { organizationId: orgId }, scanStatus: { not: 'infected' } },
+      // `У-151`: показываем действующую версию; заменённая осталась в
+      // истории и открывается по прямой ссылке, но в списке путала бы.
+      where: {
+        order: { organizationId: orgId },
+        scanStatus: { not: 'infected' },
+        supersededAt: null,
+      },
       select: { id: true, name: true, type: true, direction: true, createdAt: true },
       orderBy: { createdAt: 'desc' },
       take: 20,
@@ -369,56 +376,56 @@ export async function getOrganizationCard(
 
   const [inboundMessages, calls, leads, deals] = isStaffView
     ? await Promise.all([
-      prisma.inboundMessage.findMany({
-        where: { resolvedOrgId: orgId },
-        select: {
-          id: true,
-          channel: true,
-          senderRef: true,
-          senderDisplay: true,
-          subject: true,
-          body: true,
-          createdAt: true,
-          status: true,
-          scanStatus: true,
-          attachmentName: true,
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 20,
-      }),
-      // Не селектим `recordingPath` — карточке нужен только boolean hasRecording,
-      // сырой object-storage путь не должен уходить в RSC-payload (mirrors listCalls.ts).
-      prisma.call.findMany({
-        where: { resolvedOrgId: orgId },
-        select: {
-          id: true,
-          direction: true,
-          callerNumber: true,
-          internalNumber: true,
-          status: true,
-          durationSec: true,
-          startedAt: true,
-          createdAt: true,
-          resolvedOrgId: true,
-          recordingScanStatus: true,
-          recordingPath: true,
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 20,
-      }),
-      // Этап 7 (PR-3): внутренний контур — лиды и сделки организации.
-      prisma.lead.findMany({
-        where: { organizationId: orgId },
-        select: { id: true, subject: true, status: true, createdAt: true },
-        orderBy: { createdAt: 'desc' },
-        take: 20,
-      }),
-      prisma.deal.findMany({
-        where: { organizationId: orgId },
-        select: { id: true, title: true, status: true, amount: true, createdAt: true },
-        orderBy: { createdAt: 'desc' },
-        take: 20,
-      }),
+        prisma.inboundMessage.findMany({
+          where: { resolvedOrgId: orgId },
+          select: {
+            id: true,
+            channel: true,
+            senderRef: true,
+            senderDisplay: true,
+            subject: true,
+            body: true,
+            createdAt: true,
+            status: true,
+            scanStatus: true,
+            attachmentName: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+        }),
+        // Не селектим `recordingPath` — карточке нужен только boolean hasRecording,
+        // сырой object-storage путь не должен уходить в RSC-payload (mirrors listCalls.ts).
+        prisma.call.findMany({
+          where: { resolvedOrgId: orgId },
+          select: {
+            id: true,
+            direction: true,
+            callerNumber: true,
+            internalNumber: true,
+            status: true,
+            durationSec: true,
+            startedAt: true,
+            createdAt: true,
+            resolvedOrgId: true,
+            recordingScanStatus: true,
+            recordingPath: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+        }),
+        // Этап 7 (PR-3): внутренний контур — лиды и сделки организации.
+        prisma.lead.findMany({
+          where: { organizationId: orgId },
+          select: { id: true, subject: true, status: true, createdAt: true },
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+        }),
+        prisma.deal.findMany({
+          where: { organizationId: orgId },
+          select: { id: true, title: true, status: true, amount: true, createdAt: true },
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+        }),
       ])
     : ([[], [], [], []] as const);
 
@@ -569,12 +576,12 @@ export async function getOrganizationCard(
     })),
     commission:
       isStaffView && can(session, 'see_commission')
-      ? {
-          partnerCommissionRate: org.partnerCommissionRate
-            ? org.partnerCommissionRate.toFixed(4)
-            : null,
-          note: org.partnerCommissionRateNote,
-        }
-      : null,
+        ? {
+            partnerCommissionRate: org.partnerCommissionRate
+              ? org.partnerCommissionRate.toFixed(4)
+              : null,
+            note: org.partnerCommissionRateNote,
+          }
+        : null,
   };
 }

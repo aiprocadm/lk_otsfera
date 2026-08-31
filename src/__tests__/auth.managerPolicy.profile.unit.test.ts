@@ -86,6 +86,8 @@ describe('managerDocumentScope — profile-first', () => {
     ).toEqual({
       order: { AND: [{ companyId: 'co-1' }, { managerId: 'u1' }] },
       scanStatus: { not: 'infected' },
+      // `У-151`: заменённая перевыпуском версия из списков скрыта.
+      supersededAt: null,
     });
   });
   it('no profile → legacy order scope wrapped with scan gate', () => {
@@ -93,6 +95,8 @@ describe('managerDocumentScope — profile-first', () => {
     expect(managerDocumentScope(s, false)).toEqual({
       order: managerOrderScopeFilter(s),
       scanStatus: { not: 'infected' },
+      // `У-151`: заменённая перевыпуском версия из списков скрыта.
+      supersededAt: null,
     });
   });
 });

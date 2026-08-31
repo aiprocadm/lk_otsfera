@@ -29,7 +29,12 @@ describe('searchScopes — admin (Model A, company-floor)', () => {
     const s = searchScopes(admin, false);
     expect(s.orders).toEqual({ companyId: 'c1' });
     expect(s.organizations).toEqual({ companyId: 'c1' });
-    expect(s.documents).toEqual({ companyId: 'c1', scanStatus: { not: 'infected' } });
+    // `У-151`: поиск находит действующую версию, а не всю цепочку перевыпусков.
+    expect(s.documents).toEqual({
+      companyId: 'c1',
+      scanStatus: { not: 'infected' },
+      supersededAt: null,
+    });
   });
 
   it('leads — вся командная очередь (у Lead нет companyId)', () => {

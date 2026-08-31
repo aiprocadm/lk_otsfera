@@ -99,6 +99,9 @@ function makePrisma(over: Record<string, unknown> = {}) {
   };
   const prisma = {
     order: { findUnique: vi.fn().mockResolvedValue(null) },
+    // `У-151`: сервис проверяет занятость номера ДО рендера — своим
+    // запросом, а не внутри транзакции резервирования.
+    document: { findFirst: vi.fn().mockResolvedValue(null) },
     companyBrandingAsset: { findMany: vi.fn().mockResolvedValue([]) },
     company: {
       findUnique: vi.fn().mockResolvedValue(over.company === undefined ? FULL_PARTY : over.company),
@@ -278,7 +281,9 @@ describe('выпуск документа без заказа (`У-145`)', () =>
       lines: [LINE],
       now: new Date('2026-08-30T10:00:00Z'),
     });
-    expect(r).toEqual({ ok: true, documentId: 'doc-9', number: 'ДС-2026-3' });
+    // `У-151`: ДС получает СВОЙ номер из счётчика; с договором его связывает
+    // явное поле `parentDocumentId`, а не совпадение номеров.
+    expect(r).toEqual({ ok: true, documentId: 'doc-9', number: 'ДС-2026-4' });
     expect(documentFindFirst.mock.calls[0]![0].where).toMatchObject({
       orderId: null,
       companyId: 'co-A',
@@ -286,8 +291,7 @@ describe('выпуск документа без заказа (`У-145`)', () =>
       counterpartyId: 'org-1',
       type: 'contract',
     });
-    // Номер ведомого документа наследуется, счётчик не тратится.
-    expect(tx.documentCounter.upsert).not.toHaveBeenCalled();
+    expect(tx.documentCounter.upsert).toHaveBeenCalled();
   });
 
   it('ДС без договора у организации → contract_required', async () => {

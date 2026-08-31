@@ -15,13 +15,15 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import type { Crumb } from '@/lib/navigation/breadcrumbs';
-import { Button, Badge, Breadcrumbs } from '@/components/ui';
+import { Button, Badge, Breadcrumbs, Field, Input } from '@/components/ui';
 import type { DocumentDetail } from '@/lib/services/documents/detail';
 import { STATUS_LABELS } from '@/lib/documents/statusMatrix';
 import { errorMessageRu } from '@/lib/errors/messages';
 import { toast } from '@/lib/ui/toast';
 import { acceptDocumentAction } from '@/server-actions/documents/accept';
 import { sendDocumentAction } from '@/server-actions/documents/send';
+import { setDocumentNumberAction } from '@/server-actions/documents/number';
+import { ReissueDocumentButton } from '@/components/documents/reissue-document-button';
 import { PAYMENT_STATE_LABELS } from '@/lib/documents/invoicePayment';
 
 import { PageHeader } from '@/components/ui/page-header';
@@ -137,6 +139,18 @@ export type DocumentDetailViewProps = {
    * У заказчика этой кнопки нет — документ и так лежит в его кабинете.
    */
   canSend?: boolean;
+  /**
+   * `У-151` (дефект `Д-5`): сотрудник ЦО может вписать номер документу,
+   * приехавшему из 1С без номера. Без номера такой счёт не годится в
+   * основание акта, и раньше человек упирался в отказ «сначала выпустите
+   * счёт», глядя на счёт.
+   */
+  canSetNumber?: boolean;
+  /**
+   * `У-151`: перевыпуск — новая версия с тем же номером. Только у сотрудников
+   * ЦО: заказчик и партнёр документы не выпускают.
+   */
+  canReissue?: boolean;
   /** Секция настраиваемых полей §11 (рендерится страницей). */
   children?: React.ReactNode;
 };
@@ -153,6 +167,8 @@ export function DocumentDetailView({
   orderHrefBase,
   canAccept = false,
   canSend = false,
+  canSetNumber = false,
+  canReissue = false,
   children,
 }: DocumentDetailViewProps) {
   const infected = doc.scanStatus === 'infected';
@@ -167,6 +183,11 @@ export function DocumentDetailView({
 
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  // `У-151` (`Д-5`): номер документа из 1С вписывается прямо здесь.
+  const [numberDraft, setNumberDraft] = useState('');
+  const [numberBusy, setNumberBusy] = useState(false);
+  const [numberError, setNumberError] = useState<string | null>(null);
+  const [numberSet, setNumberSet] = useState<string | null>(null);
   const [sentNote, setSentNote] = useState<string | null>(null);
   // Отправляют письмом бумаги с жизненным циклом и только заказчику. Скан,
   // отчёт и документы партнёра этой кнопки не получают: адресата у них нет.
@@ -174,7 +195,45 @@ export function DocumentDetailView({
     ['invoice', 'act', 'contract', 'extra_agreement'].includes(doc.type) &&
     doc.counterparty.type === 'organization' &&
     ['issued', 'sent', 'accepted'].includes(doc.status);
+  /**
+   * Дельты поверх общего словаря: центральные строки писались для других
+   * экранов («Заказ не найден», «Нет прав на загрузку») и здесь врали бы про
+   * то, что произошло (§15 — ошибка обязана быть понятной).
+   */
+  const NUMBER_ERROR_RU: Record<string, string> = {
+    not_found: 'Документ не найден или недоступен. Обновите страницу.',
+    forbidden: 'Нет прав указывать номер документа.',
+  };
+
+  async function saveNumber() {
+    setNumberBusy(true);
+    setNumberError(null);
+    const fd = new FormData();
+    fd.set('documentId', doc.id);
+    fd.set('number', numberDraft);
+    try {
+      const res = await setDocumentNumberAction(fd);
+      if (!res.ok) {
+        setNumberError(NUMBER_ERROR_RU[res.error] ?? errorMessageRu(res.error));
+        return;
+      }
+      // Пропсы приходят с сервера и после действия не меняются: показываем
+      // вписанный номер сразу, иначе экран выглядел бы «ничего не произошло».
+      setNumberSet(numberDraft.trim());
+    } catch {
+      setNumberError(errorMessageRu('network'));
+    } finally {
+      setNumberBusy(false);
+    }
+  }
+
   const showSend = canSend && sendable && !infected;
+  // Номер вписывают только там, где его нет: у выпущенного нами документа он
+  // напечатан в файле, и правка развела бы бумагу с записью.
+  const showSetNumber = canSetNumber && doc.number === null;
+  // Перевыпускают выпущенную нами бумагу с номером, которая ещё действует.
+  // Сервер проверит то же самое: кнопка правами не считается.
+  const showReissue = canReissue && doc.number !== null && !infected;
 
   async function accept() {
     setAccepting(true);
@@ -314,7 +373,44 @@ export function DocumentDetailView({
               {sending ? 'Отправляю…' : doc.sentAt ? 'Отправить ещё раз' : 'Отправить заказчику'}
             </Button>
           )}
+          {showReissue && <ReissueDocumentButton documentId={doc.id} />}
         </div>
+
+        {/* `У-151` (`Д-5`): счёт и договор из 1С приходят без номера, а без
+            номера они не годятся в основание акта. Раньше человек упирался в
+            отказ «сначала выпустите счёт», глядя на счёт. */}
+        {showSetNumber && !numberSet && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+            <p className="text-sm text-gray-800">
+              У документа нет номера — он пришёл из 1С. Впишите номер с бумаги, и по нему можно
+              будет выпустить акт.
+            </p>
+            <div className="mt-2 flex flex-wrap items-end gap-2">
+              <Field htmlFor="doc-number" label="Номер документа">
+                <Input
+                  id="doc-number"
+                  value={numberDraft}
+                  onChange={(e) => setNumberDraft(e.target.value)}
+                  placeholder="например, С-2026-17"
+                />
+              </Field>
+              <Button
+                variant="secondary"
+                disabled={numberBusy || numberDraft.trim() === ''}
+                onClick={() => void saveNumber()}
+              >
+                {numberBusy ? 'Сохраняю…' : 'Указать номер'}
+              </Button>
+            </div>
+            {numberError && (
+              <p role="alert" className="text-sm text-red-600 mt-2">
+                {numberError}
+              </p>
+            )}
+          </div>
+        )}
+        {numberSet && <p className="text-sm text-green-700">Номер сохранён: {numberSet}.</p>}
+
         {sentNote && <p className="text-sm text-green-700">{sentNote}</p>}
         {sendError && (
           <p role="alert" className="text-sm text-red-600">

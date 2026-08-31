@@ -137,7 +137,9 @@ describe('uploadAdminDocument', () => {
     // лечь в папку другой организации той же компании (`Д-18`).
     const prisma = db({
       order: {
-        findUnique: vi.fn().mockResolvedValue({ id: 'ord1', companyId: 'c1', organizationId: null }),
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ id: 'ord1', companyId: 'c1', organizationId: null }),
       },
     });
     expect(await uploadAdminDocument(prisma as never, admin, args)).toEqual({
@@ -243,11 +245,14 @@ describe('listAllDocuments', () => {
   it('админ видит всё, остальные — без заражённых', async () => {
     const prisma = db();
     await listAllDocuments(prisma as never, admin);
-    expect(prisma.document.findMany.mock.calls[0][0].where).toEqual({});
+    // `У-151`: даже у администратора список показывает действующие версии.
+    expect(prisma.document.findMany.mock.calls[0][0].where).toEqual({ supersededAt: null });
 
     await listAllDocuments(prisma as never, { sub: 'u', role: 'manager' } as never);
     expect(prisma.document.findMany.mock.calls[1][0].where).toEqual({
       scanStatus: { not: 'infected' },
+      // `У-151`: заменённая перевыпуском версия из списков скрыта.
+      supersededAt: null,
     });
   });
 });

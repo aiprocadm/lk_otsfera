@@ -156,7 +156,8 @@ export async function listOrdersForExport(
 }
 
 const DETAIL_INCLUDE = {
-  documents: { where: { scanStatus: { not: 'infected' } } },
+  // `У-151`: в карточке заказа — действующие версии документов.
+  documents: { where: { scanStatus: { not: 'infected' }, supersededAt: null } },
   payments: true,
   manager: { select: { id: true, name: true, email: true } },
   organization: { select: { id: true, name: true } },

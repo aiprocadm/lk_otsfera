@@ -15,6 +15,8 @@ describe('documentChannelPolicy', () => {
     expect(organizationChannelWhere('org-1')).toEqual({
       counterpartyType: 'organization',
       counterpartyId: 'org-1',
+      // `У-151`: заменённая перевыпуском версия из списков скрыта.
+      supersededAt: null,
       scanStatus: { not: 'infected' },
     });
   });
@@ -23,6 +25,7 @@ describe('documentChannelPolicy', () => {
     expect(partnerChannelWhere('p-1')).toEqual({
       counterpartyType: 'partner',
       counterpartyId: 'p-1',
+      supersededAt: null,
       scanStatus: { not: 'infected' },
     });
   });
@@ -46,6 +49,7 @@ describe('order-less axis', () => {
     expect(managerOrderLessWhere('co-1')).toEqual({
       orderId: null,
       companyId: 'co-1',
+      supersededAt: null,
       scanStatus: { not: 'infected' },
     });
   });

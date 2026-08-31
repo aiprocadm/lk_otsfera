@@ -163,6 +163,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   notification_rule_changed: 'Изменение правила уведомлений',
   notification_rules_reset: 'Возврат правил уведомлений к стандартным',
   login_policies_changed: 'Изменение политик входа',
+  document_number_set: 'Указан номер документа из 1С',
   document_template_changed: 'Изменение текста договора',
   document_template_reset: 'Возврат стандартного текста договора',
   email_template_changed: 'Изменение текста письма',

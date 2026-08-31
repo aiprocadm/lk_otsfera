@@ -39,6 +39,8 @@ export function StaffDocumentDetail({
       breadcrumbs={buildCabinetBreadcrumbs(cabinet, listHref, [{ label: document.name }])}
       orderHrefBase={`/${cabinet}/orders`}
       canSend
+      canSetNumber
+      canReissue
     >
       <EntityCustomFields fields={customFields} entityType="document" entityId={document.id} />
     </DocumentDetailView>

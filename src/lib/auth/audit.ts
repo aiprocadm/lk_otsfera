@@ -225,6 +225,7 @@ export const AUDIT_ACTIONS = [
   // `У-129`: сроки и лимиты входа.
   'login_policies_changed',
   // `У-128`: свои тексты писем.
+  'document_number_set',
   'document_template_changed',
   'document_template_reset',
   'email_template_changed',

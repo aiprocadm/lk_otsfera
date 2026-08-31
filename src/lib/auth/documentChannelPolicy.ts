@@ -19,10 +19,22 @@ import { INFECTED_HIDDEN_WHERE } from '@/lib/services/scan/visibility';
 export type CounterpartyType = 'organization' | 'partner';
 export type DocumentChannel = { type: CounterpartyType; id: string };
 
+/**
+ * `У-151`: списки показывают только ДЕЙСТВУЮЩУЮ версию документа.
+ *
+ * Перевыпуск сохраняет номер и растит версию, а прежняя версия помечается
+ * заменённой. Показывать обе — значит показывать две бумаги с одним номером:
+ * человек не поймёт, какая из них настоящая, и отправит клиенту не ту.
+ * Заменённая версия не удаляется и открывается по прямой ссылке — она была
+ * выпущена и остаётся в истории.
+ */
+export const ACTIVE_VERSION_WHERE = { supersededAt: null } as const;
+
 export function organizationChannelWhere(organizationId: string): Prisma.DocumentWhereInput {
   return {
     counterpartyType: 'organization',
     counterpartyId: organizationId,
+    ...ACTIVE_VERSION_WHERE,
     ...INFECTED_HIDDEN_WHERE,
   };
 }
@@ -31,6 +43,7 @@ export function partnerChannelWhere(partnerId: string): Prisma.DocumentWhereInpu
   return {
     counterpartyType: 'partner',
     counterpartyId: partnerId,
+    ...ACTIVE_VERSION_WHERE,
     ...INFECTED_HIDDEN_WHERE,
   };
 }
@@ -53,6 +66,7 @@ export function partnerPortfolioDocumentsWhere(scope: {
       { counterpartyType: 'partner', counterpartyId: scope.partnerId },
       { counterpartyType: 'organization', counterpartyId: scope.orgId },
     ],
+    ...ACTIVE_VERSION_WHERE,
     ...INFECTED_HIDDEN_WHERE,
   };
 }
@@ -83,7 +97,7 @@ export function orderLessWhere(): Prisma.DocumentWhereInput {
  * company-level. Leader sees the same company set; admin uses /admin (Model A).
  */
 export function managerOrderLessWhere(companyId: string): Prisma.DocumentWhereInput {
-  return { orderId: null, companyId, ...INFECTED_HIDDEN_WHERE };
+  return { orderId: null, companyId, ...ACTIVE_VERSION_WHERE, ...INFECTED_HIDDEN_WHERE };
 }
 
 /** Manager order-less upload gate — channel must be in the manager's resolved scope. */
