@@ -690,7 +690,7 @@ model Partner {
   signerBasis           String?
   commissionRate        Decimal                @default(0) @db.Decimal(6, 4)
   isActive              Boolean                @default(true)
-  enrollmentRequests EnrollmentRequest[]
+  enrollmentRequests    EnrollmentRequest[]
   organizations         Organization[]
   users                 User[]
   orders                Order[]
@@ -865,56 +865,61 @@ model Student {
 }
 
 model Company {
-  id                    String              @id @default(cuid())
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
-  name                  String
-  managerTeamVisibility Boolean             @default(false)
+  id                       String                 @id @default(cuid())
+  createdAt                DateTime               @default(now())
+  updatedAt                DateTime               @updatedAt
+  name                     String
+  managerTeamVisibility    Boolean                @default(false)
   // Этап 7 (§4.4, PR-3): пороги SLA входящих — эскалация руководителю (часы)
   // и подсветка в Intake (часы). Настройка — карточка на /leader/team.
-  slaResponseHours      Int                 @default(24)
-  slaWarningHours       Int                 @default(4)
+  slaResponseHours         Int                    @default(24)
+  slaWarningHours          Int                    @default(4)
   // Этап 8 (ФТ-9.1, PR-1): реквизиты для автогенерации документов.
-  legalName             String?
-  inn                   String?
-  kpp                   String?
-  ogrn                  String?
-  phone                 String?
-  email                 String?
-  legalAddress          String?
-  bankName              String?
-  bankAccount           String?
-  corrAccount           String?
-  bic                   String?
-  signerName            String?
-  signerPosition        String?
-  signerBasis           String?
+  legalName                String?
+  inn                      String?
+  kpp                      String?
+  ogrn                     String?
+  phone                    String?
+  email                    String?
+  legalAddress             String?
+  bankName                 String?
+  bankAccount              String?
+  corrAccount              String?
+  bic                      String?
+  signerName               String?
+  signerPosition           String?
+  signerBasis              String?
   // Этап 5 (У-138): налоговые настройки исполнителя. null = «не облагается
   // (УСН)»; значение — доля (0.2000 = 20%). Применяются генератором этапа 6
   // и умолчаниями строк заказа.
-  defaultVatRate        Decimal?            @db.Decimal(5, 4)
-  pricesIncludeVat      Boolean             @default(true)
+  defaultVatRate           Decimal?               @db.Decimal(5, 4)
+  pricesIncludeVat         Boolean                @default(true)
   // Этап 5 (У-138): шаблон нумерации документов — JSON со схемой Zod в
   // сервисе (prefixes по типам + resetYearly). Применяет генератор этапа 6.
-  documentNumbering     Json?
-  users                 User[]
-  orders                Order[]
-  organizations         Organization[]
-  documents             Document[]
-  accessProfiles        AccessProfile[]
-  funnelStages          FunnelStage[]
-  deals                 Deal[]              @relation("CompanyDeals")
-  dealStages            DealStage[]         @relation("CompanyDealStages")
-  taskColumns           TaskColumn[]
-  tasks                 Task[]
-  inboundMessages       InboundMessage[]
-  calls                 Call[]
-  contacts              Contact[]           @relation("CompanyContacts")
-  salesTargets          SalesTarget[]
-  staffConversations    StaffConversation[]
-  calendarEvents        CalendarEvent[]
-  catalogItems          CatalogItem[]
-  brandingAssets        CompanyBrandingAsset[]
+  documentNumbering        Json?
+  // `У-160`: выдатчик номеров редакций шаблона документов. Растёт на каждое
+  // сохранение и на каждый «вернуть стандартный», никогда не обнуляется и не
+  // переиспользуется: два разных текста не должны носить один номер.
+  documentTemplateRevision Int                    @default(0)
+  documentTemplates        DocumentTemplate[]
+  users                    User[]
+  orders                   Order[]
+  organizations            Organization[]
+  documents                Document[]
+  accessProfiles           AccessProfile[]
+  funnelStages             FunnelStage[]
+  deals                    Deal[]                 @relation("CompanyDeals")
+  dealStages               DealStage[]            @relation("CompanyDealStages")
+  taskColumns              TaskColumn[]
+  tasks                    Task[]
+  inboundMessages          InboundMessage[]
+  calls                    Call[]
+  contacts                 Contact[]              @relation("CompanyContacts")
+  salesTargets             SalesTarget[]
+  staffConversations       StaffConversation[]
+  calendarEvents           CalendarEvent[]
+  catalogItems             CatalogItem[]
+  brandingAssets           CompanyBrandingAsset[]
 }
 
 // Этап 5 (У-138): логотип, подпись и печать компании — по строке на слот.
@@ -1250,7 +1255,12 @@ model Document {
   acceptedByUserId   String?
   cancelledAt        DateTime?
   cancelReason       String?
-  // Версия шаблона текста договора/ДС на момент выпуска (`У-160`).
+  // `У-160`: редакция шаблона, которой РЕАЛЬНО напечатан этот документ.
+  // `0` — печатали встроенным текстом (или все абзацы пришли из формы
+  // выпуска). `N ≥ 1` — максимум штампов применённых строк шаблона.
+  // `null` — у типа документа шаблона нет (счёт, акт), документ создан не
+  // генератором (загрузка, импорт 1С) либо выпущен до `У-160`; бэкфилла нет
+  // (`У-146`). Не путать с `version` — это номер ПЕРЕВЫПУСКА (`У-151`).
   templateVersion    Int?
   lines              DocumentLine[]
   viewMarks          DocumentViewMark[]
@@ -1263,6 +1273,40 @@ model Document {
   @@index([companyId])
   @@index([status])
   @@index([parentDocumentId])
+}
+
+/// Этап 6 ТЗ (`У-160`): свои тексты абзацев договора и доп. соглашения.
+///
+/// Храним ТОЛЬКО отличия от встроенного текста: нет строки — печатается
+/// стандартная формулировка из реестра слотов. Копии стандартного текста в
+/// базе нет и быть не должно (тот же приём, что у `NotificationTemplate`
+/// в `У-128`): копия заморозила бы формулировку, а «вернуть стандартный»
+/// стал бы записью второй правды вместо удаления своей.
+///
+/// Уровень ровно один — компания. Общего «текста платформы» нет: договор
+/// подписывает конкретное юридическое лицо, и текст принадлежит ему. Поэтому
+/// частичный уникальный индекс, который понадобился `NotificationTemplate`
+/// (там `companyId` необязателен, а два NULL в Postgres не равны), здесь не
+/// нужен — хватает обычного составного ключа.
+model DocumentTemplate {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  /// Ключ абзаца из реестра CONTRACT_TEMPLATE_SLOTS («payment», «liability»…).
+  slot      String
+  /// Текст абзаца БЕЗ номера пункта: номер печатает вёрстка (`У-160`).
+  body      String
+  /// Номер редакции, выданный счётчиком `Company.documentTemplateRevision`
+  /// в момент записи ЭТОЙ строки. Штамп лежит рядом с текстом и читается тем
+  /// же запросом — «в документе одна редакция, а напечатана другая»
+  /// невыразимо даже при одновременных правках.
+  revision  Int
+  updatedBy String?
+
+  @@unique([companyId, slot])
+  @@index([companyId])
 }
 
 /// Этап 6 ТЗ (`У-146`): строки документа — СНИМОК на момент выпуска.
@@ -1685,18 +1729,18 @@ model EnrollmentRequestItem {
 }
 
 model TrainingDirection {
-  id                 String                  @id @default(cuid())
-  createdAt          DateTime                @default(now())
-  updatedAt          DateTime                @updatedAt
-  name               String
-  slug               String?                 @unique
-  isActive           Boolean                 @default(true)
-  sortOrder          Int                     @default(0)
-  orderItems         OrderItem[]
-  certificates       Certificate[]
+  id              String                  @id @default(cuid())
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  name            String
+  slug            String?                 @unique
+  isActive        Boolean                 @default(true)
+  sortOrder       Int                     @default(0)
+  orderItems      OrderItem[]
+  certificates    Certificate[]
   // У-33 (этап 6): направление теперь и у позиции заявки, не только у шапки.
-  enrollmentItems    EnrollmentRequestItem[]
-  catalogItems       CatalogItem[]
+  enrollmentItems EnrollmentRequestItem[]
+  catalogItems    CatalogItem[]
 
   @@index([isActive, sortOrder])
 }
@@ -1706,28 +1750,28 @@ model TrainingDirection {
 // добавления: правка каталога не меняет существующие строки. Использованный
 // элемент не удаляется физически — только `isActive = false`.
 model CatalogItem {
-  id          String            @id @default(cuid())
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  id          String             @id @default(cuid())
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
   companyId   String
-  company     Company           @relation(fields: [companyId], references: [id])
+  company     Company            @relation(fields: [companyId], references: [id])
   name        String
   // Артикул: уникален в компании, ключ сопоставления Excel-импорта (У-137).
   code        String
-  unit        CatalogUnit       @default(person)
-  price       Decimal           @db.Decimal(14, 2)
+  unit        CatalogUnit        @default(person)
+  price       Decimal            @db.Decimal(14, 2)
   // null = «не облагается» (УСН); значение — доля (0.20 = 20%).
-  vatRate     Decimal?          @db.Decimal(5, 4)
-  vatIncluded Boolean           @default(true)
+  vatRate     Decimal?           @db.Decimal(5, 4)
+  vatIncluded Boolean            @default(true)
   // Связь с направлением обучения — необязательная; по ней «Собрать строки
   // из позиций» (У-139) находит цену для направления.
   directionId String?
   direction   TrainingDirection? @relation(fields: [directionId], references: [id])
   description String?
-  isActive    Boolean           @default(true)
-  sortOrder   Int               @default(0)
+  isActive    Boolean            @default(true)
+  sortOrder   Int                @default(0)
 
-  orderLines  OrderLine[]
+  orderLines OrderLine[]
 
   @@unique([companyId, code])
   @@index([companyId, isActive, sortOrder])
@@ -1957,32 +2001,32 @@ model PaymentImportWrite {
 }
 
 model PaymentImportRow {
-  id                 String             @id @default(cuid())
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
-  batchId            String
-  batch              PaymentImportBatch @relation(fields: [batchId], references: [id])
-  externalId         String             @unique
-  paidAt             DateTime
-  amount             Decimal            @db.Decimal(14, 2)
-  isRefund           Boolean            @default(false)
-  purpose            String?
-  paymentOrderNumber String?
-  vatAmount          Decimal?           @db.Decimal(14, 2)
-  counterpartyName   String?
-  counterpartyInn    String?
-  accountCandidates  Json
+  id                    String             @id @default(cuid())
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  batchId               String
+  batch                 PaymentImportBatch @relation(fields: [batchId], references: [id])
+  externalId            String             @unique
+  paidAt                DateTime
+  amount                Decimal            @db.Decimal(14, 2)
+  isRefund              Boolean            @default(false)
+  purpose               String?
+  paymentOrderNumber    String?
+  vatAmount             Decimal?           @db.Decimal(14, 2)
+  counterpartyName      String?
+  counterpartyInn       String?
+  accountCandidates     Json
   // `У-83`: ключ контрагента (counterparty-key.ts) — группировка очереди и
   // привязка «все строки того же ключа»; старые строки заполнены бэкфиллом.
-  counterpartyKey    String?
+  counterpartyKey       String?
   // `У-85`: источник ИНН — 'file' | 'dadata' | 'manual'; заполняет PR-3.
   counterpartyInnSource String?
-  status             String             @default("needs_review")
-  candidateOrgId     String?
-  candidateOrderId   String?
-  matchMethod        String?
-  rawRow             Json
-  resolvedPaymentId  String?
+  status                String             @default("needs_review")
+  candidateOrgId        String?
+  candidateOrderId      String?
+  matchMethod           String?
+  rawRow                Json
+  resolvedPaymentId     String?
 
   @@index([status, createdAt])
   @@index([batchId])

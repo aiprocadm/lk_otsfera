@@ -9,13 +9,18 @@ import { getObjectStorage } from '@/lib/storage';
 import { notifyOrgUsers } from '@/lib/notifications';
 import { log } from '@/lib/logging';
 import { computeLineTotals } from '@/lib/services/orders/lineMath';
+import {
+  resolveContractClauses,
+  type ContractTemplateOverride,
+  type ContractTemplateValues,
+} from '@/lib/documents/contractTemplate';
 import { renderContractDocumentPdf, type ContractDocumentData } from './contractDocumentPdf';
 import {
   renderOrderDocumentPdf,
   type OrderDocumentData,
   type PartyBlock,
 } from './orderDocumentPdf';
-import { buildPrintTable, fallbackPrintLine, type PrintLineInput } from './printTable';
+import { buildPrintTable, fallbackPrintLine, formatMoney, type PrintLineInput } from './printTable';
 import { loadDocumentBranding } from './branding';
 import { resolveOrgIssueScope } from './issueScope';
 
@@ -232,6 +237,12 @@ type IssueContext = {
   printLines: PrintLineInput[];
   table: ReturnType<typeof buildPrintTable>;
   branding: Awaited<ReturnType<typeof loadDocumentBranding>>;
+  /**
+   * Свои тексты абзацев договора и ДС (`У-160`) — СЫРЫМИ, как лежат в базе.
+   * Собирает из них абзацы одна чистая функция, общая у предпросмотра и
+   * выпуска: разойтись им негде.
+   */
+  templateOverrides: ReadonlyMap<string, ContractTemplateOverride>;
   documentDate: Date;
 };
 
@@ -336,6 +347,39 @@ async function loadOrganizationTarget(
 }
 
 /**
+ * Свои тексты абзацев компании (`У-160`).
+ *
+ * Читаются только для договора и ДС: у счёта и акта редактируемых абзацев нет,
+ * и лишний запрос на каждый счёт был бы платой ни за что.
+ *
+ * **Сбой чтения не отменяет выпуск.** Упавший запрос к шаблону — это причина
+ * напечатать документ типовым текстом, а не причина отказать в договоре:
+ * бумага нужна человеку сейчас, а формулировка у неё останется той, что была
+ * до этапа 6.
+ */
+async function loadContractTemplate(
+  prisma: PrismaClient,
+  companyId: string,
+  docType: GenerateDocType
+): Promise<ReadonlyMap<string, ContractTemplateOverride>> {
+  if (docType !== 'contract' && docType !== 'extra_agreement') return new Map();
+  try {
+    const rows = await prisma.documentTemplate.findMany({
+      where: { companyId },
+      select: { slot: true, body: true, revision: true },
+    });
+    return new Map(rows.map((r) => [r.slot, { body: r.body, revision: r.revision }]));
+  } catch (e) {
+    log.warn('[documents/generate] template read failed, printing built-in text', {
+      companyId,
+      docType,
+      error: e instanceof Error ? e.message : String(e),
+    });
+    return new Map();
+  }
+}
+
+/**
  * Общая половина выпуска и предпросмотра (`У-147`): гейты, реквизиты, строки,
  * итоги и оформление. Номер здесь НЕ резервируется — предпросмотр не должен
  * тратить номера из счётчика, иначе в нумерации появлялись бы дыры от каждой
@@ -424,6 +468,7 @@ async function loadIssueContext(
   // Оформление (`У-153`) читаем ДО транзакции: картинки не зависят от номера,
   // а держать транзакцию на время скачивания из хранилища незачем.
   const branding = await loadDocumentBranding(prisma, companyId);
+  const templateOverrides = await loadContractTemplate(prisma, companyId, args.docType);
 
   return {
     ok: true,
@@ -443,37 +488,76 @@ async function loadIssueContext(
       printLines,
       table,
       branding,
+      templateOverrides,
       documentDate,
     },
   };
 }
 
+/** Значения подстановок шаблона (`У-160`) — готовыми строками. */
+function contractValues(ctx: IssueContext, args: GenerateArgs): ContractTemplateValues {
+  return {
+    // Без заказа названия заказа нет — типовая формулировка честнее пустой
+    // строки в предмете договора.
+    subject: args.extras?.subject?.trim() || ctx.order?.title || 'Оказание услуг',
+    date: ctx.documentDate.toLocaleDateString('ru-RU'),
+    // Срок печатается куском фразы, а не датой: у бессрочного договора даты
+    // нет вовсе, а «действует до —» читалось бы как потерянное значение.
+    term: args.extras?.validUntil
+      ? `до ${new Date(args.extras.validUntil).toLocaleDateString('ru-RU')}`
+      : 'до полного исполнения Сторонами обязательств',
+    company: ctx.company.displayName,
+    organization: ctx.organization.displayName,
+    total: formatMoney(ctx.table.gross),
+    inWords: ctx.table.totalInWords,
+  };
+}
+
+/** Готовый PDF плюс то, чем он напечатан (`У-160`). */
+type RenderedDocument = {
+  buffer: Buffer;
+  /** Редакция шаблона: `0` — встроенный текст, `null` — у типа шаблона нет. */
+  templateVersion: number | null;
+  /** «Слот → откуда взят абзац» для журнала действий; текстов здесь нет. */
+  templateSources: Record<string, string> | null;
+};
+
 /** Собрать данные шаблона: одинаково для выпуска и для предпросмотра. */
-function renderDocument(
+async function renderDocument(
   ctx: IssueContext,
   args: GenerateArgs,
   number: string,
   draftNote: string | null
-): Promise<Buffer> {
+): Promise<RenderedDocument> {
   if (args.docType === 'contract' || args.docType === 'extra_agreement') {
+    // Абзацы собираются ОДНИМ вызовом на оба пути: предпросмотр и выпуск
+    // печатают посимвольно один текст, потому что берут его отсюда.
+    const resolved = resolveContractClauses({
+      docType: args.docType,
+      values: contractValues(ctx, args),
+      overrides: ctx.templateOverrides,
+      form: {
+        paymentTerms: args.extras?.paymentTerms ?? null,
+        changeText: args.extras?.changeText ?? null,
+      },
+    });
     const contractData: ContractDocumentData = {
       docType: args.docType,
       number,
       date: ctx.documentDate,
       company: ctx.company,
       organization: ctx.organization,
-      // Без заказа названия заказа нет — типовая формулировка честнее пустой
-      // строки в предмете договора.
-      subject: args.extras?.subject?.trim() || ctx.order?.title || 'Оказание услуг',
+      clauses: resolved.clauses,
       table: ctx.table,
       branding: ctx.branding,
       baseContract: args.baseContract ?? null,
-      validUntil: args.extras?.validUntil ?? null,
-      paymentTerms: args.extras?.paymentTerms?.trim() || null,
-      changeText: args.extras?.changeText?.trim() || null,
       draftNote,
     };
-    return renderContractDocumentPdf(contractData);
+    return {
+      buffer: await renderContractDocumentPdf(contractData),
+      templateVersion: resolved.usedRevision,
+      templateSources: resolved.sources,
+    };
   }
   const data: OrderDocumentData = {
     docType: args.docType,
@@ -494,7 +578,13 @@ function renderDocument(
         : null,
     draftNote,
   };
-  return renderOrderDocumentPdf(data);
+  // У счёта и акта редактируемых абзацев нет — писать им редакцию шаблона
+  // значило бы приписать документу текст, которого в нём не было.
+  return {
+    buffer: await renderOrderDocumentPdf(data),
+    templateVersion: null,
+    templateSources: null,
+  };
 }
 
 /**
@@ -509,13 +599,13 @@ export async function previewOrderDocument(
 ): Promise<{ ok: true; buffer: Buffer } | IssueFailure> {
   const loaded = await loadIssueContext(prisma, session, args);
   if (!loaded.ok) return loaded;
-  const buffer = await renderDocument(
+  const rendered = await renderDocument(
     loaded.ctx,
     args,
     '—',
     'ПРЕДПРОСМОТР. Номер будет присвоен при выпуске.'
   );
-  return { ok: true, buffer };
+  return { ok: true, buffer: rendered.buffer };
 }
 
 export async function generateOrderDocument(
@@ -657,12 +747,13 @@ export async function generateOrderDocument(
   }
 
   // --- Шаг 2: рендер и загрузка ВНЕ транзакции (`У-152`) ---------------------
-  const buffer = await renderDocument(
+  const rendered = await renderDocument(
     ctx,
     { ...args, baseContract: reserved.baseDoc },
     reserved.number,
     null
   );
+  const buffer = rendered.buffer;
 
   // Ключ с UUID (`Д-2`): повторный выпуск не перезаписывает прежний файл, а
   // сбойная попытка не оставляет за собой «занятое» имя.
@@ -712,6 +803,10 @@ export async function generateOrderDocument(
           uploadedById: session.sub,
           scanStatus: 'clean',
           scannedAt: now,
+          // `У-160`: чем НАПЕЧАТАН этот документ. Считается по абзацам,
+          // которые реально попали в бумагу, — как чек, где перечислено
+          // только купленное.
+          templateVersion: rendered.templateVersion,
           // `У-146`: строки — снимок состава на момент выпуска. Правка заказа
           // задним числом выставленный документ не меняет.
           lines: { create: snapshotLines(printLines) },
@@ -731,6 +826,10 @@ export async function generateOrderDocument(
           number: reserved.number,
           version: reserved.version,
           amountGross: table.gross,
+          // Текстов в журнал не пишем — они могут содержать данные клиента;
+          // остаётся только «какой абзац откуда взят».
+          templateVersion: rendered.templateVersion,
+          templateSources: rendered.templateSources,
         },
       });
       return { id: doc.id };

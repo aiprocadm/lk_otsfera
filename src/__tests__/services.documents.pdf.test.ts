@@ -17,6 +17,7 @@ import {
   type ContractDocumentData,
 } from '@/lib/services/documents/contractDocumentPdf';
 import { listMissingRequisites } from '@/lib/documents/requisites-check';
+import { resolveContractClauses } from '@/lib/documents/contractTemplate';
 
 const PARTY = {
   displayName: 'ООО «Промтехносфера»',
@@ -299,12 +300,22 @@ describe('renderContractDocumentPdf (PR-3)', () => {
     date: new Date('2026-07-26T00:00:00Z'),
     company: { ...PARTY, signerBasis: 'Устава' },
     organization: { ...PARTY, displayName: 'ООО «Ромашка»', signerBasis: 'Доверенности № 7' },
-    subject: 'Обучение по охране труда',
+    // `У-160`: вёрстка печатает ГОТОВЫЕ абзацы. Собираем их тем же вызовом,
+    // что и генератор, — иначе тест печати проверял бы выдуманные данные.
+    clauses: resolveContractClauses({
+      docType,
+      values: {
+        subject: 'Обучение по охране труда',
+        date: '26.07.2026',
+        term: 'до полного исполнения Сторонами обязательств',
+        company: PARTY.displayName,
+        organization: 'ООО «Ромашка»',
+        total: '15 000,00',
+        inWords: 'пятнадцать тысяч рублей 00 копеек',
+      },
+    }).clauses,
     table: TABLE,
     branding: NO_BRANDING,
-    validUntil: null,
-    paymentTerms: null,
-    changeText: null,
     draftNote: null,
     baseContract:
       docType === 'extra_agreement' ? { number: 'Д-2026-4', date: new Date('2026-07-01') } : null,

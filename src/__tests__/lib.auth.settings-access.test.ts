@@ -145,6 +145,8 @@ describe('visibleSettingsSections / hasAnySettingsAccess', () => {
       'catalogs.customFields',
       // `У-136` (Р-22): каталог услуг и цены — руководитель ведёт свою компанию.
       'catalogs.priceList',
+      // `У-160` (Р-22): тексты договора и доп. соглашения своей компании.
+      'catalogs.documentTemplates',
       // `У-135` (Р-22): реквизиты исполнителя своей компании.
       'catalogs.requisites',
       'access.roles',

@@ -31,6 +31,7 @@ export const AUDIT_ENTITIES = [
   // `У-127`: правило маршрутизации уведомлений.
   'notification_rule',
   // `У-128`: текст письма.
+  'document_template',
   'email_template',
   // `У-129`: политики входа.
   'login_policies',
@@ -224,6 +225,8 @@ export const AUDIT_ACTIONS = [
   // `У-129`: сроки и лимиты входа.
   'login_policies_changed',
   // `У-128`: свои тексты писем.
+  'document_template_changed',
+  'document_template_reset',
   'email_template_changed',
   'email_template_reset',
   'email_template_test_sent',

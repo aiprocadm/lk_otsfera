@@ -1,6 +1,7 @@
 import { renderToBuffer, Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
 import React from 'react';
 import { registerPdfFonts, PDF_FONT_FAMILY } from '@/lib/pdf/fonts';
+import type { ResolvedClause } from '@/lib/documents/contractTemplate';
 import type { PartyBlock } from './orderDocumentPdf';
 import { formatMoney, type PrintTable } from './printTable';
 import type { DocumentBranding } from './branding';
@@ -19,17 +20,19 @@ export type ContractDocumentData = {
   date: Date;
   company: PartyBlock;
   organization: PartyBlock;
-  subject: string; // предмет — название заказа
+  /**
+   * Готовые абзацы документа (`У-160`): текст уже выбран между разовой
+   * правкой из формы, текстом компании и встроенной формулировкой, и
+   * подстановки в нём уже раскрыты. Вёрстка юридических текстов не знает —
+   * она печатает то, что ей дали, и добавляет только номер пункта.
+   */
+  clauses: ResolvedClause[];
   /** Состав услуг и итоги (`У-141`) — тот же расчёт, что в счёте и акте. */
   table: PrintTable;
   /** Логотип, подпись и печать исполнителя (`У-153`). */
   branding: DocumentBranding;
   /** Для доп. соглашения — номер и дата исходного договора. */
   baseContract: { number: string; date: Date } | null;
-  /** Поля формы выпуска (`У-147`): срок действия, порядок оплаты, текст изменения. */
-  validUntil: Date | null;
-  paymentTerms: string | null;
-  changeText: string | null;
   /**
    * Пометка предпросмотра (`У-147`): человек должен с одного взгляда видеть,
    * что перед ним ещё не выпущенный документ, иначе такой PDF уедет клиенту.
@@ -125,6 +128,23 @@ function signatureMarks(branding: DocumentBranding) {
   );
 }
 
+/**
+ * Абзац с номером пункта. Номер печатает вёрстка, а не текст: пока «2.2.»
+ * жило внутри строки, сотрудник, заменивший порядок оплаты своей
+ * формулировкой, ронял номер — соседние пункты оставались пронумерованными,
+ * а его нет.
+ */
+function clauseParagraphs(clauses: ResolvedClause[], section: string) {
+  return (
+    clauses
+      // Абзацы разложены по разделам НОМЕРОМ пункта, а не списком ключей:
+      // список пришлось бы дописывать вручную при каждом новом абзаце, и
+      // забытый ключ означал бы пункт, который молча не печатается.
+      .filter((c) => c.clause.startsWith(`${section}.`))
+      .map((c) => e(Text, { key: c.key, style: styles.paragraph }, `${c.clause}. ${c.text}`))
+  );
+}
+
 function ContractPdf({ data }: { data: ContractDocumentData }) {
   const dateStr = new Date(data.date).toLocaleDateString('ru-RU');
   const isExtra = data.docType === 'extra_agreement';
@@ -164,15 +184,7 @@ function ContractPdf({ data }: { data: ContractDocumentData }) {
       e(Text, { style: styles.preamble }, preamble),
 
       e(Text, { style: styles.sectionTitle }, '1. Предмет'),
-      e(
-        Text,
-        { style: styles.paragraph },
-        isExtra
-          ? // Текст изменения пишет сотрудник; без него — прежняя формулировка.
-            (data.changeText ??
-            `1.1. Стороны договорились изложить условия оказания услуг по договору в следующей редакции: ${data.subject}.`)
-          : `1.1. Исполнитель обязуется оказать Заказчику услуги: ${data.subject}, а Заказчик — принять и оплатить их в порядке и на условиях настоящего договора.`
-      ),
+      ...clauseParagraphs(data.clauses, '1'),
       e(
         View,
         { style: styles.tableHeader },
@@ -202,40 +214,13 @@ function ContractPdf({ data }: { data: ContractDocumentData }) {
         { style: styles.paragraph },
         `2.1. Общая стоимость услуг составляет ${formatMoney(data.table.gross)} ₽ (${data.table.totalInWords}). ${data.table.vatLine}.`
       ),
-      e(
-        Text,
-        { style: styles.paragraph },
-        data.paymentTerms ??
-          '2.2. Оплата производится в безналичном порядке на расчётный счёт Исполнителя на основании выставленного счёта в течение 5 (пяти) рабочих дней с даты его получения.'
-      ),
+      ...clauseParagraphs(data.clauses, '2'),
 
       e(Text, { style: styles.sectionTitle }, '3. Сроки и порядок сдачи-приёмки'),
-      e(
-        Text,
-        { style: styles.paragraph },
-        '3.1. Сроки оказания услуг согласовываются Сторонами и фиксируются в личном кабинете Заказчика.'
-      ),
-      e(
-        Text,
-        { style: styles.paragraph },
-        '3.2. По завершении оказания услуг Исполнитель передаёт Заказчику акт. При отсутствии мотивированных возражений в течение 5 (пяти) рабочих дней услуги считаются принятыми.'
-      ),
+      ...clauseParagraphs(data.clauses, '3'),
 
       e(Text, { style: styles.sectionTitle }, '4. Ответственность и прочие условия'),
-      e(
-        Text,
-        { style: styles.paragraph },
-        '4.1. За неисполнение обязательств Стороны несут ответственность в соответствии с законодательством Российской Федерации.'
-      ),
-      e(
-        Text,
-        { style: styles.paragraph },
-        isExtra
-          ? '4.2. Остальные условия договора остаются без изменений. Настоящее соглашение является его неотъемлемой частью и вступает в силу с даты подписания.'
-          : data.validUntil
-            ? `4.2. Договор вступает в силу с даты подписания и действует до ${new Date(data.validUntil).toLocaleDateString('ru-RU')}. Документы, направленные через личный кабинет, признаются юридически значимыми.`
-            : '4.2. Договор вступает в силу с даты подписания и действует до полного исполнения Сторонами обязательств. Документы, направленные через личный кабинет, признаются юридически значимыми.'
-      ),
+      ...clauseParagraphs(data.clauses, '4'),
 
       e(Text, { style: styles.sectionTitle }, '5. Реквизиты и подписи Сторон'),
       e(
