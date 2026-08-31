@@ -37,7 +37,13 @@ export type CreateCounterpartyDocumentResult =
   | {
       ok: false;
       error:
-        'forbidden' | 'too_large' | 'invalid_mime' | 'storage' | 'not_found' | 'invalid_recipient';
+        | 'forbidden'
+        | 'too_large'
+        | 'invalid_mime'
+        | 'storage'
+        | 'org_no_company'
+        | 'not_found'
+        | 'invalid_recipient';
     };
 
 export async function createCounterpartyDocument(

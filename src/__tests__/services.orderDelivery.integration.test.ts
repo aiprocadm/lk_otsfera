@@ -139,6 +139,7 @@ describe('полный путь передачи результата', () => {
         counterpartyId: orgId,
         size: 1024,
         order: { connect: { id: orderId } },
+        company: { connect: { id: companyId } },
         uploadedBy: { connect: { id: managerId } },
       },
     });

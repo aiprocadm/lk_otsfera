@@ -268,6 +268,7 @@ describe('syncDocumentsProcessor notification hook', () => {
       data: {
         externalId,
         orderId,
+        companyId,
         name: 'Old.pdf',
         path: 'fake://old',
         mimeType: 'application/pdf',

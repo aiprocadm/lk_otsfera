@@ -37,7 +37,8 @@ export type CreateOrganizationDocumentResult =
   | { ok: true; documentId: string }
   | {
       ok: false;
-      error: 'forbidden' | 'not_found' | 'too_large' | 'invalid_mime' | 'storage';
+      error:
+        'forbidden' | 'not_found' | 'too_large' | 'invalid_mime' | 'storage' | 'org_no_company';
     };
 
 export async function createOrganizationDocument(

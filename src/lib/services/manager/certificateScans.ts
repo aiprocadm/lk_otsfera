@@ -35,7 +35,12 @@ export type CertificateScanTarget = {
 };
 
 export type ScanFileError =
-  'item_not_found' | 'certificate_missing' | 'too_large' | 'invalid_mime' | 'storage';
+  | 'item_not_found'
+  | 'certificate_missing'
+  | 'too_large'
+  | 'invalid_mime'
+  | 'storage'
+  | 'org_no_company';
 
 export type ScanFileResult =
   | { fileName: string; ok: true; orderItemId: string; documentId: string }

@@ -552,6 +552,10 @@ export async function upsertDocumentRecord(
           scanStatus: 'pending',
           externalId: input.externalId,
           orderId: order.id,
+          // `У-151`: компания-исполнитель есть у каждого документа; у документа
+          // заказа она берётся из заказа и совпадать с ним обязана (составной
+          // внешний ключ этого не даст нарушить).
+          companyId: order.companyId,
           direction: 'incoming',
           generatedBy: 'system',
           counterpartyType: 'organization',

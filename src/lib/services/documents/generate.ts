@@ -152,6 +152,10 @@ export type GenerateResult =
  * документов, и проверка уникальности молча ничего бы не проверяла.
  */
 export function companyScopeWhere(companyId: string): Prisma.DocumentWhereInput {
+  // После миграции `У-151` компания заполнена у каждого документа, и хватило
+  // бы одного поля. Ветка по заказу оставлена намеренно: она ничего не стоит
+  // и делает выборку верной ДО применения миграции — а этот код едет на стенд
+  // раньше неё.
   return { OR: [{ companyId }, { order: { companyId } }] };
 }
 
@@ -882,9 +886,12 @@ export async function generateOrderDocument(
           amountGross: table.gross,
           currency: 'RUB',
           generatedBy: 'system',
-          // XOR-инвариант схемы (`Document_order_xor_company`): документ либо
-          // при заказе, либо при компании — никогда при обоих сразу.
-          ...(order ? { orderId: order.id } : { companyId }),
+          // `У-151`: компания есть у КАЖДОГО документа — уникальность номера
+          // требуется по ней. У документа заказа она обязана совпадать с
+          // компанией заказа; это держит составной внешний ключ, а не наша
+          // аккуратность.
+          companyId,
+          ...(order ? { orderId: order.id } : {}),
           counterpartyType: 'organization',
           counterpartyId: organizationId,
           uploadedById: session.sub,

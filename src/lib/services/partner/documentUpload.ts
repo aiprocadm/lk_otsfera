@@ -46,6 +46,7 @@ export type CreatePartnerDocumentResult =
         | 'too_large'
         | 'invalid_mime'
         | 'storage'
+        | 'org_no_company'
         | 'company_required';
     };
 

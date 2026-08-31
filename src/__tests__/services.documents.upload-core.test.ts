@@ -57,13 +57,19 @@ describe('persistUploadedDocument', () => {
   it('persists with counterparty + direction and enqueues a scan', async () => {
     uploadMock.mockResolvedValue(undefined);
     const create = vi.fn().mockResolvedValue({ id: 'doc-9' });
-    const prisma = { document: { create } } as never;
+    // `У-151`: компания документа заказа берётся ИЗ ЗАКАЗА, а не приходит
+    // снаружи — иначе она могла бы разойтись с компанией заказа.
+    const prisma = {
+      document: { create },
+      order: { findUnique: vi.fn().mockResolvedValue({ companyId: 'co-order' }) },
+    } as never;
     const r = await persistUploadedDocument(prisma, baseArgs);
     expect(r).toMatchObject({ ok: true, documentId: 'doc-9' });
     const data = create.mock.calls[0][0].data;
     expect(data.counterpartyType).toBe('organization');
     expect(data.counterpartyId).toBe('org-1');
     expect(data.direction).toBe('incoming');
+    expect(data.companyId).toBe('co-order');
     expect(addMock).toHaveBeenCalledOnce();
     expect(auditMock).toHaveBeenCalledOnce();
   });
@@ -71,7 +77,7 @@ describe('persistUploadedDocument', () => {
   it('order-less upload sets companyId, null orderId, and counterparty storage path', async () => {
     uploadMock.mockResolvedValue(undefined);
     const create = vi.fn().mockResolvedValue({ id: 'doc-orderless' });
-    const prisma = { document: { create } } as never;
+    const prisma = { document: { create }, order: { findUnique: vi.fn() } } as never;
     const result = await persistUploadedDocument(prisma, {
       counterparty: { type: 'partner', id: 'p1' },
       orderId: null,
@@ -95,26 +101,47 @@ describe('persistUploadedDocument', () => {
     expect(uploadedPath).toMatch(/^counterparty\/partner\/p1\//);
   });
 
-  describe('XOR invariant: exactly one of orderId / companyId must be set', () => {
-    it('returns storage error when BOTH orderId and companyId are set', async () => {
-      const prisma = {} as never;
+  /**
+   * `У-151` снял прежний инвариант «либо заказ, либо компания»: компания есть
+   * у КАЖДОГО документа, потому что уникальность номера требуется по ней, а у
+   * документа заказа она лежала в другой таблице. Теперь у документа заказа
+   * компания берётся из заказа и разойтись с ним не может.
+   */
+  describe('компания документа заказа берётся из заказа', () => {
+    it('переданная снаружи компания игнорируется — источник правды один', async () => {
+      uploadMock.mockResolvedValue(undefined);
+      const create = vi.fn().mockResolvedValue({ id: 'doc-1' });
+      const prisma = {
+        document: { create },
+        order: { findUnique: vi.fn().mockResolvedValue({ companyId: 'co-order' }) },
+      } as never;
       const r = await persistUploadedDocument(prisma, {
         ...baseArgs,
         orderId: 'order-1',
-        companyId: 'co-1',
+        companyId: 'co-подсунутая',
       });
-      expect(r).toEqual({ ok: false, error: 'storage' });
+      expect(r.ok).toBe(true);
+      expect(create.mock.calls[0][0].data.companyId).toBe('co-order');
+    });
+
+    it('заказ без компании — отказ до загрузки файла, а не документ-сирота', async () => {
+      const prisma = {
+        document: { create: vi.fn() },
+        order: { findUnique: vi.fn().mockResolvedValue({ companyId: null }) },
+      } as never;
+      const r = await persistUploadedDocument(prisma, { ...baseArgs, orderId: 'order-1' });
+      expect(r).toEqual({ ok: false, error: 'org_no_company' });
       expect(uploadMock).not.toHaveBeenCalled();
     });
 
-    it('returns storage error when NEITHER orderId nor companyId is set', async () => {
-      const prisma = {} as never;
+    it('без заказа и без компании приписать бумагу некому', async () => {
+      const prisma = { document: { create: vi.fn() }, order: { findUnique: vi.fn() } } as never;
       const r = await persistUploadedDocument(prisma, {
         ...baseArgs,
         orderId: null,
         companyId: null,
       });
-      expect(r).toEqual({ ok: false, error: 'storage' });
+      expect(r).toEqual({ ok: false, error: 'org_no_company' });
       expect(uploadMock).not.toHaveBeenCalled();
     });
   });

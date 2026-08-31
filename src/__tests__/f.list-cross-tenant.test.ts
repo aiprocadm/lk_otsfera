@@ -77,7 +77,9 @@ beforeAll(async () => {
   });
   paymentB = payB.id;
 
-  // Order-bound docs: orderId set, companyId null (XOR CHECK), counterparty = org.
+  // Order-bound docs: counterparty = org. Since `У-151` companyId is mandatory
+  // and MUST equal the order's company (composite FK) — so each doc stays in
+  // the tenant whose order it belongs to, which is exactly what F3 isolates.
   const dA = await prisma.document.create({
     data: {
       name: 'f3-A.pdf',
@@ -86,6 +88,7 @@ beforeAll(async () => {
       type: 'contract',
       direction: 'incoming',
       orderId: orderA,
+      companyId: companyA,
       counterpartyType: 'organization',
       counterpartyId: orgA,
       scanStatus: 'clean',
@@ -100,6 +103,7 @@ beforeAll(async () => {
       type: 'contract',
       direction: 'incoming',
       orderId: orderB,
+      companyId: companyB,
       counterpartyType: 'organization',
       counterpartyId: orgB,
       scanStatus: 'clean',

@@ -140,12 +140,16 @@ beforeAll(async () => {
   orderA = ordA.id;
   orderB = ordB.id;
 
+  // `У-151`: компания у документа обязательна и у документа заказа обязана
+  // совпадать с компанией заказа — здесь это ещё и суть сценария: docA/docB
+  // должны лежать РОВНО в тех компаниях, изоляцию которых проверяют тесты.
   const dA = await prisma.document.create({
     data: {
       name: `${STAMP}-docA.pdf`,
       path: `x/${STAMP}/a.pdf`,
       mimeType: 'application/pdf',
       orderId: orderA,
+      companyId: companyA,
       counterpartyType: 'organization',
       counterpartyId: orgA,
       scanStatus: 'clean',
@@ -157,6 +161,7 @@ beforeAll(async () => {
       path: `x/${STAMP}/b.pdf`,
       mimeType: 'application/pdf',
       orderId: orderB,
+      companyId: companyB,
       counterpartyType: 'organization',
       counterpartyId: orgB,
       scanStatus: 'clean',

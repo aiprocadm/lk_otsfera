@@ -124,6 +124,9 @@ describe('services/manager/uploads — createCounterpartyDocument', () => {
 
   it('happy path: per-org scope → uploads, persists, enqueues scan, audits, notifies org', async () => {
     orderFindUnique.mockResolvedValue({
+      // `У-151`: компания документа берётся из заказа — без неё загрузка
+      // отказывает ещё до хранилища.
+      companyId: 'co-1',
       id: 'ord-1',
       managerId: null,
       organizationId: 'org-a',
@@ -213,6 +216,9 @@ describe('services/manager/uploads — createCounterpartyDocument', () => {
 
   it('returns forbidden when the order is out of three-way scope', async () => {
     orderFindUnique.mockResolvedValue({
+      // `У-151`: компания документа берётся из заказа — без неё загрузка
+      // отказывает ещё до хранилища.
+      companyId: 'co-1',
       id: 'ord-1',
       managerId: 'someone-else',
       organizationId: 'org-foreign',
@@ -234,6 +240,9 @@ describe('services/manager/uploads — createCounterpartyDocument', () => {
 
   it('allows upload via comments-history path when order/org checks miss', async () => {
     orderFindUnique.mockResolvedValue({
+      // `У-151`: компания документа берётся из заказа — без неё загрузка
+      // отказывает ещё до хранилища.
+      companyId: 'co-1',
       id: 'ord-1',
       managerId: 'someone-else',
       organizationId: 'org-foreign',
@@ -254,6 +263,9 @@ describe('services/manager/uploads — createCounterpartyDocument', () => {
 
   it('returns storage error when object storage (S3) upload fails (no DB row created)', async () => {
     orderFindUnique.mockResolvedValue({
+      // `У-151`: компания документа берётся из заказа — без неё загрузка
+      // отказывает ещё до хранилища.
+      companyId: 'co-1',
       id: 'ord-1',
       managerId: null,
       organizationId: 'org-a',
@@ -274,6 +286,9 @@ describe('services/manager/uploads — createCounterpartyDocument', () => {
 
   it('coerces unknown docType to "other"', async () => {
     orderFindUnique.mockResolvedValue({
+      // `У-151`: компания документа берётся из заказа — без неё загрузка
+      // отказывает ещё до хранилища.
+      companyId: 'co-1',
       id: 'ord-1',
       managerId: 'u-mgr-1',
       organizationId: 'org-a',
@@ -293,6 +308,9 @@ describe('services/manager/uploads — createCounterpartyDocument', () => {
 
   it('swallows queue enqueue failure but still succeeds + notifies', async () => {
     orderFindUnique.mockResolvedValue({
+      // `У-151`: компания документа берётся из заказа — без неё загрузка
+      // отказывает ещё до хранилища.
+      companyId: 'co-1',
       id: 'ord-1',
       managerId: 'u-mgr-1',
       organizationId: 'org-a',
@@ -312,6 +330,9 @@ describe('services/manager/uploads — createCounterpartyDocument', () => {
 
   it('swallows notification failure but still returns ok', async () => {
     orderFindUnique.mockResolvedValue({
+      // `У-151`: компания документа берётся из заказа — без неё загрузка
+      // отказывает ещё до хранилища.
+      companyId: 'co-1',
       id: 'ord-1',
       managerId: 'u-mgr-1',
       organizationId: 'org-a',
@@ -336,6 +357,7 @@ describe('services/manager/uploads — createCounterpartyDocument', () => {
       managerId: 'u-mgr-1',
       organizationId: 'org1',
       partnerId: 'p1',
+      // `У-151`: компания документа берётся из заказа.
       companyId: 'c1',
       orderNumber: '1',
       title: 'T',
@@ -371,6 +393,7 @@ describe('services/manager/uploads — createCounterpartyDocument', () => {
       managerId: 'u-mgr-1',
       organizationId: 'org1',
       partnerId: 'p1',
+      // `У-151`: компания документа берётся из заказа.
       companyId: 'c1',
       orderNumber: '1',
       title: 'T',
@@ -406,6 +429,7 @@ describe('services/manager/uploads — createCounterpartyDocument', () => {
       managerId: 'm1',
       organizationId: 'org1',
       partnerId: null,
+      // `У-151`: компания документа берётся из заказа.
       companyId: 'c1',
       orderNumber: '1',
       title: 'T',

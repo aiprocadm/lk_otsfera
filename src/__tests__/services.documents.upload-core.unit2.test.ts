@@ -33,6 +33,12 @@ beforeEach(() => {
 const validPdfBuffer = Buffer.from([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34]); // %PDF-1.4
 const invalidBytesForPdf = Buffer.from([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
 
+/**
+ * `У-151`: компания документа заказа берётся ИЗ ЗАКАЗА. Без этого фейка
+ * загрузка отказывает ещё до хранилища, и проверять было бы нечего.
+ */
+const orderFindUnique = vi.fn().mockResolvedValue({ companyId: 'co-order' });
+
 describe('validateUploadFile — magic bytes branch', () => {
   it('ok=true for valid PDF with correct magic bytes', () => {
     const result = validateUploadFile({
@@ -77,7 +83,7 @@ describe('persistUploadedDocument — storage upload failure', () => {
 
   it('returns storage error when object storage (S3) upload fails', async () => {
     uploadMock.mockRejectedValue(new Error('storage error'));
-    const prisma = {} as never;
+    const prisma = { order: { findUnique: orderFindUnique } } as never;
     const r = await persistUploadedDocument(prisma, baseArgs);
     expect(r).toEqual({ ok: false, error: 'storage' });
     expect(addMock).not.toHaveBeenCalled();
@@ -86,7 +92,7 @@ describe('persistUploadedDocument — storage upload failure', () => {
   it('returns storage error when upload throws a non-Error (String(uploadError) branch)', async () => {
     // Covers line 102: uploadError instanceof Error ? ... : String(uploadError) — non-Error arm
     uploadMock.mockRejectedValue('disk full');
-    const prisma = {} as never;
+    const prisma = { order: { findUnique: orderFindUnique } } as never;
     const r = await persistUploadedDocument(prisma, baseArgs);
     expect(r).toEqual({ ok: false, error: 'storage' });
     expect(addMock).not.toHaveBeenCalled();
@@ -96,7 +102,7 @@ describe('persistUploadedDocument — storage upload failure', () => {
     uploadMock.mockResolvedValue(undefined);
     addMock.mockRejectedValue(new Error('Redis down'));
     const create = vi.fn().mockResolvedValue({ id: 'doc-scan-fail' });
-    const prisma = { document: { create } } as never;
+    const prisma = { document: { create }, order: { findUnique: orderFindUnique } } as never;
     // Should not throw even if queue throws
     const r = await persistUploadedDocument(prisma, baseArgs);
     expect(r).toMatchObject({ ok: true, documentId: 'doc-scan-fail' });
@@ -106,7 +112,7 @@ describe('persistUploadedDocument — storage upload failure', () => {
   it('coerces unknown docType to "other"', async () => {
     uploadMock.mockResolvedValue(undefined);
     const create = vi.fn().mockResolvedValue({ id: 'doc-other' });
-    const prisma = { document: { create } } as never;
+    const prisma = { document: { create }, order: { findUnique: orderFindUnique } } as never;
     await persistUploadedDocument(prisma, { ...baseArgs, docType: 'totally_unknown_type' });
     expect(create.mock.calls[0][0].data.type).toBe('other');
   });
@@ -116,7 +122,7 @@ describe('persistUploadedDocument — storage upload failure', () => {
     uploadMock.mockResolvedValue(undefined);
     addMock.mockRejectedValue('string-rejection'); // throw a plain string, not an Error
     const create = vi.fn().mockResolvedValue({ id: 'doc-string-err' });
-    const prisma = { document: { create } } as never;
+    const prisma = { document: { create }, order: { findUnique: orderFindUnique } } as never;
     const r = await persistUploadedDocument(prisma, baseArgs);
     expect(r).toMatchObject({ ok: true, documentId: 'doc-string-err' });
   });
@@ -124,7 +130,7 @@ describe('persistUploadedDocument — storage upload failure', () => {
   it('sanitizes filename with special chars', async () => {
     uploadMock.mockResolvedValue(undefined);
     const create = vi.fn().mockResolvedValue({ id: 'doc-sanitized' });
-    const prisma = { document: { create } } as never;
+    const prisma = { document: { create }, order: { findUnique: orderFindUnique } } as never;
     await persistUploadedDocument(prisma, {
       ...baseArgs,
       file: { ...baseArgs.file, name: 'file (1) Тест!.pdf' },
