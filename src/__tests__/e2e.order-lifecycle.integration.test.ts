@@ -235,6 +235,7 @@ describe('E2E order lifecycle — full path through real services', () => {
         type: 'contract',
         direction: 'incoming',
         orderId,
+        companyId,
         counterpartyType: 'organization',
         counterpartyId: organizationId,
         scanStatus: 'clean',

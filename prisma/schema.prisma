@@ -920,6 +920,7 @@ model Company {
   calendarEvents           CalendarEvent[]
   catalogItems             CatalogItem[]
   brandingAssets           CompanyBrandingAsset[]
+  documentCounters         DocumentCounter[]
 }
 
 // Этап 5 (У-138): логотип, подпись и печать компании — по строке на слот.
@@ -1216,16 +1217,27 @@ model Document {
   version            Int                @default(1)
   // Этап 8 (ФТ-9.4, PR-2): человекочитаемый номер сгенерированного документа («С-2026-17»).
   number             String?
+  /// `У-151`: ссылка на заменённую перевыпуском версию — теперь настоящая
+  /// связь, а не «строка, похожая на id». Осиротевшие ссылки вычищены
+  /// миграцией данных.
   replacesDocumentId String?
+  replaces           Document?          @relation("DocumentReplaces", fields: [replacesDocumentId], references: [id], onDelete: SetNull)
+  replacedBy         Document[]         @relation("DocumentReplaces")
   signedAt           DateTime?
   generatedBy        GenerationSource   @default(user)
   externalId         String?            @unique
   orderId            String?
   order              Order?             @relation(fields: [orderId], references: [id])
-  companyId          String?
-  // Restrict (not SetNull): an order-less doc with companyId nulled would
-  // violate the XOR CHECK below. Companies are not deleted in normal ops.
-  company            Company?           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  /// `У-151`: компания-исполнитель есть у КАЖДОГО документа. До этапа 6 поле
+  /// заполнялось только у документов без заказа (инвариант XOR), но
+  /// уникальность номера требуется ПО КОМПАНИИ, а у документа заказа она
+  /// лежала в другой таблице — индекс по ней было не построить. XOR заменён
+  /// более сильным правилом: компания обязательна, а у документа заказа она
+  /// обязана совпадать с компанией заказа — это держит составной внешний ключ
+  /// (`Document_order_company_fkey`, задан миграцией: Prisma составные FK на
+  /// не-первичный ключ не моделирует).
+  companyId          String
+  company            Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
   counterpartyType   CounterpartyType
   counterpartyId     String
   uploadedById       String?
@@ -1270,6 +1282,11 @@ model Document {
   templateVersion    Int?
   lines              DocumentLine[]
   viewMarks          DocumentViewMark[]
+  /// `У-151`: уникальность `(companyId, type, number, version)` — ЧАСТИЧНЫЙ
+  /// индекс `WHERE "number" IS NOT NULL`, задан миграцией
+  /// `20260831160000_stage6_numbering_constraints`. Prisma частичные индексы
+  /// не моделирует; полный `@@unique` здесь был бы ошибкой — он запретил бы
+  /// второй безномерный документ (загрузка файла, импорт 1С).
 
   @@index([orderId, type])
   @@index([counterpartyType, counterpartyId])
@@ -1280,6 +1297,30 @@ model Document {
   @@index([status])
   @@index([parentDocumentId])
   @@index([supersededAt])
+  @@index([replacesDocumentId])
+}
+
+/// Этап 6 ТЗ (`У-151`): «до» для отката разбора исторических номеров.
+///
+/// Одноразовый артефакт миграции данных: `npm run fix:document-numbers`
+/// пишет сюда прежнее значение КАЖДОГО поля, которое меняет, — версию,
+/// связь с ведущим документом, ссылку на заменённый. Требование просит
+/// «отчёт «до/после» и откат»; без этой таблицы откат был бы обещанием.
+///
+/// Удаляется отдельной миграцией после приёмки этапа — держать её вечно
+/// незачем, но и удалять вместе с самой миграцией нельзя: откат нужен
+/// ИМЕННО после того, как миграция отработала.
+model DocumentNumberingBackup {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  documentId String
+  /// Имя изменённого поля: «version», «parentDocumentId», «replacesDocumentId».
+  field      String
+  /// Прежнее значение строкой; `null` — поле было пустым.
+  oldValue   String?
+
+  @@index([documentId])
+  @@index([createdAt])
 }
 
 /// Этап 6 ТЗ (`У-160`): свои тексты абзацев договора и доп. соглашения.
@@ -2363,12 +2404,19 @@ model SlaEscalation {
 // Конкурентная безопасность — атомарный upsert+increment в транзакции генерации.
 model DocumentCounter {
   companyId  String
+  /// `У-151` (дефект `Д-21`): счётчик привязан к компании настоящей связью —
+  /// счётчиков без компании больше не бывает. Прежние вычищены миграцией
+  /// данных: нумеровать им нечего.
+  company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  /// Год — по `Europe/Moscow` (`Д-22`), считает генератор.
   year       Int
   // Этап 8 PR-3: раздельные последовательности по виду документа —
-  // 'invoice' (счёт, акт наследует его номер) и 'contract' (договор,
-  // доп. соглашение наследует его номер).
-  kind       String @default("invoice")
-  lastNumber Int    @default(0)
+  // 'invoice' (счёт и акт) и 'contract' (договор и доп. соглашение).
+  // `У-151`: ведомый тип номер больше НЕ наследует, но последовательность
+  // остаётся общей — своя, начатая с единицы, столкнулась бы с историческими
+  // документами, носящими номера из общей.
+  kind       String  @default("invoice")
+  lastNumber Int     @default(0)
 
   @@id([companyId, year, kind])
 }

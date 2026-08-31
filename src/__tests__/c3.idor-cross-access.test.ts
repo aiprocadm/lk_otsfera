@@ -91,6 +91,7 @@ beforeAll(async () => {
       type: 'contract',
       direction: 'incoming',
       orderId: orderA,
+      companyId: companyA,
       counterpartyType: 'organization',
       counterpartyId: orgA,
       scanStatus: 'clean',
@@ -108,6 +109,9 @@ beforeAll(async () => {
       type: 'commission_statement',
       direction: 'outgoing',
       orderId: orderA,
+      // Канал партнёрский (counterparty — партнёр), но компания-исполнитель у
+      // документа заказа обязана совпадать с компанией самого заказа: companyA.
+      companyId: companyA,
       counterpartyType: 'partner',
       counterpartyId: partnerA,
       scanStatus: 'clean',

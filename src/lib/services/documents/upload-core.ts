@@ -68,7 +68,7 @@ export type PersistDocumentResult =
       /** Строка документа — чтобы вызывающему не ходить за ней вторым запросом. */
       document: { id: string; name: string; mimeType: string; createdAt: Date };
     }
-  | { ok: false; error: 'too_large' | 'invalid_mime' | 'storage' };
+  | { ok: false; error: 'too_large' | 'invalid_mime' | 'storage' | 'org_no_company' };
 
 function sanitizeFilename(filename: string): string {
   return filename.replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -85,12 +85,22 @@ export async function persistUploadedDocument(
   const fileCheck = validateUploadFile(args.file);
   if (!fileCheck.ok) return fileCheck;
 
-  // XOR invariant: exactly one of orderId / companyId must be set.
-  // Violating this would produce a DB CHECK error (500) — fail fast with a
-  // clean Result instead.
-  if ((args.orderId == null) === (args.companyId == null)) {
-    return { ok: false, error: 'storage' };
+  // `У-151`: компания-исполнитель есть у КАЖДОГО документа. Прежний инвариант
+  // «либо заказ, либо компания» снят: уникальность номера требуется по
+  // компании, а у документа заказа она лежала в другой таблице — индекс по ней
+  // было не построить. Теперь у документа заказа компания берётся ИЗ ЗАКАЗА, а
+  // не приходит снаружи: составной внешний ключ всё равно не даст им разойтись.
+  let companyId = args.companyId ?? null;
+  if (args.orderId) {
+    const order = await prisma.order.findUnique({
+      where: { id: args.orderId },
+      select: { companyId: true },
+    });
+    companyId = order?.companyId ?? null;
   }
+  // Заказ-сирота без компании и документ без заказа без компании — обе беды об
+  // одном: приписать бумагу неизвестному юрлицу нельзя.
+  if (!companyId) return { ok: false, error: 'org_no_company' };
 
   const safeName = sanitizeFilename(args.file.name);
   const storagePath = args.orderId
@@ -113,7 +123,7 @@ export async function persistUploadedDocument(
   const doc = await prisma.document.create({
     data: {
       orderId: args.orderId,
-      companyId: args.companyId ?? null,
+      companyId,
       counterpartyType: args.counterparty.type,
       counterpartyId: args.counterparty.id,
       name: args.file.name,
@@ -146,7 +156,7 @@ export async function persistUploadedDocument(
     userId: args.uploadedById,
     after: {
       orderId: args.orderId,
-      companyId: args.companyId ?? null,
+      companyId,
       counterpartyType: args.counterparty.type,
       counterpartyId: args.counterparty.id,
       direction: args.direction,

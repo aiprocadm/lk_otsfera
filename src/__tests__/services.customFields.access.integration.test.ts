@@ -132,6 +132,7 @@ beforeAll(async () => {
         counterpartyType: 'organization',
         counterpartyId: orgA,
         orderId: orderA,
+        companyId: companyA,
       },
     })
   ).id;

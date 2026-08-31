@@ -83,7 +83,8 @@ beforeAll(async () => {
       data: { title: `g4ordA-${STAMP}`, companyId: companyA, organizationId: orgA },
     })
   ).id;
-  // Document XOR CHECK: заполняем ЛИБО orderId, ЛИБО companyId (не оба) — документ привязан к заявке.
+  // `У-151`: компания у документа обязательна и обязана совпадать с компанией
+  // заказа — `orderA` создан в companyA.
   await prisma.document.create({
     data: {
       name: `g4doc-${STAMP}`,
@@ -92,6 +93,7 @@ beforeAll(async () => {
       counterpartyType: 'organization',
       counterpartyId: orgA,
       orderId: orderA,
+      companyId: companyA,
     },
   });
   await prisma.payment.create({

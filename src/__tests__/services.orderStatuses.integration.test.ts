@@ -176,9 +176,7 @@ describe('справочник статусов — настройка', () => {
       error: 'forbidden',
     });
     expect((await listStatusDefinitions(prisma, sess(adminId, 'admin'))).ok).toBe(true);
-    expect(
-      (await listStatusDefinitions(prisma, sess(leaderId, 'leader'))).ok
-    ).toBe(true);
+    expect((await listStatusDefinitions(prisma, sess(leaderId, 'leader'))).ok).toBe(true);
   });
 
   it('системный статус нельзя деактивировать', async () => {
@@ -723,6 +721,7 @@ describe('закрыть заявку можно только при выпол�
         counterpartyType: 'organization',
         counterpartyId: orgId,
         orderId: closeOrderId,
+        companyId,
         scanStatus: 'clean',
       },
     });
