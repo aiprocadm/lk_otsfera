@@ -16,8 +16,12 @@ import {
   renderContractDocumentPdf,
   type ContractDocumentData,
 } from '@/lib/services/documents/contractDocumentPdf';
+import {
+  renderProposalDocumentPdf,
+  type ProposalDocumentData,
+} from '@/lib/services/documents/proposalDocumentPdf';
 import { listMissingRequisites } from '@/lib/documents/requisites-check';
-import { resolveContractClauses } from '@/lib/documents/contractTemplate';
+import { resolveDocumentClauses } from '@/lib/documents/documentTemplate';
 
 const PARTY = {
   displayName: 'ООО «Промтехносфера»',
@@ -302,7 +306,7 @@ describe('renderContractDocumentPdf (PR-3)', () => {
     organization: { ...PARTY, displayName: 'ООО «Ромашка»', signerBasis: 'Доверенности № 7' },
     // `У-160`: вёрстка печатает ГОТОВЫЕ абзацы. Собираем их тем же вызовом,
     // что и генератор, — иначе тест печати проверял бы выдуманные данные.
-    clauses: resolveContractClauses({
+    clauses: resolveDocumentClauses({
       docType,
       values: {
         subject: 'Обучение по охране труда',
@@ -312,6 +316,7 @@ describe('renderContractDocumentPdf (PR-3)', () => {
         organization: 'ООО «Ромашка»',
         total: '15 000,00',
         inWords: 'пятнадцать тысяч рублей 00 копеек',
+        validUntil: '15.09.2026',
       },
     }).clauses,
     table: TABLE,
@@ -414,6 +419,99 @@ describe('renderContractDocumentPdf (PR-3)', () => {
       },
     };
     const buffer = await renderContractDocumentPdf(bare);
+    expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
+  });
+});
+
+/**
+ * Этап 7 (`У-163`) — печать коммерческого предложения.
+ *
+ * Проверяем не «красиво ли», а то, что вёрстка ВЫДЕРЖИВАЕТ пустоты, которых
+ * у КП больше, чем у любой другой бумаги: адресат может быть без контактного
+ * лица, срока может не быть, подписи и логотипа тоже. Каждая такая пустота —
+ * ветка кода, и невзятая ветка означает падение рендера у живого клиента.
+ */
+describe('renderProposalDocumentPdf (этап 7)', () => {
+  const proposal = (over: Partial<ProposalDocumentData> = {}): ProposalDocumentData => ({
+    number: 'КП-2026-4',
+    date: new Date('2026-09-01T00:00:00Z'),
+    validUntil: new Date('2026-09-15T00:00:00Z'),
+    company: { ...PARTY, signerBasis: 'Устава' },
+    addressee: { name: 'ООО «Ромашка»', contactName: 'Иван Петров' },
+    // Абзацы собираются ТЕМ ЖЕ вызовом, что у генератора: иначе тест печати
+    // проверял бы выдуманные данные.
+    clauses: resolveDocumentClauses({
+      docType: 'commercial_proposal',
+      values: {
+        subject: 'Обучение по охране труда',
+        date: '01.09.2026',
+        term: '',
+        company: PARTY.displayName,
+        organization: 'ООО «Ромашка»',
+        total: '15 000,00',
+        inWords: 'пятнадцать тысяч рублей 00 копеек',
+        validUntil: '15.09.2026',
+      },
+    }).clauses,
+    table: TABLE,
+    branding: NO_BRANDING,
+    manager: { name: 'Мария Смирнова', email: 'm.smirnova@pts.ru', phone: '+7 495 000-00-00' },
+    draftNote: null,
+    ...over,
+  });
+
+  it('валидный PDF с кириллицей, рендер укладывается в 2 с', async () => {
+    const started = Date.now();
+    const buffer = await renderProposalDocumentPdf(proposal());
+    expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
+    expect(Date.now() - started).toBeLessThan(2000);
+  });
+
+  it('КП лиду: без контактного лица, без срока и без реквизитов адресата', async () => {
+    // Самый бедный случай — предложение клиенту, которого ещё нет в системе
+    // (`У-161`). Известно только название.
+    const buffer = await renderProposalDocumentPdf(
+      proposal({
+        addressee: { name: 'ИП Сидоров', contactName: null },
+        validUntil: null,
+      })
+    );
+    expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
+  });
+
+  it('логотип, подпись и пометка предпросмотра печатаются', async () => {
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      'base64'
+    );
+    const buffer = await renderProposalDocumentPdf(
+      proposal({
+        branding: { logo: png, signature: png, stamp: png },
+        draftNote: 'ПРЕДПРОСМОТР — документ не выпущен',
+      })
+    );
+    expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
+  });
+
+  it('менеджер без почты и телефона: строка контактов просто не печатается', async () => {
+    const buffer = await renderProposalDocumentPdf(
+      proposal({ manager: { name: 'Мария Смирнова', email: null, phone: null } })
+    );
+    expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
+  });
+
+  it('исполнитель без юр. адреса: город берётся по умолчанию', async () => {
+    const buffer = await renderProposalDocumentPdf(
+      proposal({ company: { ...PARTY, legalAddress: null } })
+    );
+    expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
+  });
+
+  it('абзацев нет вовсе — рендер не падает, письмо выходит без текста', async () => {
+    // Так будет, если реестр слотов опустеет или компания сотрёт оба текста.
+    // Бумага без слов бесполезна, но падение рендера хуже: клиент не получит
+    // ничего, а менеджер не поймёт почему.
+    const buffer = await renderProposalDocumentPdf(proposal({ clauses: [] }));
     expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
   });
 });

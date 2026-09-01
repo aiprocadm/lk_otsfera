@@ -10,10 +10,10 @@ import { notifyOrgUsers } from '@/lib/notifications';
 import { log } from '@/lib/logging';
 import { computeLineTotals } from '@/lib/services/orders/lineMath';
 import {
-  resolveContractClauses,
-  type ContractTemplateOverride,
-  type ContractTemplateValues,
-} from '@/lib/documents/contractTemplate';
+  resolveDocumentClauses,
+  type DocumentTemplateOverride,
+  type DocumentTemplateValues,
+} from '@/lib/documents/documentTemplate';
 import { renderContractDocumentPdf, type ContractDocumentData } from './contractDocumentPdf';
 import {
   renderOrderDocumentPdf,
@@ -290,7 +290,7 @@ type IssueContext = {
    * Собирает из них абзацы одна чистая функция, общая у предпросмотра и
    * выпуска: разойтись им негде.
    */
-  templateOverrides: ReadonlyMap<string, ContractTemplateOverride>;
+  templateOverrides: ReadonlyMap<string, DocumentTemplateOverride>;
   documentDate: Date;
 };
 
@@ -409,7 +409,7 @@ async function loadContractTemplate(
   prisma: PrismaClient,
   companyId: string,
   docType: GenerateDocType
-): Promise<ReadonlyMap<string, ContractTemplateOverride>> {
+): Promise<ReadonlyMap<string, DocumentTemplateOverride>> {
   if (docType !== 'contract' && docType !== 'extra_agreement') return new Map();
   try {
     const rows = await prisma.documentTemplate.findMany({
@@ -543,7 +543,7 @@ async function loadIssueContext(
 }
 
 /** Значения подстановок шаблона (`У-160`) — готовыми строками. */
-function contractValues(ctx: IssueContext, args: GenerateArgs): ContractTemplateValues {
+function templateValues(ctx: IssueContext, args: GenerateArgs): DocumentTemplateValues {
   return {
     // Без заказа названия заказа нет — типовая формулировка честнее пустой
     // строки в предмете договора.
@@ -558,6 +558,12 @@ function contractValues(ctx: IssueContext, args: GenerateArgs): ContractTemplate
     organization: ctx.organization.displayName,
     total: formatMoney(ctx.table.gross),
     inWords: ctx.table.totalInWords,
+    // `У-162`: у КП это ДАТА, а не кусок фразы, как `term` выше. Пусто —
+    // прочерк: печатать «действительно до » без даты нельзя, а придумывать
+    // срок за менеджера тем более.
+    validUntil: args.extras?.validUntil
+      ? new Date(args.extras.validUntil).toLocaleDateString('ru-RU')
+      : '—',
   };
 }
 
@@ -580,9 +586,9 @@ async function renderDocument(
   if (args.docType === 'contract' || args.docType === 'extra_agreement') {
     // Абзацы собираются ОДНИМ вызовом на оба пути: предпросмотр и выпуск
     // печатают посимвольно один текст, потому что берут его отсюда.
-    const resolved = resolveContractClauses({
+    const resolved = resolveDocumentClauses({
       docType: args.docType,
-      values: contractValues(ctx, args),
+      values: templateValues(ctx, args),
       overrides: ctx.templateOverrides,
       form: {
         paymentTerms: args.extras?.paymentTerms ?? null,

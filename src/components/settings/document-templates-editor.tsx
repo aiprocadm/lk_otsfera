@@ -8,7 +8,7 @@ import {
   resetDocumentTemplateAction,
   saveDocumentTemplateAction,
 } from '@/server-actions/documents/documentTemplates';
-import type { ContractTemplateSlot } from '@/lib/documents/contractTemplate';
+import type { DocumentTemplateSlot } from '@/lib/documents/documentTemplate';
 import type { SettingsCabinet } from '@/lib/navigation/settings';
 import type { TemplateRow } from '@/lib/services/documents/templates';
 
@@ -28,7 +28,7 @@ export function DocumentTemplateField({
   /** Кабинет задаёт, какой набор прав проверит серверное действие. */
   cabinet: SettingsCabinet;
   companyId: string;
-  slot: ContractTemplateSlot;
+  slot: DocumentTemplateSlot;
   row: TemplateRow;
 }) {
   const [body, setBody] = useState(row.body);
@@ -112,14 +112,24 @@ export function DocumentTemplateField({
       data-testid={`template-slot-${slot.key}`}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+        {/* У коммерческого предложения номеров пунктов нет (`У-162`), и
+            «Пункт  · …» с дырой посередине читалось бы как поломка. */}
         <p className="text-sm font-medium text-[#111111]">
-          Пункт {slot.clause} · {slot.where}
+          {slot.clause ? `Пункт ${slot.clause} · ${slot.where}` : slot.where}
         </p>
         <p className="text-xs text-gray-500">
           {saved.isCustom ? `Свой текст, редакция ${saved.revision ?? '—'}` : 'Стандартный текст'}
         </p>
       </div>
-      <Field htmlFor={id} label="Текст пункта" hint="Номер пункта система проставит сама.">
+      <Field
+        htmlFor={id}
+        label={slot.clause ? 'Текст пункта' : 'Текст'}
+        hint={
+          slot.clause
+            ? 'Номер пункта система проставит сама.'
+            : 'Печатается как есть, без номера пункта.'
+        }
+      >
         <Textarea id={id} rows={4} value={body} onChange={(e) => setBody(e.target.value)} />
       </Field>
       {slot.placeholders.length > 0 && (
