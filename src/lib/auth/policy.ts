@@ -11,8 +11,10 @@ type DocumentLike = {
   orderId: string | null;
   companyId?: string | null;
   order?: { companyId: string } | null;
-  counterpartyType?: 'organization' | 'partner';
-  counterpartyId?: string;
+  // `У-161`: у коммерческого предложения контрагента может не быть — его
+  // выставляют лиду, которого ещё нет в системе.
+  counterpartyType?: 'organization' | 'partner' | null;
+  counterpartyId?: string | null;
 };
 
 export function forbiddenResponse(message = 'Access denied', code: AccessErrorCode = 'FORBIDDEN') {
@@ -116,7 +118,18 @@ export async function canReadDocument(session: SessionPayload, document: Documen
           order: { select: { companyId: true } },
         },
       });
-  if (!doc || !doc.counterpartyType || !doc.counterpartyId) return false;
+  if (!doc) return false;
+
+  // `У-161`: документ БЕЗ контрагента — это КП, выставленное лиду. Кабинета у
+  // такого клиента нет, поэтому клиентские роли его не видят вовсе: сравнивать
+  // не с чем. Читают его только сотрудники своей компании — им бумагу надо
+  // скачать и отправить руками.
+  if (!doc.counterpartyType || !doc.counterpartyId) {
+    if (session.role === 'admin') return true;
+    if (session.role !== 'manager' && session.role !== 'leader') return false;
+    const owner = doc.companyId ?? doc.order?.companyId ?? null;
+    return !!owner && owner === session.companyId;
+  }
 
   // Order-less branch: order is null, company anchor lives on the doc.
   if (doc.orderId === null) {

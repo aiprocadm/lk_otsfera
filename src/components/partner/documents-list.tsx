@@ -13,6 +13,7 @@ const TYPE_LABELS: Record<string, string> = {
   certificate: 'Сертификат',
   report: 'Отчёт',
   commission_statement: 'Расчёт комиссии',
+  commercial_proposal: 'Коммерческое предложение',
   other: 'Прочее',
 };
 

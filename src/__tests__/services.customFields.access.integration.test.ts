@@ -30,6 +30,12 @@ let studentA: string;
 let orderA: string;
 let docA: string; // документ заказа A
 let generalDocA: string; // общий документ организации A
+// Лид и его КП живут в одном тесте, но убираются в afterAll: упавшая проверка
+// не должна оставлять за собой строки. Осиротевший лид не удаляется вместе с
+// пользователем (на нём внешняя связь) и валит уборку ВСЕГО файла, а заодно
+// сбивает счётчики в чужих тестах воронки — проверено на своей шкуре.
+let kpLeadId = '';
+let kpDocId = '';
 
 // Контур B (чужой)
 let companyB: string;
@@ -203,6 +209,9 @@ afterAll(async () => {
     where: { id: { in: [defOrgId, defOrderId, defStudentId, defDocId] } },
   });
   await prisma.document.deleteMany({ where: { name: { startsWith: `CFA-` } } });
+  // Порядок обязателен: документ держит лид (`RESTRICT`), лид держит автора.
+  if (kpDocId) await prisma.document.deleteMany({ where: { id: kpDocId } });
+  if (kpLeadId) await prisma.lead.deleteMany({ where: { id: kpLeadId } });
   await prisma.order.deleteMany({ where: { title: { startsWith: `CFA-` } } });
   await prisma.student.deleteMany({ where: { name: { startsWith: `CFA-` } } });
   await prisma.organizationManager.deleteMany({ where: { userId: { in: [managerAId] } } });
@@ -365,6 +374,51 @@ describe('resolveEntityAccess — документ', () => {
     expect((await resolveEntityAccess(prisma, pa, 'document', generalDocP.id)).canRead).toBe(true);
     expect((await resolveEntityAccess(prisma, pb, 'document', generalDocP.id)).canRead).toBe(false);
     await prisma.document.delete({ where: { id: generalDocP.id } });
+  });
+
+  it('КП лиду (без контрагента): читают только сотрудники своей компании', async () => {
+    // Этап 7 (`У-161`). До него документ без контрагента был невозможен, и
+    // код молча отказывал всем. Теперь такой документ есть — это коммерческое
+    // предложение клиенту, которого ещё нет в системе. Кабинета у адресата
+    // нет, сравнивать не с чем; значит поля документа видят те же, кто видит
+    // сам документ: свои сотрудники своей компании.
+    const lead = await prisma.lead.create({
+      data: {
+        createdByUserId: managerAId,
+        clientCompanyName: `CFA-Лид-${S}`,
+        clientContactName: 'Пётр Иванов',
+        subject: 'Обучение',
+        productType: [],
+      },
+    });
+    kpLeadId = lead.id;
+    const kp = await prisma.document.create({
+      data: {
+        name: `CFA-KP-${S}`,
+        path: `p/${S}/kp`,
+        mimeType: 'application/pdf',
+        type: 'commercial_proposal',
+        companyId: companyA,
+        leadId: lead.id,
+      },
+    });
+    kpDocId = kp.id;
+
+    const mgr = sess(managerAId, 'manager', { companyId: companyA, managedOrgIds: [] });
+    const leader = sess(leaderAId, 'leader', { companyId: companyA });
+    const admin = sess(adminId, 'admin');
+    // Компания у клиентских сессий заполнена нарочно: без неё отказ получался
+    // бы «сам собой», по пустому полю, и снятие проверки роли прошло бы мимо.
+    const org = sess(orgAUserId, 'organization', { organizationId: orgA, companyId: companyA });
+    const partner = sess(partnerAUserId, 'partner', { partnerId: partnerA, companyId: companyA });
+    const foreignMgr = sess(managerAId, 'manager', { companyId: companyB, managedOrgIds: [] });
+
+    expect((await resolveEntityAccess(prisma, admin, 'document', kp.id)).canRead).toBe(true);
+    expect((await resolveEntityAccess(prisma, mgr, 'document', kp.id)).canRead).toBe(true);
+    expect((await resolveEntityAccess(prisma, leader, 'document', kp.id)).canRead).toBe(true);
+    expect((await resolveEntityAccess(prisma, foreignMgr, 'document', kp.id)).canRead).toBe(false);
+    expect((await resolveEntityAccess(prisma, org, 'document', kp.id)).canRead).toBe(false);
+    expect((await resolveEntityAccess(prisma, partner, 'document', kp.id)).canRead).toBe(false);
   });
 
   it('организация видит свою карточку и через членство, и через закрепление', async () => {

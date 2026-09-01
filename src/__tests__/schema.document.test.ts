@@ -33,8 +33,13 @@ describe('Document model fields', () => {
   it('Document has counterpartyType + counterpartyId and CounterpartyType enum exists', () => {
     const schema = readFileSync(join(process.cwd(), 'prisma', 'schema.prisma'), 'utf8');
     expect(schema).toMatch(/enum CounterpartyType \{[\s\S]*organization[\s\S]*partner[\s\S]*\}/);
-    expect(schema).toMatch(/counterpartyType\s+CounterpartyType/);
-    expect(schema).toMatch(/counterpartyId\s+String/);
+    // Этап 7 (`У-161`): оба поля стали необязательными — КП выставляют лиду,
+    // которого ещё нет в системе. Знак вопроса тут не украшение: без него
+    // модель снова потребовала бы контрагента у КП. Что пустота не расползётся
+    // на счета и акты, держат три проверки базы — они проверяются на живом
+    // Postgres в migrations.stage7-proposal-model.integration.test.ts.
+    expect(schema).toMatch(/counterpartyType\s+CounterpartyType\?/);
+    expect(schema).toMatch(/counterpartyId\s+String\?/);
     expect(schema).toMatch(/@@index\(\[counterpartyType, counterpartyId\]\)/);
   });
 });

@@ -165,8 +165,12 @@ describe('getEnrollmentRequest (деталка заявки, ФТ-2.3)', () => {
       s(),
       expect.objectContaining({
         id: 'doc1',
-        counterpartyType: undefined,
-        counterpartyId: undefined,
+        // Этап 7 (`У-161`): контрагента у документа может не быть вовсе, и
+        // `DocumentLike` принимает `null` как есть. Раньше сервис подменял
+        // пустоту на `undefined` — лишний перевод, который скрывал разницу
+        // между «поля не запрашивали» и «поле пустое».
+        counterpartyType: null,
+        counterpartyId: null,
         order: null,
       })
     );

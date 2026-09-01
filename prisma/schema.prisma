@@ -140,6 +140,9 @@ enum DocumentType {
   certificate
   report
   commission_statement
+  /// `У-161` (этап 7): коммерческое предложение — предпродажный документ.
+  /// В 1С не выгружается (решение `Р-14`).
+  commercial_proposal
   other
 }
 
@@ -418,6 +421,8 @@ model Lead {
   attachments        LeadAttachment[]
   // Этап 7 (ФТ-7.1): задачи, привязанные к лиду.
   tasks              Task[]           @relation("TaskLinkedLead")
+  /// `У-161` (этап 7 ТЗ): КП, выставленные лиду до появления организации.
+  proposals          Document[]       @relation("LeadProposals")
 
   @@index([partnerId, status])
   @@index([assignedManagerId])
@@ -900,6 +905,10 @@ model Company {
   // `У-160`: выдатчик номеров редакций шаблона документов. Растёт на каждое
   // сохранение и на каждый «вернуть стандартный», никогда не обнуляется и не
   // переиспользуется: два разных текста не должны носить один номер.
+  /// `У-162` (этап 7): сколько дней действует КП по умолчанию. Настраивается
+  /// в «Реквизитах исполнителя» рядом с налогами и нумерацией — отдельного
+  /// раздела настроек под одно число заводить незачем.
+  proposalValidDays        Int                    @default(14)
   documentTemplateRevision Int                    @default(0)
   documentTemplates        DocumentTemplate[]
   users                    User[]
@@ -1003,6 +1012,8 @@ model Deal {
   notes           DealNote[]    @relation("DealNotes")
   // Этап 7 (ФТ-7.1): задачи, привязанные к сделке.
   tasks           Task[]        @relation("TaskLinkedDeal")
+  /// `У-161` (этап 7 ТЗ): коммерческие предложения по этой сделке.
+  proposals       Document[]    @relation("DealProposals")
 
   @@index([companyId, status])
   @@index([managerId])
@@ -1238,8 +1249,19 @@ model Document {
   /// не-первичный ключ не моделирует).
   companyId          String
   company            Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  counterpartyType   CounterpartyType
-  counterpartyId     String
+  /// `У-161`: у коммерческого предложения контрагента может не быть — КП
+  /// выставляют клиенту, которого ещё нет в системе (лиду). Заполнены оба
+  /// поля или ни одного; пустыми они допустимы ТОЛЬКО у КП, и тогда
+  /// обязателен `leadId` — всё это держат ограничения миграции
+  /// `20260901..._stage7_proposal_model` (Prisma такие проверки не моделирует).
+  ///
+  /// Пустой контрагент выбран намеренно вместо третьего значения
+  /// `CounterpartyType`: это поле — ось изоляции клиентов, по нему построены
+  /// все канальные выборки и проверки доступа. `NULL` не совпадает ни с чем,
+  /// поэтому КП лида не попадает ни в один кабинет само собой — без единой
+  /// правки кода изоляции.
+  counterpartyType   CounterpartyType?
+  counterpartyId     String?
   uploadedById       String?
   uploadedBy         User?              @relation(fields: [uploadedById], references: [id])
   scanStatus         String             @default("pending")
@@ -1266,6 +1288,24 @@ model Document {
   /// документа, а «заменён» — про место в цепочке версий, и смешивать их
   /// значило бы запретить, например, отправку заменённой версии задним числом.
   /// Списки по умолчанию показывают только строки с `supersededAt = null`.
+  /// `У-161`: КП, выставленное лиду без организации. Переносится на
+  /// организацию отдельным действием, когда она появится.
+  leadId             String?
+  /// `Restrict`, а не `SetNull`: у КП без контрагента лид — единственный след
+  /// адресата, и обнуление ссылки нарушило бы `Document_proposal_needs_lead`.
+  lead               Lead?              @relation("LeadProposals", fields: [leadId], references: [id], onDelete: Restrict)
+  /// `У-161`: сделка, по которой выставлено КП, — для блока на её карточке
+  /// (`У-166`) и для перевода стадии при отправке (`У-164`).
+  dealId             String?
+  deal               Deal?              @relation("DealProposals", fields: [dealId], references: [id], onDelete: SetNull)
+  /// `У-162`: до какого числа действует КП. У остальных типов пусто: срок
+  /// действия договора — это ТЕКСТ пункта, а не дата (`У-160`).
+  validUntil         DateTime?
+  /// `У-164`: отказ заказчика — отдельно от аннулирования сотрудником
+  /// (`cancelledAt`/`cancelReason`). Смешать их значило бы потерять в журнале
+  /// разницу между «мы отозвали» и «клиент отказался».
+  rejectedAt         DateTime?
+  rejectReason       String?
   supersededAt       DateTime?
   sentAt             DateTime?
   sentById           String?
@@ -1297,6 +1337,9 @@ model Document {
   @@index([status])
   @@index([parentDocumentId])
   @@index([supersededAt])
+  @@index([leadId])
+  @@index([dealId])
+  @@index([validUntil])
   @@index([replacesDocumentId])
 }
 
@@ -1373,6 +1416,11 @@ model DocumentLine {
   vatRate         Decimal?    @db.Decimal(5, 4)
   /// Сумма налога по строке — снимок, а не вычисление на лету: ставка в
   /// каталоге могла поменяться после выпуска.
+  /// `У-164` (этап 7): цена строки указана с НДС или без. Без этого признака
+  /// перенос строк КП в заказ разошёлся бы с суммой предложения ровно на
+  /// ставку налога: восстановить его из суммы НДС нельзя — при ставке 0 и при
+  /// «не облагается» результат неразличим.
+  vatIncluded     Boolean     @default(true)
   vatAmount       Decimal     @db.Decimal(14, 2)
   amount          Decimal     @db.Decimal(14, 2)
   sortOrder       Int         @default(0)

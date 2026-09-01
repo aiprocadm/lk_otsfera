@@ -53,6 +53,7 @@ const TYPE_OPTIONS: Array<{ value: string; label: string }> = [
   { value: 'certificate', label: 'Сертификат' },
   { value: 'report', label: 'Отчёт' },
   { value: 'commission_statement', label: 'Расчёт комиссии' },
+  { value: 'commercial_proposal', label: 'Коммерческое предложение' },
   { value: 'other', label: 'Прочее' },
 ];
 
