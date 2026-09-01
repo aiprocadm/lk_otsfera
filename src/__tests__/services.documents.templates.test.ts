@@ -15,7 +15,7 @@ import {
   saveCompanyTemplate,
   SLOT_TEXT_MAX,
 } from '@/lib/services/documents/templates';
-import { CONTRACT_TEMPLATE_SLOTS } from '@/lib/documents/contractTemplate';
+import { DOCUMENT_TEMPLATE_SLOTS } from '@/lib/documents/documentTemplate';
 
 const admin = (): SessionPayload => ({ sub: 'a1', role: 'admin' }) as unknown as SessionPayload;
 const leader = (over: Record<string, unknown> = {}): SessionPayload =>
@@ -54,7 +54,7 @@ describe('listCompanyTemplates', () => {
     const res = await listCompanyTemplates(prisma, admin(), 'co-A');
     expect(res.ok).toBe(true);
     if (!res.ok) return;
-    expect(res.rows).toHaveLength(CONTRACT_TEMPLATE_SLOTS.length);
+    expect(res.rows).toHaveLength(DOCUMENT_TEMPLATE_SLOTS.length);
     const payment = res.rows.find((r) => r.slot === 'payment')!;
     expect(payment).toMatchObject({ body: 'Свой текст', isCustom: true, revision: 3 });
     const liability = res.rows.find((r) => r.slot === 'liability')!;

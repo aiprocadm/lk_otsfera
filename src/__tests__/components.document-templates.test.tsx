@@ -21,11 +21,11 @@ vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastE
 import { DocumentTemplatesScreen } from '@/components/settings/document-templates-screen';
 import { DocumentTemplateField } from '@/components/settings/document-templates-editor';
 import {
-  CONTRACT_TEMPLATE_GROUPS,
-  CONTRACT_TEMPLATE_SLOTS,
+  DOCUMENT_TEMPLATE_GROUPS,
+  DOCUMENT_TEMPLATE_SLOTS,
   findSlot,
-  type ContractTemplateSlot,
-} from '@/lib/documents/contractTemplate';
+  type DocumentTemplateSlot,
+} from '@/lib/documents/documentTemplate';
 import type { TemplateRow } from '@/lib/services/documents/templates';
 
 /**
@@ -38,7 +38,7 @@ import type { TemplateRow } from '@/lib/services/documents/templates';
  */
 
 /** Строка «как её отдаёт сервис»: пока текст не правили — встроенный. */
-function rowFor(slot: ContractTemplateSlot, over: Partial<TemplateRow> = {}): TemplateRow {
+function rowFor(slot: DocumentTemplateSlot, over: Partial<TemplateRow> = {}): TemplateRow {
   return {
     slot: slot.key,
     body: slot.defaultText,
@@ -49,10 +49,10 @@ function rowFor(slot: ContractTemplateSlot, over: Partial<TemplateRow> = {}): Te
   };
 }
 
-const ALL_ROWS: TemplateRow[] = CONTRACT_TEMPLATE_SLOTS.map((s) => rowFor(s));
+const ALL_ROWS: TemplateRow[] = DOCUMENT_TEMPLATE_SLOTS.map((s) => rowFor(s));
 
 /** Слот берём из реестра, а не выдумываем: тест обязан ломаться вместе с ним. */
-function slotByKey(key: string): ContractTemplateSlot {
+function slotByKey(key: string): DocumentTemplateSlot {
   const slot = findSlot(key);
   if (!slot) throw new Error(`в реестре нет слота ${key}`);
   return slot;
@@ -79,25 +79,29 @@ describe('DocumentTemplatesScreen — экран настроек', () => {
     );
   }
 
-  it('поля собираются ПО РЕЕСТРУ: все шесть групп с названиями и все девять пунктов', () => {
+  it('поля собираются ПО РЕЕСТРУ: все группы с названиями и все пункты', () => {
     screenOf();
     // Названия групп берём из самого реестра: добавят седьмую — тест увидит
     // её отсутствие на экране, а не промолчит про захардкоженный список.
-    for (const group of CONTRACT_TEMPLATE_GROUPS) {
+    for (const group of DOCUMENT_TEMPLATE_GROUPS) {
       expect(screen.getByRole('heading', { level: 2, name: group.title })).toBeTruthy();
       expect(screen.getByText(group.hint)).toBeTruthy();
     }
-    for (const slot of CONTRACT_TEMPLATE_SLOTS) {
+    for (const slot of DOCUMENT_TEMPLATE_SLOTS) {
       expect(screen.getByTestId(`template-slot-${slot.key}`)).toBeTruthy();
     }
     // Названия из требования — проверяем буквально, их читает заказчик.
-    expect(CONTRACT_TEMPLATE_GROUPS.map((g) => g.title)).toEqual([
+    // Порядок тоже: группы КП (`У-162`) идут ПОСЛЕ договорных, потому что
+    // договор в компании правят чаще.
+    expect(DOCUMENT_TEMPLATE_GROUPS.map((g) => g.title)).toEqual([
       'Предмет',
       'Порядок оплаты',
       'Сроки и приёмка',
       'Ответственность',
       'Срок действия',
       'Прочие условия',
+      'Вводный текст предложения',
+      'Условия предложения',
     ]);
   });
 
@@ -177,7 +181,7 @@ describe('DocumentTemplatesScreen — экран настроек', () => {
 });
 
 describe('DocumentTemplateField — редактор одного пункта', () => {
-  function fieldOf(slot: ContractTemplateSlot, row: TemplateRow = rowFor(slot)) {
+  function fieldOf(slot: DocumentTemplateSlot, row: TemplateRow = rowFor(slot)) {
     render(<DocumentTemplateField cabinet="admin" companyId="co-1" slot={slot} row={row} />);
     return within(screen.getByTestId(`template-slot-${slot.key}`));
   }
@@ -396,7 +400,7 @@ describe('DocumentTemplateField — редактор одного пункта',
     // Слот с пустым списком подстановок реестр сегодня не содержит, но код
     // такой случай допускает: проверяем, что подсказка исчезает целиком, а не
     // печатает голое «Подстановки:».
-    const plain: ContractTemplateSlot = { ...PAYMENT, placeholders: [], required: [] };
+    const plain: DocumentTemplateSlot = { ...PAYMENT, placeholders: [], required: [] };
     const f = fieldOf(plain);
     expect(f.queryByText(/Подстановки:/)).toBeNull();
   });

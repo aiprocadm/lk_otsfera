@@ -1,7 +1,7 @@
 import { renderToBuffer, Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
 import React from 'react';
 import { registerPdfFonts, PDF_FONT_FAMILY } from '@/lib/pdf/fonts';
-import type { ResolvedClause } from '@/lib/documents/contractTemplate';
+import type { ResolvedClause } from '@/lib/documents/documentTemplate';
 import type { PartyBlock } from './orderDocumentPdf';
 import { formatMoney, type PrintTable } from './printTable';
 import type { DocumentBranding } from './branding';

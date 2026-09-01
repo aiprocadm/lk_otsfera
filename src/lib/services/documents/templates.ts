@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
-import { CONTRACT_TEMPLATE_SLOTS, checkSlotText, findSlot } from '@/lib/documents/contractTemplate';
+import { DOCUMENT_TEMPLATE_SLOTS, checkSlotText, findSlot } from '@/lib/documents/documentTemplate';
 
 /**
  * Свои тексты абзацев договора и доп. соглашения (`У-160`).
@@ -76,7 +76,7 @@ export async function listCompanyTemplates(
 
   return {
     ok: true,
-    rows: CONTRACT_TEMPLATE_SLOTS.map((slot) => {
+    rows: DOCUMENT_TEMPLATE_SLOTS.map((slot) => {
       const own = bySlot.get(slot.key);
       return own
         ? {

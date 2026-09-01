@@ -3,10 +3,10 @@ import { EmptyState, Field, Select } from '@/components/ui';
 import { PageHeader } from '@/components/ui/page-header';
 import type { SettingsCabinet } from '@/lib/navigation/settings';
 import {
-  CONTRACT_TEMPLATE_GROUPS,
-  CONTRACT_TEMPLATE_SLOTS,
-  type ContractTemplateSlot,
-} from '@/lib/documents/contractTemplate';
+  DOCUMENT_TEMPLATE_GROUPS,
+  DOCUMENT_TEMPLATE_SLOTS,
+  type DocumentTemplateSlot,
+} from '@/lib/documents/documentTemplate';
 import type { TemplateRow } from '@/lib/services/documents/templates';
 import { DocumentTemplateField } from './document-templates-editor';
 
@@ -40,7 +40,7 @@ export function DocumentTemplatesScreen({
     <div className="space-y-6">
       <PageHeader
         title="Шаблоны документов"
-        subtitle="Тексты пунктов договора и доп. соглашения. Пока пункт не правили — печатается стандартная формулировка."
+        subtitle="Свои формулировки для договора, доп. соглашения и коммерческого предложения. Пока текст не правили — печатается стандартный."
       />
 
       {isAdmin && (
@@ -67,9 +67,9 @@ export function DocumentTemplatesScreen({
           // значит врать человеку про состояние системы.
           message={
             !hasCompany && isAdmin
-              ? 'Нет ни одной компании-исполнителя — заводить тексты договора не для кого.'
+              ? 'Нет ни одной компании-исполнителя — заводить тексты документов не для кого.'
               : !hasCompany
-                ? 'Ваша учётная запись не привязана к компании, поэтому тексты договора править нельзя. Обратитесь к администратору.'
+                ? 'Ваша учётная запись не привязана к компании, поэтому тексты документов править нельзя. Обратитесь к администратору.'
                 : 'Выберите компанию-исполнителя, чтобы посмотреть и поправить её тексты.'
           }
         />
@@ -78,15 +78,15 @@ export function DocumentTemplatesScreen({
           {/* Текст договора — юридический документ, поэтому рядом с каждым
               полем сказано, где он печатается: править «Ответственность»
               вслепую опаснее, чем не править вовсе (§15). */}
-          {CONTRACT_TEMPLATE_GROUPS.map((group) => {
-            const slots = CONTRACT_TEMPLATE_SLOTS.filter((s) => s.group === group.id);
+          {DOCUMENT_TEMPLATE_GROUPS.map((group) => {
+            const slots = DOCUMENT_TEMPLATE_SLOTS.filter((s) => s.group === group.id);
             return (
               <section key={group.id} className="space-y-3">
                 <div>
                   <h2 className="text-base font-semibold text-[#111111]">{group.title}</h2>
                   <p className="text-xs text-gray-500">{group.hint}</p>
                 </div>
-                {slots.map((slot: ContractTemplateSlot) => {
+                {slots.map((slot: DocumentTemplateSlot) => {
                   const row = bySlot.get(slot.key);
                   // Реестр и выборка расходятся только при опечатке в ключе;
                   // молча пропускаем, чтобы экран не падал целиком.

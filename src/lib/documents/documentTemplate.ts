@@ -28,14 +28,21 @@ import {
  * своей строки, а не запись копии: копия заморозила бы формулировку.
  */
 
-export type ContractTemplateDocType = 'contract' | 'extra_agreement';
+export type DocumentTemplateDocType = 'contract' | 'extra_agreement' | 'commercial_proposal';
 
 /** Группа полей на экране настроек — названия из `У-160`. */
-export type ContractTemplateGroup =
-  'subject' | 'payment' | 'schedule' | 'liability' | 'term' | 'misc';
+export type DocumentTemplateGroup =
+  | 'subject'
+  | 'payment'
+  | 'schedule'
+  | 'liability'
+  | 'term'
+  | 'misc'
+  | 'proposalIntro'
+  | 'proposalTerms';
 
-export const CONTRACT_TEMPLATE_GROUPS: ReadonlyArray<{
-  id: ContractTemplateGroup;
+export const DOCUMENT_TEMPLATE_GROUPS: ReadonlyArray<{
+  id: DocumentTemplateGroup;
   title: string;
   hint: string;
 }> = [
@@ -57,32 +64,44 @@ export const CONTRACT_TEMPLATE_GROUPS: ReadonlyArray<{
     title: 'Прочие условия',
     hint: 'Дополнительный пункт договора. Пока поле пустое — он не печатается.',
   },
+  // `У-162` (этап 7). Группы КП идут ПОСЛЕ договорных: экран рисует группы в
+  // этом порядке, а договор в компании правят чаще, чем предложение.
+  {
+    id: 'proposalIntro',
+    title: 'Вводный текст предложения',
+    hint: 'Первые строки коммерческого предложения — обращение к клиенту перед таблицей с ценами.',
+  },
+  {
+    id: 'proposalTerms',
+    title: 'Условия предложения',
+    hint: 'Что написано под таблицей: до какого числа действует цена и что делать дальше.',
+  },
 ];
 
 /** Поля формы выпуска, которые заменяют абзац ЦЕЛИКОМ (`У-147`). */
-export type ContractTemplateFormInput = {
+export type DocumentTemplateFormInput = {
   /** «Порядок оплаты» — разовая замена пункта 2.2 на один документ. */
   paymentTerms?: string | null;
   /** «Что меняется» — разовая замена пункта 1.1 доп. соглашения. */
   changeText?: string | null;
 };
 
-export type ContractTemplateSlot = {
+export type DocumentTemplateSlot = {
   /** Ключ строки в базе. */
   key: string;
-  group: ContractTemplateGroup;
+  group: DocumentTemplateGroup;
   /** Номер пункта в печати — постоянная величина, не считается по позиции. */
   clause: string;
   /** Где печатается — показывается рядом с полем. */
   where: string;
   /** В каких документах печатается этот абзац. */
-  docTypes: readonly ContractTemplateDocType[];
+  docTypes: readonly DocumentTemplateDocType[];
   /** Допустимые подстановки. Всё остальное — отказ сохранить. */
   placeholders: readonly TemplatePlaceholder[];
   /** Подстановки, без которых текст теряет смысл. */
   required: readonly string[];
   /** Поле формы выпуска, заменяющее абзац целиком; `null` — замены нет. */
-  formField: keyof ContractTemplateFormInput | null;
+  formField: keyof DocumentTemplateFormInput | null;
   /** Встроенный текст — то, что печатается сегодня. Пустой = пункт не печатается. */
   defaultText: string;
 };
@@ -95,6 +114,14 @@ const P = {
   organization: { token: 'organization.name', prop: 'organization', label: 'Название заказчика' },
   total: { token: 'amount.total', prop: 'total', label: 'Сумма цифрами' },
   inWords: { token: 'amount.inWords', prop: 'inWords', label: 'Сумма прописью' },
+  // `У-162`: срок действия КП — ДАТА, а не текст пункта, как `contract.term`
+  // у договора. Разные подстановки нарочно: подставить одну вместо другой
+  // означало бы напечатать «до 15.09.2026» там, где ждут «один год».
+  validUntil: {
+    token: 'proposal.validUntil',
+    prop: 'validUntil',
+    label: 'Предложение действительно до',
+  },
 } as const satisfies Record<string, TemplatePlaceholder>;
 
 /** Подстановки, доступные почти везде: стороны, суммы, дата и предмет. */
@@ -107,7 +134,7 @@ const COMMON: readonly TemplatePlaceholder[] = [
   P.inWords,
 ];
 
-const BOTH: readonly ContractTemplateDocType[] = ['contract', 'extra_agreement'];
+const BOTH: readonly DocumentTemplateDocType[] = ['contract', 'extra_agreement'];
 
 /**
  * Порядок здесь — порядок печати внутри документа.
@@ -118,7 +145,7 @@ const BOTH: readonly ContractTemplateDocType[] = ['contract', 'extra_agreement']
  * бы печатать прежнюю формулировку — две бумаги одной сделки говорили бы
  * разное, и заметил бы это юрист заказчика, а не мы.
  */
-export const CONTRACT_TEMPLATE_SLOTS: readonly ContractTemplateSlot[] = [
+export const DOCUMENT_TEMPLATE_SLOTS: readonly DocumentTemplateSlot[] = [
   {
     key: 'subject.contract',
     group: 'subject',
@@ -237,18 +264,50 @@ export const CONTRACT_TEMPLATE_SLOTS: readonly ContractTemplateSlot[] = [
     // формулировку мы не станем: пустой пункт честнее выдуманного.
     defaultText: '',
   },
+
+  /**
+   * Коммерческое предложение (`У-162`, этап 7). Два абзаца, и оба без номера
+   * пункта: КП — не договор, нумерованных разделов у него нет. Пустая строка
+   * `clause` здесь означает ровно это, а вёрстка КП печатает текст как есть.
+   */
+  {
+    key: 'proposal.intro',
+    group: 'proposalIntro',
+    clause: '',
+    where: 'Коммерческое предложение, первые строки — перед таблицей',
+    docTypes: ['commercial_proposal'],
+    placeholders: [...COMMON, P.validUntil],
+    required: [],
+    formField: null,
+    defaultText:
+      'Здравствуйте! Благодарим за интерес к нашим услугам. Направляем коммерческое предложение по вашему запросу: {{document.subject}}. Ниже — состав работ и стоимость.',
+  },
+  {
+    key: 'proposal.terms',
+    group: 'proposalTerms',
+    clause: '',
+    where: 'Коммерческое предложение, под таблицей с ценами',
+    docTypes: ['commercial_proposal'],
+    placeholders: [...COMMON, P.validUntil],
+    // Срок обязателен: предложение без даты «до когда» — это не предложение,
+    // а прайс-лист. Проверка сохранения не даст его выкинуть.
+    required: [P.validUntil.token],
+    formField: null,
+    defaultText:
+      'Предложение действительно до {{proposal.validUntil}}. Стоимость указана в рублях. Чтобы начать, ответьте на это письмо — мы подготовим договор и счёт.',
+  },
 ];
 
-export function slotsForDocType(docType: ContractTemplateDocType): ContractTemplateSlot[] {
-  return CONTRACT_TEMPLATE_SLOTS.filter((s) => s.docTypes.includes(docType));
+export function slotsForDocType(docType: DocumentTemplateDocType): DocumentTemplateSlot[] {
+  return DOCUMENT_TEMPLATE_SLOTS.filter((s) => s.docTypes.includes(docType));
 }
 
-export function findSlot(key: string): ContractTemplateSlot | undefined {
-  return CONTRACT_TEMPLATE_SLOTS.find((s) => s.key === key);
+export function findSlot(key: string): DocumentTemplateSlot | undefined {
+  return DOCUMENT_TEMPLATE_SLOTS.find((s) => s.key === key);
 }
 
 /** Значения подстановок — готовыми строками; форматирует вызывающий. */
-export type ContractTemplateValues = {
+export type DocumentTemplateValues = {
   subject: string;
   date: string;
   term: string;
@@ -256,10 +315,12 @@ export type ContractTemplateValues = {
   organization: string;
   total: string;
   inWords: string;
+  /** `У-162`: до какой даты действует КП. У договора не используется. */
+  validUntil: string;
 };
 
 /** Свой текст компании: тело абзаца и номер редакции, которым его записали. */
-export type ContractTemplateOverride = { body: string; revision: number };
+export type DocumentTemplateOverride = { body: string; revision: number };
 
 /** Откуда взялся напечатанный абзац — идёт в журнал действий, без текстов. */
 type ClauseSource = 'form' | 'template' | 'builtin';
@@ -290,11 +351,11 @@ export type ResolvedClauses = {
  * НЕ прогоняется: `{{` в разовой правке — это то, что человек написал, а не
  * команда шаблонизатора.
  */
-export function resolveContractClauses(input: {
-  docType: ContractTemplateDocType;
-  values: ContractTemplateValues;
-  overrides?: ReadonlyMap<string, ContractTemplateOverride>;
-  form?: ContractTemplateFormInput;
+export function resolveDocumentClauses(input: {
+  docType: DocumentTemplateDocType;
+  values: DocumentTemplateValues;
+  overrides?: ReadonlyMap<string, DocumentTemplateOverride>;
+  form?: DocumentTemplateFormInput;
 }): ResolvedClauses {
   const { docType, values, overrides, form } = input;
   const clauses: ResolvedClause[] = [];
@@ -340,11 +401,11 @@ export function resolveContractClauses(input: {
 }
 
 function placeholderValues(
-  slot: ContractTemplateSlot,
-  values: ContractTemplateValues
+  slot: DocumentTemplateSlot,
+  values: DocumentTemplateValues
 ): Map<string, string> {
   return new Map(
-    slot.placeholders.map((p) => [p.token, values[p.prop as keyof ContractTemplateValues]])
+    slot.placeholders.map((p) => [p.token, values[p.prop as keyof DocumentTemplateValues]])
   );
 }
 
@@ -357,7 +418,7 @@ export type SlotTextCheck =
  * Проверка текста абзаца перед сохранением — та же, что перед показом
  * предпросмотра: «показать» не должно работать там, где «сохранить» откажет.
  */
-export function checkSlotText(slot: ContractTemplateSlot, body: string): SlotTextCheck {
+export function checkSlotText(slot: DocumentTemplateSlot, body: string): SlotTextCheck {
   const unknown = findUnknownPlaceholders(
     slot.placeholders.map((p) => p.token),
     body
