@@ -189,6 +189,43 @@ describe('«Отправить заказчику» у сотрудника (У-
     render(<DocumentDetailView document={doc({ status: 'cancelled' })} backHref="/x" canSend />);
     expect(screen.queryByText('Отправить заказчику')).toBeNull();
   });
+
+  /**
+   * Этап 7 (`У-164`). Кнопка рисуется по тому же правилу, что решает сервис
+   * (`canSendFromStatus`), а не по своему списку статусов. Прежний литерал
+   * `['issued','sent','accepted']` прятал бы кнопку у КП-черновика, хотя
+   * сервис отправку разрешает: человек видел бы бумагу, которую «нельзя
+   * отправить», и шёл бы пересылать её из своей почты.
+   */
+  it('черновик коммерческого предложения отправить МОЖНО — у него это рабочее состояние', () => {
+    render(
+      <DocumentDetailView
+        document={doc({ type: 'commercial_proposal', status: 'draft' })}
+        backHref="/x"
+        canSend
+      />
+    );
+    expect(screen.getByText('Отправить заказчику')).toBeTruthy();
+  });
+
+  it('черновик СЧЁТА отправить нельзя: послабление касается только предложения', () => {
+    render(<DocumentDetailView document={doc({ status: 'draft' })} backHref="/x" canSend />);
+    expect(screen.queryByText('Отправить заказчику')).toBeNull();
+  });
+
+  it('отклонённое и истёкшее предложение заново не отправляется', () => {
+    for (const status of ['rejected', 'expired']) {
+      const { unmount } = render(
+        <DocumentDetailView
+          document={doc({ type: 'commercial_proposal', status })}
+          backHref="/x"
+          canSend
+        />
+      );
+      expect(screen.queryByText('Отправить заказчику'), status).toBeNull();
+      unmount();
+    }
+  });
 });
 
 describe('состояние и отметки документа', () => {
