@@ -17,7 +17,7 @@ import Link from 'next/link';
 import type { Crumb } from '@/lib/navigation/breadcrumbs';
 import { Button, Badge, Breadcrumbs, Field, Input } from '@/components/ui';
 import type { DocumentDetail } from '@/lib/services/documents/detail';
-import { STATUS_LABELS } from '@/lib/documents/statusMatrix';
+import { canSendFromStatus, STATUS_LABELS } from '@/lib/documents/statusMatrix';
 import { errorMessageRu } from '@/lib/errors/messages';
 import { toast } from '@/lib/ui/toast';
 import { acceptDocumentAction } from '@/server-actions/documents/accept';
@@ -192,10 +192,12 @@ export function DocumentDetailView({
   const [sentNote, setSentNote] = useState<string | null>(null);
   // Отправляют письмом бумаги с жизненным циклом и только заказчику. Скан,
   // отчёт и документы партнёра этой кнопки не получают: адресата у них нет.
+  // Списки типов и статусов НЕ переписаны сюда литералами: экран и сервис
+  // разъехались бы при первой правке. Так и вышло бы с КП (`У-164`) — он
+  // отправляется из ЧЕРНОВИКА, и прежний литерал `['issued','sent','accepted']`
+  // прятал бы у него кнопку, хотя сервис отправку разрешает.
   const sendable =
-    ['invoice', 'act', 'contract', 'extra_agreement'].includes(doc.type) &&
-    doc.counterparty.type === 'organization' &&
-    ['issued', 'sent', 'accepted'].includes(doc.status);
+    canSendFromStatus(doc.type, doc.status) && doc.counterparty.type === 'organization';
   /**
    * Дельты поверх общего словаря: центральные строки писались для других
    * экранов («Заказ не найден», «Нет прав на загрузку») и здесь врали бы про

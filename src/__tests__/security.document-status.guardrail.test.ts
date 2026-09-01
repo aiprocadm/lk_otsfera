@@ -39,8 +39,16 @@ describe('У-148: статус документа меняется только 
       if (ALLOWED.has(rel)) continue;
       const src = readFileSync(file, 'utf-8');
       // Ищем запись поля `status:` в data-объекте обновления документа.
-      // Узко: `document.update(` … `status:` в пределах одного вызова.
-      for (const m of src.matchAll(/document\.update\(\s*\{[\s\S]{0,400}?\}\s*\)/g)) {
+      // Узко: `document.update(`/`document.updateMany(` … `status:` в пределах
+      // одного вызова.
+      //
+      // `updateMany` добавлен этапом 7 (`У-164`): ежедневная задача «истёк срок
+      // КП» — ровно тот случай, где массовое обновление напрашивается само, а
+      // страж, знающий только про `update(`, промолчал бы на нём. Пачкой
+      // статус двигать нельзя не из вредности: матрица переходов проверяется
+      // по КАЖДОМУ документу отдельно, и аудит тоже пишется по каждому —
+      // одним `updateMany` в журнале не осталось бы ни строки.
+      for (const m of src.matchAll(/document\.update(?:Many)?\(\s*\{[\s\S]{0,400}?\}\s*\)/g)) {
         if (/\bstatus:\s/.test(m[0])) {
           offenders.push(rel);
           break;

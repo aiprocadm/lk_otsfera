@@ -310,6 +310,77 @@ describe('отправка документа заказчику письмом'
     expect(warn).toHaveBeenCalled();
   });
 
+  /**
+   * Этап 7 (`У-164`). До него «первая отправка» означала «статус был
+   * `issued`». У КП начальный статус — `draft`, и по старому условию первая
+   * отправка предложения считалась ПОВТОРНОЙ: документ остался бы черновиком
+   * навсегда, а заказчик — с бумагой, которой по системе не отправляли.
+   */
+  describe('коммерческое предложение отправляется из черновика', () => {
+    const KP = {
+      type: 'commercial_proposal',
+      status: 'draft',
+      name: 'kp-v1-abc.pdf',
+      number: 'КП-2026-4',
+    };
+
+    it('черновик КП уходит письмом, и это ПЕРВАЯ отправка', async () => {
+      const f = fake(KP);
+      const res = await sendDocumentToCustomer(f.prisma, staff(), 'doc-1');
+      expect(res).toMatchObject({ ok: true, repeat: false });
+      expect(setDocumentStatus).toHaveBeenCalledWith(f.prisma, expect.anything(), {
+        documentId: 'doc-1',
+        to: 'sent',
+      });
+      // Отметку времени мимо двери статусов при первой отправке не пишем:
+      // `sentAt` проставляет сама дверь.
+      expect(f.documentUpdate).not.toHaveBeenCalled();
+    });
+
+    it('повторная отправка КП статус не двигает — только отметку времени', async () => {
+      const f = fake({ ...KP, status: 'sent' });
+      const res = await sendDocumentToCustomer(f.prisma, staff(), 'doc-1');
+      expect(res).toMatchObject({ ok: true, repeat: true });
+      expect(setDocumentStatus).not.toHaveBeenCalled();
+      expect(f.documentUpdate).toHaveBeenCalled();
+    });
+
+    it('отклонённое и истёкшее предложение заново не отправляется', async () => {
+      // Для «давайте ещё раз» есть перевыпуск: срок и цена напечатаны в
+      // бумаге, которая уже у клиента.
+      for (const status of ['rejected', 'expired']) {
+        vi.clearAllMocks();
+        canReadDocument.mockResolvedValue(true);
+        const f = fake({ ...KP, status });
+        expect(await sendDocumentToCustomer(f.prisma, staff(), 'doc-1'), status).toEqual({
+          ok: false,
+          error: 'not_sendable',
+        });
+        expect(sendOrgDocumentSentEmail, status).not.toHaveBeenCalled();
+      }
+    });
+
+    it('КП без контрагента (лиду) этой кнопкой не уходит: адресата нет', async () => {
+      const f = fake({ ...KP, counterpartyType: null, counterpartyId: null });
+      expect(await sendDocumentToCustomer(f.prisma, staff(), 'doc-1')).toEqual({
+        ok: false,
+        error: 'not_sendable',
+      });
+    });
+
+    it('послабление не задело счёт: черновик счёта по-прежнему не отправляется', async () => {
+      // Проверка от обратного. Если бы «черновик можно отправить» записали
+      // общим правилом, а не вывели из матрицы, счёт уехал бы клиенту до
+      // выпуска — без номера и без проверки реквизитов.
+      const f = fake({ status: 'draft' });
+      expect(await sendDocumentToCustomer(f.prisma, staff(), 'doc-1')).toEqual({
+        ok: false,
+        error: 'not_sendable',
+      });
+      expect(sendOrgDocumentSentEmail).not.toHaveBeenCalled();
+    });
+  });
+
   it('руководитель и администратор отправляют так же, как менеджер', async () => {
     for (const role of ['leader', 'admin']) {
       vi.clearAllMocks();

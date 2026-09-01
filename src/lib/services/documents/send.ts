@@ -9,7 +9,7 @@ import { getAppBaseUrl } from '@/lib/notifications/shared';
 import { sendOrgDocumentSentEmail } from '@/lib/email/send';
 import { applyOverride, getTemplateOverride } from '@/lib/email/templateOverrides';
 import { documentDownloadName } from '@/lib/documents/fileName';
-import { isLifecycleType } from '@/lib/documents/statusMatrix';
+import { canSendFromStatus, canTransition, isLifecycleType } from '@/lib/documents/statusMatrix';
 import { setDocumentStatus } from './status';
 
 /**
@@ -53,9 +53,6 @@ export type SendDocumentResult =
         | 'email_disabled';
     };
 
-/** Статусы, из которых документ можно отправить клиенту. */
-const SENDABLE_STATUSES = new Set(['issued', 'sent', 'accepted']);
-
 export async function sendDocumentToCustomer(
   prisma: PrismaClient,
   session: SessionPayload,
@@ -98,7 +95,7 @@ export async function sendDocumentToCustomer(
   // держит их «оба или ни одного» (`Document_counterparty_both_or_none`).
   if (doc.counterpartyType !== 'organization' || !doc.counterpartyId)
     return { ok: false, error: 'not_sendable' };
-  if (!SENDABLE_STATUSES.has(doc.status)) return { ok: false, error: 'not_sendable' };
+  if (!canSendFromStatus(doc.type, doc.status)) return { ok: false, error: 'not_sendable' };
   if (doc.scanStatus === 'infected') return { ok: false, error: 'infected' };
 
   const org = await prisma.organization.findUnique({
@@ -172,10 +169,15 @@ export async function sendDocumentToCustomer(
     return { ok: false, error: 'email_disabled' };
   }
 
-  // `issued → sent` идёт через единственную дверь к статусу (`У-148`): она
+  // Первая отправка идёт через единственную дверь к статусу (`У-148`): она
   // же проставляет `sentAt`/`sentById` и пишет смену статуса в журнал.
   // Повторная отправка статус не двигает — обновляем только отметку времени.
-  const repeat = doc.status !== 'issued';
+  //
+  // «Первая» определяется матрицей, а не сравнением с `issued`: у КП начальный
+  // статус — `draft` (`У-164`), и прежнее условие сочло бы первую отправку
+  // предложения повторной. Документ остался бы черновиком навсегда, а
+  // заказчик — с бумагой, которой по системе не отправляли.
+  const repeat = !canTransition(doc.type, doc.status, 'sent');
   if (!repeat) {
     await setDocumentStatus(prisma, session, { documentId: doc.id, to: 'sent' });
   } else {
