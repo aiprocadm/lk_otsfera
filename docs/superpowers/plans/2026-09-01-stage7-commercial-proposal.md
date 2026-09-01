@@ -15,7 +15,7 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development
 | PR-1 «Тип и модель» | `commercial_proposal`, необязательный контрагент с тремя ограничениями, `leadId`/`dealId`, `validUntil`, `rejectedAt`/`rejectReason`, `DocumentLine.vatIncluded`, `Company.proposalValidDays`, ключ имени файла | `У-161` (модель) | ✅ [#462](https://github.com/aiprocadm/lk_otsfera/pull/462) |
 | PR-2 «Статусы КП» | `PROPOSAL_FLOW`, расширение `LIFECYCLE_TYPES`, отправка из `draft`, страж на `updateMany` | `У-164` (статусы) | ✅ [#463](https://github.com/aiprocadm/lk_otsfera/pull/463) |
 | PR-3a «Тексты и печать» | Слоты текстов КП, переименование реестра, шаблон PDF, симметричный страж вёрстки | `У-162`, `У-163` | ✅ [#464](https://github.com/aiprocadm/lk_otsfera/pull/464) |
-| PR-3b «Выпуск» | Начальный статус, пятый набор реквизитов, номер `КП-{год}-{N}`, цель-лид | `У-161`, `У-162` | 🔨 |
+| PR-3b «Выпуск» | Начальный статус, пятый набор реквизитов, номер `КП-{год}-{N}`, цель-лид | `У-161`, `У-162`, `У-163` | ✅ [#465](https://github.com/aiprocadm/lk_otsfera/pull/465) |
 | PR-4 «Точки входа» | Кнопка из карточки организации, сделки и лида; «создать лид и выставить КП» из обращения; перенос КП с лида на организацию | `У-161` | ⏳ |
 | PR-5 «Срок действия» | Расчёт «истекло» одной функцией, ежедневная задача `docs.expireProposals` | `У-164` (срок) | ⏳ |
 | PR-6 «Принятие» | Четыре сценария, перенос строк в `OrderLine`, перевод сделки, уведомления | `У-164` (принятие) | ⏳ |
