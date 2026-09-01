@@ -14,6 +14,8 @@ const {
   removeMock,
   renderMock,
   renderContractMock,
+  renderProposalMock,
+  resolveOrgIssueScope,
   notifyOrgUsers,
   getCompanyTeamVisibility,
   canSeeOrderMock,
@@ -24,6 +26,8 @@ const {
   removeMock: vi.fn(),
   renderMock: vi.fn(),
   renderContractMock: vi.fn(),
+  renderProposalMock: vi.fn(),
+  resolveOrgIssueScope: vi.fn(),
   notifyOrgUsers: vi.fn(),
   getCompanyTeamVisibility: vi.fn(),
   canSeeOrderMock: vi.fn(),
@@ -38,6 +42,12 @@ vi.mock('@/lib/services/documents/orderDocumentPdf', () => ({
 vi.mock('@/lib/services/documents/contractDocumentPdf', () => ({
   renderContractDocumentPdf: renderContractMock,
 }));
+vi.mock('@/lib/services/documents/proposalDocumentPdf', () => ({
+  renderProposalDocumentPdf: renderProposalMock,
+}));
+// `У-145`: скоуп выпуска из карточки организации — свой сервис со своими
+// тестами; здесь он мокается, иначе тесты выпуска проверяли бы его, а не себя.
+vi.mock('@/lib/services/documents/issueScope', () => ({ resolveOrgIssueScope }));
 vi.mock('@/lib/notifications', () => ({ notifyOrgUsers }));
 vi.mock('@/lib/auth/managerPolicy', () => ({
   getCompanyTeamVisibility,
@@ -128,6 +138,9 @@ function makePrisma(over: Record<string, unknown> = {}) {
         .fn()
         .mockResolvedValue(over.organization === undefined ? FULL_PARTY : over.organization),
     },
+    // `У-161` (этап 7): третья цель выпуска — лид. По умолчанию его нет:
+    // тесты, которым он не нужен, не должны его случайно находить.
+    lead: { findUnique: vi.fn().mockResolvedValue(over.lead ?? null) },
     $transaction: vi.fn().mockImplementation((fn: (t: unknown) => unknown) => fn(tx)),
   } as unknown as PrismaClient;
   return { prisma, tx, documentCreate };
@@ -137,6 +150,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   renderMock.mockResolvedValue(Buffer.from('%PDF-fake'));
   renderContractMock.mockResolvedValue(Buffer.from('%PDF-contract'));
+  renderProposalMock.mockResolvedValue(Buffer.from('%PDF-proposal'));
+  resolveOrgIssueScope.mockResolvedValue({ ok: true, companyId: 'co-A' });
   uploadMock.mockResolvedValue(undefined);
   removeMock.mockResolvedValue(undefined);
   downloadMock.mockResolvedValue(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d]));
@@ -791,5 +806,235 @@ describe('`У-147`: основание выбирается, а не угады�
       extras: { parentDocumentId: 'inv-from-other-order' },
     });
     expect(r).toEqual({ ok: false, error: 'parent_not_found' });
+  });
+});
+
+/**
+ * Этап 7 (`У-161`…`У-163`) — выпуск коммерческого предложения.
+ *
+ * Три вещи, которых нет ни у одного другого документа: он рождается
+ * ЧЕРНОВИКОМ, у него может не быть адресата в системе, и компания-исполнитель
+ * берётся из сессии, а не из данных. Каждая проверяется отдельно — вместе они
+ * не проверяются никак.
+ */
+describe('generateOrderDocument — коммерческое предложение', () => {
+  const LEAD = {
+    id: 'lead-1',
+    clientCompanyName: 'ООО «Ромашка»',
+    clientContactName: 'Иван Петров',
+    organizationId: null,
+    promotedDeal: { id: 'deal-9' },
+  };
+  const LINES = [
+    {
+      title: 'Обучение по охране труда',
+      quantity: '3',
+      unit: 'person' as const,
+      unitPrice: '5000.00',
+      discountPercent: null,
+      vatRate: '0.2000',
+      vatIncluded: true,
+    },
+  ];
+
+  it('КП организации: рождается ЧЕРНОВИКОМ, а не выставленным', async () => {
+    const { prisma, documentCreate } = makePrisma();
+    const r = await generateOrderDocument(prisma, manager(), {
+      organizationId: 'org-1',
+      docType: 'commercial_proposal',
+      lines: LINES,
+    });
+    expect(r.ok).toBe(true);
+    const data = documentCreate.mock.calls[0]![0].data as Record<string, unknown>;
+    expect(data.status).toBe('draft');
+    expect(data.type).toBe('commercial_proposal');
+  });
+
+  it('номер идёт из СВОЕЙ последовательности, а не из договорной', async () => {
+    // Общий счётчик с договором разогнал бы номера договоров до сотен за
+    // квартал: предложений выставляют кратно больше.
+    const { prisma, tx, documentCreate } = makePrisma();
+    await generateOrderDocument(prisma, manager(), {
+      organizationId: 'org-1',
+      docType: 'commercial_proposal',
+      lines: LINES,
+      now: new Date('2026-09-01T10:00:00Z'),
+    });
+    expect(tx.documentCounter.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { companyId_year_kind: { companyId: 'co-A', year: 2026, kind: 'proposal' } },
+      })
+    );
+    const data = documentCreate.mock.calls[0]![0].data as Record<string, unknown>;
+    expect(data.number).toBe('КП-2026-7');
+  });
+
+  it('черновик клиенту НЕ анонсируется письмом', async () => {
+    // Письмо «вам выпущен документ» о бумаге, которой клиент ещё не видит,
+    // сбивает с толку: уведомление уезжает в момент отправки (`У-164`).
+    const { prisma } = makePrisma();
+    await generateOrderDocument(prisma, manager(), {
+      organizationId: 'org-1',
+      docType: 'commercial_proposal',
+      lines: LINES,
+    });
+    expect(notifyOrgUsers).not.toHaveBeenCalled();
+  });
+
+  it('печатается СВОИМ шаблоном, а не бланком счёта или договора', async () => {
+    const { prisma } = makePrisma();
+    await generateOrderDocument(prisma, manager(), {
+      organizationId: 'org-1',
+      docType: 'commercial_proposal',
+      lines: LINES,
+    });
+    expect(renderProposalMock).toHaveBeenCalledTimes(1);
+    expect(renderMock).not.toHaveBeenCalled();
+    expect(renderContractMock).not.toHaveBeenCalled();
+  });
+
+  it('срок действия попадает В ПОЛЕ документа, а не только в текст', async () => {
+    // Считать «истекло» по напечатанным словам невозможно (`У-162`).
+    const until = new Date('2026-09-15T00:00:00Z');
+    const { prisma, documentCreate } = makePrisma();
+    await generateOrderDocument(prisma, manager(), {
+      organizationId: 'org-1',
+      docType: 'commercial_proposal',
+      lines: LINES,
+      extras: { validUntil: until },
+    });
+    const data = documentCreate.mock.calls[0]![0].data as Record<string, unknown>;
+    expect(data.validUntil).toEqual(until);
+  });
+
+  it('счёту срок действия в поле не пишется — это поле предложения', async () => {
+    const { prisma, documentCreate } = makePrisma();
+    await generateOrderDocument(prisma, manager(), {
+      orderId: 'ord-1',
+      docType: 'invoice',
+      extras: { validUntil: new Date('2026-09-15T00:00:00Z') },
+    });
+    const data = documentCreate.mock.calls[0]![0].data as Record<string, unknown>;
+    expect(data.validUntil).toBeUndefined();
+  });
+
+  describe('КП лиду — клиента ещё нет в системе (`У-161`)', () => {
+    it('контрагента нет вовсе, зато записаны лид и его сделка', async () => {
+      const { prisma, documentCreate } = makePrisma({ lead: LEAD });
+      const r = await generateOrderDocument(prisma, manager(), {
+        leadId: 'lead-1',
+        docType: 'commercial_proposal',
+        lines: LINES,
+      });
+      expect(r.ok).toBe(true);
+      const data = documentCreate.mock.calls[0]![0].data as Record<string, unknown>;
+      // «Оба или ни одного»: половина контрагента не значит ничего и сломала
+      // бы канальные выборки, которые сравнивают тип и id вместе.
+      expect(data.counterpartyType).toBeNull();
+      expect(data.counterpartyId).toBeNull();
+      expect(data.leadId).toBe('lead-1');
+      expect(data.dealId).toBe('deal-9');
+    });
+
+    it('компания берётся ИЗ СЕССИИ — у лида её нет в модели', async () => {
+      const { prisma, documentCreate } = makePrisma({ lead: LEAD });
+      await generateOrderDocument(
+        prisma,
+        { sub: 'm2', role: 'manager', companyId: 'co-B' } as never,
+        { leadId: 'lead-1', docType: 'commercial_proposal', lines: LINES }
+      );
+      const data = documentCreate.mock.calls[0]![0].data as Record<string, unknown>;
+      expect(data.companyId).toBe('co-B');
+    });
+
+    it('сотруднику без компании отказываем НЕХВАТКОЙ РЕКВИЗИТОВ, а не «нет прав»', async () => {
+      // «Нет прав» отправил бы человека искать у себя недостающий доступ,
+      // которого не существует.
+      const { prisma } = makePrisma({ lead: LEAD });
+      const r = await generateOrderDocument(prisma, { sub: 'm3', role: 'manager' } as never, {
+        leadId: 'lead-1',
+        docType: 'commercial_proposal',
+        lines: LINES,
+      });
+      expect(r).toMatchObject({ ok: false, error: 'missing_requisites' });
+    });
+
+    it('файл кладётся под ЛИД, а не под несуществующую организацию', async () => {
+      const { prisma } = makePrisma({ lead: LEAD });
+      await generateOrderDocument(prisma, manager(), {
+        leadId: 'lead-1',
+        docType: 'commercial_proposal',
+        lines: LINES,
+      });
+      expect(uploadMock.mock.calls[0]![0]).toMatch(/^leads\/lead-1\/generated\//);
+    });
+
+    it('название клиента из карточки лида доезжает до печати', async () => {
+      const { prisma } = makePrisma({ lead: LEAD });
+      await generateOrderDocument(prisma, manager(), {
+        leadId: 'lead-1',
+        docType: 'commercial_proposal',
+        lines: LINES,
+      });
+      const data = renderProposalMock.mock.calls[0]![0] as Record<string, unknown>;
+      expect(data.addressee).toEqual({ name: 'ООО «Ромашка»', contactName: 'Иван Петров' });
+    });
+
+    it('лид с организацией выпускает КАК ОРГАНИЗАЦИИ — второй нити документов не заводим', async () => {
+      // Иначе у одного клиента появились бы две нити бумаг: одна в карточке
+      // организации, вторая невидимая, на лиде.
+      const { prisma, documentCreate } = makePrisma({
+        lead: { ...LEAD, organizationId: 'org-1' },
+      });
+      const r = await generateOrderDocument(prisma, manager(), {
+        leadId: 'lead-1',
+        docType: 'commercial_proposal',
+        lines: LINES,
+      });
+      expect(r.ok).toBe(true);
+      const data = documentCreate.mock.calls[0]![0].data as Record<string, unknown>;
+      expect(data.counterpartyType).toBe('organization');
+      expect(data.counterpartyId).toBe('org-1');
+      expect(data.leadId).toBeUndefined();
+    });
+
+    it('несуществующий лид → not_found, а не падение', async () => {
+      const { prisma } = makePrisma();
+      expect(
+        await generateOrderDocument(prisma, manager(), {
+          leadId: 'нет-такого',
+          docType: 'commercial_proposal',
+          lines: LINES,
+        })
+      ).toEqual({ ok: false, error: 'not_found' });
+    });
+
+    it('СЧЁТ лиду выставить нельзя — послабление только для предложения', async () => {
+      // Иначе счёт ушёл бы клиенту без реквизитов и без организации: платить
+      // по нему некому и не с чего.
+      const { prisma } = makePrisma({ lead: LEAD });
+      for (const docType of ['invoice', 'contract', 'extra_agreement'] as const) {
+        expect(
+          await generateOrderDocument(prisma, manager(), {
+            leadId: 'lead-1',
+            docType,
+            lines: LINES,
+          }),
+          docType
+        ).toEqual({ ok: false, error: 'lead_target_proposal_only' });
+      }
+    });
+
+    it('две цели сразу — отказ, как на несуществующий объект', async () => {
+      const { prisma } = makePrisma({ lead: LEAD });
+      expect(
+        await generateOrderDocument(prisma, manager(), {
+          leadId: 'lead-1',
+          organizationId: 'org-1',
+          docType: 'commercial_proposal',
+          lines: LINES,
+        })
+      ).toEqual({ ok: false, error: 'not_found' });
+    });
   });
 });

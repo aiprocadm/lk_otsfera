@@ -1,13 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import {
-  listMissingRequisites,
-  type PartyRequisites,
-} from '@/lib/documents/requisites-check';
-import {
-  isValidBankAccount,
-  isValidCorrAccount,
-  isValidOgrn,
-} from '@/lib/requisites/checksum';
+import { listMissingRequisites, type PartyRequisites } from '@/lib/documents/requisites-check';
+import { isValidBankAccount, isValidCorrAccount, isValidOgrn } from '@/lib/requisites/checksum';
 
 /**
  * `У-156` (дефекты `Д-9`, `Д-10`, `Д-11`) — набор обязательных реквизитов
@@ -33,8 +26,11 @@ const FULL: PartyRequisites = {
   signerBasis: 'Устава',
 };
 
-const labels = (party: Partial<PartyRequisites>, other: Partial<PartyRequisites>, kind: 'invoice' | 'act' | 'contract' | 'extra_agreement') =>
-  listMissingRequisites({ ...FULL, ...party }, { ...FULL, ...other }, kind).map((m) => m.label);
+const labels = (
+  party: Partial<PartyRequisites>,
+  other: Partial<PartyRequisites>,
+  kind: 'invoice' | 'act' | 'contract' | 'extra_agreement' | 'commercial_proposal'
+) => listMissingRequisites({ ...FULL, ...party }, { ...FULL, ...other }, kind).map((m) => m.label);
 
 describe('контрольные суммы', () => {
   it('ОГРН 13 и ОГРНИП 15 — по своим делителям', () => {
@@ -126,5 +122,85 @@ describe('У-156: заполненное, но неверное значение
 
   it('счёт без БИК не считается неверным — проверять его не из чего', () => {
     expect(labels({ bic: null, bankAccount: null }, { bic: null }, 'contract')).toEqual([]);
+  });
+});
+
+/**
+ * Пятый набор — коммерческое предложение (`У-161`, этап 7).
+ *
+ * Заведён именно НАБОРОМ, а не отключением проверки. «Проверять меньше» и «не
+ * проверять» — разные вещи: второе молча пропустило бы предложение без
+ * исполнителя в шапке и без подписи.
+ */
+describe('коммерческое предложение', () => {
+  it('банк исполнителя НЕ требуется: по предложению не платят', () => {
+    expect(
+      labels(
+        { bankName: null, bankAccount: null, corrAccount: null, bic: null },
+        {},
+        'commercial_proposal'
+      )
+    ).toEqual([]);
+  });
+
+  it('а счёту тот же пропуск по-прежнему запрещён', () => {
+    // Проверка от обратного: послабление не должно расползтись.
+    expect(
+      labels({ bankName: null, bankAccount: null, corrAccount: null, bic: null }, {}, 'invoice')
+    ).toEqual(['банк исполнителя', 'р/с исполнителя', 'к/с исполнителя', 'БИК исполнителя']);
+  });
+
+  it('исполнитель без подписанта или без ИНН — отказ: в шапке и подписи пусто', () => {
+    expect(labels({ signerName: null }, {}, 'commercial_proposal')).toEqual([
+      'подписант исполнителя (ФИО)',
+    ]);
+    expect(labels({ inn: null }, {}, 'commercial_proposal')).toEqual(['ИНН исполнителя']);
+  });
+
+  it('от заказчика нужно только название — ни ИНН, ни адреса, ни КПП', () => {
+    // Адресата может не быть в системе вовсе (`У-161`): реквизиты появятся к
+    // моменту счёта, а требовать их сейчас значит не дать выставить КП.
+    expect(
+      labels(
+        {},
+        { inn: null, kpp: null, legalAddress: null, signerName: null },
+        'commercial_proposal'
+      )
+    ).toEqual([]);
+  });
+
+  it('заказчик совсем без названия — отказ: письмо некому адресовать', () => {
+    expect(labels({}, { legalName: null, name: null }, 'commercial_proposal')).toEqual([
+      'название заказчика',
+    ]);
+  });
+
+  it('рабочее название закрывает отсутствие юридического', () => {
+    expect(labels({}, { legalName: null, name: 'Ромашка' }, 'commercial_proposal')).toEqual([]);
+  });
+
+  it('опечатка в ИНН ловится и здесь — она перекочует в счёт', () => {
+    expect(labels({ inn: '7707083890' }, {}, 'commercial_proposal')).toEqual([
+      'ИНН исполнителя — неверная контрольная сумма',
+    ]);
+  });
+
+  it('договорных требований к заказчику у КП нет', () => {
+    // Подписант и основание полномочий заказчика — это про подписание
+    // договора; в предложении подписывать нечего.
+    expect(
+      labels(
+        {},
+        { signerName: null, signerPosition: null, signerBasis: null },
+        'commercial_proposal'
+      )
+    ).toEqual([]);
+    expect(
+      labels({}, { signerName: null, signerPosition: null, signerBasis: null }, 'contract')
+    ).toEqual([
+      'подписант заказчика (ФИО)',
+      'должность подписанта заказчика',
+      'основание полномочий заказчика',
+    ]);
   });
 });
