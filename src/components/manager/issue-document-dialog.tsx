@@ -37,7 +37,13 @@ export type IssueLine = {
   vatIncluded: boolean;
 };
 
-export type IssueDocType = 'invoice' | 'act' | 'contract' | 'extra_agreement';
+export type IssueDocType =
+  | 'invoice'
+  | 'act'
+  | 'contract'
+  | 'extra_agreement'
+  /** `У-161` (этап 7): единственный тип, который выпускается ЧЕРНОВИКОМ. */
+  | 'commercial_proposal';
 
 /**
  * Кому выпускаем (`У-145`): заказ или организация. Разные ветки, а не
@@ -46,13 +52,37 @@ export type IssueDocType = 'invoice' | 'act' | 'contract' | 'extra_agreement';
  * быть» значило бы прятать три разных правила за пустой строкой.
  */
 export type IssueTargetRef =
-  { kind: 'order'; orderId: string } | { kind: 'organization'; organizationId: string };
+  | { kind: 'order'; orderId: string }
+  | { kind: 'organization'; organizationId: string }
+  /**
+   * `У-161` (этап 7): третья цель — лид, клиент без организации в системе.
+   * Ветка, а не «необязательная организация»: у лида нет ни реквизитов, ни
+   * договоров-оснований, и форма обязана это ЗНАТЬ, а не догадываться по
+   * пустой строке.
+   */
+  | { kind: 'lead'; leadId: string };
 
 const DOC_LABEL: Record<IssueDocType, string> = {
   invoice: 'Счёт',
   act: 'Акт',
   contract: 'Договор',
   extra_agreement: 'Доп. соглашение',
+  commercial_proposal: 'Коммерческое предложение',
+};
+
+/**
+ * Что говорим человеку после выпуска. Отдельно от названия, потому что у
+ * предложения и слово, и род другие: «Коммерческое предложение № КП-2026-1
+ * выпущен» — неверно дважды. И главное, КП не выпускается, а СОЗДАЁТСЯ
+ * ЧЕРНОВИКОМ (`У-164`): обещать «выпущено» значило бы сказать, что клиент его
+ * уже видит.
+ */
+const DOC_SUCCESS: Record<IssueDocType, (number: string) => string> = {
+  invoice: (n) => `Счёт № ${n} выпущен.`,
+  act: (n) => `Акт № ${n} выпущен.`,
+  contract: (n) => `Договор № ${n} выпущен.`,
+  extra_agreement: (n) => `Доп. соглашение № ${n} выпущено.`,
+  commercial_proposal: (n) => `Черновик предложения № ${n} готов. Проверьте и отправьте клиенту.`,
 };
 
 /** Что этот документ делает — одной строкой, без внутренних терминов. */
@@ -61,6 +91,8 @@ const DOC_HINT: Record<IssueDocType, string> = {
   act: 'Акт: подтверждает, что услуги оказаны. Выпускается по счёту.',
   contract: 'Договор на оказание услуг.',
   extra_agreement: 'Доп. соглашение: меняет условия уже подписанного договора.',
+  commercial_proposal:
+    'Коммерческое предложение: цена и срок ДО заказа. Создаётся черновиком — клиент увидит его только после отправки.',
 };
 
 /**
@@ -82,10 +114,27 @@ function emptyLine(defaultVatRate: string | null): IssueLine {
 }
 
 function today(): string {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${now.getFullYear()}-${month}-${day}`;
+  return ymd(new Date());
+}
+
+function ymd(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+/**
+ * «Действительно до» по умолчанию (`У-162`): сегодня плюс срок компании.
+ *
+ * Считаем ЗДЕСЬ, а не на сервере, и это не лень. Сервер живёт в UTC, а «до
+ * какого числа» человек читает по своему календарю: готовая дата с сервера
+ * разошлась бы на сутки у части страны, и предложение выглядело бы истёкшим
+ * на день раньше. Поэтому сервер отдаёт число дней, а дату собирает браузер.
+ */
+function defaultValidUntil(days: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return ymd(date);
 }
 
 export function IssueDocumentDialog({
@@ -101,6 +150,7 @@ export function IssueDocumentDialog({
   catalog = [],
   defaultSubject = '',
   defaultVatRate = null,
+  proposalValidDays = 14,
   reissueOfDocumentId,
   lockedDocType,
 }: {
@@ -120,6 +170,8 @@ export function IssueDocumentDialog({
   defaultSubject?: string;
   /** Ставка НДС компании-исполнителя для строк, набранных вручную (`У-138`). */
   defaultVatRate?: string | null;
+  /** `У-162`: сколько дней по умолчанию действует коммерческое предложение. */
+  proposalValidDays?: number;
   /**
    * `У-151`: перевыпуск ИМЕННО этого документа — номер сохранится, версия
    * вырастет, прежняя версия погаснет. Без него форма выпускает новый
@@ -132,7 +184,9 @@ export function IssueDocumentDialog({
   const router = useRouter();
   const [, startTransition] = useTransition();
   const withOrder = target.kind === 'order';
-  const [docType, setDocType] = useState<IssueDocType>(lockedDocType ?? 'invoice');
+  const [docType, setDocType] = useState<IssueDocType>(
+    lockedDocType ?? (target.kind === 'lead' ? 'commercial_proposal' : 'invoice')
+  );
   // Строки приходят со своими ставками (состав заказа или предзаполнение) и
   // здесь не переписываются: `null` у строки заказа — это «не облагается», а
   // не «ставку забыли». Умолчание компании получают только НОВЫЕ строки.
@@ -141,7 +195,12 @@ export function IssueDocumentDialog({
   );
   const [documentDate, setDocumentDate] = useState(today());
   const [subject, setSubject] = useState(defaultSubject);
-  const [validUntil, setValidUntil] = useState('');
+  const [validUntil, setValidUntil] = useState(
+    (lockedDocType ?? (target.kind === 'lead' ? 'commercial_proposal' : 'invoice')) ===
+      'commercial_proposal'
+      ? defaultValidUntil(proposalValidDays)
+      : ''
+  );
   const [paymentTerms, setPaymentTerms] = useState('');
   const [changeText, setChangeText] = useState('');
   const [periodFrom, setPeriodFrom] = useState('');
@@ -155,9 +214,20 @@ export function IssueDocumentDialog({
   const missing = missingByType[docType] ?? [];
   // `У-145`: акт наследует номер счёта ЗАКАЗА — без заказа его не предлагаем.
   // Сервер запрещает то же самое отдельно (`act_requires_order`).
-  const docTypes: IssueDocType[] = withOrder
-    ? ['invoice', 'act', 'contract', 'extra_agreement']
-    : ['invoice', 'contract', 'extra_agreement'];
+  // `У-161`: лиду выставляют ТОЛЬКО предложение — ни счёта, ни договора у
+  // клиента без организации и реквизитов быть не может. Сервер запрещает то же
+  // самое отдельно (`lead_target_proposal_only`): список — это удобство, а не
+  // защита.
+  const docTypes: IssueDocType[] =
+    target.kind === 'lead'
+      ? ['commercial_proposal']
+      : withOrder
+        ? // `У-145`: акт наследует номер счёта ЗАКАЗА — без заказа его не
+          // предлагаем; сервер отвечает `act_requires_order`. Предложение,
+          // наоборот, выставляют ДО заказа, поэтому здесь его нет; сервер
+          // отвечает `proposal_needs_no_order`.
+          ['invoice', 'act', 'contract', 'extra_agreement']
+        : ['invoice', 'contract', 'extra_agreement', 'commercial_proposal'];
   const needsInvoice = docType === 'act' && !hasInvoice;
   const needsContract = docType === 'extra_agreement' && !hasContract;
   const blocked = missing.length > 0 || needsInvoice || needsContract;
@@ -176,16 +246,24 @@ export function IssueDocumentDialog({
     const isContract = docType === 'contract';
     const isExtra = docType === 'extra_agreement';
     const isAct = docType === 'act';
+    const isProposal = docType === 'commercial_proposal';
     return JSON.stringify({
       ...(target.kind === 'order'
         ? { orderId: target.orderId }
-        : { organizationId: target.organizationId }),
+        : target.kind === 'lead'
+          ? { leadId: target.leadId }
+          : { organizationId: target.organizationId }),
       docType,
       lines,
       documentDate,
       ...(onAmountMismatch ? { onAmountMismatch } : {}),
-      ...(isContract && subject.trim() ? { subject: subject.trim() } : {}),
-      ...(isContract && validUntil ? { validUntil } : {}),
+      // Предмет и срок нужны и договору, и предложению, но по РАЗНЫМ причинам:
+      // у договора это пункт 1.1, у КП — подстановки `{{document.subject}}` и
+      // `{{proposal.validUntil}}` во встроенных текстах. Срок у предложения
+      // печатается ещё и отдельной строкой вёрстки, поэтому пустым его
+      // оставлять нельзя.
+      ...((isContract || isProposal) && subject.trim() ? { subject: subject.trim() } : {}),
+      ...((isContract || isProposal) && validUntil ? { validUntil } : {}),
       ...(isContract && paymentTerms.trim() ? { paymentTerms: paymentTerms.trim() } : {}),
       ...(isExtra && changeText.trim() ? { changeText: changeText.trim() } : {}),
       ...(isAct && periodFrom ? { periodFrom } : {}),
@@ -235,7 +313,7 @@ export function IssueDocumentDialog({
       setError(errorMessageRu(res.error));
       return;
     }
-    toast.success(`${DOC_LABEL[docType]} № ${res.number} выпущен.`);
+    toast.success(DOC_SUCCESS[docType](res.number));
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
     setMismatch(null);
@@ -293,9 +371,17 @@ export function IssueDocumentDialog({
               value={docType}
               disabled={Boolean(lockedDocType)}
               onChange={(e) => {
-                setDocType(e.target.value as IssueDocType);
+                const next = e.target.value as IssueDocType;
+                setDocType(next);
                 setParentDocumentId('');
                 setMismatch(null);
+                // `У-162`: у предложения срок обязателен по смыслу — без даты
+                // «до когда» это прайс-лист. Подставляем умолчание компании,
+                // но НЕ затираем то, что человек уже выбрал: набранное
+                // значение важнее нашего.
+                if (next === 'commercial_proposal' && !validUntil) {
+                  setValidUntil(defaultValidUntil(proposalValidDays));
+                }
               }}
             >
               {docTypes.map((kind) => (
@@ -361,6 +447,38 @@ export function IssueDocumentDialog({
                 type="date"
                 value={periodTo}
                 onChange={(e) => setPeriodTo(e.target.value)}
+              />
+            </Field>
+          </div>
+        )}
+
+        {docType === 'commercial_proposal' && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field
+              htmlFor="issue-proposal-subject"
+              label="О чём предложение"
+              hint="Одной строкой: что предлагаем. Попадёт в первый абзац письма."
+            >
+              <Input
+                id="issue-proposal-subject"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+              />
+            </Field>
+            {/* Отдельное поле, а не то же, что у договора: у договора «Действует
+                до» — это срок ДЕЙСТВИЯ бумаги, у предложения — до какого числа
+                держится цена. Подпись обязана называть то, что человек видит в
+                печати (§15). */}
+            <Field
+              htmlFor="issue-proposal-valid-until"
+              label="Действительно до"
+              hint="Пока цена держится. Печатается в предложении отдельной строкой."
+            >
+              <Input
+                id="issue-proposal-valid-until"
+                type="date"
+                value={validUntil}
+                onChange={(e) => setValidUntil(e.target.value)}
               />
             </Field>
           </div>

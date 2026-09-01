@@ -37,6 +37,10 @@ export async function reissuePanelAction(fd: FormData): Promise<ReissuePanelResu
     select: {
       id: true,
       type: true,
+      // `У-164`: гейту чтения нужно состояние — черновик КП клиенту не
+      // показывается. Без поля гейт сходил бы в базу второй раз, а страж
+      // `security.document-read-fields.guardrail` этого не допустит.
+      status: true,
       number: true,
       supersededAt: true,
       orderId: true,

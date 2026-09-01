@@ -17,7 +17,7 @@ const SUBJECT_TYPES = new Set([
 describe('PII_CONTEXTS registry', () => {
   const entries = Object.entries(PII_CONTEXTS);
 
-  it('содержит все 23 контекста v1+M1+M6+этапы 2/5/7/9 + ТЗ кабинетов', () => {
+  it('содержит все 24 контекста v1+M1+M6+этапы 2/5/7/9 + ТЗ кабинетов', () => {
     expect(entries.map(([k]) => k).sort()).toEqual([
       'admin_user_view',
       'admin_users_list',
@@ -41,6 +41,7 @@ describe('PII_CONTEXTS registry', () => {
       'org_card_certificates_export', // этап 9 PR-3: выгрузка удостоверений из карточки
       'org_card_employee_view', // `У-97`: карточка сотрудника внутри карточки организации
       'org_card_inbound',
+      'proposal_issue_lead', // этап 7 `У-161`: имя контакта лида печатается в КП
     ]);
   });
 

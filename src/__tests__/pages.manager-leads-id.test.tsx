@@ -46,6 +46,12 @@ vi.mock('@/components/manager/push-lead-button', () => ({
     React.createElement('button', { 'data-testid': 'push-lead-button' }, props.leadId),
 }));
 
+// Этап 7 (`У-161`): кнопка выпуска КП — клиентский компонент, подменяем меткой.
+vi.mock('@/components/documents/issue-order-less-document-button', () => ({
+  IssueLeadProposalButton: (props: { leadId: string }) =>
+    React.createElement('button', { 'data-testid': 'issue-proposal' }, props.leadId),
+}));
+
 vi.mock('@/components/manager/manager-lead-actions', () => ({
   ManagerLeadActions: (props: {
     leadId: string;
@@ -92,6 +98,7 @@ const BASE_LEAD = {
   promotedOrderId: null as string | null,
   externalIdInOneC: null as string | null,
   pushedToOneCAt: null as Date | null,
+  proposals: [] as Array<Record<string, unknown>>,
 };
 
 describe('ManagerLeadDetailPage', () => {
@@ -324,6 +331,162 @@ describe('ManagerLeadDetailPage', () => {
     expect(panel!.textContent).toContain('lead-1');
     expect(panel!.textContent).toContain('t1');
     expect(container.textContent).toContain('Задачи');
+  });
+
+  // ─── Коммерческие предложения (`У-161`, этап 7) ─────────────────────────────
+
+  describe('кнопка «Выставить КП»', () => {
+    /** Предложение выставляют ДО заказа, поэтому кнопка живёт на карточке лида. */
+    it('есть у лида в работе', async () => {
+      requireManager.mockResolvedValue(SESSION);
+      getManagerLead.mockResolvedValue({ ...BASE_LEAD, status: 'new' });
+
+      const { container } = await renderServerComponent(
+        ManagerLeadDetailPage({ params: Promise.resolve({ id: 'lead-1' }) })
+      );
+
+      expect(container.querySelector('[data-testid="issue-proposal"]')?.textContent).toBe('lead-1');
+    });
+
+    it.each([['rejected'], ['promoted_to_order']])(
+      'спрятана у лида в статусе %s',
+      async (status) => {
+        // Отказавшемуся клиенту предложение не нужно, а по превращённому в
+        // заказ лиду его выставляют уже из заказа. Сервер это тоже запрещает
+        // (`lead_not_active`), но человек не должен нажимать кнопку, которая
+        // заведомо ответит отказом.
+        requireManager.mockResolvedValue(SESSION);
+        getManagerLead.mockResolvedValue({ ...BASE_LEAD, status });
+
+        const { container } = await renderServerComponent(
+          ManagerLeadDetailPage({ params: Promise.resolve({ id: 'lead-1' }) })
+        );
+
+        expect(container.querySelector('[data-testid="issue-proposal"]')).toBeNull();
+      }
+    );
+
+    it('спрятана при выключенном выпуске документов', async () => {
+      // Выпуск документов раскатывают рубильником. Пока он выключен, кнопка
+      // вела бы в форму, которой сервер откажет.
+      vi.stubEnv('FEATURE_DOCUMENT_GENERATION', '0');
+      requireManager.mockResolvedValue(SESSION);
+      getManagerLead.mockResolvedValue({ ...BASE_LEAD, status: 'new' });
+
+      const { container } = await renderServerComponent(
+        ManagerLeadDetailPage({ params: Promise.resolve({ id: 'lead-1' }) })
+      );
+
+      expect(container.querySelector('[data-testid="issue-proposal"]')).toBeNull();
+    });
+  });
+
+  describe('блок «Коммерческие предложения»', () => {
+    /** Текст страницы с обычными пробелами: в суммах Intl ставит неразрывный. */
+    function plainText(container: HTMLElement): string {
+      return (container.textContent ?? '').replace(/ /g, ' ');
+    }
+
+    it('показывает номер, состояние по-русски, сумму и срок, номер ведёт на документ', async () => {
+      // У лида нет ни организации, ни заказа, поэтому выпущенное предложение
+      // больше нигде не видно: без этого блока найти его можно было бы только
+      // поиском по номеру.
+      requireManager.mockResolvedValue(SESSION);
+      getManagerLead.mockResolvedValue({
+        ...BASE_LEAD,
+        proposals: [
+          {
+            id: 'doc-1',
+            number: 'КП-7',
+            status: 'sent',
+            createdAt: new Date('2026-06-01T00:00:00Z'),
+            validUntil: new Date('2026-06-15T00:00:00Z'),
+            amountGross: '120000.00',
+          },
+        ],
+      });
+
+      const { container } = await renderServerComponent(
+        ManagerLeadDetailPage({ params: Promise.resolve({ id: 'lead-1' }) })
+      );
+
+      const text = plainText(container);
+      expect(text).toContain('Коммерческие предложения');
+      expect(text).toContain('КП-7');
+      // Состояние документа человек читает по-русски, а не как `sent`.
+      expect(text).toContain('Отправлен');
+      expect(text).not.toContain('sent');
+      expect(text).toContain('120 000 ₽');
+      expect(text).toContain('действительно до 15.06.2026');
+      expect(container.querySelector('a[href="/manager/documents/doc-1"]')).not.toBeNull();
+    });
+
+    it('предложение без номера, суммы и срока подписывается словами', async () => {
+      // Черновик выпускают до присвоения номера и до расчёта суммы. Пустые
+      // места в строке выглядели бы как потерянные данные, а по ссылке-пустышке
+      // невозможно кликнуть.
+      requireManager.mockResolvedValue(SESSION);
+      getManagerLead.mockResolvedValue({
+        ...BASE_LEAD,
+        proposals: [
+          {
+            id: 'doc-2',
+            number: null,
+            status: 'draft',
+            createdAt: new Date('2026-06-01T00:00:00Z'),
+            validUntil: null,
+            amountGross: null,
+          },
+        ],
+      });
+
+      const { container } = await renderServerComponent(
+        ManagerLeadDetailPage({ params: Promise.resolve({ id: 'lead-1' }) })
+      );
+
+      const link = container.querySelector('a[href="/manager/documents/doc-2"]');
+      expect(link?.textContent).toBe('без номера');
+      expect(plainText(container)).toContain('без срока');
+      expect(plainText(container)).not.toContain('₽');
+    });
+
+    it('незнакомое состояние показывается как есть', async () => {
+      // Прочерк вместо неизвестного состояния скрыл бы рассинхрон словаря с
+      // базой; сырой код виден и сигналит, что словарь пора пополнить.
+      requireManager.mockResolvedValue(SESSION);
+      getManagerLead.mockResolvedValue({
+        ...BASE_LEAD,
+        proposals: [
+          {
+            id: 'doc-3',
+            number: 'КП-9',
+            status: 'какое_то_новое',
+            createdAt: new Date('2026-06-01T00:00:00Z'),
+            validUntil: null,
+            amountGross: null,
+          },
+        ],
+      });
+
+      const { container } = await renderServerComponent(
+        ManagerLeadDetailPage({ params: Promise.resolve({ id: 'lead-1' }) })
+      );
+
+      expect(container.textContent).toContain('какое_то_новое');
+    });
+
+    it('у лида без предложений блока нет вовсе', async () => {
+      // Пустая рамка с заголовком заставляла бы думать, что предложение
+      // выставили, но оно не подгрузилось.
+      requireManager.mockResolvedValue(SESSION);
+      getManagerLead.mockResolvedValue({ ...BASE_LEAD, proposals: [] });
+
+      const { container } = await renderServerComponent(
+        ManagerLeadDetailPage({ params: Promise.resolve({ id: 'lead-1' }) })
+      );
+
+      expect(container.textContent).not.toContain('Коммерческие предложения');
+    });
   });
 
   // Этап 11 PR-2 (ФТ-15.6): цепочка обращение → лид.

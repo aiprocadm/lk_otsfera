@@ -18,6 +18,8 @@ describe('documentChannelPolicy', () => {
       // `У-151`: заменённая перевыпуском версия из списков скрыта.
       supersededAt: null,
       scanStatus: { not: 'infected' },
+      // `У-164`: черновик КП клиенту не показывается — он ещё не отправлен.
+      NOT: { type: 'commercial_proposal', status: 'draft' },
     });
   });
 
@@ -27,6 +29,8 @@ describe('documentChannelPolicy', () => {
       counterpartyId: 'p-1',
       supersededAt: null,
       scanStatus: { not: 'infected' },
+      // `У-164`: черновик КП клиенту не показывается — он ещё не отправлен.
+      NOT: { type: 'commercial_proposal', status: 'draft' },
     });
   });
 

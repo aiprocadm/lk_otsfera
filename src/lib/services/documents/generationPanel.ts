@@ -37,7 +37,38 @@ const REQUISITES_SELECT = {
   signerBasis: true,
 } satisfies Prisma.OrganizationSelect & Prisma.CompanySelect;
 
-export const DOC_KINDS: RequisitesDocKind[] = ['invoice', 'act', 'contract', 'extra_agreement'];
+/**
+ * Нехватка реквизитов по каждому виду документа.
+ *
+ * **Собирается ЛИТЕРАЛОМ, а не циклом по списку видов, и это главное здесь.**
+ * Раньше был цикл по массиву `DOC_KINDS` из четырёх видов, а тип результата
+ * обещал пять — разрыв прикрывался кастом `{} as Record<…>`. Ключа
+ * `commercial_proposal` в объекте не было вовсе; форма читает его через
+ * `?? []`, поэтому «реквизитов не хватает» превращалось в «всё в порядке», и
+ * человек упирался в отказ сервиса уже ПОСЛЕ нажатия «Выпустить».
+ *
+ * Массив с `satisfies` эту дыру не закрывает: он гарантирует, что каждый
+ * элемент — валидный вид, но не что каждый вид попал в список. А литерал с
+ * обязательными ключами просто не соберётся, если новый вид забыли, — и
+ * узнаем мы об этом от компилятора, а не от клиента.
+ *
+ * Функция одна на все панели: тот же расчёт был выписан в трёх местах, и
+ * забытый вид пришлось бы чинить трижды.
+ */
+function buildMissingByType(
+  company: Parameters<typeof listMissingRequisites>[0] | null,
+  organization: Parameters<typeof listMissingRequisites>[1] | null
+): Record<RequisitesDocKind, MissingRequisite[]> {
+  const of = (kind: RequisitesDocKind): MissingRequisite[] =>
+    company && organization ? listMissingRequisites(company, organization, kind) : [];
+  return {
+    invoice: of('invoice'),
+    act: of('act'),
+    contract: of('contract'),
+    extra_agreement: of('extra_agreement'),
+    commercial_proposal: of('commercial_proposal'),
+  };
+}
 
 /** Документ-основание для выбора в форме выпуска (`У-147`). */
 export type IssueBaseDocument = { id: string; type: string; number: string; date: string };
@@ -122,11 +153,7 @@ export async function getDocumentGenerationPanel(
   ]);
   // Сторона могла исчезнуть между запросами — тогда список недостающего пуст
   // (гейт мутации всё равно вернёт not_found), панель просто рисуется.
-  const missingByType = {} as Record<RequisitesDocKind, MissingRequisite[]>;
-  for (const kind of DOC_KINDS) {
-    missingByType[kind] =
-      company && organization ? listMissingRequisites(company, organization, kind) : [];
-  }
+  const missingByType = buildMissingByType(company, organization);
   const generatedTypes = new Set(generated.map((row) => row.type));
   return {
     missingByType,
@@ -194,6 +221,15 @@ export type OrgDocumentIssuePanel = {
   hasContract: boolean;
   counterpartyName: string;
   catalog: IssueCatalogOption[];
+  /**
+   * Сколько дней действует коммерческое предложение по умолчанию (`У-162`).
+   *
+   * Отдаём ЧИСЛО ДНЕЙ, а не готовую дату. Сервер может жить в UTC, а форма
+   * считает «сегодня» по часовому поясу браузера: готовая дата разошлась бы
+   * на сутки у половины страны, и предложение выглядело бы истёкшим на день
+   * раньше.
+   */
+  proposalValidDays: number;
 };
 
 /**
@@ -203,6 +239,13 @@ export type OrgDocumentIssuePanel = {
  */
 const CATALOG_LIMIT = 500;
 
+/**
+ * Запасной срок действия КП, если компания вдруг не прочиталась. Совпадает со
+ * значением по умолчанию в схеме (`Company.proposalValidDays`): разойдись они,
+ * форма показывала бы один срок, а напоминание об истечении считало другой.
+ */
+const DEFAULT_PROPOSAL_VALID_DAYS = 14;
+
 export async function getOrgDocumentIssuePanel(
   prisma: PrismaClient,
   args: { organizationId: string; companyId: string }
@@ -210,7 +253,7 @@ export async function getOrgDocumentIssuePanel(
   const [company, organization, baseRows, catalogRows] = await Promise.all([
     prisma.company.findUnique({
       where: { id: args.companyId },
-      select: { ...REQUISITES_SELECT, defaultVatRate: true },
+      select: { ...REQUISITES_SELECT, defaultVatRate: true, proposalValidDays: true },
     }),
     prisma.organization.findUnique({
       where: { id: args.organizationId },
@@ -251,11 +294,7 @@ export async function getOrgDocumentIssuePanel(
     }),
   ]);
 
-  const missingByType = {} as Record<RequisitesDocKind, MissingRequisite[]>;
-  for (const kind of DOC_KINDS) {
-    missingByType[kind] =
-      company && organization ? listMissingRequisites(company, organization, kind) : [];
-  }
+  const missingByType = buildMissingByType(company, organization);
 
   return {
     missingByType,
@@ -271,6 +310,7 @@ export async function getOrgDocumentIssuePanel(
     })),
     hasContract: baseRows.length > 0,
     counterpartyName: organization?.legalName?.trim() || organization?.name?.trim() || 'заказчик',
+    proposalValidDays: company?.proposalValidDays ?? DEFAULT_PROPOSAL_VALID_DAYS,
     catalog: catalogRows.map((item) => ({
       id: item.id,
       name: item.name,
@@ -307,3 +347,82 @@ export type ReissuePanel = {
   lines: IssuePrefillLine[];
   catalog: IssueCatalogOption[];
 };
+
+/**
+ * Данные формы выпуска для ЛИДА (`У-161`, этап 7).
+ *
+ * Тип возврата тот же, что у организации, и это сознательно: форма одна, и
+ * второй почти-такой-же тип заставил бы её ветвиться в каждом поле. Разница
+ * между целями укладывается в значения, а не в структуру:
+ *
+ * - `baseDocuments` пуст и `hasContract: false` — договоров у лида нет по
+ *   определению, выбирать основание не из чего;
+ * - `counterpartyName` — название клиента из карточки лида: юр. лица ещё нет;
+ * - компания берётся ИЗ СЕССИИ (её уже проверил `resolveLeadIssueScope`), а не
+ *   из данных клиента — у лида её негде взять.
+ */
+export async function getLeadDocumentIssuePanel(
+  prisma: PrismaClient,
+  args: { companyId: string; leadName: string }
+): Promise<OrgDocumentIssuePanel> {
+  const [company, catalogRows] = await Promise.all([
+    prisma.company.findUnique({
+      where: { id: args.companyId },
+      select: { ...REQUISITES_SELECT, defaultVatRate: true, proposalValidDays: true },
+    }),
+    prisma.catalogItem.findMany({
+      where: { companyId: args.companyId, isActive: true },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        unit: true,
+        price: true,
+        vatRate: true,
+        vatIncluded: true,
+      },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      take: CATALOG_LIMIT,
+    }),
+  ]);
+
+  /**
+   * Заказчик-лид для проверки реквизитов: известно только название. Тот же
+   * приём, что в генераторе, — синтетическая сторона вместо «стороны может не
+   * быть»: пятому набору (`У-161`) от заказчика нужно ровно название, и он
+   * честно скажет, если и его нет.
+   */
+  const leadParty = {
+    name: args.leadName,
+    legalName: null,
+    inn: null,
+    kpp: null,
+    ogrn: null,
+    legalAddress: null,
+    bankName: null,
+    bankAccount: null,
+    corrAccount: null,
+    bic: null,
+    signerName: null,
+    signerPosition: null,
+    signerBasis: null,
+  };
+
+  return {
+    missingByType: buildMissingByType(company, leadParty),
+    defaultVatRate: company?.defaultVatRate ? company.defaultVatRate.toFixed(4) : null,
+    baseDocuments: [],
+    hasContract: false,
+    counterpartyName: args.leadName.trim() || 'клиент',
+    catalog: catalogRows.map((item) => ({
+      id: item.id,
+      name: item.name,
+      code: item.code,
+      unit: item.unit,
+      price: item.price.toFixed(2),
+      vatRate: item.vatRate === null ? null : item.vatRate.toFixed(4),
+      vatIncluded: item.vatIncluded,
+    })),
+    proposalValidDays: company?.proposalValidDays ?? DEFAULT_PROPOSAL_VALID_DAYS,
+  };
+}

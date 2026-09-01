@@ -11,12 +11,19 @@ import { LinkedTasksPanel } from '@/components/tasks/linked-tasks-panel';
 import { LeadStatusBadge } from '@/components/partner/lead-status-badge';
 import { ManagerLeadActions } from '@/components/manager/manager-lead-actions';
 import { PushLeadButton } from '@/components/manager/push-lead-button';
+import { IssueLeadProposalButton } from '@/components/documents/issue-order-less-document-button';
+import { STATUS_LABELS } from '@/lib/documents/statusMatrix';
 import { Breadcrumbs } from '@/components/ui';
 import { buildLeadBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import { fmtDate, fmtMoney } from '@/lib/format';
 
 import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
+
+/** Русское название состояния документа; незнакомое печатаем как есть. */
+function statusLabel(status: string): string {
+  return (STATUS_LABELS as Record<string, string>)[status] ?? status;
+}
 
 export default async function ManagerLeadDetailPage({
   params,
@@ -120,6 +127,18 @@ export default async function ManagerLeadDetailPage({
             <PushLeadButton leadId={lead.id} />
           </div>
         )}
+        {/* `У-161`: предложение выставляют ДО заказа, поэтому кнопка живёт на
+            карточке лида. Прячем там, где выставлять уже нечего: отказавшемуся
+            клиенту предложение не нужно, а по заказу его выставляют из заказа.
+            Сервер запрещает то же самое отдельно (`lead_not_active`) — кнопка
+            это удобство, а не защита (§4). */}
+        {isFeatureEnabled('document_generation') &&
+          lead.status !== 'rejected' &&
+          lead.status !== 'promoted_to_order' && (
+            <div className="mt-3">
+              <IssueLeadProposalButton leadId={lead.id} />
+            </div>
+          )}
         {lead.organizationId === null &&
           lead.status !== 'promoted_to_order' &&
           lead.status !== 'promoted_to_deal' &&
@@ -132,6 +151,31 @@ export default async function ManagerLeadDetailPage({
           <p className="text-sm text-gray-600 mt-2">Причина отклонения: {lead.rejectedReason}</p>
         )}
       </div>
+
+      {lead.proposals.length > 0 && (
+        <div className="rounded-xl border border-gray-200 p-4">
+          <h2 className="text-sm font-semibold text-[#111111] mb-2">Коммерческие предложения</h2>
+          {/* Без этого списка кнопка «Выставить КП» вела бы в никуда: у лида
+              нет ни организации, ни заказа, и найти выпущенную бумагу можно
+              было бы только поиском по номеру (§15, «что дальше»). */}
+          <ul className="divide-y divide-gray-100 text-sm">
+            {lead.proposals.map((p) => (
+              <li key={p.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2">
+                <Link href={`/manager/documents/${p.id}`} className="text-[#EA580C] underline">
+                  {p.number ?? 'без номера'}
+                </Link>
+                {/* Незнакомое состояние показываем как есть, а не прочерком:
+                    это сигнал, что словарь отстал от базы. */}
+                <span className="text-gray-500">{statusLabel(p.status)}</span>
+                {p.amountGross && <span>{fmtMoney(p.amountGross)}</span>}
+                <span className="text-gray-500">
+                  {p.validUntil ? `действительно до ${fmtDate(p.validUntil)}` : 'без срока'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <dl className="rounded-xl border border-gray-200 divide-y divide-gray-100">
         {rows.map(([k, v]) => (

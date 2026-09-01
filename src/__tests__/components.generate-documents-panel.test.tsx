@@ -36,6 +36,7 @@ const NO_MISSING: Record<IssueDocType, MissingRequisite[]> = {
   act: [],
   contract: [],
   extra_agreement: [],
+  commercial_proposal: [],
 };
 
 const LINE: IssueLine = {

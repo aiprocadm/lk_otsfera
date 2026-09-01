@@ -15,6 +15,9 @@ type DocumentLike = {
   // выставляют лиду, которого ещё нет в системе.
   counterpartyType?: 'organization' | 'partner' | null;
   counterpartyId?: string | null;
+  /** `У-164`: черновик КП клиенту не показывается. */
+  type?: string | null;
+  status?: string | null;
 };
 
 export function forbiddenResponse(message = 'Access denied', code: AccessErrorCode = 'FORBIDDEN') {
@@ -115,10 +118,33 @@ export async function canReadDocument(session: SessionPayload, document: Documen
           companyId: true,
           counterpartyType: true,
           counterpartyId: true,
+          type: true,
+          status: true,
           order: { select: { companyId: true } },
         },
       });
   if (!doc) return false;
+
+  /**
+   * `У-164`: ЧЕРНОВИК коммерческого предложения клиент не видит и не качает.
+   *
+   * КП — единственная бумага, которая живёт до отправки: менеджер набирает
+   * состав и правит цены, а клиент в это время не должен прочитать цену,
+   * которую ему ещё не предложили. Списки прячут такой документ канальным
+   * фильтром; здесь закрыта прямая ссылка и скачивание — иначе гейт был бы
+   * только в выборке, а адрес документа угадывается по идентификатору.
+   *
+   * Сотрудников это не касается: черновик — их рабочая бумага.
+   *
+   * **Тип и состояние обязан прислать вызывающий** — их не добавляли в условие
+   * «всё есть», иначе каждый вызов без этих двух полей ходил бы в базу второй
+   * раз на ровном месте. Что все вызывающие их запрашивают, проверяет страж
+   * `security.document-read-fields.guardrail`: забытое поле означало бы не
+   * падение, а молча пропущенный черновик.
+   */
+  const isProposalDraft = doc.type === 'commercial_proposal' && doc.status === 'draft';
+  if (isProposalDraft && (session.role === 'organization' || session.role === 'partner'))
+    return false;
 
   // `У-161`: документ БЕЗ контрагента — это КП, выставленное лиду. Кабинета у
   // такого клиента нет, поэтому клиентские роли его не видят вовсе: сравнивать
