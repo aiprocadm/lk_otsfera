@@ -8,7 +8,10 @@ import { fmtDate, fmtMoney } from '@/lib/format';
 import { moveDealAction, winDealAction } from '@/server-actions/deals';
 import type { DealBoard as DealBoardData, DealCard, DealColumn } from '@/lib/services/deals/board';
 import type { IssueLine } from '@/components/manager/issue-document-dialog';
-import { IssueOrderLessDocumentDialog } from '@/components/documents/issue-order-less-document-button';
+import {
+  IssueLeadProposalDialog,
+  IssueOrderLessDocumentDialog,
+} from '@/components/documents/issue-order-less-document-button';
 import { DealDialog, type DealDialogOption, type DealDialogTarget } from './deal-dialog';
 
 /**
@@ -102,6 +105,7 @@ export function DealBoard({
       title: card.title,
       amount: card.amount,
       organizationId: card.organizationId,
+      leadId: card.leadId,
       managerId: card.managerId,
       expectedCloseAt: card.expectedCloseAt,
       orderId: card.orderId,
@@ -299,7 +303,8 @@ export function DealBoard({
           // Сделка без организации — выпускать не на кого: контрагент документа
           // берётся из неё, а не выбирается в форме.
           onIssueDocument={
-            editTarget.organizationId
+            // `У-161`: выставлять можно и по лиду — тогда только предложение.
+            editTarget.organizationId || editTarget.leadId
               ? () => {
                   setIssueFor(editTarget);
                   setEditTarget(null);
@@ -319,6 +324,18 @@ export function DealBoard({
           organizationId={issueFor.organizationId}
           defaultSubject={issueFor.title}
           prefillLines={dealPrefillLines(issueFor)}
+          dealId={issueFor.id}
+          onClose={() => setIssueFor(null)}
+        />
+      )}
+
+      {/* `У-161`: у сделки без организации адресат — её лид, и выставляют ему
+          только предложение. Отдельная форма, а не «та же с пустой
+          организацией»: у лида нет ни реквизитов, ни договоров-оснований. */}
+      {issueFor && !issueFor.organizationId && issueFor.leadId && (
+        <IssueLeadProposalDialog
+          leadId={issueFor.leadId}
+          dealId={issueFor.id}
           onClose={() => setIssueFor(null)}
         />
       )}

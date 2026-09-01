@@ -27,6 +27,8 @@ type Prefill = {
   prefillLines?: IssueLine[];
   /** Предмет договора по умолчанию: у сделки — её название. */
   defaultSubject?: string;
+  /** `У-166`: сделка, из которой открыли форму. */
+  dealId?: string;
 };
 
 export function IssueOrderLessDocumentDialog({
@@ -34,6 +36,7 @@ export function IssueOrderLessDocumentDialog({
   onClose,
   prefillLines = [],
   defaultSubject = '',
+  dealId,
 }: { organizationId: string; onClose: () => void } & Prefill) {
   const [panel, setPanel] = useState<OrgDocumentIssuePanel | null>(null);
 
@@ -84,6 +87,7 @@ export function IssueOrderLessDocumentDialog({
       defaultSubject={defaultSubject}
       defaultVatRate={panel.defaultVatRate}
       proposalValidDays={panel.proposalValidDays}
+      {...(dealId ? { dealId } : {})}
     />
   );
 }
@@ -124,9 +128,11 @@ export function IssueOrderLessDocumentButton({
 export function IssueLeadProposalButton({
   leadId,
   label = 'Выставить КП',
+  dealId,
 }: {
   leadId: string;
   label?: string;
+  dealId?: string;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -134,13 +140,31 @@ export function IssueLeadProposalButton({
       <Button size="sm" onClick={() => setOpen(true)}>
         {label}
       </Button>
-      {open && <IssueLeadProposalDialog leadId={leadId} onClose={() => setOpen(false)} />}
+      {open && (
+        <IssueLeadProposalDialog
+          leadId={leadId}
+          onClose={() => setOpen(false)}
+          {...(dealId ? { dealId } : {})}
+        />
+      )}
     </>
   );
 }
 
-/** Внутренний: снаружи открывают кнопкой — вложенных модалок мы не строим. */
-function IssueLeadProposalDialog({ leadId, onClose }: { leadId: string; onClose: () => void }) {
+/**
+ * Открывается кнопкой на карточке лида и напрямую — с доски сделок, где
+ * модалку поверх модалки не строят (тот же приём, что у документов
+ * организации).
+ */
+export function IssueLeadProposalDialog({
+  leadId,
+  onClose,
+  dealId,
+}: {
+  leadId: string;
+  onClose: () => void;
+  dealId?: string;
+}) {
   const [panel, setPanel] = useState<OrgDocumentIssuePanel | null>(null);
   /**
    * У лида с уже заведённой организацией сервис выпускает документ НА
@@ -190,6 +214,7 @@ function IssueLeadProposalDialog({ leadId, onClose }: { leadId: string; onClose:
       proposalValidDays={panel.proposalValidDays}
       // Лиду выставляют только предложение — тип не выбирают.
       lockedDocType="commercial_proposal"
+      {...(dealId ? { dealId } : {})}
     />
   );
 }

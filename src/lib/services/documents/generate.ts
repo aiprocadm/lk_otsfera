@@ -118,6 +118,15 @@ export type GenerateArgs = {
    * последняя цель выпуска; взаимоисключима с двумя другими.
    */
   leadId?: string;
+  /**
+   * Сделка, ПО КОТОРОЙ выставлено предложение (`У-166`). Не цель выпуска:
+   * адресат всё равно организация или лид, а сделка — рамка переговоров.
+   *
+   * Приходит из формы, поэтому проверяется на сервере: сделка обязана быть
+   * своей компании и указывать на того же клиента, что и цель выпуска. Иначе
+   * документ привязался бы к чужой сделке — и появился бы в её карточке.
+   */
+  dealId?: string;
   docType: GenerateDocType;
   now?: Date;
   /**
@@ -149,6 +158,7 @@ export type GenerateResult =
         | 'lead_target_proposal_only'
         | 'lead_not_active'
         | 'proposal_needs_no_order'
+        | 'deal_mismatch'
         | 'leader_number_required'
         | 'reissue_not_found'
         | 'number_taken'
@@ -337,6 +347,8 @@ type IssueContext = {
   organization: PartyBlock;
   /** Лид-адресат: только у КП без организации (`У-161`). */
   lead: LeadRow | null;
+  /** Сделка, по которой выставлен документ (`У-166`); `null` — вне сделки. */
+  dealId: string | null;
   /**
    * Кто выпускает — подпись под коммерческим предложением (`У-163`).
    *
@@ -677,6 +689,28 @@ async function loadIssueContext(
   const missing = listMissingRequisites(company, organization, args.docType);
   if (missing.length > 0) return { ok: false, error: 'missing_requisites', missing };
 
+  /**
+   * `У-166`: сделка, по которой выставлен документ. Проверяем ТУ ЖЕ пару, что
+   * видит человек: сделка своей компании и тот же клиент, что у цели выпуска.
+   *
+   * Без проверки поле стало бы дырой в изоляции наоборот: документ появился бы
+   * в карточке ЧУЖОЙ сделки — не утечка данных наружу, но чужая бумага с
+   * ценами в чужих переговорах.
+   */
+  let dealId: string | null = lead?.dealId ?? null;
+  if (args.dealId) {
+    const deal = await prisma.deal.findUnique({
+      where: { id: args.dealId },
+      select: { id: true, companyId: true, organizationId: true, leadId: true },
+    });
+    const sameClient = organizationId
+      ? deal?.organizationId === organizationId
+      : !!lead && deal?.leadId === lead.id;
+    if (!deal || deal.companyId !== companyId || !sameClient)
+      return { ok: false, error: 'deal_mismatch' };
+    dealId = deal.id;
+  }
+
   const documentDate = args.extras?.documentDate ?? args.now ?? new Date();
 
   // Табличная часть (`У-141`, `У-142`): строки из формы выпуска, иначе состав
@@ -751,6 +785,7 @@ async function loadIssueContext(
       company: party(company),
       organization: party(organization),
       lead,
+      dealId,
       manager: {
         // Пустое имя в подписи хуже, чем формальное «Менеджер»: клиент видит
         // письмо, у которого будто нет автора.
@@ -1184,7 +1219,11 @@ export async function generateOrderDocument(
           ...(organizationId
             ? { counterpartyType: 'organization' as const, counterpartyId: organizationId }
             : { counterpartyType: null, counterpartyId: null }),
-          ...(ctx.lead ? { leadId: ctx.lead.id, dealId: ctx.lead.dealId } : {}),
+          ...(ctx.lead ? { leadId: ctx.lead.id } : {}),
+          // `У-166`: связь со сделкой ставится и у КП организации — иначе блок
+          // предложений в карточке сделки оказался бы пустым у самого частого
+          // случая: клиент уже заведён, переговоры идут по сделке.
+          ...(ctx.dealId ? { dealId: ctx.dealId } : {}),
           // `У-162`: срок действия — поле документа, а не только строка в
           // тексте. Считать «истекло» по напечатанным словам невозможно.
           ...(args.docType === 'commercial_proposal' ? { validUntil: ctx.proposalValidUntil } : {}),

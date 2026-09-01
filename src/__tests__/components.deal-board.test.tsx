@@ -44,12 +44,20 @@ vi.mock('@/components/documents/issue-order-less-document-button', () => ({
     organizationId: string;
     defaultSubject?: string;
     prefillLines?: { unitPrice: string }[];
+    dealId?: string;
     onClose: () => void;
   }) =>
     React.createElement(
       'div',
       { 'data-testid': 'issue-dialog' },
-      `${props.organizationId}|${props.defaultSubject ?? ''}|${props.prefillLines?.[0]?.unitPrice ?? '—'}`
+      `${props.organizationId}|${props.defaultSubject ?? ''}|${props.prefillLines?.[0]?.unitPrice ?? '—'}|${props.dealId ?? 'без-сделки'}`
+    ),
+  // `У-161`: у сделки без организации адресат — её лид, и форма другая.
+  IssueLeadProposalDialog: (props: { leadId: string; dealId?: string; onClose: () => void }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'lead-proposal-dialog' },
+      `${props.leadId}|${props.dealId ?? 'без-сделки'}`
     ),
 }));
 
@@ -62,6 +70,7 @@ const cardOpen: DealCard = {
   amount: '100.00',
   organizationId: 'org-1',
   organizationName: 'ООО Ромашка',
+  leadId: null,
   managerId: 'm-1',
   managerName: 'Иван',
   status: 'open',
@@ -76,6 +85,7 @@ const cardNoAmount: DealCard = {
   amount: '250.00',
   organizationId: null,
   organizationName: null,
+  leadId: null,
   managerId: null,
   managerName: null,
   status: 'open',
@@ -90,6 +100,7 @@ const cardWon: DealCard = {
   amount: null,
   organizationId: null,
   organizationName: null,
+  leadId: null,
   managerId: 'm-1',
   managerName: 'Иван',
   status: 'won',
@@ -502,7 +513,7 @@ describe('DealBoard', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Выпустить документ' }));
       const issue = await screen.findByTestId('issue-dialog');
       // Организация, предмет и сумма приезжают из сделки — набирать заново нечего.
-      expect(issue.textContent).toBe('org-1|Сделка Ромашка|100.00');
+      expect(issue.textContent).toBe('org-1|Сделка Ромашка|100.00|deal-1');
       expect(screen.queryByLabelText('Название')).toBeNull();
     });
 
@@ -518,14 +529,52 @@ describe('DealBoard', () => {
       await screen.findByText('Сделка');
       fireEvent.click(screen.getByRole('button', { name: 'Выпустить документ' }));
       const issue = await screen.findByTestId('issue-dialog');
-      expect(issue.textContent).toBe('org-1|Без суммы|—');
+      expect(issue.textContent).toBe('org-1|Без суммы|—|deal-3');
     });
 
-    it('сделка без организации кнопки выпуска не даёт: выставлять не на кого', async () => {
+    it('сделка без организации И без лида кнопки не даёт: выставлять не на кого', async () => {
+      // Молчащая кнопка была бы дефектом приёмки (§15) — вместо неё экран
+      // объясняет, чего не хватает.
       render(React.createElement(DealBoard, editProps));
       fireEvent.click(screen.getByText('Сделка Лютик').closest('article') as HTMLElement);
       await screen.findByText('Сделка');
       expect(screen.queryByRole('button', { name: 'Выпустить документ' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Выставить КП' })).toBeNull();
+      expect(
+        screen.getByText(/привяжите к сделке организацию или заведите её из лида/)
+      ).toBeTruthy();
+    });
+
+    /**
+     * `У-161` (этап 7): у сделки, выросшей из лида, организации может ещё не
+     * быть. Выставлять счёт такому клиенту не на что — реквизитов нет, — а
+     * коммерческое предложение выставляют именно на этом шаге переговоров.
+     */
+    it('сделка с ЛИДОМ и без организации даёт кнопку «Выставить КП»', async () => {
+      const withLead: DealCard = {
+        ...cardOpen,
+        id: 'deal-lead',
+        title: 'Сделка с лидом',
+        organizationId: null,
+        organizationName: null,
+        leadId: 'lead-7',
+      };
+      render(
+        React.createElement(DealBoard, {
+          ...editProps,
+          board: { stages: board.stages, columns: [{ stage: stNew, cards: [withLead] }] },
+        })
+      );
+      fireEvent.click(screen.getByText('Сделка с лидом').closest('article') as HTMLElement);
+      await screen.findByText('Сделка');
+      expect(screen.queryByRole('button', { name: 'Выпустить документ' })).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Выставить КП' }));
+
+      // Открылась форма ЛИДА, а не организации, и сделка уехала вместе с ней:
+      // иначе предложение не нашлось бы потом в карточке этой сделки.
+      const dialog = await screen.findByTestId('lead-proposal-dialog');
+      expect(dialog.textContent).toBe('lead-7|deal-lead');
+      expect(screen.queryByTestId('issue-dialog')).toBeNull();
     });
 
     it('saving from the edit dialog closes it and refreshes the router', async () => {

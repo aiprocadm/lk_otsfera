@@ -36,7 +36,10 @@ export const DEFAULT_DEAL_STAGES: readonly DealStageView[] = [
   },
   {
     id: 'default:proposal',
-    name: 'Предложение',
+    // `У-164` (этап 7): стадия называется тем, что на ней произошло, —
+    // предложение ОТПРАВЛЕНО. «Предложение» само по себе не отвечает на
+    // вопрос «в каком мы состоянии»: его могли ещё готовить.
+    name: 'КП отправлено',
     position: 2,
     statusAnchor: 'open',
     isTerminal: false,

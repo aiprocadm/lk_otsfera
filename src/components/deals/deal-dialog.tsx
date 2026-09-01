@@ -39,6 +39,8 @@ export type DealDialogTarget = {
   title: string;
   amount: string | null;
   organizationId: string | null;
+  /** `У-161`: лид, из которого выросла сделка, — адресат КП без организации. */
+  leadId: string | null;
   managerId: string | null;
   expectedCloseAt: Date | null;
   orderId: string | null;
@@ -243,20 +245,29 @@ export function DealDialog({
         </div>
       )}
 
-      {/* `У-145`: счёт, договор и ДС выставляются и до заказа — прямо из
-          сделки. Контрагент берётся из сделки, поэтому без организации
-          выпускать не на кого и кнопки нет. */}
-      {target && onIssueDocument && (
+      {/* `У-145`, `У-161`: документы выставляются и до заказа — прямо из
+          сделки. Контрагент берётся из сделки: есть организация — выпускаем
+          весь набор, есть только лид — одно коммерческое предложение (счёт
+          клиенту без реквизитов выставлять не на что). */}
+      {target && (
         <div className="mt-4 border-t border-gray-200 pt-3 flex items-center justify-between gap-2">
           <div>
             <h3 className="text-sm font-semibold text-[#111111]">Документы</h3>
             <p className="text-xs text-gray-500">
-              Счёт, договор или доп. соглашение по этой сделке — без заказа.
+              {target.organizationId
+                ? 'Счёт, договор, доп. соглашение или коммерческое предложение по этой сделке — без заказа.'
+                : target.leadId
+                  ? 'Клиент ещё не заведён как организация, поэтому по сделке выставляют только коммерческое предложение.'
+                  : // Молчащая кнопка — дефект приёмки (§15): говорим, чего не
+                    // хватает и что сделать.
+                    'Чтобы выставить документ, привяжите к сделке организацию или заведите её из лида.'}
             </p>
           </div>
-          <Button size="sm" variant="secondary" type="button" onClick={onIssueDocument}>
-            Выпустить документ
-          </Button>
+          {onIssueDocument && (target.organizationId || target.leadId) && (
+            <Button size="sm" variant="secondary" type="button" onClick={onIssueDocument}>
+              {target.organizationId ? 'Выпустить документ' : 'Выставить КП'}
+            </Button>
+          )}
         </div>
       )}
 

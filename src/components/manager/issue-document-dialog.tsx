@@ -153,6 +153,7 @@ export function IssueDocumentDialog({
   proposalValidDays = 14,
   reissueOfDocumentId,
   lockedDocType,
+  dealId,
 }: {
   open: boolean;
   onClose: () => void;
@@ -180,6 +181,12 @@ export function IssueDocumentDialog({
   reissueOfDocumentId?: string;
   /** У перевыпуска тип менять нельзя: это та же бумага. */
   lockedDocType?: IssueDocType;
+  /**
+   * `У-166`: сделка, из которой открыли форму. Уезжает вместе с выпуском,
+   * чтобы предложение нашлось потом в карточке этой сделки, а не только в
+   * общем списке документов.
+   */
+  dealId?: string;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -270,6 +277,9 @@ export function IssueDocumentDialog({
       ...(isAct && periodTo ? { periodTo } : {}),
       ...((isAct || isExtra) && parentDocumentId ? { parentDocumentId } : {}),
       ...(reissueOfDocumentId ? { reissueOfDocumentId } : {}),
+      // Сделку шлём только у предложения: счёт и договор в её карточке не
+      // показываются, и лишняя связь только сбивала бы с толку.
+      ...(isProposal && dealId ? { dealId } : {}),
     });
   }
 

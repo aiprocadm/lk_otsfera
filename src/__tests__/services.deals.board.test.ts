@@ -101,6 +101,7 @@ function makeDeal(over: Record<string, unknown> = {}) {
     expectedCloseAt: null,
     createdAt: new Date('2026-07-01T00:00:00.000Z'),
     organizationId: null,
+    leadId: null,
     managerId: null,
     organization: null,
     manager: null,
@@ -230,6 +231,9 @@ describe('getDealBoard', () => {
         amount: 1234.5, // Decimal-совместимо: у number тоже есть toFixed
         organizationId: 'org-1',
         organization: { name: 'Орг' },
+        // `У-161`: лид доезжает до карточки — по нему решают, кому выставлять
+        // предложение у сделки без организации.
+        leadId: 'lead-7',
         managerId: 'm-1',
         manager: { name: 'Менеджер' },
         orderId: 'ord-1',
@@ -248,6 +252,7 @@ describe('getDealBoard', () => {
         amount: '1234.50',
         organizationId: 'org-1',
         organizationName: 'Орг',
+        leadId: 'lead-7',
         managerId: 'm-1',
         managerName: 'Менеджер',
         status: 'open',
@@ -261,6 +266,7 @@ describe('getDealBoard', () => {
         amount: null,
         organizationId: null,
         organizationName: null,
+        leadId: null,
         managerId: null,
         managerName: null,
         status: 'open',
