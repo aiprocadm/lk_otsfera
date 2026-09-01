@@ -3,6 +3,7 @@ import type { PrismaClient, Prisma } from '@prisma/client';
 import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
+import { recordPiiAccess } from '@/lib/pii/record';
 import { canSeeOrder, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import {
   listMissingRequisites,
@@ -27,7 +28,7 @@ import {
 } from './orderDocumentPdf';
 import { buildPrintTable, fallbackPrintLine, formatMoney, type PrintLineInput } from './printTable';
 import { loadDocumentBranding } from './branding';
-import { resolveOrgIssueScope } from './issueScope';
+import { resolveLeadIssueScope, resolveOrgIssueScope } from './issueScope';
 
 /**
  * Выпуск счёта, акта, договора и доп. соглашения по заказу — и **без заказа**
@@ -146,6 +147,8 @@ export type GenerateResult =
         | 'act_requires_order'
         | 'lines_required'
         | 'lead_target_proposal_only'
+        | 'lead_not_active'
+        | 'proposal_needs_no_order'
         | 'leader_number_required'
         | 'reissue_not_found'
         | 'number_taken'
@@ -352,6 +355,13 @@ type IssueContext = {
    */
   templateOverrides: ReadonlyMap<string, DocumentTemplateOverride>;
   documentDate: Date;
+  /**
+   * До какой даты действует предложение (`У-162`). Считается ЗДЕСЬ, а не в
+   * форме: форма — удобство, а вход в сервис открыт и напрямую. Без этого
+   * значения в бумаге напечаталось бы «действительно до —», то есть
+   * предложение без срока.
+   */
+  proposalValidUntil: Date | null;
 };
 
 /**
@@ -470,44 +480,58 @@ async function loadOrganizationTarget(
  * компании, чужую подставить неоткуда. У сотрудника без компании выпускать
  * нечего — отказываем нехваткой реквизитов, а не «нет прав»: искать у себя
  * недостающий доступ он будет напрасно.
+ *
+ * **Охват профиля проверяется здесь, а не только кнопкой** (§4 CLAUDE.md).
+ * Лиды в проекте намеренно single-tenant (у модели нет компании — так
+ * записано в `manager/leads.ts`), поэтому единственная граница видимости
+ * лида — уровень охвата профиля доступа. Без `canSeeLead` менеджер с
+ * профилем «только свои» мог бы выпустить КП на ЧУЖОГО лида, просто зная его
+ * идентификатор: имя и контакт чужого клиента напечатались бы в его бумаге.
+ * Отказ отдаём как «не найдено» — существование лида наружу не подтверждаем.
  */
 async function loadLeadTarget(
   prisma: PrismaClient,
   session: SessionPayload,
   leadId: string
 ): Promise<{ ok: true; target: IssueTarget } | IssueFailure> {
-  if (!session.companyId)
-    return {
-      ok: false,
-      error: 'missing_requisites',
-      missing: [{ side: 'company', label: 'компания-исполнитель у вашей учётной записи' }],
-    };
-  const lead = await prisma.lead.findUnique({
-    where: { id: leadId },
-    select: {
-      id: true,
-      clientCompanyName: true,
-      clientContactName: true,
-      organizationId: true,
-      promotedDeal: { select: { id: true } },
-    },
-  });
-  if (!lead) return { ok: false, error: 'not_found' };
+  // Гейт живёт в `issueScope.ts` — там же, где гейт организации, и по той же
+  // причине: форма выпуска и сам выпуск обязаны спрашивать ОДНО правило.
+  const scope = await resolveLeadIssueScope(prisma, session, leadId);
+  if (!scope.ok) {
+    // «Нет своей компании» — это нехватка реквизитов, а не отказ по правам:
+    // иначе сотрудник искал бы у себя недостающий доступ.
+    if (scope.error === 'no_company')
+      return {
+        ok: false,
+        error: 'missing_requisites',
+        missing: [{ side: 'company', label: 'компания-исполнитель у вашей учётной записи' }],
+      };
+    return { ok: false, error: scope.error };
+  }
+  const lead = scope.lead;
   // У лида уже есть организация — значит и документы ему выставляют как
   // организации: КП «в обход» создало бы вторую нить документов того же
   // клиента, невидимую в его карточке.
   if (lead.organizationId) return loadOrganizationTarget(prisma, session, lead.organizationId);
+
+  // Сделка нужна только ради связи документа с ней; отдельным запросом,
+  // потому что гейту она не нужна и тащить её в него значит платить за неё на
+  // каждой загрузке формы.
+  const promoted = await prisma.deal.findUnique({
+    where: { leadId: lead.id },
+    select: { id: true },
+  });
   return {
     ok: true,
     target: {
       order: null,
       organizationId: null,
-      companyId: session.companyId,
+      companyId: scope.companyId,
       lead: {
         id: lead.id,
         clientCompanyName: lead.clientCompanyName,
         clientContactName: lead.clientContactName,
-        dealId: lead.promotedDeal?.id ?? null,
+        dealId: promoted?.id ?? null,
       },
     },
   };
@@ -591,11 +615,33 @@ async function loadIssueContext(
   // на сервере, а не только в наборе вариантов формы.
   if (!order && args.docType === 'act') return { ok: false, error: 'act_requires_order' };
 
+  /**
+   * `У-161`: коммерческое предложение выставляют ДО заказа — значит по заказу
+   * его не выпускают вовсе. Запрет живёт ЗДЕСЬ, а не в списке вариантов формы,
+   * и не для красоты:
+   *
+   * - у документа заказа контрагент всегда заполнен, и КП попало бы в портфель
+   *   партнёра вместе с ценами и скидками, чего решение `Р-14` не предполагает;
+   * - «предложение по уже согласованному заказу» ничего не значит: цену по
+   *   нему уже согласовали, и клиенту нужен счёт, а не предложение.
+   *
+   * Зеркально акту: у того запрет обратный — только ПО заказу.
+   */
+  if (order && args.docType === 'commercial_proposal')
+    return { ok: false, error: 'proposal_needs_no_order' };
+
   const [company, organizationRow] = await Promise.all([
     prisma.company.findUnique({
       where: { id: companyId },
       // Ставка НДС по умолчанию нужна заказу без состава (`У-142`).
-      select: { ...PARTY_SELECT, phone: true, email: true, defaultVatRate: true },
+      // `У-162`: срок действия КП по умолчанию — у каждой компании свой.
+      select: {
+        ...PARTY_SELECT,
+        phone: true,
+        email: true,
+        defaultVatRate: true,
+        proposalValidDays: true,
+      },
     }),
     organizationId
       ? prisma.organization.findUnique({ where: { id: organizationId }, select: PARTY_SELECT })
@@ -670,6 +716,20 @@ async function loadIssueContext(
   }
   const table = buildPrintTable(printLines);
 
+  /**
+   * `У-161`, §12 CLAUDE.md: в бумагу КП лида печатается имя КОНТАКТНОГО ЛИЦА —
+   * персональные данные физлица. Регистрируем чтение здесь, в общем сборе
+   * контекста: так оно записывается и для выпуска, и для предпросмотра — PDF
+   * там такой же, просто не сохранённый на диск.
+   */
+  if (lead) {
+    await recordPiiAccess(prisma, {
+      session,
+      context: 'proposal_issue_lead',
+      subjectIds: [lead.id],
+    });
+  }
+
   // Оформление (`У-153`) читаем ДО транзакции: картинки не зависят от номера,
   // а держать транзакцию на время скачивания из хранилища незачем.
   const branding = await loadDocumentBranding(prisma, companyId);
@@ -703,8 +763,19 @@ async function loadIssueContext(
       branding,
       templateOverrides,
       documentDate,
+      proposalValidUntil:
+        args.docType === 'commercial_proposal'
+          ? (args.extras?.validUntil ?? addDays(documentDate, company.proposalValidDays))
+          : null,
     },
   };
+}
+
+/** Дата плюс N дней — новый объект, исходный не трогаем. */
+function addDays(date: Date, days: number): Date {
+  const out = new Date(date);
+  out.setDate(out.getDate() + days);
+  return out;
 }
 
 /** Значения подстановок шаблона (`У-160`) — готовыми строками. */
@@ -723,12 +794,9 @@ function templateValues(ctx: IssueContext, args: GenerateArgs): DocumentTemplate
     organization: ctx.organization.displayName,
     total: formatMoney(ctx.table.gross),
     inWords: ctx.table.totalInWords,
-    // `У-162`: у КП это ДАТА, а не кусок фразы, как `term` выше. Пусто —
-    // прочерк: печатать «действительно до » без даты нельзя, а придумывать
-    // срок за менеджера тем более.
-    validUntil: args.extras?.validUntil
-      ? new Date(args.extras.validUntil).toLocaleDateString('ru-RU')
-      : '—',
+    // `У-162`: у КП это ДАТА, а не кусок фразы, как `term` выше. У остальных
+    // типов срока предложения нет вовсе — там прочерк, и это честно.
+    validUntil: ctx.proposalValidUntil ? ctx.proposalValidUntil.toLocaleDateString('ru-RU') : '—',
   };
 }
 
@@ -787,7 +855,7 @@ async function renderDocument(
     const proposalData: ProposalDocumentData = {
       number,
       date: ctx.documentDate,
-      validUntil: args.extras?.validUntil ?? null,
+      validUntil: ctx.proposalValidUntil,
       company: ctx.company,
       // Контактное лицо есть только у лида: у организации адресат — сама
       // организация, конкретного человека система не выбирает за менеджера.
@@ -1119,9 +1187,7 @@ export async function generateOrderDocument(
           ...(ctx.lead ? { leadId: ctx.lead.id, dealId: ctx.lead.dealId } : {}),
           // `У-162`: срок действия — поле документа, а не только строка в
           // тексте. Считать «истекло» по напечатанным словам невозможно.
-          ...(args.docType === 'commercial_proposal'
-            ? { validUntil: args.extras?.validUntil ?? null }
-            : {}),
+          ...(args.docType === 'commercial_proposal' ? { validUntil: ctx.proposalValidUntil } : {}),
           uploadedById: session.sub,
           scanStatus: 'clean',
           scannedAt: now,

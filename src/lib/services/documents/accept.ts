@@ -37,6 +37,9 @@ export async function acceptDocument(
     select: {
       id: true,
       type: true,
+      // `У-164`: гейту чтения нужно состояние — черновик КП клиенту не
+      // показывается, и без этого поля он сходил бы в базу второй раз.
+      status: true,
       number: true,
       orderId: true,
       companyId: true,

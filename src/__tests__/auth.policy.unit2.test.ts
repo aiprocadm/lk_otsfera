@@ -651,3 +651,61 @@ describe('canReadDocument', () => {
     expect(result).toBe(false);
   });
 });
+
+/**
+ * `У-164` — ЧЕРНОВИК коммерческого предложения клиент не читает.
+ *
+ * КП — единственная бумага, которая живёт до отправки: менеджер набирает
+ * состав и правит цены. Списки прячут её канальным фильтром, а здесь закрыта
+ * прямая ссылка и скачивание: адрес документа угадывается по идентификатору,
+ * и гейт только в выборке был бы дырой.
+ */
+describe('черновик коммерческого предложения (`У-164`)', () => {
+  const DRAFT = {
+    id: 'kp',
+    orderId: null,
+    companyId: 'co-1',
+    type: 'commercial_proposal',
+    status: 'draft',
+    counterpartyType: 'organization' as const,
+    counterpartyId: 'org-1',
+    order: null,
+  };
+
+  beforeEach(() => {
+    // Канальный предикат в этом файле замокан; для положительных проверок он
+    // должен пускать, иначе тест проверял бы мок, а не запрет черновика.
+    canReadOrderLessDocumentMock.mockReturnValue(true);
+  });
+
+  it('заказчику своей же организации — отказ: цену ему ещё не предлагали', async () => {
+    expect(await canReadDocument(ORG_USER, DRAFT)).toBe(false);
+  });
+
+  it('партнёру — тоже отказ', async () => {
+    expect(
+      await canReadDocument(PARTNER_ADMIN, {
+        ...DRAFT,
+        counterpartyType: 'partner',
+        counterpartyId: 'p-1',
+      })
+    ).toBe(false);
+  });
+
+  it('ОТПРАВЛЕННОЕ предложение заказчик читает — оно ему и адресовано', async () => {
+    // Проверка от обратного: запрет должен касаться ровно черновика, а не
+    // всего типа целиком, иначе клиент не увидит присланную бумагу.
+    expect(await canReadDocument(ORG_USER, { ...DRAFT, status: 'sent' })).toBe(true);
+  });
+
+  it('черновик СЧЁТА заказчику не прячем — послабление касается только КП', async () => {
+    // У счёта состояние `draft` недостижимо, но запрет, написанный «про все
+    // черновики», молча спрятал бы любой будущий тип со стадией черновика.
+    expect(await canReadDocument(ORG_USER, { ...DRAFT, type: 'invoice' })).toBe(true);
+  });
+
+  it('сотрудник свой черновик читает — это его рабочая бумага', async () => {
+    expect(await canReadDocument(MGR, DRAFT)).toBe(true);
+    expect(await canReadDocument(ADMIN, DRAFT)).toBe(true);
+  });
+});

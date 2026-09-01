@@ -11,7 +11,9 @@ const {
   generateOrderDocument,
   requestRequisites,
   resolveOrgIssueScope,
+  resolveLeadIssueScope,
   getOrgDocumentIssuePanel,
+  getLeadDocumentIssuePanel,
 } = vi.hoisted(() => ({
   requireSession: vi.fn(),
   revalidatePath: vi.fn(),
@@ -19,7 +21,9 @@ const {
   generateOrderDocument: vi.fn(),
   requestRequisites: vi.fn(),
   resolveOrgIssueScope: vi.fn(),
+  resolveLeadIssueScope: vi.fn(),
   getOrgDocumentIssuePanel: vi.fn(),
+  getLeadDocumentIssuePanel: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireSession }));
@@ -27,13 +31,20 @@ vi.mock('next/cache', () => ({ revalidatePath }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 vi.mock('@/lib/services/documents/generate', () => ({ generateOrderDocument }));
 vi.mock('@/lib/services/documents/requestRequisites', () => ({ requestRequisites }));
-vi.mock('@/lib/services/documents/issueScope', () => ({ resolveOrgIssueScope }));
-vi.mock('@/lib/services/documents/generationPanel', () => ({ getOrgDocumentIssuePanel }));
+vi.mock('@/lib/services/documents/issueScope', () => ({
+  resolveOrgIssueScope,
+  resolveLeadIssueScope,
+}));
+vi.mock('@/lib/services/documents/generationPanel', () => ({
+  getOrgDocumentIssuePanel,
+  getLeadDocumentIssuePanel,
+}));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 import { prisma } from '@/lib/db/prisma';
 import {
   generateOrderDocumentAction,
+  leadIssuePanelAction,
   orgIssuePanelAction,
   requestRequisitesAction,
 } from '@/server-actions/documents/generate';
@@ -183,6 +194,31 @@ describe('generateOrderDocumentAction', () => {
     });
     expect(revalidatePath).not.toHaveBeenCalled();
   });
+
+  it('`У-161`: КП лиду обновляет карточку ЛИДА, а не «/manager/organizations/undefined»', async () => {
+    generateOrderDocument.mockResolvedValue({ ok: true, documentId: 'd7', number: 'КП-2026-1' });
+
+    await generateOrderDocumentAction(
+      issueForm({
+        leadId: 'lead-1',
+        docType: 'commercial_proposal',
+        subject: 'Обучение бригады',
+      })
+    );
+
+    // Целей у выпуска три. Пока веток было две, лид попадал в ветку
+    // организации: адрес складывался из `undefined`, ошибки не было, но
+    // страница лида не обновлялась — человек возвращался на карточку и не
+    // видел там только что выпущенного предложения.
+    expect(revalidatePath).toHaveBeenCalledWith('/manager/leads/lead-1');
+    expect(revalidatePath).not.toHaveBeenCalledWith('/manager/organizations/undefined');
+    // Заодно: цель-лид доезжает до сервиса, а не теряется по дороге.
+    expect(generateOrderDocument).toHaveBeenCalledWith(expect.anything(), SESSION, {
+      leadId: 'lead-1',
+      docType: 'commercial_proposal',
+      extras: { subject: 'Обучение бригады' },
+    });
+  });
 });
 
 // Скоуп, сбор недостающего и уведомление — в
@@ -278,4 +314,130 @@ describe('orgIssuePanelAction', () => {
       companyId: 'co-A',
     });
   });
+});
+
+/**
+ * `У-161` — данные формы КП для ЛИДА. Кнопка живёт на карточке лида, но
+ * запрет живёт здесь: скрытая кнопка запретом не является (§4).
+ */
+describe('leadIssuePanelAction', () => {
+  const LEAD = {
+    id: 'lead-1',
+    clientCompanyName: 'ООО «Ромашка»',
+    clientContactName: 'Иван Петров',
+    organizationId: null,
+    assignedManagerId: 'm1',
+  };
+
+  beforeEach(() => {
+    resolveLeadIssueScope.mockResolvedValue({ ok: true, companyId: 'co-A', lead: LEAD });
+    resolveOrgIssueScope.mockResolvedValue({ ok: true, companyId: 'co-B' });
+    getLeadDocumentIssuePanel.mockResolvedValue({ counterpartyName: 'ООО «Ромашка»' });
+    getOrgDocumentIssuePanel.mockResolvedValue({ counterpartyName: 'ООО «Ромашка» (юр. лицо)' });
+  });
+
+  it('выключенный флаг не пускает даже до сессии', async () => {
+    isFeatureEnabled.mockReturnValue(false);
+    expect(await leadIssuePanelAction(form({ leadId: 'lead-1' }))).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+    expect(requireSession).not.toHaveBeenCalled();
+    expect(resolveLeadIssueScope).not.toHaveBeenCalled();
+  });
+
+  it('без лида во входе — not_found, в базу не ходим', async () => {
+    expect(await leadIssuePanelAction(new FormData())).toEqual({ ok: false, error: 'not_found' });
+    expect(resolveLeadIssueScope).not.toHaveBeenCalled();
+  });
+
+  it('отказ гейта отдаётся как есть, панель не считается', async () => {
+    // Отказавшийся клиент и клиент, уже ставший заказом, адресатами не
+    // бывают: человеку нужно увидеть именно это, а не общее «нет доступа».
+    resolveLeadIssueScope.mockResolvedValue({ ok: false, error: 'lead_not_active' });
+    expect(await leadIssuePanelAction(form({ leadId: 'lead-1' }))).toEqual({
+      ok: false,
+      error: 'lead_not_active',
+    });
+
+    resolveLeadIssueScope.mockResolvedValue({ ok: false, error: 'no_company' });
+    expect(await leadIssuePanelAction(form({ leadId: 'lead-1' }))).toEqual({
+      ok: false,
+      error: 'no_company',
+    });
+
+    expect(getLeadDocumentIssuePanel).not.toHaveBeenCalled();
+    expect(getOrgDocumentIssuePanel).not.toHaveBeenCalled();
+  });
+
+  it('лид без организации: панель лида, компания из гейта, адресат — клиент лида', async () => {
+    const res = await leadIssuePanelAction(form({ leadId: 'lead-1' }));
+
+    expect(res).toEqual({
+      ok: true,
+      panel: { counterpartyName: 'ООО «Ромашка»' },
+      organizationId: null,
+    });
+    // Имя приходит из проверенного гейтом лида, а не из формы: подставить
+    // чужое название параметрами нельзя.
+    expect(getLeadDocumentIssuePanel).toHaveBeenCalledWith(prisma, {
+      companyId: 'co-A',
+      leadName: 'ООО «Ромашка»',
+    });
+    expect(getOrgDocumentIssuePanel).not.toHaveBeenCalled();
+  });
+
+  it('у лида уже есть организация → форма целится в ОРГАНИЗАЦИЮ и называет её', async () => {
+    resolveLeadIssueScope.mockResolvedValue({
+      ok: true,
+      companyId: 'co-A',
+      lead: { ...LEAD, organizationId: 'org-7' },
+    });
+
+    const res = await leadIssuePanelAction(form({ leadId: 'lead-1' }));
+
+    // Сервис выпуска в этом случае молча целится в организацию. Отдай форма
+    // панель лида — человек увидел бы «предложение лиду», а бумага ушла бы
+    // на организацию, и искал бы он её потом не там.
+    expect(res).toEqual({
+      ok: true,
+      panel: { counterpartyName: 'ООО «Ромашка» (юр. лицо)' },
+      organizationId: 'org-7',
+    });
+    // Компания берётся из скоупа ОРГАНИЗАЦИИ (co-B), а не из скоупа лида
+    // (co-A): номер и реквизиты исполнителя принадлежат ей.
+    expect(getOrgDocumentIssuePanel).toHaveBeenCalledWith(prisma, {
+      organizationId: 'org-7',
+      companyId: 'co-B',
+    });
+    expect(getLeadDocumentIssuePanel).not.toHaveBeenCalled();
+  });
+
+  it('организация лида недоступна → not_found, а не панель лида в обход гейта', async () => {
+    resolveLeadIssueScope.mockResolvedValue({
+      ok: true,
+      companyId: 'co-A',
+      lead: { ...LEAD, organizationId: 'org-7' },
+    });
+    resolveOrgIssueScope.mockResolvedValue({ ok: false, error: 'org_no_company' });
+
+    expect(await leadIssuePanelAction(form({ leadId: 'lead-1' }))).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
+    expect(getOrgDocumentIssuePanel).not.toHaveBeenCalled();
+    // Через лид «в обход» тоже не пускаем: иначе запрет на организацию
+    // обходился бы одним лишним кликом.
+    expect(getLeadDocumentIssuePanel).not.toHaveBeenCalled();
+  });
+
+  /*
+   * Тест «гейт вернул успех без данных лида» снят намеренно.
+   *
+   * Он проверял ветку `scope.lead?.clientCompanyName ?? ''`, то есть отвечал
+   * на вопрос «что будет, если гейт скажет „можно", но лида не отдаст».
+   * Такого ответа больше не бывает: в типе `LeadIssueScope` лид объявлен
+   * ОБЯЗАТЕЛЬНЫМ полем успеха, и подобный ответ не соберётся. Проверять
+   * невозможное состояние — значит держать в коде ветку ради теста.
+   */
 });

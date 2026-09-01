@@ -100,10 +100,13 @@ describe('IssueOrderLessDocumentButton (`У-145`)', () => {
   });
 
   it('акта в выборе нет: без заказа он наследовать номер не может', async () => {
+    // Список сверяется ЦЕЛИКОМ, а не через `not.toContain('Акт')`: лишний тип,
+    // добавленный по невнимательности, так виден сразу. `У-161` добавил сюда
+    // коммерческое предложение — его выставляют и без заказа.
     const dialog = await openViaButton();
     const select = within(dialog).getByLabelText('Тип документа') as HTMLSelectElement;
     const options = Array.from(select.options).map((o) => o.textContent);
-    expect(options).toEqual(['Счёт', 'Договор', 'Доп. соглашение']);
+    expect(options).toEqual(['Счёт', 'Договор', 'Доп. соглашение', 'Коммерческое предложение']);
   });
 
   it('подсказка предмета договора не обещает названия заказа, которого нет', async () => {

@@ -30,12 +30,34 @@ export type DocumentChannel = { type: CounterpartyType; id: string };
  */
 export const ACTIVE_VERSION_WHERE = { supersededAt: null } as const;
 
+/**
+ * Черновик коммерческого предложения клиенту НЕ показывается (`У-164`,
+ * `У-165`).
+ *
+ * КП — единственный тип, который рождается черновиком: менеджер набирает
+ * состав, правит цены и только потом нажимает «Отправить». До этого момента
+ * бумаги для клиента не существует, и увидеть её в своём кабинете он не
+ * должен — иначе прочитает цену, которую ему ещё не предлагали.
+ *
+ * **Фильтр написан ТОЛЬКО про КП, а не «спрятать все черновики».** У остальных
+ * типов состояние `draft` недостижимо (`ISSUED_FLOW` в него не ведёт), но
+ * общий запрет означал бы, что любой будущий тип со стадией черновика молча
+ * исчезнет из клиентского кабинета — и заметят это не мы, а клиент.
+ *
+ * Стоит в КАНАЛЬНЫХ строителях, а не в списках: каналов три (организация,
+ * партнёр, портфель партнёра), и забыть один из них было бы легко.
+ */
+const CLIENT_HIDDEN_DRAFT_WHERE = {
+  NOT: { type: 'commercial_proposal' as const, status: 'draft' },
+} as const;
+
 export function organizationChannelWhere(organizationId: string): Prisma.DocumentWhereInput {
   return {
     counterpartyType: 'organization',
     counterpartyId: organizationId,
     ...ACTIVE_VERSION_WHERE,
     ...INFECTED_HIDDEN_WHERE,
+    ...CLIENT_HIDDEN_DRAFT_WHERE,
   };
 }
 
@@ -45,6 +67,7 @@ export function partnerChannelWhere(partnerId: string): Prisma.DocumentWhereInpu
     counterpartyId: partnerId,
     ...ACTIVE_VERSION_WHERE,
     ...INFECTED_HIDDEN_WHERE,
+    ...CLIENT_HIDDEN_DRAFT_WHERE,
   };
 }
 
@@ -68,6 +91,7 @@ export function partnerPortfolioDocumentsWhere(scope: {
     ],
     ...ACTIVE_VERSION_WHERE,
     ...INFECTED_HIDDEN_WHERE,
+    ...CLIENT_HIDDEN_DRAFT_WHERE,
   };
 }
 

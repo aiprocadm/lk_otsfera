@@ -57,6 +57,17 @@ export const PII_CONTEXTS = {
     labelRu: 'Карточка лида (контакты)',
     callSite: 'src/lib/services/manager/leads.ts',
   },
+  // `У-161` (этап 7): выпуск коммерческого предложения ЛИДУ печатает в бумагу
+  // имя контактного лица — персональные данные физлица. Своё чтение, а не
+  // `manager_lead_view`: карточку лида человек мог и не открывать, а бумага с
+  // его именем ушла клиенту. Предпросмотр считается тем же чтением: PDF там
+  // такой же, просто не сохранённый.
+  proposal_issue_lead: {
+    subjectType: 'lead',
+    action: 'view',
+    labelRu: 'Выпуск КП лиду (контакт в бумаге)',
+    callSite: 'src/lib/services/documents/generate.ts',
+  },
   enrollments_list: {
     subjectType: 'enrollment_request',
     action: 'list',

@@ -1,6 +1,6 @@
 import type { PrismaClient, LeadStatus, Prisma } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { leadWhereForLevel } from '@/lib/auth/accessProfile';
+import { canSeeLead, leadWhereForLevel } from '@/lib/auth/accessProfile';
 import { recordPiiAccess } from '@/lib/pii/record';
 
 /**
@@ -120,6 +120,23 @@ export type ManagerLeadDetail = ManagerLeadRow & {
   sourceRequestId: string | null;
   sourceCallId: string | null;
   sourceInboundId: string | null;
+  /**
+   * Коммерческие предложения, выставленные этому лиду (`У-161`, этап 7).
+   *
+   * Без этого списка кнопка «Выставить КП» вела бы в никуда: выпущенное
+   * предложение не видно ни в одном кабинете (у лида нет ни организации, ни
+   * заказа), и найти его можно было бы только поиском по номеру.
+   */
+  proposals: LeadProposalRow[];
+};
+
+type LeadProposalRow = {
+  id: string;
+  number: string | null;
+  status: string;
+  createdAt: Date;
+  validUntil: Date | null;
+  amountGross: string | null;
 };
 
 export async function getManagerLead(
@@ -137,10 +154,37 @@ export async function getManagerLead(
     },
   });
   if (!l) return null;
+  /**
+   * Охват профиля проверяется и здесь (§4 CLAUDE.md), а не только в списке.
+   *
+   * Список лидов и перенос по воронке уровень охвата применяют, а карточка —
+   * нет: менеджер с профилем «только свои» открывал чужой лид прямым адресом
+   * и видел имя, телефон и почту чужого клиента. Отдаём `null` — вызывающий
+   * покажет «не найдено» и существование лида наружу не подтвердит.
+   */
+  if (!canSeeLead(session, l)) return null;
   await recordPiiAccess(prisma, {
     session,
     context: 'manager_lead_view',
     subjectIds: [l.id],
+  });
+  /**
+   * Предложения лида (`У-161`). Заменённые версии скрыты (`У-151`): у
+   * перевыпущенного КП тот же номер, и две строки подряд читались бы как два
+   * разных предложения. Отдельным запросом, а не `include`: он нужен только
+   * карточке, а `getManagerLead` зовут и другие места.
+   */
+  const proposals = await prisma.document.findMany({
+    where: { leadId: l.id, type: 'commercial_proposal', supersededAt: null },
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      number: true,
+      status: true,
+      createdAt: true,
+      validUntil: true,
+      amountGross: true,
+    },
   });
   return {
     id: l.id,
@@ -170,5 +214,13 @@ export async function getManagerLead(
     sourceRequestId: l.sourceRequestId,
     sourceCallId: l.sourceCallId,
     sourceInboundId: l.sourceInboundId,
+    proposals: proposals.map((p) => ({
+      id: p.id,
+      number: p.number,
+      status: p.status,
+      createdAt: p.createdAt,
+      validUntil: p.validUntil,
+      amountGross: p.amountGross ? p.amountGross.toFixed(2) : null,
+    })),
   };
 }

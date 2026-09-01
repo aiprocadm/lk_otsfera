@@ -104,6 +104,11 @@ export async function getEnrollmentRequest(
         companyId: true,
         counterpartyType: true,
         counterpartyId: true,
+        // `У-164`: гейту чтения нужны тип и состояние — черновик КП клиенту не
+        // показывается; без них он сходил бы в базу второй раз на каждый
+        // документ списка.
+        type: true,
+        status: true,
         order: { select: { companyId: true } },
       },
     });

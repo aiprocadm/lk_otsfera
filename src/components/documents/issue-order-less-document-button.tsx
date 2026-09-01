@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
 import { errorMessageRu } from '@/lib/errors/messages';
-import { orgIssuePanelAction } from '@/server-actions/documents/generate';
+import { leadIssuePanelAction, orgIssuePanelAction } from '@/server-actions/documents/generate';
 import type { OrgDocumentIssuePanel } from '@/lib/services/documents/generationPanel';
 import { IssueDocumentDialog, type IssueLine } from '@/components/manager/issue-document-dialog';
 
@@ -83,6 +83,7 @@ export function IssueOrderLessDocumentDialog({
       catalog={panel.catalog}
       defaultSubject={defaultSubject}
       defaultVatRate={panel.defaultVatRate}
+      proposalValidDays={panel.proposalValidDays}
     />
   );
 }
@@ -106,5 +107,89 @@ export function IssueOrderLessDocumentButton({
         />
       )}
     </>
+  );
+}
+
+/**
+ * Выпуск коммерческого предложения ЛИДУ (`У-161`, этап 7).
+ *
+ * Отдельный компонент, а не пропс-«может быть организация, а может лид»:
+ * загрузчик другой (`leadIssuePanelAction` со своим гейтом), цель другая, и
+ * набор типов документов другой — лиду выставляют только предложение. Один
+ * компонент на две цели пришлось бы ветвить в каждой строке.
+ *
+ * Данные грузятся ПО ОТКРЫТИЮ, как и у организации: карточка лида не должна
+ * платить каталогом услуг за кнопку, которую не нажали.
+ */
+export function IssueLeadProposalButton({
+  leadId,
+  label = 'Выставить КП',
+}: {
+  leadId: string;
+  label?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button size="sm" onClick={() => setOpen(true)}>
+        {label}
+      </Button>
+      {open && <IssueLeadProposalDialog leadId={leadId} onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
+/** Внутренний: снаружи открывают кнопкой — вложенных модалок мы не строим. */
+function IssueLeadProposalDialog({ leadId, onClose }: { leadId: string; onClose: () => void }) {
+  const [panel, setPanel] = useState<OrgDocumentIssuePanel | null>(null);
+  /**
+   * У лида с уже заведённой организацией сервис выпускает документ НА
+   * ОРГАНИЗАЦИЮ (`loadLeadTarget`). Форма обязана называть настоящую цель:
+   * иначе человек видит «предложение лиду», а бумага уходит организации — и
+   * ищет её потом не там.
+   */
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const fd = new FormData();
+      fd.set('leadId', leadId);
+      const res = await leadIssuePanelAction(fd);
+      if (!alive) return;
+      if (!res.ok) {
+        // Молчаливо неработающая кнопка — дефект приёмки (§15).
+        toast.error(errorMessageRu(res.error));
+        onClose();
+        return;
+      }
+      setOrganizationId(res.organizationId ?? null);
+      setPanel(res.panel);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [leadId, onClose]);
+
+  if (!panel) return null;
+  return (
+    <IssueDocumentDialog
+      open
+      onClose={onClose}
+      target={organizationId ? { kind: 'organization', organizationId } : { kind: 'lead', leadId }}
+      counterpartyName={panel.counterpartyName}
+      // Ни заказа, ни его состава у лида нет — строки набирают руками или
+      // берут из каталога.
+      orderLines={[]}
+      missingByType={panel.missingByType}
+      baseDocuments={panel.baseDocuments}
+      hasInvoice={false}
+      hasContract={panel.hasContract}
+      catalog={panel.catalog}
+      defaultVatRate={panel.defaultVatRate}
+      proposalValidDays={panel.proposalValidDays}
+      // Лиду выставляют только предложение — тип не выбирают.
+      lockedDocType="commercial_proposal"
+    />
   );
 }

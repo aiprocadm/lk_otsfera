@@ -44,6 +44,9 @@ export async function getDocumentForSignedDownload(
       counterpartyId: true,
       // `У-154`: имя файла при скачивании собирается по типу, номеру и дате.
       type: true,
+      // `У-164`: гейту чтения нужно состояние — черновик КП клиенту не
+      // показывается, и без этого поля он сходил бы в базу второй раз.
+      status: true,
       number: true,
       createdAt: true,
       order: { select: { companyId: true } },

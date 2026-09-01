@@ -7,6 +7,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   getDocumentGenerationPanel,
+  getLeadDocumentIssuePanel,
   getOrgDocumentIssuePanel,
 } from '@/lib/services/documents/generationPanel';
 
@@ -179,7 +180,11 @@ describe('getOrgDocumentIssuePanel', () => {
     const documentFindMany = vi.fn().mockResolvedValue(over.baseDocuments ?? []);
     const catalogFindMany = vi.fn().mockResolvedValue(over.catalog ?? []);
     const prisma = {
-      company: { findUnique: vi.fn().mockResolvedValue(over.company ?? FULL) },
+      // `?? ` здесь нельзя по той же причине, что и у организации ниже: тест
+      // «компания не прочиталась» передаёт именно null.
+      company: {
+        findUnique: vi.fn().mockResolvedValue('company' in over ? over.company : FULL),
+      },
       organization: {
         // `?? ` здесь нельзя: тест «сторона исчезла» передаёт именно null.
         findUnique: vi
@@ -315,5 +320,234 @@ describe('getOrgDocumentIssuePanel', () => {
     });
     expect(empty.missingByType.invoice).toEqual([]);
     expect(empty.counterpartyName).toBe('заказчик');
+  });
+
+  it('`У-161`: у КП свой набор проверки — без банка исполнителя и только с названием заказчика', async () => {
+    // У компании не заполнен банк, а у заказчика есть только рабочее
+    // название — так выглядит клиент, которому ещё только предлагают.
+    const { prisma } = orgPrisma({
+      company: { ...FULL, bankName: null, bankAccount: null, corrAccount: null, bic: null },
+      organization: {
+        name: 'Клиент',
+        legalName: null,
+        inn: null,
+        kpp: null,
+        ogrn: null,
+        legalAddress: null,
+        bankName: null,
+        bankAccount: null,
+        corrAccount: null,
+        bic: null,
+        signerName: null,
+        signerPosition: null,
+        signerBasis: null,
+      },
+    });
+
+    const panel = await getOrgDocumentIssuePanel(prisma, {
+      organizationId: 'org-1',
+      companyId: 'co-A',
+    });
+
+    // Ключ обязан быть в объекте. Раньше его там не было вовсе, а форма
+    // читала его через `?? []` — то есть любая нехватка выглядела как
+    // «всё в порядке», и отказ прилетал уже после нажатия «Выпустить».
+    expect(panel.missingByType.commercial_proposal).toEqual([]);
+    // Те же самые данные для счёта дают совсем другой список: по КП не
+    // платят, поэтому банк ему не нужен, а адресата в системе может ещё не быть.
+    expect(panel.missingByType.invoice.map((m) => m.label)).toEqual([
+      'банк исполнителя',
+      'р/с исполнителя',
+      'к/с исполнителя',
+      'БИК исполнителя',
+      'ИНН заказчика',
+      'юр. адрес заказчика',
+    ]);
+  });
+
+  it('`У-162`: срок действия КП — число дней компании, без компании — 14', async () => {
+    const custom = orgPrisma({ company: { ...FULL, proposalValidDays: 30 } });
+    const panel = await getOrgDocumentIssuePanel(custom.prisma, {
+      organizationId: 'org-1',
+      companyId: 'co-A',
+    });
+    expect(panel.proposalValidDays).toBe(30);
+
+    // Компания не прочиталась — форма всё равно должна предложить срок, и
+    // ровно тот, что стоит по умолчанию в базе: разойдись они, экран показывал
+    // бы один срок, а напоминание об истечении считало другой.
+    const gone = orgPrisma({ company: null });
+    const fallback = await getOrgDocumentIssuePanel(gone.prisma, {
+      organizationId: 'org-1',
+      companyId: 'co-A',
+    });
+    expect(fallback.proposalValidDays).toBe(14);
+  });
+});
+
+/**
+ * `У-161` — панель выпуска для ЛИДА. Клиента в системе ещё нет: ни
+ * договоров, ни реквизитов, ни организации. Тип возврата тот же, что у
+ * организации, поэтому проверяем ровно то, чем эта панель от неё отличается.
+ */
+describe('getLeadDocumentIssuePanel', () => {
+  function leadPrisma(over: { company?: unknown; catalog?: unknown[] } = {}) {
+    const companyFindUnique = vi.fn().mockResolvedValue('company' in over ? over.company : FULL);
+    const catalogFindMany = vi.fn().mockResolvedValue(over.catalog ?? []);
+    const documentFindMany = vi.fn().mockResolvedValue([]);
+    const organizationFindUnique = vi.fn().mockResolvedValue(null);
+    const prisma = {
+      company: { findUnique: companyFindUnique },
+      organization: { findUnique: organizationFindUnique },
+      document: { findMany: documentFindMany },
+      catalogItem: { findMany: catalogFindMany },
+    } as never;
+    return {
+      prisma,
+      companyFindUnique,
+      catalogFindMany,
+      documentFindMany,
+      organizationFindUnique,
+    };
+  }
+
+  const LEAD_ARGS = { companyId: 'co-A', leadName: 'ООО «Ромашка»' };
+
+  it('у лида нет договоров: оснований не предлагаем и за ними не ходим', async () => {
+    const { prisma, documentFindMany, organizationFindUnique } = leadPrisma();
+
+    const panel = await getLeadDocumentIssuePanel(prisma, LEAD_ARGS);
+
+    expect(panel.baseDocuments).toEqual([]);
+    expect(panel.hasContract).toBe(false);
+    // Договора у лида не бывает по определению, и организации тоже. Лишние
+    // запросы значили бы, что панель ищет основания там, где их не бывает.
+    expect(documentFindMany).not.toHaveBeenCalled();
+    expect(organizationFindUnique).not.toHaveBeenCalled();
+  });
+
+  it('заказчик в форме — название клиента из карточки лида', async () => {
+    const named = leadPrisma();
+    const panel = await getLeadDocumentIssuePanel(named.prisma, {
+      companyId: 'co-A',
+      leadName: '  ООО «Ромашка»  ',
+    });
+    expect(panel.counterpartyName).toBe('ООО «Ромашка»');
+
+    // Название у лида заполняет человек, и оно может оказаться пустым.
+    // Пустое место в шапке формы выглядело бы как сломанный экран.
+    const blank = leadPrisma();
+    const anonymous = await getLeadDocumentIssuePanel(blank.prisma, {
+      companyId: 'co-A',
+      leadName: '   ',
+    });
+    expect(anonymous.counterpartyName).toBe('клиент');
+  });
+
+  it('каталог и ставка НДС берутся из компании СЕССИИ: у лида своей нет', async () => {
+    const { prisma, companyFindUnique, catalogFindMany } = leadPrisma({
+      company: {
+        ...FULL,
+        defaultVatRate: { toFixed: (n: number) => (0.2).toFixed(n) },
+        proposalValidDays: 30,
+      },
+      catalog: [
+        {
+          id: 'c1',
+          name: 'Обучение',
+          code: 'A-1',
+          unit: 'person',
+          price: { toFixed: (n: number) => (5000).toFixed(n) },
+          vatRate: { toFixed: (n: number) => (0.2).toFixed(n) },
+          vatIncluded: true,
+        },
+        {
+          id: 'c2',
+          name: 'Без НДС',
+          code: 'A-2',
+          unit: 'service',
+          price: { toFixed: (n: number) => (100).toFixed(n) },
+          vatRate: null,
+          vatIncluded: false,
+        },
+      ],
+    });
+
+    const panel = await getLeadDocumentIssuePanel(prisma, LEAD_ARGS);
+
+    expect(companyFindUnique).toHaveBeenCalledWith({
+      where: { id: 'co-A' },
+      select: expect.objectContaining({ defaultVatRate: true, proposalValidDays: true }),
+    });
+    expect(catalogFindMany.mock.calls[0]![0].where).toEqual({ companyId: 'co-A', isActive: true });
+    expect(panel.defaultVatRate).toBe('0.2000');
+    expect(panel.proposalValidDays).toBe(30);
+    expect(panel.catalog).toEqual([
+      {
+        id: 'c1',
+        name: 'Обучение',
+        code: 'A-1',
+        unit: 'person',
+        price: '5000.00',
+        vatRate: '0.2000',
+        vatIncluded: true,
+      },
+      {
+        id: 'c2',
+        name: 'Без НДС',
+        code: 'A-2',
+        unit: 'service',
+        price: '100.00',
+        vatRate: null,
+        vatIncluded: false,
+      },
+    ]);
+  });
+
+  it('нехватка по КП считается на клиента, у которого есть только название', async () => {
+    const named = leadPrisma();
+    const ready = await getLeadDocumentIssuePanel(named.prisma, LEAD_ARGS);
+    // Название есть — больше от адресата КП ничего не нужно, и кнопка
+    // «Выпустить» обязана быть доступна.
+    expect(ready.missingByType.commercial_proposal).toEqual([]);
+    // При этом заказчик именно пустой, а не «вторая копия исполнителя»:
+    // для счёта у него по-прежнему нет ни ИНН, ни адреса.
+    expect(ready.missingByType.invoice.map((m) => m.label)).toEqual([
+      'ИНН заказчика',
+      'юр. адрес заказчика',
+    ]);
+
+    // Названия нет — печатать в шапке предложения нечего, и форма
+    // обязана сказать это до нажатия, а не после отказа сервиса.
+    const nameless = leadPrisma();
+    const gap = await getLeadDocumentIssuePanel(nameless.prisma, {
+      companyId: 'co-A',
+      leadName: '',
+    });
+    expect(gap.missingByType.commercial_proposal).toEqual([
+      { side: 'organization', label: 'название заказчика' },
+    ]);
+
+    // Пробелы самого исполнителя видны и в КП: «проверять меньше» — не то
+    // же самое, что «не проверять»: без подписанта шапка предложения пуста.
+    const noSigner = leadPrisma({ company: { ...FULL, signerName: null } });
+    const companyGap = await getLeadDocumentIssuePanel(noSigner.prisma, LEAD_ARGS);
+    expect(companyGap.missingByType.commercial_proposal).toEqual([
+      { side: 'company', label: 'подписант исполнителя (ФИО)' },
+    ]);
+  });
+
+  it('компания не прочиталась — срок 14 дней, ставки нет, недостающее не выдумывается', async () => {
+    const { prisma } = leadPrisma({ company: null });
+
+    const panel = await getLeadDocumentIssuePanel(prisma, LEAD_ARGS);
+
+    expect(panel.proposalValidDays).toBe(14);
+    // УСН и «компания не прочиталась» дают одинаковый пустой ответ, а не ноль.
+    expect(panel.defaultVatRate).toBeNull();
+    // Одной стороны нет — список недостающего пуст (гейт выпуска всё
+    // равно откажет), панель просто рисуется.
+    expect(panel.missingByType.commercial_proposal).toEqual([]);
+    expect(panel.catalog).toEqual([]);
   });
 });

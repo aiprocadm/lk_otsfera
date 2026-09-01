@@ -29,6 +29,8 @@ describe('canReadDocument -- channel isolation', () => {
       id: 'd',
       orderId: 'o',
       order: { companyId: 'c' },
+      type: 'invoice',
+      status: 'issued',
       counterpartyType: 'organization' as const,
       counterpartyId: 'org1',
     };
@@ -43,6 +45,8 @@ describe('canReadDocument -- channel isolation', () => {
       id: 'd',
       orderId: 'o',
       order: { companyId: 'c' },
+      type: 'invoice',
+      status: 'issued',
       counterpartyType: 'organization' as const,
       counterpartyId: 'org1',
     };
@@ -55,6 +59,8 @@ describe('canReadDocument -- channel isolation', () => {
       id: 'd',
       orderId: 'o',
       order: { companyId: 'c' },
+      type: 'invoice',
+      status: 'issued',
       counterpartyType: 'partner' as const,
       counterpartyId: 'p1',
     };
@@ -66,6 +72,8 @@ describe('canReadDocument -- channel isolation', () => {
       id: 'd',
       orderId: 'o',
       order: { companyId: 'c' },
+      type: 'invoice',
+      status: 'issued',
       counterpartyType: 'partner' as const,
       counterpartyId: 'pX',
     };
@@ -77,6 +85,8 @@ describe('canReadDocument -- channel isolation', () => {
       id: 'd',
       orderId: 'o',
       order: { companyId: 'c' },
+      type: 'invoice',
+      status: 'issued',
       counterpartyType: 'partner' as const,
       counterpartyId: 'p1',
     };
@@ -89,6 +99,8 @@ describe('canReadDocument -- channel isolation', () => {
       id: 'd',
       orderId: 'o',
       order: { companyId: 'c' },
+      type: 'invoice',
+      status: 'issued',
       counterpartyType: 'partner' as const,
       counterpartyId: 'pX',
     };
@@ -105,6 +117,8 @@ describe('canReadDocument -- channel isolation', () => {
       id: 'd',
       orderId: 'o',
       order: { companyId: 'c' },
+      type: 'invoice',
+      status: 'issued',
       counterpartyType: 'organization' as const,
       counterpartyId: 'orgB',
     };
@@ -119,6 +133,8 @@ describe('canReadDocument -- channel isolation', () => {
       id: 'd',
       orderId: 'o',
       order: { companyId: 'c' },
+      type: 'invoice',
+      status: 'issued',
       counterpartyType: 'organization' as const,
       counterpartyId: 'org1',
     };

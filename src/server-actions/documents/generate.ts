@@ -8,8 +8,9 @@ import { isFeatureEnabled } from '@/lib/featureFlags';
 import { generateOrderDocument, type GenerateResult } from '@/lib/services/documents/generate';
 import { issueInputSchema, toGenerateArgs } from '@/lib/documents/issueInput';
 import { requestRequisites } from '@/lib/services/documents/requestRequisites';
-import { resolveOrgIssueScope } from '@/lib/services/documents/issueScope';
+import { resolveLeadIssueScope, resolveOrgIssueScope } from '@/lib/services/documents/issueScope';
 import {
+  getLeadDocumentIssuePanel,
   getOrgDocumentIssuePanel,
   type OrgDocumentIssuePanel,
 } from '@/lib/services/documents/generationPanel';
@@ -37,16 +38,77 @@ export async function generateOrderDocumentAction(fd: FormData): Promise<Generat
   if (!input.success) return { ok: false, error: 'not_found' };
 
   const res = await generateOrderDocument(prisma, session, toGenerateArgs(input.data));
-  if (res.ok) {
-    // `У-145`: у документа без заказа обновлять нужно карточку организации —
-    // адрес заказа для него не существует.
-    revalidatePath(
-      input.data.orderId
-        ? `/manager/orders/${input.data.orderId}`
-        : `/manager/organizations/${input.data.organizationId}`
-    );
-  }
+  if (res.ok) revalidatePath(issuedPagePath(input.data));
   return res;
+}
+
+/**
+ * Какую страницу обновить после выпуска — по ЦЕЛИ, а не по двум веткам.
+ *
+ * Целей три (`У-145`, `У-161`), и тернарник на две из них давал бы у КП лида
+ * адрес `/manager/organizations/undefined`: путь существует, ошибки нет, но
+ * обновляется страница, которой нет. Человек вернулся бы на карточку лида и
+ * не увидел там только что выпущенного предложения.
+ */
+function issuedPagePath(input: {
+  orderId?: string | undefined;
+  organizationId?: string | undefined;
+  leadId?: string | undefined;
+}): string {
+  if (input.orderId) return `/manager/orders/${input.orderId}`;
+  if (input.leadId) return `/manager/leads/${input.leadId}`;
+  return `/manager/organizations/${input.organizationId}`;
+}
+
+/**
+ * Данные формы выпуска для ЛИДА (`У-161`) — зеркало `orgIssuePanelAction`.
+ *
+ * Гейт здесь свой и ТОТ ЖЕ, что у выпуска (`resolveLeadIssueScope`): скрытая
+ * кнопка — это внешний вид, а не запрет (§4). Название клиента приходит из
+ * лида и в форму попадает уже проверенным сервером — подставить чужое имя
+ * через параметры нельзя.
+ */
+export type LeadIssuePanelResult =
+  | {
+      ok: true;
+      panel: OrgDocumentIssuePanel;
+      /**
+       * Заполнено, если у лида УЖЕ есть организация: тогда сервис выпустит
+       * документ на неё, и форма обязана целиться туда же. Молчаливая подмена
+       * цели означала бы, что человек ищет бумагу не там, где она оказалась.
+       */
+      organizationId: string | null;
+    }
+  | { ok: false; error: 'forbidden' | 'not_found' | 'no_company' | 'lead_not_active' };
+
+export async function leadIssuePanelAction(fd: FormData): Promise<LeadIssuePanelResult> {
+  if (!isFeatureEnabled('document_generation')) return { ok: false, error: 'forbidden' };
+  const session = await requireSession();
+  const leadId = typeof fd.get('leadId') === 'string' ? (fd.get('leadId') as string) : '';
+  if (!leadId) return { ok: false, error: 'not_found' };
+
+  const scope = await resolveLeadIssueScope(prisma, session, leadId);
+  if (!scope.ok) return scope;
+
+  // Лид уже стал организацией — форму открываем как организации: иначе
+  // человек увидел бы «предложение лиду», а документ ушёл бы на организацию
+  // (сервис подменяет цель молча, и форма обязана называть настоящего
+  // адресата).
+  if (scope.lead.organizationId) {
+    const orgScope = await resolveOrgIssueScope(prisma, session, scope.lead.organizationId);
+    if (!orgScope.ok) return { ok: false, error: 'not_found' };
+    const panel = await getOrgDocumentIssuePanel(prisma, {
+      organizationId: scope.lead.organizationId,
+      companyId: orgScope.companyId,
+    });
+    return { ok: true, panel, organizationId: scope.lead.organizationId };
+  }
+
+  const panel = await getLeadDocumentIssuePanel(prisma, {
+    companyId: scope.companyId,
+    leadName: scope.lead.clientCompanyName,
+  });
+  return { ok: true, panel, organizationId: null };
 }
 
 export type RequestRequisitesResult =

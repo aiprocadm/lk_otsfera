@@ -27,7 +27,13 @@ export const issueInputSchema = z
     orderId: z.string().min(1).optional(),
     /** Организация — цель документа **без заказа** (`У-145`). */
     organizationId: z.string().min(1).optional(),
-    docType: z.enum(['invoice', 'act', 'contract', 'extra_agreement']),
+    /**
+     * Лид — третья цель (`У-161`, этап 7). Клиента ещё нет в системе, поэтому
+     * ни заказа, ни организации у него нет. Сервис разрешает эту цель только
+     * коммерческому предложению; здесь проверяется лишь ФОРМА вызова.
+     */
+    leadId: z.string().min(1).optional(),
+    docType: z.enum(['invoice', 'act', 'contract', 'extra_agreement', 'commercial_proposal']),
     /** Строки формы; пусто — берётся состав заказа. */
     lines: z.array(lineSchema).max(200).optional(),
     onAmountMismatch: z.enum(['update_order', 'keep_order']).optional(),
@@ -42,11 +48,16 @@ export const issueInputSchema = z
     /** `У-151`: перевыпуск конкретного документа вместо выпуска нового. */
     reissueOfDocumentId: z.string().max(64).optional(),
   })
-  // `У-145`: цель ровно одна. Проверка формы, а не домена: «и заказ, и
-  // организация» — это сломанный вызов, а не отказ по правам, и ловить его
-  // должен вход, пока сервис не начал ходить в базу.
-  .refine((v) => !!v.orderId !== !!v.organizationId, {
-    message: 'Нужен либо заказ, либо организация',
+  // `У-145`, `У-161`: цель ровно ОДНА из трёх. Проверка формы, а не домена:
+  // «и заказ, и организация» — это сломанный вызов, а не отказ по правам, и
+  // ловить его должен вход, пока сервис не начал ходить в базу.
+  //
+  // Считаем заполненные цели, а не пишем `!!a !== !!b`: с тремя полями такое
+  // сравнение молча пропускает «все три сразу» (два `true` дают `false`, и
+  // третье поле не смотрят вовсе). Счётчик читается однозначно и переживёт
+  // четвёртую цель.
+  .refine((v) => [v.orderId, v.organizationId, v.leadId].filter(Boolean).length === 1, {
+    message: 'Нужна ровно одна цель: заказ, организация или лид',
     path: ['orderId'],
   });
 
@@ -83,6 +94,7 @@ export function toGenerateArgs(input: IssueInput): GenerateArgs {
   return {
     ...(input.orderId ? { orderId: input.orderId } : {}),
     ...(input.organizationId ? { organizationId: input.organizationId } : {}),
+    ...(input.leadId ? { leadId: input.leadId } : {}),
     docType: input.docType,
     ...(input.lines && input.lines.length > 0 ? { lines: input.lines } : {}),
     ...(input.onAmountMismatch ? { onAmountMismatch: input.onAmountMismatch } : {}),
