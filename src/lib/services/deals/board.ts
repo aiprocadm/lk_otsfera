@@ -18,9 +18,7 @@ function isStaff(session: SessionPayload): boolean {
 }
 
 function isLeaderOrAdmin(session: SessionPayload): boolean {
-  return (
-    session.role === 'admin' || isManagerLeader(session)
-  );
+  return session.role === 'admin' || isManagerLeader(session);
 }
 
 /** C8-скоуп PR-1: company-floor; рядовой менеджер дополнительно пришпилен к своим. */
@@ -44,6 +42,13 @@ export type DealCard = {
   amount: string | null;
   organizationId: string | null;
   organizationName: string | null;
+  /**
+   * `У-161` (этап 7): лид, из которого выросла сделка. Нужен карточке, чтобы
+   * решить, КОМУ выставлять коммерческое предложение: у сделки без
+   * организации адресат — этот лид, и без поля экран не смог бы даже
+   * показать кнопку.
+   */
+  leadId: string | null;
   managerId: string | null;
   managerName: string | null;
   status: 'open' | 'won' | 'lost';
@@ -79,6 +84,7 @@ export async function getDealBoard(
       expectedCloseAt: true,
       createdAt: true,
       organizationId: true,
+      leadId: true,
       managerId: true,
       organization: { select: { name: true } },
       manager: { select: { name: true } },
@@ -97,6 +103,7 @@ export async function getDealBoard(
       amount: d.amount ? d.amount.toFixed(2) : null,
       organizationId: d.organizationId,
       organizationName: d.organization?.name ?? null,
+      leadId: d.leadId,
       managerId: d.managerId,
       managerName: d.manager?.name ?? null,
       status: d.status,

@@ -33,6 +33,12 @@ export const issueInputSchema = z
      * коммерческому предложению; здесь проверяется лишь ФОРМА вызова.
      */
     leadId: z.string().min(1).optional(),
+    /**
+     * `У-166`: сделка, ПО КОТОРОЙ выставлен документ. Не цель выпуска —
+     * адресат всё равно организация или лид. Сервис сверяет, что сделка своей
+     * компании и про того же клиента.
+     */
+    dealId: z.string().min(1).optional(),
     docType: z.enum(['invoice', 'act', 'contract', 'extra_agreement', 'commercial_proposal']),
     /** Строки формы; пусто — берётся состав заказа. */
     lines: z.array(lineSchema).max(200).optional(),
@@ -95,6 +101,7 @@ export function toGenerateArgs(input: IssueInput): GenerateArgs {
     ...(input.orderId ? { orderId: input.orderId } : {}),
     ...(input.organizationId ? { organizationId: input.organizationId } : {}),
     ...(input.leadId ? { leadId: input.leadId } : {}),
+    ...(input.dealId ? { dealId: input.dealId } : {}),
     docType: input.docType,
     ...(input.lines && input.lines.length > 0 ? { lines: input.lines } : {}),
     ...(input.onAmountMismatch ? { onAmountMismatch: input.onAmountMismatch } : {}),

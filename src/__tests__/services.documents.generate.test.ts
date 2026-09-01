@@ -958,6 +958,77 @@ describe('generateOrderDocument — коммерческое предложен�
     ).toEqual({ ok: false, error: 'proposal_needs_no_order' });
   });
 
+  /**
+   * `У-166` (этап 7): предложение, выставленное ПО СДЕЛКЕ, должно найтись
+   * потом в её карточке. Связь приходит из формы, поэтому сервер сверяет её
+   * сам: чужая сделка означала бы чужую бумагу с ценами в чужих переговорах.
+   */
+  describe('связь со сделкой', () => {
+    const DEAL = { id: 'deal-9', companyId: 'co-A', organizationId: 'org-1', leadId: null };
+
+    it('своя сделка про того же клиента — связь записывается', async () => {
+      const { prisma, documentCreate } = makePrisma({ deal: DEAL });
+      const r = await generateOrderDocument(prisma, manager(), {
+        organizationId: 'org-1',
+        docType: 'commercial_proposal',
+        lines: LINES,
+        dealId: 'deal-9',
+      });
+      expect(r.ok).toBe(true);
+      const data = documentCreate.mock.calls[0]![0].data as Record<string, unknown>;
+      expect(data.dealId).toBe('deal-9');
+    });
+
+    it('сделка ЧУЖОЙ компании — отказ', async () => {
+      const { prisma } = makePrisma({ deal: { ...DEAL, companyId: 'co-B' } });
+      expect(
+        await generateOrderDocument(prisma, manager(), {
+          organizationId: 'org-1',
+          docType: 'commercial_proposal',
+          lines: LINES,
+          dealId: 'deal-9',
+        })
+      ).toEqual({ ok: false, error: 'deal_mismatch' });
+    });
+
+    it('сделка про ДРУГОГО клиента — отказ', async () => {
+      // Своя компания, но другая организация: бумага появилась бы в чужих
+      // переговорах, и заметил бы это менеджер той сделки, а не мы.
+      const { prisma } = makePrisma({ deal: { ...DEAL, organizationId: 'org-2' } });
+      expect(
+        await generateOrderDocument(prisma, manager(), {
+          organizationId: 'org-1',
+          docType: 'commercial_proposal',
+          lines: LINES,
+          dealId: 'deal-9',
+        })
+      ).toEqual({ ok: false, error: 'deal_mismatch' });
+    });
+
+    it('несуществующая сделка — отказ, а не тихое «без сделки»', async () => {
+      const { prisma } = makePrisma();
+      expect(
+        await generateOrderDocument(prisma, manager(), {
+          organizationId: 'org-1',
+          docType: 'commercial_proposal',
+          lines: LINES,
+          dealId: 'нет-такой',
+        })
+      ).toEqual({ ok: false, error: 'deal_mismatch' });
+    });
+
+    it('без указания сделки связи нет — и это не ошибка', async () => {
+      const { prisma, documentCreate } = makePrisma();
+      await generateOrderDocument(prisma, manager(), {
+        organizationId: 'org-1',
+        docType: 'commercial_proposal',
+        lines: LINES,
+      });
+      const data = documentCreate.mock.calls[0]![0].data as Record<string, unknown>;
+      expect(data.dealId).toBeUndefined();
+    });
+  });
+
   it('счёту срок действия в поле не пишется — это поле предложения', async () => {
     const { prisma, documentCreate } = makePrisma();
     await generateOrderDocument(prisma, manager(), {

@@ -64,6 +64,7 @@ const target: DealDialogTarget = {
   title: 'Сделка Ромашка',
   amount: '150.50',
   organizationId: 'org-1',
+  leadId: null,
   managerId: 'm-2',
   expectedCloseAt: new Date('2026-08-15T00:00:00.000Z'),
   orderId: null,
@@ -382,6 +383,55 @@ describe('DealDialog', () => {
 
       fireEvent.click(screen.getByText('stub-task-created'));
       await waitFor(() => expect(listLinkedTasksAction).toHaveBeenCalledTimes(2));
+    });
+  });
+
+  /**
+   * `У-161`, `У-145` (этап 7): блок «Документы» карточки сделки говорит РАЗНОЕ
+   * в трёх случаях, и это не косметика — от текста зависит, поймёт ли человек,
+   * почему кнопки нет.
+   */
+  describe('блок «Документы»', () => {
+    const renderEdit = (over: Partial<DealDialogTarget> = {}, onIssueDocument = vi.fn()) =>
+      render(
+        React.createElement(DealDialog, {
+          target: { ...target, ...over },
+          organizations,
+          managers,
+          currentUserId: 'u-me',
+          onClose,
+          onSaved,
+          onIssueDocument,
+        })
+      );
+
+    it('у сделки с организацией — весь набор документов', async () => {
+      renderEdit();
+      expect(await screen.findByRole('button', { name: 'Выпустить документ' })).toBeTruthy();
+      expect(
+        screen.getByText(/Счёт, договор, доп. соглашение или коммерческое предложение/)
+      ).toBeTruthy();
+    });
+
+    it('у сделки без организации, но с ЛИДОМ — только предложение', async () => {
+      // Счёт клиенту без реквизитов выставлять не на что, а предложение —
+      // ровно тот документ, который делают на этом шаге переговоров.
+      renderEdit({ organizationId: null, leadId: 'lead-7' });
+      expect(await screen.findByRole('button', { name: 'Выставить КП' })).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Выпустить документ' })).toBeNull();
+      expect(screen.getByText(/Клиент ещё не заведён как организация/)).toBeTruthy();
+    });
+
+    it('без организации и без лида — кнопки нет, но сказано, что сделать', async () => {
+      // Пустой блок без объяснения — дефект приёмки (§15): человек не поймёт,
+      // почему у этой сделки документов нет, а у соседней есть.
+      renderEdit({ organizationId: null, leadId: null });
+      await screen.findByText('Сделка');
+      expect(screen.queryByRole('button', { name: 'Выпустить документ' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Выставить КП' })).toBeNull();
+      expect(
+        screen.getByText(/привяжите к сделке организацию или заведите её из лида/)
+      ).toBeTruthy();
     });
   });
 
