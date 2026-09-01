@@ -143,8 +143,26 @@ describe('вёрстка коммерческого предложения (`У-
 describe('генератор читает шаблон и записывает редакцию', () => {
   const source = readFileSync(GENERATOR, 'utf8');
 
-  it('абзацы собираются одним вызовом — предпросмотру и выпуску негде разойтись', () => {
-    expect(source.match(/resolveDocumentClauses\(/g)).toHaveLength(1);
+  it('абзацы собирает ТОЛЬКО общий рендер — предпросмотру и выпуску негде разойтись', () => {
+    // Раньше здесь стояло «вызов ровно один». Проверка держалась на том, что
+    // тип с текстами один; с приходом КП (`У-162`) веток стало две, и счётчик
+    // покраснел, хотя инвариант цел. Инвариант на самом деле такой: сборкой
+    // абзацев занимается общий `renderDocument`, а предпросмотр и выпуск оба
+    // зовут ЕГО. Счёт вызовов был лишь приметой этого.
+    const cut = source.indexOf('export async function previewOrderDocument');
+    expect(cut, 'предпросмотр не найден — страж потерял ориентир').toBeGreaterThan(0);
+    const beforePublicApi = source.slice(0, cut);
+    const publicApi = source.slice(cut);
+
+    // Все вызовы сборки — до публичных функций, то есть внутри `renderDocument`.
+    expect(beforePublicApi.match(/resolveDocumentClauses\(/g)?.length ?? 0).toBeGreaterThan(0);
+    expect(
+      publicApi.match(/resolveDocumentClauses\(/g),
+      'предпросмотр или выпуск собирает абзацы САМ — тексты могут разойтись'
+    ).toBeNull();
+
+    // …и оба публичных пути идут через общий рендер.
+    expect(publicApi.match(/renderDocument\(/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
   });
 
   it('редакция шаблона доезжает до записи документа', () => {

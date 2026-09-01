@@ -13,6 +13,14 @@ import { isValidBankAccount, isValidOgrn } from '@/lib/requisites/checksum';
  * |---|---|---|
  * | Счёт, акт | юр. название, ИНН, адрес, **банк целиком**, подписант | юр. название, ИНН, **КПП** (для юрлиц), адрес |
  * | Договор, ДС | то же **+ основание полномочий** | то же **+ подписант и основание** |
+ * | **КП** (`У-161`) | юр. название, ИНН, адрес, подписант — **без банка** | **только название** |
+ *
+ * Пятый набор заведён именно НАБОРОМ, а не отключением проверки. «Проверять
+ * меньше» и «не проверять» — разные вещи: второе молча пропустило бы
+ * предложение без исполнителя в шапке. По КП не платят, поэтому банковских
+ * реквизитов у него нет; адресата может не быть в системе вовсе (`У-161`),
+ * поэтому от заказчика требуется только название — всё остальное появится к
+ * моменту счёта.
  *
  * Счёт платят по банковским реквизитам, поэтому у счёта они обязательны;
  * договор подписывают люди, поэтому у договора обязательны подписанты обеих
@@ -40,7 +48,8 @@ export type PartyRequisites = {
 
 export type MissingRequisite = { side: 'company' | 'organization'; label: string };
 
-export type RequisitesDocKind = 'invoice' | 'act' | 'contract' | 'extra_agreement';
+export type RequisitesDocKind =
+  'invoice' | 'act' | 'contract' | 'extra_agreement' | 'commercial_proposal';
 
 type Field = [keyof PartyRequisites, string];
 
@@ -122,6 +131,21 @@ export function listMissingRequisites(
   const missing: MissingRequisite[] = [];
 
   collect(company, 'company', COMPANY_BASE, missing);
+
+  // `У-161`: у коммерческого предложения свой, самый короткий набор. Выход
+  // отдельной веткой, а не серией `if`-ов ниже: смешавшись с договорными
+  // условиями, он потребовал бы от КП то подписанта заказчика, то КПП.
+  if (docType === 'commercial_proposal') {
+    if (!organization.legalName?.trim() && !organization.name?.trim()) {
+      missing.push({ side: 'organization', label: 'название заказчика' });
+    }
+    // Контрольные суммы проверяем и здесь: реквизит с опечаткой хуже
+    // отсутствующего — он выглядит готовым, а перекочует потом в счёт.
+    collectInvalid(company, 'company', 'исполнителя', missing);
+    collectInvalid(organization, 'organization', 'заказчика', missing);
+    return missing;
+  }
+
   if (!isContractKind(docType)) {
     collect(company, 'company', COMPANY_BANK, missing);
   } else if (!company.signerBasis?.trim()) {

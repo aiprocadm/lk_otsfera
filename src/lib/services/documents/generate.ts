@@ -4,7 +4,11 @@ import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
 import { canSeeOrder, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
-import { listMissingRequisites, type MissingRequisite } from '@/lib/documents/requisites-check';
+import {
+  listMissingRequisites,
+  type MissingRequisite,
+  type PartyRequisites,
+} from '@/lib/documents/requisites-check';
 import { getObjectStorage } from '@/lib/storage';
 import { notifyOrgUsers } from '@/lib/notifications';
 import { log } from '@/lib/logging';
@@ -15,6 +19,7 @@ import {
   type DocumentTemplateValues,
 } from '@/lib/documents/documentTemplate';
 import { renderContractDocumentPdf, type ContractDocumentData } from './contractDocumentPdf';
+import { renderProposalDocumentPdf, type ProposalDocumentData } from './proposalDocumentPdf';
 import {
   renderOrderDocumentPdf,
   type OrderDocumentData,
@@ -59,7 +64,13 @@ import { resolveOrgIssueScope } from './issueScope';
  * файл-сироту.
  */
 
-export type GenerateDocType = 'invoice' | 'act' | 'contract' | 'extra_agreement';
+export type GenerateDocType =
+  | 'invoice'
+  | 'act'
+  | 'contract'
+  | 'extra_agreement'
+  /** `У-161` (этап 7): единственный тип, который выпускается ЧЕРНОВИКОМ. */
+  | 'commercial_proposal';
 
 /** Что делать, когда сумма строк разошлась с суммой заказа (`У-143`). */
 export type AmountMismatchChoice = 'update_order' | 'keep_order';
@@ -101,6 +112,11 @@ export type GenerateArgs = {
   orderId?: string;
   /** Организация-заказчик документа **без заказа** (`У-145`). */
   organizationId?: string;
+  /**
+   * Лид-адресат (`У-161`) — только у коммерческого предложения. Третья и
+   * последняя цель выпуска; взаимоисключима с двумя другими.
+   */
+  leadId?: string;
   docType: GenerateDocType;
   now?: Date;
   /**
@@ -129,6 +145,7 @@ export type GenerateResult =
         | 'parent_not_found'
         | 'act_requires_order'
         | 'lines_required'
+        | 'lead_target_proposal_only'
         | 'leader_number_required'
         | 'reissue_not_found'
         | 'number_taken'
@@ -182,12 +199,15 @@ const LEADER_OF: Record<GenerateDocType, 'invoice' | 'contract' | null> = {
   act: 'invoice',
   contract: null,
   extra_agreement: 'contract',
+  // У КП основания нет: оно первое в цепочке, а не следует за чем-то.
+  commercial_proposal: null,
 };
 const NUMBER_PREFIX: Record<GenerateDocType, string> = {
   invoice: 'С',
   act: 'А',
   contract: 'Д',
   extra_agreement: 'ДС',
+  commercial_proposal: 'КП',
 };
 /** Последовательность номеров: счёт и договор нумеруются независимо. */
 const COUNTER_KIND: Record<GenerateDocType, string> = {
@@ -195,6 +215,11 @@ const COUNTER_KIND: Record<GenerateDocType, string> = {
   act: 'invoice',
   contract: 'contract',
   extra_agreement: 'contract',
+  // Своя последовательность (`У-163`): предложений выставляют кратно больше,
+  // чем договоров, и общий счётчик разогнал бы номера договоров до сотен за
+  // квартал. Исторических КП с номерами из общей последовательности нет —
+  // столкнуться не с чем, в отличие от акта (см. решение по `У-151`).
+  commercial_proposal: 'proposal',
 };
 
 function party(row: {
@@ -261,8 +286,22 @@ type IssueFailure = Extract<GenerateResult, { ok: false; error: string }>;
 type IssueTarget = {
   /** `null` — документ без заказа. */
   order: OrderRow | null;
-  organizationId: string;
+  /**
+   * `null` — КП, выставленное ЛИДУ (`У-161`): организации у него ещё нет.
+   * У всех остальных документов организация обязательна, как и была.
+   */
+  organizationId: string | null;
   companyId: string;
+  /** Лид-адресат: только у КП без организации. */
+  lead: LeadRow | null;
+};
+
+/** Лид как адресат КП (`У-161`) — всё, что о клиенте известно до сделки. */
+type LeadRow = {
+  id: string;
+  clientCompanyName: string;
+  clientContactName: string;
+  dealId: string | null;
 };
 
 type IssueContext = {
@@ -278,10 +317,31 @@ type IssueContext = {
      */
     total: string;
   } | null;
-  organizationId: string;
+  /** `null` — КП лиду (`У-161`). */
+  organizationId: string | null;
   companyId: string;
   company: PartyBlock;
+  /**
+   * Заказчик. У КП лида организации в базе нет, и здесь стоит СИНТЕТИЧЕСКИЙ
+   * блок: название из карточки лида, остальные поля пустые.
+   *
+   * Так сделано нарочно, вместо `PartyBlock | null`: почти весь код ниже
+   * (проверка реквизитов, подстановки шаблона, печать) хочет от заказчика
+   * ровно название. Сделай поле необязательным — и каждое из этих мест
+   * обросло бы своей веткой «а если пусто», причём молча: пропущенная
+   * означала бы не падение, а пустое место в бумаге.
+   */
   organization: PartyBlock;
+  /** Лид-адресат: только у КП без организации (`У-161`). */
+  lead: LeadRow | null;
+  /**
+   * Кто выпускает — подпись под коммерческим предложением (`У-163`).
+   *
+   * Телефон берётся у КОМПАНИИ: личного телефона у сотрудников в системе нет,
+   * а заводить поле профиля ради одной подписи — отдельная работа (вынесено
+   * заказчику спекой §3.5). Имя и почта — из сессии: они там уже есть.
+   */
+  manager: { name: string; email: string | null; phone: string | null };
   printLines: PrintLineInput[];
   table: ReturnType<typeof buildPrintTable>;
   branding: Awaited<ReturnType<typeof loadDocumentBranding>>;
@@ -361,7 +421,7 @@ async function loadOrderTarget(
 
   return {
     ok: true,
-    target: { order, organizationId: order.organizationId, companyId },
+    target: { order, organizationId: order.organizationId, companyId, lead: null },
   };
 }
 
@@ -391,7 +451,66 @@ async function loadOrganizationTarget(
       };
     return { ok: false, error: scope.error };
   }
-  return { ok: true, target: { order: null, organizationId, companyId: scope.companyId } };
+  return {
+    ok: true,
+    target: { order: null, organizationId, companyId: scope.companyId, lead: null },
+  };
+}
+
+/**
+ * Лид как цель выпуска — только для КП (`У-161`, решение спеки §3.1).
+ *
+ * **Компания берётся из СЕССИИ, и это единственное такое место в проекте.**
+ * У лида компании-исполнителя нет вовсе: в модели её не существует. Для всех
+ * прочих путей компания приходит ИЗ ДАННЫХ (из заказа или из организации), и
+ * комментарий `issueScope.ts` это гарантирует — здесь гарантия не действует и
+ * записана как исключение, чтобы её не приняли за недосмотр.
+ *
+ * Границу это не ослабляет: сотрудник выпускает бумагу от имени СВОЕЙ
+ * компании, чужую подставить неоткуда. У сотрудника без компании выпускать
+ * нечего — отказываем нехваткой реквизитов, а не «нет прав»: искать у себя
+ * недостающий доступ он будет напрасно.
+ */
+async function loadLeadTarget(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  leadId: string
+): Promise<{ ok: true; target: IssueTarget } | IssueFailure> {
+  if (!session.companyId)
+    return {
+      ok: false,
+      error: 'missing_requisites',
+      missing: [{ side: 'company', label: 'компания-исполнитель у вашей учётной записи' }],
+    };
+  const lead = await prisma.lead.findUnique({
+    where: { id: leadId },
+    select: {
+      id: true,
+      clientCompanyName: true,
+      clientContactName: true,
+      organizationId: true,
+      promotedDeal: { select: { id: true } },
+    },
+  });
+  if (!lead) return { ok: false, error: 'not_found' };
+  // У лида уже есть организация — значит и документы ему выставляют как
+  // организации: КП «в обход» создало бы вторую нить документов того же
+  // клиента, невидимую в его карточке.
+  if (lead.organizationId) return loadOrganizationTarget(prisma, session, lead.organizationId);
+  return {
+    ok: true,
+    target: {
+      order: null,
+      organizationId: null,
+      companyId: session.companyId,
+      lead: {
+        id: lead.id,
+        clientCompanyName: lead.clientCompanyName,
+        clientContactName: lead.clientContactName,
+        dealId: lead.promotedDeal?.id ?? null,
+      },
+    },
+  };
 }
 
 /**
@@ -405,12 +524,15 @@ async function loadOrganizationTarget(
  * бумага нужна человеку сейчас, а формулировка у неё останется той, что была
  * до этапа 6.
  */
-async function loadContractTemplate(
+async function loadDocumentTemplateOverrides(
   prisma: PrismaClient,
   companyId: string,
   docType: GenerateDocType
 ): Promise<ReadonlyMap<string, DocumentTemplateOverride>> {
-  if (docType !== 'contract' && docType !== 'extra_agreement') return new Map();
+  // `У-162`: у КП свои редактируемые абзацы, и без этой строки компания
+  // правила бы их в настройках впустую — печаталось бы встроенное.
+  if (docType !== 'contract' && docType !== 'extra_agreement' && docType !== 'commercial_proposal')
+    return new Map();
   try {
     const rows = await prisma.documentTemplate.findMany({
       where: { companyId },
@@ -444,31 +566,66 @@ async function loadIssueContext(
   if (!isStaffManagerSide(session) && session.role !== 'admin')
     return { ok: false, error: 'forbidden' };
 
-  // Ровно одна цель. «И заказ, и организация» или «ни того, ни другого» —
-  // сломанный вызов; отвечаем как на несуществующий объект, чтобы перебором
-  // нельзя было выяснить, что существует (§4).
-  if (!!args.orderId === !!args.organizationId) return { ok: false, error: 'not_found' };
+  // Ровно ОДНА цель из трёх. Две сразу или ни одной — сломанный вызов;
+  // отвечаем как на несуществующий объект, чтобы перебором нельзя было
+  // выяснить, что существует (§4).
+  const targets = [args.orderId, args.organizationId, args.leadId].filter(Boolean);
+  if (targets.length !== 1) return { ok: false, error: 'not_found' };
+
+  // `У-161`: лид как адресат бывает ТОЛЬКО у коммерческого предложения. Без
+  // этой проверки счёт можно было бы выставить клиенту, у которого нет ни
+  // организации, ни реквизитов, — и он ушёл бы в никуда.
+  if (args.leadId && args.docType !== 'commercial_proposal')
+    return { ok: false, error: 'lead_target_proposal_only' };
 
   const loaded = args.orderId
     ? await loadOrderTarget(prisma, session, args.orderId)
-    : await loadOrganizationTarget(prisma, session, args.organizationId ?? '');
+    : args.leadId
+      ? await loadLeadTarget(prisma, session, args.leadId)
+      : await loadOrganizationTarget(prisma, session, args.organizationId ?? '');
   if (!loaded.ok) return loaded;
-  const { order, organizationId, companyId } = loaded.target;
+  const { order, organizationId, companyId, lead } = loaded.target;
 
   // `У-145` перечисляет три типа без заказа: счёт, договор, ДС. Акт наследует
   // номер счёта ЗАКАЗА — наследовать без заказа нечего, поэтому запрет живёт
   // на сервере, а не только в наборе вариантов формы.
   if (!order && args.docType === 'act') return { ok: false, error: 'act_requires_order' };
 
-  const [company, organization] = await Promise.all([
+  const [company, organizationRow] = await Promise.all([
     prisma.company.findUnique({
       where: { id: companyId },
       // Ставка НДС по умолчанию нужна заказу без состава (`У-142`).
       select: { ...PARTY_SELECT, phone: true, email: true, defaultVatRate: true },
     }),
-    prisma.organization.findUnique({ where: { id: organizationId }, select: PARTY_SELECT }),
+    organizationId
+      ? prisma.organization.findUnique({ where: { id: organizationId }, select: PARTY_SELECT })
+      : null,
   ]);
-  if (!company || !organization) return { ok: false, error: 'not_found' };
+  if (!company) return { ok: false, error: 'not_found' };
+  if (organizationId && !organizationRow) return { ok: false, error: 'not_found' };
+
+  /**
+   * Заказчик для проверок, подстановок и печати. У КП лида организации нет —
+   * собираем СИНТЕТИЧЕСКИЙ блок из карточки лида: известно только название.
+   * Пустые поля здесь честны: реквизитов у этого клиента правда ещё нет, а
+   * `null` вместо блока заставил бы каждое место ниже завести свою ветку.
+   */
+  const organization: PartyRequisites & { name: string | null; signerBasis: string | null } =
+    organizationRow ?? {
+      name: lead?.clientCompanyName ?? null,
+      legalName: null,
+      inn: null,
+      kpp: null,
+      ogrn: null,
+      legalAddress: null,
+      bankName: null,
+      bankAccount: null,
+      corrAccount: null,
+      bic: null,
+      signerName: null,
+      signerPosition: null,
+      signerBasis: null,
+    };
 
   // `У-156`: набор обязательных реквизитов зависит от типа документа.
   const missing = listMissingRequisites(company, organization, args.docType);
@@ -516,7 +673,7 @@ async function loadIssueContext(
   // Оформление (`У-153`) читаем ДО транзакции: картинки не зависят от номера,
   // а держать транзакцию на время скачивания из хранилища незачем.
   const branding = await loadDocumentBranding(prisma, companyId);
-  const templateOverrides = await loadContractTemplate(prisma, companyId, args.docType);
+  const templateOverrides = await loadDocumentTemplateOverrides(prisma, companyId, args.docType);
 
   return {
     ok: true,
@@ -533,6 +690,14 @@ async function loadIssueContext(
       companyId,
       company: party(company),
       organization: party(organization),
+      lead,
+      manager: {
+        // Пустое имя в подписи хуже, чем формальное «Менеджер»: клиент видит
+        // письмо, у которого будто нет автора.
+        name: session.name?.trim() || 'Менеджер',
+        email: session.email ?? null,
+        phone: company.phone ?? null,
+      },
       printLines,
       table,
       branding,
@@ -613,8 +778,39 @@ async function renderDocument(
       templateSources: resolved.sources,
     };
   }
+  if (args.docType === 'commercial_proposal') {
+    const resolved = resolveDocumentClauses({
+      docType: 'commercial_proposal',
+      values: templateValues(ctx, args),
+      overrides: ctx.templateOverrides,
+    });
+    const proposalData: ProposalDocumentData = {
+      number,
+      date: ctx.documentDate,
+      validUntil: args.extras?.validUntil ?? null,
+      company: ctx.company,
+      // Контактное лицо есть только у лида: у организации адресат — сама
+      // организация, конкретного человека система не выбирает за менеджера.
+      addressee: {
+        name: ctx.organization.displayName,
+        contactName: ctx.lead?.clientContactName ?? null,
+      },
+      clauses: resolved.clauses,
+      table: ctx.table,
+      branding: ctx.branding,
+      manager: ctx.manager,
+      draftNote,
+    };
+    return {
+      buffer: await renderProposalDocumentPdf(proposalData),
+      templateVersion: resolved.usedRevision,
+      templateSources: resolved.sources,
+    };
+  }
+
   const data: OrderDocumentData = {
-    docType: args.docType,
+    // Сюда доходят только счёт и акт: договор, ДС и КП ушли ветками выше.
+    docType: args.docType as 'invoice' | 'act',
     number,
     date: ctx.documentDate,
     company: ctx.company,
@@ -682,12 +878,18 @@ export async function generateOrderDocument(
    */
   const siblingWhere: Prisma.DocumentWhereInput = order
     ? { orderId: order.id }
-    : {
-        orderId: null,
-        companyId,
-        counterpartyType: 'organization',
-        counterpartyId: organizationId,
-      };
+    : organizationId
+      ? {
+          orderId: null,
+          companyId,
+          counterpartyType: 'organization',
+          counterpartyId: organizationId,
+        }
+      : // `У-161`: у КП лида контрагента нет, и искать «соседей» по нему
+        // нельзя: `counterpartyId: null` в Prisma означает «IS NULL» и
+        // собрало бы предложения ВСЕХ лидов компании. Родня такой бумаги —
+        // документы того же лида.
+        { orderId: null, companyId, leadId: ctx.lead?.id ?? '' };
 
   // `У-143` (дефект `Д-8`): расхождение суммы строк с суммой заказа — вопрос
   // человеку, а не молчаливый выбор одной из двух цифр. Без заказа сверять не
@@ -856,7 +1058,14 @@ export async function generateOrderDocument(
   // сбойная попытка не оставляет за собой «занятое» имя.
   // Документ без заказа кладём под организацию: путь `orders/<id>/…` для него
   // назвал бы несуществующий заказ, а разбор хранилища идёт по префиксу.
-  const pathPrefix = order ? `orders/${order.id}` : `organizations/${organizationId}`;
+  // У КП лида организации нет — кладём под лид. Префикс называет то, что
+  // существует: `organizations/null/…` сделал бы разбор хранилища по префиксу
+  // бессмысленным.
+  const pathPrefix = order
+    ? `orders/${order.id}`
+    : organizationId
+      ? `organizations/${organizationId}`
+      : `leads/${ctx.lead?.id ?? 'unknown'}`;
   const path = `${pathPrefix}/generated/${args.docType}-v${reserved.version}-${randomUUID()}.pdf`;
   try {
     await getObjectStorage().upload(path, buffer, { contentType: 'application/pdf' });
@@ -886,7 +1095,10 @@ export async function generateOrderDocument(
           version: reserved.version,
           replacesDocumentId: reserved.previousId,
           parentDocumentId: reserved.parentId,
-          status: 'issued',
+          // `У-164`: КП — единственный тип, который рождается ЧЕРНОВИКОМ.
+          // Выставить предложение и не отправить его бессмысленно, поэтому
+          // «выставлен» у него нет вовсе (`PROPOSAL_FLOW`).
+          status: args.docType === 'commercial_proposal' ? 'draft' : 'issued',
           amountNet: table.subtotal,
           amountVat: table.vat,
           amountGross: table.gross,
@@ -898,8 +1110,18 @@ export async function generateOrderDocument(
           // аккуратность.
           companyId,
           ...(order ? { orderId: order.id } : {}),
-          counterpartyType: 'organization',
-          counterpartyId: organizationId,
+          // `У-161`: у КП лида контрагента НЕТ — заполнять его нечем, и база
+          // это разрешает только предложению (`Document_counterparty_*`).
+          // Заполняем «оба или ни одного»: половина не значит ничего.
+          ...(organizationId
+            ? { counterpartyType: 'organization' as const, counterpartyId: organizationId }
+            : { counterpartyType: null, counterpartyId: null }),
+          ...(ctx.lead ? { leadId: ctx.lead.id, dealId: ctx.lead.dealId } : {}),
+          // `У-162`: срок действия — поле документа, а не только строка в
+          // тексте. Считать «истекло» по напечатанным словам невозможно.
+          ...(args.docType === 'commercial_proposal'
+            ? { validUntil: args.extras?.validUntil ?? null }
+            : {}),
           uploadedById: session.sub,
           scanStatus: 'clean',
           scannedAt: now,
@@ -933,6 +1155,9 @@ export async function generateOrderDocument(
         after: {
           orderId: order?.id ?? null,
           organizationId,
+          // `У-161`: по журналу должно быть видно, КОМУ выставлено
+          // предложение, когда организации ещё нет.
+          leadId: ctx.lead?.id ?? null,
           docType: args.docType,
           number: reserved.number,
           version: reserved.version,
@@ -963,6 +1188,14 @@ export async function generateOrderDocument(
   }
 
   // Уведомление клиенту — best-effort (не откатывает выпуск).
+  //
+  // `У-164`: КП рождается ЧЕРНОВИКОМ, и черновик клиенту не показывают.
+  // Письмо «вам выпущен документ» о бумаге, которой он ещё не видит, только
+  // сбило бы с толку — уведомление уезжает в момент отправки. Организации у
+  // КП лида может не быть вовсе: писать некому по построению.
+  if (args.docType === 'commercial_proposal' || !organizationId) {
+    return { ok: true, documentId: created.id, number: reserved.number };
+  }
   try {
     await notifyOrgUsers(prisma, {
       organizationId,
