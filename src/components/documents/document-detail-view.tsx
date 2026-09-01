@@ -36,6 +36,7 @@ const TYPE_LABELS: Record<string, string> = {
   certificate: 'Сертификат',
   report: 'Отчёт',
   commission_statement: 'Расчёт комиссии',
+  commercial_proposal: 'Коммерческое предложение',
   other: 'Прочее',
 };
 
@@ -331,7 +332,11 @@ export function DocumentDetailView({
           <Row label="Формат файла">{doc.mimeType}</Row>
           <Row label="Подписан">{doc.signedAt ? fmtDate(doc.signedAt) : '—'}</Row>
           <Row label="Загрузил">{doc.uploadedByName ?? '—'}</Row>
-          <Row label={COUNTERPARTY_LABELS[doc.counterparty.type] ?? 'Контрагент'}>
+          <Row
+            label={
+              (doc.counterparty.type && COUNTERPARTY_LABELS[doc.counterparty.type]) || 'Контрагент'
+            }
+          >
             {doc.counterparty.name ?? '—'}
           </Row>
           <Row label="Заказ">

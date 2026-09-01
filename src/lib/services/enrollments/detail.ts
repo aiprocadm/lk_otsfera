@@ -113,8 +113,6 @@ export async function getEnrollmentRequest(
         d.id,
         await canReadDocument(session, {
           ...d,
-          counterpartyType: d.counterpartyType ?? undefined,
-          counterpartyId: d.counterpartyId ?? undefined,
           order: d.order?.companyId ? { companyId: d.order.companyId } : null,
         })
       );

@@ -105,7 +105,7 @@ export async function reissuePanelAction(fd: FormData): Promise<ReissuePanelResu
     };
   }
 
-  if (doc.companyId && doc.counterpartyType === 'organization') {
+  if (doc.companyId && doc.counterpartyType === 'organization' && doc.counterpartyId) {
     const panel = await getOrgDocumentIssuePanel(prisma, {
       organizationId: doc.counterpartyId,
       companyId: doc.companyId,

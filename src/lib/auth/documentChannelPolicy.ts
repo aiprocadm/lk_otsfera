@@ -77,7 +77,9 @@ export function partnerPortfolioDocumentsWhere(scope: {
  * existence leak).
  */
 export function documentInChannel(
-  doc: { counterpartyType: CounterpartyType; counterpartyId: string },
+  // `У-161`: контрагента может не быть (КП лиду). Такой документ не попадает
+  // ни в один клиентский канал — сравнение с `null` даёт `false` само.
+  doc: { counterpartyType: CounterpartyType | null; counterpartyId: string | null },
   channel: DocumentChannel
 ): boolean {
   return doc.counterpartyType === channel.type && doc.counterpartyId === channel.id;
@@ -123,7 +125,13 @@ export function canReadOrderLessDocument(
     partnerId?: string | null;
     companyId?: string | null;
   },
-  doc: { counterpartyType: CounterpartyType; counterpartyId: string; companyId: string | null }
+  // `У-161`: см. `documentInChannel` — документ без контрагента остаётся виден
+  // только сотрудникам своей компании, клиентские ветки на `null` не совпадут.
+  doc: {
+    counterpartyType: CounterpartyType | null;
+    counterpartyId: string | null;
+    companyId: string | null;
+  }
 ): boolean {
   if (session.role === 'admin') return true;
   // Контур менеджера (Р-Л-4): рядовой и руководитель — company-scoped.

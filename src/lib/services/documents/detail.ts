@@ -47,7 +47,9 @@ export type DocumentDetail = {
   acceptedAt: Date | null;
   /** Заказ, к которому относится документ (у общих документов — null). */
   order: { id: string; title: string; orderNumber: string | null } | null;
-  counterparty: { type: string; id: string; name: string | null };
+  // `У-161`: у коммерческого предложения лиду контрагента нет — все три поля
+  // пустые, карточка показывает прочерк.
+  counterparty: { type: string | null; id: string | null; name: string | null };
 };
 
 type Result = { ok: true; document: DocumentDetail } | { ok: false; error: DocumentDetailError };
@@ -55,9 +57,10 @@ type Result = { ok: true; document: DocumentDetail } | { ok: false; error: Docum
 /** Русское имя контрагента по типу и id (для шапки карточки). */
 async function counterpartyName(
   prisma: PrismaClient,
-  type: string,
-  id: string
+  type: string | null,
+  id: string | null
 ): Promise<string | null> {
+  if (!type || !id) return null;
   if (type === 'organization') {
     const org = await prisma.organization.findUnique({ where: { id }, select: { name: true } });
     return org?.name ?? null;

@@ -93,7 +93,11 @@ export async function sendDocumentToCustomer(
   if (!isLifecycleType(doc.type)) return { ok: false, error: 'not_sendable' };
   // Партнёр видит документы своего портфеля по скоупу (`У-155`) — рассылать
   // ему письма этой кнопкой не нужно, и адресата у неё нет.
-  if (doc.counterpartyType !== 'organization') return { ok: false, error: 'not_sendable' };
+  // `У-161`: у КП, выставленного лиду, контрагента нет вовсе — адресата у
+  // кнопки тоже нет. Проверяем оба поля: типы у них независимые, хотя база
+  // держит их «оба или ни одного» (`Document_counterparty_both_or_none`).
+  if (doc.counterpartyType !== 'organization' || !doc.counterpartyId)
+    return { ok: false, error: 'not_sendable' };
   if (!SENDABLE_STATUSES.has(doc.status)) return { ok: false, error: 'not_sendable' };
   if (doc.scanStatus === 'infected') return { ok: false, error: 'infected' };
 

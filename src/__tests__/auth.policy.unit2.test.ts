@@ -403,17 +403,93 @@ describe('canReadDocument', () => {
     expect(result).toBe(false);
   });
 
-  it('returns false when re-fetched doc has no counterpartyType', async () => {
-    documentFindUnique.mockResolvedValue({
+  /**
+   * Этап 7 (`У-161`): документ БЕЗ контрагента — это коммерческое предложение,
+   * выставленное лиду. Кабинета у такого адресата нет, сравнивать не с чем.
+   * До этапа 7 такая строка была невозможна, и правило было простое: «нет
+   * контрагента — нет доступа». Теперь строка возможна, и «отказать всем»
+   * означало бы, что сотрудник не может скачать собственное предложение.
+   *
+   * Новая граница: читают только свои сотрудники своей компании.
+   */
+  describe('документ без контрагента (КП лиду, `У-161`)', () => {
+    const NO_CP = {
       id: 'd',
       orderId: null,
-      companyId: null,
+      companyId: 'co-1',
       counterpartyType: null,
       counterpartyId: null,
       order: null,
+    };
+
+    it('администратор читает: он управляет всем через своё зеркало', async () => {
+      documentFindUnique.mockResolvedValue(NO_CP);
+      expect(await canReadDocument(ADMIN, { id: 'd', orderId: null })).toBe(true);
     });
-    const result = await canReadDocument(ADMIN, { id: 'd', orderId: null });
-    expect(result).toBe(false);
+
+    it('менеджер своей компании читает', async () => {
+      documentFindUnique.mockResolvedValue(NO_CP);
+      expect(await canReadDocument(MGR, { id: 'd', orderId: null })).toBe(true);
+    });
+
+    it('менеджер ЧУЖОЙ компании — отказ: граница компании держится и здесь', async () => {
+      documentFindUnique.mockResolvedValue({ ...NO_CP, companyId: 'co-2' });
+      expect(await canReadDocument(MGR, { id: 'd', orderId: null })).toBe(false);
+    });
+
+    it('руководитель своей компании читает', async () => {
+      documentFindUnique.mockResolvedValue(NO_CP);
+      const leader: SessionPayload = { sub: 'ld', role: 'leader', companyId: 'co-1' };
+      expect(await canReadDocument(leader, { id: 'd', orderId: null })).toBe(true);
+    });
+
+    /**
+     * Клиентские сессии несут `companyId` — его кладёт `buildSessionClaims`
+     * из строки пользователя ЛЮБОЙ роли. Поэтому проверка роли здесь
+     * несущая, а не украшение: без неё заказчик и партнёр той же
+     * компании-продавца прочитали бы предложение чужого лида просто потому,
+     * что компания совпала. Фикстуры ниже нарочно с совпадающей компанией —
+     * иначе отказ получался бы «сам собой», по пустому полю, и снятие
+     * проверки роли осталось бы незамеченным.
+     */
+    it('заказчик той же компании — отказ: предложение выставлено не ему', async () => {
+      documentFindUnique.mockResolvedValue(NO_CP);
+      const org: SessionPayload = {
+        ...ORG_USER,
+        companyId: 'co-1',
+      };
+      expect(await canReadDocument(org, { id: 'd', orderId: null })).toBe(false);
+    });
+
+    it('партнёр той же компании — отказ по той же причине', async () => {
+      documentFindUnique.mockResolvedValue(NO_CP);
+      const partner: SessionPayload = { ...PARTNER_ADMIN, companyId: 'co-1' };
+      expect(await canReadDocument(partner, { id: 'd', orderId: null })).toBe(false);
+    });
+
+    it('слушатель той же компании — отказ', async () => {
+      documentFindUnique.mockResolvedValue(NO_CP);
+      const student: SessionPayload = { ...STUDENT, companyId: 'co-1' };
+      expect(await canReadDocument(student, { id: 'd', orderId: null })).toBe(false);
+    });
+
+    it('компании у документа нет вовсе — отказ даже своему менеджеру', async () => {
+      // Пустая компания не должна совпадать с пустой компанией сессии: иначе
+      // документ-сирота открылся бы любому сотруднику без компании.
+      documentFindUnique.mockResolvedValue({ ...NO_CP, companyId: null });
+      const noCompany: SessionPayload = { sub: 'm2', role: 'manager' };
+      expect(await canReadDocument(noCompany, { id: 'd', orderId: null })).toBe(false);
+    });
+
+    it('компания берётся и с заказа, если на документе её нет', async () => {
+      documentFindUnique.mockResolvedValue({
+        ...NO_CP,
+        companyId: null,
+        orderId: 'o-1',
+        order: { companyId: 'co-1' },
+      });
+      expect(await canReadDocument(MGR, { id: 'd', orderId: null })).toBe(true);
+    });
   });
 
   it('partner: returns false when doc is for org channel, not partner', async () => {

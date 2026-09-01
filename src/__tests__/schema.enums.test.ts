@@ -40,6 +40,10 @@ describe('Schema enums (parsed from prisma/schema.prisma)', () => {
         'certificate',
         'report',
         'commission_statement',
+        // Этап 7 (`У-161`): коммерческое предложение — документ, а не отдельная
+        // сущность. Без него КП пришлось бы хранить рядом с остальными
+        // бумагами по своим правилам: свой список, свой номер, своё скачивание.
+        'commercial_proposal',
         'other',
       ])
     );

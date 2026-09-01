@@ -215,6 +215,7 @@ async function resolveDocument(
     select: {
       id: true,
       orderId: true,
+      companyId: true,
       counterpartyType: true,
       counterpartyId: true,
       order: {
@@ -245,6 +246,15 @@ async function resolveDocument(
       return !!session.partnerId && doc.order.partnerId === session.partnerId ? GRANTED : DENIED;
     }
     return orgInSession(session, doc.order.organizationId) ? GRANTED : DENIED;
+  }
+
+  // `У-161`: документ без контрагента — КП, выставленное лиду. Клиентского
+  // кабинета у такого адресата нет: поля читают только сотрудники своей
+  // компании (та же граница, что в `canReadDocument`).
+  if (!doc.counterpartyType || !doc.counterpartyId) {
+    if (session.role === 'admin') return GRANTED;
+    if (!isStaffManagerSide(session)) return DENIED;
+    return !!doc.companyId && doc.companyId === session.companyId ? GRANTED : DENIED;
   }
 
   // Общий документ (без заказа) — доступ по контрагенту. CounterpartyType —

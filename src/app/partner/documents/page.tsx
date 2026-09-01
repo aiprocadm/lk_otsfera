@@ -21,6 +21,7 @@ const VALID_TYPES: DocumentType[] = [
   'certificate',
   'report',
   'commission_statement',
+  'commercial_proposal',
   'other',
 ];
 
@@ -33,6 +34,7 @@ const TYPE_LABELS: Record<DocumentType, string> = {
   certificate: 'Сертификаты',
   report: 'Отчёты',
   commission_statement: 'Комиссия',
+  commercial_proposal: 'Коммерческие предложения',
   other: 'Прочее',
 };
 
