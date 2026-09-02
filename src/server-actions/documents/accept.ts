@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db/prisma';
 import { requireSession } from '@/lib/auth/requireRole';
 import { acceptDocument, type AcceptDocumentResult } from '@/lib/services/documents/accept';
 import { acceptProposal, type AcceptProposalResult } from '@/lib/services/documents/acceptProposal';
+import { rejectProposal, type RejectProposalResult } from '@/lib/services/documents/rejectProposal';
 
 /**
  * «Принять» документ заказчиком (`У-150`) — тонкий адаптер над сервисом:
@@ -39,5 +40,22 @@ export async function acceptProposalAction(fd: FormData): Promise<AcceptProposal
     revalidatePath(`/organization/documents/${documentId}`);
     revalidatePath(`/manager/orders/${res.orderId}`);
   }
+  return res;
+}
+
+/**
+ * «Отклонить» коммерческое предложение заказчиком (`У-165`) — тонкий адаптер:
+ * сессия и форма входа здесь, обязательность причины и запись — в сервисе.
+ */
+export async function rejectProposalAction(fd: FormData): Promise<RejectProposalResult> {
+  const session = await requireSession();
+  const documentId = typeof fd.get('documentId') === 'string' ? String(fd.get('documentId')) : '';
+  if (!documentId) return { ok: false, error: 'not_found' };
+  // Пустую причину не отсекаем здесь: правило «без причины нельзя» одно, и
+  // живёт оно в сервисе — иначе прямой вызов обошёл бы его.
+  const reason = typeof fd.get('reason') === 'string' ? String(fd.get('reason')) : '';
+
+  const res = await rejectProposal(prisma, session, { documentId, reason });
+  if (res.ok) revalidatePath(`/organization/documents/${documentId}`);
   return res;
 }

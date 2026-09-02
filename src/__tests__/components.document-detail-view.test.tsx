@@ -32,6 +32,7 @@ function doc(over: Partial<DocumentDetail> = {}): DocumentDetail {
     acceptedAt: null,
     payment: null,
     order: { id: 'ord1', title: 'Заказ', orderNumber: 'ON-1' },
+    rejectReason: null,
     counterparty: { type: 'organization', id: 'org1', name: 'ООО Ромашка' },
     ...over,
   };

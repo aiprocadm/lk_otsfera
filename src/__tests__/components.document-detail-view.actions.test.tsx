@@ -44,6 +44,7 @@ function doc(over: Partial<DocumentDetail> = {}): DocumentDetail {
     acceptedAt: null,
     payment: null,
     order: { id: 'ord1', title: 'Заказ', orderNumber: 'ON-1' },
+    rejectReason: null,
     counterparty: { type: 'organization', id: 'org1', name: 'ООО Ромашка' },
     ...over,
   };
@@ -211,6 +212,69 @@ describe('«Отправить заказчику» у сотрудника (У-
   it('черновик СЧЁТА отправить нельзя: послабление касается только предложения', () => {
     render(<DocumentDetailView document={doc({ status: 'draft' })} backHref="/x" canSend />);
     expect(screen.queryByText('Отправить заказчику')).toBeNull();
+  });
+
+  /**
+   * `У-165` (этап 7) — кнопки заказчика у коммерческого предложения.
+   */
+  it('заказчик видит «Принять предложение» и «Отклонить» у отправленного КП', () => {
+    render(
+      <DocumentDetailView
+        document={doc({ type: 'commercial_proposal', status: 'sent' })}
+        backHref="/x"
+        canAccept
+      />
+    );
+    expect(screen.getByText('Принять предложение')).toBeTruthy();
+    expect(screen.getByText('Отклонить')).toBeTruthy();
+  });
+
+  it('у сотрудника «Отклонить» НЕТ: отказ — ответ клиента, а не наше действие', () => {
+    // У сотрудника для «клиент отказался» есть аннулирование. Смешай их — и в
+    // отчёте о причинах отказов окажутся наши собственные опечатки.
+    render(
+      <DocumentDetailView
+        document={doc({ type: 'commercial_proposal', status: 'sent' })}
+        backHref="/x"
+      />
+    );
+    expect(screen.getByText('Принять предложение')).toBeTruthy();
+    expect(screen.queryByText('Отклонить')).toBeNull();
+  });
+
+  it('у черновика и у уже отклонённого предложения кнопок нет', () => {
+    for (const status of ['draft', 'rejected', 'accepted', 'expired']) {
+      const { unmount } = render(
+        <DocumentDetailView
+          document={doc({ type: 'commercial_proposal', status })}
+          backHref="/x"
+          canAccept
+        />
+      );
+      expect(screen.queryByText('Принять предложение'), status).toBeNull();
+      expect(screen.queryByText('Отклонить'), status).toBeNull();
+      unmount();
+    }
+  });
+
+  it('причина отказа показывается в карточке — ради неё отказ и просят пояснить', () => {
+    render(
+      <DocumentDetailView
+        document={doc({
+          type: 'commercial_proposal',
+          status: 'rejected',
+          rejectReason: 'Дорого, ждём скидку',
+        })}
+        backHref="/x"
+      />
+    );
+    expect(screen.getByText('Дорого, ждём скидку')).toBeTruthy();
+  });
+
+  it('у обычной бумаги строки «Причина отказа» нет вовсе', () => {
+    // Пустое «Причина отказа: —» у счёта только сбивает с толку.
+    render(<DocumentDetailView document={doc()} backHref="/x" />);
+    expect(screen.queryByText('Причина отказа')).toBeNull();
   });
 
   it('отклонённое и истёкшее предложение заново не отправляется', () => {

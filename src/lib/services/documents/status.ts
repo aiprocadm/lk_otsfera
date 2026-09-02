@@ -23,11 +23,7 @@ type InvalidTransition = {
 type NotLifecycle = { ok: false; error: 'not_lifecycle_type' };
 
 export type SetStatusResult =
-  | { ok: true }
-  | Forbidden
-  | NotFound
-  | InvalidTransition
-  | NotLifecycle;
+  { ok: true } | Forbidden | NotFound | InvalidTransition | NotLifecycle;
 
 /**
  * `actor` различает, кто двигает документ: сотрудник ЦО или заказчик.
@@ -41,7 +37,11 @@ export async function setDocumentStatus(
   args: {
     documentId: string;
     to: DocumentStatus;
-    /** Причина обязательна для аннулирования (`У-148`). */
+    /**
+     * Причина: обязательна для аннулирования (`У-148`) и для отказа клиента
+     * (`У-165`). Обязательность проверяет вызывающий — здесь только запись:
+     * дверь статусов не знает, кто и почему нажал.
+     */
     reason?: string | null;
   }
 ): Promise<SetStatusResult> {
@@ -69,6 +69,18 @@ export async function setDocumentStatus(
   if (args.to === 'cancelled') {
     data.cancelledAt = now;
     data.cancelReason = args.reason?.trim() || null;
+  }
+  if (args.to === 'rejected') {
+    /**
+     * `У-164`, `У-165`: отказ КЛИЕНТА — своя пара полей, а не `cancelReason`.
+     *
+     * «Аннулировал сотрудник» и «клиент сказал нет» — разные события с разными
+     * последствиями: первое означает нашу ошибку в бумаге, второе — ответ по
+     * существу, из которого делают выводы о цене. Свалив их в одно поле, мы
+     * потеряли бы возможность отличить одно от другого в отчёте и в журнале.
+     */
+    data.rejectedAt = now;
+    data.rejectReason = args.reason?.trim() || null;
   }
 
   await prisma.document.update({ where: { id: doc.id }, data });

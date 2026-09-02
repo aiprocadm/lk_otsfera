@@ -50,6 +50,12 @@ export type DocumentDetail = {
   order: { id: string; title: string; orderNumber: string | null } | null;
   // `У-161`: у коммерческого предложения лиду контрагента нет — все три поля
   // пустые, карточка показывает прочерк.
+  /**
+   * `У-165`: почему клиент отказался. Показывается менеджеру и самому
+   * клиенту — иначе причина, ради которой отказ и просят пояснить, не видна
+   * нигде, кроме базы.
+   */
+  rejectReason: string | null;
   counterparty: { type: string | null; id: string | null; name: string | null };
 };
 
@@ -97,6 +103,8 @@ export async function getDocumentDetail(
       // `У-164`: срок действия нужен расчёту «истекло» — карточка показывает
       // его сама, не дожидаясь ночной задачи.
       validUntil: true,
+      // `У-165`: причина отказа клиента.
+      rejectReason: true,
       amountGross: true,
       sentAt: true,
       acceptedAt: true,
@@ -171,6 +179,7 @@ export async function getDocumentDetail(
       order: doc.order
         ? { id: doc.order.id, title: doc.order.title, orderNumber: doc.order.orderNumber }
         : null,
+      rejectReason: doc.rejectReason,
       counterparty: {
         type: doc.counterpartyType,
         id: doc.counterpartyId,
