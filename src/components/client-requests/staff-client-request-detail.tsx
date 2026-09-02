@@ -22,10 +22,16 @@ export function StaffClientRequestDetail({
   cabinet,
   request,
   attachments,
+  canIssueProposal = false,
 }: {
   cabinet: 'admin' | 'manager' | 'leader';
   request: ClientRequestRow;
   attachments: ClientRequestAttachmentRow[];
+  /**
+   * `У-161`: показывать ли «Принять и выставить КП». Решает страница —
+   * выпуск документов гейтится флагом, а флаг читается на сервере.
+   */
+  canIssueProposal?: boolean;
 }) {
   const listHref = `/${cabinet}/requests`;
 
@@ -48,6 +54,7 @@ export function StaffClientRequestDetail({
           // Лид живёт в кабинете менеджера: у админа и руководителя своего
           // раздела лидов нет, поэтому ссылка ведёт туда, где он открывается.
           leadHrefBase="/manager/leads"
+          canIssueProposal={canIssueProposal}
         />
       }
     />

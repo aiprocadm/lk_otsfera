@@ -200,6 +200,10 @@ describe('convertToLead — happy', () => {
         partnerId: 'p1',
         organizationId: 'o1',
         createdByUserId: 'm1',
+        // `У-161` (этап 7): принял обращение — лид твой. Без ответственного
+        // менеджер с профилем «вижу только свои лиды» создавал лид, которого
+        // сам же не видел, и не мог ни открыть карточку, ни выставить КП.
+        assignedManagerId: 'm1',
         clientCompanyName: 'ООО Ромашка',
         clientInn: '7712345678',
         clientContactName: 'Иван Иванов',
@@ -268,5 +272,18 @@ describe('rejectClientRequest — happy', () => {
     if (!r.ok) throw new Error('expected ok');
     expect(update.mock.calls[0][0].data.rejectedReason).toBe('Отклонено');
     expect(recordAudit.mock.calls[0][1].after).toEqual({ reason: 'Отклонено' });
+  });
+});
+
+describe('convertToLead — ответственный (`У-161`)', () => {
+  it('созданный лид сразу закреплён за тем, кто принял обращение', async () => {
+    // Проверка отдельная, а не только внутри «happy»: это правило доступа, а
+    // не просто ещё одно поле. Уберите его — и второй шаг «принять и
+    // выставить КП» упрётся в «лид не найден» у половины менеджеров.
+    const { prisma, txLeadCreate } = db(request());
+    await convertToLead(prisma, MANAGER, { id: 'R1' });
+    const data = txLeadCreate.mock.calls[0]![0].data as Record<string, unknown>;
+    expect(data.assignedManagerId).toBe('m1');
+    expect(data.createdByUserId).toBe('m1');
   });
 });

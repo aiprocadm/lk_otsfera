@@ -31,5 +31,9 @@ export default async function ManagerRequestDetailPage({
     cabinet: 'manager',
     request: res.request,
     attachments: attachmentsResult.ok ? attachmentsResult.rows : [],
+    // `У-161`: «Принять и выставить КП» появляется только там, где выпуск
+    // документов вообще включён. Флаг читается на сервере — компонент
+    // клиентский и сам его прочесть не может.
+    canIssueProposal: isFeatureEnabled('document_generation'),
   });
 }

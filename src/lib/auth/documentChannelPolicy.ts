@@ -51,6 +51,19 @@ const CLIENT_HIDDEN_DRAFT_WHERE = {
   NOT: { type: 'commercial_proposal' as const, status: 'draft' },
 } as const;
 
+/**
+ * Тот же запрет для УЖЕ прочитанного документа — для путей, которые не строят
+ * выборку, а проверяют одну готовую строку (скачивание из кабинета заказчика).
+ *
+ * Отдельная функция, а не повтор условия на месте: канальный фильтр и эта
+ * проверка обязаны означать одно и то же, а два одинаковых условия в разных
+ * файлах расходятся при первой правке — ровно так и появилась дыра, которую
+ * она закрывает.
+ */
+export function isHiddenFromClient(doc: { type: string; status: string }): boolean {
+  return doc.type === 'commercial_proposal' && doc.status === 'draft';
+}
+
 export function organizationChannelWhere(organizationId: string): Prisma.DocumentWhereInput {
   return {
     counterpartyType: 'organization',
