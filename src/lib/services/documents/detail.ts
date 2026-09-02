@@ -16,6 +16,7 @@ import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { canReadDocument } from '@/lib/auth/policy';
 import { invoicePaymentState, type InvoicePaymentResult } from '@/lib/documents/invoicePayment';
+import { proposalDisplayStatus } from '@/lib/documents/proposalExpiry';
 
 type DocumentDetailError = 'not_found';
 
@@ -72,7 +73,9 @@ async function counterpartyName(
 export async function getDocumentDetail(
   prisma: PrismaClient,
   session: SessionPayload,
-  documentId: string
+  documentId: string,
+  /** «Сейчас» параметром — иначе границу суток нечем проверить в тесте. */
+  now?: Date
 ): Promise<Result> {
   const doc = await prisma.document.findUnique({
     where: { id: documentId },
@@ -91,6 +94,9 @@ export async function getDocumentDetail(
       createdAt: true,
       // `У-148`, `У-150`: состояние, сумма и отметки жизненного цикла.
       status: true,
+      // `У-164`: срок действия нужен расчёту «истекло» — карточка показывает
+      // его сама, не дожидаясь ночной задачи.
+      validUntil: true,
       amountGross: true,
       sentAt: true,
       acceptedAt: true,
@@ -147,7 +153,14 @@ export async function getDocumentDetail(
       scanReason: doc.scanReason,
       signedAt: doc.signedAt,
       createdAt: doc.createdAt,
-      status: doc.status,
+      /**
+       * `У-164`: состояние ДЛЯ ПОКАЗА. Задача истечения ходит ночью, а карточку
+       * могут открыть раньше — показывать «Отправлен» у предложения с
+       * вышедшим сроком значит предложить нажать «Принять» и получить отказ.
+       * Считаем здесь, на сервере: клиентский компонент, взявший «сейчас»
+       * сам, дал бы разные значения при отрисовке на сервере и в браузере.
+       */
+      status: proposalDisplayStatus(doc, now ?? new Date()),
       // Decimal через границу server→client не проходит. `?? null` покрывает и
       // документы, выпущенные до этапа 6: итогов у них нет (`У-146`).
       amountGross: gross === null ? null : gross.toFixed(2),

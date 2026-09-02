@@ -16,6 +16,7 @@ import {
   registerCertExpirySchedules,
   registerCalendarReminderSchedules,
   registerTaskDueSoonSchedules,
+  registerProposalExpirySchedules,
   registerSlaEscalationSchedules,
   loadPausedSchedulerIds,
 } from '@/lib/jobs/scheduling';
@@ -38,6 +39,7 @@ import { evaluateAlertsProcessor } from './processors/evaluate-alerts';
 import { certificateExpiryProcessor } from './processors/certificate-expiry';
 import { calendarReminderProcessor } from './processors/calendar-reminder';
 import { taskDueSoonProcessor } from './processors/task-due-soon';
+import { expireProposalsProcessor } from './processors/expire-proposals';
 import { slaEscalationProcessor } from './processors/sla-escalation';
 import { dispatchNotificationProcessor } from './processors/dispatch-notification';
 import { pollInboundEmailProcessor } from './processors/poll-inbound-email';
@@ -174,6 +176,8 @@ async function main() {
   startWorker('notifications.certificateExpiry', certificateExpiryProcessor as Processor);
   startWorker('notifications.calendarReminder', calendarReminderProcessor as Processor);
   startWorker('notifications.taskDueSoon', taskDueSoonProcessor as Processor);
+  // `У-164`: ежедневное истечение срока коммерческих предложений.
+  startWorker('docs.expireProposals', expireProposalsProcessor as Processor);
   startWorker('monitoring.slaEscalation', slaEscalationProcessor as Processor);
   startWorker('notifications.dispatch', dispatchNotificationProcessor as Processor);
   startWorker('inbound.email.poll', pollInboundEmailProcessor as Processor);
@@ -191,6 +195,7 @@ async function main() {
     const certExpirySchedules = await registerCertExpirySchedules();
     const calendarReminderSchedules = await registerCalendarReminderSchedules();
     const taskDueSoonSchedules = await registerTaskDueSoonSchedules();
+    const proposalExpirySchedules = await registerProposalExpirySchedules();
     const slaEscalationSchedules = await registerSlaEscalationSchedules(getQueue, patterns);
     for (const r of [
       ...syncSchedules,
@@ -199,6 +204,7 @@ async function main() {
       ...certExpirySchedules,
       ...calendarReminderSchedules,
       ...taskDueSoonSchedules,
+      ...proposalExpirySchedules,
       ...slaEscalationSchedules,
     ]) {
       log.info('[worker] schedule registered', {

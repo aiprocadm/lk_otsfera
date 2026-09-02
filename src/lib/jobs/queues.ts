@@ -12,6 +12,8 @@ export const QUEUE_NAMES = [
   'docs.generateCommissionXlsx',
   'docs.calculateMonthlyCommissions',
   'docs.scanDocument',
+  // `У-164` (этап 7): ежедневное истечение срока коммерческих предложений.
+  'docs.expireProposals',
   'notifications.dispatch',
   'monitoring.evaluateAlerts',
   'monitoring.slaEscalation',

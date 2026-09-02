@@ -1,6 +1,7 @@
 import type { PrismaClient, LeadStatus, Prisma } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { canSeeLead, leadWhereForLevel } from '@/lib/auth/accessProfile';
+import { proposalDisplayStatus } from '@/lib/documents/proposalExpiry';
 import { recordPiiAccess } from '@/lib/pii/record';
 
 /**
@@ -142,7 +143,9 @@ type LeadProposalRow = {
 export async function getManagerLead(
   prisma: PrismaClient,
   session: SessionPayload,
-  leadId: string
+  leadId: string,
+  /** «Сейчас» параметром — иначе границу суток нечем проверить в тесте. */
+  now?: Date
 ): Promise<ManagerLeadDetail | null> {
   const l = await prisma.lead.findUnique({
     where: { id: leadId },
@@ -180,6 +183,9 @@ export async function getManagerLead(
     select: {
       id: true,
       number: true,
+      // `type` нужен расчёту «истекло»: правило одно на все документы и
+      // проверяет тип само, а не полагается на то, что выборка уже сузила.
+      type: true,
       status: true,
       createdAt: true,
       validUntil: true,
@@ -217,7 +223,10 @@ export async function getManagerLead(
     proposals: proposals.map((p) => ({
       id: p.id,
       number: p.number,
-      status: p.status,
+      // `У-164`: истёкшее предложение показывается истёкшим сразу, не дожидаясь
+      // ночной задачи, — иначе менеджер увидит «Отправлен» у бумаги, которую
+      // клиент уже не примет.
+      status: proposalDisplayStatus(p, now ?? new Date()),
       createdAt: p.createdAt,
       validUntil: p.validUntil,
       amountGross: p.amountGross ? p.amountGross.toFixed(2) : null,
