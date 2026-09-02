@@ -71,6 +71,16 @@ export async function convertToLead(
         partnerId: r.partnerId,
         organizationId: r.organizationId,
         createdByUserId: session.sub,
+        /**
+         * Принял обращение — лид твой (`У-161`, этап 7).
+         *
+         * Раньше ответственный не ставился вовсе, и менеджер с профилем
+         * «вижу только свои лиды» создавал лид, которого сам же не видел:
+         * `canSeeLead` сравнивает именно это поле. Ни карточку открыть, ни
+         * предложение выставить он не мог — а причину пришлось бы искать в
+         * настройках доступа.
+         */
+        assignedManagerId: session.sub,
         clientCompanyName: r.companyName,
         clientInn: r.inn,
         clientContactName: r.contactName,

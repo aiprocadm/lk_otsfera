@@ -297,6 +297,40 @@ describe('services/organization/documents — listOrgDocuments', () => {
 });
 
 describe('services/organization/documents — getOrgDocumentForDownload', () => {
+  it('`У-164`: черновик КП не скачивается даже по прямой ссылке', async () => {
+    // Эта дверь сверяет только КАНАЛ — ни состояния, ни гейта чтения она не
+    // спрашивает. Значит клиент, знающий идентификатор документа, скачал бы
+    // неотправленное предложение со своей же ценой: списки его прячут, а
+    // ссылка отдавала бы файл.
+    const draft = await prisma.document.create({
+      data: {
+        name: 'kp-draft.pdf',
+        path: `p/${Date.now()}/kp`,
+        mimeType: 'application/pdf',
+        type: 'commercial_proposal',
+        status: 'draft',
+        direction: 'outgoing',
+        generatedBy: 'system',
+        companyId,
+        counterpartyType: 'organization',
+        counterpartyId: orgAId,
+      },
+      select: { id: true },
+    });
+
+    expect(await getOrgDocumentForDownload(prisma, orgAId, draft.id)).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
+
+    // Отправленное — отдаём: оно клиенту и адресовано.
+    await prisma.document.update({ where: { id: draft.id }, data: { status: 'sent' } });
+    const sent = await getOrgDocumentForDownload(prisma, orgAId, draft.id);
+    expect(sent.ok).toBe(true);
+
+    await prisma.document.delete({ where: { id: draft.id } });
+  });
+
   it('returns ok with path/mimeType/name for own clean document', async () => {
     const r = await getOrgDocumentForDownload(prisma, orgAId, docA1ContractId);
     expect(r.ok).toBe(true);

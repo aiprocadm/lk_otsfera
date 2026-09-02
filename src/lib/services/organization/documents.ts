@@ -4,6 +4,7 @@ import { documentDownloadName } from '@/lib/documents/fileName';
 import {
   organizationChannelWhere,
   documentInChannel,
+  isHiddenFromClient,
   orderBoundWhere,
   orderLessWhere,
 } from '@/lib/auth/documentChannelPolicy';
@@ -166,6 +167,8 @@ export async function getOrgDocumentForDownload(
       type: true,
       number: true,
       createdAt: true,
+      // `У-164`: черновик КП клиенту не отдаётся даже по прямой ссылке.
+      status: true,
     },
   });
 
@@ -175,6 +178,17 @@ export async function getOrgDocumentForDownload(
   if (!documentInChannel(doc, { type: 'organization', id: organizationId })) {
     return { ok: false, error: 'not_found' };
   }
+
+  /**
+   * `У-164`: ЧЕРНОВИК коммерческого предложения не скачивается.
+   *
+   * Списки его прячут канальным фильтром, а карточка — гейтом чтения, но эта
+   * дверь не спрашивает ни того, ни другого: она сверяет только канал. Значит
+   * клиент, знающий идентификатор документа, скачал бы неотправленное
+   * предложение со своей же ценой. Отвечаем «не найдено» — существование
+   * бумаги наружу не подтверждаем.
+   */
+  if (isHiddenFromClient(doc)) return { ok: false, error: 'not_found' };
 
   if (doc.scanStatus === 'infected') {
     return { ok: false, error: 'infected', scanReason: doc.scanReason ?? null };
