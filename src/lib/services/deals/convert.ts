@@ -91,7 +91,12 @@ export async function convertLeadToDeal(
 }
 
 export type WinDealResult =
-  | { ok: true; deal: Deal; order: Order }
+  /**
+   * `orderCreated: false` — заказ у сделки УЖЕ был (его создало принятие
+   * коммерческого предложения, `У-164`), и выигрыш только отметил сделку.
+   * Экран обязан сказать об этом человеку: «заказ создан» было бы неправдой.
+   */
+  | { ok: true; deal: Deal; order: Order; orderCreated: boolean }
   | { ok: false; error: 'forbidden' | 'not_found' | 'lifecycle_violation' | 'org_required' };
 
 /**
@@ -119,6 +124,11 @@ export async function winDeal(
       companyId: true,
       organizationId: true,
       managerId: true,
+      // `У-164`: у сделки заказ мог появиться раньше — при принятии
+      // коммерческого предложения. Без этого поля выигрыш создал бы ВТОРОЙ
+      // заказ, а первый (со строками из предложения) навсегда потерял бы
+      // связь со сделкой: `Deal.orderId` перезаписывался безусловно.
+      orderId: true,
       lead: { select: { partnerId: true } },
     },
   });
@@ -137,6 +147,33 @@ export async function winDeal(
   }
 
   const organizationId = deal.organizationId;
+  /**
+   * Заказ у сделки уже есть — значит его создало принятие предложения. Тогда
+   * выигрыш ничего не создаёт, а только отмечает сделку: второй заказ был бы
+   * дублем, а перезапись связи осиротила бы первый вместе с его составом.
+   *
+   * Запрещать выигрыш в таком случае нельзя — это нормальный путь: предложение
+   * приняли, потом отметили сделку выигранной.
+   */
+  const existing = deal.orderId
+    ? await prisma.order.findUnique({ where: { id: deal.orderId } })
+    : null;
+  if (existing) {
+    const updatedDeal = await prisma.deal.update({
+      where: { id: deal.id },
+      data: { status: 'won', wonAt: new Date(), stageId: persistStageId },
+    });
+    await recordAudit(prisma, {
+      userId: session.sub,
+      action: 'deal_won_order_created',
+      entity: 'deal',
+      entityId: deal.id,
+      // По журналу видно, что заказ в этот раз не создавали: он был раньше.
+      after: { orderId: existing.id, organizationId, orderCreated: false },
+    });
+    return { ok: true, deal: updatedDeal, order: existing, orderCreated: false };
+  }
+
   const { order, updatedDeal } = await prisma.$transaction(async (tx) => {
     // §10 ТЗ v0.5: новая заявка получает рабочий статус из справочника.
     const initialStatusId = await getInitialStatusId(tx);
@@ -168,5 +205,5 @@ export async function winDeal(
     after: { orderId: order.id, organizationId },
   });
 
-  return { ok: true, deal: updatedDeal, order };
+  return { ok: true, deal: updatedDeal, order, orderCreated: true };
 }

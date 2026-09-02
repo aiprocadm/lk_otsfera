@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db/prisma';
 import { requireSession } from '@/lib/auth/requireRole';
 import { acceptDocument, type AcceptDocumentResult } from '@/lib/services/documents/accept';
+import { acceptProposal, type AcceptProposalResult } from '@/lib/services/documents/acceptProposal';
 
 /**
  * «Принять» документ заказчиком (`У-150`) — тонкий адаптер над сервисом:
@@ -16,5 +17,27 @@ export async function acceptDocumentAction(fd: FormData): Promise<AcceptDocument
 
   const res = await acceptDocument(prisma, session, documentId);
   if (res.ok) revalidatePath(`/organization/documents/${documentId}`);
+  return res;
+}
+
+/**
+ * «Принять» коммерческое предложение (`У-164`) — отдельное действие, потому
+ * что и последствия другие: создаётся заказ и в него переносится состав.
+ *
+ * Обновляются ТРИ адреса: карточка документа в кабинете сотрудника и в
+ * кабинете заказчика (принять может и тот, и другой) и сам заказ — он либо
+ * только что появился, либо получил состав.
+ */
+export async function acceptProposalAction(fd: FormData): Promise<AcceptProposalResult> {
+  const session = await requireSession();
+  const documentId = typeof fd.get('documentId') === 'string' ? String(fd.get('documentId')) : '';
+  if (!documentId) return { ok: false, error: 'not_found' };
+
+  const res = await acceptProposal(prisma, session, { documentId });
+  if (res.ok) {
+    revalidatePath(`/manager/documents/${documentId}`);
+    revalidatePath(`/organization/documents/${documentId}`);
+    revalidatePath(`/manager/orders/${res.orderId}`);
+  }
   return res;
 }
