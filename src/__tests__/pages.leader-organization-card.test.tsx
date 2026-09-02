@@ -13,6 +13,11 @@ vi.mock('@/lib/services/manager/organizationCard', () => ({ getOrganizationCard 
 const { getFieldsForEntity } = vi.hoisted(() => ({ getFieldsForEntity: vi.fn() }));
 vi.mock('@/lib/services/customFields', () => ({ getFieldsForEntity }));
 
+// `У-166`: блок КП грузит сервис — здесь он подменён, страница ходит в базу
+// только через него.
+const { listOrganizationProposals } = vi.hoisted(() => ({ listOrganizationProposals: vi.fn() }));
+vi.mock('@/lib/services/documents/proposalBlocks', () => ({ listOrganizationProposals }));
+
 const { getAutoCreatedFrom1C } = vi.hoisted(() => ({ getAutoCreatedFrom1C: vi.fn() }));
 vi.mock('@/lib/services/organization/autoCreated', () => ({ getAutoCreatedFrom1C }));
 
@@ -34,13 +39,15 @@ vi.mock('@/components/manager/org-card-tabs', () => ({
     tabs: Array<{ key: string }>;
     settings?: React.ReactNode;
     documentsAction?: React.ReactNode;
+    proposals?: React.ReactNode;
   }) =>
     React.createElement(
       'div',
       { 'data-testid': 'org-card', 'data-active': props.activeTab },
       props.tabs.map((t) => t.key).join(','),
       props.settings,
-      props.documentsAction
+      props.documentsAction,
+      props.proposals
     ),
 }));
 // `У-99`: настройки собирает отдельный серверный компонент — он ходит в
@@ -69,6 +76,7 @@ beforeEach(() => {
   getOrganizationCard.mockResolvedValue({ id: 'org-1', name: 'ООО «Ромашка»' });
   getFieldsForEntity.mockResolvedValue([]);
   getAutoCreatedFrom1C.mockResolvedValue(null);
+  listOrganizationProposals.mockResolvedValue({ ok: true, rows: [] });
   isFeatureEnabled.mockReturnValue(false);
 });
 
@@ -202,5 +210,58 @@ describe('LeaderOrgDetailPage — вкладка «Настройки» (У-99)'
       })
     );
     expect(container.textContent).not.toContain('Создать документ');
+  });
+
+  /**
+   * `У-166`: карточка организации показывает КП отдельным блоком — как и
+   * карточка сделки. У руководителя ссылка ведёт в ЕГО раздел документов:
+   * увести человека в чужой кабинет значило бы сломать «где я» (§15).
+   */
+  it('блок КП рисуется во вкладке «Документы» и ведёт в свой раздел', async () => {
+    listOrganizationProposals.mockResolvedValue({
+      ok: true,
+      rows: [
+        {
+          id: 'kp-1',
+          number: 'КП-7',
+          status: 'sent',
+          amountGross: '120000.00',
+          sentAt: new Date('2026-09-01T00:00:00Z'),
+          validUntil: new Date('2026-09-10T00:00:00Z'),
+          createdAt: new Date('2026-09-01T00:00:00Z'),
+        },
+      ],
+    });
+    const { container } = await renderServerComponent(
+      LeaderOrgDetailPage({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({ tab: 'documents' }),
+      })
+    );
+    expect(container.textContent).toContain('Коммерческие предложения');
+    expect(container.querySelector('a[href="/leader/documents/kp-1"]')).toBeTruthy();
+    expect(listOrganizationProposals).toHaveBeenCalledWith({}, SESSION, {
+      organizationId: 'org-1',
+    });
+  });
+
+  it('на других вкладках за предложениями не ходим, а отказ сервиса блок не рисует', async () => {
+    // Лишний запрос на «Обзоре» — плата за то, чего человек не открывал.
+    await renderServerComponent(
+      LeaderOrgDetailPage({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+    expect(listOrganizationProposals).not.toHaveBeenCalled();
+
+    listOrganizationProposals.mockResolvedValue({ ok: false, error: 'forbidden' });
+    const { container } = await renderServerComponent(
+      LeaderOrgDetailPage({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({ tab: 'documents' }),
+      })
+    );
+    expect(container.textContent).not.toContain('Коммерческие предложения');
   });
 });

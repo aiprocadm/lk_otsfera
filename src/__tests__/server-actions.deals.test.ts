@@ -14,6 +14,7 @@ const {
   winDeal,
   addNoteToDeal,
   listDealNotes,
+  listDealProposals,
 } = vi.hoisted(() => ({
   requireSession: vi.fn(),
   revalidatePath: vi.fn(),
@@ -28,6 +29,7 @@ const {
   winDeal: vi.fn(),
   addNoteToDeal: vi.fn(),
   listDealNotes: vi.fn(),
+  listDealProposals: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireSession }));
@@ -37,6 +39,7 @@ vi.mock('@/lib/services/deals/board', () => ({ moveDeal }));
 vi.mock('@/lib/services/deals/crud', () => ({ createDeal, updateDeal }));
 vi.mock('@/lib/services/deals/convert', () => ({ convertLeadToDeal, winDeal }));
 vi.mock('@/lib/services/deals/notes', () => ({ addNoteToDeal, listDealNotes }));
+vi.mock('@/lib/services/documents/proposalBlocks', () => ({ listDealProposals }));
 vi.mock('@/lib/services/access/dealStages', () => ({
   listDealStages,
   createDealStage,
@@ -56,6 +59,7 @@ import {
   convertLeadToDealAction,
   addDealNoteAction,
   listDealNotesAction,
+  listDealProposalsAction,
 } from '@/server-actions/deals';
 
 const SESSION = { sub: 'u1', role: 'leader', companyId: 'co-A' };
@@ -280,6 +284,20 @@ describe('addDealNoteAction / listDealNotesAction (PR-2)', () => {
 
     listDealNotes.mockResolvedValue({ ok: false, error: 'not_found' });
     expect(await listDealNotesAction('d1')).toEqual({ ok: false, error: 'not_found' });
+  });
+});
+
+describe('listDealProposalsAction (`У-166`)', () => {
+  it('отдаёт результат сервиса как есть и не решает за него, кому можно', async () => {
+    // Экшен — тонкий адаптер (§3): своей проверки прав тут нет, иначе их стало
+    // бы две и они разошлись бы.
+    const rows = [{ id: 'kp-1', number: 'КП-1', status: 'sent' }];
+    listDealProposals.mockResolvedValue({ ok: true, rows });
+    expect(await listDealProposalsAction('d1')).toEqual({ ok: true, rows });
+    expect(listDealProposals).toHaveBeenCalledWith({}, SESSION, { dealId: 'd1' });
+
+    listDealProposals.mockResolvedValue({ ok: false, error: 'forbidden' });
+    expect(await listDealProposalsAction('d1')).toEqual({ ok: false, error: 'forbidden' });
   });
 });
 

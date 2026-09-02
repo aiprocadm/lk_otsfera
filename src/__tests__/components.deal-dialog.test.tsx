@@ -13,19 +13,25 @@ import {
 const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 
-const { createDealAction, updateDealAction, addDealNoteAction, listDealNotesAction } = vi.hoisted(
-  () => ({
-    createDealAction: vi.fn(),
-    updateDealAction: vi.fn(),
-    addDealNoteAction: vi.fn(),
-    listDealNotesAction: vi.fn(),
-  })
-);
+const {
+  createDealAction,
+  updateDealAction,
+  addDealNoteAction,
+  listDealNotesAction,
+  listDealProposalsAction,
+} = vi.hoisted(() => ({
+  createDealAction: vi.fn(),
+  updateDealAction: vi.fn(),
+  addDealNoteAction: vi.fn(),
+  listDealNotesAction: vi.fn(),
+  listDealProposalsAction: vi.fn(),
+}));
 vi.mock('@/server-actions/deals', () => ({
   createDealAction,
   updateDealAction,
   addDealNoteAction,
   listDealNotesAction,
+  listDealProposalsAction,
 }));
 
 const { toastSuccess, toastError } = vi.hoisted(() => ({
@@ -52,6 +58,7 @@ vi.mock('@/components/tasks/linked-tasks-panel', () => ({
 }));
 
 import { DealDialog, NewDealButton, type DealDialogTarget } from '@/components/deals/deal-dialog';
+import { STATUS_LABELS as DOC_STATUS_LABELS } from '@/lib/documents/statusMatrix';
 
 const organizations = [{ id: 'org-1', name: 'ООО Ромашка' }];
 const managers = [
@@ -92,6 +99,8 @@ describe('DealDialog', () => {
     vi.clearAllMocks();
     // PR-2: режим редактирования лениво грузит заметки — пустой список по умолчанию.
     listDealNotesAction.mockResolvedValue({ ok: true, rows: [] });
+    // `У-166`: предложения по сделке грузятся так же лениво — по умолчанию нет.
+    listDealProposalsAction.mockResolvedValue({ ok: true, rows: [] });
     HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
       this.setAttribute('open', '');
     });
@@ -463,6 +472,96 @@ describe('DealDialog', () => {
       await waitFor(() => expect(createDealAction).toHaveBeenCalledTimes(1));
       await waitFor(() => expect(screen.queryByText('Новая сделка')).toBeNull());
       await waitFor(() => expect(refresh).toHaveBeenCalled());
+    });
+  });
+
+  /**
+   * `У-166` (этап 7): блок «Коммерческие предложения» на карточке сделки.
+   *
+   * Смысл блока — чтобы менеджер перед звонком видел, что клиенту уже
+   * предлагали и на какую сумму, не уходя в раздел документов.
+   */
+  describe('блок «Коммерческие предложения»', () => {
+    const ROW = {
+      id: 'kp-1',
+      number: 'КП-7',
+      status: 'sent',
+      amountGross: '120000.00',
+      sentAt: new Date('2026-09-01T10:00:00Z'),
+      validUntil: new Date('2026-09-10T00:00:00Z'),
+      createdAt: new Date('2026-09-01T09:00:00Z'),
+    };
+    const renderEdit = () =>
+      render(
+        React.createElement(DealDialog, {
+          target,
+          organizations,
+          managers,
+          currentUserId: 'u-me',
+          onClose,
+          onSaved,
+        })
+      );
+
+    it('показывает номер, состояние, сумму и сроки со ссылкой на документ', async () => {
+      listDealProposalsAction.mockResolvedValue({ ok: true, rows: [ROW] });
+      renderEdit();
+
+      const link = (await screen.findByRole('link', { name: 'КП-7' })) as HTMLAnchorElement;
+      expect(link.getAttribute('href')).toBe('/manager/documents/kp-1');
+      const text = link.closest('li')?.textContent ?? '';
+      // Название состояния — из общего словаря документов (правило зеркала
+      // §0.2: один объект — одно слово во всех кабинетах), а не своё.
+      expect(text).toContain(DOC_STATUS_LABELS.sent);
+      expect(text).toContain('отправлено');
+      expect(text).toContain('действует до');
+      expect(listDealProposalsAction).toHaveBeenCalledWith(target.id);
+    });
+
+    it('без номера и без дат — понятные заглушки, а не пустые места', async () => {
+      // Черновик ещё не получил номер: «без номера» честнее пустоты, по
+      // которой не понять, оборвалась ли строка.
+      listDealProposalsAction.mockResolvedValue({
+        ok: true,
+        rows: [{ ...ROW, number: null, amountGross: null, sentAt: null, validUntil: null }],
+      });
+      renderEdit();
+
+      const link = await screen.findByRole('link', { name: 'без номера' });
+      const text = link.closest('li')?.textContent ?? '';
+      expect(text).toContain('не отправлено');
+      expect(text).toContain('без срока');
+    });
+
+    it('предложений нет или список не загрузился — блока нет вовсе', async () => {
+      // Пустой заголовок у сделки без КП — шум: он занимает место и ничего не
+      // сообщает.
+      for (const res of [
+        { ok: true, rows: [] },
+        { ok: false, error: 'forbidden' },
+      ]) {
+        listDealProposalsAction.mockResolvedValue(res);
+        renderEdit();
+        await screen.findByText('Сделка');
+        await waitFor(() => expect(listDealProposalsAction).toHaveBeenCalled());
+        expect(screen.queryByText('Коммерческие предложения')).toBeNull();
+        cleanupAll();
+      }
+    });
+
+    it('в режиме создания за предложениями не ходим: сделки ещё нет', async () => {
+      render(
+        React.createElement(DealDialog, {
+          target: null,
+          organizations,
+          managers,
+          currentUserId: 'u-me',
+          onClose,
+          onSaved,
+        })
+      );
+      await screen.findByText('Новая сделка');
+      expect(listDealProposalsAction).not.toHaveBeenCalled();
     });
   });
 });

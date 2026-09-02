@@ -14,6 +14,8 @@ import { getFieldsForEntity } from '@/lib/services/customFields';
 import { getAutoCreatedFrom1C } from '@/lib/services/organization/autoCreated';
 import { AutoCreatedBadge } from '@/components/organization/auto-created-badge';
 import { IssueOrderLessDocumentButton } from '@/components/documents/issue-order-less-document-button';
+import { ProposalsBlock } from '@/components/documents/proposals-block';
+import { listOrganizationProposals } from '@/lib/services/documents/proposalBlocks';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import { Breadcrumbs } from '@/components/ui';
 
@@ -64,6 +66,12 @@ export default async function LeaderOrgDetailPage({
   // вкладками сразу — под переключателем не должно висеть постороннее (`У-64`).
   const customFields =
     activeTab === 'settings' ? await getFieldsForEntity(prisma, session, 'organization', id) : null;
+  // `У-166`: предложения клиента — отдельным блоком и только на своей
+  // вкладке: на «Обзоре» этот запрос был бы лишним.
+  const proposals =
+    activeTab === 'documents'
+      ? await listOrganizationProposals(prisma, session, { organizationId: id })
+      : null;
   const autoCreated = await getAutoCreatedFrom1C(prisma, id);
 
   return (
@@ -97,6 +105,11 @@ export default async function LeaderOrgDetailPage({
           // выпуск проверяет сервер — кнопка только открывает форму.
           isFeatureEnabled('document_generation') ? (
             <IssueOrderLessDocumentButton organizationId={id} />
+          ) : null
+        }
+        proposals={
+          proposals?.ok ? (
+            <ProposalsBlock rows={proposals.rows} hrefBase="/leader/documents" />
           ) : null
         }
         settings={

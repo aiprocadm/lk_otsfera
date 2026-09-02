@@ -221,6 +221,35 @@ describe('getOrganizationCard — агрегация', () => {
     expect(card.kpis.totalRefunded).toBe('200.00');
   });
 
+  /**
+   * `У-145`: документы организации — это И бумаги её заказов, И бумаги БЕЗ
+   * заказа. Условие «документы её ЗАКАЗОВ» означало, что всё выпущенное
+   * кнопкой прямо над этим списком в него не попадает: человек выпускал счёт
+   * из карточки и не находил его там же.
+   */
+  it('во вкладку попадают и документы БЕЗ заказа — их выпускают из этой же карточки', async () => {
+    const orderLess = await prisma.document.create({
+      data: {
+        name: `g4-orderless-${Date.now()}.pdf`,
+        path: `g4/${Date.now()}/ol`,
+        mimeType: 'application/pdf',
+        type: 'commercial_proposal',
+        direction: 'outgoing',
+        generatedBy: 'system',
+        companyId: companyA,
+        counterpartyType: 'organization',
+        counterpartyId: orgA,
+      },
+      select: { id: true },
+    });
+
+    const card = await getOrganizationCard(prisma, leaderSession(), orgA);
+    await prisma.document.delete({ where: { id: orderLess.id } });
+    expect(card).not.toBeNull();
+    if (!card) return;
+    expect(card.documents.some((d) => d.id === orderLess.id)).toBe(true);
+  });
+
   it('лидер: карточка агрегирует обращения (inboundMessages)', async () => {
     const card = await getOrganizationCard(prisma, leaderSession(), orgA);
     expect(card).not.toBeNull();

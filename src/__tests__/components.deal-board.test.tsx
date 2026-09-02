@@ -13,6 +13,7 @@ const {
   winDealAction,
   addDealNoteAction,
   listDealNotesAction,
+  listDealProposalsAction,
 } = vi.hoisted(() => ({
   moveDealAction: vi.fn(),
   createDealAction: vi.fn(),
@@ -20,6 +21,7 @@ const {
   winDealAction: vi.fn(),
   addDealNoteAction: vi.fn(),
   listDealNotesAction: vi.fn(),
+  listDealProposalsAction: vi.fn(),
 }));
 vi.mock('@/server-actions/deals', () => ({
   moveDealAction,
@@ -28,6 +30,7 @@ vi.mock('@/server-actions/deals', () => ({
   winDealAction,
   addDealNoteAction,
   listDealNotesAction,
+  listDealProposalsAction,
 }));
 
 const { toastSuccess, toastError } = vi.hoisted(() => ({
@@ -181,6 +184,8 @@ describe('DealBoard', () => {
     vi.clearAllMocks();
     // Диалог редактирования лениво грузит заметки (PR-2) — пустой список по умолчанию.
     listDealNotesAction.mockResolvedValue({ ok: true, rows: [] });
+    // `У-166`: карточка сделки лениво тянет и предложения — по умолчанию пусто.
+    listDealProposalsAction.mockResolvedValue({ ok: true, rows: [] });
     HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
       this.setAttribute('open', '');
     });

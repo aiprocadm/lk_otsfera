@@ -3,10 +3,16 @@ import { notFound } from 'next/navigation';
 import { requireManagerLeader } from '@/lib/auth/requireRole';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { prisma } from '@/lib/db/prisma';
-import { getFunnelAnalytics, getPlanFact, monthRange } from '@/lib/services/leader/analytics';
+import {
+  getFunnelAnalytics,
+  getPlanFact,
+  getProposalConversion,
+  monthRange,
+} from '@/lib/services/leader/analytics';
 import { MonthPicker } from '@/components/leader/analytics/month-picker';
 import { FunnelAnalyticsPanel } from '@/components/leader/analytics/funnel-analytics-panel';
 import { PlanFactTable } from '@/components/leader/analytics/plan-fact-table';
+import { ProposalConversionPanel } from '@/components/leader/analytics/proposal-conversion-panel';
 
 import { PageHeader } from '@/components/ui/page-header';
 /**
@@ -44,11 +50,13 @@ export default async function LeaderAnalyticsPage({
   const { year, month } = parsePeriod(sp.month);
   const { from, to } = monthRange(year, month);
 
-  const [funnel, planFact] = await Promise.all([
+  const [funnel, planFact, proposals] = await Promise.all([
     getFunnelAnalytics(prisma, session, { from, to }),
     getPlanFact(prisma, session, { year, month }),
+    // `У-166`: конверсия предложений — тот же месяц, что у остальных блоков.
+    getProposalConversion(prisma, session, { year, month }),
   ]);
-  if (!funnel.ok || !planFact.ok) notFound();
+  if (!funnel.ok || !planFact.ok || !proposals.ok) notFound();
 
   const monthValue = `${year}-${String(month).padStart(2, '0')}`;
 
@@ -57,7 +65,7 @@ export default async function LeaderAnalyticsPage({
       <div>
         <PageHeader
           title="Аналитика"
-          subtitle="Конверсия воронки за период и выполнение плана продаж по менеджерам."
+          subtitle="Конверсия воронки и коммерческих предложений за период, выполнение плана продаж по менеджерам."
         />
       </div>
 
@@ -68,6 +76,8 @@ export default async function LeaderAnalyticsPage({
         cohort={funnel.cohort}
         perManager={funnel.perManager}
       />
+
+      <ProposalConversionPanel conversion={proposals.conversion} />
 
       <div>
         <h2 className="text-lg font-semibold text-[#111111] mb-3">План / факт</h2>

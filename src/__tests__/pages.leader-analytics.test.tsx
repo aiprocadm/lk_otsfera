@@ -12,12 +12,18 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 
-const { getFunnelAnalytics, getPlanFact, monthRange } = vi.hoisted(() => ({
+const { getFunnelAnalytics, getPlanFact, getProposalConversion, monthRange } = vi.hoisted(() => ({
   getFunnelAnalytics: vi.fn(),
   getPlanFact: vi.fn(),
+  getProposalConversion: vi.fn(),
   monthRange: vi.fn(),
 }));
-vi.mock('@/lib/services/leader/analytics', () => ({ getFunnelAnalytics, getPlanFact, monthRange }));
+vi.mock('@/lib/services/leader/analytics', () => ({
+  getFunnelAnalytics,
+  getPlanFact,
+  getProposalConversion,
+  monthRange,
+}));
 
 const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
@@ -37,6 +43,10 @@ vi.mock('@/components/leader/analytics/funnel-analytics-panel', () => ({
 vi.mock('@/components/leader/analytics/plan-fact-table', () => ({
   PlanFactTable: (props: unknown) =>
     React.createElement('div', { 'data-testid': 'plan-fact-table' }, JSON.stringify(props)),
+}));
+vi.mock('@/components/leader/analytics/proposal-conversion-panel', () => ({
+  ProposalConversionPanel: (props: unknown) =>
+    React.createElement('div', { 'data-testid': 'proposal-panel' }, JSON.stringify(props)),
 }));
 
 const SESSION = {
@@ -61,6 +71,19 @@ const FUNNEL_OK = {
   },
   perManager: [],
 };
+/** `У-166`: конверсия предложений за тот же месяц, что и остальные блоки. */
+const CONVERSION_OK = {
+  ok: true as const,
+  conversion: {
+    sent: 4,
+    accepted: 1,
+    rejected: 1,
+    expired: 0,
+    cancelled: 0,
+    pending: 2,
+    conversionPct: 25,
+  },
+};
 const PLAN_FACT_OK = {
   ok: true as const,
   rows: [],
@@ -79,6 +102,8 @@ describe('LeaderAnalyticsPage', () => {
     isFeatureEnabled.mockReset();
     getFunnelAnalytics.mockReset();
     getPlanFact.mockReset();
+    getProposalConversion.mockReset();
+    getProposalConversion.mockResolvedValue(CONVERSION_OK);
     monthRange.mockReset();
     nav.notFound.mockClear();
   });
@@ -146,6 +171,9 @@ describe('LeaderAnalyticsPage', () => {
     expect(monthRange).toHaveBeenCalledWith(2026, 5);
     expect(getFunnelAnalytics).toHaveBeenCalledWith({}, SESSION, { from, to });
     expect(getPlanFact).toHaveBeenCalledWith({}, SESSION, { year: 2026, month: 5 });
+    // Тот же период, что у плана/факта: разъехавшиеся месяцы на одном экране
+    // руководитель сравнивал бы как одно целое.
+    expect(getProposalConversion).toHaveBeenCalledWith({}, SESSION, { year: 2026, month: 5 });
     expect(getByTestId('month-picker').textContent).toBe('2026-05');
   });
 
@@ -173,6 +201,21 @@ describe('LeaderAnalyticsPage', () => {
     ).rejects.toThrow('NOT_FOUND');
   });
 
+  it('calls notFound() when getProposalConversion is not ok', async () => {
+    // Отказ отдаём отказом: нарисовать блок с нулями значило бы сказать
+    // «предложений не было», хотя мы просто не смогли посчитать.
+    isFeatureEnabled.mockReturnValue(true);
+    requireManagerLeader.mockResolvedValue(SESSION);
+    monthRange.mockReturnValue({ from: new Date('2026-05-01'), to: new Date('2026-06-01') });
+    getFunnelAnalytics.mockResolvedValue(FUNNEL_OK);
+    getPlanFact.mockResolvedValue(PLAN_FACT_OK);
+    getProposalConversion.mockResolvedValue({ ok: false, error: 'forbidden' });
+
+    await expect(
+      renderServerComponent(LeaderAnalyticsPage({ searchParams: sp('2026-05') }))
+    ).rejects.toThrow('NOT_FOUND');
+  });
+
   it('renders the page shell with both panels when everything succeeds', async () => {
     isFeatureEnabled.mockReturnValue(true);
     requireManagerLeader.mockResolvedValue(SESSION);
@@ -188,5 +231,6 @@ describe('LeaderAnalyticsPage', () => {
     expect(container.textContent).toContain('План / факт');
     expect(getByTestId('funnel-panel')).toBeTruthy();
     expect(getByTestId('plan-fact-table')).toBeTruthy();
+    expect(getByTestId('proposal-panel').textContent).toContain('"conversionPct":25');
   });
 });

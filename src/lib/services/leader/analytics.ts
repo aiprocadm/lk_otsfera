@@ -397,8 +397,7 @@ export async function upsertSalesTarget(
   session: SessionPayload,
   args: UpsertSalesTargetArgs
 ): Promise<{ ok: true } | { ok: false; error: UpsertSalesTargetError }> {
-  const isLeader =
-    session.role === 'admin' || isManagerLeader(session);
+  const isLeader = session.role === 'admin' || isManagerLeader(session);
   if (!isLeader || !session.companyId) return { ok: false, error: 'forbidden' };
   const companyId = session.companyId;
   const { managerId, year, month, targetAmount } = args;
@@ -451,4 +450,96 @@ export async function upsertSalesTarget(
   });
 
   return { ok: true };
+}
+
+/**
+ * `У-166` (этап 7) — конверсия коммерческих предложений «отправлено → принято».
+ *
+ * **Считается КОГОРТОЙ, а не двумя независимыми счётчиками.** Знаменатель —
+ * предложения, ОТПРАВЛЕННЫЕ за период; числитель — те же САМЫЕ бумаги, которые
+ * клиент принял, когда бы он это ни сделал.
+ *
+ * Наивный вариант («отправлено за период» ÷ «принято за период») делит числа
+ * из разных множеств: предложение, отправленное 20 января и принятое 3
+ * февраля, попадёт в знаменатель января и в числитель февраля. Февральская
+ * «конверсия» может выйти больше ста процентов, а январская останется
+ * заниженной навсегда. Формулировка требования — «сколько отправлено и сколько
+ * ИЗ НИХ принято» — этого не допускает.
+ *
+ * Следствия когорты, которые видно на экране, а не спрятано:
+ * - за ТЕКУЩИЙ месяц цифра всегда занижена: по вчерашним предложениям клиент
+ *   ещё думает. Поэтому рядом стоит «ждут ответа»;
+ * - цифра закрытого месяца может подрасти задним числом, если клиент ответит
+ *   позже. Это правильное поведение когорты — не «чините» его в наивную
+ *   сторону.
+ *
+ * **По стадиям сделок посчитать нельзя** (спека §3.8): стадии по умолчанию в
+ * базе не хранятся, и цифры врали бы. У документа есть компания, поэтому
+ * граница компании здесь чище, чем у лидов.
+ */
+export type ProposalConversion = {
+  /** Отправлено за период. */
+  sent: number;
+  /** Из них принято. */
+  accepted: number;
+  /** Из них клиент отклонил. */
+  rejected: number;
+  /** Из них истёк срок. */
+  expired: number;
+  /** Из них аннулировали сами. */
+  cancelled: number;
+  /** Из них ответа ещё нет. */
+  pending: number;
+  /**
+   * Доля принятых, 1 знак. `null` — не отправляли ничего: «не предлагали» и
+   * «предлагали, но никто не купил» — разные вещи, и ноль вместо прочерка
+   * сказал бы второе.
+   */
+  conversionPct: number | null;
+};
+
+export async function getProposalConversion(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  args: { year: number; month: number }
+): Promise<
+  | { ok: true; period: { from: Date; to: Date }; conversion: ProposalConversion }
+  | { ok: false; error: 'forbidden' | 'invalid_period' }
+> {
+  if (!isStaff(session) || !session.companyId) return { ok: false, error: 'forbidden' };
+  if (!isValidPeriod(args.year, args.month)) return { ok: false, error: 'invalid_period' };
+
+  const { from, to } = monthRange(args.year, args.month);
+  const rows = await prisma.document.findMany({
+    where: {
+      type: 'commercial_proposal',
+      companyId: session.companyId,
+      // Заменённая перевыпуском версия остаётся «отправленной» с прежней
+      // датой: без этого фильтра одно предложение считалось бы дважды.
+      supersededAt: null,
+      sentAt: { gte: from, lt: to },
+    },
+    select: { status: true },
+  });
+
+  const conversion: ProposalConversion = {
+    sent: rows.length,
+    accepted: rows.filter((r) => r.status === 'accepted').length,
+    rejected: rows.filter((r) => r.status === 'rejected').length,
+    expired: rows.filter((r) => r.status === 'expired').length,
+    cancelled: rows.filter((r) => r.status === 'cancelled').length,
+    // «Ждут ответа» — те, кто остался в «отправлено». Считаем остатком, а не
+    // отдельным фильтром: так сумма корзин всегда сходится с целым.
+    pending: 0,
+    conversionPct: null,
+  };
+  conversion.pending =
+    conversion.sent -
+    conversion.accepted -
+    conversion.rejected -
+    conversion.expired -
+    conversion.cancelled;
+  conversion.conversionPct = conversion.sent > 0 ? pct(conversion.accepted, conversion.sent) : null;
+
+  return { ok: true, period: { from, to }, conversion };
 }

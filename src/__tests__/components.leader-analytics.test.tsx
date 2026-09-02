@@ -19,7 +19,9 @@ vi.mock('@/server-actions/leader/analytics', () => ({ upsertSalesTargetAction })
 import { MonthPicker } from '@/components/leader/analytics/month-picker';
 import { FunnelAnalyticsPanel } from '@/components/leader/analytics/funnel-analytics-panel';
 import { PlanFactTable } from '@/components/leader/analytics/plan-fact-table';
+import { ProposalConversionPanel } from '@/components/leader/analytics/proposal-conversion-panel';
 import type {
+  ProposalConversion,
   StageSnapshot,
   CohortStats,
   ManagerFunnelRow,
@@ -367,5 +369,67 @@ describe('PlanFactTable', () => {
     const bar = container.querySelector('[data-testid="execution-bar"]') as HTMLElement;
     expect(bar).toBeTruthy();
     expect(bar.style.width).toBe('100%');
+  });
+});
+
+/**
+ * `У-166` (этап 7) — блок конверсии коммерческих предложений.
+ *
+ * Проверяем не вёрстку, а два обещания подписи: прочерк вместо нуля, когда
+ * предложений не было, и явная графа «ждут ответа» — без неё руководитель
+ * читал бы свежий месяц как провал продаж.
+ */
+describe('ProposalConversionPanel', () => {
+  const conv = (over: Partial<ProposalConversion> = {}): ProposalConversion => ({
+    sent: 10,
+    accepted: 2,
+    rejected: 1,
+    expired: 1,
+    cancelled: 1,
+    pending: 5,
+    conversionPct: 20,
+    ...over,
+  });
+
+  it('показывает все шесть чисел и долю принятых', () => {
+    const { container } = render(<ProposalConversionPanel conversion={conv()} />);
+    const text = container.textContent ?? '';
+    for (const label of [
+      'Отправлено',
+      'Приняли',
+      'Ждут ответа',
+      'Отклонили',
+      'Истёк срок',
+      'Аннулировано',
+    ])
+      expect(text).toContain(label);
+    expect(text).toContain('2 · 20%');
+    expect(text).toContain('10');
+  });
+
+  it('ничего не отправляли — ПРОЧЕРК, а не «0 %»', () => {
+    // «Не предлагали» и «предлагали, но никто не купил» — разные вещи.
+    const { container } = render(
+      <ProposalConversionPanel
+        conversion={conv({
+          sent: 0,
+          accepted: 0,
+          rejected: 0,
+          expired: 0,
+          cancelled: 0,
+          pending: 0,
+          conversionPct: null,
+        })}
+      />
+    );
+    expect(container.textContent).toContain('—');
+    expect(container.textContent).not.toContain('%');
+  });
+
+  it('объясняет, почему свежий месяц выглядит слабее: часть ещё думает', () => {
+    // Без этой строки падение цифры в начале месяца читалось бы как провал
+    // продаж, хотя это свойство календаря.
+    const { container } = render(<ProposalConversionPanel conversion={conv()} />);
+    expect(container.textContent).toContain('ждут ответа');
   });
 });

@@ -44,6 +44,7 @@ export function OrgCardTabs({
   settings,
   egrulAction,
   documentsAction,
+  proposals,
   hrefFor,
 }: {
   card: OrganizationCard;
@@ -75,6 +76,13 @@ export function OrgCardTabs({
    * передают её (а сервер запрещает выпуск и без этого).
    */
   documentsAction?: React.ReactNode;
+  /**
+   * `У-166`: блок «Коммерческие предложения» над списком документов. Как и
+   * кнопка выпуска, приходит от страницы своей роли: сроки и суммы КП видят
+   * сотрудники ЦО, а партнёру их показывать нельзя (§3.9 ТЗ) — он просто не
+   * передаёт этот узел, и запрет продублирован в сервисе.
+   */
+  proposals?: React.ReactNode;
   /**
    * Адрес вкладки. По умолчанию `?tab=<ключ>` — вкладка живёт на этой же
    * странице. Партнёру нужен другой ответ: «Документы» и «Настройки» у него
@@ -139,6 +147,7 @@ export function OrgCardTabs({
         ) : activeTab === 'documents' ? (
           <div className="space-y-3">
             {documentsAction && <div className="flex justify-end">{documentsAction}</div>}
+            {proposals}
             {renderSection(card, activeTab)}
           </div>
         ) : (
