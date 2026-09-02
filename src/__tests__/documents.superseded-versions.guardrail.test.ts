@@ -129,6 +129,10 @@ function collectDocumentQuerySites(): QuerySite[] {
  * заставляет ответить на вопрос «а этот список версию фильтрует?».
  */
 const GUARDED_SITES: Record<string, string> = {
+  'src/lib/services/documents/proposalBlocks.ts::listDealProposals':
+    'Блок «Коммерческие предложения» карточки сделки (`У-166`): у перевыпущенного КП тот же номер, и две строки читались бы как два предложения.',
+  'src/lib/services/documents/proposalBlocks.ts::listOrganizationProposals':
+    'Тот же блок на карточке организации.',
   'src/lib/services/organization/documents.ts::listOrgDocuments':
     'Раздел «Документы» кабинета заказчика — главный список, который читает клиент.',
   'src/lib/services/organization/dashboard.ts::attention':

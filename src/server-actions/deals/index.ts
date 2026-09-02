@@ -4,6 +4,10 @@ import { revalidatePath } from 'next/cache';
 import type { DealStatus } from '@prisma/client';
 import { str } from '@/lib/actions/form';
 import { prisma } from '@/lib/db/prisma';
+import {
+  listDealProposals,
+  type ProposalBlockResult,
+} from '@/lib/services/documents/proposalBlocks';
 import { requireSession } from '@/lib/auth/requireRole';
 import { moveDeal, type MoveDealError } from '@/lib/services/deals/board';
 import { createDeal, updateDeal, type DealInput } from '@/lib/services/deals/crud';
@@ -144,6 +148,16 @@ export async function listDealNotesAction(
 ): Promise<{ ok: true; rows: DealNoteRow[] } | { ok: false; error: 'forbidden' | 'not_found' }> {
   const session = await requireSession();
   return listDealNotes(prisma, session, { dealId });
+}
+
+/**
+ * `У-166`: список коммерческих предложений сделки — лениво, по открытию
+ * карточки. Грузить его для каждой карточки доски значило бы платить за то,
+ * чего человек не открывал.
+ */
+export async function listDealProposalsAction(dealId: string): Promise<ProposalBlockResult> {
+  const session = await requireSession();
+  return listDealProposals(prisma, session, { dealId });
 }
 
 export async function listDealStagesAction(): Promise<

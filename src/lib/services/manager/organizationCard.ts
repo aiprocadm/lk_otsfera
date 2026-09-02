@@ -281,7 +281,16 @@ export async function getOrganizationCard(
       // `У-151`: показываем действующую версию; заменённая осталась в
       // истории и открывается по прямой ссылке, но в списке путала бы.
       where: {
-        order: { organizationId: orgId },
+        /**
+         * `У-145`: документы организации — это И бумаги её заказов, И бумаги
+         * без заказа. Раньше условие звучало «документы её ЗАКАЗОВ», и всё,
+         * что выпущено кнопкой ПРЯМО НАД ЭТИМ СПИСКОМ, в него не попадало:
+         * человек выпускал счёт из карточки и не находил его там же.
+         */
+        OR: [
+          { order: { organizationId: orgId } },
+          { orderId: null, counterpartyType: 'organization', counterpartyId: orgId },
+        ],
         scanStatus: { not: 'infected' },
         supersededAt: null,
       },

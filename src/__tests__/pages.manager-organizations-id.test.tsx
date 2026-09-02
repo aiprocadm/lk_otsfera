@@ -29,6 +29,11 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 // `У-54`: карточка спрашивает журнал аудита, была ли организация заведена
 // импортом. По умолчанию — нет (обычная организация, плашки быть не должно).
+// `У-166`: блок КП грузит сервис — здесь он подменён, страница ходит в базу
+// только через него.
+const { listOrganizationProposals } = vi.hoisted(() => ({ listOrganizationProposals: vi.fn() }));
+vi.mock('@/lib/services/documents/proposalBlocks', () => ({ listOrganizationProposals }));
+
 const { getAutoCreatedFrom1C } = vi.hoisted(() => ({
   getAutoCreatedFrom1C: vi.fn(async () => null),
 }));
@@ -60,6 +65,7 @@ vi.mock('@/components/manager/org-card-tabs', () => ({
     employees?: React.ReactNode;
     settings?: React.ReactNode;
     documentsAction?: React.ReactNode;
+    proposals?: React.ReactNode;
   }) =>
     React.createElement(
       'div',
@@ -71,7 +77,8 @@ vi.mock('@/components/manager/org-card-tabs', () => ({
       JSON.stringify(props.card),
       props.employees,
       props.settings,
-      props.documentsAction
+      props.documentsAction,
+      props.proposals
     ),
 }));
 
@@ -90,6 +97,8 @@ describe('ManagerOrgDetailPage', () => {
     // По умолчанию оба флага выключены (opt-in) — вкладки «Обращения»/«Звонки» скрыты.
     isFeatureEnabled.mockReset();
     isFeatureEnabled.mockReturnValue(false);
+    listOrganizationProposals.mockReset();
+    listOrganizationProposals.mockResolvedValue({ ok: true, rows: [] });
   });
 
   it('calls notFound() when getOrganizationCard returns null', async () => {
@@ -358,5 +367,53 @@ describe('ManagerOrgDetailPage — вкладка «Настройки» (У-99)
       })
     );
     expect(container.textContent).not.toContain('Создать документ');
+  });
+
+  /**
+   * `У-166`: блок КП на карточке организации — тот же, что на карточке сделки
+   * (правило зеркала §0.2 ТЗ). Ссылка ведёт в раздел документов СВОЕГО
+   * кабинета.
+   */
+  it('блок КП рисуется во вкладке «Документы»', async () => {
+    requireManagerForOrg.mockResolvedValue(SESSION);
+    getOrganizationCard.mockResolvedValue(CARD);
+    listOrganizationProposals.mockResolvedValue({
+      ok: true,
+      rows: [
+        {
+          id: 'kp-1',
+          number: 'КП-7',
+          status: 'sent',
+          amountGross: '120000.00',
+          sentAt: new Date('2026-09-01T00:00:00Z'),
+          validUntil: new Date('2026-09-10T00:00:00Z'),
+          createdAt: new Date('2026-09-01T00:00:00Z'),
+        },
+      ],
+    });
+
+    const { container } = await renderServerComponent(
+      ManagerOrgDetailPage({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({ tab: 'documents' }),
+      })
+    );
+    expect(container.textContent).toContain('Коммерческие предложения');
+    expect(container.querySelector('a[href="/manager/documents/kp-1"]')).toBeTruthy();
+    expect(listOrganizationProposals).toHaveBeenCalledWith({}, SESSION, {
+      organizationId: 'org-1',
+    });
+  });
+
+  it('на других вкладках за предложениями не ходим', async () => {
+    requireManagerForOrg.mockResolvedValue(SESSION);
+    getOrganizationCard.mockResolvedValue(CARD);
+    await renderServerComponent(
+      ManagerOrgDetailPage({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+    expect(listOrganizationProposals).not.toHaveBeenCalled();
   });
 });

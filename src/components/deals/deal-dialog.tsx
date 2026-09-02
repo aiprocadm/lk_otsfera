@@ -11,9 +11,12 @@ import {
   updateDealAction,
   addDealNoteAction,
   listDealNotesAction,
+  listDealProposalsAction,
 } from '@/server-actions/deals';
 import { listLinkedTasksAction } from '@/server-actions/tasks';
 import type { DealNoteRow } from '@/lib/services/deals/notes';
+import type { ProposalBlockRow } from '@/lib/services/documents/proposalBlocks';
+import { ProposalsBlock } from '@/components/documents/proposals-block';
 import type { TaskCard } from '@/lib/services/tasks/board';
 import { LinkedTasksPanel } from '@/components/tasks/linked-tasks-panel';
 
@@ -80,6 +83,7 @@ export function DealDialog({
   const [messages, setMessages] = useState<string[]>([]);
   // Заметки (только редактирование): null — ещё грузятся.
   const [notes, setNotes] = useState<DealNoteRow[] | null>(null);
+  const [proposals, setProposals] = useState<ProposalBlockRow[] | null>(null);
   const [noteBody, setNoteBody] = useState('');
   const [noteBusy, setNoteBusy] = useState(false);
   // Задачи сделки (ФТ-7.1): null — ещё грузятся; ленивая подгрузка как у заметок.
@@ -102,6 +106,18 @@ export function DealDialog({
     let cancelled = false;
     void listDealNotesAction(targetId).then((res) => {
       if (!cancelled) setNotes(res.ok ? res.rows : []);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [targetId]);
+
+  // `У-166`: предложения по сделке — лениво, тем же приёмом, что заметки.
+  useEffect(() => {
+    if (!targetId) return;
+    let cancelled = false;
+    void listDealProposalsAction(targetId).then((res) => {
+      if (!cancelled) setProposals(res.ok ? res.rows : []);
     });
     return () => {
       cancelled = true;
@@ -242,6 +258,14 @@ export function DealDialog({
               onCreated={() => reloadTasks(target.id)}
             />
           )}
+        </div>
+      )}
+
+      {/* `У-166`: что уже предложено по этой сделке. Блок общий с карточкой
+          организации — правило зеркала (§0.2 ТЗ). */}
+      {target && proposals !== null && proposals.length > 0 && (
+        <div className="mt-4 border-t border-gray-200 pt-3">
+          <ProposalsBlock rows={proposals} hrefBase="/manager/documents" />
         </div>
       )}
 

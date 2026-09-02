@@ -12,6 +12,7 @@ import {
   monthRange,
   getFunnelAnalytics,
   getPlanFact,
+  getProposalConversion,
   upsertSalesTarget,
 } from '@/lib/services/leader/analytics';
 
@@ -714,5 +715,100 @@ describe('upsertSalesTarget', () => {
         after: { year: 2026, month: 7 },
       })
     );
+  });
+});
+
+/**
+ * `У-166` (этап 7) — конверсия коммерческих предложений.
+ *
+ * Главное здесь — что метрика КОГОРТНАЯ: знаменатель это предложения,
+ * ОТПРАВЛЕННЫЕ за период, а числитель — те же самые бумаги, которые клиент
+ * принял, когда бы он это ни сделал. Наивный вариант («принято за период»)
+ * делил бы числа из разных множеств и мог дать больше ста процентов.
+ */
+describe('getProposalConversion', () => {
+  const withDocs = (docs: Array<{ status: string }>) =>
+    fakePrisma({ document: { findMany: vi.fn().mockResolvedValue(docs) } });
+
+  it('клиентские роли и сотрудник без компании не проходят', async () => {
+    for (const session of [
+      { sub: 'p', role: 'partner', companyId: 'c1' },
+      { sub: 'o', role: 'organization', companyId: 'c1' },
+      { sub: 'm', role: 'manager' },
+    ]) {
+      expect(
+        await getProposalConversion(withDocs([]), session as never, { year: 2026, month: 9 })
+      ).toEqual({ ok: false, error: 'forbidden' });
+    }
+  });
+
+  it('кривой период отбивается до похода в базу', async () => {
+    expect(
+      await getProposalConversion(withDocs([]), leaderSession, { year: 2026, month: 13 })
+    ).toEqual({ ok: false, error: 'invalid_period' });
+  });
+
+  it('знаменатель — ОТПРАВЛЕННЫЕ за период, своей компании, без заменённых версий', async () => {
+    // Заменённая перевыпуском версия остаётся «отправленной» с прежней датой:
+    // без фильтра одно предложение считалось бы дважды.
+    const prisma = withDocs([]);
+    await getProposalConversion(prisma, leaderSession, { year: 2026, month: 9 });
+    const where = (prisma as never as { document: { findMany: { mock: { calls: unknown[][] } } } })
+      .document.findMany.mock.calls[0]![0] as { where: Record<string, unknown> };
+    expect(where.where).toMatchObject({
+      type: 'commercial_proposal',
+      companyId: 'c1',
+      supersededAt: null,
+    });
+    expect(where.where.sentAt).toBeTruthy();
+  });
+
+  it('считает корзины и долю принятых', async () => {
+    const res = await getProposalConversion(
+      withDocs([
+        { status: 'accepted' },
+        { status: 'accepted' },
+        { status: 'rejected' },
+        { status: 'expired' },
+        { status: 'cancelled' },
+        { status: 'sent' },
+        { status: 'sent' },
+        { status: 'sent' },
+        { status: 'sent' },
+        { status: 'sent' },
+      ]),
+      leaderSession,
+      { year: 2026, month: 9 }
+    );
+    expect(res.ok && res.conversion).toEqual({
+      sent: 10,
+      accepted: 2,
+      rejected: 1,
+      expired: 1,
+      cancelled: 1,
+      pending: 5,
+      conversionPct: 20,
+    });
+  });
+
+  it('ничего не отправляли — ПРОЧЕРК, а не ноль процентов', async () => {
+    // «Не предлагали» и «предлагали, но никто не купил» — разные вещи, и ноль
+    // сказал бы второе.
+    const res = await getProposalConversion(withDocs([]), leaderSession, { year: 2026, month: 9 });
+    expect(res.ok && res.conversion.conversionPct).toBeNull();
+    expect(res.ok && res.conversion.sent).toBe(0);
+  });
+
+  it('«ждут ответа» считается остатком: сумма корзин всегда сходится с целым', async () => {
+    // Отдельный фильтр по статусу разъехался бы с общим числом при появлении
+    // нового состояния — остаток не может.
+    const res = await getProposalConversion(
+      withDocs([{ status: 'accepted' }, { status: 'какое-то новое' }]),
+      leaderSession,
+      { year: 2026, month: 9 }
+    );
+    if (!res.ok) throw new Error('ожидался успех');
+    const c = res.conversion;
+    expect(c.accepted + c.rejected + c.expired + c.cancelled + c.pending).toBe(c.sent);
   });
 });
