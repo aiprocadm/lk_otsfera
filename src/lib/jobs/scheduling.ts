@@ -359,6 +359,55 @@ export async function registerCertExpirySchedules(
   return results;
 }
 
+export type ProposalExpirySchedule = {
+  queueName: Extract<QueueName, 'docs.expireProposals'>;
+  schedulerId: string;
+  pattern: string;
+  tz: string;
+};
+
+/**
+ * `У-164` (этап 7): истечение срока коммерческих предложений — ночью, в 01:00
+ * по Москве.
+ *
+ * Час, а не «как у всех дневных задач, в 07:00»: расчёт «истекло» на экране
+ * переворачивается в московскую полночь, и чем позже отработает задача, тем
+ * дольше карточка говорит «истёк срок», а в базе ещё «отправлен». Час даёт
+ * запас на перевод часов и дрейф времени, но оставляет восемь часов до начала
+ * рабочего дня. Заодно не толкается с 07:00, где уже стоят две задачи, и с
+ * 03:00, где идёт тяжёлая ночная сверка с 1С.
+ */
+export const PROPOSAL_EXPIRY_SCHEDULES: ReadonlyArray<ProposalExpirySchedule> = [
+  {
+    queueName: 'docs.expireProposals',
+    schedulerId: 'docs.expireProposals.cron',
+    pattern: '0 1 * * *',
+    tz: DEFAULT_SYNC_TZ,
+  },
+] as const;
+
+export async function registerProposalExpirySchedules(
+  getQueueFn: GetQueueFn = getQueue
+): Promise<Array<{ schedulerId: string; queueName: string; pattern: string; tz: string }>> {
+  const results = [];
+  const triggeredAt = new Date().toISOString();
+  for (const schedule of PROPOSAL_EXPIRY_SCHEDULES) {
+    const queue = getQueueFn(schedule.queueName);
+    await queue.upsertJobScheduler(
+      schedule.schedulerId,
+      { pattern: schedule.pattern, tz: schedule.tz },
+      { data: { triggeredAt, reason: 'cron' } }
+    );
+    results.push({
+      schedulerId: schedule.schedulerId,
+      queueName: schedule.queueName,
+      pattern: schedule.pattern,
+      tz: schedule.tz,
+    });
+  }
+  return results;
+}
+
 /**
  * Все расписания платформы одним списком — «id задачи → паттерн и пояс»
  * (`У-125`).
@@ -385,6 +434,7 @@ export const ALL_SCHEDULES: ReadonlyArray<{
   // `У-130`: интервал задачи SLA настраивается там же, где пороги.
   ...SLA_ESCALATION_SCHEDULES.map((s) => ({ ...s, editable: true })),
   ...CERT_EXPIRY_SCHEDULES.map((s) => ({ ...s, editable: false })),
+  ...PROPOSAL_EXPIRY_SCHEDULES.map((s) => ({ ...s, editable: false })),
 ].map(({ schedulerId, pattern, tz, editable }) => ({ schedulerId, pattern, tz, editable }));
 
 /** Паттерн по умолчанию для задачи; `null` — такой задачи в реестрах нет. */

@@ -359,7 +359,9 @@ describe('getManagerLead', () => {
       proposalRow('doc-1', { number: 'КП-7', status: 'sent' }),
     ]) as never;
 
-    const result = await getManagerLead(db, SESSION, 'L1');
+    // «Сейчас» задаётся явно: без него состояние зависело бы от дня прогона —
+    // срок у фикстуры 15.06, и в июле тест начал бы падать сам по себе.
+    const result = await getManagerLead(db, SESSION, 'L1', new Date('2026-06-10T09:00:00.000Z'));
 
     expect(result!.proposals).toHaveLength(1);
     expect(result!.proposals[0]).toMatchObject({
@@ -368,6 +370,28 @@ describe('getManagerLead', () => {
       status: 'sent',
       validUntil: new Date('2026-06-15'),
     });
+  });
+
+  it('`У-164`: истёкшее предложение показывается истёкшим сразу, до ночной задачи', async () => {
+    // Иначе менеджер увидит «Отправлен» у бумаги, которую клиент уже не
+    // примет, и будет ждать ответа, которого не будет.
+    const db = dbFor(fullRow(), [
+      proposalRow('doc-1', { number: 'КП-7', status: 'sent' }),
+    ]) as never;
+
+    const result = await getManagerLead(db, SESSION, 'L1', new Date('2026-06-16T09:00:00.000Z'));
+
+    expect(result!.proposals[0]).toMatchObject({ status: 'expired' });
+  });
+
+  it('черновик с прошедшей датой остаётся черновиком', async () => {
+    // Срок стоит уже у черновика, но клиенту его не отправляли — «Истёк срок»
+    // здесь был бы неправдой.
+    const db = dbFor(fullRow(), [proposalRow('doc-1', { status: 'draft' })]) as never;
+
+    const result = await getManagerLead(db, SESSION, 'L1', new Date('2026-06-16T09:00:00.000Z'));
+
+    expect(result!.proposals[0]).toMatchObject({ status: 'draft' });
   });
 
   it('не отдаёт заменённые версии предложения', async () => {
