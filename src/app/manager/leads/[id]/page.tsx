@@ -12,6 +12,7 @@ import { LeadStatusBadge } from '@/components/partner/lead-status-badge';
 import { ManagerLeadActions } from '@/components/manager/manager-lead-actions';
 import { PushLeadButton } from '@/components/manager/push-lead-button';
 import { IssueLeadProposalButton } from '@/components/documents/issue-order-less-document-button';
+import { CreateOrgFromLeadButton } from '@/components/manager/create-org-from-lead-button';
 import { STATUS_LABELS } from '@/lib/documents/statusMatrix';
 import { Breadcrumbs } from '@/components/ui';
 import { buildLeadBreadcrumbs } from '@/lib/navigation/breadcrumbs';
@@ -137,6 +138,17 @@ export default async function ManagerLeadDetailPage({
           lead.status !== 'promoted_to_order' && (
             <div className="mt-3">
               <IssueLeadProposalButton leadId={lead.id} />
+            </div>
+          )}
+        {/* `У-161`: клиент дозрел до договора — заводим ему организацию, и
+            выпущенные предложения переезжают вместе с ним. Кнопки нет там, где
+            организация уже есть или лид закрыт: сервер запрещает то же самое
+            отдельно (`already_linked`, `lead_not_active`). */}
+        {lead.organizationId === null &&
+          lead.status !== 'rejected' &&
+          lead.status !== 'promoted_to_order' && (
+            <div className="mt-3">
+              <CreateOrgFromLeadButton leadId={lead.id} />
             </div>
           )}
         {lead.organizationId === null &&
