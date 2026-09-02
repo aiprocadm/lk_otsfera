@@ -90,8 +90,34 @@ describe('setDocumentStatus', () => {
     expect(f.update.mock.calls[0]![0].data.cancelReason).toBe('выставлен по ошибке');
 
     const g = fake({ status: 'issued' });
-    await setDocumentStatus(g.prisma, session, { documentId: 'd1', to: 'cancelled', reason: '   ' });
+    await setDocumentStatus(g.prisma, session, {
+      documentId: 'd1',
+      to: 'cancelled',
+      reason: '   ',
+    });
     expect(g.update.mock.calls[0]![0].data.cancelReason).toBeNull();
     expect(recordAuditMock.mock.calls.at(-1)![1].after.reason).toBeNull();
+  });
+
+  /**
+   * `У-165` (этап 7) — отказ КЛИЕНТА пишется в СВОИ поля.
+   *
+   * «Аннулировал сотрудник» и «клиент сказал нет» — разные события: первое
+   * означает нашу ошибку в бумаге, второе — ответ по существу. Свалив их в
+   * одно поле, мы потеряли бы возможность отличить одно от другого в
+   * отчётности о причинах отказов.
+   */
+  it('отказ клиента ложится в `rejectedAt`/`rejectReason`, а не в поля аннулирования', async () => {
+    const f = fake({ type: 'commercial_proposal', status: 'sent' });
+    await setDocumentStatus(f.prisma, session, {
+      documentId: 'd1',
+      to: 'rejected',
+      reason: '  дорого  ',
+    });
+    const data = f.update.mock.calls[0]![0].data;
+    expect(data.rejectReason).toBe('дорого');
+    expect(data.rejectedAt).toBeInstanceOf(Date);
+    expect(data.cancelReason).toBeUndefined();
+    expect(data.cancelledAt).toBeUndefined();
   });
 });

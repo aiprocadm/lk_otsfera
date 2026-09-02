@@ -20,7 +20,11 @@ import type { DocumentDetail } from '@/lib/services/documents/detail';
 import { canSendFromStatus, STATUS_LABELS } from '@/lib/documents/statusMatrix';
 import { errorMessageRu } from '@/lib/errors/messages';
 import { toast } from '@/lib/ui/toast';
-import { acceptDocumentAction, acceptProposalAction } from '@/server-actions/documents/accept';
+import {
+  acceptDocumentAction,
+  acceptProposalAction,
+  rejectProposalAction,
+} from '@/server-actions/documents/accept';
 import { sendDocumentAction } from '@/server-actions/documents/send';
 import { setDocumentNumberAction } from '@/server-actions/documents/number';
 import { ReissueDocumentButton } from '@/components/documents/reissue-document-button';
@@ -176,6 +180,8 @@ export function DocumentDetailView({
   const [accepting, setAccepting] = useState(false);
   const [acceptError, setAcceptError] = useState<string | null>(null);
   const [accepted, setAccepted] = useState(doc.status === 'accepted');
+  // `У-165`: после отказа кнопки исчезают, не дожидаясь перезагрузки страницы.
+  const [rejected, setRejected] = useState(doc.status === 'rejected');
   // Принимают подписываемые бумаги. Счёт не принимают вручную: его состояние
   // определяют платежи (`У-148`), кнопка «Оплачено» у клиента была бы
   // способом объявить оплату, которой не было.
@@ -192,7 +198,15 @@ export function DocumentDetailView({
    * система считает просроченным, значит обещать несбыточное.
    */
   const showAcceptProposal =
-    doc.type === 'commercial_proposal' && doc.status === 'sent' && !accepted;
+    doc.type === 'commercial_proposal' && doc.status === 'sent' && !accepted && !rejected;
+  /**
+   * `У-165`: отклонить предложение может ТОЛЬКО заказчик — это его ответ по
+   * существу. У сотрудника для «клиент отказался» есть аннулирование, и
+   * смешивать их нельзя: иначе в отчёте о причинах отказов окажутся наши
+   * собственные опечатки. Поэтому кнопка живёт под тем же пропом, что и
+   * приёмка: он передаётся ровно в кабинете заказчика.
+   */
+  const showRejectProposal = canAccept && showAcceptProposal;
 
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
@@ -288,6 +302,26 @@ export function DocumentDetailView({
     );
   }
 
+  async function rejectProposalHere() {
+    // Причину спрашиваем ДО обращения к серверу: пустой ответ здесь ничем не
+    // отличается от «передумал нажимать», и беспокоить сервер незачем.
+    const reason = window.prompt('Почему предложение не подошло?');
+    if (reason === null) return;
+    setAccepting(true);
+    setAcceptError(null);
+    const fd = new FormData();
+    fd.set('documentId', doc.id);
+    fd.set('reason', reason);
+    const res = await rejectProposalAction(fd);
+    setAccepting(false);
+    if (!res.ok) {
+      setAcceptError(errorMessageRu(res.error));
+      return;
+    }
+    setRejected(true);
+    toast.success('Предложение отклонено — менеджер увидит вашу причину.');
+  }
+
   async function sendToCustomer() {
     setSending(true);
     setSendError(null);
@@ -369,6 +403,10 @@ export function DocumentDetailView({
           <Row label="Формат файла">{doc.mimeType}</Row>
           <Row label="Подписан">{doc.signedAt ? fmtDate(doc.signedAt) : '—'}</Row>
           <Row label="Загрузил">{doc.uploadedByName ?? '—'}</Row>
+          {/* `У-165`: причина отказа — то, ради чего его и просят пояснить.
+              Строки нет, пока отказа не было: пустое «Причина отказа: —» у
+              обычной бумаги только сбивает с толку. */}
+          {doc.rejectReason && <Row label="Причина отказа">{doc.rejectReason}</Row>}
           <Row
             label={
               (doc.counterparty.type && COUNTERPARTY_LABELS[doc.counterparty.type]) || 'Контрагент'
@@ -417,6 +455,15 @@ export function DocumentDetailView({
               onClick={() => void acceptProposalHere()}
             >
               {accepting ? 'Принимаю…' : 'Принять предложение'}
+            </Button>
+          )}
+          {showRejectProposal && (
+            <Button
+              variant="secondary"
+              disabled={accepting}
+              onClick={() => void rejectProposalHere()}
+            >
+              Отклонить
             </Button>
           )}
           {showSend && (
