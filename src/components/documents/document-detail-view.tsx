@@ -20,7 +20,7 @@ import type { DocumentDetail } from '@/lib/services/documents/detail';
 import { canSendFromStatus, STATUS_LABELS } from '@/lib/documents/statusMatrix';
 import { errorMessageRu } from '@/lib/errors/messages';
 import { toast } from '@/lib/ui/toast';
-import { acceptDocumentAction } from '@/server-actions/documents/accept';
+import { acceptDocumentAction, acceptProposalAction } from '@/server-actions/documents/accept';
 import { sendDocumentAction } from '@/server-actions/documents/send';
 import { setDocumentNumberAction } from '@/server-actions/documents/number';
 import { ReissueDocumentButton } from '@/components/documents/reissue-document-button';
@@ -181,6 +181,18 @@ export function DocumentDetailView({
   // способом объявить оплату, которой не было.
   const acceptable = ['act', 'contract', 'extra_agreement'].includes(doc.type);
   const showAccept = canAccept && acceptable && !accepted && doc.status !== 'cancelled';
+  /**
+   * `У-164`: принятие ПРЕДЛОЖЕНИЯ — другое действие с другими последствиями:
+   * заводится заказ и в него переносится состав. Поэтому и кнопка своя, и
+   * принимать её может не только заказчик: «согласовали по телефону» —
+   * обычный путь, и нажимает тогда менеджер.
+   *
+   * Принять можно только ОТПРАВЛЕННОЕ: черновик клиент не видел, а у
+   * истёкшего показ уже говорит «Истёк срок» — предлагать принять то, что
+   * система считает просроченным, значит обещать несбыточное.
+   */
+  const showAcceptProposal =
+    doc.type === 'commercial_proposal' && doc.status === 'sent' && !accepted;
 
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
@@ -251,6 +263,29 @@ export function DocumentDetailView({
     }
     setAccepted(true);
     toast.success('Документ принят.');
+  }
+
+  async function acceptProposalHere() {
+    setAccepting(true);
+    setAcceptError(null);
+    const fd = new FormData();
+    fd.set('documentId', doc.id);
+    const res = await acceptProposalAction(fd);
+    setAccepting(false);
+    if (!res.ok) {
+      setAcceptError(errorMessageRu(res.error));
+      return;
+    }
+    setAccepted(true);
+    // Говорим ровно то, что произошло: «заказ создан» и «состав не тронут» —
+    // разные исходы, и человек должен понимать, куда идти дальше.
+    toast.success(
+      res.keptExistingLines
+        ? 'Предложение принято. Состав заказа не менялся — в нём уже были строки.'
+        : res.orderCreated
+          ? `Предложение принято, создан заказ. Строк перенесено: ${res.linesTransferred}.`
+          : `Предложение принято. Строк перенесено в заказ: ${res.linesTransferred}.`
+    );
   }
 
   async function sendToCustomer() {
@@ -373,6 +408,15 @@ export function DocumentDetailView({
           {showAccept && (
             <Button variant="secondary" disabled={accepting} onClick={() => void accept()}>
               {accepting ? 'Принимаю…' : doc.type === 'act' ? 'Принять' : 'Подписать'}
+            </Button>
+          )}
+          {showAcceptProposal && (
+            <Button
+              variant="secondary"
+              disabled={accepting}
+              onClick={() => void acceptProposalHere()}
+            >
+              {accepting ? 'Принимаю…' : 'Принять предложение'}
             </Button>
           )}
           {showSend && (

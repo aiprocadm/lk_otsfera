@@ -1029,6 +1029,24 @@ describe('generateOrderDocument — коммерческое предложен�
     });
   });
 
+  it('снимок строк ХРАНИТ признак «цена с НДС», а не значение по умолчанию', async () => {
+    // Печать считает по строкам формы и была бы верной в любом случае, а вот
+    // СНИМОК врал: колонка имеет значение по умолчанию «с НДС». Перенос
+    // такого снимка в заказ (`У-164`) разошёлся бы с напечатанной суммой
+    // ровно на ставку налога, и восстановить признак было бы неоткуда: при
+    // ставке 0 и при «не облагается» суммы налога неразличимы.
+    const { prisma, documentCreate } = makePrisma();
+    await generateOrderDocument(prisma, manager(), {
+      organizationId: 'org-1',
+      docType: 'commercial_proposal',
+      lines: [{ ...LINES[0]!, vatIncluded: false }],
+    });
+    const data = documentCreate.mock.calls[0]![0].data as {
+      lines: { create: Array<Record<string, unknown>> };
+    };
+    expect(data.lines.create[0]!.vatIncluded).toBe(false);
+  });
+
   it('счёту срок действия в поле не пишется — это поле предложения', async () => {
     const { prisma, documentCreate } = makePrisma();
     await generateOrderDocument(prisma, manager(), {

@@ -96,8 +96,11 @@ const DEAL_STAGES = [
   },
 ];
 
-function makeWinPrisma(opts: { deal?: unknown; stages?: unknown[] } = {}) {
+function makeWinPrisma(opts: { deal?: unknown; stages?: unknown[]; existingOrder?: unknown } = {}) {
   const dealFindFirst = vi.fn().mockResolvedValue(opts.deal ?? null);
+  // `У-164`: у сделки заказ мог появиться раньше — при принятии предложения.
+  const orderFindUnique = vi.fn().mockResolvedValue(opts.existingOrder ?? null);
+  const dealUpdate = vi.fn().mockResolvedValue({ id: 'd-1', status: 'won', orderId: 'ord-kp' });
   const stageFindMany = vi.fn().mockResolvedValue(opts.stages ?? []);
   const txOrderCreate = vi.fn().mockResolvedValue({ id: 'ord-1' });
   const txDealUpdate = vi.fn().mockResolvedValue({ id: 'd-1', status: 'won', orderId: 'ord-1' });
@@ -110,11 +113,20 @@ function makeWinPrisma(opts: { deal?: unknown; stages?: unknown[] } = {}) {
   };
   const $transaction = vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx));
   const prisma = {
-    deal: { findFirst: dealFindFirst },
+    deal: { findFirst: dealFindFirst, update: dealUpdate },
     dealStage: { findMany: stageFindMany },
+    order: { findUnique: orderFindUnique },
     $transaction,
   } as unknown as PrismaClient;
-  return { prisma, dealFindFirst, stageFindMany, txOrderCreate, txDealUpdate, $transaction };
+  return {
+    prisma,
+    dealFindFirst,
+    stageFindMany,
+    txOrderCreate,
+    txDealUpdate,
+    dealUpdate,
+    $transaction,
+  };
 }
 
 beforeEach(() => {
@@ -380,6 +392,7 @@ describe('winDeal — транзакция и аудит', () => {
       ok: true,
       deal: { id: 'd-1', status: 'won', orderId: 'ord-1' },
       order: { id: 'ord-1' },
+      orderCreated: true,
     });
     expect(txDealUpdate).toHaveBeenCalledWith({
       where: { id: 'd-1' },
@@ -392,5 +405,52 @@ describe('winDeal — транзакция и аудит', () => {
       entityId: 'd-1',
       after: { orderId: 'ord-1', organizationId: 'org-1' },
     });
+  });
+
+  /**
+   * `У-164` (этап 7): у сделки заказ мог появиться раньше — его создаёт
+   * принятие коммерческого предложения. Тогда выигрыш ничего не создаёт.
+   */
+  it('заказ уже был — второй НЕ создаётся, сделка только отмечается выигранной', async () => {
+    // Раньше `Deal.orderId` перезаписывался безусловно: кнопка «Выиграна»
+    // завела бы дубль, а первый заказ — со строками из предложения — навсегда
+    // потерял бы связь со сделкой.
+    const { prisma, txOrderCreate, dealUpdate } = makeWinPrisma({
+      deal: { ...makeDeal(), orderId: 'ord-kp' },
+      existingOrder: { id: 'ord-kp' },
+    });
+    const res = await winDeal(prisma, MGR, { dealId: 'd-1' });
+
+    expect(res).toMatchObject({ ok: true, order: { id: 'ord-kp' }, orderCreated: false });
+    expect(txOrderCreate).not.toHaveBeenCalled();
+    // Связь не перезаписывается: она уже указывает на этот же заказ.
+    expect(dealUpdate).toHaveBeenCalledWith({
+      where: { id: 'd-1' },
+      data: { status: 'won', wonAt: expect.any(Date), stageId: null },
+    });
+  });
+
+  it('запрещать выигрыш из-за уже созданного заказа НЕЛЬЗЯ — это нормальный путь', async () => {
+    // Предложение приняли, потом отметили сделку выигранной. Отказ сломал бы
+    // главный сценарий этапа.
+    const { prisma } = makeWinPrisma({
+      deal: { ...makeDeal(), orderId: 'ord-kp' },
+      existingOrder: { id: 'ord-kp' },
+    });
+    expect((await winDeal(prisma, MGR, { dealId: 'd-1' })).ok).toBe(true);
+  });
+
+  it('в журнале видно, что заказ в этот раз не создавали', async () => {
+    const { prisma } = makeWinPrisma({
+      deal: { ...makeDeal(), orderId: 'ord-kp' },
+      existingOrder: { id: 'ord-kp' },
+    });
+    await winDeal(prisma, MGR, { dealId: 'd-1' });
+    expect(recordAudit).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({
+        after: { orderId: 'ord-kp', organizationId: 'org-1', orderCreated: false },
+      })
+    );
   });
 });

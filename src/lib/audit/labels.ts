@@ -132,6 +132,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   organization_egrul_filled: 'Заполнение реквизитов из ЕГРЮЛ',
   lead_organization_linked: 'Привязка лида к существующей организации',
   organization_created_manual: 'Создание организации вручную',
+  proposal_accepted: 'Принятие коммерческого предложения',
   organization_rate_override: 'Индивидуальная ставка организации',
   organization_updated: 'Изменение организации',
   partner_commission_rate_changed: 'Изменение ставки партнёра',

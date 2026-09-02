@@ -187,6 +187,7 @@ export const AUDIT_ACTIONS = [
   'organization_created_auto',
   'lead_organization_linked',
   'organization_created_manual',
+  'proposal_accepted',
   'organization_egrul_filled',
   'organization_rate_override',
   'organization_updated',
