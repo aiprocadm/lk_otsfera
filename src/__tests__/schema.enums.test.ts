@@ -49,6 +49,28 @@ describe('Schema enums (parsed from prisma/schema.prisma)', () => {
     );
   });
 
+  // Этап 8 (`У-168`, `У-173`): состояние выгрузки в 1С — ровно шесть значений,
+  // и `exported_file` среди них с самого начала. Проверка точная, а не «содержит»:
+  // потеря шестого значения означала бы, что файловому каналу (PR-9) снова
+  // нужна миграция перечисления, которую нельзя использовать в той же транзакции.
+  it('OneCPushStatus — шесть состояний выгрузки, включая exported_file', () => {
+    expect(enumValues('OneCPushStatus')).toEqual([
+      'none',
+      'pending',
+      'pushed',
+      'failed',
+      'skipped',
+      'exported_file',
+    ]);
+  });
+
+  // Этап 8 (`У-169`): три правила выгрузки у компании — автоматически при
+  // выпуске, только по кнопке, никогда. Четвёртого нет и не должно появиться
+  // без ТЗ: каждое значение — своя ветка в выпуске документа и в настройках.
+  it('OneCDocumentPushMode — auto / manual / never', () => {
+    expect(enumValues('OneCDocumentPushMode')).toEqual(['auto', 'manual', 'never']);
+  });
+
   it('DocumentDirection has incoming and outgoing', () => {
     expect(enumValues('DocumentDirection')).toEqual(
       expect.arrayContaining(['incoming', 'outgoing'])
