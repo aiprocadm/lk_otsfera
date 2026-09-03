@@ -9,6 +9,16 @@ export type PushLeadJobPayload = {
   leadId: string;
 };
 
+/**
+ * Этап 8 (`У-168`): выгрузка одного документа в 1С. `actorUserId` — кто попросил
+ * (кнопка «Выгрузить») или чьим выпуском сработало правило `auto` (`У-169`);
+ * от его имени пишется событие журнала аудита (`У-159`).
+ */
+export type PushDocumentJobPayload = {
+  documentId: string;
+  actorUserId?: string | undefined;
+};
+
 export type GenerateCommissionPdfPayload = {
   statementId: string;
 };

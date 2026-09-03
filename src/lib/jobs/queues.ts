@@ -7,6 +7,11 @@ export const QUEUE_NAMES = [
   'oneCSync.pullDocuments',
   'oneCSync.pullOrganizations',
   'oneCSync.pushLead',
+  // Этап 8 (`У-168`): выгрузка одного документа в 1С. Задача — `{ documentId }`
+  // без собственного `jobId`: BullMQ молча отбрасывает задачу, чей `jobId` ещё
+  // лежит среди завершённых, и «Повторить» после успеха или отказа переставало
+  // бы работать. От двойной доставки защищает сравнение версий в процессоре.
+  'oneCSync.pushDocument',
   'oneCSync.reconcile',
   'docs.generateCommissionPdf',
   'docs.generateCommissionXlsx',

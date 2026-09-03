@@ -239,6 +239,10 @@ export const AUDIT_ACTIONS = [
   'document_status_changed',
   // `У-149`: отправка документа заказчику письмом, в том числе повторная.
   'document_sent',
+  // `У-159`, этап 8 (`У-168`): выгрузка документа в 1С — каждая попытка,
+  // удачная и нет; повтор выгрузки пишется тем же событием.
+  'document_pushed_to_1c',
+  'document_push_to_1c_failed',
   'order_total_synced',
   'requisites_requested',
   'catalog_item_created',

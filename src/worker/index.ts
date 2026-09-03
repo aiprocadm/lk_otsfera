@@ -31,6 +31,7 @@ import { syncDocumentsProcessor } from './processors/sync-documents';
 import { syncOrganizationsProcessor } from './processors/sync-organizations';
 import { syncReconcileProcessor } from './processors/sync-reconcile';
 import { pushLeadProcessor, notifyPushLeadFinalFailure } from './processors/push-lead';
+import { pushDocumentProcessor } from './processors/push-document';
 import { generateCommissionPdfProcessor } from './processors/generate-commission-pdf';
 import { generateCommissionXlsxProcessor } from './processors/generate-commission-xlsx';
 import { calculateMonthlyCommissionsProcessor } from './processors/calculate-monthly-commissions';
@@ -164,6 +165,10 @@ async function main() {
       }
     }
   });
+
+  // Этап 8 (`У-168`): выгрузка документов в 1С; сбой адаптера повторяется
+  // очередью, окончательный отказ помечен на самом документе (`failed`).
+  startWorker('oneCSync.pushDocument', pushDocumentProcessor as Processor);
 
   startWorker('docs.generateCommissionPdf', generateCommissionPdfProcessor as Processor);
   startWorker('docs.generateCommissionXlsx', generateCommissionXlsxProcessor as Processor);
