@@ -5,6 +5,8 @@ import type {
   OneCPaymentSchema,
   OneCDocumentSchema,
   OneCLeadPushResultSchema,
+  OneCDocumentPushSchema,
+  OneCDocumentPushResultSchema,
 } from './schemas';
 
 export type OneCOrgDto = z.infer<typeof OneCOrgSchema>;
@@ -20,6 +22,13 @@ export type OneCPaymentDto = z.infer<typeof OneCPaymentSchema> & {
 };
 export type OneCDocumentDto = z.infer<typeof OneCDocumentSchema>;
 export type OneCLeadPushResult = z.infer<typeof OneCLeadPushResultSchema>;
+/**
+ * Этап 8 (`У-167`): исходящий документ и ответ 1С. В отличие от заявки тип
+ * выводится из схемы: тело проверяется ею в `mock-1c`, и второе, рукописное
+ * описание разошлось бы с первым при первой же правке контракта.
+ */
+export type OneCDocumentPushPayload = z.infer<typeof OneCDocumentPushSchema>;
+export type OneCDocumentPushResult = z.infer<typeof OneCDocumentPushResultSchema>;
 
 // Outbound payload we construct — no need to runtime-validate our own output.
 export type OneCLeadPushPayload = {

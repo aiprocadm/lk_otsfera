@@ -10,6 +10,8 @@ import type {
   OneCDocumentDto,
   OneCLeadPushPayload,
   OneCLeadPushResult,
+  OneCDocumentPushPayload,
+  OneCDocumentPushResult,
   SyncCursor,
 } from './dto';
 
@@ -172,6 +174,13 @@ export class FileOneCAdapter implements OneCAdapter {
   }
 
   async pushLead(payload: OneCLeadPushPayload): Promise<OneCLeadPushResult> {
+    void payload;
+    throw new Error('FileOneCAdapter is read-only');
+  }
+
+  // Файловый адаптер читает книгу и наружу не пишет: выгрузка документов
+  // файлом — отдельный канал (`У-173`, пакет Excel + ZIP), не этот метод.
+  async pushDocument(payload: OneCDocumentPushPayload): Promise<OneCDocumentPushResult> {
     void payload;
     throw new Error('FileOneCAdapter is read-only');
   }

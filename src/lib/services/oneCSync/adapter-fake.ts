@@ -8,6 +8,8 @@ import type {
   OneCDocumentDto,
   OneCLeadPushPayload,
   OneCLeadPushResult,
+  OneCDocumentPushPayload,
+  OneCDocumentPushResult,
   SyncCursor,
 } from './dto';
 
@@ -36,6 +38,17 @@ async function maybeLatency(): Promise<void> {
   if (Number.isFinite(ms) && ms > 0) await new Promise((r) => setTimeout(r, ms));
 }
 
+// FAKE_ONEC_FAILURE_RATE (0..1) роняет исходящие вызовы — так проверяют
+// повторы очереди и запись ошибки без настоящей 1С. Общий для заявок и
+// документов: сбой сети не выбирает, что именно не доставить.
+function maybeFail(what: string): void {
+  const failureRateStr = process.env.FAKE_ONEC_FAILURE_RATE;
+  const failureRate = failureRateStr ? Number(failureRateStr) : 0;
+  if (Number.isFinite(failureRate) && failureRate > 0 && Math.random() < failureRate) {
+    throw new Error(`FakeOneC simulated failure (rate=${failureRate}) for ${what}`);
+  }
+}
+
 export class FakeOneCAdapter implements OneCAdapter {
   async pullOrganizations(cursor: SyncCursor): Promise<OneCOrgDto[]> {
     await maybeLatency();
@@ -55,13 +68,16 @@ export class FakeOneCAdapter implements OneCAdapter {
   }
 
   async pushLead(payload: OneCLeadPushPayload): Promise<OneCLeadPushResult> {
-    const failureRateStr = process.env.FAKE_ONEC_FAILURE_RATE;
-    const failureRate = failureRateStr ? Number(failureRateStr) : 0;
-    if (Number.isFinite(failureRate) && failureRate > 0 && Math.random() < failureRate) {
-      throw new Error(
-        `FakeOneC simulated failure (rate=${failureRate}) for lead ${payload.cabinetLeadId}`
-      );
-    }
+    maybeFail(`lead ${payload.cabinetLeadId}`);
     return { acceptedAt: new Date().toISOString(), oneCRequestId: `fake-req-${Date.now()}` };
+  }
+
+  // Этап 8 (`У-167`): идентификатор в ответе ДЕТЕРМИНИРОВАННЫЙ — выводится из
+  // `externalId` кабинета, а не из времени. Повтор той же версии обязан дать
+  // тот же ответ (идемпотентность контракта), иначе тесты сервиса выгрузки
+  // видели бы «новый документ в 1С» на каждом повторе.
+  async pushDocument(payload: OneCDocumentPushPayload): Promise<OneCDocumentPushResult> {
+    maybeFail(`document ${payload.externalId} v${payload.version}`);
+    return { externalId: `1c-doc-${payload.externalId}` };
   }
 }

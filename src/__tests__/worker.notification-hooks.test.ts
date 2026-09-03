@@ -7,6 +7,7 @@ import type {
   OneCPaymentDto,
   OneCDocumentDto,
   OneCLeadPushResult,
+  OneCDocumentPushResult,
   OneCAdapter,
 } from '@/lib/services/oneCSync';
 import { resetOneCAdapter } from '@/lib/services/oneCSync';
@@ -38,6 +39,9 @@ class ScriptedAdapter implements OneCAdapter {
   }
   async pushLead(): Promise<OneCLeadPushResult> {
     return { acceptedAt: new Date().toISOString() };
+  }
+  async pushDocument(): Promise<OneCDocumentPushResult> {
+    return { externalId: '1c-doc-scripted' };
   }
 }
 

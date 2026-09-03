@@ -182,6 +182,11 @@ describe('FileOneCAdapter', () => {
   it('pushLead throws (read-only)', async () => {
     await expect(new FileOneCAdapter(Buffer.from('x')).pushLead({} as any)).rejects.toThrow();
   });
+  it('pushDocument throws (read-only): файл читают, наружу им не пишут', async () => {
+    await expect(new FileOneCAdapter(Buffer.from('x')).pushDocument({} as any)).rejects.toThrow(
+      /read-only/
+    );
+  });
 
   it('derives not_billed when totalAmount <= 0', async () => {
     parseWorkbook.mockResolvedValue({

@@ -14,8 +14,8 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development
 
 | PR | Что | Требования | Статус |
 |---|---|---|---|
-| PR-1 «Контракт и модель» | Секция `POST /api/documents` и `GET /api/documents?externalId=` в контракте; перечисления `OneCPushStatus` (шесть значений сразу) и `OneCDocumentPushMode`; шесть полей `Document`, два поля `Company`, две проверки базы, одна миграция | `У-167` (контракт), `У-168` (модель) | ⏳ |
-| PR-2 «Адаптер и mock» | `OneCDocumentPushSchema` и результат, `pushDocument` в `OneCAdapter` (fake, rest, file), ключ `documentPush`, хранилище документов и обработчик в `mock-1c`, `/__state` показывает принятое, контрактный тест | `У-167`, `У-168` | ⏳ |
+| PR-1 «Контракт и модель» | Секция `POST /api/documents` и `GET /api/documents?externalId=` в контракте; перечисления `OneCPushStatus` (шесть значений сразу) и `OneCDocumentPushMode`; шесть полей `Document`, два поля `Company`, две проверки базы, одна миграция | `У-167` (контракт), `У-168` (модель) | ✅ [#483](https://github.com/aiprocadm/lk_otsfera/pull/483) |
+| PR-2 «Адаптер и mock» | `OneCDocumentPushSchema` и результат, `pushDocument` в `OneCAdapter` (fake, rest, file), ключ `documentPush`, хранилище документов и обработчик в `mock-1c`, `/__state` показывает принятое, контрактный тест | `У-167`, `У-168` | 🔨 [#484](https://github.com/aiprocadm/lk_otsfera/pull/484) в ревью |
 | PR-3 «Очередь и процессор» | Очередь `oneCSync.pushDocument`, сборка тела (`externalId` — корень цепочки перевыпусков, `fileUrl` на час, `lines: null` у legacy), сервис выгрузки с идемпотентностью по версии и отказом КП, процессор с интеграционным тестом, события аудита | `У-168`, `У-167` (идемпотентность, `Р-14`), `У-159` (остаток) | ⏳ |
 | PR-4 «Правило компании» | `auto / manual / never` и набор типов в «Реквизитах исполнителя» у администратора и руководителя, автопостановка после выпуска best-effort | `У-169` (правило) | ⏳ |
 | PR-5 «Экраны выгрузки» | Блок «Выгрузка в 1С» на карточке документа с кнопками «Выгрузить в 1С» / «Повторить», фильтр по статусу выгрузки и массовое «Выгрузить выбранные» в списке документов сотрудников | `У-169` (экраны), `У-159` (повтор) | ⏳ |
@@ -51,7 +51,7 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development
 
 ## PR-1 «Контракт и модель» — `У-167` (контракт), `У-168` (модель)
 
-- [ ] `docs/integrations/1c-contract.md`: секция **«6. POST Documents
+- [x] `docs/integrations/1c-contract.md`: секция **«6. POST Documents
       (выгрузка документов ЛК в 1С)»** — путь `/api/documents` (тот же, что у
       входящего `GET`, другой метод; ключ `documentPush` в `ENDPOINTS`), тело
       по `У-167` (`externalId`, `type` из четырёх значений, `number`, `date`,
@@ -62,19 +62,19 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development
       (`Р-14`). Секция **«7. GET Documents по `externalId`»** для сверки
       (`У-172`): `GET /api/documents?externalId=…` → `[]` либо один элемент в
       формате секции 4. Абзац «Push (outbound documents)» в «Идемпотентности».
-- [ ] `prisma/schema.prisma`: `enum OneCPushStatus { none pending pushed failed
+- [x] `prisma/schema.prisma`: `enum OneCPushStatus { none pending pushed failed
       skipped exported_file }` и `enum OneCDocumentPushMode { auto manual never }`
       с комментариями-«почему».
-- [ ] Шесть полей `Document`: `oneCExternalId String?`, `oneCPushStatus
+- [x] Шесть полей `Document`: `oneCExternalId String?`, `oneCPushStatus
       OneCPushStatus @default(none)`, `oneCPushedAt DateTime?`,
       `oneCPushAttempts Int @default(0)`, `oneCPushError String?`,
       `oneCPushedVersion Int?`; индексы `@@index([oneCPushStatus])` (фильтр
       списка, сверка) и `@@index([oneCExternalId])` (поиск входящего по второму
       ключу, `У-170`). Без `@unique` — см. решение 1 выше.
-- [ ] Два поля `Company`: `oneCDocumentPushMode OneCDocumentPushMode
+- [x] Два поля `Company`: `oneCDocumentPushMode OneCDocumentPushMode
       @default(manual)` и `oneCDocumentPushTypes DocumentType[]
       @default([invoice, act, contract, extra_agreement])`.
-- [ ] Миграция `20260903100000_stage8_document_push_model` — одна, аддитивная,
+- [x] Миграция `20260903100000_stage8_document_push_model` — одна, аддитивная,
       ни одной существующей строки не меняет (новые перечисления создаются
       целиком, запрет Postgres касается только добавления значения в
       существующий тип). Две проверки базы:
@@ -83,21 +83,21 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development
       `Document_oneC_pushed_has_version` — `pushed` только вместе с
       `oneCPushedAt` и `oneCPushedVersion`: «выгружен, но неизвестно какая
       версия» сломало бы идемпотентность 3.1.
-- [ ] Тесты: `schema.enums.test.ts` — состав обоих перечислений;
+- [x] Тесты: `schema.enums.test.ts` — состав обоих перечислений;
       `migrations.stage8-document-push-model.integration.test.ts` на живом
       Postgres — умолчания (`none`, `0`, `manual`, четыре типа), КП в наборе —
       отказ `23514`, `pushed` без версии — отказ, две версии с одним
       `oneCExternalId` — записываются обе.
-- [ ] Мутации: снять `Company_oneCDocumentPushTypes_pushable` → «КП в наборе»
+- [x] Мутации: снять `Company_oneCDocumentPushTypes_pushable` → «КП в наборе»
       проходит; снять `Document_oneC_pushed_has_version` → «pushed без версии»
       проходит; убрать `exported_file` из перечисления → тест состава падает.
-- [ ] `STATUS.md` (заголовок, абзац «Идёт PR-1», строка таблицы, журнал),
+- [x] `STATUS.md` (заголовок, абзац «Идёт PR-1», строка таблицы, журнал),
       `AUDIT.md` (`У-167`, `У-168` — «контракт/модель готовы (PR-1)», вердикт
       остаётся `⏳`), `CHANGELOG.md`.
 
 ## PR-2 «Адаптер и mock» — `У-167`, `У-168`
 
-- [ ] `schemas.ts`: `ONE_C_PUSHABLE_TYPES = ['invoice', 'act', 'contract',
+- [x] `schemas.ts`: `ONE_C_PUSHABLE_TYPES = ['invoice', 'act', 'contract',
       'extra_agreement'] as const` — единственный источник «что уезжает»
       (страж: совпадает с умолчанием `Company.oneCDocumentPushTypes` и с CHECK
       миграции PR-1); `OneCDocumentPushSchema` — тело контракта, `type` из
@@ -105,27 +105,42 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development
       допускают `null`, `fileUrl` — `z.string().url()`;
       `OneCDocumentPushResultSchema = z.object({ externalId: z.string().min(1) })`.
       `dto.ts`: `OneCDocumentPushPayload`, `OneCDocumentPushResult`.
-- [ ] `adapter.ts`: `pushDocument(payload: OneCDocumentPushPayload):
+- [x] `adapter.ts`: `pushDocument(payload: OneCDocumentPushPayload):
       Promise<OneCDocumentPushResult>`. `rest-wire.ts`: `ENDPOINTS.documentPush
       = '/api/documents'`. `adapter-rest.ts`: POST через `doFetch` +
       `withRetry/withTimeout`, ответ через `OneCDocumentPushResultSchema`.
       `adapter-fake.ts`: `FAKE_ONEC_FAILURE_RATE` как у лидов, `externalId`
       детерминированный (`1c-doc-<externalId>`) — повтор с той же версией
       обязан дать тот же ответ. `adapter-file.ts`: файловый адаптер наружу не
-      пишет — `pushDocument` отвечает ошибкой `file adapter cannot push` так же,
-      как его `pushLead`.
-- [ ] `mock-1c/core/documents.ts`: `createDocumentStore()` по образцу
+      пишет — `pushDocument` бросает `FileOneCAdapter is read-only` (то же
+      сообщение, что у его `pushLead`; текст из плана заменён на фактический,
+      чтобы не плодить два разных сообщения об одном и том же).
+- [x] `mock-1c/core/documents.ts`: `createDocumentStore()` по образцу
       `leads.ts` — `accept(body)` проверяет тело схемой, ключ хранения —
       `externalId`: та же версия → тот же ответ и без изменений (no-op), версия
       выше → запись обновляется, версия ниже → 409. `server.ts`: обработчик
       `POST ENDPOINTS.documentPush`, `/__state` отдаёт `documents`.
-- [ ] `adapter-rest.contract.test.ts`: выгрузка через `RestOneCAdapter` против
+- [x] `adapter-rest.contract.test.ts`: выгрузка через `RestOneCAdapter` против
       живого mock-сервера → документ в `/__state`; повтор той же версии —
       документ один; новая версия — обновлён; тело без `counterparty` — 400.
-- [ ] Мутации: `OneCDocumentPushSchema` принимает `commercial_proposal` → тест
+- [x] Мутации: `OneCDocumentPushSchema` принимает `commercial_proposal` → тест
       схемы падает; mock заводит вторую запись на ту же версию → контрактный
       тест падает; `ONE_C_PUSHABLE_TYPES` разошёлся с CHECK миграции → страж
-      падает.
+      падает. **Проверено 03.09.2026:** мутация 1 роняет 5 тестов (схема,
+      mock, страж — все три рубежа), мутация 2 — 14 (контрактный тест и тест
+      хранилища), мутации по `schema.prisma`, по массиву CHECK и по
+      переименованию CHECK (шаблон «не нашёл») — по одному тесту стража.
+- [x] Дополнительно к плану: фикстура тела выгрузки вынесена в
+      `src/__tests__/helpers/oneCDocumentPush.ts` (один источник для тестов
+      схем, адаптеров и `mock-1c`; jscpd-порог 3 %); страж
+      `oneCSync.pushable-types.guardrail.test.ts` сверяет три места
+      (`ONE_C_PUSHABLE_TYPES`, `@default` в `schema.prisma`, `ARRAY[...]` в
+      CHECK миграции); в `RestOneCAdapter` POST-ветка вынесена в приватный
+      `postJson` (лид и документ шли бы одинаковым кодом); контракт (секция 6,
+      пункт `order`) уточнён: `order.externalId: null` при заполненном
+      `orderNumber` — заказ заведён в кабинете и в 1С не бывал.
+- [x] `STATUS.md`, `AUDIT.md`, `CHANGELOG.md`, `mock-1c/README.md`.
+
 
 ## PR-3 «Очередь и процессор» — `У-168`, `У-167` (идемпотентность, `Р-14`), `У-159` (остаток)
 
@@ -147,7 +162,14 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development
       константа `ONE_C_FILE_URL_TTL_SECONDS`); `date` — `createdAt`.
       `pushDocumentToOneC(prisma, documentId, { adapter })` по образцу
       `pushLeadToOneC`: КП или иной тип вне `ONE_C_PUSHABLE_TYPES` →
-      `{ ok: false, error: 'not_pushable_type' }` (3.2); строка с
+      `{ ok: false, error: 'not_pushable_type' }` (3.2); **схема PR-2 требует
+      `counterparty.inn` и `number` непустыми** (по контракту 1С без ИНН и без
+      номера документ не примет) — организация без ИНН (`Р-11`, `Organization.inn`
+      nullable) → `{ ok: false, error: 'counterparty_without_inn' }`, документ
+      без номера (`Document.number` nullable) → `{ ok: false, error:
+      'no_number' }`; оба — окончательный отказ без retry, с русской строкой в
+      `errors/messages.ts` («у организации не заполнен ИНН — заполните реквизиты
+      и повторите»), а не падение на `OneCDocumentPushSchema.parse`; строка с
       `supersededAt` → `'superseded'` (уезжает действующая версия);
       `oneCPushStatus = pushed` и `oneCPushedVersion === version` → `{ ok:
       true, skipped: 'same_version' }` без вызова адаптера (3.1); иначе вызов,

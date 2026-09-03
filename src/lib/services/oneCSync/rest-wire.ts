@@ -13,6 +13,10 @@ export const ENDPOINTS = {
   payments: '/api/payments',
   documents: '/api/documents',
   leadPush: '/api/leads',
+  // Этап 8 (`У-167`): исходящие документы — тот же путь, что у входящего
+  // `GET`, другой метод. Ключ отдельный намеренно: маршрут один, операции
+  // разные, и в настройках их нельзя путать.
+  documentPush: '/api/documents',
 } as const;
 
 // DECISION Q6/Q7: incremental cursor query param + datetime format on the wire.
