@@ -164,6 +164,32 @@ enum DocumentDirection {
   outgoing
 }
 
+// Этап 8 (`У-168`): состояние выгрузки документа в 1С. Одно поле на все
+// каналы: `exported_file` (`У-173`, файловый пакет) — шестое ЗНАЧЕНИЕ, а не
+// отдельный признак, потому что «выгружен файлом» и «выгружен по API» друг
+// друга исключают, а два независимых поля рано или поздно разошлись бы.
+// Все шесть значений заведены сразу: добавить значение в существующее
+// перечисление Postgres — отдельная миграция, и использовать его в той же
+// транзакции нельзя (урок этапа 7).
+enum OneCPushStatus {
+  none
+  pending
+  pushed
+  failed
+  skipped
+  exported_file
+}
+
+// Этап 8 (`У-169`): правило выгрузки документов в 1С у компании.
+// Умолчание — `manual` («только по кнопке»): выгрузка — необратимое действие
+// в чужой системе, и компания, которая ничего не настроила, не должна начать
+// слать бумаги молча.
+enum OneCDocumentPushMode {
+  auto
+  manual
+  never
+}
+
 enum CounterpartyType {
   organization
   partner
@@ -910,6 +936,15 @@ model Company {
   /// раздела настроек под одно число заводить незачем.
   proposalValidDays        Int                    @default(14)
   documentTemplateRevision Int                    @default(0)
+  /// `У-169` (этап 8): правило выгрузки документов в 1С — у каждой компании
+  /// своё (глобальная `IntegrationSetting` не подходит: у неё нет `companyId`).
+  /// Редактируют администратор и руководитель своей компании (`Р-22`).
+  oneCDocumentPushMode     OneCDocumentPushMode   @default(manual)
+  /// `У-169`: какие типы уезжают при `auto`. Набор ограничен четырьмя типами
+  /// ПРОВЕРКОЙ БАЗЫ (`Company_oneCDocumentPushTypes_pushable`, миграция
+  /// `20260903100000_stage8_document_push_model`): КП в 1С не выгружается
+  /// (`Р-14`), и попасть в набор мимо интерфейса оно не должно.
+  oneCDocumentPushTypes    DocumentType[]         @default([invoice, act, contract, extra_agreement])
   documentTemplates        DocumentTemplate[]
   users                    User[]
   orders                   Order[]
@@ -1320,6 +1355,26 @@ model Document {
   // генератором (загрузка, импорт 1С) либо выпущен до `У-160`; бэкфилла нет
   // (`У-146`). Не путать с `version` — это номер ПЕРЕВЫПУСКА (`У-151`).
   templateVersion    Int?
+  // --- Этап 8 (`У-168`): выгрузка в 1С ---
+  /// Идентификатор бумаги В 1С — по нему сверка (`У-172`) спрашивает «а ты
+  /// там есть?» и входящий поток (`У-170`) узнаёт свой же документ. НЕ
+  /// уникален: в теле выгрузки уезжает `id` ПЕРВОЙ версии цепочки
+  /// перевыпусков (`У-151`), поэтому все версии одной цепочки делят один
+  /// идентификатор в 1С — так перевыпуск приезжает туда обновлением, а не
+  /// вторым документом.
+  oneCExternalId     String?
+  oneCPushStatus     OneCPushStatus     @default(none)
+  oneCPushedAt       DateTime?
+  /// Сколько раз пробовали. Без счётчика «висит вторые сутки» не отличить
+  /// от «только что поставили в очередь».
+  oneCPushAttempts   Int                @default(0)
+  /// Текст последней ошибки — менеджеру на карточку. Ошибка, которую видно
+  /// только в логе сервера, для него не существует (`У-174`).
+  oneCPushError      String?
+  /// Версия, которая уехала. На ней держится идемпотентность (`У-167`): та
+  /// же версия — повтор не нужен, новая — обновление. `pushed` без версии
+  /// запрещён проверкой базы `Document_oneC_pushed_has_version`.
+  oneCPushedVersion  Int?
   lines              DocumentLine[]
   viewMarks          DocumentViewMark[]
   /// `У-151`: уникальность `(companyId, type, number, version)` — ЧАСТИЧНЫЙ
@@ -1341,6 +1396,8 @@ model Document {
   @@index([dealId])
   @@index([validUntil])
   @@index([replacesDocumentId])
+  @@index([oneCPushStatus])
+  @@index([oneCExternalId])
 }
 
 /// Этап 6 ТЗ (`У-151`): «до» для отката разбора исторических номеров.
