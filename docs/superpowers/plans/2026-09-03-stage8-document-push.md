@@ -15,8 +15,8 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development
 | PR | Что | Требования | Статус |
 |---|---|---|---|
 | PR-1 «Контракт и модель» | Секция `POST /api/documents` и `GET /api/documents?externalId=` в контракте; перечисления `OneCPushStatus` (шесть значений сразу) и `OneCDocumentPushMode`; шесть полей `Document`, два поля `Company`, две проверки базы, одна миграция | `У-167` (контракт), `У-168` (модель) | ✅ [#483](https://github.com/aiprocadm/lk_otsfera/pull/483) |
-| PR-2 «Адаптер и mock» | `OneCDocumentPushSchema` и результат, `pushDocument` в `OneCAdapter` (fake, rest, file), ключ `documentPush`, хранилище документов и обработчик в `mock-1c`, `/__state` показывает принятое, контрактный тест | `У-167`, `У-168` | 🔨 [#484](https://github.com/aiprocadm/lk_otsfera/pull/484) в ревью |
-| PR-3 «Очередь и процессор» | Очередь `oneCSync.pushDocument`, сборка тела (`externalId` — корень цепочки перевыпусков, `fileUrl` на час, `lines: null` у legacy), сервис выгрузки с идемпотентностью по версии и отказом КП, процессор с интеграционным тестом, события аудита | `У-168`, `У-167` (идемпотентность, `Р-14`), `У-159` (остаток) | ⏳ |
+| PR-2 «Адаптер и mock» | `OneCDocumentPushSchema` и результат, `pushDocument` в `OneCAdapter` (fake, rest, file), ключ `documentPush`, хранилище документов и обработчик в `mock-1c`, `/__state` показывает принятое, контрактный тест | `У-167`, `У-168` | ✅ [#484](https://github.com/aiprocadm/lk_otsfera/pull/484) |
+| PR-3 «Очередь и процессор» | Очередь `oneCSync.pushDocument`, сборка тела (`externalId` — корень цепочки перевыпусков, `fileUrl` на час, `lines: null` у legacy), сервис выгрузки с идемпотентностью по версии и отказом КП, процессор с интеграционным тестом, события аудита | `У-168`, `У-167` (идемпотентность, `Р-14`), `У-159` (остаток) | 🔨 [#485](https://github.com/aiprocadm/lk_otsfera/pull/485) в ревью |
 | PR-4 «Правило компании» | `auto / manual / never` и набор типов в «Реквизитах исполнителя» у администратора и руководителя, автопостановка после выпуска best-effort | `У-169` (правило) | ⏳ |
 | PR-5 «Экраны выгрузки» | Блок «Выгрузка в 1С» на карточке документа с кнопками «Выгрузить в 1С» / «Повторить», фильтр по статусу выгрузки и массовое «Выгрузить выбранные» в списке документов сотрудников | `У-169` (экраны), `У-159` (повтор) | ⏳ |
 | PR-6 «Обратная связь» | Поиск входящего по трём ключам без дубля, обновление файла с повторным сканом, `direction` и `number` из DTO | `У-170` (`Д-24`, `Д-25`) | ⏳ |
@@ -144,14 +144,14 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development
 
 ## PR-3 «Очередь и процессор» — `У-168`, `У-167` (идемпотентность, `Р-14`), `У-159` (остаток)
 
-- [ ] `queues.ts`: `'oneCSync.pushDocument'` в `QUEUE_NAMES`, данные задачи
+- [x] `queues.ts`: `'oneCSync.pushDocument'` в `QUEUE_NAMES`, данные задачи
       `{ documentId }`. Собственный `jobId` НЕ задаётся: BullMQ молча
       отбрасывает задачу с `jobId`, который ещё лежит среди завершённых
       (`removeOnComplete: { count: 1000 }`), и «Повторить» после успеха или
       отказа перестало бы работать. От двойной доставки защищает сравнение
       версий в самом процессоре, а от двойной постановки — статус `pending`
       (`already_queued` в PR-5).
-- [ ] `src/lib/services/oneCSync/pushDocument.ts`:
+- [x] `src/lib/services/oneCSync/pushDocument.ts`:
       `buildDocumentPushPayload(prisma, documentId)` — `externalId` = корень
       цепочки по `replacesDocumentId` (цикл с ограничением глубины);
       `counterparty` из `Organization`/`Partner` по `counterpartyType`;
@@ -180,12 +180,12 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development
       каждую попытку — на ней держится «история — каждую попытку» PR-10.
       `enqueueDocumentPush(documentId)` — `pending` → постановка; постановка
       упала → вернуть прежний статус, `log.error`, проглотить (§3, 3.3).
-- [ ] Аудит (`У-159`): `document_pushed_to_1c`, `document_push_to_1c_failed`
+- [x] Аудит (`У-159`): `document_pushed_to_1c`, `document_push_to_1c_failed`
       в `AUDIT_ACTIONS` и русские названия в `labels.ts`.
-- [ ] `src/worker/processors/push-document.ts` по образцу `push-lead.ts`
+- [x] `src/worker/processors/push-document.ts` по образцу `push-lead.ts`
       (`primeIntegrationSettingsCache` → сервис); `worker/index.ts` —
       `startWorker`.
-- [ ] `worker.push-document.integration.test.ts` (страж полноты
+- [x] `worker.push-document.integration.test.ts` (страж полноты
       `worker.processor-coverage`), живой Postgres и подставной адаптер:
       выгрузка заполняет шесть полей; вторая задача той же версии — адаптер не
       вызван; перевыпуск — адаптер вызван с тем же `externalId` и `version + 1`;
@@ -193,10 +193,47 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development
       текст, счётчик, исключение наружу; документ без строк — `lines: null`,
       `totals: null`; постановка при недоступном Redis — статус прежний, ошибка
       в логе, вызов не бросил.
-- [ ] Мутации: убрать сравнение версий → «вторая задача» вызывает адаптер;
+- [x] Мутации: убрать сравнение версий → «вторая задача» вызывает адаптер;
       разрешить КП; брать `id` строки вместо корня → перевыпуск уезжает под
       новым `externalId`; `enqueueDocumentPush` пробрасывает ошибку → тест
-      «недоступный Redis» падает.
+      «недоступный Redis» падает. **Проверено 03.09.2026** на интеграционном
+      тесте: мутация 1 роняет 2 теста («вторая задача» и `same_version` у
+      процессора), мутация 2 — 3 (КП у сервиса, у процессора и у продюсера),
+      мутации 3 и 4 — по одному целевому тесту.
+- [x] Решения исполнителя по ходу PR-3 (спеке не противоречат, в ней не
+      записаны):
+      1. **Сервис отдаёт Result, а не бросает.** Исключение наружу — только
+         у процессора и только на `push_failed` (адаптер не смог — retry
+         BullMQ). Окончательные отказы (`not_pushable_type`, `superseded`,
+         `counterparty_without_inn`, `no_number`) задачу не роняют: повтор
+         не поможет, пока человек не поправит документ, а `removeOnFail:
+         false` копил бы «падения», которые падениями не являются.
+      2. **Два вида отказа трогают поля по-разному.** КП и заменённая
+         версия — выгружать нечего, поля не тронуты (только `pending → none`,
+         если задачу успели поставить до перевыпуска). Нет ИНН / нет номера —
+         `failed` + русский текст + `oneCPushAttempts + 1` + событие аудита:
+         человек должен увидеть на карточке, что и почему.
+      3. **Аудит — от актора, иначе от автора документа** (`actorUserId ??
+         uploadedById`; `AuditLog.userId` обязателен). Ни того ни другого
+         (импорт, задача без актора) — события нет, след остаётся в `SyncLog`.
+         Падение аудита выгрузку не отменяет (`log.error`).
+      4. **`SyncLog.operation`:** `create` — первая выгрузка цепочки, `update` —
+         перевыпуск (корень ≠ id строки) или документ, который 1С уже знает
+         (`oneCExternalId` заполнен). `externalId` в `SyncLog` — наш `id`
+         строки (по нему PR-10 соберёт историю попыток документа).
+      5. **Постановка — атомарный claim `pending`** (`updateMany` с `not:
+         'pending'`; ноль строк → `already_queued`), без `jobId`; при сбое
+         очереди статус возвращается прежний, вызов не бросает.
+      6. **Основание без номера** (`parentDocument.number = null` — только
+         загрузка или импорт) для 1С не адресуемо: `parentDocument: null`,
+         бумага уезжает сама по себе.
+      7. **Успешная выгрузка тоже увеличивает `oneCPushAttempts`** — счётчик
+         означает «попыток всего», а не «неудач».
+- [x] Отложено в PR-5/PR-6 (решить вместе с ключами поиска `У-170`): документ,
+      пришедший ИЗ 1С (`Document.externalId` заполнен), обратно не выгружать —
+      кнопка «Выгрузить» ему не нужна, а 1С получила бы свою же бумагу под
+      чужим `externalId`.
+- [x] `STATUS.md`, `AUDIT.md`, `CHANGELOG.md`.
 
 ## PR-4 «Правило компании» — `У-169` (правило)
 
