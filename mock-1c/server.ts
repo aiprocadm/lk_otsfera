@@ -5,6 +5,7 @@ import type { ScenarioConfig } from './core/scenario';
 import type { Dataset, Entity } from './core/dataset';
 import { shapeResponse } from './core/serialize';
 import { createLeadStore } from './core/leads';
+import { createDocumentStore } from './core/documents';
 
 export type ScenarioRef = { current: ScenarioConfig };
 
@@ -13,6 +14,7 @@ export type Mock1cDeps = {
   token: string;
   dataset: Dataset;
   leadStore: ReturnType<typeof createLeadStore>;
+  documentStore: ReturnType<typeof createDocumentStore>;
   log?: (msg: string) => void;
 };
 
@@ -44,6 +46,18 @@ function readBody(req: http.IncomingMessage): Promise<string> {
 
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+// Маркер «тело не разобралось»: `null` — законный JSON, им сигналить нельзя.
+const INVALID_JSON: unique symbol = Symbol('invalid-json');
+
+async function readJson(req: http.IncomingMessage): Promise<unknown> {
+  const raw = await readBody(req);
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return INVALID_JSON;
+  }
+}
+
 export function createMock1cServer(deps: Mock1cDeps): http.Server {
   const log = deps.log ?? (() => {});
 
@@ -59,6 +73,7 @@ export function createMock1cServer(deps: Mock1cDeps): http.Server {
         return send(res, 200, {
           scenario: deps.scenarioRef.current,
           leads: deps.leadStore.state(),
+          documents: deps.documentStore.state(),
         });
       }
       if (path === '/__control' && method === 'POST') {
@@ -107,15 +122,25 @@ export function createMock1cServer(deps: Mock1cDeps): http.Server {
 
       // --- push lead ---
       if (path === ENDPOINTS.leadPush && method === 'POST') {
-        const raw = await readBody(req);
-        let parsed: Record<string, unknown>;
-        try {
-          parsed = JSON.parse(raw);
-        } catch {
-          return send(res, 400, { error: 'invalid JSON' });
-        }
-        const outcome = deps.leadStore.accept(parsed, scenario.pushFailRate);
+        const parsed = await readJson(req);
+        if (parsed === INVALID_JSON) return send(res, 400, { error: 'invalid JSON' });
+        const outcome = deps.leadStore.accept(
+          parsed as Record<string, unknown>,
+          scenario.pushFailRate
+        );
         if (outcome.status !== 200) return send(res, outcome.status, { error: 'push failed' });
+        return send(res, 200, outcome.result);
+      }
+
+      // --- push document (этап 8, `У-167`: тот же путь, что у GET, другой метод) ---
+      if (path === ENDPOINTS.documentPush && method === 'POST') {
+        const parsed = await readJson(req);
+        if (parsed === INVALID_JSON) return send(res, 400, { error: 'invalid JSON' });
+        const outcome = deps.documentStore.accept(parsed, scenario.pushFailRate);
+        if (outcome.status !== 200) {
+          log(`[mock1c] document push rejected ${outcome.status}: ${outcome.error}`);
+          return send(res, outcome.status, { error: outcome.error });
+        }
         return send(res, 200, outcome.result);
       }
 

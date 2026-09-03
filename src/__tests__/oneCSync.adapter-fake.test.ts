@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FakeOneCAdapter } from '@/lib/services/oneCSync/adapter-fake';
+import { documentPushPayload } from '@/__tests__/helpers/oneCDocumentPush';
 
 describe('FakeOneCAdapter', () => {
   it('returns at least 3 organizations', async () => {
@@ -106,4 +107,28 @@ describe('FakeOneCAdapter', () => {
       else process.env.FAKE_ONEC_FAILURE_RATE = prev;
     }
   });
+
+  // Этап 8 (`У-167`): ответ выводится из externalId кабинета, а не из времени —
+  // повтор той же версии обязан вернуть тот же идентификатор.
+  it('pushDocument answers a deterministic 1c-doc-<externalId> and repeats it on retry', async () => {
+    const a = new FakeOneCAdapter();
+    const first = await a.pushDocument(documentPushPayload({ externalId: 'doc-42' }));
+    const second = await a.pushDocument(documentPushPayload({ externalId: 'doc-42', version: 2 }));
+    expect(first).toEqual({ externalId: '1c-doc-doc-42' });
+    expect(second).toEqual(first);
+  });
+
+  it('simulates pushDocument failure when FAKE_ONEC_FAILURE_RATE=1', async () => {
+    const prev = process.env.FAKE_ONEC_FAILURE_RATE;
+    process.env.FAKE_ONEC_FAILURE_RATE = '1';
+    try {
+      await expect(new FakeOneCAdapter().pushDocument(documentPushPayload())).rejects.toThrow(
+        /FakeOneC simulated failure .* for document doc-contract-1 v1/
+      );
+    } finally {
+      if (prev === undefined) delete process.env.FAKE_ONEC_FAILURE_RATE;
+      else process.env.FAKE_ONEC_FAILURE_RATE = prev;
+    }
+  });
 });
+

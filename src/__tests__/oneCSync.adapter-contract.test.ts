@@ -5,7 +5,9 @@ import {
   OneCOrderSchema,
   OneCPaymentSchema,
   OneCDocumentSchema,
+  OneCDocumentPushResultSchema,
 } from '@/lib/services/oneCSync/schemas';
+import { documentPushPayload } from '@/__tests__/helpers/oneCDocumentPush';
 import { parseRecords } from '@/lib/services/oneCSync/resilience';
 
 afterEach(() => {
@@ -45,6 +47,11 @@ describe('OneCAdapter contract — FakeOneCAdapter', () => {
       productType: [],
     });
     expect(r.acceptedAt).toBeTruthy();
+  });
+
+  it('pushDocument result validates against OneCDocumentPushResultSchema (этап 8)', async () => {
+    const r = await adapter.pushDocument(documentPushPayload());
+    expect(OneCDocumentPushResultSchema.safeParse(r).success).toBe(true);
   });
 
   it('FAKE_ONEC_MALFORMED_RATE=1 injects a record that fails validation (exercises quarantine)', async () => {

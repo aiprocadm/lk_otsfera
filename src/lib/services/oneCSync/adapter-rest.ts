@@ -1,4 +1,4 @@
-import { OneCLeadPushResultSchema } from './schemas';
+import { OneCLeadPushResultSchema, OneCDocumentPushResultSchema } from './schemas';
 import { withTimeout, withRetry, OneCHttpError } from './resilience';
 import {
   ENDPOINTS,
@@ -15,6 +15,8 @@ import type {
   OneCDocumentDto,
   OneCLeadPushPayload,
   OneCLeadPushResult,
+  OneCDocumentPushPayload,
+  OneCDocumentPushResult,
   SyncCursor,
 } from './dto';
 import type { OneCAdapter } from './adapter';
@@ -83,17 +85,32 @@ export class RestOneCAdapter implements OneCAdapter {
     return this.getArray(ENDPOINTS.documents, cursor) as Promise<OneCDocumentDto[]>;
   }
 
-  async pushLead(payload: OneCLeadPushPayload): Promise<OneCLeadPushResult> {
-    const url = buildUrl(this.config.baseUrl, ENDPOINTS.leadPush, {});
+  // Исходящий POST с теми же повторами и таймаутом, что у чтения. Ответ
+  // проверяет вызывающий — у каждой операции своя схема.
+  private postJson(path: string, body: unknown): Promise<unknown> {
+    const url = buildUrl(this.config.baseUrl, path, {});
     const headers = {
       ...buildAuthHeader(this.config.token),
       'Content-Type': 'application/json',
       Accept: 'application/json',
     };
-    const body = JSON.stringify(buildLeadBody(payload));
-    const raw = await withRetry(() =>
-      withTimeout((signal) => doFetch(url, { method: 'POST', headers, body }, signal))
+    const json = JSON.stringify(body);
+    return withRetry(() =>
+      withTimeout((signal) => doFetch(url, { method: 'POST', headers, body: json }, signal))
     );
+  }
+
+  async pushLead(payload: OneCLeadPushPayload): Promise<OneCLeadPushResult> {
+    const raw = await this.postJson(ENDPOINTS.leadPush, buildLeadBody(payload));
     return OneCLeadPushResultSchema.parse(raw);
+  }
+
+  // Этап 8 (`У-167`): тело уходит как есть — оно и есть контракт (секция 6),
+  // переименовывать поля на проводе, как у заявки (Q5), не нужно. `409` от 1С
+  // (версия ниже принятой) не транзиентная — `withRetry` бросает сразу, и
+  // повторять такую отправку бессмысленно: кабинет отправил устаревшую версию.
+  async pushDocument(payload: OneCDocumentPushPayload): Promise<OneCDocumentPushResult> {
+    const raw = await this.postJson(ENDPOINTS.documentPush, payload);
+    return OneCDocumentPushResultSchema.parse(raw);
   }
 }

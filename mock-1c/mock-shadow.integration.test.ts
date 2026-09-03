@@ -5,6 +5,7 @@ import { PrismaClient } from '@prisma/client';
 import { createMock1cServer, type ScenarioRef } from './server';
 import { createDataset } from './core/dataset';
 import { createLeadStore } from './core/leads';
+import { createDocumentStore } from './core/documents';
 import { DEFAULT_SCENARIO } from './core/scenario';
 import { syncOrdersProcessor } from '@/worker/processors/sync-orders';
 import { resetOneCAdapter } from '@/lib/services/oneCSync';
@@ -19,6 +20,7 @@ beforeAll(async () => {
     token: 'tok',
     dataset: createDataset(),
     leadStore: createLeadStore(),
+    documentStore: createDocumentStore(),
   });
   await new Promise<void>((r) => server.listen(0, r));
   const { port } = server.address() as AddressInfo;

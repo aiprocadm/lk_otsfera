@@ -104,3 +104,61 @@ export const OneCLeadPushResultSchema = z.object({
   acceptedAt: isoDate,
   oneCRequestId: z.string().optional(),
 });
+
+// ---------------------------------------------------------------------------
+// Этап 8 (`У-167`): выгрузка документов кабинета в 1С —
+// docs/integrations/1c-contract.md, секции 6–7.
+// ---------------------------------------------------------------------------
+
+/**
+ * Типы документов, которые вообще могут уехать в 1С. КП не выгружается
+ * (`Р-14`) — его здесь нет, и схема тела его отвергнет.
+ *
+ * Единственный источник для кода; умолчание `Company.oneCDocumentPushTypes`
+ * и CHECK-ограничение в базе обязаны совпадать с этим списком — страж
+ * `oneCSync.pushable-types.guardrail` сверяет все три места.
+ */
+export const ONE_C_PUSHABLE_TYPES = ['invoice', 'act', 'contract', 'extra_agreement'] as const;
+
+// `finite`, а не просто `number`: NaN/Infinity в JSON превращаются в `null`, и
+// 1С получила бы «сумму null» без единого предупреждения с нашей стороны.
+const finite = z.number().finite();
+
+const OneCDocumentPushLineSchema = z.object({
+  title: z.string().min(1),
+  quantity: finite.nonnegative(),
+  unit: z.string().min(1),
+  price: finite,
+  /** Доля (0.2 = 20 %), не проценты; `null` — «без НДС». */
+  vatRate: finite.min(0).max(1).nullable(),
+  vatAmount: finite,
+  amount: finite,
+});
+
+export const OneCDocumentPushSchema = z.object({
+  /** id ПЕРВОЙ версии цепочки перевыпусков — общий для всех версий (секция 7). */
+  externalId: z.string().min(1),
+  type: z.enum(ONE_C_PUSHABLE_TYPES),
+  number: z.string().min(1),
+  date: isoDate,
+  version: z.number().int().min(1),
+  counterparty: z.object({
+    inn: z.string().min(1),
+    kpp: z.string().nullable(),
+    name: z.string().min(1),
+    legalName: z.string().nullable(),
+  }),
+  /** `externalId: null` — заказ заведён в кабинете и в 1С ещё не бывал. */
+  order: z
+    .object({ externalId: z.string().min(1).nullable(), orderNumber: z.string().nullable() })
+    .nullable(),
+  parentDocument: z.object({ externalId: z.string().min(1), number: z.string().min(1) }).nullable(),
+  lines: z.array(OneCDocumentPushLineSchema).nullable(),
+  totals: z.object({ net: finite, vat: finite, gross: finite }).nullable(),
+  /** Presigned-ссылка на PDF; живёт час (секция 6). */
+  fileUrl: z.string().url(),
+});
+
+export const OneCDocumentPushResultSchema = z.object({
+  externalId: z.string().min(1),
+});

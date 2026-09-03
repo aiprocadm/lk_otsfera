@@ -23,10 +23,28 @@ so `RestOneCAdapter` and the full shadow pipeline can be exercised before the 1�
 | MOCK1C_MALFORMED_RATE | 0..1 | per-record quarantine over HTTP |
 | MOCK1C_FAIL_MODE | none \| transient \| permanent | 503+Retry-After (retried) / 500 (job retry) |
 | MOCK1C_LATENCY_MS | ms | > ONE_C_HTTP_TIMEOUT_MS → client timeout |
-| MOCK1C_PUSH_FAIL_RATE | 0..1 | POST /api/leads → 500 (BullMQ retry + C6 claim) |
+| MOCK1C_PUSH_FAIL_RATE | 0..1 | POST /api/leads **and** POST /api/documents → 500 (BullMQ retry + C6 claim) |
 
-Introspection: `GET /__health`, `GET /__state` (active scenario, lead dedup count, partner key seen).
+Introspection: `GET /__health`, `GET /__state` (active scenario, lead dedup count, partner key seen, accepted documents).
 Runtime flip without restart: `POST /__control` with a JSON patch, e.g. `{"statusDialect":"russian"}`.
+
+## Document push (этап 8, `У-167`)
+
+`POST /api/documents` — the same path the cabinet reads documents from, other method
+(contract `docs/integrations/1c-contract.md`, section 6). The body is validated with the
+**same zod schema the cabinet uses** (`OneCDocumentPushSchema`), so the mock is a
+two-way contract test: a body the cabinet would send but 1C would reject cannot pass.
+
+| Situation | Answer |
+|---|---|
+| new `externalId` | `200 { externalId: "mock-doc-N" }` |
+| same `externalId`, same `version` | `200`, the same id — no-op (idempotent retry) |
+| same `externalId`, higher `version` | `200`, the same id, stored body replaced (reissue) |
+| same `externalId`, lower `version` | `409` — not retried by the client |
+| body off-contract (no `counterparty`, `type: commercial_proposal`, bad `fileUrl`) | `400 { error: "<path>: <message>" }` |
+| `MOCK1C_PUSH_FAIL_RATE` hit | `500` — nothing stored |
+
+`GET /__state` → `documents: { uniqueDocuments, documents: [{ externalId, oneCExternalId, type, number, version, attempts, lines }], lastBody }`.
 
 ## Shadow rehearsal (local)
 

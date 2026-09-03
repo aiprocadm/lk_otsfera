@@ -4,7 +4,11 @@ import {
   OneCOrderSchema,
   OneCPaymentSchema,
   OneCDocumentSchema,
+  OneCDocumentPushSchema,
+  OneCDocumentPushResultSchema,
+  ONE_C_PUSHABLE_TYPES,
 } from '@/lib/services/oneCSync/schemas';
+import { documentPushPayload } from '@/__tests__/helpers/oneCDocumentPush';
 
 const validOrder = {
   externalId: '1c-order-1',
@@ -170,3 +174,105 @@ describe('oneCSync zod schemas', () => {
     ).toBe(false);
   });
 });
+
+// Этап 8 (`У-167`): схема тела выгрузки документа — единственный источник
+// правды о контракте (docs/integrations/1c-contract.md, секция 6) и для
+// кабинета, и для mock-1c. Здесь проверяется ФОРМА; поведение по версиям —
+// в тестах mock-1c/core/documents.
+describe('OneCDocumentPushSchema (этап 8, У-167)', () => {
+  it('accepts a full valid body', () => {
+    expect(OneCDocumentPushSchema.safeParse(documentPushPayload()).success).toBe(true);
+  });
+
+  it('accepts null for order / parentDocument / lines / totals / kpp / legalName / vatRate', () => {
+    const r = OneCDocumentPushSchema.safeParse(
+      documentPushPayload({
+        order: null,
+        parentDocument: null,
+        lines: [
+          { title: 'Услуга', quantity: 1, unit: 'усл', price: 10, vatRate: null, vatAmount: 0, amount: 10 },
+        ],
+        totals: null,
+        counterparty: { inn: '7701234567', kpp: null, name: 'ИП Иванов', legalName: null },
+      })
+    );
+    expect(r.success).toBe(true);
+  });
+
+  it('accepts an order created in the cabinet (order.externalId = null, orderNumber set)', () => {
+    const r = OneCDocumentPushSchema.safeParse(
+      documentPushPayload({ order: { externalId: null, orderNumber: 'З-999' } })
+    );
+    expect(r.success).toBe(true);
+  });
+
+  it('accepts a reissue chain: parentDocument with the previous number', () => {
+    const r = OneCDocumentPushSchema.safeParse(
+      documentPushPayload({ version: 2, parentDocument: { externalId: 'doc-1', number: 'С-1' } })
+    );
+    expect(r.success).toBe(true);
+  });
+
+  it('rejects a commercial proposal — КП в 1С не выгружается (Р-14)', () => {
+    const r = OneCDocumentPushSchema.safeParse({
+      ...documentPushPayload(),
+      type: 'commercial_proposal',
+    });
+    expect(r.success).toBe(false);
+    expect(ONE_C_PUSHABLE_TYPES).not.toContain('commercial_proposal');
+  });
+
+  it('rejects a body without counterparty', () => {
+    const { counterparty: _dropped, ...rest } = documentPushPayload();
+    void _dropped;
+    expect(OneCDocumentPushSchema.safeParse(rest).success).toBe(false);
+  });
+
+  it('rejects counterparty without inn and document without number (stable codes are PR-3)', () => {
+    expect(
+      OneCDocumentPushSchema.safeParse(
+        documentPushPayload({ counterparty: { inn: '', kpp: null, name: 'X', legalName: null } })
+      ).success
+    ).toBe(false);
+    expect(OneCDocumentPushSchema.safeParse(documentPushPayload({ number: '' })).success).toBe(
+      false
+    );
+  });
+
+  it('rejects version 0 and a non-integer version', () => {
+    expect(OneCDocumentPushSchema.safeParse(documentPushPayload({ version: 0 })).success).toBe(
+      false
+    );
+    expect(OneCDocumentPushSchema.safeParse(documentPushPayload({ version: 1.5 })).success).toBe(
+      false
+    );
+  });
+
+  it('rejects a fileUrl that is not a URL', () => {
+    expect(
+      OneCDocumentPushSchema.safeParse(documentPushPayload({ fileUrl: 'documents/x.pdf' })).success
+    ).toBe(false);
+  });
+
+  it('rejects NaN amounts (NaN would serialize as null on the wire)', () => {
+    expect(
+      OneCDocumentPushSchema.safeParse(
+        documentPushPayload({ totals: { net: Number.NaN, vat: 0, gross: 0 } })
+      ).success
+    ).toBe(false);
+  });
+
+  it('rejects a vatRate above 1 (rates are fractions, not percents)', () => {
+    const line = { ...documentPushPayload().lines![0]!, vatRate: 20 };
+    expect(
+      OneCDocumentPushSchema.safeParse(documentPushPayload({ lines: [line] })).success
+    ).toBe(false);
+  });
+
+  it('OneCDocumentPushResultSchema requires a non-empty externalId', () => {
+    expect(OneCDocumentPushResultSchema.safeParse({ externalId: '1c-doc-1' }).success).toBe(true);
+    expect(OneCDocumentPushResultSchema.safeParse({ externalId: '' }).success).toBe(false);
+    expect(OneCDocumentPushResultSchema.safeParse({}).success).toBe(false);
+  });
+});
+

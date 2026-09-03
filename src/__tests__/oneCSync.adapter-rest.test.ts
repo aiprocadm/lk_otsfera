@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import { RestOneCAdapter } from '@/lib/services/oneCSync/adapter-rest';
+import { documentPushPayload } from '@/__tests__/helpers/oneCDocumentPush';
 import {
   buildLeadBody,
   PARTNER_KEY_FIELD,
@@ -146,6 +147,44 @@ describe('RestOneCAdapter', () => {
     });
     expect(r.oneCRequestId).toBe('r1');
     expect(fetchMock.mock.calls[0][1].method).toBe('POST');
+  });
+
+  // Этап 8 (`У-167`): выгрузка документа — POST на тот же путь, что и чтение
+  // документов (`/api/documents`); тело уходит как есть, ответ проверяется схемой.
+  it('pushDocument POSTs the payload to /api/documents with Bearer and parses { externalId }', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ externalId: '1c-doc-77' }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const payload = documentPushPayload();
+    const r = await new RestOneCAdapter(config).pushDocument(payload);
+    expect(r).toEqual({ externalId: '1c-doc-77' });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toBe('https://1c.example.com/api/documents');
+    expect(init.method).toBe('POST');
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer tok');
+    expect(JSON.parse(init.body)).toEqual(payload);
+  });
+
+  it('pushDocument rejects a 1C answer without externalId (schema-checked)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) }));
+    await expect(new RestOneCAdapter(config).pushDocument(documentPushPayload())).rejects.toThrow();
+  });
+
+  it('pushDocument throws on 409 (older version) and does NOT retry', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      headers: { get: () => null },
+      json: async () => ({ error: 'version 1 is below accepted 2' }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const err = await new RestOneCAdapter(config)
+      .pushDocument(documentPushPayload())
+      .catch((e) => e);
+    expect(err.status).toBe(409);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('pullPayments returns payments array', async () => {

@@ -1,6 +1,7 @@
 import { createMock1cServer, type ScenarioRef } from './server';
 import { createDataset } from './core/dataset';
 import { createLeadStore } from './core/leads';
+import { createDocumentStore } from './core/documents';
 import { loadScenario, loadServerConfig } from './config';
 
 const { port, token } = loadServerConfig(process.env);
@@ -11,6 +12,7 @@ const server = createMock1cServer({
   token,
   dataset: createDataset(),
   leadStore: createLeadStore(),
+  documentStore: createDocumentStore(),
   log: (msg) => console.log(msg),
 });
 
