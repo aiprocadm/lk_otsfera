@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { PrismaClient, Prisma } from '@prisma/client';
+import type { DocumentType, OneCDocumentPushMode, PrismaClient, Prisma } from '@prisma/client';
 import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
@@ -13,6 +13,7 @@ import {
 import { getObjectStorage } from '@/lib/storage';
 import { notifyOrgUsers } from '@/lib/notifications';
 import { log } from '@/lib/logging';
+import { enqueueDocumentPush } from '@/lib/services/oneCSync/pushDocument';
 import { computeLineTotals } from '@/lib/services/orders/lineMath';
 import {
   resolveDocumentClauses,
@@ -368,6 +369,13 @@ type IssueContext = {
   templateOverrides: ReadonlyMap<string, DocumentTemplateOverride>;
   documentDate: Date;
   /**
+   * Правило выгрузки в 1С этой компании (`У-169`): при `auto` документ
+   * подходящего типа ставится в очередь сразу после выпуска. Читается вместе
+   * с реквизитами — отдельный запрос после выпуска дал бы окно, в котором
+   * правило уже поменяли, а бумага выпущена по прежнему.
+   */
+  oneCPush: { mode: OneCDocumentPushMode; types: DocumentType[] };
+  /**
    * До какой даты действует предложение (`У-162`). Считается ЗДЕСЬ, а не в
    * форме: форма — удобство, а вход в сервис открыт и напрямую. Без этого
    * значения в бумаге напечаталось бы «действительно до —», то есть
@@ -653,6 +661,9 @@ async function loadIssueContext(
         email: true,
         defaultVatRate: true,
         proposalValidDays: true,
+        // `У-169`: правило выгрузки в 1С — нужно после выпуска.
+        oneCDocumentPushMode: true,
+        oneCDocumentPushTypes: true,
       },
     }),
     organizationId
@@ -798,6 +809,7 @@ async function loadIssueContext(
       branding,
       templateOverrides,
       documentDate,
+      oneCPush: { mode: company.oneCDocumentPushMode, types: company.oneCDocumentPushTypes },
       proposalValidUntil:
         args.docType === 'commercial_proposal'
           ? (args.extras?.validUntil ?? addDays(documentDate, company.proposalValidDays))
@@ -1290,6 +1302,30 @@ export async function generateOrderDocument(
       });
     }
     throw e;
+  }
+
+  // `У-169`: правило `auto` — постановка в очередь выгрузки в 1С ПОСЛЕ
+  // успешного выпуска и перевыпуска (перевыпуск — тот же путь: новая версия
+  // уезжает обновлением под тем же `externalId`). Best-effort по спеке 3.3:
+  // упал Redis — выпуск всё равно состоялся, статус остался прежним, кнопка
+  // «Выгрузить в 1С» на месте. `enqueueDocumentPush` сам не бросает, но
+  // выпуск от этого зависеть не должен — страховка на случай, если однажды
+  // начнёт (страж в тестах ломает именно это).
+  if (ctx.oneCPush.mode === 'auto' && ctx.oneCPush.types.includes(args.docType)) {
+    try {
+      const queued = await enqueueDocumentPush(prisma, created.id, { actorUserId: session.sub });
+      if (!queued.ok) {
+        log.warn('[documents/generate] auto push to 1C not queued', {
+          documentId: created.id,
+          reason: queued.error,
+        });
+      }
+    } catch (err) {
+      log.warn('[documents/generate] auto push to 1C failed', {
+        documentId: created.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   // Уведомление клиенту — best-effort (не откатывает выпуск).

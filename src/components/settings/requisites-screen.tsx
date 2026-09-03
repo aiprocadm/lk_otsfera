@@ -7,6 +7,7 @@ import {
   CompanyNumberingForm,
   CompanyTaxForm,
 } from '@/components/settings/company-tax-numbering-forms';
+import { CompanyOneCPushRuleForm } from '@/components/settings/company-onec-push-rule-form';
 import type { CompanyRequisites } from '@/lib/services/admin/companyRequisites';
 import type { BrandingSlotView } from '@/lib/services/admin/companyBranding';
 import { setCompanyRequisitesAction } from '@/server-actions/requisites';
@@ -122,6 +123,23 @@ export function RequisitesScreen({
                 cabinet={cabinet}
                 companyId={c.id}
                 slots={brandingByCompany[c.id] ?? []}
+              />
+            </section>
+
+            {/* `У-169` (этап 8): правило выгрузки — у каждой компании своё. */}
+            <section className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+              <div>
+                <h2 className="text-sm font-semibold text-[#111111]">Выгрузка документов в 1С</h2>
+                <p className="text-xs text-gray-500">
+                  Когда отправлять выпущенные документы в 1С и какие именно — счёт, акт, договор,
+                  доп. соглашение.
+                </p>
+              </div>
+              <CompanyOneCPushRuleForm
+                cabinet={cabinet}
+                companyId={c.id}
+                mode={c.oneCDocumentPushMode}
+                types={c.oneCDocumentPushTypes}
               />
             </section>
           </div>

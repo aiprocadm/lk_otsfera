@@ -256,6 +256,8 @@ export const AUDIT_ACTIONS = [
   // `У-138`: налоги, нумерация и оформление компании-исполнителя.
   'company_tax_settings_changed',
   'company_numbering_changed',
+  // `У-169` (этап 8): правило выгрузки документов в 1С — режим и набор типов.
+  'company_onec_push_rule_changed',
   'company_branding_uploaded',
   'company_branding_removed',
   'catalog_imported',

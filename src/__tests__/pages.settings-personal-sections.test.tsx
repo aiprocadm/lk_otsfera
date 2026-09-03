@@ -216,13 +216,17 @@ describe('старые адреса разделов остаются живым
   });
 });
 
+// `У-169` (этап 8): блок «Выгрузка документов в 1С» читает правило из той же
+// выборки, что реквизиты, — без него форма правила не соберётся.
+const RULE = { oneCDocumentPushMode: 'manual', oneCDocumentPushTypes: ['invoice'] };
+
 describe('реквизиты исполнителя', () => {
   it('карточка на каждую компанию', async () => {
     listCompaniesRequisites.mockResolvedValue({
       ok: true,
       companies: [
-        { id: 'c1', name: 'Промтехносфера', phone: '+7 495 000-00-00', email: 'doc@pts.ru' },
-        { id: 'c2', name: 'Вторая', phone: null, email: null },
+        { id: 'c1', name: 'Промтехносфера', phone: '+7 495 000-00-00', email: 'doc@pts.ru', ...RULE },
+        { id: 'c2', name: 'Вторая', phone: null, email: null, ...RULE },
       ],
     });
 
@@ -231,6 +235,8 @@ describe('реквизиты исполнителя', () => {
     expect(requireSettingsSection).toHaveBeenCalledWith('catalogs.requisites', 'admin');
     expect(container.textContent).toContain('Реквизиты исполнителя: Промтехносфера');
     expect(container.textContent).toContain('Реквизиты исполнителя: Вторая');
+    // `У-169`: блок правила выгрузки — у каждой компании свой.
+    expect(container.querySelectorAll('[data-testid^="company-onec-push-rule-form-"]')).toHaveLength(2);
   });
 
   it('отказ сервиса не роняет страницу', async () => {
@@ -246,13 +252,16 @@ describe('реквизиты исполнителя', () => {
     requireSettingsSection.mockResolvedValueOnce({ ...LEADER, companyId: 'c1' });
     listCompaniesRequisites.mockResolvedValue({
       ok: true,
-      companies: [{ id: 'c1', name: 'Промтехносфера', phone: null, email: null }],
+      companies: [{ id: 'c1', name: 'Промтехносфера', phone: null, email: null, ...RULE }],
     });
 
     const { container } = await renderServerComponent(LeaderRequisitesPage());
 
     expect(requireSettingsSection).toHaveBeenCalledWith('catalogs.requisites', 'leader');
     expect(container.textContent).toContain('Реквизиты исполнителя: Промтехносфера');
+    // Правило зеркала: тот же блок «Выгрузка документов в 1С», что у админа.
+    expect(container.textContent).toContain('Выгрузка документов в 1С');
+    expect(container.querySelector('[data-testid="company-onec-push-rule-form-c1"]')).not.toBeNull();
   });
 
   it('руководитель без компании: объяснение вместо пустоты', async () => {

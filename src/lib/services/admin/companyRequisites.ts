@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { DocumentType, OneCDocumentPushMode, PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
 import {
@@ -23,6 +23,9 @@ export type CompanyRequisites = RequisitesValues & {
   defaultVatRate: string | null;
   pricesIncludeVat: boolean;
   numbering: DocumentNumbering | null;
+  // `У-169` (этап 8): правило выгрузки в 1С — четвёртый блок того же экрана.
+  oneCDocumentPushMode: OneCDocumentPushMode;
+  oneCDocumentPushTypes: DocumentType[];
 };
 
 const REQ_SELECT = {
@@ -45,6 +48,8 @@ const REQ_SELECT = {
   defaultVatRate: true,
   pricesIncludeVat: true,
   documentNumbering: true,
+  oneCDocumentPushMode: true,
+  oneCDocumentPushTypes: true,
 } as const;
 
 export async function listCompaniesRequisites(
