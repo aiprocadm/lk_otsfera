@@ -1,4 +1,4 @@
-import type { ZodType } from 'zod';
+import type { ZodType, ZodTypeDef } from 'zod';
 import { oneCHttpTimeoutMs } from './config';
 
 export class OneCHttpError extends Error {
@@ -68,7 +68,10 @@ export type ParseResult<T> = {
   invalid: Array<{ externalId: string | null; issue: string }>;
 };
 
-export function parseRecords<T>(schema: ZodType<T>, raw: unknown[]): ParseResult<T> {
+export function parseRecords<T>(
+  schema: ZodType<T, ZodTypeDef, unknown>,
+  raw: unknown[]
+): ParseResult<T> {
   const valid: T[] = [];
   const invalid: Array<{ externalId: string | null; issue: string }> = [];
   for (const item of raw) {

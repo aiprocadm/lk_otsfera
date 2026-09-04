@@ -1,4 +1,4 @@
-import type { ZodType } from 'zod';
+import type { ZodType, ZodTypeDef } from 'zod';
 import { parseRecords } from './resilience';
 
 export type BatchSummary = {
@@ -29,7 +29,9 @@ export function emptySummary(): BatchSummary {
 
 export async function runRecordBatch<T>(
   raw: unknown[],
-  schema: ZodType<T>,
+  // Вход схемы — `unknown`: у полей с `.default()` (`direction` документа,
+  // `У-170`) тип «до разбора» шире типа «после», а батчу важен только результат.
+  schema: ZodType<T, ZodTypeDef, unknown>,
   getExternalId: (r: T) => string,
   // Promise<unknown>: writer'ы с этапа 8 возвращают WriteOutcome (Т-34) —
   // батчу результат не нужен, его собирает замыкание вызывающего.

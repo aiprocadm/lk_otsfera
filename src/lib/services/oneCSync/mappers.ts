@@ -1,4 +1,9 @@
-import type { ExecutionStatus, FinancialStatus, DocumentType } from '@prisma/client';
+import type {
+  ExecutionStatus,
+  FinancialStatus,
+  DocumentDirection,
+  DocumentType,
+} from '@prisma/client';
 import type { OneCOrgDto, OneCOrderDto, OneCPaymentDto, OneCDocumentDto } from './dto';
 
 export type OrgUpsertInput = {
@@ -108,6 +113,9 @@ export type DocumentUpsertInput = {
   signedAt: Date | null;
   downloadUrl: string;
   updatedAt: Date;
+  /** `У-170`: направление и номер — из DTO, а не литералом writer'а. */
+  direction: DocumentDirection;
+  number: string | null;
 };
 
 export function mapDocumentDto(dto: OneCDocumentDto): DocumentUpsertInput {
@@ -121,5 +129,8 @@ export function mapDocumentDto(dto: OneCDocumentDto): DocumentUpsertInput {
     signedAt: dto.signedAt ? new Date(dto.signedAt) : null,
     downloadUrl: dto.downloadUrl,
     updatedAt: new Date(dto.updatedAt),
+    direction: dto.direction,
+    // Пустая строка из 1С — это «номера нет», а не номер «».
+    number: dto.number?.trim() || null,
   };
 }

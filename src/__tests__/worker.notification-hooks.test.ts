@@ -246,6 +246,7 @@ describe('syncDocumentsProcessor notification hook', () => {
       {
         externalId: `nh-doc-${Date.now()}`,
         orderExternalId,
+        direction: 'incoming',
         type: 'contract',
         name: 'NH Contract.pdf',
         mimeType: 'application/pdf',
@@ -287,6 +288,7 @@ describe('syncDocumentsProcessor notification hook', () => {
       {
         externalId,
         orderExternalId,
+        direction: 'incoming',
         type: 'contract',
         name: 'Old.pdf',
         mimeType: 'application/pdf',

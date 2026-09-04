@@ -89,6 +89,8 @@ Response (JSON массив):
   "externalId": "...",
   "orderExternalId": "...",
   "type": "contract|extra_agreement|invoice|act|waybill|certificate|report|other",
+  "direction": "incoming|outgoing",
+  "number": "245",
   "name": "Договор 245.pdf",
   "mimeType": "application/pdf",
   "size": 248000,
@@ -97,6 +99,15 @@ Response (JSON массив):
   "updatedAt": "2026-04-12T10:00:00Z"
 }]
 ```
+
+> **`direction` и `number` (этап 8, `У-170`, `Д-24`/`Д-25`).** `direction` —
+> кто выпустил бумагу: `incoming` — 1С (умолчание, если поле не пришло),
+> `outgoing` — кабинет выгрузил её в 1С (§8), и 1С вернула, например,
+> подписанной. `number` — номер документа в 1С; необязателен. Кабинет ищет
+> уже известный документ по **трём ключам по порядку**: `externalId` →
+> `oneCExternalId` (id, под которым 1С приняла нашу выгрузку) → `type` +
+> `number` в пределах заказа; найденный **обновляется** (подпись, файл,
+> статус «принят» при `signedAt`), а не создаётся заново.
 
 `downloadUrl` должен:
 - Быть подписанным (signed URL с TTL ≥ 5 мин), либо

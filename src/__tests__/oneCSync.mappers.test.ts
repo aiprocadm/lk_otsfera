@@ -80,6 +80,7 @@ describe('1C → Prisma mappers', () => {
     const out = mapDocumentDto({
       externalId: 'd1',
       orderExternalId: 'o1',
+      direction: 'incoming',
       type: 'act',
       name: 'Акт.pdf',
       mimeType: 'application/pdf',
@@ -147,10 +148,31 @@ describe('1C → Prisma mappers', () => {
     expect(out.vatAmount).toBe(36);
   });
 
+  it('У-170: mapDocumentDto переносит direction; number обрезает, пустой — null', () => {
+    const base = {
+      externalId: 'd-dir',
+      orderExternalId: 'o1',
+      direction: 'outgoing' as const,
+      type: 'contract' as const,
+      name: 'f.pdf',
+      mimeType: 'application/pdf',
+      size: 1,
+      downloadUrl: 'fake://x',
+      updatedAt: '2026-05-01T00:00:00Z',
+    };
+    expect(mapDocumentDto({ ...base, number: '  245 ' })).toMatchObject({
+      direction: 'outgoing',
+      number: '245',
+    });
+    expect(mapDocumentDto({ ...base, number: '   ' }).number).toBeNull();
+    expect(mapDocumentDto(base).number).toBeNull();
+  });
+
   it('mapDocumentDto: null signedAt becomes null', () => {
     const out = mapDocumentDto({
       externalId: 'd-no-signed',
       orderExternalId: 'o1',
+      direction: 'incoming',
       type: 'contract',
       name: 'f.pdf',
       mimeType: 'application/pdf',
@@ -197,6 +219,7 @@ describe('1C → Prisma mappers', () => {
     const out = mapDocumentDto({
       externalId: 'd-signed',
       orderExternalId: 'o1',
+      direction: 'incoming',
       type: 'contract',
       name: 'f.pdf',
       mimeType: 'application/pdf',

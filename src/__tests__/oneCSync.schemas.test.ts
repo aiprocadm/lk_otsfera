@@ -69,6 +69,26 @@ describe('oneCSync zod schemas', () => {
     ).toBe(true);
   });
 
+  it('У-170: документ без direction получает incoming; outgoing и number проходят как есть', () => {
+    const base = {
+      externalId: 'd1',
+      orderExternalId: 'o1',
+      type: 'act',
+      name: 'a.pdf',
+      mimeType: 'application/pdf',
+      size: 1,
+      downloadUrl: 'http://x/d1',
+      updatedAt: '2026-05-01T00:00:00Z',
+    };
+    // 1С, которая поле ещё не отдаёт, — бумага её собственная
+    expect(OneCDocumentSchema.parse(base)).toMatchObject({ direction: 'incoming' });
+    expect(OneCDocumentSchema.parse(base)).not.toHaveProperty('number');
+    expect(
+      OneCDocumentSchema.parse({ ...base, direction: 'outgoing', number: '245' })
+    ).toMatchObject({ direction: 'outgoing', number: '245' });
+    expect(OneCDocumentSchema.safeParse({ ...base, direction: 'sideways' }).success).toBe(false);
+  });
+
   it('payment accepts order-level ref', () => {
     expect(
       OneCPaymentSchema.safeParse({
@@ -190,7 +210,15 @@ describe('OneCDocumentPushSchema (этап 8, У-167)', () => {
         order: null,
         parentDocument: null,
         lines: [
-          { title: 'Услуга', quantity: 1, unit: 'усл', price: 10, vatRate: null, vatAmount: 0, amount: 10 },
+          {
+            title: 'Услуга',
+            quantity: 1,
+            unit: 'усл',
+            price: 10,
+            vatRate: null,
+            vatAmount: 0,
+            amount: 10,
+          },
         ],
         totals: null,
         counterparty: { inn: '7701234567', kpp: null, name: 'ИП Иванов', legalName: null },
@@ -264,9 +292,9 @@ describe('OneCDocumentPushSchema (этап 8, У-167)', () => {
 
   it('rejects a vatRate above 1 (rates are fractions, not percents)', () => {
     const line = { ...documentPushPayload().lines![0]!, vatRate: 20 };
-    expect(
-      OneCDocumentPushSchema.safeParse(documentPushPayload({ lines: [line] })).success
-    ).toBe(false);
+    expect(OneCDocumentPushSchema.safeParse(documentPushPayload({ lines: [line] })).success).toBe(
+      false
+    );
   });
 
   it('OneCDocumentPushResultSchema requires a non-empty externalId', () => {
@@ -275,4 +303,3 @@ describe('OneCDocumentPushSchema (этап 8, У-167)', () => {
     expect(OneCDocumentPushResultSchema.safeParse({}).success).toBe(false);
   });
 });
-
