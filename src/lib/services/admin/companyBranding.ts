@@ -33,7 +33,12 @@ type Forbidden = { ok: false; error: 'forbidden' };
 type NotFound = { ok: false; error: 'not_found' };
 type Validation = { ok: false; error: 'validation'; messages: string[] };
 
-function guardCompany(session: SessionPayload, companyId: string): Forbidden | null {
+/**
+ * Граница компании для настроек исполнителя (`Р-22`): админ — любая,
+ * руководитель — только своя, остальным отказ. Экспортируется ради правила
+ * выгрузки в 1С (`У-169`, `oneCDocumentPushRule.ts`) — та же граница.
+ */
+export function guardCompany(session: SessionPayload, companyId: string): Forbidden | null {
   if (session.role !== 'admin' && session.role !== 'leader') {
     return { ok: false, error: 'forbidden' };
   }

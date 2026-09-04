@@ -21,6 +21,8 @@ const {
   notifyOrgUsers,
   getCompanyTeamVisibility,
   canSeeOrderMock,
+  enqueueDocumentPush,
+  logWarn,
 } = vi.hoisted(() => ({
   recordAuditMock: vi.fn(),
   uploadMock: vi.fn(),
@@ -35,6 +37,8 @@ const {
   notifyOrgUsers: vi.fn(),
   getCompanyTeamVisibility: vi.fn(),
   canSeeOrderMock: vi.fn(),
+  enqueueDocumentPush: vi.fn(),
+  logWarn: vi.fn(),
 }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit: recordAuditMock }));
 vi.mock('@/lib/pii/record', () => ({ recordPiiAccess: recordPiiAccessMock }));
@@ -61,7 +65,10 @@ vi.mock('@/lib/auth/managerPolicy', () => ({
   getCompanyTeamVisibility,
   canSeeOrder: canSeeOrderMock,
 }));
-vi.mock('@/lib/logging', () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
+vi.mock('@/lib/logging', () => ({ log: { warn: logWarn, error: vi.fn(), info: vi.fn() } }));
+// `У-169`: постановка в очередь выгрузки — свой сервис со своими тестами;
+// здесь проверяется только, КОГДА выпуск его зовёт и что его сбой не мешает.
+vi.mock('@/lib/services/oneCSync/pushDocument', () => ({ enqueueDocumentPush }));
 
 import { generateOrderDocument } from '@/lib/services/documents/generate';
 
@@ -171,6 +178,7 @@ beforeEach(() => {
   notifyOrgUsers.mockResolvedValue({});
   getCompanyTeamVisibility.mockResolvedValue(false);
   canSeeOrderMock.mockReturnValue(true);
+  enqueueDocumentPush.mockResolvedValue({ ok: true });
 });
 
 describe('generateOrderDocument', () => {
@@ -1211,5 +1219,82 @@ describe('generateOrderDocument — коммерческое предложен�
         })
       ).toEqual({ ok: false, error: 'not_found' });
     });
+  });
+});
+
+describe('`У-169`: правило `auto` — постановка в очередь выгрузки в 1С после выпуска', () => {
+  const ALL = ['invoice', 'act', 'contract', 'extra_agreement'];
+  const companyWith = (mode: string, types: string[] = ALL) => ({
+    ...FULL_PARTY,
+    oneCDocumentPushMode: mode,
+    oneCDocumentPushTypes: types,
+  });
+
+  it('при `auto` задача ставится ПОСЛЕ записи документа, от имени выпустившего', async () => {
+    const { prisma, documentCreate } = makePrisma({ company: companyWith('auto') });
+    const r = await generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice' });
+    expect(r).toMatchObject({ ok: true, documentId: 'doc-1' });
+    expect(enqueueDocumentPush).toHaveBeenCalledWith(prisma, 'doc-1', { actorUserId: 'm1' });
+    // Порядок: сначала документ в базе, потом очередь — иначе воркер искал бы
+    // бумагу, которой ещё нет.
+    expect(documentCreate.mock.invocationCallOrder[0]!).toBeLessThan(
+      enqueueDocumentPush.mock.invocationCallOrder[0]!
+    );
+  });
+
+  it('при `auto` перевыпуск тоже уезжает — новой версией', async () => {
+    const { prisma, tx } = makePrisma({ company: companyWith('auto') });
+    (tx.document.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: 'doc-old',
+      number: 'С-2026-1',
+      version: 2,
+      parentDocumentId: null,
+    });
+    const r = await generateOrderDocument(prisma, manager(), {
+      orderId: 'ord-1',
+      docType: 'invoice',
+      extras: { reissueOfDocumentId: 'doc-old' },
+    });
+    expect(r).toMatchObject({ ok: true });
+    expect(enqueueDocumentPush).toHaveBeenCalledWith(prisma, 'doc-1', { actorUserId: 'm1' });
+  });
+
+  it('при `manual` и `never` очередь не трогается', async () => {
+    for (const mode of ['manual', 'never']) {
+      const { prisma } = makePrisma({ company: companyWith(mode) });
+      const r = await generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice' });
+      expect(r, mode).toMatchObject({ ok: true });
+    }
+    expect(enqueueDocumentPush).not.toHaveBeenCalled();
+  });
+
+  it('тип вне набора компании не ставится, даже при `auto`', async () => {
+    const { prisma } = makePrisma({ company: companyWith('auto', ['act', 'contract']) });
+    const r = await generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice' });
+    expect(r).toMatchObject({ ok: true });
+    expect(enqueueDocumentPush).not.toHaveBeenCalled();
+  });
+
+  it('постановка отказала (нет Redis) — выпуск состоялся, отказ в логе', async () => {
+    enqueueDocumentPush.mockResolvedValue({ ok: false, error: 'queue_unavailable' });
+    const { prisma } = makePrisma({ company: companyWith('auto') });
+    const r = await generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice' });
+    expect(r).toMatchObject({ ok: true, documentId: 'doc-1' });
+    expect(logWarn).toHaveBeenCalledWith(
+      '[documents/generate] auto push to 1C not queued',
+      expect.objectContaining({ documentId: 'doc-1', reason: 'queue_unavailable' })
+    );
+  });
+
+  it('постановка БРОСИЛА — выпуск всё равно ok: true (спека 3.3), клиент уведомлён', async () => {
+    enqueueDocumentPush.mockRejectedValue(new Error('redis down'));
+    const { prisma } = makePrisma({ company: companyWith('auto') });
+    const r = await generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice' });
+    expect(r).toEqual({ ok: true, documentId: 'doc-1', number: 'С-2026-7' });
+    expect(logWarn).toHaveBeenCalledWith(
+      '[documents/generate] auto push to 1C failed',
+      expect.objectContaining({ documentId: 'doc-1', error: 'redis down' })
+    );
+    expect(notifyOrgUsers).toHaveBeenCalled();
   });
 });

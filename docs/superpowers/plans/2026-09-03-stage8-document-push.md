@@ -16,8 +16,8 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development
 |---|---|---|---|
 | PR-1 «Контракт и модель» | Секция `POST /api/documents` и `GET /api/documents?externalId=` в контракте; перечисления `OneCPushStatus` (шесть значений сразу) и `OneCDocumentPushMode`; шесть полей `Document`, два поля `Company`, две проверки базы, одна миграция | `У-167` (контракт), `У-168` (модель) | ✅ [#483](https://github.com/aiprocadm/lk_otsfera/pull/483) |
 | PR-2 «Адаптер и mock» | `OneCDocumentPushSchema` и результат, `pushDocument` в `OneCAdapter` (fake, rest, file), ключ `documentPush`, хранилище документов и обработчик в `mock-1c`, `/__state` показывает принятое, контрактный тест | `У-167`, `У-168` | ✅ [#484](https://github.com/aiprocadm/lk_otsfera/pull/484) |
-| PR-3 «Очередь и процессор» | Очередь `oneCSync.pushDocument`, сборка тела (`externalId` — корень цепочки перевыпусков, `fileUrl` на час, `lines: null` у legacy), сервис выгрузки с идемпотентностью по версии и отказом КП, процессор с интеграционным тестом, события аудита | `У-168`, `У-167` (идемпотентность, `Р-14`), `У-159` (остаток) | 🔨 [#485](https://github.com/aiprocadm/lk_otsfera/pull/485) в ревью |
-| PR-4 «Правило компании» | `auto / manual / never` и набор типов в «Реквизитах исполнителя» у администратора и руководителя, автопостановка после выпуска best-effort | `У-169` (правило) | ⏳ |
+| PR-3 «Очередь и процессор» | Очередь `oneCSync.pushDocument`, сборка тела (`externalId` — корень цепочки перевыпусков, `fileUrl` на час, `lines: null` у legacy), сервис выгрузки с идемпотентностью по версии и отказом КП, процессор с интеграционным тестом, события аудита | `У-168`, `У-167` (идемпотентность, `Р-14`), `У-159` (остаток) | ✅ [#485](https://github.com/aiprocadm/lk_otsfera/pull/485) |
+| PR-4 «Правило компании» | `auto / manual / never` и набор типов в «Реквизитах исполнителя» у администратора и руководителя, автопостановка после выпуска best-effort | `У-169` (правило) | 🔨 [#486](https://github.com/aiprocadm/lk_otsfera/pull/486) в ревью |
 | PR-5 «Экраны выгрузки» | Блок «Выгрузка в 1С» на карточке документа с кнопками «Выгрузить в 1С» / «Повторить», фильтр по статусу выгрузки и массовое «Выгрузить выбранные» в списке документов сотрудников | `У-169` (экраны), `У-159` (повтор) | ⏳ |
 | PR-6 «Обратная связь» | Поиск входящего по трём ключам без дубля, обновление файла с повторным сканом, `direction` и `number` из DTO | `У-170` (`Д-24`, `Д-25`) | ⏳ |
 | PR-7 «Реквизиты контрагента» | Реквизиты в схеме, маппере и writer'е; пустое из 1С не затирает заполненное; фикстуры, набор данных mock и контракт | `У-171` (`Д-23`) | ⏳ |
@@ -237,31 +237,64 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development
 
 ## PR-4 «Правило компании» — `У-169` (правило)
 
-- [ ] `src/lib/services/admin/oneCDocumentPushRule.ts`:
+- [x] `src/lib/services/admin/oneCDocumentPushRule.ts`:
       `getOneCDocumentPushRule(prisma, session)` и
       `updateOneCDocumentPushRule(prisma, session, { mode, types })` — только
       `admin` и `leader` своей компании (`Р-22`), остальным `forbidden`; `types`
       ⊆ `ONE_C_PUSHABLE_TYPES` (`invalid_types`); аудит
       `company_onec_push_rule_changed` с русским названием.
-- [ ] Server-action рядом с `companyRequisites`; блок «Выгрузка документов в
+- [x] Server-action рядом с `companyRequisites`; блок «Выгрузка документов в
       1С» в `requisites-screen.tsx`: подзаголовок одной строкой, три варианта
       «автоматически при выпуске · только по кнопке · никогда», четыре
       флажка типов (подписи из глоссария), кнопка «Сохранить». Экран один и
       тот же у администратора и руководителя (правило зеркала).
-- [ ] `generate.ts`: после успешного выпуска и после перевыпуска — если
+- [x] `generate.ts`: после успешного выпуска и после перевыпуска — если
       `oneCDocumentPushMode = auto` и тип в наборе → `enqueueDocumentPush`
       (best-effort, вне транзакции выпуска).
-- [ ] `docs/glossary.md`: «Выгрузка в 1С», «Правило выгрузки».
-- [ ] Тесты: сервис (менеджер — `forbidden`; руководитель чужой компании —
+- [x] `docs/glossary.md`: «Выгрузка в 1С», «Правило выгрузки».
+- [x] Тесты: сервис (менеджер — `forbidden`; руководитель чужой компании —
       `forbidden`; КП в наборе — `invalid_types`; сохранение и чтение);
       компонент (три варианта, четыре флажка, ошибка по-русски);
       `services.documents.generate` — при `auto` ставится задача, при `manual`
       и `never` нет, тип вне набора не ставится, упавшая постановка не роняет
       выпуск и выпуск возвращает `ok: true`.
-- [ ] Мутации: убрать проверку роли → менеджер меняет правило; постановка
+- [x] Мутации: убрать проверку роли → менеджер меняет правило; постановка
       бросает наружу → выпуск падает при недоступном Redis (спека 3.3);
       убрать проверку набора → КП сохраняется в правиле мимо CHECK (падает уже
       база, но код обязан ответить кодом, а не `500`).
+- [x] Решения исполнителя по ходу PR-4 (спеке не противоречат, в ней не
+      записаны):
+      1. **Чтение правила — через `listCompaniesRequisites`**, как налоги и
+         нумерация (`У-138`): в `CompanyRequisites` добавлены
+         `oneCDocumentPushMode`/`oneCDocumentPushTypes`. Отдельный
+         `getOneCDocumentPushRule` не заведён — у экрана уже есть выборка
+         компаний, а неиспользуемый экспорт валит `deadcode`.
+      2. **`updateOneCDocumentPushRule(prisma, session, companyId, input)`** —
+         с `companyId`, а не «своя компания из сессии»: у администратора
+         компаний несколько, экран показывает форму под каждой. Гард —
+         `guardCompany` из `companyBranding.ts` (экспортирован, не скопирован):
+         admin — любая, leader — только своя, остальным `forbidden`.
+      3. **Два кода вместо `validation`:** `invalid_mode` и `invalid_types`
+         с русскими текстами в `errors/messages.ts` — человек видит «в 1С
+         выгружаются только счёт, акт, договор и доп. соглашение», а не
+         «проверьте форму». Набор нормализуется в канонический порядок
+         `ONE_C_PUSHABLE_TYPES` без повторов.
+      4. **Server-action отдельным файлом** `server-actions/admin/oneCDocumentPushRule.ts`
+         под гардом `requireSettingsSection('catalogs.requisites', cabinet)` —
+         тот же раздел, что и реквизиты; `revalidatePath` на оба хаба.
+      5. **Правило читается тем же select компании в `loadIssueContext`**
+         (`IssueContext.oneCPush`), а не отдельным запросом после выпуска —
+         выпуск и перевыпуск идут через один контекст, лишний запрос не нужен.
+      6. **`try/catch` вокруг `enqueueDocumentPush` — страховка сверх
+         контракта:** продюсер сам не бросает (PR-3), но выпуск обязан
+         вернуть `ok: true` и при чужом исключении (спека 3.3); страж на это
+         есть, мутация «голый `await`» его роняет.
+- [x] Интеграционный тест `services.oneCDocumentPushRule.integration` на живом
+      Postgres: умолчание `manual` + четыре типа, сохранение руководителем и
+      чтение через `listCompaniesRequisites`, аудит с `before`/`after`,
+      чужая компания не меняется, КП — `invalid_types` от кода, а прямой
+      `update` с КП — отказ проверки базы `Company_oneCDocumentPushTypes_pushable`.
+- [x] `STATUS.md`, `AUDIT.md`, `CHANGELOG.md`.
 
 ## PR-5 «Экраны выгрузки» — `У-169` (экраны), `У-159` (повтор)
 

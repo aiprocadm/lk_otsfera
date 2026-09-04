@@ -187,6 +187,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   order_total_recalculated: 'Пересчёт суммы заказа по строкам',
   company_tax_settings_changed: 'Изменение налоговых настроек компании',
   company_numbering_changed: 'Изменение нумерации документов',
+  company_onec_push_rule_changed: 'Изменение правила выгрузки документов в 1С',
   company_branding_uploaded: 'Загрузка оформления документов',
   company_branding_removed: 'Удаление оформления документов',
   catalog_imported: 'Импорт каталога из Excel',
