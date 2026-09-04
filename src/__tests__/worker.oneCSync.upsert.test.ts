@@ -235,6 +235,21 @@ describe('syncOrganizationsProcessor', () => {
       expect(org.companyId).toBe(syncCompanyId);
       expect(org.inn).toBeTruthy();
     }
+
+    // `У-171` (Д-23): реквизиты из ответа 1С доезжают до базы через весь
+    // путь воркера — адаптер → схема → маппер → writer, а не только в unit'е.
+    const full = FAKE_ORGS[0];
+    const withRequisites = await prisma.organization.findUniqueOrThrow({
+      where: { externalId: full.externalId },
+      select: { legalName: true, ogrn: true, legalAddress: true, bic: true, signerName: true },
+    });
+    expect(withRequisites).toEqual({
+      legalName: full.legalName,
+      ogrn: full.ogrn,
+      legalAddress: full.legalAddress,
+      bic: full.bic,
+      signerName: full.signerName,
+    });
   });
 
   it('is idempotent on second run', async () => {

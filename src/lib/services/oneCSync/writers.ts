@@ -8,8 +8,14 @@ import { log } from '@/lib/logging';
 import { notifyInvoicesPaid } from '@/lib/services/documents/invoicePaidNotice';
 import { setDocumentStatus } from '@/lib/services/documents/status';
 import { organizationNameKey } from '@/lib/services/import/oneCAccountCard/counterparty-key';
-import { mapOrderDto, mapPaymentDto, mapOrgDto, mapDocumentDto } from './mappers';
-import type { DocumentUpsertInput } from './mappers';
+import {
+  mapOrderDto,
+  mapPaymentDto,
+  mapOrgDto,
+  mapDocumentDto,
+  ORG_REQUISITE_KEYS,
+} from './mappers';
+import type { DocumentUpsertInput, OrgRequisites } from './mappers';
 import { normalizeInn } from './inn';
 import { resolveOrganizationRef } from './resolve-org';
 import { fetchAndStore1CDocument } from './document-fetch';
@@ -361,6 +367,30 @@ export async function upsertPaymentRecord(
   }
 }
 
+/**
+ * `У-171` (`Д-23`): пустое из 1С не затирает заполненное у нас. В `update`
+ * попадают только реквизиты со значением — иначе первый же обмен стёр бы
+ * адрес или банк, которые менеджер вводил руками в карточке организации, и
+ * это была бы потеря данных. Правило одно на все двенадцать полей, включая
+ * ИНН и КПП. «Пусто» — это `null`: `''` и пробелы к нему свёл маппер
+ * (`mapOrgDto`, `text`), здесь второй trim был бы мёртвой веткой.
+ */
+function nonEmptyOnly(requisites: OrgRequisites): Partial<OrgRequisites> {
+  const patch: Partial<OrgRequisites> = {};
+  for (const key of ORG_REQUISITE_KEYS) {
+    const value = requisites[key];
+    if (value !== null) patch[key] = value;
+  }
+  return patch;
+}
+
+/** Все реквизиты как есть — для `create`, где затирать ещё нечего. */
+function allRequisites(requisites: OrgRequisites): OrgRequisites {
+  const out = {} as OrgRequisites;
+  for (const key of ORG_REQUISITE_KEYS) out[key] = requisites[key];
+  return out;
+}
+
 export async function upsertOrgRecord(
   db: PrismaClient,
   dto: OneCOrgDto,
@@ -424,17 +454,14 @@ export async function upsertOrgRecord(
     if (isLive(ctx)) {
       // Backfill the 1C externalId only when the matched org has none — never clobber a different identity.
       // `У-84`: имя приходит из 1С — ключ названия пересчитывается вместе с ним.
+      // `У-171`: реквизиты — только непустые (см. `nonEmptyOnly`).
       const nameKey = organizationNameKey(input.name);
-      const data =
-        input.externalId && !existing.externalId
-          ? {
-              name: input.name,
-              nameKey,
-              inn: input.inn,
-              kpp: input.kpp,
-              externalId: input.externalId,
-            }
-          : { name: input.name, nameKey, inn: input.inn, kpp: input.kpp };
+      const data = {
+        name: input.name,
+        nameKey,
+        ...nonEmptyOnly(input),
+        ...(input.externalId && !existing.externalId ? { externalId: input.externalId } : {}),
+      };
       await db.organization.update({ where: { id: existing.id }, data });
     }
     sum.updated += 1;
@@ -476,8 +503,8 @@ export async function upsertOrgRecord(
           name: input.name,
           // `У-84`: ключ названия — при каждом создании.
           nameKey: organizationNameKey(input.name),
-          inn: input.inn,
-          kpp: input.kpp,
+          // `У-171`: при создании реквизиты пишутся как есть — затирать нечего.
+          ...allRequisites(input),
           partnerId,
           companyId,
         },

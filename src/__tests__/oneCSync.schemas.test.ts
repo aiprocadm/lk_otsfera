@@ -44,6 +44,28 @@ describe('oneCSync zod schemas', () => {
       false
     );
   });
+  it('У-171: OneCOrgSchema принимает реквизиты контрагента и не требует ни одного из них', () => {
+    const base = { externalId: 'org-1', name: 'ООО Реквизиты', updatedAt: '2026-05-01T00:00:00Z' };
+    const full = {
+      ...base,
+      legalName: 'Общество с ограниченной ответственностью «Реквизиты»',
+      ogrn: '1027700000001',
+      legalAddress: '101000, г. Москва, ул. Первая, д. 1',
+      bankName: 'ПАО Банк',
+      bankAccount: '40702810000000000001',
+      corrAccount: '30101810000000000001',
+      bic: '044525001',
+      signerName: 'Иванов И. И.',
+      signerPosition: 'Генеральный директор',
+      signerBasis: 'Устава',
+    };
+    // Все девять доезжают до DTO как есть — схема их не режет.
+    expect(OneCOrgSchema.parse(full)).toEqual(full);
+    // Без них запись валидна: 1С, которая реквизиты не отдаёт, не ломает обмен.
+    expect(OneCOrgSchema.parse(base)).toEqual(base);
+    // Реквизит — строка; число вместо ОГРН — брак записи, а не «примерно ОГРН».
+    expect(OneCOrgSchema.safeParse({ ...base, ogrn: 1027700000001 }).success).toBe(false);
+  });
   it('OneCPaymentSchema and OneCDocumentSchema accept valid records', () => {
     expect(
       OneCPaymentSchema.safeParse({

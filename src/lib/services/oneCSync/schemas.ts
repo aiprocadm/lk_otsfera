@@ -13,6 +13,19 @@ export const OneCOrgSchema = z.object({
   legalName: z.string().optional(),
   inn: z.string().optional(),
   kpp: z.string().optional(),
+  // `У-171` (этап 8): реквизиты контрагента — те же колонки, что заполняет
+  // менеджер в карточке организации для автогенерации документов (ФТ-9.1).
+  // Все необязательные: пустое из 1С не затирает заполненное у нас
+  // (writers.ts, `nonEmptyOnly`).
+  ogrn: z.string().optional(),
+  legalAddress: z.string().optional(),
+  bankName: z.string().optional(),
+  bankAccount: z.string().optional(),
+  corrAccount: z.string().optional(),
+  bic: z.string().optional(),
+  signerName: z.string().optional(),
+  signerPosition: z.string().optional(),
+  signerBasis: z.string().optional(),
   partnerExternalId: z.string().optional(),
   updatedAt: isoDate,
 });

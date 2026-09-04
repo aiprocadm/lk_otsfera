@@ -347,6 +347,100 @@ describe('upsertOrgRecord', () => {
     expect(data).toMatchObject({ inn: '77', name: 'Acme', nameKey: 'ACME' });
     expect(sum.updated).toBe(1);
   });
+
+  describe('У-171 (Д-23): реквизиты контрагента — пустое из 1С не затирает заполненное', () => {
+    const REQ = {
+      inn: '7701234567',
+      kpp: '770101001',
+      legalName: 'Общество с ограниченной ответственностью «Acme»',
+      ogrn: '1027700000001',
+      legalAddress: '101000, г. Москва, ул. Первая, д. 1',
+      bankName: 'ПАО Банк',
+      bankAccount: '40702810000000000001',
+      corrAccount: '30101810000000000001',
+      bic: '044525001',
+      signerName: 'Иванов И. И.',
+      signerPosition: 'Генеральный директор',
+      signerBasis: 'Устава',
+    };
+    const KEYS = Object.keys(REQ);
+    const dto = (over: Record<string, unknown> = {}) =>
+      ({
+        externalId: 'ORG-1',
+        name: 'Acme',
+        updatedAt: '2026-04-01T00:00:00Z',
+        ...over,
+      }) as any;
+    const existing = () =>
+      odb({
+        organization: {
+          findUnique: vi
+            .fn()
+            .mockResolvedValue({ id: 'o1', companyId: 'co1', externalId: 'ORG-1' }),
+          findFirst: vi.fn().mockResolvedValue(null),
+          update: vi.fn(),
+          create: vi.fn().mockResolvedValue({ id: 'new-id' }),
+        },
+      });
+
+    it('обновление: все двенадцать непустых реквизитов ложатся в update', async () => {
+      const d = existing();
+      await upsertOrgRecord(d, dto(REQ), emptySummary(), { mode: 'live', notify: false });
+      expect(d.organization.update).toHaveBeenCalledWith({
+        where: { id: 'o1' },
+        data: { name: 'Acme', nameKey: 'ACME', ...REQ },
+      });
+    });
+
+    it('обновление: реквизита нет в DTO — ключа нет в update (менеджерский адрес остаётся)', async () => {
+      const d = existing();
+      await upsertOrgRecord(d, dto(), emptySummary(), { mode: 'live', notify: false });
+      const data = d.organization.update.mock.calls[0][0].data;
+      for (const key of KEYS) expect(key in data, key).toBe(false);
+      expect(data).toEqual({ name: 'Acme', nameKey: 'ACME' });
+    });
+
+    it('обновление: пустая строка и пробелы из 1С — тоже «нет», а не «стереть»', async () => {
+      const d = existing();
+      await upsertOrgRecord(
+        d,
+        dto({ legalAddress: '', bankName: '   ', kpp: '\t', legalName: 'ООО «Acme»' }),
+        emptySummary(),
+        { mode: 'live', notify: false }
+      );
+      const data = d.organization.update.mock.calls[0][0].data;
+      expect('legalAddress' in data).toBe(false);
+      expect('bankName' in data).toBe(false);
+      expect('kpp' in data).toBe(false);
+      expect(data.legalName).toBe('ООО «Acme»');
+    });
+
+    it('создание: реквизиты пишутся как есть — заполненные значением, отсутствующие null', async () => {
+      const d = odb();
+      await upsertOrgRecord(d, dto({ legalName: 'ООО «Acme»', bic: '044525001' }), emptySummary(), {
+        mode: 'live',
+        notify: false,
+        createCompanyId: 'co1',
+      });
+      const data = d.organization.create.mock.calls[0][0].data;
+      expect(data).toMatchObject({ legalName: 'ООО «Acme»', bic: '044525001' });
+      for (const key of KEYS.filter((k) => k !== 'legalName' && k !== 'bic')) {
+        expect(data[key], key).toBeNull();
+      }
+    });
+
+    it('снимок «до» для истории импорта не расширяется: список Т-33 прежний', async () => {
+      const d = existing();
+      const out = await upsertOrgRecord(d, dto(REQ), emptySummary(), {
+        mode: 'live',
+        notify: false,
+      });
+      expect(out).toMatchObject({ action: 'updated', entityId: 'o1' });
+      expect(Object.keys(out!.before!).sort()).toEqual(
+        ['externalId', 'inn', 'kpp', 'name', 'partnerId'].sort()
+      );
+    });
+  });
 });
 
 describe('upsertDocumentRecord', () => {
