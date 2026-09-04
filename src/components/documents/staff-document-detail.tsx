@@ -2,6 +2,8 @@ import React from 'react';
 import { DocumentDetailView } from '@/components/documents/document-detail-view';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fields';
+import { DocumentOneCPushBlock } from '@/components/documents/document-onec-push-block';
+import { settingsSectionHref } from '@/lib/navigation/settings';
 import type { DocumentDetail } from '@/lib/services/documents/detail';
 import type { FieldWithValue } from '@/lib/services/customFields';
 
@@ -20,6 +22,10 @@ import type { FieldWithValue } from '@/lib/services/customFields';
  * `canSend` (`У-149`) включён у обоих кабинетов сотрудников: отправлять
  * документ заказчику письмом — их работа. Сервис ещё раз проверит права и
  * тип документа: кнопка на экране правами не считается.
+ *
+ * Блок «Выгрузка в 1С» (`У-169`) — тоже у обоих; ссылка на правило компании
+ * есть только у руководителя (у менеджера хаба настроек нет — блок скажет,
+ * к кому идти).
  */
 export function StaffDocumentDetail({
   cabinet,
@@ -42,6 +48,11 @@ export function StaffDocumentDetail({
       canSetNumber
       canReissue
     >
+      <DocumentOneCPushBlock
+        documentId={document.id}
+        push={document.oneCPush}
+        pushRuleHref={settingsSectionHref('catalogs.requisites', cabinet)}
+      />
       <EntityCustomFields fields={customFields} entityType="document" entityId={document.id} />
     </DocumentDetailView>
   );

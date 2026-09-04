@@ -2,12 +2,14 @@ import React from 'react';
 import Link from 'next/link';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
-import { DocumentsList } from '@/components/partner/documents-list';
+import { StaffDocumentsPushList } from '@/components/documents/staff-documents-push-list';
+import { OneCPushStatusSelect } from '@/components/documents/one-c-push-status-select';
 import { DocumentsPanel } from '@/components/documents/documents-panel';
 import { listGeneralDocuments } from '@/lib/services/documents/generalList';
+import { parseOneCPushStatus } from '@/lib/documents/oneCPushStatus';
 import { PageHeader } from '@/components/ui/page-header';
 
-type SearchParams = { tab?: string };
+type SearchParams = { tab?: string; oneCPushStatus?: string };
 
 function TabChips({ activeTab }: { activeTab: 'orders' | 'general' }) {
   return (
@@ -46,7 +48,10 @@ export default async function AdminDocumentsPage({
   const isGeneral = sp.tab === 'general';
 
   if (isGeneral) {
-    const documentRows = await listGeneralDocuments(prisma);
+    // `У-169`: фильтр «Выгрузка в 1С» и массовая выгрузка — зеркало экрана
+    // сотрудников. Вкладка «По заказам» пока на прежней панели (см. план PR-5).
+    const oneCPushStatus = parseOneCPushStatus(sp.oneCPushStatus);
+    const documentRows = await listGeneralDocuments(prisma, { oneCPushStatus });
 
     return (
       <div className="space-y-4">
@@ -55,10 +60,21 @@ export default async function AdminDocumentsPage({
           subtitle="Договоры, счета и акты по всем клиентам платформы"
         />
         <TabChips activeTab="general" />
-        <DocumentsList
+        <form method="get" className="flex flex-wrap items-center gap-2">
+          <input type="hidden" name="tab" value="general" />
+          <OneCPushStatusSelect value={sp.oneCPushStatus} />
+          <button
+            type="submit"
+            className="px-3 py-1 bg-[#F97316] text-white rounded text-sm hover:bg-[#EA580C]"
+          >
+            Показать
+          </button>
+        </form>
+        <StaffDocumentsPushList
           rows={documentRows}
           downloadEndpointBase="/api/documents"
           cardHrefBase="/admin/documents"
+          resetHref={oneCPushStatus ? '/admin/documents?tab=general' : undefined}
         />
       </div>
     );

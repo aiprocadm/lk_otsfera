@@ -32,8 +32,29 @@ describe('listGeneralDocuments()', () => {
         // `У-154`: номер и версия — их показывает список.
         number: true,
         version: true,
+        oneCPushStatus: true,
       },
     });
+  });
+
+  it('У-169: фильтр «Выгрузка в 1С» ложится в where рядом с orderId и supersededAt', async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+
+    await listGeneralDocuments(makePrisma(findMany), { oneCPushStatus: 'failed' });
+
+    expect(findMany.mock.calls[0][0].where).toEqual({
+      orderId: null,
+      supersededAt: null,
+      oneCPushStatus: 'failed',
+    });
+  });
+
+  it('У-169: без фильтра ключ oneCPushStatus в where не появляется', async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+
+    await listGeneralDocuments(makePrisma(findMany), {});
+
+    expect(findMany.mock.calls[0][0].where).toEqual({ orderId: null, supersededAt: null });
   });
 
   it('раскладывает строки в OrgDocumentRow с пустыми полями заказа', async () => {
@@ -47,6 +68,9 @@ describe('listGeneralDocuments()', () => {
         signedAt: null,
         createdAt,
         size: 100,
+        number: null,
+        version: 1,
+        oneCPushStatus: 'pushed',
       },
     ]);
 
@@ -64,6 +88,9 @@ describe('listGeneralDocuments()', () => {
         orderId: null,
         orderNumber: null,
         orderTitle: null,
+        number: null,
+        version: 1,
+        oneCPushStatus: 'pushed',
       },
     ]);
   });

@@ -116,6 +116,22 @@ describe('listDocuments', () => {
     expect(where).toMatchObject({ AND: expect.arrayContaining([{ type: 'act' }]) });
   });
 
+  it('У-169: applies oneCPushStatus filter when provided', async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const p = { document: { findMany }, company: { findUnique: vi.fn() } } as never;
+    await listDocuments(p, { session: SESSION, oneCPushStatus: 'failed' });
+    const where = findMany.mock.calls[0][0].where;
+    expect(where).toMatchObject({ AND: expect.arrayContaining([{ oneCPushStatus: 'failed' }]) });
+  });
+
+  it('У-169: does not add oneCPushStatus to where when not provided', async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const p = { document: { findMany }, company: { findUnique: vi.fn() } } as never;
+    await listDocuments(p, { session: SESSION });
+    const where = findMany.mock.calls[0][0].where;
+    expect(where.AND.some((f: Record<string, unknown>) => 'oneCPushStatus' in f)).toBe(false);
+  });
+
   it('applies search filter when provided', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const p = { document: { findMany }, company: { findUnique: vi.fn() } } as never;
@@ -445,6 +461,22 @@ describe('listManagerOrderLessDocuments', () => {
     await listManagerOrderLessDocuments(p, SESSION, {});
     const where = findMany.mock.calls[0][0].where;
     expect(where.type).toBeUndefined();
+  });
+
+  it('У-169: applies oneCPushStatus filter and selects the column for the badge', async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const p = { document: { findMany }, company: { findUnique: vi.fn() } } as never;
+    await listManagerOrderLessDocuments(p, SESSION, { oneCPushStatus: 'pending' });
+    const call = findMany.mock.calls[0][0];
+    expect(call.where).toMatchObject({ oneCPushStatus: 'pending' });
+    expect(call.select).toMatchObject({ oneCPushStatus: true });
+  });
+
+  it('У-169: does not add oneCPushStatus to where when not provided', async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const p = { document: { findMany }, company: { findUnique: vi.fn() } } as never;
+    await listManagerOrderLessDocuments(p, SESSION, {});
+    expect(findMany.mock.calls[0][0].where.oneCPushStatus).toBeUndefined();
   });
 
   it('passes cursor when provided', async () => {

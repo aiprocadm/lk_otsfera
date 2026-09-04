@@ -243,6 +243,8 @@ export const AUDIT_ACTIONS = [
   // удачная и нет; повтор выгрузки пишется тем же событием.
   'document_pushed_to_1c',
   'document_push_to_1c_failed',
+  // `У-169`: сотрудник нажал «Выгрузить в 1С» или «Повторить» (`after.retry`).
+  'document_push_to_1c_requested',
   'order_total_synced',
   'requisites_requested',
   'catalog_item_created',

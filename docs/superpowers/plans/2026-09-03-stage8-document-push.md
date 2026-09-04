@@ -17,8 +17,8 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development
 | PR-1 «Контракт и модель» | Секция `POST /api/documents` и `GET /api/documents?externalId=` в контракте; перечисления `OneCPushStatus` (шесть значений сразу) и `OneCDocumentPushMode`; шесть полей `Document`, два поля `Company`, две проверки базы, одна миграция | `У-167` (контракт), `У-168` (модель) | ✅ [#483](https://github.com/aiprocadm/lk_otsfera/pull/483) |
 | PR-2 «Адаптер и mock» | `OneCDocumentPushSchema` и результат, `pushDocument` в `OneCAdapter` (fake, rest, file), ключ `documentPush`, хранилище документов и обработчик в `mock-1c`, `/__state` показывает принятое, контрактный тест | `У-167`, `У-168` | ✅ [#484](https://github.com/aiprocadm/lk_otsfera/pull/484) |
 | PR-3 «Очередь и процессор» | Очередь `oneCSync.pushDocument`, сборка тела (`externalId` — корень цепочки перевыпусков, `fileUrl` на час, `lines: null` у legacy), сервис выгрузки с идемпотентностью по версии и отказом КП, процессор с интеграционным тестом, события аудита | `У-168`, `У-167` (идемпотентность, `Р-14`), `У-159` (остаток) | ✅ [#485](https://github.com/aiprocadm/lk_otsfera/pull/485) |
-| PR-4 «Правило компании» | `auto / manual / never` и набор типов в «Реквизитах исполнителя» у администратора и руководителя, автопостановка после выпуска best-effort | `У-169` (правило) | 🔨 [#486](https://github.com/aiprocadm/lk_otsfera/pull/486) в ревью |
-| PR-5 «Экраны выгрузки» | Блок «Выгрузка в 1С» на карточке документа с кнопками «Выгрузить в 1С» / «Повторить», фильтр по статусу выгрузки и массовое «Выгрузить выбранные» в списке документов сотрудников | `У-169` (экраны), `У-159` (повтор) | ⏳ |
+| PR-4 «Правило компании» | `auto / manual / never` и набор типов в «Реквизитах исполнителя» у администратора и руководителя, автопостановка после выпуска best-effort | `У-169` (правило) | ✅ [#486](https://github.com/aiprocadm/lk_otsfera/pull/486) |
+| PR-5 «Экраны выгрузки» | Блок «Выгрузка в 1С» на карточке документа с кнопками «Выгрузить в 1С» / «Повторить», фильтр по статусу выгрузки и массовое «Выгрузить выбранные» в списке документов сотрудников | `У-169` (экраны), `У-159` (повтор) | 🔨 [#487](https://github.com/aiprocadm/lk_otsfera/pull/487) в ревью |
 | PR-6 «Обратная связь» | Поиск входящего по трём ключам без дубля, обновление файла с повторным сканом, `direction` и `number` из DTO | `У-170` (`Д-24`, `Д-25`) | ⏳ |
 | PR-7 «Реквизиты контрагента» | Реквизиты в схеме, маппере и writer'е; пустое из 1С не затирает заполненное; фикстуры, набор данных mock и контракт | `У-171` (`Д-23`) | ⏳ |
 | PR-8 «Сверка» | `findDocument` в адаптере, поштучная сверка `pushed`, `failed: missing_in_1c`, зависшие лиды | `У-172` (`Д-26`) | ⏳ |
@@ -298,33 +298,91 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development
 
 ## PR-5 «Экраны выгрузки» — `У-169` (экраны), `У-159` (повтор)
 
-- [ ] `src/lib/services/documents/pushToOneC.ts`:
-      `requestDocumentPush(prisma, session, { documentId })` — видимость через
-      `canSeeDocument(…, teamMode)`, `never` у компании → `push_disabled`, тип
-      вне `ONE_C_PUSHABLE_TYPES` → `not_pushable_type`, `pending` → `already_queued`;
-      иначе `enqueueDocumentPush` + аудит `document_push_to_1c_requested`
-      (повтор — то же действие с `after: { retry: true }`, `У-159`).
-      `requestDocumentPushMany` — по списку, результат на каждый `id`.
-- [ ] `src/lib/documents/oneCPushStatus.ts`: `ONE_C_PUSH_STATUS_LABEL` — русские
-      подписи шести статусов, единственный источник для карточки, списка и
-      фильтра.
-- [ ] Server-action `src/server-actions/documents/pushToOneC.ts`. Карточка
-      `staff-document-detail.tsx`: блок «Выгрузка в 1С» — статус, время,
-      текст ошибки; кнопка «Выгрузить в 1С» при `none`/`skipped`/
-      `exported_file`, «Повторить» при `failed`, «В очереди» (неактивна) при
-      `pending`; у КП блока нет с пояснением «КП в 1С не выгружается».
-- [ ] Список документов сотрудников (`generalList.ts` + страницы
-      `/manager`, `/leader`, `/admin`): фильтр «Выгрузка в 1С» по статусу,
-      флажки строк и кнопка «Выгрузить выбранные» с итогом «поставлено N,
-      пропущено M (причина)». Пустой результат фильтра — с объяснением и
-      кнопкой сброса (`У-74`).
-- [ ] Тесты: сервис (`forbidden` чужому, `not_pushable_type`,
-      `push_disabled`, `already_queued`, массовое с частичным отказом);
-      компоненты карточки и списка (кнопка по статусу, подписи из
-      `ONE_C_PUSH_STATUS_LABEL`); страницы трёх кабинетов.
-- [ ] Мутации: убрать `not_pushable_type` → КП ставится в очередь мимо экрана;
-      убрать `canSeeDocument` → менеджер выгружает чужой документ; фильтр
-      без `supersededAt = null` → заменённые версии в списке.
+- [x] `src/lib/services/documents/pushToOneC.ts`:
+      `requestDocumentPush(prisma, session, documentId)` — сотрудники ЦО
+      (`admin` или `isStaffManagerSide`), иначе `forbidden`; видимость через
+      `canReadDocument` (тот же предикат, что у карточки и скачивания — отказ
+      и отсутствие неотличимы, `not_found`); причина блокировки одной
+      функцией `oneCPushBlockReason`: тип вне `ONE_C_PUSHABLE_TYPES` →
+      `not_pushable_type`, `externalId` (пришёл из 1С) → `from_1c`, `never`
+      или тип вне набора правила → `push_disabled`, `supersededAt` →
+      `superseded`; `pending` → `already_queued`; иначе `enqueueDocumentPush`
+      + аудит `document_push_to_1c_requested` (повтор после `failed` — то же
+      действие с `after.retry = true`, `У-159`).
+      `requestDocumentPushMany` — по списку без повторов, итог
+      `{ queued, skipped: [{ documentId, error }] }`.
+- [x] `src/lib/documents/oneCPushStatus.ts`: `ONE_C_PUSH_STATUS_LABEL`,
+      `ONE_C_PUSH_STATUS_TONE`, `ONE_C_PUSH_STATUS_ORDER`, `parseOneCPushStatus`
+      — единственный источник подписей и цветов для карточки, бейджа в списке
+      и фильтра. `isOneCPushableType` вынесен в `oneCSync/schemas.ts`
+      (локальная копия в `pushDocument.ts` убрана).
+- [x] Server-action `src/server-actions/documents/pushToOneC.ts`
+      (`requestDocumentPushAction`, `requestDocumentPushManyAction`;
+      `revalidatePath` на список и карточку всех трёх кабинетов). Карточка:
+      `DocumentDetail.oneCPush` (статус, время, ошибка, попытки, номер в 1С,
+      `blocked`) и клиентский блок `document-onec-push-block.tsx` в
+      `staff-document-detail.tsx` и зеркале админа — статус, время, текст
+      ошибки; кнопка «Выгрузить в 1С» при `none`/`skipped`/`exported_file`,
+      «Повторить выгрузку» при `failed`, «В очереди…» (неактивна) при
+      `pending`, при `pushed` кнопки нет; при `blocked` — русская причина из
+      `errors/messages.ts`, для `push_disabled` — ссылка «Изменить правило»
+      (админ, руководитель) или «попросите руководителя» (менеджер).
+- [x] Списки сотрудников: `listDocuments`, `listManagerOrderLessDocuments`,
+      `listGeneralDocuments` принимают `oneCPushStatus` и отдают колонку;
+      общий `DocumentsList` — бейдж «1С: …» (кроме `none`) и флажки по пропу
+      `selection`; клиентская обёртка `staff-documents-push-list.tsx` —
+      «Выбрано N · Выгрузить выбранные в 1С · Выбрать все доступные · Снять
+      выбор», итог «Поставлено в очередь: N. Пропущено: M.» с причинами;
+      фильтр `one-c-push-status-select.tsx` на обеих вкладках менеджера и
+      руководителя и на «Общих документах» админа. Пустой результат фильтра —
+      «По этому фильтру документов нет» + «Сбросить фильтр» (`У-74`).
+- [x] Тесты: сервис (`forbidden` заказчику, `not_found` чужому,
+      `not_pushable_type`, `from_1c`, `push_disabled`, `superseded`,
+      `already_queued`, проброс `queue_unavailable`, массовое с частичным
+      отказом, страж `select` `type`+`status`); `DocumentDetail.oneCPush`;
+      server-action; блок карточки (кнопка по статусу, ссылка на правило);
+      `DocumentsList` (бейдж, флажки); обёртка (выбор, итог, сброс фильтра);
+      select фильтра; словарь статусов; страницы трёх кабинетов; страж
+      зеркала `documents.send-button-mirror.guardrail` (блок и список — у
+      сотрудников, не у заказчика/партнёра).
+- [x] Мутации: убрать `not_pushable_type` → КП ставится в очередь мимо экрана
+      (3 теста); убрать `canReadDocument` → менеджер выгружает чужой документ
+      (2); убрать `push_disabled` (3); фильтр общих без `supersededAt = null`
+      → заменённые версии в списке (3); `listDocuments` игнорирует фильтр (1);
+      админ без списка выгрузки / партнёр с ним → страж зеркала (по 1);
+      `canSelectForPush` пускает `pending` (1); бейдж и для `none` (1).
+- [x] Решения исполнителя по ходу PR-5 (спеке не противоречат, в ней не
+      записаны):
+      1. **Блок карточки — отдельный клиентский компонент**, смонтированный
+         children-ом в `staff-document-detail.tsx` и в странице админа, а не
+         внутри общего `DocumentDetailView`: тот общий с заказчиком и
+         партнёром, которым 1С исполнителя не принадлежит.
+      2. **Причина блокировки считается на сервере** (`oneCPush.blocked`) одной
+         функцией `oneCPushBlockReason`, включая `superseded`; блок только
+         показывает. Кнопка на экране правами не является (§4).
+      3. **Набор типов правила компании ограничивает и ручную выгрузку** —
+         `push_disabled`, как и `never`: иначе «правило» было бы только про
+         автопостановку и врало бы названием.
+      4. **Документ с `externalId` (пришёл из 1С) — `from_1c`**: выгружать
+         обратно то, что 1С сама прислала, бессмысленно; код и текст новые.
+      5. **При `pushed` кнопки нет** — «Документ уже в 1С. Новая версия после
+         перевыпуска выгружается отдельно» (перевыпуск даёт новую строку).
+      6. **Ссылка «Изменить правило» — через `settingsSectionHref('catalogs.requisites', cabinet)`**
+         (новый помощник реестра настроек); у менеджера раздела нет — текст
+         «попросите руководителя».
+      7. **Аудит `document_push_to_1c_requested`** — новое действие в
+         `AUDIT_ACTIONS` + подпись «Постановка документа в очередь на
+         выгрузку в 1С»; `after: { retry, type, number, previousStatus }`.
+      8. **Вкладка «По заказам» у админа остаётся на legacy `DocumentsPanel`**
+         без фильтра и массовой выгрузки: у админа массовая выгрузка — на
+         «Общих документах», поштучная — на карточке любого документа. Замена
+         панели — отдельная работа, не этап 8 (записано в `AUDIT.md` как
+         известный остаток).
+      9. **Флажок доступен по типу и состоянию** (`canSelectForPush`: тип
+         выгружаемый и не `pending`/`pushed`); правило компании, `from_1c`,
+         права проверяет сервис и возвращает в «пропущено» с причиной —
+         экран не дублирует серверную логику.
+- [x] `STATUS.md`, `AUDIT.md`, `CHANGELOG.md`, `glossary.md` («Выгрузка в 1С»).
 
 ## PR-6 «Обратная связь» — `У-170` (`Д-24`, `Д-25`)
 

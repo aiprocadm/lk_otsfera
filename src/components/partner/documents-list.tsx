@@ -1,8 +1,21 @@
 'use client';
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { EmptyState } from '@/components/ui';
+import { Badge, EmptyState } from '@/components/ui';
 import type { OrgDocumentRow } from '@/lib/services/partner/orgDocuments';
+import { ONE_C_PUSH_STATUS_LABEL, ONE_C_PUSH_STATUS_TONE } from '@/lib/documents/oneCPushStatus';
+
+/**
+ * Этап 8 (`У-169`): выбор строк для «Выгрузить выбранные в 1С». Список сам
+ * ничего не выгружает — он лишь рисует флажки и сообщает наверх, что нажали;
+ * кто выгружает и что можно выбрать, решает обёртка сотрудников.
+ */
+export type DocumentsListSelection = {
+  selected: ReadonlySet<string>;
+  onToggle: (id: string) => void;
+  /** Флажок строки активен, только если документ можно поставить в очередь. */
+  canSelect: (doc: OrgDocumentRow) => boolean;
+};
 
 const TYPE_LABELS: Record<string, string> = {
   contract: 'Договор',
@@ -39,6 +52,7 @@ export function DocumentsList({
   newDocIds = [],
   groupByOrder = false,
   cardHrefBase,
+  selection,
 }: {
   rows: OrgDocumentRow[];
   downloadEndpointBase?: string;
@@ -53,6 +67,8 @@ export function DocumentsList({
   newDocIds?: string[];
   /** Этап 3 PR-2 (ФТ-6.6): секции «Заказ №…» / «Без заказа» вместо плоского списка. */
   groupByOrder?: boolean;
+  /** `У-169`: флажки выбора строк (только списки сотрудников). Нет — флажков нет. */
+  selection?: DocumentsListSelection | undefined;
 }) {
   const [downloading, setDownloading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -111,6 +127,19 @@ export function DocumentsList({
 
   const renderRow = (doc: OrgDocumentRow) => (
     <li key={doc.id} className="px-4 py-3 flex items-center gap-3 hover:bg-gray-50">
+      {selection && (
+        <input
+          type="checkbox"
+          aria-label={`Выбрать ${doc.name}`}
+          checked={selection.selected.has(doc.id)}
+          disabled={!selection.canSelect(doc)}
+          title={
+            selection.canSelect(doc) ? undefined : 'Этот документ сейчас нельзя выгрузить в 1С'
+          }
+          onChange={() => selection.onToggle(doc.id)}
+          className="h-4 w-4 flex-shrink-0 accent-[#F97316] disabled:opacity-40"
+        />
+      )}
       <div className="w-10 h-10 bg-[#FFF7ED] rounded-lg flex items-center justify-center flex-shrink-0">
         <span className="text-lg">{iconForType(doc.type)}</span>
       </div>
@@ -158,6 +187,16 @@ export function DocumentsList({
             <>
               <span aria-hidden>·</span>
               <span className="text-green-700">подписан</span>
+            </>
+          )}
+          {doc.oneCPushStatus && doc.oneCPushStatus !== 'none' && (
+            <>
+              <span aria-hidden>·</span>
+              {/* `У-169`: состояние выгрузки в 1С. «Не выгружался» — у большинства
+                  строк, показывать его значило бы сорить; видны только отличия. */}
+              <Badge tone={ONE_C_PUSH_STATUS_TONE[doc.oneCPushStatus]}>
+                {`1С: ${ONE_C_PUSH_STATUS_LABEL[doc.oneCPushStatus]}`}
+              </Badge>
             </>
           )}
         </div>

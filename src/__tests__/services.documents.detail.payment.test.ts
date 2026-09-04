@@ -43,6 +43,18 @@ const INVOICE = {
   counterpartyId: 'org1',
   uploadedBy: { name: 'Иванов', email: 'i@t.local' },
   order: { id: 'ord1', title: 'Заказ', orderNumber: 'ON-1', companyId: 'co1' },
+  // Этап 8 (`У-169`): выгрузка в 1С.
+  externalId: null,
+  supersededAt: null,
+  oneCPushStatus: 'none',
+  oneCPushedAt: null,
+  oneCPushError: null,
+  oneCPushAttempts: 0,
+  oneCExternalId: null,
+  company: {
+    oneCDocumentPushMode: 'manual',
+    oneCDocumentPushTypes: ['invoice', 'act', 'contract', 'extra_agreement'],
+  },
 };
 
 function makePrisma(doc: unknown, payments: unknown[] = []) {

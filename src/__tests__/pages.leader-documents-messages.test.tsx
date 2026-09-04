@@ -29,8 +29,10 @@ vi.mock('@/lib/services/chat/threads', () => ({ listThreads }));
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 
-vi.mock('@/components/partner/documents-list', () => ({
-  DocumentsList: (props: { cardHrefBase?: string }) =>
+// `У-169`: список сотрудников — клиентская обёртка с массовой выгрузкой в 1С
+// (ей нужен app-router); страница проверяется по тому, что она ей передаёт.
+vi.mock('@/components/documents/staff-documents-push-list', () => ({
+  StaffDocumentsPushList: (props: { cardHrefBase?: string }) =>
     React.createElement('div', { 'data-testid': 'documents-list' }, props.cardHrefBase),
 }));
 vi.mock('@/components/manager/manager-order-less-upload-form', () => ({
@@ -103,6 +105,19 @@ describe('«Документы» руководителя (У-110)', () => {
     const { container } = await render();
     expect(container.querySelector('h1')?.textContent).toBe('Документы');
     expect(container.textContent).toContain('Договоры, счета и акты');
+  });
+
+  it('У-169: фильтр «Выгрузка в 1С» уходит в оба сервиса уже разобранным', async () => {
+    await render({ oneCPushStatus: 'failed' });
+    expect(listDocuments).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({ oneCPushStatus: 'failed' })
+    );
+
+    await render({ tab: 'general', oneCPushStatus: 'pending' });
+    expect(listManagerOrderLessDocuments).toHaveBeenCalledWith({}, LEADER, {
+      oneCPushStatus: 'pending',
+    });
   });
 });
 

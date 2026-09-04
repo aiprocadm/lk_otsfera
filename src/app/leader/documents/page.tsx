@@ -3,6 +3,7 @@ import { requireManagerLeader } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { listDocuments, listManagerOrderLessDocuments } from '@/lib/services/manager/documents';
 import { listManagerCounterparties } from '@/lib/services/manager/counterparties';
+import { parseOneCPushStatus } from '@/lib/documents/oneCPushStatus';
 import {
   StaffDocuments,
   type StaffDocumentsSearchParams,
@@ -23,10 +24,12 @@ export default async function LeaderDocumentsPage({
 }) {
   const session = await requireManagerLeader();
   const sp = await searchParams;
+  // `У-169`: фильтр «Выгрузка в 1С» — чужое слово из адреса становится «без фильтра».
+  const oneCPushStatus = parseOneCPushStatus(sp.oneCPushStatus);
 
   if (sp.tab === 'general') {
     const [{ rows }, counterparties] = await Promise.all([
-      listManagerOrderLessDocuments(prisma, session),
+      listManagerOrderLessDocuments(prisma, session, { oneCPushStatus }),
       // Охват руководителя — вся компания, иначе список получателей окажется
       // уже, чем список самих документов.
       listManagerCounterparties(prisma, session, true),
@@ -42,6 +45,7 @@ export default async function LeaderDocumentsPage({
     type: sp.type || undefined,
     orderId: sp.orderId,
     cursor: sp.cursor,
+    oneCPushStatus,
     teamModeOverride: true,
   });
   return <StaffDocuments cabinet="leader" sp={sp} data={{ tab: 'orders', rows, nextCursor }} />;

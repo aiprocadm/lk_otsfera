@@ -47,3 +47,60 @@ describe('У-149: кнопка отправки — во всех трёх ка�
     expect(src, 'кабинет заказчика получил чужую кнопку').not.toMatch(/\bcanSend\b/);
   });
 });
+
+describe('У-169: блок «Выгрузка в 1С» — во всех трёх кабинетах сотрудников и только у них', () => {
+  it('менеджер и руководитель получают его через общую карточку сотрудника', () => {
+    const staff = read('components/documents/staff-document-detail.tsx');
+    expect(staff, 'общая карточка сотрудника не монтирует блок выгрузки').toMatch(
+      /<DocumentOneCPushBlock\b/
+    );
+  });
+
+  it('администратор рисует карточку сам — и тоже с блоком выгрузки (зеркало)', () => {
+    const src = read('app/admin/documents/[id]/page.tsx');
+    expect(src, 'у администратора нет блока выгрузки в 1С').toMatch(/<DocumentOneCPushBlock\b/);
+  });
+
+  it('заказчику и партнёру блок не выдаётся: 1С исполнителя им не принадлежит', () => {
+    for (const rel of [
+      'app/organization/documents/[id]/page.tsx',
+      'app/partner/documents/[id]/page.tsx',
+      'components/documents/document-detail-view.tsx',
+    ]) {
+      expect(read(rel), `${rel} получил чужой блок выгрузки`).not.toMatch(
+        /DocumentOneCPushBlock/
+      );
+    }
+  });
+});
+
+describe('У-169: список с фильтром «Выгрузка в 1С» и массовой выгрузкой — у сотрудников и только у них', () => {
+  it('менеджер и руководитель получают его через общий экран «Документы» сотрудника', () => {
+    const src = read('components/manager/staff-documents.tsx');
+    expect(src, 'общий экран сотрудника не монтирует список с выгрузкой').toMatch(
+      /<StaffDocumentsPushList\b/
+    );
+    expect(src, 'на экране сотрудника нет фильтра «Выгрузка в 1С»').toMatch(
+      /<OneCPushStatusSelect\b/
+    );
+  });
+
+  it('администратор на «Общих документах» — то же зеркало: фильтр и массовая выгрузка', () => {
+    const src = read('app/admin/documents/page.tsx');
+    expect(src, 'у администратора нет списка с выгрузкой').toMatch(/<StaffDocumentsPushList\b/);
+    expect(src, 'у администратора нет фильтра «Выгрузка в 1С»').toMatch(/<OneCPushStatusSelect\b/);
+  });
+
+  it('заказчику и партнёру ни фильтра, ни флажков: их списки остаются на общем DocumentsList', () => {
+    for (const rel of [
+      'app/organization/documents/page.tsx',
+      'app/partner/documents/page.tsx',
+      'app/partner/portfolio/[orgId]/documents/page.tsx',
+    ]) {
+      const src = read(rel);
+      expect(src, `${rel} получил чужой список с выгрузкой в 1С`).not.toMatch(
+        /StaffDocumentsPushList|OneCPushStatusSelect/
+      );
+    }
+  });
+});

@@ -21,11 +21,17 @@ vi.mock('@/lib/services/manager/documents', () => ({
 const { listManagerCounterparties } = vi.hoisted(() => ({ listManagerCounterparties: vi.fn() }));
 vi.mock('@/lib/services/manager/counterparties', () => ({ listManagerCounterparties }));
 
-vi.mock('@/components/partner/documents-list', () => ({
-  DocumentsList: (props: { rows: unknown[]; downloadEndpointBase?: string }) =>
+// `У-169`: список сотрудников — клиентская обёртка с массовой выгрузкой в 1С
+// (ей нужен app-router); страница проверяется по тому, что она ей передаёт.
+vi.mock('@/components/documents/staff-documents-push-list', () => ({
+  StaffDocumentsPushList: (props: {
+    rows: unknown[];
+    downloadEndpointBase?: string;
+    resetHref?: string;
+  }) =>
     React.createElement(
       'div',
-      { 'data-testid': 'documents-list' },
+      { 'data-testid': 'documents-list', 'data-reset-href': props.resetHref ?? '' },
       props.downloadEndpointBase,
       JSON.stringify(props.rows)
     ),
@@ -195,7 +201,9 @@ describe('ManagerDocumentsPage', () => {
         ManagerDocumentsPage({ searchParams: Promise.resolve({ tab: 'general' }) })
       );
 
-      expect(listManagerOrderLessDocuments).toHaveBeenCalledWith({}, SESSION);
+      expect(listManagerOrderLessDocuments).toHaveBeenCalledWith({}, SESSION, {
+        oneCPushStatus: undefined,
+      });
       // Третий аргумент — охват (`У-110`). У рядового менеджера его нет:
       // он видит своих контрагентов, а не всех контрагентов компании.
       expect(listManagerCounterparties).toHaveBeenCalledWith({}, SESSION, undefined);
@@ -203,6 +211,80 @@ describe('ManagerDocumentsPage', () => {
       expect(container.textContent).toContain('Общие документы');
       expect(container.textContent).toContain('Org');
       expect(container.textContent).toContain('Partner');
+      // `У-169`: фильтр «Выгрузка в 1С» и на общих документах, с сохранением вкладки.
+      expect(container.querySelector('select[name="oneCPushStatus"]')).not.toBeNull();
+      expect(container.querySelector('input[name="tab"][value="general"]')).not.toBeNull();
+      expect(
+        container.querySelector('[data-testid="documents-list"]')?.getAttribute('data-reset-href')
+      ).toBe('');
+    });
+
+    it('У-169: активный фильтр уходит в сервис, а обёртка получает адрес сброса', async () => {
+      requireManager.mockResolvedValue(SESSION);
+      listManagerOrderLessDocuments.mockResolvedValue({ rows: [] });
+      listManagerCounterparties.mockResolvedValue({ organizations: [], partners: [] });
+
+      const { container } = await renderServerComponent(
+        ManagerDocumentsPage({
+          searchParams: Promise.resolve({ tab: 'general', oneCPushStatus: 'failed' }),
+        })
+      );
+
+      expect(listManagerOrderLessDocuments).toHaveBeenCalledWith({}, SESSION, {
+        oneCPushStatus: 'failed',
+      });
+      expect(
+        container.querySelector('[data-testid="documents-list"]')?.getAttribute('data-reset-href')
+      ).toBe('/manager/documents?tab=general');
+    });
+  });
+
+  describe('У-169: фильтр «Выгрузка в 1С» на вкладке «По заказам»', () => {
+    it('уходит в сервис разобранным, живёт в ссылке «Дальше» и не попадает в адрес сброса', async () => {
+      requireManager.mockResolvedValue(SESSION);
+      listDocuments.mockResolvedValue({ rows: [], nextCursor: 'cur-2' });
+
+      const { container } = await renderServerComponent(
+        ManagerDocumentsPage({
+          searchParams: Promise.resolve({ type: 'invoice', oneCPushStatus: 'failed' }),
+        })
+      );
+
+      expect(listDocuments).toHaveBeenCalledWith(
+        {},
+        expect.objectContaining({ type: 'invoice', oneCPushStatus: 'failed' })
+      );
+      const select = container.querySelector('select[name="oneCPushStatus"]');
+      expect(select).not.toBeNull();
+      expect(select?.textContent).toContain('Выгрузка в 1С: все');
+      expect(select?.textContent).toContain('Ошибка выгрузки');
+
+      const next = Array.from(container.querySelectorAll('a')).find((a) =>
+        a.textContent?.includes('Дальше')
+      );
+      expect(next?.getAttribute('href')).toContain('oneCPushStatus=failed');
+      expect(next?.getAttribute('href')).toContain('type=invoice');
+
+      expect(
+        container.querySelector('[data-testid="documents-list"]')?.getAttribute('data-reset-href')
+      ).toBe('/manager/documents?type=invoice');
+    });
+
+    it('чужое слово в адресе — «без фильтра»: в сервис уходит undefined, сброса нет', async () => {
+      requireManager.mockResolvedValue(SESSION);
+      listDocuments.mockResolvedValue({ rows: [], nextCursor: null });
+
+      const { container } = await renderServerComponent(
+        ManagerDocumentsPage({ searchParams: Promise.resolve({ oneCPushStatus: 'nope' }) })
+      );
+
+      expect(listDocuments).toHaveBeenCalledWith(
+        {},
+        expect.objectContaining({ oneCPushStatus: undefined })
+      );
+      expect(
+        container.querySelector('[data-testid="documents-list"]')?.getAttribute('data-reset-href')
+      ).toBe('');
     });
   });
 });
