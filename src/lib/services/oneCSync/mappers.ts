@@ -6,21 +6,56 @@ import type {
 } from '@prisma/client';
 import type { OneCOrgDto, OneCOrderDto, OneCPaymentDto, OneCDocumentDto } from './dto';
 
-export type OrgUpsertInput = {
+/**
+ * `У-171` (`Д-23`): реквизиты контрагента, которые 1С может прислать. Ключи
+ * совпадают с колонками `Organization` — writer кладёт их в `update`/`create`
+ * как есть. `inn` и `kpp` тоже здесь: для правила «пустое не затирает» они
+ * ничем не отличаются от адреса.
+ */
+export const ORG_REQUISITE_KEYS = [
+  'inn',
+  'kpp',
+  'legalName',
+  'ogrn',
+  'legalAddress',
+  'bankName',
+  'bankAccount',
+  'corrAccount',
+  'bic',
+  'signerName',
+  'signerPosition',
+  'signerBasis',
+] as const;
+
+export type OrgRequisites = { [K in (typeof ORG_REQUISITE_KEYS)[number]]: string | null };
+
+export type OrgUpsertInput = OrgRequisites & {
   externalId: string;
   name: string;
-  inn: string | null;
-  kpp: string | null;
   partnerExternalId: string | null;
   updatedAt: Date;
 };
+
+// `''` и пробелы из 1С — это «поля нет», а не значение (`У-171`).
+const text = (v: string | undefined): string | null => v?.trim() || null;
 
 export function mapOrgDto(dto: OneCOrgDto): OrgUpsertInput {
   return {
     externalId: dto.externalId,
     name: dto.name,
-    inn: dto.inn ?? null,
-    kpp: dto.kpp ?? null,
+    inn: text(dto.inn),
+    kpp: text(dto.kpp),
+    // `Д-23`: раньше legalName из схемы сюда не доезжал — и терялся.
+    legalName: text(dto.legalName),
+    ogrn: text(dto.ogrn),
+    legalAddress: text(dto.legalAddress),
+    bankName: text(dto.bankName),
+    bankAccount: text(dto.bankAccount),
+    corrAccount: text(dto.corrAccount),
+    bic: text(dto.bic),
+    signerName: text(dto.signerName),
+    signerPosition: text(dto.signerPosition),
+    signerBasis: text(dto.signerBasis),
     partnerExternalId: dto.partnerExternalId ?? null,
     updatedAt: new Date(dto.updatedAt),
   };

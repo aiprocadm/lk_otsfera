@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ORG_REQUISITE_KEYS,
   mapOrgDto,
   mapOrderDto,
   mapPaymentDto,
@@ -192,6 +193,67 @@ describe('1C → Prisma mappers', () => {
     expect(out.inn).toBeNull();
     expect(out.kpp).toBeNull();
     expect(out.partnerExternalId).toBeNull();
+  });
+
+  describe('mapOrgDto — У-171: реквизиты контрагента (Д-23)', () => {
+    const base = {
+      externalId: 'org-req',
+      name: 'ООО Реквизиты',
+      updatedAt: '2026-05-01T00:00:00Z',
+    };
+
+    it('legalName и девять реквизитов доезжают до OrgUpsertInput (сам Д-23)', () => {
+      const out = mapOrgDto({
+        ...base,
+        inn: '7701234567',
+        kpp: '770101001',
+        legalName: 'Общество с ограниченной ответственностью «Реквизиты»',
+        ogrn: '1027700000001',
+        legalAddress: '101000, г. Москва, ул. Первая, д. 1',
+        bankName: 'ПАО Банк',
+        bankAccount: '40702810000000000001',
+        corrAccount: '30101810000000000001',
+        bic: '044525001',
+        signerName: 'Иванов И. И.',
+        signerPosition: 'Генеральный директор',
+        signerBasis: 'Устава',
+      });
+      expect(out).toMatchObject({
+        inn: '7701234567',
+        kpp: '770101001',
+        legalName: 'Общество с ограниченной ответственностью «Реквизиты»',
+        ogrn: '1027700000001',
+        legalAddress: '101000, г. Москва, ул. Первая, д. 1',
+        bankName: 'ПАО Банк',
+        bankAccount: '40702810000000000001',
+        corrAccount: '30101810000000000001',
+        bic: '044525001',
+        signerName: 'Иванов И. И.',
+        signerPosition: 'Генеральный директор',
+        signerBasis: 'Устава',
+      });
+    });
+
+    it('отсутствующие реквизиты — null, все двенадцать', () => {
+      const out = mapOrgDto(base);
+      for (const key of ORG_REQUISITE_KEYS) expect(out[key], key).toBeNull();
+    });
+
+    it('пустая строка и одни пробелы — это «поля нет», а не значение: → null; края обрезаются', () => {
+      const out = mapOrgDto({
+        ...base,
+        legalName: '',
+        legalAddress: '   ',
+        bankName: '  ПАО Банк  ',
+        kpp: '\t',
+        inn: ' 7701234567 ',
+      });
+      expect(out.legalName).toBeNull();
+      expect(out.legalAddress).toBeNull();
+      expect(out.kpp).toBeNull();
+      expect(out.bankName).toBe('ПАО Банк');
+      expect(out.inn).toBe('7701234567');
+    });
   });
 
   it('mapOrderDto: truthy optional date fields become Date instances', () => {
