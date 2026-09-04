@@ -245,6 +245,9 @@ export const AUDIT_ACTIONS = [
   'document_push_to_1c_failed',
   // `У-169`: сотрудник нажал «Выгрузить в 1С» или «Повторить» (`after.retry`).
   'document_push_to_1c_requested',
+  // `У-173`: пакет документов для 1С скачан файлом — одно событие на пакет,
+  // `entityId` — запись пакета в `SyncLog`, список документов в `after`.
+  'documents_exported_to_1c_file',
   'order_total_synced',
   'requisites_requested',
   'catalog_item_created',

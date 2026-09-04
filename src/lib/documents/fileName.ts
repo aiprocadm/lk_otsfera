@@ -27,6 +27,14 @@ const TYPE_LABELS: Record<string, string> = {
 /** Символы, недопустимые в имени файла на Windows и macOS. */
 const FORBIDDEN = /[\\/:*?"<>|]/g;
 
+/**
+ * Русское название типа документа — одно слово на все выгрузки и экраны, где
+ * тип показывают человеку (`У-173`: лист «Документы» пакета для 1С).
+ */
+export function documentTypeLabelRu(type: string): string {
+  return TYPE_LABELS[type] ?? TYPE_LABELS.other!;
+}
+
 export function documentDownloadName(doc: {
   type: string;
   number: string | null;
@@ -35,7 +43,7 @@ export function documentDownloadName(doc: {
 }): string {
   if (!doc.number) return doc.name;
 
-  const label = TYPE_LABELS[doc.type] ?? TYPE_LABELS.other!;
+  const label = documentTypeLabelRu(doc.type);
   const date = new Date(doc.createdAt).toLocaleDateString('ru-RU');
   // Расширение берём у исходного имени: сгенерированные документы — PDF, но
   // тип файла задаёт не тип документа, а сам файл.

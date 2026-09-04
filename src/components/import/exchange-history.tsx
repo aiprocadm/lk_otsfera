@@ -42,6 +42,7 @@ const FILTERS: Array<{ value: ExchangeChannel | 'all'; label: string }> = [
   { value: 'excel', label: CHANNEL_LABEL.excel },
   { value: 'statement', label: CHANNEL_LABEL.statement },
   { value: 'auto', label: CHANNEL_LABEL.auto },
+  { value: 'documents', label: CHANNEL_LABEL.documents },
 ];
 
 /** Итоги батча — только числа, без сырого JSON на экране. */
@@ -61,6 +62,7 @@ function summarize(counts: unknown): string {
     created: 'создано',
     updated: 'обновлено',
     skipped: 'пропущено',
+    documents: 'документов',
   };
   return pairs.map(([k, v]) => `${LABEL[k] ?? k}: ${v as number}`).join(' · ');
 }
@@ -111,7 +113,8 @@ export function ExchangeHistory({ items }: { items: ExchangeHistoryItem[] }) {
             // Канал в отдельной константе: сужение типа внутри обработчика
             // клика по `item.channel` не доживает, а откат бывает только у
             // файловых каналов.
-            const channelOf = item.channel === 'auto' ? null : item.channel;
+            const channelOf =
+              item.channel === 'excel' || item.channel === 'statement' ? item.channel : null;
             return (
               <li
                 key={`${item.channel}-${item.id}`}

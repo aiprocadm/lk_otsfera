@@ -129,11 +129,13 @@ describe('оболочка подраздела руководителя', () =>
       LeaderOneCLayout({ children: <div data-testid="tab">ВКЛАДКА</div> }) as React.ReactElement
     );
     const links = [...container.querySelectorAll('a')];
-    // `У-45` (этап 7): вкладок четыре — добавились автообмен и общая история.
+    // `У-45` (этап 7): вкладок стало четыре — добавились автообмен и общая
+    // история; `У-173` (этап 8) — пятая, «Выгрузка документов», перед историей.
     expect(links.map((l) => l.getAttribute('href'))).toEqual([
       '/leader/settings/integrations/1c/excel',
       '/leader/settings/integrations/1c/payments',
       '/leader/settings/integrations/1c/auto',
+      '/leader/settings/integrations/1c/documents',
       '/leader/settings/integrations/1c/history',
     ]);
     expect(links[0]?.getAttribute('data-active')).toBe('true');

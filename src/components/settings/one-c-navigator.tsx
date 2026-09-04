@@ -31,13 +31,20 @@ const TASKS = [
     hint: 'Расписание автоматического обмена, ручной запуск и очереди задач — когда файлы возить руками больше не хочется.',
     action: 'Открыть автообмен',
   },
+  {
+    tail: 'documents',
+    icon: '📦',
+    question: 'Передать документы в 1С файлом',
+    hint: 'Счета, акты и договоры одним архивом: таблица Excel и PDF-файлы. Когда обмен по сети не настроен.',
+    action: 'Собрать пакет',
+  },
 ] as const;
 
 export function OneCNavigator({ cabinet = 'admin' }: { cabinet?: 'admin' | 'leader' }) {
   return (
     <section className="space-y-3">
       <h2 className="text-base font-semibold text-[#111111]">Что вы хотите сделать?</h2>
-      <ul className="grid gap-3 sm:grid-cols-3">
+      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {TASKS.map((t) => (
           <li key={t.tail}>
             <Link

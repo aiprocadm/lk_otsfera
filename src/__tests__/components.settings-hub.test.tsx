@@ -146,10 +146,12 @@ describe('вкладки «Обмен с 1С»', () => {
     const links = within(container).getAllByRole('link');
     // `У-45` (этап 7): вкладок стало четыре — автообмен и общая история
     // переехали сюда, чтобы обмен не был «размазан» по трём местам меню.
+    // `У-173` (этап 8): пятая вкладка — пакет документов для 1С файлом.
     expect(links.map((l) => l.textContent)).toEqual([
       'Загрузка Excel',
       'Выписка по счёту 51',
       'Автообмен',
+      'Выгрузка документов',
       'История',
     ]);
     expect(links[1]?.getAttribute('data-active')).toBe('true');
@@ -164,6 +166,7 @@ describe('вкладки «Обмен с 1С»', () => {
       '/leader/settings/integrations/1c/excel',
       '/leader/settings/integrations/1c/payments',
       '/leader/settings/integrations/1c/auto',
+      '/leader/settings/integrations/1c/documents',
       '/leader/settings/integrations/1c/history',
     ]);
     expect(links[0]?.getAttribute('data-active')).toBe('true');

@@ -128,6 +128,34 @@ describe('ExchangeHistory (У-48)', () => {
     expect(screen.getByText('somethingNew: 7')).toBeTruthy();
   });
 
+  it('пакет документов для 1С (У-173): свой канал в фильтре, числа по-русски, отмены нет', () => {
+    render(
+      <ExchangeHistory
+        items={[
+          item(),
+          item({
+            id: 'p1',
+            channel: 'documents',
+            title: 'Пакет для 1С: 21 документ',
+            authorName: 'Бухгалтер',
+            status: 'warn',
+            // Даже если сервис по ошибке скажет «можно отменить», кнопки у
+            // пакета не будет: откат бывает только у файловых импортов.
+            rollback: 'available',
+            counts: { documents: 21, skipped: 2, documentIds: ['a', 'b'] },
+          }),
+        ]}
+      />
+    );
+    fireEvent.change(screen.getByLabelText('Канал'), { target: { value: 'documents' } });
+    const list = screen.getByTestId('exchange-history-list');
+    expect(within(list).getAllByRole('listitem')).toHaveLength(1);
+    expect(within(list).getByText('Документы → 1С')).toBeTruthy();
+    expect(within(list).getByText('с замечаниями')).toBeTruthy();
+    expect(within(list).getByText('документов: 21 · пропущено: 2')).toBeTruthy();
+    expect(screen.queryByTestId('exchange-rollback-p1')).toBeNull();
+  });
+
   it('импорт до появления отмены объясняет, почему кнопки нет', () => {
     render(
       <ExchangeHistory items={[item({ channel: 'statement', rollback: 'nothing_to_revert' })]} />
