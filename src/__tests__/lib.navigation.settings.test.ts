@@ -7,6 +7,7 @@ import {
   sectionsForCabinet,
   settingsHref,
   settingsRoot,
+  settingsSectionHref,
 } from '@/lib/navigation/settings';
 
 /**
@@ -45,6 +46,20 @@ describe('реестр разделов настроек', () => {
     expect(settingsRoot('leader')).toBe('/leader/settings');
     expect(settingsHref(roles!, 'admin')).toBe('/admin/settings/access/roles');
     expect(settingsHref(roles!, 'leader')).toBe('/leader/settings/access/roles');
+  });
+
+  it('settingsSectionHref: адрес раздела по id, null — у кабинета раздела нет (У-169)', () => {
+    expect(settingsSectionHref('catalogs.requisites', 'admin')).toBe(
+      '/admin/settings/catalogs/requisites'
+    );
+    expect(settingsSectionHref('catalogs.requisites', 'leader')).toBe(
+      '/leader/settings/catalogs/requisites'
+    );
+    // У менеджера хаба настроек нет — ссылка вела бы в 403.
+    expect(settingsSectionHref('catalogs.requisites', 'manager')).toBeNull();
+    // Раздел только админа у руководителя не появляется.
+    expect(settingsSectionHref('system.health', 'leader')).toBeNull();
+    expect(settingsSectionHref('no.such.section', 'admin')).toBeNull();
   });
 
   it('sectionsForCabinet отдаёт только разделы своего кабинета', () => {

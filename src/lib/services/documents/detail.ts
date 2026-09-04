@@ -14,9 +14,11 @@
 
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
+import type { OneCPushStatus } from '@prisma/client';
 import { canReadDocument } from '@/lib/auth/policy';
 import { invoicePaymentState, type InvoicePaymentResult } from '@/lib/documents/invoicePayment';
 import { proposalDisplayStatus } from '@/lib/documents/proposalExpiry';
+import { oneCPushBlockReason, type OneCPushBlockReason } from './pushToOneC';
 
 type DocumentDetailError = 'not_found';
 
@@ -57,6 +59,22 @@ export type DocumentDetail = {
    */
   rejectReason: string | null;
   counterparty: { type: string | null; id: string | null; name: string | null };
+  /**
+   * Этап 8 (`У-169`): выгрузка в 1С. Считается на сервере целиком — блок
+   * карточки только показывает: статус, время, ошибку и либо кнопку, либо
+   * причину, почему её нет (`blocked`). Правило компании и «пришёл из 1С»
+   * клиентскому компоненту знать незачем.
+   */
+  oneCPush: {
+    status: OneCPushStatus;
+    pushedAt: Date | null;
+    error: string | null;
+    attempts: number;
+    /** Идентификатор бумаги в 1С после удачной выгрузки. */
+    externalId: string | null;
+    /** `null` — кнопка «Выгрузить в 1С» доступна; иначе причина, почему нет. */
+    blocked: OneCPushBlockReason | null;
+  };
 };
 
 type Result = { ok: true; document: DocumentDetail } | { ok: false; error: DocumentDetailError };
@@ -116,6 +134,15 @@ export async function getDocumentDetail(
       order: {
         select: { id: true, title: true, orderNumber: true, companyId: true },
       },
+      // `У-169`: выгрузка в 1С — состояние и всё, от чего зависит кнопка.
+      externalId: true,
+      supersededAt: true,
+      oneCPushStatus: true,
+      oneCPushedAt: true,
+      oneCPushError: true,
+      oneCPushAttempts: true,
+      oneCExternalId: true,
+      company: { select: { oneCDocumentPushMode: true, oneCDocumentPushTypes: true } },
     },
   });
   if (!doc) return { ok: false, error: 'not_found' };
@@ -184,6 +211,14 @@ export async function getDocumentDetail(
         type: doc.counterpartyType,
         id: doc.counterpartyId,
         name: await counterpartyName(prisma, doc.counterpartyType, doc.counterpartyId),
+      },
+      oneCPush: {
+        status: doc.oneCPushStatus,
+        pushedAt: doc.oneCPushedAt,
+        error: doc.oneCPushError,
+        attempts: doc.oneCPushAttempts,
+        externalId: doc.oneCExternalId,
+        blocked: oneCPushBlockReason(doc),
       },
     },
   };

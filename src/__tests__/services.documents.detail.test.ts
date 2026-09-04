@@ -34,6 +34,18 @@ const BASE_DOC = {
   counterpartyId: 'org1',
   uploadedBy: { name: 'Иванов', email: 'i@t.local' },
   order: { id: 'ord1', title: 'Заказ', orderNumber: 'ON-1', companyId: 'co1' },
+  // Этап 8 (`У-169`): выгрузка в 1С.
+  externalId: null,
+  supersededAt: null,
+  oneCPushStatus: 'none',
+  oneCPushedAt: null,
+  oneCPushError: null,
+  oneCPushAttempts: 0,
+  oneCExternalId: null,
+  company: {
+    oneCDocumentPushMode: 'manual',
+    oneCDocumentPushTypes: ['invoice', 'act', 'contract', 'extra_agreement'],
+  },
 };
 
 function makePrisma(doc: unknown, orgName = 'ООО Ромашка', partnerName = 'Партнёр А') {
@@ -79,6 +91,59 @@ describe('getDocumentDetail', () => {
       id: 'org1',
       name: 'ООО Ромашка',
     });
+  });
+
+  // Этап 8 (`У-169`): блок «Выгрузка в 1С» считается на сервере целиком.
+  it('отдаёт состояние выгрузки в 1С и «кнопка доступна» у обычного счёта', async () => {
+    canReadDocument.mockResolvedValue(true);
+    const res = await getDocumentDetail(makePrisma(BASE_DOC), session, 'doc1');
+    if (!res.ok) throw new Error('unexpected');
+    expect(res.document.oneCPush).toEqual({
+      status: 'none',
+      pushedAt: null,
+      error: null,
+      attempts: 0,
+      externalId: null,
+      blocked: null,
+    });
+  });
+
+  it('после ошибки выгрузки карточка знает статус, текст ошибки и число попыток', async () => {
+    canReadDocument.mockResolvedValue(true);
+    const res = await getDocumentDetail(
+      makePrisma({
+        ...BASE_DOC,
+        oneCPushStatus: 'failed',
+        oneCPushError: 'push failed',
+        oneCPushAttempts: 3,
+        oneCPushedAt: new Date('2026-09-01T10:00:00Z'),
+      }),
+      session,
+      'doc1'
+    );
+    if (!res.ok) throw new Error('unexpected');
+    expect(res.document.oneCPush).toMatchObject({
+      status: 'failed',
+      error: 'push failed',
+      attempts: 3,
+      blocked: null,
+    });
+  });
+
+  it.each([
+    ['КП', { type: 'commercial_proposal' }, 'not_pushable_type'],
+    ['документ из 1С', { externalId: '1c-doc-1' }, 'from_1c'],
+    [
+      'правило компании never',
+      { company: { oneCDocumentPushMode: 'never', oneCDocumentPushTypes: ['invoice'] } },
+      'push_disabled',
+    ],
+    ['заменённая версия', { supersededAt: new Date('2026-09-01T00:00:00Z') }, 'superseded'],
+  ])('%s — кнопки нет, причина: %s', async (_name, over, blocked) => {
+    canReadDocument.mockResolvedValue(true);
+    const res = await getDocumentDetail(makePrisma({ ...BASE_DOC, ...over }), session, 'doc1');
+    if (!res.ok) throw new Error('unexpected');
+    expect(res.document.oneCPush.blocked).toBe(blocked);
   });
 
   it('общий документ (без заказа) отдаёт order = null', async () => {

@@ -34,6 +34,14 @@ function doc(over: Partial<DocumentDetail> = {}): DocumentDetail {
     order: { id: 'ord1', title: 'Заказ', orderNumber: 'ON-1' },
     rejectReason: null,
     counterparty: { type: 'organization', id: 'org1', name: 'ООО Ромашка' },
+    oneCPush: {
+      status: 'none',
+      pushedAt: null,
+      error: null,
+      attempts: 0,
+      externalId: null,
+      blocked: null,
+    },
     ...over,
   };
 }

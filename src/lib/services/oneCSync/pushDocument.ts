@@ -9,7 +9,7 @@ import { CATALOG_UNIT_LABELS } from '@/lib/services/admin/catalogItems';
 import { getOneCAdapter, type OneCAdapter } from '.';
 import type { OneCDocumentPushPayload } from './dto';
 import { writeSyncLog } from './log';
-import { ONE_C_PUSHABLE_TYPES } from './schemas';
+import { isOneCPushableType, type OneCPushableType } from './schemas';
 
 /**
  * Этап 8 (`У-167`, `У-168`): выгрузка документа кабинета в 1С.
@@ -32,8 +32,6 @@ export const ONE_C_FILE_URL_TTL_SECONDS = 3600;
 
 /** Предел глубины цепочки перевыпусков при поиске корня — защита от цикла в данных. */
 const MAX_REISSUE_CHAIN_DEPTH = 100;
-
-type PushableType = (typeof ONE_C_PUSHABLE_TYPES)[number];
 
 /** Окончательные отказы: повтор задачи не поможет, пока человек не поправит документ. */
 export type PushDocumentRefusal =
@@ -66,10 +64,6 @@ export type EnqueueDocumentPushResult =
         | 'already_queued'
         | 'queue_unavailable';
     };
-
-function isPushableType(type: string): type is PushableType {
-  return (ONE_C_PUSHABLE_TYPES as readonly string[]).includes(type);
-}
 
 const num = (d: { toNumber(): number }): number => d.toNumber();
 
@@ -180,7 +174,7 @@ type BuildPayloadResult =
 async function buildPayload(
   prisma: PrismaClient,
   doc: LoadedDocument,
-  type: PushableType,
+  type: OneCPushableType,
   externalId: string
 ): Promise<BuildPayloadResult> {
   const counterparty = await loadCounterparty(prisma, doc.counterpartyType, doc.counterpartyId);
@@ -352,7 +346,7 @@ export async function pushDocumentToOneC(
     );
     return { ok: false, error: 'not_found' };
   }
-  if (!isPushableType(doc.type)) return refuseUntouched(prisma, doc, 'not_pushable_type');
+  if (!isOneCPushableType(doc.type)) return refuseUntouched(prisma, doc, 'not_pushable_type');
   if (doc.supersededAt) return refuseUntouched(prisma, doc, 'superseded');
 
   // Спека 3.1: та же версия уже в 1С — повтор не нужен, адаптер не зовём.
@@ -446,7 +440,7 @@ export async function enqueueDocumentPush(
     select: { id: true, type: true, supersededAt: true, oneCPushStatus: true },
   });
   if (!doc) return { ok: false, error: 'not_found' };
-  if (!isPushableType(doc.type)) return { ok: false, error: 'not_pushable_type' };
+  if (!isOneCPushableType(doc.type)) return { ok: false, error: 'not_pushable_type' };
   if (doc.supersededAt) return { ok: false, error: 'superseded' };
 
   const claimed = await prisma.document.updateMany({

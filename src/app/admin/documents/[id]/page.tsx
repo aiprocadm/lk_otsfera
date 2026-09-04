@@ -7,6 +7,8 @@ import { getFieldsForEntity } from '@/lib/services/customFields';
 import { DocumentDetailView } from '@/components/documents/document-detail-view';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fields';
+import { DocumentOneCPushBlock } from '@/components/documents/document-onec-push-block';
+import { settingsSectionHref } from '@/lib/navigation/settings';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,6 +37,12 @@ export default async function AdminDocumentDetailPage({
       // руководитель; правило зеркала (§0.2) не терпит кнопки «через одного».
       canSend
     >
+      {/* `У-169`: блок выгрузки в 1С — как у менеджера и руководителя (зеркало). */}
+      <DocumentOneCPushBlock
+        documentId={id}
+        push={res.document.oneCPush}
+        pushRuleHref={settingsSectionHref('catalogs.requisites', 'admin')}
+      />
       <EntityCustomFields fields={customFields} entityType="document" entityId={id} />
     </DocumentDetailView>
   );

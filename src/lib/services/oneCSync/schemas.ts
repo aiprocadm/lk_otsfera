@@ -120,6 +120,13 @@ export const OneCLeadPushResultSchema = z.object({
  */
 export const ONE_C_PUSHABLE_TYPES = ['invoice', 'act', 'contract', 'extra_agreement'] as const;
 
+export type OneCPushableType = (typeof ONE_C_PUSHABLE_TYPES)[number];
+
+/** Тип документа выгружается в 1С. Одна проверка для процессора, продюсера и экранов (`У-169`). */
+export function isOneCPushableType(type: string): type is OneCPushableType {
+  return (ONE_C_PUSHABLE_TYPES as readonly string[]).includes(type);
+}
+
 // `finite`, а не просто `number`: NaN/Infinity в JSON превращаются в `null`, и
 // 1С получила бы «сумму null» без единого предупреждения с нашей стороны.
 const finite = z.number().finite();

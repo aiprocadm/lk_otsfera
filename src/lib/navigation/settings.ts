@@ -298,6 +298,18 @@ export function settingsHref(section: SettingsSection, cabinet: SettingsCabinet)
   return `${settingsRoot(cabinet)}/${section.path}`;
 }
 
+/**
+ * Адрес раздела по id для ссылки «изменить в настройках» с чужого экрана
+ * (например, из карточки документа к правилу выгрузки в 1С, `У-169`).
+ * `null` — у этого кабинета раздела нет (у менеджера хаба настроек нет
+ * вовсе): экран тогда говорит «попросите руководителя», а не ведёт в 403.
+ */
+export function settingsSectionHref(id: string, cabinet: SettingsCabinet | 'manager'): string | null {
+  if (cabinet === 'manager') return null;
+  const section = SETTINGS_SECTIONS.find((s) => s.id === id && s.cabinets.includes(cabinet));
+  return section ? settingsHref(section, cabinet) : null;
+}
+
 export function sectionsForCabinet(cabinet: SettingsCabinet): SettingsSection[] {
   return SETTINGS_SECTIONS.filter((s) => s.cabinets.includes(cabinet));
 }

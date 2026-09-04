@@ -47,3 +47,29 @@ describe('У-149: кнопка отправки — во всех трёх ка�
     expect(src, 'кабинет заказчика получил чужую кнопку').not.toMatch(/\bcanSend\b/);
   });
 });
+
+describe('У-169: блок «Выгрузка в 1С» — во всех трёх кабинетах сотрудников и только у них', () => {
+  it('менеджер и руководитель получают его через общую карточку сотрудника', () => {
+    const staff = read('components/documents/staff-document-detail.tsx');
+    expect(staff, 'общая карточка сотрудника не монтирует блок выгрузки').toMatch(
+      /<DocumentOneCPushBlock\b/
+    );
+  });
+
+  it('администратор рисует карточку сам — и тоже с блоком выгрузки (зеркало)', () => {
+    const src = read('app/admin/documents/[id]/page.tsx');
+    expect(src, 'у администратора нет блока выгрузки в 1С').toMatch(/<DocumentOneCPushBlock\b/);
+  });
+
+  it('заказчику и партнёру блок не выдаётся: 1С исполнителя им не принадлежит', () => {
+    for (const rel of [
+      'app/organization/documents/[id]/page.tsx',
+      'app/partner/documents/[id]/page.tsx',
+      'components/documents/document-detail-view.tsx',
+    ]) {
+      expect(read(rel), `${rel} получил чужой блок выгрузки`).not.toMatch(
+        /DocumentOneCPushBlock/
+      );
+    }
+  });
+});
