@@ -12,9 +12,8 @@
  * существуют.
  */
 
-import type { PrismaClient } from '@prisma/client';
+import type { OneCPushStatus, PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import type { OneCPushStatus } from '@prisma/client';
 import { canReadDocument } from '@/lib/auth/policy';
 import { invoicePaymentState, type InvoicePaymentResult } from '@/lib/documents/invoicePayment';
 import { proposalDisplayStatus } from '@/lib/documents/proposalExpiry';

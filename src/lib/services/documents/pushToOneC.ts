@@ -53,7 +53,7 @@ export function oneCPushBlockReason(doc: BlockCheckInput): OneCPushBlockReason |
   return null;
 }
 
-export type RequestDocumentPushError =
+type RequestDocumentPushError =
   | 'forbidden'
   | 'not_found'
   | OneCPushBlockReason
