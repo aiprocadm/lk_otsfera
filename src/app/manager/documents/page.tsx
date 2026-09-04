@@ -3,6 +3,7 @@ import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { listDocuments, listManagerOrderLessDocuments } from '@/lib/services/manager/documents';
 import { listManagerCounterparties } from '@/lib/services/manager/counterparties';
+import { parseOneCPushStatus } from '@/lib/documents/oneCPushStatus';
 import {
   StaffDocuments,
   type StaffDocumentsSearchParams,
@@ -21,10 +22,12 @@ export default async function ManagerDocumentsPage({
 }) {
   const session = await requireManager();
   const sp = await searchParams;
+  // `У-169`: фильтр «Выгрузка в 1С» — чужое слово из адреса становится «без фильтра».
+  const oneCPushStatus = parseOneCPushStatus(sp.oneCPushStatus);
 
   if (sp.tab === 'general') {
     const [{ rows }, counterparties] = await Promise.all([
-      listManagerOrderLessDocuments(prisma, session),
+      listManagerOrderLessDocuments(prisma, session, { oneCPushStatus }),
       // Третий аргумент — охват (`У-110`). У рядового менеджера его нет: он
       // видит своих контрагентов, а не всех контрагентов компании.
       listManagerCounterparties(prisma, session, undefined),
@@ -40,6 +43,7 @@ export default async function ManagerDocumentsPage({
     type: sp.type || undefined,
     orderId: sp.orderId,
     cursor: sp.cursor,
+    oneCPushStatus,
   });
   return <StaffDocuments cabinet="manager" sp={sp} data={{ tab: 'orders', rows, nextCursor }} />;
 }

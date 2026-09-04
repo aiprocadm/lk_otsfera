@@ -18,19 +18,10 @@ import Link from 'next/link';
 import type { OneCPushStatus } from '@prisma/client';
 import { Badge, Button } from '@/components/ui';
 import type { DocumentDetail } from '@/lib/services/documents/detail';
-import { ONE_C_PUSH_STATUS_LABEL } from '@/lib/documents/oneCPushStatus';
+import { ONE_C_PUSH_STATUS_LABEL, ONE_C_PUSH_STATUS_TONE } from '@/lib/documents/oneCPushStatus';
 import { errorMessageRu } from '@/lib/errors/messages';
 import { toast } from '@/lib/ui/toast';
 import { requestDocumentPushAction } from '@/server-actions/documents/pushToOneC';
-
-const STATUS_TONE: Record<OneCPushStatus, 'neutral' | 'success' | 'danger' | 'warning'> = {
-  none: 'neutral',
-  pending: 'warning',
-  pushed: 'success',
-  failed: 'danger',
-  skipped: 'neutral',
-  exported_file: 'success',
-};
 
 /**
  * Дельты поверх общего словаря: центральные строки писались для других
@@ -122,7 +113,7 @@ export function DocumentOneCPushBlock({
       </h2>
       <dl className="space-y-2">
         <Row label="Состояние">
-          <Badge tone={STATUS_TONE[status]}>{ONE_C_PUSH_STATUS_LABEL[status]}</Badge>
+          <Badge tone={ONE_C_PUSH_STATUS_TONE[status]}>{ONE_C_PUSH_STATUS_LABEL[status]}</Badge>
         </Row>
         {push.pushedAt && (
           <Row label={push.status === 'failed' ? 'Последняя попытка' : 'Когда'}>

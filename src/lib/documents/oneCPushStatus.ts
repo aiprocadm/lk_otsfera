@@ -20,6 +20,19 @@ export const ONE_C_PUSH_STATUS_LABEL: Record<OneCPushStatus, string> = {
   exported_file: 'Выгружен файлом',
 };
 
+/** Цвет бейджа по состоянию — общий для карточки и списка. */
+export const ONE_C_PUSH_STATUS_TONE: Record<
+  OneCPushStatus,
+  'neutral' | 'success' | 'danger' | 'warning'
+> = {
+  none: 'neutral',
+  pending: 'warning',
+  pushed: 'success',
+  failed: 'danger',
+  skipped: 'neutral',
+  exported_file: 'success',
+};
+
 /** Порядок — для `<select>` фильтра: сначала то, что требует внимания. */
 export const ONE_C_PUSH_STATUS_ORDER: readonly OneCPushStatus[] = [
   'failed',

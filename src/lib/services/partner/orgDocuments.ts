@@ -1,4 +1,4 @@
-import type { PrismaClient, DocumentType, DocumentDirection } from '@prisma/client';
+import type { PrismaClient, DocumentType, DocumentDirection, OneCPushStatus } from '@prisma/client';
 import { partnerPortfolioDocumentsWhere } from '@/lib/auth/documentChannelPolicy';
 
 export type OrgDocumentRow = {
@@ -16,6 +16,12 @@ export type OrgDocumentRow = {
   number: string | null;
   /** Версия: 1 — первая, больше — переизданный документ (`У-151`). */
   version: number;
+  /**
+   * Состояние выгрузки в 1С (`У-169`) — только в списках сотрудников: бейдж
+   * и флажок массовой выгрузки. У заказчика и партнёра поля нет вовсе: 1С
+   * исполнителя им не показывают.
+   */
+  oneCPushStatus?: OneCPushStatus | undefined;
 };
 
 // Фильтры списка: «ключа нет» и «ключ = undefined» — одно и то же (не фильтровать).

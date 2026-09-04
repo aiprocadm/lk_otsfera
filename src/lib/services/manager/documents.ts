@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import type { PrismaClient, Prisma, DocumentType, DocumentDirection } from '@prisma/client';
+import type {
+  PrismaClient,
+  Prisma,
+  DocumentType,
+  DocumentDirection,
+  OneCPushStatus,
+} from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import {
   managerDocumentScope,
@@ -28,6 +34,9 @@ const ListDocumentsOptionsSchema = z.object({
   search: z.string().optional(),
   orderId: z.string().optional(),
   type: z.string().optional(),
+  // `У-169`: фильтр «Выгрузка в 1С». Значение уже разобрано страницей
+  // (`parseOneCPushStatus`) — чужое слово из адреса сюда не доходит.
+  oneCPushStatus: z.custom<OneCPushStatus>((v) => typeof v === 'string').optional(),
   take: z.number().int().min(1).max(100).default(50),
   cursor: z.string().optional(),
   // `У-110`: кабинет руководителя форсит company-wide независимо от toggle —
@@ -68,6 +77,7 @@ export async function listDocuments(
   const filters: Prisma.DocumentWhereInput[] = [scope];
   if (opts.orderId) filters.push({ orderId: opts.orderId });
   if (opts.type) filters.push({ type: opts.type as DocumentType });
+  if (opts.oneCPushStatus) filters.push({ oneCPushStatus: opts.oneCPushStatus });
   if (opts.search) {
     filters.push({ name: { contains: opts.search, mode: 'insensitive' } });
   }
@@ -193,18 +203,26 @@ export type ManagerOrderLessRow = {
   size: number | null;
   counterpartyType: 'organization' | 'partner';
   counterpartyId: string;
+  /** `У-169`: состояние выгрузки в 1С — бейдж и флажок массовой выгрузки. */
+  oneCPushStatus: OneCPushStatus;
 };
 
 export async function listManagerOrderLessDocuments(
   prisma: PrismaClient,
   session: SessionPayload,
-  opts?: { type?: DocumentType; take?: number; cursor?: string }
+  opts?: {
+    type?: DocumentType;
+    oneCPushStatus?: OneCPushStatus | undefined;
+    take?: number;
+    cursor?: string;
+  }
 ): Promise<{ rows: ManagerOrderLessRow[]; nextCursor: string | null }> {
   if (!session.companyId) return { rows: [], nextCursor: null };
   const take = Math.min(Math.max(opts?.take ?? 50, 1), 100);
   const where: Prisma.DocumentWhereInput = {
     ...managerOrderLessWhere(session.companyId),
     ...(opts?.type ? { type: opts.type } : {}),
+    ...(opts?.oneCPushStatus ? { oneCPushStatus: opts.oneCPushStatus } : {}),
   };
   const rows = await prisma.document.findMany({
     where,
@@ -221,6 +239,7 @@ export async function listManagerOrderLessDocuments(
       size: true,
       counterpartyType: true,
       counterpartyId: true,
+      oneCPushStatus: true,
     },
   });
   const hasMore = rows.length > take;

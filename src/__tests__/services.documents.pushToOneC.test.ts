@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { PrismaClient } from '@prisma/client';
+import type { DocumentType, PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 const { canReadDocument, enqueueDocumentPush, recordAudit } = vi.hoisted(() => ({
@@ -44,8 +44,8 @@ const DOC = {
   orderId: 'ord-1',
   order: { companyId: 'co-1' },
   company: {
-    oneCDocumentPushMode: 'manual',
-    oneCDocumentPushTypes: ['invoice', 'act', 'contract', 'extra_agreement'],
+    oneCDocumentPushMode: 'manual' as const,
+    oneCDocumentPushTypes: ['invoice', 'act', 'contract', 'extra_agreement'] as DocumentType[],
   },
 };
 
@@ -56,7 +56,10 @@ function fake(docs: Array<Record<string, unknown>> | null = [{}]) {
       return [d.id, d];
     })
   );
-  const findUnique = vi.fn(async ({ where }: { where: { id: string } }) => byId.get(where.id) ?? null);
+  const findUnique = vi.fn(
+    async ({ where }: { where: { id: string }; select?: Record<string, unknown> }) =>
+      byId.get(where.id) ?? null
+  );
   return { prisma: { document: { findUnique } } as unknown as PrismaClient, findUnique };
 }
 
@@ -81,7 +84,7 @@ describe('oneCPushBlockReason — почему кнопки нет', () => {
         type: 'commercial_proposal',
         externalId: 'from-1c',
         supersededAt: new Date(),
-        company: { ...company, oneCDocumentPushMode: 'never' },
+        company: { ...company, oneCDocumentPushMode: 'never' as const },
       })
     ).toBe('not_pushable_type');
   });

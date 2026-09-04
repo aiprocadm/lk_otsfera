@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { OneCPushStatus, PrismaClient } from '@prisma/client';
 import type { OrgDocumentRow } from '@/lib/services/partner/orgDocuments';
 
 /**
@@ -7,11 +7,19 @@ import type { OrgDocumentRow } from '@/lib/services/partner/orgDocuments';
  * Админское зеркало (Model A) видит их по всей платформе без скоупа: гард
  * `requireAdmin` остаётся на странице, сервис только читает.
  */
-export async function listGeneralDocuments(prisma: PrismaClient): Promise<OrgDocumentRow[]> {
+export async function listGeneralDocuments(
+  prisma: PrismaClient,
+  /** `У-169`: фильтр «Выгрузка в 1С» — значение уже разобрано страницей. */
+  opts: { oneCPushStatus?: OneCPushStatus | undefined } = {}
+): Promise<OrgDocumentRow[]> {
   const rows = await prisma.document.findMany({
     // `У-151`: заменённая перевыпуском версия из списка скрыта — два
     // одинаковых номера рядом человек прочитал бы как дубль в системе.
-    where: { orderId: null, supersededAt: null },
+    where: {
+      orderId: null,
+      supersededAt: null,
+      ...(opts.oneCPushStatus ? { oneCPushStatus: opts.oneCPushStatus } : {}),
+    },
     orderBy: { createdAt: 'desc' },
     take: 200,
     select: {
@@ -25,6 +33,7 @@ export async function listGeneralDocuments(prisma: PrismaClient): Promise<OrgDoc
       // `У-154`: номер и версия документа — их показывает список.
       number: true,
       version: true,
+      oneCPushStatus: true,
     },
   });
 
@@ -41,5 +50,6 @@ export async function listGeneralDocuments(prisma: PrismaClient): Promise<OrgDoc
     orderTitle: null,
     number: d.number,
     version: d.version,
+    oneCPushStatus: d.oneCPushStatus,
   }));
 }

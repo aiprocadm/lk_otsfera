@@ -299,3 +299,57 @@ describe('`У-154`: номер и версия в списке (дефект `Д
     expect(html).not.toContain('№');
   });
 });
+
+describe('`У-169`: состояние выгрузки в 1С в списке сотрудников', () => {
+  it('строка без поля oneCPushStatus (заказчик, партнёр) бейджа не показывает', () => {
+    const html = renderToString(<DocumentsList rows={[base]} />);
+    expect(html).not.toContain('1С:');
+  });
+
+  it('«Не выгружался» — у большинства строк, поэтому не показывается', () => {
+    const html = renderToString(<DocumentsList rows={[{ ...base, oneCPushStatus: 'none' }]} />);
+    expect(html).not.toContain('1С:');
+  });
+
+  it.each([
+    ['pending', '1С: В очереди'],
+    ['pushed', '1С: Выгружен'],
+    ['failed', '1С: Ошибка выгрузки'],
+    ['exported_file', '1С: Выгружен файлом'],
+  ] as const)('статус %s показывает бейдж «%s»', (status, label) => {
+    const html = renderToString(<DocumentsList rows={[{ ...base, oneCPushStatus: status }]} />);
+    expect(html).toContain(label);
+  });
+
+  it('без selection флажков нет', () => {
+    const html = renderToString(<DocumentsList rows={[base]} />);
+    expect(html).not.toContain('type="checkbox"');
+  });
+
+  it('с selection у каждой строки флажок с именем документа; недоступный — выключен с подсказкой', () => {
+    const onToggle = vi.fn();
+    render(
+      <DocumentsList
+        rows={[
+          { ...base, id: 'ok', name: 'Счёт.pdf', type: 'invoice' },
+          { ...base, id: 'no', name: 'Отчёт.pdf', type: 'report' },
+        ]}
+        selection={{
+          selected: new Set(['ok']),
+          onToggle,
+          canSelect: (doc) => doc.type === 'invoice',
+        }}
+      />
+    );
+    const ok = screen.getByLabelText('Выбрать Счёт.pdf') as HTMLInputElement;
+    const no = screen.getByLabelText('Выбрать Отчёт.pdf') as HTMLInputElement;
+    expect(ok.checked).toBe(true);
+    expect(ok.disabled).toBe(false);
+    expect(no.checked).toBe(false);
+    expect(no.disabled).toBe(true);
+    expect(no.title).toContain('нельзя выгрузить в 1С');
+
+    fireEvent.click(ok);
+    expect(onToggle).toHaveBeenCalledWith('ok');
+  });
+});

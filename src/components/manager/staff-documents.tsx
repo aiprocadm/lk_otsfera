@@ -1,11 +1,13 @@
 import React from 'react';
 import Link from 'next/link';
-import { DocumentsList } from '@/components/partner/documents-list';
+import { StaffDocumentsPushList } from '@/components/documents/staff-documents-push-list';
 import { ManagerOrderLessUploadForm } from '@/components/manager/manager-order-less-upload-form';
 import type { OrgDocumentRow } from '@/lib/services/partner/orgDocuments';
 import type { ListDocumentsResult, ManagerOrderLessRow } from '@/lib/services/manager/documents';
 import type { ManagerCounterparties } from '@/lib/services/manager/counterparties';
 import { sectionLabel } from '@/lib/navigation/sectionLabels';
+import { parseOneCPushStatus } from '@/lib/documents/oneCPushStatus';
+import { OneCPushStatusSelect } from '@/components/documents/one-c-push-status-select';
 
 import { PageHeader } from '@/components/ui/page-header';
 /**
@@ -30,6 +32,8 @@ export type StaffDocumentsSearchParams = {
   orderId?: string;
   cursor?: string;
   tab?: string;
+  /** `У-169`: фильтр «Выгрузка в 1С» — значение `OneCPushStatus` или пусто. */
+  oneCPushStatus?: string;
 };
 
 /**
@@ -104,6 +108,8 @@ export function StaffDocuments({
   data: StaffDocumentsData;
 }) {
   const base = `/${cabinet}/documents`;
+  // Активный фильтр выгрузки: пустой результат покажет кнопку «Сбросить фильтр».
+  const pushFilterActive = parseOneCPushStatus(sp.oneCPushStatus) !== undefined;
 
   if (data.tab === 'general') {
     const documentRows: OrgDocumentRow[] = data.rows.map((d) => ({
@@ -119,6 +125,7 @@ export function StaffDocuments({
       orderTitle: null,
       number: d.number,
       version: d.version,
+      oneCPushStatus: d.oneCPushStatus,
     }));
 
     return (
@@ -129,10 +136,21 @@ export function StaffDocuments({
           organizations={data.counterparties.organizations}
           partners={data.counterparties.partners}
         />
-        <DocumentsList
+        <form method="get" className="flex flex-wrap items-center gap-2">
+          <input type="hidden" name="tab" value="general" />
+          <OneCPushStatusSelect value={sp.oneCPushStatus} />
+          <button
+            type="submit"
+            className="px-3 py-1 bg-[#F97316] text-white rounded text-sm hover:bg-[#EA580C]"
+          >
+            Показать
+          </button>
+        </form>
+        <StaffDocumentsPushList
           rows={documentRows}
           downloadEndpointBase="/api/manager/documents"
           cardHrefBase={base}
+          resetHref={pushFilterActive ? `${base}?tab=general` : undefined}
         />
       </div>
     );
@@ -154,15 +172,17 @@ export function StaffDocuments({
     orderTitle: d.order?.title ?? null,
     number: d.number,
     version: d.version,
+    oneCPushStatus: d.oneCPushStatus,
   }));
 
   // Фильтры переносим в ссылку «Дальше» — иначе постраничный переход молча
   // сбрасывает то, что человек только что выбрал.
-  const withFilters = (extra?: Record<string, string>) => {
+  const withFilters = (extra?: Record<string, string>, opts?: { withoutPush?: boolean }) => {
     const p = new URLSearchParams();
     if (sp.search) p.set('search', sp.search);
     if (sp.type) p.set('type', sp.type);
     if (sp.orderId) p.set('orderId', sp.orderId);
+    if (pushFilterActive && !opts?.withoutPush) p.set('oneCPushStatus', sp.oneCPushStatus ?? '');
     for (const [k, v] of Object.entries(extra ?? {})) p.set(k, v);
     const qs = p.toString();
     return qs ? `${base}?${qs}` : base;
@@ -193,6 +213,7 @@ export function StaffDocuments({
             </option>
           ))}
         </select>
+        <OneCPushStatusSelect value={sp.oneCPushStatus} />
         {sp.orderId && <input type="hidden" name="orderId" value={sp.orderId} />}
         <button
           type="submit"
@@ -202,10 +223,11 @@ export function StaffDocuments({
         </button>
       </form>
 
-      <DocumentsList
+      <StaffDocumentsPushList
         rows={documentRows}
         downloadEndpointBase="/api/manager/documents"
         cardHrefBase={base}
+        resetHref={pushFilterActive ? withFilters(undefined, { withoutPush: true }) : undefined}
       />
 
       {data.nextCursor && (

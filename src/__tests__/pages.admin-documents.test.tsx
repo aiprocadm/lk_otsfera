@@ -12,11 +12,17 @@ const { listGeneralDocuments } = vi.hoisted(() => ({ listGeneralDocuments: vi.fn
 vi.mock('@/lib/services/documents/generalList', () => ({ listGeneralDocuments }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
-vi.mock('@/components/partner/documents-list', () => ({
-  DocumentsList: (props: { rows: unknown[]; downloadEndpointBase?: string }) =>
+// `У-169`: общие документы — клиентская обёртка с массовой выгрузкой в 1С
+// (ей нужен app-router); страница проверяется по тому, что она ей передаёт.
+vi.mock('@/components/documents/staff-documents-push-list', () => ({
+  StaffDocumentsPushList: (props: {
+    rows: unknown[];
+    downloadEndpointBase?: string;
+    resetHref?: string;
+  }) =>
     React.createElement(
       'div',
-      { 'data-testid': 'documents-list' },
+      { 'data-testid': 'documents-list', 'data-reset-href': props.resetHref ?? '' },
       props.downloadEndpointBase,
       JSON.stringify(props.rows)
     ),
@@ -76,9 +82,47 @@ describe('AdminDocumentsPage', () => {
       AdminDocumentsPage({ searchParams: Promise.resolve({ tab: 'general' }) })
     );
 
-    expect(listGeneralDocuments).toHaveBeenCalledWith(expect.anything());
+    expect(listGeneralDocuments).toHaveBeenCalledWith(expect.anything(), {
+      oneCPushStatus: undefined,
+    });
     expect(container.textContent).toContain('Документы');
     expect(container.textContent).toContain('Общий.pdf');
     expect(container.textContent).toContain('/api/documents');
+    // Без фильтра кнопки «Сбросить фильтр» быть не должно.
+    expect(
+      container.querySelector('[data-testid="documents-list"]')?.getAttribute('data-reset-href')
+    ).toBe('');
+  });
+
+  it('У-169: фильтр «Выгрузка в 1С» на вкладке общих документов — select, сервис и сброс', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    listGeneralDocuments.mockResolvedValue([]);
+
+    const { container } = await renderServerComponent(
+      AdminDocumentsPage({ searchParams: Promise.resolve({ tab: 'general', oneCPushStatus: 'failed' }) })
+    );
+
+    expect(listGeneralDocuments).toHaveBeenCalledWith(expect.anything(), {
+      oneCPushStatus: 'failed',
+    });
+    const select = container.querySelector('select[name="oneCPushStatus"]');
+    expect(select).not.toBeNull();
+    expect(container.querySelector('input[name="tab"][value="general"]')).not.toBeNull();
+    expect(
+      container.querySelector('[data-testid="documents-list"]')?.getAttribute('data-reset-href')
+    ).toBe('/admin/documents?tab=general');
+  });
+
+  it('У-169: чужое слово в адресе — «без фильтра», а не ошибка', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    listGeneralDocuments.mockResolvedValue([]);
+
+    await renderServerComponent(
+      AdminDocumentsPage({ searchParams: Promise.resolve({ tab: 'general', oneCPushStatus: 'nope' }) })
+    );
+
+    expect(listGeneralDocuments).toHaveBeenCalledWith(expect.anything(), {
+      oneCPushStatus: undefined,
+    });
   });
 });
