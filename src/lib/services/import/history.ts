@@ -1,6 +1,7 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { mayImportOneC } from '@/lib/auth/managerPolicy';
+import { pluralizeRu } from '@/lib/format';
 import { importScope } from '@/lib/services/oneCSync/scope';
 import { rollbackStateOf, type RollbackState } from './rollback';
 
@@ -15,12 +16,14 @@ import { rollbackStateOf, type RollbackState } from './rollback';
  * у автообмена отката нет by design — это поток, а не файл, отменять там
  * нечего.
  */
-export type ExchangeChannel = 'excel' | 'statement' | 'auto';
+export type ExchangeChannel = 'excel' | 'statement' | 'auto' | 'documents';
 
 export const CHANNEL_LABEL: Record<ExchangeChannel, string> = {
   excel: 'Загрузка Excel',
   statement: 'Выписка по счёту 51',
   auto: 'Автообмен',
+  // `У-173`: пакет документов, скачанный файлом для 1С.
+  documents: 'Документы → 1С',
 };
 
 export type ExchangeHistoryItem = {
@@ -167,6 +170,38 @@ export async function listExchangeHistory(
         createdAt: l.createdAt.toISOString(),
         title: autoTitle(l.entity, l.operation),
         authorName: null,
+        status: l.status,
+        rollback: 'unsupported',
+        counts: l.payload,
+      });
+    }
+  }
+
+  // Пакеты документов для 1С (`У-173`): запись `SyncLog` хранит компанию в
+  // payload, поэтому руководителю показываются только пакеты его компании;
+  // рядовому менеджеру канала нет вовсе — он и пакет собрать не может.
+  if (wants('documents') && scope.kind !== 'orgs') {
+    const rows = await prisma.syncLog.findMany({
+      where: {
+        entity: 'document',
+        operation: 'export',
+        ...(scope.kind === 'company'
+          ? { payload: { path: ['companyId'], equals: scope.companyId } }
+          : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      take,
+      select: { id: true, createdAt: true, status: true, payload: true },
+    });
+    for (const l of rows) {
+      const p = (l.payload ?? {}) as { documents?: number; actorName?: string | null };
+      const n = p.documents ?? 0;
+      items.push({
+        id: l.id,
+        channel: 'documents',
+        createdAt: l.createdAt.toISOString(),
+        title: `Пакет для 1С: ${n} ${pluralizeRu(n, 'документ', 'документа', 'документов')}`,
+        authorName: p.actorName ?? null,
         status: l.status,
         rollback: 'unsupported',
         counts: l.payload,

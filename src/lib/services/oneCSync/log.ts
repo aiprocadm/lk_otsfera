@@ -17,18 +17,23 @@ export type SyncLogEntry = {
   entity: SyncLogEntity;
   externalId?: string | undefined;
   direction: 'inbound' | 'outbound';
-  operation: 'create' | 'update' | 'skip' | 'delete' | 'check' | 'import';
+  operation: 'create' | 'update' | 'skip' | 'delete' | 'check' | 'import' | 'export';
   status: 'success' | 'error' | 'warn';
   errorMessage?: string | undefined;
   payload?: unknown;
   durationMs?: number | undefined;
 };
 
+/**
+ * Возвращает id записи: файловый пакет для 1С (`У-173`) ссылается на неё из
+ * журнала аудита — пакет один, а документов в нём до пятисот. Без `select`
+ * намеренно: форму вызова `create({ data })` проверяют тесты процессоров.
+ */
 export async function writeSyncLog(
   entry: SyncLogEntry,
   db: PrismaClient = defaultPrisma
-): Promise<void> {
-  await db.syncLog.create({
+): Promise<{ id: string }> {
+  const row = await db.syncLog.create({
     data: {
       entity: entry.entity,
       externalId: entry.externalId ?? null,
@@ -40,4 +45,5 @@ export async function writeSyncLog(
       durationMs: entry.durationMs ?? null,
     },
   });
+  return { id: row.id };
 }

@@ -109,7 +109,12 @@ async function loadCounterparty(
   return { inn: row.inn, kpp: row.kpp, name: row.name, legalName: row.legalName };
 }
 
-const documentSelect = {
+/**
+ * Что нужно знать о документе, чтобы собрать тело для 1С. Экспорт — для
+ * файлового канала (`У-173`): пакет берёт те же поля, чтобы Excel повторял
+ * тело сетевой выгрузки один в один.
+ */
+export const documentSelect = {
   id: true,
   type: true,
   number: true,
@@ -147,7 +152,7 @@ function loadDocument(prisma: PrismaClient, documentId: string) {
   return prisma.document.findUnique({ where: { id: documentId }, select: documentSelect });
 }
 
-type LoadedDocument = NonNullable<Awaited<ReturnType<typeof loadDocument>>>;
+export type LoadedDocument = NonNullable<Awaited<ReturnType<typeof loadDocument>>>;
 
 /** Итоги на момент выпуска; у legacy-документов (до этапа 6) их нет — `null`, как и строк. */
 function toTotals(doc: LoadedDocument): OneCDocumentPushPayload['totals'] {
@@ -156,21 +161,25 @@ function toTotals(doc: LoadedDocument): OneCDocumentPushPayload['totals'] {
   return { net: num(amountNet), vat: num(amountVat), gross: num(amountGross) };
 }
 
-type BuildPayloadResult =
-  | { ok: true; payload: OneCDocumentPushPayload }
+/** Тело документа по контракту без ссылки на файл: файл у каждого канала свой. */
+export type OneCDocumentRecord = Omit<OneCDocumentPushPayload, 'fileUrl'>;
+
+type BuildRecordResult =
+  | { ok: true; record: OneCDocumentRecord }
   | { ok: false; error: 'counterparty_without_inn' | 'no_number' };
 
 /**
  * Тело выгрузки по контракту. Отказы — стабильными кодами, а не падением на
  * `OneCDocumentPushSchema.parse`: человек должен увидеть «нет ИНН», а не
- * «invalid body».
+ * «invalid body». Общее для сети и файла (`У-173`): по сети к телу
+ * добавляется подписанная ссылка, в пакете файл лежит рядом.
  */
-async function buildPayload(
+export async function buildDocumentRecord(
   prisma: PrismaClient,
   doc: LoadedDocument,
   type: OneCPushableType,
   externalId: string
-): Promise<BuildPayloadResult> {
+): Promise<BuildRecordResult> {
   const counterparty = await loadCounterparty(prisma, doc.counterpartyType, doc.counterpartyId);
   if (!counterparty) return { ok: false, error: 'counterparty_without_inn' };
   if (!doc.number) return { ok: false, error: 'no_number' };
@@ -198,11 +207,9 @@ async function buildPayload(
           amount: num(l.amount),
         }));
 
-  const fileUrl = await getObjectStorage().createSignedUrl(doc.path, ONE_C_FILE_URL_TTL_SECONDS);
-
   return {
     ok: true,
-    payload: {
+    record: {
       externalId,
       type,
       number: doc.number,
@@ -215,9 +222,24 @@ async function buildPayload(
       parentDocument,
       lines,
       totals: toTotals(doc),
-      fileUrl,
     },
   };
+}
+
+type BuildPayloadResult =
+  | { ok: true; payload: OneCDocumentPushPayload }
+  | { ok: false; error: 'counterparty_without_inn' | 'no_number' };
+
+async function buildPayload(
+  prisma: PrismaClient,
+  doc: LoadedDocument,
+  type: OneCPushableType,
+  externalId: string
+): Promise<BuildPayloadResult> {
+  const built = await buildDocumentRecord(prisma, doc, type, externalId);
+  if (!built.ok) return built;
+  const fileUrl = await getObjectStorage().createSignedUrl(doc.path, ONE_C_FILE_URL_TTL_SECONDS);
+  return { ok: true, payload: { ...built.record, fileUrl } };
 }
 
 /**

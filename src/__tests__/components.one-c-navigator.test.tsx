@@ -23,6 +23,8 @@ describe('OneCNavigator (У-47)', () => {
     expect(html).toContain('Завести клиентов и заказы из 1С');
     expect(html).toContain('Разнести оплаты из банка');
     expect(html).toContain('Настроить постоянный обмен по сети');
+    // `У-173`: четвёртая задача — отдать документы в 1С файлом.
+    expect(html).toContain('Передать документы в 1С файлом');
   });
 
   it('у каждой карточки есть понятное действие (§15 «что дальше»)', () => {
@@ -30,6 +32,7 @@ describe('OneCNavigator (У-47)', () => {
     expect(html).toContain('Загрузить файл Excel');
     expect(html).toContain('Загрузить выписку');
     expect(html).toContain('Открыть автообмен');
+    expect(html).toContain('Собрать пакет');
     // И подсказка, где смотреть уже загруженное.
     expect(html).toContain('История');
   });
@@ -39,6 +42,7 @@ describe('OneCNavigator (У-47)', () => {
     expect(admin).toContain('href="/admin/settings/integrations/1c/excel"');
     expect(admin).toContain('href="/admin/settings/integrations/1c/payments"');
     expect(admin).toContain('href="/admin/settings/integrations/1c/auto"');
+    expect(admin).toContain('href="/admin/settings/integrations/1c/documents"');
 
     const leader = render('leader');
     expect(leader).toContain('href="/leader/settings/integrations/1c/excel"');

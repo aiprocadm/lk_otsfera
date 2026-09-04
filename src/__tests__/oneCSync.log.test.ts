@@ -19,8 +19,8 @@ afterEach(async () => {
 });
 
 describe('writeSyncLog', () => {
-  it('persists a success record', async () => {
-    await writeSyncLog({
+  it('persists a success record and returns its id (У-173: пакет для 1С ссылается на запись из аудита)', async () => {
+    const { id } = await writeSyncLog({
       entity: 'order',
       externalId: 'log-test-1',
       direction: 'inbound',
@@ -33,6 +33,7 @@ describe('writeSyncLog', () => {
     });
     expect(rows).toHaveLength(1);
     expect(rows[0].status).toBe('success');
+    expect(rows[0].id).toBe(id);
   });
 
   it('persists an error with message and payload', async () => {

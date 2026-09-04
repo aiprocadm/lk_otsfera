@@ -43,7 +43,7 @@ function db(over: Record<string, unknown> = {}) {
       _count: { writes: 129 },
     },
   ]);
-  const auto = vi.fn().mockResolvedValue([
+  const autoRows = [
     {
       id: 'a1',
       createdAt: new Date('2026-08-09T10:00:00.000Z'),
@@ -52,17 +52,38 @@ function db(over: Record<string, unknown> = {}) {
       status: 'success',
       payload: { created: 2 },
     },
-  ]);
+  ];
+  // `У-173`: пакет документов для 1С — та же таблица `SyncLog`, другой запрос
+  // (`operation: 'export'`); мок различает их по `where`.
+  const documentRows = [
+    {
+      id: 'd1',
+      createdAt: new Date('2026-08-08T10:00:00.000Z'),
+      status: 'warn',
+      payload: { companyId: 'c1', actorName: 'Бухгалтер', documents: 21, skipped: 2 },
+    },
+  ];
+  const auto = vi.fn();
+  const documents = vi.fn();
+  const syncLog = vi.fn(async (args: { where: { operation: unknown } }) => {
+    if (args.where.operation === 'export') {
+      documents(args);
+      return documentRows;
+    }
+    auto(args);
+    return autoRows;
+  });
   return {
     prisma: {
       oneCImportBatch: { findMany: excel },
       paymentImportBatch: { findMany: statement },
-      syncLog: { findMany: auto },
+      syncLog: { findMany: syncLog },
       ...over,
     } as never,
     excel,
     statement,
     auto,
+    documents,
   };
 }
 
@@ -79,12 +100,12 @@ describe('listExchangeHistory (У-48)', () => {
     expect(excel).not.toHaveBeenCalled();
   });
 
-  it('три канала в одном списке, свежие сверху', async () => {
+  it('четыре канала в одном списке, свежие сверху', async () => {
     const { prisma } = db();
     const res = await listExchangeHistory(prisma, session);
     if (!res.ok) throw new Error('expected ok');
 
-    expect(res.items.map((i) => i.channel)).toEqual(['statement', 'excel', 'auto']);
+    expect(res.items.map((i) => i.channel)).toEqual(['statement', 'excel', 'auto', 'documents']);
     expect(res.items[0]).toMatchObject({
       title: 'Карточка счета 51.xls',
       authorName: 'Бухгалтер',
@@ -97,10 +118,34 @@ describe('listExchangeHistory (У-48)', () => {
       authorName: null,
       rollback: 'unsupported',
     });
+    // `У-173`: пакет для 1С — с числом документов по-русски и автором из payload.
+    expect(res.items[3]).toMatchObject({
+      id: 'd1',
+      title: 'Пакет для 1С: 21 документ',
+      authorName: 'Бухгалтер',
+      status: 'warn',
+      rollback: 'unsupported',
+      counts: { documents: 21, skipped: 2 },
+    });
+  });
+
+  it('пакет для 1С без чисел в payload — «0 документов», а не падение', async () => {
+    const { prisma } = db({
+      syncLog: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            { id: 'd0', createdAt: new Date(), status: 'success', payload: null },
+          ]),
+      },
+    });
+    const res = await listExchangeHistory(prisma, session, { channel: 'documents' });
+    if (!res.ok) throw new Error('expected ok');
+    expect(res.items[0]).toMatchObject({ title: 'Пакет для 1С: 0 документов', authorName: null });
   });
 
   it('фильтр по каналу спрашивает только нужную таблицу', async () => {
-    const { prisma, excel, statement, auto } = db();
+    const { prisma, excel, statement, auto, documents } = db();
     const res = await listExchangeHistory(prisma, session, { channel: 'statement' });
     if (!res.ok) throw new Error('expected ok');
 
@@ -108,18 +153,40 @@ describe('listExchangeHistory (У-48)', () => {
     expect(statement).toHaveBeenCalled();
     expect(excel).not.toHaveBeenCalled();
     expect(auto).not.toHaveBeenCalled();
+    expect(documents).not.toHaveBeenCalled();
   });
 
   it('руководителю: только своя компания и БЕЗ автообмена (в SyncLog нет компании)', async () => {
     importScope.mockReturnValue({ kind: 'company', companyId: 'c1' });
-    const { prisma, excel, statement, auto } = db();
+    const { prisma, excel, statement, auto, documents } = db();
     const res = await listExchangeHistory(prisma, session);
     if (!res.ok) throw new Error('expected ok');
 
-    expect(res.items.map((i) => i.channel)).toEqual(['statement', 'excel']);
+    expect(res.items.map((i) => i.channel)).toEqual(['statement', 'excel', 'documents']);
     expect(auto).not.toHaveBeenCalled();
     expect(excel.mock.calls[0]![0].where).toEqual({ companyId: 'c1' });
     expect(statement.mock.calls[0]![0].where).toEqual({ companyId: 'c1' });
+    // `У-173`: пакеты документов режутся по компании из payload записи.
+    expect(documents.mock.calls[0]![0].where).toEqual({
+      entity: 'document',
+      operation: 'export',
+      payload: { path: ['companyId'], equals: 'c1' },
+    });
+  });
+
+  it('администратору пакеты документов всех компаний — без фильтра по payload', async () => {
+    const { prisma, documents } = db();
+    await listExchangeHistory(prisma, session, { channel: 'documents' });
+    expect(documents.mock.calls[0]![0].where).toEqual({ entity: 'document', operation: 'export' });
+  });
+
+  it('рядовому менеджеру (скоуп orgs) пакеты документов не показываются', async () => {
+    importScope.mockReturnValue({ kind: 'orgs' });
+    const { prisma, documents } = db();
+    const res = await listExchangeHistory(prisma, session, { channel: 'documents' });
+    if (!res.ok) throw new Error('expected ok');
+    expect(res.items).toEqual([]);
+    expect(documents).not.toHaveBeenCalled();
   });
 
   it('старый батч Excel — отмена просрочена; уже откаченный — «уже отменён»', async () => {
@@ -241,6 +308,7 @@ describe('listExchangeHistory (У-48)', () => {
       excel: 'Загрузка Excel',
       statement: 'Выписка по счёту 51',
       auto: 'Автообмен',
+      documents: 'Документы → 1С',
     });
   });
 });

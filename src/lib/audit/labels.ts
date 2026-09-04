@@ -177,6 +177,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   document_pushed_to_1c: 'Выгрузка документа в 1С',
   document_push_to_1c_failed: 'Ошибка выгрузки документа в 1С',
   document_push_to_1c_requested: 'Постановка документа в очередь на выгрузку в 1С',
+  documents_exported_to_1c_file: 'Выгрузка пакета документов для 1С файлом',
   order_total_synced: 'Сумма заказа выровнена по строкам документа',
   requisites_requested: 'Запрошены реквизиты у заказчика',
   catalog_item_created: 'Добавление услуги в каталог',
