@@ -18,8 +18,8 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development
 | PR-2 «Адаптер и mock» | `OneCDocumentPushSchema` и результат, `pushDocument` в `OneCAdapter` (fake, rest, file), ключ `documentPush`, хранилище документов и обработчик в `mock-1c`, `/__state` показывает принятое, контрактный тест | `У-167`, `У-168` | ✅ [#484](https://github.com/aiprocadm/lk_otsfera/pull/484) |
 | PR-3 «Очередь и процессор» | Очередь `oneCSync.pushDocument`, сборка тела (`externalId` — корень цепочки перевыпусков, `fileUrl` на час, `lines: null` у legacy), сервис выгрузки с идемпотентностью по версии и отказом КП, процессор с интеграционным тестом, события аудита | `У-168`, `У-167` (идемпотентность, `Р-14`), `У-159` (остаток) | ✅ [#485](https://github.com/aiprocadm/lk_otsfera/pull/485) |
 | PR-4 «Правило компании» | `auto / manual / never` и набор типов в «Реквизитах исполнителя» у администратора и руководителя, автопостановка после выпуска best-effort | `У-169` (правило) | ✅ [#486](https://github.com/aiprocadm/lk_otsfera/pull/486) |
-| PR-5 «Экраны выгрузки» | Блок «Выгрузка в 1С» на карточке документа с кнопками «Выгрузить в 1С» / «Повторить», фильтр по статусу выгрузки и массовое «Выгрузить выбранные» в списке документов сотрудников | `У-169` (экраны), `У-159` (повтор) | 🔨 [#487](https://github.com/aiprocadm/lk_otsfera/pull/487) в ревью |
-| PR-6 «Обратная связь» | Поиск входящего по трём ключам без дубля, обновление файла с повторным сканом, `direction` и `number` из DTO | `У-170` (`Д-24`, `Д-25`) | ⏳ |
+| PR-5 «Экраны выгрузки» | Блок «Выгрузка в 1С» на карточке документа с кнопками «Выгрузить в 1С» / «Повторить», фильтр по статусу выгрузки и массовое «Выгрузить выбранные» в списке документов сотрудников | `У-169` (экраны), `У-159` (повтор) | ✅ [#487](https://github.com/aiprocadm/lk_otsfera/pull/487) |
+| PR-6 «Обратная связь» | Поиск входящего по трём ключам без дубля, обновление файла с повторным сканом, `direction` и `number` из DTO | `У-170` (`Д-24`, `Д-25`) | 🔨 [#PR6](https://github.com/aiprocadm/lk_otsfera/pull/PR6) в ревью |
 | PR-7 «Реквизиты контрагента» | Реквизиты в схеме, маппере и writer'е; пустое из 1С не затирает заполненное; фикстуры, набор данных mock и контракт | `У-171` (`Д-23`) | ⏳ |
 | PR-8 «Сверка» | `findDocument` в адаптере, поштучная сверка `pushed`, `failed: missing_in_1c`, зависшие лиды | `У-172` (`Д-26`) | ⏳ |
 | PR-9 «Файловый канал» | Вкладка «Выгрузка документов»: фильтр → Excel-реестр + ZIP, отметка `exported_file`, пакет в «Истории» | `У-173` | ⏳ |
@@ -386,24 +386,63 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development
 
 ## PR-6 «Обратная связь» — `У-170` (`Д-24`, `Д-25`)
 
-- [ ] `schemas.ts`: `OneCDocumentSchema` + `direction:
+- [x] `schemas.ts`: `OneCDocumentSchema` + `direction:
       z.enum(['incoming', 'outgoing']).default('incoming')` и `number:
-      z.string().optional()`; `mappers.ts` пробрасывает оба;
-      `mock-1c/core/dataset.ts` и фикстуры отдают `direction`/`number`;
-      контракт (секция 4) дополнен.
-- [ ] `writers.ts`, `upsertDocumentRecord`: поиск по трём ключам по порядку —
-      `externalId` → `oneCExternalId` → `type + number` в пределах `orderId`;
+      z.string().optional()`; `mappers.ts` пробрасывает оба (`number`
+      обрезается, пустой → `null`); `mock-1c/core/dataset.ts` (клон
+      `FAKE_DOCUMENTS`) и фикстуры отдают `direction`/`number`; контракт
+      (секция 4) дополнен. `runRecordBatch`/`parseRecords` принимают
+      `ZodType<T, ZodTypeDef, unknown>` — иначе схема с `.default()` не
+      подходит по типу входа.
+- [x] `writers.ts`, `upsertDocumentRecord`: поиск по трём ключам по порядку —
+      `externalId` → `oneCExternalId` (действующая версия, `supersededAt =
+      null`, старшая `version`) → `type + number` в пределах `orderId`;
       найденный обновляется (`signedAt`, статус по `signedAt`, `oneCExternalId
-      = dto.externalId`), файл изменился (другой `downloadUrl`/`size`/`mimeType`)
-      → новый `path`, `scanStatus: 'pending'`, повторная постановка в
+      = dto.externalId`), файл изменился (другой `size`/`mimeType` или новая
+      подпись) → новый `path`, `scanStatus: 'pending'`, повторная постановка в
       `docs.scanDocument`; не найден → создание с `direction` из DTO.
-- [ ] `oneCSync.writers.documents-dedup.integration.test.ts`: тот же
-      `externalId` — одна строка; выгруженный нами документ вернулся с тем же
-      `oneCExternalId` — обновлён, не создан; тот же тип и номер в заказе —
-      обновлён; файл изменился — новый `path`, `pending`, задача скана;
+- [x] `oneCSync.writers.documents-dedup.integration.test.ts` (11 тестов на
+      живом Postgres): тот же `externalId` — одна строка; выгруженный нами
+      документ вернулся с тем же `oneCExternalId` — обновлён, не создан (и
+      берётся действующая версия цепочки); тот же тип и номер в заказе —
+      обновлён; тот же номер в другом заказе — новый документ без номера
+      (индекс не нарушен); файл изменился — новый `path`, `pending`, задача
+      скана; файл не забрался — пропуск без правки строки; подпись → «принят»
+      через дверь с аудитом; подпись у аннулированного — статус не тронут;
       `direction: 'outgoing'` из DTO сохранён; DTO без `direction` — `incoming`.
-- [ ] Мутации: `'incoming'` снова захардкожен; повторный скан снят; третий
-      ключ убран → дубль.
+      Unit (`oneCSync.writers.test.ts`, блок `У-170`): 15 тестов на ветки.
+- [x] Мутации (7, все пойманы): `'incoming'` снова захардкожен; повторный скан
+      снят; третий ключ убран; второй ключ убран; статус записан напрямую в
+      обход двери (ловит и страж `security.document-status.guardrail`); пустая
+      подпись из 1С стирает нашу; файл не забирается при смене.
+- [x] Решения исполнителя по ходу PR-6 (спеке не противоречат, в ней не
+      прописаны):
+      1. **Признак «файл изменился»** — `size` ≠ или `mimeType` ≠ или в DTO
+         есть `signedAt`, не равный нашему. `downloadUrl` в признак не входит:
+         подписанная ссылка меняется при каждом ответе 1С, и по ней файл
+         перекачивался бы всегда.
+      2. **Пустой `signedAt` из 1С не стирает подпись**, которая у нас уже
+         записана (`signedAt: dto.signedAt ?? existing.signedAt`).
+      3. **Статус по подписи** — только `issued`/`sent` → `accepted`, через
+         `setDocumentStatus` от имени `uploadedById ?? sentById` (приём из
+         `expire-proposals`: у фоновой задачи своей сессии нет). Нет актора →
+         подпись записана, статус не тронут, `log.info`. Отказ двери
+         (`invalid_transition`, `not_found`) и её исключение → `log.warn`,
+         пакет не падает; `not_lifecycle_type` — норма, не пишется.
+      4. **Имя и тип** 1С меняет только у своей бумаги (ключ 1,
+         `existing.externalId === dto.externalId`); нашему документу (ключи 2
+         и 3) она не хозяин — имя и тип остаются, пока не сменился сам файл.
+         `direction` найденного не меняется никогда.
+      5. **Номер из 1С** дописывается только пустому `number` и только если
+         `(companyId, type, number, version)` свободен; при создании занятый
+         номер → документ без номера + `log.warn` (иначе частичный уникальный
+         индекс `У-151` уронил бы весь батч из-за метаданных).
+      6. **Уведомление `document_published`** — только при создании, как и
+         было: «1С вернула нашу бумагу» — не новая публикация для заказчика.
+      7. **Скан после смены файла** — тот же best-effort, что при создании:
+         без `REDIS_URL` пропускается, сбой очереди → `log.warn`; вынесен в
+         `enqueueDocumentScan`.
+- [x] `STATUS.md`, `AUDIT.md`, `CHANGELOG.md`, контракт.
 
 ## PR-7 «Реквизиты контрагента» — `У-171` (`Д-23`)
 
