@@ -54,6 +54,11 @@ describe('OneCAdapter contract — FakeOneCAdapter', () => {
     expect(OneCDocumentPushResultSchema.safeParse(r).success).toBe(true);
   });
 
+  it('findDocument answer validates against OneCDocumentSchema (этап 8, У-172)', async () => {
+    const r = await adapter.findDocument('doc-1');
+    expect(OneCDocumentSchema.safeParse(r).success).toBe(true);
+  });
+
   it('FAKE_ONEC_MALFORMED_RATE=1 injects a record that fails validation (exercises quarantine)', async () => {
     process.env.FAKE_ONEC_MALFORMED_RATE = '1';
     const raw = await adapter.pullOrders({});

@@ -8,6 +8,7 @@ import { createDocumentStore } from './core/documents';
 import { DEFAULT_SCENARIO } from './core/scenario';
 import { RestOneCAdapter } from '@/lib/services/oneCSync/adapter-rest';
 import type { OneCDocumentPushPayload } from '@/lib/services/oneCSync/dto';
+import { OneCDocumentSchema } from '@/lib/services/oneCSync/schemas';
 import { documentPushPayload } from '@/__tests__/helpers/oneCDocumentPush';
 
 let server: Server;
@@ -161,3 +162,31 @@ describe('RestOneCAdapter.pushDocument against the live mock server (этап 8,
   });
 });
 
+// Этап 8 (`У-172`): сверка — `GET /api/documents?externalId=` (контракт §7).
+// Ответ mock проверяется той же схемой секции 4, которой кабинет читает
+// входящие документы: сверка и импорт говорят на одном языке.
+describe('RestOneCAdapter.findDocument against the live mock server (этап 8, У-172)', () => {
+  it('finds a pushed document under the cabinet externalId; the answer is a §4 record', async () => {
+    const a = adapter();
+    const pushed = await a.pushDocument(documentPushPayload({ externalId: 'doc-contract-find' }));
+    const found = await a.findDocument('doc-contract-find');
+    expect(found).not.toBeNull();
+    expect(OneCDocumentSchema.safeParse(found).success).toBe(true);
+    expect(found).toMatchObject({
+      externalId: pushed.externalId,
+      orderExternalId: '1c-order-1001',
+      type: 'invoice',
+      number: 'С-2026-17',
+      direction: 'outgoing',
+    });
+  });
+
+  it('answers null for an id 1C has never seen — the «missing_in_1c» path', async () => {
+    expect(await adapter().findDocument('doc-contract-never-pushed')).toBeNull();
+  });
+
+  it('a transient 5xx is a transport error, not «missing»: findDocument rejects', async () => {
+    scenarioRef.current.failMode = 'permanent';
+    await expect(adapter().findDocument('doc-contract-find')).rejects.toThrow(/500/);
+  });
+});

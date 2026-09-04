@@ -35,11 +35,7 @@ const MAX_REISSUE_CHAIN_DEPTH = 100;
 
 /** Окончательные отказы: повтор задачи не поможет, пока человек не поправит документ. */
 export type PushDocumentRefusal =
-  | 'not_found'
-  | 'not_pushable_type'
-  | 'superseded'
-  | 'counterparty_without_inn'
-  | 'no_number';
+  'not_found' | 'not_pushable_type' | 'superseded' | 'counterparty_without_inn' | 'no_number';
 
 export type PushDocumentResult =
   | { ok: true; oneCExternalId: string | null; skipped: 'same_version' | null }
@@ -58,11 +54,7 @@ export type EnqueueDocumentPushResult =
   | {
       ok: false;
       error:
-        | 'not_found'
-        | 'not_pushable_type'
-        | 'superseded'
-        | 'already_queued'
-        | 'queue_unavailable';
+        'not_found' | 'not_pushable_type' | 'superseded' | 'already_queued' | 'queue_unavailable';
     };
 
 const num = (d: { toNumber(): number }): number => d.toNumber();
@@ -70,8 +62,10 @@ const num = (d: { toNumber(): number }): number => d.toNumber();
 /**
  * id ПЕРВОЙ версии цепочки перевыпусков (`У-151`) — общий `externalId` для 1С.
  * Ходим по `replacesDocumentId` до документа, который никого не заменяет.
+ * Экспорт — для сверки (`У-172`): она спрашивает 1С по тому же id, под
+ * которым бумага ушла, иначе перевыпущенный документ «пропадёт» всегда.
  */
-async function reissueChainRootId(
+export async function reissueChainRootId(
   prisma: PrismaClient,
   doc: { id: string; replacesDocumentId: string | null }
 ): Promise<string> {

@@ -187,6 +187,13 @@ describe('FileOneCAdapter', () => {
       /read-only/
     );
   });
+  // `У-172`: именно исключение, а не null — null означал бы «1С сказала: нет
+  // такого», и сверка молча пометила бы всё выгруженное пропавшим.
+  it('findDocument throws (read-only): по книге не узнать, что есть в 1С', async () => {
+    await expect(new FileOneCAdapter(Buffer.from('x')).findDocument('doc-1')).rejects.toThrow(
+      /read-only/
+    );
+  });
 
   it('derives not_billed when totalAmount <= 0', async () => {
     parseWorkbook.mockResolvedValue({
