@@ -1,11 +1,11 @@
 import type { PrismaClient } from '@prisma/client';
-import { getOneCAdapter, type OneCAdapter } from '.';
-import { reissueChainRootId } from './pushDocument';
-import { writeSyncLog } from './log';
 import { errorMessageRu } from '@/lib/errors/messages';
 import { getQueue } from '@/lib/jobs/queues';
 import type { PushLeadJobPayload } from '@/lib/jobs/types';
 import { log } from '@/lib/logging';
+import { writeSyncLog } from './log';
+import { reissueChainRootId } from './pushDocument';
+import { getOneCAdapter, type OneCAdapter } from '.';
 
 /**
  * Этап 8 (`У-172`, `Д-26`): сверка того, что кабинет ОТПРАВИЛ в 1С, с тем,
