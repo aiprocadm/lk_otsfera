@@ -40,12 +40,30 @@ function makeExistingDocDb() {
   const db = {
     syncState: { findUnique: vi.fn().mockResolvedValue(null), upsert },
     order: {
-      findUnique: vi
-        .fn()
-        .mockResolvedValue({ id: 'o1', organizationId: null, orderNumber: 'N', title: 'T' }),
+      findUnique: vi.fn().mockResolvedValue({
+        id: 'o1',
+        organizationId: null,
+        companyId: 'co1',
+        orderNumber: 'N',
+        title: 'T',
+      }),
     },
     document: {
-      findUnique: vi.fn().mockResolvedValue({ id: 'doc-existing' }),
+      // `У-170`: найденный документ отдаёт поля сверки файла и подписи
+      findUnique: vi.fn().mockResolvedValue({
+        id: 'doc-existing',
+        externalId: '1c-doc-1',
+        type: 'contract',
+        status: 'issued',
+        number: null,
+        version: 1,
+        mimeType: 'application/pdf',
+        size: 248_000,
+        signedAt: new Date('2026-04-12T10:00:00Z'),
+        uploadedById: null,
+        sentById: null,
+      }),
+      findFirst: vi.fn().mockResolvedValue(null),
       create: vi.fn(),
       update,
     },
@@ -72,11 +90,20 @@ describe('syncDocumentsProcessor shadow mode', () => {
     const db = {
       syncState: { findUnique: vi.fn().mockResolvedValue(null), upsert },
       order: {
-        findUnique: vi
-          .fn()
-          .mockResolvedValue({ id: 'o1', organizationId: 'org1', orderNumber: 'N', title: 'T' }),
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'o1',
+          organizationId: 'org1',
+          companyId: 'co1',
+          orderNumber: 'N',
+          title: 'T',
+        }),
       },
-      document: { findUnique: vi.fn().mockResolvedValue(null), create, update },
+      document: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        findFirst: vi.fn().mockResolvedValue(null),
+        create,
+        update,
+      },
       syncLog: { create: vi.fn().mockResolvedValue({}) },
     } as unknown as PrismaClient;
 
@@ -128,12 +155,21 @@ describe('syncDocumentsProcessor live mode', () => {
     const db = {
       syncState: { findUnique: vi.fn().mockResolvedValue(null), upsert },
       order: {
-        findUnique: vi
-          .fn()
-          .mockResolvedValue({ id: 'o1', organizationId: null, orderNumber: 'N', title: 'T' }),
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'o1',
+          organizationId: null,
+          companyId: 'co1',
+          orderNumber: 'N',
+          title: 'T',
+        }),
       },
       // Return null so every fixture doc takes the CREATE path → sum.created > 0
-      document: { findUnique: vi.fn().mockResolvedValue(null), create: docCreate, update: vi.fn() },
+      document: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        findFirst: vi.fn().mockResolvedValue(null),
+        create: docCreate,
+        update: vi.fn(),
+      },
       syncLog: { create: vi.fn().mockResolvedValue({}) },
     } as unknown as PrismaClient;
 
@@ -167,7 +203,12 @@ describe('syncDocumentsProcessor record-level handler failure', () => {
         upsert: vi.fn().mockResolvedValue({}),
       },
       order: { findUnique: vi.fn().mockRejectedValue(new Error('order_err')) },
-      document: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn(), update: vi.fn() },
+      document: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        findFirst: vi.fn().mockResolvedValue(null),
+        create: vi.fn(),
+        update: vi.fn(),
+      },
       syncLog: { create: vi.fn().mockResolvedValue({}) },
     } as unknown as PrismaClient;
 

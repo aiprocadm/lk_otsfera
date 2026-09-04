@@ -1,12 +1,15 @@
-import type { PrismaClient } from '@prisma/client';
+import type { DocumentType, PrismaClient } from '@prisma/client';
+import type { SessionPayload } from '@/lib/auth/jwt';
 import { notifyOrgUsers, notifyManagers } from '@/lib/notifications';
 import { resolveAutoManager } from '@/lib/services/manager/distribution';
 import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import { log } from '@/lib/logging';
 import { notifyInvoicesPaid } from '@/lib/services/documents/invoicePaidNotice';
+import { setDocumentStatus } from '@/lib/services/documents/status';
 import { organizationNameKey } from '@/lib/services/import/oneCAccountCard/counterparty-key';
 import { mapOrderDto, mapPaymentDto, mapOrgDto, mapDocumentDto } from './mappers';
+import type { DocumentUpsertInput } from './mappers';
 import { normalizeInn } from './inn';
 import { resolveOrganizationRef } from './resolve-org';
 import { fetchAndStore1CDocument } from './document-fetch';
@@ -488,6 +491,119 @@ export async function upsertOrgRecord(
   }
 }
 
+/**
+ * `У-170`: поиск входящего документа по трём ключам, строго по порядку.
+ *
+ * 1. `externalId` — документ, который 1С уже присылала (её собственный id).
+ * 2. `oneCExternalId` — документ, который МЫ выгрузили (`У-168`): 1С вернула
+ *    его под своим id, и он же лежит у нас в `oneCExternalId`. Все версии
+ *    цепочки перевыпусков делят этот id — берём действующую.
+ * 3. `type + number` в пределах заказа — 1С выпустила бумагу с нашим
+ *    номером, но id мы ещё не знаем (например, выгрузили файловым каналом).
+ *
+ * Без ключей 2 и 3 подписанный в 1С договор возвращался вторым документом
+ * (`Д-24`). Один `findFirst` с `OR` порядок не удержит — поэтому три запроса.
+ */
+const INBOUND_MATCH_SELECT = {
+  id: true,
+  externalId: true,
+  type: true,
+  status: true,
+  number: true,
+  version: true,
+  mimeType: true,
+  size: true,
+  signedAt: true,
+  uploadedById: true,
+  sentById: true,
+} as const;
+
+async function findInboundDocumentMatch(
+  db: PrismaClient,
+  input: DocumentUpsertInput,
+  orderId: string
+) {
+  const byExternalId = await db.document.findUnique({
+    where: { externalId: input.externalId },
+    select: INBOUND_MATCH_SELECT,
+  });
+  if (byExternalId) return byExternalId;
+  const byOneCId = await db.document.findFirst({
+    where: { oneCExternalId: input.externalId, supersededAt: null },
+    orderBy: { version: 'desc' },
+    select: INBOUND_MATCH_SELECT,
+  });
+  if (byOneCId) return byOneCId;
+  if (!input.number) return null;
+  return db.document.findFirst({
+    where: { orderId, type: input.type, number: input.number, supersededAt: null },
+    orderBy: { version: 'desc' },
+    select: INBOUND_MATCH_SELECT,
+  });
+}
+
+/**
+ * Частичный уникальный индекс `(companyId, type, number, version)` (`У-151`)
+ * не даст записать номер, который у компании уже занят другой бумагой.
+ * Такое бывает при расхождении нумерации 1С и кабинета; ронять запись
+ * из-за метаданных нельзя — документ приезжает без номера, а в лог уходит
+ * предупреждение.
+ */
+async function numberIsFree(
+  db: PrismaClient,
+  args: { companyId: string; type: DocumentType; number: string; version: number }
+): Promise<boolean> {
+  const taken = await db.document.findFirst({ where: args, select: { id: true } });
+  return !taken;
+}
+
+/**
+ * Скан ClamAV — best-effort, как у комиссионных PDF/XLSX: без Redis (тесты,
+ * частичный dev) молча пропускается, сбой очереди не роняет запись.
+ */
+async function enqueueDocumentScan(documentId: string) {
+  if (!process.env.REDIS_URL) return;
+  try {
+    const payload: ScanDocumentPayload = { kind: 'document', id: documentId };
+    await getQueue('docs.scanDocument').add('scan', payload);
+  } catch (err) {
+    log.warn('[1c] document scan enqueue failed', err);
+  }
+}
+
+/**
+ * `У-170`: 1С сообщила, что бумага подписана, — документ переходит в
+ * «принят» через единственную дверь статусов (`У-148`), а не прямым
+ * `update`. Дверь сама решает, есть ли у типа жизненный цикл и разрешён ли
+ * переход; автором записи в журнале становится тот, кто выпустил документ
+ * (у фоновой задачи своей сессии нет — приём из `expire-proposals`).
+ */
+async function acceptSignedFromOneC(
+  db: PrismaClient,
+  doc: { id: string; status: string; uploadedById: string | null; sentById: string | null }
+) {
+  if (doc.status !== 'issued' && doc.status !== 'sent') return;
+  const actorId = doc.uploadedById ?? doc.sentById;
+  if (!actorId) {
+    // Некому приписать действие — статус остаётся, подпись (`signedAt`) уже
+    // записана. Человек переведёт бумагу руками.
+    log.info('[1c] signed document has no actor, status unchanged', { documentId: doc.id });
+    return;
+  }
+  const actor = { sub: actorId } as unknown as SessionPayload;
+  try {
+    const res = await setDocumentStatus(db, actor, { documentId: doc.id, to: 'accepted' });
+    if (!res.ok && res.error !== 'not_lifecycle_type') {
+      log.warn('[1c] signed document status door refused', {
+        documentId: doc.id,
+        error: res.error,
+      });
+    }
+  } catch (err) {
+    log.warn('[1c] signed document status change failed', { documentId: doc.id, err });
+  }
+}
+
 export async function upsertDocumentRecord(
   db: PrismaClient,
   dto: OneCDocumentDto,
@@ -512,29 +628,19 @@ export async function upsertDocumentRecord(
     sum.skips.push({ externalId: input.externalId, reason: 'out_of_scope' });
     return;
   }
-  const existing = await db.document.findUnique({
-    where: { externalId: input.externalId },
-    select: { id: true },
-  });
-  // path is NOT a 1C-owned field: it is the object-storage key set at creation
-  // (DOC-03). Updates only refresh metadata and never touch path.
-  const metadata = {
-    name: input.name,
-    mimeType: input.mimeType,
-    size: input.size,
-    type: input.type,
-    signedAt: input.signedAt,
-  };
+  const existing = await findInboundDocumentMatch(db, input, order.id);
   if (existing) {
-    if (isLive(ctx)) await db.document.update({ where: { id: existing.id }, data: metadata });
-    sum.updated += 1;
-    ctx.bump?.(dto.updatedAt);
-  } else {
-    if (isLive(ctx)) {
-      // DOC-03: fetch the 1C file into object storage so `path` is a bucket key (not the
-      // external URL) — download routes + ClamAV scan work unchanged. Fetch failure
-      // skips the doc with a visible reason instead of crashing the batch (§3).
-      const storagePath = await fetchAndStore1CDocument({
+    // `Д-24`: файл в 1С изменился — другой размер или тип, либо появилась
+    // (сменилась) подпись: подписанный скан — другой файл. Он забирается
+    // заново и идёт на повторный скан: файл из чужой системы непроверенным
+    // считаться не может.
+    const fileChanged =
+      existing.size !== input.size ||
+      existing.mimeType !== input.mimeType ||
+      (input.signedAt !== null && existing.signedAt?.getTime() !== input.signedAt.getTime());
+    let storagePath: string | null = null;
+    if (fileChanged && isLive(ctx)) {
+      storagePath = await fetchAndStore1CDocument({
         url: input.downloadUrl,
         orderId: order.id,
         name: input.name,
@@ -545,52 +651,131 @@ export async function upsertDocumentRecord(
         sum.skips.push({ externalId: input.externalId, reason: 'document_fetch_failed' });
         return;
       }
-      const created = await db.document.create({
-        data: {
-          ...metadata,
-          path: storagePath,
-          scanStatus: 'pending',
-          externalId: input.externalId,
-          orderId: order.id,
-          // `У-151`: компания-исполнитель есть у каждого документа; у документа
-          // заказа она берётся из заказа и совпадать с ним обязана (составной
-          // внешний ключ этого не даст нарушить).
+    }
+    if (isLive(ctx)) {
+      // Бумагу, которую 1С прислала сама, она и описывает: имя и тип — её.
+      // Нашему документу (ключи 2 и 3) 1С не хозяин: его имя и тип не трогаем,
+      // пока не поменялся сам файл.
+      const ownedBy1C = existing.externalId === input.externalId;
+      const fillNumber =
+        existing.number === null &&
+        input.number !== null &&
+        (await numberIsFree(db, {
           companyId: order.companyId,
-          direction: 'incoming',
-          generatedBy: 'system',
-          counterpartyType: 'organization',
-          counterpartyId: order.organizationId,
+          type: existing.type,
+          number: input.number,
+          version: existing.version,
+        }));
+      if (existing.number === null && input.number !== null && !fillNumber) {
+        log.warn('[1c] document number already taken, kept empty', {
+          documentId: existing.id,
+          number: input.number,
+        });
+      }
+      await db.document.update({
+        where: { id: existing.id },
+        data: {
+          // Пустое из 1С не стирает подпись, которая у нас уже есть.
+          signedAt: input.signedAt ?? existing.signedAt,
+          oneCExternalId: input.externalId,
+          ...(ownedBy1C ? { name: input.name, type: input.type } : {}),
+          ...(fillNumber ? { number: input.number } : {}),
+          ...(storagePath
+            ? {
+                name: input.name,
+                mimeType: input.mimeType,
+                size: input.size,
+                path: storagePath,
+                scanStatus: 'pending',
+                scanReason: null,
+                scannedAt: null,
+              }
+            : {}),
         },
       });
-      // Best-effort scan enqueue, gated on Redis like commission PDF/XLSX — skipped
-      // silently in environments without a queue (tests, partial dev).
-      if (created?.id && process.env.REDIS_URL) {
-        try {
-          const payload: ScanDocumentPayload = { kind: 'document', id: created.id };
-          await getQueue('docs.scanDocument').add('scan', payload);
-        } catch (err) {
-          log.warn('[1c] document scan enqueue failed', err);
-        }
-      }
+      if (storagePath) await enqueueDocumentScan(existing.id);
+      if (input.signedAt) await acceptSignedFromOneC(db, existing);
     }
-    sum.created += 1;
+    sum.updated += 1;
     ctx.bump?.(dto.updatedAt);
-    if (ctx.notify && isLive(ctx) && order.organizationId) {
-      try {
-        await notifyOrgUsers(db, {
-          organizationId: order.organizationId,
-          type: 'document_published',
-          payload: {
-            orderId: order.id,
-            orderNumber: order.orderNumber,
-            orderTitle: order.title,
-            documentName: input.name,
-            documentType: input.type,
-          },
-        });
-      } catch (err) {
-        log.warn('[1c] document notifyOrgUsers failed', err);
-      }
+    return;
+  }
+
+  if (isLive(ctx)) {
+    // DOC-03: fetch the 1C file into object storage so `path` is a bucket key (not the
+    // external URL) — download routes + ClamAV scan work unchanged. Fetch failure
+    // skips the doc with a visible reason instead of crashing the batch (§3).
+    const storagePath = await fetchAndStore1CDocument({
+      url: input.downloadUrl,
+      orderId: order.id,
+      name: input.name,
+      mimeType: input.mimeType,
+    });
+    if (!storagePath) {
+      sum.skipped += 1;
+      sum.skips.push({ externalId: input.externalId, reason: 'document_fetch_failed' });
+      return;
+    }
+    const number =
+      input.number !== null &&
+      (await numberIsFree(db, {
+        companyId: order.companyId,
+        type: input.type,
+        number: input.number,
+        version: 1,
+      }))
+        ? input.number
+        : null;
+    if (input.number !== null && number === null) {
+      log.warn('[1c] document number already taken, created without it', {
+        externalId: input.externalId,
+        number: input.number,
+      });
+    }
+    const created = await db.document.create({
+      data: {
+        name: input.name,
+        mimeType: input.mimeType,
+        size: input.size,
+        type: input.type,
+        signedAt: input.signedAt,
+        number,
+        path: storagePath,
+        scanStatus: 'pending',
+        externalId: input.externalId,
+        oneCExternalId: input.externalId,
+        orderId: order.id,
+        // `У-151`: компания-исполнитель есть у каждого документа; у документа
+        // заказа она берётся из заказа и совпадать с ним обязана (составной
+        // внешний ключ этого не даст нарушить).
+        companyId: order.companyId,
+        // `У-170` (`Д-25`): направление — из DTO, а не литералом.
+        direction: input.direction,
+        generatedBy: 'system',
+        counterpartyType: 'organization',
+        counterpartyId: order.organizationId,
+      },
+      select: { id: true },
+    });
+    if (created?.id) await enqueueDocumentScan(created.id);
+  }
+  sum.created += 1;
+  ctx.bump?.(dto.updatedAt);
+  if (ctx.notify && isLive(ctx) && order.organizationId) {
+    try {
+      await notifyOrgUsers(db, {
+        organizationId: order.organizationId,
+        type: 'document_published',
+        payload: {
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          orderTitle: order.title,
+          documentName: input.name,
+          documentType: input.type,
+        },
+      });
+    } catch (err) {
+      log.warn('[1c] document notifyOrgUsers failed', err);
     }
   }
 }

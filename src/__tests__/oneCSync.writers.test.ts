@@ -6,10 +6,12 @@ const { notifyOrgUsers, notifyManagers } = vi.hoisted(() => ({
 }));
 const { fetchAndStore1CDocument } = vi.hoisted(() => ({ fetchAndStore1CDocument: vi.fn() }));
 const { getQueue } = vi.hoisted(() => ({ getQueue: vi.fn() }));
+const { setDocumentStatus } = vi.hoisted(() => ({ setDocumentStatus: vi.fn() }));
 vi.mock('@/lib/services/oneCSync/resolve-org', () => ({ resolveOrganizationRef }));
 vi.mock('@/lib/notifications', () => ({ notifyOrgUsers, notifyManagers }));
 vi.mock('@/lib/services/oneCSync/document-fetch', () => ({ fetchAndStore1CDocument }));
 vi.mock('@/lib/jobs/queues', () => ({ getQueue }));
+vi.mock('@/lib/services/documents/status', () => ({ setDocumentStatus }));
 
 import {
   upsertOrderRecord,
@@ -351,6 +353,7 @@ describe('upsertDocumentRecord', () => {
   const docDto = {
     externalId: 'D-1',
     orderExternalId: 'O-1',
+    direction: 'incoming',
     type: 'contract',
     name: 'Договор',
     mimeType: 'application/pdf',
@@ -358,6 +361,21 @@ describe('upsertDocumentRecord', () => {
     downloadUrl: 'https://1c/d1',
     updatedAt: '2026-04-01T00:00:00Z',
   } as any;
+  /** `У-170`: найденный документ отдаёт поля сверки файла и подписи. */
+  const existingDoc = (over: Record<string, unknown> = {}) => ({
+    id: 'ex',
+    externalId: 'D-1',
+    type: 'contract',
+    status: 'issued',
+    number: null,
+    version: 1,
+    mimeType: 'application/pdf',
+    size: 10,
+    signedAt: null,
+    uploadedById: null,
+    sentById: null,
+    ...over,
+  });
   function ddb(over = {}) {
     return {
       order: {
@@ -367,6 +385,7 @@ describe('upsertDocumentRecord', () => {
       },
       document: {
         findUnique: vi.fn().mockResolvedValue(null),
+        findFirst: vi.fn().mockResolvedValue(null),
         create: vi.fn().mockResolvedValue({ id: 'new-id' }),
         update: vi.fn(),
       },
@@ -386,6 +405,7 @@ describe('upsertDocumentRecord', () => {
         direction: 'incoming',
         generatedBy: 'system',
       }),
+      select: { id: true },
     });
     expect(notifyOrgUsers).toHaveBeenCalled();
     expect(sum.created).toBe(1);
@@ -414,6 +434,7 @@ describe('upsertDocumentRecord', () => {
       const d = ddb({
         document: {
           findUnique: vi.fn().mockResolvedValue(null),
+          findFirst: vi.fn().mockResolvedValue(null),
           create: vi.fn().mockResolvedValue({ id: 'doc9' }),
           update: vi.fn(),
         },
@@ -450,7 +471,8 @@ describe('upsertDocumentRecord', () => {
   it('update path: metadata only, keeps existing stored path, no re-fetch', async () => {
     const d = ddb({
       document: {
-        findUnique: vi.fn().mockResolvedValue({ id: 'ex' }),
+        findUnique: vi.fn().mockResolvedValue(existingDoc()),
+        findFirst: vi.fn().mockResolvedValue(null),
         create: vi.fn().mockResolvedValue({ id: 'new-id' }),
         update: vi.fn(),
       },
@@ -1055,6 +1077,7 @@ describe('upsertDocumentRecord — additional branch coverage', () => {
   const docDto = {
     externalId: 'D-EX',
     orderExternalId: 'O-1',
+    direction: 'incoming',
     type: 'contract',
     name: 'Договор',
     mimeType: 'application/pdf',
@@ -1080,6 +1103,7 @@ describe('upsertDocumentRecord — additional branch coverage', () => {
       },
       document: {
         findUnique: vi.fn().mockResolvedValue(null),
+        findFirst: vi.fn().mockResolvedValue(null),
         create: vi.fn().mockResolvedValue({ id: 'doc1' }),
         update: vi.fn(),
       },
@@ -1106,6 +1130,7 @@ describe('upsertDocumentRecord — additional branch coverage', () => {
         },
         document: {
           findUnique: vi.fn().mockResolvedValue(null),
+          findFirst: vi.fn().mockResolvedValue(null),
           create: vi.fn().mockResolvedValue({ id: 'doc9' }),
           update: vi.fn(),
         },
@@ -1131,6 +1156,7 @@ describe('upsertDocumentRecord — additional branch coverage', () => {
       },
       document: {
         findUnique: vi.fn().mockResolvedValue(null),
+        findFirst: vi.fn().mockResolvedValue(null),
         create: vi.fn().mockResolvedValue({ id: 'doc9' }),
         update: vi.fn(),
       },
@@ -1150,7 +1176,31 @@ describe('upsertDocumentRecord — additional branch coverage', () => {
           .mockResolvedValue({ id: 'ord1', organizationId: 'o1', orderNumber: 'O-1', title: 't' }),
       },
       document: {
-        findUnique: vi.fn().mockResolvedValue({ id: 'ex-doc' }),
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'ex-doc',
+
+          externalId: 'D-EX',
+
+          type: 'contract',
+
+          status: 'issued',
+
+          number: null,
+
+          version: 1,
+
+          mimeType: 'application/pdf',
+
+          size: 10,
+
+          signedAt: null,
+
+          uploadedById: null,
+
+          sentById: null,
+        }),
+
+        findFirst: vi.fn().mockResolvedValue(null),
         create: vi.fn().mockResolvedValue({ id: 'new-id' }),
         update: vi.fn(),
       },
@@ -1169,7 +1219,31 @@ describe('upsertDocumentRecord — additional branch coverage', () => {
           .mockResolvedValue({ id: 'ord1', organizationId: 'o1', orderNumber: 'O-1', title: 't' }),
       },
       document: {
-        findUnique: vi.fn().mockResolvedValue({ id: 'ex-doc' }),
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'ex-doc',
+
+          externalId: 'D-EX',
+
+          type: 'contract',
+
+          status: 'issued',
+
+          number: null,
+
+          version: 1,
+
+          mimeType: 'application/pdf',
+
+          size: 10,
+
+          signedAt: null,
+
+          uploadedById: null,
+
+          sentById: null,
+        }),
+
+        findFirst: vi.fn().mockResolvedValue(null),
         create: vi.fn().mockResolvedValue({ id: 'new-id' }),
         update: vi.fn(),
       },
@@ -1191,6 +1265,7 @@ describe('upsertDocumentRecord — additional branch coverage', () => {
       },
       document: {
         findUnique: vi.fn().mockResolvedValue(null),
+        findFirst: vi.fn().mockResolvedValue(null),
         create: vi.fn().mockResolvedValue({ id: 'new-doc' }),
         update: vi.fn(),
       },
@@ -1200,6 +1275,321 @@ describe('upsertDocumentRecord — additional branch coverage', () => {
     await upsertDocumentRecord(d, docDto, sum, { mode: 'live', notify: false, bump });
     expect(bump).toHaveBeenCalledWith(docDto.updatedAt);
     expect(sum.created).toBe(1);
+  });
+});
+
+describe('upsertDocumentRecord — У-170: обратная связь из 1С (три ключа, файл, подпись)', () => {
+  /**
+   * `Д-24`: подписанный в 1С договор возвращался вторым документом — writer
+   * искал только по `externalId`. Теперь три ключа по порядку, обновление
+   * найденного, повторный скан при смене файла и приём через дверь статусов.
+   */
+  const dto = (over: Record<string, unknown> = {}) =>
+    ({
+      externalId: '1c-777',
+      orderExternalId: 'O-1',
+      direction: 'incoming',
+      type: 'contract',
+      name: 'Договор.pdf',
+      mimeType: 'application/pdf',
+      size: 10,
+      downloadUrl: 'https://1c/d777',
+      updatedAt: '2026-09-01T00:00:00Z',
+      ...over,
+    }) as any;
+  /** Наш документ (выгружен в 1С): `externalId` пуст, id 1С лежит в `oneCExternalId`. */
+  const ours = (over: Record<string, unknown> = {}) => ({
+    id: 'doc-ours',
+    externalId: null,
+    type: 'contract',
+    status: 'sent',
+    number: 'Д-2026-5',
+    version: 1,
+    mimeType: 'application/pdf',
+    size: 10,
+    signedAt: null,
+    uploadedById: 'u-issuer',
+    sentById: null,
+    ...over,
+  });
+  function db({
+    byExternalId = null,
+    byOneCId = null,
+    byNumber = null,
+    numberTaken = false,
+  }: {
+    byExternalId?: Record<string, unknown> | null;
+    byOneCId?: Record<string, unknown> | null;
+    byNumber?: Record<string, unknown> | null;
+    numberTaken?: boolean;
+  } = {}) {
+    const findFirst = vi.fn(async ({ where }: { where: Record<string, unknown> }) => {
+      if ('oneCExternalId' in where) return byOneCId;
+      if ('orderId' in where) return byNumber;
+      // проверка «номер свободен в компании»
+      return numberTaken ? { id: 'other-doc' } : null;
+    });
+    return {
+      order: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'ord1',
+          organizationId: 'o1',
+          companyId: 'co1',
+          orderNumber: 'O-1',
+          title: 't',
+        }),
+      },
+      document: {
+        findUnique: vi.fn().mockResolvedValue(byExternalId),
+        findFirst,
+        create: vi.fn().mockResolvedValue({ id: 'new-id' }),
+        update: vi.fn(),
+      },
+    } as any;
+  }
+  const live = { mode: 'live' as const, notify: true };
+  const updateData = (d: any) => d.document.update.mock.calls[0][0].data;
+
+  beforeEach(() => {
+    fetchAndStore1CDocument.mockReset();
+    fetchAndStore1CDocument.mockResolvedValue('orders/ord1/1c/new.pdf');
+    setDocumentStatus.mockReset();
+    setDocumentStatus.mockResolvedValue({ ok: true });
+    notifyOrgUsers.mockReset();
+    getQueue.mockReset();
+    getQueue.mockReturnValue({ add: vi.fn() });
+  });
+
+  it('ключ 2: выгруженный нами документ вернулся под id 1С (oneCExternalId) — обновлён, не создан', async () => {
+    const d = db({ byOneCId: ours() });
+    const sum = emptySummary();
+    await upsertDocumentRecord(d, dto(), sum, live);
+    expect(d.document.create).not.toHaveBeenCalled();
+    expect(sum).toMatchObject({ created: 0, updated: 1, skipped: 0 });
+    expect(d.document.update).toHaveBeenCalledWith({
+      where: { id: 'doc-ours' },
+      data: expect.objectContaining({ oneCExternalId: '1c-777' }),
+    });
+    // уведомление «опубликован документ» — только про новую бумагу
+    expect(notifyOrgUsers).not.toHaveBeenCalled();
+    // порядок ключей: сперва externalId, потом oneCExternalId действующей версии
+    expect(d.document.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { externalId: '1c-777' } })
+    );
+    expect(d.document.findFirst.mock.calls[0][0]).toMatchObject({
+      where: { oneCExternalId: '1c-777', supersededAt: null },
+      orderBy: { version: 'desc' },
+    });
+  });
+
+  it('ключ 3: тот же тип и номер в заказе — обновлён; без номера в DTO третий ключ не ищется', async () => {
+    const d = db({ byNumber: ours() });
+    await upsertDocumentRecord(d, dto({ number: 'Д-2026-5' }), emptySummary(), live);
+    expect(d.document.create).not.toHaveBeenCalled();
+    expect(d.document.findFirst.mock.calls[1][0]).toMatchObject({
+      where: { orderId: 'ord1', type: 'contract', number: 'Д-2026-5', supersededAt: null },
+      orderBy: { version: 'desc' },
+    });
+
+    const d2 = db({ byNumber: ours() });
+    await upsertDocumentRecord(d2, dto(), emptySummary(), live);
+    expect(d2.document.findFirst).toHaveBeenCalledTimes(1);
+    expect(d2.document.create).toHaveBeenCalled();
+  });
+
+  it('имя и тип: своей бумаге (ключ 1) 1С хозяин — меняет; нашей (ключи 2/3) — нет', async () => {
+    const d = db({ byOneCId: ours() });
+    await upsertDocumentRecord(d, dto({ name: 'Иное.pdf', type: 'act' }), emptySummary(), live);
+    expect(updateData(d)).not.toHaveProperty('name');
+    expect(updateData(d)).not.toHaveProperty('type');
+
+    const d2 = db({ byExternalId: ours({ externalId: '1c-777' }) });
+    await upsertDocumentRecord(d2, dto({ name: 'Иное.pdf', type: 'act' }), emptySummary(), live);
+    expect(updateData(d2)).toMatchObject({ name: 'Иное.pdf', type: 'act' });
+  });
+
+  it('файл не менялся — не забирается заново, path не пишется, скан не ставится', async () => {
+    process.env.REDIS_URL = 'redis://test';
+    try {
+      const d = db({ byExternalId: ours({ externalId: '1c-777' }) });
+      await upsertDocumentRecord(d, dto(), emptySummary(), live);
+      expect(fetchAndStore1CDocument).not.toHaveBeenCalled();
+      expect(updateData(d)).not.toHaveProperty('path');
+      expect(updateData(d)).not.toHaveProperty('scanStatus');
+      expect(getQueue).not.toHaveBeenCalled();
+    } finally {
+      delete process.env.REDIS_URL;
+    }
+  });
+
+  it('файл изменился (размер) — забирается заново, path и pending, повторный скан ClamAV', async () => {
+    process.env.REDIS_URL = 'redis://test';
+    try {
+      const add = vi.fn();
+      getQueue.mockReturnValue({ add });
+      const d = db({ byOneCId: ours() });
+      await upsertDocumentRecord(d, dto({ size: 99 }), emptySummary(), live);
+      expect(fetchAndStore1CDocument).toHaveBeenCalledWith(
+        expect.objectContaining({ url: 'https://1c/d777', orderId: 'ord1' })
+      );
+      expect(updateData(d)).toMatchObject({
+        path: 'orders/ord1/1c/new.pdf',
+        name: 'Договор.pdf',
+        mimeType: 'application/pdf',
+        size: 99,
+        scanStatus: 'pending',
+        scanReason: null,
+        scannedAt: null,
+      });
+      expect(getQueue).toHaveBeenCalledWith('docs.scanDocument');
+      expect(add).toHaveBeenCalledWith('scan', { kind: 'document', id: 'doc-ours' });
+    } finally {
+      delete process.env.REDIS_URL;
+    }
+  });
+
+  it('файл изменился, но забрать не удалось — пропуск document_fetch_failed, запись не тронута', async () => {
+    fetchAndStore1CDocument.mockResolvedValue(null);
+    const d = db({ byOneCId: ours() });
+    const sum = emptySummary();
+    await upsertDocumentRecord(d, dto({ mimeType: 'image/png' }), sum, live);
+    expect(d.document.update).not.toHaveBeenCalled();
+    expect(sum).toMatchObject({ updated: 0, skipped: 1 });
+    expect(sum.skips[0]).toEqual({ externalId: '1c-777', reason: 'document_fetch_failed' });
+  });
+
+  it('появилась подпись — файл забирается заново, документ принимается через дверь статусов от имени выпустившего', async () => {
+    const d = db({ byOneCId: ours({ status: 'sent', uploadedById: 'u-issuer' }) });
+    await upsertDocumentRecord(d, dto({ signedAt: '2026-09-02T00:00:00Z' }), emptySummary(), live);
+    expect(fetchAndStore1CDocument).toHaveBeenCalled();
+    expect(updateData(d).signedAt).toEqual(new Date('2026-09-02T00:00:00Z'));
+    // прямой `status:` в update запрещён — только дверь
+    expect(updateData(d)).not.toHaveProperty('status');
+    expect(setDocumentStatus).toHaveBeenCalledWith(
+      d,
+      expect.objectContaining({ sub: 'u-issuer' }),
+      { documentId: 'doc-ours', to: 'accepted' }
+    );
+  });
+
+  it('нет uploadedById — актором становится sentById', async () => {
+    const d = db({ byOneCId: ours({ uploadedById: null, sentById: 'u-sender' }) });
+    await upsertDocumentRecord(d, dto({ signedAt: '2026-09-02T00:00:00Z' }), emptySummary(), live);
+    expect(setDocumentStatus).toHaveBeenCalledWith(
+      d,
+      expect.objectContaining({ sub: 'u-sender' }),
+      expect.anything()
+    );
+  });
+
+  it('та же подпись у уже принятого документа — дверь не зовётся, файл не перекачивается', async () => {
+    const signed = new Date('2026-09-02T00:00:00Z');
+    const d = db({ byOneCId: ours({ status: 'accepted', signedAt: signed }) });
+    await upsertDocumentRecord(d, dto({ signedAt: '2026-09-02T00:00:00Z' }), emptySummary(), live);
+    expect(fetchAndStore1CDocument).not.toHaveBeenCalled();
+    expect(setDocumentStatus).not.toHaveBeenCalled();
+    expect(updateData(d).signedAt).toEqual(signed);
+  });
+
+  it('пустая подпись из 1С не стирает нашу', async () => {
+    const signed = new Date('2026-08-01T00:00:00Z');
+    const d = db({ byOneCId: ours({ signedAt: signed }) });
+    await upsertDocumentRecord(d, dto(), emptySummary(), live);
+    expect(updateData(d).signedAt).toEqual(signed);
+    expect(setDocumentStatus).not.toHaveBeenCalled();
+  });
+
+  it('некому приписать приём (нет ни uploadedById, ни sentById) — подпись записана, статус не трогается', async () => {
+    const d = db({ byOneCId: ours({ uploadedById: null, sentById: null }) });
+    await upsertDocumentRecord(d, dto({ signedAt: '2026-09-02T00:00:00Z' }), emptySummary(), live);
+    expect(updateData(d).signedAt).toEqual(new Date('2026-09-02T00:00:00Z'));
+    expect(setDocumentStatus).not.toHaveBeenCalled();
+  });
+
+  it('отказ двери и её исключение не роняют пакет — документ всё равно обновлён', async () => {
+    setDocumentStatus.mockResolvedValue({
+      ok: false,
+      error: 'invalid_transition',
+      from: 'sent',
+      to: 'accepted',
+    });
+    const sum1 = emptySummary();
+    await expect(
+      upsertDocumentRecord(
+        db({ byOneCId: ours() }),
+        dto({ signedAt: '2026-09-02T00:00:00Z' }),
+        sum1,
+        live
+      )
+    ).resolves.toBeUndefined();
+    expect(sum1.updated).toBe(1);
+
+    setDocumentStatus.mockRejectedValue(new Error('door boom'));
+    const sum2 = emptySummary();
+    await expect(
+      upsertDocumentRecord(
+        db({ byOneCId: ours() }),
+        dto({ signedAt: '2026-09-02T00:00:00Z' }),
+        sum2,
+        live
+      )
+    ).resolves.toBeUndefined();
+    expect(sum2.updated).toBe(1);
+  });
+
+  it('номер из 1С дописывается пустому, если свободен в компании; занятый — не пишется', async () => {
+    const d = db({ byOneCId: ours({ number: null }) });
+    await upsertDocumentRecord(d, dto({ number: '77' }), emptySummary(), live);
+    expect(updateData(d)).toMatchObject({ number: '77' });
+    expect(d.document.findFirst.mock.calls[1][0].where).toEqual({
+      companyId: 'co1',
+      type: 'contract',
+      number: '77',
+      version: 1,
+    });
+
+    const d2 = db({ byOneCId: ours({ number: null }), numberTaken: true });
+    await upsertDocumentRecord(d2, dto({ number: '77' }), emptySummary(), live);
+    expect(updateData(d2)).not.toHaveProperty('number');
+
+    // свой номер у документа уже есть — чужим не перетирается
+    const d3 = db({ byOneCId: ours({ number: 'Д-2026-5' }) });
+    await upsertDocumentRecord(d3, dto({ number: '77' }), emptySummary(), live);
+    expect(updateData(d3)).not.toHaveProperty('number');
+  });
+
+  it('создание: direction и number — из DTO, oneCExternalId = id 1С; занятый номер — без номера', async () => {
+    const d = db();
+    await upsertDocumentRecord(
+      d,
+      dto({ direction: 'outgoing', number: '77' }),
+      emptySummary(),
+      live
+    );
+    expect(d.document.create.mock.calls[0][0].data).toMatchObject({
+      direction: 'outgoing',
+      number: '77',
+      externalId: '1c-777',
+      oneCExternalId: '1c-777',
+      signedAt: null,
+    });
+
+    const d2 = db({ numberTaken: true });
+    await upsertDocumentRecord(d2, dto({ number: '77' }), emptySummary(), live);
+    expect(d2.document.create.mock.calls[0][0].data).toMatchObject({ number: null });
+  });
+
+  it('в тени (shadow) найденный не пишется, файл не забирается, дверь не зовётся — но updated считается', async () => {
+    const d = db({ byOneCId: ours() });
+    const sum = emptySummary();
+    await upsertDocumentRecord(d, dto({ size: 99, signedAt: '2026-09-02T00:00:00Z' }), sum, {
+      mode: 'shadow',
+      notify: true,
+    });
+    expect(fetchAndStore1CDocument).not.toHaveBeenCalled();
+    expect(d.document.update).not.toHaveBeenCalled();
+    expect(setDocumentStatus).not.toHaveBeenCalled();
+    expect(sum.updated).toBe(1);
   });
 });
 

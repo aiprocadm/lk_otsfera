@@ -98,6 +98,15 @@ export const OneCDocumentSchema = z.object({
   signedAt: isoDate.optional(),
   downloadUrl: z.string().min(1),
   updatedAt: isoDate,
+  /**
+   * `У-170` (`Д-25`): кто выпустил бумагу. Раньше всё из 1С писалось
+   * «входящим» литералом в writer'е — и подписанный нами же договор,
+   * вернувшись из 1С, менял направление. Умолчание `incoming` — для 1С,
+   * которая поле ещё не отдаёт: её собственные документы входящие и есть.
+   */
+  direction: z.enum(['incoming', 'outgoing']).default('incoming'),
+  /** `У-170`: номер документа в 1С — третий ключ поиска «тип + номер». */
+  number: z.string().optional(),
 });
 
 export const OneCLeadPushResultSchema = z.object({

@@ -88,6 +88,8 @@ export const FAKE_DOCUMENTS: OneCDocumentDto[] = [
   {
     externalId: '1c-doc-1',
     orderExternalId: '1c-order-1001',
+    direction: 'incoming',
+    number: '245',
     type: 'contract',
     name: 'Договор 245.pdf',
     mimeType: 'application/pdf',
@@ -99,6 +101,8 @@ export const FAKE_DOCUMENTS: OneCDocumentDto[] = [
   {
     externalId: '1c-doc-2',
     orderExternalId: '1c-order-1001',
+    direction: 'incoming',
+    number: '1023',
     type: 'invoice',
     name: 'Счёт 1023.pdf',
     mimeType: 'application/pdf',
@@ -109,6 +113,8 @@ export const FAKE_DOCUMENTS: OneCDocumentDto[] = [
   {
     externalId: '1c-doc-3',
     orderExternalId: '1c-order-1001',
+    direction: 'incoming',
+    number: '401',
     type: 'act',
     name: 'Акт 401.pdf',
     mimeType: 'application/pdf',

@@ -61,6 +61,7 @@ const orgDto = {
 const docDto = {
   externalId: 'D-1',
   orderExternalId: 'O-1',
+  direction: 'incoming',
   type: 'contract',
   name: 'Договор',
   mimeType: 'application/pdf',
@@ -94,6 +95,7 @@ function docDb(over: Record<string, unknown> = {}) {
     },
     document: {
       findUnique: vi.fn().mockResolvedValue(null),
+      findFirst: vi.fn().mockResolvedValue(null),
       create: vi.fn().mockResolvedValue({ id: 'doc1' }),
       update: vi.fn(),
     },
