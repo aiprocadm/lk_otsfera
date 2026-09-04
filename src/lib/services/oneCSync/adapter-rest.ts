@@ -2,6 +2,7 @@ import { OneCLeadPushResultSchema, OneCDocumentPushResultSchema } from './schema
 import { withTimeout, withRetry, OneCHttpError } from './resilience';
 import {
   ENDPOINTS,
+  EXTERNAL_ID_PARAM,
   buildAuthHeader,
   buildUrl,
   buildLeadBody,
@@ -112,5 +113,20 @@ export class RestOneCAdapter implements OneCAdapter {
   async pushDocument(payload: OneCDocumentPushPayload): Promise<OneCDocumentPushResult> {
     const raw = await this.postJson(ENDPOINTS.documentPush, payload);
     return OneCDocumentPushResultSchema.parse(raw);
+  }
+
+  // Этап 8 (`У-172`): точечный вопрос «есть ли документ» — контракт §7:
+  // `GET /api/documents?externalId=` отвечает пустым списком или одним
+  // элементом. Тот же конверт, что у выгрузки списков, но без пагинации:
+  // больше одного элемента по одному id 1С не отдаёт, берём первый.
+  async findDocument(externalId: string): Promise<OneCDocumentDto | null> {
+    const url = new URL(buildUrl(this.config.baseUrl, ENDPOINTS.documents, {}));
+    url.searchParams.set(EXTERNAL_ID_PARAM, externalId);
+    const headers = { ...buildAuthHeader(this.config.token), Accept: 'application/json' };
+    const raw = await withRetry(() =>
+      withTimeout((signal) => doFetch(url.toString(), { method: 'GET', headers }, signal))
+    );
+    const { items } = parseEnvelope(raw);
+    return (items[0] as OneCDocumentDto | undefined) ?? null;
   }
 }

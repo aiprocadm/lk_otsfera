@@ -80,4 +80,25 @@ export class FakeOneCAdapter implements OneCAdapter {
     maybeFail(`document ${payload.externalId} v${payload.version}`);
     return { externalId: `1c-doc-${payload.externalId}` };
   }
+
+  // Этап 8 (`У-172`): фейковая 1С ничего не теряет — на любой вопрос «есть
+  // ли документ» отвечает «есть». Помнить принятые выгрузки нельзя: память
+  // живёт до рестарта воркера, и «не помню — значит пропал» пометило бы на
+  // стенде все документы `failed` после первого же перезапуска. Путь «в 1С
+  // нет» проверяют подставной адаптер в тестах сервиса и mock-1c.
+  async findDocument(externalId: string): Promise<OneCDocumentDto | null> {
+    await maybeLatency();
+    maybeFail(`find document ${externalId}`);
+    return {
+      externalId,
+      orderExternalId: `fake-order-for-${externalId}`,
+      type: 'invoice',
+      direction: 'outgoing',
+      name: `${externalId}.pdf`,
+      mimeType: 'application/pdf',
+      size: 0,
+      downloadUrl: `https://fake-1c.local/documents/${externalId}.pdf`,
+      updatedAt: new Date().toISOString(),
+    };
+  }
 }

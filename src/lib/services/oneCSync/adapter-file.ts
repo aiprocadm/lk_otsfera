@@ -184,4 +184,13 @@ export class FileOneCAdapter implements OneCAdapter {
     void payload;
     throw new Error('FileOneCAdapter is read-only');
   }
+
+  // Этап 8 (`У-172`): по книге нельзя ответить, что в 1С есть, а чего нет, —
+  // сверка через файловый канал невозможна. Именно исключение, а не `null`:
+  // `null` значит «1С сказала: нет такого», и сверка молча пометила бы все
+  // выгруженные документы пропавшими.
+  async findDocument(externalId: string): Promise<OneCDocumentDto | null> {
+    void externalId;
+    throw new Error('FileOneCAdapter is read-only');
+  }
 }

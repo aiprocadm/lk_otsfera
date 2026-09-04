@@ -24,6 +24,29 @@ describe('createDocumentStore (этап 8, У-167 — приём выгрузк�
     expect(store.state().lastBody?.externalId).toBe('doc-contract-1');
   });
 
+  // `У-172`: ответ сверки — принятая бумага в формате секции 4 под id «1С».
+  it('find() returns the accepted document as a §4 record, null for unknown ids', () => {
+    const store = createDocumentStore();
+    const res = store.accept(documentPushPayload(), 0);
+    expect(store.find('doc-contract-1')).toMatchObject({
+      externalId: res.result?.externalId,
+      orderExternalId: '1c-order-1001',
+      type: 'invoice',
+      number: 'С-2026-17',
+      direction: 'outgoing',
+      name: 'invoice-С-2026-17.pdf',
+    });
+    expect(store.find('doc-unknown')).toBeNull();
+  });
+
+  it('find() invents an order for a document without one — §4 always carries orderExternalId', () => {
+    const store = createDocumentStore();
+    const res = store.accept(documentPushPayload({ externalId: 'doc-no-order', order: null }), 0);
+    expect(store.find('doc-no-order')?.orderExternalId).toBe(
+      `mock-order-for-${res.result?.externalId}`
+    );
+  });
+
   it('same externalId + same version is a no-op: same id back, one document, attempts=2', () => {
     const store = createDocumentStore();
     const first = store.accept(documentPushPayload(), 0);
@@ -38,7 +61,10 @@ describe('createDocumentStore (этап 8, У-167 — приём выгрузк�
   it('a higher version updates the stored document in place (same 1C id)', () => {
     const store = createDocumentStore();
     const first = store.accept(documentPushPayload(), 0);
-    const res = store.accept(documentPushPayload({ version: 2, number: 'С-2026-18', lines: null }), 0);
+    const res = store.accept(
+      documentPushPayload({ version: 2, number: 'С-2026-18', lines: null }),
+      0
+    );
     expect(res.status).toBe(200);
     expect(res.result?.externalId).toBe(first.result?.externalId);
     const state = store.state();
@@ -82,7 +108,10 @@ describe('createDocumentStore (этап 8, У-167 — приём выгрузк�
 
   it('rejects garbage (not an object) with 400 and a generic path', () => {
     const store = createDocumentStore();
-    expect(store.accept('nope', 0)).toMatchObject({ status: 400, error: expect.stringMatching(/^body:/) });
+    expect(store.accept('nope', 0)).toMatchObject({
+      status: 400,
+      error: expect.stringMatching(/^body:/),
+    });
     expect(store.accept(null, 0).status).toBe(400);
   });
 

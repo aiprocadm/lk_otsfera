@@ -1,5 +1,5 @@
 import { OneCDocumentPushSchema } from '@/lib/services/oneCSync/schemas';
-import type { OneCDocumentPushPayload } from '@/lib/services/oneCSync/dto';
+import type { OneCDocumentDto, OneCDocumentPushPayload } from '@/lib/services/oneCSync/dto';
 
 // Этап 8 (`У-167`): приём исходящих документов кабинета — то, что настоящая 1С
 // обязана делать по контракту (docs/integrations/1c-contract.md, секция 6 и
@@ -17,6 +17,8 @@ type StoredDocument = {
   body: OneCDocumentPushPayload;
   /** Сколько POST-ов принято по этому `externalId`, включая no-op повторы. */
   attempts: number;
+  /** Когда «1С» приняла последнюю версию — это её `updatedAt` в ответе сверки. */
+  acceptedAt: string;
 };
 
 export type DocumentStoreState = {
@@ -72,6 +74,7 @@ export function createDocumentStore() {
         }
         existing.version = doc.version;
         existing.body = doc;
+        existing.acceptedAt = new Date().toISOString();
         return { status: 200, result: { externalId: existing.oneCExternalId } };
       }
 
@@ -81,9 +84,32 @@ export function createDocumentStore() {
         version: doc.version,
         body: doc,
         attempts: 1,
+        acceptedAt: new Date().toISOString(),
       };
       byExternalId.set(doc.externalId, stored);
       return { status: 200, result: { externalId: stored.oneCExternalId } };
+    },
+    // Этап 8 (`У-172`): ответ на `GET /api/documents?externalId=` (контракт
+    // §7) — принятая бумага в формате секции 4, как её отдала бы настоящая 1С:
+    // под СВОИМ идентификатором, с направлением «выпущена кабинетом». Заказ
+    // без `externalId` в 1С (заведён в кабинете) «1С» заводит у себя — как и
+    // обещает контракт §6; у документа без заказа заказ выдуманный, потому
+    // что секция 4 требует его всегда.
+    find(externalId: string): OneCDocumentDto | null {
+      const d = byExternalId.get(externalId);
+      if (!d) return null;
+      return {
+        externalId: d.oneCExternalId,
+        orderExternalId: d.body.order?.externalId ?? `mock-order-for-${d.oneCExternalId}`,
+        type: d.body.type,
+        direction: 'outgoing',
+        number: d.body.number,
+        name: `${d.body.type}-${d.body.number}.pdf`,
+        mimeType: 'application/pdf',
+        size: 0,
+        downloadUrl: d.body.fileUrl,
+        updatedAt: d.acceptedAt,
+      };
     },
     state(): DocumentStoreState {
       return {

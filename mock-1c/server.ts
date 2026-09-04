@@ -1,5 +1,10 @@
 import http from 'node:http';
-import { ENDPOINTS, SINCE_PARAM, PAGE_PARAM } from '@/lib/services/oneCSync/rest-wire';
+import {
+  ENDPOINTS,
+  SINCE_PARAM,
+  PAGE_PARAM,
+  EXTERNAL_ID_PARAM,
+} from '@/lib/services/oneCSync/rest-wire';
 import type { SyncCursor } from '@/lib/services/oneCSync/dto';
 import type { ScenarioConfig } from './core/scenario';
 import type { Dataset, Entity } from './core/dataset';
@@ -102,6 +107,13 @@ export function createMock1cServer(deps: Mock1cDeps): http.Server {
         if (scenario.failMode === 'transient')
           return send(res, 503, { error: 'temporarily unavailable' }, { 'Retry-After': '1' });
         return send(res, 500, { error: 'permanent failure' });
+      }
+
+      // --- сверка (этап 8, `У-172`): один документ по externalId кабинета, контракт §7 ---
+      const findExternalId = url.searchParams.get(EXTERNAL_ID_PARAM);
+      if (path === ENDPOINTS.documents && method === 'GET' && findExternalId !== null) {
+        const found = deps.documentStore.find(findExternalId);
+        return send(res, 200, found ? [found] : []);
       }
 
       // --- pull endpoints ---

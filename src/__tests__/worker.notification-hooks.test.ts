@@ -43,6 +43,9 @@ class ScriptedAdapter implements OneCAdapter {
   async pushDocument(): Promise<OneCDocumentPushResult> {
     return { externalId: '1c-doc-scripted' };
   }
+  async findDocument(): Promise<OneCDocumentDto | null> {
+    return null;
+  }
 }
 
 const adapter = new ScriptedAdapter();

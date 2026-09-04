@@ -168,7 +168,10 @@ describe('RestOneCAdapter', () => {
   });
 
   it('pushDocument rejects a 1C answer without externalId (schema-checked)', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
+    );
     await expect(new RestOneCAdapter(config).pushDocument(documentPushPayload())).rejects.toThrow();
   });
 
@@ -185,6 +188,48 @@ describe('RestOneCAdapter', () => {
       .catch((e) => e);
     expect(err.status).toBe(409);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  // Этап 8 (`У-172`): сверка — точечный GET по externalId кабинета (контракт §7).
+  it('findDocument GETs /api/documents?externalId= with Bearer and returns the single item', async () => {
+    const doc = { externalId: '1c-doc-77', orderExternalId: '1c-order-1', type: 'invoice' };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => [doc] });
+    vi.stubGlobal('fetch', fetchMock);
+    const r = await new RestOneCAdapter(config).findDocument('doc-cab-1');
+    expect(r).toEqual(doc);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toBe('https://1c.example.com/api/documents?externalId=doc-cab-1');
+    expect(init.method).toBe('GET');
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer tok');
+  });
+
+  it('findDocument returns null on an empty answer — «в 1С такого нет»', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => [] }));
+    expect(await new RestOneCAdapter(config).findDocument('doc-cab-1')).toBeNull();
+  });
+
+  it('findDocument unwraps an { items: [] } envelope too', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ items: [{ externalId: 'x' }] }) })
+    );
+    expect(await new RestOneCAdapter(config).findDocument('doc-cab-1')).toEqual({
+      externalId: 'x',
+    });
+  });
+
+  it('findDocument throws on a non-OK response — транспортная ошибка, не «пропал»', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        headers: { get: () => null },
+        json: async () => ({}),
+      })
+    );
+    const err = await new RestOneCAdapter(config).findDocument('doc-cab-1').catch((e) => e);
+    expect(err.status).toBe(500);
   });
 
   it('pullPayments returns payments array', async () => {

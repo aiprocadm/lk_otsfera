@@ -118,6 +118,28 @@ describe('FakeOneCAdapter', () => {
     expect(second).toEqual(first);
   });
 
+  // Этап 8 (`У-172`): фейковая 1С ничего не теряет — «есть» даже про то, что
+  // ей не отправляли. Иначе после рестарта воркера сверка на стенде пометила
+  // бы все выгруженные документы пропавшими.
+  it('findDocument always answers «есть», even for an id never pushed', async () => {
+    const a = new FakeOneCAdapter();
+    const found = await a.findDocument('doc-never-pushed');
+    expect(found).toMatchObject({ externalId: 'doc-never-pushed', direction: 'outgoing' });
+  });
+
+  it('findDocument honours FAKE_ONEC_FAILURE_RATE=1 — сбой сети, а не «нет такого»', async () => {
+    const prev = process.env.FAKE_ONEC_FAILURE_RATE;
+    process.env.FAKE_ONEC_FAILURE_RATE = '1';
+    try {
+      await expect(new FakeOneCAdapter().findDocument('doc-1')).rejects.toThrow(
+        /FakeOneC simulated failure/
+      );
+    } finally {
+      if (prev === undefined) delete process.env.FAKE_ONEC_FAILURE_RATE;
+      else process.env.FAKE_ONEC_FAILURE_RATE = prev;
+    }
+  });
+
   it('simulates pushDocument failure when FAKE_ONEC_FAILURE_RATE=1', async () => {
     const prev = process.env.FAKE_ONEC_FAILURE_RATE;
     process.env.FAKE_ONEC_FAILURE_RATE = '1';
@@ -131,4 +153,3 @@ describe('FakeOneCAdapter', () => {
     }
   });
 });
-

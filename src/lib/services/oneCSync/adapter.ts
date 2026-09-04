@@ -23,4 +23,11 @@ export interface OneCAdapter {
    * на повтор.
    */
   pushDocument(payload: OneCDocumentPushPayload): Promise<OneCDocumentPushResult>;
+  /**
+   * Этап 8 (`У-172`): сверка — «а этот документ у тебя вообще есть?».
+   * `externalId` — идентификатор кабинета (корень цепочки перевыпусков, тот
+   * же, что ушёл в `pushDocument`). `null` — 1С честно ответила «нет такого»;
+   * ошибка транспорта — исключение, и сверка НЕ считает документ пропавшим.
+   */
+  findDocument(externalId: string): Promise<OneCDocumentDto | null>;
 }

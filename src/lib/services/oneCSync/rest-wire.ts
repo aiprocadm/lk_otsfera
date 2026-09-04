@@ -49,6 +49,11 @@ export function parseEnvelope(raw: unknown): { items: unknown[]; nextCursor?: st
 // DECISION Q6: query param carrying the opaque page cursor on follow-up requests.
 export const PAGE_PARAM = 'cursor';
 
+// Этап 8 (`У-172`): сверка спрашивает у 1С один документ по идентификатору
+// кабинета — `GET /api/documents?externalId=` (контракт §7). Имя параметра
+// одно на адаптер и на mock-1c, чтобы они не разъехались молча.
+export const EXTERNAL_ID_PARAM = 'externalId';
+
 export function buildUrl(
   baseUrl: string,
   path: string,
