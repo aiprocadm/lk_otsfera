@@ -58,7 +58,7 @@
 | Дата | Проверка | Находка | Вердикт | Закрыто |
 |---|---|---|---|---|
 | 05.09.2026 | С-5 | Страж `components.upload-size-hint.guardrail` ловит только однострочную подсказку «Максимум 200 МБ.»; при переносе prettier (`Максимум 200{' '}` + новая строка + `МБ.`) поломка цифры проходит (2 passed) | ❌ дефект | хотфикс №2 — ⏳ |
-| 05.09.2026 | С-7 | `docs/feature-flags-matrix.md` описывает 19 флагов, в `featureFlags.ts` их 30: нет `leader_analytics`, `contacts`, `staff_chat`, `staff_calendar`, `global_search`, `client_requests` и др.; стража «документ ↔ реестр» нет | ❌ дефект | хотфикс №1 — ⏳ |
+| 05.09.2026 | С-7 | `docs/feature-flags-matrix.md` описывает 19 флагов, в `featureFlags.ts` их 30: нет `leader_analytics`, `contacts`, `staff_chat`, `staff_calendar`, `global_search`, `client_requests` и др.; стража «документ ↔ реестр» нет | ❌ дефект | ✅ хотфикс №1 — @@HF1@@ (страж `docs.feature-flags-matrix`, 5 мутаций пойманы) |
 | 05.09.2026 | С-9 | `npm audit --omit=dev`: 14 уязвимостей (next 15.5.22, sharp 0.34.5, mailparser, nanoid, ip-address, fast-uri, browserslist, html-to-text, js-yaml, brace-expansion, postcss-selector-parser) — все чинятся патч/минор-обновлением без `--force` | ❌ дефект | хотфикс №3 — ⏳ |
 | 05.09.2026 | С-6 | Запись аудита `recordAudit(...).catch(() => {})` без `log` в потоке входа: `api/auth/login/route.ts:169`, `api/auth/2fa/verify/route.ts:70,94`, `api/auth/2fa/resend/route.ts:88`, `server-actions/staff/backupCodes.ts:25`, `lib/services/auth/sessions.ts:30`; там же `writeSyncLog(...).catch(() => {})` в `worker/processors/mango-backfill.ts:111`. Проглатывать нужно (вход не должен ломаться), но молча — нет: образец `.catch((e) => log.warn(...))` в `dlq/retry-all/route.ts:34` | ❌ дефект | не хотфикс: 7 файлов > границы §9.4 → спека; вопрос заказчику в STATUS.md (умолчание — микро-спека «`log.warn` вместо тишины», без смены поведения) |
 | 05.09.2026 | С-6 | Списки усекаются без счётчика «показано N из M»: `services/documents/generalList.ts:24` (`take: 200`), `services/oneCSync/corrections.ts:139` (200), `services/oneCSync/pendingRecords.ts:52` (100) | ❌ дефект | очередь — берётся следующим прогоном первым |
@@ -92,9 +92,10 @@
 | `config.onec-params` | 05.09.2026 ✓ поймана |
 | `config.settings-from-ui` | 05.09.2026 ✓ поймана |
 | `config.telephony-webhooks` | 05.09.2026 ✓ поймана |
+| `docs.feature-flags-matrix` (хотфикс №1) | 05.09.2026 ✓ пойманы 5: строка флага убрана; opt-out в таблице opt-in; счётчик шапки; призрак `partner_leads`; чужой класс в runbook |
 
 ## Журнал прогонов
 
 | Дата | Коммит | Проверка | Итог | PR |
 |---|---|---|---|---|
-| 05.09.2026 | `594cf347` | С-1…С-10 (первый полный прогон, этап 9 PR-3) | ❌ 5 · ⚠ 1 · ℹ 5; три хотфикса в очереди (№1 матрица флагов, №2 страж подсказки 200 МБ, №3 `npm audit fix`), два вопроса заказчику | #497 (прогон) · хотфиксы — ⏳ |
+| 05.09.2026 | `594cf347` | С-1…С-10 (первый полный прогон, этап 9 PR-3) | ❌ 5 · ⚠ 1 · ℹ 5; три хотфикса в очереди (№1 матрица флагов, №2 страж подсказки 200 МБ, №3 `npm audit fix`), два вопроса заказчику | #497 (прогон) · хотфикс №1 — @@HF1@@ · №2, №3 — ⏳ |

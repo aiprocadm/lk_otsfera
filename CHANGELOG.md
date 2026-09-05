@@ -9,6 +9,18 @@
 
 ### Добавлено
 
+- **Хотфикс №1 сопровождения — реестр флагов снова совпадает с документацией**
+  (находка `С-7` от 05.09.2026, PR @@HF1@@). `docs/feature-flags-matrix.md`
+  описывал 25 флагов из 30 и держал строку удалённого `partner_leads`;
+  `document_generation` стоял в таблице opt-in, хотя в коде он opt-out.
+  Дописаны `leader_analytics`, `contacts`, `staff_chat`, `staff_calendar`,
+  `global_search`, `client_requests`; счётчики в шапке — 30 / 5 / 25; та же
+  строка-призрак убрана из `docs/runbook-launch-deploy.md`. Новый страж
+  `docs.feature-flags-matrix` (7 тестов) сверяет обе таблицы с
+  `FEATURE_FLAGS`/`isOptInFlag`: множество флагов, класс каждого, счётчики —
+  и таблицу runbook на призраков и чужой класс; пять мутаций документов
+  пойманы.
+
 - **Закрытие программы ТЗ 21.08.2026 и первый прогон сопровождения** (этап 9,
   PR-3: `У-176`).
   - **Drift-аудит теперь ведёт скрипт**: `scripts/screen-acceptance.ts audit
