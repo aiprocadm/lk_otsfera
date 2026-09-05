@@ -61,7 +61,7 @@
 | 05.09.2026 | С-7 | `docs/feature-flags-matrix.md` описывает 19 флагов, в `featureFlags.ts` их 30: нет `leader_analytics`, `contacts`, `staff_chat`, `staff_calendar`, `global_search`, `client_requests` и др.; стража «документ ↔ реестр» нет | ❌ дефект | ✅ хотфикс №1 — #498 (страж `docs.feature-flags-matrix`, 5 мутаций пойманы) |
 | 05.09.2026 | С-9 | `npm audit --omit=dev`: 14 уязвимостей (next 15.5.22, sharp 0.34.5, mailparser, nanoid, ip-address, fast-uri, browserslist, html-to-text, js-yaml, brace-expansion, postcss-selector-parser) — все чинятся патч/минор-обновлением без `--force` | ❌ дефект | ✅ хотфикс №3 — #500 (`npm audit fix` без `--force`: 14 → 7, только lock-файл; остаток — мажоры/откат, В-2) |
 | 05.09.2026 | С-6 | Запись аудита `recordAudit(...).catch(() => {})` без `log` в потоке входа: `api/auth/login/route.ts:169`, `api/auth/2fa/verify/route.ts:70,94`, `api/auth/2fa/resend/route.ts:88`, `server-actions/staff/backupCodes.ts:25`, `lib/services/auth/sessions.ts:30`; там же `writeSyncLog(...).catch(() => {})` в `worker/processors/mango-backfill.ts:111`. Проглатывать нужно (вход не должен ломаться), но молча — нет: образец `.catch((e) => log.warn(...))` в `dlq/retry-all/route.ts:34` | ❌ дефект | не хотфикс: 7 файлов > границы §9.4 → спека; вопрос заказчику в STATUS.md (умолчание — микро-спека «`log.warn` вместо тишины», без смены поведения) |
-| 05.09.2026 | С-6 | Списки усекаются без счётчика «показано N из M»: `services/documents/generalList.ts:24` (`take: 200`), `services/oneCSync/corrections.ts:139` (200), `services/oneCSync/pendingRecords.ts:52` (100) | ❌ дефект | очередь — берётся следующим прогоном первым |
+| 05.09.2026 | С-6 | Списки усекаются без счётчика «показано N из M»: `services/documents/generalList.ts:24` (`take: 200`), `services/commission/corrections.ts:139` (200), `services/admin/pendingRecords.ts:52` (100) | ❌ дефект | ✅ хотфикс №4 — @@HF4LINK@@ (прогон №2; сервисы отдают `total`, примитив `ListCapNotice`, 8 мутаций пойманы) |
 | 05.09.2026 | С-9 | Мажорные обновления: `next` 15.5 → 16.3.4, `vitest` 4 → 5; у `prisma`/`exceljs` у `npm audit` нет фикса, только откат | ⚠ вне объёма | §6 ТЗ и §9.4 — только спекой; вопрос заказчику в STATUS.md |
 | 05.09.2026 | С-6 | `Sentry.flush(2000).catch(() => {})` при аварийном выходе воркера; `twoFactorChallenge.delete(...).catch` (челлендж уже мог истечь); `recordLastLogin` (комментарий объясняет); 13 × `as unknown as` и 112 × `!` — все с обоснованием | ℹ шум | — |
 | 05.09.2026 | С-8 | Циклы с запросами: `oneCSync/corrections.ts:38`, `oneCSync/invoicePaidNotice.ts:58`, `import/matcher.ts:41`, `oneCSync/reconcile.ts:164` — наборы ограничены (строки одной выписки, документы одного заказа) | ℹ шум | — |
@@ -93,9 +93,11 @@
 | `config.settings-from-ui` | 05.09.2026 ✓ поймана |
 | `config.telephony-webhooks` | 05.09.2026 ✓ поймана |
 | `docs.feature-flags-matrix` (хотфикс №1) | 05.09.2026 ✓ пойманы 5: строка флага убрана; opt-out в таблице opt-in; счётчик шапки; призрак `partner_leads`; чужой класс в runbook |
+| `services.documents.generalList` · `services.commission.corrections.unit` · `services.admin.pendingRecords.unit` · `components.ui-list-cap-notice` · `components.admin-pending-records-section` · страницы documents/corrections/1c-auto (хотфикс №4) | 05.09.2026 ✓ пойманы 8: `count` не зовётся (×2), `count` по другому `where`, условие `<` вместо `<=`, подпись не рисуется на странице, секция подставляет `records.length`, страница 1С теряет `total`, очереди корректировок передают 0 |
 
 ## Журнал прогонов
 
 | Дата | Коммит | Проверка | Итог | PR |
 |---|---|---|---|---|
 | 05.09.2026 | `594cf347` | С-1…С-10 (первый полный прогон, этап 9 PR-3) | ❌ 5 · ⚠ 1 · ℹ 5; три хотфикса в очереди (№1 матрица флагов, №2 страж подсказки 200 МБ, №3 `npm audit fix`), два вопроса заказчику | #497 (прогон) · хотфиксы №1 #498 · №2 #499 · №3 #500 — все три влиты |
+| 05.09.2026 | `f567f19f` | прогон №2: очередь журнала (усечение списков) @@RUN2@@ | @@RUN2RESULT@@ | хотфикс №4 @@HF4LINK@@ @@RUN2PR@@ |
