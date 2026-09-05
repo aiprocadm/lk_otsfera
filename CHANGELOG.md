@@ -10,7 +10,7 @@
 ### Изменено
 
 - **Сопровождение, решение `Р-25` (вопрос `В-1`) — «`log.warn` вместо
-  тишины»** (PR @@V1LINK@@, по поручению заказчика от 05.09.2026, микро-спека
+  тишины»** (PR [#505](https://github.com/aiprocadm/lk_otsfera/pull/505), по поручению заказчика от 05.09.2026, микро-спека
   `docs/superpowers/specs/2026-09-05-maintenance-v1-silent-catch-log-warn.md`).
   Восемь best-effort мест — запись аудита при входе, 2FA (`2fa_code_sent`,
   `2fa_failed`, `2fa_verified`, `2fa_backup_used`, `2fa_backup_regenerated`),
