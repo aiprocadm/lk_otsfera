@@ -1,6 +1,8 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { mayImportOneC } from '@/lib/auth/managerPolicy';
+import { documentTypeLabelRu } from '@/lib/documents/fileName';
+import { errorMessageRu } from '@/lib/errors/messages';
 import { pluralizeRu } from '@/lib/format';
 import { importScope } from '@/lib/services/oneCSync/scope';
 import { rollbackStateOf, type RollbackState } from './rollback';
@@ -22,7 +24,8 @@ export const CHANNEL_LABEL: Record<ExchangeChannel, string> = {
   excel: 'Загрузка Excel',
   statement: 'Выписка по счёту 51',
   auto: 'Автообмен',
-  // `У-173`: пакет документов, скачанный файлом для 1С.
+  // `У-173`: пакет документов, скачанный файлом для 1С; `У-174`: каждая
+  // попытка выгрузки документа по сети — тоже здесь.
   documents: 'Документы → 1С',
 };
 
@@ -37,6 +40,11 @@ export type ExchangeHistoryItem = {
   /** `unsupported` — канал в принципе не откатывается (автообмен). */
   rollback: RollbackState | 'unsupported';
   counts: Prisma.JsonValue;
+  /**
+   * `У-174`: что именно случилось — текст ошибки 1С или русская причина
+   * отказа. Только у попыток выгрузки документов; у остальных `null`.
+   */
+  detail: string | null;
 };
 
 export type HistoryFilter = {
@@ -44,6 +52,52 @@ export type HistoryFilter = {
   /** Сколько записей вернуть суммарно (после слияния каналов). */
   take?: number | undefined;
 };
+
+/** Что кладёт в payload каждая попытка выгрузки (`pushDocument.ts`). */
+type AttemptPayload = {
+  documentId?: string;
+  type?: string;
+  number?: string | null;
+  attempt?: number;
+  actorUserId?: string | null;
+  reason?: string;
+};
+
+/** «Акт А-7 → 1С · попытка 2» — по номеру человек узнаёт бумагу, по попытке видит, что она не первая. */
+function attemptTitle(p: AttemptPayload): string {
+  const name = `${documentTypeLabelRu(p.type ?? 'other')} ${p.number ?? 'без номера'} → 1С`;
+  return p.attempt ? `${name} · попытка ${p.attempt}` : name;
+}
+
+/**
+ * Подробности попытки: ошибка 1С как есть, отказ — русской строкой из
+ * словаря ошибок (в `errorMessage` лежит код), пропуск той же версии — словами.
+ */
+function attemptDetail(
+  operation: string,
+  status: string,
+  errorMessage: string | null,
+  p: AttemptPayload
+): string | null {
+  if (status === 'error') return errorMessage;
+  if (operation !== 'skip') return null;
+  if (p.reason === 'same_version') return 'Эта версия уже в 1С — повтор не нужен.';
+  return errorMessage ? errorMessageRu(errorMessage) : null;
+}
+
+/** Имена инициаторов попыток одним запросом — по одному на строку было бы N+1. */
+async function actorNames(
+  prisma: PrismaClient,
+  ids: Array<string | null | undefined>
+): Promise<Map<string, string>> {
+  const unique = [...new Set(ids.filter((id): id is string => !!id))];
+  if (unique.length === 0) return new Map();
+  const users = await prisma.user.findMany({
+    where: { id: { in: unique } },
+    select: { id: true, name: true },
+  });
+  return new Map(users.map((u) => [u.id, u.name]));
+}
 
 /** Русское описание записи автообмена: «Организации · получение». */
 function autoTitle(entity: string, operation: string): string {
@@ -112,6 +166,7 @@ export async function listExchangeHistory(
         status: b.status,
         rollback: rollbackStateOf(b.status, b.createdAt, now, b._count.rows),
         counts: b.counts,
+        detail: null,
       });
     }
   }
@@ -143,6 +198,7 @@ export async function listExchangeHistory(
         // появления следа записи, честно показывают «отменять нечего».
         rollback: rollbackStateOf(b.status, b.createdAt, now, b._count.writes),
         counts: b.counts,
+        detail: null,
       });
     }
   }
@@ -173,38 +229,71 @@ export async function listExchangeHistory(
         status: l.status,
         rollback: 'unsupported',
         counts: l.payload,
+        detail: null,
       });
     }
   }
 
-  // Пакеты документов для 1С (`У-173`): запись `SyncLog` хранит компанию в
-  // payload, поэтому руководителю показываются только пакеты его компании;
-  // рядовому менеджеру канала нет вовсе — он и пакет собрать не может.
+  // Документы → 1С: пакеты (`У-173`, `operation: 'export'`) и попытки
+  // выгрузки по сети (`У-174`, `create`/`update`/`skip`) — все исходящие
+  // записи `SyncLog` по документам. Компания лежит в payload, поэтому
+  // руководителю показывается только своё; записи без `companyId` (до
+  // `У-174`) ему не видны — лучше пропуск, чем чужая бумага. Рядовому
+  // менеджеру канала нет вовсе — он и пакет собрать не может.
   if (wants('documents') && scope.kind !== 'orgs') {
     const rows = await prisma.syncLog.findMany({
       where: {
         entity: 'document',
-        operation: 'export',
+        direction: 'outbound',
         ...(scope.kind === 'company'
           ? { payload: { path: ['companyId'], equals: scope.companyId } }
           : {}),
       },
       orderBy: { createdAt: 'desc' },
       take,
-      select: { id: true, createdAt: true, status: true, payload: true },
+      select: {
+        id: true,
+        createdAt: true,
+        status: true,
+        operation: true,
+        errorMessage: true,
+        payload: true,
+      },
     });
+    const authors = await actorNames(
+      prisma,
+      rows.map((l) => (l.payload as AttemptPayload | null)?.actorUserId)
+    );
     for (const l of rows) {
-      const p = (l.payload ?? {}) as { documents?: number; actorName?: string | null };
-      const n = p.documents ?? 0;
+      if (l.operation === 'export') {
+        const p = (l.payload ?? {}) as { documents?: number; actorName?: string | null };
+        const n = p.documents ?? 0;
+        items.push({
+          id: l.id,
+          channel: 'documents',
+          createdAt: l.createdAt.toISOString(),
+          title: `Пакет для 1С: ${n} ${pluralizeRu(n, 'документ', 'документа', 'документов')}`,
+          authorName: p.actorName ?? null,
+          status: l.status,
+          rollback: 'unsupported',
+          counts: l.payload,
+          detail: null,
+        });
+        continue;
+      }
+      const p = (l.payload ?? {}) as AttemptPayload;
       items.push({
         id: l.id,
         channel: 'documents',
         createdAt: l.createdAt.toISOString(),
-        title: `Пакет для 1С: ${n} ${pluralizeRu(n, 'документ', 'документа', 'документов')}`,
-        authorName: p.actorName ?? null,
+        title: attemptTitle(p),
+        authorName: (p.actorUserId && authors.get(p.actorUserId)) || null,
         status: l.status,
         rollback: 'unsupported',
-        counts: l.payload,
+        // Числа попытки (версия, номер попытки) уже в заголовке — в «Числах»
+        // они читались бы как итоги импорта.
+        counts: null,
+        detail: attemptDetail(l.operation, l.status, l.errorMessage, p),
       });
     }
   }

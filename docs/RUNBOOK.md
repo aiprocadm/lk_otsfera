@@ -59,6 +59,7 @@
    | Очередь: failed (DLQ) | `ALERT_DLQ_MAX` (0) | critical |
    | Лаг 1С-синка | `ALERT_SYNC_LAG_MAX_HOURS` (24 ч) | critical |
    | 1С dead-letter записи | `ALERT_ONEC_DEADLETTER_MAX` (0) | critical |
+   | Документы, которые 1С не приняла (`failed`, действующие версии) | `ALERT_ONEC_PUSH_FAILED_MAX` (0) | warning |
 
    Доставка ([deliver.ts](../src/lib/monitoring/deliver.ts)): in-app всем активным admin +
    email (через Resend) + Telegram-чат — **только если** выставлены

@@ -74,10 +74,11 @@ vi.mock('@/components/admin/integrations-health-panel', () => ({
   IntegrationsHealthPanel: (props: {
     rows: Array<{ flagEditable?: boolean }>;
     lockedLabel?: string;
+    failedDocumentsHref?: string;
   }) =>
     React.createElement(
       'div',
-      { 'data-testid': 'health-panel' },
+      { 'data-testid': 'health-panel', 'data-failed-href': props.failedDocumentsHref },
       `${props.rows.map((r) => String(r.flagEditable)).join(',')}|${props.lockedLabel}`
     ),
 }));
@@ -293,6 +294,10 @@ describe('интеграции руководителя', () => {
     expect(container.querySelector('[data-testid="health-panel"]')?.textContent).toBe(
       'false,false|переключает администратор'
     );
+    // `У-174`: «документов не выгружено» ведёт в СВОЙ список с фильтром.
+    expect(
+      container.querySelector('[data-testid="health-panel"]')?.getAttribute('data-failed-href')
+    ).toBe('/leader/documents?oneCPushStatus=failed');
     // §15: экран объясняет, кто настраивает подключения.
     expect(container.textContent).toContain('Настраивает их администратор');
   });

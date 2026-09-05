@@ -186,7 +186,12 @@ export default async function AdminIntegrationsPage() {
       </div>
 
       {health.ok ? (
-        <IntegrationsHealthPanel rows={health.rows} />
+        <IntegrationsHealthPanel
+          rows={health.rows}
+          // `У-174`: список «не выгружен» — фильтр у админа живёт на вкладке
+          // «Общие» (вкладка «По заказам» пока на прежней панели, план PR-5).
+          failedDocumentsHref="/admin/documents?tab=general&oneCPushStatus=failed"
+        />
       ) : (
         <p role="alert" className="text-sm text-red-600">
           Недостаточно прав для просмотра состояния интеграций.

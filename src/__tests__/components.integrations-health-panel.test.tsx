@@ -33,8 +33,20 @@ function row(over: Partial<IntegrationHealthRow> = {}): IntegrationHealthRow {
     flag: 'max_channel',
     flagEnabled: false,
     flagEditable: true,
+    documentsNotPushed: null,
     ...over,
   };
+}
+
+/** Карточка 1С — единственная, где есть счётчик невыгруженных документов (`У-174`). */
+function onec(over: Partial<IntegrationHealthRow> = {}): IntegrationHealthRow {
+  return row({
+    key: 'onec',
+    label: '1С',
+    flag: null,
+    documentsNotPushed: { count: 0, threshold: 0 },
+    ...over,
+  });
 }
 
 beforeEach(() => {
@@ -136,6 +148,45 @@ describe('IntegrationsHealthPanel (У-69, У-70)', () => {
     render(<IntegrationsHealthPanel rows={[row()]} />);
     fireEvent.click(screen.getByTestId('channel-toggle-max'));
     expect((await screen.findByRole('alert')).textContent).toContain('Сервер недоступен');
+  });
+
+  describe('У-174: «документов не выгружено» на карточке 1С', () => {
+    it('число видно даже при нуле — молчание читалось бы как «не считали»', () => {
+      render(<IntegrationsHealthPanel rows={[onec(), row()]} />);
+      expect(screen.getByTestId('integration-push-failed-onec').textContent).toBe(
+        'Документов не выгружено: 0'
+      );
+      expect(screen.queryByTestId('integration-push-failed-max')).toBeNull();
+    });
+
+    it('выше порога — «работает с ошибками», число с порогом и подсказка, что нажать', () => {
+      render(
+        <IntegrationsHealthPanel
+          rows={[onec({ status: 'degraded', documentsNotPushed: { count: 3, threshold: 2 } })]}
+        />
+      );
+      expect(screen.getByTestId('integration-status-onec').textContent).toBe('работает с ошибками');
+      const line = screen.getByTestId('integration-push-failed-onec').textContent ?? '';
+      expect(line).toContain('Документа не выгружено: 3');
+      expect(line).toContain('порога (2)');
+      expect(line).toContain('«Повторить»');
+    });
+
+    it('число ведёт в список с фильтром «не выгружен», когда страница дала адрес', () => {
+      render(
+        <IntegrationsHealthPanel
+          rows={[onec({ documentsNotPushed: { count: 1, threshold: 0 }, status: 'degraded' })]}
+          failedDocumentsHref="/leader/documents?oneCPushStatus=failed"
+        />
+      );
+      const link = screen.getByRole('link', { name: 'Документ не выгружен: 1' });
+      expect(link.getAttribute('href')).toBe('/leader/documents?oneCPushStatus=failed');
+    });
+
+    it('без адреса — просто текст, без ссылки в никуда', () => {
+      render(<IntegrationsHealthPanel rows={[onec()]} />);
+      expect(screen.queryByRole('link')).toBeNull();
+    });
   });
 
   it('неизвестный код ошибки не прячется', async () => {

@@ -35,6 +35,8 @@ const baseDoc = {
   type: 'invoice',
   number: 'С-1',
   version: 1,
+  companyId: 'co-1',
+  oneCPushAttempts: 2,
   createdAt: new Date('2026-09-01T00:00:00Z'),
   path: 'documents/doc-1.pdf',
   supersededAt: null,
@@ -206,6 +208,54 @@ describe('pushDocumentToOneC — краевые ветки', () => {
     await pushDocumentToOneC(prisma, 'doc-1', { adapter: adapter().adapter });
     expect(writeSyncLog).toHaveBeenCalledWith(
       expect.objectContaining({ operation: 'update', status: 'success' }),
+      prisma
+    );
+  });
+
+  it('У-174: успех пишет в SyncLog документ, компанию, номер попытки и человека', async () => {
+    const prisma = makePrisma();
+    await pushDocumentToOneC(prisma, 'doc-1', { adapter: adapter().adapter, actorUserId: 'u-9' });
+    expect(writeSyncLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'success',
+        payload: {
+          documentId: 'doc-1',
+          version: 1,
+          type: 'invoice',
+          number: 'С-1',
+          companyId: 'co-1',
+          // Две попытки уже были — эта третья.
+          attempt: 3,
+          actorUserId: 'u-9',
+          externalId: expect.any(String),
+          oneCExternalId: '1c-1',
+        },
+      }),
+      prisma
+    );
+  });
+
+  it('У-174: отказ 1С пишет ту же карточку попытки, без человека — actorUserId: null', async () => {
+    const prisma = makePrisma({ oneCPushAttempts: 0 });
+    const { adapter: a } = adapter(async () => {
+      throw new Error('1С: контрагент не найден');
+    });
+    const res = await pushDocumentToOneC(prisma, 'doc-1', { adapter: a });
+    expect(res).toEqual({ ok: false, error: 'push_failed', message: '1С: контрагент не найден' });
+    expect(writeSyncLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'error',
+        errorMessage: '1С: контрагент не найден',
+        payload: {
+          documentId: 'doc-1',
+          version: 1,
+          type: 'invoice',
+          number: 'С-1',
+          companyId: 'co-1',
+          attempt: 1,
+          actorUserId: null,
+        },
+      }),
       prisma
     );
   });

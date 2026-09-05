@@ -9,12 +9,13 @@ const T: Thresholds = {
   syncLagMaxMs: 24 * 3600_000,
   renotifyCooldownMs: 6 * 3600_000,
   oneCDeadLetterMax: 0,
+  oneCPushFailedMax: 0,
 };
 
 const noCounts = { waiting: 0, active: 0, completed: 0, failed: 0, delayed: 0 };
 
 function metrics(over: Partial<AlertMetrics>): AlertMetrics {
-  return { queues: [], syncLag: [], pendingDeadLetters: 0, ...over };
+  return { queues: [], syncLag: [], pendingDeadLetters: 0, failedDocumentPushes: 0, ...over };
 }
 
 describe('evaluate', () => {
@@ -79,5 +80,41 @@ describe('evaluate', () => {
   it('does not flag dead-lettered records when count is at or below threshold', () => {
     const r = evaluate(metrics({ pendingDeadLetters: 0 }), getThresholds({}));
     expect(r.find((b) => b.key === 'onec_dead_letters')).toBeUndefined();
+  });
+
+  describe('У-174: документы, которые 1С не приняла', () => {
+    it('выше порога — предупреждение с числом и порогом, по-русски', () => {
+      const r = evaluate(metrics({ failedDocumentPushes: 3 }), { ...T, oneCPushFailedMax: 2 });
+      const breach = r.find((b) => b.key === 'onec_push_failed');
+      expect(breach).toEqual({
+        key: 'onec_push_failed',
+        severity: 'warning',
+        message: '1С: 3 документа не выгружено (порог 2)',
+        value: 3,
+      });
+    });
+
+    it('склоняет число: 1 документ не выгружен · 5 документов не выгружено', () => {
+      const one = evaluate(metrics({ failedDocumentPushes: 1 }), T);
+      expect(one.find((b) => b.key === 'onec_push_failed')?.message).toBe(
+        '1С: 1 документ не выгружен (порог 0)'
+      );
+      const five = evaluate(metrics({ failedDocumentPushes: 5 }), T);
+      expect(five.find((b) => b.key === 'onec_push_failed')?.message).toBe(
+        '1С: 5 документов не выгружено (порог 0)'
+      );
+    });
+
+    it('на пороге и ниже — молчит: порог значит «столько терпим»', () => {
+      expect(
+        evaluate(metrics({ failedDocumentPushes: 2 }), { ...T, oneCPushFailedMax: 2 })
+      ).toEqual([]);
+      expect(evaluate(metrics({ failedDocumentPushes: 0 }), T)).toEqual([]);
+    });
+
+    it('порог из getThresholds: умолчание 0 — один невыгруженный уже тревога', () => {
+      const r = evaluate(metrics({ failedDocumentPushes: 1 }), getThresholds({}));
+      expect(r.map((b) => b.key)).toEqual(['onec_push_failed']);
+    });
   });
 });

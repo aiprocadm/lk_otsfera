@@ -126,6 +126,9 @@ export const documentSelect = {
   counterpartyType: true,
   counterpartyId: true,
   uploadedById: true,
+  // `У-174`: история попыток скоупится по компании и показывает «попытка N».
+  companyId: true,
+  oneCPushAttempts: true,
   oneCPushStatus: true,
   oneCPushedVersion: true,
   oneCExternalId: true,
@@ -277,6 +280,29 @@ async function auditPush(
 
 type SyncLogContext = { operation: 'create' | 'update'; startedAt: number };
 
+/**
+ * `У-174`: тело записи `SyncLog` о попытке — то, по чему история обмена
+ * узнаёт документ и человека. `attempt` считается от уже сделанных попыток:
+ * запись пишется до инкремента или после — здесь всегда «эта попытка = N+1».
+ * `companyId` нужен скоупу руководителя; `actorUserId` — колонке «Кто».
+ */
+function attemptPayload(
+  doc: LoadedDocument,
+  actorUserId: string | undefined,
+  extra: Record<string, unknown> = {}
+): Record<string, unknown> {
+  return {
+    documentId: doc.id,
+    version: doc.version,
+    type: doc.type,
+    number: doc.number,
+    companyId: doc.companyId,
+    attempt: doc.oneCPushAttempts + 1,
+    actorUserId: actorUserId ?? null,
+    ...extra,
+  };
+}
+
 /** Отказ, после которого документ ждёт человека: `failed` + текст ошибки + счётчик. */
 async function markFailed(
   prisma: PrismaClient,
@@ -305,7 +331,7 @@ async function markFailed(
       status: 'error',
       externalId: doc.id,
       errorMessage: message,
-      payload: { documentId: doc.id, version: doc.version },
+      payload: attemptPayload(doc, actorUserId),
       durationMs: Date.now() - ctx.startedAt,
     },
     prisma
@@ -421,12 +447,10 @@ export async function pushDocumentToOneC(
         operation: ctx.operation,
         status: 'success',
         externalId: doc.id,
-        payload: {
-          documentId: doc.id,
+        payload: attemptPayload(doc, opts.actorUserId, {
           externalId,
-          version: doc.version,
           oneCExternalId: result.externalId,
-        },
+        }),
         durationMs: Date.now() - startedAt,
       },
       prisma

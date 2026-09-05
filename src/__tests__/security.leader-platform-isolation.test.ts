@@ -109,7 +109,11 @@ describe('секреты платформы и параметры 1С — отк
 
 describe('обещанное Р-22 работает — и скоупится компанией', () => {
   it('светофор интеграций открыт руководителю (в строках нет секретов)', async () => {
-    const prisma = { syncState: { findMany: vi.fn().mockResolvedValue([]) } } as never;
+    const prisma = {
+      syncState: { findMany: vi.fn().mockResolvedValue([]) },
+      // `У-174`: светофор считает невыгруженные документы компании.
+      document: { count: vi.fn().mockResolvedValue(0) },
+    } as never;
     const res = await getIntegrationsHealth(prisma, LEADER);
     expect(res.ok).toBe(true);
   });

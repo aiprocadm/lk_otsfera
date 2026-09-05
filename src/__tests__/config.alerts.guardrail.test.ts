@@ -10,13 +10,15 @@ const SRC = join(__dirname, '..');
 const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
 
 describe('У-126: пороги и канал оповещений — настройки', () => {
-  it('все восемь ключей есть в реестре', () => {
+  it('все девять ключей есть в реестре', () => {
     for (const key of [
       'alerts.queueWaitingMax',
       'alerts.dlqMax',
       'alerts.syncLagMaxHours',
       'alerts.renotifyCooldownHours',
       'alerts.oneCDeadLetterMax',
+      // `У-174`: предел документов, которые 1С не приняла.
+      'alerts.oneCPushFailedMax',
       'alerts.telegramBotToken',
       'alerts.telegramChatId',
       'alerts.emailRecipients',
@@ -46,6 +48,7 @@ describe('У-126: пороги и канал оповещений — настр
       ['alerts.syncLagMaxHours', 'ALERT_SYNC_LAG_MAX_HOURS'],
       ['alerts.renotifyCooldownHours', 'ALERT_RENOTIFY_COOLDOWN_HOURS'],
       ['alerts.oneCDeadLetterMax', 'ALERT_ONEC_DEADLETTER_MAX'],
+      ['alerts.oneCPushFailedMax', 'ALERT_ONEC_PUSH_FAILED_MAX'],
     ];
     for (const [key, env] of pairs) {
       expect(src, `${key}: читается мимо настроек — интерфейс на него не влияет`).toContain(

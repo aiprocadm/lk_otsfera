@@ -71,6 +71,7 @@ describe('вкладка «История» (У-48)', () => {
           status: 'committed',
           rollback: 'unsupported',
           counts: { imported: 129 },
+          detail: null,
         },
       ],
     });

@@ -1,4 +1,4 @@
-import { Worker, type Processor } from 'bullmq';
+import { Worker, type Job, type Processor } from 'bullmq';
 import * as Sentry from '@sentry/node';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -23,7 +23,7 @@ import {
 import { prisma } from '@/lib/db/prisma';
 import { primeFeatureFlagCache } from '@/lib/config/featureFlagStore';
 import { getSchedulePatterns } from '@/lib/services/admin/syncSchedules';
-import type { PushLeadJobPayload } from '@/lib/jobs/types';
+import type { PushDocumentJobPayload, PushLeadJobPayload } from '@/lib/jobs/types';
 import { toBullProcessor } from './to-bull-processor';
 import { syncOrdersProcessor } from './processors/sync-orders';
 import { syncPaymentsProcessor } from './processors/sync-payments';
@@ -31,7 +31,7 @@ import { syncDocumentsProcessor } from './processors/sync-documents';
 import { syncOrganizationsProcessor } from './processors/sync-organizations';
 import { syncReconcileProcessor } from './processors/sync-reconcile';
 import { pushLeadProcessor, notifyPushLeadFinalFailure } from './processors/push-lead';
-import { pushDocumentProcessor } from './processors/push-document';
+import { pushDocumentProcessor, handlePushDocumentJobFailed } from './processors/push-document';
 import { generateCommissionPdfProcessor } from './processors/generate-commission-pdf';
 import { generateCommissionXlsxProcessor } from './processors/generate-commission-xlsx';
 import { calculateMonthlyCommissionsProcessor } from './processors/calculate-monthly-commissions';
@@ -168,7 +168,14 @@ async function main() {
 
   // Этап 8 (`У-168`): выгрузка документов в 1С; сбой адаптера повторяется
   // очередью, окончательный отказ помечен на самом документе (`failed`).
-  startWorker('oneCSync.pushDocument', pushDocumentProcessor as Processor);
+  // `У-174`: после последней попытки — уведомление руководителям и инициатору.
+  const pushDocumentWorker = startWorker(
+    'oneCSync.pushDocument',
+    pushDocumentProcessor as Processor
+  );
+  pushDocumentWorker.on('failed', (job, err) => {
+    void handlePushDocumentJobFailed(prisma, job as Job<PushDocumentJobPayload> | undefined, err);
+  });
 
   startWorker('docs.generateCommissionPdf', generateCommissionPdfProcessor as Processor);
   startWorker('docs.generateCommissionXlsx', generateCommissionXlsxProcessor as Processor);

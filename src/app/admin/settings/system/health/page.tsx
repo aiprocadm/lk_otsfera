@@ -21,6 +21,7 @@ const ALERT_SETTING_KEYS: SettingKey[] = [
   'alerts.syncLagMaxHours',
   'alerts.renotifyCooldownHours',
   'alerts.oneCDeadLetterMax',
+  'alerts.oneCPushFailedMax',
   'alerts.telegramBotToken',
   'alerts.telegramChatId',
   'alerts.emailRecipients',
@@ -98,6 +99,7 @@ export default async function AdminHealthPage() {
           syncLagMaxHours: settingOf('alerts.syncLagMaxHours'),
           renotifyCooldownHours: settingOf('alerts.renotifyCooldownHours'),
           oneCDeadLetterMax: settingOf('alerts.oneCDeadLetterMax'),
+          oneCPushFailedMax: settingOf('alerts.oneCPushFailedMax'),
           telegramChatId: settingOf('alerts.telegramChatId'),
           emailRecipients: settingOf('alerts.emailRecipients'),
         }}

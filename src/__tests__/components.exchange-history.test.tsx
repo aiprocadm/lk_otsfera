@@ -50,6 +50,7 @@ function item(over: Partial<ExchangeHistoryItem> = {}): ExchangeHistoryItem {
     status: 'committed',
     rollback: 'available',
     counts: { created: 3, skipped: 0 },
+    detail: null,
     ...over,
   };
 }
@@ -154,6 +155,43 @@ describe('ExchangeHistory (У-48)', () => {
     expect(within(list).getByText('с замечаниями')).toBeTruthy();
     expect(within(list).getByText('документов: 21 · пропущено: 2')).toBeTruthy();
     expect(screen.queryByTestId('exchange-rollback-p1')).toBeNull();
+  });
+
+  it('У-174: попытка выгрузки показывает «Подробности» — ошибка 1С красным, отказ обычным', () => {
+    render(
+      <ExchangeHistory
+        items={[
+          item({
+            id: 'a1',
+            channel: 'documents',
+            title: 'Акт А-7 → 1С · попытка 2',
+            status: 'error',
+            rollback: 'unsupported',
+            counts: null,
+            detail: '1С: сервер вернул 500',
+          }),
+          item({
+            id: 'a2',
+            channel: 'documents',
+            title: 'Счёт без номера → 1С',
+            status: 'warn',
+            rollback: 'unsupported',
+            counts: null,
+            detail: 'У документа нет номера — укажите номер в карточке и повторите выгрузку.',
+          }),
+          item({ id: 'a3', channel: 'documents', status: 'success', counts: null, detail: null }),
+        ]}
+      />
+    );
+    const error = screen.getByTestId('exchange-detail-a1');
+    expect(error.textContent).toBe('1С: сервер вернул 500');
+    expect(error.className).toContain('text-red-700');
+    const refusal = screen.getByTestId('exchange-detail-a2');
+    expect(refusal.textContent).toContain('нет номера');
+    expect(refusal.className).not.toContain('text-red-700');
+    // Успех без подробностей — строки нет вовсе, а не пустая.
+    expect(screen.queryByTestId('exchange-detail-a3')).toBeNull();
+    expect(screen.getAllByText('Подробности')).toHaveLength(2);
   });
 
   it('импорт до появления отмены объясняет, почему кнопки нет', () => {

@@ -17,6 +17,8 @@ export type Thresholds = {
   syncLagMaxMs: number;
   renotifyCooldownMs: number;
   oneCDeadLetterMax: number;
+  /** `У-174`: предел документов, которые не удалось выгрузить в 1С. */
+  oneCPushFailedMax: number;
 };
 
 function num(value: string | undefined, fallback: number): number {
@@ -44,6 +46,10 @@ export function getThresholds(env: Record<string, string | undefined> = process.
       3600_000,
     oneCDeadLetterMax: num(
       configured('alerts.oneCDeadLetterMax', env.ALERT_ONEC_DEADLETTER_MAX),
+      0
+    ),
+    oneCPushFailedMax: num(
+      configured('alerts.oneCPushFailedMax', env.ALERT_ONEC_PUSH_FAILED_MAX),
       0
     ),
   };
