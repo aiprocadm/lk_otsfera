@@ -3,13 +3,18 @@ import { Prisma } from '@prisma/client';
 import {
   getFinanceKpis,
   listStatements,
+  countStatements,
   getStatementWithItems,
   getStatementFilePath,
 } from '@/lib/services/partner/finance';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
-const { findMany, findFirst } = vi.hoisted(() => ({ findMany: vi.fn(), findFirst: vi.fn() }));
-const prisma = { commissionStatement: { findMany, findFirst } } as never;
+const { findMany, findFirst, count } = vi.hoisted(() => ({
+  findMany: vi.fn(),
+  findFirst: vi.fn(),
+  count: vi.fn(),
+}));
+const prisma = { commissionStatement: { findMany, findFirst, count } } as never;
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -119,6 +124,32 @@ describe('listStatements', () => {
     expect(typeof r[0].totalCommissionAmount).toBe('string');
     expect(r[0].totalCommissionAmount).toBe('1234.50');
     expect(r[0]).not.toBeInstanceOf(Prisma.Decimal);
+  });
+});
+
+describe('countStatements — счётчик для пагинации (С-6, хотфикс №5)', () => {
+  it('считает по тому же условию, что и listStatements (partnerId + не заменённые)', async () => {
+    count.mockResolvedValue(45);
+    findMany.mockResolvedValue([]);
+    await listStatements(prisma, { partnerId: 'p1' });
+    const r = await countStatements(prisma, { partnerId: 'p1' });
+    expect(r).toBe(45);
+    expect(count).toHaveBeenCalledWith({ where: findMany.mock.calls[0][0].where });
+  });
+
+  it('уважает status и диапазон from/to — иначе «всего» не сойдётся со списком', async () => {
+    count.mockResolvedValue(3);
+    const from = new Date('2026-01-01');
+    const to = new Date('2026-03-31');
+    await countStatements(prisma, { partnerId: 'p1', status: 'paid', from, to });
+    expect(count).toHaveBeenCalledWith({
+      where: {
+        partnerId: 'p1',
+        supersededBy: null,
+        status: 'paid',
+        periodFrom: { gte: from, lte: to },
+      },
+    });
   });
 });
 
