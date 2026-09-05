@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { navByRole } from '@/lib/navigation/cabinet';
 import { sectionsForCabinet, settingsHref, type SettingsCabinet } from '@/lib/navigation/settings';
+import { orgCardTabsFor, type OrgCardCabinet } from '@/lib/navigation/orgCardTabs';
 
 /**
  * Правила, которым обязан отвечать КАЖДЫЙ экран кабинета:
@@ -184,15 +185,118 @@ async function expectFitsPhone(page: Page, url: string): Promise<'провере
 }
 
 /**
+ * Как попасть в карточку организации из кабинета (`У-175`, этап 9): либо
+ * список → первая строка, либо фиксированный адрес («Моя организация» у
+ * заказчика — своя организация, списка нет).
+ */
+export type OrgCardEntry =
+  | { cabinet: OrgCardCabinet; list: string; link: RegExp }
+  | { cabinet: OrgCardCabinet; card: string };
+
+export const ORG_CARD_ENTRIES: Record<OrgCardCabinet, OrgCardEntry> = {
+  admin: {
+    cabinet: 'admin',
+    list: '/admin/organizations',
+    link: /^\/admin\/organizations\/[^/?#]+$/,
+  },
+  leader: {
+    cabinet: 'leader',
+    list: '/leader/organizations',
+    link: /^\/leader\/organizations\/[^/?#]+$/,
+  },
+  manager: {
+    cabinet: 'manager',
+    list: '/manager/organizations',
+    link: /^\/manager\/organizations\/[^/?#]+$/,
+  },
+  partner: {
+    cabinet: 'partner',
+    list: '/partner/portfolio',
+    link: /^\/partner\/portfolio\/[^/?#]+$/,
+  },
+  organization: { cabinet: 'organization', card: '/organization/company' },
+};
+
+/**
+ * Вкладки карточки организации — по реестру `orgCardTabsFor`, а не по тому,
+ * что нарисовано: реестр говорит, какие вкладки ОБЯЗАНЫ быть, живая карточка
+ * показывает, какие есть. Вкладка за флагом, которого на стенде нет, — это
+ * «ПРОПУЩЕН», а не «проверено» и не «сломано». Адрес вкладки берётся из
+ * самой карточки: у партнёра часть вкладок — отдельные экраны, а не `?tab=`.
+ */
+function orgCardTabChecks(cabinet: string, entry: OrgCardEntry): void {
+  const tabs = orgCardTabsFor(entry.cabinet, { flags: () => true });
+
+  test.describe(`Вкладки карточки организации (§0.2, У-175): ${cabinet}`, () => {
+    test.skip(({ viewport }) => (viewport?.width ?? 0) >= 768, 'только мобильный вьюпорт');
+    test.describe.configure({ timeout: 120_000 });
+
+    // Карточку ищем один раз на файл: тесты идут последовательно (workers: 1).
+    let cardUrl: string | null | undefined;
+    const findCard = async (page: Page): Promise<string | null> => {
+      if (cardUrl !== undefined) return cardUrl;
+      if ('card' in entry) {
+        cardUrl = entry.card;
+        return cardUrl;
+      }
+      await gotoScreen(page, entry.list);
+      await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => undefined);
+      const hrefs = await page
+        .locator('a[href]')
+        .evaluateAll((els) => els.map((a) => a.getAttribute('href') ?? ''));
+      cardUrl = hrefs.find((h) => entry.link.test(h)) ?? null;
+      return cardUrl;
+    };
+
+    for (const tab of tabs) {
+      test(`вкладка «${tab.label}» (${tab.key})`, async ({ page }) => {
+        const card = await findCard(page);
+        test.skip(
+          card === null,
+          `ПРОПУЩЕН: в ${'list' in entry ? entry.list : ''} нет ни одной организации — вкладку «${tab.label}» открыть не на чем`
+        );
+        await gotoScreen(page, card as string);
+        const link = page.getByTestId(`org-tab-${tab.key}`);
+        const present = (await link.count()) > 0;
+        test.skip(
+          !present && !!tab.flag,
+          `ПРОПУЩЕН: вкладка «${tab.label}» за флагом ${tab.flag}, на стенде он выключен`
+        );
+        expect(present, `вкладка «${tab.label}» есть в реестре, но не в карточке`).toBe(true);
+
+        const href = (await link.first().getAttribute('href')) ?? '';
+        const target = new URL(href, `http://stand${card}`);
+        const url = `${target.pathname}${target.search}`;
+        const verdict = await expectFitsPhone(page, url);
+        test.skip(
+          verdict === 'недоступно',
+          `ПРОПУЩЕН: ${url} закрыт этой роли или выключен флагом`
+        );
+
+        // Правило зеркала: подпись подсвеченной вкладки = `label` реестра.
+        const active = page.locator('[data-testid^="org-tab-"][data-active="true"]');
+        await expect.soft(active, `${url}: активная вкладка не подсвечена`).toHaveCount(1);
+        await expect
+          .soft(active.first(), `${url}: подпись активной вкладки ≠ «${tab.label}» из реестра`)
+          .toHaveText(tab.label);
+      });
+    }
+  });
+}
+
+/**
  * `extraUrls` — экраны вне реестра меню (деталки с id из seed-данных и
  * страницы, на которые попадают по ссылке, а не через меню).
+ * `orgCard` — вход в карточку организации: её вкладки проверяются по реестру.
  */
 export function screenRuleChecks(
   cabinet: string,
   role: CabinetRole,
-  options: { settingsCabinet?: SettingsCabinet; extraUrls?: string[] } = {}
+  options: { settingsCabinet?: SettingsCabinet; extraUrls?: string[]; orgCard?: OrgCardEntry } = {}
 ): void {
   const urls = [...screenUrlsFor(role, options.settingsCabinet), ...(options.extraUrls ?? [])];
+
+  if (options.orgCard) orgCardTabChecks(cabinet, options.orgCard);
 
   test.describe(`Правила экранов (§0 и У-13): ${cabinet}`, () => {
     test.skip(({ viewport }) => (viewport?.width ?? 0) >= 768, 'только мобильный вьюпорт');
