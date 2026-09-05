@@ -37,9 +37,7 @@ describe('отбор «без ИНН» одинаков во всех кабин
   });
 
   it('пустой результат отбора объясняет себя, а не молчит (У-74)', () => {
-    expect(read('components/manager/manager-orgs-list.tsx')).toContain(
-      'Организаций без ИНН нет'
-    );
+    expect(read('components/manager/manager-orgs-list.tsx')).toContain('Организаций без ИНН нет');
   });
 
   it('список показывает, у кого ИНН не заполнен', () => {
@@ -49,9 +47,10 @@ describe('отбор «без ИНН» одинаков во всех кабин
   });
 
   it('плашка «ИНН не указан» и кнопка есть во всех трёх карточках', () => {
-    // У менеджера и руководителя карточка общая, у админа — своя простыня.
+    // Карточка у всех трёх кабинетов общая (с этапа 9 и у админа — до того
+    // у него была своя простыня со своей плашкой): плашку рисует компонент,
+    // а кнопку каждая страница передаёт ему сама.
     expect(read('components/manager/org-card-tabs.tsx')).toContain('ИНН не указан');
-    expect(read('app/admin/organizations/[id]/page.tsx')).toContain('ИНН не указан');
     for (const file of [
       'app/manager/organizations/[id]/page.tsx',
       'app/leader/organizations/[id]/page.tsx',

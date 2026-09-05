@@ -313,6 +313,33 @@ describe('getOrganizationCard — изоляция', () => {
 });
 
 /**
+ * Model A (этап 9, PR-1): администратор ведёт карточку через зеркало
+ * `/admin/*`, и сервис отдаёт ему организацию любой компании — без
+ * `companyId` и без закрепления. До этого страница администратора была
+ * плоской именно потому, что сервис вернул бы ему null (`⚠` AUDIT от 30.08).
+ */
+describe('getOrganizationCard — администратор (Model A)', () => {
+  const adminSession = (): SessionPayload =>
+    ({ sub: 'g4-admin', role: 'admin', managedOrgIds: [] }) as unknown as SessionPayload;
+
+  it('видит организацию любой компании: и A (teamMode ON), и B (OFF)', async () => {
+    const a = await getOrganizationCard(prisma, adminSession(), orgA);
+    const b = await getOrganizationCard(prisma, adminSession(), orgB);
+    expect(a?.id).toBe(orgA);
+    expect(b?.id).toBe(orgB);
+    // Внутренний контур грузится как у сотрудника ЦО: платежи и журнал на месте.
+    expect(a?.payments.length).toBeGreaterThan(0);
+    expect(Array.isArray(a?.auditTrail)).toBe(true);
+    // `see_commission` у admin — `return true` в policy.ts.
+    expect(a?.commission).not.toBeNull();
+  });
+
+  it('несуществующая организация — null, а не пустая карточка', async () => {
+    expect(await getOrganizationCard(prisma, adminSession(), 'no-such-org')).toBeNull();
+  });
+});
+
+/**
  * Лидер-инвариант C8 в САМОЙ карточке, а не только в гарде страницы.
  *
  * Дефект, найденный живой проверкой стенда 30.07.2026: PR #273 добавил правило

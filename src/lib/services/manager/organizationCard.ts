@@ -230,19 +230,24 @@ export async function getOrganizationCard(
   // отдавала null, и страница показывала «не найдено». Поймано живой проверкой
   // на стенде 30.07.2026.
   const visible =
-    session.role === 'organization'
-      ? activeOrgIds(session).includes(orgId)
-      : session.role === 'partner'
-        ? // Принадлежность портфелю — по БД, а не по сессии: список организаций
-          // в токене устаревает, привязка к партнёру — нет. Дополнительный
-          // персональный скоуп (`assignedOrgIds`) сужает её ещё раз.
-          !!session.partnerId &&
-          org.partnerId === session.partnerId &&
-          ((session.assignedOrgIds ?? []).length === 0 ||
-            (session.assignedOrgIds ?? []).includes(orgId))
-        : teamMode
-          ? !!session.companyId && org.companyId === session.companyId
-          : canSeeOrganization(session, orgId) || isLeaderSameCompany(session, org.companyId);
+    session.role === 'admin'
+      ? // Model A: администратор работает через зеркало `/admin`, скоуп ему
+        // не нужен (как везде в `policy.ts`). Чужой или несуществующий `id`
+        // всё равно даёт null — организации нет (проверка выше).
+        true
+      : session.role === 'organization'
+        ? activeOrgIds(session).includes(orgId)
+        : session.role === 'partner'
+          ? // Принадлежность портфелю — по БД, а не по сессии: список организаций
+            // в токене устаревает, привязка к партнёру — нет. Дополнительный
+            // персональный скоуп (`assignedOrgIds`) сужает её ещё раз.
+            !!session.partnerId &&
+            org.partnerId === session.partnerId &&
+            ((session.assignedOrgIds ?? []).length === 0 ||
+              (session.assignedOrgIds ?? []).includes(orgId))
+          : teamMode
+            ? !!session.companyId && org.companyId === session.companyId
+            : canSeeOrganization(session, orgId) || isLeaderSameCompany(session, org.companyId);
   if (!visible) return null;
 
   const [

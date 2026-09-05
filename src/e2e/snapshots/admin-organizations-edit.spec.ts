@@ -22,7 +22,8 @@ test('admin organization edit page with rate override renders consistently', asy
     .getAttribute('href');
   expect(detailHref).toBeTruthy();
 
-  await page.goto(detailHref!);
+  // Этап 9 (У-95): карточка стала вкладочной, форма и ставка — во вкладке «Настройки».
+  await page.goto(detailHref! + '?tab=settings');
   await page.waitForLoadState('networkidle');
 
   await expect(page).toHaveScreenshot(`admin-organization-edit-${testInfo.project.name}.png`, {

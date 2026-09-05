@@ -28,10 +28,19 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (!isStaffManagerSide(session)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  // Этап 9 (PR-1): администратор тоже — та же кнопка на той же карточке
+  // (`orgCardTabsFor('admin')`, §7.3 ТЗ); прецедент — `documents/preview`.
+  if (!(session.role === 'admin' || isStaffManagerSide(session)))
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   const { id } = await ctx.params;
-  if (!(await canManagerAccessOrg(prisma, session, id))) {
+  // Model A: администратору скоуп не нужен, но чужой или несуществующий `id`
+  // всё равно 404 — существование организации проверяется по базе.
+  const visible =
+    session.role === 'admin'
+      ? !!(await prisma.organization.findUnique({ where: { id }, select: { id: true } }))
+      : await canManagerAccessOrg(prisma, session, id);
+  if (!visible) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
 

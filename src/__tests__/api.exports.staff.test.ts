@@ -53,6 +53,9 @@ const leaderSession = {
   companyId: 'c1',
 } as never;
 const orgSession = { sub: 'o1', role: 'organization' } as never;
+// Этап 9 PR-1: администратор открывает ту же карточку через зеркало `/admin/*`
+// (Model A) — кнопки выгрузки ведут на эти же роуты.
+const adminSession = { sub: 'a1', role: 'admin' } as never;
 
 const ORDER = {
   id: 'o1',
@@ -207,6 +210,29 @@ describe('GET /api/manager/organizations/[id]/certificates/export', () => {
     expect(wb.worksheets[0]!.name).toBe('Удостоверения');
   });
 
+  it('администратор (Model A): проходит без canManagerAccessOrg, скоуп — существование организации', async () => {
+    getSession.mockResolvedValue(adminSession);
+    const res = await orgCertsExport(req('http://x/e'), params('org1'));
+    expect(res.status).toBe(200);
+    expect(canManagerAccessOrg).not.toHaveBeenCalled();
+    expect(prisma.organization.findUnique).toHaveBeenCalledWith({
+      where: { id: 'org1' },
+      select: { id: true },
+    });
+    expect(listCertificates).toHaveBeenCalledWith(
+      expect.anything(),
+      adminSession,
+      expect.objectContaining({ organizationId: 'org1' })
+    );
+  });
+
+  it('администратор: несуществующая организация → 404, выборка не зовётся', async () => {
+    getSession.mockResolvedValue(adminSession);
+    vi.mocked(prisma.organization.findUnique).mockResolvedValue(null as never);
+    expect((await orgCertsExport(req('http://x/e'), params('ghost'))).status).toBe(404);
+    expect(listCertificates).not.toHaveBeenCalled();
+  });
+
   it('неизвестный status игнорируется', async () => {
     getSession.mockResolvedValue(managerSession);
     await orgCertsExport(req('http://x/e?status=bogus'), params('org1'));
@@ -245,6 +271,15 @@ describe('GET /api/manager/organizations/[id]/payments/export', () => {
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(await res.arrayBuffer());
     expect(wb.getWorksheet('Итоги')!.getColumn(2).values.map(String)).toContain('ООО Ромашка');
+  });
+
+  it('администратор (Model A): 200 без canManagerAccessOrg; несуществующая организация → 404', async () => {
+    getSession.mockResolvedValue(adminSession);
+    expect((await orgPaymentsExport(req('http://x/e'), params('org1'))).status).toBe(200);
+    expect(canManagerAccessOrg).not.toHaveBeenCalled();
+
+    vi.mocked(prisma.organization.findUnique).mockResolvedValue(null as never);
+    expect((await orgPaymentsExport(req('http://x/e'), params('ghost'))).status).toBe(404);
   });
 
   it('организация без записи в БД — прочерк вместо названия', async () => {

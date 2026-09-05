@@ -80,6 +80,12 @@ export default async function OrganizationCompanyPage({
         card={card}
         activeTab={activeTab}
         tabs={visibleTabs}
+        // Выгрузка удостоверений — роутом заказчика (свой скоуп); staff-роут
+        // карточки заказчику отвечает 403 (этап 9, PR-1).
+        certificatesExport={{
+          base: '/api/organization/certificates/export',
+          params: { org: ctx.activeOrgId },
+        }}
         employees={
           employees ? (
             <OrgEmployeesSection

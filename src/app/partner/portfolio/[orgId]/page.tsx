@@ -72,6 +72,12 @@ export default async function OrgCardPage({
         activeTab={activeTab}
         tabs={visibleTabs}
         hrefFor={(key) => partnerOrgTabHref(orgId, key)}
+        // Выгрузка удостоверений — партнёрским роутом (свой скоуп); staff-роут
+        // карточки партнёру отвечает 403 (этап 9, PR-1).
+        certificatesExport={{
+          base: '/api/partner/certificates/export',
+          params: { organization: orgId },
+        }}
         employees={
           employees ? (
             <OrgEmployeesSection

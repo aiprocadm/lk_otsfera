@@ -46,10 +46,17 @@ vi.mock('@/components/manager/org-card-tabs', () => ({
     tabs: Array<{ key: string }>;
     employees?: React.ReactNode;
     settings?: React.ReactNode;
+    certificatesExport?: { base: string; params?: Record<string, string> };
   }) =>
     React.createElement(
       'div',
-      { 'data-testid': 'card', 'data-active': p.activeTab },
+      {
+        'data-testid': 'card',
+        'data-active': p.activeTab,
+        'data-certs-export': p.certificatesExport
+          ? `${p.certificatesExport.base}?${new URLSearchParams(p.certificatesExport.params).toString()}`
+          : '',
+      },
       p.tabs.map((t) => t.key).join(','),
       p.employees,
       p.settings
@@ -127,13 +134,20 @@ describe('«Моя организация» (У-100)', () => {
 
   it('вкладка выбирается адресом, неизвестная — падает на «Обзор»', async () => {
     const employees = await render({ tab: 'employees' });
-    expect(employees.container.querySelector('[data-testid="card"]')?.getAttribute('data-active')).toBe(
-      'employees'
-    );
+    expect(
+      employees.container.querySelector('[data-testid="card"]')?.getAttribute('data-active')
+    ).toBe('employees');
 
     const bogus = await render({ tab: 'leads' });
     expect(bogus.container.querySelector('[data-testid="card"]')?.getAttribute('data-active')).toBe(
       'overview'
+    );
+  });
+
+  it('выгрузка удостоверений — роутом заказчика, а не staff-роутом карточки', async () => {
+    const { container } = await render({ tab: 'certificates' });
+    expect(container.querySelector('[data-testid="card"]')?.getAttribute('data-certs-export')).toBe(
+      '/api/organization/certificates/export?org=org-1'
     );
   });
 
