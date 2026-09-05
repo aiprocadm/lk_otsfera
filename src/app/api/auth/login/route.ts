@@ -21,7 +21,7 @@ import {
   twoFactorCodeText,
 } from '@/lib/email/templates/two-factor-code';
 import { recordAudit } from '@/lib/auth/audit';
-import { log } from '@/lib/logging';
+import { bestEffort, log } from '@/lib/logging';
 
 // Dynamic import keeps react-dom/server out of the static module graph
 // (тот же приём, что в reset-password/request).
@@ -166,7 +166,7 @@ export async function POST(req: Request) {
       entity: 'auth_2fa',
       entityId: user.id,
       userId: user.id,
-    }).catch(() => {});
+    }).catch(bestEffort('[auth/login] audit failed (2fa_code_sent)'));
     const pending = await signTwoFactorPendingToken(user.id);
     const res = NextResponse.json({ ok: true, twoFactorRequired: true });
     res.cookies.set('2fa_pending', pending, {

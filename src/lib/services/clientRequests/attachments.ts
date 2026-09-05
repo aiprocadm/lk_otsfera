@@ -8,7 +8,7 @@ import { recordAudit } from '@/lib/auth/audit';
 import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import { INFECTED_HIDDEN_WHERE } from '@/lib/services/scan/visibility';
-import { log } from '@/lib/logging';
+import { bestEffort, log } from '@/lib/logging';
 import { clientRequestScopeWhere } from './list';
 
 /**
@@ -207,7 +207,9 @@ export async function uploadClientRequestAttachment(
       return { ok: true, attachment };
     } catch (err) {
       // Компенсация: best-effort удаляем осиротевший объект из хранилища.
-      await storage.remove([path]).catch(() => undefined);
+      await storage
+        .remove([path])
+        .catch(bestEffort('[client-request-attachments] orphan remove failed'));
       throw err;
     }
   } catch (e) {
@@ -243,7 +245,7 @@ export async function deleteClientRequestAttachment(
 
     await getObjectStorage()
       .remove([attachment.path])
-      .catch(() => undefined);
+      .catch(bestEffort('[client-request-attachments] storage remove failed'));
 
     return { ok: true };
   } catch (e) {

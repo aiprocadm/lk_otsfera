@@ -9,7 +9,7 @@ import {
 import { parseMangoEvent } from '@/lib/telephony/mango/parse';
 import { ingestCallEvent } from '@/lib/services/telephony/ingestCall';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
-import { log } from '@/lib/logging';
+import { bestEffort, log } from '@/lib/logging';
 
 const STATE_ENTITY = 'telephony.mango';
 const DEFAULT_LOOKBACK_MS = 24 * 60 * 60 * 1000;
@@ -108,7 +108,7 @@ export async function mangoBackfillProcessor(
       payload: { ingested },
     },
     db
-  ).catch(() => {});
+  ).catch(bestEffort('[worker] mango-backfill writeSyncLog failed'));
 
   return { ingested };
 }

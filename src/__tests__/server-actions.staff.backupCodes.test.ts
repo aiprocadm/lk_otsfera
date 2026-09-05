@@ -60,9 +60,16 @@ describe('regenerateBackupCodesAction', () => {
     expect(generateBackupCodesMock).not.toHaveBeenCalled();
   });
 
-  it('audit failure does not break the action', async () => {
+  it('audit failure does not break the action — но уходит в warn (В-1)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     getSessionMock.mockResolvedValue({ sub: 'u1', role: 'manager' });
-    recordAuditMock.mockRejectedValue(new Error('audit down'));
+    const err = new Error('audit down');
+    recordAuditMock.mockRejectedValue(err);
     expect((await regenerateBackupCodesAction()).ok).toBe(true);
+    expect(warn).toHaveBeenCalledWith(
+      '[staff/backupCodes] audit failed (2fa_backup_regenerated)',
+      err
+    );
+    warn.mockRestore();
   });
 });
