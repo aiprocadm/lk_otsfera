@@ -49,7 +49,7 @@
 ### Добавлено
 
 - **Хотфикс №8 сопровождения — `knip` снова зелёный** (находка `С-1` от
-  05.09.2026, PR @@H8LINK@@, прогон №3). После [#507](https://github.com/aiprocadm/lk_otsfera/pull/507) `npm run deadcode` показал
+  05.09.2026, PR [#508](https://github.com/aiprocadm/lk_otsfera/pull/508), прогон №3). После [#507](https://github.com/aiprocadm/lk_otsfera/pull/507) `npm run deadcode` показал
   новый мёртвый экспорт `BOARD_CAP` в `services/deals/board.ts`: тест доски
   сделок проверял предел числом `500`, а не константой. Тест теперь
   импортирует `BOARD_CAP`, проверяет через него `take` и само значение;
