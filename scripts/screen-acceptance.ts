@@ -5,6 +5,7 @@
  *
  *   npx tsx scripts/screen-acceptance.ts screens [--base 92c683e] [--head main]
  *                                                 [--sample 12] [--seed 175] [--depth 3]
+ *   npx tsx scripts/screen-acceptance.ts audit [--on 2026-09-05] [--apply]
  *
  * Режим `screens` берёт список экранов, изменённых программой
  * (`git diff --name-status <base> <head> -- 'src/app/**\/page.tsx'`), по каждому
@@ -17,10 +18,27 @@
  * Исходники читаются из рабочего дерева: починил экран — перезапустил и увидел.
  * Сами правила — чистые функции в `src/lib/acceptance/screenRules.ts`, у них
  * есть юнит-тест; здесь только диск, git и печать.
+ *
+ * Режим `audit` (`У-176`) — drift-аудит реестра `docs/tz/AUDIT.md`: по каждой
+ * строке `У-N` находит стражей (тест по имени из бэктиков или ссылке в
+ * `src/__tests__/`) и спрашивает у git, менялись ли якоря после последней
+ * сверки (`git log <коммит строки>..HEAD -- <якоря>`). Печатает четыре группы:
+ * «страж» (сверка = зелёный прогон стража, команда для vitest — в выводе),
+ * «якоря не менялись», «менялся — руками», «без якорей — руками». С `--apply`
+ * дописывает отметку дня в колонку «Сверено» первым двум группам; строки для
+ * ручной сверки отмечаются руками. Правила — в `src/lib/acceptance/auditRegistry.ts`.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import {
+  classifyRow,
+  markChecked,
+  parseAuditRows,
+  ruDate,
+  type AuditGroup,
+  type AuditRow,
+} from '../src/lib/acceptance/auditRegistry';
 import {
   analyzeScreen,
   cabinetOf,
@@ -168,12 +186,139 @@ function screens(): void {
   process.exitCode = gaps.length > 0 ? 1 : 0;
 }
 
+const AUDIT = join(ROOT, 'docs', 'tz', 'AUDIT.md');
+
+/** Имя стража из реестра → путь теста, если такой файл есть. */
+function resolveGuard(token: string): string | null {
+  const cands = token.startsWith('src/__tests__/')
+    ? [token]
+    : [`src/__tests__/${token}.test.ts`, `src/__tests__/${token}.test.tsx`];
+  return cands.find((c) => existsSync(join(ROOT, c))) ?? null;
+}
+
+/**
+ * Коммит, которым строку реестра правили в последний раз (`git blame`):
+ * точнее даты из колонки — реестр обновляется в том же PR, что и код, и
+ * коммиты того же дня до него уже сверены. Незакоммиченная строка → `null`.
+ */
+function rowCommit(line: number): string | null {
+  const out = execFileSync(
+    'git',
+    ['blame', '-L', `${line},${line}`, '--porcelain', '--', 'docs/tz/AUDIT.md'],
+    { cwd: ROOT, encoding: 'utf8' }
+  );
+  const sha = out.split(' ')[0] ?? '';
+  return /^[0-9a-f]{40}$/.test(sha) && !/^0+$/.test(sha) ? sha : null;
+}
+
+/**
+ * Якоря, у которых есть коммиты после точки сверки: после коммита строки,
+ * а если строка не закоммичена — после даты колонки (git смотрит и
+ * удалённые пути).
+ */
+function changedSince(
+  base: { commit: string | null; since: string },
+  anchors: readonly string[]
+): string[] {
+  if (anchors.length === 0) return [];
+  const range = base.commit ? [`${base.commit}..HEAD`] : [`--since=${base.since}T00:00:00`];
+  return anchors.filter((a) => {
+    const out = execFileSync('git', ['log', ...range, '--format=%h', '--', a], {
+      cwd: ROOT,
+      encoding: 'utf8',
+    });
+    return out.trim().length > 0;
+  });
+}
+
+function audit(): void {
+  const today = arg('on', new Date().toISOString().slice(0, 10));
+  const apply = process.argv.includes('--apply');
+  const md = readFileSync(AUDIT, 'utf8');
+  const rows = parseAuditRows(md);
+
+  const groups: Record<AuditGroup, Array<{ row: AuditRow; guards: string[]; changed: string[] }>> = {
+    guard: [],
+    unchanged: [],
+    changed: [],
+    manual: [],
+    fresh: [],
+  };
+  for (const row of rows) {
+    const guards = row.guardTokens
+      .map(resolveGuard)
+      .filter((g): g is string => g !== null)
+      .filter((g, i, all) => all.indexOf(g) === i);
+    const changed =
+      row.lastChecked === null || row.lastChecked === today
+        ? []
+        : changedSince({ commit: rowCommit(row.line), since: row.lastChecked }, row.anchors);
+    groups[classifyRow(row, { today, guards, changed })].push({ row, guards, changed });
+  }
+
+  const lines: string[] = [];
+  lines.push(`## Drift-аудит реестра — ${ruDate(today)}`);
+  lines.push('');
+  lines.push(
+    `Строк: ${rows.length}; страж — ${groups.guard.length}, якоря не менялись — ${groups.unchanged.length}, менялись (руками) — ${groups.changed.length}, без якорей (руками) — ${groups.manual.length}, сверены сегодня — ${groups.fresh.length}.`
+  );
+  lines.push('');
+
+  const guardFiles = [...new Set(groups.guard.flatMap((g) => g.guards))].sort();
+  lines.push(`### Страж (${groups.guard.length}) — тестов ${guardFiles.length}`);
+  lines.push('');
+  lines.push(`\`npx vitest run --mode=unit ${guardFiles.join(' ')}\``);
+  lines.push('');
+  for (const g of groups.guard) lines.push(`- \`${g.row.id}\` — ${g.guards.join(', ')}`);
+  lines.push('');
+
+  lines.push(`### Якоря не менялись (${groups.unchanged.length})`);
+  lines.push('');
+  for (const g of groups.unchanged) {
+    lines.push(`- \`${g.row.id}\` — с ${ruDate(g.row.lastChecked ?? '')}, якорей ${g.row.anchors.length}`);
+  }
+  lines.push('');
+
+  lines.push(`### Менялись — сверять руками (${groups.changed.length})`);
+  lines.push('');
+  for (const g of groups.changed) {
+    const since = g.row.lastChecked ? `с ${ruDate(g.row.lastChecked)}` : 'не сверялось';
+    lines.push(`- \`${g.row.id}\` (${since}) — ${g.changed.join(', ') || 'история якоря целиком'}`);
+    lines.push(`  Что проверять: ${g.row.what}`);
+  }
+  lines.push('');
+
+  lines.push(`### Без якорей — сверять руками (${groups.manual.length})`);
+  lines.push('');
+  for (const g of groups.manual) lines.push(`- \`${g.row.id}\` — ${g.row.what}`);
+  lines.push('');
+
+  if (groups.fresh.length > 0) {
+    lines.push(`### Сверены сегодня (${groups.fresh.length}): ${groups.fresh.map((g) => `\`${g.row.id}\``).join(', ')}`);
+    lines.push('');
+  }
+
+  if (apply) {
+    const marks = new Map<string, string>();
+    for (const g of groups.guard) marks.set(g.row.id, `страж зелёный, прогон ${ruDate(today)}`);
+    for (const g of groups.unchanged) marks.set(g.row.id, `якоря не менялись, ${ruDate(today)}`);
+    writeFileSync(AUDIT, markChecked(md, marks));
+    lines.push(`Отметки записаны в AUDIT.md: ${marks.size}.`);
+    lines.push('');
+  }
+
+  process.stdout.write(lines.join('\n'));
+}
+
 const mode = process.argv[2];
 if (mode === 'screens') {
   screens();
+} else if (mode === 'audit') {
+  audit();
 } else {
   process.stderr.write(
-    'Использование: tsx scripts/screen-acceptance.ts screens [--base <коммит>] [--head <ветка>] [--sample N] [--seed N] [--depth N]\n'
+    'Использование: tsx scripts/screen-acceptance.ts screens [--base <коммит>] [--head <ветка>] [--sample N] [--seed N] [--depth N]\n' +
+      '               tsx scripts/screen-acceptance.ts audit [--on YYYY-MM-DD] [--apply]\n'
   );
   process.exitCode = 2;
 }
