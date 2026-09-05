@@ -2,21 +2,46 @@ import React from 'react';
 import { prisma } from '@/lib/db/prisma';
 import { requirePartner } from '@/lib/auth/requireRole';
 import { isPartnerAdmin } from '@/lib/auth/policy';
-import { getFinanceKpis, listStatements } from '@/lib/services/partner/finance';
+import { countStatements, getFinanceKpis, listStatements } from '@/lib/services/partner/finance';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { CommissionStatementsList } from '@/components/partner/commission-statements-list';
 import { ManualCalcForm } from '@/components/partner/manual-calc-form';
 import { fmtMoney } from '@/lib/format';
 import { ExportLink } from '@/components/ui/export-link';
+import { Paginator } from '@/components/ui';
 
 import { PageHeader } from '@/components/ui/page-header';
-export default async function FinancePage() {
+type SearchParams = { take?: string; skip?: string };
+
+const DEFAULT_TAKE = 30;
+const MAX_TAKE = 100;
+
+/** Мусор в адресе (`?take=abc`, `?skip=-5`) — не ошибка, а «как по умолчанию». */
+function parsePage(sp: SearchParams): { take: number; skip: number } {
+  const take = Number(sp.take);
+  const skip = Number(sp.skip);
+  return {
+    take: Number.isFinite(take) && take >= 1 ? Math.min(Math.floor(take), MAX_TAKE) : DEFAULT_TAKE,
+    skip: Number.isFinite(skip) && skip > 0 ? Math.floor(skip) : 0,
+  };
+}
+
+export default async function FinancePage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
   const session = await requirePartner();
+  const sp = await searchParams;
+  const { take, skip } = parsePage(sp);
 
   const { partnerId } = session;
-  const [kpis, statements] = await Promise.all([
+  // `С-6` (хотфикс №5): раньше страница молча показывала 30 последних
+  // отчётов — старые были только в выгрузке. Теперь список постраничный.
+  const [kpis, statements, total] = await Promise.all([
     getFinanceKpis(prisma, partnerId),
-    listStatements(prisma, { partnerId, take: 30 }),
+    listStatements(prisma, { partnerId, skip, take }),
+    countStatements(prisma, { partnerId }),
   ]);
 
   const canManage = isPartnerAdmin(session);
@@ -45,6 +70,13 @@ export default async function FinancePage() {
       </div>
 
       <CommissionStatementsList statements={statements} canManage={canManage} />
+      <Paginator
+        basePath="/partner/finance"
+        searchParams={sp}
+        take={take}
+        skip={skip}
+        total={total}
+      />
     </div>
   );
 }

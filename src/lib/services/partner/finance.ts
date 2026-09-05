@@ -63,12 +63,14 @@ export type ListStatementsOptions = {
   take?: number;
 };
 
-export async function listStatements(
-  prisma: PrismaClient,
-  opts: ListStatementsOptions
-): Promise<StatementListItem[]> {
-  const { partnerId, status, from, to, skip = 0, take = 20 } = opts;
-
+/**
+ * Условие выборки отчётов — одно на список и на счётчик, иначе «всего» в
+ * пагинаторе разойдётся с тем, что человек видит на странице.
+ */
+function statementsWhere(
+  opts: Omit<ListStatementsOptions, 'skip' | 'take'>
+): Prisma.CommissionStatementWhereInput {
+  const { partnerId, status, from, to } = opts;
   const where: Prisma.CommissionStatementWhereInput = {
     partnerId,
     supersededBy: null,
@@ -79,9 +81,29 @@ export async function listStatements(
     if (from) (where.periodFrom as Prisma.DateTimeFilter).gte = from;
     if (to) (where.periodFrom as Prisma.DateTimeFilter).lte = to;
   }
+  return where;
+}
+
+/**
+ * `С-6` (хотфикс №5): полный счётчик отчётов по тому же условию, что и
+ * `listStatements` — страница `/partner/finance` листает их постранично,
+ * а не молча обрезает на первых 30.
+ */
+export function countStatements(
+  prisma: PrismaClient,
+  opts: Omit<ListStatementsOptions, 'skip' | 'take'>
+): Promise<number> {
+  return prisma.commissionStatement.count({ where: statementsWhere(opts) });
+}
+
+export async function listStatements(
+  prisma: PrismaClient,
+  opts: ListStatementsOptions
+): Promise<StatementListItem[]> {
+  const { skip = 0, take = 20 } = opts;
 
   const rows = await prisma.commissionStatement.findMany({
-    where,
+    where: statementsWhere(opts),
     orderBy: { periodFrom: 'desc' },
     skip,
     take,
