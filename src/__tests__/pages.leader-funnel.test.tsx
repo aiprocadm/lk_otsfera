@@ -67,6 +67,8 @@ describe('LeaderFunnelPage', () => {
     getFunnelBoard.mockResolvedValue({
       stages: [{ id: 'default:new', name: 'Новый' }],
       columns: [],
+      shown: 0,
+      total: 0,
     });
 
     const { container } = await renderServerComponent(LeaderFunnelPage());
@@ -82,6 +84,8 @@ describe('LeaderFunnelPage', () => {
     getFunnelBoard.mockResolvedValue({
       stages: [{ id: 'custom-1', name: 'Своя стадия' }],
       columns: [],
+      shown: 0,
+      total: 0,
     });
 
     const { container } = await renderServerComponent(LeaderFunnelPage());
@@ -92,10 +96,25 @@ describe('LeaderFunnelPage', () => {
   it('renders with an empty stages array (isDefault stays false, no crash on stages[0])', async () => {
     isFeatureEnabled.mockReturnValue(true);
     requireManagerLeader.mockResolvedValue(SESSION);
-    getFunnelBoard.mockResolvedValue({ stages: [], columns: [] });
+    getFunnelBoard.mockResolvedValue({ stages: [], columns: [], shown: 0, total: 0 });
 
     const { container } = await renderServerComponent(LeaderFunnelPage());
 
     expect(container.textContent).toContain('false');
+    expect(container.textContent).not.toContain('Показаны первые');
+  });
+
+  // `Р-27` (В-3): доска режется по `BOARD_CAP`, живые лиды идут первыми —
+  // экран честно говорит, сколько скрыто, и где искать остальное.
+  it('total > shown → подпись «Показаны первые N из M» с подсказкой про карточку организации', async () => {
+    isFeatureEnabled.mockReturnValue(true);
+    requireManagerLeader.mockResolvedValue(SESSION);
+    getFunnelBoard.mockResolvedValue({ stages: [], columns: [], shown: 500, total: 1200 });
+
+    const { container } = await renderServerComponent(LeaderFunnelPage());
+
+    expect(container.textContent).toContain('Показаны первые 500 из 1200.');
+    expect(container.textContent).toContain('Живые лиды идут первыми и не теряются');
+    expect(container.textContent).toContain('вкладка «Лиды»');
   });
 });

@@ -27,7 +27,13 @@ import { TaskList, sortTaskRows } from '@/components/tasks/task-list';
 import type { TaskBoard as TaskBoardData, TaskCard } from '@/lib/services/tasks/board';
 import type { TaskFormOptions } from '@/components/tasks/task-dialog';
 
-const options: TaskFormOptions = { users: [], organizations: [], orders: [] };
+const options: TaskFormOptions = {
+  users: [],
+  organizations: [],
+  orders: [],
+  organizationsTotal: 0,
+  ordersTotal: 0,
+};
 
 function card(over: Partial<TaskCard>): TaskCard {
   return {
@@ -65,6 +71,8 @@ const col = (id: string, name: string) => ({
 
 function makeBoard(cards: TaskCard[]): TaskBoardData {
   return {
+    shown: cards.length,
+    total: cards.length,
     columns: [col('col-1', 'К выполнению')],
     board: [{ column: col('col-1', 'К выполнению'), cards }],
   };

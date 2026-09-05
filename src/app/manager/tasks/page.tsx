@@ -10,6 +10,7 @@ import { TaskList } from '@/components/tasks/task-list';
 import { TasksToolbar } from '@/components/tasks/tasks-toolbar';
 
 import { PageHeader } from '@/components/ui/page-header';
+import { ListCapNotice } from '@/components/ui';
 export const dynamic = 'force-dynamic';
 
 export default async function ManagerTasksPage({
@@ -39,6 +40,11 @@ export default async function ManagerTasksPage({
       ) : (
         <TaskBoard board={board} options={options} />
       )}
+      <ListCapNotice
+        shown={board.shown}
+        total={board.total}
+        hint="Открытые задачи идут первыми и не теряются; за пределом — самые старые выполненные, сузьте охват фильтрами."
+      />
     </div>
   );
 }

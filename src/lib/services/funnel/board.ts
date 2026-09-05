@@ -34,7 +34,21 @@ type FunnelCard = {
 };
 
 type FunnelColumn = { stage: FunnelStageView; cards: FunnelCard[] };
-export type FunnelBoard = { stages: FunnelStageView[]; columns: FunnelColumn[] };
+export type FunnelBoard = {
+  stages: FunnelStageView[];
+  columns: FunnelColumn[];
+  /** `С-6`/`Р-27`: сколько карточек получено (≤ `BOARD_CAP`) и сколько подходит всего. */
+  shown: number;
+  total: number;
+};
+
+/**
+ * Предел воронки. `status asc` — порядок объявления `LeadStatus` в
+ * `schema.prisma` (`new, in_review, qualified, promoted_*, rejected`): живые
+ * лиды попадают в предел первыми, за него уходят старые обработанные —
+ * страж `prisma.enum-terminal-last.guardrail` держит порядок.
+ */
+export const BOARD_CAP = 500;
 
 const CARD_INCLUDE = {
   organization: { select: { name: true } },
@@ -46,27 +60,30 @@ export async function getFunnelBoard(
   session: SessionPayload
 ): Promise<FunnelBoard> {
   // Клиентская роль → пустая доска (не leak-аем ни лиды, ни словарь стадий).
-  if (!isStaff(session)) return { stages: [], columns: [] };
+  if (!isStaff(session)) return { stages: [], columns: [], shown: 0, total: 0 };
   const stages = await resolveFunnelStages(prisma, session.companyId ?? '');
   const where = session.accessProfile
     ? leadWhereForLevel(session, session.accessProfile.leads)
     : {};
 
-  const leads = await prisma.lead.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-    take: 500,
-    select: {
-      id: true,
-      clientCompanyName: true,
-      subject: true,
-      estimatedAmount: true,
-      status: true,
-      funnelStageId: true,
-      createdAt: true,
-      ...CARD_INCLUDE,
-    },
-  });
+  const [leads, total] = await Promise.all([
+    prisma.lead.findMany({
+      where,
+      orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+      take: BOARD_CAP,
+      select: {
+        id: true,
+        clientCompanyName: true,
+        subject: true,
+        estimatedAmount: true,
+        status: true,
+        funnelStageId: true,
+        createdAt: true,
+        ...CARD_INCLUDE,
+      },
+    }),
+    prisma.lead.count({ where }),
+  ]);
 
   const columns: FunnelColumn[] = stages.map((stage) => ({ stage, cards: [] }));
   const byStageId = new Map(columns.map((c) => [c.stage.id, c]));
@@ -85,7 +102,7 @@ export async function getFunnelBoard(
     });
   }
 
-  return { stages, columns };
+  return { stages, columns, shown: leads.length, total };
 }
 
 export type MoveFunnelLeadError =

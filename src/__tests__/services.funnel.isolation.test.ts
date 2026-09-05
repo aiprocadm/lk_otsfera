@@ -74,7 +74,7 @@ describe('getFunnelBoard — клиентские роли получают пу
     'роль %s (даже с companyId) → пустые stages и columns',
     async (role) => {
       const board = await getFunnelBoard(prisma, client(role));
-      expect(board).toEqual({ stages: [], columns: [] });
+      expect(board).toEqual({ stages: [], columns: [], shown: 0, total: 0 });
     }
   );
 

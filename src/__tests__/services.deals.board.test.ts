@@ -74,20 +74,29 @@ type Mocks = {
   dealFindMany: ReturnType<typeof vi.fn>;
   dealFindFirst: ReturnType<typeof vi.fn>;
   dealUpdate: ReturnType<typeof vi.fn>;
+  dealCount: ReturnType<typeof vi.fn>;
 };
 
-function makePrisma(opts: { stages?: unknown[]; deals?: unknown[]; deal?: unknown } = {}): {
+function makePrisma(
+  opts: { stages?: unknown[]; deals?: unknown[]; deal?: unknown; total?: number } = {}
+): {
   prisma: PrismaClient;
 } & Mocks {
   const stageFindMany = vi.fn().mockResolvedValue(opts.stages ?? []);
   const dealFindMany = vi.fn().mockResolvedValue(opts.deals ?? []);
   const dealFindFirst = vi.fn().mockResolvedValue(opts.deal ?? null);
   const dealUpdate = vi.fn().mockResolvedValue({});
+  const dealCount = vi.fn().mockResolvedValue(opts.total ?? (opts.deals ?? []).length);
   const prisma = {
     dealStage: { findMany: stageFindMany },
-    deal: { findMany: dealFindMany, findFirst: dealFindFirst, update: dealUpdate },
+    deal: {
+      findMany: dealFindMany,
+      findFirst: dealFindFirst,
+      update: dealUpdate,
+      count: dealCount,
+    },
   } as unknown as PrismaClient;
-  return { prisma, stageFindMany, dealFindMany, dealFindFirst, dealUpdate };
+  return { prisma, stageFindMany, dealFindMany, dealFindFirst, dealUpdate, dealCount };
 }
 
 function makeDeal(over: Record<string, unknown> = {}) {
@@ -161,7 +170,12 @@ describe('dealScopeWhere', () => {
 describe('getDealBoard', () => {
   it('клиентская роль → пустая доска и НИ ОДНОГО запроса в БД', async () => {
     const { prisma, stageFindMany, dealFindMany } = makePrisma();
-    expect(await getDealBoard(prisma, PARTNER)).toEqual({ stages: [], columns: [] });
+    expect(await getDealBoard(prisma, PARTNER)).toEqual({
+      stages: [],
+      columns: [],
+      shown: 0,
+      total: 0,
+    });
     expect(stageFindMany).not.toHaveBeenCalled();
     expect(dealFindMany).not.toHaveBeenCalled();
   });
@@ -219,6 +233,39 @@ describe('getDealBoard', () => {
     expect(dealFindMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { companyId: 'c1', managerId: 'm-9' }, take: 500 })
     );
+  });
+
+  describe('Р-27 (В-3): открытые первыми, честный счётчик', () => {
+    it('findMany сортирует status asc → createdAt desc (открытые попадают в предел первыми)', async () => {
+      const { prisma, dealFindMany } = makePrisma({ stages: CUSTOM_STAGES });
+      await getDealBoard(prisma, LEADER);
+      expect(dealFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: [{ status: 'asc' }, { createdAt: 'desc' }] })
+      );
+    });
+
+    it('count идёт по тому же where, что и findMany; shown/total в ответе', async () => {
+      const deals = [makeDeal({ id: 'd-1' }), makeDeal({ id: 'd-2', status: 'won' })];
+      const { prisma, dealFindMany, dealCount } = makePrisma({
+        stages: CUSTOM_STAGES,
+        deals,
+        total: 777,
+      });
+      const board = await getDealBoard(prisma, LEADER, { managerId: 'm-9' });
+      const where = (dealFindMany.mock.calls[0]![0] as { where: unknown }).where;
+      expect(dealCount).toHaveBeenCalledWith({ where });
+      expect(where).toEqual({ companyId: 'c1', managerId: 'm-9' });
+      expect(board.shown).toBe(2);
+      expect(board.total).toBe(777);
+    });
+
+    it('клиентская роль: shown/total = 0 без запросов', async () => {
+      const { prisma, dealCount, dealFindMany } = makePrisma();
+      const board = await getDealBoard(prisma, PARTNER);
+      expect(board).toEqual({ stages: [], columns: [], shown: 0, total: 0 });
+      expect(dealCount).not.toHaveBeenCalled();
+      expect(dealFindMany).not.toHaveBeenCalled();
+    });
   });
 
   it('маппинг DealCard: amount.toFixed(2), organizationId/managerId и имена; null-поля', async () => {

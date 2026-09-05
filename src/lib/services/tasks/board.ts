@@ -36,7 +36,21 @@ export type TaskCard = {
 };
 
 type TaskBoardColumn = { column: TaskColumnView; cards: TaskCard[] };
-export type TaskBoard = { columns: TaskColumnView[]; board: TaskBoardColumn[] };
+export type TaskBoard = {
+  columns: TaskColumnView[];
+  board: TaskBoardColumn[];
+  /** `С-6`/`Р-27`: сколько карточек получено (≤ `BOARD_CAP`) и сколько подходит всего. */
+  shown: number;
+  total: number;
+};
+
+/**
+ * Предел доски. `status asc` — порядок объявления `TaskStatus` в
+ * `schema.prisma` (`todo, in_progress, review, done`): открытые задачи
+ * попадают в предел первыми, за него уходят старые выполненные — страж
+ * `prisma.enum-terminal-last.guardrail` держит порядок.
+ */
+export const BOARD_CAP = 500;
 
 /** Этап 7 (ФТ-7.3): фильтры доски/списка. Всё поверх охвата профиля (не вместо). */
 export type TaskBoardFilters = {
@@ -127,12 +141,15 @@ export async function listTaskBoard(
   const columns = await resolveTaskColumns(prisma, session.companyId ?? '');
   const where = taskFiltersWhere(session, filters, new Date());
 
-  const tasks = await prisma.task.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-    take: 500,
-    select: CARD_SELECT,
-  });
+  const [tasks, total] = await Promise.all([
+    prisma.task.findMany({
+      where,
+      orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+      take: BOARD_CAP,
+      select: CARD_SELECT,
+    }),
+    prisma.task.count({ where }),
+  ]);
 
   const board: TaskBoardColumn[] = columns.map((column) => ({ column, cards: [] }));
   const byColumnId = new Map(board.map((c) => [c.column.id, c]));
@@ -143,7 +160,7 @@ export async function listTaskBoard(
     byColumnId.get(column.id)?.cards.push(toCard(t, column.id));
   }
 
-  return { columns, board };
+  return { columns, board, shown: tasks.length, total };
 }
 
 /**
@@ -186,34 +203,45 @@ export type TaskFormOptions = {
   users: { id: string; name: string }[];
   organizations: { id: string; name: string }[];
   orders: { id: string; title: string }[];
+  /** `Р-27`: полные счётчики — диалог подписывает усечённый селект «показаны N из M». */
+  organizationsTotal: number;
+  ordersTotal: number;
 };
+
+/** Пределы селектов диалога задачи (`Р-27`: организации — по последней активности). */
+export const FORM_ORGANIZATIONS_CAP = 200;
+export const FORM_ORDERS_CAP = 100;
 
 export async function getTaskFormOptions(
   prisma: PrismaClient,
   session: SessionPayload
 ): Promise<TaskFormOptions> {
   const companyId = session.companyId ?? NO_COMPANY_SENTINEL; // нет компании → пустые списки (fail-safe)
-  const [users, organizations, orders] = await Promise.all([
+  const [users, organizations, orders, organizationsTotal, ordersTotal] = await Promise.all([
     prisma.user.findMany({
       where: { companyId, role: { in: ['manager', 'leader'] }, isActive: true },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
       take: 200,
     }),
+    // `Р-27`: по последней активности, а не по алфавиту — в 200 попадают
+    // организации, с которыми сейчас работают, а не 200 на «А…».
     prisma.organization.findMany({
       where: { companyId },
       select: { id: true, name: true },
-      orderBy: { name: 'asc' },
-      take: 200,
+      orderBy: { updatedAt: 'desc' },
+      take: FORM_ORGANIZATIONS_CAP,
     }),
     prisma.order.findMany({
       where: { companyId },
       select: { id: true, title: true },
       orderBy: { createdAt: 'desc' },
-      take: 100,
+      take: FORM_ORDERS_CAP,
     }),
+    prisma.organization.count({ where: { companyId } }),
+    prisma.order.count({ where: { companyId } }),
   ]);
-  return { users, organizations, orders };
+  return { users, organizations, orders, organizationsTotal, ordersTotal };
 }
 
 export type MoveTaskError = 'not_found' | 'forbidden' | 'invalid_column';

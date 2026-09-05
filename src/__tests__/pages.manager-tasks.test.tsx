@@ -55,6 +55,14 @@ const SESSION = {
   companyId: 'c1',
 };
 
+const EMPTY_OPTIONS = {
+  users: [],
+  organizations: [],
+  orders: [],
+  organizationsTotal: 0,
+  ordersTotal: 0,
+};
+
 function sp(params: Record<string, string> = {}) {
   return { searchParams: Promise.resolve(params) };
 }
@@ -80,8 +88,8 @@ describe('ManagerTasksPage', () => {
   it('renders the task board when the flag is enabled (default filters, no assignee filter for manager)', async () => {
     isFeatureEnabled.mockReturnValue(true);
     requireManager.mockResolvedValue(SESSION);
-    listTaskBoard.mockResolvedValue({ columns: [], board: [] });
-    getTaskFormOptions.mockResolvedValue({ users: [], organizations: [], orders: [] });
+    listTaskBoard.mockResolvedValue({ columns: [], board: [], shown: 0, total: 0 });
+    getTaskFormOptions.mockResolvedValue(EMPTY_OPTIONS);
 
     const { container } = await renderServerComponent(ManagerTasksPage(sp()));
 
@@ -96,8 +104,8 @@ describe('ManagerTasksPage', () => {
   it('passes scope=mine and overdue=1 from searchParams to the service', async () => {
     isFeatureEnabled.mockReturnValue(true);
     requireManager.mockResolvedValue(SESSION);
-    listTaskBoard.mockResolvedValue({ columns: [], board: [] });
-    getTaskFormOptions.mockResolvedValue({ users: [], organizations: [], orders: [] });
+    listTaskBoard.mockResolvedValue({ columns: [], board: [], shown: 0, total: 0 });
+    getTaskFormOptions.mockResolvedValue(EMPTY_OPTIONS);
 
     await renderServerComponent(ManagerTasksPage(sp({ scope: 'mine', overdue: '1' })));
 
@@ -107,12 +115,42 @@ describe('ManagerTasksPage', () => {
   it('renders the list view when view=list (ФТ-7.4)', async () => {
     isFeatureEnabled.mockReturnValue(true);
     requireManager.mockResolvedValue(SESSION);
-    listTaskBoard.mockResolvedValue({ columns: [], board: [] });
-    getTaskFormOptions.mockResolvedValue({ users: [], organizations: [], orders: [] });
+    listTaskBoard.mockResolvedValue({ columns: [], board: [], shown: 0, total: 0 });
+    getTaskFormOptions.mockResolvedValue(EMPTY_OPTIONS);
 
     const { container } = await renderServerComponent(ManagerTasksPage(sp({ view: 'list' })));
 
     expect(container.querySelector('[data-testid="task-list"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="task-board"]')).toBeNull();
+  });
+});
+
+// `Р-27` (В-3): доска режется по `BOARD_CAP`, открытые задачи идут первыми —
+// экран честно говорит, сколько скрыто, и как сузить охват.
+describe('ManagerTasksPage — подпись «Показаны первые N из M» (Р-27)', () => {
+  beforeEach(() => {
+    isFeatureEnabled.mockReturnValue(true);
+    requireManager.mockResolvedValue(SESSION);
+    getTaskFormOptions.mockResolvedValue(EMPTY_OPTIONS);
+  });
+
+  it('total > shown → подпись с подсказкой про фильтры (и в списке тоже)', async () => {
+    listTaskBoard.mockResolvedValue({ columns: [], board: [], shown: 500, total: 812 });
+
+    const board = await renderServerComponent(ManagerTasksPage(sp()));
+    expect(board.container.textContent).toContain('Показаны первые 500 из 812.');
+    expect(board.container.textContent).toContain('Открытые задачи идут первыми и не теряются');
+    expect(board.container.textContent).toContain('сузьте охват фильтрами');
+
+    const list = await renderServerComponent(ManagerTasksPage(sp({ view: 'list' })));
+    expect(list.container.textContent).toContain('Показаны первые 500 из 812.');
+  });
+
+  it('total === shown → подписи нет', async () => {
+    listTaskBoard.mockResolvedValue({ columns: [], board: [], shown: 7, total: 7 });
+
+    const { container } = await renderServerComponent(ManagerTasksPage(sp()));
+
+    expect(container.textContent).not.toContain('Показаны первые');
   });
 });

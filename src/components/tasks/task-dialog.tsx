@@ -22,6 +22,26 @@ function dateValue(d: Date | null): string {
   return new Date(d).toISOString().slice(0, 10);
 }
 
+/**
+ * `Р-27`: селекты организации/заявки усечены сервисом (200/100). Текущая
+ * привязка редактируемой задачи обязана быть в списке — иначе `defaultValue`
+ * не найдёт свой `<option>`, браузер покажет «— не привязана —», и сохранение
+ * молча сотрёт связь (`updateTask` пишет `?? null`).
+ */
+function withCurrent<T extends { id: string }>(
+  list: T[],
+  current: { id: string | null; label: string | null } | null,
+  make: (id: string, label: string) => T
+): T[] {
+  if (!current?.id || list.some((o) => o.id === current.id)) return list;
+  return [make(current.id, current.label ?? 'Текущая привязка'), ...list];
+}
+
+/** Подпись под усечённым селектом; `null`, пока скрывать нечего. */
+function capHint(shown: number, total: number, what: string): string | null {
+  return total > shown ? `Показаны ${shown} из ${total} ${what}.` : null;
+}
+
 /** Этап 7 (ФТ-7.1): префилл привязки при создании из карточки лида/сделки. */
 export type TaskDialogLink = { leadId?: string; dealId?: string; label: string };
 
@@ -53,6 +73,23 @@ export function TaskDialog({
     ]
       .filter(Boolean)
       .join(', ');
+
+  const organizations = withCurrent(
+    options.organizations,
+    target ? { id: target.linkedOrganizationId, label: target.linkedOrganizationName } : null,
+    (id, name) => ({ id, name })
+  );
+  const orders = withCurrent(
+    options.orders,
+    target ? { id: target.linkedOrderId, label: target.linkedOrderTitle } : null,
+    (id, title) => ({ id, title })
+  );
+  const orgHint = capHint(
+    options.organizations.length,
+    options.organizationsTotal,
+    'организаций с последней активностью'
+  );
+  const orderHint = capHint(options.orders.length, options.ordersTotal, 'последних заявок');
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -152,24 +189,32 @@ export function TaskDialog({
           </Field>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Field htmlFor="tk-org" label="Организация (необязательно)">
+          <Field
+            htmlFor="tk-org"
+            label="Организация (необязательно)"
+            {...(orgHint ? { hint: orgHint } : {})}
+          >
             <Select
               id="tk-org"
               name="linkedOrganizationId"
               defaultValue={target?.linkedOrganizationId ?? ''}
             >
               <option value="">— не привязана —</option>
-              {options.organizations.map((o) => (
+              {organizations.map((o) => (
                 <option key={o.id} value={o.id}>
                   {o.name}
                 </option>
               ))}
             </Select>
           </Field>
-          <Field htmlFor="tk-order" label="Заявка (необязательно)">
+          <Field
+            htmlFor="tk-order"
+            label="Заявка (необязательно)"
+            {...(orderHint ? { hint: orderHint } : {})}
+          >
             <Select id="tk-order" name="linkedOrderId" defaultValue={target?.linkedOrderId ?? ''}>
               <option value="">— не привязана —</option>
-              {options.orders.map((o) => (
+              {orders.map((o) => (
                 <option key={o.id} value={o.id}>
                   {o.title}
                 </option>

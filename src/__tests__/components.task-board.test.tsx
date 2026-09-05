@@ -38,9 +38,17 @@ import { TaskBoard } from '@/components/tasks/task-board';
 import type { TaskBoard as TaskBoardData } from '@/lib/services/tasks/board';
 import type { TaskFormOptions } from '@/components/tasks/task-dialog';
 
-const options: TaskFormOptions = { users: [], organizations: [], orders: [] };
+const options: TaskFormOptions = {
+  users: [],
+  organizations: [],
+  orders: [],
+  organizationsTotal: 0,
+  ordersTotal: 0,
+};
 
 const board: TaskBoardData = {
+  shown: 0,
+  total: 0,
   columns: [
     {
       id: 'col-1',

@@ -49,7 +49,7 @@ function fakePrisma(
   const findMany = vi.fn().mockResolvedValue(rows);
   const prisma = {
     taskColumn: { findMany: vi.fn().mockResolvedValue(columns) },
-    task: { findMany },
+    task: { findMany, count: vi.fn().mockResolvedValue(rows.length) },
   } as unknown as PrismaClient;
   return { prisma, findMany };
 }

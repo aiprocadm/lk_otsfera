@@ -8,6 +8,7 @@ import { FunnelBoard } from '@/components/funnel/funnel-board';
 import { StageConfig } from '@/components/funnel/stage-config';
 
 import { PageHeader } from '@/components/ui/page-header';
+import { ListCapNotice } from '@/components/ui';
 export const dynamic = 'force-dynamic';
 
 export default async function LeaderFunnelPage() {
@@ -25,6 +26,11 @@ export default async function LeaderFunnelPage() {
         />
       </div>
       <FunnelBoard board={board} />
+      <ListCapNotice
+        shown={board.shown}
+        total={board.total}
+        hint="Живые лиды идут первыми и не теряются; за пределом — самые старые обработанные, их видно в карточке организации (вкладка «Лиды»)."
+      />
       <StageConfig stages={board.stages} isDefault={isDefault} />
     </div>
   );

@@ -54,11 +54,26 @@ describe('ManagerFunnelPage', () => {
   it('renders the funnel board when the flag is enabled', async () => {
     isFeatureEnabled.mockReturnValue(true);
     requireManager.mockResolvedValue(SESSION);
-    getFunnelBoard.mockResolvedValue({ stages: [], columns: [] });
+    getFunnelBoard.mockResolvedValue({ stages: [], columns: [], shown: 0, total: 0 });
 
     const { container } = await renderServerComponent(ManagerFunnelPage());
 
     expect(getFunnelBoard).toHaveBeenCalledWith({}, SESSION);
     expect(container.textContent).toContain('Воронка продаж');
+    expect(container.textContent).not.toContain('Показаны первые');
+  });
+
+  // `Р-27` (В-3): доска режется по `BOARD_CAP`, живые лиды идут первыми —
+  // экран честно говорит, сколько скрыто, и где искать остальное.
+  it('total > shown → подпись «Показаны первые N из M» с подсказкой про карточку организации', async () => {
+    isFeatureEnabled.mockReturnValue(true);
+    requireManager.mockResolvedValue(SESSION);
+    getFunnelBoard.mockResolvedValue({ stages: [], columns: [], shown: 500, total: 640 });
+
+    const { container } = await renderServerComponent(ManagerFunnelPage());
+
+    expect(container.textContent).toContain('Показаны первые 500 из 640.');
+    expect(container.textContent).toContain('Живые лиды идут первыми и не теряются');
+    expect(container.textContent).toContain('вкладка «Лиды»');
   });
 });

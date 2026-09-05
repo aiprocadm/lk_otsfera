@@ -59,7 +59,21 @@ export type DealCard = {
 };
 
 export type DealColumn = { stage: DealStageView; cards: DealCard[] };
-export type DealBoard = { stages: DealStageView[]; columns: DealColumn[] };
+export type DealBoard = {
+  stages: DealStageView[];
+  columns: DealColumn[];
+  /** `С-6`/`Р-27`: сколько карточек получено (≤ `BOARD_CAP`) и сколько подходит всего. */
+  shown: number;
+  total: number;
+};
+
+/**
+ * Предел доски. Сортировка `status asc` идёт по порядку объявления enum в
+ * `schema.prisma` (`open, won, lost`): в предел сначала попадают все открытые
+ * сделки, за него уходят самые старые закрытые — страж
+ * `prisma.enum-terminal-last.guardrail` держит порядок.
+ */
+export const BOARD_CAP = 500;
 
 export async function getDealBoard(
   prisma: PrismaClient,
@@ -67,29 +81,33 @@ export async function getDealBoard(
   opts: { managerId?: string | null } = {}
 ): Promise<DealBoard> {
   // Клиентская роль → пустая доска (не раскрываем ни сделки, ни словарь стадий).
-  if (!isStaff(session)) return { stages: [], columns: [] };
+  if (!isStaff(session)) return { stages: [], columns: [], shown: 0, total: 0 };
   const stages = await resolveDealStages(prisma, session.companyId ?? '');
+  const where = dealScopeWhere(session, opts);
 
-  const deals = await prisma.deal.findMany({
-    where: dealScopeWhere(session, opts),
-    orderBy: { createdAt: 'desc' },
-    take: 500,
-    select: {
-      id: true,
-      title: true,
-      amount: true,
-      status: true,
-      stageId: true,
-      orderId: true,
-      expectedCloseAt: true,
-      createdAt: true,
-      organizationId: true,
-      leadId: true,
-      managerId: true,
-      organization: { select: { name: true } },
-      manager: { select: { name: true } },
-    },
-  });
+  const [deals, total] = await Promise.all([
+    prisma.deal.findMany({
+      where,
+      orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+      take: BOARD_CAP,
+      select: {
+        id: true,
+        title: true,
+        amount: true,
+        status: true,
+        stageId: true,
+        orderId: true,
+        expectedCloseAt: true,
+        createdAt: true,
+        organizationId: true,
+        leadId: true,
+        managerId: true,
+        organization: { select: { name: true } },
+        manager: { select: { name: true } },
+      },
+    }),
+    prisma.deal.count({ where }),
+  ]);
 
   const columns: DealColumn[] = stages.map((stage) => ({ stage, cards: [] }));
   const byStageId = new Map(columns.map((c) => [c.stage.id, c]));
@@ -113,7 +131,7 @@ export async function getDealBoard(
     });
   }
 
-  return { stages, columns };
+  return { stages, columns, shown: deals.length, total };
 }
 
 export type MoveDealError =
