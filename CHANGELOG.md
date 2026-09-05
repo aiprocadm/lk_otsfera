@@ -10,7 +10,7 @@
 ### Добавлено
 
 - **Хотфикс №1 сопровождения — реестр флагов снова совпадает с документацией**
-  (находка `С-7` от 05.09.2026, PR @@HF1@@). `docs/feature-flags-matrix.md`
+  (находка `С-7` от 05.09.2026, PR #498). `docs/feature-flags-matrix.md`
   описывал 25 флагов из 30 и держал строку удалённого `partner_leads`;
   `document_generation` стоял в таблице opt-in, хотя в коде он opt-out.
   Дописаны `leader_analytics`, `contacts`, `staff_chat`, `staff_calendar`,
