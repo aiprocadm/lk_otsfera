@@ -146,6 +146,8 @@ const stLost = {
 };
 
 const board: DealBoardData = {
+  shown: 0,
+  total: 0,
   stages: [stNew, stWork, stWon, stLost],
   columns: [
     { stage: stNew, cards: [cardOpen, cardNoAmount] },
@@ -527,7 +529,7 @@ describe('DealBoard', () => {
       render(
         React.createElement(DealBoard, {
           ...editProps,
-          board: { stages: board.stages, columns: [{ stage: stNew, cards: [noAmount] }] },
+          board: { ...board, columns: [{ stage: stNew, cards: [noAmount] }] },
         })
       );
       fireEvent.click(screen.getByText('Без суммы').closest('article') as HTMLElement);
@@ -567,7 +569,7 @@ describe('DealBoard', () => {
       render(
         React.createElement(DealBoard, {
           ...editProps,
-          board: { stages: board.stages, columns: [{ stage: stNew, cards: [withLead] }] },
+          board: { ...board, columns: [{ stage: stNew, cards: [withLead] }] },
         })
       );
       fireEvent.click(screen.getByText('Сделка с лидом').closest('article') as HTMLElement);

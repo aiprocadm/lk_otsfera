@@ -366,7 +366,7 @@ describe('board.ts — listTaskBoard', () => {
   it('session without companyId → resolveTaskColumns("") default board, no cards (branch@44 ?? "" arm)', async () => {
     const prisma = {
       taskColumn: { findMany: vi.fn().mockResolvedValue([]) },
-      task: { findMany: vi.fn().mockResolvedValue([]) },
+      task: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0) },
     } as unknown as PrismaClient;
     const board = await listTaskBoard(prisma, noCompany());
     expect(board.columns.map((c) => c.statusAnchor)).toEqual([
@@ -446,7 +446,10 @@ describe('board.ts — listTaskBoard', () => {
     };
     const prisma = {
       taskColumn: { findMany: vi.fn().mockResolvedValue(customColumns) },
-      task: { findMany: vi.fn().mockResolvedValue([cardWithLinks, cardNoLinks, cardOrphan]) },
+      task: {
+        findMany: vi.fn().mockResolvedValue([cardWithLinks, cardNoLinks, cardOrphan]),
+        count: vi.fn().mockResolvedValue(3),
+      },
     } as unknown as PrismaClient;
 
     const board = await listTaskBoard(prisma, managerA());
@@ -469,11 +472,20 @@ describe('board.ts — getTaskFormOptions', () => {
     const userFindMany = vi.fn().mockResolvedValue([]);
     const prisma = {
       user: { findMany: userFindMany },
-      organization: { findMany: vi.fn().mockResolvedValue([]) },
-      order: { findMany: vi.fn().mockResolvedValue([]) },
+      organization: {
+        findMany: vi.fn().mockResolvedValue([]),
+        count: vi.fn().mockResolvedValue(0),
+      },
+      order: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0) },
     } as unknown as PrismaClient;
     const opt = await getTaskFormOptions(prisma, noCompany());
-    expect(opt).toEqual({ users: [], organizations: [], orders: [] });
+    expect(opt).toEqual({
+      users: [],
+      organizations: [],
+      orders: [],
+      organizationsTotal: 0,
+      ordersTotal: 0,
+    });
     // companyId fell back to the never-match sentinel.
     expect(userFindMany.mock.calls[0][0].where.companyId).toBe('__no_company__');
   });

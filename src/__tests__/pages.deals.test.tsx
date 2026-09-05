@@ -74,7 +74,12 @@ const LEADER_SESSION = {
   companyId: 'c1',
 };
 
-const BOARD = { stages: [{ id: 'default:new', name: 'Новая' }], columns: [] };
+const BOARD = {
+  stages: [{ id: 'default:new', name: 'Новая' }],
+  columns: [],
+  shown: 1,
+  total: 1,
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -189,7 +194,12 @@ describe('LeaderDealsPage', () => {
   it('custom stages → DealStageConfig gets isDefault=false', async () => {
     isFeatureEnabled.mockReturnValue(true);
     requireManagerLeader.mockResolvedValue(LEADER_SESSION);
-    getDealBoard.mockResolvedValue({ stages: [{ id: 'custom-1', name: 'Своя' }], columns: [] });
+    getDealBoard.mockResolvedValue({
+      stages: [{ id: 'custom-1', name: 'Своя' }],
+      columns: [],
+      shown: 0,
+      total: 0,
+    });
 
     const { getByTestId } = await renderLeader();
 
@@ -214,5 +224,56 @@ describe('LeaderDealsPage', () => {
 
     await expect(renderLeader()).rejects.toThrow('REDIRECT');
     expect(getDealBoard).not.toHaveBeenCalled();
+  });
+});
+
+// `Р-27` (В-3): доска режется по `BOARD_CAP`, открытые сделки идут первыми.
+// Экран обязан честно сказать, сколько скрыто, и где искать остальное.
+describe('страницы сделок — подпись «Показаны первые N из M» (Р-27)', () => {
+  it('менеджер: total > shown → подпись с подсказкой про карточку организации', async () => {
+    isFeatureEnabled.mockReturnValue(true);
+    requireManager.mockResolvedValue(MANAGER_SESSION);
+    getDealBoard.mockResolvedValue({ ...BOARD, shown: 500, total: 750 });
+
+    const { container } = await renderServerComponent(ManagerDealsPage());
+
+    expect(container.textContent).toContain('Показаны первые 500 из 750.');
+    expect(container.textContent).toContain('Открытые сделки идут первыми и не теряются');
+    expect(container.textContent).toContain('вкладка «Сделки»');
+  });
+
+  it('менеджер: total === shown → подписи нет', async () => {
+    isFeatureEnabled.mockReturnValue(true);
+    requireManager.mockResolvedValue(MANAGER_SESSION);
+    getDealBoard.mockResolvedValue({ ...BOARD, shown: 12, total: 12 });
+
+    const { container } = await renderServerComponent(ManagerDealsPage());
+
+    expect(container.textContent).not.toContain('Показаны первые');
+  });
+
+  it('руководитель: total > shown → та же подпись', async () => {
+    isFeatureEnabled.mockReturnValue(true);
+    requireManagerLeader.mockResolvedValue(LEADER_SESSION);
+    getDealBoard.mockResolvedValue({ ...BOARD, shown: 500, total: 501 });
+
+    const { container } = await renderServerComponent(
+      LeaderDealsPage({ searchParams: Promise.resolve({}) })
+    );
+
+    expect(container.textContent).toContain('Показаны первые 500 из 501.');
+    expect(container.textContent).toContain('Открытые сделки идут первыми и не теряются');
+  });
+
+  it('руководитель: total === shown → подписи нет', async () => {
+    isFeatureEnabled.mockReturnValue(true);
+    requireManagerLeader.mockResolvedValue(LEADER_SESSION);
+    getDealBoard.mockResolvedValue({ ...BOARD, shown: 3, total: 3 });
+
+    const { container } = await renderServerComponent(
+      LeaderDealsPage({ searchParams: Promise.resolve({}) })
+    );
+
+    expect(container.textContent).not.toContain('Показаны первые');
   });
 });

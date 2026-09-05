@@ -19,6 +19,8 @@ import { FunnelBoard } from '@/components/funnel/funnel-board';
 import type { FunnelBoard as FunnelBoardData } from '@/lib/services/funnel/board';
 
 const board: FunnelBoardData = {
+  shown: 0,
+  total: 0,
   stages: [],
   columns: [
     {
@@ -94,6 +96,8 @@ describe('FunnelBoard', () => {
 
   it('renders a color strip on EVERY column (stable layout): stage color when set, transparent placeholder otherwise', () => {
     const colored: FunnelBoardData = {
+      shown: 0,
+      total: 0,
       stages: [],
       columns: [
         { stage: { ...board.columns[0].stage, color: '#22C55E' }, cards: [] },
@@ -114,6 +118,8 @@ describe('FunnelBoard', () => {
 
   it('renders "—" for a null estimatedAmount and "без менеджера" for a null assignedManagerName', () => {
     const b: FunnelBoardData = {
+      shown: 0,
+      total: 0,
       stages: [],
       columns: [
         {

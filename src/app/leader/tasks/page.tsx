@@ -11,6 +11,7 @@ import { TasksToolbar } from '@/components/tasks/tasks-toolbar';
 import { ColumnConfig } from '@/components/tasks/column-config';
 
 import { PageHeader } from '@/components/ui/page-header';
+import { ListCapNotice } from '@/components/ui';
 export const dynamic = 'force-dynamic';
 
 export default async function LeaderTasksPage({
@@ -45,6 +46,11 @@ export default async function LeaderTasksPage({
       ) : (
         <TaskBoard board={board} options={options} />
       )}
+      <ListCapNotice
+        shown={board.shown}
+        total={board.total}
+        hint="Открытые задачи идут первыми и не теряются; за пределом — самые старые выполненные, сузьте охват фильтрами."
+      />
       <ColumnConfig columns={board.columns} isDefault={isDefault} />
     </div>
   );

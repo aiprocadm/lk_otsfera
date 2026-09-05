@@ -12,6 +12,7 @@ import { DealsManagerFilter } from '@/components/deals/deals-manager-filter';
 import { NewDealButton } from '@/components/deals/deal-dialog';
 
 import { PageHeader } from '@/components/ui/page-header';
+import { ListCapNotice } from '@/components/ui';
 export const dynamic = 'force-dynamic';
 
 /**
@@ -63,6 +64,11 @@ export default async function LeaderDealsPage({
         managers={managerOptions}
         currentUserId={session.sub}
         tasksEnabled={isFeatureEnabled('internal_tasks')}
+      />
+      <ListCapNotice
+        shown={board.shown}
+        total={board.total}
+        hint="Открытые сделки идут первыми и не теряются; за пределом — самые старые закрытые, их видно в карточке организации (вкладка «Сделки»)."
       />
       <DealStageConfig stages={board.stages} isDefault={isDefault} />
     </div>

@@ -39,12 +39,20 @@ const columns: TaskColumnView[] = [
   },
 ];
 
-const emptyOptions: TaskFormOptions = { users: [], organizations: [], orders: [] };
+const emptyOptions: TaskFormOptions = {
+  users: [],
+  organizations: [],
+  orders: [],
+  organizationsTotal: 0,
+  ordersTotal: 0,
+};
 
 const fullOptions: TaskFormOptions = {
   users: [{ id: 'u1', name: 'Иван Петров' }],
   organizations: [{ id: 'org1', name: 'ООО Ромашка' }],
   orders: [{ id: 'ord1', title: 'Заказ №1' }],
+  organizationsTotal: 1,
+  ordersTotal: 1,
 };
 
 const task: TaskCard = {
@@ -289,5 +297,81 @@ describe('TaskDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Удалить' }));
 
     await waitFor(() => expect(toastError).toHaveBeenCalledWith('Не удалось удалить задачу.'));
+  });
+
+  // `Р-27` (В-3): справочники селектов усечены сервисом (200 организаций /
+  // 100 заявок). Текущая привязка обязана остаться в списке, а усечение —
+  // быть видно человеку.
+  describe('усечённые справочники организаций и заявок (Р-27)', () => {
+    function optionValues(container: HTMLElement, id: string): string[] {
+      return Array.from(container.querySelectorAll(`#${id} option`)).map(
+        (o) => (o as HTMLOptionElement).value
+      );
+    }
+
+    it('edit: текущая привязка вне списка добавляется первой — редактирование не стирает связь', () => {
+      const options: TaskFormOptions = {
+        ...emptyOptions,
+        organizations: [{ id: 'org-other', name: 'Другая' }],
+        orders: [{ id: 'ord-other', title: 'Другая заявка' }],
+        organizationsTotal: 300,
+        ordersTotal: 150,
+      };
+      const { container } = render(
+        renderDialog({ target: task, columns, options, onClose, onSaved })
+      );
+
+      expect(optionValues(container, 'tk-org')).toEqual(['', 'org1', 'org-other']);
+      expect(optionValues(container, 'tk-order')).toEqual(['', 'ord1', 'ord-other']);
+      expect((container.querySelector('#tk-org') as HTMLSelectElement).value).toBe('org1');
+      expect((container.querySelector('#tk-order') as HTMLSelectElement).value).toBe('ord1');
+      expect(screen.getByText('ООО Ромашка')).toBeTruthy();
+      expect(screen.getByText('Заказ №1')).toBeTruthy();
+    });
+
+    it('edit: привязка, которая уже есть в списке, не дублируется', () => {
+      const { container } = render(
+        renderDialog({ target: task, columns, options: fullOptions, onClose, onSaved })
+      );
+
+      expect(optionValues(container, 'tk-org')).toEqual(['', 'org1']);
+      expect(optionValues(container, 'tk-order')).toEqual(['', 'ord1']);
+    });
+
+    it('edit: привязка без имени получает подпись «Текущая привязка»', () => {
+      const nameless = { ...task, linkedOrganizationName: null, linkedOrderTitle: null };
+      render(renderDialog({ target: nameless, columns, options: emptyOptions, onClose, onSaved }));
+
+      expect(screen.getAllByText('Текущая привязка')).toHaveLength(2);
+    });
+
+    it('create: без target список как есть, ничего не добавляется', () => {
+      const { container } = render(
+        renderDialog({ target: null, columns, options: fullOptions, onClose, onSaved })
+      );
+
+      expect(optionValues(container, 'tk-org')).toEqual(['', 'org1']);
+      expect(optionValues(container, 'tk-order')).toEqual(['', 'ord1']);
+    });
+
+    it('усечение: под селектами подпись «Показаны N из M …», при полном списке её нет', () => {
+      const truncated: TaskFormOptions = {
+        ...fullOptions,
+        organizationsTotal: 320,
+        ordersTotal: 101,
+      };
+      render(renderDialog({ target: null, columns, options: truncated, onClose, onSaved }));
+
+      expect(
+        screen.getByText('Показаны 1 из 320 организаций с последней активностью.')
+      ).toBeTruthy();
+      expect(screen.getByText('Показаны 1 из 101 последних заявок.')).toBeTruthy();
+    });
+
+    it('полный список: подписи про усечение нет', () => {
+      render(renderDialog({ target: null, columns, options: fullOptions, onClose, onSaved }));
+
+      expect(screen.queryByText(/Показаны \d+ из/)).toBeNull();
+    });
   });
 });
