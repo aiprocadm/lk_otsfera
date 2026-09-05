@@ -10,7 +10,7 @@
 ### Добавлено
 
 - **Хотфикс №6 сопровождения — команды в рабочих чеклистах существуют**
-  (находка `С-7` от 05.09.2026, PR @@HF6LINK@@, прогон №2). Три чеклиста —
+  (находка `С-7` от 05.09.2026, PR [#503](https://github.com/aiprocadm/lk_otsfera/pull/503), прогон №2). Три чеклиста —
   `docs/qa-staging-smoke-manager.md`, `docs/qa-staging-smoke-organization.md`,
   `docs/runbook-staged-rollout-cabinets.md` — велели проверять воркер
   командой `npm run worker:start`, которой нет (есть `npm run worker`), а
