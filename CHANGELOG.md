@@ -27,6 +27,21 @@
 
 ### Добавлено
 
+- **Хотфикс №7 сопровождения — `overrides` для транзитивных уязвимостей**
+  (решение `Р-26` по вопросу `В-2`, PR @@V2LINK@@, по поручению заказчика от
+  05.09.2026). `npm audit --omit=dev` показывал 7 уязвимостей «только
+  мажором»: на деле дырявы были не `next`/`prisma`/`exceljs`, а их
+  транзитивные зависимости с закреплённой старой версией — `postcss@8.4.31`
+  внутри `next`, `uuid@8.3.2` у `exceljs`, `deepmerge-ts@7.1.5` у
+  `@prisma/config`. В `package.json` добавлена секция `overrides`
+  (`postcss` = корневая 8.5.x, `uuid` ^11.1.1, `deepmerge-ts` ^8.0.2):
+  prod-уязвимостей **0**, мажоры не тронуты. Проверено: `prisma
+  validate`/`generate`/`migrate status`, дымовой xlsx с `uuid v4`,
+  `next build`, полный unit и integration. Оставшиеся 6 записей — только
+  dev-инструменты (`vitest`/`vite`/`esbuild`, чинятся мажором `vitest` 3+),
+  принятый риск. Новый страж `deps.overrides.guardrail`: `overrides` на месте
+  и в `package-lock.json` нет копий ниже безопасного порога; три мутации
+  пойманы.
 - **Хотфикс №6 сопровождения — команды в рабочих чеклистах существуют**
   (находка `С-7` от 05.09.2026, PR [#503](https://github.com/aiprocadm/lk_otsfera/pull/503), прогон №2). Три чеклиста —
   `docs/qa-staging-smoke-manager.md`, `docs/qa-staging-smoke-organization.md`,
