@@ -9,6 +9,19 @@
 
 ### Добавлено
 
+- **Хотфикс №6 сопровождения — команды в рабочих чеклистах существуют**
+  (находка `С-7` от 05.09.2026, PR @@HF6LINK@@, прогон №2). Три чеклиста —
+  `docs/qa-staging-smoke-manager.md`, `docs/qa-staging-smoke-organization.md`,
+  `docs/runbook-staged-rollout-cabinets.md` — велели проверять воркер
+  командой `npm run worker:start`, которой нет (есть `npm run worker`), а
+  smoke заказчика ещё и звал `dist/scripts/backfill-order-organization-id.js`,
+  удалённый после того, как `Order.organizationId` стал `NOT NULL`
+  (миграция `20260526132950`). Команда поправлена, шаг бэкфилла заменён
+  пояснением. Новый страж `docs.commands-exist.guardrail`: каждая
+  `npm run <x>` из README, CLAUDE.md и `docs/**` (кроме реестров `docs/tz`
+  и архива `docs/superpowers`) есть в `package.json`, каждый упомянутый
+  `scripts/<файл>` лежит на диске; три мутации пойманы. Кода приложения
+  не трогает.
 - **Хотфикс №5 сопровождения — постраничный список комиссионных отчётов
   партнёра** (находка `С-6` от 05.09.2026, PR [#502](https://github.com/aiprocadm/lk_otsfera/pull/502), прогон №2).
   `/partner/finance` молча показывал 30 последних отчётов — более старые
