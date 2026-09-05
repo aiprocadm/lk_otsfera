@@ -670,3 +670,102 @@ describe('OrgCardTabs — вкладка «Удостоверения» и вы�
     expect(html).toContain('Документов пока нет.');
   });
 });
+
+/**
+ * Этап 9 (PR-1): адреса внутри карточки даёт страница роли (`Р-23`), а не
+ * компонент. До этого выгрузка удостоверений у партнёра и заказчика вела на
+ * `/api/manager/…` (403), а тема лида у администратора — на `/manager/leads/…`
+ * (мёртвая дверь Model A).
+ */
+describe('OrgCardTabs — адреса по кабинету (этап 9, PR-1)', () => {
+  const CERT = {
+    id: 'c1',
+    number: 'УД-77',
+    studentName: 'Иванов Иван',
+    directionName: 'Охрана труда',
+    issuedAt: new Date('2026-01-15'),
+    validUntil: null,
+    hasScan: false,
+  };
+  const ADMIN_TABS = orgCardTabsFor('admin', { flags: () => true });
+  const PARTNER_TABS = orgCardTabsFor('partner', { flags: () => true });
+
+  it('certificatesExport: кнопка выгрузки берёт адрес и параметры страницы, а не staff-роут', () => {
+    const card = makeCard({ id: 'org1', certificates: [CERT] } as never);
+    const html = renderToString(
+      React.createElement(OrgCardTabs, {
+        card,
+        activeTab: 'certificates',
+        tabs: PARTNER_TABS,
+        certificatesExport: {
+          base: '/api/partner/certificates/export',
+          params: { organization: 'org1' },
+        },
+      })
+    );
+    expect(html).toContain('href="/api/partner/certificates/export?organization=org1"');
+    expect(html).not.toContain('/api/manager/organizations/org1/certificates/export');
+  });
+
+  it('без certificatesExport — staff-роут карточки (руководитель, менеджер, администратор)', () => {
+    const card = makeCard({ id: 'org1', certificates: [] } as never);
+    const html = renderToString(
+      React.createElement(OrgCardTabs, { card, activeTab: 'certificates', tabs: ADMIN_TABS })
+    );
+    expect(html).toContain('href="/api/manager/organizations/org1/certificates/export"');
+  });
+
+  it('leadHref={null}: тема лида текстом, без ссылки в /manager/*', () => {
+    const card = makeCard({
+      id: 'org1',
+      leads: [{ id: 'l1', subject: 'Лид-тема', status: 'new', createdAt: new Date('2026-07-02') }],
+    } as never);
+    const html = renderToString(
+      React.createElement(OrgCardTabs, {
+        card,
+        activeTab: 'leads',
+        tabs: ADMIN_TABS,
+        leadHref: null,
+      })
+    );
+    expect(html).toContain('Лид-тема');
+    expect(html).not.toContain('/manager/leads/');
+    expect(html).not.toContain('href="/manager');
+  });
+
+  it('leadHref: свой адрес темы лида; без пропа — /manager/leads/<id>', () => {
+    const card = makeCard({
+      id: 'org1',
+      leads: [{ id: 'l1', subject: 'Лид-тема', status: 'new', createdAt: new Date('2026-07-02') }],
+    } as never);
+    const custom = renderToString(
+      React.createElement(OrgCardTabs, {
+        card,
+        activeTab: 'leads',
+        tabs: MANAGER_TABS,
+        leadHref: (id) => `/x/leads/${id}`,
+      })
+    );
+    expect(custom).toContain('href="/x/leads/l1"');
+    const byDefault = renderToString(
+      React.createElement(OrgCardTabs, { card, activeTab: 'leads', tabs: MANAGER_TABS })
+    );
+    expect(byDefault).toContain('href="/manager/leads/l1"');
+  });
+
+  it('headerExtra: строка под заголовком после «Партнёр»', () => {
+    const card = makeCard({});
+    const html = renderToString(
+      React.createElement(OrgCardTabs, {
+        card,
+        activeTab: 'overview',
+        tabs: ADMIN_TABS,
+        headerExtra: React.createElement('p', { 'data-testid': 'company' }, 'Компания: УЦ Север'),
+      })
+    );
+    expect(html).toContain('Компания: УЦ Север');
+    expect(html.indexOf('Партнёр: Партнёр Иванов')).toBeLessThan(
+      html.indexOf('Компания: УЦ Север')
+    );
+  });
+});

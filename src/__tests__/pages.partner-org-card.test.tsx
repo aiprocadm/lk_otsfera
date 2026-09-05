@@ -46,10 +46,17 @@ vi.mock('@/components/manager/org-card-tabs', () => ({
     tabs: Array<{ key: string }>;
     hrefFor?: (k: string) => string;
     employees?: React.ReactNode;
+    certificatesExport?: { base: string; params?: Record<string, string> };
   }) =>
     React.createElement(
       'div',
-      { 'data-testid': 'card', 'data-active': p.activeTab },
+      {
+        'data-testid': 'card',
+        'data-active': p.activeTab,
+        'data-certs-export': p.certificatesExport
+          ? `${p.certificatesExport.base}?${new URLSearchParams(p.certificatesExport.params).toString()}`
+          : '',
+      },
       p.tabs.map((t) => `${t.key}=${p.hrefFor ? p.hrefFor(t.key) : '?'}`).join(' '),
       p.employees
     ),
@@ -120,6 +127,13 @@ describe('карточка организации у партнёра (У-96)', 
     const bogus = await render({ tab: 'leads' });
     expect(bogus.container.querySelector('[data-testid="card"]')?.getAttribute('data-active')).toBe(
       'overview'
+    );
+  });
+
+  it('выгрузка удостоверений — партнёрским роутом со своей организацией, а не staff-роутом карточки', async () => {
+    const { container } = await render({ tab: 'certificates' });
+    expect(container.querySelector('[data-testid="card"]')?.getAttribute('data-certs-export')).toBe(
+      '/api/partner/certificates/export?organization=org-1'
     );
   });
 

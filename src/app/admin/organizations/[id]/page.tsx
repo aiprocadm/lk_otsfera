@@ -1,9 +1,12 @@
 import React from 'react';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Breadcrumbs } from '@/components/ui';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
+import { isFeatureEnabled } from '@/lib/featureFlags';
+import { getOrganizationCard } from '@/lib/services/manager/organizationCard';
+import { OrgCardTabs } from '@/components/manager/org-card-tabs';
+import { orgCardTabsFor, type OrgCardTabKey } from '@/lib/navigation/orgCardTabs';
 import { getOrganization, getOrganizationMeta } from '@/lib/services/admin/organizations';
 import { listOrgRateHistory } from '@/lib/services/commission/rateHistory';
 import { CustomerAccessSection } from '@/components/partner/customer-access-section';
@@ -23,12 +26,22 @@ import { getFieldsForEntity } from '@/lib/services/customFields';
 import { getAutoCreatedFrom1C } from '@/lib/services/organization/autoCreated';
 import { AutoCreatedBadge } from '@/components/organization/auto-created-badge';
 import { IssueOrderLessDocumentButton } from '@/components/documents/issue-order-less-document-button';
-import { isFeatureEnabled } from '@/lib/featureFlags';
+import { ProposalsBlock } from '@/components/documents/proposals-block';
+import { listOrganizationProposals } from '@/lib/services/documents/proposalBlocks';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 
-import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
+/**
+ * Карточка организации у администратора (`У-95`, `У-96`, §7.3 ТЗ).
+ *
+ * До этапа 9 это был плоский набор секций мимо реестра вкладок: сервис
+ * карточки не знал Model A и вернул бы администратору null (`⚠` AUDIT от
+ * 30.08.2026). Теперь экран — тот же `OrgCardTabs`, что у руководителя и
+ * менеджера (`Р-23`: общий вид, данные и права — от сервиса роли), а состав
+ * вкладок — `orgCardTabsFor('admin')`. Свои блоки никуда не делись: они
+ * переехали во вкладки по реестру («Сотрудники», «Документы», «Настройки»).
+ */
 export default async function AdminOrganizationDetailPage({
   params,
   searchParams,
@@ -36,172 +49,179 @@ export default async function AdminOrganizationDetailPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const session = await requireAdmin();
   const { id } = await params;
   const sp = await searchParams;
 
-  const [org, meta, rateHistoryResult] = await Promise.all([
-    getOrganization(prisma, id),
-    getOrganizationMeta(prisma, id),
-    listOrgRateHistory(prisma, session, id),
-  ]);
-  if (!org || !meta) notFound();
-  const rateHistory = rateHistoryResult.ok ? rateHistoryResult.rows : [];
-  // Этап 8 (ФТ-9.2): полный набор реквизитов для автогенерации документов.
-  const requisites = await getOrgRequisitesByAdmin(prisma, session, org.id);
-  // §11 ТЗ v0.5: настраиваемые поля организации (видимость и право правки —
-  // на сервере, см. getValuesForEntity).
-  const customFields = await getFieldsForEntity(prisma, session, 'organization', org.id);
-  // `У-54`: организацию мог завести импорт выписки — человек должен видеть это
-  // в карточке, а не выяснять по журналу аудита.
-  const autoCreated = await getAutoCreatedFrom1C(prisma, org.id);
-  // `У-97`: сотрудники организации — те самые люди, которых заводит кнопка
-  // «Добавить сотрудника». До этого шага у администратора кнопка была, а
-  // списка не было вовсе: добавленного человека негде было увидеть.
-  const q = typeof sp.q === 'string' ? sp.q : undefined;
+  // `У-95`: состав вкладок — фильтр общего реестра, тот же, что у сотрудников ЦО.
+  const visibleTabs = orgCardTabsFor('admin', { flags: isFeatureEnabled });
+  const rawTab = typeof sp.tab === 'string' ? sp.tab : undefined;
+  const activeTab: OrgCardTabKey = visibleTabs.some((t) => t.key === rawTab)
+    ? (rawTab as OrgCardTabKey)
+    : 'overview';
+
+  const session = await requireAdmin();
+  const card = await getOrganizationCard(prisma, session, id);
+  if (!card) notFound();
+
+  // `У-97`: список грузим только когда вкладка открыта.
   const skipRaw = Number(typeof sp.skip === 'string' ? sp.skip : '');
   const skip = Number.isFinite(skipRaw) && skipRaw > 0 ? Math.floor(skipRaw) : 0;
-  const employees = await listOrgCardEmployees(prisma, session, {
-    orgId: id,
-    ...(q ? { q } : {}),
-    skip,
-  });
+  const q = typeof sp.q === 'string' ? sp.q : undefined;
+  const employees =
+    activeTab === 'employees'
+      ? await listOrgCardEmployees(prisma, session, { orgId: id, ...(q ? { q } : {}), skip })
+      : null;
+
+  // `У-166`: предложения клиента — только на своей вкладке.
+  const proposals =
+    activeTab === 'documents'
+      ? await listOrganizationProposals(prisma, session, { organizationId: id })
+      : null;
+
+  // `У-99`: всё, что нужно вкладке «Настройки» (форма организации, реквизиты
+  // для документов, история ставки, настраиваемые поля), грузится только на
+  // ней — под переключателем не должно висеть постороннее (`У-64`).
+  const settingsData =
+    activeTab === 'settings'
+      ? await Promise.all([
+          getOrganization(prisma, id),
+          getOrgRequisitesByAdmin(prisma, session, id),
+          listOrgRateHistory(prisma, session, id),
+          getFieldsForEntity(prisma, session, 'organization', id),
+        ])
+      : null;
+
+  // Администратор видит организации всех учебных центров — без названия
+  // компании не ответить «где я» (§15).
+  const [meta, autoCreated] = await Promise.all([
+    getOrganizationMeta(prisma, id),
+    getAutoCreatedFrom1C(prisma, id),
+  ]);
 
   return (
     <div className="space-y-5">
-      <div>
-        {/* `У-72`: полный путь до экрана вместо одиночного «назад». */}
-        <Breadcrumbs
-          items={buildCabinetBreadcrumbs('admin', '/admin/organizations', [{ label: org.name }])}
-        />
-        <PageHeader
-          title={org.name}
-          subtitle={
-            <>
-              Партнёр: {org.partner?.name ?? 'Без партнёра'}{' '}
-              {meta.company && <span> · Компания: {meta.company.name}</span>}
-            </>
-          }
-        />
-        <AutoCreatedBadge mark={autoCreated} />
-      </div>
-
-      <div className="grid gap-3 md:grid-cols-3">
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <div className="text-xs text-gray-500">ИНН / КПП</div>
-          <div className="text-sm font-mono text-[#111111] mt-1">
-            {org.inn ?? '—'}
-            {org.kpp && <span className="text-gray-400"> / {org.kpp}</span>}
-          </div>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <div className="text-xs text-gray-500">1С ID</div>
-          <div className="text-sm font-mono text-[#111111] mt-1">{org.externalId ?? '—'}</div>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <div className="text-xs text-gray-500">Объёмы</div>
-          <div className="text-sm text-[#111111] mt-1">
-            {meta._count.orders} заказов · {meta._count.students} сотрудников ·{' '}
-            {meta._count.organizationUsers} в кабинете
-          </div>
-          {/* `У-104`: кнопка «Добавить сотрудника» жила здесь отдельно от
-              списка. Теперь она одна и стоит рядом с людьми, которых заводит —
-              двух одинаковых действий на экране быть не должно. */}
-        </div>
-      </div>
-
-      {/* `У-94`: организации из выписки приходят без ИНН — человек должен
-          видеть это сразу и иметь кнопку, а не выяснять по пустой строке. */}
-      {org.inn === null && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-          <p className="text-sm text-[#111111]">
-            <strong>ИНН не указан.</strong> Без него не собрать счёт и акт, а импорт из 1С не свяжет
-            организацию по ИНН.
-          </p>
-          <EgrulFillDialog organizationId={org.id} organizationName={org.name} />
-        </div>
-      )}
-
-      {/* `У-145`: счёт, договор и доп. соглашение выставляются и **без
-          заказа** — прямо из карточки организации. У администратора карточка
-          пока плоская (реестр вкладок `orgCardTabs` она не использует —
-          расхождение записано в AUDIT.md), поэтому выпуск живёт отдельным
-          блоком; кнопка и форма — тот же компонент, что у менеджера. */}
-      {isFeatureEnabled('document_generation') && (
-        <section className="space-y-3">
-          <h2 className="text-base font-semibold text-[#111111]">Документы</h2>
-          <div className="flex flex-wrap items-center gap-3">
+      {/* `У-72`: полный путь до экрана вместо одиночного «назад». */}
+      <Breadcrumbs
+        items={buildCabinetBreadcrumbs('admin', '/admin/organizations', [{ label: card.name }])}
+      />
+      {/* `У-54`: организацию мог завести импорт выписки — человек должен видеть
+          это в карточке, а не выяснять по журналу аудита. */}
+      <AutoCreatedBadge mark={autoCreated} />
+      <OrgCardTabs
+        card={card}
+        activeTab={activeTab}
+        tabs={visibleTabs}
+        headerExtra={
+          meta?.company ? (
+            <p className="text-sm text-gray-500 mt-1">Компания: {meta.company.name}</p>
+          ) : null
+        }
+        // Раздела «Лиды» у администратора нет (исключение зеркала `leads`), а
+        // кабинет менеджера для него мёртвая дверь (Model A) — тема лида текстом.
+        leadHref={null}
+        employees={
+          employees ? (
+            <OrgEmployeesSection
+              orgId={id}
+              basePath={`/admin/organizations/${id}`}
+              searchParams={sp}
+              rows={employees.rows}
+              total={employees.total}
+              canWrite={employees.canWrite}
+              take={25}
+              skip={skip}
+            />
+          ) : null
+        }
+        // `У-94`: организации из выписки приходят без ИНН — кнопка «Найти в ЕГРЮЛ».
+        egrulAction={<EgrulFillDialog organizationId={id} organizationName={card.name} />}
+        documentsAction={
+          // `У-145`: счёт, договор и ДС можно выставить и без заказа. Право на
+          // выпуск проверяет сервер — кнопка только открывает форму.
+          isFeatureEnabled('document_generation') ? (
             <IssueOrderLessDocumentButton organizationId={id} />
-            <Link href="/admin/documents?tab=general" className="text-sm text-[#EA580C] underline">
-              Все общие документы
-            </Link>
-          </div>
-        </section>
-      )}
-
-      <section className="space-y-3">
-        <h2 className="text-base font-semibold text-[#111111]">Сотрудники</h2>
-        <OrgEmployeesSection
-          orgId={id}
-          basePath={`/admin/organizations/${id}`}
-          searchParams={sp}
-          rows={employees.rows}
-          total={employees.total}
-          canWrite={employees.canWrite}
-          take={25}
-          skip={skip}
-        />
-      </section>
-
-      {/* `У-99`: набор настроек организации, его названия и порядок — из
-          реестра `orgSettingsSections`, общего на все кабинеты. Раньше это была
-          простыня из разрозненных секций, а у партнёра тот же набор назывался
-          и лежал иначе (§0.2, правило зеркала). */}
-      <OrgSettingsTab
-        cabinet="admin"
-        slots={{
-          requisites: (
-            <div className="space-y-4">
-              <OrganizationEditForm org={org} />
-              {requisites && (
-                <RequisitesCard
-                  description="Начните вводить название или ИНН — DaData подставит остальное."
-                  defaults={requisites}
-                  idPrefix="adm-org-req"
-                  action={setOrgRequisitesByAdminAction}
-                  hidden={{ orgId: org.id }}
-                />
-              )}
-            </div>
-          ),
-          cabinetAccess: (
-            <CustomerAccessSection
-              organizationId={org.id}
-              prisma={prisma}
-              canInvite={true}
-              source="admin"
-            />
-          ),
-          managers: <ManagersBlock orgId={org.id} prisma={prisma} />,
-          commission: (
-            <OrgCommissionSection
-              rate={org.partnerCommissionRate}
-              note={org.partnerCommissionRateNote}
-              history={rateHistory}
-              form={
-                <AdminRateOverrideForm
-                  organizationId={org.id}
-                  initialRate={org.partnerCommissionRate}
-                  initialNote={org.partnerCommissionRateNote}
-                />
-              }
-            />
-          ),
-          customFields: (
-            <EntityCustomFields fields={customFields} entityType="organization" entityId={org.id} />
-          ),
-        }}
+          ) : null
+        }
+        proposals={
+          proposals?.ok ? (
+            <ProposalsBlock rows={proposals.rows} hrefBase="/admin/documents" />
+          ) : null
+        }
+        settings={settingsData ? <AdminOrgSettings id={id} data={settingsData} /> : null}
       />
     </div>
+  );
+}
+
+/**
+ * Вкладка «Настройки» у администратора (`У-99`): названия и порядок секций —
+ * из реестра `orgSettingsSections`, общего на все кабинеты; состав — прежний
+ * (форма организации и реквизиты, доступ в кабинет, менеджеры, ставка
+ * партнёра, настраиваемые поля). Права здесь шире, чем у руководителя
+ * (`OrgStaffSettings`): назначать менеджеров и править саму организацию
+ * может только администратор.
+ */
+function AdminOrgSettings({
+  id,
+  data: [org, requisites, rateHistoryResult, customFields],
+}: {
+  id: string;
+  data: [
+    Awaited<ReturnType<typeof getOrganization>>,
+    Awaited<ReturnType<typeof getOrgRequisitesByAdmin>>,
+    Awaited<ReturnType<typeof listOrgRateHistory>>,
+    Awaited<ReturnType<typeof getFieldsForEntity>>,
+  ];
+}) {
+  // Карточка уже отдалась (Model A) — организация есть; `getOrganization`
+  // мог вернуть null только между двумя запросами.
+  if (!org) notFound();
+  const rateHistory = rateHistoryResult.ok ? rateHistoryResult.rows : [];
+  return (
+    <OrgSettingsTab
+      cabinet="admin"
+      slots={{
+        requisites: (
+          <div className="space-y-4">
+            <OrganizationEditForm org={org} />
+            {requisites && (
+              <RequisitesCard
+                description="Начните вводить название или ИНН — DaData подставит остальное."
+                defaults={requisites}
+                idPrefix="adm-org-req"
+                action={setOrgRequisitesByAdminAction}
+                hidden={{ orgId: id }}
+              />
+            )}
+          </div>
+        ),
+        cabinetAccess: (
+          <CustomerAccessSection
+            organizationId={id}
+            prisma={prisma}
+            canInvite={true}
+            source="admin"
+          />
+        ),
+        managers: <ManagersBlock orgId={id} prisma={prisma} />,
+        commission: (
+          <OrgCommissionSection
+            rate={org.partnerCommissionRate}
+            note={org.partnerCommissionRateNote}
+            history={rateHistory}
+            form={
+              <AdminRateOverrideForm
+                organizationId={id}
+                initialRate={org.partnerCommissionRate}
+                initialNote={org.partnerCommissionRateNote}
+              />
+            }
+          />
+        ),
+        customFields: (
+          <EntityCustomFields fields={customFields} entityType="organization" entityId={id} />
+        ),
+      }}
+    />
   );
 }

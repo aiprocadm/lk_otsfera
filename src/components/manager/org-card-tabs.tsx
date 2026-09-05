@@ -46,6 +46,9 @@ export function OrgCardTabs({
   documentsAction,
   proposals,
   hrefFor,
+  certificatesExport,
+  leadHref,
+  headerExtra,
 }: {
   card: OrganizationCard;
   activeTab: OrgCardTabKey;
@@ -90,6 +93,24 @@ export function OrgCardTabs({
    * вести на них, а не рисовать пустую вкладку.
    */
   hrefFor?: (key: OrgCardTabKey) => string;
+  /**
+   * Адрес выгрузки «Удостоверения» (`Р-23`: адрес даёт страница роли, у
+   * партнёра и заказчика роуты свои — `/api/partner/…`, `/api/organization/…`).
+   * Без пропа — staff-роут карточки. До этапа 9 адрес был зашит, и у
+   * клиентских ролей кнопка вела в 403.
+   */
+  certificatesExport?: CertificatesExport;
+  /**
+   * Куда ведёт тема лида. Без пропа — `/manager/leads/<id>`; `null` — текстом
+   * без ссылки: у администратора раздела «Лиды» нет (исключение зеркала
+   * `leads`), а `/manager/*` для него мёртвая дверь (Model A).
+   */
+  leadHref?: LeadHref;
+  /**
+   * Строка под заголовком после «Партнёр: …» — администратору нужна
+   * «Компания: …», он видит организации всех учебных центров.
+   */
+  headerExtra?: React.ReactNode;
 }) {
   return (
     <div className="space-y-6">
@@ -99,6 +120,7 @@ export function OrgCardTabs({
           subtitle="Всё об организации в одном месте: сотрудники, заказы, документы и настройки."
         />
         {card.partner && <p className="text-sm text-gray-500 mt-1">Партнёр: {card.partner.name}</p>}
+        {headerExtra}
       </div>
 
       {/* `У-94`: организации из выписки приходят без ИНН — человек должен
@@ -148,10 +170,10 @@ export function OrgCardTabs({
           <div className="space-y-3">
             {documentsAction && <div className="flex justify-end">{documentsAction}</div>}
             {proposals}
-            {renderSection(card, activeTab)}
+            {renderSection(card, activeTab, { certificatesExport, leadHref })}
           </div>
         ) : (
-          renderSection(card, activeTab)
+          renderSection(card, activeTab, { certificatesExport, leadHref })
         )}
       </section>
     </div>
@@ -196,7 +218,14 @@ export function OrgCardTabsNav({
   );
 }
 
-function renderSection(card: OrganizationCard, tab: OrgCardTabKey): React.ReactNode {
+type CertificatesExport = { base: string; params?: Record<string, string> };
+type LeadHref = ((id: string) => string) | null;
+
+function renderSection(
+  card: OrganizationCard,
+  tab: OrgCardTabKey,
+  links: { certificatesExport?: CertificatesExport | undefined; leadHref?: LeadHref | undefined }
+): React.ReactNode {
   switch (tab) {
     case 'orders':
       return <OrdersSection orders={card.orders} />;
@@ -205,7 +234,16 @@ function renderSection(card: OrganizationCard, tab: OrgCardTabKey): React.ReactN
     case 'payments':
       return <PaymentsSection payments={card.payments} kpis={card.kpis} orgId={card.id} />;
     case 'certificates':
-      return <CertificatesSection certificates={card.certificates} orgId={card.id} />;
+      return (
+        <CertificatesSection
+          certificates={card.certificates}
+          exportLink={
+            links.certificatesExport ?? {
+              base: `/api/manager/organizations/${card.id}/certificates/export`,
+            }
+          }
+        />
+      );
     case 'comments':
       return <CommentsSection activity={card.activity} />;
     case 'inbound':
@@ -215,7 +253,12 @@ function renderSection(card: OrganizationCard, tab: OrgCardTabKey): React.ReactN
     case 'requests':
       return <ClientRequestsSection requests={card.clientRequests} />;
     case 'leads':
-      return <LeadsSection leads={card.leads} />;
+      return (
+        <LeadsSection
+          leads={card.leads}
+          hrefFor={links.leadHref === undefined ? (id) => `/manager/leads/${id}` : links.leadHref}
+        />
+      );
     case 'deals':
       return <DealsSection deals={card.deals} />;
     case 'enrollments':
@@ -394,10 +437,10 @@ function PaymentsSection({
 /** Этап 9 (ФТ-12.2): реестр удостоверений организации в карточке + выгрузка. */
 function CertificatesSection({
   certificates,
-  orgId,
+  exportLink,
 }: {
   certificates: OrganizationCard['certificates'];
-  orgId: string;
+  exportLink: CertificatesExport;
 }) {
   return (
     <div className="space-y-4">
@@ -407,7 +450,10 @@ function CertificatesSection({
             ? 'Удостоверений пока нет.'
             : `Последние ${certificates.length} — полный реестр в выгрузке.`}
         </p>
-        <ExportLink base={`/api/manager/organizations/${orgId}/certificates/export`} />
+        <ExportLink
+          base={exportLink.base}
+          {...(exportLink.params ? { params: exportLink.params } : {})}
+        />
       </div>
       {certificates.length === 0 ? (
         <EmptyState message="Удостоверений пока нет." />
@@ -619,7 +665,7 @@ function ClientRequestsSection({ requests }: { requests: OrganizationCard['clien
   );
 }
 
-function LeadsSection({ leads }: { leads: OrganizationCard['leads'] }) {
+function LeadsSection({ leads, hrefFor }: { leads: OrganizationCard['leads']; hrefFor: LeadHref }) {
   if (leads.length === 0) return <EmptyState message="Лидов пока нет." />;
   return (
     <TableShell>
@@ -632,9 +678,13 @@ function LeadsSection({ leads }: { leads: OrganizationCard['leads'] }) {
         {leads.map((l) => (
           <Tr key={l.id}>
             <Td className="font-medium">
-              <Link href={`/manager/leads/${l.id}`} className="text-[#EA580C] hover:underline">
-                {l.subject}
-              </Link>
+              {hrefFor ? (
+                <Link href={hrefFor(l.id)} className="text-[#EA580C] hover:underline">
+                  {l.subject}
+                </Link>
+              ) : (
+                <span>{l.subject}</span>
+              )}
             </Td>
             <Td>
               <LeadStatusBadge status={l.status as LeadStatus} />
