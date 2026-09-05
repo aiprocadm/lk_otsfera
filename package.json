@@ -128,5 +128,10 @@
     "prisma@6.19.3": true,
     "sharp@0.34.5": true,
     "unrs-resolver@1.12.2": true
+  },
+  "overrides": {
+    "postcss": "$postcss",
+    "uuid": "^11.1.1",
+    "deepmerge-ts": "^8.0.2"
   }
 }
