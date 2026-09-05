@@ -70,8 +70,13 @@ describe('MobileNav', () => {
 
   it('панель и бургер скрыты на десктопе', () => {
     renderNav();
-    expect(screen.getByTestId('mobile-bottom-bar').className).toContain('md:hidden');
+    const bar = screen.getByTestId('mobile-bottom-bar');
+    expect(bar.className).toContain('md:hidden');
     expect(screen.getByTestId('mobile-burger').className).toContain('md:hidden');
+    // `У-175`: встроенный `display: grid` перебивал `md:hidden`, и панель
+    // торчала на десктопе при зелёном стороже. Сетка — только классом.
+    expect(bar.style.display).toBe('');
+    expect(bar.className.split(' ')).toContain('grid');
   });
 
   it('подсвечивает активную вкладку по текущему пути', () => {

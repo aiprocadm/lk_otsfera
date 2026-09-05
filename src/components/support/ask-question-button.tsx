@@ -58,9 +58,11 @@ export function AskQuestionButton({ className }: { className?: string }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
+        // `У-175`: шапки обоих клиентских кабинетов светлые — умолчание под
+        // светлый фон, чтобы кнопка не выглядела выключенной (серая на белом).
         className={
           className ??
-          'text-xs text-gray-400 hover:text-[#F97316] transition-colors px-2 py-1 border border-gray-700 rounded hover:border-[#F97316]'
+          'text-xs text-gray-600 hover:text-[#EA580C] transition-colors px-2 py-1 border border-gray-200 rounded hover:border-[#F97316]'
         }
       >
         Задать вопрос

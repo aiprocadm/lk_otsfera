@@ -1,3 +1,4 @@
+import { fmtMoney } from '@/lib/format';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -26,12 +27,12 @@ describe('реестр плиток карточки организации (У-
   it('одна подпись — один источник числа во всех кабинетах', () => {
     const counts = { orders: 3, students: 7, cabinetUsers: 2 };
     const tiles = orgCardTiles({ ...counts, debt: '100.00' });
-    expect(tiles.map((t) => t.value)).toEqual([3, 7, 2, '100.00 ₽']);
+    expect(tiles.map((t) => t.value)).toEqual([3, 7, 2, fmtMoney('100.00')]);
   });
 
   it('пустые значения показываются нулём, а не пустотой (У-74)', () => {
     const tiles = orgCardTiles({ orders: 0, students: 0, cabinetUsers: 0, debt: '0.00' });
-    expect(tiles.map((t) => t.value)).toEqual([0, 0, 0, '0.00 ₽']);
+    expect(tiles.map((t) => t.value)).toEqual([0, 0, 0, '0 ₽']);
   });
 });
 

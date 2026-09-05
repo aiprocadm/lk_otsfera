@@ -23,11 +23,14 @@ export default async function FinancePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* `У-13`/`У-175`: на телефоне шапка складывается в столбик — как у
+          зеркального экрана заказчика; иначе кнопки выталкивают страницу за
+          край экрана (обход §0 нашёл 405px против 390px). */}
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <PageHeader title="Финансы" subtitle="Комиссионные отчёты и выплаты" />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* `У-115`: выгрузка в Excel есть и у заказчика, и у партнёра —
               содержание разное (платежи против комиссии), кнопка одна. */}
           <ExportLink base="/api/partner/finance/export" />

@@ -66,7 +66,7 @@ export function OrgAppShell(props: {
         <>
           {/* Этап 9 (ФТ-11.1): «Задать вопрос» — светлая шапка org-кабинета. */}
           {isFeatureEnabled('cabinet_questions') ? (
-            <AskQuestionButton className="text-xs text-gray-600 hover:text-[#EA580C] transition-colors px-2 py-1 border border-gray-200 rounded hover:border-[#F97316]" />
+            <AskQuestionButton />
           ) : null}
           <NotificationBell role="organization" />
           <LogoutButton />

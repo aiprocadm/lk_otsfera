@@ -27,18 +27,20 @@ export function CertificateRegistryTable({
   rows,
   showOrganization = false,
   studentHrefBase = null,
+  // `У-175`: на карточке сотрудника фильтров нет — совет «изменить фильтры»
+  // там сбивает с толку; карточка передаёт свой текст (как у партнёра).
+  emptyMessage = 'Удостоверений не найдено — попробуйте изменить фильтры.',
 }: {
   rows: CertificateRegistryRow[];
   showOrganization?: boolean;
   /** База ссылки на карточку сотрудника ('/organization/students') или null — без ссылок. */
   studentHrefBase?: string | null;
+  emptyMessage?: string;
 }) {
   const today = new Date();
 
   if (rows.length === 0) {
-    return (
-      <EmptyState icon="📜" message="Удостоверений не найдено — попробуйте изменить фильтры." />
-    );
+    return <EmptyState icon="📜" message={emptyMessage} />;
   }
 
   return (

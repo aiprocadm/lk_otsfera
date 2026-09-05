@@ -1,3 +1,3 @@
-import { screenRuleChecks } from '../screen-rules-check';
+import { ORG_CARD_ENTRIES, screenRuleChecks } from '../screen-rules-check';
 
-screenRuleChecks('партнёр', 'partner');
+screenRuleChecks('партнёр', 'partner', { orgCard: ORG_CARD_ENTRIES.partner });

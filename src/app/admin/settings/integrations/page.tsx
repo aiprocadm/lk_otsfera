@@ -321,7 +321,7 @@ export default async function AdminIntegrationsPage() {
         <IntegrationSettingsForm
           title="Телефония Mango Office"
           description="Ключи VPBX API: подпись вебхуков, записи разговоров, click-to-call."
-          note="Телефония включается переключателем в разделе «Функции платформы» — заходить на сервер не нужно (`У-124`)."
+          note="Телефония включается переключателем в разделе «Функции платформы» — заходить на сервер не нужно."
           action={saveMangoSettingsAction}
           fields={[
             {

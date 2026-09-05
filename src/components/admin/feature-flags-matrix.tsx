@@ -27,7 +27,7 @@ import type { FeatureFlagRow, FlagSource } from '@/lib/services/admin/featureFla
  * ломает typecheck и не может молча выпасть из матрицы.
  */
 const FLAG_LABELS: Record<FeatureFlag, string> = {
-  client_requests: 'Обращения клиентов (этап 5): подача и триаж',
+  client_requests: 'Обращения клиентов: подача и триаж',
   commission_pdf: 'Скачивание PDF-стейтмента комиссии',
   commission_xlsx: 'Скачивание XLSX-стейтмента комиссии',
   pwa_installer: 'Подсказка установки приложения (PWA)',
@@ -53,9 +53,9 @@ const FLAG_LABELS: Record<FeatureFlag, string> = {
   global_search: 'Глобальный поиск (сотрудники)',
   certificates_registry: 'Реестры удостоверений клиентов (организация/партнёр)',
   deals_pipeline: 'Сделки / канбан менеджера и руководителя',
-  intake_inbox: 'Входящие в работу (этап 7): единый триаж-экран',
-  document_generation: 'Генерация счёта/акта по заказу (этап 8)',
-  cabinet_questions: '«Задать вопрос» из кабинета клиента (этап 9)',
+  intake_inbox: 'Входящие в работу: единый триаж-экран',
+  document_generation: 'Генерация счёта/акта по заказу',
+  cabinet_questions: '«Задать вопрос» из кабинета клиента',
   settings_hub: 'Единый хаб «Настройки» в кабинетах сотрудников',
 };
 

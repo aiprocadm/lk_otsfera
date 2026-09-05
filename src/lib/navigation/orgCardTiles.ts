@@ -10,6 +10,8 @@
  * обязан отдать ровно эти четыре величины (объём данных зависит от скоупа,
  * смысл — нет).
  */
+import { fmtMoney } from '@/lib/format';
+
 export type OrgCardTileKey = 'orders' | 'students' | 'cabinetUsers' | 'debt';
 
 export type OrgCardTileSpec = {
@@ -47,6 +49,8 @@ export function orgCardTiles(counts: OrgCardCounts): Array<{
   return ORG_CARD_TILES.map((tile) => ({
     key: tile.key,
     label: tile.label,
-    value: tile.key === 'debt' ? `${counts.debt} ₽` : counts[tile.key],
+    // `У-175`: сумма пишется как везде в кабинетах — с пробелами между
+    // разрядами и без копеек («100 000 ₽», а не «100000.00 ₽»).
+    value: tile.key === 'debt' ? fmtMoney(counts.debt) : counts[tile.key],
   }));
 }

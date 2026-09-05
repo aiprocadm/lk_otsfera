@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { EmptyState } from '@/components/ui';
 import { Button } from '@/components/ui/button';
@@ -98,12 +99,28 @@ export function ExchangeHistory({ items }: { items: ExchangeHistoryItem[] }) {
       </div>
 
       {visible.length === 0 ? (
+        // `У-74`/`У-175`: пустой список говорит, что нажать, — и даёт кнопку,
+        // а не только совет словами (приёмка §0 по выборке экранов).
         <EmptyState
           icon="🗂"
           message={
             channel === 'all'
               ? 'Обменов пока не было — загрузите файл на вкладке «Загрузка Excel» или «Выписка».'
               : 'По этому каналу записей нет — выберите «Все каналы».'
+          }
+          action={
+            channel === 'all' ? (
+              <Link
+                href="/manager/exchange/excel"
+                className="inline-flex items-center rounded-lg bg-[#F97316] px-4 py-2 text-sm font-medium text-white hover:bg-[#EA580C]"
+              >
+                Загрузить Excel
+              </Link>
+            ) : (
+              <Button type="button" variant="secondary" onClick={() => setChannel('all')}>
+                Показать все каналы
+              </Button>
+            )
           }
         />
       ) : (

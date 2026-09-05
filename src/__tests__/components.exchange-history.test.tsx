@@ -61,6 +61,10 @@ describe('ExchangeHistory (У-48)', () => {
     // Пустой экран называет, куда идти (в списке фильтра то же слово — берём
     // текст самого пустого состояния).
     expect(screen.getByText(/Обменов пока не было.*Загрузка Excel/s)).toBeTruthy();
+    // `У-74`/`У-175`: не только совет словами, но и кнопка на вкладку загрузки.
+    expect(screen.getByRole('link', { name: 'Загрузить Excel' }).getAttribute('href')).toBe(
+      '/manager/exchange/excel'
+    );
   });
 
   it('показывает записи всех каналов с автором, итогом и состоянием отмены', () => {
@@ -109,6 +113,10 @@ describe('ExchangeHistory (У-48)', () => {
     render(<ExchangeHistory items={[item()]} />);
     fireEvent.change(screen.getByLabelText('Канал'), { target: { value: 'auto' } });
     expect(screen.getByText(/выберите «Все каналы»/)).toBeTruthy();
+    // `У-74`: кнопка снимает фильтр — запись снова видна.
+    fireEvent.click(screen.getByRole('button', { name: 'Показать все каналы' }));
+    expect(screen.getByTestId('exchange-history-list')).toBeTruthy();
+    expect(screen.getByText('Записей: 1')).toBeTruthy();
   });
 
   it('неизвестный статус и пустые числа не ломают строку', () => {

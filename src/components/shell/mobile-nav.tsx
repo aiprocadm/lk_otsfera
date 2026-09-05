@@ -62,8 +62,11 @@ export function MobileNav(props: {
       <nav
         aria-label="Мобильная навигация"
         data-testid="mobile-bottom-bar"
-        className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 md:hidden"
-        style={{ display: 'grid', gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+        // `У-175`: `display` — только классом. Встроенный `display: grid`
+        // перебивал `md:hidden`, и панель торчала внизу и на десктопе,
+        // накрывая содержимое (обход §0 это и показал на всех эталонах).
+        className="fixed bottom-0 left-0 right-0 z-30 grid bg-white border-t border-gray-200 md:hidden"
+        style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
       >
         {props.tabs.map((tab) => {
           const active = pathname.startsWith(tab.href);
@@ -78,7 +81,11 @@ export function MobileNav(props: {
               }`}
             >
               <span className="text-lg leading-none">{navIcon(tab.iconKey)}</span>
-              {tab.label}
+              {/* `У-175`: подпись не шире своей колонки — при пяти пунктах на
+                  390px «Организации» наезжало на «Документы». */}
+              <span className="max-w-full px-0.5 text-center text-[11px] leading-tight">
+                {tab.label}
+              </span>
             </Link>
           );
         })}
@@ -90,7 +97,7 @@ export function MobileNav(props: {
           className="flex flex-col items-center justify-center gap-0.5 h-14 text-xs font-medium text-gray-600 active:bg-[#FFF7ED]"
         >
           <span className="text-lg leading-none">☰</span>
-          Ещё
+          <span className="text-[11px] leading-tight">Ещё</span>
         </button>
       </nav>
 

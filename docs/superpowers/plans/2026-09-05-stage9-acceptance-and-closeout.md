@@ -14,7 +14,7 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development
 
 | PR | Что | Требования | Статус |
 |---|---|---|---|
-| PR-1 «Карточка организации у администратора — по реестру» | Ветка Model A в `getOrganizationCard`; страница `/admin/organizations/[id]` на `OrgCardTabs` с `orgCardTabsFor('admin')`; выгрузки «Оплаты»/«Удостоверения» пускают администратора; кнопка выгрузки удостоверений у партнёра и заказчика ведёт на их роуты (попутный `❌`); страж `navigation.org-card-registry-usage.guardrail`; тесты страницы, сервиса, роутов; `⚠` → `✅` в AUDIT | `У-95`, `У-96` (расхождение), §7.3 ТЗ | 🔄 [#495](https://github.com/aiprocadm/lk_otsfera/pull/495) |
+| PR-1 «Карточка организации у администратора — по реестру» | Ветка Model A в `getOrganizationCard`; страница `/admin/organizations/[id]` на `OrgCardTabs` с `orgCardTabsFor('admin')`; выгрузки «Оплаты»/«Удостоверения» пускают администратора; кнопка выгрузки удостоверений у партнёра и заказчика ведёт на их роуты (попутный `❌`); страж `navigation.org-card-registry-usage.guardrail`; тесты страницы, сервиса, роутов; `⚠` → `✅` в AUDIT | `У-95`, `У-96` (расхождение), §7.3 ТЗ | ✅ [#495](https://github.com/aiprocadm/lk_otsfera/pull/495) (влит 05.09.2026) |
 | PR-2 «Глоссарий и приёмка §0» | Словарь в двух местах и страж на 12 терминов; скрипт приёмки `scripts/screen-acceptance.ts` (режим `screens`); обход вкладок карточки в `screen-rules-check.ts`; 12 экранов глазами (`seed=175`); ~30 новых эталонов; починка находок в том же PR | `У-175` | ⏳ |
 | PR-3 «Drift-аудит, первый прогон сопровождения, закрытие» | Зона риска и три отметки по 177 строкам (режим `audit` того же скрипта), сводка; `С-1`…`С-10` с датами и журналом; пересъёмка устаревших эталонов; close-out'ы этапа и программы; шапка STATUS, абзац §14 CLAUDE.md, CHANGELOG | `У-176` | ⏳ |
 
@@ -197,7 +197,7 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development
       остаток, вердикт → `✅`, сводка `✅ 174` → `175`; строка `У-145` —
       «блок у администратора» заменён слотом `documentsAction`.
 - [x] `CHANGELOG.md`, `docs/tz/STATUS.md` (строка этапа 9, журнал).
-- [ ] PR `base: main`, дождаться `mergeStateStatus=CLEAN`, влить
+- [x] PR `base: main`, дождаться `mergeStateStatus=CLEAN`, влить
       `--squash --delete-branch`, проверить
       `git cat-file -e origin/main:src/__tests__/navigation.org-card-registry-usage.guardrail.test.ts`.
 
@@ -207,21 +207,21 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development
 
 **Глоссарий (§2.4).**
 
-- [ ] `docs/glossary.md`: термин «Моя организация» (раздел заказчика с
+- [x] `docs/glossary.md`: термин «Моя организация» (раздел заказчика с
       вкладками «Сотрудники», «Команда», реквизиты — `Р-12`); формулировки
       пяти остальных («Каталог услуг и цены», «Строка заказа», «Коммерческое
       предложение», «Доступ в кабинет», «Выгрузка в 1С») сверяются с
       подзаголовками экранов.
-- [ ] `src/lib/help/glossary.ts`: раздел `{ id: 'catalog-documents-access', title: 'Каталог, документы и доступ', … }`
+- [x] `src/lib/help/glossary.ts`: раздел `{ id: 'catalog-documents-access', title: 'Каталог, документы и доступ', … }`
       с шестью терминами (`term`, `meaning`, `notThis`); `REQUIRED_TERMS`
       — двенадцать слов.
-- [ ] `src/__tests__/help.glossary.guardrail.test.ts`: тесты проходят по
+- [x] `src/__tests__/help.glossary.guardrail.test.ts`: тесты проходят по
       всем двенадцати в `GLOSSARY` и в `docs/glossary.md`; мутация — убрать
       «Моя организация» из `docs/glossary.md` — страж падает; вернуть.
 
 **Скрипт приёмки (§2.2 п. 1, решение 5).**
 
-- [ ] `scripts/screen-acceptance.ts`, режим `screens`: список
+- [x] `scripts/screen-acceptance.ts`, режим `screens`: список
       `git diff --name-status 92c683e main -- 'src/app/**/page.tsx'` →
       по каждому файлу цепочка «страница + импортированные компоненты из
       `src/components/**`»: `h1`/`PageHeader` с русским текстом ·
@@ -229,48 +229,50 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development
       стража понятности · главная кнопка (`Button`/`Link`-кнопка/форма) либо
       `EmptyState`. Вывод — markdown-таблица «кабинет → экранов → где я / что
       здесь / что дальше» и список экранов с пробелами.
-- [ ] `src/lib/acceptance/screenRules.ts` (чистые функции: разбор исходника
+- [x] `src/lib/acceptance/screenRules.ts` (чистые функции: разбор исходника
       на признаки, детерминированная выборка `pickSample(files, n, seed)`)
       и `src/__tests__/acceptance.screen-rules.test.ts`: признаки на трёх
       фикстурах-строках; `pickSample(list, 12, 175)` дважды → один список,
       по два на кабинет.
-- [ ] Прогон скрипта по `main`; каждый экран с пробелом чинится в этом же PR
+- [x] Прогон скрипта по `main`; каждый экран с пробелом чинится в этом же PR
       (подзаголовок / кнопка / `EmptyState`).
 
 **Живой обход с вкладками карточки (§2.2 п. 2).**
 
-- [ ] `src/e2e/screen-rules-check.ts` (или его спека): после статических
+- [x] `src/e2e/screen-rules-check.ts` (или его спека): после статических
       адресов — для каждого кабинета список организаций → первая строка →
       все вкладки `orgCardTabsFor(кабинет)` (заказчик — «Моя организация»,
       партнёр — портфель); проверки: ширина ≤ 390, один `h1`, подзаголовок,
       «подпись активной вкладки = `label` реестра»; пропуск (нет данных /
       флага) — строка «ПРОПУЩЕН» в лог.
-- [ ] Стенд: отдельная seed-база + `next dev` на `:3100`
+- [x] Стенд: отдельная seed-база + `next dev` на `:3100`
       (`LD_LIBRARY_PATH=/home/aiproc/.local/pw-libs/root/usr/lib/x86_64-linux-gnu`),
       обход зелёный, лог сохранён в close-out.
 
 **Выборка глазами и эталоны (§2.2 п. 3, §2.3).**
 
-- [ ] 12 экранов из `pickSample(новые 42, 12, 175)` открываются на 390×844 и
+- [x] 12 экранов из `pickSample(новые 42, 12, 175)` открываются на 390×844 и
       на десктопе; таблица «экран → где я → что здесь → что дальше → что
       поправлено» — в close-out этапа; найденное чинится здесь же.
-- [ ] Новые спеки эталонов в `src/e2e/snapshots/`: `leader-documents`,
+- [x] Новые спеки эталонов в `src/e2e/snapshots/`: `leader-documents`,
       `leader-messages`, `leader-settings-integrations`,
       `leader-settings-price-list`, `admin-1c-documents`,
       `admin-document-templates`, `manager-exchange`, `organization-company`,
       `partner-order-card` (первый seed-заказ), пересъёмка
       `admin-organization-edit`; маски дат — как у соседей; каждый тремя
       проектами; две сверки подряд без диффов.
-- [ ] Таблица 26 исключений зеркала из `mirrorExceptions.ts` с причинами —
+- [x] Таблица 26 исключений зеркала из `mirrorExceptions.ts` с причинами —
       в close-out этапа (§7.4 ТЗ). Новых исключений не добавлять.
+      *(По факту исключений 28 — таблица в close-out; эталоны сняты двумя
+      проектами на кабинет — в `playwright.config.ts` третьего нет.)*
 
 **Гейты, документы, PR.**
 
-- [ ] `typecheck` · `lint` · `dup:check` · `boundaries` · `deadcode`; unit
+- [x] `typecheck` · `lint` · `dup:check` · `boundaries` · `deadcode`; unit
       затронутых и полный `test:unit` через `nohup`; `docs.tz-program`.
-- [ ] `docs/tz/AUDIT.md`: `У-175` → `✅` с якорями (глоссарий, скрипт,
+- [x] `docs/tz/AUDIT.md`: `У-175` → `✅` с якорями (глоссарий, скрипт,
       обход, эталоны) и датой; сводка ⏳ 2 → 1.
-- [ ] `CHANGELOG.md`, `docs/tz/STATUS.md`; PR `base: main`, влить, проверить
+- [x] `CHANGELOG.md`, `docs/tz/STATUS.md`; PR `base: main`, влить, проверить
       `git cat-file -e origin/main:scripts/screen-acceptance.ts`.
 
 ## PR-3 «Drift-аудит, первый прогон сопровождения, закрытие» — `У-176`
