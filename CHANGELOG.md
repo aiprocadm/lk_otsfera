@@ -10,7 +10,7 @@
 ### Добавлено
 
 - **Хотфикс №3 сопровождения — `npm audit fix` без `--force`** (находка `С-9`
-  от 05.09.2026, PR @@HF3@@). Только `package-lock.json`, `package.json` не
+  от 05.09.2026, PR #500). Только `package-lock.json`, `package.json` не
   тронут: `next` 15.5.22 → 15.5.25, `sharp` 0.34.5 → 0.35.4, `mailparser`
   3.9.14 → 3.9.20, `nanoid` 3.3.16 → 3.3.18, `ip-address` 10.2.0 → 10.7.0,
   `fast-uri` 3.1.5 → 3.1.7, `browserslist` 4.28.2 → 4.28.9, `html-to-text`
