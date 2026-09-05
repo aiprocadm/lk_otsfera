@@ -25,20 +25,40 @@ function walk(dir: string, out: string[] = []): string[] {
  *
  * Страж запрещает захардкоженную цифру рядом с «МБ» в UI-разметке
  * (`Максимум N МБ», «до N МБ», «предела в N МБ»); комментарии не считаются.
+ *
+ * Хотфикс №2 сопровождения (С-5, 05.09.2026): страж читал разметку построчно
+ * и молчал, когда prettier переносил подсказку — `Максимум 200{' '}` и `МБ.`
+ * на следующей строке проходили как две невинные половинки. Теперь файл
+ * сверяется целиком: между словом, цифрой и «МБ» допускаются переводы строк
+ * и JSX-пробелы `{' '}` — именно так prettier и рвёт текст.
  */
+
+/** Между словами подсказки: пробелы, переводы строк, JSX-пробел `{' '}`. */
+const GAP = String.raw`(?:\s|\{\s*['"] ['"]\s*\})`;
+const HARDCODED = new RegExp(String.raw`(Максимум|до|более|предела в)${GAP}+\d+${GAP}*МБ`, 'g');
+
+/** Комментарии стираются, но переводы строк остаются — номера строк не плывут. */
+function withoutComments(src: string): string {
+  return src
+    .split('\n')
+    .map((line) => {
+      const t = line.trim();
+      return t.startsWith('*') || t.startsWith('//') || t.startsWith('/*') ? '' : line;
+    })
+    .join('\n');
+}
+
 describe('подсказки о размере файла берут цифру из константы', () => {
-  it('в разметке компонентов и страниц нет захардкоженного «N МБ»', () => {
+  it('в разметке компонентов и страниц нет захардкоженного «N МБ» — и через перенос строки тоже', () => {
     const offenders: string[] = [];
-    const HARDCODED = /(Максимум|до|более|предела в)\s+\d+\s*МБ/;
     for (const dir of ['components', 'app']) {
       for (const file of walk(join(SRC, dir))) {
         const rel = relative(SRC, file);
         if (rel.startsWith(`__tests__${sep}`)) continue;
-        const lines = readFileSync(file, 'utf8').split('\n');
-        for (const [i, line] of lines.entries()) {
-          const t = line.trim();
-          if (t.startsWith('*') || t.startsWith('//') || t.startsWith('/*')) continue;
-          if (HARDCODED.test(line)) offenders.push(`${rel}:${i + 1}`);
+        const src = withoutComments(readFileSync(file, 'utf8'));
+        for (const m of src.matchAll(HARDCODED)) {
+          const line = src.slice(0, m.index).split('\n').length;
+          offenders.push(`${rel}:${line}`);
         }
       }
     }
