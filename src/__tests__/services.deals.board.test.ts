@@ -15,7 +15,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 const { recordAudit } = vi.hoisted(() => ({ recordAudit: vi.fn() }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
 
-import { dealScopeWhere, getDealBoard, moveDeal } from '@/lib/services/deals/board';
+import { BOARD_CAP, dealScopeWhere, getDealBoard, moveDeal } from '@/lib/services/deals/board';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -231,7 +231,7 @@ describe('getDealBoard', () => {
     expect(cardIds(board, 'st-lost')).toEqual([]);
     // Скоуп и фильтр прокинуты в findMany.
     expect(dealFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { companyId: 'c1', managerId: 'm-9' }, take: 500 })
+      expect.objectContaining({ where: { companyId: 'c1', managerId: 'm-9' }, take: BOARD_CAP })
     );
   });
 
@@ -240,8 +240,14 @@ describe('getDealBoard', () => {
       const { prisma, dealFindMany } = makePrisma({ stages: CUSTOM_STAGES });
       await getDealBoard(prisma, LEADER);
       expect(dealFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({ orderBy: [{ status: 'asc' }, { createdAt: 'desc' }] })
+        expect.objectContaining({
+          orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+          take: BOARD_CAP,
+        })
       );
+      // Предел — общая константа сервиса (иначе knip считает экспорт мёртвым,
+      // а страж `prisma.enum-terminal-last` ловит только текст `take: BOARD_CAP`).
+      expect(BOARD_CAP).toBe(500);
     });
 
     it('count идёт по тому же where, что и findMany; shown/total в ответе', async () => {
