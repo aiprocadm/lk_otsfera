@@ -69,13 +69,14 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       palette={<CommandPalette sections={items} />}
       headerRight={
         <>
-          {/* У слушателя нет notifications-скоупа (NotificationRole) —
-              колокольчик только партнёру. */}
-          {session.role === 'partner' ? <NotificationBell role="partner" /> : null}
-          {/* Этап 9 (ФТ-11.1): «Задать вопрос» — только клиентским ролям кабинета. */}
+          {/* Этап 9 (ФТ-11.1): «Задать вопрос» — только клиентским ролям кабинета.
+              `У-175`: порядок как у заказчика — вопрос → колокольчик → выход. */}
           {session.role === 'partner' && isFeatureEnabled('cabinet_questions') ? (
             <AskQuestionButton />
           ) : null}
+          {/* У слушателя нет notifications-скоупа (NotificationRole) —
+              колокольчик только партнёру. */}
+          {session.role === 'partner' ? <NotificationBell role="partner" /> : null}
           <LogoutButton />
         </>
       }

@@ -48,7 +48,7 @@ export default async function EditPartnerPage({ params }: { params: Promise<{ id
       {requisites && (
         <RequisitesCard
           title="Реквизиты для документов"
-          description="Полный набор реквизитов партнёра для автогенерации документов (этап 8)."
+          description="Полный набор реквизитов партнёра для автогенерации документов."
           defaults={requisites}
           idPrefix="adm-pt-req"
           action={setPartnerRequisitesByAdminAction}

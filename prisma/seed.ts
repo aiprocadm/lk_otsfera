@@ -101,7 +101,7 @@ async function main() {
 
   const firstOrg = await prisma.organization.findFirst({
     where: { partnerId: partner.id, externalId: '1c-org-001' },
-    select: { id: true, companyId: true },
+    select: { id: true, companyId: true, name: true },
   });
   const managerScope = firstOrg ? [firstOrg.id] : [];
 
@@ -183,6 +183,27 @@ async function main() {
       financialStatus: 'paid',
       executionStatus: 'completed',
       closedAt: new Date(prevMonthFrom.getFullYear(), prevMonthFrom.getMonth(), 15),
+    },
+  });
+
+  // Партнёр видит заказ только через свой лид (F2: `Order.promotedFromLead`
+  // → `Lead.partnerId`), поэтому демо-заказу нужен лид-источник — иначе
+  // список «Заказы» партнёра пуст и эталон карточки `/partner/orders/[id]`
+  // (`У-175`) снимать не с чего.
+  await prisma.lead.upsert({
+    where: { id: 'demo-lead-commission' },
+    update: { promotedOrderId: 'demo-order-commission' },
+    create: {
+      id: 'demo-lead-commission',
+      partnerId: partner.id,
+      source: 'partner_legacy',
+      createdByUserId: partnerAdmin.id,
+      organizationId: firstOrg.id,
+      clientCompanyName: firstOrg.name,
+      clientContactName: 'Демо-контакт',
+      subject: 'Демо-лид для комиссии',
+      status: 'promoted_to_order',
+      promotedOrderId: 'demo-order-commission',
     },
   });
 

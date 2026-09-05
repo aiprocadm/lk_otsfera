@@ -58,7 +58,7 @@ export function RequisitesScreen({
           <div key={c.id} className="space-y-4">
             <RequisitesCard
               title={`Реквизиты исполнителя: ${c.name}`}
-              description="Подставляются в шапку формируемых счетов и актов (этап 8)."
+              description="Подставляются в шапку формируемых счетов и актов."
               defaults={c}
               idPrefix={`co-req-${c.id}`}
               // bind: server-action с предвязанным кабинетом сериализуется в

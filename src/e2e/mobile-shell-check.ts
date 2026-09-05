@@ -12,6 +12,19 @@ import { test, expect, type Page } from '@playwright/test';
  * `playwright.config.ts` (кабинет выбирается именем файла, а не параметром).
  */
 export function mobileShellChecks(cabinet: string, homeUrl: string) {
+  test.describe(`Десктопный каркас: ${cabinet}`, () => {
+    test.skip(({ viewport }) => (viewport?.width ?? 0) < 768, 'только десктопный вьюпорт');
+
+    // `У-175`: панель телефона на широком экране накрывала содержимое —
+    // встроенный `display: grid` перебивал `md:hidden`. Проверяем в браузере,
+    // а не по классу: класс был на месте, а панель — на экране.
+    test('нижняя панель и бургер скрыты', async ({ page }) => {
+      await page.goto(homeUrl);
+      await expect(page.getByTestId('mobile-bottom-bar')).toBeHidden();
+      await expect(page.getByTestId('mobile-burger')).toBeHidden();
+    });
+  });
+
   test.describe(`Мобильный каркас: ${cabinet}`, () => {
     // На десктопных проектах этот файл тоже подхватывается — там проверять нечего.
     test.skip(({ viewport }) => (viewport?.width ?? 0) >= 768, 'только мобильный вьюпорт');

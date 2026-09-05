@@ -117,7 +117,7 @@ export default async function OrganizationCompanyStudentPage({
 
         <section className="space-y-2">
           <h2 className="text-xl font-semibold text-[#111111]">Удостоверения</h2>
-          <CertificateRegistryTable rows={certificates} />
+          <CertificateRegistryTable rows={certificates} emptyMessage="Нет удостоверений." />
         </section>
 
         <section className="space-y-2">

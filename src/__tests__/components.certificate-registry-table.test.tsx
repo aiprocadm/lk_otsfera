@@ -33,6 +33,14 @@ describe('CertificateRegistryTable', () => {
     expect(html).toContain('Удостоверений не найдено');
   });
 
+  it('У-175: карточка без фильтров передаёт свой текст пустого списка', () => {
+    const html = renderToString(
+      <CertificateRegistryTable rows={[]} emptyMessage="Нет удостоверений." />
+    );
+    expect(html).toContain('Нет удостоверений.');
+    expect(html).not.toContain('изменить фильтры');
+  });
+
   it('базовая строка: номер, направление, скан-кнопка; организация скрыта, ФИО без ссылки', () => {
     const html = renderToString(<CertificateRegistryTable rows={[row()]} />);
     expect(html).toContain('УД-001');

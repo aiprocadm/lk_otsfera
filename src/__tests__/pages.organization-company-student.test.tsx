@@ -122,6 +122,9 @@ describe('Карточка сотрудника в «Моей организац
 
     expect(container.textContent).toContain('Иванов Иван');
     expect(container.textContent).not.toContain('УД-1');
+    // `У-175`: фильтров на карточке нет — совет «изменить фильтры» не показываем.
+    expect(container.textContent).toContain('Нет удостоверений.');
+    expect(container.textContent).not.toContain('изменить фильтры');
   });
 
   it('успех: шапка + удостоверения + история обучения (статус по-русски, ссылка на заказ)', async () => {

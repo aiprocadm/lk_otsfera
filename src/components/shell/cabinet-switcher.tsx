@@ -24,7 +24,9 @@ export function CabinetSwitcher({ current }: { current: SwitchableCabinet }) {
 
   return (
     <span className="inline-flex items-center gap-1" data-testid="cabinet-switcher">
-      <span className="text-gray-500">Кабинет:</span>
+      {/* `У-175`: на телефоне (390px) слово не помещается вместе с двумя
+          кнопками — «Менеджер» обрезалось до «Менед»; сами кнопки важнее. */}
+      <span className="hidden text-gray-500 sm:inline">Кабинет:</span>
       {CABINET_SWITCH.map(({ cabinet, label }) =>
         cabinet === current ? (
           <span
