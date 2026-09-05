@@ -1,6 +1,6 @@
 # Матрица фиче-флагов для прод-релиза (R0.1)
 
-Источник истины по семантике — [src/lib/featureFlags.ts](../src/lib/featureFlags.ts) (19 флагов: 5 opt-out default-ON, 14 opt-in default-OFF). Env-переменная — `FEATURE_<UPPER_SNAKE>`. Точки чтения route-флагов — тройные (§5 CLAUDE.md): middleware (404) + навигация + page/route-гейт; поведенческие флаги (`max_channel`, `staff_2fa` и т.п.) читаются в своих точках, перечисленных в комментарии флага.
+Источник истины по семантике — [src/lib/featureFlags.ts](../src/lib/featureFlags.ts) (30 флагов: 5 opt-out default-ON, 25 opt-in default-OFF). Env-переменная — `FEATURE_<UPPER_SNAKE>`. Точки чтения route-флагов — тройные (§5 CLAUDE.md): middleware (404) + навигация + page/route-гейт; поведенческие флаги (`max_channel`, `staff_2fa` и т.п.) читаются в своих точках, перечисленных в комментарии флага. Состав таблиц и класс каждого флага сверяет с кодом страж `src/__tests__/docs.feature-flags-matrix.test.ts` — новый флаг без строки здесь не пройдёт `test:unit`.
 
 **Главный инвариант проверен (аудит 2026-07-10): ни одна незавершённая фича не «включится сама» — все сырые флаги opt-in.** Заглушечные адаптеры (Mango REST, IMAP) дополнительно защищены двойным предохранителем «флаг + креды/адаптер».
 
@@ -8,11 +8,11 @@
 
 | Флаг | Назначение | Прод | Зависимости |
 |---|---|---|---|
-| `partner_leads` | Заявки-лиды партнёра (+вложения) | **on** | — |
 | `commission_pdf` | Скачивание PDF стейтмента | **on** | Redis+worker (генерация) |
 | `commission_xlsx` | Скачивание XLSX стейтмента | **on** | Redis+worker |
 | `pwa_installer` | PWA-подсказка установки | **on** | — |
 | `pii_access_log` | Журнал доступа сотрудников к ПДн (§25.7): запись — recordPiiAccess, просмотр — /admin/pii-access (не гейтится) | **on** | Postgres. Выключение = пауза журнала = комплаенс-дыра; только на время инцидента |
+| `document_generation` | Выпуск документов по заказу: панель «Документы по заказу» во всех трёх кабинетах сотрудников, форма выпуска, предпросмотр (поведенческий). `У-144`: переведён в opt-out — включён по умолчанию | **on**; `0` — только аварийно | БД |
 
 ## Opt-in (default OFF — включать явно `=1`)
 
@@ -25,17 +25,22 @@
 | `chat` | Team-chat partner/org + чат-секция менеджера | **1** (комментарии к заказам — вне флага) | — |
 | `role_constructor` | G1: конструктор ролей (`/leader/roles`, `/admin/roles`) | **1** технически готов; включать по бизнес-решению | БД |
 | `sales_funnel` | G2: воронка (`/leader/funnel`, `/manager/funnel`) | **1** технически готов; по бизнес-решению | БД |
+| `leader_analytics` | M3: аналитика руководителя — план/факт продаж (`/leader/analytics`; route: middleware + меню + page-гейт) | **1** технически готов; по бизнес-решению | БД |
 | `internal_tasks` | G3: задачи (`/manager/tasks`, `/leader/tasks`) | **1** технически готов; по бизнес-решению | БД |
 | `notif_queue` | Доставка уведомлений через воркер (идемпотентность по jobId) | **1** (Redis+worker в прод-контуре есть) | `REDIS_URL` |
 | `max_channel` | Канал уведомлений Max | **0**, пока владелец не подключил бота | `MAX_BOT_TOKEN`/`MAX_WEBHOOK_SECRET` |
 | `whatsapp_channel` | Канал уведомлений WhatsApp (агрегатор) | **0**, пока не подключён агрегатор | `WHATSAPP_AGGREGATOR_*` |
 | `inbound_messaging` | Омниканальный инбокс `/manager/inbox` | **0** на старте. Мессенджер-каналы готовы (нужны `TELEGRAM_/MAX_/WHATSAPP_WEBHOOK_SECRET`); **email-канал** — IMAP-адаптер = заглушка: `INBOUND_EMAIL_ADAPTER` держать `fake`/unset, иначе DLQ-шум каждые 2 мин | секреты вебхуков |
-| `telephony_mango` | Телефония `/manager/calls` + вебхук Mango | **0** до реализации боевого REST-адаптера записей (сейчас заглушка → recording-джобы уходили бы в DLQ). При включении fail-fast требует `MANGO_API_KEY`/`MANGO_API_SALT` | `MANGO_*`, IP-allowlist |
+| `telephony_mango` | Телефония `/manager/calls` + вебхук Mango (поведенческий, `Р-24`: снят с middleware, переключается из интерфейса) | **0** до реализации боевого REST-адаптера записей (сейчас заглушка → recording-джобы уходили бы в DLQ). При включении fail-fast требует `MANGO_API_KEY`/`MANGO_API_SALT` | `MANGO_*`, IP-allowlist |
 | `staff_2fa` | 2FA сотрудников: email-код при логине admin/manager/leader (поведенческий флаг; точки чтения — login/2fa-роуты + секция настроек) | **1** после мержа PR и проверки доставки писем (EMAIL_ENABLED) | Resend (`EMAIL_ENABLED`, `RESEND_API_KEY`) |
+| `contacts` | M2: справочник контактов — server-actions контактов и триаж-действия на `/manager/inbox` и `/manager/calls` (поведенческий: экрана `/manager/contacts` и route-точек в коде нет) | **0** до появления экрана справочника | БД |
+| `staff_chat` | M4: внутренний чат сотрудников — секции «Чат команды» на `/manager/messages` и `/admin/messages`, `/api/staff-chat/*`, бейдж непрочитанного (поведенческий) | **1** технически готов; по бизнес-решению | БД |
+| `staff_calendar` | M5: календарь сотрудников (`/manager/calendar`, `/leader/calendar`; меню + page-гейты + server-actions, без middleware — прецедент `internal_tasks`) | **1** технически готов; по бизнес-решению | БД |
+| `global_search` | M6: глобальный поиск сотрудников (`/manager/search`, `/leader/search`, `/admin/search`; меню + page-гейты + сервис `globalSearch`, без middleware) | **1** технически готов; по бизнес-решению | БД |
+| `client_requests` | Этап 5 (Модуль 1): заявки клиентов (`/partner/requests`, `/organization/requests`, `/manager/requests`, `/leader/requests`, `/admin/requests`; route: middleware + меню + page/route-гейты) | **1** после мержа этапа 5 | БД |
 | `certificates_registry` | Этап 3: реестры удостоверений клиентов (`/organization/certificates`, `/partner/certificates`, карточка сотрудника, KPI-карточки) | **1** после мержа этапа 3 | — |
 | `deals_pipeline` | Этап 6: канбан сделок (`/manager/deals`, `/leader/deals`; `/partner/orders` (бывший `/partner/deals`) — другой домен, вне флага) | **1** после мержа этапа 6 | БД |
 | `intake_inbox` | Этап 7: «Входящие в работу» (`/manager/intake`, `/leader/intake`, `/admin/intake`) | **1** после мержа этапа 7 PR-2 | БД |
-| `document_generation` | Выпуск документов по заказу: панель «Документы по заказу» во всех трёх кабинетах сотрудников, форма выпуска, предпросмотр (поведенческий). `У-144`: **opt-out** — включён по умолчанию | **1** (по умолчанию); 0 — только аварийно | БД |
 | `cabinet_questions` | Этап 9: «Задать вопрос» в кабинетах партнёра и организации (поведенческий) | **1** после мержа этапа 9 PR-1 | БД |
 | `settings_hub` | ТЗ 2026-08-04: единый хаб «Настройки» в кабинетах сотрудников — состав сайдбара + редиректы со старых маршрутов (поведенческий) | **1** после приёмки; снимается вместе с приёмкой | — |
 
