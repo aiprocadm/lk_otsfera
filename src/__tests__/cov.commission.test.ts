@@ -232,7 +232,12 @@ const adminSession = { role: 'admin', sub: 'u-admin', companyId: null } as any;
 
 describe('listCorrectionQueue — branch@107 nullish', () => {
   it("leader with no companyId → scope falls back to '__none__' sentinel", async () => {
-    const db = { commissionCorrection: { findMany: vi.fn().mockResolvedValue([]) } } as any;
+    const db = {
+      commissionCorrection: {
+        findMany: vi.fn().mockResolvedValue([]),
+        count: vi.fn().mockResolvedValue(0),
+      },
+    } as any;
     await listCorrectionQueue(db, leaderNoCompany);
     const where = db.commissionCorrection.findMany.mock.calls[0][0].where;
     expect(where.partner).toMatchObject({ organizations: { some: { companyId: '__none__' } } });

@@ -108,6 +108,7 @@ export function OneCAutoExchange({
   queueStats,
   pausedIds,
   pendingRecords,
+  pendingTotal,
   patterns,
   paramsView,
   companies,
@@ -118,6 +119,8 @@ export function OneCAutoExchange({
   pausedIds: ReadonlySet<string>;
   /** Очередь разбора — админская; страница руководителя передаёт пустой список. */
   pendingRecords: PendingRecordRow[];
+  /** `С-6`: сколько записей в очереди всего — список показывает не более 100. */
+  pendingTotal: number;
   patterns: SchedulePatterns;
   paramsView: SettingViewRow[];
   /** Компании для формы параметров — тоже только у админа. */
@@ -376,7 +379,7 @@ export function OneCAutoExchange({
             action={saveOneCParamsAction}
           />
 
-          <PendingRecordsSection records={pendingRecords} />
+          <PendingRecordsSection records={pendingRecords} total={pendingTotal} />
         </>
       )}
 

@@ -17,19 +17,24 @@ const MANAGER: SessionPayload = { sub: 'mgr-1', role: 'manager' };
 function makePrisma(
   over: {
     rows?: unknown[];
+    total?: number;
     found?: { status: string } | null;
     updatedCount?: number;
     auditRejects?: boolean;
   } = {}
 ) {
   const findMany = vi.fn().mockResolvedValue(over.rows ?? []);
+  const count = vi.fn().mockResolvedValue(over.total ?? (over.rows ?? []).length);
   const findUnique = vi.fn().mockResolvedValue(over.found ?? null);
   const updateMany = vi.fn().mockResolvedValue({ count: over.updatedCount ?? 1 });
   const create = over.auditRejects
     ? vi.fn().mockRejectedValue(new Error('audit down'))
     : vi.fn().mockResolvedValue({});
-  const prisma = { oneCPendingRecord: { findMany, findUnique, updateMany }, auditLog: { create } };
-  return { prisma: prisma as never, findMany, findUnique, updateMany, create };
+  const prisma = {
+    oneCPendingRecord: { findMany, count, findUnique, updateMany },
+    auditLog: { create },
+  };
+  return { prisma: prisma as never, findMany, count, findUnique, updateMany, create };
 }
 
 describe('listPendingRecords', () => {
@@ -42,7 +47,7 @@ describe('listPendingRecords', () => {
   it('select БЕЗ dto (сырые ПДн из 1С не отдаются), orderBy dead-first + lastTriedAt desc, take 100', async () => {
     const { prisma, findMany } = makePrisma();
     const res = await listPendingRecords(prisma, ADMIN);
-    expect(res).toEqual({ ok: true, records: [] });
+    expect(res).toEqual({ ok: true, records: [], total: 0 });
     expect(findMany).toHaveBeenCalledWith({
       select: {
         id: true,
@@ -74,7 +79,13 @@ describe('listPendingRecords', () => {
       lastTriedAt: new Date('2026-07-02T00:00:00Z'),
     };
     const { prisma } = makePrisma({ rows: [row] });
-    expect(await listPendingRecords(prisma, ADMIN)).toEqual({ ok: true, records: [row] });
+    expect(await listPendingRecords(prisma, ADMIN)).toEqual({ ok: true, records: [row], total: 1 });
+  });
+
+  it('С-6: total — полный счётчик таблицы, а не длина усечённой выборки', async () => {
+    const { prisma, count } = makePrisma({ rows: [{ id: 'p1' }], total: 240 });
+    expect(await listPendingRecords(prisma, ADMIN)).toMatchObject({ ok: true, total: 240 });
+    expect(count).toHaveBeenCalledTimes(1);
   });
 });
 

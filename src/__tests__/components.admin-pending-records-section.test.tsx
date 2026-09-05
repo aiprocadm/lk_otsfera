@@ -31,7 +31,7 @@ function rec(over: Partial<PendingRecordRow> = {}): PendingRecordRow {
 
 describe('PendingRecordsSection', () => {
   it('пустое состояние: «Отложенных записей нет», таблица не рендерится', () => {
-    render(<PendingRecordsSection records={[]} />);
+    render(<PendingRecordsSection records={[]} total={0} />);
     expect(screen.getByText('Отложенные записи 1С')).toBeTruthy();
     expect(screen.getByText('Отложенных записей нет')).toBeTruthy();
     expect(screen.queryByRole('table')).toBeNull();
@@ -51,6 +51,7 @@ describe('PendingRecordsSection', () => {
           }),
           rec({ id: 'p1', entity: 'payment', externalId: 'PAY-1', status: 'pending' }),
         ]}
+        total={2}
       />
     );
     expect(screen.getByText('Отложенные записи 1С')).toBeTruthy();
@@ -70,6 +71,7 @@ describe('PendingRecordsSection', () => {
     render(
       <PendingRecordsSection
         records={[rec({ id: 'd1', status: 'dead' }), rec({ id: 'p1', status: 'pending' })]}
+        total={2}
       />
     );
     const buttons = screen.getAllByTestId('requeue');
@@ -81,6 +83,7 @@ describe('PendingRecordsSection', () => {
     render(
       <PendingRecordsSection
         records={[rec({ id: 'd1', status: 'dead' }), rec({ id: 'p1', status: 'pending' })]}
+        total={2}
       />
     );
     const dead = screen.getByText('dead');
@@ -89,8 +92,21 @@ describe('PendingRecordsSection', () => {
     expect(pending.className).not.toContain('text-red-700');
   });
 
+  it('С-6: записей больше окна — под таблицей «Показаны первые N из M» с советом', () => {
+    const { container } = render(
+      <PendingRecordsSection records={[rec({ id: 'p1' })]} total={240} />
+    );
+    expect(container.textContent).toContain('Показаны первые 1 из 240');
+    expect(container.textContent).toContain('Разберите или верните в очередь эти');
+  });
+
+  it('С-6: всё показано — подписи нет', () => {
+    const { container } = render(<PendingRecordsSection records={[rec()]} total={1} />);
+    expect(container.textContent).not.toContain('Показаны первые');
+  });
+
   it('неизвестная сущность выводится как есть (fallback)', () => {
-    render(<PendingRecordsSection records={[rec({ entity: 'mystery' })]} />);
+    render(<PendingRecordsSection records={[rec({ entity: 'mystery' })]} total={1} />);
     expect(screen.getByText('mystery')).toBeTruthy();
   });
 });

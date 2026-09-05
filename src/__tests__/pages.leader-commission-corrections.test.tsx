@@ -34,17 +34,20 @@ describe('LeaderCommissionCorrectionsPage', () => {
 
   it('serializes correction rows (Decimal -> string, dates -> ISO) and passes them to the table', async () => {
     requireManagerLeader.mockResolvedValue(SESSION);
-    listCorrectionQueue.mockResolvedValue([
-      {
-        id: 'cr1',
-        partner: { name: 'Партнёр' },
-        amount: { toString: () => '100.00' },
-        commissionAmount: { toString: () => '10.00' },
-        rate: { toString: () => '0.10' },
-        originalPeriodFrom: new Date('2026-01-01T00:00:00Z'),
-        originalPeriodTo: new Date('2026-01-31T00:00:00Z'),
-      },
-    ]);
+    listCorrectionQueue.mockResolvedValue({
+      total: 1,
+      rows: [
+        {
+          id: 'cr1',
+          partner: { name: 'Партнёр' },
+          amount: { toString: () => '100.00' },
+          commissionAmount: { toString: () => '10.00' },
+          rate: { toString: () => '0.10' },
+          originalPeriodFrom: new Date('2026-01-01T00:00:00Z'),
+          originalPeriodTo: new Date('2026-01-31T00:00:00Z'),
+        },
+      ],
+    });
 
     const { container } = await renderServerComponent(LeaderCommissionCorrectionsPage());
 
@@ -54,21 +57,35 @@ describe('LeaderCommissionCorrectionsPage', () => {
     expect(container.textContent).toContain('Партнёр');
     expect(container.textContent).toContain('100.00');
     expect(container.textContent).toContain('2026-01-01T00:00:00.000Z');
+    expect(container.textContent).not.toContain('Показаны первые');
+  });
+
+  it('С-6: очередь длиннее окна — «Показаны первые N из M» и совет разобрать эти', async () => {
+    requireManagerLeader.mockResolvedValue(SESSION);
+    listCorrectionQueue.mockResolvedValue({ rows: [], total: 350 });
+
+    const { container } = await renderServerComponent(LeaderCommissionCorrectionsPage());
+
+    expect(container.textContent).toContain('Показаны первые 0 из 350');
+    expect(container.textContent).toContain('Разберите эти — появятся следующие.');
   });
 
   it('falls back to em-dash partner name when partner is null', async () => {
     requireManagerLeader.mockResolvedValue(SESSION);
-    listCorrectionQueue.mockResolvedValue([
-      {
-        id: 'cr2',
-        partner: null,
-        amount: { toString: () => '5.00' },
-        commissionAmount: { toString: () => '0.50' },
-        rate: { toString: () => '0.10' },
-        originalPeriodFrom: new Date('2026-02-01T00:00:00Z'),
-        originalPeriodTo: new Date('2026-02-28T00:00:00Z'),
-      },
-    ]);
+    listCorrectionQueue.mockResolvedValue({
+      total: 1,
+      rows: [
+        {
+          id: 'cr2',
+          partner: null,
+          amount: { toString: () => '5.00' },
+          commissionAmount: { toString: () => '0.50' },
+          rate: { toString: () => '0.10' },
+          originalPeriodFrom: new Date('2026-02-01T00:00:00Z'),
+          originalPeriodTo: new Date('2026-02-28T00:00:00Z'),
+        },
+      ],
+    });
 
     const { container } = await renderServerComponent(LeaderCommissionCorrectionsPage());
 
@@ -77,7 +94,7 @@ describe('LeaderCommissionCorrectionsPage', () => {
 
   it('renders with an empty queue', async () => {
     requireManagerLeader.mockResolvedValue(SESSION);
-    listCorrectionQueue.mockResolvedValue([]);
+    listCorrectionQueue.mockResolvedValue({ rows: [], total: 0 });
 
     const { container } = await renderServerComponent(LeaderCommissionCorrectionsPage());
 

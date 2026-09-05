@@ -123,9 +123,12 @@ function canResolve(s: SessionPayload): boolean {
  * Список корректировок со статусом needs_review.
  * Admin видит все; leader ограничен партнёрами своей компании
  * (через partner→organizations.companyId).
+ *
+ * `С-6`: окно 200 строк, рядом `total` по тому же условию — экран покажет
+ * «показаны 200 из M», а не выдаст окно за всю очередь.
  */
 export async function listCorrectionQueue(prisma: PrismaClient, session: SessionPayload) {
-  if (!canResolve(session)) return [];
+  if (!canResolve(session)) return { rows: [], total: 0 };
   const where: Prisma.CommissionCorrectionWhereInput =
     session.role === 'admin'
       ? { status: 'needs_review' }
@@ -133,23 +136,27 @@ export async function listCorrectionQueue(prisma: PrismaClient, session: Session
           status: 'needs_review',
           partner: { organizations: { some: { companyId: session.companyId ?? '__none__' } } },
         };
-  return prisma.commissionCorrection.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-    take: 200,
-    select: {
-      id: true,
-      partnerId: true,
-      amount: true,
-      commissionAmount: true,
-      rate: true,
-      originalPeriodFrom: true,
-      originalPeriodTo: true,
-      paymentId: true,
-      createdAt: true,
-      partner: { select: { name: true } },
-    },
-  });
+  const [rows, total] = await Promise.all([
+    prisma.commissionCorrection.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+      select: {
+        id: true,
+        partnerId: true,
+        amount: true,
+        commissionAmount: true,
+        rate: true,
+        originalPeriodFrom: true,
+        originalPeriodTo: true,
+        paymentId: true,
+        createdAt: true,
+        partner: { select: { name: true } },
+      },
+    }),
+    prisma.commissionCorrection.count({ where }),
+  ]);
+  return { rows, total };
 }
 
 /**

@@ -63,20 +63,23 @@ describe('AdminDocumentsPage', () => {
 
   it('renders the general tab (?tab=general) with order-less documents mapped to OrgDocumentRow', async () => {
     requireAdmin.mockResolvedValue(SESSION);
-    listGeneralDocuments.mockResolvedValue([
-      {
-        id: 'd1',
-        name: 'Общий.pdf',
-        type: 'report',
-        direction: 'incoming',
-        signedAt: null,
-        createdAt: new Date('2024-01-01'),
-        size: 100,
-        orderId: null,
-        orderNumber: null,
-        orderTitle: null,
-      },
-    ]);
+    listGeneralDocuments.mockResolvedValue({
+      rows: [
+        {
+          id: 'd1',
+          name: 'Общий.pdf',
+          type: 'report',
+          direction: 'incoming',
+          signedAt: null,
+          createdAt: new Date('2024-01-01'),
+          size: 100,
+          orderId: null,
+          orderNumber: null,
+          orderTitle: null,
+        },
+      ],
+      total: 1,
+    });
 
     const { container } = await renderServerComponent(
       AdminDocumentsPage({ searchParams: Promise.resolve({ tab: 'general' }) })
@@ -92,14 +95,30 @@ describe('AdminDocumentsPage', () => {
     expect(
       container.querySelector('[data-testid="documents-list"]')?.getAttribute('data-reset-href')
     ).toBe('');
+    // Всё показано — строки «Показаны первые…» нет.
+    expect(container.textContent).not.toContain('Показаны первые');
+  });
+
+  it('С-6: общих документов больше, чем влезло, — под списком «Показаны первые N из M»', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    listGeneralDocuments.mockResolvedValue({ rows: [], total: 731 });
+
+    const { container } = await renderServerComponent(
+      AdminDocumentsPage({ searchParams: Promise.resolve({ tab: 'general' }) })
+    );
+
+    expect(container.textContent).toContain('Показаны первые 0 из 731');
+    expect(container.textContent).toContain('уточните фильтр');
   });
 
   it('У-169: фильтр «Выгрузка в 1С» на вкладке общих документов — select, сервис и сброс', async () => {
     requireAdmin.mockResolvedValue(SESSION);
-    listGeneralDocuments.mockResolvedValue([]);
+    listGeneralDocuments.mockResolvedValue({ rows: [], total: 0 });
 
     const { container } = await renderServerComponent(
-      AdminDocumentsPage({ searchParams: Promise.resolve({ tab: 'general', oneCPushStatus: 'failed' }) })
+      AdminDocumentsPage({
+        searchParams: Promise.resolve({ tab: 'general', oneCPushStatus: 'failed' }),
+      })
     );
 
     expect(listGeneralDocuments).toHaveBeenCalledWith(expect.anything(), {
@@ -115,10 +134,12 @@ describe('AdminDocumentsPage', () => {
 
   it('У-169: чужое слово в адресе — «без фильтра», а не ошибка', async () => {
     requireAdmin.mockResolvedValue(SESSION);
-    listGeneralDocuments.mockResolvedValue([]);
+    listGeneralDocuments.mockResolvedValue({ rows: [], total: 0 });
 
     await renderServerComponent(
-      AdminDocumentsPage({ searchParams: Promise.resolve({ tab: 'general', oneCPushStatus: 'nope' }) })
+      AdminDocumentsPage({
+        searchParams: Promise.resolve({ tab: 'general', oneCPushStatus: 'nope' }),
+      })
     );
 
     expect(listGeneralDocuments).toHaveBeenCalledWith(expect.anything(), {

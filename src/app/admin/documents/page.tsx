@@ -8,6 +8,7 @@ import { DocumentsPanel } from '@/components/documents/documents-panel';
 import { listGeneralDocuments } from '@/lib/services/documents/generalList';
 import { parseOneCPushStatus } from '@/lib/documents/oneCPushStatus';
 import { PageHeader } from '@/components/ui/page-header';
+import { ListCapNotice } from '@/components/ui';
 
 type SearchParams = { tab?: string; oneCPushStatus?: string };
 
@@ -51,7 +52,7 @@ export default async function AdminDocumentsPage({
     // `У-169`: фильтр «Выгрузка в 1С» и массовая выгрузка — зеркало экрана
     // сотрудников. Вкладка «По заказам» пока на прежней панели (см. план PR-5).
     const oneCPushStatus = parseOneCPushStatus(sp.oneCPushStatus);
-    const documentRows = await listGeneralDocuments(prisma, { oneCPushStatus });
+    const { rows: documentRows, total } = await listGeneralDocuments(prisma, { oneCPushStatus });
 
     return (
       <div className="space-y-4">
@@ -76,6 +77,8 @@ export default async function AdminDocumentsPage({
           cardHrefBase="/admin/documents"
           resetHref={oneCPushStatus ? '/admin/documents?tab=general' : undefined}
         />
+        {/* `С-6`: список режется по 200 — человек должен видеть, что это не всё. */}
+        <ListCapNotice shown={documentRows.length} total={total} />
       </div>
     );
   }

@@ -5,11 +5,12 @@ import { listCorrectionQueue } from '@/lib/services/commission/corrections';
 import { CorrectionsQueueTable } from '@/components/commission/corrections-queue-table';
 
 import { PageHeader } from '@/components/ui/page-header';
+import { ListCapNotice } from '@/components/ui';
 export const dynamic = 'force-dynamic';
 
 export default async function LeaderCommissionCorrectionsPage() {
   const session = await requireManagerLeader();
-  const rows = await listCorrectionQueue(prisma, session);
+  const { rows, total } = await listCorrectionQueue(prisma, session);
   const serialized = rows.map((r) => ({
     id: r.id,
     partnerName: r.partner?.name ?? '—',
@@ -29,6 +30,12 @@ export default async function LeaderCommissionCorrectionsPage() {
         />
       </div>
       <CorrectionsQueueTable rows={serialized} />
+      {/* `С-6`: очередь режется по 200; фильтра нет — остальные появятся после разбора. */}
+      <ListCapNotice
+        shown={serialized.length}
+        total={total}
+        hint="Разберите эти — появятся следующие."
+      />
     </div>
   );
 }

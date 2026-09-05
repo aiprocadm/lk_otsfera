@@ -130,7 +130,7 @@ describe('AdminSyncPage', () => {
     getQueueStats.mockReset();
     loadPausedSchedulerIds.mockReset();
     listPendingRecords.mockReset();
-    listPendingRecords.mockResolvedValue({ ok: true, records: [] });
+    listPendingRecords.mockResolvedValue({ ok: true, records: [], total: 0 });
   });
 
   it('renders sync summary rows with active queue badge, formatted date, paused toggle, and cursor', async () => {
@@ -254,6 +254,7 @@ describe('AdminSyncPage', () => {
           lastTriedAt: new Date('2026-07-04T10:00:00Z'),
         },
       ],
+      total: 2,
     });
 
     const { container } = await renderServerComponent(AdminSyncPage());
@@ -265,6 +266,34 @@ describe('AdminSyncPage', () => {
     const requeueButtons = container.querySelectorAll('[data-testid="requeue"]');
     expect(requeueButtons).toHaveLength(1);
     expect(requeueButtons[0].textContent).toBe('d1');
+    expect(container.textContent).not.toContain('Показаны первые');
+  });
+
+  it('С-6: отложенных записей больше окна — под таблицей «Показаны первые N из M»', async () => {
+    requireSettingsSection.mockResolvedValue(SESSION);
+    getSyncSummary.mockResolvedValue([]);
+    getQueueStats.mockResolvedValue([]);
+    loadPausedSchedulerIds.mockResolvedValue(new Set());
+    listPendingRecords.mockResolvedValue({
+      ok: true,
+      records: [
+        {
+          id: 'p1',
+          entity: 'payment',
+          externalId: 'PAY-1',
+          reason: 'order_not_found',
+          attempts: 1,
+          status: 'pending',
+          firstSeenAt: new Date('2026-07-03T10:00:00Z'),
+          lastTriedAt: new Date('2026-07-04T10:00:00Z'),
+        },
+      ],
+      total: 240,
+    });
+
+    const { container } = await renderServerComponent(AdminSyncPage());
+
+    expect(container.textContent).toContain('Показаны первые 1 из 240');
   });
 
   it('pending section: empty state on ok with no records and on non-ok result', async () => {
