@@ -3,6 +3,7 @@ import { OrgFinanceKpisGrid } from '@/components/organization/org-finance-kpis';
 import { OrgFinanceCommission } from '@/components/manager/org-finance-commission';
 import type { ManagerFinanceOverview } from '@/lib/services/manager/finance';
 import { fmtMoney } from '@/lib/format';
+import { EmptyState } from '@/components/ui/empty-state';
 import { ManagerFinancePayments } from './manager-finance-payments';
 
 export function ManagerFinanceView({
@@ -13,13 +14,13 @@ export function ManagerFinanceView({
   ordersBasePath?: string;
 }) {
   if (data.sections.length === 0) {
+    // `У-74`/`У-175`: пустой экран объясняет, почему пусто и к кому идти.
+    // Кнопки нет намеренно — назначить организации может только администратор.
     return (
-      <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
-        <p className="text-gray-500 text-sm">
-          Нет организаций в вашей зоне видимости. Обратитесь к администратору, чтобы вам назначили
-          организации.
-        </p>
-      </div>
+      <EmptyState
+        title="Нет организаций в вашей зоне видимости"
+        message="Финансы показываются по организациям, которые за вами закреплены. Обратитесь к администратору, чтобы вам назначили организации."
+      />
     );
   }
   return (

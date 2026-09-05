@@ -5,22 +5,25 @@ import { GLOSSARY, REQUIRED_TERMS } from '@/lib/help/glossary';
 import { navByRole } from '@/lib/navigation/cabinet';
 
 /**
- * Словарь терминов (`У-76`, этап 9).
+ * Словарь терминов (`У-76`, этап 9 ТЗ понятности; `У-175`, этап 9 действующего
+ * ТЗ — ещё шесть слов из этапов 2–8: каталог, строка заказа, КП, доступ в
+ * кабинет, «Моя организация», выгрузка в 1С).
  *
  * Страж существует потому, что источников смысла два: `docs/glossary.md` для
  * разработчиков и этот реестр для пользователей. Разъехавшийся словарь хуже
  * отсутствующего — человек прочитает одно, а в интерфейсе увидит другое.
  */
-describe('словарь терминов (У-76)', () => {
+describe('словарь терминов (У-76, У-175)', () => {
   const terms = GLOSSARY.flatMap((s) => s.terms.map((t) => t.term));
 
-  it('шесть терминов из ТЗ есть в словаре кабинета', () => {
+  it('двенадцать терминов из ТЗ есть в словаре кабинета', () => {
+    expect(REQUIRED_TERMS).toHaveLength(12);
     for (const required of REQUIRED_TERMS) {
-      expect(terms, `«${required}» обязателен по У-76`).toContain(required);
+      expect(terms, `«${required}» обязателен по У-76/У-175`).toContain(required);
     }
   });
 
-  it('те же шесть терминов есть и в docs/glossary.md — источники не разъехались', () => {
+  it('те же двенадцать терминов есть и в docs/glossary.md — источники не разъехались', () => {
     const md = readFileSync(join(process.cwd(), 'docs/glossary.md'), 'utf8');
     for (const required of REQUIRED_TERMS) {
       // В документе термины стоят в единственном числе в таблицах; сверяем
