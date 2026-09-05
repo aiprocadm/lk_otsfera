@@ -14,7 +14,7 @@ import {
   twoFactorCodeSubject,
   twoFactorCodeText,
 } from '@/lib/email/templates/two-factor-code';
-import { log } from '@/lib/logging';
+import { bestEffort, log } from '@/lib/logging';
 
 async function renderHtml(element: React.ReactElement): Promise<string> {
   const mod = await import('react-dom/server');
@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
     entity: 'auth_2fa',
     entityId: user.id,
     userId: user.id,
-  }).catch(() => {});
+  }).catch(bestEffort('[2fa/resend] audit failed (2fa_code_sent)'));
 
   return NextResponse.json({ ok: true });
 }

@@ -9,6 +9,7 @@ import { verifyTwoFactorCode } from '@/lib/services/auth/twoFactor';
 import { getActiveUserForSession, recordLastLogin } from '@/lib/services/auth/login';
 import { buildSessionClaims } from '@/lib/auth/buildSessionClaims';
 import { recordAudit } from '@/lib/auth/audit';
+import { bestEffort } from '@/lib/logging';
 import { isRateLimited } from '@/lib/rateLimit';
 
 const schema = z.object({ code: z.string().min(1).max(64) });
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
       userId: sub,
       status: 'denied',
       reason: result.error,
-    }).catch(() => {});
+    }).catch(bestEffort('[2fa/verify] audit failed (2fa_failed)'));
     return NextResponse.json(
       { code: result.error.toUpperCase(), message: 'Verification failed' },
       { status: 401 }
@@ -91,7 +92,7 @@ export async function POST(req: NextRequest) {
     entity: 'auth_2fa',
     entityId: sub,
     userId: sub,
-  }).catch(() => {});
+  }).catch(bestEffort('[2fa/verify] audit failed (2fa_verified)'));
 
   // Этап 9 (ФТ-11.3): второй путь входа — отметка та же, тоже best-effort (§3).
   await recordLastLogin(prisma, sub);

@@ -178,9 +178,13 @@ describe('POST /api/auth/2fa/verify', () => {
     expect(res.status).toBe(403);
   });
 
-  it('audit failures never break verification (best-effort)', async () => {
-    recordAuditMock.mockRejectedValue(new Error('audit down'));
+  it('audit failures never break verification (best-effort) — но уходят в warn (В-1)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const err = new Error('audit down');
+    recordAuditMock.mockRejectedValue(err);
     const res = await POST(req({ code: '123456' }, '2fa_pending=t'));
     expect(res.status).toBe(200);
+    expect(warn).toHaveBeenCalledWith('[2fa/verify] audit failed (2fa_verified)', err);
+    warn.mockRestore();
   });
 });

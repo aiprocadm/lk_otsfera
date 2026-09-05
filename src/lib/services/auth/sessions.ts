@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
+import { bestEffort } from '@/lib/logging';
 
 /**
  * «Выйти на всех устройствах» (этап 9, ФТ-11.2). Инкремент `User.sessionVersion`
@@ -27,7 +28,7 @@ export async function revokeAllSessions(
     action: 'sessions_revoked',
     entity: 'user',
     entityId: session.sub,
-  }).catch(() => {});
+  }).catch(bestEffort('[auth/sessions] audit failed (sessions_revoked)'));
 
   return { ok: true };
 }

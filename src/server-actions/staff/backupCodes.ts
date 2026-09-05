@@ -5,6 +5,7 @@ import { getSession } from '@/lib/auth/session';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { generateBackupCodes } from '@/lib/services/auth/twoFactor';
 import { recordAudit } from '@/lib/auth/audit';
+import { bestEffort } from '@/lib/logging';
 
 // Self-service перевыпуск кодов восстановления 2FA. Staff-гейт: admin | manager
 // (leader — самостоятельная staff-роль, ТЗ 2026-08-17). За флагом
@@ -22,6 +23,6 @@ export async function regenerateBackupCodesAction(): Promise<
     entity: 'auth_2fa',
     entityId: session.sub,
     userId: session.sub,
-  }).catch(() => {});
+  }).catch(bestEffort('[staff/backupCodes] audit failed (2fa_backup_regenerated)'));
   return { ok: true, codes };
 }

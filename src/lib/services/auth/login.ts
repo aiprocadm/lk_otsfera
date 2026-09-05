@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import type { PrismaClient, User } from '@prisma/client';
+import { bestEffort } from '@/lib/logging';
 
 /**
  * Доступ к БД для потока входа (§3: роут — тонкий, запросы живут в сервисе).
@@ -91,5 +92,5 @@ export async function getActiveUserForCodeDelivery(
 export async function recordLastLogin(prisma: PrismaClient, userId: string): Promise<void> {
   await prisma.user
     .update({ where: { id: userId }, data: { lastLoginAt: new Date() } })
-    .catch(() => {});
+    .catch(bestEffort('[auth/login] recordLastLogin failed'));
 }

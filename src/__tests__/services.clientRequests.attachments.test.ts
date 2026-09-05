@@ -59,6 +59,8 @@ vi.mock('@/lib/services/scan/visibility', () => ({
 }));
 vi.mock('@/lib/logging', () => ({
   log: { warn: logWarn, error: logError, info: vi.fn(), debug: vi.fn() },
+  // `В-1`: best-effort удаление из хранилища теперь пишет warn через хелпер.
+  bestEffort: (label: string) => (err: unknown) => logWarn(label, err),
 }));
 
 import {
@@ -333,13 +335,15 @@ describe('deleteClientRequestAttachment', () => {
     expect(storageRemove).toHaveBeenCalledWith(['client-requests/r1/att-1.pdf']);
   });
 
-  it('сбой storage.remove проглатывается (ok:true)', async () => {
+  it('сбой storage.remove проглатывается (ok:true), но уходит в warn (В-1)', async () => {
     attFindFirst.mockResolvedValue(foundAtt());
-    storageRemove.mockRejectedValue(new Error('s3 down'));
+    const err = new Error('s3 down');
+    storageRemove.mockRejectedValue(err);
     const r = await deleteClientRequestAttachment(prismaMock(), SUBMITTER, {
       attachmentId: 'att-1',
     });
     expect(r).toEqual({ ok: true });
+    expect(logWarn).toHaveBeenCalledWith('[client-request-attachments] storage remove failed', err);
   });
 });
 

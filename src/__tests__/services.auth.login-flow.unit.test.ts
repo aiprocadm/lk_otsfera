@@ -149,9 +149,13 @@ describe('recordLastLogin', () => {
     expect(lastLoginAt.getTime()).toBeLessThanOrEqual(Date.now());
   });
 
-  it('сбой апдейта проглатывается (best-effort §3): вызов не бросает', async () => {
-    update.mockRejectedValue(new Error('db down'));
+  it('сбой апдейта проглатывается (best-effort §3): вызов не бросает, но пишет warn (В-1)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const err = new Error('db down');
+    update.mockRejectedValue(err);
     await expect(recordLastLogin(prisma, 'u1')).resolves.toBeUndefined();
+    expect(warn).toHaveBeenCalledWith('[auth/login] recordLastLogin failed', err);
+    warn.mockRestore();
   });
 });
 
