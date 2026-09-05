@@ -33,6 +33,11 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: 0,
+  // Этап 9 (У-175): dev-сервер собирает маршрут при первом заходе и
+  // выбрасывает его из памяти через минуту простоя — тяжёлые экраны
+  // (карточка организации, настройки) отвечают по 25–30 с, и стандартных
+  // 30 с на тест не хватало: падения были не по вёрстке, а по сборке.
+  timeout: 60_000,
   reporter: [['list'], ['html', { open: 'never', outputFolder: 'playwright-report/html' }]],
   expect: {
     toHaveScreenshot: {
@@ -50,6 +55,12 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     locale: 'ru-RU',
     timezoneId: 'Europe/Moscow',
+    // Этап 9 (У-175): PWA-воркер `public/sw.js` ставится на первой странице
+    // теста и в момент `clients.claim()` обрывает идущую навигацию
+    // (`net::ERR_ABORTED`), а дальше отдаёт страницы «сначала из кэша» —
+    // эталон мог бы снять устаревший экран. Снимки проверяют вёрстку, а не
+    // офлайн-режим, поэтому воркер в тестах выключен.
+    serviceWorkers: 'block',
   },
   projects: [
     {

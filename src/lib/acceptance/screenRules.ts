@@ -20,7 +20,7 @@
 export type ScreenCabinet =
   'admin' | 'leader' | 'manager' | 'partner' | 'organization' | 'student' | 'other';
 
-export const CABINET_LABELS: Record<ScreenCabinet, string> = {
+const CABINET_LABELS: Record<ScreenCabinet, string> = {
   admin: 'Администратор',
   leader: 'Руководитель',
   manager: 'Менеджер',
