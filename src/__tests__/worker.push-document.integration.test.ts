@@ -38,6 +38,7 @@ let companyId: string;
 let orgId: string;
 let orgNoInnId: string;
 let managerId: string;
+let leaderId: string;
 let orderId: string;
 const createdDocIds: string[] = [];
 
@@ -137,6 +138,12 @@ beforeAll(async () => {
       data: { email: `s8p3-m-${STAMP}@t.local`, name: 'М', role: 'manager', companyId },
     })
   ).id;
+  // `У-174`: руководитель компании — адресат уведомления об ошибке выгрузки.
+  leaderId = (
+    await prisma.user.create({
+      data: { email: `s8p3-l-${STAMP}@t.local`, name: 'Р', role: 'leader', companyId },
+    })
+  ).id;
   orderId = (
     await prisma.order.create({
       data: {
@@ -167,9 +174,10 @@ afterAll(async () => {
   await prisma.document.deleteMany({ where: { id: { in: createdDocIds } } });
   await prisma.syncLog.deleteMany({ where: { entity: 'document', externalId: { in: createdDocIds } } });
   await prisma.auditLog.deleteMany({ where: { userId: managerId } });
+  await prisma.notification.deleteMany({ where: { userId: { in: [managerId, leaderId] } } });
   await prisma.order.deleteMany({ where: { id: orderId } });
   await prisma.organization.deleteMany({ where: { id: { in: [orgId, orgNoInnId] } } });
-  await prisma.user.deleteMany({ where: { id: managerId } });
+  await prisma.user.deleteMany({ where: { id: { in: [managerId, leaderId] } } });
   await prisma.company.deleteMany({ where: { id: companyId } });
   await prisma.$disconnect();
   resetOneCAdapter();
@@ -422,7 +430,40 @@ describe('pushDocumentProcessor — воркер (страж worker.processor-co
       '[worker] push-document refused',
       expect.objectContaining({ documentId: id, error: 'not_pushable_type' })
     );
+    // КП не в failed — уведомлять не о чем.
+    expect(
+      await prisma.notification.count({ where: { userId: { in: [managerId, leaderId] } } })
+    ).toBe(0);
     warn.mockRestore();
+  });
+
+  it('У-174: отказ «нет номера» — уведомление руководителю и тому, кто нажал', async () => {
+    vi.spyOn(log, 'warn').mockImplementation(() => {});
+    const id = await createDoc({ number: null });
+    const result = await pushDocumentProcessor(
+      job({ documentId: id, actorUserId: managerId }),
+      prisma
+    );
+    expect(result).toEqual({ documentId: id, outcome: 'no_number' });
+
+    const rows = await prisma.notification.findMany({
+      where: { userId: { in: [managerId, leaderId] }, type: 'sync_error' },
+      select: { userId: true, title: true, body: true, meta: true },
+      orderBy: { userId: 'asc' },
+    });
+    expect(rows.map((r) => r.userId).sort()).toEqual([managerId, leaderId].sort());
+    for (const r of rows) {
+      expect(r.title).toBe('Не удалось выгрузить документ в 1С');
+      // Отказ уже засчитан как попытка — текст говорит «после 1 попытки».
+      expect(r.body).toMatch(
+        /^Счёт без номера не принят 1С после 1 попытки: У документа нет номера/
+      );
+      expect(r.meta).toMatchObject({ kind: 'push_document_failed', documentId: id });
+    }
+    const byUser = new Map(rows.map((r) => [r.userId, r.meta as { url: string }]));
+    expect(byUser.get(leaderId)?.url).toBe(`/leader/documents/${id}`);
+    expect(byUser.get(managerId)?.url).toBe(`/manager/documents/${id}`);
+    await prisma.notification.deleteMany({ where: { userId: { in: [managerId, leaderId] } } });
   });
 });
 

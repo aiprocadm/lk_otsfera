@@ -36,6 +36,8 @@ export default async function LeaderIntegrationsPage() {
         <IntegrationsHealthPanel
           rows={health.rows.map((r) => ({ ...r, flagEditable: false }))}
           lockedLabel="переключает администратор"
+          // `У-174`: свой список документов с фильтром «не выгружен».
+          failedDocumentsHref="/leader/documents?oneCPushStatus=failed"
         />
       ) : (
         <p role="alert" className="text-sm text-red-600">

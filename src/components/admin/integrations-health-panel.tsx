@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/lib/ui/toast';
-import { fmtDateTime } from '@/lib/format';
+import { fmtDateTime, pluralizeRu } from '@/lib/format';
 import { setFeatureFlagAction } from '@/server-actions/feature-flags';
 import type {
   IntegrationHealthRow,
@@ -18,6 +19,10 @@ import type {
  * проверки подключения жил отдельно, ниже по странице. Теперь состояние одно
  * и на виду: работает (с датой проверки) · не настроено · ошибка (с текстом).
  * Канал включается здесь же, где вводятся его ключи, — не через сервер.
+ *
+ * `У-174`: у карточки 1С есть пятое состояние «работает с ошибками» — обмен
+ * отвечает, но невыгруженных документов больше порога. Их число видно
+ * всегда, даже при нуле: молчание тут читалось бы как «не считали».
  */
 const STATUS_VIEW: Record<
   IntegrationHealthStatus,
@@ -43,7 +48,17 @@ const STATUS_VIEW: Record<
     className: 'bg-amber-50 text-amber-800 border-amber-200',
     hint: 'ключи заданы, но подключение ещё ни разу не проверяли',
   },
+  degraded: {
+    label: 'работает с ошибками',
+    className: 'bg-amber-50 text-amber-800 border-amber-200',
+    hint: 'подключение отвечает, но часть документов 1С не приняла',
+  },
 };
+
+/** «Документов не выгружено: 3» — с числом всегда, чтобы ноль тоже был виден. */
+function pushFailedText(count: number): string {
+  return `${pluralizeRu(count, 'Документ не выгружен', 'Документа не выгружено', 'Документов не выгружено')}: ${count}`;
+}
 
 const ERRORS_RU: Record<string, string> = {
   forbidden: 'Недостаточно прав',
@@ -57,9 +72,14 @@ export function IntegrationsHealthPanel({
   // руководителя блокирует ВСЕ переключатели и передаёт свою подпись: для него
   // канал включает администратор из интерфейса, а не «сервер» (`У-135`).
   lockedLabel = 'включается на сервере',
+  // `У-174`: куда ведёт «документов не выгружено» — список документов своего
+  // кабинета с фильтром «не выгружен». Адрес отдаёт страница: панель одна,
+  // а кабинета два (`Р-23`).
+  failedDocumentsHref,
 }: {
   rows: IntegrationHealthRow[];
   lockedLabel?: string;
+  failedDocumentsHref?: string | undefined;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
@@ -131,6 +151,24 @@ export function IntegrationsHealthPanel({
                 {row.status === 'unchecked' && (
                   <div className="text-xs text-amber-800 mt-1">
                     Нажмите «Проверить подключение» ниже — иначе неизвестно, отвечает ли сервис.
+                  </div>
+                )}
+                {row.documentsNotPushed && (
+                  <div
+                    className={`text-xs mt-1 ${
+                      row.status === 'degraded' ? 'text-amber-800' : 'text-gray-500'
+                    }`}
+                    data-testid={`integration-push-failed-${row.key}`}
+                  >
+                    {failedDocumentsHref ? (
+                      <Link href={failedDocumentsHref} className="underline">
+                        {pushFailedText(row.documentsNotPushed.count)}
+                      </Link>
+                    ) : (
+                      pushFailedText(row.documentsNotPushed.count)
+                    )}
+                    {row.status === 'degraded' &&
+                      ` — больше порога (${row.documentsNotPushed.threshold}); откройте список и нажмите «Повторить» или исправьте документ`}
                   </div>
                 )}
               </div>

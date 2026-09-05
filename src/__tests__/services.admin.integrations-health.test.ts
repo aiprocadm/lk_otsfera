@@ -26,10 +26,21 @@ vi.mock('@/lib/featureFlags', async (orig) => ({
   isFeatureEnabled,
 }));
 
+// `У-174`: счёт невыгруженных документов и порог — свои модули, здесь важна
+// только сборка светофора из их ответов.
+const { countFailedDocumentPushes, getThresholds } = vi.hoisted(() => ({
+  countFailedDocumentPushes: vi.fn(async () => 0),
+  getThresholds: vi.fn(() => ({ oneCPushFailedMax: 0 })),
+}));
+vi.mock('@/lib/services/oneCSync/pushFailures', () => ({ countFailedDocumentPushes }));
+vi.mock('@/lib/monitoring/thresholds', () => ({ getThresholds }));
+
 import { getIntegrationsHealth } from '@/lib/services/admin/integrationsHealth';
 
 const admin = { sub: 'u1', role: 'admin' } as never;
+const leader = { sub: 'u3', role: 'leader', companyId: 'co-1' } as never;
 const RUN = new Date('2026-08-12T10:00:00.000Z');
+const ONEC_OK = { entity: 'integration.onec', lastRunAt: RUN, lastSuccessAt: RUN, lastError: null };
 
 function status(key: string, enabled: boolean, label = key) {
   return { key, label, enabled, description: `описание ${key}`, envHint: 'подсказка' };
@@ -39,6 +50,8 @@ beforeEach(() => {
   isFeatureEnabled.mockReturnValue(true);
   getIntegrationsStatus.mockReset().mockReturnValue([]);
   listIntegrationSyncStates.mockReset().mockResolvedValue([]);
+  countFailedDocumentPushes.mockReset().mockResolvedValue(0);
+  getThresholds.mockReset().mockReturnValue({ oneCPushFailedMax: 0 });
 });
 
 describe('getIntegrationsHealth (У-70)', () => {
@@ -119,5 +132,83 @@ describe('getIntegrationsHealth (У-70)', () => {
     const res = await getIntegrationsHealth({} as never, { sub: 'u2', role: 'manager' } as never);
     expect(res).toEqual({ ok: false, error: 'forbidden' });
     expect(listIntegrationSyncStates).not.toHaveBeenCalled();
+    expect(countFailedDocumentPushes).not.toHaveBeenCalled();
+  });
+});
+
+describe('У-174: «документов не выгружено» на карточке 1С', () => {
+  it('число и порог видны у 1С всегда — даже при нуле; у других карточек их нет', async () => {
+    getIntegrationsStatus.mockReturnValue([status('onec', true), status('telegram', true)]);
+    listIntegrationSyncStates.mockResolvedValue([ONEC_OK]);
+    getThresholds.mockReturnValue({ oneCPushFailedMax: 5 });
+    const res = await getIntegrationsHealth({} as never, admin);
+    if (!res.ok) throw new Error('expected ok');
+    expect(res.rows[0]).toMatchObject({
+      key: 'onec',
+      status: 'ok',
+      documentsNotPushed: { count: 0, threshold: 5 },
+    });
+    expect(res.rows[1]?.documentsNotPushed).toBeNull();
+  });
+
+  it('выше порога — «работает с ошибками»: зелёный при невыгруженных счетах врал бы', async () => {
+    getIntegrationsStatus.mockReturnValue([status('onec', true)]);
+    listIntegrationSyncStates.mockResolvedValue([ONEC_OK]);
+    countFailedDocumentPushes.mockResolvedValue(3);
+    getThresholds.mockReturnValue({ oneCPushFailedMax: 2 });
+    const res = await getIntegrationsHealth({} as never, admin);
+    if (!res.ok) throw new Error('expected ok');
+    expect(res.rows[0]).toMatchObject({
+      status: 'degraded',
+      documentsNotPushed: { count: 3, threshold: 2 },
+    });
+  });
+
+  it('ровно на пороге — ещё «работает»: порог значит «столько терпим»', async () => {
+    getIntegrationsStatus.mockReturnValue([status('onec', true)]);
+    listIntegrationSyncStates.mockResolvedValue([ONEC_OK]);
+    countFailedDocumentPushes.mockResolvedValue(2);
+    getThresholds.mockReturnValue({ oneCPushFailedMax: 2 });
+    const res = await getIntegrationsHealth({} as never, admin);
+    if (!res.ok) throw new Error('expected ok');
+    expect(res.rows[0]?.status).toBe('ok');
+  });
+
+  it('«ошибка» и «не настроено» сильнее: они и так объясняют, почему документы не уезжают', async () => {
+    getIntegrationsStatus.mockReturnValue([status('onec', true)]);
+    listIntegrationSyncStates.mockResolvedValue([
+      { ...ONEC_OK, lastSuccessAt: null, lastError: 'нет связи' },
+    ]);
+    countFailedDocumentPushes.mockResolvedValue(10);
+    const res = await getIntegrationsHealth({} as never, admin);
+    if (!res.ok) throw new Error('expected ok');
+    expect(res.rows[0]).toMatchObject({ status: 'error', documentsNotPushed: { count: 10 } });
+
+    getIntegrationsStatus.mockReturnValue([status('onec', false)]);
+    const off = await getIntegrationsHealth({} as never, admin);
+    if (!off.ok) throw new Error('expected ok');
+    expect(off.rows[0]?.status).toBe('not_configured');
+  });
+
+  it('админ считает по всей платформе, руководитель — по своей компании', async () => {
+    getIntegrationsStatus.mockReturnValue([status('onec', true)]);
+    const prisma = {} as never;
+    await getIntegrationsHealth(prisma, admin);
+    expect(countFailedDocumentPushes).toHaveBeenLastCalledWith(prisma);
+    await getIntegrationsHealth(prisma, leader);
+    expect(countFailedDocumentPushes).toHaveBeenLastCalledWith(prisma, { companyId: 'co-1' });
+  });
+
+  it('руководитель без компании видит ноль, а не всю платформу (C8: null → deny-all)', async () => {
+    getIntegrationsStatus.mockReturnValue([status('onec', true)]);
+    listIntegrationSyncStates.mockResolvedValue([ONEC_OK]);
+    countFailedDocumentPushes.mockResolvedValue(7);
+    const res = await getIntegrationsHealth(
+      {} as never,
+      { sub: 'u4', role: 'leader', companyId: null } as never
+    );
+    if (!res.ok) throw new Error('expected ok');
+    expect(countFailedDocumentPushes).not.toHaveBeenCalled();
+    expect(res.rows[0]).toMatchObject({ status: 'ok', documentsNotPushed: { count: 0 } });
   });
 });

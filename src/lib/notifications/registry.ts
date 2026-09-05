@@ -191,6 +191,8 @@ export const NOTIFICATION_TYPES = {
   sync_error: {
     label: 'Ошибка обмена с 1С',
     audience: ['staff'],
+    // Второй продьюсер того же типа — `push-document.ts` (`У-174`: документ
+    // не выгружен в 1С после последней попытки); реестр хранит один якорь.
     producer: 'src/worker/processors/push-lead.ts',
   },
   ops_alert: {

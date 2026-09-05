@@ -29,13 +29,20 @@ vi.mock('@/lib/config/integrationSettingsCache', () => ({ primeIntegrationSettin
 // а рисует клиентская панель — здесь подменяем обоих.
 const { getIntegrationsHealth } = vi.hoisted(() => ({ getIntegrationsHealth: vi.fn() }));
 vi.mock('@/lib/services/admin/integrationsHealth', () => ({ getIntegrationsHealth }));
-const { healthRows } = vi.hoisted(() => ({ healthRows: [] as unknown[] }));
+const { healthRows, healthProps } = vi.hoisted(() => ({
+  healthRows: [] as unknown[],
+  healthProps: {} as { failedDocumentsHref?: string | undefined },
+}));
 vi.mock('@/components/admin/integrations-health-panel', async () => {
   // React импортируем внутри фабрики: она поднимается выше импортов файла.
   const R = await import('react');
   return {
-    IntegrationsHealthPanel: (props: { rows: unknown[] }) => {
+    IntegrationsHealthPanel: (props: {
+      rows: unknown[];
+      failedDocumentsHref?: string | undefined;
+    }) => {
       healthRows.splice(0, healthRows.length, ...props.rows);
+      healthProps.failedDocumentsHref = props.failedDocumentsHref;
       return R.createElement('div', { 'data-testid': 'health-panel' }, 'HEALTH');
     },
   };
@@ -140,6 +147,11 @@ describe('AdminIntegrationsPage', () => {
     // Состояние интеграций рисует панель — страница отдаёт ей строки сервиса.
     expect(container.querySelector('[data-testid="health-panel"]')).not.toBeNull();
     expect(healthRows).toHaveLength(2);
+    // `У-174`: «документов не выгружено» ведёт в список админа с фильтром
+    // (фильтр у админа живёт на вкладке «Общие»).
+    expect(healthProps.failedDocumentsHref).toBe(
+      '/admin/documents?tab=general&oneCPushStatus=failed'
+    );
     // все группы настроек смонтированы
     expect(formTitles).toEqual([
       'Telegram-бот',

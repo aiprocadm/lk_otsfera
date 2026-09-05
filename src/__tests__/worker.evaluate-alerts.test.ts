@@ -16,13 +16,19 @@ import { evaluateAlertsProcessor } from '@/worker/processors/evaluate-alerts';
 
 const KEY = 'dlq:notifications.dispatch';
 const DEAD_KEY = 'onec_dead_letters';
+const PUSH_KEY = 'onec_push_failed';
 const noCounts = { waiting: 0, active: 0, completed: 0, failed: 0, delayed: 0 };
 let prisma: PrismaClient;
 
-/** Wrap the real prisma with a stub for oneCPendingRecord (table may not exist locally yet) */
-function makeDb(base: PrismaClient): PrismaClient {
+/**
+ * Wrap the real prisma with a stub for oneCPendingRecord (table may not exist
+ * locally yet). `document.count` тоже подставной: в общей базе могут лежать
+ * чужие `failed`-документы, а порог `У-174` по умолчанию 0.
+ */
+function makeDb(base: PrismaClient, failedPushes = 0): PrismaClient {
   return Object.assign(Object.create(Object.getPrototypeOf(base)), base, {
     oneCPendingRecord: { count: vi.fn().mockResolvedValue(0) },
+    document: { count: vi.fn().mockResolvedValue(failedPushes) },
   }) as unknown as PrismaClient;
 }
 
@@ -47,7 +53,7 @@ function healthy() {
 
 beforeEach(async () => {
   if (!prisma) prisma = new PrismaClient();
-  await prisma.alertState.deleteMany({ where: { key: { in: [KEY, DEAD_KEY] } } });
+  await prisma.alertState.deleteMany({ where: { key: { in: [KEY, DEAD_KEY, PUSH_KEY] } } });
   getQueueStatsMock.mockReset();
   getSyncLagMock.mockReset();
   deliverAlertMock.mockReset().mockResolvedValue(undefined);
@@ -55,7 +61,7 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
-  await prisma.alertState.deleteMany({ where: { key: { in: [KEY, DEAD_KEY] } } });
+  await prisma.alertState.deleteMany({ where: { key: { in: [KEY, DEAD_KEY, PUSH_KEY] } } });
   await prisma.$disconnect();
 });
 
@@ -98,6 +104,7 @@ describe('evaluateAlertsProcessor', () => {
     healthy();
     const mockDb = {
       oneCPendingRecord: { count: vi.fn().mockResolvedValue(2) },
+      document: { count: vi.fn().mockResolvedValue(0) },
       alertState: {
         findMany: vi.fn().mockResolvedValue([]),
         upsert: vi.fn().mockResolvedValue(undefined),
@@ -113,5 +120,26 @@ describe('evaluateAlertsProcessor', () => {
     expect(mockDb.alertState.upsert).toHaveBeenCalledWith(
       expect.objectContaining({ where: { key: DEAD_KEY } })
     );
+  });
+
+  it('У-174: документы, которые 1С не приняла, выше порога — оповещение onec_push_failed', async () => {
+    healthy();
+    const db = makeDb(prisma, 2);
+    const r = await evaluateAlertsProcessor(job(), db);
+    expect(r.fired).toBe(1);
+    expect(deliverAlertMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        kind: 'fire',
+        message: expect.stringContaining('2 документа не выгружено'),
+      })
+    );
+    // Считаем только failed и действующие версии — той же функцией, что и светофор.
+    expect((db.document.count as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0]).toEqual({
+      where: { oneCPushStatus: 'failed', supersededAt: null },
+    });
+    const row = await prisma.alertState.findUnique({ where: { key: PUSH_KEY } });
+    expect(row?.status).toBe('firing');
+    expect(row?.severity).toBe('warning');
   });
 });

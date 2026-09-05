@@ -159,6 +159,21 @@ export function ExchangeHistory({ items }: { items: ExchangeHistoryItem[] }) {
                       <dd className="text-[#111111]">{numbers}</dd>
                     </div>
                   )}
+                  {item.detail && (
+                    // `У-174`: что именно ответила 1С или почему документ не
+                    // поехал — без этого «ошибка» в итоге ничего не объясняет.
+                    <div className="flex gap-2 sm:col-span-2">
+                      <dt className="text-gray-500">Подробности</dt>
+                      <dd
+                        className={
+                          item.status === 'error' ? 'text-red-700 break-words' : 'text-[#111111]'
+                        }
+                        data-testid={`exchange-detail-${item.id}`}
+                      >
+                        {item.detail}
+                      </dd>
+                    </div>
+                  )}
                 </dl>
               </li>
             );

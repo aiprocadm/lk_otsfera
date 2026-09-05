@@ -1,3 +1,4 @@
+import { pluralizeRu } from '@/lib/format';
 import type { QueueStatsRow } from '@/lib/services/admin/queueStats';
 import type { SyncLagRow } from '@/lib/services/admin/syncHealth';
 import type { Thresholds } from './thresholds';
@@ -8,6 +9,8 @@ export type AlertMetrics = {
   queues: QueueStatsRow[];
   syncLag: SyncLagRow[];
   pendingDeadLetters: number;
+  /** `У-174`: действующие документы со статусом выгрузки `failed`. */
+  failedDocumentPushes: number;
 };
 
 export function evaluate(metrics: AlertMetrics, t: Thresholds): Breach[] {
@@ -51,6 +54,18 @@ export function evaluate(metrics: AlertMetrics, t: Thresholds): Breach[] {
       severity: 'critical',
       message: `1С: ${metrics.pendingDeadLetters} записей не удалось применить (dead-letter, порог ${t.oneCDeadLetterMax})`,
       value: metrics.pendingDeadLetters,
+    });
+  }
+
+  // `У-174`: документ, который 1С не приняла, ждёт человека — очередь его
+  // больше не повторит. Предупреждение, а не авария: обмен как таковой жив.
+  if (metrics.failedDocumentPushes > t.oneCPushFailedMax) {
+    const n = metrics.failedDocumentPushes;
+    breaches.push({
+      key: 'onec_push_failed',
+      severity: 'warning',
+      message: `1С: ${n} ${pluralizeRu(n, 'документ не выгружен', 'документа не выгружено', 'документов не выгружено')} (порог ${t.oneCPushFailedMax})`,
+      value: n,
     });
   }
 

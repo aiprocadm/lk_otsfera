@@ -30,6 +30,7 @@ export type AlertSettingsValues = {
   syncLagMaxHours: string;
   renotifyCooldownHours: string;
   oneCDeadLetterMax: string;
+  oneCPushFailedMax: string;
   telegramChatId: string;
   emailRecipients: string;
 };
@@ -81,6 +82,12 @@ export function AlertSettingsForm({
     {
       name: 'oneCDeadLetterMax',
       label: 'Записей 1С в «мёртвой» очереди — предел',
+      hint: 'по умолчанию 0',
+    },
+    // `У-174`: выше предела светофор 1С желтеет и уходит оповещение.
+    {
+      name: 'oneCPushFailedMax',
+      label: 'Документов не выгружено в 1С — предел',
       hint: 'по умолчанию 0',
     },
   ];
