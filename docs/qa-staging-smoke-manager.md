@@ -20,7 +20,7 @@
 | Флаг включён | `FEATURE_MANAGER_CABINET=1` в env staging | env прокинут в **Next + worker** |
 | Миграции применены | `npx prisma migrate status` | `Database schema is up to date` |
 | C8-поля в БД | `Company.managerTeamVisibility`, `User.managerRole` присутствуют | см. [schema.prisma:104,399](../prisma/schema.prisma) |
-| Worker запущен | процесс `npm run worker:start` / systemd | очереди `oneCSync.*`, `notifications.dispatch`, `emails.send` слушают |
+| Worker запущен | процесс `npm run worker` / systemd | очереди `oneCSync.*`, `notifications.dispatch`, `emails.send` слушают |
 | S3 bucket | загрузка тестового файла через admin | 200, файл в bucket `documents` (`S3_BUCKET`) |
 | Resend | `EMAIL_ENABLED=true`, валидный `RESEND_API_KEY`, `EMAIL_FROM=…@otsfera.ru` | тестовый email доходит |
 
