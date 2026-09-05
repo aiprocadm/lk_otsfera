@@ -24,12 +24,13 @@ export type PendingRecordRow = {
 };
 
 export type ListPendingRecordsResult =
-  { ok: true; records: PendingRecordRow[] } | { ok: false; error: 'forbidden' };
+  { ok: true; records: PendingRecordRow[]; total: number } | { ok: false; error: 'forbidden' };
 
 /**
  * Последние отложенные записи 1С для /admin/sync. Dead-записи первыми
  * ('dead' < 'pending' лексикографически при status asc), внутри статуса —
  * свежие попытки сверху; cap 100 строк (операторский обзор, не пагинация).
+ * `С-6`: рядом `total` — счётчик всей таблицы, чтобы экран показал «100 из M».
  */
 export async function listPendingRecords(
   prisma: PrismaClient,
@@ -37,22 +38,25 @@ export async function listPendingRecords(
 ): Promise<ListPendingRecordsResult> {
   if (session.role !== 'admin') return { ok: false, error: 'forbidden' };
 
-  const records = await prisma.oneCPendingRecord.findMany({
-    select: {
-      id: true,
-      entity: true,
-      externalId: true,
-      reason: true,
-      attempts: true,
-      status: true,
-      firstSeenAt: true,
-      lastTriedAt: true,
-    },
-    orderBy: [{ status: 'asc' }, { lastTriedAt: 'desc' }],
-    take: 100,
-  });
+  const [records, total] = await Promise.all([
+    prisma.oneCPendingRecord.findMany({
+      select: {
+        id: true,
+        entity: true,
+        externalId: true,
+        reason: true,
+        attempts: true,
+        status: true,
+        firstSeenAt: true,
+        lastTriedAt: true,
+      },
+      orderBy: [{ status: 'asc' }, { lastTriedAt: 'desc' }],
+      take: 100,
+    }),
+    prisma.oneCPendingRecord.count(),
+  ]);
 
-  return { ok: true, records };
+  return { ok: true, records, total };
 }
 
 export type RequeueDeadRecordResult =

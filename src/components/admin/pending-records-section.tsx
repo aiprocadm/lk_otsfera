@@ -1,5 +1,5 @@
 import React from 'react';
-import { Badge, EmptyState, TableShell, THead, Th, Tr, Td } from '@/components/ui';
+import { Badge, EmptyState, ListCapNotice, TableShell, THead, Th, Tr, Td } from '@/components/ui';
 import { RequeuePendingButton } from '@/components/admin/requeue-pending-button';
 import type { PendingRecordRow } from '@/lib/services/admin/pendingRecords';
 
@@ -24,7 +24,14 @@ const DATE_FMT = new Intl.DateTimeFormat('ru-RU', {
  * загружает страница через listPendingRecords; интерактив — только
  * RequeuePendingButton у dead-строк.
  */
-export function PendingRecordsSection({ records }: { records: PendingRecordRow[] }) {
+export function PendingRecordsSection({
+  records,
+  total,
+}: {
+  records: PendingRecordRow[];
+  /** `С-6`: полный счётчик таблицы — список обрезан по 100. */
+  total: number;
+}) {
   return (
     <div>
       <h2 className="text-lg font-semibold text-[#111111]">Отложенные записи 1С</h2>
@@ -65,6 +72,11 @@ export function PendingRecordsSection({ records }: { records: PendingRecordRow[]
           </tbody>
         </TableShell>
       )}
+      <ListCapNotice
+        shown={records.length}
+        total={total}
+        hint="Разберите или верните в очередь эти — появятся следующие."
+      />
     </div>
   );
 }

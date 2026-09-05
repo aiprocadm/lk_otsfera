@@ -56,23 +56,40 @@ const leaderSession = {
 const partnerSession = { role: 'partner', sub: 'u-p', companyId: null } as any;
 
 describe('listCorrectionQueue', () => {
+  const queueDb = (rows: unknown[] = [], total = rows.length) =>
+    ({
+      commissionCorrection: {
+        findMany: vi.fn().mockResolvedValue(rows),
+        count: vi.fn().mockResolvedValue(total),
+      },
+    }) as any;
+
   it('partner is forbidden (returns empty)', async () => {
-    const db = { commissionCorrection: { findMany: vi.fn() } } as any;
-    expect(await listCorrectionQueue(db, partnerSession)).toEqual([]);
+    const db = queueDb();
+    expect(await listCorrectionQueue(db, partnerSession)).toEqual({ rows: [], total: 0 });
     expect(db.commissionCorrection.findMany).not.toHaveBeenCalled();
+    expect(db.commissionCorrection.count).not.toHaveBeenCalled();
   });
   it('admin sees all needs_review (no company filter)', async () => {
-    const db = { commissionCorrection: { findMany: vi.fn().mockResolvedValue([]) } } as any;
+    const db = queueDb();
     await listCorrectionQueue(db, adminSession);
     const where = db.commissionCorrection.findMany.mock.calls[0][0].where;
     expect(where).toMatchObject({ status: 'needs_review' });
     expect(where.partner).toBeUndefined();
   });
   it('leader is scoped to own company partners', async () => {
-    const db = { commissionCorrection: { findMany: vi.fn().mockResolvedValue([]) } } as any;
+    const db = queueDb();
     await listCorrectionQueue(db, leaderSession);
     const where = db.commissionCorrection.findMany.mock.calls[0][0].where;
     expect(where.partner).toMatchObject({ organizations: { some: { companyId: 'co-1' } } });
+  });
+  it('С-6: total считается по тому же where, что и строки — экран покажет «N из M»', async () => {
+    const row = { id: 'c-1' };
+    const db = queueDb([row], 350);
+    expect(await listCorrectionQueue(db, leaderSession)).toEqual({ rows: [row], total: 350 });
+    expect(db.commissionCorrection.count).toHaveBeenCalledWith({
+      where: db.commissionCorrection.findMany.mock.calls[0][0].where,
+    });
   });
 });
 

@@ -7,8 +7,10 @@ import { listGeneralDocuments } from '@/lib/services/documents/generalList';
  * /admin/documents в сервис). Проверка аргументов prisma переехала сюда из
  * pages.admin-documents.test.tsx.
  */
-function makePrisma(findMany: ReturnType<typeof vi.fn>) {
-  return { document: { findMany } } as unknown as PrismaClient;
+function makePrisma(findMany: ReturnType<typeof vi.fn>, total = 0) {
+  return {
+    document: { findMany, count: vi.fn().mockResolvedValue(total) },
+  } as unknown as PrismaClient;
 }
 
 describe('listGeneralDocuments()', () => {
@@ -74,7 +76,7 @@ describe('listGeneralDocuments()', () => {
       },
     ]);
 
-    const rows = await listGeneralDocuments(makePrisma(findMany));
+    const { rows } = await listGeneralDocuments(makePrisma(findMany, 1));
 
     expect(rows).toEqual([
       {
@@ -93,5 +95,17 @@ describe('listGeneralDocuments()', () => {
         oneCPushStatus: 'pushed',
       },
     ]);
+  });
+
+  it('С-6: total считает все подходящие документы по тому же where — экран покажет «200 из M»', async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const prisma = makePrisma(findMany, 731);
+
+    const res = await listGeneralDocuments(prisma, { oneCPushStatus: 'failed' });
+
+    expect(res).toEqual({ rows: [], total: 731 });
+    expect(
+      (prisma as unknown as { document: { count: ReturnType<typeof vi.fn> } }).document.count
+    ).toHaveBeenCalledWith({ where: findMany.mock.calls[0][0].where });
   });
 });

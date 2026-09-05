@@ -13,4 +13,5 @@ export { EmptyState } from './empty-state';
 export { LogoutButton } from './logout-button';
 export { TableShell, THead, Th, Tr, Td } from './table';
 export { Paginator } from './paginator';
+export { ListCapNotice } from './list-cap-notice';
 export { ExportLink } from './export-link';

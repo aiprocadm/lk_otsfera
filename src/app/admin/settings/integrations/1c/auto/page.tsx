@@ -22,21 +22,23 @@ export const dynamic = 'force-dynamic';
 export default async function AdminSyncPage() {
   const session = await requireSettingsSection('integrations.oneC', 'admin');
 
-  const [rows, queueStats, pausedIds, pendingRecords, patterns, paramsView, companies] =
-    await Promise.all([
+  const EMPTY_PENDING = { records: [] as PendingRecordRow[], total: 0 };
+  const [rows, queueStats, pausedIds, pending, patterns, paramsView, companies] = await Promise.all(
+    [
       getSyncSummary(prisma),
       getQueueStats().catch(() => []),
       loadPausedSchedulerIds(prisma).catch(() => new Set<string>()),
       // Очередь разбора — админская (сервис отвечает `forbidden` остальным).
       // Сбой БД деградирует в пустую секцию, как соседние загрузки (§3).
       listPendingRecords(prisma, session)
-        .then((r) => (r.ok ? r.records : []))
-        .catch(() => [] as PendingRecordRow[]),
+        .then((r) => (r.ok ? { records: r.records, total: r.total } : EMPTY_PENDING))
+        .catch(() => EMPTY_PENDING),
       // `У-125`: расписание и параметры — из базы, с умолчаниями из кода.
       getSchedulePatterns(prisma).catch(() => new Map<string, string>()),
       getSettingsView(prisma, ONEC_PARAM_KEYS).catch(() => []),
       listCompanyOptions(prisma).catch(() => [] as Array<{ id: string; name: string }>),
-    ]);
+    ]
+  );
 
   return (
     <OneCAutoExchange
@@ -44,7 +46,8 @@ export default async function AdminSyncPage() {
       rows={rows}
       queueStats={queueStats}
       pausedIds={pausedIds}
-      pendingRecords={pendingRecords}
+      pendingRecords={pending.records}
+      pendingTotal={pending.total}
       patterns={patterns}
       paramsView={paramsView}
       companies={companies}

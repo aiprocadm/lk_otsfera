@@ -87,7 +87,7 @@ beforeEach(() => {
     ]);
   getQueueStats.mockReset().mockResolvedValue([]);
   loadPausedSchedulerIds.mockReset().mockResolvedValue(new Set<string>());
-  listPendingRecords.mockReset().mockResolvedValue({ ok: true, records: [] });
+  listPendingRecords.mockReset().mockResolvedValue({ ok: true, records: [], total: 0 });
   listExchangeHistory.mockReset().mockResolvedValue({ ok: true, items: [] });
 });
 

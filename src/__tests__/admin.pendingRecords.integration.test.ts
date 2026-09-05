@@ -102,6 +102,8 @@ describe('admin pending records (integration)', () => {
 
     const ours = res.records.filter((r) => r.externalId.startsWith('APR-'));
     expect(ours.map((r) => r.id)).toEqual([deadId, pendingId]); // 'dead' < 'pending' лексикографически
+    // `С-6`: total — счётчик всей таблицы, не короче показанного.
+    expect(res.total).toBeGreaterThanOrEqual(res.records.length);
 
     for (const row of ours) {
       expect(row).not.toHaveProperty('dto'); // сырые ПДн из 1С не покидают сервис

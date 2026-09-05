@@ -40,6 +40,7 @@ export default async function LeaderSyncPage() {
       queueStats={queueStats}
       pausedIds={pausedIds}
       pendingRecords={[]}
+      pendingTotal={0}
       patterns={patterns}
       paramsView={paramsView}
       companies={[]}
