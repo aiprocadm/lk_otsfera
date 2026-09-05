@@ -15,8 +15,8 @@
 | Staging-deploy свежий | сверить commit SHA на staging vs `main` | совпадает |
 | Флаг включён | `FEATURE_ORGANIZATION_CABINET=1` в env staging-инстанса | env прокинут в Next + worker |
 | Миграции применены | `npx prisma migrate status` (на staging) | `Database schema is up to date` |
-| Backfill отработал | `node dist/scripts/backfill-order-organization-id.js` или эквивалент | 0 critical warns; все `Order` с `organizationId` |
-| Worker запущен | проверить процесс `npm run worker:start` или systemd unit | очереди `oneCSync.*`, `notifications.dispatch`, `emails.send` слушают |
+| `Order.organizationId` заполнен | ничего не запускать: колонка `NOT NULL` с миграции `20260526132950_order_organization_id_required`, отдельного бэкфилла больше нет | `npx prisma migrate status` выше уже это гарантирует |
+| Worker запущен | проверить процесс `npm run worker` или systemd unit | очереди `oneCSync.*`, `notifications.dispatch`, `emails.send` слушают |
 | S3 bucket доступен | загрузить тестовый файл через admin-кабинет | 200, file в bucket `documents` (`S3_BUCKET`) |
 | Resend настроен | `EMAIL_ENABLED=true`, `RESEND_API_KEY` валиден, `EMAIL_FROM=…@otsfera.ru` | тестовый email от admin-кабинета доходит |
 
