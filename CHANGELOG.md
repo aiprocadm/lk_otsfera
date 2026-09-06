@@ -50,7 +50,7 @@
 
 - **Хотфикс №14 сопровождения — рабочие чеклисты больше не ссылаются на чужую
   машину, ссылки действующих документов под стражем** (находка `С-7` от
-  06.09.2026, PR @@XLINK@@, прогон №7). В `qa-staging-smoke-manager.md`,
+  06.09.2026, PR [#518](https://github.com/aiprocadm/lk_otsfera/pull/518), прогон №7). В `qa-staging-smoke-manager.md`,
   `qa-staging-smoke-organization.md` и `runbook-staged-rollout-cabinets.md`
   шаг «обновить memory-референс» вёл по адресу
   `../../../C:/Users/<имя>/.claude/…` — файла нет ни в репозитории, ни на
