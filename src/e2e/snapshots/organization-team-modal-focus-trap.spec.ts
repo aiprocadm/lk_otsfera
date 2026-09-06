@@ -27,42 +27,70 @@ function escapedToBackground(page: Page) {
   });
 }
 
+/**
+ * Открыть модалку и дождаться, что фокус уехал внутрь.
+ *
+ * Почему с повтором. Кнопка приходит с сервера уже в разметке, но обработчик
+ * на ней появляется только после гидратации: до неё и клик, и Enter уходят в
+ * никуда — Playwright считает элемент «готовым» (виден, стабилен, принимает
+ * события), а React ещё не подписался. Диалог не открывается, повторить
+ * нажатие некому, и тест падает на `toBeFocused` — «element(s) not found».
+ *
+ * Так этот файл дважды подряд ронял полный прогон сопровождения (06.09.2026:
+ * прогон №4 — `org-desktop`, прогон №5 — `mobile-organization`), каждый раз
+ * зеленея на `--last-failed`. Дефекта в модалке не было ни разу: гонка старта.
+ *
+ * `expect(...).toPass()` повторяет всю связку «нажать → проверить фокус», пока
+ * страница не оживёт. Настоящую поломку это не прячет: если фокус не уходит в
+ * поле или не возвращается на кнопку, повторы просто исчерпают таймаут и тест
+ * останется красным (проверено мутацией, хотфикс №13).
+ */
+async function openModal(page: Page, how: 'click' | 'keyboard') {
+  await expect(async () => {
+    if (how === 'click') {
+      await page.locator(TRIGGER).click();
+    } else {
+      await page.locator(TRIGGER).focus();
+      await page.keyboard.press('Enter');
+    }
+    await expect(page.locator(EMAIL_INPUT)).toBeFocused({ timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
+}
+
 test.describe('invite-org-user-form: focus management', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/organization/team');
     await page.waitForLoadState('networkidle');
+    // Кнопка на месте — дальше её оживление ждёт openModal.
+    await expect(page.locator(TRIGGER)).toBeVisible();
   });
 
   test('initial focus moves into modal on open', async ({ page }) => {
-    await page.locator(TRIGGER).click();
-    await expect(page.locator(EMAIL_INPUT)).toBeFocused();
+    await openModal(page, 'click');
   });
 
   test('Tab from the last control never reaches a background control', async ({ page }) => {
-    await page.locator(TRIGGER).click();
+    await openModal(page, 'click');
     await page.locator(SUBMIT).focus();
     await page.keyboard.press('Tab');
     expect(await escapedToBackground(page)).toBe(false);
   });
 
   test('Shift+Tab from the first control never reaches a background control', async ({ page }) => {
-    await page.locator(TRIGGER).click();
+    await openModal(page, 'click');
     await page.locator(CLOSE_X).focus();
     await page.keyboard.press('Shift+Tab');
     expect(await escapedToBackground(page)).toBe(false);
   });
 
   test('focus restores to trigger after Escape', async ({ page }) => {
-    await page.locator(TRIGGER).focus();
-    await page.keyboard.press('Enter');
-    await expect(page.locator(EMAIL_INPUT)).toBeFocused();
+    await openModal(page, 'keyboard');
     await page.keyboard.press('Escape');
     await expect(page.locator(TRIGGER)).toBeFocused();
   });
 
   test('background is inert while the modal is open', async ({ page }) => {
-    await page.locator(TRIGGER).click();
-    await expect(page.locator(EMAIL_INPUT)).toBeFocused();
+    await openModal(page, 'click');
 
     // showModal() makes the rest of the document inert: a programmatic focus on
     // a background link must NOT move focus out of the dialog (regression guard
