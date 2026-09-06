@@ -55,6 +55,48 @@ const THREAD_NO_NUMBER = {
   unread: false,
 };
 
+/**
+ * `С-6` (сопровождение, прогон №4): список показывает лишь новейшие переписки,
+ * поэтому под ним — «Показаны первые N из M», если `total` больше показанного.
+ */
+describe('OrderThreadInbox — подпись об усечении списка (С-6)', () => {
+  it('total больше показанного — подпись есть', () => {
+    const html = renderToString(
+      React.createElement(OrderThreadInbox, {
+        threads: [THREAD_A],
+        total: 80,
+        currentUserId: CURRENT_USER,
+        variant: 'role',
+      })
+    );
+    expect(html).toContain('Показаны первые 1 из 80');
+    expect(html).toContain('из карточки заказа');
+  });
+
+  it('всё поместилось — подписи нет', () => {
+    const html = renderToString(
+      React.createElement(OrderThreadInbox, {
+        threads: [THREAD_A],
+        total: 1,
+        currentUserId: CURRENT_USER,
+        variant: 'team',
+      })
+    );
+    expect(html).not.toContain('Показаны первые');
+  });
+
+  it('без total (старый вызов) подписи нет', () => {
+    const html = renderToString(
+      React.createElement(OrderThreadInbox, {
+        threads: [THREAD_A],
+        currentUserId: CURRENT_USER,
+        variant: 'role',
+      })
+    );
+    expect(html).not.toContain('Показаны первые');
+  });
+});
+
 describe('OrderThreadInbox variant=role (partner/org)', () => {
   it('shows "Нет переписок" when threads array is empty', () => {
     const html = renderToString(

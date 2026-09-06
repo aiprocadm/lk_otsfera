@@ -29,10 +29,15 @@ vi.mock('@/components/manager/manager-messages-inbox', () => ({
 }));
 
 vi.mock('@/components/chat/order-thread-inbox', () => ({
-  OrderThreadInbox: (props: { threads: unknown[]; currentUserId: string; variant: string }) =>
+  OrderThreadInbox: (props: {
+    threads: unknown[];
+    total?: number;
+    currentUserId: string;
+    variant: string;
+  }) =>
     React.createElement(
       'div',
-      { 'data-testid': 'thread-inbox' },
+      { 'data-testid': 'thread-inbox', 'data-total': props.total },
       JSON.stringify(props.threads),
       props.currentUserId,
       props.variant
@@ -97,7 +102,7 @@ describe('ManagerMessagesPage', () => {
     requireManager.mockResolvedValue(SESSION);
     listIncomingComments.mockResolvedValue({ rows: [], nextCursor: 'c2' });
     setFlags({ chat: true, staff_chat: false });
-    listThreads.mockResolvedValue({ ok: true, rows: [{ id: 't1' }] });
+    listThreads.mockResolvedValue({ ok: true, rows: [{ id: 't1' }], total: 60 });
 
     const { container } = await renderServerComponent(
       ManagerMessagesPage({ searchParams: Promise.resolve({ cursor: 'c1' }) })
@@ -113,6 +118,8 @@ describe('ManagerMessagesPage', () => {
     expect(threadInbox).not.toBeNull();
     expect(threadInbox?.textContent).toContain('t1');
     expect(threadInbox?.textContent).toContain('team');
+    // `С-6`: полный счётчик доходит до списка — иначе подписи «показаны N из M» нет.
+    expect(threadInbox?.getAttribute('data-total')).toBe('60');
     expect(container.querySelector('[data-testid="staff-chat-section"]')).toBeNull();
     expect(container.querySelector('[data-testid="staff-unread-badge"]')).toBeNull();
   });

@@ -59,6 +59,7 @@ export function StaffMessages({
           <h2 className="mb-3 text-lg font-medium text-gray-700">Чат</h2>
           <OrderThreadInbox
             threads={chat.ok ? chat.rows : []}
+            total={chat.ok ? chat.total : 0}
             currentUserId={session.sub}
             variant="team"
           />

@@ -16,10 +16,15 @@ const { listThreads } = vi.hoisted(() => ({ listThreads: vi.fn() }));
 vi.mock('@/lib/services/chat/threads', () => ({ listThreads }));
 
 vi.mock('@/components/chat/order-thread-inbox', () => ({
-  OrderThreadInbox: (props: { threads: unknown[]; currentUserId: string; variant: string }) =>
+  OrderThreadInbox: (props: {
+    threads: unknown[];
+    total?: number;
+    currentUserId: string;
+    variant: string;
+  }) =>
     React.createElement(
       'div',
-      { 'data-testid': 'thread-inbox' },
+      { 'data-testid': 'thread-inbox', 'data-total': props.total },
       JSON.stringify(props.threads),
       props.currentUserId,
       props.variant
@@ -71,7 +76,7 @@ describe('AdminMessagesPage', () => {
   it('renders the team chat thread inbox when chat is enabled and listThreads succeeds (staff_chat off)', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     setFlags({ chat: true, staff_chat: false });
-    listThreads.mockResolvedValue({ ok: true, rows: [{ id: 't1' }] });
+    listThreads.mockResolvedValue({ ok: true, rows: [{ id: 't1' }], total: 60 });
 
     const { container } = await renderServerComponent(AdminMessagesPage());
 
@@ -80,6 +85,8 @@ describe('AdminMessagesPage', () => {
     const inbox = container.querySelector('[data-testid="thread-inbox"]');
     expect(inbox?.textContent).toContain('t1');
     expect(inbox?.textContent).toContain('team');
+    // `С-6`: полный счётчик доходит до списка — иначе подписи «показаны N из M» нет.
+    expect(inbox?.getAttribute('data-total')).toBe('60');
     expect(container.querySelector('[data-testid="staff-chat-section"]')).toBeNull();
   });
 

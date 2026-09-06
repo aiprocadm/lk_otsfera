@@ -7,6 +7,7 @@ import { uploadAttachment } from '@/lib/chat/upload-attachment';
 import { useThreadPolling } from '@/hooks/useThreadPolling';
 import { clientLog } from '@/lib/logging/client';
 import { errorMessageRu } from '@/lib/errors/messages';
+import { ListCapNotice } from '@/components/ui/list-cap-notice';
 
 type Thread = {
   id: string;
@@ -20,6 +21,11 @@ type Thread = {
 
 type Props = {
   threads: Thread[];
+  /**
+   * `С-6`: сколько переписок у человека всего — список показывает лишь
+   * новейшие. Без счётчика подписи об усечении нет.
+   */
+  total?: number | undefined;
   currentUserId: string;
   /**
    * 'role' — partner/org-кабинеты: side НЕ передаётся (сервер выводит из сессии),
@@ -92,7 +98,7 @@ function toVM(r: {
  * Доменная граница живёт на сервере (/api/messages, deriveSide);
  * различия ролей сводятся к variant-пропу — см. Props.
  */
-export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
+export function OrderThreadInbox({ threads, total, currentUserId, variant }: Props) {
   const [selected, setSelected] = useState<Thread | null>(null);
   const [messages, setMessages] = useState<ChatMessageVM[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -347,6 +353,15 @@ export function OrderThreadInbox({ threads, currentUserId, variant }: Props) {
               );
             })}
           </ul>
+        )}
+        {total !== undefined && (
+          <div className="px-3 py-2">
+            <ListCapNotice
+              shown={threads.length}
+              total={total}
+              hint="Здесь только новейшие переписки; остальные откройте из карточки заказа."
+            />
+          </div>
         )}
       </div>
 
