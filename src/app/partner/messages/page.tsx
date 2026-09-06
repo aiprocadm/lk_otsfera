@@ -16,6 +16,7 @@ export default async function PartnerMessagesPage() {
 
   const result = await listThreads(prisma, session);
   const threads = result.ok ? result.rows : [];
+  const total = result.ok ? result.total : 0;
 
   return (
     <div className="space-y-4">
@@ -27,7 +28,12 @@ export default async function PartnerMessagesPage() {
         }
         subtitle="Переписка с менеджером по вашим заказам"
       />
-      <OrderThreadInbox threads={threads} currentUserId={session.sub} variant="role" />
+      <OrderThreadInbox
+        threads={threads}
+        total={total}
+        currentUserId={session.sub}
+        variant="role"
+      />
     </div>
   );
 }

@@ -63,11 +63,15 @@ describe('OrganizationMessagesPage', () => {
           unread: true,
         },
       ],
+      // `С-6`: счётчик больше показанного — страница обязана донести его до
+      // подписи «Показаны первые N из M».
+      total: 70,
     });
 
     const { container } = await renderServerComponent(OrganizationMessagesPage());
 
     expect(container.textContent).toContain('Сообщения');
+    expect(container.textContent).toContain('Показаны первые 1 из 70');
   });
 
   it('falls back to an empty thread list when the service returns ok:false', async () => {

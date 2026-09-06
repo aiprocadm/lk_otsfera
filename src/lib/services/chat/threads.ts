@@ -19,7 +19,15 @@ type ThreadRow = {
   unread: boolean;
 };
 
-export type ListThreadsResult = { ok: true; rows: ThreadRow[] };
+/**
+ * `С-6` (сопровождение, прогон №4): список режется по `THREADS_CAP`, поэтому
+ * рядом отдаётся `total` — сколько переписок у человека всего по тому же
+ * условию, чтобы экран честно сказал «показаны 50 из M».
+ */
+export type ListThreadsResult = { ok: true; rows: ThreadRow[]; total: number };
+
+/** Предел переписок в списке «Сообщения»; полный счётчик — `total`. */
+export const THREADS_CAP = 50;
 
 export type MarkReadResult = { ok: true } | { ok: false; error: 'thread_not_found' | 'forbidden' };
 
@@ -76,33 +84,37 @@ function scopeSql(session: SessionPayload): Prisma.Sql | null {
 }
 
 /**
- * Role-scoped inbox. Returns up to 50 most recent threads for the caller.
- * No cursor pagination in v1 — take 50 newest ordered by lastMessageAt desc.
+ * Role-scoped inbox. Returns up to `THREADS_CAP` most recent threads for the
+ * caller plus `total` — the full count by the same scope.
+ * No cursor pagination in v1 — newest first by lastMessageAt desc.
  */
 export async function listThreads(
   prisma: PrismaClient,
   session: SessionPayload
 ): Promise<ListThreadsResult> {
   const where = scopeWhere(session);
-  if (where === null) return { ok: true, rows: [] };
+  if (where === null) return { ok: true, rows: [], total: 0 };
 
-  const threads = await prisma.orderThread.findMany({
-    where,
-    take: 50,
-    orderBy: { lastMessageAt: 'desc' },
-    select: {
-      id: true,
-      orderId: true,
-      side: true,
-      lastMessageAt: true,
-      order: { select: { orderNumber: true, title: true } },
-      readStates: {
-        where: { userId: session.sub },
-        select: { lastReadAt: true },
-        take: 1,
+  const [threads, total] = await Promise.all([
+    prisma.orderThread.findMany({
+      where,
+      take: THREADS_CAP,
+      orderBy: { lastMessageAt: 'desc' },
+      select: {
+        id: true,
+        orderId: true,
+        side: true,
+        lastMessageAt: true,
+        order: { select: { orderNumber: true, title: true } },
+        readStates: {
+          where: { userId: session.sub },
+          select: { lastReadAt: true },
+          take: 1,
+        },
       },
-    },
-  });
+    }),
+    prisma.orderThread.count({ where }),
+  ]);
 
   const rows: ThreadRow[] = threads.map((t) => ({
     id: t.id,
@@ -114,7 +126,7 @@ export async function listThreads(
     unread: t.lastMessageAt > (t.readStates[0]?.lastReadAt ?? new Date(0)),
   }));
 
-  return { ok: true, rows };
+  return { ok: true, rows, total };
 }
 
 /**

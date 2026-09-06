@@ -8,6 +8,7 @@ import {
   markRead,
   unreadCount,
   findOrCreateThread,
+  THREADS_CAP,
 } from '@/lib/services/chat/threads';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
@@ -51,25 +52,39 @@ function makeThread(overrides: Record<string, any> = {}) {
 
 describe('listThreads — unit', () => {
   it('returns empty rows for roles with no threads (null scopeWhere)', async () => {
-    const prisma = { orderThread: { findMany: vi.fn() } } as any;
+    const prisma = { orderThread: { findMany: vi.fn(), count: vi.fn() } } as any;
     // role 'student' returns null from scopeWhere
     const result = await listThreads(prisma, makeSession({ role: 'student' as any }));
-    expect(result).toEqual({ ok: true, rows: [] });
+    expect(result).toEqual({ ok: true, rows: [], total: 0 });
+    expect(prisma.orderThread.count).not.toHaveBeenCalled();
     expect(prisma.orderThread.findMany).not.toHaveBeenCalled();
   });
 
   it('scopeWhere for admin returns empty where {} (sees all threads)', async () => {
     const findMany = vi.fn().mockResolvedValue([makeThread()]);
-    const prisma = { orderThread: { findMany } } as any;
+    const prisma = { orderThread: { findMany, count: vi.fn().mockResolvedValue(0) } } as any;
     const result = await listThreads(prisma, makeSession({ role: 'admin' }));
     expect(result.ok).toBe(true);
     const where = findMany.mock.calls[0][0].where;
     expect(where).toEqual({});
   });
 
+  // `С-6` (сопровождение, прогон №4): список режется по THREADS_CAP, рядом —
+  // честный счётчик по тому же условию. Без него экран читали бы как полный.
+  it('режет список по THREADS_CAP и считает total по тому же where', async () => {
+    const findMany = vi.fn().mockResolvedValue([makeThread()]);
+    const count = vi.fn().mockResolvedValue(137);
+    const prisma = { orderThread: { findMany, count } } as any;
+    const result = await listThreads(prisma, makeSession({ role: 'manager', companyId: 'c1' }));
+    expect(result.total).toBe(137);
+    expect(findMany.mock.calls[0][0].take).toBe(THREADS_CAP);
+    expect(count).toHaveBeenCalledTimes(1);
+    expect(count.mock.calls[0][0].where).toEqual(findMany.mock.calls[0][0].where);
+  });
+
   it('scopeWhere for manager includes company filter', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const prisma = { orderThread: { findMany } } as any;
+    const prisma = { orderThread: { findMany, count: vi.fn().mockResolvedValue(0) } } as any;
     await listThreads(prisma, makeSession({ role: 'manager', companyId: 'c1' }));
     const where = findMany.mock.calls[0][0].where;
     expect(where.order.companyId).toBe('c1');
@@ -77,7 +92,7 @@ describe('listThreads — unit', () => {
 
   it('scopeWhere for manager with null companyId uses sentinel __no_company__', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const prisma = { orderThread: { findMany } } as any;
+    const prisma = { orderThread: { findMany, count: vi.fn().mockResolvedValue(0) } } as any;
     await listThreads(prisma, makeSession({ role: 'manager', companyId: undefined }));
     const where = findMany.mock.calls[0][0].where;
     expect(where.order.companyId).toBe('__no_company__');
@@ -85,7 +100,7 @@ describe('listThreads — unit', () => {
 
   it('scopeWhere for organization scopes to org side + orgIds', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const prisma = { orderThread: { findMany } } as any;
+    const prisma = { orderThread: { findMany, count: vi.fn().mockResolvedValue(0) } } as any;
     const session = makeSession({
       role: 'organization',
       organizationMemberships: [
@@ -100,7 +115,7 @@ describe('listThreads — unit', () => {
 
   it('scopeWhere for partner scopes to partner side + partnerId', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const prisma = { orderThread: { findMany } } as any;
+    const prisma = { orderThread: { findMany, count: vi.fn().mockResolvedValue(0) } } as any;
     await listThreads(prisma, makeSession({ role: 'partner', partnerId: 'p1' }));
     const where = findMany.mock.calls[0][0].where;
     expect(where.side).toBe('partner');
@@ -109,7 +124,7 @@ describe('listThreads — unit', () => {
 
   it('uses empty string as partnerId sentinel when partnerId is undefined', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const prisma = { orderThread: { findMany } } as any;
+    const prisma = { orderThread: { findMany, count: vi.fn().mockResolvedValue(0) } } as any;
     await listThreads(prisma, makeSession({ role: 'partner', partnerId: undefined }));
     const where = findMany.mock.calls[0][0].where;
     expect(where.order.partnerId).toBe('');
@@ -123,7 +138,7 @@ describe('listThreads — unit', () => {
       .mockResolvedValue([
         makeThread({ lastMessageAt: lastMsg, readStates: [{ lastReadAt: lastRead }] }),
       ]);
-    const prisma = { orderThread: { findMany } } as any;
+    const prisma = { orderThread: { findMany, count: vi.fn().mockResolvedValue(0) } } as any;
     const result = await listThreads(prisma, makeSession({ role: 'admin' }));
     expect(result.rows[0].unread).toBe(true);
   });
@@ -132,7 +147,7 @@ describe('listThreads — unit', () => {
     const findMany = vi
       .fn()
       .mockResolvedValue([makeThread({ lastMessageAt: new Date('2024-06-01'), readStates: [] })]);
-    const prisma = { orderThread: { findMany } } as any;
+    const prisma = { orderThread: { findMany, count: vi.fn().mockResolvedValue(0) } } as any;
     const result = await listThreads(prisma, makeSession({ role: 'admin' }));
     // lastMessageAt > new Date(0), so unread = true
     expect(result.rows[0].unread).toBe(true);
