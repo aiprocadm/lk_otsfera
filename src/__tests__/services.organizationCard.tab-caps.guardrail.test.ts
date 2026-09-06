@@ -51,6 +51,10 @@ describe('карточка организации: предел вкладок �
       'auditTrail',
     ]) {
       expect(block, `tabTotals без ${key}`).toMatch(new RegExp(`\\b${key}:`));
+      // Счётчик — переменная из запроса, а не подставленный ноль.
+      expect(block, `tabTotals.${key} — константа вместо count`).not.toMatch(
+        new RegExp(`\\b${key}: \\d`)
+      );
     }
     // Заказы — из `_count` организации; удостоверения — `total` реестра.
     expect(block).toContain('orders: org._count.orders');
