@@ -172,7 +172,7 @@
 Когда кабинет стабильно работает в prod:
 
 1. Обновить **[README §Cabinet rollout status](../README.md)** — «Состояние» соответствующей строки → `Production / GA (раскатан YYYY-MM-DD)`.
-2. Обновить memory-референс ([organization](../../../C:/Users/karka/.claude/projects/D-------------------------------------------------/memory/reference-organization-plan.md) / [manager](../../../C:/Users/karka/.claude/projects/D-------------------------------------------------/memory/reference-manager-plan.md)) — `staged rollout COMPLETED YYYY-MM-DD`.
+2. Обновить memory-референсы кабинетов (заказчик и менеджер) — `staged rollout COMPLETED YYYY-MM-DD`. Файлы живут в памяти агента, не в репозитории: путь у каждой машины свой, поэтому ссылки здесь нет.
 3. Отметить C7 в [roadmap](superpowers/specs/2026-06-02-completion-roadmap.md) как DONE (это закрывает C-track и весь проект по C-линии).
 
 ---

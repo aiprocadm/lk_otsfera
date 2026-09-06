@@ -141,7 +141,7 @@ ON CONFLICT (id) DO NOTHING;
 1. Сообщить агенту/тех.лиду: «Stage-2 passed, можно закрывать чекбокс».
 2. Агент:
    - переименует `docs/superpowers/plans/2026-05-25-organization-cabinet-phase7.md` → `…-DONE.md`,
-   - обновит memory ([reference-organization-plan.md](../../../C:/Users/karka/.claude/projects/D-------------------------------------------------/memory/reference-organization-plan.md)) — `Stage-2 staging smoke COMPLETED on YYYY-MM-DD`,
+   - обновит свой memory-референс кабинета заказчика — `Stage-2 staging smoke COMPLETED on YYYY-MM-DD` (файл живёт в памяти агента, не в репозитории),
    - подготовит план Stage-3 (пилотная organization в prod на 2 недели).
 
 ---

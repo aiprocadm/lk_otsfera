@@ -125,7 +125,7 @@ Company B:
 
 1. Сообщить тех.лиду: «Manager Stage-2 passed, можно в prod pilot».
 2. Агент:
-   - обновит memory ([reference-manager-plan.md](../../../C:/Users/karka/.claude/projects/D-------------------------------------------------/memory/reference-manager-plan.md)) — `Stage-2 staging smoke COMPLETED YYYY-MM-DD`,
+   - обновит свой memory-референс кабинета менеджера — `Stage-2 staging smoke COMPLETED YYYY-MM-DD` (файл живёт в памяти агента, не в репозитории),
    - перейдёт по [runbook](runbook-staged-rollout-cabinets.md) к Stage-3 (prod pilot).
 
 ---
