@@ -17,7 +17,29 @@ import { listCertificates } from '@/lib/services/training/certificates';
  * (`canSeeOrganization`, teamMode C8): чужая орг → null (не leak-аем).
  * Комиссия скрыта в менеджерском контуре (§3.4): `commission` = null без
  * capability `see_commission`. Деньги — строки (Decimal не уходит в RSC-payload).
+ *
+ * `С-6` (сопровождение, прогон №4): каждая вкладка-список показывает не больше
+ * `ORG_CARD_TAB_CAP` новейших записей, а рядом отдаётся `tabTotals` — полный
+ * счётчик по тому же условию, чтобы экран честно писал «показаны 20 из M».
  */
+
+/** Предел записей на одной вкладке карточки; полный счётчик — в `tabTotals`. */
+export const ORG_CARD_TAB_CAP = 20;
+
+/** Ключи вкладок-списков карточки — те же имена, что у полей `OrganizationCard`. */
+export type OrgCardListKey =
+  | 'orders'
+  | 'documents'
+  | 'payments'
+  | 'activity'
+  | 'inboundMessages'
+  | 'calls'
+  | 'clientRequests'
+  | 'leads'
+  | 'deals'
+  | 'certificates'
+  | 'enrollments'
+  | 'auditTrail';
 
 const CARD_SELECT = {
   id: true,
@@ -201,6 +223,12 @@ export type OrganizationCard = {
   enrollments: OrgCardEnrollment[];
   /** Пустой у клиентских ролей: журнал действий — внутренняя информация ЦО. */
   auditTrail: OrgCardAuditEntry[];
+  /**
+   * Сколько записей у организации всего по каждой вкладке-списку — `count` по
+   * тому же условию, что и выборка (`take: ORG_CARD_TAB_CAP`). У блоков, которые
+   * роли не показывают (и не грузят), — 0.
+   */
+  tabTotals: Record<OrgCardListKey, number>;
   // null в менеджерском контуре (нет capability see_commission).
   commission: { partnerCommissionRate: string | null; note: string | null } | null;
 };
@@ -250,19 +278,53 @@ export async function getOrganizationCard(
             : canSeeOrganization(session, orgId) || isLeaderSameCompany(session, org.companyId);
   if (!visible) return null;
 
+  // Условия выборок вынесены, чтобы `count` считал ровно то, что показывает
+  // список: разъехавшиеся `where` дали бы «показаны 20 из 7».
+  const ordersWhere: Prisma.OrderWhereInput = { organizationId: orgId };
+  const documentsWhere: Prisma.DocumentWhereInput = {
+    /**
+     * `У-145`: документы организации — это И бумаги её заказов, И бумаги
+     * без заказа. Раньше условие звучало «документы её ЗАКАЗОВ», и всё,
+     * что выпущено кнопкой ПРЯМО НАД ЭТИМ СПИСКОМ, в него не попадало:
+     * человек выпускал счёт из карточки и не находил его там же.
+     */
+    OR: [
+      { order: { organizationId: orgId } },
+      { orderId: null, counterpartyType: 'organization', counterpartyId: orgId },
+    ],
+    scanStatus: { not: 'infected' },
+    // `У-151`: показываем действующую версию; заменённая осталась в
+    // истории и открывается по прямой ссылке, но в списке путала бы.
+    supersededAt: null,
+  };
+  const paymentsWhere: Prisma.PaymentWhereInput = { organizationId: orgId };
+  const commentsWhere: Prisma.CommentWhereInput = { order: { organizationId: orgId } };
+  const enrollmentsWhere: Prisma.EnrollmentRequestWhereInput = { organizationId: orgId };
+  const auditWhere: Prisma.AuditLogWhereInput = { entity: 'organization', entityId: orgId };
+  const clientRequestsWhere: Prisma.ClientRequestWhereInput = { organizationId: orgId };
+  const inboundWhere: Prisma.InboundMessageWhereInput = { resolvedOrgId: orgId };
+  const callsWhere: Prisma.CallWhereInput = { resolvedOrgId: orgId };
+  const leadsWhere: Prisma.LeadWhereInput = { organizationId: orgId };
+  const dealsWhere: Prisma.DealWhereInput = { organizationId: orgId };
+
   const [
     orders,
     activeOrders,
+    orderSums,
     documents,
+    documentsTotal,
     payments,
+    paymentsTotal,
     paidAgg,
     refundAgg,
     activity,
+    activityTotal,
     enrollments,
+    enrollmentsTotal,
     certificatesRes,
   ] = await Promise.all([
     prisma.order.findMany({
-      where: { organizationId: orgId },
+      where: ordersWhere,
       select: {
         id: true,
         orderNumber: true,
@@ -274,7 +336,7 @@ export async function getOrganizationCard(
         createdAt: true,
       },
       orderBy: { createdAt: 'desc' },
-      take: 20,
+      take: ORG_CARD_TAB_CAP,
     }),
     prisma.order.count({
       where: {
@@ -282,35 +344,26 @@ export async function getOrganizationCard(
         executionStatus: { in: ['pending', 'in_progress', 'on_hold'] },
       },
     }),
+    // `У-102`: задолженность считается по ВСЕМ заказам организации. Раньше
+    // сумма складывалась из показанных 20 новейших — у клиента с 21+ заказом
+    // плитка «Задолженность» врала (сопровождение, прогон №4).
+    prisma.order.aggregate({ where: ordersWhere, _sum: { totalAmount: true, paidAmount: true } }),
     prisma.document.findMany({
-      // `У-151`: показываем действующую версию; заменённая осталась в
-      // истории и открывается по прямой ссылке, но в списке путала бы.
-      where: {
-        /**
-         * `У-145`: документы организации — это И бумаги её заказов, И бумаги
-         * без заказа. Раньше условие звучало «документы её ЗАКАЗОВ», и всё,
-         * что выпущено кнопкой ПРЯМО НАД ЭТИМ СПИСКОМ, в него не попадало:
-         * человек выпускал счёт из карточки и не находил его там же.
-         */
-        OR: [
-          { order: { organizationId: orgId } },
-          { orderId: null, counterpartyType: 'organization', counterpartyId: orgId },
-        ],
-        scanStatus: { not: 'infected' },
-        supersededAt: null,
-      },
+      where: documentsWhere,
       select: { id: true, name: true, type: true, direction: true, createdAt: true },
       orderBy: { createdAt: 'desc' },
-      take: 20,
+      take: ORG_CARD_TAB_CAP,
     }),
+    prisma.document.count({ where: documentsWhere }),
     seesPayments
       ? prisma.payment.findMany({
-          where: { organizationId: orgId },
+          where: paymentsWhere,
           select: { id: true, amount: true, paidAt: true, isRefund: true, orderId: true },
           orderBy: { paidAt: 'desc' },
-          take: 20,
+          take: ORG_CARD_TAB_CAP,
         })
       : [],
+    seesPayments ? prisma.payment.count({ where: paymentsWhere }) : 0,
     seesPayments
       ? prisma.payment.aggregate({
           where: { organizationId: orgId, isRefund: false },
@@ -324,7 +377,7 @@ export async function getOrganizationCard(
         })
       : { _sum: { amount: null } },
     prisma.comment.findMany({
-      where: { order: { organizationId: orgId } },
+      where: commentsWhere,
       select: {
         id: true,
         body: true,
@@ -333,11 +386,12 @@ export async function getOrganizationCard(
         author: { select: { name: true } },
       },
       orderBy: { createdAt: 'desc' },
-      take: 20,
+      take: ORG_CARD_TAB_CAP,
     }),
+    prisma.comment.count({ where: commentsWhere }),
     // `У-96`: заявки на обучение этой организации — вкладка карточки.
     prisma.enrollmentRequest.findMany({
-      where: { organizationId: orgId },
+      where: enrollmentsWhere,
       select: {
         id: true,
         status: true,
@@ -346,12 +400,14 @@ export async function getOrganizationCard(
         _count: { select: { items: true } },
       },
       orderBy: { createdAt: 'desc' },
-      take: 20,
+      take: ORG_CARD_TAB_CAP,
     }),
+    prisma.enrollmentRequest.count({ where: enrollmentsWhere }),
     // Этап 9 (ФТ-12.2): вкладка «Удостоверения». Идём через сервис реестра, а
     // не прямым запросом — он пересекает orgId со скоупом сессии и сам пишет
     // PiiAccessEvent `certificates_list` (§12: ФИО слушателей — ПДн).
-    listCertificates(prisma, session, { organizationId: orgId, take: 20 }),
+    // Полный счётчик (`total`) реестр отдаёт сам — по тому же условию.
+    listCertificates(prisma, session, { organizationId: orgId, take: ORG_CARD_TAB_CAP }),
   ]);
 
   // `У-100`: заказчику эти блоки не показывают вовсе (реестр вкладок
@@ -362,94 +418,111 @@ export async function getOrganizationCard(
   // `У-96`: журнал действий по организации. Кто и что менял — внутренняя
   // информация учебного центра, клиенту и партнёру её не показывают, поэтому и
   // не грузим.
-  const auditTrail = isStaffView
-    ? await prisma.auditLog.findMany({
-        where: { entity: 'organization', entityId: orgId },
-        select: {
-          id: true,
-          action: true,
-          createdAt: true,
-          user: { select: { name: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 20,
-      })
-    : [];
+  const [auditTrail, auditTotal] = isStaffView
+    ? await Promise.all([
+        prisma.auditLog.findMany({
+          where: auditWhere,
+          select: {
+            id: true,
+            action: true,
+            createdAt: true,
+            user: { select: { name: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: ORG_CARD_TAB_CAP,
+        }),
+        prisma.auditLog.count({ where: auditWhere }),
+      ])
+    : ([[], 0] as const);
 
   // `У-96`: вкладка «Обращения» положена и партнёру, поэтому запрос живёт
   // отдельно от внутренних блоков учебного центра.
-  const clientRequests =
+  const [clientRequests, clientRequestsTotal] =
     session.role !== 'organization'
-      ? await prisma.clientRequest.findMany({
-          where: { organizationId: orgId },
-          select: { id: true, subject: true, status: true, rejectedReason: true, createdAt: true },
-          orderBy: { createdAt: 'desc' },
-          take: 20,
-        })
-      : [];
+      ? await Promise.all([
+          prisma.clientRequest.findMany({
+            where: clientRequestsWhere,
+            select: {
+              id: true,
+              subject: true,
+              status: true,
+              rejectedReason: true,
+              createdAt: true,
+            },
+            orderBy: { createdAt: 'desc' },
+            take: ORG_CARD_TAB_CAP,
+          }),
+          prisma.clientRequest.count({ where: clientRequestsWhere }),
+        ])
+      : ([[], 0] as const);
 
-  const [inboundMessages, calls, leads, deals] = isStaffView
-    ? await Promise.all([
-        prisma.inboundMessage.findMany({
-          where: { resolvedOrgId: orgId },
-          select: {
-            id: true,
-            channel: true,
-            senderRef: true,
-            senderDisplay: true,
-            subject: true,
-            body: true,
-            createdAt: true,
-            status: true,
-            scanStatus: true,
-            attachmentName: true,
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 20,
-        }),
-        // Не селектим `recordingPath` — карточке нужен только boolean hasRecording,
-        // сырой object-storage путь не должен уходить в RSC-payload (mirrors listCalls.ts).
-        prisma.call.findMany({
-          where: { resolvedOrgId: orgId },
-          select: {
-            id: true,
-            direction: true,
-            callerNumber: true,
-            internalNumber: true,
-            status: true,
-            durationSec: true,
-            startedAt: true,
-            createdAt: true,
-            resolvedOrgId: true,
-            recordingScanStatus: true,
-            recordingPath: true,
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 20,
-        }),
-        // Этап 7 (PR-3): внутренний контур — лиды и сделки организации.
-        prisma.lead.findMany({
-          where: { organizationId: orgId },
-          select: { id: true, subject: true, status: true, createdAt: true },
-          orderBy: { createdAt: 'desc' },
-          take: 20,
-        }),
-        prisma.deal.findMany({
-          where: { organizationId: orgId },
-          select: { id: true, title: true, status: true, amount: true, createdAt: true },
-          orderBy: { createdAt: 'desc' },
-          take: 20,
-        }),
-      ])
-    : ([[], [], [], []] as const);
+  const [inboundMessages, calls, leads, deals, inboundTotal, callsTotal, leadsTotal, dealsTotal] =
+    isStaffView
+      ? await Promise.all([
+          prisma.inboundMessage.findMany({
+            where: inboundWhere,
+            select: {
+              id: true,
+              channel: true,
+              senderRef: true,
+              senderDisplay: true,
+              subject: true,
+              body: true,
+              createdAt: true,
+              status: true,
+              scanStatus: true,
+              attachmentName: true,
+            },
+            orderBy: { createdAt: 'desc' },
+            take: ORG_CARD_TAB_CAP,
+          }),
+          // Не селектим `recordingPath` — карточке нужен только boolean hasRecording,
+          // сырой object-storage путь не должен уходить в RSC-payload (mirrors listCalls.ts).
+          prisma.call.findMany({
+            where: callsWhere,
+            select: {
+              id: true,
+              direction: true,
+              callerNumber: true,
+              internalNumber: true,
+              status: true,
+              durationSec: true,
+              startedAt: true,
+              createdAt: true,
+              resolvedOrgId: true,
+              recordingScanStatus: true,
+              recordingPath: true,
+            },
+            orderBy: { createdAt: 'desc' },
+            take: ORG_CARD_TAB_CAP,
+          }),
+          // Этап 7 (PR-3): внутренний контур — лиды и сделки организации.
+          prisma.lead.findMany({
+            where: leadsWhere,
+            select: { id: true, subject: true, status: true, createdAt: true },
+            orderBy: { createdAt: 'desc' },
+            take: ORG_CARD_TAB_CAP,
+          }),
+          prisma.deal.findMany({
+            where: dealsWhere,
+            select: { id: true, title: true, status: true, amount: true, createdAt: true },
+            orderBy: { createdAt: 'desc' },
+            take: ORG_CARD_TAB_CAP,
+          }),
+          prisma.inboundMessage.count({ where: inboundWhere }),
+          prisma.call.count({ where: callsWhere }),
+          prisma.lead.count({ where: leadsWhere }),
+          prisma.deal.count({ where: dealsWhere }),
+        ])
+      : ([[], [], [], [], 0, 0, 0, 0] as const);
 
   const paid = paidAgg._sum.amount ?? new Prisma.Decimal(0);
   const refunded = refundAgg._sum.amount ?? new Prisma.Decimal(0);
   // `У-102`: «Задолженность» — сумма `totalAmount − paidAmount` по заказам
   // организации. Считается здесь, чтобы плитка во всех кабинетах брала одно и
   // то же число (реестр `orgCardTiles`).
-  const debt = orders
-    .reduce((acc, o) => acc.plus(o.totalAmount).minus(o.paidAmount), new Prisma.Decimal(0))
+  const debt = (orderSums._sum.totalAmount ?? new Prisma.Decimal(0))
+    .minus(orderSums._sum.paidAmount ?? new Prisma.Decimal(0))
     .toFixed(2);
 
   await recordPiiAccessMany(prisma, [
@@ -469,6 +542,8 @@ export async function getOrganizationCard(
   // запасная ветка недостижима, оставлена ради полноты Result-типа.
   /* v8 ignore next */
   const certificateRows = certificatesRes.ok ? certificatesRes.certificates : [];
+  /* v8 ignore next */
+  const certificatesTotal = certificatesRes.ok ? certificatesRes.total : 0;
 
   return {
     id: org.id,
@@ -492,6 +567,21 @@ export async function getOrganizationCard(
       orders: org._count.orders,
       students: org._count.students,
       cabinetUsers: org._count.organizationUsers,
+    },
+    tabTotals: {
+      // Заказы — тот же `where`, что у списка, счётчик уже есть в `_count`.
+      orders: org._count.orders,
+      documents: documentsTotal,
+      payments: paymentsTotal,
+      activity: activityTotal,
+      inboundMessages: inboundTotal,
+      calls: callsTotal,
+      clientRequests: clientRequestsTotal,
+      leads: leadsTotal,
+      deals: dealsTotal,
+      certificates: certificatesTotal,
+      enrollments: enrollmentsTotal,
+      auditTrail: auditTotal,
     },
     kpis: {
       activeOrders,

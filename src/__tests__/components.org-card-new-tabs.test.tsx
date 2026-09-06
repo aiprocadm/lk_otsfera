@@ -51,13 +51,29 @@ function card(over: Partial<OrganizationCard> = {}): OrganizationCard {
     certificates: [],
     enrollments: [],
     auditTrail: [],
+    tabTotals: {
+      orders: 0,
+      documents: 0,
+      payments: 0,
+      activity: 0,
+      inboundMessages: 0,
+      calls: 0,
+      clientRequests: 0,
+      leads: 0,
+      deals: 0,
+      certificates: 0,
+      enrollments: 0,
+      auditTrail: 0,
+    },
     commission: null,
     ...over,
   } as OrganizationCard;
 }
 
-const render = (activeTab: 'overview' | 'enrollments' | 'history', over: Partial<OrganizationCard> = {}) =>
-  renderToString(<OrgCardTabs card={card(over)} activeTab={activeTab} tabs={TABS} />);
+const render = (
+  activeTab: 'overview' | 'enrollments' | 'history',
+  over: Partial<OrganizationCard> = {}
+) => renderToString(<OrgCardTabs card={card(over)} activeTab={activeTab} tabs={TABS} />);
 
 describe('вкладка «Заявки на обучение» (У-96)', () => {
   it('показывает обучение, число слушателей и статус по-русски', () => {
@@ -148,7 +164,13 @@ describe('вкладка «Обзор» (У-96)', () => {
         },
       ],
       payments: [
-        { id: 'p1', amount: '100.00', paidAt: new Date('2026-01-07'), isRefund: false, orderId: 'o1' },
+        {
+          id: 'p1',
+          amount: '100.00',
+          paidAt: new Date('2026-01-07'),
+          isRefund: false,
+          orderId: 'o1',
+        },
       ],
       activity: [
         {

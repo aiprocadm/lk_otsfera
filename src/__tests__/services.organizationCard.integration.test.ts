@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { ORG_CARD_TAB_CAP } from '@/lib/services/manager/organizationCard';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { getOrganizationCard } from '@/lib/services/manager/organizationCard';
 import type { SessionPayload } from '@/lib/auth/jwt';
@@ -299,6 +300,81 @@ describe('getOrganizationCard — агрегация', () => {
     expect(cert?.studentName).toContain('g4stu');
     expect(cert?.directionName).toContain('g4dir');
     expect(cert?.hasScan).toBe(false);
+  });
+});
+
+/**
+ * `С-6` (сопровождение, прогон №4): вкладки карточки режутся по
+ * `ORG_CARD_TAB_CAP`, поэтому рядом отдаётся честный счётчик `tabTotals` — по
+ * тому же условию, что и список. Без него менеджер читал бы 20 комментариев
+ * как «все комментарии», а плитка «Задолженность» складывалась из показанных
+ * 20 заказов, а не из всех.
+ */
+describe('getOrganizationCard — усечение вкладок и полные счётчики (С-6)', () => {
+  it('у коротких списков счётчик равен длине списка', async () => {
+    const card = await getOrganizationCard(prisma, leaderSession(), orgA);
+    expect(card).not.toBeNull();
+    if (!card) return;
+    expect(card.tabTotals.documents).toBe(card.documents.length);
+    expect(card.tabTotals.payments).toBe(card.payments.length);
+    expect(card.tabTotals.activity).toBe(card.activity.length);
+    expect(card.tabTotals.inboundMessages).toBe(card.inboundMessages.length);
+    expect(card.tabTotals.calls).toBe(card.calls.length);
+    expect(card.tabTotals.deals).toBe(card.deals.length);
+    expect(card.tabTotals.certificates).toBe(card.certificates.length);
+    expect(card.tabTotals.orders).toBe(card.orders.length);
+    expect(card.tabTotals.enrollments).toBe(0);
+    expect(card.tabTotals.clientRequests).toBe(0);
+    expect(card.tabTotals.leads).toBe(0);
+  });
+
+  it('длинный список режется по пределу, а счётчик считает всё', async () => {
+    const extra = ORG_CARD_TAB_CAP + 2;
+    await prisma.comment.createMany({
+      data: Array.from({ length: extra }, (_, i) => ({
+        body: `g4cap-${STAMP}-${i}`,
+        orderId: orderA,
+        authorId: leaderA,
+      })),
+    });
+    try {
+      const card = await getOrganizationCard(prisma, leaderSession(), orgA);
+      expect(card).not.toBeNull();
+      if (!card) return;
+      expect(card.activity.length).toBe(ORG_CARD_TAB_CAP);
+      // 1 комментарий из `beforeAll` + добавленные.
+      expect(card.tabTotals.activity).toBe(extra + 1);
+    } finally {
+      await prisma.comment.deleteMany({ where: { body: { startsWith: `g4cap-${STAMP}-` } } });
+    }
+  });
+
+  it('задолженность считается по всем заказам, а не по показанным 20', async () => {
+    const before = await getOrganizationCard(prisma, leaderSession(), orgA);
+    expect(before).not.toBeNull();
+    if (!before) return;
+    // Больше предела вкладки: старые заказы за пределом 20 новейших тоже
+    // должны попасть в сумму.
+    const extra = ORG_CARD_TAB_CAP + 1;
+    await prisma.order.createMany({
+      data: Array.from({ length: extra }, (_, i) => ({
+        title: `g4debt-${STAMP}-${i}`,
+        companyId: companyA,
+        organizationId: orgA,
+        totalAmount: 100,
+        paidAmount: 40,
+      })),
+    });
+    try {
+      const card = await getOrganizationCard(prisma, leaderSession(), orgA);
+      expect(card).not.toBeNull();
+      if (!card) return;
+      expect(card.orders.length).toBe(ORG_CARD_TAB_CAP);
+      expect(card.tabTotals.orders).toBe(before.tabTotals.orders + extra);
+      expect(Number(card.kpis.debt)).toBeCloseTo(Number(before.kpis.debt) + extra * 60, 2);
+    } finally {
+      await prisma.order.deleteMany({ where: { title: { startsWith: `g4debt-${STAMP}-` } } });
+    }
   });
 });
 

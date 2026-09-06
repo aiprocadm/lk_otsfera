@@ -1,7 +1,17 @@
 import React from 'react';
 import Link from 'next/link';
 import type { LeadStatus, ClientRequestStatus, EnrollmentStatus } from '@prisma/client';
-import { Badge, EmptyState, ExportLink, TableShell, THead, Th, Tr, Td } from '@/components/ui';
+import {
+  Badge,
+  EmptyState,
+  ExportLink,
+  ListCapNotice,
+  TableShell,
+  THead,
+  Th,
+  Tr,
+  Td,
+} from '@/components/ui';
 import { CallsList } from '@/components/manager/calls-list';
 import { LeadStatusBadge } from '@/components/partner/lead-status-badge';
 import { clientRequestStatusLabel } from '@/lib/services/clientRequests/labels';
@@ -9,7 +19,7 @@ import { enrollmentStatusLabel } from '@/lib/services/enrollments/labels';
 import { auditActionLabel } from '@/lib/audit/labels';
 import { orgCardTiles } from '@/lib/navigation/orgCardTiles';
 import type { OrgCardTabKey } from '@/lib/navigation/orgCardTabs';
-import type { OrganizationCard } from '@/lib/services/manager/organizationCard';
+import type { OrganizationCard, OrgCardListKey } from '@/lib/services/manager/organizationCard';
 
 import { PageHeader } from '@/components/ui/page-header';
 /**
@@ -221,7 +231,55 @@ export function OrgCardTabsNav({
 type CertificatesExport = { base: string; params?: Record<string, string> };
 type LeadHref = ((id: string) => string) | null;
 
+/**
+ * `С-6` (сопровождение, прогон №4): какое поле карточки показывает вкладка.
+ * Вкладки без списка («Обзор», «Сотрудники», «Настройки») здесь не значатся —
+ * подписи «показаны N из M» у них нет.
+ */
+const LIST_KEY_BY_TAB: Partial<Record<OrgCardTabKey, OrgCardListKey>> = {
+  orders: 'orders',
+  documents: 'documents',
+  payments: 'payments',
+  certificates: 'certificates',
+  comments: 'activity',
+  inbound: 'inboundMessages',
+  calls: 'calls',
+  requests: 'clientRequests',
+  leads: 'leads',
+  deals: 'deals',
+  enrollments: 'enrollments',
+  history: 'auditTrail',
+};
+
+const CAP_HINT_DEFAULT = 'Здесь только новейшие; полный список — в одноимённом разделе кабинета.';
+/** Где искать остальное, если одноимённого раздела нет. */
+const CAP_HINT_BY_KEY: Partial<Record<OrgCardListKey, string>> = {
+  activity: 'Здесь только новейшие; остальные — в карточках заказов.',
+  auditTrail: 'Здесь только новейшие; полный журнал — в разделе «Аудит».',
+};
+
+/** Секция вкладки + подпись «показаны первые N из M», если список усечён. */
 function renderSection(
+  card: OrganizationCard,
+  tab: OrgCardTabKey,
+  links: { certificatesExport?: CertificatesExport | undefined; leadHref?: LeadHref | undefined }
+): React.ReactNode {
+  const body = renderSectionBody(card, tab, links);
+  const key = LIST_KEY_BY_TAB[tab];
+  if (!key) return body;
+  return (
+    <>
+      {body}
+      <ListCapNotice
+        shown={card[key].length}
+        total={card.tabTotals[key]}
+        hint={CAP_HINT_BY_KEY[key] ?? CAP_HINT_DEFAULT}
+      />
+    </>
+  );
+}
+
+function renderSectionBody(
   card: OrganizationCard,
   tab: OrgCardTabKey,
   links: { certificatesExport?: CertificatesExport | undefined; leadHref?: LeadHref | undefined }

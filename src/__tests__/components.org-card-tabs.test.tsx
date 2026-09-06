@@ -38,6 +38,21 @@ function makeCard(overrides: Partial<OrganizationCard>): OrganizationCard {
     // считает сервис карточки — плитки берут подписи из общего реестра.
     counts: { orders: 3, students: 5, cabinetUsers: 2 },
     kpis: { activeOrders: 2, totalPaid: '100.00', debt: '250.00' },
+    // `С-6`: полные счётчики вкладок; 0 — подписи «показаны N из M» нет.
+    tabTotals: {
+      orders: 0,
+      documents: 0,
+      payments: 0,
+      activity: 0,
+      inboundMessages: 0,
+      calls: 0,
+      clientRequests: 0,
+      leads: 0,
+      deals: 0,
+      certificates: 0,
+      enrollments: 0,
+      auditTrail: 0,
+    },
     orders: [],
     documents: [],
     payments: [],
@@ -165,6 +180,70 @@ describe('OrgCardTabs — orders section', () => {
       React.createElement(OrgCardTabs, { card, activeTab: 'orders', tabs: MANAGER_TABS })
     );
     expect(html).toContain('—');
+  });
+});
+
+/**
+ * `С-6` (сопровождение, прогон №4): вкладка показывает 20 новейших записей —
+ * без подписи «показаны первые N из M» человек читал бы их как все.
+ */
+describe('OrgCardTabs — подпись об усечении списка (С-6)', () => {
+  const order = {
+    id: 'o1',
+    orderNumber: 'A-1',
+    title: 'Заказ X',
+    executionStatus: 'in_progress',
+    financialStatus: 'billed',
+    totalAmount: '1000.00',
+    paidAmount: '500.00',
+    createdAt: new Date('2026-01-01'),
+  } as const;
+  const totals = (over: Partial<OrganizationCard['tabTotals']>) =>
+    ({ ...makeCard({}).tabTotals, ...over }) as OrganizationCard['tabTotals'];
+
+  it('счётчик больше показанного — подпись «показаны первые N из M» есть', () => {
+    const card = makeCard({ orders: [order], tabTotals: totals({ orders: 45 }) });
+    const html = renderToString(
+      React.createElement(OrgCardTabs, { card, activeTab: 'orders', tabs: MANAGER_TABS })
+    );
+    expect(html).toContain('Показаны первые 1 из 45');
+  });
+
+  it('всё поместилось — подписи нет', () => {
+    const card = makeCard({ orders: [order], tabTotals: totals({ orders: 1 }) });
+    const html = renderToString(
+      React.createElement(OrgCardTabs, { card, activeTab: 'orders', tabs: MANAGER_TABS })
+    );
+    expect(html).not.toContain('Показаны первые');
+  });
+
+  it('подпись берёт счётчик СВОЕЙ вкладки, а не соседней', () => {
+    // Счётчик заказов большой, открыты документы — подписи быть не должно.
+    const card = makeCard({ orders: [order], tabTotals: totals({ orders: 45 }) });
+    const html = renderToString(
+      React.createElement(OrgCardTabs, { card, activeTab: 'documents', tabs: MANAGER_TABS })
+    );
+    expect(html).not.toContain('Показаны первые');
+  });
+
+  it('вкладка «Комментарии» подсказывает, где остальное', () => {
+    const card = makeCard({
+      activity: [
+        {
+          id: 'c1',
+          body: 'Текст',
+          createdAt: new Date('2026-01-01'),
+          orderId: 'o1',
+          authorName: 'Я',
+        },
+      ],
+      tabTotals: totals({ activity: 30 }),
+    });
+    const html = renderToString(
+      React.createElement(OrgCardTabs, { card, activeTab: 'comments', tabs: MANAGER_TABS })
+    );
+    expect(html).toContain('Показаны первые 1 из 30');
+    expect(html).toContain('в карточках заказов');
   });
 });
 
