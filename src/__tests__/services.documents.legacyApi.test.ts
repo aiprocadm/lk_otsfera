@@ -69,6 +69,9 @@ function db(over: Record<string, unknown> = {}) {
       }),
       findUnique: vi.fn().mockResolvedValue(null),
       findMany: vi.fn().mockResolvedValue([]),
+      // Рядом со срезом идёт полный счётчик по тому же условию (`С-8`,
+      // хотфикс №18): список режется по `DOCUMENTS_API_CAP`.
+      count: vi.fn().mockResolvedValue(0),
     },
     auditLog: { create: vi.fn().mockResolvedValue({}) },
     ...over,
@@ -247,6 +250,10 @@ describe('listAllDocuments', () => {
     await listAllDocuments(prisma as never, admin);
     // `У-151`: даже у администратора список показывает действующие версии.
     expect(prisma.document.findMany.mock.calls[0][0].where).toEqual({ supersededAt: null });
+    // `С-8` (хотфикс №18): счётчик идёт по тому же условию, что и выборка.
+    expect(prisma.document.count.mock.calls[0][0].where).toEqual(
+      prisma.document.findMany.mock.calls[0][0].where
+    );
 
     await listAllDocuments(prisma as never, { sub: 'u', role: 'manager' } as never);
     expect(prisma.document.findMany.mock.calls[1][0].where).toEqual({
