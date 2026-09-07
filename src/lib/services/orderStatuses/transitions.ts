@@ -136,16 +136,29 @@ export async function transitionOrderStatus(
     if (!ready) return { ok: false, error: 'completion_conditions_unmet', unmet };
   }
 
-  await prisma.order.update({ where: { id: order.id }, data: { statusId: target.id } });
-
-  await prisma.orderStatusChange.create({
-    data: {
-      orderId: order.id,
-      fromId: current?.id ?? null,
-      toId: target.id,
-      userId: session.sub,
-      reason,
-    },
+  /**
+   * Статус и запись истории — ОДНОЙ транзакцией.
+   *
+   * Раздельными запросами сбой между ними (обрыв соединения, перезапуск
+   * процесса) оставлял заказ в новом статусе без строки в истории: карточка
+   * показывала бы «статус изменился», а кто и когда — неизвестно. История
+   * смен статуса здесь не украшение, а разбор спорной ситуации
+   * (сопровождение `С-8`, 07.09.2026, хотфикс №19).
+   *
+   * Уведомления и запись аудита остаются СНАРУЖИ: это внешние вызовы, их
+   * место не в транзакции базы.
+   */
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({ where: { id: order.id }, data: { statusId: target.id } });
+    await tx.orderStatusChange.create({
+      data: {
+        orderId: order.id,
+        fromId: current?.id ?? null,
+        toId: target.id,
+        userId: session.sub,
+        reason,
+      },
+    });
   });
 
   await recordAudit(prisma, {
@@ -258,15 +271,19 @@ export async function applyStatusAnchor(
   const toIdx = order_.findIndex((s) => s.id === target.id);
   if (fromIdx !== -1 && toIdx !== -1 && toIdx <= fromIdx) return { ok: true, changed: false };
 
-  await prisma.order.update({ where: { id: order.id }, data: { statusId: target.id } });
-  await prisma.orderStatusChange.create({
-    data: {
-      orderId: order.id,
-      fromId: current?.id ?? null,
-      toId: target.id,
-      userId: userId ?? null,
-      reason: 'Автоматически: наступило событие',
-    },
+  // Тот же инвариант, что и у ручного перехода: статус без записи в историю
+  // не остаётся (хотфикс №19).
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({ where: { id: order.id }, data: { statusId: target.id } });
+    await tx.orderStatusChange.create({
+      data: {
+        orderId: order.id,
+        fromId: current?.id ?? null,
+        toId: target.id,
+        userId: userId ?? null,
+        reason: 'Автоматически: наступило событие',
+      },
+    });
   });
 
   return { ok: true, changed: true };

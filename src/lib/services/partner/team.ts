@@ -180,15 +180,26 @@ export async function deactivateMember(
     if (activeAdmins <= 1) return { ok: false, error: 'last_admin_protected' };
   }
 
-  const partnerUser = await prisma.partnerUser.update({
-    where: { id: target.id },
-    data: { isActive: false },
-  });
-  // Этап 9 (ФТ-11.2): партнёрские клеймы (partnerRole/assignedOrgIds) живут в
-  // токене — гасим и сессии, иначе снятый участник работает до истечения JWT.
-  await prisma.user.update({
-    where: { id: args.userId },
-    data: { sessionVersion: { increment: 1 } },
+  /**
+   * Снятие участника и гашение сессий — ОДНОЙ транзакцией (хотфикс №19).
+   *
+   * Этап 9 (ФТ-11.2): партнёрские клеймы (partnerRole/assignedOrgIds) живут в
+   * токене, поэтому мало снять участника — надо поднять `sessionVersion`,
+   * иначе он работает до истечения JWT. Раздельными запросами сбой между ними
+   * оставлял ровно эту дыру: в базе участник снят, а выданный токен продолжал
+   * пускать. Приглашение в этом же файле уже шло транзакцией — снятие теперь
+   * тоже.
+   */
+  const partnerUser = await prisma.$transaction(async (tx) => {
+    const updated = await tx.partnerUser.update({
+      where: { id: target.id },
+      data: { isActive: false },
+    });
+    await tx.user.update({
+      where: { id: args.userId },
+      data: { sessionVersion: { increment: 1 } },
+    });
+    return updated;
   });
   return { ok: true, partnerUser };
 }

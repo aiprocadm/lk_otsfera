@@ -246,6 +246,9 @@ describe('deactivateMember — unit', () => {
     const prisma = {
       partnerUser: { findUnique: vi.fn().mockResolvedValue(null), update: vi.fn() },
       user: { update: userUpdate },
+      // Снятие участника и гашение сессий идут одной транзакцией (хотфикс
+      // №19): колбэк получает тот же стаб.
+      $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma),
     } as any;
     expect(await deactivateMember(prisma, { partnerId: 'p1', userId: 'u1' })).toEqual({
       ok: false,
@@ -267,6 +270,9 @@ describe('deactivateMember — unit', () => {
         update,
       },
       user: { update: userUpdate },
+      // Снятие участника и гашение сессий идут одной транзакцией (хотфикс
+      // №19): колбэк получает тот же стаб.
+      $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma),
     } as any;
     const result = await deactivateMember(prisma, { partnerId: 'p1', userId: 'u1' });
     expect(prisma.partnerUser.count).not.toHaveBeenCalled();
@@ -292,6 +298,9 @@ describe('deactivateMember — unit', () => {
         update,
       },
       user: { update: userUpdate },
+      // Снятие участника и гашение сессий идут одной транзакцией (хотфикс
+      // №19): колбэк получает тот же стаб.
+      $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma),
     } as any;
     await deactivateMember(prisma, { partnerId: 'p1', userId: 'u1' });
     // isActive is false → skip count check (admin guard only fires when isActive is true)
@@ -313,6 +322,9 @@ describe('deactivateMember — unit', () => {
         update: vi.fn(),
       },
       user: { update: userUpdate },
+      // Снятие участника и гашение сессий идут одной транзакцией (хотфикс
+      // №19): колбэк получает тот же стаб.
+      $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma),
     } as any;
     expect(await deactivateMember(prisma, { partnerId: 'p1', userId: 'u1' })).toEqual({
       ok: false,
@@ -341,6 +353,9 @@ describe('deactivateMember — unit', () => {
         update,
       },
       user: { update: userUpdate },
+      // Снятие участника и гашение сессий идут одной транзакцией (хотфикс
+      // №19): колбэк получает тот же стаб.
+      $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma),
     } as any;
 
     const result = await deactivateMember(prisma, { partnerId: 'p1', userId: 'u-target' });

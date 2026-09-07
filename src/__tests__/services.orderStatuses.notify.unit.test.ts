@@ -66,11 +66,15 @@ const ORDER = {
 };
 
 function prismaStub() {
-  return {
+  // Статус и запись истории идут одной транзакцией (хотфикс №19), поэтому
+  // заглушка обязана уметь `$transaction`: колбэк получает сам стаб.
+  const stub: Record<string, unknown> = {
     order: { findUnique: async () => ORDER, update: async () => ORDER },
     orderStatusChange: { create: async () => ({}) },
     user: { findUnique: async () => ({ name: 'Иванов' }) },
-  } as unknown as PrismaClient;
+  };
+  stub.$transaction = async (fn: (tx: unknown) => Promise<unknown>) => fn(stub);
+  return stub as unknown as PrismaClient;
 }
 
 const admin = { sub: 'admin1', role: 'admin', companyId: 'co1' } as SessionPayload;
@@ -142,14 +146,16 @@ describe('смена статуса — сбой рассылки коллега
 
   it('заявка без организации — клиентам не шлём, статус меняется', async () => {
     notifyManagers.mockResolvedValue(undefined);
-    const prisma = {
+    const stub: Record<string, unknown> = {
       order: {
         findUnique: async () => ({ ...ORDER, organizationId: null }),
         update: async () => ({}),
       },
       orderStatusChange: { create: async () => ({}) },
       user: { findUnique: async () => ({ name: 'Иванов' }) },
-    } as unknown as PrismaClient;
+    };
+    stub.$transaction = async (fn: (tx: unknown) => Promise<unknown>) => fn(stub);
+    const prisma = stub as unknown as PrismaClient;
 
     const res = await transitionOrderStatus(prisma, admin, { orderId: 'o1', toId: 'a' });
 
