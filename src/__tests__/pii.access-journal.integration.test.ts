@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import { recordPiiAccess, recordPiiAccessMany } from '@/lib/pii/record';
-import { listPiiAccess } from '@/lib/services/admin/piiAccess';
+import { listPiiAccess, listPiiAccessFilters } from '@/lib/services/admin/piiAccess';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 const prisma = new PrismaClient();
@@ -97,6 +97,46 @@ describe('PII access journal (integration)', () => {
     const bySubject = await listPiiAccess(prisma, admin, { subjectId: `${RUN}-call-1` });
     if (!bySubject.ok) throw new Error('expected ok');
     expect(bySubject.rows).toHaveLength(1);
+  });
+
+  it('фильтр исполнителей собирается groupBy и видит всех, а не первые строки', async () => {
+    // Хотфикс №17 (`С-8`): раньше список собирался `findMany({ distinct })` —
+    // Prisma считала его в памяти, а `take: 200` в SQL не попадал вовсе.
+    // Проверяем наблюдаемое: исполнитель, чьи события НЕ первые по порядку,
+    // всё равно попадает в фильтр.
+    const other = await prisma.user.create({
+      data: {
+        email: `${RUN}-actor2@test.local`,
+        name: `${RUN} actor2`,
+        role: 'manager',
+        passwordHash: 'x',
+      },
+    });
+    try {
+      await recordPiiAccess(prisma, {
+        session: session(),
+        context: 'manager_students_list',
+        subjectIds: [`${RUN}-s-a`],
+      });
+      await recordPiiAccess(prisma, {
+        session: session({ sub: other.id }),
+        context: 'manager_students_list',
+        subjectIds: [`${RUN}-s-b`],
+      });
+
+      const res = await listPiiAccessFilters(prisma, {
+        sub: actorId,
+        role: 'admin',
+        companyId: null,
+      } as SessionPayload);
+      if (!res.ok) throw new Error('expected ok');
+      const ids = res.actors.map((a) => a.id);
+      expect(ids).toContain(actorId);
+      expect(ids).toContain(other.id);
+    } finally {
+      await prisma.piiAccessEvent.deleteMany({ where: { userId: other.id } });
+      await prisma.user.delete({ where: { id: other.id } });
+    }
   });
 
   it('выключенный флаг: запись не создаётся', async () => {

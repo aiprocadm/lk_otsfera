@@ -280,12 +280,19 @@ describe('listAudit() — take clamping', () => {
 // ---------------------------------------------------------------------------
 // listAuditFilters
 // ---------------------------------------------------------------------------
+/**
+ * Фильтры собираются `groupBy`, а не `findMany({ distinct })`: Prisma считает
+ * `distinct` в памяти приложения и ради десятка значений тянет весь журнал
+ * (хотфикс №17, `С-8`). Мок повторяет это разделение — `findMany` журнала
+ * здесь вообще не должен вызываться.
+ */
 function makeFiltersPrisma(
-  auditLogFindMany: ReturnType<typeof vi.fn>,
-  userFindMany: ReturnType<typeof vi.fn>
+  auditLogGroupBy: ReturnType<typeof vi.fn>,
+  userFindMany: ReturnType<typeof vi.fn>,
+  auditLogFindMany: ReturnType<typeof vi.fn> = vi.fn()
 ) {
   return {
-    auditLog: { findMany: auditLogFindMany },
+    auditLog: { groupBy: auditLogGroupBy, findMany: auditLogFindMany },
     user: { findMany: userFindMany },
   } as unknown as PrismaClient;
 }
@@ -293,56 +300,60 @@ function makeFiltersPrisma(
 describe('listAuditFilters() — query args', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('issues entity distinct query with correct distinct/select/orderBy', async () => {
-    const auditFindMany = vi
+  it('сущности берутся groupBy, а не выборкой строк', async () => {
+    const groupBy = vi
       .fn()
-      .mockResolvedValueOnce([{ entity: 'lead' }]) // entity distinct
-      .mockResolvedValueOnce([{ action: 'lead_created' }]) // action distinct
-      .mockResolvedValueOnce([]); // userId distinct
+      .mockResolvedValueOnce([{ entity: 'lead' }])
+      .mockResolvedValueOnce([{ action: 'lead_created' }])
+      .mockResolvedValueOnce([]);
     const userFindMany = vi.fn().mockResolvedValue([]);
-    const prisma = makeFiltersPrisma(auditFindMany, userFindMany);
+    const prisma = makeFiltersPrisma(groupBy, userFindMany);
 
     await listAuditFilters(prisma);
 
-    // First two calls are done via Promise.all so order is positional (entity=0, action=1)
-    const entityCall = auditFindMany.mock.calls[0][0];
-    expect(entityCall.distinct).toEqual(['entity']);
-    expect(entityCall.select).toEqual({ entity: true });
+    // Три вызова уходят одним Promise.all, порядок позиционный.
+    const entityCall = groupBy.mock.calls[0][0];
+    expect(entityCall.by).toEqual(['entity']);
     expect(entityCall.orderBy).toEqual({ entity: 'asc' });
   });
 
-  it('issues action distinct query with correct distinct/select/orderBy', async () => {
-    const auditFindMany = vi
+  it('действия берутся groupBy', async () => {
+    const groupBy = vi
       .fn()
       .mockResolvedValueOnce([{ entity: 'order' }])
       .mockResolvedValueOnce([{ action: 'order_updated' }])
       .mockResolvedValueOnce([]);
     const userFindMany = vi.fn().mockResolvedValue([]);
-    const prisma = makeFiltersPrisma(auditFindMany, userFindMany);
+    const prisma = makeFiltersPrisma(groupBy, userFindMany);
 
     await listAuditFilters(prisma);
 
-    const actionCall = auditFindMany.mock.calls[1][0];
-    expect(actionCall.distinct).toEqual(['action']);
-    expect(actionCall.select).toEqual({ action: true });
+    const actionCall = groupBy.mock.calls[1][0];
+    expect(actionCall.by).toEqual(['action']);
     expect(actionCall.orderBy).toEqual({ action: 'asc' });
   });
 
-  it('issues userId distinct query with distinct/select/take:200', async () => {
-    const auditFindMany = vi
-      .fn()
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
+  it('исполнители берутся groupBy с пределом 200', async () => {
+    const groupBy = vi.fn().mockResolvedValue([]);
     const userFindMany = vi.fn().mockResolvedValue([]);
-    const prisma = makeFiltersPrisma(auditFindMany, userFindMany);
+    const prisma = makeFiltersPrisma(groupBy, userFindMany);
 
     await listAuditFilters(prisma);
 
-    const userIdCall = auditFindMany.mock.calls[2][0];
-    expect(userIdCall.distinct).toEqual(['userId']);
-    expect(userIdCall.select).toEqual({ userId: true });
+    const userIdCall = groupBy.mock.calls[2][0];
+    expect(userIdCall.by).toEqual(['userId']);
     expect(userIdCall.take).toBe(200);
+  });
+
+  it('журнал не читается построчно: findMany не вызывается вовсе', async () => {
+    // Смысл хотфикса №17: раньше сюда уезжала вся таблица.
+    const groupBy = vi.fn().mockResolvedValue([]);
+    const findMany = vi.fn();
+    const prisma = makeFiltersPrisma(groupBy, vi.fn().mockResolvedValue([]), findMany);
+
+    await listAuditFilters(prisma);
+
+    expect(findMany).not.toHaveBeenCalled();
   });
 });
 
@@ -350,7 +361,7 @@ describe('listAuditFilters() — return shape', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('maps entity rows to entities array and action rows to actions array', async () => {
-    const auditFindMany = vi
+    const groupBy = vi
       .fn()
       .mockResolvedValueOnce([{ entity: 'lead' }, { entity: 'order' }])
       .mockResolvedValueOnce([{ action: 'lead_created' }, { action: 'order_updated' }])
@@ -358,7 +369,7 @@ describe('listAuditFilters() — return shape', () => {
     const userFindMany = vi
       .fn()
       .mockResolvedValue([{ id: 'user-1', name: 'Иван', email: 'ivan@example.com' }]);
-    const prisma = makeFiltersPrisma(auditFindMany, userFindMany);
+    const prisma = makeFiltersPrisma(groupBy, userFindMany);
 
     const result = await listAuditFilters(prisma);
 
@@ -366,8 +377,8 @@ describe('listAuditFilters() — return shape', () => {
     expect(result.actions).toEqual(['lead_created', 'order_updated']);
   });
 
-  it('passes correct where.id.in to user.findMany with the distinct userId list', async () => {
-    const auditFindMany = vi
+  it('в user.findMany уходит ровно список исполнителей из groupBy', async () => {
+    const groupBy = vi
       .fn()
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
@@ -375,7 +386,7 @@ describe('listAuditFilters() — return shape', () => {
     const actor1 = { id: 'u-1', name: 'Анна', email: 'anna@example.com' };
     const actor2 = { id: 'u-2', name: 'Борис', email: 'boris@example.com' };
     const userFindMany = vi.fn().mockResolvedValue([actor1, actor2]);
-    const prisma = makeFiltersPrisma(auditFindMany, userFindMany);
+    const prisma = makeFiltersPrisma(groupBy, userFindMany);
 
     const result = await listAuditFilters(prisma);
 
@@ -386,14 +397,14 @@ describe('listAuditFilters() — return shape', () => {
     expect(result.actors).toEqual([actor1, actor2]);
   });
 
-  it('does NOT call user.findMany and returns actors:[] when userId distinct is empty', async () => {
-    const auditFindMany = vi
+  it('исполнителей нет → user.findMany не зовётся, actors пуст', async () => {
+    const groupBy = vi
       .fn()
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]); // no userId rows
+      .mockResolvedValueOnce([]); // исполнителей нет
     const userFindMany = vi.fn();
-    const prisma = makeFiltersPrisma(auditFindMany, userFindMany);
+    const prisma = makeFiltersPrisma(groupBy, userFindMany);
 
     const result = await listAuditFilters(prisma);
 

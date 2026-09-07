@@ -88,22 +88,31 @@ export async function listAudit(
   };
 }
 
+/**
+ * Сколько разных исполнителей показать в фильтре. Больше двух сотен человек
+ * в выпадающем списке всё равно не выбирают глазами — там поиск по имени.
+ */
+const AUDIT_ACTOR_CAP = 200;
+
 export async function listAuditFilters(prisma: PrismaClient): Promise<AuditFiltersOptions> {
+  /**
+   * `groupBy`, а НЕ `findMany({ distinct })`.
+   *
+   * Prisma выполняет `distinct` в памяти приложения: в базу уходит обычный
+   * `SELECT id, action FROM "AuditLog"` вообще без `DISTINCT` и без `LIMIT`
+   * (даже когда указан `take` — он тоже применяется уже после), и весь
+   * журнал аудита едет в процесс, чтобы отдать десяток значений для
+   * выпадающего списка. Журнал — самая быстрорастущая таблица: пишется на
+   * каждое значимое действие. `groupBy` уходит в базу настоящим `GROUP BY`
+   * и возвращает ровно группы (сопровождение `С-8`, 07.09.2026, хотфикс №17).
+   */
   const [entityRows, actionRows, actorIds] = await Promise.all([
-    prisma.auditLog.findMany({
-      distinct: ['entity'],
-      select: { entity: true },
-      orderBy: { entity: 'asc' },
-    }),
-    prisma.auditLog.findMany({
-      distinct: ['action'],
-      select: { action: true },
-      orderBy: { action: 'asc' },
-    }),
-    prisma.auditLog.findMany({
-      distinct: ['userId'],
-      select: { userId: true },
-      take: 200,
+    prisma.auditLog.groupBy({ by: ['entity'], orderBy: { entity: 'asc' } }),
+    prisma.auditLog.groupBy({ by: ['action'], orderBy: { action: 'asc' } }),
+    prisma.auditLog.groupBy({
+      by: ['userId'],
+      orderBy: { userId: 'asc' },
+      take: AUDIT_ACTOR_CAP,
     }),
   ]);
   const actors = actorIds.length

@@ -170,15 +170,22 @@ export type PiiAccessFilterOptions = {
   actors: Array<{ id: string; name: string; email: string }>;
 };
 
+/** Сколько разных исполнителей показать в фильтре (см. `AUDIT_ACTOR_CAP`). */
+const PII_ACTOR_CAP = 200;
+
 export async function listPiiAccessFilters(
   prisma: PrismaClient,
   session: SessionPayload
 ): Promise<PiiAccessFilterOptions | Forbidden> {
   if (session.role !== 'admin') return { ok: false, error: 'forbidden' };
-  const actorIds = await prisma.piiAccessEvent.findMany({
-    distinct: ['userId'],
-    select: { userId: true },
-    take: 200,
+  // `groupBy`, а не `findMany({ distinct })`: Prisma считает `distinct` в
+  // памяти приложения и тянет ради него ВСЮ таблицу — `take` при этом в SQL
+  // не попадает (сопровождение `С-8`, 07.09.2026, хотфикс №17). Журнал
+  // доступа к персональным данным растёт с каждым просмотром карточки.
+  const actorIds = await prisma.piiAccessEvent.groupBy({
+    by: ['userId'],
+    orderBy: { userId: 'asc' },
+    take: PII_ACTOR_CAP,
   });
   const actors = actorIds.length
     ? await prisma.user.findMany({
