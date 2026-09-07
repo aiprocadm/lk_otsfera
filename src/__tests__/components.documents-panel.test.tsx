@@ -31,6 +31,41 @@ describe('DocumentsPanel', () => {
     vi.unstubAllGlobals();
   });
 
+  it('на карточке заказа фильтр уходит на сервер, а не отбирается в браузере', () => {
+    // Хотфикс №18 (`С-8`): раньше панель просила весь список платформы и
+    // отбирала нужные строки локально.
+    useClientResource.mockReturnValue({
+      data: { rows: docs, total: docs.length },
+      loading: false,
+      error: false,
+      refetch,
+    });
+    render(<DocumentsPanel orderId="o-42" />);
+    expect(useClientResource).toHaveBeenCalledWith('/api/documents?orderId=o-42');
+  });
+
+  it('без заказа панель просит общий список', () => {
+    useClientResource.mockReturnValue({
+      data: { rows: docs, total: docs.length },
+      loading: false,
+      error: false,
+      refetch,
+    });
+    render(<DocumentsPanel />);
+    expect(useClientResource).toHaveBeenCalledWith('/api/documents');
+  });
+
+  it('усечённый список подписан «показаны первые N из M»', () => {
+    useClientResource.mockReturnValue({
+      data: { rows: docs, total: 250 },
+      loading: false,
+      error: false,
+      refetch,
+    });
+    render(<DocumentsPanel />);
+    expect(screen.getByText(new RegExp(`Показаны первые ${docs.length} из 250`))).toBeTruthy();
+  });
+
   it('shows the empty state when there are no documents', () => {
     render(React.createElement(DocumentsPanel));
     expect(screen.getByText('Документов пока нет')).toBeTruthy();
@@ -38,7 +73,7 @@ describe('DocumentsPanel', () => {
   });
 
   it('renders the document list with name, mime, formatted date, and count', () => {
-    useClientResource.mockReturnValue({ data: docs, loading: false, error: false, refetch });
+    useClientResource.mockReturnValue({ data: { rows: docs, total: docs.length }, loading: false, error: false, refetch });
     render(React.createElement(DocumentsPanel));
     expect(screen.getByText('file.pdf')).toBeTruthy();
     expect(screen.getByText('1 файлов')).toBeTruthy();
@@ -137,7 +172,7 @@ describe('DocumentsPanel', () => {
     const openMock = vi.fn();
     vi.stubGlobal('open', openMock);
 
-    useClientResource.mockReturnValue({ data: docs, loading: false, error: false, refetch });
+    useClientResource.mockReturnValue({ data: { rows: docs, total: docs.length }, loading: false, error: false, refetch });
     render(React.createElement(DocumentsPanel));
 
     fireEvent.click(screen.getByRole('button', { name: 'Скачать' }));
@@ -180,7 +215,7 @@ describe('DocumentsPanel', () => {
     const openMock = vi.fn();
     vi.stubGlobal('open', openMock);
 
-    useClientResource.mockReturnValue({ data: docs, loading: false, error: false, refetch });
+    useClientResource.mockReturnValue({ data: { rows: docs, total: docs.length }, loading: false, error: false, refetch });
     render(React.createElement(DocumentsPanel));
     fireEvent.click(screen.getByRole('button', { name: 'Скачать' }));
 
@@ -198,7 +233,7 @@ describe('DocumentsPanel', () => {
     const openMock = vi.fn();
     vi.stubGlobal('open', openMock);
 
-    useClientResource.mockReturnValue({ data: docs, loading: false, error: false, refetch });
+    useClientResource.mockReturnValue({ data: { rows: docs, total: docs.length }, loading: false, error: false, refetch });
     render(React.createElement(DocumentsPanel));
 
     fireEvent.click(screen.getByRole('button', { name: 'Скачать' }));
