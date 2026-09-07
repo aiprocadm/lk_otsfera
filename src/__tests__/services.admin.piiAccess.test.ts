@@ -31,6 +31,10 @@ function makePrisma(rows: ReturnType<typeof eventRow>[] = []) {
   return {
     piiAccessEvent: {
       findMany: vi.fn().mockResolvedValue(rows),
+      // Список исполнителей для фильтра собирается `groupBy`, а не выборкой
+      // строк: `findMany({ distinct })` Prisma считает в памяти и тянет ради
+      // этого весь журнал (хотфикс №17, `С-8`).
+      groupBy: vi.fn().mockResolvedValue([]),
     },
     student: { findMany: vi.fn().mockResolvedValue([{ id: 's1', name: 'Иван И.' }]) },
     user: { findMany: vi.fn().mockResolvedValue([]) },
@@ -192,12 +196,17 @@ describe('listPiiAccessFilters', () => {
       error: 'forbidden',
     });
     const p = makePrisma();
-    (p as any).piiAccessEvent.findMany.mockResolvedValue([{ userId: 'u1' }]);
+    (p as any).piiAccessEvent.groupBy.mockResolvedValue([{ userId: 'u1' }]);
     (p as any).user.findMany.mockResolvedValue([{ id: 'u1', name: 'Емп', email: 'e@x.ru' }]);
     const res = await listPiiAccessFilters(p, ADMIN);
     if (!res.ok) throw new Error('expected ok');
     expect(res.contexts.find((c) => c.key === 'calls_list')?.labelRu).toBe('Журнал звонков');
     expect(res.actors).toEqual([{ id: 'u1', name: 'Емп', email: 'e@x.ru' }]);
+    // Журнал не читается построчно ради выпадающего списка.
+    expect((p as any).piiAccessEvent.findMany).not.toHaveBeenCalled();
+    const call = (p as any).piiAccessEvent.groupBy.mock.calls[0][0];
+    expect(call.by).toEqual(['userId']);
+    expect(call.take).toBe(200);
   });
 
   it('пустой журнал → actors []', async () => {
