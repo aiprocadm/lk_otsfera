@@ -3,6 +3,7 @@
 import React, { useState, type FormEvent } from 'react';
 import { fmtDateTime } from '@/lib/format';
 import { useClientResource } from '@/hooks/useClientResource';
+import { ListCapNotice } from '@/components/ui/list-cap-notice';
 
 type DocumentItem = {
   id: string;
@@ -23,11 +24,22 @@ const UPLOAD_ERROR_RU: Record<string, string> = {
   STORAGE_UPLOAD_FAILED: 'Не удалось сохранить файл в хранилище. Попробуйте ещё раз.',
 };
 
+/** Ответ `/api/documents`: срез и полный счётчик по тому же условию. */
+type DocumentListResponse = { rows: DocumentItem[]; total: number };
+
 export function DocumentsPanel({ orderId: fixedOrderId }: { orderId?: string } = {}) {
-  const { data: docsData, refetch } = useClientResource<DocumentItem[]>('/api/documents');
   // `У-112`: на карточке заказа панель показывает документы ЭТОГО заказа и не
   // спрашивает его номер — он уже известен. На общем экране всё как было.
-  const docs = (docsData ?? []).filter((d) => !fixedOrderId || d.orderId === fixedOrderId);
+  //
+  // Отбор идёт на СЕРВЕРЕ. Раньше панель просила весь список платформы и
+  // фильтровала его в браузере: ради трёх строк на карточке заказа
+  // администратору уезжали метаданные всех документов системы, и предела у
+  // выборки не было вовсе (`С-8`, хотфикс №18).
+  const { data: docsData, refetch } = useClientResource<DocumentListResponse>(
+    fixedOrderId ? `/api/documents?orderId=${encodeURIComponent(fixedOrderId)}` : '/api/documents'
+  );
+  const docs = docsData?.rows ?? [];
+  const total = docsData?.total ?? docs.length;
   const [orderId, setOrderId] = useState(fixedOrderId ?? '');
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -164,6 +176,13 @@ export function DocumentsPanel({ orderId: fixedOrderId }: { orderId?: string } =
             ))}
           </div>
         )}
+        <div className="px-5 pb-3">
+          <ListCapNotice
+            shown={docs.length}
+            total={total}
+            hint="Здесь только новейшие; полный список — в разделе «Документы»."
+          />
+        </div>
       </div>
     </div>
   );

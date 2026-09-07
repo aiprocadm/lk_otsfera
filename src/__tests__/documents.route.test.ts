@@ -12,6 +12,7 @@ const {
   createSignedUrl,
   enqueueAdd,
   docFindMany,
+  docCount,
 } = vi.hoisted(() => ({
   getSession: vi.fn(),
   findUnique: vi.fn(),
@@ -24,6 +25,7 @@ const {
   createSignedUrl: vi.fn(),
   enqueueAdd: vi.fn(),
   docFindMany: vi.fn(),
+  docCount: vi.fn().mockResolvedValue(0),
 }));
 
 vi.mock('@/lib/auth/session', () => ({ getSession }));
@@ -31,7 +33,7 @@ vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     order: { findUnique },
     organization: { findFirst: orgFindFirst },
-    document: { create, findUnique: vi.fn(), findMany: docFindMany },
+    document: { create, findUnique: vi.fn(), findMany: docFindMany, count: docCount },
     auditLog: { create: auditCreate },
   },
 }));
@@ -520,14 +522,14 @@ describe('GET /api/documents list — channel-isolation role restriction', () =>
 
   it('returns 403 for organization role (must use channel-scoped service layer)', async () => {
     getSession.mockResolvedValue({ role: 'organization', sub: 'u1', organizationId: 'org1' });
-    const res = await listGet();
+    const res = await listGet(new Request('http://localhost/api/documents'));
     expect(res.status).toBe(403);
     expect(docFindMany).not.toHaveBeenCalled();
   });
 
   it('returns 403 for partner role (must use channel-scoped service layer)', async () => {
     getSession.mockResolvedValue({ role: 'partner', sub: 'u1', partnerId: 'p1' });
-    const res = await listGet();
+    const res = await listGet(new Request('http://localhost/api/documents'));
     expect(res.status).toBe(403);
     expect(docFindMany).not.toHaveBeenCalled();
   });
@@ -543,7 +545,7 @@ describe('GET /api/documents list — channel-isolation role restriction', () =>
         orderId: 'ord1',
       },
     ]);
-    const res = await listGet();
+    const res = await listGet(new Request('http://localhost/api/documents'));
     expect(res.status).toBe(200);
     expect(docFindMany).toHaveBeenCalled();
   });
@@ -553,7 +555,7 @@ describe('GET /api/documents list — channel-isolation role restriction', () =>
     // matches a manager account — it always returned an empty list. The
     // endpoint is admin-only (sole consumer: admin DocumentsPanel).
     getSession.mockResolvedValue({ role: 'manager', sub: 'mgr1' });
-    const res = await listGet();
+    const res = await listGet(new Request('http://localhost/api/documents'));
     expect(res.status).toBe(403);
     expect(docFindMany).not.toHaveBeenCalled();
   });

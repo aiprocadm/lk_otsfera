@@ -10,7 +10,7 @@ import { listAllDocuments } from '@/lib/services/documents/list';
 // excluded too: their reads go through managerDocumentScope (the old manager
 // branch here filtered via organizationUsers, which never matches a manager
 // account and always returned an empty list).
-export async function GET() {
+export async function GET(req: Request) {
   const sessionResult = await requireSession();
   if (!sessionResult.ok) return sessionResult.response;
   const s = sessionResult.value;
@@ -18,7 +18,10 @@ export async function GET() {
   const roleResult = requireRole(s, ['admin']);
   if (!roleResult.ok) return roleResult.response;
 
-  const result = await listAllDocuments(prisma, s);
+  // Фильтр по заказу отбирает СЕРВЕР: карточке заказа не нужен список всей
+  // платформы, чтобы показать три строки (`С-8`, хотфикс №18).
+  const orderId = new URL(req.url).searchParams.get('orderId')?.trim();
+  const result = await listAllDocuments(prisma, s, ...(orderId ? [{ orderId }] : []));
 
-  return NextResponse.json(result.documents);
+  return NextResponse.json({ rows: result.documents, total: result.total });
 }
