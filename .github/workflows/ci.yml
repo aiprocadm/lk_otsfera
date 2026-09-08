@@ -175,7 +175,7 @@ jobs:
   e2e-rules:
     name: e2e · правила экранов
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     services:
       postgres:
         image: postgres:16-alpine
@@ -202,16 +202,14 @@ jobs:
       # CI, не секреты.
       # NODE_ENV здесь НЕ задаём: с ним `npm ci` пропускает devDependencies и
       # падает на `prepare` («husky: not found»). Прод-режим включает сам
-      # `next start`, а переменные ниже — то, что требует строгая валидация
-      # окружения в production (`src/lib/env.ts`, `У-132`, серия R0): без любой
-      # из них сервер не поднимется. Все значения — заглушки для CI.
-      HEALTH_TOKEN: ci-only-health-token-not-a-real-secret-32
-      APP_ENCRYPTION_KEY: ci-only-encryption-key-32-bytes!
-      REDIS_URL: redis://localhost:6379
-      S3_BUCKET: ci-only-bucket
-      S3_ENDPOINT: http://localhost:9000
-      S3_ACCESS_KEY_ID: ci-only-access-key
-      S3_SECRET_ACCESS_KEY: ci-only-secret-key
+      # `next start`.
+      #
+      # Заглушки REDIS_URL и S3_* тоже НЕ здесь, а только на шаге запуска
+      # сервера. Заданный, но мёртвый адрес хуже отсутствующего: `prisma:seed`
+      # транзитивно тянет прод-код (клиенты очередей и хранилища), и с
+      # `redis://localhost:6379`, за которым никого нет, он бесконечно
+      # переподключается — job висел все 30 минут именно на seed, а не на
+      # браузерных проверках. Без переменной клиент не создаётся вовсе.
       # Кабинеты — opt-in флаги; экраны под ними должны быть живыми.
       FEATURE_ORGANIZATION_CABINET: '1'
       FEATURE_MANAGER_CABINET: '1'
@@ -234,6 +232,18 @@ jobs:
       - name: Поднять приложение
         # Без новой зависимости: ждём готовности обычным опросом. Две
         # минуты с запасом — прод-сборка стартует за секунды.
+        env:
+          # Строгая валидация окружения в production (`src/lib/env.ts`, `У-132`,
+          # серия R0) требует эти переменные — без любой сервер не поднимется.
+          # Значения — заглушки; сервисов за ними нет, но сервер к ним и не
+          # ходит: браузерные проверки читают экраны, а не очередь и хранилище.
+          HEALTH_TOKEN: ci-only-health-token-not-a-real-secret-32
+          APP_ENCRYPTION_KEY: ci-only-encryption-key-32-bytes!
+          REDIS_URL: redis://localhost:6379
+          S3_BUCKET: ci-only-bucket
+          S3_ENDPOINT: http://localhost:9000
+          S3_ACCESS_KEY_ID: ci-only-access-key
+          S3_SECRET_ACCESS_KEY: ci-only-secret-key
         run: |
           npx next start -p 3100 &
           for i in $(seq 1 60); do
