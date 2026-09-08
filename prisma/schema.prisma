@@ -1235,6 +1235,14 @@ model Order {
   primaryContactId         String?
   primaryContact           Contact?                  @relation("OrderPrimaryContact", fields: [primaryContactId], references: [id], onDelete: SetNull)
 
+  /// Составной ключ под ссылку из `Document` (миграция
+  /// `20260831160000_stage6_numbering_constraints`): компания документа не
+  /// может разойтись с компанией его заказа. По данным ключ избыточен —
+  /// `id` и так первичный, — но без него внешний ключ на пару колонок не
+  /// объявить. Описан здесь, потому что живёт в базе: без строки в схеме
+  /// следующая `prisma migrate dev` сгенерировала бы миграцию, которая молча
+  /// сносит и его, и сам внешний ключ (поймано `migrate diff` в CI 08.09.2026).
+  @@unique([id, companyId])
   @@index([partnerId, executionStatus])
   @@index([partnerId, financialStatus])
   @@index([organizationId, executionStatus])
