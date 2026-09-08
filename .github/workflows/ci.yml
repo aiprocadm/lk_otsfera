@@ -146,3 +146,85 @@ jobs:
           --to-schema-datamodel prisma/schema.prisma
           --shadow-database-url postgresql://postgres:postgres@localhost:5432/drift_shadow
           --exit-code
+
+  # Фаза 6 (08.09.2026): правила экранов в CI. До этого 480 браузерных
+  # проверок гонялись только руками на стенде — регресс интерфейса мог
+  # доехать до `main` незамеченным («задел на будущее» в STATUS.md).
+  #
+  # Гоняются СТРУКТУРНЫЕ проверки: заголовок совпадает с пунктом меню,
+  # подзаголовок на месте, крошки у вложенных экранов, каркас на 390 px,
+  # ошибки по-русски. Сравнение СКРИНШОТОВ сюда намеренно НЕ входит:
+  # эталоны сняты на dev-сервере, а прод-сборка даёт другую высоту
+  # страницы (нет dev-оверлея Next — расхождение 8 px), и шрифты
+  # CI-образа отличаются от серверных. Эталоны остаются локальной
+  # проверкой сопровождения (`С-10`).
+  #
+  # Приложение поднимается прод-сборкой, а не `next dev`: маршруты уже
+  # собраны, поэтому нет таймаутов первого захода — 290 проверок
+  # проходят за ~4 минуты вместо часа.
+  e2e-rules:
+    name: e2e · правила экранов
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cabinet
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d cabinet"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cabinet
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/cabinet
+      JWT_SECRET: ci-only-jwt-secret-not-a-real-secret-32
+      APP_URL: http://localhost:3100
+      NEXT_PUBLIC_APP_URL: http://localhost:3100
+      ONE_C_ADAPTER: fake
+      # Кабинеты — opt-in флаги; экраны под ними должны быть живыми.
+      FEATURE_ORGANIZATION_CABINET: '1'
+      FEATURE_MANAGER_CABINET: '1'
+      FEATURE_LEADER_CABINET: '1'
+      # Сервер уже поднят шагом ниже — конфиг Playwright не поднимает свой.
+      PLAYWRIGHT_BASE_URL: http://localhost:3100
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run prisma:generate
+      - run: npx prisma migrate deploy
+      # Учётки шести ролей, которыми входит auth.setup, приходят из seed.
+      - run: npm run prisma:seed
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - name: Поднять приложение
+        # Без новой зависимости: ждём готовности обычным опросом. Две
+        # минуты с запасом — прод-сборка стартует за секунды.
+        run: |
+          npx next start -p 3100 &
+          for i in $(seq 1 60); do
+            if curl -sf -o /dev/null http://localhost:3100/login; then
+              echo "приложение готово (попытка $i)"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "приложение не поднялось за 120 секунд" >&2
+          exit 1
+      - name: Правила экранов и мобильный каркас
+        run: npx playwright test --grep "Правила экранов|каркас"
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
