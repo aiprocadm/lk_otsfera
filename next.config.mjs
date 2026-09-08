@@ -47,6 +47,27 @@ export const SETTINGS_HUB_REDIRECTS = [
   ['/admin/audit', '/admin/settings/security/audit'],
 ];
 
+/**
+ * Переезды ВНЕ хаба настроек сотрудников.
+ *
+ * Та же беда, что у списка выше: страница-шлюз с `redirect()` при стриминге RSC
+ * отдаёт 200 и уводит уже на клиенте, а закладке и письму нужен честный код.
+ * Разница в том, что реестр `SETTINGS_SECTIONS` описывает только кабинеты
+ * `admin`/`leader`, поэтому переезд из кабинета ЗАКАЗЧИКА в него не помещается
+ * и живёт отдельным списком.
+ *
+ * `/organization/team` → вкладка «Настройки» карточки своей организации: по
+ * старому адресу приходят из ранее разосланных писем-приглашений. Без этой
+ * записи человек попадал на карточку с вкладкой по умолчанию («Обзор»), где
+ * ни списка участников, ни кнопки «Пригласить участника» нет — найдено
+ * сопровождением 08.09.2026 (страж `organization-team-modal-focus-trap` падал
+ * стабильно, а не флейком).
+ *
+ * Флагом не гейтится: переезд состоялся вместе с единой карточкой организации,
+ * отката к старому экрану не предполагается.
+ */
+export const LEGACY_REDIRECTS = [['/organization/team', '/organization/company?tab=settings']];
+
 /** Тот же разбор значения, что и в src/lib/featureFlags.ts (opt-in флаг). */
 function isSettingsHubEnabled() {
   const raw = process.env.FEATURE_SETTINGS_HUB?.trim().toLowerCase();
@@ -78,8 +99,8 @@ const nextConfig = {
     return [{ source: '/:path*', headers: securityHeaders }];
   },
   async redirects() {
-    if (!isSettingsHubEnabled()) return [];
-    return SETTINGS_HUB_REDIRECTS.map(([source, destination]) => ({
+    const hub = isSettingsHubEnabled() ? SETTINGS_HUB_REDIRECTS : [];
+    return [...hub, ...LEGACY_REDIRECTS].map(([source, destination]) => ({
       source,
       destination,
       permanent: false,
