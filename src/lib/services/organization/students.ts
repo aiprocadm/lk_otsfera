@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { startOfMoscowDay } from '@/lib/dates/calendar';
 
 export type OrgStudentRow = {
   id: string;
@@ -104,8 +105,9 @@ export async function listOrgStudentsForExport(
   }
 ): Promise<{ rows: OrgStudentExportRow[]; total: number }> {
   const where = orgStudentsWhere(opts);
-  const startOfToday = new Date(opts.now ?? new Date());
-  startOfToday.setHours(0, 0, 0, 0);
+  // `Д-22`: сутки по Москве — сервер живёт в UTC, и ночью «сегодня» уезжало
+  // на вчерашний день московского календаря.
+  const startOfToday = startOfMoscowDay(opts.now ?? new Date());
 
   const [total, students] = await Promise.all([
     prisma.student.count({ where }),

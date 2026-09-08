@@ -44,3 +44,29 @@ export function parseRuCalendarDate(raw: string): Date | null {
   if (!m) return null;
   return parseIsoCalendarDate(`${m[3]}-${m[2]}-${m[1]}`);
 }
+
+/**
+ * Начало текущих суток **по московскому времени** (`Д-22`).
+ *
+ * `new Date(...).setHours(0, 0, 0, 0)` даёт полночь в часовом поясе процесса,
+ * а серверы проекта живут в UTC. С 00:00 до 03:00 по Москве такая «полночь»
+ * указывает на ПРЕДЫДУЩИЕ сутки московского календаря: удостоверение,
+ * истёкшее вчера, ещё считалось действующим, а «дела на сегодня» показывали
+ * вчерашний день. Наружу же всё рендерится в `Europe/Moscow` (`lib/format.ts`),
+ * и расхождение видел только тот, кто работал ночью.
+ *
+ * Решение то же, что у года документа в `documents/generate.ts`: календарную
+ * дату берём через `Intl` в московской зоне. Смещение записано явным `+03:00`
+ * — Москва не переходит на летнее время с 2014 года, зона фиксированная.
+ *
+ * Локаль `en-CA` даёт ровно `YYYY-MM-DD` (та же причина, что и у `moscowYear`).
+ */
+export function startOfMoscowDay(now: Date = new Date()): Date {
+  const ymd = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Moscow',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now);
+  return new Date(`${ymd}T00:00:00+03:00`);
+}
