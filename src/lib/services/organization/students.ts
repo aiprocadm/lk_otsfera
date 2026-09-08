@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import { startOfMoscowDay } from '@/lib/dates/calendar';
 
-export type OrgStudentRow = {
+type OrgStudentRow = {
   id: string;
   name: string;
   /** У-21 (этап 5): почта у сотрудника необязательна — рабочих обучают без неё. */

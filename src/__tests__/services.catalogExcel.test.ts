@@ -122,7 +122,10 @@ describe('parseCatalogWorkbook — разбор файла', () => {
 
     // Есть Название и Цена, но нет Артикула — сопоставлять было бы не по чему.
     const partial = await parseCatalogWorkbook(
-      await buildXlsx([['Урок', '100']], [CATALOG_IMPORT_COLUMNS.name, CATALOG_IMPORT_COLUMNS.price]),
+      await buildXlsx(
+        [['Урок', '100']],
+        [CATALOG_IMPORT_COLUMNS.name, CATALOG_IMPORT_COLUMNS.price]
+      ),
       DIRS
     );
     expect(partial.ok).toBe(false);
@@ -131,7 +134,17 @@ describe('parseCatalogWorkbook — разбор файла', () => {
   it('happy-path: «чел.», «20%», «да»/«нет», «не облагается», направление регистронезависимо', async () => {
     const buf = await buildXlsx([
       // Порядок числом — Excel хранит такие ячейки number, не строкой.
-      ['Обучение по охране труда', 'OT-101', 'чел.', '4500', '20%', 'да', 'ОХРАНА ТРУДА', 'Курс', 10],
+      [
+        'Обучение по охране труда',
+        'OT-101',
+        'чел.',
+        '4500',
+        '20%',
+        'да',
+        'ОХРАНА ТРУДА',
+        'Курс',
+        10,
+      ],
       ['Пожарный минимум', 'PB-1', '', '1000,50', 'не облагается', 'нет', '', '', ''],
     ]);
     const res = await parseCatalogWorkbook(buf, DIRS);
@@ -222,15 +235,15 @@ describe('parseCatalogWorkbook — разбор файла', () => {
   });
 });
 
-  it('снимает экранирующий апостроф safeText: артикул «-А1» из выгрузки не дублируется', async () => {
-    // Ревью PR-2: экспорт экранирует ведущие =+-@ апострофом; без обратного
-    // снятия re-import создавал бы «'-А1» вторым артикулом.
-    const buf = await buildXlsx([["'-Опасное", "'-А1", 'чел.', '100', '', '', '', '', '']]);
-    const res = await parseCatalogWorkbook(buf, []);
-    if (!res.ok) throw new Error('ожидали ok');
-    expect(res.rows[0]!.input.code).toBe('-А1');
-    expect(res.rows[0]!.input.name).toBe('-Опасное');
-  });
+it('снимает экранирующий апостроф safeText: артикул «-А1» из выгрузки не дублируется', async () => {
+  // Ревью PR-2: экспорт экранирует ведущие =+-@ апострофом; без обратного
+  // снятия re-import создавал бы «'-А1» вторым артикулом.
+  const buf = await buildXlsx([["'-Опасное", "'-А1", 'чел.', '100', '', '', '', '', '']]);
+  const res = await parseCatalogWorkbook(buf, []);
+  if (!res.ok) throw new Error('ожидали ok');
+  expect(res.rows[0]!.input.code).toBe('-А1');
+  expect(res.rows[0]!.input.name).toBe('-Опасное');
+});
 
 describe('previewCatalogImport — шаг «что произойдёт», ничего не пишет', () => {
   it('manager → forbidden; leader чужой компании → forbidden; БД не трогается', async () => {

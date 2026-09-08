@@ -6,10 +6,7 @@ import { getIntegrationsHealth } from '@/lib/services/admin/integrationsHealth';
 import { IntegrationsHealthPanel } from '@/components/admin/integrations-health-panel';
 import { prisma } from '@/lib/db/prisma';
 import { isSecretsKeyConfigured } from '@/lib/crypto/secrets';
-import {
-  WEBHOOK_PROVIDERS,
-  isWebhookProvider,
-} from '@/lib/services/admin/webhookSecrets';
+import { WEBHOOK_PROVIDERS, isWebhookProvider } from '@/lib/services/admin/webhookSecrets';
 import {
   getSettingsView,
   type SettingKey,
@@ -274,11 +271,7 @@ export default async function AdminIntegrationsPage() {
           ]}
           testAction={testOf('max')}
           check={checkOf('max')}
-          webhook={webhookOf(
-            'max',
-            'x-max-webhook-secret',
-            byKey('max.webhookSecret').isSet
-          )}
+          webhook={webhookOf('max', 'x-max-webhook-secret', byKey('max.webhookSecret').isSet)}
         />
 
         <IntegrationSettingsForm
@@ -311,11 +304,7 @@ export default async function AdminIntegrationsPage() {
           ]}
           testAction={testOf('whatsapp')}
           check={checkOf('whatsapp')}
-          webhook={webhookOf(
-            'whatsapp',
-            'x-wazzup-secret',
-            byKey('whatsapp.webhookSecret').isSet
-          )}
+          webhook={webhookOf('whatsapp', 'x-wazzup-secret', byKey('whatsapp.webhookSecret').isSet)}
         />
 
         <IntegrationSettingsForm

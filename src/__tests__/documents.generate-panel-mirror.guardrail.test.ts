@@ -27,18 +27,20 @@ describe('У-144: панель выпуска — во всех трёх каб�
     expect(src, `${rel} не импортирует панель выпуска`).toContain(
       "from '@/components/manager/generate-documents-panel'"
     );
-    expect(src, `${rel} не рендерит <GenerateDocumentsPanel>`).toMatch(
-      /<GenerateDocumentsPanel\b/
-    );
+    expect(src, `${rel} не рендерит <GenerateDocumentsPanel>`).toMatch(/<GenerateDocumentsPanel\b/);
     // Мало объявить панель — она должна ДОЙТИ до разметки. Первая версия
     // стража этого не проверяла и молчала, когда со страницы руководителя
     // убрали передачу готового узла в деталку: код панели остался, а на
     // экране её не было.
     const jsx = src.slice(src.lastIndexOf('return ('));
-    expect(jsx, `${rel} собирает панель, но не показывает её`).toMatch(/generatePanel|<GenerateDocumentsPanel\b/);
+    expect(jsx, `${rel} собирает панель, но не показывает её`).toMatch(
+      /generatePanel|<GenerateDocumentsPanel\b/
+    );
     // Флаг уважают все три: выключенный флаг не должен прятать панель
     // выборочно в одном кабинете.
-    expect(src, `${rel} монтирует панель мимо флага`).toContain("isFeatureEnabled('document_generation')");
+    expect(src, `${rel} монтирует панель мимо флага`).toContain(
+      "isFeatureEnabled('document_generation')"
+    );
   });
 
   it('флаг выпуска документов включён по умолчанию (`У-144`, дефект `Д-20`)', () => {

@@ -9,7 +9,9 @@ const { linkMaxByCode, sendMaxMessage, notFoundIfDisabled, isFeatureEnabled, rec
     recordWebhookEvent: vi.fn().mockResolvedValue(undefined),
   }));
 
-vi.mock('@/lib/db/prisma', () => ({ prisma: { integrationSetting: { findUnique: async () => null } } }));
+vi.mock('@/lib/db/prisma', () => ({
+  prisma: { integrationSetting: { findUnique: async () => null } },
+}));
 vi.mock('@/lib/services/max/link', () => ({ linkMaxByCode }));
 vi.mock('@/lib/max/client', () => ({ sendMaxMessage }));
 vi.mock('@/lib/services/inbound/ingest', () => ({ ingestInboundMessage: vi.fn() }));
@@ -69,7 +71,10 @@ describe('POST /api/integrations/max/webhook', () => {
       )
     );
     expect(res.status).toBe(200);
-    expect(linkMaxByCode).toHaveBeenCalledWith(expect.anything(), { code: 'CODE123', chatId: '42' });
+    expect(linkMaxByCode).toHaveBeenCalledWith(expect.anything(), {
+      code: 'CODE123',
+      chatId: '42',
+    });
     expect(sendMaxMessage).toHaveBeenCalledWith('42', expect.stringContaining('привязаны'));
   });
 
@@ -91,7 +96,10 @@ describe('POST /api/integrations/max/webhook', () => {
       )
     );
     expect(res.status).toBe(200);
-    expect(linkMaxByCode).toHaveBeenCalledWith(expect.anything(), { code: 'CODE-R', chatId: '555' });
+    expect(linkMaxByCode).toHaveBeenCalledWith(expect.anything(), {
+      code: 'CODE-R',
+      chatId: '555',
+    });
   });
 
   it('chatId из bot_started.chat_id (приоритет над user_id)', async () => {
@@ -103,7 +111,10 @@ describe('POST /api/integrations/max/webhook', () => {
       )
     );
     expect(res.status).toBe(200);
-    expect(linkMaxByCode).toHaveBeenCalledWith(expect.anything(), { code: 'CODE-C', chatId: '111' });
+    expect(linkMaxByCode).toHaveBeenCalledWith(expect.anything(), {
+      code: 'CODE-C',
+      chatId: '111',
+    });
   });
 
   it('200 no-op когда нет распознаваемого chatId (только текст)', async () => {

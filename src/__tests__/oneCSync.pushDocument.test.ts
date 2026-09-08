@@ -69,7 +69,10 @@ function makePrisma(docOverride: Record<string, unknown> = {}) {
     organization: { findUnique: vi.fn().mockResolvedValue(org) },
     partner: { findUnique: vi.fn().mockResolvedValue({ ...org, name: 'Партнёр' }) },
   } as unknown as Prisma & {
-    document: Record<'findUnique' | 'findUniqueOrThrow' | 'update' | 'updateMany', ReturnType<typeof vi.fn>>;
+    document: Record<
+      'findUnique' | 'findUniqueOrThrow' | 'update' | 'updateMany',
+      ReturnType<typeof vi.fn>
+    >;
     organization: { findUnique: ReturnType<typeof vi.fn> };
     partner: { findUnique: ReturnType<typeof vi.fn> };
   };
@@ -133,10 +136,12 @@ describe('pushDocumentToOneC — краевые ветки', () => {
 
   it('цепочка перевыпусков глубже 100 — исключение, а не вечный цикл', async () => {
     const prisma = makePrisma({ replacesDocumentId: 'prev' });
-    prisma.document.findUniqueOrThrow.mockImplementation(async ({ where }: { where: { id: string } }) => ({
-      id: where.id,
-      replacesDocumentId: `${where.id}-prev`,
-    }));
+    prisma.document.findUniqueOrThrow.mockImplementation(
+      async ({ where }: { where: { id: string } }) => ({
+        id: where.id,
+        replacesDocumentId: `${where.id}-prev`,
+      })
+    );
     await expect(
       pushDocumentToOneC(prisma, 'doc-1', { adapter: adapter().adapter })
     ).rejects.toThrow(/deeper than 100/);
@@ -151,7 +156,9 @@ describe('pushDocumentToOneC — краевые ветки', () => {
     });
     expect(res).toEqual({ ok: false, error: 'push_failed', message: 'socket hang up' });
     expect(prisma.document.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ oneCPushError: 'socket hang up' }) })
+      expect.objectContaining({
+        data: expect.objectContaining({ oneCPushError: 'socket hang up' }),
+      })
     );
   });
 
@@ -191,7 +198,15 @@ describe('pushDocumentToOneC — краевые ветки', () => {
     const body = pushDocument.mock.calls[0][0] as OneCDocumentPushPayload;
     expect(body.counterparty?.name).toBe('Партнёр');
     expect(body.lines).toEqual([
-      { title: 'Услуга', quantity: 2, unit: 'час', price: 50, vatRate: null, vatAmount: 0, amount: 100 },
+      {
+        title: 'Услуга',
+        quantity: 2,
+        unit: 'час',
+        price: 50,
+        vatRate: null,
+        vatAmount: 0,
+        amount: 100,
+      },
     ]);
   });
 
@@ -308,7 +323,9 @@ describe('enqueueDocumentPush — краевые ветки', () => {
   it('успешная постановка: pending заявлен атомарно, задача без jobId', async () => {
     const prisma = makePrisma();
     queueAdd.mockResolvedValueOnce({ id: 'j' });
-    expect(await enqueueDocumentPush(prisma, 'doc-1', { actorUserId: 'u-1' })).toEqual({ ok: true });
+    expect(await enqueueDocumentPush(prisma, 'doc-1', { actorUserId: 'u-1' })).toEqual({
+      ok: true,
+    });
     expect(prisma.document.updateMany).toHaveBeenCalledWith({
       where: { id: 'doc-1', oneCPushStatus: { not: 'pending' } },
       data: { oneCPushStatus: 'pending' },

@@ -7,7 +7,9 @@ import type { Job } from 'bullmq';
 const { createSignedUrl, queueAdd, getQueue } = vi.hoisted(() => {
   const queueAdd = vi.fn();
   return {
-    createSignedUrl: vi.fn(async (path: string, ttl: number) => `https://s3.test/${path}?ttl=${ttl}`),
+    createSignedUrl: vi.fn(
+      async (path: string, ttl: number) => `https://s3.test/${path}?ttl=${ttl}`
+    ),
     queueAdd,
     getQueue: vi.fn(() => ({ add: queueAdd })),
   };
@@ -172,7 +174,9 @@ afterAll(async () => {
     data: { parentDocumentId: null, replacesDocumentId: null },
   });
   await prisma.document.deleteMany({ where: { id: { in: createdDocIds } } });
-  await prisma.syncLog.deleteMany({ where: { entity: 'document', externalId: { in: createdDocIds } } });
+  await prisma.syncLog.deleteMany({
+    where: { entity: 'document', externalId: { in: createdDocIds } },
+  });
   await prisma.auditLog.deleteMany({ where: { userId: managerId } });
   await prisma.notification.deleteMany({ where: { userId: { in: [managerId, leaderId] } } });
   await prisma.order.deleteMany({ where: { id: orderId } });
@@ -403,7 +407,10 @@ describe('pushDocumentToOneC — тело по контракту и шесть 
 describe('pushDocumentProcessor — воркер (страж worker.processor-coverage)', () => {
   it('выгружает через настроенный адаптер и отдаёт outcome: pushed', async () => {
     const id = await createDoc();
-    const result = await pushDocumentProcessor(job({ documentId: id, actorUserId: managerId }), prisma);
+    const result = await pushDocumentProcessor(
+      job({ documentId: id, actorUserId: managerId }),
+      prisma
+    );
     expect(result).toEqual({ documentId: id, outcome: 'pushed' });
     expect((await readPush(id)).oneCExternalId).toBe(`1c-doc-${id}`);
 
@@ -500,7 +507,10 @@ describe('enqueueDocumentPush — продюсер очереди', () => {
 
   it('КП, заменённая версия и чужой id — отказ до очереди', async () => {
     const kp = await createDoc({ type: 'commercial_proposal' });
-    expect(await enqueueDocumentPush(prisma, kp)).toEqual({ ok: false, error: 'not_pushable_type' });
+    expect(await enqueueDocumentPush(prisma, kp)).toEqual({
+      ok: false,
+      error: 'not_pushable_type',
+    });
     const old = await createDoc({ supersededAt: new Date() });
     expect(await enqueueDocumentPush(prisma, old)).toEqual({ ok: false, error: 'superseded' });
     expect(await enqueueDocumentPush(prisma, 'no-such-doc')).toEqual({

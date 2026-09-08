@@ -187,4 +187,3 @@ describe('services/manager/organizations — listOrganizations RBAC scope', () =
     expect(b._count.students).toBe(0);
   });
 });
-

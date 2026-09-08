@@ -190,4 +190,3 @@ describe('крошки на деталке заявки (У-72)', () => {
     expect(crumbs[0].href).toBe('/partner/enrollments');
   });
 });
-

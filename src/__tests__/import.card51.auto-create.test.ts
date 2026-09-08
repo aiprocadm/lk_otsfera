@@ -108,9 +108,7 @@ describe('createOrganizationsForImport (У-49, У-54, след для У-59)', (
   it('контрагент без названия получает опознаваемое имя, а не пустую строку', async () => {
     const { db: prisma, create } = db();
     await createOrganizationsForImport(prisma, ADMIN, {
-      candidates: [
-        { key: '', name: '', inn: '7736207543', innSource: 'file', rows: 1 },
-      ],
+      candidates: [{ key: '', name: '', inn: '7736207543', innSource: 'file', rows: 1 }],
       companyId: 'co-7',
       batchId: 'b1',
       fileName: 'f.xls',
@@ -153,9 +151,7 @@ describe('createOrganizationsForImport (У-49, У-54, след для У-59)', (
   it('создаёт организацию с inn = null и возвращает её по ключу', async () => {
     const { db: prisma, create } = db();
     const map = await createOrganizationsForImport(prisma, ADMIN, {
-      candidates: [
-        { key: 'РОМАШКА', name: 'ООО «Ромашка»', inn: null, innSource: null, rows: 3 },
-      ],
+      candidates: [{ key: 'РОМАШКА', name: 'ООО «Ромашка»', inn: null, innSource: null, rows: 3 }],
       companyId: 'co-7',
       batchId: 'b1',
       fileName: 'f.xls',

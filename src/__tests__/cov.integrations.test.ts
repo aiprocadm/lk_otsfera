@@ -195,7 +195,9 @@ describe('linkByCode (telegram) — P2002 race on update (branch @ 103, lines 10
 // fall-through / throw paths never reach them, and no bot token is set so no
 // network fires — so no client mock is needed (and Section 1 keeps the real ones).
 const { linkMaxByCodeWh } = vi.hoisted(() => ({ linkMaxByCodeWh: vi.fn() }));
-vi.mock('@/lib/db/prisma', () => ({ prisma: { integrationSetting: { findUnique: async () => null } } }));
+vi.mock('@/lib/db/prisma', () => ({
+  prisma: { integrationSetting: { findUnique: async () => null } },
+}));
 vi.mock('@/lib/services/max/link', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/services/max/link')>();
   return { ...actual, linkMaxByCode: linkMaxByCodeWh };

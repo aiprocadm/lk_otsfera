@@ -6,7 +6,9 @@ const { ingest, notFoundIfDisabled, recordWebhookEvent } = vi.hoisted(() => ({
   recordWebhookEvent: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('@/lib/db/prisma', () => ({ prisma: { integrationSetting: { findUnique: async () => null } } }));
+vi.mock('@/lib/db/prisma', () => ({
+  prisma: { integrationSetting: { findUnique: async () => null } },
+}));
 vi.mock('@/lib/services/inbound/ingest', () => ({ ingestInboundMessage: ingest }));
 vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled }));
 vi.mock('@/lib/services/admin/webhookDiagnostics', () => ({ recordWebhookEvent }));

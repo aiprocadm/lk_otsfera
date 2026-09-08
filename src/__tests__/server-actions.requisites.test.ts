@@ -91,14 +91,20 @@ describe('requisites actions', () => {
     expect(revalidatePath).toHaveBeenCalledWith('/partner/settings');
 
     setCompanyRequisites.mockResolvedValue({ ok: true });
-    await setCompanyRequisitesAction('admin', form({ companyId: 'c1', phone: '+7', email: 'a@b.ru' }));
+    await setCompanyRequisitesAction(
+      'admin',
+      form({ companyId: 'c1', phone: '+7', email: 'a@b.ru' })
+    );
     expect(setCompanyRequisites).toHaveBeenCalledWith(
       {},
       SESSION,
       'c1',
       expect.objectContaining({ phone: '+7', email: 'a@b.ru' })
     );
-    expect(await setCompanyRequisitesAction('admin', form({}))).toEqual({ ok: false, error: 'validation' });
+    expect(await setCompanyRequisitesAction('admin', form({}))).toEqual({
+      ok: false,
+      error: 'validation',
+    });
   });
 
   it('отказ сервиса не ревалидирует страницу ни в одном из вариантов', async () => {

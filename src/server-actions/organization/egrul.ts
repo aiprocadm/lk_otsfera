@@ -24,8 +24,7 @@ const schema = z.object({
 });
 
 export type FillFromEgrulActionResult =
-  | { ok: true; filled: EgrulField[] }
-  | { ok: false; error: FillFromEgrulError | 'validation' };
+  { ok: true; filled: EgrulField[] } | { ok: false; error: FillFromEgrulError | 'validation' };
 
 export async function fillOrgFromEgrulAction(input: {
   organizationId: string;

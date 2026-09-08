@@ -18,7 +18,5 @@ const OWN_PAGES: Partial<Record<OrgCardTabKey, string>> = {
 
 export function partnerOrgTabHref(orgId: string, key: OrgCardTabKey): string {
   const page = OWN_PAGES[key];
-  return page
-    ? `/partner/portfolio/${orgId}/${page}`
-    : `/partner/portfolio/${orgId}?tab=${key}`;
+  return page ? `/partner/portfolio/${orgId}/${page}` : `/partner/portfolio/${orgId}?tab=${key}`;
 }

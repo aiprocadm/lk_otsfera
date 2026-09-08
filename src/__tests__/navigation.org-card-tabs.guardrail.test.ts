@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  ORG_CARD_TABS,
-  orgCardTabsFor,
-  type OrgCardTabKey,
-} from '@/lib/navigation/orgCardTabs';
+import { ORG_CARD_TABS, orgCardTabsFor, type OrgCardTabKey } from '@/lib/navigation/orgCardTabs';
 import { NAV_ICONS } from '@/lib/navigation/icons';
 
 /**

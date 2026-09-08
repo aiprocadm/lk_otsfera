@@ -119,9 +119,7 @@ describe('card-51 import (integration)', () => {
     // ИНН в файле нет, ЕГРЮЛ в тестовой среде выключен — организация без ИНН.
     expect(newOrg?.inn).toBeNull();
     // Очередь пуста: разбирать руками больше нечего.
-    expect(
-      await prisma.paymentImportRow.count({ where: { externalId: '0000-000102' } })
-    ).toBe(0);
+    expect(await prisma.paymentImportRow.count({ where: { externalId: '0000-000102' } })).toBe(0);
   });
 
   it('is idempotent: re-import creates no duplicates', async () => {

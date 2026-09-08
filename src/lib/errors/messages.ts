@@ -237,7 +237,7 @@ const RU: Record<string, string> = {
  * объяснялся по-разному в предпросмотре и в итоге. Единый источник русских
  * строк — здесь; экраны только выводят.
  */
-export const IMPORT_QUEUE_REASON_RU: Record<string, string> = {
+const IMPORT_QUEUE_REASON_RU: Record<string, string> = {
   // Причины очереди разбора (маршрут строки).
   name_fuzzy: 'нашли похожую организацию — нужно подтвердить вручную',
   none: 'не нашли ни счёт, ни ИНН, ни похожую организацию',

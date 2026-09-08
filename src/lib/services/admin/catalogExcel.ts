@@ -278,7 +278,15 @@ export async function importCatalogItems(
     toUpdate.length > 0
       ? await prisma.catalogItem.findMany({
           where: { id: { in: toUpdate.map((u) => u.existingId) } },
-          select: { id: true, name: true, code: true, price: true, vatRate: true, vatIncluded: true, unit: true },
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            price: true,
+            vatRate: true,
+            vatIncluded: true,
+            unit: true,
+          },
         })
       : [];
   const beforeById = new Map(beforeRows.map((b) => [b.id, b]));

@@ -83,7 +83,9 @@ describe('collectNewCounterparties: дедупликация (У-86)', () => {
       organization: {
         findMany: vi
           .fn()
-          .mockResolvedValueOnce([{ id: 'org-1', inn: VALID_A, nameKey: 'РОМАШКА', companyId: 'co-1' }])
+          .mockResolvedValueOnce([
+            { id: 'org-1', inn: VALID_A, nameKey: 'РОМАШКА', companyId: 'co-1' },
+          ])
           .mockResolvedValue([]),
       },
     });

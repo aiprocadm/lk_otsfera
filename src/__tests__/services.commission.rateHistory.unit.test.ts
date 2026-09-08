@@ -129,7 +129,6 @@ describe('listOrgRateHistory (unit)', () => {
   });
 });
 
-
 /**
  * `У-99`: историю ставки видит и руководитель — но только по организациям
  * СВОЕЙ компании (C8). Раньше сервис отвечал `forbidden` всем, кроме админа, и
@@ -138,7 +137,11 @@ describe('listOrgRateHistory (unit)', () => {
 describe('listOrgRateHistory — руководитель (У-99, граница компании C8)', () => {
   function makeDbWithOrg(orgCompanyId: string | null, changes: unknown[] = []) {
     return {
-      organization: { findUnique: vi.fn().mockResolvedValue(orgCompanyId === null ? null : { companyId: orgCompanyId }) },
+      organization: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValue(orgCompanyId === null ? null : { companyId: orgCompanyId }),
+      },
       organizationCommissionRateChange: { findMany: vi.fn().mockResolvedValue(changes) },
       user: { findMany: vi.fn().mockResolvedValue([]) },
     } as any;

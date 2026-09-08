@@ -66,12 +66,16 @@ describe('canSelectForPush — какие строки можно выбрать
     }
   );
 
-  it.each(['report', 'waybill', 'certificate', 'commission_statement', 'commercial_proposal', 'other'] as const)(
-    'тип %s в 1С не выгружается — флажка нет',
-    (type) => {
-      expect(canSelectForPush(row({ id: 'a', type }))).toBe(false);
-    }
-  );
+  it.each([
+    'report',
+    'waybill',
+    'certificate',
+    'commission_statement',
+    'commercial_proposal',
+    'other',
+  ] as const)('тип %s в 1С не выгружается — флажка нет', (type) => {
+    expect(canSelectForPush(row({ id: 'a', type }))).toBe(false);
+  });
 
   it('уже в очереди или уже в 1С — выбрать нельзя; после ошибки — можно (повтор, У-159)', () => {
     expect(canSelectForPush(row({ id: 'a', oneCPushStatus: 'pending' }))).toBe(false);
@@ -88,13 +92,17 @@ describe('StaffDocumentsPushList', () => {
     unmount();
 
     mount([row({ id: 'r', type: 'report' }), row({ id: 'i' })]);
-    expect(screen.getByRole('toolbar', { name: 'Выгрузка выбранных документов в 1С' })).toBeTruthy();
+    expect(
+      screen.getByRole('toolbar', { name: 'Выгрузка выбранных документов в 1С' })
+    ).toBeTruthy();
     expect(screen.getByText('Выбрано: 0')).toBeTruthy();
   });
 
   it('флажок строки меняет счётчик; кнопка выгрузки активна только при выборе', () => {
     mount([row({ id: 'a' }), row({ id: 'b' })]);
-    const push = screen.getByRole('button', { name: 'Выгрузить выбранные в 1С' }) as HTMLButtonElement;
+    const push = screen.getByRole('button', {
+      name: 'Выгрузить выбранные в 1С',
+    }) as HTMLButtonElement;
     expect(push.disabled).toBe(true);
 
     fireEvent.click(screen.getByLabelText('Выбрать a.pdf'));
@@ -106,7 +114,11 @@ describe('StaffDocumentsPushList', () => {
   });
 
   it('«Выбрать все доступные» берёт только строки, которые можно выгрузить; «Снять выбор» очищает', () => {
-    mount([row({ id: 'a' }), row({ id: 'b', oneCPushStatus: 'pushed' }), row({ id: 'c', type: 'report' })]);
+    mount([
+      row({ id: 'a' }),
+      row({ id: 'b', oneCPushStatus: 'pushed' }),
+      row({ id: 'c', type: 'report' }),
+    ]);
     fireEvent.click(screen.getByRole('button', { name: 'Выбрать все доступные' }));
     expect(screen.getByText('Выбрано: 1')).toBeTruthy();
     expect((screen.getByLabelText('Выбрать a.pdf') as HTMLInputElement).checked).toBe(true);
@@ -155,7 +167,9 @@ describe('StaffDocumentsPushList', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Выгрузить выбранные в 1С' }));
 
     await waitFor(() => expect(screen.getByRole('status')).toBeTruthy());
-    expect(screen.getByRole('status').textContent).toContain('Поставлено в очередь: 0. Пропущено: 1.');
+    expect(screen.getByRole('status').textContent).toContain(
+      'Поставлено в очередь: 0. Пропущено: 1.'
+    );
     expect(screen.getByRole('status').textContent).toContain('пришёл из 1С');
     expect(refresh).not.toHaveBeenCalled();
     expect(toastSuccess).not.toHaveBeenCalled();

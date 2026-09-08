@@ -54,15 +54,10 @@ export function oneCPushBlockReason(doc: BlockCheckInput): OneCPushBlockReason |
 }
 
 type RequestDocumentPushError =
-  | 'forbidden'
-  | 'not_found'
-  | OneCPushBlockReason
-  | 'already_queued'
-  | 'queue_unavailable';
+  'forbidden' | 'not_found' | OneCPushBlockReason | 'already_queued' | 'queue_unavailable';
 
 export type RequestDocumentPushResult =
-  | { ok: true; retry: boolean }
-  | { ok: false; error: RequestDocumentPushError };
+  { ok: true; retry: boolean } | { ok: false; error: RequestDocumentPushError };
 
 const PUSH_SELECT = {
   id: true,

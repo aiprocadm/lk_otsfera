@@ -29,8 +29,7 @@ export type OneCDocumentPushRuleInput = {
 };
 
 export type OneCDocumentPushRuleResult =
-  | { ok: true }
-  | { ok: false; error: 'forbidden' | 'not_found' | 'invalid_mode' | 'invalid_types' };
+  { ok: true } | { ok: false; error: 'forbidden' | 'not_found' | 'invalid_mode' | 'invalid_types' };
 
 function isMode(value: string): value is OneCDocumentPushMode {
   return (MODES as readonly string[]).includes(value);

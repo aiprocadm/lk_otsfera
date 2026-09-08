@@ -33,7 +33,7 @@ export type PrintLineInput = {
   vatIncluded: boolean;
 };
 
-export type PrintRow = {
+type PrintRow = {
   /** Порядковый номер в печатной форме, с единицы. */
   index: number;
   name: string;

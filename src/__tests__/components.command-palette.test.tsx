@@ -91,7 +91,11 @@ describe('CommandPalette (У-75) — переходы по разделам', ()
     openPalette();
     fireEvent.change(dialog().getByTestId('palette-input'), { target: { value: 'СЛУШ' } });
     const list = dialog().getByTestId('palette-sections');
-    expect(within(list).getAllByRole('button').map((b) => b.textContent)).toEqual(['Слушатели']);
+    expect(
+      within(list)
+        .getAllByRole('button')
+        .map((b) => b.textContent)
+    ).toEqual(['Слушатели']);
   });
 
   it('когда совпадений нет — объясняет, а не показывает пустоту', () => {
@@ -236,7 +240,12 @@ describe('CommandPalette (У-75) — поиск по данным', () => {
   it('руководитель ищет по всей компании — признак передаётся в сервис', async () => {
     searchAction.mockResolvedValue({ ok: true, query: 'иванов', groups: [] });
     render(
-      <CommandPalette sections={SECTIONS} searchEnabled searchHref="/leader/search" teamModeOverride />
+      <CommandPalette
+        sections={SECTIONS}
+        searchEnabled
+        searchHref="/leader/search"
+        teamModeOverride
+      />
     );
     openPalette();
     fireEvent.change(dialog().getByTestId('palette-input'), { target: { value: 'иванов' } });

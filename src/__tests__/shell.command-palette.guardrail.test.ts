@@ -48,15 +48,18 @@ describe('командная палитра смонтирована во все
     expect(src, `${file}: палитра не передана в каркас пропом palette`).toMatch(/palette=\{/);
   });
 
-  it.each(SHELLS)('$cabinet: разделы берутся из реестра меню, а не из своего списка', ({ file }) => {
-    const src = read(file);
-    expect(src, `${file}: пропал источник разделов navItemsFor`).toContain('navItemsFor');
-    // sections приходит переменной (items / производная от неё), а не литералом
-    // с захардкоженными путями.
-    const sections = src.match(/sections=\{([^}]+)\}/);
-    expect(sections, `${file}: у палитры нет пропа sections`).not.toBeNull();
-    expect(sections?.[1], `${file}: список разделов вписан руками`).not.toContain('/');
-  });
+  it.each(SHELLS)(
+    '$cabinet: разделы берутся из реестра меню, а не из своего списка',
+    ({ file }) => {
+      const src = read(file);
+      expect(src, `${file}: пропал источник разделов navItemsFor`).toContain('navItemsFor');
+      // sections приходит переменной (items / производная от неё), а не литералом
+      // с захардкоженными путями.
+      const sections = src.match(/sections=\{([^}]+)\}/);
+      expect(sections, `${file}: у палитры нет пропа sections`).not.toBeNull();
+      expect(sections?.[1], `${file}: список разделов вписан руками`).not.toContain('/');
+    }
+  );
 
   it('поиск по данным включён только там, где у роли уже есть своя страница поиска', () => {
     for (const { file, href } of SEARCH_ROLES) {

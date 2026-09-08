@@ -36,9 +36,9 @@ describe('письмо «документ отправлен заказчику�
   });
 
   it('документ вне заказа — тема только про сам документ', () => {
-    expect(
-      orgDocumentSentSubject({ ...base, orderNumber: null, orderTitle: null })
-    ).toBe('Счёт № С-2026-17');
+    expect(orgDocumentSentSubject({ ...base, orderNumber: null, orderTitle: null })).toBe(
+      'Счёт № С-2026-17'
+    );
   });
 
   it('без номера документа — хотя бы тип, а не пустота', () => {

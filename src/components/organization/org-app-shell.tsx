@@ -65,9 +65,7 @@ export function OrgAppShell(props: {
       headerRight={
         <>
           {/* Этап 9 (ФТ-11.1): «Задать вопрос» — светлая шапка org-кабинета. */}
-          {isFeatureEnabled('cabinet_questions') ? (
-            <AskQuestionButton />
-          ) : null}
+          {isFeatureEnabled('cabinet_questions') ? <AskQuestionButton /> : null}
           <NotificationBell role="organization" />
           <LogoutButton />
         </>

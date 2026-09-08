@@ -237,7 +237,10 @@ function audit(): void {
   const md = readFileSync(AUDIT, 'utf8');
   const rows = parseAuditRows(md);
 
-  const groups: Record<AuditGroup, Array<{ row: AuditRow; guards: string[]; changed: string[] }>> = {
+  const groups: Record<
+    AuditGroup,
+    Array<{ row: AuditRow; guards: string[]; changed: string[] }>
+  > = {
     guard: [],
     unchanged: [],
     changed: [],
@@ -275,7 +278,9 @@ function audit(): void {
   lines.push(`### Якоря не менялись (${groups.unchanged.length})`);
   lines.push('');
   for (const g of groups.unchanged) {
-    lines.push(`- \`${g.row.id}\` — с ${ruDate(g.row.lastChecked ?? '')}, якорей ${g.row.anchors.length}`);
+    lines.push(
+      `- \`${g.row.id}\` — с ${ruDate(g.row.lastChecked ?? '')}, якорей ${g.row.anchors.length}`
+    );
   }
   lines.push('');
 
@@ -294,7 +299,9 @@ function audit(): void {
   lines.push('');
 
   if (groups.fresh.length > 0) {
-    lines.push(`### Сверены сегодня (${groups.fresh.length}): ${groups.fresh.map((g) => `\`${g.row.id}\``).join(', ')}`);
+    lines.push(
+      `### Сверены сегодня (${groups.fresh.length}): ${groups.fresh.map((g) => `\`${g.row.id}\``).join(', ')}`
+    );
     lines.push('');
   }
 

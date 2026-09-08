@@ -13,7 +13,7 @@ import type { MenuGroup } from './menuGroups';
  * администратора против «Комиссионных отчётов» в разговоре, «Импорт оплат»
  * против «Выписки (сч. 51)» про один и тот же экран.
  */
-export type NavItemSpec = {
+type NavItemSpec = {
   href: string;
   /** Ключ раздела — из него выводятся название и значок (`У-106`). */
   sectionKey: SectionKey;

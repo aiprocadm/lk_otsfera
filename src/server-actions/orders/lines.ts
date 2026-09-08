@@ -142,9 +142,7 @@ export async function recalcOrderTotalAction(orderId: string): Promise<OrderLine
   return { ok: true };
 }
 
-export async function buildLinesFromItemsAction(
-  orderId: string
-): Promise<BuildLinesActionResult> {
+export async function buildLinesFromItemsAction(orderId: string): Promise<BuildLinesActionResult> {
   const session = await requireSession();
   const res = await buildLinesFromItems(prisma, session, orderId);
   if (!res.ok) return res;

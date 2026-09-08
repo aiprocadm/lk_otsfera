@@ -39,7 +39,10 @@ describe('updateOneCDocumentPushRule — граница компании (Р-22)
   it('менеджер → forbidden, базу не трогаем', async () => {
     const { prisma, update, findUnique } = fake();
     expect(
-      await updateOneCDocumentPushRule(prisma, managerSession(), 'co-1', { mode: 'auto', types: ALL })
+      await updateOneCDocumentPushRule(prisma, managerSession(), 'co-1', {
+        mode: 'auto',
+        types: ALL,
+      })
     ).toEqual({ ok: false, error: 'forbidden' });
     expect(findUnique).not.toHaveBeenCalled();
     expect(update).not.toHaveBeenCalled();
@@ -123,7 +126,10 @@ describe('updateOneCDocumentPushRule — проверка входа', () => {
     });
     expect(update).toHaveBeenCalledWith({
       where: { id: 'co-1' },
-      data: { oneCDocumentPushMode: 'manual', oneCDocumentPushTypes: ['invoice', 'extra_agreement'] },
+      data: {
+        oneCDocumentPushMode: 'manual',
+        oneCDocumentPushTypes: ['invoice', 'extra_agreement'],
+      },
     });
   });
 

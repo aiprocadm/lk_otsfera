@@ -33,9 +33,9 @@ describe('шлюзы со старых адресов кабинета зака�
   });
 
   it('/organization/students/[id] → карточка сотрудника внутри организации', async () => {
-    await expect(
-      StudentGateway({ params: Promise.resolve({ id: 'stu-7' }) })
-    ).rejects.toThrow('REDIRECT');
+    await expect(StudentGateway({ params: Promise.resolve({ id: 'stu-7' }) })).rejects.toThrow(
+      'REDIRECT'
+    );
     expect(redirect).toHaveBeenCalledWith('/organization/company/students/stu-7');
   });
 
@@ -47,9 +47,9 @@ describe('шлюзы со старых адресов кабинета зака�
   it('гард роли остаётся на каждом шлюзе: посторонний не пройдёт даже транзитом', async () => {
     await expect(StudentsGateway()).rejects.toThrow('REDIRECT');
     await expect(TeamGateway()).rejects.toThrow('REDIRECT');
-    await expect(
-      StudentGateway({ params: Promise.resolve({ id: 'stu-7' }) })
-    ).rejects.toThrow('REDIRECT');
+    await expect(StudentGateway({ params: Promise.resolve({ id: 'stu-7' }) })).rejects.toThrow(
+      'REDIRECT'
+    );
     expect(requireOrganization).toHaveBeenCalledTimes(3);
   });
 });

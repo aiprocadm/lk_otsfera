@@ -57,8 +57,7 @@ export function webhookUrlFor(provider: WebhookProvider): string {
 }
 
 export type GenerateSecretResult =
-  | { ok: true; secret: string }
-  | { ok: false; error: 'secrets_key_missing' | 'validation' };
+  { ok: true; secret: string } | { ok: false; error: 'secrets_key_missing' | 'validation' };
 
 /**
  * Сгенерировать и сохранить новый секрет вебхука.

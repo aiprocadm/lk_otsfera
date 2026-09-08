@@ -116,8 +116,24 @@ beforeAll(async () => {
     if (query === `ДЕЛЬТА ${STAMP}`) {
       // Две записи с одинаковым ключом — ИНН не подставляем (`У-85`).
       return [
-        { name: `ООО «Дельта-${STAMP}»`, inn: makeInn10('941111111'), kpp: null, ogrn: null, address: null, status: 'ACTIVE', opf: 'ООО' },
-        { name: `АО «Дельта-${STAMP}»`, inn: makeInn10('951111111'), kpp: null, ogrn: null, address: null, status: 'ACTIVE', opf: 'АО' },
+        {
+          name: `ООО «Дельта-${STAMP}»`,
+          inn: makeInn10('941111111'),
+          kpp: null,
+          ogrn: null,
+          address: null,
+          status: 'ACTIVE',
+          opf: 'ООО',
+        },
+        {
+          name: `АО «Дельта-${STAMP}»`,
+          inn: makeInn10('951111111'),
+          kpp: null,
+          ogrn: null,
+          address: null,
+          status: 'ACTIVE',
+          opf: 'АО',
+        },
       ];
     }
     return [];
@@ -155,7 +171,10 @@ describe('У-93 — «пять из пяти» (живой Postgres)', () => {
     });
     expect(orgs).toHaveLength(5);
     // ИНН: один из файла, два из ЕГРЮЛ, два — пустые (и это нормально).
-    const inns = orgs.map((o) => o.inn).filter(Boolean).sort();
+    const inns = orgs
+      .map((o) => o.inn)
+      .filter(Boolean)
+      .sort();
     expect(inns).toEqual([INN_FILE, INN_EGRUL_A, INN_EGRUL_B].sort());
     expect(orgs.filter((o) => !o.inn)).toHaveLength(2);
 
@@ -166,9 +185,7 @@ describe('У-93 — «пять из пяти» (живой Postgres)', () => {
     expect(payments).toHaveLength(5);
     expect(payments.every((p) => !!p.organizationId)).toBe(true);
     // Очередь ручного разбора пуста — разбирать нечего.
-    expect(
-      await prisma.paymentImportRow.count({ where: { externalId: { in: DOCS } } })
-    ).toBe(0);
+    expect(await prisma.paymentImportRow.count({ where: { externalId: { in: DOCS } } })).toBe(0);
 
     // Повторный импорт того же файла дублей не плодит (`У-86`).
     const again = await commitPaymentImport(prisma, adminSession, {

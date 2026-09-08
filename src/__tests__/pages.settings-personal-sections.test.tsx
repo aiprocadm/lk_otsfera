@@ -226,7 +226,13 @@ describe('реквизиты исполнителя', () => {
     listCompaniesRequisites.mockResolvedValue({
       ok: true,
       companies: [
-        { id: 'c1', name: 'Промтехносфера', phone: '+7 495 000-00-00', email: 'doc@pts.ru', ...RULE },
+        {
+          id: 'c1',
+          name: 'Промтехносфера',
+          phone: '+7 495 000-00-00',
+          email: 'doc@pts.ru',
+          ...RULE,
+        },
         { id: 'c2', name: 'Вторая', phone: null, email: null, ...RULE },
       ],
     });
@@ -237,7 +243,9 @@ describe('реквизиты исполнителя', () => {
     expect(container.textContent).toContain('Реквизиты исполнителя: Промтехносфера');
     expect(container.textContent).toContain('Реквизиты исполнителя: Вторая');
     // `У-169`: блок правила выгрузки — у каждой компании свой.
-    expect(container.querySelectorAll('[data-testid^="company-onec-push-rule-form-"]')).toHaveLength(2);
+    expect(
+      container.querySelectorAll('[data-testid^="company-onec-push-rule-form-"]')
+    ).toHaveLength(2);
   });
 
   it('отказ сервиса не роняет страницу', async () => {
@@ -262,7 +270,9 @@ describe('реквизиты исполнителя', () => {
     expect(container.textContent).toContain('Реквизиты исполнителя: Промтехносфера');
     // Правило зеркала: тот же блок «Выгрузка документов в 1С», что у админа.
     expect(container.textContent).toContain('Выгрузка документов в 1С');
-    expect(container.querySelector('[data-testid="company-onec-push-rule-form-c1"]')).not.toBeNull();
+    expect(
+      container.querySelector('[data-testid="company-onec-push-rule-form-c1"]')
+    ).not.toBeNull();
   });
 
   it('руководитель без компании: объяснение вместо пустоты', async () => {

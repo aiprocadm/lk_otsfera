@@ -34,7 +34,9 @@ describe('ManagerOrganizationsPage', () => {
     requireManager.mockResolvedValue(SESSION);
     listOrganizations.mockResolvedValue([{ id: 'org1', name: 'Org' }]);
 
-    const { container } = await renderServerComponent(ManagerOrganizationsPage({ searchParams: Promise.resolve({}) }));
+    const { container } = await renderServerComponent(
+      ManagerOrganizationsPage({ searchParams: Promise.resolve({}) })
+    );
 
     expect(requireManager).toHaveBeenCalled();
     // `У-94`: у списка появился отбор «без ИНН» — четвёртый аргумент, по
@@ -48,7 +50,9 @@ describe('ManagerOrganizationsPage', () => {
     requireManager.mockResolvedValue(SESSION);
     listOrganizations.mockResolvedValue([]);
 
-    const { container } = await renderServerComponent(ManagerOrganizationsPage({ searchParams: Promise.resolve({}) }));
+    const { container } = await renderServerComponent(
+      ManagerOrganizationsPage({ searchParams: Promise.resolve({}) })
+    );
 
     expect(container.textContent).toContain('Организации');
   });

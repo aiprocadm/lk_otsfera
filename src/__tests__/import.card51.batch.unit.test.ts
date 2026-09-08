@@ -132,9 +132,10 @@ describe('previewPaymentImport', () => {
       { organization: { findMany: vi.fn().mockResolvedValue([]) } } as never,
       session,
       {
-      fileBuffer: Buffer.from(''),
-      fileName: 'c.xlsx',
-    });
+        fileBuffer: Buffer.from(''),
+        fileName: 'c.xlsx',
+      }
+    );
     // У-58: вместе с отказом отдаётся то, что система увидела в файле.
     expect(res).toMatchObject({ ok: false, error: 'empty' });
     expect((res as { diagnostics?: unknown }).diagnostics).toBeDefined();
@@ -587,10 +588,11 @@ describe('компания импорта в матчере (У-88)', () => {
       { organization: { findMany: vi.fn().mockResolvedValue([]) } } as never,
       session,
       {
-      fileBuffer: Buffer.from(''),
-      fileName: 'c.xlsx',
-      companyId: 'co-form',
-    });
+        fileBuffer: Buffer.from(''),
+        fileName: 'c.xlsx',
+        companyId: 'co-form',
+      }
+    );
     expect(opts(matchRow.mock.calls[0]!)).toMatchObject({ companyId: 'co-form' });
   });
 
@@ -599,9 +601,10 @@ describe('компания импорта в матчере (У-88)', () => {
       { organization: { findMany: vi.fn().mockResolvedValue([]) } } as never,
       session,
       {
-      fileBuffer: Buffer.from(''),
-      fileName: 'c.xlsx',
-    });
+        fileBuffer: Buffer.from(''),
+        fileName: 'c.xlsx',
+      }
+    );
     expect(opts(matchRow.mock.calls[0]!)?.companyId ?? null).toBeNull();
   });
 
@@ -611,10 +614,11 @@ describe('компания импорта в матчере (У-88)', () => {
       { organization: { findMany: vi.fn().mockResolvedValue([]) } } as never,
       leader,
       {
-      fileBuffer: Buffer.from(''),
-      fileName: 'c.xlsx',
-      companyId: 'co-foreign',
-    });
+        fileBuffer: Buffer.from(''),
+        fileName: 'c.xlsx',
+        companyId: 'co-foreign',
+      }
+    );
     expect(opts(matchRow.mock.calls[0]!)).toMatchObject({ companyId: 'co-own' });
   });
 
@@ -690,8 +694,18 @@ describe('импорт контрагентов без ИНН (У-86, У-87, У-
   it('применение создаёт организацию без ИНН и привязывает обе строки по ключу', async () => {
     const t = tx();
     matchRow
-      .mockResolvedValueOnce({ route: 'queue', candidateOrgId: null, candidateOrderId: null, matchMethod: 'none' })
-      .mockResolvedValueOnce({ route: 'queue', candidateOrgId: null, candidateOrderId: null, matchMethod: 'none' })
+      .mockResolvedValueOnce({
+        route: 'queue',
+        candidateOrgId: null,
+        candidateOrderId: null,
+        matchMethod: 'none',
+      })
+      .mockResolvedValueOnce({
+        route: 'queue',
+        candidateOrgId: null,
+        candidateOrderId: null,
+        matchMethod: 'none',
+      })
       // ре-матч после создания — обе строки находят организацию по ключу
       .mockResolvedValue({
         route: 'exact',

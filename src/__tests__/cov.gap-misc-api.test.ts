@@ -18,7 +18,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const { notFoundIfDisabled } = vi.hoisted(() => ({ notFoundIfDisabled: vi.fn() }));
 vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled }));
 
-vi.mock('@/lib/db/prisma', () => ({ prisma: { integrationSetting: { findUnique: async () => null } } }));
+vi.mock('@/lib/db/prisma', () => ({
+  prisma: { integrationSetting: { findUnique: async () => null } },
+}));
 
 // order-statuses: гарды и сервис справочника
 const { requireSession, requireFieldsAdmin } = vi.hoisted(() => ({
