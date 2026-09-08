@@ -22,7 +22,7 @@ import type { PrismaClient } from '@prisma/client';
  */
 
 /** Группа документов, претендующих на один и тот же номер. */
-export type DuplicateGroup = {
+type DuplicateGroup = {
   companyId: string;
   type: string;
   number: string;
@@ -32,7 +32,7 @@ export type DuplicateGroup = {
 };
 
 /** Акт или ДС без явной связи с ведущим документом. */
-export type MissingParent = {
+type MissingParent = {
   documentId: string;
   type: string;
   number: string;
@@ -41,10 +41,10 @@ export type MissingParent = {
   candidateId: string;
 };
 
-export type OrphanReplaces = { documentId: string; replacesDocumentId: string };
-export type OrphanCounter = { companyId: string; year: number; kind: string };
+type OrphanReplaces = { documentId: string; replacesDocumentId: string };
+type OrphanCounter = { companyId: string; year: number; kind: string };
 /** Документ заказа, у заказа которого нет компании: чинить его нечем. */
-export type CompanylessDocument = { documentId: string; orderId: string };
+type CompanylessDocument = { documentId: string; orderId: string };
 
 export type NumberingIssues = {
   duplicates: DuplicateGroup[];

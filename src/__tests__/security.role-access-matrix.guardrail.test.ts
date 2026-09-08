@@ -63,7 +63,6 @@ function sess(role: RoleKey, over: Partial<SessionPayload> = {}): SessionPayload
 
 const ALL_ROLES: RoleKey[] = ['admin', 'leader', 'manager', 'partner', 'organization', 'student'];
 
-
 /** Заказ чужой компании — для проверки, что граница компании держится всегда. */
 const FOREIGN_ORDER = { managerId: 'someone', organizationId: 'org-x', companyId: 'co-OTHER' };
 /** Заказ своей компании, но не закреплённый за менеджером. */

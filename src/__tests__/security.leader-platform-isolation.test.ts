@@ -155,11 +155,16 @@ describe('обещанное Р-22 работает — и скоупится к
   it('запись реквизитов СВОЕЙ компании руководителю разрешена', async () => {
     const update = vi.fn();
     const findUnique = vi.fn().mockResolvedValue({ id: 'c1' });
-    const res = await setCompanyRequisites({ company: { update, findUnique } } as never, LEADER, 'c1', {
-      legalName: 'ООО Тест',
-      inn: '7707083893',
-      bankAccount: '40702810400000000001',
-    });
+    const res = await setCompanyRequisites(
+      { company: { update, findUnique } } as never,
+      LEADER,
+      'c1',
+      {
+        legalName: 'ООО Тест',
+        inn: '7707083893',
+        bankAccount: '40702810400000000001',
+      }
+    );
     expect(res).toEqual({ ok: true });
     expect(update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'c1' } }));
   });

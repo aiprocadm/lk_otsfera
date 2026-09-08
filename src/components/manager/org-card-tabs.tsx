@@ -32,7 +32,8 @@ import { PageHeader } from '@/components/ui/page-header';
 // `У-95`: состав, названия, значки и порядок вкладок — в реестре
 // `lib/navigation/orgCardTabs.ts`, один на все кабинеты. Здесь остаётся только
 // отрисовка. Тип реэкспортируем: компонент — публичная точка для страниц.
-export type { OrgCardTabKey as OrgCardTab } from '@/lib/navigation/orgCardTabs';
+// Псевдоним `OrgCardTab` наружу не отдаём: потребители берут `OrgCardTabKey`
+// прямо из реестра `lib/navigation/orgCardTabs` (`npm run deadcode`).
 
 const money = (v: string) => `${v} ₽`;
 const dateRu = (d: Date) => new Date(d).toLocaleDateString('ru-RU');

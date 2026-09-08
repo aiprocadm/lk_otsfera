@@ -102,9 +102,24 @@ export async function setCompanyTaxSettings(
 
 const numberingSchema = z.object({
   prefixes: z.object({
-    invoice: z.string().trim().max(12).regex(/^[\p{L}\p{N}-]*$/u, 'буквы, цифры, дефис').optional(),
-    act: z.string().trim().max(12).regex(/^[\p{L}\p{N}-]*$/u, 'буквы, цифры, дефис').optional(),
-    contract: z.string().trim().max(12).regex(/^[\p{L}\p{N}-]*$/u, 'буквы, цифры, дефис').optional(),
+    invoice: z
+      .string()
+      .trim()
+      .max(12)
+      .regex(/^[\p{L}\p{N}-]*$/u, 'буквы, цифры, дефис')
+      .optional(),
+    act: z
+      .string()
+      .trim()
+      .max(12)
+      .regex(/^[\p{L}\p{N}-]*$/u, 'буквы, цифры, дефис')
+      .optional(),
+    contract: z
+      .string()
+      .trim()
+      .max(12)
+      .regex(/^[\p{L}\p{N}-]*$/u, 'буквы, цифры, дефис')
+      .optional(),
     supplementary: z
       .string()
       .trim()
@@ -211,7 +226,9 @@ function decodeEntities(text: string): string {
   return text
     .replace(/&#x([0-9a-f]+);?/gi, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)))
     .replace(/&#(\d+);?/g, (_, dec: string) => String.fromCodePoint(Number(dec)))
-    .replace(/&(tab|newline|colon);?/gi, (_, name: string) => (name.toLowerCase() === 'colon' ? ':' : ' '));
+    .replace(/&(tab|newline|colon);?/gi, (_, name: string) =>
+      name.toLowerCase() === 'colon' ? ':' : ' '
+    );
 }
 
 /**
@@ -221,7 +238,10 @@ function decodeEntities(text: string): string {
  * `Content-Disposition: attachment` (браузер не отрендерит SVG как документ,
  * а `<img>` заголовок игнорирует, поэтому предпросмотр цел), плюс антивирус.
  */
-function validateImage(mime: string, buffer: Buffer): { ok: true } | { ok: false; message: string } {
+function validateImage(
+  mime: string,
+  buffer: Buffer
+): { ok: true } | { ok: false; message: string } {
   if (buffer.length > BRANDING_MAX_BYTES) {
     return {
       ok: false,
@@ -259,7 +279,10 @@ export async function uploadCompanyBrandingAsset(
   const valid = validateImage(file.mime, file.buffer);
   if (!valid.ok) return { ok: false, error: 'validation', messages: [valid.message] };
 
-  const company = await prisma.company.findUnique({ where: { id: companyId }, select: { id: true } });
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { id: true },
+  });
   if (!company) return { ok: false, error: 'not_found' };
 
   const ext = file.mime === 'image/png' ? 'png' : 'svg';

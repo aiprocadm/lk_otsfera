@@ -38,7 +38,14 @@ describe('parseQueueQuery (У-90)', () => {
         sort: 'amount',
         dir: 'asc',
       })
-    ).toEqual({ take: 25, skip: 100, inn: 'without', candidate: 'org', sort: 'amount', dir: 'asc' });
+    ).toEqual({
+      take: 25,
+      skip: 100,
+      inn: 'without',
+      candidate: 'org',
+      sort: 'amount',
+      dir: 'asc',
+    });
   });
 
   it('мусор в адресе не ломает страницу и не подставляется в запрос', () => {

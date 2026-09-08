@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  buildCabinetBreadcrumbs,
-  buildOrgEmployeeBreadcrumbs,
-} from '@/lib/navigation/breadcrumbs';
+import { buildCabinetBreadcrumbs, buildOrgEmployeeBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import { orgCardTabLabel } from '@/lib/navigation/orgCardTabs';
 import { navByRole } from '@/lib/navigation/cabinet';
 
@@ -82,7 +79,6 @@ describe('buildCabinetBreadcrumbs (У-72)', () => {
     expect(crumbs[2]).toEqual({ label: 'Документы', href: null });
   });
 });
-
 
 /**
  * `У-97`: карточка сотрудника лежит внутри карточки организации, и путь до

@@ -312,9 +312,7 @@ describe('этап 7 — автосоздание организации по И
     expect(created?.inn).toBeNull();
     const payment = await prisma.payment.findUnique({ where: { externalId: 'ST7-000004' } });
     expect(payment?.organizationId).toBe(created?.id);
-    expect(
-      await prisma.paymentImportRow.count({ where: { externalId: 'ST7-000004' } })
-    ).toBe(0);
+    expect(await prisma.paymentImportRow.count({ where: { externalId: 'ST7-000004' } })).toBe(0);
 
     // Строка без реквизитов не потеряна — она в ручном разборе.
     const queued = await prisma.paymentImportRow.findUnique({

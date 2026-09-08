@@ -108,7 +108,9 @@ describe('CompanyBrandingSlots', () => {
         .closest('form')!
     );
     await waitFor(() =>
-      expect(container.querySelector('[data-testid="branding-slot-logo"] [role="alert"]')).not.toBeNull()
+      expect(
+        container.querySelector('[data-testid="branding-slot-logo"] [role="alert"]')
+      ).not.toBeNull()
     );
     expect(container.textContent).toContain('1 МБ');
     expect(fetchMock).not.toHaveBeenCalled();
@@ -128,9 +130,7 @@ describe('CompanyBrandingSlots', () => {
     const fd = (init as { body: FormData }).body;
     expect(fd.get('companyId')).toBe('co-1');
     expect(fd.get('slot')).toBe('stamp');
-    expect(toastSuccess).toHaveBeenCalledWith(
-      expect.stringContaining('проверяется антивирусом')
-    );
+    expect(toastSuccess).toHaveBeenCalledWith(expect.stringContaining('проверяется антивирусом'));
     expect(refresh).toHaveBeenCalled();
   });
 
@@ -144,7 +144,9 @@ describe('CompanyBrandingSlots', () => {
         .closest('form')!
     );
     await waitFor(() =>
-      expect(container.querySelector('[data-testid="branding-slot-logo"] [role="alert"]')).not.toBeNull()
+      expect(
+        container.querySelector('[data-testid="branding-slot-logo"] [role="alert"]')
+      ).not.toBeNull()
     );
     expect(container.textContent).toContain('1 МБ');
     expect(refresh).not.toHaveBeenCalled();
@@ -160,7 +162,9 @@ describe('CompanyBrandingSlots', () => {
         .closest('form')!
     );
     await waitFor(() =>
-      expect(container.querySelector('[data-testid="branding-slot-logo"] [role="alert"]')).not.toBeNull()
+      expect(
+        container.querySelector('[data-testid="branding-slot-logo"] [role="alert"]')
+      ).not.toBeNull()
     );
   });
 
@@ -172,7 +176,9 @@ describe('CompanyBrandingSlots', () => {
         .closest('form')!
     );
     await waitFor(() =>
-      expect(container.querySelector('[data-testid="branding-slot-logo"] [role="alert"]')).not.toBeNull()
+      expect(
+        container.querySelector('[data-testid="branding-slot-logo"] [role="alert"]')
+      ).not.toBeNull()
     );
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -229,10 +235,9 @@ describe('CompanyBrandingSlots', () => {
   it('удаление зовёт действие с кабинетом и слотом; отказ показывается', async () => {
     const { container } = mount([view()]);
     fireEvent.click(
-      within(container.querySelector('[data-testid="branding-slot-logo"]') as HTMLElement).getByRole(
-        'button',
-        { name: 'Удалить' }
-      )
+      within(
+        container.querySelector('[data-testid="branding-slot-logo"]') as HTMLElement
+      ).getByRole('button', { name: 'Удалить' })
     );
     await waitFor(() => expect(deleteAction).toHaveBeenCalled());
     expect(deleteAction.mock.calls[0]![0]).toBe('admin');
@@ -241,13 +246,14 @@ describe('CompanyBrandingSlots', () => {
 
     deleteAction.mockResolvedValue({ ok: false, error: 'forbidden' });
     fireEvent.click(
-      within(container.querySelector('[data-testid="branding-slot-logo"]') as HTMLElement).getByRole(
-        'button',
-        { name: 'Удалить' }
-      )
+      within(
+        container.querySelector('[data-testid="branding-slot-logo"]') as HTMLElement
+      ).getByRole('button', { name: 'Удалить' })
     );
     await waitFor(() =>
-      expect(container.querySelector('[data-testid="branding-slot-logo"] [role="alert"]')).not.toBeNull()
+      expect(
+        container.querySelector('[data-testid="branding-slot-logo"] [role="alert"]')
+      ).not.toBeNull()
     );
   });
 });

@@ -159,9 +159,9 @@ describe('CompanyNumberingForm', () => {
       })
     );
     expect((screen.getByLabelText('Счёт') as HTMLInputElement).value).toBe('');
-    expect(
-      (screen.getByLabelText('обнулять счётчик каждый год') as HTMLInputElement).checked
-    ).toBe(false);
+    expect((screen.getByLabelText('обнулять счётчик каждый год') as HTMLInputElement).checked).toBe(
+      false
+    );
   });
 
   it('отказ сервиса показывается в alert', async () => {

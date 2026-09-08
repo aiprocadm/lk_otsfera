@@ -5,7 +5,11 @@ import { render, screen, within } from '@testing-library/react';
 
 vi.mock('@/components/students/add-student-dialog', () => ({
   AddStudentDialog: ({ organizationId }: { organizationId: string }) =>
-    React.createElement('button', { 'data-testid': `add-${organizationId}` }, 'Добавить сотрудника'),
+    React.createElement(
+      'button',
+      { 'data-testid': `add-${organizationId}` },
+      'Добавить сотрудника'
+    ),
 }));
 
 import { OrgEmployeesSection } from '@/components/organization/org-employees-section';
@@ -58,13 +62,7 @@ describe('OrgEmployeesSection (У-97)', () => {
 
   it('пустой результат поиска отличается от пустого списка', () => {
     render(
-      <OrgEmployeesSection
-        {...base}
-        searchParams={{ q: 'петров' }}
-        rows={[]}
-        total={0}
-        canWrite
-      />
+      <OrgEmployeesSection {...base} searchParams={{ q: 'петров' }} rows={[]} total={0} canWrite />
     );
     expect(screen.getByText(/Никого не нашли/)).toBeTruthy();
   });

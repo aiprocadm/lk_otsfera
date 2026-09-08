@@ -110,7 +110,10 @@ export async function planQueueOrgCreation(
   });
   for (const org of existing) {
     for (const [groupKey, candidate] of byKey) {
-      if ((org.inn && org.inn === candidate.inn) || (org.nameKey && org.nameKey === candidate.key)) {
+      if (
+        (org.inn && org.inn === candidate.inn) ||
+        (org.nameKey && org.nameKey === candidate.key)
+      ) {
         byKey.delete(groupKey);
       }
     }

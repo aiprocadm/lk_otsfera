@@ -37,8 +37,7 @@ export const EGRUL_FIELD_LABELS: Record<EgrulField, string> = {
 export type FillFromEgrulError = 'forbidden' | 'not_found' | 'nothing_selected' | 'inn_taken';
 
 export type FillFromEgrulResult =
-  | { ok: true; filled: EgrulField[] }
-  | { ok: false; error: FillFromEgrulError };
+  { ok: true; filled: EgrulField[] } | { ok: false; error: FillFromEgrulError };
 
 async function canEdit(
   prisma: PrismaClient,

@@ -115,7 +115,9 @@ describe('registerWebhook (У-123)', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     await registerWebhook(prisma, 'max');
-    expect(fetchMock.mock.calls[0]![0]).toBe('https://botapi.max.ru/subscriptions?access_token=tok');
+    expect(fetchMock.mock.calls[0]![0]).toBe(
+      'https://botapi.max.ru/subscriptions?access_token=tok'
+    );
   });
 
   it('отказ провайдера — provider_error, а не падение', async () => {

@@ -74,4 +74,3 @@ export async function listCompanyOrgOptions(
     orderBy: { name: 'asc' },
   });
 }
-

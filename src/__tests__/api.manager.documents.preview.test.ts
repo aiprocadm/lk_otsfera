@@ -58,7 +58,11 @@ describe('POST /api/manager/documents/preview', () => {
     expect(res.headers.get('Content-Disposition')).toContain('inline');
     // Предпросмотр не кэшируем: строки правятся, файл меняется каждый раз.
     expect(res.headers.get('Cache-Control')).toBe('no-store');
-    expect(Buffer.from(await res.arrayBuffer()).subarray(0, 5).toString()).toBe('%PDF-');
+    expect(
+      Buffer.from(await res.arrayBuffer())
+        .subarray(0, 5)
+        .toString()
+    ).toBe('%PDF-');
   });
 
   it('заказчик и партнёр к предпросмотру не допускаются', async () => {

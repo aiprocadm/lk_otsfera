@@ -96,8 +96,8 @@ export function WebhookSecretControls({
           </div>
           <div className="font-mono break-all text-[#111111]">{freshSecret}</div>
           <div className="text-amber-800">
-            Секрет уже сохранён. Дальше он хранится зашифрованным, и прочитать его нельзя —
-            только сгенерировать новый.
+            Секрет уже сохранён. Дальше он хранится зашифрованным, и прочитать его нельзя — только
+            сгенерировать новый.
           </div>
         </div>
       )}

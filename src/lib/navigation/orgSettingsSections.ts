@@ -16,11 +16,7 @@ import type { OrgCardCabinet } from './orgCardTabs';
  * держит это механически.
  */
 export type OrgSettingsSectionKey =
-  | 'requisites'
-  | 'cabinetAccess'
-  | 'managers'
-  | 'commission'
-  | 'customFields';
+  'requisites' | 'cabinetAccess' | 'managers' | 'commission' | 'customFields';
 
 export type OrgSettingsSection = {
   key: OrgSettingsSectionKey;

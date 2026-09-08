@@ -32,15 +32,28 @@ import { Sidebar } from '@/components/shell/sidebar';
 
 const items: NavItem[] = [
   { href: '/manager/dashboard', label: 'Главная', sectionKey: 'dashboard', iconKey: 'dashboard' },
-  { href: '/manager/orders', label: 'Заказы', sectionKey: 'orders', iconKey: 'orders', group: 'Работа' },
+  {
+    href: '/manager/orders',
+    label: 'Заказы',
+    sectionKey: 'orders',
+    iconKey: 'orders',
+    group: 'Работа',
+  },
   {
     href: '/manager/intake',
     label: 'Входящие в работу',
-    sectionKey: 'intake', iconKey: 'intake',
+    sectionKey: 'intake',
+    iconKey: 'intake',
     group: 'Работа',
     badgeKey: 'intake',
   },
-  { href: '/manager/settings', label: 'Настройки', sectionKey: 'settings', iconKey: 'settings', pinnedBottom: true },
+  {
+    href: '/manager/settings',
+    label: 'Настройки',
+    sectionKey: 'settings',
+    iconKey: 'settings',
+    pinnedBottom: true,
+  },
 ];
 
 function render(extra?: Partial<React.ComponentProps<typeof Sidebar>>) {
@@ -112,7 +125,15 @@ describe('Sidebar (общий каркас)', () => {
 
   it('пункт disabled рисуется без ссылки и с пометкой «скоро»', () => {
     const html = render({
-      items: [{ href: '/x', label: 'Скоро будет', sectionKey: 'analytics', iconKey: 'analytics', disabled: true }],
+      items: [
+        {
+          href: '/x',
+          label: 'Скоро будет',
+          sectionKey: 'analytics',
+          iconKey: 'analytics',
+          disabled: true,
+        },
+      ],
     });
     expect(html).toContain('скоро');
     expect(html).toContain('cursor-not-allowed');

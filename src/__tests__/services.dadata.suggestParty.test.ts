@@ -47,7 +47,15 @@ describe('normalizeParty', () => {
         status: null,
         opf: null,
       },
-      { name: 'Мин поля', inn: '7703', kpp: null, ogrn: null, address: null, status: null, opf: null },
+      {
+        name: 'Мин поля',
+        inn: '7703',
+        kpp: null,
+        ogrn: null,
+        address: null,
+        status: null,
+        opf: null,
+      },
     ]);
   });
 
@@ -96,7 +104,15 @@ describe('suggestParty', () => {
 
     const res = await suggestParty(prisma, ' сбер ');
     expect(res).toEqual([
-      { name: 'Сбербанк', inn: '7707', kpp: null, ogrn: null, address: null, status: null, opf: null },
+      {
+        name: 'Сбербанк',
+        inn: '7707',
+        kpp: null,
+        ogrn: null,
+        address: null,
+        status: null,
+        opf: null,
+      },
     ]);
 
     const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];

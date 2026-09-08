@@ -44,7 +44,9 @@ function badExports(src: string): string[] {
     if (/^export\s+(type|interface)\b/.test(line)) continue;
     if (/^export\s+async\s+function\s/.test(line)) continue;
     if (/^export\s+const\s+[A-Za-z0-9_]+\s*=\s*async\s*\(/.test(line)) continue;
-    const named = line.match(/^export\s+(?:async\s+)?(?:function|const|let|var|class)\s+([A-Za-z0-9_]+)/);
+    const named = line.match(
+      /^export\s+(?:async\s+)?(?:function|const|let|var|class)\s+([A-Za-z0-9_]+)/
+    );
     bad.push(named ? (named[1] as string) : line.trim().slice(0, 60));
   }
   return bad;

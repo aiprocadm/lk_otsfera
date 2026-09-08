@@ -170,8 +170,7 @@ export function OrderLinesSection({ orderId, view, catalog, canEdit }: OrderLine
   const query = search.trim().toLowerCase();
   const matches = query
     ? catalog.filter(
-        (c) =>
-          c.name.toLowerCase().includes(query) || c.code.toLowerCase().includes(query)
+        (c) => c.name.toLowerCase().includes(query) || c.code.toLowerCase().includes(query)
       )
     : catalog;
 
@@ -442,10 +441,7 @@ export function OrderLinesSection({ orderId, view, catalog, canEdit }: OrderLine
                 size="sm"
                 disabled={busy}
                 onClick={() =>
-                  void run(
-                    () => recalcOrderTotalAction(orderId),
-                    'Сумма пересчитана по строкам.'
-                  )
+                  void run(() => recalcOrderTotalAction(orderId), 'Сумма пересчитана по строкам.')
                 }
               >
                 Пересчитать по строкам
@@ -479,7 +475,9 @@ export function OrderLinesSection({ orderId, view, catalog, canEdit }: OrderLine
                 />
               </Field>
               {matches.length === 0 ? (
-                <p className="text-xs text-gray-500">Ничего не нашлось — заполните строку вручную.</p>
+                <p className="text-xs text-gray-500">
+                  Ничего не нашлось — заполните строку вручную.
+                </p>
               ) : (
                 <ul className="max-h-40 overflow-y-auto divide-y divide-gray-100">
                   {matches.slice(0, 20).map((item) => (

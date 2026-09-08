@@ -209,35 +209,35 @@ describe('EnrollmentDetailView — позиции', () => {
     expect(renderView(detail())).not.toContain('Примечание:');
   });
 
-describe('EnrollmentDetailView — крошки вместо ссылки «назад» (У-72)', () => {
-  it('с крошками рисует их, а прежнюю ссылку «назад» убирает', () => {
-    const html = renderView(detail(), '/partner/enrollments', [
-      { label: 'Заявки на обучение', href: '/partner/enrollments' },
-      { label: 'Заявка: Охрана труда', href: null },
-    ]);
+  describe('EnrollmentDetailView — крошки вместо ссылки «назад» (У-72)', () => {
+    it('с крошками рисует их, а прежнюю ссылку «назад» убирает', () => {
+      const html = renderView(detail(), '/partner/enrollments', [
+        { label: 'Заявки на обучение', href: '/partner/enrollments' },
+        { label: 'Заявка: Охрана труда', href: null },
+      ]);
 
-    expect(html).toContain('Заявки на обучение');
-    expect(html).not.toContain('← Все заявки на обучение');
+      expect(html).toContain('Заявки на обучение');
+      expect(html).not.toContain('← Все заявки на обучение');
+    });
+
+    it('пустой список крошек равносилен их отсутствию — ссылка «назад» остаётся', () => {
+      const html = renderView(detail(), '/partner/enrollments', []);
+
+      expect(html).toContain('← Все заявки на обучение');
+    });
   });
 
-  it('пустой список крошек равносилен их отсутствию — ссылка «назад» остаётся', () => {
-    const html = renderView(detail(), '/partner/enrollments', []);
+  describe('enrollmentTitle — одна подпись на заголовок и крошку', () => {
+    it('одно обучение — его название', () => {
+      expect(
+        enrollmentTitle({ directionName: 'Охрана труда', directionNames: ['Охрана труда'] })
+      ).toBe('Заявка: Охрана труда');
+    });
 
-    expect(html).toContain('← Все заявки на обучение');
+    it('несколько обучений сворачиваются в количество (У-43)', () => {
+      expect(
+        enrollmentTitle({ directionName: 'Охрана труда', directionNames: ['А', 'Б', 'В'] })
+      ).toBe('Заявка: 3 обучения');
+    });
   });
-});
-
-describe('enrollmentTitle — одна подпись на заголовок и крошку', () => {
-  it('одно обучение — его название', () => {
-    expect(enrollmentTitle({ directionName: 'Охрана труда', directionNames: ['Охрана труда'] })).toBe(
-      'Заявка: Охрана труда'
-    );
-  });
-
-  it('несколько обучений сворачиваются в количество (У-43)', () => {
-    expect(
-      enrollmentTitle({ directionName: 'Охрана труда', directionNames: ['А', 'Б', 'В'] })
-    ).toBe('Заявка: 3 обучения');
-  });
-});
 });

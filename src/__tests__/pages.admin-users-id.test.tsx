@@ -35,7 +35,6 @@ vi.mock('@/components/admin/user-edit-form', () => ({
     ),
 }));
 
-
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 

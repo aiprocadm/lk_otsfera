@@ -98,11 +98,7 @@ describe('getOrderStatusPanel', () => {
   });
 
   it('руководитель и админ видят возврат назад', async () => {
-    const leader = await getOrderStatusPanel(
-      prismaWith('p'),
-      sess('leader'),
-      'o1'
-    );
+    const leader = await getOrderStatusPanel(prismaWith('p'), sess('leader'), 'o1');
     expect(leader.backward.map((s) => s.label)).toEqual(['Черновик заявки', 'Принято в работу']);
 
     const admin = await getOrderStatusPanel(prismaWith('p'), sess('admin'), 'o1');

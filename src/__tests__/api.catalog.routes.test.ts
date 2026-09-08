@@ -10,12 +10,14 @@ import type { NextRequest } from 'next/server';
  * человек заполнит файл, который система не примет. Экспорт — тонкий роут:
  * RBAC-скоуп в `listCatalogItems`, роут лишь мапит отказ в 403.
  */
-const { getSession, listCatalogItems, renderCatalogXlsx, canAccessSettingsSection } = vi.hoisted(() => ({
-  canAccessSettingsSection: vi.fn(),
-  getSession: vi.fn(),
-  listCatalogItems: vi.fn(),
-  renderCatalogXlsx: vi.fn(),
-}));
+const { getSession, listCatalogItems, renderCatalogXlsx, canAccessSettingsSection } = vi.hoisted(
+  () => ({
+    canAccessSettingsSection: vi.fn(),
+    getSession: vi.fn(),
+    listCatalogItems: vi.fn(),
+    renderCatalogXlsx: vi.fn(),
+  })
+);
 
 vi.mock('@/lib/auth/session', () => ({ getSession }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));

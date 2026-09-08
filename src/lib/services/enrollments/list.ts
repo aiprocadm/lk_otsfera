@@ -87,7 +87,9 @@ export async function listEnrollmentRequests(
     and.push({
       OR: [
         // `У-36`: направление живёт в позициях, шапочного поля больше нет.
-        { items: { some: { direction: { name: { contains: opts.search, mode: 'insensitive' } } } } },
+        {
+          items: { some: { direction: { name: { contains: opts.search, mode: 'insensitive' } } } },
+        },
         { legacyCourseTitle: { contains: opts.search, mode: 'insensitive' } },
         { items: { some: { fullName: { contains: opts.search, mode: 'insensitive' } } } },
         { items: { some: { email: { contains: opts.search, mode: 'insensitive' } } } },

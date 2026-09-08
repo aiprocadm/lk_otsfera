@@ -26,7 +26,11 @@ import {
 
 export type CatalogActionResult =
   | { ok: true }
-  | { ok: false; error: 'forbidden' | 'not_found' | 'duplicate_code' | 'validation'; messages?: string[] };
+  | {
+      ok: false;
+      error: 'forbidden' | 'not_found' | 'duplicate_code' | 'validation';
+      messages?: string[];
+    };
 
 function revalidate() {
   revalidatePath('/admin/settings');

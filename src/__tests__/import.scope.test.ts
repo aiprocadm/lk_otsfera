@@ -16,9 +16,7 @@ describe('importScope', () => {
     });
   });
   it('manager-leader with no companyId → degrades to assigned-orgs (never global)', () => {
-    const s = importScope(
-      base({ role: 'leader', companyId: null, managedOrgIds: ['o1'] })
-    );
+    const s = importScope(base({ role: 'leader', companyId: null, managedOrgIds: ['o1'] }));
     expect(s).toEqual({ kind: 'orgs', allowedOrgIds: ['o1'] });
   });
   it('plain manager → scoped to managedOrgIds', () => {

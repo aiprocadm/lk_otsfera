@@ -24,7 +24,9 @@ vi.mock('@/lib/services/organization/documentUpload', () => ({
 import { POST as uploadPost } from '@/app/api/organization/documents/upload/route';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 
-function orgSession(opts: { memberships?: Array<{ organizationId: string; isActive: boolean }> } = {}) {
+function orgSession(
+  opts: { memberships?: Array<{ organizationId: string; isActive: boolean }> } = {}
+) {
   return {
     sub: 'u-org-1',
     role: 'organization',

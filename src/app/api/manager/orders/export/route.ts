@@ -21,11 +21,11 @@ import { renderOrdersXlsx } from '@/lib/services/orders/xlsx';
 export async function GET(req: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (!isStaffManagerSide(session)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  if (!isStaffManagerSide(session))
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   const url = new URL(req.url);
-  const companyWide =
-    url.searchParams.get('scope') === 'company' && isManagerLeader(session);
+  const companyWide = url.searchParams.get('scope') === 'company' && isManagerLeader(session);
 
   const { rows, total } = await listOrdersForExport(prisma, {
     session,

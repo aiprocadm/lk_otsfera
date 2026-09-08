@@ -139,19 +139,19 @@ describe('ClientRequestDetailView', () => {
     expect(html(row(), [])).toContain('Пока нет вложений');
   });
 
-describe('ClientRequestDetailView — крошки вместо ссылки «назад» (У-72)', () => {
-  it('с крошками рисует их, а прежнюю ссылку убирает', () => {
-    const out = html(row(), [], '/partner/requests', [
-      { label: 'Обращения', href: '/partner/requests' },
-      { label: 'Нужно обучение', href: null },
-    ]);
+  describe('ClientRequestDetailView — крошки вместо ссылки «назад» (У-72)', () => {
+    it('с крошками рисует их, а прежнюю ссылку убирает', () => {
+      const out = html(row(), [], '/partner/requests', [
+        { label: 'Обращения', href: '/partner/requests' },
+        { label: 'Нужно обучение', href: null },
+      ]);
 
-    expect(out).toContain('Обращения');
-    expect(out).not.toContain('← Все обращения');
-  });
+      expect(out).toContain('Обращения');
+      expect(out).not.toContain('← Все обращения');
+    });
 
-  it('пустой список крошек равносилен их отсутствию', () => {
-    expect(html(row(), [], '/partner/requests', [])).toContain('← Все обращения');
+    it('пустой список крошек равносилен их отсутствию', () => {
+      expect(html(row(), [], '/partner/requests', [])).toContain('← Все обращения');
+    });
   });
-});
 });

@@ -19,7 +19,7 @@ import { counterpartyKey } from './counterparty-key';
  * «не нашлось», кладётся в кэш на 15 минут, поэтому применение импорта
  * переиспользует ответы предпросмотра.
  */
-export type DadataInnHit = { inn: string; egrulName: string };
+type DadataInnHit = { inn: string; egrulName: string };
 
 export type EnrichResult = {
   byKey: Map<string, DadataInnHit>;
@@ -41,10 +41,7 @@ function isActive(status: string | null): boolean {
   return status === 'ACTIVE';
 }
 
-export async function enrichInnByName(
-  prisma: PrismaClient,
-  keys: string[]
-): Promise<EnrichResult> {
+export async function enrichInnByName(prisma: PrismaClient, keys: string[]): Promise<EnrichResult> {
   const byKey = new Map<string, DadataInnHit>();
   const wanted = [...new Set(keys.filter((k) => k.length > 0))];
   if (wanted.length === 0) return { byKey, used: false, reason: 'nothing_to_ask' };

@@ -61,8 +61,7 @@ export async function getSchedulePatterns(prisma: PrismaClient): Promise<Schedul
 }
 
 export type SaveScheduleResult =
-  | { ok: true }
-  | { ok: false; error: 'unknown_schedule' | 'invalid_cron'; message?: string };
+  { ok: true } | { ok: false; error: 'unknown_schedule' | 'invalid_cron'; message?: string };
 
 /**
  * Сохранить расписание задачи. Пустая строка — «вернуть умолчание из кода»

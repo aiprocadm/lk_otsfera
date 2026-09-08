@@ -325,21 +325,33 @@ describe('getChatAttachmentSignedUrl — unit', () => {
 
   it('returns infected for a quarantined attachment (no signed URL created)', async () => {
     canSeeThreadMock.mockReturnValue(true);
-    const result = await getChatAttachmentSignedUrl(makeMessagePrisma(scanMsg('infected')), session, 'm1');
+    const result = await getChatAttachmentSignedUrl(
+      makeMessagePrisma(scanMsg('infected')),
+      session,
+      'm1'
+    );
     expect(result).toEqual({ ok: false, error: 'infected' });
     expect(createSignedUrlMock).not.toHaveBeenCalled();
   });
 
   it('returns not_ready while the scan is pending', async () => {
     canSeeThreadMock.mockReturnValue(true);
-    const result = await getChatAttachmentSignedUrl(makeMessagePrisma(scanMsg('pending')), session, 'm1');
+    const result = await getChatAttachmentSignedUrl(
+      makeMessagePrisma(scanMsg('pending')),
+      session,
+      'm1'
+    );
     expect(result).toEqual({ ok: false, error: 'not_ready' });
     expect(createSignedUrlMock).not.toHaveBeenCalled();
   });
 
   it('returns not_ready when the scan errored (re-collected by the hourly sweep)', async () => {
     canSeeThreadMock.mockReturnValue(true);
-    const result = await getChatAttachmentSignedUrl(makeMessagePrisma(scanMsg('error')), session, 'm1');
+    const result = await getChatAttachmentSignedUrl(
+      makeMessagePrisma(scanMsg('error')),
+      session,
+      'm1'
+    );
     expect(result).toEqual({ ok: false, error: 'not_ready' });
   });
 });

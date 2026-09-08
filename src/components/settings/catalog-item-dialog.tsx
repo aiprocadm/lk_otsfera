@@ -64,7 +64,11 @@ export function CatalogItemDialog({
 
   // Сервис хранит ставку строкой фиксированной точности ('0.2000') — к value
   // селекта ('0.2') приводим через Number, иначе предзаполнение не совпадёт.
-  const vatDefault = item ? (item.vatRate === null ? 'none' : String(Number(item.vatRate))) : 'none';
+  const vatDefault = item
+    ? item.vatRate === null
+      ? 'none'
+      : String(Number(item.vatRate))
+    : 'none';
 
   function close() {
     setOpen(false);
@@ -208,7 +212,7 @@ export function CatalogItemDialog({
                   позиций», У-139). */}
               {item?.directionId && !directions.some((d) => d.id === item.directionId) && (
                 <option value={item.directionId}>
-                  {(item.directionName ?? 'направление')} (неактивно)
+                  {item.directionName ?? 'направление'} (неактивно)
                 </option>
               )}
               {directions.map((d) => (

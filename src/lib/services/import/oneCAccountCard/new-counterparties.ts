@@ -16,7 +16,7 @@ import { enrichInnByName, type EnrichResult } from './dadata-inn';
  * к заказу или организации, по определению уже нашла своего клиента —
  * заводить ему дубль было бы вредом, а не пользой.
  */
-export type InnSource = 'file' | 'dadata' | 'manual';
+type InnSource = 'file' | 'dadata' | 'manual';
 
 export type NewCounterparty = {
   /** Ключ названия (`У-83`) — единица группировки и дедупликации. */
@@ -31,7 +31,7 @@ export type NewCounterparty = {
 };
 
 /** Контрагент, для которого организация уже есть: платежи просто привяжутся. */
-export type ExistingCounterparty = {
+type ExistingCounterparty = {
   key: string;
   organizationId: string;
   reason: 'inn' | 'name';

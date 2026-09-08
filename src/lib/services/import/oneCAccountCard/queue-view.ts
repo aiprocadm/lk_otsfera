@@ -43,7 +43,9 @@ function oneOf<T extends string>(v: string | undefined, allowed: readonly T[]): 
  * Разбор параметров адреса. Мусор игнорируется, а не превращается в ошибку:
  * подчищенный адрес всё равно открывает первую страницу очереди.
  */
-export function parseQueueQuery(sp: QueueSearchParams): QueueQuery & { take: number; skip: number } {
+export function parseQueueQuery(
+  sp: QueueSearchParams
+): QueueQuery & { take: number; skip: number } {
   const takeRaw = Number(first(sp.take));
   const skipRaw = Number(first(sp.skip));
   const take = Number.isFinite(takeRaw) && takeRaw > 0 ? Math.floor(takeRaw) : QUEUE_PAGE_SIZE;

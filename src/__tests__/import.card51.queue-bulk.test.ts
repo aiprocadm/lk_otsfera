@@ -251,8 +251,18 @@ describe('planQueueOrgCreation: строки без ИНН (У-89)', () => {
     const prisma = {
       paymentImportRow: {
         findMany: vi.fn().mockResolvedValue([
-          { id: 'r1', counterpartyName: 'ООО «Ромашка»', counterpartyInn: null, counterpartyKey: 'РОМАШКА' },
-          { id: 'r2', counterpartyName: 'РОМАШКА, ООО', counterpartyInn: null, counterpartyKey: 'РОМАШКА' },
+          {
+            id: 'r1',
+            counterpartyName: 'ООО «Ромашка»',
+            counterpartyInn: null,
+            counterpartyKey: 'РОМАШКА',
+          },
+          {
+            id: 'r2',
+            counterpartyName: 'РОМАШКА, ООО',
+            counterpartyInn: null,
+            counterpartyKey: 'РОМАШКА',
+          },
         ]),
       },
       organization: { findMany: vi.fn().mockResolvedValue([]) },
@@ -270,7 +280,12 @@ describe('planQueueOrgCreation: строки без ИНН (У-89)', () => {
     const prisma = {
       paymentImportRow: {
         findMany: vi.fn().mockResolvedValue([
-          { id: 'r1', counterpartyName: 'ООО «Ромашка»', counterpartyInn: null, counterpartyKey: 'РОМАШКА' },
+          {
+            id: 'r1',
+            counterpartyName: 'ООО «Ромашка»',
+            counterpartyInn: null,
+            counterpartyKey: 'РОМАШКА',
+          },
         ]),
       },
       organization: {
@@ -285,9 +300,11 @@ describe('planQueueOrgCreation: строки без ИНН (У-89)', () => {
   it('строка без названия и без ИНН кандидатом не становится', async () => {
     const prisma = {
       paymentImportRow: {
-        findMany: vi.fn().mockResolvedValue([
-          { id: 'r1', counterpartyName: null, counterpartyInn: null, counterpartyKey: null },
-        ]),
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            { id: 'r1', counterpartyName: null, counterpartyInn: null, counterpartyKey: null },
+          ]),
       },
       organization: { findMany: vi.fn().mockResolvedValue([]) },
     } as never;

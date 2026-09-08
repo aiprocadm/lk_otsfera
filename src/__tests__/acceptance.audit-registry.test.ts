@@ -22,11 +22,21 @@ const PLAIN =
   '| `У-1` | На `/partner/portfolio/[orgId]/settings` формы нет | [settings/page.tsx](../../src/app/partner/portfolio/[orgId]/settings/page.tsx) — форма удалена | ✅ соответствует | 08.08.2026 · перепроверено 19.08.2026 |';
 
 const TRICKY =
-  '| `У-59` | Откат (`CHANNEL_OPS`: `excel` \\| `statement`), тип `\'a\' | \'b\'` | [rollback.ts](../../src/lib/services/import/rollback.ts) · страж `security.role-access-matrix.guardrail` · [test](../../src/__tests__/services.import.rollback.test.ts#L10) · [glossary](../glossary.md) · [MAINTENANCE.md](MAINTENANCE.md) | Факт в отдельной ячейке | ✅ соответствует (этап 7) | 11.08.2026 |';
+  "| `У-59` | Откат (`CHANNEL_OPS`: `excel` \\| `statement`), тип `'a' | 'b'` | [rollback.ts](../../src/lib/services/import/rollback.ts) · страж `security.role-access-matrix.guardrail` · [test](../../src/__tests__/services.import.rollback.test.ts#L10) · [glossary](../glossary.md) · [MAINTENANCE.md](MAINTENANCE.md) | Факт в отдельной ячейке | ✅ соответствует (этап 7) | 11.08.2026 |";
 
 const BARE = '| `У-176` | Полный drift-аудит выполнен | — | ⏳ этап 9 | — |';
 
-const MD = ['## Блок', '', '| Требование | Что | Якорь | Вердикт | Сверено |', '|---|---|---|---|---|', PLAIN, TRICKY, BARE, '', 'текст'].join('\n');
+const MD = [
+  '## Блок',
+  '',
+  '| Требование | Что | Якорь | Вердикт | Сверено |',
+  '|---|---|---|---|---|',
+  PLAIN,
+  TRICKY,
+  BARE,
+  '',
+  'текст',
+].join('\n');
 
 describe('splitCells — ячейки с учётом бэктиков', () => {
   it('ровная строка даёт пять ячеек без пустых по краям', () => {
@@ -106,21 +116,33 @@ describe('classifyRow — группы drift-аудита', () => {
   const today = '2026-09-05';
 
   it('страж есть → guard, даже если якорь менялся', () => {
-    expect(classifyRow(tricky, { today, guards: ['src/__tests__/x.test.ts'], changed: ['src/lib/services/import/rollback.ts'] })).toBe('guard');
+    expect(
+      classifyRow(tricky, {
+        today,
+        guards: ['src/__tests__/x.test.ts'],
+        changed: ['src/lib/services/import/rollback.ts'],
+      })
+    ).toBe('guard');
   });
 
   it('стража нет: якорь не менялся → unchanged, менялся → changed', () => {
     expect(classifyRow(plain, { today, guards: [], changed: [] })).toBe('unchanged');
-    expect(classifyRow(plain, { today, guards: [], changed: [plain.anchors[0] as string] })).toBe('changed');
+    expect(classifyRow(plain, { today, guards: [], changed: [plain.anchors[0] as string] })).toBe(
+      'changed'
+    );
   });
 
   it('якорей нет → manual; ни разу не сверялось, но якорь есть → changed', () => {
     expect(classifyRow(bare, { today, guards: [], changed: [] })).toBe('manual');
-    expect(classifyRow({ ...bare, anchors: ['src/x.ts'] }, { today, guards: [], changed: [] })).toBe('changed');
+    expect(
+      classifyRow({ ...bare, anchors: ['src/x.ts'] }, { today, guards: [], changed: [] })
+    ).toBe('changed');
   });
 
   it('сверено сегодня → fresh, без второй отметки за день', () => {
-    expect(classifyRow({ ...plain, lastChecked: today }, { today, guards: ['g'], changed: [] })).toBe('fresh');
+    expect(
+      classifyRow({ ...plain, lastChecked: today }, { today, guards: ['g'], changed: [] })
+    ).toBe('fresh');
   });
 });
 
@@ -128,15 +150,23 @@ describe('markChecked — отметка в колонке «Сверено»', 
   it('дописывает отметку через « · », историю не стирает, чужие строки не трогает', () => {
     const out = markChecked(MD, new Map([['У-1', 'якоря не менялись, 05.09.2026']]));
     const lines = out.split('\n');
-    expect(lines[4]).toMatch(/\| 08\.08\.2026 · перепроверено 19\.08\.2026 · якоря не менялись, 05\.09\.2026 \|$/);
+    expect(lines[4]).toMatch(
+      /\| 08\.08\.2026 · перепроверено 19\.08\.2026 · якоря не менялись, 05\.09\.2026 \|$/
+    );
     expect(lines[5]).toBe(TRICKY);
     expect(lines[6]).toBe(BARE);
-    expect(parseAuditRows(out).map((r) => r.lastChecked)).toEqual(['2026-09-05', '2026-08-11', null]);
+    expect(parseAuditRows(out).map((r) => r.lastChecked)).toEqual([
+      '2026-09-05',
+      '2026-08-11',
+      null,
+    ]);
   });
 
   it('пустая колонка «—» заменяется отметкой целиком', () => {
     const out = markChecked(MD, new Map([['У-176', 'проверено руками 05.09.2026']]));
-    expect(out.split('\n')[6]).toBe('| `У-176` | Полный drift-аудит выполнен | — | ⏳ этап 9 | проверено руками 05.09.2026 |');
+    expect(out.split('\n')[6]).toBe(
+      '| `У-176` | Полный drift-аудит выполнен | — | ⏳ этап 9 | проверено руками 05.09.2026 |'
+    );
   });
 
   it('ruDate переводит ISO в формат колонки', () => {

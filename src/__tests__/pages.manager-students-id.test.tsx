@@ -72,6 +72,11 @@ describe('/manager/students/[id] — шлюз в карточку организ
     await expect(
       ManagerStudentGatewayPage({ params: Promise.resolve({ id: 'stu-1' }) })
     ).rejects.toThrow('REDIRECT');
-    expect(studentOrgAccess).toHaveBeenCalledWith(expect.anything(), expect.anything(), 'org-1', true);
+    expect(studentOrgAccess).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      'org-1',
+      true
+    );
   });
 });

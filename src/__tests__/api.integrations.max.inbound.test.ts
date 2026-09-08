@@ -17,7 +17,9 @@ const {
   recordWebhookEvent: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('@/lib/db/prisma', () => ({ prisma: { integrationSetting: { findUnique: async () => null } } }));
+vi.mock('@/lib/db/prisma', () => ({
+  prisma: { integrationSetting: { findUnique: async () => null } },
+}));
 vi.mock('@/lib/services/max/link', () => ({ linkMaxByCode }));
 vi.mock('@/lib/max/client', () => ({ sendMaxMessage }));
 vi.mock('@/lib/services/inbound/ingest', () => ({ ingestInboundMessage: ingestMock }));
@@ -95,7 +97,10 @@ describe('POST /api/integrations/max/webhook — inbound ingest', () => {
       )
     );
     expect(res.status).toBe(200);
-    expect(linkMaxByCode).toHaveBeenCalledWith(expect.anything(), { code: 'CODE123', chatId: '42' });
+    expect(linkMaxByCode).toHaveBeenCalledWith(expect.anything(), {
+      code: 'CODE123',
+      chatId: '42',
+    });
     expect(ingestMock).not.toHaveBeenCalled();
   });
 

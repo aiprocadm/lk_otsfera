@@ -230,7 +230,11 @@ describe('отказ сервиса — код возвращается как �
     ['add', () => addOrderLineAction('ord-1', fd(FULL)), addOrderLine],
     ['update', () => updateOrderLineAction('ol-9', fd(FULL)), updateOrderLine],
     ['remove', () => removeOrderLineAction('ol-9', 'ord-1'), removeOrderLine],
-    ['total', () => setOrderTotalManuallyAction('ord-1', fd({ totalAmount: '1' })), setOrderTotalManually],
+    [
+      'total',
+      () => setOrderTotalManuallyAction('ord-1', fd({ totalAmount: '1' })),
+      setOrderTotalManually,
+    ],
     ['recalc', () => recalcOrderTotalAction('ord-1'), recalcOrderTotal],
   ])('%s: заказ из 1С — order_from_1c без ревалидации', async (_name, call, service) => {
     service.mockResolvedValue({ ok: false, error: 'order_from_1c' });

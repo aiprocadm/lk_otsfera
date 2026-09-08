@@ -75,8 +75,7 @@ beforeEach(() => {
 const CASES = [
   {
     name: 'менеджер',
-    render: () =>
-      ManagerPage({ params: Promise.resolve({ id: 'org-1', studentId: 'stu-1' }) }),
+    render: () => ManagerPage({ params: Promise.resolve({ id: 'org-1', studentId: 'stu-1' }) }),
     section: 'Организации',
   },
   {
@@ -91,21 +90,23 @@ const CASES = [
   },
   {
     name: 'партнёр',
-    render: () =>
-      PartnerPage({ params: Promise.resolve({ orgId: 'org-1', studentId: 'stu-1' }) }),
+    render: () => PartnerPage({ params: Promise.resolve({ orgId: 'org-1', studentId: 'stu-1' }) }),
     section: 'Портфель',
   },
 ] as const;
 
 describe('карточка сотрудника внутри карточки организации (У-97)', () => {
-  it.each(CASES)('$name: крошки ведут от раздела к организации и вкладке «Сотрудники»', async (c) => {
-    const { container } = await renderServerComponent(c.render());
-    const text = container.textContent ?? '';
-    expect(text).toContain(c.section);
-    expect(text).toContain('ООО «Ромашка»');
-    expect(text).toContain('Сотрудники');
-    expect(text).toContain('Иванов Иван');
-  });
+  it.each(CASES)(
+    '$name: крошки ведут от раздела к организации и вкладке «Сотрудники»',
+    async (c) => {
+      const { container } = await renderServerComponent(c.render());
+      const text = container.textContent ?? '';
+      expect(text).toContain(c.section);
+      expect(text).toContain('ООО «Ромашка»');
+      expect(text).toContain('Сотрудники');
+      expect(text).toContain('Иванов Иван');
+    }
+  );
 
   it.each(CASES)('$name: сотрудник не найден — «не найдено»', async (c) => {
     getOrgCardEmployee.mockResolvedValue(null);

@@ -38,18 +38,38 @@ function row(over: Partial<QueueRow> = {}): QueueRow {
 
 describe('PaymentQueueTable', () => {
   it('renders both actions per row, including the new «Привязать»', () => {
-    const html = renderToString(<PaymentQueueTable rows={[row()]}  total={1} take={50} skip={0} basePath="/x" searchParams={{}} />);
+    const html = renderToString(
+      <PaymentQueueTable
+        rows={[row()]}
+        total={1}
+        take={50}
+        skip={0}
+        basePath="/x"
+        searchParams={{}}
+      />
+    );
     expect(html).toContain('Привязать');
     expect(html).toContain('Отклонить');
   });
 
   it('shows the fuzzy-match candidate org as the suggestion', () => {
-    const html = renderToString(<PaymentQueueTable rows={[row()]}  total={1} take={50} skip={0} basePath="/x" searchParams={{}} />);
+    const html = renderToString(
+      <PaymentQueueTable
+        rows={[row()]}
+        total={1}
+        take={50}
+        skip={0}
+        basePath="/x"
+        searchParams={{}}
+      />
+    );
     expect(html).toContain('ООО Ромашка');
   });
 
   it('renders the empty-queue notice when there are no rows', () => {
-    const html = renderToString(<PaymentQueueTable rows={[]}  total={0} take={50} skip={0} basePath="/x" searchParams={{}} />);
+    const html = renderToString(
+      <PaymentQueueTable rows={[]} total={0} take={50} skip={0} basePath="/x" searchParams={{}} />
+    );
     expect(html).toContain('Очередь пуста');
     expect(html).not.toContain('Привязать');
   });

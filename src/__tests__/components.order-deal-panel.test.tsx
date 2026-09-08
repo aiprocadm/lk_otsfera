@@ -19,7 +19,11 @@ const FULL: NonNullable<OrderDeal> = {
   },
 };
 
-function render(deal: NonNullable<OrderDeal>, dealsHref: string | null, leadHrefBase: string | null) {
+function render(
+  deal: NonNullable<OrderDeal>,
+  dealsHref: string | null,
+  leadHrefBase: string | null
+) {
   return renderToString(
     <OrderDealPanel deal={deal} dealsHref={dealsHref} leadHrefBase={leadHrefBase} />
   );
