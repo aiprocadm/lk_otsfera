@@ -9,8 +9,8 @@ import {
   evaluateReadinessBatch,
   type OrderForReadiness,
 } from '@/lib/services/manager/orderDelivery';
-import { ONE_DAY_MS } from './dashboard/constants';
 import { startOfMoscowDay } from '@/lib/dates/calendar';
+import { ONE_DAY_MS } from './dashboard/constants';
 
 /**
  * Этап 11 PR-2 (Модуль 15, ФТ-15.3) — «Мой день» менеджера.
