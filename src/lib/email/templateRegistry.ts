@@ -183,6 +183,34 @@ export type ValidateResult = { ok: true } | { ok: false; unknown: string[] };
  * (`У-128`). Проверяем **обе** части письма: тему и текст, иначе опечатка в
  * теме прошла бы незамеченной.
  */
+/**
+ * Пределы длины своего текста письма (`У-128`).
+ *
+ * Колонки `NotificationTemplate.subject`/`body` — обычный `text`, без границы,
+ * и сохранение принимало строку любого размера: вставленная целиком страница
+ * уезжала в базу, а потом в письмо — почтовый шлюз такое письмо отвергает, и
+ * человек видит только «не отправилось». У шаблонов ДОКУМЕНТОВ предел давно
+ * есть (`SLOT_TEXT_MAX = 4000`), у писем его не было (найдено сопровождением
+ * `С-6`, 08.09.2026, хотфикс №22).
+ *
+ * Значения выбраны по смыслу поля: тема письма — одна строка, тело — вводный
+ * абзац с подстановками, а не документ.
+ */
+export const EMAIL_SUBJECT_MAX = 300;
+export const EMAIL_BODY_MAX = 4000;
+
+/** Длина в пределах — иначе какое поле и на сколько превышено. */
+export function checkTemplateLength(
+  subject: string,
+  body: string
+): { ok: true } | { ok: false; field: 'subject' | 'body'; max: number } {
+  if (subject.length > EMAIL_SUBJECT_MAX) {
+    return { ok: false, field: 'subject', max: EMAIL_SUBJECT_MAX };
+  }
+  if (body.length > EMAIL_BODY_MAX) return { ok: false, field: 'body', max: EMAIL_BODY_MAX };
+  return { ok: true };
+}
+
 export function validateTemplateText(key: EmailTemplateKey, ...texts: string[]): ValidateResult {
   return findUnknownPlaceholders(
     EMAIL_TEMPLATE_REGISTRY[key].placeholders.map((p) => p.token),

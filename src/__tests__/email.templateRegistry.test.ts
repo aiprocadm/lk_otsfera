@@ -5,6 +5,9 @@ import {
   isEmailTemplateKey,
   renderTemplateText,
   validateTemplateText,
+  checkTemplateLength,
+  EMAIL_SUBJECT_MAX,
+  EMAIL_BODY_MAX,
 } from '@/lib/email/templateRegistry';
 
 /**
@@ -108,5 +111,39 @@ describe('renderTemplateText — подстановка значений', () =>
     expect(renderTemplateText('orgDocumentPublished', '{{нет.такого}}', props)).toBe(
       '{{нет.такого}}'
     );
+  });
+});
+
+describe('checkTemplateLength (`У-128`, хотфикс №22)', () => {
+  it('обычные тема и текст проходят', () => {
+    expect(checkTemplateLength('Заказ готов', 'Здравствуйте! Ваш заказ готов.')).toEqual({
+      ok: true,
+    });
+  });
+
+  it('тема ровно на пределе — ещё можно, на символ длиннее — уже нет', () => {
+    expect(checkTemplateLength('т'.repeat(EMAIL_SUBJECT_MAX), 'текст').ok).toBe(true);
+    expect(checkTemplateLength('т'.repeat(EMAIL_SUBJECT_MAX + 1), 'текст')).toEqual({
+      ok: false,
+      field: 'subject',
+      max: EMAIL_SUBJECT_MAX,
+    });
+  });
+
+  it('текст письма ограничен и называет своё поле', () => {
+    expect(checkTemplateLength('Тема', 'б'.repeat(EMAIL_BODY_MAX)).ok).toBe(true);
+    expect(checkTemplateLength('Тема', 'б'.repeat(EMAIL_BODY_MAX + 1))).toEqual({
+      ok: false,
+      field: 'body',
+      max: EMAIL_BODY_MAX,
+    });
+  });
+
+  it('о теме сообщаем раньше, чем о теле: человек правит первое поле сверху', () => {
+    const res = checkTemplateLength(
+      'т'.repeat(EMAIL_SUBJECT_MAX + 1),
+      'б'.repeat(EMAIL_BODY_MAX + 1)
+    );
+    expect(res).toMatchObject({ ok: false, field: 'subject' });
   });
 });

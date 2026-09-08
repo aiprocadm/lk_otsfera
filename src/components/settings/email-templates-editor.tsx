@@ -105,6 +105,13 @@ function TemplateCard({
         toast.error(unknownText(res.unknown));
         return;
       }
+      if (res.error === 'text_too_long') {
+        // Пределы приходят с сервера — экран не держит своей копии чисел
+        // (хотфикс №22).
+        const where = res.limit?.field === 'subject' ? 'Тема письма' : 'Текст письма';
+        toast.error(`${where}: слишком длинно. Максимум ${res.limit?.max ?? 0} символов.`);
+        return;
+      }
       toast.error(
         res.error === 'company_required'
           ? 'У вашей учётной записи не указана компания — обратитесь к администратору.'
