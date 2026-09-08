@@ -123,7 +123,10 @@ function normalizePrice(raw: string): string | null {
  * правила у формы и файла одни, дублирование разъехалось бы молча.
  */
 export function validateCatalogItemInput(input: CatalogItemInput):
-  | { ok: true; data: Omit<CatalogItemInput, 'price' | 'vatRate'> & { price: string; vatRate: string | null } }
+  | {
+      ok: true;
+      data: Omit<CatalogItemInput, 'price' | 'vatRate'> & { price: string; vatRate: string | null };
+    }
   | Validation {
   const messages: string[] = [];
   const name = input.name.trim();
@@ -131,7 +134,8 @@ export function validateCatalogItemInput(input: CatalogItemInput):
   if (!name || name.length > 300) messages.push('Название: от 1 до 300 символов');
   if (!code || code.length > 64) messages.push('Артикул: от 1 до 64 символов');
   const price = normalizePrice(input.price);
-  if (price === null) messages.push('Цена: неотрицательное число, максимум две цифры после запятой');
+  if (price === null)
+    messages.push('Цена: неотрицательное число, максимум две цифры после запятой');
   let vatRate: string | null = null;
   if (input.vatRate !== null) {
     const rate = Number(input.vatRate);
@@ -165,7 +169,12 @@ export async function listCatalogItems(
     companyId: args.companyId,
     ...(args.includeInactive ? {} : { isActive: true }),
     ...(q
-      ? { OR: [{ name: { contains: q, mode: 'insensitive' as const } }, { code: { contains: q, mode: 'insensitive' as const } }] }
+      ? {
+          OR: [
+            { name: { contains: q, mode: 'insensitive' as const } },
+            { code: { contains: q, mode: 'insensitive' as const } },
+          ],
+        }
       : {}),
   };
   // Экран режет на 500 (сноска «первые 500»), экспорт — на 10 000 (сноска в

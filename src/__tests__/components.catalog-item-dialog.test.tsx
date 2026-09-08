@@ -69,14 +69,26 @@ beforeEach(() => {
 
 describe('CatalogItemDialog — создание', () => {
   it('триггер «Добавить услугу»; диалог изначально закрыт', () => {
-    render(React.createElement(CatalogItemDialog, { cabinet: 'admin' as const, companyId: 'co-1', directions: DIRECTIONS }));
+    render(
+      React.createElement(CatalogItemDialog, {
+        cabinet: 'admin' as const,
+        companyId: 'co-1',
+        directions: DIRECTIONS,
+      })
+    );
     expect(screen.getByRole('button', { name: 'Добавить услугу' })).toBeTruthy();
     expect(screen.queryByRole('dialog', { name: 'Новая услуга' })).toBeNull();
   });
 
   it('успех: FormData несёт companyId и дефолты, toast, refresh, диалог закрыт', async () => {
     createAction.mockResolvedValue({ ok: true });
-    render(React.createElement(CatalogItemDialog, { cabinet: 'admin' as const, companyId: 'co-1', directions: DIRECTIONS }));
+    render(
+      React.createElement(CatalogItemDialog, {
+        cabinet: 'admin' as const,
+        companyId: 'co-1',
+        directions: DIRECTIONS,
+      })
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Добавить услугу' }));
     const dialog = await screen.findByRole('dialog', { name: 'Новая услуга' });
 
@@ -104,9 +116,7 @@ describe('CatalogItemDialog — создание', () => {
 
     expect(toastSuccess).toHaveBeenCalledWith('Услуга добавлена в каталог.');
     expect(refresh).toHaveBeenCalled();
-    await waitFor(() =>
-      expect(screen.queryByRole('dialog', { name: 'Новая услуга' })).toBeNull()
-    );
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Новая услуга' })).toBeNull());
     // Форма очищена: при повторном открытии не всплывут прошлые значения.
     fireEvent.click(screen.getByRole('button', { name: 'Добавить услугу' }));
     expect((screen.getByLabelText('Название') as HTMLInputElement).value).toBe('');
@@ -118,7 +128,13 @@ describe('CatalogItemDialog — создание', () => {
       error: 'validation',
       messages: ['Цена: неотрицательное число', 'Артикул: от 1 до 64 символов'],
     });
-    render(React.createElement(CatalogItemDialog, { cabinet: 'admin' as const, companyId: 'co-1', directions: DIRECTIONS }));
+    render(
+      React.createElement(CatalogItemDialog, {
+        cabinet: 'admin' as const,
+        companyId: 'co-1',
+        directions: DIRECTIONS,
+      })
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Добавить услугу' }));
     const dialog = await screen.findByRole('dialog', { name: 'Новая услуга' });
 
@@ -132,7 +148,13 @@ describe('CatalogItemDialog — создание', () => {
 
   it('duplicate_code: русская подсказка про артикул', async () => {
     createAction.mockResolvedValue({ ok: false, error: 'duplicate_code' });
-    render(React.createElement(CatalogItemDialog, { cabinet: 'admin' as const, companyId: 'co-1', directions: DIRECTIONS }));
+    render(
+      React.createElement(CatalogItemDialog, {
+        cabinet: 'admin' as const,
+        companyId: 'co-1',
+        directions: DIRECTIONS,
+      })
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Добавить услугу' }));
     const dialog = await screen.findByRole('dialog', { name: 'Новая услуга' });
 
@@ -147,7 +169,13 @@ describe('CatalogItemDialog — создание', () => {
 
   it('неизвестный код: общий fallback «Не удалось сохранить услугу.»', async () => {
     createAction.mockResolvedValue({ ok: false, error: 'boom' });
-    render(React.createElement(CatalogItemDialog, { cabinet: 'admin' as const, companyId: 'co-1', directions: DIRECTIONS }));
+    render(
+      React.createElement(CatalogItemDialog, {
+        cabinet: 'admin' as const,
+        companyId: 'co-1',
+        directions: DIRECTIONS,
+      })
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Добавить услугу' }));
     const dialog = await screen.findByRole('dialog', { name: 'Новая услуга' });
 
@@ -157,15 +185,19 @@ describe('CatalogItemDialog — создание', () => {
   });
 
   it('«Отмена» закрывает диалог без вызова action', async () => {
-    render(React.createElement(CatalogItemDialog, { cabinet: 'admin' as const, companyId: 'co-1', directions: DIRECTIONS }));
+    render(
+      React.createElement(CatalogItemDialog, {
+        cabinet: 'admin' as const,
+        companyId: 'co-1',
+        directions: DIRECTIONS,
+      })
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Добавить услугу' }));
     const dialog = await screen.findByRole('dialog', { name: 'Новая услуга' });
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Отмена' }));
 
-    await waitFor(() =>
-      expect(screen.queryByRole('dialog', { name: 'Новая услуга' })).toBeNull()
-    );
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Новая услуга' })).toBeNull());
     expect(createAction).not.toHaveBeenCalled();
   });
 });
@@ -190,9 +222,7 @@ describe('CatalogItemDialog — правка', () => {
     expect((within(dialog).getByLabelText('Единица') as HTMLSelectElement).value).toBe('piece');
     expect((within(dialog).getByLabelText('Цена, ₽') as HTMLInputElement).value).toBe('12500.00');
     expect((within(dialog).getByLabelText('Ставка НДС') as HTMLSelectElement).value).toBe('0.2');
-    expect((within(dialog).getByLabelText('Направление') as HTMLSelectElement).value).toBe(
-      'dir-1'
-    );
+    expect((within(dialog).getByLabelText('Направление') as HTMLSelectElement).value).toBe('dir-1');
     expect((within(dialog).getByLabelText('Описание') as HTMLTextAreaElement).value).toBe(
       'Очная программа'
     );
@@ -227,29 +257,31 @@ describe('CatalogItemDialog — правка', () => {
   });
 });
 
-  it('деактивированное направление позиции не теряется: опция «(неактивно)» выбрана', async () => {
-    // Ревью PR-1: активные направления не содержат directionId позиции —
-    // без спец-опции браузер выбрал бы «не связано», и правка одной цены
-    // молча рвала бы связь (по ней работает «Собрать строки из позиций»).
-    render(
-      React.createElement(CatalogItemDialog, {
-        cabinet: 'admin' as const,
-        companyId: 'co-1',
-        directions: DIRECTIONS,
-        item: makeItem({ directionId: 'dir-gone', directionName: 'Снятое направление' }),
-      })
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Изменить услугу' });
-    const select = within(dialog).getByLabelText('Направление') as HTMLSelectElement;
-    expect(select.value).toBe('dir-gone');
-    expect(within(dialog).getByText('Снятое направление (неактивно)')).toBeTruthy();
-  });
+it('деактивированное направление позиции не теряется: опция «(неактивно)» выбрана', async () => {
+  // Ревью PR-1: активные направления не содержат directionId позиции —
+  // без спец-опции браузер выбрал бы «не связано», и правка одной цены
+  // молча рвала бы связь (по ней работает «Собрать строки из позиций»).
+  render(
+    React.createElement(CatalogItemDialog, {
+      cabinet: 'admin' as const,
+      companyId: 'co-1',
+      directions: DIRECTIONS,
+      item: makeItem({ directionId: 'dir-gone', directionName: 'Снятое направление' }),
+    })
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Изменить услугу' });
+  const select = within(dialog).getByLabelText('Направление') as HTMLSelectElement;
+  expect(select.value).toBe('dir-gone');
+  expect(within(dialog).getByText('Снятое направление (неактивно)')).toBeTruthy();
+});
 
 describe('CatalogItemActiveButton', () => {
   it('деактивация — в два клика: сначала подтверждение, потом action', async () => {
     setActiveAction.mockResolvedValue({ ok: true });
-    render(React.createElement(CatalogItemActiveButton, { cabinet: 'admin' as const, item: makeItem() }));
+    render(
+      React.createElement(CatalogItemActiveButton, { cabinet: 'admin' as const, item: makeItem() })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Деактивировать' }));
     expect(setActiveAction).not.toHaveBeenCalled();
@@ -267,7 +299,9 @@ describe('CatalogItemActiveButton', () => {
   });
 
   it('«Отмена» подтверждения возвращает обычную кнопку, action не звался', () => {
-    render(React.createElement(CatalogItemActiveButton, { cabinet: 'admin' as const, item: makeItem() }));
+    render(
+      React.createElement(CatalogItemActiveButton, { cabinet: 'admin' as const, item: makeItem() })
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Деактивировать' }));
     fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
 
@@ -277,7 +311,12 @@ describe('CatalogItemActiveButton', () => {
 
   it('возврат неактивной — один клик «Активировать» с active=1', async () => {
     setActiveAction.mockResolvedValue({ ok: true });
-    render(React.createElement(CatalogItemActiveButton, { cabinet: 'admin' as const, item: makeItem({ isActive: false }) }));
+    render(
+      React.createElement(CatalogItemActiveButton, {
+        cabinet: 'admin' as const,
+        item: makeItem({ isActive: false }),
+      })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Активировать' }));
 
@@ -290,7 +329,9 @@ describe('CatalogItemActiveButton', () => {
 
   it('ошибка сервиса — toast.error с русским текстом, refresh не зовётся', async () => {
     setActiveAction.mockResolvedValue({ ok: false, error: 'forbidden' });
-    render(React.createElement(CatalogItemActiveButton, { cabinet: 'admin' as const, item: makeItem() }));
+    render(
+      React.createElement(CatalogItemActiveButton, { cabinet: 'admin' as const, item: makeItem() })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Деактивировать' }));
     fireEvent.click(screen.getByRole('button', { name: 'Точно деактивировать?' }));

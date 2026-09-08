@@ -101,7 +101,9 @@ describe('POST /api/company/branding', () => {
 
     const empty = pngFile();
     Object.defineProperty(empty, 'size', { value: 0 });
-    const emptyFile = await POST(makeReq(makeForm({ companyId: 'co-1', slot: 'logo', file: empty })));
+    const emptyFile = await POST(
+      makeReq(makeForm({ companyId: 'co-1', slot: 'logo', file: empty }))
+    );
     expect(emptyFile.status).toBe(400);
     expect(uploadCompanyBrandingAsset).not.toHaveBeenCalled();
   });
@@ -132,7 +134,9 @@ describe('POST /api/company/branding', () => {
       error: 'validation',
       messages: ['SVG со скриптами не принимается.'],
     });
-    const res = await POST(makeReq(makeForm({ companyId: 'co-1', slot: 'stamp', file: pngFile() })));
+    const res = await POST(
+      makeReq(makeForm({ companyId: 'co-1', slot: 'stamp', file: pngFile() }))
+    );
     expect(res.status).toBe(400);
     await expect(res.json()).resolves.toEqual({
       error: 'validation',
@@ -147,8 +151,7 @@ describe('POST /api/company/branding', () => {
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ ok: true });
     expect(uploadCompanyBrandingAsset).toHaveBeenCalledTimes(1);
-    const [prismaArg, sessionArg, companyId, slot, file] =
-      uploadCompanyBrandingAsset.mock.calls[0];
+    const [prismaArg, sessionArg, companyId, slot, file] = uploadCompanyBrandingAsset.mock.calls[0];
     expect(prismaArg).toEqual({});
     expect(sessionArg).toBe(admin);
     expect(companyId).toBe('co-1');

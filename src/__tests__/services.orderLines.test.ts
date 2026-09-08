@@ -390,12 +390,12 @@ describe('валидация строки', () => {
 
   it('нулевое количество проходит формат, но отбивается по смыслу', async () => {
     const c = makePrisma();
-    expect(
-      await addOrderLine(c.prisma, admin, 'ord-1', { ...VALID, quantity: '0' })
-    ).toMatchObject({
-      ok: false,
-      messages: ['Количество: положительное число, максимум три знака после запятой'],
-    });
+    expect(await addOrderLine(c.prisma, admin, 'ord-1', { ...VALID, quantity: '0' })).toMatchObject(
+      {
+        ok: false,
+        messages: ['Количество: положительное число, максимум три знака после запятой'],
+      }
+    );
   });
 
   it('нечисловые скидка и ставка НДС не проскакивают как NaN', async () => {
@@ -445,12 +445,12 @@ describe('валидация строки', () => {
 
   it('валидация работает и на правке строки — не только на добавлении', async () => {
     const c = makePrisma({ line: EXISTING });
-    expect(
-      await updateOrderLine(c.prisma, admin, 'l1', { ...VALID, quantity: '0' })
-    ).toMatchObject({
-      ok: false,
-      error: 'validation',
-    });
+    expect(await updateOrderLine(c.prisma, admin, 'l1', { ...VALID, quantity: '0' })).toMatchObject(
+      {
+        ok: false,
+        error: 'validation',
+      }
+    );
     expect(c.lineUpdate).not.toHaveBeenCalled();
   });
 });

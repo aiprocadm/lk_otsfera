@@ -30,7 +30,13 @@ const ALLOWED = new Set([
 ]);
 
 /** Клиентские кабинеты — им сделка не положена ни при каких условиях. */
-const CLIENT_PREFIXES = ['app/organization/', 'app/partner/', 'app/student/', 'components/organization/', 'components/partner/'];
+const CLIENT_PREFIXES = [
+  'app/organization/',
+  'app/partner/',
+  'app/student/',
+  'components/organization/',
+  'components/partner/',
+];
 
 function walk(dir: string, acc: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {

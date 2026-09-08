@@ -90,11 +90,13 @@ function makeView(over: Partial<OrderLinesView> = {}): OrderLinesView {
   };
 }
 
-function renderSection(over: {
-  view?: OrderLinesView;
-  catalog?: OrderCatalogOption[];
-  canEdit?: boolean;
-} = {}) {
+function renderSection(
+  over: {
+    view?: OrderLinesView;
+    catalog?: OrderCatalogOption[];
+    canEdit?: boolean;
+  } = {}
+) {
   return render(
     React.createElement(OrderLinesSection, {
       orderId: 'ord-1',
@@ -166,9 +168,7 @@ describe('таблица и итоги', () => {
   it('строка без скидки и без НДС: прочерк и «без НДС», а не пустота', () => {
     const { container } = renderSection({
       view: makeView({
-        lines: [
-          makeLine({ id: 'ol-2', discountPercent: null, vatRate: null, vatIncluded: false }),
-        ],
+        lines: [makeLine({ id: 'ol-2', discountPercent: null, vatRate: null, vatIncluded: false })],
       }),
     });
     expect(norm(container.textContent)).toContain('без НДС');
@@ -337,9 +337,7 @@ describe('добавление строки', () => {
     fireEvent.submit(within(dialog).getByRole('button', { name: 'Добавить' }).closest('form')!);
 
     await waitFor(() =>
-      expect(within(dialog).getByRole('alert').textContent).toContain(
-        'Цена: неотрицательное число'
-      )
+      expect(within(dialog).getByRole('alert').textContent).toContain('Цена: неотрицательное число')
     );
     expect(within(dialog).getByRole('alert').textContent).toContain('Количество: положительное');
     expect(screen.getByRole('dialog', { name: 'Новая строка' })).toBeTruthy();

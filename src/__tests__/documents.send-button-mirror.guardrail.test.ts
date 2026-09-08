@@ -67,9 +67,7 @@ describe('У-169: блок «Выгрузка в 1С» — во всех трё�
       'app/partner/documents/[id]/page.tsx',
       'components/documents/document-detail-view.tsx',
     ]) {
-      expect(read(rel), `${rel} получил чужой блок выгрузки`).not.toMatch(
-        /DocumentOneCPushBlock/
-      );
+      expect(read(rel), `${rel} получил чужой блок выгрузки`).not.toMatch(/DocumentOneCPushBlock/);
     }
   });
 });

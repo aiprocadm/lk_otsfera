@@ -209,9 +209,7 @@ describe('PriceListScreen — пустые состояния', () => {
 
 describe('PriceListScreen — молчаливое усечение', () => {
   it('ровно 500 строк — сноска «показаны первые 500»', () => {
-    const items = Array.from({ length: 500 }, (_, i) =>
-      makeRow({ id: `ci-${i}`, code: `C-${i}` })
-    );
+    const items = Array.from({ length: 500 }, (_, i) => makeRow({ id: `ci-${i}`, code: `C-${i}` }));
     const out = html({ items });
     expect(out).toContain('Показаны первые 500 позиций — уточните поиск');
   });

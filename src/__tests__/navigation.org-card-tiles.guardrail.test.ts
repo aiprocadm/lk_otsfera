@@ -53,7 +53,11 @@ describe('источник числа «Доступ в кабинет» (Д-29)
   }
 
   it('сервисы карточки не берут число пользователей из Organization.users', () => {
-    const roots = ['src/lib/services/manager', 'src/lib/services/admin', 'src/lib/services/partner'];
+    const roots = [
+      'src/lib/services/manager',
+      'src/lib/services/admin',
+      'src/lib/services/partner',
+    ];
     const offenders: string[] = [];
     for (const root of roots) {
       for (const file of collect(join(process.cwd(), root))) {

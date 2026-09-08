@@ -74,7 +74,7 @@ function buildMissingByType(
 export type IssueBaseDocument = { id: string; type: string; number: string; date: string };
 
 /** Строка состава для предзаполнения формы выпуска (`У-147`). */
-export type IssuePrefillLine = {
+type IssuePrefillLine = {
   title: string;
   quantity: string;
   unit: CatalogUnit;

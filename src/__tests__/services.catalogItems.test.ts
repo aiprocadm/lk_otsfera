@@ -56,7 +56,9 @@ function fake(over: { rows?: unknown[]; row?: unknown } = {}) {
   const create = vi.fn().mockResolvedValue({ id: 'ci-new' });
   const update = vi.fn().mockResolvedValue({});
   return {
-    prisma: { catalogItem: { findMany, count, findUnique, create, update } } as unknown as PrismaClient,
+    prisma: {
+      catalogItem: { findMany, count, findUnique, create, update },
+    } as unknown as PrismaClient,
     findMany,
     count,
     findUnique,
@@ -86,12 +88,14 @@ describe('listCatalogItems — гейты и скоуп', () => {
     expect((await listCatalogItems(prisma, leaderSession(), { companyId: 'co-1' })).ok).toBe(true);
 
     const denied = fake();
-    expect(
-      await listCatalogItems(denied.prisma, leaderSession(), { companyId: 'co-2' })
-    ).toEqual({ ok: false, error: 'forbidden' });
-    expect(
-      await listCatalogItems(denied.prisma, managerSession(), { companyId: 'co-1' })
-    ).toEqual({ ok: false, error: 'forbidden' });
+    expect(await listCatalogItems(denied.prisma, leaderSession(), { companyId: 'co-2' })).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+    expect(await listCatalogItems(denied.prisma, managerSession(), { companyId: 'co-1' })).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
     expect(denied.findMany).not.toHaveBeenCalled();
     expect(findMany).toHaveBeenCalledTimes(2);
   });

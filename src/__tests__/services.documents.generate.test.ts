@@ -1232,7 +1232,10 @@ describe('`У-169`: правило `auto` — постановка в очере
 
   it('при `auto` задача ставится ПОСЛЕ записи документа, от имени выпустившего', async () => {
     const { prisma, documentCreate } = makePrisma({ company: companyWith('auto') });
-    const r = await generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice' });
+    const r = await generateOrderDocument(prisma, manager(), {
+      orderId: 'ord-1',
+      docType: 'invoice',
+    });
     expect(r).toMatchObject({ ok: true, documentId: 'doc-1' });
     expect(enqueueDocumentPush).toHaveBeenCalledWith(prisma, 'doc-1', { actorUserId: 'm1' });
     // Порядок: сначала документ в базе, потом очередь — иначе воркер искал бы
@@ -1262,7 +1265,10 @@ describe('`У-169`: правило `auto` — постановка в очере
   it('при `manual` и `never` очередь не трогается', async () => {
     for (const mode of ['manual', 'never']) {
       const { prisma } = makePrisma({ company: companyWith(mode) });
-      const r = await generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice' });
+      const r = await generateOrderDocument(prisma, manager(), {
+        orderId: 'ord-1',
+        docType: 'invoice',
+      });
       expect(r, mode).toMatchObject({ ok: true });
     }
     expect(enqueueDocumentPush).not.toHaveBeenCalled();
@@ -1270,7 +1276,10 @@ describe('`У-169`: правило `auto` — постановка в очере
 
   it('тип вне набора компании не ставится, даже при `auto`', async () => {
     const { prisma } = makePrisma({ company: companyWith('auto', ['act', 'contract']) });
-    const r = await generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice' });
+    const r = await generateOrderDocument(prisma, manager(), {
+      orderId: 'ord-1',
+      docType: 'invoice',
+    });
     expect(r).toMatchObject({ ok: true });
     expect(enqueueDocumentPush).not.toHaveBeenCalled();
   });
@@ -1278,7 +1287,10 @@ describe('`У-169`: правило `auto` — постановка в очере
   it('постановка отказала (нет Redis) — выпуск состоялся, отказ в логе', async () => {
     enqueueDocumentPush.mockResolvedValue({ ok: false, error: 'queue_unavailable' });
     const { prisma } = makePrisma({ company: companyWith('auto') });
-    const r = await generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice' });
+    const r = await generateOrderDocument(prisma, manager(), {
+      orderId: 'ord-1',
+      docType: 'invoice',
+    });
     expect(r).toMatchObject({ ok: true, documentId: 'doc-1' });
     expect(logWarn).toHaveBeenCalledWith(
       '[documents/generate] auto push to 1C not queued',
@@ -1289,7 +1301,10 @@ describe('`У-169`: правило `auto` — постановка в очере
   it('постановка БРОСИЛА — выпуск всё равно ok: true (спека 3.3), клиент уведомлён', async () => {
     enqueueDocumentPush.mockRejectedValue(new Error('redis down'));
     const { prisma } = makePrisma({ company: companyWith('auto') });
-    const r = await generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice' });
+    const r = await generateOrderDocument(prisma, manager(), {
+      orderId: 'ord-1',
+      docType: 'invoice',
+    });
     expect(r).toEqual({ ok: true, documentId: 'doc-1', number: 'С-2026-7' });
     expect(logWarn).toHaveBeenCalledWith(
       '[documents/generate] auto push to 1C failed',

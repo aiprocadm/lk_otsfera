@@ -114,9 +114,9 @@ describe('PaymentImportForm (interactive, jsdom)', () => {
     expect(card.textContent).toContain('ООО «Альфа»');
     // `У-87`: ИНН теперь редактируемое поле, а не текст — человек может его
     // исправить до применения.
-    expect(
-      (screen.getByLabelText('ИНН — ООО «Альфа»') as HTMLInputElement).value
-    ).toBe('7707083893');
+    expect((screen.getByLabelText('ИНН — ООО «Альфа»') as HTMLInputElement).value).toBe(
+      '7707083893'
+    );
     // Контрагент без названия не превращается в пустую строку списка.
     expect(card.textContent).toContain('без названия');
     // Несколько строк одного контрагента — видно, что это не один платёж.

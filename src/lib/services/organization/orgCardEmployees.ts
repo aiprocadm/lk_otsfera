@@ -31,7 +31,7 @@ export type OrgCardEmployeesResult = {
   canWrite: boolean;
 };
 
-export const ORG_CARD_EMPLOYEES_PAGE_SIZE = 25;
+const ORG_CARD_EMPLOYEES_PAGE_SIZE = 25;
 
 export async function listOrgCardEmployees(
   prisma: PrismaClient,
@@ -80,7 +80,6 @@ export async function listOrgCardEmployees(
 
   return { rows, total, canWrite: access.canWrite };
 }
-
 
 /**
  * Карточка одного сотрудника **внутри карточки организации** (`У-97`).

@@ -304,7 +304,10 @@ export function settingsHref(section: SettingsSection, cabinet: SettingsCabinet)
  * `null` — у этого кабинета раздела нет (у менеджера хаба настроек нет
  * вовсе): экран тогда говорит «попросите руководителя», а не ведёт в 403.
  */
-export function settingsSectionHref(id: string, cabinet: SettingsCabinet | 'manager'): string | null {
+export function settingsSectionHref(
+  id: string,
+  cabinet: SettingsCabinet | 'manager'
+): string | null {
   if (cabinet === 'manager') return null;
   const section = SETTINGS_SECTIONS.find((s) => s.id === id && s.cabinets.includes(cabinet));
   return section ? settingsHref(section, cabinet) : null;

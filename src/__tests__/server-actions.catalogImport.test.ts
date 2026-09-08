@@ -137,7 +137,10 @@ describe('previewCatalogImportAction — шаг «что произойдёт»'
       },
     });
 
-    const res = await previewCatalogImportAction('leader', form({ companyId: 'co-1', file: file() }));
+    const res = await previewCatalogImportAction(
+      'leader',
+      form({ companyId: 'co-1', file: file() })
+    );
 
     expect(res).toEqual({
       ok: true,

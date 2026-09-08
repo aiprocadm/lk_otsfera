@@ -95,8 +95,7 @@ export async function resetSettingToServerValueAction(
 }
 
 export type GenerateWebhookSecretResult =
-  | { ok: true; secret: string }
-  | { ok: false; error: 'secrets_key_missing' | 'validation' };
+  { ok: true; secret: string } | { ok: false; error: 'secrets_key_missing' | 'validation' };
 
 /**
  * Сгенерировать секрет вебхука (`У-123`).
@@ -118,7 +117,10 @@ export async function generateWebhookSecretAction(
 
 export type RegisterWebhookActionResult =
   | { ok: true; message: string }
-  | { ok: false; error: 'not_supported' | 'no_token' | 'no_secret' | 'provider_error' | 'validation' };
+  | {
+      ok: false;
+      error: 'not_supported' | 'no_token' | 'no_secret' | 'provider_error' | 'validation';
+    };
 
 /** Зарегистрировать адрес вебхука у провайдера (`У-123`). */
 export async function registerWebhookAction(

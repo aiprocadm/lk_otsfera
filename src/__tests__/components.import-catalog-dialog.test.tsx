@@ -229,7 +229,10 @@ describe('ImportCatalogDialog — запись', () => {
   });
 
   it('отказ сервиса показывается в диалоге, а он остаётся открытым', async () => {
-    commitAction.mockResolvedValue({ ok: false, error: 'Нет прав изменять каталог этой компании.' });
+    commitAction.mockResolvedValue({
+      ok: false,
+      error: 'Нет прав изменять каталог этой компании.',
+    });
     renderDialog();
     openDialog();
     submitPreview();
@@ -248,9 +251,7 @@ describe('ImportCatalogDialog — запись', () => {
     submitPreview();
     fireEvent.click(await dialog().findByTestId('import-catalog-commit'));
 
-    await waitFor(() =>
-      expect(dialog().getByRole('button', { name: 'Записываю…' })).toBeTruthy()
-    );
+    await waitFor(() => expect(dialog().getByRole('button', { name: 'Записываю…' })).toBeTruthy());
     fireEvent.keyDown(document.querySelector('dialog[open]') as HTMLElement, { key: 'Escape' });
     expect(document.querySelector('dialog[open]')).not.toBeNull();
 

@@ -130,8 +130,7 @@ describe('У-134: .env.example синхронизирован с кодом', ()
     it('fallback переехавшей настройки помечен и здесь', () => {
       expect(
         unmarkedSettingFallbacks(prodLines()),
-        'Блок переменной в .env.production.example не говорит «задаётся в ' +
-          'интерфейсе»:\n'
+        'Блок переменной в .env.production.example не говорит «задаётся в ' + 'интерфейсе»:\n'
       ).toEqual([]);
     });
   });

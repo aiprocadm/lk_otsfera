@@ -89,9 +89,9 @@ beforeEach(() => {
 describe('Карточка сотрудника в «Моей организации» (У-97, У-100)', () => {
   it('флаг off → notFound, контекст не запрашивается', async () => {
     isFeatureEnabled.mockReturnValue(false);
-    await expect(renderServerComponent(OrganizationCompanyStudentPage(props('s1')))).rejects.toThrow(
-      'NOT_FOUND'
-    );
+    await expect(
+      renderServerComponent(OrganizationCompanyStudentPage(props('s1')))
+    ).rejects.toThrow('NOT_FOUND');
     expect(getOrgPageContext).not.toHaveBeenCalled();
   });
 
@@ -241,7 +241,9 @@ describe('Карточка сотрудника в «Моей организац
       note: 'цех №3',
     });
 
-    const { container } = await renderServerComponent(OrganizationCompanyStudentPage(props('st-1')));
+    const { container } = await renderServerComponent(
+      OrganizationCompanyStudentPage(props('st-1'))
+    );
 
     expect(container.textContent).toContain('112-233-445 95');
     expect(container.textContent).toContain('+7 900 000-00-00');
@@ -260,7 +262,9 @@ describe('Карточка сотрудника в «Моей организац
       note: null,
     });
 
-    const { container } = await renderServerComponent(OrganizationCompanyStudentPage(props('st-1')));
+    const { container } = await renderServerComponent(
+      OrganizationCompanyStudentPage(props('st-1'))
+    );
 
     expect(container.textContent).toContain('Почта не указана');
     expect(container.textContent).toContain('СНИЛС');

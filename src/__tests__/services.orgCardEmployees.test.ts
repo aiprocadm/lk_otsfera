@@ -16,7 +16,12 @@ import {
   getOrgCardEmployee,
 } from '@/lib/services/organization/orgCardEmployees';
 
-const MANAGER = { sub: 'm1', role: 'manager', companyId: 'co-1', managedOrgIds: ['org-1'] } as never;
+const MANAGER = {
+  sub: 'm1',
+  role: 'manager',
+  companyId: 'co-1',
+  managedOrgIds: ['org-1'],
+} as never;
 const PARTNER = { sub: 'p1', role: 'partner', partnerId: 'pt-1' } as never;
 
 function db(rows: unknown[] = [], total = 0) {
@@ -99,7 +104,6 @@ describe('listOrgCardEmployees (У-97)', () => {
   });
 });
 
-
 /**
  * `У-97`: карточка сотрудника открывается ВНУТРИ карточки организации.
  * Организация в адресе — граница, а не украшение.
@@ -124,14 +128,18 @@ describe('getOrgCardEmployee (У-97)', () => {
     studentOrgAccess.mockResolvedValue({ canRead: false, canWrite: false });
     const { prisma, findFirst } = detailDb(STUDENT);
 
-    expect(await getOrgCardEmployee(prisma, PARTNER, { orgId: 'org-9', studentId: 's1' })).toBeNull();
+    expect(
+      await getOrgCardEmployee(prisma, PARTNER, { orgId: 'org-9', studentId: 's1' })
+    ).toBeNull();
     expect(findFirst).not.toHaveBeenCalled();
     expect(recordPiiAccess).not.toHaveBeenCalled();
   });
 
   it('сотрудник другой организации → null и в журнал ПДн ничего не пишем', async () => {
     const { prisma } = detailDb(null);
-    expect(await getOrgCardEmployee(prisma, MANAGER, { orgId: 'org-1', studentId: 'alien' })).toBeNull();
+    expect(
+      await getOrgCardEmployee(prisma, MANAGER, { orgId: 'org-1', studentId: 'alien' })
+    ).toBeNull();
     expect(recordPiiAccess).not.toHaveBeenCalled();
   });
 

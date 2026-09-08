@@ -9,7 +9,10 @@ import { CATALOG_IMPORT_COLUMNS, catalogExportCells } from './catalogExcel';
  * сопоставление пройдёт по артикулу. Плюс информационная колонка «Активна» —
  * парсер импорта её игнорирует.
  */
-export async function renderCatalogXlsx(rows: CatalogItemRow[], total: number): Promise<ArrayBuffer> {
+export async function renderCatalogXlsx(
+  rows: CatalogItemRow[],
+  total: number
+): Promise<ArrayBuffer> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Промтехносфера';
   const ws = wb.addWorksheet('Каталог');

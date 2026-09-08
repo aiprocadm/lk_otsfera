@@ -56,7 +56,7 @@ export const SENSITIVE_FLAGS: readonly FeatureFlag[] = [
   'commission_xlsx',
 ];
 
-export function isSensitiveFlag(flag: FeatureFlag): boolean {
+function isSensitiveFlag(flag: FeatureFlag): boolean {
   return SENSITIVE_FLAGS.includes(flag);
 }
 

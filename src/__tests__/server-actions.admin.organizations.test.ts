@@ -262,7 +262,6 @@ describe('form-action wrappers (discard result, log on failure)', () => {
   });
 });
 
-
 describe('setOrgRateOverrideAction — руководитель (У-99, граница компании C8)', () => {
   const leader = (companyId: string | null) => ({
     sub: 'leader-1',

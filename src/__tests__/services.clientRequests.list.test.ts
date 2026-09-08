@@ -70,9 +70,7 @@ describe('clientRequestScopeWhere', () => {
   });
 
   it('leader — тот же manager-скоуп', () => {
-    expect(
-      clientRequestScopeWhere(s({ role: 'leader', companyId: 'c1' }))
-    ).toEqual({
+    expect(clientRequestScopeWhere(s({ role: 'leader', companyId: 'c1' }))).toEqual({
       OR: [{ organization: { companyId: 'c1' } }, { organizationId: null }],
     });
   });

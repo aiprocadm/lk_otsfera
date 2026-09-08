@@ -47,17 +47,31 @@ beforeEach(() => vi.clearAllMocks());
 describe('PaymentQueueTable: группировка по контрагенту (У-90)', () => {
   const rows = [
     row({ id: 'r1', counterpartyName: 'ООО «Ромашка»', counterpartyKey: 'РОМАШКА' }),
-    row({ id: 'r2', externalId: '0000-2', counterpartyName: 'РОМАШКА, ООО', counterpartyKey: 'РОМАШКА' }),
-    row({ id: 'r3', externalId: '0000-3', counterpartyName: 'АО «Вектор»', counterpartyKey: 'ВЕКТОР' }),
+    row({
+      id: 'r2',
+      externalId: '0000-2',
+      counterpartyName: 'РОМАШКА, ООО',
+      counterpartyKey: 'РОМАШКА',
+    }),
+    row({
+      id: 'r3',
+      externalId: '0000-3',
+      counterpartyName: 'АО «Вектор»',
+      counterpartyKey: 'ВЕКТОР',
+    }),
   ];
 
   it('по умолчанию строки показаны плоским списком', () => {
-    render(<PaymentQueueTable rows={rows} total={3} take={50} skip={0} basePath="/x" searchParams={{}} />);
+    render(
+      <PaymentQueueTable rows={rows} total={3} take={50} skip={0} basePath="/x" searchParams={{}} />
+    );
     expect(screen.queryByTestId('queue-group-РОМАШКА')).toBeNull();
   });
 
   it('переключатель собирает строки одного ключа в одну группу со счётчиком', () => {
-    render(<PaymentQueueTable rows={rows} total={3} take={50} skip={0} basePath="/x" searchParams={{}} />);
+    render(
+      <PaymentQueueTable rows={rows} total={3} take={50} skip={0} basePath="/x" searchParams={{}} />
+    );
     fireEvent.click(screen.getByRole('button', { name: /Группировать по контрагенту/ }));
 
     const group = screen.getByTestId('queue-group-РОМАШКА');

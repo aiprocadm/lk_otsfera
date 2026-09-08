@@ -62,9 +62,7 @@ function fake(
         : over.company
     );
   const companyUpdate = vi.fn().mockResolvedValue({});
-  const assetFindUnique = vi
-    .fn()
-    .mockResolvedValue(over.previousAsset ?? over.deleteAsset ?? null);
+  const assetFindUnique = vi.fn().mockResolvedValue(over.previousAsset ?? over.deleteAsset ?? null);
   const assetUpsert = vi.fn().mockResolvedValue({ id: 'cba-1' });
   const assetDelete = vi.fn().mockResolvedValue({});
   const assetFindMany = vi.fn().mockResolvedValue(over.assets ?? []);
@@ -456,9 +454,9 @@ describe('deleteCompanyBrandingAsset', () => {
 
   it('happy-path: удаляет строку, объект в S3 и пишет аудит', async () => {
     const f = fake({ deleteAsset: { id: 'cba-1', path: 'company/co-1/branding/stamp-1.png' } });
-    expect(await deleteCompanyBrandingAsset(f.prisma, leaderSession('co-1'), 'co-1', 'stamp')).toEqual(
-      { ok: true }
-    );
+    expect(
+      await deleteCompanyBrandingAsset(f.prisma, leaderSession('co-1'), 'co-1', 'stamp')
+    ).toEqual({ ok: true });
     expect(f.assetDelete).toHaveBeenCalledWith({ where: { id: 'cba-1' } });
     expect(remove).toHaveBeenCalledWith(['company/co-1/branding/stamp-1.png']);
     expect(recordAudit).toHaveBeenCalledWith(f.prisma, {

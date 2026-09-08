@@ -93,7 +93,9 @@ describe('EgrulFillDialog (У-94)', () => {
     await pickFirst(dialog);
 
     expect(dialog.getAllByText('нет в ЕГРЮЛ', { exact: false })).toHaveLength(2);
-    const disabled = dialog.getAllByRole('checkbox').filter((c) => (c as HTMLInputElement).disabled);
+    const disabled = dialog
+      .getAllByRole('checkbox')
+      .filter((c) => (c as HTMLInputElement).disabled);
     expect(disabled).toHaveLength(2);
   });
 

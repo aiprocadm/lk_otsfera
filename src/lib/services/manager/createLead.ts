@@ -43,7 +43,10 @@ export async function createLeadByStaff(
       select: { companyId: true },
     });
     if (!org) return { ok: false, error: 'validation', messages: ['Организация не найдена'] };
-    if (isStaffManagerSide(session) && (!session.companyId || org.companyId !== session.companyId)) {
+    if (
+      isStaffManagerSide(session) &&
+      (!session.companyId || org.companyId !== session.companyId)
+    ) {
       return { ok: false, error: 'forbidden' };
     }
   }

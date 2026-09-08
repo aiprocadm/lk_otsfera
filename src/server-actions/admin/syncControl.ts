@@ -3,17 +3,13 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db/prisma';
-import {
-  saveSchedulePattern,
-  type SaveScheduleResult,
-} from '@/lib/services/admin/syncSchedules';
+import { saveSchedulePattern, type SaveScheduleResult } from '@/lib/services/admin/syncSchedules';
 import { saveSettings, type SaveEntry, type SettingKey } from '@/lib/config/integrationSettings';
 import { resetIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
 import { recordAudit } from '@/lib/auth/audit';
 
 export type OneCParamsResult =
-  | { ok: true }
-  | { ok: false; error: 'validation' | 'value_out_of_range' | 'secrets_key_missing' };
+  { ok: true } | { ok: false; error: 'validation' | 'value_out_of_range' | 'secrets_key_missing' };
 import { requireAdmin, requireAdminOrManagerLeader } from '@/lib/auth/requireRole';
 import {
   triggerSync,

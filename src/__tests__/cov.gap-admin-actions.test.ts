@@ -151,13 +151,7 @@ describe('createUserAction — ключи partnerId и companyId уходят в
     expect(args).toHaveProperty('partnerId', null);
     // `У-119`: компания сотрудника ЦО едет тем же путём.
     expect(args).toHaveProperty('companyId', null);
-    expect(Object.keys(args).sort()).toEqual([
-      'companyId',
-      'email',
-      'name',
-      'partnerId',
-      'role',
-    ]);
+    expect(Object.keys(args).sort()).toEqual(['companyId', 'email', 'name', 'partnerId', 'role']);
   });
 });
 

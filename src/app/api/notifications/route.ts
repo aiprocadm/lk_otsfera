@@ -22,7 +22,13 @@ export async function GET() {
   if (!sessionResult.ok) return sessionResult.response;
   const session = sessionResult.value;
 
-  const roleResult = requireRole(session, ['admin', 'manager', 'leader', 'partner', 'organization']);
+  const roleResult = requireRole(session, [
+    'admin',
+    'manager',
+    'leader',
+    'partner',
+    'organization',
+  ]);
   if (!roleResult.ok) return roleResult.response;
 
   const result = await listNotifications(prisma, session);
@@ -35,7 +41,13 @@ export async function PATCH(req: Request) {
   if (!sessionResult.ok) return sessionResult.response;
   const session = sessionResult.value;
 
-  const roleResult = requireRole(session, ['admin', 'manager', 'leader', 'partner', 'organization']);
+  const roleResult = requireRole(session, [
+    'admin',
+    'manager',
+    'leader',
+    'partner',
+    'organization',
+  ]);
   if (!roleResult.ok) return roleResult.response;
 
   let payload: unknown;

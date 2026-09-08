@@ -66,7 +66,7 @@ import { resolveLeadIssueScope, resolveOrgIssueScope } from './issueScope';
  * файл-сироту.
  */
 
-export type GenerateDocType =
+type GenerateDocType =
   | 'invoice'
   | 'act'
   | 'contract'
@@ -75,10 +75,10 @@ export type GenerateDocType =
   | 'commercial_proposal';
 
 /** Что делать, когда сумма строк разошлась с суммой заказа (`У-143`). */
-export type AmountMismatchChoice = 'update_order' | 'keep_order';
+type AmountMismatchChoice = 'update_order' | 'keep_order';
 
 /** Поля формы выпуска (`У-147`), влияющие на печать. */
-export type IssueExtras = {
+type IssueExtras = {
   /** Дата документа; по умолчанию — сегодня. */
   documentDate?: Date;
   /** Договор: предмет (по умолчанию — название заказа). */

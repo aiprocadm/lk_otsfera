@@ -7,9 +7,7 @@ type Result<T> = ({ ok: true } & T) | { ok: false; error: DirectionsError };
 
 /** admin или руководитель (role='leader') настраивают справочники (§10/§11). */
 function canManageSettings(session: SessionPayload): boolean {
-  return (
-    session.role === 'admin' || isManagerLeader(session)
-  );
+  return session.role === 'admin' || isManagerLeader(session);
 }
 
 export async function listDirections(

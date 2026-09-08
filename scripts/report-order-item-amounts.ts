@@ -24,7 +24,9 @@ async function main(): Promise<number> {
   try {
     // Колонка ещё существует на момент отчёта, но Prisma-модель её уже не
     // знает (PR-4 снял последнее чтение) — спрашиваем базу напрямую.
-    const rows = await prisma.$queryRawUnsafe<Array<{ id: string; orderId: string; amount: string }>>(
+    const rows = await prisma.$queryRawUnsafe<
+      Array<{ id: string; orderId: string; amount: string }>
+    >(
       `SELECT "id", "orderId", "amount"::text AS amount
          FROM "OrderItem"
         WHERE "amount" IS NOT NULL

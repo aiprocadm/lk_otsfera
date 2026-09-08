@@ -39,14 +39,18 @@ describe('PaymentQueueToolbar (У-90)', () => {
   });
 
   it('активный фильтр помечен и снимается повторным нажатием', () => {
-    const html = renderToString(<PaymentQueueToolbar {...base} searchParams={{ inn: 'without' }} />);
+    const html = renderToString(
+      <PaymentQueueToolbar {...base} searchParams={{ inn: 'without' }} />
+    );
     expect(html).toContain('aria-current="true"');
   });
 
   it('пустой экран объясняет, что фильтр всё отсеял (У-74)', () => {
     // Ветка «есть фильтр, но строк нет» живёт в таблице — здесь проверяем, что
     // ссылка «Сбросить фильтры» появляется именно при активном фильтре.
-    const html = renderToString(<PaymentQueueToolbar {...base} searchParams={{ candidate: 'org' }} />);
+    const html = renderToString(
+      <PaymentQueueToolbar {...base} searchParams={{ candidate: 'org' }} />
+    );
     expect(html).toContain('Сбросить фильтры');
     const clean = renderToString(<PaymentQueueToolbar {...base} />);
     expect(clean).not.toContain('Сбросить фильтры');

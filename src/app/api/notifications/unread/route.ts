@@ -13,7 +13,13 @@ export async function GET() {
   if (!sessionResult.ok) return sessionResult.response;
   const session = sessionResult.value;
 
-  const roleResult = requireRole(session, ['admin', 'manager', 'leader', 'partner', 'organization']);
+  const roleResult = requireRole(session, [
+    'admin',
+    'manager',
+    'leader',
+    'partner',
+    'organization',
+  ]);
   if (!roleResult.ok) return roleResult.response;
 
   const result = await countUnreadNotifications(prisma, session);

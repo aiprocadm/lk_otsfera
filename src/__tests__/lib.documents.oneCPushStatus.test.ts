@@ -19,7 +19,9 @@ describe('словарь состояний выгрузки в 1С', () => {
       ['none', 'pending', 'pushed', 'failed', 'skipped', 'exported_file'].sort()
     );
     for (const s of statuses) {
-      expect(ONE_C_PUSH_STATUS_LABEL[s as keyof typeof ONE_C_PUSH_STATUS_LABEL]).toMatch(/[А-Яа-яЁё]/);
+      expect(ONE_C_PUSH_STATUS_LABEL[s as keyof typeof ONE_C_PUSH_STATUS_LABEL]).toMatch(
+        /[А-Яа-яЁё]/
+      );
       expect(ONE_C_PUSH_STATUS_TONE[s as keyof typeof ONE_C_PUSH_STATUS_TONE]).toBeTruthy();
     }
     expect([...ONE_C_PUSH_STATUS_ORDER].sort()).toEqual(statuses.sort());

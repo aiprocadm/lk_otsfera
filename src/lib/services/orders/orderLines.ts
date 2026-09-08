@@ -1,7 +1,11 @@
 import type { CatalogUnit, Prisma, PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
-import { canSeeOrder, getCompanyTeamVisibility, isStaffManagerSide } from '@/lib/auth/managerPolicy';
+import {
+  canSeeOrder,
+  getCompanyTeamVisibility,
+  isStaffManagerSide,
+} from '@/lib/auth/managerPolicy';
 import { VAT_RATES } from '@/lib/services/admin/catalogItems';
 import { computeLineTotals, sumOrderTotals, type OrderTotals } from './lineMath';
 
@@ -97,7 +101,15 @@ async function loadOrder(
   session: SessionPayload,
   orderId: string
 ): Promise<
-  | { ok: true; order: { id: string; externalId: string | null; totalAmount: Prisma.Decimal; totalAmountIsManual: boolean } }
+  | {
+      ok: true;
+      order: {
+        id: string;
+        externalId: string | null;
+        totalAmount: Prisma.Decimal;
+        totalAmountIsManual: boolean;
+      };
+    }
   | Forbidden
   | NotFound
 > {
@@ -281,7 +293,10 @@ async function checkCatalogItem(
   catalogItemId: string | null
 ): Promise<Validation | null> {
   if (catalogItemId === null) return null;
-  const order = await prisma.order.findUnique({ where: { id: orderId }, select: { companyId: true } });
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: { companyId: true },
+  });
   const item = await prisma.catalogItem.findUnique({
     where: { id: catalogItemId },
     select: { companyId: true },
@@ -520,7 +535,14 @@ export async function buildLinesFromItems(
       isActive: true,
       directionId: { in: [...byDirection.keys()] },
     },
-    select: { id: true, directionId: true, unit: true, price: true, vatRate: true, vatIncluded: true },
+    select: {
+      id: true,
+      directionId: true,
+      unit: true,
+      price: true,
+      vatRate: true,
+      vatIncluded: true,
+    },
     // Детерминированный порядок: если направлению соответствует несколько
     // позиций каталога, берём первую по sortOrder — иначе цена в заказе
     // зависела бы от порядка выдачи базы (ревью PR-4).
@@ -528,7 +550,8 @@ export async function buildLinesFromItems(
   });
   const priceByDirection = new Map<string, (typeof catalog)[number]>();
   for (const c of catalog) {
-    if (c.directionId && !priceByDirection.has(c.directionId)) priceByDirection.set(c.directionId, c);
+    if (c.directionId && !priceByDirection.has(c.directionId))
+      priceByDirection.set(c.directionId, c);
   }
 
   const withoutPrice: string[] = [];

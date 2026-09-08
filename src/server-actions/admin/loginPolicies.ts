@@ -27,7 +27,6 @@ function readField(fd: FormData, key: string): string {
   return typeof v === 'string' ? v : '';
 }
 
-
 export async function saveLoginPoliciesAction(fd: FormData): Promise<LoginPoliciesResult> {
   const session = await requireSettingsSection('security.loginPolicies', 'admin');
 

@@ -71,7 +71,11 @@ function queueWhere(session: SessionPayload, q: QueueQuery) {
  * очереди человек видел первые 200 строк и не знал, что есть ещё (`У-90` —
  * молчаливое усечение списка это дефект, CLAUDE.md §16).
  */
-export async function listQueue(prisma: PrismaClient, session: SessionPayload, query: QueueQuery = {}) {
+export async function listQueue(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  query: QueueQuery = {}
+) {
   if (!isStaff(session)) return { rows: [], total: 0 };
   const where = queueWhere(session, query);
   const take = Math.min(Math.max(query.take ?? QUEUE_PAGE_SIZE, 1), QUEUE_MAX_TAKE);

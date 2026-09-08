@@ -150,12 +150,7 @@ export function StaffDocumentsPushList({
           className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm"
         >
           <span className="text-gray-700">{`Выбрано: ${selected.size}`}</span>
-          <Button
-            size="sm"
-            onClick={pushSelected}
-            disabled={selected.size === 0}
-            loading={busy}
-          >
+          <Button size="sm" onClick={pushSelected} disabled={selected.size === 0} loading={busy}>
             {busy ? 'Ставлю в очередь…' : 'Выгрузить выбранные в 1С'}
           </Button>
           <Button size="sm" variant="ghost" onClick={selectAll} disabled={busy}>
@@ -170,7 +165,10 @@ export function StaffDocumentsPushList({
       )}
 
       {error && (
-        <div role="alert" className="text-sm text-red-700 bg-red-50 border border-red-100 rounded px-3 py-2">
+        <div
+          role="alert"
+          className="text-sm text-red-700 bg-red-50 border border-red-100 rounded px-3 py-2"
+        >
           {error}
         </div>
       )}

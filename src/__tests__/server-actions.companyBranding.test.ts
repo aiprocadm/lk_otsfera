@@ -68,9 +68,9 @@ describe('гард раздела — в каждом действии', () => {
     await expect(
       setCompanyTaxSettingsAction('leader', fd({ companyId: 'co-1', defaultVatRate: '0.2' }))
     ).rejects.toThrow('REDIRECT:/forbidden');
-    await expect(
-      setCompanyNumberingAction('leader', fd({ companyId: 'co-1' }))
-    ).rejects.toThrow('REDIRECT:/forbidden');
+    await expect(setCompanyNumberingAction('leader', fd({ companyId: 'co-1' }))).rejects.toThrow(
+      'REDIRECT:/forbidden'
+    );
     await expect(
       deleteCompanyBrandingAction('leader', fd({ companyId: 'co-1', slot: 'logo' }))
     ).rejects.toThrow('REDIRECT:/forbidden');
@@ -177,7 +177,10 @@ describe('setCompanyNumberingAction — разбор формы', () => {
       messages: ['Префикс: до 12 символов — буквы, цифры, дефис.'],
     });
     expect(
-      await setCompanyNumberingAction('leader', fd({ companyId: 'co-1', prefixAct: '!'.repeat(13) }))
+      await setCompanyNumberingAction(
+        'leader',
+        fd({ companyId: 'co-1', prefixAct: '!'.repeat(13) })
+      )
     ).toEqual({
       ok: false,
       error: 'validation',

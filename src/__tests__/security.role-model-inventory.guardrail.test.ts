@@ -132,13 +132,14 @@ describe('инвентарь «это менеджер?» — по файлам 
     });
   });
 
-  it("staff-идиома `admin || manager` — точный инвентарь", () => {
+  it('staff-идиома `admin || manager` — точный инвентарь', () => {
     // PR-2 разобрал сессионные идиомы через isStaffManagerSide. Остались три
     // ОСОЗНАННЫЕ — все про БД-роль (user/target, не SessionPayload), все уже
     // расширены третьим слагаемым `|| role === 'leader'` (регэксп ловит первые
     // два): staff-гейт 2FA при логине, staff-секция кодов восстановления в
     // админ-карточке и цель staff-диалога в служебном чате.
-    const RE = /role === 'admin' \|\| [a-zA-Z.]*role === 'manager'|role === 'manager' \|\| [a-zA-Z.]*role === 'admin'/g;
+    const RE =
+      /role === 'admin' \|\| [a-zA-Z.]*role === 'manager'|role === 'manager' \|\| [a-zA-Z.]*role === 'admin'/g;
     const inventory: Record<string, number> = {};
     for (const f of prodFiles()) {
       const n = countMatches(readFileSync(f, 'utf8'), RE);
@@ -156,9 +157,7 @@ describe('инвентарь «это менеджер?» — по файлам 
       'lib/services/staffChat/conversations.ts',
     ]) {
       const src = readFileSync(join(SRC, ...rel.split('/')), 'utf8');
-      expect(src, `${rel}: staff-условие обязано включать 'leader'`).toContain(
-        "role === 'leader'"
-      );
+      expect(src, `${rel}: staff-условие обязано включать 'leader'`).toContain("role === 'leader'");
     }
   });
 });
@@ -201,7 +200,8 @@ describe('суб-роль managerRole удалена окончательно', 
         const t = line.trim();
         // комментарии с историей — не нарушение
         if (t.startsWith('*') || t.startsWith('//') || t.startsWith('/*')) continue;
-        if (CODE_USE.test(line)) offenders.push(`${relative(SRC, f).split(sep).join('/')}:${i + 1}`);
+        if (CODE_USE.test(line))
+          offenders.push(`${relative(SRC, f).split(sep).join('/')}:${i + 1}`);
       }
     }
     expect(offenders, 'суб-роль managerRole вернулась в код').toEqual([]);

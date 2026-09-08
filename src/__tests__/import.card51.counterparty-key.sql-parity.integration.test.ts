@@ -18,9 +18,7 @@ function readMigrationFn(): string {
   const dir = readdirSync(MIGRATIONS_DIR).find((d) => d.endsWith(MIGRATION_SUFFIX));
   if (!dir) throw new Error(`миграция *${MIGRATION_SUFFIX} не найдена в prisma/migrations`);
   const sql = readFileSync(join(MIGRATIONS_DIR, dir, 'migration.sql'), 'utf8');
-  const m = sql.match(
-    /-- counterparty-key-fn-begin\n([\s\S]*?)\n-- counterparty-key-fn-end/
-  );
+  const m = sql.match(/-- counterparty-key-fn-begin\n([\s\S]*?)\n-- counterparty-key-fn-end/);
   if (!m) throw new Error('маркеры counterparty-key-fn-begin/end не найдены в migration.sql');
   return m[1]!;
 }

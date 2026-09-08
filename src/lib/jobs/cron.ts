@@ -29,7 +29,7 @@ const FIELD_RANGES: ReadonlyArray<{ min: number; max: number; name: string }> = 
   { min: 0, max: 7, name: 'день недели' },
 ];
 
-export type CronFields = {
+type CronFields = {
   minutes: number[];
   hours: number[];
   daysOfMonth: number[];
@@ -40,9 +40,7 @@ export type CronFields = {
   dowRestricted: boolean;
 };
 
-export type ParseCronResult =
-  | { ok: true; fields: CronFields }
-  | { ok: false; error: string };
+export type ParseCronResult = { ok: true; fields: CronFields } | { ok: false; error: string };
 
 function parseField(raw: string, index: number): number[] | string {
   const range = FIELD_RANGES[index]!;
@@ -102,7 +100,8 @@ export function parseCron(expression: string): ParseCronResult {
   for (let i = 0; i < 5; i += 1) {
     const res = parseField(parts[i]!, i);
     if (typeof res === 'string') return { ok: false, error: res };
-    if (res.length === 0) return { ok: false, error: `${FIELD_RANGES[i]!.name}: ни одного значения` };
+    if (res.length === 0)
+      return { ok: false, error: `${FIELD_RANGES[i]!.name}: ни одного значения` };
     parsed.push(res);
   }
 
@@ -166,7 +165,11 @@ function partsFormatter(tz: string): Intl.DateTimeFormat {
 
 /** Смещение пояса в миллисекундах для конкретного момента. */
 function zoneOffsetMs(tz: string, at: Date): number {
-  const p = Object.fromEntries(offsetFormatter(tz).formatToParts(at).map((x) => [x.type, x.value]));
+  const p = Object.fromEntries(
+    offsetFormatter(tz)
+      .formatToParts(at)
+      .map((x) => [x.type, x.value])
+  );
   const asUtc = Date.UTC(
     Number(p.year),
     Number(p.month) - 1,
@@ -196,11 +199,12 @@ function wallClockToInstant(
 }
 
 /** Части даты по стенным часам пояса. */
-function wallClockParts(
-  tz: string,
-  at: Date
-): { y: number; m: number; d: number; dow: number } {
-  const p = Object.fromEntries(partsFormatter(tz).formatToParts(at).map((x) => [x.type, x.value]));
+function wallClockParts(tz: string, at: Date): { y: number; m: number; d: number; dow: number } {
+  const p = Object.fromEntries(
+    partsFormatter(tz)
+      .formatToParts(at)
+      .map((x) => [x.type, x.value])
+  );
   const dowMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
   return {
     y: Number(p.year),
@@ -238,12 +242,7 @@ const SEARCH_DAYS = 1500;
  * выражение срабатывает реже, чем раз в четыре года («29 февраля»). Тогда
  * показываем то, что нашли: честнее меньше, чем выдуманная дата.
  */
-export function nextCronRuns(
-  expression: string,
-  tz: string,
-  from: Date,
-  count = 3
-): Date[] {
+export function nextCronRuns(expression: string, tz: string, from: Date, count = 3): Date[] {
   const parsed = parseCron(expression);
   if (!parsed.ok) return [];
   const f = parsed.fields;

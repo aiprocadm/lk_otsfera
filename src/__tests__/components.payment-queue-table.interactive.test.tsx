@@ -512,7 +512,16 @@ describe('PaymentQueueTable — создание организации из о�
       organizationId: 'org-new',
       paymentId: 'pay-1',
     });
-    render(<PaymentQueueTable rows={[row()]}  total={1} take={50} skip={0} basePath="/x" searchParams={{}} />);
+    render(
+      <PaymentQueueTable
+        rows={[row()]}
+        total={1}
+        take={50}
+        skip={0}
+        basePath="/x"
+        searchParams={{}}
+      />
+    );
     fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
 
     const dialog = openDialog();
@@ -543,7 +552,17 @@ describe('PaymentQueueTable — создание организации из о�
       organizationId: 'o',
       paymentId: null,
     });
-    render(<PaymentQueueTable rows={[row()]} companies={COMPANIES}  total={1} take={50} skip={0} basePath="/x" searchParams={{}} />);
+    render(
+      <PaymentQueueTable
+        rows={[row()]}
+        companies={COMPANIES}
+        total={1}
+        take={50}
+        skip={0}
+        basePath="/x"
+        searchParams={{}}
+      />
+    );
     fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
 
     const select = within(openDialog()).getByLabelText(
@@ -571,7 +590,16 @@ describe('PaymentQueueTable — создание организации из о�
       .mockResolvedValueOnce({ json: async () => ({ suggestions: [] }) });
     vi.stubGlobal('fetch', fetchMock);
     try {
-      render(<PaymentQueueTable rows={[row()]}  total={1} take={50} skip={0} basePath="/x" searchParams={{}} />);
+      render(
+        <PaymentQueueTable
+          rows={[row()]}
+          total={1}
+          take={50}
+          skip={0}
+          basePath="/x"
+          searchParams={{}}
+        />
+      );
       fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
 
       fireEvent.click(screen.getByTestId('create-org-dadata'));
@@ -597,7 +625,16 @@ describe('PaymentQueueTable — создание организации из о�
   it('Т-31: сеть упала — подсказка про ручной ввод, форма живёт', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('net down')));
     try {
-      render(<PaymentQueueTable rows={[row()]}  total={1} take={50} skip={0} basePath="/x" searchParams={{}} />);
+      render(
+        <PaymentQueueTable
+          rows={[row()]}
+          total={1}
+          take={50}
+          skip={0}
+          basePath="/x"
+          searchParams={{}}
+        />
+      );
       fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
       fireEvent.click(screen.getByTestId('create-org-dadata'));
       await waitFor(() => expect(openDialog().textContent).toContain('Подсказки недоступны'));
@@ -615,7 +652,16 @@ describe('PaymentQueueTable — создание организации из о�
         organizationId: 'org-new',
         bindError: 'write_skipped',
       });
-    render(<PaymentQueueTable rows={[row()]}  total={1} take={50} skip={0} basePath="/x" searchParams={{}} />);
+    render(
+      <PaymentQueueTable
+        rows={[row()]}
+        total={1}
+        take={50}
+        skip={0}
+        basePath="/x"
+        searchParams={{}}
+      />
+    );
     fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
 
     fireEvent.click(screen.getByTestId('create-org-submit'));
@@ -636,7 +682,16 @@ describe('PaymentQueueTable — создание организации из о�
       organizationId: 'org-new',
       paymentId: 'pay-1',
     });
-    render(<PaymentQueueTable rows={[row()]}  total={1} take={50} skip={0} basePath="/x" searchParams={{}} />);
+    render(
+      <PaymentQueueTable
+        rows={[row()]}
+        total={1}
+        take={50}
+        skip={0}
+        basePath="/x"
+        searchParams={{}}
+      />
+    );
     fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
 
     const dialog = openDialog();
@@ -666,7 +721,16 @@ describe('PaymentQueueTable — создание организации из о�
   });
 
   it('очистка обязательного поля блокирует кнопку создания', () => {
-    render(<PaymentQueueTable rows={[row()]}  total={1} take={50} skip={0} basePath="/x" searchParams={{}} />);
+    render(
+      <PaymentQueueTable
+        rows={[row()]}
+        total={1}
+        take={50}
+        skip={0}
+        basePath="/x"
+        searchParams={{}}
+      />
+    );
     fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
 
     const submit = screen.getByTestId('create-org-submit') as HTMLButtonElement;
@@ -691,7 +755,16 @@ describe('PaymentQueueTable — создание организации из о�
       organizationId: 'org-new',
       paymentId: null,
     });
-    render(<PaymentQueueTable rows={[row({ counterpartyName: null })]}  total={1} take={50} skip={0} basePath="/x" searchParams={{}} />);
+    render(
+      <PaymentQueueTable
+        rows={[row({ counterpartyName: null })]}
+        total={1}
+        take={50}
+        skip={0}
+        basePath="/x"
+        searchParams={{}}
+      />
+    );
     fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
 
     const nameInput = within(openDialog()).getByLabelText('Наименование') as HTMLInputElement;
@@ -715,7 +788,17 @@ describe('PaymentQueueTable — создание организации из о�
       organizationId: 'org-new',
       paymentId: null,
     });
-    render(<PaymentQueueTable rows={[row({ batchCompanyId: null })]} companies={COMPANIES}  total={1} take={50} skip={0} basePath="/x" searchParams={{}} />);
+    render(
+      <PaymentQueueTable
+        rows={[row({ batchCompanyId: null })]}
+        companies={COMPANIES}
+        total={1}
+        take={50}
+        skip={0}
+        basePath="/x"
+        searchParams={{}}
+      />
+    );
     fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
 
     const select = within(openDialog()).getByLabelText(
@@ -736,7 +819,16 @@ describe('PaymentQueueTable — создание организации из о�
   });
 
   it('«Отмена» закрывает диалог создания: экшен не вызван, строка осталась в очереди', async () => {
-    render(<PaymentQueueTable rows={[row()]}  total={1} take={50} skip={0} basePath="/x" searchParams={{}} />);
+    render(
+      <PaymentQueueTable
+        rows={[row()]}
+        total={1}
+        take={50}
+        skip={0}
+        basePath="/x"
+        searchParams={{}}
+      />
+    );
     fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
     expect(within(openDialog()).getByText('Создать организацию и привязать')).toBeTruthy();
 
@@ -749,7 +841,16 @@ describe('PaymentQueueTable — создание организации из о�
 
   it('сеть упала на создании — понятная ошибка', async () => {
     createOrgFromQueueRowAction.mockRejectedValue(new Error('net down'));
-    render(<PaymentQueueTable rows={[row()]}  total={1} take={50} skip={0} basePath="/x" searchParams={{}} />);
+    render(
+      <PaymentQueueTable
+        rows={[row()]}
+        total={1}
+        take={50}
+        skip={0}
+        basePath="/x"
+        searchParams={{}}
+      />
+    );
     fireEvent.click(screen.getAllByTestId('create-org-r1')[0]);
     fireEvent.click(screen.getByTestId('create-org-submit'));
     await waitFor(() => expect(openDialog().textContent).toContain('Сервер недоступен'));

@@ -244,9 +244,9 @@ describe('1C payment import — idempotency (integration)', () => {
     expect(payAfter).toBe(1);
     expect(await prisma.payment.count({ where: { externalId: EXT_NEW_ORG } })).toBe(1);
     // Дубля организации по названию не появилось (дедуп по ключу в компании).
-    expect(
-      await prisma.organization.count({ where: { companyId, nameKey: NEW_ORG_NAME } })
-    ).toBe(1);
+    expect(await prisma.organization.count({ where: { companyId, nameKey: NEW_ORG_NAME } })).toBe(
+      1
+    );
     // PaymentImportRow.externalId @unique → the queue row is updated in place, not re-created.
     const queueAfter = await prisma.paymentImportRow.count({
       where: { externalId: EXT_NO_NAME },

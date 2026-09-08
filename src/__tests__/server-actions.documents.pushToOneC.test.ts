@@ -6,13 +6,14 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { requireSession, revalidatePath, requestDocumentPush, requestDocumentPushMany } =
-  vi.hoisted(() => ({
+const { requireSession, revalidatePath, requestDocumentPush, requestDocumentPushMany } = vi.hoisted(
+  () => ({
     requireSession: vi.fn(),
     revalidatePath: vi.fn(),
     requestDocumentPush: vi.fn(),
     requestDocumentPushMany: vi.fn(),
-  }));
+  })
+);
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireSession }));
 vi.mock('next/cache', () => ({ revalidatePath }));

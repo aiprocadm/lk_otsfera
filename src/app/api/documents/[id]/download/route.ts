@@ -73,5 +73,9 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   // Этап 3 PR-2 (ФТ-6.6): скачивание гасит бейдж «новый» (best-effort внутри).
   await markDocumentViewed(prisma, { documentId: doc.id, userId: s.sub });
 
-  return NextResponse.json({ downloadUrl: signedUrl, expiresInSec: ttl, fileName: doc.downloadName });
+  return NextResponse.json({
+    downloadUrl: signedUrl,
+    expiresInSec: ttl,
+    fileName: doc.downloadName,
+  });
 }
