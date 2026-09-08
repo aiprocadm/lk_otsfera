@@ -8,6 +8,7 @@ import {
   isEmailTemplateKey,
   renderTemplateText,
   validateTemplateText,
+  checkTemplateLength,
 } from '@/lib/email/templateRegistry';
 import { sendNotificationEmail } from '@/lib/email/send';
 import { recordAudit } from '@/lib/auth/audit';
@@ -25,8 +26,10 @@ export type SaveTemplateResult =
   | { ok: true }
   | {
       ok: false;
-      error: 'validation' | 'company_required' | 'unknown_placeholder';
+      error: 'validation' | 'company_required' | 'unknown_placeholder' | 'text_too_long';
       unknown?: string[];
+      /** Для `text_too_long`: какое поле и какой предел (`У-128`). */
+      limit?: { field: 'subject' | 'body'; max: number };
     };
 
 export type ResetTemplateResult =
@@ -130,6 +133,13 @@ export async function saveTemplateAction(
     return resetTemplateAction(cabinet, key);
   }
   if (subject.trim() === '' || body.trim() === '') return { ok: false, error: 'validation' };
+
+  // `У-128`: слишком длинный текст — отказ с понятной причиной, а не запись
+  // произвольного размера в базу и в письмо (хотфикс №22).
+  const length = checkTemplateLength(subject, body);
+  if (!length.ok) {
+    return { ok: false, error: 'text_too_long', limit: { field: length.field, max: length.max } };
+  }
 
   // `У-128`: неизвестная подстановка — отказ сохранить, а не дыра в письме.
   const check = validateTemplateText(key, subject, body);

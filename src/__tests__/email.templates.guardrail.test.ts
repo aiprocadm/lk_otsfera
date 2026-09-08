@@ -121,3 +121,32 @@ describe('У-128: экран заведён и защищён', () => {
     }
   });
 });
+
+describe('`У-128`: длина своего текста ограничена (хотфикс №22)', () => {
+  it('сохранение проверяет длину ДО записи и называет поле', () => {
+    const src = read('server-actions/admin/emailTemplates.ts');
+    expect(src, 'предел длины не проверяется').toContain('checkTemplateLength(');
+    expect(src, 'нет отдельного кода ошибки для длины').toContain("'text_too_long'");
+    // Проверка обязана стоять раньше записи — иначе она ничего не спасает.
+    expect(
+      src.indexOf('checkTemplateLength('),
+      'проверка длины стоит ПОСЛЕ записи в базу'
+    ).toBeLessThan(src.indexOf('notificationTemplate.update('));
+  });
+
+  it('пределы живут в реестре писем, а не переписаны на экране', () => {
+    const registry = read('lib/email/templateRegistry.ts');
+    expect(registry).toMatch(/EMAIL_SUBJECT_MAX\s*=\s*\d+/);
+    expect(registry).toMatch(/EMAIL_BODY_MAX\s*=\s*\d+/);
+    const editor = read('components/settings/email-templates-editor.tsx');
+    expect(editor, 'экран держит свою копию предела — разъедется с сервером').not.toMatch(
+      /максимум\s+\d{3,}/i
+    );
+  });
+
+  it('экран объясняет отказ по-русски, а не показывает код', () => {
+    const editor = read('components/settings/email-templates-editor.tsx');
+    expect(editor).toContain("res.error === 'text_too_long'");
+    expect(editor).toMatch(/слишком длинно/i);
+  });
+});
