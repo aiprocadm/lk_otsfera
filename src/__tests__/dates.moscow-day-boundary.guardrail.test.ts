@@ -30,22 +30,10 @@ const MIDNIGHT = /setHours\(\s*0\s*,\s*0\s*,\s*0/;
 /**
  * Места, где полночь процесса пока осталась, — с причиной у каждого.
  * Список существует, чтобы починка шла хотфиксами по три файла (§9.4), а не
- * одним большим PR; пустеет он по мере прогонов сопровождения.
+ * одним большим PR. Пуст с 08.09.2026 (хотфикс №21 закрыл «дела на сегодня» и
+ * оба дашборда) — и должен таким оставаться.
  */
-const PENDING: Array<{ file: string; why: string }> = [
-  {
-    file: 'src/lib/services/manager/myDay.ts',
-    why: 'Границы «дел на сегодня» у менеджера. Очередь журнала сопровождения: чинится следующим хотфиксом вместе с дашбордами — в один PR по §9.4 помещается не больше трёх файлов бизнес-логики.',
-  },
-  {
-    file: 'src/lib/services/organization/dashboard.ts',
-    why: 'Счётчик истекающих удостоверений на дашборде заказчика. Тот же хотфикс, что и «дела на сегодня»: правка однотипная, но в лимит трёх файлов текущего PR не вошла.',
-  },
-  {
-    file: 'src/lib/services/partner/dashboard.ts',
-    why: 'Счётчик истекающих удостоверений на дашборде партнёра. Тот же хотфикс, что и «дела на сегодня»: правка однотипная, но в лимит трёх файлов текущего PR не вошла.',
-  },
-];
+const PENDING: Array<{ file: string; why: string }> = [];
 
 function sourceFiles(): string[] {
   return execFileSync(
@@ -74,6 +62,9 @@ describe('даты: начало суток — по Москве (`Д-22`)', ()
     for (const f of [
       'src/lib/services/training/certificates.ts',
       'src/lib/services/organization/students.ts',
+      'src/lib/services/manager/myDay.ts',
+      'src/lib/services/organization/dashboard.ts',
+      'src/lib/services/partner/dashboard.ts',
     ]) {
       const src = readFileSync(join(ROOT, f), 'utf8');
       expect(src, `${f}: граница суток не из startOfMoscowDay`).toContain('startOfMoscowDay(');
