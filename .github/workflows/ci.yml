@@ -14,6 +14,14 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Ручной запуск: 13.08.2026 workflow был выключен в настройках репозитория
+  # (`disabled_manually`) и пролежал так почти месяц — PR-ы уезжали в `main`
+  # вообще без серверных проверок, хотя шапка этого файла и `CLAUDE.md` §6
+  # называют его обязательным гейтом. Заметить это было нечем: отключённый
+  # workflow не падает, он просто молчит. Кнопка «Run workflow» нужна, чтобы
+  # состояние гейта можно было проверить в любой момент, не выдумывая пустой
+  # коммит.
+  workflow_dispatch:
 
 # На PR-ветках новый push отменяет устаревший прогон; на main НЕ отменяем —
 # иначе back-to-back мержи оставляют промежуточный коммит без CI-вердикта.
@@ -140,12 +148,14 @@ jobs:
       # Фаза 5: дрейф schema.prisma от каталога миграций (migrate status его
       # не ловит). Пустая shadow-БД на том же service-контейнере.
       - run: PGPASSWORD=postgres createdb -h localhost -U postgres drift_shadow
-      - run: >-
-          npx prisma migrate diff
-          --from-migrations prisma/migrations
-          --to-schema-datamodel prisma/schema.prisma
-          --shadow-database-url postgresql://postgres:postgres@localhost:5432/drift_shadow
-          --exit-code
+      # Не голый `migrate diff --exit-code`: одно ограничение в базе Prisma
+      # выразить не умеет (`ON DELETE SET NULL ("orderId")` у составного ключа
+      # Document→Order). Скрипт держит поимённый список таких исключений с
+      # причиной и падает на всём остальном — иначе пришлось бы выбирать между
+      # вечно красным шагом и полным отказом от проверки дрейфа.
+      - run: npm run schema:drift
+        env:
+          SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/drift_shadow
 
   # Фаза 6 (08.09.2026): правила экранов в CI. До этого 480 браузерных
   # проверок гонялись только руками на стенде — регресс интерфейса мог
@@ -165,7 +175,7 @@ jobs:
   e2e-rules:
     name: e2e · правила экранов
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     services:
       postgres:
         image: postgres:16-alpine
@@ -180,6 +190,19 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      # Экраны «Здоровье системы», «Обмен» и админский дашборд читают состояние
+      # очередей. С мёртвым адресом Redis страница висит на переподключении:
+      # четыре таких экрана не открывались даже за 120 секунд. Живой Redis
+      # дешевле, чем исключать экраны из проверки.
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cabinet
       DIRECT_URL: postgresql://postgres:postgres@localhost:5432/cabinet
@@ -187,6 +210,19 @@ jobs:
       APP_URL: http://localhost:3100
       NEXT_PUBLIC_APP_URL: http://localhost:3100
       ONE_C_ADAPTER: fake
+      # Прод-сборка валидирует окружение строго (`У-132`, серия R0): без этих
+      # переменных `next start` не поднимается вовсе. Значения — заглушки для
+      # CI, не секреты.
+      # NODE_ENV здесь НЕ задаём: с ним `npm ci` пропускает devDependencies и
+      # падает на `prepare` («husky: not found»). Прод-режим включает сам
+      # `next start`.
+      #
+      # Заглушки REDIS_URL и S3_* тоже НЕ здесь, а только на шаге запуска
+      # сервера. Заданный, но мёртвый адрес хуже отсутствующего: `prisma:seed`
+      # транзитивно тянет прод-код (клиенты очередей и хранилища), и с
+      # `redis://localhost:6379`, за которым никого нет, он бесконечно
+      # переподключается — job висел все 30 минут именно на seed, а не на
+      # браузерных проверках. Без переменной клиент не создаётся вовсе.
       # Кабинеты — opt-in флаги; экраны под ними должны быть живыми.
       FEATURE_ORGANIZATION_CABINET: '1'
       FEATURE_MANAGER_CABINET: '1'
@@ -209,6 +245,18 @@ jobs:
       - name: Поднять приложение
         # Без новой зависимости: ждём готовности обычным опросом. Две
         # минуты с запасом — прод-сборка стартует за секунды.
+        env:
+          # Строгая валидация окружения в production (`src/lib/env.ts`, `У-132`,
+          # серия R0) требует эти переменные — без любой сервер не поднимется.
+          # Значения — заглушки; сервисов за ними нет, но сервер к ним и не
+          # ходит: браузерные проверки читают экраны, а не очередь и хранилище.
+          HEALTH_TOKEN: ci-only-health-token-not-a-real-secret-32
+          APP_ENCRYPTION_KEY: ci-only-encryption-key-32-bytes!
+          REDIS_URL: redis://localhost:6379
+          S3_BUCKET: ci-only-bucket
+          S3_ENDPOINT: http://localhost:9000
+          S3_ACCESS_KEY_ID: ci-only-access-key
+          S3_SECRET_ACCESS_KEY: ci-only-secret-key
         run: |
           npx next start -p 3100 &
           for i in $(seq 1 60); do
@@ -221,7 +269,13 @@ jobs:
           echo "приложение не поднялось за 120 секунд" >&2
           exit 1
       - name: Правила экранов и мобильный каркас
-        run: npx playwright test --grep "Правила экранов|каркас"
+        # Таймаут вдвое больше конфигурационного: раннер GitHub (2 ядра)
+        # медленнее стенда, и тяжёлые админские экраны (журнал аудита, доступ
+        # к ПДн, интеграции) не успевали открыться за 60 секунд — семь проверок
+        # падали по `page.goto`, хотя на сервере те же экраны открываются за
+        # секунды. Локальный конфиг не трогаем: там 60 секунд — разумная
+        # граница, за которой начинается настоящая проблема.
+        run: npx playwright test --grep "Правила экранов|каркас" --timeout=120000
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
