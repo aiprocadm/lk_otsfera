@@ -4,6 +4,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { managedOrgIds, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { recordAudit } from '@/lib/auth/audit';
 import { recordPiiAccess } from '@/lib/pii/record';
+import { startOfMoscowDay } from '@/lib/dates/calendar';
 
 type CertificatesError = 'forbidden' | 'not_found' | 'validation';
 type Result<T> = ({ ok: true } & T) | { ok: false; error: CertificatesError };
@@ -85,8 +86,8 @@ const LIST_MAX_TAKE = 200;
  */
 export function certificateStatus(validUntil: Date | null, today: Date): CertificateStatusFilter {
   if (!validUntil) return 'active';
-  const startOfToday = new Date(today);
-  startOfToday.setHours(0, 0, 0, 0);
+  // `Д-22`: сутки считаем по Москве, а не по зоне процесса (сервер в UTC).
+  const startOfToday = startOfMoscowDay(today);
   const days = Math.ceil((validUntil.getTime() - startOfToday.getTime()) / MS_PER_DAY);
   if (days < 0) return 'expired';
   if (days <= EXPIRING_WITHIN_DAYS) return 'expiring';
@@ -98,8 +99,7 @@ export function certificateStatus(validUntil: Date | null, today: Date): Certifi
  * считается от начала текущего дня. `active` включает бессрочные (null).
  */
 function statusWhere(status: CertificateStatusFilter, now: Date): Prisma.CertificateWhereInput {
-  const startOfToday = new Date(now);
-  startOfToday.setHours(0, 0, 0, 0);
+  const startOfToday = startOfMoscowDay(now);
   const horizon = new Date(startOfToday.getTime() + EXPIRING_WITHIN_DAYS * MS_PER_DAY);
   if (status === 'expired') return { validUntil: { not: null, lt: startOfToday } };
   if (status === 'expiring') return { validUntil: { gte: startOfToday, lte: horizon } };

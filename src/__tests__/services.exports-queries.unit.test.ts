@@ -23,6 +23,7 @@ import {
   updateOrgStudentPosition,
 } from '@/lib/services/organization/students';
 import type { SessionPayload } from '@/lib/auth/jwt';
+import { startOfMoscowDay } from '@/lib/dates/calendar';
 
 const SESSION: SessionPayload = {
   sub: 'mgr-1',
@@ -146,9 +147,10 @@ describe('listOrgStudentsForExport', () => {
     expect(res.total).toBe(1);
     const where = groupBy.mock.calls[0]![0].where;
     expect(where.studentId).toEqual({ in: ['s1'] });
-    // граница — начало текущего дня, как у certificateStatus
-    const startOfToday = new Date(now);
-    startOfToday.setHours(0, 0, 0, 0);
+    // Граница — начало МОСКОВСКИХ суток, как у certificateStatus (`Д-22`,
+    // хотфикс №20): сервер живёт в UTC, и полночь процесса указывала бы на
+    // предыдущий день московского календаря.
+    const startOfToday = startOfMoscowDay(now);
     expect(where.OR).toEqual([{ validUntil: null }, { validUntil: { gte: startOfToday } }]);
   });
 

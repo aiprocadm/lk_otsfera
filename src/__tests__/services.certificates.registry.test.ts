@@ -39,8 +39,9 @@ const orgSession = {
 } as never as SessionPayload;
 
 // Фиксированное «сегодня» для детерминированных границ.
-const NOW = new Date('2026-07-24T15:30:00');
-const START = new Date('2026-07-24T00:00:00');
+// Зона явная: границы суток считаются по Москве (`Д-22`, хотфикс №20).
+const NOW = new Date('2026-07-24T15:30:00+03:00');
+const START = new Date('2026-07-24T00:00:00+03:00');
 const HORIZON = new Date(START.getTime() + EXPIRING_WITHIN_DAYS * 24 * 3600 * 1000);
 
 function lastWhere() {
