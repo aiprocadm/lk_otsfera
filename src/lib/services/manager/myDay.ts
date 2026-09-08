@@ -10,6 +10,7 @@ import {
   type OrderForReadiness,
 } from '@/lib/services/manager/orderDelivery';
 import { ONE_DAY_MS } from './dashboard/constants';
+import { startOfMoscowDay } from '@/lib/dates/calendar';
 
 /**
  * Этап 11 PR-2 (Модуль 15, ФТ-15.3) — «Мой день» менеджера.
@@ -47,10 +48,16 @@ export type MyDayData = {
   callsMissed: number;
 };
 
-/** Границы «сегодня» по локальному времени сервера (МСК на стенде). */
+/**
+ * Границы «сегодня» — по московскому календарю (`Д-22`, хотфикс №21).
+ *
+ * Раньше здесь стоял `setHours(0, 0, 0, 0)` с комментарием «локальное время
+ * сервера (МСК на стенде)» — но серверы живут в UTC, и с 00:00 до 03:00 МСК
+ * «сегодня» уезжало на вчерашний день: менеджер в начале ночной смены видел
+ * вчерашние дела.
+ */
 function dayBounds(now: Date): { start: Date; end: Date } {
-  const start = new Date(now);
-  start.setHours(0, 0, 0, 0);
+  const start = startOfMoscowDay(now);
   const end = new Date(start.getTime() + ONE_DAY_MS);
   return { start, end };
 }

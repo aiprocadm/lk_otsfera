@@ -3,6 +3,7 @@ import type { PrismaClient, EnrollmentStatus } from '@prisma/client';
 import { organizationChannelWhere } from '@/lib/auth/documentChannelPolicy';
 import { fmtMoney } from '@/lib/format';
 import { EXPIRING_WITHIN_DAYS } from '@/lib/services/training/certificates';
+import { startOfMoscowDay } from '@/lib/dates/calendar';
 
 export type OrgDashboardKpis = {
   activeOrders: number;
@@ -285,8 +286,8 @@ export async function expiringCertificates(
   organizationId: string,
   now: Date = new Date()
 ): Promise<number> {
-  const startOfToday = new Date(now);
-  startOfToday.setHours(0, 0, 0, 0);
+  // `Д-22`: сутки по Москве — сервер живёт в UTC (хотфикс №21).
+  const startOfToday = startOfMoscowDay(now);
   const horizon = new Date(startOfToday.getTime() + EXPIRING_WITHIN_DAYS * 24 * 3600 * 1000);
   return prisma.certificate.count({
     where: { organizationId, validUntil: { gte: startOfToday, lte: horizon } },
