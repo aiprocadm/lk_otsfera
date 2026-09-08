@@ -200,9 +200,11 @@ jobs:
       # Прод-сборка валидирует окружение строго (`У-132`, серия R0): без этих
       # переменных `next start` не поднимается вовсе. Значения — заглушки для
       # CI, не секреты.
-      NODE_ENV: production
-      # Полный набор обязательных в production (`src/lib/env.ts`): без любой из
-      # них `next start` не поднимется. Все значения — заглушки для CI.
+      # NODE_ENV здесь НЕ задаём: с ним `npm ci` пропускает devDependencies и
+      # падает на `prepare` («husky: not found»). Прод-режим включает сам
+      # `next start`, а переменные ниже — то, что требует строгая валидация
+      # окружения в production (`src/lib/env.ts`, `У-132`, серия R0): без любой
+      # из них сервер не поднимется. Все значения — заглушки для CI.
       HEALTH_TOKEN: ci-only-health-token-not-a-real-secret-32
       APP_ENCRYPTION_KEY: ci-only-encryption-key-32-bytes!
       REDIS_URL: redis://localhost:6379
