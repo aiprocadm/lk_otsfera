@@ -129,12 +129,7 @@ function endsWithId(orderBy: string): boolean {
  * №25, №26, №28 и №29; остальные семь ждут следующих прогонов. Список только сокращается:
  * добавлять сюда новое нельзя.
  */
-const QUEUE: ReadonlyArray<string> = [
-  'organization/orgCardEmployees.ts',
-  'telephony/listCalls.ts',
-  'admin/commissionStatements.ts',
-  'import/oneCAccountCard/resolve-queue.ts',
-];
+const QUEUE: ReadonlyArray<string> = ['import/oneCAccountCard/resolve-queue.ts'];
 
 describe('С-8: постраничный список листается устойчиво', () => {
   const files = walk(SERVICES);
@@ -182,7 +177,7 @@ describe('С-8: постраничный список листается уст�
     expect(fixed, `уже починены, убери из очереди: ${fixed.join(', ')}`).toEqual([]);
   });
 
-  it('места, закрытые хотфиксами №25, №26, №28, №29 и №30, разбираются стражем как устойчивые', () => {
+  it('места, закрытые хотфиксами №25, №26, №28–№31, разбираются стражем как устойчивые', () => {
     const fixedNow = [
       'training/certificates.ts',
       'partner/portfolio.ts',
@@ -199,6 +194,9 @@ describe('С-8: постраничный список листается уст�
       'admin/organizations.ts',
       'admin/partners.ts',
       'admin/users/queries.ts',
+      'organization/orgCardEmployees.ts',
+      'telephony/listCalls.ts',
+      'admin/commissionStatements.ts',
     ];
     const still = fixedNow.filter((rel) => unstable(join(SERVICES, rel)).length > 0);
     expect(still, still.join(', ')).toEqual([]);

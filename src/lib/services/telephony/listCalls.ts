@@ -75,7 +75,9 @@ export async function listCalls(
     prisma.call.findMany({
       where,
       select: CALL_SELECT,
-      orderBy: { createdAt: 'desc' },
+      // Хвост `id` обязателен (хотфикс №25): записи о звонках приходят пачкой
+      // от телефонии и получают общий `createdAt`.
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),

@@ -63,7 +63,9 @@ export async function listOrgCardEmployees(
   const [rows, total] = await Promise.all([
     prisma.student.findMany({
       where,
-      orderBy: [{ name: 'asc' }],
+      // Хвост `id` обязателен (хотфикс №25): полные тёзки среди сотрудников —
+      // не редкость, а при равных именах порядок страниц не определён.
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
       take,
       skip,
       select: {
