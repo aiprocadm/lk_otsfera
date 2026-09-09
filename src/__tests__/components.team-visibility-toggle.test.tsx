@@ -57,6 +57,19 @@ describe('TeamVisibilityToggle', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Выключено' }));
     await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
 
+    // Кнопка блокируется на время отправки (`disabled={pending}`), а сообщение
+    // об ошибке и снятие блокировки — два разных коммита React: между ними есть
+    // окно, где текст ошибки уже виден, а кнопка ещё не нажимается. Клик в это
+    // окно просто теряется, сообщение остаётся, и тест падает по таймауту — не
+    // потому что экран сломан, а потому что тест торопится. На нагруженной
+    // машине окно шире: без этого ожидания 1 падение на 12 прогонов локально и
+    // красный CI на ровном месте (`С-1` от 09.09.2026, прогон №18).
+    await waitFor(() =>
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Выключено' }).disabled).toBe(
+        false
+      )
+    );
+
     fireEvent.click(screen.getByRole('button', { name: 'Выключено' }));
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
   });
