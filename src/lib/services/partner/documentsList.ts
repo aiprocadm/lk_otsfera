@@ -56,7 +56,9 @@ export async function listPartnerDocuments(
     prisma.document.count({ where: docWhere }),
     prisma.document.findMany({
       where: docWhere,
-      orderBy: [{ createdAt: 'desc' }],
+      // Хвост `id` обязателен (хотфикс №25): пачка документов одного заказа
+      // выпускается одной транзакцией и получает общий `createdAt`.
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: filter.take,
       skip: filter.skip,
       select: {

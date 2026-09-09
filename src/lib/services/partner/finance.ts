@@ -104,7 +104,10 @@ export async function listStatements(
 
   const rows = await prisma.commissionStatement.findMany({
     where: statementsWhere(opts),
-    orderBy: { periodFrom: 'desc' },
+    // Хвост `id` обязателен (хотфикс №25): `periodFrom` — начало периода,
+    // у всех отчётов одного месяца оно одинаковое по определению, так что без
+    // хвоста порядок страниц не определён вовсе.
+    orderBy: [{ periodFrom: 'desc' }, { id: 'desc' }],
     skip,
     take,
     select: {
