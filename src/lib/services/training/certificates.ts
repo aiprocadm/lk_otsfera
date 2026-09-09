@@ -166,7 +166,12 @@ export async function listCertificates(
     prisma.certificate.findMany({
       where,
       include: CERT_INCLUDE,
-      orderBy: { issuedAt: 'desc' },
+      // Хвост `id` обязателен: `issuedAt` — дата выдачи, у пачки удостоверений
+      // одного заказа она одна и та же, а PostgreSQL при равных ключах порядок
+      // не обещает и на разных страницах выдаёт разный (top-N heapsort зависит
+      // от LIMIT/OFFSET). Без хвоста одно удостоверение показывалось на двух
+      // страницах, а другое не показывалось вовсе.
+      orderBy: [{ issuedAt: 'desc' }, { id: 'desc' }],
       ...pagination,
     }),
     prisma.certificate.count({ where }),

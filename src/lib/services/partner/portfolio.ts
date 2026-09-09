@@ -40,7 +40,9 @@ export async function listPortfolio(
     prisma.organization.count({ where }),
     prisma.organization.findMany({
       where,
-      orderBy: { name: 'asc' },
+      // Хвост `id` обязателен: организации-тёзки в портфеле — обычное дело, а
+      // при равных ключах порядок страниц у PostgreSQL не определён.
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
       take: filters.take,
       skip: filters.skip,
       select: {

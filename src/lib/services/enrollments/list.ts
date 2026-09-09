@@ -99,7 +99,12 @@ export async function listEnrollmentRequests(
 
   const rows = await prisma.enrollmentRequest.findMany({
     where: { AND: and },
-    orderBy: { createdAt: 'desc' },
+    // Хвост `id` обязателен: заявки, созданные пачкой в одной транзакции,
+    // получают ОДИН И ТОТ ЖЕ `createdAt` (умолчание — `CURRENT_TIMESTAMP`,
+    // то есть время начала транзакции). Листание идёт по курсору `id`, и без
+    // хвоста соседи с той же секундой встают вокруг курсора как попало —
+    // часть заявок пропускается, часть повторяется на следующей странице.
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: take + 1,
     ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
     include: {
