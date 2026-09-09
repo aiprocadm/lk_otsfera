@@ -57,7 +57,9 @@ export async function listPartners(
   const [partners, total] = await Promise.all([
     prisma.partner.findMany({
       where,
-      orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
+      // Хвост `id` обязателен (хотфикс №25): и признак активности, и название
+      // повторяются у многих партнёров сразу.
+      orderBy: [{ isActive: 'desc' }, { name: 'asc' }, { id: 'asc' }],
       take,
       skip,
     }),

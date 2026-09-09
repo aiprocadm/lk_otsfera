@@ -178,7 +178,9 @@ export async function listUsers(
           include: { organization: { select: { name: true } } },
         },
       },
-      orderBy: [{ isActive: 'desc' }, { createdAt: 'desc' }],
+      // Хвост `id` обязателен (хотфикс №25): признак активности повторяется
+      // почти у всех, а `createdAt` совпадает у пачки заведённых разом людей.
+      orderBy: [{ isActive: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
       take,
       skip,
     }),
