@@ -72,7 +72,9 @@ export async function listOrgStudents(
     prisma.student.count({ where }),
     prisma.student.findMany({
       where,
-      orderBy: [{ createdAt: 'desc' }],
+      // Хвост `id` обязателен (хотфикс №25): слушатели заводятся списком из
+      // файла — вся пачка получает один `createdAt`.
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take,
       skip,
       select: {

@@ -93,7 +93,9 @@ export async function listOrgDocuments(
     prisma.document.count({ where: filteredWhere }),
     prisma.document.findMany({
       where: filteredWhere,
-      orderBy: [{ createdAt: 'desc' }],
+      // Хвост `id` обязателен (хотфикс №25): пачка документов одного заказа
+      // выпускается одной транзакцией и получает общий `createdAt`.
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take,
       skip,
       select: {
