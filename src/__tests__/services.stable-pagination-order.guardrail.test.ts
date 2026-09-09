@@ -125,14 +125,11 @@ function endsWithId(orderBy: string): boolean {
 /**
  * Постраничные выборки, оставшиеся с неустойчивым порядком, — очередь журнала
  * сопровождения (`С-8` от 09.09.2026). Лимит §9.4 — три файла бизнес-логики на
- * хотфикс, поэтому за прогон №18 закрыты шесть мест двумя хотфиксами (№25 и
- * №26); остальные ждут следующих прогонов. Список только сокращается:
+ * хотфикс, поэтому за прогоны №18 и №19 закрыты девять мест хотфиксами №25,
+ * №26 и №28; остальные ждут следующих прогонов. Список только сокращается:
  * добавлять сюда новое нельзя.
  */
 const QUEUE: ReadonlyArray<string> = [
-  'partner/orders.ts',
-  'partner/documentsList.ts',
-  'partner/finance.ts',
   'organization/orgCardEmployees.ts',
   'clientRequests/list.ts',
   'manager/leads.ts',
@@ -191,7 +188,7 @@ describe('С-8: постраничный список листается уст�
     expect(fixed, `уже починены, убери из очереди: ${fixed.join(', ')}`).toEqual([]);
   });
 
-  it('места, закрытые хотфиксами №25 и №26, разбираются стражем как устойчивые', () => {
+  it('места, закрытые хотфиксами №25, №26 и №28, разбираются стражем как устойчивые', () => {
     const fixedNow = [
       'training/certificates.ts',
       'partner/portfolio.ts',
@@ -199,6 +196,9 @@ describe('С-8: постраничный список листается уст�
       'organization/orders.ts',
       'organization/documents.ts',
       'organization/students.ts',
+      'partner/orders.ts',
+      'partner/documentsList.ts',
+      'partner/finance.ts',
     ];
     const still = fixedNow.filter((rel) => unstable(join(SERVICES, rel)).length > 0);
     expect(still, still.join(', ')).toEqual([]);

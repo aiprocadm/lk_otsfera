@@ -63,7 +63,9 @@ export async function listPartnerOrders(
     prisma.order.count({ where }),
     prisma.order.findMany({
       where,
-      orderBy: [{ createdAt: 'desc' }],
+      // Хвост `id` обязателен (хотфикс №25): заявки партнёра приезжают пачкой
+      // из одного импорта и имеют общий `createdAt`.
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: filter.take,
       skip: filter.skip,
       select: {
