@@ -13,7 +13,7 @@ import path from 'node:path';
  * `@prisma/config`. Секция `overrides` в `package.json` поднимает их до
  * безопасных, мажоры остаются на месте.
  *
- * Страж читает `package-lock.json`: ни одна установленная копия этих трёх
+ * Страж читает `package-lock.json`: ни одна установленная копия этих
  * пакетов (в любой глубине `node_modules/**`) не ниже безопасного порога, и
  * сами `overrides` на месте — иначе следующий `npm install` их вернёт.
  */
@@ -25,6 +25,12 @@ const FLOORS: Record<string, string> = {
   postcss: '8.5.23', // GHSA: уязвимы <=8.5.22
   uuid: '11.1.1', // GHSA-w5hq-g745-h8pq: уязвимы <11.1.1
   'deepmerge-ts': '8.0.0', // GHSA-ggr8-5vv4-36mx: уязвимы <8
+  // Хотфикс №24 (09.09.2026): `imapflow@1.5.0` держит у себя `nodemailer@9.0.3`.
+  // GHSA-2x7j-588g-ccc2 — разбор списка адресов во входящем письме квадратичен
+  // по длине: письмо с составленным списком адресов вешает разбор «Входящих».
+  // Рядом GHSA-wmmp-3585-3rmp и GHSA-cc9r-2j5m-2m83 — обход проверки домена
+  // получателя (IDN/Punycode и комментарии RFC 5322). Уязвимы `<=9.1.0`.
+  nodemailer: '9.1.1',
 };
 
 function parse(v: string): number[] {
@@ -48,7 +54,7 @@ describe('С-9/В-2: overrides держат транзитивные завис�
     packages: Record<string, { version?: string }>;
   };
 
-  it('в package.json есть override для каждого из трёх пакетов', () => {
+  it('в package.json есть override для каждого из пакетов списка', () => {
     const missing = Object.keys(FLOORS).filter((name) => !pkg.overrides?.[name]);
     expect(missing, missing.join(', ')).toEqual([]);
   });
