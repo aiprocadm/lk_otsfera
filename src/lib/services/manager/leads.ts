@@ -71,7 +71,10 @@ export async function listManagerLeads(
 
   const rows = await prisma.lead.findMany({
     where,
-    orderBy: { createdAt: 'desc' },
+    // Хвост `id` обязателен (хотфикс №25): листание идёт КУРСОРОМ по `id`, и
+    // при равных `createdAt` соседи встают вокруг курсора как попало — часть
+    // обращений пропускается, часть повторяется на следующей странице.
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: take + 1,
     ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
     include: {

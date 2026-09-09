@@ -99,7 +99,9 @@ export async function listClientRequests(
     where: {
       AND: [clientRequestScopeWhere(session), ...(opts.status ? [{ status: opts.status }] : [])],
     },
-    orderBy: { createdAt: 'desc' },
+    // Хвост `id` обязателен (хотфикс №25): обращения приходят пачками (форма
+    // на сайте, разбор почты), и `createdAt` у пачки совпадает.
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: take + 1,
     ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
     include: ROW_INCLUDE,

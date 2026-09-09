@@ -125,15 +125,12 @@ function endsWithId(orderBy: string): boolean {
 /**
  * Постраничные выборки, оставшиеся с неустойчивым порядком, — очередь журнала
  * сопровождения (`С-8` от 09.09.2026). Лимит §9.4 — три файла бизнес-логики на
- * хотфикс, поэтому за прогоны №18 и №19 закрыты девять мест хотфиксами №25,
- * №26 и №28; остальные ждут следующих прогонов. Список только сокращается:
+ * хотфикс, поэтому за прогоны №18 и №19 закрыты двенадцать мест хотфиксами
+ * №25, №26, №28 и №29; остальные семь ждут следующих прогонов. Список только сокращается:
  * добавлять сюда новое нельзя.
  */
 const QUEUE: ReadonlyArray<string> = [
   'organization/orgCardEmployees.ts',
-  'clientRequests/list.ts',
-  'manager/leads.ts',
-  'inbound/listInbox.ts',
   'telephony/listCalls.ts',
   'admin/organizations.ts',
   'admin/partners.ts',
@@ -188,7 +185,7 @@ describe('С-8: постраничный список листается уст�
     expect(fixed, `уже починены, убери из очереди: ${fixed.join(', ')}`).toEqual([]);
   });
 
-  it('места, закрытые хотфиксами №25, №26 и №28, разбираются стражем как устойчивые', () => {
+  it('места, закрытые хотфиксами №25, №26, №28 и №29, разбираются стражем как устойчивые', () => {
     const fixedNow = [
       'training/certificates.ts',
       'partner/portfolio.ts',
@@ -199,6 +196,9 @@ describe('С-8: постраничный список листается уст�
       'partner/orders.ts',
       'partner/documentsList.ts',
       'partner/finance.ts',
+      'clientRequests/list.ts',
+      'manager/leads.ts',
+      'inbound/listInbox.ts',
     ];
     const still = fixedNow.filter((rel) => unstable(join(SERVICES, rel)).length > 0);
     expect(still, still.join(', ')).toEqual([]);

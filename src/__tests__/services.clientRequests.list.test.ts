@@ -97,7 +97,9 @@ describe('listClientRequests', () => {
     const args = findMany.mock.calls[0][0];
     expect(args.where).toEqual({ AND: [{}] });
     expect(args.take).toBe(21);
-    expect(args.orderBy).toEqual({ createdAt: 'desc' });
+    // Хвост `id` — устойчивость листания (хотфикс №29): у обращений одной
+    // пачки `createdAt` совпадает, и без второго ключа страницы «дышат».
+    expect(args.orderBy).toEqual([{ createdAt: 'desc' }, { id: 'desc' }]);
     expect(args.cursor).toBeUndefined();
   });
 

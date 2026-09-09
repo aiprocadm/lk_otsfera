@@ -75,7 +75,9 @@ export async function listInbox(
     prisma.inboundMessage.findMany({
       where,
       select: INBOX_SELECT,
-      orderBy: { createdAt: 'desc' },
+      // Хвост `id` обязателен (хотфикс №25): письма разбираются пачкой за один
+      // заход почтового обхода и получают общий `createdAt`.
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
