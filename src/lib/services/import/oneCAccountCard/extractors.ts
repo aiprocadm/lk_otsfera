@@ -176,7 +176,16 @@ export function extractVat(
     purpose.match(/НДС\s*\(?\s*(\d{1,2})\s*%/i) ?? purpose.match(/(\d{1,2})\s*%\s*НДС/i);
   if (rateMatch && amount != null) {
     const rate = Number(rateMatch[1]);
-    if (rate > 0) return Math.round(((amount * rate) / (100 + rate)) * 100) / 100;
+    // Считаем В КОПЕЙКАХ. В рублях эта же формула ошибается на копейку у
+    // каждого 35-го платежа: `amount * rate / (100 + rate)` в двоичной дроби
+    // чуть-чуть не дотягивает до половины копейки, и округление уводит вниз
+    // (например, 89 323,59 ₽ при 20 % → 14 887,26 вместо 14 887,27). Для
+    // разбора выписки это не мелочь: бухгалтер сверяет НДС с 1С по копейке.
+    // Приём в проекте уже принят — см. `toKopecks` в `documents/invoicePayment.ts`.
+    if (rate > 0) {
+      const amountKopecks = Math.round(amount * 100);
+      return Math.round((amountKopecks * rate) / (100 + rate)) / 100;
+    }
   }
   return null;
 }
