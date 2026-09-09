@@ -261,13 +261,16 @@ describe('listQueue: страницы, счётчик, фильтры, сорт�
   });
 
   it('сортировка по дате платежа, сумме и контрагенту', async () => {
+    // Хвост `id` — устойчивость листания (хотфикс №32): сумма, дата платежа и
+    // контрагент повторяются у строк одной выписки сплошь и рядом, а
+    // `createdAt` у всей загруженной пачки один и тот же.
     const date = qdb();
     await listQueue(date.prisma, session, { sort: 'date' });
-    expect(date.findMany.mock.calls[0]![0].orderBy).toEqual({ paidAt: 'desc' });
+    expect(date.findMany.mock.calls[0]![0].orderBy).toEqual([{ paidAt: 'desc' }, { id: 'asc' }]);
 
     const amount = qdb();
     await listQueue(amount.prisma, session, { sort: 'amount', dir: 'asc' });
-    expect(amount.findMany.mock.calls[0]![0].orderBy).toEqual({ amount: 'asc' });
+    expect(amount.findMany.mock.calls[0]![0].orderBy).toEqual([{ amount: 'asc' }, { id: 'asc' }]);
 
     // По контрагенту сортируем по КЛЮЧУ: «ООО «Ромашка»» и «РОМАШКА, ООО» —
     // один контрагент, и в списке они обязаны стоять рядом (группировка UI).
@@ -276,6 +279,7 @@ describe('listQueue: страницы, счётчик, фильтры, сорт�
     expect(cp.findMany.mock.calls[0]![0].orderBy).toEqual([
       { counterpartyKey: 'asc' },
       { paidAt: 'desc' },
+      { id: 'asc' },
     ]);
   });
 
