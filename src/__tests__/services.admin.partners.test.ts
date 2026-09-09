@@ -151,14 +151,20 @@ describe('listPartners()', () => {
     expect(findMany.mock.calls[0][0].skip).toBe(10);
   });
 
-  it('orderBy is [isActive desc, name asc]', async () => {
+  it('orderBy is [isActive desc, name asc, id asc]', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const count = vi.fn().mockResolvedValue(0);
     const prisma = makePrisma({ partner: { findMany, count } });
 
     await listPartners(prisma, {});
 
-    expect(findMany.mock.calls[0][0].orderBy).toEqual([{ isActive: 'desc' }, { name: 'asc' }]);
+    // Хвост `id` — устойчивость листания (хотфикс №30): и признак активности,
+    // и название повторяются у многих партнёров сразу.
+    expect(findMany.mock.calls[0][0].orderBy).toEqual([
+      { isActive: 'desc' },
+      { name: 'asc' },
+      { id: 'asc' },
+    ]);
   });
 
   it('maps a partner row: nonzero commissionRate is preserved as number', async () => {

@@ -62,7 +62,9 @@ export async function listOrganizations(
         partner: { select: { id: true, name: true } },
         _count: { select: { orders: true, organizationUsers: true } },
       },
-      orderBy: { name: 'asc' },
+      // Хвост `id` обязателен (хотфикс №25): организации-тёзки в базе платформы
+      // — обычное дело, а при равных ключах порядок страниц не определён.
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
       take,
       skip,
     }),

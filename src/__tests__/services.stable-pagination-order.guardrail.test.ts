@@ -132,9 +132,6 @@ function endsWithId(orderBy: string): boolean {
 const QUEUE: ReadonlyArray<string> = [
   'organization/orgCardEmployees.ts',
   'telephony/listCalls.ts',
-  'admin/organizations.ts',
-  'admin/partners.ts',
-  'admin/users/queries.ts',
   'admin/commissionStatements.ts',
   'import/oneCAccountCard/resolve-queue.ts',
 ];
@@ -185,7 +182,7 @@ describe('С-8: постраничный список листается уст�
     expect(fixed, `уже починены, убери из очереди: ${fixed.join(', ')}`).toEqual([]);
   });
 
-  it('места, закрытые хотфиксами №25, №26, №28 и №29, разбираются стражем как устойчивые', () => {
+  it('места, закрытые хотфиксами №25, №26, №28, №29 и №30, разбираются стражем как устойчивые', () => {
     const fixedNow = [
       'training/certificates.ts',
       'partner/portfolio.ts',
@@ -199,6 +196,9 @@ describe('С-8: постраничный список листается уст�
       'clientRequests/list.ts',
       'manager/leads.ts',
       'inbound/listInbox.ts',
+      'admin/organizations.ts',
+      'admin/partners.ts',
+      'admin/users/queries.ts',
     ];
     const still = fixedNow.filter((rel) => unstable(join(SERVICES, rel)).length > 0);
     expect(still, still.join(', ')).toEqual([]);
