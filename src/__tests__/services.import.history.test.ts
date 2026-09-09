@@ -20,11 +20,26 @@ import { listExchangeHistory, CHANNEL_LABEL } from '@/lib/services/import/histor
 
 const session = { sub: 'u1', role: 'admin' } as never;
 
+/**
+ * Даты фикстур — ОТНОСИТЕЛЬНЫЕ, и это принципиально.
+ *
+ * Раньше здесь стояли абсолютные даты августа 2026. Пока они были свежими,
+ * тест проходил; 09.09.2026 разница до «сегодня» перевалила за окно отката
+ * (30 дней, `Т-40`), и тест упал с `expected 'expired' to be 'available'` —
+ * ровно в тот день, когда ни продукт, ни тест никто не трогал. Красный CI на
+ * ровном месте хуже, чем отсутствие проверки: его начинают пролистывать.
+ *
+ * Порядок «свежие сверху» задаётся расстоянием между этими датами, а
+ * доступность отката — расстоянием до «сейчас», поэтому обе величины и заданы
+ * в днях назад, а не календарём.
+ */
+const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
+
 function db(over: Record<string, unknown> = {}) {
   const excel = vi.fn().mockResolvedValue([
     {
       id: 'e1',
-      createdAt: new Date('2026-08-10T10:00:00.000Z'),
+      createdAt: daysAgo(2),
       fileName: 'organizations.xlsx',
       status: 'committed',
       counts: { created: 3, updated: 1, skipped: 0 },
@@ -35,7 +50,7 @@ function db(over: Record<string, unknown> = {}) {
   const statement = vi.fn().mockResolvedValue([
     {
       id: 's1',
-      createdAt: new Date('2026-08-11T10:00:00.000Z'),
+      createdAt: daysAgo(1),
       fileName: 'Карточка счета 51.xls',
       status: 'committed',
       counts: { totalRows: 327, imported: 129 },
@@ -46,7 +61,7 @@ function db(over: Record<string, unknown> = {}) {
   const autoRows = [
     {
       id: 'a1',
-      createdAt: new Date('2026-08-09T10:00:00.000Z'),
+      createdAt: daysAgo(3),
       entity: 'organization',
       operation: 'pull',
       status: 'success',
@@ -58,7 +73,7 @@ function db(over: Record<string, unknown> = {}) {
   const documentRows = [
     {
       id: 'd1',
-      createdAt: new Date('2026-08-08T10:00:00.000Z'),
+      createdAt: daysAgo(4),
       status: 'warn',
       operation: 'export',
       errorMessage: null,
@@ -373,7 +388,7 @@ describe('listExchangeHistory (У-48)', () => {
   });
 
   it('выписка без автора и одинаковые даты не ломают список', async () => {
-    const same = new Date('2026-08-11T10:00:00.000Z');
+    const same = daysAgo(1);
     const { prisma } = db({
       paymentImportBatch: {
         findMany: vi.fn().mockResolvedValue([
@@ -433,7 +448,7 @@ describe('listExchangeHistory (У-48)', () => {
         findMany: vi.fn().mockResolvedValue([
           {
             id: 'a2',
-            createdAt: new Date('2026-08-09T10:00:00.000Z'),
+            createdAt: daysAgo(3),
             entity: 'widget',
             operation: 'sideload',
             status: 'warn',
