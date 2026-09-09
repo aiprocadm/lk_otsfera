@@ -39,7 +39,9 @@ export async function listAdminStatements(
 
   const rows = await prisma.commissionStatement.findMany({
     where,
-    orderBy: [{ status: 'asc' }, { periodFrom: 'desc' }],
+    // Хвост `id` обязателен (хотфикс №25): статус повторяется почти у всех, а
+    // `periodFrom` у всех отчётов одного месяца одинаков по определению.
+    orderBy: [{ status: 'asc' }, { periodFrom: 'desc' }, { id: 'desc' }],
     skip,
     take,
     include: {
