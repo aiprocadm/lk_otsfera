@@ -42,15 +42,19 @@ export type QueueQuery = {
 export const QUEUE_PAGE_SIZE = 50;
 const QUEUE_MAX_TAKE = 200;
 
+/**
+ * Порядок очереди по выбору человека. Всегда МАССИВ: хвост `id` подставляет
+ * вызывающий, и без единого вида вернуть его было бы некуда.
+ */
 function queueOrderBy(q: QueueQuery) {
   const dir = q.dir ?? 'desc';
-  if (q.sort === 'amount') return { amount: dir };
-  if (q.sort === 'date') return { paidAt: dir };
+  if (q.sort === 'amount') return [{ amount: dir }];
+  if (q.sort === 'date') return [{ paidAt: dir }];
   // По контрагенту сортируем по КЛЮЧУ (`У-83`): варианты написания одного
   // названия обязаны встать рядом, иначе группировка в UI разъедется.
   if (q.sort === 'counterparty')
     return [{ counterpartyKey: q.dir ?? 'asc' }, { paidAt: 'desc' as const }];
-  return { createdAt: dir };
+  return [{ createdAt: dir }];
 }
 
 function queueWhere(session: SessionPayload, q: QueueQuery) {
@@ -83,7 +87,12 @@ export async function listQueue(
   const [rows, total] = await Promise.all([
     prisma.paymentImportRow.findMany({
       where,
-      orderBy: queueOrderBy(query),
+      // Хвост `id` обязателен (хотфикс №25): любая из колонок сортировки
+      // повторяется у строк одной выписки — сумма, дата платежа и контрагент
+      // совпадают сплошь и рядом, а `createdAt` у всей загруженной пачки один
+      // и тот же. Без хвоста человек разбирал бы одну строку дважды, а другую
+      // не увидел бы вовсе.
+      orderBy: [...queueOrderBy(query), { id: 'asc' as const }],
       take,
       skip,
       select: {
