@@ -87,7 +87,10 @@ export async function listOrgOrders(
     prisma.order.count({ where }),
     prisma.order.findMany({
       where,
-      orderBy: [{ createdAt: 'desc' }],
+      // Хвост `id` обязателен (хотфикс №25): заказы, созданные пачкой в одной
+      // транзакции (импорт из 1С, принятие нескольких КП), имеют один и тот же
+      // `createdAt`, а при равных ключах PostgreSQL порядок страниц не обещает.
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take,
       skip,
       select: {
