@@ -128,6 +128,20 @@ describe('AddStudentDialog', () => {
     ).toBeTruthy();
   });
 
+  // Страж хотфикса №36: занятая почта — отдельный понятный текст, а не общее
+  // «попробуйте ещё раз» и не падение диалога.
+  it('занятая почта названа прямо: что случилось и что делать', async () => {
+    createStudentAction.mockResolvedValueOnce({ ok: false, error: 'email_taken' });
+    const form = openDialog();
+    fillName(form);
+    fireEvent.submit(form);
+    expect(
+      await screen.findByText(
+        'Эта почта уже указана у другого сотрудника организации. Укажите другую или оставьте поле пустым.'
+      )
+    ).toBeTruthy();
+  });
+
   it('«Отмена» закрывает диалог, а во время сохранения — нет', async () => {
     // Definite assignment: присваивание происходит внутри колбэка Promise,
     // TS этого не видит и без «!» сужает тип до null.

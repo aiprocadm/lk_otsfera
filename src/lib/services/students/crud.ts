@@ -14,7 +14,7 @@ import { findDuplicates, type DuplicateCandidate, type DuplicateMatch } from './
  * Контракт — стабильный Result (CLAUDE.md §3), права — в сервисе (§4).
  */
 export type StudentError =
-  'forbidden' | 'not_found' | 'validation' | 'duplicate_found' | 'org_not_found';
+  'forbidden' | 'not_found' | 'validation' | 'duplicate_found' | 'org_not_found' | 'email_taken';
 
 export type StudentInput = {
   name: string;
@@ -64,6 +64,18 @@ function data(input: StudentInput) {
   };
 }
 
+/**
+ * Ошибка уникальности по почте сотрудника (`P2002` на `organizationId,email`).
+ * `meta.target` у Postgres приходит то списком полей, то именем ограничения,
+ * поэтому сводим к строке. Другое уникальное поле не маскируем — пробрасываем.
+ */
+function isEmailTaken(e: unknown): boolean {
+  if (!e || typeof e !== 'object' || (e as { code?: string }).code !== 'P2002') return false;
+  const target = (e as { meta?: { target?: unknown } }).meta?.target;
+  const asText = Array.isArray(target) ? target.join(',') : String(target ?? '');
+  return /email/i.test(asText);
+}
+
 export async function createStudent(
   prisma: PrismaClient,
   session: SessionPayload,
@@ -91,10 +103,20 @@ export async function createStudent(
     if (dup) return { ok: false, error: 'duplicate_found', ...dup };
   }
 
-  const created = await prisma.student.create({
-    data: { ...data(args), organizationId: args.organizationId },
-    select: { id: true, name: true },
-  });
+  // Почта уникальна в пределах организации (`@@unique([organizationId, email])`,
+  // `У-21`), а поиск дублей (`У-22`) сравнивает ФИО + почту. Значит тёзка не
+  // найдётся, а база запись не пустит: без разбора `P2002` человек видел
+  // падение вместо текста. Сюда же попадает «Всё равно добавить» при дубле.
+  let created: { id: string; name: string };
+  try {
+    created = await prisma.student.create({
+      data: { ...data(args), organizationId: args.organizationId },
+      select: { id: true, name: true },
+    });
+  } catch (e) {
+    if (isEmailTaken(e)) return { ok: false, error: 'email_taken' };
+    throw e;
+  }
 
   await recordAudit(prisma, {
     userId: session.sub,
@@ -125,7 +147,13 @@ export async function updateStudent(
   const valid = validate(args);
   if (!valid.ok) return { ok: false, error: 'validation', messages: valid.messages };
 
-  await prisma.student.update({ where: { id: args.id }, data: data(args) });
+  try {
+    await prisma.student.update({ where: { id: args.id }, data: data(args) });
+  } catch (e) {
+    // Та же уникальность, что и при создании: правка почты на занятую.
+    if (isEmailTaken(e)) return { ok: false, error: 'email_taken' };
+    throw e;
+  }
 
   await recordAudit(prisma, {
     userId: session.sub,
