@@ -316,6 +316,9 @@ export async function createPartnerWithAdmin(
 > {
   try {
     const result = await prisma.$transaction(async (tx) => {
+      // Проверки ниже — ради дружелюбного текста. Гонку они не ловят (две
+      // транзакции в Read Committed не видят ещё не закоммиченных строк друг
+      // друга), поэтому единственность держит база, а P2002 разбирается в catch.
       const slugExists = await tx.partner.findUnique({ where: { slug: args.slug } });
       if (slugExists) throw new AdminPartnerError('duplicate_slug');
 
@@ -391,8 +394,29 @@ export async function createPartnerWithAdmin(
     return { ok: true, ...result };
   } catch (e) {
     if (e instanceof AdminPartnerError) return { ok: false, error: e.code };
+    // Гонка по уникальному полю: другой запрос успел создать партнёра с тем же
+    // slug или администратора с той же почтой между нашей проверкой и записью.
+    // Без разбора P2002 человек видел 500 вместо «slug занят» / «email занят».
+    const raced = racedUniqueField(e);
+    if (raced === 'email') return { ok: false, error: 'duplicate_email' };
+    if (raced === 'slug') return { ok: false, error: 'duplicate_slug' };
     throw e;
   }
+}
+
+/**
+ * Какое уникальное поле нарушено в ошибке Prisma P2002 — `slug` партнёра или
+ * `email` пользователя. `meta.target` у Postgres приходит то именем ограничения
+ * (`User_email_key`), то списком полей (`['email']`), поэтому сводим к строке.
+ * Неизвестное ограничение не маскируем: вызывающий код пробросит ошибку дальше.
+ */
+function racedUniqueField(e: unknown): 'slug' | 'email' | null {
+  if (!e || typeof e !== 'object' || (e as { code?: string }).code !== 'P2002') return null;
+  const target = (e as { meta?: { target?: unknown } }).meta?.target;
+  const asText = Array.isArray(target) ? target.join(',') : String(target ?? '');
+  if (/email/i.test(asText)) return 'email';
+  if (/slug/i.test(asText)) return 'slug';
+  return null;
 }
 
 /**

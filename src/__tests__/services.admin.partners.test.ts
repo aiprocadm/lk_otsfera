@@ -849,6 +849,59 @@ describe('createPartnerWithAdmin()', () => {
     expect(tx.partner.create).toHaveBeenCalledTimes(0);
   });
 
+  // Страж хотфикса №35: проверка «занято» стоит до записи и гонку не ловит —
+  // два одновременных создания видят пустую базу, а уникальность срабатывает
+  // уже на записи. Человек должен увидеть «email занят», а не 500.
+  function p2002(target: unknown) {
+    return Object.assign(new Error('Unique constraint failed'), {
+      code: 'P2002',
+      meta: { target },
+    });
+  }
+
+  it('гонка по почте: P2002 на user.create отдаёт duplicate_email, а не падение', async () => {
+    const tx = makeTxForCreate();
+    tx.user.create.mockRejectedValue(p2002('User_email_key'));
+    const prisma = makePrismaWithTx(tx);
+
+    expect(await createPartnerWithAdmin(prisma, 'actor1', baseArgs)).toEqual({
+      ok: false,
+      error: 'duplicate_email',
+    });
+  });
+
+  it('гонка по почте: target списком полей разбирается так же', async () => {
+    const tx = makeTxForCreate();
+    tx.user.create.mockRejectedValue(p2002(['email']));
+    const prisma = makePrismaWithTx(tx);
+
+    expect(await createPartnerWithAdmin(prisma, 'actor1', baseArgs)).toEqual({
+      ok: false,
+      error: 'duplicate_email',
+    });
+  });
+
+  it('гонка по slug: P2002 на partner.create отдаёт duplicate_slug, а не падение', async () => {
+    const tx = makeTxForCreate();
+    tx.partner.create.mockRejectedValue(p2002('Partner_slug_key'));
+    const prisma = makePrismaWithTx(tx);
+
+    expect(await createPartnerWithAdmin(prisma, 'actor1', baseArgs)).toEqual({
+      ok: false,
+      error: 'duplicate_slug',
+    });
+  });
+
+  it('незнакомое уникальное ограничение не маскируется — ошибка летит дальше', async () => {
+    const tx = makeTxForCreate();
+    tx.partnerUser.create.mockRejectedValue(p2002('PartnerUser_userId_partnerId_key'));
+    const prisma = makePrismaWithTx(tx);
+
+    await expect(createPartnerWithAdmin(prisma, 'actor1', baseArgs)).rejects.toThrow(
+      'Unique constraint failed'
+    );
+  });
+
   it('happy path: calls all 4 operations, records audit, returns expected shape', async () => {
     const tx = makeTxForCreate();
     const prisma = makePrismaWithTx(tx);
