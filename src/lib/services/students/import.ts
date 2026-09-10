@@ -186,6 +186,24 @@ export async function previewStudentImport(
       preview.duplicates.push({ row, existingId: match.id, existingName: match.name });
       continue;
     }
+
+    // Почта уникальна в пределах организации (`@@unique([organizationId, email])`,
+    // `У-21`), а ключ дедупликации `У-22` сравнивает ФИО + почту: у однофамильца
+    // нет — совпадения нет, строка уходила в создание, и транзакция шага 2
+    // падала целиком на `P2002`. Человек видел сбой без номера строки и не
+    // понимал, какую из двухсот строк править (хотфикс №37).
+    const emailOwner = row.email ? seen.find((s) => (s.email ?? null) === row.email) : undefined;
+    if (emailOwner) {
+      const whose = emailOwner.id.startsWith('new-')
+        ? `в строке ${emailOwner.id.slice('new-'.length)} этого же файла`
+        : `у сотрудника «${emailOwner.name}»`;
+      preview.errors.push(
+        `Строка ${row.line}: почта ${row.email} уже указана ${whose} — ` +
+          'в организации почта должна быть уникальной. Уберите почту или укажите другую.'
+      );
+      continue;
+    }
+
     preview.toCreate.push(row);
     // Дубли внутри самого файла тоже ловим — иначе одна и та же строка дважды
     // создаст двух сотрудников.

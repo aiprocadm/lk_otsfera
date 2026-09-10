@@ -325,6 +325,86 @@ describe('У-28: предпросмотр и подтверждение', () => 
   });
 });
 
+// Стражи хотфикса №37: почта уникальна в организации (`У-21`), а ключ
+// дедупликации `У-22` сравнивает ФИО + почту. У однофамильца почта совпадает, а
+// ФИО нет — предпросмотр молчал, и транзакция шага 2 падала целиком на `P2002`
+// без номера строки. Теперь это построчная ошибка предпросмотра.
+describe('почта в файле уникальна в пределах организации (хотфикс №37)', () => {
+  const ROW = {
+    line: 2,
+    name: 'Петров Пётр',
+    position: null,
+    snils: null,
+    birthDate: null,
+    email: 'otdel@firma.ru',
+    phone: null,
+  };
+
+  it('почта занята другим сотрудником — строка в ошибках, а не в создании', async () => {
+    const { prisma } = prismaWith([
+      { id: 'old', name: 'Иванов Иван', snils: null, birthDate: null, email: 'otdel@firma.ru' },
+    ]);
+    const res = await previewStudentImport(prisma, admin(), {
+      organizationId: ORG,
+      teamMode: false,
+      rows: [ROW],
+    });
+
+    if (!res.ok) throw new Error('ожидали ok');
+    expect(res.preview.toCreate).toHaveLength(0);
+    expect(res.preview.errors).toHaveLength(1);
+    expect(res.preview.errors[0]).toContain('Строка 2');
+    expect(res.preview.errors[0]).toContain('Иванов Иван');
+  });
+
+  it('две строки файла с одной почтой: вторая показывает номер первой строки', async () => {
+    const { prisma } = prismaWith();
+    const res = await previewStudentImport(prisma, admin(), {
+      organizationId: ORG,
+      teamMode: false,
+      rows: [ROW, { ...ROW, line: 3, name: 'Сидоров Сидор' }],
+    });
+
+    if (!res.ok) throw new Error('ожидали ok');
+    expect(res.preview.toCreate).toHaveLength(1);
+    expect(res.preview.errors).toEqual([expect.stringContaining('в строке 2 этого же файла')]);
+    expect(res.preview.errors[0]).toContain('Строка 3');
+  });
+
+  it('строки без почты друг другу не мешают — в базе много NULL допустимо', async () => {
+    const { prisma } = prismaWith([
+      { id: 'old', name: 'Иванов Иван', snils: null, birthDate: null, email: null },
+    ]);
+    const res = await previewStudentImport(prisma, admin(), {
+      organizationId: ORG,
+      teamMode: false,
+      rows: [
+        { ...ROW, email: null },
+        { ...ROW, line: 3, name: 'Сидоров Сидор', email: null },
+      ],
+    });
+
+    if (!res.ok) throw new Error('ожидали ok');
+    expect(res.preview.toCreate).toHaveLength(2);
+    expect(res.preview.errors).toHaveLength(0);
+  });
+
+  it('совпадение ФИО + почта остаётся дубликатом (У-22), а не ошибкой', async () => {
+    const { prisma } = prismaWith([
+      { id: 'old', name: 'Петров Пётр', snils: null, birthDate: null, email: 'otdel@firma.ru' },
+    ]);
+    const res = await previewStudentImport(prisma, admin(), {
+      organizationId: ORG,
+      teamMode: false,
+      rows: [ROW],
+    });
+
+    if (!res.ok) throw new Error('ожидали ok');
+    expect(res.preview.errors).toHaveLength(0);
+    expect(res.preview.duplicates[0].existingId).toBe('old');
+  });
+});
+
 describe('У-29: одобрение заявки заводит слушателей', () => {
   function txWith(items: unknown[], existing: unknown[] = []) {
     const create = vi.fn().mockResolvedValue({ id: 'st-new', name: 'Иванов Иван' });
