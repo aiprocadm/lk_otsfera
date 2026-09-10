@@ -369,6 +369,73 @@ describe('createStudent (У-23)', () => {
   });
 });
 
+// Стражи хотфикса №36: почта уникальна в организации
+// (`@@unique([organizationId, email])`, `У-21`), а поиск дублей (`У-22`)
+// сравнивает ФИО + почту — значит тёзка не найдётся, база запись не пустит, и
+// без разбора `P2002` сервис падал. Воспроизведено на живой базе 10.09.2026:
+// P2002, target ["organizationId","email"].
+function p2002(target: unknown) {
+  return Object.assign(new Error('Unique constraint failed'), { code: 'P2002', meta: { target } });
+}
+
+describe('почта сотрудника уникальна в организации (хотфикс №36)', () => {
+  const admin = session({ role: 'admin' });
+  const args = { organizationId: ORG, teamMode: false, name: 'Петров Пётр' };
+
+  it('создание: занятая почта — понятная ошибка, а не падение', async () => {
+    const prisma = db();
+    vi.mocked(prisma.student.create).mockRejectedValue(p2002(['organizationId', 'email']));
+
+    await expect(
+      createStudent(prisma, admin, { ...args, email: 'obshaya@firma.ru' })
+    ).resolves.toEqual({ ok: false, error: 'email_taken' });
+  });
+
+  it('создание: имя ограничения вместо списка полей разбирается так же', async () => {
+    const prisma = db();
+    vi.mocked(prisma.student.create).mockRejectedValue(p2002('Student_organizationId_email_key'));
+
+    await expect(
+      createStudent(prisma, admin, { ...args, email: 'obshaya@firma.ru' })
+    ).resolves.toEqual({ ok: false, error: 'email_taken' });
+  });
+
+  it('создание: «всё равно добавить» тоже не падает', async () => {
+    const prisma = db();
+    vi.mocked(prisma.student.create).mockRejectedValue(p2002(['organizationId', 'email']));
+
+    await expect(
+      createStudent(prisma, admin, { ...args, email: 'obshaya@firma.ru', force: true })
+    ).resolves.toEqual({ ok: false, error: 'email_taken' });
+  });
+
+  it('правка: занятая почта — понятная ошибка, а не падение', async () => {
+    const prisma = db();
+    vi.mocked(prisma.student.findUnique).mockResolvedValue({
+      id: 's1',
+      organizationId: ORG,
+      name: 'Петров Пётр',
+    } as never);
+    vi.mocked(prisma.student.update).mockRejectedValue(p2002(['organizationId', 'email']));
+
+    await expect(
+      updateStudent(prisma, admin, {
+        id: 's1',
+        teamMode: false,
+        name: 'Петров Пётр',
+        email: 'obshaya@firma.ru',
+      })
+    ).resolves.toEqual({ ok: false, error: 'email_taken' });
+  });
+
+  it('другое уникальное поле не маскируется — ошибка летит дальше', async () => {
+    const prisma = db();
+    vi.mocked(prisma.student.create).mockRejectedValue(p2002(['externalStudentId']));
+
+    await expect(createStudent(prisma, admin, args)).rejects.toThrow('Unique constraint failed');
+  });
+});
+
 describe('updateStudent (У-23)', () => {
   const admin = session({ role: 'admin' });
   const existing = { id: 's1', organizationId: ORG, name: 'Иванов Иван' };

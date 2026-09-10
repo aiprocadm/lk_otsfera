@@ -82,6 +82,13 @@ export function AddStudentDialog({
         setDuplicates({ match: res.match, candidates: res.candidates });
         return;
       }
+      if (res.error === 'email_taken') {
+        setError(
+          'Эта почта уже указана у другого сотрудника организации. ' +
+            'Укажите другую или оставьте поле пустым.'
+        );
+        return;
+      }
       if (res.error === 'validation') {
         setError(res.messages?.join('. ') ?? 'Проверьте заполнение полей.');
         return;
