@@ -1,6 +1,7 @@
 import type { PrismaClient, PartnerUser, User } from '@prisma/client';
 import { createInviteToken } from '@/lib/auth/passwordReset';
 import { MAX_PARTNER_USERS } from '@/lib/config/teamLimits';
+import { isUniqueViolationOn } from '@/lib/db/uniqueViolation';
 
 function getAppBaseUrl(): string {
   return process.env.APP_URL?.trim() || 'https://lk.otsfera.ru';
@@ -113,32 +114,40 @@ export async function inviteMember(
   // Этап 4 (ФТ-10.1): как и остальные точки приглашения — без пароля +
   // invite-токен на установку пароля (раньше здесь был временный bcrypt-пароль,
   // который никто не узнавал: ни письма, ни ссылки).
-  const { user, partnerUser, inviteUrl } = await prisma.$transaction(async (tx) => {
-    const user = await tx.user.create({
-      data: {
-        email: input.email,
-        name: input.name,
-        role: 'partner',
-        partnerId: input.partnerId,
-        passwordHash: null,
-      },
+  // Проверка выше — ради текста; гонку (в том числе двойной щелчок по кнопке
+  // «Пригласить») ловит уже база, поэтому `P2002` разбирается здесь.
+  let created;
+  try {
+    created = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email: input.email,
+          name: input.name,
+          role: 'partner',
+          partnerId: input.partnerId,
+          passwordHash: null,
+        },
+      });
+
+      const partnerUser = await tx.partnerUser.create({
+        data: {
+          partnerId: input.partnerId,
+          userId: user.id,
+          roleInPartner: input.roleInPartner,
+          assignedOrgIds: input.assignedOrgIds,
+          isActive: true,
+        },
+      });
+
+      const { token } = await createInviteToken(tx, user.id);
+      return { user, partnerUser, inviteUrl: `${getAppBaseUrl()}/reset-password?token=${token}` };
     });
+  } catch (e) {
+    if (isUniqueViolationOn(e, 'email')) return { ok: false, error: 'email_taken' };
+    throw e;
+  }
 
-    const partnerUser = await tx.partnerUser.create({
-      data: {
-        partnerId: input.partnerId,
-        userId: user.id,
-        roleInPartner: input.roleInPartner,
-        assignedOrgIds: input.assignedOrgIds,
-        isActive: true,
-      },
-    });
-
-    const { token } = await createInviteToken(tx, user.id);
-    return { user, partnerUser, inviteUrl: `${getAppBaseUrl()}/reset-password?token=${token}` };
-  });
-
-  return { ok: true, user, partnerUser, inviteUrl };
+  return { ok: true, ...created };
 }
 
 export async function assignOrgs(

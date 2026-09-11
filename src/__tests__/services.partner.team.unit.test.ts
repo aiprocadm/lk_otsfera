@@ -189,6 +189,70 @@ describe('inviteMember — unit', () => {
     expect(result.inviteUrl).toContain('/reset-password?token=tok-unit');
   });
 
+  // Стражи хотфикса №38: проверка «почта занята» стоит до транзакции, поэтому
+  // два одновременных приглашения (или двойной щелчок по кнопке) обе её
+  // проходят, а база пускает только одно. Человек должен увидеть тот же
+  // `email_taken`, а не падение.
+  it('гонка: P2002 по почте отдаёт email_taken, а не падение', async () => {
+    const tx = {
+      user: {
+        create: vi.fn().mockRejectedValue(
+          Object.assign(new Error('Unique constraint failed'), {
+            code: 'P2002',
+            meta: { target: 'User_email_key' },
+          })
+        ),
+      },
+      partnerUser: { create: vi.fn() },
+    };
+    const prisma = {
+      organization: { count: vi.fn().mockResolvedValue(1) },
+      partnerUser: { count: vi.fn().mockResolvedValue(0) },
+      user: { findUnique: vi.fn().mockResolvedValue(null) },
+      $transaction: vi.fn().mockImplementation((cb: (arg: unknown) => unknown) => cb(tx)),
+    } as any;
+
+    expect(
+      await inviteMember(prisma, {
+        partnerId: 'p1',
+        email: 'new@x.com',
+        name: 'Новый',
+        roleInPartner: 'manager',
+        assignedOrgIds: ['org1'],
+      })
+    ).toEqual({ ok: false, error: 'email_taken' });
+  });
+
+  it('чужое уникальное ограничение не маскируется — ошибка летит дальше', async () => {
+    const tx = {
+      user: { create: vi.fn().mockResolvedValue({ id: 'u-new' }) },
+      partnerUser: {
+        create: vi.fn().mockRejectedValue(
+          Object.assign(new Error('Unique constraint failed'), {
+            code: 'P2002',
+            meta: { target: ['partnerId', 'userId'] },
+          })
+        ),
+      },
+    };
+    const prisma = {
+      organization: { count: vi.fn().mockResolvedValue(1) },
+      partnerUser: { count: vi.fn().mockResolvedValue(0) },
+      user: { findUnique: vi.fn().mockResolvedValue(null) },
+      $transaction: vi.fn().mockImplementation((cb: (arg: unknown) => unknown) => cb(tx)),
+    } as any;
+
+    await expect(
+      inviteMember(prisma, {
+        partnerId: 'p1',
+        email: 'new@x.com',
+        name: 'Новый',
+        roleInPartner: 'manager',
+        assignedOrgIds: ['org1'],
+      })
+    ).rejects.toThrow('Unique constraint failed');
+  });
+
   it('succeeds with empty assignedOrgIds (no scope check needed)', async () => {
     const newUser = { id: 'u2', email: 'u2@x.com', role: 'partner', partnerId: 'p1' };
     const tx = {

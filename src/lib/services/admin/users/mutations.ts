@@ -3,6 +3,7 @@ import { createInviteToken } from '@/lib/auth/passwordReset';
 import { recordAudit } from '@/lib/auth/audit';
 import { generateBackupCodes } from '@/lib/services/auth/twoFactor';
 import { MAX_PARTNER_USERS } from '@/lib/config/teamLimits';
+import { isUniqueViolationOn } from '@/lib/db/uniqueViolation';
 import { AdminUserError, type AdminUserFailure } from './errors';
 import { fetchUserDetail, type UserDetail } from './queries';
 
@@ -43,6 +44,7 @@ export async function createUser(
     }
 
     const data = await prisma.$transaction(async (tx) => {
+      // Проверка ниже — ради текста, гонку она не ловит: разбор `P2002` в catch.
       const existing = await tx.user.findUnique({ where: { email: args.email } });
       if (existing) throw new AdminUserError('duplicate_email');
 
@@ -98,6 +100,10 @@ export async function createUser(
     return { ok: true, ...data };
   } catch (e) {
     if (e instanceof AdminUserError) return { ok: false, error: e.code };
+    // Гонка: пока шла наша транзакция, пользователя с этой почтой завёл кто-то
+    // ещё (или тот же человек двойным щелчком). Без разбора `P2002` форма
+    // показывала сбой вместо готового «Пользователь с такой почтой уже есть».
+    if (isUniqueViolationOn(e, 'email')) return { ok: false, error: 'duplicate_email' };
     throw e;
   }
 }
