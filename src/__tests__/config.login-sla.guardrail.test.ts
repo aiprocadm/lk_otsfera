@@ -13,8 +13,33 @@ const SRC = join(__dirname, '..');
 const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
 
 describe('У-129: политики входа настраиваются из интерфейса', () => {
+  /**
+   * Список написан ЗДЕСЬ, а не взят из проверяемого файла. Пока страж
+   * перебирал сам `LOGIN_POLICY_FIELDS`, он сверял список с самим собой:
+   * подмена одного параметра дублем другого проходила — длина та же, ключи в
+   * реестре есть, а «срок действия приглашения» пропадал с экрана «Политики
+   * входа», и настраивать его снова пришлось бы через `.env` (мутация `С-5`,
+   * прогон сопровождения №25). Эталон здесь — `У-129`.
+   */
+  const EXPECTED_KEYS = [
+    'login.twoFactorCodeTtlMinutes',
+    'login.twoFactorMaxAttempts',
+    'login.backupCodesCount',
+    'login.rateLimitMax',
+    'login.rateLimitWindowMs',
+    'login.inviteTtlDays',
+    'login.resetTtlHours',
+  ];
+
   it('все семь параметров есть в реестре настроек', () => {
-    expect(LOGIN_POLICY_FIELDS).toHaveLength(7);
+    expect(
+      LOGIN_POLICY_FIELDS.map((f) => f.key).sort(),
+      'набор политик входа разошёлся с У-129'
+    ).toEqual([...EXPECTED_KEYS].sort());
+    // Дубль имени поля формы показал бы два одинаковых поля вместо разных.
+    expect(new Set(LOGIN_POLICY_FIELDS.map((f) => f.field)).size, 'дубль имени поля формы').toBe(
+      LOGIN_POLICY_FIELDS.length
+    );
     for (const f of LOGIN_POLICY_FIELDS) {
       expect(SETTING_SPECS, `${f.key}: нет в реестре настроек`).toHaveProperty(f.key);
     }
