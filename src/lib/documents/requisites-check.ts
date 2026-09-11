@@ -123,6 +123,34 @@ function collectInvalid(
   }
 }
 
+/**
+ * Типы, о реквизитах которых спрашивает письмо «Запросить у клиента»
+ * (ФТ-9.5, `У-157`). Акт наследует набор счёта, доп. соглашение — набор
+ * договора, поэтому двух типов хватает, чтобы покрыть все четыре.
+ */
+const CLIENT_REQUEST_DOC_KINDS = ['invoice', 'contract'] as const;
+
+/**
+ * Что письмо попросит у ЗАКАЗЧИКА — одна функция на письмо и на экран.
+ *
+ * Пока кнопка «Запросить у клиента» решала по одному счёту, а письмо
+ * спрашивало и про договор, экран и письмо расходились: у заказчика с полными
+ * реквизитами счёта, но без подписанта договор не выпускался, а попросить
+ * подписанта было нечем — кнопка не появлялась. Теперь видимость кнопки и
+ * содержимое письма считает одно место: разъехаться им больше негде.
+ */
+export function clientRequestLabels(
+  missingOf: (docType: RequisitesDocKind) => MissingRequisite[]
+): string[] {
+  const labels = new Set<string>();
+  for (const kind of CLIENT_REQUEST_DOC_KINDS) {
+    for (const item of missingOf(kind)) {
+      if (item.side === 'organization') labels.add(item.label);
+    }
+  }
+  return [...labels];
+}
+
 export function listMissingRequisites(
   company: PartyRequisites,
   organization: PartyRequisites,

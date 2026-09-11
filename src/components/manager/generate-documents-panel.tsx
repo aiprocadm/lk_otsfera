@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
 import { requestRequisitesAction } from '@/server-actions/documents/generate';
-import type { MissingRequisite } from '@/lib/documents/requisites-check';
+import { clientRequestLabels, type MissingRequisite } from '@/lib/documents/requisites-check';
 import type { IssueBaseDocument } from '@/lib/services/documents/generationPanel';
 import { IssueDocumentDialog, type IssueDocType, type IssueLine } from './issue-document-dialog';
 
@@ -43,9 +43,21 @@ export function GenerateDocumentsPanel({
 
   // Реквизиты счёта — самый частый случай; их нехватку показываем сразу, не
   // заставляя открывать форму, чтобы узнать, что выпустить нечего.
-  const invoiceMissing = missingByType.invoice ?? [];
-  const orgMissing = invoiceMissing.filter((m) => m.side === 'organization');
-  const companyMissing = invoiceMissing.filter((m) => m.side === 'company');
+  // Набор полон по типу (`Record<IssueDocType, …>`) — подстраховка `?? []`
+  // была недостижимой веткой и только мешала покрытию.
+  const invoiceMissing = missingByType.invoice;
+  // Договору (и доп. соглашению) нужно БОЛЬШЕ, чем счёту (`У-156`): подписант
+  // заказчика, его должность и основание полномочий. Показываем это отдельной
+  // строкой — иначе заказчик с полными реквизитами счёта выглядел бы готовым,
+  // а договор не выпускался бы без объяснения.
+  const contractExtra = missingByType.contract.filter(
+    (m) => !invoiceMissing.some((i) => i.side === m.side && i.label === m.label)
+  );
+  const companyMissing = [...invoiceMissing, ...contractExtra].filter((m) => m.side === 'company');
+  // О чём будет письмо клиенту — тем же расчётом, что и само письмо
+  // (`requestRequisites`): кнопка не предлагает просить то, чего письмо не
+  // спросит, и не молчит о том, что спросит.
+  const askLabels = clientRequestLabels((kind) => missingByType[kind]);
 
   async function requestFromClient() {
     const fd = new FormData();
@@ -79,15 +91,31 @@ export function GenerateDocumentsPanel({
         Выпустить документ
       </Button>
 
-      {invoiceMissing.length > 0 && (
+      {(invoiceMissing.length > 0 || contractExtra.length > 0) && (
         <div className="mt-3" data-testid="missing-requisites">
-          <p className="text-sm text-gray-700">Для счёта не хватает реквизитов:</p>
-          <ul className="text-sm text-red-600 list-disc pl-5 mt-1 space-y-0.5">
-            {invoiceMissing.map((m) => (
-              <li key={`${m.side}:${m.label}`}>{m.label}</li>
-            ))}
-          </ul>
-          {orgMissing.length > 0 && (
+          {invoiceMissing.length > 0 && (
+            <>
+              <p className="text-sm text-gray-700">Для счёта не хватает реквизитов:</p>
+              <ul className="text-sm text-red-600 list-disc pl-5 mt-1 space-y-0.5">
+                {invoiceMissing.map((m) => (
+                  <li key={`${m.side}:${m.label}`}>{m.label}</li>
+                ))}
+              </ul>
+            </>
+          )}
+          {contractExtra.length > 0 && (
+            <>
+              <p className="text-sm text-gray-700 mt-2">
+                Для договора и доп. соглашения нужно дополнительно:
+              </p>
+              <ul className="text-sm text-red-600 list-disc pl-5 mt-1 space-y-0.5">
+                {contractExtra.map((m) => (
+                  <li key={`${m.side}:${m.label}`}>{m.label}</li>
+                ))}
+              </ul>
+            </>
+          )}
+          {askLabels.length > 0 && (
             <Button
               size="sm"
               variant="secondary"
