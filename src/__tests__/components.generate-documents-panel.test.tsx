@@ -121,6 +121,32 @@ describe('GenerateDocumentsPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Запросить у клиента' }));
     await waitFor(() => expect(toastError).toHaveBeenCalled());
   });
+
+  it('`У-157`: повтор раньше суток называет, когда просили в прошлый раз', async () => {
+    // Молчаливый отказ выглядел бы как поломка кнопки: и всплывающая подсказка,
+    // и строка под кнопкой должны назвать дату прошлого запроса.
+    const requestedAt = new Date('2026-09-10T08:30:00.000Z');
+    requestRequisitesAction.mockResolvedValueOnce({
+      ok: false,
+      error: 'requested_recently',
+      requestedAt,
+    });
+    panel({
+      missingByType: {
+        ...NO_MISSING,
+        invoice: [{ side: 'organization', label: 'ИНН заказчика' }],
+      },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Запросить у клиента' }));
+
+    const when = requestedAt.toLocaleString('ru-RU');
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(
+        `Реквизиты уже запрашивали ${when}. Повторить можно через сутки.`
+      )
+    );
+    expect(screen.getByText(`Запрошено ${when}.`)).toBeTruthy();
+  });
 });
 
 describe('IssueDocumentDialog — выпуск (`У-147`, `У-143`)', () => {

@@ -2,7 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { canSeeOrder, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
-import { listMissingRequisites } from '@/lib/documents/requisites-check';
+import { clientRequestLabels, listMissingRequisites } from '@/lib/documents/requisites-check';
 import { notifyOrgUsers } from '@/lib/notifications';
 import { recordAudit } from '@/lib/auth/audit';
 import { log } from '@/lib/logging';
@@ -101,13 +101,10 @@ export async function requestRequisites(
 
   // Спрашиваем разом всё, что нужно ЛЮБОМУ документу (`У-156`): счёт требует
   // ИНН и КПП, договор — ещё и подписанта с основанием. Просить по частям
-  // значило бы дёргать клиента дважды.
-  const labels = new Set<string>();
-  for (const kind of ['invoice', 'contract'] as const) {
-    for (const item of listMissingRequisites(company, organization, kind)) {
-      if (item.side === 'organization') labels.add(item.label);
-    }
-  }
+  // значило бы дёргать клиента дважды. Считает тот же `clientRequestLabels`,
+  // что решает, показывать ли кнопку на экране: письмо и кнопка не могут
+  // разойтись в том, о чём просят.
+  const labels = clientRequestLabels((kind) => listMissingRequisites(company, organization, kind));
   // Журнал пишем ДО отправки: он же служит счётчиком «раз в сутки», и запись
   // после best-effort доставки означала бы, что сбой письма снимает
   // ограничение — и клиент получит второй запрос сразу.
@@ -116,7 +113,7 @@ export async function requestRequisites(
     action: 'requisites_requested',
     entity: 'organization',
     entityId: order.organizationId,
-    after: { orderId: order.id, missingLabels: [...labels] },
+    after: { orderId: order.id, missingLabels: labels },
   });
 
   try {
@@ -127,7 +124,7 @@ export async function requestRequisites(
         orderId: order.id,
         orderNumber: order.orderNumber,
         orderTitle: order.title,
-        missingLabels: [...labels],
+        missingLabels: labels,
       },
     });
   } catch (err) {
