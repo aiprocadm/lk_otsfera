@@ -5,8 +5,9 @@ import { managedOrgIds, getCompanyTeamVisibility } from '@/lib/auth/managerPolic
 import { recordAudit } from '@/lib/auth/audit';
 import { recordPiiAccess } from '@/lib/pii/record';
 import { startOfMoscowDay } from '@/lib/dates/calendar';
+import { isUniqueViolationOn } from '@/lib/db/uniqueViolation';
 
-type CertificatesError = 'forbidden' | 'not_found' | 'validation';
+type CertificatesError = 'forbidden' | 'not_found' | 'validation' | 'already_issued';
 type Result<T> = ({ ok: true } & T) | { ok: false; error: CertificatesError };
 
 const CERT_INCLUDE = {
@@ -280,25 +281,40 @@ export async function issueFromOrderItem(
     return { ok: false, error: 'forbidden' };
   }
 
-  const certificate = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    const cert = await tx.certificate.create({
-      data: {
-        studentId: item.student.id,
-        organizationId: item.student.organizationId,
-        directionId: item.directionId,
-        orderItemId: item.id,
-        number: args.number.trim(),
-        issuedAt: args.issuedAt,
-        validUntil: args.validUntil ?? null,
-        documentId: args.documentId ?? null,
-      },
-    });
-    await tx.orderItem.update({
-      where: { id: item.id },
-      data: { trainingStatus: 'certificate_issued' },
-    });
-    return cert;
+  // По позиции заказа удостоверение одно: `Certificate.orderItemId` уникален.
+  // Проверка ниже — ради текста («уже выдано»), а гонку и повторный запрос с
+  // устаревшей страницы ловит уже база — разбор `P2002` ниже (хотфикс №40).
+  const already = await prisma.certificate.findUnique({
+    where: { orderItemId: item.id },
+    select: { id: true },
   });
+  if (already) return { ok: false, error: 'already_issued' };
+
+  let certificate: Certificate;
+  try {
+    certificate = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const cert = await tx.certificate.create({
+        data: {
+          studentId: item.student.id,
+          organizationId: item.student.organizationId,
+          directionId: item.directionId,
+          orderItemId: item.id,
+          number: args.number.trim(),
+          issuedAt: args.issuedAt,
+          validUntil: args.validUntil ?? null,
+          documentId: args.documentId ?? null,
+        },
+      });
+      await tx.orderItem.update({
+        where: { id: item.id },
+        data: { trainingStatus: 'certificate_issued' },
+      });
+      return cert;
+    });
+  } catch (e) {
+    if (isUniqueViolationOn(e, 'orderItemId')) return { ok: false, error: 'already_issued' };
+    throw e;
+  }
 
   await recordAudit(prisma, {
     userId: session.sub,

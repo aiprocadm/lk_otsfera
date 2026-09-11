@@ -12,6 +12,8 @@ function mapError(error: string): number {
       return 403;
     case 'not_found':
       return 404;
+    case 'already_issued':
+      return 409; // повтор, а не ошибка ввода: удостоверение по позиции уже есть
     default:
       return 400; // validation
   }

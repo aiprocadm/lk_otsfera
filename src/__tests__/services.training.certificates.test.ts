@@ -20,7 +20,13 @@ function session(role: string, extra: Record<string, unknown> = {}) {
 }
 
 const prisma = {
-  certificate: { findMany: vi.fn(), create: vi.fn(), count: vi.fn().mockResolvedValue(0) },
+  certificate: {
+    findMany: vi.fn(),
+    // Хотфикс №40: по позиции заказа удостоверение одно — сервис сначала спрашивает.
+    findUnique: vi.fn().mockResolvedValue(null),
+    create: vi.fn(),
+    count: vi.fn().mockResolvedValue(0),
+  },
   student: { findUnique: vi.fn() },
   orderItem: { findUnique: vi.fn(), update: vi.fn() },
   organization: { findMany: vi.fn() },
@@ -104,6 +110,69 @@ describe('certificates service', () => {
       issuedAt: new Date(),
     });
     expect(res).toEqual({ ok: false, error: 'not_found' });
+  });
+
+  // Стражи хотфикса №40: `Certificate.orderItemId` уникален, а сервис писал без
+  // вопросов — повтор (устаревшая вкладка, двойное нажатие) ронял запрос с 500
+  // вместо понятного «уже выдано».
+  const p2002 = (target: unknown) =>
+    Object.assign(new Error('Unique constraint failed'), { code: 'P2002', meta: { target } });
+
+  it('повторная выдача по той же позиции — «уже выдано», ничего не пишем', async () => {
+    prisma.orderItem.findUnique.mockResolvedValue({
+      id: 'it1',
+      directionId: 'd1',
+      student: { id: 's1', organizationId: 'org1' },
+    });
+    prisma.certificate.findUnique.mockResolvedValue({ id: 'cert-old' });
+
+    const res = await issueFromOrderItem(prisma, session('manager'), {
+      orderItemId: 'it1',
+      number: 'УД-2',
+      issuedAt: new Date('2026-01-01'),
+    });
+
+    expect(res).toEqual({ ok: false, error: 'already_issued' });
+    expect(prisma.certificate.create).not.toHaveBeenCalled();
+    expect(prisma.orderItem.update).not.toHaveBeenCalled();
+  });
+
+  it('гонка двух одновременных выдач: P2002 → «уже выдано», а не падение', async () => {
+    prisma.orderItem.findUnique.mockResolvedValue({
+      id: 'it1',
+      directionId: 'd1',
+      student: { id: 's1', organizationId: 'org1' },
+    });
+    prisma.certificate.findUnique.mockResolvedValue(null);
+    prisma.$transaction.mockImplementation(async (fn: any) => fn(prisma));
+    prisma.certificate.create.mockRejectedValue(p2002(['orderItemId']));
+
+    const res = await issueFromOrderItem(prisma, session('manager'), {
+      orderItemId: 'it1',
+      number: 'УД-3',
+      issuedAt: new Date('2026-01-01'),
+    });
+
+    expect(res).toEqual({ ok: false, error: 'already_issued' });
+  });
+
+  it('чужое уникальное ограничение не маскируется — ошибка летит дальше', async () => {
+    prisma.orderItem.findUnique.mockResolvedValue({
+      id: 'it1',
+      directionId: 'd1',
+      student: { id: 's1', organizationId: 'org1' },
+    });
+    prisma.certificate.findUnique.mockResolvedValue(null);
+    prisma.$transaction.mockImplementation(async (fn: any) => fn(prisma));
+    prisma.certificate.create.mockRejectedValue(p2002(['number']));
+
+    await expect(
+      issueFromOrderItem(prisma, session('manager'), {
+        orderItemId: 'it1',
+        number: 'УД-4',
+        issuedAt: new Date('2026-01-01'),
+      })
+    ).rejects.toThrow('Unique constraint failed');
   });
 
   it('issueFromOrderItem создаёт удостоверение и ставит статус certificate_issued', async () => {
