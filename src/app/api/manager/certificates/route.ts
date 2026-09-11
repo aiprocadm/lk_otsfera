@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { parseJsonBody } from '@/lib/api/http';
+import { dateString, parseJsonBody } from '@/lib/api/http';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
@@ -21,16 +21,18 @@ function mapError(error: string): number {
 
 /**
  * Схема — только ФОРМА входа (типы полей, повторяет прежний TS-каст тела).
- * Доменные проверки (существование позиции/студента/направления, даты) —
- * в сервисе; его коды ошибок не подменяются.
+ * Доменные проверки (существование позиции/студента/направления, порядок
+ * дат) — в сервисе; его коды ошибок не подменяются. Что строка даты вообще
+ * разбирается — проверяется здесь: иначе `new Date('вчера')` доезжал до
+ * Prisma и давал 500 вместо 400 (хотфикс №41).
  */
 const postBodySchema = z.object({
   orderItemId: z.string().optional(),
   studentId: z.string().optional(),
   directionId: z.string().optional(),
   number: z.string(),
-  issuedAt: z.string(),
-  validUntil: z.string().optional(),
+  issuedAt: dateString,
+  validUntil: dateString.optional(),
   documentId: z.string().optional(),
   comment: z.string().optional(),
 });

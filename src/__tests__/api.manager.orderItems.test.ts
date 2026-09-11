@@ -355,6 +355,50 @@ describe('POST /api/manager/certificates', () => {
     expect(res.status).toBe(400);
   });
 
+  /**
+   * Хотфикс №41 (прогон №24, С-6). Схема тела принимала `issuedAt: z.string()`,
+   * а роут делал `new Date(...)`: «вчера» превращалось в `Invalid Date`,
+   * доходило до `prisma.certificate.create` и роняло роут в 500 — вместо
+   * обещанного контрактом 400 `invalid_request`. Кнопка на экране такого не
+   * шлёт (`<input type="date">`), поэтому дыра видна только клиентам API.
+   */
+  it.each([
+    { field: 'issuedAt', body: { orderItemId: 'oi1', number: 'X', issuedAt: 'вчера' } },
+    {
+      field: 'validUntil',
+      body: { orderItemId: 'oi1', number: 'X', issuedAt: '2026-01-01', validUntil: 'abc' },
+    },
+    {
+      field: 'issuedAt (createCertificate)',
+      body: { studentId: 's1', directionId: 'd1', number: 'X', issuedAt: '' },
+    },
+  ])('400 invalid_request, если $field — не дата; сервис не вызывается', async ({ body }) => {
+    const req = new Request('http://x', { method: 'POST', body: JSON.stringify(body) });
+    const res = await certPost(req as never);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'invalid_request' });
+    expect(issueFromOrderItem).not.toHaveBeenCalled();
+    expect(createCertificate).not.toHaveBeenCalled();
+  });
+
+  it('дата в любом виде, который понимает Date.parse, проходит (ISO с временем)', async () => {
+    issueFromOrderItem.mockResolvedValue({ ok: true, certificate: { id: 'c9' } });
+    const req = new Request('http://x', {
+      method: 'POST',
+      body: JSON.stringify({
+        orderItemId: 'oi1',
+        number: 'X',
+        issuedAt: '2026-01-01T10:00:00Z',
+        validUntil: '2029-01-01',
+      }),
+    });
+    const res = await certPost(req as never);
+    expect(res.status).toBe(201);
+    const args = issueFromOrderItem.mock.calls[0][2] as { issuedAt: Date; validUntil: Date };
+    expect(args.issuedAt.toISOString()).toBe('2026-01-01T10:00:00.000Z');
+    expect(args.validUntil.getFullYear()).toBe(2029);
+  });
+
   it('403 forbidden', async () => {
     issueFromOrderItem.mockResolvedValue({ ok: false, error: 'forbidden' });
     const req = new Request('http://x', {
