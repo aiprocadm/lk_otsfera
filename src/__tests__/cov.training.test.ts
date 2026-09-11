@@ -34,7 +34,13 @@ function session(role: string, extra: Record<string, unknown> = {}) {
 }
 
 const prisma = {
-  certificate: { findMany: vi.fn(), create: vi.fn(), count: vi.fn().mockResolvedValue(0) },
+  certificate: {
+    findMany: vi.fn(),
+    // Хотфикс №40: сервис спрашивает, не выдано ли уже по этой позиции.
+    findUnique: vi.fn().mockResolvedValue(null),
+    create: vi.fn(),
+    count: vi.fn().mockResolvedValue(0),
+  },
   student: { findUnique: vi.fn() },
   orderItem: {
     findMany: vi.fn(),
