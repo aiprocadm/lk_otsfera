@@ -106,6 +106,52 @@ describe('GET /api/partner/finance', () => {
   });
 });
 
+describe('GET /api/partner/finance — мусор в строке запроса (хотфикс №41)', () => {
+  /**
+   * Прогон №24, С-6. Роут читал `skip`/`take` через `parseInt`, `from`/`to`
+   * через `new Date`, `status` — как есть: `?skip=abc` давал `NaN`, `?from=вчера`
+   * — `Invalid Date`, `?status=weird` — чужое значение enum. Всё это доходило до
+   * Prisma и роняло роут в 500 вместо 400 `invalid_request`.
+   */
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(getSession).mockResolvedValue(partnerManagerSession);
+    vi.mocked(getFinanceKpis).mockResolvedValue(stubKpis);
+    vi.mocked(listStatements).mockResolvedValue([]);
+  });
+
+  it.each([
+    'http://x/?skip=abc',
+    'http://x/?take=abc',
+    'http://x/?skip=-1',
+    'http://x/?from=вчера',
+    'http://x/?to=2026-13-45',
+    'http://x/?status=weird',
+  ])('%s → 400 invalid_request, сервис не вызывается', async (url) => {
+    const res = await GET(getReq(url));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'invalid_request' });
+    expect(listStatements).not.toHaveBeenCalled();
+  });
+
+  it('без параметров — прежние умолчания skip=0, take=20', async () => {
+    await GET(getReq('http://x/'));
+    expect(listStatements).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ skip: 0, take: 20 })
+    );
+  });
+
+  it('take больше 100 по-прежнему режется до 100, а не отвергается', async () => {
+    const res = await GET(getReq('http://x/?take=500'));
+    expect(res.status).toBe(200);
+    expect(listStatements).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ take: 100 })
+    );
+  });
+});
+
 describe('POST /api/partner/finance/statements', () => {
   beforeEach(() => vi.resetAllMocks());
 

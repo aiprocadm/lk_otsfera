@@ -14,7 +14,7 @@
  */
 import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
-import type { z } from 'zod';
+import { z } from 'zod';
 import { log } from '@/lib/logging';
 
 export const REQUEST_ID_HEADER = 'x-request-id';
@@ -77,6 +77,16 @@ export async function parseJsonBody<S extends z.ZodTypeAny>(
   }
   return { ok: true, data: parsed.data };
 }
+
+/**
+ * Дата из запроса — строка, которую понимает `Date.parse`. Роуты раньше писали
+ * `issuedAt: z.string()` и затем `new Date(...)`: «вчера» проходило схему,
+ * становилось `Invalid Date` и роняло роут в 500 уже в Prisma (хотфикс №41).
+ * Здесь только форма; порядок дат и прочие правила — за сервисом.
+ */
+export const dateString = z
+  .string()
+  .refine((s) => !Number.isNaN(Date.parse(s)), { message: 'invalid date' });
 
 /** Query-параметры по Zod-схеме (объект из searchParams; повторы — последним значением). */
 export function parseQuery<S extends z.ZodTypeAny>(
