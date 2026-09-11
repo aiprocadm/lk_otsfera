@@ -68,6 +68,7 @@ Response (JSON массив):
   "orderNumber": "2410-15",
   "title": "Краткое описание",
   "organizationExternalId": "...",
+  "organizationInn": "7700000000",
   "totalAmount": 250000,
   "paidAmount": 250000,
   "paidAt": "2026-04-20T14:00:00Z",
@@ -83,6 +84,18 @@ Response (JSON массив):
 }]
 ```
 
+> **Ключ организации в заказе (сверено с кодом, хотфикс №42).** У заказа
+> должен быть хотя бы один из ключей `"organizationExternalId"` /
+> `"organizationInn"` — строка без обоих не проходит схему
+> (`OneCOrderSchema`, «order requires organizationExternalId or
+> organizationInn») и уходит в карантин. Кабинет ищет организацию сначала по
+> `externalId`, затем по ИНН ([resolve-org.ts](../../src/lib/services/oneCSync/resolve-org.ts));
+> если организация найдена по ИНН и у неё ещё нет `externalId`, кабинет
+> запоминает присланный `organizationExternalId` за ней. Так 1С может
+> адресовать заказ контрагенту, которого кабинет знает только по ИНН
+> (например, заведённому менеджером руками до первого обмена). Не нашлось ни
+> по одному ключу → пропуск `organization_not_found` в `SyncLog`.
+
 > **Статусы (Q10) — РЕШЕНО (T2, контракт наш).** `executionStatus ∈ {pending, in_progress, completed, cancelled, on_hold}`; `financialStatus ∈ {not_billed, billed, partially_paid, paid, refunded}`. **Кабинет применяет маппинг сам:** 1С может слать родные русские стадии («Оплачено», «Выполнен») — REST-адаптер переводит их в эти коды через `translate.ts` (`normalizeOrderRecord` в [rest-wire.ts](../../src/lib/services/oneCSync/rest-wire.ts)), на паритете с Excel-адаптером. Уже-внутренние коды проходят как есть; нераспознанное значение → карантин (`invalid`) с видимым отчётом.
 
 ### 3. GET Payments (Поступления)
@@ -93,13 +106,39 @@ Response (JSON массив):
 [{
   "externalId": "...",
   "orderExternalId": "...",
+  "organizationExternalId": "...",
+  "organizationInn": "7700000000",
   "amount": 250000,
+  "vatAmount": 41666.67,
   "paidAt": "2026-04-20T14:00:00Z",
   "method": "wire|card|cash",
   "isRefund": false,
+  "purpose": "Оплата по счёту 245 от 12.04.2026, в т.ч. НДС 20%",
+  "paymentOrderNumber": "1471",
   "updatedAt": "2026-04-20T14:00:00Z"
 }]
 ```
+
+> **Адресат платежа (сверено с кодом, хотфикс №42).** Нужен хотя бы один из
+> трёх ключей: `"orderExternalId"`, `"organizationExternalId"`,
+> `"organizationInn"` — иначе строка не проходит схему (`OneCPaymentSchema`,
+> «payment requires orderExternalId or organizationExternalId or
+> organizationInn») и уходит в карантин. Порядок: если есть
+> `orderExternalId`, платёж ложится на этот заказ (нет такого заказа →
+> пропуск `order_not_found`); иначе кабинет ищет организацию по
+> `organizationExternalId`, затем по ИНН, и платёж ложится на организацию
+> без заказа — менеджер разнесёт его по заказам в карточке. Ни один ключ не
+> сошёлся → пропуск `organization_not_found`.
+>
+> **Реквизиты платежа (необязательные).** `"purpose"` — назначение платежа
+> как в платёжном поручении; `"paymentOrderNumber"` — номер платёжного
+> поручения; `"vatAmount"` — сумма НДС в рублях, если выделена (`null` или
+> отсутствие поля = не выделен). Все три сохраняются в карточке платежа
+> ([writers.ts](../../src/lib/services/oneCSync/writers.ts) `upsertPayment`)
+> и показываются менеджеру как есть. Вычислять НДС из текста назначения
+> кабинет умеет только при импорте выписки по счёту 51 из файла
+> ([extractors.ts](../../src/lib/services/import/oneCAccountCard/extractors.ts));
+> в REST-обмене `vatAmount` не выводится — не прислали, значит не выделен.
 
 ### 4. GET Documents (Файлы по сделкам)
 
