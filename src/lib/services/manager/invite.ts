@@ -1,5 +1,6 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
 import { createInviteToken } from '@/lib/auth/passwordReset';
+import { isUniqueViolationOn } from '@/lib/db/uniqueViolation';
 import { recordAudit } from '@/lib/auth/audit';
 
 /**
@@ -61,7 +62,30 @@ function getAppBaseUrl(): string {
   return process.env.APP_URL?.trim() || 'https://lk.otsfera.ru';
 }
 
+/**
+ * Назначение менеджера на организацию. Внутри — «найти пользователя или
+ * завести», то есть та же гонка, что в приглашении в организацию: два
+ * одновременных назначения на один новый адрес оба не находят пользователя, и
+ * второму база отвечает `P2002` — вся транзакция откатывается, человек видит
+ * сбой. Лечится одним повтором: второй заход найдёт уже заведённого человека и
+ * просто привяжет его к организации (хотфикс №39).
+ */
 export async function createAndAssignManager(
+  prisma: PrismaClient,
+  args: CreateAndAssignManagerInput,
+  actorUserId: string
+): Promise<
+  ({ ok: true } & CreateAndAssignManagerResult) | { ok: false; error: ManagerInviteErrorCode }
+> {
+  try {
+    return await createAndAssignManagerOnce(prisma, args, actorUserId);
+  } catch (e) {
+    if (!isUniqueViolationOn(e, 'email')) throw e;
+    return createAndAssignManagerOnce(prisma, args, actorUserId);
+  }
+}
+
+async function createAndAssignManagerOnce(
   prisma: PrismaClient,
   args: CreateAndAssignManagerInput,
   actorUserId: string
