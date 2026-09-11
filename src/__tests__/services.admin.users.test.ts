@@ -567,6 +567,55 @@ describe('createUser', () => {
     ).toEqual({ ok: false, error: 'duplicate_email' });
   });
 
+  // Страж хотфикса №38: проверка «почта занята» стоит до записи и гонку не
+  // ловит (Read Committed не показывает чужих незакоммиченных строк). Человек
+  // должен увидеть тот же `duplicate_email`, а не падение действия.
+  it('гонка: P2002 по почте отдаёт duplicate_email, а не падение', async () => {
+    const txMock = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockRejectedValue(
+          Object.assign(new Error('Unique constraint failed'), {
+            code: 'P2002',
+            meta: { target: ['email'] },
+          })
+        ),
+      },
+    };
+    const prisma = {
+      $transaction: vi
+        .fn()
+        .mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)),
+    } as unknown as Parameters<typeof createUser>[0];
+
+    expect(
+      await createUser(prisma, 'actor', { email: 'a@x', name: 'A', role: 'organization' })
+    ).toEqual({ ok: false, error: 'duplicate_email' });
+  });
+
+  it('чужое уникальное ограничение не маскируется — ошибка летит дальше', async () => {
+    const txMock = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockRejectedValue(
+          Object.assign(new Error('Unique constraint failed'), {
+            code: 'P2002',
+            meta: { target: ['telegramChatId'] },
+          })
+        ),
+      },
+    };
+    const prisma = {
+      $transaction: vi
+        .fn()
+        .mockImplementation((cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)),
+    } as unknown as Parameters<typeof createUser>[0];
+
+    await expect(
+      createUser(prisma, 'actor', { email: 'a@x', name: 'A', role: 'organization' })
+    ).rejects.toThrow('Unique constraint failed');
+  });
+
   it('создаёт user + invite token, пишет audit', async () => {
     const created = { id: 'u1', email: 'a@x', name: 'A', role: 'organization' as const };
     const txMock = {
