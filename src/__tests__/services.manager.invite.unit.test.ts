@@ -250,6 +250,50 @@ describe('createAndAssignManager — mode=new', () => {
   });
 });
 
+// Стражи хотфикса №39: «найти или завести» — гонка. Два одновременных
+// назначения на один новый адрес оба не находят пользователя, второму база
+// отвечает P2002, транзакция откатывается целиком. Лечится одним повтором.
+describe('createAndAssignManager — гонка «найти или завести»', () => {
+  const p2002 = (target: unknown) =>
+    Object.assign(new Error('Unique constraint failed'), { code: 'P2002', meta: { target } });
+
+  it('повтор доводит назначение до конца', async () => {
+    const { tx, newUser } = makeTx();
+    tx.user.findUnique = vi
+      .fn()
+      .mockResolvedValueOnce(null) // первый заход: пользователя ещё нет
+      .mockResolvedValue({ ...newUser, id: 'u-race' }); // завёл параллельный запрос
+    tx.user.create = vi.fn().mockRejectedValue(p2002(['email']));
+    const p = makePrisma(tx);
+
+    const result = await createAndAssignManager(
+      p,
+      { mode: 'new', organizationId: 'org-1', email: newUser.email, name: 'Новый менеджер' },
+      'admin-1'
+    );
+
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.user.id).toBe('u-race');
+    expect(tx.user.create).toHaveBeenCalledTimes(1); // второй заход уже не заводит
+    expect(tx.organizationManager.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('чужое уникальное ограничение не повторяем — ошибка летит дальше', async () => {
+    const { tx, newUser } = makeTx();
+    tx.organizationManager.create = vi.fn().mockRejectedValue(p2002(['organizationId', 'userId']));
+    const p = makePrisma(tx);
+
+    await expect(
+      createAndAssignManager(
+        p,
+        { mode: 'new', organizationId: 'org-1', email: newUser.email, name: 'Новый менеджер' },
+        'admin-1'
+      )
+    ).rejects.toThrow('Unique constraint failed');
+    expect(tx.organizationManager.create).toHaveBeenCalledTimes(1); // повтора не было
+  });
+});
+
 describe('createAndAssignManager — assignment reactivation', () => {
   it('reactivates inactive assignment instead of creating new one', async () => {
     const { tx, existingMgr } = makeTx();

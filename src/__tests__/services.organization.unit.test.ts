@@ -1562,6 +1562,64 @@ describe('organization/team — inviteMember (unit)', () => {
     expect(tx.organizationUser.create).toHaveBeenCalled();
   });
 
+  // Стражи хотфикса №39: внутри «найти или завести» — гонка. Два одновременных
+  // приглашения на один новый адрес оба не находят пользователя, второму база
+  // отвечает P2002, и вся транзакция откатывается. Лечится одним повтором:
+  // второй заход находит уже заведённого человека и доводит приглашение.
+  it('гонка «найти или завести»: повтор доводит приглашение до конца', async () => {
+    const tx = makeTx();
+    tx.user.findUnique = vi
+      .fn()
+      .mockResolvedValueOnce(null) // первый заход: пользователя ещё нет
+      .mockResolvedValue({ id: 'u-race', email: 'new@x.com', passwordHash: null }); // завёл сосед
+    tx.user.create = vi.fn().mockRejectedValue(
+      Object.assign(new Error('Unique constraint failed'), {
+        code: 'P2002',
+        meta: { target: ['email'] },
+      })
+    );
+    tx.organizationUser.create = vi.fn().mockResolvedValue({ id: 'ou-race' });
+
+    const prisma = {
+      $transaction: vi.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
+    } as unknown as PrismaClient;
+
+    const result = await inviteMember(
+      prisma,
+      { organizationId: 'org-1', email: 'new@x.com', name: 'Новый', roleInOrg: 'member' },
+      'actor-1'
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('unreachable');
+    expect(result.user.id).toBe('u-race');
+    expect(tx.user.create).toHaveBeenCalledTimes(1); // второй заход уже не заводит
+    expect(tx.organizationUser.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('чужое уникальное ограничение не повторяем — ошибка летит дальше', async () => {
+    const tx = makeTx();
+    tx.organizationUser.create = vi.fn().mockRejectedValue(
+      Object.assign(new Error('Unique constraint failed'), {
+        code: 'P2002',
+        meta: { target: ['organizationId', 'userId'] },
+      })
+    );
+
+    const prisma = {
+      $transaction: vi.fn().mockImplementation((fn: (t: typeof tx) => unknown) => fn(tx)),
+    } as unknown as PrismaClient;
+
+    await expect(
+      inviteMember(
+        prisma,
+        { organizationId: 'org-1', email: 'new@x.com', name: 'Новый', roleInOrg: 'member' },
+        'actor-1'
+      )
+    ).rejects.toThrow('Unique constraint failed');
+    expect(tx.organizationUser.create).toHaveBeenCalledTimes(1); // повтора не было
+  });
+
   it('existing user with password → alreadyHasPassword=true, inviteUrl null', async () => {
     const tx = makeTx();
     tx.user.findUnique = vi

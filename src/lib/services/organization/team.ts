@@ -1,6 +1,7 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
 import type { OrgRoleInOrg } from '@/lib/auth/jwt';
 import { createInviteToken } from '@/lib/auth/passwordReset';
+import { isUniqueViolationOn } from '@/lib/db/uniqueViolation';
 import { recordAudit } from '@/lib/auth/audit';
 import { MAX_ORGANIZATION_USERS } from '@/lib/config/teamLimits';
 
@@ -110,12 +111,38 @@ export type InviteMemberAuditMeta = {
   source?: 'partner' | 'platform_admin' | 'organization';
 };
 
+/**
+ * Приглашение в организацию. Внутри — «найти пользователя или завести», и это
+ * гонка: два одновременных приглашения на один новый адрес (или двойной щелчок
+ * по кнопке) оба не находят пользователя, оба пытаются его завести, и второму
+ * база отвечает `P2002` — транзакция откатывается целиком, человек видит сбой.
+ *
+ * Чинится не текстом, а **одним повтором**: к моменту второго захода
+ * пользователь уже есть, ветка «найти» срабатывает, и приглашение доходит до
+ * конца — ровно то, чего человек и хотел. Повтор один: если и он упирается в
+ * ту же гонку, это уже не гонка, и ошибку надо видеть (хотфикс №39).
+ */
 export async function inviteMember(
   prisma: PrismaClient,
   args: InviteMemberInput,
   actorUserId: string,
   audit: InviteMemberAuditMeta = {},
   actorRole: OrgRoleInOrg = 'admin' // back-compat default; callers must pass real actor role
+): Promise<({ ok: true } & InviteMemberResult) | { ok: false; error: OrgMemberErrorCode }> {
+  try {
+    return await inviteMemberOnce(prisma, args, actorUserId, audit, actorRole);
+  } catch (e) {
+    if (!isUniqueViolationOn(e, 'email')) throw e;
+    return inviteMemberOnce(prisma, args, actorUserId, audit, actorRole);
+  }
+}
+
+async function inviteMemberOnce(
+  prisma: PrismaClient,
+  args: InviteMemberInput,
+  actorUserId: string,
+  audit: InviteMemberAuditMeta,
+  actorRole: OrgRoleInOrg
 ): Promise<({ ok: true } & InviteMemberResult) | { ok: false; error: OrgMemberErrorCode }> {
   try {
     if (actorRole === 'leader' && args.roleInOrg === 'admin') {
