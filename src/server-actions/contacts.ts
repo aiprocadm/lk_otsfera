@@ -1,8 +1,26 @@
 'use server';
 
+import { z } from 'zod';
+import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db/prisma';
-import { requireManager } from '@/lib/auth/requireRole';
+import type { SessionPayload } from '@/lib/auth/jwt';
+import { requireManager, requireSession } from '@/lib/auth/requireRole';
+import { getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
+import {
+  addChannel,
+  archiveContact,
+  removeChannel,
+  restoreContact,
+  setPrimaryChannel,
+  updateContact,
+  type MutateContactResult,
+} from '@/lib/services/contacts/mutate';
+import {
+  listMergeCandidates,
+  mergeContacts,
+  type MergeContactsResult,
+} from '@/lib/services/contacts/merge';
 import {
   bindCall,
   type BindCallArgs,
@@ -82,4 +100,163 @@ export async function createContactFromInboundAction(
   if (notFoundIfDisabled('contacts')) return { ok: false, error: 'forbidden' };
   const session = await requireManager();
   return createContactFromInbound(prisma, session, args);
+}
+
+// ─── Этап 1 ТЗ 12.09.2026, PR-1 «основа» (`У-180`, `У-181`) ──────────────────
+// Тонкие адаптеры над сервисами правок и объединения: флаг и форма — здесь,
+// роль, скоуп и запись — в сервисах (`canUseContacts` отказывает клиентскому
+// контуру, `isContactInScope` — чужому). `teamMode` читается свежим из базы
+// (C8); экраны трёх кабинетов ЦО (PR-2) перечитываются `revalidatePath`.
+
+const IdSchema = z.string().min(1).max(64);
+const ChannelTypeSchema = z.enum(['phone', 'email', 'telegram', 'whatsapp', 'max']);
+
+type Validation = { ok: false; error: 'validation' };
+type Disabled = { ok: false; error: 'forbidden' };
+
+function contactsDisabled(): Disabled | null {
+  return notFoundIfDisabled('contacts') ? { ok: false, error: 'forbidden' } : null;
+}
+
+async function staffContext(): Promise<{ session: SessionPayload; teamMode: boolean }> {
+  const session = await requireSession();
+  const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
+  return { session, teamMode };
+}
+
+/** Контакт виден в трёх кабинетах ЦО и в карточке его организации — перечитываем все. */
+function revalidateContact(contactId: string, organizationId?: string | null): void {
+  for (const cabinet of ['manager', 'leader', 'admin']) {
+    revalidatePath(`/${cabinet}/contacts`);
+    revalidatePath(`/${cabinet}/contacts/${contactId}`);
+    if (organizationId) revalidatePath(`/${cabinet}/organizations/${organizationId}`);
+  }
+}
+
+const UpdateContactSchema = z.object({
+  id: IdSchema,
+  name: z.string().min(1).max(200),
+  position: z.string().max(200).nullable().optional(),
+  note: z.string().max(4000).nullable().optional(),
+  organizationId: IdSchema.nullable().optional(),
+});
+
+export async function updateContactAction(
+  input: z.input<typeof UpdateContactSchema>
+): Promise<MutateContactResult | Validation> {
+  const off = contactsDisabled();
+  if (off) return off;
+  const parsed = UpdateContactSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'validation' };
+  const { session, teamMode } = await staffContext();
+  const result = await updateContact(prisma, session, teamMode, parsed.data);
+  if (result.ok) revalidateContact(result.contactId, parsed.data.organizationId);
+  return result;
+}
+
+export async function archiveContactAction(input: {
+  id: string;
+}): Promise<MutateContactResult | Validation> {
+  const off = contactsDisabled();
+  if (off) return off;
+  const parsed = z.object({ id: IdSchema }).safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'validation' };
+  const { session, teamMode } = await staffContext();
+  const result = await archiveContact(prisma, session, teamMode, parsed.data);
+  if (result.ok) revalidateContact(result.contactId);
+  return result;
+}
+
+export async function restoreContactAction(input: {
+  id: string;
+}): Promise<MutateContactResult | Validation> {
+  const off = contactsDisabled();
+  if (off) return off;
+  const parsed = z.object({ id: IdSchema }).safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'validation' };
+  const { session, teamMode } = await staffContext();
+  const result = await restoreContact(prisma, session, teamMode, parsed.data);
+  if (result.ok) revalidateContact(result.contactId);
+  return result;
+}
+
+const AddChannelSchema = z.object({
+  contactId: IdSchema,
+  type: ChannelTypeSchema,
+  value: z.string().min(1).max(200),
+  makePrimary: z.boolean().optional(),
+});
+
+export async function addChannelAction(
+  input: z.input<typeof AddChannelSchema>
+): Promise<MutateContactResult | Validation> {
+  const off = contactsDisabled();
+  if (off) return off;
+  const parsed = AddChannelSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'validation' };
+  const { session, teamMode } = await staffContext();
+  const result = await addChannel(prisma, session, teamMode, parsed.data);
+  if (result.ok) revalidateContact(result.contactId);
+  return result;
+}
+
+export async function removeChannelAction(input: {
+  channelId: string;
+}): Promise<MutateContactResult | Validation> {
+  const off = contactsDisabled();
+  if (off) return off;
+  const parsed = z.object({ channelId: IdSchema }).safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'validation' };
+  const { session, teamMode } = await staffContext();
+  const result = await removeChannel(prisma, session, teamMode, parsed.data);
+  if (result.ok) revalidateContact(result.contactId);
+  return result;
+}
+
+export async function setPrimaryChannelAction(input: {
+  channelId: string;
+}): Promise<MutateContactResult | Validation> {
+  const off = contactsDisabled();
+  if (off) return off;
+  const parsed = z.object({ channelId: IdSchema }).safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'validation' };
+  const { session, teamMode } = await staffContext();
+  const result = await setPrimaryChannel(prisma, session, teamMode, parsed.data);
+  if (result.ok) revalidateContact(result.contactId);
+  return result;
+}
+
+const MergeSchema = z.object({ primaryId: IdSchema, secondaryId: IdSchema });
+
+export async function mergeContactsAction(input: {
+  primaryId: string;
+  secondaryId: string;
+}): Promise<MergeContactsResult | Validation> {
+  const off = contactsDisabled();
+  if (off) return off;
+  const parsed = MergeSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'validation' };
+  const { session, teamMode } = await staffContext();
+  const result = await mergeContacts(prisma, session, teamMode, parsed.data);
+  if (result.ok) {
+    // Второй контакт тоже перечитываем: его страница теперь редиректит.
+    revalidateContact(result.primaryId);
+    revalidateContact(parsed.data.secondaryId);
+  }
+  return result;
+}
+
+const CandidatesSchema = z.object({ excludeId: IdSchema, q: z.string().max(100).optional() });
+
+/** Кандидаты для диалога «Объединить» — поиск по мере ввода. */
+export async function listMergeCandidatesAction(input: {
+  excludeId: string;
+  q?: string;
+}): Promise<Awaited<ReturnType<typeof listMergeCandidates>> | Validation> {
+  const off = contactsDisabled();
+  if (off) return off;
+  const parsed = CandidatesSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'validation' };
+  const { session, teamMode } = await staffContext();
+  return listMergeCandidates(prisma, session, teamMode, parsed.data);
 }

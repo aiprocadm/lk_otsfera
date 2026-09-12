@@ -15,7 +15,7 @@ import {
   pinOrganizationNote,
   removeOrganizationNote,
 } from '@/lib/services/organizationNotes/mutate';
-import { listOrganizationNotes } from '@/lib/services/organizationNotes/list';
+import { canDeleteNote, canEditNote } from '@/lib/services/organizationNotes/policy';
 
 /**
  * Внутренние заметки на живом Postgres (этап 1 ТЗ 12.09.2026, `У-183`, спека
@@ -110,21 +110,23 @@ describe('заметки организации (У-183)', () => {
     ).toBe(1);
   });
 
-  it('список: закреплённые отдельно, флаги прав считаются для сессии', async () => {
+  it('закрепление пишет pinnedAt и аудит; права правки/удаления считаются политикой', async () => {
     const pin = await pinOrganizationNote(prisma, session(managerId, 'manager'), {
       noteId,
       pinned: true,
     });
     expect(pin).toEqual({ ok: true, noteId });
-    const asManager = await listOrganizationNotes(prisma, session(managerId, 'manager'), orgId);
-    expect(asManager.ok).toBe(true);
-    if (!asManager.ok) return;
-    expect(asManager.pinned.map((n) => n.id)).toEqual([noteId]);
-    expect(asManager.notes).toEqual([]);
-    expect(asManager.pinned[0]).toMatchObject({ canEdit: true, canDelete: false });
-
-    const asLeader = await listOrganizationNotes(prisma, session(leaderId, 'leader'), orgId);
-    expect(asLeader.ok && asLeader.pinned[0]).toMatchObject({ canEdit: true, canDelete: true });
+    const note = await prisma.organizationNote.findUniqueOrThrow({ where: { id: noteId } });
+    expect(note.pinnedAt).not.toBeNull();
+    expect(
+      await prisma.auditLog.count({
+        where: { action: 'organization_note_pinned', entityId: noteId },
+      })
+    ).toBe(1);
+    expect(canEditNote(session(managerId, 'manager'), note)).toBe(true);
+    expect(canDeleteNote(session(managerId, 'manager'))).toBe(false);
+    expect(canEditNote(session(leaderId, 'leader'), note)).toBe(true);
+    expect(canDeleteNote(session(leaderId, 'leader'))).toBe(true);
   });
 
   it('лимит закреплённых — три', async () => {
@@ -189,14 +191,12 @@ describe('заметки организации (У-183)', () => {
       companyId,
       organizationId: orgId,
     } as unknown as SessionPayload;
-    expect(await listOrganizationNotes(prisma, partner, orgId)).toEqual({
-      ok: false,
-      error: 'not_found',
-    });
-    expect(await listOrganizationNotes(prisma, customer, orgId)).toEqual({
-      ok: false,
-      error: 'not_found',
-    });
+    expect(
+      await addOrganizationNote(prisma, partner, { organizationId: orgId, body: 'x' })
+    ).toEqual({ ok: false, error: 'not_found' });
+    expect(
+      await addOrganizationNote(prisma, customer, { organizationId: orgId, body: 'x' })
+    ).toEqual({ ok: false, error: 'not_found' });
     expect(await removeOrganizationNote(prisma, partner, { noteId })).toEqual({
       ok: false,
       error: 'not_found',

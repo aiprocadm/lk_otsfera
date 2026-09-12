@@ -2,7 +2,6 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { mergeContacts } from '@/lib/services/contacts/merge';
-import { getContact } from '@/lib/services/contacts/get';
 
 /**
  * Объединение дублей на живом Postgres (этап 1 ТЗ 12.09.2026, `У-181`, спека
@@ -233,14 +232,31 @@ describe('mergeContacts (У-181)', () => {
     expect((audit!.meta as { before: { channels: number } }).before.channels).toBe(2);
   });
 
-  it('карточка главного после объединения показывает перенесённые счётчики; второй помнит главного', async () => {
-    const card = await getContact(prisma, manager(), true, primaryId);
-    expect(card.ok).toBe(true);
-    if (!card.ok) return;
-    expect(card.contact.counts).toEqual({ dialogs: 1, calls: 1, inbound: 1, deals: 1, orders: 1 });
-    expect(card.contact.user?.id).toBe(cabinetUserId);
-    const archived = await getContact(prisma, manager(), true, secondaryId);
-    expect(archived.ok && archived.contact.mergedIntoId).toBe(primaryId);
+  it('главный после объединения держит все связи; второй помнит главного', async () => {
+    const primary = await prisma.contact.findUniqueOrThrow({
+      where: { id: primaryId },
+      select: {
+        userId: true,
+        _count: {
+          select: {
+            messengerDialogs: true,
+            calls: true,
+            inboundMessages: true,
+            ordersAsPrimary: true,
+          },
+        },
+      },
+    });
+    expect(primary._count).toEqual({
+      messengerDialogs: 1,
+      calls: 1,
+      inboundMessages: 1,
+      ordersAsPrimary: 1,
+    });
+    expect(await prisma.deal.count({ where: { contactId: primaryId } })).toBe(1);
+    expect(primary.userId).toBe(cabinetUserId);
+    const archived = await prisma.contact.findUniqueOrThrow({ where: { id: secondaryId } });
+    expect(archived.mergedIntoId).toBe(primaryId);
   });
 
   it('уже объединённый контакт не годится в главные', async () => {

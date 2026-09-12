@@ -142,8 +142,10 @@ describe('listPiiAccess', () => {
   });
 
   it('субъект «contact» резолвится батчем через prisma.contact.findMany в имя контакта', async () => {
-    // Этап 1 ТЗ 12.09.2026: контакты — новый субъект ПДн (`contacts_list`,
-    // `contact_card`). Имя берётся одним запросом на все id строки журнала.
+    // Этап 1 ТЗ 12.09.2026: контакты — новый субъект ПДн. Имя берётся одним
+    // запросом на все id строки журнала. Контексты `contacts_list` /
+    // `contact_card` заводятся в PR-2 вместе с экранами — до этого подпись
+    // контекста = его ключ (fallback реестра); PR-2 меняет ожидание на подписи.
     const p = makePrisma([
       eventRow('e1', {
         subjectType: 'contact',
@@ -159,8 +161,8 @@ describe('listPiiAccess', () => {
     const res = await listPiiAccess(p, ADMIN, {});
     if (!res.ok) throw new Error('expected ok');
     expect(res.rows.map((r) => [r.labelRu, r.subjects.map((s) => s.label)])).toEqual([
-      ['Список контактов', ['Иван Контактов', 'k2 (удалён)']],
-      ['Карточка контакта', ['Мария К.']],
+      ['contacts_list', ['Иван Контактов', 'k2 (удалён)']],
+      ['contact_card', ['Мария К.']],
     ]);
     // один батч на все контакты страницы, а не запрос на строку
     expect((p as any).contact.findMany).toHaveBeenCalledTimes(1);

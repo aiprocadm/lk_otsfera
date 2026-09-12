@@ -18,7 +18,7 @@ const SUBJECT_TYPES = new Set([
 describe('PII_CONTEXTS registry', () => {
   const entries = Object.entries(PII_CONTEXTS);
 
-  it('содержит все 29 контекстов v1+M1+M6+этапы 2/5/7/9 + ТЗ кабинетов + мессенджеры + контакты', () => {
+  it('содержит все 27 контекстов v1+M1+M6+этапы 2/5/7/9 + ТЗ кабинетов + мессенджеры', () => {
     expect(entries.map(([k]) => k).sort()).toEqual([
       'admin_user_view',
       'admin_users_list',
@@ -26,8 +26,6 @@ describe('PII_CONTEXTS registry', () => {
       'certificates_list',
       'client_request_view', // этап 5: деталка обращения клиента
       'client_requests_list', // этап 5: очередь/списки обращений
-      'contact_card', // этап 1 ТЗ 12.09.2026 (`У-186`): карточка контакта
-      'contacts_list', // этап 1 ТЗ 12.09.2026 (`У-186`): список контактов
       'deal_activity_calls',
       'deal_activity_inbound',
       'enrollment_detail', // этап 2 PR-2: деталка заявки подателя

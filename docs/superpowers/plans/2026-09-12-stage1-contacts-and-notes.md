@@ -49,12 +49,6 @@ PR-3 — сервисы заметок PR-1 и страницы PR-2, PR-4 за�
       который трактует no-profile как «можно», §3.2 спеки)
 - [x] `services/contacts/scope.ts`: `contactScopeWhere(session, teamMode)` и
       `isContactInScope(session, teamMode, contact)`; `canUseContacts(session)`
-- [x] `services/contacts/list.ts`: поиск (имя, организация, e-mail, телефон в
-      любом написании), фильтры, сортировка, постраничность 50 с `total`,
-      `recordPiiAccess('contacts_list')`
-- [x] `services/contacts/get.ts`: карточка с каналами, организацией, связями по
-      вкладкам (счётчики), `mergedIntoId` для редиректа,
-      `recordPiiAccess('contact_card')`
 - [x] `services/contacts/mutate.ts`: `updateContact`, `archiveContact`,
       `restoreContact`, `addChannel`, `removeChannel`, `setPrimaryChannel`;
       занятый канал → `contact_channel_taken` с владельцем; канал пользователя
@@ -64,19 +58,25 @@ PR-3 — сервисы заметок PR-1 и страницы PR-2, PR-4 за�
       переноса (каналы, письма, звонки, диалоги, заказы, сделки, `userId`,
       пустые `position`/`note`), архив + `mergedIntoId`, аудит `contact_merged`
       со снимком; `listMergeCandidates`
-- [x] `services/organizationNotes/{list,mutate}.ts`: список (закреплённые
-      сверху), `addNote`, `editNote` (автор 24 ч, руководитель/админ всегда),
+- [x] `services/organizationNotes/{policy,mutate}.ts`: `addNote`, `editNote`
+      (автор 24 ч, руководитель/админ всегда; не автор → `forbidden`),
       `removeNote` (руководитель/админ, аудит), `pinNote`/`unpinNote` (до трёх);
       `note_too_long`, `note_pin_limit`, `note_edit_expired`; партнёр и
-      заказчик → `not_found`
+      заказчик → `not_found`. Список заметок (`list.ts`) едет в PR-3 вместе с
+      вкладкой — страж `services.no-test-only-modules` не терпит сервис без
+      живого потребителя
+- [x] `server-actions/contacts.ts` (+update/archive/restore/addChannel/
+      removeChannel/setPrimaryChannel/merge/listMergeCandidates) и новый
+      `server-actions/organizationNotes.ts` (add/edit/remove/pin) — живые
+      потребители сервисов PR-1; экраны PR-2/PR-3 их вызовут
 - [x] `notifications/noteMention.ts`: `notifyNoteMention({ entity, ... })` —
       единый продьюсер `note_mention`; `manager/dealNotes.ts` переведён на него;
       реестр: `note_mention` вместо `deal_note_mention`, `LEGACY_TYPE_ALIASES`
       для подписей исторических строк
-- [x] `pii/contexts.ts`: `subjectType` `contact`; контексты `contact_card`,
-      `contacts_list` (`contacts_search` — в PR-2 вместе с категорией поиска:
-      страж `pii.capture-coverage` требует живой вызов в `globalSearch.ts`);
-      `admin/piiAccess.ts` — подпись субъекта-контакта по имени
+- [x] `pii/contexts.ts`: `subjectType` `contact`; `admin/piiAccess.ts` —
+      подпись субъекта-контакта по имени. Контексты `contacts_list`,
+      `contact_card`, `contacts_search` — в PR-2 вместе с чтениями и поиском
+      (страж `pii.capture-coverage` требует живой вызов в заявленном файле)
 - [x] `auth/audit.ts` + `audit/labels.ts`: `contact_updated`, `contact_archived`,
       `contact_restored`, `contact_channel_added`, `contact_channel_removed`,
       `contact_merged`, `organization_note_created`, `organization_note_updated`,
@@ -97,6 +97,13 @@ PR-3 — сервисы заметок PR-1 и страницы PR-2, PR-4 за�
 - [ ] `navigation/sectionLabels.ts` (`contacts` → «Контакты»), `icons.ts`
       (`contacts`), `cabinet.ts` — пункт в группе «Клиенты» после
       «Организации» у manager/leader/admin с `flag: 'contacts'`
+- [ ] `services/contacts/list.ts` (поиск по имени, организации, e-mail и
+      телефону в любом написании, фильтры, сортировка, постраничность 50 с
+      `total`, `recordPiiAccess('contacts_list')`) и `get.ts` (карточка, каналы
+      с признаком «из кабинета», счётчики, шесть вкладок `listContactTab`,
+      `recordPiiAccess('contact_card')`) — заготовки и их unit-тесты сняты с
+      PR-1 и лежат в scratchpad сессии; контексты ПДн `contacts_list`,
+      `contact_card` заводятся здесь
 - [ ] страницы `/{manager,leader,admin}/contacts/page.tsx` и `[id]/page.tsx`:
       гард роли, `notFound()` при выключенном флаге или без `canUseContacts`,
       `PageHeader` с подзаголовком, крошки, редирект по `mergedIntoId`
@@ -106,11 +113,8 @@ PR-3 — сервисы заметок PR-1 и страницы PR-2, PR-4 за�
       вкладки Диалоги · Звонки · Входящие письма · Сделки · Заказы · История,
       пустые состояния с действием), `contact-channels.tsx`,
       `merge-contacts-dialog.tsx`
-- [ ] `server-actions/contacts.ts`: `createContactAction`, `updateContactAction`,
-      `archiveContactAction`, `restoreContactAction`, `addChannelAction`,
-      `removeChannelAction`, `setPrimaryChannelAction`, `mergeContactsAction`,
-      `createLeadFromContactAction`; флаг → `forbidden`; `revalidatePath` трёх
-      кабинетов
+- [ ] `server-actions/contacts.ts`: `createContactAction` и
+      `createLeadFromContactAction` (остальные мутации — в PR-1)
 - [ ] `services/intake/convert.ts`: `createLeadFromContact` (источник `manual`)
 - [ ] `components/manager/messengers/new-dialog-button.tsx`: проп `preselect`;
       страница `/manager/messengers` читает `?new=<contactId>`
@@ -132,6 +136,8 @@ PR-3 — сервисы заметок PR-1 и страницы PR-2, PR-4 за�
       комментарии; страж порядка обновлён
 - [ ] `components/ui/mention-textarea.tsx` извлечён из `staff-composer.tsx`
       (чат команды переведён на него, поведение не меняется)
+- [ ] `services/organizationNotes/list.ts` (закреплённые отдельно, флаги прав
+      для сессии) — заготовка и unit-тест сняты с PR-1
 - [ ] `components/organization/org-contacts-section.tsx`,
       `org-notes-section.tsx` (композитор, закреплённые сверху, правка своей,
       удаление руководителем), блок «Важное» на «Обзоре»
@@ -141,8 +147,6 @@ PR-3 — сервисы заметок PR-1 и страницы PR-2, PR-4 за�
       `getOrganizationCard` теряет `auditTrail`; вкладка «История» переписана
 - [ ] страницы карточки ×3 грузят секции только при активной вкладке; плитка
       «Контакты» = не архивные
-- [ ] `server-actions/organizationNotes.ts`: `add`, `edit`, `remove`, `pin`,
-      `unpin`; `revalidatePath` карточек трёх кабинетов
 - [ ] карточка лида: блок «Контакт» (`resolveContactByChannel`) + «Создать
       контакт из данных лида»; карточка заказа: «Контакт заказа»
       (`setOrderPrimaryContact`); карточка сделки: «Контакт» (`Deal.contactId`)
