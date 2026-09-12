@@ -15,7 +15,6 @@
  * файлов выводится из самого реестра.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DOCUMENT_TEMPLATE_SLOTS } from '@/lib/documents/documentTemplate';
 import { readSource } from './helpers/source';

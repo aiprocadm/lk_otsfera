@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { navByRole } from '@/lib/navigation/cabinet';
 import { MOBILE_TABS } from '@/lib/navigation/mobileTabs';

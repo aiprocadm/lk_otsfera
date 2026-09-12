@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { EMAIL_TEMPLATE_REGISTRY } from '@/lib/email/templateRegistry';
 import { SETTINGS_SECTIONS } from '@/lib/navigation/settings';

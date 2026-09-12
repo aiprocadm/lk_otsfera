@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readdirSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { FEATURE_PREFIXES, isRouteGatedFlag } from '@/lib/featureFlags';
 import { SETTING_SPECS } from '@/lib/config/integrationSettings';

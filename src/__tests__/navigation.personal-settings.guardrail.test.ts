@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PERSONAL_SETTINGS_TABS, personalSettingsTabsFor } from '@/lib/navigation/personalSettings';
 import { SETTINGS_SECTIONS } from '@/lib/navigation/settings';
