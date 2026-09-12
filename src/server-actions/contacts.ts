@@ -118,10 +118,9 @@ function contactsDisabled(): Disabled | null {
   return notFoundIfDisabled('contacts') ? { ok: false, error: 'forbidden' } : null;
 }
 
-async function staffContext(): Promise<{ session: SessionPayload; teamMode: boolean }> {
-  const session = await requireSession();
-  const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
-  return { session, teamMode };
+/** `teamMode` читается свежим из базы (C8); гард сессии стоит в каждом действии — страж `server-actions.session-guard` смотрит на тело действия, а не на помощников. */
+function teamModeOf(session: SessionPayload): Promise<boolean> {
+  return getCompanyTeamVisibility(prisma, session.companyId);
 }
 
 /** Контакт виден в трёх кабинетах ЦО и в карточке его организации — перечитываем все. */
@@ -148,7 +147,8 @@ export async function updateContactAction(
   if (off) return off;
   const parsed = UpdateContactSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'validation' };
-  const { session, teamMode } = await staffContext();
+  const session = await requireSession();
+  const teamMode = await teamModeOf(session);
   const result = await updateContact(prisma, session, teamMode, parsed.data);
   if (result.ok) revalidateContact(result.contactId, parsed.data.organizationId);
   return result;
@@ -161,7 +161,8 @@ export async function archiveContactAction(input: {
   if (off) return off;
   const parsed = z.object({ id: IdSchema }).safeParse(input);
   if (!parsed.success) return { ok: false, error: 'validation' };
-  const { session, teamMode } = await staffContext();
+  const session = await requireSession();
+  const teamMode = await teamModeOf(session);
   const result = await archiveContact(prisma, session, teamMode, parsed.data);
   if (result.ok) revalidateContact(result.contactId);
   return result;
@@ -174,7 +175,8 @@ export async function restoreContactAction(input: {
   if (off) return off;
   const parsed = z.object({ id: IdSchema }).safeParse(input);
   if (!parsed.success) return { ok: false, error: 'validation' };
-  const { session, teamMode } = await staffContext();
+  const session = await requireSession();
+  const teamMode = await teamModeOf(session);
   const result = await restoreContact(prisma, session, teamMode, parsed.data);
   if (result.ok) revalidateContact(result.contactId);
   return result;
@@ -194,7 +196,8 @@ export async function addChannelAction(
   if (off) return off;
   const parsed = AddChannelSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'validation' };
-  const { session, teamMode } = await staffContext();
+  const session = await requireSession();
+  const teamMode = await teamModeOf(session);
   const result = await addChannel(prisma, session, teamMode, parsed.data);
   if (result.ok) revalidateContact(result.contactId);
   return result;
@@ -207,7 +210,8 @@ export async function removeChannelAction(input: {
   if (off) return off;
   const parsed = z.object({ channelId: IdSchema }).safeParse(input);
   if (!parsed.success) return { ok: false, error: 'validation' };
-  const { session, teamMode } = await staffContext();
+  const session = await requireSession();
+  const teamMode = await teamModeOf(session);
   const result = await removeChannel(prisma, session, teamMode, parsed.data);
   if (result.ok) revalidateContact(result.contactId);
   return result;
@@ -220,7 +224,8 @@ export async function setPrimaryChannelAction(input: {
   if (off) return off;
   const parsed = z.object({ channelId: IdSchema }).safeParse(input);
   if (!parsed.success) return { ok: false, error: 'validation' };
-  const { session, teamMode } = await staffContext();
+  const session = await requireSession();
+  const teamMode = await teamModeOf(session);
   const result = await setPrimaryChannel(prisma, session, teamMode, parsed.data);
   if (result.ok) revalidateContact(result.contactId);
   return result;
@@ -236,7 +241,8 @@ export async function mergeContactsAction(input: {
   if (off) return off;
   const parsed = MergeSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'validation' };
-  const { session, teamMode } = await staffContext();
+  const session = await requireSession();
+  const teamMode = await teamModeOf(session);
   const result = await mergeContacts(prisma, session, teamMode, parsed.data);
   if (result.ok) {
     // Второй контакт тоже перечитываем: его страница теперь редиректит.
@@ -257,6 +263,7 @@ export async function listMergeCandidatesAction(input: {
   if (off) return off;
   const parsed = CandidatesSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'validation' };
-  const { session, teamMode } = await staffContext();
+  const session = await requireSession();
+  const teamMode = await teamModeOf(session);
   return listMergeCandidates(prisma, session, teamMode, parsed.data);
 }
