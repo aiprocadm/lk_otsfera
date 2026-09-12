@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { EMAIL_TEMPLATE_REGISTRY } from '@/lib/email/templateRegistry';
 import { SETTINGS_SECTIONS } from '@/lib/navigation/settings';
+import { readSource } from './helpers/source';
 
 /**
  * Страж PR-6 этапа 4: свои тексты писем применяются, а не только сохраняются
  * (`У-128`).
  */
 const SRC = join(__dirname, '..');
-const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
+const read = (p: string) => readSource(join(SRC, p));
 
 describe('У-128: свой текст доходит до письма', () => {
   it('email-канал спрашивает переопределение', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 // Флаги включаем все: страж проверяет ВЕСЬ реестр плиток, а не тот срез,
@@ -7,6 +7,7 @@ import { join } from 'node:path';
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled: () => true }));
 
 import { quickTasksFor, type QuickTasksRole } from '@/lib/quickTasks';
+import { readSource } from './helpers/source';
 
 /**
  * Страж «частых задач» (`У-105`).
@@ -50,7 +51,7 @@ function screenSource(href: string): string {
   const visit = (file: string, depth: number) => {
     if (seen.has(file) || depth > 2) return;
     seen.add(file);
-    const src = readFileSync(file, 'utf8');
+    const src = readSource(file);
     parts.push(src);
     for (const m of src.matchAll(/from '(@\/components\/[^']+)'/g)) {
       const next = componentFile(m[1] as string);

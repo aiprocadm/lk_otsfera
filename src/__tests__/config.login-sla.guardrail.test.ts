@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { SETTING_SPECS } from '@/lib/config/integrationSettings';
 import { SETTINGS_SECTIONS } from '@/lib/navigation/settings';
 import { ALL_SCHEDULES } from '@/lib/jobs/scheduling';
 import { LOGIN_POLICY_FIELDS } from '@/lib/auth/loginPolicyFields';
+import { readSource } from './helpers/source';
 
 /**
  * Страж PR-7 этапа 4: политики входа (`У-129`) и переезд SLA (`У-130`).
  */
 const SRC = join(__dirname, '..');
-const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
+const read = (p: string) => readSource(join(SRC, p));
 
 describe('У-129: политики входа настраиваются из интерфейса', () => {
   /**

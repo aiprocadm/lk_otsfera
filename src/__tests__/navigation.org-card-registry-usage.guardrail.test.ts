@@ -1,8 +1,8 @@
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { ORG_CARD_TABS, type OrgCardCabinet } from '@/lib/navigation/orgCardTabs';
+import { readSource } from './helpers/source';
 
 /**
  * `У-95`/`У-96` (этап 9, PR-1): реестр вкладок — один на все кабинеты, но
@@ -30,7 +30,7 @@ const ORG_CARD_PAGES: Record<OrgCardCabinet, string> = {
 
 /** Исходник без комментариев: упоминание в docstring — не вызов. */
 const read = (rel: string) =>
-  readFileSync(join(ROOT, rel), 'utf8')
+  readSource(join(ROOT, rel))
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/^\s*\/\/.*$/gm, '');
 

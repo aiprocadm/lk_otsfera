@@ -15,9 +15,9 @@
  * файлов выводится из самого реестра.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DOCUMENT_TEMPLATE_SLOTS } from '@/lib/documents/documentTemplate';
+import { readSource } from './helpers/source';
 
 const CONTRACT_PDF = join(process.cwd(), 'src/lib/services/documents/contractDocumentPdf.ts');
 const PROPOSAL_PDF = join(process.cwd(), 'src/lib/services/documents/proposalDocumentPdf.ts');
@@ -55,7 +55,7 @@ describe('вёрстка не хранит готовых текстов — н�
   )('текста слота «%s» в его файле печати нет', (_key, defaultText, docType) => {
     // Сравниваем по первым словам: полное совпадение сломалось бы от переноса
     // строки в исходнике, а начало формулировки узнаваемо и уникально.
-    const source = readFileSync(PDF_BY_DOC_TYPE[docType]!, 'utf8');
+    const source = readSource(PDF_BY_DOC_TYPE[docType]!);
     expect(source).not.toContain(head(defaultText));
   });
 
@@ -63,7 +63,7 @@ describe('вёрстка не хранит готовых текстов — н�
     // Проверка от обратного: слот КП, скопированный в вёрстку договора,
     // прошёл бы предыдущую проверку — она смотрит только «свой» файл.
     for (const file of new Set(Object.values(PDF_BY_DOC_TYPE))) {
-      const source = readFileSync(file, 'utf8');
+      const source = readSource(file);
       for (const slot of DOCUMENT_TEMPLATE_SLOTS) {
         if (!slot.defaultText) continue;
         expect(source, `${slot.key} → ${file}`).not.toContain(head(slot.defaultText));
@@ -73,7 +73,7 @@ describe('вёрстка не хранит готовых текстов — н�
 });
 
 describe('вёрстка договора', () => {
-  const source = readFileSync(CONTRACT_PDF, 'utf8');
+  const source = readSource(CONTRACT_PDF);
 
   it('номер пункта печатает вёрстка, а не текст', () => {
     // Шаблон печатается как «<номер>. <текст>»: пропади это, номера исчезли бы
@@ -111,7 +111,7 @@ describe('вёрстка договора', () => {
 });
 
 describe('вёрстка коммерческого предложения (`У-162`)', () => {
-  const source = readFileSync(PROPOSAL_PDF, 'utf8');
+  const source = readSource(PROPOSAL_PDF);
 
   it('каждый абзац КП из реестра реально печатается', () => {
     // Симметрия договорной проверке. Там абзац находит раздел по номеру
@@ -141,7 +141,7 @@ describe('вёрстка коммерческого предложения (`У-
 });
 
 describe('генератор читает шаблон и записывает редакцию', () => {
-  const source = readFileSync(GENERATOR, 'utf8');
+  const source = readSource(GENERATOR);
 
   it('абзацы собирает ТОЛЬКО общий рендер — предпросмотру и выпуску негде разойтись', () => {
     // Раньше здесь стояло «вызов ровно один». Проверка держалась на том, что

@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { navByRole } from '@/lib/navigation/cabinet';
 import { MOBILE_TABS } from '@/lib/navigation/mobileTabs';
+import { readSource } from './helpers/source';
 
 /**
  * Страж переименования «Сделки» → «Заказы» у партнёра (`У-109`).
@@ -54,7 +55,7 @@ describe('«Заказы» партнёра, а не «Сделки» (У-109)',
     for (const p of ['app/partner/deals/page.tsx', 'app/partner/deals/[id]/page.tsx']) {
       const file = join(SRC, p);
       expect(existsSync(file), `${p}: старый адрес просто удалён`).toBe(true);
-      const src = readFileSync(file, 'utf8');
+      const src = readSource(file);
       // Именно ПОСТОЯННЫЙ: адрес не вернётся, и поисковики это учитывают.
       // Проверяем сам импорт, а не слово: `redirect as permanentRedirect`
       // выглядит правильно и оставляет временный 307 — проверено мутацией.
@@ -88,7 +89,7 @@ describe('«Заказы» партнёра, а не «Сделки» (У-109)',
     for (const file of walk(join(SRC, 'app')).concat(walk(join(SRC, 'components')))) {
       const r = rel(file);
       if (r.startsWith('app/partner/deals')) continue; // сам редирект
-      const src = readFileSync(file, 'utf8');
+      const src = readSource(file);
       if (src.includes('/partner/deals')) rogue.push(r);
     }
     expect(rogue, 'ссылка ведёт на старый адрес вместо нового').toEqual([]);

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { SETTINGS_SECTIONS } from '@/lib/navigation/settings';
+import { readSource } from './helpers/source';
 
 /**
  * Страж матрицы «раздел хаба × роль» (`У-135`, решение `Р-22`).
@@ -16,7 +16,7 @@ import { SETTINGS_SECTIONS } from '@/lib/navigation/settings';
  * половину регрессов.
  */
 const SRC = join(__dirname, '..');
-const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
+const read = (p: string) => readSource(join(SRC, p));
 
 /**
  * Решение `Р-22` дословно. Разделы этапов 5–6 (каталог, шаблоны документов)

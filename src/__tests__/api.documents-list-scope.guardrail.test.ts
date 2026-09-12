@@ -1,6 +1,6 @@
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { readSource } from './helpers/source';
 
 /**
  * Список документов не отбирается в браузере.
@@ -16,7 +16,7 @@ import { describe, expect, it } from 'vitest';
  * `count` по тому же условию.
  */
 const SRC = join(__dirname, '..');
-const read = (rel: string) => readFileSync(join(SRC, rel), 'utf8');
+const read = (rel: string) => readSource(join(SRC, rel));
 
 describe('api/documents: срез и фильтр считает сервер', () => {
   it('сервис режет выборку и считает total по тому же условию', () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { readSource } from './helpers/source';
 
 /**
  * Сторож командной палитры (`У-75`, этап 9).
@@ -38,7 +38,7 @@ const SEARCH_ROLES = [
 ];
 
 function read(rel: string): string {
-  return readFileSync(join(ROOT, rel), 'utf8');
+  return readSource(join(ROOT, rel));
 }
 
 describe('командная палитра смонтирована во всех кабинетах (У-75)', () => {

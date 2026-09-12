@@ -1,16 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readdirSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { FEATURE_PREFIXES, isRouteGatedFlag } from '@/lib/featureFlags';
 import { SETTING_SPECS } from '@/lib/config/integrationSettings';
 import { WEBHOOK_PROVIDERS } from '@/lib/services/admin/webhookSecrets';
+import { readSource } from './helpers/source';
 
 /**
  * Стражи PR-2 этапа 4: телефония включается из интерфейса (`У-124`, дефект
  * `Д-38`) и секреты вебхуков задаются оттуда же (`У-123`).
  */
 const SRC = join(__dirname, '..');
-const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
+const read = (p: string) => readSource(join(SRC, p));
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -46,7 +47,7 @@ describe('У-124: телефония включается из интерфей�
     );
     expect(routes.length, 'роуты звонков исчезли — проверять нечего').toBeGreaterThan(0);
     const unguarded = routes
-      .filter((f) => !readFileSync(f, 'utf8').includes("'telephony_mango'"))
+      .filter((f) => !readSource(f).includes("'telephony_mango'"))
       .map((f) => relative(SRC, f).split(sep).join('/'));
     expect(unguarded, 'роут звонков без гарда флага — раздел открыт').toEqual([]);
   });

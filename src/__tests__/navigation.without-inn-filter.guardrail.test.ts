@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { readSource } from './helpers/source';
 
 /**
  * Страж отбора «без ИНН» (`У-94`, §0.2 — правило зеркала).
@@ -21,7 +21,7 @@ const SCREENS = [
 ];
 
 function read(rel: string): string {
-  return readFileSync(join(SRC, rel), 'utf8');
+  return readSource(join(SRC, rel));
 }
 
 describe('отбор «без ИНН» одинаков во всех кабинетах (У-94)', () => {

@@ -1,6 +1,7 @@
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { readSource } from './helpers/source';
 
 /**
  * `У-164` — кто зовёт `canReadDocument`, обязан прислать ТИП и СОСТОЯНИЕ.
@@ -37,7 +38,7 @@ function callers(): string[] {
       const rel = relative(SRC, p).split('\\').join('/');
       // Сам гейт — не вызывающий: он и есть дверь.
       if (rel === 'lib/auth/policy.ts') continue;
-      if (/\bcanReadDocument\(/.test(readFileSync(p, 'utf-8'))) out.push(rel);
+      if (/\bcanReadDocument\(/.test(readSource(p))) out.push(rel);
     }
   };
   walk(SRC);
@@ -53,7 +54,7 @@ describe('У-164: вызывающий `canReadDocument` присылает ти
   });
 
   it.each(files)('%s берёт в выборку `type` и `status`', (rel) => {
-    const source = readFileSync(join(SRC, rel), 'utf-8');
+    const source = readSource(join(SRC, rel));
     // Ищем поля в любом `select`/`include` файла: гейт получает документ
     // ровно из той выборки, что рядом с вызовом.
     expect(source, `${rel}: в выборке документа нет \`type: true\``).toMatch(/\btype:\s*true\b/);

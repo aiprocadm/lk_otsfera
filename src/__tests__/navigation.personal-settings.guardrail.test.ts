@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PERSONAL_SETTINGS_TABS, personalSettingsTabsFor } from '@/lib/navigation/personalSettings';
 import { SETTINGS_SECTIONS } from '@/lib/navigation/settings';
+import { readSource } from './helpers/source';
 
 /**
  * Страж личных настроек (`У-114`, правило зеркала §0.2).
@@ -30,7 +30,7 @@ const SCREENS = [
   'components/settings/staff-personal-settings.tsx',
 ];
 
-const read = (rel: string) => readFileSync(join(SRC, rel), 'utf8');
+const read = (rel: string) => readSource(join(SRC, rel));
 
 /** Код без комментариев: блочных и до конца строки. */
 function stripComments(src: string): string {
