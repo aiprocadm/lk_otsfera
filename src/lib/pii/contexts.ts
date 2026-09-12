@@ -180,6 +180,25 @@ export const PII_CONTEXTS = {
     labelRu: 'Карточка организации: выгрузка удостоверений',
     callSite: 'src/app/api/manager/organizations/[id]/certificates/export/route.ts',
   },
+  // Спека 2026-09-12: диалоги в мессенджерах — имена и адреса собеседников.
+  messengers_list: {
+    subjectType: 'inbound_sender',
+    action: 'list',
+    labelRu: 'Мессенджеры: список диалогов',
+    callSite: 'src/lib/services/messengers/list.ts',
+  },
+  messengers_view: {
+    subjectType: 'inbound_sender',
+    action: 'view',
+    labelRu: 'Мессенджеры: диалог',
+    callSite: 'src/lib/services/messengers/get.ts',
+  },
+  messengers_candidates: {
+    subjectType: 'user',
+    action: 'list',
+    labelRu: 'Мессенджеры: кому написать первым',
+    callSite: 'src/lib/services/messengers/start.ts',
+  },
 } as const satisfies Record<string, PiiContext>;
 
 export type PiiContextKey = keyof typeof PII_CONTEXTS;

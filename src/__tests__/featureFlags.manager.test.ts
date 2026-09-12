@@ -85,6 +85,7 @@ describe('navByRole.manager — feature-flag gated', () => {
       '/manager/enrollments',
       '/manager/messages',
       '/manager/inbox',
+      '/manager/messengers',
       '/manager/calls',
       '/manager/team',
       // `У-111`: пункта-входа в кабинет руководителя здесь больше нет — смена
@@ -108,6 +109,7 @@ describe('navByRole.manager — feature-flag gated', () => {
         i.href !== '/manager/tasks' &&
         i.href !== '/manager/calendar' &&
         i.href !== '/manager/inbox' &&
+        i.href !== '/manager/messengers' &&
         i.href !== '/manager/calls'
     );
     expect(ownItems.every((i) => i.flag === 'manager_cabinet')).toBe(true);
@@ -127,6 +129,10 @@ describe('navByRole.manager — feature-flag gated', () => {
     expect(calendar?.flag).toBe('staff_calendar');
     const inbox = navByRole.manager.find((i) => i.href === '/manager/inbox');
     expect(inbox?.flag).toBe('inbound_messaging');
+    // Спека 2026-09-12: диалоги под тем же флагом, что и «Входящие письма».
+    const messengers = navByRole.manager.find((i) => i.href === '/manager/messengers');
+    expect(messengers?.flag).toBe('inbound_messaging');
+    expect(messengers?.badgeKey).toBe('messengersUnread');
     const calls = navByRole.manager.find((i) => i.href === '/manager/calls');
     expect(calls?.flag).toBe('telephony_mango');
   });

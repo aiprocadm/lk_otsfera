@@ -46,6 +46,7 @@ export type SectionKey =
   | 'integrations'
   | 'messages'
   | 'inbox'
+  | 'messengers'
   | 'calls'
   | 'analytics'
   | 'team'
@@ -118,6 +119,9 @@ export const SECTIONS: Record<SectionKey, SectionMeta> = {
   // ── Коммуникации ──────────────────────────────────────────────────────────
   messages: { label: 'Сообщения', iconKey: 'messages' },
   inbox: { label: 'Входящие письма', iconKey: 'inbox' },
+  // Спека 2026-09-12: переписка с клиентами в Telegram / MAX / WhatsApp —
+  // диалоги, а не разбор писем («Входящие письма») и не чат по заказу («Сообщения»).
+  messengers: { label: 'Мессенджеры', iconKey: 'messengers' },
   calls: { label: 'Звонки', iconKey: 'calls' },
 
   // ── Аналитика и команда ───────────────────────────────────────────────────

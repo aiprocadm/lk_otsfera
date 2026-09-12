@@ -3,6 +3,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { taskFiltersWhere } from '@/lib/services/tasks/board';
 import { clientRequestScopeWhere } from '@/lib/services/clientRequests/list';
 import { unreadCount } from '@/lib/services/chat/threads';
+import { countUnreadDialogs } from '@/lib/services/messengers/list';
 import { countIntake } from './list';
 
 /**
@@ -22,19 +23,22 @@ export type StaffBadges = {
   clientRequestsNew: number;
   /** ФТ-15.2: треды с сообщениями новее отметки о прочтении. */
   messagesUnread: number;
+  /** Спека 2026-09-12: непрочитанные входящие в открытых диалогах мессенджеров. */
+  messengersUnread: number;
 };
 
 export async function getStaffBadges(
   prisma: PrismaClient,
   session: SessionPayload
 ): Promise<StaffBadges> {
-  const [intake, tasksOverdue, clientRequestsNew, unread] = await Promise.all([
+  const [intake, tasksOverdue, clientRequestsNew, unread, messengersUnread] = await Promise.all([
     countIntake(prisma, session),
     prisma.task.count({ where: taskFiltersWhere(session, { overdue: true }, new Date()) }),
     prisma.clientRequest.count({
       where: { AND: [clientRequestScopeWhere(session), { status: 'submitted' }] },
     }),
     unreadCount(prisma, session),
+    countUnreadDialogs(prisma, session),
   ]);
   return {
     intake,
@@ -44,5 +48,6 @@ export async function getStaffBadges(
     // вне скоупа он возвращает count: 0. Прежняя проверка `unread.ok ? … : 0`
     // была недостижимой веткой (Ф2 программы покрытия — такое удаляем).
     messagesUnread: unread.count,
+    messengersUnread,
   };
 }

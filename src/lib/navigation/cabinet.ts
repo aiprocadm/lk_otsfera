@@ -34,7 +34,8 @@ type NavItemSpec = {
    */
   pinnedBottom?: boolean;
   /** Этап 7 (ФТ-8.4): ключ живого счётчика из GET /api/staff/badges (рендерит NavBadge). */
-  badgeKey?: 'intake' | 'tasksOverdue' | 'clientRequestsNew' | 'messagesUnread';
+  badgeKey?:
+    'intake' | 'tasksOverdue' | 'clientRequestsNew' | 'messagesUnread' | 'messengersUnread';
 };
 
 /**
@@ -295,6 +296,15 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       group: 'Коммуникации',
       sectionKey: 'inbox',
       flag: 'inbound_messaging',
+    },
+    {
+      // Спека 2026-09-12 (Р-М-5): переписка с клиентами в мессенджерах. Тот же
+      // флаг, что у «Входящих писем», — это одна функция «приём сообщений».
+      href: '/manager/messengers',
+      group: 'Коммуникации',
+      sectionKey: 'messengers',
+      flag: 'inbound_messaging',
+      badgeKey: 'messengersUnread',
     },
     {
       href: '/manager/calls',

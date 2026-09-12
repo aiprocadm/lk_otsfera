@@ -14,6 +14,10 @@ vi.mock('@/lib/pii/record', () => ({ recordPiiAccess }));
 const { unreadCount } = vi.hoisted(() => ({ unreadCount: vi.fn() }));
 vi.mock('@/lib/services/chat/threads', () => ({ unreadCount }));
 
+// Спека 2026-09-12: непрочитанные диалоги мессенджеров — свой сервис.
+const { countUnreadDialogs } = vi.hoisted(() => ({ countUnreadDialogs: vi.fn() }));
+vi.mock('@/lib/services/messengers/list', () => ({ countUnreadDialogs }));
+
 import {
   listIntake,
   countIntake,
@@ -31,6 +35,7 @@ const partner = (): SessionPayload => ({ sub: 'p1', role: 'partner' }) as unknow
 
 beforeEach(() => {
   unreadCount.mockResolvedValue({ ok: true, count: 3 });
+  countUnreadDialogs.mockResolvedValue(4);
 });
 
 const H = 3_600_000;
@@ -466,7 +471,7 @@ describe('countIntake / getStaffBadges', () => {
     expect(await countIntake(prisma, partner())).toBe(0);
   });
 
-  it('getStaffBadges собирает все четыре счётчика меню (ФТ-8.4 + ФТ-15.2)', async () => {
+  it('getStaffBadges собирает все пять счётчиков меню (ФТ-8.4 + ФТ-15.2 + мессенджеры)', async () => {
     const { prisma, base } = makePrisma({
       // count вызывается дважды: Intake-часть и «новые обращения» (ФТ-15.2).
       clientRequest: {
@@ -480,7 +485,9 @@ describe('countIntake / getStaffBadges', () => {
       tasksOverdue: 7,
       clientRequestsNew: 5,
       messagesUnread: 3,
+      messengersUnread: 4,
     });
+    expect(countUnreadDialogs).toHaveBeenCalledWith(prisma, manager());
     const where = (base.task.count as ReturnType<typeof vi.fn>).mock.calls[0]![0].where;
     expect(JSON.stringify(where)).toContain('dueDate');
 
