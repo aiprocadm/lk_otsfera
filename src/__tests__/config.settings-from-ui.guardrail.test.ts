@@ -75,7 +75,7 @@ describe('У-132: ключ шифрования обязателен и виде
 
   it('ключ описан в обоих примерах окружения', () => {
     for (const f of ['.env.example', '.env.production.example']) {
-      const src = readFileSync(join(ROOT, f), 'utf8');
+      const src = readSource(join(ROOT, f));
       expect(src, `${f}: APP_ENCRYPTION_KEY не описан`).toContain('APP_ENCRYPTION_KEY');
     }
   });

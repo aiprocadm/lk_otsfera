@@ -47,7 +47,7 @@ describe('У-124: телефония включается из интерфей�
     );
     expect(routes.length, 'роуты звонков исчезли — проверять нечего').toBeGreaterThan(0);
     const unguarded = routes
-      .filter((f) => !readFileSync(f, 'utf8').includes("'telephony_mango'"))
+      .filter((f) => !readSource(f).includes("'telephony_mango'"))
       .map((f) => relative(SRC, f).split(sep).join('/'));
     expect(unguarded, 'роут звонков без гарда флага — раздел открыт').toEqual([]);
   });

@@ -3,6 +3,7 @@ import { join, sep } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import { stripComments } from '@/lib/acceptance/screenRules';
+import { readSource } from './helpers/source';
 
 /**
  * Границы суток считаются по Москве, а не по часовому поясу процесса.
@@ -83,10 +84,13 @@ describe('даты: начало суток — по Москве (`Д-22`)', ()
       'src/lib/services/organization/dashboard.ts',
       'src/lib/services/partner/dashboard.ts',
     ]) {
-      const src = readFileSync(join(ROOT, f), 'utf8');
+      // Комментарии не в счёт НИ ДЛЯ ОДНОЙ из двух проверок (хотфикс №47):
+      // в пояснениях этих файлов встречаются и `setHours`, и сам
+      // `startOfMoscowDay` — мутация «убрать вызов, оставить пояснение»
+      // проходила зелёной.
+      const src = readSource(join(ROOT, f));
       expect(src, `${f}: граница суток не из startOfMoscowDay`).toContain('startOfMoscowDay(');
-      // Комментарии не в счёт: в них слово `setHours` объясняет саму починку.
-      expect(stripComments(src), `${f}: вернулась полночь процесса`).not.toMatch(MIDNIGHT);
+      expect(src, `${f}: вернулась полночь процесса`).not.toMatch(MIDNIGHT);
     }
   });
 

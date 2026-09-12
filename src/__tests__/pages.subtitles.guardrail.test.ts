@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
+import { readSource } from './helpers/source';
 
 /**
  * Сторож шапки экрана (`У-73`, `У-120`, §15 CLAUDE.md — правило трёх вопросов).
@@ -60,7 +61,7 @@ const HEADER_COMPONENT = join(SRC, 'components', 'ui', 'page-header.tsx');
 
 /** Страница + её компоненты на один уровень вглубь. */
 function chainOf(page: string): string[] {
-  const src = readFileSync(page, 'utf8');
+  const src = readSource(page);
   const files = [page];
   for (const m of src.matchAll(/from '(@\/[^']+)'/g)) {
     const f = resolveAlias(m[1] as string);
@@ -114,7 +115,7 @@ describe('шапку экрана рисует один компонент (У-1
     // Компилятор не даст вызвать PageHeader без `subtitle`. Но `subtitle={null}`
     // остаётся законной дверью для карточки сущности — чтобы ею не пользовались
     // походя, каждая такая карточка записана здесь с причиной.
-    const header = readFileSync(join(SRC, 'components/ui/page-header.tsx'), 'utf8');
+    const header = readSource(join(SRC, 'components/ui/page-header.tsx'));
     expect(header, 'проп subtitle перестал быть обязательным').toMatch(
       /subtitle: React\.ReactNode \| null;/
     );
@@ -122,7 +123,7 @@ describe('шапку экрана рисует один компонент (У-1
     const used = new Set<string>();
     for (const page of pages) {
       for (const file of chainOf(page)) {
-        if (/subtitle=\{null\}/.test(readFileSync(file, 'utf8'))) {
+        if (/subtitle=\{null\}/.test(readSource(file))) {
           used.add(relative(SRC, file).split(sep).join('/'));
         }
       }

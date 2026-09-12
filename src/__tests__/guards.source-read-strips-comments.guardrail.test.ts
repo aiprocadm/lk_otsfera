@@ -56,6 +56,36 @@ function presenceChecks(src: string): number {
   );
 }
 
+/** Имя самого этого стража: он читает тесты, а не исходники продукта. */
+const SELF = 'guards.source-read-strips-comments.guardrail.test.ts';
+
+/**
+ * Текст каждого вызова `readFileSync(...)` — от имени до закрывающей скобки,
+ * плюс признак «обёрнут в `stripComments(`»: такая обёртка равносильна
+ * `readSource` и правило не нарушает.
+ */
+function rawReadCalls(src: string): Array<{ call: string; wrapped: boolean }> {
+  const out: Array<{ call: string; wrapped: boolean }> = [];
+  const needle = 'readFileSync(';
+  let from = 0;
+  for (;;) {
+    const at = src.indexOf(needle, from);
+    if (at === -1) return out;
+    from = at + needle.length;
+    let depth = 1;
+    let i = from;
+    while (i < src.length && depth > 0) {
+      if (src[i] === '(') depth += 1;
+      else if (src[i] === ')') depth -= 1;
+      i += 1;
+    }
+    out.push({
+      call: src.slice(at, i),
+      wrapped: src.slice(Math.max(0, at - 15), at).includes('stripComments('),
+    });
+  }
+}
+
 type Guard = { file: string; src: string };
 
 const guards: Guard[] = readdirSync(TESTS_DIR)
@@ -85,6 +115,30 @@ describe('стражи, читающие исходник, не считают �
         `${offenders.join('\n')}\n` +
         `почини чтение через helpers/source.ts (readSource)`
     ).toEqual([]);
+  });
+
+  it('ни одного сырого чтения кода в обход помощника', () => {
+    // Мало импортировать помощник: страж мог снимать комментарии в одном месте
+    // и читать сырым `readFileSync` в другом. Так и было у
+    // `dates.moscow-day-boundary`: вторая проверка комментарии снимала, первая
+    // — нет, и мутация «убрать вызов `startOfMoscowDay`, оставить пояснение»
+    // проходила зелёной в самом чувствительном месте (граница суток, `Д-22`).
+    // Сырое чтение разрешено только для НЕ-кода: разметки, `.env`-примеров,
+    // `schema.prisma`, `package.json` — там снятие `//` испортило бы ссылки.
+    const NOT_CODE = ['.md', '.env', '.prisma', 'package.json', 'package-lock', 'snapshots'];
+    const offenders: string[] = [];
+
+    for (const g of guards) {
+      if (DEBT.has(name(g.file)) || g.file === SELF) continue;
+      if (presenceChecks(g.src) === 0) continue;
+      for (const { call, wrapped } of rawReadCalls(g.src)) {
+        if (!wrapped && !NOT_CODE.some((m) => call.includes(m))) {
+          offenders.push(`${g.file}: ${call.replace(/\s+/g, ' ').slice(0, 80)}`);
+        }
+      }
+    }
+
+    expect(offenders, `сырое чтение кода в обход readSource:\n${offenders.join('\n')}`).toEqual([]);
   });
 
   it('список долга не содержит лишних имён', () => {

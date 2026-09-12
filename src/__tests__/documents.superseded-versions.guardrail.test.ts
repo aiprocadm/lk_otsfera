@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { readSource } from './helpers/source';
 import {
   ACTIVE_VERSION_WHERE,
   organizationChannelWhere,
@@ -63,7 +64,7 @@ const GUARD_MARKERS = [
 ];
 
 function read(rel: string): string {
-  return readFileSync(path.join(ROOT, rel), 'utf8');
+  return readSource(path.join(ROOT, rel));
 }
 
 /**
@@ -335,7 +336,7 @@ describe('У-151: документы внутри карточки заказа 
  * выборку защищённой, не заглядывая внутрь.
  */
 describe('У-151: скоупы документов менеджера несут фильтр версии', () => {
-  const source = readFileSync(path.join(process.cwd(), 'src/lib/auth/managerPolicy.ts'), 'utf8');
+  const source = readSource(path.join(process.cwd(), 'src/lib/auth/managerPolicy.ts'));
 
   it.each(['managerDocumentScopeFilter', 'managerDocumentScope'])(
     '%s фильтрует заменённые версии',
@@ -362,7 +363,7 @@ describe('У-151: скоупы документов менеджера несу�
  */
 describe('У-151: скоуп документов поиска фильтрует версию в обеих ветках', () => {
   it('обе ветки documents в search/scopes.ts несут фильтр', () => {
-    const source = readFileSync(path.join(ROOT, 'src/lib/services/search/scopes.ts'), 'utf8');
+    const source = readSource(path.join(ROOT, 'src/lib/services/search/scopes.ts'));
     const start = source.indexOf('documents: isAdmin');
     expect(start).toBeGreaterThan(-1);
     const branch = source.slice(start, start + 260);
