@@ -202,21 +202,38 @@ function leadsPrisma(
 ) {
   const findMany = vi.fn().mockResolvedValue(rows);
   const updateMany = vi.fn().mockResolvedValue({ count: 1 });
-  const findFirst = vi.fn(async ({ where }: { where: Record<string, unknown> }) => {
-    const byPayload = where.payload as { equals: string } | undefined;
-    const hit = logRows.find(
-      (r) =>
-        r.operation === where.operation &&
-        r.status === where.status &&
-        (byPayload ? r.cabinetLeadId === byPayload.equals : r.externalId === where.externalId)
-    );
-    return hit ? { id: 'log-1' } : null;
+  // Обе справки задача берёт пакетом: подтверждения — по телу записи (`OR` из
+  // ключей), «уже повторяли» — по колонке `externalId: { in: [...] }`.
+  const logFindMany = vi.fn(async ({ where }: { where: Record<string, unknown> }) => {
+    const or = where.OR as Array<{ payload: { equals: string } }> | undefined;
+    if (or) {
+      const wanted = new Set(or.map((c) => c.payload.equals));
+      return logRows
+        .filter(
+          (r) =>
+            r.operation === where.operation &&
+            r.status === where.status &&
+            r.cabinetLeadId !== undefined &&
+            wanted.has(r.cabinetLeadId)
+        )
+        .map((r) => ({ payload: { cabinetLeadId: r.cabinetLeadId } }));
+    }
+    const ids = (where.externalId as { in: string[] } | undefined)?.in ?? [];
+    return logRows
+      .filter(
+        (r) =>
+          r.operation === where.operation &&
+          r.status === where.status &&
+          r.externalId !== undefined &&
+          ids.includes(r.externalId)
+      )
+      .map((r) => ({ externalId: r.externalId }));
   });
   const prisma = {
     lead: { findMany, updateMany },
-    syncLog: { findFirst },
+    syncLog: { findMany: logFindMany },
   } as unknown as PrismaClient;
-  return { prisma, findMany, updateMany, findFirst };
+  return { prisma, findMany, updateMany, findFirst: logFindMany };
 }
 
 describe('reconcileStuckLeads', () => {
@@ -246,12 +263,17 @@ describe('reconcileStuckLeads', () => {
     expect(queueAdd).not.toHaveBeenCalled();
     expect(writeSyncLog).not.toHaveBeenCalled();
     // Ищем именно по cabinetLeadId в payload: externalId success-строки — номер 1С.
-    expect(findFirst.mock.calls[0][0].where).toMatchObject({
+    // Запрос один на прогон, ключи лидов развёрнуты в `OR` (см. страж
+    // `jobs.background-scan-batching`).
+    const acceptedCall = findFirst.mock.calls.find(
+      (c) => (c[0] as { where: { operation?: string } }).where.operation === 'create'
+    )!;
+    expect(acceptedCall[0].where).toMatchObject({
       entity: 'lead',
       direction: 'outbound',
       operation: 'create',
       status: 'success',
-      payload: { path: ['cabinetLeadId'], equals: 'lead-ok' },
+      OR: [{ payload: { path: ['cabinetLeadId'], equals: 'lead-ok' } }],
     });
   });
 
@@ -307,10 +329,14 @@ describe('reconcileStuckLeads', () => {
       },
       prisma
     );
-    expect(findFirst.mock.calls[1][0].where).toMatchObject({
+    // «Уже повторяли» тоже спрашивается один раз на прогон — списком ключей.
+    const retriedCall = findFirst.mock.calls.find(
+      (c) => (c[0] as { where: { status?: string } }).where.status === 'warn'
+    )!;
+    expect(retriedCall[0].where).toMatchObject({
       operation: 'check',
       status: 'warn',
-      externalId: 'lead-2',
+      externalId: { in: ['lead-2'] },
       createdAt: { gte: new Date(NOW.getTime() - 48 * HOURS) },
     });
   });

@@ -161,32 +161,61 @@ export async function reconcileStuckLeads(
   const requeued: string[] = [];
   const stuck: string[] = [];
 
+  // Обе справки берём ОДНИМ запросом на прогон, а не на лид. Лид, принятый 1С
+  // без своего номера (`oneCRequestId` в контракте необязателен), остаётся в
+  // выборке навсегда: `externalIdInOneC` у него пуст, а претензия стоит. Пока
+  // подтверждение спрашивали построчно, каждый такой лид стоил запроса КАЖДЫЙ
+  // прогон — работа росла вместе с базой, а не с числом зависших.
+  const ids = leads.map((l) => l.id);
+  const [acceptedRows, retriedRows] = await Promise.all([
+    ids.length === 0
+      ? Promise.resolve([])
+      : prisma.syncLog.findMany({
+          where: {
+            entity: 'lead',
+            direction: 'outbound',
+            operation: 'create',
+            status: 'success',
+            // Признак принятия лежит в теле записи, а не колонкой, поэтому
+            // список ключей разворачиваем в `OR`: один запрос вместо N.
+            OR: ids.map((id) => ({ payload: { path: ['cabinetLeadId'], equals: id } })),
+          },
+          select: { payload: true },
+        }),
+    ids.length === 0
+      ? Promise.resolve([])
+      : prisma.syncLog.findMany({
+          where: {
+            entity: 'lead',
+            direction: 'outbound',
+            operation: 'check',
+            status: 'warn',
+            externalId: { in: ids },
+            createdAt: { gte: retriedSince },
+          },
+          select: { externalId: true },
+        }),
+  ]);
+
+  const acceptedIds = new Set(
+    acceptedRows
+      .map((row) => {
+        const payload = row.payload as { cabinetLeadId?: unknown } | null;
+        return typeof payload?.cabinetLeadId === 'string' ? payload.cabinetLeadId : null;
+      })
+      .filter((id): id is string => id !== null)
+  );
+  const retriedIds = new Set(
+    retriedRows
+      .map((row) => row.externalId)
+      .filter((id): id is string => typeof id === 'string' && id.length > 0)
+  );
+
   for (const lead of leads) {
-    const accepted = await prisma.syncLog.findFirst({
-      where: {
-        entity: 'lead',
-        direction: 'outbound',
-        operation: 'create',
-        status: 'success',
-        payload: { path: ['cabinetLeadId'], equals: lead.id },
-      },
-      select: { id: true },
-    });
-    if (accepted) continue;
+    if (acceptedIds.has(lead.id)) continue;
 
     const claimedAt = lead.pushedToOneCAt;
-    const retried = await prisma.syncLog.findFirst({
-      where: {
-        entity: 'lead',
-        direction: 'outbound',
-        operation: 'check',
-        status: 'warn',
-        externalId: lead.id,
-        createdAt: { gte: retriedSince },
-      },
-      select: { id: true },
-    });
-    if (retried) {
+    if (retriedIds.has(lead.id)) {
       await writeSyncLog(
         {
           entity: 'lead',

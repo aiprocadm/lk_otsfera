@@ -7,6 +7,18 @@ import { resolveEffectiveRate, type RateChange, type OrgRateChange } from './rat
 
 const HALF_UP = Prisma.Decimal.ROUND_HALF_UP;
 
+/** Разложить одну выборку по ключу — порядок внутри группы сохраняется. */
+function groupBy<T, K>(rows: T[], key: (row: T) => K): Map<K, T[]> {
+  const out = new Map<K, T[]>();
+  for (const row of rows) {
+    const k = key(row);
+    const bucket = out.get(k);
+    if (bucket) bucket.push(row);
+    else out.set(k, [row]);
+  }
+  return out;
+}
+
 /**
  * A6/§9.5: находит возвраты (isRefund), чей paidAt попал в УЖЕ закрытый
  * (approved/paid, живой) период партнёра и ещё не имеет корректировки. Создаёт
@@ -15,7 +27,15 @@ const HALF_UP = Prisma.Decimal.ROUND_HALF_UP;
  */
 export async function detectLateRefundCorrections(prisma: PrismaClient): Promise<number> {
   const refunds = await prisma.payment.findMany({
-    where: { isRefund: true, commissionCorrection: { is: null } },
+    // `CommissionCorrection.partnerId` обязателен: возврат, у которого партнёра
+    // нет ни у заказа, ни у организации, корректировки не получит НИКОГДА.
+    // Без этого условия такие возвраты оставались в выборке навсегда и
+    // перечитывались каждым прогоном — работа росла вместе с базой.
+    where: {
+      isRefund: true,
+      commissionCorrection: { is: null },
+      OR: [{ order: { partnerId: { not: null } } }, { organization: { partnerId: { not: null } } }],
+    },
     select: {
       id: true,
       amount: true,
@@ -34,38 +54,64 @@ export async function detectLateRefundCorrections(prisma: PrismaClient): Promise
     },
   });
 
+  // Всё, что нужно для расчёта, спрашиваем ОДИН раз на прогон, а не на строку:
+  // период, партнёр и обе истории ставок повторяются у большинства возвратов, а
+  // запрос в цикле делал работу пропорциональной числу строк.
+  const partnerIds = [
+    ...new Set(
+      refunds
+        .map((r) => r.order?.partnerId ?? r.organization?.partnerId ?? null)
+        .filter((id): id is string => id !== null)
+    ),
+  ];
+  const orgIds = [...new Set(refunds.map((r) => r.organizationId))];
+
+  const [statements, partners, allChanges, allOrgChanges] = await Promise.all([
+    prisma.commissionStatement.findMany({
+      where: {
+        partnerId: { in: partnerIds },
+        supersededBy: null,
+        status: { in: ['approved', 'paid'] },
+      },
+      select: { id: true, partnerId: true, periodFrom: true, periodTo: true },
+      // Порядок делает выбор периода воспроизводимым: прежний `findFirst` без
+      // `orderBy` при двух подходящих периодах возвращал произвольный.
+      orderBy: { periodFrom: 'asc' },
+    }),
+    prisma.partner.findMany({
+      where: { id: { in: partnerIds } },
+      select: { id: true, commissionRate: true },
+    }),
+    prisma.commissionRateChange.findMany({
+      where: { partnerId: { in: partnerIds } },
+      select: { partnerId: true, effectiveFrom: true, oldRate: true, newRate: true },
+      orderBy: { effectiveFrom: 'asc' },
+    }),
+    // F4 (A5): org-override на дату возврата — из истории (зеркало statement.ts).
+    prisma.organizationCommissionRateChange.findMany({
+      where: { organizationId: { in: orgIds } },
+      select: { organizationId: true, effectiveFrom: true, oldRate: true, newRate: true },
+      orderBy: { effectiveFrom: 'asc' },
+    }),
+  ]);
+
+  const statementsByPartner = groupBy(statements, (s) => s.partnerId);
+  const rateByPartner = new Map(partners.map((p) => [p.id, p.commissionRate]));
+  const changesByPartner = groupBy(allChanges, (c) => c.partnerId);
+  const orgChangesByOrg = groupBy(allOrgChanges, (c) => c.organizationId);
+
   let created = 0;
   for (const r of refunds) {
     const partnerId = r.order?.partnerId ?? r.organization?.partnerId ?? null;
     if (!partnerId) continue;
 
-    const stmt = await prisma.commissionStatement.findFirst({
-      where: {
-        partnerId,
-        supersededBy: null,
-        status: { in: ['approved', 'paid'] },
-        periodFrom: { lte: r.paidAt },
-        periodTo: { gte: r.paidAt },
-      },
-      select: { id: true, periodFrom: true, periodTo: true },
-    });
+    const stmt = (statementsByPartner.get(partnerId) ?? []).find(
+      (s) => s.periodFrom <= r.paidAt && s.periodTo >= r.paidAt
+    );
     if (!stmt) continue;
 
-    const partner = await prisma.partner.findUnique({
-      where: { id: partnerId },
-      select: { commissionRate: true },
-    });
-    const changes: RateChange[] = await prisma.commissionRateChange.findMany({
-      where: { partnerId },
-      select: { effectiveFrom: true, oldRate: true, newRate: true },
-      orderBy: { effectiveFrom: 'asc' },
-    });
-    // F4 (A5): org-override на дату возврата — из истории (зеркало statement.ts).
-    const orgChanges: OrgRateChange[] = await prisma.organizationCommissionRateChange.findMany({
-      where: { organizationId: r.organizationId },
-      select: { effectiveFrom: true, oldRate: true, newRate: true },
-      orderBy: { effectiveFrom: 'asc' },
-    });
+    const changes: RateChange[] = changesByPartner.get(partnerId) ?? [];
+    const orgChanges: OrgRateChange[] = orgChangesByOrg.get(r.organizationId) ?? [];
     const rate = resolveEffectiveRate({
       // Honor the org override only when the org belongs to the resolved partner
       // (mirror statement.ts: a payment can be attributed via order.partnerId to a
@@ -78,7 +124,7 @@ export async function detectLateRefundCorrections(prisma: PrismaClient): Promise
       orgChanges: r.organization?.partnerId === partnerId ? orgChanges : [],
       changes,
       paidAt: r.paidAt,
-      partnerDefault: partner?.commissionRate ?? new Prisma.Decimal(0),
+      partnerDefault: rateByPartner.get(partnerId) ?? new Prisma.Decimal(0),
     });
     const commissionAmount = r.amount.mul(rate).toDecimalPlaces(2, HALF_UP);
 

@@ -76,10 +76,24 @@ function makeDetectDb(opts: {
 }) {
   return {
     payment: { findMany: vi.fn().mockResolvedValue(opts.refunds) },
-    commissionStatement: { findFirst: vi.fn().mockResolvedValue(opts.liveStatement ?? null) },
-    commissionRateChange: { findMany: vi.fn().mockResolvedValue(opts.rateChanges ?? []) },
+    // Справочники задача берёт пакетом (один запрос на прогон, а не на строку):
+    // подделка отдаёт списки, ключи группировки — в самих строках.
+    commissionStatement: {
+      findMany: vi
+        .fn()
+        .mockResolvedValue(opts.liveStatement ? [{ partnerId: 'p1', ...opts.liveStatement }] : []),
+    },
+    commissionRateChange: {
+      findMany: vi
+        .fn()
+        .mockResolvedValue((opts.rateChanges ?? []).map((c: any) => ({ partnerId: 'p1', ...c }))),
+    },
     organizationCommissionRateChange: {
-      findMany: vi.fn().mockResolvedValue(opts.orgChanges ?? []),
+      findMany: vi
+        .fn()
+        .mockResolvedValue(
+          (opts.orgChanges ?? []).map((c: any) => ({ organizationId: 'org-1', ...c }))
+        ),
     },
     commissionCorrection: {
       create: vi
@@ -87,9 +101,12 @@ function makeDetectDb(opts: {
         .mockImplementation(opts.createImpl ?? (({ data }: any) => ({ id: 'new', ...data }))),
     },
     partner: {
-      findUnique: vi
-        .fn()
-        .mockResolvedValue('partner' in opts ? opts.partner : { commissionRate: dec(0.2) }),
+      findMany: vi.fn().mockResolvedValue(
+        (() => {
+          const row = 'partner' in opts ? opts.partner : { commissionRate: dec(0.2) };
+          return row ? [{ id: 'p1', ...row }] : [];
+        })()
+      ),
     },
   } as any;
 }
