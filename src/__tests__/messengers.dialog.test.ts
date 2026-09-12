@@ -61,14 +61,12 @@ describe('upsertDialog', () => {
   });
 
   it('гонка (P2002 на первом заходе) → вторая попытка находит созданный диалог', async () => {
-    upsert
-      .mockRejectedValueOnce(p2002())
-      .mockResolvedValueOnce({
-        id: 'd1',
-        companyId: 'c1',
-        organizationId: 'o1',
-        peerDisplay: 'Иван',
-      });
+    upsert.mockRejectedValueOnce(p2002()).mockResolvedValueOnce({
+      id: 'd1',
+      companyId: 'c1',
+      organizationId: 'o1',
+      peerDisplay: 'Иван',
+    });
     await expect(upsertDialog(prisma, key, args)).resolves.toEqual({
       id: 'd1',
       companyId: 'c1',
