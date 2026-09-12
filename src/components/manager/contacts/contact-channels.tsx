@@ -2,7 +2,7 @@
 import React, { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Badge, Button, Input, Select } from '@/components/ui';
+import { Badge, Button, EmptyState, Input, Select } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
 import { resolveErrorText } from '@/lib/ui/useFormAction';
 import {
@@ -102,10 +102,10 @@ export function ContactChannels({
         Каналы связи
       </h2>
       {channels.length === 0 ? (
-        <p className="text-sm text-gray-500">
-          Каналов пока нет — добавьте телефон, почту или мессенджер, чтобы письма и звонки этого
-          человека находили карточку сами.
-        </p>
+        <EmptyState
+          icon="☎"
+          message="Каналов пока нет — добавьте телефон, почту или мессенджер, чтобы письма и звонки этого человека находили карточку сами."
+        />
       ) : (
         <ul className="divide-y divide-gray-100 rounded-md border border-gray-200">
           {channels.map((ch) => (
