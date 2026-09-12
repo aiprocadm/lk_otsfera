@@ -653,3 +653,82 @@ export async function notifyManagers(
     ...(emailsQueued > 0 ? { emailsQueued } : {}),
   };
 }
+
+/**
+ * Новое сообщение клиента в диалоге мессенджера (спека 2026-09-12, Р-М-9) →
+ * менеджерам организации, к которой привязан диалог. Заказа у диалога нет,
+ * поэтому получатели — как у документа без заказа: закреплённые за
+ * организацией. Ссылка ведёт прямо в диалог; письмо — общий шаблон
+ * `notification` (свой шаблон ради одной строки не нужен).
+ */
+export async function notifyManagersMessengerMessage(
+  db: PrismaClient,
+  input: {
+    organizationId: string;
+    dialogId: string;
+    /** Как назвать собеседника в заголовке: контакт, пользователь или адрес. */
+    peerLabel: string;
+    /** «Telegram» / «MAX» / «WhatsApp» — уже подпись, не код канала. */
+    channelLabel: string;
+    excerpt: string;
+  },
+  opts?: NotifyManagersOptions
+): Promise<NotifyManagersSummary> {
+  const recipients = await resolveOrgManagerRecipients(db, input.organizationId, opts);
+  if (recipients.length === 0) return { recipientsNotified: 0, emailsSent: 0, emailsSkipped: 0 };
+
+  const subject = `Новое сообщение в ${input.channelLabel} от ${input.peerLabel}`;
+  const shortBody = input.excerpt;
+  const url = `${getAppBaseUrl()}/manager/messengers/${input.dialogId}`;
+  const meta = { dialogId: input.dialogId, url } as Prisma.InputJsonValue;
+  const channelPayload: ChannelPayload = {
+    type: 'messenger_message',
+    title: subject,
+    body: shortBody,
+    url,
+    email: {
+      template: 'notification',
+      props: { title: subject, body: shortBody, recipientName: 'менеджер', url },
+    },
+  };
+
+  // `У-127`: маршрутизация — один запрос на рассылку, а не на получателя.
+  const routed = await allowedChannels(db, {
+    eventType: channelPayload.type,
+    audience: 'manager',
+  });
+  let emailsSent = 0,
+    emailsSkipped = 0,
+    emailsQueued = 0,
+    recipientsNotified = 0;
+  for (const r of recipients) {
+    const row = await db.notification.create({
+      data: {
+        userId: r.id,
+        type: 'messenger_message',
+        title: subject,
+        body: shortBody,
+        meta,
+      },
+    });
+    recipientsNotified += 1;
+
+    const outcome = await dispatchToRecipient(r, channelPayload, {
+      dedupKey: row.id,
+      ...(routed ? { channels: routed } : {}),
+    });
+    if (outcome.mode === 'queued') {
+      if (outcome.channels.includes('email')) emailsQueued += 1;
+      else emailsSkipped += 1;
+      continue;
+    }
+    if (outcome.results.email?.status === 'sent') emailsSent += 1;
+    else emailsSkipped += 1;
+  }
+  return {
+    recipientsNotified,
+    emailsSent,
+    emailsSkipped,
+    ...(emailsQueued > 0 ? { emailsQueued } : {}),
+  };
+}

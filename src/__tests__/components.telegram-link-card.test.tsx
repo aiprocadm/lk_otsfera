@@ -22,6 +22,8 @@ describe('TelegramLinkCard (SSR structural, Pattern P)', () => {
       React.createElement(TelegramLinkCard, { status: { linked: false, enabled: true } })
     );
     expect(html).toContain('Привязать Telegram');
+    // Спека 2026-09-12 (§5.4): человек узнаёт, что бот — это ещё и чат.
+    expect(html).toContain('написать своему менеджеру');
     expect(html).not.toContain('Telegram привязан');
     expect(html).not.toContain('Отвязать');
   });

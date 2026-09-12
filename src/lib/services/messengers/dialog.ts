@@ -23,18 +23,27 @@ type DialogUpsertArgs = {
  * находят диалог, оба создают, второй ловит нарушение уникальности (P2002).
  * Повтор находит уже созданный и обновляет его — сообщение не теряется.
  * Любая другая ошибка и вторая P2002 подряд пробрасываются: это не гонка.
+ *
+ * Возвращает и привязку к организации, и известное имя собеседника:
+ * уведомлению менеджерам (Р-М-9) нужно, чей это диалог и как его назвать,
+ * без второго запроса.
  */
 export async function upsertDialog(
   prisma: PrismaClient,
   key: DialogKey,
   args: DialogUpsertArgs
-): Promise<{ id: string; companyId: string | null }> {
+): Promise<{
+  id: string;
+  companyId: string | null;
+  organizationId: string | null;
+  peerDisplay: string | null;
+}> {
   const run = () =>
     prisma.messengerDialog.upsert({
       where: { channel_peerRef: { channel: key.channel, peerRef: key.peerRef } },
       create: { channel: key.channel, peerRef: key.peerRef, ...args.create },
       update: args.update,
-      select: { id: true, companyId: true },
+      select: { id: true, companyId: true, organizationId: true, peerDisplay: true },
     });
   try {
     return await run();

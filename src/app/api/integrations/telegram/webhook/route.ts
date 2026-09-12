@@ -47,8 +47,12 @@ export async function POST(req: Request): Promise<Response> {
       // unexpected DB error can't turn into a 500 → Telegram retry-storm.
       try {
         const result = await linkByCode(prisma, { code, chatId });
+        // Спека 2026-09-12 (§5.4): при включённом приёме сообщений бот — ещё и
+        // чат с менеджером; говорим об этом сразу, а не оставляем догадываться.
         const reply = result.ok
-          ? '✅ Уведомления привязаны к этому чату.'
+          ? isFeatureEnabled('inbound_messaging')
+            ? '✅ Готово: уведомления привязаны к этому чату, а ваши сообщения здесь увидит ваш менеджер.'
+            : '✅ Уведомления привязаны к этому чату.'
           : 'Код недействителен или истёк.';
         // Best-effort — don't await failure propagation
         await sendTelegramMessage(chatId, reply).catch((e: unknown) => {

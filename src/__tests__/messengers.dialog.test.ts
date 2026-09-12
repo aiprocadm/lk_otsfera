@@ -35,6 +35,7 @@ describe('upsertDialog', () => {
     create: { status: 'open', unreadCount: 1 },
     update: { unreadCount: { increment: 1 } },
   };
+  const found = { id: 'd1', companyId: null, organizationId: null, peerDisplay: null };
   const p2002 = () =>
     new Prisma.PrismaClientKnownRequestError('dup', {
       code: 'P2002',
@@ -43,21 +44,37 @@ describe('upsertDialog', () => {
 
   beforeEach(() => upsert.mockReset());
 
-  it('собирает where по уникальному ключу и подмешивает ключ в create', async () => {
-    upsert.mockResolvedValue({ id: 'd1', companyId: null });
-    await expect(upsertDialog(prisma, key, args)).resolves.toEqual({ id: 'd1', companyId: null });
-    expect(upsert).toHaveBeenCalledTimes(1);
-    expect(upsert).toHaveBeenCalledWith({
-      where: { channel_peerRef: { channel: 'telegram', peerRef: 'chat-1' } },
-      create: { channel: 'telegram', peerRef: 'chat-1', status: 'open', unreadCount: 1 },
-      update: { unreadCount: { increment: 1 } },
-      select: { id: true, companyId: true },
-    });
+  it('собирает where по уникальному ключу, подмешивает ключ в create и отдаёт привязку', () => {
+    upsert.mockResolvedValue(found);
+    return expect(upsertDialog(prisma, key, args))
+      .resolves.toEqual(found)
+      .then(() => {
+        expect(upsert).toHaveBeenCalledTimes(1);
+        expect(upsert).toHaveBeenCalledWith({
+          where: { channel_peerRef: { channel: 'telegram', peerRef: 'chat-1' } },
+          create: { channel: 'telegram', peerRef: 'chat-1', status: 'open', unreadCount: 1 },
+          update: { unreadCount: { increment: 1 } },
+          // Р-М-9: организация нужна уведомлению менеджерам без второго запроса.
+          select: { id: true, companyId: true, organizationId: true, peerDisplay: true },
+        });
+      });
   });
 
   it('гонка (P2002 на первом заходе) → вторая попытка находит созданный диалог', async () => {
-    upsert.mockRejectedValueOnce(p2002()).mockResolvedValueOnce({ id: 'd1', companyId: 'c1' });
-    await expect(upsertDialog(prisma, key, args)).resolves.toEqual({ id: 'd1', companyId: 'c1' });
+    upsert
+      .mockRejectedValueOnce(p2002())
+      .mockResolvedValueOnce({
+        id: 'd1',
+        companyId: 'c1',
+        organizationId: 'o1',
+        peerDisplay: 'Иван',
+      });
+    await expect(upsertDialog(prisma, key, args)).resolves.toEqual({
+      id: 'd1',
+      companyId: 'c1',
+      organizationId: 'o1',
+      peerDisplay: 'Иван',
+    });
     expect(upsert).toHaveBeenCalledTimes(2);
   });
 

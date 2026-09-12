@@ -77,7 +77,7 @@ export function NotificationChannelsCard({ settings }: Props) {
             enabled={settings.max.enabled}
             disabled={isPending}
             onToggle={(v) => toggle('max', v)}
-            notLinkedHint="Привяжите аккаунт Max, чтобы получать уведомления."
+            notLinkedHint="Привяжите аккаунт Max, чтобы получать уведомления и писать менеджеру."
           />
           {settings.max.linked ? (
             <Button

@@ -176,6 +176,13 @@ export const NOTIFICATION_TYPES = {
     audience: ['staff'],
     producer: 'src/lib/services/inbound/reply.ts',
   },
+  // Спека 2026-09-12 (Р-М-9): клиент написал в диалог мессенджера — менеджерам
+  // организации, к которой привязан диалог.
+  messenger_message: {
+    label: 'Новое сообщение в мессенджере',
+    audience: ['staff'],
+    producer: 'src/lib/notifications/manager.ts',
+  },
 
   // ── Фоновые процессы ────────────────────────────────────────────────────
   certificate_expiring: {
