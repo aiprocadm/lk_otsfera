@@ -55,10 +55,23 @@ describe('У-132: ключ шифрования обязателен и виде
     );
   });
 
-  it('страница интеграций предупреждает ДО попытки сохранить', () => {
-    const src = read('app/admin/settings/integrations/page.tsx');
-    expect(src).toContain('isSecretsKeyConfigured');
-    expect(src, 'баннер об отсутствии ключа пропал').toContain('Сохранение секретов недоступно');
+  it('страницы с секретами предупреждают ДО попытки сохранить', () => {
+    // Спека 2026-09-12 (Р-М-6): секреты вводятся на двух страницах — обзоре
+    // «Интеграции» и «Подключении мессенджеров»; баннер у них один, общим
+    // компонентом. Страж держит и текст компонента, и его присутствие на
+    // каждой странице вместе с проверкой ключа.
+    const notice = read('components/admin/secrets-key-notice.tsx');
+    expect(notice, 'баннер об отсутствии ключа пропал').toContain('Сохранение секретов недоступно');
+    for (const page of [
+      'app/admin/settings/integrations/page.tsx',
+      'app/admin/settings/integrations/messengers/page.tsx',
+    ]) {
+      const src = read(page);
+      expect(src, `${page}: состояние ключа не считается`).toContain('isSecretsKeyConfigured');
+      expect(src, `${page}: баннер об отсутствии ключа не смонтирован`).toContain(
+        '<SecretsKeyNotice'
+      );
+    }
   });
 
   it('/api/health показывает состояние ключа', () => {

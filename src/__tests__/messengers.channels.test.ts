@@ -8,9 +8,9 @@ vi.mock('@/lib/whatsapp/aggregator', () => ({ isWhatsAppEnabled: enabled.wa }));
 import {
   MESSENGER_CHANNELS,
   MESSENGER_LABELS,
-  isMessengerAvailable,
   isMessengerChannel,
 } from '@/lib/services/messengers/channels';
+import { isMessengerAvailable } from '@/lib/services/messengers/availability';
 
 /**
  * Список каналов-мессенджеров (спека 2026-09-12, §4 `channels.ts`) — один на

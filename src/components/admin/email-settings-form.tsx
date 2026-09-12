@@ -5,9 +5,9 @@ import { saveEmailSettingsAction } from '@/server-actions/admin/integrationSetti
 import { useFormAction, type ActionResult } from '@/lib/ui/useFormAction';
 import {
   IntegrationCheckPanel,
-  type IntegrationCheckInfo,
   type IntegrationTestAction,
 } from '@/components/admin/integration-settings-form';
+import type { IntegrationCheckInfo } from '@/lib/services/admin/integrationDiagnostics';
 
 const ERROR_MAP: Record<string, string> = {
   secrets_key_missing:

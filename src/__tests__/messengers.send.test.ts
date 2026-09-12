@@ -13,10 +13,7 @@ vi.mock('@/lib/services/messengers/recordOutbound', () => ({
   recordOutboundInDialog: m.recordOutboundInDialog,
 }));
 vi.mock('@/lib/services/messengers/transport', () => ({ sendToMessenger: m.sendToMessenger }));
-vi.mock('@/lib/services/messengers/channels', async () => ({
-  ...(await vi.importActual<typeof import('@/lib/services/messengers/channels')>(
-    '@/lib/services/messengers/channels'
-  )),
+vi.mock('@/lib/services/messengers/availability', () => ({
   isMessengerAvailable: m.isMessengerAvailable,
 }));
 

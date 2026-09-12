@@ -1,39 +1,29 @@
 import type { Metadata } from 'next';
 import React from 'react';
+import Link from 'next/link';
 import { requireSettingsSection } from '@/lib/auth/requireSettings';
-import { listIntegrationSyncStates } from '@/lib/services/admin/integrations';
 import { getIntegrationsHealth } from '@/lib/services/admin/integrationsHealth';
+import { loadIntegrationDiagnostics } from '@/lib/services/admin/integrationDiagnostics';
 import { IntegrationsHealthPanel } from '@/components/admin/integrations-health-panel';
 import { prisma } from '@/lib/db/prisma';
 import { isSecretsKeyConfigured } from '@/lib/crypto/secrets';
-import { WEBHOOK_PROVIDERS, isWebhookProvider } from '@/lib/services/admin/webhookSecrets';
+import { settingsSectionHref } from '@/lib/navigation/settings';
 import {
   getSettingsView,
   type SettingKey,
   type SettingViewRow,
 } from '@/lib/config/integrationSettings';
 import { EmailSettingsForm } from '@/components/admin/email-settings-form';
+import { IntegrationSettingsForm } from '@/components/admin/integration-settings-form';
+import { SecretsKeyNotice } from '@/components/admin/secrets-key-notice';
 import {
-  IntegrationSettingsForm,
-  type IntegrationCheckInfo,
-  type WebhookDiagInfo,
-} from '@/components/admin/integration-settings-form';
-import {
-  saveTelegramSettingsAction,
-  saveMaxSettingsAction,
-  saveWhatsappSettingsAction,
   saveMangoSettingsAction,
   saveImapSettingsAction,
   saveOnecSettingsAction,
   saveDadataSettingsAction,
   testIntegrationAction,
 } from '@/server-actions/admin/integrationSettings';
-import {
-  INTEGRATION_TEST_KEYS,
-  type IntegrationTestKey,
-} from '@/lib/services/admin/testIntegration';
-import { getAppBaseUrl } from '@/lib/notifications/shared';
-import { fmtDateTime } from '@/lib/format';
+import type { IntegrationTestKey } from '@/lib/services/admin/testIntegration';
 
 import { PageHeader } from '@/components/ui/page-header';
 export const metadata: Metadata = { title: 'Интеграции · Настройки' };
@@ -44,20 +34,6 @@ const VIEW_KEYS: SettingKey[] = [
   'email.enabled',
   'email.from',
   'email.resendApiKey',
-  'telegram.botToken',
-  'telegram.botUsername',
-  // `У-123`: индикатор «секрет вебхука задан» читает БАЗУ, а не переменную
-  // сервера — иначе сгенерированный в интерфейсе секрет отображался бы как
-  // «не задан».
-  'telegram.webhookSecret',
-  'max.botToken',
-  'max.botUsername',
-  'max.baseUrl',
-  'max.webhookSecret',
-  'whatsapp.apiKey',
-  'whatsapp.channelId',
-  'whatsapp.baseUrl',
-  'whatsapp.webhookSecret',
   'mango.apiKey',
   'mango.apiSalt',
   'mango.vpbxBaseUrl',
@@ -79,8 +55,6 @@ const VIEW_KEYS: SettingKey[] = [
   'dadata.apiKey',
 ];
 
-const WEBHOOK_NAMES = ['telegram', 'max', 'whatsapp', 'mango'] as const;
-
 export default async function AdminIntegrationsPage() {
   const session = await requireSettingsSection('integrations.overview', 'admin');
   // `У-70`: светофор состояния собирается в сервисе (там же — переключатели
@@ -88,44 +62,9 @@ export default async function AdminIntegrationsPage() {
   const health = await getIntegrationsHealth(prisma, session);
 
   // ФТ-14.3/14.4: результаты проб «Проверить подключение» и отметки вебхуков.
-  const syncStates = await listIntegrationSyncStates(prisma, [
-    ...INTEGRATION_TEST_KEYS.map((k) => `integration.${k}`),
-    ...WEBHOOK_NAMES.map((n) => `webhook.${n}`),
-  ]);
-  const stateOf = (entity: string) => syncStates.find((s) => s.entity === entity);
-
-  const checkOf = (key: IntegrationTestKey): IntegrationCheckInfo | null => {
-    const s = stateOf(`integration.${key}`);
-    if (!s?.lastRunAt) return null;
-    const lastOk = !!s.lastSuccessAt && s.lastRunAt.getTime() === s.lastSuccessAt.getTime();
-    return {
-      lastAt: fmtDateTime(s.lastRunAt),
-      lastOk,
-      lastError: s.lastError,
-    };
-  };
-
-  const appUrl = getAppBaseUrl();
-  const webhookOf = (
-    name: (typeof WEBHOOK_NAMES)[number],
-    headerName: string | null,
-    secretSet: boolean,
-    note?: string
-  ): WebhookDiagInfo => {
-    const s = stateOf(`webhook.${name}`);
-    // `У-123`: кнопки генерации показываем только у провайдеров, чей секрет
-    // придумываем мы. У Mango это `apiSalt` от провайдера — генерировать его
-    // нельзя, поэтому его здесь нет.
-    const managed = isWebhookProvider(name) ? WEBHOOK_PROVIDERS[name] : null;
-    return {
-      url: `${appUrl}/api/integrations/${name}/webhook`,
-      headerName,
-      secretSet,
-      lastEventAt: s?.lastSuccessAt ? fmtDateTime(s.lastSuccessAt) : null,
-      note,
-      ...(managed ? { provider: name, canRegister: managed.canRegister } : {}),
-    };
-  };
+  // Мессенджеры (спека 2026-09-12, Р-М-6) живут в своём разделе — здесь из
+  // вебхуков остаётся только телефония.
+  const diag = await loadIntegrationDiagnostics(prisma, ['mango']);
   const testOf = (key: IntegrationTestKey) => testIntegrationAction.bind(null, key);
 
   // `У-132`: состояние мастер-ключа считается один раз и на сервере — форма
@@ -148,6 +87,8 @@ export default async function AdminIntegrationsPage() {
     settingKey: k,
   });
 
+  const messengersHref = settingsSectionHref('integrations.messengers', 'admin');
+
   return (
     <div className="space-y-5">
       <div>
@@ -160,19 +101,7 @@ export default async function AdminIntegrationsPage() {
       {/* `У-132` (дефект `Д-36`): предупреждение стоит ДО форм. Раньше об
           отсутствии ключа человек узнавал только нажав «Сохранить» — то есть
           заполнив форму секретами впустую. */}
-      {secretsKeyReady ? null : (
-        <div
-          role="alert"
-          className="text-sm text-red-800 bg-red-50 border border-red-200 rounded-lg px-4 py-3"
-        >
-          <span aria-hidden className="mr-1">
-            ⚠️
-          </span>
-          <strong>Сохранение секретов недоступно:</strong> на сервере не задан ключ шифрования (
-          <code>APP_ENCRYPTION_KEY</code>). Несекретные поля сохранить можно, секретные — нет.
-          Задайте ключ в конфиге сервера и перезапустите приложение.
-        </div>
-      )}
+      <SecretsKeyNotice ready={secretsKeyReady} />
 
       <div className="text-sm text-blue-800 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
         <span aria-hidden className="mr-1">
@@ -199,112 +128,29 @@ export default async function AdminIntegrationsPage() {
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
           Настройки
         </h2>
+
+        {/* Спека 2026-09-12 (Р-М-6): токены ботов, вебхуки и проверка связи
+            мессенджеров — в своём разделе, здесь только дорога к нему. */}
+        {messengersHref && (
+          <Link
+            href={messengersHref}
+            className="block rounded-xl border border-gray-200 bg-white p-4 hover:border-orange-500"
+          >
+            <p className="text-sm font-semibold text-[#111111]">📱 Подключение мессенджеров →</p>
+            <p className="mt-1 text-sm text-gray-600">
+              Telegram, MAX и WhatsApp как каналы переписки с клиентами: токены ботов, адреса
+              вебхуков, проверка связи и включение каналов.
+            </p>
+          </Link>
+        )}
+
         <EmailSettingsForm
           initialEnabled={emailEnabled}
           initialFrom={emailFrom}
           apiKeySet={apiKeyRow.isSet}
           apiKeySource={apiKeyRow.source}
           testAction={testOf('email')}
-          check={checkOf('email')}
-        />
-
-        <IntegrationSettingsForm
-          title="Telegram-бот"
-          description="Уведомления и привязка аккаунтов через Telegram. Токен выдаёт @BotFather."
-          action={saveTelegramSettingsAction}
-          fields={[
-            {
-              name: 'telegram_botUsername',
-              label: 'Имя бота (username, без @)',
-              kind: 'text',
-              initialValue: byKey('telegram.botUsername').value ?? '',
-              settingKey: 'telegram.botUsername',
-              source: byKey('telegram.botUsername').source,
-              placeholder: 'otsfera_bot',
-            },
-            {
-              name: 'telegram_botToken',
-              label: 'Токен бота',
-              kind: 'secret',
-              placeholder: '123456:ABC-…',
-              ...secretProps('telegram.botToken'),
-            },
-          ]}
-          testAction={testOf('telegram')}
-          check={checkOf('telegram')}
-          webhook={webhookOf(
-            'telegram',
-            'x-telegram-bot-api-secret-token',
-            byKey('telegram.webhookSecret').isSet
-          )}
-        />
-
-        <IntegrationSettingsForm
-          title="Max-бот"
-          description="Уведомления через мессенджер Max."
-          note="Канал включается флагом FEATURE_MAX_CHANNEL=1 в конфиге сервера; здесь задаются только креды бота."
-          action={saveMaxSettingsAction}
-          fields={[
-            {
-              name: 'max_botUsername',
-              label: 'Имя бота (username)',
-              kind: 'text',
-              initialValue: byKey('max.botUsername').value ?? '',
-              settingKey: 'max.botUsername',
-              source: byKey('max.botUsername').source,
-            },
-            {
-              name: 'max_botToken',
-              label: 'Токен бота',
-              kind: 'secret',
-              ...secretProps('max.botToken'),
-            },
-            {
-              name: 'max_baseUrl',
-              label: 'Базовый URL API (необязательно)',
-              kind: 'text',
-              initialValue: byKey('max.baseUrl').value ?? '',
-              settingKey: 'max.baseUrl',
-              source: byKey('max.baseUrl').source,
-              placeholder: 'https://botapi.max.ru',
-            },
-          ]}
-          testAction={testOf('max')}
-          check={checkOf('max')}
-          webhook={webhookOf('max', 'x-max-webhook-secret', byKey('max.webhookSecret').isSet)}
-        />
-
-        <IntegrationSettingsForm
-          title="WhatsApp (агрегатор)"
-          description="Входящие и исходящие сообщения WhatsApp через сервис-агрегатор (Wazzup-совместимый API)."
-          note="Канал включается флагом FEATURE_WHATSAPP_CHANNEL=1 в конфиге сервера; здесь задаются ключи агрегатора."
-          action={saveWhatsappSettingsAction}
-          fields={[
-            {
-              name: 'whatsapp_apiKey',
-              label: 'API-ключ агрегатора',
-              kind: 'secret',
-              ...secretProps('whatsapp.apiKey'),
-            },
-            {
-              name: 'whatsapp_channelId',
-              label: 'ID канала (подключённый номер)',
-              kind: 'secret',
-              ...secretProps('whatsapp.channelId'),
-            },
-            {
-              name: 'whatsapp_baseUrl',
-              label: 'Базовый URL агрегатора (необязательно)',
-              kind: 'text',
-              initialValue: byKey('whatsapp.baseUrl').value ?? '',
-              settingKey: 'whatsapp.baseUrl',
-              source: byKey('whatsapp.baseUrl').source,
-              placeholder: 'https://api.wazzup24.com',
-            },
-          ]}
-          testAction={testOf('whatsapp')}
-          check={checkOf('whatsapp')}
-          webhook={webhookOf('whatsapp', 'x-wazzup-secret', byKey('whatsapp.webhookSecret').isSet)}
+          check={diag.checkOf('email')}
         />
 
         <IntegrationSettingsForm
@@ -366,8 +212,8 @@ export default async function AdminIntegrationsPage() {
             },
           ]}
           testAction={testOf('mango')}
-          check={checkOf('mango')}
-          webhook={webhookOf(
+          check={diag.checkOf('mango')}
+          webhook={diag.webhookOf(
             'mango',
             null,
             byKey('mango.apiKey').isSet && byKey('mango.apiSalt').isSet,
@@ -430,7 +276,7 @@ export default async function AdminIntegrationsPage() {
             },
           ]}
           testAction={testOf('imap')}
-          check={checkOf('imap')}
+          check={diag.checkOf('imap')}
         />
 
         <IntegrationSettingsForm
@@ -475,7 +321,7 @@ export default async function AdminIntegrationsPage() {
             },
           ]}
           testAction={testOf('onec')}
-          check={checkOf('onec')}
+          check={diag.checkOf('onec')}
         />
 
         <IntegrationSettingsForm
@@ -497,7 +343,7 @@ export default async function AdminIntegrationsPage() {
             },
           ]}
           testAction={testOf('dadata')}
-          check={checkOf('dadata')}
+          check={diag.checkOf('dadata')}
         />
       </div>
     </div>

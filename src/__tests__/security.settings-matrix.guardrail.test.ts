@@ -43,6 +43,9 @@ const LEADER_SECTIONS = [
 
 /** Только администратор: секреты платформы, надзор, вход, здоровье. */
 const ADMIN_ONLY_SECTIONS = [
+  // Спека 2026-09-12 (Р-М-6): токены ботов и секреты вебхуков — секреты
+  // платформы (`Р-22`), руководителю остаётся светофор на обзоре.
+  'integrations.messengers',
   'security.loginPolicies', // вход один на всю систему
   'security.audit',
   'security.personalData',

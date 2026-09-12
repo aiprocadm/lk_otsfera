@@ -1,7 +1,8 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordPiiAccess } from '@/lib/pii/record';
-import { isMessengerAvailable, type MessengerChannel } from './channels';
+import { isMessengerAvailable } from './availability';
+import type { MessengerChannel } from './channels';
 import type { DialogStatus } from './list';
 import { peerLabelOf } from './list';
 import { dialogScopeWhere, isDialogInScope } from './scope';

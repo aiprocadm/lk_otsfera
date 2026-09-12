@@ -4,6 +4,21 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
+// Кнопки секрета вебхука (`У-123`) и сброса к серверному значению (`У-131`)
+// — свои компоненты со своими тестами; здесь проверяется только, что форма их
+// монтирует в нужных ветках и с нужными props.
+vi.mock('@/components/admin/webhook-secret-controls', () => ({
+  WebhookSecretControls: (p: { provider: string; canRegister: boolean }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'secret-controls' },
+      `${p.provider}:${String(p.canRegister)}`
+    ),
+}));
+vi.mock('@/components/admin/reset-setting-button', () => ({
+  ResetSettingButton: (p: { settingKey: string; label: string }) =>
+    React.createElement('div', { 'data-testid': 'reset-button' }, `${p.settingKey}:${p.label}`),
+}));
 
 import {
   IntegrationSettingsForm,
@@ -209,5 +224,61 @@ describe('IntegrationCheckPanel (через IntegrationSettingsForm)', () => {
     fireEvent.click(btn);
     // resolveErrorText: словарь errorMessageRu даёт русское сообщение для forbidden
     expect(await screen.findByRole('alert')).toBeTruthy();
+  });
+});
+
+describe('ветки с дочерними кнопками', () => {
+  it('вебхук с нашим секретом монтирует кнопки генерации/регистрации; без provider — нет', () => {
+    const base = {
+      url: 'https://app.test/api/integrations/telegram/webhook',
+      headerName: 'x-h',
+      secretSet: true,
+      lastEventAt: null,
+    };
+    const { unmount } = renderForm({
+      testAction: vi.fn(),
+      check: null,
+      webhook: { ...base, provider: 'telegram', canRegister: true },
+    });
+    expect(screen.getByTestId('secret-controls').textContent).toBe('telegram:true');
+    unmount();
+
+    renderForm({ testAction: vi.fn(), check: null, webhook: { ...base, provider: 'whatsapp' } });
+    // canRegister не задан → кнопки регистрации нет (false), генерация есть.
+    expect(screen.getByTestId('secret-controls').textContent).toBe('whatsapp:false');
+  });
+
+  it('кнопка «использовать значение сервера» — только у поля, перекрытого из базы', () => {
+    renderForm({
+      fields: [
+        {
+          name: 'a',
+          label: 'Из базы',
+          kind: 'text',
+          initialValue: 'x',
+          settingKey: 'k.a',
+          source: 'db',
+        },
+        {
+          name: 'b',
+          label: 'Из сервера',
+          kind: 'text',
+          initialValue: 'y',
+          settingKey: 'k.b',
+          source: 'env',
+        },
+        {
+          name: 'c',
+          label: 'Секрет из базы',
+          kind: 'secret',
+          settingKey: 'k.c',
+          secretSet: true,
+          secretSource: 'db',
+        },
+        { name: 'd', label: 'Без ключа', kind: 'text', initialValue: 'z', source: 'db' },
+      ],
+    });
+    const buttons = screen.getAllByTestId('reset-button').map((n) => n.textContent);
+    expect(buttons).toEqual(['k.a:Из базы', 'k.c:Секрет из базы']);
   });
 });

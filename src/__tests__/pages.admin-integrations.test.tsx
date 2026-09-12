@@ -5,6 +5,16 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { requireSettingsSection } = vi.hoisted(() => ({ requireSettingsSection: vi.fn() }));
 vi.mock('@/lib/auth/requireSettings', () => ({ requireSettingsSection }));
 
+// Спека 2026-09-12 (Р-М-6): адрес раздела «Подключение мессенджеров» страница
+// берёт из реестра хаба — здесь его подменяем, чтобы проверить и «раздела нет».
+const { settingsSectionHref } = vi.hoisted(() => ({ settingsSectionHref: vi.fn() }));
+vi.mock('@/lib/navigation/settings', async () => ({
+  ...(await vi.importActual<typeof import('@/lib/navigation/settings')>(
+    '@/lib/navigation/settings'
+  )),
+  settingsSectionHref,
+}));
+
 // Чтение SyncState уехало в сервис (аудит A1) — форма запроса пиннится в
 // services.admin-integrations.test.ts.
 const { getIntegrationsStatus, listIntegrationSyncStates } = vi.hoisted(() => ({
@@ -124,9 +134,18 @@ describe('AdminIntegrationsPage', () => {
     formTitles.length = 0;
     formProps.length = 0;
     requireSettingsSection.mockResolvedValue(SESSION);
+    settingsSectionHref.mockReturnValue('/admin/settings/integrations/messengers');
     getSettingsView.mockImplementation(async (_prisma: unknown, keys: string[]) =>
       viewFor(keys, () => ({}))
     );
+  });
+
+  it('без раздела мессенджеров в реестре ссылка на него не рисуется', async () => {
+    settingsSectionHref.mockReturnValue(null);
+    getIntegrationsHealth.mockResolvedValue({ ok: true, rows: [] });
+    const { container } = await renderServerComponent(AdminIntegrationsPage());
+    expect(settingsSectionHref).toHaveBeenCalledWith('integrations.messengers', 'admin');
+    expect(container.querySelector('a[href="/admin/settings/integrations/messengers"]')).toBeNull();
   });
 
   it('requires admin and renders the security notice + панель состояния', async () => {
@@ -152,16 +171,17 @@ describe('AdminIntegrationsPage', () => {
     expect(healthProps.failedDocumentsHref).toBe(
       '/admin/documents?tab=general&oneCPushStatus=failed'
     );
-    // все группы настроек смонтированы
+    // все группы настроек смонтированы; мессенджеры (спека 2026-09-12, Р-М-6)
+    // уехали в свой раздел — здесь вместо трёх форм ссылка на него.
     expect(formTitles).toEqual([
-      'Telegram-бот',
-      'Max-бот',
-      'WhatsApp (агрегатор)',
       'Телефония Mango Office',
       'Входящая почта (IMAP)',
       'Обмен с 1С',
       'DaData (подсказки по ИНН)',
     ]);
+    expect(
+      container.querySelector('a[href="/admin/settings/integrations/messengers"]')?.textContent
+    ).toContain('Подключение мессенджеров');
   });
 
   it('отказ сервиса состояния — понятный текст вместо пустой панели', async () => {
@@ -223,30 +243,36 @@ describe('AdminIntegrationsPage', () => {
     const ranAt = new Date('2026-07-23T10:00:00Z');
     const eventAt = new Date('2026-07-23T09:30:00Z');
     listIntegrationSyncStates.mockResolvedValue([
-      { entity: 'integration.telegram', lastRunAt: ranAt, lastSuccessAt: ranAt, lastError: null },
+      { entity: 'integration.mango', lastRunAt: ranAt, lastSuccessAt: ranAt, lastError: null },
       {
         entity: 'integration.onec',
         lastRunAt: ranAt,
         lastSuccessAt: null,
         lastError: 'Сервер ответил HTTP 500',
       },
-      { entity: 'webhook.telegram', lastRunAt: null, lastSuccessAt: eventAt, lastError: null },
+      { entity: 'webhook.mango', lastRunAt: null, lastSuccessAt: eventAt, lastError: null },
     ]);
 
     await renderServerComponent(AdminIntegrationsPage());
 
+    // Диагностика спрашивает SyncState один раз: все пробы + вебхук телефонии
+    // (вебхуки мессенджеров теперь на их собственном разделе).
+    expect(listIntegrationSyncStates).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.arrayContaining(['integration.mango', 'webhook.mango'])
+    );
+    expect(listIntegrationSyncStates.mock.calls[0]![1]).not.toContain('webhook.telegram');
+
     const byTitle = (t: string) => (formProps as FormStubProps[]).find((p) => p.title === t)!;
 
-    // Успешная проба: lastOk=true, ошибок нет.
-    const tg = byTitle('Telegram-бот');
-    expect(tg.check).toMatchObject({ lastOk: true, lastError: null });
-    expect(tg.check!.lastAt).toBeTruthy();
-    // Вебхук: готовый URL + имя заголовка + последнее входящее.
-    expect(tg.webhook).toMatchObject({
-      url: expect.stringContaining('/api/integrations/telegram/webhook'),
-      headerName: 'x-telegram-bot-api-secret-token',
+    // Успешная проба: lastOk=true, ошибок нет; вебхук — готовый URL + последнее входящее.
+    const mangoOk = byTitle('Телефония Mango Office');
+    expect(mangoOk.check).toMatchObject({ lastOk: true, lastError: null });
+    expect(mangoOk.check!.lastAt).toBeTruthy();
+    expect(mangoOk.webhook).toMatchObject({
+      url: expect.stringContaining('/api/integrations/mango/webhook'),
     });
-    expect(tg.webhook!.lastEventAt).toBeTruthy();
+    expect(mangoOk.webhook!.lastEventAt).toBeTruthy();
 
     // Провальная проба 1С: lastOk=false + текст ошибки.
     const onec = byTitle('Обмен с 1С');

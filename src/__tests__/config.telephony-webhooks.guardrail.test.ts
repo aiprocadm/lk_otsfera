@@ -108,7 +108,9 @@ describe('У-123: секреты вебхуков задаются из инте
   });
 
   it('индикатор «задан» читает базу, а не переменную сервера', () => {
-    const src = read('app/admin/settings/integrations/page.tsx');
+    // Спека 2026-09-12 (Р-М-6): формы мессенджеров и их индикаторы вебхуков
+    // живут в разделе «Подключение мессенджеров», а не на обзоре.
+    const src = read('app/admin/settings/integrations/messengers/page.tsx');
     for (const envVar of [
       'TELEGRAM_WEBHOOK_SECRET',
       'MAX_WEBHOOK_SECRET',
