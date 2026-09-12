@@ -4,13 +4,14 @@ import { join, relative, sep } from 'node:path';
 import { FEATURE_PREFIXES, isRouteGatedFlag } from '@/lib/featureFlags';
 import { SETTING_SPECS } from '@/lib/config/integrationSettings';
 import { WEBHOOK_PROVIDERS } from '@/lib/services/admin/webhookSecrets';
+import { readSource } from './helpers/source';
 
 /**
  * Стражи PR-2 этапа 4: телефония включается из интерфейса (`У-124`, дефект
  * `Д-38`) и секреты вебхуков задаются оттуда же (`У-123`).
  */
 const SRC = join(__dirname, '..');
-const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
+const read = (p: string) => readSource(join(SRC, p));
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {

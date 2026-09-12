@@ -5,13 +5,14 @@ import { SETTING_SPECS } from '@/lib/config/integrationSettings';
 import { ALL_SCHEDULES, SYNC_SCHEDULES, defaultPatternFor } from '@/lib/jobs/scheduling';
 import { SYNC_ENTITIES } from '@/lib/services/admin/syncControl';
 import { parseCron } from '@/lib/jobs/cron';
+import { readSource } from './helpers/source';
 
 /**
  * Страж PR-3 этапа 4: параметры и расписания обмена с 1С правятся из
  * интерфейса (`У-125`), а дубля расписаний больше нет.
  */
 const SRC = join(__dirname, '..');
-const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
+const read = (p: string) => readSource(join(SRC, p));
 
 describe('У-125: параметры обмена — настройки, а не только переменные сервера', () => {
   it('все шесть параметров есть в реестре настроек', () => {

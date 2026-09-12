@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ORG_CARD_TAB_CAP } from '@/lib/services/manager/organizationCard';
+import { readSource } from './helpers/source';
 
 /**
  * Страж `С-6` (сопровождение, прогон №4): вкладки карточки организации режутся
@@ -11,10 +11,7 @@ import { ORG_CARD_TAB_CAP } from '@/lib/services/manager/organizationCard';
  * счётчика — или переписал `where` в выборке, забыв про счётчик, — и экран
  * снова врёт «показаны 20 из 7» или молчит про усечение.
  */
-const SRC = readFileSync(
-  join(__dirname, '..', 'lib', 'services', 'manager', 'organizationCard.ts'),
-  'utf8'
-);
+const SRC = readSource(join(__dirname, '..', 'lib', 'services', 'manager', 'organizationCard.ts'));
 
 describe('карточка организации: предел вкладок и честные счётчики (С-6)', () => {
   it('предел один, числом в сервисе не встречается', () => {

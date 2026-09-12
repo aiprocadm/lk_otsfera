@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { readSource } from './helpers/source';
 
 /**
  * Связанные записи идут одной транзакцией.
@@ -23,7 +24,7 @@ import { describe, expect, it } from 'vitest';
  * заходом, и общее правило дало бы ложные срабатывания вместо пользы.
  */
 const SRC = join(__dirname, '..');
-const read = (rel: string) => readFileSync(join(SRC, rel), 'utf8');
+const read = (rel: string) => readSource(join(SRC, rel));
 
 /** Тело транзакции: от `$transaction(async (tx) => {` до парной скобки. */
 function transactionBodies(src: string): string[] {

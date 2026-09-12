@@ -8,6 +8,7 @@ import {
   type FeatureFlag,
 } from '@/lib/featureFlags';
 import { SENSITIVE_FLAGS } from '@/lib/services/admin/featureFlags';
+import { readSource } from './helpers/source';
 
 /**
  * Страж границы «что можно переключать из интерфейса» (`У-65`, этап 8).
@@ -20,7 +21,7 @@ import { SENSITIVE_FLAGS } from '@/lib/services/admin/featureFlags';
  */
 describe('граница route-флагов (У-65)', () => {
   it('middleware не держит собственной копии списка префиксов', () => {
-    const src = readFileSync(join(process.cwd(), 'src/middleware.ts'), 'utf8');
+    const src = readSource(join(process.cwd(), 'src/middleware.ts'));
     expect(src).toContain('FEATURE_PREFIXES');
     // Объявление живёт в featureFlags.ts — middleware только импортирует.
     expect(src).not.toMatch(/const\s+FEATURE_PREFIXES\s*[:=]/);

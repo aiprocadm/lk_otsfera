@@ -6,6 +6,7 @@ vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled: () => true }));
 
 import { partnerOrgTabHref } from '@/lib/navigation/partnerOrgCard';
 import { orgCardTabsFor } from '@/lib/navigation/orgCardTabs';
+import { readSource } from './helpers/source';
 
 /**
  * Страж партнёрской карточки (`У-96`, §0.2 — правило зеркала).
@@ -29,7 +30,7 @@ describe('партнёрская карточка на общем реестре
       'app/partner/portfolio/[orgId]/documents/page.tsx',
       'app/partner/portfolio/[orgId]/settings/page.tsx',
     ]) {
-      const src = readFileSync(join(SRC, file), 'utf8');
+      const src = readSource(join(SRC, file));
       expect(src, file).toContain('orgCardTabsFor');
       expect(src, file).not.toContain("from '@/components/partner/org-tabs'");
     }
@@ -61,7 +62,7 @@ describe('партнёрская карточка на общем реестре
   it('данные карточки партнёру даёт общий сервис, а не свой', () => {
     // `getOrgCard` остаётся только у экранов с собственным содержимым
     // (документы, настройки) — сама карточка живёт на общем сервисе.
-    const card = readFileSync(join(SRC, 'app/partner/portfolio/[orgId]/page.tsx'), 'utf8');
+    const card = readSource(join(SRC, 'app/partner/portfolio/[orgId]/page.tsx'));
     expect(card).toContain('getOrganizationCard');
     expect(card).not.toContain('getOrgCard');
   });

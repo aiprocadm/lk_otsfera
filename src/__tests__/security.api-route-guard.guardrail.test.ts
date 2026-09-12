@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
+import { readSource } from './helpers/source';
 
 /**
  * Каждый API-роут сам спрашивает, кто его зовёт.
@@ -40,6 +41,24 @@ const PUBLIC_BY_DESIGN: Array<{ route: string; why: string }> = [
     route: 'src/app/api/health/live/route.ts',
     why: 'Liveness-проба для мониторинга: отдаёт только {status:"ok"}, ни одного обращения к базе и ни одной подробности о системе.',
   },
+  // Три роута ниже открыты по той же причине, что и сброс пароля: они
+  // работают ДО всякой сессии. Записаны сюда хотфиксом №47 (`С-5`, прогон
+  // №26): до него они проходили эту проверку СЛУЧАЙНО — в пояснении внутри
+  // каждого упоминался `getSession()`, и страж, читавший исходник вместе с
+  // комментариями, засчитывал упоминание за гард. То есть самые чувствительные
+  // роуты продукта были исключены из проверки молча и без причины.
+  {
+    route: 'src/app/api/auth/login/route.ts',
+    why: 'Вход происходит ДО сессии: требовать сессию, чтобы её получить, — замкнутый круг. Защита другая — общий лимитер по IP и по адресу (429) и одинаковый ответ на существующий и несуществующий адрес.',
+  },
+  {
+    route: 'src/app/api/auth/2fa/verify/route.ts',
+    why: 'Шаг подтверждения входа: сессии ещё нет, вместо неё pre-auth токен с purpose:"2fa" (роли в нём нет, getSession его отвергает) и одноразовый код. Защита — проверка токена, срок и предел числа попыток (429).',
+  },
+  {
+    route: 'src/app/api/auth/2fa/resend/route.ts',
+    why: 'Повторная отправка кода на том же до-сессионном шаге. Защита — тот же pre-auth токен плюс пауза 30 с между отправками и не более трёх повторов на десятиминутное окно challenge.',
+  },
 ];
 
 const HANDLER = /^export async function (GET|POST|PUT|PATCH|DELETE)/gm;
@@ -68,7 +87,7 @@ describe('api-routes: каждый обработчик спрашивает п�
   it('middleware по-прежнему не смотрит на /api — иначе правило можно смягчить', () => {
     // Если matcher когда-нибудь включит api, часть смысла стража отпадёт, и
     // об этом надо узнать здесь, а не из инцидента.
-    const mw = readFileSync(join(ROOT, 'src', 'middleware.ts'), 'utf8');
+    const mw = readSource(join(ROOT, 'src', 'middleware.ts'));
     expect(mw, 'matcher middleware изменился — перечитай правило').toMatch(
       /matcher:\s*\[\s*'\/\(\(\?!api\|/
     );
@@ -79,7 +98,7 @@ describe('api-routes: каждый обработчик спрашивает п�
     const unguarded: string[] = [];
 
     for (const file of files) {
-      const src = readFileSync(join(ROOT, file), 'utf8');
+      const src = readSource(join(ROOT, file));
       const heads = [...src.matchAll(HANDLER)];
       for (let i = 0; i < heads.length; i += 1) {
         const start = heads[i]?.index ?? 0;
@@ -115,7 +134,7 @@ describe('api-routes: каждый обработчик спрашивает п�
     // Иначе список тихо разрастётся: проще вписать роут сюда, чем поставить
     // дверь. Если гард есть — роуту здесь не место.
     for (const e of PUBLIC_BY_DESIGN) {
-      const src = readFileSync(join(ROOT, e.route), 'utf8');
+      const src = readSource(join(ROOT, e.route));
       expect(GUARD.test(src), `${e.route}: гард есть — убери роут из PUBLIC_BY_DESIGN`).toBe(false);
     }
   });

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { readSource } from './helpers/source';
 
 /**
  * `У-154` (дефект `Д-17`) — все три роута скачивания документа передают имя
@@ -21,7 +22,7 @@ const DOWNLOAD_ROUTES = [
 
 describe('У-154: скачивание отдаёт файл под человеческим именем', () => {
   it.each(DOWNLOAD_ROUTES)('%s передаёт имя файла в createSignedUrl', (rel) => {
-    const src = readFileSync(join(SRC, rel), 'utf8');
+    const src = readSource(join(SRC, rel));
     const calls = [...src.matchAll(/createSignedUrl\([\s\S]{0,300}?\)\s*;/g)].map((m) => m[0]);
     expect(calls.length, `в ${rel} нет вызова createSignedUrl — страж смотрит не туда`).toBe(1);
     expect(calls[0], `${rel} подписывает ссылку без имени файла (\`Д-17\`)`).toContain('download:');

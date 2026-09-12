@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { readSource } from './helpers/source';
 import {
   ORG_SETTINGS_SECTIONS,
   orgSettingsSectionsFor,
@@ -69,9 +69,8 @@ describe('реестр секций «Настройки» (У-99)', () => {
     // Форма правки ставки — только на страницах сотрудников ЦО. Партнёрский
     // экран настроек организации её не импортирует, и это должно оставаться
     // проверяемым фактом, а не обещанием в комментарии.
-    const partnerSettings = readFileSync(
-      join(SRC, 'app/partner/portfolio/[orgId]/settings/page.tsx'),
-      'utf8'
+    const partnerSettings = readSource(
+      join(SRC, 'app/partner/portfolio/[orgId]/settings/page.tsx')
     );
     expect(partnerSettings).not.toContain('AdminRateOverrideForm');
   });

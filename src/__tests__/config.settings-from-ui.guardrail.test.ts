@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { readSource } from './helpers/source';
 
 /**
  * Стражи PR-1 этапа 4 — три дефекта, которые чинятся здесь и должны остаться
@@ -13,7 +14,7 @@ import { join } from 'node:path';
  */
 const SRC = join(__dirname, '..');
 const ROOT = join(__dirname, '..', '..');
-const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
+const read = (p: string) => readSource(join(SRC, p));
 
 describe('У-133: снапшот флагов праймится до первого запроса (Д-37)', () => {
   it('старт процесса приложения праймит снапшот', () => {

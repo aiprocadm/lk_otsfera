@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { readSource } from './helpers/source';
 
 /**
  * `У-149` — «Отправить заказчику» есть в карточке документа во ВСЕХ трёх
@@ -15,7 +16,7 @@ import { describe, expect, it } from 'vitest';
  * общей карточке и проверяется её тестами.
  */
 const SRC = join(__dirname, '..');
-const read = (rel: string) => readFileSync(join(SRC, rel), 'utf8');
+const read = (rel: string) => readSource(join(SRC, rel));
 
 describe('У-149: кнопка отправки — во всех трёх кабинетах сотрудников', () => {
   it('менеджер и руководитель получают её через общую карточку сотрудника', () => {

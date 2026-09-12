@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { isOptInFlag } from '@/lib/featureFlags';
+import { readSource } from './helpers/source';
 
 /**
  * `У-144` (дефект `Д-13`) — выпуск документов доступен из карточки заказа во
@@ -23,7 +24,7 @@ const ORDER_PAGES = [
 
 describe('У-144: панель выпуска — во всех трёх кабинетах', () => {
   it.each(ORDER_PAGES)('%s монтирует общий компонент панели', (rel) => {
-    const src = readFileSync(join(SRC, rel), 'utf8');
+    const src = readSource(join(SRC, rel));
     expect(src, `${rel} не импортирует панель выпуска`).toContain(
       "from '@/components/manager/generate-documents-panel'"
     );

@@ -1,7 +1,7 @@
-import { readFileSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
+import { readSource } from './helpers/source';
 
 /**
  * `findMany({ distinct })` не собирает списки значений — для этого есть
@@ -72,7 +72,7 @@ describe('services: списки значений собирает groupBy, а �
   it('ни один сервис не собирает список значений через findMany({ distinct })', () => {
     const allowed = new Set(NARROW_BY_DESIGN.map((e) => e.file));
     const offenders = files
-      .filter((f) => DISTINCT.test(readFileSync(join(ROOT, f), 'utf8')))
+      .filter((f) => DISTINCT.test(readSource(join(ROOT, f))))
       .map(rel)
       .filter((f) => !allowed.has(f));
 
@@ -89,7 +89,7 @@ describe('services: списки значений собирает groupBy, а �
 
   it('у каждого исключения записана причина, и `distinct` там действительно есть', () => {
     for (const e of NARROW_BY_DESIGN) {
-      const src = readFileSync(join(ROOT, e.file), 'utf8');
+      const src = readSource(join(ROOT, e.file));
       expect(DISTINCT.test(src), `${e.file}: distinct пропал — убери файл из списка`).toBe(true);
       expect(e.why.length, `${e.file}: причина не записана`).toBeGreaterThan(40);
     }
@@ -99,7 +99,7 @@ describe('services: списки значений собирает groupBy, а �
     // Прямая проверка починенных мест: без неё страж молчал бы, вернись они
     // к построчному чтению через другой вызов.
     for (const f of ['src/lib/services/admin/auditLog.ts', 'src/lib/services/admin/piiAccess.ts']) {
-      const src = readFileSync(join(ROOT, f), 'utf8');
+      const src = readSource(join(ROOT, f));
       expect(src, `${f}: список для фильтра собирается не groupBy`).toMatch(
         /\.groupBy\(\{\s*by:\s*\[/
       );

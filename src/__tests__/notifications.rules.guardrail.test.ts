@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { SETTINGS_SECTIONS } from '@/lib/navigation/settings';
 import { ROUTABLE_CHANNELS } from '@/lib/notifications/routing';
+import { readSource } from './helpers/source';
 
 /**
  * Страж PR-5 этапа 4: правила уведомлений действительно применяются (`У-127`).
@@ -11,7 +12,7 @@ import { ROUTABLE_CHANNELS } from '@/lib/notifications/routing';
  * человек видит переключатели, а письма ходят как раньше.
  */
 const SRC = join(__dirname, '..');
-const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
+const read = (p: string) => readSource(join(SRC, p));
 
 /** Файлы, которые рассылают уведомления и обязаны спрашивать правила. */
 const FANOUT_FILES = [

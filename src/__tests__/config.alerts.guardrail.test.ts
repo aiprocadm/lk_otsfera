@@ -2,12 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { SETTING_SPECS } from '@/lib/config/integrationSettings';
+import { readSource } from './helpers/source';
 
 /**
  * Страж PR-4 этапа 4: ops-оповещения настраиваются из интерфейса (`У-126`).
  */
 const SRC = join(__dirname, '..');
-const read = (p: string) => readFileSync(join(SRC, p), 'utf8');
+const read = (p: string) => readSource(join(SRC, p));
 
 describe('У-126: пороги и канал оповещений — настройки', () => {
   it('все девять ключей есть в реестре', () => {
