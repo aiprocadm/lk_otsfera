@@ -14,6 +14,12 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: prismaMock }));
 vi.mock('@/lib/services/telegram/link', () => ({ linkByCode: linkByCodeMock }));
 vi.mock('@/lib/telegram/client', () => ({ sendTelegramMessage: sendTelegramMessageMock }));
 vi.mock('@/lib/services/admin/webhookDiagnostics', () => ({ recordWebhookEvent }));
+// Спека 2026-09-12 (§5.4): текст ответа на /start зависит от флага приёма
+// сообщений. По умолчанию выключен — как opt-in флаг в тестовом окружении.
+const { isFeatureEnabledMock } = vi.hoisted(() => ({
+  isFeatureEnabledMock: vi.fn<(flag: string) => boolean>(() => false),
+}));
+vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled: isFeatureEnabledMock }));
 
 import { POST } from '@/app/api/integrations/telegram/webhook/route';
 
@@ -264,5 +270,52 @@ describe('диагностика вебхука (ФТ-14.4)', () => {
     const res = await POST(makeRequest({}, 'wrong'));
     expect(res.status).toBe(401);
     expect(recordWebhookEvent).not.toHaveBeenCalled();
+  });
+});
+
+describe('POST /api/integrations/telegram/webhook — текст ответа на /start (спека 2026-09-12 §5.4)', () => {
+  beforeEach(() => {
+    process.env.TELEGRAM_WEBHOOK_SECRET = WEBHOOK_SECRET;
+    vi.clearAllMocks();
+    isFeatureEnabledMock.mockReturnValue(false);
+    sendTelegramMessageMock.mockResolvedValue({ ok: true });
+    linkByCodeMock.mockResolvedValue({ ok: true });
+  });
+
+  afterEach(() => {
+    delete process.env.TELEGRAM_WEBHOOK_SECRET;
+  });
+
+  it('приём сообщений выключен — только про уведомления', async () => {
+    await POST(makeRequest({ message: { text: '/start c1', chat: { id: 900 } } }, WEBHOOK_SECRET));
+    expect(sendTelegramMessageMock).toHaveBeenCalledWith(
+      '900',
+      '✅ Уведомления привязаны к этому чату.'
+    );
+  });
+
+  it('привязка упала с настоящей ошибкой → 200, в журнале её текст (плечо e.message)', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    linkByCodeMock.mockRejectedValue(new Error('db down'));
+    const res = await POST(
+      makeRequest({ message: { text: '/start c3', chat: { id: 902 } } }, WEBHOOK_SECRET)
+    );
+    expect(res.status).toBe(200);
+    expect(error).toHaveBeenCalledWith(
+      '[webhook/telegram] link handling failed',
+      expect.objectContaining({ error: 'db down' })
+    );
+    expect(sendTelegramMessageMock).not.toHaveBeenCalled();
+    error.mockRestore();
+  });
+
+  it('приём сообщений включён — бот говорит, что сообщения увидит менеджер', async () => {
+    isFeatureEnabledMock.mockImplementation((flag: string) => flag === 'inbound_messaging');
+    await POST(makeRequest({ message: { text: '/start c2', chat: { id: 901 } } }, WEBHOOK_SECRET));
+    expect(sendTelegramMessageMock).toHaveBeenCalledWith(
+      '901',
+      expect.stringContaining('увидит ваш менеджер')
+    );
+    expect(isFeatureEnabledMock).toHaveBeenCalledWith('inbound_messaging');
   });
 });

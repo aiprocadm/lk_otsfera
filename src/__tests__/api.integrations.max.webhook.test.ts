@@ -76,6 +76,24 @@ describe('POST /api/integrations/max/webhook', () => {
       chatId: '42',
     });
     expect(sendMaxMessage).toHaveBeenCalledWith('42', expect.stringContaining('привязаны'));
+    // Приём сообщений выключен — про менеджера бот не обещает.
+    expect(sendMaxMessage).not.toHaveBeenCalledWith('42', expect.stringContaining('менеджер'));
+  });
+
+  it('при включённом приёме сообщений /start отвечает, что сообщения увидит менеджер (спека 2026-09-12 §5.4)', async () => {
+    isFeatureEnabled.mockImplementation((flag: string) => flag === 'inbound_messaging');
+    linkMaxByCode.mockResolvedValue({ ok: true });
+    const res = await POST(
+      req(
+        { message: { text: '/start CODE777', chat: { id: 77 } } },
+        { 'x-max-webhook-secret': SECRET }
+      )
+    );
+    expect(res.status).toBe(200);
+    expect(sendMaxMessage).toHaveBeenCalledWith(
+      '77',
+      expect.stringContaining('увидит ваш менеджер')
+    );
   });
 
   it('200 на bot_started-форму апдейта (chatId из user_id)', async () => {

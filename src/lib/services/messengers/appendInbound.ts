@@ -1,5 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
-import type { MessengerChannel } from './channels';
+import { bestEffort } from '@/lib/logging';
+import { notifyManagersMessengerMessage } from '@/lib/notifications/manager';
+import { MESSENGER_LABELS, type MessengerChannel } from './channels';
 import { previewOf, upsertDialog } from './dialog';
 
 /** Кому принадлежит собеседник, если резолвер его узнал. */
@@ -25,7 +27,7 @@ export type AppendInboundArgs = {
   /**
    * Считать ли сообщение непрочитанным. Бэкфилл старых писем передаёт `false`:
    * они лежали во «Входящих» неделями, и сотни красных бейджей в день запуска —
-   * шум, а не сигнал.
+   * шум, а не сигнал. Он же выключает уведомление менеджерам (Р-М-9).
    */
   markUnread?: boolean | undefined;
 };
@@ -46,7 +48,8 @@ export type AppendInboundResult = {
  * новый открыт с этим сообщением, существующий переоткрывается и получает
  * свежее превью, (3) привязка, если диалог ещё ничей, а отправитель узнан
  * (уже привязанный диалог резолвер не перепривязывает — это право сотрудника),
- * (4) само сообщение.
+ * (4) само сообщение, (5) уведомление менеджерам организации диалога —
+ * best-effort: оно не важнее самой реплики.
  */
 export async function appendInboundToDialog(
   prisma: PrismaClient,
@@ -61,7 +64,8 @@ export async function appendInboundToDialog(
 
   const at = args.sentAt ?? new Date();
   const preview = previewOf(args.body);
-  const unread = args.markUnread === false ? 0 : 1;
+  const live = args.markUnread !== false;
+  const unread = live ? 1 : 0;
   const bindingData = args.binding
     ? {
         companyId: args.binding.companyId,
@@ -101,11 +105,13 @@ export async function appendInboundToDialog(
 
   // Привязка по распознаванию — только ничьему диалогу. Условие в `where`, а не
   // в коде: между upsert и этим шагом диалог мог привязать сотрудник.
+  let organizationId = dialog.organizationId;
   if (args.binding && dialog.companyId === null) {
-    await prisma.messengerDialog.updateMany({
+    const bound = await prisma.messengerDialog.updateMany({
       where: { id: dialog.id, companyId: null },
       data: bindingData,
     });
+    if (bound.count > 0) organizationId = args.binding.organizationId;
   }
 
   const message = await prisma.messengerMessage.create({
@@ -119,6 +125,19 @@ export async function appendInboundToDialog(
     },
     select: { id: true },
   });
+
+  // Р-М-9: менеджеры организации узнают о входящем. Ничей диалог и так виден
+  // во «Входящих в работу»; бэкфилл старые письма не рассылает.
+  if (live && organizationId) {
+    await notifyManagersMessengerMessage(prisma, {
+      organizationId,
+      dialogId: dialog.id,
+      // Имя — из этого письма, иначе то, что диалог уже знает, иначе адрес.
+      peerLabel: args.peerDisplay?.trim() || dialog.peerDisplay?.trim() || args.peerRef,
+      channelLabel: MESSENGER_LABELS[args.channel],
+      excerpt: preview,
+    }).catch(bestEffort('[messengers/appendInbound] notify managers failed'));
+  }
 
   return { ok: true, dialogId: dialog.id, messageId: message.id, deduped: false };
 }

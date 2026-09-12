@@ -59,6 +59,11 @@ export function TelegramLinkCard({ status }: Props) {
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
       <h2 className="text-sm font-semibold text-gray-700">Telegram</h2>
+      {/* Спека 2026-09-12 (§5.4): бот — не только уведомления, но и чат с менеджером. */}
+      <p className="text-sm text-gray-500">
+        Через бота приходят уведомления, а если у центра включён приём сообщений — в нём же можно
+        написать своему менеджеру.
+      </p>
       {deepLink ? (
         <div className="space-y-2">
           <a

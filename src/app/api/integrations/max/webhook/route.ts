@@ -47,8 +47,12 @@ export async function POST(req: Request): Promise<Response> {
       // ошибка БД не превратилась в 500 → retry-storm.
       try {
         const result = await linkMaxByCode(prisma, { code, chatId });
+        // Спека 2026-09-12 (§5.4): при включённом приёме сообщений бот — ещё и
+        // чат с менеджером; говорим об этом сразу, а не оставляем догадываться.
         const reply = result.ok
-          ? '✅ Уведомления привязаны к этому чату.'
+          ? isFeatureEnabled('inbound_messaging')
+            ? '✅ Готово: уведомления привязаны к этому чату, а ваши сообщения здесь увидит ваш менеджер.'
+            : '✅ Уведомления привязаны к этому чату.'
           : 'Код недействителен или истёк.';
         await sendMaxMessage(chatId, reply).catch((e: unknown) => {
           log.warn('[webhook/max] reply send failed', {
