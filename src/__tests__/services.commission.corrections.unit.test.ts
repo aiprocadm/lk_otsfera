@@ -15,10 +15,18 @@ function makeDb(opts: {
   created?: any[];
 }) {
   const created = opts.created ?? [];
+  // Справочники задача берёт пакетом (один запрос на прогон, а не на строку),
+  // поэтому подделка отдаёт списки; `partnerId`/`organizationId` в строках
+  // нужны для раскладки по ключу.
+  const statements = opts.liveStatement ? [{ partnerId: 'p1', ...opts.liveStatement }] : [];
   return {
     payment: { findMany: vi.fn().mockResolvedValue(opts.refunds) },
-    commissionStatement: { findFirst: vi.fn().mockResolvedValue(opts.liveStatement ?? null) },
-    commissionRateChange: { findMany: vi.fn().mockResolvedValue(opts.rateChanges ?? []) },
+    commissionStatement: { findMany: vi.fn().mockResolvedValue(statements) },
+    commissionRateChange: {
+      findMany: vi
+        .fn()
+        .mockResolvedValue((opts.rateChanges ?? []).map((c) => ({ partnerId: 'p1', ...c }))),
+    },
     // F4: история org-override; пустая по умолчанию (fallback на текущее значение).
     organizationCommissionRateChange: { findMany: vi.fn().mockResolvedValue([]) },
     commissionCorrection: {
@@ -27,7 +35,7 @@ function makeDb(opts: {
         return { id: 'new', ...data };
       }),
     },
-    partner: { findUnique: vi.fn().mockResolvedValue({ commissionRate: dec(0.2) }) },
+    partner: { findMany: vi.fn().mockResolvedValue([{ id: 'p1', commissionRate: dec(0.2) }]) },
     _created: created,
   } as any;
 }
