@@ -31,21 +31,38 @@ const NARROW_BY_DESIGN: Array<{ file: string; why: string }> = [
 
 const DISTINCT = /\bdistinct:\s*\[/;
 
+/**
+ * Обход по КАТАЛОГАМ, а не по шаблону `src/lib/**​/*.ts`: в pathspec гита
+ * `**​/` требует хотя бы одну подпапку, поэтому такой шаблон молча
+ * пропускал файлы верхнего уровня — `lib/env.ts`, `lib/featureFlags.ts`,
+ * `lib/format.ts`, `lib/quickTasks.ts`, `worker/index.ts`,
+ * `worker/to-bull-processor.ts`. Проба «добавить нарушение в
+ * `lib/quickTasks.ts`» проходила зелёной (мутация `С-5`, прогон №26).
+ */
 function sourceFiles(): string[] {
-  return execFileSync(
-    'git',
-    ['ls-files', 'src/lib/**/*.ts', 'src/app/**/*.ts', 'src/worker/**/*.ts'],
-    { cwd: ROOT, encoding: 'utf8' }
-  )
+  return execFileSync('git', ['ls-files', 'src/lib', 'src/app', 'src/worker'], {
+    cwd: ROOT,
+    encoding: 'utf8',
+  })
     .split('\n')
     .filter(Boolean)
+    .filter((f) => f.endsWith('.ts') || f.endsWith('.tsx'))
     .filter((f) => !f.includes('__tests__'));
 }
+
+/** Файлы верхнего уровня — то, что прежний шаблон терял. Список не пуст. */
+const TOP_LEVEL_SAMPLE = ['src/lib/format.ts', 'src/worker/index.ts'];
 
 const rel = (f: string) => f.split(sep).join('/');
 
 describe('services: списки значений собирает groupBy, а не distinct в памяти', () => {
   const files = sourceFiles();
+
+  it('обход видит файлы верхнего уровня, а не только вложенные', () => {
+    for (const f of TOP_LEVEL_SAMPLE) {
+      expect(files.map(rel), `${f} не попал в обход — страж снова слеп`).toContain(f);
+    }
+  });
 
   it('файлы находятся — обход не сломан', () => {
     // Страж, которому нечего проверять, зелёный не потому, что всё хорошо.

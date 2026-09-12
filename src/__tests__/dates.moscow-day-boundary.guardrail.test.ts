@@ -35,24 +35,41 @@ const MIDNIGHT = /setHours\(\s*0\s*,\s*0\s*,\s*0/;
  */
 const PENDING: Array<{ file: string; why: string }> = [];
 
+/**
+ * Обход по КАТАЛОГАМ, а не по шаблону `src/lib/**​/*.ts`: в pathspec гита
+ * `**​/` требует хотя бы одну подпапку, поэтому такой шаблон молча
+ * пропускал файлы верхнего уровня — `lib/env.ts`, `lib/featureFlags.ts`,
+ * `lib/format.ts`, `lib/quickTasks.ts`, `worker/index.ts`,
+ * `worker/to-bull-processor.ts`. Среди них ровно те, ради которых страж и
+ * заведён: форматирование дат и «дела на сегодня». Проба «добавить нарушение
+ * в `lib/format.ts`» проходила зелёной (мутация `С-5`, прогон №26).
+ */
 function sourceFiles(): string[] {
-  return execFileSync(
-    'git',
-    ['ls-files', 'src/lib/**/*.ts', 'src/app/**/*.ts', 'src/worker/**/*.ts'],
-    {
-      cwd: ROOT,
-      encoding: 'utf8',
-    }
-  )
+  return execFileSync('git', ['ls-files', 'src/lib', 'src/app', 'src/worker'], {
+    cwd: ROOT,
+    encoding: 'utf8',
+  })
     .split('\n')
     .filter(Boolean)
+    .filter((f) => f.endsWith('.ts') || f.endsWith('.tsx'))
     .filter((f) => !f.includes('__tests__'));
 }
+
+/** Файлы верхнего уровня — то, что прежний шаблон терял. Список не пуст. */
+const TOP_LEVEL_SAMPLE = ['src/lib/format.ts', 'src/worker/index.ts'];
 
 const rel = (f: string) => f.split(sep).join('/');
 
 describe('даты: начало суток — по Москве (`Д-22`)', () => {
   const files = sourceFiles();
+
+  it('обход видит файлы верхнего уровня, а не только вложенные', () => {
+    // Прежний шаблон `src/lib/**​/*.ts` их терял, и страж молчал о
+    // нарушении в `lib/format.ts`.
+    for (const f of TOP_LEVEL_SAMPLE) {
+      expect(files.map(rel), `${f} не попал в обход — страж снова слеп`).toContain(f);
+    }
+  });
 
   it('файлы находятся — обход не сломан', () => {
     expect(files.length).toBeGreaterThan(200);
