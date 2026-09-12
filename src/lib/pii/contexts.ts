@@ -14,7 +14,9 @@ export type PiiSubjectType =
   | 'client_request'
   | 'user'
   | 'caller'
-  | 'inbound_sender';
+  | 'inbound_sender'
+  // Этап 1 ТЗ 12.09.2026 (`У-186`): контакт — физлицо клиентского контура.
+  | 'contact';
 
 /** Этап 9 (ФТ-12.1, PR-3): `export` — выгрузка ПДн сотрудником в файл.
  *  Клиентские выгрузки собственных данных сюда не попадают (фильтр `isStaff`
@@ -198,6 +200,21 @@ export const PII_CONTEXTS = {
     action: 'list',
     labelRu: 'Мессенджеры: кому написать первым',
     callSite: 'src/lib/services/messengers/start.ts',
+  },
+  // Этап 1 ТЗ 12.09.2026 (`У-186`): справочник контактов — имена, телефоны и
+  // адреса физлиц. Список и карточка — два разных чтения; поиск (`contacts_search`)
+  // добавляется вместе с категорией глобального поиска (PR-2 этапа).
+  contacts_list: {
+    subjectType: 'contact',
+    action: 'list',
+    labelRu: 'Список контактов',
+    callSite: 'src/lib/services/contacts/list.ts',
+  },
+  contact_card: {
+    subjectType: 'contact',
+    action: 'view',
+    labelRu: 'Карточка контакта',
+    callSite: 'src/lib/services/contacts/get.ts',
   },
 } as const satisfies Record<string, PiiContext>;
 

@@ -36,6 +36,10 @@ export const capabilitySchema = z.enum([
   'manage_catalog',
   'manage_users',
   'assign_orders',
+  // Этап 1 ТЗ 12.09.2026 (`У-178`, спека §3.2): справочник контактов. Объём
+  // данных задаёт охват `organizations` того же профиля — контакт следует за
+  // организацией; отдельной шкалы не заводим.
+  'crm.contacts',
   ...SETTINGS_CAPABILITIES,
 ]);
 export type Capability = z.infer<typeof capabilitySchema>;

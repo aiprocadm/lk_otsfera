@@ -9,6 +9,7 @@ import {
   type BindCallResult,
 } from '@/lib/services/telephony/bindCall';
 import { createContact } from '@/lib/services/manager/contacts';
+import type { ChannelOwner } from '@/lib/services/contacts/channels';
 import {
   createContactFromInbound,
   type CreateContactFromInboundArgs,
@@ -46,7 +47,9 @@ export type CreateContactFromCallArgs = {
 export async function createContactFromCallAction(
   args: CreateContactFromCallArgs
 ): Promise<
-  { ok: true; contactId: string } | { ok: false; error: 'forbidden' | 'invalid' | 'not_found' }
+  | { ok: true; contactId: string }
+  | { ok: false; error: 'forbidden' | 'invalid' | 'not_found' }
+  | { ok: false; error: 'contact_channel_taken'; conflict: ChannelOwner }
 > {
   if (notFoundIfDisabled('contacts')) return { ok: false, error: 'forbidden' };
   const session = await requireManager();

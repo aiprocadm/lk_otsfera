@@ -34,62 +34,63 @@ PR-3 — сервисы заметок PR-1 и страницы PR-2, PR-4 за�
 
 ## PR-1 «основа» — сервер готов, пользователь ничего не видит
 
-- [ ] `prisma/schema.prisma`: `OrganizationNote` (связи на `Company`,
+- [x] `prisma/schema.prisma`: `OrganizationNote` (связи на `Company`,
       `Organization`, `User`), `Contact.mergedIntoId` + self-relation
       `ContactMerged`; обратные связи `organizationNotes` у трёх моделей
-- [ ] миграция `stage1_contacts_notes` (аддитивная, с комментарием «зачем» и
+- [x] миграция `stage1_contacts_notes` (аддитивная, с комментарием «зачем» и
       обратным SQL в комментарии): таблица, колонка, индексы; `UPDATE
       NotificationRule eventType deal_note_mention → note_mention`; `UPDATE
       AccessProfile SET capabilities = array_append(...)` где `crm.contacts`
       ещё нет; `npx prisma migrate status` чисто
-- [ ] `auth/accessProfileSchema.ts`: `'crm.contacts'` в `capabilitySchema`;
+- [x] `auth/accessProfileSchema.ts`: `'crm.contacts'` в `capabilitySchema`;
       `components/access/role-editor.tsx`: подпись «Контакты (справочник)»;
       `auth/accessProfile.ts` `can()` — без изменений семантики (нет профиля →
       deny для новых прав; страницы и сервисы контактов зовут `canUseContacts`,
       который трактует no-profile как «можно», §3.2 спеки)
-- [ ] `services/contacts/scope.ts`: `contactScopeWhere(session, teamMode)` и
+- [x] `services/contacts/scope.ts`: `contactScopeWhere(session, teamMode)` и
       `isContactInScope(session, teamMode, contact)`; `canUseContacts(session)`
-- [ ] `services/contacts/list.ts`: поиск (имя, организация, e-mail, телефон в
+- [x] `services/contacts/list.ts`: поиск (имя, организация, e-mail, телефон в
       любом написании), фильтры, сортировка, постраничность 50 с `total`,
       `recordPiiAccess('contacts_list')`
-- [ ] `services/contacts/get.ts`: карточка с каналами, организацией, связями по
+- [x] `services/contacts/get.ts`: карточка с каналами, организацией, связями по
       вкладкам (счётчики), `mergedIntoId` для редиректа,
       `recordPiiAccess('contact_card')`
-- [ ] `services/contacts/mutate.ts`: `updateContact`, `archiveContact`,
+- [x] `services/contacts/mutate.ts`: `updateContact`, `archiveContact`,
       `restoreContact`, `addChannel`, `removeChannel`, `setPrimaryChannel`;
       занятый канал → `contact_channel_taken` с владельцем; канал пользователя
       кабинета → `contact_channel_locked`; аудит
-- [ ] `services/contacts/merge.ts`: `mergeContacts` — отказы (`contact_merge_self`,
+- [x] `services/contacts/merge.ts`: `mergeContacts` — отказы (`contact_merge_self`,
       `contact_merge_two_users`, `contact_merge_target_merged`), транзакция
       переноса (каналы, письма, звонки, диалоги, заказы, сделки, `userId`,
       пустые `position`/`note`), архив + `mergedIntoId`, аудит `contact_merged`
       со снимком; `listMergeCandidates`
-- [ ] `services/organizationNotes/{list,mutate}.ts`: список (закреплённые
+- [x] `services/organizationNotes/{list,mutate}.ts`: список (закреплённые
       сверху), `addNote`, `editNote` (автор 24 ч, руководитель/админ всегда),
       `removeNote` (руководитель/админ, аудит), `pinNote`/`unpinNote` (до трёх);
       `note_too_long`, `note_pin_limit`, `note_edit_expired`; партнёр и
       заказчик → `not_found`
-- [ ] `notifications/noteMention.ts`: `notifyNoteMention({ entity, ... })` —
+- [x] `notifications/noteMention.ts`: `notifyNoteMention({ entity, ... })` —
       единый продьюсер `note_mention`; `manager/dealNotes.ts` переведён на него;
       реестр: `note_mention` вместо `deal_note_mention`, `LEGACY_TYPE_ALIASES`
       для подписей исторических строк
-- [ ] `pii/contexts.ts`: `subjectType` `contact`; контексты `contact_card`,
-      `contacts_list`, `contacts_search`; `admin/piiAccess.ts` — подпись
-      субъекта-контакта по имени
-- [ ] `auth/audit.ts` + `audit/labels.ts`: `contact_updated`, `contact_archived`,
+- [x] `pii/contexts.ts`: `subjectType` `contact`; контексты `contact_card`,
+      `contacts_list` (`contacts_search` — в PR-2 вместе с категорией поиска:
+      страж `pii.capture-coverage` требует живой вызов в `globalSearch.ts`);
+      `admin/piiAccess.ts` — подпись субъекта-контакта по имени
+- [x] `auth/audit.ts` + `audit/labels.ts`: `contact_updated`, `contact_archived`,
       `contact_restored`, `contact_channel_added`, `contact_channel_removed`,
       `contact_merged`, `organization_note_created`, `organization_note_updated`,
       `organization_note_deleted`, `organization_note_pinned`; сущность
       `organization_note`
-- [ ] `errors/messages.ts`: восемь новых кодов с русскими строками
-- [ ] тесты: unit на каждый сервис (mock-prisma), матрица эквивалентности
+- [x] `errors/messages.ts`: восемь новых кодов с русскими строками
+- [x] тесты: unit на каждый сервис (mock-prisma), матрица эквивалентности
       скоупа, `auth.teamMode-required.guardrail` расширен на `services/contacts`
       и `services/organizationNotes`, IDOR-стражи (партнёр / заказчик / чужая
       компания → `not_found` на каждую функцию), integration: объединение
       переносит все связи и откатывается целиком, правило `note_mention`
       срабатывает после миграции, `crm.contacts` дописан профилям,
       `PiiAccessEvent` пишется
-- [ ] `CHANGELOG.md`
+- [x] `CHANGELOG.md`
 
 ## PR-2 «экраны контактов» — три зеркальных раздела и карточка
 
