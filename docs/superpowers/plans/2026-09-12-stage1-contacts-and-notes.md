@@ -14,7 +14,7 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development
 
 | PR | Что | Требования | Статус |
 |---|---|---|---|
-| PR-1 «основа» | Миграция (`OrganizationNote`, `Contact.mergedIntoId`, перенос правил `deal_note_mention → note_mention`, `crm.contacts` дописан существующим профилям); право `crm.contacts` в схеме профиля и редакторе ролей; `services/contacts/{scope,list,get,mutate,merge}.ts`; `services/organizationNotes/{list,mutate}.ts`; `notifications/noteMention.ts` и реестр (`note_mention`, псевдоним старого ключа); три контекста ПДн и `subjectType: contact`; аудит-действия и подписи; коды ошибок; стражи IDOR / `teamMode` / эквивалентность скоупа | `У-180` (сервис), `У-181` (сервис), `У-183` (модель, сервис, уведомление), `У-186`, `У-187` | ⏳ |
+| PR-1 «основа» | Миграция (`OrganizationNote`, `Contact.mergedIntoId`, перенос правил `deal_note_mention → note_mention`, `crm.contacts` дописан существующим профилям); право `crm.contacts` в схеме профиля и редакторе ролей; `services/contacts/{scope,list,get,mutate,merge}.ts`; `services/organizationNotes/{list,mutate}.ts`; `notifications/noteMention.ts` и реестр (`note_mention`, псевдоним старого ключа); три контекста ПДн и `subjectType: contact`; аудит-действия и подписи; коды ошибок; стражи IDOR / `teamMode` / эквивалентность скоупа | `У-180` (сервис), `У-181` (сервис), `У-183` (модель, сервис, уведомление), `У-186`, `У-187` | ✅ [#586](https://github.com/aiprocadm/lk_otsfera/pull/586) |
 | PR-2 «экраны контактов» | `SectionKey` `contacts`, значок, пункт меню в трёх кабинетах; страницы списка и карточки ×3; `components/contacts/*`; server actions; категория поиска; `preselect` у «Нового диалога»; `createLeadFromContact`; эталоны Playwright; глоссарий «Контакт», «Объединение контактов» | `У-178`, `У-179` (без вкладки задач), `У-180` (UI), `У-181` (UI, редирект), `У-185` | ⏳ |
 | PR-3 «карточка организации, лид, заказ, сделка» | Вкладки `contacts` и `notes` в реестре; секции; `mention-textarea` извлечён из чата команды; «Важное» на «Обзоре»; `orgHistory.ts` и вкладка «История» с фильтром и «Показаны N из M» (`auditTrail` из карточки убран); блоки «Контакт» в лиде, заказе и сделке; глоссарий «Заметка (внутренняя)» | `У-182`, `У-183` (UI), `У-184`, `У-180` («из всех точек») | ⏳ |
 | PR-4 «флаг и close-out» | Флаг `contacts` во всех точках (страж `third-gate`), матрица флагов, `AUDIT.md` (`У-178`…`У-187` ✅ с якорями), `STATUS.md` (этап 1 ✅, «Текущий этап» → 2), close-out, CHANGELOG | `У-178` (флаг), закрытие этапа | ⏳ |
@@ -94,40 +94,41 @@ PR-3 — сервисы заметок PR-1 и страницы PR-2, PR-4 за�
 
 ## PR-2 «экраны контактов» — три зеркальных раздела и карточка
 
-- [ ] `navigation/sectionLabels.ts` (`contacts` → «Контакты»), `icons.ts`
+- [x] `navigation/sectionLabels.ts` (`contacts` → «Контакты»), `icons.ts`
       (`contacts`), `cabinet.ts` — пункт в группе «Клиенты» после
       «Организации» у manager/leader/admin с `flag: 'contacts'`
-- [ ] `services/contacts/list.ts` (поиск по имени, организации, e-mail и
+- [x] `services/contacts/list.ts` (поиск по имени, организации, e-mail и
       телефону в любом написании, фильтры, сортировка, постраничность 50 с
       `total`, `recordPiiAccess('contacts_list')`) и `get.ts` (карточка, каналы
       с признаком «из кабинета», счётчики, шесть вкладок `listContactTab`,
       `recordPiiAccess('contact_card')`) — заготовки и их unit-тесты сняты с
       PR-1 и лежат в scratchpad сессии; контексты ПДн `contacts_list`,
       `contact_card` заводятся здесь
-- [ ] страницы `/{manager,leader,admin}/contacts/page.tsx` и `[id]/page.tsx`:
+- [x] страницы `/{manager,leader,admin}/contacts/page.tsx` и `[id]/page.tsx`:
       гард роли, `notFound()` при выключенном флаге или без `canUseContacts`,
       `PageHeader` с подзаголовком, крошки, редирект по `mergedIntoId`
-- [ ] `components/contacts/contact-list.tsx` (таблица → карточки на 390),
+- [x] `components/contacts/contact-list.tsx` (таблица → карточки на 390),
       `contact-filters.tsx`, `contact-form-dialog.tsx` (подсказка занятого
       канала с «Открыть» / «Объединить»), `contact-card.tsx` (шапка, каналы,
       вкладки Диалоги · Звонки · Входящие письма · Сделки · Заказы · История,
       пустые состояния с действием), `contact-channels.tsx`,
       `merge-contacts-dialog.tsx`
-- [ ] `server-actions/contacts.ts`: `createContactAction` и
+- [x] `server-actions/contacts.ts`: `createContactAction` и
       `createLeadFromContactAction` (остальные мутации — в PR-1)
-- [ ] `services/intake/convert.ts`: `createLeadFromContact` (источник `manual`)
-- [ ] `components/manager/messengers/new-dialog-button.tsx`: проп `preselect`;
+- [x] `services/intake/convert.ts`: `createLeadFromContact` (источник `manual`)
+- [x] `components/manager/messengers/new-dialog-button.tsx`: проп `preselect`;
       страница `/manager/messengers` читает `?new=<contactId>`
-- [ ] `services/search/{scopes,globalSearch}.ts`: категория `contacts`,
+- [x] `services/search/{scopes,globalSearch}.ts`: категория `contacts`,
       нормализация телефона из запроса, `recordPiiAccess('contacts_search')`
-- [ ] `docs/glossary.md` + `lib/help/glossary.ts`: «Контакт», «Объединение
+- [x] `docs/glossary.md` + `lib/help/glossary.ts`: «Контакт», «Объединение
       контактов»
-- [ ] `src/e2e/snapshots/contacts.spec.ts`: список (с данными, пустой),
-      карточка — 1280×800 и 390×844
-- [ ] тесты: страницы (`renderServerComponent`), компоненты (RTL), server
+- [ ] `src/e2e/snapshots/{manager,leader,admin}-contacts.spec.ts`: список —
+      1280×800 и 390×844 (эталоны снимаются на живом dev-сервере с
+      `FEATURE_CONTACTS=1`; спеки добавлены, baseline — отдельно)
+- [x] тесты: страницы (`renderServerComponent`), компоненты (RTL), server
       actions (моки), `pages.subtitles`, `navigation.mirror`,
       `navigation.same-section-same-name`, `security.role-access-matrix`
-- [ ] `CHANGELOG.md`
+- [x] `CHANGELOG.md`
 
 ## PR-3 «карточка организации, лид, заказ, сделка»
 

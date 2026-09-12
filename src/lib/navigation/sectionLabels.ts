@@ -30,6 +30,8 @@ export type SectionKey =
   | 'tasks'
   | 'calendar'
   | 'organizations'
+  // Этап 1 ТЗ 12.09.2026 (`У-178`): справочник контактов — люди клиентов.
+  | 'contacts'
   | 'partners'
   | 'portfolio'
   | 'myOrganization'
@@ -89,6 +91,7 @@ export const SECTIONS: Record<SectionKey, SectionMeta> = {
 
   // ── Клиенты ───────────────────────────────────────────────────────────────
   organizations: { label: 'Организации', iconKey: 'organizations' },
+  contacts: { label: 'Контакты', iconKey: 'contacts' },
   partners: { label: 'Партнёры', iconKey: 'partners' },
   portfolio: { label: 'Портфель', iconKey: 'portfolio' },
   myOrganization: { label: 'Моя организация', iconKey: 'myOrganization' },

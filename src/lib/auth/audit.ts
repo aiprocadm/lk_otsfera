@@ -158,6 +158,7 @@ export const AUDIT_ACTIONS = [
   'invite_resent',
   'lead_assigned',
   'lead_created_from_call',
+  'lead_created_from_contact',
   'lead_created_from_inbound',
   'lead_created_manual',
   'lead_promoted_to_deal',

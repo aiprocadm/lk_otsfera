@@ -14,6 +14,8 @@ const {
   setPrimaryChannel,
   mergeContacts,
   listMergeCandidates,
+  createContact,
+  createLeadFromContact,
 } = vi.hoisted(() => ({
   requireSession: vi.fn(),
   requireManager: vi.fn(),
@@ -28,6 +30,8 @@ const {
   setPrimaryChannel: vi.fn(),
   mergeContacts: vi.fn(),
   listMergeCandidates: vi.fn(),
+  createContact: vi.fn(),
+  createLeadFromContact: vi.fn(),
 }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireSession, requireManager }));
 vi.mock('@/lib/auth/managerPolicy', () => ({ getCompanyTeamVisibility }));
@@ -35,7 +39,8 @@ vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled }));
 vi.mock('next/cache', () => ({ revalidatePath }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('@/lib/services/telephony/bindCall', () => ({ bindCall: vi.fn() }));
-vi.mock('@/lib/services/manager/contacts', () => ({ createContact: vi.fn() }));
+vi.mock('@/lib/services/manager/contacts', () => ({ createContact }));
+vi.mock('@/lib/services/intake/convert', () => ({ createLeadFromContact }));
 vi.mock('@/lib/services/inbound/createContactFromInbound', () => ({
   createContactFromInbound: vi.fn(),
 }));
@@ -52,6 +57,8 @@ vi.mock('@/lib/services/contacts/merge', () => ({ mergeContacts, listMergeCandid
 import {
   addChannelAction,
   archiveContactAction,
+  createContactAction,
+  createLeadFromContactAction,
   listMergeCandidatesAction,
   mergeContactsAction,
   removeChannelAction,
@@ -65,6 +72,12 @@ import {
  * спека §3.4–§3.5): флаг `contacts` → `forbidden` без похода за сессией; форма —
  * zod → `validation`; `teamMode` читается свежим из базы и передаётся сервису;
  * после удачной записи перечитываются список и карточка в трёх кабинетах.
+ *
+ * PR-2 (спека §3.3, §3.12): `createContactAction` — создание из справочника с
+ * нормализованной формой (организация `null`, когда не передана; должность и
+ * заметка — только если заданы) и подсказкой занятого канала как есть;
+ * `createLeadFromContactAction` — «Создать лид» из карточки: сервису уходят
+ * только тема и заметка, ответ — идентификатор лида, перечитывается `/manager/leads`.
  */
 const session = { sub: 'm1', role: 'manager', companyId: 'c1' };
 
@@ -274,6 +287,180 @@ describe('объединение', () => {
     expect(listMergeCandidates).toHaveBeenCalledWith({}, session, true, {
       excludeId: 'k1',
       q: 'Пет',
+    });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe('createContactAction', () => {
+  it('выключенный флаг → forbidden до сессии и сервиса', async () => {
+    notFoundIfDisabled.mockReturnValue(new Response('Not Found', { status: 404 }));
+    expect(await createContactAction({ name: 'Иван', channels: [] })).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+    expect(requireSession).not.toHaveBeenCalled();
+    expect(createContact).not.toHaveBeenCalled();
+  });
+
+  it('кривая форма (пустое имя, чужой тип канала, больше 10 каналов) → validation без сессии', async () => {
+    expect(await createContactAction({ name: '', channels: [] })).toEqual({
+      ok: false,
+      error: 'validation',
+    });
+    expect(
+      await createContactAction({ name: 'Иван', channels: [{ type: 'fax' as never, value: '1' }] })
+    ).toEqual({ ok: false, error: 'validation' });
+    const tooMany = Array.from({ length: 11 }, (_, i) => ({
+      type: 'phone' as const,
+      value: `+7999000000${i}`,
+    }));
+    expect(await createContactAction({ name: 'Иван', channels: tooMany })).toEqual({
+      ok: false,
+      error: 'validation',
+    });
+    expect(requireSession).not.toHaveBeenCalled();
+    expect(createContact).not.toHaveBeenCalled();
+  });
+
+  it('минимальная форма: организация → null, должности и заметки в аргументах нет; перечитываются три кабинета без организации', async () => {
+    createContact.mockResolvedValue({ ok: true, contactId: 'k1' });
+    const r = await createContactAction({
+      name: 'Иван',
+      channels: [{ type: 'phone', value: '+79990000000' }],
+    });
+    expect(r).toEqual({ ok: true, contactId: 'k1' });
+    expect(createContact).toHaveBeenCalledWith({}, session, {
+      name: 'Иван',
+      organizationId: null,
+      channels: [{ type: 'phone', value: '+79990000000' }],
+    });
+    // Свежий teamMode этому действию не нужен — компанию и охват решает сервис.
+    expect(getCompanyTeamVisibility).not.toHaveBeenCalled();
+    for (const c of cabinets) {
+      expect(revalidatePath).toHaveBeenCalledWith(`/${c}/contacts`);
+      expect(revalidatePath).toHaveBeenCalledWith(`/${c}/contacts/k1`);
+    }
+    expect(revalidatePath).not.toHaveBeenCalledWith(expect.stringContaining('/organizations/'));
+  });
+
+  it('полная форма: должность, заметка и организация уходят сервису; перечитывается карточка организации', async () => {
+    createContact.mockResolvedValue({ ok: true, contactId: 'k1' });
+    await createContactAction({
+      name: 'Иван',
+      position: 'директор',
+      note: 'звонить после обеда',
+      organizationId: 'o1',
+      channels: [],
+    });
+    expect(createContact).toHaveBeenCalledWith({}, session, {
+      name: 'Иван',
+      position: 'директор',
+      note: 'звонить после обеда',
+      organizationId: 'o1',
+      channels: [],
+    });
+    for (const c of cabinets) expect(revalidatePath).toHaveBeenCalledWith(`/${c}/organizations/o1`);
+  });
+
+  it('организация null явно — сервису null, карточка организации не перечитывается', async () => {
+    createContact.mockResolvedValue({ ok: true, contactId: 'k1' });
+    await createContactAction({ name: 'Иван', organizationId: null, channels: [] });
+    expect(createContact).toHaveBeenCalledWith(
+      {},
+      session,
+      expect.objectContaining({ organizationId: null })
+    );
+    expect(revalidatePath).not.toHaveBeenCalledWith(expect.stringContaining('/organizations/'));
+  });
+
+  it('занятый канал прокидывается как есть с владельцем, без перечитывания', async () => {
+    createContact.mockResolvedValue({
+      ok: false,
+      error: 'contact_channel_taken',
+      conflict: { contactId: 'k2', name: 'Петров' },
+    });
+    expect(
+      await createContactAction({
+        name: 'Иван',
+        channels: [{ type: 'email', value: 'a@b.ru' }],
+      })
+    ).toEqual({
+      ok: false,
+      error: 'contact_channel_taken',
+      conflict: { contactId: 'k2', name: 'Петров' },
+    });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe('createLeadFromContactAction', () => {
+  it('выключенный флаг → forbidden до сессии и сервиса', async () => {
+    notFoundIfDisabled.mockReturnValue(new Response('Not Found', { status: 404 }));
+    expect(await createLeadFromContactAction({ contactId: 'k1', subject: 'Обучение' })).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+    expect(requireSession).not.toHaveBeenCalled();
+    expect(createLeadFromContact).not.toHaveBeenCalled();
+  });
+
+  it('кривая форма (пустой контакт, пустая тема) → validation без сессии', async () => {
+    expect(await createLeadFromContactAction({ contactId: '', subject: 'Обучение' })).toEqual({
+      ok: false,
+      error: 'validation',
+    });
+    expect(await createLeadFromContactAction({ contactId: 'k1', subject: '' })).toEqual({
+      ok: false,
+      error: 'validation',
+    });
+    expect(requireSession).not.toHaveBeenCalled();
+    expect(createLeadFromContact).not.toHaveBeenCalled();
+  });
+
+  it('успех: сервису — контакт, свежий teamMode, тема и заметка; ответ — leadId; перечитывается список лидов', async () => {
+    createLeadFromContact.mockResolvedValue({ ok: true, lead: { id: 'l1' } });
+    const r = await createLeadFromContactAction({
+      contactId: 'k1',
+      subject: 'Обучение по ОТ',
+      notes: 'перезвонить',
+    });
+    expect(r).toEqual({ ok: true, leadId: 'l1' });
+    expect(getCompanyTeamVisibility).toHaveBeenCalledWith({}, 'c1');
+    expect(createLeadFromContact).toHaveBeenCalledWith({}, session, {
+      contactId: 'k1',
+      teamMode: true,
+      input: { subject: 'Обучение по ОТ', notes: 'перезвонить' },
+    });
+    expect(revalidatePath).toHaveBeenCalledWith('/manager/leads');
+  });
+
+  it('без заметки сервису уходит notes: null; teamMode false из базы передаётся как есть', async () => {
+    getCompanyTeamVisibility.mockResolvedValue(false);
+    createLeadFromContact.mockResolvedValue({ ok: true, lead: { id: 'l2' } });
+    await createLeadFromContactAction({ contactId: 'k1', subject: 'Обучение' });
+    expect(createLeadFromContact).toHaveBeenCalledWith({}, session, {
+      contactId: 'k1',
+      teamMode: false,
+      input: { subject: 'Обучение', notes: null },
+    });
+  });
+
+  it('отказы сервиса (not_found, validation с сообщениями) прокидываются как есть, без перечитывания', async () => {
+    createLeadFromContact.mockResolvedValueOnce({ ok: false, error: 'not_found' });
+    expect(await createLeadFromContactAction({ contactId: 'k9', subject: 'Обучение' })).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
+    createLeadFromContact.mockResolvedValueOnce({
+      ok: false,
+      error: 'validation',
+      messages: ['Укажите телефон или email для связи'],
+    });
+    expect(await createLeadFromContactAction({ contactId: 'k1', subject: 'Обучение' })).toEqual({
+      ok: false,
+      error: 'validation',
+      messages: ['Укажите телефон или email для связи'],
     });
     expect(revalidatePath).not.toHaveBeenCalled();
   });

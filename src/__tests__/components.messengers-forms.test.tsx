@@ -252,4 +252,32 @@ describe('NewDialogButton', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
     await waitFor(() => expect(document.querySelector('dialog[open]')).toBeNull());
   });
+
+  // Этап 1 ТЗ 12.09.2026 (`У-179`, спека §3.12): «Написать» из карточки контакта
+  // ведёт сюда с `?new=<contactId>` — окно открыто сразу, человек уже выбран.
+  it('preselect: окно открыто без клика, контакт выбран; два мессенджера — канал ещё не выбран', () => {
+    render(<NewDialogButton candidates={candidates} preselect="k1" />);
+    expect(document.querySelector('dialog[open]')).toBeTruthy();
+    expect((screen.getByLabelText('Кому') as HTMLSelectElement).value).toBe('contact:k1');
+    expect((screen.getByLabelText('Мессенджер') as HTMLSelectElement).value).toBe('');
+  });
+
+  it('preselect с одним мессенджером — канал выбран сам', () => {
+    const one: DialogCandidate[] = [
+      ...candidates,
+      { kind: 'contact', id: 'k2', name: 'Ольга', organizationName: null, channels: ['telegram'] },
+    ];
+    render(<NewDialogButton candidates={one} preselect="k2" />);
+    expect(document.querySelector('dialog[open]')).toBeTruthy();
+    expect((screen.getByLabelText('Кому') as HTMLSelectElement).value).toBe('contact:k2');
+    expect((screen.getByLabelText('Мессенджер') as HTMLSelectElement).value).toBe('telegram');
+  });
+
+  it('preselect с неизвестным id (или id пользователя, а не контакта) — окно открыто, форма пустая', () => {
+    // «u1» есть среди кандидатов, но это пользователь кабинета — предвыбор только для контактов.
+    render(<NewDialogButton candidates={candidates} preselect="u1" />);
+    expect(document.querySelector('dialog[open]')).toBeTruthy();
+    expect((screen.getByLabelText('Кому') as HTMLSelectElement).value).toBe('');
+    expect((screen.getByLabelText('Мессенджер') as HTMLSelectElement).value).toBe('');
+  });
 });

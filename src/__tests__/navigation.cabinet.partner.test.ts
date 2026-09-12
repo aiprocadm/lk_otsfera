@@ -54,6 +54,8 @@ describe('navItemsFor (feature-flag filter)', () => {
     process.env.FEATURE_INTAKE_INBOX = '1';
     // `У-112`: «Поиск» появился и у админа — под тем же флагом, что у менеджера.
     process.env.FEATURE_GLOBAL_SEARCH = '1';
+    // Этап 1 ТЗ 12.09.2026: «Контакты» — opt-in флаг `contacts`.
+    process.env.FEATURE_CONTACTS = '1';
     const items = navItemsFor('admin');
     expect(items.length).toBe(navByRole.admin.length);
   });
@@ -203,7 +205,9 @@ describe('navByRole.admin — русский канон с группами', ()
     // дашборд) и «Поиск» (сознательное расширение решения `У-75`).
     expect(hrefs).toContain('/admin/orders');
     expect(hrefs).toContain('/admin/search');
-    expect(navByRole.admin).toHaveLength(27);
+    // Этап 1 ТЗ 12.09.2026 (`У-178`): + «Контакты» под флагом `contacts`.
+    expect(hrefs).toContain('/admin/contacts');
+    expect(navByRole.admin).toHaveLength(28);
     expect(hrefs).toContain('/admin/requests');
     expect(hrefs).toContain('/admin/intake');
   });
