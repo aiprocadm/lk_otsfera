@@ -9,6 +9,15 @@ import type { StaffBadges } from '@/lib/services/intake/badges';
  * показывает оранжевый пилл. Ничего не рендерит при 0. Один поллер на пункт
  * терпим (страница держит ≤2 бейджевых пункта); каркас под ФТ-15.2 (этап 11).
  */
+/** Подпись для скринридера — по ключу счётчика, а не общей строкой. */
+const ARIA_LABEL: Record<keyof StaffBadges, string> = {
+  intake: 'Неразобранные входящие',
+  tasksOverdue: 'Просроченные задачи',
+  clientRequestsNew: 'Новые обращения',
+  messagesUnread: 'Непрочитанные сообщения',
+  messengersUnread: 'Непрочитанные диалоги в мессенджерах',
+};
+
 export function NavBadge({ badgeKey }: { badgeKey: keyof StaffBadges }) {
   const { data } = useClientResource<number>('/api/staff/badges', {
     intervalMs: 30_000,
@@ -19,7 +28,7 @@ export function NavBadge({ badgeKey }: { badgeKey: keyof StaffBadges }) {
 
   return (
     <span
-      aria-label={badgeKey === 'intake' ? 'Неразобранные входящие' : 'Просроченные задачи'}
+      aria-label={ARIA_LABEL[badgeKey]}
       className="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-[#F97316] text-white text-[11px] font-semibold leading-none"
     >
       {data}

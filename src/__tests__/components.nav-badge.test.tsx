@@ -38,5 +38,8 @@ describe('NavBadge', () => {
     useClientResource.mockReturnValue({ data: 2 });
     render(<NavBadge badgeKey="tasksOverdue" />);
     expect(screen.getByLabelText('Просроченные задачи')).toBeTruthy();
+    // Спека 2026-09-12: у диалогов мессенджеров своя подпись, а не «задачи».
+    render(<NavBadge badgeKey="messengersUnread" />);
+    expect(screen.getByLabelText('Непрочитанные диалоги в мессенджерах')).toBeTruthy();
   });
 });

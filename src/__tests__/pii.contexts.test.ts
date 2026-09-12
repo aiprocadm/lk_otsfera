@@ -17,7 +17,7 @@ const SUBJECT_TYPES = new Set([
 describe('PII_CONTEXTS registry', () => {
   const entries = Object.entries(PII_CONTEXTS);
 
-  it('содержит все 24 контекста v1+M1+M6+этапы 2/5/7/9 + ТЗ кабинетов', () => {
+  it('содержит все 27 контекстов v1+M1+M6+этапы 2/5/7/9 + ТЗ кабинетов + мессенджеры', () => {
     expect(entries.map(([k]) => k).sort()).toEqual([
       'admin_user_view',
       'admin_users_list',
@@ -36,6 +36,9 @@ describe('PII_CONTEXTS registry', () => {
       'manager_lead_view',
       'manager_student_view',
       'manager_students_list',
+      'messengers_candidates', // спека 2026-09-12: кому написать первым (пользователи + контакты)
+      'messengers_list', // спека 2026-09-12: список диалогов
+      'messengers_view', // спека 2026-09-12: карточка диалога
       'order_items_list',
       'org_card_calls',
       'org_card_certificates_export', // этап 9 PR-3: выгрузка удостоверений из карточки

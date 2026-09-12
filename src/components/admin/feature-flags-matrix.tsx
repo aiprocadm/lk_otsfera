@@ -43,7 +43,7 @@ const FLAG_LABELS: Record<FeatureFlag, string> = {
   sales_funnel: 'Воронка продаж / канбан',
   leader_analytics: 'Аналитика руководителя (план/факт)',
   internal_tasks: 'Внутренние задачи / канбан',
-  inbound_messaging: 'Омниканальный инбокс входящих сообщений',
+  inbound_messaging: 'Мессенджеры: входящие письма, диалоги с клиентами, приём сообщений от ботов',
   telephony_mango: 'Телефония Mango (звонки, записи)',
   staff_2fa: '2FA сотрудников (код на почту при входе)',
   pii_access_log: 'Журнал доступа сотрудников к персональным данным',

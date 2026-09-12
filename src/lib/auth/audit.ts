@@ -56,6 +56,8 @@ export const AUDIT_ENTITIES = [
   'contact',
   'call',
   'inbound_message',
+  // Спека 2026-09-12: диалог с клиентом в мессенджере.
+  'messenger_dialog',
   'staff_conversation',
   'calendar_event',
   'integration_setting',
@@ -164,6 +166,12 @@ export const AUDIT_ACTIONS = [
   'max_linked',
   'max_unlinked',
   'message_sent',
+  // Спека 2026-09-12: диалоги мессенджеров.
+  'messenger_dialog_bound',
+  'messenger_dialog_closed',
+  'messenger_dialog_reopened',
+  'messenger_dialog_started',
+  'messenger_message_sent',
   'feature_flag.changed',
   'one_c_import.commit',
   'one_c_import.rollback',

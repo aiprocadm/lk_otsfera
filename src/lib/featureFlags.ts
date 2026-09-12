@@ -41,7 +41,13 @@ export const FEATURE_FLAGS = [
   'leader_analytics',
   // Трек G3: внутренние задачи / канбан. Гейтит /manager/tasks + /leader/tasks.
   'internal_tasks',
-  // PR-A: омниканальный инбокс. Гейтит /manager/inbox (экран построен: src/app/manager/inbox).
+  // Приём сообщений из мессенджеров: «Входящие письма» (/manager/inbox),
+  // «Мессенджеры» (/manager/messengers), вебхуки ботов и server-actions
+  // диалогов. Спека 2026-09-12 (Р-М-4): ПОВЕДЕНЧЕСКИЙ флаг по образцу
+  // `telephony_mango` — снят с `FEATURE_PREFIXES`, чтобы включаться из
+  // интерфейса (§0.3 «ничего не включается на сервере»). Точки чтения:
+  // страницы (`notFound`), пункт меню, вебхуки и роут вложения
+  // (`notFoundIfDisabled`), server-actions диалогов (`forbidden`).
   'inbound_messaging',
   // Телефония Mango. `У-124` (решение `Р-24`): ПОВЕДЕНЧЕСКИЙ флаг, не route —
   // снят с `FEATURE_PREFIXES`, чтобы его можно было включить из интерфейса
@@ -156,8 +162,9 @@ export const FEATURE_PREFIXES: Array<{ prefix: string; flag: FeatureFlag }> = [
   // G3: внутренние задачи / канбан.
   { prefix: '/manager/tasks', flag: 'internal_tasks' },
   { prefix: '/leader/tasks', flag: 'internal_tasks' },
-  // PR-A: омниканальный инбокс (экран придёт отдельной задачей).
-  { prefix: '/manager/inbox', flag: 'inbound_messaging' },
+  // Спека 2026-09-12 (Р-М-4): `inbound_messaging` снят отсюда вслед за
+  // телефонией — теперь его закрывают страницы, меню и гарды роутов, а
+  // переключается он из «Функций платформы».
   // `У-124` (решение `Р-24`, дефект `Д-38`): телефония Mango СНЯТА с
   // edge-гейта и стала поведенческим флагом. Причина — edge-middleware не
   // видит базу: выключить флаг из интерфейса получалось, а включить нет, и

@@ -197,6 +197,13 @@ export const MIRROR_EXCEPTIONS: MirrorException[] = [
   },
   {
     pair: 'staff',
+    sectionKey: 'messengers',
+    cabinets: ['manager'],
+    reason:
+      'Переписку с клиентами в мессенджерах ведёт менеджер; руководитель работает в ней через кабинет менеджера («играющий тренер»), администратор переписку не ведёт — как и с «Входящими письмами»',
+  },
+  {
+    pair: 'staff',
     sectionKey: 'calls',
     cabinets: ['manager'],
     reason: 'Записи звонков слушает тот, кто звонил, — менеджер',
