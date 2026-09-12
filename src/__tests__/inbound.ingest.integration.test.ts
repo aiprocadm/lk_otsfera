@@ -9,8 +9,37 @@ const prisma = new PrismaClient();
 
 describe('ingestInboundMessage', () => {
   beforeEach(async () => {
+    // Диалоги мессенджеров (спека 2026-09-12): реплики письма удаляются
+    // вместе с диалогом собеседника, иначе следующий прогон нашёл бы «старую»
+    // реплику и посчитал письмо уже сложенным.
+    await prisma.messengerDialog.deleteMany({
+      where: { peerRef: { in: ['999', 'unknown', '333'] } },
+    });
     await prisma.inboundMessage.deleteMany({ where: { externalId: { startsWith: 'tg:test:' } } });
     addMock.mockReset();
+  });
+
+  it('письмо из мессенджера → реплика в диалоге собеседника (спека 2026-09-12)', async () => {
+    const r = await ingestInboundMessage(prisma, {
+      channel: 'telegram',
+      externalId: 'tg:test:dialog',
+      senderRef: '999',
+      senderDisplay: 'ivan',
+      body: 'нужен счёт',
+    });
+    expect(r.ok).toBe(true);
+    const row = await prisma.inboundMessage.findUnique({
+      where: { externalId: 'tg:test:dialog' },
+      include: { dialogMessage: { include: { dialog: true } } },
+    });
+    expect(row?.dialogMessage).toMatchObject({ direction: 'in', body: 'нужен счёт' });
+    expect(row?.dialogMessage?.dialog).toMatchObject({
+      channel: 'telegram',
+      peerRef: '999',
+      peerDisplay: 'ivan',
+      companyId: null,
+      unreadCount: 1,
+    });
   });
 
   it('creates one row and is idempotent on replay', async () => {

@@ -4,6 +4,8 @@ import { recordAudit } from '@/lib/auth/audit';
 import { notifyOrgUsers } from '@/lib/notifications';
 import { replyToInbound } from '@/lib/services/inbound/reply';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
+import { isMessengerChannel } from '@/lib/services/messengers/channels';
+import { recordOutboundInDialog } from '@/lib/services/messengers/recordOutbound';
 import { log } from '@/lib/logging';
 
 export type SendInboundReplyArgs = {
@@ -25,8 +27,10 @@ export type SendInboundReplyResult =
  * — an unresolved (`companyId=null`) or cross-company message is `forbidden`;
  * bind it first via `bindInboundMessage` (bind.ts).
  *
- * Side-effect order is contractual: transport send → best-effort thread mirror
- * (message + thread bump + org notification) → audit → 1С sync log.
+ * Side-effect order is contractual: transport send → best-effort history in the
+ * messenger dialog (спека 2026-09-12, Р-М-7: ответ из «Входящих писем» тоже
+ * виден в диалоге) → best-effort thread mirror (message + thread bump + org
+ * notification) → audit → 1С sync log.
  */
 export async function sendInboundReply(
   prisma: PrismaClient,
@@ -43,6 +47,8 @@ export async function sendInboundReply(
       companyId: true,
       threadId: true,
       resolvedUserId: true,
+      resolvedOrgId: true,
+      contactId: true,
     },
   });
   if (!message) return { ok: false, error: 'not_found' };
@@ -57,6 +63,32 @@ export async function sendInboundReply(
   const result = await replyToInbound(message, text);
   if (!result.ok) {
     return { ok: false, error: message.channel === 'email' ? 'email_unsupported' : 'reply_failed' };
+  }
+
+  // История диалога (Р-М-7). Сбой записи не отменяет ответ — он уже ушёл
+  // клиенту; привязка передаётся на случай, если диалога ещё нет (письмо
+  // старше бэкфилла).
+  if (isMessengerChannel(message.channel)) {
+    try {
+      await recordOutboundInDialog(prisma, {
+        channel: message.channel,
+        peerRef: message.senderRef,
+        authorId: session.sub,
+        text,
+        delivered: true,
+        binding: {
+          companyId: message.companyId,
+          organizationId: message.resolvedOrgId,
+          contactId: message.contactId,
+          userId: message.resolvedUserId,
+        },
+      });
+    } catch (err) {
+      log.warn('[inbound/replyInboundAction] dialog history failed', {
+        inboundMessageId: args.inboundMessageId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   // Best-effort thread mirror: reflect the reply into the org chat thread (if
