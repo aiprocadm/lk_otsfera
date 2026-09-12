@@ -361,6 +361,7 @@ model User {
   tasksCreated                 Task[]                    @relation("TaskCreatedBy")
   taskAssignments              TaskAssignee[]            @relation("TaskAssignee")
   inboundMessages              InboundMessage[]          @relation("UserInbound")
+  messengerDialogs             MessengerDialog[]         @relation("UserMessengerDialogs")
   calls                        Call[]                    @relation("UserCalls")
   callsInitiated               Call[]                    @relation("CallInitiator")
   dealNotesAuthored            DealNote[]                @relation("DealNoteAuthor")
@@ -818,6 +819,7 @@ model Organization {
   tasks                          Task[]                             @relation("TaskLinkedOrganization")
   calendarEvents                 CalendarEvent[]                    @relation("CalendarEventLinkedOrganization")
   inboundMessages                InboundMessage[]                   @relation("OrgInbound")
+  messengerDialogs               MessengerDialog[]                  @relation("OrgMessengerDialogs")
   calls                          Call[]                             @relation("OrgCalls")
   contacts                       Contact[]                          @relation("OrgContacts")
 
@@ -957,6 +959,7 @@ model Company {
   taskColumns              TaskColumn[]
   tasks                    Task[]
   inboundMessages          InboundMessage[]
+  messengerDialogs         MessengerDialog[]
   calls                    Call[]
   contacts                 Contact[]              @relation("CompanyContacts")
   salesTargets             SalesTarget[]
@@ -2195,11 +2198,11 @@ model PaymentImportRow {
 }
 
 model InboundMessage {
-  id              String    @id @default(cuid())
-  createdAt       DateTime  @default(now())
+  id              String            @id @default(cuid())
+  createdAt       DateTime          @default(now())
   sentAt          DateTime?
   channel         String
-  externalId      String    @unique
+  externalId      String            @unique
   senderRef       String
   senderDisplay   String?
   subject         String?
@@ -2207,13 +2210,13 @@ model InboundMessage {
   attachmentPath  String?
   attachmentName  String?
   attachmentMime  String?
-  scanStatus      String    @default("none")
+  scanStatus      String            @default("none")
   scanReason      String?
   resolvedOrgId   String?
   resolvedUserId  String?
   threadId        String?
   companyId       String?
-  status          String    @default("unresolved")
+  status          String            @default("unresolved")
   boundAt         DateTime?
   boundById       String?
   contactId       String?
@@ -2221,7 +2224,10 @@ model InboundMessage {
   claimedByUserId String?
   claimedAt       DateTime?
   // Этап 7 (ФТ-1.6): лид, созданный из этого обращения.
-  lead            Lead?     @relation("LeadFromInbound")
+  lead            Lead?             @relation("LeadFromInbound")
+  // Мессенджеры (спека 2026-09-12, Р-М-1): реплика этого письма в диалоге.
+  // null — письмо ещё не свёрнуто в диалог (бэкфилл берёт именно такие).
+  dialogMessage   MessengerMessage?
 
   resolvedOrg  Organization? @relation("OrgInbound", fields: [resolvedOrgId], references: [id])
   resolvedUser User?         @relation("UserInbound", fields: [resolvedUserId], references: [id])
@@ -2299,10 +2305,11 @@ model Contact {
   createdById    String?
   createdBy      User?         @relation("ContactCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
-  channels        ContactChannel[]
-  inboundMessages InboundMessage[] @relation("ContactInbound")
-  calls           Call[]           @relation("ContactCalls")
-  ordersAsPrimary Order[]          @relation("OrderPrimaryContact")
+  channels         ContactChannel[]
+  inboundMessages  InboundMessage[]  @relation("ContactInbound")
+  messengerDialogs MessengerDialog[] @relation("ContactMessengerDialogs")
+  calls            Call[]            @relation("ContactCalls")
+  ordersAsPrimary  Order[]           @relation("OrderPrimaryContact")
 
   @@index([companyId, organizationId])
   @@index([organizationId])
@@ -2325,6 +2332,76 @@ model ContactChannel {
   @@unique([companyId, type, normalizedValue])
   @@index([type, normalizedValue])
   @@index([contactId])
+}
+
+/// Мессенджеры (спека 2026-09-12, Р-М-1): диалог с клиентом в Telegram / MAX /
+/// WhatsApp — вся переписка с одним собеседником в обе стороны.
+///
+/// `InboundMessage` остаётся источником для «Входящих в работу», вложений и
+/// антивируса; диалог — это история разговора, а не замена триажа.
+/// Один собеседник — один диалог (`@@unique([channel, peerRef])`, Р-М-2): бот
+/// у платформы один, поэтому Telegram-пользователь не может «быть в двух
+/// компаниях». `companyId` появляется при распознавании, привязке сотрудником
+/// или первом ответе (правило первого ответившего); `null` — общая очередь
+/// непривязанных, как у `InboundMessage.status='unresolved'`.
+model MessengerDialog {
+  id                   String             @id @default(cuid())
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  /// telegram | max | whatsapp — `MESSENGER_CHANNELS` (services/messengers/channels.ts).
+  channel              String
+  /// chatId у Telegram/MAX, номер E.164 у WhatsApp — адрес доставки транспорта.
+  peerRef              String
+  peerDisplay          String?
+  companyId            String?
+  company              Company?           @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  organizationId       String?
+  organization         Organization?      @relation("OrgMessengerDialogs", fields: [organizationId], references: [id], onDelete: SetNull)
+  contactId            String?
+  contact              Contact?           @relation("ContactMessengerDialogs", fields: [contactId], references: [id], onDelete: SetNull)
+  /// Пользователь кабинета, если собеседник — он (привязал бота сам).
+  userId               String?
+  user                 User?              @relation("UserMessengerDialogs", fields: [userId], references: [id], onDelete: SetNull)
+  /// open | closed. Новое входящее переоткрывает закрытый диалог.
+  status               String             @default("open")
+  lastMessageAt        DateTime           @default(now())
+  lastInboundAt        DateTime?
+  /// Первые 200 символов последнего сообщения — список диалогов одной выборкой.
+  lastMessagePreview   String?
+  /// in | out — чьё последнее сообщение.
+  lastMessageDirection String?
+  /// Входящих, которые сотрудник ещё не открыл; открытие диалога обнуляет.
+  unreadCount          Int                @default(0)
+  messages             MessengerMessage[]
+
+  @@unique([channel, peerRef])
+  @@index([companyId, lastMessageAt])
+  @@index([organizationId])
+  @@index([contactId])
+}
+
+/// Сообщение диалога — в обе стороны. `authorId` без внешнего ключа намеренно:
+/// исходящее — исторический факт, удаление сотрудника его не стирает.
+model MessengerMessage {
+  id               String          @id @default(cuid())
+  dialogId         String
+  dialog           MessengerDialog @relation(fields: [dialogId], references: [id], onDelete: Cascade)
+  /// in | out
+  direction        String
+  body             String
+  /// Сотрудник — у исходящих.
+  authorId         String?
+  /// Связь с письмом «Входящих» — у входящих; уникальна: письмо в диалоге один раз.
+  inboundMessageId String?         @unique
+  inboundMessage   InboundMessage? @relation(fields: [inboundMessageId], references: [id], onDelete: SetNull)
+  /// Ключ провайдера (тот же, что у `InboundMessage.externalId`) — для сверки;
+  /// идемпотентность держит `inboundMessageId`, поэтому уникальности здесь нет.
+  externalId       String?
+  /// sent | failed — у исходящих (неудачная отправка видна в истории).
+  deliveryStatus   String          @default("sent")
+  createdAt        DateTime        @default(now())
+
+  @@index([dialogId, createdAt])
 }
 
 /// M1 (спека 2026-07-14): внутренняя заметка по сделке (staff-only). Отдельная

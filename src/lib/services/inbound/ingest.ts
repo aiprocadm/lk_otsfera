@@ -3,6 +3,8 @@ import { writeSyncLog } from '@/lib/services/oneCSync/log';
 import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import { log } from '@/lib/logging';
+import { isMessengerChannel } from '@/lib/services/messengers/channels';
+import { appendInboundToDialog } from '@/lib/services/messengers/appendInbound';
 import { resolveInboundSender } from './resolve';
 
 export type InboundDto = {
@@ -138,6 +140,37 @@ export async function ingestInboundMessage(
     },
     prisma
   );
+
+  // Мессенджеры (спека 2026-09-12, Р-М-1): письмо из Telegram/MAX/WhatsApp —
+  // ещё и реплика диалога с собеседником. Best-effort (§3): письмо уже
+  // записано и попадёт во «Входящие в работу», а пропущенную реплику дочинит
+  // `backfillDialogsFromInbound` — вебхук при этом отвечает 200 и не ретраит.
+  if (isMessengerChannel(dto.channel)) {
+    try {
+      await appendInboundToDialog(prisma, {
+        inboundMessageId: row.id,
+        channel: dto.channel,
+        peerRef: dto.senderRef,
+        peerDisplay: dto.senderDisplay,
+        body: dto.body,
+        externalId: dto.externalId,
+        binding:
+          resolved.matchType === 'exact'
+            ? {
+                companyId: resolved.companyId,
+                organizationId: resolved.orgId,
+                contactId: resolved.contactId ?? null,
+                userId: resolved.userId ?? null,
+              }
+            : null,
+      });
+    } catch (err) {
+      log.error('[inbound/ingest] dialog append failed', {
+        inboundMessageId: row.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
 
   // Best-effort: enqueue ClamAV scan for the attachment. Failure leaves
   // scanStatus='pending', where the backfill sweep will pick it up later

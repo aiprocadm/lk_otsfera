@@ -12,6 +12,7 @@ const {
   recordAudit,
   notifyOrgUsers,
   writeSyncLog,
+  recordOutboundInDialog,
   inboundMessageFindUnique,
   orderFindUnique,
   orderThreadUpdate,
@@ -21,6 +22,7 @@ const {
   recordAudit: vi.fn(),
   notifyOrgUsers: vi.fn(),
   writeSyncLog: vi.fn(),
+  recordOutboundInDialog: vi.fn(),
   inboundMessageFindUnique: vi.fn(),
   orderFindUnique: vi.fn(),
   orderThreadUpdate: vi.fn(),
@@ -28,6 +30,7 @@ const {
 }));
 
 vi.mock('@/lib/services/inbound/reply', () => ({ replyToInbound }));
+vi.mock('@/lib/services/messengers/recordOutbound', () => ({ recordOutboundInDialog }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
 vi.mock('@/lib/notifications', () => ({ notifyOrgUsers }));
 vi.mock('@/lib/services/oneCSync/log', () => ({ writeSyncLog }));
@@ -299,5 +302,108 @@ describe('sendInboundReply (service)', () => {
       expect.objectContaining({ error: 'string-boom' })
     );
     warn.mockRestore();
+  });
+
+  // Спека 2026-09-12 (Р-М-7): ответ из «Входящих писем» попадает в историю диалога.
+  describe('история диалога мессенджера', () => {
+    it('после удачной отправки в мессенджер ответ записывается в диалог с привязкой письма', async () => {
+      inboundMessageFindUnique.mockResolvedValue({
+        id: 'im-1',
+        channel: 'whatsapp',
+        senderRef: '+79990001122',
+        subject: null,
+        companyId: 'company-a',
+        threadId: null,
+        resolvedUserId: 'u-org',
+        resolvedOrgId: 'org-a',
+        contactId: 'k-1',
+      });
+      replyToInbound.mockResolvedValue({ ok: true });
+
+      const result = await sendInboundReply(prisma, session, {
+        inboundMessageId: 'im-1',
+        text: '  добрый день  ',
+      });
+
+      expect(result).toEqual({ ok: true });
+      expect(recordOutboundInDialog).toHaveBeenCalledWith(prisma, {
+        channel: 'whatsapp',
+        peerRef: '+79990001122',
+        authorId: 'u-mgr-1',
+        text: 'добрый день',
+        delivered: true,
+        binding: {
+          companyId: 'company-a',
+          organizationId: 'org-a',
+          contactId: 'k-1',
+          userId: 'u-org',
+        },
+      });
+    });
+
+    it('вопрос из кабинета — не мессенджер, в диалог не пишется', async () => {
+      inboundMessageFindUnique.mockResolvedValue({
+        id: 'im-1',
+        channel: 'cabinet',
+        senderRef: 'u-org',
+        subject: 'тема',
+        companyId: 'company-a',
+        threadId: null,
+        resolvedUserId: 'u-org',
+      });
+      replyToInbound.mockResolvedValue({ ok: true });
+
+      await sendInboundReply(prisma, session, { inboundMessageId: 'im-1', text: 'ответ' });
+      expect(recordOutboundInDialog).not.toHaveBeenCalled();
+    });
+
+    it('неудачная отправка в историю не пишется', async () => {
+      inboundMessageFindUnique.mockResolvedValue({
+        id: 'im-1',
+        channel: 'telegram',
+        senderRef: 'chat-1',
+        subject: null,
+        companyId: 'company-a',
+        threadId: null,
+      });
+      replyToInbound.mockResolvedValue({ ok: false });
+
+      await sendInboundReply(prisma, session, { inboundMessageId: 'im-1', text: 'ответ' });
+      expect(recordOutboundInDialog).not.toHaveBeenCalled();
+    });
+
+    it('сбой записи истории — best-effort: warn, ответ считается отправленным', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      inboundMessageFindUnique.mockResolvedValue({
+        id: 'im-1',
+        channel: 'telegram',
+        senderRef: 'chat-1',
+        subject: null,
+        companyId: 'company-a',
+        threadId: null,
+      });
+      replyToInbound.mockResolvedValue({ ok: true });
+      recordOutboundInDialog.mockRejectedValueOnce(new Error('dialog down'));
+
+      const result = await sendInboundReply(prisma, session, {
+        inboundMessageId: 'im-1',
+        text: 'ответ',
+      });
+
+      expect(result).toEqual({ ok: true });
+      expect(warn).toHaveBeenCalledWith(
+        '[inbound/replyInboundAction] dialog history failed',
+        expect.objectContaining({ inboundMessageId: 'im-1', error: 'dialog down' })
+      );
+
+      recordOutboundInDialog.mockRejectedValueOnce('plain-boom');
+      await sendInboundReply(prisma, session, { inboundMessageId: 'im-1', text: 'ответ' });
+      expect(warn).toHaveBeenLastCalledWith(
+        '[inbound/replyInboundAction] dialog history failed',
+        expect.objectContaining({ error: 'plain-boom' })
+      );
+      expect(recordAudit).toHaveBeenCalledTimes(2);
+      warn.mockRestore();
+    });
   });
 });
