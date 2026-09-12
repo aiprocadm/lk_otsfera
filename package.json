@@ -35,6 +35,7 @@
     "test:coverage:unit": "vitest run --mode=unit --coverage",
     "test:watch": "vitest",
     "test:changed": "vitest run --mode=unit --changed --bail=1 --no-coverage",
+    "tz:status": "vitest run --mode=unit src/__tests__/docs.tz-program.test.ts src/__tests__/docs.live-links.guardrail.test.ts src/__tests__/docs.commands-exist.guardrail.test.ts",
     "gate": "tsx scripts/gate.ts",
     "gate:down": "tsx scripts/gate.ts --down",
     "preflight:inn": "tsx scripts/preflight-inn-unique.ts",

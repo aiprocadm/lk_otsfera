@@ -28,7 +28,7 @@
 | Что | Факт | Требование |
 |---|---|---|
 | `seed.err.log`, `seed.out.log`, `worker.err.log`, `worker.log` в корне | `git ls-files \| grep '\.log$'` — 4 файла; `.gitignore` их не покрывает | `У-259` (`Д-41`): удалить из индекса, `*.log` в `.gitignore`, страж-тест «в корне нет `*.log` под git» (читает `git ls-files` или проверяет отсутствие путей) |
-| Модели `SavedView`, `Upload` | 0 обращений в `src/**`; `Order.uploads` — связь без чтения | `У-261` (`Д-43`): PR-1 — скрипт `npm run report:dead-tables` (dry-run: число строк); PR-2 — миграция, которая падает с текстом, если строк > 0, иначе `DROP TABLE` и удаление связи; страж «модель Prisma без обращений в `src/**`» (grep по `prisma.<model>`/`tx.<model>`, список допустимых исключений пуст) |
+| Модели `SavedView`, `Upload` | 0 обращений в `src/**`; `Order.uploads` — связь без чтения | `У-261` (`Д-43`): PR-1 — npm-скрипт `report:dead-tables` (появляется в этом же PR; dry-run: число строк); PR-2 — миграция, которая падает с текстом, если строк > 0, иначе `DROP TABLE` и удаление связи; страж «модель Prisma без обращений в `src/**`» (grep по `prisma.<model>`/`tx.<model>`, список допустимых исключений пуст) |
 | `roleInPartner: 'member'` | `admin/users/mutations.ts:75,193` | `У-261` (`Д-47`): значение → `'manager'`, бэкфилл строк `member → manager` в той же миграции, Zod-enum на запись |
 
 ## 7. Неиспользуемые зависимости
