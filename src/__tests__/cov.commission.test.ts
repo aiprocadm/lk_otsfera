@@ -74,12 +74,26 @@ function makeDetectDb(opts: {
   partner?: any;
   createImpl?: (arg: any) => any;
 }) {
+  // Хотфикс №45: выборка идёт от закрытых периодов, ставки берутся пачкой.
+  const partner = 'partner' in opts ? opts.partner : { commissionRate: dec(0.2) };
   return {
     payment: { findMany: vi.fn().mockResolvedValue(opts.refunds) },
-    commissionStatement: { findFirst: vi.fn().mockResolvedValue(opts.liveStatement ?? null) },
-    commissionRateChange: { findMany: vi.fn().mockResolvedValue(opts.rateChanges ?? []) },
+    commissionStatement: {
+      findMany: vi
+        .fn()
+        .mockResolvedValue(opts.liveStatement ? [{ partnerId: 'p1', ...opts.liveStatement }] : []),
+    },
+    commissionRateChange: {
+      findMany: vi
+        .fn()
+        .mockResolvedValue((opts.rateChanges ?? []).map((c: any) => ({ partnerId: 'p1', ...c }))),
+    },
     organizationCommissionRateChange: {
-      findMany: vi.fn().mockResolvedValue(opts.orgChanges ?? []),
+      findMany: vi
+        .fn()
+        .mockResolvedValue(
+          (opts.orgChanges ?? []).map((c: any) => ({ organizationId: 'org1', ...c }))
+        ),
     },
     commissionCorrection: {
       create: vi
@@ -87,9 +101,7 @@ function makeDetectDb(opts: {
         .mockImplementation(opts.createImpl ?? (({ data }: any) => ({ id: 'new', ...data }))),
     },
     partner: {
-      findUnique: vi
-        .fn()
-        .mockResolvedValue('partner' in opts ? opts.partner : { commissionRate: dec(0.2) }),
+      findMany: vi.fn().mockResolvedValue(partner ? [{ id: 'p1', ...partner }] : []),
     },
   } as any;
 }
