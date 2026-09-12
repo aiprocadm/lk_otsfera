@@ -7,10 +7,7 @@ const { recordPiiAccess, isMessengerAvailable } = vi.hoisted(() => ({
   isMessengerAvailable: vi.fn(),
 }));
 vi.mock('@/lib/pii/record', () => ({ recordPiiAccess }));
-vi.mock('@/lib/services/messengers/channels', async () => ({
-  ...(await vi.importActual<typeof import('@/lib/services/messengers/channels')>(
-    '@/lib/services/messengers/channels'
-  )),
+vi.mock('@/lib/services/messengers/availability', () => ({
   isMessengerAvailable,
 }));
 

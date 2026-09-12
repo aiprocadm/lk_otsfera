@@ -1,7 +1,8 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
-import { isMessengerAvailable, type MessengerChannel } from './channels';
+import { isMessengerAvailable } from './availability';
+import type { MessengerChannel } from './channels';
 import { recordOutboundInDialog } from './recordOutbound';
 import { isDialogInScope } from './scope';
 import { sendToMessenger } from './transport';

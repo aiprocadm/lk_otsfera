@@ -3,6 +3,11 @@
 import React, { useActionState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFormAction, resolveErrorText, type ActionResult } from '@/lib/ui/useFormAction';
+// Типы диагностики живут в lib (их читают и страницы, и этот компонент — §2).
+import type {
+  IntegrationCheckInfo,
+  WebhookDiagInfo,
+} from '@/lib/services/admin/integrationDiagnostics';
 import { ResetSettingButton } from './reset-setting-button';
 import { WebhookSecretControls } from './webhook-secret-controls';
 
@@ -54,31 +59,6 @@ const ERROR_MAP: Record<string, string> = {
 
 const inputClass =
   'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]';
-
-/** Итог последней пробы подключения (SyncState `integration.<key>`), даты отформатированы на сервере. */
-export type IntegrationCheckInfo = {
-  lastAt: string | null;
-  lastOk: boolean | null;
-  lastError: string | null;
-};
-
-/** Диагностика вебхука (SyncState `webhook.<name>`): подсказка регистрации + последнее входящее. */
-export type WebhookDiagInfo = {
-  url: string;
-  /**
-   * Ключ провайдера для действий с секретом (`У-123`). Необязательный: у
-   * провайдера без генерируемого нами секрета (Mango — `apiSalt` выдаёт он
-   * сам) кнопок быть не должно.
-   */
-  provider?: string | undefined;
-  /** Есть ли у провайдера API регистрации вебхука. */
-  canRegister?: boolean | undefined;
-  /** Имя секрет-заголовка; null — аутентификация не заголовком (например подпись Mango). */
-  headerName: string | null;
-  secretSet: boolean;
-  lastEventAt: string | null;
-  note?: string | undefined;
-};
 
 export type IntegrationTestAction = (
   fd: FormData
