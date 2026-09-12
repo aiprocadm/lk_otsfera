@@ -12,6 +12,7 @@ const SUBJECT_TYPES = new Set([
   'user',
   'caller',
   'inbound_sender',
+  'contact', // этап 1 ТЗ 12.09.2026 (`У-186`): контакт — физлицо клиентского контура
 ]);
 
 describe('PII_CONTEXTS registry', () => {

@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { createContact } from '@/lib/services/manager/contacts';
+import type { ChannelOwner } from '@/lib/services/contacts/channels';
 import { bindInboundMessage, CHANNEL_TO_CONTACT_TYPE } from '@/lib/services/inbound/bind';
 
 export type CreateContactFromInboundArgs = {
@@ -10,7 +11,9 @@ export type CreateContactFromInboundArgs = {
 };
 
 export type CreateContactFromInboundResult =
-  { ok: true; contactId: string } | { ok: false; error: 'forbidden' | 'invalid' | 'not_found' };
+  | { ok: true; contactId: string }
+  | { ok: false; error: 'forbidden' | 'invalid' | 'not_found' }
+  | { ok: false; error: 'contact_channel_taken'; conflict: ChannelOwner };
 
 /**
  * Creates a new contact from an inbound message's sender identity, then binds

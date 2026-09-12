@@ -51,6 +51,7 @@ const CAPABILITY_OPTIONS: { value: Capability; label: string }[] = [
   { value: 'manage_catalog', label: 'Управление каталогом' },
   { value: 'manage_users', label: 'Управление пользователями' },
   { value: 'assign_orders', label: 'Распределение заявок' },
+  { value: 'crm.contacts', label: 'Контакты (справочник)' },
 ];
 
 const scopeLabel = (v: ScopeLevel) => SCOPE_OPTIONS.find((o) => o.value === v)?.label ?? v;

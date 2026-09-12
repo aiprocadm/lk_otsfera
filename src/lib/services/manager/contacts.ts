@@ -3,6 +3,7 @@ import type { PrismaClient, ContactChannelType } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { getCompanyTeamVisibility, isOrgInScope, isManagerLeader } from '@/lib/auth/managerPolicy';
 import { normalizeChannelValue } from '@/lib/services/contacts/resolveContactByChannel';
+import { findChannelOwner, type ChannelOwner } from '@/lib/services/contacts/channels';
 import { recordAudit } from '@/lib/auth/audit';
 
 type ContactChannelInput = { type: ContactChannelType; value: string };
@@ -14,7 +15,11 @@ export type CreateContactArgs = {
   channels: ContactChannelInput[];
 };
 export type CreateContactResult =
-  { ok: true; contactId: string } | { ok: false; error: 'forbidden' | 'invalid' };
+  | { ok: true; contactId: string }
+  | { ok: false; error: 'forbidden' | 'invalid' }
+  // `У-180`: канал уже у другого контакта компании — подсказка с владельцем и
+  // кнопкой «Объединить» вместо ошибки уникальности базы.
+  | { ok: false; error: 'contact_channel_taken'; conflict: ChannelOwner };
 
 export async function createContact(
   prisma: PrismaClient,
@@ -55,6 +60,16 @@ export async function createContact(
     }))
     .filter((ch) => ch.normalizedValue !== '')
     .map((ch, i) => ({ ...ch, isPrimary: i === 0 }));
+
+  // `У-180`: занятый канал — русская подсказка до записи, а не `P2002` наружу.
+  for (const ch of channelData) {
+    const owner = await findChannelOwner(prisma, {
+      companyId: session.companyId,
+      type: ch.type,
+      value: ch.value,
+    });
+    if (owner) return { ok: false, error: 'contact_channel_taken', conflict: owner };
+  }
 
   const contact = await prisma.contact.create({
     data: {

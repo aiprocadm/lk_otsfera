@@ -14,7 +14,12 @@ export type PiiSubjectType =
   | 'client_request'
   | 'user'
   | 'caller'
-  | 'inbound_sender';
+  | 'inbound_sender'
+  // Этап 1 ТЗ 12.09.2026 (`У-186`): контакт — физлицо клиентского контура.
+  // Контексты `contacts_list` / `contact_card` / `contacts_search` заводятся
+  // вместе с экранами и поиском (PR-2): страж `pii.capture-coverage` требует
+  // живой вызов в заявленном файле.
+  | 'contact';
 
 /** Этап 9 (ФТ-12.1, PR-3): `export` — выгрузка ПДн сотрудником в файл.
  *  Клиентские выгрузки собственных данных сюда не попадают (фильтр `isStaff`

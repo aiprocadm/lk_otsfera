@@ -365,6 +365,7 @@ model User {
   calls                        Call[]                    @relation("UserCalls")
   callsInitiated               Call[]                    @relation("CallInitiator")
   dealNotesAuthored            DealNote[]                @relation("DealNoteAuthor")
+  organizationNotesAuthored    OrganizationNote[]        @relation("OrganizationNoteAuthor")
   internalPhone                String?
   contact                      Contact?                  @relation("UserContact")
   contactsCreated              Contact[]                 @relation("ContactCreatedBy")
@@ -822,6 +823,7 @@ model Organization {
   messengerDialogs               MessengerDialog[]                  @relation("OrgMessengerDialogs")
   calls                          Call[]                             @relation("OrgCalls")
   contacts                       Contact[]                          @relation("OrgContacts")
+  notes                          OrganizationNote[]                 @relation("OrganizationNotes")
 
   @@index([partnerId])
   @@index([externalId])
@@ -962,6 +964,7 @@ model Company {
   messengerDialogs         MessengerDialog[]
   calls                    Call[]
   contacts                 Contact[]              @relation("CompanyContacts")
+  organizationNotes        OrganizationNote[]     @relation("CompanyOrganizationNotes")
   salesTargets             SalesTarget[]
   staffConversations       StaffConversation[]
   calendarEvents           CalendarEvent[]
@@ -2304,6 +2307,13 @@ model Contact {
   isArchived     Boolean       @default(false)
   createdById    String?
   createdBy      User?         @relation("ContactCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  // `У-181` (этап 1 ТЗ 12.09.2026): после объединения дублей второй контакт
+  // уходит в архив и хранит ссылку на главный — старые ссылки на него
+  // редиректят, а история («кем был») не теряется. SetNull: удаление главного
+  // не должно уносить архивную запись.
+  mergedIntoId   String?
+  mergedInto     Contact?      @relation("ContactMerged", fields: [mergedIntoId], references: [id], onDelete: SetNull)
+  mergedFrom     Contact[]     @relation("ContactMerged")
 
   channels         ContactChannel[]
   inboundMessages  InboundMessage[]  @relation("ContactInbound")
@@ -2313,6 +2323,33 @@ model Contact {
 
   @@index([companyId, organizationId])
   @@index([organizationId])
+}
+
+/// Внутренняя заметка по организации (`У-183`, решение `Р-Б-8`). Видна только
+/// сотрудникам компании-продавца; клиент и партнёр — никогда. `Comment` —
+/// другой домен (разговор с клиентом по заказу), `DealNote` — заметка по
+/// сделке; третью модель ради контакта не заводим: заметка о человеке пишется
+/// в его организацию с префиксом.
+model OrganizationNote {
+  id             String       @id @default(cuid())
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  companyId      String
+  company        Company      @relation("CompanyOrganizationNotes", fields: [companyId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization @relation("OrganizationNotes", fields: [organizationId], references: [id], onDelete: Cascade)
+  /// SetNull: заметка переживает удаление автора — это факт истории клиента.
+  authorId       String?
+  author         User?        @relation("OrganizationNoteAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  /// До 4 000 символов, plain text с @упоминаниями (предел держит сервис).
+  body           String
+  /// Денормализация упомянутых — для уведомлений и подсветки, как в DealNote.
+  mentionUserIds String[]
+  /// Не null — заметка закреплена (не больше трёх на организацию, держит сервис).
+  pinnedAt       DateTime?
+
+  @@index([organizationId, createdAt])
+  @@index([companyId])
 }
 
 /// M2: канал связи контакта (телефон/email/мессенджер). Уникальность

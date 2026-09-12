@@ -1,16 +1,16 @@
 import { it, expect, vi, beforeEach } from 'vitest';
 
-const { getOrder, recordAudit, listColleagues, createNotification, deliverNotificationToUser } =
-  vi.hoisted(() => ({
-    getOrder: vi.fn(),
-    recordAudit: vi.fn(),
-    listColleagues: vi.fn(),
-    createNotification: vi.fn().mockResolvedValue({ id: 'n1' }),
-    deliverNotificationToUser: vi.fn(),
-  }));
+const { getOrder, recordAudit, listColleagues, notifyNoteMention, warn } = vi.hoisted(() => ({
+  getOrder: vi.fn(),
+  recordAudit: vi.fn(),
+  listColleagues: vi.fn(),
+  notifyNoteMention: vi.fn().mockResolvedValue(1),
+  warn: vi.fn(),
+}));
 vi.mock('@/lib/services/manager/orders', () => ({ getOrder }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
-vi.mock('@/lib/notifications', () => ({ createNotification, deliverNotificationToUser }));
+vi.mock('@/lib/notifications/noteMention', () => ({ notifyNoteMention }));
+vi.mock('@/lib/logging', () => ({ log: { warn, info: vi.fn(), error: vi.fn() } }));
 vi.mock('@/lib/services/staffChat/mentions', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/services/staffChat/mentions')>();
   return { ...actual, listColleagues };
@@ -18,6 +18,12 @@ vi.mock('@/lib/services/staffChat/mentions', async (importOriginal) => {
 
 import { addDealNote } from '@/lib/services/manager/dealNotes';
 
+/**
+ * Заметка по сделке: тело, аудит и упоминания. Доставка уведомления с этапа 1
+ * ТЗ 12.09.2026 живёт в общем продьюсере `note_mention`
+ * (`notifications.noteMention.unit.test.ts`); здесь проверяется, что сервис
+ * извлекает упомянутых без автора и зовёт продьюсер с правильным объектом.
+ */
 const session = { sub: 'u1', role: 'manager', companyId: 'c1' } as never;
 beforeEach(() => vi.clearAllMocks());
 
@@ -54,53 +60,7 @@ it('creates note + audit on success', async () => {
   expect(recordAudit).toHaveBeenCalledOnce();
 });
 
-it('mentions in note body notify mentioned staff (not the author)', async () => {
-  getOrder.mockResolvedValue({ id: 'o1', companyId: 'c1' });
-  listColleagues.mockResolvedValue({ ok: true, rows: [{ id: 'u2', name: 'Пётр' }] });
-  const create = vi.fn().mockResolvedValue({ id: 'note1' });
-  const findMany = vi.fn().mockResolvedValue([{ id: 'u2', role: 'manager' }]);
-  const prisma = { dealNote: { create }, user: { findMany } } as never;
-  const res = await addDealNote(prisma, session, {
-    orderId: 'o1',
-    body: 'согласуй с @Пётр скидку',
-  });
-  expect(res).toEqual({ ok: true, id: 'note1' });
-  expect(createNotification).toHaveBeenCalledWith(
-    expect.objectContaining({ userId: 'u2', type: 'deal_note_mention' })
-  );
-  expect(deliverNotificationToUser).toHaveBeenCalledWith(
-    expect.objectContaining({
-      userId: 'u2',
-      type: 'deal_note_mention',
-      url: '/manager/orders/o1',
-      dedupKey: 'n1',
-    })
-  );
-});
-
-it('note without mentions sends no notifications and skips the colleagues query', async () => {
-  getOrder.mockResolvedValue({ id: 'o1', companyId: 'c1' });
-  const create = vi.fn().mockResolvedValue({ id: 'note1' });
-  const prisma = { dealNote: { create }, user: { findMany: vi.fn() } } as never;
-  await addDealNote(prisma, session, { orderId: 'o1', body: 'обычная заметка' });
-  expect(listColleagues).not.toHaveBeenCalled();
-  expect(deliverNotificationToUser).not.toHaveBeenCalled();
-});
-
-it('admin recipient gets the notification WITHOUT url (нет /manager-кабинета)', async () => {
-  getOrder.mockResolvedValue({ id: 'o1', companyId: 'c1' });
-  listColleagues.mockResolvedValue({ ok: true, rows: [{ id: 'a1', name: 'Админ' }] });
-  const prisma = {
-    dealNote: { create: vi.fn().mockResolvedValue({ id: 'note1' }) },
-    user: { findMany: vi.fn().mockResolvedValue([{ id: 'a1', role: 'admin' }]) },
-  } as never;
-  await addDealNote(prisma, session, { orderId: 'o1', body: 'смотри @Админ' });
-  const arg = deliverNotificationToUser.mock.calls[0][0];
-  expect(arg.userId).toBe('a1');
-  expect(arg.url).toBeUndefined();
-});
-
-it('self-mention is silent; notify failure does not fail the note', async () => {
+it('mentions in note body go to the note_mention producer as a deal note (author excluded)', async () => {
   getOrder.mockResolvedValue({ id: 'o1', companyId: 'c1' });
   listColleagues.mockResolvedValue({
     ok: true,
@@ -109,22 +69,53 @@ it('self-mention is silent; notify failure does not fail the note', async () => 
       { id: 'u2', name: 'Пётр' },
     ],
   });
-  createNotification.mockRejectedValueOnce(new Error('boom'));
-  const prisma = {
-    dealNote: { create: vi.fn().mockResolvedValue({ id: 'note1' }) },
-    user: { findMany: vi.fn().mockResolvedValue([{ id: 'u2', role: 'manager' }]) },
-  } as never;
-  const res = await addDealNote(prisma, session, { orderId: 'o1', body: '@Я и @Пётр' });
-  expect(res).toEqual({ ok: true, id: 'note1' }); // сбой уведомления не роняет заметку
+  const create = vi.fn().mockResolvedValue({ id: 'note1' });
+  const prisma = { dealNote: { create } } as never;
+  const res = await addDealNote(prisma, session, {
+    orderId: 'o1',
+    body: '@Я согласуй с @Пётр скидку',
+  });
+  expect(res).toEqual({ ok: true, id: 'note1' });
+  expect(notifyNoteMention).toHaveBeenCalledWith(prisma, {
+    mentionedUserIds: ['u2'],
+    entity: 'deal',
+    entityId: 'o1',
+    noteId: 'note1',
+    body: '@Я согласуй с @Пётр скидку',
+    managerPath: '/manager/orders/o1',
+  });
 });
 
-it('notify failure with a non-Error rejection value falls back to String(err)', async () => {
+it('note without mentions sends no notifications and skips the colleagues query', async () => {
   getOrder.mockResolvedValue({ id: 'o1', companyId: 'c1' });
-  listColleagues.mockRejectedValueOnce('not-an-error');
-  const prisma = {
-    dealNote: { create: vi.fn().mockResolvedValue({ id: 'note1' }) },
-    user: { findMany: vi.fn() },
-  } as never;
+  const create = vi.fn().mockResolvedValue({ id: 'note1' });
+  const prisma = { dealNote: { create } } as never;
+  await addDealNote(prisma, session, { orderId: 'o1', body: 'обычная заметка' });
+  expect(listColleagues).not.toHaveBeenCalled();
+  expect(notifyNoteMention).not.toHaveBeenCalled();
+});
+
+it('colleagues lookup failure does not fail the note and is logged', async () => {
+  getOrder.mockResolvedValue({ id: 'o1', companyId: 'c1' });
+  listColleagues.mockRejectedValueOnce(new Error('db down'));
+  const prisma = { dealNote: { create: vi.fn().mockResolvedValue({ id: 'note1' }) } } as never;
   const res = await addDealNote(prisma, session, { orderId: 'o1', body: '@Пётр' });
   expect(res).toEqual({ ok: true, id: 'note1' });
+  expect(notifyNoteMention).not.toHaveBeenCalled();
+  expect(warn).toHaveBeenCalledWith(
+    '[dealNotes/addDealNote] mention notify failed',
+    expect.objectContaining({ noteId: 'note1', error: 'db down' })
+  );
+});
+
+it('non-Error rejection value falls back to String(err)', async () => {
+  getOrder.mockResolvedValue({ id: 'o1', companyId: 'c1' });
+  listColleagues.mockRejectedValueOnce('not-an-error');
+  const prisma = { dealNote: { create: vi.fn().mockResolvedValue({ id: 'note1' }) } } as never;
+  const res = await addDealNote(prisma, session, { orderId: 'o1', body: '@Пётр' });
+  expect(res).toEqual({ ok: true, id: 'note1' });
+  expect(warn).toHaveBeenCalledWith(
+    expect.any(String),
+    expect.objectContaining({ error: 'not-an-error' })
+  );
 });

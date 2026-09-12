@@ -42,6 +42,7 @@ function makePrisma(rows: ReturnType<typeof eventRow>[] = []) {
     enrollmentRequest: { findMany: vi.fn().mockResolvedValue([]) },
     call: { findMany: vi.fn().mockResolvedValue([]) },
     inboundMessage: { findMany: vi.fn().mockResolvedValue([]) },
+    contact: { findMany: vi.fn().mockResolvedValue([]) },
   } as never;
 }
 
@@ -137,6 +138,37 @@ describe('listPiiAccess', () => {
       e3: ['Слушатель'],
       e4: ['Отправитель'],
       e5: ['+79001234567'],
+    });
+  });
+
+  it('субъект «contact» резолвится батчем через prisma.contact.findMany в имя контакта', async () => {
+    // Этап 1 ТЗ 12.09.2026: контакты — новый субъект ПДн. Имя берётся одним
+    // запросом на все id строки журнала. Контексты `contacts_list` /
+    // `contact_card` заводятся в PR-2 вместе с экранами — до этого подпись
+    // контекста = его ключ (fallback реестра); PR-2 меняет ожидание на подписи.
+    const p = makePrisma([
+      eventRow('e1', {
+        subjectType: 'contact',
+        subjectIds: ['k1', 'k2'],
+        context: 'contacts_list',
+      }),
+      eventRow('e2', { subjectType: 'contact', subjectIds: ['k3'], context: 'contact_card' }),
+    ]);
+    (p as any).contact.findMany.mockResolvedValue([
+      { id: 'k1', name: 'Иван Контактов' },
+      { id: 'k3', name: 'Мария К.' },
+    ]);
+    const res = await listPiiAccess(p, ADMIN, {});
+    if (!res.ok) throw new Error('expected ok');
+    expect(res.rows.map((r) => [r.labelRu, r.subjects.map((s) => s.label)])).toEqual([
+      ['contacts_list', ['Иван Контактов', 'k2 (удалён)']],
+      ['contact_card', ['Мария К.']],
+    ]);
+    // один батч на все контакты страницы, а не запрос на строку
+    expect((p as any).contact.findMany).toHaveBeenCalledTimes(1);
+    expect((p as any).contact.findMany).toHaveBeenCalledWith({
+      where: { id: { in: ['k1', 'k2', 'k3'] } },
+      select: { id: true, name: true },
     });
   });
 

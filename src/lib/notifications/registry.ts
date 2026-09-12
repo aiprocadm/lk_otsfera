@@ -166,10 +166,14 @@ export const NOTIFICATION_TYPES = {
     audience: ['staff'],
     producer: 'src/lib/services/staffChat/messages.ts',
   },
-  deal_note_mention: {
-    label: 'Упоминание в заметке по сделке',
+  // Этап 1 ТЗ 12.09.2026 (`У-183`, спека §3.6): один тип для заметки по сделке
+  // и по организации — `meta.entity` различает объект. Прежний ключ
+  // `deal_note_mention` переехал в правилах доставки миграцией, для
+  // исторических строк `Notification.type` остаётся псевдонимом ниже.
+  note_mention: {
+    label: 'Упоминание в заметке',
     audience: ['staff'],
-    producer: 'src/lib/services/manager/dealNotes.ts',
+    producer: 'src/lib/notifications/noteMention.ts',
   },
   inbound_reply: {
     label: 'Ответ по внешнему обращению',
@@ -234,11 +238,21 @@ export function isKnownNotificationType(type: string): type is NotificationTypeK
 }
 
 /**
+ * Псевдонимы прежних ключей → действующий тип. Исторические строки
+ * `Notification.type` не переименовываем (прецедент `tzAlias`: данные ради
+ * косметики не трогаем), но подпись для них берём у нового типа.
+ */
+export const LEGACY_NOTIFICATION_TYPE_ALIASES: Readonly<Record<string, NotificationTypeKey>> = {
+  deal_note_mention: 'note_mention',
+};
+
+/**
  * Русская подпись типа. Неизвестный тип не ломает экран — возвращаем сам код,
  * чтобы уведомление всё равно было видно (fail-open, §3 CLAUDE.md).
  */
 export function notificationLabelRu(type: string): string {
-  return isKnownNotificationType(type) ? NOTIFICATION_TYPES[type].label : type;
+  const key = LEGACY_NOTIFICATION_TYPE_ALIASES[type] ?? type;
+  return isKnownNotificationType(key) ? NOTIFICATION_TYPES[key].label : type;
 }
 
 /** Типы, адресованные конкретной аудитории. */

@@ -103,6 +103,13 @@ async function resolveSubjectLabels(
     }))
       put(m.id, m.senderDisplay);
   }
+  if (byType.has('contact')) {
+    for (const c of await prisma.contact.findMany({
+      where: { id: { in: ids('contact') } },
+      select: { id: true, name: true },
+    }))
+      put(c.id, c.name);
+  }
   return labels;
 }
 
