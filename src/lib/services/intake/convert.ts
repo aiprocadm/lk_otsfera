@@ -4,6 +4,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
 import { validateClientRequestInput } from '@/lib/services/clientRequests/submit';
 import { isInboundMessageInScope } from '@/lib/services/inbound/scope';
+import { isContactInScope } from '@/lib/services/contacts/scope';
 
 /**
  * Этап 7 (ФТ-1.6) — «Создать лид» из обращения и звонка. Форма предзаполняется
@@ -156,6 +157,93 @@ export async function createLeadFromCall(
     entity: 'lead',
     entityId: lead.id,
     after: { sourceCallId: call.id },
+  });
+  return { ok: true, lead };
+}
+
+/**
+ * Этап 1 ТЗ 12.09.2026 (`У-179`): «Создать лид» из карточки контакта. Поля
+ * контакта (имя, основной телефон и почта, организация) подставляются на
+ * сервере — человек вводит только тему и заметку; валидатор тот же, что у
+ * ручного лида, поэтому контакт без телефона и почты лида не даст (ошибка
+ * скажет, чего не хватает). Источник — `manual`: отдельного значения для
+ * контакта у `LeadSource` нет, а связь и так восстанавливается по каналам.
+ */
+export async function createLeadFromContact(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  args: {
+    contactId: string;
+    teamMode: boolean;
+    input: Pick<ConvertSourceInput, 'subject' | 'notes'>;
+  }
+): Promise<ConvertSourceResult> {
+  if (!staffGate(session)) return { ok: false, error: 'forbidden' };
+
+  const contact = await prisma.contact.findUnique({
+    where: { id: args.contactId },
+    select: {
+      id: true,
+      name: true,
+      companyId: true,
+      organizationId: true,
+      isArchived: true,
+      organization: { select: { name: true, inn: true } },
+      channels: {
+        where: { type: { in: ['phone', 'email'] } },
+        orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
+        select: { type: true, value: true },
+      },
+    },
+  });
+  if (!contact || !isContactInScope(session, args.teamMode, contact)) {
+    return { ok: false, error: 'not_found' };
+  }
+  // Архивный контакт — не адресат: кнопки в карточке нет, сервер держит то же.
+  if (contact.isArchived) {
+    return {
+      ok: false,
+      error: 'validation',
+      messages: ['Контакт в архиве — верните его из архива, чтобы создать лид'],
+    };
+  }
+
+  const phone = contact.channels.find((c) => c.type === 'phone')?.value ?? null;
+  const email = contact.channels.find((c) => c.type === 'email')?.value ?? null;
+  const validated = validateClientRequestInput({
+    // Контакт «с улицы» — компанией лида становится он сам: лид без названия
+    // компании невозможен, а выдумывать его за человека нельзя.
+    companyName: contact.organization?.name ?? contact.name,
+    inn: contact.organization?.inn ?? null,
+    contactName: contact.name,
+    contactPhone: phone,
+    contactEmail: email,
+    subject: args.input.subject ?? null,
+  });
+  if (!validated.ok) return { ok: false, error: 'validation', messages: validated.errors };
+  const v = validated.values;
+
+  const lead = await prisma.lead.create({
+    data: {
+      source: 'manual',
+      organizationId: contact.organizationId,
+      createdByUserId: session.sub,
+      clientCompanyName: v.companyName,
+      clientInn: v.inn,
+      clientContactName: v.contactName,
+      clientContactPhone: v.contactPhone,
+      clientContactEmail: v.contactEmail,
+      subject: v.subject,
+      notes: args.input.notes?.trim() || null,
+      status: 'new',
+    },
+  });
+  await recordAudit(prisma, {
+    userId: session.sub,
+    action: 'lead_created_from_contact',
+    entity: 'lead',
+    entityId: lead.id,
+    after: { contactId: contact.id },
   });
   return { ok: true, lead };
 }

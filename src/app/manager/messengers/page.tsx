@@ -18,6 +18,8 @@ type SearchParams = {
   channel?: string;
   status?: string;
   skip?: string;
+  /** `?new=<contactId>` — «Написать» из карточки контакта (`У-179`). */
+  new?: string;
 };
 
 const PAGE_SIZE = 25;
@@ -53,7 +55,8 @@ export default async function ManagerMessengersPage({
     listDialogCandidates(prisma, session),
   ]);
 
-  const newDialog = <NewDialogButton candidates={candidates} />;
+  const preselect = typeof sp.new === 'string' && sp.new ? sp.new : undefined;
+  const newDialog = <NewDialogButton candidates={candidates} preselect={preselect} />;
   const filtered = Boolean(channel || status);
 
   return (

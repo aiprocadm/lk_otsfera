@@ -148,6 +148,7 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       group: 'Клиенты',
       sectionKey: 'organizations',
     },
+    { href: '/admin/contacts', group: 'Клиенты', sectionKey: 'contacts', flag: 'contacts' },
     // `У-121`: «Заявки на обучение» идут ПОСЛЕ «Организаций» — как у менеджера
     // и руководителя. Порядок внутри группы у админа был свой, и страж
     // зеркальности это увидел.
@@ -248,6 +249,14 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       group: 'Клиенты',
       sectionKey: 'organizations',
       flag: 'manager_cabinet',
+    },
+    // Этап 1 ТЗ 12.09.2026 (`У-178`): справочник контактов — поведенческий
+    // флаг `contacts` (включается из интерфейса), одинаково в трёх кабинетах ЦО.
+    {
+      href: '/manager/contacts',
+      group: 'Клиенты',
+      sectionKey: 'contacts',
+      flag: 'contacts',
     },
     {
       href: '/manager/finance',
@@ -353,6 +362,7 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       group: 'Клиенты',
       sectionKey: 'organizations',
     },
+    { href: '/leader/contacts', group: 'Клиенты', sectionKey: 'contacts', flag: 'contacts' },
     // role_constructor — отдельный feature-флаг (НЕ leader_cabinet): гейтит только
     // этот пункт, не опустошает сайдбар при выключении.
     {

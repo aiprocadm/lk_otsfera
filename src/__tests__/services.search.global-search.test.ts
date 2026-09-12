@@ -39,6 +39,7 @@ type Mocks = {
   document: ReturnType<typeof vi.fn>;
   student: ReturnType<typeof vi.fn>;
   message: ReturnType<typeof vi.fn>;
+  contact: ReturnType<typeof vi.fn>;
   companyFindUnique: ReturnType<typeof vi.fn>;
 };
 
@@ -51,6 +52,7 @@ function makePrisma(): Mocks {
   const document = vi.fn().mockResolvedValue([]);
   const student = vi.fn().mockResolvedValue([]);
   const message = vi.fn().mockResolvedValue([]);
+  const contact = vi.fn().mockResolvedValue([]);
   const companyFindUnique = vi.fn().mockResolvedValue({ managerTeamVisibility: false });
   const prisma = {
     order: { findMany: order },
@@ -61,6 +63,7 @@ function makePrisma(): Mocks {
     document: { findMany: document },
     student: { findMany: student },
     staffMessage: { findMany: message },
+    contact: { findMany: contact },
     company: { findUnique: companyFindUnique },
   } as unknown as PrismaClient;
   return {
@@ -73,6 +76,7 @@ function makePrisma(): Mocks {
     document,
     student,
     message,
+    contact,
     companyFindUnique,
   };
 }
@@ -396,8 +400,11 @@ describe('globalSearch — ПДн (§25.7)', () => {
       },
     ]);
     await globalSearch(prisma, manager, { q: 'иванов' });
-    expect(recordPiiAccess).toHaveBeenCalledTimes(1);
-    const args = recordPiiAccess.mock.calls[0][1];
+    // Два чтения ПДн: слушатели и контакты (этап 1 ТЗ 12.09.2026, `У-186`).
+    expect(recordPiiAccess).toHaveBeenCalledTimes(2);
+    const args = recordPiiAccess.mock.calls.find(
+      (c) => c[1].context === 'global_search_students'
+    )![1];
     expect(args).toMatchObject({
       session: manager,
       context: 'global_search_students',
@@ -414,5 +421,82 @@ describe('globalSearch — ПДн (§25.7)', () => {
       prisma,
       expect.objectContaining({ subjectIds: [] })
     );
+  });
+});
+
+describe('globalSearch — категория «Контакты» (этап 1 ТЗ 12.09.2026, У-185)', () => {
+  const row = {
+    id: 'k1',
+    name: 'Пётр Петров',
+    position: 'директор',
+    updatedAt: new Date('2026-09-12T10:00:00Z'),
+    organization: { name: 'Ромашка' },
+    channels: [{ value: '+79210000001' }],
+  };
+
+  it('флаг contacts выключен → в базу за контактами не ходим, группы нет, журнал — с пустыми id', async () => {
+    const { prisma, contact } = makePrisma();
+    const res = await globalSearch(prisma, manager, { q: 'петр' });
+    expect(contact).not.toHaveBeenCalled();
+    expect(res.ok && res.groups.some((g) => g.key === 'contacts')).toBe(false);
+    expect(recordPiiAccess).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({ context: 'contacts_search', subjectIds: [] })
+    );
+  });
+
+  it('профиль без права crm.contacts → категории нет даже при включённом флаге', async () => {
+    process.env.FEATURE_CONTACTS = '1';
+    const { prisma, contact } = makePrisma();
+    const noRight = {
+      ...manager,
+      accessProfile: { id: 'p', name: 'p', organizations: 'all', capabilities: [] },
+    } as unknown as SessionPayload;
+    await globalSearch(prisma, noRight, { q: 'петр' });
+    expect(contact).not.toHaveBeenCalled();
+  });
+
+  it('флаг включён: выборка со скоупом, без архивных и условием справочника; хит ведёт в карточку', async () => {
+    process.env.FEATURE_CONTACTS = '1';
+    const { prisma, contact } = makePrisma();
+    contact.mockResolvedValue([row]);
+    const res = await globalSearch(prisma, manager, { q: '+7 (921) 000-00-01' });
+    expect(contact).toHaveBeenCalledTimes(1);
+    const where = contact.mock.calls[0][0].where;
+    expect(where.AND[0]).toEqual(expect.objectContaining({ AND: expect.any(Array) })); // contactScopeWhere менеджера
+    expect(where.AND[1]).toEqual({ isArchived: false });
+    // Телефон ищется по цифрам в нормализованном значении — «921000000» и «7921…».
+    expect(JSON.stringify(where.AND[2])).toContain('79210000001');
+    expect(contact.mock.calls[0][0].take).toBe(SEARCH_TAKE);
+    if (!res.ok) throw new Error('ожидали ok');
+    const group = res.groups.find((g) => g.key === 'contacts');
+    expect(group).toMatchObject({ labelRu: 'Контакты', limited: false });
+    expect(group!.hits).toEqual([
+      {
+        id: 'k1',
+        title: 'Пётр Петров',
+        subtitle: 'директор · Ромашка · +79210000001',
+        href: '/manager/contacts/k1',
+        date: row.updatedAt,
+      },
+    ]);
+    expect(recordPiiAccess).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({
+        context: 'contacts_search',
+        subjectIds: ['k1'],
+        meta: { take: SEARCH_TAKE, hasQuery: true },
+      })
+    );
+  });
+
+  it('контакт без должности, организации и каналов — подпись пустая (null), admin — пол компании', async () => {
+    process.env.FEATURE_CONTACTS = '1';
+    const { prisma, contact } = makePrisma();
+    contact.mockResolvedValue([{ ...row, position: null, organization: null, channels: [] }]);
+    const res = await globalSearch(prisma, admin, { q: 'петр' });
+    expect(contact.mock.calls[0][0].where.AND[0]).toEqual({ companyId: 'c1' });
+    if (!res.ok) throw new Error('ожидали ok');
+    expect(res.groups.find((g) => g.key === 'contacts')!.hits[0]!.subtitle).toBeNull();
   });
 });

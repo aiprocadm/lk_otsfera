@@ -164,7 +164,13 @@
 продаж — замена Битрикс24» ([2026-09-12-tz-crm-bitrix-replacement.md](2026-09-12-tz-crm-bitrix-replacement.md),
 пакет [docs/specs/](../specs/README.md)): 93 строки `У-177`…`У-269` заведены ниже
 блоками по этапам 0–10; `У-177` (ввод программы) закрыт тем же PR, остальные 92 —
-`⏳ этап N`. Сводка: 178 × `✅` (177 прежних + `У-177`), 92 × `⏳`, 0 × `❌`.
+`⏳ этап N`. Сводка на 12.09.2026: 178 × `✅` (177 прежних + `У-177`), 92 × `⏳`, 0 × `❌`.
+
+Состояние на **13.09.2026** — этап 1 в работе: PR-1 [#586](https://github.com/aiprocadm/lk_otsfera/pull/586)
+(сервер) и PR-2 [#588](https://github.com/aiprocadm/lk_otsfera/pull/588) (экраны)
+закрыли `У-178`, `У-179` (без вкладки «Задачи» — этап 4), `У-180`, `У-181`
+(задачи — этап 4), `У-185`, `У-186`, `У-187`; `У-182`…`У-184` — PR-3.
+**Сводка: 185 × `✅`, 85 × `⏳`, 0 × `❌`.**
 
 Состояние на **05.09.2026** — программа ТЗ кабинетов, документов и
 интеграций **завершена** (этапы 0–9 закрыты, close-out — [2026-09-05-tz-cabinets-program-DONE.md](2026-09-05-tz-cabinets-program-DONE.md)); история по этапам: 99 строк `У-78`…`У-176`; этап 0 (`У-78`…`У-82`) выполнен PR ввода
@@ -174,8 +180,8 @@
 
 | Вердикт | Кол-во |
 |---|---|
-| `✅` соответствует | **178** |
-| `⏳` запланировано | **92** |
+| `✅` соответствует | **185** |
+| `⏳` запланировано | **85** |
 | `❌` расхождение | 0 |
 | `⚠` вне объёма | 1 (см. раздел ниже) — расхождение в тексте ТЗ понятности (чинить нечего); карточка организации у администратора мимо реестра вкладок закрыта 05.09.2026 (этап 9, PR-1) |
 
@@ -212,16 +218,16 @@
 
 | Требование | Что проверять (наблюдаемое поведение) | Якорь | Вердикт | Сверено |
 |---|---|---|---|---|
-| `У-178` | Экран «Контакты» в `/manager`, `/leader`, `/admin` (зеркальны, поиск и фильтры); флаг `contacts` включается из «Функций платформы» без env | [04_crm_core.md](../../docs/specs/04_crm_core.md) | ⏳ этап 1 | — |
-| `У-179` | Карточка контакта показывает каналы и вкладки (диалоги, звонки, письма, сделки, заказы, задачи, история); «Написать» открывает новый диалог, «Создать лид» предзаполняет лид | [04_crm_core.md](../../docs/specs/04_crm_core.md) | ⏳ этап 1 | — |
-| `У-180` | Создание/правка/архив контакта; добавление занятого канала даёт русскую подсказку «уже у контакта …» и кнопку «Объединить» | [04_crm_core.md](../../docs/specs/04_crm_core.md) | ⏳ этап 1 | — |
-| `У-181` | Объединение переносит каналы, диалоги, звонки, письма, сделки, заказы, задачи в транзакции; второй — архив + `mergedIntoId`; старый id редиректит на главного | [04_crm_core.md](../../docs/specs/04_crm_core.md) | ⏳ этап 1 | — |
+| `У-178` | Экран «Контакты» в `/manager`, `/leader`, `/admin` (зеркальны, поиск и фильтры); флаг `contacts` включается из «Функций платформы» без env | Страницы [manager](../../src/app/manager/contacts/page.tsx) · [leader](../../src/app/leader/contacts/page.tsx) · [admin](../../src/app/admin/contacts/page.tsx) → один экран [contacts-list-screen.tsx](../../src/components/manager/contacts/contacts-list-screen.tsx); пункт `contacts` в [cabinet.ts](../../src/lib/navigation/cabinet.ts) в трёх кабинетах без исключений зеркала (страж `navigation.mirror`); поиск по имени/организации/e-mail/телефону в любом написании — [list.ts](../../src/lib/services/contacts/list.ts) `contactSearchWhere`; флаг `contacts` не в `FEATURE_PREFIXES` → переключатель «Функций платформы» активен ([featureFlags.ts](../../src/lib/featureFlags.ts)); тесты `pages.*-contacts`, `contacts.list.unit` | ✅ | 13.09.2026, PR-2 [#588](https://github.com/aiprocadm/lk_otsfera/pull/588) |
+| `У-179` | Карточка контакта показывает каналы и вкладки (диалоги, звонки, письма, сделки, заказы, задачи, история); «Написать» открывает новый диалог, «Создать лид» предзаполняет лид | [contact-card-screen.tsx](../../src/components/manager/contacts/contact-card-screen.tsx) + реестр вкладок [contactCardTabs.ts](../../src/lib/navigation/contactCardTabs.ts) (шесть вкладок; «Задачи» — этап 4 вместе с `Task.linkedContactId`, `У-220`); данные вкладок — [get.ts](../../src/lib/services/contacts/get.ts) `listContactTab`; «Написать» → `/manager/messengers?new=<id>` с предвыбором в [new-dialog-button.tsx](../../src/components/manager/messengers/new-dialog-button.tsx) (у администратора кнопки нет — `Р-М-5`); «Создать лид» → [convert.ts](../../src/lib/services/intake/convert.ts) `createLeadFromContact` подставляет имя, телефон, почту и организацию | ✅ (без вкладки «Задачи» — этап 4) | 13.09.2026, PR-2 [#588](https://github.com/aiprocadm/lk_otsfera/pull/588) |
+| `У-180` | Создание/правка/архив контакта; добавление занятого канала даёт русскую подсказку «уже у контакта …» и кнопку «Объединить» | Сервисы [mutate.ts](../../src/lib/services/contacts/mutate.ts) и `createContact` в [manager/contacts.ts](../../src/lib/services/manager/contacts.ts) (проверка владельца канала до записи + ловля гонки `P2002` → `contact_channel_taken` с `conflict`); server actions [contacts.ts](../../src/server-actions/contacts.ts); UI — [contact-form-dialog.tsx](../../src/components/manager/contacts/contact-form-dialog.tsx) («Открыть» владельца) и [contact-channels.tsx](../../src/components/manager/contacts/contact-channels.tsx) («Открыть» + «Объединить»); каналы пользователя кабинета — `contact_channel_locked`; тесты `contacts.mutate.unit`, `components.contact-channels` | ✅ | 13.09.2026, PR-2 [#588](https://github.com/aiprocadm/lk_otsfera/pull/588) |
+| `У-181` | Объединение переносит каналы, диалоги, звонки, письма, сделки, заказы, задачи в транзакции; второй — архив + `mergedIntoId`; старый id редиректит на главного | [merge.ts](../../src/lib/services/contacts/merge.ts) — одна транзакция: каналы, письма, звонки, диалоги, заказы (`primaryContactId`), сделки (`Deal.contactId`), пользователь кабинета; отказы `contact_merge_self` / `contact_merge_two_users` / `contact_merge_target_merged`; задачи — этап 4 (`Task.linkedContactId` появится там); страницы карточки делают `redirect` по `mergedIntoId`; UI — [merge-contacts-dialog.tsx](../../src/components/manager/contacts/merge-contacts-dialog.tsx); integration-тест `contacts.merge.integration` (все связи переехали, аудит `contact_merged`) | ✅ (задачи — этап 4) | 13.09.2026, PR-2 [#588](https://github.com/aiprocadm/lk_otsfera/pull/588) |
 | `У-182` | Вкладка «Контакты» в `orgCardTabs.ts` у трёх ролей ЦО; у партнёра/заказчика отсутствует (исключение зеркала с причиной) | [04_crm_core.md](../../docs/specs/04_crm_core.md) | ⏳ этап 1 | — |
 | `У-183` | `OrganizationNote`: вкладка «Заметки», автор правит свою 24 ч, руководитель — любую; `@упоминание` шлёт `note_mention`; до 3 закреплённых в «Обзоре» | [04_crm_core.md](../../docs/specs/04_crm_core.md) | ⏳ этап 1 | — |
 | `У-184` | «История» карточки организации — единая лента (аудит, заметки, диалоги, звонки, письма, статусы) с фильтром по типу и «Показаны N из M» | [04_crm_core.md](../../docs/specs/04_crm_core.md) | ⏳ этап 1 | — |
-| `У-185` | Глобальный поиск и палитра находят контакт по имени, e-mail и телефону в любом написании | [04_crm_core.md](../../docs/specs/04_crm_core.md) | ⏳ этап 1 | — |
-| `У-186` | Открытие карточки контакта пишет `PiiAccessEvent` с контекстом `contact_card`; `pii.capture-coverage` зелёный | [04_crm_core.md](../../docs/specs/04_crm_core.md) | ⏳ этап 1 | — |
-| `У-187` | Стражи: партнёр/заказчик/чужая компания → 404; `teamMode` обязателен в скоупе контактов (мутация ловит дефолт); покрытие 100 % | [04_crm_core.md](../../docs/specs/04_crm_core.md) | ⏳ этап 1 | — |
+| `У-185` | Глобальный поиск и палитра находят контакт по имени, e-mail и телефону в любом написании | Категория `contacts` в [globalSearch.ts](../../src/lib/services/search/globalSearch.ts) (под флагом и правом `crm.contacts`, условие — общее со справочником `contactSearchWhere`: «+7 (921) 123-45-67», «8921…», «921 123» находят один контакт); скоуп — [scopes.ts](../../src/lib/services/search/scopes.ts); палитра берёт группы из того же сервиса; тест `services.search.global-search` | ✅ | 13.09.2026, PR-2 [#588](https://github.com/aiprocadm/lk_otsfera/pull/588) |
+| `У-186` | Открытие карточки контакта пишет `PiiAccessEvent` с контекстом `contact_card`; `pii.capture-coverage` зелёный | Контексты `contact_card`, `contacts_list`, `contacts_search` и тип субъекта `contact` в [contexts.ts](../../src/lib/pii/contexts.ts); вызовы `recordPiiAccess` в [get.ts](../../src/lib/services/contacts/get.ts), [list.ts](../../src/lib/services/contacts/list.ts), [globalSearch.ts](../../src/lib/services/search/globalSearch.ts); подпись субъекта в журнале — [piiAccess.ts](../../src/lib/services/admin/piiAccess.ts); стражи `pii.capture-coverage`, `pii.contexts` | ✅ | 13.09.2026, PR-2 [#588](https://github.com/aiprocadm/lk_otsfera/pull/588) |
+| `У-187` | Стражи: партнёр/заказчик/чужая компания → 404; `teamMode` обязателен в скоупе контактов (мутация ловит дефолт); покрытие 100 % | Зеркало — `navigation.mirror` (пункт `contacts` в трёх кабинетах без исключений); IDOR — `not_found` в [scope.ts](../../src/lib/services/contacts/scope.ts) (`canUseContacts` отказывает клиентскому контуру, `isContactInScope` — чужой компании; матрица 64 комбинаций в `contacts.scope.unit`) и `notFound()` на страницах; `teamMode` — [auth.teamMode-required.guardrail](../../src/__tests__/auth.teamMode-required.guardrail.test.ts) расширен на `services/contacts` и `services/organizationNotes`, проверен двумя мутациями; покрытие новых файлов 100/100/100/100 (PR-1 #586, PR-2) | ✅ | 13.09.2026, PR-1 [#586](https://github.com/aiprocadm/lk_otsfera/pull/586), PR-2 [#588](https://github.com/aiprocadm/lk_otsfera/pull/588) |
 
 ## Блок 2. Миграция из Битрикс24 — этап 2
 
@@ -775,3 +781,4 @@
   подписана read-only; запрет автосоздания и жёсткие индексы `COL` на месте.
   Вердикты: 78 × `⏳`, 0 × `❌`, 1 × `⚠` (цифра 287 маршрутов).
 - 2026-09-12 — **ввод программы «CRM для отдела продаж — замена Битрикс24»** (этап 0, `У-177`): заведены 93 строки `У-177`…`У-269` блоками 0–10 с якорями на файлы пакета `docs/specs/`; `У-177` — ✅ (указатели, таблица этапов, стражи `docs.tz-program`, `docs.live-links`, `docs.commands-exist` зелёные, мутация пройдена); остальные — `⏳ этап N`. Сводка пересчитана: 178 × `✅`, 92 × `⏳`, 0 × `❌`, 1 × `⚠` (прежний). Строки `У-78`…`У-176` остаются в реестре как описание закрытой программы 21.08.2026 и сверяются в режиме сопровождения (`С-2`).
+- 2026-09-13 — **этап 1, PR-1 и PR-2** (#586, #588): `У-178`, `У-179`, `У-180`, `У-181`, `У-185`, `У-186`, `У-187` → `✅` с якорями (страницы трёх кабинетов, карточка с шестью вкладками, форма, каналы, объединение, поиск, ПДн, стражи); `У-179` и `У-181` — без задач (этап 4). Сводка 185/85/0.

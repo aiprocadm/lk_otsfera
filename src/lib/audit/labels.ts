@@ -102,6 +102,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   invite_resent: 'Повторная отправка приглашения',
   lead_assigned: 'Назначение ответственного за заявку',
   lead_created_from_call: 'Заявка из звонка',
+  lead_created_from_contact: 'Создание лида из контакта',
   lead_created_from_inbound: 'Заявка из входящего сообщения',
   lead_created_manual: 'Создание заявки вручную',
   lead_promoted_to_deal: 'Заявка переведена в сделку',

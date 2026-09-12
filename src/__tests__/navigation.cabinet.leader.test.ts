@@ -22,6 +22,8 @@ describe('канон leader', () => {
       '/leader/commission-corrections',
       '/leader/orders',
       '/leader/organizations',
+      // Этап 1 ТЗ 12.09.2026 (`У-178`): справочник контактов, свой флаг `contacts`.
+      '/leader/contacts',
       '/leader/roles',
       '/leader/funnel',
       '/leader/deals',
@@ -68,6 +70,8 @@ describe('канон leader', () => {
         expect(item.flag).toBe('internal_tasks');
       } else if (item.href === '/leader/calendar') {
         expect(item.flag).toBe('staff_calendar');
+      } else if (item.href === '/leader/contacts') {
+        expect(item.flag).toBe('contacts');
       } else {
         expect(item.flag).toBeUndefined();
       }
@@ -120,7 +124,8 @@ describe('канон leader', () => {
     expect(hrefs).not.toContain('/leader/calendar');
     expect(hrefs).not.toContain('/leader/search');
     expect(hrefs).not.toContain('/leader/intake');
-    expect(navItemsFor('leader')).toHaveLength(navByRole.leader.length - 10);
+    expect(hrefs).not.toContain('/leader/contacts');
+    expect(navItemsFor('leader')).toHaveLength(navByRole.leader.length - 11);
   });
 
   it('navItemsFor("leader") показывает opt-in пункты при включённых флагах', () => {
@@ -134,7 +139,9 @@ describe('канон leader', () => {
     process.env.FEATURE_STAFF_CALENDAR = '1';
     process.env.FEATURE_GLOBAL_SEARCH = '1';
     process.env.FEATURE_INTAKE_INBOX = '1';
+    process.env.FEATURE_CONTACTS = '1';
     const hrefs = navItemsFor('leader').map((i) => i.href);
+    expect(hrefs).toContain('/leader/contacts');
     expect(hrefs).toContain('/leader/enrollments');
     expect(hrefs).toContain('/leader/requests');
     expect(hrefs).toContain('/leader/roles');

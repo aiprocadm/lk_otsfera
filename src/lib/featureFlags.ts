@@ -64,8 +64,12 @@ export const FEATURE_FLAGS = [
   // ведётся). Точки чтения: recordPiiAccess (no-op при off) + баннер на
   // /admin/pii-access. Выключение = пауза журнала, только на время инцидента.
   'pii_access_log',
-  // M2: справочник контактов + карточки. Route-флаг: три точки (middleware/nav/route)
-  // добавляются в PR-B вместе с /manager/contacts. В PR-A гейтит триаж-действия.
+  // Справочник контактов (этап 1 ТЗ 12.09.2026, `У-178`). ПОВЕДЕНЧЕСКИЙ флаг
+  // (не route, как `telephony_mango`): в `FEATURE_PREFIXES` не входит, чтобы
+  // включаться из интерфейса. Точки чтения: страницы `/{manager,leader,admin}/contacts`
+  // и карточка (`notFound`), пункты меню трёх кабинетов ЦО, server actions
+  // контактов (`forbidden`), категория «Контакты» глобального поиска, триаж-
+  // действия «Входящих писем» и «Звонков» (M2). Opt-in до приёмки этапа.
   'contacts',
   // M4: внутренний чат сотрудников. Поведенческий флаг (не route): точки чтения —
   // секции «Чат команды» на /manager/messages и /admin/messages (isFeatureEnabled),

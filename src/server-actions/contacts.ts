@@ -26,7 +26,8 @@ import {
   type BindCallArgs,
   type BindCallResult,
 } from '@/lib/services/telephony/bindCall';
-import { createContact } from '@/lib/services/manager/contacts';
+import { createContact, type CreateContactResult } from '@/lib/services/manager/contacts';
+import { createLeadFromContact, type ConvertSourceResult } from '@/lib/services/intake/convert';
 import type { ChannelOwner } from '@/lib/services/contacts/channels';
 import {
   createContactFromInbound,
@@ -266,4 +267,63 @@ export async function listMergeCandidatesAction(input: {
   const session = await requireSession();
   const teamMode = await teamModeOf(session);
   return listMergeCandidates(prisma, session, teamMode, parsed.data);
+}
+
+const ChannelInputSchema = z.object({ type: ChannelTypeSchema, value: z.string().min(1).max(200) });
+const CreateContactSchema = z.object({
+  name: z.string().min(1).max(200),
+  position: z.string().max(200).optional(),
+  note: z.string().max(4000).optional(),
+  organizationId: IdSchema.nullable().optional(),
+  channels: z.array(ChannelInputSchema).max(10),
+});
+
+/**
+ * Создание контакта из справочника (`У-180`): форма — zod, компания и охват
+ * организации — `createContact`; занятый канал возвращается подсказкой
+ * `contact_channel_taken` с владельцем.
+ */
+export async function createContactAction(
+  input: z.input<typeof CreateContactSchema>
+): Promise<CreateContactResult | Validation> {
+  const off = contactsDisabled();
+  if (off) return off;
+  const parsed = CreateContactSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'validation' };
+  const session = await requireSession();
+  const result = await createContact(prisma, session, {
+    name: parsed.data.name,
+    ...(parsed.data.position !== undefined ? { position: parsed.data.position } : {}),
+    ...(parsed.data.note !== undefined ? { note: parsed.data.note } : {}),
+    organizationId: parsed.data.organizationId ?? null,
+    channels: parsed.data.channels,
+  });
+  if (result.ok) revalidateContact(result.contactId, parsed.data.organizationId);
+  return result;
+}
+
+const LeadFromContactSchema = z.object({
+  contactId: IdSchema,
+  subject: z.string().min(1).max(500),
+  notes: z.string().max(4000).optional(),
+});
+
+/** «Создать лид» из карточки контакта (`У-179`): поля контакта подставляет сервис. */
+export async function createLeadFromContactAction(
+  input: z.input<typeof LeadFromContactSchema>
+): Promise<{ ok: true; leadId: string } | Exclude<ConvertSourceResult, { ok: true }> | Validation> {
+  const off = contactsDisabled();
+  if (off) return off;
+  const parsed = LeadFromContactSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'validation' };
+  const session = await requireSession();
+  const teamMode = await teamModeOf(session);
+  const result = await createLeadFromContact(prisma, session, {
+    contactId: parsed.data.contactId,
+    teamMode,
+    input: { subject: parsed.data.subject, notes: parsed.data.notes ?? null },
+  });
+  if (!result.ok) return result;
+  revalidatePath('/manager/leads');
+  return { ok: true, leadId: result.lead.id };
 }

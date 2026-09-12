@@ -35,8 +35,12 @@ vi.mock('@/components/manager/messengers/dialog-list', () => ({
     ),
 }));
 vi.mock('@/components/manager/messengers/new-dialog-button', () => ({
-  NewDialogButton: (props: { candidates: unknown[] }) =>
-    React.createElement('button', null, `Новый диалог (${props.candidates.length})`),
+  NewDialogButton: (props: { candidates: unknown[]; preselect?: string }) =>
+    React.createElement(
+      'button',
+      { 'data-preselect': props.preselect ?? 'none' },
+      `Новый диалог (${props.candidates.length})`
+    ),
 }));
 
 const SESSION = { sub: 'u1', role: 'manager' as const, companyId: 'c1' };
@@ -104,5 +108,31 @@ describe('ManagerMessengersPage', () => {
       ManagerMessengersPage({ searchParams: Promise.resolve({ status: 'open' }) })
     );
     expect(container.textContent).toContain('Под этот фильтр диалогов нет');
+  });
+
+  // Этап 1 ТЗ 12.09.2026 (`У-179`, спека §3.12): «Написать» из карточки контакта.
+  it('?new=<contactId> уходит в кнопку предвыбором; без параметра и с пустым — предвыбора нет', async () => {
+    const preselects = (container: HTMLElement) =>
+      Array.from(container.querySelectorAll('button[data-preselect]')).map((b) =>
+        b.getAttribute('data-preselect')
+      );
+
+    const withId = await renderServerComponent(
+      ManagerMessengersPage({ searchParams: Promise.resolve({ new: 'k1' }) })
+    );
+    // Кнопка и в шапке, и в пустом состоянии — обе с предвыбором.
+    expect(preselects(withId.container)).toEqual(['k1', 'k1']);
+    // `new` — не фильтр списка: сервис зовётся без него.
+    expect(listDialogs).toHaveBeenCalledWith({}, SESSION, { page: 1, pageSize: 25 });
+
+    const empty = await renderServerComponent(
+      ManagerMessengersPage({ searchParams: Promise.resolve({ new: '' }) })
+    );
+    expect(preselects(empty.container)).toEqual(['none', 'none']);
+
+    const absent = await renderServerComponent(
+      ManagerMessengersPage({ searchParams: Promise.resolve({}) })
+    );
+    expect(preselects(absent.container)).toEqual(['none', 'none']);
   });
 });

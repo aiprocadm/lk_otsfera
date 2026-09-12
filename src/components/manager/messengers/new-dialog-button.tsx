@@ -22,11 +22,27 @@ function keyOf(c: DialogCandidate): string {
  * Список кандидатов приходит с сервера уже в скоупе сотрудника; адрес на
  * клиенте не выбирается и не отправляется — только «кто» и «где».
  */
-export function NewDialogButton({ candidates }: { candidates: DialogCandidate[] }) {
+export function NewDialogButton({
+  candidates,
+  preselect,
+}: {
+  candidates: DialogCandidate[];
+  /**
+   * Этап 1 ТЗ 12.09.2026 (`У-179`): кнопка «Написать» в карточке контакта ведёт
+   * сюда с `?new=<contactId>` — диалог открыт сразу, человек уже выбран, если
+   * он есть среди кандидатов (иначе форма открыта пустой, как обычно).
+   */
+  preselect?: string | undefined;
+}) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const [personKey, setPersonKey] = useState('');
-  const [channel, setChannel] = useState('');
+  const preselected = preselect
+    ? candidates.find((c) => c.kind === 'contact' && c.id === preselect)
+    : undefined;
+  const [open, setOpen] = useState(Boolean(preselect));
+  const [personKey, setPersonKey] = useState(preselected ? keyOf(preselected) : '');
+  const [channel, setChannel] = useState(
+    preselected && preselected.channels.length === 1 ? preselected.channels[0]! : ''
+  );
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 

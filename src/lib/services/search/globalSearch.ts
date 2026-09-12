@@ -4,6 +4,8 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { getCompanyTeamVisibility, isManagerLeader } from '@/lib/auth/managerPolicy';
 import { recordPiiAccess } from '@/lib/pii/record';
+import { contactSearchWhere } from '@/lib/services/contacts/list';
+import { canUseContacts } from '@/lib/services/contacts/scope';
 import { searchScopes } from './scopes';
 
 /**
@@ -17,7 +19,15 @@ import { searchScopes } from './scopes';
 export const SEARCH_TAKE = 8;
 
 type SearchCategory =
-  'orders' | 'organizations' | 'leads' | 'tasks' | 'events' | 'documents' | 'students' | 'messages';
+  | 'orders'
+  | 'organizations'
+  | 'leads'
+  | 'tasks'
+  | 'events'
+  | 'documents'
+  | 'students'
+  | 'messages'
+  | 'contacts';
 
 const SEARCH_CATEGORY_LABELS_RU: Record<SearchCategory, string> = {
   orders: 'Заказы',
@@ -28,6 +38,7 @@ const SEARCH_CATEGORY_LABELS_RU: Record<SearchCategory, string> = {
   documents: 'Документы',
   students: 'Слушатели',
   messages: 'Чат команды',
+  contacts: 'Контакты',
 };
 
 type SearchHit = {
@@ -97,7 +108,12 @@ export async function globalSearch(
   const scopes = searchScopes(session, teamMode);
   const insensitive = 'insensitive' as const;
 
-  const [orders, organizations, leads, tasks, events, documents, students, messages] =
+  // Этап 1 ТЗ 12.09.2026 (`У-185`): контакты — под флагом `contacts` и правом
+  // `crm.contacts`; условие поиска общее со справочником (телефон в любом
+  // написании). Пустое условие (строка короче двух знаков) сюда не доходит.
+  const contactsWhere =
+    isFeatureEnabled('contacts') && canUseContacts(session) ? contactSearchWhere(q) : null;
+  const [orders, organizations, leads, tasks, events, documents, students, messages, contacts] =
     await Promise.all([
       prisma.order.findMany({
         where: {
@@ -251,6 +267,25 @@ export async function globalSearch(
             take: SEARCH_TAKE,
           })
         : Promise.resolve([]),
+      contactsWhere
+        ? prisma.contact.findMany({
+            where: { AND: [scopes.contacts, { isArchived: false }, contactsWhere] },
+            select: {
+              id: true,
+              name: true,
+              position: true,
+              updatedAt: true,
+              organization: { select: { name: true } },
+              channels: {
+                where: { isPrimary: true },
+                select: { value: true },
+                take: 1,
+              },
+            },
+            orderBy: [{ name: 'asc' }, { id: 'asc' }],
+            take: SEARCH_TAKE,
+          })
+        : Promise.resolve([]),
     ]);
 
   // §25.7: слушатели в выдаче — ПДн; журналируем id (никогда не бросает,
@@ -259,6 +294,13 @@ export async function globalSearch(
     session,
     context: 'global_search_students',
     subjectIds: students.map((s) => s.id),
+    meta: { take: SEARCH_TAKE, hasQuery: true },
+  });
+  // `У-186`: контакты в выдаче — тоже ПДн физлиц.
+  await recordPiiAccess(prisma, {
+    session,
+    context: 'contacts_search',
+    subjectIds: contacts.map((c) => c.id),
     meta: { take: SEARCH_TAKE, hasQuery: true },
   });
 
@@ -341,6 +383,16 @@ export async function globalSearch(
         subtitle: m.author.name,
         href: '/manager/messages',
         date: m.createdAt,
+      })),
+    },
+    {
+      key: 'contacts' as const,
+      hits: contacts.map((c) => ({
+        id: c.id,
+        title: c.name,
+        subtitle: joinParts(c.position, c.organization?.name, c.channels[0]?.value),
+        href: `/manager/contacts/${c.id}`,
+        date: c.updatedAt,
       })),
     },
   ]

@@ -16,9 +16,6 @@ export type PiiSubjectType =
   | 'caller'
   | 'inbound_sender'
   // Этап 1 ТЗ 12.09.2026 (`У-186`): контакт — физлицо клиентского контура.
-  // Контексты `contacts_list` / `contact_card` / `contacts_search` заводятся
-  // вместе с экранами и поиском (PR-2): страж `pii.capture-coverage` требует
-  // живой вызов в заявленном файле.
   | 'contact';
 
 /** Этап 9 (ФТ-12.1, PR-3): `export` — выгрузка ПДн сотрудником в файл.
@@ -203,6 +200,26 @@ export const PII_CONTEXTS = {
     action: 'list',
     labelRu: 'Мессенджеры: кому написать первым',
     callSite: 'src/lib/services/messengers/start.ts',
+  },
+  // Этап 1 ТЗ 12.09.2026 (`У-186`): справочник контактов — имена, телефоны и
+  // адреса физлиц. Список, карточка и поиск — три разных чтения.
+  contacts_list: {
+    subjectType: 'contact',
+    action: 'list',
+    labelRu: 'Список контактов',
+    callSite: 'src/lib/services/contacts/list.ts',
+  },
+  contact_card: {
+    subjectType: 'contact',
+    action: 'view',
+    labelRu: 'Карточка контакта',
+    callSite: 'src/lib/services/contacts/get.ts',
+  },
+  contacts_search: {
+    subjectType: 'contact',
+    action: 'list',
+    labelRu: 'Глобальный поиск: контакты',
+    callSite: 'src/lib/services/search/globalSearch.ts',
   },
 } as const satisfies Record<string, PiiContext>;
 

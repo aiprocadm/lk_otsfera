@@ -79,6 +79,8 @@ describe('navByRole.manager — feature-flag gated', () => {
       '/manager/tasks',
       '/manager/calendar',
       '/manager/organizations',
+      // Этап 1 ТЗ 12.09.2026 (`У-178`): справочник контактов, свой флаг `contacts`.
+      '/manager/contacts',
       '/manager/finance',
       '/manager/exchange',
       '/manager/documents',
@@ -110,11 +112,14 @@ describe('navByRole.manager — feature-flag gated', () => {
         i.href !== '/manager/calendar' &&
         i.href !== '/manager/inbox' &&
         i.href !== '/manager/messengers' &&
-        i.href !== '/manager/calls'
+        i.href !== '/manager/calls' &&
+        i.href !== '/manager/contacts'
     );
     expect(ownItems.every((i) => i.flag === 'manager_cabinet')).toBe(true);
     const requests = navByRole.manager.find((i) => i.href === '/manager/requests');
     expect(requests?.flag).toBe('client_requests');
+    const contacts = navByRole.manager.find((i) => i.href === '/manager/contacts');
+    expect(contacts?.flag).toBe('contacts');
     const enrollment = navByRole.manager.find((i) => i.href === '/manager/enrollments');
     expect(enrollment?.flag).toBe('enrollment_requests');
     const search = navByRole.manager.find((i) => i.href === '/manager/search');

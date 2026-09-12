@@ -13,6 +13,7 @@ import {
 } from '@/lib/auth/managerPolicy';
 import { eventScopeWhere } from '@/lib/services/calendar/items';
 import { conversationScopeWhere } from '@/lib/services/staffChat/conversations';
+import { contactScopeWhere } from '@/lib/services/contacts/scope';
 
 /**
  * M6 (спека 2026-07-18): where-построители категорий глобального поиска.
@@ -30,6 +31,8 @@ export type SearchScopes = {
   documents: Prisma.DocumentWhereInput;
   students: Prisma.StudentWhereInput;
   messages: Prisma.StaffMessageWhereInput;
+  /** Этап 1 ТЗ 12.09.2026 (`У-185`): контакты — тот же скоуп, что у справочника. */
+  contacts: Prisma.ContactWhereInput;
 };
 
 export function searchScopes(session: SessionPayload, teamMode: boolean): SearchScopes {
@@ -54,5 +57,7 @@ export function searchScopes(session: SessionPayload, teamMode: boolean): Search
         ? { organization: floor }
         : { organizationId: { in: managedOrgIds(session) } },
     messages: { conversation: conversationScopeWhere(session) },
+    // `contactScopeWhere` сам различает admin (пол компании) и менеджерский контур.
+    contacts: contactScopeWhere(session, teamMode),
   };
 }
