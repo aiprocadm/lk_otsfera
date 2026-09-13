@@ -43,7 +43,10 @@ export async function getOrderContactPanel(
   order: OrderContactShape
 ): Promise<OrderContactPanelData | null> {
   if (!canUseContacts(session)) return null;
-  if (order.companyId !== session.companyId) return null;
+  // `canUseContacts` уже требует компанию у сессии; проверка здесь сужает тип
+  // и заодно отсекает заказ чужой компании.
+  const companyId = session.companyId;
+  if (!companyId || order.companyId !== companyId) return null;
 
   const options = order.organizationId
     ? await listContactOptions(prisma, session, teamMode, { organizationId: order.organizationId })
@@ -55,9 +58,9 @@ export async function getOrderContactPanel(
     if (inOptions) {
       current = { ...inOptions, isArchived: false };
     } else {
-      // Компания доказана выше: `session.companyId` совпадает с компанией заказа.
+      // Компания доказана выше: она совпадает с компанией заказа.
       const row = await prisma.contact.findFirst({
-        where: { id: order.primaryContactId, companyId: order.companyId ?? '' },
+        where: { id: order.primaryContactId, companyId },
         select: { id: true, name: true, position: true, organizationId: true, isArchived: true },
       });
       if (row) {

@@ -55,6 +55,23 @@ vi.mock('@/components/orders/order-lines-section', () => ({
     ),
 }));
 
+// Этап 1 ТЗ 12.09.2026 (`У-180`): «Контакт заказа» — данные и право даёт сервис,
+// режим команды читается свежим (C8); панель — общий компонент трёх кабинетов,
+// здесь заглушка печатает пропсы, чтобы проверить кабинет и организацию.
+const { getCompanyTeamVisibility } = vi.hoisted(() => ({ getCompanyTeamVisibility: vi.fn() }));
+vi.mock('@/lib/auth/managerPolicy', () => ({ getCompanyTeamVisibility }));
+const { getOrderContactPanel } = vi.hoisted(() => ({ getOrderContactPanel: vi.fn() }));
+vi.mock('@/lib/services/orders/primaryContact', () => ({ getOrderContactPanel }));
+vi.mock('@/components/orders/order-contact-panel', () => ({
+  OrderContactPanel: (props: {
+    orderId: string;
+    cabinet: string;
+    organizationId: string | null;
+    current: unknown;
+    options: unknown[];
+  }) => React.createElement('div', { 'data-testid': 'order-contact-panel' }, JSON.stringify(props)),
+}));
+
 const { listDirections } = vi.hoisted(() => ({ listDirections: vi.fn() }));
 vi.mock('@/lib/services/training', () => ({ listDirections }));
 
@@ -120,6 +137,7 @@ vi.mock('@/components/manager/manager-order-detail-view', () => ({
     readinessPanel?: React.ReactNode;
     linesSection?: React.ReactNode;
     dealPanel?: React.ReactNode;
+    contactPanel?: React.ReactNode;
     breadcrumbs?: Array<{ label: string; href: string | null }>;
   }) =>
     React.createElement(
@@ -137,6 +155,7 @@ vi.mock('@/components/manager/manager-order-detail-view', () => ({
       props.generatePanel,
       props.readinessPanel,
       props.dealPanel,
+      props.contactPanel,
       JSON.stringify(props.breadcrumbs ?? [])
     ),
 }));
@@ -187,6 +206,8 @@ describe('ManagerOrderDetailPage', () => {
     listCertificateScanTargets.mockResolvedValue({ ok: true, targets: [] });
     getOrderLinesPanel.mockReset();
     getOrderLinesPanel.mockResolvedValue(null);
+    getCompanyTeamVisibility.mockReset().mockResolvedValue(false);
+    getOrderContactPanel.mockReset().mockResolvedValue(null);
     nav.notFound.mockClear();
   });
 
@@ -489,6 +510,80 @@ describe('ManagerOrderDetailPage', () => {
       const { container } = await renderOrder();
 
       expect(container.textContent).not.toContain('Переговоры, из которых вырос этот заказ');
+    });
+  });
+
+  // Этап 1 ТЗ 12.09.2026 (`У-180`): «Контакт заказа» — с кем со стороны клиента
+  // ведут заказ. Страница только монтирует панель: право и список даёт сервис,
+  // режим команды читается свежим и передаётся ему (C8).
+  describe('панель «Контакт заказа» (`У-180`)', () => {
+    const PANEL = {
+      current: {
+        id: 'ct-1',
+        name: 'Пётр Петров',
+        position: 'директор',
+        organizationId: 'org-1',
+        isArchived: false,
+      },
+      options: [{ id: 'ct-1', name: 'Пётр Петров', position: 'директор', organizationId: 'org-1' }],
+    };
+
+    async function renderOrder() {
+      requireManager.mockResolvedValue(SESSION);
+      loadManagerOrderDetail.mockResolvedValue(BASE_DATA);
+      listDirections.mockResolvedValue({ ok: true, directions: [] });
+      listOrderStudentOptions.mockResolvedValue([]);
+      getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
+      getDealActivity.mockResolvedValue({ ok: true, items: [] });
+      return renderServerComponent(
+        ManagerOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
+      );
+    }
+
+    it('флаг contacts выключен: ни сервис, ни режим команды не читаются, панели нет', async () => {
+      isFeatureEnabled.mockReturnValue(false);
+
+      const { container } = await renderOrder();
+
+      expect(getOrderContactPanel).not.toHaveBeenCalled();
+      expect(getCompanyTeamVisibility).not.toHaveBeenCalled();
+      expect(container.querySelector('[data-testid="order-contact-panel"]')).toBeNull();
+    });
+
+    it('флаг включён, сервис отказал (null): панели нет, но teamMode прочитан свежим и передан', async () => {
+      // `null` от сервиса — «панели нет» (нет права или заказ чужой компании):
+      // страница не рисует пустую рамку и не решает права сама.
+      isFeatureEnabled.mockImplementation((flag: string) => flag === 'contacts');
+      getCompanyTeamVisibility.mockResolvedValue(true);
+      getOrderContactPanel.mockResolvedValue(null);
+
+      const { container } = await renderOrder();
+
+      expect(getCompanyTeamVisibility).toHaveBeenCalledWith(prismaMock, 'c1');
+      expect(getOrderContactPanel).toHaveBeenCalledWith(prismaMock, SESSION, true, BASE_DATA.order);
+      expect(container.querySelector('[data-testid="order-contact-panel"]')).toBeNull();
+    });
+
+    it('флаг включён, сервис отдал данные: панель смонтирована для кабинета менеджера', async () => {
+      isFeatureEnabled.mockImplementation((flag: string) => flag === 'contacts');
+      getOrderContactPanel.mockResolvedValue(PANEL);
+
+      const { container } = await renderOrder();
+
+      expect(getOrderContactPanel).toHaveBeenCalledWith(
+        prismaMock,
+        SESSION,
+        false,
+        BASE_DATA.order
+      );
+      const panel = container.querySelector('[data-testid="order-contact-panel"]');
+      expect(JSON.parse(panel?.textContent ?? '{}')).toEqual({
+        orderId: 'order-1',
+        cabinet: 'manager',
+        organizationId: 'org-1',
+        current: PANEL.current,
+        options: PANEL.options,
+      });
     });
   });
 });

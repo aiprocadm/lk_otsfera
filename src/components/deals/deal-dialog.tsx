@@ -110,7 +110,21 @@ export function DealDialog({
   // `У-180`: организация управляется, чтобы список контактов сужался вместе с ней.
   const [organizationId, setOrganizationId] = useState(target?.organizationId ?? '');
   const [contactId, setContactId] = useState(target?.contactId ?? '');
-  const contactOptions = contacts ? contactsForOrganization(contacts, organizationId) : [];
+  // Контакт сделки, которого в списке нет (в архиве или вне охвата сотрудника),
+  // остаётся в форме отдельной строкой: иначе любое сохранение молча
+  // отправило бы пустое поле и стёрло его. Снять его можно только нарочно.
+  const heldContact: ContactOption | null =
+    contacts && target?.contactId && !contacts.some((c) => c.id === target.contactId)
+      ? {
+          id: target.contactId,
+          name: 'Текущий контакт (вне вашего списка)',
+          position: null,
+          organizationId: null,
+        }
+      : null;
+  const contactOptions = contacts
+    ? [...contactsForOrganization(contacts, organizationId), ...(heldContact ? [heldContact] : [])]
+    : [];
   // Сменили организацию — контакт другой организации из формы выпадает сам.
   const contactValue = contactOptions.some((c) => c.id === contactId) ? contactId : '';
   // Заметки (только редактирование): null — ещё грузятся.
@@ -272,7 +286,7 @@ export function DealDialog({
                 <option key={c.id} value={c.id}>
                   {c.name}
                   {c.position ? ` — ${c.position}` : ''}
-                  {c.organizationId === null ? ' (без организации)' : ''}
+                  {c.organizationId === null && c !== heldContact ? ' (без организации)' : ''}
                 </option>
               ))}
             </Select>

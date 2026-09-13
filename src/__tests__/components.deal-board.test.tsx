@@ -50,22 +50,35 @@ vi.mock('@/components/documents/issue-order-less-document-button', () => ({
     dealId?: string;
     onClose: () => void;
   }) =>
+    // Кнопка закрытия — соседним элементом, чтобы textContent заглушки
+    // оставался ровно строкой с данными формы.
     React.createElement(
-      'div',
-      { 'data-testid': 'issue-dialog' },
-      `${props.organizationId}|${props.defaultSubject ?? ''}|${props.prefillLines?.[0]?.unitPrice ?? '—'}|${props.dealId ?? 'без-сделки'}`
+      React.Fragment,
+      null,
+      React.createElement(
+        'div',
+        { 'data-testid': 'issue-dialog' },
+        `${props.organizationId}|${props.defaultSubject ?? ''}|${props.prefillLines?.[0]?.unitPrice ?? '—'}|${props.dealId ?? 'без-сделки'}`
+      ),
+      React.createElement('button', { type: 'button', onClick: props.onClose }, 'stub-issue-close')
     ),
   // `У-161`: у сделки без организации адресат — её лид, и форма другая.
   IssueLeadProposalDialog: (props: { leadId: string; dealId?: string; onClose: () => void }) =>
     React.createElement(
-      'div',
-      { 'data-testid': 'lead-proposal-dialog' },
-      `${props.leadId}|${props.dealId ?? 'без-сделки'}`
+      React.Fragment,
+      null,
+      React.createElement(
+        'div',
+        { 'data-testid': 'lead-proposal-dialog' },
+        `${props.leadId}|${props.dealId ?? 'без-сделки'}`
+      ),
+      React.createElement('button', { type: 'button', onClick: props.onClose }, 'stub-lead-close')
     ),
 }));
 
 import { DealBoard } from '@/components/deals/deal-board';
 import type { DealBoard as DealBoardData, DealCard } from '@/lib/services/deals/board';
+import type { ContactOption } from '@/lib/services/contacts/options';
 
 const cardOpen: DealCard = {
   id: 'deal-1',
@@ -511,6 +524,48 @@ describe('DealBoard', () => {
     });
 
     /**
+     * `У-180`: доска сама про контакты ничего не знает — она отдаёт форме
+     * список и адрес раздела, а из карточки переносит contactId. Иначе
+     * открытая сделка «забывала» бы своего человека при каждом редактировании.
+     */
+    it('`У-180`: contacts и contactHrefBase уезжают в форму, contactId карточки предвыбран', async () => {
+      const contacts: ContactOption[] = [
+        { id: 'c-1', name: 'Анна Иванова', position: 'директор', organizationId: 'org-1' },
+      ];
+      const withContact: DealCard = {
+        ...cardOpen,
+        id: 'deal-c',
+        title: 'Сделка с контактом',
+        contactId: 'c-1',
+      };
+      render(
+        React.createElement(DealBoard, {
+          ...editProps,
+          contacts,
+          contactHrefBase: '/leader/contacts',
+          board: { ...board, columns: [{ stage: stNew, cards: [withContact] }] },
+        })
+      );
+      fireEvent.click(screen.getByText('Сделка с контактом').closest('article') as HTMLElement);
+      await screen.findByText('Сделка');
+
+      const sel = screen.getByLabelText('Контакт (необязательно)') as HTMLSelectElement;
+      expect(sel.value).toBe('c-1');
+      const link = screen.getByRole('link', {
+        name: 'Открыть карточку контакта',
+      }) as HTMLAnchorElement;
+      // Адрес раздела — тот, что дала страница кабинета, а не захардкоженный менеджерский.
+      expect(link.getAttribute('href')).toBe('/leader/contacts/c-1');
+    });
+
+    it('без contacts (флаг выключен) поля «Контакт» в форме нет', async () => {
+      render(React.createElement(DealBoard, editProps));
+      fireEvent.click(screen.getByText('Сделка Ромашка').closest('article') as HTMLElement);
+      await screen.findByText('Сделка');
+      expect(screen.queryByLabelText('Контакт (необязательно)')).toBeNull();
+    });
+
+    /**
      * `У-145`: «Выпустить документ» из сделки. Форма живёт на доске, а не
      * внутри карточки сделки: вложенная модалка поверх модалки — не диалог,
      * а ловушка для клавиатуры.
@@ -585,6 +640,39 @@ describe('DealBoard', () => {
       const dialog = await screen.findByTestId('lead-proposal-dialog');
       expect(dialog.textContent).toBe('lead-7|deal-lead');
       expect(screen.queryByTestId('issue-dialog')).toBeNull();
+    });
+
+    it('закрытие формы выпуска (по организации и по лиду) убирает её с доски', async () => {
+      // Форма живёт на доске, значит и убирать её должна доска — иначе после
+      // «Отмена» она осталась бы висеть поверх колонок.
+      const withLead: DealCard = {
+        ...cardOpen,
+        id: 'deal-lead',
+        title: 'Сделка с лидом',
+        organizationId: null,
+        organizationName: null,
+        leadId: 'lead-7',
+      };
+      render(
+        React.createElement(DealBoard, {
+          ...editProps,
+          board: { ...board, columns: [{ stage: stNew, cards: [cardOpen, withLead] }] },
+        })
+      );
+
+      fireEvent.click(screen.getByText('Сделка Ромашка').closest('article') as HTMLElement);
+      await screen.findByText('Сделка');
+      fireEvent.click(screen.getByRole('button', { name: 'Выпустить документ' }));
+      await screen.findByTestId('issue-dialog');
+      fireEvent.click(screen.getByRole('button', { name: 'stub-issue-close' }));
+      await waitFor(() => expect(screen.queryByTestId('issue-dialog')).toBeNull());
+
+      fireEvent.click(screen.getByText('Сделка с лидом').closest('article') as HTMLElement);
+      await screen.findByText('Сделка');
+      fireEvent.click(screen.getByRole('button', { name: 'Выставить КП' }));
+      await screen.findByTestId('lead-proposal-dialog');
+      fireEvent.click(screen.getByRole('button', { name: 'stub-lead-close' }));
+      await waitFor(() => expect(screen.queryByTestId('lead-proposal-dialog')).toBeNull());
     });
 
     it('saving from the edit dialog closes it and refreshes the router', async () => {

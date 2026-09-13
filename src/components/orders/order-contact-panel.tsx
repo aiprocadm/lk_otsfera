@@ -43,6 +43,24 @@ export function OrderContactPanel({ orderId, cabinet, organizationId, current, o
   const [value, setValue] = useState(current?.id ?? '');
   const [pending, startTransition] = useTransition();
   const dirty = value !== (current?.id ?? '');
+  // Текущий контакт, которого среди вариантов нет (в архиве или уехал в другую
+  // организацию), показываем отдельной строкой: иначе селект молча встал бы на
+  // «— не указан —», а снять человека было бы нечем — кнопка считала бы форму
+  // нетронутой.
+  const selectOptions: ContactOption[] =
+    current && !options.some((o) => o.id === current.id)
+      ? [
+          {
+            id: current.id,
+            name: current.isArchived
+              ? `${current.name} (в архиве)`
+              : `${current.name} (не из этой организации)`,
+            position: current.position,
+            organizationId: current.organizationId,
+          },
+          ...options,
+        ]
+      : options;
 
   function save() {
     startTransition(async () => {
@@ -104,7 +122,7 @@ export function OrderContactPanel({ orderId, cabinet, organizationId, current, o
               onChange={(e) => setValue(e.target.value)}
             >
               <option value="">— не указан —</option>
-              {options.map((o) => (
+              {selectOptions.map((o) => (
                 <option key={o.id} value={o.id}>
                   {o.name}
                   {o.position ? ` — ${o.position}` : ''}

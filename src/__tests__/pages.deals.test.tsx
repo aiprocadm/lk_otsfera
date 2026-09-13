@@ -27,6 +27,13 @@ vi.mock('@/lib/services/deals/board', () => ({ getDealBoard }));
 const { listCompanyManagers } = vi.hoisted(() => ({ listCompanyManagers: vi.fn() }));
 vi.mock('@/lib/services/manager/team', () => ({ listCompanyManagers }));
 
+// Этап 1 ТЗ 12.09.2026 (`У-180`): поле «Контакт» формы сделки — список людей в
+// охвате сотрудника; режим команды читается свежим (C8). Оба — сервисы, стабим.
+const { getCompanyTeamVisibility } = vi.hoisted(() => ({ getCompanyTeamVisibility: vi.fn() }));
+vi.mock('@/lib/auth/managerPolicy', () => ({ getCompanyTeamVisibility }));
+const { listContactOptions } = vi.hoisted(() => ({ listContactOptions: vi.fn() }));
+vi.mock('@/lib/services/contacts/options', () => ({ listContactOptions }));
+
 const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
@@ -35,16 +42,41 @@ const nav = vi.hoisted(() => ({
 }));
 vi.mock('next/navigation', () => nav);
 
+// `contacts` печатаем в атрибут; `undefined` — словом, потому что
+// JSON.stringify(undefined) даёт undefined и атрибут бы просто пропал, а нам
+// важно отличить «флаг выключен» (undefined) от «список пуст» ([]).
 vi.mock('@/components/deals/deal-board', () => ({
-  DealBoard: (props: { board: unknown }) =>
-    React.createElement('div', { 'data-testid': 'deal-board' }, JSON.stringify(props.board)),
+  DealBoard: (props: {
+    board: unknown;
+    contacts?: unknown[] | undefined;
+    contactHrefBase?: string | undefined;
+  }) =>
+    React.createElement(
+      'div',
+      {
+        'data-testid': 'deal-board',
+        'data-contacts':
+          props.contacts === undefined ? 'undefined' : JSON.stringify(props.contacts),
+        'data-contact-href-base': props.contactHrefBase ?? 'undefined',
+      },
+      JSON.stringify(props.board)
+    ),
 }));
 
 vi.mock('@/components/deals/deal-dialog', () => ({
-  NewDealButton: (props: { managers: unknown; currentUserId: string }) =>
+  NewDealButton: (props: {
+    managers: unknown;
+    currentUserId: string;
+    contacts?: unknown[] | undefined;
+  }) =>
     React.createElement(
       'button',
-      { 'data-testid': 'new-deal-button', 'data-user': props.currentUserId },
+      {
+        'data-testid': 'new-deal-button',
+        'data-user': props.currentUserId,
+        'data-contacts':
+          props.contacts === undefined ? 'undefined' : JSON.stringify(props.contacts),
+      },
       '+ Сделка',
       JSON.stringify(props.managers)
     ),
@@ -92,6 +124,10 @@ beforeEach(() => {
     { id: 'm-inactive', name: 'Пётр', isActive: false },
   ]);
   getDealBoard.mockResolvedValue(BOARD);
+  // Умолчания контактов: команда выключена, список пуст — прежние тесты
+  // включают все флаги разом и не должны упираться в незамоканный prisma.
+  getCompanyTeamVisibility.mockResolvedValue(false);
+  listContactOptions.mockResolvedValue([]);
 });
 
 describe('ManagerDealsPage', () => {
@@ -275,5 +311,89 @@ describe('страницы сделок — подпись «Показаны п
     );
 
     expect(container.textContent).not.toContain('Показаны первые');
+  });
+});
+
+// Этап 1 ТЗ 12.09.2026 (`У-180`): «контакт из всех точек» — поле «Контакт» в
+// форме сделки и на карточках доски. Список один и тот же для кнопки и доски,
+// адрес карточки контакта — свой у каждого кабинета (правило зеркала §0.2).
+describe('страницы сделок — контакты для формы сделки (`У-180`)', () => {
+  const CONTACTS = [{ id: 'ct-1', name: 'Пётр Петров', position: null, organizationId: 'org-1' }];
+  const onlyDeals = (flag: string) => flag === 'deals_pipeline';
+  const dealsAndContacts = (flag: string) => flag === 'deals_pipeline' || flag === 'contacts';
+
+  it('менеджер, флаг contacts включён: список читается со свежим teamMode и уходит и в кнопку, и в доску', async () => {
+    isFeatureEnabled.mockImplementation(dealsAndContacts);
+    requireManager.mockResolvedValue(MANAGER_SESSION);
+    getCompanyTeamVisibility.mockResolvedValue(true);
+    listContactOptions.mockResolvedValue(CONTACTS);
+
+    const { getByTestId } = await renderServerComponent(ManagerDealsPage());
+
+    expect(getCompanyTeamVisibility).toHaveBeenCalledWith(prismaMock, 'c1');
+    expect(listContactOptions).toHaveBeenCalledWith(prismaMock, MANAGER_SESSION, true);
+    expect(getByTestId('new-deal-button').getAttribute('data-contacts')).toBe(
+      JSON.stringify(CONTACTS)
+    );
+    expect(getByTestId('deal-board').getAttribute('data-contacts')).toBe(JSON.stringify(CONTACTS));
+    expect(getByTestId('deal-board').getAttribute('data-contact-href-base')).toBe(
+      '/manager/contacts'
+    );
+  });
+
+  it('менеджер, флаг contacts выключен: сервисы не зовутся, в компоненты уходит undefined', async () => {
+    // `undefined`, а не `[]`: пустой список означал бы «контактов нет», а форма
+    // должна вовсе спрятать поле, пока справочник выключен.
+    isFeatureEnabled.mockImplementation(onlyDeals);
+    requireManager.mockResolvedValue(MANAGER_SESSION);
+
+    const { getByTestId } = await renderServerComponent(ManagerDealsPage());
+
+    expect(getCompanyTeamVisibility).not.toHaveBeenCalled();
+    expect(listContactOptions).not.toHaveBeenCalled();
+    expect(getByTestId('new-deal-button').getAttribute('data-contacts')).toBe('undefined');
+    expect(getByTestId('deal-board').getAttribute('data-contacts')).toBe('undefined');
+    // Адрес карточки — свойство кабинета, от флага не зависит.
+    expect(getByTestId('deal-board').getAttribute('data-contact-href-base')).toBe(
+      '/manager/contacts'
+    );
+  });
+
+  it('руководитель, флаг contacts включён: тот же список, что у менеджера, адрес карточки — свой', async () => {
+    isFeatureEnabled.mockImplementation(dealsAndContacts);
+    requireManagerLeader.mockResolvedValue(LEADER_SESSION);
+    getCompanyTeamVisibility.mockResolvedValue(false);
+    listContactOptions.mockResolvedValue(CONTACTS);
+
+    const { getByTestId } = await renderServerComponent(
+      LeaderDealsPage({ searchParams: Promise.resolve({}) })
+    );
+
+    expect(getCompanyTeamVisibility).toHaveBeenCalledWith(prismaMock, 'c1');
+    expect(listContactOptions).toHaveBeenCalledWith(prismaMock, LEADER_SESSION, false);
+    expect(getByTestId('new-deal-button').getAttribute('data-contacts')).toBe(
+      JSON.stringify(CONTACTS)
+    );
+    expect(getByTestId('deal-board').getAttribute('data-contacts')).toBe(JSON.stringify(CONTACTS));
+    expect(getByTestId('deal-board').getAttribute('data-contact-href-base')).toBe(
+      '/leader/contacts'
+    );
+  });
+
+  it('руководитель, флаг contacts выключен: сервисы не зовутся, в компоненты уходит undefined', async () => {
+    isFeatureEnabled.mockImplementation(onlyDeals);
+    requireManagerLeader.mockResolvedValue(LEADER_SESSION);
+
+    const { getByTestId } = await renderServerComponent(
+      LeaderDealsPage({ searchParams: Promise.resolve({}) })
+    );
+
+    expect(getCompanyTeamVisibility).not.toHaveBeenCalled();
+    expect(listContactOptions).not.toHaveBeenCalled();
+    expect(getByTestId('new-deal-button').getAttribute('data-contacts')).toBe('undefined');
+    expect(getByTestId('deal-board').getAttribute('data-contacts')).toBe('undefined');
+    expect(getByTestId('deal-board').getAttribute('data-contact-href-base')).toBe(
+      '/leader/contacts'
+    );
   });
 });

@@ -5,7 +5,11 @@
  *     date + склейка сообщений), организация чужой компании → forbidden (admin —
  *     любая), ответственный: дефолт sub / чужая компания / неактивный;
  *   - updateDeal: not_found вне скоупа, завершённая → validation, happy-path;
- *   - аудит deal_created / deal_updated.
+ *   - аудит deal_created / deal_updated;
+ *   - `У-180` контакт сделки: не найден / архив / чужая компания / организация
+ *     не совпадает → validation с точным сообщением; «с улицы», сделка без
+ *     организации и совпадающая организация — ok; компания при правке берётся
+ *     из сделки, а не из сессии.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
@@ -28,10 +32,11 @@ type Mocks = {
   dealCreate: ReturnType<typeof vi.fn>;
   dealFindFirst: ReturnType<typeof vi.fn>;
   dealUpdate: ReturnType<typeof vi.fn>;
+  contactFindUnique: ReturnType<typeof vi.fn>;
 };
 
 function makePrisma(
-  opts: { org?: unknown; candidate?: unknown; existing?: unknown } = {}
+  opts: { org?: unknown; candidate?: unknown; existing?: unknown; contact?: unknown } = {}
 ): { prisma: PrismaClient } & Mocks {
   const orgFindUnique = vi.fn().mockResolvedValue(opts.org ?? null);
   const userFindUnique = vi.fn().mockResolvedValue(opts.candidate ?? null);
@@ -40,12 +45,29 @@ function makePrisma(
   const dealUpdate = vi
     .fn()
     .mockImplementation(async ({ where, data }) => ({ id: where.id, ...data }));
+  const contactFindUnique = vi.fn().mockResolvedValue(opts.contact ?? null);
   const prisma = {
     organization: { findUnique: orgFindUnique },
     user: { findUnique: userFindUnique },
     deal: { create: dealCreate, findFirst: dealFindFirst, update: dealUpdate },
+    contact: { findUnique: contactFindUnique },
   } as unknown as PrismaClient;
-  return { prisma, orgFindUnique, userFindUnique, dealCreate, dealFindFirst, dealUpdate };
+  return {
+    prisma,
+    orgFindUnique,
+    userFindUnique,
+    dealCreate,
+    dealFindFirst,
+    dealUpdate,
+    contactFindUnique,
+  };
+}
+
+const CONTACT_MISMATCH = 'Контакт не найден или относится к другой организации';
+
+/** Живой контакт компании c1 без организации («с улицы»). */
+function contact(over: Record<string, unknown> = {}) {
+  return { companyId: 'c1', organizationId: null, isArchived: false, ...over };
 }
 
 const VALID = { title: 'Поставка обучения' };
@@ -156,6 +178,7 @@ describe('createDeal — валидация входа', () => {
         expectedCloseAt: new Date('2026-09-01T00:00:00.000Z'),
         organizationId: null,
         managerId: 'm-1',
+        contactId: null,
       },
     });
   });
@@ -262,7 +285,114 @@ describe('createDeal — ответственный менеджер', () => {
       action: 'deal_created',
       entity: 'deal',
       entityId: 'd-new',
-      after: { organizationId: null, managerId: 'm-2' },
+      after: { organizationId: null, managerId: 'm-2', contactId: null },
+    });
+  });
+});
+
+// ─── createDeal — контакт сделки (`У-180`) ────────────────────────────────────
+
+describe('createDeal — контакт сделки (`У-180`)', () => {
+  it('contactId не передан, пустой или пробельный → контакт не ищем, в data и аудите contactId: null', async () => {
+    // «Ключа нет» и «ключ = null/пустой» — четыре разных входа с одним итогом
+    // (exactOptionalPropertyTypes: undefined в ключ не положить — ключ опускаем).
+    const inputs = [{}, { contactId: null }, { contactId: '' }, { contactId: '   ' }];
+    for (const extra of inputs) {
+      const { prisma, contactFindUnique, dealCreate } = makePrisma();
+      const res = await createDeal(prisma, MGR, { ...VALID, ...extra });
+      expect(res.ok, JSON.stringify(extra)).toBe(true);
+      expect(contactFindUnique).not.toHaveBeenCalled();
+      expect(dealCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ contactId: null }) })
+      );
+    }
+  });
+
+  it('контакт ищется по id (после обрезки пробелов) с полями компании, организации и архива', async () => {
+    const { prisma, contactFindUnique } = makePrisma({ contact: contact() });
+    expect((await createDeal(prisma, MGR, { ...VALID, contactId: '  k1  ' })).ok).toBe(true);
+    expect(contactFindUnique).toHaveBeenCalledWith({
+      where: { id: 'k1' },
+      select: { companyId: true, organizationId: true, isArchived: true },
+    });
+  });
+
+  it.each([
+    ['контакт не найден', null, undefined],
+    ['контакт в архиве', contact({ isArchived: true }), undefined],
+    ['контакт другой компании', contact({ companyId: 'c2' }), undefined],
+    [
+      'организация контакта не совпадает с организацией сделки',
+      contact({ organizationId: 'org-2' }),
+      'org-1',
+    ],
+  ])('%s → validation с точным сообщением, сделка не создаётся', async (_name, c, orgId) => {
+    const { prisma, dealCreate } = makePrisma({ contact: c, org: { companyId: 'c1' } });
+    expect(
+      await createDeal(prisma, MGR, { ...VALID, contactId: 'k1', organizationId: orgId ?? null })
+    ).toEqual({ ok: false, error: 'validation', messages: [CONTACT_MISMATCH] });
+    expect(dealCreate).not.toHaveBeenCalled();
+    expect(recordAudit).not.toHaveBeenCalled();
+  });
+
+  it('admin: граница — компания сделки (из сессии), чужого контакта к ней не привязать', async () => {
+    const { prisma, dealCreate } = makePrisma({ contact: contact({ companyId: 'c2' }) });
+    expect(await createDeal(prisma, ADMIN, { ...VALID, contactId: 'k-alien' })).toEqual({
+      ok: false,
+      error: 'validation',
+      messages: [CONTACT_MISMATCH],
+    });
+    expect(dealCreate).not.toHaveBeenCalled();
+  });
+
+  it('ok: контакт «с улицы» (без организации) при сделке с организацией', async () => {
+    const { prisma, dealCreate } = makePrisma({ contact: contact(), org: { companyId: 'c1' } });
+    const res = await createDeal(prisma, MGR, {
+      ...VALID,
+      contactId: 'k1',
+      organizationId: 'org-1',
+    });
+    expect(res.ok).toBe(true);
+    expect(dealCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ organizationId: 'org-1', contactId: 'k1' }),
+      })
+    );
+  });
+
+  it('ok: сделка без организации принимает любого контакта компании', async () => {
+    const { prisma, dealCreate } = makePrisma({ contact: contact({ organizationId: 'org-2' }) });
+    const res = await createDeal(prisma, MGR, { ...VALID, contactId: 'k1' });
+    expect(res.ok).toBe(true);
+    expect(dealCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ organizationId: null, contactId: 'k1' }),
+      })
+    );
+  });
+
+  it('ok: организация контакта совпадает с организацией сделки + контакт в аудите', async () => {
+    const { prisma, dealCreate } = makePrisma({
+      contact: contact({ organizationId: 'org-1' }),
+      org: { companyId: 'c1' },
+    });
+    const res = await createDeal(prisma, MGR, {
+      ...VALID,
+      contactId: 'k1',
+      organizationId: 'org-1',
+    });
+    expect(res.ok).toBe(true);
+    expect(dealCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ organizationId: 'org-1', contactId: 'k1' }),
+      })
+    );
+    expect(recordAudit).toHaveBeenCalledWith(prisma, {
+      userId: 'm-1',
+      action: 'deal_created',
+      entity: 'deal',
+      entityId: 'd-new',
+      after: { organizationId: 'org-1', managerId: 'm-1', contactId: 'k1' },
     });
   });
 });
@@ -284,11 +414,11 @@ describe('updateDeal', () => {
       ok: false,
       error: 'not_found',
     });
-    expect(dealFindFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { AND: [{ id: 'd-alien' }, { companyId: 'c1', managerId: 'm-1' }] },
-      })
-    );
+    // `companyId` читается вместе со статусом: по нему проверяется контакт.
+    expect(dealFindFirst).toHaveBeenCalledWith({
+      where: { AND: [{ id: 'd-alien' }, { companyId: 'c1', managerId: 'm-1' }] },
+      select: { id: true, status: true, companyId: true, contactId: true },
+    });
   });
 
   it('завершённая сделка (won) → validation, update не вызывается', async () => {
@@ -350,6 +480,7 @@ describe('updateDeal', () => {
         expectedCloseAt: new Date('2026-10-15T00:00:00.000Z'),
         organizationId: null,
         managerId: 'm-1',
+        contactId: null,
       },
     });
     expect(recordAudit).toHaveBeenCalledWith(prisma, {
@@ -357,7 +488,138 @@ describe('updateDeal', () => {
       action: 'deal_updated',
       entity: 'deal',
       entityId: 'd-1',
-      after: { organizationId: null, managerId: 'm-1' },
+      after: { organizationId: null, managerId: 'm-1', contactId: null },
     });
+  });
+});
+
+// ─── updateDeal — контакт сделки (`У-180`) ────────────────────────────────────
+
+describe('updateDeal — контакт сделки (`У-180`)', () => {
+  const OPEN = { id: 'd-1', status: 'open', companyId: 'c1' };
+
+  it.each([
+    ['контакт не найден', null, undefined],
+    ['контакт в архиве', contact({ isArchived: true }), undefined],
+    ['контакт другой компании', contact({ companyId: 'c2' }), undefined],
+    [
+      'организация контакта не совпадает с организацией сделки',
+      contact({ organizationId: 'org-2' }),
+      'org-1',
+    ],
+  ])('%s → validation с точным сообщением, сделка не трогается', async (_name, c, orgId) => {
+    const { prisma, dealUpdate } = makePrisma({
+      existing: OPEN,
+      contact: c,
+      org: { companyId: 'c1' },
+    });
+    expect(
+      await updateDeal(prisma, MGR, {
+        dealId: 'd-1',
+        ...VALID,
+        contactId: 'k1',
+        organizationId: orgId ?? null,
+      })
+    ).toEqual({ ok: false, error: 'validation', messages: [CONTACT_MISMATCH] });
+    expect(dealUpdate).not.toHaveBeenCalled();
+    expect(recordAudit).not.toHaveBeenCalled();
+  });
+
+  it('компания для проверки контакта берётся из СДЕЛКИ, а не из сессии (admin правит сделку компании c2)', async () => {
+    // Admin видит сделки всех компаний (скоуп {}); контакт компании c2 к сделке
+    // компании c2 подходит, хотя в сессии администратора компания c1.
+    const { prisma, dealUpdate } = makePrisma({
+      existing: { ...OPEN, companyId: 'c2' },
+      contact: contact({ companyId: 'c2' }),
+    });
+    const res = await updateDeal(prisma, ADMIN, { dealId: 'd-1', ...VALID, contactId: 'k2' });
+    expect(res.ok).toBe(true);
+    expect(dealUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ contactId: 'k2' }) })
+    );
+    // И наоборот: контакт компании сессии (c1) к сделке компании c2 не подходит.
+    const other = makePrisma({
+      existing: { ...OPEN, companyId: 'c2' },
+      contact: contact({ companyId: 'c1' }),
+    });
+    expect(
+      await updateDeal(other.prisma, ADMIN, { dealId: 'd-1', ...VALID, contactId: 'k1' })
+    ).toEqual({
+      ok: false,
+      error: 'validation',
+      messages: [CONTACT_MISMATCH],
+    });
+  });
+
+  it('ok: «с улицы» при сделке с организацией; любой контакт компании при сделке без организации; совпадающая организация', async () => {
+    const cases: Array<[unknown, string | null]> = [
+      [contact(), 'org-1'],
+      [contact({ organizationId: 'org-2' }), null],
+      [contact({ organizationId: 'org-1' }), 'org-1'],
+    ];
+    let lastPrisma: PrismaClient | undefined;
+    for (const [c, orgId] of cases) {
+      const { prisma, dealUpdate } = makePrisma({
+        existing: OPEN,
+        contact: c,
+        org: { companyId: 'c1' },
+      });
+      lastPrisma = prisma;
+      const res = await updateDeal(prisma, MGR, {
+        dealId: 'd-1',
+        ...VALID,
+        contactId: 'k1',
+        organizationId: orgId,
+      });
+      expect(res.ok, JSON.stringify(c)).toBe(true);
+      expect(dealUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ organizationId: orgId, contactId: 'k1' }),
+        })
+      );
+    }
+    expect(recordAudit).toHaveBeenLastCalledWith(lastPrisma, {
+      userId: 'm-1',
+      action: 'deal_updated',
+      entity: 'deal',
+      entityId: 'd-1',
+      after: { organizationId: 'org-1', managerId: 'm-1', contactId: 'k1' },
+    });
+  });
+
+  it('прежний контакт сделки не перепроверяется: архивный остаётся, findUnique не зовётся', async () => {
+    // Человек уехал в архив после привязки — правка названия сделки не должна
+    // упираться в «контакт не найден»: значение не менялось, значит проверять
+    // нечего. Новый контакт (другой id) проверяется как обычно.
+    const { prisma, dealUpdate, contactFindUnique } = makePrisma({
+      existing: { ...OPEN, contactId: 'k-old' },
+      contact: null,
+    });
+    const res = await updateDeal(prisma, MGR, { dealId: 'd-1', ...VALID, contactId: ' k-old ' });
+    expect(res.ok).toBe(true);
+    expect(contactFindUnique).not.toHaveBeenCalled();
+    expect(dealUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ contactId: 'k-old' }) })
+    );
+
+    const other = makePrisma({ existing: { ...OPEN, contactId: 'k-old' }, contact: null });
+    expect(
+      await updateDeal(other.prisma, MGR, { dealId: 'd-1', ...VALID, contactId: 'k-new' })
+    ).toEqual({
+      ok: false,
+      error: 'validation',
+      messages: ['Контакт не найден или относится к другой организации'],
+    });
+    expect(other.contactFindUnique).toHaveBeenCalledTimes(1);
+  });
+
+  it('снятие контакта: contactId пустой → в data и аудите null, контакт не ищем', async () => {
+    const { prisma, dealUpdate, contactFindUnique } = makePrisma({ existing: OPEN });
+    const res = await updateDeal(prisma, MGR, { dealId: 'd-1', ...VALID, contactId: '' });
+    expect(res.ok).toBe(true);
+    expect(contactFindUnique).not.toHaveBeenCalled();
+    expect(dealUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ contactId: null }) })
+    );
   });
 });

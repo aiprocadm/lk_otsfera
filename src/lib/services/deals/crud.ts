@@ -193,7 +193,7 @@ export async function updateDeal(
 
   const existing = await prisma.deal.findFirst({
     where: { AND: [{ id: args.dealId }, dealScopeWhere(session)] },
-    select: { id: true, status: true, companyId: true },
+    select: { id: true, status: true, companyId: true, contactId: true },
   });
   if (!existing) return { ok: false, error: 'not_found' };
   if (existing.status !== 'open')
@@ -211,12 +211,13 @@ export async function updateDeal(
   const manager = await resolveManagerId(prisma, session, args.managerId);
   if (!manager.ok)
     return { ok: false, error: 'validation', messages: ['Ответственный менеджер не найден'] };
-  const contact = await resolveContactId(
-    prisma,
-    existing.companyId,
-    args.contactId,
-    org.organizationId
-  );
+  // Прежний контакт не перепроверяем: он мог уехать в архив, и правка
+  // названия сделки не должна упираться в «контакт не найден» (форма держит
+  // его отдельной строкой). Проверка — только для нового значения.
+  const contact =
+    (args.contactId?.trim() || null) === existing.contactId
+      ? { ok: true as const, contactId: existing.contactId }
+      : await resolveContactId(prisma, existing.companyId, args.contactId, org.organizationId);
   if (!contact.ok) return { ok: false, error: 'validation', messages: [CONTACT_MISMATCH] };
 
   const deal = await prisma.deal.update({

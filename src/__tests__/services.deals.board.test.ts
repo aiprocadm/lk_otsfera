@@ -111,6 +111,7 @@ function makeDeal(over: Record<string, unknown> = {}) {
     createdAt: new Date('2026-07-01T00:00:00.000Z'),
     organizationId: null,
     leadId: null,
+    contactId: null,
     managerId: null,
     organization: null,
     manager: null,
@@ -250,6 +251,16 @@ describe('getDealBoard', () => {
       expect(BOARD_CAP).toBe(500);
     });
 
+    it('`У-180`: findMany читает contactId — без него карточка не сможет префиллить форму', async () => {
+      const { prisma, dealFindMany } = makePrisma({ stages: CUSTOM_STAGES });
+      await getDealBoard(prisma, LEADER);
+      expect(dealFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          select: expect.objectContaining({ contactId: true, leadId: true, organizationId: true }),
+        })
+      );
+    });
+
     it('count идёт по тому же where, что и findMany; shown/total в ответе', async () => {
       const deals = [makeDeal({ id: 'd-1' }), makeDeal({ id: 'd-2', status: 'won' })];
       const { prisma, dealFindMany, dealCount } = makePrisma({
@@ -274,7 +285,7 @@ describe('getDealBoard', () => {
     });
   });
 
-  it('маппинг DealCard: amount.toFixed(2), organizationId/managerId и имена; null-поля', async () => {
+  it('маппинг DealCard: amount.toFixed(2), organizationId/managerId/contactId и имена; null-поля', async () => {
     const createdAt = new Date('2026-07-10T12:00:00.000Z');
     const closeAt = new Date('2026-09-01T00:00:00.000Z');
     const deals = [
@@ -287,6 +298,8 @@ describe('getDealBoard', () => {
         // `У-161`: лид доезжает до карточки — по нему решают, кому выставлять
         // предложение у сделки без организации.
         leadId: 'lead-7',
+        // `У-180`: контакт сделки — карточка префиллит им форму правки.
+        contactId: 'k-1',
         managerId: 'm-1',
         manager: { name: 'Менеджер' },
         orderId: 'ord-1',
@@ -306,6 +319,7 @@ describe('getDealBoard', () => {
         organizationId: 'org-1',
         organizationName: 'Орг',
         leadId: 'lead-7',
+        contactId: 'k-1',
         managerId: 'm-1',
         managerName: 'Менеджер',
         status: 'open',
@@ -320,6 +334,7 @@ describe('getDealBoard', () => {
         organizationId: null,
         organizationName: null,
         leadId: null,
+        contactId: null,
         managerId: null,
         managerName: null,
         status: 'open',

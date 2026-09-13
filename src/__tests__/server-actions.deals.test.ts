@@ -138,6 +138,7 @@ describe('createDealAction', () => {
       organizationId: 'org-1',
       managerId: 'm-1',
       expectedCloseAt: '2026-09-01',
+      contactId: null,
     });
     expectBothPagesRevalidated();
   });
@@ -151,7 +152,18 @@ describe('createDealAction', () => {
       organizationId: null,
       managerId: null,
       expectedCloseAt: null,
+      contactId: null,
     });
+  });
+
+  it('`У-180`: контакт из формы доезжает до сервиса как contactId', async () => {
+    createDeal.mockResolvedValue({ ok: true, deal: { id: 'd-new' } });
+    await createDealAction(form({ title: 'Сделка', organizationId: 'org-1', contactId: 'k1' }));
+    expect(createDeal).toHaveBeenCalledWith(
+      {},
+      SESSION,
+      expect.objectContaining({ organizationId: 'org-1', contactId: 'k1' })
+    );
   });
 
   it('passes through the validation error code and messages without revalidating', async () => {
@@ -183,8 +195,19 @@ describe('updateDealAction', () => {
       organizationId: null,
       managerId: null,
       expectedCloseAt: null,
+      contactId: null,
     });
     expectBothPagesRevalidated();
+  });
+
+  it('`У-180`: контакт из формы правки доезжает до сервиса вместе с dealId', async () => {
+    updateDeal.mockResolvedValue({ ok: true });
+    await updateDealAction(form({ id: 'd7', title: 'Новое имя', contactId: 'k1' }));
+    expect(updateDeal).toHaveBeenCalledWith(
+      {},
+      SESSION,
+      expect.objectContaining({ dealId: 'd7', contactId: 'k1' })
+    );
   });
 
   it('passes through the service error code without revalidating', async () => {

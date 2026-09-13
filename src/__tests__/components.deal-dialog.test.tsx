@@ -59,8 +59,16 @@ vi.mock('@/components/tasks/linked-tasks-panel', () => ({
 
 import { DealDialog, NewDealButton, type DealDialogTarget } from '@/components/deals/deal-dialog';
 import { STATUS_LABELS as DOC_STATUS_LABELS } from '@/lib/documents/statusMatrix';
+import type { ContactOption } from '@/lib/services/contacts/options';
 
 const organizations = [{ id: 'org-1', name: 'ООО Ромашка' }];
+// `У-180`: контакты трёх сортов — своей организации, «с улицы» и чужой организации.
+const contacts: ContactOption[] = [
+  { id: 'c-org', name: 'Анна Иванова', position: 'директор', organizationId: 'org-1' },
+  { id: 'c-free', name: 'Борис Петров', position: null, organizationId: null },
+  { id: 'c-other', name: 'Вера Сидорова', position: 'бухгалтер', organizationId: 'org-2' },
+];
+const twoOrganizations = [...organizations, { id: 'org-2', name: 'ООО Лютик' }];
 const managers = [
   { id: 'u-me', name: 'Я Сам' },
   { id: 'm-2', name: 'Пётр' },
@@ -445,7 +453,192 @@ describe('DealDialog', () => {
     });
   });
 
+  /**
+   * `У-180` (этап 1 ТЗ «CRM»): поле «Контакт» — человек со стороны клиента,
+   * с которым ведут сделку. Список сужается вместе с организацией, чтобы форма
+   * не предложила того, кого сервис потом отклонит.
+   */
+  describe('поле «Контакт» (У-180)', () => {
+    const CONTACT_LABEL = 'Контакт (необязательно)';
+    const ORG_LABEL = 'Организация (необязательно)';
+    const contactSelect = () => screen.getByLabelText(CONTACT_LABEL) as HTMLSelectElement;
+    const optionLabels = () => Array.from(contactSelect().options).map((o) => o.textContent);
+
+    it('без списка контактов (флаг выключен) поля нет вовсе и contactId не отправляется', async () => {
+      createDealAction.mockResolvedValue({ ok: true, id: 'new-deal' });
+      renderCreate();
+      await screen.findByText('Новая сделка');
+      expect(screen.queryByLabelText(CONTACT_LABEL)).toBeNull();
+
+      fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'X' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Создать' }));
+      await waitFor(() => expect(createDealAction).toHaveBeenCalledTimes(1));
+      const fd = createDealAction.mock.calls[0][0] as FormData;
+      expect(fd.get('contactId')).toBeNull();
+    });
+
+    it('без организации предлагаются ВСЕ контакты; должность и «(без организации)» — в подписи', async () => {
+      renderCreate({ contacts, organizations: twoOrganizations });
+      await screen.findByText('Новая сделка');
+      expect(contactSelect().value).toBe('');
+      expect(optionLabels()).toEqual([
+        '— не указан —',
+        'Анна Иванова — директор',
+        'Борис Петров (без организации)',
+        'Вера Сидорова — бухгалтер',
+      ]);
+    });
+
+    it('с организацией остаются её люди и люди «с улицы»; чужой организации — нет', async () => {
+      renderCreate({ contacts, organizations: twoOrganizations });
+      await screen.findByText('Новая сделка');
+      fireEvent.change(screen.getByLabelText(ORG_LABEL), { target: { value: 'org-1' } });
+      expect(optionLabels()).toEqual([
+        '— не указан —',
+        'Анна Иванова — директор',
+        'Борис Петров (без организации)',
+      ]);
+    });
+
+    it('смена организации сбрасывает контакт ЧУЖОЙ организации, а контакт «с улицы» оставляет', async () => {
+      // Иначе в форме остался бы человек, которого сервис отклонит как
+      // «не из этой организации», — и сотрудник не понял бы, почему.
+      createDealAction.mockResolvedValue({ ok: true, id: 'new-deal' });
+      renderCreate({ contacts, organizations: twoOrganizations });
+      await screen.findByText('Новая сделка');
+
+      fireEvent.change(contactSelect(), { target: { value: 'c-other' } });
+      expect(contactSelect().value).toBe('c-other');
+      fireEvent.change(screen.getByLabelText(ORG_LABEL), { target: { value: 'org-1' } });
+      expect(contactSelect().value).toBe('');
+
+      fireEvent.change(contactSelect(), { target: { value: 'c-free' } });
+      fireEvent.change(screen.getByLabelText(ORG_LABEL), { target: { value: 'org-2' } });
+      expect(contactSelect().value).toBe('c-free');
+
+      // Сброшенный контакт уезжает в экшен пустой строкой, а не старым id.
+      fireEvent.change(contactSelect(), { target: { value: 'c-other' } });
+      fireEvent.change(screen.getByLabelText(ORG_LABEL), { target: { value: 'org-1' } });
+      fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'X' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Создать' }));
+      await waitFor(() => expect(createDealAction).toHaveBeenCalledTimes(1));
+      const fd = createDealAction.mock.calls[0][0] as FormData;
+      expect(fd.get('organizationId')).toBe('org-1');
+      expect(fd.get('contactId')).toBe('');
+    });
+
+    it('контакт сделки, которого нет в списке, держится отдельной строкой и не теряется при сохранении', async () => {
+      // Человек в архиве или вне охвата сотрудника: без этой строки селект
+      // встал бы на «— не указан —», и правка названия молча стёрла бы контакт.
+      updateDealAction.mockResolvedValue({ ok: true });
+      renderCreate({ target: { ...target, contactId: 'c-gone' }, contacts });
+      await screen.findByText('Сделка');
+      expect(contactSelect().value).toBe('c-gone');
+      expect(optionLabels()).toContain('Текущий контакт (вне вашего списка)');
+
+      // Смена организации его не сбрасывает — он не «чужой организации», а неизвестный.
+      fireEvent.change(screen.getByLabelText(ORG_LABEL), { target: { value: '' } });
+      expect(contactSelect().value).toBe('c-gone');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+      await waitFor(() => expect(updateDealAction).toHaveBeenCalledTimes(1));
+      const fd = updateDealAction.mock.calls[0][0] as FormData;
+      expect(fd.get('contactId')).toBe('c-gone');
+
+      // Контакт, который в списке ЕСТЬ, отдельной строки не получает.
+      cleanupAll();
+      renderCreate({ target: { ...target, contactId: 'c-org' }, contacts });
+      await screen.findByText('Сделка');
+      expect(optionLabels()).not.toContain('Текущий контакт (вне вашего списка)');
+      expect(contactSelect().value).toBe('c-org');
+    });
+
+    it('выбранный контакт уезжает в экшен как contactId', async () => {
+      createDealAction.mockResolvedValue({ ok: true, id: 'new-deal' });
+      renderCreate({ contacts });
+      await screen.findByText('Новая сделка');
+      fireEvent.change(contactSelect(), { target: { value: 'c-org' } });
+      fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'X' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Создать' }));
+      await waitFor(() => expect(createDealAction).toHaveBeenCalledTimes(1));
+      const fd = createDealAction.mock.calls[0][0] as FormData;
+      expect(fd.get('contactId')).toBe('c-org');
+    });
+
+    it('пустой список говорит РАЗНОЕ: у организации людей нет / в охвате никого нет', async () => {
+      // Два тупика — два выхода: завести человека в карточке организации или в
+      // разделе «Контакты». Одинаковая подсказка отправила бы не туда.
+      renderCreate({ contacts: [contacts[2]!], organizations: twoOrganizations });
+      await screen.findByText('Новая сделка');
+      fireEvent.change(screen.getByLabelText(ORG_LABEL), { target: { value: 'org-1' } });
+      expect(optionLabels()).toEqual(['— не указан —']);
+      expect(screen.getByText(/У этой организации контактов нет/)).toBeTruthy();
+      expect(screen.queryByText(/Контактов в вашем охвате нет/)).toBeNull();
+
+      cleanupAll();
+      renderCreate({ contacts: [] });
+      await screen.findByText('Новая сделка');
+      expect(screen.getByText(/Контактов в вашем охвате нет/)).toBeTruthy();
+      expect(screen.queryByText(/У этой организации контактов нет/)).toBeNull();
+    });
+
+    it('ссылка «Открыть карточку контакта» появляется только при выбранном контакте и заданном адресе раздела', async () => {
+      const LINK = 'Открыть карточку контакта';
+      renderCreate({ contacts, contactHrefBase: '/leader/contacts' });
+      await screen.findByText('Новая сделка');
+      expect(screen.queryByRole('link', { name: LINK })).toBeNull();
+
+      fireEvent.change(contactSelect(), { target: { value: 'c-org' } });
+      const link = screen.getByRole('link', { name: LINK }) as HTMLAnchorElement;
+      // Адрес раздела — свой кабинет: руководитель не уходит к менеджеру (`Р-23`).
+      expect(link.getAttribute('href')).toBe('/leader/contacts/c-org');
+
+      // Без адреса раздела ссылки нет даже при выбранном контакте.
+      cleanupAll();
+      renderCreate({ contacts });
+      await screen.findByText('Новая сделка');
+      fireEvent.change(contactSelect(), { target: { value: 'c-org' } });
+      expect(screen.queryByRole('link', { name: LINK })).toBeNull();
+    });
+
+    it('редактирование: контакт сделки предвыбран, ссылка ведёт на его карточку, id уезжает в экшен', async () => {
+      updateDealAction.mockResolvedValue({ ok: true });
+      renderCreate({
+        target: { ...target, contactId: 'c-org' },
+        contacts,
+        contactHrefBase: '/manager/contacts',
+      });
+      await screen.findByText('Сделка');
+      expect(contactSelect().value).toBe('c-org');
+      expect(
+        (
+          screen.getByRole('link', { name: 'Открыть карточку контакта' }) as HTMLAnchorElement
+        ).getAttribute('href')
+      ).toBe('/manager/contacts/c-org');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+      await waitFor(() => expect(updateDealAction).toHaveBeenCalledTimes(1));
+      const fd = updateDealAction.mock.calls[0][0] as FormData;
+      expect(fd.get('contactId')).toBe('c-org');
+    });
+  });
+
   describe('NewDealButton', () => {
+    it('`У-180`: список контактов пробрасывается в форму создания', async () => {
+      render(
+        React.createElement(NewDealButton, {
+          organizations,
+          managers,
+          contacts,
+          currentUserId: 'u-me',
+        })
+      );
+      fireEvent.click(screen.getByRole('button', { name: '+ Сделка' }));
+      await screen.findByText('Новая сделка');
+      const sel = screen.getByLabelText('Контакт (необязательно)') as HTMLSelectElement;
+      expect(sel.options).toHaveLength(contacts.length + 1);
+    });
+
     it('opens the create dialog on click and closes it on cancel', async () => {
       render(
         React.createElement(NewDealButton, { organizations, managers, currentUserId: 'u-me' })
