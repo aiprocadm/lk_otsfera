@@ -665,7 +665,8 @@ describe('mergeExternalOrderInto — кто имеет право объедин
     expect(await prisma.order.findUnique({ where: { id: source } })).toBeNull();
   });
 
-  it('руководитель чужой компании — forbidden, заказ цел', async () => {
+  it('руководитель чужой компании — «не найден», заказ цел', async () => {
+    // Чужая компания не должна даже узнать, что такой заказ существует.
     const source = await mkBitrixOrder({ companyId: coA, organizationId: orgA1 });
     const target = await mkOneCOrder({ companyId: coA, organizationId: orgA1 });
 
@@ -674,7 +675,7 @@ describe('mergeExternalOrderInto — кто имеет право объедин
         sourceOrderId: source,
         targetOrderId: target,
       })
-    ).toEqual({ ok: false, error: 'forbidden' });
+    ).toEqual({ ok: false, error: 'not_found' });
     expect(await prisma.order.findUnique({ where: { id: source } })).not.toBeNull();
   });
 
@@ -828,12 +829,13 @@ describe('listMergeTargets — отказы', () => {
     });
   });
 
-  it('руководитель чужой компании — forbidden', async () => {
+  it('руководитель чужой компании — «не найден»', async () => {
+    // Чужая компания не должна даже узнать, что такой заказ существует.
     const order = await mkBitrixOrder({ companyId: coA, organizationId: orgA1 });
 
     expect(await listMergeTargets(prisma, leaderB, order)).toEqual({
       ok: false,
-      error: 'forbidden',
+      error: 'not_found',
     });
   });
 
