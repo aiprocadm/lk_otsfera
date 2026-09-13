@@ -95,6 +95,9 @@ async function xlsxRows(buffer: Buffer, fileName: string): Promise<unknown[][]> 
   } catch {
     throw unreadable(fileName, 'книга Excel повреждена или это не XLSX');
   }
+  // Выгрузка Битрикса — одна таблица на книгу; берём первый лист с данными
+  // (пустой первый лист оставляет Excel при сохранении «как есть»). Склеивать
+  // листы нельзя: у соседнего листа своя шапка и, возможно, другая сущность.
   const ws = wb.worksheets.find((s) => s.rowCount > 0);
   return ws ? worksheetRows(ws) : [];
 }
@@ -111,7 +114,8 @@ function decodeCsv(buffer: Buffer): string {
 
 /** Разделитель — по первой строке: чего больше (`;` у русского портала, `,` у английского, таб у копии из Excel). */
 function detectDelimiter(text: string): string {
-  const firstLine = text.split(/\r?\n/, 1)[0] ?? '';
+  // `split(_, 1)` всегда отдаёт хотя бы один кусок — индекс 0 доказуемо есть.
+  const firstLine = text.split(/\r?\n/, 1)[0]!;
   const candidates: Array<[string, number]> = [';', ',', '\t'].map((d) => [
     d,
     firstLine.split(d).length - 1,
@@ -160,10 +164,23 @@ export async function inspectBitrixFile(
     name: fileName,
     entity: detection.entity,
     candidate: detection.candidate,
-    rows: grid.rows.length,
+    rows: countRows(grid, detection.entity),
     unmatchedHeaders: detection.unmatched,
     missing: detection.missing,
   };
+}
+
+/**
+ * Сколько строк файла реально уедет в пакет. Разбор пропускает строки без ID
+ * («Итого», разделители, хвост выгрузки), поэтому считать все строки нечестно:
+ * форма обещала бы перенести больше, чем перенесёт. Сущность не распознана —
+ * считаем всё, что есть: колонку ID тогда искать не в чем.
+ */
+function countRows(grid: Grid, entity: BitrixFileEntity | null): number {
+  if (!entity) return grid.rows.length;
+  // Колонка ID обязательна у каждой сущности — без неё файл не был бы распознан.
+  const idColumn = resolveBitrixColumns(entity, grid.headers).index.id![0]!;
+  return grid.rows.filter((row) => cellText(row[idColumn]) !== '').length;
 }
 
 // ---------------------------------------------------------------------------
@@ -196,6 +213,7 @@ function rowReader<E extends BitrixFileEntity>(index: ResolvedColumns<E>['index'
 class UserBook {
   private readonly byId = new Map<string, BitrixUser>();
 
+  /** Первое непустое имя выигрывает: второе написание того же человека в соседнем файле («Семён С.») не перетирает полное. */
   add(id: string | null, name: string | null): string | null {
     const key = id ?? (name ? `name:${normalizeLabel(name)}` : null);
     if (!key) return null;
@@ -214,6 +232,11 @@ class UserBook {
 }
 
 /** Связь «по ID, а если ID не выгружен — по названию/имени из соседнего файла». */
+/**
+ * Дубль названия (в выгрузках Битрикса обычное дело) разрешается в пользу
+ * ПЕРВОЙ записи файла: угадать по названию вторую нельзя, а тихо потерять
+ * связь хуже, чем привязать к первой — предпросмотр покажет, к кому именно.
+ */
 class LinkBook {
   private readonly byKey = new Map<string, string>();
 
@@ -268,17 +291,20 @@ function stageSemantics(id: string, name: string | null): BitrixStageSemantics {
 class StageBook {
   private readonly byKey = new Map<string, BitrixStage>();
 
-  add(entity: BitrixStage['entity'], categoryId: string | null, id: string, name: string | null) {
-    if (!id) return;
+  /** Регистрирует стадию и отдаёт её семантику — единственная точка правды. */
+  add(
+    entity: BitrixStage['entity'],
+    categoryId: string | null,
+    id: string,
+    name: string | null
+  ): BitrixStageSemantics {
+    const semantics = stageSemantics(id, name);
+    if (!id) return semantics;
     const key = `${entity}|${categoryId ?? ''}|${id}`;
-    if (this.byKey.has(key)) return;
-    this.byKey.set(key, {
-      entity,
-      categoryId,
-      id,
-      name: name ?? id,
-      semantics: stageSemantics(id, name),
-    });
+    if (!this.byKey.has(key)) {
+      this.byKey.set(key, { entity, categoryId, id, name: name ?? id, semantics });
+    }
+    return semantics;
   }
 
   list(): BitrixStage[] {
@@ -401,8 +427,12 @@ function parseDeals(grid: Grid, books: Books): BitrixDeal[] {
     const stageName = r.textOrNull('stageName');
     const stageId = r.textOrNull('stageId') ?? stageName ?? '';
     // Направление «0» — общее: у его стадий `categoryId: null`, как в REST.
-    books.stages.add('deal', categoryId === '0' ? null : categoryId, stageId, stageName);
-    const semantics = stageSemantics(stageId, stageName);
+    const semantics = books.stages.add(
+      'deal',
+      categoryId === '0' ? null : categoryId,
+      stageId,
+      stageName
+    );
     out.push({
       id,
       title: r.text('title'),

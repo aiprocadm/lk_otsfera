@@ -52,10 +52,16 @@ export function cellDate(v: unknown): Date | null {
   const ru = s.match(RU_DATE);
   if (ru) {
     const [, dd, mm, yyyy, hh = '0', mi = '0', ss = '0'] = ru;
-    const d = new Date(
-      Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd), Number(hh), Number(mi), Number(ss))
-    );
-    return Number.isNaN(d.getTime()) ? null : d;
+    const day = Number(dd);
+    const month = Number(mm) - 1;
+    const year = Number(yyyy);
+    const d = new Date(Date.UTC(year, month, day, Number(hh), Number(mi), Number(ss)));
+    // `Date.UTC` молча переносит несуществующий день: «31.02.2026» стал бы
+    // 3 марта. В предпросмотре это хуже пустоты — человек увидел бы уверенную
+    // неправду. Сверяем, что дата вернулась той же, иначе «не разобралось».
+    return d.getUTCFullYear() === year && d.getUTCMonth() === month && d.getUTCDate() === day
+      ? d
+      : null;
   }
   const d = new Date(ISO_NO_ZONE.test(s) ? `${s.replace(' ', 'T')}Z` : s);
   return Number.isNaN(d.getTime()) ? null : d;
@@ -81,7 +87,8 @@ export function cellFlag(v: unknown): boolean {
  * «45000». Не число → как есть (предпросмотр покажет, что не разобралось).
  */
 export function cellMoney(v: unknown): string | null {
-  const raw = cellText(v).split('|')[0] ?? '';
+  // `split` всегда возвращает хотя бы один кусок — индекс 0 доказуемо есть.
+  const raw = cellText(v).split('|')[0]!;
   const s = raw.replace(/[^\d.,-]/g, '');
   if (!s) return null;
   let normalized = s;

@@ -32,8 +32,16 @@ const CONTENT_TYPES: Record<string, string> = {
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 };
 
-function extensionOf(name: string): string {
-  return (name.match(/\.([a-z0-9]+)$/i)?.[1] ?? '').toLowerCase();
+/**
+ * Тип файла по расширению; `null` — расширение не из списка.
+ *
+ * Проверять `ext in CONTENT_TYPES` нельзя: `in` видит и цепочку прототипов,
+ * поэтому имя `дамп.constructor` проходило бы allow-list, а в S3 уходил бы
+ * `contentType` со значением функции `Object`. Собственные ключи — `hasOwn`.
+ */
+function contentTypeOf(name: string): string | null {
+  const ext = (name.match(/\.([a-z0-9]+)$/i)?.[1] ?? '').toLowerCase();
+  return Object.hasOwn(CONTENT_TYPES, ext) ? (CONTENT_TYPES[ext] as string) : null;
 }
 
 /** Имя в ключе S3: буквы любого алфавита, цифры, точка, дефис, подчёркивание; остальное — `_`. */
@@ -49,15 +57,24 @@ export async function storeBitrixUploads(files: FormFile[]): Promise<BitrixUploa
   if (files.length > BITRIX_UPLOAD_MAX_FILES) return { ok: false, error: 'too_many_files' };
   for (const f of files) {
     if (f.size > IMPORT_MAX_FILE_BYTES) return { ok: false, error: 'too_large', file: f.name };
-    if (!(extensionOf(f.name) in CONTENT_TYPES)) {
+    if (contentTypeOf(f.name) === null) {
       return { ok: false, error: 'invalid_mime', file: f.name };
     }
   }
 
-  const inspected: Array<{ file: FormFile; diagnostic: BitrixFileDiagnostic }> = [];
+  const inspected: Array<{
+    file: FormFile;
+    contentType: string;
+    diagnostic: BitrixFileDiagnostic;
+  }> = [];
   for (const file of files) {
     try {
-      inspected.push({ file, diagnostic: await inspectBitrixFile(file.buffer, file.name) });
+      inspected.push({
+        file,
+        // Тип уже посчитан проверкой выше — второй раз не угадываем.
+        contentType: contentTypeOf(file.name) as string,
+        diagnostic: await inspectBitrixFile(file.buffer, file.name),
+      });
     } catch (e) {
       if (e instanceof BitrixSourceError && e.code === 'file_unreadable') {
         return { ok: false, error: 'file_unreadable', file: file.name };
@@ -70,16 +87,14 @@ export async function storeBitrixUploads(files: FormFile[]): Promise<BitrixUploa
   const folder = randomUUID();
   const uploaded: string[] = [];
   const out: BitrixUploadedFileInfo[] = [];
-  for (const [i, { file, diagnostic }] of inspected.entries()) {
+  for (const [i, { file, contentType, diagnostic }] of inspected.entries()) {
     if (!diagnostic.entity) {
       out.push({ ...diagnostic, key: null });
       continue;
     }
     const key = `${BITRIX_UPLOAD_PREFIX}/${folder}/${i + 1}-${safeName(file.name)}`;
     try {
-      await storage.upload(key, file.buffer, {
-        contentType: CONTENT_TYPES[extensionOf(file.name)] ?? 'application/octet-stream',
-      });
+      await storage.upload(key, file.buffer, { contentType });
     } catch (e) {
       log.error('[bitrix/upload] storage upload failed', {
         file: file.name,

@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { BITRIX_UPLOAD_MAX_FILES, IMPORT_MAX_FILE_MB } from '@/lib/config/import-limits';
 import { BITRIX_ENTITY_LABELS, type BitrixFileDiagnostic } from '@/lib/services/bitrix/column-map';
 import { useFetchSubmit } from '@/lib/ui/useFetchSubmit';
@@ -12,6 +12,12 @@ import { TableShell, THead, Th, Tr, Td } from '@/components/ui/table';
  * Ответ роута — диагностика по каждому файлу: что за сущность, сколько строк,
  * какие колонки не распознаны. Ключи распознанных файлов подхватит форма
  * «Новый пакет» (PR-3); до неё экран честно показывает результат проверки.
+ *
+ * Обе живые области (`alert` и `status`) смонтированы всегда и прячутся
+ * `sr-only`, как в `ui/dialog` (§9): область, которая появляется в DOM вместе
+ * со своим текстом, скринридером часто не зачитывается. После успешной
+ * проверки выбор файлов сбрасывается — иначе повторное нажатие грузит те же
+ * файлы заново и плодит лишние ключи в хранилище.
  */
 type UploadedFile = BitrixFileDiagnostic & { key: string | null };
 type UploadResponse = { files?: UploadedFile[] };
@@ -33,11 +39,15 @@ const ERROR_LABELS: Record<string, string> = {
 
 export function BitrixUploadForm() {
   const [files, setFiles] = useState<UploadedFile[] | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const { formAction, pending, errorText } = useFetchSubmit<UploadResponse>({
     url: '/api/admin/bitrix/upload',
     body: (fd) => fd,
     errorMap: ERROR_LABELS,
-    onSuccess: (data) => setFiles(data.files ?? []),
+    onSuccess: (data) => {
+      setFiles(data.files ?? []);
+      if (inputRef.current) inputRef.current.value = '';
+    },
   });
 
   return (
@@ -64,10 +74,12 @@ export function BitrixUploadForm() {
           </label>
           <input
             id="bitrix-upload-files"
+            ref={inputRef}
             type="file"
             name="files"
             multiple
             required
+            disabled={pending}
             accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             className="text-sm"
           />
@@ -75,52 +87,53 @@ export function BitrixUploadForm() {
             До {BITRIX_UPLOAD_MAX_FILES} файлов за раз, каждый до {IMPORT_MAX_FILE_MB} МБ.
           </p>
         </div>
-        {errorText && (
-          <p role="alert" className="text-sm text-red-600">
-            {errorText}
-          </p>
-        )}
+        <p role="alert" className={errorText ? 'text-sm text-red-600' : 'sr-only'}>
+          {errorText}
+        </p>
         <Button type="submit" disabled={pending}>
           {pending ? 'Проверяем…' : 'Проверить файлы'}
         </Button>
       </form>
-      {files && <UploadDiagnostics files={files} />}
+      {files !== null && files.length > 0 && <UploadDiagnostics files={files} />}
+      <p role="status" className={files !== null ? 'text-sm text-gray-600' : 'sr-only'}>
+        {files === null ? '' : summaryText(files)}
+      </p>
     </section>
   );
 }
 
-function UploadDiagnostics({ files }: { files: UploadedFile[] }) {
+/** Итог проверки одной строкой — он же текст живой области для скринридера. */
+function summaryText(files: UploadedFile[]): string {
   const stored = files.filter((f) => f.key !== null).length;
+  if (stored === 0) return 'Ни один файл не сохранён: поправьте шапки и загрузите снова.';
+  return `Сохранено файлов: ${stored} из ${files.length}. Создание пакета из них — следующий шаг этапа: форма «Новый пакет» появится на этой вкладке.`;
+}
+
+function UploadDiagnostics({ files }: { files: UploadedFile[] }) {
   return (
-    <div className="space-y-2">
-      <TableShell overflow="x-auto">
-        <THead>
-          <Th>Файл</Th>
-          <Th>Сущность</Th>
-          <Th>Строк</Th>
-          <Th>Колонки</Th>
-        </THead>
-        <tbody>
-          {files.map((f, i) => (
-            <Tr key={`${f.name}-${i}`}>
-              <Td className="font-medium text-gray-900">{f.name}</Td>
-              <Td>{entityCell(f)}</Td>
-              <Td>{f.rows}</Td>
-              <Td className="text-gray-600">
-                {f.unmatchedHeaders.length === 0
-                  ? 'все распознаны'
-                  : `не распознаны: ${f.unmatchedHeaders.join(', ')}`}
-              </Td>
-            </Tr>
-          ))}
-        </tbody>
-      </TableShell>
-      <p className="text-sm text-gray-600" role="status">
-        {stored === 0
-          ? 'Ни один файл не сохранён: поправьте шапки и загрузите снова.'
-          : `Сохранено файлов: ${stored} из ${files.length}. Создание пакета из них — следующий шаг этапа: форма «Новый пакет» появится на этой вкладке.`}
-      </p>
-    </div>
+    <TableShell overflow="x-auto">
+      <caption className="sr-only">Что нашлось в загруженных файлах выгрузки</caption>
+      <THead>
+        <Th>Файл</Th>
+        <Th>Сущность</Th>
+        <Th>Строк</Th>
+        <Th>Колонки</Th>
+      </THead>
+      <tbody>
+        {files.map((f, i) => (
+          <Tr key={`${f.name}-${i}`}>
+            <Td className="font-medium text-gray-900">{f.name}</Td>
+            <Td>{entityCell(f)}</Td>
+            <Td>{f.rows}</Td>
+            <Td className="text-gray-600">
+              {f.unmatchedHeaders.length === 0
+                ? 'все распознаны'
+                : `не распознаны: ${f.unmatchedHeaders.join(', ')}`}
+            </Td>
+          </Tr>
+        ))}
+      </tbody>
+    </TableShell>
   );
 }
 

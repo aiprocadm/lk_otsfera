@@ -6,7 +6,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
-import { readMultipart, readFileEntry, readFile, formFields } from '@/lib/api/multipart';
+import { readMultipart, readFileEntry, readFile, readFiles, formFields } from '@/lib/api/multipart';
 
 function formReq(fd: FormData): Request {
   return new Request('http://x/', { method: 'POST', body: fd });
@@ -78,6 +78,39 @@ describe('readFile', () => {
 
   it('поля нет → null', async () => {
     expect(await readFile(new FormData(), 'file')).toBeNull();
+  });
+});
+
+describe('readFiles', () => {
+  const csv = (name: string, body: string) => new File([body], name, { type: 'text/csv' });
+
+  it('повтор ключа: возвращаются все файлы в порядке добавления', async () => {
+    const fd = new FormData();
+    fd.append('files', csv('a.csv', '1'));
+    fd.append('files', csv('b.csv', '22'));
+    const res = await readFiles(fd, 'files');
+    expect(res.map((f) => f.name)).toEqual(['a.csv', 'b.csv']);
+    expect(res.map((f) => f.size)).toEqual([1, 2]);
+    expect(res.map((f) => f.buffer.toString('utf8'))).toEqual(['1', '22']);
+    expect(res.every((f) => Buffer.isBuffer(f.buffer))).toBe(true);
+  });
+
+  it('файл нулевого размера пропускается (так браузер шлёт «файл не выбран»)', async () => {
+    const fd = new FormData();
+    fd.append('files', new File([], 'empty.csv', { type: 'text/csv' }));
+    fd.append('files', csv('a.csv', '1'));
+    expect((await readFiles(fd, 'files')).map((f) => f.name)).toEqual(['a.csv']);
+  });
+
+  it('строковые значения под тем же ключом пропускаются', async () => {
+    const fd = new FormData();
+    fd.append('files', 'не файл');
+    fd.append('files', csv('a.csv', '1'));
+    expect((await readFiles(fd, 'files')).map((f) => f.name)).toEqual(['a.csv']);
+  });
+
+  it('поля нет → пустой список', async () => {
+    expect(await readFiles(new FormData(), 'files')).toEqual([]);
   });
 });
 

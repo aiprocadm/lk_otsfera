@@ -230,8 +230,9 @@ export function resolveBitrixColumns<E extends BitrixFileEntity>(
   const missing: string[] = [];
   for (const group of REQUIRED_BITRIX_COLS[entity] as ReadonlyArray<ReadonlyArray<string>>) {
     if (group.some((f) => index[f])) continue;
-    const primary = cols[group[0] ?? '']?.[0];
-    if (primary) missing.push(primary);
+    // Группа обязательных колонок непустая, а её поля — ключи той же карты:
+    // оба индекса доказуемо валидны (список выше в этом же файле).
+    missing.push(cols[group[0]!]![0]!);
   }
   return { index: index as ResolvedColumns<E>['index'], unmatched, missing };
 }

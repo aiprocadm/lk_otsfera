@@ -47,7 +47,17 @@ function parseFileKeys(settings: unknown): FileKey[] {
 async function fileSource(settings: unknown): Promise<BitrixSource> {
   const keys = parseFileKeys(settings);
   if (keys.length === 0) {
-    throw new BitrixSourceError('source_no_files', 'В пакете нет файлов выгрузки');
+    // Записи были, но все негодные — это другая беда, чем «файлов не грузили»:
+    // код один (для UI это всё «нет файлов»), а текст должен сказать правду.
+    const listed = Array.isArray((settings as { fileKeys?: unknown } | null)?.fileKeys)
+      ? (settings as { fileKeys: unknown[] }).fileKeys.length
+      : 0;
+    throw new BitrixSourceError(
+      'source_no_files',
+      listed > 0
+        ? `В пакете нет пригодных файлов выгрузки: записей ${listed}, у всех потерян ключ или сущность`
+        : 'В пакете нет файлов выгрузки'
+    );
   }
   const storage = getObjectStorage();
   const files: BitrixUploadedFile[] = [];

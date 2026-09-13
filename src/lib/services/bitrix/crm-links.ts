@@ -10,10 +10,11 @@ export function parseCrmLinks(tokens: readonly string[]): BitrixTask['crmLinks']
   for (const token of tokens) {
     const m = token.trim().match(/^(CO|D|L|C)_(\d+)$/i);
     if (!m) continue;
-    const prefix = (m[1] ?? '').toUpperCase();
+    // Обе группы шаблона обязательные: совпадение есть — значит, есть и они.
+    const prefix = m[1]!.toUpperCase();
     const kind =
       prefix === 'CO' ? 'company' : prefix === 'D' ? 'deal' : prefix === 'L' ? 'lead' : 'contact';
-    out.push({ kind, id: m[2] ?? '' });
+    out.push({ kind, id: m[2]! });
   }
   return out;
 }
