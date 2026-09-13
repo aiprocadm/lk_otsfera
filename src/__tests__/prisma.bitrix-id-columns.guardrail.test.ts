@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { readSource } from './helpers/source';
 
 /**
  * Этап 2 ТЗ 12.09.2026 (`У-190`, `Р-Б-11`): ключ Битрикса живёт отдельной
@@ -8,7 +8,8 @@ import path from 'node:path';
  * импорт (`У-195`) и откат. Пропавшая колонка или снятая уникальность молча
  * превратили бы повтор пакета в дубли.
  */
-const SCHEMA = readFileSync(path.join(process.cwd(), 'prisma/schema.prisma'), 'utf8');
+// `readSource` снимает комментарии: закомментированная колонка не сойдёт за живую.
+const SCHEMA = readSource(path.join(process.cwd(), 'prisma/schema.prisma'));
 const MODELS = ['Organization', 'Contact', 'Lead', 'Deal', 'Task', 'Document'] as const;
 
 function modelBody(name: string): string {

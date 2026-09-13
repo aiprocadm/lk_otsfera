@@ -42,6 +42,7 @@ const OPT_IN_FLAGS = new Set([
   'telephony_mango',
   'staff_2fa',
   'contacts',
+  'bitrix_migration',
   'staff_chat',
   'staff_calendar',
   'global_search',

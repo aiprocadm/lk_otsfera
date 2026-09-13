@@ -19,6 +19,13 @@ beforeEach(() => {
 afterEach(() => {
   process.env = { ...ORIGINAL_ENV };
 });
+// Раздел «Миграция из Битрикс24» (этап 2 ТЗ 12.09.2026) закрыт поведенческим
+// флагом `bitrix_migration`; для матрицы прав считаем флаг включённым — иначе
+// раздел выпадает из выборки и тест проверяет не права, а флаг. Регистрируется
+// ПОСЛЕ сброса окружения выше, чтобы тот его не затирал.
+beforeEach(() => {
+  process.env.FEATURE_BITRIX_MIGRATION = '1';
+});
 
 function section(id: string): SettingsSection {
   const found = SETTINGS_SECTIONS.find((s) => s.id === id);
