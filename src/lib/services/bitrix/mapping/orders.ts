@@ -68,7 +68,10 @@ export function findMatchingOrder(
   deal: { opportunity: string | null; closeDate: Date | null },
   orders: readonly CandidateOrder[]
 ): CandidateOrder | undefined {
-  const amount = Number(deal.opportunity ?? '');
+  // `Number('')` — это ноль, а не «нет суммы»: без этой проверки сделка без
+  // суммы прилипала бы к любому нулевому заказу той же организации.
+  if (!deal.opportunity) return undefined;
+  const amount = Number(deal.opportunity);
   if (!Number.isFinite(amount)) return undefined;
   return orders.find((order) => {
     if (!isOneCOrder(order)) return false;
@@ -102,7 +105,8 @@ export function planOrderForWonDeal(
     return {
       action: 'link',
       orderId: match.id,
-      orderLabel: match.orderNumber ?? match.externalId ?? match.id,
+      // `externalId` у кандидата есть всегда — иначе он не прошёл бы `isOneCOrder`.
+      orderLabel: match.orderNumber ?? (match.externalId as string),
     };
   }
 

@@ -160,7 +160,9 @@ export function planReason(plan: Plan<unknown>): string {
  * ключ строится из пары, а не из одного идентификатора стадии.
  */
 export function stageKey(stage: Pick<BitrixStage, 'categoryId' | 'id'>): string {
-  return `${stage.categoryId ?? '0'}:${stage.id}`;
+  // Пустая строка считается общим направлением так же, как `null`: иначе ключ
+  // стадии и ключ сделки разошлись бы, и стадия выглядела бы несопоставленной.
+  return `${stage.categoryId || '0'}:${stage.id}`;
 }
 
 export function dealStageKey(deal: { categoryId: string; stageId: string }): string {

@@ -118,9 +118,21 @@ export function planContact(
   };
 
   if (!matched) {
-    // Контакт без единого канала и без имени переносить незачем: в справочнике
-    // он будет строкой «Без имени», которую никто не найдёт.
-    if (!name && channels.length === 0) return { action: 'skip', reason: 'empty' };
+    if (!name && channels.length === 0) {
+      // Единственный канал безымянного контакта занят другим человеком: это не
+      // «пустая запись», а решение для человека — иначе о потерянном телефоне
+      // никто не узнает (`channelConflicts` для пропуска молчит).
+      if (skippedChannels.length > 0) {
+        return {
+          action: 'conflict',
+          reason: 'channel_taken',
+          hint: skippedChannels.map((c) => `${c.value} — у контакта «${c.owner}»`).join('; '),
+        };
+      }
+      // Контакт без единого канала и без имени переносить незачем: в справочнике
+      // он будет строкой «Без имени», которую никто не найдёт.
+      return { action: 'skip', reason: 'empty' };
+    }
     return { action: 'create', data };
   }
 

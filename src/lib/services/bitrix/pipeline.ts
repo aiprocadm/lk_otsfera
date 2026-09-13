@@ -311,7 +311,6 @@ export async function runPipeline(
         ctx,
         {
           byBitrixId: (id) => found.get(id),
-          organizationByBitrixId: (id) => registry.get('organization', id),
           organizationByName: (name) => {
             const key = organizationKeysOf([{ id: '', inn: null, title: name }]).nameKeys[0];
             return key ? orgNames.byNameKey.get(key)?.id : undefined;

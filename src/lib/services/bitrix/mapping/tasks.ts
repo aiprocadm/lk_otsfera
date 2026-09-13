@@ -37,6 +37,7 @@ export type ExistingTask = {
   title: string;
   status: TaskStatus;
   columnId: string | null;
+  completedAt: Date | null;
 };
 
 export type TaskLookup = {
@@ -112,6 +113,8 @@ export function planTask(
     patch.completedAt = data.completedAt;
     before.status = existing.status;
     before.columnId = existing.columnId;
+    // Дата завершения гасится вместе со статусом — снимок обязателен для отката.
+    before.completedAt = existing.completedAt;
   }
   if (Object.keys(patch).length === 0) return { action: 'skip', reason: 'no_changes' };
   return { action: 'update', id: existing.id, data: patch, before };

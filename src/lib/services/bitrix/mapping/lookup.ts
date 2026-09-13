@@ -169,7 +169,7 @@ export async function loadLeads(
   if (bitrixIds.length === 0) return new Map();
   const rows = await prisma.lead.findMany({
     where: { bitrixId: { in: bitrixIds } },
-    select: { id: true, subject: true, status: true, bitrixId: true },
+    select: { id: true, subject: true, status: true, funnelStageId: true, bitrixId: true },
   });
   return new Map(rows.map((r) => [r.bitrixId as string, r]));
 }
@@ -189,6 +189,8 @@ export async function loadDeals(
       stageId: true,
       orderId: true,
       organizationId: true,
+      wonAt: true,
+      lostAt: true,
       bitrixId: true,
     },
   });
@@ -203,7 +205,14 @@ export async function loadTasks(
   if (bitrixIds.length === 0) return new Map();
   const rows = await prisma.task.findMany({
     where: { companyId, bitrixId: { in: bitrixIds } },
-    select: { id: true, title: true, status: true, columnId: true, bitrixId: true },
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      columnId: true,
+      completedAt: true,
+      bitrixId: true,
+    },
   });
   return new Map(rows.map((r) => [r.bitrixId as string, r]));
 }

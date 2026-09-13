@@ -50,7 +50,10 @@ export function planOrganization(
   ctx: MappingContext,
   lookup: OrganizationLookup
 ): Plan<OrganizationData> {
-  const name = company.title.trim() || `Компания Битрикс24 #${company.id}`;
+  // Заглушка нужна только новой организации: подставлять её в UPDATE нельзя —
+  // пустое название из Битрикса затёрло бы живое имя в кабинете (`У-171`).
+  const title = company.title.trim();
+  const name = title || `Компания Битрикс24 #${company.id}`;
   const nameKey = organizationNameKey(name);
   const inn =
     company.inn && isValidInn(normalizeInn(company.inn)) ? normalizeInn(company.inn) : null;
@@ -85,9 +88,9 @@ export function planOrganization(
   // Пустое из Битрикса не затирает заполненное в ЛК (`У-171`, спека §3.4).
   const patch: Partial<OrganizationData> = {};
   const before: PlanBefore<OrganizationData> = {};
-  if (name && name !== existing.name) {
-    patch.name = name;
-    patch.nameKey = nameKey;
+  if (title && title !== existing.name) {
+    patch.name = title;
+    patch.nameKey = organizationNameKey(title);
     before.name = existing.name;
   }
   if (inn && inn !== existing.inn) {

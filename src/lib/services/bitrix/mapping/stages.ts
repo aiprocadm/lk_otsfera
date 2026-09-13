@@ -54,8 +54,14 @@ export function proposeStageMap(
       out[key] = savedId;
       continue;
     }
+    // «Извинились перед клиентом» (apology) в Битриксе — разновидность провала,
+    // поэтому предлагается та же стадия, что и для failure.
     const anchor =
-      stage.semantics === 'success' ? 'won' : stage.semantics === 'failure' ? 'lost' : null;
+      stage.semantics === 'success'
+        ? 'won'
+        : stage.semantics === 'failure' || stage.semantics === 'apology'
+          ? 'lost'
+          : null;
     const guess =
       (anchor ? byAnchor(dealStages, anchor) : undefined) ?? byName(dealStages, stage.name);
     out[key] = guess?.id ?? null;
@@ -85,7 +91,7 @@ export function proposeLeadStageMap(
     const anchor =
       stage.semantics === 'success'
         ? 'promoted_to_deal'
-        : stage.semantics === 'failure'
+        : stage.semantics === 'failure' || stage.semantics === 'apology'
           ? 'rejected'
           : null;
     const guess =

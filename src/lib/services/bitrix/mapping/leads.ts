@@ -30,12 +30,16 @@ export type LeadData = {
   bitrixId: string;
 };
 
-export type ExistingLead = { id: string; subject: string; status: LeadStatus };
+export type ExistingLead = {
+  id: string;
+  subject: string;
+  status: LeadStatus;
+  funnelStageId: string | null;
+};
 
 export type LeadLookup = {
   byBitrixId: (bitrixId: string) => ExistingLead | undefined;
-  organizationByBitrixId: (bitrixId: string) => string | undefined;
-  /** Организация по названию компании из лида — лиды Битрикса не хранят её id. */
+  /** Организация по названию компании из лида — лид Битрикса не хранит её id. */
   organizationByName: (name: string) => string | undefined;
 };
 
@@ -64,7 +68,8 @@ export function planLead(
   }
 
   const companyTitle = lead.companyTitle?.trim() ?? '';
-  const inn = lead.inn && isValidInn(normalizeInn(lead.inn)) ? normalizeInn(lead.inn) : null;
+  const normalizedInn = lead.inn ? normalizeInn(lead.inn) : null;
+  const inn = normalizedInn && isValidInn(normalizedInn) ? normalizedInn : null;
   const organizationId =
     (companyTitle ? lookup.organizationByName(companyTitle) : undefined) ?? null;
 
@@ -99,6 +104,9 @@ export function planLead(
     patch.status = data.status;
     patch.funnelStageId = data.funnelStageId;
     before.status = existing.status;
+    // Стадия воронки меняется вместе со статусом — без снимка откат оставил бы
+    // лид в стадии, которая противоречит вернувшемуся статусу.
+    before.funnelStageId = existing.funnelStageId;
   }
   if (Object.keys(patch).length === 0) return { action: 'skip', reason: 'no_changes' };
   return { action: 'update', id: existing.id, data: patch, before };

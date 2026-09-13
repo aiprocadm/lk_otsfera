@@ -36,6 +36,8 @@ export type ExistingDeal = {
   stageId: string | null;
   orderId: string | null;
   organizationId: string | null;
+  wonAt: Date | null;
+  lostAt: Date | null;
 };
 
 export type DealLookup = {
@@ -94,6 +96,10 @@ export function planDeal(
     patch.lostAt = data.lostAt;
     before.status = existing.status;
     before.stageId = existing.stageId;
+    // Даты закрытия перезаписываются вместе со статусом: без снимка прежняя
+    // дата победы пропала бы навсегда, и откат её не вернул бы.
+    before.wonAt = existing.wonAt;
+    before.lostAt = existing.lostAt;
   }
   if (data.organizationId && data.organizationId !== existing.organizationId) {
     patch.organizationId = data.organizationId;
