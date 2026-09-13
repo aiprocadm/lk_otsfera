@@ -72,6 +72,7 @@ const target: DealDialogTarget = {
   amount: '150.50',
   organizationId: 'org-1',
   leadId: null,
+  contactId: null,
   managerId: 'm-2',
   expectedCloseAt: new Date('2026-08-15T00:00:00.000Z'),
   orderId: null,

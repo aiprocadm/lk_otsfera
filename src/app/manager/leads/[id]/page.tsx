@@ -13,6 +13,11 @@ import { ManagerLeadActions } from '@/components/manager/manager-lead-actions';
 import { PushLeadButton } from '@/components/manager/push-lead-button';
 import { IssueLeadProposalButton } from '@/components/documents/issue-order-less-document-button';
 import { CreateOrgFromLeadButton } from '@/components/manager/create-org-from-lead-button';
+import { CreateContactFromLeadButton } from '@/components/manager/create-contact-from-lead-button';
+import { getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
+import { canUseContacts } from '@/lib/services/contacts/scope';
+import { findLeadContact } from '@/lib/services/contacts/leadContact';
+import { contactHref } from '@/lib/navigation/contactsHrefs';
 import { STATUS_LABELS } from '@/lib/documents/statusMatrix';
 import { Breadcrumbs } from '@/components/ui';
 import { buildLeadBreadcrumbs } from '@/lib/navigation/breadcrumbs';
@@ -41,6 +46,20 @@ export default async function ManagerLeadDetailPage({
   const linkedTasks = tasksEnabled
     ? await listLinkedTasks(prisma, session, { leadId: lead.id })
     : [];
+
+  // Этап 1 ТЗ 12.09.2026 (`У-180`): блок «Контакт» — человек из заявки в
+  // справочнике контактов (по телефону, затем по почте) либо кнопка завести его.
+  // Флаг `contacts` поведенческий; право на справочник проверяем здесь же, чтобы
+  // не показывать кнопку тому, кому сервис откажет.
+  const contactsOn = isFeatureEnabled('contacts') && canUseContacts(session);
+  const leadContact = contactsOn
+    ? await findLeadContact(
+        prisma,
+        session,
+        await getCompanyTeamVisibility(prisma, session.companyId),
+        lead
+      )
+    : null;
 
   const candidates = session.companyId
     ? (await listCompanyManagers(prisma, session.companyId))
@@ -163,6 +182,38 @@ export default async function ManagerLeadDetailPage({
           <p className="text-sm text-gray-600 mt-2">Причина отклонения: {lead.rejectedReason}</p>
         )}
       </div>
+
+      {contactsOn && (
+        <div className="rounded-xl border border-gray-200 p-4">
+          <h2 className="text-sm font-semibold text-[#111111] mb-1">Контакт</h2>
+          {leadContact ? (
+            <p className="text-sm text-gray-700">
+              Телефон или почта заявки совпали с контактом{' '}
+              <Link
+                href={contactHref('manager', leadContact.id)}
+                className="font-medium text-[#F97316] hover:underline"
+              >
+                {leadContact.name}
+              </Link>
+              {' — '}
+              звонки, письма и диалоги с ним собраны в его карточке.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-sm text-gray-600">
+                Человека из этой заявки в справочнике контактов нет. Заведите его — звонки, письма и
+                диалоги свяжутся с карточкой, а заявка получит адресата.
+              </p>
+              <CreateContactFromLeadButton
+                name={lead.clientContactName}
+                phone={lead.clientContactPhone}
+                email={lead.clientContactEmail}
+                organizationId={lead.organizationId}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {lead.proposals.length > 0 && (
         <div className="rounded-xl border border-gray-200 p-4">

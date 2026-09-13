@@ -25,6 +25,8 @@ import { getOrderLinesPanel } from '@/lib/services/orders/linesPanel';
 import { OrderLinesSection } from '@/components/orders/order-lines-section';
 import { GenerateDocumentsPanel } from '@/components/manager/generate-documents-panel';
 import { getDocumentGenerationPanel } from '@/lib/services/documents/generationPanel';
+import { getOrderContactPanel } from '@/lib/services/orders/primaryContact';
+import { OrderContactPanel } from '@/components/orders/order-contact-panel';
 
 import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
@@ -71,6 +73,13 @@ export default async function AdminOrderDetailPage({
           organizationId: order.organizationId,
         })
       : null;
+
+  // Этап 1 ТЗ 12.09.2026 (`У-180`): «Контакт заказа» — тот же блок, что у
+  // менеджера и руководителя (правило зеркала §0.2). Администратор — пол
+  // компании (Model A), команды у него нет: `teamMode` — `false` явно.
+  const contactPanel = isFeatureEnabled('contacts')
+    ? await getOrderContactPanel(prisma, session, false, order)
+    : null;
 
   return (
     <div className="space-y-5">
@@ -153,6 +162,16 @@ export default async function AdminOrderDetailPage({
           view={linesPanel.view}
           catalog={linesPanel.catalog}
           canEdit
+        />
+      )}
+
+      {contactPanel && (
+        <OrderContactPanel
+          orderId={order.id}
+          cabinet="admin"
+          organizationId={order.organizationId}
+          current={contactPanel.current}
+          options={contactPanel.options}
         />
       )}
 

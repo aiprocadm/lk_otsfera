@@ -49,6 +49,8 @@ export type DealCard = {
    * показать кнопку.
    */
   leadId: string | null;
+  /** `У-180`: контакт сделки — префилл формы (имя берётся из списка вариантов). */
+  contactId: string | null;
   managerId: string | null;
   managerName: string | null;
   status: 'open' | 'won' | 'lost';
@@ -101,6 +103,7 @@ export async function getDealBoard(
         createdAt: true,
         organizationId: true,
         leadId: true,
+        contactId: true,
         managerId: true,
         organization: { select: { name: true } },
         manager: { select: { name: true } },
@@ -122,6 +125,7 @@ export async function getDealBoard(
       organizationId: d.organizationId,
       organizationName: d.organization?.name ?? null,
       leadId: d.leadId,
+      contactId: d.contactId,
       managerId: d.managerId,
       managerName: d.manager?.name ?? null,
       status: d.status,

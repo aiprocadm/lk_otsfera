@@ -221,6 +221,19 @@ export const PII_CONTEXTS = {
     labelRu: 'Глобальный поиск: контакты',
     callSite: 'src/lib/services/search/globalSearch.ts',
   },
+  // `У-180` «контакт из всех точек»: выбор контакта в формах и совпадение на лиде.
+  contacts_options: {
+    subjectType: 'contact',
+    action: 'list',
+    labelRu: 'Выбор контакта в форме (сделка, заказ)',
+    callSite: 'src/lib/services/contacts/options.ts',
+  },
+  lead_contact_match: {
+    subjectType: 'contact',
+    action: 'view',
+    labelRu: 'Карточка лида: найденный контакт',
+    callSite: 'src/lib/services/contacts/leadContact.ts',
+  },
 } as const satisfies Record<string, PiiContext>;
 
 export type PiiContextKey = keyof typeof PII_CONTEXTS;

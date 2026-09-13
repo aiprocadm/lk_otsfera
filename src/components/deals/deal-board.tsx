@@ -12,6 +12,7 @@ import {
   IssueLeadProposalDialog,
   IssueOrderLessDocumentDialog,
 } from '@/components/documents/issue-order-less-document-button';
+import type { ContactOption } from '@/lib/services/contacts/options';
 import { DealDialog, type DealDialogOption, type DealDialogTarget } from './deal-dialog';
 
 /**
@@ -73,6 +74,8 @@ export function DealBoard({
   board,
   organizations,
   managers,
+  contacts,
+  contactHrefBase,
   currentUserId,
   tasksEnabled,
 }: {
@@ -80,6 +83,10 @@ export function DealBoard({
   /** Заданы вместе с currentUserId → клик по открытой сделке открывает редактирование. */
   organizations?: DealDialogOption[];
   managers?: DealDialogOption[];
+  /** `У-180`: контакты для поля «Контакт» формы; `undefined` — флаг `contacts` выключен. */
+  contacts?: ContactOption[] | undefined;
+  /** Раздел контактов своего кабинета — для ссылки «Открыть карточку контакта». */
+  contactHrefBase?: string | undefined;
   currentUserId?: string;
   tasksEnabled?: boolean;
 }) {
@@ -106,6 +113,7 @@ export function DealBoard({
       amount: card.amount,
       organizationId: card.organizationId,
       leadId: card.leadId,
+      contactId: card.contactId,
       managerId: card.managerId,
       expectedCloseAt: card.expectedCloseAt,
       orderId: card.orderId,
@@ -298,6 +306,8 @@ export function DealBoard({
           target={editTarget}
           organizations={organizations}
           managers={managers}
+          contacts={contacts}
+          contactHrefBase={contactHrefBase}
           currentUserId={currentUserId}
           tasksEnabled={tasksEnabled}
           // Сделка без организации — выпускать не на кого: контрагент документа

@@ -19,6 +19,9 @@ import { getOrderStatusPanel } from '@/lib/services/orderStatuses';
 import { loadOrderDeal } from '@/lib/services/manager/orderDetail';
 import { OrderDealPanel } from '@/components/orders/order-deal-panel';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
+import { getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
+import { getOrderContactPanel } from '@/lib/services/orders/primaryContact';
+import { OrderContactPanel } from '@/components/orders/order-contact-panel';
 import { getOrderLinesPanel } from '@/lib/services/orders/linesPanel';
 import { OrderLinesSection } from '@/components/orders/order-lines-section';
 
@@ -93,6 +96,17 @@ export default async function LeaderOrderDetailPage({
       ? await loadOrderDeal(prisma, id, { companyId: session.companyId })
       : null;
 
+  // Этап 1 ТЗ 12.09.2026 (`У-180`): «Контакт заказа» — тот же блок, что у
+  // менеджера и администратора (правило зеркала §0.2); `teamMode` — свежий (C8).
+  const contactPanel = isFeatureEnabled('contacts')
+    ? await getOrderContactPanel(
+        prisma,
+        session,
+        await getCompanyTeamVisibility(prisma, session.companyId),
+        data.order
+      )
+    : null;
+
   return (
     <div className="space-y-5">
       <ManagerOrderDetailView
@@ -125,6 +139,17 @@ export default async function LeaderOrderDetailPage({
           deal ? (
             /* Лидов в кабинете руководителя нет — имя лида остаётся текстом. */
             <OrderDealPanel deal={deal} dealsHref="/leader/deals" leadHrefBase={null} />
+          ) : null
+        }
+        contactPanel={
+          contactPanel ? (
+            <OrderContactPanel
+              orderId={id}
+              cabinet="leader"
+              organizationId={data.order.organizationId}
+              current={contactPanel.current}
+              options={contactPanel.options}
+            />
           ) : null
         }
       />

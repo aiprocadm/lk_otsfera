@@ -191,6 +191,7 @@ export const AUDIT_ACTIONS = [
   'order_item_removed',
   'order_item_status_changed',
   'order_manager_changed',
+  'order_primary_contact_changed',
   'order_result_delivered',
   'order_self_assigned',
   'order_status_changed',
