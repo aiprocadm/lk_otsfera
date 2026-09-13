@@ -10,9 +10,7 @@ import { BitrixSourceError, type BitrixSource } from './source';
  * `bitrix.*`. Без вебхука — `not_configured`: пакет не создаётся, форма
  * подключения объясняет, чего не хватает.
  */
-export type BitrixSourceKind = 'rest' | 'file';
-
-export function isFakeBitrix(): boolean {
+function isFakeBitrix(): boolean {
   return process.env.FAKE_BITRIX === '1';
 }
 

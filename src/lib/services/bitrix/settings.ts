@@ -44,7 +44,7 @@ export function portalHost(url: string | null | undefined): string {
 }
 
 /** Таблица «id пользователя Битрикса → id пользователя ЛК»; мусор → пусто. */
-export function parseUserMap(raw: string | null): Record<string, string> {
+function parseUserMap(raw: string | null): Record<string, string> {
   if (!raw) return {};
   try {
     const parsed: unknown = JSON.parse(raw);

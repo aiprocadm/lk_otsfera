@@ -16,18 +16,18 @@ import { BitrixSourceError } from './source';
  * В ошибках нет URL: в нём токен (`У-199`).
  */
 
-export type BitrixRawResponse = {
+type BitrixRawResponse = {
   status: number;
   body: unknown;
 };
 
-export type BitrixTransport = (
+type BitrixTransport = (
   url: string,
   params: unknown,
   signal: AbortSignal
 ) => Promise<BitrixRawResponse>;
 
-export type BitrixCallResult = {
+type BitrixCallResult = {
   result: unknown;
   next: number | null;
   total: number | null;
@@ -52,13 +52,12 @@ export type BitrixClient = {
   batch(commands: Record<string, string>): Promise<Record<string, unknown>>;
 };
 
-export const BITRIX_PAGE_SIZE = 50;
-export const BITRIX_BATCH_LIMIT = 50;
+const BITRIX_BATCH_LIMIT = 50;
 const DEFAULT_TIMEOUT_MS = 30_000;
 const DEFAULT_RETRIES = 3;
 const DEFAULT_RATE = 2;
 
-export const fetchTransport: BitrixTransport = async (url, params, signal) => {
+const fetchTransport: BitrixTransport = async (url, params, signal) => {
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json', accept: 'application/json' },

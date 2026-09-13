@@ -136,7 +136,7 @@ function taskStatusOf(v: unknown): BitrixTaskStatus {
 }
 
 /** `UF_CRM_TASK`: `CO_12` компания, `D_7` сделка, `L_3` лид, `C_9` контакт. */
-export function parseCrmLinks(v: unknown): BitrixTask['crmLinks'] {
+function parseCrmLinks(v: unknown): BitrixTask['crmLinks'] {
   if (!Array.isArray(v)) return [];
   const out: BitrixTask['crmLinks'] = [];
   for (const item of v) {

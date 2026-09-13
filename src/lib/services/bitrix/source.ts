@@ -82,7 +82,7 @@ export type BitrixStage = {
 /** Статусы задач Битрикс24: 2 — ждёт выполнения, 3 — в работе, 4 — ждёт контроля, 5 — завершена, 6 — отложена. */
 export type BitrixTaskStatus = 2 | 3 | 4 | 5 | 6;
 
-export type BitrixCrmLink = { kind: 'company' | 'deal' | 'lead' | 'contact'; id: string };
+type BitrixCrmLink = { kind: 'company' | 'deal' | 'lead' | 'contact'; id: string };
 
 export type BitrixTask = {
   id: string;

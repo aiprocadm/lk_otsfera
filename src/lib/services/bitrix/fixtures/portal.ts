@@ -58,11 +58,10 @@ export const FAKE_STAGES: BitrixStage[] = [
   },
 ];
 
-/** ИНН двух первых компаний тесты заводят у существующих организаций ЛК. */
-export const FAKE_INN_EXISTING_A = '7701234567';
-export const FAKE_INN_EXISTING_B = '7812345678';
-/** Название третьей совпадает с организацией ЛК по `nameKey` (ИНН у неё нет). */
-export const FAKE_NAME_KEY_MATCH = 'ООО «Вектор Плюс»';
+/** ИНН двух первых компаний тесты заводят у существующих организаций ЛК;
+ * название третьей («Вектор Плюс») совпадает с организацией ЛК по `nameKey`. */
+const FAKE_INN_EXISTING_A = '7701234567';
+const FAKE_INN_EXISTING_B = '7812345678';
 
 export const FAKE_COMPANIES: BitrixCompany[] = [
   {

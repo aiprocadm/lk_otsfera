@@ -14,7 +14,7 @@ const TABS = [
   { tail: 'history', label: 'Пакеты' },
 ] as const;
 
-export const BITRIX_SETTINGS_BASE = '/admin/settings/integrations/bitrix';
+const BITRIX_SETTINGS_BASE = '/admin/settings/integrations/bitrix';
 
 export function BitrixTabs() {
   const pathname = usePathname();
