@@ -1,5 +1,6 @@
 import React from 'react';
 import { describe, it, expect } from 'vitest';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { renderToString } from 'react-dom/server';
 import { OrgCardTabs } from '@/components/manager/org-card-tabs';
 import type { OrganizationCard } from '@/lib/services/manager/organizationCard';
@@ -37,7 +38,7 @@ function card(over: Partial<OrganizationCard> = {}): OrganizationCard {
       signerBasis: null,
     },
     partner: null,
-    counts: { orders: 0, students: 0, cabinetUsers: 0 },
+    counts: { orders: 0, students: 0, cabinetUsers: 0, contacts: 0 },
     kpis: { activeOrders: 0, totalPaid: '0', totalRefunded: '0', debt: '0' },
     orders: [],
     documents: [],
@@ -50,7 +51,6 @@ function card(over: Partial<OrganizationCard> = {}): OrganizationCard {
     deals: [],
     certificates: [],
     enrollments: [],
-    auditTrail: [],
     tabTotals: {
       orders: 0,
       documents: 0,
@@ -63,7 +63,6 @@ function card(over: Partial<OrganizationCard> = {}): OrganizationCard {
       deals: 0,
       certificates: 0,
       enrollments: 0,
-      auditTrail: 0,
     },
     commission: null,
     ...over,
@@ -113,34 +112,76 @@ describe('вкладка «Заявки на обучение» (У-96)', () => 
   });
 });
 
-describe('вкладка «История» — журнал действий (У-96)', () => {
-  it('показывает действие по-русски, а не машинным кодом', () => {
-    const html = render('history', {
-      auditTrail: [
-        {
-          id: 'a1',
-          action: 'organization_egrul_filled',
-          createdAt: new Date('2026-03-01'),
-          actorName: 'Иванов',
-        },
-      ],
-    });
-    expect(html).toContain('Заполнение реквизитов из ЕГРЮЛ');
-    expect(html).toContain('Иванов');
-    expect(html).not.toContain('organization_egrul_filled');
+describe('вкладка «История» — единая лента (У-184)', () => {
+  // `У-184` (этап 1 ТЗ 12.09.2026): ленту собирает `orgHistory.ts`, а карточка
+  // получает готовый узел от страницы — как «Сотрудники». Без узла вкладка пуста
+  // (страница не передала — значит, не открыта).
+  it('показывает переданный узел ленты', () => {
+    const html = renderToStaticMarkup(
+      <OrgCardTabs
+        card={card({})}
+        activeTab="history"
+        tabs={TABS}
+        history={<div data-testid="history">ЛЕНТА</div>}
+      />
+    );
+    expect(html).toContain('ЛЕНТА');
   });
 
-  it('автор неизвестен — прочерк, а не пустая ячейка', () => {
-    const html = render('history', {
-      auditTrail: [
-        { id: 'a1', action: 'organization_updated', createdAt: new Date(), actorName: null },
-      ],
-    });
-    expect(html).toContain('—');
+  it('без узла ничего не рисует и не падает', () => {
+    expect(render('history')).not.toContain('ЛЕНТА');
+  });
+});
+
+describe('вкладки «Контакты» и «Заметки» (У-182, У-183) и «Важное» на «Обзоре»', () => {
+  it('узлы контактов и заметок рисуются на своих вкладках', () => {
+    const contacts = renderToStaticMarkup(
+      <OrgCardTabs
+        card={card({})}
+        activeTab="contacts"
+        tabs={TABS}
+        contacts={<div>СПИСОК-КОНТАКТОВ</div>}
+      />
+    );
+    expect(contacts).toContain('СПИСОК-КОНТАКТОВ');
+    const notes = renderToStaticMarkup(
+      <OrgCardTabs card={card({})} activeTab="notes" tabs={TABS} notes={<div>ЗАМЕТКИ</div>} />
+    );
+    expect(notes).toContain('ЗАМЕТКИ');
   });
 
-  it('пусто — объясняет себя (У-74)', () => {
-    expect(render('history')).toContain('Изменений по этой организации ещё не было');
+  it('«Важное» показывается над сводкой «Обзора»', () => {
+    const html = renderToStaticMarkup(
+      <OrgCardTabs
+        card={card({})}
+        activeTab="overview"
+        tabs={TABS}
+        overviewExtra={<div>ВАЖНОЕ</div>}
+      />
+    );
+    expect(html.indexOf('ВАЖНОЕ')).toBeGreaterThan(-1);
+    expect(html.indexOf('ВАЖНОЕ')).toBeLessThan(
+      html.indexOf('Работа с этим клиентом ещё не начиналась')
+    );
+  });
+
+  it('плитка «Контакты» — только когда есть вкладка «Контакты»', () => {
+    const withTab = renderToStaticMarkup(
+      <OrgCardTabs
+        card={card({ counts: { orders: 0, students: 0, cabinetUsers: 0, contacts: 4 } })}
+        activeTab="overview"
+        tabs={[...TABS, { key: 'contacts', label: 'Контакты' }]}
+      />
+    );
+    expect(withTab).toContain('Контакты');
+    const withoutTab = renderToStaticMarkup(
+      <OrgCardTabs
+        card={card({ counts: { orders: 0, students: 0, cabinetUsers: 0, contacts: 4 } })}
+        activeTab="overview"
+        tabs={TABS}
+      />
+    );
+    expect(withoutTab).not.toContain('>Контакты<');
   });
 });
 

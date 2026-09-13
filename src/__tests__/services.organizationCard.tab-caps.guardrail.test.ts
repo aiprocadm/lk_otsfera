@@ -23,7 +23,9 @@ describe('карточка организации: предел вкладок �
     const wheres = [...SRC.matchAll(/const (\w+Where): Prisma\.\w+WhereInput/g)].map((m) => m[1]);
     // Одиннадцать списков (заказы считает `_count` организации по тому же
     // условию — без своего `count`).
-    expect(wheres.length).toBeGreaterThanOrEqual(11);
+    // `У-184` (этап 1 ТЗ 12.09.2026): журнал действий переехал в `orgHistory.ts`,
+    // условий стало десять — одним запросом меньше на каждой вкладке карточки.
+    expect(wheres.length).toBeGreaterThanOrEqual(10);
     for (const w of wheres) {
       expect(SRC, `${w}: нет выборки списка`).toMatch(new RegExp(`findMany\\(\\{\\s*where: ${w},`));
       if (w === 'ordersWhere') continue;
@@ -45,7 +47,6 @@ describe('карточка организации: предел вкладок �
       'deals',
       'certificates',
       'enrollments',
-      'auditTrail',
     ]) {
       expect(block, `tabTotals без ${key}`).toMatch(new RegExp(`\\b${key}:`));
       // Счётчик — переменная из запроса, а не подставленный ноль.

@@ -38,8 +38,7 @@ export type OrgCardListKey =
   | 'leads'
   | 'deals'
   | 'certificates'
-  | 'enrollments'
-  | 'auditTrail';
+  | 'enrollments';
 
 const CARD_SELECT = {
   id: true,
@@ -73,6 +72,8 @@ const CARD_SELECT = {
       orders: true,
       students: true,
       organizationUsers: { where: { isActive: true } },
+      // `У-182`: плитка «Контакты» — не архивные контакты организации.
+      contacts: { where: { isArchived: false } },
     },
   },
 } satisfies Prisma.OrganizationSelect;
@@ -170,13 +171,6 @@ type OrgCardEnrollment = {
  * карточке не было вовсе: кто и когда правил реквизиты или ставку, приходилось
  * искать в общем журнале аудита.
  */
-type OrgCardAuditEntry = {
-  id: string;
-  action: string;
-  createdAt: Date;
-  actorName: string | null;
-};
-
 // Этап 9 (ФТ-12.2, PR-3): вкладка «Удостоверения» карточки + её выгрузка.
 type OrgCardCertificate = {
   id: string;
@@ -208,7 +202,7 @@ export type OrganizationCard = {
   kpp: string | null;
   requisites: OrgCardRequisites;
   partner: { id: string; name: string } | null;
-  counts: { orders: number; students: number; cabinetUsers: number };
+  counts: { orders: number; students: number; cabinetUsers: number; contacts: number };
   kpis: { activeOrders: number; totalPaid: string; totalRefunded: string; debt: string };
   orders: OrgCardOrder[];
   documents: OrgCardDocument[];
@@ -221,8 +215,6 @@ export type OrganizationCard = {
   deals: OrgCardDeal[];
   certificates: OrgCardCertificate[];
   enrollments: OrgCardEnrollment[];
-  /** Пустой у клиентских ролей: журнал действий — внутренняя информация ЦО. */
-  auditTrail: OrgCardAuditEntry[];
   /**
    * Сколько записей у организации всего по каждой вкладке-списку — `count` по
    * тому же условию, что и выборка (`take: ORG_CARD_TAB_CAP`). У блоков, которые
@@ -300,7 +292,6 @@ export async function getOrganizationCard(
   const paymentsWhere: Prisma.PaymentWhereInput = { organizationId: orgId };
   const commentsWhere: Prisma.CommentWhereInput = { order: { organizationId: orgId } };
   const enrollmentsWhere: Prisma.EnrollmentRequestWhereInput = { organizationId: orgId };
-  const auditWhere: Prisma.AuditLogWhereInput = { entity: 'organization', entityId: orgId };
   const clientRequestsWhere: Prisma.ClientRequestWhereInput = { organizationId: orgId };
   const inboundWhere: Prisma.InboundMessageWhereInput = { resolvedOrgId: orgId };
   const callsWhere: Prisma.CallWhereInput = { resolvedOrgId: orgId };
@@ -415,25 +406,10 @@ export async function getOrganizationCard(
   // только сотрудникам учебного центра). Раньше они всё равно грузились бы
   // и уехали бы в браузер заказчика вместе с карточкой — вкладки нет, а
   // данные есть. Поэтому запросы выполняются только для staff-просмотра.
-  // `У-96`: журнал действий по организации. Кто и что менял — внутренняя
-  // информация учебного центра, клиенту и партнёру её не показывают, поэтому и
-  // не грузим.
-  const [auditTrail, auditTotal] = isStaffView
-    ? await Promise.all([
-        prisma.auditLog.findMany({
-          where: auditWhere,
-          select: {
-            id: true,
-            action: true,
-            createdAt: true,
-            user: { select: { name: true } },
-          },
-          orderBy: { createdAt: 'desc' },
-          take: ORG_CARD_TAB_CAP,
-        }),
-        prisma.auditLog.count({ where: auditWhere }),
-      ])
-    : ([[], 0] as const);
+  // `У-184` (этап 1 ТЗ 12.09.2026): вкладка «История» — единая лента
+  // `services/organization/orgHistory.ts`, грузится страницей только когда
+  // открыта; в карточке журнала больше нет — одним запросом меньше на каждой
+  // вкладке.
 
   // `У-96`: вкладка «Обращения» положена и партнёру, поэтому запрос живёт
   // отдельно от внутренних блоков учебного центра.
@@ -567,6 +543,7 @@ export async function getOrganizationCard(
       orders: org._count.orders,
       students: org._count.students,
       cabinetUsers: org._count.organizationUsers,
+      contacts: org._count.contacts,
     },
     tabTotals: {
       // Заказы — тот же `where`, что у списка, счётчик уже есть в `_count`.
@@ -581,7 +558,6 @@ export async function getOrganizationCard(
       deals: dealsTotal,
       certificates: certificatesTotal,
       enrollments: enrollmentsTotal,
-      auditTrail: auditTotal,
     },
     kpis: {
       activeOrders,
@@ -671,12 +647,6 @@ export async function getOrganizationCard(
       createdAt: e.createdAt,
       courseTitle: e.legacyCourseTitle,
       studentsCount: e._count.items,
-    })),
-    auditTrail: auditTrail.map((a) => ({
-      id: a.id,
-      action: a.action,
-      createdAt: a.createdAt,
-      actorName: a.user.name,
     })),
     commission:
       isStaffView && can(session, 'see_commission')

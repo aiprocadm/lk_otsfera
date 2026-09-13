@@ -21,18 +21,41 @@ describe('реестр плиток карточки организации (У-
       'Сотрудники',
       'Доступ в кабинет',
       'Задолженность',
+      // `У-182` (этап 1 ТЗ 12.09.2026): только там, где есть вкладка «Контакты».
+      'Контакты',
     ]);
   });
 
   it('одна подпись — один источник числа во всех кабинетах', () => {
-    const counts = { orders: 3, students: 7, cabinetUsers: 2 };
+    const counts = { orders: 3, students: 7, cabinetUsers: 2, contacts: 4 };
     const tiles = orgCardTiles({ ...counts, debt: '100.00' });
-    expect(tiles.map((t) => t.value)).toEqual([3, 7, 2, fmtMoney('100.00')]);
+    expect(tiles.map((t) => t.value)).toEqual([3, 7, 2, fmtMoney('100.00'), 4]);
   });
 
   it('пустые значения показываются нулём, а не пустотой (У-74)', () => {
-    const tiles = orgCardTiles({ orders: 0, students: 0, cabinetUsers: 0, debt: '0.00' });
-    expect(tiles.map((t) => t.value)).toEqual([0, 0, 0, '0 ₽']);
+    const tiles = orgCardTiles({
+      orders: 0,
+      students: 0,
+      cabinetUsers: 0,
+      debt: '0.00',
+      contacts: 0,
+    });
+    expect(tiles.map((t) => t.value)).toEqual([0, 0, 0, '0 ₽', 0]);
+  });
+
+  it('`У-182`: плитка «Контакты» скрыта в кабинетах без вкладки «Контакты»', () => {
+    const counts = { orders: 1, students: 1, cabinetUsers: 1, debt: '0.00', contacts: 9 };
+    expect(orgCardTiles(counts, { tabs: [{ key: 'overview' }] }).map((t) => t.key)).toEqual([
+      'orders',
+      'students',
+      'cabinetUsers',
+      'debt',
+    ]);
+    expect(orgCardTiles(counts, { tabs: [{ key: 'contacts' }] }).map((t) => t.key)).toContain(
+      'contacts'
+    );
+    // Без списка вкладок — весь реестр (реестр сам по себе полный).
+    expect(orgCardTiles(counts).map((t) => t.key)).toContain('contacts');
   });
 });
 

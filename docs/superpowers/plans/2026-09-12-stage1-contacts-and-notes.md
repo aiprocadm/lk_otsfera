@@ -130,32 +130,43 @@ PR-3 — сервисы заметок PR-1 и страницы PR-2, PR-4 за�
       `navigation.same-section-same-name`, `security.role-access-matrix`
 - [x] `CHANGELOG.md`
 
-## PR-3 «карточка организации, лид, заказ, сделка»
+## PR-3a «карточка организации» — вкладки, заметки, история
 
-- [ ] `navigation/orgCardTabs.ts`: `contacts` (после «Сотрудники», STAFF, флаг
+- [x] `navigation/orgCardTabs.ts`: `contacts` (после «Сотрудники», STAFF, флаг
       `contacts`) и `notes` (после «Комментарии», STAFF) с причиной в
-      комментарии; страж порядка обновлён
-- [ ] `components/ui/mention-textarea.tsx` извлечён из `staff-composer.tsx`
+      комментарии; `orgCardTiles.ts` — плитка «Контакты» только там, где есть
+      вкладка (`onlyWithTab`); стражи реестров обновлены
+- [x] `components/ui/mention-textarea.tsx` извлечён из `staff-composer.tsx`
       (чат команды переведён на него, поведение не меняется)
-- [ ] `services/organizationNotes/list.ts` (закреплённые отдельно, флаги прав
-      для сессии) — заготовка и unit-тест сняты с PR-1
-- [ ] `components/organization/org-contacts-section.tsx`,
+- [x] `services/organizationNotes/list.ts` (закреплённые отдельно, флаги прав
+      для сессии) — заготовка и unit-тест вернулись из WIP-ветки
+- [x] `components/organization/org-contacts-section.tsx`,
       `org-notes-section.tsx` (композитор, закреплённые сверху, правка своей,
-      удаление руководителем), блок «Важное» на «Обзоре»
-- [ ] `services/organization/orgHistory.ts`: `listOrgHistory` — пять
+      удаление руководителем), `pinned-notes-block.tsx` — «Важное» на «Обзоре»
+- [x] `services/organization/orgHistory.ts`: `listOrgHistory` — пять
       источников, фильтр по типу, точная постраничность в типе, «верх + сумма»
       для «Все типы», источники под выключенными флагами не грузятся;
-      `getOrganizationCard` теряет `auditTrail`; вкладка «История» переписана
-- [ ] страницы карточки ×3 грузят секции только при активной вкладке; плитка
+      `getOrganizationCard` потерял `auditTrail` (страж `tab-caps` — порог 10);
+      вкладка «История» — `org-history-section.tsx`
+- [x] страницы карточки ×3 грузят секции только при активной вкладке; плитка
       «Контакты» = не архивные
-- [ ] карточка лида: блок «Контакт» (`resolveContactByChannel`) + «Создать
-      контакт из данных лида»; карточка заказа: «Контакт заказа»
-      (`setOrderPrimaryContact`); карточка сделки: «Контакт» (`Deal.contactId`)
-- [ ] `docs/glossary.md` + `lib/help/glossary.ts`: «Заметка (внутренняя)»
-- [ ] тесты: `orgCard.tabs-registry`, вкладок нет у партнёра/заказчика,
-      руководитель удаляет чужую заметку — менеджер нет, лента листается,
-      `jscpd` не выше порога
-- [ ] `CHANGELOG.md`
+- [x] `docs/glossary.md` + `lib/help/glossary.ts`: «Заметка (внутренняя)»
+      (страж — 15 терминов)
+- [x] тесты: реестры, вкладок нет у партнёра/заказчика (фильтр `cabinets`),
+      руководитель удаляет чужую заметку — менеджер нет (`organizationNotes.*`),
+      лента листается (`orgHistory.integration`), страницы ×3, компоненты
+- [x] `CHANGELOG.md`
+
+## PR-3b «лид, заказ, сделка» — контакт из всех точек (`У-180`)
+
+- [ ] карточка лида: блок «Контакт» (`resolveContactByChannel` по телефону и
+      почте лида) + «Создать контакт из данных лида»
+- [ ] карточка заказа (три кабинета): «Контакт заказа» —
+      `services/orders/primaryContact.ts` `setOrderPrimaryContact`, панель с
+      выбором из контактов организации, аудит
+- [ ] сделка: «Контакт» (`Deal.contactId`) в форме сделки, проверка в
+      `deals/crud.ts` (контакт компании, организация совпадает или пуста)
+- [ ] тесты сервисов, actions, компонентов и страниц; `CHANGELOG.md`
 
 ## PR-4 «флаг и close-out»
 
