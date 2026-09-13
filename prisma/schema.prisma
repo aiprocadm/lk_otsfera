@@ -2725,6 +2725,10 @@ model BitrixImportWrite {
   reverted  Boolean           @default(false)
   createdAt DateTime          @default(now())
 
-  @@index([batchId, entity])
+  // Откат читает журнал пакета порциями по сущности в обратном порядке
+  // (`У-196`), а кнопка «Откатить» считает неоткаченные строки, — оба запроса
+  // без своего индекса уходили бы в сортировку по куче.
+  @@index([batchId, entity, createdAt])
+  @@index([batchId, reverted])
   @@index([entity, entityId])
 }

@@ -17,8 +17,12 @@ vi.mock('@/lib/auth/requireSettings', () => ({ requireSettingsSection }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
-const { getBitrixBatch } = vi.hoisted(() => ({ getBitrixBatch: vi.fn() }));
-vi.mock('@/lib/services/bitrix/preview', () => ({ getBitrixBatch }));
+// Карточка берёт пакет вместе с состоянием отката: одна выборка вместо двух,
+// и подпись кнопки не может разъехаться с тем, что сделает сам откат.
+const { getBitrixBatchWithRollback } = vi.hoisted(() => ({
+  getBitrixBatchWithRollback: vi.fn(),
+}));
+vi.mock('@/lib/services/bitrix/history', () => ({ getBitrixBatchWithRollback }));
 
 const { resolveDealStages, resolveFunnelStages, resolveTaskColumns, loadCompanyUsers } = vi.hoisted(
   () => ({
@@ -66,6 +70,26 @@ vi.mock('@/components/bitrix/apply-batch-button', () => ({
   },
 }));
 
+// «Откатить» (`У-196`) — тоже клиентская кнопка с подтверждением и своим
+// тестом (components.bitrix-rollback-batch-button): странице важно, при каком
+// состоянии пакета она её монтирует и что передаёт.
+type RollbackStub = { batchId: string; state: string; hint: string };
+const { rollbackProps } = vi.hoisted(() => ({ rollbackProps: [] as RollbackStub[] }));
+vi.mock('@/components/bitrix/rollback-batch-button', () => ({
+  RollbackBatchButton: (props: RollbackStub) => {
+    rollbackProps.push(props);
+    return React.createElement(
+      'button',
+      {
+        'data-testid': 'rollback-batch',
+        disabled: props.state !== 'available',
+        ...(props.hint ? { title: props.hint } : {}),
+      },
+      'Откатить'
+    );
+  },
+}));
+
 const { mappingProps } = vi.hoisted(() => ({ mappingProps: [] as Record<string, unknown>[] }));
 vi.mock('@/components/bitrix/mapping-tables', () => ({
   MappingTables: (props: Record<string, unknown>) => {
@@ -77,7 +101,7 @@ vi.mock('@/components/bitrix/mapping-tables', () => ({
 import AdminBitrixBatchPage, {
   metadata,
 } from '@/app/admin/settings/integrations/bitrix/history/[batchId]/page';
-import type { BitrixBatchView } from '@/lib/services/bitrix/preview';
+import type { BitrixHistoryItem } from '@/lib/services/bitrix/history';
 import type { PipelineCounts } from '@/lib/services/bitrix/pipeline';
 import {
   BITRIX_ENTITIES,
@@ -102,7 +126,7 @@ function counts(over: Partial<Record<BitrixEntity, Partial<PipelineCounts[Bitrix
   return { ...base, progress: null, total: 0, warnings: [] } satisfies PipelineCounts;
 }
 
-function batch(over: Partial<BitrixBatchView> = {}): BitrixBatchView {
+function batch(over: Partial<BitrixHistoryItem> = {}): BitrixHistoryItem {
   return {
     id: 'b-1',
     status: 'preview',
@@ -111,6 +135,8 @@ function batch(over: Partial<BitrixBatchView> = {}): BitrixBatchView {
     createdAt: new Date('2026-09-13T09:05:00Z'),
     startedAt: null,
     appliedAt: null,
+    rolledBackAt: null,
+    hasReport: false,
     importedByName: 'Анна Админова',
     settings: {
       from: null,
@@ -124,6 +150,10 @@ function batch(over: Partial<BitrixBatchView> = {}): BitrixBatchView {
     counts: null,
     errors: [],
     ready: false,
+    // Состояние отката считает сервис по статусу, дате применения и журналу;
+    // страница его только передаёт кнопке.
+    rollback: 'not_applied',
+    rollbackHint: 'Пакет ещё не применён — возвращать нечего.',
     ...over,
   };
 }
@@ -137,8 +167,9 @@ beforeEach(() => {
   progressProps.length = 0;
   mappingProps.length = 0;
   applyProps.length = 0;
+  rollbackProps.length = 0;
   requireSettingsSection.mockResolvedValue(ADMIN);
-  getBitrixBatch.mockResolvedValue({ ok: true, batch: batch() });
+  getBitrixBatchWithRollback.mockResolvedValue({ ok: true, batch: batch() });
   resolveDealStages.mockResolvedValue([{ id: 'ds1', name: 'В работе' }]);
   resolveFunnelStages.mockResolvedValue([{ id: 'fs1', name: 'Новый' }]);
   resolveTaskColumns.mockResolvedValue([{ id: 'tc1', name: 'К выполнению' }]);
@@ -154,13 +185,13 @@ describe('AdminBitrixBatchPage — гард и отсутствующий пак
   it('раздел закрыт гардом настроек на каждый запрос', async () => {
     await render();
     expect(requireSettingsSection).toHaveBeenCalledWith('integrations.bitrix', 'admin');
-    expect(getBitrixBatch).toHaveBeenCalledWith({}, ADMIN, 'b-1');
+    expect(getBitrixBatchWithRollback).toHaveBeenCalledWith({}, ADMIN, 'b-1');
   });
 
   it.each([['not_found'], ['forbidden']])(
     'чужой или отсутствующий пакет (%s) → notFound, данные ЛК не читаются',
     async (error) => {
-      getBitrixBatch.mockResolvedValue({ ok: false, error });
+      getBitrixBatchWithRollback.mockResolvedValue({ ok: false, error });
       await expect(render('чужой')).rejects.toThrow('NOT_FOUND');
       expect(nav.notFound).toHaveBeenCalled();
       expect(resolveDealStages).not.toHaveBeenCalled();
@@ -187,9 +218,9 @@ describe('AdminBitrixBatchPage — шапка и состояние', () => {
   });
 
   it('пакет из выгрузок и незнакомое состояние показываются как есть', async () => {
-    getBitrixBatch.mockResolvedValue({
+    getBitrixBatchWithRollback.mockResolvedValue({
       ok: true,
-      batch: batch({ source: 'file', status: 'unknown' as BitrixBatchView['status'] }),
+      batch: batch({ source: 'file', status: 'unknown' as BitrixHistoryItem['status'] }),
     });
     const { container } = await render();
     expect(container.textContent).toContain(
@@ -198,7 +229,7 @@ describe('AdminBitrixBatchPage — шапка и состояние', () => {
   });
 
   it('пакет не посчитался: причины списком и совет, что делать; сопоставления нет', async () => {
-    getBitrixBatch.mockResolvedValue({
+    getBitrixBatchWithRollback.mockResolvedValue({
       ok: true,
       batch: batch({
         status: 'failed',
@@ -229,7 +260,7 @@ describe('AdminBitrixBatchPage — шапка и состояние', () => {
 
 describe('AdminBitrixBatchPage — сводка и предупреждения', () => {
   it('сводка считанного пакета и предупреждение о большом объёме', async () => {
-    getBitrixBatch.mockResolvedValue({
+    getBitrixBatchWithRollback.mockResolvedValue({
       ok: true,
       batch: batch({
         counts: {
@@ -252,7 +283,7 @@ describe('AdminBitrixBatchPage — сводка и предупреждения'
   });
 
   it('предупреждений нет — жёлтой плашки тоже нет, а сводка есть', async () => {
-    getBitrixBatch.mockResolvedValue({
+    getBitrixBatchWithRollback.mockResolvedValue({
       ok: true,
       batch: batch({ counts: { ...counts({ contact: { create: 3 } }), total: 3 } }),
     });
@@ -262,7 +293,7 @@ describe('AdminBitrixBatchPage — сводка и предупреждения'
   });
 
   it('пакет ещё считается — сводки нет вовсе', async () => {
-    getBitrixBatch.mockResolvedValue({
+    getBitrixBatchWithRollback.mockResolvedValue({
       ok: true,
       batch: batch({ status: 'preview_pending', counts: null }),
     });
@@ -275,7 +306,7 @@ describe('AdminBitrixBatchPage — сводка и предупреждения'
 
 describe('AdminBitrixBatchPage — сопоставление', () => {
   it('таблицы сопоставления получают стадии портала и справочники ЛК; у сотрудников видна почта', async () => {
-    getBitrixBatch.mockResolvedValue({
+    getBitrixBatchWithRollback.mockResolvedValue({
       ok: true,
       batch: batch({
         settings: {
@@ -326,7 +357,7 @@ describe('AdminBitrixBatchPage — сопоставление', () => {
   });
 
   it('пакет уже применён — ни таблиц, ни блока «Применение», ни кнопки', async () => {
-    getBitrixBatch.mockResolvedValue({
+    getBitrixBatchWithRollback.mockResolvedValue({
       ok: true,
       batch: batch({
         status: 'applied',
@@ -343,7 +374,7 @@ describe('AdminBitrixBatchPage — сопоставление', () => {
 
 describe('AdminBitrixBatchPage — блок «Применение»', () => {
   it('перечисляет именно те стадии, которые ещё не сопоставлены; кнопка заблокирована', async () => {
-    getBitrixBatch.mockResolvedValue({
+    getBitrixBatchWithRollback.mockResolvedValue({
       ok: true,
       batch: batch({
         settings: {
@@ -365,7 +396,7 @@ describe('AdminBitrixBatchPage — блок «Применение»', () => {
   });
 
   it('сопоставление полное — кнопка «Применить» доступна и знает число записей', async () => {
-    getBitrixBatch.mockResolvedValue({
+    getBitrixBatchWithRollback.mockResolvedValue({
       ok: true,
       batch: batch({
         counts: { ...counts({ deal: { create: 5 } }), total: 1234 },
@@ -391,38 +422,120 @@ describe('AdminBitrixBatchPage — блок «Применение»', () => {
   it('сухой прогон ещё не посчитан — кнопке передаётся 0 записей, а не undefined', async () => {
     // Стадий не нашлось, сводки нет: сопоставлять нечего, поэтому кнопка
     // доступна, а число записей честно равно нулю.
-    getBitrixBatch.mockResolvedValue({ ok: true, batch: batch({ counts: null }) });
+    getBitrixBatchWithRollback.mockResolvedValue({ ok: true, batch: batch({ counts: null }) });
     await render();
     expect(applyProps).toEqual([{ batchId: 'b-1', total: 0, disabled: false }]);
   });
 });
 
-// `У-194`: после переноса экран обязан сказать, что он состоялся, — иначе
-// человек не отличит «применили» от «кнопку не нажали».
-describe('AdminBitrixBatchPage — блок «Перенос выполнен»', () => {
-  it('статус applied: блок есть, кнопки применения нет', async () => {
-    getBitrixBatch.mockResolvedValue({
+// `У-194`, `У-196`, `У-198`: после переноса экран обязан сказать, что он
+// состоялся, дать отчёт сверки и кнопку «вернуть как было». Иначе человек не
+// отличит «применили» от «кнопку не нажали» и не найдёт, где откатить.
+describe('AdminBitrixBatchPage — блок «Перенос выполнен», отчёт и откат', () => {
+  /** Пакет, который уже что-то записал: у него есть и отчёт, и откат. */
+  function done(over: Partial<BitrixHistoryItem> = {}) {
+    return batch({
+      status: 'applied',
+      appliedAt: new Date('2026-09-13T10:00:00Z'),
+      hasReport: true,
+      rollback: 'available',
+      rollbackHint: '',
+      ...over,
+    });
+  }
+
+  it.each([
+    ['applied', 'Перенос выполнен', 'откачен'],
+    ['rolled_back', 'Перенос откачен', 'частично'],
+    ['rollback_partial', 'Перенос откачен частично', 'Перенос выполнен'],
+  ])('статус %s: блок называет, что именно произошло', async (status, title, absent) => {
+    getBitrixBatchWithRollback.mockResolvedValue({
       ok: true,
-      batch: batch({ status: 'applied', appliedAt: new Date('2026-09-13T10:00:00Z') }),
+      batch: done({ status: status as BitrixHistoryItem['status'] }),
     });
     const { container } = await render();
     const text = container.textContent ?? '';
 
-    expect(text).toContain('Перенос выполнен');
-    expect(text).toContain('Записи из Битрикс24 в кабинете.');
-    expect(text).toContain('отчёт сверки и откат появятся следующим шагом этапа');
+    expect(text).toContain(title);
+    // Три состояния — три разные новости; перепутать их нельзя.
+    expect(text).not.toContain(absent);
+    expect(text).toContain('Что именно изменилось — в отчёте сверки');
+    // Применять уже нечего: кнопки «Применить» в этих состояниях нет.
     expect(container.querySelector('[data-testid="apply-batch"]')).toBeNull();
+    expect(applyProps).toEqual([]);
   });
 
-  it.each([['preview'], ['preview_pending'], ['applying'], ['failed']])(
-    'статус %s — блока «Перенос выполнен» нет',
+  it('отчёт собран — ссылка ведёт на роут отчёта этого пакета', async () => {
+    getBitrixBatchWithRollback.mockResolvedValue({ ok: true, batch: done({ hasReport: true }) });
+    const { container } = await render();
+
+    const link = container.querySelector('[data-testid="bitrix-report-link"]');
+    expect(link?.getAttribute('href')).toBe('/api/admin/bitrix/b-1/report');
+    expect(link?.textContent).toBe('Скачать отчёт сверки');
+    expect(container.textContent).not.toContain('Отчёт сверки собирается');
+  });
+
+  it('отчёт ещё собирается — вместо ссылки объяснение, что сделать', async () => {
+    getBitrixBatchWithRollback.mockResolvedValue({ ok: true, batch: done({ hasReport: false }) });
+    const { container } = await render();
+
+    // §15: пустое место молчит, а человек должен понять, почему скачать нечего.
+    expect(container.querySelector('[data-testid="bitrix-report-link"]')).toBeNull();
+    expect(container.textContent).toContain(
+      'Отчёт сверки собирается — обновите страницу через минуту.'
+    );
+    // Откат от отчёта не зависит: кнопка на месте.
+    expect(container.querySelector('[data-testid="rollback-batch"]')).not.toBeNull();
+  });
+
+  it('кнопка отката получает состояние и подсказку, посчитанные сервисом', async () => {
+    getBitrixBatchWithRollback.mockResolvedValue({
+      ok: true,
+      batch: done({
+        rollback: 'expired',
+        rollbackHint: 'Откат возможен 30 дней после применения — срок вышел.',
+      }),
+    });
+    const { container } = await render();
+
+    // Страница ничего не пересчитывает: разъехаться подпись и поведение не могут.
+    expect(rollbackProps).toEqual([
+      {
+        batchId: 'b-1',
+        state: 'expired',
+        hint: 'Откат возможен 30 дней после применения — срок вышел.',
+      },
+    ]);
+    const button = container.querySelector('[data-testid="rollback-batch"]');
+    expect(button).toHaveProperty('disabled', true);
+    expect(button?.getAttribute('title')).toBe(
+      'Откат возможен 30 дней после применения — срок вышел.'
+    );
+  });
+
+  it('откат возможен — кнопка живая и без подсказки-причины', async () => {
+    getBitrixBatchWithRollback.mockResolvedValue({ ok: true, batch: done() });
+    const { container } = await render();
+
+    expect(rollbackProps).toEqual([{ batchId: 'b-1', state: 'available', hint: '' }]);
+    const button = container.querySelector('[data-testid="rollback-batch"]');
+    expect(button).toHaveProperty('disabled', false);
+    expect(button?.getAttribute('title')).toBeNull();
+  });
+
+  it.each([['preview'], ['preview_pending'], ['applying'], ['rolling_back'], ['failed']])(
+    'статус %s — ни блока, ни отчёта, ни кнопки отката',
     async (status) => {
-      getBitrixBatch.mockResolvedValue({
+      getBitrixBatchWithRollback.mockResolvedValue({
         ok: true,
-        batch: batch({ status: status as BitrixBatchView['status'] }),
+        batch: batch({ status: status as BitrixHistoryItem['status'], hasReport: true }),
       });
       const { container } = await render();
+
       expect(container.textContent).not.toContain('Перенос выполнен');
+      expect(container.querySelector('[data-testid="bitrix-report-link"]')).toBeNull();
+      expect(container.querySelector('[data-testid="rollback-batch"]')).toBeNull();
+      expect(rollbackProps).toEqual([]);
     }
   );
 });
@@ -445,7 +558,7 @@ describe('AdminBitrixBatchPage — строки конфликтов и крае
         reason: 'источник не даёт файлов',
       },
     ];
-    getBitrixBatch.mockResolvedValue({
+    getBitrixBatchWithRollback.mockResolvedValue({
       ok: true,
       batch: batch({ settings: { ...batch().settings, rows } }),
     });
@@ -468,7 +581,7 @@ describe('AdminBitrixBatchPage — строки конфликтов и крае
 
   it('у сессии нет компании: сотрудников не спрашиваем, справочники берём по пустой компании', async () => {
     requireSettingsSection.mockResolvedValue(ADMIN_NO_COMPANY);
-    getBitrixBatch.mockResolvedValue({
+    getBitrixBatchWithRollback.mockResolvedValue({
       ok: true,
       batch: batch({ settings: { ...batch().settings, stagesFound: STAGES } }),
     });

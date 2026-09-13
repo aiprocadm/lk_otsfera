@@ -16,7 +16,14 @@ export type PiiSubjectType =
   | 'caller'
   | 'inbound_sender'
   // Этап 1 ТЗ 12.09.2026 (`У-186`): контакт — физлицо клиентского контура.
-  | 'contact';
+  | 'contact'
+  /**
+   * Этап 2 ТЗ 12.09.2026 (`У-198`): субъект события — не один человек, а
+   * пакет миграции: в отчёте сверки перечислены все перенесённые контакты и
+   * лиды разом. Записывать сюда `contact` было бы враньём — журнал искал бы
+   * id пакета среди контактов и рисовал «удалён».
+   */
+  | 'bitrix_batch';
 
 /** Этап 9 (ФТ-12.1, PR-3): `export` — выгрузка ПДн сотрудником в файл.
  *  Клиентские выгрузки собственных данных сюда не попадают (фильтр `isStaff`
@@ -233,6 +240,14 @@ export const PII_CONTEXTS = {
     action: 'view',
     labelRu: 'Карточка лида: найденный контакт',
     callSite: 'src/lib/services/contacts/leadContact.ts',
+  },
+  // Этап 2 ТЗ 12.09.2026 (`У-198`): в отчёте сверки перечислены перенесённые
+  // контакты с их каналами связи — скачивание файла и есть чтение ПДн.
+  bitrix_report: {
+    subjectType: 'bitrix_batch',
+    action: 'export',
+    labelRu: 'Миграция из Битрикс24: отчёт сверки',
+    callSite: 'src/app/api/admin/bitrix/[batchId]/report/route.ts',
   },
 } as const satisfies Record<string, PiiContext>;
 

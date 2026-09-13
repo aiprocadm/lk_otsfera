@@ -13,7 +13,9 @@ const { notFoundIfDisabled, requireAdmin, storeBitrixUploads } = vi.hoisted(() =
 }));
 
 vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled }));
-vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
+// Гард раздела, а не просто роли: у администратора с закрытыми «Интеграциями»
+// формы нет — и прямая загрузка выгрузок с ПДн работать не должна (§4).
+vi.mock('@/lib/auth/requireSettings', () => ({ requireSettingsSection: requireAdmin }));
 vi.mock('@/lib/services/bitrix/upload', () => ({ storeBitrixUploads }));
 
 import { NextResponse } from 'next/server';

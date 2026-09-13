@@ -21,8 +21,10 @@ const { getSettingsView, getSettingValues } = vi.hoisted(() => ({
 }));
 vi.mock('@/lib/config/integrationSettings', () => ({ getSettingsView, getSettingValues }));
 
-const { listBitrixBatches } = vi.hoisted(() => ({ listBitrixBatches: vi.fn() }));
-vi.mock('@/lib/services/bitrix/preview', () => ({ listBitrixBatches }));
+// Список берётся у истории, а не у предпросмотра: строке нужны отчёт сверки
+// и посчитанное состояние отката, иначе кнопка в списке была бы догадкой.
+const { listBitrixHistory } = vi.hoisted(() => ({ listBitrixHistory: vi.fn() }));
+vi.mock('@/lib/services/bitrix/history', () => ({ listBitrixHistory }));
 
 const { isSecretsKeyConfigured } = vi.hoisted(() => ({ isSecretsKeyConfigured: vi.fn() }));
 vi.mock('@/lib/crypto/secrets', () => ({ isSecretsKeyConfigured }));
@@ -84,7 +86,7 @@ type NewBatchStubProps = {
 };
 const { newBatchProps, batchListProps } = vi.hoisted(() => ({
   newBatchProps: [] as NewBatchStubProps[],
-  batchListProps: [] as { batches: { id: string }[] }[],
+  batchListProps: [] as { batches: Record<string, unknown>[] }[],
 }));
 vi.mock('@/components/bitrix/new-batch-form', () => ({
   NewBatchForm: (props: NewBatchStubProps) => {
@@ -93,7 +95,7 @@ vi.mock('@/components/bitrix/new-batch-form', () => ({
   },
 }));
 vi.mock('@/components/bitrix/batch-list', () => ({
-  BatchList: (props: { batches: { id: string }[] }) => {
+  BatchList: (props: { batches: Record<string, unknown>[] }) => {
     batchListProps.push(props);
     return React.createElement(
       'div',
@@ -162,7 +164,7 @@ beforeEach(() => {
   formProps.length = 0;
   newBatchProps.length = 0;
   batchListProps.length = 0;
-  listBitrixBatches.mockResolvedValue({ ok: true, batches: [] });
+  listBitrixHistory.mockResolvedValue({ ok: true, batches: [] });
   getSettingValues.mockResolvedValue({ 'bitrix.webhookUrl': null });
   requireSettingsSection.mockResolvedValue(ADMIN_WITH_COMPANY);
   isSecretsKeyConfigured.mockReturnValue(true);
@@ -315,7 +317,7 @@ describe('AdminBitrixHistoryPage («Пакеты»)', () => {
     const { container } = await renderServerComponent(AdminBitrixHistoryPage());
 
     expect(requireSettingsSection).toHaveBeenCalledWith('integrations.bitrix', 'admin');
-    expect(listBitrixBatches).toHaveBeenCalledWith({}, ADMIN_WITH_COMPANY);
+    expect(listBitrixHistory).toHaveBeenCalledWith({}, ADMIN_WITH_COMPANY);
     expect(getSettingValues).toHaveBeenCalledWith({}, ['bitrix.webhookUrl']);
     expect(container.querySelector('h1')?.textContent).toBe('Пакеты миграции');
     const text = container.textContent ?? '';
@@ -339,21 +341,50 @@ describe('AdminBitrixHistoryPage («Пакеты»)', () => {
   });
 
   it('пакеты есть — вместо пустого состояния список, форма нового пакета остаётся', async () => {
-    listBitrixBatches.mockResolvedValue({
+    listBitrixHistory.mockResolvedValue({
       ok: true,
       batches: [{ id: 'b-1' }, { id: 'b-2' }],
     });
     const { container } = await renderServerComponent(AdminBitrixHistoryPage());
 
     expect(container.querySelector('[data-testid="bitrix-batch-list"]')?.textContent).toBe('2');
-    expect(batchListProps[0]?.batches.map((b) => b.id)).toEqual(['b-1', 'b-2']);
+    expect(batchListProps[0]?.batches.map((b) => b['id'])).toEqual(['b-1', 'b-2']);
     expect(container.querySelector('[data-testid="bitrix-new-batch-form"]')).not.toBeNull();
     expect(container.textContent).not.toContain('Здесь пока пусто');
   });
 
+  it('отчёт и состояние отката доезжают до списка как есть — страница их не пересчитывает', async () => {
+    // `У-196`, `У-198`: можно ли откатить строку, знает сервис — он смотрит
+    // статус, дату применения и журнал записей. Страница, посчитавшая это
+    // сама, рано или поздно разойдётся с самим откатом.
+    listBitrixHistory.mockResolvedValue({
+      ok: true,
+      batches: [
+        { id: 'b-1', hasReport: true, rollback: 'available', rollbackHint: '' },
+        {
+          id: 'b-2',
+          hasReport: false,
+          rollback: 'expired',
+          rollbackHint: 'Откат возможен 30 дней после применения — срок вышел.',
+        },
+      ],
+    });
+    await renderServerComponent(AdminBitrixHistoryPage());
+
+    expect(batchListProps[0]?.batches).toEqual([
+      { id: 'b-1', hasReport: true, rollback: 'available', rollbackHint: '' },
+      {
+        id: 'b-2',
+        hasReport: false,
+        rollback: 'expired',
+        rollbackHint: 'Откат возможен 30 дней после применения — срок вышел.',
+      },
+    ]);
+  });
+
   it('сервис отказал (нет компании у сессии) — экран не падает, а показывает пустое состояние', async () => {
     requireSettingsSection.mockResolvedValue(ADMIN_NO_COMPANY);
-    listBitrixBatches.mockResolvedValue({ ok: false, error: 'forbidden' });
+    listBitrixHistory.mockResolvedValue({ ok: false, error: 'forbidden' });
     const { container } = await renderServerComponent(AdminBitrixHistoryPage());
 
     // Менеджеров у сессии без компании не спрашиваем вовсе.

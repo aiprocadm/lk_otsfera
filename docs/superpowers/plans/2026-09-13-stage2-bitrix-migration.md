@@ -116,13 +116,43 @@ PR-4. Если PR-3 или PR-4 разрастутся — делятся по �
 
 ## PR-5 «откат, отчёт, история, безопасность»
 
-- [ ] `src/lib/services/bitrix/rollback.ts`: `requestRollback(prisma, session, batchId)` (окно 30 дней от `appliedAt`, статусы `applied`/`rollback_partial`, иначе коды `expired`/`already_rolled_back`/`not_applied`; статус `rolling_back`, задача `rollback`), `runRollback(prisma, batchId, onProgress)` — строки журнала в обратном порядке порциями по сущности (каждая порция — транзакция): `updated` → вернуть `before` (белый список полей), `created` → удалить, если нет новых ссылок (`computeRollbackConflicts`: заказ с оплатами/строками/документами не из пакета, организация с новыми заказами/документами/контактами, контакт с диалогами/звонками, сделка с новыми заметками) — иначе строка конфликта, `linked` → снять связь; `reverted = true`; итог `rolled_back` или `rollback_partial` (+ `errors`), `rolledBackAt`, аудит `bitrix_import_rolled_back`
-- [ ] `src/lib/services/bitrix/report.ts`: `buildBitrixReport(prisma, batchId): Promise<Buffer>` — `exceljs`, листы «Организации», «Контакты», «Лиды», «Сделки», «Задачи», «Заметки», «Файлы», «Заказы» (id Битрикса, id ЛК, действие, поля), «Конфликты», «Пропущено», «Оставлено ручное»; `safeText`; `storeBitrixReport(prisma, batchId)` → S3 `bitrix-import/<batchId>/report-<stamp>.xlsx`, `reportPath`; вызывается в конце `apply` и `rollback`
-- [ ] `src/app/api/admin/bitrix/[batchId]/report/route.ts`: `notFoundIfDisabled` → `requireAdmin` → пакет своей компании → `recordPiiAccess(prisma, { session, context: 'bitrix_report', subjectIds: [batchId] })` → `createSignedUrl(reportPath, 600, { download: true })` → 307; `src/lib/pii/contexts.ts`: `bitrix_report { subjectType: 'contact', action: 'export', labelRu: 'Миграция из Битрикс24: отчёт сверки', callSite: 'src/app/api/admin/bitrix/[batchId]/report/route.ts' }`; `pii.contexts.test.ts` (33 ключа); аудит `bitrix_import_report_downloaded`
-- [ ] `src/lib/services/bitrix/history.ts`: `listBitrixBatches(prisma, session)` (компания, 50 последних, `rollback: 'available' | 'expired' | 'rolled_back' | 'not_applied'` с причиной); страница `.../bitrix/history/page.tsx` + `src/components/bitrix/batch-history.tsx` («Отчёт», «Откатить» с подтверждением и объяснением неактивности — образец `import-history.tsx`, `DISABLED_HINT`); вкладка «Пакеты» ведёт сюда; server action `rollbackBitrixBatchAction(batchId)`
-- [ ] стражи (мутацией): `bitrix.write-journal-transactional.guardrail` (каждый writer зовёт `tx.bitrixImportWrite.create` в той же функции, что и запись сущности), `bitrix.report-matches-journal` (integration: число строк отчёта по сущности = число строк журнала), `bitrix.no-secret-logging` (расширить на `history.ts`/`report.ts`)
-- [ ] тесты: `services.bitrix.rollback.integration.test.ts` (снимок до/после совпадает; заказ с новым платежом блокирует; частичный откат), `services.bitrix.report.test.ts` (листы и `safeText`), `api.admin.bitrix.report.test.ts` (флаг, роль, чужая компания → 404, ПДн-запись, 307), `services.bitrix.history.test.ts`, страница истории и компонент; `pii.capture-coverage` зелёный
-- [ ] `CHANGELOG.md`, STATUS, план — галочки
+- [x] `src/lib/services/bitrix/rollback.ts`: `requestRollback(prisma, session, batchId)` (окно 30 дней от `appliedAt`, статусы `applied`/`rollback_partial`, иначе коды `expired`/`already_rolled_back`/`not_applied`; статус `rolling_back`, задача `rollback`), `runRollback(prisma, batchId, onProgress)` — строки журнала в обратном порядке порциями по сущности (каждая порция — транзакция): `updated` → вернуть `before` (белый список полей), `created` → удалить, если нет новых ссылок (`computeRollbackConflicts`: заказ с оплатами/строками/документами не из пакета, организация с новыми заказами/документами/контактами, контакт с диалогами/звонками, сделка с новыми заметками) — иначе строка конфликта, `linked` → снять связь; `reverted = true`; итог `rolled_back` или `rollback_partial` (+ `errors`), `rolledBackAt`, аудит `bitrix_import_rolled_back`
+- [x] `src/lib/services/bitrix/report.ts`: `buildBitrixReport(prisma, batchId): Promise<Buffer>` — `exceljs`, листы «Организации», «Контакты», «Лиды», «Сделки», «Задачи», «Заметки», «Файлы», «Заказы» (id Битрикса, id ЛК, действие, поля), «Конфликты», «Пропущено», «Оставлено ручное»; `safeText`; `storeBitrixReport(prisma, batchId)` → S3 `bitrix-import/<batchId>/report-<stamp>.xlsx`, `reportPath`; вызывается в конце `apply` и `rollback`
+- [x] `src/app/api/admin/bitrix/[batchId]/report/route.ts`: `notFoundIfDisabled` → `requireAdmin` → пакет своей компании → `recordPiiAccess(prisma, { session, context: 'bitrix_report', subjectIds: [batchId] })` → `createSignedUrl(reportPath, 600, { download: true })` → 307; `src/lib/pii/contexts.ts`: `bitrix_report { subjectType: 'contact', action: 'export', labelRu: 'Миграция из Битрикс24: отчёт сверки', callSite: 'src/app/api/admin/bitrix/[batchId]/report/route.ts' }`; `pii.contexts.test.ts` (33 ключа); аудит `bitrix_import_report_downloaded`
+- [x] `src/lib/services/bitrix/history.ts`: `listBitrixBatches(prisma, session)` (компания, 50 последних, `rollback: 'available' | 'expired' | 'rolled_back' | 'not_applied'` с причиной); страница `.../bitrix/history/page.tsx` + `src/components/bitrix/batch-history.tsx` («Отчёт», «Откатить» с подтверждением и объяснением неактивности — образец `import-history.tsx`, `DISABLED_HINT`); вкладка «Пакеты» ведёт сюда; server action `rollbackBitrixBatchAction(batchId)`
+- [x] стражи (мутацией): `bitrix.write-journal-transactional.guardrail` (каждый writer зовёт `tx.bitrixImportWrite.create` в той же функции, что и запись сущности), `bitrix.report-matches-journal` (integration: число строк отчёта по сущности = число строк журнала), `bitrix.no-secret-logging` (расширить на `history.ts`/`report.ts`)
+- [x] тесты: `services.bitrix.rollback.integration.test.ts` (снимок до/после совпадает; заказ с новым платежом блокирует; частичный откат), `services.bitrix.report.test.ts` (листы и `safeText`), `api.admin.bitrix.report.test.ts` (флаг, роль, чужая компания → 404, ПДн-запись, 307), `services.bitrix.history.test.ts`, страница истории и компонент; `pii.capture-coverage` зелёный
+- [x] `CHANGELOG.md`, STATUS, план — галочки
+
+> **Отступления PR-5 от плана (записаны при исполнении).**
+> 1. **`listBitrixBatches` уже был** (PR-3, `preview.ts`), поэтому `history.ts`
+>    не дублирует выборку, а надстраивает над ней состояние отката:
+>    `listBitrixHistory` (50 последних + счётчик неоткаченных строк ОДНИМ
+>    `groupBy` на страницу) и `getBitrixBatchWithRollback` для карточки пакета.
+> 2. **Отдельного экрана истории не понадобилось** — вкладка «Пакеты»
+>    (`.../bitrix/history`) и есть история; в неё добавлены колонки «Отчёт
+>    сверки» и «Откат», в карточку пакета — тот же блок. Плодить второй список
+>    того же самого значило бы нарушить правило зеркала (§0.2).
+> 3. **В отчёт добавлен лист «Сводка»** (пакет, кто запустил, даты, состояние):
+>    книга без него не отвечает на вопрос «что это за файл» (§15).
+> 4. **Лист «Конфликты» общий** для конфликтов переноса и отката, с колонкой
+>    «Этап»: два отдельных листа с одинаковыми колонками читаются хуже.
+> 5. **Индексы журнала** (`[batchId, entity, createdAt]`, `[batchId, reverted]`)
+>    — аддитивная миграция `20260913150000_stage2_bitrix_journal_indexes`: без
+>    них порционное чтение в обратном порядке и счётчик неоткаченных строк
+>    уходили в сортировку по куче.
+> 6. **Заметки удаляются из обеих таблиц** (`DealNote` и `OrganizationNote`):
+>    в журнале обе записаны сущностью `note`, идентификаторы уникальны, и
+>    лишний `deleteMany` дешевле хрупкого разбора снимка.
+> 7. **Конфликты считаются по ЖИВЫМ связям, а не «наш ли ребёнок по журналу»**
+>    (план предполагал второе). Порядок отката идёт от детей к родителям,
+>    поэтому к проверке родителя всё, что пакет сумел убрать, уже удалено, а
+>    всё оставшееся честно мешает. Первая редакция роняла откат сырым
+>    исключением внешнего ключа; переписано после интеграционных тестов.
+> 8. **Порция при сбое повторяется по одной строке** — иначе одна
+>    непредвиденная строка отменяла возврат сотни соседних.
+> 9. **Файл в хранилище при откате остаётся** — удаляется только строка
+>    документа: стереть вложение навсегда откат не вправе.
 
 ## PR-6 «расписание, документация, close-out»
 

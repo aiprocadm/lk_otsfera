@@ -6,7 +6,7 @@ import { prisma } from '@/lib/db/prisma';
 import { resolveFunnelStages } from '@/lib/funnel/stages';
 import { resolveDealStages } from '@/lib/services/deals/stages';
 import { resolveTaskColumns } from '@/lib/tasks/columns';
-import { getBitrixBatch } from '@/lib/services/bitrix/preview';
+import { getBitrixBatchWithRollback } from '@/lib/services/bitrix/history';
 import { unmappedStages } from '@/lib/services/bitrix/mapping/stages';
 import { loadCompanyUsers } from '@/lib/services/bitrix/mapping/lookup';
 import { BATCH_STATUS_LABELS, formatDate } from '@/components/bitrix/batch-list';
@@ -15,7 +15,8 @@ import { BatchProgress } from '@/components/bitrix/batch-progress';
 import { BatchRows } from '@/components/bitrix/batch-rows';
 import { BatchSummary } from '@/components/bitrix/batch-summary';
 import { MappingTables } from '@/components/bitrix/mapping-tables';
-import { BITRIX_BATCHES } from '@/components/bitrix/hrefs';
+import { RollbackBatchButton } from '@/components/bitrix/rollback-batch-button';
+import { BITRIX_BATCHES, reportHref } from '@/components/bitrix/hrefs';
 import { BackLink } from '@/components/ui/back-link';
 import { PageHeader } from '@/components/ui/page-header';
 
@@ -31,6 +32,15 @@ export const dynamic = 'force-dynamic';
  * не перенесутся. Кнопка «Применить» доступна, только когда сопоставлены все
  * стадии: иначе записи ушли бы не туда, и пришлось бы откатывать весь перенос.
  */
+/** Состояния, в которых перенос уже что-то записал: есть отчёт и есть откат. */
+const DONE_STATUSES = ['applied', 'rolled_back', 'rollback_partial'];
+
+const DONE_TITLES: Record<string, string> = {
+  applied: 'Перенос выполнен',
+  rolled_back: 'Перенос откачен',
+  rollback_partial: 'Перенос откачен частично',
+};
+
 export default async function AdminBitrixBatchPage({
   params,
 }: {
@@ -38,7 +48,7 @@ export default async function AdminBitrixBatchPage({
 }) {
   const session = await requireSettingsSection('integrations.bitrix', 'admin');
   const { batchId } = await params;
-  const res = await getBitrixBatch(prisma, session, batchId);
+  const res = await getBitrixBatchWithRollback(prisma, session, batchId);
   if (!res.ok) notFound();
 
   const batch = res.batch;
@@ -150,13 +160,35 @@ export default async function AdminBitrixBatchPage({
         </div>
       )}
 
-      {batch.status === 'applied' && (
-        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-1">
-          <div className="text-sm font-medium text-[#111111]">Перенос выполнен</div>
+      {DONE_STATUSES.includes(batch.status) && (
+        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-2">
+          <div className="text-sm font-medium text-[#111111]">
+            {DONE_TITLES[batch.status] ?? 'Перенос выполнен'}
+          </div>
           <p className="text-sm text-gray-600">
-            Записи из Битрикс24 в кабинете. Что именно изменилось, видно в сводке выше; отчёт сверки
-            и откат появятся следующим шагом этапа.
+            Что именно изменилось — в отчёте сверки: лист на каждую сущность плюс конфликты,
+            пропуски и поля, оставленные человеку.
           </p>
+          <div className="flex flex-wrap items-center gap-2">
+            {batch.hasReport ? (
+              <a
+                href={reportHref(batch.id)}
+                className="inline-flex items-center rounded-lg bg-[#F97316] px-4 py-2 text-sm font-medium text-white hover:bg-[#EA580C]"
+                data-testid="bitrix-report-link"
+              >
+                Скачать отчёт сверки
+              </a>
+            ) : (
+              <span className="text-sm text-gray-500">
+                Отчёт сверки собирается — обновите страницу через минуту.
+              </span>
+            )}
+            <RollbackBatchButton
+              batchId={batch.id}
+              state={batch.rollback}
+              hint={batch.rollbackHint}
+            />
+          </div>
         </div>
       )}
 

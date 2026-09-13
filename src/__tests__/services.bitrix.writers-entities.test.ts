@@ -165,7 +165,15 @@ describe('writeOrganization — создание', () => {
         body: 'В Битрикс24 не был указан ИНН',
         authorId: null,
       },
+      select: { id: true },
     });
+    // Пометка — такая же запись переноса, как сама организация: без строки
+    // журнала откат о ней не узнал бы, и она пережила бы возврат.
+    expect(journalCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ entity: 'note', action: 'created' }),
+      })
+    );
   });
 
   it('организация с ИНН заметку не получает', async () => {

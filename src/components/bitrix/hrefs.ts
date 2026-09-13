@@ -9,3 +9,6 @@ export const BITRIX_BATCHES = `${BITRIX_ROOT}/history`;
 export function batchHref(batchId: string): string {
   return `${BITRIX_BATCHES}/${batchId}`;
 }
+
+/** Отчёт сверки пакета — подписанная ссылка выдаётся роутом (`У-198`). */
+export const reportHref = (batchId: string): string => `/api/admin/bitrix/${batchId}/report`;

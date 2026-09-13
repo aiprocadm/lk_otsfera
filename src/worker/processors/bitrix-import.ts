@@ -9,6 +9,8 @@ import { recordAudit } from '@/lib/auth/audit';
 import { getBitrixSource } from '@/lib/services/bitrix/factory';
 import { runPipeline, type PipelineResult } from '@/lib/services/bitrix/pipeline';
 import { filterOf, type BitrixBatchSettings } from '@/lib/services/bitrix/preview';
+import { storeBitrixReport } from '@/lib/services/bitrix/report';
+import { runRollback } from '@/lib/services/bitrix/rollback';
 import type { BitrixSource } from '@/lib/services/bitrix/source';
 
 /**
@@ -34,7 +36,7 @@ const defaultDeps: BitrixImportDeps = { getSource: getBitrixSource };
 
 export type BitrixImportResult = {
   batchId: string;
-  status: 'preview' | 'applied' | 'failed' | 'skipped';
+  status: 'preview' | 'applied' | 'rolled_back' | 'rollback_partial' | 'failed' | 'skipped';
   reason?: string;
 };
 
@@ -61,10 +63,10 @@ export async function bitrixImportProcessor(
     return fail(db, batchId, 'Миграция из Битрикс24 выключена в настройках платформы');
   }
 
+  if (kind === 'rollback') return rollback(db, batch);
   if (kind !== 'preview' && kind !== 'apply') {
-    // `rollback` включится следующим шагом этапа; до тех пор задача не должна
-    // молча исчезать — пакет говорит, что произошло.
-    return fail(db, batchId, `Задача «${kind}» появится следующим шагом этапа`);
+    // Незнакомая задача не должна молча исчезать — пакет говорит, что произошло.
+    return fail(db, batchId, `Задача «${kind}» не поддерживается`);
   }
 
   const settings = batch.settings as unknown as BitrixBatchSettings;
@@ -125,6 +127,10 @@ export async function bitrixImportProcessor(
     },
   });
 
+  // Отчёт сверки (`У-198`) собирается по журналу — после того, как записи
+  // сделаны. Его сбой не отменяет перенос: путь просто не появится у пакета.
+  if (applying) await storeBitrixReport(db, batchId);
+
   await recordAudit(db, {
     userId: batch.importedById,
     action: applying ? 'bitrix_import_applied' : 'bitrix_import_previewed',
@@ -137,6 +143,67 @@ export async function bitrixImportProcessor(
 
   log.info(`[worker] bitrix-import ${kind} done`, { batchId, total: result.counts.total });
   return { batchId, status: applying ? 'applied' : 'preview' };
+}
+
+/**
+ * Откат пакета (`У-196`). Идёт порциями внутри `runRollback`, поэтому здесь
+ * остаётся только записать итог: статус, дату, конфликты в настройки (их
+ * покажет отчёт сверки) и аудит.
+ */
+async function rollback(
+  db: PrismaClient,
+  batch: { id: string; companyId: string; importedById: string; settings: Prisma.JsonValue }
+): Promise<BitrixImportResult> {
+  const batchId = batch.id;
+  let summary: Awaited<ReturnType<typeof runRollback>>;
+  try {
+    summary = await runRollback(db, batchId, async (progress) => {
+      await db.bitrixImportBatch
+        .update({
+          where: { id: batchId },
+          data: { counts: { rollback: progress } as unknown as Prisma.InputJsonValue },
+        })
+        .catch(bestEffort('[worker] bitrix-import: прогресс отката не записан'));
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    log.warn('[worker] bitrix-import rollback failed', { batchId, message });
+    return fail(db, batchId, message);
+  }
+
+  const settings = (batch.settings ?? {}) as unknown as BitrixBatchSettings;
+  await db.bitrixImportBatch.update({
+    where: { id: batchId },
+    data: {
+      status: summary.status,
+      rolledBackAt: new Date(),
+      errors: summary.errors as unknown as Prisma.InputJsonValue,
+      settings: {
+        ...settings,
+        rollbackConflicts: summary.conflicts,
+      } as unknown as Prisma.InputJsonValue,
+    },
+  });
+
+  await storeBitrixReport(db, batchId);
+
+  await recordAudit(db, {
+    userId: batch.importedById,
+    action: 'bitrix_import_rolled_back',
+    entity: 'bitrix_import_batch',
+    entityId: batchId,
+    after: {
+      status: summary.status,
+      deleted: summary.deleted,
+      restored: summary.restored,
+      unlinked: summary.unlinked,
+      conflicts: summary.conflicts.length,
+      errors: summary.errors.length,
+    },
+  });
+
+  log.info('[worker] bitrix-import rollback done', { batchId, status: summary.status });
+  return { batchId, status: summary.status };
 }
 
 async function fail(

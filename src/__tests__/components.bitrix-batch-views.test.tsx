@@ -1,12 +1,15 @@
 /**
- * Презентационные компоненты пакета миграции из Битрикс24 (этап 2 PR-3,
- * `У-193`, `У-198`): сводка предпросмотра, список пакетов, строки «нужно
- * решение»/«пропустим» и адреса раздела.
+ * Презентационные компоненты пакета миграции из Битрикс24 (этап 2,
+ * `У-193`, `У-196`, `У-198`): сводка предпросмотра, список пакетов с отчётом
+ * сверки и откатом, строки «нужно решение»/«пропустим» и адреса раздела.
  *
  * Все четыре — серверные и без состояния, поэтому харнесс Pattern P:
  * `renderToString` в node-окружении, `next/link` подменён простой ссылкой.
+ * Единственная клиентская часть списка — кнопка отката: у неё свой тест
+ * (components.bitrix-rollback-batch-button), здесь проверяем, ЧТО список
+ * передал ей в каждой строке.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import React from 'react';
 
@@ -22,10 +25,27 @@ vi.mock('next/link', () => ({
   }) => React.createElement('a', { href, className }, children),
 }));
 
+type RollbackStub = { batchId: string; state: string; hint: string };
+const { rollbackProps } = vi.hoisted(() => ({ rollbackProps: [] as RollbackStub[] }));
+vi.mock('@/components/bitrix/rollback-batch-button', () => ({
+  RollbackBatchButton: (props: RollbackStub) => {
+    rollbackProps.push(props);
+    return React.createElement(
+      'button',
+      {
+        'data-testid': `bitrix-rollback-${props.batchId}`,
+        disabled: props.state !== 'available',
+        ...(props.hint ? { title: props.hint } : {}),
+      },
+      'Откатить'
+    );
+  },
+}));
+
 import { BatchSummary } from '@/components/bitrix/batch-summary';
 import { BatchList, BATCH_STATUS_LABELS, formatDate } from '@/components/bitrix/batch-list';
 import { BatchRows } from '@/components/bitrix/batch-rows';
-import { BITRIX_BATCHES, BITRIX_ROOT, batchHref } from '@/components/bitrix/hrefs';
+import { BITRIX_BATCHES, BITRIX_ROOT, batchHref, reportHref } from '@/components/bitrix/hrefs';
 import type { PipelineCounts } from '@/lib/services/bitrix/pipeline';
 import {
   BITRIX_ENTITIES,
@@ -33,7 +53,7 @@ import {
   type BitrixEntity,
   type PlanRow,
 } from '@/lib/services/bitrix/mapping/types';
-import type { BitrixBatchView } from '@/lib/services/bitrix/preview';
+import type { BitrixHistoryItem } from '@/lib/services/bitrix/history';
 
 /** Сводка: все сущности по нулям, кроме перечисленных. */
 function counts(over: Partial<Record<BitrixEntity, Partial<PipelineCounts[BitrixEntity]>>> = {}) {
@@ -43,7 +63,7 @@ function counts(over: Partial<Record<BitrixEntity, Partial<PipelineCounts[Bitrix
   return { ...base, progress: null, total: 0, warnings: [] } satisfies PipelineCounts;
 }
 
-function batch(over: Partial<BitrixBatchView> = {}): BitrixBatchView {
+function batch(over: Partial<BitrixHistoryItem> = {}): BitrixHistoryItem {
   return {
     id: 'b1',
     status: 'preview',
@@ -52,6 +72,8 @@ function batch(over: Partial<BitrixBatchView> = {}): BitrixBatchView {
     createdAt: new Date('2026-09-13T09:05:00Z'),
     startedAt: null,
     appliedAt: null,
+    rolledBackAt: null,
+    hasReport: false,
     importedByName: 'Анна Админова',
     settings: {
       from: null,
@@ -65,6 +87,10 @@ function batch(over: Partial<BitrixBatchView> = {}): BitrixBatchView {
     counts: null,
     errors: [],
     ready: false,
+    // Можно ли откатить строку — считает сервис (`listBitrixHistory`);
+    // список только рисует то, что ему дали.
+    rollback: 'not_applied',
+    rollbackHint: 'Пакет ещё не применён — возвращать нечего.',
     ...over,
   };
 }
@@ -85,11 +111,17 @@ function text(html: string): string {
   return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
 }
 
+beforeEach(() => {
+  rollbackProps.length = 0;
+});
+
 describe('hrefs', () => {
   it('адреса раздела собраны из корня, карточка пакета — корень + история + id', () => {
     expect(BITRIX_ROOT).toBe('/admin/settings/integrations/bitrix');
     expect(BITRIX_BATCHES).toBe('/admin/settings/integrations/bitrix/history');
     expect(batchHref('b-42')).toBe('/admin/settings/integrations/bitrix/history/b-42');
+    // Отчёт отдаёт роут, а не страница: ссылка ведёт в API, а не в раздел.
+    expect(reportHref('b-42')).toBe('/api/admin/bitrix/b-42/report');
   });
 });
 
@@ -169,6 +201,10 @@ describe('BatchList', () => {
             importedByName: 'Борис Петров',
             createdAt: new Date('2026-09-10T06:00:00Z'),
             counts: { ...counts(), total: 0 },
+            hasReport: true,
+            appliedAt: new Date('2026-09-10T07:00:00Z'),
+            rollback: 'available',
+            rollbackHint: '',
           }),
         ],
       })
@@ -199,7 +235,7 @@ describe('BatchList', () => {
           batch({
             counts: null,
             source: 'lagacy-export',
-            status: 'unknown_status' as BitrixBatchView['status'],
+            status: 'unknown_status' as BitrixHistoryItem['status'],
           }),
         ],
       })
@@ -227,8 +263,89 @@ describe('BatchList', () => {
 
   it('пустой список — просто пустая таблица с шапкой', () => {
     const html = renderToString(React.createElement(BatchList, { batches: [] }));
-    expect(text(html)).toContain('Пакет Источник Состояние Записей');
+    expect(text(html)).toContain('Пакет Источник Состояние Записей Отчёт сверки Откат');
     expect(html).not.toContain('href="/admin/settings/integrations/bitrix/history/');
+    // Ни отчёта, ни отката: строк нет — не с чем.
+    expect(html).not.toContain('data-testid="bitrix-report-');
+    expect(rollbackProps).toEqual([]);
+  });
+});
+
+// `У-198`: после переноса список — единственное место, откуда виден отчёт
+// сверки и откат каждого пакета. Колонки обязаны быть в шапке, а не только
+// в строках: иначе человек не понимает, что за ячейка перед ним.
+describe('BatchList — отчёт сверки и откат', () => {
+  it('шапка называет обе новые колонки', () => {
+    const html = renderToString(React.createElement(BatchList, { batches: [batch()] }));
+    const head = text(html);
+    expect(head).toContain('Отчёт сверки');
+    expect(head).toContain('Откат');
+  });
+
+  it('отчёт собран — ссылка «Скачать» ведёт на роут отчёта именно этого пакета', () => {
+    const html = renderToString(
+      React.createElement(BatchList, {
+        batches: [batch({ id: 'b-7', status: 'applied', hasReport: true })],
+      })
+    );
+
+    expect(html).toContain('data-testid="bitrix-report-b-7"');
+    expect(html).toContain('href="/api/admin/bitrix/b-7/report"');
+    expect(text(html)).toContain('Скачать');
+    // Объяснения «нечего сверять» рядом со ссылкой быть не должно.
+    expect(text(html)).not.toContain('пока нечего сверять');
+  });
+
+  it('отчёта ещё нет — вместо ссылки объяснение, а не пустая ячейка', () => {
+    const html = renderToString(
+      React.createElement(BatchList, { batches: [batch({ id: 'b-8', hasReport: false })] })
+    );
+
+    // §15: пустая ячейка молчит, а человек должен понять, почему скачивать нечего.
+    expect(html).not.toContain('data-testid="bitrix-report-b-8"');
+    expect(html).not.toContain('/api/admin/bitrix/b-8/report');
+    expect(text(html)).toContain('пока нечего сверять');
+    expect(html).toContain('title="Отчёт появится после применения пакета"');
+  });
+
+  it('кнопка отката получает состояние и подсказку СВОЕЙ строки', () => {
+    const html = renderToString(
+      React.createElement(BatchList, {
+        batches: [
+          batch({ id: 'b-1', status: 'applied', rollback: 'available', rollbackHint: '' }),
+          batch({
+            id: 'b-2',
+            status: 'applied',
+            rollback: 'expired',
+            rollbackHint: 'Откат возможен 30 дней после применения — срок вышел.',
+          }),
+          batch({ id: 'b-3' }),
+        ],
+      })
+    );
+
+    // Перепутанные местами состояния — самый вероятный регресс: строка
+    // «откатить нельзя» получила бы живую кнопку соседней.
+    expect(rollbackProps).toEqual([
+      { batchId: 'b-1', state: 'available', hint: '' },
+      {
+        batchId: 'b-2',
+        state: 'expired',
+        hint: 'Откат возможен 30 дней после применения — срок вышел.',
+      },
+      { batchId: 'b-3', state: 'not_applied', hint: 'Пакет ещё не применён — возвращать нечего.' },
+    ]);
+    expect(html).toContain('data-testid="bitrix-rollback-b-1"');
+    expect(html).toContain('data-testid="bitrix-rollback-b-3"');
+  });
+
+  it('кнопка отката есть у каждой строки — даже у непримененного пакета', () => {
+    renderToString(
+      React.createElement(BatchList, {
+        batches: [batch({ id: 'b-1' }), batch({ id: 'b-2' }), batch({ id: 'b-3' })],
+      })
+    );
+    expect(rollbackProps.map((p) => p.batchId)).toEqual(['b-1', 'b-2', 'b-3']);
   });
 });
 

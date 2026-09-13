@@ -14,6 +14,7 @@ import {
   getBitrixBatchState,
   saveBatchMapping,
 } from '@/lib/services/bitrix/preview';
+import { requestRollback, type RollbackRequestError } from '@/lib/services/bitrix/rollback';
 
 /**
  * Этап 2 ТЗ 12.09.2026 «Миграция из Битрикс24» — действия раздела
@@ -231,5 +232,24 @@ export async function applyBitrixBatchAction(batchId: string): Promise<BitrixApp
   const res = await applyBitrixBatch(prisma, session, batchId);
   if (!res.ok) return { ok: false, error: res.error };
   revalidatePath(`${BITRIX_BATCHES_PATH}/${batchId}`);
+  return { ok: true };
+}
+
+export type BitrixRollbackResult = { ok: true } | { ok: false; error: RollbackRequestError };
+
+/**
+ * «Откатить»: ставит пакет в очередь на возврат (`У-196`). Проверки — окно
+ * 30 дней, статус пакета, наличие неоткаченных строк — делает сервис; здесь
+ * только раздел, флаг и обновление экрана.
+ */
+export async function rollbackBitrixBatchAction(batchId: string): Promise<BitrixRollbackResult> {
+  const session = await requireSettingsSection('integrations.bitrix', 'admin');
+  if (notFoundIfDisabled('bitrix_migration')) return { ok: false, error: 'forbidden' };
+  if (!batchId) return { ok: false, error: 'not_found' };
+
+  const res = await requestRollback(prisma, session, batchId);
+  if (!res.ok) return res;
+  revalidatePath(`${BITRIX_BATCHES_PATH}/${batchId}`);
+  revalidatePath(BITRIX_BATCHES_PATH);
   return { ok: true };
 }

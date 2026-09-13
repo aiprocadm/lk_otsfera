@@ -49,6 +49,9 @@ vi.mock('@/lib/services/bitrix/preview', () => ({
   applyBitrixBatch,
 }));
 
+const { requestRollback } = vi.hoisted(() => ({ requestRollback: vi.fn() }));
+vi.mock('@/lib/services/bitrix/rollback', () => ({ requestRollback }));
+
 import {
   saveBitrixConnectionAction,
   testBitrixConnectionAction,
@@ -56,6 +59,7 @@ import {
   getBitrixBatchStateAction,
   saveBatchMappingAction,
   applyBitrixBatchAction,
+  rollbackBitrixBatchAction,
 } from '@/server-actions/admin/bitrix';
 
 const SESSION = { sub: 'admin-1', role: 'admin' as const, companyId: 'c1' };
@@ -83,6 +87,7 @@ beforeEach(() => {
   });
   saveBatchMapping.mockResolvedValue({ ok: true });
   applyBitrixBatch.mockResolvedValue({ ok: true });
+  requestRollback.mockResolvedValue({ ok: true });
 });
 
 /** Аргументы, с которыми действие позвало сервис пакета. */
@@ -538,4 +543,70 @@ describe('applyBitrixBatchAction', () => {
       expect(revalidatePath).not.toHaveBeenCalled();
     }
   );
+});
+
+/**
+ * «Откатить» (`У-196`): действие ставит пакет в очередь на возврат. Уместность
+ * отката — окно 30 дней, статус пакета, наличие неоткаченных строк — считает
+ * сервис, поэтому здесь проверяется только то, за что отвечает действие:
+ * раздел, флаг, пустой идентификатор, ДОСЛОВНЫЙ проброс причины отказа и
+ * перечитывание обоих экранов при успехе.
+ *
+ * Почему «дословный» важно: причин отказа шесть, и у каждой свой русский текст
+ * на кнопке. Схлопни их в один общий код — и человек увидит «нельзя» без
+ * объяснения, а это дефект приёмки (§15).
+ */
+describe('rollbackBitrixBatchAction', () => {
+  it('счастливый путь: сервис зовётся с сессией и пакетом, обновляются карточка и список', async () => {
+    const res = await rollbackBitrixBatchAction('b-1');
+
+    expect(res).toEqual({ ok: true });
+    expect(requireSettingsSection).toHaveBeenCalledWith('integrations.bitrix', 'admin');
+    expect(notFoundIfDisabled).toHaveBeenCalledWith('bitrix_migration');
+    expect(requestRollback).toHaveBeenCalledWith(expect.anything(), SESSION, 'b-1');
+    // Карточка — потому что на ней статус пакета; список — потому что в нём
+    // та же строка со своей кнопкой «Откатить».
+    expect(revalidatePath).toHaveBeenCalledWith(`${BATCHES_PATH}/b-1`);
+    expect(revalidatePath).toHaveBeenCalledWith(BATCHES_PATH);
+    expect(revalidatePath).toHaveBeenCalledTimes(2);
+  });
+
+  it('раздел закрыт гардом настроек — до флага и сервиса дело не доходит', async () => {
+    requireSettingsSection.mockRejectedValue(new Error('NEXT_REDIRECT'));
+
+    await expect(rollbackBitrixBatchAction('b-1')).rejects.toThrow('NEXT_REDIRECT');
+    expect(notFoundIfDisabled).not.toHaveBeenCalled();
+    expect(requestRollback).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('флаг выключен → forbidden, откат не запускается', async () => {
+    notFoundIfDisabled.mockReturnValue(FLAG_OFF);
+
+    expect(await rollbackBitrixBatchAction('b-1')).toEqual({ ok: false, error: 'forbidden' });
+    // Гард раздела всё равно отработал первым (страж матрицы настроек).
+    expect(requireSettingsSection).toHaveBeenCalledWith('integrations.bitrix', 'admin');
+    expect(requestRollback).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('пустой идентификатор пакета → not_found, до сервиса дело не доходит', async () => {
+    expect(await rollbackBitrixBatchAction('')).toEqual({ ok: false, error: 'not_found' });
+    expect(requestRollback).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['expired'],
+    ['not_applied'],
+    ['rolled_back'],
+    ['nothing_to_revert'],
+    ['not_found'],
+    ['forbidden'],
+  ])('отказ сервиса %s пробрасывается как есть, экраны не перечитываются', async (error) => {
+    requestRollback.mockResolvedValue({ ok: false, error });
+
+    expect(await rollbackBitrixBatchAction('b-1')).toEqual({ ok: false, error });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
 });
