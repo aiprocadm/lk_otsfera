@@ -37,6 +37,13 @@ export async function writeWonDealOrder(
   }
 
   if (plan.action !== 'create') return null;
+
+  // Сделка уже привязана к другому заказу — значит, заказ-историю заводить
+  // незачем: он повис бы ни на чём, и ни сводка, ни журнал об этом не сказали
+  // бы. Связь одна, и живая важнее перенесённой.
+  const free = await tx.deal.count({ where: { id: args.dealId, orderId: null } });
+  if (free === 0) return null;
+
   const d = plan.data;
   const created = await tx.order.create({
     data: {

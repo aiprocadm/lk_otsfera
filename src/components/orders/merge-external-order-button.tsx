@@ -61,10 +61,13 @@ export function MergeExternalOrderButton({ orderId }: { orderId: string }) {
   }, [open, orderId]);
 
   function submit(): void {
-    if (!chosen) return;
+    // Проверять выбор здесь нечего: кнопка выключена, пока заказ не выбран.
     setError(null);
     startTransition(async () => {
-      const res = await mergeExternalOrderAction({ sourceOrderId: orderId, targetOrderId: chosen });
+      const res = await mergeExternalOrderAction({
+        sourceOrderId: orderId,
+        targetOrderId: chosen as string,
+      });
       if (!res.ok) {
         setError(resolveErrorText(res.error, ERROR_LABELS));
         return;

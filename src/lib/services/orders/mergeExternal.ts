@@ -64,11 +64,13 @@ export async function mergeExternalOrderInto(
     prisma.order.findUnique({ where: { id: args.targetOrderId }, select: ORDER_SELECT }),
   ]);
   if (!source || !target) return { ok: false, error: 'not_found' };
-  if (!canMerge(session, source.companyId)) return { ok: false, error: 'forbidden' };
-  // Чужая компания не должна даже знать, что такой заказ существует.
-  if (source.companyId !== session.companyId && session.role !== 'admin') {
+  // Порядок проверок важен: для сотрудника чужой компании заказа не существует
+  // вовсе («не найден»), и только для своего решается вопрос прав («нельзя»).
+  // Администратор видит все компании — это Model A, а не исключение.
+  if (session.role !== 'admin' && source.companyId !== session.companyId) {
     return { ok: false, error: 'not_found' };
   }
+  if (!canMerge(session, source.companyId)) return { ok: false, error: 'forbidden' };
   if (target.companyId !== source.companyId) return { ok: false, error: 'not_found' };
 
   if (!isBitrixOrder(source)) return { ok: false, error: 'not_bitrix_order' };
@@ -83,7 +85,10 @@ export async function mergeExternalOrderInto(
   const moved = await prisma.$transaction(async (tx) => {
     const [documents, tasks, notes, deal, events] = await Promise.all([
       tx.document.updateMany({ where: { orderId: source.id }, data: { orderId: target.id } }),
-      tx.task.updateMany({ where: { linkedOrderId: source.id }, data: { linkedOrderId: target.id } }),
+      tx.task.updateMany({
+        where: { linkedOrderId: source.id },
+        data: { linkedOrderId: target.id },
+      }),
       tx.dealNote.updateMany({ where: { orderId: source.id }, data: { orderId: target.id } }),
       tx.deal.updateMany({ where: { orderId: source.id }, data: { orderId: target.id } }),
       tx.calendarEvent.updateMany({
@@ -199,10 +204,10 @@ export async function listMergeTargets(
     select: ORDER_SELECT,
   });
   if (!source) return { ok: false, error: 'not_found' };
-  if (!canMerge(session, source.companyId)) return { ok: false, error: 'forbidden' };
-  if (source.companyId !== session.companyId && session.role !== 'admin') {
+  if (session.role !== 'admin' && source.companyId !== session.companyId) {
     return { ok: false, error: 'not_found' };
   }
+  if (!canMerge(session, source.companyId)) return { ok: false, error: 'forbidden' };
   if (!isBitrixOrder(source)) return { ok: false, error: 'not_bitrix_order' };
 
   const rows = await prisma.order.findMany({
@@ -230,7 +235,8 @@ export async function listMergeTargets(
     ok: true,
     targets: rows.map((row) => ({
       id: row.id,
-      label: `${row.orderNumber ?? row.externalId ?? row.id} — ${row.title}`,
+      // `externalId` у кандидата есть всегда — так их отбирает запрос выше.
+      label: `${row.orderNumber ?? (row.externalId as string)} — ${row.title}`,
       totalAmount: String(row.totalAmount),
       closedAt: row.closedAt ?? row.completedAt,
     })),

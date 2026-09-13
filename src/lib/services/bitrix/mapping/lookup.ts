@@ -68,6 +68,7 @@ export async function loadOrganizations(
       id: row.id,
       companyId: row.companyId,
       name: row.name,
+      nameKey: row.nameKey,
       inn: row.inn,
       kpp: row.kpp,
       bitrixId: row.bitrixId,

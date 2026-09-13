@@ -29,19 +29,32 @@ export type MergeResult = {
 
 /** Пустое из Битрикса: ни `null`, ни пустая строка полем не считаются. */
 function isEmpty(value: FieldValue | undefined): boolean {
-  return value === undefined || value === null || (typeof value === 'string' && value.trim() === '');
+  return (
+    value === undefined || value === null || (typeof value === 'string' && value.trim() === '')
+  );
+}
+
+/** Время значения, если это дата или строка с датой; иначе `null`. */
+function timeOf(value: FieldValue | undefined): number | null {
+  if (value instanceof Date) return value.getTime();
+  // Журнал хранит даты строкой ISO (`Json` не знает `Date`), и без разбора
+  // строки поле «дата» на каждом прогоне выглядело бы правленным руками —
+  // а значит, не обновилось бы никогда.
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
+    const t = Date.parse(value);
+    return Number.isNaN(t) ? null : t;
+  }
+  return null;
 }
 
 /**
- * Сравнение значений разных видов. Даты приходят объектами, суммы — строками
- * из `Decimal`, поэтому сравнивать надо по нормализованному виду, а не по
- * ссылке: иначе одна и та же дата каждый раз выглядела бы «изменившейся».
+ * Сравнение значений разных видов. Даты приходят объектами, из журнала —
+ * строками ISO, суммы — строками из `Decimal`: сравнивать надо по смыслу, а не
+ * по виду, иначе одно и то же значение каждый прогон выглядело бы изменившимся.
  */
 export function sameValue(a: FieldValue | undefined, b: FieldValue | undefined): boolean {
   if (a instanceof Date || b instanceof Date) {
-    const at = a instanceof Date ? a.getTime() : null;
-    const bt = b instanceof Date ? b.getTime() : null;
-    return at === bt;
+    return timeOf(a) === timeOf(b);
   }
   if (a === null || a === undefined) return b === null || b === undefined;
   if (b === null || b === undefined) return false;

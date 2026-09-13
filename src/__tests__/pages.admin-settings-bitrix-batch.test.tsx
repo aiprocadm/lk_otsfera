@@ -51,6 +51,21 @@ vi.mock('@/components/bitrix/batch-progress', () => ({
   },
 }));
 
+// «Применить» (`У-194`) — клиентская кнопка с подтверждением и своим тестом
+// (components.bitrix-apply-batch-button): странице важно, ЧТО она ей передала
+// и при каком состоянии пакета вообще монтирует.
+const { applyProps } = vi.hoisted(() => ({ applyProps: [] as Record<string, unknown>[] }));
+vi.mock('@/components/bitrix/apply-batch-button', () => ({
+  ApplyBatchButton: (props: { batchId: string; total: number; disabled?: boolean }) => {
+    applyProps.push(props);
+    return React.createElement(
+      'button',
+      { 'data-testid': 'apply-batch', disabled: props.disabled },
+      'Применить'
+    );
+  },
+}));
+
 const { mappingProps } = vi.hoisted(() => ({ mappingProps: [] as Record<string, unknown>[] }));
 vi.mock('@/components/bitrix/mapping-tables', () => ({
   MappingTables: (props: Record<string, unknown>) => {
@@ -121,6 +136,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   progressProps.length = 0;
   mappingProps.length = 0;
+  applyProps.length = 0;
   requireSettingsSection.mockResolvedValue(ADMIN);
   getBitrixBatch.mockResolvedValue({ ok: true, batch: batch() });
   resolveDealStages.mockResolvedValue([{ id: 'ds1', name: 'В работе' }]);
@@ -309,7 +325,7 @@ describe('AdminBitrixBatchPage — сопоставление', () => {
     expect(container.textContent).toContain('Применение');
   });
 
-  it('пакет уже применён — ни таблиц, ни блока «Применение»', async () => {
+  it('пакет уже применён — ни таблиц, ни блока «Применение», ни кнопки', async () => {
     getBitrixBatch.mockResolvedValue({
       ok: true,
       batch: batch({
@@ -320,11 +336,13 @@ describe('AdminBitrixBatchPage — сопоставление', () => {
     const { container } = await render();
     expect(container.querySelector('[data-testid="mapping-tables"]')).toBeNull();
     expect(container.textContent).not.toContain('Применение');
+    expect(container.querySelector('[data-testid="apply-batch"]')).toBeNull();
+    expect(applyProps).toEqual([]);
   });
 });
 
 describe('AdminBitrixBatchPage — блок «Применение»', () => {
-  it('перечисляет именно те стадии, которые ещё не сопоставлены', async () => {
+  it('перечисляет именно те стадии, которые ещё не сопоставлены; кнопка заблокирована', async () => {
     getBitrixBatch.mockResolvedValue({
       ok: true,
       batch: batch({
@@ -340,12 +358,17 @@ describe('AdminBitrixBatchPage — блок «Применение»', () => {
     expect(text).toContain('Сначала сопоставьте стадии: Лиды: Мусор.');
     expect(text).toContain('записи ушли бы не туда');
     expect(text).not.toContain('Сопоставление готово');
+    // `У-194`: пока сопоставление неполное, кнопка есть, но не нажимается —
+    // иначе записи ушли бы не туда, а человек не понял бы, почему ничего нет.
+    expect(applyProps).toEqual([{ batchId: 'b-1', total: 0, disabled: true }]);
+    expect(container.querySelector('[data-testid="apply-batch"]')).toHaveProperty('disabled', true);
   });
 
-  it('сопоставление полное — честно говорит, что кнопка появится следующим шагом', async () => {
+  it('сопоставление полное — кнопка «Применить» доступна и знает число записей', async () => {
     getBitrixBatch.mockResolvedValue({
       ok: true,
       batch: batch({
+        counts: { ...counts({ deal: { create: 5 } }), total: 1234 },
         settings: {
           ...batch().settings,
           stagesFound: STAGES,
@@ -356,9 +379,52 @@ describe('AdminBitrixBatchPage — блок «Применение»', () => {
     const { container } = await render();
     const text = container.textContent ?? '';
     expect(text).toContain('Сопоставление готово.');
-    expect(text).toContain('Кнопка «Применить» появится следующим шагом этапа');
     expect(text).not.toContain('Сначала сопоставьте стадии');
+    // Число записей — из предпросмотра: подтверждение обязано назвать его до нажатия.
+    expect(applyProps).toEqual([{ batchId: 'b-1', total: 1234, disabled: false }]);
+    expect(container.querySelector('[data-testid="apply-batch"]')).toHaveProperty(
+      'disabled',
+      false
+    );
   });
+
+  it('сухой прогон ещё не посчитан — кнопке передаётся 0 записей, а не undefined', async () => {
+    // Стадий не нашлось, сводки нет: сопоставлять нечего, поэтому кнопка
+    // доступна, а число записей честно равно нулю.
+    getBitrixBatch.mockResolvedValue({ ok: true, batch: batch({ counts: null }) });
+    await render();
+    expect(applyProps).toEqual([{ batchId: 'b-1', total: 0, disabled: false }]);
+  });
+});
+
+// `У-194`: после переноса экран обязан сказать, что он состоялся, — иначе
+// человек не отличит «применили» от «кнопку не нажали».
+describe('AdminBitrixBatchPage — блок «Перенос выполнен»', () => {
+  it('статус applied: блок есть, кнопки применения нет', async () => {
+    getBitrixBatch.mockResolvedValue({
+      ok: true,
+      batch: batch({ status: 'applied', appliedAt: new Date('2026-09-13T10:00:00Z') }),
+    });
+    const { container } = await render();
+    const text = container.textContent ?? '';
+
+    expect(text).toContain('Перенос выполнен');
+    expect(text).toContain('Записи из Битрикс24 в кабинете.');
+    expect(text).toContain('отчёт сверки и откат появятся следующим шагом этапа');
+    expect(container.querySelector('[data-testid="apply-batch"]')).toBeNull();
+  });
+
+  it.each([['preview'], ['preview_pending'], ['applying'], ['failed']])(
+    'статус %s — блока «Перенос выполнен» нет',
+    async (status) => {
+      getBitrixBatch.mockResolvedValue({
+        ok: true,
+        batch: batch({ status: status as BitrixBatchView['status'] }),
+      });
+      const { container } = await render();
+      expect(container.textContent).not.toContain('Перенос выполнен');
+    }
+  );
 });
 
 describe('AdminBitrixBatchPage — строки конфликтов и краевые случаи', () => {

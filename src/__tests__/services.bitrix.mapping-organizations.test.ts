@@ -279,7 +279,7 @@ describe('planOrganization — обновление существующей', (
     expect(plan).toMatchObject({ action: 'update' });
     if (plan.action !== 'update') throw new Error('ожидалось обновление');
     // КПП и ИНН не менялись — их в снимке нет вовсе, а не `null`.
-    expect(Object.keys(plan.before)).toEqual(['name']);
+    expect(Object.keys(plan.before)).toEqual(['name', 'nameKey']);
     expect(plan.before).toEqual({ name: 'Старое имя' });
   });
 

@@ -75,7 +75,12 @@ export function snapshot(data: Record<string, unknown>): FieldMap {
   for (const [key, value] of Object.entries(data)) {
     if (value === undefined) continue;
     if (value instanceof Date) out[key] = value.toISOString();
-    else if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    else if (
+      value === null ||
+      typeof value === 'string' ||
+      typeof value === 'number' ||
+      typeof value === 'boolean'
+    ) {
       out[key] = value;
     } else out[key] = String(value);
   }

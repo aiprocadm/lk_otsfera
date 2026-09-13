@@ -31,13 +31,18 @@ async function applyUpdate<T extends FieldMap>(
   entity: BitrixEntity,
   plan: Extract<PlanOf<T>, { action: 'update' }>,
   bitrixId: string,
-  write: (data: FieldMap) => Promise<void>
+  write: (data: FieldMap) => Promise<void>,
+  /**
+   * Поля плана, которых нет в таблице (каналы контакта, исполнители задачи,
+   * признак «нужен заказ»). Они обрабатываются писателем отдельно и не должны
+   * попадать ни в патч, ни в журнал: откат по такому снимку попытался бы
+   * записать несуществующие колонки.
+   */
+  serviceFields: string[] = []
 ): Promise<WriteOutcome | null> {
-  const merged = mergeUpdate(
-    plan.before as FieldMap,
-    plan.data as Partial<FieldMap>,
-    ctx.lastAfter(entity, plan.id)
-  );
+  const incoming = { ...(plan.data as Partial<FieldMap>) };
+  for (const field of serviceFields) delete incoming[field];
+  const merged = mergeUpdate(plan.before as FieldMap, incoming, ctx.lastAfter(entity, plan.id));
   if (!hasChanges(merged)) {
     // Писать нечего: либо всё совпало, либо всё правлено руками. Строка
     // журнала здесь была бы мусором — откатывать нечего.
@@ -155,17 +160,20 @@ export async function writeContact(
   // Каналы дописываются отдельно: это не поле карточки, а способ найти
   // человека, и правило «правленное не трогаем» к ним неприменимо.
   const channels = plan.data.channels ?? [];
-  const outcome = await applyUpdate(tx, ctx, 'contact', plan as never, bitrixId, async (data) => {
-    const patch = { ...data };
-    delete patch.channels;
-    delete patch.skippedChannels;
-    if (Object.keys(patch).length > 0) {
+  const outcome = await applyUpdate(
+    tx,
+    ctx,
+    'contact',
+    plan as never,
+    bitrixId,
+    async (data) => {
       await tx.contact.update({
         where: { id: plan.id },
-        data: patch as Prisma.ContactUncheckedUpdateInput,
+        data: data as Prisma.ContactUncheckedUpdateInput,
       });
-    }
-  });
+    },
+    ['channels', 'skippedChannels']
+  );
   for (const ch of channels) {
     await tx.contactChannel.createMany({
       data: [
@@ -180,7 +188,10 @@ export async function writeContact(
       skipDuplicates: true,
     });
   }
-  return outcome ?? { entityId: plan.id, action: 'updated', keptManual: [] };
+  // Ни полей, ни новых каналов — значит, записи не было: сводка не должна
+  // считать обновление, которого не произошло.
+  if (outcome) return outcome;
+  return channels.length > 0 ? { entityId: plan.id, action: 'updated', keptManual: [] } : null;
 }
 
 export async function writeLead(
@@ -273,14 +284,20 @@ export async function writeDeal(
     return { entityId: created.id, action: 'created', keptManual: [] };
   }
   if (plan.action !== 'update') return null;
-  return applyUpdate(tx, ctx, 'deal', plan as never, bitrixId, async (data) => {
-    const patch = { ...data };
-    delete patch.wantsOrder;
-    await tx.deal.update({
-      where: { id: plan.id },
-      data: patch as Prisma.DealUncheckedUpdateInput,
-    });
-  });
+  return applyUpdate(
+    tx,
+    ctx,
+    'deal',
+    plan as never,
+    bitrixId,
+    async (data) => {
+      await tx.deal.update({
+        where: { id: plan.id },
+        data: data as Prisma.DealUncheckedUpdateInput,
+      });
+    },
+    ['wantsOrder']
+  );
 }
 
 export async function writeDealNote(
@@ -376,12 +393,18 @@ export async function writeTask(
     return { entityId: created.id, action: 'created', keptManual: [] };
   }
   if (plan.action !== 'update') return null;
-  return applyUpdate(tx, ctx, 'task', plan as never, bitrixId, async (data) => {
-    const patch = { ...data };
-    delete patch.assigneeIds;
-    await tx.task.update({
-      where: { id: plan.id },
-      data: patch as Prisma.TaskUncheckedUpdateInput,
-    });
-  });
+  return applyUpdate(
+    tx,
+    ctx,
+    'task',
+    plan as never,
+    bitrixId,
+    async (data) => {
+      await tx.task.update({
+        where: { id: plan.id },
+        data: data as Prisma.TaskUncheckedUpdateInput,
+      });
+    },
+    ['assigneeIds']
+  );
 }
