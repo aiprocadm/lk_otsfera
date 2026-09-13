@@ -8,6 +8,11 @@ import { saveSettings } from '@/lib/config/integrationSettings';
 import { resetIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
 import { testIntegration } from '@/lib/services/admin/testIntegration';
 import { normalizeWebhookUrl, portalHost } from '@/lib/services/bitrix/settings';
+import {
+  createBitrixBatch,
+  getBitrixBatchState,
+  saveBatchMapping,
+} from '@/lib/services/bitrix/preview';
 
 /**
  * Этап 2 ТЗ 12.09.2026 «Миграция из Битрикс24» — действия раздела
@@ -99,4 +104,116 @@ export async function testBitrixConnectionAction(_fd: FormData): Promise<BitrixT
   if (!res.ok) return res;
   revalidatePath(BITRIX_SETTINGS_PATH);
   return res;
+}
+
+// ---------------------------------------------------------------------------
+// Пакеты миграции (`У-193`): создание, состояние, таблицы сопоставления
+// ---------------------------------------------------------------------------
+
+const BITRIX_BATCHES_PATH = '/admin/settings/integrations/bitrix/history';
+
+export type BitrixBatchActionResult =
+  | { ok: true; batchId: string }
+  | { ok: false; error: 'forbidden' | 'not_found' | 'invalid' | 'mapping_incomplete' };
+
+/** «Новый пакет»: собирает настройки формы и ставит сухой прогон в очередь. */
+export async function createBitrixBatchAction(fd: FormData): Promise<BitrixBatchActionResult> {
+  const session = await requireSettingsSection('integrations.bitrix', 'admin');
+  if (notFoundIfDisabled('bitrix_migration')) return { ok: false, error: 'forbidden' };
+
+  const source = readField(fd, 'source') === 'file' ? 'file' : 'rest';
+  const res = await createBitrixBatch(prisma, session, {
+    source,
+    from: readField(fd, 'from'),
+    to: readField(fd, 'to'),
+    openOnly: readField(fd, 'openOnly') === 'on',
+    withFiles: readField(fd, 'withFiles') === 'on',
+    defaultManagerId: readField(fd, 'defaultManagerId'),
+    fileKeys: parseFileKeys(readField(fd, 'fileKeys')),
+  });
+  if (!res.ok) return res;
+  revalidatePath(BITRIX_BATCHES_PATH);
+  return { ok: true, batchId: res.batchId };
+}
+
+/** Ключи загруженных выгрузок приезжают из формы файлов одной JSON-строкой. */
+function parseFileKeys(raw: string): { key: string; name: string; entity: string }[] {
+  if (!raw.trim()) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.flatMap((item) => {
+      if (!item || typeof item !== 'object') return [];
+      const { key, name, entity } = item as Record<string, unknown>;
+      if (typeof key !== 'string' || typeof entity !== 'string' || !key) return [];
+      return [{ key, name: typeof name === 'string' ? name : key, entity }];
+    });
+  } catch {
+    return [];
+  }
+}
+
+export type BitrixBatchStateResult =
+  | { ok: true; status: string; progress: { step: string; done: number } | null }
+  | { ok: false; error: 'forbidden' | 'not_found' };
+
+/** Состояние пакета для полосы прогресса — зовётся по таймеру, пока идёт работа. */
+export async function getBitrixBatchStateAction(batchId: string): Promise<BitrixBatchStateResult> {
+  const session = await requireSettingsSection('integrations.bitrix', 'admin');
+  if (notFoundIfDisabled('bitrix_migration')) return { ok: false, error: 'forbidden' };
+  const res = await getBitrixBatchState(prisma, session, batchId);
+  if (!res.ok) return { ok: false, error: res.error === 'forbidden' ? 'forbidden' : 'not_found' };
+  return {
+    ok: true,
+    status: res.status,
+    progress: res.progress ? { step: res.progress.step, done: res.progress.done } : null,
+  };
+}
+
+export type BitrixMappingSaveResult =
+  { ok: true } | { ok: false; error: 'forbidden' | 'not_found' | 'invalid' };
+
+/**
+ * Сохранение таблиц сопоставления из предпросмотра. Значения приходят полями
+ * вида `stage:<ключ>`, `leadStage:<статус>`, `taskColumn:<статус>`, `user:<id>`
+ * — по одному на строку таблицы, как в форме порогов оповещений.
+ */
+export async function saveBatchMappingAction(fd: FormData): Promise<BitrixMappingSaveResult> {
+  const session = await requireSettingsSection('integrations.bitrix', 'admin');
+  if (notFoundIfDisabled('bitrix_migration')) return { ok: false, error: 'forbidden' };
+
+  const batchId = readField(fd, 'batchId');
+  if (!batchId) return { ok: false, error: 'invalid' };
+
+  const stageMap: Record<string, string | null> = {};
+  const leadStageMap: Record<string, string | null> = {};
+  const taskColumnMap: Record<string, string | null> = {};
+  const userMap: Record<string, string> = {};
+  for (const [name, value] of fd.entries()) {
+    if (typeof value !== 'string') continue;
+    const [prefix, ...rest] = name.split(':');
+    const key = rest.join(':');
+    if (!key) continue;
+    if (prefix === 'stage') stageMap[key] = value || null;
+    else if (prefix === 'leadStage') leadStageMap[key] = value || null;
+    else if (prefix === 'taskColumn') taskColumnMap[key] = value || null;
+    else if (prefix === 'user' && value) userMap[key] = value;
+  }
+
+  const res = await saveBatchMapping(prisma, session, {
+    batchId,
+    tables: { stageMap, leadStageMap, taskColumnMap, userMap },
+  });
+  if (!res.ok)
+    return {
+      ok: false,
+      error:
+        res.error === 'forbidden'
+          ? 'forbidden'
+          : res.error === 'not_found'
+            ? 'not_found'
+            : 'invalid',
+    };
+  revalidatePath(`${BITRIX_BATCHES_PATH}/${batchId}`);
+  return { ok: true };
 }

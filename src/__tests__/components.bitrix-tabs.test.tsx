@@ -48,6 +48,18 @@ describe('BitrixTabs', () => {
     expect(links.map((l) => l.getAttribute('data-active'))).toEqual(['false', 'true']);
   });
 
+  it('на карточке пакета вкладка «Пакеты» остаётся подсвеченной', () => {
+    // Карточка живёт под «Пакетами» (`.../history/<id>`). Если бы обе вкладки
+    // погасли, человек перестал бы понимать, где он (§15, «где я»).
+    nav.pathname = `${BASE}/history/b-42`;
+    const { container } = render(<BitrixTabs />);
+    const links = within(container).getAllByRole('link');
+    expect(links.map((l) => l.getAttribute('data-active'))).toEqual(['false', 'true']);
+    expect(links[1]?.className).toContain('border-[#F97316]');
+    // «Подключение» сравнивается на точное равенство — вложенный адрес его не зажигает.
+    expect(links[0]?.className).toContain('border-transparent');
+  });
+
   it('на чужом адресе ни одна вкладка не активна', () => {
     nav.pathname = '/admin/settings/integrations/messengers';
     const { container } = render(<BitrixTabs />);

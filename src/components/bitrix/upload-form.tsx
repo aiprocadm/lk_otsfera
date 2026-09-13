@@ -37,7 +37,12 @@ const ERROR_LABELS: Record<string, string> = {
   http_413: `Файл больше ${IMPORT_MAX_FILE_MB} МБ — разбейте выгрузку по периодам.`,
 };
 
-export function BitrixUploadForm() {
+export function BitrixUploadForm({
+  onUploaded,
+}: {
+  /** Ключи сохранённых файлов — из них форма пакета собирает файловый источник. */
+  onUploaded?: (files: { key: string; name: string; entity: string }[]) => void;
+} = {}) {
   const [files, setFiles] = useState<UploadedFile[] | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { formAction, pending, errorText } = useFetchSubmit<UploadResponse>({
@@ -45,8 +50,16 @@ export function BitrixUploadForm() {
     body: (fd) => fd,
     errorMap: ERROR_LABELS,
     onSuccess: (data) => {
-      setFiles(data.files ?? []);
+      const uploaded = data.files ?? [];
+      setFiles(uploaded);
       if (inputRef.current) inputRef.current.value = '';
+      onUploaded?.(
+        uploaded
+          .filter((f): f is UploadedFile & { key: string; entity: string } =>
+            Boolean(f.key && f.entity)
+          )
+          .map((f) => ({ key: f.key, name: f.name, entity: f.entity }))
+      );
     },
   });
 

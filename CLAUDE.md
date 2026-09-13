@@ -192,7 +192,7 @@ removeOnComplete: { count: 1000 }, removeOnFail: false
 
 Не вырезай `removeOnFail: false` — это намеренно: failed jobs остаются для расследования.
 
-Доступные очереди: `oneCSync.{pullOrders,pullPayments,pullDocuments,pullOrganizations,pushLead,reconcile}`, `docs.{generateCommissionPdf,generateCommissionXlsx,calculateMonthlyCommissions,scanDocument}`, `notifications.{dispatch,certificateExpiry,calendarReminder,taskDueSoon}`, `monitoring.{evaluateAlerts,slaEscalation}`, `inbound.email.poll`, `telephony.mango.{recording,backfill}` (полный список — [src/lib/jobs/queues.ts](src/lib/jobs/queues.ts), он первичен). (Очередь `emails.send` удалена 2026-07-10: не имела ни продьюсера, ни процессора — письма шлются inline через `src/lib/email/send.tsx`; не добавляй её обратно без реальной постановки задач.)
+Доступные очереди: `oneCSync.{pullOrders,pullPayments,pullDocuments,pullOrganizations,pushLead,reconcile}`, `docs.{generateCommissionPdf,generateCommissionXlsx,calculateMonthlyCommissions,scanDocument}`, `notifications.{dispatch,certificateExpiry,calendarReminder,taskDueSoon}`, `monitoring.{evaluateAlerts,slaEscalation}`, `inbound.email.poll`, `telephony.mango.{recording,backfill}`, `bitrix.import` (полный список — [src/lib/jobs/queues.ts](src/lib/jobs/queues.ts), он первичен). (Очередь `emails.send` удалена 2026-07-10: не имела ни продьюсера, ни процессора — письма шлются inline через `src/lib/email/send.tsx`; не добавляй её обратно без реальной постановки задач.)
 
 ## 8. Spec-first процесс
 

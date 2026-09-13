@@ -58,10 +58,16 @@ export const FAKE_STAGES: BitrixStage[] = [
   },
 ];
 
-/** ИНН двух первых компаний тесты заводят у существующих организаций ЛК;
- * название третьей («Вектор Плюс») совпадает с организацией ЛК по `nameKey`. */
-const FAKE_INN_EXISTING_A = '7701234567';
-const FAKE_INN_EXISTING_B = '7812345678';
+/**
+ * ИНН двух первых компаний тесты заводят у существующих организаций ЛК;
+ * название третьей («Вектор Плюс») совпадает с организацией ЛК по `nameKey`.
+ *
+ * Числа обязаны проходить контрольную сумму ФНС: сопоставление берёт только
+ * валидный ИНН, и с «красивым» выдуманным номером сценарий приёмки «компания
+ * нашлась по ИНН» не воспроизводился бы ни в тестах, ни на стенде.
+ */
+const FAKE_INN_EXISTING_A = '7701234560';
+const FAKE_INN_EXISTING_B = '7812345675';
 
 export const FAKE_COMPANIES: BitrixCompany[] = [
   {
@@ -94,7 +100,7 @@ export const FAKE_COMPANIES: BitrixCompany[] = [
   {
     id: '104',
     title: 'ИП Сидоров С.С.',
-    inn: '771234567890',
+    inn: '771234567859',
     kpp: null,
     assignedById: '3',
     createdAt: d('2026-02-02T12:00:00Z'),
@@ -266,7 +272,7 @@ export const FAKE_LEADS: BitrixLead[] = [
     companyTitle: 'ИП Сидоров С.С.',
     phones: ['+7 903 000 11 22'],
     emails: [],
-    inn: '771234567890',
+    inn: '771234567859',
     statusId: 'IN_PROCESS',
     assignedById: '3',
     opportunity: '18000',

@@ -54,3 +54,14 @@ export type ScanDocumentPayload = {
   kind: ScanDocumentTarget;
   id: string;
 };
+
+/**
+ * Этап 2 (`У-193`, `У-194`): пакет миграции из Битрикс24. Что делать с пакетом,
+ * говорит имя задачи (`job.name`): `preview` — сухой прогон со сводкой,
+ * `apply` — запись, `rollback` — откат. Полезная нагрузка одна на все три:
+ * всё остальное лежит в строке `BitrixImportBatch` (настройки, таблицы
+ * сопоставления, счётчики), чтобы задача и экран видели одно состояние.
+ */
+export type BitrixImportJobPayload = {
+  batchId: string;
+};
