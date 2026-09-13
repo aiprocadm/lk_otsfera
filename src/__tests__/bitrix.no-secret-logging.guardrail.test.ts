@@ -86,3 +86,42 @@ describe('У-199: содержимое выгрузок не попадает в
     ).toEqual([]);
   });
 });
+
+/**
+ * Этап 2, PR-5 (`У-196`, `У-198`): откат и отчёт сверки работают со снимками
+ * `before`/`after` из журнала пакета — а в них лежат имена, телефоны и почта
+ * перенесённых людей. Ронять это в лог нельзя ни при какой ошибке. Самый
+ * вероятный регресс — «покажу в логе, что именно не удалось вернуть».
+ */
+const SNAPSHOT = /\bbefore\b|\bafter\b|\bconflicts\b|\brollbackConflicts\b|\bsubjectIds\b/;
+
+describe('У-196: снимки журнала не попадают в логи', () => {
+  it('ни один вызов log.* не получает before/after строки журнала', () => {
+    const offenders: string[] = [];
+    for (const file of FILES) {
+      const src = readSource(file);
+      for (const m of src.matchAll(
+        /\b(?:log|logger|console|clientLog|edgeLog)\.(?:info|warn|error|debug)\(([\s\S]*?)\);/g
+      )) {
+        if (SNAPSHOT.test(m[1]!)) {
+          offenders.push(`${path.relative(ROOT, file)}: ${m[0].slice(0, 80)}`);
+        }
+      }
+    }
+    expect(
+      offenders,
+      'снимок журнала (ПДн перенесённых людей) уходит в лог — логируй id пакета и причину:\n'
+    ).toEqual([]);
+  });
+
+  it('роут отчёта сверки не логирует подписанную ссылку', () => {
+    // Подписанная ссылка — это одноразовый ключ к файлу с ПДн: в логе она
+    // живёт дольше своих десяти минут и читается кем угодно с доступом к логам.
+    const src = readSource(path.join(ROOT, 'src/app/api/admin/bitrix/[batchId]/report/route.ts'));
+    for (const m of src.matchAll(
+      /\b(?:log|logger|console)\.(?:info|warn|error|debug)\(([\s\S]*?)\);/g
+    )) {
+      expect(m[1]!, 'подписанная ссылка на отчёт уходит в лог').not.toMatch(/signedUrl|reportPath/);
+    }
+  });
+});

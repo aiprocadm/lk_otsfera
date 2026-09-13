@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { requireSettingsSection } from '@/lib/auth/requireSettings';
 import { prisma } from '@/lib/db/prisma';
 import { getSettingValues } from '@/lib/config/integrationSettings';
-import { listBitrixBatches } from '@/lib/services/bitrix/preview';
+import { listBitrixHistory } from '@/lib/services/bitrix/history';
 import { listCompanyManagers } from '@/lib/services/manager/team';
 import { BitrixBatchStarter } from '@/components/bitrix/batch-starter';
 import { BatchList } from '@/components/bitrix/batch-list';
@@ -25,7 +25,7 @@ export const dynamic = 'force-dynamic';
 export default async function AdminBitrixHistoryPage() {
   const session = await requireSettingsSection('integrations.bitrix', 'admin');
   const [batches, managers, connection] = await Promise.all([
-    listBitrixBatches(prisma, session),
+    listBitrixHistory(prisma, session),
     session.companyId ? listCompanyManagers(prisma, session.companyId) : Promise.resolve([]),
     getSettingValues(prisma, ['bitrix.webhookUrl']),
   ]);

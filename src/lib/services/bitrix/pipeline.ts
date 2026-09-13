@@ -729,7 +729,7 @@ export async function runPipeline(
 
   if (droppedRows > 0) {
     counts.warnings.push(
-      `Показаны первые ${ROW_CAP} строк из ${ROW_CAP + droppedRows}: остальные того же рода. Полный перечень будет в отчёте сверки.`
+      `Показаны первые ${ROW_CAP} строк из ${ROW_CAP + droppedRows}: остальные того же рода. Столько же строк будет и в отчёте сверки — все записи целиком отчёт перечисляет на листах сущностей.`
     );
   }
   if (counts.total > BIG_BATCH) {

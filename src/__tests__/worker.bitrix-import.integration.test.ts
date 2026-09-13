@@ -290,11 +290,64 @@ describe('bitrixImportProcessor — сухой прогон пакета', () =>
     expect(JSON.stringify(saved.errors)).toContain('выключена');
   });
 
-  it('откат ещё не включён — пакет говорит об этом, а не молчит', async () => {
+  it('применили и откатили — кабинет вернулся ровно в прежнее состояние', async () => {
+    // Это главный приёмочный сценарий `У-196`: снимок до совпадает со снимком
+    // после. Прогон идёт через процессор, а не через сервис, чтобы проверить
+    // всю цепочку целиком — журнал пишется применением, читается откатом.
+    const before = await snapshotCounts();
+    const batchId = await createBatch({
+      defaultManagerId: ids.user,
+      tables: FULL_TABLES,
+      withFiles: false,
+    });
+    await bitrixImportProcessor(job('apply', batchId), prisma);
+
+    const afterApply = await snapshotCounts();
+    expect(afterApply.organizations).toBeGreaterThan(before.organizations);
+    expect(afterApply.contacts).toBeGreaterThan(before.contacts);
+    const written = await prisma.bitrixImportWrite.count({ where: { batchId } });
+    expect(written).toBeGreaterThan(20);
+
+    const result = await bitrixImportProcessor(job('rollback', batchId), prisma);
+    expect(result).toMatchObject({ status: 'rolled_back' });
+
+    // Ни одной строки сверх прежнего — и ни одной неоткаченной в журнале.
+    expect(await snapshotCounts()).toEqual(before);
+    expect(await prisma.bitrixImportWrite.count({ where: { batchId, reverted: false } })).toBe(0);
+
+    const saved = await prisma.bitrixImportBatch.findUniqueOrThrow({
+      where: { id: batchId },
+      select: { status: true, rolledBackAt: true },
+    });
+    expect(saved.status).toBe('rolled_back');
+    expect(saved.rolledBackAt).not.toBeNull();
+
+    // Откат обязан быть виден в аудите: без записи он не считается выполненным.
+    const audit = await prisma.auditLog.count({
+      where: { userId: ids.user, action: 'bitrix_import_rolled_back', entityId: batchId },
+    });
+    expect(audit).toBe(1);
+  });
+
+  it('незнакомая задача — пакет говорит об этом, а не молчит', async () => {
+    const batchId = await createBatch();
+    const result = await bitrixImportProcessor(job('выдумка', batchId), prisma);
+    expect(result).toMatchObject({ status: 'failed' });
+    expect(result.reason).toContain('не поддерживается');
+  });
+
+  it('откат пустого пакета проходит без записей и без падения', async () => {
+    // Журнал пуст: откатывать нечего, но задача обязана завершиться штатно и
+    // проставить пакету итог — иначе он навсегда остался бы «откатываем».
     const batchId = await createBatch();
     const result = await bitrixImportProcessor(job('rollback', batchId), prisma);
-    expect(result).toMatchObject({ status: 'failed' });
-    expect(result.reason).toContain('следующим шагом');
+    expect(result).toMatchObject({ status: 'rolled_back' });
+    const saved = await prisma.bitrixImportBatch.findUniqueOrThrow({
+      where: { id: batchId },
+      select: { status: true, rolledBackAt: true },
+    });
+    expect(saved.status).toBe('rolled_back');
+    expect(saved.rolledBackAt).not.toBeNull();
   });
 
   it('пакета нет — задача заканчивается без падения', async () => {

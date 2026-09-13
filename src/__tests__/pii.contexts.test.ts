@@ -12,16 +12,18 @@ const SUBJECT_TYPES = new Set([
   'user',
   'caller',
   'inbound_sender',
+  'bitrix_batch',
   'contact', // этап 1 ТЗ 12.09.2026 (`У-186`): контакт — физлицо клиентского контура
 ]);
 
 describe('PII_CONTEXTS registry', () => {
   const entries = Object.entries(PII_CONTEXTS);
 
-  it('содержит все 32 контекста v1+M1+M6+этапы 2/5/7/9 + ТЗ кабинетов + мессенджеры + контакты', () => {
+  it('содержит все 32 контекста v1+M1+M6+этапы 2/5/7/9 + ТЗ кабинетов + мессенджеры + контакты + миграция', () => {
     expect(entries.map(([k]) => k).sort()).toEqual([
       'admin_user_view',
       'admin_users_list',
+      'bitrix_report', // этап 2 ТЗ 12.09.2026 (`У-198`): отчёт сверки переноса
       'calls_list',
       'certificates_list',
       'client_request_view', // этап 5: деталка обращения клиента

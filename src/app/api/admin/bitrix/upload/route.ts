@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { readFiles, readMultipart } from '@/lib/api/multipart';
-import { requireAdmin } from '@/lib/auth/requireRole';
+import { requireSettingsSection } from '@/lib/auth/requireSettings';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { storeBitrixUploads } from '@/lib/services/bitrix/upload';
 
@@ -23,7 +23,8 @@ const STATUS: Record<string, number> = {
 export async function POST(req: Request) {
   const disabled = notFoundIfDisabled('bitrix_migration');
   if (disabled) return disabled;
-  await requireAdmin();
+  // Тот же гард, что у действий раздела: одной роли мало (§4).
+  await requireSettingsSection('integrations.bitrix', 'admin');
 
   const fd = await readMultipart(req);
   if (!fd) return NextResponse.json({ error: 'invalid_request' }, { status: 400 });

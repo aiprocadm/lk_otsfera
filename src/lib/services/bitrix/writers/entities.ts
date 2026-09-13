@@ -84,13 +84,24 @@ export async function writeOrganization(
     // Пометка про отсутствующий ИНН — заметка организации: отдельного поля у
     // модели нет, а терять этот факт нельзя (по нему видно, чего ждать от 1С).
     if (d.note) {
-      await tx.organizationNote.create({
+      const note = await tx.organizationNote.create({
         data: {
           companyId: d.companyId,
           organizationId: created.id,
           body: d.note,
           authorId: null,
         },
+        select: { id: true },
+      });
+      // Заметку тоже записываем в журнал: без неё откат не знал бы, что её
+      // завёл перенос, — она пережила бы откат и держала бы организацию как
+      // «чужая работа поверх переноса».
+      await writeJournal(tx, ctx, {
+        entity: 'note',
+        entityId: note.id,
+        bitrixId,
+        action: 'created',
+        after: snapshot({ organizationId: created.id, authorId: null }),
       });
     }
     // Ответственный из Битрикса — менеджер организации; связь отдельная,

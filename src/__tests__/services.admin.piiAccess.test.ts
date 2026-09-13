@@ -43,6 +43,7 @@ function makePrisma(rows: ReturnType<typeof eventRow>[] = []) {
     call: { findMany: vi.fn().mockResolvedValue([]) },
     inboundMessage: { findMany: vi.fn().mockResolvedValue([]) },
     contact: { findMany: vi.fn().mockResolvedValue([]) },
+    bitrixImportBatch: { findMany: vi.fn().mockResolvedValue([]) },
   } as never;
 }
 
@@ -167,6 +168,36 @@ describe('listPiiAccess', () => {
     expect((p as any).contact.findMany).toHaveBeenCalledWith({
       where: { id: { in: ['k1', 'k2', 'k3'] } },
       select: { id: true, name: true },
+    });
+  });
+
+  it('субъект «bitrix_batch» подписывается пакетом миграции, а не «удалённым контактом»', async () => {
+    // Этап 2 ТЗ 12.09.2026 (`У-198`): у отчёта сверки субъект — не один
+    // человек, а пакет: в отчёте перечислены все перенесённые контакты и лиды
+    // разом. Если бы контекст числился контактом, журнал искал бы id пакета
+    // среди контактов, не находил и рисовал «удалён» — то есть врал.
+    const p = makePrisma([
+      eventRow('e1', {
+        subjectType: 'bitrix_batch',
+        subjectIds: ['b1', 'b2'],
+        context: 'bitrix_report',
+        action: 'export',
+      }),
+    ]);
+    (p as any).bitrixImportBatch.findMany.mockResolvedValue([
+      { id: 'b1', createdAt: new Date('2026-09-13T08:00:00Z') },
+    ]);
+    const res = await listPiiAccess(p, ADMIN, {});
+    if (!res.ok) throw new Error('expected ok');
+    expect(res.rows[0]!.labelRu).toBe('Миграция из Битрикс24: отчёт сверки');
+    expect(res.rows[0]!.subjects.map((s) => s.label)).toEqual([
+      'Пакет миграции от 13.09.2026',
+      'b2 (удалён)',
+    ]);
+    expect((p as any).bitrixImportBatch.findMany).toHaveBeenCalledTimes(1);
+    expect((p as any).bitrixImportBatch.findMany).toHaveBeenCalledWith({
+      where: { id: { in: ['b1', 'b2'] } },
+      select: { id: true, createdAt: true },
     });
   });
 

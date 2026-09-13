@@ -110,6 +110,14 @@ async function resolveSubjectLabels(
     }))
       put(c.id, c.name);
   }
+  if (byType.has('bitrix_batch')) {
+    for (const b of await prisma.bitrixImportBatch.findMany({
+      where: { id: { in: ids('bitrix_batch') } },
+      select: { id: true, createdAt: true },
+    })) {
+      put(b.id, `Пакет миграции от ${b.createdAt.toLocaleDateString('ru-RU')}`);
+    }
+  }
   return labels;
 }
 

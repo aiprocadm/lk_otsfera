@@ -6,6 +6,7 @@ import { bestEffort } from '@/lib/logging';
 import type { BitrixMappingTables } from './mapping/types';
 import { stageMapComplete } from './mapping/stages';
 import type { PipelineCounts, PipelineResult } from './pipeline';
+import type { RollbackConflict } from './rollback';
 import type { BitrixStage, SourceFilter } from './source';
 
 /**
@@ -38,6 +39,8 @@ export type BitrixBatchSettings = {
   stagesFound?: BitrixStage[];
   usersFound?: PipelineResult['usersFound'];
   rows?: PipelineResult['rows'];
+  /** Чего не смог вернуть откат (`У-196`) — уезжает в отчёт сверки. */
+  rollbackConflicts?: RollbackConflict[];
 };
 
 export type BitrixBatchView = {
@@ -48,6 +51,9 @@ export type BitrixBatchView = {
   createdAt: Date;
   startedAt: Date | null;
   appliedAt: Date | null;
+  rolledBackAt: Date | null;
+  /** Отчёт сверки уже собран — кнопка «Отчёт» активна (`У-198`). */
+  hasReport: boolean;
   importedByName: string;
   settings: BitrixBatchSettings;
   counts: PipelineCounts | null;
@@ -86,6 +92,7 @@ function readSettings(raw: Prisma.JsonValue | null): BitrixBatchSettings {
     ...(value.stagesFound ? { stagesFound: value.stagesFound } : {}),
     ...(value.usersFound ? { usersFound: value.usersFound } : {}),
     ...(value.rows ? { rows: value.rows } : {}),
+    ...(value.rollbackConflicts ? { rollbackConflicts: value.rollbackConflicts } : {}),
   };
 }
 
@@ -158,6 +165,8 @@ const BATCH_SELECT = {
   createdAt: true,
   startedAt: true,
   appliedAt: true,
+  rolledBackAt: true,
+  reportPath: true,
   settings: true,
   counts: true,
   errors: true,
@@ -172,6 +181,8 @@ function toView(row: {
   createdAt: Date;
   startedAt: Date | null;
   appliedAt: Date | null;
+  rolledBackAt: Date | null;
+  reportPath: string | null;
   settings: Prisma.JsonValue;
   counts: Prisma.JsonValue;
   errors: Prisma.JsonValue | null;
@@ -189,6 +200,8 @@ function toView(row: {
     createdAt: row.createdAt,
     startedAt: row.startedAt,
     appliedAt: row.appliedAt,
+    rolledBackAt: row.rolledBackAt,
+    hasReport: !!row.reportPath,
     importedByName: row.importedBy.name,
     settings,
     counts: counts && Object.keys(counts).length > 0 ? counts : null,
