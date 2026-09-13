@@ -1,5 +1,23 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
+
+/**
+ * Хранилище и очередь нужны только писателю файлов: он единственный ходит в
+ * сеть (скачать вложение, положить в S3, поставить антивирус). Здесь это моки —
+ * ни Redis, ни S3 к обходу конвейера отношения не имеют.
+ */
+const { upload, getObjectStorage } = vi.hoisted(() => {
+  const upload = vi.fn(async () => undefined);
+  return { upload, getObjectStorage: vi.fn(() => ({ upload })) };
+});
+vi.mock('@/lib/storage', () => ({ getObjectStorage }));
+
+const { queueAdd, getQueue } = vi.hoisted(() => {
+  const queueAdd = vi.fn(async () => ({}));
+  return { queueAdd, getQueue: vi.fn(() => ({ add: queueAdd })) };
+});
+vi.mock('@/lib/jobs/queues', () => ({ getQueue }));
+
 import { FakeBitrixSource } from '@/lib/services/bitrix/adapter-fake';
 import { unmappedStages } from '@/lib/services/bitrix/mapping/stages';
 import {
@@ -22,6 +40,10 @@ import type {
   BitrixTask,
   BitrixUser,
 } from '@/lib/services/bitrix/source';
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 /**
  * Конвейер пакета (`У-193`, `У-194`, спека §3.2): один и тот же обход на
@@ -64,6 +86,8 @@ type Seed = {
   tasks?: Record<string, unknown>[];
   documents?: { bitrixId: string }[];
   orders?: Record<string, unknown>[];
+  /** Строки журнала: по ним видно, что уже переносили (заметки, снимки полей). */
+  journal?: Record<string, unknown>[];
 };
 
 const listOf = (args: any, field: string): string[] => args?.where?.[field]?.in ?? [];
@@ -84,8 +108,56 @@ const matchOrganizations = (rows: OrgRow[], args: any): OrgRow[] =>
     })
   );
 
+/**
+ * Писатели режима `live`: каждый метод возвращает строку с настоящим
+ * идентификатором. По нему и видно главное — реестр связей берёт `organization-1`
+ * из ответа базы, а не метку «будет создано» (`planned:*`).
+ */
+function makeTx() {
+  const created = (entity: string) => vi.fn(async () => ({ id: `${entity}-1` }));
+  const touched = vi.fn(async () => ({ count: 1 }));
+  return {
+    organization: { create: created('organization'), update: vi.fn(async () => ({})) },
+    organizationNote: { create: created('note') },
+    organizationManager: { create: created('org-manager') },
+    contact: { create: created('contact'), update: vi.fn(async () => ({})) },
+    contactChannel: { createMany: vi.fn(async () => ({ count: 1 })) },
+    lead: {
+      create: created('lead'),
+      update: vi.fn(async () => ({})),
+      updateMany: vi.fn(async () => ({ count: 1 })),
+    },
+    deal: {
+      create: created('deal'),
+      update: vi.fn(async () => ({})),
+      updateMany: touched,
+      count: vi.fn(async () => 1),
+    },
+    dealNote: { create: created('note') },
+    task: { create: created('task'), update: vi.fn(async () => ({})) },
+    order: { create: created('order') },
+    orderStatusChange: { create: created('status-change') },
+    document: { create: created('document') },
+    bitrixImportWrite: { create: created('journal') },
+  };
+}
+
+/** Строки журнала фильтруются как в базе: иначе «уже переносили» сработает на всём. */
+const matchJournal = (rows: Record<string, unknown>[], args: any): Record<string, unknown>[] =>
+  rows.filter((row) => {
+    const where = args?.where ?? {};
+    if (where.entity !== undefined && row.entity !== where.entity) return false;
+    if (where.entityId?.in && !where.entityId.in.includes(row.entityId as string)) return false;
+    if (where.bitrixId?.in && !where.bitrixId.in.includes(row.bitrixId as string)) return false;
+    return true;
+  });
+
 function makePrisma(seed: Seed = {}) {
+  const tx = makeTx();
   const calls = {
+    transaction: vi.fn(async (cb: (client: ReturnType<typeof makeTx>) => Promise<unknown>) =>
+      cb(tx)
+    ),
     user: vi.fn(async (args: any) => {
       if (args.where.OR) {
         const wanted: string[] = args.where.OR[0].email.in;
@@ -113,8 +185,10 @@ function makePrisma(seed: Seed = {}) {
         listOf(args, 'organizationId').includes(o.organizationId as string)
       )
     ),
+    journal: vi.fn(async (args: any) => matchJournal(seed.journal ?? [], args)),
   };
   const prisma = {
+    $transaction: calls.transaction,
     user: { findMany: calls.user },
     dealStage: { findMany: calls.dealStage },
     funnelStage: { findMany: calls.funnelStage },
@@ -128,8 +202,10 @@ function makePrisma(seed: Seed = {}) {
     task: { findMany: calls.task },
     document: { findMany: calls.document },
     order: { findMany: calls.order },
+    // Журнал: сухой прогон смотрит, какие заметки уже переносили.
+    bitrixImportWrite: { findMany: calls.journal },
   } as unknown as PrismaClient;
-  return { prisma, calls };
+  return { prisma, calls, tx };
 }
 
 // --- источник --------------------------------------------------------------
@@ -170,7 +246,9 @@ function makeSource(parts: SourceParts = {}, overrides: Partial<BitrixSource> = 
       const wanted = new Set(ids);
       for (const f of parts.files ?? []) if (f.entity === entity && wanted.has(f.entityId)) yield f;
     },
-    download: async () => Buffer.from('%PDF-'),
+    // Настоящая «шапка» PDF: короче восьми байт проверка магических байтов
+    // отвергает файл как «слишком короткий», и до хранилища он не доходит.
+    download: async () => Buffer.from('%PDF-1.4\n1 0 obj\n'),
     ...overrides,
   };
 }
@@ -256,13 +334,17 @@ type RunArgs = {
   batch?: Partial<PipelineArgs['batch']>;
   mode?: PipelineArgs['mode'];
   onProgress?: PipelineArgs['onProgress'];
+  /** Настроить писателей до прогона — например, уронить одну запись. */
+  arrange?: (tx: ReturnType<typeof makeTx>) => void;
 };
 
 async function run(args: RunArgs = {}): Promise<{
   result: PipelineResult;
   calls: ReturnType<typeof makePrisma>['calls'];
+  tx: ReturnType<typeof makeTx>;
 }> {
-  const { prisma, calls } = makePrisma(args.seed);
+  const { prisma, calls, tx } = makePrisma(args.seed);
+  args.arrange?.(tx);
   const result = await runPipeline(prisma, {
     batch: {
       id: 'b1',
@@ -278,7 +360,7 @@ async function run(args: RunArgs = {}): Promise<{
     mode: args.mode ?? 'shadow',
     ...(args.onProgress ? { onProgress: args.onProgress } : {}),
   });
-  return { result, calls };
+  return { result, calls, tx };
 }
 
 /** Сводка сущности без нулей — так ожидания читаются, а не расшифровываются. */
@@ -291,28 +373,20 @@ const reasonsOf = (result: PipelineResult, entity: string): string[] =>
 // --- тесты -----------------------------------------------------------------
 
 describe('runPipeline — режим', () => {
-  it('live пока запрещён: понятная ошибка вместо тихой записи', async () => {
-    const { prisma, calls } = makePrisma();
+  it('сухой прогон не открывает ни одной транзакции — писать ему нечем', async () => {
+    const { result, calls, tx } = await run({ source: new FakeBitrixSource() });
 
-    await expect(
-      runPipeline(prisma, {
-        batch: {
-          id: 'b1',
-          companyId: 'c1',
-          importedById: 'imp-1',
-          filter: {},
-          withFiles: true,
-          defaultManagerId: null,
-          tables: {},
-        },
-        source: makeSource(),
-        mode: 'live',
-      })
-    ).rejects.toThrow('Применение пакета появится следующим шагом этапа');
-
-    // Ни одного похода в базу: отказ до начала обхода.
-    expect(calls.user).not.toHaveBeenCalled();
-    expect(calls.dealStage).not.toHaveBeenCalled();
+    expect(result.counts.total).toBeGreaterThan(0);
+    // Писатели у мока есть и готовы принять вызов: если бы сухой прогон полез
+    // писать, счётчики бы это показали, а не тест «молча прошёл».
+    expect(calls.transaction).not.toHaveBeenCalled();
+    expect(tx.organization.create).not.toHaveBeenCalled();
+    expect(tx.contact.create).not.toHaveBeenCalled();
+    expect(tx.deal.create).not.toHaveBeenCalled();
+    expect(tx.bitrixImportWrite.create).not.toHaveBeenCalled();
+    // Хранилище и антивирус — тоже запись: файлы сухой прогон только считает.
+    expect(upload).not.toHaveBeenCalled();
+    expect(queueAdd).not.toHaveBeenCalled();
   });
 });
 
@@ -1373,5 +1447,417 @@ describe('runPipeline — повторный прогон того же паке
     expect(nonZero(result.counts.file)).toEqual({ create: 1 });
     // Пять записей: организация, сделка, заказ, заметка и файл.
     expect(result.counts.total).toBe(5);
+  });
+});
+
+describe('runPipeline — режим записи', () => {
+  /** Сопоставление, которого фикстуре не хватает: два названия стадий и статус лида. */
+  const FULL_TABLES = {
+    stageMap: { '0:PREPARATION': 'default:negotiation', '0:EXECUTING': 'default:proposal' },
+    leadStageMap: { NEW: 'default:new' },
+  };
+
+  /** Организация фикстуры, которая в ЛК уже есть: по ней видно настоящий id. */
+  const KNOWN_ORG: OrgRow = {
+    id: 'org-1',
+    companyId: 'c1',
+    name: 'Компания 101',
+    inn: null,
+    kpp: null,
+    bitrixId: null,
+    nameKey: 'КОМПАНИЯ 101',
+  };
+
+  it('фикстура портала записывается строка за строкой, и каждая запись — со строкой журнала', async () => {
+    const { result, calls, tx } = await run({
+      source: new FakeBitrixSource(),
+      batch: { tables: FULL_TABLES },
+      mode: 'live',
+      seed: { closedStatus: { id: 'st-closed' } },
+    });
+
+    // Сводка сухого прогона и число реальных записей обязаны совпадать: если
+    // предпросмотр обещает 5 организаций, применение пишет ровно 5.
+    expect(tx.organization.create).toHaveBeenCalledTimes(5);
+    expect(tx.contact.create).toHaveBeenCalledTimes(8);
+    expect(tx.lead.create).toHaveBeenCalledTimes(6);
+    expect(tx.deal.create).toHaveBeenCalledTimes(6);
+    expect(tx.task.create).toHaveBeenCalledTimes(4);
+    expect(nonZero(result.counts.organization)).toEqual({ create: 5 });
+    expect(nonZero(result.counts.contact)).toEqual({ create: 8 });
+
+    // Заметки, заказы и вложения тоже записаны — своими писателями. Заметок
+    // организаций на две больше, чем комментариев портала: у двух компаний
+    // фикстуры нет ИНН, и пометку об этом писатель кладёт заметкой.
+    expect(nonZero(result.counts.note)).toEqual({ create: 8, skip: 1 });
+    expect(tx.dealNote.create).toHaveBeenCalledTimes(5);
+    expect(tx.organizationNote.create).toHaveBeenCalledTimes(3 + 2);
+    expect(tx.order.create).toHaveBeenCalledTimes(2);
+    expect(tx.document.create).toHaveBeenCalledTimes(3);
+
+    // Журнал — единственный способ откатить перенос, поэтому строка в нём
+    // обязана быть у КАЖДОЙ записи: 5 + 8 + 6 + 6 + 8 + 4 + 2 + 3.
+    expect(tx.bitrixImportWrite.create).toHaveBeenCalledTimes(42);
+    // Транзакций на одну больше: у каждой строки своя короткая транзакция, и
+    // одна ушла на заметку, которой некуда лечь — писатель вернул «нечего
+    // писать», и строки журнала по ней справедливо нет.
+    expect(calls.transaction).toHaveBeenCalledTimes(43);
+    expect(result.errors).toEqual([]);
+
+    // Вложения прошли полный путь: хранилище и очередь антивируса.
+    expect(upload).toHaveBeenCalledTimes(3);
+    expect(getQueue).toHaveBeenCalledWith('docs.scanDocument');
+    expect(queueAdd).toHaveBeenCalledTimes(3);
+  });
+
+  it('реестр связей берёт настоящие идентификаторы, а не метку «будет создано»', async () => {
+    const { tx } = await run({
+      source: new FakeBitrixSource(),
+      batch: { tables: FULL_TABLES, withFiles: false },
+      mode: 'live',
+    });
+
+    const createdOrgId = ((await tx.organization.create.mock.results[0].value) as { id: string })
+      .id;
+    const dealOrgIds = tx.deal.create.mock.calls.map((c: any) => c[0].data.organizationId);
+
+    // Сделка ссылается на строку, которую только что вернула база. Без этого в
+    // `organizationId` уехала бы метка `planned:organization:101`, и связь
+    // «сделка → организация» указывала бы в никуда.
+    expect(createdOrgId).toBe('organization-1');
+    expect(dealOrgIds).toContain(createdOrgId);
+    expect(dealOrgIds.some((id: unknown) => String(id).startsWith('planned:'))).toBe(false);
+  });
+
+  it('ошибка записи одной строки не роняет прогон: остальные записи идут дальше', async () => {
+    const { result, tx } = await run({
+      source: new FakeBitrixSource(),
+      batch: { tables: FULL_TABLES, withFiles: false },
+      mode: 'live',
+      arrange: (t) => {
+        t.contact.create
+          .mockResolvedValueOnce({ id: 'contact-1' })
+          .mockRejectedValueOnce(new Error('дубль канала'));
+      },
+    });
+
+    // Из-за одной кривой записи терять весь перенос нельзя: она уходит в
+    // отчёт, а остальные контакты, сделки и задачи пишутся как обычно.
+    expect(result.errors).toEqual([
+      { bitrixId: '202', entity: 'contact', message: 'дубль канала' },
+    ]);
+    expect(result.rows).toContainEqual({
+      entity: 'contact',
+      bitrixId: '202',
+      title: 'Борис Петров',
+      action: 'conflict',
+      reason: 'не записано: дубль канала',
+    });
+    expect(tx.contact.create).toHaveBeenCalledTimes(8);
+    expect(tx.deal.create).toHaveBeenCalledTimes(6);
+    expect(tx.task.create).toHaveBeenCalledTimes(4);
+  });
+
+  it('поле, правленное человеком, остаётся ему — строка отчёта «оставлено ручное значение»', async () => {
+    const source = makeSource({
+      stages: PORTAL_STAGES,
+      deals: [deal({ id: '460', title: 'Название из Битрикса' })],
+    });
+
+    const { result, calls, tx } = await run({
+      source,
+      mode: 'live',
+      batch: { withFiles: false },
+      seed: {
+        deals: [
+          {
+            id: 'd-1',
+            title: 'Название, поправленное менеджером',
+            // Статус и стадия совпадают с планом — расходится только название.
+            status: 'open',
+            stageId: 'default:new',
+            orderId: null,
+            organizationId: null,
+            wonAt: null,
+            lostAt: null,
+            bitrixId: '460',
+          },
+        ],
+        // Прошлый прогон записал одно, а в кабинете сейчас другое — значит,
+        // название правил человек, и его работа сильнее повторного переноса.
+        journal: [
+          {
+            entity: 'deal',
+            entityId: 'd-1',
+            bitrixId: '460',
+            after: { title: 'Название прошлого прогона' },
+          },
+        ],
+      },
+    });
+
+    expect(calls.journal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ entity: 'deal', entityId: { in: ['d-1'] } }),
+      })
+    );
+    expect(tx.deal.update).not.toHaveBeenCalled();
+    expect(result.rows).toContainEqual({
+      entity: 'deal',
+      bitrixId: '460',
+      title: 'Название из Битрикса',
+      action: 'update',
+      reason: 'оставлено ручное значение: title',
+    });
+  });
+
+  it('лид и задача, уже заведённые в ЛК, обновляются одной записью каждый', async () => {
+    const source = makeSource({
+      stages: [
+        { entity: 'lead', categoryId: null, id: 'NEW', name: 'Новый лид', semantics: 'process' },
+      ],
+      leads: [lead({ id: '320', title: 'Новая тема' })],
+      tasks: [task({ id: '510', title: 'Новое название' })],
+    });
+
+    const { result, tx } = await run({
+      source,
+      mode: 'live',
+      batch: { withFiles: false },
+      seed: {
+        leads: [
+          {
+            id: 'l-1',
+            subject: 'Старая тема',
+            status: 'new',
+            funnelStageId: null,
+            bitrixId: '320',
+          },
+        ],
+        tasks: [
+          {
+            id: 't-1',
+            title: 'Старое название',
+            status: 'todo',
+            columnId: null,
+            completedAt: null,
+            bitrixId: '510',
+          },
+        ],
+      },
+    });
+
+    expect(nonZero(result.counts.lead)).toEqual({ update: 1 });
+    expect(nonZero(result.counts.task)).toEqual({ update: 1 });
+    expect(tx.lead.update).toHaveBeenCalledWith({
+      where: { id: 'l-1' },
+      data: { subject: 'Новая тема' },
+    });
+    expect(tx.task.update).toHaveBeenCalledWith({
+      where: { id: 't-1' },
+      data: { title: 'Новое название' },
+    });
+    expect(tx.lead.create).not.toHaveBeenCalled();
+    expect(tx.task.create).not.toHaveBeenCalled();
+    // Кроме строки «файлы не запрошены» человеку показывать нечего: обновления
+    // в списке не показываются, а «оставлено ручное» здесь не сработало.
+    expect(result.rows.filter((r) => r.entity !== 'file')).toEqual([]);
+  });
+
+  it('выигранные сделки: одна прилипает к заказу 1С, второй заводится свой', async () => {
+    const source = makeSource({
+      stages: PORTAL_STAGES,
+      companies: [company({ id: '101' })],
+      // Обе без названия: в строке отчёта такая сделка зовётся идентификатором,
+      // а не пустыми кавычками — и в привязке, и в заведённом заказе.
+      deals: [
+        deal({ id: '470', title: '', stageId: 'WON', companyId: '101', opportunity: '50000' }),
+        deal({ id: '471', title: '', stageId: 'WON', companyId: '101', opportunity: '7000' }),
+      ],
+    });
+
+    const { result, tx } = await run({
+      source,
+      mode: 'live',
+      batch: { withFiles: false },
+      seed: {
+        organizations: [KNOWN_ORG],
+        closedStatus: { id: 'st-closed' },
+        orders: [
+          {
+            id: 'ord-1',
+            organizationId: 'org-1',
+            externalId: '1c-1',
+            orderNumber: '№1',
+            totalAmount: '50000',
+            closedAt: null,
+            completedAt: null,
+          },
+        ],
+      },
+    });
+
+    expect(nonZero(result.counts.order)).toEqual({ update: 1, create: 1 });
+    // Привязка — это `updateMany` по сделке с пустым `orderId`: живая связь
+    // важнее перенесённой, поэтому чужой заказ мы не перебиваем.
+    expect(tx.deal.updateMany).toHaveBeenCalledWith({
+      where: { id: 'deal-1', orderId: null },
+      data: { orderId: 'ord-1' },
+    });
+    // Второй сделке заказа в 1С не нашлось — заводим заказ-историю со статусом.
+    expect(tx.order.create).toHaveBeenCalledTimes(1);
+    expect(tx.orderStatusChange.create).toHaveBeenCalledWith({
+      data: {
+        orderId: 'order-1',
+        fromId: null,
+        toId: 'st-closed',
+        userId: null,
+        reason: 'Перенесено из Битрикс24',
+      },
+    });
+    expect(result.errors).toEqual([]);
+    // Привязку показываем всегда — человек должен видеть, К КАКОМУ заказу
+    // прилипнет сделка; сделка без названия названа идентификатором.
+    expect(reasonsOf(result, 'order')).toEqual(['470: заказ найден в 1С: №1']);
+  });
+
+  it('писатель бросил не ошибку, а строку — в отчёт всё равно попадает её текст', async () => {
+    const source = makeSource({ companies: [company({ id: '101' })] });
+
+    const { result } = await run({
+      source,
+      mode: 'live',
+      batch: { withFiles: false },
+      arrange: (t) => {
+        t.organization.create.mockRejectedValueOnce('нет места на диске');
+      },
+    });
+
+    // Бросить можно что угодно — человеку всё равно нужен текст, а не
+    // «[object Object]» и не пустая строка в отчёте сверки.
+    expect(result.errors).toEqual([
+      { bitrixId: '101', entity: 'organization', message: 'нет места на диске' },
+    ]);
+    expect(reasonsOf(result, 'organization')).toEqual(['101: не записано: нет места на диске']);
+  });
+
+  it('журнал по одной и той же строке спрашивается один раз, а не на каждую запись', async () => {
+    // Две компании портала с одним названием сходятся в одну организацию ЛК.
+    const source = makeSource({
+      companies: [
+        company({ id: '101', title: 'Компания 101' }),
+        company({ id: '102', title: 'Компания 101' }),
+      ],
+    });
+
+    const { result, calls, tx } = await run({
+      source,
+      mode: 'live',
+      batch: { withFiles: false },
+      seed: {
+        organizations: [KNOWN_ORG],
+        journal: [
+          {
+            entity: 'organization',
+            entityId: 'org-1',
+            bitrixId: '101',
+            after: { name: 'Компания 101' },
+          },
+        ],
+      },
+    });
+
+    // Снимок прошлого прогона уже в памяти — второй круг к журналу лишний. На
+    // пакете в десятки тысяч строк это разница между одним запросом и тысячами.
+    expect(calls.journal).toHaveBeenCalledTimes(1);
+    expect(nonZero(result.counts.organization)).toEqual({ update: 2 });
+    expect(tx.organization.update).toHaveBeenCalledTimes(2);
+  });
+
+  it('вложение, не дошедшее до хранилища, уходит из «создадим» в «пропустили»', async () => {
+    upload.mockRejectedValueOnce(new Error('S3 недоступен'));
+    const source = makeSource({
+      companies: [company({ id: '101' })],
+      files: [
+        {
+          id: '703',
+          entity: 'company',
+          entityId: '101',
+          name: 'реквизиты.pdf',
+          size: 1,
+          downloadUrl: null,
+        },
+      ],
+    });
+
+    const { result, tx } = await run({ source, mode: 'live' });
+
+    // Файл не доехал — но это не повод останавливать перенос: в сводке он
+    // честно уходит из «создадим» в «пропустили», а причина видна человеку.
+    expect(nonZero(result.counts.file)).toEqual({ skip: 1 });
+    expect(result.errors).toEqual([
+      { bitrixId: '703', entity: 'file', message: 'хранилище файлов недоступно' },
+    ]);
+    expect(reasonsOf(result, 'file')).toEqual(['703: хранилище файлов недоступно']);
+    expect(tx.document.create).not.toHaveBeenCalled();
+    // Организация при этом записана: один битый файл не отменяет остального.
+    expect(tx.organization.create).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('runPipeline — повторный перенос заметок и контакт без имени', () => {
+  it('заметка, перенесённая прошлым пакетом, пропускается как «уже связано»', async () => {
+    const source = makeSource({
+      companies: [company({ id: '101' })],
+      comments: [
+        {
+          id: '606',
+          entity: 'company',
+          entityId: '101',
+          authorId: null,
+          text: 'Звонить после 14:00',
+          createdAt: null,
+        },
+      ],
+    });
+
+    const { result, calls } = await run({
+      source,
+      // У заметок нет колонки `bitrixId`: без этой проверки повтор пакета
+      // сделал бы копию каждой заметки.
+      seed: { journal: [{ entity: 'note', entityId: 'n-1', bitrixId: '606' }] },
+    });
+
+    expect(calls.journal).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ entity: 'note' }) })
+    );
+    expect(nonZero(result.counts.note)).toEqual({ skip: 1 });
+    expect(reasonsOf(result, 'note')).toEqual(['606: уже связано']);
+  });
+
+  it('контакт без имени в строке про занятый канал назван идентификатором', async () => {
+    const source = makeSource({
+      contacts: [
+        contact({ id: '210', name: 'Вера', lastName: 'Смирнова', phones: ['+7 812 777 88 99'] }),
+        // Имени нет, но почта своя: контакт заводится, а занятый телефон
+        // остаётся у первого — об этом и строка отчёта.
+        contact({
+          id: '211',
+          name: '',
+          lastName: '',
+          phones: ['+7 812 777 88 99'],
+          emails: ['no-name@demo.local'],
+        }),
+      ],
+    });
+
+    const { result } = await run({ source });
+
+    // Пустая строка вместо имени превратила бы строку отчёта в «канал не
+    // перенесён у ««»» — человек не понял бы, о ком речь.
+    expect(reasonsOf(result, 'contact')).toEqual([
+      '211: канал не перенесён: +7 812 777 88 99 — уже у контакта «Вера Смирнова»',
+    ]);
+    expect(result.rows[0].title).toBe('211');
   });
 });

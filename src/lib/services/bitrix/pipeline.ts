@@ -245,11 +245,13 @@ export async function runPipeline(
     try {
       const outcome = await prisma.$transaction((tx) => write(tx));
       if (outcome && outcome.keptManual.length > 0) {
+        // Запись БЫЛА (часть полей обновилась), поэтому действие здесь
+        // «обновили», а не «пропустили»: иначе сводка и список расходились бы.
         pushRow({
           entity,
           bitrixId,
           title,
-          action: 'skip',
+          action: 'update',
           reason: `оставлено ручное значение: ${outcome.keptManual.join(', ')}`,
         });
       }
@@ -261,6 +263,15 @@ export async function runPipeline(
       return null;
     }
   };
+
+  /** Обёртка над `rememberPlan`, которая знает режим прогона. */
+  const rememberPlanLive = (
+    reg: BitrixRegistry,
+    entity: string,
+    bitrixId: string,
+    plan: Plan<unknown>,
+    outcome: WriteOutcome | null
+  ): void => rememberPlan(reg, entity, bitrixId, plan, outcome, live);
 
   let done = 0;
   const progress = async (step: PipelineProgress['step']): Promise<void> => {
@@ -334,7 +345,7 @@ export async function runPipeline(
       const outcome = await applyOne('organization', company.id, company.title, (tx) =>
         writeOrganization(tx, applyCtx, plan, company.id)
       );
-      rememberPlan(registry, 'organization', company.id, plan, outcome);
+      rememberPlanLive(registry, 'organization', company.id, plan, outcome);
       await tick('organization');
     }
   }
@@ -392,7 +403,7 @@ export async function runPipeline(
       const outcome = await applyOne('contact', contact.id, contactName, (tx) =>
         writeContact(tx, applyCtx, plan, contact.id)
       );
-      rememberPlan(registry, 'contact', contact.id, plan, outcome);
+      rememberPlanLive(registry, 'contact', contact.id, plan, outcome);
       // Занятый канал не отменяет перенос контакта, но человек обязан о нём
       // узнать: телефон остался у другого, и это решение, а не мелочь.
       for (const conflict of channelConflicts(plan)) {
@@ -456,7 +467,7 @@ export async function runPipeline(
       const outcome = await applyOne('lead', lead.id, lead.title || lead.id, (tx) =>
         writeLead(tx, applyCtx, plan, lead.id)
       );
-      rememberPlan(registry, 'lead', lead.id, plan, outcome);
+      rememberPlanLive(registry, 'lead', lead.id, plan, outcome);
       await tick('lead');
     }
   }
@@ -493,7 +504,7 @@ export async function runPipeline(
       const outcome = await applyOne('deal', deal.id, deal.title || deal.id, (tx) =>
         writeDeal(tx, applyCtx, plan, deal.id)
       );
-      rememberPlan(registry, 'deal', deal.id, plan, outcome);
+      rememberPlanLive(registry, 'deal', deal.id, plan, outcome);
       const organizationId = deal.companyId
         ? (registry.get('organization', deal.companyId) ?? null)
         : null;
@@ -653,7 +664,7 @@ export async function runPipeline(
       const outcome = await applyOne('task', task.id, task.title || task.id, (tx) =>
         writeTask(tx, applyCtx, plan, task.id)
       );
-      rememberPlan(registry, 'task', task.id, plan, outcome);
+      rememberPlanLive(registry, 'task', task.id, plan, outcome);
       await tick('task');
     }
   }
@@ -741,7 +752,7 @@ export async function runPipeline(
   };
 }
 
-/** Запомнить каналы контакта за ним: в пределах пакета телефон тоже занят. */
+/** Запомнить план с учётом режима: в записи метки «будет создано» не годятся. */
 function claimChannels(
   claimed: Map<string, ChannelOwnerRef>,
   contact: { id: string; name: string; lastName: string },
@@ -771,14 +782,18 @@ function rememberPlan(
   entity: string,
   bitrixId: string,
   plan: Plan<unknown>,
-  outcome?: WriteOutcome | null
+  outcome: WriteOutcome | null,
+  live: boolean
 ): void {
   // При применении реестр хранит НАСТОЯЩИЙ идентификатор записи: связи
   // (сделка → организация, заметка → сделка) обязаны указывать на строки базы,
   // а не на метку «будет создано».
   if (outcome) registry.set(entity, bitrixId, outcome.entityId);
   else if (plan.action === 'update') registry.set(entity, bitrixId, plan.id);
-  else if (plan.action === 'create') registry.plan(entity, bitrixId);
+  // Запись не удалась — ссылаться не на что. Метка «будет создано» здесь
+  // превратилась бы во внешний ключ в никуда: соседняя сущность упала бы с
+  // невнятной ошибкой базы вместо честного «родитель не записан».
+  else if (plan.action === 'create' && !live) registry.plan(entity, bitrixId);
   // «Нечего менять» — это тоже «запись есть». Без этой ветки повторный прогон
   // забывал уже перенесённую организацию, и её сделки, комментарии и файлы
   // исчезали из сводки: на одних и тех же данных предпросмотр показывал разное.

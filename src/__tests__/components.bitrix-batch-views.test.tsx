@@ -288,7 +288,7 @@ describe('BatchRows', () => {
 
   it('ни конфликтов, ни пропусков — объяснение вместо пустых таблиц', () => {
     const html = renderToString(
-      React.createElement(BatchRows, { rows: [row({ action: 'update' })] })
+      React.createElement(BatchRows, { rows: [row({ action: 'create' })] })
     );
     expect(text(html)).toContain('Ни конфликтов, ни пропусков');
     expect(html).not.toContain('data-testid="bitrix-conflicts"');

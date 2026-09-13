@@ -50,6 +50,7 @@ const companyOf = (over: Partial<BitrixCompany> = {}): BitrixCompany => ({
 });
 
 const existingOf = (over: Partial<ExistingOrganization> = {}): ExistingOrganization => ({
+  nameKey: null,
   id: 'org-1',
   companyId: COMPANY_ID,
   name: 'ООО «Ромашка»',
@@ -251,7 +252,8 @@ describe('planOrganization — обновление существующей', (
       companyOf({ title: 'ООО «Ромашка-2»', inn: VALID_INN, kpp: '773301001' }),
       ctxOf(),
       lookupOf({
-        byBitrixId: () => existingOf({ name: 'Ромашка', inn: null, kpp: null, bitrixId: '7' }),
+        byBitrixId: () =>
+          existingOf({ name: 'Ромашка', nameKey: null, inn: null, kpp: null, bitrixId: '7' }),
       })
     );
     expect(plan).toEqual({
@@ -263,7 +265,8 @@ describe('planOrganization — обновление существующей', (
         inn: VALID_INN,
         kpp: '773301001',
       },
-      before: { name: 'Ромашка', inn: null, kpp: null },
+      // Ключ поиска меняется вместе с названием, поэтому он тоже в снимке.
+      before: { name: 'Ромашка', nameKey: null, inn: null, kpp: null },
     });
   });
 
@@ -280,7 +283,7 @@ describe('planOrganization — обновление существующей', (
     if (plan.action !== 'update') throw new Error('ожидалось обновление');
     // КПП и ИНН не менялись — их в снимке нет вовсе, а не `null`.
     expect(Object.keys(plan.before)).toEqual(['name', 'nameKey']);
-    expect(plan.before).toEqual({ name: 'Старое имя' });
+    expect(plan.before).toEqual({ name: 'Старое имя', nameKey: null });
   });
 
   it.each([
