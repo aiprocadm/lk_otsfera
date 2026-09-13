@@ -65,7 +65,7 @@ const EMAILS = [
 const INN = ['ИНН', 'Реквизит: ИНН', 'Реквизиты: ИНН', 'INN', 'Tax ID'];
 const OPPORTUNITY = ['Сумма', 'Сумма сделки', 'Amount', 'Opportunity', 'Total'];
 
-export const BITRIX_COLS = {
+const BITRIX_COLS = {
   company: {
     id: ['ID', 'Идентификатор', 'Company ID'],
     title: ['Название компании', 'Название', 'Наименование', 'Company name', 'Company', 'Title'],
@@ -164,7 +164,7 @@ export const BITRIX_COLS = {
   },
 } as const;
 
-export type BitrixColumnMap = typeof BITRIX_COLS;
+type BitrixColumnMap = typeof BITRIX_COLS;
 export type BitrixField<E extends BitrixFileEntity> = keyof BitrixColumnMap[E] & string;
 
 /**
@@ -173,7 +173,7 @@ export type BitrixField<E extends BitrixFileEntity> = keyof BitrixColumnMap[E] &
  * (стадия сделки может прийти названием или ID); первым стоит то, что человек
  * видит в выгрузке — его и называет подсказка «не хватает колонки …».
  */
-export const REQUIRED_BITRIX_COLS: {
+const REQUIRED_BITRIX_COLS: {
   [E in BitrixFileEntity]: ReadonlyArray<ReadonlyArray<BitrixField<E>>>;
 } = {
   company: [['id'], ['title']],

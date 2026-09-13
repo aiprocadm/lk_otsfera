@@ -139,7 +139,7 @@ async function csvRows(buffer: Buffer, fileName: string): Promise<unknown[][]> {
 }
 
 /** Сетка файла: первая непустая строка — шапка, остальные — записи. */
-export async function readBitrixGrid(buffer: Buffer, fileName: string): Promise<Grid> {
+async function readBitrixGrid(buffer: Buffer, fileName: string): Promise<Grid> {
   const rows = startsWith(buffer, XLSX_MAGIC)
     ? await xlsxRows(buffer, fileName)
     : await csvRows(buffer, fileName);

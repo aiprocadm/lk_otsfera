@@ -16,16 +16,16 @@ import { BitrixSourceError } from './source';
  * файл возвращается с `key: null` и подсказкой, чего не хватило в шапке.
  * Содержимое файлов (ПДн контактов) в логи не пишется — только имена.
  */
-export type BitrixUploadedFileInfo = BitrixFileDiagnostic & { key: string | null };
+type BitrixUploadedFileInfo = BitrixFileDiagnostic & { key: string | null };
 
-export type BitrixUploadError =
+type BitrixUploadError =
   'no_files' | 'too_many_files' | 'too_large' | 'invalid_mime' | 'file_unreadable' | 'storage';
 
 export type BitrixUploadResult =
   | { ok: true; files: BitrixUploadedFileInfo[] }
   | { ok: false; error: BitrixUploadError; file?: string };
 
-export const BITRIX_UPLOAD_PREFIX = 'bitrix-import/uploads';
+const BITRIX_UPLOAD_PREFIX = 'bitrix-import/uploads';
 
 const CONTENT_TYPES: Record<string, string> = {
   csv: 'text/csv',
