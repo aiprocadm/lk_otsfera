@@ -9,6 +9,7 @@ import { resetIntegrationSettingsCache } from '@/lib/config/integrationSettingsC
 import { testIntegration } from '@/lib/services/admin/testIntegration';
 import { normalizeWebhookUrl, portalHost } from '@/lib/services/bitrix/settings';
 import {
+  applyBitrixBatch,
   createBitrixBatch,
   getBitrixBatchState,
   saveBatchMapping,
@@ -214,6 +215,21 @@ export async function saveBatchMappingAction(fd: FormData): Promise<BitrixMappin
             ? 'not_found'
             : 'invalid',
     };
+  revalidatePath(`${BITRIX_BATCHES_PATH}/${batchId}`);
+  return { ok: true };
+}
+
+export type BitrixApplyResult =
+  { ok: true } | { ok: false; error: 'forbidden' | 'not_found' | 'invalid' | 'mapping_incomplete' };
+
+/** «Применить»: ставит пакет в очередь на запись (`У-194`). */
+export async function applyBitrixBatchAction(batchId: string): Promise<BitrixApplyResult> {
+  const session = await requireSettingsSection('integrations.bitrix', 'admin');
+  if (notFoundIfDisabled('bitrix_migration')) return { ok: false, error: 'forbidden' };
+  if (!batchId) return { ok: false, error: 'invalid' };
+
+  const res = await applyBitrixBatch(prisma, session, batchId);
+  if (!res.ok) return { ok: false, error: res.error };
   revalidatePath(`${BITRIX_BATCHES_PATH}/${batchId}`);
   return { ok: true };
 }

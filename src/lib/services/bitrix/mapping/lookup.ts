@@ -1,4 +1,4 @@
-import type { ContactChannelType, PrismaClient } from '@prisma/client';
+import { Prisma, type ContactChannelType, type PrismaClient } from '@prisma/client';
 import { organizationNameKey } from '@/lib/services/import/oneCAccountCard/counterparty-key';
 import { isValidInn, normalizeInn } from '@/lib/services/oneCSync/inn';
 import type { ExistingContact, ChannelOwnerRef } from './contacts';
@@ -286,4 +286,53 @@ export async function loadCompanyUsers(
     select: { id: true, email: true, name: true },
     orderBy: { name: 'asc' },
   });
+}
+
+/**
+ * `after` последних записей журнала по строкам — опора правила «правленное
+ * руками не перезаписываем» (`У-195`, спека §3.4). Читается пачкой: спрашивать
+ * журнал на каждую строку значило бы вернуть ту самую беду, от которой
+ * страдали фоновые задачи до сопровождения.
+ *
+ * Ключ результата — `<сущность>:<id строки>`.
+ */
+export async function loadLastAfter(
+  prisma: PrismaClient,
+  entity: string,
+  entityIds: string[]
+): Promise<Map<string, Record<string, unknown>>> {
+  const out = new Map<string, Record<string, unknown>>();
+  if (entityIds.length === 0) return out;
+  const rows = await prisma.bitrixImportWrite.findMany({
+    where: { entity, entityId: { in: entityIds }, after: { not: Prisma.DbNull } },
+    select: { entityId: true, after: true },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+  });
+  for (const row of rows) {
+    const key = `${entity}:${row.entityId}`;
+    // Первая строка на запись — самая свежая: остальные это прошлые прогоны.
+    if (!out.has(key) && row.after && typeof row.after === 'object') {
+      out.set(key, row.after as Record<string, unknown>);
+    }
+  }
+  return out;
+}
+
+/**
+ * Идентификаторы Битрикса, которые этот кабинет уже переносил. Нужны заметкам:
+ * у `DealNote` и `OrganizationNote` нет колонки `bitrixId`, и без такой
+ * проверки повторный прогон пакета плодил бы копии каждой заметки.
+ */
+export async function loadAppliedBitrixIds(
+  prisma: PrismaClient,
+  companyId: string,
+  entity: string,
+  bitrixIds: string[]
+): Promise<Set<string>> {
+  if (bitrixIds.length === 0) return new Set();
+  const rows = await prisma.bitrixImportWrite.findMany({
+    where: { entity, bitrixId: { in: bitrixIds }, reverted: false, batch: { companyId } },
+    select: { bitrixId: true },
+  });
+  return new Set(rows.map((r) => r.bitrixId));
 }

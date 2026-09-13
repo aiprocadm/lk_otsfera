@@ -274,8 +274,37 @@ export async function saveBatchMapping(
 
 /**
  * Проверка перед применением (`У-193`): пакет готов, только когда каждая стадия
- * портала получила стадию ЛК. Само применение — следующий шаг этапа (PR-4).
+ * портала получила стадию ЛК.
  */
 export function batchReadyToApply(batch: BitrixBatchView): boolean {
   return batch.ready;
+}
+
+/**
+ * «Применить»: тот же конвейер в режиме записи (`У-194`). Пакет уходит в
+ * очередь и переходит в `applying` — дальше работает воркер, а экран
+ * показывает прогресс.
+ *
+ * Несопоставленная стадия — жёсткий запрет: без неё сделки легли бы не туда,
+ * и пришлось бы откатывать весь перенос.
+ */
+export async function applyBitrixBatch(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  batchId: string
+): Promise<BitrixBatchResult<object> | BitrixBatchFail> {
+  const current = await getBitrixBatch(prisma, session, batchId);
+  if (!current.ok) return current;
+  if (current.batch.status !== 'preview') return { ok: false, error: 'invalid' };
+  if (!batchReadyToApply(current.batch)) return { ok: false, error: 'mapping_incomplete' };
+
+  await prisma.bitrixImportBatch.update({
+    where: { id: batchId },
+    data: { status: 'applying' },
+  });
+  await getQueue('bitrix.import')
+    .add('apply', { batchId })
+    .catch(bestEffort('[bitrix/apply] enqueue failed'));
+
+  return { ok: true };
 }

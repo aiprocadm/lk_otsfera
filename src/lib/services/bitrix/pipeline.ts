@@ -14,9 +14,25 @@ import {
 import { planDeal } from './mapping/deals';
 import { planFile } from './mapping/files';
 import { planLead } from './mapping/leads';
+import type { FieldMap } from './idempotency';
+import {
+  writeContact,
+  writeDeal,
+  writeDealNote,
+  writeLead,
+  writeOrganization,
+  writeOrganizationNote,
+  writeTask,
+} from './writers/entities';
+import { writeFile } from './writers/files';
+import { writeWonDealOrder } from './writers/orders';
+import type { ApplyContext, Tx, WriteOutcome } from './writers/journal';
+import type { DealNoteData, OrganizationNoteData } from './mapping/notes';
 import {
   channelKey,
+  loadAppliedBitrixIds,
   loadCompanyUsers,
+  loadLastAfter,
   loadContacts,
   loadDeals,
   loadDocuments,
@@ -44,6 +60,7 @@ import {
   dealStageKey,
   emptyCounts,
   planReason,
+  SKIP_LABELS,
   type BitrixEntity,
   type BitrixMappingTables,
   type EntityCounts,
@@ -169,11 +186,8 @@ export async function runPipeline(
   prisma: PrismaClient,
   args: PipelineArgs
 ): Promise<PipelineResult> {
-  if (args.mode === 'live') {
-    // PR-4: тот же обход, но с писателями и журналом `BitrixImportWrite`.
-    throw new Error('Применение пакета появится следующим шагом этапа');
-  }
   const { batch, source } = args;
+  const live = args.mode === 'live';
   const counts = emptyPipelineCounts();
   const rows: PlanRow[] = [];
   const errors: PipelineResult['errors'] = [];
@@ -189,6 +203,63 @@ export async function runPipeline(
   const addRow = (row: PlanRow): void => {
     if (row.action === 'create' || row.action === 'update') return;
     pushRow(row);
+  };
+
+  /**
+   * `after` последней записи журнала по строке — опора правила «правленное
+   * руками не перезаписываем» (§3.4). Читается пачкой на страницу, а не по
+   * строке: иначе повторный прогон спрашивал бы базу на каждую запись.
+   */
+  const lastAfterCache = new Map<string, FieldMap>();
+  const applyCtx: ApplyContext = {
+    batchId: batch.id,
+    companyId: batch.companyId,
+    importerId: batch.importedById,
+    defaultManagerId: batch.defaultManagerId,
+    lastAfter: (entity, entityId) => lastAfterCache.get(`${entity}:${entityId}`) ?? null,
+  };
+
+  const primeLastAfter = async (entity: BitrixEntity, ids: string[]): Promise<void> => {
+    if (!live || ids.length === 0) return;
+    const fresh = ids.filter((id) => !lastAfterCache.has(`${entity}:${id}`));
+    if (fresh.length === 0) return;
+    for (const [key, value] of await loadLastAfter(prisma, entity, fresh)) {
+      // Журнал хранит `Json`, поэтому наружу он приходит как «что угодно»:
+      // значения там — простые (строки, числа, даты строкой), их и ждёт правило.
+      lastAfterCache.set(key, value as FieldMap);
+    }
+  };
+
+  /**
+   * Запись одной строки: своя короткая транзакция вместе со строкой журнала.
+   * Ошибка строки не роняет пакет — она попадает в отчёт, и перенос идёт
+   * дальше: из-за одной кривой записи терять весь перенос нельзя.
+   */
+  const applyOne = async (
+    entity: BitrixEntity,
+    bitrixId: string,
+    title: string,
+    write: (tx: Tx) => Promise<WriteOutcome | null>
+  ): Promise<WriteOutcome | null> => {
+    if (!live) return null;
+    try {
+      const outcome = await prisma.$transaction((tx) => write(tx));
+      if (outcome && outcome.keptManual.length > 0) {
+        pushRow({
+          entity,
+          bitrixId,
+          title,
+          action: 'skip',
+          reason: `оставлено ручное значение: ${outcome.keptManual.join(', ')}`,
+        });
+      }
+      return outcome;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (errors.length < ROW_CAP) errors.push({ bitrixId, entity, message });
+      pushRow({ entity, bitrixId, title, action: 'conflict', reason: `не записано: ${message}` });
+      return null;
+    }
   };
 
   let done = 0;
@@ -259,7 +330,11 @@ export async function runPipeline(
         action: plan.action,
         reason: planReason(plan),
       });
-      rememberPlan(registry, 'organization', company.id, plan);
+      if (plan.action === 'update') await primeLastAfter('organization', [plan.id]);
+      const outcome = await applyOne('organization', company.id, company.title, (tx) =>
+        writeOrganization(tx, applyCtx, plan, company.id)
+      );
+      rememberPlan(registry, 'organization', company.id, plan, outcome);
       await tick('organization');
     }
   }
@@ -312,7 +387,12 @@ export async function runPipeline(
         action: plan.action,
         reason: planReason(plan),
       });
-      rememberPlan(registry, 'contact', contact.id, plan);
+      if (plan.action === 'update') await primeLastAfter('contact', [plan.id]);
+      const contactName = [contact.name, contact.lastName].filter(Boolean).join(' ') || contact.id;
+      const outcome = await applyOne('contact', contact.id, contactName, (tx) =>
+        writeContact(tx, applyCtx, plan, contact.id)
+      );
+      rememberPlan(registry, 'contact', contact.id, plan, outcome);
       // Занятый канал не отменяет перенос контакта, но человек обязан о нём
       // узнать: телефон остался у другого, и это решение, а не мелочь.
       for (const conflict of channelConflicts(plan)) {
@@ -372,7 +452,11 @@ export async function runPipeline(
         action: plan.action,
         reason: planReason(plan),
       });
-      rememberPlan(registry, 'lead', lead.id, plan);
+      if (plan.action === 'update') await primeLastAfter('lead', [plan.id]);
+      const outcome = await applyOne('lead', lead.id, lead.title || lead.id, (tx) =>
+        writeLead(tx, applyCtx, plan, lead.id)
+      );
+      rememberPlan(registry, 'lead', lead.id, plan, outcome);
       await tick('lead');
     }
   }
@@ -405,7 +489,11 @@ export async function runPipeline(
         action: plan.action,
         reason: planReason(plan),
       });
-      rememberPlan(registry, 'deal', deal.id, plan);
+      if (plan.action === 'update') await primeLastAfter('deal', [plan.id]);
+      const outcome = await applyOne('deal', deal.id, deal.title || deal.id, (tx) =>
+        writeDeal(tx, applyCtx, plan, deal.id)
+      );
+      rememberPlan(registry, 'deal', deal.id, plan, outcome);
       const organizationId = deal.companyId
         ? (registry.get('organization', deal.companyId) ?? null)
         : null;
@@ -437,9 +525,15 @@ export async function runPipeline(
       orders: candidates,
       closedStatusId: closedStatus?.id ?? null,
     });
+    const dealId = registry.get('deal', deal.id);
     if (plan.action === 'link') {
       takenOrders.add(plan.orderId);
       counts.order.update += 1;
+      if (dealId && !isPlanned(dealId)) {
+        await applyOne('order', deal.id, deal.title || deal.id, (tx) =>
+          writeWonDealOrder(tx, applyCtx, plan, { dealId, bitrixDealId: deal.id })
+        );
+      }
       // Эту строку показываем всегда: человек должен видеть, к какому заказу
       // привяжется сделка, а не только цифру в колонке «обновим».
       pushRow({
@@ -458,6 +552,11 @@ export async function runPipeline(
         action: plan.action,
         reason: planReason(plan),
       });
+      if (plan.action === 'create' && dealId && !isPlanned(dealId)) {
+        await applyOne('order', deal.id, deal.title || deal.id, (tx) =>
+          writeWonDealOrder(tx, applyCtx, plan, { dealId, bitrixDealId: deal.id })
+        );
+      }
     }
     await tick('order');
   }
@@ -471,7 +570,30 @@ export async function runPipeline(
           ? registry.keys('organization')
           : registry.keys('contact');
     if (ids.length === 0) continue;
-    for await (const comment of source.comments(entity, ids)) {
+    // Комментарии читаются пачкой, чтобы одним запросом узнать, какие из них
+    // этот кабинет уже переносил: у заметок нет колонки `bitrixId`, и без
+    // такой проверки повтор пакета сделал бы копию каждой заметки.
+    const comments = [];
+    for await (const comment of source.comments(entity, ids)) comments.push(comment);
+    const applied = await loadAppliedBitrixIds(
+      prisma,
+      batch.companyId,
+      'note',
+      comments.map((c) => c.id)
+    );
+    for (const comment of comments) {
+      if (applied.has(comment.id)) {
+        counts.note.skip += 1;
+        addRow({
+          entity: 'note',
+          bitrixId: comment.id,
+          title: comment.text.slice(0, 60),
+          action: 'skip',
+          reason: SKIP_LABELS.already_linked,
+        });
+        await tick('note');
+        continue;
+      }
       const plan =
         comment.entity === 'deal'
           ? planDealNote(comment, ctx, { dealByBitrixId: (id) => registry.get('deal', id) })
@@ -490,6 +612,11 @@ export async function runPipeline(
         action: plan.action,
         reason: planReason(plan),
       });
+      await applyOne('note', comment.id, comment.text.slice(0, 60), (tx) =>
+        comment.entity === 'deal'
+          ? writeDealNote(tx, applyCtx, plan as Plan<DealNoteData>, comment.id)
+          : writeOrganizationNote(tx, applyCtx, plan as Plan<OrganizationNoteData>, comment.id)
+      );
       await tick('note');
     }
   }
@@ -522,7 +649,11 @@ export async function runPipeline(
         action: plan.action,
         reason: planReason(plan),
       });
-      rememberPlan(registry, 'task', task.id, plan);
+      if (plan.action === 'update') await primeLastAfter('task', [plan.id]);
+      const outcome = await applyOne('task', task.id, task.title || task.id, (tx) =>
+        writeTask(tx, applyCtx, plan, task.id)
+      );
+      rememberPlan(registry, 'task', task.id, plan, outcome);
       await tick('task');
     }
   }
@@ -549,6 +680,27 @@ export async function runPipeline(
           action: plan.action,
           reason: planReason(plan),
         });
+        if (live && plan.action === 'create') {
+          const written = await writeFile(prisma, applyCtx, plan, file, {
+            download: () => source.download(file),
+          });
+          if (!written.ok) {
+            if (errors.length < ROW_CAP) {
+              errors.push({ bitrixId: file.id, entity: 'file', message: written.reason });
+            }
+            pushRow({
+              entity: 'file',
+              bitrixId: file.id,
+              title: file.name,
+              action: 'skip',
+              reason: written.reason,
+            });
+            // Файл не доехал — но это не повод останавливать перенос: в сводке
+            // он честно уходит из «создадим» в «пропустили».
+            counts.file.create -= 1;
+            counts.file.skip += 1;
+          }
+        }
         await tick('file');
       }
     }
@@ -618,9 +770,14 @@ function rememberPlan(
   registry: BitrixRegistry,
   entity: string,
   bitrixId: string,
-  plan: Plan<unknown>
+  plan: Plan<unknown>,
+  outcome?: WriteOutcome | null
 ): void {
-  if (plan.action === 'update') registry.set(entity, bitrixId, plan.id);
+  // При применении реестр хранит НАСТОЯЩИЙ идентификатор записи: связи
+  // (сделка → организация, заметка → сделка) обязаны указывать на строки базы,
+  // а не на метку «будет создано».
+  if (outcome) registry.set(entity, bitrixId, outcome.entityId);
+  else if (plan.action === 'update') registry.set(entity, bitrixId, plan.id);
   else if (plan.action === 'create') registry.plan(entity, bitrixId);
   // «Нечего менять» — это тоже «запись есть». Без этой ветки повторный прогон
   // забывал уже перенесённую организацию, и её сделки, комментарии и файлы

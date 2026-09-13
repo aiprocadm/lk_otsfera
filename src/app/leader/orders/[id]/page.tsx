@@ -15,6 +15,8 @@ import { ManagerOrderDetailView } from '@/components/manager/manager-order-detai
 import { GenerateDocumentsPanel } from '@/components/manager/generate-documents-panel';
 import { getDocumentGenerationPanel } from '@/lib/services/documents/generationPanel';
 import { LeaderAssignOrderManagerForm } from '@/components/leader/leader-assign-order-manager-form';
+import { MergeExternalOrderButton } from '@/components/orders/merge-external-order-button';
+import { isBitrixOrder } from '@/lib/services/orders/mergeExternal';
 import { getOrderStatusPanel } from '@/lib/services/orderStatuses';
 import { loadOrderDeal } from '@/lib/services/manager/orderDetail';
 import { OrderDealPanel } from '@/components/orders/order-deal-panel';
@@ -161,6 +163,17 @@ export default async function LeaderOrderDetailPage({
         currentManagerId={data.order.managerId}
         candidates={candidates}
       />
+      {/* Объединение с заказом 1С (`У-197`) доступно руководителю наравне с
+          администратором (`В-2-4`) и только у заказа из Битрикс24. */}
+      {isBitrixOrder(data.order) && (
+        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-2">
+          <div className="text-sm font-medium text-[#111111]">Заказ перенесён из Битрикс24</div>
+          <p className="text-sm text-gray-600">
+            Если этой работе уже есть заказ в 1С, объедините их — история и документы перейдут туда.
+          </p>
+          <MergeExternalOrderButton orderId={data.order.id} />
+        </div>
+      )}
     </div>
   );
 }

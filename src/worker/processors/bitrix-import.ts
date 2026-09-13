@@ -34,7 +34,7 @@ const defaultDeps: BitrixImportDeps = { getSource: getBitrixSource };
 
 export type BitrixImportResult = {
   batchId: string;
-  status: 'preview' | 'failed' | 'skipped';
+  status: 'preview' | 'applied' | 'failed' | 'skipped';
   reason?: string;
 };
 
@@ -61,16 +61,17 @@ export async function bitrixImportProcessor(
     return fail(db, batchId, 'Миграция из Битрикс24 выключена в настройках платформы');
   }
 
-  if (kind !== 'preview') {
-    // `apply` и `rollback` включатся следующими шагами этапа; до тех пор
-    // задача не должна молча исчезать — пакет говорит, что произошло.
+  if (kind !== 'preview' && kind !== 'apply') {
+    // `rollback` включится следующим шагом этапа; до тех пор задача не должна
+    // молча исчезать — пакет говорит, что произошло.
     return fail(db, batchId, `Задача «${kind}» появится следующим шагом этапа`);
   }
 
   const settings = batch.settings as unknown as BitrixBatchSettings;
+  const applying = kind === 'apply';
   await db.bitrixImportBatch.update({
     where: { id: batchId },
-    data: { status: 'preview_pending', startedAt: new Date() },
+    data: { status: applying ? 'applying' : 'preview_pending', startedAt: new Date() },
   });
 
   let result: PipelineResult;
@@ -87,7 +88,7 @@ export async function bitrixImportProcessor(
         tables: settings.tables ?? {},
       },
       source,
-      mode: 'shadow',
+      mode: applying ? 'live' : 'shadow',
       // Прогресс — единственное, что видно человеку во время долгого прогона;
       // но его потеря не повод ронять сам прогон (§3, degrade gracefully).
       onProgress: async (progress) => {
@@ -101,7 +102,7 @@ export async function bitrixImportProcessor(
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    log.warn('[worker] bitrix-import preview failed', { batchId, message });
+    log.warn(`[worker] bitrix-import ${kind} failed`, { batchId, message });
     return fail(db, batchId, message);
   }
 
@@ -116,23 +117,26 @@ export async function bitrixImportProcessor(
   await db.bitrixImportBatch.update({
     where: { id: batchId },
     data: {
-      status: 'preview',
+      status: applying ? 'applied' : 'preview',
       counts: result.counts as unknown as Prisma.InputJsonValue,
       errors: result.errors as unknown as Prisma.InputJsonValue,
       settings: nextSettings as unknown as Prisma.InputJsonValue,
+      ...(applying ? { appliedAt: new Date() } : {}),
     },
   });
 
   await recordAudit(db, {
     userId: batch.importedById,
-    action: 'bitrix_import_previewed',
+    action: applying ? 'bitrix_import_applied' : 'bitrix_import_previewed',
     entity: 'bitrix_import_batch',
     entityId: batchId,
-    after: { total: result.counts.total, ready: result.ready },
+    after: applying
+      ? { total: result.counts.total, errors: result.errors.length }
+      : { total: result.counts.total, ready: result.ready },
   });
 
-  log.info('[worker] bitrix-import preview done', { batchId, total: result.counts.total });
-  return { batchId, status: 'preview' };
+  log.info(`[worker] bitrix-import ${kind} done`, { batchId, total: result.counts.total });
+  return { batchId, status: applying ? 'applied' : 'preview' };
 }
 
 async function fail(
