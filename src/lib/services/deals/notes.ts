@@ -79,7 +79,8 @@ export async function listDealNotes(
     rows: rows.map((n) => ({
       id: n.id,
       body: n.body,
-      authorName: n.author.name,
+      // Этап 2 ТЗ 12.09.2026: заметка, перенесённая из Битрикс24, может быть без автора.
+      authorName: n.author?.name ?? 'Импорт из Битрикс24',
       createdAt: n.createdAt,
     })),
   };

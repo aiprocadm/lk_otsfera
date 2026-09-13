@@ -39,6 +39,8 @@ export const AUDIT_ENTITIES = [
   'payment',
   'feature_flag',
   'one_c_import',
+  // Этап 2 ТЗ 12.09.2026: пакет миграции из Битрикс24.
+  'bitrix_import_batch',
   'one_c_pending',
   'enrollment_request',
   'order_item',
@@ -93,6 +95,11 @@ export const AUDIT_ACTIONS = [
   'access_profile_deleted',
   'access_profile_updated',
   'admin_bootstrapped',
+  // Этап 2 ТЗ 12.09.2026 «Миграция из Битрикс24» (`У-193`…`У-198`).
+  'bitrix_import_applied',
+  'bitrix_import_previewed',
+  'bitrix_import_report_downloaded',
+  'bitrix_import_rolled_back',
   'cabinet_question_submitted',
   'calendar_event_created',
   'calendar_event_deleted',
@@ -191,6 +198,8 @@ export const AUDIT_ACTIONS = [
   'order_item_removed',
   'order_item_status_changed',
   'order_manager_changed',
+  // Этап 2 ТЗ 12.09.2026 (`У-197`): заказ из Битрикса объединён с заказом 1С.
+  'order_merged_into',
   'order_primary_contact_changed',
   'order_result_delivered',
   'order_self_assigned',

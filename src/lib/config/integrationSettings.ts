@@ -222,6 +222,14 @@ export const SETTING_SPECS = {
   },
   'dadata.enabled': { key: 'dadata.enabled', envVar: 'DADATA_ENABLED', isSecret: false },
   'dadata.apiKey': { key: 'dadata.apiKey', envVar: 'DADATA_API_KEY', isSecret: true },
+  // Этап 2 ТЗ 12.09.2026 «Миграция из Битрикс24» (`У-188`, `У-199`): подключение
+  // задаётся только из интерфейса (§0 ТЗ «ничего не включается на сервере») —
+  // переменных окружения у ключей нет. Вебхук содержит токен в URL — секрет;
+  // в логах и аудите показывается только домен портала (`portalHost`).
+  'bitrix.portalUrl': { key: 'bitrix.portalUrl', envVar: null, isSecret: false },
+  'bitrix.webhookUrl': { key: 'bitrix.webhookUrl', envVar: null, isSecret: true },
+  'bitrix.defaultManagerId': { key: 'bitrix.defaultManagerId', envVar: null, isSecret: false },
+  'bitrix.userMap': { key: 'bitrix.userMap', envVar: null, isSecret: false },
 } as const satisfies Record<string, SettingSpec>;
 
 export type SettingKey = keyof typeof SETTING_SPECS;

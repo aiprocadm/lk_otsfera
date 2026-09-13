@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-const { getSettingValue, sendEmail, warn, imapConnect, imapLogout, ImapFlowCtor } = vi.hoisted(
-  () => {
+const { getSettingValue, sendEmail, warn, imapConnect, imapLogout, ImapFlowCtor, getBitrixSource } =
+  vi.hoisted(() => {
     const imapConnect = vi.fn();
     const imapLogout = vi.fn();
     return {
@@ -11,15 +11,18 @@ const { getSettingValue, sendEmail, warn, imapConnect, imapLogout, ImapFlowCtor 
       imapConnect,
       imapLogout,
       ImapFlowCtor: vi.fn(() => ({ connect: imapConnect, logout: imapLogout })),
+      getBitrixSource: vi.fn(),
     };
-  }
-);
+  });
 vi.mock('@/lib/config/integrationSettings', () => ({ getSettingValue }));
 vi.mock('@/lib/email/send', () => ({ send: sendEmail }));
 vi.mock('@/lib/logging', () => ({ log: { warn } }));
 vi.mock('imapflow', () => ({ ImapFlow: ImapFlowCtor }));
+// Этап 2 ТЗ 12.09.2026 (`У-188`): проба Битрикс24 идёт через фабрику источника.
+vi.mock('@/lib/services/bitrix/factory', () => ({ getBitrixSource }));
 
 import { testIntegration, INTEGRATION_TEST_KEYS } from '@/lib/services/admin/testIntegration';
+import { BitrixSourceError } from '@/lib/services/bitrix/source';
 import { computeMangoSign } from '@/lib/telephony/mango/sign';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
@@ -49,6 +52,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   prisma = makePrisma();
   settings({});
+  // По умолчанию Битрикс24 «не настроен» — как и остальные интеграции без ключей.
+  getBitrixSource.mockRejectedValue(
+    new BitrixSourceError('not_configured', 'Не задан входящий вебхук Битрикс24')
+  );
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ status: 200 }));
 });
 afterEach(() => {
@@ -126,6 +133,20 @@ describe('testIntegration — контракт', () => {
       const res = await run(key);
       expect(res.ok).toBe(true);
     }
+  });
+
+  it('реестр ключей: восемь прежних интеграций + bitrix (этап 2 ТЗ 12.09.2026)', () => {
+    expect([...INTEGRATION_TEST_KEYS]).toEqual([
+      'email',
+      'telegram',
+      'max',
+      'whatsapp',
+      'imap',
+      'dadata',
+      'onec',
+      'mango',
+      'bitrix',
+    ]);
   });
 });
 
@@ -331,6 +352,71 @@ describe('probe: mango', () => {
     });
     await run('mango');
     expect(fetchMock().mock.calls[0][0]).toBe('https://m.example.ru/vpbx/config/users/request');
+  });
+});
+
+describe('probe: bitrix', () => {
+  it('не настроен (not_configured) → «Не заполнены настройки: входящий вебхук Битрикс24»; источник rest', async () => {
+    const res = await run('bitrix');
+    expect(res).toEqual({
+      ok: true,
+      success: false,
+      message: 'Не заполнены настройки: входящий вебхук Битрикс24',
+    });
+    expect(getBitrixSource).toHaveBeenCalledWith(prisma, { source: 'rest' });
+    expect(fetchMock()).not.toHaveBeenCalled();
+    const { create } = prisma.syncState.upsert.mock.calls[0][0];
+    expect(create.lastError).toBe('Не заполнены настройки: входящий вебхук Битрикс24');
+  });
+
+  it('другая ошибка фабрики (иной код или не BitrixSourceError) → «недоступен», текст ошибки не утекает', async () => {
+    getBitrixSource.mockRejectedValue(
+      new BitrixSourceError('source_not_ready', 'https://demo.bitrix24.ru/rest/1/secret/')
+    );
+    let res = await run('bitrix');
+    expect(res).toEqual({
+      ok: true,
+      success: false,
+      message: 'Сервис недоступен: сетевая ошибка или таймаут',
+    });
+
+    getBitrixSource.mockRejectedValue(new Error('db down https://demo.bitrix24.ru/rest/1/secret/'));
+    res = await run('bitrix');
+    expect(res).toEqual({
+      ok: true,
+      success: false,
+      message: 'Сервис недоступен: сетевая ошибка или таймаут',
+    });
+    expect((res as { message: string }).message).not.toContain('secret');
+  });
+
+  it('check ok → «Подключение успешно: <портал>, <пользователь>» и успешная запись SyncState', async () => {
+    getBitrixSource.mockResolvedValue({
+      check: vi
+        .fn()
+        .mockResolvedValue({ ok: true, portal: 'demo.bitrix24.ru', user: 'Иван Менеджеров' }),
+    });
+    const res = await run('bitrix');
+    expect(res).toEqual({
+      ok: true,
+      success: true,
+      message: 'Подключение успешно: demo.bitrix24.ru, Иван Менеджеров',
+    });
+    const { where, create } = prisma.syncState.upsert.mock.calls[0][0];
+    expect(where).toEqual({ entity: 'integration.bitrix' });
+    expect(create.lastSuccessAt).toEqual(create.lastRunAt);
+    expect(create.lastError).toBeNull();
+  });
+
+  it('check не ok → её сообщение как вердикт пробы', async () => {
+    getBitrixSource.mockResolvedValue({
+      check: vi.fn().mockResolvedValue({ ok: false, message: 'Битрикс24 отклонил вебхук' }),
+    });
+    const res = await run('bitrix');
+    expect(res).toEqual({ ok: true, success: false, message: 'Битрикс24 отклонил вебхук' });
+    const { create } = prisma.syncState.upsert.mock.calls[0][0];
+    expect(create.lastSuccessAt).toBeNull();
+    expect(create.lastError).toBe('Битрикс24 отклонил вебхук');
   });
 });
 

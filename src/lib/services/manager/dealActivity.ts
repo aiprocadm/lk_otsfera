@@ -172,7 +172,8 @@ export async function getDealActivity(
       kind: 'note',
       id: n.id,
       at: n.createdAt,
-      author: n.author.name,
+      // Этап 2 ТЗ 12.09.2026: заметка, перенесённая из Битрикс24, может быть без автора.
+      author: n.author?.name ?? 'Импорт из Битрикс24',
       body: n.body,
     })),
     ...events.map((e): ActivityItem => ({

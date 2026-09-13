@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { readSource } from './helpers/source';
 
 /**
  * Сопровождение, хотфикс №50 (`С-8`, прогон №27). Карточка контакта (этап 1 ТЗ
@@ -10,8 +10,9 @@ import path from 'node:path';
  * индексы в схеме: колонка, по которой ищет карточка, обязана быть
  * проиндексирована, а сама выборка в `get.ts` — по-прежнему идти по ней.
  */
-const SCHEMA = readFileSync(path.join(process.cwd(), 'prisma/schema.prisma'), 'utf8');
-const GET = readFileSync(path.join(process.cwd(), 'src/lib/services/contacts/get.ts'), 'utf8');
+// `readSource` снимает комментарии: закомментированный индекс или выборка не сойдут за живые.
+const SCHEMA = readSource(path.join(process.cwd(), 'prisma/schema.prisma'));
+const GET = readSource(path.join(process.cwd(), 'src/lib/services/contacts/get.ts'));
 
 function modelBody(name: string): string {
   const m = SCHEMA.match(new RegExp(`model ${name} \\{([\\s\\S]*?)\\n\\}`));
