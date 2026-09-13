@@ -3,6 +3,7 @@ import { resolveFunnelStages } from '@/lib/funnel/stages';
 import { resolveDealStages } from '@/lib/services/deals/stages';
 import { findByAnchor } from '@/lib/services/orderStatuses/definitions';
 import { resolveTaskColumns } from '@/lib/tasks/columns';
+import { normalizeChannelValue } from '@/lib/services/contacts/resolveContactByChannel';
 import { planContact, type ContactChannelData } from './mapping/contacts';
 import { planDeal } from './mapping/deals';
 import { planFile } from './mapping/files';
@@ -34,6 +35,7 @@ import { planTask } from './mapping/tasks';
 import {
   BITRIX_ENTITIES,
   countPlan,
+  dealStageKey,
   emptyCounts,
   planReason,
   type BitrixEntity,
@@ -60,12 +62,15 @@ import type { BitrixSource, BitrixStage, SourceFilter } from './source';
  * (`mapping/lookup.ts`), поэтому размер пакета не превращается в тысячи
  * запросов к базе.
  */
-export type PipelineMode = 'shadow' | 'live';
+type PipelineMode = 'shadow' | 'live';
 
+/**
+ * Прогресс без вранья: сколько записей обработано и чем заняты сейчас. Общего
+ * числа у постраничного чтения нет — обещать «сделано из N» было бы неправдой.
+ */
 export type PipelineProgress = {
   step: BitrixEntity | 'users' | 'stages';
   done: number;
-  total: number;
   updatedAt: string;
 };
 
@@ -88,7 +93,7 @@ export type PipelineResult = {
   ready: boolean;
 };
 
-export const PAGE_SIZE = 200;
+const PAGE_SIZE = 200;
 export const ROW_CAP = 500;
 export const BIG_BATCH = 50_000;
 const PROGRESS_EVERY = 50;
@@ -168,15 +173,22 @@ export async function runPipeline(
   const errors: PipelineResult['errors'] = [];
   const registry = new BitrixRegistry();
 
+  let droppedRows = 0;
+  /** Показать строку человеку (с пределом, чтобы не раздувать строку пакета). */
+  const pushRow = (row: PlanRow): void => {
+    if (rows.length < ROW_CAP) rows.push(row);
+    else droppedRows += 1;
+  };
+  /** Обычный путь: в списке показываем только пропуски и конфликты. */
   const addRow = (row: PlanRow): void => {
     if (row.action === 'create' || row.action === 'update') return;
-    if (rows.length < ROW_CAP) rows.push(row);
+    pushRow(row);
   };
 
   let done = 0;
   const progress = async (step: PipelineProgress['step']): Promise<void> => {
     if (!args.onProgress) return;
-    await args.onProgress({ step, done, total: counts.total, updatedAt: new Date().toISOString() });
+    await args.onProgress({ step, done, updatedAt: new Date().toISOString() });
   };
   const tick = async (step: PipelineProgress['step']): Promise<void> => {
     done += 1;
@@ -248,13 +260,24 @@ export async function runPipeline(
 
   // --- контакты ---
   for await (const page of pages(source.contacts(batch.filter))) {
+    // Канал ищется в базе ТОЛЬКО в каноническом виде: «+7 (921) 111-22-33» и
+    // «+79211112233» — один и тот же телефон, и сырое значение не нашло бы
+    // существующий контакт, а применение упёрлось бы в уникальный индекс.
     const channels: ContactChannelData[] = [];
     for (const contact of page) {
       for (const phone of contact.phones) {
-        channels.push({ type: 'phone', value: phone, normalizedValue: phone });
+        channels.push({
+          type: 'phone',
+          value: phone,
+          normalizedValue: normalizeChannelValue('phone', phone),
+        });
       }
       for (const email of contact.emails) {
-        channels.push({ type: 'email', value: email, normalizedValue: email.toLowerCase().trim() });
+        channels.push({
+          type: 'email',
+          value: email,
+          normalizedValue: normalizeChannelValue('email', email),
+        });
       }
     }
     const found = await loadContacts(prisma, batch.companyId, {
@@ -364,9 +387,12 @@ export async function runPipeline(
         ? (registry.get('organization', deal.companyId) ?? null)
         : null;
       if (organizationId) registry.set('dealOrg', deal.id, organizationId);
-      if (plan.action !== 'conflict' && plan.action !== 'skip') {
-        const wants = plan.action === 'create' ? plan.data.wantsOrder : plan.data.wantsOrder;
-        if (wants) wonDeals.push({ deal, organizationId });
+      // «Сделка выиграна» — свойство стадии, а не плана записи: у обновления
+      // патч частичный, и `wantsOrder` в нём может не быть вовсе. Иначе
+      // выигранная сделка, уже заведённая в кабинете, не получала бы заказ.
+      if (plan.action !== 'conflict') {
+        const stage = dealStages.find((st) => st.id === tables.stageMap[dealStageKey(deal)]);
+        if (stage?.statusAnchor === 'won') wonDeals.push({ deal, organizationId });
       }
       await tick('deal');
     }
@@ -376,15 +402,24 @@ export async function runPipeline(
     (id): id is string => typeof id === 'string' && !isPlanned(id)
   );
   const ordersByOrg = await loadOrders(prisma, batch.companyId, realOrgIds);
+  // Один заказ 1С не может закрыть две сделки: занятые убираются из кандидатов,
+  // иначе сводка обещала бы привязку, а вторая сделка осталась бы ни с чем.
+  const takenOrders = new Set<string>();
   for (const { deal, organizationId } of wonDeals) {
+    const candidates = (organizationId ? (ordersByOrg.get(organizationId) ?? []) : []).filter(
+      (o) => !takenOrders.has(o.id)
+    );
     const plan = planOrderForWonDeal(deal, ctx, {
       organizationId,
-      orders: organizationId ? (ordersByOrg.get(organizationId) ?? []) : [],
+      orders: candidates,
       closedStatusId: closedStatus?.id ?? null,
     });
     if (plan.action === 'link') {
+      takenOrders.add(plan.orderId);
       counts.order.update += 1;
-      addRow({
+      // Эту строку показываем всегда: человек должен видеть, к какому заказу
+      // привяжется сделка, а не только цифру в колонке «обновим».
+      pushRow({
         entity: 'order',
         bitrixId: deal.id,
         title: deal.title || deal.id,
@@ -503,8 +538,14 @@ export async function runPipeline(
       action: 'skip',
       reason: 'файлы не запрошены в настройках пакета',
     });
+    await tick('file');
   }
 
+  if (droppedRows > 0) {
+    counts.warnings.push(
+      `Показаны первые ${ROW_CAP} строк из ${ROW_CAP + droppedRows}: остальные того же рода. Полный перечень будет в отчёте сверки.`
+    );
+  }
   if (counts.total > BIG_BATCH) {
     counts.warnings.push(
       `В пакете ${counts.total} записей — это много для одного прогона. Разбейте перенос по кварталам: так и ошибку легче найти, и откат будет короче.`
@@ -512,12 +553,7 @@ export async function runPipeline(
   }
 
   await progress('file');
-  counts.progress = {
-    step: 'file',
-    done,
-    total: counts.total,
-    updatedAt: new Date().toISOString(),
-  };
+  counts.progress = { step: 'file', done, updatedAt: new Date().toISOString() };
 
   return {
     counts,

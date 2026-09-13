@@ -56,7 +56,7 @@ export type BitrixBatchView = {
   ready: boolean;
 };
 
-export type BitrixBatchError = 'forbidden' | 'not_found' | 'invalid' | 'mapping_incomplete';
+type BitrixBatchError = 'forbidden' | 'not_found' | 'invalid' | 'mapping_incomplete';
 
 export type BitrixBatchResult<T> = { ok: true } & T;
 export type BitrixBatchFail = { ok: false; error: BitrixBatchError };

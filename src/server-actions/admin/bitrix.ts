@@ -154,7 +154,7 @@ function parseFileKeys(raw: string): { key: string; name: string; entity: string
 }
 
 export type BitrixBatchStateResult =
-  | { ok: true; status: string; progress: { step: string; done: number; total: number } | null }
+  | { ok: true; status: string; progress: { step: string; done: number } | null }
   | { ok: false; error: 'forbidden' | 'not_found' };
 
 /** Состояние пакета для полосы прогресса — зовётся по таймеру, пока идёт работа. */
@@ -166,9 +166,7 @@ export async function getBitrixBatchStateAction(batchId: string): Promise<Bitrix
   return {
     ok: true,
     status: res.status,
-    progress: res.progress
-      ? { step: res.progress.step, done: res.progress.done, total: res.progress.total }
-      : null,
+    progress: res.progress ? { step: res.progress.step, done: res.progress.done } : null,
   };
 }
 

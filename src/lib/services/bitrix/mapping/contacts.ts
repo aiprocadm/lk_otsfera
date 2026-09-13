@@ -162,7 +162,8 @@ export function planContact(
   if (fresh.length > 0) patch.channels = fresh;
   if (skippedChannels.length > 0) patch.skippedChannels = skippedChannels;
 
-  if (Object.keys(patch).length === 0) return { action: 'skip', reason: 'no_changes' };
+  if (Object.keys(patch).length === 0)
+    return { action: 'skip', reason: 'no_changes', id: matched.id };
   return { action: 'update', id: matched.id, data: patch, before };
 }
 

@@ -10,7 +10,7 @@ import type { BitrixStage, BitrixUser } from '../source';
  * «перенести нельзя, человек должен решить»: в предпросмотре они показаны
  * разными колонками, и `conflict` не даёт применить пакет молча.
  */
-export type PlanCreate<T> = { action: 'create'; data: T };
+type PlanCreate<T> = { action: 'create'; data: T };
 
 /**
  * Снимок «как было». `null` допустим у любого поля: «раньше значения не было»
@@ -18,15 +18,24 @@ export type PlanCreate<T> = { action: 'create'; data: T };
  */
 export type PlanBefore<T> = { [K in keyof T]?: T[K] | null };
 
-export type PlanUpdate<T> = {
+type PlanUpdate<T> = {
   action: 'update';
   id: string;
   data: Partial<T>;
   /** Снимок изменяемых полей ДО записи — из него откат восстанавливает строку. */
   before: PlanBefore<T>;
 };
-export type PlanSkip = { action: 'skip'; reason: SkipReason };
-export type PlanConflict = { action: 'conflict'; reason: ConflictReason; hint?: string };
+type PlanSkip = {
+  action: 'skip';
+  reason: SkipReason;
+  /**
+   * Запись в кабинете, из-за которой менять нечего. Без неё повторный прогон
+   * «забывал» уже перенесённую организацию, и её сделки, комментарии и файлы
+   * пропадали из сводки — предпросмотр показывал разное на одинаковых данных.
+   */
+  id?: string;
+};
+type PlanConflict = { action: 'conflict'; reason: ConflictReason; hint?: string };
 
 export type Plan<T> = PlanCreate<T> | PlanUpdate<T> | PlanSkip | PlanConflict;
 
@@ -34,6 +43,7 @@ export type Plan<T> = PlanCreate<T> | PlanUpdate<T> | PlanSkip | PlanConflict;
 export type SkipReason =
   | 'no_organization'
   | 'no_contact'
+  | 'no_deal'
   | 'empty'
   | 'too_large'
   | 'source_no_files'
@@ -48,6 +58,7 @@ export type ConflictReason =
 export const SKIP_LABELS: Record<SkipReason, string> = {
   no_organization: 'нет организации',
   no_contact: 'нет контакта',
+  no_deal: 'сделка не перенесена',
   empty: 'пустая запись',
   too_large: 'файл больше допустимого размера',
   source_no_files: 'источник не даёт файлов',

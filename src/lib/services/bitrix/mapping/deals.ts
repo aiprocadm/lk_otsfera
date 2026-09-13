@@ -105,6 +105,7 @@ export function planDeal(
     patch.organizationId = data.organizationId;
     before.organizationId = existing.organizationId;
   }
-  if (Object.keys(patch).length === 0) return { action: 'skip', reason: 'no_changes' };
+  if (Object.keys(patch).length === 0)
+    return { action: 'skip', reason: 'no_changes', id: existing.id };
   return { action: 'update', id: existing.id, data: patch, before };
 }

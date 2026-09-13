@@ -1,8 +1,10 @@
 /**
  * Действия раздела «Миграция из Битрикс24» (этап 2 ТЗ 12.09.2026, `У-188`,
- * `У-202`): сохранение подключения и проба. Гард раздела и поведенческий флаг
- * `bitrix_migration` — на каждом действии (§4). Разбор адресов
- * (`portalHost`, `normalizeWebhookUrl`) — настоящий, без мока: проверяем связку.
+ * `У-202`, `У-193`): сохранение подключения, проба и пакеты миграции —
+ * создание, состояние для полосы прогресса и таблицы сопоставления. Гард
+ * раздела и поведенческий флаг `bitrix_migration` — на каждом действии (§4).
+ * Разбор адресов (`portalHost`, `normalizeWebhookUrl`) и разбор полей формы —
+ * настоящие, без мока: проверяем связку. Сервис пакета замокан.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -32,13 +34,29 @@ vi.mock('@/lib/config/integrationSettingsCache', () => ({ resetIntegrationSettin
 vi.mock('@/lib/services/admin/testIntegration', () => ({ testIntegration }));
 vi.mock('next/cache', () => ({ revalidatePath }));
 
+const { createBitrixBatch, getBitrixBatchState, saveBatchMapping } = vi.hoisted(() => ({
+  createBitrixBatch: vi.fn(),
+  getBitrixBatchState: vi.fn(),
+  saveBatchMapping: vi.fn(),
+}));
+vi.mock('@/lib/services/bitrix/preview', () => ({
+  createBitrixBatch,
+  getBitrixBatchState,
+  saveBatchMapping,
+}));
+
 import {
   saveBitrixConnectionAction,
   testBitrixConnectionAction,
+  createBitrixBatchAction,
+  getBitrixBatchStateAction,
+  saveBatchMappingAction,
 } from '@/server-actions/admin/bitrix';
 
 const SESSION = { sub: 'admin-1', role: 'admin' as const, companyId: 'c1' };
 const PATH = '/admin/settings/integrations/bitrix';
+const BATCHES_PATH = '/admin/settings/integrations/bitrix/history';
+const FLAG_OFF = new Response('Not Found', { status: 404 });
 
 function fd(data: Record<string, string | Blob>): FormData {
   const f = new FormData();
@@ -52,7 +70,19 @@ beforeEach(() => {
   notFoundIfDisabled.mockReturnValue(null); // флаг включён
   findFirst.mockResolvedValue({ id: 'm1' });
   saveSettings.mockResolvedValue({ ok: true });
+  createBitrixBatch.mockResolvedValue({ ok: true, batchId: 'b-1' });
+  getBitrixBatchState.mockResolvedValue({
+    ok: true,
+    status: 'preview_pending',
+    progress: { step: 'deal', done: 12, total: 100, updatedAt: '2026-09-13T09:00:00.000Z' },
+  });
+  saveBatchMapping.mockResolvedValue({ ok: true });
 });
+
+/** Аргументы, с которыми действие позвало сервис пакета. */
+function createArgs() {
+  return createBitrixBatch.mock.calls[0][2];
+}
 
 describe('saveBitrixConnectionAction', () => {
   it('счастливый путь: домен из полного адреса, вебхук нормализован, менеджер проверен в компании; сброс кэша и revalidate', async () => {
@@ -230,6 +260,225 @@ describe('testBitrixConnectionAction', () => {
     expect(res).toEqual({ ok: false, error: 'forbidden' });
     expect(requireSettingsSection).toHaveBeenCalledWith('integrations.bitrix', 'admin');
     expect(testIntegration).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe('createBitrixBatchAction', () => {
+  it('счастливый путь: источник, период, флажки и ключи выгрузок уходят в сервис; список перечитывается', async () => {
+    const res = await createBitrixBatchAction(
+      fd({
+        source: 'file',
+        from: '2026-01-01',
+        to: '2026-06-30',
+        openOnly: 'on',
+        withFiles: 'on',
+        defaultManagerId: 'm1',
+        fileKeys: JSON.stringify([
+          { key: 'uploads/c1/1-companies.csv', name: 'companies.csv', entity: 'company' },
+        ]),
+      })
+    );
+
+    expect(res).toEqual({ ok: true, batchId: 'b-1' });
+    expect(requireSettingsSection).toHaveBeenCalledWith('integrations.bitrix', 'admin');
+    expect(notFoundIfDisabled).toHaveBeenCalledWith('bitrix_migration');
+    expect(createBitrixBatch).toHaveBeenCalledWith(expect.anything(), SESSION, {
+      source: 'file',
+      from: '2026-01-01',
+      to: '2026-06-30',
+      openOnly: true,
+      withFiles: true,
+      defaultManagerId: 'm1',
+      fileKeys: [{ key: 'uploads/c1/1-companies.csv', name: 'companies.csv', entity: 'company' }],
+    });
+    expect(revalidatePath).toHaveBeenCalledWith(BATCHES_PATH);
+  });
+
+  it('пустая форма: источник по умолчанию «портал», флажки сняты, период и менеджер пустые', async () => {
+    await createBitrixBatchAction(new FormData());
+    expect(createArgs()).toEqual({
+      source: 'rest',
+      from: '',
+      to: '',
+      openOnly: false,
+      withFiles: false,
+      defaultManagerId: '',
+      fileKeys: [],
+    });
+  });
+
+  it('любой источник, кроме «file», считается порталом — подделка поля ничего не даёт', async () => {
+    await createBitrixBatchAction(fd({ source: 'ftp' }));
+    expect(createArgs().source).toBe('rest');
+  });
+
+  it.each([
+    ['поля нет вовсе', undefined],
+    ['пустая строка', ''],
+    ['одни пробелы', '   '],
+    ['не JSON', 'companies.csv'],
+    ['JSON, но не список', JSON.stringify({ key: 'a', entity: 'company' })],
+  ])('ключи выгрузок (%s) — пустой список, а не падение', async (_name, raw) => {
+    await createBitrixBatchAction(raw === undefined ? new FormData() : fd({ fileKeys: raw }));
+    expect(createArgs().fileKeys).toEqual([]);
+  });
+
+  it('поле ключей — файл, а не строка: тоже пустой список', async () => {
+    await createBitrixBatchAction(fd({ fileKeys: new Blob(['[]']) }));
+    expect(createArgs().fileKeys).toEqual([]);
+  });
+
+  it('мусорные элементы списка отбрасываются поштучно, имя по умолчанию — сам ключ', async () => {
+    await createBitrixBatchAction(
+      fd({
+        fileKeys: JSON.stringify([
+          null, // не объект
+          'строка', // не объект
+          { name: 'без ключа.csv', entity: 'company' }, // нет key
+          { key: 42, entity: 'company' }, // key не строка
+          { key: '', entity: 'company' }, // пустой key
+          { key: 'uploads/x.csv' }, // нет entity
+          { key: 'uploads/y.csv', entity: 7 }, // entity не строка
+          { key: 'uploads/z.csv', entity: 'deal' }, // имени нет — возьмём ключ
+          { key: 'uploads/w.csv', name: 5, entity: 'lead' }, // имя не строка
+          { key: 'uploads/v.csv', name: 'сделки.csv', entity: 'deal' },
+        ]),
+      })
+    );
+    expect(createArgs().fileKeys).toEqual([
+      { key: 'uploads/z.csv', name: 'uploads/z.csv', entity: 'deal' },
+      { key: 'uploads/w.csv', name: 'uploads/w.csv', entity: 'lead' },
+      { key: 'uploads/v.csv', name: 'сделки.csv', entity: 'deal' },
+    ]);
+  });
+
+  it('флаг выключен → forbidden, пакет не создаётся', async () => {
+    notFoundIfDisabled.mockReturnValue(FLAG_OFF);
+    const res = await createBitrixBatchAction(fd({ source: 'file' }));
+    expect(res).toEqual({ ok: false, error: 'forbidden' });
+    expect(requireSettingsSection).toHaveBeenCalledWith('integrations.bitrix', 'admin');
+    expect(createBitrixBatch).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('отказ сервиса возвращается как есть, без перечитывания списка', async () => {
+    createBitrixBatch.mockResolvedValue({ ok: false, error: 'invalid' });
+    const res = await createBitrixBatchAction(fd({ source: 'file' }));
+    expect(res).toEqual({ ok: false, error: 'invalid' });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe('getBitrixBatchStateAction', () => {
+  it('состояние с прогрессом: шаг и сделано — без служебной отметки времени', async () => {
+    const res = await getBitrixBatchStateAction('b-1');
+    expect(res).toEqual({
+      ok: true,
+      status: 'preview_pending',
+      progress: { step: 'deal', done: 12 },
+    });
+    expect(requireSettingsSection).toHaveBeenCalledWith('integrations.bitrix', 'admin');
+    expect(notFoundIfDisabled).toHaveBeenCalledWith('bitrix_migration');
+    expect(getBitrixBatchState).toHaveBeenCalledWith(expect.anything(), SESSION, 'b-1');
+    // Опрос ничего не меняет — перечитывать страницу незачем.
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('работа ещё не началась — прогресса нет', async () => {
+    getBitrixBatchState.mockResolvedValue({ ok: true, status: 'preview_pending', progress: null });
+    const res = await getBitrixBatchStateAction('b-1');
+    expect(res).toEqual({ ok: true, status: 'preview_pending', progress: null });
+  });
+
+  it.each([
+    ['forbidden', 'forbidden'],
+    ['not_found', 'not_found'],
+  ])('отказ сервиса %s → %s', async (error, expected) => {
+    getBitrixBatchState.mockResolvedValue({ ok: false, error });
+    expect(await getBitrixBatchStateAction('b-1')).toEqual({ ok: false, error: expected });
+  });
+
+  it('флаг выключен → forbidden, состояние не спрашиваем', async () => {
+    notFoundIfDisabled.mockReturnValue(FLAG_OFF);
+    expect(await getBitrixBatchStateAction('b-1')).toEqual({ ok: false, error: 'forbidden' });
+    expect(getBitrixBatchState).not.toHaveBeenCalled();
+  });
+});
+
+describe('saveBatchMappingAction', () => {
+  it('счастливый путь: поля формы раскладываются по четырём таблицам, карточка перечитывается', async () => {
+    const res = await saveBatchMappingAction(
+      fd({
+        batchId: 'b-1',
+        'stage:0:NEW': 'ds1',
+        // Ключ стадии сам содержит двоеточия — склеиваем всё после первого.
+        'stage:7:C7:WON': 'ds2',
+        'stage:7:C7:LOSE': '', // «— выберите —» → не сопоставлено
+        'leadStage:JUNK': 'fs1',
+        'leadStage:NEW': '', // лид тоже можно оставить несопоставленным
+        'taskColumn:2': 'tc1',
+        'taskColumn:5': '',
+        'user:11': 'm1',
+        'user:12': '', // пусто у сотрудника = менеджер по умолчанию, в таблицу не пишем
+      })
+    );
+
+    expect(res).toEqual({ ok: true });
+    expect(requireSettingsSection).toHaveBeenCalledWith('integrations.bitrix', 'admin');
+    expect(notFoundIfDisabled).toHaveBeenCalledWith('bitrix_migration');
+    expect(saveBatchMapping).toHaveBeenCalledWith(expect.anything(), SESSION, {
+      batchId: 'b-1',
+      tables: {
+        stageMap: { '0:NEW': 'ds1', '7:C7:WON': 'ds2', '7:C7:LOSE': null },
+        leadStageMap: { JUNK: 'fs1', NEW: null },
+        taskColumnMap: { '2': 'tc1', '5': null },
+        userMap: { '11': 'm1' },
+      },
+    });
+    expect(revalidatePath).toHaveBeenCalledWith(`${BATCHES_PATH}/b-1`);
+  });
+
+  it('без пакета — invalid, до сервиса дело не доходит', async () => {
+    const res = await saveBatchMappingAction(fd({ 'stage:0:NEW': 'ds1' }));
+    expect(res).toEqual({ ok: false, error: 'invalid' });
+    expect(saveBatchMapping).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('посторонние и обрезанные поля игнорируются — пустые таблицы вместо мусора', async () => {
+    await saveBatchMappingAction(
+      fd({
+        batchId: 'b-2',
+        'stage:': 'ds1', // ключа после двоеточия нет
+        stageMap: 'ds1', // двоеточия нет вовсе
+        'колонка:5': 'tc1', // незнакомый префикс
+        'user:9': new Blob(['m1']), // не строка
+      })
+    );
+    expect(saveBatchMapping).toHaveBeenCalledWith(expect.anything(), SESSION, {
+      batchId: 'b-2',
+      tables: { stageMap: {}, leadStageMap: {}, taskColumnMap: {}, userMap: {} },
+    });
+  });
+
+  it.each([
+    ['forbidden', 'forbidden'],
+    ['not_found', 'not_found'],
+    ['invalid', 'invalid'],
+    ['mapping_incomplete', 'invalid'],
+  ])('отказ сервиса %s → %s, без перечитывания карточки', async (error, expected) => {
+    saveBatchMapping.mockResolvedValue({ ok: false, error });
+    const res = await saveBatchMappingAction(fd({ batchId: 'b-1' }));
+    expect(res).toEqual({ ok: false, error: expected });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('флаг выключен → forbidden, сопоставление не сохраняется', async () => {
+    notFoundIfDisabled.mockReturnValue(FLAG_OFF);
+    const res = await saveBatchMappingAction(fd({ batchId: 'b-1', 'stage:0:NEW': 'ds1' }));
+    expect(res).toEqual({ ok: false, error: 'forbidden' });
+    expect(saveBatchMapping).not.toHaveBeenCalled();
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 });

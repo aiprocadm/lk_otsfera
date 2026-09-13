@@ -6,8 +6,7 @@ import { prisma } from '@/lib/db/prisma';
 import { getSettingValues } from '@/lib/config/integrationSettings';
 import { listBitrixBatches } from '@/lib/services/bitrix/preview';
 import { listCompanyManagers } from '@/lib/services/manager/team';
-import { BitrixUploadForm } from '@/components/bitrix/upload-form';
-import { NewBatchForm } from '@/components/bitrix/new-batch-form';
+import { BitrixBatchStarter } from '@/components/bitrix/batch-starter';
 import { BatchList } from '@/components/bitrix/batch-list';
 import { EmptyState } from '@/components/ui';
 import { PageHeader } from '@/components/ui/page-header';
@@ -42,10 +41,8 @@ export default async function AdminBitrixHistoryPage() {
         title="Пакеты миграции"
         subtitle="Каждый перенос из Битрикс24 — отдельный пакет: предпросмотр, применение, отчёт сверки и откат."
       />
-      <BitrixUploadForm />
-      <NewBatchForm
+      <BitrixBatchStarter
         managers={managerOptions}
-        fileKeys={[]}
         hasConnection={Boolean(connection['bitrix.webhookUrl'])}
       />
       {rows.length > 0 ? (

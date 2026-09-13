@@ -50,7 +50,7 @@ export function planDealNote(
   if (!text) return { action: 'skip', reason: 'empty' };
   const dealId = lookup.dealByBitrixId(comment.entityId);
   // Сделка могла не перенестись (несопоставленная стадия) — заметке некуда лечь.
-  if (!dealId) return { action: 'skip', reason: 'no_contact' };
+  if (!dealId) return { action: 'skip', reason: 'no_deal' };
   return {
     action: 'create',
     data: {

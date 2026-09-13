@@ -70,7 +70,7 @@ describe('loadOrganizations', () => {
         id: 'o-own',
         companyId: COMPANY,
         name: 'ООО «Альфа»',
-        inn: '7701234567',
+        inn: '7701234560',
         kpp: '770101001',
         bitrixId: '101',
         nameKey: 'АЛЬФА',
@@ -81,7 +81,7 @@ describe('loadOrganizations', () => {
         id: 'o-alien',
         companyId: 'c2',
         name: 'ООО «Бета»',
-        inn: '7812345678',
+        inn: '7812345675',
         kpp: null,
         bitrixId: null,
         nameKey: 'БЕТА',
@@ -90,13 +90,13 @@ describe('loadOrganizations', () => {
 
     const batch = await loadOrganizations(prisma, COMPANY, {
       bitrixIds: ['101'],
-      inns: ['7701234567', '7812345678'],
+      inns: ['7701234560', '7812345675'],
       nameKeys: ['АЛЬФА', 'БЕТА'],
     });
 
     expect(batch.byBitrixId.get('101')?.id).toBe('o-own');
-    expect(batch.byInn.get('7701234567')?.id).toBe('o-own');
-    expect(batch.byInn.get('7812345678')?.id).toBe('o-alien');
+    expect(batch.byInn.get('7701234560')?.id).toBe('o-own');
+    expect(batch.byInn.get('7812345675')?.id).toBe('o-alien');
     expect(batch.byNameKey.get('АЛЬФА')?.id).toBe('o-own');
     expect(batch.byNameKey.get('БЕТА')).toBeUndefined();
     // Наружу уходит узкая форма, а не строка базы: `nameKey` в ней нет.
@@ -104,7 +104,7 @@ describe('loadOrganizations', () => {
       id: 'o-own',
       companyId: COMPANY,
       name: 'ООО «Альфа»',
-      inn: '7701234567',
+      inn: '7701234560',
       kpp: '770101001',
       bitrixId: '101',
     });
@@ -142,19 +142,19 @@ describe('loadOrganizations', () => {
 
     await loadOrganizations(prisma, COMPANY, {
       bitrixIds: ['101'],
-      inns: ['7701234567'],
+      inns: ['7701234560'],
       nameKeys: [],
     });
     expect(organizationFindMany.mock.calls[1][0].where).toEqual({
-      OR: [{ bitrixId: { in: ['101'] } }, { inn: { in: ['7701234567'] } }],
+      OR: [{ bitrixId: { in: ['101'] } }, { inn: { in: ['7701234560'] } }],
     });
   });
 
   it('ИНН ищется без фильтра по компании — иначе тёзку из чужой компании не увидеть', async () => {
-    await loadOrganizations(prisma, COMPANY, { bitrixIds: [], inns: ['7701234567'], nameKeys: [] });
+    await loadOrganizations(prisma, COMPANY, { bitrixIds: [], inns: ['7701234560'], nameKeys: [] });
 
     const inn = organizationFindMany.mock.calls[0][0].where.OR[0];
-    expect(inn).toEqual({ inn: { in: ['7701234567'] } });
+    expect(inn).toEqual({ inn: { in: ['7701234560'] } });
     expect(Object.keys(inn)).not.toContain('companyId');
   });
 });
@@ -163,7 +163,7 @@ describe('organizationKeysOf', () => {
   it('считает ключи названий, пустые ключи и пустые ИНН отбрасывает', () => {
     expect(
       organizationKeysOf([
-        { id: '101', inn: '7701234567', title: 'ООО «Альфа Строй»' },
+        { id: '101', inn: '7701234560', title: 'ООО «Альфа Строй»' },
         { id: '102', inn: null, title: 'Вектор Плюс, ООО' },
         // Название из одной орг-формы ключа не даёт — такой строки в запросе нет.
         { id: '103', inn: null, title: 'ООО' },
@@ -171,7 +171,7 @@ describe('organizationKeysOf', () => {
       ])
     ).toEqual({
       bitrixIds: ['101', '102', '103', '104'],
-      inns: ['7701234567'],
+      inns: ['7701234560'],
       nameKeys: ['АЛЬФА СТРОЙ', 'ВЕКТОР ПЛЮС'],
     });
   });

@@ -168,7 +168,7 @@ describe('inspectBitrixFile — сущность по шапке выгрузк�
       wb.addWorksheet('Пустой лист');
       const ws = wb.addWorksheet('Компании');
       ws.addRow(['ID', 'Название компании', 'Реквизит: ИНН', 'Ответственный', 'Дата создания']);
-      ws.addRow([7001, 'ООО «Из книги»', 7701234567, 'Мария Райтова', new Date()]);
+      ws.addRow([7001, 'ООО «Из книги»', 7701234560, 'Мария Райтова', new Date()]);
     });
     expect(buffer.subarray(0, 2).toString('latin1')).toBe('PK');
     expect(await inspectBitrixFile(buffer, 'компании.xlsx')).toMatchObject({
@@ -470,7 +470,7 @@ describe('FileBitrixSource — книга Excel', () => {
       ws.addRow([
         7001,
         { richText: [{ text: 'ООО ' }, { text: '«Рич Текст»' }] },
-        7701234567,
+        7701234560,
         'Мария Райтова',
         created,
         null,
@@ -486,7 +486,7 @@ describe('FileBitrixSource — книга Excel', () => {
       {
         id: '7001',
         title: 'ООО «Рич Текст»',
-        inn: '7701234567',
+        inn: '7701234560',
         kpp: null,
         assignedById: 'name:мария райтова',
         createdAt: created,

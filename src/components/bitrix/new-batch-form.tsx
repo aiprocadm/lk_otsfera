@@ -20,7 +20,8 @@ export type UploadedFileKey = { key: string; name: string; entity: string };
 
 const ERROR_LABELS: Record<string, string> = {
   forbidden: 'Миграция из Битрикс24 выключена или у вас нет прав на раздел.',
-  invalid: 'Проверьте настройки пакета: для переноса из файлов нужны загруженные выгрузки.',
+  invalid:
+    'Проверьте настройки пакета: выберите источник, а для переноса из файлов — загрузите выгрузки.',
   not_found: 'Пакет не найден.',
   mapping_incomplete: 'Сначала сопоставьте все стадии сделок и статусы лидов.',
 };
@@ -105,7 +106,7 @@ export function NewBatchForm({
         </div>
         <div className="flex flex-col gap-0.5">
           <label htmlFor="bitrix-batch-to" className="text-xs text-gray-500">
-            по
+            Период по
           </label>
           <input
             id="bitrix-batch-to"

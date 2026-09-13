@@ -8,7 +8,7 @@ import { resolveDealStages } from '@/lib/services/deals/stages';
 import { resolveTaskColumns } from '@/lib/tasks/columns';
 import { getBitrixBatch } from '@/lib/services/bitrix/preview';
 import { unmappedStages } from '@/lib/services/bitrix/mapping/stages';
-import { listCompanyManagers } from '@/lib/services/manager/team';
+import { loadCompanyUsers } from '@/lib/services/bitrix/mapping/lookup';
 import { BATCH_STATUS_LABELS, formatDate } from '@/components/bitrix/batch-list';
 import { BatchProgress } from '@/components/bitrix/batch-progress';
 import { BatchRows } from '@/components/bitrix/batch-rows';
@@ -46,7 +46,9 @@ export default async function AdminBitrixBatchPage({
     resolveDealStages(prisma, companyId),
     resolveFunnelStages(prisma, companyId),
     resolveTaskColumns(prisma, companyId),
-    companyId ? listCompanyManagers(prisma, companyId) : Promise.resolve([]),
+    // Тот же список, среди которого конвейер искал совпадения по почте:
+    // иначе найденный админ не попал бы в варианты и молча потерялся.
+    companyId ? loadCompanyUsers(prisma, companyId) : Promise.resolve([]),
   ]);
 
   const stages = batch.settings.stagesFound ?? [];
@@ -111,9 +113,10 @@ export default async function AdminBitrixBatchPage({
             dealStages={dealStages.map((s) => ({ id: s.id, name: s.name }))}
             funnelStages={funnelStages.map((s) => ({ id: s.id, name: s.name }))}
             taskColumns={taskColumns.map((c) => ({ id: c.id, name: c.name }))}
-            companyUsers={managers
-              .filter((m) => m.isActive)
-              .map((m) => ({ id: m.id, name: m.name }))}
+            companyUsers={managers.map((m) => ({
+              id: m.id,
+              name: m.email ? `${m.name} (${m.email})` : m.name,
+            }))}
             values={{
               stageMap: tables.stageMap ?? {},
               leadStageMap: tables.leadStageMap ?? {},

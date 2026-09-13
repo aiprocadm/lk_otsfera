@@ -277,7 +277,7 @@ describe('planContact — канал занят другим контактом'
         }),
       })
     );
-    expect(plan).toEqual({ action: 'skip', reason: 'no_changes' });
+    expect(plan).toEqual({ action: 'skip', reason: 'no_changes', id: 'c-1' });
   });
 
   it('уже сопоставленный по bitrixId контакт не переспрашивается по каналу', () => {
@@ -405,7 +405,7 @@ describe('planContact — обновление найденного контак
         organizationByBitrixId: () => 'org-1',
       })
     );
-    expect(plan).toEqual({ action: 'skip', reason: 'no_changes' });
+    expect(plan).toEqual({ action: 'skip', reason: 'no_changes', id: 'c-1' });
   });
 
   it('пустые поля Битрикса не затирают заполненные в ЛК', () => {
@@ -422,7 +422,7 @@ describe('planContact — обновление найденного контак
           }),
       })
     );
-    expect(plan).toEqual({ action: 'skip', reason: 'no_changes' });
+    expect(plan).toEqual({ action: 'skip', reason: 'no_changes', id: 'c-1' });
   });
 
   it('bitrixId дописывается только тому, у кого его не было', () => {
@@ -431,7 +431,7 @@ describe('planContact — обновление найденного контак
       ctxOf(),
       lookupOf({ byBitrixId: () => existingOf({ bitrixId: '999' }) })
     );
-    expect(plan).toEqual({ action: 'skip', reason: 'no_changes' });
+    expect(plan).toEqual({ action: 'skip', reason: 'no_changes', id: 'c-1' });
   });
 
   it('новый канал дописывается, а уже принадлежащий контакту — нет', () => {

@@ -39,8 +39,10 @@ export function BatchList({ batches }: { batches: BitrixBatchView[] }) {
         {batches.map((batch) => (
           <Tr key={batch.id}>
             <Td>
+              {/* Голая дата в ссылке звучит одинаково у всех строк списка —
+                  читалка должна произносить, куда ведёт каждая. */}
               <Link href={batchHref(batch.id)} className="text-[#EA580C] hover:underline">
-                {formatDate(batch.createdAt)}
+                {`Пакет от ${formatDate(batch.createdAt)}`}
               </Link>
               <div className="text-xs text-gray-500">{batch.importedByName}</div>
             </Td>

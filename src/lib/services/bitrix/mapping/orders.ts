@@ -15,7 +15,7 @@ import type { MappingContext, Plan } from './types';
  * (`not_billed`, `paidAmount 0`). Деньги считает 1С, и заказы из Битрикса ей
  * не мешают: ключи `bitrix:deal:<id>` с её `externalId` не пересекаются.
  */
-export type OrderData = {
+type OrderData = {
   externalId: string;
   title: string;
   companyId: string;

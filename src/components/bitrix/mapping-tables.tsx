@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { TableShell, THead, Th, Tr, Td } from '@/components/ui/table';
 import type { BitrixStage } from '@/lib/services/bitrix/source';
-import type { UserMapRow } from '@/lib/services/bitrix/mapping/types';
+import { stageKey, type UserMapRow } from '@/lib/services/bitrix/mapping/types';
 import {
   BITRIX_TASK_STATUS_LABELS,
   BITRIX_TASK_STATUSES,
@@ -20,7 +20,7 @@ import {
  * Незаполненная стадия — не ошибка формы, а прямой запрет на применение: пока
  * в списке есть «— выберите —», пакет применить нельзя, и страница это скажет.
  */
-export type Option = { id: string; name: string };
+type Option = { id: string; name: string };
 
 export type MappingTablesProps = {
   batchId: string;
@@ -62,11 +62,13 @@ export function MappingTables(props: MappingTablesProps) {
       <MapTable
         title="Стадии сделок"
         hint="Слева — стадии вашего портала, справа — стадии сделок в личном кабинете."
+        // Ключ считает общая функция: собранный руками, он однажды разойдётся
+        // с тем, что ищет проверка сопоставления, и стадия «не сопоставится» никогда.
         rows={dealStages.map((s) => ({
-          key: `${s.categoryId ?? '0'}:${s.id}`,
+          key: stageKey(s),
           label: s.name,
-          field: `stage:${s.categoryId ?? '0'}:${s.id}`,
-          value: props.values.stageMap[`${s.categoryId ?? '0'}:${s.id}`] ?? '',
+          field: `stage:${stageKey(s)}`,
+          value: props.values.stageMap[stageKey(s)] ?? '',
         }))}
         options={props.dealStages}
         disabled={props.disabled}

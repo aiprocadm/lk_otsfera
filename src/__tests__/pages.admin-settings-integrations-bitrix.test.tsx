@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 /**
  * Раздел «Миграция из Битрикс24» (этап 2 ТЗ 12.09.2026): страница
- * «Подключение» (`У-188`, `У-199`), «Пакеты» с формой файлов выгрузки
- * (`У-198`, `У-189` file) и общий layout с вкладками.
+ * «Подключение» (`У-188`, `У-199`), «Пакеты» с формой файлов выгрузки,
+ * формой нового пакета и списком пакетов (`У-198`, `У-193`, `У-189` file) и
+ * общий layout с вкладками.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
@@ -14,8 +15,14 @@ vi.mock('@/lib/auth/requireSettings', () => ({ requireSettingsSection }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
-const { getSettingsView } = vi.hoisted(() => ({ getSettingsView: vi.fn() }));
-vi.mock('@/lib/config/integrationSettings', () => ({ getSettingsView }));
+const { getSettingsView, getSettingValues } = vi.hoisted(() => ({
+  getSettingsView: vi.fn(),
+  getSettingValues: vi.fn(),
+}));
+vi.mock('@/lib/config/integrationSettings', () => ({ getSettingsView, getSettingValues }));
+
+const { listBitrixBatches } = vi.hoisted(() => ({ listBitrixBatches: vi.fn() }));
+vi.mock('@/lib/services/bitrix/preview', () => ({ listBitrixBatches }));
 
 const { isSecretsKeyConfigured } = vi.hoisted(() => ({ isSecretsKeyConfigured: vi.fn() }));
 vi.mock('@/lib/crypto/secrets', () => ({ isSecretsKeyConfigured }));
@@ -66,6 +73,34 @@ vi.mock('@/components/admin/integration-settings-form', () => ({
 // (components.bitrix-upload-form): странице важно лишь, что она на месте.
 vi.mock('@/components/bitrix/upload-form', () => ({
   BitrixUploadForm: () => React.createElement('div', { 'data-testid': 'bitrix-upload-form' }),
+}));
+// Форма нового пакета и список пакетов — со своими тестами
+// (components.bitrix-new-batch-form, components.bitrix-batch-views): странице
+// важно, что они на месте и с какими данными.
+type NewBatchStubProps = {
+  managers: { id: string; name: string }[];
+  fileKeys: unknown[];
+  hasConnection: boolean;
+};
+const { newBatchProps, batchListProps } = vi.hoisted(() => ({
+  newBatchProps: [] as NewBatchStubProps[],
+  batchListProps: [] as { batches: { id: string }[] }[],
+}));
+vi.mock('@/components/bitrix/new-batch-form', () => ({
+  NewBatchForm: (props: NewBatchStubProps) => {
+    newBatchProps.push(props);
+    return React.createElement('div', { 'data-testid': 'bitrix-new-batch-form' });
+  },
+}));
+vi.mock('@/components/bitrix/batch-list', () => ({
+  BatchList: (props: { batches: { id: string }[] }) => {
+    batchListProps.push(props);
+    return React.createElement(
+      'div',
+      { 'data-testid': 'bitrix-batch-list' },
+      String(props.batches.length)
+    );
+  },
 }));
 vi.mock('@/components/admin/secrets-key-notice', () => ({
   SecretsKeyNotice: (props: { ready: boolean }) =>
@@ -125,6 +160,10 @@ function manager(id: string, name: string, isActive: boolean) {
 beforeEach(() => {
   vi.clearAllMocks();
   formProps.length = 0;
+  newBatchProps.length = 0;
+  batchListProps.length = 0;
+  listBitrixBatches.mockResolvedValue({ ok: true, batches: [] });
+  getSettingValues.mockResolvedValue({ 'bitrix.webhookUrl': null });
   requireSettingsSection.mockResolvedValue(ADMIN_WITH_COMPANY);
   isSecretsKeyConfigured.mockReturnValue(true);
   checkOf.mockReturnValue(null);
@@ -272,25 +311,89 @@ describe('AdminBitrixSettingsPage («Подключение»)', () => {
 });
 
 describe('AdminBitrixHistoryPage («Пакеты»)', () => {
-  it('гард раздела, шапка, форма файлов выгрузки и пустое состояние с кнопкой «К подключению»', async () => {
+  it('гард раздела, шапка, обе формы по порядку действий и пустое состояние с кнопкой', async () => {
     const { container } = await renderServerComponent(AdminBitrixHistoryPage());
 
     expect(requireSettingsSection).toHaveBeenCalledWith('integrations.bitrix', 'admin');
+    expect(listBitrixBatches).toHaveBeenCalledWith({}, ADMIN_WITH_COMPANY);
+    expect(getSettingValues).toHaveBeenCalledWith({}, ['bitrix.webhookUrl']);
     expect(container.querySelector('h1')?.textContent).toBe('Пакеты миграции');
     const text = container.textContent ?? '';
     expect(text).toContain('предпросмотр, применение, отчёт сверки и откат');
-    // Форма файлов выгрузки (`У-189` file) — над пустым состоянием.
-    const form = container.querySelector('[data-testid="bitrix-upload-form"]');
-    expect(form).not.toBeNull();
-    const empty = container.querySelector('[data-testid="bitrix-upload-form"] ~ div');
-    expect(empty?.textContent).toContain('Здесь пока пусто');
+
+    // Порядок на экране повторяет порядок действий: загрузить выгрузки →
+    // собрать пакет → посмотреть результат.
+    const order = [...container.querySelectorAll('[data-testid]')].map((el) =>
+      el.getAttribute('data-testid')
+    );
+    expect(order).toEqual(['bitrix-upload-form', 'bitrix-new-batch-form']);
+
     // §15: пустой экран объясняет, что делать дальше, и даёт кнопку.
+    expect(container.querySelector('[data-testid="bitrix-batch-list"]')).toBeNull();
     expect(text).toContain('Здесь пока пусто');
     expect(text).toContain(
-      'Пакетов миграции ещё не было. Подключите портал и проверьте связь или загрузите файлы выгрузки выше — форма первого пакета появится здесь.'
+      'Пакетов миграции ещё не было. Подключите портал или загрузите выгрузки выше, а затем посчитайте предпросмотр — он покажет, что перенесётся.'
     );
     const link = container.querySelector('a[href="/admin/settings/integrations/bitrix"]');
     expect(link?.textContent).toBe('К подключению');
+  });
+
+  it('пакеты есть — вместо пустого состояния список, форма нового пакета остаётся', async () => {
+    listBitrixBatches.mockResolvedValue({
+      ok: true,
+      batches: [{ id: 'b-1' }, { id: 'b-2' }],
+    });
+    const { container } = await renderServerComponent(AdminBitrixHistoryPage());
+
+    expect(container.querySelector('[data-testid="bitrix-batch-list"]')?.textContent).toBe('2');
+    expect(batchListProps[0]?.batches.map((b) => b.id)).toEqual(['b-1', 'b-2']);
+    expect(container.querySelector('[data-testid="bitrix-new-batch-form"]')).not.toBeNull();
+    expect(container.textContent).not.toContain('Здесь пока пусто');
+  });
+
+  it('сервис отказал (нет компании у сессии) — экран не падает, а показывает пустое состояние', async () => {
+    requireSettingsSection.mockResolvedValue(ADMIN_NO_COMPANY);
+    listBitrixBatches.mockResolvedValue({ ok: false, error: 'forbidden' });
+    const { container } = await renderServerComponent(AdminBitrixHistoryPage());
+
+    // Менеджеров у сессии без компании не спрашиваем вовсе.
+    expect(listCompanyManagers).not.toHaveBeenCalled();
+    expect(newBatchProps[0]?.managers).toEqual([]);
+    expect(container.querySelector('[data-testid="bitrix-batch-list"]')).toBeNull();
+    expect(container.textContent).toContain('Здесь пока пусто');
+  });
+
+  it('форма нового пакета: только активные менеджеры, ключей выгрузок ещё нет, вебхук задан', async () => {
+    listCompanyManagers.mockResolvedValue([
+      manager('m1', 'Анна', true),
+      manager('m2', 'Борис', false),
+      manager('m3', 'Вера', true),
+    ]);
+    getSettingValues.mockResolvedValue({
+      'bitrix.webhookUrl': 'https://company.bitrix24.ru/rest/1/abc/',
+    });
+    await renderServerComponent(AdminBitrixHistoryPage());
+
+    expect(listCompanyManagers).toHaveBeenCalledWith({}, 'c1');
+    expect(newBatchProps).toHaveLength(1);
+    expect(newBatchProps[0]).toEqual({
+      managers: [
+        { id: 'm1', name: 'Анна' },
+        { id: 'm3', name: 'Вера' },
+      ],
+      // Ключи выгрузок приедут следующим шагом: форма файлов держит их у себя.
+      fileKeys: [],
+      hasConnection: true,
+    });
+  });
+
+  it.each([
+    ['вебхука нет вовсе', null],
+    ['вебхук записан пустым', ''],
+  ])('%s — форма знает, что портал не подключён', async (_name, value) => {
+    getSettingValues.mockResolvedValue({ 'bitrix.webhookUrl': value });
+    await renderServerComponent(AdminBitrixHistoryPage());
+    expect(newBatchProps[0]?.hasConnection).toBe(false);
   });
 });
 

@@ -1,5 +1,6 @@
 import type { ContactChannelType, PrismaClient } from '@prisma/client';
 import { organizationNameKey } from '@/lib/services/import/oneCAccountCard/counterparty-key';
+import { isValidInn, normalizeInn } from '@/lib/services/oneCSync/inn';
 import type { ExistingContact, ChannelOwnerRef } from './contacts';
 import type { ExistingOrganization } from './organizations';
 import type { ExistingLead } from './leads';
@@ -36,6 +37,14 @@ export async function loadOrganizations(
   companyId: string,
   keys: { bitrixIds: string[]; inns: string[]; nameKeys: string[] }
 ): Promise<OrganizationBatch> {
+  const batchEmpty: OrganizationBatch = {
+    byBitrixId: new Map(),
+    byInn: new Map(),
+    byNameKey: new Map(),
+  };
+  // Пустой `OR` не может вернуть ни строки: на пакете в 50 000 лидов без
+  // названий это были бы сотни бессмысленных запросов.
+  if (keys.bitrixIds.length + keys.inns.length + keys.nameKeys.length === 0) return batchEmpty;
   const rows = await prisma.organization.findMany({
     where: {
       OR: [
@@ -77,11 +86,13 @@ export function organizationKeysOf(
   const nameKeys = companies
     .map((c) => organizationNameKey(c.title))
     .filter((k): k is string => Boolean(k));
-  return {
-    bitrixIds: companies.map((c) => c.id),
-    inns: companies.map((c) => c.inn).filter((i): i is string => Boolean(i)),
-    nameKeys,
-  };
+  // ИНН ищется в том же виде, в каком хранится и в каком его сравнивает
+  // правило: «77 01234507» с пробелом иначе не нашёл бы существующую
+  // организацию, а запись упёрлась бы в глобально уникальный индекс.
+  const inns = companies
+    .map((c) => (c.inn ? normalizeInn(c.inn) : null))
+    .filter((i): i is string => Boolean(i) && isValidInn(i as string));
+  return { bitrixIds: companies.map((c) => c.id), inns, nameKeys };
 }
 
 export type ContactBatch = {
