@@ -2,10 +2,9 @@ import { describe, expect, it, vi, beforeAll, afterAll, beforeEach } from 'vites
 import { PrismaClient } from '@prisma/client';
 import type { Job } from 'bullmq';
 
-const { queueAdd, getQueue } = vi.hoisted(() => {
-  const queueAdd = vi.fn();
-  return { queueAdd, getQueue: vi.fn(() => ({ add: queueAdd })) };
-});
+// Очередь мокается целиком: процессор её не трогает, но сервис пакета в том же
+// графе импортов поднял бы настоящее соединение с Redis.
+const { getQueue } = vi.hoisted(() => ({ getQueue: vi.fn(() => ({ add: vi.fn() })) }));
 vi.mock('@/lib/jobs/queues', () => ({ getQueue }));
 
 import { bitrixImportProcessor } from '@/worker/processors/bitrix-import';

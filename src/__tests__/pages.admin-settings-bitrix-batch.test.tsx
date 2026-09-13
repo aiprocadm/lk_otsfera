@@ -113,18 +113,6 @@ function batch(over: Partial<BitrixBatchView> = {}): BitrixBatchView {
   };
 }
 
-function manager(id: string, name: string, isActive: boolean) {
-  return {
-    id,
-    name,
-    email: `${id}@demo.local`,
-    isActive,
-    isLeader: false,
-    lastLoginAt: null,
-    assignments: [],
-  };
-}
-
 function render(batchId = 'b-1') {
   return renderServerComponent(AdminBitrixBatchPage({ params: Promise.resolve({ batchId }) }));
 }
