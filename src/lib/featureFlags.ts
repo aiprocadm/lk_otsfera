@@ -74,6 +74,14 @@ export const FEATURE_FLAGS = [
   // карточке заказа трёх кабинетов ЦО и поле «Контакт» формы сделки (`У-180`).
   // Opt-in до приёмки этапа.
   'contacts',
+  // Миграция из Битрикс24 (этап 2 ТЗ 12.09.2026, `У-202`). ПОВЕДЕНЧЕСКИЙ opt-in
+  // флаг, в `FEATURE_PREFIXES` не входит — включается из интерфейса. Точки
+  // чтения: раздел хаба `integrations.bitrix` (поле `flag` реестра →
+  // `requireSettingsSection` → `notFound`), server actions
+  // `server-actions/admin/bitrix.ts` (`forbidden`), роуты `/api/admin/bitrix/*`
+  // (`notFoundIfDisabled`), процессор `bitrix-import` (пакет `failed`,
+  // «миграция выключена»), расписание `bitrix.resync` (пропуск).
+  'bitrix_migration',
   // M4: внутренний чат сотрудников. Поведенческий флаг (не route): точки чтения —
   // секции «Чат команды» на /manager/messages и /admin/messages (isFeatureEnabled),
   // все /api/staff-chat/* хендлеры (notFoundIfDisabled), staff-бейдж непрочитанного.
@@ -215,6 +223,7 @@ const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'telephony_mango',
   'staff_2fa',
   'contacts',
+  'bitrix_migration',
   'staff_chat',
   'staff_calendar',
   'global_search',

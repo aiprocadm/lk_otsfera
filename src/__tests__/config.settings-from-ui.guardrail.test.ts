@@ -65,6 +65,8 @@ describe('У-132: ключ шифрования обязателен и виде
     for (const page of [
       'app/admin/settings/integrations/page.tsx',
       'app/admin/settings/integrations/messengers/page.tsx',
+      // Этап 2 ТЗ 12.09.2026: вебхук Битрикс24 — секрет.
+      'app/admin/settings/integrations/bitrix/page.tsx',
     ]) {
       const src = read(page);
       expect(src, `${page}: состояние ключа не считается`).toContain('isSecretsKeyConfigured');

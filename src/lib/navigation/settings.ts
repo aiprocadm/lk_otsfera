@@ -130,6 +130,21 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     legacyHrefs: [],
   },
   {
+    // Этап 2 ТЗ 12.09.2026 (`У-188`): только администратор — вебхук с токеном
+    // портала это секрет платформы (`Р-22`, как у мессенджеров).
+    id: 'integrations.bitrix',
+    group: 'integrations',
+    title: 'Миграция из Битрикс24',
+    description:
+      'Перенос компаний, контактов, лидов, сделок, задач и файлов: подключение, пакеты, отчёт сверки, откат.',
+    icon: '🚚',
+    path: 'integrations/bitrix',
+    capability: 'settings.integrations.manage',
+    flag: 'bitrix_migration',
+    cabinets: ['admin'],
+    legacyHrefs: [],
+  },
+  {
     // `У-130`: SLA переехал из «Команды» — там ему не место, это настройка
     // процесса, а не раздел про людей. Название по глоссарию: эскалирует
     // очередь «Входящие в работу», а не «Обращения».

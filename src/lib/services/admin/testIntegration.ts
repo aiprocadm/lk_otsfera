@@ -4,6 +4,8 @@ import { getSettingValue } from '@/lib/config/integrationSettings';
 import { computeMangoSign } from '@/lib/telephony/mango/sign';
 import { send as sendEmail } from '@/lib/email/send';
 import { log } from '@/lib/logging';
+import { getBitrixSource } from '@/lib/services/bitrix/factory';
+import { BitrixSourceError } from '@/lib/services/bitrix/source';
 
 /**
  * Универсальная «Проверить подключение» (этап 1 ТЗ, ФТ-14.3, спека §5).
@@ -27,6 +29,8 @@ export const INTEGRATION_TEST_KEYS = [
   'dadata',
   'onec',
   'mango',
+  // Этап 2 ТЗ 12.09.2026 (`У-188`): миграция из Битрикс24.
+  'bitrix',
 ] as const;
 
 export type IntegrationTestKey = (typeof INTEGRATION_TEST_KEYS)[number];
@@ -189,6 +193,26 @@ async function probeOnec(prisma: PrismaClient): Promise<Probe> {
   return probeFetch(joinUrl(apiUrl, healthPath), { headers });
 }
 
+/**
+ * Битрикс24 (`У-188`, `У-199`): проба `profile` через тот же клиент, что и
+ * миграция; в сообщении — домен портала и имя пользователя вебхука, URL с
+ * токеном наружу не выходит. При `FAKE_BITRIX=1` отвечает фикстура.
+ */
+async function probeBitrix(prisma: PrismaClient): Promise<Probe> {
+  let source;
+  try {
+    source = await getBitrixSource(prisma, { source: 'rest' });
+  } catch (err) {
+    if (err instanceof BitrixSourceError && err.code === 'not_configured') {
+      return notConfigured('входящий вебхук Битрикс24');
+    }
+    return NETWORK_FAIL;
+  }
+  const check = await source.check();
+  if (!check.ok) return { ok: false, message: check.message };
+  return { ok: true, message: `Подключение успешно: ${check.portal}, ${check.user}` };
+}
+
 async function probeMango(prisma: PrismaClient): Promise<Probe> {
   const apiKey = await getSettingValue(prisma, 'mango.apiKey');
   const salt = await getSettingValue(prisma, 'mango.apiSalt');
@@ -234,6 +258,8 @@ async function runProbe(
       return probeOnec(prisma);
     case 'mango':
       return probeMango(prisma);
+    case 'bitrix':
+      return probeBitrix(prisma);
   }
 }
 

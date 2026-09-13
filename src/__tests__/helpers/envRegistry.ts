@@ -82,6 +82,7 @@ export const ENV_ONLY: Record<string, string> = {
   FAKE_ONEC_FAILURE_RATE: 'тестовое: доля отказов fake-адаптера 1С',
   FAKE_ONEC_LATENCY_MS: 'тестовое: задержка fake-адаптера 1С',
   FAKE_ONEC_MALFORMED_RATE: 'тестовое: доля битых записей fake-адаптера 1С',
+  FAKE_BITRIX: 'тестовое: фикстура вместо REST Битрикс24 (этап 2 ТЗ 12.09.2026)',
 
   // --- e2e (playwright auth.setup) ---
   E2E_ADMIN_EMAIL: 'тестовое: учётка e2e-прогона',

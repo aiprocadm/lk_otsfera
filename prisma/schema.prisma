@@ -227,6 +227,8 @@ enum LeadSource {
   // Этап 7 (ФТ-1.5/1.6): лид из звонка и из обращения.
   call
   inbound_message
+  /// Этап 2 ТЗ 12.09.2026 (`У-190`): лид перенесён из Битрикс24.
+  bitrix
 }
 
 // Этап 5 (Модуль 1): заявка клиента общего вида (ClientRequest).
@@ -383,6 +385,8 @@ model User {
   lastLoginAt                  DateTime?
   /// §10 ТЗ v0.5: кто менял рабочий статус заявки.
   orderStatusChanges           OrderStatusChange[]
+  /// Этап 2 ТЗ 12.09.2026: пакеты миграции из Битрикс24, запущенные этим администратором.
+  bitrixImports                BitrixImportBatch[]       @relation("BitrixImportedBy")
 }
 
 model PartnerUser {
@@ -451,6 +455,9 @@ model Lead {
   tasks              Task[]           @relation("TaskLinkedLead")
   /// `У-161` (этап 7 ТЗ): КП, выставленные лиду до появления организации.
   proposals          Document[]       @relation("LeadProposals")
+
+  /// Этап 2 ТЗ 12.09.2026 (`У-190`, `Р-Б-11`): ключ строки в Битрикс24; `externalId` остаётся за 1С.
+  bitrixId String? @unique
 
   @@index([partnerId, status])
   @@index([assignedManagerId])
@@ -827,6 +834,9 @@ model Organization {
   contacts                       Contact[]                          @relation("OrgContacts")
   notes                          OrganizationNote[]                 @relation("OrganizationNotes")
 
+  /// Этап 2 ТЗ 12.09.2026 (`У-190`, `Р-Б-11`): ключ строки в Битрикс24; `externalId` остаётся за 1С.
+  bitrixId String? @unique
+
   @@index([partnerId])
   @@index([externalId])
   // F2 (§16): C8 company-wide org scope filters `where { companyId }`
@@ -1058,6 +1068,9 @@ model Deal {
   /// `У-161` (этап 7 ТЗ): коммерческие предложения по этой сделке.
   proposals       Document[]    @relation("DealProposals")
 
+  /// Этап 2 ТЗ 12.09.2026 (`У-190`, `Р-Б-11`): ключ строки в Битрикс24; `externalId` остаётся за 1С.
+  bitrixId String? @unique
+
   @@index([companyId, status])
   @@index([managerId])
   @@index([stageId])
@@ -1154,6 +1167,9 @@ model Task {
   // сбрасывается при переносе dueDate — перенос срока уведомляет заново).
   dueSoonNotifiedAt    DateTime?
   assignees            TaskAssignee[]
+
+  /// Этап 2 ТЗ 12.09.2026 (`У-190`, `Р-Б-11`): ключ строки в Битрикс24; `externalId` остаётся за 1С.
+  bitrixId String? @unique
 
   @@index([companyId, status])
   @@index([companyId, createdAt])
@@ -1402,6 +1418,9 @@ model Document {
   /// `20260831160000_stage6_numbering_constraints`. Prisma частичные индексы
   /// не моделирует; полный `@@unique` здесь был бы ошибкой — он запретил бы
   /// второй безномерный документ (загрузка файла, импорт 1С).
+
+  /// Этап 2 ТЗ 12.09.2026 (`У-190`, `Р-Б-11`): ключ строки в Битрикс24; `externalId` остаётся за 1С.
+  bitrixId String? @unique
 
   @@index([orderId, type])
   @@index([counterpartyType, counterpartyId])
@@ -2327,6 +2346,9 @@ model Contact {
   calls            Call[]            @relation("ContactCalls")
   ordersAsPrimary  Order[]           @relation("OrderPrimaryContact")
 
+  /// Этап 2 ТЗ 12.09.2026 (`У-190`, `Р-Б-11`): ключ строки в Битрикс24; `externalId` остаётся за 1С.
+  bitrixId String? @unique
+
   @@index([companyId, organizationId])
   @@index([organizationId])
 }
@@ -2461,8 +2483,11 @@ model DealNote {
   order     Order?   @relation("OrderDealNotes", fields: [orderId], references: [id], onDelete: SetNull)
   dealId    String?
   deal      Deal?    @relation("DealNotes", fields: [dealId], references: [id], onDelete: SetNull)
-  authorId  String
-  author    User     @relation("DealNoteAuthor", fields: [authorId], references: [id])
+  /// Этап 2 ТЗ 12.09.2026: заметка, перенесённая из Битрикс24, может быть без
+  /// автора в ЛК (показывается как «Импорт из Битрикс24») — как у `OrganizationNote`.
+  /// SetNull: заметка переживает уволенного сотрудника.
+  authorId  String?
+  author    User?    @relation("DealNoteAuthor", fields: [authorId], references: [id], onDelete: SetNull)
   body      String
 
   @@index([orderId, createdAt])
@@ -2652,4 +2677,54 @@ model DocumentCounter {
   lastNumber Int     @default(0)
 
   @@id([companyId, year, kind])
+}
+
+/// Этап 2 ТЗ 12.09.2026 «Миграция из Битрикс24» (`У-190`). Пакет миграции:
+/// предпросмотр → применение в воркере → отчёт сверки → откат. Компания-
+/// исполнитель задаётся формой (в Битриксе такого понятия нет). Статусы:
+/// preview_pending | preview | applying | applied | rolling_back | rolled_back |
+/// rollback_partial | failed. `settings` — фильтры и таблицы сопоставления,
+/// `counts` — сводка и прогресс, `errors` — построчные ошибки (первые 500).
+model BitrixImportBatch {
+  id           String    @id @default(cuid())
+  companyId    String
+  importedById String
+  importedBy   User      @relation("BitrixImportedBy", fields: [importedById], references: [id])
+  source       String    // 'rest' | 'file'
+  mode         String    @default("initial") // 'initial' | 'resync'
+  status       String
+  settings     Json
+  counts       Json
+  errors       Json?
+  reportPath   String?
+  createdAt    DateTime  @default(now())
+  startedAt    DateTime?
+  appliedAt    DateTime?
+  rolledBackAt DateTime?
+  writes       BitrixImportWrite[]
+
+  @@index([companyId, createdAt])
+  @@index([status])
+}
+
+/// Журнал записей пакета миграции — на нём строится откат (`У-196`) и правило
+/// «правленное в ЛК не перезаписываем» (`У-195`): `before` — снимок изменённых
+/// полей до записи, `after` — что записали. Словарь `action` совпадает с
+/// журналами импортов 1С (`created` | `updated`) плюс `linked` для связей.
+/// Пишется в той же транзакции, что и строка сущности, — не fail-open.
+model BitrixImportWrite {
+  id        String            @id @default(cuid())
+  batchId   String
+  batch     BitrixImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  entity    String
+  entityId  String
+  bitrixId  String
+  action    String
+  before    Json?
+  after     Json?
+  reverted  Boolean           @default(false)
+  createdAt DateTime          @default(now())
+
+  @@index([batchId, entity])
+  @@index([entity, entityId])
 }

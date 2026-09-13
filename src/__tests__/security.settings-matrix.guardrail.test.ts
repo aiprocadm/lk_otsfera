@@ -46,6 +46,9 @@ const ADMIN_ONLY_SECTIONS = [
   // Спека 2026-09-12 (Р-М-6): токены ботов и секреты вебхуков — секреты
   // платформы (`Р-22`), руководителю остаётся светофор на обзоре.
   'integrations.messengers',
+  // Этап 2 ТЗ 12.09.2026 (`У-188`, `У-199`): вебхук Битрикс24 с токеном —
+  // секрет платформы (`Р-22`); пакеты миграции запускает только администратор.
+  'integrations.bitrix',
   'security.loginPolicies', // вход один на всю систему
   'security.audit',
   'security.personalData',
@@ -111,6 +114,8 @@ describe('У-135: секреты платформы и параметры 1С з
     'server-actions/admin/integrationSettings.ts',
     'server-actions/admin/loginPolicies.ts',
     'server-actions/admin/alerts.ts',
+    // Этап 2 ТЗ 12.09.2026: подключение и пакеты миграции из Битрикс24.
+    'server-actions/admin/bitrix.ts',
   ];
 
   /** В syncControl руководителю разрешён ровно ручной запуск — секретов там нет. */
