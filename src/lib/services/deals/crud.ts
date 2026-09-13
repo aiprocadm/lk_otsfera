@@ -11,6 +11,8 @@ export type DealInput = {
   organizationId?: string | null;
   managerId?: string | null;
   expectedCloseAt?: string | null;
+  /** `У-180`: контакт сделки (`Deal.contactId`) — человек со стороны клиента. */
+  contactId?: string | null;
 };
 
 export type DealCrudResult =
@@ -78,6 +80,33 @@ async function resolveOrganizationId(
   return { ok: true, organizationId };
 }
 
+const CONTACT_MISMATCH = 'Контакт не найден или относится к другой организации';
+
+/**
+ * `У-180`: контакт сделки — человек компании сделки, не в архиве; его
+ * организация либо не задана («с улицы»), либо совпадает с организацией
+ * сделки. Сделка без организации принимает любого контакта компании. Границу
+ * держит компания сделки, а не сессия: администратор заводит сделку в своей
+ * компании и чужого контакта к ней привязать не может.
+ */
+async function resolveContactId(
+  prisma: PrismaClient,
+  dealCompanyId: string,
+  raw: string | null | undefined,
+  organizationId: string | null
+): Promise<{ ok: true; contactId: string | null } | { ok: false }> {
+  const contactId = raw?.trim() || null;
+  if (!contactId) return { ok: true, contactId: null };
+  const contact = await prisma.contact.findUnique({
+    where: { id: contactId },
+    select: { companyId: true, organizationId: true, isArchived: true },
+  });
+  if (!contact || contact.isArchived || contact.companyId !== dealCompanyId) return { ok: false };
+  if (organizationId && contact.organizationId && contact.organizationId !== organizationId)
+    return { ok: false };
+  return { ok: true, contactId };
+}
+
 /** Ответственный: менеджер своей компании; admin — любой активный менеджер. */
 async function resolveManagerId(
   prisma: PrismaClient,
@@ -120,6 +149,13 @@ export async function createDeal(
   const manager = await resolveManagerId(prisma, session, input.managerId);
   if (!manager.ok)
     return { ok: false, error: 'validation', messages: ['Ответственный менеджер не найден'] };
+  const contact = await resolveContactId(
+    prisma,
+    session.companyId,
+    input.contactId,
+    org.organizationId
+  );
+  if (!contact.ok) return { ok: false, error: 'validation', messages: [CONTACT_MISMATCH] };
 
   const deal = await prisma.deal.create({
     data: {
@@ -129,6 +165,7 @@ export async function createDeal(
       expectedCloseAt: parsed.values.expectedCloseAt,
       organizationId: org.organizationId,
       managerId: manager.managerId,
+      contactId: contact.contactId,
     },
   });
 
@@ -137,7 +174,11 @@ export async function createDeal(
     action: 'deal_created',
     entity: 'deal',
     entityId: deal.id,
-    after: { organizationId: org.organizationId, managerId: manager.managerId },
+    after: {
+      organizationId: org.organizationId,
+      managerId: manager.managerId,
+      contactId: contact.contactId,
+    },
   });
 
   return { ok: true, deal };
@@ -152,7 +193,7 @@ export async function updateDeal(
 
   const existing = await prisma.deal.findFirst({
     where: { AND: [{ id: args.dealId }, dealScopeWhere(session)] },
-    select: { id: true, status: true },
+    select: { id: true, status: true, companyId: true, contactId: true },
   });
   if (!existing) return { ok: false, error: 'not_found' };
   if (existing.status !== 'open')
@@ -170,6 +211,14 @@ export async function updateDeal(
   const manager = await resolveManagerId(prisma, session, args.managerId);
   if (!manager.ok)
     return { ok: false, error: 'validation', messages: ['Ответственный менеджер не найден'] };
+  // Прежний контакт не перепроверяем: он мог уехать в архив, и правка
+  // названия сделки не должна упираться в «контакт не найден» (форма держит
+  // его отдельной строкой). Проверка — только для нового значения.
+  const contact =
+    (args.contactId?.trim() || null) === existing.contactId
+      ? { ok: true as const, contactId: existing.contactId }
+      : await resolveContactId(prisma, existing.companyId, args.contactId, org.organizationId);
+  if (!contact.ok) return { ok: false, error: 'validation', messages: [CONTACT_MISMATCH] };
 
   const deal = await prisma.deal.update({
     where: { id: existing.id },
@@ -179,6 +228,7 @@ export async function updateDeal(
       expectedCloseAt: parsed.values.expectedCloseAt,
       organizationId: org.organizationId,
       managerId: manager.managerId,
+      contactId: contact.contactId,
     },
   });
 
@@ -187,7 +237,11 @@ export async function updateDeal(
     action: 'deal_updated',
     entity: 'deal',
     entityId: deal.id,
-    after: { organizationId: org.organizationId, managerId: manager.managerId },
+    after: {
+      organizationId: org.organizationId,
+      managerId: manager.managerId,
+      contactId: contact.contactId,
+    },
   });
 
   return { ok: true, deal };

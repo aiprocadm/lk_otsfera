@@ -62,6 +62,7 @@ function dealInput(fd: FormData): DealInput {
     organizationId: str(fd, 'organizationId') || null,
     managerId: str(fd, 'managerId') || null,
     expectedCloseAt: str(fd, 'expectedCloseAt') || null,
+    contactId: str(fd, 'contactId') || null,
   };
 }
 

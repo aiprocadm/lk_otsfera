@@ -134,6 +134,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   order_item_removed: 'Удаление позиции заказа',
   order_item_status_changed: 'Смена статуса позиции заказа',
   order_manager_changed: 'Смена менеджера заказа',
+  order_primary_contact_changed: 'Смена контакта заказа',
   order_result_delivered: 'Передача результата по заказу',
   order_self_assigned: 'Заказ взят в работу',
   order_status_changed: 'Смена статуса заказа',

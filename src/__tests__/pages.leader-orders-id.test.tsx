@@ -49,6 +49,23 @@ vi.mock('@/components/orders/order-lines-section', () => ({
     ),
 }));
 
+// Этап 1 ТЗ 12.09.2026 (`У-180`): «Контакт заказа» — тот же блок, что у
+// менеджера (правило зеркала §0.2). Сервис и режим команды стабятся, панель —
+// заглушка, печатающая пропсы (кабинет обязан быть `leader`).
+const { getCompanyTeamVisibility } = vi.hoisted(() => ({ getCompanyTeamVisibility: vi.fn() }));
+vi.mock('@/lib/auth/managerPolicy', () => ({ getCompanyTeamVisibility }));
+const { getOrderContactPanel } = vi.hoisted(() => ({ getOrderContactPanel: vi.fn() }));
+vi.mock('@/lib/services/orders/primaryContact', () => ({ getOrderContactPanel }));
+vi.mock('@/components/orders/order-contact-panel', () => ({
+  OrderContactPanel: (props: {
+    orderId: string;
+    cabinet: string;
+    organizationId: string | null;
+    current: unknown;
+    options: unknown[];
+  }) => React.createElement('div', { 'data-testid': 'order-contact-panel' }, JSON.stringify(props)),
+}));
+
 const { listDirections } = vi.hoisted(() => ({ listDirections: vi.fn() }));
 vi.mock('@/lib/services/training', () => ({ listDirections }));
 
@@ -60,6 +77,30 @@ vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 
 const { listCompanyManagers } = vi.hoisted(() => ({ listCompanyManagers: vi.fn() }));
 vi.mock('@/lib/services/manager/team', () => ({ listCompanyManagers }));
+
+// `У-144`: панель выпуска документов — тот же компонент, что у менеджера и
+// админа; данные для неё собирает сервис, страница только монтирует.
+const { getDocumentGenerationPanel } = vi.hoisted(() => ({
+  getDocumentGenerationPanel: vi.fn(),
+}));
+vi.mock('@/lib/services/documents/generationPanel', () => ({ getDocumentGenerationPanel }));
+vi.mock('@/components/manager/generate-documents-panel', () => ({
+  GenerateDocumentsPanel: (props: {
+    orderId: string;
+    counterpartyName: string;
+    orderLines: unknown[];
+    missingByType: Record<string, unknown[]>;
+    hasInvoice: boolean;
+    hasContract: boolean;
+  }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'generate-panel' },
+      `${props.orderId}:missing=${props.missingByType.invoice?.length ?? 0}` +
+        `:invoice=${props.hasInvoice}:contract=${props.hasContract}` +
+        `:party=${props.counterpartyName}:lines=${props.orderLines.length}`
+    ),
+}));
 
 vi.mock('@/components/leader/leader-assign-order-manager-form', () => ({
   LeaderAssignOrderManagerForm: (props: {
@@ -97,7 +138,9 @@ vi.mock('@/components/manager/manager-order-detail-view', () => ({
     inboundEnabled?: boolean;
     telephonyEnabled?: boolean;
     linesSection?: React.ReactNode;
+    generatePanel?: React.ReactNode;
     dealPanel?: React.ReactNode;
+    contactPanel?: React.ReactNode;
     breadcrumbs?: Array<{ label: string; href: string | null }>;
   }) =>
     React.createElement(
@@ -111,7 +154,9 @@ vi.mock('@/components/manager/manager-order-detail-view', () => ({
       JSON.stringify(props.activityItems),
       String(props.inboundEnabled),
       String(props.telephonyEnabled),
+      props.generatePanel,
       props.dealPanel,
+      props.contactPanel,
       JSON.stringify(props.breadcrumbs ?? [])
     ),
 }));
@@ -157,6 +202,9 @@ describe('LeaderOrderDetailPage', () => {
     listCompanyManagers.mockResolvedValue([]);
     getOrderLinesPanel.mockReset();
     getOrderLinesPanel.mockResolvedValue(null);
+    getCompanyTeamVisibility.mockReset().mockResolvedValue(false);
+    getOrderContactPanel.mockReset().mockResolvedValue(null);
+    getDocumentGenerationPanel.mockReset();
     nav.notFound.mockClear();
   });
 
@@ -476,6 +524,131 @@ describe('LeaderOrderDetailPage', () => {
       const { container } = await render();
 
       expect(container.textContent).not.toContain('Переговоры, из которых вырос этот заказ');
+    });
+  });
+
+  // Этап 1 ТЗ 12.09.2026 (`У-180`): «Контакт заказа» у руководителя — зеркало
+  // карточки менеджера: тот же сервис, тот же компонент, кабинет — свой.
+  describe('панель «Контакт заказа» (`У-180`)', () => {
+    const PANEL = {
+      current: null,
+      options: [{ id: 'ct-1', name: 'Пётр Петров', position: null, organizationId: 'org-1' }],
+    };
+
+    async function render() {
+      requireManagerLeader.mockResolvedValue(SESSION);
+      loadManagerOrderDetail.mockResolvedValue(BASE_DATA);
+      listOrderStudentOptions.mockResolvedValue([]);
+      listDirections.mockResolvedValue({ ok: true, directions: [] });
+      getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
+      getDealActivity.mockResolvedValue({ ok: true, items: [] });
+      return renderServerComponent(
+        LeaderOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
+      );
+    }
+
+    it('флаг contacts выключен: ни сервис, ни режим команды не читаются, панели нет', async () => {
+      isFeatureEnabled.mockReturnValue(false);
+
+      const { container } = await render();
+
+      expect(getOrderContactPanel).not.toHaveBeenCalled();
+      expect(getCompanyTeamVisibility).not.toHaveBeenCalled();
+      expect(container.querySelector('[data-testid="order-contact-panel"]')).toBeNull();
+    });
+
+    it('флаг включён, сервис отказал (null): панели нет, но teamMode прочитан свежим и передан', async () => {
+      isFeatureEnabled.mockImplementation((flag: string) => flag === 'contacts');
+      getCompanyTeamVisibility.mockResolvedValue(true);
+      getOrderContactPanel.mockResolvedValue(null);
+
+      const { container } = await render();
+
+      expect(getCompanyTeamVisibility).toHaveBeenCalledWith(prismaMock, 'c1');
+      expect(getOrderContactPanel).toHaveBeenCalledWith(prismaMock, SESSION, true, BASE_DATA.order);
+      expect(container.querySelector('[data-testid="order-contact-panel"]')).toBeNull();
+    });
+
+    it('флаг включён, сервис отдал данные: панель смонтирована для кабинета руководителя', async () => {
+      // Контакт ещё не выбран (`current: null`), но список есть — панель нужна,
+      // чтобы его выбрать; кабинет `leader` — ссылки уйдут в свой раздел.
+      isFeatureEnabled.mockImplementation((flag: string) => flag === 'contacts');
+      getOrderContactPanel.mockResolvedValue(PANEL);
+
+      const { container } = await render();
+
+      expect(getOrderContactPanel).toHaveBeenCalledWith(
+        prismaMock,
+        SESSION,
+        false,
+        BASE_DATA.order
+      );
+      const panel = container.querySelector('[data-testid="order-contact-panel"]');
+      expect(JSON.parse(panel?.textContent ?? '{}')).toEqual({
+        orderId: 'order-1',
+        cabinet: 'leader',
+        organizationId: 'org-1',
+        current: null,
+        options: PANEL.options,
+      });
+    });
+  });
+
+  // `У-144` (дефект `Д-13`): руководитель выпускает документы из карточки —
+  // тот же компонент и тот же сервис, что у менеджера. Панель есть только при
+  // включённом флаге и при обеих сторонах сделки (организация и компания).
+  describe('панель выпуска документов (`У-144`)', () => {
+    async function render(orderOver: Record<string, unknown> = {}) {
+      requireManagerLeader.mockResolvedValue(SESSION);
+      loadManagerOrderDetail.mockResolvedValue({
+        ...BASE_DATA,
+        order: { ...BASE_DATA.order, companyId: 'co-1', ...orderOver },
+      });
+      listOrderStudentOptions.mockResolvedValue([]);
+      listDirections.mockResolvedValue({ ok: true, directions: [] });
+      getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
+      getDealActivity.mockResolvedValue({ ok: true, items: [] });
+      isFeatureEnabled.mockImplementation((flag: string) => flag === 'document_generation');
+      getDocumentGenerationPanel.mockResolvedValue({
+        missingByType: { invoice: [{ code: 'inn' }], act: [], contract: [], extra_agreement: [] },
+        hasInvoice: false,
+        hasContract: true,
+        baseDocuments: [],
+        counterpartyName: 'ООО «Ромашка»',
+        orderLines: [{ id: 'l1' }],
+      });
+      return renderServerComponent(
+        LeaderOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
+      );
+    }
+
+    it('флаг включён, стороны на месте: сервис собрал данные, панель смонтирована', async () => {
+      const { container } = await render();
+
+      expect(getDocumentGenerationPanel).toHaveBeenCalledWith(prismaMock, {
+        orderId: 'order-1',
+        companyId: 'co-1',
+        organizationId: 'org-1',
+      });
+      expect(container.querySelector('[data-testid="generate-panel"]')?.textContent).toBe(
+        'order-1:missing=1:invoice=false:contract=true:party=ООО «Ромашка»:lines=1'
+      );
+    });
+
+    it('заказ без организации: панели нет, сервис не зовётся', async () => {
+      // Без стороны-заказчика выпускать документ некому — панель не рисуем,
+      // чтобы не вести в форму, которой сервер откажет.
+      const { container } = await render({ organizationId: null });
+
+      expect(getDocumentGenerationPanel).not.toHaveBeenCalled();
+      expect(container.querySelector('[data-testid="generate-panel"]')).toBeNull();
+    });
+
+    it('заказ без компании-продавца: панели нет, сервис не зовётся', async () => {
+      const { container } = await render({ companyId: null });
+
+      expect(getDocumentGenerationPanel).not.toHaveBeenCalled();
+      expect(container.querySelector('[data-testid="generate-panel"]')).toBeNull();
     });
   });
 });

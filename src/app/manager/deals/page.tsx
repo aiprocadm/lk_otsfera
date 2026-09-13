@@ -6,6 +6,8 @@ import { prisma } from '@/lib/db/prisma';
 import { getDealBoard } from '@/lib/services/deals/board';
 import { listCompanyOrgOptions } from '@/lib/services/manager/organizations';
 import { listCompanyManagers } from '@/lib/services/manager/team';
+import { getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
+import { listContactOptions } from '@/lib/services/contacts/options';
 import { DealBoard } from '@/components/deals/deal-board';
 import { NewDealButton } from '@/components/deals/deal-dialog';
 
@@ -31,6 +33,16 @@ export default async function ManagerDealsPage() {
     .filter((m) => m.isActive)
     .map((m) => ({ id: m.id, name: m.name }));
 
+  // Этап 1 ТЗ 12.09.2026 (`У-180`): поле «Контакт» формы сделки — контакты в
+  // охвате сотрудника (`teamMode` свежий, C8); при выключенном флаге поля нет.
+  const contacts = isFeatureEnabled('contacts')
+    ? await listContactOptions(
+        prisma,
+        session,
+        await getCompanyTeamVisibility(prisma, session.companyId)
+      )
+    : undefined;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
@@ -43,6 +55,7 @@ export default async function ManagerDealsPage() {
         <NewDealButton
           organizations={organizations}
           managers={managerOptions}
+          contacts={contacts}
           currentUserId={session.sub}
         />
       </div>
@@ -50,6 +63,8 @@ export default async function ManagerDealsPage() {
         board={board}
         organizations={organizations}
         managers={managerOptions}
+        contacts={contacts}
+        contactHrefBase="/manager/contacts"
         currentUserId={session.sub}
         tasksEnabled={isFeatureEnabled('internal_tasks')}
       />

@@ -40,6 +40,45 @@ vi.mock('@/components/orders/order-lines-section', () => ({
     ),
 }));
 
+// Этап 1 ТЗ 12.09.2026 (`У-180`): «Контакт заказа» — тот же блок, что у
+// менеджера и руководителя (правило зеркала §0.2). Сервис стабится, панель —
+// заглушка, печатающая пропсы (кабинет обязан быть `admin`).
+const { getOrderContactPanel } = vi.hoisted(() => ({ getOrderContactPanel: vi.fn() }));
+vi.mock('@/lib/services/orders/primaryContact', () => ({ getOrderContactPanel }));
+vi.mock('@/components/orders/order-contact-panel', () => ({
+  OrderContactPanel: (props: {
+    orderId: string;
+    cabinet: string;
+    organizationId: string | null;
+    current: unknown;
+    options: unknown[];
+  }) => React.createElement('div', { 'data-testid': 'order-contact-panel' }, JSON.stringify(props)),
+}));
+
+// `У-144`: панель выпуска документов — тот же компонент, что у менеджера и
+// руководителя; данные собирает сервис, страница только монтирует.
+const { getDocumentGenerationPanel } = vi.hoisted(() => ({
+  getDocumentGenerationPanel: vi.fn(),
+}));
+vi.mock('@/lib/services/documents/generationPanel', () => ({ getDocumentGenerationPanel }));
+vi.mock('@/components/manager/generate-documents-panel', () => ({
+  GenerateDocumentsPanel: (props: {
+    orderId: string;
+    counterpartyName: string;
+    orderLines: unknown[];
+    missingByType: Record<string, unknown[]>;
+    hasInvoice: boolean;
+    hasContract: boolean;
+  }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'generate-panel' },
+      `${props.orderId}:missing=${props.missingByType.invoice?.length ?? 0}` +
+        `:invoice=${props.hasInvoice}:contract=${props.hasContract}` +
+        `:party=${props.counterpartyName}:lines=${props.orderLines.length}`
+    ),
+}));
+
 const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
@@ -114,6 +153,8 @@ describe('AdminOrderDetailPage', () => {
     isFeatureEnabled.mockReset();
     getOrderLinesPanel.mockReset();
     getOrderLinesPanel.mockResolvedValue(null);
+    getOrderContactPanel.mockReset().mockResolvedValue(null);
+    getDocumentGenerationPanel.mockReset();
     nav.notFound.mockClear();
   });
 
@@ -290,6 +331,150 @@ describe('AdminOrderDetailPage', () => {
 
       expect(loadOrderDeal).not.toHaveBeenCalled();
       expect(container.textContent).not.toContain('Переговоры, из которых вырос этот заказ');
+    });
+  });
+
+  // Этап 1 ТЗ 12.09.2026 (`У-180`): «Контакт заказа» у администратора — зеркало
+  // карточек менеджера и руководителя. Команды у админа нет (Model A), поэтому
+  // `teamMode` уходит в сервис явным `false`, а не читается из базы.
+  describe('панель «Контакт заказа» (`У-180`)', () => {
+    const ORDER = {
+      ...BASE_ORDER,
+      organizationId: 'org-1',
+      companyId: 'co-1',
+      primaryContactId: 'ct-1',
+    };
+    const PANEL = {
+      current: {
+        id: 'ct-1',
+        name: 'Пётр Петров',
+        position: null,
+        organizationId: 'org-1',
+        isArchived: true,
+      },
+      options: [],
+    };
+    const DEAL = {
+      id: 'd1',
+      title: 'Сделка с Ромашкой',
+      amount: null,
+      status: 'open' as const,
+      wonAt: null,
+      stageName: null,
+      managerName: null,
+      lead: null,
+    };
+
+    async function render() {
+      requireAdmin.mockResolvedValue(SESSION);
+      getOrderForAdmin.mockResolvedValue(ORDER);
+      listManagerCandidates.mockResolvedValue([]);
+      getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
+      return renderServerComponent(
+        AdminOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
+      );
+    }
+
+    it('флаг contacts выключен: сервис не зовётся, панели нет', async () => {
+      isFeatureEnabled.mockReturnValue(false);
+
+      const { container } = await render();
+
+      expect(getOrderContactPanel).not.toHaveBeenCalled();
+      expect(container.querySelector('[data-testid="order-contact-panel"]')).toBeNull();
+    });
+
+    it('флаг включён, сервис отказал (null): панели нет; teamMode передан явным false', async () => {
+      // Сервис отвечает `null` и заказу чужой компании: администратор его
+      // видит (Model A), но контакты живут в границах компании — панели нет.
+      isFeatureEnabled.mockImplementation((flag: string) => flag === 'contacts');
+      getOrderContactPanel.mockResolvedValue(null);
+
+      const { container } = await render();
+
+      expect(getOrderContactPanel).toHaveBeenCalledWith({}, SESSION, false, ORDER);
+      expect(container.querySelector('[data-testid="order-contact-panel"]')).toBeNull();
+    });
+
+    it('флаг включён, сервис отдал данные: панель для кабинета admin стоит перед панелью сделки', async () => {
+      isFeatureEnabled.mockImplementation(
+        (flag: string) => flag === 'contacts' || flag === 'deals_pipeline'
+      );
+      getOrderContactPanel.mockResolvedValue(PANEL);
+      loadOrderDeal.mockResolvedValue(DEAL);
+
+      const { container } = await render();
+
+      expect(getOrderContactPanel).toHaveBeenCalledWith({}, SESSION, false, ORDER);
+      const panel = container.querySelector('[data-testid="order-contact-panel"]');
+      expect(JSON.parse(panel?.textContent ?? '{}')).toEqual({
+        orderId: 'order-1',
+        cabinet: 'admin',
+        organizationId: 'org-1',
+        current: PANEL.current,
+        options: [],
+      });
+      // Порядок блоков — тот же, что у менеджера и руководителя: контакт, затем сделка.
+      const html = container.innerHTML;
+      expect(html.indexOf('order-contact-panel')).toBeGreaterThan(-1);
+      expect(html.indexOf('order-contact-panel')).toBeLessThan(
+        html.indexOf('Переговоры, из которых вырос этот заказ')
+      );
+    });
+  });
+
+  // `У-144` (дефект `Д-13`): администратор выпускает документы из карточки —
+  // тот же компонент и сервис, что у менеджера и руководителя. Панель есть
+  // только при включённом флаге и обеих сторонах (организация и компания).
+  describe('панель выпуска документов (`У-144`)', () => {
+    async function render(orderOver: Record<string, unknown> = {}) {
+      requireAdmin.mockResolvedValue(SESSION);
+      getOrderForAdmin.mockResolvedValue({
+        ...BASE_ORDER,
+        organizationId: 'org-1',
+        companyId: 'co-1',
+        ...orderOver,
+      });
+      listManagerCandidates.mockResolvedValue([]);
+      getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
+      isFeatureEnabled.mockImplementation((flag: string) => flag === 'document_generation');
+      getDocumentGenerationPanel.mockResolvedValue({
+        missingByType: { invoice: [], act: [], contract: [], extra_agreement: [] },
+        hasInvoice: true,
+        hasContract: false,
+        baseDocuments: [],
+        counterpartyName: 'ООО «Ромашка»',
+        orderLines: [],
+      });
+      return renderServerComponent(
+        AdminOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
+      );
+    }
+
+    it('флаг включён, стороны на месте: сервис собрал данные, панель смонтирована', async () => {
+      const { container } = await render();
+
+      expect(getDocumentGenerationPanel).toHaveBeenCalledWith(
+        {},
+        { orderId: 'order-1', companyId: 'co-1', organizationId: 'org-1' }
+      );
+      expect(container.querySelector('[data-testid="generate-panel"]')?.textContent).toBe(
+        'order-1:missing=0:invoice=true:contract=false:party=ООО «Ромашка»:lines=0'
+      );
+    });
+
+    it('заказ без организации: панели нет, сервис не зовётся', async () => {
+      const { container } = await render({ organizationId: null });
+
+      expect(getDocumentGenerationPanel).not.toHaveBeenCalled();
+      expect(container.querySelector('[data-testid="generate-panel"]')).toBeNull();
+    });
+
+    it('заказ без компании-продавца: панели нет, сервис не зовётся', async () => {
+      const { container } = await render({ companyId: null });
+
+      expect(getDocumentGenerationPanel).not.toHaveBeenCalled();
+      expect(container.querySelector('[data-testid="generate-panel"]')).toBeNull();
     });
   });
 });

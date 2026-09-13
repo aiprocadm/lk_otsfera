@@ -28,6 +28,29 @@ vi.mock('@/components/tasks/linked-tasks-panel', () => ({
     ),
 }));
 
+// Этап 1 ТЗ 12.09.2026 (`У-180`): блок «Контакт» — право на справочник, режим
+// команды (C8) и поиск человека по телефону/почте решают сервисы; страница
+// только монтирует ссылку или кнопку. Все три стабятся, кнопка — меткой с пропсами.
+const { getCompanyTeamVisibility } = vi.hoisted(() => ({ getCompanyTeamVisibility: vi.fn() }));
+vi.mock('@/lib/auth/managerPolicy', () => ({ getCompanyTeamVisibility }));
+const { canUseContacts } = vi.hoisted(() => ({ canUseContacts: vi.fn() }));
+vi.mock('@/lib/services/contacts/scope', () => ({ canUseContacts }));
+const { findLeadContact } = vi.hoisted(() => ({ findLeadContact: vi.fn() }));
+vi.mock('@/lib/services/contacts/leadContact', () => ({ findLeadContact }));
+vi.mock('@/components/manager/create-contact-from-lead-button', () => ({
+  CreateContactFromLeadButton: (props: {
+    name: string;
+    phone: string | null;
+    email: string | null;
+    organizationId: string | null;
+  }) =>
+    React.createElement(
+      'button',
+      { 'data-testid': 'create-contact-from-lead' },
+      JSON.stringify(props)
+    ),
+}));
+
 const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
@@ -108,6 +131,11 @@ describe('ManagerLeadDetailPage', () => {
     listCompanyManagers.mockReset();
     listCompanyManagers.mockResolvedValue([]);
     listLinkedTasks.mockReset().mockResolvedValue([]);
+    // Умолчания блока «Контакт»: право есть, команда выключена, совпадения нет.
+    // Так прежние тесты не зависят от того, включён ли `contacts` в окружении.
+    getCompanyTeamVisibility.mockReset().mockResolvedValue(false);
+    canUseContacts.mockReset().mockReturnValue(true);
+    findLeadContact.mockReset().mockResolvedValue(null);
     vi.unstubAllEnvs();
     nav.notFound.mockClear();
   });
@@ -512,6 +540,117 @@ describe('ManagerLeadDetailPage', () => {
       const nav = container.querySelector('nav[aria-label="Хлебные крошки"]');
       expect(nav!.textContent).toContain('Лиды');
       expect(nav!.textContent).not.toContain('Обращения');
+    });
+  });
+
+  // Этап 1 ТЗ 12.09.2026 (`У-180`): «контакт из всех точек» — человек из заявки
+  // либо уже в справочнике (ссылка), либо его можно завести одной кнопкой.
+  describe('блок «Контакт» (`У-180`)', () => {
+    const CONTACT_FIELDS = {
+      clientContactPhone: '+7 900 000-00-00',
+      clientContactEmail: 'p@x.ru',
+    };
+
+    async function renderLead(extra: Record<string, unknown> = {}) {
+      requireManager.mockResolvedValue(SESSION);
+      getManagerLead.mockResolvedValue({ ...BASE_LEAD, ...extra });
+      return renderServerComponent(
+        ManagerLeadDetailPage({ params: Promise.resolve({ id: 'lead-1' }) })
+      );
+    }
+
+    function contactBlock(container: HTMLElement): Element | null {
+      return container.querySelector('[data-testid="create-contact-from-lead"]');
+    }
+
+    it('флаг contacts выключен: блока нет, право, режим команды и поиск не спрашиваются', async () => {
+      // Флаг стоит первым в условии: при выключенном справочнике страница не
+      // должна ходить ни за правом, ни в базу за режимом команды.
+      vi.stubEnv('FEATURE_CONTACTS', '0');
+
+      const { container } = await renderLead(CONTACT_FIELDS);
+
+      expect(canUseContacts).not.toHaveBeenCalled();
+      expect(getCompanyTeamVisibility).not.toHaveBeenCalled();
+      expect(findLeadContact).not.toHaveBeenCalled();
+      expect(contactBlock(container)).toBeNull();
+      expect(container.textContent).not.toContain('в справочнике контактов нет');
+      expect(container.textContent).not.toContain('совпали с контактом');
+    });
+
+    it('флаг включён, но права на справочник нет: блока нет и поиск не запускается', async () => {
+      // Кнопку не показываем тому, кому сервис всё равно откажет (§4).
+      vi.stubEnv('FEATURE_CONTACTS', '1');
+      canUseContacts.mockReturnValue(false);
+
+      const { container } = await renderLead(CONTACT_FIELDS);
+
+      expect(canUseContacts).toHaveBeenCalledWith(SESSION);
+      expect(getCompanyTeamVisibility).not.toHaveBeenCalled();
+      expect(findLeadContact).not.toHaveBeenCalled();
+      expect(contactBlock(container)).toBeNull();
+      expect(container.textContent).not.toContain('в справочнике контактов нет');
+    });
+
+    it('контакт найден: ссылка на его карточку с именем, кнопки создания нет', async () => {
+      // Режим команды читается свежим и уходит в сервис вместе с лидом — от
+      // него зависит, считается ли найденный человек «в охвате» сотрудника.
+      vi.stubEnv('FEATURE_CONTACTS', '1');
+      getCompanyTeamVisibility.mockResolvedValue(true);
+      findLeadContact.mockResolvedValue({ id: 'ct-1', name: 'Пётр Петров' });
+      const lead = { ...BASE_LEAD, ...CONTACT_FIELDS };
+
+      const { container } = await renderLead(lead);
+
+      expect(getCompanyTeamVisibility).toHaveBeenCalledWith({}, 'c1');
+      expect(findLeadContact).toHaveBeenCalledWith({}, SESSION, true, lead);
+      const link = container.querySelector('a[href="/manager/contacts/ct-1"]');
+      expect(link?.textContent).toBe('Пётр Петров');
+      expect(container.textContent).toContain('совпали с контактом');
+      expect(contactBlock(container)).toBeNull();
+    });
+
+    it('контакта нет: пояснение и кнопка «Создать контакт из данных лида» с его реквизитами', async () => {
+      // Кнопка без формы: имя, телефон, почта и организация берутся с карточки,
+      // переспрашивать видимое незачем.
+      vi.stubEnv('FEATURE_CONTACTS', '1');
+      findLeadContact.mockResolvedValue(null);
+
+      const { container } = await renderLead({
+        ...CONTACT_FIELDS,
+        organizationId: 'org-1',
+        organizationName: 'Org',
+      });
+
+      expect(getCompanyTeamVisibility).toHaveBeenCalledWith({}, 'c1');
+      expect(findLeadContact).toHaveBeenCalledWith({}, SESSION, false, expect.anything());
+      expect(container.textContent).toContain(
+        'Человека из этой заявки в справочнике контактов нет'
+      );
+      const button = contactBlock(container);
+      expect(JSON.parse(button?.textContent ?? '{}')).toEqual({
+        name: 'Иванов',
+        phone: '+7 900 000-00-00',
+        email: 'p@x.ru',
+        organizationId: 'org-1',
+      });
+      expect(container.querySelector('a[href^="/manager/contacts/"]')).toBeNull();
+    });
+
+    it('у лида без телефона и почты кнопка получает null в обоих каналах', async () => {
+      // Контакт без каналов завести можно — по имени; сервис создания сам решит,
+      // хватает ли данных. Страница честно передаёт «нет», а не пустую строку.
+      vi.stubEnv('FEATURE_CONTACTS', '1');
+
+      const { container } = await renderLead();
+
+      const button = contactBlock(container);
+      expect(JSON.parse(button?.textContent ?? '{}')).toEqual({
+        name: 'Иванов',
+        phone: null,
+        email: null,
+        organizationId: null,
+      });
     });
   });
 });

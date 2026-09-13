@@ -187,6 +187,36 @@ describe('ManagerOrderDetailView', () => {
     expect(without).not.toContain('order-lines');
   });
 
+  it('панель «Контакт заказа» монтируется готовым узлом от страницы и стоит выше панели «Сделка»', () => {
+    // `У-180`: данные и права панели собирает страница — деталка не знает,
+    // кто там выбран. Порядок в правой колонке: сначала человек (с кем
+    // говорить по заказу), потом переговоры, из которых заказ вырос.
+    const withPanel = renderToString(
+      React.createElement(ManagerOrderDetailView, {
+        data: makeData({}),
+        backHref: '/manager/orders',
+        directions: [],
+        students: [],
+        contactPanel: React.createElement('div', { 'data-testid': 'contact-panel' }, 'контакт'),
+        dealPanel: React.createElement('div', { 'data-testid': 'deal-panel' }, 'сделка'),
+      })
+    );
+    expect(withPanel).toContain('data-testid="contact-panel"');
+    expect(withPanel.indexOf('data-testid="contact-panel"')).toBeLessThan(
+      withPanel.indexOf('data-testid="deal-panel"')
+    );
+
+    const without = renderToString(
+      React.createElement(ManagerOrderDetailView, {
+        data: makeData({}),
+        backHref: '/manager/orders',
+        directions: [],
+        students: [],
+      })
+    );
+    expect(without).not.toContain('contact-panel');
+  });
+
   it('documentRows count is shown in the "Документы" header when non-empty', () => {
     const html = renderToString(
       React.createElement(ManagerOrderDetailView, {

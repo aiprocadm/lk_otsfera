@@ -18,6 +18,7 @@ import type { DealNoteRow } from '@/lib/services/deals/notes';
 import type { ProposalBlockRow } from '@/lib/services/documents/proposalBlocks';
 import { ProposalsBlock } from '@/components/documents/proposals-block';
 import type { TaskCard } from '@/lib/services/tasks/board';
+import type { ContactOption } from '@/lib/services/contacts/options';
 import { LinkedTasksPanel } from '@/components/tasks/linked-tasks-panel';
 
 /**
@@ -44,10 +45,26 @@ export type DealDialogTarget = {
   organizationId: string | null;
   /** `У-161`: лид, из которого выросла сделка, — адресат КП без организации. */
   leadId: string | null;
+  /** `У-180`: контакт сделки — человек со стороны клиента. */
+  contactId: string | null;
   managerId: string | null;
   expectedCloseAt: Date | null;
   orderId: string | null;
 };
+
+/**
+ * `У-180`: какие контакты предлагать при выбранной организации — люди этой
+ * организации и люди «с улицы» (без организации); без организации — все.
+ * Зеркало проверки `resolveContactId` в `deals/crud.ts`: форма не предлагает
+ * того, кого сервис отклонит.
+ */
+function contactsForOrganization(
+  contacts: ContactOption[],
+  organizationId: string
+): ContactOption[] {
+  if (!organizationId) return contacts;
+  return contacts.filter((c) => c.organizationId === null || c.organizationId === organizationId);
+}
 
 function dateValue(d: Date | null): string {
   if (!d) return '';
@@ -58,6 +75,8 @@ export function DealDialog({
   target,
   organizations,
   managers,
+  contacts,
+  contactHrefBase,
   currentUserId,
   tasksEnabled = false,
   onIssueDocument,
@@ -67,6 +86,13 @@ export function DealDialog({
   target: DealDialogTarget | null;
   organizations: DealDialogOption[];
   managers: DealDialogOption[];
+  /**
+   * `У-180`: контакты в охвате сотрудника для поля «Контакт». `undefined` —
+   * справочник контактов выключен флагом `contacts`, поля в форме нет.
+   */
+  contacts?: ContactOption[] | undefined;
+  /** Куда ведёт «Открыть карточку контакта» — раздел контактов своего кабинета. */
+  contactHrefBase?: string | undefined;
   currentUserId: string;
   /** Этап 7 (ФТ-7.1): блок «Задачи» — только при флаге internal_tasks (пробрасывает страница). */
   tasksEnabled?: boolean | undefined;
@@ -81,6 +107,26 @@ export function DealDialog({
 }) {
   const [submitting, setSubmitting] = useState(false);
   const [messages, setMessages] = useState<string[]>([]);
+  // `У-180`: организация управляется, чтобы список контактов сужался вместе с ней.
+  const [organizationId, setOrganizationId] = useState(target?.organizationId ?? '');
+  const [contactId, setContactId] = useState(target?.contactId ?? '');
+  // Контакт сделки, которого в списке нет (в архиве или вне охвата сотрудника),
+  // остаётся в форме отдельной строкой: иначе любое сохранение молча
+  // отправило бы пустое поле и стёрло его. Снять его можно только нарочно.
+  const heldContact: ContactOption | null =
+    contacts && target?.contactId && !contacts.some((c) => c.id === target.contactId)
+      ? {
+          id: target.contactId,
+          name: 'Текущий контакт (вне вашего списка)',
+          position: null,
+          organizationId: null,
+        }
+      : null;
+  const contactOptions = contacts
+    ? [...contactsForOrganization(contacts, organizationId), ...(heldContact ? [heldContact] : [])]
+    : [];
+  // Сменили организацию — контакт другой организации из формы выпадает сам.
+  const contactValue = contactOptions.some((c) => c.id === contactId) ? contactId : '';
   // Заметки (только редактирование): null — ещё грузятся.
   const [notes, setNotes] = useState<DealNoteRow[] | null>(null);
   const [proposals, setProposals] = useState<ProposalBlockRow[] | null>(null);
@@ -213,7 +259,12 @@ export function DealDialog({
           </Field>
         </div>
         <Field htmlFor="dl-org" label="Организация (необязательно)">
-          <Select id="dl-org" name="organizationId" defaultValue={target?.organizationId ?? ''}>
+          <Select
+            id="dl-org"
+            name="organizationId"
+            value={organizationId}
+            onChange={(e) => setOrganizationId(e.target.value)}
+          >
             <option value="">— не привязана —</option>
             {organizations.map((o) => (
               <option key={o.id} value={o.id}>
@@ -222,6 +273,42 @@ export function DealDialog({
             ))}
           </Select>
         </Field>
+        {contacts && (
+          <Field htmlFor="dl-contact" label="Контакт (необязательно)">
+            <Select
+              id="dl-contact"
+              name="contactId"
+              value={contactValue}
+              onChange={(e) => setContactId(e.target.value)}
+            >
+              <option value="">— не указан —</option>
+              {contactOptions.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                  {c.position ? ` — ${c.position}` : ''}
+                  {c.organizationId === null && c !== heldContact ? ' (без организации)' : ''}
+                </option>
+              ))}
+            </Select>
+            {contactOptions.length === 0 ? (
+              <p className="mt-1 text-xs text-gray-500">
+                {organizationId
+                  ? 'У этой организации контактов нет — добавьте человека в её карточке, вкладка «Контакты».'
+                  : 'Контактов в вашем охвате нет — заведите человека в разделе «Контакты».'}
+              </p>
+            ) : (
+              contactHrefBase &&
+              contactValue && (
+                <a
+                  href={`${contactHrefBase}/${contactValue}`}
+                  className="mt-1 inline-block text-xs text-[#F97316] underline"
+                >
+                  Открыть карточку контакта
+                </a>
+              )
+            )}
+          </Field>
+        )}
         <Field htmlFor="dl-manager" label="Ответственный">
           <Select
             id="dl-manager"
@@ -353,10 +440,13 @@ export function DealDialog({
 export function NewDealButton({
   organizations,
   managers,
+  contacts,
   currentUserId,
 }: {
   organizations: DealDialogOption[];
   managers: DealDialogOption[];
+  /** `У-180`: контакты для поля «Контакт»; `undefined` — флаг `contacts` выключен. */
+  contacts?: ContactOption[] | undefined;
   currentUserId: string;
 }) {
   const router = useRouter();
@@ -373,6 +463,7 @@ export function NewDealButton({
           target={null}
           organizations={organizations}
           managers={managers}
+          contacts={contacts}
           currentUserId={currentUserId}
           onClose={() => setOpen(false)}
           onSaved={() => {

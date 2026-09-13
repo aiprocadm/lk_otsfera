@@ -18,7 +18,7 @@ const SUBJECT_TYPES = new Set([
 describe('PII_CONTEXTS registry', () => {
   const entries = Object.entries(PII_CONTEXTS);
 
-  it('содержит все 30 контекстов v1+M1+M6+этапы 2/5/7/9 + ТЗ кабинетов + мессенджеры + контакты', () => {
+  it('содержит все 32 контекста v1+M1+M6+этапы 2/5/7/9 + ТЗ кабинетов + мессенджеры + контакты', () => {
     expect(entries.map(([k]) => k).sort()).toEqual([
       'admin_user_view',
       'admin_users_list',
@@ -28,6 +28,7 @@ describe('PII_CONTEXTS registry', () => {
       'client_requests_list', // этап 5: очередь/списки обращений
       'contact_card', // этап 1 ТЗ 12.09.2026 (`У-186`): карточка контакта
       'contacts_list', // этап 1 ТЗ 12.09.2026 (`У-186`): список контактов
+      'contacts_options', // этап 1 ТЗ 12.09.2026 (`У-180`): выбор контакта в форме сделки/заказа
       'contacts_search', // этап 1 ТЗ 12.09.2026 (`У-185`): контакты в глобальном поиске
       'deal_activity_calls',
       'deal_activity_inbound',
@@ -37,6 +38,7 @@ describe('PII_CONTEXTS registry', () => {
       'global_search_students',
       'inbox_list',
       'intake_list', // этап 7: union-список «Входящие в работу»
+      'lead_contact_match', // этап 1 ТЗ 12.09.2026 (`У-180`): контакт, найденный по данным лида
       'manager_lead_view',
       'manager_student_view',
       'manager_students_list',

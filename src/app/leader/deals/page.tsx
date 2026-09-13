@@ -6,6 +6,8 @@ import { prisma } from '@/lib/db/prisma';
 import { getDealBoard } from '@/lib/services/deals/board';
 import { listCompanyOrgOptions } from '@/lib/services/manager/organizations';
 import { listCompanyManagers } from '@/lib/services/manager/team';
+import { getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
+import { listContactOptions } from '@/lib/services/contacts/options';
 import { DealBoard } from '@/components/deals/deal-board';
 import { DealStageConfig } from '@/components/deals/deal-stage-config';
 import { DealsManagerFilter } from '@/components/deals/deals-manager-filter';
@@ -42,6 +44,16 @@ export default async function LeaderDealsPage({
     .map((m) => ({ id: m.id, name: m.name }));
   const isDefault = board.stages.length > 0 && board.stages[0]!.id.startsWith('default:');
 
+  // Этап 1 ТЗ 12.09.2026 (`У-180`): поле «Контакт» формы сделки — тот же список,
+  // что у менеджера (правило зеркала §0.2); при выключенном флаге поля нет.
+  const contacts = isFeatureEnabled('contacts')
+    ? await listContactOptions(
+        prisma,
+        session,
+        await getCompanyTeamVisibility(prisma, session.companyId)
+      )
+    : undefined;
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between gap-3">
@@ -54,6 +66,7 @@ export default async function LeaderDealsPage({
         <NewDealButton
           organizations={organizations}
           managers={managerOptions}
+          contacts={contacts}
           currentUserId={session.sub}
         />
       </div>
@@ -62,6 +75,8 @@ export default async function LeaderDealsPage({
         board={board}
         organizations={organizations}
         managers={managerOptions}
+        contacts={contacts}
+        contactHrefBase="/leader/contacts"
         currentUserId={session.sub}
         tasksEnabled={isFeatureEnabled('internal_tasks')}
       />

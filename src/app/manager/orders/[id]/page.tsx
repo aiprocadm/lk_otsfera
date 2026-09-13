@@ -23,6 +23,9 @@ import { OrderDealPanel } from '@/components/orders/order-deal-panel';
 import { getOrderStatusPanel } from '@/lib/services/orderStatuses';
 import { getOrderLinesPanel } from '@/lib/services/orders/linesPanel';
 import { OrderLinesSection } from '@/components/orders/order-lines-section';
+import { getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
+import { getOrderContactPanel } from '@/lib/services/orders/primaryContact';
+import { OrderContactPanel } from '@/components/orders/order-contact-panel';
 
 export default async function ManagerOrderDetailPage({
   params,
@@ -114,6 +117,17 @@ export default async function ManagerOrderDetailPage({
     isFeatureEnabled('deals_pipeline') && session.companyId
       ? await loadOrderDeal(prisma, id, { companyId: session.companyId })
       : null;
+  // Этап 1 ТЗ 12.09.2026 (`У-180`): «Контакт заказа» — с кем со стороны
+  // клиента ведут заказ. Флаг `contacts` поведенческий; `teamMode` читается
+  // свежим (C8), варианты — контакты организации заказа в охвате сотрудника.
+  const contactPanel = isFeatureEnabled('contacts')
+    ? await getOrderContactPanel(
+        prisma,
+        session,
+        await getCompanyTeamVisibility(prisma, session.companyId),
+        data.order
+      )
+    : null;
   const breadcrumbs = buildOrderBreadcrumbs({
     orderNumber: data.order.orderNumber,
     title: data.order.title,
@@ -159,6 +173,17 @@ export default async function ManagerOrderDetailPage({
       dealPanel={
         deal ? (
           <OrderDealPanel deal={deal} dealsHref="/manager/deals" leadHrefBase="/manager/leads" />
+        ) : null
+      }
+      contactPanel={
+        contactPanel ? (
+          <OrderContactPanel
+            orderId={id}
+            cabinet="manager"
+            organizationId={data.order.organizationId}
+            current={contactPanel.current}
+            options={contactPanel.options}
+          />
         ) : null
       }
     />

@@ -38,6 +38,7 @@ export function ManagerOrderDetailView({
   certificateScansPanel = null,
   statusPanel = null,
   dealPanel = null,
+  contactPanel = null,
   breadcrumbs = [],
 }: {
   data: ManagerOrderDetailData;
@@ -64,6 +65,8 @@ export function ManagerOrderDetailView({
   certificateScansPanel?: React.ReactNode;
   /** Панель «Сделка» — обратная половина связи заказ ↔ сделка (19.08.2026). */
   dealPanel?: React.ReactNode;
+  /** `У-180`: панель «Контакт заказа» (данные и права собирает страница). */
+  contactPanel?: React.ReactNode;
   /** Этап 11 PR-2 (ФТ-15.6): цепочка обращение → лид → сделка → заказ. */
   breadcrumbs?: Crumb[];
 }) {
@@ -130,6 +133,7 @@ export function ManagerOrderDetailView({
         </div>
 
         <div className="space-y-4">
+          {contactPanel}
           {dealPanel}
           <ManagerOrderTimeline order={order} auditEntries={auditEntries} />
           {/* §10 ТЗ v0.5, решение заказчика Q3: операционный статус
