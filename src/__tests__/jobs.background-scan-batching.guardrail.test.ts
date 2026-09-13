@@ -204,10 +204,12 @@ describe('фоновая задача не делает запрос на каж
     // `CommissionCorrection.partnerId` обязателен: возврат, у которого партнёра
     // нет ни у заказа, ни у организации, не даст корректировки НИКОГДА. Если
     // такие строки не отсечь запросом, они перечитываются каждым прогоном.
+    // Хотфикс №49: выборка идёт от закрытых периодов — без единого периода
+    // возвраты не спрашиваются вовсе, поэтому период здесь нужен.
     const findMany = vi.fn().mockResolvedValue([]);
     const { prisma } = countingPrisma({
       payment: { findMany },
-      commissionStatement: { findMany: vi.fn().mockResolvedValue([]) },
+      commissionStatement: { findMany: vi.fn().mockResolvedValue([STATEMENT]) },
       partner: { findMany: vi.fn().mockResolvedValue([]) },
       commissionRateChange: { findMany: vi.fn().mockResolvedValue([]) },
       organizationCommissionRateChange: { findMany: vi.fn().mockResolvedValue([]) },

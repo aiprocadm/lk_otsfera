@@ -22,6 +22,13 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /** Сколько помним, что лид уже переотправляли: второй раз за это окно — ошибка. */
 const LEAD_RETRY_MEMORY_MS = 2 * DAY_MS;
 
+/**
+ * Сколько зависших лидов разбираем за один заход (`С-8`, хотфикс №49).
+ * Претензий старше суток в здоровом обмене единицы; предел нужен, чтобы
+ * ночная сверка не росла вместе с базой.
+ */
+const LEAD_BATCH_LIMIT = 200;
+
 export type ReconcileDocumentsResult = {
   /** Сколько документов 1С подтвердила или отвергла. */
   checked: number;
@@ -155,67 +162,63 @@ export async function reconcileStuckLeads(
   const leads = await prisma.lead.findMany({
     where: { pushedToOneCAt: { lt: claimedBefore }, externalIdInOneC: null },
     select: { id: true, pushedToOneCAt: true },
-    orderBy: { pushedToOneCAt: 'asc' },
+    // Сначала СВЕЖИЕ претензии (`С-8`, хотфикс №49). Среди старых копятся те,
+    // кому сверка помочь не может: 1С приняла заявку без своего номера, лид
+    // так и останется с претензией и без `externalIdInOneC`. Условием базы их
+    // не отсечь (подтверждение лежит в JSON истории обмена), поэтому берём
+    // пачку с нового конца — иначе неизлечимые заняли бы её целиком. Второй
+    // ключ — id: при равных датах порядок иначе не обещан.
+    orderBy: [{ pushedToOneCAt: 'desc' }, { id: 'desc' }],
+    take: LEAD_BATCH_LIMIT,
   });
+  if (leads.length === LEAD_BATCH_LIMIT) {
+    log.warn('[oneCSync/reconcile] зависших претензий больше, чем берём за заход', {
+      limit: LEAD_BATCH_LIMIT,
+    });
+  }
 
   const requeued: string[] = [];
   const stuck: string[] = [];
+  if (leads.length === 0) return { requeued, stuck };
 
-  // Обе справки берём ОДНИМ запросом на прогон, а не на лид. Лид, принятый 1С
-  // без своего номера (`oneCRequestId` в контракте необязателен), остаётся в
-  // выборке навсегда: `externalIdInOneC` у него пуст, а претензия стоит. Пока
-  // подтверждение спрашивали построчно, каждый такой лид стоил запроса КАЖДЫЙ
-  // прогон — работа росла вместе с базой, а не с числом зависших.
-  const ids = leads.map((l) => l.id);
-  const [acceptedRows, retriedRows] = await Promise.all([
-    ids.length === 0
-      ? Promise.resolve([])
-      : prisma.syncLog.findMany({
-          where: {
-            entity: 'lead',
-            direction: 'outbound',
-            operation: 'create',
-            status: 'success',
-            // Признак принятия лежит в теле записи, а не колонкой, поэтому
-            // список ключей разворачиваем в `OR`: один запрос вместо N.
-            OR: ids.map((id) => ({ payload: { path: ['cabinetLeadId'], equals: id } })),
-          },
-          select: { payload: true },
-        }),
-    ids.length === 0
-      ? Promise.resolve([])
-      : prisma.syncLog.findMany({
-          where: {
-            entity: 'lead',
-            direction: 'outbound',
-            operation: 'check',
-            status: 'warn',
-            externalId: { in: ids },
-            createdAt: { gte: retriedSince },
-          },
-          select: { externalId: true },
-        }),
-  ]);
-
-  const acceptedIds = new Set(
+  // История обмена — двумя запросами на пачку, а не двумя на каждый лид.
+  const acceptedRows = await prisma.syncLog.findMany({
+    where: {
+      entity: 'lead',
+      direction: 'outbound',
+      operation: 'create',
+      status: 'success',
+      // Ищем именно по cabinetLeadId в payload: externalId success-строки —
+      // это номер 1С, которого у принятой без номера заявки нет.
+      OR: leads.map((l) => ({ payload: { path: ['cabinetLeadId'], equals: l.id } })),
+    },
+    select: { payload: true },
+  });
+  const accepted = new Set(
     acceptedRows
-      .map((row) => {
-        const payload = row.payload as { cabinetLeadId?: unknown } | null;
-        return typeof payload?.cabinetLeadId === 'string' ? payload.cabinetLeadId : null;
-      })
-      .filter((id): id is string => id !== null)
+      .map((r) => (r.payload as { cabinetLeadId?: unknown } | null)?.cabinetLeadId)
+      .filter((id): id is string => typeof id === 'string')
   );
-  const retriedIds = new Set(
-    retriedRows
-      .map((row) => row.externalId)
-      .filter((id): id is string => typeof id === 'string' && id.length > 0)
+  const retriedRows = await prisma.syncLog.findMany({
+    where: {
+      entity: 'lead',
+      direction: 'outbound',
+      operation: 'check',
+      status: 'warn',
+      externalId: { in: leads.map((l) => l.id) },
+      createdAt: { gte: retriedSince },
+    },
+    select: { externalId: true },
+  });
+  const retried = new Set(
+    retriedRows.map((r) => r.externalId).filter((id): id is string => typeof id === 'string')
   );
 
   for (const lead of leads) {
-    if (acceptedIds.has(lead.id)) continue;
+    if (accepted.has(lead.id)) continue;
 
     const claimedAt = lead.pushedToOneCAt;
-    if (retriedIds.has(lead.id)) {
+    if (retried.has(lead.id)) {
       await writeSyncLog(
         {
           entity: 'lead',
