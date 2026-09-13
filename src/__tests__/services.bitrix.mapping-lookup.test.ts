@@ -99,11 +99,13 @@ describe('loadOrganizations', () => {
     expect(batch.byInn.get('7812345675')?.id).toBe('o-alien');
     expect(batch.byNameKey.get('АЛЬФА')?.id).toBe('o-own');
     expect(batch.byNameKey.get('БЕТА')).toBeUndefined();
-    // Наружу уходит узкая форма, а не строка базы: `nameKey` в ней нет.
+    // Наружу уходит узкая форма: ровно те поля, которые нужны правилу и снимку
+    // «как было» (ключ поиска в их числе — без него откат стёр бы его).
     expect(batch.byBitrixId.get('101')).toEqual({
       id: 'o-own',
       companyId: COMPANY,
       name: 'ООО «Альфа»',
+      nameKey: 'АЛЬФА',
       inn: '7701234560',
       kpp: '770101001',
       bitrixId: '101',

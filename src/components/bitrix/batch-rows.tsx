@@ -12,9 +12,20 @@ import { BITRIX_ENTITY_TITLES, type PlanRow } from '@/lib/services/bitrix/mappin
 export function BatchRows({ rows }: { rows: PlanRow[] }) {
   const conflicts = rows.filter((r) => r.action === 'conflict');
   const skips = rows.filter((r) => r.action === 'skip');
+  // Поля, которые перенос оставил человеку: запись была, но эти значения
+  // трогать не стали. Это ни пропуск, ни конфликт — отдельный разговор.
+  const kept = rows.filter((r) => r.action === 'update');
 
   return (
     <div className="space-y-4">
+      {kept.length > 0 && (
+        <RowsTable
+          title="Оставили как есть"
+          hint="Эти поля правили в кабинете, и перенос их не перезаписал."
+          rows={kept}
+          testId="bitrix-kept"
+        />
+      )}
       {conflicts.length > 0 && (
         <RowsTable
           title="Нужно решение"
@@ -31,7 +42,7 @@ export function BatchRows({ rows }: { rows: PlanRow[] }) {
           testId="bitrix-skips"
         />
       )}
-      {conflicts.length === 0 && skips.length === 0 && (
+      {conflicts.length === 0 && skips.length === 0 && kept.length === 0 && (
         <p className="text-sm text-gray-600">
           Ни конфликтов, ни пропусков: всё, что нашлось в Битрикс24, переносится целиком.
         </p>

@@ -35,6 +35,7 @@ vi.mock('@/lib/logging', () => ({
 }));
 
 import {
+  applyBitrixBatch,
   batchReadyToApply,
   createBitrixBatch,
   filterOf,
@@ -484,6 +485,75 @@ describe('saveBatchMapping', () => {
         },
       },
     });
+  });
+});
+
+describe('applyBitrixBatch', () => {
+  it('отказ чтения передаётся как есть: чужой пакет — not_found, статус не трогаем', async () => {
+    await expect(applyBitrixBatch(prisma, homeless, 'b1')).resolves.toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+
+    findUnique.mockResolvedValueOnce(null);
+    await expect(applyBitrixBatch(prisma, admin, 'b1')).resolves.toEqual({
+      ok: false,
+      error: 'not_found',
+    });
+
+    findUnique.mockResolvedValueOnce(row({ companyId: 'c2' }));
+    await expect(applyBitrixBatch(prisma, admin, 'b1')).resolves.toEqual({
+      ok: false,
+      error: 'not_found',
+    });
+
+    expect(update).not.toHaveBeenCalled();
+    expect(queueAdd).not.toHaveBeenCalled();
+  });
+
+  it('пакет не в предпросмотре → invalid: применять дважды нечего', async () => {
+    findUnique.mockResolvedValue(row({ status: 'applied' }));
+
+    await expect(applyBitrixBatch(prisma, admin, 'b1')).resolves.toEqual({
+      ok: false,
+      error: 'invalid',
+    });
+    expect(update).not.toHaveBeenCalled();
+    expect(queueAdd).not.toHaveBeenCalled();
+  });
+
+  it('стадия без пары → mapping_incomplete: пакет остаётся в предпросмотре', async () => {
+    // Несопоставленная стадия — жёсткий запрет: сделки легли бы не туда, и
+    // пришлось бы откатывать весь перенос.
+    findUnique.mockResolvedValue(
+      row({ settings: { stagesFound: STAGES, tables: { stageMap: FULL_TABLES.stageMap } } })
+    );
+
+    await expect(applyBitrixBatch(prisma, admin, 'b1')).resolves.toEqual({
+      ok: false,
+      error: 'mapping_incomplete',
+    });
+    expect(update).not.toHaveBeenCalled();
+    expect(queueAdd).not.toHaveBeenCalled();
+  });
+
+  it('счастливый путь: пакет уходит в applying и задача «apply» встаёт в очередь', async () => {
+    await expect(applyBitrixBatch(prisma, admin, 'b1')).resolves.toEqual({ ok: true });
+
+    expect(update).toHaveBeenCalledWith({ where: { id: 'b1' }, data: { status: 'applying' } });
+    expect(getQueue).toHaveBeenCalledWith('bitrix.import');
+    expect(queueAdd).toHaveBeenCalledWith('apply', { batchId: 'b1' });
+  });
+
+  it('очередь недоступна — применение всё равно принято, отказ уходит в журнал', async () => {
+    const err = new Error('redis down');
+    queueAdd.mockRejectedValue(err);
+
+    // Статус уже «applying», и человек нажмёт «Повторить», когда воркер
+    // поднимется (§3 CLAUDE.md): падать на недоступной очереди нельзя.
+    await expect(applyBitrixBatch(prisma, admin, 'b1')).resolves.toEqual({ ok: true });
+    expect(update).toHaveBeenCalledWith({ where: { id: 'b1' }, data: { status: 'applying' } });
+    expect(swallowed).toHaveBeenCalledWith('[bitrix/apply] enqueue failed', err);
   });
 });
 

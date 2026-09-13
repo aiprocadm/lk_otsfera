@@ -27,6 +27,8 @@ import { GenerateDocumentsPanel } from '@/components/manager/generate-documents-
 import { getDocumentGenerationPanel } from '@/lib/services/documents/generationPanel';
 import { getOrderContactPanel } from '@/lib/services/orders/primaryContact';
 import { OrderContactPanel } from '@/components/orders/order-contact-panel';
+import { MergeExternalOrderButton } from '@/components/orders/merge-external-order-button';
+import { isBitrixOrder } from '@/lib/services/orders/mergeExternal';
 
 import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
@@ -173,6 +175,19 @@ export default async function AdminOrderDetailPage({
           current={contactPanel.current}
           options={contactPanel.options}
         />
+      )}
+
+      {/* Заказ, перенесённый из Битрикс24, можно объединить с заказом 1С
+          (`У-197`): миграция не всегда узнаёт пару по сумме и дате, а человек
+          узнаёт. Кнопка есть только у такого заказа. */}
+      {isBitrixOrder(order) && (
+        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-2">
+          <div className="text-sm font-medium text-[#111111]">Заказ перенесён из Битрикс24</div>
+          <p className="text-sm text-gray-600">
+            Если этой работе уже есть заказ в 1С, объедините их — история и документы перейдут туда.
+          </p>
+          <MergeExternalOrderButton orderId={order.id} />
+        </div>
       )}
 
       {/* Зеркала сделок в /admin/* нет (Model A), поэтому панель справочная:

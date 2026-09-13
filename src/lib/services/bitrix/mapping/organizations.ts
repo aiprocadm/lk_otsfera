@@ -38,6 +38,7 @@ export type ExistingOrganization = {
   id: string;
   companyId: string | null;
   name: string;
+  nameKey: string | null;
   inn: string | null;
   kpp: string | null;
   bitrixId: string | null;
@@ -92,6 +93,10 @@ export function planOrganization(
     patch.name = title;
     patch.nameKey = organizationNameKey(title);
     before.name = existing.name;
+    // Ключ поиска меняется вместе с названием, поэтому он тоже в снимке: иначе
+    // откат вернул бы имя, но обнулил ключ, и организация перестала бы
+    // находиться по названию.
+    before.nameKey = existing.nameKey;
   }
   if (inn && inn !== existing.inn) {
     patch.inn = inn;

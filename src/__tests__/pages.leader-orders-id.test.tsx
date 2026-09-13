@@ -102,6 +102,14 @@ vi.mock('@/components/manager/generate-documents-panel', () => ({
     ),
 }));
 
+// `У-197`: кнопка «Это тот же заказ, что…» — клиентская, со своим тестом
+// (components.merge-external-order-button); странице важно, показан ли блок
+// вообще и с каким заказом.
+vi.mock('@/components/orders/merge-external-order-button', () => ({
+  MergeExternalOrderButton: (props: { orderId: string }) =>
+    React.createElement('div', { 'data-testid': 'merge-external' }, props.orderId),
+}));
+
 vi.mock('@/components/leader/leader-assign-order-manager-form', () => ({
   LeaderAssignOrderManagerForm: (props: {
     orderId: string;
@@ -591,6 +599,47 @@ describe('LeaderOrderDetailPage', () => {
         current: null,
         options: PANEL.options,
       });
+    });
+  });
+
+  // `У-197` (`В-2-4`): объединение доступно руководителю наравне с
+  // администратором и только у заказа из Битрикс24. Блок опознаётся по ключу
+  // заказа: `bitrixId` у заказов нет (`У-190`).
+  describe('блок «Заказ перенесён из Битрикс24» (`У-197`)', () => {
+    async function render(externalId: string | null) {
+      requireManagerLeader.mockResolvedValue(SESSION);
+      loadManagerOrderDetail.mockResolvedValue({
+        ...BASE_DATA,
+        order: { ...BASE_DATA.order, externalId },
+      });
+      listOrderStudentOptions.mockResolvedValue([]);
+      listDirections.mockResolvedValue({ ok: true, directions: [] });
+      getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
+      getDealActivity.mockResolvedValue({ ok: true, items: [] });
+      isFeatureEnabled.mockReturnValue(false);
+      return renderServerComponent(
+        LeaderOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
+      );
+    }
+
+    it('заказ из Битрикс24: блок с объяснением и кнопка объединения на самом заказе', async () => {
+      const { container } = await render('bitrix:DEAL:77');
+
+      expect(container.textContent).toContain('Заказ перенесён из Битрикс24');
+      expect(container.textContent).toContain('объедините их — история и документы перейдут туда');
+      expect(container.querySelector('[data-testid="merge-external"]')?.textContent).toBe(
+        'order-1'
+      );
+    });
+
+    it.each([
+      ['заказ из 1С', '1c:0000123'],
+      ['заказ без внешнего ключа', null],
+    ])('%s: ни блока, ни кнопки', async (_name, externalId) => {
+      const { container } = await render(externalId);
+
+      expect(container.textContent).not.toContain('Заказ перенесён из Битрикс24');
+      expect(container.querySelector('[data-testid="merge-external"]')).toBeNull();
     });
   });
 

@@ -34,15 +34,19 @@ vi.mock('@/lib/config/integrationSettingsCache', () => ({ resetIntegrationSettin
 vi.mock('@/lib/services/admin/testIntegration', () => ({ testIntegration }));
 vi.mock('next/cache', () => ({ revalidatePath }));
 
-const { createBitrixBatch, getBitrixBatchState, saveBatchMapping } = vi.hoisted(() => ({
-  createBitrixBatch: vi.fn(),
-  getBitrixBatchState: vi.fn(),
-  saveBatchMapping: vi.fn(),
-}));
+const { createBitrixBatch, getBitrixBatchState, saveBatchMapping, applyBitrixBatch } = vi.hoisted(
+  () => ({
+    createBitrixBatch: vi.fn(),
+    getBitrixBatchState: vi.fn(),
+    saveBatchMapping: vi.fn(),
+    applyBitrixBatch: vi.fn(),
+  })
+);
 vi.mock('@/lib/services/bitrix/preview', () => ({
   createBitrixBatch,
   getBitrixBatchState,
   saveBatchMapping,
+  applyBitrixBatch,
 }));
 
 import {
@@ -51,6 +55,7 @@ import {
   createBitrixBatchAction,
   getBitrixBatchStateAction,
   saveBatchMappingAction,
+  applyBitrixBatchAction,
 } from '@/server-actions/admin/bitrix';
 
 const SESSION = { sub: 'admin-1', role: 'admin' as const, companyId: 'c1' };
@@ -77,6 +82,7 @@ beforeEach(() => {
     progress: { step: 'deal', done: 12, total: 100, updatedAt: '2026-09-13T09:00:00.000Z' },
   });
   saveBatchMapping.mockResolvedValue({ ok: true });
+  applyBitrixBatch.mockResolvedValue({ ok: true });
 });
 
 /** Аргументы, с которыми действие позвало сервис пакета. */
@@ -481,4 +487,55 @@ describe('saveBatchMappingAction', () => {
     expect(saveBatchMapping).not.toHaveBeenCalled();
     expect(revalidatePath).not.toHaveBeenCalled();
   });
+});
+
+/**
+ * «Применить» (`У-194`): действие ставит пакет в очередь на запись в рабочую
+ * базу. Само оно ничего не пишет — вся работа за сервисом; здесь проверяется
+ * то, за что отвечает именно действие: раздел, флаг, пустой идентификатор,
+ * дословный проброс отказа и перечитывание карточки только при успехе.
+ */
+describe('applyBitrixBatchAction', () => {
+  it('счастливый путь: сервис зовётся с сессией и пакетом, карточка перечитывается', async () => {
+    const res = await applyBitrixBatchAction('b-1');
+
+    expect(res).toEqual({ ok: true });
+    expect(requireSettingsSection).toHaveBeenCalledWith('integrations.bitrix', 'admin');
+    expect(notFoundIfDisabled).toHaveBeenCalledWith('bitrix_migration');
+    expect(applyBitrixBatch).toHaveBeenCalledWith(expect.anything(), SESSION, 'b-1');
+    expect(revalidatePath).toHaveBeenCalledWith(`${BATCHES_PATH}/b-1`);
+  });
+
+  it('раздел закрыт гардом настроек — до флага и сервиса дело не доходит', async () => {
+    requireSettingsSection.mockRejectedValue(new Error('NEXT_REDIRECT'));
+
+    await expect(applyBitrixBatchAction('b-1')).rejects.toThrow('NEXT_REDIRECT');
+    expect(notFoundIfDisabled).not.toHaveBeenCalled();
+    expect(applyBitrixBatch).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('флаг выключен → forbidden, перенос не запускается', async () => {
+    notFoundIfDisabled.mockReturnValue(FLAG_OFF);
+
+    expect(await applyBitrixBatchAction('b-1')).toEqual({ ok: false, error: 'forbidden' });
+    expect(applyBitrixBatch).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('пустой идентификатор пакета → invalid, до сервиса дело не доходит', async () => {
+    expect(await applyBitrixBatchAction('')).toEqual({ ok: false, error: 'invalid' });
+    expect(applyBitrixBatch).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it.each([['forbidden'], ['not_found'], ['invalid'], ['mapping_incomplete']])(
+    'отказ сервиса %s пробрасывается как есть, карточка не перечитывается',
+    async (error) => {
+      applyBitrixBatch.mockResolvedValue({ ok: false, error });
+
+      expect(await applyBitrixBatchAction('b-1')).toEqual({ ok: false, error });
+      expect(revalidatePath).not.toHaveBeenCalled();
+    }
+  );
 });

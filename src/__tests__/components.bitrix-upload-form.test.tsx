@@ -59,8 +59,13 @@ function pickFiles(input: HTMLInputElement, files: File[]): void {
   fireEvent.change(input);
 }
 
-function renderForm() {
-  const utils = render(<BitrixUploadForm />);
+/** Ключи сохранённых файлов — из них форма пакета собирает файловый источник. */
+type UploadedKeys = { key: string; name: string; entity: string }[];
+
+function renderForm(onUploaded?: (files: UploadedKeys) => void) {
+  // Проп необязательный, поэтому передаём его только когда он есть:
+  // `exactOptionalPropertyTypes` не разрешает явный `undefined` (§11b).
+  const utils = render(<BitrixUploadForm {...(onUploaded ? { onUploaded } : {})} />);
   const container = utils.container;
   return {
     container,
@@ -300,6 +305,79 @@ describe('BitrixUploadForm — таблица диагностики', () => {
   });
 });
 
+describe('BitrixUploadForm — ключи для формы пакета', () => {
+  it('колбэк получает только распознанные и сохранённые файлы', async () => {
+    const onUploaded = vi.fn();
+    fetchMock.mockResolvedValue(okJson({ ok: true, files: FOUR_FILES }));
+    const ui = renderForm(onUploaded);
+
+    submitWithFiles(ui);
+
+    await waitFor(() => expect(onUploaded).toHaveBeenCalled());
+    // Нераспознанные (`deals.csv`, `unknown.xlsx`) отсеяны: у них нет ни
+    // ключа в хранилище, ни сущности — пакету из них собирать нечего.
+    expect(onUploaded).toHaveBeenCalledTimes(1);
+    expect(onUploaded).toHaveBeenCalledWith([
+      { key: 'bitrix-import/uploads/x/1-a.csv', name: 'companies.csv', entity: 'company' },
+      { key: 'bitrix-import/uploads/x/2-b.csv', name: 'contacts.csv', entity: 'contact' },
+    ]);
+  });
+
+  it('файл без ключа и файл без сущности в пакет не попадают', async () => {
+    const onUploaded = vi.fn();
+    const mixed: UploadedFile[] = [
+      // Сущность распознана, но в хранилище файл не лёг — ключа нет.
+      { ...FOUR_FILES[0], name: 'no-key.csv', key: null },
+      // Файл сохранён, но шапка не опознана — переносить из него нечего.
+      { ...FOUR_FILES[1], name: 'no-entity.csv', entity: null, key: 'k-2' },
+      { ...FOUR_FILES[0], name: 'good.csv', key: 'k-3' },
+    ];
+    fetchMock.mockResolvedValue(okJson({ ok: true, files: mixed }));
+    const ui = renderForm(onUploaded);
+
+    submitWithFiles(ui);
+
+    await waitFor(() => expect(onUploaded).toHaveBeenCalled());
+    expect(onUploaded).toHaveBeenCalledWith([{ key: 'k-3', name: 'good.csv', entity: 'company' }]);
+    // Таблица диагностики при этом показывает все три строки как есть.
+    expect(ui.rows()).toHaveLength(3);
+  });
+
+  it('успех без поля files: колбэк получает пустой массив, а не падает', async () => {
+    const onUploaded = vi.fn();
+    fetchMock.mockResolvedValue(okJson({ ok: true }));
+    const ui = renderForm(onUploaded);
+
+    submitWithFiles(ui);
+
+    await waitFor(() => expect(onUploaded).toHaveBeenCalled());
+    expect(onUploaded).toHaveBeenCalledWith([]);
+  });
+
+  it('ошибка загрузки колбэк не зовёт — собирать пакет не из чего', async () => {
+    const onUploaded = vi.fn();
+    fetchMock.mockResolvedValue(errJson(500, { error: 'storage' }));
+    const ui = renderForm(onUploaded);
+
+    submitWithFiles(ui);
+
+    await waitFor(() => expect(ui.alertText()).not.toBe(''));
+    expect(onUploaded).not.toHaveBeenCalled();
+  });
+
+  it('без пропа onUploaded форма работает как раньше', async () => {
+    fetchMock.mockResolvedValue(okJson({ ok: true, files: FOUR_FILES }));
+    const ui = renderForm();
+
+    submitWithFiles(ui);
+
+    // Необязательный вызов `onUploaded?.()` не должен ронять успешный путь:
+    // вкладка «Пакеты» показывает форму и без обработчика.
+    await waitFor(() => expect(ui.table()).not.toBeNull());
+    expect(ui.statusText()).toContain('Сохранено файлов: 2 из 4.');
+  });
+});
+
 describe('BitrixUploadForm — ошибки', () => {
   it('413 too_large: русский текст с числом из общего лимита', async () => {
     fetchMock.mockResolvedValue(errJson(413, { error: 'too_large' }));
@@ -348,10 +426,13 @@ describe('BitrixUploadForm — ошибки', () => {
     // Поле после успеха очищено — человек выбирает файлы заново, как в жизни.
     submitWithFiles(ui);
 
-    await waitFor(() => expect(ui.alertText()).not.toBe(''));
+    // Ждём дольше штатной секунды: здесь два круга через React-переход подряд,
+    // и под инструментацией покрытия второй в секунду не укладывался — тест
+    // краснел не из-за поведения формы, а из-за нехватки терпения.
+    await waitFor(() => expect(ui.alertText()).not.toBe(''), { timeout: 4000 });
     expect(ui.alertText()).toBe('Хранилище файлов недоступно. Попробуйте ещё раз через минуту.');
     expect(ui.table()).toBeNull();
     expect(ui.statusText()).toBe('');
     expect(ui.text()).not.toContain('deals.csv');
-  });
+  }, 15_000);
 });

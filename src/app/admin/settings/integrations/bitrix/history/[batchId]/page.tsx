@@ -10,6 +10,7 @@ import { getBitrixBatch } from '@/lib/services/bitrix/preview';
 import { unmappedStages } from '@/lib/services/bitrix/mapping/stages';
 import { loadCompanyUsers } from '@/lib/services/bitrix/mapping/lookup';
 import { BATCH_STATUS_LABELS, formatDate } from '@/components/bitrix/batch-list';
+import { ApplyBatchButton } from '@/components/bitrix/apply-batch-button';
 import { BatchProgress } from '@/components/bitrix/batch-progress';
 import { BatchRows } from '@/components/bitrix/batch-rows';
 import { BatchSummary } from '@/components/bitrix/batch-summary';
@@ -27,8 +28,8 @@ export const dynamic = 'force-dynamic';
  *
  * Экран отвечает на три вопроса сразу: сверху — состояние пакета и откуда
  * данные, в середине — сводка и таблицы сопоставления, внизу — строки, которые
- * не перенесутся. Кнопка применения появится следующим шагом этапа, и об этом
- * сказано прямо: молчащая кнопка хуже честной подписи.
+ * не перенесутся. Кнопка «Применить» доступна, только когда сопоставлены все
+ * стадии: иначе записи ушли бы не туда, и пришлось бы откатывать весь перенос.
  */
 export default async function AdminBitrixBatchPage({
   params,
@@ -128,7 +129,7 @@ export default async function AdminBitrixBatchPage({
       )}
 
       {batch.status === 'preview' && (
-        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-1">
+        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-2">
           <div className="text-sm font-medium text-[#111111]">Применение</div>
           {missing.length > 0 ? (
             <p className="text-sm text-gray-600">
@@ -137,10 +138,25 @@ export default async function AdminBitrixBatchPage({
             </p>
           ) : (
             <p className="text-sm text-gray-600">
-              Сопоставление готово. Кнопка «Применить» появится следующим шагом этапа — вместе с
-              записью, журналом и откатом.
+              Сопоставление готово. Перенос запишет данные в кабинет; откатить его можно в течение
+              30 дней.
             </p>
           )}
+          <ApplyBatchButton
+            batchId={batch.id}
+            total={batch.counts?.total ?? 0}
+            disabled={missing.length > 0}
+          />
+        </div>
+      )}
+
+      {batch.status === 'applied' && (
+        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-1">
+          <div className="text-sm font-medium text-[#111111]">Перенос выполнен</div>
+          <p className="text-sm text-gray-600">
+            Записи из Битрикс24 в кабинете. Что именно изменилось, видно в сводке выше; отчёт сверки
+            и откат появятся следующим шагом этапа.
+          </p>
         </div>
       )}
 
