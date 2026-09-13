@@ -1061,6 +1061,8 @@ model Deal {
   @@index([companyId, status])
   @@index([managerId])
   @@index([stageId])
+  /// Сопровождение, хотфикс №50 (`С-8`): вкладка «Сделки» карточки контакта и счётчик ищут сделки по контакту.
+  @@index([contactId])
 }
 
 // Этап 6 (ФТ-4.2): словарь стадий сделок — зеркало FunnelStage.
@@ -1264,6 +1266,8 @@ model Order {
   // led with companyId existed — every company-wide list was a seq scan.
   @@index([companyId, executionStatus])
   @@index([companyId, financialStatus])
+  /// Сопровождение, хотфикс №50 (`С-8`): вкладка «Заказы» карточки контакта ищет заказы по контакту.
+  @@index([primaryContactId])
 }
 
 model Document {
