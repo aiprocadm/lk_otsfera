@@ -11,14 +11,20 @@
  * смысл — нет).
  */
 import { fmtMoney } from '@/lib/format';
+import type { OrgCardTabKey } from './orgCardTabs';
 
-export type OrgCardTileKey = 'orders' | 'students' | 'cabinetUsers' | 'debt';
+export type OrgCardTileKey = 'orders' | 'students' | 'cabinetUsers' | 'debt' | 'contacts';
 
 export type OrgCardTileSpec = {
   key: OrgCardTileKey;
   label: string;
   /** Откуда берётся число — фиксируем в реестре, чтобы не разошлось снова. */
   source: string;
+  /**
+   * Плитка показывается только там, где положена одноимённая вкладка:
+   * внутренние счётчики продавца клиенту и партнёру не показывают (`У-182`).
+   */
+  onlyWithTab?: OrgCardTabKey;
 };
 
 export const ORG_CARD_TILES: readonly OrgCardTileSpec[] = [
@@ -31,6 +37,13 @@ export const ORG_CARD_TILES: readonly OrgCardTileSpec[] = [
     source: 'OrganizationUser (isActive)',
   },
   { key: 'debt', label: 'Задолженность', source: 'sum(Order.totalAmount - Order.paidAmount)' },
+  // `У-182` (этап 1 ТЗ 12.09.2026): не архивные контакты организации.
+  {
+    key: 'contacts',
+    label: 'Контакты',
+    source: 'Organization._count.contacts (isArchived = false)',
+    onlyWithTab: 'contacts',
+  },
 ];
 
 export type OrgCardCounts = {
@@ -39,14 +52,21 @@ export type OrgCardCounts = {
   cabinetUsers: number;
   /** Уже посчитанная сумма строкой: деньги не переводим в number (Decimal). */
   debt: string;
+  contacts: number;
 };
 
-export function orgCardTiles(counts: OrgCardCounts): Array<{
+export function orgCardTiles(
+  counts: OrgCardCounts,
+  opts: { tabs?: ReadonlyArray<{ key: OrgCardTabKey }> } = {}
+): Array<{
   key: OrgCardTileKey;
   label: string;
   value: number | string;
 }> {
-  return ORG_CARD_TILES.map((tile) => ({
+  const tabKeys = opts.tabs?.map((t) => t.key);
+  return ORG_CARD_TILES.filter(
+    (tile) => !tile.onlyWithTab || tabKeys === undefined || tabKeys.includes(tile.onlyWithTab)
+  ).map((tile) => ({
     key: tile.key,
     label: tile.label,
     // `У-175`: сумма пишется как везде в кабинетах — с пробелами между

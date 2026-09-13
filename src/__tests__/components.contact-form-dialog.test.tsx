@@ -301,3 +301,45 @@ describe('ContactFormDialog — правка', () => {
     expect(actions.updateContactAction).not.toHaveBeenCalled();
   });
 });
+
+describe('ContactFormDialog — предвыбор организации (У-182, вкладка «Контакты» карточки)', () => {
+  it('defaultOrganizationId в режиме создания предвыбирает организацию и уходит в createContactAction', async () => {
+    actions.createContactAction.mockResolvedValue({ ok: true, contactId: 'c9' });
+    render(
+      <ContactFormDialog
+        cabinet="manager"
+        mode="create"
+        orgOptions={ORGS}
+        defaultOrganizationId="o1"
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить контакт' }));
+    const dialog = within(openDialog());
+    expect((dialog.getByLabelText('Организация') as HTMLSelectElement).value).toBe('o1');
+    fireEvent.change(dialog.getByLabelText('Имя'), { target: { value: 'Сидоров' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Создать' }));
+    await waitFor(() =>
+      expect(actions.createContactAction).toHaveBeenCalledWith({
+        name: 'Сидоров',
+        organizationId: 'o1',
+        channels: [],
+      })
+    );
+  });
+
+  it('в режиме правки приоритет у организации контакта', () => {
+    render(
+      <ContactFormDialog
+        cabinet="manager"
+        mode="edit"
+        orgOptions={ORGS}
+        contact={EDITABLE}
+        defaultOrganizationId="o1"
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
+    expect((within(openDialog()).getByLabelText('Организация') as HTMLSelectElement).value).toBe(
+      'o2'
+    );
+  });
+});

@@ -16,7 +16,6 @@ import { CallsList } from '@/components/manager/calls-list';
 import { LeadStatusBadge } from '@/components/partner/lead-status-badge';
 import { clientRequestStatusLabel } from '@/lib/services/clientRequests/labels';
 import { enrollmentStatusLabel } from '@/lib/services/enrollments/labels';
-import { auditActionLabel } from '@/lib/audit/labels';
 import { orgCardTiles } from '@/lib/navigation/orgCardTiles';
 import type { OrgCardTabKey } from '@/lib/navigation/orgCardTabs';
 import type { OrganizationCard, OrgCardListKey } from '@/lib/services/manager/organizationCard';
@@ -52,6 +51,10 @@ export function OrgCardTabs({
   activeTab,
   tabs,
   employees,
+  contacts,
+  notes,
+  history,
+  overviewExtra,
   settings,
   egrulAction,
   documentsAction,
@@ -70,6 +73,17 @@ export function OrgCardTabs({
    * компонент остаётся презентационным и не ходит в базу.
    */
   employees?: React.ReactNode;
+  /**
+   * `У-182`: вкладка «Контакты» — люди клиента. Данные грузит страница своей
+   * роли (только когда вкладка открыта), компонент остаётся презентационным.
+   */
+  contacts?: React.ReactNode;
+  /** `У-183`: вкладка «Заметки» — внутренние записи о клиенте; те же правила. */
+  notes?: React.ReactNode;
+  /** `У-184`: вкладка «История» — единая лента (`orgHistory.ts`); те же правила. */
+  history?: React.ReactNode;
+  /** `У-183`: блок «Важное» (закреплённые заметки) над сводкой «Обзора». */
+  overviewExtra?: React.ReactNode;
   /**
    * `У-99`: готовая вкладка «Настройки» (реквизиты, доступ в кабинет,
    * менеджеры, ставка, доп. поля). Собирается страницей своей роли — состав и
@@ -151,12 +165,17 @@ export function OrgCardTabs({
           кабинеты. «Активные» и «Оплачено» остаются рядом как справочные KPI
           менеджера, но общие четыре плитки идут первыми и в общем порядке. */}
       <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
-        {orgCardTiles({
-          orders: card.counts.orders,
-          students: card.counts.students,
-          cabinetUsers: card.counts.cabinetUsers,
-          debt: card.kpis.debt,
-        }).map((tile) => (
+        {orgCardTiles(
+          {
+            orders: card.counts.orders,
+            students: card.counts.students,
+            cabinetUsers: card.counts.cabinetUsers,
+            debt: card.kpis.debt,
+            contacts: card.counts.contacts,
+          },
+          // `У-182`: плитка «Контакты» — только там, где есть сама вкладка.
+          { tabs }
+        ).map((tile) => (
           <Tile key={tile.key} label={tile.label} value={tile.value} />
         ))}
         {/* Финансовые KPI — только там, где положена вкладка «Оплаты»
@@ -175,8 +194,19 @@ export function OrgCardTabs({
       <section>
         {activeTab === 'employees' ? (
           employees
+        ) : activeTab === 'contacts' ? (
+          contacts
+        ) : activeTab === 'notes' ? (
+          notes
+        ) : activeTab === 'history' ? (
+          history
         ) : activeTab === 'settings' ? (
           settings
+        ) : activeTab === 'overview' ? (
+          <div className="space-y-4">
+            {overviewExtra}
+            {renderSection(card, activeTab, { certificatesExport, leadHref })}
+          </div>
         ) : activeTab === 'documents' ? (
           <div className="space-y-3">
             {documentsAction && <div className="flex justify-end">{documentsAction}</div>}
@@ -249,14 +279,12 @@ const LIST_KEY_BY_TAB: Partial<Record<OrgCardTabKey, OrgCardListKey>> = {
   leads: 'leads',
   deals: 'deals',
   enrollments: 'enrollments',
-  history: 'auditTrail',
 };
 
 const CAP_HINT_DEFAULT = 'Здесь только новейшие; полный список — в одноимённом разделе кабинета.';
 /** Где искать остальное, если одноимённого раздела нет. */
 const CAP_HINT_BY_KEY: Partial<Record<OrgCardListKey, string>> = {
   activity: 'Здесь только новейшие; остальные — в карточках заказов.',
-  auditTrail: 'Здесь только новейшие; полный журнал — в разделе «Аудит».',
 };
 
 /** Секция вкладки + подпись «показаны первые N из M», если список усечён. */
@@ -322,8 +350,6 @@ function renderSectionBody(
       return <DealsSection deals={card.deals} />;
     case 'enrollments':
       return <EnrollmentsSection enrollments={card.enrollments} />;
-    case 'history':
-      return <AuditTrailSection entries={card.auditTrail} />;
     case 'overview':
     default:
       return <OverviewSection card={card} />;
@@ -364,30 +390,6 @@ function EnrollmentsSection({ enrollments }: { enrollments: OrganizationCard['en
  * `У-96`: «История» — журнал действий по организации. Названия действий берутся
  * из общего словаря: в базе они машинные, человеку показываем по-русски.
  */
-function AuditTrailSection({ entries }: { entries: OrganizationCard['auditTrail'] }) {
-  if (entries.length === 0) {
-    return <EmptyState message="Изменений по этой организации ещё не было." />;
-  }
-  return (
-    <TableShell>
-      <THead>
-        <Th>Что сделали</Th>
-        <Th>Кто</Th>
-        <Th>Когда</Th>
-      </THead>
-      <tbody>
-        {entries.map((e) => (
-          <Tr key={e.id}>
-            <Td className="font-medium">{auditActionLabel(e.action)}</Td>
-            <Td className="text-gray-700">{e.actorName ?? '—'}</Td>
-            <Td className="whitespace-nowrap text-gray-500">{dateRu(e.createdAt)}</Td>
-          </Tr>
-        ))}
-      </tbody>
-    </TableShell>
-  );
-}
-
 function OrdersSection({ orders }: { orders: OrganizationCard['orders'] }) {
   if (orders.length === 0) return <EmptyState message="Заявок пока нет." />;
   return (

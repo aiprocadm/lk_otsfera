@@ -405,7 +405,8 @@ describe('getOrganizationCard — администратор (Model A)', () => {
     expect(b?.id).toBe(orgB);
     // Внутренний контур грузится как у сотрудника ЦО: платежи и журнал на месте.
     expect(a?.payments.length).toBeGreaterThan(0);
-    expect(Array.isArray(a?.auditTrail)).toBe(true);
+    // `У-184`: журнал переехал в `orgHistory.ts`; карточка считает контакты для плитки (`У-182`).
+    expect(typeof a?.counts.contacts).toBe('number');
     // `see_commission` у admin — `return true` в policy.ts.
     expect(a?.commission).not.toBeNull();
   });

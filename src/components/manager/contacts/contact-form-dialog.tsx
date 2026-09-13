@@ -32,6 +32,8 @@ type EditableContact = {
 type Props = {
   cabinet: ContactsCabinet;
   orgOptions: ContactOrgOption[];
+  /** `У-182`: из вкладки «Контакты» карточки организации — она уже выбрана. */
+  defaultOrganizationId?: string | undefined;
 } & ({ mode: 'create' } | { mode: 'edit'; contact: EditableContact });
 
 /**
@@ -40,7 +42,7 @@ type Props = {
  * подсказка с именем владельца и ссылкой «Открыть» (спека §3.4).
  */
 export function ContactFormDialog(props: Props) {
-  const { cabinet, orgOptions } = props;
+  const { cabinet, orgOptions, defaultOrganizationId } = props;
   const editing = props.mode === 'edit' ? props.contact : null;
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -49,7 +51,10 @@ export function ContactFormDialog(props: Props) {
   const [name, setName] = useState(editing?.name ?? '');
   const [position, setPosition] = useState(editing?.position ?? '');
   const [note, setNote] = useState(editing?.note ?? '');
-  const [organizationId, setOrganizationId] = useState(editing?.organizationId ?? '');
+  // Правка — организация контакта (в том числе «без»), создание — предвыбор.
+  const [organizationId, setOrganizationId] = useState(
+    editing ? (editing.organizationId ?? '') : (defaultOrganizationId ?? '')
+  );
   const [channelType, setChannelType] = useState<string>('phone');
   const [channelValue, setChannelValue] = useState('');
 

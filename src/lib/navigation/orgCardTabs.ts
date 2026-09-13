@@ -24,6 +24,7 @@ export type OrgCardCabinet = 'admin' | 'leader' | 'manager' | 'partner' | 'organ
 export type OrgCardTabKey =
   | 'overview'
   | 'employees'
+  | 'contacts'
   | 'orders'
   | 'enrollments'
   | 'documents'
@@ -33,6 +34,7 @@ export type OrgCardTabKey =
   | 'leads'
   | 'deals'
   | 'comments'
+  | 'notes'
   | 'calls'
   | 'inbound'
   | 'history'
@@ -68,6 +70,11 @@ export const ORG_CARD_TABS: readonly OrgCardTab[] = [
   // `У-97`: «Сотрудники» — это `Student` (люди организации), а не пользователи
   // кабинета: их заводит кнопка «Добавить сотрудника» на этой же вкладке.
   { key: 'employees', label: 'Сотрудники', iconKey: 'employees', cabinets: ALL },
+  // `У-182` (этап 1 ТЗ 12.09.2026): «Контакты» — люди клиента, с которыми
+  // общается учебный центр. Внутренние данные продавца: партнёру и заказчику
+  // вкладки нет (исключение зеркала с причиной — здесь, реестр фильтруется
+  // полем `cabinets`, как у «Оплат» и «Истории»).
+  { key: 'contacts', label: 'Контакты', iconKey: 'contacts', cabinets: STAFF, flag: 'contacts' },
   { key: 'orders', label: 'Заказы', iconKey: 'orders', cabinets: ALL },
   {
     key: 'enrollments',
@@ -98,6 +105,10 @@ export const ORG_CARD_TABS: readonly OrgCardTab[] = [
   // комментарии, а при выключенном `chat` не видел и их. Комментарии флагом не
   // гейтятся (CLAUDE.md §5), поэтому вкладка есть во всех кабинетах.
   { key: 'comments', label: 'Комментарии', iconKey: 'comments', cabinets: ALL },
+  // `У-183` (этап 1 ТЗ 12.09.2026): «Заметки» — внутренние записи сотрудников о
+  // клиенте (`OrganizationNote`, `Р-Б-8`). Клиент и партнёр не видят их никогда —
+  // причина та же, что у «Контактов». Флага нет: заметки не гейтятся справочником.
+  { key: 'notes', label: 'Заметки', iconKey: 'notes', cabinets: STAFF },
   // Отдельного флага у лидов нет: раздел закрывается флагом кабинета, как и
   // пункт меню «Лиды» у менеджера.
   { key: 'leads', label: 'Лиды', iconKey: 'leads', cabinets: STAFF },

@@ -36,7 +36,7 @@ function makeCard(overrides: Partial<OrganizationCard>): OrganizationCard {
     commission: null,
     // `У-102`: «Доступ в кабинет» = активные `OrganizationUser`; «Задолженность»
     // считает сервис карточки — плитки берут подписи из общего реестра.
-    counts: { orders: 3, students: 5, cabinetUsers: 2 },
+    counts: { orders: 3, students: 5, cabinetUsers: 2, contacts: 0 },
     kpis: { activeOrders: 2, totalPaid: '100.00', debt: '250.00' },
     // `С-6`: полные счётчики вкладок; 0 — подписи «показаны N из M» нет.
     tabTotals: {
@@ -51,7 +51,6 @@ function makeCard(overrides: Partial<OrganizationCard>): OrganizationCard {
       deals: 0,
       certificates: 0,
       enrollments: 0,
-      auditTrail: 0,
     },
     orders: [],
     documents: [],
