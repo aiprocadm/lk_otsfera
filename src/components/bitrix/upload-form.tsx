@@ -18,7 +18,9 @@ type UploadResponse = { files?: UploadedFile[] };
 
 const ERROR_LABELS: Record<string, string> = {
   no_files: 'Выберите хотя бы один файл выгрузки.',
-  too_many_files: `За один раз можно загрузить не больше ${BITRIX_UPLOAD_MAX_FILES} файлов.`,
+  // Число файлов названо в подсказке под полем — в тексте ошибки оно было бы
+  // шаблонной строкой, и страж русских текстов (errors.codes-covered) её не видит.
+  too_many_files: 'Слишком много файлов за один раз — загрузите их частями.',
   too_large: `Файл больше ${IMPORT_MAX_FILE_MB} МБ — разбейте выгрузку по периодам.`,
   invalid_mime: 'Подходят только файлы .csv и .xlsx.',
   file_unreadable:
