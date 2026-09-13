@@ -25,9 +25,7 @@ export type FileWriterDeps = {
   download: (file: { id: string; name: string; downloadUrl: string | null }) => Promise<Buffer>;
 };
 
-export type FileWriteResult =
-  | { ok: true; outcome: WriteOutcome }
-  | { ok: false; reason: string };
+export type FileWriteResult = { ok: true; outcome: WriteOutcome } | { ok: false; reason: string };
 
 /** Тип содержимого по имени файла: Битрикс не всегда присылает его явно. */
 const MIME_BY_EXT: Record<string, string> = {
@@ -72,7 +70,10 @@ export async function writeFile(
   if (!check.ok) {
     return {
       ok: false,
-      reason: check.error === 'too_large' ? 'файл больше допустимого размера' : 'тип файла не поддерживается',
+      reason:
+        check.error === 'too_large'
+          ? 'файл больше допустимого размера'
+          : 'тип файла не поддерживается',
     };
   }
 
@@ -87,34 +88,47 @@ export async function writeFile(
     return { ok: false, reason: 'хранилище файлов недоступно' };
   }
 
-  const documentId = await prisma.$transaction(async (tx) => {
-    const doc = await tx.document.create({
-      data: {
-        name: d.name,
-        path,
-        mimeType,
-        size: buffer.length,
-        type: 'other',
-        direction: 'incoming',
-        companyId: d.companyId,
-        counterpartyType: 'organization',
-        counterpartyId: d.organizationId,
-        uploadedById: ctx.importerId,
-        generatedBy: 'system',
-        scanStatus: 'pending',
+  // Запись документа обёрнута: один битый файл не должен ронять весь перенос —
+  // он уходит строкой в отчёт, а остальные сущности пишутся дальше.
+  let documentId: string;
+  try {
+    documentId = await prisma.$transaction(async (tx) => {
+      const doc = await tx.document.create({
+        data: {
+          name: d.name,
+          path,
+          mimeType,
+          size: buffer.length,
+          type: 'other',
+          direction: 'incoming',
+          companyId: d.companyId,
+          counterpartyType: 'organization',
+          counterpartyId: d.organizationId,
+          uploadedById: ctx.importerId,
+          generatedBy: 'system',
+          scanStatus: 'pending',
+          bitrixId: d.bitrixId,
+        },
+        select: { id: true },
+      });
+      await writeJournal(tx, ctx, {
+        entity: 'file',
+        entityId: doc.id,
         bitrixId: d.bitrixId,
-      },
-      select: { id: true },
+        action: 'created',
+        after: snapshot({ name: d.name, organizationId: d.organizationId, path }),
+      });
+      return doc.id;
     });
-    await writeJournal(tx, ctx, {
-      entity: 'file',
-      entityId: doc.id,
-      bitrixId: d.bitrixId,
-      action: 'created',
-      after: snapshot({ name: d.name, organizationId: d.organizationId, path }),
-    });
-    return doc.id;
-  });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    log.warn('[bitrix/files] document not written', { file: d.name, error: message });
+    // Самый частый случай — файл уже переносили: `bitrixId` уникален.
+    return {
+      ok: false,
+      reason: message.includes('bitrixId') ? 'файл уже переносили' : 'документ не записан',
+    };
+  }
 
   // Антивирус — как у любого другого файла кабинета; сбой очереди не повод
   // терять уже записанный документ (§3, degrade gracefully).
