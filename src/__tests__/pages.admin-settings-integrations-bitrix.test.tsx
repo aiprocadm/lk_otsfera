@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 /**
- * Раздел «Миграция из Битрикс24» (этап 2 ТЗ 12.09.2026, PR-1 «основа»):
- * страница «Подключение» (`У-188`, `У-199`), заглушка «Пакеты» (`У-198`) и
- * общий layout с вкладками.
+ * Раздел «Миграция из Битрикс24» (этап 2 ТЗ 12.09.2026): страница
+ * «Подключение» (`У-188`, `У-199`), «Пакеты» с формой файлов выгрузки
+ * (`У-198`, `У-189` file) и общий layout с вкладками.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
@@ -61,6 +61,11 @@ vi.mock('@/components/admin/integration-settings-form', () => ({
     formProps.push(props);
     return React.createElement('div', { 'data-testid': 'integration-form' }, props.title);
   },
+}));
+// Форма файлов выгрузки — клиентский компонент со своим тестом
+// (components.bitrix-upload-form): странице важно лишь, что она на месте.
+vi.mock('@/components/bitrix/upload-form', () => ({
+  BitrixUploadForm: () => React.createElement('div', { 'data-testid': 'bitrix-upload-form' }),
 }));
 vi.mock('@/components/admin/secrets-key-notice', () => ({
   SecretsKeyNotice: (props: { ready: boolean }) =>
@@ -266,17 +271,24 @@ describe('AdminBitrixSettingsPage («Подключение»)', () => {
   });
 });
 
-describe('AdminBitrixHistoryPage («Пакеты», заглушка PR-1)', () => {
-  it('гард раздела, шапка, пустое состояние с кнопкой «К подключению»', async () => {
+describe('AdminBitrixHistoryPage («Пакеты»)', () => {
+  it('гард раздела, шапка, форма файлов выгрузки и пустое состояние с кнопкой «К подключению»', async () => {
     const { container } = await renderServerComponent(AdminBitrixHistoryPage());
 
     expect(requireSettingsSection).toHaveBeenCalledWith('integrations.bitrix', 'admin');
     expect(container.querySelector('h1')?.textContent).toBe('Пакеты миграции');
     const text = container.textContent ?? '';
     expect(text).toContain('предпросмотр, применение, отчёт сверки и откат');
+    // Форма файлов выгрузки (`У-189` file) — над пустым состоянием.
+    const form = container.querySelector('[data-testid="bitrix-upload-form"]');
+    expect(form).not.toBeNull();
+    const empty = container.querySelector('[data-testid="bitrix-upload-form"] ~ div');
+    expect(empty?.textContent).toContain('Здесь пока пусто');
     // §15: пустой экран объясняет, что делать дальше, и даёт кнопку.
     expect(text).toContain('Здесь пока пусто');
-    expect(text).toContain('Пакетов миграции ещё не было');
+    expect(text).toContain(
+      'Пакетов миграции ещё не было. Подключите портал и проверьте связь или загрузите файлы выгрузки выше — форма первого пакета появится здесь.'
+    );
     const link = container.querySelector('a[href="/admin/settings/integrations/bitrix"]');
     expect(link?.textContent).toBe('К подключению');
   });

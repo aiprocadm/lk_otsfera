@@ -154,7 +154,8 @@ export type BitrixSourceErrorCode =
   | 'timeout'
   | 'api'
   | 'source_not_ready'
-  | 'source_no_files';
+  | 'source_no_files'
+  | 'file_unreadable';
 
 export class BitrixSourceError extends Error {
   readonly code: BitrixSourceErrorCode;

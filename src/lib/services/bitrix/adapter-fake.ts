@@ -28,6 +28,7 @@ import {
   FAKE_TASKS,
   FAKE_USERS,
 } from './fixtures/portal';
+import { inCreatedRange } from './filter';
 
 /**
  * Источник `fake` (`У-203`): фикстура портала в памяти — для тестов и стенда
@@ -49,26 +50,26 @@ export class FakeBitrixSource implements BitrixSource {
   }
 
   async *companies(filter: SourceFilter): AsyncIterable<BitrixCompany> {
-    yield* FAKE_COMPANIES.filter((c) => inRange(c.createdAt, filter));
+    yield* FAKE_COMPANIES.filter((c) => inCreatedRange(c.createdAt, filter));
   }
 
   async *contacts(filter: SourceFilter): AsyncIterable<BitrixContact> {
-    yield* FAKE_CONTACTS.filter((c) => inRange(c.createdAt, filter));
+    yield* FAKE_CONTACTS.filter((c) => inCreatedRange(c.createdAt, filter));
   }
 
   async *leads(filter: SourceFilter): AsyncIterable<BitrixLead> {
-    yield* FAKE_LEADS.filter((l) => inRange(l.createdAt, filter));
+    yield* FAKE_LEADS.filter((l) => inCreatedRange(l.createdAt, filter));
   }
 
   async *deals(filter: SourceFilter): AsyncIterable<BitrixDeal> {
     yield* FAKE_DEALS.filter(
-      (d) => inRange(d.createdAt, filter) && (!filter.openOnly || !d.closed)
+      (d) => inCreatedRange(d.createdAt, filter) && (!filter.openOnly || !d.closed)
     );
   }
 
   async *tasks(filter: SourceFilter): AsyncIterable<BitrixTask> {
     yield* FAKE_TASKS.filter(
-      (t) => inRange(t.createdAt, filter) && (!filter.openOnly || t.status !== 5)
+      (t) => inCreatedRange(t.createdAt, filter) && (!filter.openOnly || t.status !== 5)
     );
   }
 
@@ -91,11 +92,4 @@ export class FakeBitrixSource implements BitrixSource {
     }
     return Buffer.from(FAKE_PDF, 'utf8');
   }
-}
-
-function inRange(createdAt: Date | null, filter: SourceFilter): boolean {
-  if (!createdAt) return true;
-  if (filter.from && createdAt < filter.from) return false;
-  if (filter.to && createdAt > filter.to) return false;
-  return true;
 }
