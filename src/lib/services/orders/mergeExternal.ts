@@ -1,4 +1,4 @@
-import type { Prisma, PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
 import { isLeaderSameCompany } from '@/lib/auth/managerPolicy';
@@ -242,5 +242,3 @@ export async function listMergeTargets(
     })),
   };
 }
-
-export type { Prisma };

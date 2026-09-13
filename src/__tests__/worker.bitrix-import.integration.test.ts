@@ -6,10 +6,9 @@ import type { Job } from 'bullmq';
 // графе импортов поднял бы настоящее соединение с Redis.
 // `add` обязан возвращать обещание: боевой код вешает на него `.catch`, и мок,
 // отдающий undefined, ронял бы перенос там, где очередь просто недоступна.
-const { getQueue, queueAdd } = vi.hoisted(() => {
-  const queueAdd = vi.fn(async () => undefined);
-  return { queueAdd, getQueue: vi.fn(() => ({ add: queueAdd })) };
-});
+const { getQueue } = vi.hoisted(() => ({
+  getQueue: vi.fn(() => ({ add: vi.fn(async () => undefined) })),
+}));
 vi.mock('@/lib/jobs/queues', () => ({ getQueue }));
 
 import { bitrixImportProcessor } from '@/worker/processors/bitrix-import';

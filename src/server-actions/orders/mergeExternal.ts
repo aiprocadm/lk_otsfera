@@ -41,8 +41,7 @@ export async function mergeExternalOrderAction(
 }
 
 export type MergeTargetsResult =
-  | { ok: true; targets: MergeTarget[] }
-  | { ok: false; error: string };
+  { ok: true; targets: MergeTarget[] } | { ok: false; error: string };
 
 /** Кандидаты для объединения — заказы 1С той же организации. */
 export async function listMergeTargetsAction(sourceOrderId: string): Promise<MergeTargetsResult> {
