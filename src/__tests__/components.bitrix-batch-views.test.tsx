@@ -247,6 +247,37 @@ describe('BatchList', () => {
     expect(plain).toContain('unknown_status');
   });
 
+  it('под состоянием — дата отката, иначе дата применения, иначе ничего', () => {
+    const html = renderToString(
+      React.createElement(BatchList, {
+        batches: [
+          // Откачен: дата отката перебивает дату применения — в строке видно
+          // последнее, что с пакетом случилось, а не первое.
+          batch({
+            id: 'b-1',
+            status: 'rolled_back',
+            appliedAt: new Date('2026-09-10T07:00:00Z'),
+            rolledBackAt: new Date('2026-09-11T08:30:00Z'),
+          }),
+          // Применён и не откачен: от этой даты считается окно отката в 30 дней,
+          // иначе подпись «срок вышел» на кнопке выглядела бы взятой с потолка.
+          batch({ id: 'b-2', status: 'applied', appliedAt: new Date('2026-09-10T07:00:00Z') }),
+          // Ни того, ни другого — второй строки под состоянием просто нет.
+          batch({ id: 'b-3', status: 'preview' }),
+        ],
+      })
+    );
+
+    const plain = text(html);
+    expect(plain).toContain('откачен 11.09.2026, 11:30');
+    expect(plain).toContain('применён 10.09.2026, 10:00');
+    // Подписи ровно по одной: у откаченного пакета «применён …» не дублируется,
+    // а у предпросмотра нет ни той, ни другой. Заглавные «Откачен»/«Применён» —
+    // это подписи самого состояния, регистр их отделяет.
+    expect(plain.match(/откачен /g)).toHaveLength(1);
+    expect(plain.match(/применён /g)).toHaveLength(1);
+  });
+
   it('все восемь состояний пакета имеют русскую подпись', () => {
     expect(Object.keys(BATCH_STATUS_LABELS)).toEqual([
       'preview_pending',
@@ -387,6 +418,35 @@ describe('BatchRows', () => {
     // Безымянная запись показывается своим идентификатором в портале.
     expect(plain).toContain('99');
     expect(plain).not.toContain('Иванов');
+  });
+
+  it('«Оставили как есть» — отдельная таблица для полей, правленных в кабинете', () => {
+    // Это ни пропуск, ни конфликт: запись перенеслась, но часть значений
+    // перенос трогать не стал. Свалить её в «Пропустим» значило бы соврать —
+    // человек искал бы пропавшую запись, которая на самом деле на месте.
+    const html = renderToString(
+      React.createElement(BatchRows, {
+        rows: [
+          row({
+            entity: 'organization',
+            bitrixId: '11',
+            title: 'ООО «Ромашка»',
+            action: 'update',
+            reason: 'ручное значение поля «Название» сохранено',
+          }),
+          row({ action: 'conflict' }),
+        ],
+      })
+    );
+
+    expect(html).toContain('data-testid="bitrix-kept"');
+    const plain = text(html);
+    expect(plain).toContain('Оставили как есть ( 1 )');
+    expect(plain).toContain('Эти поля правили в кабинете, и перенос их не перезаписал.');
+    expect(plain).toContain('ручное значение поля «Название» сохранено');
+    // Соседние таблицы остались при своём — счётчики не перетекают.
+    expect(plain).toContain('Нужно решение ( 1 )');
+    expect(plain).not.toContain('Ни конфликтов, ни пропусков');
   });
 
   it('только конфликты — таблицы пропусков нет, и наоборот', () => {

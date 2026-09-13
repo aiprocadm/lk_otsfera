@@ -6,6 +6,7 @@ import {
   loadContacts,
   loadDeals,
   loadDocuments,
+  loadLastAfter,
   loadLeads,
   loadOrders,
   loadOrganizations,
@@ -31,6 +32,7 @@ const dealFindMany = vi.fn();
 const taskFindMany = vi.fn();
 const documentFindMany = vi.fn();
 const orderFindMany = vi.fn();
+const writeFindMany = vi.fn();
 
 const prisma = {
   organization: { findMany: organizationFindMany },
@@ -42,6 +44,7 @@ const prisma = {
   task: { findMany: taskFindMany },
   document: { findMany: documentFindMany },
   order: { findMany: orderFindMany },
+  bitrixImportWrite: { findMany: writeFindMany },
 } as unknown as PrismaClient;
 
 const COMPANY = 'c1';
@@ -432,5 +435,29 @@ describe('loadCompanyUsers', () => {
       select: { id: true, email: true, name: true },
       orderBy: { name: 'asc' },
     });
+  });
+});
+
+describe('loadLastAfter', () => {
+  it('пустой список идентификаторов до базы не доходит', async () => {
+    // Правило «правленное руками не перезаписываем» спрашивает журнал на
+    // каждую страницу источника. Страница без обновляемых строк не должна
+    // превращаться в лишний запрос.
+    writeFindMany.mockResolvedValue([]);
+    await expect(loadLastAfter(prisma, 'organization', [])).resolves.toEqual(new Map());
+    expect(writeFindMany).not.toHaveBeenCalled();
+  });
+
+  it('берёт САМУЮ СВЕЖУЮ запись по каждой строке, остальные не затирают её', async () => {
+    writeFindMany.mockResolvedValue([
+      { entityId: 'o1', after: { name: 'Новое имя' } },
+      { entityId: 'o1', after: { name: 'Старое имя' } },
+      { entityId: 'o2', after: { inn: '7701234560' } },
+    ]);
+    // Ключ карты — «сущность:строка»: журнал общий на все сущности пакета.
+    const map = await loadLastAfter(prisma, 'organization', ['o1', 'o2']);
+    expect(map.get('organization:o1')).toEqual({ name: 'Новое имя' });
+    expect(map.get('organization:o2')).toEqual({ inn: '7701234560' });
+    expect(writeFindMany).toHaveBeenCalledTimes(1);
   });
 });

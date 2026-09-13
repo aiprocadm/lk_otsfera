@@ -178,6 +178,7 @@ beforeEach(() => {
   loadCompanyUsers.mockResolvedValue([
     { id: 'm1', name: 'Анна', email: 'm1@demo.local' },
     { id: 'm2', name: 'Борис', email: 'm2@demo.local' },
+    { id: 'm3', name: 'Сотрудник без почты', email: null },
   ]);
 });
 
@@ -336,9 +337,12 @@ describe('AdminBitrixBatchPage — сопоставление', () => {
       dealStages: [{ id: 'ds1', name: 'В работе' }],
       funnelStages: [{ id: 'fs1', name: 'Новый' }],
       taskColumns: [{ id: 'tc1', name: 'К выполнению' }],
+      // Почта в скобках — чтобы двух тёзок можно было различить; у сотрудника
+      // без почты остаётся одно имя, а не «Имя ()».
       companyUsers: [
         { id: 'm1', name: 'Анна (m1@demo.local)' },
         { id: 'm2', name: 'Борис (m2@demo.local)' },
+        { id: 'm3', name: 'Сотрудник без почты' },
       ],
       values: {
         stageMap: { '0:NEW': 'ds1' },

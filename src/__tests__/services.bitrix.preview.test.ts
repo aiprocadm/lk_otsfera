@@ -250,6 +250,41 @@ describe('getBitrixBatch', () => {
     expect(res.batch.ready).toBe(false);
   });
 
+  it('конфликты отката доезжают из настроек в карточку пакета', async () => {
+    // Их записал откат (`У-196`), а показывает отчёт сверки. Потеряйся они при
+    // чтении — человек увидел бы «откачен частично» без единой причины.
+    findUnique.mockResolvedValue(
+      row({
+        status: 'rollback_partial',
+        rolledBackAt: new Date('2026-09-14T10:00:00Z'),
+        reportPath: 'bitrix-import/b1/report.xlsx',
+        settings: {
+          stagesFound: STAGES,
+          tables: FULL_TABLES,
+          rollbackConflicts: [
+            {
+              entity: 'order',
+              entityId: 'o1',
+              label: 'ЗК-7',
+              code: 'order_has_payments',
+              count: 2,
+            },
+          ],
+        },
+      })
+    );
+
+    const res = await getBitrixBatch(prisma, admin, 'b1');
+
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.batch.settings.rollbackConflicts).toEqual([
+      { entity: 'order', entityId: 'o1', label: 'ЗК-7', code: 'order_has_payments', count: 2 },
+    ]);
+    expect(res.batch.hasReport).toBe(true);
+    expect(res.batch.rolledBackAt).toEqual(new Date('2026-09-14T10:00:00Z'));
+  });
+
   it('настройки старого пакета: openOnly не-true и мусорные fileKeys приводятся к форме', async () => {
     findUnique.mockResolvedValue(
       row({

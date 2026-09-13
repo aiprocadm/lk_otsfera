@@ -12,7 +12,11 @@ tsconfig.tsbuildinfo
 .pr-body.md
 
 # Vitest coverage output (regenerated locally, never committed).
+# Точечные прогоны кладут отчёт в свой каталог (`--coverage.reportsDirectory`),
+# иначе параллельные прогони дерутся за `coverage/.tmp`.
 coverage/
+coverage-*/
+.tmp-cov/
 coverage-full-run.log
 coverage-*.log
 

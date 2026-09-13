@@ -47,6 +47,7 @@ import {
   storeBitrixReport,
 } from '@/lib/services/bitrix/report';
 import { EXPORT_ROW_LIMIT } from '@/lib/services/export/xlsx';
+import { ROW_CAP } from '@/lib/services/bitrix/pipeline';
 import {
   BITRIX_ENTITIES,
   BITRIX_ENTITY_TITLES,
@@ -612,5 +613,40 @@ describe('storeBitrixReport', () => {
     expect(storageUpload).not.toHaveBeenCalled();
     expect(updateBatch).not.toHaveBeenCalled();
     expect(logError).not.toHaveBeenCalled();
+  });
+});
+
+describe('buildBitrixReport — обрезанный список «нужно решение»', () => {
+  it('три листа разбора честно говорят, что предпросмотр запомнил не всё', async () => {
+    // Конвейер хранит первые `ROW_CAP` строк плана (§3.8 спеки), а человеку
+    // обещает, что столько же будет и в отчёте. Молчать об обрезке нельзя:
+    // по неполному списку пропусков выключают Битрикс24.
+    const rows = Array.from({ length: ROW_CAP }, (_, i) =>
+      planRow({
+        bitrixId: String(100 + i),
+        action: i % 3 === 0 ? 'conflict' : i % 3 === 1 ? 'skip' : 'update',
+        ...(i % 3 === 2 ? { reason: `${KEPT_MANUAL_PREFIX}name` } : { reason: 'причина' }),
+      })
+    );
+    batch = batchRow({ settings: { rows } });
+    const wb = await buildBook();
+
+    for (const name of ['Конфликты', 'Пропущено', 'Оставлено ручное']) {
+      const notice = bodyText(sheet(wb, name))
+        .flat()
+        .find((v) => v.includes('Показаны'));
+      expect(notice, `лист «${name}» молчит об обрезке`).toBeDefined();
+      expect(notice).toContain(String(ROW_CAP));
+      expect(notice).toContain('на листах сущностей');
+    }
+  });
+
+  it('список короче предела — про обрезку не выдумываем', async () => {
+    batch = batchRow({ settings: { rows: [planRow({ action: 'skip' })] } });
+    const wb = await buildBook();
+    const notice = bodyText(sheet(wb, 'Пропущено'))
+      .flat()
+      .find((v) => v.includes('Показаны'));
+    expect(notice).toBeUndefined();
   });
 });

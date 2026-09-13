@@ -51,7 +51,14 @@ export async function bitrixImportProcessor(
 
   const batch = await db.bitrixImportBatch.findUnique({
     where: { id: batchId },
-    select: { id: true, companyId: true, importedById: true, source: true, settings: true },
+    select: {
+      id: true,
+      companyId: true,
+      importedById: true,
+      source: true,
+      status: true,
+      settings: true,
+    },
   });
   if (!batch) {
     log.warn('[worker] bitrix-import: пакет не найден', { batchId });
@@ -152,7 +159,13 @@ export async function bitrixImportProcessor(
  */
 async function rollback(
   db: PrismaClient,
-  batch: { id: string; companyId: string; importedById: string; settings: Prisma.JsonValue }
+  batch: {
+    id: string;
+    companyId: string;
+    importedById: string;
+    status: string;
+    settings: Prisma.JsonValue;
+  }
 ): Promise<BitrixImportResult> {
   const batchId = batch.id;
   let summary: Awaited<ReturnType<typeof runRollback>>;
@@ -166,9 +179,20 @@ async function rollback(
         .catch(bestEffort('[worker] bitrix-import: прогресс отката не записан'));
     });
   } catch (err) {
+    // Откат не состоялся целиком (база недоступна, прогон убит). Статус
+    // возвращаем ПРЕЖНИЙ, а не `failed`: иначе пакет навсегда остался бы без
+    // кнопки «Откатить» — `failed` для неё выглядит как «не применяли», и
+    // повторить откат было бы нечем. Причина уходит в ошибки пакета.
     const message = err instanceof Error ? err.message : String(err);
     log.warn('[worker] bitrix-import rollback failed', { batchId, message });
-    return fail(db, batchId, message);
+    await db.bitrixImportBatch.update({
+      where: { id: batchId },
+      data: {
+        status: batch.status,
+        errors: [{ bitrixId: '—', entity: 'batch', message }] as unknown as Prisma.InputJsonValue,
+      },
+    });
+    return { batchId, status: 'failed', reason: message };
   }
 
   const settings = (batch.settings ?? {}) as unknown as BitrixBatchSettings;

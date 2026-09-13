@@ -266,7 +266,9 @@ function addKeptManualSheet(
       entity: BITRIX_ENTITY_TITLES[row.entity],
       bitrixId: safeText(row.bitrixId),
       title: safeText(row.title),
-      fields: safeText((row.reason ?? '').slice(KEPT_MANUAL_PREFIX.length)),
+      // Причина здесь заведомо есть: на лист попали только строки, чья
+      // причина начинается с префикса. `?? ''` был бы мёртвой веткой.
+      fields: safeText(row.reason!.slice(KEPT_MANUAL_PREFIX.length)),
     });
   }
   noteIfCapped(ws, kept.length, planRows.length);

@@ -516,6 +516,7 @@ async function deleteCreated(
     });
   }
   const delegate = DELEGATE[entity];
+  /* v8 ignore next -- недостижимо: сюда доходят только сущности ROLLBACK_ORDER без `file` и `note` (те вышли выше), а это ровно ключи DELEGATE; проверка стоит ради типа Partial<Record<…>> */
   if (!delegate) return 0;
   return (await (tx[delegate] as unknown as Deleter).deleteMany({ where: { id: { in: ids } } }))
     .count;
@@ -528,6 +529,7 @@ async function updateOne(
   data: never
 ): Promise<void> {
   const delegate = DELEGATE[entity];
+  /* v8 ignore next -- недостижимо: сюда приходят только сущности, у которых `restoreData` вернула непустой объект, то есть заведённые в RESTORE_FIELDS; все пять есть в DELEGATE */
   if (!delegate) return;
   await (tx[delegate] as unknown as Updater).update({ where: { id }, data });
 }

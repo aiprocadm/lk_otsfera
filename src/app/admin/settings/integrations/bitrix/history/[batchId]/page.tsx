@@ -33,13 +33,15 @@ export const dynamic = 'force-dynamic';
  * стадии: иначе записи ушли бы не туда, и пришлось бы откатывать весь перенос.
  */
 /** Состояния, в которых перенос уже что-то записал: есть отчёт и есть откат. */
-const DONE_STATUSES = ['applied', 'rolled_back', 'rollback_partial'];
-
 const DONE_TITLES: Record<string, string> = {
   applied: 'Перенос выполнен',
   rolled_back: 'Перенос откачен',
   rollback_partial: 'Перенос откачен частично',
 };
+
+// Список выводится из словаря заголовков, а не пишется рядом вторым литералом:
+// разъехавшись, они дали бы блок без заголовка.
+const DONE_STATUSES = Object.keys(DONE_TITLES);
 
 export default async function AdminBitrixBatchPage({
   params,
@@ -162,9 +164,7 @@ export default async function AdminBitrixBatchPage({
 
       {DONE_STATUSES.includes(batch.status) && (
         <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-2">
-          <div className="text-sm font-medium text-[#111111]">
-            {DONE_TITLES[batch.status] ?? 'Перенос выполнен'}
-          </div>
+          <div className="text-sm font-medium text-[#111111]">{DONE_TITLES[batch.status]}</div>
           <p className="text-sm text-gray-600">
             Что именно изменилось — в отчёте сверки: лист на каждую сущность плюс конфликты,
             пропуски и поля, оставленные человеку.

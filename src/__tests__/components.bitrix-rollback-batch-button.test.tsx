@@ -123,6 +123,32 @@ describe('RollbackBatchButton — подтверждение', () => {
     expect(actions.rollbackBitrixBatchAction).not.toHaveBeenCalled();
     expect(nav.refresh).not.toHaveBeenCalled();
   });
+
+  it('Escape закрывает окно так же, как «Отмена»', async () => {
+    // Окно закрывает не кнопка, а сам диалог: нативный <dialog> шлёт `cancel`
+    // на Escape. Если этот путь не вернёт состояние кнопки обратно, второй раз
+    // окно уже не откроется — кнопка «Откатить» станет мёртвой.
+    await open();
+
+    fireEvent(openDialog() as HTMLElement, new Event('cancel', { cancelable: true }));
+
+    await waitFor(() => expect(openDialog()).toBeNull());
+    expect(actions.rollbackBitrixBatchAction).not.toHaveBeenCalled();
+    expect(nav.refresh).not.toHaveBeenCalled();
+
+    // И окно действительно открывается снова — состояние не «залипло».
+    fireEvent.click(rollbackButton());
+    await waitFor(() => expect(openDialog()).not.toBeNull());
+  });
+
+  it('крестик «Закрыть» закрывает окно, ничего не запуская', async () => {
+    const dialog = await open();
+
+    fireEvent.click(dialog.getByRole('button', { name: 'Закрыть' }));
+
+    await waitFor(() => expect(openDialog()).toBeNull());
+    expect(actions.rollbackBitrixBatchAction).not.toHaveBeenCalled();
+  });
 });
 
 describe('RollbackBatchButton — запуск отката', () => {
