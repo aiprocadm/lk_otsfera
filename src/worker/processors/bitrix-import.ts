@@ -1,0 +1,153 @@
+import type { Job } from 'bullmq';
+import type { Prisma, PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/db/prisma';
+import { isFeatureEnabled } from '@/lib/featureFlags';
+import type { BitrixImportJobPayload } from '@/lib/jobs/types';
+import { bestEffort, log } from '@/lib/logging';
+import { primeIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
+import { recordAudit } from '@/lib/auth/audit';
+import { getBitrixSource } from '@/lib/services/bitrix/factory';
+import { runPipeline, type PipelineResult } from '@/lib/services/bitrix/pipeline';
+import { filterOf, type BitrixBatchSettings } from '@/lib/services/bitrix/preview';
+import type { BitrixSource } from '@/lib/services/bitrix/source';
+
+/**
+ * Пакет миграции из Битрикс24 (`У-193`, `У-194`, спека §3.2).
+ *
+ * Одна очередь на три задачи: `preview` — сухой прогон, `apply` — запись
+ * (PR-4), `rollback` — откат (PR-5). Что именно делать, говорит `job.name`.
+ *
+ * Флаг проверяется в начале КАЖДОЙ задачи (`У-202`): выключили миграцию —
+ * пакет останавливается с понятной причиной, а не молча висит в очереди.
+ * Ошибка прогона не роняет задачу в повтор: повторять сухой прогон по кругу
+ * бессмысленно, пока человек не поправит настройки, — пакет переходит в
+ * `failed` с текстом, который видно на экране.
+ */
+export type BitrixImportDeps = {
+  getSource: (
+    prisma: PrismaClient,
+    batch: { source: string; settings: unknown }
+  ) => Promise<BitrixSource>;
+};
+
+const defaultDeps: BitrixImportDeps = { getSource: getBitrixSource };
+
+export type BitrixImportResult = {
+  batchId: string;
+  status: 'preview' | 'failed' | 'skipped';
+  reason?: string;
+};
+
+export async function bitrixImportProcessor(
+  job: Job<BitrixImportJobPayload>,
+  db: PrismaClient = prisma,
+  deps: BitrixImportDeps = defaultDeps
+): Promise<BitrixImportResult> {
+  const { batchId } = job.data;
+  const kind = job.name;
+  log.info('[worker] bitrix-import job started', { id: job.id, kind, batchId });
+
+  const batch = await db.bitrixImportBatch.findUnique({
+    where: { id: batchId },
+    select: { id: true, companyId: true, importedById: true, source: true, settings: true },
+  });
+  if (!batch) {
+    log.warn('[worker] bitrix-import: пакет не найден', { batchId });
+    return { batchId, status: 'skipped', reason: 'пакет не найден' };
+  }
+
+  await primeIntegrationSettingsCache(db);
+  if (!isFeatureEnabled('bitrix_migration')) {
+    return fail(db, batchId, 'Миграция из Битрикс24 выключена в настройках платформы');
+  }
+
+  if (kind !== 'preview') {
+    // `apply` и `rollback` включатся следующими шагами этапа; до тех пор
+    // задача не должна молча исчезать — пакет говорит, что произошло.
+    return fail(db, batchId, `Задача «${kind}» появится следующим шагом этапа`);
+  }
+
+  const settings = batch.settings as unknown as BitrixBatchSettings;
+  await db.bitrixImportBatch.update({
+    where: { id: batchId },
+    data: { status: 'preview_pending', startedAt: new Date() },
+  });
+
+  let result: PipelineResult;
+  try {
+    const source = await deps.getSource(db, { source: batch.source, settings: batch.settings });
+    result = await runPipeline(db, {
+      batch: {
+        id: batch.id,
+        companyId: batch.companyId,
+        importedById: batch.importedById,
+        filter: filterOf(settings),
+        withFiles: settings.withFiles !== false,
+        defaultManagerId: settings.defaultManagerId ?? null,
+        tables: settings.tables ?? {},
+      },
+      source,
+      mode: 'shadow',
+      // Прогресс — единственное, что видно человеку во время долгого прогона;
+      // но его потеря не повод ронять сам прогон (§3, degrade gracefully).
+      onProgress: async (progress) => {
+        await db.bitrixImportBatch
+          .update({
+            where: { id: batchId },
+            data: { counts: { progress } as unknown as Prisma.InputJsonValue },
+          })
+          .catch(bestEffort('[worker] bitrix-import: прогресс не записан'));
+      },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    log.warn('[worker] bitrix-import preview failed', { batchId, message });
+    return fail(db, batchId, message);
+  }
+
+  const nextSettings: BitrixBatchSettings = {
+    ...settings,
+    tables: result.tables,
+    stagesFound: result.stagesFound,
+    usersFound: result.usersFound,
+    rows: result.rows,
+  };
+
+  await db.bitrixImportBatch.update({
+    where: { id: batchId },
+    data: {
+      status: 'preview',
+      counts: result.counts as unknown as Prisma.InputJsonValue,
+      errors: result.errors as unknown as Prisma.InputJsonValue,
+      settings: nextSettings as unknown as Prisma.InputJsonValue,
+    },
+  });
+
+  await recordAudit(db, {
+    userId: batch.importedById,
+    action: 'bitrix_import_previewed',
+    entity: 'bitrix_import_batch',
+    entityId: batchId,
+    after: { total: result.counts.total, ready: result.ready },
+  });
+
+  log.info('[worker] bitrix-import preview done', { batchId, total: result.counts.total });
+  return { batchId, status: 'preview' };
+}
+
+async function fail(
+  db: PrismaClient,
+  batchId: string,
+  reason: string
+): Promise<BitrixImportResult> {
+  await db.bitrixImportBatch.update({
+    where: { id: batchId },
+    data: {
+      status: 'failed',
+      errors: [
+        { bitrixId: '—', entity: 'batch', message: reason },
+      ] as unknown as Prisma.InputJsonValue,
+    },
+  });
+  return { batchId, status: 'failed', reason };
+}

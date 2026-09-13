@@ -25,7 +25,10 @@ export function BitrixTabs() {
     >
       {TABS.map(({ tail, label }) => {
         const href = tail ? `${BITRIX_SETTINGS_BASE}/${tail}` : BITRIX_SETTINGS_BASE;
-        const active = pathname === href;
+        // Карточка пакета живёт под «Пакетами» (`.../history/<id>`), и вкладка
+        // обязана оставаться подсвеченной: иначе на карточке гаснут обе и
+        // человек не понимает, где он (§15, «где я»).
+        const active = tail ? pathname.startsWith(href) : pathname === href;
         return (
           <Link
             key={href}

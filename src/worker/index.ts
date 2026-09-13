@@ -46,6 +46,7 @@ import { dispatchNotificationProcessor } from './processors/dispatch-notificatio
 import { pollInboundEmailProcessor } from './processors/poll-inbound-email';
 import { mangoRecordingProcessor } from './processors/mango-recording';
 import { mangoBackfillProcessor } from './processors/mango-backfill';
+import { bitrixImportProcessor } from './processors/bitrix-import';
 
 // No-op без DSN (локально/в тестах Sentry не шумит и не ходит в сеть).
 // beforeSend-скраббер — общий с Next-инициализацией (152-ФЗ: без ПДн/секретов).
@@ -195,6 +196,10 @@ async function main() {
   startWorker('inbound.email.poll', pollInboundEmailProcessor as Processor);
   startWorker('telephony.mango.recording', mangoRecordingProcessor as Processor);
   startWorker('telephony.mango.backfill', mangoBackfillProcessor as Processor);
+  // Этап 2 (`У-193`, `У-194`): пакеты миграции из Битрикс24. Без `concurrency` —
+  // умолчание BullMQ (одна задача за раз): задачи одного пакета обязаны идти
+  // последовательно, иначе предпросмотр и применение наступят друг другу на ноги.
+  startWorker('bitrix.import', bitrixImportProcessor as Processor);
 
   if (process.env.ENABLE_SYNC_CRON === '1') {
     const pausedIds = await loadPausedSchedulerIds(prisma);

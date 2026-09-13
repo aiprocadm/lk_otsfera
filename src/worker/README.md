@@ -12,7 +12,7 @@
 `docs.{generateCommissionPdf,generateCommissionXlsx,calculateMonthlyCommissions,scanDocument}`,
 `notifications.{dispatch,certificateExpiry,calendarReminder,taskDueSoon}`,
 `monitoring.{evaluateAlerts,slaEscalation}`, `inbound.email.poll`,
-`telephony.mango.{recording,backfill}`.
+`telephony.mango.{recording,backfill}`, `bitrix.import`.
 
 ## Retry / DLQ
 

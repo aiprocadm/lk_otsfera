@@ -28,6 +28,11 @@ export const QUEUE_NAMES = [
   'inbound.email.poll',
   'telephony.mango.recording',
   'telephony.mango.backfill',
+  // Этап 2 ТЗ 12.09.2026 (`У-193`, `У-194`): миграция из Битрикс24. Одна очередь
+  // на три задачи — `preview`, `apply`, `rollback`; они различаются `job.name`,
+  // payload у всех один (`{ batchId }`). Задачи одного пакета обязаны идти
+  // по очереди, поэтому `concurrency` не передаётся (умолчание BullMQ — одна).
+  'bitrix.import',
 ] as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[number];
