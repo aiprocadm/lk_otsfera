@@ -170,11 +170,11 @@ PR-3 — сервисы заметок PR-1 и страницы PR-2, PR-4 за�
 
 ## PR-4 «флаг и close-out»
 
-- [ ] `featureFlags.ts`: комментарий флага `contacts` — точки чтения; страницы
+- [x] `featureFlags.ts`: комментарий флага `contacts` — точки чтения; страницы
       читают флаг сами (страж `featureFlags.third-gate` зелёный)
-- [ ] `docs/feature-flags-matrix.md`: строка `contacts` переписана
-- [ ] `docs/tz/AUDIT.md`: `У-178`…`У-187` ✅ с якорями и датой;
+- [x] `docs/feature-flags-matrix.md`: строка `contacts` переписана
+- [x] `docs/tz/AUDIT.md`: `У-178`…`У-187` ✅ с якорями и датой;
       `docs/tz/STATUS.md`: этап 1 ✅, «Текущий этап» → 2 «Миграция из
       Битрикс24», шаг — спека
-- [ ] close-out `2026-09-12-stage1-contacts-and-notes-DONE.md`
-- [ ] `CHANGELOG.md`; `npm run tz:status`
+- [x] close-out `2026-09-12-stage1-contacts-and-notes-DONE.md`
+- [x] `CHANGELOG.md`; `npm run tz:status`
