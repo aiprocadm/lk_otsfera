@@ -174,14 +174,19 @@ export class RestBitrixSource implements BitrixSource {
 
   async *users(): AsyncIterable<BitrixUser> {
     for await (const row of this.client.list('user.get', {})) {
+      const email = strOrNull(row.EMAIL)?.toLowerCase() ?? null;
       yield {
         id: str(row.ID),
-        email: strOrNull(row.EMAIL)?.toLowerCase() ?? null,
+        email,
         name:
-          [str(row.NAME), str(row.LAST_NAME)].filter(Boolean).join(' ') ||
-          str(row.EMAIL) ||
+          [str(row.NAME), str(row.LAST_NAME)]
+            .map((v) => v.trim())
+            .filter(Boolean)
+            .join(' ') ||
+          email ||
           `#${str(row.ID)}`,
-        active: str(row.ACTIVE) !== 'false' && str(row.ACTIVE) !== 'N',
+        // `ACTIVE` приходит булевым (`false`) или строкой (`'N'`, `'false'`, `'0'`).
+        active: isActiveFlag(row.ACTIVE),
       };
     }
   }
@@ -464,6 +469,15 @@ export class RestBitrixSource implements BitrixSource {
 }
 
 function toSize(v: unknown): number | null {
-  const n = Number(str(v));
+  const raw = str(v).trim();
+  if (!raw) return null;
+  const n = Number(raw);
   return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+/** Уволенный сотрудник Битрикса не должен стать «активным» из-за булевого `false`. */
+function isActiveFlag(v: unknown): boolean {
+  if (v === false) return false;
+  const raw = str(v).trim().toLowerCase();
+  return raw !== 'false' && raw !== 'n' && raw !== '0';
 }

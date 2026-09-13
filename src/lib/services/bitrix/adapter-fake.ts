@@ -74,7 +74,10 @@ export class FakeBitrixSource implements BitrixSource {
 
   async *comments(entity: BitrixCommentEntity, ids: string[]): AsyncIterable<BitrixComment> {
     const wanted = new Set(ids);
-    yield* FAKE_COMMENTS.filter((c) => c.entity === entity && wanted.has(c.entityId));
+    // Как и REST: пустые комментарии (в фикстуре — `610`) наружу не выходят.
+    yield* FAKE_COMMENTS.filter(
+      (c) => c.entity === entity && wanted.has(c.entityId) && c.text.trim().length > 0
+    );
   }
 
   async *files(entity: BitrixFileEntity, ids: string[]): AsyncIterable<BitrixFile> {

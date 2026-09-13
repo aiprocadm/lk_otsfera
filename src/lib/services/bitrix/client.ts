@@ -61,7 +61,7 @@ const fetchTransport: BitrixTransport = async (url, params, signal) => {
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json', accept: 'application/json' },
-    body: JSON.stringify(params ?? {}),
+    body: JSON.stringify(params),
     signal,
   });
   let body: unknown = null;
@@ -134,23 +134,28 @@ export function createBitrixClient(options: BitrixClientOptions): BitrixClient {
     nextAllowedAt = Math.max(now(), nextAllowedAt) + interval;
   }
 
+  function transportError(err: unknown): BitrixSourceError {
+    const aborted = err instanceof Error && err.name === 'AbortError';
+    return new BitrixSourceError(
+      aborted ? 'timeout' : 'network',
+      aborted
+        ? `Битрикс24 не ответил за ${Math.round(timeoutMs / 1000)} с`
+        : 'Битрикс24 недоступен: сетевая ошибка'
+    );
+  }
+
   async function once(method: string, params: Record<string, unknown>): Promise<BitrixRawResponse> {
     await throttle();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      return await transport(`${base}${method}`, params, controller.signal);
-    } catch (err) {
-      const aborted = err instanceof Error && err.name === 'AbortError';
-      throw new BitrixSourceError(
-        aborted ? 'timeout' : 'network',
-        aborted
-          ? `Битрикс24 не ответил за ${Math.round(timeoutMs / 1000)} с`
-          : 'Битрикс24 недоступен: сетевая ошибка'
-      );
-    } finally {
-      clearTimeout(timer);
-    }
+    // Таймер снимается в `.finally` промиса, а не в `try/finally`: у блока
+    // `finally` с `return` внутри `try` V8 рисует недостижимую ветку.
+    const request = transport(`${base}${method}`, params, controller.signal).finally(() =>
+      clearTimeout(timer)
+    );
+    return request.catch((err: unknown) => {
+      throw transportError(err);
+    });
   }
 
   async function call(
@@ -187,7 +192,7 @@ export function createBitrixClient(options: BitrixClientOptions): BitrixClient {
       }
       throw failure;
     }
-    // Недостижимо: цикл либо вернул результат, либо бросил. Оставлено ради типов.
+    // Сюда попадаем только при `retries < 0` (цикл не выполнился ни разу).
     throw lastError ?? new BitrixSourceError('api', 'Битрикс24: неизвестная ошибка');
   }
 
