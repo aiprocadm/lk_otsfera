@@ -35,7 +35,11 @@ const SCOPE_OPTIONS: { value: ScopeLevel; label: string }[] = [
 ];
 
 const OBJECT_TYPES: { key: AccessObjectType; label: string }[] = [
-  { key: 'orders', label: 'Заявки' },
+  // `У-96`: объект `Order` во всех кабинетах называется «Заказы» (глоссарий);
+  // дореформенное «Заявки» здесь дожило до этапа 1 ТЗ 12.09.2026 (находка
+  // `В-1-7` спеки этапа) — «Заявки» в интерфейсе означают лиды, и охват прав
+  // на заказы под этим словом читался как охват воронки.
+  { key: 'orders', label: 'Заказы' },
   { key: 'organizations', label: 'Организации' },
   { key: 'threads', label: 'Переписка' },
   { key: 'documents', label: 'Документы' },
