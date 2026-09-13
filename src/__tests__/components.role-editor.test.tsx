@@ -97,9 +97,17 @@ describe('RoleEditor', () => {
   it('renders a profile row with scopes, capabilities, and usersCount', () => {
     render(renderEditor({ profiles: [profile], users: [] }));
     expect(screen.getByText('Продавец')).toBeTruthy();
-    expect(screen.getByText('Заявки: Свои')).toBeTruthy();
+    expect(screen.getByText('Заказы: Свои')).toBeTruthy();
     expect(screen.getByText('Экспорт')).toBeTruthy();
     expect(screen.getByText('2')).toBeTruthy();
+  });
+
+  it('охват заказов подписан по глоссарию «Заказы», а не дореформенным «Заявки» (`У-96`, находка `В-1-7`)', () => {
+    // «Заявки» в интерфейсе — это лиды: под этим словом охват прав на заказы
+    // читался как охват воронки. Страж держит подпись у строки профиля.
+    render(renderEditor({ profiles: [profile], users: [] }));
+    expect(screen.getByText('Заказы: Свои')).toBeTruthy();
+    expect(screen.queryByText(/^Заявки/)).toBeNull();
   });
 
   it('falls back to the raw value for an unknown scope/capability (stale data defense)', () => {
@@ -110,7 +118,7 @@ describe('RoleEditor', () => {
       capabilities: ['legacy_cap' as Capability],
     };
     render(renderEditor({ profiles: [stale], users: [] }));
-    expect(screen.getByText('Заявки: legacy_scope')).toBeTruthy();
+    expect(screen.getByText('Заказы: legacy_scope')).toBeTruthy();
     expect(screen.getByText('legacy_cap')).toBeTruthy();
   });
 
