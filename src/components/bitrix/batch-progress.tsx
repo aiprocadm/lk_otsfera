@@ -12,15 +12,22 @@ import { getBitrixBatchStateAction } from '@/server-actions/admin/bitrix';
  * готовый пакет незачем. Вкладка в фоне не опрашивается вовсе: считать чужой
  * трафик за спиной пользователя невежливо (тот же приём, что у бейджей меню).
  */
-const BUSY_STATUSES = new Set(['preview_pending', 'applying', 'rolling_back']);
 const POLL_MS = 3000;
 
-/** Заголовок под текущую работу: человек нажал «Применить» и должен видеть это. */
-const BUSY_TITLES: Record<string, string> = {
+/**
+ * Рабочие состояния пакета и заголовок под каждое: человек нажал «Применить»
+ * и должен читать про перенос, а не про предпросмотр. Список один — из него же
+ * выводится «идёт ли работа», иначе состояние и подпись однажды разойдутся.
+ */
+const BUSY_TITLES = {
   preview_pending: 'Считаем предпросмотр…',
   applying: 'Переносим данные…',
   rolling_back: 'Откатываем пакет…',
-};
+} as const;
+
+type BusyStatus = keyof typeof BUSY_TITLES;
+
+const isBusy = (status: string): status is BusyStatus => status in BUSY_TITLES;
 
 const STEP_LABELS: Record<string, string> = {
   users: 'сотрудники',
@@ -38,19 +45,20 @@ const STEP_LABELS: Record<string, string> = {
 export function BatchProgress({ batchId, status }: { batchId: string; status: string }) {
   const router = useRouter();
   const [state, setState] = useState<{ step: string; done: number } | null>(null);
-  const busy = BUSY_STATUSES.has(status);
+  const busy = isBusy(status);
 
   useEffect(() => {
     if (!busy) return;
     let stopped = false;
 
     async function poll(): Promise<void> {
-      if (stopped) return;
-      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      // Эффект живёт только в браузере, поэтому `document` здесь есть всегда.
+      if (document.visibilityState !== 'visible') return;
       const res = await getBitrixBatchStateAction(batchId);
+      // Ответ мог прийти после ухода со страницы — тогда обновлять уже нечего.
       if (stopped || !res.ok) return;
       if (res.progress) setState({ step: res.progress.step, done: res.progress.done });
-      if (!BUSY_STATUSES.has(res.status)) {
+      if (!isBusy(res.status)) {
         // Работа кончилась — глушим таймер, а не только игнорируем ответы:
         // иначе экран продолжал бы ходить на сервер каждые три секунды.
         stopped = true;
@@ -67,11 +75,11 @@ export function BatchProgress({ batchId, status }: { batchId: string; status: st
     };
   }, [batchId, busy, router]);
 
-  if (!busy) return null;
+  if (!isBusy(status)) return null;
 
   return (
     <div role="status" className="bg-white border border-gray-200 rounded-xl p-4 space-y-1">
-      <div className="text-sm font-medium text-[#111111]">{BUSY_TITLES[status] ?? 'Работаем…'}</div>
+      <div className="text-sm font-medium text-[#111111]">{BUSY_TITLES[status]}</div>
       <p className="text-sm text-gray-600">
         {state
           ? `Обработано записей: ${state.done}. Сейчас — ${STEP_LABELS[state.step] ?? state.step}.`

@@ -293,7 +293,7 @@ describe('planOrganization — обновление существующей', (
       ctxOf(),
       lookupOf({ byBitrixId: () => existingOf({ ...inLk, bitrixId: '7' }) })
     );
-    expect(plan).toEqual({ action: 'skip', reason: 'no_changes' });
+    expect(plan).toEqual({ action: 'skip', reason: 'no_changes', id: 'org-1' });
   });
 
   it('bitrixId дописывается, только если его не было', () => {
@@ -314,7 +314,7 @@ describe('planOrganization — обновление существующей', (
       ctxOf(),
       lookupOf({ byInn: () => existingOf({ inn: VALID_INN, bitrixId: '7' }) })
     );
-    expect(already).toEqual({ action: 'skip', reason: 'no_changes' });
+    expect(already).toEqual({ action: 'skip', reason: 'no_changes', id: 'org-1' });
   });
 
   it('у найденной организации ЧУЖОЙ bitrixId — поле не трогаем', () => {
@@ -324,7 +324,7 @@ describe('planOrganization — обновление существующей', (
       ctxOf(),
       lookupOf({ byInn: () => existingOf({ inn: VALID_INN, bitrixId: '999' }) })
     );
-    expect(plan).toEqual({ action: 'skip', reason: 'no_changes' });
+    expect(plan).toEqual({ action: 'skip', reason: 'no_changes', id: 'org-1' });
   });
 
   it('всё совпало — нечего менять', () => {
@@ -341,7 +341,7 @@ describe('planOrganization — обновление существующей', (
           }),
       })
     );
-    expect(plan).toEqual({ action: 'skip', reason: 'no_changes' });
+    expect(plan).toEqual({ action: 'skip', reason: 'no_changes', id: 'org-1' });
   });
 
   it('название обновляется вместе с ключом поиска', () => {
@@ -366,7 +366,7 @@ describe('planOrganization — обновление существующей', (
         byInn: () => existingOf({ name: 'ООО «Ромашка»', inn: VALID_INN, bitrixId: '7' }),
       })
     );
-    expect(plan).toEqual({ action: 'skip', reason: 'no_changes' });
+    expect(plan).toEqual({ action: 'skip', reason: 'no_changes', id: 'org-1' });
   });
 
   it('название изменилось — пишется вместе с ключом поиска', () => {

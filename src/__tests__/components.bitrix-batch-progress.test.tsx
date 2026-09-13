@@ -234,3 +234,39 @@ describe('BatchProgress', () => {
     expect(getBitrixBatchStateAction).toHaveBeenLastCalledWith('b-2');
   });
 });
+
+describe('BatchProgress — заголовок по роду работы', () => {
+  it('применение и откат называются своими именами, а не «предпросмотром»', async () => {
+    getBitrixBatchStateAction.mockResolvedValue({ ok: true, status: 'applying', progress: null });
+
+    const applying = render(<BatchProgress batchId="b-1" status="applying" />);
+    await act(async () => {});
+    expect(applying.container.textContent).toContain('Переносим данные…');
+    applying.unmount();
+
+    const rollback = render(<BatchProgress batchId="b-1" status="rolling_back" />);
+    await act(async () => {});
+    expect(rollback.container.textContent).toContain('Откатываем пакет…');
+    rollback.unmount();
+  });
+
+  it('после остановки опрос прекращается совсем — таймер погашен', async () => {
+    getBitrixBatchStateAction
+      .mockResolvedValueOnce({ ok: true, status: 'preview_pending', progress: null })
+      .mockResolvedValueOnce({ ok: true, status: 'preview', progress: null });
+
+    render(<BatchProgress batchId="b-1" status="preview_pending" />);
+    await act(async () => {});
+    await act(async () => {
+      vi.advanceTimersByTime(3000);
+    });
+    const callsAfterStop = getBitrixBatchStateAction.mock.calls.length;
+
+    // Пакет уже досчитан: дальше экран не должен тревожить сервер вообще.
+    await act(async () => {
+      vi.advanceTimersByTime(30_000);
+    });
+    expect(getBitrixBatchStateAction.mock.calls.length).toBe(callsAfterStop);
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+});

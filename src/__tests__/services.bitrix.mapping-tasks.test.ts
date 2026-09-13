@@ -390,6 +390,6 @@ describe('planTask — повторный перенос той же задач�
   it('ничего не изменилось → skip no_changes', () => {
     const plan = planTask(taskOf(), ctxOf(), lookupOf({ byBitrixId: () => EXISTING }), COLUMNS);
 
-    expect(plan).toEqual({ action: 'skip', reason: 'no_changes' });
+    expect(plan).toEqual({ action: 'skip', reason: 'no_changes', id: 'task-1' });
   });
 });

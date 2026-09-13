@@ -4,7 +4,13 @@ import { resolveDealStages } from '@/lib/services/deals/stages';
 import { findByAnchor } from '@/lib/services/orderStatuses/definitions';
 import { resolveTaskColumns } from '@/lib/tasks/columns';
 import { normalizeChannelValue } from '@/lib/services/contacts/resolveContactByChannel';
-import { planContact, type ContactChannelData } from './mapping/contacts';
+import {
+  channelConflicts,
+  planContact,
+  type ChannelOwnerRef,
+  type ContactChannelData,
+  type ContactData,
+} from './mapping/contacts';
 import { planDeal } from './mapping/deals';
 import { planFile } from './mapping/files';
 import { planLead } from './mapping/leads';
@@ -23,7 +29,7 @@ import {
 import { planDealNote, planOrganizationNote } from './mapping/notes';
 import { planOrderForWonDeal } from './mapping/orders';
 import { planOrganization } from './mapping/organizations';
-import { BitrixRegistry, isPlanned } from './mapping/registry';
+import { BitrixRegistry, isPlanned, plannedId } from './mapping/registry';
 import {
   proposeLeadStageMap,
   proposeStageMap,
@@ -259,6 +265,9 @@ export async function runPipeline(
   }
 
   // --- контакты ---
+  // Каналы, занятые контактами ЭТОГО пакета: база о них ещё не знает, а второй
+  // контакт с тем же телефоном обязан уйти в конфликт, а не в «создать».
+  const claimedChannels = new Map<string, ChannelOwnerRef>();
   for await (const page of pages(source.contacts(batch.filter))) {
     // Канал ищется в базе ТОЛЬКО в каноническом виде: «+7 (921) 111-22-33» и
     // «+79211112233» — один и тот же телефон, и сырое значение не нашло бы
@@ -287,11 +296,14 @@ export async function runPipeline(
     for (const contact of page) {
       const plan = planContact(contact, ctx, {
         byBitrixId: (id) => found.byBitrixId.get(id),
-        channelOwner: (type, value) => found.channelOwners.get(channelKey(type, value)),
+        channelOwner: (type, value) =>
+          found.channelOwners.get(channelKey(type, value)) ??
+          claimedChannels.get(channelKey(type, value)),
         contactById: (id) => found.byId.get(id),
         isUserChannel: (type, value) => found.userChannels.has(channelKey(type, value)),
         organizationByBitrixId: (id) => registry.get('organization', id),
       });
+      claimChannels(claimedChannels, contact, plan);
       countPlan(counts.contact, plan);
       addRow({
         entity: 'contact',
@@ -301,6 +313,17 @@ export async function runPipeline(
         reason: planReason(plan),
       });
       rememberPlan(registry, 'contact', contact.id, plan);
+      // Занятый канал не отменяет перенос контакта, но человек обязан о нём
+      // узнать: телефон остался у другого, и это решение, а не мелочь.
+      for (const conflict of channelConflicts(plan)) {
+        pushRow({
+          entity: 'contact',
+          bitrixId: contact.id,
+          title: [contact.name, contact.lastName].filter(Boolean).join(' ') || contact.id,
+          action: 'conflict',
+          reason: `канал не перенесён: ${conflict}`,
+        });
+      }
       // Организация контакта нужна заметкам о контакте и привязкам задач.
       const organizationId = contact.companyId
         ? registry.get('organization', contact.companyId)
@@ -566,6 +589,30 @@ export async function runPipeline(
   };
 }
 
+/** Запомнить каналы контакта за ним: в пределах пакета телефон тоже занят. */
+function claimChannels(
+  claimed: Map<string, ChannelOwnerRef>,
+  contact: { id: string; name: string; lastName: string },
+  plan: Plan<ContactData>
+): void {
+  const channels =
+    plan.action === 'create'
+      ? plan.data.channels
+      : plan.action === 'update'
+        ? (plan.data.channels ?? [])
+        : [];
+  if (channels.length === 0) return;
+  const owner: ChannelOwnerRef = {
+    contactId: plan.action === 'update' ? plan.id : plannedId('contact', contact.id),
+    contactName: [contact.name, contact.lastName].filter(Boolean).join(' ') || contact.id,
+    bitrixId: contact.id,
+  };
+  for (const channel of channels) {
+    const key = channelKey(channel.type, channel.normalizedValue);
+    if (!claimed.has(key)) claimed.set(key, owner);
+  }
+}
+
 /** Запомнить, что сущность существует (или появится) — по этому строятся связи. */
 function rememberPlan(
   registry: BitrixRegistry,
@@ -575,4 +622,8 @@ function rememberPlan(
 ): void {
   if (plan.action === 'update') registry.set(entity, bitrixId, plan.id);
   else if (plan.action === 'create') registry.plan(entity, bitrixId);
+  // «Нечего менять» — это тоже «запись есть». Без этой ветки повторный прогон
+  // забывал уже перенесённую организацию, и её сделки, комментарии и файлы
+  // исчезали из сводки: на одних и тех же данных предпросмотр показывал разное.
+  else if (plan.action === 'skip' && plan.id) registry.set(entity, bitrixId, plan.id);
 }

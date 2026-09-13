@@ -99,7 +99,7 @@ describe('planDealNote — комментарий сделки', () => {
   it('сделка не перенеслась → заметке некуда лечь', () => {
     const plan = planDealNote(commentOf(), ctxOf(), { dealByBitrixId: () => undefined });
 
-    expect(plan).toEqual({ action: 'skip', reason: 'no_contact' });
+    expect(plan).toEqual({ action: 'skip', reason: 'no_deal' });
   });
 
   it('длинный текст укорачивается до предела модели', () => {

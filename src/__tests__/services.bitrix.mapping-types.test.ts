@@ -32,6 +32,7 @@ import type {
 const SKIP_REASONS = [
   'no_organization',
   'no_contact',
+  'no_deal',
   'empty',
   'too_large',
   'source_no_files',
@@ -60,6 +61,7 @@ describe('SKIP_LABELS — русская подпись каждой причи�
   it.each([
     ['no_organization', 'нет организации'],
     ['no_contact', 'нет контакта'],
+    ['no_deal', 'сделка не перенесена'],
     ['empty', 'пустая запись'],
     ['too_large', 'файл больше допустимого размера'],
     ['source_no_files', 'источник не даёт файлов'],

@@ -349,12 +349,12 @@ describe('planDeal — повторный перенос той же сделк�
       DEAL_STAGES
     );
 
-    expect(plan).toEqual({ action: 'skip', reason: 'no_changes' });
+    expect(plan).toEqual({ action: 'skip', reason: 'no_changes', id: 'deal-1' });
   });
 
   it('всё совпало → skip no_changes', () => {
     const plan = planDeal(dealOf(), ctxOf(), lookupOf({ byBitrixId: () => EXISTING }), DEAL_STAGES);
 
-    expect(plan).toEqual({ action: 'skip', reason: 'no_changes' });
+    expect(plan).toEqual({ action: 'skip', reason: 'no_changes', id: 'deal-1' });
   });
 });

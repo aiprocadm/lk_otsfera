@@ -417,6 +417,6 @@ describe('planLead — повторный перенос того же лида'
       FUNNEL_STAGES
     );
 
-    expect(plan).toEqual({ action: 'skip', reason: 'no_changes' });
+    expect(plan).toEqual({ action: 'skip', reason: 'no_changes', id: 'lead-1' });
   });
 });
