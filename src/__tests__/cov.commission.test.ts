@@ -74,10 +74,10 @@ function makeDetectDb(opts: {
   partner?: any;
   createImpl?: (arg: any) => any;
 }) {
+  // Хотфикс №45: выборка идёт от закрытых периодов, ставки берутся пачкой.
+  const partner = 'partner' in opts ? opts.partner : { commissionRate: dec(0.2) };
   return {
     payment: { findMany: vi.fn().mockResolvedValue(opts.refunds) },
-    // Справочники задача берёт пакетом (один запрос на прогон, а не на строку):
-    // подделка отдаёт списки, ключи группировки — в самих строках.
     commissionStatement: {
       findMany: vi
         .fn()
@@ -92,7 +92,7 @@ function makeDetectDb(opts: {
       findMany: vi
         .fn()
         .mockResolvedValue(
-          (opts.orgChanges ?? []).map((c: any) => ({ organizationId: 'org-1', ...c }))
+          (opts.orgChanges ?? []).map((c: any) => ({ organizationId: 'org1', ...c }))
         ),
     },
     commissionCorrection: {
@@ -101,12 +101,7 @@ function makeDetectDb(opts: {
         .mockImplementation(opts.createImpl ?? (({ data }: any) => ({ id: 'new', ...data }))),
     },
     partner: {
-      findMany: vi.fn().mockResolvedValue(
-        (() => {
-          const row = 'partner' in opts ? opts.partner : { commissionRate: dec(0.2) };
-          return row ? [{ id: 'p1', ...row }] : [];
-        })()
-      ),
+      findMany: vi.fn().mockResolvedValue(partner ? [{ id: 'p1', ...partner }] : []),
     },
   } as any;
 }

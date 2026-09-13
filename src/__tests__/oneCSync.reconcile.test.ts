@@ -202,38 +202,30 @@ function leadsPrisma(
 ) {
   const findMany = vi.fn().mockResolvedValue(rows);
   const updateMany = vi.fn().mockResolvedValue({ count: 1 });
-  // Обе справки задача берёт пакетом: подтверждения — по телу записи (`OR` из
-  // ключей), «уже повторяли» — по колонке `externalId: { in: [...] }`.
-  const logFindMany = vi.fn(async ({ where }: { where: Record<string, unknown> }) => {
-    const or = where.OR as Array<{ payload: { equals: string } }> | undefined;
-    if (or) {
-      const wanted = new Set(or.map((c) => c.payload.equals));
-      return logRows
-        .filter(
-          (r) =>
-            r.operation === where.operation &&
-            r.status === where.status &&
-            r.cabinetLeadId !== undefined &&
-            wanted.has(r.cabinetLeadId)
-        )
+  // История обмена спрашивается ПАЧКОЙ: один запрос про подтверждения, один —
+  // про прежние повторы (хотфикс №45, `С-8`).
+  const logFindMany = vi.fn(async ({ where }: { where: Record<string, any> }) => {
+    const hits = logRows.filter(
+      (r) => r.operation === where.operation && r.status === where.status
+    );
+    if (where.OR) {
+      const asked = (where.OR as Array<{ payload: { equals: string } }>).map(
+        (c) => c.payload.equals
+      );
+      return hits
+        .filter((r) => r.cabinetLeadId && asked.includes(r.cabinetLeadId))
         .map((r) => ({ payload: { cabinetLeadId: r.cabinetLeadId } }));
     }
-    const ids = (where.externalId as { in: string[] } | undefined)?.in ?? [];
-    return logRows
-      .filter(
-        (r) =>
-          r.operation === where.operation &&
-          r.status === where.status &&
-          r.externalId !== undefined &&
-          ids.includes(r.externalId)
-      )
+    const asked = (where.externalId as { in: string[] }).in;
+    return hits
+      .filter((r) => r.externalId && asked.includes(r.externalId))
       .map((r) => ({ externalId: r.externalId }));
   });
   const prisma = {
     lead: { findMany, updateMany },
     syncLog: { findMany: logFindMany },
   } as unknown as PrismaClient;
-  return { prisma, findMany, updateMany, findFirst: logFindMany };
+  return { prisma, findMany, updateMany, logFindMany };
 }
 
 describe('reconcileStuckLeads', () => {
@@ -248,12 +240,40 @@ describe('reconcileStuckLeads', () => {
         externalIdInOneC: null,
       },
       select: { id: true, pushedToOneCAt: true },
-      orderBy: { pushedToOneCAt: 'asc' },
+      orderBy: [{ pushedToOneCAt: 'desc' }, { id: 'desc' }],
+      take: expect.any(Number),
     });
   });
 
+  // ── Страж порционности (`С-8`, хотфикс №49) ────────────────────────────────
+
+  it('берёт пачку с пределом, а не все зависшие претензии сразу', async () => {
+    const { prisma, findMany } = leadsPrisma([], []);
+    await reconcileStuckLeads(prisma, { now: NOW });
+    const args = findMany.mock.calls[0][0];
+    expect(args.take).toBeGreaterThan(0);
+    // Сначала свежие: среди старых копятся неизлечимые (1С приняла без номера),
+    // и при порядке «сначала старые» они заняли бы пачку целиком.
+    expect(args.orderBy).toEqual([{ pushedToOneCAt: 'desc' }, { id: 'desc' }]);
+  });
+
+  it('число запросов к истории обмена не растёт вместе с базой', async () => {
+    const claimed = new Date(NOW.getTime() - 30 * HOURS);
+    const one = leadsPrisma([{ id: 'lead-1', pushedToOneCAt: claimed }], []);
+    await reconcileStuckLeads(one.prisma, { now: NOW });
+
+    const many = leadsPrisma(
+      Array.from({ length: 50 }, (_, i) => ({ id: `lead-${i}`, pushedToOneCAt: claimed })),
+      []
+    );
+    await reconcileStuckLeads(many.prisma, { now: NOW });
+
+    expect(many.logFindMany.mock.calls.length).toBe(one.logFindMany.mock.calls.length);
+    expect(many.logFindMany.mock.calls.length).toBeLessThanOrEqual(2);
+  });
+
   it('лид, который 1С приняла без своего номера (success в истории), не трогается', async () => {
-    const { prisma, updateMany, findFirst } = leadsPrisma(
+    const { prisma, updateMany, logFindMany } = leadsPrisma(
       [{ id: 'lead-ok', pushedToOneCAt: claimedAt }],
       [{ operation: 'create', status: 'success', cabinetLeadId: 'lead-ok' }]
     );
@@ -263,12 +283,7 @@ describe('reconcileStuckLeads', () => {
     expect(queueAdd).not.toHaveBeenCalled();
     expect(writeSyncLog).not.toHaveBeenCalled();
     // Ищем именно по cabinetLeadId в payload: externalId success-строки — номер 1С.
-    // Запрос один на прогон, ключи лидов развёрнуты в `OR` (см. страж
-    // `jobs.background-scan-batching`).
-    const acceptedCall = findFirst.mock.calls.find(
-      (c) => (c[0] as { where: { operation?: string } }).where.operation === 'create'
-    )!;
-    expect(acceptedCall[0].where).toMatchObject({
+    expect(logFindMany.mock.calls[0][0].where).toMatchObject({
       entity: 'lead',
       direction: 'outbound',
       operation: 'create',
@@ -309,7 +324,7 @@ describe('reconcileStuckLeads', () => {
   });
 
   it('второй раз (warn за 48 часов уже есть): error в истории, лид не трогается', async () => {
-    const { prisma, updateMany, findFirst } = leadsPrisma(
+    const { prisma, updateMany, logFindMany } = leadsPrisma(
       [{ id: 'lead-2', pushedToOneCAt: claimedAt }],
       [{ operation: 'check', status: 'warn', externalId: 'lead-2' }]
     );
@@ -329,11 +344,7 @@ describe('reconcileStuckLeads', () => {
       },
       prisma
     );
-    // «Уже повторяли» тоже спрашивается один раз на прогон — списком ключей.
-    const retriedCall = findFirst.mock.calls.find(
-      (c) => (c[0] as { where: { status?: string } }).where.status === 'warn'
-    )!;
-    expect(retriedCall[0].where).toMatchObject({
+    expect(logFindMany.mock.calls[1][0].where).toMatchObject({
       operation: 'check',
       status: 'warn',
       externalId: { in: ['lead-2'] },
