@@ -1,7 +1,8 @@
 import { fmtMoney } from '@/lib/format';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { readSource } from './helpers/source';
 
 import { ORG_CARD_TILES, orgCardTiles } from '@/lib/navigation/orgCardTiles';
 
@@ -84,7 +85,7 @@ describe('источник числа «Доступ в кабинет» (Д-29)
     const offenders: string[] = [];
     for (const root of roots) {
       for (const file of collect(join(process.cwd(), root))) {
-        const src = readFileSync(file, 'utf8');
+        const src = readSource(file);
         // `_count: { select: { ... users: true ... } }` на организации — ровно
         // тот источник, из-за которого числа расходились.
         if (/_count:\s*{\s*select:\s*{[^}]*\busers:\s*true/s.test(src)) offenders.push(file);
