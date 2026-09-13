@@ -59,6 +59,15 @@ export function readFileEntry(
   return raw;
 }
 
+async function toFormFile(file: File): Promise<FormFile> {
+  return {
+    name: file.name,
+    type: file.type,
+    size: file.size,
+    buffer: Buffer.from(await file.arrayBuffer()),
+  };
+}
+
 /** Файл формы вместе с вычитанным буфером; поля файла нет → `null`. */
 export async function readFile(
   form: FormData,
@@ -67,12 +76,21 @@ export async function readFile(
 ): Promise<FormFile | null> {
   const file = readFileEntry(form, key, opts);
   if (file === null) return null;
-  return {
-    name: file.name,
-    type: file.type,
-    size: file.size,
-    buffer: Buffer.from(await file.arrayBuffer()),
-  };
+  return toFormFile(file);
+}
+
+/**
+ * Все файлы поля с повторяющимся ключом (`<input type="file" multiple>`).
+ * Файл нулевого размера пропускается: так браузер отправляет пустое поле
+ * «файл не выбран», а не настоящий файл.
+ */
+export async function readFiles(form: FormData, key: string): Promise<FormFile[]> {
+  const out: FormFile[] = [];
+  for (const raw of form.getAll(key)) {
+    if (!isFileEntry(raw, 'instanceof') || raw.size === 0) continue;
+    out.push(await toFormFile(raw));
+  }
+  return out;
 }
 
 /**

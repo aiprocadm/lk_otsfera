@@ -16,3 +16,10 @@
 export const IMPORT_MAX_FILE_MB = 25;
 
 export const IMPORT_MAX_FILE_BYTES = IMPORT_MAX_FILE_MB * 1024 * 1024;
+
+/**
+ * Миграция из Битрикс24 (`У-189` file): за один раз принимается не больше
+ * файлов, чем сущностей в выгрузке — компании, контакты, лиды, сделки, задачи.
+ * Лимит размера каждого файла — тот же `IMPORT_MAX_FILE_BYTES`.
+ */
+export const BITRIX_UPLOAD_MAX_FILES = 5;

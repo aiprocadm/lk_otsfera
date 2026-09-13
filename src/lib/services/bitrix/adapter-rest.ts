@@ -1,3 +1,4 @@
+import { parseCrmLinks } from './crm-links';
 import { createBitrixClient, type BitrixClient, type BitrixClientOptions } from './client';
 import { portalHost } from './settings';
 import {
@@ -135,18 +136,9 @@ function taskStatusOf(v: unknown): BitrixTaskStatus {
   return n === 3 || n === 4 || n === 5 || n === 6 ? n : 2;
 }
 
-/** `UF_CRM_TASK`: `CO_12` компания, `D_7` сделка, `L_3` лид, `C_9` контакт. */
-function parseCrmLinks(v: unknown): BitrixTask['crmLinks'] {
-  if (!Array.isArray(v)) return [];
-  const out: BitrixTask['crmLinks'] = [];
-  for (const item of v) {
-    const m = str(item).match(/^(CO|D|L|C)_(\d+)$/);
-    if (!m) continue;
-    const kind =
-      m[1] === 'CO' ? 'company' : m[1] === 'D' ? 'deal' : m[1] === 'L' ? 'lead' : 'contact';
-    out.push({ kind, id: m[2]! });
-  }
-  return out;
+/** `UF_CRM_TASK`: массив токенов `CO_12` / `D_7` / `L_3` / `C_9`. */
+function crmLinksOf(v: unknown): BitrixTask['crmLinks'] {
+  return Array.isArray(v) ? parseCrmLinks(v.map(str)) : [];
 }
 
 export class RestBitrixSource implements BitrixSource {
@@ -376,7 +368,7 @@ export class RestBitrixSource implements BitrixSource {
         deadline: dateOrNull(get('DEADLINE', 'deadline')),
         createdAt: dateOrNull(get('CREATED_DATE', 'createdDate')),
         closedAt: dateOrNull(get('CLOSED_DATE', 'closedDate')),
-        crmLinks: parseCrmLinks(get('UF_CRM_TASK', 'ufCrmTask')),
+        crmLinks: crmLinksOf(get('UF_CRM_TASK', 'ufCrmTask')),
       };
     }
   }
