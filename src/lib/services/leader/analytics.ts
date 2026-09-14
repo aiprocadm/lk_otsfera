@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
 import { isManagerLeader, isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
+import { moscowMonthRange } from '@/lib/dates/calendar';
 import { resolveFunnelStages, stageForLead } from '@/lib/funnel/stages';
 import { listCompanyManagers } from '@/lib/services/manager/team';
 import { recordAudit } from '@/lib/auth/audit';
@@ -34,11 +35,14 @@ function isValidPeriod(year: number, month: number): boolean {
   return inRange(year, 2000, 2100) && inRange(month, 1, 12);
 }
 
-/** [1-е число месяца 00:00, 1-е число следующего месяца) — локаль сервера. */
+/**
+ * [1-е число месяца 00:00, 1-е число следующего месяца) — по МОСКВЕ (`Д-22`,
+ * прогон №28). Раньше границы брались в часовом поясе процесса, а сервер живёт
+ * по Гринвичу: сделки, закрытые с 00:00 до 03:00 по Москве 1-го числа,
+ * попадали в отчёт предыдущего месяца — как раз в самый спорный момент.
+ */
 export function monthRange(year: number, month: number): { from: Date; to: Date } {
-  const from = new Date(year, month - 1, 1, 0, 0, 0, 0);
-  const to = new Date(year, month, 1, 0, 0, 0, 0);
-  return { from, to };
+  return moscowMonthRange(year, month);
 }
 
 export type StageSnapshot = {
