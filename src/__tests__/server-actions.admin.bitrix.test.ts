@@ -52,6 +52,11 @@ vi.mock('@/lib/services/bitrix/preview', () => ({
 const { requestRollback } = vi.hoisted(() => ({ requestRollback: vi.fn() }));
 vi.mock('@/lib/services/bitrix/rollback', () => ({ requestRollback }));
 
+// Пауза расписания повтора живёт в общем сервисе расписаний обмена: действие
+// только выбирает нужное расписание и обновляет СВОЙ экран.
+const { setSchedulePaused } = vi.hoisted(() => ({ setSchedulePaused: vi.fn() }));
+vi.mock('@/lib/services/admin/syncControl', () => ({ setSchedulePaused }));
+
 import {
   saveBitrixConnectionAction,
   testBitrixConnectionAction,
@@ -60,7 +65,9 @@ import {
   saveBatchMappingAction,
   applyBitrixBatchAction,
   rollbackBitrixBatchAction,
+  setBitrixResyncPausedAction,
 } from '@/server-actions/admin/bitrix';
+import { BITRIX_RESYNC_SCHEDULER_ID } from '@/lib/jobs/scheduling';
 
 const SESSION = { sub: 'admin-1', role: 'admin' as const, companyId: 'c1' };
 const PATH = '/admin/settings/integrations/bitrix';
@@ -88,6 +95,7 @@ beforeEach(() => {
   saveBatchMapping.mockResolvedValue({ ok: true });
   applyBitrixBatch.mockResolvedValue({ ok: true });
   requestRollback.mockResolvedValue({ ok: true });
+  setSchedulePaused.mockResolvedValue({ ok: true, paused: true });
 });
 
 /** Аргументы, с которыми действие позвало сервис пакета. */
@@ -609,4 +617,81 @@ describe('rollbackBitrixBatchAction', () => {
     expect(await rollbackBitrixBatchAction('b-1')).toEqual({ ok: false, error });
     expect(revalidatePath).not.toHaveBeenCalled();
   });
+});
+
+/**
+ * «Повторять еженедельно» (`У-203`): действие снимает или ставит паузу
+ * расписания повтора переноса. Своё расписание оно не заводит и паузу само не
+ * пишет — это делает общий сервис расписаний обмена; здесь проверяется ровно
+ * то, за что отвечает действие: раздел, флаг, ПРАВИЛЬНОЕ расписание, дословный
+ * проброс отказа и перечитывание своего экрана только при успехе.
+ *
+ * Почему «правильное расписание» важно: `setSchedulePaused` принимает любую
+ * строку и на чужой молча ответит `unknown_schedule`. Перепутай идентификатор —
+ * и кнопка станет мёртвой, не сказав ни слова о причине.
+ */
+describe('setBitrixResyncPausedAction', () => {
+  it('включение повтора: сервис зовётся с расписанием повтора и снятием паузы, экран перечитывается', async () => {
+    setSchedulePaused.mockResolvedValue({ ok: true, paused: false });
+
+    const res = await setBitrixResyncPausedAction(false);
+
+    expect(res).toEqual({ ok: true, paused: false });
+    expect(requireSettingsSection).toHaveBeenCalledWith('integrations.bitrix', 'admin');
+    expect(notFoundIfDisabled).toHaveBeenCalledWith('bitrix_migration');
+    // Автор паузы — тот, кто нажал: в журнале расписаний остаётся его id.
+    expect(setSchedulePaused).toHaveBeenCalledWith(
+      expect.anything(),
+      SESSION.sub,
+      BITRIX_RESYNC_SCHEDULER_ID,
+      false
+    );
+    // Перечитывается экран миграции, а не страница автообмена: подпись кнопки
+    // и состояние повтора человек видит здесь.
+    expect(revalidatePath).toHaveBeenCalledWith(PATH);
+    expect(revalidatePath).toHaveBeenCalledTimes(1);
+  });
+
+  it('выключение повтора: сервису уходит именно `true`, экран перечитывается', async () => {
+    setSchedulePaused.mockResolvedValue({ ok: true, paused: true });
+
+    expect(await setBitrixResyncPausedAction(true)).toEqual({ ok: true, paused: true });
+    expect(setSchedulePaused).toHaveBeenCalledWith(
+      expect.anything(),
+      SESSION.sub,
+      BITRIX_RESYNC_SCHEDULER_ID,
+      true
+    );
+    expect(revalidatePath).toHaveBeenCalledWith(PATH);
+  });
+
+  it('раздел закрыт гардом настроек — до флага и сервиса дело не доходит', async () => {
+    requireSettingsSection.mockRejectedValue(new Error('NEXT_REDIRECT'));
+
+    await expect(setBitrixResyncPausedAction(false)).rejects.toThrow('NEXT_REDIRECT');
+    expect(notFoundIfDisabled).not.toHaveBeenCalled();
+    expect(setSchedulePaused).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('флаг выключен → forbidden, расписание не трогаем', async () => {
+    notFoundIfDisabled.mockReturnValue(FLAG_OFF);
+
+    expect(await setBitrixResyncPausedAction(false)).toEqual({ ok: false, error: 'forbidden' });
+    // Гард раздела всё равно отработал первым (страж матрицы настроек).
+    expect(requireSettingsSection).toHaveBeenCalledWith('integrations.bitrix', 'admin');
+    expect(setSchedulePaused).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it.each([['queue_unavailable'], ['unknown_schedule']])(
+    'отказ сервиса %s пробрасывается как есть, экран не перечитывается',
+    async (error) => {
+      setSchedulePaused.mockResolvedValue({ ok: false, error });
+
+      expect(await setBitrixResyncPausedAction(true)).toEqual({ ok: false, error });
+      // Схлопни причину в общий код — и человек увидит «нельзя» без объяснения.
+      expect(revalidatePath).not.toHaveBeenCalled();
+    }
+  );
 });

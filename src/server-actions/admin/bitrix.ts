@@ -15,6 +15,8 @@ import {
   saveBatchMapping,
 } from '@/lib/services/bitrix/preview';
 import { requestRollback, type RollbackRequestError } from '@/lib/services/bitrix/rollback';
+import { setSchedulePaused, type PauseResult } from '@/lib/services/admin/syncControl';
+import { BITRIX_RESYNC_SCHEDULER_ID } from '@/lib/jobs/scheduling';
 
 /**
  * Этап 2 ТЗ 12.09.2026 «Миграция из Битрикс24» — действия раздела
@@ -252,4 +254,20 @@ export async function rollbackBitrixBatchAction(batchId: string): Promise<Bitrix
   revalidatePath(`${BITRIX_BATCHES_PATH}/${batchId}`);
   revalidatePath(BITRIX_BATCHES_PATH);
   return { ok: true };
+}
+
+export type BitrixResyncResult = PauseResult | { ok: false; error: 'forbidden' };
+
+/**
+ * «Повторять еженедельно» (`У-203`): снимает или ставит паузу расписания
+ * повтора. Отдельное действие, а не общий рычаг расписаний обмена с 1С, —
+ * чтобы обновился экран миграции, а не страница автообмена.
+ */
+export async function setBitrixResyncPausedAction(paused: boolean): Promise<BitrixResyncResult> {
+  const session = await requireSettingsSection('integrations.bitrix', 'admin');
+  if (notFoundIfDisabled('bitrix_migration')) return { ok: false, error: 'forbidden' };
+
+  const res = await setSchedulePaused(prisma, session.sub, BITRIX_RESYNC_SCHEDULER_ID, paused);
+  if (res.ok) revalidatePath(BITRIX_SETTINGS_PATH);
+  return res;
 }

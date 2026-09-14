@@ -1,4 +1,18 @@
 import { describe, it, expect, vi } from 'vitest';
+
+/**
+ * Действующие паттерны расписаний читает `getSchedulePatterns`. По умолчанию
+ * работает НАСТОЯЩАЯ функция (она же читает `integrationSetting` из мока
+ * prisma) — подменяется только её ответ в одном тесте, где нужно пройти
+ * оборонительной веткой «паттерна в карте нет».
+ */
+const { getSchedulePatterns } = vi.hoisted(() => ({ getSchedulePatterns: vi.fn() }));
+vi.mock('@/lib/services/admin/syncSchedules', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/lib/services/admin/syncSchedules')>();
+  getSchedulePatterns.mockImplementation(original.getSchedulePatterns);
+  return { ...original, getSchedulePatterns };
+});
+
 import {
   SYNC_ENTITIES,
   rewindCursor,
@@ -248,8 +262,15 @@ function pausePrisma() {
   const upsert = vi.fn().mockResolvedValue({});
   const deleteMany = vi.fn().mockResolvedValue({ count: 1 });
   const create = vi.fn().mockResolvedValue({});
-  const prisma = { syncSchedulePause: { upsert, deleteMany }, auditLog: { create } } as never;
-  return { prisma, upsert, deleteMany, create };
+  // Снятие паузы читает действующие паттерны расписаний: иначе расписание,
+  // поправленное в интерфейсе, молча вернулось бы к умолчанию из кода.
+  const settingFindMany = vi.fn().mockResolvedValue([]);
+  const prisma = {
+    syncSchedulePause: { upsert, deleteMany },
+    integrationSetting: { findMany: settingFindMany },
+    auditLog: { create },
+  } as never;
+  return { prisma, upsert, deleteMany, create, settingFindMany };
 }
 
 describe('setSchedulePaused', () => {
@@ -360,4 +381,66 @@ describe('setSchedulePaused', () => {
       expect(upsert).not.toHaveBeenCalled();
     }
   );
+
+  it('снятие паузы ставит ДЕЙСТВУЮЩЕЕ расписание, а не умолчание из кода', async () => {
+    // `У-125`: расписание правится из интерфейса и лежит в `IntegrationSetting`
+    // ключом `sync.cron.<id>`. Если снятие паузы вернёт литерал из кода, задача
+    // до перезапуска воркера будет ходить не по тому расписанию, которое видит
+    // человек на экране, — и никто об этом не узнает.
+    const { prisma, settingFindMany } = pausePrisma();
+    settingFindMany.mockResolvedValue([
+      { key: 'sync.cron.oneCSync.pullOrders.cron', value: '7 4 * * *' },
+    ]);
+    const upsertJobScheduler = vi.fn().mockResolvedValue({ id: 'x' });
+    const provider: SyncControlQueueProvider = () =>
+      ({
+        getJobCounts: vi.fn(),
+        add: vi.fn(),
+        upsertJobScheduler,
+        removeJobScheduler: vi.fn(),
+      }) as never;
+
+    const res = await setSchedulePaused(prisma, 'u1', 'oneCSync.pullOrders.cron', false, provider);
+
+    expect(res).toEqual({ ok: true, paused: false });
+    // Умолчание обязано отличаться — иначе тест был бы зелёным и на нём.
+    const fallback = SYNC_SCHEDULES.find(
+      (s) => s.schedulerId === 'oneCSync.pullOrders.cron'
+    )?.pattern;
+    expect(fallback).not.toBe('7 4 * * *');
+    expect(upsertJobScheduler).toHaveBeenCalledWith(
+      'oneCSync.pullOrders.cron',
+      { pattern: '7 4 * * *', tz: 'Europe/Moscow' },
+      expect.anything()
+    );
+  });
+
+  it('действующего расписания в карте нет — остаётся умолчание из кода', async () => {
+    // Оборонительная ветка `?? schedule.pattern`. Сегодня карта паттернов
+    // строится по ВСЕМ редактируемым расписаниям, а все `SYNC_SCHEDULES`
+    // редактируемые, — значит, ключ там есть всегда, и вживую эта ветка не
+    // берётся. Стоит она на случай, когда расписание перестанут считать
+    // редактируемым: снятие паузы обязано поставить умолчание, а не `undefined`.
+    const { prisma } = pausePrisma();
+    getSchedulePatterns.mockResolvedValueOnce(new Map<string, string>());
+    const upsertJobScheduler = vi.fn().mockResolvedValue({ id: 'x' });
+    const provider: SyncControlQueueProvider = () =>
+      ({
+        getJobCounts: vi.fn(),
+        add: vi.fn(),
+        upsertJobScheduler,
+        removeJobScheduler: vi.fn(),
+      }) as never;
+
+    await setSchedulePaused(prisma, 'u1', 'oneCSync.pullOrders.cron', false, provider);
+
+    const fallback = SYNC_SCHEDULES.find(
+      (s) => s.schedulerId === 'oneCSync.pullOrders.cron'
+    )?.pattern;
+    expect(upsertJobScheduler).toHaveBeenCalledWith(
+      'oneCSync.pullOrders.cron',
+      { pattern: fallback, tz: 'Europe/Moscow' },
+      expect.anything()
+    );
+  });
 });

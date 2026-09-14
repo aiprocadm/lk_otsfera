@@ -23,9 +23,10 @@ vi.mock('@/lib/jobs/queues', () => ({
   getQueue: vi.fn(() => ({ add: vi.fn(async () => undefined) })),
 }));
 
-const { runRollback, storeBitrixReport } = vi.hoisted(() => ({
+const { runRollback, storeBitrixReport, createResyncBatch } = vi.hoisted(() => ({
   runRollback: vi.fn(),
   storeBitrixReport: vi.fn(async () => null),
+  createResyncBatch: vi.fn(async () => ({ batchIds: [] as string[], skipped: 0 })),
 }));
 // Подменяем ТОЛЬКО две функции: остальные экспорты этих модулей нужны их
 // соседям по графу импортов, и обрубать их целиком нельзя.
@@ -37,8 +38,13 @@ vi.mock('@/lib/services/bitrix/report', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/services/bitrix/report')>()),
   storeBitrixReport,
 }));
+vi.mock('@/lib/services/bitrix/resync', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/services/bitrix/resync')>()),
+  createResyncBatch,
+}));
 
 import { bitrixImportProcessor } from '@/worker/processors/bitrix-import';
+import { BITRIX_RESYNC_SCHEDULER_ID } from '@/lib/jobs/scheduling';
 import type { BitrixImportJobPayload } from '@/lib/jobs/types';
 import type { RollbackConflict, RollbackSummary } from '@/lib/services/bitrix/rollback';
 
@@ -79,6 +85,18 @@ const db = {
 
 function job(name: string, batchId = 'b-1'): Job<BitrixImportJobPayload> {
   return { id: 'unit-bitrix-import', name, data: { batchId } } as Job<BitrixImportJobPayload>;
+}
+
+/**
+ * Задача от планировщика расписаний: пакета в ней НЕТ — повтор его и заводит.
+ * Полезная нагрузка общая для всех задач по cron.
+ */
+function schedulerJob(): Job<BitrixImportJobPayload> {
+  return {
+    id: 'unit-bitrix-resync',
+    name: BITRIX_RESYNC_SCHEDULER_ID,
+    data: { triggeredAt: '2026-09-14T03:00:00.000Z', reason: 'cron' },
+  } as Job<BitrixImportJobPayload>;
 }
 
 /** Последняя запись в пакет — именно её человек увидит в списке. */
@@ -212,5 +230,55 @@ describe('bitrixImportProcessor — краевые данные пакета', (
       batchId: 'b-1',
       message: 'вебхук портала вернул пустой ответ',
     });
+  });
+});
+
+describe('bitrixImportProcessor — еженедельный повтор (У-203)', () => {
+  it('миграция выключена: повтор пропущен, ни пакета, ни базы не тронуто', async () => {
+    process.env.FEATURE_BITRIX_MIGRATION = '0';
+
+    const result = await bitrixImportProcessor(schedulerJob(), db);
+
+    expect(result).toEqual({ batchId: '', status: 'skipped', reason: 'миграция выключена' });
+    expect(createResyncBatch).not.toHaveBeenCalled();
+    expect(updates).toEqual([]);
+    expect(audits).toEqual([]);
+  });
+
+  it('миграция включена: заводит повторы и отчитывается их числом', async () => {
+    createResyncBatch.mockResolvedValueOnce({ batchIds: ['rb-1', 'rb-2'], skipped: 1 });
+
+    const result = await bitrixImportProcessor(schedulerJob(), db);
+
+    expect(createResyncBatch).toHaveBeenCalledWith(db);
+    // В `batchId` уходит первый пакет, а полная картина — в причине: по
+    // журналу задачи должно быть видно и сколько компаний остались без повтора.
+    expect(result).toEqual({
+      batchId: 'rb-1',
+      status: 'resync',
+      reason: 'заведено пакетов: 2, пропущено компаний: 1',
+    });
+  });
+
+  it('повторять нечего: задача заканчивается штатно, без пакета в ответе', async () => {
+    createResyncBatch.mockResolvedValueOnce({ batchIds: [], skipped: 3 });
+
+    const result = await bitrixImportProcessor(schedulerJob(), db);
+
+    expect(result).toEqual({
+      batchId: '',
+      status: 'resync',
+      reason: 'заведено пакетов: 0, пропущено компаний: 3',
+    });
+  });
+
+  it('повтор не ищет пакет в базе: у задачи от планировщика его ещё нет', async () => {
+    // Ветка повтора обязана стоять ДО чтения строки пакета. Иначе задача
+    // вышла бы «пакет не найден» по пустому `batchId`, и еженедельный повтор
+    // молча не работал бы — при зелёных тестах и живом расписании.
+    await bitrixImportProcessor(schedulerJob(), db);
+
+    expect(db.bitrixImportBatch.findUnique).not.toHaveBeenCalled();
+    expect(createResyncBatch).toHaveBeenCalledTimes(1);
   });
 });

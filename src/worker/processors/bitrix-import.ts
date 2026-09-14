@@ -5,11 +5,14 @@ import { isFeatureEnabled } from '@/lib/featureFlags';
 import type { BitrixImportJobPayload } from '@/lib/jobs/types';
 import { bestEffort, log } from '@/lib/logging';
 import { primeIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
+import { getQueue } from '@/lib/jobs/queues';
 import { recordAudit } from '@/lib/auth/audit';
 import { getBitrixSource } from '@/lib/services/bitrix/factory';
 import { runPipeline, type PipelineResult } from '@/lib/services/bitrix/pipeline';
 import { filterOf, type BitrixBatchSettings } from '@/lib/services/bitrix/preview';
+import { BITRIX_RESYNC_SCHEDULER_ID } from '@/lib/jobs/scheduling';
 import { storeBitrixReport } from '@/lib/services/bitrix/report';
+import { createResyncBatch } from '@/lib/services/bitrix/resync';
 import { runRollback } from '@/lib/services/bitrix/rollback';
 import type { BitrixSource } from '@/lib/services/bitrix/source';
 
@@ -36,7 +39,8 @@ const defaultDeps: BitrixImportDeps = { getSource: getBitrixSource };
 
 export type BitrixImportResult = {
   batchId: string;
-  status: 'preview' | 'applied' | 'rolled_back' | 'rollback_partial' | 'failed' | 'skipped';
+  status:
+    'preview' | 'applied' | 'rolled_back' | 'rollback_partial' | 'resync' | 'failed' | 'skipped';
   reason?: string;
 };
 
@@ -45,9 +49,29 @@ export async function bitrixImportProcessor(
   db: PrismaClient = prisma,
   deps: BitrixImportDeps = defaultDeps
 ): Promise<BitrixImportResult> {
-  const { batchId } = job.data;
   const kind = job.name;
+  const batchId = 'batchId' in job.data ? job.data.batchId : '';
   log.info('[worker] bitrix-import job started', { id: job.id, kind, batchId });
+
+  // Повтор по расписанию приходит БЕЗ пакета — он его и заводит. Поэтому
+  // ветка стоит до чтения строки пакета, иначе задача вышла бы «пакет не
+  // найден» и еженедельный повтор молча не работал бы.
+  if (kind === BITRIX_RESYNC_SCHEDULER_ID) {
+    await primeIntegrationSettingsCache(db);
+    if (!isFeatureEnabled('bitrix_migration')) {
+      log.info('[worker] bitrix-import resync: миграция выключена, повтор пропущен');
+      return { batchId: '', status: 'skipped', reason: 'миграция выключена' };
+    }
+    const res = await createResyncBatch(db);
+    // За прогон заводится по пакету на компанию, поэтому в `batchId` кладём
+    // первый, а полную картину — в причину: иначе по журналу задачи не понять,
+    // сколько компаний повторили перенос и сколько остались без него.
+    return {
+      batchId: res.batchIds[0] ?? '',
+      status: 'resync',
+      reason: `заведено пакетов: ${res.batchIds.length}, пропущено компаний: ${res.skipped}`,
+    };
+  }
 
   const batch = await db.bitrixImportBatch.findUnique({
     where: { id: batchId },
@@ -57,6 +81,7 @@ export async function bitrixImportProcessor(
       importedById: true,
       source: true,
       status: true,
+      mode: true,
       settings: true,
     },
   });
@@ -137,6 +162,21 @@ export async function bitrixImportProcessor(
   // Отчёт сверки (`У-198`) собирается по журналу — после того, как записи
   // сделаны. Его сбой не отменяет перенос: путь просто не появится у пакета.
   if (applying) await storeBitrixReport(db, batchId);
+
+  // Повтор по расписанию (`У-203`) идёт сам: предпросмотр посчитан, стадии
+  // сопоставлены — применяем. А если за неделю на портале завелась новая
+  // стадия, пакет так и останется предпросмотром и дождётся человека:
+  // записать такие сделки «куда-нибудь» хуже, чем не записать вовсе.
+  if (!applying && batch.mode === 'resync') {
+    if (result.ready) {
+      await db.bitrixImportBatch.update({ where: { id: batchId }, data: { status: 'applying' } });
+      await getQueue('bitrix.import')
+        .add('apply', { batchId })
+        .catch(bestEffort('[worker] bitrix-import: повтор не поставлен на применение'));
+    } else {
+      log.warn('[worker] bitrix-import resync: повтор ждёт сопоставления стадий', { batchId });
+    }
+  }
 
   await recordAudit(db, {
     userId: batch.importedById,

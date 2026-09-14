@@ -12,6 +12,7 @@ type SyncScheduleQueueName = Extract<
   | 'oneCSync.reconcile'
   | 'inbound.email.poll'
   | 'telephony.mango.backfill'
+  | 'bitrix.import'
 >;
 
 export type SyncSchedule = {
@@ -22,6 +23,14 @@ export type SyncSchedule = {
 };
 
 export const DEFAULT_SYNC_TZ = 'Europe/Moscow';
+
+/**
+ * Идентификатор расписания повтора переноса. Он же — имя задачи в очереди:
+ * BullMQ подставляет идентификатор расписания в `job.name`, и процессор
+ * узнаёт повтор по нему. Отдельная константа, чтобы строка не разъехалась
+ * между реестром и процессором.
+ */
+export const BITRIX_RESYNC_SCHEDULER_ID = 'bitrix.resync';
 
 export const SYNC_SCHEDULES: ReadonlyArray<SyncSchedule> = [
   {
@@ -64,6 +73,17 @@ export const SYNC_SCHEDULES: ReadonlyArray<SyncSchedule> = [
     queueName: 'telephony.mango.backfill',
     schedulerId: 'telephony.mango.backfill.cron',
     pattern: '0 * * * *',
+    tz: DEFAULT_SYNC_TZ,
+  },
+  // Этап 2 ТЗ 12.09.2026 (`У-203`): еженедельный повтор переноса из Битрикс24 —
+  // ночь с воскресенья на понедельник. Живёт в ЭТОМ реестре, а не в своём:
+  // только расписания отсюда умеют паузу (`setSchedulePaused`), а повтор без
+  // паузы включался бы сам сразу после первого переноса. По умолчанию он на
+  // паузе — строку `SyncSchedulePause` ставит миграция этапа.
+  {
+    queueName: 'bitrix.import',
+    schedulerId: BITRIX_RESYNC_SCHEDULER_ID,
+    pattern: '0 3 * * 1',
     tz: DEFAULT_SYNC_TZ,
   },
 ] as const;
