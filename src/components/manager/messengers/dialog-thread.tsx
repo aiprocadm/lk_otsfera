@@ -3,6 +3,45 @@ import { EmptyState } from '@/components/ui';
 import { fmtDateTime } from '@/lib/format';
 import type { DialogMessageView } from '@/lib/services/messengers/get';
 
+/** Размер файла человеку: «240 КБ», «1,4 МБ». */
+function formatSize(bytes: number | null): string | null {
+  if (bytes == null || bytes <= 0) return null;
+  if (bytes < 1024) return `${bytes} Б`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} КБ`;
+  return `${(bytes / (1024 * 1024)).toFixed(1).replace('.', ',')} МБ`;
+}
+
+/**
+ * Файл в сообщении (`У-204`). Ссылка появляется только у проверенного файла:
+ * пока идёт проверка — честная подпись «проверяется», у заражённого — прямая
+ * «файл заблокирован», а не молчаливая неработающая ссылка.
+ */
+function Attachment({ dialogId, message }: { dialogId: string; message: DialogMessageView }) {
+  const att = message.attachment;
+  if (!att) return null;
+  const size = formatSize(att.size);
+  const label = size ? `${att.name} · ${size}` : att.name;
+
+  if (att.scanStatus === 'infected') {
+    return (
+      <p className="mt-1 text-xs text-red-600">📎 {att.name} — файл заблокирован антивирусом</p>
+    );
+  }
+  if (att.scanStatus !== 'clean') {
+    return <p className="mt-1 text-xs text-gray-500">📎 {label} — проверяется антивирусом…</p>;
+  }
+  return (
+    <p className="mt-1 text-xs">
+      <a
+        href={`/api/manager/messengers/${dialogId}/attachment/${message.id}`}
+        className="text-orange-700 underline hover:text-orange-800"
+      >
+        📎 {label}
+      </a>
+    </p>
+  );
+}
+
 /**
  * Лента диалога (спека 2026-09-12 §5.2): входящие слева, исходящие справа;
  * у исходящих — кто написал и, если не дошло, честная пометка. Пустая лента
@@ -10,9 +49,11 @@ import type { DialogMessageView } from '@/lib/services/messengers/get';
  * намеренно: форма ответа стоит сразу под лентой (`У-74`).
  */
 export function DialogThread({
+  dialogId,
   messages,
   hiddenCount,
 }: {
+  dialogId: string;
   messages: DialogMessageView[];
   hiddenCount: number;
 }) {
@@ -51,10 +92,17 @@ export function DialogThread({
                   </p>
                 )}
                 <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                <Attachment dialogId={dialogId} message={m} />
                 <p className="mt-1 text-[11px] text-gray-400">
                   {fmtDateTime(m.createdAt)}
                   {out && m.deliveryStatus === 'failed' && (
                     <span className="ml-2 text-red-600">не доставлено</span>
+                  )}
+                  {out && m.deliveryStatus === 'pending' && (
+                    <span className="ml-2 text-gray-500">ждёт проверки файла</span>
+                  )}
+                  {out && m.deliveryStatus === 'sending' && (
+                    <span className="ml-2 text-gray-500">отправляется…</span>
                   )}
                 </p>
               </div>

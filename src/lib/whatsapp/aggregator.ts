@@ -73,6 +73,11 @@ export type WazzupInbound = {
   phone: string;
   text: string;
   name?: string | undefined;
+  /**
+   * Файл, присланный клиентом (`У-204`): агрегатор отдаёт его прямой ссылкой
+   * (`contentUri`), скачиванием занимается вызывающий. Ссылки нет — поля нет.
+   */
+  attachment?: { url: string; name: string; mimeType: string } | undefined;
 };
 
 type WazzupRawMessage = {
@@ -81,20 +86,34 @@ type WazzupRawMessage = {
   text?: unknown;
   isEcho?: unknown;
   contact?: unknown;
+  /** Прямая ссылка на присланный файл (`У-204`). */
+  contentUri?: unknown;
+  mimeType?: unknown;
 };
 
 /** Type guard: сырой элемент `messages[]` содержит достаточно полей, чтобы стать входящим сообщением. */
 function isIngestibleWazzupMessage(
   m: unknown
-): m is WazzupRawMessage & { messageId: string; chatId: string | number; text: string } {
+): m is WazzupRawMessage & { messageId: string; chatId: string | number } {
   if (!m || typeof m !== 'object') return false;
   const rec = m as WazzupRawMessage;
   return (
     typeof rec.messageId === 'string' &&
     (typeof rec.chatId === 'string' || typeof rec.chatId === 'number') &&
-    typeof rec.text === 'string' &&
+    // У-204: текст ИЛИ ссылка на файл. Раньше требовался только текст, и
+    // сообщение с одним вложением отбрасывалось молча — клиент отправлял
+    // документ, а в кабинете не появлялось ничего.
+    (typeof rec.text === 'string' ||
+      typeof (rec as { contentUri?: unknown }).contentUri === 'string') &&
     !rec.isEcho
   );
+}
+
+/** Имя файла из ссылки агрегатора: последний сегмент пути без параметров. */
+function fileNameFromUri(uri: string): string {
+  const withoutQuery = uri.split('?')[0] ?? uri;
+  const last = withoutQuery.split('/').filter(Boolean).pop();
+  return last && last.includes('.') ? decodeURIComponent(last) : 'file';
 }
 
 /**
@@ -114,11 +133,26 @@ export function parseWazzupInbound(body: unknown): WazzupInbound[] {
     const contact = m.contact as { name?: unknown } | null | undefined;
     const name = typeof contact?.name === 'string' ? contact.name : undefined;
     const digits = String(m.chatId).replace(/\D/g, '');
+    const raw = m as WazzupRawMessage & { contentUri?: unknown; mimeType?: unknown };
+    const uri = typeof raw.contentUri === 'string' ? raw.contentUri : null;
+    const text = typeof m.text === 'string' ? m.text : '';
     return {
       externalId: `wa:${m.messageId}`,
       phone: digits ? `+${digits}` : '',
-      text: m.text,
+      // Файл без подписи: телом становится имя файла, иначе сообщение было бы
+      // пустой строкой и в списке выглядело бы как пропажа.
+      text: text || (uri ? `Файл: ${fileNameFromUri(uri)}` : ''),
       name,
+      ...(uri
+        ? {
+            attachment: {
+              url: uri,
+              name: fileNameFromUri(uri),
+              mimeType:
+                typeof raw.mimeType === 'string' ? raw.mimeType : 'application/octet-stream',
+            },
+          }
+        : {}),
     };
   });
 }

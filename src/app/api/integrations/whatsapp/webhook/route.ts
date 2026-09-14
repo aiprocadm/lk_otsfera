@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db/prisma';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { parseWazzupInbound } from '@/lib/whatsapp/aggregator';
 import { ingestInboundMessage } from '@/lib/services/inbound/ingest';
+import { fetchInboundAttachment } from '@/lib/services/messengers/attachment';
 import { secretEquals } from '@/lib/security/secretCompare';
 import { recordWebhookEvent } from '@/lib/services/admin/webhookDiagnostics';
 import { log } from '@/lib/logging';
@@ -45,6 +46,17 @@ export async function POST(req: Request): Promise<Response> {
   // Best-effort ingest per message (§3 — degrade gracefully; ошибка одного
   // сообщения не должна блокировать остальные и не должна превращаться в 500).
   for (const m of parseWazzupInbound(body)) {
+    // У-204: файл агрегатор отдаёт ссылкой — скачиваем его сами. Не вышло —
+    // сообщение всё равно записываем (телом станет имя файла): терять
+    // обращение клиента из-за неудачной загрузки нельзя.
+    const stored = m.attachment
+      ? await fetchInboundAttachment('inbound', {
+          url: m.attachment.url,
+          name: m.attachment.name,
+          mimeType: m.attachment.mimeType,
+        })
+      : null;
+
     await ingestInboundMessage(prisma, {
       channel: 'whatsapp',
       externalId: m.externalId,
@@ -52,6 +64,14 @@ export async function POST(req: Request): Promise<Response> {
       // exactOptionalPropertyTypes: InboundDto различает «ключа нет» и «ключ = undefined».
       ...(m.name !== undefined ? { senderDisplay: m.name } : {}),
       body: m.text,
+      ...(stored
+        ? {
+            attachmentPath: stored.path,
+            attachmentName: stored.name,
+            attachmentMime: stored.mimeType,
+            attachmentSize: stored.size,
+          }
+        : {}),
     }).catch((e: unknown) => {
       log.error('[webhook/whatsapp] ingest failed', {
         externalId: m.externalId,

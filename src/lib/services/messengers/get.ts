@@ -1,7 +1,9 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordPiiAccess } from '@/lib/pii/record';
+import { attachmentLimitBytes } from './attachment';
 import { isMessengerAvailable } from './availability';
+import { channelAcceptsAttachment } from './transport';
 import type { MessengerChannel } from './channels';
 import { type DialogStatus, dialogOverdueLevel } from './dialogStatus';
 import { peerLabelOf } from './list';
@@ -23,6 +25,13 @@ export type DialogMessageView = {
   deliveryStatus: string;
   /** Имя сотрудника у исходящих; null — входящее. */
   authorName: string | null;
+  /** Файл в сообщении (`У-204`); null — обычное текстовое сообщение. */
+  attachment: {
+    name: string;
+    size: number | null;
+    /** none | pending | clean | infected | error — что показывать в ленте. */
+    scanStatus: string;
+  } | null;
 };
 
 type DialogView = {
@@ -30,6 +39,10 @@ type DialogView = {
   channel: MessengerChannel;
   /** Канал подключён (ключи + флаг): без него форма ответа заменяется подсказкой. */
   channelAvailable: boolean;
+  /** Канал принимает файлы (`У-204`); иначе кнопки «Прикрепить» нет. */
+  attachmentsAllowed: boolean;
+  /** Предел размера файла в МБ для этого канала — в подсказке формы. */
+  attachmentLimitMb: number;
   peerLabel: string;
   peerRef: string;
   status: DialogStatus;
@@ -77,6 +90,9 @@ const VIEW_SELECT = {
       deliveryStatus: true,
       authorId: true,
       inboundMessageId: true,
+      attachmentName: true,
+      attachmentSize: true,
+      scanStatus: true,
     },
   },
 } satisfies Prisma.MessengerDialogSelect;
@@ -133,6 +149,10 @@ export async function getDialog(
       id: row.id,
       channel: row.channel as MessengerChannel,
       channelAvailable: isMessengerAvailable(row.channel as MessengerChannel),
+      attachmentsAllowed: channelAcceptsAttachment(row.channel as MessengerChannel),
+      attachmentLimitMb: Math.floor(
+        attachmentLimitBytes(row.channel as MessengerChannel) / 1024 / 1024
+      ),
       peerLabel: peerLabelOf(row),
       peerRef: row.peerRef,
       status: row.status as DialogStatus,
@@ -159,6 +179,9 @@ export async function getDialog(
         createdAt: m.createdAt,
         deliveryStatus: m.deliveryStatus,
         authorName: m.authorId ? (nameOf.get(m.authorId) ?? null) : null,
+        attachment: m.attachmentName
+          ? { name: m.attachmentName, size: m.attachmentSize, scanStatus: m.scanStatus }
+          : null,
       })),
       hiddenCount: Math.max(0, row._count.messages - row.messages.length),
       lastInbound: lastIn

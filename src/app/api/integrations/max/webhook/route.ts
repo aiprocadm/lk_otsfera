@@ -3,6 +3,7 @@ import { linkMaxByCode } from '@/lib/services/max/link';
 import { sendMaxMessage } from '@/lib/max/client';
 import { notFoundIfDisabled, isFeatureEnabled } from '@/lib/featureFlags';
 import { ingestInboundMessage } from '@/lib/services/inbound/ingest';
+import { fetchInboundAttachment } from '@/lib/services/messengers/attachment';
 import { secretEquals } from '@/lib/security/secretCompare';
 import { recordWebhookEvent } from '@/lib/services/admin/webhookDiagnostics';
 import { log } from '@/lib/logging';
@@ -38,7 +39,7 @@ export async function POST(req: Request): Promise<Response> {
   // Never-throws; сбой записи не влияет на ответ вебхука.
   await recordWebhookEvent(prisma, 'max');
 
-  const { text, chatId, messageId, isStart } = extractStart(update);
+  const { text, chatId, messageId, isStart, attachment } = extractStart(update);
   if (text && chatId) {
     const startMatch = /^\/start\s+(\S+)/.exec(text);
     if (startMatch) {
@@ -65,30 +66,54 @@ export async function POST(req: Request): Promise<Response> {
           error: e instanceof Error ? e.message : String(e),
         });
       }
-    } else if (
-      !isStart &&
-      !/^\/start\b/.test(text) &&
-      messageId != null &&
-      isFeatureEnabled('inbound_messaging')
-    ) {
-      // Не-/start входящее текстовое сообщение — best-effort ingest в
-      // омниканальный инбокс (PR-A). `text` — недоверенные пользовательские
-      // данные: никогда не интерпретируем/не исполняем, только сохраняем как
-      // body. Ошибки никогда не блокируют вебхук (§3 — degrade gracefully).
-      // Голый `/start` (кнопка Start) не матчит ни ветку — no-op (до-Task-6).
-      // Без message_id externalId не гарантирует идемпотентность → дропаем.
-      await ingestInboundMessage(prisma, {
-        channel: 'max',
-        externalId: `max:${chatId}:${messageId}`,
-        senderRef: chatId,
-        body: text,
-      }).catch((e: unknown) => {
-        log.error('[webhook/max] ingest failed', {
-          externalId: `max:${chatId}:${messageId}`,
-          error: e instanceof Error ? e.message : String(e),
-        });
-      });
     }
+  }
+
+  // Входящее сообщение: текст, файл или файл с подписью (`У-204`). Блок стоит
+  // ОТДЕЛЬНО от разбора `/start`, а не внутри `if (text && chatId)`: апдейт с
+  // одним вложением текста не содержит, и раньше такое сообщение не попадало
+  // НИКУДА — тот же дефект, что закрыт для Telegram и WhatsApp. Данные клиента
+  // не интерпретируем, только сохраняем; сбои не блокируют вебхук (§3) —
+  // всегда отвечаем 200. Без `message_id` идемпотентность не гарантируется,
+  // поэтому такие апдейты пропускаем.
+  const inboundBody = text ?? (attachment ? `Файл: ${attachment.name}` : null);
+  if (
+    chatId &&
+    !isStart &&
+    inboundBody !== null &&
+    !/^\/start\b/.test(inboundBody) &&
+    messageId != null &&
+    isFeatureEnabled('inbound_messaging')
+  ) {
+    // Файл MAX отдаёт ссылкой — скачиваем сами. Не вышло: сообщение всё равно
+    // записываем, телом станет имя файла. Терять обращение клиента нельзя.
+    const stored = attachment
+      ? await fetchInboundAttachment('inbound', {
+          url: attachment.url,
+          name: attachment.name,
+          mimeType: attachment.mimeType,
+        })
+      : null;
+
+    await ingestInboundMessage(prisma, {
+      channel: 'max',
+      externalId: `max:${chatId}:${messageId}`,
+      senderRef: chatId,
+      body: inboundBody,
+      ...(stored
+        ? {
+            attachmentPath: stored.path,
+            attachmentName: stored.name,
+            attachmentMime: stored.mimeType,
+            attachmentSize: stored.size,
+          }
+        : {}),
+    }).catch((e: unknown) => {
+      log.error('[webhook/max] ingest failed', {
+        externalId: `max:${chatId}:${messageId}`,
+        error: e instanceof Error ? e.message : String(e),
+      });
+    });
   }
 
   return new Response(null, { status: 200 });
@@ -106,6 +131,8 @@ function extractStart(update: unknown): {
   chatId: string | null;
   messageId: string | null;
   isStart: boolean;
+  /** Файл, присланный клиентом (`У-204`): MAX отдаёт его ссылкой на медиа. */
+  attachment: { url: string; name: string; mimeType: string } | null;
 } {
   const root = update as Record<string, unknown> | null;
   const message = root?.message as Record<string, unknown> | undefined;
@@ -128,5 +155,23 @@ function extractStart(update: unknown): {
   const messageIdRaw = message?.message_id;
   const messageId = messageIdRaw != null ? String(messageIdRaw) : null;
 
-  return { text, chatId, messageId, isStart: botStarted != null };
+  // Вложение: MAX кладёт медиа в `body.attachments[]` с полезной нагрузкой,
+  // содержащей прямую ссылку. Берём первое — одно сообщение, один файл.
+  let attachment: { url: string; name: string; mimeType: string } | null = null;
+  const attachments = (message?.body as Record<string, unknown> | undefined)?.attachments;
+  if (Array.isArray(attachments) && attachments.length > 0) {
+    const first = attachments[0] as Record<string, unknown> | undefined;
+    const payload = first?.payload as Record<string, unknown> | undefined;
+    const url = typeof payload?.url === 'string' ? payload.url : null;
+    if (url) {
+      attachment = {
+        url,
+        name: typeof payload?.filename === 'string' ? payload.filename : 'file',
+        mimeType:
+          typeof payload?.mime_type === 'string' ? payload.mime_type : 'application/octet-stream',
+      };
+    }
+  }
+
+  return { text, chatId, messageId, isStart: botStarted != null, attachment };
 }

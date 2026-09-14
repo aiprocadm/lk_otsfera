@@ -11,6 +11,7 @@ import { listOrganizations } from '@/lib/services/manager/organizations';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import { DialogThread } from '@/components/manager/messengers/dialog-thread';
 import { DialogReplyForm } from '@/components/manager/messengers/dialog-reply-form';
+import { DialogAttachmentForm } from '@/components/manager/messengers/dialog-attachment-form';
 import { DialogBindForm } from '@/components/manager/messengers/dialog-bind-form';
 import { DialogStatusButton } from '@/components/manager/messengers/dialog-status-button';
 import { DialogStatusBadge } from '@/components/manager/messengers/dialog-status-badge';
@@ -73,9 +74,22 @@ export default async function ManagerMessengerDialogPage({
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <section className="space-y-4 rounded-xl border border-gray-200 bg-white p-4">
-          <DialogThread messages={dialog.messages} hiddenCount={dialog.hiddenCount} />
+          <DialogThread
+            dialogId={dialog.id}
+            messages={dialog.messages}
+            hiddenCount={dialog.hiddenCount}
+          />
           {dialog.channelAvailable ? (
-            <DialogReplyForm dialogId={dialog.id} />
+            <div className="space-y-2">
+              <DialogReplyForm dialogId={dialog.id} />
+              {dialog.attachmentsAllowed ? (
+                <DialogAttachmentForm dialogId={dialog.id} limitMb={dialog.attachmentLimitMb} />
+              ) : (
+                <p className="text-xs text-gray-500">
+                  Файлы в этом канале отправить нельзя — он принимает только текст.
+                </p>
+              )}
+            </div>
           ) : (
             <p role="status" className="text-sm text-gray-500">
               Мессенджер {channelLabel} сейчас не подключён — ответить отсюда нельзя. Подключение

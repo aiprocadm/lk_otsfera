@@ -6,6 +6,7 @@ import { getObjectStorage } from '@/lib/storage';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
 import type { ScanDocumentPayload, ScanDocumentTarget } from '@/lib/jobs/types';
 import { log } from '@/lib/logging';
+import { deliverScannedAttachment } from '@/lib/services/messengers/attachment';
 
 type ScanStatus = 'clean' | 'infected' | 'error';
 
@@ -112,6 +113,14 @@ async function loadTarget(
     if (!row || !row.attachmentPath) return null;
     return { id: row.id, path: row.attachmentPath };
   }
+  if (kind === 'messenger_attachment') {
+    const row = await db.messengerMessage.findUnique({
+      where: { id },
+      select: { id: true, attachmentPath: true },
+    });
+    if (!row || !row.attachmentPath) return null;
+    return { id: row.id, path: row.attachmentPath };
+  }
   if (kind === 'client_request_attachment') {
     return db.clientRequestAttachment.findUnique({
       where: { id },
@@ -150,6 +159,9 @@ async function persistResult(
   } else if (kind === 'chat_attachment') {
     // Message mirrors StaffMessage: only `scanStatus`, no scan-reason/`scannedAt` columns.
     await db.message.update({ where: { id }, data: { scanStatus } });
+  } else if (kind === 'messenger_attachment') {
+    // У сообщения диалога есть и причина, и статус (в отличие от чата).
+    await db.messengerMessage.update({ where: { id }, data: { scanStatus, scanReason } });
   } else if (kind === 'company_branding') {
     // Этап 5 (У-138): полный набор колонок, как Document/LeadAttachment.
     await db.companyBrandingAsset.update({
@@ -167,6 +179,15 @@ async function persistResult(
       where: { id },
       data: { scanStatus, scanReason, scannedAt: new Date() },
     });
+  }
+
+  // У-204: у вложения диалога проверка — это ещё и ВОРОТА отправки. Файл
+  // уходит клиенту здесь, а не при загрузке: иначе мы переслали бы заражённый
+  // раньше, чем узнали о нём. Вызов стоит в конце `persistResult`, а не в
+  // ветках процессора, именно чтобы ни один путь (включая «ClamAV не
+  // настроен → clean») не остался без отправки.
+  if (kind === 'messenger_attachment') {
+    await deliverScannedAttachment(db, id);
   }
 }
 
