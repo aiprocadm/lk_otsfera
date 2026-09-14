@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
-import { MESSENGER_CHANNELS, type MessengerChannel } from './channels';
+import { normalizeChannelValue } from '@/lib/services/contacts/resolveContactByChannel';
+import { DIALOG_CHANNELS, type DialogChannel } from './channels';
 import { appendInboundToDialog } from './appendInbound';
 
 export type BackfillReport = {
@@ -13,7 +14,8 @@ const DEFAULT_BATCH = 200;
 
 /** Письма из мессенджеров, которых ещё нет в диалогах — общее условие обоих режимов. */
 const PENDING_WHERE: Prisma.InboundMessageWhereInput = {
-  channel: { in: [...MESSENGER_CHANNELS] },
+  // `У-205`: письма сворачиваются в диалоги наравне с мессенджерами.
+  channel: { in: [...DIALOG_CHANNELS] },
   dialogMessage: null,
 };
 
@@ -68,9 +70,12 @@ export async function backfillDialogsFromInbound(
       report.scanned += 1;
       const result = await appendInboundToDialog(prisma, {
         inboundMessageId: row.id,
-        // Условие выборки уже отобрало мессенджеры — приведение только для типа.
-        channel: row.channel as MessengerChannel,
-        peerRef: row.senderRef,
+        // Условие выборки уже отобрало каналы диалога — приведение для типа.
+        channel: row.channel as DialogChannel,
+        // У почты ключ — нормализованный адрес, как при приёме и при ответе:
+        // иначе свёртка завела бы диалог-двойник.
+        peerRef:
+          row.channel === 'email' ? normalizeChannelValue('email', row.senderRef) : row.senderRef,
         peerDisplay: row.senderDisplay,
         body: row.body,
         externalId: row.externalId,

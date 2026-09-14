@@ -1,7 +1,9 @@
 import { isTelegramEnabled } from '@/lib/telegram/client';
 import { isMaxEnabled } from '@/lib/max/client';
 import { isWhatsAppEnabled } from '@/lib/whatsapp/aggregator';
-import type { MessengerChannel } from './channels';
+import { cachedIntegrationSetting } from '@/lib/config/integrationSettingsCache';
+import { looksLikeEmail } from '@/lib/services/inbound/emailReply';
+import type { DialogChannel } from './channels';
 
 /**
  * Доступность канала — СЕРВЕРНЫЙ модуль, отдельно от `channels.ts` намеренно.
@@ -16,7 +18,7 @@ import type { MessengerChannel } from './channels';
  * канала. Ровно те же предикаты, что у транспортов уведомлений — форма ответа
  * в диалоге появляется тогда же, когда канал начинает доставлять уведомления.
  */
-export function isMessengerAvailable(channel: MessengerChannel): boolean {
+export function isMessengerAvailable(channel: DialogChannel): boolean {
   switch (channel) {
     case 'telegram':
       return isTelegramEnabled();
@@ -24,5 +26,15 @@ export function isMessengerAvailable(channel: MessengerChannel): boolean {
       return isMaxEnabled();
     case 'whatsapp':
       return isWhatsAppEnabled();
+    case 'email':
+      // Почта (`У-205`): отправка включена, ключ задан И настроен входящий
+      // ящик адресом. Последнее — не формальность: без него ответ уйдёт с
+      // `no-reply`, и ответ клиента попадёт в никуда. Форма ответа не должна
+      // появляться там, где ответить по-настоящему нельзя.
+      return (
+        (cachedIntegrationSetting('email.enabled') ?? '').trim().toLowerCase() === 'true' &&
+        !!cachedIntegrationSetting('email.resendApiKey') &&
+        looksLikeEmail(cachedIntegrationSetting('imap.user') ?? '')
+      );
   }
 }

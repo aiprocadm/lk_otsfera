@@ -1,10 +1,10 @@
 import type { PrismaClient } from '@prisma/client';
-import type { MessengerChannel } from './channels';
+import type { DialogChannel } from './channels';
 import { previewOf, upsertDialog } from './dialog';
 import { nextStatusOnOutbound, waitingSinceFor } from './dialogStatus';
 
 export type RecordOutboundArgs = {
-  channel: MessengerChannel;
+  channel: DialogChannel;
   peerRef: string;
   /** Сотрудник, который написал. */
   authorId: string;

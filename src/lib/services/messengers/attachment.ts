@@ -9,7 +9,7 @@ import { log } from '@/lib/logging';
 import { getObjectStorage } from '@/lib/storage';
 import { SUPPORTED_MIME_TYPES, validateMagicBytes } from '@/lib/storage/mimeValidator';
 import { channelAcceptsAttachment, sendAttachmentToMessenger } from './transport';
-import type { MessengerChannel } from './channels';
+import type { DialogChannel, MessengerChannel } from './channels';
 import { previewOf } from './dialog';
 import { isDialogInScope } from './scope';
 
@@ -31,12 +31,12 @@ import { isDialogInScope } from './scope';
  */
 
 /** Предел канала: Telegram принимает файл до 50 МБ (документация Bot API). */
-const CHANNEL_ATTACHMENT_LIMIT_MB: Partial<Record<MessengerChannel, number>> = {
+const CHANNEL_ATTACHMENT_LIMIT_MB: Partial<Record<DialogChannel, number>> = {
   telegram: 50,
 };
 
 /** Фактический предел для канала — меньшее из общего и канального (`В-3-1`). */
-export function attachmentLimitBytes(channel: MessengerChannel): number {
+export function attachmentLimitBytes(channel: DialogChannel): number {
   const channelMb = CHANNEL_ATTACHMENT_LIMIT_MB[channel];
   const common = maxFileSizeBytes();
   return channelMb ? Math.min(common, channelMb * 1024 * 1024) : common;
@@ -93,7 +93,7 @@ export async function sendDialogAttachment(
   });
   if (!dialog || !isDialogInScope(session, dialog)) return { ok: false, error: 'not_found' };
 
-  const channel = dialog.channel as MessengerChannel;
+  const channel = dialog.channel as DialogChannel;
   // Проверяем канал ДО загрузки в хранилище: незачем класть файл, который
   // всё равно нельзя отправить.
   if (!channelAcceptsAttachment(channel)) return { ok: false, error: 'channel_no_attachments' };

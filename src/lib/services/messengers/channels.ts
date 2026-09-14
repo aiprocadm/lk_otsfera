@@ -25,3 +25,25 @@ export const MESSENGER_LABELS: Record<MessengerChannel, string> = {
 export function isMessengerChannel(value: string): value is MessengerChannel {
   return (MESSENGER_CHANNELS as readonly string[]).includes(value);
 }
+
+/**
+ * Каналы, для которых заводится ДИАЛОГ (`У-205`, спека этапа 3 §3.1).
+ *
+ * Шире мессенджеров: с этапа 3 у почты появилась исходящая отправка «в тот же
+ * адрес» (`У-205`), и переписка по почте — такой же диалог. `MESSENGER_CHANNELS`
+ * при этом не меняется: его читают вебхуки, доступность ботов и «написать
+ * первым» — там речь именно о мессенджерах.
+ */
+export const DIALOG_CHANNELS = [...MESSENGER_CHANNELS, 'email'] as const;
+
+export type DialogChannel = (typeof DIALOG_CHANNELS)[number];
+
+/** Как канал называется на экране — одно имя во всех кабинетах (§0.2). */
+export const DIALOG_CHANNEL_LABELS: Record<DialogChannel, string> = {
+  ...MESSENGER_LABELS,
+  email: 'Почта',
+};
+
+export function isDialogChannel(value: string): value is DialogChannel {
+  return (DIALOG_CHANNELS as readonly string[]).includes(value);
+}

@@ -2232,6 +2232,9 @@ model InboundMessage {
   sentAt          DateTime?
   channel         String
   externalId      String            @unique
+  /// `Message-ID` письма у почтового сервера (У-205). По нему ответ сшивается
+  /// с перепиской заголовком `In-Reply-To`; у прочих каналов пусто.
+  externalMessageId String?
   senderRef       String
   senderDisplay   String?
   subject         String?

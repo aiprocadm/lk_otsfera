@@ -154,7 +154,7 @@ describe('defaultTransport — with RESEND_API_KEY (success path)', () => {
     expect(result).toEqual({ id: null });
   });
 
-  it('logs a console.error and still returns the id when Resend reports an error', async () => {
+  it('отказ Resend помечается failed, а не выдаётся за отправленное письмо', async () => {
     vi.stubEnv('RESEND_API_KEY', 'test-api-key');
     sendMock.mockResolvedValue({
       data: { id: 'err_id' },
@@ -170,7 +170,9 @@ describe('defaultTransport — with RESEND_API_KEY (success path)', () => {
       subject: 'Hi',
       html: '<p>Hi</p>',
     });
-    expect(result).toEqual({ id: 'err_id' });
+    // Раньше возвращался обычный результат с id, и вызывающий писал в
+    // историю «отправлено» по письму, которого клиент не получил (`У-205`).
+    expect(result).toEqual({ id: null, failed: true });
     expect(errorSpy).toHaveBeenCalledWith(
       '[email] Resend API error',
       expect.objectContaining({ to: 'bad@b.com' })

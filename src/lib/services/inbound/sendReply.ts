@@ -4,7 +4,8 @@ import { recordAudit } from '@/lib/auth/audit';
 import { notifyOrgUsers } from '@/lib/notifications';
 import { replyToInbound } from '@/lib/services/inbound/reply';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
-import { isMessengerChannel } from '@/lib/services/messengers/channels';
+import { isDialogChannel } from '@/lib/services/messengers/channels';
+import { normalizeChannelValue } from '@/lib/services/contacts/resolveContactByChannel';
 import { recordOutboundInDialog } from '@/lib/services/messengers/recordOutbound';
 import { log } from '@/lib/logging';
 
@@ -17,7 +18,7 @@ export type SendInboundReplyResult =
   | { ok: true }
   | {
       ok: false;
-      error: 'forbidden' | 'not_found' | 'invalid' | 'reply_failed' | 'email_unsupported';
+      error: 'forbidden' | 'not_found' | 'invalid' | 'reply_failed';
     };
 
 /**
@@ -44,6 +45,7 @@ export async function sendInboundReply(
       channel: true,
       senderRef: true,
       subject: true,
+      externalMessageId: true,
       companyId: true,
       threadId: true,
       resolvedUserId: true,
@@ -62,17 +64,25 @@ export async function sendInboundReply(
 
   const result = await replyToInbound(message, text);
   if (!result.ok) {
-    return { ok: false, error: message.channel === 'email' ? 'email_unsupported' : 'reply_failed' };
+    // Один код на все каналы: почта больше не «не поддерживается» — она
+    // отвечает так же, как мессенджеры, и отказ у неё такой же обычный.
+    return { ok: false, error: 'reply_failed' };
   }
 
   // История диалога (Р-М-7). Сбой записи не отменяет ответ — он уже ушёл
   // клиенту; привязка передаётся на случай, если диалога ещё нет (письмо
   // старше бэкфилла).
-  if (isMessengerChannel(message.channel)) {
+  if (isDialogChannel(message.channel)) {
     try {
       await recordOutboundInDialog(prisma, {
         channel: message.channel,
-        peerRef: message.senderRef,
+        // У почты ключ диалога — нормализованный адрес, тот же, что при
+        // приёме письма. Иначе ответ завёл бы ВТОРОЙ диалог с тем же
+        // человеком, и переписка разошлась бы надвое.
+        peerRef:
+          message.channel === 'email'
+            ? normalizeChannelValue('email', message.senderRef)
+            : message.senderRef,
         authorId: session.sub,
         text,
         delivered: true,

@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { requireManager } from '@/lib/auth/requireRole';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { prisma } from '@/lib/db/prisma';
-import { MESSENGER_LABELS } from '@/lib/services/messengers/channels';
+import { DIALOG_CHANNEL_LABELS } from '@/lib/services/messengers/channels';
 import { getDialog, markDialogRead } from '@/lib/services/messengers/get';
 import { listAssignableStaff } from '@/lib/services/messengers/assign';
 import { listOrganizations } from '@/lib/services/manager/organizations';
@@ -47,7 +47,7 @@ export default async function ManagerMessengerDialogPage({
     listAssignableStaff(prisma, session),
   ]);
 
-  const channelLabel = MESSENGER_LABELS[dialog.channel];
+  const channelLabel = DIALOG_CHANNEL_LABELS[dialog.channel];
   const crumbs = buildCabinetBreadcrumbs('manager', '/manager/messengers', [
     { label: dialog.peerLabel },
   ]);

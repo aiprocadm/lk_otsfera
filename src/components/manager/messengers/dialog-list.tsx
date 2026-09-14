@@ -2,7 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { TableShell, THead, Th, Tr, Td, Badge } from '@/components/ui';
 import { fmtDateTime } from '@/lib/format';
-import { MESSENGER_LABELS } from '@/lib/services/messengers/channels';
+import { DIALOG_CHANNEL_LABELS } from '@/lib/services/messengers/channels';
 import type { DialogListItem } from '@/lib/services/messengers/list';
 import { DialogStatusBadge } from './dialog-status-badge';
 
@@ -71,7 +71,7 @@ export function DialogList({ items }: { items: DialogListItem[] }) {
           {items.map((item) => (
             <Tr key={item.id}>
               <Td>
-                <Badge tone="neutral">{MESSENGER_LABELS[item.channel]}</Badge>
+                <Badge tone="neutral">{DIALOG_CHANNEL_LABELS[item.channel]}</Badge>
               </Td>
               <Td>
                 <div className="flex items-center gap-2">
@@ -108,7 +108,7 @@ export function DialogList({ items }: { items: DialogListItem[] }) {
             className="block rounded-xl border border-gray-200 bg-white p-4 hover:border-orange-500"
           >
             <div className="flex items-center justify-between gap-2">
-              <Badge tone="neutral">{MESSENGER_LABELS[item.channel]}</Badge>
+              <Badge tone="neutral">{DIALOG_CHANNEL_LABELS[item.channel]}</Badge>
               <div className="flex items-center gap-2">
                 <DialogStatusBadge status={item.status} overdue={item.overdue} />
                 <UnreadPill count={item.unreadCount} />

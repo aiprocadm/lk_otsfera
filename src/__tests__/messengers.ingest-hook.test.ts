@@ -98,14 +98,24 @@ describe('ingestInboundMessage → appendInboundToDialog', () => {
     );
   });
 
-  it('почта и вопрос из кабинета в диалог не попадают', async () => {
+  it('письмо сворачивается в диалог по НОРМАЛИЗОВАННОМУ адресу (У-205)', async () => {
     m.resolveInboundSender.mockResolvedValue({ matchType: 'unresolved' });
     await ingestInboundMessage(prisma, {
       channel: 'email',
       externalId: 'mail:1',
-      senderRef: 'a@b.test',
+      senderRef: 'Ivan@Mail.RU',
       body: 'письмо',
     });
+    expect(m.appendInboundToDialog).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({ channel: 'email', peerRef: 'ivan@mail.ru' })
+    );
+  });
+
+  it('вопрос из кабинета в диалог по-прежнему не попадает', async () => {
+    // У кабинета свой путь ответа (уведомление в ЛК); диалог для него —
+    // работа `У-212`, здесь его быть не должно.
+    m.resolveInboundSender.mockResolvedValue({ matchType: 'unresolved' });
     await ingestInboundMessage(prisma, {
       channel: 'cabinet',
       externalId: 'cab:1',

@@ -92,7 +92,9 @@ export type SendOptions = {
 
 export type SendResult =
   | { status: 'sent'; id: string | null }
-  | { status: 'skipped'; reason: 'disabled' | 'no-api-key' | 'no-recipient' };
+  | { status: 'skipped'; reason: 'disabled' | 'no-api-key' | 'no-recipient' }
+  /** Провайдер принял запрос и отказал: письмо клиенту НЕ ушло (`У-205`). */
+  | { status: 'failed'; reason: 'provider' };
 
 /**
  * Dynamic import keeps `react-dom/server` out of the static module graph.
@@ -117,6 +119,10 @@ export async function send(
     text?: string;
     /** Файлы письма (`У-149`): документ уходит клиенту вложением. */
     attachments?: EmailAttachment[];
+    /** Куда клиент ответит (`У-205`); без него ответ уйдёт на `no-reply`. */
+    replyTo?: string;
+    /** Сшивка с перепиской (`У-205`): `In-Reply-To` и `References`. */
+    headers?: { inReplyTo?: string; references?: string[] };
   },
   options: SendOptions = {}
 ): Promise<SendResult> {
@@ -138,7 +144,10 @@ export async function send(
     html: input.html,
     text: input.text,
     attachments: input.attachments,
+    replyTo: input.replyTo,
+    headers: input.headers,
   });
+  if (result.failed) return { status: 'failed', reason: 'provider' };
   return { status: 'sent', id: result.id };
 }
 

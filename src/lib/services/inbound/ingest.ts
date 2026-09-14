@@ -3,7 +3,8 @@ import { writeSyncLog } from '@/lib/services/oneCSync/log';
 import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import { log } from '@/lib/logging';
-import { isMessengerChannel } from '@/lib/services/messengers/channels';
+import { isDialogChannel } from '@/lib/services/messengers/channels';
+import { normalizeChannelValue } from '@/lib/services/contacts/resolveContactByChannel';
 import { appendInboundToDialog } from '@/lib/services/messengers/appendInbound';
 import { resolveInboundSender } from './resolve';
 
@@ -20,6 +21,8 @@ export type InboundDto = {
   attachmentMime?: string | undefined;
   /** Размер скачанного файла — для подписи в ленте диалога (`У-204`). */
   attachmentSize?: number | undefined;
+  /** `Message-ID` письма (`У-205`) — сшивка ответа с перепиской. */
+  externalMessageId?: string | null | undefined;
   /**
    * Этап 9: отправитель уже известен (кабинет — сессия клиента), резолв по
    * каналу не нужен. Статус остаётся `unresolved`: критерий Intake — именно
@@ -59,14 +62,21 @@ export async function ingestInboundMessage(
     return { ok: true, id: existing.id, deduped: true };
   }
 
+  // Адрес приводим к единому виду ЗДЕСЬ, а не у вызывающего: `senderRef`
+  // строки письма и `peerRef` диалога должны совпадать всегда. Иначе привязка
+  // диалога (`bind.ts` ищет письма условием `senderRef = peerRef`) не найдёт
+  // письма со смешанным регистром, и они останутся неразобранными.
+  const senderRef =
+    dto.channel === 'email' ? normalizeChannelValue('email', dto.senderRef) : dto.senderRef;
+
   const resolved = dto.sender
     ? ({ matchType: 'known-sender' } as const)
     : await resolveInboundSender(prisma, {
         // Сюда попадают только внешние каналы: у кабинета отправитель известен (dto.sender).
         channel: dto.channel as 'telegram' | 'max' | 'whatsapp' | 'email',
-        chatId: dto.channel === 'telegram' || dto.channel === 'max' ? dto.senderRef : undefined,
-        phone: dto.channel === 'whatsapp' ? dto.senderRef : undefined,
-        email: dto.channel === 'email' ? dto.senderRef : undefined,
+        chatId: dto.channel === 'telegram' || dto.channel === 'max' ? senderRef : undefined,
+        phone: dto.channel === 'whatsapp' ? senderRef : undefined,
+        email: dto.channel === 'email' ? senderRef : undefined,
       });
 
   let row: { id: string };
@@ -75,7 +85,8 @@ export async function ingestInboundMessage(
       data: {
         channel: dto.channel,
         externalId: dto.externalId,
-        senderRef: dto.senderRef,
+        externalMessageId: dto.externalMessageId ?? null,
+        senderRef,
         senderDisplay: dto.senderDisplay ?? null,
         subject: dto.subject ?? null,
         body: dto.body,
@@ -143,16 +154,22 @@ export async function ingestInboundMessage(
     prisma
   );
 
-  // Мессенджеры (спека 2026-09-12, Р-М-1): письмо из Telegram/MAX/WhatsApp —
-  // ещё и реплика диалога с собеседником. Best-effort (§3): письмо уже
-  // записано и попадёт во «Входящие в работу», а пропущенную реплику дочинит
+  // Диалог (спека 2026-09-12, Р-М-1; расширено `У-205`): сообщение из
+  // Telegram/MAX/WhatsApp — и с этапа 3 письмо — это ещё и реплика диалога с
+  // собеседником. Best-effort (§3): сообщение уже записано и попадёт во
+  // «Входящие в работу», а пропущенную реплику дочинит
   // `backfillDialogsFromInbound` — вебхук при этом отвечает 200 и не ретраит.
-  if (isMessengerChannel(dto.channel)) {
+  //
+  // Ключ диалога у почты — НОРМАЛИЗОВАННЫЙ адрес (тем же правилом, что ищет
+  // контакт по каналу). Иначе `Ivan@Mail.RU` и `ivan@mail.ru` завели бы два
+  // разных диалога с одним человеком — на этом классе ошибок уже спотыкался
+  // этап 2 (телефон и ИНН в сопоставлении).
+  if (isDialogChannel(dto.channel)) {
     try {
       await appendInboundToDialog(prisma, {
         inboundMessageId: row.id,
         channel: dto.channel,
-        peerRef: dto.senderRef,
+        peerRef: senderRef,
         peerDisplay: dto.senderDisplay,
         body: dto.body,
         externalId: dto.externalId,

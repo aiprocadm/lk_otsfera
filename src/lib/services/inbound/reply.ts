@@ -2,6 +2,7 @@ import type { InboundMessage } from '@prisma/client';
 import { createNotification, deliverNotificationToUser } from '@/lib/notifications';
 import { sendToMessenger } from '@/lib/services/messengers/transport';
 import { log } from '@/lib/logging';
+import { sendEmailReply } from './emailReply';
 
 /**
  * Reply to an inbound message through the SAME outbound transport the
@@ -14,15 +15,16 @@ import { log } from '@/lib/logging';
  * themselves already return `{ ok: false }` rather than throwing), so callers
  * get a stable `{ ok: boolean }` without try/catch of their own.
  *
- * Email has no low-level raw-send (subject/text → address) counterpart today
- * — `src/lib/email/send.tsx` only exposes template-bound senders (one per
- * notification type), and composing a one-off reply template is out of scope
- * here. Deferred to boarding; returns `{ ok: false }` rather than pretending
- * success.
+ * Почта (`У-205`, этап 3): ответ уходит через `sendEmailReply` — с `Reply-To`
+ * на входящий ящик и `In-Reply-To` на письмо клиента, иначе ответ клиента не
+ * вернулся бы в ту же переписку. До этапа 3 эта ветка отвечала отказом, и
+ * менеджеру приходилось писать из своей почты мимо кабинета.
  */
 export async function replyToInbound(
   msg: Pick<InboundMessage, 'channel' | 'senderRef' | 'subject'> & {
     resolvedUserId?: string | null;
+    /** `Message-ID` письма клиента — сшивка ветки ответа (`У-205`). */
+    externalMessageId?: string | null;
   },
   text: string
 ): Promise<{ ok: boolean }> {
@@ -37,9 +39,12 @@ export async function replyToInbound(
     case 'whatsapp':
       return sendToMessenger(msg.channel, msg.senderRef, text);
     case 'email':
-      // No raw-send available (see doc comment above) — email reply
-      // composition is deferred.
-      return { ok: false };
+      return sendEmailReply({
+        to: msg.senderRef,
+        subject: msg.subject,
+        text,
+        inReplyTo: msg.externalMessageId ?? null,
+      });
     default:
       return { ok: false };
   }

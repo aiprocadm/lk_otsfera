@@ -63,11 +63,12 @@ describe('backfillDialogsFromInbound (unit)', () => {
     );
   });
 
-  it('countPendingBackfill считает письма мессенджеров без реплики', async () => {
+  it('countPendingBackfill считает сообщения всех каналов диалога без реплики', async () => {
     count.mockResolvedValue(7);
     await expect(countPendingBackfill(prisma)).resolves.toBe(7);
+    // С `У-205` почта — такой же канал диалога, её письма тоже сворачиваются.
     expect(count).toHaveBeenCalledWith({
-      where: { channel: { in: ['telegram', 'max', 'whatsapp'] }, dialogMessage: null },
+      where: { channel: { in: ['telegram', 'max', 'whatsapp', 'email'] }, dialogMessage: null },
     });
   });
 });
