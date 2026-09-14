@@ -23,10 +23,36 @@ import { ONE_C_PUSHABLE_TYPES } from '@/lib/services/oneCSync/schemas';
  * ПРОВЕРЕН МУТАЦИЕЙ (§16): добавление `'commercial_proposal'` в
  * `ONE_C_PUSHABLE_TYPES` роняет оба сравнения; удаление `extra_agreement` из
  * `@default(...)` в schema.prisma роняет сравнение с Prisma.
+ *
+ * ЧИТАЕТ НЕ КОД, а `schema.prisma` и `migration.sql` — поэтому оба чтения
+ * намеренно СЫРЫЕ, без помощника `readSource` (`helpers/source.ts`): тот
+ * снимает комментарии по правилам TypeScript и на чужом синтаксисе режет
+ * живые строки. Третий рубеж — сама константа `ONE_C_PUSHABLE_TYPES` — берётся
+ * не текстом, а настоящим импортом, так что закомментировать её незаметно
+ * нельзя: файл просто не соберётся. Пути раскрыты прямо в вызовах, чтобы по
+ * тексту вызова было видно, что читается не `.ts`.
  */
 
 const ROOT = path.resolve(__dirname, '../..');
-const read = (rel: string) => readFileSync(path.join(ROOT, rel), 'utf8');
+
+/**
+ * Убирает из схемы Prisma строки, целиком закомментированные (`//`, `///`).
+ *
+ * Это НЕ замена `readSource`: у Prisma свой синтаксис комментариев, и помощник
+ * для `.ts` здесь неприменим. Но дыра общая — проверено мутацией (прогон №28):
+ * припишешь `//` перед строкой `oneCDocumentPushTypes … @default([…])`, и
+ * колонка из схемы пропадает, а страж остаётся зелёным, потому что шаблон
+ * по-прежнему находит её в тексте. Для базы закомментированная колонка и
+ * удалённая — одно и то же. Режем только строки, которые начинаются с `//`:
+ * живую строку с хвостовым пояснением трогать нечем, а шаблонам ниже хвост
+ * не мешает.
+ */
+function livePrismaLines(schema: string): string {
+  return schema
+    .split('\n')
+    .filter((line) => !line.trimStart().startsWith('//'))
+    .join('\n');
+}
 
 function listFrom(source: string, re: RegExp, what: string): string[] {
   const m = source.match(re);
@@ -47,7 +73,7 @@ describe('guardrail: pushable document types agree across schema, Prisma default
 
   it('matches @default([...]) of Company.oneCDocumentPushTypes in prisma/schema.prisma', () => {
     const prismaDefault = listFrom(
-      read('prisma/schema.prisma'),
+      livePrismaLines(readFileSync(path.join(ROOT, 'prisma/schema.prisma'), 'utf8')),
       /oneCDocumentPushTypes\s+DocumentType\[\]\s+@default\(\[([^\]]+)\]\)/,
       'prisma/schema.prisma'
     );
@@ -56,7 +82,13 @@ describe('guardrail: pushable document types agree across schema, Prisma default
 
   it('matches the ARRAY[...] of CHECK Company_oneCDocumentPushTypes_pushable in the migration', () => {
     const migration = listFrom(
-      read('prisma/migrations/20260903100000_stage8_document_push_model/migration.sql'),
+      readFileSync(
+        path.join(
+          ROOT,
+          'prisma/migrations/20260903100000_stage8_document_push_model/migration.sql'
+        ),
+        'utf8'
+      ),
       /"Company_oneCDocumentPushTypes_pushable"\s+CHECK\s*\(\s*"oneCDocumentPushTypes"\s*<@\s*ARRAY\[([^\]]+)\]::"DocumentType"\[\]/,
       'migration.sql'
     );

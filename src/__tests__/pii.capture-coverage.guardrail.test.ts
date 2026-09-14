@@ -4,11 +4,16 @@
  * Ограничение (задокументировано в спеке): проверяются только известные
  * реестру файлы — новый сервис, читающий ПДн без регистрации контекста,
  * ловится ревью + правилом CLAUDE.md §12, не этим тестом.
+ *
+ * callSite-файлы читаются `readSource` (комментарии сняты): иначе
+ * закомментированный `recordPiiAccess` считался бы живой записью, и журнал
+ * доступа к ПДн молча переставал бы вести строку — для §25.7 это ровно то же
+ * самое, что вызов удалить.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { PII_CONTEXTS } from '@/lib/pii/contexts';
+import { readSource } from './helpers/source';
 
 const ROOT = process.cwd();
 
@@ -16,7 +21,7 @@ describe('PII capture coverage guardrail', () => {
   it('каждый контекст упоминается в своём callSite-файле рядом с recordPiiAccess', () => {
     const missing: string[] = [];
     for (const [key, ctx] of Object.entries(PII_CONTEXTS)) {
-      const src = readFileSync(path.join(ROOT, ctx.callSite), 'utf8');
+      const src = readSource(path.join(ROOT, ctx.callSite));
       const hasCall = src.includes('recordPiiAccess'); // ловит и recordPiiAccessMany
       const hasContext = src.includes(`'${key}'`);
       if (!hasCall || !hasContext) missing.push(`${key} → ${ctx.callSite}`);
@@ -32,7 +37,7 @@ describe('PII capture coverage guardrail', () => {
     const files = [...new Set(Object.values(PII_CONTEXTS).map((c) => c.callSite))];
     const rogue: string[] = [];
     for (const file of files) {
-      const src = readFileSync(path.join(ROOT, file), 'utf8');
+      const src = readSource(path.join(ROOT, file));
       // контекст передаётся как context: '<key>'
       for (const m of src.matchAll(/context:\s*'([a-z0-9_]+)'/g)) {
         if (!known.has(m[1])) rogue.push(`${file}: ${m[1]}`);

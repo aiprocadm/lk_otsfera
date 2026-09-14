@@ -85,7 +85,9 @@ describe('пустые состояния пишутся компонентом,
     const copies: string[] = [];
     for (const rel of walk(root)) {
       if (rel.startsWith('ui/')) continue;
-      const src = readFileSync(join(root, rel), 'utf8');
+      // Комментарии снимаем и здесь: закомментированная разметка копией
+      // пустого состояния не является (прогон №28).
+      const src = stripComments(readFileSync(join(root, rel), 'utf8'));
       const hasCard = src.includes('bg-white border border-gray-200 rounded-xl p-12 text-center');
       const hasCircle = src.includes('w-12 h-12 bg-gray-100 rounded-full');
       if (hasCard && hasCircle) copies.push(rel);

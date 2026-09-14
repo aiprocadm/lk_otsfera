@@ -15,10 +15,17 @@
  *
  * Проверен мутацией (§16): снятие `<Breadcrumbs>` с любой такой страницы
  * роняет тест.
+ *
+ * Страница и её вьюха читаются `readSource` (комментарии сняты). Иначе
+ * `<Breadcrumbs>`, просто закомментированный в разметке, засчитывался бы за
+ * отрисовку — человек на экране крошек не видит, а страж зелёный. Ровно так же
+ * закомментированный `redirect(` делал бы из живого экрана «шлюз» и выводил
+ * его из проверки целиком.
  */
 import { describe, it, expect } from 'vitest';
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { readSource } from './helpers/source';
 
 const APP = path.join(__dirname, '..', 'app');
 
@@ -65,13 +72,13 @@ function isGateway(src: string): boolean {
  * которого требует правило зеркала.
  */
 function chainOf(page: string): string[] {
-  const src = readFileSync(page, 'utf8');
+  const src = readSource(page);
   const out = [src];
   for (const m of src.matchAll(/from '(@\/components\/[^']+)'/g)) {
     const base = path.join(__dirname, '..', (m[1] as string).slice('@/'.length));
     for (const cand of [`${base}.tsx`, `${base}.ts`, path.join(base, 'index.tsx')]) {
       if (existsSync(cand)) {
-        out.push(readFileSync(cand, 'utf8'));
+        out.push(readSource(cand));
         break;
       }
     }

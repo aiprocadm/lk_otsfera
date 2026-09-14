@@ -19,11 +19,21 @@ import { join } from 'node:path';
  * Проверки ОТСУТСТВИЯ (`not.toContain`) от комментариев не страдают — там
  * комментарий делает стража строже, а не слепее.
  *
- * Долг ниже — стражи, которые читают не только код (разметку `.md`,
- * `.env`-примеры, `schema.prisma`). Наивное снятие `//` съело бы в них ссылки
- * `https://…` вместе с остатком строки, поэтому их переводят поштучно, в
- * следующих прогонах. Список закрытый: он может только уменьшаться — новый
- * страж в него не попадёт и обязан соблюдать правило сразу.
+ * Долг ниже — стражи, которые ещё читают исходник сырым текстом. Их переводят
+ * поштучно, по нескольку за прогон: разом менять чтение у двух десятков
+ * стражей рискованнее, чем сама дыра.
+ *
+ * **Список был дополнен один раз — в прогоне №28, и это не отступление, а
+ * исправление счёта.** Прежде правило действовало только на стражей, у
+ * которых проверка наличия записана матчером (`.toContain`, `.toMatch`).
+ * Стражи, где та же проверка спрятана внутри логики
+ * (`!src.includes('nameKey')`, а наружу `expect(offenders).toEqual([])`),
+ * получали ноль и выпадали из проверки целиком — то есть долг всё это время
+ * считался меньше, чем он есть. Счётчик починен, правило распространено на
+ * ЛЮБОЕ чтение кода: проверке отсутствия снятие комментариев не вредит
+ * (закомментированное нарушение — не нарушение), а проверке наличия спасает.
+ * Дальше список может только уменьшаться — новый страж в него не попадёт и
+ * обязан соблюдать правило сразу.
  */
 const DEBT = new Set([
   'auth.teamMode-required',
@@ -31,13 +41,37 @@ const DEBT = new Set([
   'config.upload-formats',
   'docs.live-links',
   'errors.codes-covered',
-  'featureFlags.third-gate',
   'help.glossary',
   'notifications.registry',
   'prisma.enum-terminal-last',
   'security.order-deal-visibility',
   'security.role-model-inventory',
+  // Добавлены прогоном №28 вместе с починкой счёта (см. шапку). До неё они
+  // не числились нарушителями лишь потому, что их проверки наличия были
+  // невидимы счётчику.
+  'components.no-db-import',
+  'config.env-example',
+  'docs.commands-exist',
+  'e4.no-network',
+  'import.no-second-writer',
+  'navigation.same-section-same-name',
+  'security.client-visibility',
+  'security.document-status',
+  'security.role-access-matrix',
+  'server-actions.async-exports',
+  'server-actions.session-guard',
+  'services.graceful-degrade',
+  'services.no-test-only-modules',
+  'services.stable-pagination-order',
+  'worker.processor-coverage',
 ]);
+
+/**
+ * Стражи, которые читают вообще НЕ код продукта. Отдельный список, а не
+ * подстрока в тексте вызова: путь часто прячется в переменной
+ * (`readFileSync(file)`), и сопоставление по тексту такие вызовы не узнаёт.
+ */
+const READS_NOT_CODE = new Set(['prisma.migrations-plain-sql']);
 
 const TESTS_DIR = __dirname;
 const name = (file: string) => file.replace('.guardrail.test.ts', '');
@@ -46,13 +80,33 @@ function countAll(src: string, needle: string): number {
   return src.split(needle).length - 1;
 }
 
+/**
+ * Проверка наличия, записанная НЕ матчером, а булевым выражением:
+ * `expect(src.includes('X')).toBe(true)`, `expect(/re/.test(src)).toBe(true)`.
+ *
+ * Прежний счётчик знал только `.toContain(` и `.toMatch(`, поэтому страж,
+ * написанный в таком стиле, получал ноль и выпадал из ОБЕИХ проверок целиком
+ * — то есть правило на него не действовало вовсе. Это не теория: так уже жили
+ * `import.no-second-writer` и `import.org-name-key`, и в списке долга их не
+ * было (прогон №28). Заодно рушилось обещание из шапки «новый страж в долг не
+ * попадёт и обязан соблюдать правило сразу».
+ */
+function booleanPresenceChecks(src: string): number {
+  let n = 0;
+  for (const m of src.matchAll(/expect\(([\s\S]{0,300}?)\)\s*\.\s*toBe\(true\)/g)) {
+    if (/\.includes\(|\.test\(|\.some\(/.test(m[1]!)) n += 1;
+  }
+  return n;
+}
+
 /** Сколько в страже проверок НАЛИЧИЯ строки (без `.not.`). */
 function presenceChecks(src: string): number {
   return (
     countAll(src, '.toContain(') -
     countAll(src, '.not.toContain(') +
     countAll(src, '.toMatch(') -
-    countAll(src, '.not.toMatch(')
+    countAll(src, '.not.toMatch(') +
+    booleanPresenceChecks(src)
   );
 }
 
@@ -125,12 +179,30 @@ describe('стражи, читающие исходник, не считают �
     // проходила зелёной в самом чувствительном месте (граница суток, `Д-22`).
     // Сырое чтение разрешено только для НЕ-кода: разметки, `.env`-примеров,
     // `schema.prisma`, `package.json` — там снятие `//` испортило бы ссылки.
-    const NOT_CODE = ['.md', '.env', '.prisma', 'package.json', 'package-lock', 'snapshots'];
+    // `.sql` — тоже не код продукта: миграции читают как есть, и снятие `//`
+    // там ничего не даёт (у SQL свой синтаксис комментариев).
+    const NOT_CODE = [
+      '.md',
+      '.env',
+      '.prisma',
+      '.sql',
+      'package.json',
+      'package-lock',
+      'snapshots',
+    ];
     const offenders: string[] = [];
 
     for (const g of guards) {
       if (DEBT.has(name(g.file)) || g.file === SELF) continue;
-      if (presenceChecks(g.src) === 0) continue;
+      if (READS_NOT_CODE.has(name(g.file))) continue;
+      // Раньше здесь стояло `if (presenceChecks(g.src) === 0) continue;` —
+      // и правило не действовало на стражей, у которых проверка наличия
+      // спрятана ВНУТРИ логики, а наружу выставлено `expect(offenders)
+      // .toEqual([])`. Так живёт `import.org-name-key`: `!src.includes
+      // ('nameKey')` — это проверка наличия, но `expect` выглядит проверкой
+      // отсутствия, и счётчик давал ноль (прогон №28). Считаем правило общим:
+      // проверке ОТСУТСТВИЯ снятие комментариев не вредит (закомментированное
+      // нарушение — не нарушение), а проверке наличия — спасает.
       for (const { call, wrapped } of rawReadCalls(g.src)) {
         if (!wrapped && !NOT_CODE.some((m) => call.includes(m))) {
           offenders.push(`${g.file}: ${call.replace(/\s+/g, ' ').slice(0, 80)}`);

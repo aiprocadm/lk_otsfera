@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
+import { readdirSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { FEATURE_PREFIXES } from '@/lib/featureFlags';
+import { readSource } from './helpers/source';
 
 /**
  * Сторож третьей точки гейтинга (§5 CLAUDE.md).
@@ -20,6 +21,11 @@ import { FEATURE_PREFIXES } from '@/lib/featureFlags';
  * однажды разъезжался с реальностью в этом проекте (списки MIME-типов), а
  * `settings_hub` в него намеренно не входит. Страница обязана уметь закрыться
  * сама.
+ *
+ * Читаем через `readSource`: страж читал исходник как есть, и достаточно было
+ * приписать `//` перед проверкой флага, чтобы он остался зелёным (прогон №28).
+ * На кабинете менеджера это одна закомментированная строка — и весь кабинет
+ * открыт при выключенном флаге.
  */
 const APP = join(__dirname, '..', 'app');
 
@@ -36,7 +42,7 @@ function readsFlag(prefixDir: string, flag: string): boolean {
         continue;
       }
       if (!name.endsWith('.tsx') && !name.endsWith('.ts')) continue;
-      const src = readFileSync(p, 'utf8');
+      const src = readSource(p);
       if (src.includes(`'${flag}'`)) return true;
       // Разделы хаба «Настройки» закрываются флагом не сами: его берёт
       // `requireSettingsSection` из реестра settings.ts (`section.flag` →
@@ -80,9 +86,13 @@ describe('у каждого route-флага есть третья точка г
       ['leader', 'leader_cabinet'],
       ['organization', 'organization_cabinet'],
     ] as const) {
-      const layout = readFileSync(join(APP, cabinet, 'layout.tsx'), 'utf8');
-      expect(layout, `${cabinet}: layout обязан проверять ${flag}`).toContain(`'${flag}'`);
-      expect(layout, `${cabinet}: проверка флага должна вести к notFound`).toContain('notFound');
+      const layout = readSource(join(APP, cabinet, 'layout.tsx'));
+      // Мало, чтобы имя флага и слово `notFound` просто встречались в файле:
+      // они должны стоять в ОДНОЙ проверке. Иначе гейт можно разорвать, не
+      // тронув ни одной из двух строк по отдельности.
+      expect(layout, `${cabinet}: проверка ${flag} не ведёт к notFound`).toMatch(
+        new RegExp(`isFeatureEnabled\\(\\s*'${flag}'\\s*\\)[^;]{0,60}notFound`)
+      );
     }
   });
 

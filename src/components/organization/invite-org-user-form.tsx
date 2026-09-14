@@ -4,6 +4,7 @@ import React, { useCallback, useState } from 'react';
 import { inviteOrgMemberAction } from '@/server-actions/organization/team';
 import { useFormAction } from '@/lib/ui/useFormAction';
 import { Dialog } from '@/components/ui/dialog';
+import { toast } from '@/lib/ui/toast';
 
 // Дельты поверх errorMessageRu: validation там generic, а not_found/forbidden
 // в общем словаре заточены под загрузку документа — здесь org-формулировки.
@@ -67,7 +68,10 @@ export function InviteOrgUserForm({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Clipboard API can fail in non-HTTPS contexts — fall through silently.
+      // Буфер обмена недоступен без HTTPS и в некоторых браузерах. Молчать
+      // нельзя: человек нажал «Скопировать», ничего не произошло, и он не
+      // понимает почему (§15). Ссылку показываем — её можно выделить руками.
+      toast.error('Не удалось скопировать. Выделите ссылку и скопируйте вручную.');
     }
   }
 

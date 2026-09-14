@@ -1,6 +1,7 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { readSource } from './helpers/source';
 
 // `У-84`: Organization.nameKey пишется при КАЖДОМ создании и переименовании
 // организации — протухший ключ молча ломает дедупликацию (`У-86`) и ступень
@@ -14,6 +15,11 @@ import { describe, expect, it } from 'vitest';
 // Ограничение по построению: guard видит только литерал `name:` в том же
 // файле; запись через объект, собранный в другом модуле, он не поймает —
 // такие места закрываются юнит-тестами payload'ов.
+//
+// Исходник читается `readSource` (комментарии сняты). Иначе `nameKey`,
+// оставшийся в пояснении над закомментированной строкой, засчитывался бы как
+// живая запись ключа: для продукта закомментированный `nameKey` и удалённый
+// `nameKey` — одно и то же, ключ протухает и дедупликация ломается.
 const ROOTS = ['src/lib', 'src/server-actions', 'src/app', 'src/worker'];
 
 function collectTs(root: string): string[] {
@@ -34,8 +40,11 @@ describe('Organization.nameKey пишут все точки записи name (�
     const files = ROOTS.flatMap((r) => collectTs(join(process.cwd(), r)));
     const offenders: string[] = [];
     for (const f of files) {
-      const src = readFileSync(f, 'utf8');
-      const creates = /\.organization\.(create|upsert)\(/.test(src);
+      const src = readSource(f);
+      // `createMany` — тоже заведение организаций, и как раз им пользуется
+      // массовый перенос. Без ключа имени такие организации перестают
+      // находиться поиском дублей, и это всплывает через месяц (прогон №28).
+      const creates = /\.organization\.(create|upsert|createMany)\(/.test(src);
       // Лукахед стоит сразу после двоеточия и сам съедает пробелы: вариант
       // `name\s*:\s*(?!true)` дыряв — `\s*` отступает и лукахед видит пробел.
       const renames =

@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { navByRole } from '@/lib/navigation/cabinet';
 import { sectionLabel, type SectionKey } from '@/lib/navigation/sectionLabels';
+import { readSource } from './helpers/source';
 
 /**
  * Страж «пункт меню = заголовок страницы» (`У-106`).
@@ -17,6 +18,11 @@ import { sectionLabel, type SectionKey } from '@/lib/navigation/sectionLabels';
  * разделах не находил ни одного заголовка и проходил вхолостую). Заголовок,
  * собранный из данных (имя клиента, номер заказа), проверять нечем — это
  * карточка сущности, а не раздел, и у неё своё правило (`У-73`).
+ *
+ * Страница и её компоненты читаются `readSource` (комментарии сняты). Иначе
+ * закомментированный `<PageHeader title="…">` засчитывался бы за заголовок
+ * экрана: человек увидел бы раздел вообще без названия, а страж молчал бы.
+ * Заодно перестаёт считаться заголовком образец в пояснении над кодом.
  */
 const SRC = join(__dirname, '..');
 const APP = join(SRC, 'app');
@@ -34,13 +40,13 @@ function pageFile(href: string): string | null {
 
 /** Страница + её компоненты на один уровень вглубь: H1 часто живёт в шелле. */
 function chain(file: string): string[] {
-  const src = readFileSync(file, 'utf8');
+  const src = readSource(file);
   const out = [src];
   for (const m of src.matchAll(/from '(@\/components\/[^']+)'/g)) {
     const base = join(SRC, (m[1] as string).slice('@/'.length));
     for (const cand of [`${base}.tsx`, `${base}.ts`, join(base, 'index.tsx')]) {
       if (existsSync(cand)) {
-        out.push(readFileSync(cand, 'utf8'));
+        out.push(readSource(cand));
         break;
       }
     }
