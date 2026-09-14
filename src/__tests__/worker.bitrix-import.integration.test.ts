@@ -2,13 +2,17 @@ import { describe, expect, it, vi, beforeAll, afterAll, beforeEach } from 'vites
 import { PrismaClient } from '@prisma/client';
 import type { Job } from 'bullmq';
 
-// Очередь мокается целиком: процессор её не трогает, но сервис пакета в том же
-// графе импортов поднял бы настоящее соединение с Redis.
-// `add` обязан возвращать обещание: боевой код вешает на него `.catch`, и мок,
-// отдающий undefined, ронял бы перенос там, где очередь просто недоступна.
-const { getQueue } = vi.hoisted(() => ({
-  getQueue: vi.fn(() => ({ add: vi.fn(async () => undefined) })),
-}));
+// Очередь мокается целиком: сервис пакета в том же графе импортов поднял бы
+// настоящее соединение с Redis. `add` обязан возвращать обещание: боевой код
+// вешает на него `.catch`, и мок, отдающий undefined, ронял бы перенос там, где
+// очередь просто недоступна. Мок ОДИН на весь файл: еженедельный повтор сам
+// ставит задачу применения, и без общего мока проверить это было бы нечем.
+const { getQueue, queueAdd } = vi.hoisted(() => {
+  const queueAdd = vi.fn<(name: string, payload: unknown) => Promise<undefined>>(
+    async () => undefined
+  );
+  return { queueAdd, getQueue: vi.fn(() => ({ add: queueAdd })) };
+});
 vi.mock('@/lib/jobs/queues', () => ({ getQueue }));
 
 import { bitrixImportProcessor } from '@/worker/processors/bitrix-import';
@@ -100,12 +104,17 @@ function job(name: string, batchId: string): Job<BitrixImportJobPayload> {
   return { id: `test-bitrix-${STAMP}`, name, data: { batchId } } as Job<BitrixImportJobPayload>;
 }
 
-async function createBatch(settings: Record<string, unknown> = {}): Promise<string> {
+async function createBatch(
+  settings: Record<string, unknown> = {},
+  /** `resync` — еженедельный повтор (`У-203`): он сам идёт к применению. */
+  mode: 'initial' | 'resync' = 'initial'
+): Promise<string> {
   const batch = await prisma.bitrixImportBatch.create({
     data: {
       companyId: ids.company,
       importedById: ids.user,
       source: 'rest',
+      mode,
       status: 'preview_pending',
       settings: { withFiles: true, openOnly: false, ...settings },
       counts: {},
@@ -463,5 +472,73 @@ describe('bitrixImportProcessor — применение пакета', () => {
     ).settings as BatchSettings;
     const kept = (settings.rows ?? []).filter((r) => (r.reason ?? '').includes('ручное'));
     expect(kept.length).toBeGreaterThan(0);
+  });
+});
+
+describe('bitrixImportProcessor — еженедельный повтор идёт сам (У-203)', () => {
+  /** Задачи применения, поставленные в очередь этим прогоном. */
+  function applyJobs(): unknown[][] {
+    return queueAdd.mock.calls.filter((call) => call[0] === 'apply');
+  }
+
+  it('стадии сопоставлены — повтор переходит к применению без человека', async () => {
+    const batchId = await createBatch(
+      { defaultManagerId: ids.user, tables: FULL_TABLES, withFiles: false },
+      'resync'
+    );
+
+    const result = await bitrixImportProcessor(job('preview', batchId), prisma);
+    expect(result).toMatchObject({ batchId, status: 'preview' });
+
+    // Пакет уже не ждёт человека: он в «применяем», задача в очереди.
+    const saved = await prisma.bitrixImportBatch.findUniqueOrThrow({
+      where: { id: batchId },
+      select: { status: true },
+    });
+    expect(saved.status).toBe('applying');
+    expect(applyJobs()).toEqual([['apply', { batchId }]]);
+  });
+
+  it('за неделю завелась новая стадия — повтор ждёт человека, а не пишет наугад', async () => {
+    // Таблица неполная: у портала есть стадии, которым в кабинете нет пары.
+    // Записать такие сделки «куда-нибудь» хуже, чем не записать вовсе.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const batchId = await createBatch(
+        { defaultManagerId: ids.user, tables: { stageMap: {}, leadStageMap: {} } },
+        'resync'
+      );
+
+      await bitrixImportProcessor(job('preview', batchId), prisma);
+
+      const saved = await prisma.bitrixImportBatch.findUniqueOrThrow({
+        where: { id: batchId },
+        select: { status: true },
+      });
+      expect(saved.status).toBe('preview');
+      expect(applyJobs()).toEqual([]);
+      // Молчаливая остановка была бы дефектом приёмки: причина обязана попасть
+      // в журнал, иначе никто не узнает, что повтор встал.
+      expect(warn).toHaveBeenCalledWith(
+        '[worker] bitrix-import resync: повтор ждёт сопоставления стадий',
+        { batchId }
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('первый перенос сам к применению НЕ переходит — его запускает человек', async () => {
+    const batchId = await createBatch({ defaultManagerId: ids.user, tables: FULL_TABLES });
+
+    await bitrixImportProcessor(job('preview', batchId), prisma);
+
+    const saved = await prisma.bitrixImportBatch.findUniqueOrThrow({
+      where: { id: batchId },
+      select: { status: true, mode: true },
+    });
+    expect(saved.mode).toBe('initial');
+    expect(saved.status).toBe('preview');
+    expect(applyJobs()).toEqual([]);
   });
 });

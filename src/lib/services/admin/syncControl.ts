@@ -5,6 +5,7 @@ import { recordAudit } from '@/lib/auth/audit';
 import type { SyncJobPayload } from '@/lib/jobs/types';
 import { SYNC_SCHEDULES } from '@/lib/jobs/scheduling';
 import { log } from '@/lib/logging';
+import { getSchedulePatterns } from './syncSchedules';
 
 export type SyncControlEntity =
   | 'organization'
@@ -196,9 +197,13 @@ export async function setSchedulePaused(
     if (paused) {
       await queue.removeJobScheduler(schedulerId);
     } else {
+      // Паттерн берём ДЕЙСТВУЮЩИЙ, а не умолчание из кода: иначе снятие
+      // паузы молча возвращало бы расписание, которое человек уже поменял в
+      // интерфейсе, и до перезапуска воркера задача ходила бы не по нему.
+      const patterns = await getSchedulePatterns(prisma);
       await queue.upsertJobScheduler(
         schedulerId,
-        { pattern: schedule.pattern, tz: schedule.tz },
+        { pattern: patterns.get(schedulerId) ?? schedule.pattern, tz: schedule.tz },
         { data: { triggeredAt: new Date().toISOString(), reason: 'cron' } }
       );
     }

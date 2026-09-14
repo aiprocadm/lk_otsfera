@@ -38,9 +38,23 @@ vi.mock('@/lib/services/admin/integrationDiagnostics', () => ({ loadIntegrationD
 const { listCompanyManagers } = vi.hoisted(() => ({ listCompanyManagers: vi.fn() }));
 vi.mock('@/lib/services/manager/team', () => ({ listCompanyManagers }));
 
+// Расписание повтора и его пауза: страница читает их у базы, поэтому в тесте
+// оба чтения — моки. `scheduling` мокается ЧАСТИЧНО: идентификатор расписания
+// должен остаться настоящим, иначе тест проверял бы собственную выдумку.
+const { getSchedulePatterns } = vi.hoisted(() => ({ getSchedulePatterns: vi.fn() }));
+vi.mock('@/lib/services/admin/syncSchedules', () => ({ getSchedulePatterns }));
+
+const { loadPausedSchedulerIds } = vi.hoisted(() => ({ loadPausedSchedulerIds: vi.fn() }));
+vi.mock('@/lib/jobs/scheduling', async (orig) => {
+  const actual = await orig<typeof import('@/lib/jobs/scheduling')>();
+  return { ...actual, loadPausedSchedulerIds };
+});
+
 // Вкладки — клиентский компонент: ему нужен адрес страницы.
 vi.mock('next/navigation', () => ({
   usePathname: () => '/admin/settings/integrations/bitrix',
+  // Блок «Повторять еженедельно» после сохранения обновляет экран.
+  useRouter: () => ({ refresh: vi.fn() }),
 }));
 
 type FieldStub = {
@@ -113,18 +127,22 @@ vi.mock('@/components/admin/secrets-key-notice', () => ({
     ),
 }));
 
-const { saveBitrixConnectionAction, testBitrixConnectionAction } = vi.hoisted(() => ({
-  saveBitrixConnectionAction: vi.fn(),
-  testBitrixConnectionAction: vi.fn(),
-}));
+const { saveBitrixConnectionAction, testBitrixConnectionAction, setBitrixResyncPausedAction } =
+  vi.hoisted(() => ({
+    saveBitrixConnectionAction: vi.fn(),
+    testBitrixConnectionAction: vi.fn(),
+    setBitrixResyncPausedAction: vi.fn(),
+  }));
 vi.mock('@/server-actions/admin/bitrix', () => ({
   saveBitrixConnectionAction,
   testBitrixConnectionAction,
+  setBitrixResyncPausedAction,
 }));
 
 import AdminBitrixSettingsPage from '@/app/admin/settings/integrations/bitrix/page';
 import AdminBitrixHistoryPage from '@/app/admin/settings/integrations/bitrix/history/page';
 import AdminBitrixLayout from '@/app/admin/settings/integrations/bitrix/layout';
+import { BITRIX_RESYNC_SCHEDULER_ID } from '@/lib/jobs/scheduling';
 
 const ADMIN_WITH_COMPANY = { sub: 'admin1', role: 'admin' as const, companyId: 'c1' };
 const ADMIN_NO_COMPANY = { sub: 'admin2', role: 'admin' as const };
@@ -145,6 +163,15 @@ function viewFor(keys: string[], make: (key: string) => Partial<ViewRow>): ViewR
     source: 'none',
     ...make(key),
   }));
+}
+
+/** Блок «Повторять перенос еженедельно» целиком — по его заголовку. */
+function resyncBlock(container: HTMLElement): HTMLElement {
+  const heading = [...container.querySelectorAll('h2')].find(
+    (h) => h.textContent === 'Повторять перенос еженедельно'
+  );
+  expect(heading).toBeTruthy();
+  return heading!.parentElement as HTMLElement;
 }
 
 function manager(id: string, name: string, isActive: boolean) {
@@ -171,6 +198,8 @@ beforeEach(() => {
   checkOf.mockReturnValue(null);
   loadIntegrationDiagnostics.mockResolvedValue({ checkOf });
   listCompanyManagers.mockResolvedValue([]);
+  getSchedulePatterns.mockResolvedValue(new Map<string, string>());
+  loadPausedSchedulerIds.mockResolvedValue(new Set<string>());
   getSettingsView.mockImplementation(async (_prisma: unknown, keys: string[]) =>
     viewFor(keys, () => ({}))
   );
@@ -310,6 +339,72 @@ describe('AdminBitrixSettingsPage («Подключение»)', () => {
     expect(form.note).toContain('активные менеджеры');
     expect(form.fields[2]?.options).toEqual([{ value: '', label: '— не выбран —' }]);
   });
+
+  /**
+   * Блок «Повторять перенос еженедельно» (`У-203`). Страница не решает сама,
+   * включён повтор или нет: пауза и расписание читаются из базы — по ним
+   * реально ходит воркер. Своя догадка на экране разошлась бы с жизнью в первый
+   * же день параллельного периода.
+   */
+  it('повтор на паузе: блок предлагает включить и показывает расписание из базы', async () => {
+    loadPausedSchedulerIds.mockResolvedValue(new Set([BITRIX_RESYNC_SCHEDULER_ID]));
+    getSchedulePatterns.mockResolvedValue(new Map([[BITRIX_RESYNC_SCHEDULER_ID, '0 5 * * 3']]));
+
+    const { container } = await renderServerComponent(AdminBitrixSettingsPage());
+
+    expect(getSchedulePatterns).toHaveBeenCalledWith({});
+    expect(loadPausedSchedulerIds).toHaveBeenCalledWith({});
+    const block = resyncBlock(container);
+    expect(block.querySelector('code')?.textContent).toBe('0 5 * * 3');
+    expect(block.querySelector('button')?.textContent).toBe('Повторять еженедельно');
+    expect(block.textContent).toContain('Сейчас повтор выключен');
+  });
+
+  it('паузы нет: блок говорит, что повтор включён, и предлагает выключить', async () => {
+    loadPausedSchedulerIds.mockResolvedValue(new Set(['oneCSync.pullOrders.cron']));
+
+    const { container } = await renderServerComponent(AdminBitrixSettingsPage());
+
+    // На паузе чужое расписание — повтора миграции это не касается.
+    const block = resyncBlock(container);
+    expect(block.querySelector('button')?.textContent).toBe('Выключить повтор');
+    expect(block.textContent).toContain('Сейчас повтор включён');
+  });
+
+  it('сохранённого расписания нет — показываем умолчание «0 3 * * 1»', async () => {
+    // В карте только чужая строка: взяли бы первую попавшуюся — экран показал
+    // бы расписание автообмена с 1С вместо повтора миграции.
+    getSchedulePatterns.mockResolvedValue(new Map([['oneCSync.pullOrders.cron', '*/15 * * * *']]));
+
+    const { container } = await renderServerComponent(AdminBitrixSettingsPage());
+
+    expect(resyncBlock(container).querySelector('code')?.textContent).toBe('0 3 * * 1');
+  });
+
+  it.each([
+    [
+      'расписаний',
+      () => getSchedulePatterns.mockRejectedValue(new Error('база недоступна')),
+      false,
+    ],
+    ['пауз', () => loadPausedSchedulerIds.mockRejectedValue(new Error('база недоступна')), true],
+  ])(
+    'чтение %s упало — страница всё равно рисуется, блок на месте',
+    async (_name, brk, expectPaused) => {
+      brk();
+
+      const { container } = await renderServerComponent(AdminBitrixSettingsPage());
+
+      // Подключение — главное на экране; упавшее чтение расписания не имеет
+      // права уносить с собой всю страницу.
+      expect(container.querySelector('h1')?.textContent).toBe('Миграция из Битрикс24');
+      expect(formProps).toHaveLength(1);
+      expect(resyncBlock(container).querySelector('code')?.textContent).toBe('0 3 * * 1');
+      // Не прочитали ПАУЗЫ — считаем повтор ВЫКЛЮЧЕННЫМ. Обратное умолчание
+      // сказало бы «кабинет догоняет Битрикс24 сам» там, где повтор стоит.
+      expect(resyncBlock(container).textContent?.includes('Выключить повтор')).toBe(!expectPaused);
+    }
+  );
 });
 
 describe('AdminBitrixHistoryPage («Пакеты»)', () => {

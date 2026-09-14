@@ -11,8 +11,11 @@ import {
 } from '@/lib/config/integrationSettings';
 import { loadIntegrationDiagnostics } from '@/lib/services/admin/integrationDiagnostics';
 import { listCompanyManagers } from '@/lib/services/manager/team';
+import { getSchedulePatterns } from '@/lib/services/admin/syncSchedules';
+import { loadPausedSchedulerIds, BITRIX_RESYNC_SCHEDULER_ID } from '@/lib/jobs/scheduling';
 import { IntegrationSettingsForm } from '@/components/admin/integration-settings-form';
 import { SecretsKeyNotice } from '@/components/admin/secrets-key-notice';
+import { ResyncSchedule } from '@/components/bitrix/resync-schedule';
 import { PageHeader } from '@/components/ui/page-header';
 import {
   saveBitrixConnectionAction,
@@ -44,10 +47,17 @@ const STEPS = [
  */
 export default async function AdminBitrixSettingsPage() {
   const session = await requireSettingsSection('integrations.bitrix', 'admin');
-  const [view, diag, managers] = await Promise.all([
+  const [view, diag, managers, patterns, pausedIds] = await Promise.all([
     getSettingsView(prisma, VIEW_KEYS),
     loadIntegrationDiagnostics(prisma, []),
     session.companyId ? listCompanyManagers(prisma, session.companyId) : Promise.resolve([]),
+    // Расписание повтора и его пауза: экран должен показывать то, по чему
+    // реально ходит воркер, а не умолчание из кода.
+    getSchedulePatterns(prisma).catch(() => new Map<string, string>()),
+    // Не прочитали паузы — считаем повтор ВЫКЛЮЧЕННЫМ. Обратное умолчание
+    // показало бы «повтор включён» там, где он стоит: человек ушёл бы с экрана
+    // уверенным, что кабинет догоняет Битрикс24 сам.
+    loadPausedSchedulerIds(prisma).catch(() => new Set([BITRIX_RESYNC_SCHEDULER_ID])),
   ]);
   const byKey = (k: SettingKey): SettingViewRow => view.find((r) => r.key === k)!;
   const managerOptions = managers
@@ -121,6 +131,10 @@ export default async function AdminBitrixSettingsPage() {
         ]}
         testAction={testBitrixConnectionAction}
         check={diag.checkOf('bitrix')}
+      />
+      <ResyncSchedule
+        paused={pausedIds.has(BITRIX_RESYNC_SCHEDULER_ID)}
+        pattern={patterns.get(BITRIX_RESYNC_SCHEDULER_ID) ?? '0 3 * * 1'}
       />
     </div>
   );
