@@ -4,7 +4,7 @@ import { recordPiiAccess } from '@/lib/pii/record';
 import { attachmentLimitBytes } from './attachment';
 import { isMessengerAvailable } from './availability';
 import { channelAcceptsAttachment } from './transport';
-import type { MessengerChannel } from './channels';
+import type { DialogChannel } from './channels';
 import { type DialogStatus, dialogOverdueLevel } from './dialogStatus';
 import { peerLabelOf } from './list';
 import { dialogScopeWhere, isDialogInScope } from './scope';
@@ -36,7 +36,7 @@ export type DialogMessageView = {
 
 type DialogView = {
   id: string;
-  channel: MessengerChannel;
+  channel: DialogChannel;
   /** Канал подключён (ключи + флаг): без него форма ответа заменяется подсказкой. */
   channelAvailable: boolean;
   /** Канал принимает файлы (`У-204`); иначе кнопки «Прикрепить» нет. */
@@ -147,11 +147,11 @@ export async function getDialog(
     ok: true,
     dialog: {
       id: row.id,
-      channel: row.channel as MessengerChannel,
-      channelAvailable: isMessengerAvailable(row.channel as MessengerChannel),
-      attachmentsAllowed: channelAcceptsAttachment(row.channel as MessengerChannel),
+      channel: row.channel as DialogChannel,
+      channelAvailable: isMessengerAvailable(row.channel as DialogChannel),
+      attachmentsAllowed: channelAcceptsAttachment(row.channel as DialogChannel),
       attachmentLimitMb: Math.floor(
-        attachmentLimitBytes(row.channel as MessengerChannel) / 1024 / 1024
+        attachmentLimitBytes(row.channel as DialogChannel) / 1024 / 1024
       ),
       peerLabel: peerLabelOf(row),
       peerRef: row.peerRef,

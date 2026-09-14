@@ -19,7 +19,7 @@ import { ActivityItemView, CHANNEL_LABEL } from './activity-item';
  *  - `comment` — комментарий клиенту (`POST /api/comments`, manager-ветка);
  *  - `channel` — ответ в канал последнего входящего (`replyInboundAction`);
  *    доступен только при `inboundEnabled` и не-email `message_in` — для email
- *    исходящего транспорта нет (`email_unsupported`), режим честно скрыт (E3).
+ *    ответ уходит через тот же канал, из которого пришло письмо (`У-205`).
  */
 
 type View = 'dialogue' | 'all';
@@ -47,7 +47,7 @@ const COMMENT_ERROR_LABEL: Record<string, string> = {
 /**
  * Дельта поверх центральной карты (как в `inbox-reply-form.tsx`): только
  * контекстные уточнения forbidden/not_found; `invalid`/`reply_failed`/
- * `email_unsupported` уже точно покрыты errorMessageRu.
+ * `reply_failed` уже точно покрыты errorMessageRu.
  */
 const REPLY_ERROR_LABEL: Record<string, string> = {
   forbidden: 'Обращение недоступно вашей компании.',
@@ -120,9 +120,8 @@ export function DealActivityThread({
       item.kind === 'message_in' && (!last || item.at.getTime() >= last.at.getTime()) ? item : last,
     null
   );
-  // email — replyToInbound всегда отказ (email_unsupported): режим не показываем.
-  const channelAvailable =
-    inboundEnabled && lastInbound !== null && lastInbound.channel !== 'email';
+  // С `У-205` почта отвечает так же, как мессенджеры, — исключение снято.
+  const channelAvailable = inboundEnabled && lastInbound !== null;
   const channelLabel = lastInbound
     ? (CHANNEL_LABEL[lastInbound.channel] ?? lastInbound.channel)
     : '';

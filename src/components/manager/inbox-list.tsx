@@ -14,7 +14,7 @@ import type { ManagerOrgListRow } from '@/lib/services/manager/organizations';
  * клиентские формы привязки/ответа по статусу строки:
  *  - `unresolved` → форма привязки (`InboxBindForm`) + кнопка «В архив»;
  *  - `bound`      → форма ответа (`InboxReplyForm`) + кнопка «В архив»;
- *                   для email вместо формы — подсказка (`BoundReplyControl`, E3);
+ *                   форма ответа — для любого канала, включая почту (`У-205`);
  *  - `archived`   → кнопка «Вернуть» (`InboxArchiveButton`, E2).
  */
 
@@ -69,19 +69,14 @@ function AttachmentName({ item }: { item: InboxItem }) {
 }
 
 /**
- * Действие для bound-строки: у email нет исходящей отправки — бэкенд
- * `replyToInbound` всегда отвечает отказом (`email_unsupported`,
- * src/lib/services/inbound/reply.ts), поэтому вместо заведомо падающей
- * формы показываем честную подсказку (E3). Остальные каналы — обычная форма.
+ * Действие для bound-строки — форма ответа для ЛЮБОГО канала.
+ *
+ * До этапа 3 у почты вместо формы стояла подсказка «ответьте из почтового
+ * клиента»: исходящей отправки не было. `У-205` её завёл — ответ уходит с
+ * `Reply-To` на входящий ящик и `In-Reply-To` на письмо клиента, поэтому
+ * ответ клиента возвращается в ту же переписку и в кабинет.
  */
 function BoundReplyControl({ item }: { item: InboxItem }) {
-  if (item.channel === 'email') {
-    return (
-      <p className="text-xs text-gray-500">
-        Ответ по email пока недоступен — ответьте из почтового клиента.
-      </p>
-    );
-  }
   return <InboxReplyForm inboundMessageId={item.id} />;
 }
 

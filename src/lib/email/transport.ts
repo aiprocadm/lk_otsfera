@@ -30,7 +30,21 @@ export type EmailTransport = {
     html: string;
     text?: string | undefined;
     attachments?: EmailAttachment[] | undefined;
-  }): Promise<{ id: string | null }>;
+    /**
+     * Куда клиент ответит (`У-205`). У обычных писем кабинета этого поля нет —
+     * они уходят с `no-reply`. У ответа менеджера здесь стоит адрес входящего
+     * ящика, иначе ответ клиента попадёт в почтовый ящик «никому» и переписка
+     * оборвётся на середине.
+     */
+    replyTo?: string | undefined;
+    /**
+     * Сшивка письма с перепиской (`У-205`): `In-Reply-To` — идентификатор
+     * письма, на которое отвечаем, `References` — цепочка целиком. Без них
+     * почтовый клиент покажет ответ отдельным письмом, а не в той же ветке.
+     */
+    headers?: { inReplyTo?: string | undefined; references?: string[] | undefined } | undefined;
+    /** `failed` — провайдер отказал (битый адрес, лимит, отозванный ключ). */
+  }): Promise<{ id: string | null; failed?: true }>;
 };
 
 // Кэш клиента + ключа, на котором он собран: если ключ сменили в UI, пересобираем.
@@ -83,12 +97,27 @@ export async function defaultTransport(): Promise<EmailTransport | null> {
               })),
             }
           : {}),
+        ...(input.replyTo ? { replyTo: input.replyTo } : {}),
+        ...(input.headers?.inReplyTo || input.headers?.references?.length
+          ? {
+              headers: {
+                ...(input.headers.inReplyTo ? { 'In-Reply-To': input.headers.inReplyTo } : {}),
+                ...(input.headers.references?.length
+                  ? { References: input.headers.references.join(' ') }
+                  : {}),
+              },
+            }
+          : {}),
       });
       // Surface Resend-side failures (invalid recipient, rate limit, revoked
       // key). Without this they were swallowed and reported upstream as "sent"
       // with a null id, hiding systematic delivery failures from operators.
       if (result.error) {
         log.error('[email] Resend API error', { to: input.to, error: result.error });
+        // Отказ провайдера ДОЛЖЕН быть отличим от удачи: раньше и то и другое
+        // возвращало `{ id: null }`, и вызывающий писал в историю «отправлено»
+        // по письму, которого клиент не получил.
+        return { id: null, failed: true };
       }
       return { id: result.data?.id ?? null };
     },

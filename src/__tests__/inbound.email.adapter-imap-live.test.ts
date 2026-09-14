@@ -114,8 +114,8 @@ describe('ImapInboundEmailAdapter.fetchNewMessages', () => {
     const res = await adapter.fetchNewMessages('7:41');
 
     expect(res.messages).toEqual([
-      { externalId: '7-42', from: 'a@x.ru', subject: 'Тема', text: 'тело' },
-      { externalId: '7-43', from: 'b@x.ru', subject: undefined, text: 'из html' },
+      { externalId: '7-42', from: 'a@x.ru', subject: 'Тема', text: 'тело', messageId: null },
+      { externalId: '7-43', from: 'b@x.ru', subject: undefined, text: 'из html', messageId: null },
     ]);
     expect(res.cursor).toBe('7:43');
     expect(state.search).toHaveBeenCalledWith({ uid: '42:*' }, { uid: true });
@@ -166,7 +166,9 @@ describe('ImapInboundEmailAdapter.fetchNewMessages', () => {
     state.sources.set(46, null); // fetchOne вернул объект без source
     seed(47, makeParsed('c@x.ru', 's', 't'));
     const res = await new ImapInboundEmailAdapter(CFG).fetchNewMessages('7:41');
-    expect(res.messages).toEqual([{ externalId: '7-47', from: 'c@x.ru', subject: 's', text: 't' }]);
+    expect(res.messages).toEqual([
+      { externalId: '7-47', from: 'c@x.ru', subject: 's', text: 't', messageId: null },
+    ]);
     expect(res.cursor).toBe('7:47');
   });
 

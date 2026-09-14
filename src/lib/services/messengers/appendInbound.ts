@@ -3,7 +3,7 @@ import { bestEffort, log } from '@/lib/logging';
 import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import { notifyManagersMessengerMessage } from '@/lib/notifications/manager';
-import { MESSENGER_LABELS, type MessengerChannel } from './channels';
+import { DIALOG_CHANNEL_LABELS, type DialogChannel } from './channels';
 import { previewOf, upsertDialog } from './dialog';
 import { DIALOG_STATUS, nextStatusOnInbound, waitingSinceFor } from './dialogStatus';
 
@@ -18,7 +18,7 @@ type DialogBinding = {
 export type AppendInboundArgs = {
   /** Письмо «Входящих», из которого складывается реплика; в диалоге — один раз. */
   inboundMessageId: string;
-  channel: MessengerChannel;
+  channel: DialogChannel;
   peerRef: string;
   peerDisplay?: string | null | undefined;
   body: string;
@@ -193,7 +193,7 @@ export async function appendInboundToDialog(
       dialogId: dialog.id,
       // Имя — из этого письма, иначе то, что диалог уже знает, иначе адрес.
       peerLabel: args.peerDisplay?.trim() || dialog.peerDisplay?.trim() || args.peerRef,
-      channelLabel: MESSENGER_LABELS[args.channel],
+      channelLabel: DIALOG_CHANNEL_LABELS[args.channel],
       excerpt: preview,
     }).catch(bestEffort('[messengers/appendInbound] notify managers failed'));
   }

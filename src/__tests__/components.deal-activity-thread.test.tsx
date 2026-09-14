@@ -296,7 +296,7 @@ describe('DealActivityThread', () => {
     expect(screen.queryByRole('button', { name: 'Ответ в канал' })).toBeNull();
   });
 
-  it('режим «Ответ в канал» скрыт, когда последний message_in — email (даже при более раннем telegram)', () => {
+  it('режим «Ответ в канал» доступен и когда последнее входящее — письмо (У-205)', () => {
     const items: ActivityItem[] = [
       ...tgInboundItems(),
       {
@@ -317,7 +317,9 @@ describe('DealActivityThread', () => {
         telephonyEnabled={false}
       />
     );
-    expect(screen.queryByRole('button', { name: 'Ответ в канал' })).toBeNull();
+    // До этапа 3 режим прятали: у почты не было исходящей отправки. Теперь
+    // ответ уходит письмом, и прятать нечего.
+    expect(screen.getByRole('button', { name: 'Ответ в канал' })).toBeTruthy();
   });
 
   it('rerender с inboundEnabled=false в режиме «Ответ в канал» откатывает композер на заметку', () => {
@@ -739,10 +741,7 @@ describe('DealActivityThread', () => {
   it.each([
     ['forbidden', 'Обращение недоступно вашей компании.'],
     ['not_found', 'Обращение не найдено.'],
-    [
-      'email_unsupported',
-      'Ответ по email пока не поддерживается — свяжитесь с клиентом другим каналом.',
-    ],
+    ['reply_failed', 'Не удалось отправить ответ. Попробуйте ещё раз.'],
   ])('канал: ошибка %s → «%s» в role=alert', async (code, label) => {
     replyInboundAction.mockResolvedValue({ ok: false, error: code });
     render(

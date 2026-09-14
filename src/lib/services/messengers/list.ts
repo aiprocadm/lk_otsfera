@@ -1,7 +1,7 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordPiiAccess } from '@/lib/pii/record';
-import type { MessengerChannel } from './channels';
+import type { DialogChannel } from './channels';
 import { DIALOG_STATUS, type DialogStatus, dialogOverdueLevel } from './dialogStatus';
 import { dialogScopeWhere } from './scope';
 
@@ -13,7 +13,7 @@ const DEFAULT_SLA_RESPONSE_HOURS = 24;
 const DEFAULT_SLA_WARNING_HOURS = 4;
 
 export type DialogListFilters = {
-  channel?: MessengerChannel | undefined;
+  channel?: DialogChannel | undefined;
   status?: DialogStatus | undefined;
   assignee?: DialogAssigneeFilter | undefined;
   page?: number | undefined;
@@ -22,7 +22,7 @@ export type DialogListFilters = {
 
 export type DialogListItem = {
   id: string;
-  channel: MessengerChannel;
+  channel: DialogChannel;
   /** Как назвать собеседника: контакт → пользователь кабинета → имя из мессенджера → адрес. */
   peerLabel: string;
   organization: { id: string; name: string } | null;
@@ -83,7 +83,7 @@ type SlaHours = { responseHours: number; warningHours: number };
 function toItem(row: Row, sla: SlaHours, now: Date): DialogListItem {
   return {
     id: row.id,
-    channel: row.channel as MessengerChannel,
+    channel: row.channel as DialogChannel,
     peerLabel: peerLabelOf(row),
     organization: row.organization,
     status: row.status as DialogStatus,

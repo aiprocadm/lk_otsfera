@@ -10,14 +10,14 @@ import { Textarea, Button } from '@/components/ui';
 /**
  * Ответ на уже привязанное (`status==='bound'`) обращение. Отправляет через
  * `replyInboundAction` → `replyToInbound` (реальный исходящий транспорт
- * канала). Для email-строк форма не рендерится вовсе (`InboxList`, E3) —
- * исходящей отправки нет; `email_unsupported` остаётся защитой в глубину.
+ * канала). С `У-205` это касается и почты: ответ уходит письмом с `Reply-To`
+ * на входящий ящик, поэтому ответ клиента возвращается в ту же переписку.
  */
 
 /**
  * Дельта поверх центральной карты: только контекстные уточнения forbidden/
- * not_found. Остальной контракт action'а (`invalid`, `reply_failed`,
- * `email_unsupported`) уже точно покрыт errorMessageRu — не дублируем (E3).
+ * not_found. Остальной контракт action'а (`invalid`, `reply_failed`) уже
+ * точно покрыт errorMessageRu — не дублируем (E3).
  */
 const ERROR_LABEL: Record<string, string> = {
   forbidden: 'Обращение недоступно вашей компании.',

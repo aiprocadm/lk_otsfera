@@ -33,11 +33,11 @@ afterAll(async () => {
 });
 
 describe('backfillDialogsFromInbound (integration)', () => {
-  it('сворачивает письма мессенджеров в диалоги пачками, почту не трогает, повтор — пусто', async () => {
+  it('сворачивает сообщения всех каналов диалога пачками, включая почту; повтор — пусто', async () => {
     const before = await countPendingBackfill(prisma);
     const base = Date.parse('2026-08-01T00:00:00Z');
-    // Три письма одного собеседника (два непривязанных и одно привязанное) +
-    // одно чужого + письмо почты, которое в диалог не попадает.
+    // Три сообщения одного собеседника (два непривязанных и одно привязанное)
+    // + одно чужого + письмо почты: с `У-205` оно тоже сворачивается в диалог.
     const rows = await Promise.all([
       prisma.inboundMessage.create({
         data: {
@@ -89,12 +89,12 @@ describe('backfillDialogsFromInbound (integration)', () => {
         },
       }),
     ]);
-    expect((await countPendingBackfill(prisma)) - before).toBe(4);
+    expect((await countPendingBackfill(prisma)) - before).toBe(5);
 
     // Пачка меньше числа писем — проверяются и курсор, и последняя неполная пачка.
     const report = await backfillDialogsFromInbound(prisma, { batchSize: 2 });
-    expect(report.scanned).toBeGreaterThanOrEqual(4);
-    expect(report.appended).toBeGreaterThanOrEqual(4);
+    expect(report.scanned).toBeGreaterThanOrEqual(5);
+    expect(report.appended).toBeGreaterThanOrEqual(5);
     expect(await countPendingBackfill(prisma)).toBe(0);
 
     const p1 = await prisma.messengerDialog.findUnique({
@@ -121,11 +121,16 @@ describe('backfillDialogsFromInbound (integration)', () => {
     });
     expect(p2).toMatchObject({ companyId: null, unreadCount: 0 });
 
+    // Письмо тоже попало в диалог — канала `email` (`У-205`), ключ — адрес.
     const mail = await prisma.inboundMessage.findUnique({
       where: { id: rows[4].id },
-      include: { dialogMessage: true },
+      include: { dialogMessage: { include: { dialog: true } } },
     });
-    expect(mail?.dialogMessage).toBeNull();
+    expect(mail?.dialogMessage).not.toBeNull();
+    expect(mail?.dialogMessage?.dialog).toMatchObject({
+      channel: 'email',
+      peerRef: `${STAMP}@example.test`.toLowerCase(),
+    });
 
     // Повтор: складывать нечего.
     expect(await backfillDialogsFromInbound(prisma, { batchSize: 2 })).toEqual({

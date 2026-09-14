@@ -105,12 +105,14 @@ describe('InboxList', () => {
     expect(archived).not.toContain('archive:msg-1');
   });
 
-  it('email + bound → подсказка вместо формы ответа в обеих раскладках, «В архив» остаётся', () => {
+  it('email + bound → обычная форма ответа в обеих раскладках (У-205)', () => {
+    // До этапа 3 здесь стояла подсказка «ответьте из почтового клиента»:
+    // исходящей отправки не было. Теперь почта отвечает как остальные каналы.
     const html = renderToString(
       <InboxList items={[{ ...base, channel: 'email', status: 'bound' }]} organizations={ORGS} />
     );
-    expect(html).not.toContain('reply:msg-1');
-    expect(count(html, 'Ответ по email пока недоступен — ответьте из почтового клиента')).toBe(2);
+    expect(count(html, 'reply:msg-1')).toBe(2);
+    expect(html).not.toContain('Ответ по email пока недоступен');
     expect(count(html, 'archive:msg-1')).toBe(2);
   });
 

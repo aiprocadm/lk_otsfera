@@ -257,11 +257,9 @@ describe('InboxReplyForm', () => {
   // резолвятся центральной картой errorMessageRu, а не сырым fallback'ом.
   it.each([
     ['invalid', 'Введите текст ответа.'],
+    // Отдельного кода для почты больше нет (У-205): её отказ — обычный
+    // `reply_failed`, как у мессенджеров.
     ['reply_failed', 'Не удалось отправить ответ. Попробуйте ещё раз.'],
-    [
-      'email_unsupported',
-      'Ответ по email пока не поддерживается — свяжитесь с клиентом другим каналом.',
-    ],
   ])('%s → текст центральной карты в role=alert', async (code, label) => {
     replyInboundAction.mockResolvedValue({ ok: false, error: code });
     render(<InboxReplyForm inboundMessageId="m3" />);

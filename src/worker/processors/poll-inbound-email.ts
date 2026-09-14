@@ -33,6 +33,8 @@ export async function pollInboundEmailProcessor(
       // exactOptionalPropertyTypes: InboundDto различает «ключа нет» и «ключ = undefined».
       ...(m.subject !== undefined ? { subject: m.subject } : {}),
       body: m.text,
+      // `У-205`: сшивка будущего ответа с перепиской клиента.
+      ...(m.messageId ? { externalMessageId: m.messageId } : {}),
     }).catch((err) => {
       failed += 1;
       log.warn('[poll-inbound-email] ingest failed', {

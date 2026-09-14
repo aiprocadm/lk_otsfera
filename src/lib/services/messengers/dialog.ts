@@ -1,5 +1,5 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
-import type { MessengerChannel } from './channels';
+import type { DialogChannel } from './channels';
 
 /** Длина превью последнего сообщения в списке диалогов. */
 const PREVIEW_MAX = 200;
@@ -10,7 +10,7 @@ export function previewOf(text: string): string {
   return oneLine.length > PREVIEW_MAX ? `${oneLine.slice(0, PREVIEW_MAX).trimEnd()}…` : oneLine;
 }
 
-export type DialogKey = { channel: MessengerChannel; peerRef: string };
+export type DialogKey = { channel: DialogChannel; peerRef: string };
 
 type DialogUpsertArgs = {
   create: Omit<Prisma.MessengerDialogUncheckedCreateInput, 'channel' | 'peerRef'>;

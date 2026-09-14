@@ -69,7 +69,6 @@ const RU: Record<string, string> = {
   // Task 11 — омниканальный инбокс (bindInboundMessageAction/replyInboundAction)
   invalid: 'Введите текст ответа.',
   reply_failed: 'Не удалось отправить ответ. Попробуйте ещё раз.',
-  email_unsupported: 'Ответ по email пока не поддерживается — свяжитесь с клиентом другим каналом.',
   // R2 — инвентаризация недостающих кодов (grep по services/server-actions/api/worker):
   // до этого 36 кодов доходили до пользователя сырым fallback'ом.
   bad_request: 'Некорректный запрос.',

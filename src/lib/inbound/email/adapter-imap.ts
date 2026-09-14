@@ -121,6 +121,9 @@ export class ImapInboundEmailAdapter implements InboundEmailAdapter {
             from,
             subject: parsed.subject ?? undefined,
             text: bodyTextFrom(parsed.text, parsed.html),
+            // `У-205`: по нему ответ менеджера встанет в ту же ветку у
+            // клиента. Сервер может его не прислать — тогда null.
+            messageId: parsed.messageId ?? null,
           });
         }
 

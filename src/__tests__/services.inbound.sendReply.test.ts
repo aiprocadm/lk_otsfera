@@ -131,7 +131,7 @@ describe('sendInboundReply (service)', () => {
     expect(replyToInbound).not.toHaveBeenCalled();
   });
 
-  it('returns email_unsupported when the channel is email and replyToInbound fails', async () => {
+  it('у почты отказ отправки — такой же reply_failed, как у остальных каналов (У-205)', async () => {
     inboundMessageFindUnique.mockResolvedValue({
       id: 'im-1',
       channel: 'email',
@@ -147,7 +147,9 @@ describe('sendInboundReply (service)', () => {
       text: 'hello',
     });
 
-    expect(result).toEqual({ ok: false, error: 'email_unsupported' });
+    // Отдельного кода «почта не поддерживается» больше нет: с У-205 она
+    // отвечает наравне с мессенджерами, и её отказ — обычный отказ отправки.
+    expect(result).toEqual({ ok: false, error: 'reply_failed' });
   });
 
   it('returns reply_failed when a non-email channel send fails', async () => {

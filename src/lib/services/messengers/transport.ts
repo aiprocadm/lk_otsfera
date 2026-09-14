@@ -1,7 +1,7 @@
 import { sendTelegramDocument, sendTelegramMessage } from '@/lib/telegram/client';
 import { sendMaxMessage } from '@/lib/max/client';
 import { sendWhatsAppMessage } from '@/lib/whatsapp/aggregator';
-import type { MessengerChannel } from './channels';
+import type { DialogChannel, MessengerChannel } from './channels';
 
 /**
  * Единый исходящий транспорт мессенджеров (Р-М-7): роутит канал в уже
@@ -57,7 +57,7 @@ function sendByChannel(
  */
 const ATTACHMENT_CHANNELS = ['telegram'] as const;
 
-export function channelAcceptsAttachment(channel: MessengerChannel): boolean {
+export function channelAcceptsAttachment(channel: DialogChannel): boolean {
   return (ATTACHMENT_CHANNELS as readonly string[]).includes(channel);
 }
 

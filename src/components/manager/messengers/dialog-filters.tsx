@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { MESSENGER_CHANNELS, MESSENGER_LABELS } from '@/lib/services/messengers/channels';
+import { DIALOG_CHANNELS, DIALOG_CHANNEL_LABELS } from '@/lib/services/messengers/channels';
 import { DIALOG_STATUS_LABELS } from '@/lib/services/messengers/dialogStatus';
 
 /**
@@ -89,8 +89,8 @@ export function DialogFiltersBar({
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 sm:flex-row sm:flex-wrap sm:gap-8">
       <FilterGroup
-        label="Мессенджер"
-        options={MESSENGER_CHANNELS.map((c) => ({ value: c, label: MESSENGER_LABELS[c] }))}
+        label="Канал"
+        options={DIALOG_CHANNELS.map((c) => ({ value: c, label: DIALOG_CHANNEL_LABELS[c] }))}
         active={channel}
         buildFor={(value) => buildHref(value, status, assignee)}
       />
