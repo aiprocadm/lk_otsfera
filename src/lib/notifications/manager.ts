@@ -655,16 +655,101 @@ export async function notifyManagers(
 }
 
 /**
- * Новое сообщение клиента в диалоге мессенджера (спека 2026-09-12, Р-М-9) →
+ * Получатель уведомления о сообщении диалога (`У-206`): ответственный, если он
+ * назначен. Проверяем активность и контур ЦО — ответственный мог быть уволен
+ * или переведён, и тогда письмо ушло бы в никуда.
+ */
+async function resolveDialogAssigneeRecipients(
+  db: PrismaClient,
+  assigneeId: string,
+  opts?: NotifyManagersOptions
+): Promise<ManagerRecipient[]> {
+  if (opts?.excludeUserId === assigneeId) return [];
+  return db.user.findMany({
+    where: { id: assigneeId, role: { in: ['manager', 'leader'] }, isActive: true },
+    select: CHANNEL_RECIPIENT_SELECT,
+  });
+}
+
+/**
+ * Диалог назначили на сотрудника (`У-206`). Адресат один — новый
+ * ответственный; тому, кто назначил сам себя, уведомление не шлётся (это
+ * решает вызывающий). Как и у сообщения, письмо — общий шаблон
+ * `notification`: своего ради одной строки не заводим.
+ */
+export async function notifyDialogAssigned(
+  db: PrismaClient,
+  input: { assigneeId: string; dialogId: string }
+): Promise<NotifyManagersSummary> {
+  const recipients = await resolveDialogAssigneeRecipients(db, input.assigneeId);
+  if (recipients.length === 0) return { recipientsNotified: 0, emailsSent: 0, emailsSkipped: 0 };
+
+  const subject = 'Вас назначили ответственным за диалог';
+  const shortBody = 'Откройте переписку и ответьте клиенту.';
+  const url = `${getAppBaseUrl()}/manager/messengers/${input.dialogId}`;
+  const meta = { dialogId: input.dialogId, url } as Prisma.InputJsonValue;
+  const channelPayload: ChannelPayload = {
+    type: 'dialog_assigned',
+    title: subject,
+    body: shortBody,
+    url,
+    email: {
+      template: 'notification',
+      props: { title: subject, body: shortBody, recipientName: 'менеджер', url },
+    },
+  };
+
+  const routed = await allowedChannels(db, {
+    eventType: channelPayload.type,
+    audience: 'manager',
+  });
+  let emailsSent = 0,
+    emailsSkipped = 0,
+    emailsQueued = 0,
+    recipientsNotified = 0;
+  for (const r of recipients) {
+    const row = await db.notification.create({
+      data: { userId: r.id, type: 'dialog_assigned', title: subject, body: shortBody, meta },
+    });
+    recipientsNotified += 1;
+
+    const outcome = await dispatchToRecipient(r, channelPayload, {
+      dedupKey: row.id,
+      ...(routed ? { channels: routed } : {}),
+    });
+    if (outcome.mode === 'queued') {
+      if (outcome.channels.includes('email')) emailsQueued += 1;
+      else emailsSkipped += 1;
+      continue;
+    }
+    if (outcome.results.email?.status === 'sent') emailsSent += 1;
+    else emailsSkipped += 1;
+  }
+  return {
+    recipientsNotified,
+    emailsSent,
+    emailsSkipped,
+    ...(emailsQueued > 0 ? { emailsQueued } : {}),
+  };
+}
+
+/**
+ * Новое сообщение клиента в диалоге мессенджера (спека 2026-09-12, Р-М-9;
+ * таргетинг уточнён `У-206`) → **ответственному за диалог**, а если его нет —
  * менеджерам организации, к которой привязан диалог. Заказа у диалога нет,
- * поэтому получатели — как у документа без заказа: закреплённые за
- * организацией. Ссылка ведёт прямо в диалог; письмо — общий шаблон
- * `notification` (свой шаблон ради одной строки не нужен).
+ * поэтому получатели во второй ветке — как у документа без заказа:
+ * закреплённые за организацией. Ссылка ведёт прямо в диалог; письмо — общий
+ * шаблон `notification` (свой шаблон ради одной строки не нужен).
+ *
+ * Диалог без ответственного и без организации не уведомляет никого — он виден
+ * во «Входящих в работу» и в бейдже «ждут ответа» (`У-215`).
  */
 export async function notifyManagersMessengerMessage(
   db: PrismaClient,
   input: {
-    organizationId: string;
+    organizationId: string | null;
+    /** Ответственный за диалог; при наличии — единственный адресат. */
+    assigneeId?: string | null | undefined;
     dialogId: string;
     /** Как назвать собеседника в заголовке: контакт, пользователь или адрес. */
     peerLabel: string;
@@ -674,7 +759,19 @@ export async function notifyManagersMessengerMessage(
   },
   opts?: NotifyManagersOptions
 ): Promise<NotifyManagersSummary> {
-  const recipients = await resolveOrgManagerRecipients(db, input.organizationId, opts);
+  // Сначала ответственный, но если адресата не осталось (уволен, переведён,
+  // это он сам и написал) — откатываемся на менеджеров организации. Без
+  // отката сообщение клиента не увидел бы НИКТО: пустая ветка ответственного
+  // молча съедала бы уведомление, и диалог всплыл бы только в эскалации SLA.
+  const assigned = input.assigneeId
+    ? await resolveDialogAssigneeRecipients(db, input.assigneeId, opts)
+    : [];
+  const recipients =
+    assigned.length > 0
+      ? assigned
+      : input.organizationId
+        ? await resolveOrgManagerRecipients(db, input.organizationId, opts)
+        : [];
   if (recipients.length === 0) return { recipientsNotified: 0, emailsSent: 0, emailsSkipped: 0 };
 
   const subject = `Новое сообщение в ${input.channelLabel} от ${input.peerLabel}`;

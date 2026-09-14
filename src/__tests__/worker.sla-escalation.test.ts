@@ -19,6 +19,7 @@ vi.mock('@/lib/db/prisma', () => ({
     clientRequest: { findMany: vi.fn().mockResolvedValue([]) },
     enrollmentRequest: { findMany: vi.fn().mockResolvedValue([]) },
     inboundMessage: { findMany: vi.fn().mockResolvedValue([]) },
+    messengerDialog: { findMany: vi.fn().mockResolvedValue([]) },
     call: { findMany: vi.fn().mockResolvedValue([]) },
   },
 }));
@@ -35,7 +36,7 @@ const P2002 = new Prisma.PrismaClientKnownRequestError('dup', {
 });
 
 type Over = Partial<
-  Record<'companies' | 'requests' | 'enrollments' | 'inbound' | 'calls', unknown[]>
+  Record<'companies' | 'requests' | 'enrollments' | 'inbound' | 'dialogs' | 'calls', unknown[]>
 >;
 
 function makePrisma(over: Over = {}, journalCreate?: ReturnType<typeof vi.fn>) {
@@ -45,6 +46,9 @@ function makePrisma(over: Over = {}, journalCreate?: ReturnType<typeof vi.fn>) {
     clientRequest: { findMany: vi.fn().mockResolvedValue(over.requests ?? []) },
     enrollmentRequest: { findMany: vi.fn().mockResolvedValue(over.enrollments ?? []) },
     inboundMessage: { findMany: vi.fn().mockResolvedValue(over.inbound ?? []) },
+    // `У-207`: диалоги — пятый источник эскалации; их поведение проверяется
+    // отдельно в `worker.sla-escalation.dialog.test.ts`.
+    messengerDialog: { findMany: vi.fn().mockResolvedValue(over.dialogs ?? []) },
     call: { findMany: vi.fn().mockResolvedValue(over.calls ?? []) },
     slaEscalation: { create },
   } as unknown as PrismaClient;

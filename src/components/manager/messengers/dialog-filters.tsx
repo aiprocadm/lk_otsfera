@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { MESSENGER_CHANNELS, MESSENGER_LABELS } from '@/lib/services/messengers/channels';
+import { DIALOG_STATUS_LABELS } from '@/lib/services/messengers/dialogStatus';
 
 /**
  * Фильтры списка диалогов (спека 2026-09-12 §5.1) — ссылки с query-параметрами,
@@ -8,14 +9,27 @@ import { MESSENGER_CHANNELS, MESSENGER_LABELS } from '@/lib/services/messengers/
  */
 
 const STATUSES: { value: string; label: string }[] = [
-  { value: 'open', label: 'Открытые' },
-  { value: 'closed', label: 'Закрытые' },
+  { value: 'waiting_staff', label: DIALOG_STATUS_LABELS.waiting_staff },
+  { value: 'waiting_client', label: DIALOG_STATUS_LABELS.waiting_client },
+  { value: 'open', label: DIALOG_STATUS_LABELS.open },
+  { value: 'closed', label: DIALOG_STATUS_LABELS.closed },
 ];
 
-function buildHref(channel: string | undefined, status: string | undefined): string {
+/** Фильтр по ответственному (`У-206`). «Все» — значение по умолчанию. */
+const ASSIGNEES: { value: string; label: string }[] = [
+  { value: 'mine', label: 'Мои' },
+  { value: 'unassigned', label: 'Без ответственного' },
+];
+
+function buildHref(
+  channel: string | undefined,
+  status: string | undefined,
+  assignee: string | undefined
+): string {
   const params = new URLSearchParams();
   if (channel) params.set('channel', channel);
   if (status) params.set('status', status);
+  if (assignee) params.set('assignee', assignee);
   const qs = params.toString();
   return qs ? `/manager/messengers?${qs}` : '/manager/messengers';
 }
@@ -66,9 +80,11 @@ function FilterGroup({
 export function DialogFiltersBar({
   channel,
   status,
+  assignee,
 }: {
   channel?: string | undefined;
   status?: string | undefined;
+  assignee?: string | undefined;
 }) {
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 sm:flex-row sm:flex-wrap sm:gap-8">
@@ -76,13 +92,19 @@ export function DialogFiltersBar({
         label="Мессенджер"
         options={MESSENGER_CHANNELS.map((c) => ({ value: c, label: MESSENGER_LABELS[c] }))}
         active={channel}
-        buildFor={(value) => buildHref(value, status)}
+        buildFor={(value) => buildHref(value, status, assignee)}
       />
       <FilterGroup
         label="Состояние"
         options={STATUSES}
         active={status}
-        buildFor={(value) => buildHref(channel, value)}
+        buildFor={(value) => buildHref(channel, value, assignee)}
+      />
+      <FilterGroup
+        label="Ответственный"
+        options={ASSIGNEES}
+        active={assignee}
+        buildFor={(value) => buildHref(channel, status, value)}
       />
     </div>
   );

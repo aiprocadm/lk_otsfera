@@ -94,7 +94,8 @@ describe('appendInboundToDialog (integration)', () => {
       peerRef: peer('a'),
       peerDisplay: 'Иван',
       companyId: null,
-      status: 'open',
+      // У-207: входящее ставит диалог в ожидание ответа сотрудника.
+      status: 'waiting_staff',
       unreadCount: 1,
       lastMessagePreview: 'Здравствуйте, нужен счёт',
       lastMessageDirection: 'in',
@@ -199,6 +200,8 @@ describe('appendInboundToDialog (integration)', () => {
     // Привязка состоялась в этом же вызове — организация уже известна.
     expect(notifyManagersMessengerMessage).toHaveBeenCalledWith(expect.anything(), {
       organizationId: orgId,
+      // У-206: адресат уточняется ответственным; у этого диалога его нет.
+      assigneeId: null,
       dialogId: r1.dialogId,
       peerLabel: 'Дмитрий',
       channelLabel: 'Telegram',
@@ -303,8 +306,10 @@ describe('appendInboundToDialog (integration)', () => {
       externalId: im2.externalId,
       binding: null,
     });
+    // Новое входящее переоткрывает закрытый диалог — теперь сразу в «ждёт
+    // ответа» (Р-М-1 сохраняется, меняется только имя состояния).
     expect(await prisma.messengerDialog.findUnique({ where: { id: r1.dialogId } })).toMatchObject({
-      status: 'open',
+      status: 'waiting_staff',
       unreadCount: 1,
     });
   });

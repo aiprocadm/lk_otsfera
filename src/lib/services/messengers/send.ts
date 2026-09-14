@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
+import { claimDialogOnFirstReply } from './assign';
 import { isMessengerAvailable } from './availability';
 import type { MessengerChannel } from './channels';
 import { recordOutboundInDialog } from './recordOutbound';
@@ -43,7 +44,7 @@ export async function sendDialogMessage(
 
   const dialog = await prisma.messengerDialog.findUnique({
     where: { id: args.dialogId },
-    select: { id: true, channel: true, peerRef: true, companyId: true },
+    select: { id: true, channel: true, peerRef: true, companyId: true, assigneeId: true },
   });
   if (!dialog || !isDialogInScope(session, dialog)) return { ok: false, error: 'not_found' };
 
@@ -72,6 +73,13 @@ export async function sendDialogMessage(
         after: { companyId: session.companyId, reason: 'first_reply' },
       });
     }
+  }
+
+  // У-206, правило первого ответившего для ответственного: ответил в ничей
+  // диалог — стал за него отвечать. Как и привязка компании выше, делается
+  // после успешного обращения к транспорту: не дошло — не «забрал».
+  if (dialog.assigneeId === null && sent.ok) {
+    await claimDialogOnFirstReply(prisma, session, dialog.id);
   }
 
   const recorded = await recordOutboundInDialog(prisma, {

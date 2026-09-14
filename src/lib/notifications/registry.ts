@@ -187,6 +187,13 @@ export const NOTIFICATION_TYPES = {
     audience: ['staff'],
     producer: 'src/lib/notifications/manager.ts',
   },
+  // Этап 3 (`У-206`): диалог назначили на сотрудника — он узнаёт об этом сам,
+  // а не обнаруживает переписку случайно в общем списке.
+  dialog_assigned: {
+    label: 'Вас назначили ответственным за диалог',
+    audience: ['staff'],
+    producer: 'src/lib/notifications/manager.ts',
+  },
 
   // ── Фоновые процессы ────────────────────────────────────────────────────
   certificate_expiring: {

@@ -27,6 +27,24 @@ const { getDialog, markDialogRead, listOrganizations } = vi.hoisted(() => ({
 vi.mock('@/lib/services/messengers/get', () => ({ getDialog, markDialogRead }));
 vi.mock('@/lib/services/manager/organizations', () => ({ listOrganizations }));
 
+// У-206: страница спрашивает сотрудников для селекта «Назначить».
+const { listAssignableStaff } = vi.hoisted(() => ({
+  listAssignableStaff: vi.fn().mockResolvedValue([{ id: 'u2', name: 'Мария' }]),
+}));
+vi.mock('@/lib/services/messengers/assign', () => ({ listAssignableStaff }));
+vi.mock('@/components/manager/messengers/dialog-assignee-panel', () => ({
+  DialogAssigneePanel: (props: {
+    dialogId: string;
+    assignee: { name: string } | null;
+    staff: unknown[];
+  }) =>
+    React.createElement(
+      'div',
+      null,
+      `ОТВЕТСТВЕННЫЙ:${props.assignee?.name ?? 'нет'}:${props.staff.length}`
+    ),
+}));
+
 vi.mock('@/components/manager/messengers/dialog-thread', () => ({
   DialogThread: (props: { messages: unknown[]; hiddenCount: number }) =>
     React.createElement('div', null, `ЛЕНТА:${props.messages.length}:${props.hiddenCount}`),
@@ -120,6 +138,8 @@ describe('ManagerMessengerDialogPage', () => {
     expect(text).toContain('ЛЕНТА:1:0');
     expect(text).toContain('ОТВЕТ:d1');
     expect(text).toContain('СОСТОЯНИЕ:open');
+    // У-206: панель ответственного на месте и получает список сотрудников.
+    expect(text).toContain('ОТВЕТСТВЕННЫЙ:нет:1');
     expect(text).toContain('Контакт: Иван');
     expect(text).toContain('Пользователь кабинета: Иван П.');
     expect(container.querySelector('a[href="/manager/organizations/o1"]')).not.toBeNull();

@@ -3,12 +3,16 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordPiiAccess } from '@/lib/pii/record';
 import { isMessengerAvailable } from './availability';
 import type { MessengerChannel } from './channels';
-import type { DialogStatus } from './list';
+import { type DialogStatus, dialogOverdueLevel } from './dialogStatus';
 import { peerLabelOf } from './list';
 import { dialogScopeWhere, isDialogInScope } from './scope';
 
 /** Сколько последних сообщений показывает карточка диалога. */
 const DIALOG_MESSAGES_CAP = 200;
+
+/** Фолбэк порогов SLA — те же значения, что стоят умолчанием в схеме Company. */
+const DEFAULT_SLA_RESPONSE_HOURS = 24;
+const DEFAULT_SLA_WARNING_HOURS = 4;
 
 export type DialogMessageView = {
   id: string;
@@ -29,6 +33,10 @@ type DialogView = {
   peerLabel: string;
   peerRef: string;
   status: DialogStatus;
+  /** Ответственный за диалог (`У-206`); null — «без ответственного». */
+  assignee: { id: string; name: string } | null;
+  /** Подсветка просрочки ответа (`У-207`) по SLA компании. */
+  overdue: 'none' | 'warning' | 'overdue';
   unreadCount: number;
   bound: boolean;
   organization: { id: string; name: string } | null;
@@ -50,6 +58,9 @@ const VIEW_SELECT = {
   peerDisplay: true,
   companyId: true,
   status: true,
+  waitingSince: true,
+  assigneeId: true,
+  assignee: { select: { id: true, name: true, email: true } },
   unreadCount: true,
   organization: { select: { id: true, name: true } },
   contact: { select: { id: true, name: true } },
@@ -85,6 +96,14 @@ export async function getDialog(
   });
   if (!row || !isDialogInScope(session, row)) return { ok: false, error: 'not_found' };
 
+  // Пороги подсветки — настройка компании (фолбэк на умолчания схемы Company).
+  const thresholds = session.companyId
+    ? await prisma.company.findUnique({
+        where: { id: session.companyId },
+        select: { slaResponseHours: true, slaWarningHours: true },
+      })
+    : null;
+
   // Имена авторов исходящих — одним запросом, без внешнего ключа (см. схему).
   const authorIds = [
     ...new Set(row.messages.map((m) => m.authorId).filter((id): id is string => id !== null)),
@@ -117,6 +136,17 @@ export async function getDialog(
       peerLabel: peerLabelOf(row),
       peerRef: row.peerRef,
       status: row.status as DialogStatus,
+      assignee: row.assignee
+        ? { id: row.assignee.id, name: row.assignee.name?.trim() || row.assignee.email }
+        : null,
+      overdue: dialogOverdueLevel(
+        row,
+        {
+          responseHours: thresholds?.slaResponseHours ?? DEFAULT_SLA_RESPONSE_HOURS,
+          warningHours: thresholds?.slaWarningHours ?? DEFAULT_SLA_WARNING_HOURS,
+        },
+        new Date()
+      ),
       unreadCount: row.unreadCount,
       bound: row.companyId !== null,
       organization: row.organization,

@@ -42,7 +42,12 @@ describe('setDialogStatus', () => {
     await expect(
       setDialogStatus(prisma, session, { dialogId: 'd1', status: 'closed' })
     ).resolves.toEqual({ ok: true, changed: true });
-    expect(update).toHaveBeenCalledWith({ where: { id: 'd1' }, data: { status: 'closed' } });
+    // Ручное действие сбрасывает отсчёт ожидания (У-207): прежняя просрочка
+    // после закрытия или переоткрытия неактуальна.
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'd1' },
+      data: { status: 'closed', waitingSince: null },
+    });
     expect(recordAudit).toHaveBeenLastCalledWith(prisma, {
       action: 'messenger_dialog_closed',
       entity: 'messenger_dialog',

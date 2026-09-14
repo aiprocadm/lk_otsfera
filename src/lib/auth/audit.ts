@@ -185,6 +185,7 @@ export const AUDIT_ACTIONS = [
   // Спека 2026-09-12: диалоги мессенджеров.
   'messenger_dialog_bound',
   'messenger_dialog_closed',
+  'dialog_assignee_changed',
   'messenger_dialog_reopened',
   'messenger_dialog_started',
   'messenger_message_sent',

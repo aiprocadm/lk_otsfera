@@ -4,6 +4,7 @@ import { requireManager } from '@/lib/auth/requireRole';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { prisma } from '@/lib/db/prisma';
 import { isMessengerChannel } from '@/lib/services/messengers/channels';
+import { isDialogStatus } from '@/lib/services/messengers/dialogStatus';
 import { listDialogs, type DialogListFilters } from '@/lib/services/messengers/list';
 import { listDialogCandidates } from '@/lib/services/messengers/start';
 import { DialogFiltersBar } from '@/components/manager/messengers/dialog-filters';
@@ -17,6 +18,8 @@ export const dynamic = 'force-dynamic';
 type SearchParams = {
   channel?: string;
   status?: string;
+  /** `mine` · `unassigned` · пусто (все) — фильтр по ответственному (`У-206`). */
+  assignee?: string;
   skip?: string;
   /** `?new=<contactId>` — «Написать» из карточки контакта (`У-179`). */
   new?: string;
@@ -41,11 +44,13 @@ export default async function ManagerMessengersPage({
 
   const skip = Number.isFinite(Number(sp.skip)) ? Math.max(0, Number(sp.skip)) : 0;
   const page = Math.floor(skip / PAGE_SIZE) + 1;
-  const status = sp.status === 'open' || sp.status === 'closed' ? sp.status : undefined;
+  const status = sp.status && isDialogStatus(sp.status) ? sp.status : undefined;
   const channel = sp.channel && isMessengerChannel(sp.channel) ? sp.channel : undefined;
+  const assignee = sp.assignee === 'mine' || sp.assignee === 'unassigned' ? sp.assignee : undefined;
   const filters: DialogListFilters = {
     ...(channel ? { channel } : {}),
     ...(status ? { status } : {}),
+    ...(assignee ? { assignee } : {}),
     page,
     pageSize: PAGE_SIZE,
   };
@@ -57,7 +62,7 @@ export default async function ManagerMessengersPage({
 
   const preselect = typeof sp.new === 'string' && sp.new ? sp.new : undefined;
   const newDialog = <NewDialogButton candidates={candidates} preselect={preselect} />;
-  const filtered = Boolean(channel || status);
+  const filtered = Boolean(channel || status || assignee);
 
   return (
     <div className="space-y-4">
@@ -67,7 +72,7 @@ export default async function ManagerMessengersPage({
         action={newDialog}
       />
 
-      <DialogFiltersBar channel={channel} status={status} />
+      <DialogFiltersBar channel={channel} status={status} assignee={assignee} />
 
       {items.length === 0 ? (
         <EmptyState

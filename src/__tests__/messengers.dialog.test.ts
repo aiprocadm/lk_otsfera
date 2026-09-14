@@ -55,7 +55,16 @@ describe('upsertDialog', () => {
           create: { channel: 'telegram', peerRef: 'chat-1', status: 'open', unreadCount: 1 },
           update: { unreadCount: { increment: 1 } },
           // Р-М-9: организация нужна уведомлению менеджерам без второго запроса.
-          select: { id: true, companyId: true, organizationId: true, peerDisplay: true },
+          select: {
+            id: true,
+            companyId: true,
+            organizationId: true,
+            peerDisplay: true,
+            // У-206/У-207: ответственный и начало ожидания нужны вызывающим
+            // (таргетинг уведомления и отсчёт просрочки) без второго запроса.
+            assigneeId: true,
+            waitingSince: true,
+          },
         });
       });
   });

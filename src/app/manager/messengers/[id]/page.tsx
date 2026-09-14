@@ -6,12 +6,15 @@ import { isFeatureEnabled } from '@/lib/featureFlags';
 import { prisma } from '@/lib/db/prisma';
 import { MESSENGER_LABELS } from '@/lib/services/messengers/channels';
 import { getDialog, markDialogRead } from '@/lib/services/messengers/get';
+import { listAssignableStaff } from '@/lib/services/messengers/assign';
 import { listOrganizations } from '@/lib/services/manager/organizations';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import { DialogThread } from '@/components/manager/messengers/dialog-thread';
 import { DialogReplyForm } from '@/components/manager/messengers/dialog-reply-form';
 import { DialogBindForm } from '@/components/manager/messengers/dialog-bind-form';
 import { DialogStatusButton } from '@/components/manager/messengers/dialog-status-button';
+import { DialogStatusBadge } from '@/components/manager/messengers/dialog-status-badge';
+import { DialogAssigneePanel } from '@/components/manager/messengers/dialog-assignee-panel';
 import { SourceIntakeActions } from '@/components/intake/source-intake-actions';
 import { Badge } from '@/components/ui';
 import { PageHeader } from '@/components/ui/page-header';
@@ -37,9 +40,10 @@ export default async function ManagerMessengerDialogPage({
   const dialog = result.dialog;
 
   // Открыл — значит прочитал; список организаций нужен только ничьему диалогу.
-  const [, organizations] = await Promise.all([
+  const [, organizations, staff] = await Promise.all([
     markDialogRead(prisma, session, dialog.id),
     dialog.bound ? Promise.resolve([]) : listOrganizations(prisma, session),
+    listAssignableStaff(prisma, session),
   ]);
 
   const channelLabel = MESSENGER_LABELS[dialog.channel];
@@ -59,7 +63,12 @@ export default async function ManagerMessengerDialogPage({
               ? 'Организация не указана'
               : 'Диалог ещё не привязан к организации'
         }`}
-        action={<DialogStatusButton dialogId={dialog.id} status={dialog.status} />}
+        action={
+          <div className="flex items-center gap-2">
+            <DialogStatusBadge status={dialog.status} overdue={dialog.overdue} />
+            <DialogStatusButton dialogId={dialog.id} status={dialog.status} />
+          </div>
+        }
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
@@ -76,6 +85,10 @@ export default async function ManagerMessengerDialogPage({
         </section>
 
         <aside className="space-y-4">
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <DialogAssigneePanel dialogId={dialog.id} assignee={dialog.assignee} staff={staff} />
+          </div>
+
           <div className="space-y-2 rounded-xl border border-gray-200 bg-white p-4">
             <h2 className="text-sm font-semibold text-gray-700">Кто это</h2>
             <p className="text-sm text-gray-600">

@@ -26,7 +26,9 @@ type DialogUpsertArgs = {
  *
  * Возвращает и привязку к организации, и известное имя собеседника:
  * уведомлению менеджерам (Р-М-9) нужно, чей это диалог и как его назвать,
- * без второго запроса.
+ * без второго запроса. С этапа 3 отдаёт ещё ответственного (таргетинг
+ * уведомления, `У-206`) и `waitingSince` — он нужен, чтобы отсчёт ожидания
+ * не сдвигался на каждом следующем сообщении клиента (`У-207`).
  */
 export async function upsertDialog(
   prisma: PrismaClient,
@@ -37,13 +39,22 @@ export async function upsertDialog(
   companyId: string | null;
   organizationId: string | null;
   peerDisplay: string | null;
+  assigneeId: string | null;
+  waitingSince: Date | null;
 }> {
   const run = () =>
     prisma.messengerDialog.upsert({
       where: { channel_peerRef: { channel: key.channel, peerRef: key.peerRef } },
       create: { channel: key.channel, peerRef: key.peerRef, ...args.create },
       update: args.update,
-      select: { id: true, companyId: true, organizationId: true, peerDisplay: true },
+      select: {
+        id: true,
+        companyId: true,
+        organizationId: true,
+        peerDisplay: true,
+        assigneeId: true,
+        waitingSince: true,
+      },
     });
   try {
     return await run();
