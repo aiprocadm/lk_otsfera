@@ -17,12 +17,38 @@ const base: DialogListItem = {
   peerLabel: 'Иван Петров',
   organization: { id: 'o1', name: 'Ромашка' },
   status: 'open',
+  assignee: null,
+  overdue: 'none',
   unreadCount: 3,
   lastMessageAt: new Date('2026-09-10T10:00:00Z'),
   lastMessagePreview: 'нужен счёт',
   lastMessageDirection: 'in',
   bound: true,
 };
+
+describe('DialogList — ответственный и состояние (этап 3)', () => {
+  it('без ответственного видно сразу, с ответственным — его имя', () => {
+    const none = renderToString(<DialogList items={[base]} />);
+    expect(none).toContain('Без ответственного');
+    const mine = renderToString(
+      <DialogList items={[{ ...base, assignee: { id: 'u1', name: 'Мария' } }]} />
+    );
+    expect(mine).toContain('Мария');
+    expect(mine).not.toContain('Без ответственного');
+  });
+
+  it('просроченный диалог помечен словом «просрочен», ждущий клиента — нет', () => {
+    const overdue = renderToString(
+      <DialogList items={[{ ...base, status: 'waiting_staff', overdue: 'overdue' }]} />
+    );
+    expect(overdue).toContain('просрочен');
+    const waitingClient = renderToString(
+      <DialogList items={[{ ...base, status: 'waiting_client', overdue: 'none' }]} />
+    );
+    expect(waitingClient).toContain('Ждём клиента');
+    expect(waitingClient).not.toContain('просрочен');
+  });
+});
 
 describe('DialogList', () => {
   it('строка: канал, собеседник со ссылкой, организация, превью, непрочитанные', () => {
@@ -87,15 +113,24 @@ describe('DialogFiltersBar', () => {
     expect(html).toContain('href="/manager/messengers?channel=telegram&amp;status=closed"');
     expect(html).toContain('href="/manager/messengers?channel=max"');
     expect(html).toContain('href="/manager/messengers?channel=max&amp;status=open"');
-    expect(html).toContain('Открытые');
-    expect(html).toContain('Закрытые');
+    // Состояния этапа 3: четыре, с человеческими подписями из автомата.
+    expect(html).toContain('Ждёт ответа');
+    expect(html).toContain('Ждём клиента');
+    expect(html).toContain('Закрыт');
+    // Третья группа фильтров — ответственный (У-206).
+    expect(html).toContain('Ответственный');
+    expect(html).toContain(
+      'href="/manager/messengers?channel=max&amp;status=closed&amp;assignee=mine"'
+    );
     // Активные пиллы — оранжевые (MAX и «Закрытые»), остальные — с рамкой.
-    expect(html.match(/bg-orange-500/g)?.length).toBe(2);
+    // Активных «Все» теперь три: мессенджер, состояние, ответственный.
+    expect(html.match(/bg-orange-500/g)?.length).toBe(3);
   });
 
   it('без фильтров активны оба «Все» и ссылки ведут на корень', () => {
     const html = renderToString(<DialogFiltersBar />);
     expect(html).toContain('href="/manager/messengers"');
-    expect(html.match(/bg-orange-500/g)?.length).toBe(2);
+    // Активных «Все» теперь три: мессенджер, состояние, ответственный.
+    expect(html.match(/bg-orange-500/g)?.length).toBe(3);
   });
 });

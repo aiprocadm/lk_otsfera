@@ -4,6 +4,7 @@ import { TableShell, THead, Th, Tr, Td, Badge } from '@/components/ui';
 import { fmtDateTime } from '@/lib/format';
 import { MESSENGER_LABELS } from '@/lib/services/messengers/channels';
 import type { DialogListItem } from '@/lib/services/messengers/list';
+import { DialogStatusBadge } from './dialog-status-badge';
 
 /**
  * Список диалогов (спека 2026-09-12 §5.1). Сервер-компонент: данные уже
@@ -35,6 +36,12 @@ function UnreadPill({ count }: { count: number }) {
   );
 }
 
+/** Кто ведёт диалог (`У-206`). Пустое место здесь — сигнал «никто не взял». */
+function AssigneeCell({ item }: { item: DialogListItem }) {
+  if (!item.assignee) return <Badge tone="warning">Без ответственного</Badge>;
+  return <span className="text-gray-700">{item.assignee.name}</span>;
+}
+
 function OrgCell({ item }: { item: DialogListItem }) {
   if (!item.bound) return <Badge tone="warning">Не привязан</Badge>;
   if (!item.organization) return <span className="text-gray-400">Без организации</span>;
@@ -56,6 +63,7 @@ export function DialogList({ items }: { items: DialogListItem[] }) {
           <Th>Мессенджер</Th>
           <Th>Собеседник</Th>
           <Th>Организация</Th>
+          <Th>Ответственный</Th>
           <Th>Последнее сообщение</Th>
           <Th>Когда</Th>
         </THead>
@@ -74,11 +82,14 @@ export function DialogList({ items }: { items: DialogListItem[] }) {
                     {item.peerLabel}
                   </Link>
                   <UnreadPill count={item.unreadCount} />
-                  {item.status === 'closed' && <Badge tone="neutral">Закрыт</Badge>}
+                  <DialogStatusBadge status={item.status} overdue={item.overdue} />
                 </div>
               </Td>
               <Td>
                 <OrgCell item={item} />
+              </Td>
+              <Td>
+                <AssigneeCell item={item} />
               </Td>
               <Td className="max-w-md text-gray-600">
                 <p className="truncate">{previewText(item)}</p>
@@ -99,13 +110,16 @@ export function DialogList({ items }: { items: DialogListItem[] }) {
             <div className="flex items-center justify-between gap-2">
               <Badge tone="neutral">{MESSENGER_LABELS[item.channel]}</Badge>
               <div className="flex items-center gap-2">
-                {item.status === 'closed' && <Badge tone="neutral">Закрыт</Badge>}
+                <DialogStatusBadge status={item.status} overdue={item.overdue} />
                 <UnreadPill count={item.unreadCount} />
               </div>
             </div>
             <p className="mt-2 text-sm font-medium text-[#111111]">{item.peerLabel}</p>
             <p className="text-xs text-gray-500">
               {item.bound ? (item.organization?.name ?? 'Без организации') : 'Не привязан'}
+            </p>
+            <p className="text-xs text-gray-500">
+              {item.assignee ? `Ответственный: ${item.assignee.name}` : 'Без ответственного'}
             </p>
             <p className="mt-1 truncate text-sm text-gray-600">{previewText(item)}</p>
             <p className="mt-1 text-xs text-gray-400">{fmtDateTime(item.lastMessageAt)}</p>

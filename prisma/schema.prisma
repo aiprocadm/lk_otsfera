@@ -364,6 +364,7 @@ model User {
   taskAssignments              TaskAssignee[]            @relation("TaskAssignee")
   inboundMessages              InboundMessage[]          @relation("UserInbound")
   messengerDialogs             MessengerDialog[]         @relation("UserMessengerDialogs")
+  assignedDialogs              MessengerDialog[]         @relation("DialogAssignee")
   calls                        Call[]                    @relation("UserCalls")
   callsInitiated               Call[]                    @relation("CallInitiator")
   dealNotesAuthored            DealNote[]                @relation("DealNoteAuthor")
@@ -2427,8 +2428,22 @@ model MessengerDialog {
   /// Пользователь кабинета, если собеседник — он (привязал бота сам).
   userId               String?
   user                 User?              @relation("UserMessengerDialogs", fields: [userId], references: [id], onDelete: SetNull)
-  /// open | closed. Новое входящее переоткрывает закрытый диалог.
+  /// Ответственный за диалог (У-206). Первый ответивший забирает диалог себе,
+  /// если ответственного нет; снять можно явно («Без ответственного»).
+  assigneeId           String?
+  assignee             User?              @relation("DialogAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  assignedAt           DateTime?
+  /// Кто назначил; при «Взять себе» совпадает с `assigneeId`. Без внешнего
+  /// ключа намеренно — это исторический факт, как `MessengerMessage.authorId`.
+  assignedById         String?
+  /// open | waiting_staff | waiting_client | closed (У-207, автомат
+  /// services/messengers/dialogStatus.ts). Новое входящее переоткрывает
+  /// закрытый диалог. `open` — только у диалога без единого сообщения.
   status               String             @default("open")
+  /// Когда диалог встал в `waiting_staff`; в прочих статусах null. По нему
+  /// считается просрочка SLA (Company.slaResponseHours) — отдельное поле, а не
+  /// `lastInboundAt`: сотрудник мог ответить и получить новое входящее.
+  waitingSince         DateTime?
   lastMessageAt        DateTime           @default(now())
   lastInboundAt        DateTime?
   /// Первые 200 символов последнего сообщения — список диалогов одной выборкой.
@@ -2443,6 +2458,8 @@ model MessengerDialog {
   @@index([companyId, lastMessageAt])
   @@index([organizationId])
   @@index([contactId])
+  @@index([companyId, assigneeId])
+  @@index([companyId, status, waitingSince])
 }
 
 /// Сообщение диалога — в обе стороны. `authorId` без внешнего ключа намеренно:
@@ -2649,7 +2666,10 @@ model IntegrationSetting {
 model SlaEscalation {
   id         String   @id @default(cuid())
   createdAt  DateTime @default(now())
-  sourceType String // client_request | enrollment | inbound | call
+  /// client_request | enrollment | inbound | call | dialog (У-207).
+  /// У диалога `sourceId` составной — `<dialogId>:<начало ожидания>`: одна
+  /// эскалация на один неотвеченный вопрос, а не на диалог целиком.
+  sourceType String
   sourceId   String
   companyId  String?
 

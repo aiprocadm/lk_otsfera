@@ -1,10 +1,14 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
-import type { DialogStatus } from './list';
+import { DIALOG_STATUS, waitingSinceFor } from './dialogStatus';
+import type { MANUAL_DIALOG_STATUSES } from './dialogStatus';
 import { isDialogInScope } from './scope';
 
-export type SetDialogStatusArgs = { dialogId: string; status: DialogStatus };
+/** Что сотрудник выставляет кнопкой: закрыть или открыть снова (У-207). */
+type ManualDialogStatus = (typeof MANUAL_DIALOG_STATUSES)[number];
+
+export type SetDialogStatusArgs = { dialogId: string; status: ManualDialogStatus };
 
 export type SetDialogStatusResult =
   { ok: true; changed: boolean } | { ok: false; error: 'not_found' };
@@ -14,6 +18,11 @@ export type SetDialogStatusResult =
  * уходит из списка «открытых», но новое входящее переоткроет его само
  * (`appendInboundToDialog`). Повтор того же состояния — не ошибка и не
  * событие аудита. Чужой диалог — `not_found`, как и карточка.
+ *
+ * Промежуточные статусы (`waiting_staff`/`waiting_client`) руками не ставятся —
+ * их считает автомат по событиям переписки (`dialogStatus.ts`). Поэтому любое
+ * ручное действие сбрасывает отсчёт ожидания: сотрудник либо закрыл разговор,
+ * либо открыл его заново — в обоих случаях прежняя просрочка неактуальна.
  */
 export async function setDialogStatus(
   prisma: PrismaClient,
@@ -29,10 +38,13 @@ export async function setDialogStatus(
 
   await prisma.messengerDialog.update({
     where: { id: dialog.id },
-    data: { status: args.status },
+    data: { status: args.status, waitingSince: waitingSinceFor(args.status, null, new Date()) },
   });
   await recordAudit(prisma, {
-    action: args.status === 'closed' ? 'messenger_dialog_closed' : 'messenger_dialog_reopened',
+    action:
+      args.status === DIALOG_STATUS.closed
+        ? 'messenger_dialog_closed'
+        : 'messenger_dialog_reopened',
     entity: 'messenger_dialog',
     entityId: dialog.id,
     userId: session.sub,

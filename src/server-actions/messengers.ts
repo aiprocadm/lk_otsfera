@@ -14,6 +14,11 @@ import {
 import { bindDialog, type BindDialogResult } from '@/lib/services/messengers/bind';
 import { setDialogStatus, type SetDialogStatusResult } from '@/lib/services/messengers/status';
 import { startDialog, type StartDialogResult } from '@/lib/services/messengers/start';
+import {
+  assignDialog,
+  takeDialog,
+  type AssignDialogResult,
+} from '@/lib/services/messengers/assign';
 
 /**
  * Тонкие адаптеры над сервисами диалогов (спека 2026-09-12 §4): флаг и гард
@@ -102,6 +107,42 @@ export async function setDialogStatusAction(input: {
   if (!parsed.success) return { ok: false, error: 'validation' };
   const session = await requireManager();
   const result = await setDialogStatus(prisma, session, parsed.data);
+  if (result.ok && result.changed) revalidateDialog(parsed.data.dialogId);
+  return result;
+}
+
+const AssignSchema = z.object({
+  dialogId: DialogIdSchema,
+  /** null — снять ответственного («Без ответственного»). */
+  assigneeId: z.string().min(1).max(64).nullable(),
+});
+
+export async function assignDialogAction(input: {
+  dialogId: string;
+  assigneeId: string | null;
+}): Promise<AssignDialogResult | Validation> {
+  const off = disabled();
+  if (off) return off;
+  const parsed = AssignSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'validation' };
+  const session = await requireManager();
+  const result = await assignDialog(prisma, session, parsed.data);
+  if (result.ok && result.changed) revalidateDialog(parsed.data.dialogId);
+  return result;
+}
+
+const TakeSchema = z.object({ dialogId: DialogIdSchema });
+
+/** «Взять себе» — отдельное действие, чтобы кнопке не нужен был мой id. */
+export async function takeDialogAction(input: {
+  dialogId: string;
+}): Promise<AssignDialogResult | Validation> {
+  const off = disabled();
+  if (off) return off;
+  const parsed = TakeSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'validation' };
+  const session = await requireManager();
+  const result = await takeDialog(prisma, session, parsed.data);
   if (result.ok && result.changed) revalidateDialog(parsed.data.dialogId);
   return result;
 }

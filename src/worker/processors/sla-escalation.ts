@@ -1,6 +1,8 @@
 import type { PrismaClient } from '@prisma/client';
 import { createNotification, deliverNotificationToUser } from '@/lib/notifications';
 import { INTAKE_BREACH_HOURS } from '@/lib/services/intake/list';
+import { DIALOG_STATUS } from '@/lib/services/messengers/dialogStatus';
+import { MESSENGER_LABELS, isMessengerChannel } from '@/lib/services/messengers/channels';
 import { log } from '@/lib/logging';
 
 /**
@@ -18,11 +20,13 @@ const BATCH_LIMIT = 200;
 const ESCALATION_URL = '/leader/intake';
 
 type Unit = {
-  sourceType: 'client_request' | 'enrollment' | 'inbound' | 'call';
+  sourceType: 'client_request' | 'enrollment' | 'inbound' | 'call' | 'dialog';
   sourceId: string;
   companyId: string | null;
   createdAt: Date;
   label: string;
+  /** Куда вести руководителя; по умолчанию — очередь «Входящие в работу». */
+  url?: string;
 };
 
 type CompanyInfo = { id: string; slaResponseHours: number; leaders: string[] };
@@ -47,7 +51,7 @@ async function loadCompanies(prisma: PrismaClient): Promise<CompanyInfo[]> {
 
 /** Неразобранные единицы без ответственного (адм-широкий срез — джоб платформенный). */
 async function loadUnassignedUnits(prisma: PrismaClient): Promise<Unit[]> {
-  const [requests, enrollments, inbound, calls] = await Promise.all([
+  const [requests, enrollments, inbound, dialogs, calls] = await Promise.all([
     prisma.clientRequest.findMany({
       where: { status: 'submitted' },
       select: {
@@ -84,6 +88,24 @@ async function loadUnassignedUnits(prisma: PrismaClient): Promise<Unit[]> {
         subject: true,
       },
       orderBy: { createdAt: 'asc' },
+      take: BATCH_LIMIT,
+    }),
+    // У-207: диалог, который ждёт ответа сотрудника дольше SLA. В отличие от
+    // остальных источников ответственный тут не важен: диалог может быть
+    // назначен и всё равно остаться без ответа — именно это руководитель и
+    // должен увидеть.
+    prisma.messengerDialog.findMany({
+      where: { status: DIALOG_STATUS.waitingStaff, waitingSince: { not: null } },
+      select: {
+        id: true,
+        waitingSince: true,
+        companyId: true,
+        channel: true,
+        peerDisplay: true,
+        peerRef: true,
+        contact: { select: { name: true } },
+      },
+      orderBy: { waitingSince: 'asc' },
       take: BATCH_LIMIT,
     }),
     prisma.call.findMany({
@@ -130,6 +152,27 @@ async function loadUnassignedUnits(prisma: PrismaClient): Promise<Unit[]> {
       label: `обращение от ${m.senderDisplay?.trim() || m.senderRef}${m.subject ? `: «${m.subject}»` : ''}`,
     });
   }
+  for (const d of dialogs) {
+    // `waitingSince` в выборке заведомо не null (условие `where`), но тип его
+    // не знает — берём запасной вариант, чтобы не писать non-null assertion.
+    const since = d.waitingSince ?? new Date();
+    const channelLabel = isMessengerChannel(d.channel) ? MESSENGER_LABELS[d.channel] : d.channel;
+    const who = d.contact?.name?.trim() || d.peerDisplay?.trim() || d.peerRef;
+    units.push({
+      sourceType: 'dialog',
+      // Ключ дедупа — диалог + начало ЭТОГО ожидания: одна эскалация на один
+      // неотвеченный вопрос. Иначе диалог, однажды просроченный, больше
+      // никогда бы не позвал руководителя (уникальность журнала — на пару
+      // «источник + id»), и второе такое же молчание прошло бы незаметно.
+      sourceId: `${d.id}:${since.toISOString()}`,
+      companyId: d.companyId,
+      createdAt: since,
+      label: `диалог в ${channelLabel} с ${who}`,
+      // Ссылка ведёт в саму переписку, а не в общую очередь: диалог там не
+      // лежит, и руководитель искал бы его вручную.
+      url: `/manager/messengers/${d.id}`,
+    });
+  }
   for (const c of calls) {
     units.push({
       sourceType: 'call',
@@ -173,8 +216,15 @@ export async function runSlaEscalation(
     }
 
     const waitedHours = Math.floor(ageHours);
-    const title = 'SLA: входящее без реакции';
-    const body = `Без ответственного ${waitedHours} ч (порог ${thresholdHours} ч): ${unit.label}.`;
+    const unitUrl = unit.url ?? ESCALATION_URL;
+    // У диалога ответственный может быть назначен — эскалация про отсутствие
+    // ОТВЕТА, а не про отсутствие хозяина. Общий текст «Без ответственного»
+    // отправлял бы руководителя искать свободный диалог, которого нет.
+    const isDialog = unit.sourceType === 'dialog';
+    const title = isDialog ? 'SLA: клиент ждёт ответа' : 'SLA: входящее без реакции';
+    const body = isDialog
+      ? `Нет ответа клиенту ${waitedHours} ч (порог ${thresholdHours} ч): ${unit.label}.`
+      : `Без ответственного ${waitedHours} ч (порог ${thresholdHours} ч): ${unit.label}.`;
 
     for (const userId of recipients) {
       try {
@@ -183,14 +233,14 @@ export async function runSlaEscalation(
           type: 'sla_escalation',
           title,
           body,
-          meta: { sourceType: unit.sourceType, sourceId: unit.sourceId, url: ESCALATION_URL },
+          meta: { sourceType: unit.sourceType, sourceId: unit.sourceId, url: unitUrl },
         });
         await deliverNotificationToUser({
           userId,
           title,
           body,
           type: 'sla_escalation',
-          url: ESCALATION_URL,
+          url: unitUrl,
           dedupKey: row.id,
         });
       } catch (err) {

@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { MessengerChannel } from './channels';
 import { previewOf, upsertDialog } from './dialog';
+import { nextStatusOnOutbound, waitingSinceFor } from './dialogStatus';
 
 export type RecordOutboundArgs = {
   channel: MessengerChannel;
@@ -46,14 +47,18 @@ export async function recordOutboundInDialog(
         organizationId: args.binding?.organizationId ?? null,
         contactId: args.binding?.contactId ?? null,
         userId: args.binding?.userId ?? null,
-        status: 'open',
+        status: nextStatusOnOutbound(),
+        waitingSince: waitingSinceFor(nextStatusOnOutbound(), null, at),
         lastMessageAt: at,
         lastMessagePreview: preview,
         lastMessageDirection: 'out',
         unreadCount: 0,
       },
       update: {
-        status: 'open',
+        // Ответ сотрудника снимает диалог с ожидания (У-207): статус и отсчёт
+        // просрочки сбрасываются здесь, в одной записи с самим сообщением.
+        status: nextStatusOnOutbound(),
+        waitingSince: waitingSinceFor(nextStatusOnOutbound(), null, at),
         lastMessageAt: at,
         lastMessagePreview: preview,
         lastMessageDirection: 'out',

@@ -15,7 +15,13 @@ import { countUnreadDialogs, listDialogs, peerLabelOf } from '@/lib/services/mes
 const findMany = vi.fn();
 const count = vi.fn();
 const aggregate = vi.fn();
-const prisma = { messengerDialog: { findMany, count, aggregate } } as unknown as PrismaClient;
+// Пороги подсветки просрочки (У-207) читаются у компании; null — фолбэк на
+// умолчания схемы (24 часа на ответ, 4 до предупреждения).
+const companyFindUnique = vi.fn();
+const prisma = {
+  messengerDialog: { findMany, count, aggregate },
+  company: { findUnique: companyFindUnique },
+} as unknown as PrismaClient;
 const session = { sub: 'm1', role: 'manager', companyId: 'c1' } as SessionPayload;
 
 const row = {
@@ -25,6 +31,9 @@ const row = {
   peerDisplay: 'ivan',
   companyId: 'c1',
   status: 'open',
+  waitingSince: null,
+  assigneeId: null,
+  assignee: null,
   unreadCount: 2,
   lastMessageAt: new Date('2026-09-10T10:00:00Z'),
   lastMessagePreview: 'привет',
@@ -39,6 +48,7 @@ describe('listDialogs', () => {
     vi.clearAllMocks();
     findMany.mockResolvedValue([row]);
     count.mockResolvedValue(1);
+    companyFindUnique.mockResolvedValue(null);
   });
 
   it('без фильтров: скоуп + пустой extra, первая страница по 25, сортировка по времени', async () => {
@@ -51,6 +61,8 @@ describe('listDialogs', () => {
         peerLabel: 'ivan',
         organization: { id: 'o1', name: 'Ромашка' },
         status: 'open',
+        assignee: null,
+        overdue: 'none',
         unreadCount: 2,
         lastMessageAt: row.lastMessageAt,
         lastMessagePreview: 'привет',
@@ -96,6 +108,53 @@ describe('listDialogs', () => {
     expect(findMany).toHaveBeenLastCalledWith(expect.objectContaining({ skip: 0, take: 1 }));
   });
 
+  it('фильтр «мои» ищет по ответственному, «без ответственного» — по пустому полю (У-206)', async () => {
+    await listDialogs(prisma, session, { assignee: 'mine' });
+    expect(findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: [expect.anything(), { assigneeId: 'm1' }],
+        }),
+      })
+    );
+    await listDialogs(prisma, session, { assignee: 'unassigned' });
+    expect(findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ AND: [expect.anything(), { assigneeId: null }] }),
+      })
+    );
+    // «Все» — это отсутствие ограничения, а не третье значение в запросе.
+    await listDialogs(prisma, session, { assignee: 'all' });
+    expect(findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ AND: [expect.anything(), {}] }),
+      })
+    );
+  });
+
+  it('просрочка считается по порогам компании и только в статусе «ждёт ответа» (У-207)', async () => {
+    companyFindUnique.mockResolvedValue({ slaResponseHours: 5, slaWarningHours: 2 });
+    const longAgo = new Date(Date.now() - 6 * 3_600_000);
+    const recently = new Date(Date.now() - 3 * 3_600_000);
+
+    findMany.mockResolvedValue([
+      { ...row, id: 'overdue', status: 'waiting_staff', waitingSince: longAgo },
+      { ...row, id: 'warning', status: 'waiting_staff', waitingSince: recently },
+      // Ждём клиента: остаток прошлого ожидания не должен «гореть».
+      { ...row, id: 'waiting-client', status: 'waiting_client', waitingSince: longAgo },
+    ]);
+    const r = await listDialogs(prisma, session);
+    expect(r.items.map((i) => i.overdue)).toEqual(['overdue', 'warning', 'none']);
+  });
+
+  it('имя ответственного берётся из связи, пустое — заменяется почтой', async () => {
+    findMany.mockResolvedValue([
+      { ...row, assigneeId: 'u9', assignee: { id: 'u9', name: '  ', email: 'm@t.test' } },
+    ]);
+    const r = await listDialogs(prisma, session);
+    expect(r.items[0]?.assignee).toEqual({ id: 'u9', name: 'm@t.test' });
+  });
+
   it('ничей диалог помечен bound:false', async () => {
     findMany.mockResolvedValue([{ ...row, companyId: null, organization: null }]);
     const r = await listDialogs(prisma, session);
@@ -122,14 +181,14 @@ describe('peerLabelOf — имя собеседника по убыванию н
 describe('countUnreadDialogs', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('суммирует непрочитанные открытых диалогов скоупа; пустая сумма → 0', async () => {
+  it('суммирует непрочитанные НЕЗАКРЫТЫХ диалогов скоупа; пустая сумма → 0', async () => {
     aggregate.mockResolvedValueOnce({ _sum: { unreadCount: 7 } });
     await expect(countUnreadDialogs(prisma, session)).resolves.toBe(7);
     expect(aggregate).toHaveBeenCalledWith({
       where: {
         AND: [
           { OR: [{ companyId: 'c1' }, { companyId: null }] },
-          { status: 'open', unreadCount: { gt: 0 } },
+          { status: { not: 'closed' }, unreadCount: { gt: 0 } },
         ],
       },
       _sum: { unreadCount: true },

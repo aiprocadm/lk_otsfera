@@ -45,7 +45,8 @@ describe('recordOutboundInDialog (integration)', () => {
       channel: 'whatsapp',
       companyId,
       organizationId: orgId,
-      status: 'open',
+      // У-207: ответ сотрудника переводит диалог в «ждём клиента».
+      status: 'waiting_client',
       unreadCount: 0,
       lastMessagePreview: 'Добрый день! Счёт отправил.',
       lastMessageDirection: 'out',
@@ -62,7 +63,7 @@ describe('recordOutboundInDialog (integration)', () => {
     ]);
   });
 
-  it('существующий диалог: непрочитанное обнуляется, закрытый открывается, привязка не меняется', async () => {
+  it('существующий диалог: непрочитанное обнуляется, закрытый оживает, привязка не меняется', async () => {
     const existing = await prisma.messengerDialog.create({
       data: {
         channel: 'max',
@@ -84,7 +85,9 @@ describe('recordOutboundInDialog (integration)', () => {
     expect(r.dialogId).toBe(existing.id);
     expect(await prisma.messengerDialog.findUnique({ where: { id: existing.id } })).toMatchObject({
       companyId,
-      status: 'open',
+      // Ответ в закрытый диалог означает, что разговор продолжается.
+      status: 'waiting_client',
+      waitingSince: null,
       unreadCount: 0,
       lastMessagePreview: 'отвечаю',
       lastMessageDirection: 'out',

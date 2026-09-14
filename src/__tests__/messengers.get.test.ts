@@ -21,9 +21,12 @@ import { getDialog, markDialogRead } from '@/lib/services/messengers/get';
 const dialogFindUnique = vi.fn();
 const dialogUpdateMany = vi.fn();
 const userFindMany = vi.fn();
+// Пороги подсветки просрочки (У-207) карточка читает у компании.
+const companyFindUnique = vi.fn().mockResolvedValue(null);
 const prisma = {
   messengerDialog: { findUnique: dialogFindUnique, updateMany: dialogUpdateMany },
   user: { findMany: userFindMany },
+  company: { findUnique: companyFindUnique },
 } as unknown as PrismaClient;
 const session = { sub: 'm1', role: 'manager', companyId: 'c1' } as SessionPayload;
 
@@ -36,6 +39,9 @@ const baseRow = {
   peerDisplay: 'ivan',
   companyId: 'c1',
   status: 'open',
+  waitingSince: null,
+  assigneeId: null,
+  assignee: null,
   unreadCount: 1,
   organization: { id: 'o1', name: 'Ромашка' },
   contact: { id: 'k1', name: 'Иван' },
@@ -106,6 +112,8 @@ describe('getDialog', () => {
       peerLabel: 'Иван',
       peerRef: 'chat-1',
       status: 'open',
+      assignee: null,
+      overdue: 'none',
       unreadCount: 1,
       bound: true,
       organization: { id: 'o1', name: 'Ромашка' },

@@ -3,6 +3,7 @@ import { bestEffort } from '@/lib/logging';
 import { notifyManagersMessengerMessage } from '@/lib/notifications/manager';
 import { MESSENGER_LABELS, type MessengerChannel } from './channels';
 import { previewOf, upsertDialog } from './dialog';
+import { DIALOG_STATUS, nextStatusOnInbound, waitingSinceFor } from './dialogStatus';
 
 /** Кому принадлежит собеседник, если резолвер его узнал. */
 type DialogBinding = {
@@ -82,7 +83,14 @@ export async function appendInboundToDialog(
       create: {
         peerDisplay: args.peerDisplay ?? null,
         ...bindingData,
-        status: 'open',
+        // Бэкфилл (`markUnread: false`) сворачивает письма многолетней
+        // давности. Он не поднимает счётчик непрочитанных — и по той же
+        // причине не ставит диалог в ожидание: иначе первый же прогон
+        // эскалации завалил бы руководителей «просрочками» по перепискам,
+        // на которые давно ответили (исходящие бэкфилл не сворачивает, и
+        // снять такой статус было бы нечем).
+        status: live ? nextStatusOnInbound() : DIALOG_STATUS.open,
+        waitingSince: live ? waitingSinceFor(nextStatusOnInbound(), null, at) : null,
         lastMessageAt: at,
         lastInboundAt: at,
         lastMessagePreview: preview,
@@ -90,7 +98,11 @@ export async function appendInboundToDialog(
         unreadCount: unread,
       },
       update: {
-        status: 'open',
+        // `waitingSince` в update намеренно нет: отсчёт ожидания ставится ниже
+        // и только если он ещё не идёт — иначе каждое следующее сообщение
+        // клиента обнуляло бы просрочку, и диалог никогда бы не «покраснел».
+        // Бэкфилл статуса не касается вовсе (см. комментарий в `create`).
+        ...(live ? { status: nextStatusOnInbound() } : {}),
         lastMessageAt: at,
         lastInboundAt: at,
         lastMessagePreview: preview,
@@ -102,6 +114,16 @@ export async function appendInboundToDialog(
       },
     }
   );
+
+  // Отсчёт ожидания ответа (У-207): ставим, только если он ещё не идёт.
+  // Условие в `where`, а не в коде: между upsert и этим шагом ответить мог
+  // другой сотрудник, и тогда ожидание уже сброшено — перетирать нельзя.
+  if (live && dialog.waitingSince === null) {
+    await prisma.messengerDialog.updateMany({
+      where: { id: dialog.id, waitingSince: null },
+      data: { waitingSince: at },
+    });
+  }
 
   // Привязка по распознаванию — только ничьему диалогу. Условие в `where`, а не
   // в коде: между upsert и этим шагом диалог мог привязать сотрудник.
@@ -126,11 +148,14 @@ export async function appendInboundToDialog(
     select: { id: true },
   });
 
-  // Р-М-9: менеджеры организации узнают о входящем. Ничей диалог и так виден
-  // во «Входящих в работу»; бэкфилл старые письма не рассылает.
-  if (live && organizationId) {
+  // Р-М-9 + У-206: о входящем узнаёт ответственный за диалог, а если его нет —
+  // менеджеры организации. Диалог без того и другого никого не дёргает: он
+  // виден во «Входящих в работу» и в бейдже «ждут ответа». Бэкфилл старые
+  // письма не рассылает.
+  if (live && (dialog.assigneeId || organizationId)) {
     await notifyManagersMessengerMessage(prisma, {
       organizationId,
+      assigneeId: dialog.assigneeId,
       dialogId: dialog.id,
       // Имя — из этого письма, иначе то, что диалог уже знает, иначе адрес.
       peerLabel: args.peerDisplay?.trim() || dialog.peerDisplay?.trim() || args.peerRef,
