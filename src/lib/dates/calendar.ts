@@ -70,3 +70,51 @@ export function startOfMoscowDay(now: Date = new Date()): Date {
   }).format(now);
   return new Date(`${ymd}T00:00:00+03:00`);
 }
+
+/**
+ * Начало текущего месяца **по московскому времени** (`Д-22`, прогон №28).
+ *
+ * `new Date(now.getFullYear(), now.getMonth(), 1)` — тот же промах, что и
+ * `setHours(0, 0, 0, 0)`, только крупнее: он берёт и год, и месяц в часовом
+ * поясе процесса. Замер на сервере (UTC): 1 сентября в 01:30 по Москве такой
+ * код считает текущим месяцем **август** и отдаёт границу `01.08` — то есть
+ * сводка за «этот месяц» три часа подряд показывает весь прошлый.
+ */
+export function startOfMoscowMonth(now: Date = new Date()): Date {
+  return moscowMonthStart(moscowYearMonth(now));
+}
+
+/**
+ * Начало текущего года по Москве. Та же причина: 1 января с 00:00 до 03:00
+ * «текущим годом» оказывался предыдущий.
+ */
+export function startOfMoscowYear(now: Date = new Date()): Date {
+  return new Date(`${moscowYearMonth(now).slice(0, 4)}-01-01T00:00:00+03:00`);
+}
+
+/**
+ * Полуоткрытый диапазон месяца по Москве: `[1-е 00:00, 1-е следующего 00:00)`.
+ * Год и месяц приходят от человека (выбор периода в отчётах), поэтому берутся
+ * как есть, а московской делается только граница.
+ */
+export function moscowMonthRange(year: number, month: number): { from: Date; to: Date } {
+  const from = moscowMonthStart(`${year}-${String(month).padStart(2, '0')}`);
+  const nextYear = month === 12 ? year + 1 : year;
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const to = moscowMonthStart(`${nextYear}-${String(nextMonth).padStart(2, '0')}`);
+  return { from, to };
+}
+
+/** `ГГГГ-ММ` текущего момента по Москве. */
+function moscowYearMonth(now: Date): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Moscow',
+    year: 'numeric',
+    month: '2-digit',
+  }).format(now);
+}
+
+/** `ГГГГ-ММ` → московская полночь 1-го числа. */
+function moscowMonthStart(yearMonth: string): Date {
+  return new Date(`${yearMonth}-01T00:00:00+03:00`);
+}

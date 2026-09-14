@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { fmtMoney } from '@/lib/format';
+import { startOfMoscowMonth } from '@/lib/dates/calendar';
 import { getSyncLag } from './syncHealth';
 import { getDlq } from './queueStats';
 
@@ -62,7 +63,9 @@ const TRACKED_ACTIONS = [
 
 export async function kpis(prisma: PrismaClient): Promise<KpiTile[]> {
   const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  // Начало месяца — по Москве (`Д-22`, прогон №28): в зоне процесса 1-го числа
+  // до 03:00 «этот месяц» оказывался прошлым.
+  const monthStart = startOfMoscowMonth(now);
   const thirtyDaysAgo = new Date(now.getTime() - 30 * DAY);
   const sixtyDaysAgo = new Date(now.getTime() - 60 * DAY);
 

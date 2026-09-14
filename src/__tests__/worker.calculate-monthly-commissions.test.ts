@@ -133,9 +133,21 @@ describe('calculateMonthlyCommissionsProcessor', () => {
 
     expect(typeof result.periodFrom).toBe('string');
     expect(typeof result.periodTo).toBe('string');
-    // prev month: from should be the 1st of prev month
-    const from = new Date(result.periodFrom);
-    expect(from.getDate()).toBe(1);
+    // Границы периода — МОСКОВСКИЕ (`Д-22`, прогон №28), поэтому и проверяем
+    // их по Москве: в UTC начало месяца приходится на 21:00 предыдущего дня.
+    // Раньше тест смотрел `getDate()` в зоне процесса и закреплял ровно тот
+    // промах, из-за которого оплаты первых трёх часов месяца уезжали в
+    // комиссию предыдущего.
+    const moscowDay = (iso: string) =>
+      new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow', day: '2-digit' }).format(
+        new Date(iso)
+      );
+    expect(moscowDay(result.periodFrom)).toBe('01');
+    // Конец периода включающий — последняя миллисекунда перед началом
+    // текущего месяца, то есть всё ещё прошлый месяц по Москве.
+    expect(new Date(result.periodTo).getTime()).toBeGreaterThan(
+      new Date(result.periodFrom).getTime()
+    );
   });
 
   it('passes calculatedByUserId=null to calculateStatementForPartner', async () => {

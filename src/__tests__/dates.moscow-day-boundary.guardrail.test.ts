@@ -29,12 +29,67 @@ const ROOT = join(__dirname, '..', '..');
 const MIDNIGHT = /setHours\(\s*0\s*,\s*0\s*,\s*0/;
 
 /**
- * Места, где полночь процесса пока осталась, — с причиной у каждого.
- * Список существует, чтобы починка шла хотфиксами по три файла (§9.4), а не
- * одним большим PR. Пуст с 08.09.2026 (хотфикс №21 закрыл «дела на сегодня» и
- * оба дашборда) — и должен таким оставаться.
+ * Вторая форма той же полуночи — сборка даты из частей часового пояса
+ * процесса: `new Date(now.getFullYear(), now.getMonth(), 1)`,
+ * `new Date(year, month - 1, 1)`, `new Date(new Date().getFullYear(), 0, 1)`.
+ * Прежний шаблон её не видел, а промах крупнее: берётся не только час, но и
+ * МЕСЯЦ. Замер на сервере (UTC): 1 сентября в 01:30 по Москве такой код
+ * считает текущим месяцем август и отдаёт границу `01.08` — сводка «за этот
+ * месяц» три часа подряд показывает весь прошлый (прогон №28).
+ *
+ * Формы записи разные, признак один: конструктор `Date` с НЕСКОЛЬКИМИ
+ * аргументами всегда собирает дату в зоне процесса. Поэтому ищем не шаблон
+ * текста, а сам вызов — иначе страж снова будет видеть одну форму из трёх.
+ * `new Date(Date.UTC(...))` законен: там зона задана явно.
  */
-const PENDING: Array<{ file: string; why: string }> = [];
+function buildsLocalDate(src: string): boolean {
+  for (const m of src.matchAll(/new Date\(/g)) {
+    const args = argsOf(src, m.index + m[0].length);
+    if (args === null) continue;
+    if (args.length >= 2 && !/^\s*Date\.UTC\b/.test(args[0]!)) return true;
+  }
+  return false;
+}
+
+/** Аргументы вызова верхнего уровня начиная с позиции после `(`. */
+function argsOf(src: string, from: number): string[] | null {
+  const args: string[] = [];
+  let depth = 0;
+  let current = '';
+  for (let i = from; i < src.length; i += 1) {
+    const ch = src[i]!;
+    if (ch === '(' || ch === '[' || ch === '{') depth += 1;
+    else if (ch === ')' && depth === 0) {
+      args.push(current);
+      return args;
+    } else if (ch === ')' || ch === ']' || ch === '}') depth -= 1;
+    else if (ch === ',' && depth === 0) {
+      args.push(current);
+      current = '';
+      continue;
+    }
+    current += ch;
+  }
+  // Скобка не закрылась — разбирать нечего, но и молчать нельзя:
+  // вызывающий просто не считает это место нарушением.
+  /* v8 ignore next -- недостижимо на компилируемом исходнике: скобки в нём сбалансированы */
+  return null;
+}
+
+const PENDING: Array<{ file: string; why: string }> = [
+  {
+    file: 'src/lib/services/leader/analytics.ts',
+    why: 'Диапазон месяца в отчётах руководителя: год и месяц приходят от человека, а московской надо сделать границу. Правка простая, но §9.4 не даёт больше трёх файлов бизнес-логики на хотфикс — идёт следующим хотфиксом этого же прогона вместе с реестром партнёров и сеткой календаря.',
+  },
+  {
+    file: 'src/lib/services/admin/partners.ts',
+    why: 'Начало года в реестре партнёров: `new Date(new Date().getFullYear(), 0, 1)`. 1 января с 00:00 до 03:00 по Москве «текущим годом» оказывается предыдущий, и годовые суммы партнёров считаются за чужой год. Идёт следующим хотфиксом прогона (§9.4, лимит трёх файлов).',
+  },
+  {
+    file: 'src/lib/calendar/month.ts',
+    why: 'Сетка месяца считается арифметикой процесса и служит сразу двум местам: серверной выборке событий и клиентскому рендеру. Перевод на Москву меняет и границы выборки, и ключ группировки по дню — это правка поведения календаря, а не замена вызова, поэтому идёт следующим хотфиксом прогона (§9.4: не больше трёх файлов бизнес-логики на хотфикс).',
+  },
+];
 
 /**
  * Обход по КАТАЛОГАМ, а не по шаблону `src/lib/**​/*.ts`: в pathspec гита
@@ -83,21 +138,34 @@ describe('даты: начало суток — по Москве (`Д-22`)', ()
       'src/lib/services/manager/myDay.ts',
       'src/lib/services/organization/dashboard.ts',
       'src/lib/services/partner/dashboard.ts',
+      // Прогон №28: границы МЕСЯЦА и года — та же ошибка, крупнее.
+      'src/lib/services/admin/dashboard.ts',
+      'src/worker/processors/calculate-monthly-commissions.ts',
     ]) {
       // Комментарии не в счёт НИ ДЛЯ ОДНОЙ из двух проверок (хотфикс №47):
       // в пояснениях этих файлов встречаются и `setHours`, и сам
       // `startOfMoscowDay` — мутация «убрать вызов, оставить пояснение»
       // проходила зелёной.
       const src = readSource(join(ROOT, f));
-      expect(src, `${f}: граница суток не из startOfMoscowDay`).toContain('startOfMoscowDay(');
+      expect(src, `${f}: граница суток не из московского помощника`).toMatch(
+        /startOfMoscow(Day|Month|Year)\(|moscowMonthRange\(/
+      );
       expect(src, `${f}: вернулась полночь процесса`).not.toMatch(MIDNIGHT);
+      expect(buildsLocalDate(src), `${f}: вернулась полночь процесса (сборка даты из частей)`).toBe(
+        false
+      );
     }
   });
 
   it('новых мест с полуночью процесса не появилось', () => {
     const pending = new Set(PENDING.map((e) => e.file));
     const offenders = files
-      .filter((f) => MIDNIGHT.test(stripComments(readFileSync(join(ROOT, f), 'utf8'))))
+      .filter((f) => {
+        const src = stripComments(readFileSync(join(ROOT, f), 'utf8'));
+        // Обе формы одной ошибки: и `setHours(0,0,0,0)`, и сборка даты из
+        // частей зоны процесса. Вторую прежний шаблон пропускал (прогон №28).
+        return MIDNIGHT.test(src) || buildsLocalDate(src);
+      })
       .map(rel)
       .filter((f) => !pending.has(f));
 
@@ -113,7 +181,10 @@ describe('даты: начало суток — по Москве (`Д-22`)', ()
   it('очередь не растёт молча: у каждого места записана причина и оно ещё не починено', () => {
     for (const e of PENDING) {
       const src = stripComments(readFileSync(join(ROOT, e.file), 'utf8'));
-      expect(MIDNIGHT.test(src), `${e.file}: уже починено — убери из PENDING`).toBe(true);
+      expect(
+        MIDNIGHT.test(src) || buildsLocalDate(src),
+        `${e.file}: уже починено — убери из PENDING`
+      ).toBe(true);
       expect(e.why.length, `${e.file}: причина не записана`).toBeGreaterThan(40);
     }
   });

@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { parseIsoCalendarDate, parseRuCalendarDate, startOfMoscowDay } from '@/lib/dates/calendar';
+import {
+  moscowMonthRange,
+  parseIsoCalendarDate,
+  parseRuCalendarDate,
+  startOfMoscowDay,
+  startOfMoscowMonth,
+  startOfMoscowYear,
+} from '@/lib/dates/calendar';
 
 /**
  * Разбор календарной даты (общий помощник).
@@ -91,5 +98,71 @@ describe('startOfMoscowDay (`Д-22`)', () => {
     const asUtc = new Date('2026-09-07T22:00:00Z');
     const asMoscow = new Date('2026-09-08T01:00:00+03:00');
     expect(startOfMoscowDay(asUtc).getTime()).toBe(startOfMoscowDay(asMoscow).getTime());
+  });
+});
+
+describe('startOfMoscowMonth (`Д-22`, прогон №28)', () => {
+  it('в 01:30 МСК 1 сентября текущий месяц — СЕНТЯБРЬ, а не август', () => {
+    // Это и есть дефект: сборка даты из частей зоны процесса (сервер в UTC)
+    // отдавала границу 01.08, и сводка «за этот месяц» три часа показывала
+    // весь прошлый месяц целиком.
+    const nightOnFirst = new Date('2026-09-01T01:30:00+03:00');
+    expect(startOfMoscowMonth(nightOnFirst).toISOString()).toBe('2026-08-31T21:00:00.000Z');
+  });
+
+  it('в 23:59 МСК последнего дня месяц ещё не сменился', () => {
+    const lastEvening = new Date('2026-09-30T23:59:00+03:00');
+    expect(startOfMoscowMonth(lastEvening).toISOString()).toBe('2026-08-31T21:00:00.000Z');
+  });
+
+  it('днём в середине месяца отдаёт начало того же месяца', () => {
+    expect(startOfMoscowMonth(new Date('2026-09-15T12:00:00+03:00')).toISOString()).toBe(
+      '2026-08-31T21:00:00.000Z'
+    );
+  });
+
+  it('без аргумента берёт текущий момент', () => {
+    const now = startOfMoscowMonth();
+    expect(now.getTime()).toBeLessThanOrEqual(Date.now());
+    expect(Number.isNaN(now.getTime())).toBe(false);
+  });
+});
+
+describe('startOfMoscowYear (`Д-22`, прогон №28)', () => {
+  it('в 01:30 МСК 1 января текущий год — новый, а не прошлый', () => {
+    const nightOnNewYear = new Date('2026-01-01T01:30:00+03:00');
+    expect(startOfMoscowYear(nightOnNewYear).toISOString()).toBe('2025-12-31T21:00:00.000Z');
+  });
+
+  it('в 23:59 МСК 31 декабря год ещё прежний', () => {
+    expect(startOfMoscowYear(new Date('2026-12-31T23:59:00+03:00')).toISOString()).toBe(
+      '2025-12-31T21:00:00.000Z'
+    );
+  });
+
+  it('без аргумента берёт текущий момент', () => {
+    expect(Number.isNaN(startOfMoscowYear().getTime())).toBe(false);
+  });
+});
+
+describe('moscowMonthRange (`Д-22`, прогон №28)', () => {
+  it('обычный месяц: от московской полуночи 1-го до 1-го следующего', () => {
+    const { from, to } = moscowMonthRange(2026, 9);
+    expect(from.toISOString()).toBe('2026-08-31T21:00:00.000Z');
+    expect(to.toISOString()).toBe('2026-09-30T21:00:00.000Z');
+  });
+
+  it('декабрь переводит год вперёд, а не в тринадцатый месяц', () => {
+    const { from, to } = moscowMonthRange(2026, 12);
+    expect(from.toISOString()).toBe('2026-11-30T21:00:00.000Z');
+    expect(to.toISOString()).toBe('2026-12-31T21:00:00.000Z');
+  });
+
+  it('январь: начало года по Москве, а не по UTC', () => {
+    expect(moscowMonthRange(2026, 1).from.toISOString()).toBe('2025-12-31T21:00:00.000Z');
+  });
+
+  it('однозначные месяцы дополняются нулём — иначе дата не разберётся', () => {
+    expect(Number.isNaN(moscowMonthRange(2026, 3).from.getTime())).toBe(false);
   });
 });

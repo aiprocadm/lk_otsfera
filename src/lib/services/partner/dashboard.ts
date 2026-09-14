@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client';
 import type { PrismaClient, EnrollmentStatus } from '@prisma/client';
 import { fmtMoney } from '@/lib/format';
 import { EXPIRING_WITHIN_DAYS } from '@/lib/services/training/certificates';
-import { startOfMoscowDay } from '@/lib/dates/calendar';
+import { startOfMoscowDay, startOfMoscowMonth } from '@/lib/dates/calendar';
 
 export type DashboardScope = {
   partnerId: string;
@@ -44,12 +44,19 @@ function orgWhereForScope(scope: DashboardScope) {
   return base;
 }
 
+// Границы месяца — по Москве (`Д-22`, прогон №28). В часовом поясе процесса
+// (сервер в UTC) 1-го числа с 00:00 до 03:00 по Москве «этот месяц»
+// оказывался прошлым, и сводка партнёра три часа показывала чужой период.
 function startOfThisMonth(now = new Date()): Date {
-  return new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+  return startOfMoscowMonth(now);
 }
 
 function startOfNextMonth(now = new Date()): Date {
-  return new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, 0);
+  const thisMonth = startOfMoscowMonth(now);
+  // Плюс 40 дней от начала месяца — заведомо внутри следующего, а его начало
+  // снова берём по Москве: арифметика «месяц + 1» в зоне процесса вернула бы
+  // ту же ошибку.
+  return startOfMoscowMonth(new Date(thisMonth.getTime() + 40 * 24 * 60 * 60 * 1000));
 }
 
 export async function kpis(prisma: PrismaClient, scope: DashboardScope): Promise<Kpis> {
