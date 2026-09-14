@@ -7,15 +7,21 @@ import { notifyPartnerUsers } from '@/lib/notifications/partner';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
 import { fmtMoney } from '@/lib/format';
 import type { SyncJobPayload } from '@/lib/jobs/types';
+import { startOfMoscowMonth } from '@/lib/dates/calendar';
 import { log } from '@/lib/logging';
 
 /** Russian month-year label, e.g. "май 2026" (no «г.» suffix). */
 function formatPeriod(periodFrom: Date): string {
-  const month = new Intl.DateTimeFormat('ru-RU', {
+  // И месяц, И год — по Москве. Начало месяца теперь московское (`2025-12-31
+  // 21:00Z` для января 2026), и `getFullYear()` в часовом поясе процесса
+  // подписал бы такой отчёт «январь 2025».
+  return new Intl.DateTimeFormat('ru-RU', {
     month: 'long',
+    year: 'numeric',
     timeZone: 'Europe/Moscow',
-  }).format(periodFrom);
-  return `${month} ${periodFrom.getFullYear()}`;
+  })
+    .format(periodFrom)
+    .replace(/\s*г\.$/u, '');
 }
 
 export type CalculateMonthlyCommissionsResult = {
@@ -26,10 +32,20 @@ export type CalculateMonthlyCommissionsResult = {
   errors: Array<{ partnerId: string; error: string }>;
 };
 
+/**
+ * Прошлый месяц по МОСКВЕ (`Д-22`, прогон №28).
+ *
+ * Раньше границы считались в часовом поясе процесса (сервер в UTC), и оплаты,
+ * прошедшие с 00:00 до 03:00 по Москве 1-го числа, попадали в комиссию
+ * предыдущего месяца. Это деньги партнёров, поэтому граница обязана совпадать
+ * с той, что человек видит на экране.
+ */
 function prevMonthRange(): { periodFrom: Date; periodTo: Date } {
-  const now = new Date();
-  const periodFrom = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const periodTo = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+  const thisMonth = startOfMoscowMonth();
+  const periodFrom = startOfMoscowMonth(new Date(thisMonth.getTime() - 1));
+  // Конец периода включающий (`lte` в выборках оплат) — последняя миллисекунда
+  // перед началом текущего месяца.
+  const periodTo = new Date(thisMonth.getTime() - 1);
   return { periodFrom, periodTo };
 }
 
