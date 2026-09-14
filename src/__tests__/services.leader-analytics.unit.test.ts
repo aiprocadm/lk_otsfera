@@ -49,16 +49,20 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('monthRange', () => {
-  it('returns [1st 00:00, next month 1st) for a normal month', () => {
+  // Границы — МОСКОВСКИЕ (`Д-22`, прогон №28): 1-е число 00:00 по Москве это
+  // 21:00 предыдущего дня по Гринвичу. Прежние ожидания были записаны в зоне
+  // процесса и закрепляли промах, из-за которого сделки, закрытые ночью 1-го
+  // числа, уезжали в отчёт предыдущего месяца.
+  it('returns [1st 00:00 MSK, next month 1st) for a normal month', () => {
     const { from, to } = monthRange(2026, 7);
-    expect(from).toEqual(new Date(2026, 6, 1, 0, 0, 0, 0));
-    expect(to).toEqual(new Date(2026, 7, 1, 0, 0, 0, 0));
+    expect(from.toISOString()).toBe('2026-06-30T21:00:00.000Z');
+    expect(to.toISOString()).toBe('2026-07-31T21:00:00.000Z');
   });
 
   it('rolls December over into January of the next year', () => {
     const { from, to } = monthRange(2026, 12);
-    expect(from).toEqual(new Date(2026, 11, 1, 0, 0, 0, 0));
-    expect(to).toEqual(new Date(2027, 0, 1, 0, 0, 0, 0));
+    expect(from.toISOString()).toBe('2026-11-30T21:00:00.000Z');
+    expect(to.toISOString()).toBe('2026-12-31T21:00:00.000Z');
   });
 
   it('[from,to) boundary: `to` itself is excluded, the instant before is included', () => {

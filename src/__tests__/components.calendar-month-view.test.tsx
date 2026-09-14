@@ -221,9 +221,13 @@ describe('CalendarMonthView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Новое событие 2026-08-15' }));
     const props = eventDialogSpy.mock.calls[eventDialogSpy.mock.calls.length - 1][0];
     expect(props.target).toBeNull();
-    expect(props.createDate.getFullYear()).toBe(2026);
-    expect(props.createDate.getMonth()).toBe(7);
-    expect(props.createDate.getDate()).toBe(15);
+    // Дата клетки — МОСКОВСКАЯ полночь (`Д-22`, прогон №28), то есть 21:00
+    // предыдущего дня по Гринвичу. Проверяем её по Москве: прежняя проверка
+    // смотрела `getDate()` в зоне процесса и закрепляла ровно тот промах,
+    // из-за которого встреча вставала во вчерашнюю клетку.
+    expect(
+      new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow' }).format(props.createDate)
+    ).toBe('2026-08-15');
   });
 
   it('the dialog stub onClose closes it without refreshing', () => {

@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
 import type { AdminUserErrorCode } from '@/lib/services/admin/users';
 import { recordAudit } from '@/lib/auth/audit';
+import { startOfMoscowYear } from '@/lib/dates/calendar';
 import { createInviteToken } from '@/lib/auth/passwordReset';
 
 export type AdminPartnerErrorCode =
@@ -41,7 +42,10 @@ export async function listPartners(
 ): Promise<{ rows: PartnerRow[]; total: number }> {
   const take = Math.min(Math.max(filters.take ?? 50, 1), 100);
   const skip = Math.max(filters.skip ?? 0, 0);
-  const yearStart = new Date(new Date().getFullYear(), 0, 1);
+  // Начало года — по Москве (`Д-22`, прогон №28): 1 января с 00:00 до 03:00
+  // «текущим годом» оказывался предыдущий, и годовая сумма партнёра считалась
+  // за чужой год.
+  const yearStart = startOfMoscowYear();
 
   const where: Prisma.PartnerWhereInput = {};
   if (filters.active !== undefined) where.isActive = filters.active;
@@ -126,7 +130,10 @@ export async function getPartner(prisma: PrismaClient, id: string): Promise<Part
   });
   if (!p) return null;
 
-  const yearStart = new Date(new Date().getFullYear(), 0, 1);
+  // Начало года — по Москве (`Д-22`, прогон №28): 1 января с 00:00 до 03:00
+  // «текущим годом» оказывался предыдущий, и годовая сумма партнёра считалась
+  // за чужой год.
+  const yearStart = startOfMoscowYear();
   const [activeOrgCount, paidAgg] = await Promise.all([
     prisma.organization.count({ where: { partnerId: p.id } }),
     prisma.commissionStatement.aggregate({
