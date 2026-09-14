@@ -2479,11 +2479,26 @@ model MessengerMessage {
   /// Ключ провайдера (тот же, что у `InboundMessage.externalId`) — для сверки;
   /// идемпотентность держит `inboundMessageId`, поэтому уникальности здесь нет.
   externalId       String?
-  /// sent | failed — у исходящих (неудачная отправка видна в истории).
+  /// sent | failed | pending | sending — у исходящих. `pending` — файл ещё
+  /// проверяется антивирусом, `sending` — проверен и уже отдан транспорту
+  /// (захват отправки, чтобы повтор задачи не отправил файл дважды, У-204).
   deliveryStatus   String          @default("sent")
+  /// Вложение сообщения (У-204). Файл лежит в хранилище: исходящий — по ключу
+  /// `messengers/<dialogId>/<uuid>-<имя>`, входящий — `messengers/inbound/…`
+  /// (диалог в момент приёма ещё не создан). Строки `Document` у файла нет —
+  /// это переписка, а не документ заказа.
+  attachmentPath   String?
+  attachmentName   String?
+  attachmentMime   String?
+  attachmentSize   Int?
+  /// none | pending | clean | infected | error — статус проверки вложения.
+  /// Наружу (и клиенту, и в транспорт) уходит только `clean`.
+  scanStatus       String          @default("none")
+  scanReason       String?
   createdAt        DateTime        @default(now())
 
   @@index([dialogId, createdAt])
+  @@index([dialogId, scanStatus])
 }
 
 /// M1 (спека 2026-07-14): внутренняя заметка по сделке (staff-only). Отдельная

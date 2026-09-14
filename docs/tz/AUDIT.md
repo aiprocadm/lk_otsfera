@@ -173,7 +173,7 @@
 [#589](https://github.com/aiprocadm/lk_otsfera/pull/589) (карточка организации)
 закрыл `У-182`, `У-183`, `У-184`. Остаток этапа 1 — PR-3b (контакт в лиде,
 заказе и сделке — часть `У-180` «из всех точек») и PR-4 (флаг, close-out).
-**Сводка: 206 × `✅`, 64 × `⏳`, 0 × `❌`.**
+**Сводка: 207 × `✅`, 63 × `⏳`, 0 × `❌`.**
 
 Состояние на **05.09.2026** — программа ТЗ кабинетов, документов и
 интеграций **завершена** (этапы 0–9 закрыты, close-out — [2026-09-05-tz-cabinets-program-DONE.md](2026-09-05-tz-cabinets-program-DONE.md)); история по этапам: 99 строк `У-78`…`У-176`; этап 0 (`У-78`…`У-82`) выполнен PR ввода
@@ -183,8 +183,8 @@
 
 | Вердикт | Кол-во |
 |---|---|
-| `✅` соответствует | **206** |
-| `⏳` запланировано | **64** |
+| `✅` соответствует | **207** |
+| `⏳` запланировано | **63** |
 | `❌` расхождение | 0 |
 | `⚠` вне объёма | 1 (см. раздел ниже) — расхождение в тексте ТЗ понятности (чинить нечего); карточка организации у администратора мимо реестра вкладок закрыта 05.09.2026 (этап 9, PR-1) |
 
@@ -257,7 +257,7 @@
 
 | Требование | Что проверять (наблюдаемое поведение) | Якорь | Вердикт | Сверено |
 |---|---|---|---|---|
-| `У-204` | Фото из Telegram появляется в диалоге после `clean`; PDF уходит клиенту через `POST …/attachment`; `infected` → 410; лимит канала с русской подсказкой | [07_messenger_integrations.md](../../docs/specs/07_messenger_integrations.md) | ⏳ этап 3 | — |
+| `У-204` | Фото из Telegram появляется в диалоге после `clean`; PDF уходит клиенту через `POST …/attachment`; `infected` → 410; лимит канала с русской подсказкой | [attachment.ts](../../src/lib/services/messengers/attachment.ts) (`sendDialogAttachment` — сообщение `pending` + очередь, отправки здесь нет; `getDialogAttachmentUrl` — три проверки и коды 410/409/404; `fetchInboundAttachment` — скачивание с двойной проверкой размера; `deliverScannedAttachment` — отправка ТОЛЬКО после `clean`, идемпотентно); девятая цель `messenger_attachment` в [scan-document.ts](../../src/worker/processors/scan-document.ts) (вызов доставки стоит в конце `persistResult`, чтобы ни одна ветка не осталась без отправки); `sendTelegramDocument`/`getTelegramFileUrl`; разбор файла в трёх вебхуках; роуты `api/manager/messengers/[id]/attachment` (POST) и `…/attachment/[messageId]` (GET → 302); стражи `messengers.no-send-before-clean` и `messengers.attachment-idor` (оба проверены мутацией) | ✅ соответствует, с записанным ограничением (PR-2 [#609](https://github.com/aiprocadm/lk_otsfera/pull/609)) | 14.09.2026 · **исходящие файлы — только Telegram**: контракт загрузки файла у MAX и агрегатора WhatsApp не подтверждён документацией, отправка «наугад» дала бы запись «отправлено» при неполученном файле (вопрос `В-3-10`). Входящие принимаются во всех трёх каналах. Попутно закрыто молчаливое исчезновение: апдейт с одним фото/документом не подходил ни под одну ветку вебхука и не попадал никуда |
 | `У-205` | Ответ на письмо из инбокса и диалога (`In-Reply-To`, `Reply-To`); ответ клиента с того же адреса — в тот же диалог; `email_unsupported` не существует (grep) | [07_messenger_integrations.md](../../docs/specs/07_messenger_integrations.md) | ⏳ этап 3 | — |
 | `У-206` | Первый ответивший становится ответственным; «Взять себе»/«Назначить»; фильтр «мои»; `messenger_message` уходит ответственному | `assigneeId`/`assignedAt`/`assignedById` у [MessengerDialog](../../prisma/schema.prisma); [assign.ts](../../src/lib/services/messengers/assign.ts) (`assignDialog` со скоупом и проверкой сотрудника, `takeDialog`, `claimDialogOnFirstReply` с условием в `where`), вызов из [send.ts](../../src/lib/services/messengers/send.ts) после успешной отправки; фильтр `assignee` (`mine`/`unassigned`/`all`) в [list.ts](../../src/lib/services/messengers/list.ts) и панель [dialog-assignee-panel](../../src/components/manager/messengers/dialog-assignee-panel.tsx); таргетинг в [manager.ts](../../src/lib/notifications/manager.ts) — ответственному, **с откатом на менеджеров организации**, если его учётка отключена; аудит `dialog_assignee_changed` | ✅ соответствует (PR-1 [#608](https://github.com/aiprocadm/lk_otsfera/pull/608)) | 14.09.2026 · назначение на ничей диалог забирает его в компанию назначившего — иначе общая очередь показывала бы имя и почту сотрудника чужой компании |
 | `У-207` | Статусы `open/waiting_staff/waiting_client/closed` переключаются автоматически; диалог старше SLA подсвечен и виден руководителю в эскалации | Автомат [dialogStatus.ts](../../src/lib/services/messengers/dialogStatus.ts) (переходы, `waitingSinceFor`, `dialogOverdueLevel`) — зовётся из [appendInbound.ts](../../src/lib/services/messengers/appendInbound.ts), [recordOutbound.ts](../../src/lib/services/messengers/recordOutbound.ts) и [status.ts](../../src/lib/services/messengers/status.ts); руками ставятся только `open`/`closed`; подсветка в списке и карточке ([dialog-status-badge](../../src/components/manager/messengers/dialog-status-badge.tsx)) по `Company.slaResponseHours`/`slaWarningHours`; источник `dialog` в [sla-escalation.ts](../../src/worker/processors/sla-escalation.ts) со ссылкой в переписку и своим текстом «Нет ответа клиенту»; страж [messengers.dialog-status-machine](../../src/__tests__/messengers.dialog-status-machine.guardrail.test.ts) | ✅ соответствует (PR-1 [#608](https://github.com/aiprocadm/lk_otsfera/pull/608)) | 14.09.2026 · ключ дедупа эскалации — «диалог + начало ЭТОГО ожидания», иначе однажды просроченный диалог больше никогда не позвал бы руководителя; бэкфилл статусы не поднимает; заметка статус не двигает |

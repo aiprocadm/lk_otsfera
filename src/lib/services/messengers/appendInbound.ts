@@ -1,5 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
-import { bestEffort } from '@/lib/logging';
+import { bestEffort, log } from '@/lib/logging';
+import { getQueue } from '@/lib/jobs/queues';
+import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import { notifyManagersMessengerMessage } from '@/lib/notifications/manager';
 import { MESSENGER_LABELS, type MessengerChannel } from './channels';
 import { previewOf, upsertDialog } from './dialog';
@@ -25,6 +27,13 @@ export type AppendInboundArgs = {
   sentAt?: Date | null | undefined;
   /** null — отправитель не распознан: диалог ждёт привязки в общей очереди. */
   binding: DialogBinding | null;
+  /**
+   * Файл, присланный клиентом, — уже скачанный и положенный в хранилище
+   * (`У-204`). Его проверка идёт своей задачей: статус нужен и в диалоге, а не
+   * только во «Входящих», иначе лента показывала бы ссылку на непроверенный
+   * файл.
+   */
+  attachment?: { path: string; name: string; mimeType: string; size: number } | null | undefined;
   /**
    * Считать ли сообщение непрочитанным. Бэкфилл старых писем передаёт `false`:
    * они лежали во «Входящих» неделями, и сотни красных бейджей в день запуска —
@@ -144,9 +153,34 @@ export async function appendInboundToDialog(
       inboundMessageId: args.inboundMessageId,
       externalId: args.externalId,
       createdAt: at,
+      ...(args.attachment
+        ? {
+            attachmentPath: args.attachment.path,
+            attachmentName: args.attachment.name,
+            attachmentMime: args.attachment.mimeType,
+            attachmentSize: args.attachment.size,
+            scanStatus: 'pending',
+          }
+        : {}),
     },
     select: { id: true },
   });
+
+  // У-204: проверка вложения. Задача своя, отдельно от `inbound_attachment`:
+  // статусы лежат в разных таблицах, и общий скан оставил бы ленту диалога
+  // вечно в «проверяется». Best-effort, как и везде: сбой постановки не
+  // отменяет уже записанное сообщение — файл останется `pending`.
+  if (args.attachment) {
+    try {
+      const payload: ScanDocumentPayload = { kind: 'messenger_attachment', id: message.id };
+      await getQueue('docs.scanDocument').add('scan', payload);
+    } catch (err) {
+      log.warn('[messengers/appendInbound] scan enqueue failed', {
+        messageId: message.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
 
   // Р-М-9 + У-206: о входящем узнаёт ответственный за диалог, а если его нет —
   // менеджеры организации. Диалог без того и другого никого не дёргает: он

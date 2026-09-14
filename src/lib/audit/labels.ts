@@ -122,6 +122,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   messenger_dialog_bound: 'Привязка диалога в мессенджере',
   messenger_dialog_closed: 'Закрытие диалога в мессенджере',
   dialog_assignee_changed: 'Смена ответственного за диалог',
+  messenger_attachment_sent: 'Отправка файла в диалоге',
   messenger_dialog_reopened: 'Возобновление диалога в мессенджере',
   messenger_dialog_started: 'Начало диалога в мессенджере',
   messenger_message_sent: 'Сообщение клиенту в мессенджер',

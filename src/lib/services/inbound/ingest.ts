@@ -18,6 +18,8 @@ export type InboundDto = {
   attachmentPath?: string | undefined;
   attachmentName?: string | undefined;
   attachmentMime?: string | undefined;
+  /** Размер скачанного файла — для подписи в ленте диалога (`У-204`). */
+  attachmentSize?: number | undefined;
   /**
    * Этап 9: отправитель уже известен (кабинет — сессия клиента), резолв по
    * каналу не нужен. Статус остаётся `unresolved`: критерий Intake — именно
@@ -154,6 +156,17 @@ export async function ingestInboundMessage(
         peerDisplay: dto.senderDisplay,
         body: dto.body,
         externalId: dto.externalId,
+        // У-204: файл клиента виден и в ленте диалога, не только во «Входящих».
+        ...(dto.attachmentPath && dto.attachmentName && dto.attachmentMime
+          ? {
+              attachment: {
+                path: dto.attachmentPath,
+                name: dto.attachmentName,
+                mimeType: dto.attachmentMime,
+                size: dto.attachmentSize ?? 0,
+              },
+            }
+          : {}),
         binding:
           resolved.matchType === 'exact'
             ? {

@@ -186,6 +186,7 @@ export const AUDIT_ACTIONS = [
   'messenger_dialog_bound',
   'messenger_dialog_closed',
   'dialog_assignee_changed',
+  'messenger_attachment_sent',
   'messenger_dialog_reopened',
   'messenger_dialog_started',
   'messenger_message_sent',

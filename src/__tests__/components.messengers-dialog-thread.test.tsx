@@ -16,6 +16,7 @@ const messages: DialogMessageView[] = [
     createdAt: at,
     deliveryStatus: 'sent',
     authorName: null,
+    attachment: null,
   },
   {
     id: 'm2',
@@ -24,6 +25,7 @@ const messages: DialogMessageView[] = [
     createdAt: at,
     deliveryStatus: 'sent',
     authorName: 'Мария',
+    attachment: null,
   },
   {
     id: 'm3',
@@ -32,18 +34,19 @@ const messages: DialogMessageView[] = [
     createdAt: at,
     deliveryStatus: 'failed',
     authorName: null,
+    attachment: null,
   },
 ];
 
 describe('DialogThread', () => {
   it('пустая лента объясняет, что делать', () => {
-    const html = renderToString(<DialogThread messages={[]} hiddenCount={0} />);
+    const html = renderToString(<DialogThread dialogId="d1" messages={[]} hiddenCount={0} />);
     expect(html).toContain('Напишите первым');
     expect(html).not.toContain('<ol');
   });
 
   it('входящие слева, исходящие справа с автором; неудачная отправка помечена', () => {
-    const html = renderToString(<DialogThread messages={messages} hiddenCount={0} />);
+    const html = renderToString(<DialogThread dialogId="d1" messages={messages} hiddenCount={0} />);
     expect(html).toContain('justify-start');
     expect(html).toContain('justify-end');
     expect(html).toContain('здравствуйте');
@@ -56,10 +59,9 @@ describe('DialogThread', () => {
 
   it('пометка о скрытых старых сообщениях', () => {
     // renderToString разделяет соседние текстовые узлы комментариями — снимаем их.
-    const html = renderToString(<DialogThread messages={messages} hiddenCount={12} />).replace(
-      /<!-- -->/g,
-      ''
-    );
+    const html = renderToString(
+      <DialogThread dialogId="d1" messages={messages} hiddenCount={12} />
+    ).replace(/<!-- -->/g, '');
     expect(html).toContain('Показаны последние 3 сообщений, ещё 12 старше.');
   });
 });

@@ -48,7 +48,10 @@ export type ScanDocumentTarget =
   | 'chat_attachment'
   | 'client_request_attachment'
   // Этап 5 (У-138): логотип/подпись/печать компании — id строки CompanyBrandingAsset.
-  | 'company_branding';
+  | 'company_branding'
+  // Этап 3 (У-204): файл в переписке мессенджера — id строки MessengerMessage.
+  // У исходящего проверка ещё и ВОРОТА: пока не `clean`, файл клиенту не уходит.
+  | 'messenger_attachment';
 
 export type ScanDocumentPayload = {
   kind: ScanDocumentTarget;
