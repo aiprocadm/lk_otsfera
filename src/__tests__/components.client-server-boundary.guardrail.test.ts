@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
+import { readSource } from './helpers/source';
 
 /**
  * Страж границы «клиент ↔ сервер» (спека мессенджеров 2026-09-12; сборка
@@ -18,6 +19,13 @@ import { dirname, join, relative, resolve } from 'node:path';
  * `@/`-алиасам и относительным путям и падает, если по пути встречается
  * модуль с `node:`-встроенным, `server-only` или клиентом базы. Проверено
  * мутацией: на коде #581 падает на `new-dialog-button.tsx`.
+ *
+ * Исходники читаются `readSource` (комментарии сняты): страж судит о файле по
+ * его тексту, а закомментированная строка в бандл не попадает. Иначе пример
+ * `import 'server-only'` в пояснении над кодом объявлял бы чистый модуль
+ * серверным, а закомментированный импорт обрывал бы обход графа там, где
+ * никакой границы нет — оба раза страж говорил бы не про тот код, который
+ * реально соберёт `next build`.
  */
 const SRC = join(process.cwd(), 'src');
 const COMPONENTS = join(SRC, 'components');
@@ -63,7 +71,7 @@ const sourceCache = new Map<string, string>();
 function sourceOf(file: string): string {
   let src = sourceCache.get(file);
   if (src === undefined) {
-    src = readFileSync(file, 'utf8');
+    src = readSource(file);
     sourceCache.set(file, src);
   }
   return src;

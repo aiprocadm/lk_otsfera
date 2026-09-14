@@ -25,7 +25,15 @@ import { errorMessageRu } from '@/lib/errors/messages';
  * Поэтому текст должен существовать заранее.
  */
 const SRC = join(__dirname, '..');
-const SERVICES = join(SRC, 'lib', 'services');
+/**
+ * Где живут коды ошибок. Сервисы — по контракту §3, но такие же коды
+ * возвращают и server actions: их «не получилось» приходит на экран тем же
+ * помощником `useFormAction` (`errorMap?.[code] ?? errorMessageRu(code,
+ * 'Ошибка: <код>')`), которым пользуются десятки форм. Раньше страж смотрел
+ * только сервисы — и код, заведённый прямо в действии, печатался человеку как
+ * `Ошибка: send_failed` (прогон №28).
+ */
+const CODE_ROOTS = [join(SRC, 'lib', 'services'), join(SRC, 'server-actions')];
 
 /** Пары «код: 'русский текст'» из локальных карт экранов. */
 function localTranslations(): Set<string> {
@@ -52,7 +60,7 @@ function localTranslations(): Set<string> {
 /** Коды из union-типов `error:` в сервисах (§3 — стабильные строки). */
 function serviceErrorCodes(): Map<string, string> {
   const found = new Map<string, string>();
-  const stack = [SERVICES];
+  const stack = [...CODE_ROOTS];
   while (stack.length > 0) {
     const dir = stack.pop() as string;
     for (const name of readdirSync(dir)) {
@@ -66,7 +74,7 @@ function serviceErrorCodes(): Map<string, string> {
       for (const m of src.matchAll(/error:\s*((?:'[a-z0-9_]+'\s*\|?\s*)+)/g)) {
         for (const c of (m[1] as string).matchAll(/'([a-z0-9_]+)'/g)) {
           const code = c[1] as string;
-          if (!found.has(code)) found.set(code, relative(SERVICES, p));
+          if (!found.has(code)) found.set(code, relative(SRC, p));
         }
       }
     }
@@ -79,6 +87,9 @@ describe('у каждого кода ошибки есть русский тек
 
   it('коды вообще находятся — разбор не сломан', () => {
     expect(codes.size).toBeGreaterThan(100);
+    // Действия — вторая половина территории: без них страж молчал о кодах,
+    // которые человек видит чаще всего (формы).
+    expect([...codes.values()].some((f) => f.startsWith('server-actions'))).toBe(true);
     expect(codes.has('forbidden')).toBe(true);
   });
 

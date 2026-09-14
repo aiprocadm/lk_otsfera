@@ -32,6 +32,14 @@ describe('У-128: свой текст доходит до письма', () => {
       'companyId?: string | null | undefined;'
     );
     expect(read('lib/notifications/org.ts')).toContain('companyId: org.companyId');
+    // Последнее звено: компания доезжает до САМОГО поиска шаблона. Раньше
+    // страж проверял только первые два звена, и подмена аргумента на `null`
+    // проходила зелёной (прогон №28) — тексты всех компаний молча переставали
+    // применяться, а экран настроек продолжал показывать сохранённый текст.
+    expect(
+      read('lib/notifications/channels/email.ts'),
+      'поиск шаблона не получает компанию — свой текст не найдётся'
+    ).toMatch(/getTemplateOverride\(\s*prisma\s*,\s*key\s*,\s*payload\.companyId\s*\)/);
   });
 });
 

@@ -34,7 +34,11 @@ describe('import/ has no second writer (all writes via oneCSync writers)', () =>
     for (const f of files) {
       if (ALLOWED.has(f)) continue;
       const src = readFileSync(join(dir, f), 'utf8');
-      if (/\.(order|payment|organization|document)\.(create|update|upsert)\b/.test(src))
+      // `\b` после `update` пропускал пакетные записи: в `updateMany` дальше
+      // идёт буква, и совпадения не было (прогон №28). А пакетная запись
+      // опаснее одиночной — `order.updateMany` меняет статус сразу у пачки
+      // заказов мимо истории и счётчиков.
+      if (/\.(order|payment|organization|document)\.(create|update|upsert)(Many)?\b/.test(src))
         offenders.push(f);
     }
     expect(offenders).toEqual([]);
