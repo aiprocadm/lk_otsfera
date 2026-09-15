@@ -16,6 +16,12 @@ vi.mock('@/lib/config/integrationSettings', () => ({ getSettingValue }));
 const { isRateLimited } = vi.hoisted(() => ({ isRateLimited: vi.fn() }));
 vi.mock('@/lib/rateLimit', () => ({ isRateLimited }));
 
+// `У-217`: этап раскатывается флагом `comm_center`. В тестах приёма он включён —
+// иначе каждая проверка упиралась бы в отказ по флагу и мы проверяли бы флаг, а
+// не сами правила приёма. Отдельный тест «флаг выключен → отказ» ниже.
+const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn(() => true) }));
+vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
+
 const { notifyManagersClientRequestSubmitted } = vi.hoisted(() => ({
   notifyManagersClientRequestSubmitted: vi.fn(),
 }));
@@ -111,6 +117,20 @@ beforeEach(() => {
 // ─── выключатель приёма ───────────────────────────────────────────────────────
 
 describe('submitWebsiteRequest — приём выключен', () => {
+  it('этап выключен флагом `comm_center`: отказ тем же безликим кодом', async () => {
+    // `У-217`: снаружи не должно быть видно, ЧЕМ закрыта дверь — флагом,
+    // выключенным приёмом или чужим токеном. Разные ответы подсказывали бы
+    // подбирающему, что пробовать дальше.
+    isFeatureEnabled.mockReturnValueOnce(false);
+    settings({ 'site.enabled': 'true' });
+    const { prisma, create } = db();
+
+    const res = await submitWebsiteRequest(prisma, args());
+
+    expect(res).toEqual({ ok: false, error: 'rejected' });
+    expect(create).not.toHaveBeenCalled();
+  });
+
   it('site.enabled = false: отказ «disabled» даже с верным токеном, в базу ничего не пишем', async () => {
     settings({ 'site.enabled': 'false' });
     const { prisma, create } = db();

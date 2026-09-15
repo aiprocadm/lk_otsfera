@@ -82,6 +82,21 @@ export const FEATURE_FLAGS = [
   // (`notFoundIfDisabled`), процессор `bitrix-import` (пакет `failed`,
   // «миграция выключена»), расписание `bitrix.resync` (пропуск).
   'bitrix_migration',
+  // Коммуникационный центр v2 (этап 3 ТЗ 12.09.2026, `У-217`, решение `Р-3-10`).
+  // ПОВЕДЕНЧЕСКИЙ opt-in флаг, в `FEATURE_PREFIXES` не входит — включается из
+  // интерфейса, как `contacts` и `bitrix_migration`.
+  //
+  // Что именно он гейтит: НОВОЕ этапа, а не переписку целиком. Раздел
+  // «Мессенджеры» и приём входящих остаются под своим прежним флагом
+  // `inbound_messaging` — выключив `comm_center`, компания теряет добавленное
+  // этапом, но не связь с клиентами. Иначе выключение флага рвало бы уже
+  // работающую переписку, а это не раскатка, а поломка.
+  //
+  // Точки чтения: разделы хаба `catalogs.replyTemplates` и `integrations.website`
+  // (поле `flag` реестра → `requireSettingsSection` → `notFound`), публичный
+  // приём заявок с сайта (`submitWebsiteRequest` → `rejected`), внутренние
+  // заметки и шаблоны ответов в форме ответа диалога.
+  'comm_center',
   // M4: внутренний чат сотрудников. Поведенческий флаг (не route): точки чтения —
   // секции «Чат команды» на /manager/messages и /admin/messages (isFeatureEnabled),
   // все /api/staff-chat/* хендлеры (notFoundIfDisabled), staff-бейдж непрочитанного.
@@ -224,6 +239,7 @@ const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'staff_2fa',
   'contacts',
   'bitrix_migration',
+  'comm_center',
   'staff_chat',
   'staff_calendar',
   'global_search',

@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { getSettingValue } from '@/lib/config/integrationSettings';
+import { isFeatureEnabled } from '@/lib/featureFlags';
 import { log } from '@/lib/logging';
 import { isRateLimited } from '@/lib/rateLimit';
 import { secretEquals } from '@/lib/security/secretCompare';
@@ -118,6 +119,14 @@ export async function submitWebsiteRequest(
     getSettingValue(prisma, 'site.formToken'),
     getSettingValue(prisma, 'site.allowedOrigins'),
   ]);
+
+  // `У-217`: этап раскатывается флагом `comm_center`. Пока он выключен, адрес
+  // отвечает тем же безликим отказом, что и при выключенном приёме: снаружи не
+  // должно быть видно, чем именно закрыта дверь.
+  if (!isFeatureEnabled('comm_center')) {
+    log.info('[clientRequests/website] отказ: этап выключен флагом');
+    return { ok: false, error: 'rejected' };
+  }
 
   // Выключено — значит выключено: пока администратор не включил приём, адрес
   // ничего не принимает, даже с верным токеном.

@@ -43,6 +43,8 @@ const OPT_IN_FLAGS = new Set([
   'staff_2fa',
   'contacts',
   'bitrix_migration',
+  // Этап 3 ТЗ 12.09.2026 (`У-217`): раскатка коммуникационного центра.
+  'comm_center',
   'staff_chat',
   'staff_calendar',
   'global_search',
