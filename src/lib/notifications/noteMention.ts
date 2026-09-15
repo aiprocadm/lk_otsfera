@@ -4,8 +4,8 @@ import { createNotification, deliverNotificationToUser } from './core';
 
 type PrismaLike = PrismaClient | Prisma.TransactionClient;
 
-/** Где написана заметка: по сделке (заказу) или по организации. */
-type NoteMentionEntity = 'deal' | 'organization';
+/** Где написана заметка: по сделке (заказу), по организации или в диалоге. */
+type NoteMentionEntity = 'deal' | 'organization' | 'dialog';
 
 export type NoteMentionInput = {
   /** Кого упомянули — id пользователей; автора вызывающий уже исключил. */
@@ -22,6 +22,7 @@ export type NoteMentionInput = {
 const TITLE_RU: Record<NoteMentionEntity, string> = {
   deal: 'Вас упомянули в заметке по заказу',
   organization: 'Вас упомянули в заметке по организации',
+  dialog: 'Вас упомянули в заметке к переписке',
 };
 
 const EXCERPT_MAX = 200;
@@ -47,7 +48,9 @@ export async function notifyNoteMention(
   const meta =
     input.entity === 'deal'
       ? { entity: input.entity, orderId: input.entityId, noteId: input.noteId }
-      : { entity: input.entity, organizationId: input.entityId, noteId: input.noteId };
+      : input.entity === 'dialog'
+        ? { entity: input.entity, dialogId: input.entityId, noteId: input.noteId }
+        : { entity: input.entity, organizationId: input.entityId, noteId: input.noteId };
   let notified = 0;
   try {
     const recipients = await prisma.user.findMany({

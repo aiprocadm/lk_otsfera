@@ -34,7 +34,8 @@ export type DialogListItem = {
   unreadCount: number;
   lastMessageAt: Date;
   lastMessagePreview: string | null;
-  lastMessageDirection: 'in' | 'out' | null;
+  /** in — от клиента, out — ему, note — внутренняя заметка (`У-209`). */
+  lastMessageDirection: 'in' | 'out' | 'note' | null;
   /** false — общая очередь: диалог ещё ничей. */
   bound: boolean;
 };
@@ -96,7 +97,7 @@ function toItem(row: Row, sla: SlaHours, now: Date): DialogListItem {
     unreadCount: row.unreadCount,
     lastMessageAt: row.lastMessageAt,
     lastMessagePreview: row.lastMessagePreview,
-    lastMessageDirection: row.lastMessageDirection as 'in' | 'out' | null,
+    lastMessageDirection: row.lastMessageDirection as 'in' | 'out' | 'note' | null,
     bound: row.companyId !== null,
   };
 }

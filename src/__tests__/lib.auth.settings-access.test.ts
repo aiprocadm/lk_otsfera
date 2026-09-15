@@ -146,6 +146,8 @@ describe('visibleSettingsSections / hasAnySettingsAccess', () => {
       'catalogs.slaIntake',
       // `У-128`: свои тексты писем — руководитель пишет для своей компании.
       'catalogs.emailTemplates',
+      // `У-208`: шаблоны ответов своей компании.
+      'catalogs.replyTemplates',
       'catalogs.applicationStatuses',
       // `У-127`: правила уведомлений — руководитель настраивает свою компанию.
       'catalogs.notificationRules',

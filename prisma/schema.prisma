@@ -975,6 +975,7 @@ model Company {
   tasks                    Task[]
   inboundMessages          InboundMessage[]
   messengerDialogs         MessengerDialog[]
+  replyTemplates           ReplyTemplate[]
   calls                    Call[]
   contacts                 Contact[]              @relation("CompanyContacts")
   organizationNotes        OrganizationNote[]     @relation("CompanyOrganizationNotes")
@@ -2401,6 +2402,28 @@ model ContactChannel {
   @@unique([companyId, type, normalizedValue])
   @@index([type, normalizedValue])
   @@index([contactId])
+}
+
+/// Шаблон быстрого ответа в диалоге (У-208). Текст с подстановками
+/// `{{contact.name}}` — сотрудник вставляет его в форму ответа и правит перед
+/// отправкой. Всегда принадлежит компании: чужие шаблоны не видны.
+model ReplyTemplate {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title       String
+  body        String
+  /// Каналы, где шаблон предлагается; пусто — любой канал.
+  channels    String[] @default([])
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  updatedById String?
+  /// Сколько раз вставляли — чтобы находить неиспользуемые.
+  usageCount  Int      @default(0)
+
+  @@index([companyId, isActive, sortOrder])
 }
 
 /// Мессенджеры (спека 2026-09-12, Р-М-1): диалог с клиентом в Telegram / MAX /

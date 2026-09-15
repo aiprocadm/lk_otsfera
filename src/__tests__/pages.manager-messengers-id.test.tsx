@@ -32,6 +32,12 @@ const { listAssignableStaff } = vi.hoisted(() => ({
   listAssignableStaff: vi.fn().mockResolvedValue([{ id: 'u2', name: 'Мария' }]),
 }));
 vi.mock('@/lib/services/messengers/assign', () => ({ listAssignableStaff }));
+
+// `У-208`: страница спрашивает шаблоны для канала этого диалога.
+const { listTemplatesForChannel } = vi.hoisted(() => ({
+  listTemplatesForChannel: vi.fn().mockResolvedValue([]),
+}));
+vi.mock('@/lib/services/replyTemplates/crud', () => ({ listTemplatesForChannel }));
 vi.mock('@/components/manager/messengers/dialog-assignee-panel', () => ({
   DialogAssigneePanel: (props: {
     dialogId: string;
@@ -50,8 +56,8 @@ vi.mock('@/components/manager/messengers/dialog-thread', () => ({
     React.createElement('div', null, `ЛЕНТА:${props.messages.length}:${props.hiddenCount}`),
 }));
 vi.mock('@/components/manager/messengers/dialog-reply-form', () => ({
-  DialogReplyForm: (props: { dialogId: string }) =>
-    React.createElement('div', null, `ОТВЕТ:${props.dialogId}`),
+  DialogReplyForm: (props: { dialogId: string; templates?: unknown[] }) =>
+    React.createElement('div', null, `ОТВЕТ:${props.dialogId}:${props.templates?.length ?? 0}`),
 }));
 vi.mock('@/components/manager/messengers/dialog-bind-form', () => ({
   DialogBindForm: (props: { dialogId: string; organizations: unknown[] }) =>
@@ -136,7 +142,7 @@ describe('ManagerMessengerDialogPage', () => {
     expect(text).toContain('Иван Петров');
     expect(text).toContain('Telegram · Ромашка');
     expect(text).toContain('ЛЕНТА:1:0');
-    expect(text).toContain('ОТВЕТ:d1');
+    expect(text).toContain('ОТВЕТ:d1:0');
     expect(text).toContain('СОСТОЯНИЕ:open');
     // У-206: панель ответственного на месте и получает список сотрудников.
     expect(text).toContain('ОТВЕТСТВЕННЫЙ:нет:1');
