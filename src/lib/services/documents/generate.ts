@@ -3,6 +3,7 @@ import type { DocumentType, OneCDocumentPushMode, PrismaClient, Prisma } from '@
 import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
+import { emitAutomationEvent } from '@/lib/automation/dispatch';
 import { recordPiiAccess } from '@/lib/pii/record';
 import { canSeeOrder, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import {
@@ -1327,6 +1328,34 @@ export async function generateOrderDocument(
       });
     }
   }
+
+  // `У-223`: документ выставлен — событие для правил автоматизации.
+  //
+  // ВАЖНО: врезка стоит ДО раннего выхода для КП ниже. Клиенту про черновик КП
+  // не пишут, а правилу «КП выпущено — напомнить через 5 дней» это событие
+  // нужно именно в момент выпуска. Слушатели у одного события разные, и
+  // сокращать их до одного нельзя.
+  await emitAutomationEvent(prisma, {
+    trigger: 'document_issued',
+    companyId,
+    payload: {
+      documentId: created.id,
+      documentNumber: reserved.number,
+      documentType: args.docType,
+      organizationId,
+      orderId: order?.id ?? null,
+      orderNumber: order?.orderNumber ?? null,
+      orderTitle: order?.title ?? null,
+      // `table.gross` — строка с копейками; условию «сумма не меньше» нужно
+      // число, а неразобранное значение честнее не подставлять вовсе, чем
+      // подсунуть NaN.
+      amount: Number.isFinite(Number(table.gross)) ? Number(table.gross) : null,
+      // Ответственный менеджер заказа в этой выборке не загружен — правило
+      // адресует задачу руководителям (`Р-Э4-5`), а не выдумывает получателя.
+      responsibleManagerId: null,
+      toStatus: args.docType,
+    },
+  });
 
   // Уведомление клиенту — best-effort (не откатывает выпуск).
   //

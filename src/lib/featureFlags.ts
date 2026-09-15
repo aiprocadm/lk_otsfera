@@ -97,6 +97,18 @@ export const FEATURE_FLAGS = [
   // приём заявок с сайта (`submitWebsiteRequest` → `rejected`), внутренние
   // заметки и шаблоны ответов в форме ответа диалога.
   'comm_center',
+  // Правила автоматизации (этап 4 ТЗ 12.09.2026, `У-222`…`У-224`, `Р-Э4-10`).
+  // ПОВЕДЕНЧЕСКИЙ opt-in флаг, в `FEATURE_PREFIXES` не входит: диспетчер — это
+  // не маршрут, и «три точки чтения» §5 к нему неприменимы буквально. Свои три:
+  //   1. раздел хаба «Автоматизация» (поле `flag` реестра `settings.ts` →
+  //      `requireSettingsSection` → `notFound`; карточка и пункт меню исчезают);
+  //   2. страницы раздела (`notFoundIfDisabled('automation')`);
+  //   3. `emitAutomationEvent` — при выключенном флаге выходит сразу, не
+  //      трогая базу: выключенный робот не должен даже спрашивать правила.
+  //
+  // Снимается после приёмки заказчиком. Пока выключен, ни одно правило не
+  // срабатывает, даже если строка в базе помечена активной.
+  'automation',
   // M4: внутренний чат сотрудников. Поведенческий флаг (не route): точки чтения —
   // секции «Чат команды» на /manager/messages и /admin/messages (isFeatureEnabled),
   // все /api/staff-chat/* хендлеры (notFoundIfDisabled), staff-бейдж непрочитанного.
@@ -240,6 +252,7 @@ const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'contacts',
   'bitrix_migration',
   'comm_center',
+  'automation',
   'staff_chat',
   'staff_calendar',
   'global_search',

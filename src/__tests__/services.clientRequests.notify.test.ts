@@ -57,6 +57,10 @@ function db(over: Record<string, unknown> = {}) {
   const prisma = {
     organizationManager: { findMany: omFindMany },
     user: { findMany: userFindMany },
+    // `У-223` (этап 4): нотификатор попутно испускает событие для правил
+    // автоматизации и спрашивает компанию организации.
+    organization: { findUnique: vi.fn().mockResolvedValue({ companyId: 'co-1' }) },
+    automationRule: { findMany: vi.fn().mockResolvedValue([]) },
     ...over,
   };
   return { prisma: prisma as never, omFindMany, userFindMany };

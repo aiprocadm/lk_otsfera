@@ -6,6 +6,7 @@ import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import { log } from '@/lib/logging';
 import { notifyInvoicesPaid } from '@/lib/services/documents/invoicePaidNotice';
+import { emitAutomationEvent } from '@/lib/automation/dispatch';
 import { setDocumentStatus } from '@/lib/services/documents/status';
 import { organizationNameKey } from '@/lib/services/import/oneCAccountCard/counterparty-key';
 import {
@@ -326,6 +327,23 @@ export async function upsertPaymentRecord(
     }
     sum.created += 1;
     ctx.bump?.(dto.updatedAt);
+    // `У-223`: платёж получен — событие для правил автоматизации. Возврат
+    // платежом не считается: правило «оплатили — сделать N» на возврате сработать
+    // не должно.
+    if (!input.isRefund) {
+      await emitAutomationEvent(db as PrismaClient, {
+        trigger: 'payment_received',
+        companyId: order?.companyId ?? null,
+        payload: {
+          paymentId: createdId,
+          orderId: order?.id ?? null,
+          orderNumber: order?.orderNumber ?? null,
+          orderTitle: order?.title ?? null,
+          organizationId: order?.organizationId ?? null,
+          amount: Number(input.amount),
+        },
+      });
+    }
     if (ctx.notify && isLive(ctx) && order && order.organizationId && !input.isRefund) {
       try {
         await notifyOrgUsers(db, {

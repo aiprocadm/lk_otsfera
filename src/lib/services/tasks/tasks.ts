@@ -176,11 +176,10 @@ function scopeArg(row: ScopeRow) {
  *
  * Внутри транзакции вызывающего: собственной транзакции не открывает.
  *
- * Пока не экспортируется: единственный вызывающий — `createTask` в этом же
- * файле. Экспорт появится вместе с процессором правил (PR-3), которому ядро и
- * нужно; экспортировать «на всякий случай» нельзя (§12b).
+ * Экспортируется с PR-3: второй вызывающий — процессор правил автоматизации
+ * (`lib/automation/actions.ts`), ради которого ядро и выделялось.
  */
-async function createTaskCore(
+export async function createTaskCore(
   tx: Prisma.TransactionClient,
   input: {
     companyId: string;

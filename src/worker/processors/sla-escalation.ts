@@ -4,6 +4,7 @@ import { INTAKE_BREACH_HOURS } from '@/lib/services/intake/list';
 import { DIALOG_STATUS } from '@/lib/services/messengers/dialogStatus';
 import { MESSENGER_LABELS, isMessengerChannel } from '@/lib/services/messengers/channels';
 import { log } from '@/lib/logging';
+import { emitAutomationEvent } from '@/lib/automation/dispatch';
 
 /**
  * Этап 7 (§4.4, ФТ-8.5, PR-3) — SLA-эскалация Intake: единицы БЕЗ
@@ -216,6 +217,30 @@ export async function runSlaEscalation(
     }
 
     const waitedHours = Math.floor(ageHours);
+
+    // `У-223`: клиент ждёт ответа дольше SLA — событие для правил
+    // автоматизации. Испускается ПОСЛЕ дедуп-записи: она и означает «просрочка
+    // признана», а до неё событие могло бы повториться на каждом прогоне.
+    //
+    // Только для переписки: у прочих источников Intake это «никто не взял в
+    // работу», а не «клиент не получил ответа» — разные события, и смешивать
+    // их в одном триггере значило бы запускать правило не на то.
+    if (unit.sourceType === 'dialog') {
+      await emitAutomationEvent(prisma, {
+        trigger: 'dialog_waiting_staff_overdue',
+        companyId: unit.companyId,
+        payload: {
+          // `sourceId` у диалога составной — `<id диалога>:<начало ожидания>`:
+          // одна эскалация на один неотвеченный вопрос, а не на диалог целиком.
+          dialogId: unit.sourceId.split(':')[0] ?? unit.sourceId,
+          waitedHours,
+          thresholdHours,
+          label: unit.label,
+          responsibleManagerId: null,
+        },
+      });
+    }
+
     const unitUrl = unit.url ?? ESCALATION_URL;
     // У диалога ответственный может быть назначен — эскалация про отсутствие
     // ОТВЕТА, а не про отсутствие хозяина. Общий текст «Без ответственного»

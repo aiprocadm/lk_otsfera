@@ -976,6 +976,9 @@ model Company {
   dealStages               DealStage[]            @relation("CompanyDealStages")
   taskColumns              TaskColumn[]
   tasks                    Task[]
+  /// Этап 4 (`У-222`): правила автоматизации компании. Платформенных правил нет
+  /// намеренно — см. комментарий модели.
+  automationRules          AutomationRule[]
   inboundMessages          InboundMessage[]
   messengerDialogs         MessengerDialog[]
   replyTemplates           ReplyTemplate[]
@@ -1194,10 +1197,10 @@ model Task {
   overdueNotifiedAt    DateTime?
   overdueEscalatedAt   DateTime?
   /// Этап 4 (`У-223`): задача, созданная правилом автоматизации — в карточке
-  /// показывается «Создана правилом X». Внешний ключ появится вместе с моделью
-  /// `AutomationRule` (PR-3); здесь пока колонка, чтобы карточка задачи и
-  /// процессор правил не тянули друг друга в один PR.
+  /// показывается «Создана правилом X». `SetNull`: удалённое правило не должно
+  /// уносить задачи, которые оно успело поставить людям.
   createdByRuleId      String?
+  createdByRule        AutomationRule? @relation("TaskCreatedByRule", fields: [createdByRuleId], references: [id], onDelete: SetNull)
   assignees            TaskAssignee[]
   /// Этап 4 (`У-218`, `У-219`): обсуждение и чек-лист живут своими моделями.
   comments             TaskComment[]
@@ -1825,6 +1828,71 @@ model NotificationRule {
   /// частичные индексы не описывает, поэтому его нет в этой схеме.
   @@unique([companyId, eventType, audience, channel])
   @@index([companyId])
+}
+
+/// Правило автоматизации (`У-222`, этап 4 ТЗ 12.09.2026).
+///
+/// «Если случилось событие — то создай задачу или пошли уведомление». Короткое
+/// правило без графического редактора (решение `01` §4).
+///
+/// `companyId` ОБЯЗАТЕЛЕН — в отличие от `NotificationRule`, где `null` означает
+/// «правило платформы». Робот, который создаёт задачи сразу во всех компаниях, —
+/// не функция, а происшествие; обязательная связь снимает и этот риск, и возню
+/// с NULL-ами в уникальном ключе (в Postgres два NULL не равны, и ради
+/// платформенных правил уведомлений в миграции живёт частичный индекс).
+///
+/// `actions` — массив действий в JSON, а не отдельная таблица: действий у
+/// правила одно-три, редактируются они целиком одной формой и никогда не
+/// запрашиваются отдельно от правила. Форму проверяет Zod при сохранении.
+model AutomationRule {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  /// Выключено по умолчанию: правило из коробки включает человек галочкой.
+  isActive    Boolean  @default(false)
+  /// Правило «из коробки» (`У-224`) — заведено миграцией, текст можно править.
+  isBuiltin   Boolean  @default(false)
+  /// Ключ из `AUTOMATION_TRIGGERS` (lib/automation/triggers.ts).
+  trigger     String
+  conditions  Json     @default("{}")
+  actions     Json
+  /// Кто завёл правило. У встроенных пусто до первого включения; при включении
+  /// записывается включивший — он же станет автором задач, которые правило
+  /// создаст (`Р-Э4-4`: системную сессию не подделываем).
+  createdById String?
+  updatedBy   String?
+
+  runs  AutomationRun[]
+  tasks Task[]          @relation("TaskCreatedByRule")
+
+  @@index([companyId, trigger, isActive])
+}
+
+/// Журнал срабатываний (`У-223`). Он же — гарантия «одно событие — одно
+/// действие»: `@@unique([ruleId, eventId])` плюс пропуск по коду `P2002`
+/// (канон `SlaEscalation`). BullMQ может доставить задачу дважды — ретраи,
+/// перезапуск воркера, — и без этой записи повторная доставка создала бы
+/// вторую задачу.
+model AutomationRun {
+  id              String         @id @default(cuid())
+  createdAt       DateTime       @default(now())
+  ruleId          String
+  rule            AutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  /// Идентификатор события (uuid), выданный диспетчером.
+  eventId         String
+  companyId       String
+  /// ok | failed | skipped
+  status          String
+  /// Человеческая причина отказа. Секретов и ПДн здесь нет (§12).
+  error           String?
+  createdTaskIds  String[]
+  notifiedUserIds String[]
+
+  @@unique([ruleId, eventId])
+  @@index([ruleId, createdAt])
 }
 
 /// `У-128` (ТЗ 2026-08-21): свои тексты писем и сообщений.

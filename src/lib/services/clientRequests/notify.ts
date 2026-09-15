@@ -4,6 +4,7 @@ import {
   deliverNotificationToUser,
   resolveOrgManagerRecipients,
 } from '@/lib/notifications';
+import { emitAutomationEvent } from '@/lib/automation/dispatch';
 import { CHANNEL_RECIPIENT_SELECT } from '@/lib/notifications/channels/types';
 import { log } from '@/lib/logging';
 import { getSettingValue } from '@/lib/config/integrationSettings';
@@ -36,6 +37,17 @@ export async function notifyManagersClientRequestSubmitted(
   prisma: PrismaClient,
   request: ClientRequest
 ): Promise<void> {
+  // `У-223`: обращение поступило — событие для правил автоматизации.
+  //
+  // Врезка стоит у ОБЩЕГО нотификатора, а не у двух дверей подачи (кабинет и
+  // форма сайта): обе они и так сходятся здесь, а две врезки однажды
+  // разошлись бы — и половина обращений перестала бы запускать правила молча.
+  //
+  // Компания берётся через организацию: у `ClientRequest` своего поля компании
+  // нет. У заявки с сайта организации может не быть вовсе — тогда правил не
+  // запускаем, потому что непонятно, чьи они.
+  await emitClientRequestSubmitted(prisma, request);
+
   try {
     let recipients: Array<{ id: string } & Record<string, unknown>> = [];
     if (request.organizationId) {
@@ -162,4 +174,32 @@ export async function notifySubmitterClientRequestStatus(
       error: err instanceof Error ? err.message : String(err),
     });
   }
+}
+
+/** `У-223`: событие «поступило обращение» для правил автоматизации. */
+async function emitClientRequestSubmitted(
+  prisma: PrismaClient,
+  request: ClientRequest
+): Promise<void> {
+  let companyId: string | null = null;
+  if (request.organizationId) {
+    const org = await prisma.organization.findUnique({
+      where: { id: request.organizationId },
+      select: { companyId: true },
+    });
+    companyId = org?.companyId ?? null;
+  }
+  await emitAutomationEvent(prisma, {
+    trigger: 'client_request_submitted',
+    companyId,
+    payload: {
+      clientRequestId: request.id,
+      organizationId: request.organizationId,
+      partnerId: request.partnerId,
+      source: request.source,
+      subject: request.subject,
+      organizationName: request.companyName,
+      responsibleManagerId: null,
+    },
+  });
 }

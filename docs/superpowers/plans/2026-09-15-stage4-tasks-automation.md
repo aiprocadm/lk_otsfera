@@ -79,16 +79,16 @@ PR-4 — на движок PR-3, PR-5 — на поля просрочки PR-1.
 
 ## PR-3. Движок правил (`У-222` движок, `У-223`, `У-227` частично)
 
-- [ ] Модели `AutomationRule`, `AutomationRun` (`@@unique([ruleId, eventId])`); FK `Task.createdByRuleId` → `AutomationRule`
-- [ ] Каталоги `AUTOMATION_TRIGGERS` (8 триггеров, `notificationType` — якорь в реестре уведомлений у четырёх, `callSite` у всех) и `AUTOMATION_ACTIONS`
-- [ ] `src/lib/automation/{dispatch,rules,actions,templates}.ts`; `emitAutomationEvent` с `eventId`, отбором правил, `conditions`, fail-open
-- [ ] Восемь врезок `emitAutomationEvent` в сервисы бизнес-операций
-- [ ] Очередь `automation.run` (конкурентность 2) + процессор `src/worker/processors/automation-run.ts` + регистрация в `worker/index.ts`
-- [ ] Идемпотентность: `jobId = auto_<ruleId>_<eventId>` + `P2002`-пропуск на `AutomationRun`
-- [ ] Действия `create_task` (через `createTaskCore`) и `notify`; выбор исполнителя по `Р-Э4-5`
-- [ ] Флаг `automation` (поведенческий, три точки чтения в комментарии флага)
-- [ ] Тип `automation_failed` в реестре уведомлений
-- [ ] **Стражи до первого правила из коробки:** `automation.no-loop.guardrail`, `automation.actions-cannot-emit.guardrail` (+ правило dependency-cruiser), `automation.emit-coverage.guardrail`, `automation.company-scope`, `automation.idempotency` (integration), `automation.fail-open` — каждый мутацией
+- [x] Модели `AutomationRule`, `AutomationRun` (`@@unique([ruleId, eventId])`); FK `Task.createdByRuleId` → `AutomationRule`
+- [x] Каталоги `AUTOMATION_TRIGGERS` (8 триггеров, `notificationType` — якорь в реестре уведомлений у четырёх, `callSite` у всех) и `AUTOMATION_ACTIONS`
+- [x] `src/lib/automation/{dispatch,rules,actions,templates}.ts`; `emitAutomationEvent` с `eventId`, отбором правил, `conditions`, fail-open
+- [x] Восемь врезок `emitAutomationEvent` в сервисы бизнес-операций
+- [x] Очередь `automation.run` (конкурентность 2) + процессор `src/worker/processors/automation-run.ts` + регистрация в `worker/index.ts`
+- [x] Идемпотентность: `jobId = auto_<ruleId>_<eventId>` + `P2002`-пропуск на `AutomationRun`
+- [x] Действия `create_task` (через `createTaskCore`) и `notify`; выбор исполнителя по `Р-Э4-5`
+- [x] Флаг `automation` (поведенческий, три точки чтения в комментарии флага)
+- [x] Тип `automation_failed` в реестре уведомлений
+- [x] **Стражи до первого правила из коробки:** `automation.no-loop.guardrail`, `automation.actions-cannot-emit.guardrail` (+ правило dependency-cruiser), `automation.emit-coverage.guardrail`, `automation.company-scope`, `automation.idempotency` (integration), `automation.fail-open` — каждый мутацией
 
 ---
 

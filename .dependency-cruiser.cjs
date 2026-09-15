@@ -60,6 +60,16 @@ module.exports = {
       from: { path: '^src/components' },
       to: { path: '^src/lib/db/' },
     },
+    {
+      name: 'automation-actions-cannot-emit',
+      comment:
+        'Р-Б-6: действия правил не порождают триггеры. Файл действий не имеет доступа к ' +
+        'диспетчеру событий — иначе правило смогло бы запустить само себя, и заметить это ' +
+        'было бы почти невозможно: каждый отдельный шаг выглядит правильным.',
+      severity: 'error',
+      from: { path: '^src/lib/automation/actions\\.ts$' },
+      to: { path: '^src/lib/automation/dispatch\\.ts$' },
+    },
   ],
   options: {
     doNotFollow: { path: 'node_modules' },

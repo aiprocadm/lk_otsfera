@@ -162,6 +162,21 @@ export const NOTIFICATION_TYPES = {
     audience: ['staff'],
     producer: 'src/worker/processors/sla-escalation.ts',
   },
+  // Этап 4 (`У-222`): сообщение, которое послало правило автоматизации.
+  // Отдельный тип, а не чужой: человек должен видеть, что это робот, и знать,
+  // какое правило выключить, если сообщений слишком много.
+  automation_notice: {
+    label: 'Сообщение от правила автоматизации',
+    audience: ['staff'],
+    producer: 'src/lib/automation/actions.ts',
+  },
+  // Этап 4 (`У-223`, §9 пакета): правило сломалось — например, ссылается на
+  // удалённый статус. Молчащий робот хуже отсутствующего.
+  automation_failed: {
+    label: 'Правило автоматизации не сработало',
+    audience: ['staff'],
+    producer: 'src/worker/processors/automation-run.ts',
+  },
 
   // ── Внутренние коммуникации сотрудников ─────────────────────────────────
   staff_dm_message: {

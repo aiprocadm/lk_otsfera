@@ -17,6 +17,7 @@ import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { canSeeOrder, getCompanyTeamVisibility, isManagerLeader } from '@/lib/auth/managerPolicy';
 import { recordAudit } from '@/lib/auth/audit';
+import { emitAutomationEvent } from '@/lib/automation/dispatch';
 import { evaluateOrderCompletion, type CompletionCondition } from '@/lib/orders/completion';
 import { notifyManagers, notifyOrgUsers } from '@/lib/notifications';
 import { log } from '@/lib/logging';
@@ -167,6 +168,23 @@ export async function transitionOrderStatus(
     entity: 'order',
     entityId: order.id,
     after: { from: current?.key ?? null, to: target.key, reason },
+  });
+
+  // `У-223`: то же событие слышат правила автоматизации. Врезка стоит рядом с
+  // рассылкой уведомлений не случайно — это одно и то же событие, просто у
+  // него появился второй слушатель. Вызов fail-open внутри себя: сбой правил
+  // не откатывает уже сохранённую смену статуса.
+  await emitAutomationEvent(prisma, {
+    trigger: 'order_status_changed',
+    companyId: order.companyId,
+    payload: {
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      orderTitle: order.title,
+      organizationId: order.organizationId,
+      responsibleManagerId: order.managerId,
+      toStatus: target.key,
+    },
   });
 
   // §10 ТЗ: «смена каждого из этих статусов — событие-триггер для уведомлений
