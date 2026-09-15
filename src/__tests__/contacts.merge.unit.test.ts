@@ -26,6 +26,8 @@ const inboundUpdateMany = vi.fn();
 const callUpdateMany = vi.fn();
 const dialogUpdateMany = vi.fn();
 const orderUpdateMany = vi.fn();
+// `У-220` (этап 4): задачи второго контакта переезжают к главному.
+const taskUpdateMany = vi.fn();
 const transaction = vi.fn();
 const prisma = {
   contact: { findMany: contactFindMany, update: contactUpdate },
@@ -35,6 +37,7 @@ const prisma = {
   call: { updateMany: callUpdateMany },
   messengerDialog: { updateMany: dialogUpdateMany },
   order: { updateMany: orderUpdateMany },
+  task: { updateMany: taskUpdateMany },
   $transaction: transaction,
 } as unknown as PrismaClient;
 
@@ -88,6 +91,7 @@ describe('mergeContacts', () => {
     dialogUpdateMany.mockResolvedValue({ count: 1 });
     orderUpdateMany.mockResolvedValue({ count: 4 });
     dealUpdateMany.mockResolvedValue({ count: 5 });
+    taskUpdateMany.mockResolvedValue({ count: 6 });
   });
 
   it('клиентская роль → forbidden; сам с собой → contact_merge_self — оба без запроса', async () => {
@@ -191,6 +195,7 @@ describe('mergeContacts', () => {
         dialogs: 1,
         orders: 4,
         deals: 5,
+        tasks: 6,
         userMoved: true,
       },
     });

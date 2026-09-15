@@ -27,6 +27,11 @@ const { getDialog, markDialogRead, listOrganizations } = vi.hoisted(() => ({
 vi.mock('@/lib/services/messengers/get', () => ({ getDialog, markDialogRead }));
 vi.mock('@/lib/services/manager/organizations', () => ({ listOrganizations }));
 
+// Этап 4 (`У-220`): страница добирает задачи объекта для блока «Задачи».
+const { listLinkedTasks } = vi.hoisted(() => ({ listLinkedTasks: vi.fn().mockResolvedValue([]) }));
+vi.mock('@/lib/services/tasks/board', () => ({ listLinkedTasks }));
+
+
 // У-206: страница спрашивает сотрудников для селекта «Назначить».
 const { listAssignableStaff } = vi.hoisted(() => ({
   listAssignableStaff: vi.fn().mockResolvedValue([{ id: 'u2', name: 'Мария' }]),

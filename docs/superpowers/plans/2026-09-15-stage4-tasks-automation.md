@@ -62,18 +62,18 @@ PR-4 — на движок PR-3, PR-5 — на поля просрочки PR-1.
 
 ## PR-2. Задача откуда угодно (`У-220`)
 
-- [ ] Колонки `Task`: `linkedContactId`, `linkedDialogId`, `linkedDocumentId` (+ FK `SetNull`, индексы, обратные связи в `Contact`/`MessengerDialog`/`Document`)
-- [ ] `validateRefs` — три новые проверки company-scope (ни одной не пропустить)
-- [ ] `inputSchema`, `taskInput`, `TaskCard`, `CARD_SELECT`, запись привязок в `createTask`/`updateTask`
-- [ ] `listLinkedTasks` и `listLinkedTasksAction`: union `link` расширяется с двух вариантов до семи
-- [ ] `LinkedTasksPanel`: проп `link` — семь вариантов; quick-add ставит нужное поле
-- [ ] Блок «Задачи» смонтировать: карточка диалога, карточка документа/КП (через `children` `DocumentDetailView`), **карточка организации** (поле было, панели не было)
-- [ ] Вкладка «Задачи» карточки контакта: `CONTACT_CARD_TABS`, `CONTACT_TABS`, `ContactTabKey`, ветка в `listContactTab`, счётчик в `contact.counts`, `countOf` в `contact-card-screen.tsx`, флаг `internal_tasks`
-- [ ] Перенос задач при объединении контактов (`contacts/merge.ts` — третье обещание этапа 1)
-- [ ] Предзаполнение исполнителя ответственным менеджером объекта
-- [ ] Ревалидация карточек-источников после создания задачи
-- [ ] Переписать семь стражей §5.3 спеки (включая антистражи `isContactTabKey('tasks') === false` и `tab=tasks` как «неизвестная вкладка») — с комментарием, почему правило изменилось
-- [ ] Страж `tasks.links-scope` — все семь привязок проверяются на компанию (мутация: убрать одну проверку)
+- [x] Колонки `Task`: `linkedContactId`, `linkedDialogId`, `linkedDocumentId` (+ FK `SetNull`, индексы, обратные связи в `Contact`/`MessengerDialog`/`Document`)
+- [x] `validateRefs` — три новые проверки company-scope (ни одной не пропустить)
+- [x] `inputSchema`, `taskInput`, `TaskCard`, `CARD_SELECT`, запись привязок в `createTask`/`updateTask`
+- [x] `listLinkedTasks` и `listLinkedTasksAction`: union `link` расширяется с двух вариантов до семи
+- [x] `LinkedTasksPanel`: проп `link` — семь вариантов; quick-add ставит нужное поле
+- [x] Блок «Задачи» смонтировать: карточка диалога, карточка документа/КП (через `children` `DocumentDetailView`), **карточка организации** (поле было, панели не было)
+- [x] Вкладка «Задачи» карточки контакта: `CONTACT_CARD_TABS`, `CONTACT_TABS`, `ContactTabKey`, ветка в `listContactTab`, счётчик в `contact.counts`, `countOf` в `contact-card-screen.tsx`, флаг `internal_tasks`
+- [x] Перенос задач при объединении контактов (`contacts/merge.ts` — третье обещание этапа 1)
+- [x] Предзаполнение исполнителя ответственным менеджером объекта
+- [x] Ревалидация карточек-источников после создания задачи
+- [x] Переписать семь стражей §5.3 спеки (включая антистражи `isContactTabKey('tasks') === false` и `tab=tasks` как «неизвестная вкладка») — с комментарием, почему правило изменилось
+- [x] Страж `tasks.links-scope` — все семь привязок проверяются на компанию (мутация: убрать одну проверку)
 
 ---
 

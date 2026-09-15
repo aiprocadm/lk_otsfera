@@ -75,6 +75,12 @@ const task: TaskCard = {
   linkedLeadSubject: null,
   linkedDealId: null,
   linkedDealTitle: null,
+  linkedContactId: null,
+  linkedContactName: null,
+  linkedDialogId: null,
+  linkedDialogPeer: null,
+  linkedDocumentId: null,
+  linkedDocumentName: null,
   checklistDone: 0,
   checklistTotal: 0,
 };

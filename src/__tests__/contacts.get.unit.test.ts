@@ -35,8 +35,13 @@ const orderFindMany = vi.fn();
 const orderCount = vi.fn();
 const auditFindMany = vi.fn();
 const auditCount = vi.fn();
+const taskFindMany = vi.fn();
+const taskCount = vi.fn();
+
 const prisma = {
   contact: { findUnique: contactFindUnique },
+  // `У-220` (этап 4): вкладка «Задачи» карточки контакта.
+  task: { findMany: taskFindMany, count: taskCount },
   deal: { count: dealCount, findMany: dealFindMany },
   messengerDialog: { findMany: dialogFindMany, count: dialogCount },
   call: { findMany: callFindMany, count: callCount },
@@ -202,11 +207,16 @@ describe('getContact', () => {
 });
 
 describe('isContactTabKey', () => {
-  it('знает шесть вкладок; «Задачи» появятся в этапе 4', () => {
-    for (const key of ['dialogs', 'calls', 'inbound', 'deals', 'orders', 'history']) {
+  it('знает семь вкладок, включая «Задачи» этапа 4', () => {
+    // До этапа 4 здесь стояло `expect(isContactTabKey('tasks')).toBe(false)` —
+    // ровно по обещанию комментария этапа 1: пустую вкладку заранее не
+    // объявляли (`У-74`). Обещание исполнено вместе с `Task.linkedContactId`
+    // (`У-220`), и правило переписано, а не ослаблено: неизвестный ключ
+    // по-прежнему отвергается.
+    for (const key of ['dialogs', 'calls', 'inbound', 'deals', 'orders', 'tasks', 'history']) {
       expect(isContactTabKey(key)).toBe(true);
     }
-    expect(isContactTabKey('tasks')).toBe(false);
+    expect(isContactTabKey('чего-то-нет')).toBe(false);
   });
 });
 
@@ -216,9 +226,18 @@ describe('listContactTab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     contactFindUnique.mockResolvedValue(scopeRow);
-    for (const c of [dialogCount, callCount, inboundCount, dealCount, orderCount, auditCount]) {
+    for (const c of [
+      dialogCount,
+      callCount,
+      inboundCount,
+      dealCount,
+      orderCount,
+      auditCount,
+      taskCount,
+    ]) {
       c.mockResolvedValue(42);
     }
+    taskFindMany.mockResolvedValue([]);
   });
 
   it('клиентская роль → forbidden; нет контакта или чужая компания → not_found', async () => {
@@ -515,5 +534,72 @@ describe('listContactTab', () => {
     const where = { entity: 'contact', entityId: 'k1' };
     expect(auditFindMany).toHaveBeenCalledWith(expect.objectContaining({ where }));
     expect(auditCount).toHaveBeenCalledWith({ where });
+  });
+});
+
+describe('вкладка «Задачи» карточки контакта (`У-220`)', () => {
+  const scopeRow = { id: 'k1', companyId: 'c1', organizationId: 'o1' };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    contactFindUnique.mockResolvedValue(scopeRow);
+    taskCount.mockResolvedValue(3);
+    taskFindMany.mockResolvedValue([
+      {
+        id: 't1',
+        title: 'Позвонить',
+        status: 'todo',
+        dueDate: new Date('2026-09-20'),
+        completedAt: null,
+        createdAt: new Date('2026-09-15'),
+        assignees: [{ user: { name: 'Иван' } }],
+      },
+      {
+        id: 't2',
+        title: 'Выставить счёт',
+        status: 'done',
+        dueDate: null,
+        completedAt: new Date('2026-09-16'),
+        createdAt: new Date('2026-09-14'),
+        assignees: [],
+      },
+    ]);
+  });
+
+  it('берёт задачи ИМЕННО этого контакта и поверх охвата профиля', async () => {
+    const res = await listContactTab(prisma, manager, true, { contactId: 'k1', tab: 'tasks' });
+    expect(res.ok).toBe(true);
+    const where = taskFindMany.mock.calls[0][0].where;
+    // Две части: охват задач сотрудника И привязка к контакту. Убрать первую
+    // значило бы показать чужие задачи по «своему» человеку.
+    expect(where.AND).toHaveLength(2);
+    expect(where.AND[1]).toEqual({ linkedContactId: 'k1' });
+    // Счётчик считается по ТОМУ ЖЕ условию — иначе «показаны 20 из 500» врёт.
+    expect(taskCount.mock.calls[0][0].where).toEqual(where);
+  });
+
+  it('строка показывает исполнителя и срок, а выполненная — статус «done»', async () => {
+    const res = await listContactTab(prisma, manager, true, { contactId: 'k1', tab: 'tasks' });
+    if (!res.ok) throw new Error('ожидали успех');
+    expect(res.total).toBe(3);
+    expect(res.items[0]).toMatchObject({
+      kind: 'tasks',
+      id: 't1',
+      title: 'Позвонить',
+      status: 'todo',
+    });
+    expect(res.items[0]?.subtitle).toContain('Иван');
+    expect(res.items[0]?.subtitle).toContain('до 20.09.2026');
+    // Задача без исполнителя говорит об этом прямо, а не пустотой.
+    expect(res.items[1]?.subtitle).toBe('без исполнителя');
+    // Завершённая показывается завершённой, даже если колонка осталась прежней.
+    expect(res.items[1]?.status).toBe('done');
+  });
+
+  it('чужой контакт — not_found, задачи не спрашиваем', async () => {
+    contactFindUnique.mockResolvedValue({ ...scopeRow, companyId: 'other' });
+    const res = await listContactTab(prisma, manager, true, { contactId: 'k1', tab: 'tasks' });
+    expect(res).toEqual({ ok: false, error: 'not_found' });
+    expect(taskFindMany).not.toHaveBeenCalled();
   });
 });

@@ -128,7 +128,8 @@ describe('AdminContactPage', () => {
     const screen = container.querySelector('[data-testid="contact-card-screen"]')!;
     expect(screen.getAttribute('data-cabinet')).toBe('admin');
     expect(screen.getAttribute('data-contact')).toBe('k1');
-    expect(screen.getAttribute('data-tabs')).toBe('dialogs,inbound,deals,orders,history');
+    // Этап 4 (`У-220`) добавил вкладку «Задачи» под флагом `internal_tasks`.
+    expect(screen.getAttribute('data-tabs')).toBe('dialogs,inbound,deals,orders,tasks,history');
     expect(screen.getAttribute('data-active-tab')).toBe('deals');
     expect(screen.getAttribute('data-tab-items')).toBe('z1,z2');
     expect(screen.getAttribute('data-tab-total')).toBe('12');

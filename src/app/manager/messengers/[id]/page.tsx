@@ -9,6 +9,7 @@ import { getDialog, markDialogRead } from '@/lib/services/messengers/get';
 import { listAssignableStaff } from '@/lib/services/messengers/assign';
 import { listTemplatesForChannel } from '@/lib/services/replyTemplates/crud';
 import { listOrganizations } from '@/lib/services/manager/organizations';
+import { listLinkedTasks } from '@/lib/services/tasks/board';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import { DialogThread } from '@/components/manager/messengers/dialog-thread';
 import { DialogReplyForm } from '@/components/manager/messengers/dialog-reply-form';
@@ -18,6 +19,7 @@ import { DialogStatusButton } from '@/components/manager/messengers/dialog-statu
 import { DialogStatusBadge } from '@/components/manager/messengers/dialog-status-badge';
 import { DialogAssigneePanel } from '@/components/manager/messengers/dialog-assignee-panel';
 import { SourceIntakeActions } from '@/components/intake/source-intake-actions';
+import { LinkedTasksPanel } from '@/components/tasks/linked-tasks-panel';
 import { Badge } from '@/components/ui';
 import { PageHeader } from '@/components/ui/page-header';
 
@@ -40,6 +42,12 @@ export default async function ManagerMessengerDialogPage({
   const result = await getDialog(prisma, session, id);
   if (!result.ok) notFound();
   const dialog = result.dialog;
+  // `У-220`: блок «Задачи» появляется только вместе с самим разделом задач —
+  // иначе ссылки из него вели бы на выключенный экран.
+  const tasksEnabled = isFeatureEnabled('internal_tasks');
+  const dialogTasks = tasksEnabled
+    ? await listLinkedTasks(prisma, session, { dialogId: dialog.id })
+    : [];
 
   // Открыл — значит прочитал; список организаций нужен только ничьему диалогу.
   const [, organizations, staff, templates] = await Promise.all([
@@ -105,6 +113,22 @@ export default async function ManagerMessengerDialogPage({
           <div className="rounded-xl border border-gray-200 bg-white p-4">
             <DialogAssigneePanel dialogId={dialog.id} assignee={dialog.assignee} staff={staff} />
           </div>
+
+          {tasksEnabled && (
+            <div className="space-y-2 rounded-xl border border-gray-200 bg-white p-4">
+              <h2 className="text-sm font-semibold text-gray-700">Задачи</h2>
+              {/* `У-220`: задача привязывается К ПЕРЕПИСКЕ, а не к организации.
+                  Раньше кнопка «Задача» в диалоге ставила `linkedOrganizationId`
+                  — вернуться из задачи в разговор было нельзя, а у ничейного
+                  диалога организации нет вовсе. */}
+              <LinkedTasksPanel
+                link={{ dialogId: dialog.id }}
+                tasks={dialogTasks}
+                currentUserId={session.sub}
+                defaultAssigneeId={dialog.assignee?.id ?? null}
+              />
+            </div>
+          )}
 
           <div className="space-y-2 rounded-xl border border-gray-200 bg-white p-4">
             <h2 className="text-sm font-semibold text-gray-700">Кто это</h2>

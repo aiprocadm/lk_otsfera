@@ -4,6 +4,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { taskWhereForLevel, canSeeTask, NO_COMPANY_SENTINEL } from '@/lib/auth/accessProfile';
 import { resolveTaskColumns, columnForTask, type TaskColumnView } from '@/lib/tasks/columns';
 import { recordAudit } from '@/lib/auth/audit';
+import { taskLinkField, taskLinkValue, type TaskLinkRef } from '@/lib/tasks/links';
 import { hasOpenChecklistItems } from './checklist';
 
 /**
@@ -34,6 +35,13 @@ export type TaskCard = {
   linkedLeadSubject: string | null;
   linkedDealId: string | null;
   linkedDealTitle: string | null;
+  /** `У-220`: задача заводится из любой карточки — контакта, переписки, документа. */
+  linkedContactId: string | null;
+  linkedContactName: string | null;
+  linkedDialogId: string | null;
+  linkedDialogPeer: string | null;
+  linkedDocumentId: string | null;
+  linkedDocumentName: string | null;
   /** `У-219`: прогресс чек-листа «3/5». Обе цифры 0 — чек-листа нет, подпись не рисуется. */
   checklistDone: number;
   checklistTotal: number;
@@ -95,6 +103,9 @@ const CARD_INCLUDE = {
   linkedOrganization: { select: { name: true } },
   linkedLead: { select: { subject: true } },
   linkedDeal: { select: { title: true } },
+  linkedContact: { select: { name: true } },
+  linkedDialog: { select: { peerDisplay: true, peerRef: true } },
+  linkedDocument: { select: { name: true } },
 } as const;
 
 const CARD_SELECT = {
@@ -111,6 +122,9 @@ const CARD_SELECT = {
   linkedOrganizationId: true,
   linkedLeadId: true,
   linkedDealId: true,
+  linkedContactId: true,
+  linkedDialogId: true,
+  linkedDocumentId: true,
   ...CARD_INCLUDE,
 } as const;
 
@@ -141,6 +155,14 @@ function toCard(
     linkedLeadSubject: t.linkedLead?.subject ?? null,
     linkedDealId: t.linkedDealId,
     linkedDealTitle: t.linkedDeal?.title ?? null,
+    linkedContactId: t.linkedContactId,
+    linkedContactName: t.linkedContact?.name ?? null,
+    linkedDialogId: t.linkedDialogId,
+    // У собеседника может не быть имени — тогда показываем адрес, по которому
+    // он пишет. Пустая строка вместо подписи выглядела бы как поломка.
+    linkedDialogPeer: t.linkedDialog ? (t.linkedDialog.peerDisplay ?? t.linkedDialog.peerRef) : null,
+    linkedDocumentId: t.linkedDocumentId,
+    linkedDocumentName: t.linkedDocument?.name ?? null,
     checklistDone: checklist?.done ?? 0,
     checklistTotal: checklist?.total ?? 0,
   };
@@ -203,21 +225,25 @@ export async function listTaskBoard(
 }
 
 /**
- * Этап 7 (ФТ-7.1/3.2) — плоский список задач, привязанных к лиду или сделке,
- * для панелей на карточках. Видимость — тот же tasks-охват профиля; сам
- * родитель гейтится страницей/диалогом (getManagerLead / deal scope).
+ * Этап 7 (ФТ-7.1/3.2), расширено этапом 4 (`У-220`) — плоский список задач,
+ * привязанных к объекту, для блока «Задачи» на его карточке. Видимость — тот
+ * же tasks-охват профиля; сам родитель гейтится страницей (карточка лида,
+ * контакта, диалога, документа, организации).
+ *
+ * Поле выборки берётся из общего справочника `taskLinkField`, а не из своей
+ * лесенки `if`: иначе сервис и форма однажды разойдутся в том, какое поле
+ * считать «связью с документом».
  */
 export async function listLinkedTasks(
   prisma: PrismaClient,
   session: SessionPayload,
-  link: { leadId: string } | { dealId: string }
+  link: TaskLinkRef
 ): Promise<TaskCard[]> {
   const isStaff = session.role === 'admin' || isStaffManagerSide(session);
   if (!isStaff || !session.companyId) return [];
   const columns = await resolveTaskColumns(prisma, session.companyId);
   const base = taskWhereForLevel(session, session.accessProfile?.tasks ?? 'all');
-  const linkWhere: Prisma.TaskWhereInput =
-    'leadId' in link ? { linkedLeadId: link.leadId } : { linkedDealId: link.dealId };
+  const linkWhere = { [taskLinkField(link)]: taskLinkValue(link) } as Prisma.TaskWhereInput;
 
   const tasks = await prisma.task.findMany({
     where: { AND: [base, linkWhere] },

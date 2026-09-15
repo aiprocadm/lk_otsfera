@@ -66,7 +66,8 @@ vi.mock('@/components/manager/contacts/contact-card-screen', () => ({
 
 const SESSION = { sub: 'm1', role: 'manager' as const, companyId: 'c1' };
 const CONTACT = { id: 'k1', name: 'Иван', mergedIntoId: null };
-const ALL_TABS = 'dialogs,calls,inbound,deals,orders,history';
+// Этап 4 (`У-220`) добавил «Задачи» перед «Историей».
+const ALL_TABS = 'dialogs,calls,inbound,deals,orders,tasks,history';
 
 function open(id: string, sp: Record<string, string> = {}) {
   return ManagerContactPage({ params: Promise.resolve({ id }), searchParams: Promise.resolve(sp) });
@@ -159,7 +160,7 @@ describe('ManagerContactPage', () => {
       skip: 20,
     });
     const screen = container.querySelector('[data-testid="contact-card-screen"]')!;
-    expect(screen.getAttribute('data-tabs')).toBe('calls,deals,orders,history');
+    expect(screen.getAttribute('data-tabs')).toBe('calls,deals,orders,tasks,history');
     expect(screen.getAttribute('data-active-tab')).toBe('orders');
     expect(screen.getAttribute('data-skip')).toBe('20');
     expect(JSON.parse(screen.getAttribute('data-sp')!)).toEqual(sp);
@@ -167,7 +168,11 @@ describe('ManagerContactPage', () => {
   });
 
   it('неизвестная вкладка в адресе → последняя из реестра («История»)', async () => {
-    await renderServerComponent(open('k1', { tab: 'tasks' }));
+    // Раньше примером «неизвестной» служило `tasks` — с этапа 4 это настоящая
+    // вкладка (`У-220`), и пример пришлось заменить на заведомо несуществующий
+    // ключ. Само правило не изменилось: чужое значение в адресе не должно ни
+    // ронять страницу, ни показывать пустоту.
+    await renderServerComponent(open('k1', { tab: 'такой-вкладки-нет' }));
     expect(listContactTab).toHaveBeenCalledWith(
       {},
       SESSION,

@@ -19,6 +19,7 @@ import {
   type TaskInput,
   type TaskErrorCode,
 } from '@/lib/services/tasks/tasks';
+import type { TaskLinkRef } from '@/lib/tasks/links';
 import { addTaskComment, type TaskCommentErrorCode } from '@/lib/services/tasks/comments';
 import {
   addChecklistItem,
@@ -68,6 +69,10 @@ function taskInput(fd: FormData): TaskInput {
     linkedOrganizationId: str(fd, 'linkedOrganizationId') || null,
     linkedLeadId: str(fd, 'linkedLeadId') || null,
     linkedDealId: str(fd, 'linkedDealId') || null,
+    // `У-220`: задача из карточки контакта, переписки и документа.
+    linkedContactId: str(fd, 'linkedContactId') || null,
+    linkedDialogId: str(fd, 'linkedDialogId') || null,
+    linkedDocumentId: str(fd, 'linkedDocumentId') || null,
     assigneeIds: fd.getAll('assigneeIds').filter((v): v is string => typeof v === 'string'),
   };
 }
@@ -91,10 +96,31 @@ export async function createTaskAction(
   fd: FormData
 ): Promise<ActionResult<TaskErrorCode> & { id?: string }> {
   const session = await requireSession();
-  const res = await createTask(prisma, session, taskInput(fd));
+  const input = taskInput(fd);
+  const res = await createTask(prisma, session, input);
   if (!res.ok) return { ok: false, error: res.error };
   revalidate();
+  revalidateLinkSources(input);
   return { ok: true, id: res.id };
+}
+
+/**
+ * `У-220`: задачу теперь заводят ИЗ карточки — контакта, переписки, документа,
+ * организации, заказа. Блок «Задачи» на этой карточке рисует сервер, поэтому
+ * без сброса кэша человек нажимает «Создать» и не видит своей же задачи, пока
+ * не обновит страницу руками.
+ */
+function revalidateLinkSources(input: TaskInput): void {
+  const paths: string[] = [];
+  for (const cabinet of ['manager', 'leader'] as const) {
+    if (input.linkedContactId) paths.push(`/${cabinet}/contacts/${input.linkedContactId}`);
+    if (input.linkedDialogId) paths.push(`/${cabinet}/messengers/${input.linkedDialogId}`);
+    if (input.linkedDocumentId) paths.push(`/${cabinet}/documents/${input.linkedDocumentId}`);
+    if (input.linkedOrganizationId)
+      paths.push(`/${cabinet}/organizations/${input.linkedOrganizationId}`);
+    if (input.linkedLeadId) paths.push(`/${cabinet}/leads/${input.linkedLeadId}`);
+  }
+  for (const path of paths) revalidatePath(path);
 }
 
 export async function updateTaskAction(fd: FormData): Promise<ActionResult<TaskErrorCode>> {
@@ -118,12 +144,13 @@ export async function deleteTaskAction(fd: FormData): Promise<ActionResult<TaskE
 }
 
 /**
- * Этап 7 (ФТ-7.1) — задачи, привязанные к лиду/сделке, для панелей на карточках
+ * Этап 7 (ФТ-7.1), расширено этапом 4 (`У-220`) — задачи объекта для блока
+ * «Задачи» на его карточке
  * (ленивая подгрузка в deal-dialog по образцу заметок). Сервис скоупит по
  * tasks-охвату профиля; клиентским ролям вернёт пусто.
  */
 export async function listLinkedTasksAction(
-  link: { leadId: string } | { dealId: string }
+  link: TaskLinkRef
 ): Promise<{ ok: true; rows: TaskCard[] } | { ok: false; error: 'forbidden' }> {
   const session = await requireSession();
   const rows = await listLinkedTasks(prisma, session, link);

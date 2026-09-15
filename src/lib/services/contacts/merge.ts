@@ -9,7 +9,8 @@ import { canUseContacts, contactScopeWhere, isContactInScope } from './scope';
  * входящие письма, звонки, диалоги мессенджеров, заказы (`primaryContactId`),
  * сделки (`Deal.contactId`), пользователь кабинета; пустые `position`/`note`
  * главного заполняются из второго — непустые не затираются. Задачи
- * (`Task.linkedContactId`) появятся в этапе 4 и добавятся в перенос там.
+ * (`Task.linkedContactId`) добавлены в перенос этапом 4 (`У-220`) — ровно там,
+ * где обещал этот комментарий.
  */
 
 export type MergeContactsArgs = { primaryId: string; secondaryId: string };
@@ -21,6 +22,8 @@ type MergeMoved = {
   dialogs: number;
   orders: number;
   deals: number;
+  /** `У-220`: задачи, заведённые по второму контакту, переезжают к главному. */
+  tasks: number;
   userMoved: boolean;
 };
 
@@ -124,6 +127,12 @@ export async function mergeContacts(
       where: { contactId: secondary.id },
       data: { contactId: primary.id },
     });
+    // `У-220`: без этого переноса задачи по второму контакту осиротели бы —
+    // сам контакт уходит в архив, и найти их стало бы негде.
+    const tasks = await tx.task.updateMany({
+      where: { linkedContactId: secondary.id },
+      data: { linkedContactId: primary.id },
+    });
     // `userId` уникален: сначала снимаем у второго, потом отдаём главному.
     const userMoved = !!secondary.userId && !primary.userId;
     await tx.contact.update({
@@ -154,6 +163,7 @@ export async function mergeContacts(
       dialogs: dialogs.count,
       orders: orders.count,
       deals: deals.count,
+      tasks: tasks.count,
       userMoved,
     };
   });
