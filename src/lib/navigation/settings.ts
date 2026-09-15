@@ -141,6 +141,8 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     path: 'integrations/website',
     capability: 'settings.integrations.manage',
     cabinets: ['admin'],
+    // `У-217`: раздел появился этапом 3 и раскатывается вместе с ним.
+    flag: 'comm_center',
     legacyHrefs: [],
   },
   {
@@ -193,6 +195,8 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     path: 'catalogs/reply-templates',
     capability: 'settings.catalogs.manage',
     cabinets: ['admin', 'leader'],
+    // `У-217`: раздел появился этапом 3 и раскатывается вместе с ним.
+    flag: 'comm_center',
     legacyHrefs: [],
   },
   {

@@ -32,6 +32,29 @@ import { readSource } from './helpers/source';
 
 const NOTE_SERVICE = 'src/lib/services/messengers/note.ts';
 
+/**
+ * Куски исходника, относящиеся к запросам по сообщениям диалога: от
+ * `prisma.messengerMessage.<метод>(` до закрывающей скобки вызова. Скобки
+ * считаются, поэтому вложенные объекты и массивы не сбивают границу.
+ */
+function messengerQueries(code: string): string[] {
+  const out: string[] = [];
+  const re = /messengerMessage\s*\.\s*\w+\s*\(/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(code)) !== null) {
+    let depth = 1;
+    let i = m.index + m[0].length;
+    while (i < code.length && depth > 0) {
+      const ch = code[i];
+      if (ch === '(') depth += 1;
+      else if (ch === ')') depth -= 1;
+      i += 1;
+    }
+    out.push(code.slice(m.index, i));
+  }
+  return out;
+}
+
 /** Где живут клиентские (не-ЦО) пути чтения переписки. */
 const CLIENT_AREAS = [
   'src/app/api/organization',
@@ -76,8 +99,19 @@ describe('внутренняя заметка не уходит клиенту',
       for (const file of filesUnder(area)) {
         const code = readSource(file);
         if (!code.includes('messengerMessage')) continue;
-        // Выборка есть — значит рядом должен стоять фильтр направления.
-        if (!code.includes('direction')) offenders.push(file);
+        // Фильтр ищем ВНУТРИ самого запроса, а не по файлу целиком.
+        //
+        // Почему так: `direction` в проекте значит ещё и УЧЕБНОЕ НАПРАВЛЕНИЕ
+        // (`OrderItem.direction`, `directionName`), и это слово уже стоит в
+        // двадцати файлах клиентского контура в совершенно другом смысле.
+        // Пока страж смотрел на весь файл, утечка, дописанная в любой из них,
+        // проходила молча — причём слепыми были ровно те файлы (заказы,
+        // сводка), куда переписка и придёт. Найдено мутацией при закрытии
+        // этапа (`У-217`): та же выборка без фильтра в `dashboard.ts` страж не
+        // замечал, а в соседнем `team.ts` — ловил.
+        for (const query of messengerQueries(code)) {
+          if (!query.includes('direction')) offenders.push(file);
+        }
       }
     }
     expect(

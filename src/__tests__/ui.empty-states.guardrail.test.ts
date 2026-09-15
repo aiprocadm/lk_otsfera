@@ -60,6 +60,34 @@ function stripComments(src: string): string {
   return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 }
 
+/**
+ * Исходник без блоков `<EmptyState …/>` и без строк, где компонент
+ * импортируется: остаётся ровно то, что написано мимо примитива.
+ */
+function withoutEmptyStateBlocks(src: string): string {
+  const blocks = [
+    ...src.matchAll(/<EmptyState[\s\S]*?\/>/g),
+    ...src.matchAll(/<EmptyState[\s\S]*?<\/EmptyState>/g),
+  ].map((m) => m[0]);
+
+  let rest = src;
+  for (const block of blocks) rest = rest.replace(block, '');
+
+  // Тексты часто лежат не в самой разметке, а в словаре рядом
+  // (`message={EMPTY_BY_TAB[tab]}`). Это такое же честное использование
+  // примитива, поэтому объявления, на которые ссылается блок, тоже убираем —
+  // иначе страж ругался бы на правильный код.
+  const referenced = new Set<string>();
+  for (const block of blocks) {
+    for (const m of block.matchAll(/\{\s*([A-Za-z_$][\w$]*)/g)) referenced.add(m[1]!);
+  }
+  for (const name of referenced) {
+    rest = rest.replace(new RegExp(`const ${name}[\\s\\S]*?\\n\\};`, 'g'), '');
+    rest = rest.replace(new RegExp(`const ${name}\\b.*$`, 'gm'), '');
+  }
+  return rest.replace(/^.*\bEmptyState\b.*$/gm, '');
+}
+
 function walk(dir: string, base = ''): string[] {
   const out: string[] = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -79,8 +107,15 @@ describe('пустые состояния пишутся компонентом,
       // Сам примитив и его соседи по ui/ — не нарушители.
       if (rel.startsWith(`ui${join('', '')}`) || rel.startsWith('ui/')) continue;
       const src = stripComments(readFileSync(join(root, rel), 'utf8'));
-      if (src.includes('EmptyState')) continue; // компонент используется — ок
-      if (PATTERNS.some((p) => p.test(src))) offenders.push(rel);
+      // ВЫРЕЗАЕМ честные `<EmptyState …/>`, а не выходим по первому упоминанию.
+      //
+      // Раньше здесь стоял `if (src.includes('EmptyState')) continue`, и одно
+      // законное использование обеляло файл целиком: рядом можно было написать
+      // вторую пустоту руками — молчали и этот страж, и eslint. Найдено
+      // мутацией при закрытии этапа (`У-217`). Тот же приём уже применён во
+      // втором тесте этого файла, здесь его просто не было.
+      const rest = withoutEmptyStateBlocks(src);
+      if (PATTERNS.some((p) => p.test(rest))) offenders.push(rel);
     }
     expect(offenders).toEqual([]);
   });
