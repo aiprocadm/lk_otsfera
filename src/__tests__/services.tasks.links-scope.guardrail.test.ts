@@ -42,9 +42,13 @@ const manager = { sub: 'u1', role: 'manager', companyId: MY_COMPANY } as Session
 /** Прайс-фейк: каждая таблица отвечает строкой указанной компании. */
 function prismaWith(ownerByModel: Record<string, string | null>): PrismaClient {
   const table = (model: string) => ({
-    findUnique: vi.fn().mockResolvedValue(
-      model in ownerByModel ? { id: 'x', companyId: ownerByModel[model] } : { id: 'x', companyId: MY_COMPANY }
-    ),
+    findUnique: vi
+      .fn()
+      .mockResolvedValue(
+        model in ownerByModel
+          ? { id: 'x', companyId: ownerByModel[model] }
+          : { id: 'x', companyId: MY_COMPANY }
+      ),
   });
   const tx = {
     order: table('order'),

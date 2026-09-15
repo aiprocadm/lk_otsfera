@@ -160,7 +160,9 @@ function toCard(
     linkedDialogId: t.linkedDialogId,
     // У собеседника может не быть имени — тогда показываем адрес, по которому
     // он пишет. Пустая строка вместо подписи выглядела бы как поломка.
-    linkedDialogPeer: t.linkedDialog ? (t.linkedDialog.peerDisplay ?? t.linkedDialog.peerRef) : null,
+    linkedDialogPeer: t.linkedDialog
+      ? (t.linkedDialog.peerDisplay ?? t.linkedDialog.peerRef)
+      : null,
     linkedDocumentId: t.linkedDocumentId,
     linkedDocumentName: t.linkedDocument?.name ?? null,
     checklistDone: checklist?.done ?? 0,

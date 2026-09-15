@@ -12,7 +12,19 @@ import { recordAudit } from '@/lib/auth/audit';
 const SLA_MIN_HOURS = 1;
 const SLA_MAX_HOURS = 168; // неделя — верхняя граница разумного порога
 
-export type SlaSettings = { slaResponseHours: number; slaWarningHours: number };
+export type SlaSettings = {
+  slaResponseHours: number;
+  slaWarningHours: number;
+  /**
+   * `У-225` (этап 4): на какой день просрочки задачи сообщать руководителю.
+   * `0` — не сообщать вовсе. Здесь ДНИ, а не часы: задача живёт неделями, и
+   * порог в часах пришлось бы каждый раз переводить в уме.
+   */
+  taskOverdueEscalationDays: number;
+};
+
+/** Предел порога просрочки задач: больше месяца — это уже не напоминание. */
+const TASK_OVERDUE_MAX_DAYS = 30;
 
 /** Строка экрана «SLA входящих в работу» (`У-130`): компания и её пороги. */
 export type CompanySla = SlaSettings & { id: string; name: string };
@@ -22,6 +34,7 @@ const SLA_LIST_SELECT = {
   name: true,
   slaResponseHours: true,
   slaWarningHours: true,
+  taskOverdueEscalationDays: true,
 } as const;
 
 /**
@@ -59,7 +72,11 @@ export async function getSlaSettings(
 ): Promise<SlaSettings | null> {
   const company = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { slaResponseHours: true, slaWarningHours: true },
+    select: {
+      slaResponseHours: true,
+      slaWarningHours: true,
+      taskOverdueEscalationDays: true,
+    },
   });
   return company ?? null;
 }
@@ -75,7 +92,7 @@ export async function setSlaSettings(
   input: SlaSettings
 ): Promise<SetSlaSettingsResult> {
   const messages: string[] = [];
-  const { slaResponseHours, slaWarningHours } = input;
+  const { slaResponseHours, slaWarningHours, taskOverdueEscalationDays } = input;
   if (
     !Number.isInteger(slaResponseHours) ||
     slaResponseHours < SLA_MIN_HOURS ||
@@ -90,6 +107,15 @@ export async function setSlaSettings(
   ) {
     messages.push(`Порог подсветки — целое число от ${SLA_MIN_HOURS} до ${SLA_MAX_HOURS} часов`);
   }
+  if (
+    !Number.isInteger(taskOverdueEscalationDays) ||
+    taskOverdueEscalationDays < 0 ||
+    taskOverdueEscalationDays > TASK_OVERDUE_MAX_DAYS
+  ) {
+    messages.push(
+      `Просрочка задач — целое число от 0 до ${TASK_OVERDUE_MAX_DAYS} дней (0 — не сообщать)`
+    );
+  }
   if (messages.length === 0 && slaWarningHours >= slaResponseHours) {
     messages.push('Порог подсветки должен быть меньше порога эскалации');
   }
@@ -97,19 +123,24 @@ export async function setSlaSettings(
 
   const company = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { slaResponseHours: true, slaWarningHours: true },
+    select: {
+      slaResponseHours: true,
+      slaWarningHours: true,
+      taskOverdueEscalationDays: true,
+    },
   });
   if (!company) return { ok: false, error: 'company_not_found' };
   if (
     company.slaResponseHours === slaResponseHours &&
-    company.slaWarningHours === slaWarningHours
+    company.slaWarningHours === slaWarningHours &&
+    company.taskOverdueEscalationDays === taskOverdueEscalationDays
   ) {
     return { ok: true, changed: false };
   }
 
   await prisma.company.update({
     where: { id: companyId },
-    data: { slaResponseHours, slaWarningHours },
+    data: { slaResponseHours, slaWarningHours, taskOverdueEscalationDays },
   });
   await recordAudit(prisma, {
     userId: actorUserId,
@@ -117,7 +148,7 @@ export async function setSlaSettings(
     entity: 'company',
     entityId: companyId,
     before: company,
-    after: { slaResponseHours, slaWarningHours },
+    after: { slaResponseHours, slaWarningHours, taskOverdueEscalationDays },
   });
   return { ok: true, changed: true };
 }

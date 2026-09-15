@@ -41,7 +41,6 @@ export function TaskBoard({
   /** Куда ведёт заголовок карточки: у руководителя свой кабинет (правило зеркала). */
   hrefBase?: string;
 }) {
-
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [dragOver, setDragOver] = useState<string | null>(null);

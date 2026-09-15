@@ -17,7 +17,10 @@ vi.mock('@/server-actions/admin/automationRules', () => ({
   updateAutomationRuleAction: vi.fn(),
 }));
 
-const { toastError, toastSuccess } = vi.hoisted(() => ({ toastError: vi.fn(), toastSuccess: vi.fn() }));
+const { toastError, toastSuccess } = vi.hoisted(() => ({
+  toastError: vi.fn(),
+  toastSuccess: vi.fn(),
+}));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 // Форма правила покрыта своим тестом — здесь она заглушка, чтобы экран
@@ -47,9 +50,7 @@ function rule(over: Partial<AutomationRuleView> = {}): AutomationRuleView {
     trigger: 'document_issued',
     triggerLabel: 'Документ выставлен',
     conditions: {},
-    actions: [
-      { kind: 'create_task', titleTemplate: 'Проверить', assignee: 'responsible_manager' },
-    ],
+    actions: [{ kind: 'create_task', titleTemplate: 'Проверить', assignee: 'responsible_manager' }],
     updatedAt: new Date('2026-09-15'),
     runsTotal: 0,
     lastRunAt: null,
@@ -69,7 +70,13 @@ beforeEach(() => {
 describe('AutomationScreen — три вопроса и пустые состояния', () => {
   it('отвечает на «где я», «что здесь» и «что дальше» (§15)', () => {
     render(
-      <AutomationScreen cabinet="leader" companyId="co-1" companies={[]} rules={[rule()]} runs={[]} />
+      <AutomationScreen
+        cabinet="leader"
+        companyId="co-1"
+        companies={[]}
+        rules={[rule()]}
+        runs={[]}
+      />
     );
     expect(screen.getByRole('heading', { name: 'Автоматизация' })).toBeTruthy();
     expect(screen.getByText(/если случилось событие/i)).toBeTruthy();
@@ -95,7 +102,13 @@ describe('AutomationScreen — три вопроса и пустые состо�
 
   it('администратор выбирает компанию; без выбора — подсказка', () => {
     render(
-      <AutomationScreen cabinet="admin" companyId={null} companies={COMPANIES} rules={[]} runs={[]} />
+      <AutomationScreen
+        cabinet="admin"
+        companyId={null}
+        companies={COMPANIES}
+        rules={[]}
+        runs={[]}
+      />
     );
     expect(screen.getByLabelText('Компания')).toBeTruthy();
     expect(screen.getByText('Компания не выбрана')).toBeTruthy();
@@ -105,7 +118,13 @@ describe('AutomationScreen — три вопроса и пустые состо�
 
   it('у руководителя выбора компании нет вовсе', () => {
     render(
-      <AutomationScreen cabinet="leader" companyId="co-1" companies={[]} rules={[rule()]} runs={[]} />
+      <AutomationScreen
+        cabinet="leader"
+        companyId="co-1"
+        companies={[]}
+        rules={[rule()]}
+        runs={[]}
+      />
     );
     expect(screen.queryByLabelText('Компания')).toBeNull();
   });
@@ -114,7 +133,13 @@ describe('AutomationScreen — три вопроса и пустые состо�
 describe('AutomationScreen — правила', () => {
   it('показывает «если … то …» человеческими словами', () => {
     render(
-      <AutomationScreen cabinet="leader" companyId="co-1" companies={[]} rules={[rule()]} runs={[]} />
+      <AutomationScreen
+        cabinet="leader"
+        companyId="co-1"
+        companies={[]}
+        rules={[rule()]}
+        runs={[]}
+      />
     );
     expect(screen.getByText(/Если: Документ выставлен\. То: создать задачу\./)).toBeTruthy();
     expect(screen.getByText('Ещё не срабатывало')).toBeTruthy();
@@ -138,7 +163,13 @@ describe('AutomationScreen — правила', () => {
 
   it('включение уходит на сервер и обновляет экран', async () => {
     render(
-      <AutomationScreen cabinet="leader" companyId="co-1" companies={[]} rules={[rule()]} runs={[]} />
+      <AutomationScreen
+        cabinet="leader"
+        companyId="co-1"
+        companies={[]}
+        rules={[rule()]}
+        runs={[]}
+      />
     );
     fireEvent.click(screen.getByRole('button', { name: 'Включить' }));
     await waitFor(() => expect(toggleAutomationRuleAction).toHaveBeenCalled());
@@ -159,13 +190,21 @@ describe('AutomationScreen — правила', () => {
     expect(screen.getByText('Включено')).toBeTruthy();
     expect(screen.getByText(/Срабатывало 2 раз/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Выключить' }));
-    await waitFor(() => expect(toggleAutomationRuleAction).toHaveBeenCalledWith('leader', 'co-1', 'r1', false));
+    await waitFor(() =>
+      expect(toggleAutomationRuleAction).toHaveBeenCalledWith('leader', 'co-1', 'r1', false)
+    );
   });
 
   it('отказ сервера показывается по-русски и экран не обновляется', async () => {
     toggleAutomationRuleAction.mockResolvedValue({ ok: false, error: 'company_required' });
     render(
-      <AutomationScreen cabinet="leader" companyId="co-1" companies={[]} rules={[rule()]} runs={[]} />
+      <AutomationScreen
+        cabinet="leader"
+        companyId="co-1"
+        companies={[]}
+        rules={[rule()]}
+        runs={[]}
+      />
     );
     fireEvent.click(screen.getByRole('button', { name: 'Включить' }));
     await waitFor(() => expect(toastError).toHaveBeenCalled());
@@ -175,7 +214,13 @@ describe('AutomationScreen — правила', () => {
   it('удаление СПРАШИВАЕТ подтверждение', async () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     render(
-      <AutomationScreen cabinet="leader" companyId="co-1" companies={[]} rules={[rule()]} runs={[]} />
+      <AutomationScreen
+        cabinet="leader"
+        companyId="co-1"
+        companies={[]}
+        rules={[rule()]}
+        runs={[]}
+      />
     );
     fireEvent.click(screen.getByRole('button', { name: 'Удалить' }));
     expect(confirm).toHaveBeenCalled();
@@ -189,7 +234,13 @@ describe('AutomationScreen — правила', () => {
 
   it('«Изменить» открывает форму с этим правилом, «Новое» — пустую', () => {
     render(
-      <AutomationScreen cabinet="leader" companyId="co-1" companies={[]} rules={[rule()]} runs={[]} />
+      <AutomationScreen
+        cabinet="leader"
+        companyId="co-1"
+        companies={[]}
+        rules={[rule()]}
+        runs={[]}
+      />
     );
     fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
     expect(screen.getByTestId('rule-form').textContent).toBe('r1');
@@ -210,14 +261,26 @@ describe('AutomationScreen — журнал срабатываний', () => {
 
   it('пусто — объясняет, что здесь появится', () => {
     render(
-      <AutomationScreen cabinet="leader" companyId="co-1" companies={[]} rules={[rule()]} runs={[]} />
+      <AutomationScreen
+        cabinet="leader"
+        companyId="co-1"
+        companies={[]}
+        rules={[rule()]}
+        runs={[]}
+      />
     );
     expect(screen.getByText(/Срабатываний пока не было/)).toBeTruthy();
   });
 
   it('успех показывает, что именно сделано', () => {
     render(
-      <AutomationScreen cabinet="leader" companyId="co-1" companies={[]} rules={[rule()]} runs={[run()]} />
+      <AutomationScreen
+        cabinet="leader"
+        companyId="co-1"
+        companies={[]}
+        rules={[rule()]}
+        runs={[run()]}
+      />
     );
     expect(screen.getByText('Выполнено')).toBeTruthy();
     expect(screen.getByText('задач: 1')).toBeTruthy();

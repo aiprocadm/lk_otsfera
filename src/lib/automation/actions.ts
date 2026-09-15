@@ -29,7 +29,7 @@ const assigneeSchema = z.union([
   z.string().regex(/^user:[A-Za-z0-9_-]+$/),
 ]);
 
-export const actionSchema = z.discriminatedUnion('kind', [
+const actionSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('create_task'),
     titleTemplate: z.string().trim().min(1).max(200),
@@ -125,7 +125,10 @@ export async function resolveRecipients(
   if (leaders.length > 0) {
     return { userIds: leaders, note: 'у объекта нет ответственного менеджера' };
   }
-  return { userIds: [], note: 'у объекта нет ответственного менеджера, руководителей в компании нет' };
+  return {
+    userIds: [],
+    note: 'у объекта нет ответственного менеджера, руководителей в компании нет',
+  };
 }
 
 async function leadersOf(prisma: PrismaClient, companyId: string): Promise<string[]> {

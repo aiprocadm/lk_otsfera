@@ -107,9 +107,21 @@ describe('страж: чьи правила правим', () => {
   });
 
   it.each([
-    ['изменение', () => updateAutomationRuleAction('leader', 'co-чужая', 'r1', VALID), updateAutomationRule],
-    ['включение', () => toggleAutomationRuleAction('leader', 'co-чужая', 'r1', true), toggleAutomationRule],
-    ['удаление', () => deleteAutomationRuleAction('leader', 'co-чужая', 'r1'), deleteAutomationRule],
+    [
+      'изменение',
+      () => updateAutomationRuleAction('leader', 'co-чужая', 'r1', VALID),
+      updateAutomationRule,
+    ],
+    [
+      'включение',
+      () => toggleAutomationRuleAction('leader', 'co-чужая', 'r1', true),
+      toggleAutomationRule,
+    ],
+    [
+      'удаление',
+      () => deleteAutomationRuleAction('leader', 'co-чужая', 'r1'),
+      deleteAutomationRule,
+    ],
   ])('%s тоже берёт компанию из сессии, а не из формы', async (_name, call, spy) => {
     requireSettingsSection.mockResolvedValue({ sub: 'boss', companyId: 'co-своя' });
     await call();
@@ -117,8 +129,16 @@ describe('страж: чьи правила правим', () => {
   });
 
   it.each([
-    ['изменение', () => updateAutomationRuleAction('leader', null, 'r1', VALID), updateAutomationRule],
-    ['включение', () => toggleAutomationRuleAction('leader', null, 'r1', true), toggleAutomationRule],
+    [
+      'изменение',
+      () => updateAutomationRuleAction('leader', null, 'r1', VALID),
+      updateAutomationRule,
+    ],
+    [
+      'включение',
+      () => toggleAutomationRuleAction('leader', null, 'r1', true),
+      toggleAutomationRule,
+    ],
     ['удаление', () => deleteAutomationRuleAction('leader', null, 'r1'), deleteAutomationRule],
   ])('%s без компании в сессии — отказ и ни одного вызова сервиса', async (_n, call, spy) => {
     requireSettingsSection.mockResolvedValue({ sub: 'boss', companyId: null });

@@ -124,11 +124,14 @@ describe('пороги компании', () => {
     const set = await setSlaSettings(prisma, leader, companyA, {
       slaResponseHours: 48,
       slaWarningHours: 2,
+      taskOverdueEscalationDays: 3,
     });
     expect(set).toEqual({ ok: true, changed: true });
     expect(await getSlaSettings(prisma, companyA)).toEqual({
       slaResponseHours: 48,
       slaWarningHours: 2,
+      // `У-225` (этап 4): третий порог — дни просрочки задачи.
+      taskOverdueEscalationDays: 3,
     });
 
     // 26ч ожидания при порогах 2/48 → warning (не breach).
@@ -137,7 +140,11 @@ describe('пороги компании', () => {
     expect(item?.slaLevel).toBe('warning');
 
     // Возвращаем дефолт 24/4 — для теста эскалации ниже.
-    await setSlaSettings(prisma, leader, companyA, { slaResponseHours: 24, slaWarningHours: 4 });
+    await setSlaSettings(prisma, leader, companyA, {
+      slaResponseHours: 24,
+      slaWarningHours: 4,
+      taskOverdueEscalationDays: 3,
+    });
   });
 });
 

@@ -21,6 +21,11 @@ const EMPTY: MyDayData = {
   dealsByStage: [],
   inboundFresh: 0,
   callsMissed: 0,
+  // `У-226` (этап 4): четыре новых показателя сводки.
+  dialogsWaiting: 0,
+  proposalsExpiring: 0,
+  checklistOpen: 0,
+  eventsToday: 0,
 };
 
 const FULL: MyDayData = {
@@ -40,6 +45,10 @@ const FULL: MyDayData = {
   ],
   inboundFresh: 4,
   callsMissed: 1,
+  dialogsWaiting: 4,
+  proposalsExpiring: 2,
+  checklistOpen: 9,
+  eventsToday: 3,
 };
 
 function render(data: MyDayData) {

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, fireEvent, waitFor, within } from '@testing-library/react';
 
 const { createAutomationRuleAction, updateAutomationRuleAction } = vi.hoisted(() => ({
   createAutomationRuleAction: vi.fn(),
@@ -145,10 +145,14 @@ describe('AutomationRuleForm — сохранение', () => {
 
   it('уведомление сотруднику отправляется как notify, без срока', async () => {
     open();
-    fireEvent.change(dialog().getByLabelText('Название правила'), { target: { value: 'Сообщить' } });
+    fireEvent.change(dialog().getByLabelText('Название правила'), {
+      target: { value: 'Сообщить' },
+    });
     fireEvent.change(dialog().getByLabelText('Действие'), { target: { value: 'notify' } });
     fireEvent.change(dialog().getByLabelText('Кому'), { target: { value: 'role:leader' } });
-    fireEvent.change(dialog().getByLabelText('Текст правила'), { target: { value: 'Смотри почту' } });
+    fireEvent.change(dialog().getByLabelText('Текст правила'), {
+      target: { value: 'Смотри почту' },
+    });
     fireEvent.click(dialog().getByRole('button', { name: 'Сохранить' }));
     await waitFor(() => expect(createAutomationRuleAction).toHaveBeenCalled());
     expect(createAutomationRuleAction.mock.calls[0][2].actions[0]).toEqual({
@@ -181,8 +185,12 @@ describe('AutomationRuleForm — сохранение', () => {
       lastRunStatus: null,
     };
     open(rule);
-    expect((dialog().getByLabelText('Название правила') as HTMLInputElement).value).toBe('Старое имя');
-    expect((dialog().getByLabelText('Событие') as HTMLSelectElement).value).toBe('proposal_no_answer');
+    expect((dialog().getByLabelText('Название правила') as HTMLInputElement).value).toBe(
+      'Старое имя'
+    );
+    expect((dialog().getByLabelText('Событие') as HTMLSelectElement).value).toBe(
+      'proposal_no_answer'
+    );
     fireEvent.click(dialog().getByRole('button', { name: 'Сохранить' }));
     await waitFor(() => expect(updateAutomationRuleAction).toHaveBeenCalled());
     // Правило из коробки править МОЖНО — текст правится (`У-224`).

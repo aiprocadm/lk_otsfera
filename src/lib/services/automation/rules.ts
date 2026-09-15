@@ -1,9 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import {
-  AUTOMATION_TRIGGERS,
-  type AutomationTriggerKey,
-} from '@/lib/automation/catalog';
+import { AUTOMATION_TRIGGERS, type AutomationTriggerKey } from '@/lib/automation/catalog';
 import { conditionsSchema, type AutomationConditions } from '@/lib/automation/conditions';
 import {
   actionsSchema,
@@ -21,10 +18,7 @@ import {
  */
 
 export type AutomationRuleError =
-  | 'not_found'
-  | 'validation'
-  | 'unknown_trigger'
-  | 'unknown_placeholder';
+  'not_found' | 'validation' | 'unknown_trigger' | 'unknown_placeholder';
 
 export type AutomationRuleView = {
   id: string;
@@ -42,7 +36,7 @@ export type AutomationRuleView = {
   lastRunStatus: string | null;
 };
 
-export const ruleInputSchema = z.object({
+const ruleInputSchema = z.object({
   name: z.string().trim().min(1).max(200),
   trigger: z.string().trim().min(1),
   conditions: conditionsSchema.optional(),
@@ -102,14 +96,12 @@ export async function listAutomationRules(
  */
 function triggerLabel(trigger: string): string {
   const spec = AUTOMATION_TRIGGERS[trigger as AutomationTriggerKey] as
-    | { labelRu: string }
-    | undefined;
+    { labelRu: string } | undefined;
   return spec?.labelRu ?? `Неизвестное событие (${trigger})`;
 }
 
 export type SaveRuleOutcome =
-  | { ok: true; id: string }
-  | { ok: false; error: AutomationRuleError; unknown?: string[] };
+  { ok: true; id: string } | { ok: false; error: AutomationRuleError; unknown?: string[] };
 
 /** Создать правило. Новое правило всегда ВЫКЛЮЧЕНО: включают его галочкой. */
 export async function createAutomationRule(
@@ -238,7 +230,7 @@ export type AutomationRunView = {
 };
 
 /** Сколько строк журнала показывает экран; полная история — в базе. */
-export const AUTOMATION_RUNS_CAP = 50;
+const AUTOMATION_RUNS_CAP = 50;
 
 /** Журнал срабатываний компании (`У-223`). */
 export async function listAutomationRuns(

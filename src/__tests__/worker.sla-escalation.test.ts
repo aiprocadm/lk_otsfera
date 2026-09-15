@@ -282,7 +282,14 @@ describe('runSlaEscalation', () => {
 });
 
 describe('slaEscalationProcessor (BullMQ wrapper)', () => {
-  it('работает на глобальном prisma', async () => {
-    expect(await slaEscalationProcessor()).toEqual({ escalated: 0 });
+  it('работает на глобальном prisma и разбирает ОБА повода', async () => {
+    // Этап 4 (`У-225`): тот же ночной заход разбирает и «никто не взял
+    // входящее», и «задача просрочена». Второе расписание ради этого не
+    // заводили: обе проверки про то, что работа стоит.
+    expect(await slaEscalationProcessor()).toEqual({
+      escalated: 0,
+      tasksNotified: 0,
+      tasksEscalated: 0,
+    });
   });
 });

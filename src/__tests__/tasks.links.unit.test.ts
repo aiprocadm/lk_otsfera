@@ -49,10 +49,7 @@ describe('taskLinkField / taskLinkValue', () => {
   it('server-action читает из формы ровно эти ключи', () => {
     // Второй таблицы соответствий нет и не должно быть: `taskInput` разбирает
     // форму по тем же именам. Если ключ разъедется, связь потеряется по дороге.
-    const action = readFileSync(
-      join(process.cwd(), 'src/server-actions/tasks/index.ts'),
-      'utf8'
-    );
+    const action = readFileSync(join(process.cwd(), 'src/server-actions/tasks/index.ts'), 'utf8');
     for (const [link] of CASES) {
       expect(action, `taskInput не читает ${taskLinkField(link)}`).toContain(
         `str(fd, '${taskLinkField(link)}')`

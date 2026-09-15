@@ -81,6 +81,7 @@ export function SlaIntakeScreen({
                 <th className="px-4 py-3 text-left font-medium">Компания</th>
                 <th className="px-4 py-3 text-right font-medium">Подсветить через, часов</th>
                 <th className="px-4 py-3 text-right font-medium">Эскалировать через, часов</th>
+                <th className="px-4 py-3 text-right font-medium">Просрочка задач, дней</th>
               </tr>
             </thead>
             <tbody>
@@ -89,6 +90,9 @@ export function SlaIntakeScreen({
                   <td className="px-4 py-3 text-[#111111]">{c.name}</td>
                   <td className="px-4 py-3 text-right text-gray-700">{c.slaWarningHours}</td>
                   <td className="px-4 py-3 text-right text-gray-700">{c.slaResponseHours}</td>
+                  <td className="px-4 py-3 text-right text-gray-700">
+                    {c.taskOverdueEscalationDays === 0 ? '—' : c.taskOverdueEscalationDays}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -99,6 +103,7 @@ export function SlaIntakeScreen({
           initial={{
             slaResponseHours: companies[0]!.slaResponseHours,
             slaWarningHours: companies[0]!.slaWarningHours,
+            taskOverdueEscalationDays: companies[0]!.taskOverdueEscalationDays,
           }}
         />
       )}

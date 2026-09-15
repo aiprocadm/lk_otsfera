@@ -10,6 +10,8 @@ import {
   type OrderForReadiness,
 } from '@/lib/services/manager/orderDelivery';
 import { startOfMoscowDay } from '@/lib/dates/calendar';
+import { DIALOG_STATUS } from '@/lib/services/messengers/dialogStatus';
+import { NO_COMPANY_SENTINEL } from '@/lib/auth/accessProfile';
 import { ONE_DAY_MS } from './dashboard/constants';
 
 /**
@@ -46,7 +48,20 @@ export type MyDayData = {
   dealsByStage: MyDayDeal[];
   inboundFresh: number;
   callsMissed: number;
+  /**
+   * `У-226` (этап 4). Четыре вещи, которых в «Моём дне» не хватало: переписка,
+   * где клиент ждёт ответа именно от меня; коммерческие предложения, у которых
+   * срок вот-вот истечёт; сколько шагов чек-листов осталось в моих задачах;
+   * события календаря на сегодня.
+   */
+  dialogsWaiting: number;
+  proposalsExpiring: number;
+  checklistOpen: number;
+  eventsToday: number;
 };
+
+/** Сколько дней считаем «срок вот-вот истечёт» у коммерческого предложения. */
+const PROPOSAL_SOON_DAYS = 3;
 
 /**
  * Границы «сегодня» — по московскому календарю (`Д-22`, хотфикс №21).
@@ -109,33 +124,83 @@ export async function getMyDay(
   const { start, end } = dayBounds(now);
   const dayAgo = new Date(now.getTime() - ONE_DAY_MS);
 
-  const [tasksToday, tasksOverdue, intake, ready, dealsGrouped, inboundFresh, callsMissed] =
-    await Promise.all([
-      prisma.task.count({
-        where: {
-          AND: [
-            taskFiltersWhere(session, { scope: 'mine' }, now),
-            { dueDate: { gte: start, lt: end }, status: { not: 'done' } },
-          ],
+  const soon = new Date(now.getTime() + PROPOSAL_SOON_DAYS * ONE_DAY_MS);
+
+  const [
+    tasksToday,
+    tasksOverdue,
+    intake,
+    ready,
+    dealsGrouped,
+    inboundFresh,
+    callsMissed,
+    dialogsWaiting,
+    proposalsExpiring,
+    checklistOpen,
+    eventsToday,
+  ] = await Promise.all([
+    prisma.task.count({
+      where: {
+        AND: [
+          taskFiltersWhere(session, { scope: 'mine' }, now),
+          { dueDate: { gte: start, lt: end }, status: { not: 'done' } },
+        ],
+      },
+    }),
+    prisma.task.count({
+      where: taskFiltersWhere(session, { scope: 'mine', overdue: true }, now),
+    }),
+    countIntake(prisma, session),
+    readyToDeliverOrders(prisma, session, teamMode),
+    prisma.deal.groupBy({
+      by: ['stageId'],
+      where: { AND: [dealScopeWhere(session, { managerId: session.sub }), { status: 'open' }] },
+      _count: { _all: true },
+    }),
+    prisma.inboundMessage.count({
+      where: { AND: [intakeInboundWhere(session), { createdAt: { gte: dayAgo } }] },
+    }),
+    prisma.call.count({
+      where: { AND: [intakeCallWhere(session), { startedAt: { gte: dayAgo } }] },
+    }),
+    // `У-226`: переписка ждёт ответа. Считаем МОИ диалоги — те, где я
+    // ответственный: общая очередь ничейных это работа дежурного, а не моя
+    // личная сводка.
+    prisma.messengerDialog.count({
+      where: {
+        companyId: session.companyId ?? NO_COMPANY_SENTINEL,
+        assigneeId: session.sub,
+        status: DIALOG_STATUS.waitingStaff,
+      },
+    }),
+    // КП, у которых срок кончается в ближайшие дни. Уже истёкшие сюда не
+    // попадают: по ним решение принято, и напоминать о них поздно.
+    prisma.document.count({
+      where: {
+        companyId: session.companyId ?? NO_COMPANY_SENTINEL,
+        type: 'commercial_proposal',
+        status: 'sent',
+        validUntil: { gte: now, lt: soon },
+      },
+    }),
+    // Невыполненные шаги в моих незавершённых задачах — «сколько мелочи
+    // осталось», а не «сколько задач».
+    prisma.taskChecklistItem.count({
+      where: {
+        isDone: false,
+        task: {
+          AND: [taskFiltersWhere(session, { scope: 'mine' }, now), { status: { not: 'done' } }],
         },
-      }),
-      prisma.task.count({
-        where: taskFiltersWhere(session, { scope: 'mine', overdue: true }, now),
-      }),
-      countIntake(prisma, session),
-      readyToDeliverOrders(prisma, session, teamMode),
-      prisma.deal.groupBy({
-        by: ['stageId'],
-        where: { AND: [dealScopeWhere(session, { managerId: session.sub }), { status: 'open' }] },
-        _count: { _all: true },
-      }),
-      prisma.inboundMessage.count({
-        where: { AND: [intakeInboundWhere(session), { createdAt: { gte: dayAgo } }] },
-      }),
-      prisma.call.count({
-        where: { AND: [intakeCallWhere(session), { startedAt: { gte: dayAgo } }] },
-      }),
-    ]);
+      },
+    }),
+    // События календаря на сегодня — мои и те, куда меня позвали.
+    prisma.calendarEvent.count({
+      where: {
+        startsAt: { gte: start, lt: end },
+        OR: [{ createdById: session.sub }, { attendees: { some: { userId: session.sub } } }],
+      },
+    }),
+  ]);
 
   const stageIds = dealsGrouped.map((g) => g.stageId).filter((id): id is string => id != null);
   const stages = stageIds.length
@@ -170,5 +235,9 @@ export async function getMyDay(
     dealsByStage,
     inboundFresh,
     callsMissed,
+    dialogsWaiting,
+    proposalsExpiring,
+    checklistOpen,
+    eventsToday,
   };
 }
