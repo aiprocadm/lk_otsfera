@@ -53,6 +53,7 @@ export const AUDIT_ENTITIES = [
   'deal',
   'deal_stage',
   'task',
+  'automation_rule',
   'task_column',
   'auth_2fa',
   'contact',
@@ -311,6 +312,13 @@ export const AUDIT_ACTIONS = [
   'catalog_item_deactivated',
   'catalog_item_activated',
   'sync_triggered',
+  // Этап 4 (`У-222`): правила автоматизации. Включение и выключение робота —
+  // событие для расследования: видно, с какого момента он ставит задачи.
+  'automation_rule_created',
+  'automation_rule_deleted',
+  'automation_rule_disabled',
+  'automation_rule_enabled',
+  'automation_rule_updated',
   'task_assigned',
   // Этап 4 (`У-218`, `У-219`): обсуждение и чек-лист задачи.
   'task_checklist_item_deleted',

@@ -94,14 +94,14 @@ PR-4 — на движок PR-3, PR-5 — на поля просрочки PR-1.
 
 ## PR-4. Раздел хаба и правила из коробки (`У-222` UI, `У-224`)
 
-- [ ] Право `settings.automation.manage` в `SETTINGS_CAPABILITIES`
-- [ ] Раздел хаба в `lib/navigation/settings.ts` (группа `catalogs`, `cabinets: ['admin','leader']`, `flag: 'automation'`)
-- [ ] Зеркальная пара страниц `/{admin,leader}/settings/processes/automation` + `requireSettingsSection`
-- [ ] Форма «Если … (условия) → То …» с предпросмотром подстановок; неизвестная подстановка — отказ сохранить
-- [ ] Журнал срабатываний (`AutomationRun`) с результатом и ошибкой
-- [ ] `scopeOf`: admin выбирает компанию, leader — своя; leader без компании → `company_required`
-- [ ] Пять правил из коробки миграцией (`isBuiltin`, выключены); `send_message` в форме есть, но ни в одном из них
-- [ ] Аудит переключений правил; §15 на новых экранах
+- [x] Право `settings.automation.manage` в `SETTINGS_CAPABILITIES`
+- [x] Раздел хаба в `lib/navigation/settings.ts` (группа `catalogs`, `cabinets: ['admin','leader']`, `flag: 'automation'`)
+- [x] Зеркальная пара страниц `/{admin,leader}/settings/processes/automation` + `requireSettingsSection`
+- [x] Форма «Если … (условия) → То …» с предпросмотром подстановок; неизвестная подстановка — отказ сохранить
+- [x] Журнал срабатываний (`AutomationRun`) с результатом и ошибкой
+- [x] `scopeOf`: admin выбирает компанию, leader — своя; leader без компании → `company_required`
+- [x] Пять правил из коробки миграцией (`isBuiltin`, выключены); `send_message` в форме есть, но ни в одном из них
+- [x] Аудит переключений правил; §15 на новых экранах
 
 ---
 

@@ -65,8 +65,6 @@ export const AUTOMATION_ACTIONS = {
   },
 } as const satisfies Record<string, AutomationActionSpec>;
 
-type AutomationActionKey = keyof typeof AUTOMATION_ACTIONS;
-
 export type AutomationTriggerSpec = {
   labelRu: string;
   /** Сущность, изменение которой и есть событие. */

@@ -225,6 +225,22 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     legacyHrefs: [],
   },
   {
+    // `У-222` (этап 4): правила «событие → задача или уведомление». Группа
+    // «Конфигурация процессов» — это правило работы, а не подключение
+    // к внешней системе.
+    id: 'catalogs.automation',
+    group: 'catalogs',
+    title: 'Автоматизация',
+    description: 'Правила «если случилось событие — создай задачу или сообщи».',
+    icon: '🤖',
+    path: 'processes/automation',
+    capability: 'settings.automation.manage',
+    cabinets: ['admin', 'leader'],
+    flag: 'automation',
+    // Старого адреса нет: раздел появился сразу в хабе.
+    legacyHrefs: [],
+  },
+  {
     id: 'catalogs.customFields',
     group: 'catalogs',
     title: 'Дополнительные поля',
