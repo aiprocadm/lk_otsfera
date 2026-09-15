@@ -1173,6 +1173,15 @@ model Task {
   linkedLead           Lead?          @relation("TaskLinkedLead", fields: [linkedLeadId], references: [id], onDelete: SetNull)
   linkedDealId         String?
   linkedDeal           Deal?          @relation("TaskLinkedDeal", fields: [linkedDealId], references: [id], onDelete: SetNull)
+  // Этап 4 ТЗ 12.09.2026 (`У-220`): задача заводится из любой карточки. Все три
+  // — SetNull, как и прежние четыре: удаление объекта не должно уносить работу,
+  // которую человек уже сделал или ещё должен сделать.
+  linkedContactId      String?
+  linkedContact        Contact?       @relation("TaskLinkedContact", fields: [linkedContactId], references: [id], onDelete: SetNull)
+  linkedDialogId       String?
+  linkedDialog         MessengerDialog? @relation("TaskLinkedDialog", fields: [linkedDialogId], references: [id], onDelete: SetNull)
+  linkedDocumentId     String?
+  linkedDocument       Document?      @relation("TaskLinkedDocument", fields: [linkedDocumentId], references: [id], onDelete: SetNull)
   // Этап 7 (ФТ-7.2): отметка «уведомление „скоро срок" отправлено» (дедуп джоба;
   // сбрасывается при переносе dueDate — перенос срока уведомляет заново).
   dueSoonNotifiedAt    DateTime?
@@ -1203,6 +1212,9 @@ model Task {
   @@index([linkedOrganizationId])
   @@index([linkedLeadId])
   @@index([linkedDealId])
+  @@index([linkedContactId])
+  @@index([linkedDialogId])
+  @@index([linkedDocumentId])
   @@index([dueDate])
   /// Этап 4 (`У-225`): выборка просроченных — «моя компания, не done, срок раньше
   /// сейчас». Без составного индекса прогон SLA читает все задачи компании.
@@ -1489,6 +1501,11 @@ model Document {
 
   /// Этап 2 ТЗ 12.09.2026 (`У-190`, `Р-Б-11`): ключ строки в Битрикс24; `externalId` остаётся за 1С.
   bitrixId String? @unique
+
+  /// Этап 4 (`У-220`): задачи по документу и по КП («позвонить по счёту»,
+  /// «получить подписанный акт»). Документ и коммерческое предложение — одна
+  /// модель, поэтому связь одна.
+  tasks Task[] @relation("TaskLinkedDocument")
 
   @@index([orderId, type])
   @@index([counterpartyType, counterpartyId])
@@ -2416,6 +2433,9 @@ model Contact {
   messengerDialogs MessengerDialog[] @relation("ContactMessengerDialogs")
   calls            Call[]            @relation("ContactCalls")
   ordersAsPrimary  Order[]           @relation("OrderPrimaryContact")
+  /// Этап 4 (`У-220`): задачи, заведённые из карточки контакта. Обещание этапа 1
+  /// («вкладка появится в этапе 4») закрывается здесь.
+  tasks            Task[]            @relation("TaskLinkedContact")
 
   /// Этап 2 ТЗ 12.09.2026 (`У-190`, `Р-Б-11`): ключ строки в Битрикс24; `externalId` остаётся за 1С.
   bitrixId String? @unique
@@ -2545,6 +2565,10 @@ model MessengerDialog {
   /// Входящих, которые сотрудник ещё не открыл; открытие диалога обнуляет.
   unreadCount          Int                @default(0)
   messages             MessengerMessage[]
+  /// Этап 4 (`У-220`): задачи из переписки. До этого кнопка «Задача» в диалоге
+  /// привязывала задачу к ОРГАНИЗАЦИИ — вернуться из задачи в разговор было
+  /// нельзя, а у ничейного диалога организации нет вовсе.
+  tasks                Task[]             @relation("TaskLinkedDialog")
 
   @@unique([channel, peerRef])
   @@index([companyId, lastMessageAt])

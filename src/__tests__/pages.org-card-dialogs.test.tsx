@@ -61,6 +61,11 @@ const { listOrganizationNotes } = vi.hoisted(() => ({ listOrganizationNotes: vi.
 vi.mock('@/lib/services/organizationNotes/list', () => ({ listOrganizationNotes }));
 const { listColleagues } = vi.hoisted(() => ({ listColleagues: vi.fn() }));
 vi.mock('@/lib/services/staffChat/mentions', () => ({ listColleagues }));
+
+// Этап 4 (`У-220`): страница добирает задачи объекта для блока «Задачи».
+const { listLinkedTasks } = vi.hoisted(() => ({ listLinkedTasks: vi.fn().mockResolvedValue([]) }));
+vi.mock('@/lib/services/tasks/board', () => ({ listLinkedTasks }));
+
 const { listOrgHistory } = vi.hoisted(() => ({ listOrgHistory: vi.fn() }));
 vi.mock('@/lib/services/organization/orgHistory', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/services/organization/orgHistory')>()),

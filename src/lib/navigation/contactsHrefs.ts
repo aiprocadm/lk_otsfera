@@ -38,6 +38,10 @@ export function contactTabItemHref(
       return cabinet === 'admin' ? null : `/${cabinet}/deals`;
     case 'orders':
       return `/${cabinet}/orders/${id}`;
+    // `У-220`: строка ведёт на страницу задачи. У администратора раздела задач
+    // нет вовсе (записанное исключение зеркала) — ссылки не даём.
+    case 'tasks':
+      return cabinet === 'admin' ? null : `/${cabinet}/tasks/${id}`;
     case 'history':
       return null;
   }

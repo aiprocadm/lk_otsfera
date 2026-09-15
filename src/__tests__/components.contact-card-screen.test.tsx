@@ -117,7 +117,7 @@ function contact(overrides: Partial<ContactView> = {}): ContactView {
     user: { id: 'u1', name: 'Иван', email: 'ivan@romashka.ru' },
     channels: [{ id: 'ch1', type: 'telegram', value: '@ivanov', isPrimary: true, locked: false }],
     dialogChannels: ['telegram'],
-    counts: { dialogs: 2, calls: 3, inbound: 4, deals: 5, orders: 6 },
+    counts: { dialogs: 2, calls: 3, inbound: 4, deals: 5, orders: 6, tasks: 7 },
     ...overrides,
   };
 }

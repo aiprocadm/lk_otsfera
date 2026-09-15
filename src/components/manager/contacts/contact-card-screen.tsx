@@ -32,6 +32,8 @@ function countOf(contact: ContactView, key: ContactTabKey): number | null {
       return contact.counts.deals;
     case 'orders':
       return contact.counts.orders;
+    case 'tasks':
+      return contact.counts.tasks;
     case 'history':
       return null;
   }

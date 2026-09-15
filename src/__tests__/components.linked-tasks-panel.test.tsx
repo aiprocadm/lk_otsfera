@@ -39,6 +39,12 @@ function card(over: Partial<TaskCard>): TaskCard {
     linkedLeadSubject: null,
     linkedDealId: null,
     linkedDealTitle: null,
+    linkedContactId: null,
+    linkedContactName: null,
+    linkedDialogId: null,
+    linkedDialogPeer: null,
+    linkedDocumentId: null,
+    linkedDocumentName: null,
     checklistDone: 0,
     checklistTotal: 0,
     ...over,
@@ -122,6 +128,71 @@ describe('LinkedTasksPanel (этап 7, ФТ-7.1/3.2)', () => {
     expect(fd.getAll('assigneeIds')).toEqual([]);
     expect(onCreated).toHaveBeenCalled();
     expect(refresh).not.toHaveBeenCalled();
+  });
+
+  // ── Этап 4 (`У-220`): панель работает со всеми семью связями ──────────────
+
+  it.each([
+    [{ contactId: 'k1' }, 'linkedContactId', 'k1'],
+    [{ dialogId: 'dlg1' }, 'linkedDialogId', 'dlg1'],
+    [{ documentId: 'doc1' }, 'linkedDocumentId', 'doc1'],
+    [{ organizationId: 'org1' }, 'linkedOrganizationId', 'org1'],
+    [{ orderId: 'ord1' }, 'linkedOrderId', 'ord1'],
+  ] as const)('quick-add для %o ставит поле %s', async (link, field, value) => {
+    createTaskAction.mockResolvedValue({ ok: true, id: 't9' });
+    render(<LinkedTasksPanel link={link} tasks={[]} currentUserId="m1" />);
+
+    fireEvent.click(screen.getByRole('button', { name: '+ Задача' }));
+    fireEvent.change(screen.getByLabelText('Название задачи'), { target: { value: 'Дело' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Создать' }));
+
+    await waitFor(() => expect(createTaskAction).toHaveBeenCalledTimes(1));
+    const fd = createTaskAction.mock.calls[0]![0] as FormData;
+    expect(fd.get(field)).toBe(value);
+    // Ровно ОДНА связь: панель не должна заодно привязывать задачу к соседям.
+    const linkKeys = [...fd.keys()].filter((k) => k.startsWith('linked'));
+    expect(linkKeys).toEqual([field]);
+  });
+
+  it('`У-220`: галочка снята, но у объекта есть ответственный — задача уходит ему', async () => {
+    createTaskAction.mockResolvedValue({ ok: true, id: 't9' });
+    render(
+      <LinkedTasksPanel
+        link={{ dialogId: 'dlg1' }}
+        tasks={[]}
+        currentUserId="m1"
+        defaultAssigneeId="m2"
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: '+ Задача' }));
+    fireEvent.change(screen.getByLabelText('Название задачи'), { target: { value: 'Ответить' } });
+    fireEvent.click(screen.getByText('на себя')); // снять чекбокс
+    fireEvent.click(screen.getByRole('button', { name: 'Создать' }));
+
+    await waitFor(() => expect(createTaskAction).toHaveBeenCalledTimes(1));
+    const fd = createTaskAction.mock.calls[0]![0] as FormData;
+    // Задача без исполнителя на общей доске теряется — поэтому подставляем
+    // ответственного за объект, а не оставляем пустоту.
+    expect(fd.getAll('assigneeIds')).toEqual(['m2']);
+  });
+
+  it('галочка «на себя» сильнее ответственного: человек выбрал себя явно', async () => {
+    createTaskAction.mockResolvedValue({ ok: true, id: 't9' });
+    render(
+      <LinkedTasksPanel
+        link={{ dialogId: 'dlg1' }}
+        tasks={[]}
+        currentUserId="m1"
+        defaultAssigneeId="m2"
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: '+ Задача' }));
+    fireEvent.change(screen.getByLabelText('Название задачи'), { target: { value: 'Ответить' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Создать' }));
+
+    await waitFor(() => expect(createTaskAction).toHaveBeenCalledTimes(1));
+    const fd = createTaskAction.mock.calls[0]![0] as FormData;
+    expect(fd.getAll('assigneeIds')).toEqual(['m1']);
   });
 
   it('ошибка сервиса: toast.error, форма остаётся открытой', async () => {

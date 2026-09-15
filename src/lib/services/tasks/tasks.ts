@@ -29,6 +29,10 @@ const inputSchema = z.object({
   // Этап 7 (ФТ-7.1): привязки к лиду и сделке.
   linkedLeadId: z.string().trim().min(1).nullish(),
   linkedDealId: z.string().trim().min(1).nullish(),
+  // Этап 4 ТЗ 12.09.2026 (`У-220`): задача из карточки контакта, переписки и документа.
+  linkedContactId: z.string().trim().min(1).nullish(),
+  linkedDialogId: z.string().trim().min(1).nullish(),
+  linkedDocumentId: z.string().trim().min(1).nullish(),
   assigneeIds: z.array(z.string()).optional(),
 });
 export type TaskInput = z.input<typeof inputSchema>;
@@ -82,6 +86,35 @@ async function validateRefs(
       select: { companyId: true },
     });
     if (!deal || deal.companyId !== companyId) throw new TaskError('validation');
+  }
+  // `У-220`: три новые привязки. Каждая проверяется ОТДЕЛЬНО и на ту же
+  // компанию — пропустить хоть одну значит открыть дверь: id приходит из формы,
+  // и задача чужой компании привязалась бы к нашему контакту.
+  if (data.linkedContactId) {
+    const contact = await tx.contact.findUnique({
+      where: { id: data.linkedContactId },
+      select: { companyId: true },
+    });
+    if (!contact || contact.companyId !== companyId) throw new TaskError('validation');
+  }
+  if (data.linkedDialogId) {
+    const dialog = await tx.messengerDialog.findUnique({
+      where: { id: data.linkedDialogId },
+      select: { companyId: true },
+    });
+    // Ничейный диалог (`companyId = null`) — общая очередь: его разбирают все,
+    // и запретить заводить по нему задачу значило бы запретить взять его в
+    // работу. Чужая компания при этом по-прежнему недоступна.
+    if (!dialog || (dialog.companyId !== null && dialog.companyId !== companyId)) {
+      throw new TaskError('validation');
+    }
+  }
+  if (data.linkedDocumentId) {
+    const doc = await tx.document.findUnique({
+      where: { id: data.linkedDocumentId },
+      select: { companyId: true },
+    });
+    if (!doc || doc.companyId !== companyId) throw new TaskError('validation');
   }
   if (data.assigneeIds && data.assigneeIds.length > 0) {
     const ids = [...new Set(data.assigneeIds)];
@@ -164,6 +197,9 @@ async function createTaskCore(
     linkedOrganizationId?: string | null;
     linkedLeadId?: string | null;
     linkedDealId?: string | null;
+    linkedContactId?: string | null;
+    linkedDialogId?: string | null;
+    linkedDocumentId?: string | null;
     assigneeIds?: string[] | undefined;
     /** `У-223`: какое правило автоматизации породило задачу. */
     createdByRuleId?: string | null;
@@ -184,6 +220,9 @@ async function createTaskCore(
       linkedOrganizationId: input.linkedOrganizationId ?? null,
       linkedLeadId: input.linkedLeadId ?? null,
       linkedDealId: input.linkedDealId ?? null,
+      linkedContactId: input.linkedContactId ?? null,
+      linkedDialogId: input.linkedDialogId ?? null,
+      linkedDocumentId: input.linkedDocumentId ?? null,
       createdByRuleId: input.createdByRuleId ?? null,
     },
     select: { id: true, title: true, dueDate: true },
@@ -231,6 +270,9 @@ export async function createTask(
         linkedOrganizationId: data.linkedOrganizationId ?? null,
         linkedLeadId: data.linkedLeadId ?? null,
         linkedDealId: data.linkedDealId ?? null,
+        linkedContactId: data.linkedContactId ?? null,
+        linkedDialogId: data.linkedDialogId ?? null,
+        linkedDocumentId: data.linkedDocumentId ?? null,
         assigneeIds: data.assigneeIds,
       });
       await recordAudit(tx, {
@@ -291,6 +333,9 @@ export async function updateTask(
           linkedOrganizationId: data.linkedOrganizationId ?? null,
           linkedLeadId: data.linkedLeadId ?? null,
           linkedDealId: data.linkedDealId ?? null,
+          linkedContactId: data.linkedContactId ?? null,
+          linkedDialogId: data.linkedDialogId ?? null,
+          linkedDocumentId: data.linkedDocumentId ?? null,
           // ФТ-7.2: перенос срока → джоб «скоро срок» уведомит заново.
           ...(dueChanged ? { dueSoonNotifiedAt: null } : {}),
         },

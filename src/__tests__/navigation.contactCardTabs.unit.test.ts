@@ -10,7 +10,9 @@ import { contactCardTabsFor } from '@/lib/navigation/contactCardTabs';
  * всегда; порядок и подписи — по глоссарию.
  */
 describe('contactCardTabsFor', () => {
-  it('все флаги включены — шесть вкладок в порядке реестра с подписями', () => {
+  it('все флаги включены — семь вкладок в порядке реестра с подписями', () => {
+    // Этап 4 (`У-220`) добавил «Задачи» — седьмой вкладкой, перед «Историей»:
+    // история всегда последняя, это её место в реестре.
     const tabs = contactCardTabsFor({ flags: () => true });
     expect(tabs.map((t) => [t.key, t.label])).toEqual([
       ['dialogs', 'Диалоги'],
@@ -18,6 +20,7 @@ describe('contactCardTabsFor', () => {
       ['inbound', 'Входящие письма'],
       ['deals', 'Сделки'],
       ['orders', 'Заказы'],
+      ['tasks', 'Задачи'],
       ['history', 'История'],
     ]);
   });
@@ -38,6 +41,9 @@ describe('contactCardTabsFor', () => {
       'telephony_mango',
       'inbound_messaging',
       'deals_pipeline',
+      // `У-220`: «Задачи» гейтятся тем же флагом, что и сам раздел задач —
+      // иначе при выключенном разделе вкладка вела бы в никуда.
+      'internal_tasks',
     ]);
   });
 

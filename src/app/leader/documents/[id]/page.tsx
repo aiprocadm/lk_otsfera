@@ -4,6 +4,8 @@ import { requireManagerLeader } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { getDocumentDetail } from '@/lib/services/documents/detail';
 import { getFieldsForEntity } from '@/lib/services/customFields';
+import { listLinkedTasks } from '@/lib/services/tasks/board';
+import { isFeatureEnabled } from '@/lib/featureFlags';
 import { StaffDocumentDetail } from '@/components/documents/staff-document-detail';
 
 export const dynamic = 'force-dynamic';
@@ -26,8 +28,17 @@ export default async function LeaderDocumentDetailPage({
   if (!res.ok) notFound();
 
   const customFields = await getFieldsForEntity(prisma, session, 'document', id);
+  // `У-220`: блок «Задачи» только вместе с самим разделом задач.
+  const tasksEnabled = isFeatureEnabled('internal_tasks');
+  const tasks = tasksEnabled ? await listLinkedTasks(prisma, session, { documentId: id }) : null;
 
   return (
-    <StaffDocumentDetail cabinet="leader" document={res.document} customFields={customFields} />
+    <StaffDocumentDetail
+      cabinet="leader"
+      document={res.document}
+      customFields={customFields}
+      tasks={tasks}
+      currentUserId={session.sub}
+    />
   );
 }

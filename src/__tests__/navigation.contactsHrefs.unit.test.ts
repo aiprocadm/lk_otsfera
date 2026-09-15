@@ -38,6 +38,10 @@ describe('contactTabItemHref', () => {
     calls: { manager: '/manager/calls', leader: '/manager/calls', admin: null },
     inbound: { manager: '/manager/inbox', leader: '/manager/inbox', admin: null },
     deals: { manager: '/manager/deals', leader: '/leader/deals', admin: null },
+    // `У-220` (этап 4): строка вкладки ведёт на страницу задачи. У
+    // администратора раздела задач нет вовсе — записанное исключение зеркала,
+    // поэтому ссылки нет.
+    tasks: { manager: '/manager/tasks/d1', leader: '/leader/tasks/d1', admin: null },
     orders: {
       manager: '/manager/orders/d1',
       leader: '/leader/orders/d1',

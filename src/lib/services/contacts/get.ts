@@ -1,6 +1,7 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { managerOrderScope } from '@/lib/auth/managerPolicy';
+import { taskWhereForLevel } from '@/lib/auth/accessProfile';
 import { auditActionLabel } from '@/lib/audit/labels';
 import { recordPiiAccess } from '@/lib/pii/record';
 import { DIALOG_CHANNEL_LABELS, isDialogChannel } from '@/lib/services/messengers/channels';
@@ -27,6 +28,8 @@ type ContactCounts = {
   inbound: number;
   deals: number;
   orders: number;
+  /** `У-220` (этап 4): задачи, заведённые из карточки этого человека. */
+  tasks: number;
 };
 
 export type ContactView = {
@@ -83,7 +86,14 @@ const CARD_SELECT = {
     select: { id: true, type: true, value: true, normalizedValue: true, isPrimary: true },
   },
   _count: {
-    select: { messengerDialogs: true, calls: true, inboundMessages: true, ordersAsPrimary: true },
+    select: {
+      messengerDialogs: true,
+      calls: true,
+      inboundMessages: true,
+      ordersAsPrimary: true,
+      // `У-220` (этап 4): задачи, заведённые из карточки этого человека.
+      tasks: true,
+    },
   },
 } satisfies Prisma.ContactSelect;
 
@@ -133,13 +143,18 @@ export async function getContact(
         inbound: row._count.inboundMessages,
         deals,
         orders: row._count.ordersAsPrimary,
+        tasks: row._count.tasks,
       },
     },
   };
 }
 
-/** Вкладки карточки; «Задачи» появятся в этапе 4 вместе с `Task.linkedContactId`. */
-const CONTACT_TABS = ['dialogs', 'calls', 'inbound', 'deals', 'orders', 'history'] as const;
+/**
+ * Вкладки карточки. «Задачи» добавлены этапом 4 (`У-220`) вместе с
+ * `Task.linkedContactId` — ровно так, как обещал комментарий этапа 1: пустую
+ * вкладку заранее не объявляли (`У-74`).
+ */
+const CONTACT_TABS = ['dialogs', 'calls', 'inbound', 'deals', 'orders', 'tasks', 'history'] as const;
 export type ContactTabKey = (typeof CONTACT_TABS)[number];
 
 export function isContactTabKey(value: string): value is ContactTabKey {
@@ -353,6 +368,53 @@ export async function listContactTab(
           title: r.orderNumber ? `${r.orderNumber} · ${r.title}` : r.title,
           subtitle: `${r.totalAmount.toFixed(2)} ₽`,
           status: r.executionStatus,
+        })),
+      };
+    }
+    case 'tasks': {
+      // `У-220`: задачи по этому человеку. Скоуп — тот же охват профиля, что у
+      // доски задач: контакт уже прошёл проверку, но видеть ЧУЖУЮ задачу по
+      // нему сотрудник с суженным охватом не должен.
+      const where: Prisma.TaskWhereInput = {
+        AND: [
+          taskWhereForLevel(session, session.accessProfile?.tasks ?? 'all'),
+          { linkedContactId: contact.id },
+        ],
+      };
+      const [rows, total] = await Promise.all([
+        prisma.task.findMany({
+          where,
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            dueDate: true,
+            completedAt: true,
+            createdAt: true,
+            assignees: { select: { user: { select: { name: true } } } },
+          },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          ...page,
+        }),
+        prisma.task.count({ where }),
+      ]);
+      return {
+        ok: true,
+        total,
+        items: rows.map((r) => ({
+          kind: 'tasks',
+          id: r.id,
+          at: r.createdAt,
+          title: r.title,
+          subtitle: [
+            r.assignees.length > 0
+              ? r.assignees.map((a) => a.user.name).join(', ')
+              : 'без исполнителя',
+            r.dueDate ? `до ${r.dueDate.toLocaleDateString('ru-RU')}` : null,
+          ]
+            .filter(Boolean)
+            .join(' · '),
+          status: r.completedAt ? 'done' : r.status,
         })),
       };
     }

@@ -3,9 +3,12 @@ import type { ContactTabKey } from '@/lib/services/contacts/get';
 
 /**
  * Реестр вкладок карточки контакта (`У-179`): название по глоссарию, порядок
- * и флаг раздела, без которого вкладки нет. Вкладка «Задачи» появится в
- * этапе 4 вместе с `Task.linkedContactId` — пустую вкладку заранее не
- * объявляем (`У-74`).
+ * и флаг раздела, без которого вкладки нет.
+ *
+ * Вкладка «Задачи» добавлена этапом 4 (`У-220`) вместе с
+ * `Task.linkedContactId` — ровно тогда, когда обещал комментарий этапа 1.
+ * Её флаг — `internal_tasks`, тот же, что у самого раздела задач: при
+ * выключенном разделе вкладка ведёт в никуда.
  */
 export type ContactCardTab = { key: ContactTabKey; label: string; flag?: FeatureFlag };
 
@@ -15,6 +18,7 @@ const CONTACT_CARD_TABS: readonly ContactCardTab[] = [
   { key: 'inbound', label: 'Входящие письма', flag: 'inbound_messaging' },
   { key: 'deals', label: 'Сделки', flag: 'deals_pipeline' },
   { key: 'orders', label: 'Заказы' },
+  { key: 'tasks', label: 'Задачи', flag: 'internal_tasks' },
   { key: 'history', label: 'История' },
 ];
 

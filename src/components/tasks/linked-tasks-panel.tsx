@@ -6,23 +6,35 @@ import { Button, Input } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
 import { errorMessageRu } from '@/lib/errors/messages';
 import { createTaskAction } from '@/server-actions/tasks';
+import { taskLinkField, taskLinkValue, type TaskLinkRef } from '@/lib/tasks/links';
 import type { TaskCard } from '@/lib/services/tasks/board';
 
 /**
- * Этап 7 (ФТ-7.1, ФТ-3.2) — блок «Задачи» на карточке лида (и в диалоге сделки):
- * список привязанных задач + быстрое создание (название, срок, «на себя»).
- * Полное редактирование — на доске задач; здесь только просмотр и quick-add.
+ * Блок «Задачи» на карточке объекта: список привязанных задач + быстрое
+ * создание (название, срок, «на себя»). Полное редактирование — на странице
+ * задачи; здесь только просмотр и quick-add.
+ *
+ * Этап 7 (ФТ-7.1, ФТ-3.2) сделал его для лида и сделки. Этап 4 (`У-220`)
+ * расширил на все семь мест: заказ, организация, лид, сделка, контакт,
+ * переписка, документ. Поле связи компонент не выбирает сам — берёт из общего
+ * справочника `taskLinkField`, того же, по которому сервис строит выборку.
+ *
+ * `defaultAssigneeId` — ответственный менеджер объекта: форма ставит галочку
+ * «на себя» только когда это текущий пользователь, иначе назначает его.
  */
 
 export function LinkedTasksPanel({
   link,
   tasks,
   currentUserId,
+  defaultAssigneeId,
   onCreated,
 }: {
-  link: { leadId: string } | { dealId: string };
+  link: TaskLinkRef;
   tasks: TaskCard[];
   currentUserId: string;
+  /** `У-220`: ответственный менеджер объекта — кого предлагаем исполнителем. */
+  defaultAssigneeId?: string | null;
   /** Дефолт — router.refresh(); диалог сделки передаёт свой релоад списка. */
   onCreated?: () => void;
 }) {
@@ -35,9 +47,11 @@ export function LinkedTasksPanel({
     e.preventDefault();
     const form = e.currentTarget;
     const fd = new FormData(form);
-    if ('leadId' in link) fd.set('linkedLeadId', link.leadId);
-    else fd.set('linkedDealId', link.dealId);
+    fd.set(taskLinkField(link), taskLinkValue(link));
     if (fd.get('assignSelf') === 'on') fd.append('assigneeIds', currentUserId);
+    // `У-220`: галочка снята, но у объекта есть ответственный — задача уходит
+    // ему, а не в никуда. Задача без исполнителя на общей доске теряется.
+    else if (defaultAssigneeId) fd.append('assigneeIds', defaultAssigneeId);
     fd.delete('assignSelf');
     setBusy(true);
     const res = await createTaskAction(fd);

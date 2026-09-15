@@ -6,6 +6,8 @@ import { DocumentOneCPushBlock } from '@/components/documents/document-onec-push
 import { settingsSectionHref } from '@/lib/navigation/settings';
 import type { DocumentDetail } from '@/lib/services/documents/detail';
 import type { FieldWithValue } from '@/lib/services/customFields';
+import { LinkedTasksPanel } from '@/components/tasks/linked-tasks-panel';
+import type { TaskCard } from '@/lib/services/tasks/board';
 
 /**
  * Карточка документа сотрудника ЦО — одна на кабинет менеджера и кабинет
@@ -31,10 +33,15 @@ export function StaffDocumentDetail({
   cabinet,
   document,
   customFields,
+  tasks,
+  currentUserId,
 }: {
   cabinet: 'manager' | 'leader';
   document: DocumentDetail;
   customFields: FieldWithValue[];
+  /** `У-220`: задачи по документу. `null` — раздел задач выключен, блока нет. */
+  tasks?: TaskCard[] | null;
+  currentUserId?: string;
 }) {
   const listHref = `/${cabinet}/documents`;
 
@@ -54,6 +61,19 @@ export function StaffDocumentDetail({
         pushRuleHref={settingsSectionHref('catalogs.requisites', cabinet)}
       />
       <EntityCustomFields fields={customFields} entityType="document" entityId={document.id} />
+      {tasks && currentUserId && (
+        <section className="space-y-2 rounded-xl border border-gray-200 bg-white p-4">
+          <h2 className="text-sm font-semibold text-gray-700">Задачи</h2>
+          {/* `У-220`: «позвонить по счёту», «получить подписанный акт» — работа
+              вокруг бумаги, и заводить её надо там, где бумага, а не искать
+              заказ. Документ и КП — одна модель, поэтому блок один. */}
+          <LinkedTasksPanel
+            link={{ documentId: document.id }}
+            tasks={tasks}
+            currentUserId={currentUserId}
+          />
+        </section>
+      )}
     </DocumentDetailView>
   );
 }

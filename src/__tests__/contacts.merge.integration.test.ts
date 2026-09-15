@@ -138,11 +138,22 @@ beforeAll(async () => {
   await prisma.deal.create({
     data: { title: `${STAMP}-deal`, companyId, managerId, status: 'open', contactId: secondaryId },
   });
+  // `У-220` (этап 4): задача по второму контакту. Без переноса она осиротела бы
+  // — сам контакт уходит в архив, и найти её стало бы негде.
+  await prisma.task.create({
+    data: {
+      companyId,
+      createdById: managerId,
+      title: `${STAMP}-task`,
+      linkedContactId: secondaryId,
+    },
+  });
 });
 
 afterAll(async () => {
   await prisma.auditLog.deleteMany({ where: { userId: managerId } });
   await prisma.piiAccessEvent.deleteMany({ where: { userId: managerId } });
+  await prisma.task.deleteMany({ where: { companyId } });
   await prisma.deal.deleteMany({ where: { companyId } });
   await prisma.order.deleteMany({ where: { companyId } });
   await prisma.messengerDialog.deleteMany({ where: { companyId } });
@@ -196,9 +207,17 @@ describe('mergeContacts (У-181)', () => {
         dialogs: 1,
         orders: 1,
         deals: 1,
+        tasks: 1,
         userMoved: true,
       },
     });
+
+    // Задача действительно смотрит на главного, а не просто посчиталась.
+    const movedTask = await prisma.task.findFirstOrThrow({
+      where: { title: `${STAMP}-task` },
+      select: { linkedContactId: true },
+    });
+    expect(movedTask.linkedContactId).toBe(primaryId);
 
     const primary = await prisma.contact.findUniqueOrThrow({
       where: { id: primaryId },

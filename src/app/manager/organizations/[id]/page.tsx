@@ -8,6 +8,8 @@ import { CONTACT_LIST_PAGE, listContacts } from '@/lib/services/contacts/list';
 import { listContactOrgOptions } from '@/lib/services/contacts/orgOptions';
 import { listOrganizationNotes } from '@/lib/services/organizationNotes/list';
 import { listColleagues } from '@/lib/services/staffChat/mentions';
+import { listLinkedTasks } from '@/lib/services/tasks/board';
+import { LinkedTasksPanel } from '@/components/tasks/linked-tasks-panel';
 import {
   isOrgHistoryType,
   listOrgHistory,
@@ -106,6 +108,12 @@ export default async function ManagerOrgDetailPage({
       ? await listOrganizationNotes(prisma, session, id)
       : null;
   const colleagues = activeTab === 'notes' ? (await listColleagues(prisma, session)).rows : [];
+  // `У-220`: блок «Задачи» в обзоре карточки — только когда обзор и открыт, и
+  // сам раздел задач включён (иначе ссылки вели бы на выключенный экран).
+  const orgTasks =
+    activeTab === 'overview' && isFeatureEnabled('internal_tasks')
+      ? await listLinkedTasks(prisma, session, { organizationId: id })
+      : null;
   const historyType = typeof sp.type === 'string' && isOrgHistoryType(sp.type) ? sp.type : null;
   const historyData =
     activeTab === 'history'
@@ -184,8 +192,25 @@ export default async function ManagerOrgDetailPage({
           ) : null
         }
         overviewExtra={
-          activeTab === 'overview' && notesData?.ok ? (
-            <PinnedNotesBlock notes={notesData.pinned} notesHref={`${cardBase}?tab=notes`} />
+          activeTab === 'overview' ? (
+            <>
+              {notesData?.ok ? (
+                <PinnedNotesBlock notes={notesData.pinned} notesHref={`${cardBase}?tab=notes`} />
+              ) : null}
+              {orgTasks ? (
+                <section className="space-y-2 rounded-xl border border-gray-200 bg-white p-4">
+                  <h2 className="text-sm font-semibold text-gray-700">Задачи</h2>
+                  {/* `У-220`: поле `linkedOrganizationId` было с самого начала,
+                      а блока на карточке не было — задачи по клиенту жили
+                      только на общей доске. */}
+                  <LinkedTasksPanel
+                    link={{ organizationId: id }}
+                    tasks={orgTasks}
+                    currentUserId={session.sub}
+                  />
+                </section>
+              ) : null}
+            </>
           ) : null
         }
         employees={
