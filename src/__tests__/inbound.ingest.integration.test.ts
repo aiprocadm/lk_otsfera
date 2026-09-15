@@ -185,8 +185,16 @@ describe('ingestInboundMessage', () => {
     const r = await ingestInboundMessage(prisma, dto);
     expect(r.ok).toBe(true);
     if (!r.ok) throw new Error('unreachable');
-    expect(addMock).toHaveBeenCalledTimes(1);
+    // Задач ДВЕ, и это не дубль (`У-204`, PR-2 этапа 3): файл клиента лежит
+    // сразу в двух местах — строкой «Входящих в работу» и репликой в ленте
+    // диалога. Статусы проверки у них разные, в разных таблицах, поэтому одна
+    // общая задача оставила бы ленту диалога вечно в «проверяется».
+    expect(addMock).toHaveBeenCalledTimes(2);
     expect(addMock).toHaveBeenCalledWith('scan', { kind: 'inbound_attachment', id: r.id });
+    expect(addMock).toHaveBeenCalledWith('scan', {
+      kind: 'messenger_attachment',
+      id: expect.any(String),
+    });
   });
 
   it('ingest without attachment → does not enqueue a scan job', async () => {

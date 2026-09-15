@@ -230,6 +230,15 @@ export const SETTING_SPECS = {
   'bitrix.webhookUrl': { key: 'bitrix.webhookUrl', envVar: null, isSecret: true },
   'bitrix.defaultManagerId': { key: 'bitrix.defaultManagerId', envVar: null, isSecret: false },
   'bitrix.userMap': { key: 'bitrix.userMap', envVar: null, isSecret: false },
+
+  // Этап 3 (`У-211`): приём заявок с сайта otsfera.ru. Ничего не включается на
+  // сервере (§0.3 ТЗ) — все четыре ключа задаются из интерфейса, `envVar: null`.
+  // Токен формы — секрет: он лежит в разметке сайта и подтверждает, что заявку
+  // прислали именно с него.
+  'site.enabled': { key: 'site.enabled', envVar: null, isSecret: false },
+  'site.formToken': { key: 'site.formToken', envVar: null, isSecret: true },
+  'site.allowedOrigins': { key: 'site.allowedOrigins', envVar: null, isSecret: false },
+  'site.defaultManagerId': { key: 'site.defaultManagerId', envVar: null, isSecret: false },
 } as const satisfies Record<string, SettingSpec>;
 
 export type SettingKey = keyof typeof SETTING_SPECS;

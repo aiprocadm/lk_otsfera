@@ -124,6 +124,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   dialog_assignee_changed: 'Смена ответственного за диалог',
   messenger_attachment_sent: 'Отправка файла в диалоге',
   dialog_note_added: 'Внутренняя заметка в диалоге',
+  site_form_token_issued: 'Выпуск токена формы сайта',
   reply_template_created: 'Создание шаблона ответа',
   reply_template_updated: 'Изменение шаблона ответа',
   reply_template_deleted: 'Удаление шаблона ответа',

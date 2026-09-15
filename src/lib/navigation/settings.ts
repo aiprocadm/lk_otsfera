@@ -132,6 +132,18 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   {
     // Этап 2 ТЗ 12.09.2026 (`У-188`): только администратор — вебхук с токеном
     // портала это секрет платформы (`Р-22`, как у мессенджеров).
+    id: 'integrations.website',
+    group: 'integrations',
+    title: 'Сайт',
+    description:
+      'Приём заявок с формы на сайте: токен формы, разрешённые домены, готовый код формы.',
+    icon: '🌐',
+    path: 'integrations/website',
+    capability: 'settings.integrations.manage',
+    cabinets: ['admin'],
+    legacyHrefs: [],
+  },
+  {
     id: 'integrations.bitrix',
     group: 'integrations',
     title: 'Миграция из Битрикс24',

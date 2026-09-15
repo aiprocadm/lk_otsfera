@@ -190,6 +190,7 @@ export const AUDIT_ACTIONS = [
   'dialog_assignee_changed',
   'messenger_attachment_sent',
   'dialog_note_added',
+  'site_form_token_issued',
   'reply_template_created',
   'reply_template_updated',
   'reply_template_deleted',

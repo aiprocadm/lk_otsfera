@@ -93,9 +93,13 @@ async function loadRequestInScope(
 /** Общий гард upload/delete: видимость → авторство подателя → редактируемость. */
 function assertSubmitterEditable(
   session: SessionPayload,
-  request: { status: ClientRequestStatus; submittedByUserId: string } | null
+  request: { status: ClientRequestStatus; submittedByUserId: string | null } | null
 ): void {
   if (!request) throw new ClientRequestAttachmentError('NOT_FOUND', 'Обращение не найдено');
+  // У заявки с сайта (`У-211`) подателя в системе нет, поэтому «подателем» не
+  // может оказаться никто: сравнение с `null` не пройдёт, и вложения такой
+  // заявки не тронет ни один пользователь. Это правильно — менять её содержимое
+  // не должен никто, разбирают её через триаж.
   if (request.submittedByUserId !== session.sub) {
     throw new ClientRequestAttachmentError(
       'FORBIDDEN',

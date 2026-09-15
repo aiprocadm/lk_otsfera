@@ -6,6 +6,7 @@ import {
 } from '@/lib/notifications';
 import { CHANNEL_RECIPIENT_SELECT } from '@/lib/notifications/channels/types';
 import { log } from '@/lib/logging';
+import { getSettingValue } from '@/lib/config/integrationSettings';
 import { CLIENT_REQUEST_STATUS_LABEL } from './labels';
 
 /**
@@ -39,7 +40,8 @@ export async function notifyManagersClientRequestSubmitted(
     let recipients: Array<{ id: string } & Record<string, unknown>> = [];
     if (request.organizationId) {
       recipients = await resolveOrgManagerRecipients(prisma, request.organizationId, {
-        excludeUserId: request.submittedByUserId,
+        // Автора исключаем, только если он есть: у заявки с сайта его нет.
+        ...(request.submittedByUserId ? { excludeUserId: request.submittedByUserId } : {}),
       });
     } else if (request.partnerId) {
       const assigned = await prisma.organizationManager.findMany({
@@ -55,10 +57,37 @@ export async function notifyManagersClientRequestSubmitted(
           select: CHANNEL_RECIPIENT_SELECT,
         });
       }
+    } else {
+      // `У-211`: у заявки с сайта нет ни организации, ни партнёра — она
+      // пришла от постороннего. Без этой ветки уведомление молча не ушло бы
+      // НИКОМУ, и заявку заметили бы только при следующем открытии
+      // «Входящих в работу». Адресаты — менеджер по умолчанию из настройки
+      // раздела «Сайт», а если он не задан — весь контур ЦО.
+      const defaultManagerId = (await getSettingValue(prisma, 'site.defaultManagerId'))?.trim();
+      if (defaultManagerId) {
+        recipients = await prisma.user.findMany({
+          where: { id: defaultManagerId, role: { in: ['manager', 'leader'] }, isActive: true },
+          select: CHANNEL_RECIPIENT_SELECT,
+        });
+      }
+      // Откат на весь контур ЦО: названный в настройке человек мог уволиться
+      // или сменить роль, и тогда заявка с сайта не дошла бы НИ ДО КОГО — её
+      // заметили бы только при следующем открытии «Входящих в работу».
+      // Компанию здесь не фильтруем намеренно: у заявки с сайта её нет, и
+      // разобрать такую заявку может любой продавец (то же правило, что у
+      // общей очереди непривязанных обращений).
+      if (recipients.length === 0) {
+        recipients = await prisma.user.findMany({
+          where: { role: { in: ['manager', 'leader'] }, isActive: true },
+          select: CHANNEL_RECIPIENT_SELECT,
+        });
+      }
     }
     if (!recipients.length) return;
 
-    const title = 'Новое обращение клиента';
+    // Источник видно сразу: заявка с сайта разбирается иначе, чем из кабинета
+    // (клиента в системе может не быть вовсе).
+    const title = request.source === 'website' ? 'Новая заявка с сайта' : 'Новое обращение клиента';
     const body = `${request.companyName}: ${request.subject}`;
     for (const r of recipients) {
       const row = await createNotification({
@@ -97,6 +126,11 @@ export async function notifySubmitterClientRequestStatus(
   request: ClientRequest
 ): Promise<void> {
   try {
+    // Заявку с сайта прислал посторонний: уведомлять о смене статуса некого —
+    // учётной записи у него нет, и писать ему кабинет пока не умеет. Ответ
+    // уйдёт письмом или звонком, когда менеджер возьмёт заявку в работу.
+    if (!request.submittedByUserId) return;
+
     const statusLabel = CLIENT_REQUEST_STATUS_LABEL[request.status];
     const title = `Обращение — статус «${statusLabel}»`;
     const reason =

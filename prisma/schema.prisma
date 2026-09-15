@@ -474,8 +474,10 @@ model ClientRequest {
   createdAt         DateTime                  @default(now())
   updatedAt         DateTime                  @updatedAt
   source            ClientRequestSource
-  submittedByUserId String
-  submittedByUser   User                      @relation("ClientRequestSubmitter", fields: [submittedByUserId], references: [id])
+  /// Кто подал заявку. NULL — заявка с сайта (`У-211`): её прислал посторонний
+  /// человек, учётной записи у него нет. У заявок из кабинетов поле заполнено.
+  submittedByUserId String?
+  submittedByUser   User?                     @relation("ClientRequestSubmitter", fields: [submittedByUserId], references: [id])
   partnerId         String?
   partner           Partner?                  @relation(fields: [partnerId], references: [id])
   organizationId    String?

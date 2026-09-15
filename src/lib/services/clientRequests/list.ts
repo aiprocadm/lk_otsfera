@@ -51,7 +51,9 @@ function toRow(r: RowSource): ClientRequestRow {
     subject: r.subject,
     body: r.body,
     status: r.status,
-    submittedByName: r.submittedByUser.name,
+    // У заявки с сайта автора в системе нет (`У-211`) — так и пишем, вместо
+    // пустой строки: «Никто» в колонке выглядело бы как потерянные данные.
+    submittedByName: r.submittedByUser?.name ?? 'Заявка с сайта',
     partnerName: r.partner?.name ?? null,
     organizationName: r.organization?.name ?? null,
     organizationId: r.organizationId,
