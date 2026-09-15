@@ -149,6 +149,14 @@ export const NOTIFICATION_TYPES = {
     audience: ['staff'],
     producer: 'src/worker/processors/task-due-soon.ts',
   },
+  // Этап 4 ТЗ 12.09.2026 (`У-218`): обсуждение внутри задачи. Упомянутые по `@`
+  // получают `note_mention` и в эту рассылку не попадают — два уведомления об
+  // одной строке были бы шумом, от которого уведомления выключают целиком.
+  task_comment: {
+    label: 'Новый комментарий в задаче',
+    audience: ['staff'],
+    producer: 'src/lib/services/tasks/comments.ts',
+  },
   sla_escalation: {
     label: 'Просрочен ответ по SLA',
     audience: ['staff'],

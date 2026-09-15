@@ -230,6 +230,8 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   email_template_test_sent: 'Отправка пробного письма',
   sync_triggered: 'Ручной запуск обмена',
   task_assigned: 'Назначение исполнителя задачи',
+  task_checklist_item_deleted: 'Удаление пункта чек-листа',
+  task_comment_added: 'Комментарий в задаче',
   task_column_created: 'Создание колонки задач',
   task_column_deleted: 'Удаление колонки задач',
   task_column_updated: 'Изменение колонки задач',

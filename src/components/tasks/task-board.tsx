@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Badge, Button } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
@@ -30,18 +31,38 @@ function fmtDate(d: Date | null): string | null {
   return new Date(d).toLocaleDateString('ru-RU');
 }
 
-export function TaskBoard({ board, options }: { board: TaskBoardData; options: TaskFormOptions }) {
+export function TaskBoard({
+  board,
+  options,
+  hrefBase = '/manager/tasks',
+}: {
+  board: TaskBoardData;
+  options: TaskFormOptions;
+  /** Куда ведёт заголовок карточки: у руководителя свой кабинет (правило зеркала). */
+  hrefBase?: string;
+}) {
+
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ target: TaskCard | null } | null>(null);
 
-  async function doMove(taskId: string, toColumnId: string) {
+  async function doMove(taskId: string, toColumnId: string, force = false) {
     const fd = new FormData();
     fd.set('taskId', taskId);
     fd.set('toColumnId', toColumnId);
+    if (force) fd.set('force', 'true');
     const res = await moveTaskAction(fd);
     if (!res.ok) {
+      // `У-219`: чек-лист не запрещает завершить задачу — он переспрашивает.
+      // Согласие приходит вторым вызовом с тем же переносом и флагом.
+      if (res.error === 'checklist_incomplete') {
+        const agreed = window.confirm(
+          'В чек-листе остались невыполненные пункты. Завершить задачу всё равно?'
+        );
+        if (agreed) await doMove(taskId, toColumnId, true);
+        return;
+      }
       toast.error(MOVE_ERRORS[res.error] ?? 'Не удалось переместить задачу.');
       return;
     }
@@ -99,7 +120,17 @@ export function TaskBoard({ board, options }: { board: TaskBoardData; options: T
                   className="bg-white border border-gray-200 rounded-lg p-3 cursor-grab active:cursor-grabbing shadow-sm hover:border-[#F97316]"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-medium text-[#111111]">{card.title}</p>
+                    {/* `У-218`: заголовок ведёт на страницу задачи — там
+                        обсуждение, чек-лист и постоянная ссылка. Клик по
+                        остальной карточке остаётся быстрым редактированием:
+                        отнимать привычный путь ради нового экрана нельзя. */}
+                    <Link
+                      href={`${hrefBase}/${card.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-sm font-medium text-[#111111] hover:text-[#EA580C] hover:underline"
+                    >
+                      {card.title}
+                    </Link>
                     {card.priority && (
                       <Badge tone={PRIORITY_TONE[card.priority] ?? 'neutral'}>
                         {PRIORITY_LABEL[card.priority]}
@@ -119,6 +150,13 @@ export function TaskBoard({ board, options }: { board: TaskBoardData; options: T
                       ]
                         .filter(Boolean)
                         .join(' · ')}
+                    </p>
+                  )}
+                  {/* `У-219`: прогресс чек-листа. Задача без чек-листа подписи
+                      не получает — пустое «0/0» на карточке только мешает. */}
+                  {card.checklistTotal > 0 && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Чек-лист: {card.checklistDone}/{card.checklistTotal}
                     </p>
                   )}
                   <div className="flex items-center justify-between mt-2 text-xs text-gray-500">

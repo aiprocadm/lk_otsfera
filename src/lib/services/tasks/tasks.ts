@@ -1,4 +1,4 @@
-import { type PrismaClient, type Prisma } from '@prisma/client';
+import { type PrismaClient, type Prisma, type TaskPriority, type TaskStatus } from '@prisma/client';
 import { z } from 'zod';
 import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
@@ -131,6 +131,72 @@ function scopeArg(row: ScopeRow) {
   };
 }
 
+/**
+ * Ядро создания задачи: только запись, БЕЗ проверки прав.
+ *
+ * Появилось в этапе 4 (`Р-Э4-4`) ради правил автоматизации: процессор создаёт
+ * задачу не «от имени» пользователя, и подсунуть ему фальшивую сессию, чтобы
+ * пройти `staffGate`, — самый быстрый способ обойти проверку прав в месте, где
+ * её никто не ищет. Поэтому гард остаётся в `createTask` (единственная точка
+ * входа для человека), а сюда приходят уже готовые данные: компания задачи и
+ * автор — явные аргументы, а не вывод из сессии.
+ *
+ * Внутри транзакции вызывающего: собственной транзакции не открывает.
+ *
+ * Пока не экспортируется: единственный вызывающий — `createTask` в этом же
+ * файле. Экспорт появится вместе с процессором правил (PR-3), которому ядро и
+ * нужно; экспортировать «на всякий случай» нельзя (§12b).
+ */
+async function createTaskCore(
+  tx: Prisma.TransactionClient,
+  input: {
+    companyId: string;
+    createdById: string;
+    title: string;
+    description?: string | null;
+    priority?: TaskPriority | null;
+    dueDate?: Date | null;
+    status: TaskStatus;
+    /** Уже разрешённая колонка: `null` — синтетический дефолт (колонка выводится из статуса). */
+    columnId: string | null;
+    completedAt: Date | null;
+    linkedOrderId?: string | null;
+    linkedOrganizationId?: string | null;
+    linkedLeadId?: string | null;
+    linkedDealId?: string | null;
+    assigneeIds?: string[] | undefined;
+    /** `У-223`: какое правило автоматизации породило задачу. */
+    createdByRuleId?: string | null;
+  }
+): Promise<{ id: string; title: string; dueDate: Date | null }> {
+  const task = await tx.task.create({
+    data: {
+      companyId: input.companyId,
+      createdById: input.createdById,
+      title: input.title,
+      description: input.description ?? null,
+      priority: input.priority ?? null,
+      dueDate: input.dueDate ?? null,
+      status: input.status,
+      columnId: input.columnId,
+      completedAt: input.completedAt,
+      linkedOrderId: input.linkedOrderId ?? null,
+      linkedOrganizationId: input.linkedOrganizationId ?? null,
+      linkedLeadId: input.linkedLeadId ?? null,
+      linkedDealId: input.linkedDealId ?? null,
+      createdByRuleId: input.createdByRuleId ?? null,
+    },
+    select: { id: true, title: true, dueDate: true },
+  });
+  const assignees = [...new Set(input.assigneeIds ?? [])];
+  if (assignees.length > 0) {
+    await tx.taskAssignee.createMany({
+      data: assignees.map((userId) => ({ taskId: task.id, userId })),
+    });
+  }
+  return task;
+}
+
 export async function createTask(
   prisma: PrismaClient,
   session: SessionPayload,
@@ -151,34 +217,28 @@ export async function createTask(
   try {
     const created = await prisma.$transaction(async (tx) => {
       await validateRefs(tx, g.companyId, data);
-      const task = await tx.task.create({
-        data: {
-          companyId: g.companyId,
-          createdById: session.sub,
-          title: data.title.trim(),
-          description: data.description ?? null,
-          priority: data.priority ?? null,
-          dueDate: data.dueDate ?? null,
-          status: target.statusAnchor,
-          columnId: persistColumnId,
-          completedAt: target.isDoneColumn ? new Date() : null,
-          linkedOrderId: data.linkedOrderId ?? null,
-          linkedOrganizationId: data.linkedOrganizationId ?? null,
-          linkedLeadId: data.linkedLeadId ?? null,
-          linkedDealId: data.linkedDealId ?? null,
-        },
+      const task = await createTaskCore(tx, {
+        companyId: g.companyId,
+        createdById: session.sub,
+        title: data.title.trim(),
+        description: data.description ?? null,
+        priority: data.priority ?? null,
+        dueDate: data.dueDate ?? null,
+        status: target.statusAnchor,
+        columnId: persistColumnId,
+        completedAt: target.isDoneColumn ? new Date() : null,
+        linkedOrderId: data.linkedOrderId ?? null,
+        linkedOrganizationId: data.linkedOrganizationId ?? null,
+        linkedLeadId: data.linkedLeadId ?? null,
+        linkedDealId: data.linkedDealId ?? null,
+        assigneeIds: data.assigneeIds,
       });
-      if (data.assigneeIds && data.assigneeIds.length > 0) {
-        await tx.taskAssignee.createMany({
-          data: [...new Set(data.assigneeIds)].map((userId) => ({ taskId: task.id, userId })),
-        });
-      }
       await recordAudit(tx, {
         userId: session.sub,
         action: 'task_created',
         entity: 'task',
         entityId: task.id,
-        after: { title: task.title, status: task.status, columnId: persistColumnId },
+        after: { title: task.title, status: target.statusAnchor, columnId: persistColumnId },
       });
       return task;
     });

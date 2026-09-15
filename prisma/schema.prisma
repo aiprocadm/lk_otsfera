@@ -362,6 +362,7 @@ model User {
   notificationChannels         Json? // { telegram?: bool, max?: bool, whatsapp?: bool }
   tasksCreated                 Task[]                    @relation("TaskCreatedBy")
   taskAssignments              TaskAssignee[]            @relation("TaskAssignee")
+  taskComments                 TaskComment[]             @relation("TaskCommentAuthor")
   inboundMessages              InboundMessage[]          @relation("UserInbound")
   messengerDialogs             MessengerDialog[]         @relation("UserMessengerDialogs")
   assignedDialogs              MessengerDialog[]         @relation("DialogAssignee")
@@ -1175,7 +1176,23 @@ model Task {
   // Этап 7 (ФТ-7.2): отметка «уведомление „скоро срок" отправлено» (дедуп джоба;
   // сбрасывается при переносе dueDate — перенос срока уведомляет заново).
   dueSoonNotifiedAt    DateTime?
+  /// Этап 4 ТЗ 12.09.2026 (`У-225`): ДВА отдельных claim-поля просрочки, а не одно.
+  /// Просрочка уведомляет дважды и в разные дни — исполнителя в день просрочки и
+  /// руководителя на `Company.taskOverdueEscalationDays`-й. Одним полем это не
+  /// выражается, а считать «который раз» по датам на каждом прогоне значит читать
+  /// всю таблицу. Оба сжигаются атомарным `updateMany` по `null` (канон
+  /// `dueSoonNotifiedAt`) и сбрасываются при переносе срока.
+  overdueNotifiedAt    DateTime?
+  overdueEscalatedAt   DateTime?
+  /// Этап 4 (`У-223`): задача, созданная правилом автоматизации — в карточке
+  /// показывается «Создана правилом X». Внешний ключ появится вместе с моделью
+  /// `AutomationRule` (PR-3); здесь пока колонка, чтобы карточка задачи и
+  /// процессор правил не тянули друг друга в один PR.
+  createdByRuleId      String?
   assignees            TaskAssignee[]
+  /// Этап 4 (`У-218`, `У-219`): обсуждение и чек-лист живут своими моделями.
+  comments             TaskComment[]
+  checklist            TaskChecklistItem[]
 
   /// Этап 2 ТЗ 12.09.2026 (`У-190`, `Р-Б-11`): ключ строки в Битрикс24; `externalId` остаётся за 1С.
   bitrixId String? @unique
@@ -1187,6 +1204,48 @@ model Task {
   @@index([linkedLeadId])
   @@index([linkedDealId])
   @@index([dueDate])
+  /// Этап 4 (`У-225`): выборка просроченных — «моя компания, не done, срок раньше
+  /// сейчас». Без составного индекса прогон SLA читает все задачи компании.
+  @@index([companyId, status, dueDate])
+}
+
+/// Этап 4 ТЗ 12.09.2026 (`У-218`): обсуждение внутри задачи.
+///
+/// СВОЯ модель, а НЕ `Comment`. `Comment` в этом проекте — разговор клиента с
+/// менеджером по заказу, он виден заказчику (CLAUDE.md §5 оговаривает это
+/// отдельно). Задачи клиентскому контуру не видны вообще, и складывать внутреннее
+/// обсуждение в таблицу, которую читает кабинет клиента, — прямой путь к утечке.
+model TaskComment {
+  id             String   @id @default(cuid())
+  createdAt      DateTime @default(now())
+  taskId         String
+  task           Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId       String
+  author         User     @relation("TaskCommentAuthor", fields: [authorId], references: [id])
+  body           String
+  /// Кого упомянули через `@` — им ушло `note_mention` (общий продьюсер этапа 1).
+  mentionUserIds String[]
+
+  @@index([taskId, createdAt])
+}
+
+/// Этап 4 (`У-219`): пункт чек-листа задачи. Чек-лист — помощник, а не замок:
+/// задача с невыполненными пунктами переводится в `done` по явному подтверждению
+/// (`force`), см. `services/tasks/checklist.ts`.
+model TaskChecklistItem {
+  id        String    @id @default(cuid())
+  createdAt DateTime  @default(now())
+  taskId    String
+  task      Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  title     String
+  isDone    Boolean   @default(false)
+  sortOrder Int       @default(0)
+  /// Кто отметил пункт. Без внешнего ключа: пользователя могут удалить, а история
+  /// чек-листа при этом не должна ни падать, ни занулять сам пункт.
+  doneById  String?
+  doneAt    DateTime?
+
+  @@index([taskId, sortOrder])
 }
 
 // M:N исполнители задачи (идиома репозитория — OrganizationUser/PartnerUser).

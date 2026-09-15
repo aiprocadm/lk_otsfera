@@ -50,6 +50,9 @@ function fakePrisma(
   const prisma = {
     taskColumn: { findMany: vi.fn().mockResolvedValue(columns) },
     task: { findMany, count: vi.fn().mockResolvedValue(rows.length) },
+    // Этап 4 (`У-219`): доска добирает прогресс чек-листов одним группирующим
+    // запросом. Здесь чек-листов нет — пустой ответ, карточки получают нули.
+    taskChecklistItem: { groupBy: vi.fn().mockResolvedValue([]) },
   } as unknown as PrismaClient;
   return { prisma, findMany };
 }

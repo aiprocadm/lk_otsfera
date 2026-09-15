@@ -56,6 +56,8 @@ function card(over: Partial<TaskCard>): TaskCard {
     linkedLeadSubject: null,
     linkedDealId: null,
     linkedDealTitle: null,
+    checklistDone: 0,
+    checklistTotal: 0,
     ...over,
   };
 }
