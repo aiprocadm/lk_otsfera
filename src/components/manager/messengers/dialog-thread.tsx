@@ -76,17 +76,28 @@ export function DialogThread({
       )}
       <ol className="space-y-2" aria-label="Переписка">
         {messages.map((m) => {
+          const isNote = m.direction === 'note';
           const out = m.direction === 'out';
           return (
-            <li key={m.id} className={`flex ${out ? 'justify-end' : 'justify-start'}`}>
+            <li
+              key={m.id}
+              className={`flex ${isNote ? 'justify-center' : out ? 'justify-end' : 'justify-start'}`}
+            >
               <div
                 className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm ${
-                  out
-                    ? 'rounded-br-sm border border-orange-200 bg-orange-50 text-gray-800'
-                    : 'rounded-bl-sm bg-gray-100 text-gray-800'
+                  isNote
+                    ? 'w-full border border-dashed border-amber-300 bg-amber-50 text-gray-800'
+                    : out
+                      ? 'rounded-br-sm border border-orange-200 bg-orange-50 text-gray-800'
+                      : 'rounded-bl-sm bg-gray-100 text-gray-800'
                 }`}
               >
-                {out && (
+                {isNote && (
+                  <p className="mb-0.5 text-[11px] font-medium text-amber-800">
+                    Заметка · {m.authorName ?? 'Сотрудник'} · клиент не видит
+                  </p>
+                )}
+                {out && !isNote && (
                   <p className="mb-0.5 text-[11px] font-medium text-orange-700">
                     {m.authorName ?? 'Сотрудник'}
                   </p>
@@ -95,13 +106,13 @@ export function DialogThread({
                 <Attachment dialogId={dialogId} message={m} />
                 <p className="mt-1 text-[11px] text-gray-400">
                   {fmtDateTime(m.createdAt)}
-                  {out && m.deliveryStatus === 'failed' && (
+                  {out && !isNote && m.deliveryStatus === 'failed' && (
                     <span className="ml-2 text-red-600">не доставлено</span>
                   )}
-                  {out && m.deliveryStatus === 'pending' && (
+                  {out && !isNote && m.deliveryStatus === 'pending' && (
                     <span className="ml-2 text-gray-500">ждёт проверки файла</span>
                   )}
-                  {out && m.deliveryStatus === 'sending' && (
+                  {out && !isNote && m.deliveryStatus === 'sending' && (
                     <span className="ml-2 text-gray-500">отправляется…</span>
                   )}
                 </p>

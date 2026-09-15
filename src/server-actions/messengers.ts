@@ -19,6 +19,12 @@ import {
   takeDialog,
   type AssignDialogResult,
 } from '@/lib/services/messengers/assign';
+import {
+  addDialogNote,
+  DIALOG_NOTE_MAX,
+  type AddDialogNoteResult,
+} from '@/lib/services/messengers/note';
+import { applyReplyTemplate, type ApplyTemplateResult } from '@/lib/services/replyTemplates/apply';
 
 /**
  * Тонкие адаптеры над сервисами диалогов (спека 2026-09-12 §4): флаг и гард
@@ -145,6 +151,51 @@ export async function takeDialogAction(input: {
   const result = await takeDialog(prisma, session, parsed.data);
   if (result.ok && result.changed) revalidateDialog(parsed.data.dialogId);
   return result;
+}
+
+const NoteSchema = z.object({
+  dialogId: DialogIdSchema,
+  text: z.string().max(DIALOG_NOTE_MAX * 2),
+});
+
+/**
+ * Внутренняя заметка в диалоге (`У-209`). Клиенту не уходит: у заметки нет
+ * пути в транспорт, а клиентские выборки её отфильтровывают.
+ */
+export async function addDialogNoteAction(input: {
+  dialogId: string;
+  text: string;
+}): Promise<AddDialogNoteResult | Validation> {
+  const off = disabled();
+  if (off) return off;
+  const parsed = NoteSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'validation' };
+  const session = await requireManager();
+  const result = await addDialogNote(prisma, session, parsed.data);
+  if (result.ok) revalidateDialog(parsed.data.dialogId);
+  return result;
+}
+
+const TemplateSchema = z.object({
+  dialogId: DialogIdSchema,
+  templateId: z.string().min(1).max(64),
+});
+
+/**
+ * Вставка шаблона в форму ответа (`У-208`). Ничего не отправляет — возвращает
+ * готовый текст и список подстановок, которым не нашлось значения: сотрудник
+ * правит текст перед отправкой.
+ */
+export async function applyReplyTemplateAction(input: {
+  dialogId: string;
+  templateId: string;
+}): Promise<ApplyTemplateResult | Validation> {
+  const off = disabled();
+  if (off) return off;
+  const parsed = TemplateSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'validation' };
+  const session = await requireManager();
+  return applyReplyTemplate(prisma, session, parsed.data);
 }
 
 const StartSchema = z.object({

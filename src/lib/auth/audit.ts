@@ -62,6 +62,8 @@ export const AUDIT_ENTITIES = [
   'inbound_message',
   // Спека 2026-09-12: диалог с клиентом в мессенджере.
   'messenger_dialog',
+  // Этап 3 ТЗ 12.09.2026 (`У-208`): шаблон быстрого ответа.
+  'reply_template',
   'staff_conversation',
   'calendar_event',
   'integration_setting',
@@ -187,6 +189,10 @@ export const AUDIT_ACTIONS = [
   'messenger_dialog_closed',
   'dialog_assignee_changed',
   'messenger_attachment_sent',
+  'dialog_note_added',
+  'reply_template_created',
+  'reply_template_updated',
+  'reply_template_deleted',
   'messenger_dialog_reopened',
   'messenger_dialog_started',
   'messenger_message_sent',

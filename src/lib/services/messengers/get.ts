@@ -18,7 +18,8 @@ const DEFAULT_SLA_WARNING_HOURS = 4;
 
 export type DialogMessageView = {
   id: string;
-  direction: 'in' | 'out';
+  /** in — от клиента, out — ему, note — внутренняя заметка (`У-209`). */
+  direction: 'in' | 'out' | 'note';
   body: string;
   createdAt: Date;
   /** sent | failed — у исходящих; у входящих всегда sent. */
@@ -174,7 +175,7 @@ export async function getDialog(
       user: row.user ? { id: row.user.id, name: row.user.name } : null,
       messages: ordered.map((m) => ({
         id: m.id,
-        direction: m.direction as 'in' | 'out',
+        direction: m.direction as 'in' | 'out' | 'note',
         body: m.body,
         createdAt: m.createdAt,
         deliveryStatus: m.deliveryStatus,

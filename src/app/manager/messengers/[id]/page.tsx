@@ -7,6 +7,7 @@ import { prisma } from '@/lib/db/prisma';
 import { DIALOG_CHANNEL_LABELS } from '@/lib/services/messengers/channels';
 import { getDialog, markDialogRead } from '@/lib/services/messengers/get';
 import { listAssignableStaff } from '@/lib/services/messengers/assign';
+import { listTemplatesForChannel } from '@/lib/services/replyTemplates/crud';
 import { listOrganizations } from '@/lib/services/manager/organizations';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import { DialogThread } from '@/components/manager/messengers/dialog-thread';
@@ -41,10 +42,12 @@ export default async function ManagerMessengerDialogPage({
   const dialog = result.dialog;
 
   // Открыл — значит прочитал; список организаций нужен только ничьему диалогу.
-  const [, organizations, staff] = await Promise.all([
+  const [, organizations, staff, templates] = await Promise.all([
     markDialogRead(prisma, session, dialog.id),
     dialog.bound ? Promise.resolve([]) : listOrganizations(prisma, session),
     listAssignableStaff(prisma, session),
+    // Шаблоны канала этого диалога (`У-208`): пусто — кнопки «Шаблон» не будет.
+    listTemplatesForChannel(prisma, session, dialog.channel),
   ]);
 
   const channelLabel = DIALOG_CHANNEL_LABELS[dialog.channel];
@@ -81,7 +84,7 @@ export default async function ManagerMessengerDialogPage({
           />
           {dialog.channelAvailable ? (
             <div className="space-y-2">
-              <DialogReplyForm dialogId={dialog.id} />
+              <DialogReplyForm dialogId={dialog.id} templates={templates} />
               {dialog.attachmentsAllowed ? (
                 <DialogAttachmentForm dialogId={dialog.id} limitMb={dialog.attachmentLimitMb} />
               ) : (

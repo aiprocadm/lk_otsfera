@@ -28,6 +28,9 @@ const LEADER_SECTIONS = [
   'integrations.oneC', // обмен в объёме компании: файлы, история, автообмен на чтение
   'catalogs.slaIntake', // SLA своей компании (`У-130`)
   'catalogs.emailTemplates', // тексты писем своей компании (`У-128`)
+  // `У-208` (этап 3): шаблоны быстрых ответов своей компании — руководитель
+  // ведёт их сам, как и тексты писем.
+  'catalogs.replyTemplates',
   'catalogs.applicationStatuses',
   'catalogs.notificationRules', // правила уведомлений компании (`У-127`)
   'catalogs.customFields',

@@ -173,6 +173,17 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     legacyHrefs: [],
   },
   {
+    id: 'catalogs.replyTemplates',
+    group: 'catalogs',
+    title: 'Шаблоны ответов',
+    description: 'Заготовки для частых ответов клиенту — с подстановкой имени и номера заказа.',
+    icon: '💬',
+    path: 'catalogs/reply-templates',
+    capability: 'settings.catalogs.manage',
+    cabinets: ['admin', 'leader'],
+    legacyHrefs: [],
+  },
+  {
     id: 'catalogs.applicationStatuses',
     group: 'catalogs',
     title: 'Статусы заявок',
