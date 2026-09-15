@@ -29,6 +29,13 @@ const ALLOWED = new Set([
   join('documents', 'documents-panel.tsx'),
   join('client-requests', 'client-request-attachments-list.tsx'),
   join('deals', 'deal-dialog.tsx'),
+  // `У-210`: блок «Переписка с клиентом» — узкая карточка в боковой колонке
+  // заказа; большое пустое состояние с картинкой в ней выглядело бы как
+  // поломка вёрстки. Заголовок и объяснение у блока свои, действие рядом.
+  join('orders', 'order-dialogs-panel.tsx'),
+  // `У-216`: текст внутри модального окна «Новый диалог» — у окна уже есть
+  // свой заголовок, а действие («Отмена») стоит тут же.
+  join('manager', 'messengers', 'new-dialog-button.tsx'),
   join('import', 'import-history.tsx'),
   join('import', 'payment-queue-table.tsx'),
   // Пустота с действием рядом на том же экране (кнопка/форма выше).

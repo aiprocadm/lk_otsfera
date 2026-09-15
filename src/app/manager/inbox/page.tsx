@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireManager } from '@/lib/auth/requireRole';
 import { isFeatureEnabled } from '@/lib/featureFlags';
@@ -16,6 +17,8 @@ type SearchParams = {
   channel?: string;
   status?: string;
   skip?: string;
+  /** `У-215`: одно письмо — переход из ленты диалога. */
+  message?: string;
 };
 
 const PAGE_SIZE = 25;
@@ -42,9 +45,11 @@ export default async function ManagerInboxPage({
       ? sp.status
       : undefined;
   const channel = sp.channel && KNOWN_CHANNELS.has(sp.channel) ? sp.channel : undefined;
+  const messageId = typeof sp.message === 'string' && sp.message ? sp.message : undefined;
   const filters: InboxFilters = {
     ...(channel ? { channel } : {}),
     ...(status ? { status } : {}),
+    ...(messageId ? { messageId } : {}),
     page,
     pageSize: PAGE_SIZE,
   };
@@ -67,7 +72,18 @@ export default async function ManagerInboxPage({
         />
       </div>
 
-      <InboxFiltersBar channel={channel} status={status} />
+      {messageId ? (
+        // Человек пришёл по ссылке из переписки и видит одно письмо. Без этой
+        // строки экран выглядел бы как «во «Входящих» осталось одно письмо».
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Показано одно письмо — то, из которого выросла реплика в диалоге.{' '}
+          <Link href="/manager/inbox" className="font-medium underline">
+            Показать все входящие
+          </Link>
+        </p>
+      ) : (
+        <InboxFiltersBar channel={channel} status={status} />
+      )}
 
       <InboxList
         items={items}

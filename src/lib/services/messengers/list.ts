@@ -160,24 +160,33 @@ export async function listDialogs(
 }
 
 /**
- * Непрочитанные входящие в незакрытых диалогах скоупа — бейдж пункта меню.
+ * Диалоги, которые ждут сотрудника, — бейдж пункта меню «Мессенджеры»
+ * (`У-215`).
  *
- * Условие «не закрыт», а не «открыт»: с этапа 3 у живого диалога три статуса
- * (`open`, `waiting_staff`, `waiting_client`), и проверка на один из них
- * молча потеряла бы непрочитанные в остальных двух.
+ * Считаем ДИАЛОГИ, а не сообщения, и по двум причинам сразу:
+ *
+ * 1. `waiting_staff` — клиент написал и ответа ещё нет (`У-207`). Это ровно то
+ *    состояние, из-за которого руководителю прилетит просрочка SLA, поэтому
+ *    цифра в меню и цифра в эскалации говорят об одном и том же.
+ * 2. Ничей диалог (`companyId IS NULL`) — общая очередь: его не видит ни один
+ *    ответственный, и потерять его легче всего. Закрытый ничей диалог не
+ *    считаем: разобрались — значит, разобрались.
+ *
+ * Прежний счётчик суммировал непрочитанные СООБЩЕНИЯ. Цифра «7» означала «семь
+ * сообщений», хотя человек читает её как «семь дел», и отвеченный диалог с
+ * непрочитанной репликой продолжал висеть в меню. Считать дела честнее.
  */
-export async function countUnreadDialogs(
+export async function countWaitingDialogs(
   prisma: PrismaClient,
   session: SessionPayload
 ): Promise<number> {
-  const agg = await prisma.messengerDialog.aggregate({
+  return prisma.messengerDialog.count({
     where: {
       AND: [
         dialogScopeWhere(session),
-        { status: { not: DIALOG_STATUS.closed }, unreadCount: { gt: 0 } },
+        { status: { not: DIALOG_STATUS.closed } },
+        { OR: [{ status: DIALOG_STATUS.waitingStaff }, { companyId: null }] },
       ],
     },
-    _sum: { unreadCount: true },
   });
-  return agg._sum.unreadCount ?? 0;
 }

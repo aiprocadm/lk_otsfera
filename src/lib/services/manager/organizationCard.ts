@@ -8,6 +8,7 @@ import {
 import { can } from '@/lib/auth/accessProfile';
 import { activeOrgIds } from '@/lib/auth/organizationPolicy';
 import { recordPiiAccessMany } from '@/lib/pii/record';
+import { dialogScopeWhere } from '@/lib/services/messengers/scope';
 import { listCertificates } from '@/lib/services/training/certificates';
 
 /**
@@ -33,6 +34,7 @@ export type OrgCardListKey =
   | 'payments'
   | 'activity'
   | 'inboundMessages'
+  | 'dialogs'
   | 'calls'
   | 'clientRequests'
   | 'leads'
@@ -120,6 +122,23 @@ type OrgCardInboundMessage = {
   status: string;
   scanStatus: string;
   attachmentName: string | null;
+};
+/**
+ * Строка вкладки «Диалоги» (`У-210`). Показываем ровно то, по чему человек
+ * узнаёт переписку: канал, собеседника, состояние и начало последней реплики.
+ * Текст реплики — уже обрезанный `lastMessagePreview` диалога; внутренние
+ * заметки в него не попадают (`У-208`, это третья дверь утечки, закрытая в
+ * PR-4: поле лежит на диалоге и нигде не фильтруется по направлению).
+ */
+type OrgCardDialog = {
+  id: string;
+  channel: string;
+  status: string;
+  peerDisplay: string | null;
+  peerRef: string;
+  lastMessageAt: Date;
+  lastMessagePreview: string | null;
+  waitingSince: Date | null;
 };
 type OrgCardCall = {
   id: string;
@@ -209,6 +228,7 @@ export type OrganizationCard = {
   payments: OrgCardPayment[];
   activity: OrgCardComment[];
   inboundMessages: OrgCardInboundMessage[];
+  dialogs: OrgCardDialog[];
   calls: OrgCardCall[];
   clientRequests: OrgCardClientRequest[];
   leads: OrgCardLead[];
@@ -294,6 +314,22 @@ export async function getOrganizationCard(
   const enrollmentsWhere: Prisma.EnrollmentRequestWhereInput = { organizationId: orgId };
   const clientRequestsWhere: Prisma.ClientRequestWhereInput = { organizationId: orgId };
   const inboundWhere: Prisma.InboundMessageWhereInput = { resolvedOrgId: orgId };
+  // `У-210`: переписка организации — это и диалоги, привязанные к ней прямо, и
+  // диалоги её контактов. Второе важнее первого: привязка к организации
+  // появляется при разборе «Входящих», а к контакту — сразу, как только человек
+  // узнан по номеру или chatId. Без второго условия вкладка у большинства
+  // организаций была бы пустой при живой переписке.
+  //
+  // Скоуп диалогов поверх (defense-in-depth, CLAUDE.md §4): карточка уже
+  // проверена на доступ, но фильтр компании здесь — последняя граница, и
+  // сокращать её нельзя. `dialogScopeWhere` пропускает и ничейные диалоги
+  // (`companyId IS NULL`) — это общая очередь, её видят все.
+  const dialogsWhere: Prisma.MessengerDialogWhereInput = {
+    AND: [
+      dialogScopeWhere(session),
+      { OR: [{ organizationId: orgId }, { contact: { organizationId: orgId } }] },
+    ],
+  };
   const callsWhere: Prisma.CallWhereInput = { resolvedOrgId: orgId };
   const leadsWhere: Prisma.LeadWhereInput = { organizationId: orgId };
   const dealsWhere: Prisma.DealWhereInput = { organizationId: orgId };
@@ -432,65 +468,91 @@ export async function getOrganizationCard(
         ])
       : ([[], 0] as const);
 
-  const [inboundMessages, calls, leads, deals, inboundTotal, callsTotal, leadsTotal, dealsTotal] =
-    isStaffView
-      ? await Promise.all([
-          prisma.inboundMessage.findMany({
-            where: inboundWhere,
-            select: {
-              id: true,
-              channel: true,
-              senderRef: true,
-              senderDisplay: true,
-              subject: true,
-              body: true,
-              createdAt: true,
-              status: true,
-              scanStatus: true,
-              attachmentName: true,
-            },
-            orderBy: { createdAt: 'desc' },
-            take: ORG_CARD_TAB_CAP,
-          }),
-          // Не селектим `recordingPath` — карточке нужен только boolean hasRecording,
-          // сырой object-storage путь не должен уходить в RSC-payload (mirrors listCalls.ts).
-          prisma.call.findMany({
-            where: callsWhere,
-            select: {
-              id: true,
-              direction: true,
-              callerNumber: true,
-              internalNumber: true,
-              status: true,
-              durationSec: true,
-              startedAt: true,
-              createdAt: true,
-              resolvedOrgId: true,
-              recordingScanStatus: true,
-              recordingPath: true,
-            },
-            orderBy: { createdAt: 'desc' },
-            take: ORG_CARD_TAB_CAP,
-          }),
-          // Этап 7 (PR-3): внутренний контур — лиды и сделки организации.
-          prisma.lead.findMany({
-            where: leadsWhere,
-            select: { id: true, subject: true, status: true, createdAt: true },
-            orderBy: { createdAt: 'desc' },
-            take: ORG_CARD_TAB_CAP,
-          }),
-          prisma.deal.findMany({
-            where: dealsWhere,
-            select: { id: true, title: true, status: true, amount: true, createdAt: true },
-            orderBy: { createdAt: 'desc' },
-            take: ORG_CARD_TAB_CAP,
-          }),
-          prisma.inboundMessage.count({ where: inboundWhere }),
-          prisma.call.count({ where: callsWhere }),
-          prisma.lead.count({ where: leadsWhere }),
-          prisma.deal.count({ where: dealsWhere }),
-        ])
-      : ([[], [], [], [], 0, 0, 0, 0] as const);
+  const [
+    inboundMessages,
+    dialogs,
+    calls,
+    leads,
+    deals,
+    inboundTotal,
+    dialogsTotal,
+    callsTotal,
+    leadsTotal,
+    dealsTotal,
+  ] = isStaffView
+    ? await Promise.all([
+        prisma.inboundMessage.findMany({
+          where: inboundWhere,
+          select: {
+            id: true,
+            channel: true,
+            senderRef: true,
+            senderDisplay: true,
+            subject: true,
+            body: true,
+            createdAt: true,
+            status: true,
+            scanStatus: true,
+            attachmentName: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: ORG_CARD_TAB_CAP,
+        }),
+        prisma.messengerDialog.findMany({
+          where: dialogsWhere,
+          select: {
+            id: true,
+            channel: true,
+            status: true,
+            peerDisplay: true,
+            peerRef: true,
+            lastMessageAt: true,
+            lastMessagePreview: true,
+            waitingSince: true,
+          },
+          orderBy: [{ lastMessageAt: 'desc' }, { id: 'desc' }],
+          take: ORG_CARD_TAB_CAP,
+        }),
+        // Не селектим `recordingPath` — карточке нужен только boolean hasRecording,
+        // сырой object-storage путь не должен уходить в RSC-payload (mirrors listCalls.ts).
+        prisma.call.findMany({
+          where: callsWhere,
+          select: {
+            id: true,
+            direction: true,
+            callerNumber: true,
+            internalNumber: true,
+            status: true,
+            durationSec: true,
+            startedAt: true,
+            createdAt: true,
+            resolvedOrgId: true,
+            recordingScanStatus: true,
+            recordingPath: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: ORG_CARD_TAB_CAP,
+        }),
+        // Этап 7 (PR-3): внутренний контур — лиды и сделки организации.
+        prisma.lead.findMany({
+          where: leadsWhere,
+          select: { id: true, subject: true, status: true, createdAt: true },
+          orderBy: { createdAt: 'desc' },
+          take: ORG_CARD_TAB_CAP,
+        }),
+        prisma.deal.findMany({
+          where: dealsWhere,
+          select: { id: true, title: true, status: true, amount: true, createdAt: true },
+          orderBy: { createdAt: 'desc' },
+          take: ORG_CARD_TAB_CAP,
+        }),
+        prisma.inboundMessage.count({ where: inboundWhere }),
+        prisma.messengerDialog.count({ where: dialogsWhere }),
+        prisma.call.count({ where: callsWhere }),
+        prisma.lead.count({ where: leadsWhere }),
+        prisma.deal.count({ where: dealsWhere }),
+      ])
+    : ([[], [], [], [], [], 0, 0, 0, 0, 0] as const);
 
   const paid = paidAgg._sum.amount ?? new Prisma.Decimal(0);
   const refunded = refundAgg._sum.amount ?? new Prisma.Decimal(0);
@@ -511,6 +573,11 @@ export async function getOrganizationCard(
       session,
       context: 'org_card_calls',
       subjectIds: calls.map((c) => c.id),
+    },
+    {
+      session,
+      context: 'org_card_dialogs',
+      subjectIds: dialogs.map((d) => d.id),
     },
   ]);
 
@@ -552,6 +619,7 @@ export async function getOrganizationCard(
       payments: paymentsTotal,
       activity: activityTotal,
       inboundMessages: inboundTotal,
+      dialogs: dialogsTotal,
       calls: callsTotal,
       clientRequests: clientRequestsTotal,
       leads: leadsTotal,
@@ -607,6 +675,16 @@ export async function getOrganizationCard(
       status: m.status,
       scanStatus: m.scanStatus,
       attachmentName: m.attachmentName,
+    })),
+    dialogs: dialogs.map((d) => ({
+      id: d.id,
+      channel: d.channel,
+      status: d.status,
+      peerDisplay: d.peerDisplay,
+      peerRef: d.peerRef,
+      lastMessageAt: d.lastMessageAt,
+      lastMessagePreview: d.lastMessagePreview,
+      waitingSince: d.waitingSince,
     })),
     calls: calls.map(({ recordingPath, ...c }) => ({
       ...c,

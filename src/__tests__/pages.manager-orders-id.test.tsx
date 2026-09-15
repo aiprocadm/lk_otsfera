@@ -72,6 +72,32 @@ vi.mock('@/components/orders/order-contact-panel', () => ({
   }) => React.createElement('div', { 'data-testid': 'order-contact-panel' }, JSON.stringify(props)),
 }));
 
+// `У-210`: блок «Переписка с клиентом» в карточке заказа. Сервис ходит в базу,
+// а prisma здесь — заглушка на пару моделей; без мока страница падала бы на
+// `messengerDialog.findMany`, хотя проверяем мы не выборку, а сборку экрана.
+const { listOrderDialogs } = vi.hoisted(() => ({ listOrderDialogs: vi.fn() }));
+vi.mock('@/lib/services/messengers/forOrder', () => ({ listOrderDialogs }));
+vi.mock('@/components/orders/order-dialogs-panel', () => ({
+  OrderDialogsPanel: (props: {
+    dialogs: unknown[];
+    total: number;
+    allHref: string | null;
+    writeFirstHref: string | null;
+    hasContact: boolean;
+  }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'order-dialogs-panel' },
+      JSON.stringify({
+        count: props.dialogs.length,
+        total: props.total,
+        allHref: props.allHref,
+        writeFirstHref: props.writeFirstHref,
+        hasContact: props.hasContact,
+      })
+    ),
+}));
+
 const { listDirections } = vi.hoisted(() => ({ listDirections: vi.fn() }));
 vi.mock('@/lib/services/training', () => ({ listDirections }));
 
@@ -137,6 +163,7 @@ vi.mock('@/components/manager/manager-order-detail-view', () => ({
     readinessPanel?: React.ReactNode;
     linesSection?: React.ReactNode;
     dealPanel?: React.ReactNode;
+    dialogsPanel?: React.ReactNode;
     contactPanel?: React.ReactNode;
     breadcrumbs?: Array<{ label: string; href: string | null }>;
   }) =>
@@ -155,6 +182,7 @@ vi.mock('@/components/manager/manager-order-detail-view', () => ({
       props.generatePanel,
       props.readinessPanel,
       props.dealPanel,
+      props.dialogsPanel,
       props.contactPanel,
       JSON.stringify(props.breadcrumbs ?? [])
     ),
@@ -198,6 +226,9 @@ describe('ManagerOrderDetailPage', () => {
     getDealActivity.mockReset();
     listDirections.mockReset();
     getValuesForEntity.mockReset();
+    // Переписка по заказу по умолчанию пустая: блок при этом НЕ исчезает (он
+    // объясняет, что дальше), а какой именно — проверяет pages.order-dialogs.
+    listOrderDialogs.mockReset().mockResolvedValue({ rows: [], total: 0 });
     isFeatureEnabled.mockReset();
     loadOrderDeal.mockReset();
     loadOrderDeal.mockResolvedValue(null);

@@ -7,6 +7,7 @@ const m = vi.hoisted(() => ({
   recordAudit: vi.fn(),
   recordPiiAccess: vi.fn(),
   upsertDialog: vi.fn(),
+  isMessengerAvailable: vi.fn(),
 }));
 vi.mock('@/lib/auth/managerPolicy', async () => ({
   ...(await vi.importActual<typeof import('@/lib/auth/managerPolicy')>('@/lib/auth/managerPolicy')),
@@ -15,13 +16,22 @@ vi.mock('@/lib/auth/managerPolicy', async () => ({
 vi.mock('@/lib/auth/audit', () => ({ recordAudit: m.recordAudit }));
 vi.mock('@/lib/pii/record', () => ({ recordPiiAccess: m.recordPiiAccess }));
 vi.mock('@/lib/services/messengers/dialog', () => ({ upsertDialog: m.upsertDialog }));
+// `У-216`: «подключён ли канал» решают ключи ботов и настройки почты — в unit
+// это внешний мир. Мокаем, иначе результат теста зависел бы от env машины.
+vi.mock('@/lib/services/messengers/availability', () => ({
+  isMessengerAvailable: m.isMessengerAvailable,
+}));
 
 import { listDialogCandidates, startDialog } from '@/lib/services/messengers/start';
 
 /**
- * «Новый диалог» (спека 2026-09-12, Р-М-8): кандидаты только с известным
- * адресом и в охвате сотрудника; адрес берётся с сервера; чужой диалог не
- * открывается.
+ * «Новый диалог» (спека 2026-09-12, Р-М-8): кандидаты в охвате сотрудника,
+ * адрес берётся с сервера, чужой диалог не открывается.
+ *
+ * С `У-216` кандидат несёт ВСЕ каналы диалога сразу — каждый со своим
+ * «можно/нельзя» и причиной. Раньше недоступный канал просто выпадал из
+ * списка, и человек не мог понять, почему Telegram есть у одного клиента и
+ * нет у другого.
  */
 const userFindMany = vi.fn();
 const userFindUnique = vi.fn();
@@ -48,6 +58,9 @@ describe('listDialogCandidates', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     m.getCompanyTeamVisibility.mockResolvedValue(true);
+    // По умолчанию все каналы подключены: тогда «нельзя» означает ровно одно —
+    // адреса не знаем, и причина в ответе будет про адрес, а не про настройки.
+    m.isMessengerAvailable.mockReturnValue(true);
     userFindMany.mockResolvedValue([]);
     contactFindMany.mockResolvedValue([]);
   });
@@ -59,7 +72,7 @@ describe('listDialogCandidates', () => {
     expect(userFindMany).not.toHaveBeenCalled();
   });
 
-  it('пользователи кабинетов и контакты с мессенджерами, в охвате компании', async () => {
+  it('пользователи кабинетов и контакты, в охвате компании; у каждого — все каналы со своим «можно/нельзя»', async () => {
     userFindMany.mockResolvedValue([
       {
         id: 'u1',
@@ -68,7 +81,7 @@ describe('listDialogCandidates', () => {
         telegramChatId: 'tg1',
         maxChatId: null,
         whatsappPhone: null,
-        organization: { name: 'Ромашка' },
+        organization: { id: 'o1', name: 'Ромашка' },
       },
       {
         id: 'u2',
@@ -84,30 +97,90 @@ describe('listDialogCandidates', () => {
       {
         id: 'k1',
         name: 'Контакт',
+        organizationId: null,
         organization: null,
         channels: [{ type: 'telegram' }, { type: 'telegram' }, { type: 'whatsapp' }],
       },
-      { id: 'k2', name: 'Второй', organization: { name: 'Лютик' }, channels: [{ type: 'max' }] },
+      {
+        id: 'k2',
+        name: 'Второй',
+        organizationId: 'o2',
+        organization: { name: 'Лютик' },
+        channels: [{ type: 'max' }],
+      },
     ]);
     const r = await listDialogCandidates(prisma, managerSession());
+
+    const ok = { available: true, reason: null };
+    const noAddress = (reason: string) => ({ available: false, reason });
+    const NO_TG =
+      'Человек не нажимал «Старт» в нашем боте Telegram — до этого написать ему нельзя.';
+    const NO_MAX = 'Человек не нажимал «Старт» в нашем боте MAX — до этого написать ему нельзя.';
+    const NO_WA = 'Номер WhatsApp неизвестен — укажите его в карточке этого человека.';
+    const NO_MAIL = 'Адрес почты неизвестен — укажите его в карточке этого человека.';
+
     expect(r).toEqual([
-      { kind: 'user', id: 'u1', name: 'Иван', organizationName: 'Ромашка', channels: ['telegram'] },
+      {
+        kind: 'user',
+        id: 'u1',
+        name: 'Иван',
+        organizationId: 'o1',
+        organizationName: 'Ромашка',
+        // У пользователя кабинета почта есть всегда — это его логин, поэтому
+        // написать ему можно как минимум письмом.
+        channels: [
+          { channel: 'telegram', ...ok },
+          { channel: 'max', ...noAddress(NO_MAX) },
+          { channel: 'whatsapp', ...noAddress(NO_WA) },
+          { channel: 'email', ...ok },
+        ],
+      },
       {
         kind: 'user',
         id: 'u2',
         name: 'p@t.test',
+        organizationId: null,
         organizationName: null,
-        channels: ['max', 'whatsapp'],
+        channels: [
+          { channel: 'telegram', ...noAddress(NO_TG) },
+          { channel: 'max', ...ok },
+          { channel: 'whatsapp', ...ok },
+          { channel: 'email', ...ok },
+        ],
       },
       {
         kind: 'contact',
         id: 'k1',
         name: 'Контакт',
+        organizationId: null,
         organizationName: null,
-        channels: ['telegram', 'whatsapp'],
+        // Два одинаковых канала в карточке — один пункт в списке: выбирают
+        // способ связи, а не конкретную запись.
+        channels: [
+          { channel: 'telegram', ...ok },
+          { channel: 'max', ...noAddress(NO_MAX) },
+          { channel: 'whatsapp', ...ok },
+          { channel: 'email', ...noAddress(NO_MAIL) },
+        ],
       },
-      { kind: 'contact', id: 'k2', name: 'Второй', organizationName: 'Лютик', channels: ['max'] },
+      {
+        kind: 'contact',
+        id: 'k2',
+        name: 'Второй',
+        organizationId: 'o2',
+        organizationName: 'Лютик',
+        channels: [
+          { channel: 'telegram', ...noAddress(NO_TG) },
+          { channel: 'max', ...ok },
+          { channel: 'whatsapp', ...noAddress(NO_WA) },
+          { channel: 'email', ...noAddress(NO_MAIL) },
+        ],
+      },
     ]);
+    // Наружу уходит только «можно/нельзя»: ни chatId, ни номера, ни почты в
+    // списке кандидатов нет — иначе ПДн разъехались бы по экранам без нужды.
+    expect(JSON.stringify(r)).not.toContain('tg1');
+    expect(JSON.stringify(r)).not.toContain('+79990001122');
     // Командная видимость включена → охват = вся компания.
     expect(userFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -132,6 +205,35 @@ describe('listDialogCandidates', () => {
       context: 'messengers_candidates',
       subjectIds: ['u1', 'u2', 'k1', 'k2'],
     });
+  });
+
+  it('`У-216`: адрес известен, но канал выключен → причина зовёт к администратору, а не к клиенту', async () => {
+    // Две причины выглядят одинаково («написать нельзя»), а лечатся по-разному:
+    // неизвестный адрес — это к клиенту, выключенный канал — к администратору.
+    // Если перепутать, человек пойдёт не туда и вернётся ни с чем.
+    m.isMessengerAvailable.mockReturnValue(false);
+    userFindMany.mockResolvedValue([
+      {
+        id: 'u1',
+        name: 'Иван',
+        email: 'i@t.test',
+        telegramChatId: 'tg1',
+        maxChatId: null,
+        whatsappPhone: null,
+        organization: { id: 'o1', name: 'Ромашка' },
+      },
+    ]);
+    const [candidate] = await listDialogCandidates(prisma, managerSession());
+    const byChannel = new Map(candidate!.channels.map((c) => [c.channel, c]));
+    expect(byChannel.get('telegram')).toEqual({
+      channel: 'telegram',
+      available: false,
+      reason: 'Канал не подключён в настройках — обратитесь к администратору.',
+    });
+    // А там, где адреса и так нет, причина остаётся прежней — про адрес, и
+    // ведёт в карточку человека, а не в настройки интеграции.
+    expect(byChannel.get('whatsapp')?.reason).toContain('карточке');
+    expect(byChannel.get('whatsapp')?.reason).not.toContain('администратору');
   });
 
   it('командная видимость выключена → охват по закреплённым организациям', async () => {

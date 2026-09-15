@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db/prisma';
 import { requireManager } from '@/lib/auth/requireRole';
 import { isFeatureEnabled } from '@/lib/featureFlags';
-import { MESSENGER_CHANNELS } from '@/lib/services/messengers/channels';
+import { DIALOG_CHANNELS } from '@/lib/services/messengers/channels';
 import {
   sendDialogMessage,
   DIALOG_MESSAGE_MAX,
@@ -201,7 +201,9 @@ export async function applyReplyTemplateAction(input: {
 const StartSchema = z.object({
   kind: z.enum(['user', 'contact']),
   id: z.string().min(1).max(64),
-  channel: z.enum(MESSENGER_CHANNELS),
+  // `У-216`: список каналов диалога, а не только мессенджеров — с `У-205`
+  // почта такой же двусторонний канал, и написать первым по ней можно.
+  channel: z.enum(DIALOG_CHANNELS),
 });
 
 export async function startDialogAction(input: {

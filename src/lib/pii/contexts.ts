@@ -113,6 +113,18 @@ export const PII_CONTEXTS = {
     labelRu: 'Карточка организации: входящие',
     callSite: 'src/lib/services/manager/organizationCard.ts',
   },
+  order_card_dialogs: {
+    subjectType: 'inbound_sender',
+    action: 'list',
+    labelRu: 'Карточка заказа: переписка с клиентом',
+    callSite: 'src/lib/services/messengers/forOrder.ts',
+  },
+  org_card_dialogs: {
+    subjectType: 'inbound_sender',
+    action: 'list',
+    labelRu: 'Карточка организации: диалоги',
+    callSite: 'src/lib/services/manager/organizationCard.ts',
+  },
   org_card_calls: {
     subjectType: 'caller',
     action: 'list',

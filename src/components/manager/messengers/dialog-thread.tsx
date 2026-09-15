@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import React from 'react';
 import { EmptyState } from '@/components/ui';
 import { fmtDateTime } from '@/lib/format';
@@ -114,6 +115,20 @@ export function DialogThread({
                   )}
                   {out && !isNote && m.deliveryStatus === 'sending' && (
                     <span className="ml-2 text-gray-500">отправляется…</span>
+                  )}
+                  {/*
+                    `У-215`: обратная ссылка в очередь разбора. То же сообщение
+                    лежит там строкой «Входящих в работу» — с привязкой к
+                    организации, вложением и историей разбора. Без ссылки его
+                    искали руками по имени отправителя.
+                  */}
+                  {m.inboundMessageId && (
+                    <Link
+                      href={`/manager/inbox?message=${encodeURIComponent(m.inboundMessageId)}`}
+                      className="ml-2 text-[#EA580C] hover:underline"
+                    >
+                      Открыть во «Входящих»
+                    </Link>
                   )}
                 </p>
               </div>

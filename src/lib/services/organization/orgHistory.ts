@@ -2,7 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { auditActionLabel } from '@/lib/audit/labels';
 import { isFeatureEnabled, type FeatureFlag } from '@/lib/featureFlags';
-import { MESSENGER_LABELS, isMessengerChannel } from '@/lib/services/messengers/channels';
+import { DIALOG_CHANNEL_LABELS, isDialogChannel } from '@/lib/services/messengers/channels';
 import { orgAccessibleForNotes } from '@/lib/services/organizationNotes/policy';
 
 /**
@@ -72,7 +72,11 @@ function snippet(text: string, max = 140): string {
 }
 
 function channelTitle(channel: string): string {
-  return isMessengerChannel(channel) ? MESSENGER_LABELS[channel] : channel;
+  // Тот же реестр подписей, что у карточки контакта и у новых блоков PR-6
+  // (правило зеркала §0.2): пока здесь стоял список одних мессенджеров, письмо
+  // в истории организации называлось машинным `email`, а в карточке контакта —
+  // «Почта». Один объект — одно название во всех кабинетах.
+  return isDialogChannel(channel) ? DIALOG_CHANNEL_LABELS[channel] : channel;
 }
 
 type Page = { skip: number; take: number };
@@ -152,7 +156,9 @@ async function dialogSource(prisma: PrismaClient, orgId: string, page: Page) {
       kind: 'dialog',
       id: r.id,
       at: r.lastMessageAt,
-      title: `Диалог в ${channelTitle(r.channel)}`,
+      // «Диалог · Почта», а не «Диалог в Почта»: подписи каналов — это
+      // названия («Telegram», «Почта»), и предлог с ними спорит по падежу.
+      title: `Диалог · ${channelTitle(r.channel)}`,
       subtitle: r.lastMessagePreview ? snippet(r.lastMessagePreview) : null,
       actor: r.contact?.name ?? r.peerDisplay ?? null,
     })),

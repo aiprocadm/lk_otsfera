@@ -57,6 +57,9 @@ const base: InboxItem = {
   resolvedOrgId: null,
   scanStatus: 'none',
   attachmentName: null,
+  // `У-215`: письмо может быть свёрнуто в диалог. У большинства строк связи
+  // нет — базовый образец её и не имеет, ссылку проверяет отдельный тест.
+  dialogId: null,
 };
 
 const ORGS = [{ id: 'org-1', name: 'Орг' }] as never;
@@ -185,6 +188,25 @@ describe('InboxList', () => {
     expect(html).toContain('Срочно');
     expect(html).toContain('…');
     expect(html).not.toContain('а'.repeat(200));
+  });
+
+  it('`У-215`: письмо, ставшее репликой диалога, показывает ссылку «Открыть диалог» в обеих раскладках', () => {
+    // Одно сообщение живёт в двух местах сразу: строкой в очереди разбора и
+    // репликой в переписке. Без ссылки человек искал диалог руками по имени
+    // отправителя — и часто отвечал повторно, не увидев, что уже ответили.
+    const html = renderToString(
+      <InboxList items={[{ ...base, dialogId: 'dlg-7' }]} organizations={ORGS} />
+    );
+    expect(count(html, 'href="/manager/messengers/dlg-7"')).toBe(2);
+    expect(count(html, 'Открыть диалог')).toBe(2);
+  });
+
+  it('письмо без диалога ссылки не показывает — вести некуда', () => {
+    // Старые письма (до этапа мессенджеров) и каналы вне диалогов связи не
+    // имеют. Мёртвая ссылка хуже её отсутствия: она обещает переход.
+    const html = renderToString(<InboxList items={[base]} organizations={ORGS} />);
+    expect(html).not.toContain('Открыть диалог');
+    expect(html).not.toContain('/manager/messengers/');
   });
 
   it.each([

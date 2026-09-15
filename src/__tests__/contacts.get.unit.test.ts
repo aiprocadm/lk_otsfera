@@ -17,10 +17,10 @@ import {
  * Карточка контакта и её вкладки (этап 1 ТЗ 12.09.2026, спека
  * docs/superpowers/specs/2026-09-12-stage1-contacts-and-notes-design.md §3.3 и §3.8):
  * чужой и несуществующий контакт неразличимы снаружи (`not_found`), канал
- * пользователя кабинета помечен `locked`, мессенджеры собраны без дублей,
- * сделки считаются отдельным запросом; каждая из шести вкладок — 20 строк со
- * сдвигом и полный `total`, заказы — в скоупе заказов сотрудника. Открытие
- * карточки — чтение ПДн (`contact_card`, §3.10).
+ * пользователя кабинета помечен `locked`, каналы диалога (мессенджеры и почта,
+ * `У-216`) собраны без дублей, сделки считаются отдельным запросом; каждая из
+ * шести вкладок — 20 строк со сдвигом и полный `total`, заказы — в скоупе
+ * заказов сотрудника. Открытие карточки — чтение ПДн (`contact_card`, §3.10).
  */
 const contactFindUnique = vi.fn();
 const dealCount = vi.fn();
@@ -160,7 +160,11 @@ describe('getContact', () => {
       updatedAt: t(2),
       organization: { id: 'o1', name: 'Ромашка' },
       user: { id: 'u1', name: 'Иван П.', email: 'ivan@test.ru' },
-      messengerChannels: ['telegram', 'max'],
+      // `У-216`: поле называется `dialogChannels`, а не `messengerChannels`, и
+      // почта входит в него наравне с мессенджерами — после `У-205` письмо
+      // такой же двусторонний канал диалога. Дубль telegram (ch2/ch4) в список
+      // не попадает: кнопка «Написать» предлагает канал, а не адрес.
+      dialogChannels: ['telegram', 'email', 'max'],
       counts: { dialogs: 2, calls: 3, inbound: 4, deals: 6, orders: 5 },
     });
     // В карточку не утекают поля пользователя, нужные только для locked.
@@ -192,7 +196,8 @@ describe('getContact', () => {
     expect(r.contact.user).toBeNull();
     expect(r.contact.organization).toBeNull();
     expect(r.contact.channels.map((c) => c.locked)).toEqual([false, false]);
-    expect(r.contact.messengerChannels).toEqual(['telegram']);
+    // Телефон каналом диалога не считается: позвонить можно, написать — нет.
+    expect(r.contact.dialogChannels).toEqual(['telegram']);
   });
 });
 
@@ -237,7 +242,7 @@ describe('listContactTab', () => {
     expect(dialogFindMany).not.toHaveBeenCalled();
   });
 
-  it('диалоги: подпись мессенджера, превью в одну строку с обрезкой, сдвиг по умолчанию 0', async () => {
+  it('диалоги: канал назван по-русски, превью в одну строку с обрезкой, сдвиг по умолчанию 0', async () => {
     const long = `первая   строка\n\nвторая ${'х'.repeat(200)}`;
     dialogFindMany.mockResolvedValueOnce([
       {
@@ -262,7 +267,7 @@ describe('listContactTab', () => {
       kind: 'dialogs',
       id: 'd1',
       at: t(5),
-      title: 'Диалог в Telegram',
+      title: 'Диалог · Telegram',
       status: 'open',
     });
     expect(r.items[0]?.subtitle).toHaveLength(140);
@@ -272,7 +277,12 @@ describe('listContactTab', () => {
       kind: 'dialogs',
       id: 'd2',
       at: t(4),
-      title: 'Диалог в email',
+      // `У-205`: почта — такой же канал диалога, и называется она словом, а не
+      // машинным `email`. Предлог «в» убран намеренно: подписи каналов — это
+      // названия, и «Диалог в Почта» спорит по падежу. Прежний текст был в
+      // `services/contacts/get.ts` (и в `organization/orgHistory.ts` — там тот
+      // же шаблон), а не теста: тест фиксирует то, что человек видит сейчас.
+      title: 'Диалог · Почта',
       subtitle: null,
       status: 'closed',
     });
@@ -367,7 +377,8 @@ describe('listContactTab', () => {
     });
     if (!r.ok) throw new Error('unexpected');
     expect(r.items).toEqual([
-      { kind: 'inbound', id: 'i1', at: t(3), title: 'Тема', subtitle: 'email', status: 'bound' },
+      // Тот же словарь, что и во вкладке диалогов: одно имя канала везде (§0.2).
+      { kind: 'inbound', id: 'i1', at: t(3), title: 'Тема', subtitle: 'Почта', status: 'bound' },
       {
         kind: 'inbound',
         id: 'i2',
@@ -381,6 +392,8 @@ describe('listContactTab', () => {
         id: 'i3',
         at: t(1),
         title: 'без темы',
+        // `cabinet` в словаре каналов диалога не значится (переписка в самом
+        // кабинете — не мессенджер и не почта), поэтому показывается как есть.
         subtitle: 'cabinet',
         status: 'bound',
       },

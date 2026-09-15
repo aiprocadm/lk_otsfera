@@ -219,6 +219,12 @@ export default async function AdminOrganizationDetailPage({
         // Раздела «Лиды» у администратора нет (исключение зеркала `leads`), а
         // кабинет менеджера для него мёртвая дверь (Model A) — тема лида текстом.
         leadHref={null}
+        // `У-210`: переписку администратор видит, но открыть её не может —
+        // раздел «Мессенджеры» живёт под `/manager/*`, а туда admin не ходит
+        // (Model A). Ссылка вела бы в «Доступ запрещён», поэтому её нет, а
+        // кнопки «Написать первым» на пустой вкладке — тем более.
+        dialogHref={null}
+        writeFirstHref={null}
         employees={
           employees ? (
             <OrgEmployeesSection

@@ -137,7 +137,9 @@ describe('navByRole.manager — feature-flag gated', () => {
     // Спека 2026-09-12: диалоги под тем же флагом, что и «Входящие письма».
     const messengers = navByRole.manager.find((i) => i.href === '/manager/messengers');
     expect(messengers?.flag).toBe('inbound_messaging');
-    expect(messengers?.badgeKey).toBe('messengersUnread');
+    // `У-215`: бейдж считает ЖДУЩИЕ диалоги, а не непрочитанные сообщения, и
+    // ключ назван по смыслу цифры — иначе меню и счётчик обещают разное.
+    expect(messengers?.badgeKey).toBe('dialogsWaiting');
     const calls = navByRole.manager.find((i) => i.href === '/manager/calls');
     expect(calls?.flag).toBe('telephony_mango');
   });

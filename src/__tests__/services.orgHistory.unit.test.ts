@@ -316,7 +316,7 @@ describe('listOrgHistory — точный режим (один тип)', () => {
           kind: 'dialog',
           id: 'd1',
           at: at('2026-09-05T10:00:00Z'),
-          title: 'Диалог в Telegram',
+          title: 'Диалог · Telegram',
           subtitle: 'Добрый день',
           actor: 'Иван Петров',
         },
@@ -325,7 +325,7 @@ describe('listOrgHistory — точный режим (один тип)', () => {
           id: 'd2',
           at: at('2026-09-04T10:00:00Z'),
           // Неизвестный словарю канал показывается как есть, а не прячется.
-          title: 'Диалог в sms',
+          title: 'Диалог · sms',
           subtitle: null,
           actor: '+7 900 000-00-00',
         },
@@ -333,7 +333,7 @@ describe('listOrgHistory — точный режим (один тип)', () => {
           kind: 'dialog',
           id: 'd3',
           at: at('2026-09-03T10:00:00Z'),
-          title: 'Диалог в MAX',
+          title: 'Диалог · MAX',
           subtitle: null,
           actor: null,
         },
@@ -485,7 +485,10 @@ describe('listOrgHistory — точный режим (один тип)', () => {
           id: 'i1',
           at: at('2026-09-05T08:00:00Z'),
           title: 'Счёт за обучение',
-          subtitle: 'email',
+          // «Почта», а не машинный `email`: подписи каналов берутся из общего
+          // реестра. Канал `cabinet` ниже пока печатается кодом — он появится
+          // в реестре диалогов на своём этапе (`У-212`).
+          subtitle: 'Почта',
           actor: 'Анна',
         },
         {

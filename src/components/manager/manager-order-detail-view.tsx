@@ -39,6 +39,7 @@ export function ManagerOrderDetailView({
   statusPanel = null,
   dealPanel = null,
   contactPanel = null,
+  dialogsPanel = null,
   breadcrumbs = [],
 }: {
   data: ManagerOrderDetailData;
@@ -67,6 +68,8 @@ export function ManagerOrderDetailView({
   dealPanel?: React.ReactNode;
   /** `У-180`: панель «Контакт заказа» (данные и права собирает страница). */
   contactPanel?: React.ReactNode;
+  /** `У-210`: блок «Переписка с клиентом» — сразу под контактом заказа. */
+  dialogsPanel?: React.ReactNode;
   /** Этап 11 PR-2 (ФТ-15.6): цепочка обращение → лид → сделка → заказ. */
   breadcrumbs?: Crumb[];
 }) {
@@ -134,6 +137,7 @@ export function ManagerOrderDetailView({
 
         <div className="space-y-4">
           {contactPanel}
+          {dialogsPanel}
           {dealPanel}
           <ManagerOrderTimeline order={order} auditEntries={auditEntries} />
           {/* §10 ТЗ v0.5, решение заказчика Q3: операционный статус

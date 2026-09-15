@@ -5,7 +5,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 const { recordPiiAccess } = vi.hoisted(() => ({ recordPiiAccess: vi.fn() }));
 vi.mock('@/lib/pii/record', () => ({ recordPiiAccess }));
 
-import { countUnreadDialogs, listDialogs, peerLabelOf } from '@/lib/services/messengers/list';
+import { countWaitingDialogs, listDialogs, peerLabelOf } from '@/lib/services/messengers/list';
 
 /**
  * Список диалогов (спека 2026-09-12 §5.1): фильтры и пагинация, имя
@@ -178,22 +178,37 @@ describe('peerLabelOf — имя собеседника по убыванию н
   });
 });
 
-describe('countUnreadDialogs', () => {
+describe('countWaitingDialogs', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('суммирует непрочитанные НЕЗАКРЫТЫХ диалогов скоупа; пустая сумма → 0', async () => {
-    aggregate.mockResolvedValueOnce({ _sum: { unreadCount: 7 } });
-    await expect(countUnreadDialogs(prisma, session)).resolves.toBe(7);
-    expect(aggregate).toHaveBeenCalledWith({
+  it('считает ДЕЛА: незакрытые диалоги, где ждут сотрудника, плюс ничейные (У-215)', async () => {
+    count.mockResolvedValueOnce(3);
+    await expect(countWaitingDialogs(prisma, session)).resolves.toBe(3);
+
+    // Цифра в меню обязана означать «столько диалогов ждут меня». Поэтому это
+    // `count` по диалогам, а не сумма непрочитанных сообщений: до этапа 3
+    // «7» в меню означало семь реплик, а человек читал её как семь дел, и
+    // отвеченный диалог с непрочитанной репликой продолжал висеть.
+    expect(aggregate).not.toHaveBeenCalled();
+    expect(count).toHaveBeenCalledWith({
       where: {
         AND: [
+          // Скоуп прежний: своя компания + общая очередь (Р-М-3).
           { OR: [{ companyId: 'c1' }, { companyId: null }] },
-          { status: { not: 'closed' }, unreadCount: { gt: 0 } },
+          // Закрытый не ждёт никого — даже ничейный: разобрались значит
+          // разобрались.
+          { status: { not: 'closed' } },
+          // Два повода ждать: клиент написал и ответа нет (`waiting_staff`,
+          // из-за него же прилетит просрочка SLA) — либо диалог ничей, и его
+          // не видит ни один ответственный.
+          { OR: [{ status: 'waiting_staff' }, { companyId: null }] },
         ],
       },
-      _sum: { unreadCount: true },
     });
-    aggregate.mockResolvedValueOnce({ _sum: { unreadCount: null } });
-    await expect(countUnreadDialogs(prisma, session)).resolves.toBe(0);
+  });
+
+  it('пусто → 0, а не падение', async () => {
+    count.mockResolvedValueOnce(0);
+    await expect(countWaitingDialogs(prisma, session)).resolves.toBe(0);
   });
 });

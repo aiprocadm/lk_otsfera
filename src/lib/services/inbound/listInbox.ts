@@ -17,6 +17,12 @@ export type InboxFilters = {
   channel?: string;
   status?: 'unresolved' | 'bound' | 'archived';
   orgId?: string;
+  /**
+   * `У-215`: показать одно письмо — по ссылке «Открыть во «Входящих»» из ленты
+   * диалога. Скоуп остаётся поверх: чужое письмо по прямой ссылке не откроется,
+   * список просто окажется пустым.
+   */
+  messageId?: string;
   page?: number;
   pageSize?: number;
 };
@@ -33,6 +39,12 @@ export type InboxItem = {
   resolvedOrgId: string | null;
   scanStatus: string;
   attachmentName: string | null;
+  /**
+   * `У-215`: диалог, в котором это письмо стало репликой. `null` — письмо ещё
+   * не свёрнуто в диалог (так бывает у старых писем до этапа мессенджеров и у
+   * каналов, которых в диалогах нет).
+   */
+  dialogId: string | null;
 };
 
 export type InboxResult = { items: InboxItem[]; total: number };
@@ -49,6 +61,9 @@ const INBOX_SELECT = {
   resolvedOrgId: true,
   scanStatus: true,
   attachmentName: true,
+  // Обратная связь `InboundMessage.dialogMessage` — одиночная (у реплики
+  // `inboundMessageId` уникален), поэтому это join одной строки, а не список.
+  dialogMessage: { select: { dialogId: true } },
 } satisfies Prisma.InboundMessageSelect;
 
 export async function listInbox(
@@ -68,6 +83,7 @@ export async function listInbox(
   if (filters.channel) extra.channel = filters.channel;
   if (filters.status) extra.status = filters.status;
   if (filters.orgId) extra.resolvedOrgId = filters.orgId;
+  if (filters.messageId) extra.id = filters.messageId;
 
   const where: Prisma.InboundMessageWhereInput = { AND: [scope, extra] };
 
@@ -90,5 +106,12 @@ export async function listInbox(
     subjectIds: rows.map((r) => r.id),
   });
 
-  return { items: rows, total };
+  // Разворачиваем join в плоское поле: компонент списка не должен знать, что
+  // связь называется `dialogMessage` и что она односторонняя.
+  const items = rows.map(({ dialogMessage, ...row }) => ({
+    ...row,
+    dialogId: dialogMessage?.dialogId ?? null,
+  }));
+
+  return { items, total };
 }

@@ -26,6 +26,12 @@ export type DialogMessageView = {
   deliveryStatus: string;
   /** Имя сотрудника у исходящих; null — входящее. */
   authorName: string | null;
+  /**
+   * `У-215`: письмо во «Входящих в работу», из которого выросла эта реплика.
+   * `null` — сообщение не пришло почтой/вебхуком (исходящее, заметка) либо
+   * пришло до того, как письма начали сворачиваться в диалоги.
+   */
+  inboundMessageId: string | null;
   /** Файл в сообщении (`У-204`); null — обычное текстовое сообщение. */
   attachment: {
     name: string;
@@ -180,6 +186,7 @@ export async function getDialog(
         createdAt: m.createdAt,
         deliveryStatus: m.deliveryStatus,
         authorName: m.authorId ? (nameOf.get(m.authorId) ?? null) : null,
+        inboundMessageId: m.inboundMessageId,
         attachment: m.attachmentName
           ? { name: m.attachmentName, size: m.attachmentSize, scanStatus: m.scanStatus }
           : null,

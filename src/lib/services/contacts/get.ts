@@ -3,7 +3,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { managerOrderScope } from '@/lib/auth/managerPolicy';
 import { auditActionLabel } from '@/lib/audit/labels';
 import { recordPiiAccess } from '@/lib/pii/record';
-import { MESSENGER_LABELS, isMessengerChannel } from '@/lib/services/messengers/channels';
+import { DIALOG_CHANNEL_LABELS, isDialogChannel } from '@/lib/services/messengers/channels';
 import { isUserOwnedChannel } from './channels';
 import type { ContactChannelView } from './list';
 import { canUseContacts, isContactInScope } from './scope';
@@ -43,7 +43,13 @@ export type ContactView = {
   user: { id: string; name: string | null; email: string } | null;
   channels: ContactCardChannel[];
   /** Есть канал мессенджера — кнопка «Написать» имеет смысл (`Р-М-8`). */
-  messengerChannels: string[];
+  /**
+   * Каналы, по которым контакту можно написать первым. С `У-205` сюда входит и
+   * почта: она такой же двусторонний канал диалога, как мессенджеры. Поле
+   * называлось `messengerChannels`, и по имени было видно только половину
+   * правды — контакт с одним адресом почты считался «недоступным».
+   */
+  dialogChannels: string[];
   counts: ContactCounts;
 };
 
@@ -118,8 +124,8 @@ export async function getContact(
       organization: row.organization,
       user: row.user ? { id: row.user.id, name: row.user.name, email: row.user.email } : null,
       channels,
-      messengerChannels: [
-        ...new Set(row.channels.map((ch) => ch.type as string).filter(isMessengerChannel)),
+      dialogChannels: [
+        ...new Set(row.channels.map((ch) => ch.type as string).filter(isDialogChannel)),
       ],
       counts: {
         dialogs: row._count.messengerDialogs,
@@ -163,7 +169,10 @@ function snippet(text: string, max = 140): string {
 }
 
 function channelTitle(channel: string): string {
-  return isMessengerChannel(channel) ? MESSENGER_LABELS[channel] : channel;
+  // `DIALOG_CHANNEL_LABELS`, а не список мессенджеров: после `У-205` почта —
+  // такой же канал диалога, и вкладка показывала «Диалог в email» вместо
+  // «Диалог в Почте». Машинный код на экране — дефект понятности (§15).
+  return isDialogChannel(channel) ? DIALOG_CHANNEL_LABELS[channel] : channel;
 }
 
 /**
@@ -213,7 +222,9 @@ export async function listContactTab(
           kind: 'dialogs',
           id: r.id,
           at: r.lastMessageAt,
-          title: `Диалог в ${channelTitle(r.channel)}`,
+          // «Диалог · Почта», а не «Диалог в Почта»: подписи каналов — это
+          // названия («Telegram», «Почта»), и предлог с ними спорит по падежу.
+          title: `Диалог · ${channelTitle(r.channel)}`,
           subtitle: r.lastMessagePreview ? snippet(r.lastMessagePreview) : null,
           status: r.status,
         })),

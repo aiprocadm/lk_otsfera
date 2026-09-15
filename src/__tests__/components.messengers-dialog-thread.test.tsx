@@ -16,6 +16,9 @@ const messages: DialogMessageView[] = [
     createdAt: at,
     deliveryStatus: 'sent',
     authorName: null,
+    // `У-215`: связь с письмом «Входящих» есть не у каждой реплики — у этой
+    // нет, поэтому обратной ссылки в ленте быть не должно (проверяется ниже).
+    inboundMessageId: null,
     attachment: null,
   },
   {
@@ -25,6 +28,7 @@ const messages: DialogMessageView[] = [
     createdAt: at,
     deliveryStatus: 'sent',
     authorName: 'Мария',
+    inboundMessageId: null,
     attachment: null,
   },
   {
@@ -34,6 +38,7 @@ const messages: DialogMessageView[] = [
     createdAt: at,
     deliveryStatus: 'failed',
     authorName: null,
+    inboundMessageId: null,
     attachment: null,
   },
 ];
@@ -55,6 +60,30 @@ describe('DialogThread', () => {
     expect(html).toContain('не доставлено');
     expect(html.match(/не доставлено/g)?.length).toBe(1);
     expect(html).not.toContain('старше');
+  });
+
+  it('`У-215`: реплика из письма ведёт обратно во «Входящие», остальные — никуда', () => {
+    // Письмо лежит в очереди разбора со своей привязкой к организации,
+    // вложением и историей разбора. Без обратной ссылки его искали руками по
+    // имени отправителя; ссылка ставится в обе стороны (прямая — в списке
+    // «Входящих»).
+    const html = renderToString(
+      <DialogThread
+        dialogId="d1"
+        messages={[{ ...messages[0]!, inboundMessageId: 'inb-42' }, messages[1]!]}
+        hiddenCount={0}
+      />
+    );
+    expect(html).toContain('href="/manager/inbox?message=inb-42"');
+    // Ровно одна ссылка на две реплики: у исходящего письма-ответа источника
+    // во «Входящих» нет, вести оттуда некуда.
+    expect(html.match(/Открыть во «Входящих»/g)?.length).toBe(1);
+  });
+
+  it('лента без писем не показывает обратных ссылок', () => {
+    const html = renderToString(<DialogThread dialogId="d1" messages={messages} hiddenCount={0} />);
+    expect(html).not.toContain('Открыть во «Входящих»');
+    expect(html).not.toContain('/manager/inbox?message=');
   });
 
   it('пометка о скрытых старых сообщениях', () => {

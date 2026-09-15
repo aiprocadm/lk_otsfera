@@ -78,12 +78,12 @@ export function ContactCardScreen({
     worksWithClients &&
     messengersEnabled &&
     !contact.isArchived &&
-    contact.messengerChannels.length > 0;
+    contact.dialogChannels.length > 0;
   const writeHint = !messengersEnabled
     ? 'Мессенджеры не подключены — включает администратор в настройках'
     : contact.isArchived
       ? 'Контакт в архиве — верните его, чтобы написать'
-      : 'У контакта нет мессенджера — добавьте канал Telegram, MAX или WhatsApp';
+      : 'У контакта нет ни мессенджера, ни почты — добавьте канал связи в карточке';
 
   const actions = (
     <div className="flex flex-wrap gap-2">

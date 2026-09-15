@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import React from 'react';
 import { TableShell, THead, Th, Tr, Td, Badge, EmptyState } from '@/components/ui';
 import { fmtDateTime } from '@/lib/format';
@@ -69,6 +70,25 @@ function AttachmentName({ item }: { item: InboxItem }) {
 }
 
 /**
+ * Ссылка «Открыть диалог» (`У-215`).
+ *
+ * Одно и то же сообщение живёт в двух местах сразу: строкой в очереди разбора и
+ * репликой в переписке. Раньше перейти между ними было нельзя — человек искал
+ * диалог руками по имени отправителя. Ссылки ставятся в обе стороны: обратная —
+ * в карточке диалога.
+ */
+function DialogLink({ dialogId }: { dialogId: string }) {
+  return (
+    <Link
+      href={`/manager/messengers/${dialogId}`}
+      className="text-xs font-medium text-[#EA580C] hover:underline"
+    >
+      Открыть диалог
+    </Link>
+  );
+}
+
+/**
  * Действие для bound-строки — форма ответа для ЛЮБОГО канала.
  *
  * До этапа 3 у почты вместо формы стояла подсказка «ответьте из почтового
@@ -122,6 +142,11 @@ export function InboxList({
                     <AttachmentName item={item} />
                     <ScanBadge scanStatus={item.scanStatus} />
                   </div>
+                )}
+                {item.dialogId && (
+                  <p className="mt-1">
+                    <DialogLink dialogId={item.dialogId} />
+                  </p>
                 )}
               </Td>
               <Td>
@@ -187,6 +212,11 @@ export function InboxList({
                 <AttachmentName item={item} />
                 <ScanBadge scanStatus={item.scanStatus} />
               </div>
+            )}
+            {item.dialogId && (
+              <p className="mt-1">
+                <DialogLink dialogId={item.dialogId} />
+              </p>
             )}
             <p className="mt-1 text-xs text-gray-400">{fmtDateTime(item.createdAt)}</p>
             <div className="mt-3 space-y-2">

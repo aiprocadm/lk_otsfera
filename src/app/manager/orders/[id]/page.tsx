@@ -24,6 +24,8 @@ import { getOrderStatusPanel } from '@/lib/services/orderStatuses';
 import { getOrderLinesPanel } from '@/lib/services/orders/linesPanel';
 import { OrderLinesSection } from '@/components/orders/order-lines-section';
 import { getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
+import { listOrderDialogs } from '@/lib/services/messengers/forOrder';
+import { OrderDialogsPanel } from '@/components/orders/order-dialogs-panel';
 import { getOrderContactPanel } from '@/lib/services/orders/primaryContact';
 import { OrderContactPanel } from '@/components/orders/order-contact-panel';
 
@@ -128,6 +130,12 @@ export default async function ManagerOrderDetailPage({
         data.order
       )
     : null;
+  // `У-210`: переписка с клиентом по этому заказу — диалоги контакта заказа и
+  // его организации. Тот же флаг, что у раздела «Мессенджеры»: выключен —
+  // блока нет вовсе, а не пустая рамка.
+  const orderDialogs = isFeatureEnabled('inbound_messaging')
+    ? await listOrderDialogs(prisma, session, data.order)
+    : null;
   const breadcrumbs = buildOrderBreadcrumbs({
     orderNumber: data.order.orderNumber,
     title: data.order.title,
@@ -173,6 +181,26 @@ export default async function ManagerOrderDetailPage({
       dealPanel={
         deal ? (
           <OrderDealPanel deal={deal} dealsHref="/manager/deals" leadHrefBase="/manager/leads" />
+        ) : null
+      }
+      dialogsPanel={
+        orderDialogs ? (
+          <OrderDialogsPanel
+            dialogs={orderDialogs.rows}
+            total={orderDialogs.total}
+            dialogHref={(dialogId) => `/manager/messengers/${dialogId}`}
+            allHref={
+              data.order.organizationId
+                ? `/manager/organizations/${data.order.organizationId}?tab=dialogs`
+                : null
+            }
+            writeFirstHref={
+              data.order.primaryContactId
+                ? `/manager/messengers?new=${encodeURIComponent(data.order.primaryContactId)}`
+                : null
+            }
+            hasContact={data.order.primaryContactId !== null}
+          />
         ) : null
       }
       contactPanel={
