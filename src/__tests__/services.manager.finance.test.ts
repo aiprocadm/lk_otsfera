@@ -32,6 +32,7 @@ const profile = (over: Partial<SessionAccessProfile> = {}): SessionAccessProfile
   finance: 'all',
   leads: 'all',
   tasks: 'all',
+  dialogs: 'all',
   capabilities: [],
   ...over,
 });

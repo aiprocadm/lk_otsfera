@@ -24,6 +24,8 @@ export type DialogMessageView = {
   createdAt: Date;
   /** sent | failed — у исходящих; у входящих всегда sent. */
   deliveryStatus: string;
+  /** `У-213`: почему не ушло — человеку на экран, рядом с кнопкой «Повторить». */
+  deliveryError: string | null;
   /** Имя сотрудника у исходящих; null — входящее. */
   authorName: string | null;
   /**
@@ -95,6 +97,7 @@ const VIEW_SELECT = {
       body: true,
       createdAt: true,
       deliveryStatus: true,
+      deliveryError: true,
       authorId: true,
       inboundMessageId: true,
       attachmentName: true,
@@ -185,6 +188,7 @@ export async function getDialog(
         body: m.body,
         createdAt: m.createdAt,
         deliveryStatus: m.deliveryStatus,
+        deliveryError: m.deliveryError,
         authorName: m.authorId ? (nameOf.get(m.authorId) ?? null) : null,
         inboundMessageId: m.inboundMessageId,
         attachment: m.attachmentName

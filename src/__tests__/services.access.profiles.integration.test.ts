@@ -42,6 +42,9 @@ const input = (over: Partial<AccessProfileInput> = {}): AccessProfileInput => ({
   finance: 'own',
   leads: 'own',
   tasks: 'own',
+  // `У-214`: девятая шкала. Значение отличается от соседних, чтобы
+  // round-trip доказывал именно колонку `dialogsScope`.
+  dialogs: 'assigned',
   capabilities: [],
   ...over,
 });
@@ -113,6 +116,8 @@ describe('createAccessProfile', () => {
       expect(found).toBeDefined();
       expect(found?.orders).toBe('assigned');
       expect(found?.finance).toBe('own');
+      // `У-214`: охват диалогов доезжает до БД и возвращается списком.
+      expect(found?.dialogs).toBe('assigned');
     }
   });
 
@@ -153,11 +158,18 @@ describe('updateAccessProfile', () => {
       prisma,
       leaderA(),
       id,
-      input({ name: `Upd-${STAMP}`, orders: 'all', capabilities: ['see_commission'] })
+      input({
+        name: `Upd-${STAMP}`,
+        orders: 'all',
+        // `У-214`: правку охвата диалогов сохраняет тот же путь, что и прочие.
+        dialogs: 'own',
+        capabilities: ['see_commission'],
+      })
     );
     expect(res.ok).toBe(true);
     const row = await prisma.accessProfile.findUniqueOrThrow({ where: { id } });
     expect(row.ordersScope).toBe('all');
+    expect(row.dialogsScope).toBe('own');
     expect(row.capabilities).toEqual(['see_commission']);
     const audit = await prisma.auditLog.findFirst({
       where: { entity: 'access_profile', entityId: id, action: 'access_profile_updated' },

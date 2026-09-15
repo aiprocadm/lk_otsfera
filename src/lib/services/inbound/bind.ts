@@ -11,10 +11,18 @@ import { isInboundMessageInScope } from '@/lib/services/inbound/scope';
  * `createContactFromInbound` (createContactFromInbound.ts) to seed the new
  * contact's channel from the message that created it.
  */
-export const CHANNEL_TO_CONTACT_TYPE: Record<
-  'telegram' | 'max' | 'whatsapp' | 'email',
-  ContactChannelType
-> = {
+/**
+ * Канал письма → тип канала в карточке контакта.
+ *
+ * Кабинета здесь нет и быть не может (`У-212`): у него нет адреса, по которому
+ * можно написать снаружи, — его «адрес» это идентификатор пользователя, а в
+ * справочнике каналов контакта такого типа не существует. Поэтому карта
+ * **частичная**, и каждый её читатель обязан проверить результат: без этого
+ * `type` уезжал бы в базу как `undefined` и запрос падал бы на обязательном
+ * поле в самый обычный момент работы — при попытке привязать вопрос из
+ * кабинета к организации.
+ */
+export const CHANNEL_TO_CONTACT_TYPE: Partial<Record<string, ContactChannelType>> = {
   telegram: 'telegram',
   max: 'max',
   whatsapp: 'whatsapp',
@@ -142,9 +150,10 @@ export async function bindInboundMessage(
     },
   });
 
-  if (contactId) {
-    const channelType =
-      CHANNEL_TO_CONTACT_TYPE[message.channel as keyof typeof CHANNEL_TO_CONTACT_TYPE];
+  // Запоминаем способ связи в карточке — но только если это настоящий адрес.
+  // У вопроса из кабинета его нет, и записывать туда нечего.
+  const channelType = CHANNEL_TO_CONTACT_TYPE[message.channel];
+  if (contactId && channelType) {
     await captureChannel(prisma, {
       contactId,
       companyId: org.companyId,

@@ -97,6 +97,8 @@ const pInput = (over: Partial<AccessProfileInput> = {}): AccessProfileInput => (
   finance: 'own',
   leads: 'own',
   tasks: 'own',
+  // `У-214`: шкала диалогов обязательна на входе конструктора ролей.
+  dialogs: 'own',
   capabilities: [],
   ...over,
 });
@@ -749,6 +751,7 @@ describe('auth/accessProfile — canSeeLead (assigned scope)', () => {
     finance: 'own',
     leads,
     tasks: 'all',
+    dialogs: 'all',
     capabilities: [],
   });
   const sess = (over: Partial<SessionPayload> = {}): SessionPayload =>

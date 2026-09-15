@@ -20,6 +20,9 @@ const profile = (over: Partial<SessionAccessProfile> = {}): SessionAccessProfile
   finance: 'all',
   leads: 'all',
   tasks: 'all',
+  // `У-214`: шкала диалогов на order/org/document-скоупы не влияет,
+  // но профиль без неё больше не собирается — ставим полный охват.
+  dialogs: 'all',
   capabilities: [],
   ...over,
 });

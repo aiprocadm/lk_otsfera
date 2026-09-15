@@ -36,6 +36,8 @@ const fullProfile = (over: Partial<SessionAccessProfile> = {}): SessionAccessPro
   finance: 'all',
   leads: 'all',
   tasks: 'all',
+  // `У-214`: охват переписки — такой же полный, как у прочих объектов.
+  dialogs: 'all',
   capabilities: [],
   ...over,
 });
@@ -137,6 +139,9 @@ describe('toSessionAccessProfile()', () => {
       financeScope: 'own' as const,
       leadsScope: 'all' as const,
       tasksScope: 'assigned' as const,
+      // `У-214`: значение намеренно НЕ совпадает ни с одним соседним —
+      // так видно, что маппер берёт именно `dialogsScope`, а не чужую колонку.
+      dialogsScope: 'own' as const,
       capabilities: ['see_commission', 'garbage', 'export'],
     };
     expect(toSessionAccessProfile(row)).toEqual({
@@ -149,6 +154,7 @@ describe('toSessionAccessProfile()', () => {
       finance: 'own',
       leads: 'all',
       tasks: 'assigned',
+      dialogs: 'own',
       capabilities: ['see_commission', 'export'],
     });
   });

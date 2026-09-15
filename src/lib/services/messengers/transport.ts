@@ -17,14 +17,18 @@ export async function sendToMessenger(
   channel: MessengerChannel,
   peerRef: string,
   text: string
-): Promise<{ ok: boolean }> {
+): Promise<{ ok: boolean; error?: string }> {
   try {
     const result = await sendByChannel(channel, peerRef, text);
-    return { ok: !!(result as { ok?: boolean } | undefined)?.ok };
+    const typed = result as { ok?: boolean; error?: string } | undefined;
+    if (typed?.ok) return { ok: true };
+    // `У-213`: причина доезжает до ленты диалога. Если адаптер её не дал
+    // (чужой мок, будущий канал) — честное «неизвестно», а не пустая строка.
+    return { ok: false, error: typed?.error ?? 'Причина неизвестна' };
   } catch {
     // Адаптер не бросает по контракту; страховка на случай чужого мока или
     // будущего адаптера — отправка «не удалась», история диалога это покажет.
-    return { ok: false };
+    return { ok: false, error: 'Сбой транспорта' };
   }
 }
 

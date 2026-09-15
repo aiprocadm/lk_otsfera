@@ -44,6 +44,8 @@ const profile: AccessProfileListRow = {
   finance: 'own',
   leads: 'own',
   tasks: 'own',
+  // `У-214`: девятая шкала конструктора ролей — «Диалоги».
+  dialogs: 'assigned',
   capabilities: ['export'],
   usersCount: 2,
 };

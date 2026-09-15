@@ -15,6 +15,7 @@ import {
   NO_COMPANY_SENTINEL,
 } from '@/lib/auth/accessProfile';
 import { taskFiltersWhere } from '@/lib/services/tasks/board';
+import { dialogScopeWhere, isDialogInScope } from '@/lib/services/messengers/scope';
 
 /**
  * Инвариант #7 (фаза 6, «исполняемое ТЗ») — accessProfileId = null → LEGACY-
@@ -32,6 +33,8 @@ import { taskFiltersWhere } from '@/lib/services/tasks/board';
  *  - лиды:                 нет профиля ⇔ team-wide (эквивалент уровня 'all',
  *                          который для лидов — пустой where без company-floor).
  *  - задачи:               нет профиля ⇔ company-wide ('all' с company-floor).
+ *  - диалоги:              нет профиля ⇔ своя компания ∪ общая очередь
+ *                          ничейных (`У-214`, call-site «?? all»).
  *  - can('see_commission'): нет профиля ⇔ старое leader-правило
  *                          (admin ∨ role='leader'; до ТЗ 2026-08-17 руководитель
  *                          изображался парой manager + managerRole='leader').
@@ -195,6 +198,61 @@ describe('Инвариант: без профиля задачи — company-wid
     };
     expect(canSeeTask(session(), foreignersTask)).toBe(true); // company-wide legacy
     expect(canSeeTask(session(), { ...foreignersTask, companyId: 'c-foreign' })).toBe(false);
+  });
+});
+
+describe('Инвариант: без профиля диалоги — своя компания плюс общая очередь ничейных', () => {
+  // `У-214` завёл девятую шкалу охвата. Эталон ниже выписан ЛИТЕРАЛОМ —
+  // ровно тем выражением, которое стояло в `scope.ts` до этапа 3, — а не
+  // вызовом `dialogWhereForLevel(..., 'all')`: иначе тест проверял бы, что
+  // функция равна самой себе, и молча пережил бы подмену умолчания.
+  const LEGACY_DIALOG_WHERE = {
+    OR: [{ companyId: COMPANY }, { companyId: null }],
+  };
+
+  it('where списка без профиля = прежнее выражение байт-в-байт', () => {
+    expect(dialogScopeWhere(session())).toEqual(LEGACY_DIALOG_WHERE);
+  });
+
+  it('сессия без companyId → sentinel (deny-all по компании, но очередь видна)', () => {
+    expect(dialogScopeWhere(session({ companyId: null }))).toEqual({
+      OR: [{ companyId: NO_COMPANY_SENTINEL }, { companyId: null }],
+    });
+  });
+
+  it('точечная проверка без профиля повторяет прежний предикат на всей таблице', () => {
+    // Прежнее правило, выписанное независимо от прода:
+    //   виден ⇔ диалог ничейный ∨ (у сессии есть компания И это она).
+    function legacyReference(s: SessionPayload, dialog: { companyId: string | null }): boolean {
+      return dialog.companyId === null || (s.companyId != null && dialog.companyId === s.companyId);
+    }
+    for (const companyId of [COMPANY, 'c-foreign', null]) {
+      for (const sessionCompany of [COMPANY, null]) {
+        // Ответственный и организация берутся любые: без профиля они на
+        // видимость не влияют — в этом и смысл «прежнего поведения».
+        for (const assigneeId of [SUB, 'u-other', null]) {
+          for (const organizationId of ['org-1', 'org-foreign', null]) {
+            const s = session({ companyId: sessionCompany });
+            const dialog = { companyId, assigneeId, organizationId };
+            expect(
+              isDialogInScope(s, dialog),
+              `расхождение с legacy: ${JSON.stringify({ ...dialog, sessionCompany })}`
+            ).toBe(legacyReference(s, dialog));
+          }
+        }
+      }
+    }
+  });
+
+  // Оговорка честности: байт-в-байт держится для СОТРУДНИКОВ (manager/leader) —
+  // а только они и добираются до этих функций (`/manager/messengers`). Для
+  // клиентских ролей PR-7 сознательно ужесточил проверку: раньше ничейный
+  // диалог формально проходил для любой сессии, теперь заказчик и партнёр
+  // отсекаются по роли. Сужение, а не расширение, — поэтому инвариант цел.
+  it('клиентские роли отсекаются по роли раньше охвата (сознательное ужесточение PR-7)', () => {
+    for (const role of ['partner', 'organization', 'student'] as const) {
+      expect(isDialogInScope(session({ role }), { companyId: null })).toBe(false);
+    }
   });
 });
 

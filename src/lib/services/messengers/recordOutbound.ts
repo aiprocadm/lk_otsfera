@@ -12,6 +12,11 @@ export type RecordOutboundArgs = {
   /** Дошло ли до транспорта: неудачная отправка тоже остаётся в истории. */
   delivered: boolean;
   /**
+   * `У-213`: почему не ушло. Пишется только у неудачи — у успешного сообщения
+   * поле остаётся пустым, иначе старая причина «прилипла» бы к повтору.
+   */
+  deliveryError?: string | undefined;
+  /**
    * Привязка на случай, если диалога ещё нет (ответ из «Входящих писем» на
    * письмо старше бэкфилла). Существующий диалог этим не перепривязывается.
    */
@@ -74,6 +79,7 @@ export async function recordOutboundInDialog(
       body: args.text,
       authorId: args.authorId,
       deliveryStatus: args.delivered ? 'sent' : 'failed',
+      deliveryError: args.delivered ? null : (args.deliveryError ?? null),
       createdAt: at,
     },
     select: { id: true },

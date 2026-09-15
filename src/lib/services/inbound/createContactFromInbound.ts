@@ -39,12 +39,14 @@ export async function createContactFromInbound(
   });
   if (!message) return { ok: false, error: 'not_found' };
 
-  const channelType =
-    CHANNEL_TO_CONTACT_TYPE[message.channel as keyof typeof CHANNEL_TO_CONTACT_TYPE];
+  // У кабинета адреса нет (`У-212`) — контакт заводим без канала связи, а не
+  // с мусорным значением: идентификатор пользователя в графе «Telegram» хуже,
+  // чем пустая графа.
+  const channelType = CHANNEL_TO_CONTACT_TYPE[message.channel];
   const created = await createContact(prisma, session, {
     name: args.name,
     organizationId: args.organizationId,
-    channels: [{ type: channelType, value: message.senderRef }],
+    channels: channelType ? [{ type: channelType, value: message.senderRef }] : [],
   });
   if (!created.ok) return created;
 

@@ -130,6 +130,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   reply_template_deleted: 'Удаление шаблона ответа',
   messenger_dialog_reopened: 'Возобновление диалога в мессенджере',
   messenger_dialog_started: 'Начало диалога в мессенджере',
+  messenger_message_retried: 'Повторная отправка сообщения клиенту',
   messenger_message_sent: 'Сообщение клиенту в мессенджер',
   'feature_flag.changed': 'Переключение флага функциональности',
   bitrix_import_applied: 'Применение миграции из Битрикс24',

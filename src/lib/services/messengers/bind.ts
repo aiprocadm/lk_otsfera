@@ -27,6 +27,19 @@ export type BindDialogResult = { ok: true } | { ok: false; error: 'forbidden' | 
  * Привязка без контакта сбрасывает прежний контакт: явное решение сотрудника
  * важнее автоматики.
  */
+/** Тип канала контакта — то, что вообще можно записать в его карточку. */
+const CONTACT_CHANNEL_TYPES: readonly ContactChannelType[] = [
+  'phone',
+  'email',
+  'telegram',
+  'whatsapp',
+  'max',
+];
+
+function isContactChannelType(value: string): value is ContactChannelType {
+  return (CONTACT_CHANNEL_TYPES as readonly string[]).includes(value);
+}
+
 export async function bindDialog(
   prisma: PrismaClient,
   session: SessionPayload,
@@ -75,11 +88,16 @@ export async function bindDialog(
     data: { companyId: org.companyId, organizationId: args.organizationId, contactId },
   });
 
-  if (contactId) {
+  // Запоминаем способ связи в карточке контакта — но только если это НАСТОЯЩИЙ
+  // адрес. У кабинета (`У-212`) адреса нет: `peerRef` там — идентификатор
+  // пользователя, а в справочнике каналов контакта такого типа не существует.
+  // Без этой проверки привязка диалога кабинета падала бы ошибкой базы
+  // (значение вне перечисления), причём в самый обычный момент работы.
+  if (contactId && isContactChannelType(dialog.channel)) {
     await captureChannel(prisma, {
       contactId,
       companyId: session.companyId,
-      type: dialog.channel as ContactChannelType,
+      type: dialog.channel,
       value: dialog.peerRef,
     });
   }

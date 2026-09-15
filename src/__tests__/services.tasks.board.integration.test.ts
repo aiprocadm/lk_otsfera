@@ -47,6 +47,8 @@ const profile = (tasks: SessionAccessProfile['tasks']): SessionAccessProfile => 
   finance: 'all',
   leads: 'all',
   tasks,
+  // `У-214`: варьируется только шкала задач; диалоги оставляем полными.
+  dialogs: 'all',
   capabilities: [],
 });
 const sAOwn = (): SessionPayload =>

@@ -61,12 +61,18 @@ describe('transport clients — residual false-branches', () => {
     vi.unstubAllGlobals();
   });
 
-  // max/client.ts branch @ 58: `return { ok: res.ok }` with res.ok === false.
-  it('sendMaxMessage: {ok:false} когда fetch отдаёт не-2xx (res.ok=false)', async () => {
+  // max/client.ts: не-2xx ответ провайдера.
+  it('sendMaxMessage: отказ с причиной, когда fetch отдаёт не-2xx', async () => {
     process.env.MAX_BOT_TOKEN = 'tok';
     const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 500 });
     vi.stubGlobal('fetch', fetchMock);
-    expect(await sendMaxMessage('chat-x', 'hi')).toEqual({ ok: false });
+    // `У-213`: раньше здесь было голое `{ ok: false }`, и причина терялась
+    // навсегда — сотрудник видел «не доставлено» без единого слова о том, что
+    // делать. Текст проверяем ЦЕЛИКОМ: он идёт человеку на экран и в базу.
+    expect(await sendMaxMessage('chat-x', 'hi')).toEqual({
+      ok: false,
+      error: 'MAX ответил ошибкой 500',
+    });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -76,30 +82,62 @@ describe('transport clients — residual false-branches', () => {
     expect(botDeepLink('abc123')).toBe('https://t.me/?start=abc123');
   });
 
-  // telegram/client.ts branch @ 20: `if (!token) return { ok: false }` (no token).
-  it('sendTelegramMessage: no-op {ok:false} без токена, fetch не вызывается', async () => {
+  // telegram/client.ts: токена нет — наружу не ходим вовсе.
+  it('sendTelegramMessage: без токена — отказ «не настроен», fetch не вызывается', async () => {
     delete process.env.TELEGRAM_BOT_TOKEN;
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
-    expect(await sendTelegramMessage('c1', 'hi')).toEqual({ ok: false });
+    // `У-213`: «не настроен» и «провайдер отказал» — разные беды и лечатся
+    // по-разному (первая в настройках, вторая перепиской с клиентом), поэтому
+    // и причины у них разные, а не одно общее «не доставлено».
+    expect(await sendTelegramMessage('c1', 'hi')).toEqual({
+      ok: false,
+      error: 'Telegram не настроен: не заданы ключи в настройках интеграций',
+    });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  // telegram/client.ts branch @ 37: `return { ok: res.ok }` with res.ok === false.
-  it('sendTelegramMessage: {ok:false} на не-2xx ответе (res.ok=false)', async () => {
+  // telegram/client.ts: не-2xx ответ. Тело ответа Telegram обычно объясняет
+  // причину словами, но этот мок его не отдаёт вовсе (`res.json` нет) —
+  // проверяем, что разбор тела не роняет отправку и причина остаётся общей.
+  it('sendTelegramMessage: отказ с причиной на не-2xx ответе', async () => {
     process.env.TELEGRAM_BOT_TOKEN = 'tok';
     const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 429 });
     vi.stubGlobal('fetch', fetchMock);
-    expect(await sendTelegramMessage('c1', 'hi')).toEqual({ ok: false });
+    expect(await sendTelegramMessage('c1', 'hi')).toEqual({
+      ok: false,
+      error: 'Telegram ответил ошибкой 429',
+    });
   });
 
-  // whatsapp/aggregator.ts branch @ 65: `return { ok: res.ok }` with res.ok === false.
-  it('sendWhatsAppMessage: {ok:false} на не-2xx ответе агрегатора (res.ok=false)', async () => {
+  it('sendTelegramMessage: пояснение Telegram попадает в причину', async () => {
+    // Ровно ради этого `У-213` и затевался: «бот заблокирован пользователем» —
+    // это то, что сотруднику нужно знать, а не код 403.
+    process.env.TELEGRAM_BOT_TOKEN = 'tok';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        json: async () => ({ description: 'Forbidden: bot was blocked by the user' }),
+      })
+    );
+    expect(await sendTelegramMessage('c1', 'hi')).toEqual({
+      ok: false,
+      error: 'Telegram отклонил отправку (403): Forbidden: bot was blocked by the user',
+    });
+  });
+
+  // whatsapp/aggregator.ts: не-2xx ответ агрегатора.
+  it('sendWhatsAppMessage: отказ с причиной на не-2xx ответе агрегатора', async () => {
     process.env.WHATSAPP_AGGREGATOR_API_KEY = 'key';
     process.env.WHATSAPP_AGGREGATOR_CHANNEL_ID = 'ch1';
     const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 502 });
     vi.stubGlobal('fetch', fetchMock);
-    expect(await sendWhatsAppMessage('+79991234567', 'hi')).toEqual({ ok: false });
+    expect(await sendWhatsAppMessage('+79991234567', 'hi')).toEqual({
+      ok: false,
+      error: 'WhatsApp ответил ошибкой 502',
+    });
   });
 });
 

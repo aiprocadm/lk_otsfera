@@ -3,6 +3,14 @@ import { normalizeChannelValue } from '@/lib/services/contacts/resolveContactByC
 import { DIALOG_CHANNELS, type DialogChannel } from './channels';
 import { appendInboundToDialog } from './appendInbound';
 
+/**
+ * Каналы, которые досворачивает бэкфилл. Кабинет исключён (`У-212`): у старых
+ * вопросов `senderRef` — адрес почты, а ключ диалога кабинета — идентификатор
+ * пользователя. Свернув их, мы завели бы диалоги с неправильным ключом, и
+ * ответы уходили бы в никуда. Новые вопросы сворачиваются при приёме.
+ */
+const BACKFILL_CHANNELS = DIALOG_CHANNELS.filter((c) => c !== 'cabinet');
+
 export type BackfillReport = {
   /** Сколько писем из мессенджеров без реплики в диалоге просмотрено. */
   scanned: number;
@@ -15,7 +23,7 @@ const DEFAULT_BATCH = 200;
 /** Письма из мессенджеров, которых ещё нет в диалогах — общее условие обоих режимов. */
 const PENDING_WHERE: Prisma.InboundMessageWhereInput = {
   // `У-205`: письма сворачиваются в диалоги наравне с мессенджерами.
-  channel: { in: [...DIALOG_CHANNELS] },
+  channel: { in: BACKFILL_CHANNELS },
   dialogMessage: null,
 };
 

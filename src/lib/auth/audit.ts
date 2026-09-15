@@ -196,6 +196,7 @@ export const AUDIT_ACTIONS = [
   'reply_template_deleted',
   'messenger_dialog_reopened',
   'messenger_dialog_started',
+  'messenger_message_retried',
   'messenger_message_sent',
   'feature_flag.changed',
   'one_c_import.commit',

@@ -26,6 +26,11 @@ export function isMessengerAvailable(channel: DialogChannel): boolean {
       return isMaxEnabled();
     case 'whatsapp':
       return isWhatsAppEnabled();
+    case 'cabinet':
+      // Кабинет не надо «подключать»: ответ кладётся уведомлением внутрь
+      // системы. Единственное условие — известен пользователь, и его проверяет
+      // сама доставка, а не этот предикат.
+      return true;
     case 'email':
       // Почта (`У-205`): отправка включена, ключ задан И настроен входящий
       // ящик адресом. Последнее — не формальность: без него ответ уйдёт с

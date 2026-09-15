@@ -38,6 +38,7 @@ export type AccessProfileInput = {
   finance: ScopeLevel;
   leads: ScopeLevel;
   tasks: ScopeLevel;
+  dialogs: ScopeLevel;
   capabilities: Capability[];
 };
 
@@ -52,6 +53,7 @@ const inputSchema = z.object({
   finance: scopeLevelSchema,
   leads: scopeLevelSchema,
   tasks: scopeLevelSchema,
+  dialogs: scopeLevelSchema,
   capabilities: z.array(capabilitySchema),
 });
 
@@ -76,6 +78,7 @@ function toColumns(input: z.infer<typeof inputSchema>) {
     financeScope: input.finance,
     leadsScope: input.leads,
     tasksScope: input.tasks,
+    dialogsScope: input.dialogs,
     capabilities: [...new Set(input.capabilities)],
   };
 }
@@ -111,6 +114,7 @@ export async function listAccessProfiles(
       finance: p.financeScope,
       leads: p.leadsScope,
       tasks: p.tasksScope,
+      dialogs: p.dialogsScope,
       capabilities: p.capabilities as Capability[],
       usersCount: p._count.users,
     })),
@@ -197,6 +201,7 @@ export async function updateAccessProfile(
           financeScope: true,
           leadsScope: true,
           tasksScope: true,
+          dialogsScope: true,
           capabilities: true,
         },
       });

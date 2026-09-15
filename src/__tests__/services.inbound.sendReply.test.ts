@@ -343,20 +343,40 @@ describe('sendInboundReply (service)', () => {
       });
     });
 
-    it('вопрос из кабинета — не мессенджер, в диалог не пишется', async () => {
+    it('`У-212`: вопрос из кабинета — тоже диалог, ответ ложится в его ленту', async () => {
+      // До PR-7 кабинет диалогом не считался, и ответ сотрудника нигде не
+      // оставался: клиент его получал уведомлением, а переписки не было.
+      // Ключ диалога у кабинета — идентификатор пользователя (`senderRef`),
+      // адреса у этого канала не существует.
       inboundMessageFindUnique.mockResolvedValue({
         id: 'im-1',
         channel: 'cabinet',
         senderRef: 'u-org',
         subject: 'тема',
         companyId: 'company-a',
+        resolvedOrgId: 'org-a',
+        contactId: null,
         threadId: null,
         resolvedUserId: 'u-org',
       });
       replyToInbound.mockResolvedValue({ ok: true });
 
       await sendInboundReply(prisma, session, { inboundMessageId: 'im-1', text: 'ответ' });
-      expect(recordOutboundInDialog).not.toHaveBeenCalled();
+      expect(recordOutboundInDialog).toHaveBeenCalledWith(prisma, {
+        channel: 'cabinet',
+        peerRef: 'u-org',
+        authorId: 'u-mgr-1',
+        text: 'ответ',
+        delivered: true,
+        // Привязка известна из самого письма — диалог кабинета не должен
+        // остаться в общей очереди ничейных.
+        binding: {
+          companyId: 'company-a',
+          organizationId: 'org-a',
+          contactId: null,
+          userId: 'u-org',
+        },
+      });
     });
 
     it('неудачная отправка в историю не пишется', async () => {

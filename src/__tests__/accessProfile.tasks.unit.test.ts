@@ -27,6 +27,9 @@ const profile = (over: Partial<SessionAccessProfile> = {}): SessionAccessProfile
   finance: 'all',
   leads: 'all',
   tasks: 'all',
+  // `У-214`: у фабрики «всё видно» диалоги тоже 'all' — иначе профиль
+  // случайно сузил бы переписку и тесты задач стали бы про другое.
+  dialogs: 'all',
   capabilities: [],
   ...over,
 });

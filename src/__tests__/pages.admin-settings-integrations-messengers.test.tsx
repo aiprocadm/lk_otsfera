@@ -52,7 +52,28 @@ vi.mock('@/server-actions/admin/integrationSettings', () => ({
   saveMaxSettingsAction: vi.fn(),
   saveWhatsappSettingsAction: vi.fn(),
   testIntegrationAction: vi.fn(),
+  // `У-213`: два действия проверки канала — их зовут кнопки светофора переписки.
+  sendSelfTestMessageAction: vi.fn(),
+  checkWebhookAction: vi.fn(),
 }));
+
+// `У-213`: светофор переписки («приходит ли к нам» и «уходит ли от нас»).
+// Сервис и панель подменены так же, как общий светофор интеграций выше:
+// страница проверяется на то, ЧТО она передаёт, а не на вёрстку чужого
+// компонента (у него свой тест).
+const { getChannelHealth } = vi.hoisted(() => ({ getChannelHealth: vi.fn() }));
+vi.mock('@/lib/services/messengers/channelHealth', () => ({ getChannelHealth }));
+
+const { channelHealthRows } = vi.hoisted(() => ({ channelHealthRows: [] as unknown[] }));
+vi.mock('@/components/admin/channel-health-panel', async () => {
+  const R = await import('react');
+  return {
+    ChannelHealthPanel: (props: { rows: unknown[] }) => {
+      channelHealthRows.splice(0, channelHealthRows.length, ...props.rows);
+      return R.createElement('div', { 'data-testid': 'channel-health-panel' }, 'CHANNELS');
+    },
+  };
+});
 
 import AdminMessengersSettingsPage from '@/app/admin/settings/integrations/messengers/page';
 
@@ -86,6 +107,14 @@ describe('AdminMessengersSettingsPage', () => {
     vi.clearAllMocks();
     formProps.length = 0;
     healthRows.length = 0;
+    channelHealthRows.length = 0;
+    getChannelHealth.mockResolvedValue({
+      ok: true,
+      rows: [
+        { channel: 'telegram', lastInboundAt: null, lastErrorAt: null, lastError: null },
+        { channel: 'email', lastInboundAt: null, lastErrorAt: null, lastError: null },
+      ],
+    });
     requireSettingsSection.mockResolvedValue(SESSION);
     isSecretsKeyConfigured.mockReturnValue(true);
     getIntegrationsHealth.mockResolvedValue({
@@ -166,6 +195,17 @@ describe('AdminMessengersSettingsPage', () => {
     });
     expect(formProps[2]!.fields?.find((f) => f.name === 'whatsapp_apiKey')?.secretSet).toBe(true);
     expect(webhookOf).toHaveBeenCalledTimes(3);
+
+    // `У-213`: светофор переписки на странице есть и получает строки сервиса.
+    // Он отвечает на другой вопрос, чем светофор выше: тот говорит «ключи
+    // заданы и проба прошла», этот — «клиенты пишут, и мы отвечаем».
+    expect(getChannelHealth).toHaveBeenCalledWith({}, SESSION);
+    expect(container.querySelector('[data-testid="channel-health-panel"]')).not.toBeNull();
+    expect(channelHealthRows.map((r) => (r as { channel: string }).channel)).toEqual([
+      'telegram',
+      'email',
+    ]);
+
     // Ключ шифрования на месте — предупреждения нет.
     expect(container.querySelector('[role="alert"]')).toBeNull();
   });
@@ -173,6 +213,8 @@ describe('AdminMessengersSettingsPage', () => {
   it('нет ключа шифрования — предупреждение до форм; отказ светофора — понятный текст', async () => {
     isSecretsKeyConfigured.mockReturnValue(false);
     getIntegrationsHealth.mockResolvedValue({ ok: false, error: 'forbidden' });
+    // `У-213`: отказ светофора переписки страницу не роняет — панели просто нет.
+    getChannelHealth.mockResolvedValue({ ok: false, error: 'forbidden' });
     const { container } = await renderServerComponent(AdminMessengersSettingsPage());
     const alerts = [...container.querySelectorAll('[role="alert"]')].map(
       (n) => n.textContent ?? ''
@@ -180,6 +222,7 @@ describe('AdminMessengersSettingsPage', () => {
     expect(alerts.join(' | ')).toContain('Сохранение секретов недоступно');
     expect(alerts.join(' | ')).toContain('Недостаточно прав');
     expect(container.querySelector('[data-testid="health-panel"]')).toBeNull();
+    expect(container.querySelector('[data-testid="channel-health-panel"]')).toBeNull();
     // Формы всё равно смонтированы: несекретные поля сохранить можно.
     expect(formProps).toHaveLength(3);
   });

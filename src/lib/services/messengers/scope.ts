@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
+import { canSeeDialog, dialogWhereForLevel } from '@/lib/auth/accessProfile';
 
 /**
  * Скоуп диалогов мессенджеров (спека 2026-09-12, Р-М-3) — единственный
@@ -15,22 +16,30 @@ import type { SessionPayload } from '@/lib/auth/jwt';
  * `src/__tests__/messengers.scope.unit.test.ts`.
  */
 
-const NO_COMPANY_SENTINEL = '__no_company__';
+/**
+ * `У-214`: поверх границы компании действует ОХВАТ профиля доступа. Правило
+ * наслоения прежнее (CLAUDE.md §2b): нет профиля или в нём стоит `all` —
+ * поведение ровно такое, каким было до этапа 3.
+ *
+ * Обе функции ниже — тонкие обёртки над общим правилом
+ * (`dialogWhereForLevel` / `canSeeDialog` в `lib/auth/accessProfile`): держать
+ * саму логику здесь значило бы завести ВТОРОЕ место, где написано, кто что
+ * видит, — а расходятся такие места молча.
+ */
 
 /** Prisma-форма скоупа (списки, счётчики). */
 export function dialogScopeWhere(session: SessionPayload): Prisma.MessengerDialogWhereInput {
-  return {
-    OR: [{ companyId: session.companyId ?? NO_COMPANY_SENTINEL }, { companyId: null }],
-  };
+  return dialogWhereForLevel(session, session.accessProfile?.dialogs ?? 'all');
 }
 
 /** In-memory форма для уже загруженного диалога (карточка, действия). */
 export function isDialogInScope(
   session: SessionPayload,
-  dialog: { companyId: string | null }
+  dialog: { companyId: string | null; assigneeId?: string | null; organizationId?: string | null }
 ): boolean {
-  return (
-    dialog.companyId === null ||
-    (session.companyId != null && dialog.companyId === session.companyId)
-  );
+  return canSeeDialog(session, {
+    companyId: dialog.companyId,
+    assigneeId: dialog.assigneeId ?? null,
+    organizationId: dialog.organizationId ?? null,
+  });
 }

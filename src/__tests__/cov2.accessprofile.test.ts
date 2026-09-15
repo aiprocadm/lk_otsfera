@@ -38,6 +38,8 @@ const assignedLeadsProfile = (): SessionAccessProfile => ({
   finance: 'all',
   leads: 'assigned',
   tasks: 'all',
+  // `У-214`: проверяется fallback `managedOrgIds ?? []`, не диалоги.
+  dialogs: 'all',
   capabilities: [],
 });
 
@@ -51,6 +53,7 @@ const assignedTasksProfile = (): SessionAccessProfile => ({
   finance: 'all',
   leads: 'all',
   tasks: 'assigned',
+  dialogs: 'all',
   capabilities: [],
 });
 

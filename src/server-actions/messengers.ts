@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db/prisma';
 import { requireManager } from '@/lib/auth/requireRole';
 import { isFeatureEnabled } from '@/lib/featureFlags';
-import { DIALOG_CHANNELS } from '@/lib/services/messengers/channels';
+import { START_FIRST_CHANNELS } from '@/lib/services/messengers/start';
 import {
   sendDialogMessage,
   DIALOG_MESSAGE_MAX,
@@ -14,6 +14,7 @@ import {
 import { bindDialog, type BindDialogResult } from '@/lib/services/messengers/bind';
 import { setDialogStatus, type SetDialogStatusResult } from '@/lib/services/messengers/status';
 import { startDialog, type StartDialogResult } from '@/lib/services/messengers/start';
+import { retryDialogMessage, type RetryMessageResult } from '@/lib/services/messengers/retry';
 import {
   assignDialog,
   takeDialog,
@@ -198,12 +199,38 @@ export async function applyReplyTemplateAction(input: {
   return applyReplyTemplate(prisma, session, parsed.data);
 }
 
+const RetrySchema = z.object({
+  dialogId: DialogIdSchema,
+  messageId: z.string().min(1).max(64),
+});
+
+/**
+ * «Повторить» у недоставленного сообщения (`У-213`). Повторяет человек: причина
+ * отказа обычно требует решения, и молчаливый ретрай её только прятал бы.
+ */
+export async function retryDialogMessageAction(input: {
+  dialogId: string;
+  messageId: string;
+}): Promise<RetryMessageResult | Validation> {
+  const off = disabled();
+  if (off) return off;
+  const parsed = RetrySchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'validation' };
+  const session = await requireManager();
+  const result = await retryDialogMessage(prisma, session, parsed.data);
+  // Лента перечитывается в обоих случаях: у неудачи меняется текст причины.
+  revalidateDialog(parsed.data.dialogId);
+  return result;
+}
+
 const StartSchema = z.object({
   kind: z.enum(['user', 'contact']),
   id: z.string().min(1).max(64),
   // `У-216`: список каналов диалога, а не только мессенджеров — с `У-205`
   // почта такой же двусторонний канал, и написать первым по ней можно.
-  channel: z.enum(DIALOG_CHANNELS),
+  // Кабинет исключён (`У-212`): диалог с кабинетом начинает клиент вопросом,
+  // первым туда не пишут — это уведомление, а не переписка.
+  channel: z.enum(START_FIRST_CHANNELS),
 });
 
 export async function startDialogAction(input: {

@@ -43,7 +43,7 @@ export type DialogCandidate = {
 const CANDIDATES_CAP = 200;
 
 /** Почему адреса нет — по каналам. Формулировки разные не для красоты: */
-const NO_ADDRESS_REASON: Record<DialogChannel, string> = {
+const NO_ADDRESS_REASON: Record<Exclude<DialogChannel, 'cabinet'>, string> = {
   // …в Telegram и MAX бот физически не может написать первым, пока человек не
   // нажал «Старт»: это правило самих мессенджеров, а не наша настройка.
   telegram: 'Человек не нажимал «Старт» в нашем боте Telegram — до этого написать ему нельзя.',
@@ -58,8 +58,25 @@ const NO_ADDRESS_REASON: Record<DialogChannel, string> = {
 
 const CHANNEL_OFF_REASON = 'Канал не подключён в настройках — обратитесь к администратору.';
 
+/**
+ * Каналы, которыми можно написать ПЕРВЫМ. Кабинет сюда не входит намеренно
+ * (`У-212`): диалог канала «Кабинет» начинается вопросом клиента. Написать
+ * первым «в кабинет» — это уведомление, а не переписка, и у него свой путь.
+ */
+type StartFirstChannel = Exclude<DialogChannel, 'cabinet'>;
+
+// Непустой кортеж, а не просто массив: его читает `z.enum` в server-action, а
+// тот требует хотя бы один элемент. Утверждение безопасно — `DIALOG_CHANNELS`
+// начинается с мессенджеров, и «кабинет» не может остаться единственным.
+export const START_FIRST_CHANNELS = DIALOG_CHANNELS.filter(
+  (c): c is StartFirstChannel => c !== 'cabinet'
+) as [StartFirstChannel, ...StartFirstChannel[]];
+
 /** Состояние канала: адрес известен? канал включён? */
-function channelState(channel: DialogChannel, address: string | null): CandidateChannel {
+function channelState(
+  channel: Exclude<DialogChannel, 'cabinet'>,
+  address: string | null
+): CandidateChannel {
   if (!address) return { channel, available: false, reason: NO_ADDRESS_REASON[channel] };
   if (!isMessengerAvailable(channel)) {
     return { channel, available: false, reason: CHANNEL_OFF_REASON };
@@ -136,7 +153,7 @@ export async function listDialogCandidates(
           ? { organizationId: orgId, organization: orgScope }
           : {
               OR: [{ organizationId: null }, { organization: orgScope }],
-              channels: { some: { type: { in: [...DIALOG_CHANNELS] } } },
+              channels: { some: { type: { in: [...START_FIRST_CHANNELS] } } },
             }),
       },
       select: {
@@ -145,7 +162,7 @@ export async function listDialogCandidates(
         organizationId: true,
         organization: { select: { name: true } },
         channels: {
-          where: { type: { in: [...DIALOG_CHANNELS] } },
+          where: { type: { in: [...START_FIRST_CHANNELS] } },
           select: { type: true },
         },
       },
@@ -161,13 +178,23 @@ export async function listDialogCandidates(
       name: u.name?.trim() || u.email,
       organizationId: u.organization?.id ?? null,
       organizationName: u.organization?.name ?? null,
-      channels: [
-        channelState('telegram', u.telegramChatId),
-        channelState('max', u.maxChatId),
-        channelState('whatsapp', u.whatsappPhone),
-        // У пользователя кабинета адрес почты есть всегда — это его логин.
-        channelState('email', u.email),
-      ],
+      // Перебираем ТОТ ЖЕ список, что и у контакта ниже. Пока каналы были
+      // перечислены здесь руками, новый канал контакт получал, а пользователь
+      // кабинета — молча нет: два места, где написано одно и то же правило,
+      // расходятся при первой же правке.
+      channels: START_FIRST_CHANNELS.map((ch) =>
+        channelState(
+          ch,
+          ch === 'telegram'
+            ? u.telegramChatId
+            : ch === 'max'
+              ? u.maxChatId
+              : ch === 'whatsapp'
+                ? u.whatsappPhone
+                : // Адрес почты у пользователя кабинета есть всегда — это логин.
+                  u.email
+        )
+      ),
     })),
     ...contacts.map((c) => {
       const known = new Set(c.channels.map((ch) => ch.type));
@@ -180,7 +207,9 @@ export async function listDialogCandidates(
         // Адрес сам по себе не нужен: наружу отдаётся только «можно/нельзя».
         // Писать телефон и chatId в список кандидатов значило бы разложить ПДн
         // по экранам без нужды.
-        channels: DIALOG_CHANNELS.map((ch) => channelState(ch, known.has(ch) ? 'known' : null)),
+        channels: START_FIRST_CHANNELS.map((ch) =>
+          channelState(ch, known.has(ch) ? 'known' : null)
+        ),
       };
     }),
   ];
@@ -201,7 +230,7 @@ export type StartDialogArgs = {
    * `У-216`: с этапа 3 первым можно написать и по почте — после `У-205` она
    * такой же двусторонний канал диалога, как мессенджеры.
    */
-  channel: DialogChannel;
+  channel: Exclude<DialogChannel, 'cabinet'>;
 };
 
 export type StartDialogResult =

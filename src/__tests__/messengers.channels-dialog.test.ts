@@ -38,21 +38,32 @@ beforeEach(() => {
 });
 
 describe('DIALOG_CHANNELS — каналы, у которых заводится диалог', () => {
-  it('три мессенджера и почта', () => {
-    expect([...DIALOG_CHANNELS]).toEqual(['telegram', 'max', 'whatsapp', 'email']);
+  it('три мессенджера, почта и кабинет', () => {
+    // `У-212`: кабинет — полноценный канал диалога, а не «почти диалог».
+    // У вопроса из кабинета есть собеседник (пользователь), история и
+    // ответственный; отличается только транспорт — наружу ничего не уходит,
+    // ответ кладётся уведомлением внутрь системы. Поэтому он здесь, но НЕ в
+    // `MESSENGER_CHANNELS` (следующий тест) — там речь о ботах и вебхуках.
+    expect([...DIALOG_CHANNELS]).toEqual(['telegram', 'max', 'whatsapp', 'email', 'cabinet']);
   });
 
-  it('MESSENGER_CHANNELS не изменился — его читают вебхуки и «написать первым»', () => {
+  it('MESSENGER_CHANNELS не изменился — его читают вебхуки и доступность ботов', () => {
     expect([...MESSENGER_CHANNELS]).toEqual(['telegram', 'max', 'whatsapp']);
     expect([...MESSENGER_CHANNELS]).not.toContain('email');
+    // Если кабинет просочится сюда, вебхук мессенджера начнёт считать
+    // внутреннее обращение своим, а «написать первым» предложит отправить
+    // сообщение в несуществующий чат.
+    expect([...MESSENGER_CHANNELS]).not.toContain('cabinet');
   });
 
-  it('подписи каналов — русские, у почты «Почта»', () => {
+  it('подписи каналов — русские, у почты «Почта», у кабинета «Кабинет»', () => {
     expect(DIALOG_CHANNEL_LABELS).toEqual({
       telegram: 'Telegram',
       max: 'MAX',
       whatsapp: 'WhatsApp',
       email: 'Почта',
+      // `У-212` и правило зеркала (§0.2): одно слово во всех кабинетах.
+      cabinet: 'Кабинет',
     });
     // Подписи мессенджеров те же самые — два словаря не должны разойтись.
     for (const channel of MESSENGER_CHANNELS) {
@@ -68,19 +79,20 @@ describe('DIALOG_CHANNELS — каналы, у которых заводится
 });
 
 describe('сужение строки канала', () => {
-  it('isDialogChannel пропускает мессенджеры и почту', () => {
+  it('isDialogChannel пропускает мессенджеры, почту и кабинет', () => {
     for (const channel of DIALOG_CHANNELS) {
       expect(isDialogChannel(channel), channel).toBe(true);
     }
+    // `У-212`: кабинет вошёл в список в PR-7 вместе со своей отправкой
+    // (`deliverToCabinet`) — раньше здесь ожидался `false`.
+    expect(isDialogChannel('cabinet')).toBe(true);
   });
 
-  it('isDialogChannel не пропускает кабинет и мусор', () => {
-    // Канал `cabinet` войдёт в список в PR-7 вместе со своей отправкой
-    // (спека §3.1 и план); пока диалога у него нет — и тест это держит.
-    expect(isDialogChannel('cabinet')).toBe(false);
+  it('isDialogChannel не пропускает мусор и чужой регистр', () => {
     expect(isDialogChannel('sms')).toBe(false);
     expect(isDialogChannel('')).toBe(false);
     expect(isDialogChannel('EMAIL')).toBe(false);
+    expect(isDialogChannel('Кабинет')).toBe(false);
   });
 
   it('isMessengerChannel остался узким: почта — не мессенджер', () => {
@@ -101,6 +113,19 @@ describe('доступность канала для ответа', () => {
     predicate.mockReturnValue(true);
     expect(isMessengerAvailable(channel)).toBe(true);
     expect(m.setting).not.toHaveBeenCalled();
+  });
+
+  it('кабинет доступен всегда — «подключать» там нечего', () => {
+    // `У-212`: ответ в кабинет — это уведомление внутрь системы. Ни бота, ни
+    // ключа, ни настройки для него не нужно, поэтому предикат не должен ни
+    // спрашивать клиентов мессенджеров, ни читать настройки интеграций.
+    // Единственное условие — известен пользователь, и его проверяет сама
+    // доставка (`deliverToCabinet`), а не этот предикат.
+    expect(isMessengerAvailable('cabinet')).toBe(true);
+    expect(m.setting).not.toHaveBeenCalled();
+    expect(m.tg).not.toHaveBeenCalled();
+    expect(m.max).not.toHaveBeenCalled();
+    expect(m.wa).not.toHaveBeenCalled();
   });
 
   it('почта доступна: отправка включена, ключ задан И настроен входящий ящик', () => {
