@@ -101,8 +101,7 @@ export async function runExpireProposals(
             documentId: doc.id,
             documentNumber: doc.number,
             documentType: 'commercial_proposal',
-            organizationId:
-              doc.counterpartyType === 'organization' ? doc.counterpartyId : null,
+            organizationId: doc.counterpartyType === 'organization' ? doc.counterpartyId : null,
             orderId: doc.orderId,
             leadId: doc.leadId,
             responsibleManagerId: doc.sentById,

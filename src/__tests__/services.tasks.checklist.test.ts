@@ -106,11 +106,10 @@ describe('addChecklistItem', () => {
   });
 
   it('сессия без компании — forbidden', async () => {
-    const res = await addChecklistItem(
-      prisma,
-      { ...manager, companyId: null } as SessionPayload,
-      { taskId: 't1', title: 'Шаг' }
-    );
+    const res = await addChecklistItem(prisma, { ...manager, companyId: null } as SessionPayload, {
+      taskId: 't1',
+      title: 'Шаг',
+    });
     expect(res).toEqual({ ok: false, error: 'forbidden' });
   });
 

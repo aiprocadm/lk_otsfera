@@ -157,6 +157,13 @@ export const NOTIFICATION_TYPES = {
     audience: ['staff'],
     producer: 'src/lib/services/tasks/comments.ts',
   },
+  // Этап 4 (`У-225`): задача просрочена. Два разных повода в одном типе —
+  // исполнителю в день просрочки и руководителю на N-й; различает их текст.
+  task_overdue: {
+    label: 'Задача просрочена',
+    audience: ['staff'],
+    producer: 'src/worker/processors/sla-escalation.ts',
+  },
   sla_escalation: {
     label: 'Просрочен ответ по SLA',
     audience: ['staff'],

@@ -31,7 +31,6 @@ vi.mock('@/lib/services/manager/organizations', () => ({ listOrganizations }));
 const { listLinkedTasks } = vi.hoisted(() => ({ listLinkedTasks: vi.fn().mockResolvedValue([]) }));
 vi.mock('@/lib/services/tasks/board', () => ({ listLinkedTasks }));
 
-
 // У-206: страница спрашивает сотрудников для селекта «Назначить».
 const { listAssignableStaff } = vi.hoisted(() => ({
   listAssignableStaff: vi.fn().mockResolvedValue([{ id: 'u2', name: 'Мария' }]),

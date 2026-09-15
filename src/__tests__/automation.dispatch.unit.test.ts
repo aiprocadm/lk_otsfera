@@ -39,7 +39,13 @@ beforeEach(() => {
 describe('emitAutomationEvent — когда НЕ срабатывает', () => {
   it('флаг выключен → база не спрашивается вовсе', async () => {
     isFeatureEnabled.mockReturnValue(false);
-    expect(await emitAutomationEvent(prisma, { trigger: 'order_status_changed', companyId: 'co-1', payload: {} })).toBe(0);
+    expect(
+      await emitAutomationEvent(prisma, {
+        trigger: 'order_status_changed',
+        companyId: 'co-1',
+        payload: {},
+      })
+    ).toBe(0);
     expect(findMany).not.toHaveBeenCalled();
     expect(add).not.toHaveBeenCalled();
   });
@@ -58,7 +64,11 @@ describe('emitAutomationEvent — когда НЕ срабатывает', () =>
 
   it('без компании → правил нет, спрашивать нечего', async () => {
     expect(
-      await emitAutomationEvent(prisma, { trigger: 'order_status_changed', companyId: null, payload: {} })
+      await emitAutomationEvent(prisma, {
+        trigger: 'order_status_changed',
+        companyId: null,
+        payload: {},
+      })
     ).toBe(0);
     expect(findMany).not.toHaveBeenCalled();
   });
@@ -66,7 +76,11 @@ describe('emitAutomationEvent — когда НЕ срабатывает', () =>
   it('подходящих правил нет → очередь не трогаем', async () => {
     findMany.mockResolvedValue([]);
     expect(
-      await emitAutomationEvent(prisma, { trigger: 'order_status_changed', companyId: 'co-1', payload: {} })
+      await emitAutomationEvent(prisma, {
+        trigger: 'order_status_changed',
+        companyId: 'co-1',
+        payload: {},
+      })
     ).toBe(0);
     expect(add).not.toHaveBeenCalled();
   });
@@ -75,7 +89,11 @@ describe('emitAutomationEvent — когда НЕ срабатывает', () =>
     findMany.mockRejectedValue(new Error('база легла'));
     // Ни исключения наружу, ни отказа: смена статуса заказа уже сохранена.
     expect(
-      await emitAutomationEvent(prisma, { trigger: 'order_status_changed', companyId: 'co-1', payload: {} })
+      await emitAutomationEvent(prisma, {
+        trigger: 'order_status_changed',
+        companyId: 'co-1',
+        payload: {},
+      })
     ).toBe(0);
     expect(logError).toHaveBeenCalled();
   });
@@ -149,7 +167,11 @@ describe('emitAutomationEvent — идемпотентность', () => {
       companyId: 'co-1',
       payload: {},
     });
-    const [, job, opts] = add.mock.calls[0] as [string, { ruleId: string; eventId: string }, { jobId: string }];
+    const [, job, opts] = add.mock.calls[0] as [
+      string,
+      { ruleId: string; eventId: string },
+      { jobId: string },
+    ];
     expect(opts.jobId).toBe(automationJobId(job.ruleId, job.eventId));
     expect(opts.jobId).toContain('auto_r1_');
   });

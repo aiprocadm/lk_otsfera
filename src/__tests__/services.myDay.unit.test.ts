@@ -48,12 +48,21 @@ type PrismaStub = {
   stages?: Array<{ id: string; name: string; position: number }>;
   inbound?: number;
   calls?: number;
+  // `У-226` (этап 4): четыре новых показателя сводки.
+  dialogs?: number;
+  proposals?: number;
+  checklist?: number;
+  events?: number;
 };
 
 function makePrisma(stub: PrismaStub = {}) {
   const taskCounts = [...(stub.taskCounts ?? [0, 0])];
   const orderFindMany = vi.fn().mockResolvedValue(stub.orders ?? []);
   const dealStageFindMany = vi.fn().mockResolvedValue(stub.stages ?? []);
+  const dialogCount = vi.fn().mockResolvedValue(stub.dialogs ?? 0);
+  const documentCount = vi.fn().mockResolvedValue(stub.proposals ?? 0);
+  const checklistCount = vi.fn().mockResolvedValue(stub.checklist ?? 0);
+  const eventCount = vi.fn().mockResolvedValue(stub.events ?? 0);
   return {
     prisma: {
       task: { count: vi.fn(async () => taskCounts.shift() ?? 0) },
@@ -62,9 +71,17 @@ function makePrisma(stub: PrismaStub = {}) {
       dealStage: { findMany: dealStageFindMany },
       inboundMessage: { count: vi.fn().mockResolvedValue(stub.inbound ?? 0) },
       call: { count: vi.fn().mockResolvedValue(stub.calls ?? 0) },
+      messengerDialog: { count: dialogCount },
+      document: { count: documentCount },
+      taskChecklistItem: { count: checklistCount },
+      calendarEvent: { count: eventCount },
     } as never,
     orderFindMany,
     dealStageFindMany,
+    dialogCount,
+    documentCount,
+    checklistCount,
+    eventCount,
   };
 }
 
@@ -90,6 +107,11 @@ describe('getMyDay', () => {
       dealsByStage: [],
       inboundFresh: 0,
       callsMissed: 0,
+      // `У-226`: новые показатели тоже обязаны быть честными нулями.
+      dialogsWaiting: 0,
+      proposalsExpiring: 0,
+      checklistOpen: 0,
+      eventsToday: 0,
     });
   });
 
@@ -197,6 +219,35 @@ describe('getMyDay', () => {
     expect(data.callsMissed).toBe(2);
     expect(intakeInboundWhere).toHaveBeenCalledWith(session);
     expect(intakeCallWhere).toHaveBeenCalledWith(session);
+  });
+
+  it('`У-226`: четыре новых показателя считаются своими условиями', async () => {
+    const { prisma, dialogCount, documentCount, checklistCount, eventCount } = makePrisma({
+      dialogs: 4,
+      proposals: 2,
+      checklist: 9,
+      events: 3,
+    });
+    const data = await getMyDay(prisma, session, false, NOW);
+    expect(data.dialogsWaiting).toBe(4);
+    expect(data.proposalsExpiring).toBe(2);
+    expect(data.checklistOpen).toBe(9);
+    expect(data.eventsToday).toBe(3);
+
+    // Переписка — МОЯ: без этого условия менеджер видел бы общую очередь.
+    expect(dialogCount.mock.calls[0][0].where.assigneeId).toBe('m1');
+    // КП: уже истёкшие не считаем — напоминать о них поздно.
+    expect(documentCount.mock.calls[0][0].where.validUntil.gte).toEqual(NOW);
+    // Шаги чек-листов — только из незакрытых задач моего охвата.
+    expect(checklistCount.mock.calls[0][0].where.isDone).toBe(false);
+    expect(checklistCount.mock.calls[0][0].where.task.AND).toContainEqual({
+      status: { not: 'done' },
+    });
+    // События — мои и те, куда меня позвали.
+    expect(eventCount.mock.calls[0][0].where.OR).toEqual([
+      { createdById: 'm1' },
+      { attendees: { some: { userId: 'm1' } } },
+    ]);
   });
 
   it('без переданного teamMode флаг читается свежим', async () => {

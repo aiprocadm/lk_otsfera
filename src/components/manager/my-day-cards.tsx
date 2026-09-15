@@ -135,6 +135,46 @@ export function MyDayCards({ data }: { data: MyDayData }) {
             Пропущенные звонки за сутки: <span className="font-medium">{data.callsMissed}</span>
           </div>
         </Card>
+
+        {/* `У-226` (этап 4): четыре вещи, которых в сводке не хватало. Экран
+            остался одним — новые карточки встали рядом, а не отдельным блоком:
+            «Мой день» отвечает на один вопрос «чем заняться сейчас». */}
+        <Card
+          title="Ждут моего ответа"
+          value={data.dialogsWaiting}
+          tone={data.dialogsWaiting > 0 ? 'warning' : 'neutral'}
+          hint={
+            data.dialogsWaiting === 0
+              ? 'Все мои переписки с ответом'
+              : 'Клиент написал, а я ещё не ответил'
+          }
+          href="/manager/messengers?status=waiting_staff"
+        />
+        <Card
+          title="КП с истекающим сроком"
+          value={data.proposalsExpiring}
+          tone={data.proposalsExpiring > 0 ? 'warning' : 'neutral'}
+          hint={
+            data.proposalsExpiring === 0
+              ? 'Срочных предложений нет'
+              : 'Срок действия кончается в ближайшие дни'
+          }
+          href="/manager/documents"
+        />
+        <Card
+          title="Шагов в чек-листах"
+          value={data.checklistOpen}
+          hint={
+            data.checklistOpen === 0 ? 'Все шаги отмечены' : 'Невыполненные пункты в моих задачах'
+          }
+          href="/manager/tasks"
+        />
+        <Card
+          title="События сегодня"
+          value={data.eventsToday}
+          hint={data.eventsToday === 0 ? 'Встреч на сегодня нет' : 'Мои события календаря'}
+          href="/manager/calendar"
+        />
       </div>
     </section>
   );

@@ -9,16 +9,24 @@ import { quickTasksFor } from '@/lib/quickTasks';
 import { fmtMoney } from '@/lib/format';
 import { LeaderManagersTable } from '@/components/leader/leader-managers-table';
 import { ManagerEventsFeed } from '@/components/manager/manager-events-feed';
+import { OverdueTasksBlock } from '@/components/leader/overdue-tasks-block';
+import { listOverdueTasks } from '@/lib/services/tasks/overdue';
+import { isFeatureEnabled } from '@/lib/featureFlags';
 
 import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
 
 export default async function LeaderDashboardPage() {
   const session = await requireManagerLeader();
-  const [data, events] = await Promise.all([
+  const [data, events, overdue] = await Promise.all([
     leaderDashboard(prisma, session),
     // company-wide always: teamModeOverride=true (4th arg, after default `take`)
     recentEvents(prisma, session, undefined, true),
+    // `У-225`: просроченные задачи команды. Раздел задач может быть выключен —
+    // тогда блока нет, иначе он вёл бы на недоступный экран.
+    isFeatureEnabled('internal_tasks')
+      ? listOverdueTasks(prisma, session)
+      : Promise.resolve({ rows: [], total: 0 }),
   ]);
   return (
     <div className="space-y-5">
@@ -27,6 +35,9 @@ export default async function LeaderDashboardPage() {
       </div>
 
       <QuickTasks tasks={quickTasksFor('leader')} />
+      {isFeatureEnabled('internal_tasks') && (
+        <OverdueTasksBlock rows={overdue.rows} total={overdue.total} href="/leader/tasks" />
+      )}
       <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
         <StatCard title="Менеджеров" value={data.kpis.managers} href="/leader/team" />
         <StatCard title="Заказы в работе" value={data.kpis.activeOrders} href="/leader/orders" />

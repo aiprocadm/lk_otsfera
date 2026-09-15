@@ -130,11 +130,7 @@ export function AutomationRuleForm({
 
         <label className="block space-y-1">
           <span className="text-sm text-gray-700">Если случилось</span>
-          <Select
-            value={trigger}
-            onChange={(e) => setTrigger(e.target.value)}
-            aria-label="Событие"
-          >
+          <Select value={trigger} onChange={(e) => setTrigger(e.target.value)} aria-label="Событие">
             {AUTOMATION_TRIGGER_OPTIONS.map((t) => (
               <option key={t.key} value={t.key}>
                 {t.labelRu}
@@ -216,7 +212,9 @@ export function AutomationRuleForm({
         <section className="space-y-2 rounded-lg bg-[#F3F4F6] p-3">
           <h3 className="text-sm font-medium text-[#111111]">Как это будет выглядеть</h3>
           <p className="text-sm text-gray-700" data-testid="automation-preview">
-            {text.trim() ? previewAutomationText(text) : 'Напишите текст выше — здесь будет пример.'}
+            {text.trim()
+              ? previewAutomationText(text)
+              : 'Напишите текст выше — здесь будет пример.'}
           </p>
           <details>
             <summary className="cursor-pointer text-xs text-gray-500">

@@ -48,10 +48,7 @@ export type EmitArgs = {
  * Возвращает число поставленных правил — это нужно тестам и журналу, но НЕ
  * вызывающему: он не обязан ничего делать с результатом.
  */
-export async function emitAutomationEvent(
-  prisma: PrismaClient,
-  args: EmitArgs
-): Promise<number> {
+export async function emitAutomationEvent(prisma: PrismaClient, args: EmitArgs): Promise<number> {
   try {
     // Правило робота, порождённое роботом, не запускает робота.
     if (args.source === 'automation') return 0;

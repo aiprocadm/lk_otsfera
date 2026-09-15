@@ -23,7 +23,14 @@ import {
   setSlaSettings,
 } from '@/lib/services/manager/slaSettings';
 
-function fakePrisma(row: { slaResponseHours: number; slaWarningHours: number } | null) {
+function fakePrisma(
+  row: {
+    slaResponseHours: number;
+    slaWarningHours: number;
+    // `У-225` (этап 4): третий порог — дни просрочки задачи.
+    taskOverdueEscalationDays?: number;
+  } | null
+) {
   const findUnique = vi.fn().mockResolvedValue(row);
   const update = vi.fn().mockResolvedValue({});
   return {
@@ -38,23 +45,36 @@ beforeEach(() => vi.clearAllMocks());
 describe('getSlaSettings / setSlaSettings', () => {
   it('чтение возвращает пороги; отсутствующая компания → null', async () => {
     expect(
-      await getSlaSettings(fakePrisma({ slaResponseHours: 24, slaWarningHours: 4 }).prisma, 'c1')
+      await getSlaSettings(
+        fakePrisma({ slaResponseHours: 24, slaWarningHours: 4, taskOverdueEscalationDays: 3 })
+          .prisma,
+        'c1'
+      )
     ).toEqual({
       slaResponseHours: 24,
       slaWarningHours: 4,
+      // `У-225` (этап 4): третий порог — дни просрочки задачи.
+      taskOverdueEscalationDays: 3,
     });
     expect(await getSlaSettings(fakePrisma(null).prisma, 'c1')).toBeNull();
   });
 
   it('валидация: границы 1–168, целые, warning < response', async () => {
-    const { prisma, update } = fakePrisma({ slaResponseHours: 24, slaWarningHours: 4 });
+    const { prisma, update } = fakePrisma({
+      slaResponseHours: 24,
+      slaWarningHours: 4,
+      taskOverdueEscalationDays: 3,
+    });
     for (const bad of [
-      { slaResponseHours: 0, slaWarningHours: 4 },
-      { slaResponseHours: 200, slaWarningHours: 4 },
-      { slaResponseHours: 24, slaWarningHours: 0 },
-      { slaResponseHours: 24.5, slaWarningHours: 4 },
-      { slaResponseHours: 4, slaWarningHours: 4 },
-      { slaResponseHours: 4, slaWarningHours: 10 },
+      { slaResponseHours: 0, slaWarningHours: 4, taskOverdueEscalationDays: 3 },
+      { slaResponseHours: 200, slaWarningHours: 4, taskOverdueEscalationDays: 3 },
+      { slaResponseHours: 24, slaWarningHours: 0, taskOverdueEscalationDays: 3 },
+      { slaResponseHours: 24.5, slaWarningHours: 4, taskOverdueEscalationDays: 3 },
+      // `У-225`: свой порог — дни, отрицательных и заоблачных не бывает.
+      { slaResponseHours: 24, slaWarningHours: 4, taskOverdueEscalationDays: -1 },
+      { slaResponseHours: 24, slaWarningHours: 4, taskOverdueEscalationDays: 99 },
+      { slaResponseHours: 4, slaWarningHours: 4, taskOverdueEscalationDays: 3 },
+      { slaResponseHours: 4, slaWarningHours: 10, taskOverdueEscalationDays: 3 },
     ]) {
       const r = await setSlaSettings(prisma, 'u1', 'c1', bad);
       expect(r.ok).toBe(false);
@@ -64,15 +84,20 @@ describe('getSlaSettings / setSlaSettings', () => {
   });
 
   it('успех: пишет пороги + аудит с before/after', async () => {
-    const { prisma, update } = fakePrisma({ slaResponseHours: 24, slaWarningHours: 4 });
+    const { prisma, update } = fakePrisma({
+      slaResponseHours: 24,
+      slaWarningHours: 4,
+      taskOverdueEscalationDays: 3,
+    });
     const r = await setSlaSettings(prisma, 'u1', 'c1', {
       slaResponseHours: 48,
       slaWarningHours: 8,
+      taskOverdueEscalationDays: 5,
     });
     expect(r).toEqual({ ok: true, changed: true });
     expect(update).toHaveBeenCalledWith({
       where: { id: 'c1' },
-      data: { slaResponseHours: 48, slaWarningHours: 8 },
+      data: { slaResponseHours: 48, slaWarningHours: 8, taskOverdueEscalationDays: 5 },
     });
     expect(recordAuditMock).toHaveBeenCalledWith(
       prisma,
@@ -81,9 +106,17 @@ describe('getSlaSettings / setSlaSettings', () => {
   });
 
   it('идемпотентность (без записи и аудита) и company_not_found', async () => {
-    const same = fakePrisma({ slaResponseHours: 24, slaWarningHours: 4 });
+    const same = fakePrisma({
+      slaResponseHours: 24,
+      slaWarningHours: 4,
+      taskOverdueEscalationDays: 3,
+    });
     expect(
-      await setSlaSettings(same.prisma, 'u1', 'c1', { slaResponseHours: 24, slaWarningHours: 4 })
+      await setSlaSettings(same.prisma, 'u1', 'c1', {
+        slaResponseHours: 24,
+        slaWarningHours: 4,
+        taskOverdueEscalationDays: 3,
+      })
     ).toEqual({
       ok: true,
       changed: false,
@@ -95,6 +128,7 @@ describe('getSlaSettings / setSlaSettings', () => {
       await setSlaSettings(fakePrisma(null).prisma, 'u1', 'cX', {
         slaResponseHours: 24,
         slaWarningHours: 4,
+        taskOverdueEscalationDays: 3,
       })
     ).toEqual({
       ok: false,
@@ -124,7 +158,13 @@ describe('listCompaniesSla', () => {
     const { prisma, findMany } = listPrisma(rows);
     expect(await listCompaniesSla(prisma, session('admin'))).toEqual({ ok: true, companies: rows });
     expect(findMany).toHaveBeenCalledWith({
-      select: { id: true, name: true, slaResponseHours: true, slaWarningHours: true },
+      select: {
+        id: true,
+        name: true,
+        slaResponseHours: true,
+        slaWarningHours: true,
+        taskOverdueEscalationDays: true,
+      },
       orderBy: { name: 'asc' },
     });
   });
@@ -137,7 +177,13 @@ describe('listCompaniesSla', () => {
     });
     expect(findMany).toHaveBeenCalledWith({
       where: { id: 'c1' },
-      select: { id: true, name: true, slaResponseHours: true, slaWarningHours: true },
+      select: {
+        id: true,
+        name: true,
+        slaResponseHours: true,
+        slaWarningHours: true,
+        taskOverdueEscalationDays: true,
+      },
     });
 
     const empty = listPrisma(rows);
@@ -181,7 +227,13 @@ describe('setSlaSettingsAction', () => {
       role: 'leader',
       companyId: null,
     });
-    expect(await setSlaSettingsAction({ slaResponseHours: 24, slaWarningHours: 4 })).toEqual({
+    expect(
+      await setSlaSettingsAction({
+        slaResponseHours: 24,
+        slaWarningHours: 4,
+        taskOverdueEscalationDays: 3,
+      })
+    ).toEqual({
       ok: false,
       error: 'no_company',
     });
@@ -192,19 +244,32 @@ describe('setSlaSettingsAction', () => {
       companyId: 'c1',
     });
     setSlaSettingsService.mockResolvedValue({ ok: true, changed: true });
-    expect(await setSlaSettingsAction({ slaResponseHours: 48, slaWarningHours: 8 })).toEqual({
+    expect(
+      await setSlaSettingsAction({
+        slaResponseHours: 48,
+        slaWarningHours: 8,
+        taskOverdueEscalationDays: 3,
+      })
+    ).toEqual({
       ok: true,
       changed: true,
     });
     expect(setSlaSettingsService).toHaveBeenCalledWith({}, 'u1', 'c1', {
       slaResponseHours: 48,
       slaWarningHours: 8,
+      taskOverdueEscalationDays: 3,
     });
     expect(revalidatePath).toHaveBeenCalledWith('/leader/team');
     expect(revalidatePath).toHaveBeenCalledWith('/leader/intake');
 
     setSlaSettingsService.mockResolvedValue({ ok: false, error: 'validation', messages: ['x'] });
-    expect(await setSlaSettingsAction({ slaResponseHours: 2, slaWarningHours: 5 })).toEqual({
+    expect(
+      await setSlaSettingsAction({
+        slaResponseHours: 2,
+        slaWarningHours: 5,
+        taskOverdueEscalationDays: 3,
+      })
+    ).toEqual({
       ok: false,
       error: 'validation',
       messages: ['x'],
@@ -212,7 +277,11 @@ describe('setSlaSettingsAction', () => {
 
     // Мусорный вход отбивается zod'ом до сервиса.
     expect(
-      await setSlaSettingsAction({ slaResponseHours: Number.NaN, slaWarningHours: 4 })
+      await setSlaSettingsAction({
+        slaResponseHours: Number.NaN,
+        slaWarningHours: 4,
+        taskOverdueEscalationDays: 3,
+      })
     ).toEqual({
       ok: false,
       error: 'validation',

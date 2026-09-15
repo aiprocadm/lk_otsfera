@@ -30,13 +30,21 @@ type Unit = {
   url?: string;
 };
 
-type CompanyInfo = { id: string; slaResponseHours: number; leaders: string[] };
+type CompanyInfo = {
+  id: string;
+  slaResponseHours: number;
+  /** `У-225`: на какой день просрочки задачи сообщать руководителю; `0` — не сообщать. */
+  taskOverdueEscalationDays: number;
+  leaders: string[];
+};
 
 async function loadCompanies(prisma: PrismaClient): Promise<CompanyInfo[]> {
   const companies = await prisma.company.findMany({
     select: {
       id: true,
       slaResponseHours: true,
+      // `У-225`: на какой день просрочки задачи сообщать руководителю.
+      taskOverdueEscalationDays: true,
       users: {
         where: { role: 'leader', isActive: true },
         select: { id: true },
@@ -46,6 +54,7 @@ async function loadCompanies(prisma: PrismaClient): Promise<CompanyInfo[]> {
   return companies.map((c) => ({
     id: c.id,
     slaResponseHours: c.slaResponseHours,
+    taskOverdueEscalationDays: c.taskOverdueEscalationDays,
     leaders: c.users.map((u) => u.id),
   }));
 }
@@ -284,8 +293,181 @@ export async function runSlaEscalation(
   return { escalated };
 }
 
-/** BullMQ wrapper, вызывается воркером по расписанию. */
-export async function slaEscalationProcessor(): Promise<{ escalated: number }> {
+/**
+ * Просроченные задачи (`У-225`).
+ *
+ * Два уведомления в РАЗНЫЕ дни, и потому два отдельных поля-claim:
+ *  - `overdueNotifiedAt` — исполнителям в день просрочки;
+ *  - `overdueEscalatedAt` — руководителям на N-й день (`Company.taskOverdueEscalationDays`).
+ *
+ * Одним полем это не выражается, а считать «который раз» по датам на каждом
+ * прогоне значит читать всю таблицу задач — ровно то, от чего уходили в прогоне
+ * сопровождения №26.
+ *
+ * Claim АТОМАРНЫЙ: `updateMany` по `null` возвращает 0, если строку уже занял
+ * параллельный прогон, — тогда уведомление не шлётся. Канон — `dueSoonNotifiedAt`
+ * в `task-due-soon.ts`.
+ */
+export async function runTaskOverdue(
+  prisma: PrismaClient,
+  now: Date
+): Promise<{ notified: number; escalated: number }> {
+  const companies = await loadCompanies(prisma);
+  let notified = 0;
+  let escalated = 0;
+
+  for (const company of companies) {
+    notified += await notifyOverdueAssignees(prisma, company, now);
+    escalated += await escalateOverdueToLeaders(prisma, company, now);
+  }
+  return { notified, escalated };
+}
+
+/** Сколько задач разбираем за один заход: ночной прогон не должен расти с базой. */
+const TASK_BATCH = 200;
+
+/** Шаг 1: исполнителю в день просрочки. */
+async function notifyOverdueAssignees(
+  prisma: PrismaClient,
+  company: CompanyInfo,
+  now: Date
+): Promise<number> {
+  const tasks = await prisma.task.findMany({
+    where: {
+      companyId: company.id,
+      status: { not: 'done' },
+      dueDate: { lt: now },
+      overdueNotifiedAt: null,
+    },
+    orderBy: { dueDate: 'asc' },
+    take: TASK_BATCH,
+    select: {
+      id: true,
+      title: true,
+      dueDate: true,
+      createdById: true,
+      assignees: { select: { userId: true } },
+    },
+  });
+
+  let sent = 0;
+  for (const task of tasks) {
+    const claimed = await prisma.task.updateMany({
+      where: { id: task.id, overdueNotifiedAt: null },
+      data: { overdueNotifiedAt: now },
+    });
+    if (claimed.count === 0) continue;
+
+    // Исполнителям, а если их нет — создателю: задача без адресата не должна
+    // молча остаться просроченной навсегда.
+    const recipients =
+      task.assignees.length > 0 ? task.assignees.map((a) => a.userId) : [task.createdById];
+    const title = 'Задача просрочена';
+    const due = task.dueDate ? new Date(task.dueDate).toLocaleDateString('ru-RU') : '—';
+    const body = `«${task.title}»: срок был ${due}.`;
+    await notifyTask(recipients, task.id, title, body);
+    sent += 1;
+  }
+  return sent;
+}
+
+/** Шаг 2: руководителю на N-й день просрочки. */
+async function escalateOverdueToLeaders(
+  prisma: PrismaClient,
+  company: CompanyInfo,
+  now: Date
+): Promise<number> {
+  const days = company.taskOverdueEscalationDays;
+  // `0` — компания выключила эскалацию. Руководителей нет — сообщать некому.
+  if (days <= 0 || company.leaders.length === 0) return 0;
+
+  const deadline = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+  const tasks = await prisma.task.findMany({
+    where: {
+      companyId: company.id,
+      status: { not: 'done' },
+      dueDate: { lt: deadline },
+      overdueEscalatedAt: null,
+    },
+    orderBy: { dueDate: 'asc' },
+    take: TASK_BATCH,
+    select: { id: true, title: true, dueDate: true },
+  });
+
+  let sent = 0;
+  for (const task of tasks) {
+    const claimed = await prisma.task.updateMany({
+      where: { id: task.id, overdueEscalatedAt: null },
+      data: { overdueEscalatedAt: now },
+    });
+    if (claimed.count === 0) continue;
+
+    const due = task.dueDate ? new Date(task.dueDate).toLocaleDateString('ru-RU') : '—';
+    await notifyTask(
+      company.leaders,
+      task.id,
+      'Задача просрочена больше нормы',
+      `«${task.title}»: срок был ${due}, прошло больше ${days} дн.`
+    );
+    sent += 1;
+  }
+  return sent;
+}
+
+/** Общая доставка: сбой одного получателя не отменяет остальных (§3 fail-open). */
+async function notifyTask(
+  userIds: string[],
+  taskId: string,
+  title: string,
+  body: string
+): Promise<void> {
+  const url = `/manager/tasks/${taskId}`;
+  for (const userId of [...new Set(userIds)]) {
+    try {
+      const row = await createNotification({
+        userId,
+        type: 'task_overdue',
+        title,
+        body,
+        meta: { taskId, url },
+      });
+      await deliverNotificationToUser({
+        userId,
+        title,
+        body,
+        type: 'task_overdue',
+        url,
+        dedupKey: row.id,
+      });
+    } catch (err) {
+      log.error('[sla-escalation] task_overdue notify failed', {
+        taskId,
+        userId,
+        error: (err as Error).message,
+      });
+    }
+  }
+}
+
+/**
+ * BullMQ wrapper, вызывается воркером по расписанию.
+ *
+ * Оба разбора в одном заходе: «никто не взял входящее» и «задача просрочена» —
+ * разные события, но обе проверки ночные и обе про то, что работа стоит. Второе
+ * расписание ради этого не заводим.
+ */
+export async function slaEscalationProcessor(): Promise<{
+  escalated: number;
+  tasksNotified: number;
+  tasksEscalated: number;
+}> {
   const { prisma } = await import('@/lib/db/prisma');
-  return runSlaEscalation(prisma, new Date());
+  const now = new Date();
+  const intake = await runSlaEscalation(prisma, now);
+  const tasks = await runTaskOverdue(prisma, now);
+  return {
+    escalated: intake.escalated,
+    tasksNotified: tasks.notified,
+    tasksEscalated: tasks.escalated,
+  };
 }

@@ -137,7 +137,10 @@ describe('createAutomationRule', () => {
     const res = await createAutomationRule(prisma, {
       companyId: 'co-1',
       authorId: 'u',
-      input: { ...VALID, actions: [{ ...VALID.actions[0]!, titleTemplate: 'Счёт {{order.nomer}}' }] },
+      input: {
+        ...VALID,
+        actions: [{ ...VALID.actions[0]!, titleTemplate: 'Счёт {{order.nomer}}' }],
+      },
     });
     expect(res.ok).toBe(false);
     if (res.ok) throw new Error('ожидали отказ');
@@ -157,10 +160,22 @@ describe('createAutomationRule', () => {
 
   it('пустое название или пустой список действий — отказ', async () => {
     expect(
-      (await createAutomationRule(prisma, { companyId: 'co-1', authorId: 'u', input: { ...VALID, name: '  ' } })).ok
+      (
+        await createAutomationRule(prisma, {
+          companyId: 'co-1',
+          authorId: 'u',
+          input: { ...VALID, name: '  ' },
+        })
+      ).ok
     ).toBe(false);
     expect(
-      (await createAutomationRule(prisma, { companyId: 'co-1', authorId: 'u', input: { ...VALID, actions: [] } })).ok
+      (
+        await createAutomationRule(prisma, {
+          companyId: 'co-1',
+          authorId: 'u',
+          input: { ...VALID, actions: [] },
+        })
+      ).ok
     ).toBe(false);
   });
 });
@@ -228,7 +243,12 @@ describe('toggleAutomationRule', () => {
   it('чужое правило — not_found', async () => {
     findFirst.mockResolvedValue(null);
     expect(
-      await toggleAutomationRule(prisma, { companyId: 'co-1', authorId: 'u', ruleId: 'x', isActive: true })
+      await toggleAutomationRule(prisma, {
+        companyId: 'co-1',
+        authorId: 'u',
+        ruleId: 'x',
+        isActive: true,
+      })
     ).toEqual({ ok: false, error: 'not_found' });
   });
 });

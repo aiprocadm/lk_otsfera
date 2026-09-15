@@ -64,7 +64,11 @@ beforeEach(() => {
 
 describe('getTaskDetail — доступ', () => {
   it('сессия без компании — forbidden, базу не трогаем', async () => {
-    const res = await getTaskDetail(prisma, { ...manager, companyId: null } as SessionPayload, 't1');
+    const res = await getTaskDetail(
+      prisma,
+      { ...manager, companyId: null } as SessionPayload,
+      't1'
+    );
     expect(res).toEqual({ ok: false, error: 'forbidden' });
     expect(taskFindUnique).not.toHaveBeenCalled();
   });
@@ -159,10 +163,7 @@ describe('getTaskDetail — что отдаёт', () => {
     const res = await getTaskDetail(prisma, manager, 't1');
     if (!res.ok) throw new Error('ожидали успех');
     expect(auditFindMany.mock.calls[0][0].where).toEqual({ entity: 'task', entityId: 't1' });
-    expect(auditFindMany.mock.calls[0][0].orderBy).toEqual([
-      { createdAt: 'desc' },
-      { id: 'desc' },
-    ]);
+    expect(auditFindMany.mock.calls[0][0].orderBy).toEqual([{ createdAt: 'desc' }, { id: 'desc' }]);
     expect(res.task.history[0]).toEqual({
       id: 'a1',
       at: new Date('2026-09-01'),

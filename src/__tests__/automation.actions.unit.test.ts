@@ -127,7 +127,12 @@ describe('runCreateTask', () => {
       companyId: 'co-1',
       ruleId: 'r1',
       authorId: 'u-author',
-      payload: { documentNumber: 'С-2026-17', documentId: 'd1', orderId: 'ord1', responsibleManagerId: 'm1' },
+      payload: {
+        documentNumber: 'С-2026-17',
+        documentId: 'd1',
+        orderId: 'ord1',
+        responsibleManagerId: 'm1',
+      },
     });
     expect(res.createdTaskIds).toEqual(['t1']);
     const data = createTaskCore.mock.calls[0][1];

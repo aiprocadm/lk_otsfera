@@ -9,7 +9,10 @@ import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import { settingsSectionHref } from '@/lib/navigation/settings';
 import { toast } from '@/lib/ui/toast';
 import { errorMessageRu } from '@/lib/errors/messages';
-import { toggleAutomationRuleAction, deleteAutomationRuleAction } from '@/server-actions/admin/automationRules';
+import {
+  toggleAutomationRuleAction,
+  deleteAutomationRuleAction,
+} from '@/server-actions/admin/automationRules';
 import type { AutomationRuleView, AutomationRunView } from '@/lib/services/automation/rules';
 import { AutomationRuleForm } from './automation-rule-form';
 
@@ -111,7 +114,9 @@ export function AutomationScreen({
             value={companyId ?? ''}
             onChange={(e) => {
               const value = e.target.value;
-              router.push(value ? `${self ?? ''}?companyId=${encodeURIComponent(value)}` : (self ?? ''));
+              router.push(
+                value ? `${self ?? ''}?companyId=${encodeURIComponent(value)}` : (self ?? '')
+              );
             }}
           >
             <option value="">Выберите компанию</option>

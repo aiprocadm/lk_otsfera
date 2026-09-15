@@ -11,6 +11,8 @@ import { setSlaSettings } from '@/lib/services/manager/slaSettings';
 const InputSchema = z.object({
   slaResponseHours: z.coerce.number().int(),
   slaWarningHours: z.coerce.number().int(),
+  // `У-225`: дни просрочки задачи до сообщения руководителю.
+  taskOverdueEscalationDays: z.coerce.number().int(),
 });
 
 export type SetSlaSettingsActionResult =
@@ -20,6 +22,7 @@ export type SetSlaSettingsActionResult =
 export async function setSlaSettingsAction(input: {
   slaResponseHours: number;
   slaWarningHours: number;
+  taskOverdueEscalationDays: number;
 }): Promise<SetSlaSettingsActionResult> {
   const parsed = InputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'validation' };
@@ -32,5 +35,7 @@ export async function setSlaSettingsAction(input: {
   revalidatePath('/leader/team');
   revalidatePath('/leader/intake');
   revalidatePath('/manager/intake');
+  // `У-225`: порог виден на дашборде руководителя (блок «Просроченные задачи»).
+  revalidatePath('/leader/dashboard');
   return { ok: true, changed: res.changed };
 }

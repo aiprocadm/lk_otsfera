@@ -154,7 +154,15 @@ export async function getContact(
  * `Task.linkedContactId` — ровно так, как обещал комментарий этапа 1: пустую
  * вкладку заранее не объявляли (`У-74`).
  */
-const CONTACT_TABS = ['dialogs', 'calls', 'inbound', 'deals', 'orders', 'tasks', 'history'] as const;
+const CONTACT_TABS = [
+  'dialogs',
+  'calls',
+  'inbound',
+  'deals',
+  'orders',
+  'tasks',
+  'history',
+] as const;
 export type ContactTabKey = (typeof CONTACT_TABS)[number];
 
 export function isContactTabKey(value: string): value is ContactTabKey {
