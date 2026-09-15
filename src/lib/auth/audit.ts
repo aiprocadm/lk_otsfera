@@ -312,6 +312,9 @@ export const AUDIT_ACTIONS = [
   'catalog_item_activated',
   'sync_triggered',
   'task_assigned',
+  // Этап 4 (`У-218`, `У-219`): обсуждение и чек-лист задачи.
+  'task_checklist_item_deleted',
+  'task_comment_added',
   'task_column_created',
   'task_column_deleted',
   'task_column_updated',

@@ -19,6 +19,13 @@ import {
   type TaskInput,
   type TaskErrorCode,
 } from '@/lib/services/tasks/tasks';
+import { addTaskComment, type TaskCommentErrorCode } from '@/lib/services/tasks/comments';
+import {
+  addChecklistItem,
+  toggleChecklistItem,
+  deleteChecklistItem,
+  type ChecklistErrorCode,
+} from '@/lib/services/tasks/checklist';
 import {
   createTaskColumn,
   updateTaskColumn,
@@ -36,6 +43,16 @@ import {
 function revalidate(): void {
   revalidatePath('/manager/tasks');
   revalidatePath('/leader/tasks');
+}
+
+/**
+ * Этап 4 (`У-218`): у задачи появилась своя страница, и после любого изменения
+ * её надо обновлять отдельно — доска и карточка это разные адреса.
+ */
+function revalidateTask(taskId: string): void {
+  revalidate();
+  revalidatePath(`/manager/tasks/${taskId}`);
+  revalidatePath(`/leader/tasks/${taskId}`);
 }
 
 function taskInput(fd: FormData): TaskInput {
@@ -60,9 +77,13 @@ export async function moveTaskAction(fd: FormData): Promise<ActionResult<MoveTas
   const taskId = str(fd, 'taskId');
   const toColumnId = str(fd, 'toColumnId');
   if (!taskId || !toColumnId) return { ok: false, error: 'not_found' };
-  const res = await moveTask(prisma, session, { taskId, toColumnId });
+  // `У-219`: «завершить всё равно» приходит вторым нажатием — то же действие с
+  // флагом. Отдельного экшена «принудительно» не заводим: это один и тот же
+  // перенос, просто с ответом на вопрос.
+  const force = fd.get('force') === 'on' || str(fd, 'force') === 'true';
+  const res = await moveTask(prisma, session, { taskId, toColumnId, force });
   if (!res.ok) return { ok: false, error: res.error };
-  revalidate();
+  revalidateTask(taskId);
   return { ok: true };
 }
 
@@ -82,7 +103,7 @@ export async function updateTaskAction(fd: FormData): Promise<ActionResult<TaskE
   if (!id) return { ok: false, error: 'validation' };
   const res = await updateTask(prisma, session, id, taskInput(fd));
   if (!res.ok) return { ok: false, error: res.error };
-  revalidate();
+  revalidateTask(id);
   return { ok: true };
 }
 
@@ -116,7 +137,60 @@ export async function assignTaskAction(fd: FormData): Promise<ActionResult<TaskE
   const assigneeIds = fd.getAll('assigneeIds').filter((v): v is string => typeof v === 'string');
   const res = await assignTask(prisma, session, { taskId, assigneeIds });
   if (!res.ok) return { ok: false, error: res.error };
-  revalidate();
+  revalidateTask(taskId);
+  return { ok: true };
+}
+
+/** `У-218`: комментарий в задаче. */
+export async function addTaskCommentAction(
+  fd: FormData
+): Promise<ActionResult<TaskCommentErrorCode>> {
+  const session = await requireSession();
+  const taskId = str(fd, 'taskId');
+  if (!taskId) return { ok: false, error: 'not_found' };
+  const res = await addTaskComment(prisma, session, { taskId, body: str(fd, 'body') });
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidateTask(taskId);
+  return { ok: true };
+}
+
+/** `У-219`: пункты чек-листа. */
+export async function addChecklistItemAction(
+  fd: FormData
+): Promise<ActionResult<ChecklistErrorCode>> {
+  const session = await requireSession();
+  const taskId = str(fd, 'taskId');
+  if (!taskId) return { ok: false, error: 'not_found' };
+  const res = await addChecklistItem(prisma, session, { taskId, title: str(fd, 'title') });
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidateTask(taskId);
+  return { ok: true };
+}
+
+export async function toggleChecklistItemAction(
+  fd: FormData
+): Promise<ActionResult<ChecklistErrorCode>> {
+  const session = await requireSession();
+  const itemId = str(fd, 'itemId');
+  const taskId = str(fd, 'taskId');
+  if (!itemId || !taskId) return { ok: false, error: 'not_found' };
+  const isDone = fd.get('isDone') === 'on' || str(fd, 'isDone') === 'true';
+  const res = await toggleChecklistItem(prisma, session, { itemId, isDone });
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidateTask(taskId);
+  return { ok: true };
+}
+
+export async function deleteChecklistItemAction(
+  fd: FormData
+): Promise<ActionResult<ChecklistErrorCode>> {
+  const session = await requireSession();
+  const itemId = str(fd, 'itemId');
+  const taskId = str(fd, 'taskId');
+  if (!itemId || !taskId) return { ok: false, error: 'not_found' };
+  const res = await deleteChecklistItem(prisma, session, itemId);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidateTask(taskId);
   return { ok: true };
 }
 

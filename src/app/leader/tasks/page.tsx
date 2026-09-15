@@ -42,9 +42,9 @@ export default async function LeaderTasksPage({
       </div>
       <TasksToolbar state={state} assigneeOptions={options.users} />
       {state.view === 'list' ? (
-        <TaskList board={board} options={options} />
+        <TaskList board={board} options={options} hrefBase="/leader/tasks" />
       ) : (
-        <TaskBoard board={board} options={options} />
+        <TaskBoard board={board} options={options} hrefBase="/leader/tasks" />
       )}
       <ListCapNotice
         shown={board.shown}

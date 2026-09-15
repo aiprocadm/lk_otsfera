@@ -98,6 +98,8 @@ const board: TaskBoardData = {
           linkedLeadSubject: null,
           linkedDealId: null,
           linkedDealTitle: null,
+          checklistDone: 0,
+          checklistTotal: 0,
         },
         {
           id: 'task-2',
@@ -119,6 +121,8 @@ const board: TaskBoardData = {
           linkedLeadSubject: null,
           linkedDealId: null,
           linkedDealTitle: null,
+          checklistDone: 0,
+          checklistTotal: 0,
         },
       ],
     },
@@ -257,10 +261,50 @@ describe('TaskBoard', () => {
 
   it('clicking a card opens the TaskDialog with that card as target', () => {
     render(React.createElement(TaskBoard, { board, options }));
-    fireEvent.click(screen.getByText('Проверить документы'));
+    // Этап 4 (`У-218`): заголовок карточки стал ССЫЛКОЙ на страницу задачи, и
+    // клик по нему больше не открывает диалог — он уводит на другой экран.
+    // Быстрое редактирование осталось на остальной площади карточки: отнимать
+    // привычный путь ради нового экрана было нельзя.
+    fireEvent.click(screen.getByText('Иван Петров'));
     expect(taskDialogSpy).toHaveBeenCalled();
     const lastCall = taskDialogSpy.mock.calls[taskDialogSpy.mock.calls.length - 1][0];
     expect(lastCall.target.id).toBe('task-1');
+  });
+
+  it('`У-218`: заголовок карточки ведёт на страницу задачи своего кабинета', () => {
+    const { unmount } = render(React.createElement(TaskBoard, { board, options }));
+    expect(screen.getByRole('link', { name: 'Проверить документы' }).getAttribute('href')).toBe(
+      '/manager/tasks/task-1'
+    );
+    unmount();
+    // Правило зеркала: у руководителя тот же экран, но в СВОЁМ кабинете.
+    render(React.createElement(TaskBoard, { board, options, hrefBase: '/leader/tasks' }));
+    expect(screen.getByRole('link', { name: 'Проверить документы' }).getAttribute('href')).toBe(
+      '/leader/tasks/task-1'
+    );
+  });
+
+  it('`У-219`: прогресс чек-листа виден на карточке, а без чек-листа подписи нет', () => {
+    const { unmount } = render(React.createElement(TaskBoard, { board, options }));
+    // Обе цифры 0 — чек-листа у задачи нет, и пустое «0/0» на карточке только мешало бы.
+    expect(screen.queryByText(/Чек-лист:/)).toBeNull();
+    unmount();
+
+    const withChecklist = {
+      ...board,
+      board: board.board.map((col, i) =>
+        i === 0
+          ? {
+              ...col,
+              cards: col.cards.map((c, j) =>
+                j === 0 ? { ...c, checklistDone: 3, checklistTotal: 5 } : c
+              ),
+            }
+          : col
+      ),
+    };
+    render(React.createElement(TaskBoard, { board: withChecklist, options }));
+    expect(screen.getByText('Чек-лист: 3/5')).toBeTruthy();
   });
 
   it('"+ Новая задача" opens the TaskDialog with a null target', () => {

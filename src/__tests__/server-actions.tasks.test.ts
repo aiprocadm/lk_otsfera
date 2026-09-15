@@ -68,12 +68,27 @@ describe('moveTaskAction', () => {
     moveTask.mockResolvedValue({ ok: true });
     const res = await moveTaskAction(form({ taskId: 't1', toColumnId: 'default:in_progress' }));
     expect(res).toEqual({ ok: true });
+    // `У-219`: флаг «завершить всё равно» передаётся ВСЕГДА и по умолчанию
+    // `false` — иначе сервис не отличил бы «не спрашивали» от «согласились».
     expect(moveTask).toHaveBeenCalledWith({}, SESSION, {
       taskId: 't1',
       toColumnId: 'default:in_progress',
+      force: false,
     });
     expect(revalidatePath).toHaveBeenCalledWith('/manager/tasks');
     expect(revalidatePath).toHaveBeenCalledWith('/leader/tasks');
+    // Этап 4: у задачи появилась своя страница — её тоже надо обновить.
+    expect(revalidatePath).toHaveBeenCalledWith('/manager/tasks/t1');
+    expect(revalidatePath).toHaveBeenCalledWith('/leader/tasks/t1');
+  });
+  it('«завершить всё равно» доходит до сервиса как force: true', async () => {
+    moveTask.mockResolvedValue({ ok: true });
+    await moveTaskAction(form({ taskId: 't1', toColumnId: 'default:done', force: 'true' }));
+    expect(moveTask).toHaveBeenCalledWith({}, SESSION, {
+      taskId: 't1',
+      toColumnId: 'default:done',
+      force: true,
+    });
   });
   it('missing ids → not_found, no service call', async () => {
     expect(await moveTaskAction(form({ taskId: 't1' }))).toEqual({ ok: false, error: 'not_found' });

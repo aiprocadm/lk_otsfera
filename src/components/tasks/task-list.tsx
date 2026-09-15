@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Badge, Select } from '@/components/ui';
 import { CardList, Card, CardRow } from '@/components/ui/card-list';
@@ -46,7 +47,16 @@ function isOverdue(card: TaskCard): boolean {
   return !!card.dueDate && !card.completedAt && new Date(card.dueDate).getTime() < Date.now();
 }
 
-export function TaskList({ board, options }: { board: TaskBoardData; options: TaskFormOptions }) {
+export function TaskList({
+  board,
+  options,
+  hrefBase = '/manager/tasks',
+}: {
+  board: TaskBoardData;
+  options: TaskFormOptions;
+  /** Куда ведёт название задачи: у руководителя свой кабинет (правило зеркала). */
+  hrefBase?: string;
+}) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [sort, setSort] = useState<TaskSortKey>('due');
@@ -82,6 +92,9 @@ export function TaskList({ board, options }: { board: TaskBoardData; options: Ta
             {rows.map((row) => (
               <Card
                 key={row.id}
+                // На телефоне заголовок карточки — единственный способ открыть
+                // быстрое редактирование, поэтому он им и остаётся. Ссылка на
+                // страницу задачи стоит рядом отдельной строкой (`У-218`).
                 title={
                   <button type="button" className="text-left" onClick={() => setEditing(row)}>
                     {row.title}
@@ -96,6 +109,11 @@ export function TaskList({ board, options }: { board: TaskBoardData; options: Ta
                 }
               >
                 <CardRow label="Колонка">{row.columnName}</CardRow>
+                <CardRow label="Карточка">
+                  <Link href={`${hrefBase}/${row.id}`} className="text-[#EA580C] hover:underline">
+                    Открыть
+                  </Link>
+                </CardRow>
                 <CardRow label="Срок">
                   <span className={isOverdue(row) ? 'text-red-600 font-medium' : undefined}>
                     {row.dueDate ? new Date(row.dueDate).toLocaleDateString('ru-RU') : '—'}
@@ -138,7 +156,17 @@ export function TaskList({ board, options }: { board: TaskBoardData; options: Ta
                     className="cursor-pointer hover:bg-[#FFF7ED]"
                     onClick={() => setEditing(row)}
                   >
-                    <td className="px-4 py-2.5 font-medium text-[#111111]">{row.title}</td>
+                    <td className="px-4 py-2.5 font-medium text-[#111111]">
+                      {/* `У-218`: название ведёт на страницу задачи; клик по
+                          остальной строке остаётся быстрым редактированием. */}
+                      <Link
+                        href={`${hrefBase}/${row.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="hover:text-[#EA580C] hover:underline"
+                      >
+                        {row.title}
+                      </Link>
+                    </td>
                     <td className="px-4 py-2.5 text-gray-600">{row.columnName}</td>
                     <td className="px-4 py-2.5">
                       {row.priority ? (

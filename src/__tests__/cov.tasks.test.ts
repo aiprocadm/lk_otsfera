@@ -367,6 +367,8 @@ describe('board.ts — listTaskBoard', () => {
     const prisma = {
       taskColumn: { findMany: vi.fn().mockResolvedValue([]) },
       task: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0) },
+      // Пустая доска — прогресс чек-листов даже не спрашивается, но мок нужен.
+      taskChecklistItem: { groupBy: vi.fn().mockResolvedValue([]) },
     } as unknown as PrismaClient;
     const board = await listTaskBoard(prisma, noCompany());
     expect(board.columns.map((c) => c.statusAnchor)).toEqual([
@@ -449,6 +451,15 @@ describe('board.ts — listTaskBoard', () => {
       task: {
         findMany: vi.fn().mockResolvedValue([cardWithLinks, cardNoLinks, cardOrphan]),
         count: vi.fn().mockResolvedValue(3),
+      },
+      // Этап 4 (`У-219`): доска добирает прогресс чек-листов одним группирующим
+      // запросом. Карточка «A» получает 1 из 2, «B» — ничего: обе ветки
+      // подстановки прогресса пройдены.
+      taskChecklistItem: {
+        groupBy: vi.fn().mockResolvedValue([
+          { taskId: 'A', isDone: true, _count: { _all: 1 } },
+          { taskId: 'A', isDone: false, _count: { _all: 1 } },
+        ]),
       },
     } as unknown as PrismaClient;
 

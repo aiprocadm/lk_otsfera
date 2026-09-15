@@ -4,6 +4,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { taskWhereForLevel, canSeeTask, NO_COMPANY_SENTINEL } from '@/lib/auth/accessProfile';
 import { resolveTaskColumns, columnForTask, type TaskColumnView } from '@/lib/tasks/columns';
 import { recordAudit } from '@/lib/auth/audit';
+import { hasOpenChecklistItems } from './checklist';
 
 /**
  * Трек G3 — доска задач (канбан). Задачи сгруппированы по колонкам (словарь
@@ -33,7 +34,35 @@ export type TaskCard = {
   linkedLeadSubject: string | null;
   linkedDealId: string | null;
   linkedDealTitle: string | null;
+  /** `У-219`: прогресс чек-листа «3/5». Обе цифры 0 — чек-листа нет, подпись не рисуется. */
+  checklistDone: number;
+  checklistTotal: number;
 };
+
+/**
+ * Прогресс чек-листов пачкой. Отдельный группирующий запрос, а не `include`
+ * пунктов в карточку: у доски предел 500 карточек, и подтянуть к каждой её
+ * пункты значило бы вытащить десятки тысяч строк ради двух цифр.
+ */
+async function checklistProgress(
+  prisma: PrismaClient,
+  taskIds: string[]
+): Promise<Map<string, { done: number; total: number }>> {
+  const progress = new Map<string, { done: number; total: number }>();
+  if (taskIds.length === 0) return progress;
+  const rows = await prisma.taskChecklistItem.groupBy({
+    by: ['taskId', 'isDone'],
+    where: { taskId: { in: taskIds } },
+    _count: { _all: true },
+  });
+  for (const row of rows) {
+    const current = progress.get(row.taskId) ?? { done: 0, total: 0 };
+    current.total += row._count._all;
+    if (row.isDone) current.done += row._count._all;
+    progress.set(row.taskId, current);
+  }
+  return progress;
+}
 
 type TaskBoardColumn = { column: TaskColumnView; cards: TaskCard[] };
 export type TaskBoard = {
@@ -87,7 +116,11 @@ const CARD_SELECT = {
 
 type CardRow = Prisma.TaskGetPayload<{ select: typeof CARD_SELECT }>;
 
-function toCard(t: CardRow, columnId: string): TaskCard {
+function toCard(
+  t: CardRow,
+  columnId: string,
+  checklist?: { done: number; total: number } | undefined
+): TaskCard {
   return {
     id: t.id,
     title: t.title,
@@ -108,6 +141,8 @@ function toCard(t: CardRow, columnId: string): TaskCard {
     linkedLeadSubject: t.linkedLead?.subject ?? null,
     linkedDealId: t.linkedDealId,
     linkedDealTitle: t.linkedDeal?.title ?? null,
+    checklistDone: checklist?.done ?? 0,
+    checklistTotal: checklist?.total ?? 0,
   };
 }
 
@@ -153,11 +188,15 @@ export async function listTaskBoard(
 
   const board: TaskBoardColumn[] = columns.map((column) => ({ column, cards: [] }));
   const byColumnId = new Map(board.map((c) => [c.column.id, c]));
+  const progress = await checklistProgress(
+    prisma,
+    tasks.map((t) => t.id)
+  );
 
   for (const t of tasks) {
     const column = columnForTask(columns, t);
     if (!column) continue; // статус без колонки (кастомный набор не покрывает якорь) — пропускаем
-    byColumnId.get(column.id)?.cards.push(toCard(t, column.id));
+    byColumnId.get(column.id)?.cards.push(toCard(t, column.id, progress.get(t.id)));
   }
 
   return { columns, board, shown: tasks.length, total };
@@ -190,10 +229,14 @@ export async function listLinkedTasks(
     take: 50,
     select: CARD_SELECT,
   });
+  const progress = await checklistProgress(
+    prisma,
+    tasks.map((t) => t.id)
+  );
   return tasks
     .map((t) => {
       const column = columnForTask(columns, t);
-      return column ? toCard(t, column.id) : null;
+      return column ? toCard(t, column.id, progress.get(t.id)) : null;
     })
     .filter((c): c is TaskCard => c !== null);
 }
@@ -244,12 +287,22 @@ export async function getTaskFormOptions(
   return { users, organizations, orders, organizationsTotal, ordersTotal };
 }
 
-export type MoveTaskError = 'not_found' | 'forbidden' | 'invalid_column';
+export type MoveTaskError = 'not_found' | 'forbidden' | 'invalid_column' | 'checklist_incomplete';
 
+/**
+ * Перемещение карточки. Единственный сайд-эффект — done-колонка ставит
+ * `completedAt`.
+ *
+ * Этап 4 (`У-219`, `Р-Э4-9`): перевод в готовую колонку при незакрытом
+ * чек-листе возвращает `checklist_incomplete`. Это **не запрет**, а вопрос:
+ * интерфейс показывает «в чек-листе остались пункты — завершить всё равно?», и
+ * повторный вызов приходит с `force: true`. Жёсткий замок здесь был бы
+ * вредительством — пункт «позвонить» иногда становится неактуальным.
+ */
 export async function moveTask(
   prisma: PrismaClient,
   session: SessionPayload,
-  args: { taskId: string; toColumnId: string }
+  args: { taskId: string; toColumnId: string; force?: boolean }
 ): Promise<{ ok: true } | { ok: false; error: MoveTaskError }> {
   if (!session.companyId) return { ok: false, error: 'forbidden' };
 
@@ -278,6 +331,15 @@ export async function moveTask(
     linkedOrganizationId: task.linkedOrganizationId,
   };
   if (!canSeeTask(session, scopeTask)) return { ok: false, error: 'not_found' }; // scope: не leak-аем
+
+  // `У-219`: спрашиваем ТОЛЬКО при переводе в готовую колонку и только если
+  // задача ещё не была завершена — повторное перетаскивание внутри «Готово» не
+  // должно каждый раз переспрашивать.
+  if (target.isDoneColumn && !task.completedAt && !args.force) {
+    if (await hasOpenChecklistItems(prisma, task.id)) {
+      return { ok: false, error: 'checklist_incomplete' };
+    }
+  }
 
   // Синтетический дефолт-id (`default:*`) не FK — columnId остаётся null (колонка
   // выводится из status-якоря); кастомная колонка → реальный cuid.

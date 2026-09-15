@@ -4,8 +4,8 @@ import { createNotification, deliverNotificationToUser } from './core';
 
 type PrismaLike = PrismaClient | Prisma.TransactionClient;
 
-/** Где написана заметка: по сделке (заказу), по организации или в диалоге. */
-type NoteMentionEntity = 'deal' | 'organization' | 'dialog';
+/** Где написана заметка: по сделке (заказу), по организации, в диалоге или в задаче. */
+type NoteMentionEntity = 'deal' | 'organization' | 'dialog' | 'task';
 
 export type NoteMentionInput = {
   /** Кого упомянули — id пользователей; автора вызывающий уже исключил. */
@@ -23,6 +23,8 @@ const TITLE_RU: Record<NoteMentionEntity, string> = {
   deal: 'Вас упомянули в заметке по заказу',
   organization: 'Вас упомянули в заметке по организации',
   dialog: 'Вас упомянули в заметке к переписке',
+  // Этап 4 (`У-218`): обсуждение внутри задачи — та же механика упоминаний.
+  task: 'Вас упомянули в обсуждении задачи',
 };
 
 const EXCERPT_MAX = 200;
@@ -50,7 +52,9 @@ export async function notifyNoteMention(
       ? { entity: input.entity, orderId: input.entityId, noteId: input.noteId }
       : input.entity === 'dialog'
         ? { entity: input.entity, dialogId: input.entityId, noteId: input.noteId }
-        : { entity: input.entity, organizationId: input.entityId, noteId: input.noteId };
+        : input.entity === 'task'
+          ? { entity: input.entity, taskId: input.entityId, noteId: input.noteId }
+          : { entity: input.entity, organizationId: input.entityId, noteId: input.noteId };
   let notified = 0;
   try {
     const recipients = await prisma.user.findMany({

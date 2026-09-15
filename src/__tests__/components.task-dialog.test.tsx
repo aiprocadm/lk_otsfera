@@ -75,6 +75,8 @@ const task: TaskCard = {
   linkedLeadSubject: null,
   linkedDealId: null,
   linkedDealTitle: null,
+  checklistDone: 0,
+  checklistTotal: 0,
 };
 
 function renderDialog(props: React.ComponentProps<typeof TaskDialog>) {
