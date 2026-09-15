@@ -8,46 +8,113 @@ import {
 } from '@/lib/auth/managerPolicy';
 import { recordAudit } from '@/lib/auth/audit';
 import { recordPiiAccess } from '@/lib/pii/record';
-import { MESSENGER_CHANNELS, type MessengerChannel } from './channels';
+import { normalizeChannelValue } from '@/lib/services/contacts/resolveContactByChannel';
+import { DIALOG_CHANNELS, type DialogChannel } from './channels';
+import { isMessengerAvailable } from './availability';
 import { upsertDialog } from './dialog';
 
-/** С кем можно начать диалог: человек и мессенджеры, где его адрес известен. */
+/**
+ * Канал в списке «кому написать» — вместе с ответом «почему нельзя» (`У-216`).
+ *
+ * Раньше недоступный канал просто не показывался, и человек оставался без
+ * объяснения: кнопка «Написать» есть, а Telegram в списке нет — почему? Две
+ * причины выглядят одинаково («нет канала»), а лечатся по-разному: адрес
+ * неизвестен — это к клиенту («нажмите Старт в боте»), канал не подключён — к
+ * администратору (настройки интеграции).
+ */
+type CandidateChannel = {
+  channel: DialogChannel;
+  /** Можно ли написать прямо сейчас. */
+  available: boolean;
+  /** Человеческое объяснение, когда нельзя; `null`, когда можно. */
+  reason: string | null;
+};
+
+/** С кем можно начать диалог: человек и состояние каждого канала связи. */
 export type DialogCandidate = {
   kind: 'user' | 'contact';
   id: string;
   name: string;
+  organizationId: string | null;
   organizationName: string | null;
-  channels: MessengerChannel[];
+  channels: CandidateChannel[];
 };
 
 const CANDIDATES_CAP = 200;
 
+/** Почему адреса нет — по каналам. Формулировки разные не для красоты: */
+const NO_ADDRESS_REASON: Record<DialogChannel, string> = {
+  // …в Telegram и MAX бот физически не может написать первым, пока человек не
+  // нажал «Старт»: это правило самих мессенджеров, а не наша настройка.
+  telegram: 'Человек не нажимал «Старт» в нашем боте Telegram — до этого написать ему нельзя.',
+  max: 'Человек не нажимал «Старт» в нашем боте MAX — до этого написать ему нельзя.',
+  // …в WhatsApp и почте нужен просто известный адрес, и его можно добавить.
+  // «В карточке этого человека», а не «контакта»: в списке есть и пользователи
+  // кабинета, у которых номер лежит в профиле, — прежняя формулировка
+  // отправляла бы искать его не туда.
+  whatsapp: 'Номер WhatsApp неизвестен — укажите его в карточке этого человека.',
+  email: 'Адрес почты неизвестен — укажите его в карточке этого человека.',
+};
+
+const CHANNEL_OFF_REASON = 'Канал не подключён в настройках — обратитесь к администратору.';
+
+/** Состояние канала: адрес известен? канал включён? */
+function channelState(channel: DialogChannel, address: string | null): CandidateChannel {
+  if (!address) return { channel, available: false, reason: NO_ADDRESS_REASON[channel] };
+  if (!isMessengerAvailable(channel)) {
+    return { channel, available: false, reason: CHANNEL_OFF_REASON };
+  }
+  return { channel, available: true, reason: null };
+}
+
 /**
- * Кандидаты для «Нового диалога» (Р-М-8): пользователи кабинетов с привязанным
- * мессенджером и контакты компании с каналом мессенджера — в охвате
- * сотрудника (командная видимость / закреплённые организации). Человек без
- * известного адреса в списке не появляется: в Telegram и MAX бот не может
- * написать первым тому, кто не нажал «Start».
+ * Кандидаты для «Нового диалога» (Р-М-8, `У-216`): пользователи кабинетов и
+ * контакты компании в охвате сотрудника, с состоянием каждого канала связи.
+ *
+ * `organizationId` сужает список до людей одной организации — так открывается
+ * «Написать первым» с карточки организации. И тогда же меняется правило
+ * отбора: показываем ВСЕХ её людей, даже тех, кому написать сейчас нельзя.
+ * Человек пришёл сюда с конкретным вопросом «как связаться с этой
+ * организацией» — пустой список не ответ, а причина у каждого канала ответ.
+ *
+ * Без фильтра список общий, и в нём остаются только те, кому написать можно:
+ * иначе в справочник на тысячу контактов пришлось бы всматриваться, чтобы
+ * найти доступных.
  */
 export async function listDialogCandidates(
   prisma: PrismaClient,
-  session: SessionPayload
+  session: SessionPayload,
+  opts: { organizationId?: string } = {}
 ): Promise<DialogCandidate[]> {
   if (!session.companyId) return [];
+  // Локальная константа, а не `opts.organizationId` по месту: со строгими
+  // необязательными полями (`exactOptionalPropertyTypes`) TypeScript иначе не
+  // видит, что внутри ветки значение точно есть.
+  const orgId = opts.organizationId;
   const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
-  const orgScope: Prisma.OrganizationWhereInput = managerOrgScope(session, teamMode);
+  // Руководитель видит всю свою компанию — ровно как решает `startDialog` ниже
+  // (`isManagerLeader` в `orgAllowed`). Без этой ветки `managerOrgScope` при
+  // выключенной командной видимости возвращает список закреплённых организаций,
+  // а у руководителя он обычно пуст: экран показывал бы «некому написать» там,
+  // где сервер написать РАЗРЕШАЕТ. Экран и сервер обязаны говорить одно и то же.
+  const orgScope: Prisma.OrganizationWhereInput = isManagerLeader(session)
+    ? { companyId: session.companyId }
+    : managerOrgScope(session, teamMode);
 
   const [users, contacts] = await Promise.all([
     prisma.user.findMany({
       where: {
         role: 'organization',
         isActive: true,
-        organization: orgScope,
-        OR: [
-          { telegramChatId: { not: null } },
-          { maxChatId: { not: null } },
-          { whatsappPhone: { not: null } },
-        ],
+        organization: orgId ? { AND: [orgScope, { id: orgId }] } : orgScope,
+        // Отбора по «есть хоть один адрес» у пользователей кабинета нет
+        // намеренно: адрес почты у них есть ВСЕГДА — это их логин, а с `У-205`
+        // почта такой же канал диалога. Пока здесь стоял `OR` по трём
+        // мессенджерам, сотрудник организации без бота в списке не появлялся,
+        // хотя написать ему было можно — и соседняя ветка контактов, которая
+        // отбирает по `DIALOG_CHANNELS`, его бы показала. Асимметрия по одному
+        // и тому же правилу — худший вид расхождения: оба места выглядят
+        // правильными по отдельности.
       },
       select: {
         id: true,
@@ -56,7 +123,7 @@ export async function listDialogCandidates(
         telegramChatId: true,
         maxChatId: true,
         whatsappPhone: true,
-        organization: { select: { name: true } },
+        organization: { select: { id: true, name: true } },
       },
       orderBy: { name: 'asc' },
       take: CANDIDATES_CAP,
@@ -65,15 +132,20 @@ export async function listDialogCandidates(
       where: {
         companyId: session.companyId,
         isArchived: false,
-        OR: [{ organizationId: null }, { organization: orgScope }],
-        channels: { some: { type: { in: [...MESSENGER_CHANNELS] } } },
+        ...(orgId
+          ? { organizationId: orgId, organization: orgScope }
+          : {
+              OR: [{ organizationId: null }, { organization: orgScope }],
+              channels: { some: { type: { in: [...DIALOG_CHANNELS] } } },
+            }),
       },
       select: {
         id: true,
         name: true,
+        organizationId: true,
         organization: { select: { name: true } },
         channels: {
-          where: { type: { in: [...MESSENGER_CHANNELS] } },
+          where: { type: { in: [...DIALOG_CHANNELS] } },
           select: { type: true },
         },
       },
@@ -87,20 +159,30 @@ export async function listDialogCandidates(
       kind: 'user' as const,
       id: u.id,
       name: u.name?.trim() || u.email,
+      organizationId: u.organization?.id ?? null,
       organizationName: u.organization?.name ?? null,
       channels: [
-        ...(u.telegramChatId ? (['telegram'] as const) : []),
-        ...(u.maxChatId ? (['max'] as const) : []),
-        ...(u.whatsappPhone ? (['whatsapp'] as const) : []),
+        channelState('telegram', u.telegramChatId),
+        channelState('max', u.maxChatId),
+        channelState('whatsapp', u.whatsappPhone),
+        // У пользователя кабинета адрес почты есть всегда — это его логин.
+        channelState('email', u.email),
       ],
     })),
-    ...contacts.map((c) => ({
-      kind: 'contact' as const,
-      id: c.id,
-      name: c.name,
-      organizationName: c.organization?.name ?? null,
-      channels: [...new Set(c.channels.map((ch) => ch.type as MessengerChannel))],
-    })),
+    ...contacts.map((c) => {
+      const known = new Set(c.channels.map((ch) => ch.type));
+      return {
+        kind: 'contact' as const,
+        id: c.id,
+        name: c.name,
+        organizationId: c.organizationId,
+        organizationName: c.organization?.name ?? null,
+        // Адрес сам по себе не нужен: наружу отдаётся только «можно/нельзя».
+        // Писать телефон и chatId в список кандидатов значило бы разложить ПДн
+        // по экранам без нужды.
+        channels: DIALOG_CHANNELS.map((ch) => channelState(ch, known.has(ch) ? 'known' : null)),
+      };
+    }),
   ];
 
   await recordPiiAccess(prisma, {
@@ -115,7 +197,11 @@ export async function listDialogCandidates(
 export type StartDialogArgs = {
   kind: 'user' | 'contact';
   id: string;
-  channel: MessengerChannel;
+  /**
+   * `У-216`: с этапа 3 первым можно написать и по почте — после `У-205` она
+   * такой же двусторонний канал диалога, как мессенджеры.
+   */
+  channel: DialogChannel;
 };
 
 export type StartDialogResult =
@@ -169,12 +255,16 @@ export async function startDialog(
       return { ok: false, error: 'forbidden' };
     }
     if (!orgAllowed(user.organization.id)) return { ok: false, error: 'forbidden' };
+    // Почта — отдельная ветка, а не «всё остальное»: при добавлении канала в
+    // хвост тернарника письмо ушло бы на номер WhatsApp.
     const peerRef =
       args.channel === 'telegram'
         ? user.telegramChatId
         : args.channel === 'max'
           ? user.maxChatId
-          : user.whatsappPhone;
+          : args.channel === 'whatsapp'
+            ? user.whatsappPhone
+            : normalizeChannelValue('email', user.email);
     if (!peerRef) return { ok: false, error: 'no_messenger_channel' };
     target = {
       peerRef,

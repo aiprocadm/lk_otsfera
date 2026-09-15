@@ -68,7 +68,9 @@ describe('реестр вкладок карточки организации (�
 
   it('`У-96`: у партнёра нет вкладок внутреннего контура и оплат', () => {
     const partner = orgCardTabsFor('partner', { flags: () => true }).map((t) => t.key);
-    for (const forbidden of ['payments', 'leads', 'deals', 'calls', 'inbound']) {
+    // `dialogs` (`У-210`) — в том же списке: переписка учебного центра с
+    // клиентом это внутренняя кухня продавца, партнёру её не показывают.
+    for (const forbidden of ['payments', 'leads', 'deals', 'calls', 'inbound', 'dialogs']) {
       expect(partner).not.toContain(forbidden as OrgCardTabKey);
     }
     // `У-96`: «История» — журнал действий учебного центра (кто и что менял).
@@ -84,7 +86,10 @@ describe('реестр вкладок карточки организации (�
     const org = orgCardTabsFor('organization', { flags: () => true }).map((t) => t.key);
     expect(org).toContain('employees');
     expect(org).toContain('settings');
-    for (const forbidden of ['leads', 'deals', 'calls', 'inbound', 'payments']) {
+    // `dialogs` (`У-210`): своя переписка с менеджером придёт заказчику
+    // отдельным экраном (`У-234`), а не вкладкой карточки организации — там
+    // другой объём и другие права, поэтому исключение записано в `У-121`.
+    for (const forbidden of ['leads', 'deals', 'calls', 'inbound', 'payments', 'dialogs']) {
       expect(org).not.toContain(forbidden as OrgCardTabKey);
     }
   });

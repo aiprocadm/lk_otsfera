@@ -2,6 +2,7 @@ import { join, sep } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import { readSource } from './helpers/source';
+import { PUBLIC_API_ROUTES } from '@/lib/api/publicRoutes';
 
 /**
  * Каждый API-роут сам спрашивает, кто его зовёт.
@@ -58,6 +59,10 @@ const PUBLIC_BY_DESIGN: Array<{ route: string; why: string }> = [
     route: 'src/app/api/auth/2fa/resend/route.ts',
     why: 'Повторная отправка кода на том же до-сессионном шаге. Защита — тот же pre-auth токен плюс пауза 30 с между отправками и не более трёх повторов на десятиминутное окно challenge.',
   },
+  {
+    route: 'src/app/api/public/requests/route.ts',
+    why: 'Заявка с формы на сайте (`У-211`): её присылает посторонний человек, сессии у него нет и быть не может. Проверка вызывающего ЕСТЬ, но живёт слоем ниже — в `submitWebsiteRequest` (токен формы через `secretEquals`, список доменов, предел частоты). Страж читает только файл роута и этого не видит; роут остаётся тонким намеренно (§3).',
+  },
 ];
 
 const HANDLER = /^export async function (GET|POST|PUT|PATCH|DELETE)/gm;
@@ -90,6 +95,21 @@ describe('api-routes: каждый обработчик спрашивает п�
     expect(mw, 'matcher middleware изменился — перечитай правило').toMatch(
       /matcher:\s*\[\s*'\/\(\(\?!api\|/
     );
+  });
+
+  it('исключение этого стража объявлено и в общем реестре публичных адресов', () => {
+    // Списков «что открыто наружу» в проекте два, и вопросы у них разные:
+    // здесь — «обработчик вообще спрашивает вызывающего?», в
+    // `PUBLIC_API_ROUTES` — «адрес работает без сессии?». Пересекаться они
+    // обязаны в одну сторону: всё, что освобождено ЗДЕСЬ, обязано быть заявлено
+    // ТАМ. Без этой проверки списки разъезжаются молча — так и случилось:
+    // `api/public/requests` попал в новый реестр и не попал в этот.
+    const declared = new Set(PUBLIC_API_ROUTES.map((r) => `src/app${r.path}/route.ts`));
+    const missing = PUBLIC_BY_DESIGN.map((e) => e.route).filter((r) => !declared.has(r));
+    expect(
+      missing,
+      `Эти адреса освобождены здесь, но не заявлены в PUBLIC_API_ROUTES:\n${missing.join('\n')}`
+    ).toEqual([]);
   });
 
   it('ни один обработчик не отвечает без проверки вызывающего', () => {

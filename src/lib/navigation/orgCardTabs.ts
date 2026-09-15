@@ -35,6 +35,7 @@ export type OrgCardTabKey =
   | 'deals'
   | 'comments'
   | 'notes'
+  | 'dialogs'
   | 'calls'
   | 'inbound'
   | 'history'
@@ -114,6 +115,23 @@ export const ORG_CARD_TABS: readonly OrgCardTab[] = [
   { key: 'leads', label: 'Лиды', iconKey: 'leads', cabinets: STAFF },
   { key: 'deals', label: 'Сделки', iconKey: 'deals', cabinets: STAFF, flag: 'deals_pipeline' },
 
+  // `У-210` (этап 3 ТЗ 12.09.2026): «Диалоги» — переписка с людьми этой
+  // организации в мессенджерах и по почте. Стоит перед «Звонками» и
+  // «Входящими письмами» — тем же порядком, что и в карточке контакта
+  // (`contactCardTabs.ts`), чтобы способы связи шли одинаково везде.
+  //
+  // Исключение зеркала с причиной (`У-121`): вкладки нет ни у партнёра, ни у
+  // заказчика. Это переписка учебного центра с клиентом — внутренняя кухня
+  // продавца, как «Контакты» и «Заметки». Клиенту его собственная переписка с
+  // менеджером показывается отдельным экраном (`У-234`, этап 7), а не этой
+  // вкладкой: там другой объём и другие права.
+  {
+    key: 'dialogs',
+    label: 'Диалоги',
+    iconKey: 'messengers',
+    cabinets: STAFF,
+    flag: 'inbound_messaging',
+  },
   { key: 'calls', label: 'Звонки', iconKey: 'calls', cabinets: STAFF, flag: 'telephony_mango' },
   {
     key: 'inbound',

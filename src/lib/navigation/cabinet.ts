@@ -34,8 +34,7 @@ type NavItemSpec = {
    */
   pinnedBottom?: boolean;
   /** Этап 7 (ФТ-8.4): ключ живого счётчика из GET /api/staff/badges (рендерит NavBadge). */
-  badgeKey?:
-    'intake' | 'tasksOverdue' | 'clientRequestsNew' | 'messagesUnread' | 'messengersUnread';
+  badgeKey?: 'intake' | 'tasksOverdue' | 'clientRequestsNew' | 'messagesUnread' | 'dialogsWaiting';
 };
 
 /**
@@ -313,7 +312,7 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       group: 'Коммуникации',
       sectionKey: 'messengers',
       flag: 'inbound_messaging',
-      badgeKey: 'messengersUnread',
+      badgeKey: 'dialogsWaiting',
     },
     {
       href: '/manager/calls',

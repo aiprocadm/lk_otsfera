@@ -130,7 +130,7 @@ describe('listOrgHistory (У-184)', () => {
     expect(res.items.map((i) => i.title)).toEqual([
       'Вопрос по счёту',
       'Входящий звонок',
-      'Диалог в Telegram',
+      'Диалог · Telegram',
       'Заметка',
       'Изменение организации',
     ]);

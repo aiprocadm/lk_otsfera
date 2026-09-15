@@ -14,9 +14,11 @@ vi.mock('@/lib/pii/record', () => ({ recordPiiAccess }));
 const { unreadCount } = vi.hoisted(() => ({ unreadCount: vi.fn() }));
 vi.mock('@/lib/services/chat/threads', () => ({ unreadCount }));
 
-// Спека 2026-09-12: непрочитанные диалоги мессенджеров — свой сервис.
-const { countUnreadDialogs } = vi.hoisted(() => ({ countUnreadDialogs: vi.fn() }));
-vi.mock('@/lib/services/messengers/list', () => ({ countUnreadDialogs }));
+// `У-215`: бейдж «Мессенджеров» считает ждущие ДИАЛОГИ, а не непрочитанные
+// сообщения, и считает их отдельный сервис — здесь он замокан, чтобы проверять
+// сборку бейджей, а не запрос к базе (его проверяет `messengers.list`).
+const { countWaitingDialogs } = vi.hoisted(() => ({ countWaitingDialogs: vi.fn() }));
+vi.mock('@/lib/services/messengers/list', () => ({ countWaitingDialogs }));
 
 import {
   listIntake,
@@ -35,7 +37,7 @@ const partner = (): SessionPayload => ({ sub: 'p1', role: 'partner' }) as unknow
 
 beforeEach(() => {
   unreadCount.mockResolvedValue({ ok: true, count: 3 });
-  countUnreadDialogs.mockResolvedValue(4);
+  countWaitingDialogs.mockResolvedValue(4);
 });
 
 const H = 3_600_000;
@@ -471,7 +473,7 @@ describe('countIntake / getStaffBadges', () => {
     expect(await countIntake(prisma, partner())).toBe(0);
   });
 
-  it('getStaffBadges собирает все пять счётчиков меню (ФТ-8.4 + ФТ-15.2 + мессенджеры)', async () => {
+  it('getStaffBadges собирает все пять счётчиков меню (ФТ-8.4 + ФТ-15.2 + диалоги)', async () => {
     const { prisma, base } = makePrisma({
       // count вызывается дважды: Intake-часть и «новые обращения» (ФТ-15.2).
       clientRequest: {
@@ -480,20 +482,42 @@ describe('countIntake / getStaffBadges', () => {
       },
       task: { count: vi.fn().mockResolvedValue(7) },
     });
+    // Набор ключей проверяется строгим toEqual специально: лишний или
+    // потерянный счётчик — это пункт меню без цифры или цифра без пункта.
     expect(await getStaffBadges(prisma, manager())).toEqual({
       intake: 1,
       tasksOverdue: 7,
       clientRequestsNew: 5,
       messagesUnread: 3,
-      messengersUnread: 4,
+      dialogsWaiting: 4,
     });
-    expect(countUnreadDialogs).toHaveBeenCalledWith(prisma, manager());
+    expect(countWaitingDialogs).toHaveBeenCalledWith(prisma, manager());
     const where = (base.task.count as ReturnType<typeof vi.fn>).mock.calls[0]![0].where;
     expect(JSON.stringify(where)).toContain('dueDate');
 
     // «новые обращения» — только статус submitted, поверх скоупа роли.
     const reqWhere = (base.clientRequest.count as ReturnType<typeof vi.fn>).mock.calls[1]![0].where;
     expect(JSON.stringify(reqWhere)).toContain('submitted');
+  });
+
+  it('`У-215`: в бейдж диалогов попадает число ЖДУЩИХ дел, а не непрочитанных сообщений', async () => {
+    // Смысл цифры важнее самой цифры. Сервис ждущих диалогов может вернуть
+    // ноль при куче непрочитанных реплик (на всё уже ответили) — и тогда пункт
+    // меню обязан молчать. Раньше на его месте стояла сумма непрочитанных
+    // сообщений, и отвеченный диалог продолжал висеть с цифрой.
+    countWaitingDialogs.mockResolvedValueOnce(0);
+    const { prisma } = makePrisma({
+      clientRequest: {
+        findMany: vi.fn(),
+        count: vi.fn().mockResolvedValueOnce(0).mockResolvedValueOnce(0),
+      },
+      task: { count: vi.fn().mockResolvedValue(0) },
+    });
+    const quiet = await getStaffBadges(prisma, manager());
+    expect(quiet.dialogsWaiting).toBe(0);
+    // При этом непрочитанная переписка кабинета — отдельный счётчик и своим
+    // нулём не становится: это два разных пункта меню.
+    expect(quiet.messagesUnread).toBe(3);
   });
 
   it('getStaffBadges: непрочитанные вне скоупа дают 0, а не падение', async () => {

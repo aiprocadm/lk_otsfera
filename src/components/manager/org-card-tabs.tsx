@@ -13,6 +13,7 @@ import {
   Td,
 } from '@/components/ui';
 import { CallsList } from '@/components/manager/calls-list';
+import { OrgDialogsSection } from '@/components/manager/org-dialogs-section';
 import { LeadStatusBadge } from '@/components/partner/lead-status-badge';
 import { clientRequestStatusLabel } from '@/lib/services/clientRequests/labels';
 import { enrollmentStatusLabel } from '@/lib/services/enrollments/labels';
@@ -62,6 +63,8 @@ export function OrgCardTabs({
   hrefFor,
   certificatesExport,
   leadHref,
+  dialogHref,
+  writeFirstHref,
   headerExtra,
 }: {
   card: OrganizationCard;
@@ -131,6 +134,10 @@ export function OrgCardTabs({
    * `leads`), а `/manager/*` для него мёртвая дверь (Model A).
    */
   leadHref?: LeadHref;
+  /** Куда ведёт строка диалога; `null` — не вести никуда (кабинет админа). */
+  dialogHref?: DialogHref;
+  /** Куда ведёт кнопка «Написать первым» на пустой вкладке «Диалоги». */
+  writeFirstHref?: string | null;
   /**
    * Строка под заголовком после «Партнёр: …» — администратору нужна
    * «Компания: …», он видит организации всех учебных центров.
@@ -205,16 +212,31 @@ export function OrgCardTabs({
         ) : activeTab === 'overview' ? (
           <div className="space-y-4">
             {overviewExtra}
-            {renderSection(card, activeTab, { certificatesExport, leadHref })}
+            {renderSection(card, activeTab, {
+              certificatesExport,
+              leadHref,
+              dialogHref,
+              writeFirstHref,
+            })}
           </div>
         ) : activeTab === 'documents' ? (
           <div className="space-y-3">
             {documentsAction && <div className="flex justify-end">{documentsAction}</div>}
             {proposals}
-            {renderSection(card, activeTab, { certificatesExport, leadHref })}
+            {renderSection(card, activeTab, {
+              certificatesExport,
+              leadHref,
+              dialogHref,
+              writeFirstHref,
+            })}
           </div>
         ) : (
-          renderSection(card, activeTab, { certificatesExport, leadHref })
+          renderSection(card, activeTab, {
+            certificatesExport,
+            leadHref,
+            dialogHref,
+            writeFirstHref,
+          })
         )}
       </section>
     </div>
@@ -261,6 +283,11 @@ export function OrgCardTabsNav({
 
 type CertificatesExport = { base: string; params?: Record<string, string> };
 type LeadHref = ((id: string) => string) | null;
+/**
+ * Ссылка на диалог. `null` — у администратора: раздел «Мессенджеры» живёт под
+ * `/manager/*`, куда admin не ходит (Model A), и ссылка вела бы в отказ.
+ */
+type DialogHref = ((id: string) => string) | null;
 
 /**
  * `С-6` (сопровождение, прогон №4): какое поле карточки показывает вкладка.
@@ -274,6 +301,7 @@ const LIST_KEY_BY_TAB: Partial<Record<OrgCardTabKey, OrgCardListKey>> = {
   certificates: 'certificates',
   comments: 'activity',
   inbound: 'inboundMessages',
+  dialogs: 'dialogs',
   calls: 'calls',
   requests: 'clientRequests',
   leads: 'leads',
@@ -291,7 +319,12 @@ const CAP_HINT_BY_KEY: Partial<Record<OrgCardListKey, string>> = {
 function renderSection(
   card: OrganizationCard,
   tab: OrgCardTabKey,
-  links: { certificatesExport?: CertificatesExport | undefined; leadHref?: LeadHref | undefined }
+  links: {
+    certificatesExport?: CertificatesExport | undefined;
+    leadHref?: LeadHref | undefined;
+    dialogHref?: DialogHref | undefined;
+    writeFirstHref?: string | null | undefined;
+  }
 ): React.ReactNode {
   const body = renderSectionBody(card, tab, links);
   const key = LIST_KEY_BY_TAB[tab];
@@ -311,7 +344,12 @@ function renderSection(
 function renderSectionBody(
   card: OrganizationCard,
   tab: OrgCardTabKey,
-  links: { certificatesExport?: CertificatesExport | undefined; leadHref?: LeadHref | undefined }
+  links: {
+    certificatesExport?: CertificatesExport | undefined;
+    leadHref?: LeadHref | undefined;
+    dialogHref?: DialogHref | undefined;
+    writeFirstHref?: string | null | undefined;
+  }
 ): React.ReactNode {
   switch (tab) {
     case 'orders':
@@ -335,6 +373,16 @@ function renderSectionBody(
       return <CommentsSection activity={card.activity} />;
     case 'inbound':
       return <InboundMessagesSection inboundMessages={card.inboundMessages} />;
+    case 'dialogs':
+      return (
+        <OrgDialogsSection
+          dialogs={card.dialogs}
+          dialogHref={
+            links.dialogHref === undefined ? (id) => `/manager/messengers/${id}` : links.dialogHref
+          }
+          writeFirstHref={links.writeFirstHref ?? null}
+        />
+      );
     case 'calls':
       return <CallsList items={card.calls} />;
     case 'requests':

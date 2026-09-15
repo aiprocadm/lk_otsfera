@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { countUnreadDialogs, listDialogs } from '@/lib/services/messengers/list';
+import { countWaitingDialogs, listDialogs } from '@/lib/services/messengers/list';
 import { getDialog, markDialogRead } from '@/lib/services/messengers/get';
 import { sendDialogMessage } from '@/lib/services/messengers/send';
 import { setDialogStatus } from '@/lib/services/messengers/status';
@@ -23,26 +23,85 @@ let dialogB = '';
 let dialogFree = '';
 let managerA: SessionPayload;
 let managerB: SessionPayload;
+/**
+ * Ничейные незакрытые диалоги, заведённые НЕ этим тестом. База интеграционного
+ * слоя общая, а общая очередь (`companyId IS NULL`) видна всем компаниям сразу
+ * — поэтому точные ожидания счётчика строятся поверх этого фона.
+ */
+let freeNoise = 0;
 
 beforeAll(async () => {
   const cA = await prisma.company.create({ data: { name: `${STAMP}-coA` } });
   const cB = await prisma.company.create({ data: { name: `${STAMP}-coB` } });
   companyA = cA.id;
   companyB = cB.id;
-  const [a, b, free] = await Promise.all([
+  // Статусы расставлены осмысленно: `У-215` считает ЖДУЩИЕ диалоги, поэтому
+  // рядом со «ждёт ответа» заведены закрытый и «ждём клиента» — если счётчик
+  // снова начнёт грести всё подряд, арифметика ниже разъедется.
+  const [a, b, , free] = await Promise.all([
     prisma.messengerDialog.create({
-      data: { channel: 'telegram', peerRef: `${STAMP}-a`, companyId: companyA, unreadCount: 2 },
+      data: {
+        channel: 'telegram',
+        peerRef: `${STAMP}-a`,
+        companyId: companyA,
+        status: 'waiting_staff',
+        unreadCount: 2,
+      },
     }),
     prisma.messengerDialog.create({
-      data: { channel: 'telegram', peerRef: `${STAMP}-b`, companyId: companyB, unreadCount: 5 },
+      data: {
+        channel: 'telegram',
+        peerRef: `${STAMP}-b`,
+        companyId: companyB,
+        status: 'waiting_staff',
+        unreadCount: 5,
+      },
+    }),
+    // Второй ждущий диалог компании B — чтобы числа у A и B не совпали
+    // случайно: совпадающие числа не доказали бы изоляцию.
+    prisma.messengerDialog.create({
+      data: {
+        channel: 'telegram',
+        peerRef: `${STAMP}-b2`,
+        companyId: companyB,
+        status: 'waiting_staff',
+      },
     }),
     prisma.messengerDialog.create({
       data: { channel: 'max', peerRef: `${STAMP}-free`, unreadCount: 1 },
+    }),
+    // Ждём клиента — мяч на его стороне, сотрудника этот диалог не ждёт.
+    prisma.messengerDialog.create({
+      data: {
+        channel: 'telegram',
+        peerRef: `${STAMP}-a-answered`,
+        companyId: companyA,
+        status: 'waiting_client',
+      },
+    }),
+    // Закрытые не ждут никого — ни свой, ни ничейный из общей очереди.
+    prisma.messengerDialog.create({
+      data: {
+        channel: 'telegram',
+        peerRef: `${STAMP}-a-closed`,
+        companyId: companyA,
+        status: 'closed',
+      },
+    }),
+    prisma.messengerDialog.create({
+      data: { channel: 'max', peerRef: `${STAMP}-free-closed`, status: 'closed' },
     }),
   ]);
   dialogA = a.id;
   dialogB = b.id;
   dialogFree = free.id;
+  freeNoise = await prisma.messengerDialog.count({
+    where: {
+      companyId: null,
+      status: { not: 'closed' },
+      peerRef: { not: { startsWith: STAMP } },
+    },
+  });
   managerA = {
     sub: `${STAMP}-mgr`,
     role: 'manager',
@@ -66,14 +125,19 @@ describe('IDOR — диалоги мессенджеров не утекают �
     expect(ids).toContain(dialogFree);
     expect(ids).not.toContain(dialogB);
 
-    // Общая очередь у обоих одна, а своё — разное: у A непрочитанных 2, у B — 5.
-    // Разница не зависит от чужих диалогов, которые могут лежать в базе.
-    const [unreadA, unreadB] = await Promise.all([
-      countUnreadDialogs(prisma, managerA),
-      countUnreadDialogs(prisma, managerB),
+    // Общая очередь у обоих одна, а своё — разное: у A один ждущий диалог, у
+    // B — два. Числа точные: фон чужих ничейных диалогов посчитан отдельно, а
+    // всё остальное заведено этим тестом.
+    const [waitingA, waitingB] = await Promise.all([
+      countWaitingDialogs(prisma, managerA),
+      countWaitingDialogs(prisma, managerB),
     ]);
-    expect(unreadA).toBeGreaterThanOrEqual(3);
-    expect(unreadA - unreadB).toBe(2 - 5);
+    // A: ничейный `free` + свой `a`. Ни «ждём клиента», ни закрытые — свой и
+    // ничейный — в счёт не идут, иначе здесь было бы на три больше.
+    expect(waitingA).toBe(freeNoise + 2);
+    // B: тот же ничейный + два своих. Диалоги компании A сюда не протекают —
+    // иначе разница между числами не была бы ровно в одном диалоге.
+    expect(waitingB).toBe(freeNoise + 3);
   });
 
   it('карточка чужого диалога — not_found, своего и ничьего — открывается', async () => {
@@ -106,7 +170,9 @@ describe('IDOR — диалоги мессенджеров не утекают �
       where: { id: dialogB },
       include: { messages: true },
     });
-    expect(b).toMatchObject({ companyId: companyB, status: 'open' });
+    // Статус остался тем, что был при создании: закрытие чужого диалога не
+    // прошло, а не «прошло и вернулось».
+    expect(b).toMatchObject({ companyId: companyB, status: 'waiting_staff' });
     expect(b?.messages).toHaveLength(0);
   });
 });

@@ -23,6 +23,8 @@ type SearchParams = {
   skip?: string;
   /** `?new=<contactId>` — «Написать» из карточки контакта (`У-179`). */
   new?: string;
+  /** `У-216`: «Написать первым» с карточки организации — люди только её. */
+  newOrg?: string;
 };
 
 const PAGE_SIZE = 25;
@@ -55,13 +57,25 @@ export default async function ManagerMessengersPage({
     pageSize: PAGE_SIZE,
   };
 
+  const preselect = typeof sp.new === 'string' && sp.new ? sp.new : undefined;
+  // Сужение списка кандидатов до одной организации. Заодно оно меняет правило
+  // отбора: показываются и те её люди, кому написать сейчас нельзя, — с
+  // причиной (`У-216`).
+  const preselectOrg = typeof sp.newOrg === 'string' && sp.newOrg ? sp.newOrg : undefined;
+
   const [{ items, total }, candidates] = await Promise.all([
     listDialogs(prisma, session, filters),
-    listDialogCandidates(prisma, session),
+    listDialogCandidates(prisma, session, preselectOrg ? { organizationId: preselectOrg } : {}),
   ]);
 
-  const preselect = typeof sp.new === 'string' && sp.new ? sp.new : undefined;
-  const newDialog = <NewDialogButton candidates={candidates} preselect={preselect} />;
+  const newDialog = (
+    <NewDialogButton
+      candidates={candidates}
+      preselect={preselect}
+      autoOpen={Boolean(preselect || preselectOrg)}
+      narrowedToOrg={Boolean(preselectOrg)}
+    />
+  );
   const filtered = Boolean(channel || status || assignee);
 
   return (

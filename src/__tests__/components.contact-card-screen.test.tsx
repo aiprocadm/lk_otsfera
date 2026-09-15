@@ -116,7 +116,7 @@ function contact(overrides: Partial<ContactView> = {}): ContactView {
     organization: { id: 'o1', name: 'Ромашка' },
     user: { id: 'u1', name: 'Иван', email: 'ivan@romashka.ru' },
     channels: [{ id: 'ch1', type: 'telegram', value: '@ivanov', isPrimary: true, locked: false }],
-    messengerChannels: ['telegram'],
+    dialogChannels: ['telegram'],
     counts: { dialogs: 2, calls: 3, inbound: 4, deals: 5, orders: 6 },
     ...overrides,
   };
@@ -276,13 +276,16 @@ describe('ContactCardScreen — «Написать» неактивна с пр�
         organization: null,
         user: null,
         channels: [],
-        messengerChannels: [],
+        dialogChannels: [],
       }),
     });
     const button = screen.getByRole('button', { name: 'Написать' }) as HTMLButtonElement;
     expect(button.disabled).toBe(true);
+    // `У-205`/`У-216`: написать можно и по почте, поэтому подсказка называет
+    // оба способа. Прежний текст звал добавить только мессенджер — человек с
+    // адресом почты в карточке не понимал, почему кнопка всё ещё серая.
     expect(button.title).toBe(
-      'У контакта нет мессенджера — добавьте канал Telegram, MAX или WhatsApp'
+      'У контакта нет ни мессенджера, ни почты — добавьте канал связи в карточке'
     );
     // Без должности, организации и пользователя — подзаголовок из одного слова.
     const subtitle = screen.getByRole('heading', { level: 1 }).nextElementSibling!;

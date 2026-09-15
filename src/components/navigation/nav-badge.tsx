@@ -15,7 +15,7 @@ const ARIA_LABEL: Record<keyof StaffBadges, string> = {
   tasksOverdue: 'Просроченные задачи',
   clientRequestsNew: 'Новые обращения',
   messagesUnread: 'Непрочитанные сообщения',
-  messengersUnread: 'Непрочитанные диалоги в мессенджерах',
+  dialogsWaiting: 'Диалоги, которые ждут ответа',
 };
 
 export function NavBadge({ badgeKey }: { badgeKey: keyof StaffBadges }) {

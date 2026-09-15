@@ -35,10 +35,23 @@ vi.mock('@/components/manager/messengers/dialog-list', () => ({
     ),
 }));
 vi.mock('@/components/manager/messengers/new-dialog-button', () => ({
-  NewDialogButton: (props: { candidates: unknown[]; preselect?: string }) =>
+  NewDialogButton: (props: {
+    candidates: unknown[];
+    preselect?: string;
+    autoOpen?: boolean;
+    narrowedToOrg?: boolean;
+  }) =>
     React.createElement(
       'button',
-      { 'data-preselect': props.preselect ?? 'none' },
+      {
+        'data-preselect': props.preselect ?? 'none',
+        // `У-216`: открытие окна отделилось от предвыбора человека — с карточки
+        // организации приходят без выбранного человека, но окно открыть надо.
+        'data-auto-open': String(Boolean(props.autoOpen)),
+        // Сужение до организации меняет текст пустого состояния, поэтому
+        // признак обязан дойти до кнопки, а не остаться на сервере.
+        'data-narrowed': String(Boolean(props.narrowedToOrg)),
+      },
       `Новый диалог (${props.candidates.length})`
     ),
 }));
@@ -71,7 +84,9 @@ describe('ManagerMessengersPage', () => {
       ManagerMessengersPage({ searchParams: Promise.resolve({}) })
     );
     expect(listDialogs).toHaveBeenCalledWith({}, SESSION, { page: 1, pageSize: 25 });
-    expect(listDialogCandidates).toHaveBeenCalledWith({}, SESSION);
+    // Третий аргумент — сужение списка кандидатов по организации (`У-216`).
+    // Без `?newOrg=` он пустой: список общий, как и был.
+    expect(listDialogCandidates).toHaveBeenCalledWith({}, SESSION, {});
     expect(container.textContent).toContain('Мессенджеры');
     expect(container.textContent).toContain('Переписка с клиентами');
     expect(container.textContent).toContain('Диалогов пока нет');
@@ -110,18 +125,29 @@ describe('ManagerMessengersPage', () => {
     expect(container.textContent).toContain('Под этот фильтр диалогов нет');
   });
 
-  // Этап 1 ТЗ 12.09.2026 (`У-179`, спека §3.12): «Написать» из карточки контакта.
-  it('?new=<contactId> уходит в кнопку предвыбором; без параметра и с пустым — предвыбора нет', async () => {
-    const preselects = (container: HTMLElement) =>
-      Array.from(container.querySelectorAll('button[data-preselect]')).map((b) =>
-        b.getAttribute('data-preselect')
-      );
+  const preselects = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll('button[data-preselect]')).map((b) =>
+      b.getAttribute('data-preselect')
+    );
+  const autoOpens = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll('button[data-auto-open]')).map((b) =>
+      b.getAttribute('data-auto-open')
+    );
+  const narrowed = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll('button[data-narrowed]')).map((b) =>
+      b.getAttribute('data-narrowed')
+    );
 
+  // Этап 1 ТЗ 12.09.2026 (`У-179`, спека §3.12): «Написать» из карточки контакта.
+  it('?new=<contactId> уходит в кнопку предвыбором и открывает окно; без параметра и с пустым — ни того, ни другого', async () => {
     const withId = await renderServerComponent(
       ManagerMessengersPage({ searchParams: Promise.resolve({ new: 'k1' }) })
     );
     // Кнопка и в шапке, и в пустом состоянии — обе с предвыбором.
     expect(preselects(withId.container)).toEqual(['k1', 'k1']);
+    // Человек пришёл по кнопке «Написать» — окно должно открыться само, иначе
+    // он нажмёт ещё раз уже здесь.
+    expect(autoOpens(withId.container)).toEqual(['true', 'true']);
     // `new` — не фильтр списка: сервис зовётся без него.
     expect(listDialogs).toHaveBeenCalledWith({}, SESSION, { page: 1, pageSize: 25 });
 
@@ -129,10 +155,41 @@ describe('ManagerMessengersPage', () => {
       ManagerMessengersPage({ searchParams: Promise.resolve({ new: '' }) })
     );
     expect(preselects(empty.container)).toEqual(['none', 'none']);
+    expect(autoOpens(empty.container)).toEqual(['false', 'false']);
 
     const absent = await renderServerComponent(
       ManagerMessengersPage({ searchParams: Promise.resolve({}) })
     );
     expect(preselects(absent.container)).toEqual(['none', 'none']);
+    // Обычный заход на экран окна не открывает — иначе оно лезло бы в глаза
+    // каждому, кто просто пришёл почитать диалоги.
+    expect(autoOpens(absent.container)).toEqual(['false', 'false']);
+  });
+
+  // `У-216`: «Написать первым» с карточки организации.
+  it('?newOrg=<orgId> сужает список кандидатов до этой организации и открывает окно без выбранного человека', async () => {
+    const { container } = await renderServerComponent(
+      ManagerMessengersPage({ searchParams: Promise.resolve({ newOrg: 'o1' }) })
+    );
+    // Сужение уходит в сервис: на карточке организации спрашивают «как
+    // связаться с НЕЙ», и справочник на тысячу контактов тут не ответ.
+    expect(listDialogCandidates).toHaveBeenCalledWith({}, SESSION, { organizationId: 'o1' });
+    expect(autoOpens(container)).toEqual(['true', 'true']);
+    // Конкретного человека не выбирали — выбор остаётся за сотрудником.
+    expect(preselects(container)).toEqual(['none', 'none']);
+    // Признак сужения доходит до кнопки: от него зависит текст пустого окна
+    // («у этой организации нет людей» вместо «ни у кого нет адреса»).
+    expect(narrowed(container)).toEqual(['true', 'true']);
+    // И это тоже не фильтр списка диалогов.
+    expect(listDialogs).toHaveBeenCalledWith({}, SESSION, { page: 1, pageSize: 25 });
+  });
+
+  it('пустой ?newOrg= сужением не считается — список остаётся общим', async () => {
+    const { container } = await renderServerComponent(
+      ManagerMessengersPage({ searchParams: Promise.resolve({ newOrg: '' }) })
+    );
+    expect(listDialogCandidates).toHaveBeenCalledWith({}, SESSION, {});
+    expect(autoOpens(container)).toEqual(['false', 'false']);
+    expect(narrowed(container)).toEqual(['false', 'false']);
   });
 });

@@ -129,6 +129,9 @@ export default async function ManagerOrgDetailPage({
         card={card}
         activeTab={activeTab}
         tabs={visibleTabs}
+        // `У-216`: с пустой вкладки «Диалоги» можно написать первым — модалка
+        // «Новый диалог» откроется с людьми именно этой организации.
+        writeFirstHref={`/manager/messengers?newOrg=${encodeURIComponent(id)}`}
         contacts={
           contactsData ? (
             contactsData[0].ok ? (

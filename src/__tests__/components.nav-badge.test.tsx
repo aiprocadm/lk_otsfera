@@ -38,8 +38,11 @@ describe('NavBadge', () => {
     useClientResource.mockReturnValue({ data: 2 });
     render(<NavBadge badgeKey="tasksOverdue" />);
     expect(screen.getByLabelText('Просроченные задачи')).toBeTruthy();
-    // Спека 2026-09-12: у диалогов мессенджеров своя подпись, а не «задачи».
-    render(<NavBadge badgeKey="messengersUnread" />);
-    expect(screen.getByLabelText('Непрочитанные диалоги в мессенджерах')).toBeTruthy();
+    // `У-215`: бейдж «Мессенджеров» считает ДЕЛА, а не сообщения, поэтому и
+    // подпись для скринридера говорит про диалоги, которые ждут ответа. До
+    // этапа 3 здесь было «Непрочитанные диалоги» — человек слышал про
+    // непрочитанное, а цифра меняла смысл.
+    render(<NavBadge badgeKey="dialogsWaiting" />);
+    expect(screen.getByLabelText('Диалоги, которые ждут ответа')).toBeTruthy();
   });
 });
