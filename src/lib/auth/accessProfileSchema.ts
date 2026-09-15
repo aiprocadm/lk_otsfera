@@ -46,7 +46,7 @@ export type Capability = z.infer<typeof capabilitySchema>;
 
 /** Типы объектов, по которым профиль задаёт охват. */
 export type AccessObjectType =
-  'orders' | 'organizations' | 'threads' | 'documents' | 'finance' | 'leads' | 'tasks';
+  'orders' | 'organizations' | 'threads' | 'documents' | 'finance' | 'leads' | 'tasks' | 'dialogs';
 
 /** Денормализованное в JWT представление профиля (short enums + флаги). */
 export type SessionAccessProfile = {
@@ -59,6 +59,11 @@ export type SessionAccessProfile = {
   finance: ScopeLevel;
   leads: ScopeLevel;
   tasks: ScopeLevel;
+  /**
+   * `У-214`: охват переписки с клиентами. До этапа 3 её видимость держалась
+   * только на компании — любой сотрудник видел любой диалог компании.
+   */
+  dialogs: ScopeLevel;
   capabilities: Capability[];
 };
 
@@ -72,5 +77,6 @@ export const sessionAccessProfileSchema = z.object({
   finance: scopeLevelSchema,
   leads: scopeLevelSchema,
   tasks: scopeLevelSchema,
+  dialogs: scopeLevelSchema,
   capabilities: z.array(capabilitySchema),
 });

@@ -19,6 +19,9 @@ import {
   type MessengerChannel,
 } from '@/lib/services/messengers/channels';
 import { IntegrationsHealthPanel } from '@/components/admin/integrations-health-panel';
+import { ChannelHealthPanel } from '@/components/admin/channel-health-panel';
+import { ChannelCheckButtons } from '@/components/admin/channel-check-buttons';
+import { getChannelHealth } from '@/lib/services/messengers/channelHealth';
 import { IntegrationSettingsForm } from '@/components/admin/integration-settings-form';
 import { SecretsKeyNotice } from '@/components/admin/secrets-key-notice';
 import {
@@ -101,6 +104,7 @@ export default async function AdminMessengersSettingsPage() {
   });
   const testOf = (key: IntegrationTestKey) => testIntegrationAction.bind(null, key);
   const rows = health.ok ? health.rows.filter((r) => isMessengerChannel(r.key)) : [];
+  const channelHealth = await getChannelHealth(prisma, session);
 
   return (
     <div className="space-y-5">
@@ -129,6 +133,20 @@ export default async function AdminMessengersSettingsPage() {
         <p role="alert" className="text-sm text-red-600">
           Недостаточно прав для просмотра состояния подключений.
         </p>
+      )}
+
+      {/*
+        `У-213`: светофор переписки — приходят ли сообщения и уходят ли ответы.
+        Он дополняет общий светофор интеграций выше: тот говорит «ключи заданы и
+        проба прошла», этот — «клиенты пишут, и мы отвечаем».
+      */}
+      {channelHealth.ok && (
+        <ChannelHealthPanel
+          rows={channelHealth.rows}
+          actionsFor={(channel) =>
+            isMessengerChannel(channel) ? <ChannelCheckButtons channel={channel} /> : null
+          }
+        />
       )}
 
       <div className="space-y-6">

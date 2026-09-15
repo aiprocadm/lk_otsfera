@@ -1026,6 +1026,11 @@ model AccessProfile {
   financeScope       ScopeLevel @default(all)
   leadsScope         ScopeLevel @default(all)
   tasksScope         ScopeLevel @default(all)
+  /// `У-214`: охват диалогов мессенджеров и почты. `all` — вся компания и общая
+  /// очередь ничейных, `assigned` — плюс закреплённые организации, `own` —
+  /// только свои (где сотрудник ответственный) и ничейные. Умолчание `all`
+  /// оставляет прежнее поведение всем уже заведённым профилям.
+  dialogsScope       ScopeLevel @default(all)
   capabilities       String[]
   users              User[]
 
@@ -2523,6 +2528,11 @@ model MessengerMessage {
   /// Наружу (и клиенту, и в транспорт) уходит только `clean`.
   scanStatus       String          @default("none")
   scanReason       String?
+  /// `У-213`: текст последней ошибки доставки — человеку на экран, рядом с
+  /// кнопкой «Повторить». Ошибка, которую видно только в логе сервера, для
+  /// сотрудника не существует. Секреты сюда не попадают: текст проходит через
+  /// `scrubString` и отдельную чистку токена бота в адресе запроса.
+  deliveryError    String?
   createdAt        DateTime        @default(now())
 
   @@index([dialogId, createdAt])

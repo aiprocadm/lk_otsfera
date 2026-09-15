@@ -94,6 +94,7 @@ describe('DialogThread — «Открыть во «Входящих»» (У-215)
       body: 'здравствуйте',
       createdAt: at,
       deliveryStatus: 'sent',
+      deliveryError: null,
       authorName: null,
       inboundMessageId: 'msg-1',
       attachment: null,

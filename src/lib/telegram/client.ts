@@ -1,4 +1,9 @@
 import { cachedIntegrationSetting } from '@/lib/config/integrationSettingsCache';
+import {
+  httpDeliveryError,
+  networkDeliveryError,
+  notConfiguredDeliveryError,
+} from '@/lib/messengers/deliveryError';
 
 const TELEGRAM_TIMEOUT_MS = 5000;
 /** Файл грузится дольше текста — отдельный предел, чтобы не рвать загрузку. */
@@ -19,9 +24,24 @@ export function botDeepLink(code: string): string {
   return `https://t.me/${username}?start=${code}`;
 }
 
-export async function sendTelegramMessage(chatId: string, text: string): Promise<{ ok: boolean }> {
+/** Текстовое пояснение из тела ответа провайдера, если оно там есть. */
+async function describe(res: Response): Promise<string | undefined> {
+  try {
+    const data: unknown = await res.json();
+    const d = (data as { description?: unknown } | null)?.description;
+    return typeof d === 'string' && d.trim() ? d.trim() : undefined;
+  } catch {
+    // Тело не JSON или уже прочитано — причина останется без подробностей.
+    return undefined;
+  }
+}
+
+export async function sendTelegramMessage(
+  chatId: string,
+  text: string
+): Promise<{ ok: boolean; error?: string }> {
   const token = cachedIntegrationSetting('telegram.botToken');
-  if (!token) return { ok: false };
+  if (!token) return { ok: false, error: notConfiguredDeliveryError('Telegram') };
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TELEGRAM_TIMEOUT_MS);
@@ -32,9 +52,13 @@ export async function sendTelegramMessage(chatId: string, text: string): Promise
       body: JSON.stringify({ chat_id: chatId, text }),
       signal: controller.signal,
     });
-    return { ok: res.ok };
+    if (res.ok) return { ok: true };
+    // `У-213`: причину отказа Telegram пишет словами («бот заблокирован
+    // пользователем», «чат не найден») — ровно то, что нужно сотруднику. Тело
+    // ответа токена не содержит, но всё равно проходит через чистку.
+    return { ok: false, error: httpDeliveryError('Telegram', res.status, await describe(res)) };
   } catch {
-    return { ok: false };
+    return { ok: false, error: networkDeliveryError('Telegram') };
     /* v8 ignore next 2 -- V8 marks the finally as a branch; the exceptional-completion edge is unreachable (bare catch catches all, clearTimeout cannot throw) */
   } finally {
     clearTimeout(timer);

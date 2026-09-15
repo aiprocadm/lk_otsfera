@@ -27,6 +27,7 @@ const profile = (leads: SessionAccessProfile['leads']): SessionAccessProfile => 
   finance: 'own',
   leads,
   tasks: 'all',
+  dialogs: 'all',
   capabilities: [],
 });
 

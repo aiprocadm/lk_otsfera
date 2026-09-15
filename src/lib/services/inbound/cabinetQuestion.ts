@@ -117,8 +117,15 @@ export async function submitCabinetQuestion(
   const ingested = await ingestInboundMessage(prisma, {
     channel: 'cabinet',
     externalId: `cabinet:${randomUUID()}`,
-    senderRef: session.email ?? session.sub,
-    senderDisplay: session.name ?? null,
+    // `У-212`: ключ диалога канала «Кабинет» — идентификатор пользователя, а не
+    // адрес почты. Адреса у кабинета нет, а `senderRef` письма и `peerRef`
+    // диалога обязаны совпадать: по этой паре `bind.ts` находит письма
+    // собеседника при привязке. Раньше здесь стоял e-mail, и диалог кабинета
+    // склеился бы с почтовым диалогом того же человека — две разные переписки
+    // в одной ленте.
+    senderRef: session.sub,
+    // Имя может быть пустым — тогда показываем адрес, а не сырой идентификатор.
+    senderDisplay: session.name?.trim() || session.email || null,
     subject,
     body,
     attachmentPath: attachment?.path,

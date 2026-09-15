@@ -74,6 +74,8 @@ function profile(capabilities: SessionAccessProfile['capabilities']): SessionAcc
     finance: 'all',
     leads: 'all',
     tasks: 'all',
+    // `У-214`: инвариант про комиссию; охват диалогов здесь ни при чём.
+    dialogs: 'all',
     capabilities,
   };
 }

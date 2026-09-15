@@ -8,6 +8,11 @@
  */
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { cachedIntegrationSetting } from '@/lib/config/integrationSettingsCache';
+import {
+  httpDeliveryError,
+  networkDeliveryError,
+  notConfiguredDeliveryError,
+} from '@/lib/messengers/deliveryError';
 
 const MAX_TIMEOUT_MS = 5000;
 
@@ -39,9 +44,12 @@ export function maxDeepLink(code: string): string {
  * не бросается наружу важный путь, возвращается `{ ok: false }` (диспетчер/
  * воркер решают, ретраить ли).
  */
-export async function sendMaxMessage(chatId: string, text: string): Promise<{ ok: boolean }> {
+export async function sendMaxMessage(
+  chatId: string,
+  text: string
+): Promise<{ ok: boolean; error?: string }> {
   const token = cachedIntegrationSetting('max.botToken');
-  if (!token) return { ok: false };
+  if (!token) return { ok: false, error: notConfiguredDeliveryError('MAX') };
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), MAX_TIMEOUT_MS);
@@ -52,9 +60,10 @@ export async function sendMaxMessage(chatId: string, text: string): Promise<{ ok
       body: JSON.stringify({ chat_id: chatId, text }),
       signal: controller.signal,
     });
-    return { ok: res.ok };
+    if (res.ok) return { ok: true };
+    return { ok: false, error: httpDeliveryError('MAX', res.status) };
   } catch {
-    return { ok: false };
+    return { ok: false, error: networkDeliveryError('MAX') };
     /* v8 ignore next 2 -- V8 marks the finally as a branch; the exceptional-completion edge is unreachable (bare catch catches all, clearTimeout cannot throw) */
   } finally {
     clearTimeout(timer);

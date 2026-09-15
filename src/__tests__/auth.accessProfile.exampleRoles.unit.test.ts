@@ -20,6 +20,9 @@ const OPERATOR: SessionAccessProfile = {
   finance: 'own',
   leads: 'own',
   tasks: 'assigned',
+  // `У-214`: оператор ведёт переписку закреплённых организаций — та же
+  // логика, что у заявок и документов этой роли.
+  dialogs: 'assigned',
   capabilities: [],
 };
 
@@ -33,6 +36,7 @@ const OHS_SPECIALIST: SessionAccessProfile = {
   finance: 'own',
   leads: 'own',
   tasks: 'assigned',
+  dialogs: 'assigned',
   capabilities: [],
 };
 
@@ -46,6 +50,8 @@ const SALES: SessionAccessProfile = {
   finance: 'own',
   leads: 'all',
   tasks: 'all',
+  // `У-214`: продавец ведёт СВОИ переписки — как свои заказы и документы.
+  dialogs: 'own',
   capabilities: [],
 };
 

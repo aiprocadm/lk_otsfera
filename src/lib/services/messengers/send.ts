@@ -3,10 +3,10 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
 import { claimDialogOnFirstReply } from './assign';
 import { isMessengerAvailable } from './availability';
-import type { MessengerChannel } from './channels';
+import type { DialogChannel } from './channels';
 import { recordOutboundInDialog } from './recordOutbound';
 import { isDialogInScope } from './scope';
-import { sendToMessenger } from './transport';
+import { deliverDialogText } from './deliver';
 
 /** Предел одного сообщения: у Telegram 4096, берём круглое общее для всех каналов. */
 export const DIALOG_MESSAGE_MAX = 4000;
@@ -44,7 +44,23 @@ export async function sendDialogMessage(
 
   const dialog = await prisma.messengerDialog.findUnique({
     where: { id: args.dialogId },
-    select: { id: true, channel: true, peerRef: true, companyId: true, assigneeId: true },
+    select: {
+      id: true,
+      channel: true,
+      peerRef: true,
+      companyId: true,
+      assigneeId: true,
+      organizationId: true,
+      userId: true,
+      // Для письма нужны тема и `Message-ID` последнего входящего: без них
+      // ответ уйдёт отдельным письмом, а не репликой в ветке.
+      messages: {
+        where: { direction: 'in', inboundMessageId: { not: null } },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+        select: { inboundMessage: { select: { subject: true, externalMessageId: true } } },
+      },
+    },
   });
   if (!dialog || !isDialogInScope(session, dialog)) return { ok: false, error: 'not_found' };
 
@@ -52,10 +68,10 @@ export async function sendDialogMessage(
   if (!text) return { ok: false, error: 'invalid' };
   if (text.length > DIALOG_MESSAGE_MAX) return { ok: false, error: 'text_too_long' };
 
-  const channel = dialog.channel as MessengerChannel;
+  const channel = dialog.channel as DialogChannel;
   if (!isMessengerAvailable(channel)) return { ok: false, error: 'channel_unavailable' };
 
-  const sent = await sendToMessenger(channel, dialog.peerRef, text);
+  const sent = await deliverDialogText(dialog, channel, text);
 
   // Правило первого ответившего: условие в `where` — если за это время диалог
   // привязал кто-то другой, чужое решение не перетираем.
@@ -88,6 +104,7 @@ export async function sendDialogMessage(
     authorId: session.sub,
     text,
     delivered: sent.ok,
+    ...(sent.ok ? {} : { deliveryError: sent.error }),
   });
 
   await recordAudit(prisma, {

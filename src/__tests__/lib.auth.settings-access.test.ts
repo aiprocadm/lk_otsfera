@@ -70,6 +70,8 @@ function profile(capabilities: SessionAccessProfile['capabilities']): SessionAcc
     finance: 'all',
     leads: 'all',
     tasks: 'all',
+    // `У-214`: проверяются права разделов настроек, охваты — фон.
+    dialogs: 'all',
     capabilities,
   };
 }

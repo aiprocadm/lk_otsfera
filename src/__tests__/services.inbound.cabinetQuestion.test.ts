@@ -86,7 +86,11 @@ describe('submitCabinetQuestion', () => {
     const dto = ingestMock.mock.calls[0]![1];
     expect(dto).toMatchObject({
       channel: 'cabinet',
-      senderRef: 'client@x.ru',
+      // `У-212`: ключ обращения — идентификатор пользователя, а НЕ адрес почты.
+      // Адреса у кабинета нет, а `senderRef` письма и `peerRef` диалога обязаны
+      // совпадать; с адресом вопрос из кабинета склеился бы с почтовым диалогом
+      // того же человека — две разные переписки в одной ленте.
+      senderRef: 'u1',
       senderDisplay: 'Иван',
       subject: 'Не открывается документ',
       sender: { userId: 'u1', organizationId: 'org-1', companyId: 'co-A' },

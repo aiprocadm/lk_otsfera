@@ -123,6 +123,13 @@ describe('sendDialogMessage', () => {
     expect(m.recordAudit).toHaveBeenCalledTimes(2);
   });
 
+  it('`У-213`: у успешной отправки причины нет — старая не «прилипает» к новой реплике', async () => {
+    await sendDialogMessage(prisma, session, { dialogId: 'd1', text: 'дойдёт' });
+    const args = m.recordOutboundInDialog.mock.calls[0]![1];
+    expect(args.delivered).toBe(true);
+    expect(args.deliveryError).toBeUndefined();
+  });
+
   it('кто-то привязал диалог за это время → захват не состоялся, аудита привязки нет', async () => {
     findUnique.mockResolvedValueOnce({ ...bound, companyId: null });
     updateMany.mockResolvedValueOnce({ count: 0 });
@@ -135,12 +142,21 @@ describe('sendDialogMessage', () => {
   });
 
   it('транспорт не доставил → reply_failed, но попытка остаётся в истории и аудите', async () => {
-    m.sendToMessenger.mockResolvedValueOnce({ ok: false });
+    // `У-213`: транспорт возвращает не только «не получилось», но и ПРИЧИНУ —
+    // и она обязана доехать до истории сообщения, иначе человек снова увидит
+    // голое «не доставлено» и не поймёт, что делать.
+    m.sendToMessenger.mockResolvedValueOnce({
+      ok: false,
+      error: 'Telegram отклонил отправку (403): bot was blocked by the user',
+    });
     const r = await sendDialogMessage(prisma, session, { dialogId: 'd1', text: 'не дойдёт' });
     expect(r).toEqual({ ok: false, error: 'reply_failed' });
     expect(m.recordOutboundInDialog).toHaveBeenCalledWith(
       prisma,
-      expect.objectContaining({ delivered: false })
+      expect.objectContaining({
+        delivered: false,
+        deliveryError: 'Telegram отклонил отправку (403): bot was blocked by the user',
+      })
     );
     expect(m.recordAudit).toHaveBeenCalledWith(
       prisma,

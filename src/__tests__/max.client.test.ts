@@ -72,7 +72,12 @@ describe('sendMaxMessage', () => {
     delete process.env.MAX_BOT_TOKEN;
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
-    expect(await sendMaxMessage('c1', 'hi')).toEqual({ ok: false });
+    // `У-213`: «не настроен» — отдельная причина, её лечит администратор в
+    // настройках, а не переписка с клиентом.
+    expect(await sendMaxMessage('c1', 'hi')).toEqual({
+      ok: false,
+      error: 'MAX не настроен: не заданы ключи в настройках интеграций',
+    });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -93,6 +98,9 @@ describe('sendMaxMessage', () => {
   it('сетевая ошибка → {ok:false} (best-effort, не бросает)', async () => {
     process.env.MAX_BOT_TOKEN = 'tok';
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('max down')));
-    expect(await sendMaxMessage('c1', 'hi')).toEqual({ ok: false });
+    expect(await sendMaxMessage('c1', 'hi')).toEqual({
+      ok: false,
+      error: 'MAX недоступен: сеть не ответила или истекло время ожидания',
+    });
   });
 });

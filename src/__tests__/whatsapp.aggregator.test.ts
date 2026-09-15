@@ -71,7 +71,11 @@ describe('sendWhatsAppMessage', () => {
     delete process.env.WHATSAPP_AGGREGATOR_API_KEY;
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
-    expect(await sendWhatsAppMessage('+79991234567', 'hi')).toEqual({ ok: false });
+    // `У-213`: причина отказа называет беду — ключей нет, наружу не ходили.
+    expect(await sendWhatsAppMessage('+79991234567', 'hi')).toEqual({
+      ok: false,
+      error: 'WhatsApp не настроен: не заданы ключи в настройках интеграций',
+    });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -99,7 +103,10 @@ describe('sendWhatsAppMessage', () => {
     process.env.WHATSAPP_AGGREGATOR_API_KEY = 'key';
     process.env.WHATSAPP_AGGREGATOR_CHANNEL_ID = 'ch1';
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('agg down')));
-    expect(await sendWhatsAppMessage('+79991234567', 'hi')).toEqual({ ok: false });
+    expect(await sendWhatsAppMessage('+79991234567', 'hi')).toEqual({
+      ok: false,
+      error: 'WhatsApp недоступен: сеть не ответила или истекло время ожидания',
+    });
   });
 
   it('ключи никогда не в коде — только из env (проверка: без env нет вызова)', async () => {

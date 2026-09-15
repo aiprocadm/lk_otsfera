@@ -22,6 +22,8 @@ const profile = (leads: SessionAccessProfile['leads']): SessionAccessProfile => 
   finance: 'own',
   leads,
   tasks: 'all',
+  // `У-214`: варьируется только шкала лидов; диалоги оставляем полными.
+  dialogs: 'all',
   capabilities: [],
 });
 const s1 = (leads?: SessionAccessProfile['leads']): SessionPayload =>

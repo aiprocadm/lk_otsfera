@@ -46,6 +46,8 @@ const OBJECT_TYPES: { key: AccessObjectType; label: string }[] = [
   { key: 'finance', label: 'Финансы' },
   { key: 'leads', label: 'Воронка' },
   { key: 'tasks', label: 'Задачи' },
+  // `У-214`: название из глоссария — «Диалоги», как вкладка карточки и раздел.
+  { key: 'dialogs', label: 'Диалоги' },
 ];
 
 const CAPABILITY_OPTIONS: { value: Capability; label: string }[] = [

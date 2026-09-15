@@ -96,19 +96,58 @@ describe('sendTelegramMessage', () => {
     expect(body).toEqual({ chat_id: '123456', text: 'hello' });
   });
 
-  it('возвращает {ok:false} при не-2xx ответе', async () => {
+  // `У-213`: отказ теперь несёт ПРИЧИНУ. Раньше все три случая ниже давали
+  // одинаковое голое `{ ok: false }`, и сотрудник видел «не доставлено» без
+  // намёка на то, чинить ли настройки, ждать ли сеть или писать клиенту иначе.
+  it('не-2xx ответ без пояснения → код провайдера в причине', async () => {
     fetchMock.mockResolvedValueOnce({ ok: false, status: 400 });
     const result = await sendTelegramMessage('123456', 'hello');
-    expect(result).toEqual({ ok: false });
+    expect(result).toEqual({ ok: false, error: 'Telegram ответил ошибкой 400' });
   });
 
-  it('возвращает {ok:false} при network error (не бросает наружу)', async () => {
+  it('пояснение Telegram попадает в причину как есть', async () => {
+    // Telegram объясняет отказ словами («бот заблокирован пользователем») —
+    // это и есть ответ на вопрос «что делать», ради которого всё затевалось.
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      json: async () => ({ description: 'Forbidden: bot was blocked by the user' }),
+    });
+    await expect(sendTelegramMessage('123456', 'hello')).resolves.toEqual({
+      ok: false,
+      error: 'Telegram отклонил отправку (403): Forbidden: bot was blocked by the user',
+    });
+  });
+
+  it('нечитаемое тело ответа не роняет отправку — причина остаётся общей', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: async () => {
+        throw new Error('not json');
+      },
+    });
+    await expect(sendTelegramMessage('123456', 'hello')).resolves.toEqual({
+      ok: false,
+      error: 'Telegram ответил ошибкой 500',
+    });
+  });
+
+  it('network error (не бросает наружу) → причина про сеть', async () => {
     fetchMock.mockRejectedValueOnce(new Error('network fail'));
-    await expect(sendTelegramMessage('123456', 'hello')).resolves.toEqual({ ok: false });
+    await expect(sendTelegramMessage('123456', 'hello')).resolves.toEqual({
+      ok: false,
+      error: 'Telegram недоступен: сеть не ответила или истекло время ожидания',
+    });
   });
 
-  it('возвращает {ok:false} при AbortError (таймаут)', async () => {
+  it('AbortError (таймаут) → та же причина про сеть', async () => {
+    // Для человека «не ответили» и «отвечали слишком долго» — одно и то же:
+    // связи нет. Разводить два текста значило бы усложнять без пользы.
     fetchMock.mockRejectedValueOnce(Object.assign(new Error('aborted'), { name: 'AbortError' }));
-    await expect(sendTelegramMessage('123456', 'hello')).resolves.toEqual({ ok: false });
+    await expect(sendTelegramMessage('123456', 'hello')).resolves.toEqual({
+      ok: false,
+      error: 'Telegram недоступен: сеть не ответила или истекло время ожидания',
+    });
   });
 });

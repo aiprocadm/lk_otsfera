@@ -112,9 +112,14 @@ describe('ingestInboundMessage → appendInboundToDialog', () => {
     );
   });
 
-  it('вопрос из кабинета в диалог по-прежнему не попадает', async () => {
-    // У кабинета свой путь ответа (уведомление в ЛК); диалог для него —
-    // работа `У-212`, здесь его быть не должно.
+  it('`У-212`: вопрос из кабинета сворачивается в диалог, ключ — идентификатор пользователя', async () => {
+    // Раньше кабинет был исключением: обращение попадало во «Входящие», но
+    // переписки не заводило, и ответ сотрудника нигде не оставался. С `У-212`
+    // это такой же диалог, просто «транспорт» у него внутренний.
+    //
+    // Ключ (`peerRef`) — идентификатор пользователя, а НЕ адрес почты:
+    // адреса у кабинета нет, и по этой же паре `senderRef = peerRef`
+    // привязка ищет письма собеседника.
     m.resolveInboundSender.mockResolvedValue({ matchType: 'unresolved' });
     await ingestInboundMessage(prisma, {
       channel: 'cabinet',
@@ -123,7 +128,10 @@ describe('ingestInboundMessage → appendInboundToDialog', () => {
       body: 'вопрос',
       sender: { userId: 'u1', organizationId: 'o1', companyId: 'c1' },
     });
-    expect(m.appendInboundToDialog).not.toHaveBeenCalled();
+    expect(m.appendInboundToDialog).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({ channel: 'cabinet', peerRef: 'u1' })
+    );
   });
 
   it('сбой диалога логируется и не ломает приём (вебхук отвечает 200)', async () => {
@@ -155,5 +163,48 @@ describe('ingestInboundMessage → appendInboundToDialog', () => {
       expect.objectContaining({ error: 'boom' })
     );
     error.mockRestore();
+  });
+  it('известный отправитель (вопрос из кабинета) привязывает диалог к его компании', async () => {
+    // ДЫРА, закрытая в PR-7: привязка передавалась только при точном совпадении
+    // по адресу, а у вопроса из кабинета отправитель известен заранее и приходит
+    // в `sender`. Диалог создавался БЕЗ компании, а ничейный диалог по правилу
+    // общей очереди видят сотрудники ЛЮБОЙ компании — вопрос клиента одного
+    // учебного центра читал бы другой. Само письмо при этом скоупилось верно,
+    // и расхождение не бросалось в глаза.
+    m.resolveInboundSender.mockResolvedValue({ matchType: 'known-sender' });
+    await ingestInboundMessage(prisma, {
+      channel: 'cabinet',
+      externalId: 'cabinet:1',
+      senderRef: 'u-7',
+      body: 'когда удостоверения?',
+      sender: { userId: 'u-7', organizationId: 'o-9', companyId: 'c-1' },
+    });
+    expect(m.appendInboundToDialog).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({
+        channel: 'cabinet',
+        peerRef: 'u-7',
+        binding: { companyId: 'c-1', organizationId: 'o-9', contactId: null, userId: 'u-7' },
+      })
+    );
+  });
+
+  it('отправитель известен, а компании у него нет — диалог честно остаётся ничейным', async () => {
+    // Привязывать не к чему: так бывает у пользователя, ещё не прикреплённого к
+    // организации. Выдумывать компанию нельзя — это и есть та ошибка, из-за
+    // которой переписка утекала бы к соседям.
+    m.appendInboundToDialog.mockClear();
+    m.resolveInboundSender.mockResolvedValue({ matchType: 'known-sender' });
+    await ingestInboundMessage(prisma, {
+      channel: 'cabinet',
+      externalId: 'cabinet:2',
+      senderRef: 'u-8',
+      body: 'вопрос',
+      sender: { userId: 'u-8', organizationId: null, companyId: null },
+    });
+    expect(m.appendInboundToDialog).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({ binding: null })
+    );
   });
 });

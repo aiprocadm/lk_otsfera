@@ -157,6 +157,78 @@ export function canSeeTask(
 }
 
 /**
+ * Диалоги по уровню охвата профиля (`У-214`).
+ *
+ * Переписка — company-scoped, как задачи, но с одной своей особенностью: рядом
+ * с диалогами компании всегда живёт **общая очередь ничейных** (`companyId
+ * IS NULL`). Это сообщения от людей, которых система ещё не узнала; их разбирают
+ * все. Поэтому очередь видна на ЛЮБОМ уровне охвата — сузить её значило бы
+ * сделать так, что новое обращение не видит никто.
+ *
+ *  - `all`      → компания + ничейные (прежнее поведение);
+ *  - `assigned` → свои (ответственный) + диалоги закреплённых организаций + ничейные;
+ *  - `own`      → только свои + ничейные (`Р-3-7`).
+ *
+ * Уровень берётся как `session.accessProfile?.dialogs ?? 'all'`: нет профиля —
+ * прежнее поведение (CLAUDE.md §2b).
+ *
+ * ВАЖНО: эта функция и `canSeeDialog` обязаны означать одно и то же и меняются
+ * вместе — тот же инвариант, что у `dialogScopeWhere`/`isDialogInScope`.
+ */
+export function dialogWhereForLevel(
+  session: SessionPayload,
+  level: ScopeLevel
+): Prisma.MessengerDialogWhereInput {
+  // Ничейные — всегда: общая очередь разбора (`Р-М-3`).
+  const unbound: Prisma.MessengerDialogWhereInput = { companyId: null };
+  const company: Prisma.MessengerDialogWhereInput = {
+    companyId: session.companyId ?? NO_COMPANY_SENTINEL,
+  };
+  if (level === 'all') return { OR: [company, unbound] };
+
+  const mine: Prisma.MessengerDialogWhereInput = {
+    AND: [company, { assigneeId: session.sub }],
+  };
+  if (level === 'own') return { OR: [mine, unbound] };
+
+  // assigned: свои плюс переписка закреплённых организаций.
+  const managed: Prisma.MessengerDialogWhereInput = {
+    AND: [company, { organizationId: { in: session.managedOrgIds ?? [] } }],
+  };
+  return { OR: [mine, managed, unbound] };
+}
+
+/**
+ * In-memory зеркало `dialogWhereForLevel` — точечная проверка уже загруженного
+ * диалога (карточка, назначение, отправка). Deny не раскрывается: вызывающий
+ * превращает `false` в `not_found`.
+ */
+export function canSeeDialog(
+  session: SessionPayload,
+  dialog: {
+    companyId: string | null;
+    assigneeId: string | null;
+    organizationId: string | null;
+  }
+): boolean {
+  if (session.role === 'admin') return true;
+  if (!isStaffManagerSide(session)) return false;
+  // Ничейный диалог видят все сотрудники — это общая очередь.
+  if (dialog.companyId === null) return true;
+  // company-floor (C8): чужая компания или сессия без компании — deny.
+  if (!session.companyId || dialog.companyId !== session.companyId) return false;
+  const level = session.accessProfile?.dialogs;
+  if (!level || level === 'all') return true;
+  const mine = dialog.assigneeId === session.sub;
+  if (level === 'own') return mine;
+  // assigned
+  return (
+    mine ||
+    (!!dialog.organizationId && (session.managedOrgIds ?? []).includes(dialog.organizationId))
+  );
+}
+
+/**
  * Проверка capability-флага.
  *  - admin       → всегда true (Model A);
  *  - есть профиль → default-deny: флаг должен присутствовать явно;
@@ -184,6 +256,7 @@ export type AccessProfileRow = {
   financeScope: ScopeLevel;
   leadsScope: ScopeLevel;
   tasksScope: ScopeLevel;
+  dialogsScope: ScopeLevel;
   capabilities: string[];
 };
 
@@ -206,6 +279,7 @@ export function toSessionAccessProfile(row: AccessProfileRow): SessionAccessProf
     finance: row.financeScope,
     leads: row.leadsScope,
     tasks: row.tasksScope,
+    dialogs: row.dialogsScope,
     capabilities,
   };
 }

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import React from 'react';
+import { RetryMessageButton } from '@/components/manager/messengers/retry-message-button';
 import { EmptyState } from '@/components/ui';
 import { fmtDateTime } from '@/lib/format';
 import type { DialogMessageView } from '@/lib/services/messengers/get';
@@ -108,7 +109,18 @@ export function DialogThread({
                 <p className="mt-1 text-[11px] text-gray-400">
                   {fmtDateTime(m.createdAt)}
                   {out && !isNote && m.deliveryStatus === 'failed' && (
-                    <span className="ml-2 text-red-600">не доставлено</span>
+                    <>
+                      <span className="ml-2 text-red-600">не доставлено</span>
+                      {/*
+                        `У-213`: причина рядом с пометкой. «Не доставлено» без
+                        объяснения не говорит, что делать: клиент заблокировал
+                        бота — это одно, канал не настроен — совсем другое.
+                      */}
+                      {m.deliveryError && (
+                        <span className="ml-2 text-red-600">· {m.deliveryError}</span>
+                      )}
+                      {!m.attachment && <RetryMessageButton dialogId={dialogId} messageId={m.id} />}
+                    </>
                   )}
                   {out && !isNote && m.deliveryStatus === 'pending' && (
                     <span className="ml-2 text-gray-500">ждёт проверки файла</span>

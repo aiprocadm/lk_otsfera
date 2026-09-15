@@ -227,7 +227,10 @@ describe('ingestInboundMessage — мессенджеры сворачивают
     }
   );
 
-  it('вопрос из кабинета в диалог по-прежнему не сворачивается', async () => {
+  it('`У-212`: вопрос из кабинета сворачивается в диалог, ключ — идентификатор пользователя', async () => {
+    // Кабинет перестал быть исключением. Ключ диалога берётся как есть: это
+    // не адрес, приводить к нижнему регистру нечего (и нельзя — идентификатор
+    // чувствителен к регистру).
     await ingestInboundMessage(prisma, {
       channel: 'cabinet',
       externalId: 'cab:1',
@@ -235,6 +238,6 @@ describe('ingestInboundMessage — мессенджеры сворачивают
       body: 'вопрос',
       sender: { userId: 'u-1', organizationId: 'o-1', companyId: 'c-1' },
     });
-    expect(m.appendInboundToDialog).not.toHaveBeenCalled();
+    expect(lastAppend()).toMatchObject({ channel: 'cabinet', peerRef: 'u-1' });
   });
 });

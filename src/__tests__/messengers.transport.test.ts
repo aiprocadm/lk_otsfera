@@ -9,7 +9,12 @@ import { sendToMessenger } from '@/lib/services/messengers/transport';
 
 /**
  * Единый исходящий транспорт (Р-М-7): роутит в существующие клиенты и всегда
- * отвечает `{ ok }`. Сети здесь нет — клиенты замоканы (страж E4).
+ * отвечает `{ ok }` — а с `У-213` ещё и причиной отказа. Сети здесь нет —
+ * клиенты замоканы (страж E4).
+ *
+ * Правило причины: своё транспорт НЕ выдумывает. Что дал клиент — то и отдаёт;
+ * если клиент причины не дал (чужой мок, будущий канал) — честное «неизвестно»,
+ * а не пустая строка, которую экран покажет как молчание.
  */
 describe('sendToMessenger', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -36,18 +41,36 @@ describe('sendToMessenger', () => {
     expect(t.wa).toHaveBeenCalledWith('+79990001122', 'текст');
   });
 
-  it('отказ клиента пробрасывается как ok:false', async () => {
+  it('причина от клиента доезжает наружу слово в слово', async () => {
+    // Переписывать её нельзя: текст провайдера точнее любой нашей подписи.
+    t.tg.mockResolvedValue({ ok: false, error: 'Telegram отклонил отправку (403)' });
+    await expect(sendToMessenger('telegram', 'chat-1', 'x')).resolves.toEqual({
+      ok: false,
+      error: 'Telegram отклонил отправку (403)',
+    });
+  });
+
+  it('отказ без причины → «Причина неизвестна», а не пустота', async () => {
     t.tg.mockResolvedValue({ ok: false });
-    await expect(sendToMessenger('telegram', 'chat-1', 'x')).resolves.toEqual({ ok: false });
+    await expect(sendToMessenger('telegram', 'chat-1', 'x')).resolves.toEqual({
+      ok: false,
+      error: 'Причина неизвестна',
+    });
   });
 
   it('клиент ответил не по контракту (undefined) → ok:false, а не исключение', async () => {
     t.max.mockResolvedValue(undefined);
-    await expect(sendToMessenger('max', 'mx-1', 'x')).resolves.toEqual({ ok: false });
+    await expect(sendToMessenger('max', 'mx-1', 'x')).resolves.toEqual({
+      ok: false,
+      error: 'Причина неизвестна',
+    });
   });
 
   it('клиент бросил → ok:false, вызывающему не нужен свой try/catch', async () => {
     t.wa.mockRejectedValue(new Error('network'));
-    await expect(sendToMessenger('whatsapp', '+7', 'x')).resolves.toEqual({ ok: false });
+    await expect(sendToMessenger('whatsapp', '+7', 'x')).resolves.toEqual({
+      ok: false,
+      error: 'Сбой транспорта',
+    });
   });
 });

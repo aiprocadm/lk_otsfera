@@ -23,7 +23,6 @@ vi.mock('@/lib/services/messengers/availability', () => ({
 }));
 
 import { listDialogCandidates, startDialog } from '@/lib/services/messengers/start';
-import { DIALOG_CHANNELS } from '@/lib/services/messengers/channels';
 
 /**
  * «Написать первым с причиной» (`У-216`).
@@ -91,7 +90,52 @@ describe('listDialogCandidates — причины недоступности (У
     const [candidate] = await listDialogCandidates(prisma, managerSession());
     // Раньше список каналов был короче на недоступные — человек не понимал,
     // почему нужного канала нет вовсе.
-    expect(candidate?.channels.map((c) => c.channel)).toEqual([...DIALOG_CHANNELS]);
+    //
+    // Эталон выписан ЛИТЕРАЛОМ, а не через `DIALOG_CHANNELS`: «написать
+    // первым» — это НЕ весь реестр каналов диалога. Кабинета здесь нет
+    // намеренно (`У-212`): диалог кабинета начинает клиент своим вопросом, а
+    // «написать первым в кабинет» — это уведомление, у него свой путь. Если
+    // сюда однажды просочится кабинет, тест обязан упасть, а не подстроиться.
+    expect(candidate?.channels.map((c) => c.channel)).toEqual([
+      'telegram',
+      'max',
+      'whatsapp',
+      'email',
+    ]);
+    expect(candidate?.channels.map((c) => c.channel)).not.toContain('cabinet');
+  });
+
+  it('у контакта и у пользователя кабинета список каналов ОДИН И ТОТ ЖЕ', async () => {
+    // Две ветки списка кандидатов собирают каналы по-разному: у пользователя
+    // они перечислены руками (`telegram/max/whatsapp/email`), у контакта —
+    // взяты из реестра «написать первым». Пока списки совпадают, разница
+    // незаметна; стоит появиться новому каналу — контакт его получит, а
+    // пользователь молча нет, и экран начнёт врать про одну из двух строк.
+    // Эта проверка держит их вместе.
+    userFindMany.mockResolvedValue([
+      {
+        id: 'u1',
+        name: 'Иван',
+        email: 'i@t.test',
+        telegramChatId: null,
+        maxChatId: null,
+        whatsappPhone: null,
+        organization: { id: 'o1', name: 'Ромашка' },
+      },
+    ]);
+    contactFindMany.mockResolvedValue([
+      {
+        id: 'k1',
+        name: 'Пётр',
+        organizationId: 'o1',
+        organization: { name: 'Ромашка' },
+        channels: [{ type: 'telegram' }],
+      },
+    ]);
+    const list = await listDialogCandidates(prisma, managerSession());
+    const user = list.find((c) => c.kind === 'user');
+    const contact = list.find((c) => c.kind === 'contact');
+    expect(user?.channels.map((c) => c.channel)).toEqual(contact?.channels.map((c) => c.channel));
   });
 
   it('адреса нет → причина зовёт к клиенту; для Telegram и MAX она особая', async () => {
@@ -223,7 +267,8 @@ describe('listDialogCandidates — причины недоступности (У
     // с `У-205` полноценный канал диалога. Поэтому отбора «есть хоть один
     // адрес» у них нет: пока он стоял, сотрудник организации без бота выпадал
     // из списка, хотя написать ему было можно, — и соседняя ветка контактов
-    // (она отбирает по `DIALOG_CHANNELS`, то есть с почтой) его бы показала.
+    // (она отбирает по каналам «написать первым», то есть с почтой) его бы
+    // показала.
     const userWhere = userFindMany.mock.calls[0]?.[0].where;
     expect(userWhere.organization).toEqual({ companyId: 'c1' });
     expect(userWhere.OR).toBeUndefined();
@@ -233,7 +278,9 @@ describe('listDialogCandidates — причины недоступности (У
           companyId: 'c1',
           isArchived: false,
           OR: [{ organizationId: null }, { organization: { companyId: 'c1' } }],
-          channels: { some: { type: { in: [...DIALOG_CHANNELS] } } },
+          // Литерал, а не `DIALOG_CHANNELS`: кабинет в отбор кандидатов не
+          // входит (`У-212`) — у контакта не бывает «адреса в кабинете».
+          channels: { some: { type: { in: ['telegram', 'max', 'whatsapp', 'email'] } } },
         }),
       })
     );

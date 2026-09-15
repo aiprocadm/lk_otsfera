@@ -1,6 +1,13 @@
 'use server';
 
+import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+import { MESSENGER_CHANNELS } from '@/lib/services/messengers/channels';
+import {
+  checkWebhook,
+  sendSelfTestMessage,
+  type SelfCheckResult,
+} from '@/lib/services/messengers/selfCheck';
 import { prisma } from '@/lib/db/prisma';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import {
@@ -261,6 +268,34 @@ export async function testIntegrationAction(
   if (!res.ok) return res;
   revalidatePath('/admin/settings/integrations');
   return res;
+}
+
+/**
+ * Канал проверок приходит от кнопки на странице, поэтому его форма проверяется
+ * здесь (§3). Неизвестное значение отсекается сразу: полагаться на то, что
+ * дальше оно «всё равно провалится», — значит держать защиту на случайности.
+ */
+const CheckChannelSchema = z.enum(MESSENGER_CHANNELS);
+
+/** `У-213`: «Отправить тестовое сообщение себе» — проверка пути НАРУЖУ. */
+export async function sendSelfTestMessageAction(
+  channel: string,
+  _fd: FormData
+): Promise<SelfCheckResult> {
+  void _fd;
+  const parsed = CheckChannelSchema.safeParse(channel);
+  if (!parsed.success) return { ok: false, error: 'channel_unavailable' };
+  const session = await requireAdmin();
+  return sendSelfTestMessage(prisma, session, parsed.data);
+}
+
+/** `У-213`: «Проверить вебхук» — проверка пути ВНУТРЬ (что шлёт нам провайдер). */
+export async function checkWebhookAction(channel: string, _fd: FormData): Promise<SelfCheckResult> {
+  void _fd;
+  const parsed = CheckChannelSchema.safeParse(channel);
+  if (!parsed.success) return { ok: false, error: 'channel_unavailable' };
+  await requireAdmin();
+  return checkWebhook(parsed.data);
 }
 
 /** Настройки DaData: включение + ключ (секрет). */

@@ -21,7 +21,15 @@ vi.mock('@/lib/services/messengers/send', async () => ({
 }));
 vi.mock('@/lib/services/messengers/bind', () => ({ bindDialog: m.bindDialog }));
 vi.mock('@/lib/services/messengers/status', () => ({ setDialogStatus: m.setDialogStatus }));
-vi.mock('@/lib/services/messengers/start', () => ({ startDialog: m.startDialog }));
+// Частичный мок: подменяем только сам сервис, а реестр каналов «написать
+// первым» (`START_FIRST_CHANNELS`) берём НАСТОЯЩИЙ — по нему собран `z.enum`
+// формы, и подменять его значило бы проверять выдуманный список вместо живого.
+vi.mock('@/lib/services/messengers/start', async () => ({
+  ...(await vi.importActual<typeof import('@/lib/services/messengers/start')>(
+    '@/lib/services/messengers/start'
+  )),
+  startDialog: m.startDialog,
+}));
 
 import {
   bindDialogAction,
@@ -81,6 +89,34 @@ describe('server-actions/messengers', () => {
       error: 'validation',
     });
     expect(m.requireManager).not.toHaveBeenCalled();
+  });
+
+  it('`У-212`: «написать первым» в кабинет форма не принимает', async () => {
+    // Кабинет — канал диалога (его видно в ленте и по нему отвечают), но
+    // НАЧАТЬ переписку туда нельзя: диалог кабинета открывает клиент своим
+    // вопросом. «Написать первым в кабинет» — это уведомление, у него свой
+    // путь. Отказ даёт форма, до гарда и до сервиса.
+    await expect(
+      startDialogAction({ kind: 'user', id: 'u1', channel: 'cabinet' })
+    ).resolves.toEqual({ ok: false, error: 'validation' });
+    expect(m.startDialog).not.toHaveBeenCalled();
+    expect(m.requireManager).not.toHaveBeenCalled();
+  });
+
+  it('почта и мессенджеры форму проходят — сузили ровно на один канал', async () => {
+    // Проверка-двойник к предыдущей: если бы `START_FIRST_CHANNELS` случайно
+    // опустел или сузился ещё, тест выше остался бы зелёным, а «написать
+    // первым» перестало бы работать вообще.
+    m.startDialog.mockResolvedValue({ ok: true, dialogId: 'd1' });
+    for (const channel of ['telegram', 'max', 'whatsapp', 'email']) {
+      m.startDialog.mockClear();
+      await startDialogAction({ kind: 'user', id: 'u1', channel });
+      expect(m.startDialog, channel).toHaveBeenCalledWith(
+        {},
+        SESSION,
+        expect.objectContaining({ channel })
+      );
+    }
   });
 
   it('sendDialogMessageAction: успех и reply_failed перечитывают страницы, прочие отказы — нет', async () => {
