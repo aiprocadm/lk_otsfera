@@ -22,6 +22,13 @@ export const SETTINGS_CAPABILITIES = [
   'settings.integrations.view',
   'settings.integrations.manage',
   'settings.catalogs.manage',
+  // Этап 4 (`У-222`): правила автоматизации — своё право, а не общее
+  // `catalogs.manage`. Робот, который сам ставит задачи и пишет людям, — это
+  // не то же самое, что справочник статусов: доступ к нему выдают отдельно.
+  // Следствие, которое надо понимать: профиль, где коды `settings.*` уже
+  // размечены, нового кода не получит и в раздел не попадёт — это и есть
+  // задуманный default-deny для нового раздела (§2b CLAUDE.md).
+  'settings.automation.manage',
   'settings.access.manage',
   'settings.audit.view',
   'settings.personal_data.view',

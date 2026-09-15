@@ -27,6 +27,9 @@ afterEach(() => {
 beforeEach(() => {
   process.env.FEATURE_BITRIX_MIGRATION = '1';
   process.env.FEATURE_COMM_CENTER = '1';
+  // `У-222` (этап 4): раздел «Автоматизация» гейтится своим флагом — без него
+  // он не виден никому, включая администратора.
+  process.env.FEATURE_AUTOMATION = '1';
 });
 
 function section(id: string): SettingsSection {
@@ -155,6 +158,8 @@ describe('visibleSettingsSections / hasAnySettingsAccess', () => {
       'catalogs.applicationStatuses',
       // `У-127`: правила уведомлений — руководитель настраивает свою компанию.
       'catalogs.notificationRules',
+      // `У-222` (этап 4): правила автоматизации своей компании.
+      'catalogs.automation',
       'catalogs.customFields',
       // `У-136` (Р-22): каталог услуг и цены — руководитель ведёт свою компанию.
       'catalogs.priceList',
