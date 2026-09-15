@@ -10,34 +10,54 @@ const dec = (n: number) => new Prisma.Decimal(n);
 
 function makeDb(opts: {
   refunds: any[];
-  liveStatement?: any;
+  /** Закрытые (approved/paid) живые периоды — выборка идёт ОТ НИХ. */
+  periods?: any[];
   rateChanges?: any[];
+  partners?: any[];
   created?: any[];
 }) {
   const created = opts.created ?? [];
-  // Справочники задача берёт пакетом (один запрос на прогон, а не на строку),
-  // поэтому подделка отдаёт списки; `partnerId`/`organizationId` в строках
-  // нужны для раскладки по ключу.
-  const statements = opts.liveStatement ? [{ partnerId: 'p1', ...opts.liveStatement }] : [];
+  const periods = opts.periods ?? [];
+  /** Каждый поход в базу отмечается здесь — на этом держится страж порционности. */
+  const queries: string[] = [];
+  const spy = <T>(name: string, value: T) =>
+    vi.fn(async () => {
+      queries.push(name);
+      return value;
+    });
+
   return {
-    payment: { findMany: vi.fn().mockResolvedValue(opts.refunds) },
-    commissionStatement: { findMany: vi.fn().mockResolvedValue(statements) },
+    commissionStatement: { findMany: spy('commissionStatement.findMany', periods) },
+    payment: { findMany: spy('payment.findMany', opts.refunds) },
+    partner: {
+      findMany: spy('partner.findMany', opts.partners ?? [{ id: 'p1', commissionRate: dec(0.2) }]),
+    },
     commissionRateChange: {
-      findMany: vi
-        .fn()
-        .mockResolvedValue((opts.rateChanges ?? []).map((c) => ({ partnerId: 'p1', ...c }))),
+      findMany: spy('commissionRateChange.findMany', opts.rateChanges ?? []),
     },
     // F4: история org-override; пустая по умолчанию (fallback на текущее значение).
-    organizationCommissionRateChange: { findMany: vi.fn().mockResolvedValue([]) },
+    organizationCommissionRateChange: { findMany: spy('orgRateChange.findMany', []) },
     commissionCorrection: {
-      create: vi.fn().mockImplementation(({ data }) => {
+      create: vi.fn().mockImplementation(({ data }: any) => {
+        queries.push('commissionCorrection.create');
         created.push(data);
         return { id: 'new', ...data };
       }),
     },
-    partner: { findMany: vi.fn().mockResolvedValue([{ id: 'p1', commissionRate: dec(0.2) }]) },
     _created: created,
+    _queries: queries,
   } as any;
+}
+
+/** Закрытый (оплаченный) апрельский период партнёра `p1`. */
+function paidPeriod(over: any = {}) {
+  return {
+    id: 'stmt-apr',
+    partnerId: 'p1',
+    periodFrom: new Date('2026-04-01'),
+    periodTo: new Date('2026-04-30T23:59:59Z'),
+    ...over,
+  };
 }
 
 function refundRow(over: any = {}) {
@@ -47,6 +67,7 @@ function refundRow(over: any = {}) {
     paidAt: new Date('2026-04-20'),
     isRefund: true,
     orderId: 'o1',
+    organizationId: 'org-1',
     order: { partnerId: 'p1' },
     organization: { partnerId: 'p1' },
     ...over,
@@ -162,15 +183,7 @@ describe('resolveCorrection', () => {
 
 describe('detectLateRefundCorrections', () => {
   it('creates needs_review for a refund landing in a paid period', async () => {
-    const db = makeDb({
-      refunds: [refundRow()],
-      liveStatement: {
-        id: 'stmt-apr',
-        status: 'paid',
-        periodFrom: new Date('2026-04-01'),
-        periodTo: new Date('2026-04-30T23:59:59Z'),
-      },
-    });
+    const db = makeDb({ refunds: [refundRow()], periods: [paidPeriod()] });
     const n = await detectLateRefundCorrections(db);
     expect(n).toBe(1);
     expect(db._created[0]).toMatchObject({
@@ -183,33 +196,81 @@ describe('detectLateRefundCorrections', () => {
   });
 
   it('creates for an approved period too (owner: approved∨paid closed)', async () => {
-    const db = makeDb({
-      refunds: [refundRow()],
-      liveStatement: {
-        id: 'stmt-apr',
-        status: 'approved',
-        periodFrom: new Date('2026-04-01'),
-        periodTo: new Date('2026-04-30T23:59:59Z'),
-      },
-    });
+    const db = makeDb({ refunds: [refundRow()], periods: [paidPeriod()] });
     expect(await detectLateRefundCorrections(db)).toBe(1);
+    expect(db.commissionStatement.findMany.mock.calls[0][0].where).toMatchObject({
+      supersededBy: null,
+      status: { in: ['approved', 'paid'] },
+    });
   });
 
   it('skips a refund whose period is only draft (normal SP-1 negative line)', async () => {
-    const db = makeDb({ refunds: [refundRow()], liveStatement: null });
+    // Закрытых периодов нет вовсе — спрашивать о возвратах не о чем.
+    const db = makeDb({ refunds: [refundRow()], periods: [] });
+    expect(await detectLateRefundCorrections(db)).toBe(0);
+    expect(db.payment.findMany).not.toHaveBeenCalled();
+    expect(db.commissionCorrection.create).not.toHaveBeenCalled();
+  });
+
+  it('skips a refund whose closed period belongs to another partner', async () => {
+    const db = makeDb({ refunds: [refundRow()], periods: [paidPeriod({ partnerId: 'p2' })] });
     expect(await detectLateRefundCorrections(db)).toBe(0);
     expect(db.commissionCorrection.create).not.toHaveBeenCalled();
   });
 
   it('is idempotent: refunds already having a correction are excluded by the query', async () => {
-    const db = makeDb({ refunds: [] });
+    const db = makeDb({ refunds: [], periods: [paidPeriod()] });
     expect(await detectLateRefundCorrections(db)).toBe(0);
     const where = db.payment.findMany.mock.calls[0][0].where;
     expect(where).toMatchObject({ isRefund: true, commissionCorrection: { is: null } });
   });
 
   it('skips a refund with no resolvable partner', async () => {
-    const db = makeDb({ refunds: [refundRow({ order: null, organization: { partnerId: null } })] });
+    const db = makeDb({
+      refunds: [refundRow({ order: null, organization: { partnerId: null } })],
+      periods: [paidPeriod()],
+    });
     expect(await detectLateRefundCorrections(db)).toBe(0);
+  });
+
+  // ── Страж порционности (`С-8`, хотфикс №49) ────────────────────────────────
+
+  it('берёт пачку с пределом и в устойчивом порядке, а не всё подряд', async () => {
+    const db = makeDb({ refunds: [refundRow()], periods: [paidPeriod()] });
+    await detectLateRefundCorrections(db);
+
+    const stmtArgs = db.commissionStatement.findMany.mock.calls[0][0];
+    expect(typeof stmtArgs.take).toBe('number');
+    expect(stmtArgs.take).toBeGreaterThan(0);
+    expect(stmtArgs.orderBy).toEqual([{ periodTo: 'desc' }, { id: 'asc' }]);
+
+    const payArgs = db.payment.findMany.mock.calls[0][0];
+    expect(typeof payArgs.take).toBe('number');
+    expect(payArgs.take).toBeGreaterThan(0);
+    // Второй ключ сортировки обязателен: при равных paidAt порядок иначе не
+    // обещан, и соседние заходы видят разные пачки (`С-8`, хотфиксы №28…№32).
+    expect(payArgs.orderBy).toEqual([{ paidAt: 'asc' }, { id: 'asc' }]);
+    // Спрашиваем только про закрытые периоды — возвраты открытого периода и
+    // возвраты без партнёра база не возвращает вовсе.
+    expect(payArgs.where.OR).toHaveLength(1);
+  });
+
+  it('число запросов не растёт вместе с базой', async () => {
+    const reads = (db: any) => db._queries.filter((q: string) => !q.endsWith('.create')).length;
+
+    const one = makeDb({ refunds: [refundRow()], periods: [paidPeriod()] });
+    expect(await detectLateRefundCorrections(one)).toBe(1);
+
+    const many = makeDb({
+      refunds: Array.from({ length: 100 }, (_, i) =>
+        refundRow({ id: `pay-r${i}`, organizationId: `org-${i}` })
+      ),
+      periods: [paidPeriod()],
+    });
+    expect(await detectLateRefundCorrections(many)).toBe(100);
+
+    // Сто возвратов вместо одного — столько же походов в базу за чтением.
+    expect(reads(many)).toBe(reads(one));
+    expect(reads(many)).toBeLessThanOrEqual(5);
   });
 });
