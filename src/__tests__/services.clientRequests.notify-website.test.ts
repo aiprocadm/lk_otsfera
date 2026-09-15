@@ -64,6 +64,9 @@ function db(users: Array<{ id: string }> = [{ id: 'm1' }]) {
     prisma: {
       user: { findMany: userFindMany },
       organizationManager: { findMany: omFindMany },
+      // `У-223` (этап 4): нотификатор попутно испускает событие для правил.
+      organization: { findUnique: vi.fn().mockResolvedValue({ companyId: 'co-1' }) },
+      automationRule: { findMany: vi.fn().mockResolvedValue([]) },
     } as never,
     userFindMany,
   };

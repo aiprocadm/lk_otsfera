@@ -40,6 +40,7 @@ import { evaluateAlertsProcessor } from './processors/evaluate-alerts';
 import { certificateExpiryProcessor } from './processors/certificate-expiry';
 import { calendarReminderProcessor } from './processors/calendar-reminder';
 import { taskDueSoonProcessor } from './processors/task-due-soon';
+import { automationRunProcessor } from './processors/automation-run';
 import { expireProposalsProcessor } from './processors/expire-proposals';
 import { slaEscalationProcessor } from './processors/sla-escalation';
 import { dispatchNotificationProcessor } from './processors/dispatch-notification';
@@ -62,12 +63,20 @@ if (process.env.SENTRY_DSN) {
 
 const workers: Worker[] = [];
 
-function startWorker<T = unknown>(queueName: QueueName, processor: Processor<T>): Worker {
+function startWorker<T = unknown>(
+  queueName: QueueName,
+  processor: Processor<T>,
+  // Этап 4 (`У-223`, §11 пакета): у правил автоматизации свой предел
+  // одновременных исполнений — робот не должен вытеснять обмен с 1С и рассылку
+  // уведомлений. Остальные очереди работают с прежним значением BullMQ.
+  opts?: { concurrency?: number }
+): Worker {
   // toBullProcessor: forward only `job`, so each processor's injected `db = prisma`
   // default survives (BullMQ would otherwise pass its token string into that slot).
   const worker = new Worker(queueName, toBullProcessor(processor), {
     connection: getRedisConnection(),
     autorun: true,
+    ...(opts?.concurrency ? { concurrency: opts.concurrency } : {}),
   });
   worker.on('completed', (job) => {
     log.info(`[worker] ${queueName} completed`, { id: job.id });
@@ -191,6 +200,8 @@ async function main() {
   startWorker('notifications.taskDueSoon', taskDueSoonProcessor as Processor);
   // `У-164`: ежедневное истечение срока коммерческих предложений.
   startWorker('docs.expireProposals', expireProposalsProcessor as Processor);
+  // Этап 4 (`У-223`): исполнение правил автоматизации, конкурентность 2.
+  startWorker('automation.run', automationRunProcessor() as Processor, { concurrency: 2 });
   startWorker('monitoring.slaEscalation', slaEscalationProcessor as Processor);
   startWorker('notifications.dispatch', dispatchNotificationProcessor as Processor);
   startWorker('inbound.email.poll', pollInboundEmailProcessor as Processor);

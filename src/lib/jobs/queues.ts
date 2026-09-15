@@ -33,6 +33,9 @@ export const QUEUE_NAMES = [
   // payload у всех один (`{ batchId }`). Задачи одного пакета обязаны идти
   // по очереди, поэтому `concurrency` не передаётся (умолчание BullMQ — одна).
   'bitrix.import',
+  // Этап 4 (`У-223`): исполнение правил автоматизации. Своя очередь, а не
+  // общая: сбой робота не должен мешать уведомлениям и обмену с 1С.
+  'automation.run',
 ] as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[number];

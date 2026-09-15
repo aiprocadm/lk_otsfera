@@ -3,6 +3,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { expiredProposalsWhere } from '@/lib/documents/proposalExpiry';
 import { setDocumentStatus } from '@/lib/services/documents/status';
 import { log } from '@/lib/logging';
+import { emitAutomationEvent } from '@/lib/automation/dispatch';
 
 /**
  * `У-164` (этап 7) — ежедневное истечение срока коммерческих предложений.
@@ -52,7 +53,20 @@ export async function runExpireProposals(
     where: expiredProposalsWhere(now),
     orderBy: { validUntil: 'asc' },
     take: BATCH_LIMIT,
-    select: { id: true, sentById: true },
+    // `У-223`: правилам нужно, чья это бумага и какой у неё номер — иначе
+    // задача «позвонить по КП» получилась бы без опознавательных знаков.
+    select: {
+      id: true,
+      sentById: true,
+      companyId: true,
+      number: true,
+      // Организация у документа хранится парой «тип контрагента + id», своего
+      // поля `organizationId` у него нет.
+      counterpartyType: true,
+      counterpartyId: true,
+      orderId: true,
+      leadId: true,
+    },
   });
 
   const result: ExpireProposalsResult = { expired: 0, skippedNoActor: 0, failed: 0 };
@@ -77,6 +91,23 @@ export async function runExpireProposals(
       const res = await setDocumentStatus(prisma, actor, { documentId: doc.id, to: 'expired' });
       if (res.ok) {
         result.expired += 1;
+        // `У-223`: КП осталось без ответа — событие для правил автоматизации.
+        // Испускаем только после УСПЕШНОГО перевода: пока бумага не помечена
+        // истёкшей, события «без ответа» ещё не случилось.
+        await emitAutomationEvent(prisma, {
+          trigger: 'proposal_no_answer',
+          companyId: doc.companyId,
+          payload: {
+            documentId: doc.id,
+            documentNumber: doc.number,
+            documentType: 'commercial_proposal',
+            organizationId:
+              doc.counterpartyType === 'organization' ? doc.counterpartyId : null,
+            orderId: doc.orderId,
+            leadId: doc.leadId,
+            responsibleManagerId: doc.sentById,
+          },
+        });
         continue;
       }
       // Отказ двери — не повод ронять весь ночной заход: остальные бумаги

@@ -5,6 +5,7 @@ import { leadWhereForLevel, canSeeLead } from '@/lib/auth/accessProfile';
 import { resolveFunnelStages, stageForLead, type FunnelStageView } from '@/lib/funnel/stages';
 import { promoteLead, rejectLead, setLeadStatus } from '@/lib/services/manager/leadLifecycle';
 import { convertLeadToDeal } from '@/lib/services/deals/convert';
+import { emitAutomationEvent } from '@/lib/automation/dispatch';
 
 /**
  * Трек G2 — доска воронки продаж (канбан). Лиды, сгруппированные по стадиям
@@ -144,6 +145,7 @@ export async function moveFunnelLead(
   // Внутри якоря — только переставляем карточку (без lifecycle-перехода).
   if (target.statusAnchor === lead.status) {
     await prisma.lead.update({ where: { id: lead.id }, data: { funnelStageId: persistStageId } });
+    await emitLeadStageChanged(prisma, session, lead, target);
     return { ok: true };
   }
 
@@ -191,5 +193,36 @@ export async function moveFunnelLead(
   }
 
   await prisma.lead.update({ where: { id: lead.id }, data: { funnelStageId: persistStageId } });
+  await emitLeadStageChanged(prisma, session, lead, target);
   return { ok: true };
+}
+
+/**
+ * `У-223`: лид сменил стадию — это событие для правил автоматизации.
+ *
+ * Обе двери (перестановка внутри якоря и lifecycle-переход) зовут одно и то же
+ * место: две врезки однажды разошлись бы, и половина переходов перестала бы
+ * запускать правила молча.
+ *
+ * `companyId` берётся из сессии: у модели `Lead` своего поля компании нет —
+ * лид single-tenant, и это же делает `resolveFunnelStages` выше.
+ */
+async function emitLeadStageChanged(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  lead: { id: string; organizationId: string | null; assignedManagerId: string | null },
+  target: { id: string; statusAnchor: string; name: string }
+): Promise<void> {
+  await emitAutomationEvent(prisma, {
+    trigger: 'lead_stage_changed',
+    companyId: session.companyId,
+    payload: {
+      leadId: lead.id,
+      organizationId: lead.organizationId,
+      responsibleManagerId: lead.assignedManagerId,
+      toStatus: target.id,
+      toStatusAnchor: target.statusAnchor,
+      stageName: target.name,
+    },
+  });
 }

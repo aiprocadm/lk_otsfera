@@ -2,6 +2,7 @@ import type { Prisma, PrismaClient } from '@prisma/client';
 import { isManagerLeader, isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
+import { emitAutomationEvent } from '@/lib/automation/dispatch';
 import { resolveDealStages, stageForDeal, type DealStageView } from './stages';
 
 /**
@@ -157,7 +158,17 @@ export async function moveDeal(
 
   const deal = await prisma.deal.findFirst({
     where: { AND: [{ id: args.dealId }, dealScopeWhere(session)] },
-    select: { id: true, status: true, stageId: true, companyId: true },
+    // `У-223`: `managerId` и `organizationId` добраны для правил автоматизации
+    // — им нужно, кому ставить задачу и по какому клиенту.
+    select: {
+      id: true,
+      status: true,
+      stageId: true,
+      companyId: true,
+      managerId: true,
+      organizationId: true,
+      title: true,
+    },
   });
   // Скоуп в выборке: чужая сделка неотличима от несуществующей.
   if (!deal) return { ok: false, error: 'not_found' };
@@ -181,6 +192,7 @@ export async function moveDeal(
       entityId: deal.id,
       after: { toStageId: args.toStageId },
     });
+    await emitDealStageChanged(prisma, deal, target);
     return { ok: true };
   }
 
@@ -205,5 +217,36 @@ export async function moveDeal(
     entityId: deal.id,
     after: { toStageId: args.toStageId, statusAnchor: target.statusAnchor },
   });
+  await emitDealStageChanged(prisma, deal, target);
   return { ok: true };
+}
+
+/**
+ * `У-223`: сделка сменила стадию. Обе двери (перестановка внутри «в работе» и
+ * перевод в «проиграна») зовут одно место — две врезки однажды разошлись бы.
+ */
+async function emitDealStageChanged(
+  prisma: PrismaClient,
+  deal: {
+    id: string;
+    companyId: string;
+    managerId: string | null;
+    organizationId: string | null;
+    title: string;
+  },
+  target: { id: string; statusAnchor: string; name: string }
+): Promise<void> {
+  await emitAutomationEvent(prisma, {
+    trigger: 'deal_stage_changed',
+    companyId: deal.companyId,
+    payload: {
+      dealId: deal.id,
+      dealTitle: deal.title,
+      organizationId: deal.organizationId,
+      responsibleManagerId: deal.managerId,
+      toStatus: target.id,
+      toStatusAnchor: target.statusAnchor,
+      stageName: target.name,
+    },
+  });
 }
