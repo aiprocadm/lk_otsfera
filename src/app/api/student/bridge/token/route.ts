@@ -6,6 +6,7 @@ import { requireRole, requireSession } from '@/lib/auth/guard';
 import { recordAudit } from '@/lib/auth/audit';
 import { isRateLimited } from '@/lib/rateLimit';
 
+import { clientIpFromHeaders } from '@/lib/api/clientIp';
 const WINDOW_MS = Number(process.env.STUDENT_BRIDGE_RATE_LIMIT_WINDOW_MS ?? 60_000);
 const LIMIT_PER_WINDOW = Number(process.env.STUDENT_BRIDGE_RATE_LIMIT_MAX ?? 10);
 
@@ -56,8 +57,7 @@ export async function POST(req: NextRequest) {
   const clientId = req.headers.get('x-bridge-client')?.trim() ?? '';
   const sharedSecret = req.headers.get('x-bridge-secret')?.trim() ?? '';
   const expectedSecret = process.env.STUDENT_BRIDGE_SHARED_SECRET?.trim() ?? '';
-  const ip =
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? req.headers.get('x-real-ip');
+  const ip = clientIpFromHeaders(req.headers);
 
   if (!clientId || !expectedSecret || !safeEqual(sharedSecret, expectedSecret)) {
     await auditBridgeFailure({

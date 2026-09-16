@@ -73,7 +73,7 @@ describe('login — общий лимитер', () => {
 });
 
 describe('reset-password/request — лимиты per-IP и per-email', () => {
-  it('IP-лимит превышен → 429 до чтения тела; ключ по первому XFF-адресу', async () => {
+  it('IP-лимит превышен → 429 до чтения тела; ключ по ХВОСТУ цепочки XFF', async () => {
     isRateLimited.mockResolvedValueOnce(true);
     const res = await resetRequestPost(
       req(
@@ -85,7 +85,7 @@ describe('reset-password/request — лимиты per-IP и per-email', () => {
     expect(res.status).toBe(429);
     expect((await res.json()).error).toBe('too_many_requests');
     expect(isRateLimited).toHaveBeenCalledTimes(1);
-    expect(isRateLimited).toHaveBeenCalledWith('reset-request:ip:9.9.9.9', {
+    expect(isRateLimited).toHaveBeenCalledWith('reset-request:ip:10.0.0.1', {
       windowMs: 3_600_000,
       max: 20,
     });
@@ -143,7 +143,7 @@ describe('reset-password/confirm — лимит per-IP (анти-перебор 
     expect(verifyAndConsumeToken).not.toHaveBeenCalled();
   });
 
-  it('лимит не превышен → прежний контракт (invalid_token → 400); ключ по первому XFF', async () => {
+  it('лимит не превышен → прежний контракт (invalid_token → 400); ключ по ХВОСТУ XFF', async () => {
     verifyAndConsumeToken.mockResolvedValue({ ok: false });
     const res = await resetConfirmPost(
       req(
@@ -154,7 +154,7 @@ describe('reset-password/confirm — лимит per-IP (анти-перебор 
     );
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe('invalid_token');
-    expect(isRateLimited).toHaveBeenCalledWith('reset-confirm:ip:6.6.6.6', {
+    expect(isRateLimited).toHaveBeenCalledWith('reset-confirm:ip:1.1.1.1', {
       windowMs: 60_000,
       max: 10,
     });

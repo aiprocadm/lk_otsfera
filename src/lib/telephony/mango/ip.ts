@@ -23,8 +23,3 @@ export function isMangoIpAllowed(ip: string, allowlist = configuredAllowlist()):
   );
   return set.has((ip ?? '').trim());
 }
-
-/** Client IP from proxy headers (x-forwarded-for first hop, then x-real-ip). */
-export function clientIpFrom(headers: Headers): string {
-  return (headers.get('x-forwarded-for')?.split(',')[0] ?? headers.get('x-real-ip') ?? '').trim();
-}

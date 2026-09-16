@@ -5,6 +5,7 @@ import {
   WEBSITE_FORM_MAX_BYTES,
 } from '@/lib/services/clientRequests/website';
 
+import { clientIpFromHeaders } from '@/lib/api/clientIp';
 /**
  * POST /api/public/requests — заявка с формы на сайте otsfera.ru (`У-211`).
  *
@@ -20,13 +21,6 @@ import {
  * не сошлось — видно в журнале сервиса.
  */
 export const dynamic = 'force-dynamic';
-
-/** IP берём так же, как форма входа: за обратным прокси это `x-forwarded-for`. */
-function clientIp(req: Request): string {
-  const fwd = req.headers.get('x-forwarded-for');
-  if (fwd) return fwd.split(',')[0]!.trim();
-  return req.headers.get('x-real-ip') ?? 'unknown';
-}
 
 export async function POST(req: Request) {
   // Тело читаем текстом: так узнаём фактический размер ДО разбора JSON и не
@@ -50,7 +44,7 @@ export async function POST(req: Request) {
     result = await submitWebsiteRequest(prisma, {
       token: req.headers.get('x-site-token'),
       origin: req.headers.get('origin'),
-      ip: clientIp(req),
+      ip: clientIpFromHeaders(req.headers),
       bodyBytes,
       payload,
     });

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { sendPasswordResetLink } from '@/lib/services/auth/passwordResetRequest';
 import { isRateLimited } from '@/lib/rateLimit';
 
+import { clientIpFromHeaders } from '@/lib/api/clientIp';
 // R0.6: до лимитера маршрут был вектором email-бомбинга жертвы (каждый запрос
 // на существующий email пишет токен в БД и шлёт письмо). Двухключевой лимит:
 // per-IP (широкий) + per-email (узкий) — 429 не раскрывает существование
@@ -11,16 +12,10 @@ import { isRateLimited } from '@/lib/rateLimit';
 const IP_LIMIT = { windowMs: 60 * 60 * 1000, max: 20 };
 const EMAIL_LIMIT = { windowMs: 60 * 60 * 1000, max: 5 };
 
-function clientIp(req: NextRequest): string {
-  const fwd = req.headers.get('x-forwarded-for');
-  if (fwd) return fwd.split(',')[0]!.trim();
-  return req.headers.get('x-real-ip') ?? 'unknown';
-}
-
 const RequestSchema = z.object({ email: z.string().email() });
 
 export async function POST(req: NextRequest) {
-  if (await isRateLimited(`reset-request:ip:${clientIp(req)}`, IP_LIMIT)) {
+  if (await isRateLimited(`reset-request:ip:${clientIpFromHeaders(req.headers)}`, IP_LIMIT)) {
     return NextResponse.json({ error: 'too_many_requests' }, { status: 429 });
   }
 

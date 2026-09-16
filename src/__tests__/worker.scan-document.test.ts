@@ -159,10 +159,44 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   process.env = { ...ORIGINAL_ENV };
 });
 
 describe('scanDocumentProcessor', () => {
+  /**
+   * `Р-Б-18` (вопрос эксплуатации этапа 3): «нет сканера — значит чисто»
+   * допустимо только там, где сканера и не бывает, — dev, тесты, CI.
+   *
+   * На бою эта ветка означала, что КАЖДЫЙ файл, включая уходящие клиенту,
+   * помечается проверенным, ни разу не будучи проверенным, а узнать об этом
+   * можно было лишь по строке `warn` в журнале обмена, которую никто не читает.
+   * Требование «задайте `CLAMAV_HOST` на проде» жило в документации — то есть
+   * держалось на том, что кто-то вспомнит.
+   *
+   * Мутация (проверено 16.09.2026): убрать проверку `NODE_ENV` → на боевой
+   * среде документ снова штампуется `clean`, тест краснеет.
+   */
+  it('production без CLAMAV_HOST — НЕ штампует «чисто», а падает с ошибкой настройки', async () => {
+    // `NODE_ENV` объявлен только для чтения — подменяем помощником vitest.
+    vi.stubEnv('NODE_ENV', 'production');
+    const db: StubDb = makeDb();
+    const deps = makeDeps();
+
+    await expect(
+      scanDocumentProcessor(makeJob({ kind: 'document', id: 'doc-1' }), db, deps)
+    ).rejects.toThrow(/CLAMAV_HOST not configured in production/);
+
+    // Документ не тронут: он остаётся `pending`, то есть клиенту не уходит и
+    // будет досканирован, как только переменную зададут.
+    expect(db.document.update).not.toHaveBeenCalled();
+    expect(db.syncLog.create.mock.calls[0][0].data).toMatchObject({
+      entity: 'scan',
+      status: 'error',
+      errorMessage: expect.stringContaining('refusing to mark unscanned file clean'),
+    });
+  });
+
   it('marks document clean and logs warn when CLAMAV_HOST is not configured', async () => {
     const db: StubDb = makeDb();
     const deps = makeDeps();

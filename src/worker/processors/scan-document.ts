@@ -220,6 +220,32 @@ export async function scanDocumentProcessor(
   const port = Number(process.env.CLAMAV_PORT ?? '3310');
 
   if (!host) {
+    // SECURITY (решение `Р-Б-18`, вопрос эксплуатации этапа 3): «нет сканера —
+    // значит чисто» допустимо только там, где сканера и не бывает — dev, тесты,
+    // CI. На бою это означало бы, что КАЖДЫЙ файл, включая уходящие клиенту,
+    // помечается проверенным, ни разу не будучи проверенным, и узнать об этом
+    // можно было лишь по строке `warn` в журнале обмена.
+    //
+    // Поэтому на бою незаданная переменная — не режим работы, а поломка
+    // настройки: ведём себя ровно как при недоступном сканере ниже — документ
+    // остаётся `pending` (то есть клиенту не уходит), запись в журнал со
+    // статусом `error`, задача падает и повторяется. Как только `CLAMAV_HOST`
+    // задан, обычный подбор `pending` досканирует накопившееся.
+    if (process.env.NODE_ENV === 'production') {
+      await writeSyncLog(
+        {
+          entity: 'scan',
+          externalId: id,
+          direction: 'inbound',
+          operation: 'check',
+          status: 'error',
+          errorMessage:
+            'CLAMAV_HOST not configured in production; refusing to mark unscanned file clean',
+        },
+        db
+      );
+      throw new Error('CLAMAV_HOST not configured in production');
+    }
     await persistResult(db, kind, id, 'clean', null);
     await writeSyncLog(
       {
@@ -270,7 +296,7 @@ export async function scanDocumentProcessor(
     // retries (attempts:5, exponential backoff); a persistent outage lands the
     // job in the DLQ and leaves the document `pending` for the backfill sweep to
     // rescan once ClamAV recovers. (The CLAMAV_HOST-unset branch above is the
-    // only intentional clean-by-default path, for envs without a scanner.)
+    // only intentional clean-by-default path, and only outside production.)
     await writeSyncLog(
       {
         entity: 'scan',
