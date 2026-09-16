@@ -5,7 +5,9 @@ import { taskWhereForLevel, canSeeTask, NO_COMPANY_SENTINEL } from '@/lib/auth/a
 import { resolveTaskColumns, columnForTask, type TaskColumnView } from '@/lib/tasks/columns';
 import { recordAudit } from '@/lib/auth/audit';
 import { taskLinkField, taskLinkValue, type TaskLinkRef } from '@/lib/tasks/links';
+import { parseRecurrence, type RecurrenceRule } from '@/lib/tasks/recurrence';
 import { hasOpenChecklistItems } from './checklist';
+import { materializeNextOccurrenceSafely } from './recurrence';
 
 /**
  * Трек G3 — доска задач (канбан). Задачи сгруппированы по колонкам (словарь
@@ -43,6 +45,8 @@ export type TaskCard = {
   linkedDocumentId: string | null;
   linkedDocumentName: string | null;
   /** `У-219`: прогресс чек-листа «3/5». Обе цифры 0 — чек-листа нет, подпись не рисуется. */
+  /** `У-221`: правило повторения; `null` — разовая задача. */
+  recurrence: RecurrenceRule | null;
   checklistDone: number;
   checklistTotal: number;
 };
@@ -125,6 +129,7 @@ const CARD_SELECT = {
   linkedContactId: true,
   linkedDialogId: true,
   linkedDocumentId: true,
+  recurrence: true,
   ...CARD_INCLUDE,
 } as const;
 
@@ -165,6 +170,9 @@ function toCard(
       : null,
     linkedDocumentId: t.linkedDocumentId,
     linkedDocumentName: t.linkedDocument?.name ?? null,
+    // Правило разбираем здесь, а не в компоненте: в базе это свободный `Json`,
+    // и мусор от ручной правки не должен доезжать до формы неразобранным.
+    recurrence: parseRecurrence(t.recurrence),
     checklistDone: checklist?.done ?? 0,
     checklistTotal: checklist?.total ?? 0,
   };
@@ -389,5 +397,13 @@ export async function moveTask(
       after: { status: target.statusAnchor, columnId: persistColumnId },
     });
   });
+
+  // `У-221`: задача завершена ВПЕРВЫЕ — рождается следующий экземпляр серии.
+  // Вне транзакции и без права упасть: не получилось создать повтор — человек
+  // всё равно закрыл задачу, и отменять это из-за побочного эффекта нельзя
+  // (§3). Ночной обход подберёт пропущенное.
+  if (target.isDoneColumn && !task.completedAt) {
+    await materializeNextOccurrenceSafely(prisma, task.id);
+  }
   return { ok: true };
 }

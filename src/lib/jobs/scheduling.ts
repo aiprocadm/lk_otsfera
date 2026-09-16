@@ -297,6 +297,50 @@ export async function registerTaskDueSoonSchedules(
   return results;
 }
 
+type TaskRecurrenceSchedule = {
+  queueName: Extract<QueueName, 'tasks.recurrence'>;
+  schedulerId: string;
+  pattern: string;
+  tz: string;
+};
+
+/**
+ * Этап 4 (`У-221`): повторяющиеся задачи — 06:00 МСК, до утреннего «скоро срок»
+ * (07:00). Порядок важен: сначала на доске появляется задача на новую неделю,
+ * потом рассылка напоминаний видит её и может о ней написать. Наоборот вышло бы
+ * «напомнили о том, чего ещё нет».
+ */
+const TASK_RECURRENCE_SCHEDULES: ReadonlyArray<TaskRecurrenceSchedule> = [
+  {
+    queueName: 'tasks.recurrence',
+    schedulerId: 'tasks.recurrence.cron',
+    pattern: '0 6 * * *',
+    tz: DEFAULT_SYNC_TZ,
+  },
+] as const;
+
+export async function registerTaskRecurrenceSchedules(
+  getQueueFn: GetQueueFn = getQueue
+): Promise<Array<{ schedulerId: string; queueName: string; pattern: string; tz: string }>> {
+  const results = [];
+  const triggeredAt = new Date().toISOString();
+  for (const schedule of TASK_RECURRENCE_SCHEDULES) {
+    const queue = getQueueFn(schedule.queueName);
+    await queue.upsertJobScheduler(
+      schedule.schedulerId,
+      { pattern: schedule.pattern, tz: schedule.tz },
+      { data: { triggeredAt, reason: 'cron' } }
+    );
+    results.push({
+      schedulerId: schedule.schedulerId,
+      queueName: schedule.queueName,
+      pattern: schedule.pattern,
+      tz: schedule.tz,
+    });
+  }
+  return results;
+}
+
 export type SlaEscalationSchedule = {
   queueName: Extract<QueueName, 'monitoring.slaEscalation'>;
   schedulerId: string;

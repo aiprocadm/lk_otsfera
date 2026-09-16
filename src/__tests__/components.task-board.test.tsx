@@ -106,6 +106,7 @@ const board: TaskBoardData = {
           linkedDocumentName: null,
           checklistDone: 0,
           checklistTotal: 0,
+          recurrence: null,
         },
         {
           id: 'task-2',
@@ -135,6 +136,7 @@ const board: TaskBoardData = {
           linkedDocumentName: null,
           checklistDone: 0,
           checklistTotal: 0,
+          recurrence: null,
         },
       ],
     },

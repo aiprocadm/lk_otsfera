@@ -916,85 +916,85 @@ model Student {
 }
 
 model Company {
-  id                       String                 @id @default(cuid())
-  createdAt                DateTime               @default(now())
-  updatedAt                DateTime               @updatedAt
-  name                     String
-  managerTeamVisibility    Boolean                @default(false)
+  id                        String                 @id @default(cuid())
+  createdAt                 DateTime               @default(now())
+  updatedAt                 DateTime               @updatedAt
+  name                      String
+  managerTeamVisibility     Boolean                @default(false)
   // Этап 7 (§4.4, PR-3): пороги SLA входящих — эскалация руководителю (часы)
   // и подсветка в Intake (часы). Настройка — карточка на /leader/team.
-  slaResponseHours         Int                    @default(24)
+  slaResponseHours          Int                    @default(24)
   /// Этап 4 (`У-225`): на какой день просрочки задачи уведомить руководителя.
   /// `0` — не эскалировать вовсе. Значение по умолчанию взято из текста
   /// требования («на 3-й день»), поэтому появление поля ничего не меняет.
-  taskOverdueEscalationDays Int                   @default(3)
-  slaWarningHours          Int                    @default(4)
+  taskOverdueEscalationDays Int                    @default(3)
+  slaWarningHours           Int                    @default(4)
   // Этап 8 (ФТ-9.1, PR-1): реквизиты для автогенерации документов.
-  legalName                String?
-  inn                      String?
-  kpp                      String?
-  ogrn                     String?
-  phone                    String?
-  email                    String?
-  legalAddress             String?
-  bankName                 String?
-  bankAccount              String?
-  corrAccount              String?
-  bic                      String?
-  signerName               String?
-  signerPosition           String?
-  signerBasis              String?
+  legalName                 String?
+  inn                       String?
+  kpp                       String?
+  ogrn                      String?
+  phone                     String?
+  email                     String?
+  legalAddress              String?
+  bankName                  String?
+  bankAccount               String?
+  corrAccount               String?
+  bic                       String?
+  signerName                String?
+  signerPosition            String?
+  signerBasis               String?
   // Этап 5 (У-138): налоговые настройки исполнителя. null = «не облагается
   // (УСН)»; значение — доля (0.2000 = 20%). Применяются генератором этапа 6
   // и умолчаниями строк заказа.
-  defaultVatRate           Decimal?               @db.Decimal(5, 4)
-  pricesIncludeVat         Boolean                @default(true)
+  defaultVatRate            Decimal?               @db.Decimal(5, 4)
+  pricesIncludeVat          Boolean                @default(true)
   // Этап 5 (У-138): шаблон нумерации документов — JSON со схемой Zod в
   // сервисе (prefixes по типам + resetYearly). Применяет генератор этапа 6.
-  documentNumbering        Json?
+  documentNumbering         Json?
   // `У-160`: выдатчик номеров редакций шаблона документов. Растёт на каждое
   // сохранение и на каждый «вернуть стандартный», никогда не обнуляется и не
   // переиспользуется: два разных текста не должны носить один номер.
   /// `У-162` (этап 7): сколько дней действует КП по умолчанию. Настраивается
   /// в «Реквизитах исполнителя» рядом с налогами и нумерацией — отдельного
   /// раздела настроек под одно число заводить незачем.
-  proposalValidDays        Int                    @default(14)
-  documentTemplateRevision Int                    @default(0)
+  proposalValidDays         Int                    @default(14)
+  documentTemplateRevision  Int                    @default(0)
   /// `У-169` (этап 8): правило выгрузки документов в 1С — у каждой компании
   /// своё (глобальная `IntegrationSetting` не подходит: у неё нет `companyId`).
   /// Редактируют администратор и руководитель своей компании (`Р-22`).
-  oneCDocumentPushMode     OneCDocumentPushMode   @default(manual)
+  oneCDocumentPushMode      OneCDocumentPushMode   @default(manual)
   /// `У-169`: какие типы уезжают при `auto`. Набор ограничен четырьмя типами
   /// ПРОВЕРКОЙ БАЗЫ (`Company_oneCDocumentPushTypes_pushable`, миграция
   /// `20260903100000_stage8_document_push_model`): КП в 1С не выгружается
   /// (`Р-14`), и попасть в набор мимо интерфейса оно не должно.
-  oneCDocumentPushTypes    DocumentType[]         @default([invoice, act, contract, extra_agreement])
-  documentTemplates        DocumentTemplate[]
-  users                    User[]
-  orders                   Order[]
-  organizations            Organization[]
-  documents                Document[]
-  accessProfiles           AccessProfile[]
-  funnelStages             FunnelStage[]
-  deals                    Deal[]                 @relation("CompanyDeals")
-  dealStages               DealStage[]            @relation("CompanyDealStages")
-  taskColumns              TaskColumn[]
-  tasks                    Task[]
+  oneCDocumentPushTypes     DocumentType[]         @default([invoice, act, contract, extra_agreement])
+  documentTemplates         DocumentTemplate[]
+  users                     User[]
+  orders                    Order[]
+  organizations             Organization[]
+  documents                 Document[]
+  accessProfiles            AccessProfile[]
+  funnelStages              FunnelStage[]
+  deals                     Deal[]                 @relation("CompanyDeals")
+  dealStages                DealStage[]            @relation("CompanyDealStages")
+  taskColumns               TaskColumn[]
+  tasks                     Task[]
   /// Этап 4 (`У-222`): правила автоматизации компании. Платформенных правил нет
   /// намеренно — см. комментарий модели.
-  automationRules          AutomationRule[]
-  inboundMessages          InboundMessage[]
-  messengerDialogs         MessengerDialog[]
-  replyTemplates           ReplyTemplate[]
-  calls                    Call[]
-  contacts                 Contact[]              @relation("CompanyContacts")
-  organizationNotes        OrganizationNote[]     @relation("CompanyOrganizationNotes")
-  salesTargets             SalesTarget[]
-  staffConversations       StaffConversation[]
-  calendarEvents           CalendarEvent[]
-  catalogItems             CatalogItem[]
-  brandingAssets           CompanyBrandingAsset[]
-  documentCounters         DocumentCounter[]
+  automationRules           AutomationRule[]
+  inboundMessages           InboundMessage[]
+  messengerDialogs          MessengerDialog[]
+  replyTemplates            ReplyTemplate[]
+  calls                     Call[]
+  contacts                  Contact[]              @relation("CompanyContacts")
+  organizationNotes         OrganizationNote[]     @relation("CompanyOrganizationNotes")
+  salesTargets              SalesTarget[]
+  staffConversations        StaffConversation[]
+  calendarEvents            CalendarEvent[]
+  catalogItems              CatalogItem[]
+  brandingAssets            CompanyBrandingAsset[]
+  documentCounters          DocumentCounter[]
 }
 
 // Этап 5 (У-138): логотип, подпись и печать компании — по строке на слот.
@@ -1156,39 +1156,39 @@ model TaskColumn {
 // удаление колонки не удаляет задачу — колонка re-derive из status-якоря).
 // Привязки к заявке/организации — nullable SetNull. Клиентский контур задач не видит.
 model Task {
-  id                   String         @id @default(cuid())
-  createdAt            DateTime       @default(now())
-  updatedAt            DateTime       @updatedAt
+  id                   String              @id @default(cuid())
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
   companyId            String
-  company              Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company              Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
   title                String
   description          String?
-  status               TaskStatus     @default(todo)
+  status               TaskStatus          @default(todo)
   priority             TaskPriority?
   columnId             String?
-  column               TaskColumn?    @relation("TaskColumnTasks", fields: [columnId], references: [id], onDelete: SetNull)
+  column               TaskColumn?         @relation("TaskColumnTasks", fields: [columnId], references: [id], onDelete: SetNull)
   dueDate              DateTime?
   completedAt          DateTime?
   createdById          String
-  createdBy            User           @relation("TaskCreatedBy", fields: [createdById], references: [id])
+  createdBy            User                @relation("TaskCreatedBy", fields: [createdById], references: [id])
   linkedOrderId        String?
-  linkedOrder          Order?         @relation("TaskLinkedOrder", fields: [linkedOrderId], references: [id], onDelete: SetNull)
+  linkedOrder          Order?              @relation("TaskLinkedOrder", fields: [linkedOrderId], references: [id], onDelete: SetNull)
   linkedOrganizationId String?
-  linkedOrganization   Organization?  @relation("TaskLinkedOrganization", fields: [linkedOrganizationId], references: [id], onDelete: SetNull)
+  linkedOrganization   Organization?       @relation("TaskLinkedOrganization", fields: [linkedOrganizationId], references: [id], onDelete: SetNull)
   // Этап 7 (ФТ-7.1): привязки к лиду и сделке — soft-link SetNull, как order/org.
   linkedLeadId         String?
-  linkedLead           Lead?          @relation("TaskLinkedLead", fields: [linkedLeadId], references: [id], onDelete: SetNull)
+  linkedLead           Lead?               @relation("TaskLinkedLead", fields: [linkedLeadId], references: [id], onDelete: SetNull)
   linkedDealId         String?
-  linkedDeal           Deal?          @relation("TaskLinkedDeal", fields: [linkedDealId], references: [id], onDelete: SetNull)
+  linkedDeal           Deal?               @relation("TaskLinkedDeal", fields: [linkedDealId], references: [id], onDelete: SetNull)
   // Этап 4 ТЗ 12.09.2026 (`У-220`): задача заводится из любой карточки. Все три
   // — SetNull, как и прежние четыре: удаление объекта не должно уносить работу,
   // которую человек уже сделал или ещё должен сделать.
   linkedContactId      String?
-  linkedContact        Contact?       @relation("TaskLinkedContact", fields: [linkedContactId], references: [id], onDelete: SetNull)
+  linkedContact        Contact?            @relation("TaskLinkedContact", fields: [linkedContactId], references: [id], onDelete: SetNull)
   linkedDialogId       String?
-  linkedDialog         MessengerDialog? @relation("TaskLinkedDialog", fields: [linkedDialogId], references: [id], onDelete: SetNull)
+  linkedDialog         MessengerDialog?    @relation("TaskLinkedDialog", fields: [linkedDialogId], references: [id], onDelete: SetNull)
   linkedDocumentId     String?
-  linkedDocument       Document?      @relation("TaskLinkedDocument", fields: [linkedDocumentId], references: [id], onDelete: SetNull)
+  linkedDocument       Document?           @relation("TaskLinkedDocument", fields: [linkedDocumentId], references: [id], onDelete: SetNull)
   // Этап 7 (ФТ-7.2): отметка «уведомление „скоро срок" отправлено» (дедуп джоба;
   // сбрасывается при переносе dueDate — перенос срока уведомляет заново).
   dueSoonNotifiedAt    DateTime?
@@ -1204,7 +1204,18 @@ model Task {
   /// показывается «Создана правилом X». `SetNull`: удалённое правило не должно
   /// уносить задачи, которые оно успело поставить людям.
   createdByRuleId      String?
-  createdByRule        AutomationRule? @relation("TaskCreatedByRule", fields: [createdByRuleId], references: [id], onDelete: SetNull)
+  createdByRule        AutomationRule?     @relation("TaskCreatedByRule", fields: [createdByRuleId], references: [id], onDelete: SetNull)
+  /// Этап 4 (`У-221`): правило повторения `{ freq, interval, byWeekday?, byMonthDay?, until? }`.
+  /// Живёт у КАЖДОГО экземпляра и копируется в следующий — отдельной сущности
+  /// «серия» нет намеренно: серия это цепочка задач, а не третья таблица, и
+  /// «отключить повторение» тогда означает просто снять правило с последнего
+  /// экземпляра, а не чинить состояние в двух местах.
+  recurrence           Json?
+  /// Экземпляр, из которого родился этот. Цепочка, а не ссылка на корень:
+  /// корень со временем удалят, а история повторов должна пережить удаление.
+  recurrenceParentId   String?
+  recurrenceParent     Task?               @relation("TaskRecurrence", fields: [recurrenceParentId], references: [id], onDelete: SetNull)
+  recurrenceChild      Task?               @relation("TaskRecurrence")
   assignees            TaskAssignee[]
   /// Этап 4 (`У-218`, `У-219`): обсуждение и чек-лист живут своими моделями.
   comments             TaskComment[]
@@ -1213,6 +1224,12 @@ model Task {
   /// Этап 2 ТЗ 12.09.2026 (`У-190`, `Р-Б-11`): ключ строки в Битрикс24; `externalId` остаётся за 1С.
   bitrixId String? @unique
 
+  /// Этап 4 (`У-221`): у экземпляра РОВНО ОДИН потомок. Это не украшение схемы,
+  /// а защита от дубля: следующий экземпляр рождается и при завершении задачи, и
+  /// ночным прогоном, и оба пути могут сойтись в одну секунду. База отвергает
+  /// второго потомка (P2002), и повтор молча пропускается — тот же приём, что у
+  /// журнала срабатываний правил.
+  @@unique([recurrenceParentId])
   @@index([companyId, status])
   @@index([companyId, createdAt])
   @@index([linkedOrderId])
@@ -2383,39 +2400,39 @@ model PaymentImportRow {
 }
 
 model InboundMessage {
-  id              String            @id @default(cuid())
-  createdAt       DateTime          @default(now())
-  sentAt          DateTime?
-  channel         String
-  externalId      String            @unique
+  id                String            @id @default(cuid())
+  createdAt         DateTime          @default(now())
+  sentAt            DateTime?
+  channel           String
+  externalId        String            @unique
   /// `Message-ID` письма у почтового сервера (У-205). По нему ответ сшивается
   /// с перепиской заголовком `In-Reply-To`; у прочих каналов пусто.
   externalMessageId String?
-  senderRef       String
-  senderDisplay   String?
-  subject         String?
-  body            String
-  attachmentPath  String?
-  attachmentName  String?
-  attachmentMime  String?
-  scanStatus      String            @default("none")
-  scanReason      String?
-  resolvedOrgId   String?
-  resolvedUserId  String?
-  threadId        String?
-  companyId       String?
-  status          String            @default("unresolved")
-  boundAt         DateTime?
-  boundById       String?
-  contactId       String?
+  senderRef         String
+  senderDisplay     String?
+  subject           String?
+  body              String
+  attachmentPath    String?
+  attachmentName    String?
+  attachmentMime    String?
+  scanStatus        String            @default("none")
+  scanReason        String?
+  resolvedOrgId     String?
+  resolvedUserId    String?
+  threadId          String?
+  companyId         String?
+  status            String            @default("unresolved")
+  boundAt           DateTime?
+  boundById         String?
+  contactId         String?
   // Этап 7 (ФТ-8.2): ответственный триажа Intake (плоский id — образец boundById).
-  claimedByUserId String?
-  claimedAt       DateTime?
+  claimedByUserId   String?
+  claimedAt         DateTime?
   // Этап 7 (ФТ-1.6): лид, созданный из этого обращения.
-  lead            Lead?             @relation("LeadFromInbound")
+  lead              Lead?             @relation("LeadFromInbound")
   // Мессенджеры (спека 2026-09-12, Р-М-1): реплика этого письма в диалоге.
   // null — письмо ещё не свёрнуто в диалог (бэкфилл берёт именно такие).
-  dialogMessage   MessengerMessage?
+  dialogMessage     MessengerMessage?
 
   resolvedOrg  Organization? @relation("OrgInbound", fields: [resolvedOrgId], references: [id])
   resolvedUser User?         @relation("UserInbound", fields: [resolvedUserId], references: [id])
@@ -2914,18 +2931,18 @@ model DocumentCounter {
 /// rollback_partial | failed. `settings` — фильтры и таблицы сопоставления,
 /// `counts` — сводка и прогресс, `errors` — построчные ошибки (первые 500).
 model BitrixImportBatch {
-  id           String    @id @default(cuid())
+  id           String              @id @default(cuid())
   companyId    String
   importedById String
-  importedBy   User      @relation("BitrixImportedBy", fields: [importedById], references: [id])
-  source       String    // 'rest' | 'file'
-  mode         String    @default("initial") // 'initial' | 'resync'
+  importedBy   User                @relation("BitrixImportedBy", fields: [importedById], references: [id])
+  source       String // 'rest' | 'file'
+  mode         String              @default("initial") // 'initial' | 'resync'
   status       String
   settings     Json
   counts       Json
   errors       Json?
   reportPath   String?
-  createdAt    DateTime  @default(now())
+  createdAt    DateTime            @default(now())
   startedAt    DateTime?
   appliedAt    DateTime?
   rolledBackAt DateTime?

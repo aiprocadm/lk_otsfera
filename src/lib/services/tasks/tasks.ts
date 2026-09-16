@@ -1,11 +1,14 @@
-import { type PrismaClient, type Prisma, type TaskPriority, type TaskStatus } from '@prisma/client';
+import { Prisma, type PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
 import { resolveTaskColumns } from '@/lib/tasks/columns';
 import { canSeeTask } from '@/lib/auth/accessProfile';
+import { recurrenceSchema } from '@/lib/tasks/recurrence';
 import { notifyTaskAssigned } from './notify';
+import { createTaskCore } from './create';
+import { materializeNextOccurrenceSafely } from './recurrence';
 
 /**
  * Трек G3 — CRUD внутренних задач (Result-контракт §3). Company-scoped: создатель
@@ -34,6 +37,16 @@ const inputSchema = z.object({
   linkedDialogId: z.string().trim().min(1).nullish(),
   linkedDocumentId: z.string().trim().min(1).nullish(),
   assigneeIds: z.array(z.string()).optional(),
+  /// `У-221`: правило повторения. `null` — «больше не повторять».
+  recurrence: recurrenceSchema.nullish(),
+  /**
+   * `У-221`, только при правке: «эта» или «эта и все будущие» (как в
+   * календарях). `future` — обычное поведение, правка едет дальше по серии
+   * вместе со следующим экземпляром. `this` — текущая задача ОТВЯЗЫВАЕТСЯ от
+   * серии: следующий экземпляр рождается из прежних значений, а эта становится
+   * обычной. Иначе «поправлю только сегодняшнюю» молча меняло бы все будущие.
+   */
+  recurrenceScope: z.enum(['this', 'future']).optional(),
 });
 export type TaskInput = z.input<typeof inputSchema>;
 
@@ -179,62 +192,6 @@ function scopeArg(row: ScopeRow) {
  * Экспортируется с PR-3: второй вызывающий — процессор правил автоматизации
  * (`lib/automation/actions.ts`), ради которого ядро и выделялось.
  */
-export async function createTaskCore(
-  tx: Prisma.TransactionClient,
-  input: {
-    companyId: string;
-    createdById: string;
-    title: string;
-    description?: string | null;
-    priority?: TaskPriority | null;
-    dueDate?: Date | null;
-    status: TaskStatus;
-    /** Уже разрешённая колонка: `null` — синтетический дефолт (колонка выводится из статуса). */
-    columnId: string | null;
-    completedAt: Date | null;
-    linkedOrderId?: string | null;
-    linkedOrganizationId?: string | null;
-    linkedLeadId?: string | null;
-    linkedDealId?: string | null;
-    linkedContactId?: string | null;
-    linkedDialogId?: string | null;
-    linkedDocumentId?: string | null;
-    assigneeIds?: string[] | undefined;
-    /** `У-223`: какое правило автоматизации породило задачу. */
-    createdByRuleId?: string | null;
-  }
-): Promise<{ id: string; title: string; dueDate: Date | null }> {
-  const task = await tx.task.create({
-    data: {
-      companyId: input.companyId,
-      createdById: input.createdById,
-      title: input.title,
-      description: input.description ?? null,
-      priority: input.priority ?? null,
-      dueDate: input.dueDate ?? null,
-      status: input.status,
-      columnId: input.columnId,
-      completedAt: input.completedAt,
-      linkedOrderId: input.linkedOrderId ?? null,
-      linkedOrganizationId: input.linkedOrganizationId ?? null,
-      linkedLeadId: input.linkedLeadId ?? null,
-      linkedDealId: input.linkedDealId ?? null,
-      linkedContactId: input.linkedContactId ?? null,
-      linkedDialogId: input.linkedDialogId ?? null,
-      linkedDocumentId: input.linkedDocumentId ?? null,
-      createdByRuleId: input.createdByRuleId ?? null,
-    },
-    select: { id: true, title: true, dueDate: true },
-  });
-  const assignees = [...new Set(input.assigneeIds ?? [])];
-  if (assignees.length > 0) {
-    await tx.taskAssignee.createMany({
-      data: assignees.map((userId) => ({ taskId: task.id, userId })),
-    });
-  }
-  return task;
-}
-
 export async function createTask(
   prisma: PrismaClient,
   session: SessionPayload,
@@ -273,6 +230,7 @@ export async function createTask(
         linkedDialogId: data.linkedDialogId ?? null,
         linkedDocumentId: data.linkedDocumentId ?? null,
         assigneeIds: data.assigneeIds,
+        recurrence: data.recurrence ?? null,
       });
       await recordAudit(tx, {
         userId: session.sub,
@@ -298,6 +256,36 @@ export async function createTask(
   }
 }
 
+/**
+ * «Только эту» (`У-221`): отпускает серию из текущих значений задачи и говорит
+ * вызывающему, что правило с неё пора снять.
+ *
+ * Возвращает `'kept'`, если отвязывать нечего: у задачи нет правила, человек
+ * выбрал «и все будущие» или это создание, а не правка.
+ */
+async function detachFromSeriesIfNeeded(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  id: string,
+  data: z.infer<typeof inputSchema>
+): Promise<'kept' | 'detached' | 'not_found'> {
+  if (data.recurrenceScope !== 'this') return 'kept';
+
+  const current = await prisma.task.findUnique({
+    where: { id },
+    select: { ...SCOPE_SELECT, recurrence: true },
+  });
+  if (!current) return 'not_found';
+  if (!canSeeTask(session, scopeArg(current))) return 'not_found';
+  if (current.recurrence === null) return 'kept';
+
+  // Следующий экземпляр может уже существовать — тогда серия и так продолжена,
+  // и создавать нечего. Результат нам не важен: важно, что после этого шага
+  // серия живёт не в текущей задаче.
+  await materializeNextOccurrenceSafely(prisma, id);
+  return 'detached';
+}
+
 export async function updateTask(
   prisma: PrismaClient,
   session: SessionPayload,
@@ -311,6 +299,13 @@ export async function updateTask(
   const data = parsed.data;
 
   try {
+    // `У-221`, «только эту»: прежде чем менять задачу, отпускаем серию дальше из
+    // ПРЕЖНИХ значений — иначе правка одного дня уехала бы во все будущие. Это
+    // отдельным шагом до транзакции: следующий экземпляр должен родиться из
+    // того, что человек видел на экране, а не из того, что он только что набрал.
+    const detached = await detachFromSeriesIfNeeded(prisma, session, id, parsed.data);
+    if (detached === 'not_found') return { ok: false, error: 'not_found' };
+
     const notifyAdded = await prisma.$transaction(async (tx) => {
       const before = await tx.task.findUnique({
         where: { id },
@@ -336,7 +331,19 @@ export async function updateTask(
           linkedDialogId: data.linkedDialogId ?? null,
           linkedDocumentId: data.linkedDocumentId ?? null,
           // ФТ-7.2: перенос срока → джоб «скоро срок» уведомит заново.
-          ...(dueChanged ? { dueSoonNotifiedAt: null } : {}),
+          // `У-225`: и отметки просрочки тоже. Схема обещала это с самого
+          // начала, а код сбрасывал только первое поле: у задачи, которую
+          // просрочили и перенесли, оба напоминания уже были «сожжены», и о
+          // новой просрочке не узнавал никто.
+          ...(dueChanged
+            ? { dueSoonNotifiedAt: null, overdueNotifiedAt: null, overdueEscalatedAt: null }
+            : {}),
+          // «Только эту» уже отпустило серию — сама задача становится разовой.
+          recurrence:
+            detached === 'detached'
+              ? Prisma.DbNull
+              : ((data.recurrence ?? Prisma.DbNull) as
+                  Prisma.InputJsonValue | typeof Prisma.DbNull),
         },
       });
       const added =

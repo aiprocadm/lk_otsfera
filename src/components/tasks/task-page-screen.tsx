@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui';
 import { PageHeader } from '@/components/ui/page-header';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import type { TaskDetail } from '@/lib/services/tasks/detail';
+import { describeRecurrenceRu } from '@/lib/tasks/recurrence';
 import { TaskChecklist } from './task-checklist';
 import { TaskComments } from './task-comments';
 
@@ -84,6 +85,15 @@ export function TaskPageScreen({ task, cabinet }: { task: TaskDetail; cabinet: C
                 <dt className="text-gray-500">Срок</dt>
                 <dd className={overdue ? 'text-red-600' : 'text-[#111111]'}>{due ?? 'не задан'}</dd>
               </div>
+              {task.recurrence && (
+                <div className="flex justify-between gap-2">
+                  <dt className="text-gray-500">Повторяется</dt>
+                  <dd className="text-right text-[#111111]">
+                    {describeRecurrenceRu(task.recurrence)}
+                    <span className="block text-xs text-gray-400">Следующая появится сама</span>
+                  </dd>
+                </div>
+              )}
               <div className="flex justify-between gap-2">
                 <dt className="text-gray-500">Приоритет</dt>
                 <dd className="text-[#111111]">

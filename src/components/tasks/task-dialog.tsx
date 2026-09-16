@@ -10,6 +10,18 @@ import type { TaskCard, TaskFormOptions } from '@/lib/services/tasks/board';
 
 export type { TaskFormOptions };
 
+/**
+ * `У-221`: повторение. День недели и день месяца отдельными полями не спрашиваем
+ * — они берутся из срока самой задачи. «Каждую неделю» у задачи со сроком на
+ * понедельник и есть «по понедельникам», и объяснять человеку разницу нечем.
+ */
+const RECURRENCE_FREQ: { value: string; label: string }[] = [
+  { value: '', label: 'Не повторять' },
+  { value: 'daily', label: 'Каждый день' },
+  { value: 'weekly', label: 'Каждую неделю' },
+  { value: 'monthly', label: 'Каждый месяц' },
+];
+
 const PRIORITIES: { value: string; label: string }[] = [
   { value: '', label: 'Без приоритета' },
   { value: 'low', label: 'Низкий' },
@@ -174,6 +186,45 @@ export function TaskDialog({
               defaultValue={dateValue(target?.dueDate ?? null)}
             />
           </Field>
+          <Field
+            htmlFor="tk-repeat"
+            label="Повторение"
+            hint={
+              target?.recurrence
+                ? 'Следующая задача появится сама, когда эту завершат или когда пройдёт срок.'
+                : 'Задача будет создаваться заново по расписанию.'
+            }
+          >
+            <Select
+              id="tk-repeat"
+              name="recurrenceFreq"
+              defaultValue={target?.recurrence?.freq ?? ''}
+            >
+              {RECURRENCE_FREQ.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field htmlFor="tk-repeat-n" label="Каждые (раз в сколько)">
+            <Input
+              id="tk-repeat-n"
+              name="recurrenceInterval"
+              type="number"
+              min={1}
+              max={365}
+              defaultValue={String(target?.recurrence?.interval ?? 1)}
+            />
+          </Field>
+          <Field htmlFor="tk-repeat-until" label="Повторять до (необязательно)">
+            <Input
+              id="tk-repeat-until"
+              name="recurrenceUntil"
+              type="date"
+              defaultValue={target?.recurrence?.until ?? ''}
+            />
+          </Field>
           <Field htmlFor="tk-col" label="Колонка">
             <Select
               id="tk-col"
@@ -243,6 +294,37 @@ export function TaskDialog({
             </div>
           )}
         </div>
+        {target?.recurrence && (
+          <fieldset className="rounded-lg border border-gray-200 p-3 space-y-2">
+            <legend className="px-1 text-sm font-medium text-[#111111]">
+              Это повторяющаяся задача. Что изменить?
+            </legend>
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="radio"
+                name="recurrenceScope"
+                value="future"
+                defaultChecked
+                className="mt-1 h-4 w-4"
+              />
+              <span>
+                Эту и все будущие
+                <span className="block text-xs text-gray-400">
+                  Правки перейдут и на следующие задачи серии.
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2 text-sm">
+              <input type="radio" name="recurrenceScope" value="this" className="mt-1 h-4 w-4" />
+              <span>
+                Только эту
+                <span className="block text-xs text-gray-400">
+                  Задача станет обычной, а серия продолжится без изменений.
+                </span>
+              </span>
+            </label>
+          </fieldset>
+        )}
         <div className="flex justify-between gap-2 pt-2">
           <div>
             {target && (
