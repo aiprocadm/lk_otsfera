@@ -3,6 +3,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { canSeeTask } from '@/lib/auth/accessProfile';
 import { auditActionLabel } from '@/lib/audit/labels';
 import { resolveTaskColumns, columnForTask } from '@/lib/tasks/columns';
+import { parseRecurrence, type RecurrenceRule } from '@/lib/tasks/recurrence';
 import { listTaskComments, type TaskCommentView } from './comments';
 import { listChecklist, type ChecklistItemView } from './checklist';
 
@@ -38,6 +39,8 @@ export type TaskDetail = {
   createdByName: string;
   /** `У-223`: задача, созданная роботом, честно говорит об этом. */
   createdByRuleId: string | null;
+  /** `У-221`: правило повторения; `null` — задача разовая. */
+  recurrence: RecurrenceRule | null;
   columnId: string;
   columnName: string;
   assignees: { id: string; name: string }[];
@@ -70,6 +73,7 @@ export async function getTaskDetail(
       createdAt: true,
       createdById: true,
       createdByRuleId: true,
+      recurrence: true,
       columnId: true,
       companyId: true,
       linkedOrderId: true,
@@ -140,6 +144,7 @@ export async function getTaskDetail(
       createdById: row.createdById,
       createdByName: row.createdBy.name,
       createdByRuleId: row.createdByRuleId,
+      recurrence: parseRecurrence(row.recurrence),
       // Колонка может не найтись, если компания перенастроила набор и статус
       // задачи остался без якоря — показываем статус, а не пустоту.
       columnId: column?.id ?? row.status,

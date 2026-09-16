@@ -56,6 +56,23 @@ function revalidateTask(taskId: string): void {
   revalidatePath(`/leader/tasks/${taskId}`);
 }
 
+/**
+ * `У-221`: правило повторения из формы. Пустой выбор — «не повторять», и это
+ * `null`, а не пропуск поля: при правке пропуск означал бы «оставь как было», и
+ * серию нельзя было бы выключить.
+ */
+function taskRecurrence(fd: FormData): TaskInput['recurrence'] {
+  const freq = str(fd, 'recurrenceFreq');
+  if (!freq) return null;
+  const interval = Number(str(fd, 'recurrenceInterval') || '1');
+  const until = str(fd, 'recurrenceUntil');
+  return {
+    freq: freq as 'daily' | 'weekly' | 'monthly',
+    interval: Number.isFinite(interval) ? interval : 1,
+    ...(until ? { until } : {}),
+  };
+}
+
 function taskInput(fd: FormData): TaskInput {
   const due = str(fd, 'dueDate');
   return {
@@ -74,6 +91,8 @@ function taskInput(fd: FormData): TaskInput {
     linkedDialogId: str(fd, 'linkedDialogId') || null,
     linkedDocumentId: str(fd, 'linkedDocumentId') || null,
     assigneeIds: fd.getAll('assigneeIds').filter((v): v is string => typeof v === 'string'),
+    recurrence: taskRecurrence(fd),
+    ...(str(fd, 'recurrenceScope') === 'this' ? { recurrenceScope: 'this' as const } : {}),
   };
 }
 

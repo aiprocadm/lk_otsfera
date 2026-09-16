@@ -64,6 +64,7 @@ function card(over: Partial<TaskCard>): TaskCard {
     linkedDocumentName: null,
     checklistDone: 0,
     checklistTotal: 0,
+    recurrence: null,
     ...over,
   };
 }

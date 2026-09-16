@@ -83,6 +83,7 @@ const task: TaskCard = {
   linkedDocumentName: null,
   checklistDone: 0,
   checklistTotal: 0,
+  recurrence: null,
 };
 
 function renderDialog(props: React.ComponentProps<typeof TaskDialog>) {

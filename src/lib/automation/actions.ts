@@ -2,7 +2,7 @@ import type { Prisma, PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { log } from '@/lib/logging';
 import { createNotification, deliverNotificationToUser } from '@/lib/notifications';
-import { createTaskCore } from '@/lib/services/tasks/tasks';
+import { createTaskCore } from '@/lib/services/tasks/create';
 import { resolveTaskColumns } from '@/lib/tasks/columns';
 import type { AutomationEventPayload } from './conditions';
 import { renderAutomationText, checkAutomationPlaceholders } from './templates';

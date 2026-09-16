@@ -16,6 +16,7 @@ import {
   registerCertExpirySchedules,
   registerCalendarReminderSchedules,
   registerTaskDueSoonSchedules,
+  registerTaskRecurrenceSchedules,
   registerProposalExpirySchedules,
   registerSlaEscalationSchedules,
   loadPausedSchedulerIds,
@@ -43,6 +44,7 @@ import { taskDueSoonProcessor } from './processors/task-due-soon';
 import { automationRunProcessor } from './processors/automation-run';
 import { expireProposalsProcessor } from './processors/expire-proposals';
 import { slaEscalationProcessor } from './processors/sla-escalation';
+import { tasksRecurrenceProcessor } from './processors/tasks-recurrence';
 import { dispatchNotificationProcessor } from './processors/dispatch-notification';
 import { pollInboundEmailProcessor } from './processors/poll-inbound-email';
 import { mangoRecordingProcessor } from './processors/mango-recording';
@@ -203,6 +205,8 @@ async function main() {
   // Этап 4 (`У-223`): исполнение правил автоматизации, конкурентность 2.
   startWorker('automation.run', automationRunProcessor() as Processor, { concurrency: 2 });
   startWorker('monitoring.slaEscalation', slaEscalationProcessor as Processor);
+  // Этап 4 (`У-221`): ночной обход повторяющихся задач.
+  startWorker('tasks.recurrence', tasksRecurrenceProcessor as Processor);
   startWorker('notifications.dispatch', dispatchNotificationProcessor as Processor);
   startWorker('inbound.email.poll', pollInboundEmailProcessor as Processor);
   startWorker('telephony.mango.recording', mangoRecordingProcessor as Processor);
@@ -225,6 +229,7 @@ async function main() {
     const taskDueSoonSchedules = await registerTaskDueSoonSchedules();
     const proposalExpirySchedules = await registerProposalExpirySchedules();
     const slaEscalationSchedules = await registerSlaEscalationSchedules(getQueue, patterns);
+    const taskRecurrenceSchedules = await registerTaskRecurrenceSchedules();
     for (const r of [
       ...syncSchedules,
       ...commissionSchedules,
@@ -234,6 +239,7 @@ async function main() {
       ...taskDueSoonSchedules,
       ...proposalExpirySchedules,
       ...slaEscalationSchedules,
+      ...taskRecurrenceSchedules,
     ]) {
       log.info('[worker] schedule registered', {
         schedulerId: r.schedulerId,

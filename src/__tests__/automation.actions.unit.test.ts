@@ -10,7 +10,7 @@ vi.mock('@/lib/notifications', () => ({ createNotification, deliverNotificationT
 const { createTaskCore } = vi.hoisted(() => ({
   createTaskCore: vi.fn().mockResolvedValue({ id: 't1', title: 'T', dueDate: null }),
 }));
-vi.mock('@/lib/services/tasks/tasks', () => ({ createTaskCore }));
+vi.mock('@/lib/services/tasks/create', () => ({ createTaskCore }));
 
 const { logError } = vi.hoisted(() => ({ logError: vi.fn() }));
 vi.mock('@/lib/logging', () => ({ log: { error: logError, warn: vi.fn(), info: vi.fn() } }));

@@ -37,6 +37,7 @@ function detail(over: Partial<TaskDetail> = {}): TaskDetail {
     createdById: 'u1',
     createdByName: 'Пётр',
     createdByRuleId: null,
+    recurrence: null,
     columnId: 'default:in_progress',
     columnName: 'В работе',
     assignees: [{ id: 'u1', name: 'Иван' }],
