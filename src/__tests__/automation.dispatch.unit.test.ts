@@ -189,3 +189,40 @@ describe('emitAutomationEvent — идемпотентность', () => {
     });
   });
 });
+
+/**
+ * Очередь тоже падает. У одного события бывает несколько правил, и падение на
+ * первом не имеет права лишить срабатывания остальные — поэтому у постановки в
+ * очередь своя обёртка, а не только внешняя (§3, graceful degrade).
+ */
+describe('очередь недоступна', () => {
+  it('правило не поставлено, но событие не падает и пишется в журнал', async () => {
+    isFeatureEnabled.mockReturnValue(true);
+    findMany.mockResolvedValue([{ id: 'r1', conditions: {} }]);
+    add.mockRejectedValue(new Error('Redis лёг'));
+
+    const queued = await emitAutomationEvent(prisma, {
+      trigger: 'order_status_changed',
+      companyId: 'co-1',
+      payload: { orderId: 'ord1' },
+    });
+
+    expect(queued).toBe(0);
+    expect(logError).toHaveBeenCalledWith(
+      '[automation/dispatch] не удалось поставить правило в очередь',
+      expect.objectContaining({ ruleId: 'r1', error: 'Redis лёг' })
+    );
+  });
+
+  it('не-Error в сбое очереди тоже читается строкой', async () => {
+    isFeatureEnabled.mockReturnValue(true);
+    findMany.mockResolvedValue([{ id: 'r1', conditions: {} }]);
+    add.mockRejectedValue('очередь закрыта');
+    await emitAutomationEvent(prisma, {
+      trigger: 'order_status_changed',
+      companyId: 'co-1',
+      payload: { orderId: 'ord1' },
+    });
+    expect(logError.mock.calls[0][1].error).toBe('очередь закрыта');
+  });
+});

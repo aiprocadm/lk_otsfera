@@ -277,3 +277,72 @@ describe('условия и подстановки', () => {
     expect(actionsSchema.safeParse([{ kind: 'удалить_всё' }]).success).toBe(false);
   });
 });
+
+describe('проверка подстановок у действий БЕЗ названия', () => {
+  it('«сообщить сотруднику» и «написать клиенту» проверяются по своему тексту', () => {
+    // У этих действий нет `titleTemplate` — есть `template`. Пропустить его
+    // значило бы: правило сохраняется, а при срабатывании человек получает
+    // письмо с дырой вместо номера.
+    const notify = checkActionTemplates([
+      { kind: 'notify', audience: 'role:leader', template: 'Счёт {{выдумка}}' },
+    ]);
+    expect(notify.ok).toBe(false);
+    if (!notify.ok) expect(notify.unknown).toContain('выдумка');
+
+    const message = checkActionTemplates([
+      { kind: 'send_message', channel: 'email', template: 'Здравствуйте, {{order.number}}' },
+    ]);
+    expect(message.ok).toBe(true);
+  });
+});
+
+describe('краевые случаи действий', () => {
+  it('у компании нет ни одной колонки задач — робот честно отказывается', async () => {
+    // Такого в бою быть не должно, но если случится — задача не должна уехать
+    // в никуда: робот возвращает причину, и она попадёт в журнал срабатываний.
+    columnFindMany.mockResolvedValue([]);
+    const реальные = await import('@/lib/tasks/columns');
+    const spy = vi.spyOn(реальные, 'resolveTaskColumns').mockResolvedValue([]);
+    const res = await runCreateTask(prisma, {
+      action: { kind: 'create_task', titleTemplate: 'Дело', assignee: 'responsible_manager' },
+      companyId: 'co-1',
+      ruleId: 'r1',
+      authorId: 'u',
+      payload: { responsibleManagerId: 'm1' },
+    });
+    expect(res.error).toContain('нет ни одной колонки');
+    spy.mockRestore();
+  });
+
+  it('описание правила и пометка о получателе попадают в задачу', async () => {
+    userFindFirst.mockResolvedValue(null);
+    await runCreateTask(prisma, {
+      action: {
+        kind: 'create_task',
+        titleTemplate: 'Дело',
+        descriptionTemplate: 'Подробности {{order.number}}',
+        assignee: 'user:чужой',
+      },
+      companyId: 'co-1',
+      ruleId: 'r1',
+      authorId: 'u',
+      payload: { orderNumber: '2026-7' },
+    });
+    const data = createTaskCore.mock.calls[0][1];
+    expect(data.description).toContain('Подробности 2026-7');
+    // Робот не молчит о том, что исполнителя найти не удалось.
+    expect(data.description).toContain('Кому: сотрудник не найден');
+  });
+
+  it('уведомление без получателя не притворяется отправленным', async () => {
+    userFindFirst.mockResolvedValue(null);
+    const res = await runNotify(prisma, {
+      action: { kind: 'notify', audience: 'user:нет-такого', template: 'Смотри' },
+      companyId: 'co-1',
+      ruleName: 'Правило',
+      payload: {},
+    });
+    expect(res.notifiedUserIds).toEqual([]);
+    expect(res.error).toContain('некому отправить');
+  });
+});

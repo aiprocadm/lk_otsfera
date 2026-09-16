@@ -34,7 +34,14 @@ import {
 } from '@/server-actions/admin/automationRules';
 
 /**
- * СТРАЖ `У-227`: правило чужой компании не трогается и не срабатывает.
+ * СТРАЖ `У-227`: правило чужой компании не трогается.
+ *
+ * **Вторую половину — «и не срабатывает» — держит не этот файл.** Проверено
+ * мутацией 16.09.2026: если убрать фильтр `companyId` из подбора правил в
+ * диспетчере, ЭТОТ страж остаётся зелёным, а краснеет
+ * `automation.dispatch.unit` («правила ищутся только в своей компании»).
+ * Оговорка нужна здесь, иначе следующий читатель решит, что одна проверка
+ * закрывает обе половины, и вторую тихо потеряют при правке.
  *
  * Здесь проверяется самая опасная половина — **кто чьи правила правит**. Робот
  * ставит людям задачи и пишет им сообщения; правило, заведённое в чужой
@@ -165,5 +172,53 @@ describe('страж: чьи правила правим', () => {
     await toggleAutomationRuleAction('leader', null, 'r1', false);
     const actions = recordAudit.mock.calls.map((c) => c[1].action);
     expect(actions).toEqual(['automation_rule_enabled', 'automation_rule_disabled']);
+  });
+});
+
+/**
+ * Отказ сервиса обязан доехать до человека дословно. Если действие формы
+ * подменит его на «что-то пошло не так», человек не узнает, что именно
+ * неправильно в правиле, — а неизвестная подстановка называется поимённо.
+ */
+describe('отказ сервиса доезжает до формы', () => {
+  beforeEach(() => {
+    requireSettingsSection.mockResolvedValue({ sub: 'boss', companyId: 'co-1' });
+  });
+
+  it('создание: причина отказа сохраняется как есть', async () => {
+    createAutomationRule.mockResolvedValue({
+      ok: false,
+      error: 'unknown_placeholder',
+      unknown: ['выдумка'],
+    });
+    expect(await createAutomationRuleAction('leader', null, VALID)).toEqual({
+      ok: false,
+      error: 'unknown_placeholder',
+      unknown: ['выдумка'],
+    });
+  });
+
+  it('правка: причина отказа сохраняется как есть', async () => {
+    updateAutomationRule.mockResolvedValue({ ok: false, error: 'not_found' });
+    expect(await updateAutomationRuleAction('leader', null, 'r1', VALID)).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
+  });
+
+  it('переключатель: отказ не выдаётся за успех', async () => {
+    toggleAutomationRule.mockResolvedValue({ ok: false, error: 'not_found' });
+    expect(await toggleAutomationRuleAction('leader', null, 'r1', true)).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
+  });
+
+  it('удаление: правило из коробки удалить нельзя, и это видно', async () => {
+    deleteAutomationRule.mockResolvedValue({ ok: false, error: 'builtin_readonly' });
+    expect(await deleteAutomationRuleAction('leader', null, 'r1')).toEqual({
+      ok: false,
+      error: 'builtin_readonly',
+    });
   });
 });

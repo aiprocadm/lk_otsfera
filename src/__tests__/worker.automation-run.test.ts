@@ -20,7 +20,7 @@ vi.mock('@/lib/automation/actions', async (importOriginal) => {
 const { logError, logInfo } = vi.hoisted(() => ({ logError: vi.fn(), logInfo: vi.fn() }));
 vi.mock('@/lib/logging', () => ({ log: { error: logError, info: logInfo, warn: vi.fn() } }));
 
-import { runAutomationRule } from '@/worker/processors/automation-run';
+import { runAutomationRule, automationRunProcessor } from '@/worker/processors/automation-run';
 
 /**
  * Исполнение правила (`У-223`, `У-227`).
@@ -206,5 +206,33 @@ describe('runAutomationRule — исполнение', () => {
     const res = await runAutomationRule(prisma, JOB);
     expect(res.status).toBe('failed');
     expect(runUpdate.mock.calls[0][0].data.error).toContain('не включено');
+  });
+});
+
+/**
+ * Обёртка BullMQ. Она тонкая, но у неё своя обязанность: невыполненное правило
+ * должно оставить след в журнале воркера. Молчаливый пропуск означал бы, что
+ * робот «работает», а задач нет и объяснения нет.
+ */
+describe('automationRunProcessor (обёртка BullMQ)', () => {
+  it('невыполненное правило пишется в журнал воркера с причиной', async () => {
+    ruleFindUnique.mockResolvedValue(null);
+    const processor = automationRunProcessor(prisma);
+    await expect(processor({ data: JOB } as never)).resolves.toBeUndefined();
+    expect(logInfo).toHaveBeenCalledWith(
+      '[automation/run] правило не выполнено',
+      expect.objectContaining({ ruleId: JOB.ruleId, status: 'skipped' })
+    );
+  });
+
+  it('успешное правило журнал воркера не засоряет', async () => {
+    logInfo.mockClear();
+    ruleFindUnique.mockResolvedValue(RULE);
+    const processor = automationRunProcessor(prisma);
+    await processor({ data: JOB } as never);
+    expect(logInfo).not.toHaveBeenCalledWith(
+      '[automation/run] правило не выполнено',
+      expect.anything()
+    );
   });
 });

@@ -157,3 +157,27 @@ describe('страж: просрочка напоминает дважды и в
     expect(res).toEqual({ notified: 1, escalated: 1 });
   });
 });
+
+describe('краевые случаи напоминаний о просрочке', () => {
+  it('ПОВТОРНАЯ эскалация не уходит: claim руководителя тоже занят', async () => {
+    tasks([], [{ id: 't1', title: 'Старая', dueDate: TASK.dueDate }]);
+    taskUpdateMany.mockResolvedValue({ count: 0 });
+    const res = await runTaskOverdue(prisma, NOW);
+    expect(res.escalated).toBe(0);
+    expect(createNotification).not.toHaveBeenCalled();
+  });
+
+  it('задача без срока не печатает пустое место вместо даты', async () => {
+    // В выборку такая задача попасть не должна, но текст письма собирается
+    // ДО неё: пустая строка вместо даты выглядела бы как поломка письма.
+    tasks([{ ...TASK, dueDate: null }], []);
+    await runTaskOverdue(prisma, NOW);
+    expect(createNotification.mock.calls[0][0].body).toContain('—');
+  });
+
+  it('эскалация без срока — то же правило', async () => {
+    tasks([], [{ id: 't1', title: 'Старая', dueDate: null }]);
+    await runTaskOverdue(prisma, NOW);
+    expect(createNotification.mock.calls[0][0].body).toContain('—');
+  });
+});

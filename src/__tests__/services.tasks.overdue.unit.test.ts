@@ -87,3 +87,17 @@ describe('listOverdueTasks', () => {
     expect(res.rows[0]?.assigneeNames).toEqual([]);
   });
 });
+
+describe('охват профиля', () => {
+  it('у сотрудника с суженным охватом выборка сужается ТОЖЕ', async () => {
+    // Профиль «только свои» — самый опасный случай: без учёта охвата блок на
+    // главной показал бы руководителю чужие задачи.
+    const узкий = { ...leader, accessProfile: { tasks: 'own' } } as unknown as SessionPayload;
+    await listOverdueTasks(prisma, узкий, NOW);
+    const where = findMany.mock.calls[0][0].where;
+    expect(where.AND).toHaveLength(2);
+    // Первая часть — охват; вторая по-прежнему про просрочку.
+    expect(where.AND[1]).toEqual({ status: { not: 'done' }, dueDate: { lt: NOW } });
+    expect(JSON.stringify(where.AND[0])).not.toBe('{}');
+  });
+});
