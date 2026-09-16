@@ -258,3 +258,16 @@ describe('getMyDay', () => {
     expect(managerOrderScope).toHaveBeenCalledWith(session, true);
   });
 });
+
+describe('сотрудник без компании', () => {
+  it('видит НИЧЕГО, а не всё: в запросы уходит страж пустой компании', async () => {
+    // `companyId ?? null` в Prisma означает «без фильтра», то есть «покажи всё».
+    // Тот же промах уже ловили в проекте — поэтому здесь стоит явный страж.
+    const { prisma, dialogCount, documentCount } = makePrisma();
+    const без = { ...session, companyId: null } as unknown as SessionPayload;
+    await getMyDay(prisma, без, false, NOW);
+    expect(dialogCount.mock.calls[0][0].where.companyId).not.toBeNull();
+    expect(documentCount.mock.calls[0][0].where.companyId).not.toBeNull();
+    expect(typeof dialogCount.mock.calls[0][0].where.companyId).toBe('string');
+  });
+});

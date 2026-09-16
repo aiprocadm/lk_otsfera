@@ -26,8 +26,21 @@ vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastE
 // Форма правила покрыта своим тестом — здесь она заглушка, чтобы экран
 // проверялся отдельно от неё.
 vi.mock('@/components/automation/automation-rule-form', () => ({
-  AutomationRuleForm: (props: { rule: { id: string } | null }) =>
-    React.createElement('div', { 'data-testid': 'rule-form' }, props.rule?.id ?? 'new'),
+  // Форму подменяем, но её ДВА выхода оставляем настоящими кнопками: экран
+  // обязан на них отреагировать — закрыть окно и обновить список. Заглушка без
+  // выходов делала бы вид, что этих обязанностей нет.
+  AutomationRuleForm: (props: {
+    rule: { id: string } | null;
+    onClose: () => void;
+    onSaved: () => void;
+  }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'rule-form' },
+      props.rule?.id ?? 'new',
+      React.createElement('button', { type: 'button', onClick: props.onClose }, 'стоп-закрыть'),
+      React.createElement('button', { type: 'button', onClick: props.onSaved }, 'стоп-сохранено')
+    ),
 }));
 
 import { AutomationScreen } from '@/components/automation/automation-screen';
@@ -243,7 +256,23 @@ describe('AutomationScreen — правила', () => {
       />
     );
     fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
-    expect(screen.getByTestId('rule-form').textContent).toBe('r1');
+    expect(screen.getByTestId('rule-form').textContent).toContain('r1');
+  });
+
+  it('«Новое правило» открывает ПУСТУЮ форму, а не форму последнего правила', () => {
+    // Окно переиспользуется, поэтому у него свой ключ: без него React показал
+    // бы в «новом» правиле поля предыдущего.
+    render(
+      <AutomationScreen
+        cabinet="leader"
+        companyId="co-1"
+        companies={[]}
+        rules={[rule()]}
+        runs={[]}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: '+ Новое правило' }));
+    expect(screen.getByTestId('rule-form').textContent).toContain('new');
   });
 });
 
@@ -311,5 +340,155 @@ describe('AutomationScreen — журнал срабатываний', () => {
       />
     );
     expect(screen.getByText('что-то новое')).toBeTruthy();
+  });
+});
+
+describe('AutomationScreen — отказ удаления и подписи действий', () => {
+  it('удаление не удалось — человек видит причину, список не перерисовывается', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    deleteAutomationRuleAction.mockResolvedValue({ ok: false, error: 'builtin_readonly' });
+    render(
+      <AutomationScreen
+        cabinet="leader"
+        companyId="co-1"
+        companies={[]}
+        rules={[rule()]}
+        runs={[]}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить' }));
+    await waitFor(() => expect(toastError).toHaveBeenCalled());
+    expect(refresh).not.toHaveBeenCalled();
+    confirm.mockRestore();
+  });
+
+  it('правило без действий подписано словами, а не пустой строкой', () => {
+    render(
+      <AutomationScreen
+        cabinet="leader"
+        companyId="co-1"
+        companies={[]}
+        rules={[rule({ actions: [] })]}
+        runs={[]}
+      />
+    );
+    expect(screen.getByText(/действие не задано/)).toBeTruthy();
+  });
+
+  it('«написать клиенту» названо своим словом — это самое заметное действие робота', () => {
+    render(
+      <AutomationScreen
+        cabinet="leader"
+        companyId="co-1"
+        companies={[]}
+        rules={[
+          rule({
+            actions: [
+              { kind: 'send_message', channel: 'email', template: 'Здравствуйте' },
+              { kind: 'notify', audience: 'role:leader', template: 'Смотри' },
+            ],
+          }),
+        ]}
+        runs={[]}
+      />
+    );
+    expect(screen.getByText(/написать клиенту/)).toBeTruthy();
+    expect(screen.getByText(/сообщить сотруднику/)).toBeTruthy();
+  });
+});
+
+describe('AutomationScreen — выходы формы', () => {
+  it('сохранение закрывает окно и обновляет список', async () => {
+    render(
+      <AutomationScreen
+        cabinet="leader"
+        companyId="co-1"
+        companies={[]}
+        rules={[rule()]}
+        runs={[]}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
+    fireEvent.click(screen.getByRole('button', { name: 'стоп-сохранено' }));
+    await waitFor(() => expect(screen.queryByTestId('rule-form')).toBeNull());
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it('закрытие окна список НЕ обновляет — обновлять нечего', () => {
+    render(
+      <AutomationScreen
+        cabinet="leader"
+        companyId="co-1"
+        companies={[]}
+        rules={[rule()]}
+        runs={[]}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
+    fireEvent.click(screen.getByRole('button', { name: 'стоп-закрыть' }));
+    expect(screen.queryByTestId('rule-form')).toBeNull();
+    expect(refresh).not.toHaveBeenCalled();
+  });
+});
+
+describe('AutomationScreen — выбор компании и подписи журнала', () => {
+  const run = (over: Partial<AutomationRunView> = {}): AutomationRunView => ({
+    id: 'run1',
+    at: new Date('2026-09-15T10:00:00Z'),
+    ruleName: 'Счёт выставлен',
+    status: 'ok',
+    error: null,
+    createdTasks: 1,
+    notified: 0,
+    ...over,
+  });
+
+  it('администратор выбирает компанию — адрес меняется, выбор снимается — возвращается к чистому', () => {
+    render(
+      <AutomationScreen
+        cabinet="admin"
+        companyId={null}
+        companies={[{ id: 'co-1', name: 'Альфа' }]}
+        rules={[]}
+        runs={[]}
+      />
+    );
+    const select = screen.getByLabelText('Компания');
+    fireEvent.change(select, { target: { value: 'co-1' } });
+    expect(push).toHaveBeenCalledWith(expect.stringContaining('companyId=co-1'));
+
+    push.mockClear();
+    fireEvent.change(select, { target: { value: '' } });
+    // Пустой выбор ведёт на тот же раздел БЕЗ хвоста — иначе в адресе осталась
+    // бы пустая строка и экран считал бы её выбранной компанией.
+    expect(push).toHaveBeenCalledWith(expect.not.stringContaining('companyId='));
+  });
+
+  it('срабатывание без даты и без последствий подписано словами', () => {
+    render(
+      <AutomationScreen
+        cabinet="leader"
+        companyId="co-1"
+        companies={[]}
+        rules={[rule({ lastRunAt: null })]}
+        runs={[run({ createdTasks: 0, notified: 0 })]}
+      />
+    );
+    // Правило ещё ни разу не срабатывало: вместо даты — прочерк, а не пустота.
+    expect(document.body.textContent).toContain('—');
+    expect(screen.getByText(/без изменений/)).toBeTruthy();
+  });
+
+  it('срабатывание с уведомлениями называет их число', () => {
+    render(
+      <AutomationScreen
+        cabinet="leader"
+        companyId="co-1"
+        companies={[]}
+        rules={[rule()]}
+        runs={[run({ createdTasks: 0, notified: 3 })]}
+      />
+    );
+    expect(screen.getByText(/уведомлений: 3/)).toBeTruthy();
   });
 });

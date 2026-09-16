@@ -296,3 +296,17 @@ describe('listAutomationRuns', () => {
     expect(rows[0]).toMatchObject({ ruleName: 'Счёт', createdTasks: 2, notified: 1 });
   });
 });
+
+describe('неизвестный триггер', () => {
+  it('правило с триггером не из каталога не сохраняется', async () => {
+    // Схема пропускает любую строку — каталог здесь и есть источник правды.
+    // Без этой проверки правило легло бы в базу и не сработало никогда, а
+    // человек считал бы, что робот включён.
+    const res = await createAutomationRule(prisma, {
+      companyId: 'co-1',
+      authorId: 'u',
+      input: { ...VALID, trigger: 'когда_захочется' as never },
+    });
+    expect(res).toEqual({ ok: false, error: 'unknown_trigger' });
+  });
+});

@@ -384,3 +384,54 @@ describe('TaskDialog', () => {
     });
   });
 });
+
+/**
+ * `У-221`: форма повторения и вопрос «эта / все будущие».
+ *
+ * Вопрос показывается ТОЛЬКО у задачи, которая уже повторяется: у разовой он
+ * означал бы выбор между двумя одинаковыми исходами и только путал бы.
+ */
+describe('TaskDialog — повторение', () => {
+  const onClose = vi.fn();
+  const onSaved = vi.fn();
+
+  it('у новой задачи повторение выключено и вопроса о серии нет', () => {
+    const { container } = render(
+      renderDialog({ target: null, columns, options: emptyOptions, onClose, onSaved })
+    );
+    const freq = container.querySelector('select[name="recurrenceFreq"]') as HTMLSelectElement;
+    expect(freq.value).toBe('');
+    expect(container.querySelector('input[name="recurrenceScope"]')).toBeNull();
+    expect(screen.getByText(/будет создаваться заново по расписанию/)).toBeTruthy();
+  });
+
+  it('у повторяющейся задачи поля заполнены и спрашивают про серию', () => {
+    const { container } = render(
+      renderDialog({
+        target: { ...task, recurrence: { freq: 'monthly', interval: 3, until: '2027-01-31' } },
+        columns,
+        options: emptyOptions,
+        onClose,
+        onSaved,
+      })
+    );
+    expect(
+      (container.querySelector('select[name="recurrenceFreq"]') as HTMLSelectElement).value
+    ).toBe('monthly');
+    expect(
+      (container.querySelector('input[name="recurrenceInterval"]') as HTMLInputElement).value
+    ).toBe('3');
+    expect(
+      (container.querySelector('input[name="recurrenceUntil"]') as HTMLInputElement).value
+    ).toBe('2027-01-31');
+
+    const scopes = container.querySelectorAll('input[name="recurrenceScope"]');
+    expect(scopes).toHaveLength(2);
+    // По умолчанию — «эта и все будущие»: правка обычно относится ко всей серии.
+    expect((scopes[0] as HTMLInputElement).value).toBe('future');
+    expect((scopes[0] as HTMLInputElement).defaultChecked).toBe(true);
+    expect(screen.getByText('Только эту')).toBeTruthy();
+    expect(screen.getByText(/серия продолжится без изменений/)).toBeTruthy();
+    expect(screen.getByText(/Следующая задача появится сама/)).toBeTruthy();
+  });
+});

@@ -179,3 +179,40 @@ describe('TaskPageScreen', () => {
     expect(screen.getByText('Создание задачи')).toBeTruthy();
   });
 });
+
+/**
+ * `У-221`: повторяющаяся задача обязана сказать о себе на своей странице.
+ * Иначе человек закрывает её и не понимает, откуда назавтра взялась такая же.
+ */
+describe('TaskPageScreen — повторение', () => {
+  it('показывает правило и обещание, что следующая появится сама', () => {
+    render(
+      React.createElement(TaskPageScreen, {
+        task: detail({ recurrence: { freq: 'weekly', interval: 2, until: '2026-12-31' } }),
+        cabinet: 'manager',
+      })
+    );
+    expect(screen.getByText('Повторяется')).toBeTruthy();
+    expect(screen.getByText('Каждые 2 недели, до 31.12.2026')).toBeTruthy();
+    expect(screen.getByText('Следующая появится сама')).toBeTruthy();
+  });
+
+  it('у разовой задачи строки повторения нет вовсе', () => {
+    render(React.createElement(TaskPageScreen, { task: detail(), cabinet: 'manager' }));
+    expect(screen.queryByText('Повторяется')).toBeNull();
+  });
+});
+
+describe('TaskPageScreen — незнакомый приоритет', () => {
+  it('значение не из словаря печатается как есть, а не пустым местом', () => {
+    // Словарь можно расширить в базе раньше, чем в интерфейсе. Пустота на месте
+    // приоритета выглядит как поломка карточки.
+    render(
+      React.createElement(TaskPageScreen, {
+        task: detail({ priority: 'критический' as never }),
+        cabinet: 'manager',
+      })
+    );
+    expect(screen.getByText('критический')).toBeTruthy();
+  });
+});

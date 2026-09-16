@@ -102,3 +102,15 @@ describe('TaskChecklist', () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 });
+
+describe('отказ БЕЗ кода ошибки', () => {
+  it('человек всё равно видит понятную причину, а не пустую подсказку', async () => {
+    // Сервис вернул `{ ok: false }` без кода — так бывает, когда отказ пришёл
+    // не из доменного слоя. Пустая строка в подсказке хуже, чем общая фраза.
+    toggleChecklistItemAction.mockResolvedValue({ ok: false });
+    render(React.createElement(TaskChecklist, { taskId: 't1', items }));
+    fireEvent.click(screen.getByLabelText('Отправить счёт'));
+    await waitFor(() => expect(toastError).toHaveBeenCalled());
+    expect(String(toastError.mock.calls[0][0]).length).toBeGreaterThan(0);
+  });
+});

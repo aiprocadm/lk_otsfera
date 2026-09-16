@@ -197,3 +197,82 @@ describe('AutomationRuleForm — сохранение', () => {
     expect(updateAutomationRuleAction.mock.calls[0][2]).toBe('r1');
   });
 });
+
+describe('AutomationRuleForm — правка уведомления и краевые отказы', () => {
+  it('правка правила-уведомления подставляет ЕГО получателя, а не умолчание', () => {
+    // У «сообщить сотруднику» получатель лежит в другом поле, чем у задачи.
+    // Взять умолчание значило бы тихо переназначить адресата при первой правке.
+    open({
+      id: 'r9',
+      name: 'Сообщить руководителю',
+      isActive: true,
+      isBuiltin: false,
+      trigger: 'client_request_submitted',
+      triggerLabel: 'Обращение с сайта',
+      conditions: {},
+      actions: [{ kind: 'notify', audience: 'role:leader', template: 'Пришло обращение' }],
+      updatedAt: new Date(),
+      lastRunAt: null,
+    } as never);
+    expect((dialog().getByLabelText('Кому') as HTMLSelectElement).value).toBe('role:leader');
+  });
+
+  it('«написать клиенту» уходит с каналом «почта»', async () => {
+    open();
+    fireEvent.change(dialog().getByLabelText('Название правила'), { target: { value: 'Письмо' } });
+    fireEvent.change(dialog().getByLabelText('Действие'), { target: { value: 'send_message' } });
+    fireEvent.change(dialog().getByLabelText('Текст правила'), {
+      target: { value: 'Здравствуйте' },
+    });
+    fireEvent.click(dialog().getByRole('button', { name: 'Сохранить' }));
+    await waitFor(() => expect(createAutomationRuleAction).toHaveBeenCalled());
+    expect(createAutomationRuleAction.mock.calls[0][2].actions[0]).toEqual({
+      kind: 'send_message',
+      channel: 'email',
+      template: 'Здравствуйте',
+    });
+  });
+
+  it('отказ без списка подстановок показывает общую причину, а не пустоту', async () => {
+    createAutomationRuleAction.mockResolvedValue({ ok: false, error: 'unknown_placeholder' });
+    open();
+    fireEvent.change(dialog().getByLabelText('Название правила'), { target: { value: 'Правило' } });
+    fireEvent.change(dialog().getByLabelText('Текст правила'), { target: { value: 'Текст' } });
+    fireEvent.click(dialog().getByRole('button', { name: 'Сохранить' }));
+    await waitFor(() => expect(dialog().getByRole('alert').textContent).toBeTruthy());
+  });
+});
+
+describe('AutomationRuleForm — отмена', () => {
+  it('«Отмена» закрывает окно и ничего не сохраняет', () => {
+    const onClose = vi.fn();
+    render(
+      <AutomationRuleForm
+        cabinet="leader"
+        companyId="co-1"
+        rule={null}
+        onClose={onClose}
+        onSaved={vi.fn()}
+      />
+    );
+    fireEvent.click(dialog().getByRole('button', { name: 'Отмена' }));
+    expect(onClose).toHaveBeenCalled();
+    expect(createAutomationRuleAction).not.toHaveBeenCalled();
+  });
+});
+
+describe('AutomationRuleForm — все поля живые', () => {
+  it('событие, получатель и срок меняются, и правило уходит с ними', async () => {
+    open();
+    fireEvent.change(dialog().getByLabelText('Название правила'), { target: { value: 'Полное' } });
+    fireEvent.change(dialog().getByLabelText('Событие'), { target: { value: 'payment_received' } });
+    fireEvent.change(dialog().getByLabelText('Кому'), { target: { value: 'role:leader' } });
+    fireEvent.change(dialog().getByLabelText('Текст правила'), { target: { value: 'Проверить' } });
+    fireEvent.change(dialog().getByLabelText('Срок в днях'), { target: { value: '7' } });
+    fireEvent.click(dialog().getByRole('button', { name: 'Сохранить' }));
+    await waitFor(() => expect(createAutomationRuleAction).toHaveBeenCalled());
+    const input = createAutomationRuleAction.mock.calls[0][2];
+    expect(input.trigger).toBe('payment_received');
+    expect(input.actions[0]).toMatchObject({ assignee: 'role:leader', dueInDays: 7 });
+  });
+});

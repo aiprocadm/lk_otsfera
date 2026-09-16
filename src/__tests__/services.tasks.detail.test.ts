@@ -181,3 +181,49 @@ describe('getTaskDetail — что отдаёт', () => {
     expect(res.task.createdByRuleId).toBe('rule-1');
   });
 });
+
+/**
+ * Связанный объект мог остаться без названия: лида завели одним телефоном,
+ * сделку — без заголовка. Пустая подпись в списке связей выглядит как поломка,
+ * поэтому у каждой связи есть запасное слово.
+ */
+describe('связи без названия и пропавшая колонка', () => {
+  it('лид и сделка без названия подписываются словом, а не пустотой', async () => {
+    taskFindUnique.mockResolvedValue({
+      ...ROW,
+      linkedOrderId: null,
+      linkedOrganizationId: null,
+      linkedOrder: null,
+      linkedOrganization: null,
+      linkedLeadId: 'l1',
+      linkedLead: { subject: null },
+      linkedDealId: 'd1',
+      linkedDeal: { title: null },
+    });
+    const res = await getTaskDetail(prisma, manager, 't1');
+    if (!res.ok) throw new Error('ожидали успех');
+    expect(res.task.links).toEqual([
+      { kind: 'lead', id: 'l1', title: 'Лид' },
+      { kind: 'deal', id: 'd1', title: 'Сделка' },
+    ]);
+  });
+
+  it('колонка задачи пропала из доски — показываем статус, а не пустое место', async () => {
+    // Колонку удалили, пока задача открыта у другого человека, а среди
+    // оставшихся нет ни одной с её статусом-якорем.
+    columnFindMany.mockResolvedValue([
+      {
+        id: 'c-todo',
+        name: 'К выполнению',
+        statusAnchor: 'todo',
+        position: 1,
+        isDoneColumn: false,
+      },
+    ]);
+    taskFindUnique.mockResolvedValue({ ...ROW, columnId: 'колонки-нет', status: 'review' });
+    const res = await getTaskDetail(prisma, manager, 't1');
+    if (!res.ok) throw new Error('ожидали успех');
+    expect(res.task.columnId).toBe('review');
+    expect(res.task.columnName).toBe('review');
+  });
+});

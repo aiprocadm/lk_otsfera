@@ -671,3 +671,122 @@ describe('server-actions/tasks — service-error return arms', () => {
     });
   });
 });
+
+/**
+ * `У-220`: у карточки три новые привязки — контакт, переписка и документ.
+ * Подписи к ним берутся из связанных строк, и у собеседника имени может не
+ * быть: тогда показываем адрес, по которому он пишет. Пустая подпись выглядела
+ * бы как поломка.
+ */
+describe('board.ts — подписи новых привязок', () => {
+  it('контакт, документ и БЕЗЫМЯННЫЙ собеседник подписаны', async () => {
+    const card = {
+      id: 'L',
+      title: 'С привязками',
+      description: null,
+      priority: null,
+      dueDate: null,
+      completedAt: null,
+      status: 'todo',
+      columnId: null,
+      createdAt: new Date(),
+      createdBy: { name: 'Creator' },
+      assignees: [],
+      linkedOrderId: null,
+      linkedOrder: null,
+      linkedOrganizationId: null,
+      linkedOrganization: null,
+      linkedLeadId: null,
+      linkedLead: null,
+      linkedDealId: null,
+      linkedDeal: null,
+      linkedContactId: 'ct1',
+      linkedContact: { name: 'Пётр Петров' },
+      linkedDialogId: 'dg1',
+      // Имени нет — показываем адрес, по которому человек пишет.
+      linkedDialog: { peerDisplay: null, peerRef: '+79990000000' },
+      linkedDocumentId: 'doc1',
+      linkedDocument: { name: 'Счёт №7' },
+      recurrence: null,
+    };
+    const prisma = {
+      taskColumn: { findMany: vi.fn().mockResolvedValue([]) },
+      task: {
+        findMany: vi.fn().mockResolvedValue([card]),
+        count: vi.fn().mockResolvedValue(1),
+      },
+      taskChecklistItem: { groupBy: vi.fn().mockResolvedValue([]) },
+    } as unknown as PrismaClient;
+
+    const board = await listTaskBoard(prisma, managerA());
+    const found = board.board.flatMap((c) => c.cards).find((c) => c.id === 'L')!;
+    expect(found.linkedContactName).toBe('Пётр Петров');
+    expect(found.linkedDocumentName).toBe('Счёт №7');
+    expect(found.linkedDialogPeer).toBe('+79990000000');
+  });
+});
+
+/**
+ * `У-221`, «только эту»: прежде чем менять задачу, серию отпускают дальше из
+ * ПРЕЖНИХ значений, а сама задача становится разовой. Здесь проверяются пути,
+ * на которых отпускать нечего, — они обязаны быть тихими, а не падать.
+ */
+describe('tasks.ts — updateTask и серия', () => {
+  const before = {
+    companyId: 'co-A',
+    createdById: 'm1',
+    linkedOrganizationId: null,
+    assignees: [],
+    title: 'old',
+    dueDate: null,
+  };
+
+  it('«только эту» у задачи БЕЗ повторения ничего не отвязывает', async () => {
+    const tx = {
+      task: {
+        findUnique: vi.fn().mockResolvedValue(before),
+        update: vi.fn().mockResolvedValue({}),
+      },
+    };
+    const prisma = txRuns(tx, {
+      task: { findUnique: vi.fn().mockResolvedValue({ ...before, recurrence: null }) },
+    });
+    const r = await updateTask(prisma, managerA(), 't1', {
+      title: 'new',
+      recurrenceScope: 'this',
+    });
+    expect(r).toEqual({ ok: true });
+  });
+
+  it('«только эту» у пропавшей задачи → not_found, транзакция не открывается', async () => {
+    const run = vi.fn();
+    const prisma = {
+      task: { findUnique: vi.fn().mockResolvedValue(null) },
+      $transaction: run,
+    } as unknown as PrismaClient;
+    const r = await updateTask(prisma, managerA(), 'missing', {
+      title: 'new',
+      recurrenceScope: 'this',
+    });
+    expect(r).toEqual({ ok: false, error: 'not_found' });
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('«только эту» у ЧУЖОЙ задачи → not_found, а не «нет доступа»', async () => {
+    // Код ответа тот же, что у пропавшей: иначе по ответу можно было бы
+    // выяснить, что задача существует.
+    const run = vi.fn();
+    const prisma = {
+      task: {
+        findUnique: vi.fn().mockResolvedValue({ ...before, companyId: 'co-ЧУЖАЯ' }),
+      },
+      $transaction: run,
+    } as unknown as PrismaClient;
+    const r = await updateTask(prisma, managerA(), 't1', {
+      title: 'new',
+      recurrenceScope: 'this',
+    });
+    expect(r).toEqual({ ok: false, error: 'not_found' });
+    expect(run).not.toHaveBeenCalled();
+  });
+});
