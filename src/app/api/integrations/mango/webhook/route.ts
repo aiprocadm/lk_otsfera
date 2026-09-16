@@ -3,7 +3,8 @@ import { readMultipart } from '@/lib/api/multipart';
 import { getSettingValue } from '@/lib/config/integrationSettings';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { verifyMangoSign } from '@/lib/telephony/mango/sign';
-import { isMangoIpAllowed, clientIpFrom } from '@/lib/telephony/mango/ip';
+import { isMangoIpAllowed } from '@/lib/telephony/mango/ip';
+import { clientIpFromHeaders } from '@/lib/api/clientIp';
 import { parseMangoEvent } from '@/lib/telephony/mango/parse';
 import { ingestCallEvent } from '@/lib/services/telephony/ingestCall';
 import { getQueue } from '@/lib/jobs/queues';
@@ -32,7 +33,7 @@ export async function POST(req: Request): Promise<Response> {
   if (disabled) return disabled;
 
   // 1. IP allowlist — до чтения тела.
-  if (!isMangoIpAllowed(clientIpFrom(req.headers))) {
+  if (!isMangoIpAllowed(clientIpFromHeaders(req.headers))) {
     return new Response(null, { status: 401 });
   }
 

@@ -167,11 +167,16 @@ describe('SLA-эскалация', () => {
     expect(journal).not.toBeNull();
     expect(journal!.companyId).toBe(companyA);
 
+    // Ищем СВОЁ уведомление по метке, а не «самое свежее». Прогон эскалации
+    // проходит по всей базе, и в общей базе разработчика всегда есть чужие
+    // просроченные диалоги от соседних тестов — их уведомление оказывается
+    // новее, и проверка «последнее письмо про мой предмет» падала на ровном
+    // месте (поймано 16.09.2026: пришёл диалог в канале `cabinet` с «Партнёр»).
     const notif = await prisma.notification.findFirst({
-      where: { userId: leader, type: 'sla_escalation' },
+      where: { userId: leader, type: 'sla_escalation', body: { contains: `s7p3-subj-${STAMP}` } },
       orderBy: { createdAt: 'desc' },
     });
-    expect(notif!.body).toContain(`s7p3-subj-${STAMP}`);
+    expect(notif, 'уведомление об эскалации ИМЕННО этого обращения').not.toBeNull();
 
     // Идемпотентность: журнал не даёт повторов.
     await runSlaEscalation(prisma, new Date());

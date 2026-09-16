@@ -41,6 +41,10 @@ export const ENV_ONLY: Record<string, string> = {
   LOG_LEVEL: 'инфраструктура: уровень логов pino',
   LOG_FORMAT: 'инфраструктура: транспорт логов (json|console)',
 
+  // --- обратный прокси ---
+  TRUSTED_PROXY_HOPS:
+    'инфраструктура: сколько НАШИХ прокси перед приложением (умолчание 1); столько элементов x-forwarded-for отсчитывается с конца',
+
   // --- антивирус ---
   CLAMAV_HOST: 'инфраструктура: хост ClamAV (пусто = скан помечает clean)',
   CLAMAV_PORT: 'инфраструктура: порт ClamAV',

@@ -12,13 +12,8 @@ import { recordAudit } from '@/lib/auth/audit';
 import { bestEffort } from '@/lib/logging';
 import { isRateLimited } from '@/lib/rateLimit';
 
+import { clientIpFromHeaders } from '@/lib/api/clientIp';
 const schema = z.object({ code: z.string().min(1).max(64) });
-
-function clientIp(req: NextRequest): string {
-  const fwd = req.headers.get('x-forwarded-for');
-  if (fwd) return fwd.split(',')[0]!.trim();
-  return req.headers.get('x-real-ip') ?? 'unknown';
-}
 
 // Обмен email-кода (или backup-кода) на полноценную сессию. Тонкий роут (§3):
 // вся доменная логика — в services/auth/twoFactor; здесь только маппинг кодов
@@ -32,7 +27,12 @@ export async function POST(req: NextRequest) {
   const disabled = notFoundIfDisabled('staff_2fa');
   if (disabled) return disabled;
 
-  if (await isRateLimited(`2fa-verify:${clientIp(req)}`, { windowMs: 60_000, max: 10 })) {
+  if (
+    await isRateLimited(`2fa-verify:${clientIpFromHeaders(req.headers)}`, {
+      windowMs: 60_000,
+      max: 10,
+    })
+  ) {
     return NextResponse.json(
       { code: 'TOO_MANY_REQUESTS', message: 'Too many attempts' },
       { status: 429 }

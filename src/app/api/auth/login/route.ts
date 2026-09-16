@@ -23,6 +23,7 @@ import {
 import { recordAudit } from '@/lib/auth/audit';
 import { bestEffort, log } from '@/lib/logging';
 
+import { clientIpFromHeaders } from '@/lib/api/clientIp';
 // Dynamic import keeps react-dom/server out of the static module graph
 // (тот же приём, что в reset-password/request).
 async function renderHtml(element: React.ReactElement): Promise<string> {
@@ -55,18 +56,12 @@ function loginLimits(): { windowMs: number; maxAttempts: number } {
 
 // Общий Redis-backed лимитер (@/lib/rateLimit): счётчик делится между всеми
 // инстансами и переживает cold start; при недоступном Redis сам деградирует
-// в in-memory. Ключ по IP: реальность x-forwarded-for обеспечивает
-// reverse-proxy (перезапись XFF — требование release-чеклиста, как и для
-// Mango IP-allowlist).
-function clientIp(req: Request): string {
-  const headers = req.headers;
-  const fwd = headers.get('x-forwarded-for');
-  if (fwd) return fwd.split(',')[0]!.trim();
-  return headers.get('x-real-ip') ?? 'unknown';
-}
+// в in-memory. Ключ по IP; сам адрес разбирает общий помощник
+// `clientIpFromHeaders` — он берёт хвост цепочки прокси, а не её начало
+// (решение `Р-Б-15`), иначе счётчик обходится одной строкой в заголовке.
 
 export async function POST(req: Request) {
-  const ip = clientIp(req);
+  const ip = clientIpFromHeaders(req.headers);
 
   // `У-129`: лимиты живут в базе — снапшот настроек нужен ДО первой проверки.
   // Вход происходит до всякой сессии, праймить его больше некому (`У-133`).
