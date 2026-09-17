@@ -36,6 +36,9 @@ const { getOrgFinanceKpis, listOrgPaymentsForExport } = vi.hoisted(() => ({
   getOrgFinanceKpis: vi.fn(),
   listOrgPaymentsForExport: vi.fn(),
 }));
+// Этап 6 (`У-235`): общая композиция выгрузки берёт и счета — здесь их нет.
+const { listOrgInvoices } = vi.hoisted(() => ({ listOrgInvoices: vi.fn() }));
+vi.mock('@/lib/services/organization/invoices', () => ({ listOrgInvoices }));
 vi.mock('@/lib/services/organization/finance', () => ({
   getOrgFinanceKpis,
   listOrgPaymentsForExport,
@@ -95,6 +98,12 @@ beforeEach(() => {
   getOrgFinanceKpis.mockResolvedValue({ billed: '100.00', paid: '0.00', outstanding: '100.00' });
   recordPiiAccess.mockResolvedValue(undefined);
   vi.mocked(prisma.organization.findUnique).mockResolvedValue({ name: 'ООО Ромашка' } as never);
+  listOrgInvoices.mockResolvedValue({
+    rows: [],
+    total: 0,
+    toPay: '0.00',
+    counts: { unpaid: 0, partially_paid: 0, paid: 0, unknown: 0 },
+  });
 });
 
 describe('GET /api/manager/orders/export', () => {
