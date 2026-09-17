@@ -45,6 +45,10 @@ const LEADER_SECTIONS = [
   // тем же PR, что его завёл (так велит `У-135`).
   'catalogs.documentTemplates',
   'catalogs.requisites', // реквизиты исполнителя СВОЕЙ компании
+  // `У-237`/`Р-Э6-3` (этап 6): материалы для партнёров СВОЕЙ компании —
+  // издатель — компания; границу держит `guardCompany`; раздел добавлен тем же
+  // PR, что его завёл (так велит `У-135`).
+  'catalogs.partnerMaterials',
   'access.roles',
 ] as const;
 

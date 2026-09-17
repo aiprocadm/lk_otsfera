@@ -9,7 +9,7 @@ import { toast } from '@/lib/ui/toast';
 import { errorMessageRu } from '@/lib/errors/messages';
 import { fmtDateTime } from '@/lib/format';
 import type { HubMaterialRow } from '@/lib/services/partnerMaterials/hub';
-import { PARTNER_MATERIAL_CATEGORY_LABELS } from '@/lib/services/partnerMaterials/shared';
+import { PARTNER_MATERIAL_CATEGORY_LABELS } from '@/lib/services/partnerMaterials/categories';
 import {
   publishPartnerMaterialAction,
   unpublishPartnerMaterialAction,

@@ -160,6 +160,8 @@ describe('visibleSettingsSections / hasAnySettingsAccess', () => {
       'catalogs.notificationRules',
       // `У-222` (этап 4): правила автоматизации своей компании.
       'catalogs.automation',
+      // `У-237` (этап 6): материалы для партнёров своей компании.
+      'catalogs.partnerMaterials',
       'catalogs.customFields',
       // `У-136` (Р-22): каталог услуг и цены — руководитель ведёт свою компанию.
       'catalogs.priceList',

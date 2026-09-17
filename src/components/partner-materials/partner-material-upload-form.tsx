@@ -8,7 +8,7 @@ import { DEFAULT_MAX_FILE_SIZE_MB } from '@/lib/config/upload';
 import {
   PARTNER_MATERIAL_CATEGORIES,
   PARTNER_MATERIAL_CATEGORY_LABELS,
-} from '@/lib/services/partnerMaterials/shared';
+} from '@/lib/services/partnerMaterials/categories';
 
 /**
  * Форма нового материала для партнёров (`У-237`). Файл уходит fetch-ом на

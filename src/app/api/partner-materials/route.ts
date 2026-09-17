@@ -6,10 +6,8 @@ import { SETTINGS_SECTIONS } from '@/lib/navigation/settings';
 import { prisma } from '@/lib/db/prisma';
 import { formFields, readFile } from '@/lib/api/multipart';
 import { createMaterial } from '@/lib/services/partnerMaterials/hub';
-import {
-  PARTNER_MATERIAL_HTTP_STATUS as STATUS,
-  parseMaterialCategory,
-} from '@/lib/services/partnerMaterials/shared';
+import { PARTNER_MATERIAL_HTTP_STATUS as STATUS } from '@/lib/services/partnerMaterials/shared';
+import { parseMaterialCategory } from '@/lib/services/partnerMaterials/categories';
 
 /**
  * `POST /api/partner-materials` — новый материал для партнёров (`У-237`).

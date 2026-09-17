@@ -1,15 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import {
-  PARTNER_MATERIAL_CATEGORIES,
-  PARTNER_MATERIAL_CATEGORY_LABELS,
   PARTNER_MATERIAL_HTTP_STATUS,
-  PARTNER_MATERIAL_MIME_TYPES,
   isNewMaterial,
   isValidExternalUrl,
   materialStoragePath,
-  parseMaterialCategory,
   validateMaterialFile,
 } from '@/lib/services/partnerMaterials/shared';
+import {
+  PARTNER_MATERIAL_CATEGORIES,
+  PARTNER_MATERIAL_CATEGORY_LABELS,
+  parseMaterialCategory,
+} from '@/lib/services/partnerMaterials/categories';
+import { PARTNER_MATERIAL_MIME_TYPES } from '@/lib/config/upload';
 
 /** Справочники материалов для партнёров (`У-237`). */
 

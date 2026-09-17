@@ -10,7 +10,7 @@ import {
   unpublishMaterial,
   updateMaterial,
 } from '@/lib/services/partnerMaterials/hub';
-import { parseMaterialCategory } from '@/lib/services/partnerMaterials/shared';
+import { parseMaterialCategory } from '@/lib/services/partnerMaterials/categories';
 
 /**
  * `У-237` — действия хаба «Материалы для партнёров»: правка, публикация,

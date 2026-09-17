@@ -1,49 +1,15 @@
 import { randomUUID } from 'node:crypto';
-import type { PartnerMaterialCategory } from '@prisma/client';
-import { ALLOWED_MIME_TYPES, maxFileSizeBytes } from '@/lib/config/upload';
+import { PARTNER_MATERIAL_MIME_TYPES, maxFileSizeBytes } from '@/lib/config/upload';
 import { validateMagicBytes, SUPPORTED_MIME_TYPES } from '@/lib/storage/mimeValidator';
 
 /**
  * Материалы для партнёров (этап 6 ТЗ 12.09.2026, `У-237`, решение `Р-Э6-3`):
- * общие справочники двух сервисов — хаба (издатель — компания) и кабинета
- * партнёра (читатель — партнёр с организациями этой компании).
+ * серверные помощники двух сервисов — хаба (издатель — компания) и кабинета
+ * партнёра (читатель — партнёр с организациями этой компании). Справочник
+ * категорий — в `categories.ts`: его читают и клиентские компоненты.
  */
-export const PARTNER_MATERIAL_CATEGORIES: PartnerMaterialCategory[] = [
-  'price_list',
-  'presentation',
-  'template',
-  'instruction',
-  'other',
-];
-
-export const PARTNER_MATERIAL_CATEGORY_LABELS: Record<PartnerMaterialCategory, string> = {
-  price_list: 'Прайс-листы',
-  presentation: 'Презентации',
-  template: 'Шаблоны',
-  instruction: 'Инструкции',
-  other: 'Прочее',
-};
-
 /** Метка «Новое» держится столько дней после публикации (пакет 06 §10). */
 const NEW_MATERIAL_DAYS = 7;
-
-/**
- * Форматы материалов: общий allow-list документов плюс презентации — у
- * документов заказа PowerPoint не нужен, у материалов для агентов это
- * основной формат. Свой список, а не правка общего: общий кормит роуты
- * документов клиентов, и лишний формат там появился бы молча.
- */
-export const PARTNER_MATERIAL_MIME_TYPES: ReadonlySet<string> = new Set<string>([
-  ...ALLOWED_MIME_TYPES,
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  'application/vnd.ms-powerpoint',
-]);
-
-export function parseMaterialCategory(
-  raw: string | undefined
-): PartnerMaterialCategory | undefined {
-  return PARTNER_MATERIAL_CATEGORIES.find((c) => c === raw);
-}
 
 export type MaterialFileInput = {
   name: string;

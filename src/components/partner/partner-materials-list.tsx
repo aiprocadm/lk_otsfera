@@ -5,7 +5,7 @@ import type { PartnerMaterialRow } from '@/lib/services/partnerMaterials/partner
 import {
   PARTNER_MATERIAL_CATEGORIES,
   PARTNER_MATERIAL_CATEGORY_LABELS,
-} from '@/lib/services/partnerMaterials/shared';
+} from '@/lib/services/partnerMaterials/categories';
 import { buttonClass } from '@/lib/ui/buttonClass';
 import { PartnerMaterialDownloadButton } from './partner-material-download-button';
 
