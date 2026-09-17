@@ -25,6 +25,8 @@ export const NAV_ICONS = {
   overview: '🗂',
   search: '🔎',
   settings: '⚙',
+  // Этап 5 (`У-228`): тот же знак, что у колокольчика в шапке, — это один раздел.
+  notifications: '🔔',
 
   // Работа с заказами и продажами
   orders: '📋',

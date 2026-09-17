@@ -294,3 +294,33 @@ describe('NotificationBell', () => {
     });
   });
 });
+
+/**
+ * Этап 5 (`У-228`): ссылка «Показать все» ведёт на страницу кабинета, но
+ * только когда шелл её передал — флаг читает сервер, клиент про него не знает.
+ */
+describe('NotificationBell — «Показать все»', () => {
+  beforeEach(() => {
+    useClientResource.mockImplementation((url: string) =>
+      url.includes('/unread')
+        ? { data: 1, loading: false, error: null, refetch: vi.fn() }
+        : { data: ROWS, loading: false, error: null, refetch: vi.fn() }
+    );
+  });
+
+  it('с адресом — ссылка есть и ведёт в свой кабинет', () => {
+    const { container } = render(
+      <NotificationBell role="manager" allHref="/manager/notifications" />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Уведомления/ }));
+    const link = container.querySelector('a[href="/manager/notifications"]');
+    expect(link).toBeTruthy();
+    expect(link?.textContent).toContain('Показать все');
+  });
+
+  it('без адреса (флаг выключен) — ссылки нет', () => {
+    const { container } = render(<NotificationBell role="manager" />);
+    fireEvent.click(screen.getByRole('button', { name: /Уведомления/ }));
+    expect(container.querySelector('a[href*="/notifications"]')).toBeNull();
+  });
+});

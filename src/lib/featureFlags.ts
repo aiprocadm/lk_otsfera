@@ -109,6 +109,17 @@ export const FEATURE_FLAGS = [
   // Снимается после приёмки заказчиком. Пока выключен, ни одно правило не
   // срабатывает, даже если строка в базе помечена активной.
   'automation',
+  // Этап 5 ТЗ 12.09.2026 (`У-228`…`У-230`, решение `Р-Э5-8`): «Центр уведомлений».
+  // ПОВЕДЕНЧЕСКИЙ opt-in флаг, только на НОВОЕ этапа. Точки чтения:
+  //   1. страницы `/{admin,leader,manager,organization,partner,student}/notifications`
+  //      (`notFound()` при выключенном);
+  //   2. пункт меню `notifications` в `navigation/cabinet.ts` (`flag`);
+  //   3. ссылка «Показать все» в колокольчике (шеллы и layouts);
+  //   4. server actions личных настроек уведомлений и воркер дайджеста
+  //      (следующие PR этапа).
+  // Дедуп, единая точка создания и маршруты по ролям — исправления
+  // существующего поведения, флагом не гейтятся.
+  'notification_center',
   // M4: внутренний чат сотрудников. Поведенческий флаг (не route): точки чтения —
   // секции «Чат команды» на /manager/messages и /admin/messages (isFeatureEnabled),
   // все /api/staff-chat/* хендлеры (notFoundIfDisabled), staff-бейдж непрочитанного.
@@ -253,6 +264,7 @@ const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'bitrix_migration',
   'comm_center',
   'automation',
+  'notification_center',
   'staff_chat',
   'staff_calendar',
   'global_search',

@@ -27,6 +27,13 @@ export type NotificationTypeSpec = {
   audience: NotificationAudience[];
   /** Файл, который отправляет тип (проверяется guardrail'ом). */
   producer: string;
+  /**
+   * Этап 5 (`У-233`): значок типа для ленты и фильтра страницы «Уведомления».
+   * Обязателен — тип без значка не соберётся, а страж полноты не даст
+   * оставить пустую строку. Значок здесь, а не в компоненте: подпись и знак
+   * должны жить рядом, иначе разъедутся при первом новом типе.
+   */
+  icon: string;
   /** Имя из ТЗ, если оно отличается от исторического кода. */
   tzAlias?: string;
 };
@@ -35,46 +42,55 @@ export const NOTIFICATION_TYPES = {
   // ── Клиентский контур: организация ──────────────────────────────────────
   document_published: {
     label: 'Опубликован документ',
+    icon: '📄',
     audience: ['organization', 'partner'],
     producer: 'src/lib/notifications/org.ts',
   },
   payment_received: {
     label: 'Поступила оплата',
+    icon: '💰',
     audience: ['organization'],
     producer: 'src/lib/notifications/org.ts',
   },
   order_status_changed: {
     label: 'Изменился статус заказа',
+    icon: '📋',
     audience: ['organization'],
     producer: 'src/lib/notifications/org.ts',
   },
   manager_replied: {
     label: 'Менеджер ответил на комментарий',
+    icon: '💬',
     audience: ['organization'],
     producer: 'src/lib/notifications/org.ts',
   },
   requisites_requested: {
     label: 'Запрошены реквизиты',
+    icon: '🧾',
     audience: ['organization'],
     producer: 'src/lib/notifications/org.ts',
   },
   order_result_delivered: {
     label: 'Результат по заказу передан',
+    icon: '📦',
     audience: ['organization'],
     producer: 'src/lib/notifications/org.ts',
   },
   chat_message: {
     label: 'Новое сообщение в чате',
+    icon: '💬',
     audience: ['organization', 'manager'],
     producer: 'src/lib/notifications/org.ts',
   },
   document_accepted: {
     label: 'Заказчик принял документ',
+    icon: '✅',
     audience: ['manager'],
     producer: 'src/lib/notifications/manager.ts',
   },
   invoice_paid: {
     label: 'Счёт оплачен',
+    icon: '💰',
     audience: ['manager'],
     producer: 'src/lib/notifications/manager.ts',
   },
@@ -82,6 +98,7 @@ export const NOTIFICATION_TYPES = {
   // ── Клиентский контур: партнёр ──────────────────────────────────────────
   commission_statement_ready: {
     label: 'Готов отчёт по комиссии',
+    icon: '📊',
     audience: ['partner'],
     producer: 'src/lib/notifications/partner.ts',
   },
@@ -89,26 +106,31 @@ export const NOTIFICATION_TYPES = {
   // ── Менеджеру по заказу ─────────────────────────────────────────────────
   comment_from_org: {
     label: 'Комментарий от клиента',
+    icon: '💬',
     audience: ['manager'],
     producer: 'src/lib/notifications/manager.ts',
   },
   document_uploaded_by_org: {
     label: 'Организация загрузила документ',
+    icon: '📎',
     audience: ['manager'],
     producer: 'src/lib/notifications/manager.ts',
   },
   document_uploaded_by_partner: {
     label: 'Партнёр загрузил документ',
+    icon: '📎',
     audience: ['manager'],
     producer: 'src/lib/notifications/manager.ts',
   },
   order_marked_paid_by_1c: {
     label: 'Заказ оплачен (по данным 1С)',
+    icon: '💰',
     audience: ['manager'],
     producer: 'src/lib/notifications/manager.ts',
   },
   order_status_changed_by_manager: {
     label: 'Коллега изменил статус заказа',
+    icon: '📋',
     audience: ['manager'],
     producer: 'src/lib/notifications/manager.ts',
   },
@@ -116,12 +138,14 @@ export const NOTIFICATION_TYPES = {
   // ── Заявки клиентов (Модуль 1) ──────────────────────────────────────────
   client_request_submitted: {
     label: 'Новая заявка клиента',
+    icon: '📮',
     audience: ['manager'],
     producer: 'src/lib/services/clientRequests/notify.ts',
     tzAlias: 'new_client_request',
   },
   client_request_status_changed: {
     label: 'Изменился статус заявки',
+    icon: '📮',
     audience: ['organization', 'partner'],
     producer: 'src/lib/services/clientRequests/notify.ts',
   },
@@ -129,11 +153,13 @@ export const NOTIFICATION_TYPES = {
   // ── Заявки на обучение (Модуль 2) ───────────────────────────────────────
   enrollment_submitted: {
     label: 'Подана заявка на обучение',
+    icon: '🎓',
     audience: ['manager'],
     producer: 'src/lib/services/enrollments/notify.ts',
   },
   enrollment_status_changed: {
     label: 'Изменился статус заявки на обучение',
+    icon: '🎓',
     audience: ['organization', 'partner'],
     producer: 'src/lib/services/enrollments/notify.ts',
   },
@@ -141,11 +167,13 @@ export const NOTIFICATION_TYPES = {
   // ── Внутренние задачи и SLA (Модули 7, 4.4) ─────────────────────────────
   task_assigned: {
     label: 'Назначена задача',
+    icon: '✔',
     audience: ['staff'],
     producer: 'src/lib/services/tasks/notify.ts',
   },
   task_due_soon: {
     label: 'Срок задачи подходит',
+    icon: '⏰',
     audience: ['staff'],
     producer: 'src/worker/processors/task-due-soon.ts',
   },
@@ -154,6 +182,7 @@ export const NOTIFICATION_TYPES = {
   // одной строке были бы шумом, от которого уведомления выключают целиком.
   task_comment: {
     label: 'Новый комментарий в задаче',
+    icon: '💬',
     audience: ['staff'],
     producer: 'src/lib/services/tasks/comments.ts',
   },
@@ -161,11 +190,13 @@ export const NOTIFICATION_TYPES = {
   // исполнителю в день просрочки и руководителю на N-й; различает их текст.
   task_overdue: {
     label: 'Задача просрочена',
+    icon: '⏰',
     audience: ['staff'],
     producer: 'src/worker/processors/sla-escalation.ts',
   },
   sla_escalation: {
     label: 'Просрочен ответ по SLA',
+    icon: '🚨',
     audience: ['staff'],
     producer: 'src/worker/processors/sla-escalation.ts',
   },
@@ -174,6 +205,7 @@ export const NOTIFICATION_TYPES = {
   // какое правило выключить, если сообщений слишком много.
   automation_notice: {
     label: 'Сообщение от правила автоматизации',
+    icon: '🤖',
     audience: ['staff'],
     producer: 'src/lib/automation/actions.ts',
   },
@@ -181,6 +213,7 @@ export const NOTIFICATION_TYPES = {
   // удалённый статус. Молчащий робот хуже отсутствующего.
   automation_failed: {
     label: 'Правило автоматизации не сработало',
+    icon: '🤖',
     audience: ['staff'],
     producer: 'src/worker/processors/automation-run.ts',
   },
@@ -188,11 +221,13 @@ export const NOTIFICATION_TYPES = {
   // ── Внутренние коммуникации сотрудников ─────────────────────────────────
   staff_dm_message: {
     label: 'Личное сообщение сотруднику',
+    icon: '✉',
     audience: ['staff'],
     producer: 'src/lib/services/staffChat/messages.ts',
   },
   staff_chat_mention: {
     label: 'Упоминание в чате сотрудников',
+    icon: '💬',
     audience: ['staff'],
     producer: 'src/lib/services/staffChat/messages.ts',
   },
@@ -202,11 +237,13 @@ export const NOTIFICATION_TYPES = {
   // исторических строк `Notification.type` остаётся псевдонимом ниже.
   note_mention: {
     label: 'Упоминание в заметке',
+    icon: '📝',
     audience: ['staff'],
     producer: 'src/lib/notifications/noteMention.ts',
   },
   inbound_reply: {
     label: 'Ответ по внешнему обращению',
+    icon: '✉',
     audience: ['staff'],
     producer: 'src/lib/services/inbound/reply.ts',
   },
@@ -214,6 +251,7 @@ export const NOTIFICATION_TYPES = {
   // организации, к которой привязан диалог.
   messenger_message: {
     label: 'Новое сообщение в мессенджере',
+    icon: '📱',
     audience: ['staff'],
     producer: 'src/lib/notifications/manager.ts',
   },
@@ -221,6 +259,7 @@ export const NOTIFICATION_TYPES = {
   // а не обнаруживает переписку случайно в общем списке.
   dialog_assigned: {
     label: 'Вас назначили ответственным за диалог',
+    icon: '📱',
     audience: ['staff'],
     producer: 'src/lib/notifications/manager.ts',
   },
@@ -228,16 +267,19 @@ export const NOTIFICATION_TYPES = {
   // ── Фоновые процессы ────────────────────────────────────────────────────
   certificate_expiring: {
     label: 'Истекает удостоверение',
+    icon: '🎫',
     audience: ['organization', 'partner'],
     producer: 'src/worker/processors/certificate-expiry.ts',
   },
   calendar_event_reminder: {
     label: 'Напоминание о событии календаря',
+    icon: '📅',
     audience: ['staff'],
     producer: 'src/worker/processors/calendar-reminder.ts',
   },
   sync_error: {
     label: 'Ошибка обмена с 1С',
+    icon: '⚠',
     audience: ['staff'],
     // Второй продьюсер того же типа — `push-document.ts` (`У-174`: документ
     // не выгружен в 1С после последней попытки); реестр хранит один якорь.
@@ -245,6 +287,7 @@ export const NOTIFICATION_TYPES = {
   },
   ops_alert: {
     label: 'Оповещение мониторинга',
+    icon: '🚨',
     audience: ['admin'],
     producer: 'src/lib/monitoring/deliver.ts',
   },
@@ -252,16 +295,19 @@ export const NOTIFICATION_TYPES = {
   // ── Универсальные (core) ────────────────────────────────────────────────
   document_created: {
     label: 'Создан документ',
+    icon: '📄',
     audience: ['staff'],
     producer: 'src/lib/notifications/core.ts',
   },
   status_changed: {
     label: 'Изменился статус',
+    icon: '📋',
     audience: ['staff'],
     producer: 'src/lib/notifications/core.ts',
   },
   message_created: {
     label: 'Новое сообщение',
+    icon: '✉',
     audience: ['staff'],
     producer: 'src/lib/notifications/core.ts',
   },
@@ -293,6 +339,34 @@ export function notificationLabelRu(type: string): string {
 }
 
 /** Типы, адресованные конкретной аудитории. */
+/**
+ * Роли кабинетов → аудитории реестра (`У-228`, `У-233`). Одно место, потому
+ * что фильтр страницы, матрица личных настроек и маршруты строятся по нему.
+ *
+ * Руководитель получает всё менеджерское: рассылки `notifyManagers` идут
+ * сотрудникам контура без разбора должности. Слушателю не адресован ни один
+ * тип — его страница всегда пуста, и это записано решением `Р-Э5-1`.
+ */
+export type NotificationRoleKey =
+  'admin' | 'leader' | 'manager' | 'partner' | 'organization' | 'student';
+
+const ROLE_AUDIENCES: Record<NotificationRoleKey, NotificationAudience[]> = {
+  admin: ['admin', 'staff'],
+  leader: ['manager', 'staff'],
+  manager: ['manager', 'staff'],
+  partner: ['partner'],
+  organization: ['organization'],
+  student: [],
+};
+
+/** Типы, которые может получить роль, — в порядке реестра, без повторов. */
+export function notificationTypesForRole(role: NotificationRoleKey): NotificationTypeKey[] {
+  const wanted = ROLE_AUDIENCES[role];
+  return (Object.keys(NOTIFICATION_TYPES) as NotificationTypeKey[]).filter((key) =>
+    NOTIFICATION_TYPES[key].audience.some((a) => wanted.includes(a))
+  );
+}
+
 export function notificationTypesFor(audience: NotificationAudience): NotificationTypeKey[] {
   return (Object.keys(NOTIFICATION_TYPES) as NotificationTypeKey[]).filter((key) =>
     (NOTIFICATION_TYPES[key].audience as readonly NotificationAudience[]).includes(audience)

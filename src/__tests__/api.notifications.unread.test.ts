@@ -69,7 +69,10 @@ describe('GET /api/notifications/unread', () => {
     expect(notificationCount).not.toHaveBeenCalled();
   });
 
-  it('returns 403 when requireRole fails (student role) — тот же список ролей', async () => {
+  // Этап 5 (`Р-Э5-1`): слушатель допущен — у него есть страница «Уведомления»
+  // (всегда пустая, ради зеркала шести кабинетов). Список ролей — тот же, что у
+  // GET /api/notifications, и теперь включает `student`.
+  it('returns 403 when requireRole fails — список ролей включает слушателя', async () => {
     const studentSession = { sub: 'u-student', role: 'student' as const };
     requireSession.mockResolvedValue({ ok: true, value: studentSession });
     requireRole.mockReturnValue({ ok: false, response: forbiddenResponse });
@@ -82,11 +85,13 @@ describe('GET /api/notifications/unread', () => {
       'leader',
       'partner',
       'organization',
+      'student',
     ]);
     expect(notificationCount).not.toHaveBeenCalled();
   });
 
-  it('admin: пустой scope {} + isRead:false, отдаёт {count}', async () => {
+  // Этап 5 (`Р-Э5-2`): администратор считает только СВОИ непрочитанные.
+  it('admin: свой scope (userId) + isRead:false, отдаёт {count}', async () => {
     requireSession.mockResolvedValue({ ok: true, value: adminSession });
     requireRole.mockReturnValue({ ok: true, value: adminSession });
     notificationCount.mockResolvedValue(7);
@@ -96,8 +101,8 @@ describe('GET /api/notifications/unread', () => {
     const body = (await res.json()) as { count: number };
     expect(body).toEqual({ count: 7 });
 
-    // Считаются ТОЛЬКО непрочитанные: AND = [пустой scope, { isRead: false }]
-    expect(countWhere()).toEqual({ AND: [{}, { isRead: false }] });
+    // Считаются ТОЛЬКО непрочитанные и ТОЛЬКО свои.
+    expect(countWhere()).toEqual({ AND: [{ userId: 'u-admin' }, { isRead: false }] });
   });
 
   it('manager: scope = userId + managedOrgIds + id-ветка meta-orderId кандидатов (R1.2)', async () => {

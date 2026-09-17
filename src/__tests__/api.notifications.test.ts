@@ -93,7 +93,11 @@ describe('GET /api/notifications', () => {
     expect(res.status).toBe(403);
   });
 
-  it('admin role receives empty scope {} and returns 200 with notifications array', async () => {
+  // Этап 5 (`У-228`, `Р-Э5-2`): раньше здесь закреплялся скоуп `{}` —
+  // администратор видел уведомления ВСЕХ пользователей. Для колокольчика это
+  // было незаметно, для страницы с «Отметить все прочитанными» значило бы
+  // «пометить чужое». Теперь администратор — как все: только своё.
+  it('admin role receives ITS OWN scope (userId), not {}', async () => {
     requireSession.mockResolvedValue({ ok: true, value: adminSession });
     requireRole.mockReturnValue({ ok: true, value: adminSession });
     notificationFindMany.mockResolvedValue([{ id: 'n1' }, { id: 'n2' }]);
@@ -103,9 +107,8 @@ describe('GET /api/notifications', () => {
     const body = (await res.json()) as unknown[];
     expect(body).toHaveLength(2);
 
-    // Admin scope is {} (no where filter beyond empty)
     const call = notificationFindMany.mock.calls[0][0];
-    expect(call.where).toEqual({});
+    expect(call.where).toEqual({ userId: 'u-admin' });
   });
 
   it('manager: uses managedOrgIds + raw meta-candidate ids in OR scope (R1.2)', async () => {

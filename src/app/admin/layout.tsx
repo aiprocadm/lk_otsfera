@@ -10,6 +10,7 @@ import { MobileNav } from '@/components/shell/mobile-nav';
 import { mobileTabsFor } from '@/lib/navigation/mobileTabs';
 import { CommandPalette } from '@/components/shell/command-palette';
 
+import { isFeatureEnabled } from '@/lib/featureFlags';
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const session = await requireAdmin();
   // ТЗ 2026-08-04 §5.2: нет доступа ни к одному разделу — пункта «Настройки»
@@ -39,7 +40,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       palette={<CommandPalette sections={items} searchEnabled searchHref="/admin/search" />}
       headerRight={
         <>
-          <NotificationBell role="admin" />
+          <NotificationBell
+            role="admin"
+            allHref={isFeatureEnabled('notification_center') ? '/admin/notifications' : null}
+          />
           <LogoutButton />
         </>
       }

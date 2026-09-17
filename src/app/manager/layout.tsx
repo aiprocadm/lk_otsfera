@@ -56,7 +56,10 @@ export default async function ManagerLayout({ children }: { children: ReactNode 
       palette={<CommandPalette sections={items} searchEnabled searchHref="/manager/search" />}
       headerRight={
         <>
-          <NotificationBell role="manager" />
+          <NotificationBell
+            role="manager"
+            allHref={isFeatureEnabled('notification_center') ? '/manager/notifications' : null}
+          />
           <LogoutButton />
         </>
       }

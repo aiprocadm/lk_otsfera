@@ -61,6 +61,7 @@ export type SectionKey =
   | 'piiAccess'
   | 'health'
   | 'settings'
+  | 'notifications'
   | 'studentCabinet'
   | 'learning'
   | 'help';
@@ -145,6 +146,9 @@ export const SECTIONS: Record<SectionKey, SectionMeta> = {
   // `У-107`: было «Здоровье».
   health: { label: 'Здоровье системы', iconKey: 'health' },
   settings: { label: 'Настройки', iconKey: 'settings' },
+  // Этап 5 ТЗ 12.09.2026 (`У-228`): лента уведомлений, одна на шесть кабинетов,
+  // закреплена внизу над «Настройками».
+  notifications: { label: 'Уведомления', iconKey: 'notifications' },
 
   // ── Входы в соседние кабинеты ─────────────────────────────────────────────
   // Пункт-мост из кабинета менеджера. Снимается в PR-3 этапа 3 (`У-111`).

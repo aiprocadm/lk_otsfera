@@ -71,7 +71,10 @@ export default async function LeaderLayout({ children }: { children: ReactNode }
           {/* role="manager" намеренно: notifications-scope и deep-link'и
               руководителя — менеджерские (лидер-веток там нет; см.
               src/lib/services/notifications/scope.ts, notifications/href.ts). */}
-          <NotificationBell role="manager" />
+          <NotificationBell
+            role="leader"
+            allHref={isFeatureEnabled('notification_center') ? '/leader/notifications' : null}
+          />
           <LogoutButton />
         </>
       }

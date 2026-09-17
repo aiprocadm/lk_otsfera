@@ -76,7 +76,12 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           ) : null}
           {/* У слушателя нет notifications-скоупа (NotificationRole) —
               колокольчик только партнёру. */}
-          {session.role === 'partner' ? <NotificationBell role="partner" /> : null}
+          {session.role === 'partner' ? (
+            <NotificationBell
+              role="partner"
+              allHref={isFeatureEnabled('notification_center') ? '/partner/notifications' : null}
+            />
+          ) : null}
           <LogoutButton />
         </>
       }

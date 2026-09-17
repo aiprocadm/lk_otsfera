@@ -92,6 +92,8 @@ describe('navByRole.manager — feature-flag gated', () => {
       '/manager/team',
       // `У-111`: пункта-входа в кабинет руководителя здесь больше нет — смена
       // кабинета живёт в шапке.
+      // Этап 5 ТЗ 12.09.2026 (`У-228`): «Уведомления» над «Настройками», флаг `notification_center`.
+      '/manager/notifications',
       '/manager/settings',
       // `У-76` (этап 9): словарь терминов, закреплён внизу.
       '/help',
@@ -113,9 +115,14 @@ describe('navByRole.manager — feature-flag gated', () => {
         i.href !== '/manager/inbox' &&
         i.href !== '/manager/messengers' &&
         i.href !== '/manager/calls' &&
-        i.href !== '/manager/contacts'
+        i.href !== '/manager/contacts' &&
+        i.href !== '/manager/notifications'
     );
     expect(ownItems.every((i) => i.flag === 'manager_cabinet')).toBe(true);
+    // Этап 5 (`У-228`): «Уведомления» — свой поведенческий флаг.
+    const notifications = navByRole.manager.find((i) => i.href === '/manager/notifications');
+    expect(notifications?.flag).toBe('notification_center');
+    expect(notifications?.pinnedBottom).toBe(true);
     const requests = navByRole.manager.find((i) => i.href === '/manager/requests');
     expect(requests?.flag).toBe('client_requests');
     const contacts = navByRole.manager.find((i) => i.href === '/manager/contacts');
