@@ -25,6 +25,10 @@ export type ClientRequestRow = {
   organizationName: string | null;
   organizationId: string | null;
   rejectedReason: string | null;
+  /** `У-238`: ответ сотрудника — клиенту дословно, с именем и датой. */
+  staffReply: string | null;
+  staffRepliedAt: Date | null;
+  staffRepliedByName: string | null;
   createdAt: Date;
   triagedAt: Date | null;
   attachmentCount: number;
@@ -32,6 +36,7 @@ export type ClientRequestRow = {
 
 const ROW_INCLUDE = {
   submittedByUser: { select: { name: true } },
+  staffRepliedByUser: { select: { name: true } },
   partner: { select: { name: true } },
   organization: { select: { name: true } },
   _count: { select: { attachments: true } },
@@ -58,6 +63,9 @@ function toRow(r: RowSource): ClientRequestRow {
     organizationName: r.organization?.name ?? null,
     organizationId: r.organizationId,
     rejectedReason: r.rejectedReason,
+    staffReply: r.staffReply,
+    staffRepliedAt: r.staffRepliedAt,
+    staffRepliedByName: r.staffReply ? (r.staffRepliedByUser?.name ?? null) : null,
     createdAt: r.createdAt,
     triagedAt: r.triagedAt,
     attachmentCount: r._count.attachments,

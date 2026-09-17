@@ -116,6 +116,7 @@ export const AUDIT_ACTIONS = [
   'client_request_attachment_uploaded',
   'client_request_converted',
   'client_request_rejected',
+  'client_request_replied',
   'client_request_submitted',
   'client_request_taken',
   'comment_posted',

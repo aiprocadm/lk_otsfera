@@ -158,7 +158,7 @@ describe('деталка обращения у сотрудников ЦО (У-1
       request: { ...REQUEST, status: 'rejected', rejectedReason: 'Не наш профиль' },
     });
     const { container } = await render(ManagerRequestDetailPage as never);
-    expect(container.textContent).toContain('действий над ним больше нет');
+    expect(container.textContent).toContain('статус больше не меняется, но ответить клиенту можно');
     expect(container.textContent).toContain('Не наш профиль');
   });
 });

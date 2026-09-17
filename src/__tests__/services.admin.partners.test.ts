@@ -10,6 +10,7 @@ import {
   deactivatePartner,
   reactivatePartner,
   createPartnerWithAdmin,
+  listPartnerManagerOptions,
   AdminPartnerError,
 } from '@/lib/services/admin/partners';
 
@@ -1008,5 +1009,125 @@ describe('listActivePartnerOptions()', () => {
       orderBy: { name: 'asc' },
     });
     expect(rows).toEqual([{ id: 'p1', name: 'Партнёр' }]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Этап 6 (`У-240`): ответственный менеджер партнёра
+// ---------------------------------------------------------------------------
+describe('updatePartner() — managerId (У-240)', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  function tx(managerFound: boolean, beforeManagerId: string | null = null) {
+    const before = {
+      name: 'Partner',
+      commissionRate: new Prisma.Decimal('0.05'),
+      isActive: true,
+      managerId: beforeManagerId,
+    };
+    const t = {
+      partner: {
+        findUnique: vi.fn().mockResolvedValue(before),
+        update: vi.fn().mockImplementation(async (a: { data: Record<string, unknown> }) => ({
+          id: 'p1',
+          ...before,
+          ...a.data,
+        })),
+      },
+      user: { findFirst: vi.fn().mockResolvedValue(managerFound ? { id: 'm1' } : null) },
+      commissionRateChange: { create: vi.fn() },
+      auditLog: { create: vi.fn() },
+    };
+    const prisma = {
+      $transaction: vi.fn().mockImplementation((fn: (tx: unknown) => unknown) => fn(t)),
+    } as unknown as PrismaClient;
+    return { t, prisma };
+  }
+
+  it('назначить можно только действующего сотрудника контура ЦО — иначе invalid_manager', async () => {
+    const { t, prisma } = tx(false);
+    expect(await updatePartner(prisma, 'actor1', 'p1', { managerId: 'ghost' })).toEqual({
+      ok: false,
+      error: 'invalid_manager',
+    });
+    expect(t.user.findFirst).toHaveBeenCalledWith({
+      where: { id: 'ghost', isActive: true, role: { in: ['manager', 'leader'] } },
+      select: { id: true },
+    });
+    expect(t.partner.update).not.toHaveBeenCalled();
+  });
+
+  it('назначение пишет managerId и попадает в аудит before/after', async () => {
+    const { t, prisma } = tx(true);
+    expect(await updatePartner(prisma, 'actor1', 'p1', { managerId: 'm1' })).toEqual({ ok: true });
+    expect(t.partner.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { managerId: 'm1' } })
+    );
+    const audit = recordAuditMock.mock.calls[0][1];
+    expect(audit.before.managerId).toBeNull();
+    expect(audit.after.managerId).toBe('m1');
+  });
+
+  it('null снимает менеджера без проверки пользователя; без ключа — поле не трогается', async () => {
+    const { t, prisma } = tx(false, 'm1');
+    await updatePartner(prisma, 'actor1', 'p1', { managerId: null });
+    expect(t.user.findFirst).not.toHaveBeenCalled();
+    expect(t.partner.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { managerId: null } })
+    );
+    t.partner.update.mockClear();
+    await updatePartner(prisma, 'actor1', 'p1', { name: 'X' });
+    expect(t.partner.update.mock.calls[0][0].data).toEqual({ name: 'X' });
+  });
+});
+
+describe('getPartner() / listPartnerManagerOptions() — менеджер (У-240)', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('getPartner отдаёт managerId и имя менеджера', async () => {
+    const prisma = {
+      partner: {
+        findUnique: vi.fn().mockResolvedValue({
+          ...makePartner({ managerId: 'm1', manager: { name: 'Анна' } }),
+          partnerUsers: [],
+        }),
+      },
+      organization: { count: vi.fn().mockResolvedValue(0) },
+      commissionStatement: { aggregate: vi.fn().mockResolvedValue({ _sum: {} }) },
+    } as unknown as PrismaClient;
+    const p = await getPartner(prisma, 'p1');
+    expect(p).toMatchObject({ managerId: 'm1', managerName: 'Анна' });
+    expect(
+      (prisma.partner.findUnique as ReturnType<typeof vi.fn>).mock.calls[0][0].include
+    ).toMatchObject({
+      manager: { select: { name: true } },
+    });
+  });
+
+  it('getPartner без менеджера — null в обоих полях', async () => {
+    const prisma = {
+      partner: {
+        findUnique: vi.fn().mockResolvedValue({
+          ...makePartner({ managerId: null, manager: null }),
+          partnerUsers: [],
+        }),
+      },
+      organization: { count: vi.fn().mockResolvedValue(0) },
+      commissionStatement: { aggregate: vi.fn().mockResolvedValue({ _sum: {} }) },
+    } as unknown as PrismaClient;
+    expect(await getPartner(prisma, 'p1')).toMatchObject({ managerId: null, managerName: null });
+  });
+
+  it('варианты для селекта — только действующие менеджер/руководитель, по имени', async () => {
+    const findMany = vi.fn().mockResolvedValue([{ id: 'm1', name: 'Анна', email: 'a@uc.ru' }]);
+    const prisma = { user: { findMany } } as unknown as PrismaClient;
+    expect(await listPartnerManagerOptions(prisma)).toEqual([
+      { id: 'm1', name: 'Анна', email: 'a@uc.ru' },
+    ]);
+    expect(findMany).toHaveBeenCalledWith({
+      where: { isActive: true, role: { in: ['manager', 'leader'] } },
+      select: { id: true, name: true, email: true },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+    });
   });
 });

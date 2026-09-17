@@ -100,3 +100,22 @@ describe('PartnerEditForm', () => {
     await waitFor(() => expect(screen.getByRole('status')).toBeTruthy());
   });
 });
+
+describe('ответственный менеджер (этап 6, У-240)', () => {
+  it('селект с вариантами и текущим значением; пустое — «не назначен»', () => {
+    render(
+      React.createElement(PartnerEditForm, {
+        partner: partner({ managerId: 'm2' } as never),
+        managerOptions: [
+          { id: 'm1', name: 'Анна', email: 'a@uc.ru' },
+          { id: 'm2', name: 'Борис', email: 'b@uc.ru' },
+        ],
+      })
+    );
+    const select = screen.getByLabelText('Ответственный менеджер') as HTMLSelectElement;
+    expect(select.value).toBe('m2');
+    expect(select.options).toHaveLength(3);
+    fireEvent.change(select, { target: { value: '' } });
+    expect(select.value).toBe('');
+  });
+});

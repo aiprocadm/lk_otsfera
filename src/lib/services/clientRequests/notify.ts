@@ -141,7 +141,9 @@ export async function notifyManagersClientRequestSubmitted(
  */
 export async function notifySubmitterClientRequestStatus(
   prisma: PrismaClient,
-  request: ClientRequest
+  request: ClientRequest,
+  // `У-238`: ответ сотрудника — своё событие: заголовок про ответ, а не про статус.
+  opts: { event?: 'status' | 'reply' } = {}
 ): Promise<void> {
   try {
     // Заявку с сайта прислал посторонний: уведомлять о смене статуса некого —
@@ -150,12 +152,15 @@ export async function notifySubmitterClientRequestStatus(
     if (!request.submittedByUserId) return;
 
     const statusLabel = CLIENT_REQUEST_STATUS_LABEL[request.status];
-    const title = `Обращение — статус «${statusLabel}»`;
+    const isReply = opts.event === 'reply';
+    const title = isReply ? 'Обращение — ответ менеджера' : `Обращение — статус «${statusLabel}»`;
     const reason =
       request.status === 'rejected' && request.rejectedReason
         ? ` Причина: ${request.rejectedReason}`
         : '';
-    const body = `Обращение «${request.subject}» (${request.companyName}) — статус «${statusLabel}».${reason}`;
+    // `У-238`: ответ сотрудника — дословно в уведомлении и письме (пакет 05 §4).
+    const reply = request.staffReply ? ` Ответ менеджера: ${request.staffReply}` : '';
+    const body = `Обращение «${request.subject}» (${request.companyName}) — статус «${statusLabel}».${reason}${reply}`;
     const url = submitterRequestUrl(request);
     // Ключ дедупа — заявка: две смены статуса за час — одна строка «×2» и одно
     // письмо (тексты в строке — свежие).
@@ -167,7 +172,8 @@ export async function notifySubmitterClientRequestStatus(
       title,
       body,
       meta: { requestId: request.id, status: request.status, url },
-      entityId: request.id,
+      // Ответ — как сообщение: каждый ответ письмом, без дедупа; смена статуса — по обращению.
+      entityId: isReply ? null : request.id,
     });
     if (deduped) return;
     await deliverNotificationToUser({

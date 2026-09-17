@@ -134,7 +134,9 @@ describe('ClientRequestStaffActions — «принять и выставить �
         canIssueProposal: true,
       })
     );
-    expect(screen.getByText('Обращение закрыто — действий над ним больше нет.')).toBeTruthy();
+    expect(
+      screen.getByText('Обращение закрыто — статус больше не меняется, но ответить клиенту можно.')
+    ).toBeTruthy();
     expect(screen.getByTestId('proposal-dialog')).toBeTruthy();
   });
 
@@ -161,5 +163,43 @@ describe('ClientRequestStaffActions — «принять и выставить �
     fireEvent.click(screen.getByRole('button', { name: 'Принять → создать лид' }));
     await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
     expect(screen.queryByTestId('proposal-dialog')).toBeNull();
+  });
+});
+
+describe('ответ клиенту (этап 6, У-238)', () => {
+  it('кнопка «Ответить» недоступна без текста; с текстом шлёт action reply и очищает поле', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    vi.stubGlobal('fetch', fetchMock);
+    render(
+      React.createElement(ClientRequestStaffActions, {
+        request: { id: 'R1', status: 'in_triage' },
+        leadHrefBase: '/manager/leads',
+      })
+    );
+    const btn = screen.getByRole('button', { name: 'Ответить' }) as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
+    const area = screen.getByLabelText('Ответ клиенту') as HTMLTextAreaElement;
+    fireEvent.change(area, { target: { value: 'Группа набрана' } });
+    expect(btn.disabled).toBe(false);
+    fireEvent.click(btn);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      action: 'reply',
+      text: 'Группа набрана',
+    });
+    await waitFor(() => expect(area.value).toBe(''));
+    vi.unstubAllGlobals();
+  });
+
+  it('по закрытому обращению статус не меняется, но ответить можно', () => {
+    render(
+      React.createElement(ClientRequestStaffActions, {
+        request: { id: 'R1', status: 'converted' },
+        leadHrefBase: '/manager/leads',
+      })
+    );
+    expect(screen.getByText(/ответить клиенту можно/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Ответить' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Отклонить' })).toBeNull();
   });
 });

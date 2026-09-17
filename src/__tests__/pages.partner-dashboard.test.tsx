@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import React from 'react';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requirePartner } = vi.hoisted(() => ({ requirePartner: vi.fn() }));
@@ -11,6 +12,22 @@ vi.mock('@/lib/auth/requireRole', () => ({ requirePartner }));
 const { getWelcomeViewer } = vi.hoisted(() => ({ getWelcomeViewer: vi.fn() }));
 vi.mock('@/lib/services/welcome/viewer', () => ({ getWelcomeViewer }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+// Этап 6 (`У-240`): блок «Ваш менеджер».
+const { getPartnerYourManager } = vi.hoisted(() => ({
+  getPartnerYourManager: vi.fn(async () => ({
+    manager: { name: 'Анна', email: 'a@uc.ru' },
+    othersCount: 0,
+  })),
+}));
+vi.mock('@/lib/services/partner/yourManager', () => ({ getPartnerYourManager }));
+vi.mock('@/components/dashboard/your-manager-card', () => ({
+  YourManagerCard: (props: { view: { manager: { name: string } | null } }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'your-manager' },
+      props.view.manager?.name ?? 'нет'
+    ),
+}));
 
 // Флаги мокаем в off: этот файл пиннит базовый дашборд; карточки за флагами
 // (заявки/удостоверения) покрыты в pages.dashboard.enrollments.test.tsx. Без

@@ -324,3 +324,22 @@ describe('notifySubmitterClientRequestStatus', () => {
     );
   });
 });
+
+describe('notifySubmitterClientRequestStatus — ответ сотрудника (этап 6, У-238)', () => {
+  it('событие reply: заголовок про ответ, текст в теле, без дедупа', async () => {
+    const { prisma } = db();
+    await notifySubmitterClientRequestStatus(
+      prisma,
+      request({ status: 'in_triage', staffReply: 'Группа набрана' } as never),
+      { event: 'reply' }
+    );
+    expect(recordNotification).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({
+        title: 'Обращение — ответ менеджера',
+        body: 'Обращение «Обучение» (ООО Ромашка) — статус «В работе». Ответ менеджера: Группа набрана',
+        entityId: null,
+      })
+    );
+  });
+});

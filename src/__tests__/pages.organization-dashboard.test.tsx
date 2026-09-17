@@ -11,6 +11,22 @@ vi.mock('@/lib/auth/orgPageContext', () => ({ getOrgPageContext }));
 // не-null → блок скрыт, старые сценарии этого файла его не касаются. Форма
 // запроса пиннится в services.welcome.viewer.test.ts (аудит A1).
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+// Этап 6 (`У-240`): блок «Ваш менеджер».
+const { getOrgYourManager } = vi.hoisted(() => ({
+  getOrgYourManager: vi.fn(async () => ({
+    manager: { name: 'Анна', email: 'a@uc.ru' },
+    othersCount: 0,
+  })),
+}));
+vi.mock('@/lib/services/organization/yourManager', () => ({ getOrgYourManager }));
+vi.mock('@/components/dashboard/your-manager-card', () => ({
+  YourManagerCard: (props: { view: { manager: { name: string } | null } }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'your-manager' },
+      props.view.manager?.name ?? 'нет'
+    ),
+}));
 
 // Флаги мокаем в off: этот файл пиннит базовый дашборд; карточки за флагами
 // (заявки/удостоверения) покрыты в pages.dashboard.enrollments.test.tsx. Без

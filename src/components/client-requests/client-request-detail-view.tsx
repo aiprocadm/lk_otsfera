@@ -84,6 +84,21 @@ export function ClientRequestDetailView({
         </div>
       )}
 
+      {/* `У-238`: ответ сотрудника — клиенту дословно, с именем и датой. */}
+      {request.staffReply && (
+        <section
+          data-testid="staff-reply"
+          className="bg-white border border-[#F97316]/40 rounded-xl p-5 space-y-1"
+        >
+          <h2 className="text-sm font-semibold text-[#111111]">Ответ менеджера</h2>
+          <div className="text-sm text-gray-700 whitespace-pre-wrap">{request.staffReply}</div>
+          <div className="text-xs text-gray-500">
+            {request.staffRepliedByName ?? 'Сотрудник'}
+            {request.staffRepliedAt ? ` · ${fmtDateTime(request.staffRepliedAt)}` : ''}
+          </div>
+        </section>
+      )}
+
       <section className="bg-white border border-gray-200 rounded-xl p-5 space-y-2">
         <h2 className="text-sm font-semibold text-[#111111]">Клиент</h2>
         <dl className="space-y-1.5">
