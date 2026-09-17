@@ -193,6 +193,9 @@ describe('deliverNotificationToUser', () => {
         id: true,
         email: true,
         name: true,
+        // Этап 5 PR-2 (`У-229`): личные настройки «событие × канал» едут вместе с
+        // получателем — доставка сужает веер без второго запроса к базе.
+        notificationPreferences: { select: { eventType: true, channels: true } },
         telegramChatId: true,
         maxChatId: true,
         whatsappPhone: true,

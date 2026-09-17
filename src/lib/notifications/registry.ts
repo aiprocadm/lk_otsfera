@@ -359,6 +359,18 @@ const ROLE_AUDIENCES: Record<NotificationRoleKey, NotificationAudience[]> = {
   student: [],
 };
 
+/**
+ * Аудитория реестра, под которой роль получает событие, — для правил компании
+ * (`NotificationRule` ключуется аудиторией). `null` — событие роли не адресовано.
+ */
+export function notificationAudienceForRole(
+  type: NotificationTypeKey,
+  role: NotificationRoleKey
+): NotificationAudience | null {
+  const wanted = ROLE_AUDIENCES[role];
+  return NOTIFICATION_TYPES[type].audience.find((a) => wanted.includes(a)) ?? null;
+}
+
 /** Типы, которые может получить роль, — в порядке реестра, без повторов. */
 export function notificationTypesForRole(role: NotificationRoleKey): NotificationTypeKey[] {
   const wanted = ROLE_AUDIENCES[role];

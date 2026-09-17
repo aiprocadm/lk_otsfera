@@ -9,6 +9,7 @@
  * канал всегда включён и не отключается (ТЗ §12.1).
  */
 import { z } from 'zod';
+import { ROUTABLE_CHANNELS } from '../routing';
 import type { ChannelKey } from './types';
 
 /** Каналы, которыми управляет пользователь (email намеренно исключён). */
@@ -44,4 +45,27 @@ export function channelPrefEnabled(raw: unknown, key: OptionalChannelKey): boole
 
 export function isOptionalChannelKey(value: string): value is OptionalChannelKey {
   return (OPTIONAL_CHANNEL_KEYS as readonly string[]).includes(value);
+}
+
+/**
+ * `У-229` (решение `Р-Э5-4`): личная настройка только СУЖАЕТ веер каналов.
+ *
+ * `channels` — то, что разрешила компания (`undefined` = ограничений нет).
+ * Нет строки настройки для события → веер не меняется. Есть строка → остаются
+ * только каналы, включённые в ней. Расширить веер настройка не может по
+ * построению: результат — пересечение, а не объединение.
+ *
+ * Одна функция на обе ветки доставки (inline и очередь): второй копии этого
+ * правила в проекте быть не должно.
+ */
+export function narrowByEventPreference(
+  prefs: ReadonlyArray<{ eventType: string; channels: string[] }> | null | undefined,
+  eventType: string,
+  channels: readonly ChannelKey[] | undefined
+): ChannelKey[] | undefined {
+  const pref = prefs?.find((p) => p.eventType === eventType);
+  if (!pref) return channels ? [...channels] : undefined;
+  const allowed = new Set(pref.channels);
+  const base: readonly ChannelKey[] = channels ?? ROUTABLE_CHANNELS;
+  return base.filter((ch) => allowed.has(ch));
 }

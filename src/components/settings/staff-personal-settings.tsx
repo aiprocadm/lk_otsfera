@@ -13,8 +13,10 @@ import {
 import type { SettingsCabinet } from '@/lib/navigation/settings';
 import type { TelegramStatus } from '@/lib/services/telegram/link';
 import type { NotificationSettingsView } from '@/lib/services/notifications/preferences';
+import type { NotificationPreferenceMatrix } from '@/lib/services/notifications/eventPreferences';
 
 import { PageHeader } from '@/components/ui/page-header';
+import { NotificationPreferencesMatrix } from '@/components/settings/notification-preferences-matrix';
 /**
  * Раздел хаба «Личные настройки» (`У-114`) — общий для админа и руководителя.
  *
@@ -34,6 +36,7 @@ export function StaffPersonalSettings({
   withPhone,
   profile,
   notifications,
+  preferences = null,
 }: {
   cabinet: SettingsCabinet;
   activeTab: PersonalSettingsTabKey;
@@ -41,6 +44,8 @@ export function StaffPersonalSettings({
   withPhone: boolean;
   profile: { telegram: TelegramStatus; internalPhone: string | null } | null;
   notifications: NotificationSettingsView | null;
+  /** `У-229`: матрица «событие × канал»; `null` — флаг выключен или вкладка не та. */
+  preferences?: NotificationPreferenceMatrix | null;
 }) {
   return (
     <div className="space-y-4">
@@ -56,7 +61,10 @@ export function StaffPersonalSettings({
             </>
           ) : null,
           notifications: notifications ? (
-            <NotificationChannelsCard settings={notifications} />
+            <>
+              <NotificationChannelsCard settings={notifications} />
+              {preferences ? <NotificationPreferencesMatrix matrix={preferences} /> : null}
+            </>
           ) : null,
           security: (
             <>

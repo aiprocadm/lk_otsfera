@@ -15,6 +15,8 @@ import { readPersonalSettingsTab } from '@/lib/navigation/personalSettingsTab';
 import { PERSONAL_SETTINGS_SUBTITLE } from '@/lib/navigation/personalSettings';
 
 import { PageHeader } from '@/components/ui/page-header';
+import { getNotificationPreferenceMatrix } from '@/lib/services/notifications/eventPreferences';
+import { NotificationPreferencesMatrix } from '@/components/settings/notification-preferences-matrix';
 export const dynamic = 'force-dynamic';
 
 /**
@@ -42,6 +44,11 @@ export default async function ManagerSettingsPage({
       : null;
   const notifications =
     tab === 'notifications' ? await getNotificationSettings(prisma, session) : null;
+  // `У-229`: матрица «событие × канал» — под флагом центра уведомлений (`Р-Э5-8`).
+  const preferences =
+    tab === 'notifications' && isFeatureEnabled('notification_center')
+      ? (await getNotificationPreferenceMatrix(prisma, session)).matrix
+      : null;
 
   return (
     <div className="space-y-4">
@@ -57,7 +64,10 @@ export default async function ManagerSettingsPage({
             </>
           ) : null,
           notifications: notifications ? (
-            <NotificationChannelsCard settings={notifications.view} />
+            <>
+              <NotificationChannelsCard settings={notifications.view} />
+              {preferences ? <NotificationPreferencesMatrix matrix={preferences} /> : null}
+            </>
           ) : null,
           security: (
             <>

@@ -12,6 +12,9 @@ import { readPersonalSettingsTab } from '@/lib/navigation/personalSettingsTab';
 import { PERSONAL_SETTINGS_SUBTITLE } from '@/lib/navigation/personalSettings';
 
 import { PageHeader } from '@/components/ui/page-header';
+import { getNotificationPreferenceMatrix } from '@/lib/services/notifications/eventPreferences';
+import { NotificationPreferencesMatrix } from '@/components/settings/notification-preferences-matrix';
+import { isFeatureEnabled } from '@/lib/featureFlags';
 export const dynamic = 'force-dynamic';
 
 /**
@@ -34,6 +37,11 @@ export default async function OrganizationSettingsPage({
   const telegram = tab === 'profile' ? await getTelegramStatus(prisma, ctx.session) : null;
   const notifications =
     tab === 'notifications' ? await getNotificationSettings(prisma, ctx.session) : null;
+  // `У-229`: матрица «событие × канал» — под флагом центра уведомлений (`Р-Э5-8`).
+  const preferences =
+    tab === 'notifications' && isFeatureEnabled('notification_center')
+      ? (await getNotificationPreferenceMatrix(prisma, ctx.session)).matrix
+      : null;
 
   return (
     <OrgAppShell
@@ -50,7 +58,10 @@ export default async function OrganizationSettingsPage({
           slots={{
             profile: telegram ? <TelegramLinkCard status={telegram} /> : null,
             notifications: notifications ? (
-              <NotificationChannelsCard settings={notifications.view} />
+              <>
+                <NotificationChannelsCard settings={notifications.view} />
+                {preferences ? <NotificationPreferencesMatrix matrix={preferences} /> : null}
+              </>
             ) : null,
             security: <SecurityCard />,
           }}

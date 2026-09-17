@@ -101,6 +101,9 @@ export const CHANNEL_RECIPIENT_SELECT = {
   maxChatId: true,
   whatsappPhone: true,
   notificationChannels: true,
+  // `У-229`: личные настройки по событиям грузятся ВМЕСТЕ с получателем —
+  // доставка не ходит в базу второй раз на каждую рассылку.
+  notificationPreferences: { select: { eventType: true, channels: true } },
 } as const;
 
 export type ChannelRecipient = {
@@ -112,6 +115,11 @@ export type ChannelRecipient = {
   whatsappPhone: string | null;
   /** Json-колонка настроек; парсится терпимо (см. channels/preferences.ts). */
   notificationChannels: unknown;
+  /**
+   * `У-229`: личные настройки «событие × канал» (только отклонения). Поле
+   * необязательное: получатель, собранный без него, доставляется как раньше.
+   */
+  notificationPreferences?: ReadonlyArray<{ eventType: string; channels: string[] }> | undefined;
 };
 
 export interface NotificationChannel {

@@ -56,6 +56,17 @@ vi.mock('@/components/settings/notification-channels-card', () => ({
   NotificationChannelsCard: (props: { settings: unknown }) =>
     React.createElement('div', { 'data-testid': 'notif-card' }, JSON.stringify(props.settings)),
 }));
+// Этап 5 (PR-2, `У-229`): матрица «событие × канал» — под флагом `notification_center`.
+const { getNotificationPreferenceMatrix } = vi.hoisted(() => ({
+  getNotificationPreferenceMatrix: vi.fn(),
+}));
+vi.mock('@/lib/services/notifications/eventPreferences', () => ({
+  getNotificationPreferenceMatrix,
+}));
+vi.mock('@/components/settings/notification-preferences-matrix', () => ({
+  NotificationPreferencesMatrix: () =>
+    React.createElement('div', { 'data-testid': 'prefs-matrix' }, 'MATRIX'),
+}));
 vi.mock('@/components/settings/security-card', () => ({
   SecurityCard: () => React.createElement('div', { 'data-testid': 'security-card' }, 'SECURITY'),
 }));
@@ -174,6 +185,25 @@ describe('личные настройки в хабе (У-114)', () => {
     expect(container.querySelector('[data-testid="notif-card"]')).not.toBeNull();
     expect(getNotificationSettings).toHaveBeenCalledWith({}, ADMIN);
     expect(getTelegramStatus).not.toHaveBeenCalled();
+  });
+
+  it('«Уведомления»: матрица «событие × канал» у админа и руководителя — под флагом (У-229)', async () => {
+    getNotificationPreferenceMatrix.mockReset().mockResolvedValue({
+      ok: true,
+      matrix: { columns: ['email'], rows: [] },
+    });
+    const off = await render(AdminPersonalSettingsPage, 'notifications');
+    expect(off.container.querySelector('[data-testid="prefs-matrix"]')).toBeNull();
+    expect(getNotificationPreferenceMatrix).not.toHaveBeenCalled();
+
+    isFeatureEnabled.mockImplementation((flag: string) => flag === 'notification_center');
+    const admin = await render(AdminPersonalSettingsPage, 'notifications');
+    expect(admin.container.querySelector('[data-testid="prefs-matrix"]')).not.toBeNull();
+    expect(getNotificationPreferenceMatrix).toHaveBeenCalledWith({}, ADMIN);
+
+    const leader = await render(LeaderPersonalSettingsPage, 'notifications');
+    expect(leader.container.querySelector('[data-testid="prefs-matrix"]')).not.toBeNull();
+    expect(getNotificationPreferenceMatrix).toHaveBeenCalledWith({}, LEADER);
   });
 
   it('«Безопасность»: сессии всегда, коды восстановления — под флагом', async () => {

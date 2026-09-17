@@ -295,100 +295,102 @@ enum StaffConversationKind {
 }
 
 model User {
-  id                           String                    @id @default(cuid())
-  createdAt                    DateTime                  @default(now())
-  updatedAt                    DateTime                  @updatedAt
-  email                        String                    @unique
+  id                           String                       @id @default(cuid())
+  createdAt                    DateTime                     @default(now())
+  updatedAt                    DateTime                     @updatedAt
+  email                        String                       @unique
   passwordHash                 String?
   name                         String
-  isActive                     Boolean                   @default(true)
-  role                         Role                      @default(organization)
+  isActive                     Boolean                      @default(true)
+  role                         Role                         @default(organization)
   // Этап 4 (ФТ-10.4): одноразовый welcome-блок клиентских дашбордов; null = ещё не скрыт.
   welcomeSeenAt                DateTime?
   companyId                    String?
-  company                      Company?                  @relation(fields: [companyId], references: [id])
+  company                      Company?                     @relation(fields: [companyId], references: [id])
   // Трек G1: кастомный профиль доступа (nullable; null = legacy teamMode-поведение).
   accessProfileId              String?
-  accessProfile                AccessProfile?            @relation(fields: [accessProfileId], references: [id])
+  accessProfile                AccessProfile?               @relation(fields: [accessProfileId], references: [id])
   partnerId                    String?
-  partner                      Partner?                  @relation(fields: [partnerId], references: [id])
+  partner                      Partner?                     @relation(fields: [partnerId], references: [id])
   organizationId               String?
-  organization                 Organization?             @relation("UserOrganization", fields: [organizationId], references: [id])
+  organization                 Organization?                @relation("UserOrganization", fields: [organizationId], references: [id])
   organizationUsers            OrganizationUser[]
-  managedOrganizations         OrganizationManager[]     @relation("UserManagedOrgs")
+  managedOrganizations         OrganizationManager[]        @relation("UserManagedOrgs")
   externalStudentId            String?
-  managedOrders                Order[]                   @relation("OrderManager")
+  managedOrders                Order[]                      @relation("OrderManager")
   // Этап 12 (Модуль 5): кто согласовал результат и кто передал его клиенту.
-  approvedOrderDeliverables    Order[]                   @relation("OrderDeliverablesApprover")
-  deliveredOrderResults        Order[]                   @relation("OrderResultDeliverer")
+  approvedOrderDeliverables    Order[]                      @relation("OrderDeliverablesApprover")
+  deliveredOrderResults        Order[]                      @relation("OrderResultDeliverer")
   comments                     Comment[]
   documents                    Document[]
   auditLogs                    AuditLog[]
   piiAccessEvents              PiiAccessEvent[]
   notifications                Notification[]
   studentBridgeGrants          StudentBridgeGrant[]
-  partnerMemberships           PartnerUser[]             @relation("PartnerMembership")
-  leadsAuthored                Lead[]                    @relation("LeadAuthor")
-  leadsManaged                 Lead[]                    @relation("LeadManager")
-  dealsManaged                 Deal[]                    @relation("DealManager")
-  leadAttachmentsAuthored      LeadAttachment[]          @relation("LeadAttachmentAuthor")
-  clientRequestsSubmitted      ClientRequest[]           @relation("ClientRequestSubmitter")
-  clientRequestsTriaged        ClientRequest[]           @relation("ClientRequestTriager")
-  clientRequestAttachments     ClientRequestAttachment[] @relation("ClientRequestAttachmentAuthor")
-  commissionStatementsAuthored CommissionStatement[]     @relation("CommissionAuthor")
-  savedViews                   SavedView[]               @relation("SavedViewOwner")
+  partnerMemberships           PartnerUser[]                @relation("PartnerMembership")
+  leadsAuthored                Lead[]                       @relation("LeadAuthor")
+  leadsManaged                 Lead[]                       @relation("LeadManager")
+  dealsManaged                 Deal[]                       @relation("DealManager")
+  leadAttachmentsAuthored      LeadAttachment[]             @relation("LeadAttachmentAuthor")
+  clientRequestsSubmitted      ClientRequest[]              @relation("ClientRequestSubmitter")
+  clientRequestsTriaged        ClientRequest[]              @relation("ClientRequestTriager")
+  clientRequestAttachments     ClientRequestAttachment[]    @relation("ClientRequestAttachmentAuthor")
+  commissionStatementsAuthored CommissionStatement[]        @relation("CommissionAuthor")
+  savedViews                   SavedView[]                  @relation("SavedViewOwner")
   passwordResetTokens          PasswordResetToken[]
   twoFactorChallenge           TwoFactorChallenge?
   twoFactorBackupCodes         TwoFactorBackupCode[]
-  authoredMessages             Message[]                 @relation("MessageAuthor")
+  authoredMessages             Message[]                    @relation("MessageAuthor")
   threadReadStates             ThreadReadState[]
   documentViewMarks            DocumentViewMark[]
-  enrollmentsSubmitted         EnrollmentRequest[]       @relation("EnrollmentSubmitter")
-  enrollmentsReviewed          EnrollmentRequest[]       @relation("EnrollmentReviewer")
-  paymentsEntered              Payment[]                 @relation("PaymentEnteredBy")
-  paymentImportBatches         PaymentImportBatch[]      @relation("PaymentImportBatchBy")
-  oneCImportBatches            OneCImportBatch[]         @relation("OneCImportBatchBy")
-  telegramChatId               String?                   @unique // null = Telegram не привязан (§18)
+  enrollmentsSubmitted         EnrollmentRequest[]          @relation("EnrollmentSubmitter")
+  enrollmentsReviewed          EnrollmentRequest[]          @relation("EnrollmentReviewer")
+  paymentsEntered              Payment[]                    @relation("PaymentEnteredBy")
+  paymentImportBatches         PaymentImportBatch[]         @relation("PaymentImportBatchBy")
+  oneCImportBatches            OneCImportBatch[]            @relation("OneCImportBatchBy")
+  telegramChatId               String?                      @unique // null = Telegram не привязан (§18)
   telegramLinkCode             String? // одноразовый код привязки (deep-link start param)
   telegramLinkCodeExpiresAt    DateTime?
   // Трек D: привязки каналов Max/WhatsApp (зеркало telegram-полей) +
   // пользовательские настройки каналов. Семантика opt-in: канал включён ⟺
   // привязка есть И notificationChannels[key] !== false (email всегда включён,
   // в Json не хранится). null/мусор в Json → дефолты (см. parseChannelPrefs).
-  maxChatId                    String?                   @unique // null = Max не привязан
+  maxChatId                    String?                      @unique // null = Max не привязан
   maxLinkCode                  String? // одноразовый код привязки Max (deep-link)
   maxLinkCodeExpiresAt         DateTime?
-  whatsappPhone                String?                   @unique // E.164; адресация в агрегаторе по номеру
+  whatsappPhone                String?                      @unique // E.164; адресация в агрегаторе по номеру
   notificationChannels         Json? // { telegram?: bool, max?: bool, whatsapp?: bool }
-  tasksCreated                 Task[]                    @relation("TaskCreatedBy")
-  taskAssignments              TaskAssignee[]            @relation("TaskAssignee")
-  taskComments                 TaskComment[]             @relation("TaskCommentAuthor")
-  inboundMessages              InboundMessage[]          @relation("UserInbound")
-  messengerDialogs             MessengerDialog[]         @relation("UserMessengerDialogs")
-  assignedDialogs              MessengerDialog[]         @relation("DialogAssignee")
-  calls                        Call[]                    @relation("UserCalls")
-  callsInitiated               Call[]                    @relation("CallInitiator")
-  dealNotesAuthored            DealNote[]                @relation("DealNoteAuthor")
-  organizationNotesAuthored    OrganizationNote[]        @relation("OrganizationNoteAuthor")
+  /// Этап 5 ТЗ 12.09.2026 (`У-229`): личные настройки «событие × канал» — только отклонения.
+  notificationPreferences      UserNotificationPreference[]
+  tasksCreated                 Task[]                       @relation("TaskCreatedBy")
+  taskAssignments              TaskAssignee[]               @relation("TaskAssignee")
+  taskComments                 TaskComment[]                @relation("TaskCommentAuthor")
+  inboundMessages              InboundMessage[]             @relation("UserInbound")
+  messengerDialogs             MessengerDialog[]            @relation("UserMessengerDialogs")
+  assignedDialogs              MessengerDialog[]            @relation("DialogAssignee")
+  calls                        Call[]                       @relation("UserCalls")
+  callsInitiated               Call[]                       @relation("CallInitiator")
+  dealNotesAuthored            DealNote[]                   @relation("DealNoteAuthor")
+  organizationNotesAuthored    OrganizationNote[]           @relation("OrganizationNoteAuthor")
   internalPhone                String?
-  contact                      Contact?                  @relation("UserContact")
-  contactsCreated              Contact[]                 @relation("ContactCreatedBy")
-  salesTargets                 SalesTarget[]             @relation("SalesTargetManager")
-  staffChatParticipations      StaffParticipant[]        @relation("StaffChatParticipant")
-  staffMessagesAuthored        StaffMessage[]            @relation("StaffMessageAuthor")
-  staffReadStates              StaffMessageRead[]        @relation("StaffChatReadState")
-  staffReactions               StaffReaction[]           @relation("StaffReactionAuthor")
-  calendarEventsCreated        CalendarEvent[]           @relation("CalendarEventCreatedBy")
-  calendarAttendances          CalendarEventAttendee[]   @relation("CalendarEventAttendee")
+  contact                      Contact?                     @relation("UserContact")
+  contactsCreated              Contact[]                    @relation("ContactCreatedBy")
+  salesTargets                 SalesTarget[]                @relation("SalesTargetManager")
+  staffChatParticipations      StaffParticipant[]           @relation("StaffChatParticipant")
+  staffMessagesAuthored        StaffMessage[]               @relation("StaffMessageAuthor")
+  staffReadStates              StaffMessageRead[]           @relation("StaffChatReadState")
+  staffReactions               StaffReaction[]              @relation("StaffReactionAuthor")
+  calendarEventsCreated        CalendarEvent[]              @relation("CalendarEventCreatedBy")
+  calendarAttendances          CalendarEventAttendee[]      @relation("CalendarEventAttendee")
   // Этап 9 (ФТ-11.2): версия сессии. Инкремент отзывает все живые 7-дневные
   // токены пользователя — клейм sessionVersion в JWT сверяется в getSession().
-  sessionVersion               Int                       @default(0)
+  sessionVersion               Int                          @default(0)
   // Этап 9 (ФТ-11.3): отметка последнего успешного входа (оба пути: пароль и 2FA).
   lastLoginAt                  DateTime?
   /// §10 ТЗ v0.5: кто менял рабочий статус заявки.
   orderStatusChanges           OrderStatusChange[]
   /// Этап 2 ТЗ 12.09.2026: пакеты миграции из Битрикс24, запущенные этим администратором.
-  bitrixImports                BitrixImportBatch[]       @relation("BitrixImportedBy")
+  bitrixImports                BitrixImportBatch[]          @relation("BitrixImportedBy")
 }
 
 model PartnerUser {
@@ -1829,6 +1831,27 @@ model StudentBridgeTokenJti {
 /// правило компании (руководитель). Приоритет чтения: компания → платформа →
 /// код. Хранить оба уровня в одной таблице, а не в двух, сознательно: правило
 /// — это одна и та же сущность, у которой меняется только область действия.
+/// Этап 5 ТЗ 12.09.2026 (`У-229`, решение `Р-Э5-4`): личная настройка
+/// «событие × канал». Хранятся ТОЛЬКО отклонения от правила компании — как у
+/// `NotificationRule`: нет строки = «как решила компания», пустая таблица
+/// ничего не меняет. `channels` — ВКЛЮЧЁННЫЕ маршрутизируемые каналы
+/// (`email | telegram | max | whatsapp`). «В кабинете» здесь не хранится и не
+/// выключается: запись в кабинете служит ключом защиты от повторов
+/// (см. `notifications/routing.ts`). Настройка умеет только сужать: сервис
+/// отвергает канал, запрещённый правилом компании.
+model UserNotificationPreference {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Ключ события из NOTIFICATION_TYPES.
+  eventType String
+  /// Включённые каналы; пустой список = «только в кабинете».
+  channels  String[]
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, eventType])
+}
+
 model NotificationRule {
   id        String   @id @default(cuid())
   /// null — правило платформы; иначе правило конкретной компании.
