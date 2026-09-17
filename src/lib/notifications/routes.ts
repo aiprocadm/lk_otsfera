@@ -45,7 +45,9 @@ type Section =
   | 'finance'
   | 'commission-statements'
   | 'calls'
-  | 'sync';
+  | 'sync'
+  // Этап 6 (`У-237`): «Материалы» — только у партнёра, только список.
+  | 'materials';
 
 /** Разделы кабинета: `true` — есть и список, и карточка `[id]`; `false` — только список. */
 const CABINET_SECTIONS: Record<Cabinet, Partial<Record<Section, boolean>>> = {
@@ -96,6 +98,7 @@ const CABINET_SECTIONS: Record<Cabinet, Partial<Record<Section, boolean>>> = {
     requests: true,
     enrollments: true,
     deals: true,
+    materials: false,
     certificates: false,
     finance: false,
     messages: false,
@@ -197,6 +200,7 @@ const RULES: Record<NotificationTypeKey, Rule> = {
   client_request_status_changed: request,
   enrollment_status_changed: enrollment,
   certificate_expiring: (_m, c) => section(c, 'certificates', null),
+  partner_material_published: (_m, c) => section(c, 'materials', null),
 
   // ── Заказ: клиент ↔ менеджер ──
   chat_message: order,

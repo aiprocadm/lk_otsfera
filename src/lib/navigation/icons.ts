@@ -51,6 +51,7 @@ export const NAV_ICONS = {
   team: '👔',
   users: '👤',
   portfolio: '💼',
+  materials: '📦',
 
   // Деньги
   finance: '₽',

@@ -111,6 +111,13 @@ export const NOTIFICATION_TYPES = {
   },
 
   // ── Клиентский контур: партнёр ──────────────────────────────────────────
+  // Этап 6 (`У-237`): компания опубликовала материал для партнёров.
+  partner_material_published: {
+    label: 'Новый материал для партнёров',
+    icon: '📦',
+    audience: ['partner'],
+    producer: 'src/lib/notifications/partnerMaterials.ts',
+  },
   commission_statement_ready: {
     label: 'Готов отчёт по комиссии',
     icon: '📊',

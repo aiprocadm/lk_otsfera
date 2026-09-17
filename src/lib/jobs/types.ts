@@ -51,7 +51,10 @@ export type ScanDocumentTarget =
   | 'company_branding'
   // Этап 3 (У-204): файл в переписке мессенджера — id строки MessengerMessage.
   // У исходящего проверка ещё и ВОРОТА: пока не `clean`, файл клиенту не уходит.
-  | 'messenger_attachment';
+  | 'messenger_attachment'
+  // Этап 6 (У-237): файл материала для партнёров — id строки PartnerMaterialFile.
+  // Пока не `clean`, партнёр материал не видит и не скачивает.
+  | 'partner_material';
 
 export type ScanDocumentPayload = {
   kind: ScanDocumentTarget;

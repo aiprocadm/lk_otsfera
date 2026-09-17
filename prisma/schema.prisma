@@ -365,6 +365,8 @@ model User {
   /// Этап 6: ответы на обращения и ответственность за партнёров.
   clientRequestsReplied        ClientRequest[]              @relation("ClientRequestReplier")
   managedPartners              Partner[]                    @relation("PartnerManager")
+  partnerMaterialsUpdated      PartnerMaterial[]            @relation("PartnerMaterialUpdatedBy")
+  partnerMaterialFilesUploaded PartnerMaterialFile[]        @relation("PartnerMaterialFileUploadedBy")
   /// Этап 5 (`У-230`, `Р-Э5-6`): дневной дайджест — только заказчику и партнёру (сервис отвергает прочие роли).
   /// Канал email вычитается из веера у несрочных типов; ежечасный воркер собирает записи кабинета в одно письмо.
   digestEnabled                Boolean                      @default(false)
@@ -1019,6 +1021,8 @@ model Company {
   contacts                  Contact[]              @relation("CompanyContacts")
   organizationNotes         OrganizationNote[]     @relation("CompanyOrganizationNotes")
   salesTargets              SalesTarget[]
+  /// Этап 6 (`У-237`): материалы для партнёров этой компании.
+  partnerMaterials          PartnerMaterial[]      @relation("CompanyPartnerMaterials")
   staffConversations        StaffConversation[]
   calendarEvents            CalendarEvent[]
   catalogItems              CatalogItem[]
@@ -3037,4 +3041,58 @@ model BitrixImportWrite {
   @@index([batchId, entity, createdAt])
   @@index([batchId, reverted])
   @@index([entity, entityId])
+}
+
+/// Этап 6 ТЗ 12.09.2026 (`У-237`, `Р-Э6-3`): материалы для партнёров — публикует компания, читает партнёр с её организациями.
+enum PartnerMaterialCategory {
+  price_list
+  presentation
+  template
+  instruction
+  other
+}
+
+model PartnerMaterial {
+  id          String                  @id @default(cuid())
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  companyId   String
+  company     Company                 @relation("CompanyPartnerMaterials", fields: [companyId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  category    PartnerMaterialCategory @default(other)
+  /// Ссылка вместо файла: ровно одно из двух (проверяет сервис).
+  externalUrl String?
+  isActive    Boolean                 @default(true)
+  publishedAt DateTime?
+  sortOrder   Int                     @default(0)
+  updatedById String
+  updatedBy   User                    @relation("PartnerMaterialUpdatedBy", fields: [updatedById], references: [id])
+  files       PartnerMaterialFile[]
+
+  @@index([companyId, isActive, publishedAt])
+}
+
+/// Файл материала (версия). Действующая — с `supersededAt = null`; замена файла
+/// создаёт новую строку, прежняя скрывается, не удаляется (история версий).
+/// Своя таблица, а не `Document`: документ — бумага по клиенту, и попал бы в
+/// «Общие документы» сотрудников и в потоки клиентских документов.
+model PartnerMaterialFile {
+  id           String          @id @default(cuid())
+  createdAt    DateTime        @default(now())
+  materialId   String
+  material     PartnerMaterial @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  path         String
+  fileName     String
+  mimeType     String
+  size         Int
+  scanStatus   String          @default("pending")
+  scanReason   String?
+  scannedAt    DateTime?
+  uploadedById String
+  uploadedBy   User            @relation("PartnerMaterialFileUploadedBy", fields: [uploadedById], references: [id])
+  supersededAt DateTime?
+
+  @@index([materialId, supersededAt])
+  @@index([scanStatus])
 }

@@ -40,5 +40,24 @@ export const ALLOWED_MIME_TYPES: ReadonlySet<string> = new Set<string>(
   DOCUMENT_FORMATS.map((f) => f.mime)
 );
 
+/**
+ * `У-237` (этап 6): материалы для партнёров принимают ещё презентации —
+ * PowerPoint у документов заказа не нужен, у материалов для агентов это
+ * основной формат. Список живёт здесь, рядом с общим: второй allow-list в
+ * другом файле разошёлся бы с первым при первой же правке (страж
+ * `config.upload-formats`).
+ */
+const PRESENTATION_FORMATS: ReadonlyArray<{ mime: string; extensions: readonly string[] }> = [
+  {
+    mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    extensions: ['.pptx'],
+  },
+  { mime: 'application/vnd.ms-powerpoint', extensions: ['.ppt'] },
+];
+
+export const PARTNER_MATERIAL_MIME_TYPES: ReadonlySet<string> = new Set<string>(
+  [...DOCUMENT_FORMATS, ...PRESENTATION_FORMATS].map((f) => f.mime)
+);
+
 /** Расширения тех же форматов — для ранней проверки имени файла. */
 export const ALLOWED_EXTENSIONS: readonly string[] = DOCUMENT_FORMATS.flatMap((f) => f.extensions);

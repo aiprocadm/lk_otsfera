@@ -19,6 +19,8 @@ export const AUDIT_ENTITIES = [
   'client_request_attachment',
   'document',
   'partner_user',
+  // Этап 6 (`У-237`): материалы для партнёров.
+  'partner_material',
   'student_bridge',
   // У-31 (этап 5): справочник сотрудников — сущность операций над Student.
   'student',
@@ -237,6 +239,13 @@ export const AUDIT_ACTIONS = [
   'partner_commission_rate_changed',
   'partner_created',
   'partner_deactivated',
+  // Этап 6 (`У-237`): материалы для партнёров.
+  'partner_material_created',
+  'partner_material_downloaded',
+  'partner_material_file_replaced',
+  'partner_material_published',
+  'partner_material_unpublished',
+  'partner_material_updated',
   'partner_member_deactivated',
   'partner_member_invited',
   'partner_member_scope_changed',

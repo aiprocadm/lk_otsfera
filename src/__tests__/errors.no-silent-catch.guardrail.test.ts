@@ -60,6 +60,10 @@ const ALLOWED: Record<string, { count: number; why: string }> = {
     count: 1,
     why: 'тело ответа не JSON — код ошибки остаётся `http_<status>` и показывается человеку следующей строкой; это разбор, а не проглатывание',
   },
+  'src/components/partner-materials/partner-material-upload-form.tsx': {
+    count: 1,
+    why: 'то же, что у оформления компании: тело ответа не JSON — код ошибки остаётся `http_<status>` и показывается человеку следующей строкой; это разбор, а не проглатывание (этап 6, `У-237`)',
+  },
   'src/components/ui/logout-button.tsx': {
     count: 1,
     why: 'выход: даже если запрос не дошёл, человека уводим на /login — там его встретит middleware; сообщение об ошибке выхода только напугало бы',
