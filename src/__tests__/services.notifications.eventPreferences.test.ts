@@ -180,3 +180,40 @@ describe('saveNotificationPreference', () => {
     expect(res).toEqual({ ok: true, channels: [] });
   });
 });
+
+describe('getNotificationPreferenceMatrix — краевые ветки потолка и каналов', () => {
+  it('заказчик без организации в сессии — правила платформы', async () => {
+    await getNotificationPreferenceMatrix(prisma, {
+      sub: 'o2',
+      role: 'organization',
+    } as SessionPayload);
+    expect(orgFindUnique).not.toHaveBeenCalled();
+    expect(listRoutingRules).toHaveBeenCalledWith(prisma, null);
+  });
+
+  it('организация не найдена — правила платформы', async () => {
+    orgFindUnique.mockResolvedValue(null);
+    await getNotificationPreferenceMatrix(prisma, orgUser);
+    expect(listRoutingRules).toHaveBeenCalledWith(prisma, null);
+  });
+
+  it('сотрудник без компании в сессии — правила платформы', async () => {
+    await getNotificationPreferenceMatrix(prisma, { sub: 'm9', role: 'manager' } as SessionPayload);
+    expect(listRoutingRules).toHaveBeenCalledWith(prisma, null);
+  });
+
+  it('MAX и WhatsApp привязаны и включены — колонки есть; выключены на платформе — нет', async () => {
+    userFindUnique.mockResolvedValue({
+      telegramChatId: null,
+      maxChatId: 'mx',
+      whatsappPhone: '+79990000000',
+      notificationPreferences: [],
+    });
+    const on = await getNotificationPreferenceMatrix(prisma, partner);
+    expect(on.matrix.columns).toEqual(['email', 'max', 'whatsapp']);
+    isMaxEnabled.mockReturnValue(false);
+    isWhatsAppEnabled.mockReturnValue(false);
+    const off = await getNotificationPreferenceMatrix(prisma, partner);
+    expect(off.matrix.columns).toEqual(['email']);
+  });
+});

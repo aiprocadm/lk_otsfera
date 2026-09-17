@@ -324,3 +324,37 @@ describe('NotificationBell — «Показать все»', () => {
     expect(container.querySelector('a[href*="/notifications"]')).toBeNull();
   });
 });
+
+describe('NotificationBell — ссылка «Показать все» (этап 5, У-228)', () => {
+  beforeEach(() => {
+    push.mockReset();
+    useClientResource.mockReset();
+    fetchMock.mockReset().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
+    unreadStub = { data: 0, loading: false, error: false };
+    listStub = { data: [], loading: false, error: false };
+    unreadOpts = undefined;
+    listEnabledCalls = [];
+    installResourceMock();
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('клик по «Показать все →» закрывает панель', () => {
+    render(
+      React.createElement(NotificationBell, { role: 'manager', allHref: '/manager/notifications' })
+    );
+    openPanel();
+    const bell = screen.getByRole('button', { name: /^Уведомления/ });
+    expect(bell.getAttribute('aria-expanded')).toBe('true');
+    const link = screen.getByText('Показать все →');
+    expect(link.closest('a')?.getAttribute('href')).toBe('/manager/notifications');
+    fireEvent.click(link);
+    expect(bell.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('без allHref (флаг выключен) ссылки нет', () => {
+    render(React.createElement(NotificationBell, { role: 'manager' }));
+    openPanel();
+    expect(screen.queryByText('Показать все →')).toBeNull();
+  });
+});

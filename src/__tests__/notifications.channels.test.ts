@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const {
   sendNotificationEmail,
   sendOrgPaymentReceivedEmail,
+  sendDailyDigestEmail,
   isTelegramEnabled,
   sendTelegramMessage,
   isMaxEnabled,
@@ -12,6 +13,7 @@ const {
 } = vi.hoisted(() => ({
   sendNotificationEmail: vi.fn(),
   sendOrgPaymentReceivedEmail: vi.fn(),
+  sendDailyDigestEmail: vi.fn(),
   isTelegramEnabled: vi.fn(),
   sendTelegramMessage: vi.fn(),
   isMaxEnabled: vi.fn(),
@@ -23,6 +25,7 @@ const {
 vi.mock('@/lib/email/send', () => ({
   sendNotificationEmail,
   sendOrgPaymentReceivedEmail,
+  sendDailyDigestEmail,
 }));
 
 vi.mock('@/lib/telegram/client', () => ({
@@ -316,5 +319,26 @@ describe('deliverToRecipient', () => {
   it('пользователь без каналов → пустой результат (только in-app строка)', async () => {
     const results = await deliverToRecipient(makeUser({ email: '' }), basePayload);
     expect(results).toEqual({});
+  });
+});
+
+describe('emailChannel — шаблон дайджеста (этап 5, У-230)', () => {
+  it('ключ dailyDigest резолвится в sendDailyDigestEmail', async () => {
+    sendDailyDigestEmail.mockResolvedValue({ status: 'sent', id: 'e9' });
+    const props = {
+      recipientName: 'Ольга',
+      period: 'за сутки',
+      count: 1,
+      items: [],
+      moreCount: 0,
+      cabinetUrl: 'https://lk.otsfera.ru/organization/notifications',
+      itemsText: '',
+    };
+    const result = await emailChannel.send(makeUser(), {
+      ...basePayload,
+      email: { template: 'dailyDigest', props },
+    });
+    expect(result).toEqual({ status: 'sent' });
+    expect(sendDailyDigestEmail).toHaveBeenCalledWith({ to: 'user@example.ru', ...props });
   });
 });

@@ -92,3 +92,13 @@ describe('updateDigestSettings', () => {
     expect((await updateDigestSettings(prisma, org, { enabled: true, hourMsk: 23 })).ok).toBe(true);
   });
 });
+
+describe('updateDigestSettings — краевые ветки', () => {
+  it('пользователь исчез между чтением и записью: аудит без before', async () => {
+    findUnique.mockResolvedValue(null);
+    await updateDigestSettings(prisma, org, { enabled: true, hourMsk: 18 });
+    const call = recordAudit.mock.calls[0][1];
+    expect(call).not.toHaveProperty('before');
+    expect(call.after).toEqual({ enabled: true, hourMsk: 18 });
+  });
+});

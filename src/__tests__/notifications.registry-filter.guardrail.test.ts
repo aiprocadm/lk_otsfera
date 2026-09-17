@@ -79,3 +79,11 @@ describe('страж: реестр ↔ фильтр страницы', () => {
     }
   });
 });
+
+describe('notificationAudienceForRole — чужой тип', () => {
+  it('тип, не адресованный роли, даёт null, а не первую попавшуюся аудиторию', async () => {
+    const { notificationAudienceForRole } = await import('@/lib/notifications/registry');
+    expect(notificationAudienceForRole('commission_statement_ready', 'manager')).toBeNull();
+    expect(notificationAudienceForRole('commission_statement_ready', 'partner')).toBe('partner');
+  });
+});
