@@ -16,6 +16,14 @@ vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 const { getWelcomeViewer } = vi.hoisted(() => ({ getWelcomeViewer: vi.fn() }));
 vi.mock('@/lib/services/welcome/viewer', () => ({ getWelcomeViewer }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+// Этап 6 (`У-240`): блок «Ваш менеджер» — здесь не проверяется, но страница его зовёт.
+vi.mock('@/lib/services/organization/yourManager', () => ({
+  getOrgYourManager: vi.fn(async () => ({ manager: null, othersCount: 0 })),
+}));
+vi.mock('@/lib/services/partner/yourManager', () => ({
+  getPartnerYourManager: vi.fn(async () => ({ manager: null, othersCount: 0 })),
+}));
+vi.mock('@/components/dashboard/your-manager-card', () => ({ YourManagerCard: () => null }));
 
 const { getOrgPageContext } = vi.hoisted(() => ({ getOrgPageContext: vi.fn() }));
 vi.mock('@/lib/auth/orgPageContext', () => ({ getOrgPageContext }));

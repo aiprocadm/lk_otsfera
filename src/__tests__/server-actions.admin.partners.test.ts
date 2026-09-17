@@ -475,3 +475,31 @@ describe('form-action wrappers (discard result, log on failure)', () => {
     warnSpy.mockRestore();
   });
 });
+
+describe('updatePartnerAction — managerId (этап 6, У-240)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requireAdmin.mockResolvedValue({ sub: 'admin-1', role: 'admin' });
+    updatePartner.mockResolvedValue({ ok: true });
+  });
+
+  it('поля нет в форме → ключ managerId не передаётся (менеджер не снимается)', async () => {
+    await updatePartnerAction(fd({ id: 'p-1', name: 'X' }));
+    expect(updatePartner.mock.calls[0][3]).toEqual({ name: 'X' });
+  });
+
+  it('пустая строка → null (снять); значение → как есть', async () => {
+    await updatePartnerAction(fd({ id: 'p-1', managerId: '' }));
+    expect(updatePartner.mock.calls[0][3]).toEqual({ managerId: null });
+    await updatePartnerAction(fd({ id: 'p-1', managerId: 'm1' }));
+    expect(updatePartner.mock.calls[1][3]).toEqual({ managerId: 'm1' });
+  });
+
+  it('invalid_manager из сервиса возвращается как ошибка формы', async () => {
+    updatePartner.mockResolvedValue({ ok: false, error: 'invalid_manager' });
+    expect(await updatePartnerAction(fd({ id: 'p-1', managerId: 'ghost' }))).toEqual({
+      ok: false,
+      error: 'invalid_manager',
+    });
+  });
+});

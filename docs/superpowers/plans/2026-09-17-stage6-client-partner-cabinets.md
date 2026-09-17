@@ -10,13 +10,13 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development
 
 ## PR-1. Ответ на обращение, «Ваш менеджер» (`У-238`, `У-240`)
 
-- [ ] Миграция: `ClientRequest.staffReply/staffRepliedAt/staffRepliedById`, `Partner.managerId`
-- [ ] `services/clientRequests/reply.ts` — `replyToClientRequest` (скоуп ЦО, аудит `client_request_replied`), уведомление подателю с текстом (`client_request_status_changed`, подстановка `reply` в шаблоне)
-- [ ] Форма ответа в деталке обращения у admin/leader/manager; блок «Ответ менеджера» в `client-request-detail-view.tsx`
-- [ ] `Partner.managerId` в карточке партнёра у администратора (`updatePartner`)
-- [ ] `services/organization/yourManager.ts`, `services/partner/yourManager.ts` (первый активный / `managerId` → первая организация), презентационный `your-manager-card.tsx`, блок на обеих главных
-- [ ] Страж `client-requests.reply-visible` (мутация: письмо без текста); тесты сервисов, компонентов, страниц
-- [ ] AUDIT `У-238`, `У-240` → ✅; CHANGELOG; STATUS
+- [x] Миграция: `ClientRequest.staffReply/staffRepliedAt/staffRepliedById`, `Partner.managerId`
+- [x] `services/clientRequests/reply.ts` — `replyToClientRequest` (скоуп ЦО, аудит `client_request_replied`), уведомление подателю с текстом (`client_request_status_changed`, подстановка `reply` в шаблоне)
+- [x] Форма ответа в деталке обращения у admin/leader/manager; блок «Ответ менеджера» в `client-request-detail-view.tsx`
+- [x] `Partner.managerId` в карточке партнёра у администратора (`updatePartner`)
+- [x] `services/organization/yourManager.ts`, `services/partner/yourManager.ts` (первый активный / `managerId` → первая организация), презентационный `your-manager-card.tsx`, блок на обеих главных
+- [x] Страж `client-requests.reply-visible` (мутация: письмо без текста); тесты сервисов, компонентов, страниц
+- [x] AUDIT `У-238`, `У-240` → ✅; CHANGELOG; STATUS
 
 ## PR-2. Счета у заказчика, «Первые шаги» (`У-235`, `У-239`)
 

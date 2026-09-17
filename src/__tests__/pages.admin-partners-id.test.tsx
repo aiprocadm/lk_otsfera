@@ -34,8 +34,11 @@ vi.mock('@/components/requisites/requisites-card', () => ({
     React.createElement('div', { 'data-testid': 'requisites-card' }, props.title),
 }));
 
-const { getPartner } = vi.hoisted(() => ({ getPartner: vi.fn() }));
-vi.mock('@/lib/services/admin/partners', () => ({ getPartner }));
+const { getPartner, listPartnerManagerOptions } = vi.hoisted(() => ({
+  getPartner: vi.fn(),
+  listPartnerManagerOptions: vi.fn(async () => []),
+}));
+vi.mock('@/lib/services/admin/partners', () => ({ getPartner, listPartnerManagerOptions }));
 
 const { listRateHistory } = vi.hoisted(() => ({ listRateHistory: vi.fn() }));
 vi.mock('@/lib/services/commission/rateHistory', () => ({ listRateHistory }));

@@ -6,7 +6,12 @@ import { startOfMoscowYear } from '@/lib/dates/calendar';
 import { createInviteToken } from '@/lib/auth/passwordReset';
 
 export type AdminPartnerErrorCode =
-  'forbidden' | 'not_found' | 'duplicate_slug' | AdminUserErrorCode;
+  | 'forbidden'
+  | 'not_found'
+  | 'duplicate_slug'
+  /** `У-240`: ответственным назначен не действующий сотрудник контура ЦО. */
+  | 'invalid_manager'
+  | AdminUserErrorCode;
 
 export class AdminPartnerError extends Error {
   readonly code: AdminPartnerErrorCode;
@@ -106,6 +111,9 @@ export async function listPartners(
 }
 
 export type PartnerDetail = PartnerRow & {
+  /** `У-240`: ответственный менеджер партнёра (для формы и подписи). */
+  managerId: string | null;
+  managerName: string | null;
   admins: Array<{
     partnerUserId: string;
     userId: string;
@@ -120,6 +128,7 @@ export async function getPartner(prisma: PrismaClient, id: string): Promise<Part
   const p = await prisma.partner.findUnique({
     where: { id },
     include: {
+      manager: { select: { name: true } },
       partnerUsers: {
         where: { roleInPartner: 'admin' },
         include: {
@@ -151,6 +160,8 @@ export async function getPartner(prisma: PrismaClient, id: string): Promise<Part
     isActive: p.isActive,
     activeOrgCount,
     paidYTD: (paidAgg._sum.totalCommissionAmount ?? new Prisma.Decimal(0)).toString(),
+    managerId: p.managerId,
+    managerName: p.manager?.name ?? null,
     admins: p.partnerUsers.map((pu) => ({
       partnerUserId: pu.id,
       userId: pu.userId,
@@ -164,6 +175,8 @@ export async function getPartner(prisma: PrismaClient, id: string): Promise<Part
 
 export type UpdatePartnerArgs = {
   name?: string;
+  /** `У-240`: ответственный менеджер; `null` — снять. */
+  managerId?: string | null;
   commissionRate?: number | null;
   isActive?: boolean;
   effectiveFrom?: Date; // A5: дата вступления ставки; default now()
@@ -179,9 +192,17 @@ export async function updatePartner(
     await prisma.$transaction(async (tx) => {
       const before = await tx.partner.findUnique({
         where: { id },
-        select: { name: true, commissionRate: true, isActive: true },
+        select: { name: true, commissionRate: true, isActive: true, managerId: true },
       });
       if (!before) throw new AdminPartnerError('not_found');
+      // `У-240`: менеджером можно назначить только действующего сотрудника контура ЦО.
+      if (typeof args.managerId === 'string') {
+        const m = await tx.user.findFirst({
+          where: { id: args.managerId, isActive: true, role: { in: ['manager', 'leader'] } },
+          select: { id: true },
+        });
+        if (!m) throw new AdminPartnerError('invalid_manager');
+      }
 
       const rateUpdate =
         args.commissionRate !== undefined
@@ -199,6 +220,7 @@ export async function updatePartner(
           ...(args.name !== undefined ? { name: args.name } : {}),
           ...rateUpdate,
           ...(args.isActive !== undefined ? { isActive: args.isActive } : {}),
+          ...(args.managerId !== undefined ? { managerId: args.managerId } : {}),
         },
       });
 
@@ -229,9 +251,11 @@ export async function updatePartner(
           name: before.name,
           commissionRate: before.commissionRate?.toString() ?? null,
           isActive: before.isActive,
+          managerId: before.managerId,
         },
         after: {
           name: updated.name,
+          managerId: updated.managerId,
           commissionRate: updated.commissionRate?.toString() ?? null,
           isActive: updated.isActive,
         },
@@ -438,5 +462,18 @@ export async function listActivePartnerOptions(
     where: { isActive: true },
     select: { id: true, name: true },
     orderBy: { name: 'asc' },
+  });
+}
+
+/** `У-240`: кого можно назначить ответственным за партнёра — действующие сотрудники контура ЦО. */
+export type PartnerManagerOption = { id: string; name: string; email: string };
+
+export async function listPartnerManagerOptions(
+  prisma: PrismaClient
+): Promise<PartnerManagerOption[]> {
+  return prisma.user.findMany({
+    where: { isActive: true, role: { in: ['manager', 'leader'] } },
+    select: { id: true, name: true, email: true },
+    orderBy: [{ name: 'asc' }, { id: 'asc' }],
   });
 }

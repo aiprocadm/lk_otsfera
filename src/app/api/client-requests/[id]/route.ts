@@ -10,6 +10,7 @@ import {
   convertToLead,
   rejectClientRequest,
 } from '@/lib/services/clientRequests/triage';
+import { replyToClientRequest } from '@/lib/services/clientRequests/reply';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -63,8 +64,14 @@ export async function PATCH(req: Request, { params }: Params) {
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: statusFor(r.error) });
     return NextResponse.json({ request: r.request });
   }
+  // Этап 6 (`У-238`): ответ клиенту — отдельно от статуса.
+  if (action === 'reply') {
+    const r = await replyToClientRequest(prisma, session, { id, text: String(body.text ?? '') });
+    if (!r.ok) return NextResponse.json({ error: r.error }, { status: statusFor(r.error) });
+    return NextResponse.json({ request: r.request });
+  }
   return NextResponse.json(
-    { error: 'Invalid action. Use takeInTriage|convertToLead|reject' },
+    { error: 'Invalid action. Use takeInTriage|convertToLead|reject|reply' },
     { status: 400 }
   );
 }

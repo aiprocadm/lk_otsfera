@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { TableShell, THead, Th, Tr, Td, Breadcrumbs } from '@/components/ui';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
-import { getPartner } from '@/lib/services/admin/partners';
+import { getPartner, listPartnerManagerOptions } from '@/lib/services/admin/partners';
 import { listRateHistory } from '@/lib/services/commission/rateHistory';
 import { PartnerEditForm } from '@/components/admin/partner-edit-form';
 import { RequisitesCard } from '@/components/requisites/requisites-card';
@@ -23,9 +23,10 @@ export const dynamic = 'force-dynamic';
 export default async function EditPartnerPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireAdmin();
   const { id } = await params;
-  const [partner, rateHistoryResult] = await Promise.all([
+  const [partner, rateHistoryResult, managerOptions] = await Promise.all([
     getPartner(prisma, id),
     listRateHistory(prisma, session, id),
+    listPartnerManagerOptions(prisma),
   ]);
   if (!partner) notFound();
   const rateHistory = rateHistoryResult.ok ? rateHistoryResult.rows : [];
@@ -44,7 +45,7 @@ export default async function EditPartnerPage({ params }: { params: Promise<{ id
         <PageHeader title={<>Партнёр: {partner.name}</>} subtitle={<>slug: {partner.slug}</>} />
       </div>
 
-      <PartnerEditForm partner={partner} />
+      <PartnerEditForm partner={partner} managerOptions={managerOptions} />
       {requisites && (
         <RequisitesCard
           title="Реквизиты для документов"

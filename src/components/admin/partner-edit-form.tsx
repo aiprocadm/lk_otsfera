@@ -3,14 +3,21 @@
 import React, { useState } from 'react';
 import { updatePartnerAction } from '@/server-actions/admin/partners';
 import { useFormAction } from '@/lib/ui/useFormAction';
-import type { PartnerDetail } from '@/lib/services/admin/partners';
+import type { PartnerDetail, PartnerManagerOption } from '@/lib/services/admin/partners';
 
 const ERROR_MAP: Record<string, string> = {
   validation: 'Проверьте корректность полей.',
   not_found: 'Партнёр не найден.',
 };
 
-export function PartnerEditForm({ partner }: { partner: PartnerDetail }) {
+export function PartnerEditForm({
+  partner,
+  managerOptions = [],
+}: {
+  partner: PartnerDetail;
+  /** `У-240`: действующие сотрудники ЦО для выбора ответственного. */
+  managerOptions?: PartnerManagerOption[];
+}) {
   const { formAction, pending, errorText, success } = useFormAction<object>({
     action: updatePartnerAction,
     errorMap: ERROR_MAP,
@@ -20,6 +27,7 @@ export function PartnerEditForm({ partner }: { partner: PartnerDetail }) {
     partner.commissionRate != null ? String(partner.commissionRate * 100) : ''
   );
   const [isActive, setIsActive] = useState(partner.isActive);
+  const [managerId, setManagerId] = useState(partner.managerId ?? '');
 
   return (
     <form
@@ -77,6 +85,29 @@ export function PartnerEditForm({ partner }: { partner: PartnerDetail }) {
         />
         <p className="text-xs text-gray-500 mt-1">
           Оставьте пустым — ставка вступит с текущего момента.
+        </p>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-[#111111] mb-1" htmlFor="partner-manager">
+          Ответственный менеджер
+        </label>
+        <select
+          id="partner-manager"
+          name="managerId"
+          value={managerId}
+          onChange={(e) => setManagerId(e.target.value)}
+          className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]"
+        >
+          <option value="">— не назначен (менеджер первой организации портфеля) —</option>
+          {managerOptions.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name} · {m.email}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-gray-500 mt-1">
+          Партнёр видит его в блоке «Ваш менеджер» на главной и пишет ему.
         </p>
       </div>
 

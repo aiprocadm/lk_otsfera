@@ -35,6 +35,8 @@ const updateSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   commissionRate: z.coerce.number().min(0).max(100).nullable().optional(),
   isActive: z.coerce.boolean().optional(),
+  // `У-240`: пустая строка — «снять менеджера».
+  managerId: z.string().max(64).optional(),
   // Валидируем дату: пустое → опускаем; невалидная строка → ошибка валидации.
   // Иначе Invalid Date дотекла бы до resolveRateAt (getTime() NaN → ставка молча
   // не применилась бы ни к одному платежу — денежная ошибка).
@@ -111,6 +113,9 @@ export async function updatePartnerAction(fd: FormData): Promise<ActionResult> {
     commissionRate: readField(fd, 'commissionRate') || undefined,
     isActive: readField(fd, 'isActive') || undefined,
     effectiveFrom: readField(fd, 'effectiveFrom') || undefined,
+    // `У-240`: «поля нет в форме» — не трогать; «пустая строка» — снять менеджера.
+    // Без `has` любое сохранение с другой формы молча снимало бы ответственного.
+    managerId: fd.has('managerId') ? readField(fd, 'managerId') : undefined,
   });
   if (!parsed.success) return { ok: false, error: 'validation' };
 
@@ -124,6 +129,9 @@ export async function updatePartnerAction(fd: FormData): Promise<ActionResult> {
     ...(raw.isActive !== undefined ? { isActive: raw.isActive } : {}),
     ...(commissionRate !== undefined ? { commissionRate } : {}),
     ...(raw.effectiveFrom ? { effectiveFrom: new Date(raw.effectiveFrom) } : {}),
+    ...(raw.managerId !== undefined
+      ? { managerId: raw.managerId === '' ? null : raw.managerId }
+      : {}),
   };
   const res = await updatePartner(prisma, session.sub, id, args);
   if (!res.ok) return { ok: false, error: res.error };

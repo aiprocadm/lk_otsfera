@@ -47,6 +47,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   client_request_attachment_uploaded: 'Загрузка вложения обращения',
   client_request_converted: 'Обращение переведено в работу',
   client_request_rejected: 'Отклонение обращения',
+  client_request_replied: 'Ответ на обращение',
   client_request_submitted: 'Подача обращения',
   client_request_taken: 'Обращение взято в работу',
   comment_posted: 'Комментарий к заказу',

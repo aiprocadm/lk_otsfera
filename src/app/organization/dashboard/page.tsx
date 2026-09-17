@@ -15,6 +15,8 @@ import {
   expiringCertificates,
 } from '@/lib/services/organization/dashboard';
 import { QuickTasks } from '@/components/dashboard/quick-tasks';
+import { YourManagerCard } from '@/components/dashboard/your-manager-card';
+import { getOrgYourManager } from '@/lib/services/organization/yourManager';
 import { quickTasksFor } from '@/lib/quickTasks';
 
 import { PageHeader } from '@/components/ui/page-header';
@@ -28,13 +30,14 @@ export default async function OrganizationDashboardPage({
 
   const enrollmentsEnabled = isFeatureEnabled('enrollment_requests');
   const certificatesEnabled = isFeatureEnabled('certificates_registry');
-  const [k, a, events, enrollments, expiringCerts] = await Promise.all([
+  const [k, a, events, enrollments, expiringCerts, yourManager] = await Promise.all([
     kpis(prisma, ctx.activeOrgId),
     attention(prisma, ctx.activeOrgId),
     recentEvents(prisma, ctx.activeOrgId),
     enrollmentsEnabled ? recentEnrollments(prisma, ctx.activeOrgId) : Promise.resolve([]),
     certificatesEnabled ? expiringCertificates(prisma, ctx.activeOrgId) : Promise.resolve(null),
-    // ФТ-10.4: одноразовый welcome-блок — пока пользователь его не скрыл.
+    // Этап 6 (`У-240`): кто ведёт заказы организации.
+    getOrgYourManager(prisma, ctx.activeOrgId),
   ]);
 
   return (
@@ -50,6 +53,7 @@ export default async function OrganizationDashboardPage({
         </div>
         {/* `У-71`: постоянный блок вместо одноразового welcome-блока. */}
         <QuickTasks tasks={quickTasksFor('organization')} />
+        <YourManagerCard view={yourManager} />
         <OrgKpiGrid kpis={k} expiringCertificates={expiringCerts} />
         {enrollmentsEnabled && <OrgEnrollmentsCard rows={enrollments} />}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

@@ -21,6 +21,8 @@ vi.mock('@/lib/services/clientRequests/triage', () => ({
   convertToLead: vi.fn(),
   rejectClientRequest: vi.fn(),
 }));
+const { replyToClientRequest } = vi.hoisted(() => ({ replyToClientRequest: vi.fn() }));
+vi.mock('@/lib/services/clientRequests/reply', () => ({ replyToClientRequest }));
 
 import { getSession } from '@/lib/auth/session';
 import { notFoundIfDisabled } from '@/lib/featureFlags';
@@ -328,5 +330,27 @@ describe('PATCH /api/client-requests/[id]', () => {
       headers: { 'content-type': 'text/plain' },
     });
     expect((await PATCH(req, ctx('R1'))).status).toBe(400);
+  });
+});
+
+describe('PATCH [id] — reply (этап 6, У-238)', () => {
+  it('reply: 200, текст прокинут в сервис', async () => {
+    vi.mocked(getSession).mockResolvedValue(manager);
+    replyToClientRequest.mockResolvedValue({ ok: true, request: { id: 'R1', staffReply: 'ок' } });
+    const res = await PATCH(jsonReq({ action: 'reply', text: 'ок' }, 'PATCH'), ctx('R1'));
+    expect(res.status).toBe(200);
+    expect(replyToClientRequest).toHaveBeenCalledWith({}, manager, { id: 'R1', text: 'ок' });
+  });
+
+  it('reply: validation → 400, forbidden → 403', async () => {
+    vi.mocked(getSession).mockResolvedValue(manager);
+    replyToClientRequest.mockResolvedValue({ ok: false, error: 'validation' });
+    expect((await PATCH(jsonReq({ action: 'reply', text: '' }, 'PATCH'), ctx('R1'))).status).toBe(
+      400
+    );
+    replyToClientRequest.mockResolvedValue({ ok: false, error: 'forbidden' });
+    expect((await PATCH(jsonReq({ action: 'reply', text: 'x' }, 'PATCH'), ctx('R1'))).status).toBe(
+      403
+    );
   });
 });

@@ -362,6 +362,9 @@ model User {
   notificationChannels         Json? // { telegram?: bool, max?: bool, whatsapp?: bool }
   /// Этап 5 ТЗ 12.09.2026 (`У-229`): личные настройки «событие × канал» — только отклонения.
   notificationPreferences      UserNotificationPreference[]
+  /// Этап 6: ответы на обращения и ответственность за партнёров.
+  clientRequestsReplied        ClientRequest[]              @relation("ClientRequestReplier")
+  managedPartners              Partner[]                    @relation("PartnerManager")
   /// Этап 5 (`У-230`, `Р-Э5-6`): дневной дайджест — только заказчику и партнёру (сервис отвергает прочие роли).
   /// Канал email вычитается из веера у несрочных типов; ежечасный воркер собирает записи кабинета в одно письмо.
   digestEnabled                Boolean                      @default(false)
@@ -483,33 +486,38 @@ model Lead {
 // Этап 5 (Модуль 1, ФТ-1.1): заявка клиента общего вида. Путь:
 // подача (partner/organization) → триаж сотрудником → лид (converted) или отказ.
 model ClientRequest {
-  id                String                    @id @default(cuid())
-  createdAt         DateTime                  @default(now())
-  updatedAt         DateTime                  @updatedAt
-  source            ClientRequestSource
+  id                 String                    @id @default(cuid())
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  source             ClientRequestSource
   /// Кто подал заявку. NULL — заявка с сайта (`У-211`): её прислал посторонний
   /// человек, учётной записи у него нет. У заявок из кабинетов поле заполнено.
-  submittedByUserId String?
-  submittedByUser   User?                     @relation("ClientRequestSubmitter", fields: [submittedByUserId], references: [id])
-  partnerId         String?
-  partner           Partner?                  @relation(fields: [partnerId], references: [id])
-  organizationId    String?
-  organization      Organization?             @relation(fields: [organizationId], references: [id])
-  companyName       String
+  submittedByUserId  String?
+  submittedByUser    User?                     @relation("ClientRequestSubmitter", fields: [submittedByUserId], references: [id])
+  partnerId          String?
+  partner            Partner?                  @relation(fields: [partnerId], references: [id])
+  organizationId     String?
+  organization       Organization?             @relation(fields: [organizationId], references: [id])
+  companyName        String
   // ИНН со слов клиента; на клиентской стороне на дубли НЕ проверяется (ФТ-13.4).
-  inn               String?
-  contactName       String
-  contactPhone      String?
-  contactEmail      String?
-  subject           String
-  body              String?
-  status            ClientRequestStatus       @default(submitted)
-  triagedByUserId   String?
-  triagedByUser     User?                     @relation("ClientRequestTriager", fields: [triagedByUserId], references: [id])
-  triagedAt         DateTime?
-  rejectedReason    String?
-  convertedLead     Lead?                     @relation("LeadFromRequest")
-  attachments       ClientRequestAttachment[]
+  inn                String?
+  contactName        String
+  contactPhone       String?
+  contactEmail       String?
+  subject            String
+  body               String?
+  status             ClientRequestStatus       @default(submitted)
+  triagedByUserId    String?
+  triagedByUser      User?                     @relation("ClientRequestTriager", fields: [triagedByUserId], references: [id])
+  triagedAt          DateTime?
+  rejectedReason     String?
+  /// Этап 6 ТЗ 12.09.2026 (`У-238`, `Р-Э6-4`): ответ сотрудника — отдельно от статуса, клиент видит дословно.
+  staffReply         String?
+  staffRepliedAt     DateTime?
+  staffRepliedById   String?
+  staffRepliedByUser User?                     @relation("ClientRequestReplier", fields: [staffRepliedById], references: [id], onDelete: SetNull)
+  convertedLead      Lead?                     @relation("LeadFromRequest")
+  attachments        ClientRequestAttachment[]
 
   @@index([status])
   @@index([partnerId])
@@ -748,6 +756,9 @@ model Partner {
   signerBasis           String?
   commissionRate        Decimal                @default(0) @db.Decimal(6, 4)
   isActive              Boolean                @default(true)
+  /// Этап 6 (`У-240`, `Р-Э6-6`): ответственный менеджер партнёра; правит администратор в карточке партнёра.
+  managerId             String?
+  manager               User?                  @relation("PartnerManager", fields: [managerId], references: [id], onDelete: SetNull)
   enrollmentRequests    EnrollmentRequest[]
   organizations         Organization[]
   users                 User[]
@@ -759,6 +770,8 @@ model Partner {
   notifications         Notification[]
   commissionRateChanges CommissionRateChange[]
   commissionCorrections CommissionCorrection[]
+
+  @@index([managerId])
 }
 
 /// История изменений ставки комиссии партнёра (§9.1). Append-only.
