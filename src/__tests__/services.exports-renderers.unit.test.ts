@@ -157,6 +157,7 @@ describe('renderPaymentsXlsx', () => {
         total: 1,
         kpis: KPIS,
         organizationName: 'ООО Ромашка',
+        invoices: [],
       })
     );
     const ws = wb.getWorksheet('Платежи')!;
@@ -202,6 +203,7 @@ describe('renderPaymentsXlsx', () => {
         total: 1,
         kpis: KPIS,
         organizationName: 'ООО Ромашка',
+        invoices: [],
       })
     );
     const row = rowValues(wb.getWorksheet('Платежи')!, 2);
@@ -218,6 +220,7 @@ describe('renderPaymentsXlsx', () => {
         total: rows.length,
         kpis: KPIS,
         organizationName: 'ООО Ромашка',
+        invoices: [],
       })
     );
     const ws = wb.getWorksheet('Платежи')!;
@@ -287,5 +290,74 @@ describe('renderOrgStudentsXlsx', () => {
     expect(String(ws.getRow(ws.rowCount).getCell(2).value)).toContain(
       `Показаны первые ${EXPORT_ROW_LIMIT} строк из ${rows.length}`
     );
+  });
+});
+
+describe('renderPaymentsXlsx — лист «Счета» (этап 6, У-235)', () => {
+  it('колонки, состояние по-русски, прочерки у «не определено»', async () => {
+    const wb = await load(
+      await renderPaymentsXlsx({
+        rows: [],
+        total: 0,
+        kpis: KPIS,
+        organizationName: 'ООО Ромашка',
+        invoices: [
+          {
+            id: 'd1',
+            number: 'С-2026-17',
+            name: 'Счёт',
+            issuedAt: new Date('2026-09-01T10:00:00Z'),
+            orderId: 'o1',
+            orderNumber: 'З-1',
+            orderTitle: 'Обучение',
+            amountGross: '1000.00',
+            paid: '400.00',
+            due: '600.00',
+            state: 'partially_paid',
+            matched: true,
+            ambiguous: false,
+          },
+          {
+            id: 'd2',
+            number: null,
+            name: 'Старый счёт',
+            issuedAt: new Date('2026-08-01T10:00:00Z'),
+            orderId: null,
+            orderNumber: null,
+            orderTitle: null,
+            amountGross: null,
+            paid: null,
+            due: null,
+            state: 'unknown',
+            matched: false,
+            ambiguous: false,
+          },
+        ],
+      })
+    );
+    const ws = wb.getWorksheet('Счета')!;
+    expect(headersOf(ws)).toEqual([
+      '№',
+      'Дата',
+      'Номер',
+      'Заказ',
+      'Сумма с НДС, ₽',
+      'Оплачено, ₽',
+      'К оплате, ₽',
+      'Состояние',
+    ]);
+    expect(rowValues(ws, 2)).toEqual([
+      '1',
+      '01.09.2026',
+      'С-2026-17',
+      'З-1',
+      '1000.00',
+      '400.00',
+      '600.00',
+      'Оплачен частично',
+    ]);
+    expect(rowValues(ws, 3)).toEqual(['2', '01.08.2026', '—', '—', '—', '—', '—', 'Не определено']);
+    // Порядок листов: платежи, счета, итоги.
+    expect(wb.worksheets.map((w) => w.name)).toEqual(['Платежи', 'Счета', 'Итоги']);
   });
 });

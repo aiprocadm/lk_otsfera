@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
 import type { OrgFinanceKpis, OrgPaymentRow } from '@/lib/services/organization/finance';
+import { ORG_INVOICE_STATE_LABELS, type OrgInvoiceRow } from '@/lib/services/organization/invoices';
 import { paymentMethodRu } from '@/lib/i18n/labels';
 import {
   EXPORT_ROW_LIMIT,
@@ -22,6 +23,7 @@ export function renderPaymentsXlsx(args: {
   total: number;
   kpis: OrgFinanceKpis;
   organizationName: string;
+  invoices: OrgInvoiceRow[];
 }): Promise<ExcelJS.Buffer> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Промтехносфера';
@@ -61,6 +63,32 @@ export function renderPaymentsXlsx(args: {
   });
 
   appendOverflowNotice(ws, { total: args.total, noticeKey: 'paidAt' });
+
+  // `У-235`: счета с состоянием оплаты — тот же расчёт, что на экране.
+  const inv = wb.addWorksheet('Счета');
+  inv.columns = [
+    { header: '№', key: 'num', width: 6 },
+    { header: 'Дата', key: 'issuedAt', width: 14 },
+    { header: 'Номер', key: 'number', width: 18 },
+    { header: 'Заказ', key: 'order', width: 18 },
+    { header: 'Сумма с НДС, ₽', key: 'amountGross', width: 16 },
+    { header: 'Оплачено, ₽', key: 'paid', width: 14 },
+    { header: 'К оплате, ₽', key: 'due', width: 14 },
+    { header: 'Состояние', key: 'state', width: 20 },
+  ];
+  styleHeader(inv, args.invoices.length > 0);
+  args.invoices.forEach((r, idx) => {
+    inv.addRow({
+      num: idx + 1,
+      issuedAt: formatDateRu(r.issuedAt),
+      number: textOrDash(r.number),
+      order: textOrDash(r.orderNumber),
+      amountGross: r.amountGross ?? '—',
+      paid: r.paid ?? '—',
+      due: r.due ?? '—',
+      state: ORG_INVOICE_STATE_LABELS[r.state],
+    });
+  });
 
   const totals = wb.addWorksheet('Итоги');
   totals.columns = [

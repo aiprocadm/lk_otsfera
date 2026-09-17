@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { navByRole, type NavItem } from '@/lib/navigation/cabinet';
 import { groupNavItems, splitPinnedItems } from '@/lib/navigation/groupItems';
 import {
+  MIRROR_BLOCK_EXCEPTIONS,
   MIRROR_EXCEPTIONS,
   MIRROR_PAIRS,
   type MirrorPair,
@@ -158,5 +159,39 @@ describe('правило зеркала: кабинеты пары устрое�
       }
     }
     expect(stale, stale.join('\n')).toEqual([]);
+  });
+});
+
+describe('блочные исключения зеркала (этап 6, Р-Э6-7)', () => {
+  it('каждое — с причиной, внутри общего раздела пары, у части кабинетов пары', () => {
+    const broken: string[] = [];
+    for (const e of MIRROR_BLOCK_EXCEPTIONS) {
+      const tag = `${e.pair}/${e.sectionKey}/${e.block}`;
+      if (e.reason.trim() === '') broken.push(`${tag}: пустая причина`);
+      if (e.block.trim() === '') broken.push(`${tag}: пустое название блока`);
+      const roles = MIRROR_PAIRS[e.pair];
+      const alien = e.cabinets.filter((c) => !roles.includes(c));
+      if (alien.length > 0) broken.push(`${tag}: кабинет вне пары — ${alien.join(', ')}`);
+      if (e.cabinets.length === 0 || e.cabinets.length === roles.length) {
+        broken.push(`${tag}: блок либо у всех, либо ни у кого — это не исключение`);
+      }
+      // Раздел, внутри которого стоит блок, обязан быть у ВСЕХ кабинетов пары:
+      // иначе это исключение раздела, а не блока.
+      for (const r of roles) {
+        if (!itemOf(r, e.sectionKey)) broken.push(`${tag}: раздела нет у «${r}»`);
+      }
+    }
+    expect(broken, broken.join('\n')).toEqual([]);
+  });
+
+  it('«Счета» записаны: только у заказчика внутри общих «Финансов»', () => {
+    expect(MIRROR_BLOCK_EXCEPTIONS).toContainEqual(
+      expect.objectContaining({
+        pair: 'clients',
+        sectionKey: 'finance',
+        block: 'Счета',
+        cabinets: ['organization'],
+      })
+    );
   });
 });

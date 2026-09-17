@@ -17,6 +17,9 @@ import {
 import { QuickTasks } from '@/components/dashboard/quick-tasks';
 import { YourManagerCard } from '@/components/dashboard/your-manager-card';
 import { getOrgYourManager } from '@/lib/services/organization/yourManager';
+import { getOrgFirstSteps } from '@/lib/services/organization/firstSteps';
+import { FirstStepsCard } from '@/components/dashboard/first-steps-card';
+import { dismissOrgFirstStepsAction } from '@/server-actions/organization/firstSteps';
 import { quickTasksFor } from '@/lib/quickTasks';
 
 import { PageHeader } from '@/components/ui/page-header';
@@ -30,7 +33,7 @@ export default async function OrganizationDashboardPage({
 
   const enrollmentsEnabled = isFeatureEnabled('enrollment_requests');
   const certificatesEnabled = isFeatureEnabled('certificates_registry');
-  const [k, a, events, enrollments, expiringCerts, yourManager] = await Promise.all([
+  const [k, a, events, enrollments, expiringCerts, yourManager, firstSteps] = await Promise.all([
     kpis(prisma, ctx.activeOrgId),
     attention(prisma, ctx.activeOrgId),
     recentEvents(prisma, ctx.activeOrgId),
@@ -38,6 +41,8 @@ export default async function OrganizationDashboardPage({
     certificatesEnabled ? expiringCertificates(prisma, ctx.activeOrgId) : Promise.resolve(null),
     // Этап 6 (`У-240`): кто ведёт заказы организации.
     getOrgYourManager(prisma, ctx.activeOrgId),
+    // Этап 6 (`У-239`): чек-лист по данным, «Закрыть» — на членстве.
+    getOrgFirstSteps(prisma, { organizationId: ctx.activeOrgId, userId: ctx.session.sub }),
   ]);
 
   return (
@@ -51,6 +56,11 @@ export default async function OrganizationDashboardPage({
         <div>
           <PageHeader title="Главная" subtitle={<>Обзор по {ctx.activeOrgName}</>} />
         </div>
+        <FirstStepsCard
+          view={firstSteps}
+          dismissAction={dismissOrgFirstStepsAction}
+          scopeField={{ name: 'organizationId', value: ctx.activeOrgId }}
+        />
         {/* `У-71`: постоянный блок вместо одноразового welcome-блока. */}
         <QuickTasks tasks={quickTasksFor('organization')} />
         <YourManagerCard view={yourManager} />

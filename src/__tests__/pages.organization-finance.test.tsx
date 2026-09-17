@@ -13,6 +13,23 @@ const { getOrgFinanceKpis, listOrgPayments } = vi.hoisted(() => ({
   listOrgPayments: vi.fn(),
 }));
 vi.mock('@/lib/services/organization/finance', () => ({ getOrgFinanceKpis, listOrgPayments }));
+// Этап 6 (`У-235`): счета — свой сервис; разбор параметров берём настоящий.
+const { listOrgInvoices } = vi.hoisted(() => ({ listOrgInvoices: vi.fn() }));
+vi.mock('@/lib/services/organization/invoices', async () => ({
+  ...(await vi.importActual<typeof import('@/lib/services/organization/invoices')>(
+    '@/lib/services/organization/invoices'
+  )),
+  listOrgInvoices,
+}));
+vi.mock('@/components/organization/org-invoice-download-button', () => ({
+  OrgInvoiceDownloadButton: () => null,
+}));
+const EMPTY_INVOICES = {
+  rows: [],
+  total: 0,
+  toPay: '0.00',
+  counts: { unpaid: 0, partially_paid: 0, paid: 0, unknown: 0 },
+};
 
 vi.mock('@/components/organization/org-app-shell', () => ({
   OrgAppShell: (props: { activeOrgName: string; children: React.ReactNode }) =>
@@ -39,6 +56,7 @@ describe('OrganizationFinancePage', () => {
     getOrgPageContext.mockReset();
     getOrgFinanceKpis.mockReset();
     listOrgPayments.mockReset();
+    listOrgInvoices.mockReset().mockResolvedValue(EMPTY_INVOICES);
   });
 
   it('fetches KPIs and payments scoped to the active org and renders the finance sections', async () => {
@@ -53,6 +71,8 @@ describe('OrganizationFinancePage', () => {
     expect(getOrgPageContext).toHaveBeenCalledWith({ org: 'org-1' });
     expect(getOrgFinanceKpis).toHaveBeenCalledWith({}, 'org-1');
     expect(listOrgPayments).toHaveBeenCalledWith({}, { organizationId: 'org-1' });
+    expect(listOrgInvoices).toHaveBeenCalledWith({}, { organizationId: 'org-1' });
+    expect(container.textContent).toContain('Счета');
     expect(container.textContent).toContain('Финансы');
     expect(container.textContent).toContain('ООО Ромашка');
   });
@@ -88,5 +108,32 @@ describe('OrganizationFinancePage — выгрузка в Excel', () => {
       .querySelector('a[href*="/api/organization/finance/export"]')!
       .getAttribute('href')!;
     expect(href).toContain('org=org-1');
+  });
+});
+
+describe('OrganizationFinancePage — фильтры счетов (этап 6, У-235)', () => {
+  it('период и состояние из адреса передаются сервису разобранными; мусор отбрасывается', async () => {
+    getOrgPageContext.mockResolvedValue(CTX);
+    getOrgFinanceKpis.mockResolvedValue({ billed: '0', paid: '0', outstanding: '0' });
+    listOrgPayments.mockResolvedValue([]);
+    await renderServerComponent(
+      OrganizationFinancePage({
+        searchParams: Promise.resolve({
+          org: 'org-1',
+          from: '2026-09-01',
+          to: 'мусор',
+          state: 'paid',
+        }),
+      })
+    );
+    expect(listOrgInvoices).toHaveBeenCalledWith(
+      {},
+      {
+        organizationId: 'org-1',
+        from: new Date('2026-09-01T00:00:00.000Z'),
+        to: undefined,
+        state: 'paid',
+      }
+    );
   });
 });
