@@ -12,16 +12,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const m = vi.hoisted(() => ({
   sendEmailReply: vi.fn(),
   sendToMessenger: vi.fn(),
-  createNotification: vi.fn(),
+  recordNotification: vi.fn(),
   deliverNotificationToUser: vi.fn(),
 }));
 
 vi.mock('@/lib/services/inbound/emailReply', () => ({ sendEmailReply: m.sendEmailReply }));
 vi.mock('@/lib/services/messengers/transport', () => ({ sendToMessenger: m.sendToMessenger }));
 vi.mock('@/lib/notifications', () => ({
-  createNotification: m.createNotification,
+  recordNotification: m.recordNotification,
   deliverNotificationToUser: m.deliverNotificationToUser,
 }));
+// Клиент базы уходит первым аргументом в recordNotification; сам он здесь не нужен.
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 import { replyToInbound } from '@/lib/services/inbound/reply';
 
@@ -29,6 +31,7 @@ type InboundArg = Parameters<typeof replyToInbound>[0];
 
 function inbound(over: Partial<InboundArg> & { channel: string }): InboundArg {
   return {
+    id: 'im-1',
     senderRef: 'chat-1',
     subject: null,
     ...over,
@@ -39,7 +42,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   m.sendEmailReply.mockResolvedValue({ ok: true });
   m.sendToMessenger.mockResolvedValue({ ok: true });
-  m.createNotification.mockResolvedValue({ id: 'n-1' });
+  m.recordNotification.mockResolvedValue({ row: { id: 'n-1' }, deduped: false });
   m.deliverNotificationToUser.mockResolvedValue(undefined);
 });
 
@@ -112,24 +115,38 @@ describe('replyToInbound — соседние каналы не затронут
     );
 
     expect(result).toEqual({ ok: true });
-    expect(m.createNotification).toHaveBeenCalledWith({
+    // Ключ дедупа — входящее сообщение; ссылку строит таблица маршрутов по meta.
+    expect(m.recordNotification).toHaveBeenCalledWith(expect.anything(), {
       userId: 'u-1',
       type: 'inbound_reply',
       title: 'Ответ на ваше обращение',
       body: '«Счёт»: Готово',
+      meta: { messageId: 'im-1' },
+      entityId: 'im-1',
     });
     expect(m.deliverNotificationToUser).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: 'u-1', dedupKey: 'n-1' })
+      expect.objectContaining({ userId: 'u-1', meta: { messageId: 'im-1' }, dedupKey: 'n-1' })
     );
     expect(m.sendEmailReply).not.toHaveBeenCalled();
     expect(m.sendToMessenger).not.toHaveBeenCalled();
+  });
+
+  it('вопрос из кабинета: повтор за час (deduped: true) — доставка не зовётся', async () => {
+    m.recordNotification.mockResolvedValue({ row: { id: 'n-1' }, deduped: true });
+    const result = await replyToInbound(
+      inbound({ channel: 'cabinet', senderRef: 'u-1', subject: 'Счёт', resolvedUserId: 'u-1' }),
+      'Готово'
+    );
+    expect(result).toEqual({ ok: true });
+    expect(m.recordNotification).toHaveBeenCalledTimes(1);
+    expect(m.deliverNotificationToUser).not.toHaveBeenCalled();
   });
 
   it('вопрос из кабинета без автора — отказ, как и раньше', async () => {
     await expect(
       replyToInbound(inbound({ channel: 'cabinet', senderRef: 'u-1' }), 'Готово')
     ).resolves.toEqual({ ok: false });
-    expect(m.createNotification).not.toHaveBeenCalled();
+    expect(m.recordNotification).not.toHaveBeenCalled();
   });
 });
 
@@ -140,6 +157,6 @@ describe('replyToInbound — незнакомый канал', () => {
     ).resolves.toEqual({ ok: false });
     expect(m.sendEmailReply).not.toHaveBeenCalled();
     expect(m.sendToMessenger).not.toHaveBeenCalled();
-    expect(m.createNotification).not.toHaveBeenCalled();
+    expect(m.recordNotification).not.toHaveBeenCalled();
   });
 });

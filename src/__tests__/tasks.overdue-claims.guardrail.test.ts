@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
 
-const { createNotification, deliverNotificationToUser } = vi.hoisted(() => ({
-  createNotification: vi.fn().mockResolvedValue({ id: 'n1' }),
+const { recordNotification, deliverNotificationToUser } = vi.hoisted(() => ({
+  recordNotification: vi.fn().mockResolvedValue({ row: { id: 'n1' }, deduped: false }),
   deliverNotificationToUser: vi.fn(),
 }));
-vi.mock('@/lib/notifications', () => ({ createNotification, deliverNotificationToUser }));
+vi.mock('@/lib/notifications', () => ({ recordNotification, deliverNotificationToUser }));
 
 const { logError } = vi.hoisted(() => ({ logError: vi.fn() }));
 vi.mock('@/lib/logging', () => ({ log: { error: logError, warn: vi.fn(), info: vi.fn() } }));
@@ -91,8 +91,8 @@ describe('страж: просрочка напоминает дважды и в
       where: { id: 't1', overdueNotifiedAt: null },
       data: { overdueNotifiedAt: NOW },
     });
-    expect(createNotification.mock.calls[0][0].userId).toBe('worker');
-    expect(createNotification.mock.calls[0][0].type).toBe('task_overdue');
+    expect(recordNotification.mock.calls[0][1].userId).toBe('worker');
+    expect(recordNotification.mock.calls[0][1].type).toBe('task_overdue');
   });
 
   it('РУКОВОДИТЕЛЮ — на N-й день, по ДРУГОМУ полю-claim', async () => {
@@ -107,7 +107,7 @@ describe('страж: просрочка напоминает дважды и в
     const deadline = where.dueDate.lt as Date;
     expect(Math.round((NOW.getTime() - deadline.getTime()) / 86_400_000)).toBe(3);
     expect(taskUpdateMany.mock.calls[0][0].data).toEqual({ overdueEscalatedAt: NOW });
-    expect(createNotification.mock.calls[0][0].userId).toBe('boss');
+    expect(recordNotification.mock.calls[0][1].userId).toBe('boss');
   });
 
   it('ПОВТОРНЫЙ прогон ничего не шлёт: claim занят параллельным проходом', async () => {
@@ -115,13 +115,13 @@ describe('страж: просрочка напоминает дважды и в
     taskUpdateMany.mockResolvedValue({ count: 0 });
     const res = await runTaskOverdue(prisma, NOW);
     expect(res.notified).toBe(0);
-    expect(createNotification).not.toHaveBeenCalled();
+    expect(recordNotification).not.toHaveBeenCalled();
   });
 
   it('задача без исполнителей напоминает СОЗДАТЕЛЮ, а не молчит', async () => {
     tasks([{ ...TASK, assignees: [] }], []);
     await runTaskOverdue(prisma, NOW);
-    expect(createNotification.mock.calls[0][0].userId).toBe('creator');
+    expect(recordNotification.mock.calls[0][1].userId).toBe('creator');
   });
 
   it('порог 0 — компания выключила эскалацию: руководителя не тревожим', async () => {
@@ -143,12 +143,25 @@ describe('страж: просрочка напоминает дважды и в
 
   it('сбой доставки одному получателю не отменяет claim и не роняет прогон', async () => {
     tasks([{ ...TASK, assignees: [{ userId: 'a' }, { userId: 'b' }] }], []);
-    createNotification.mockRejectedValueOnce(new Error('почта легла'));
+    recordNotification.mockRejectedValueOnce(new Error('почта легла'));
     const res = await runTaskOverdue(prisma, NOW);
     expect(res.notified).toBe(1);
     expect(logError).toHaveBeenCalled();
     // Второму получателю письмо всё равно ушло.
     expect(deliverNotificationToUser).toHaveBeenCalledTimes(1);
+  });
+
+  it('повтор за час (deduped: true) — строка «×N», доставка не зовётся, claim засчитан', async () => {
+    tasks([TASK], []);
+    recordNotification.mockResolvedValueOnce({ row: { id: 'n1' }, deduped: true });
+    const res = await runTaskOverdue(prisma, NOW);
+    expect(res.notified).toBe(1);
+    // Ключ дедупа — задача; адреса кабинета в строке нет (`У-232`).
+    expect(recordNotification).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({ type: 'task_overdue', meta: { taskId: 't1' }, entityId: 't1' })
+    );
+    expect(deliverNotificationToUser).not.toHaveBeenCalled();
   });
 
   it('обе половины считаются независимо и обе попадают в итог', async () => {
@@ -164,7 +177,7 @@ describe('краевые случаи напоминаний о просрочк
     taskUpdateMany.mockResolvedValue({ count: 0 });
     const res = await runTaskOverdue(prisma, NOW);
     expect(res.escalated).toBe(0);
-    expect(createNotification).not.toHaveBeenCalled();
+    expect(recordNotification).not.toHaveBeenCalled();
   });
 
   it('задача без срока не печатает пустое место вместо даты', async () => {
@@ -172,12 +185,12 @@ describe('краевые случаи напоминаний о просрочк
     // ДО неё: пустая строка вместо даты выглядела бы как поломка письма.
     tasks([{ ...TASK, dueDate: null }], []);
     await runTaskOverdue(prisma, NOW);
-    expect(createNotification.mock.calls[0][0].body).toContain('—');
+    expect(recordNotification.mock.calls[0][1].body).toContain('—');
   });
 
   it('эскалация без срока — то же правило', async () => {
     tasks([], [{ id: 't1', title: 'Старая', dueDate: null }]);
     await runTaskOverdue(prisma, NOW);
-    expect(createNotification.mock.calls[0][0].body).toContain('—');
+    expect(recordNotification.mock.calls[0][1].body).toContain('—');
   });
 });

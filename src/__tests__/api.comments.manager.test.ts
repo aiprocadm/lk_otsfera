@@ -6,7 +6,7 @@ const {
   commentCreate,
   commentCount,
   auditCreate,
-  notifyMessageCreated,
+  recordNotification,
   notifyOrgUsers,
   deliverNotificationToUser,
   getPrimaryOrganizationId,
@@ -16,7 +16,7 @@ const {
   commentCreate: vi.fn(),
   commentCount: vi.fn(),
   auditCreate: vi.fn(),
-  notifyMessageCreated: vi.fn(),
+  recordNotification: vi.fn(),
   notifyOrgUsers: vi.fn(),
   deliverNotificationToUser: vi.fn(),
   getPrimaryOrganizationId: vi.fn(),
@@ -31,7 +31,7 @@ vi.mock('@/lib/db/prisma', () => ({
   },
 }));
 vi.mock('@/lib/notifications', () => ({
-  notifyMessageCreated,
+  recordNotification,
   notifyOrgUsers,
   deliverNotificationToUser,
 }));
@@ -106,7 +106,7 @@ describe('POST /api/comments — manager role', () => {
       })
     );
     // Manager branch must NOT touch the partner-side notification helpers.
-    expect(notifyMessageCreated).not.toHaveBeenCalled();
+    expect(recordNotification).not.toHaveBeenCalled();
     expect(deliverNotificationToUser).not.toHaveBeenCalled();
     // Cheap per-order check should short-circuit the comment count query.
     expect(commentCount).not.toHaveBeenCalled();

@@ -5,6 +5,7 @@ import type { PushLeadJobPayload } from '@/lib/jobs/types';
 import { pushLeadToOneC } from '@/lib/services/oneCSync/push';
 import { primeIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
 import { log } from '@/lib/logging';
+import { recordNotification } from '@/lib/notifications/core';
 
 export type PushLeadProcessorResult = {
   leadId: string;
@@ -46,22 +47,22 @@ export async function notifyPushLeadFinalFailure(
 
   if (admins.length === 0) return;
 
-  await db.$transaction(
-    admins.map((a) =>
-      db.notification.create({
-        data: {
-          userId: a.userId,
-          partnerId: lead.partnerId,
-          type: 'sync_error',
-          title: 'Не удалось отправить заявку в 1С',
-          body: `Заявка ${lead.clientCompanyName} (${args.leadId}) не была принята: ${args.errorMessage}`,
-          meta: {
-            kind: 'push_lead_failed',
-            leadId: args.leadId,
-            error: args.errorMessage,
-          },
+  // `У-231`: повторные провалы одной заявки за час схлопываются в «×N».
+  await db.$transaction(async (tx) => {
+    for (const a of admins) {
+      await recordNotification(tx, {
+        userId: a.userId,
+        partnerId: lead.partnerId,
+        type: 'sync_error',
+        title: 'Не удалось отправить заявку в 1С',
+        body: `Заявка ${lead.clientCompanyName} (${args.leadId}) не была принята: ${args.errorMessage}`,
+        meta: {
+          kind: 'push_lead_failed',
+          leadId: args.leadId,
+          error: args.errorMessage,
         },
-      })
-    )
-  );
+        entityId: args.leadId,
+      });
+    }
+  });
 }

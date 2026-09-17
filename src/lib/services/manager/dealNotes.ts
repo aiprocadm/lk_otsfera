@@ -46,7 +46,6 @@ export async function addDealNote(
         entityId: args.orderId,
         noteId: note.id,
         body,
-        managerPath: `/manager/orders/${args.orderId}`,
       });
     }
   } catch (err) {

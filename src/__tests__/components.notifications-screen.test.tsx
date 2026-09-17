@@ -31,7 +31,11 @@ const row = (over: Partial<Notification> = {}): Notification => ({
   title: 'Назначена задача',
   body: 'Проверить документы',
   isRead: false,
-  meta: { url: '/manager/tasks/t1' },
+  // Этап 5 PR-3 (`Р-Э5-7`): в строке — идентификатор, адрес считает таблица маршрутов.
+  meta: { taskId: 't1' },
+  entityId: 't1',
+  dedupCount: 1,
+  lastOccurredAt: null,
   ...over,
 });
 
@@ -67,6 +71,26 @@ describe('NotificationsScreen', () => {
   it('прочитанная строка — без пометки «новое»', () => {
     render(<NotificationsScreen role="manager" {...base} rows={[row({ isRead: true })]} />);
     expect(screen.queryByText('новое')).toBeNull();
+  });
+
+  it('повтор в окне: «×N» с подсказкой и дата последнего повтора, а не создания (У-231)', () => {
+    render(
+      <NotificationsScreen
+        role="manager"
+        {...base}
+        rows={[row({ dedupCount: 3, lastOccurredAt: new Date('2026-09-17T12:34:00.000Z') })]}
+      />
+    );
+    expect(screen.getByText('×3')).toBeTruthy();
+    expect(screen.getByTitle('Повторилось 3 раз за час')).toBeTruthy();
+    // 16.09 — создание; на экране — 17.09, последний повтор.
+    expect(screen.getByText(/17\.09/)).toBeTruthy();
+    expect(screen.queryByText(/16\.09/)).toBeNull();
+  });
+
+  it('без повторов значка «×N» нет', () => {
+    render(<NotificationsScreen role="manager" {...base} rows={[row()]} />);
+    expect(screen.queryByText(/^×\d+$/)).toBeNull();
   });
 
   it('незнакомый тип не роняет ленту: точка вместо значка, ключ вместо подписи', () => {

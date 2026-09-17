@@ -1,8 +1,9 @@
 import React from 'react';
-import { notFound } from 'next/navigation';
+import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Breadcrumbs } from '@/components/ui';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
+import { missingObjectHref } from '@/lib/navigation/missingObject';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { AssignOrderManagerForm } from '@/components/admin/assign-order-manager-form';
@@ -59,7 +60,10 @@ export default async function AdminOrderDetailPage({
       ? loadOrderDeal(prisma, id, { allCompanies: true })
       : Promise.resolve(null),
   ]);
-  if (!order) notFound();
+  // `У-232` (спека §3.7): удалённый заказ → список раздела с плашкой
+  // «объект недоступен», а не 404 (ссылка из уведомления не должна
+  // упираться в пустую страницу).
+  if (!order) redirect(missingObjectHref('/admin/orders'));
 
   const customFields = customFieldsResult.ok ? customFieldsResult.fields : [];
   // Этап 5 (`У-139`, `У-140`): состав и стоимость. Тот же блок, что у

@@ -5,7 +5,7 @@ const {
   canReadOrder,
   findOrder,
   createComment,
-  notifyMessageCreated,
+  recordNotification,
   deliverNotificationToUser,
   getPrimaryOrganizationId,
 } = vi.hoisted(() => ({
@@ -13,7 +13,7 @@ const {
   canReadOrder: vi.fn(),
   findOrder: vi.fn(),
   createComment: vi.fn(),
-  notifyMessageCreated: vi.fn(),
+  recordNotification: vi.fn(),
   deliverNotificationToUser: vi.fn(),
   getPrimaryOrganizationId: vi.fn(),
 }));
@@ -31,7 +31,7 @@ vi.mock('@/lib/db/prisma', () => ({
     comment: { create: createComment },
   },
 }));
-vi.mock('@/lib/notifications', () => ({ notifyMessageCreated, deliverNotificationToUser }));
+vi.mock('@/lib/notifications', () => ({ recordNotification, deliverNotificationToUser }));
 vi.mock('@/lib/auth/organization', () => ({ getPrimaryOrganizationId }));
 
 import { POST } from '@/app/api/comments/route';
@@ -51,7 +51,7 @@ describe('POST /api/comments', () => {
     canReadOrder.mockResolvedValue(true);
     createComment.mockResolvedValue({ id: 'cm1', orderId: 'ord1', body: 'hello', authorId: 'u1' });
     getPrimaryOrganizationId.mockResolvedValue('org1');
-    notifyMessageCreated.mockResolvedValue({ id: 'notif-1' });
+    recordNotification.mockResolvedValue({ row: { id: 'notif-1' }, deduped: false });
     deliverNotificationToUser.mockResolvedValue({});
   });
 
@@ -91,16 +91,37 @@ describe('POST /api/comments', () => {
 
   it('sends notification after comment creation', async () => {
     await POST(makeRequest({ orderId: 'ord1', body: 'test message' }));
-    expect(notifyMessageCreated).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: 'u1', organizationId: 'org1' })
+    // Ключ дедупа — заказ; ссылку строит таблица маршрутов по meta.orderId.
+    expect(recordNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        userId: 'u1',
+        organizationId: 'org1',
+        type: 'message_created',
+        entityId: 'ord1',
+        meta: { orderId: 'ord1', commentId: 'cm1' },
+      })
     );
     expect(deliverNotificationToUser).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: 'u1', type: 'message_created' })
+      expect.objectContaining({
+        userId: 'u1',
+        type: 'message_created',
+        meta: { orderId: 'ord1', commentId: 'cm1' },
+        dedupKey: 'notif-1',
+      })
     );
   });
 
+  it('повтор за час (deduped: true) — доставка не зовётся', async () => {
+    recordNotification.mockResolvedValue({ row: { id: 'notif-1' }, deduped: true });
+    const res = await POST(makeRequest({ orderId: 'ord1', body: 'test message' }));
+    expect(res.status).toBe(200);
+    expect(recordNotification).toHaveBeenCalledTimes(1);
+    expect(deliverNotificationToUser).not.toHaveBeenCalled();
+  });
+
   it('still returns the comment when notification fan-out fails (best-effort)', async () => {
-    notifyMessageCreated.mockRejectedValue(new Error('notify transport down'));
+    recordNotification.mockRejectedValue(new Error('notify transport down'));
     const res = await POST(makeRequest({ orderId: 'ord1', body: 'hello' }));
     expect(res.status).toBe(200);
     expect(createComment).toHaveBeenCalled();

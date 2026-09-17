@@ -115,3 +115,21 @@ describe('AdminOrdersPage (У-112)', () => {
     expect(hrefs.filter((h) => h?.startsWith('/manager/'))).toEqual([]);
   });
 });
+
+// `У-232` (спека §3.7): ссылка из уведомления на удалённый заказ ведёт сюда с
+// `?missing=1` — список объясняет, а не показывает 404.
+describe('AdminOrdersPage — плашка «объект недоступен» (У-232)', () => {
+  const render = (sp: Record<string, string> = {}) =>
+    renderServerComponent(AdminOrdersPage({ searchParams: Promise.resolve(sp) }));
+
+  it('?missing=1 → плашка над списком', async () => {
+    const { container } = await render({ missing: '1' });
+    expect(container.querySelector('[data-testid="missing-object-notice"]')).not.toBeNull();
+    expect(container.textContent).toContain('Заказ недоступен');
+  });
+
+  it('без параметра плашки нет', async () => {
+    const { container } = await render();
+    expect(container.querySelector('[data-testid="missing-object-notice"]')).toBeNull();
+  });
+});

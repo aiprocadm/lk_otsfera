@@ -59,10 +59,6 @@ async function mentionedIds(
   }
 }
 
-function managerPath(orgId: string): string {
-  return `/manager/organizations/${orgId}?tab=notes`;
-}
-
 export async function addOrganizationNote(
   prisma: PrismaClient,
   session: SessionPayload,
@@ -97,7 +93,6 @@ export async function addOrganizationNote(
     entityId: org.id,
     noteId: note.id,
     body: checked.body,
-    managerPath: managerPath(org.id),
   });
   return { ok: true, noteId: note.id };
 }
@@ -161,7 +156,6 @@ export async function editOrganizationNote(
     entityId: note.organizationId,
     noteId: note.id,
     body: checked.body,
-    managerPath: managerPath(note.organizationId),
   });
   return { ok: true, noteId: note.id };
 }

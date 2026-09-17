@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 
 // deliverNotificationToUser веером идёт во внешние каналы (email/queue) — мокаем
-// его; createNotification оставляем настоящим (importOriginal), чтобы проверить
+// его; recordNotification оставляем настоящим (importOriginal), чтобы проверить
 // реальные строки Notification в живой БД (в отличие от certificate-expiry, у
 // календаря нет своей reminder-таблицы — единственная улика и есть Notification).
 const { deliverNotificationToUser } = vi.hoisted(() => ({
@@ -129,8 +129,13 @@ describe('calendar-reminder processor (integration)', () => {
     expect(dedupKeys).toEqual(freshRows.map((n) => n.id).sort());
     for (const [payload] of deliverNotificationToUser.mock.calls) {
       expect(payload.type).toBe('calendar_event_reminder');
-      expect(payload.url).toBe('/manager/calendar');
+      // `У-232`: адреса кабинета в строке нет — ссылку на календарь строит
+      // таблица маршрутов от роли получателя по `meta`.
+      expect(payload.meta).toEqual({ calendarEventId: ids.evFresh });
+      expect(payload).not.toHaveProperty('url');
     }
+    // Ключ дедупа — событие: строка несёт `entityId` события.
+    expect(freshRows.every((n) => n.entityId === ids.evFresh)).toBe(true);
   });
 
   it('(c) протухшее событие помечено без отправки уведомлений', async () => {

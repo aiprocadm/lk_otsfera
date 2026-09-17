@@ -82,7 +82,6 @@ it('mentions in note body go to the note_mention producer as a deal note (author
     entityId: 'o1',
     noteId: 'note1',
     body: '@Я согласуй с @Пётр скидку',
-    managerPath: '/manager/orders/o1',
   });
 });
 

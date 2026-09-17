@@ -1,18 +1,22 @@
 /**
  * Этап 7 (ФТ-7.2) — notifyTaskAssigned: диф-получатели без самоназначения,
- * graceful degrade (ошибка канала логируется и не пробрасывается), meta.url.
+ * graceful degrade (ошибка канала логируется и не пробрасывается); с этапа 5
+ * PR-3 (`У-232`) в строке нет адреса кабинета — только `meta.taskId`, ссылку
+ * строит таблица маршрутов от роли получателя; ключ дедупа — задача.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { createNotification, deliverNotificationToUser, logError } = vi.hoisted(() => ({
-  createNotification: vi.fn(),
+const { recordNotification, deliverNotificationToUser, logError } = vi.hoisted(() => ({
+  recordNotification: vi.fn(),
   deliverNotificationToUser: vi.fn(),
   logError: vi.fn(),
 }));
-vi.mock('@/lib/notifications', () => ({ createNotification, deliverNotificationToUser }));
+vi.mock('@/lib/notifications', () => ({ recordNotification, deliverNotificationToUser }));
 vi.mock('@/lib/logging', () => ({ log: { error: logError, info: vi.fn(), warn: vi.fn() } }));
+// Клиент базы уходит первым аргументом в recordNotification; сам он здесь не нужен.
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
-import { notifyTaskAssigned, TASKS_BOARD_URL } from '@/lib/services/tasks/notify';
+import { notifyTaskAssigned } from '@/lib/services/tasks/notify';
 
 const base = {
   taskId: 't1',
@@ -23,7 +27,7 @@ const base = {
 
 describe('notifyTaskAssigned', () => {
   beforeEach(() => {
-    createNotification.mockReset().mockResolvedValue({ id: 'n1' });
+    recordNotification.mockReset().mockResolvedValue({ row: { id: 'n1' }, deduped: false });
     deliverNotificationToUser.mockReset().mockResolvedValue({});
     logError.mockReset();
   });
@@ -31,29 +35,39 @@ describe('notifyTaskAssigned', () => {
   it('шлёт уведомление каждому новому исполнителю, кроме автора действия', async () => {
     await notifyTaskAssigned({ ...base, assigneeUserIds: ['u1', 'actor', 'u2'] });
 
-    expect(createNotification).toHaveBeenCalledTimes(2);
-    expect(createNotification).toHaveBeenCalledWith(
+    expect(recordNotification).toHaveBeenCalledTimes(2);
+    expect(recordNotification).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({
         userId: 'u1',
         type: 'task_assigned',
         title: 'Вам назначена задача',
         body: '«Позвонить клиенту».',
-        meta: { taskId: 't1', url: TASKS_BOARD_URL },
+        meta: { taskId: 't1' },
+        entityId: 't1',
       })
     );
     expect(deliverNotificationToUser).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: 'u2',
         type: 'task_assigned',
-        url: TASKS_BOARD_URL,
+        meta: { taskId: 't1' },
         dedupKey: 'n1',
       })
     );
+    expect(deliverNotificationToUser.mock.calls[0]![0]).not.toHaveProperty('url');
+  });
+
+  it('повтор за час (deduped: true) — строка помечена «×N», доставка не зовётся', async () => {
+    recordNotification.mockResolvedValue({ row: { id: 'n1' }, deduped: true });
+    await notifyTaskAssigned({ ...base, assigneeUserIds: ['u1'] });
+    expect(recordNotification).toHaveBeenCalledTimes(1);
+    expect(deliverNotificationToUser).not.toHaveBeenCalled();
   });
 
   it('дедуплицирует получателей', async () => {
     await notifyTaskAssigned({ ...base, assigneeUserIds: ['u1', 'u1', 'u1'] });
-    expect(createNotification).toHaveBeenCalledTimes(1);
+    expect(recordNotification).toHaveBeenCalledTimes(1);
   });
 
   it('срок попадает в текст, когда dueDate задан', async () => {
@@ -62,7 +76,7 @@ describe('notifyTaskAssigned', () => {
       dueDate: new Date('2026-08-15T00:00:00Z'),
       assigneeUserIds: ['u1'],
     });
-    const body = createNotification.mock.calls[0]![0].body as string;
+    const body = recordNotification.mock.calls[0]![1].body as string;
     expect(body).toContain('срок до');
     expect(body).toContain('«Позвонить клиенту»');
   });
@@ -70,14 +84,14 @@ describe('notifyTaskAssigned', () => {
   it('без получателей (только самоназначение) — ни одного вызова', async () => {
     await notifyTaskAssigned({ ...base, assigneeUserIds: ['actor'] });
     await notifyTaskAssigned({ ...base, assigneeUserIds: [] });
-    expect(createNotification).not.toHaveBeenCalled();
+    expect(recordNotification).not.toHaveBeenCalled();
     expect(deliverNotificationToUser).not.toHaveBeenCalled();
   });
 
   it('ошибка доставки логируется и не роняет вызов; остальные получатели обслуживаются', async () => {
-    createNotification
+    recordNotification
       .mockRejectedValueOnce(new Error('db down'))
-      .mockResolvedValueOnce({ id: 'n2' });
+      .mockResolvedValueOnce({ row: { id: 'n2' }, deduped: false });
 
     await expect(
       notifyTaskAssigned({ ...base, assigneeUserIds: ['u1', 'u2'] })

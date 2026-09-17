@@ -1,4 +1,4 @@
-import { type Prisma, type PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '@prisma/client';
 import { log } from '@/lib/logging';
 import { dispatchToRecipient } from './channels/dispatch';
 import {
@@ -8,6 +8,7 @@ import {
 } from './channels/types';
 import { getAppBaseUrl, orderLabel } from './shared';
 import { allowedChannels } from './routing';
+import { recordNotification } from './core';
 
 /**
  * Fan-out to all active users of a partner (in-app + каналы через единый
@@ -30,6 +31,8 @@ export type PartnerNotifyInput =
         orderTitle: string | null;
         documentName: string;
         documentType: string;
+        /** `У-231`: ключ дедупа — сам документ; без него повторы не схлопываются. */
+        documentId?: string | undefined;
       };
     }
   | {
@@ -52,7 +55,7 @@ type PartnerNotificationView = {
   title: string;
   body: string;
   url: string;
-  meta: Prisma.InputJsonValue;
+  meta: Record<string, unknown>;
   email?: EmailContentRef;
 };
 
@@ -150,19 +153,30 @@ export async function notifyPartnerUsers(
   let emailsQueued = 0;
   let recipientsNotified = 0;
 
+  // `У-231`: ключ дедупа — отчёт по комиссии либо сам документ (не заказ: два
+  // разных документа за час — два письма); без `documentId` дедупа нет.
+  const entityId =
+    input.type === 'commission_statement_ready'
+      ? input.payload.statementId
+      : (input.payload.documentId ?? null);
+
   for (const pu of partner.partnerUsers) {
     const u = pu.user;
-    const row = await db.notification.create({
-      data: {
-        userId: u.id,
-        partnerId: partner.id,
-        type: input.type,
-        title: view.title,
-        body: view.body,
-        meta: view.meta,
-      },
+    const { row, deduped } = await recordNotification(db, {
+      userId: u.id,
+      partnerId: partner.id,
+      type: input.type,
+      title: view.title,
+      body: view.body,
+      meta: view.meta,
+      entityId,
     });
     recipientsNotified += 1;
+    // Повтор в окне: строка помечена «×N», письмо и мессенджер не дублируются.
+    if (deduped) {
+      emailsSkipped += 1;
+      continue;
+    }
 
     const outcome = await dispatchToRecipient(u, channelPayload, {
       dedupKey: row.id,

@@ -45,7 +45,12 @@ describe('listNotifications', () => {
     expect(res).toEqual({ ok: true, notifications: [{ id: 'n1' }] });
     expect(prisma.notification.findMany).toHaveBeenCalledWith({
       where: SCOPE,
-      orderBy: { createdAt: 'desc' },
+      // Этап 5 PR-3 (`У-231`): повтор поднимает строку — сортировка по последнему повтору.
+      orderBy: [
+        { lastOccurredAt: { sort: 'desc', nulls: 'last' } },
+        { createdAt: 'desc' },
+        { id: 'desc' },
+      ],
       take: 50,
     });
   });

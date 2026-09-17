@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Select } from '@/components/ui';
 
 import type { TasksToolbarState } from '@/lib/tasks/filters';
+import { MISSING_OBJECT_PARAM } from '@/lib/navigation/missingObject';
 
 /**
  * Этап 7 (ФТ-7.3/7.4) — фильтры задач и переключатель «доска/список».
@@ -36,6 +37,8 @@ export function TasksToolbar({
   function apply(patch: Partial<TasksToolbarState>): void {
     const next = { ...state, ...patch };
     const q = new URLSearchParams(searchParams.toString());
+    // Плашка «объект недоступен» (`?missing=1`) не должна переживать смену фильтра.
+    q.delete(MISSING_OBJECT_PARAM);
     const setOrDelete = (k: string, v: string | null) => (v ? q.set(k, v) : q.delete(k));
     setOrDelete('scope', next.scope === 'mine' ? 'mine' : null);
     setOrDelete('assignee', next.assigneeId);

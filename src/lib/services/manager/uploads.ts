@@ -118,6 +118,7 @@ export async function createCounterpartyDocument(
           orderTitle: order.title,
           documentName: args.file.name,
           documentType: args.docType,
+          documentId: persisted.documentId,
         },
       });
     } else {
@@ -130,6 +131,7 @@ export async function createCounterpartyDocument(
           orderTitle: order.title,
           documentName: args.file.name,
           documentType: args.docType,
+          documentId: persisted.documentId,
         },
       });
     }
@@ -202,6 +204,7 @@ export async function createManagerOrderLessDocument(
           orderTitle: null,
           documentName: args.file.name,
           documentType: args.docType,
+          documentId: persisted.documentId,
         },
       });
     } else {
@@ -214,6 +217,7 @@ export async function createManagerOrderLessDocument(
           orderTitle: null,
           documentName: args.file.name,
           documentType: args.docType,
+          documentId: persisted.documentId,
         },
       });
     }

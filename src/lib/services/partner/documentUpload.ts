@@ -92,6 +92,7 @@ export async function createPartnerDocument(
         partnerName: partner?.name ?? 'партнёр',
         documentName: args.file.name,
         documentType: args.docType,
+        documentId: persisted.documentId,
       });
     } catch (err) {
       log.warn('[uploadPartnerDocument] order-less notify failed', {
@@ -133,6 +134,7 @@ export async function createPartnerDocument(
         partnerName: partner?.name ?? 'партнёр',
         documentName: args.file.name,
         documentType: args.docType,
+        documentId: persisted.documentId,
       },
     });
   } catch (err) {

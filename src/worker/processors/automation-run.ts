@@ -2,7 +2,7 @@ import type { Job } from 'bullmq';
 import type { PrismaClient } from '@prisma/client';
 import { prisma as defaultPrisma } from '@/lib/db/prisma';
 import { log } from '@/lib/logging';
-import { createNotification, deliverNotificationToUser } from '@/lib/notifications';
+import { recordNotification, deliverNotificationToUser } from '@/lib/notifications';
 import {
   actionsSchema,
   runCreateTask,
@@ -142,6 +142,7 @@ async function runOne(
     return runNotify(prisma, {
       action,
       companyId: args.companyId,
+      ruleId: args.ruleId,
       ruleName: args.ruleName,
       payload: args.payload,
     });
@@ -197,19 +198,24 @@ async function deactivate(
     });
     const title = 'Правило автоматизации выключено';
     const body = `Правило «${ruleName}» отключено: ${reason}.`;
+    const meta = { ruleId };
     for (const r of recipients) {
-      const row = await createNotification({
+      // Ключ дедупа — правило: одно сломанное правило — одно письмо за час.
+      const { row, deduped } = await recordNotification(prisma, {
         userId: r.id,
         type: 'automation_failed',
         title,
         body,
-        meta: { ruleId },
+        meta,
+        entityId: ruleId,
       });
+      if (deduped) continue;
       await deliverNotificationToUser({
         userId: r.id,
         title,
         body,
         type: 'automation_failed',
+        meta,
         dedupKey: row.id,
       });
     }

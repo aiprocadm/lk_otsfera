@@ -2,11 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
-const { createNotification, deliverNotificationToUser } = vi.hoisted(() => ({
-  createNotification: vi.fn(),
+const { recordNotification, deliverNotificationToUser } = vi.hoisted(() => ({
+  recordNotification: vi.fn(),
   deliverNotificationToUser: vi.fn(),
 }));
-vi.mock('@/lib/notifications', () => ({ createNotification, deliverNotificationToUser }));
+vi.mock('@/lib/notifications', () => ({ recordNotification, deliverNotificationToUser }));
 
 const { notifyNoteMention } = vi.hoisted(() => ({ notifyNoteMention: vi.fn() }));
 vi.mock('@/lib/notifications/noteMention', () => ({ notifyNoteMention }));
@@ -64,7 +64,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   taskFindUnique.mockResolvedValue(TASK);
   commentCreate.mockResolvedValue({ id: 'c1' });
-  createNotification.mockResolvedValue({ id: 'n1' });
+  recordNotification.mockResolvedValue({ row: { id: 'n1' }, deduped: false });
   deliverNotificationToUser.mockResolvedValue(undefined);
   notifyNoteMention.mockResolvedValue(0);
   listColleagues.mockResolvedValue({ rows: [{ id: 'worker', name: 'Иван Петров' }] });
@@ -122,29 +122,49 @@ describe('addTaskComment — запись', () => {
       error: 'not_found',
     });
     expect(commentCreate).not.toHaveBeenCalled();
-    expect(createNotification).not.toHaveBeenCalled();
+    expect(recordNotification).not.toHaveBeenCalled();
   });
 });
 
 describe('addTaskComment — кого уведомляем', () => {
   it('исполнителей и создателя, но НЕ автора комментария', async () => {
     await addTaskComment(prisma, manager, { taskId: 't1', body: 'Текст' });
-    const notified = createNotification.mock.calls.map((c) => c[0].userId);
+    const notified = recordNotification.mock.calls.map((c) => c[1].userId);
     expect(new Set(notified)).toEqual(new Set(['worker', 'creator']));
     expect(notified).not.toContain('author');
   });
 
-  it('тип уведомления и ссылка ведут на страницу задачи', async () => {
+  it('тип уведомления, ключ дедупа — задача, ссылку строит таблица по meta.taskId', async () => {
     await addTaskComment(prisma, manager, { taskId: 't1', body: 'Текст' });
-    expect(createNotification.mock.calls[0][0].type).toBe('task_comment');
-    expect(createNotification.mock.calls[0][0].meta.url).toBe('/manager/tasks/t1');
-    expect(deliverNotificationToUser.mock.calls[0][0].url).toBe('/manager/tasks/t1');
+    expect(recordNotification).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({
+        type: 'task_comment',
+        entityId: 't1',
+        meta: { taskId: 't1', commentId: 'c1' },
+      })
+    );
+    // Адреса кабинета в строке больше нет (`У-232`): руководитель попадёт в
+    // `/leader/tasks/…`, а не в чужой `/manager/…`.
+    expect(recordNotification.mock.calls[0][1].meta).not.toHaveProperty('url');
+    expect(deliverNotificationToUser.mock.calls[0][0]).not.toHaveProperty('url');
+    expect(deliverNotificationToUser.mock.calls[0][0].meta).toEqual({
+      taskId: 't1',
+      commentId: 'c1',
+    });
+  });
+
+  it('повтор за час (deduped: true) — строка «×N», доставка не зовётся', async () => {
+    recordNotification.mockResolvedValue({ row: { id: 'n1' }, deduped: true });
+    await addTaskComment(prisma, manager, { taskId: 't1', body: 'Текст' });
+    expect(recordNotification).toHaveBeenCalled();
+    expect(deliverNotificationToUser).not.toHaveBeenCalled();
   });
 
   it('УПОМЯНУТЫЙ получает ОДНО уведомление — mention, а не второе про комментарий', async () => {
     extractMentions.mockReturnValue(['worker']);
     await addTaskComment(prisma, manager, { taskId: 't1', body: '@Иван Петров посмотри' });
-    const notified = createNotification.mock.calls.map((c) => c[0].userId);
+    const notified = recordNotification.mock.calls.map((c) => c[1].userId);
     expect(notified).not.toContain('worker');
     expect(notified).toEqual(['creator']);
     expect(notifyNoteMention).toHaveBeenCalledWith(
@@ -166,7 +186,7 @@ describe('addTaskComment — кого уведомляем', () => {
   });
 
   it('СБОЙ ДОСТАВКИ не отменяет уже сохранённый комментарий', async () => {
-    createNotification.mockRejectedValue(new Error('SMTP лёг'));
+    recordNotification.mockRejectedValue(new Error('SMTP лёг'));
     const res = await addTaskComment(prisma, manager, { taskId: 't1', body: 'Текст' });
     expect(res).toEqual({ ok: true, id: 'c1' });
     expect(logError).toHaveBeenCalled();

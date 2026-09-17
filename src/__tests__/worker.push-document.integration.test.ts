@@ -27,6 +27,7 @@ import { resetOneCAdapter, type OneCAdapter } from '@/lib/services/oneCSync';
 import type { OneCDocumentPushPayload } from '@/lib/services/oneCSync/dto';
 import type { PushDocumentJobPayload } from '@/lib/jobs/types';
 import { log } from '@/lib/logging';
+import { notificationRoute } from '@/lib/notifications/routes';
 
 /**
  * Этап 8, PR-3 (`У-168`, `У-167`, `У-159`) — выгрузка документа в 1С на живом
@@ -455,7 +456,7 @@ describe('pushDocumentProcessor — воркер (страж worker.processor-co
 
     const rows = await prisma.notification.findMany({
       where: { userId: { in: [managerId, leaderId] }, type: 'sync_error' },
-      select: { userId: true, title: true, body: true, meta: true },
+      select: { userId: true, title: true, body: true, meta: true, entityId: true },
       orderBy: { userId: 'asc' },
     });
     expect(rows.map((r) => r.userId).sort()).toEqual([managerId, leaderId].sort());
@@ -466,10 +467,18 @@ describe('pushDocumentProcessor — воркер (страж worker.processor-co
         /^Счёт без номера не принят 1С после 1 попытки: У документа нет номера/
       );
       expect(r.meta).toMatchObject({ kind: 'push_document_failed', documentId: id });
+      // `Р-Э5-7`: адрес в строке не хранится; `У-231`: ключ дедупа — документ.
+      expect(r.meta).not.toHaveProperty('url');
+      expect(r.entityId).toBe(id);
     }
-    const byUser = new Map(rows.map((r) => [r.userId, r.meta as { url: string }]));
-    expect(byUser.get(leaderId)?.url).toBe(`/leader/documents/${id}`);
-    expect(byUser.get(managerId)?.url).toBe(`/manager/documents/${id}`);
+    // Ссылку даёт таблица маршрутов по роли читателя: каждый — в свой кабинет.
+    const byUser = new Map(rows.map((r) => [r.userId, r.meta]));
+    expect(notificationRoute('sync_error', byUser.get(leaderId), 'leader')).toBe(
+      `/leader/documents/${id}`
+    );
+    expect(notificationRoute('sync_error', byUser.get(managerId), 'manager')).toBe(
+      `/manager/documents/${id}`
+    );
     await prisma.notification.deleteMany({ where: { userId: { in: [managerId, leaderId] } } });
   });
 });

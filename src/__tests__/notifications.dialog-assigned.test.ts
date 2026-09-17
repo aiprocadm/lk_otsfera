@@ -13,21 +13,32 @@ import { notifyDialogAssigned, notifyManagersMessengerMessage } from '@/lib/noti
 function makeDb(recipients: unknown[]) {
   const userFindMany = vi.fn().mockResolvedValue(recipients);
   const notificationCreate = vi.fn().mockResolvedValue({ id: 'n1' });
+  // Единая точка `recordNotification` (`У-231`): повтор ищется до создания.
+  const notificationFindFirst = vi.fn().mockResolvedValue(null);
+  const notificationUpdate = vi.fn().mockResolvedValue({ id: 'n-dup' });
   // Правил маршрутизации в этой базе нет — `allowedChannels` деградирует к
   // «доставлять по умолчанию», как и в бою на чистой таблице.
   const notificationRuleFindMany = vi.fn().mockResolvedValue([]);
   return {
     db: {
       user: { findMany: userFindMany },
-      notification: { create: notificationCreate },
+      notification: {
+        create: notificationCreate,
+        findFirst: notificationFindFirst,
+        update: notificationUpdate,
+      },
       notificationRule: { findMany: notificationRuleFindMany },
     } as never,
     userFindMany,
     notificationCreate,
+    notificationFindFirst,
+    notificationUpdate,
   };
 }
 
 const INPUT = { assigneeId: 'u2', dialogId: 'd1' };
+// Роль получателя обязательна: по ней таблица маршрутов строит ссылку (`Р-Э5-7`).
+const MARIA = { id: 'u2', email: 'u2@x.ru', name: 'Мария', role: 'manager' };
 
 describe('notifyDialogAssigned', () => {
   beforeEach(() => {
@@ -55,36 +66,74 @@ describe('notifyDialogAssigned', () => {
     expect(dispatchToRecipient).not.toHaveBeenCalled();
   });
 
-  it('тип dialog_assigned и ссылка в сам диалог — и в записи кабинета, и в доставке', async () => {
-    const { db, notificationCreate } = makeDb([{ id: 'u2', email: 'u2@x.ru', name: 'Мария' }]);
+  it('тип dialog_assigned: в записи кабинета — идентификатор диалога, в доставке — ссылка в него', async () => {
+    const { db, notificationCreate } = makeDb([MARIA]);
 
     const r = await notifyDialogAssigned(db, INPUT);
     expect(r).toEqual({ recipientsNotified: 1, emailsSent: 1, emailsSkipped: 0 });
 
     expect(notificationCreate).toHaveBeenCalledOnce();
-    expect(notificationCreate.mock.calls[0]![0].data).toMatchObject({
+    const data = notificationCreate.mock.calls[0]![0].data;
+    expect(data).toMatchObject({
       userId: 'u2',
       type: 'dialog_assigned',
       title: 'Вас назначили ответственным за диалог',
-      meta: { dialogId: 'd1', url: expect.stringContaining('/manager/messengers/d1') },
+      // `У-231`: ключ дедупа — диалог.
+      entityId: 'd1',
     });
+    // `Р-Э5-7`: в строке только идентификатор — адрес считается по роли на чтении.
+    expect(data.meta).toEqual({ dialogId: 'd1' });
 
     const [recipient, payload, opts] = dispatchToRecipient.mock.calls[0]!;
     expect(recipient).toMatchObject({ id: 'u2' });
     expect(payload).toMatchObject({
       type: 'dialog_assigned',
       url: expect.stringContaining('/manager/messengers/d1'),
-      email: { template: 'notification' },
+      email: {
+        template: 'notification',
+        props: { url: expect.stringContaining('/manager/messengers/d1') },
+      },
     });
     // Ключ идемпотентности — id только что созданной записи кабинета.
     expect(opts).toMatchObject({ dedupKey: 'n1' });
   });
 
   it('ссылка ведёт именно в этот диалог, а не в общий список', async () => {
-    const { db } = makeDb([{ id: 'u2', email: 'u2@x.ru', name: 'Мария' }]);
+    const { db } = makeDb([MARIA]);
     await notifyDialogAssigned(db, { assigneeId: 'u2', dialogId: 'd-777' });
     const url = dispatchToRecipient.mock.calls[0]![1].url as string;
     expect(url.endsWith('/manager/messengers/d-777')).toBe(true);
+  });
+
+  it('руководитель-ответственный: ссылка тоже в кабинет менеджера — «Мессенджеры» есть только там (У-232, играющий тренер)', async () => {
+    const { db } = makeDb([{ ...MARIA, role: 'leader' }]);
+    await notifyDialogAssigned(db, INPUT);
+    const payload = dispatchToRecipient.mock.calls[0]![1];
+    expect(payload.url).toMatch(/\/manager\/messengers\/d1$/);
+    expect(payload.email.props.url).toMatch(/\/manager\/messengers\/d1$/);
+  });
+
+  it('повторное назначение в окне (У-231): строка обновляется, письмо не дублируется', async () => {
+    const { db, notificationCreate, notificationFindFirst, notificationUpdate } = makeDb([MARIA]);
+    notificationFindFirst.mockResolvedValue({ id: 'n-old' });
+    await expect(notifyDialogAssigned(db, INPUT)).resolves.toEqual({
+      recipientsNotified: 1,
+      emailsSent: 0,
+      emailsSkipped: 1,
+    });
+    expect(notificationFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ userId: 'u2', type: 'dialog_assigned', entityId: 'd1' }),
+      })
+    );
+    expect(notificationUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'n-old' },
+        data: expect.objectContaining({ dedupCount: { increment: 1 }, isRead: false }),
+      })
+    );
+    expect(notificationCreate).not.toHaveBeenCalled();
+    expect(dispatchToRecipient).not.toHaveBeenCalled();
   });
 
   it('канал без почты — письмо считается пропущенным, уведомление в кабинете остаётся', async () => {
@@ -92,7 +141,7 @@ describe('notifyDialogAssigned', () => {
       mode: 'inline',
       results: { email: { status: 'skipped' } },
     });
-    const { db } = makeDb([{ id: 'u2', email: null, name: 'Без почты' }]);
+    const { db } = makeDb([{ ...MARIA, email: null, name: 'Без почты' }]);
     await expect(notifyDialogAssigned(db, INPUT)).resolves.toEqual({
       recipientsNotified: 1,
       emailsSent: 0,
@@ -102,7 +151,7 @@ describe('notifyDialogAssigned', () => {
 
   it('очередь доставки: письмо посчитано как поставленное, а не как отправленное', async () => {
     dispatchToRecipient.mockResolvedValueOnce({ mode: 'queued', channels: ['email'] });
-    const { db } = makeDb([{ id: 'u2', email: 'u2@x.ru', name: 'Мария' }]);
+    const { db } = makeDb([MARIA]);
     await expect(notifyDialogAssigned(db, INPUT)).resolves.toEqual({
       recipientsNotified: 1,
       emailsSent: 0,
@@ -113,7 +162,7 @@ describe('notifyDialogAssigned', () => {
 
   it('очередь без канала почты — письмо пропущено', async () => {
     dispatchToRecipient.mockResolvedValueOnce({ mode: 'queued', channels: ['telegram'] });
-    const { db } = makeDb([{ id: 'u2', email: 'u2@x.ru', name: 'Мария' }]);
+    const { db } = makeDb([MARIA]);
     await expect(notifyDialogAssigned(db, INPUT)).resolves.toEqual({
       recipientsNotified: 1,
       emailsSent: 0,
@@ -127,17 +176,24 @@ describe('таргетинг сообщения диалога: ответств
   function makeOrgDb(recipients: unknown[]) {
     const userFindMany = vi.fn().mockResolvedValue(recipients);
     const notificationCreate = vi.fn().mockResolvedValue({ id: 'n1' });
+    const notificationFindFirst = vi.fn().mockResolvedValue(null);
     return {
       db: {
         organizationManager: { findMany: vi.fn().mockResolvedValue([{ userId: 'mgr' }]) },
         user: { findMany: userFindMany },
-        notification: { create: notificationCreate },
+        notification: {
+          create: notificationCreate,
+          findFirst: notificationFindFirst,
+          update: vi.fn(),
+        },
         notificationRule: { findMany: vi.fn().mockResolvedValue([]) },
       } as never,
       userFindMany,
       notificationCreate,
+      notificationFindFirst,
     };
   }
+  const PETR = { id: 'mgr', email: 'm@x.ru', name: 'Пётр', role: 'manager' };
 
   const MSG = {
     organizationId: 'org1',
@@ -156,13 +212,16 @@ describe('таргетинг сообщения диалога: ответств
   });
 
   it('есть ответственный → адресат только он', async () => {
-    const { db, notificationCreate } = makeOrgDb([{ id: 'u2', email: 'u2@x.ru', name: 'Мария' }]);
+    const { db, notificationCreate, notificationFindFirst } = makeOrgDb([MARIA]);
     const r = await notifyManagersMessengerMessage(db, { ...MSG, assigneeId: 'u2' });
     expect(r.recipientsNotified).toBe(1);
     expect(notificationCreate.mock.calls[0]![0].data).toMatchObject({
       userId: 'u2',
       type: 'messenger_message',
+      entityId: 'd1',
     });
+    // Сообщения — `noDedup` в реестре: каждое важно само по себе, повтор не ищется.
+    expect(notificationFindFirst).not.toHaveBeenCalled();
   });
 
   it('ответственный уволен → уведомление откатывается на менеджеров организации', async () => {
@@ -171,9 +230,7 @@ describe('таргетинг сообщения диалога: ответств
     // бы никто, и узнали бы о нём только из эскалации SLA — через сутки.
     const { db, userFindMany, notificationCreate } = makeOrgDb([]);
     // Первый запрос — ответственный (уволен, пусто), второй — менеджеры орг.
-    userFindMany
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([{ id: 'mgr', email: 'm@x.ru', name: 'Пётр' }]);
+    userFindMany.mockResolvedValueOnce([]).mockResolvedValueOnce([PETR]);
     const r = await notifyManagersMessengerMessage(db, { ...MSG, assigneeId: 'fired' });
     expect(r.recipientsNotified).toBe(1);
     expect(notificationCreate.mock.calls[0]![0].data).toMatchObject({ userId: 'mgr' });
@@ -191,7 +248,7 @@ describe('таргетинг сообщения диалога: ответств
   });
 
   it('ответственного нет → прежнее поведение: менеджеры организации', async () => {
-    const { db, notificationCreate } = makeOrgDb([{ id: 'mgr', email: 'm@x.ru', name: 'Пётр' }]);
+    const { db, notificationCreate } = makeOrgDb([PETR]);
     const r = await notifyManagersMessengerMessage(db, { ...MSG, assigneeId: null });
     expect(r.recipientsNotified).toBe(1);
     expect(notificationCreate.mock.calls[0]![0].data).toMatchObject({ userId: 'mgr' });

@@ -157,3 +157,28 @@ describe('ManagerOrdersPage — выгрузка в Excel', () => {
     expect(container.querySelector('a[href="/api/manager/orders/export"]')).toBeTruthy();
   });
 });
+
+// `У-232` (спека §3.7): пришли по ссылке из уведомления на удалённый или чужой
+// заказ — карточка увела в список с `?missing=1`, список объясняет, что случилось.
+describe('ManagerOrdersPage — плашка «объект недоступен» (У-232)', () => {
+  beforeEach(() => {
+    requireManager.mockReset().mockResolvedValue(SESSION);
+    listOrders.mockReset().mockResolvedValue({ rows: [], nextCursor: null });
+    listOrganizations.mockReset().mockResolvedValue([]);
+  });
+
+  it('?missing=1 → плашка над списком, с названием объекта', async () => {
+    const { container } = await renderServerComponent(
+      ManagerOrdersPage({ searchParams: Promise.resolve({ missing: '1' }) })
+    );
+    expect(container.querySelector('[data-testid="missing-object-notice"]')).not.toBeNull();
+    expect(container.textContent).toContain('Заказ недоступен');
+  });
+
+  it('без параметра плашки нет — обычный вид экрана не меняется', async () => {
+    const { container } = await renderServerComponent(
+      ManagerOrdersPage({ searchParams: Promise.resolve({}) })
+    );
+    expect(container.querySelector('[data-testid="missing-object-notice"]')).toBeNull();
+  });
+});

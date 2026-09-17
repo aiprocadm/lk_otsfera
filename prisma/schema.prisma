@@ -1745,6 +1745,13 @@ model Notification {
   body           String
   isRead         Boolean       @default(false)
   meta           Json?
+  // Этап 5 PR-3 (`У-231`, `Р-Э5-5`): ключ дедупликации вместе с userId+type —
+  // продьюсер задаёт явно (orderId, taskId, dialogId, …); без него дедупа нет.
+  entityId       String?
+  // «×N» на экране: сколько раз событие повторилось в окне 60 минут.
+  dedupCount     Int           @default(1)
+  // Время последнего повтора; лента сортируется по нему, иначе повтор тонет.
+  lastOccurredAt DateTime?
 
   // F2 (§16): the notification feed reads `where userId orderBy createdAt desc`
   // (api/notifications GET) and the unread badge counts `where userId, isRead`
@@ -1756,6 +1763,10 @@ model Notification {
   @@index([organizationId])
   @@index([partnerId])
   @@index([createdAt])
+  // Этап 5 PR-3: поиск кандидата на дедуп идёт ровно по этим полям.
+  @@index([userId, type, entityId, createdAt])
+  // Этап 5 PR-3: лента и колокольчик сортируются по времени последнего повтора.
+  @@index([userId, lastOccurredAt])
 }
 
 model StudentBridgeGrant {

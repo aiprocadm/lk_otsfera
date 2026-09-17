@@ -1,6 +1,6 @@
 import type { ClientRequest, PrismaClient } from '@prisma/client';
 import {
-  createNotification,
+  recordNotification,
   deliverNotificationToUser,
   resolveOrgManagerRecipients,
 } from '@/lib/notifications';
@@ -101,22 +101,28 @@ export async function notifyManagersClientRequestSubmitted(
     // (клиента в системе может не быть вовсе).
     const title = request.source === 'website' ? 'Новая заявка с сайта' : 'Новое обращение клиента';
     const body = `${request.companyName}: ${request.subject}`;
+    // `У-232`: ссылку строит таблица маршрутов по `requestId` от роли
+    // получателя — руководитель попадает в `/leader/requests/…`, а не в чужой
+    // кабинет; адрес кабинета сюда не пишем.
+    const meta = { requestId: request.id };
     for (const r of recipients) {
-      const row = await createNotification({
+      const { row, deduped } = await recordNotification(prisma, {
         userId: r.id,
         organizationId: request.organizationId,
         partnerId: request.partnerId,
         type: 'client_request_submitted',
         title,
         body,
-        meta: { requestId: request.id, url: '/manager/requests' },
+        meta,
+        entityId: request.id,
       });
+      if (deduped) continue;
       await deliverNotificationToUser({
         userId: r.id,
         title,
         body,
         type: 'client_request_submitted',
-        url: '/manager/requests',
+        meta,
         dedupKey: row.id,
       });
     }
@@ -151,7 +157,9 @@ export async function notifySubmitterClientRequestStatus(
         : '';
     const body = `Обращение «${request.subject}» (${request.companyName}) — статус «${statusLabel}».${reason}`;
     const url = submitterRequestUrl(request);
-    const row = await createNotification({
+    // Ключ дедупа — заявка: две смены статуса за час — одна строка «×2» и одно
+    // письмо (тексты в строке — свежие).
+    const { row, deduped } = await recordNotification(prisma, {
       userId: request.submittedByUserId,
       organizationId: request.organizationId,
       partnerId: request.partnerId,
@@ -159,7 +167,9 @@ export async function notifySubmitterClientRequestStatus(
       title,
       body,
       meta: { requestId: request.id, status: request.status, url },
+      entityId: request.id,
     });
+    if (deduped) return;
     await deliverNotificationToUser({
       userId: request.submittedByUserId,
       title,

@@ -6,12 +6,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Prisma, type PrismaClient } from '@prisma/client';
 
-const { createNotification, deliverNotificationToUser, logError } = vi.hoisted(() => ({
-  createNotification: vi.fn(),
+const { recordNotification, deliverNotificationToUser, logError } = vi.hoisted(() => ({
+  recordNotification: vi.fn(),
   deliverNotificationToUser: vi.fn(),
   logError: vi.fn(),
 }));
-vi.mock('@/lib/notifications', () => ({ createNotification, deliverNotificationToUser }));
+vi.mock('@/lib/notifications', () => ({ recordNotification, deliverNotificationToUser }));
 vi.mock('@/lib/logging', () => ({ log: { error: logError, info: vi.fn(), warn: vi.fn() } }));
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
@@ -59,7 +59,7 @@ const COMPANY_A = { id: 'co-A', slaResponseHours: 6, users: [{ id: 'lead-A' }] }
 const COMPANY_B = { id: 'co-B', slaResponseHours: 100, users: [{ id: 'lead-B' }] };
 
 beforeEach(() => {
-  createNotification.mockReset().mockResolvedValue({ id: 'n1' });
+  recordNotification.mockReset().mockResolvedValue({ row: { id: 'n1' }, deduped: false });
   deliverNotificationToUser.mockReset().mockResolvedValue({});
   logError.mockReset();
 });
@@ -84,17 +84,48 @@ describe('runSlaEscalation', () => {
       data: { sourceType: 'client_request', sourceId: 'r1', companyId: 'co-A' },
     });
     // Только руководитель компании A (7ч > 6ч порога A; порог B не при чём).
-    expect(createNotification).toHaveBeenCalledTimes(1);
-    expect(createNotification).toHaveBeenCalledWith(
+    expect(recordNotification).toHaveBeenCalledTimes(1);
+    // `У-232`: адреса кабинета в строке нет — ссылку строит таблица маршрутов
+    // по источнику и его id от роли получателя; ключ дедупа — единица Intake.
+    expect(recordNotification).toHaveBeenCalledWith(
+      prisma,
       expect.objectContaining({
         userId: 'lead-A',
         type: 'sla_escalation',
-        meta: expect.objectContaining({ url: '/leader/intake' }),
+        meta: { sourceType: 'client_request', sourceId: 'r1' },
+        entityId: 'r1',
       })
     );
-    const body = createNotification.mock.calls[0]![0].body as string;
+    expect(deliverNotificationToUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'sla_escalation',
+        meta: { sourceType: 'client_request', sourceId: 'r1' },
+        dedupKey: 'n1',
+      })
+    );
+    expect(deliverNotificationToUser.mock.calls[0]![0]).not.toHaveProperty('url');
+    const body = recordNotification.mock.calls[0]![1].body as string;
     expect(body).toContain('порог 6 ч');
     expect(body).toContain('заявка клиента');
+  });
+
+  it('повтор за час (deduped: true) — строка «×N», доставка не зовётся, единица эскалирована', async () => {
+    recordNotification.mockResolvedValue({ row: { id: 'n1' }, deduped: true });
+    const { prisma } = makePrisma({
+      companies: [COMPANY_A],
+      requests: [
+        {
+          id: 'r1',
+          createdAt: ago(7),
+          companyName: 'ООО',
+          subject: 'Тема',
+          organization: { companyId: 'co-A' },
+        },
+      ],
+    });
+    expect(await runSlaEscalation(prisma, NOW)).toEqual({ escalated: 1 });
+    expect(recordNotification).toHaveBeenCalledTimes(1);
+    expect(deliverNotificationToUser).not.toHaveBeenCalled();
   });
 
   it('младше порога — не эскалирует; порог чужой компании 100ч удерживает', async () => {
@@ -140,9 +171,12 @@ describe('runSlaEscalation', () => {
     const res = await runSlaEscalation(prisma, NOW);
     expect(res).toEqual({ escalated: 2 });
     // 2 единицы × 2 руководителя.
-    expect(createNotification).toHaveBeenCalledTimes(4);
-    expect(createNotification).toHaveBeenCalledWith(expect.objectContaining({ userId: 'lead-B' }));
-    const bodies = createNotification.mock.calls.map((c) => c[0].body as string).join(' ');
+    expect(recordNotification).toHaveBeenCalledTimes(4);
+    expect(recordNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ userId: 'lead-B' })
+    );
+    const bodies = recordNotification.mock.calls.map((c) => c[1].body as string).join(' ');
     expect(bodies).toContain('обращение от Пётр');
     expect(bodies).toContain('входящий звонок с +7999');
   });
@@ -195,7 +229,7 @@ describe('runSlaEscalation', () => {
     const res = await runSlaEscalation(prisma, NOW);
     expect(res.escalated).toBe(4);
 
-    const bodies = createNotification.mock.calls.map((c) => c[0].body as string).join(' ');
+    const bodies = recordNotification.mock.calls.map((c) => c[1].body as string).join(' ');
     expect(bodies).toContain('Старый курс'); // legacy-название вместо справочника
     expect(bodies).toContain('обучение'); // ни справочника, ни legacy → общее слово
     expect(bodies).toContain('обращение от anon@x.ru'); // пустое имя → адрес отправителя
@@ -220,7 +254,7 @@ describe('runSlaEscalation', () => {
       dup
     );
     expect(await runSlaEscalation(prisma, NOW)).toEqual({ escalated: 0 });
-    expect(createNotification).not.toHaveBeenCalled();
+    expect(recordNotification).not.toHaveBeenCalled();
 
     const boom = vi.fn().mockRejectedValue(new Error('db down'));
     const { prisma: p2 } = makePrisma(
@@ -259,9 +293,9 @@ describe('runSlaEscalation', () => {
   });
 
   it('сбой доставки одному получателю логируется, единица остаётся эскалированной', async () => {
-    createNotification
+    recordNotification
       .mockRejectedValueOnce(new Error('smtp down'))
-      .mockResolvedValue({ id: 'n2' });
+      .mockResolvedValue({ row: { id: 'n2' }, deduped: false });
     const twoLeaders = { id: 'co-A', slaResponseHours: 6, users: [{ id: 'l1' }, { id: 'l2' }] };
     const { prisma } = makePrisma({
       companies: [twoLeaders],

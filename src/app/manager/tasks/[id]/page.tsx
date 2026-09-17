@@ -1,10 +1,11 @@
 import React from 'react';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { requireManager } from '@/lib/auth/requireRole';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { prisma } from '@/lib/db/prisma';
 import { getTaskDetail } from '@/lib/services/tasks/detail';
 import { TaskPageScreen } from '@/components/tasks/task-page-screen';
+import { missingObjectHref } from '@/lib/navigation/missingObject';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +14,9 @@ export const dynamic = 'force-dynamic';
  * только в модальном окне — открыть её по ссылке было нельзя, а значит нельзя
  * было ни переслать коллеге, ни сослаться из уведомления.
  *
- * Чужая или несуществующая задача — 404: сервис не различает их наружу.
+ * Чужая или несуществующая задача — список задач с плашкой «объект
+ * недоступен» (`У-232`, спека §3.7), а не 404: сервис не различает их
+ * наружу, и страница тоже.
  */
 export default async function ManagerTaskPage({ params }: { params: Promise<{ id: string }> }) {
   if (!isFeatureEnabled('internal_tasks')) notFound();
@@ -21,7 +24,7 @@ export default async function ManagerTaskPage({ params }: { params: Promise<{ id
   const { id } = await params;
 
   const result = await getTaskDetail(prisma, session, id);
-  if (!result.ok) notFound();
+  if (!result.ok) redirect(missingObjectHref('/manager/tasks'));
 
   return <TaskPageScreen task={result.task} cabinet="manager" />;
 }

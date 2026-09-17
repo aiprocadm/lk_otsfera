@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Prisma, type PrismaClient } from '@prisma/client';
 
-const { createNotification, deliverNotificationToUser } = vi.hoisted(() => ({
-  createNotification: vi.fn().mockResolvedValue({ id: 'n1' }),
+const { recordNotification, deliverNotificationToUser } = vi.hoisted(() => ({
+  recordNotification: vi.fn().mockResolvedValue({ row: { id: 'n1' }, deduped: false }),
   deliverNotificationToUser: vi.fn(),
 }));
-vi.mock('@/lib/notifications', () => ({ createNotification, deliverNotificationToUser }));
+vi.mock('@/lib/notifications', () => ({ recordNotification, deliverNotificationToUser }));
 
 const { runCreateTask, runNotify, runSendMessage } = vi.hoisted(() => ({
   runCreateTask: vi.fn(),
@@ -186,8 +186,25 @@ describe('runAutomationRule — исполнение', () => {
       data: { isActive: false },
     });
     // Получатели — руководители компании и администраторы.
-    expect(createNotification.mock.calls[0][0].type).toBe('automation_failed');
-    expect(deliverNotificationToUser).toHaveBeenCalled();
+    expect(recordNotification.mock.calls[0][1].type).toBe('automation_failed');
+    // Ключ дедупа — правило; ссылку в раздел правил строит таблица маршрутов
+    // от роли получателя (`У-232`).
+    expect(recordNotification).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({ meta: { ruleId: 'r1' }, entityId: 'r1' })
+    );
+    expect(deliverNotificationToUser).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'automation_failed', meta: { ruleId: 'r1' }, dedupKey: 'n1' })
+    );
+  });
+
+  it('повтор «правило выключено» за час (deduped: true) — доставка не зовётся', async () => {
+    ruleFindUnique.mockResolvedValue({ ...RULE, actions: { мусор: true } });
+    recordNotification.mockResolvedValueOnce({ row: { id: 'n1' }, deduped: true });
+    const res = await runAutomationRule(prisma, JOB);
+    expect(res.status).toBe('failed');
+    expect(recordNotification).toHaveBeenCalledTimes(1);
+    expect(deliverNotificationToUser).not.toHaveBeenCalled();
   });
 
   it('сбой самого выключения не роняет джоб', async () => {

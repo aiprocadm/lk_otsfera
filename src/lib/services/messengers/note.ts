@@ -108,7 +108,6 @@ export async function addDialogNote(
         entityId: dialog.id,
         noteId: message.id,
         body: text,
-        managerPath: `/manager/messengers/${dialog.id}`,
       });
     }
   } catch (error) {

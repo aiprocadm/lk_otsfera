@@ -2,7 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { canSeeTask } from '@/lib/auth/accessProfile';
 import { recordAudit } from '@/lib/auth/audit';
-import { createNotification, deliverNotificationToUser } from '@/lib/notifications';
+import { recordNotification, deliverNotificationToUser } from '@/lib/notifications';
 import { notifyNoteMention } from '@/lib/notifications/noteMention';
 import { extractMentions, listColleagues } from '@/lib/services/staffChat/mentions';
 import { log } from '@/lib/logging';
@@ -115,7 +115,7 @@ export async function addTaskComment(
     return created;
   });
 
-  await notifyTaskComment({
+  await notifyTaskComment(prisma, {
     taskId: task.id,
     taskTitle: task.title,
     commentId: comment.id,
@@ -133,7 +133,6 @@ export async function addTaskComment(
     entityId: task.id,
     noteId: comment.id,
     body,
-    managerPath: `/manager/tasks/${task.id}`,
   });
 
   return { ok: true, id: comment.id };
@@ -150,15 +149,18 @@ const EXCERPT_MAX = 200;
  * Fail-open (§3 CLAUDE.md): сбой доставки логируется и проглатывается —
  * комментарий уже сохранён, отменять его из-за почты нельзя.
  */
-async function notifyTaskComment(args: {
-  taskId: string;
-  taskTitle: string;
-  commentId: string;
-  body: string;
-  actorUserId: string;
-  recipientUserIds: string[];
-  mentionedUserIds: string[];
-}): Promise<void> {
+async function notifyTaskComment(
+  prisma: PrismaClient,
+  args: {
+    taskId: string;
+    taskTitle: string;
+    commentId: string;
+    body: string;
+    actorUserId: string;
+    recipientUserIds: string[];
+    mentionedUserIds: string[];
+  }
+): Promise<void> {
   const mentioned = new Set(args.mentionedUserIds);
   const recipients = [...new Set(args.recipientUserIds)].filter(
     (id) => id !== args.actorUserId && !mentioned.has(id)
@@ -166,23 +168,28 @@ async function notifyTaskComment(args: {
 
   const title = 'Новый комментарий в задаче';
   const excerpt = args.body.slice(0, EXCERPT_MAX);
-  const url = `/manager/tasks/${args.taskId}`;
+  // `У-232`: ссылку на карточку задачи строит таблица маршрутов по `taskId`
+  // от роли получателя — адрес кабинета сюда не пишем.
+  const meta = { taskId: args.taskId, commentId: args.commentId };
 
   for (const userId of recipients) {
     try {
-      const row = await createNotification({
+      // Ключ дедупа — задача: серия комментариев за час — одна строка «×N».
+      const { row, deduped } = await recordNotification(prisma, {
         userId,
         type: 'task_comment',
         title,
         body: `«${args.taskTitle}»: ${excerpt}`,
-        meta: { taskId: args.taskId, commentId: args.commentId, url },
+        meta,
+        entityId: args.taskId,
       });
+      if (deduped) continue;
       await deliverNotificationToUser({
         userId,
         title,
         body: `«${args.taskTitle}»: ${excerpt}`,
         type: 'task_comment',
-        url,
+        meta,
         dedupKey: row.id,
       });
     } catch (e) {

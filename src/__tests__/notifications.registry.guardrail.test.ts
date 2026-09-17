@@ -28,6 +28,14 @@ describe('Реестр типов уведомлений — guardrail', () => {
     ).toEqual([]);
   });
 
+  /**
+   * Поле `type` бывает не только у уведомления: у контрагента в
+   * `adminUpload.ts` это `counterparty: { type: 'organization' | 'partner' }`.
+   * Такие значения перечислены явно, чтобы страж не путал их с типом
+   * уведомления, но и не пропускал настоящий «левый» тип.
+   */
+  const FOREIGN_TYPE_FIELD_VALUES = new Set(['organization', 'partner']);
+
   it('продьюсеры не отправляют типов мимо реестра', () => {
     const known = new Set(Object.keys(NOTIFICATION_TYPES));
     const files = [...new Set(Object.values(NOTIFICATION_TYPES).map((s) => s.producer))];
@@ -37,7 +45,8 @@ describe('Реестр типов уведомлений — guardrail', () => {
       // Тип уведомления передаётся как `type: '<key>'` в createNotification и
       // в union'ах продьюсеров.
       for (const m of src.matchAll(/\btype:\s*'([a-z0-9_]+)'/g)) {
-        if (!known.has(m[1])) rogue.push(`${file}: ${m[1]}`);
+        if (!known.has(m[1]) && !FOREIGN_TYPE_FIELD_VALUES.has(m[1]))
+          rogue.push(`${file}: ${m[1]}`);
       }
     }
     expect(rogue, `Типы, отправляемые мимо реестра:\n  ${rogue.join('\n  ')}`).toEqual([]);

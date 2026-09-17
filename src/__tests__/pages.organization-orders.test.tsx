@@ -111,3 +111,38 @@ describe('OrganizationOrdersPage', () => {
     );
   });
 });
+
+// `У-232` (спека §3.7): пришли по ссылке на удалённый или чужой заказ — список
+// объясняет; пометка не переносится на страницы пагинатора.
+describe('OrganizationOrdersPage — плашка «объект недоступен» (У-232)', () => {
+  beforeEach(() => {
+    getOrgPageContext.mockReset().mockResolvedValue(CTX);
+    listOrgOrders.mockReset().mockResolvedValue({ rows: [], total: 60 });
+  });
+
+  it('?missing=1 → плашка над списком', async () => {
+    const { container } = await renderServerComponent(
+      OrganizationOrdersPage({ searchParams: Promise.resolve({ missing: '1', org: 'org-1' }) })
+    );
+    expect(container.querySelector('[data-testid="missing-object-notice"]')).not.toBeNull();
+    expect(container.textContent).toContain('Заказ недоступен');
+  });
+
+  it('без параметра плашки нет', async () => {
+    const { container } = await renderServerComponent(
+      OrganizationOrdersPage({ searchParams: Promise.resolve({ org: 'org-1' }) })
+    );
+    expect(container.querySelector('[data-testid="missing-object-notice"]')).toBeNull();
+  });
+
+  it('ссылки пагинатора не тащат missing=1 на соседние страницы', async () => {
+    const { container } = await renderServerComponent(
+      OrganizationOrdersPage({ searchParams: Promise.resolve({ missing: '1', org: 'org-1' }) })
+    );
+    const hrefs = [...container.querySelectorAll('a')].map((a) => a.getAttribute('href') ?? '');
+    const pager = hrefs.filter((h) => h.includes('skip='));
+    expect(pager.length).toBeGreaterThan(0);
+    expect(pager.every((h) => !h.includes('missing='))).toBe(true);
+    expect(pager.every((h) => h.includes('org=org-1'))).toBe(true);
+  });
+});

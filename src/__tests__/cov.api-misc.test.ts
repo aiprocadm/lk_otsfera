@@ -71,7 +71,7 @@ const {
   canReadOrder,
   upload,
   enqueueAdd,
-  notifyDocumentCreated,
+  recordNotification,
   deliverNotificationToUser,
   getPrimaryOrganizationId,
 } = vi.hoisted(() => ({
@@ -82,7 +82,7 @@ const {
   canReadOrder: vi.fn(),
   upload: vi.fn(),
   enqueueAdd: vi.fn(),
-  notifyDocumentCreated: vi.fn(),
+  recordNotification: vi.fn(),
   deliverNotificationToUser: vi.fn(),
   getPrimaryOrganizationId: vi.fn(),
 }));
@@ -136,7 +136,7 @@ vi.mock('@/lib/services/enrollments/lifecycle', () => ({
 }));
 
 // documents/upload infra
-vi.mock('@/lib/notifications', () => ({ notifyDocumentCreated, deliverNotificationToUser }));
+vi.mock('@/lib/notifications', () => ({ recordNotification, deliverNotificationToUser }));
 vi.mock('@/lib/storage', () => ({
   getObjectStorage: () => ({
     upload,
@@ -396,7 +396,7 @@ describe('§F documents/upload fan-out: deliver throws after notify succeeds', (
     auditCreate.mockResolvedValue({});
     getPrimaryOrganizationId.mockResolvedValue('o1');
     // notify SUCCEEDS (so the try-block reaches deliverNotificationToUser at line 160)
-    notifyDocumentCreated.mockResolvedValue({ id: 'notif-row-1' });
+    recordNotification.mockResolvedValue({ row: { id: 'notif-row-1' }, deduped: false });
   });
 
   it('still returns 200 when deliverNotificationToUser rejects (throw edge from line 160-166)', async () => {
@@ -409,7 +409,7 @@ describe('§F documents/upload fan-out: deliver throws after notify succeeds', (
     );
     expect(res.status).toBe(200);
     // notify DID run (row.id consumed as dedupKey at line 165 before the throw)
-    expect(notifyDocumentCreated).toHaveBeenCalledTimes(1);
+    expect(recordNotification).toHaveBeenCalledTimes(1);
     expect(deliverNotificationToUser).toHaveBeenCalledWith(
       expect.objectContaining({ dedupKey: 'notif-row-1', type: 'document_created' })
     );

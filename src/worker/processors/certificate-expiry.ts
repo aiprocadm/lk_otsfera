@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { selectDueReminders, REMINDER_THRESHOLDS } from '@/lib/services/training/expiry';
-import { createNotification, deliverNotificationToUser } from '@/lib/notifications';
+import { recordNotification, deliverNotificationToUser } from '@/lib/notifications';
 
 /**
  * Получатели напоминания: пользователи организации → партнёр (если есть) →
@@ -86,19 +86,25 @@ export async function runCertificateExpiry(
     const title = 'Истекает срок удостоверения';
     const body = `Удостоверение № ${cert.number} (${cert.student.name}) истекает через ${d.thresholdDays} дн.`;
 
+    const meta = { certificateId: cert.id, thresholdDays: d.thresholdDays };
     for (const userId of recipients) {
-      const row = await createNotification({
+      // Ключ дедупа — удостоверение: журнал `CertificateReminder` уже держит
+      // «один порог — одно письмо», окно дедупа страхует повтор прогона.
+      const { row, deduped } = await recordNotification(prisma, {
         userId,
         type: 'certificate_expiring',
         title,
         body,
-        meta: { certificateId: cert.id, thresholdDays: d.thresholdDays },
+        meta,
+        entityId: cert.id,
       });
+      if (deduped) continue;
       await deliverNotificationToUser({
         userId,
         title,
         body,
         type: 'certificate_expiring',
+        meta,
         dedupKey: row.id,
       });
     }

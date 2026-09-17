@@ -78,6 +78,7 @@ export async function createOrganizationDocument(
         orgName: org.name,
         documentName: args.file.name,
         documentType: args.docType,
+        documentId: persisted.documentId,
       });
     } catch (err) {
       log.warn('[uploadOrganizationDocument] order-less notify failed', {
@@ -117,6 +118,7 @@ export async function createOrganizationDocument(
         orgName: orgName ?? 'организация',
         documentName: args.file.name,
         documentType: args.docType,
+        documentId: persisted.documentId,
       },
     });
   } catch (err) {

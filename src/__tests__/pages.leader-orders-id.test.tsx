@@ -128,8 +128,10 @@ vi.mock('@/components/leader/leader-assign-order-manager-form', () => ({
 }));
 
 const nav = vi.hoisted(() => ({
-  notFound: vi.fn(() => {
-    throw new Error('NOT_FOUND');
+  // `У-232`: карточка больше не зовёт notFound() — удалённый или чужой
+  // заказ уводит в список раздела с `?missing=1`.
+  redirect: vi.fn((url: string) => {
+    throw new Error(`REDIRECT:${url}`);
   }),
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
@@ -213,7 +215,7 @@ describe('LeaderOrderDetailPage', () => {
     getCompanyTeamVisibility.mockReset().mockResolvedValue(false);
     getOrderContactPanel.mockReset().mockResolvedValue(null);
     getDocumentGenerationPanel.mockReset();
-    nav.notFound.mockClear();
+    nav.redirect.mockClear();
   });
 
   it('монтирует блок «Состав и стоимость» — зеркало карточки менеджера', async () => {
@@ -265,13 +267,16 @@ describe('LeaderOrderDetailPage', () => {
     expect(container.querySelector('[data-testid="order-lines"]')).toBeNull();
   });
 
-  it('calls notFound() when loadManagerOrderDetail returns null', async () => {
+  // `У-232` (спека §3.7): удалённый или чужой заказ — список раздела с плашкой
+  // «объект недоступен», а не 404; ответ один для обоих случаев (§4).
+  it('удалённый или чужой заказ → редирект в список с ?missing=1, а не 404', async () => {
     requireManagerLeader.mockResolvedValue(SESSION);
     loadManagerOrderDetail.mockResolvedValue(null);
 
     await expect(
       renderServerComponent(LeaderOrderDetailPage({ params: Promise.resolve({ id: 'missing' }) }))
-    ).rejects.toThrow('NOT_FOUND');
+    ).rejects.toThrow('REDIRECT:/leader/orders?missing=1');
+    expect(nav.redirect).toHaveBeenCalledWith('/leader/orders?missing=1');
 
     expect(listDirections).not.toHaveBeenCalled();
     expect(getDealActivity).not.toHaveBeenCalled();

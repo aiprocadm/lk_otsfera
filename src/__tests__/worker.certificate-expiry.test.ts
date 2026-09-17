@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 
-const { createNotification } = vi.hoisted(() => ({
-  createNotification: vi.fn().mockResolvedValue({}),
+const { recordNotification } = vi.hoisted(() => ({
+  recordNotification: vi.fn().mockResolvedValue({ row: { id: 'n1' }, deduped: false }),
 }));
 const { deliverNotificationToUser } = vi.hoisted(() => ({
   deliverNotificationToUser: vi.fn().mockResolvedValue({}),
 }));
-vi.mock('@/lib/notifications', () => ({ createNotification, deliverNotificationToUser }));
+vi.mock('@/lib/notifications', () => ({ recordNotification, deliverNotificationToUser }));
 
 import { runCertificateExpiry } from '@/worker/processors/certificate-expiry';
 
@@ -62,9 +62,23 @@ describe('certificate-expiry processor', () => {
   it('создаёт напоминание и не дублирует на повторном прогоне', async () => {
     const first = await runCertificateExpiry(prisma, new Date());
     expect(first.remindersSent).toBeGreaterThanOrEqual(1);
-    expect(createNotification).toHaveBeenCalled();
+    // Ключ дедупа — удостоверение; клиент базы уходит первым аргументом
+    // (сравниваем по ссылке: глубокое сравнение живого PrismaClient зацикливается).
+    expect(recordNotification.mock.calls[0]![0]).toBe(prisma);
+    expect(recordNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        type: 'certificate_expiring',
+        meta: { certificateId: ids.cert, thresholdDays: 7 },
+        entityId: ids.cert,
+      })
+    );
     expect(deliverNotificationToUser).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'certificate_expiring' })
+      expect.objectContaining({
+        type: 'certificate_expiring',
+        meta: { certificateId: ids.cert, thresholdDays: 7 },
+        dedupKey: 'n1',
+      })
     );
 
     const reminders = await prisma.certificateReminder.findMany({
@@ -73,9 +87,9 @@ describe('certificate-expiry processor', () => {
     expect(reminders).toHaveLength(1);
     expect(reminders[0].thresholdDays).toBe(7);
 
-    createNotification.mockClear();
+    recordNotification.mockClear();
     const second = await runCertificateExpiry(prisma, new Date());
     expect(second.remindersSent).toBe(0);
-    expect(createNotification).not.toHaveBeenCalled();
+    expect(recordNotification).not.toHaveBeenCalled();
   });
 });

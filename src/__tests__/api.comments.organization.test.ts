@@ -6,7 +6,7 @@ const {
   commentCreate,
   auditCreate,
   notifyManagers,
-  notifyMessageCreated,
+  recordNotification,
   deliverNotificationToUser,
   getPrimaryOrganizationId,
 } = vi.hoisted(() => ({
@@ -15,7 +15,7 @@ const {
   commentCreate: vi.fn(),
   auditCreate: vi.fn(),
   notifyManagers: vi.fn(),
-  notifyMessageCreated: vi.fn(),
+  recordNotification: vi.fn(),
   deliverNotificationToUser: vi.fn(),
   getPrimaryOrganizationId: vi.fn(),
 }));
@@ -30,7 +30,7 @@ vi.mock('@/lib/db/prisma', () => ({
 }));
 vi.mock('@/lib/notifications', () => ({
   notifyManagers,
-  notifyMessageCreated,
+  recordNotification,
   deliverNotificationToUser,
 }));
 vi.mock('@/lib/auth/organization', () => ({
@@ -88,7 +88,7 @@ describe('POST /api/comments — organization role', () => {
     });
     expect(auditCreate).toHaveBeenCalled();
     // Org branch does NOT touch the partner-side notification helpers.
-    expect(notifyMessageCreated).not.toHaveBeenCalled();
+    expect(recordNotification).not.toHaveBeenCalled();
     expect(deliverNotificationToUser).not.toHaveBeenCalled();
   });
 
@@ -151,9 +151,9 @@ describe('POST /api/comments — partner/admin flow unchanged', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getPrimaryOrganizationId.mockResolvedValue('org-x');
-    // notifyMessageCreated возвращает созданную Notification-строку; её id идёт
+    // recordNotification возвращает созданную Notification-строку; её id идёт
     // в deliverNotificationToUser как dedupKey (D5).
-    notifyMessageCreated.mockResolvedValue({ id: 'notif-1' });
+    recordNotification.mockResolvedValue({ row: { id: 'notif-1' }, deduped: false });
     deliverNotificationToUser.mockResolvedValue({});
     commentCreate.mockResolvedValue({
       id: 'c1',
@@ -174,8 +174,19 @@ describe('POST /api/comments — partner/admin flow unchanged', () => {
 
     const res = await commentsPost(commentReq('ord-1', 'partner comment'));
     expect(res.status).toBe(200);
-    expect(notifyMessageCreated).toHaveBeenCalled();
+    expect(recordNotification).toHaveBeenCalled();
     expect(deliverNotificationToUser).toHaveBeenCalled();
+  });
+
+  it('повтор за час (deduped: true) — строка помечена «×N», каналы доставки не зовутся', async () => {
+    getSession.mockResolvedValue({ sub: 'u-admin', role: 'admin' });
+    orderFindUnique.mockResolvedValue({ id: 'ord-1', companyId: 'c1', organizationId: 'org-x' });
+    recordNotification.mockResolvedValueOnce({ row: { id: 'notif-1' }, deduped: true });
+
+    const res = await commentsPost(commentReq('ord-1', 'partner comment'));
+    expect(res.status).toBe(200);
+    expect(recordNotification).toHaveBeenCalledTimes(1);
+    expect(deliverNotificationToUser).not.toHaveBeenCalled();
   });
 
   it('401 when unauthenticated (getSession returns null → requireSession returns !ok)', async () => {
@@ -196,7 +207,7 @@ describe('POST /api/comments — partner/admin flow unchanged', () => {
   it('still returns 200 when notification fan-out throws (best-effort)', async () => {
     getSession.mockResolvedValue({ sub: 'u-admin', role: 'admin' });
     orderFindUnique.mockResolvedValue({ id: 'ord-1', companyId: 'c1', organizationId: 'org-x' });
-    notifyMessageCreated.mockRejectedValueOnce(new Error('transport down'));
+    recordNotification.mockRejectedValueOnce(new Error('transport down'));
 
     const res = await commentsPost(commentReq('ord-1', 'hi'));
     expect(res.status).toBe(200);
@@ -207,7 +218,7 @@ describe('POST /api/comments — partner/admin flow unchanged', () => {
     // Throwing a non-Error value in the try block covers String(err) branch at line 198
     getSession.mockResolvedValue({ sub: 'u-admin', role: 'admin' });
     orderFindUnique.mockResolvedValue({ id: 'ord-1', companyId: 'c1', organizationId: 'org-x' });
-    notifyMessageCreated.mockRejectedValueOnce('plain string fan-out error');
+    recordNotification.mockRejectedValueOnce('plain string fan-out error');
 
     const res = await commentsPost(commentReq('ord-1', 'hi'));
     expect(res.status).toBe(200);
@@ -289,7 +300,7 @@ describe('POST /api/comments — parse & partner-role branches', () => {
   it('201 when partner session partnerId matches order.partnerId', async () => {
     getSession.mockResolvedValue({ sub: 'u-p', role: 'partner', partnerId: 'p1' });
     orderFindUnique.mockResolvedValue({ id: 'ord-1', partnerId: 'p1' });
-    notifyMessageCreated.mockResolvedValue(undefined);
+    recordNotification.mockResolvedValue({ row: { id: 'notif-2' }, deduped: false });
     deliverNotificationToUser.mockResolvedValue({});
     const res = await commentsPost(commentReq('ord-1'));
     expect(res.status).toBe(200);

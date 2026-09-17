@@ -46,7 +46,7 @@ vi.mock('@/lib/storage', () => ({
   getObjectStorage: () => ({ upload, createSignedUrl, remove: vi.fn(), download: vi.fn() }),
 }));
 vi.mock('@/lib/notifications', () => ({
-  notifyDocumentCreated: vi.fn().mockResolvedValue({ id: 'doc-notif' }),
+  recordNotification: vi.fn().mockResolvedValue({ row: { id: 'doc-notif' }, deduped: false }),
   deliverNotificationToUser: vi.fn().mockResolvedValue({}),
 }));
 const { markDocumentViewed } = vi.hoisted(() => ({
@@ -147,8 +147,8 @@ describe('documents guards', () => {
   });
 
   it('still returns success when notification fan-out fails (best-effort)', async () => {
-    const { notifyDocumentCreated } = await import('@/lib/notifications');
-    (notifyDocumentCreated as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+    const { recordNotification } = await import('@/lib/notifications');
+    (recordNotification as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
       new Error('notify down')
     );
     const fd = new FormData();
@@ -161,8 +161,8 @@ describe('documents guards', () => {
   });
 
   it('still returns success when notification fan-out throws non-Error (String(err) branch)', async () => {
-    const { notifyDocumentCreated } = await import('@/lib/notifications');
-    (notifyDocumentCreated as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+    const { recordNotification } = await import('@/lib/notifications');
+    (recordNotification as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
       'plain string rejection'
     );
     const fd = new FormData();

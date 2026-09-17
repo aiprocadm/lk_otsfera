@@ -1,5 +1,5 @@
 import React from 'react';
-import { notFound, redirect } from 'next/navigation';
+import { redirect } from 'next/navigation';
 import { Breadcrumbs } from '@/components/ui';
 import { prisma } from '@/lib/db/prisma';
 import { requirePartner } from '@/lib/auth/requireRole';
@@ -15,6 +15,7 @@ import { OrderItemsSection } from '@/components/training/order-items-section';
 import { OrderCustomFields } from '@/components/orders/order-custom-fields';
 import { getValuesForEntity } from '@/lib/services/customFields';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
+import { missingObjectHref } from '@/lib/navigation/missingObject';
 
 export default async function PartnerDealDetailPage({
   params,
@@ -29,14 +30,18 @@ export default async function PartnerDealDetailPage({
     partnerId: session.partnerId,
   });
 
-  if (!deal) notFound();
+  // `У-232` (спека §3.7): удалённый или чужой заказ → список раздела с
+  // плашкой «объект недоступен», а не 404.
+  if (!deal) redirect(missingObjectHref('/partner/orders'));
 
   const customFieldsResult = await getValuesForEntity(prisma, session, 'order', deal.id);
   const customFields = customFieldsResult.ok ? customFieldsResult.fields : [];
 
   if (deal.organization) {
     const accessible = await canPartnerAccessOrg(session, deal.organization.id);
-    if (!accessible) redirect('/forbidden');
+    // Тот же ответ, что и для удалённого: «нет доступа» не должен
+    // отличаться от «не существует» (§4, существование не утекает).
+    if (!accessible) redirect(missingObjectHref('/partner/orders'));
   }
 
   return (

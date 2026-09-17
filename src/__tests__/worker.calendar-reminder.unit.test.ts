@@ -7,13 +7,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
 
-const { createNotificationMock, deliverNotificationToUserMock, logErrorMock } = vi.hoisted(() => ({
-  createNotificationMock: vi.fn(),
+const { recordNotificationMock, deliverNotificationToUserMock, logErrorMock } = vi.hoisted(() => ({
+  recordNotificationMock: vi.fn(),
   deliverNotificationToUserMock: vi.fn(),
   logErrorMock: vi.fn(),
 }));
 vi.mock('@/lib/notifications', () => ({
-  createNotification: createNotificationMock,
+  recordNotification: recordNotificationMock,
   deliverNotificationToUser: deliverNotificationToUserMock,
 }));
 vi.mock('@/lib/logging', () => ({ log: { error: logErrorMock } }));
@@ -50,9 +50,12 @@ function makePrisma(candidates: unknown[], claimCount = 1) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  createNotificationMock.mockImplementation(async ({ userId }: { userId: string }) => ({
-    id: `n-${userId}`,
-  }));
+  recordNotificationMock.mockImplementation(
+    async (_db: unknown, { userId }: { userId: string }) => ({
+      row: { id: `n-${userId}` },
+      deduped: false,
+    })
+  );
   deliverNotificationToUserMock.mockResolvedValue(undefined);
 });
 
@@ -83,17 +86,20 @@ describe('runCalendarReminders', () => {
       data: { reminderSentAt: NOW },
     });
     // ровно два получателя: u1 (создатель∩участник — один раз) и u2
-    expect(createNotificationMock).toHaveBeenCalledTimes(2);
-    expect(createNotificationMock.mock.calls.map((c) => c[0].userId)).toEqual(['u1', 'u2']);
-    expect(createNotificationMock).toHaveBeenCalledWith({
+    expect(recordNotificationMock).toHaveBeenCalledTimes(2);
+    expect(recordNotificationMock.mock.calls.map((c) => c[1].userId)).toEqual(['u1', 'u2']);
+    // Ключ дедупа — событие; адреса кабинета в строке нет (`У-232`): ссылку на
+    // календарь строит таблица маршрутов от роли получателя.
+    expect(recordNotificationMock).toHaveBeenCalledWith(prisma, {
       userId: 'u1',
       type: 'calendar_event_reminder',
       title: 'Напоминание о событии',
       body: expect.stringContaining('«Планёрка» — '),
       meta: { calendarEventId: 'e1' },
+      entityId: 'e1',
     });
     // локация попадает в текст
-    expect(createNotificationMock.mock.calls[0][0].body).toContain(', Переговорка');
+    expect(recordNotificationMock.mock.calls[0][1].body).toContain(', Переговорка');
     // доставка с dedupKey = id строки Notification
     expect(deliverNotificationToUserMock).toHaveBeenCalledTimes(2);
     expect(deliverNotificationToUserMock).toHaveBeenCalledWith({
@@ -101,10 +107,18 @@ describe('runCalendarReminders', () => {
       title: 'Напоминание о событии',
       body: expect.stringContaining('«Планёрка»'),
       type: 'calendar_event_reminder',
-      url: '/manager/calendar',
+      meta: { calendarEventId: 'e1' },
       dedupKey: 'n-u2',
     });
     expect(logErrorMock).not.toHaveBeenCalled();
+  });
+
+  it('повтор за час (deduped: true) — строка «×N», доставка не зовётся, напоминание засчитано', async () => {
+    recordNotificationMock.mockResolvedValue({ row: { id: 'n-x' }, deduped: true });
+    const { prisma } = makePrisma([candidate()]);
+    expect(await runCalendarReminders(prisma, NOW)).toEqual({ remindersSent: 1, stale: 0 });
+    expect(recordNotificationMock).toHaveBeenCalled();
+    expect(deliverNotificationToUserMock).not.toHaveBeenCalled();
   });
 
   it('без локации хвост «, локация» не добавляется', async () => {
@@ -117,13 +131,13 @@ describe('runCalendarReminders', () => {
       minute: '2-digit',
       timeZone: 'Europe/Moscow',
     });
-    expect(createNotificationMock.mock.calls[0][0].body).toBe(`«Планёрка» — ${when}`);
+    expect(recordNotificationMock.mock.calls[0][1].body).toBe(`«Планёрка» — ${when}`);
   });
 
   it('claim count 0 (другой воркер забрал) → пропуск без уведомлений', async () => {
     const { prisma } = makePrisma([candidate()], 0);
     expect(await runCalendarReminders(prisma, NOW)).toEqual({ remindersSent: 0, stale: 0 });
-    expect(createNotificationMock).not.toHaveBeenCalled();
+    expect(recordNotificationMock).not.toHaveBeenCalled();
     expect(deliverNotificationToUserMock).not.toHaveBeenCalled();
   });
 
@@ -133,7 +147,7 @@ describe('runCalendarReminders', () => {
     ]);
     expect(await runCalendarReminders(prisma, NOW)).toEqual({ remindersSent: 0, stale: 1 });
     expect(updateMany).toHaveBeenCalledTimes(1); // помечено reminderSentAt
-    expect(createNotificationMock).not.toHaveBeenCalled();
+    expect(recordNotificationMock).not.toHaveBeenCalled();
   });
 
   it('ровно 24ч лага — ещё не протухшее', async () => {
@@ -142,10 +156,12 @@ describe('runCalendarReminders', () => {
   });
 
   it('сбой доставки одному получателю: лог + продолжение, счётчик не ломается', async () => {
-    createNotificationMock.mockImplementation(async ({ userId }: { userId: string }) => {
-      if (userId === 'u1') throw new Error('smtp down');
-      return { id: `n-${userId}` };
-    });
+    recordNotificationMock.mockImplementation(
+      async (_db: unknown, { userId }: { userId: string }) => {
+        if (userId === 'u1') throw new Error('smtp down');
+        return { row: { id: `n-${userId}` }, deduped: false };
+      }
+    );
     const { prisma } = makePrisma([candidate({ attendees: [{ userId: 'u2' }] })]);
     const res = await runCalendarReminders(prisma, NOW);
     expect(res).toEqual({ remindersSent: 1, stale: 0 });

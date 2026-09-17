@@ -8,6 +8,7 @@ import type { PushDocumentJobPayload } from '@/lib/jobs/types';
 import { pushDocumentToOneC, type PushDocumentRefusal } from '@/lib/services/oneCSync/pushDocument';
 import { primeIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
 import { log } from '@/lib/logging';
+import { recordNotification } from '@/lib/notifications/core';
 
 export type PushDocumentProcessorResult = {
   documentId: string;
@@ -79,12 +80,6 @@ export async function handlePushDocumentJobFailed(
   }).catch((e) => log.error('[worker] notifyPushDocumentFinalFailure failed', e));
 }
 
-/** Карточка документа в кабинете получателя — у каждой роли своя (`Р-23`). */
-function documentUrlFor(role: string, documentId: string): string {
-  const cabinet = role === 'admin' ? 'admin' : role === 'leader' ? 'leader' : 'manager';
-  return `/${cabinet}/documents/${documentId}`;
-}
-
 /**
  * Кому: руководителям компании документа — они отвечают за обмен с 1С — и
  * тому, кто нажал «Выгрузить», если это другой человек: он ждёт результата.
@@ -106,29 +101,30 @@ export async function notifyPushDocumentFinalFailure(
   if (who.length === 0) return;
   const recipients = await db.user.findMany({
     where: { isActive: true, OR: who },
-    select: { id: true, role: true },
+    select: { id: true },
   });
   if (recipients.length === 0) return;
 
   const name = `${documentTypeLabelRu(doc.type)} ${doc.number ?? 'без номера'}`;
   const n = doc.oneCPushAttempts;
   const attempts = n > 0 ? ` после ${n} ${pluralizeRu(n, 'попытки', 'попыток', 'попыток')}` : '';
-  await db.$transaction(
-    recipients.map((u) =>
-      db.notification.create({
-        data: {
-          userId: u.id,
-          type: 'sync_error',
-          title: 'Не удалось выгрузить документ в 1С',
-          body: `${name} не принят 1С${attempts}: ${args.errorMessage}. Откройте документ и нажмите «Повторить» или исправьте его.`,
-          meta: {
-            kind: 'push_document_failed',
-            documentId: args.documentId,
-            error: args.errorMessage,
-            url: documentUrlFor(u.role, args.documentId),
-          },
+  // Карточка документа в кабинете получателя — у каждой роли своя (`Р-23`);
+  // с этапа 5 адрес считает таблица маршрутов по `documentId` (`Р-Э5-7`), а
+  // повторные провалы одного документа за час схлопываются в «×N» (`У-231`).
+  await db.$transaction(async (tx) => {
+    for (const u of recipients) {
+      await recordNotification(tx, {
+        userId: u.id,
+        type: 'sync_error',
+        title: 'Не удалось выгрузить документ в 1С',
+        body: `${name} не принят 1С${attempts}: ${args.errorMessage}. Откройте документ и нажмите «Повторить» или исправьте его.`,
+        meta: {
+          kind: 'push_document_failed',
+          documentId: args.documentId,
+          error: args.errorMessage,
         },
-      })
-    )
-  );
+        entityId: args.documentId,
+      });
+    }
+  });
 }

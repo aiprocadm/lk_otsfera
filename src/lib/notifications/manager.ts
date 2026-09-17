@@ -1,4 +1,4 @@
-import { type Prisma, type PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '@prisma/client';
 import {
   managerCommentFromOrgSubject,
   managerCommentFromOrgText,
@@ -21,6 +21,8 @@ import {
 } from './channels/types';
 import { getAppBaseUrl, orderLabel } from './shared';
 import { allowedChannels } from './routing';
+import { recordNotification } from './core';
+import { notificationRoute } from './routes';
 
 type NotifyManagersType =
   | 'comment_from_org'
@@ -48,6 +50,8 @@ export type NotifyManagersInput =
         orgName: string;
         documentName: string;
         documentType: string;
+        /** `У-231`: ключ дедупа — сам документ; без него повторы не схлопываются. */
+        documentId?: string | undefined;
       };
     }
   | {
@@ -57,6 +61,8 @@ export type NotifyManagersInput =
         partnerName: string;
         documentName: string;
         documentType: string;
+        /** `У-231`: ключ дедупа — сам документ; без него повторы не схлопываются. */
+        documentId?: string | undefined;
       };
     }
   | {
@@ -372,7 +378,14 @@ export async function resolveOrgManagerRecipients(
 
 export async function notifyManagersOrderLess(
   db: PrismaClient,
-  input: { organizationId: string; orgName: string; documentName: string; documentType: string },
+  input: {
+    organizationId: string;
+    orgName: string;
+    documentName: string;
+    documentType: string;
+    /** `У-231`: ключ дедупа — сам документ; без него повторы не схлопываются. */
+    documentId?: string | undefined;
+  },
   opts?: NotifyManagersOptions
 ): Promise<NotifyManagersSummary> {
   const recipients = await resolveOrgManagerRecipients(db, input.organizationId, opts);
@@ -387,7 +400,7 @@ export async function notifyManagersOrderLess(
   };
   const subject = managerDocumentUploadedByOrgSubject(props);
   const shortBody = managerDocumentUploadedByOrgText(props);
-  const meta = { ...input, orderId: null } as Prisma.InputJsonValue;
+  const meta: Record<string, unknown> = { ...input, orderId: null };
   const channelPayload: ChannelPayload = {
     type: 'document_uploaded_by_org',
     title: subject,
@@ -406,21 +419,19 @@ export async function notifyManagersOrderLess(
     emailsQueued = 0,
     recipientsNotified = 0;
   for (const r of recipients) {
-    const row = await db.notification.create({
-      data: {
-        userId: r.id,
-        type: 'document_uploaded_by_org',
-        title: subject,
-        body: shortBody,
-        meta,
-      },
-    });
+    const outcome = await recordAndDispatch(
+      db,
+      r,
+      channelPayload,
+      meta,
+      input.documentId ?? null,
+      routed
+    );
     recipientsNotified += 1;
-
-    const outcome = await dispatchToRecipient(r, channelPayload, {
-      dedupKey: row.id,
-      ...(routed ? { channels: routed } : {}),
-    });
+    if (!outcome) {
+      emailsSkipped += 1;
+      continue;
+    }
     if (outcome.mode === 'queued') {
       if (outcome.channels.includes('email')) emailsQueued += 1;
       else emailsSkipped += 1;
@@ -473,7 +484,14 @@ export async function resolvePartnerManagerRecipients(
  */
 export async function notifyManagersPartnerOrderLess(
   db: PrismaClient,
-  input: { partnerId: string; partnerName: string; documentName: string; documentType: string },
+  input: {
+    partnerId: string;
+    partnerName: string;
+    documentName: string;
+    documentType: string;
+    /** `У-231`: ключ дедупа — сам документ; без него повторы не схлопываются. */
+    documentId?: string | undefined;
+  },
   opts?: NotifyManagersOptions
 ): Promise<NotifyManagersSummary> {
   const recipients = await resolvePartnerManagerRecipients(db, input.partnerId, opts);
@@ -488,7 +506,7 @@ export async function notifyManagersPartnerOrderLess(
   };
   const subject = managerDocumentUploadedByPartnerSubject(props);
   const shortBody = managerDocumentUploadedByPartnerText(props);
-  const meta = { ...input, orderId: null } as Prisma.InputJsonValue;
+  const meta: Record<string, unknown> = { ...input, orderId: null };
   const channelPayload: ChannelPayload = {
     type: 'document_uploaded_by_partner',
     title: subject,
@@ -507,21 +525,19 @@ export async function notifyManagersPartnerOrderLess(
     emailsQueued = 0,
     recipientsNotified = 0;
   for (const r of recipients) {
-    const row = await db.notification.create({
-      data: {
-        userId: r.id,
-        type: 'document_uploaded_by_partner',
-        title: subject,
-        body: shortBody,
-        meta,
-      },
-    });
+    const outcome = await recordAndDispatch(
+      db,
+      r,
+      channelPayload,
+      meta,
+      input.documentId ?? null,
+      routed
+    );
     recipientsNotified += 1;
-
-    const outcome = await dispatchToRecipient(r, channelPayload, {
-      dedupKey: row.id,
-      ...(routed ? { channels: routed } : {}),
-    });
+    if (!outcome) {
+      emailsSkipped += 1;
+      continue;
+    }
     if (outcome.mode === 'queued') {
       if (outcome.channels.includes('email')) emailsQueued += 1;
       else emailsSkipped += 1;
@@ -540,6 +556,83 @@ export async function notifyManagersPartnerOrderLess(
 
 function getManagerOrderUrl(orderId: string): string {
   return `${getAppBaseUrl()}/manager/orders/${orderId}`;
+}
+
+/**
+ * `Р-Э5-7` (`У-232`): ссылка в письме и мессенджере считается от РОЛИ
+ * получателя по таблице маршрутов — руководитель получает `/leader/orders/…`,
+ * менеджер — `/manager/…`. Базовый payload несёт адрес менеджера как
+ * умолчание; здесь он подменяется на адрес получателя (и `url` для общего
+ * шаблона, и `orderUrl` для типизированных шаблонов менеджера).
+ */
+function payloadForRecipient(
+  base: ChannelPayload,
+  recipient: ManagerRecipient,
+  meta: Record<string, unknown>
+): ChannelPayload {
+  const route = notificationRoute(base.type, meta, recipient.role);
+  if (!route) return base;
+  const url = `${getAppBaseUrl()}${route}`;
+  /* v8 ignore next -- все веера задают письмо; ветка держит тип `email?` */
+  if (!base.email) return { ...base, url };
+  // Подмена адреса не меняет шаблон — только два адресных поля его props;
+  // TS не умеет сузить объединение шаблонов после spread, отсюда через unknown.
+  const email = {
+    ...base.email,
+    props: { ...base.email.props, url, orderUrl: url },
+  } as unknown as ChannelPayload['email'];
+  return { ...base, url, email };
+}
+
+/**
+ * Общий шаг веера: строка через единую точку (`У-231`), повтор в окне —
+ * каналы не дёргаются (письмо не дублируется), иначе доставка с адресом по
+ * роли получателя. Возвращает исход доставки или `null` при повторе.
+ */
+async function recordAndDispatch(
+  db: PrismaClient,
+  recipient: ManagerRecipient,
+  base: ChannelPayload,
+  meta: Record<string, unknown>,
+  entityId: string | null,
+  routed: Awaited<ReturnType<typeof allowedChannels>>
+): Promise<Awaited<ReturnType<typeof dispatchToRecipient>> | null> {
+  const { row, deduped } = await recordNotification(db, {
+    userId: recipient.id,
+    type: base.type,
+    title: base.title,
+    body: base.body,
+    meta,
+    entityId,
+  });
+  if (deduped) return null;
+  return dispatchToRecipient(recipient, payloadForRecipient(base, recipient, meta), {
+    dedupKey: row.id,
+    ...(routed ? { channels: routed } : {}),
+  });
+}
+
+/** События про документ: ключ дедупа — документ, а не заказ (два разных документа за час — два письма). */
+const DOCUMENT_EVENT_TYPES: ReadonlySet<string> = new Set([
+  'document_uploaded_by_org',
+  'document_uploaded_by_partner',
+  'document_accepted',
+  'invoice_paid',
+]);
+
+/**
+ * `У-231`: ключ дедупа. Документ, когда он известен; документное событие без
+ * `documentId` не дедупится вовсе — иначе два разных документа по одному
+ * заказу схлопнулись бы, и о втором никто бы не узнал. Остальное — по заказу.
+ */
+function dedupEntityId(
+  type: string,
+  meta: Record<string, unknown>,
+  orderId: string
+): string | null {
+  const documentId = meta.documentId;
+  if (typeof documentId === 'string' && documentId.length > 0) return documentId;
+  return DOCUMENT_EVENT_TYPES.has(type) ? null : orderId;
 }
 
 function metaFromInput(input: NotifyManagersInput): Record<string, unknown> {
@@ -604,6 +697,7 @@ export async function notifyManagers(
 
   // `У-127`: маршрутизация — один запрос на рассылку, а не на получателя.
   const routed = await allowedChannels(db, { eventType: input.type, audience: 'manager' });
+  const entityId = dedupEntityId(input.type, meta, order.id);
 
   let emailsSent = 0;
   let emailsSkipped = 0;
@@ -611,23 +705,14 @@ export async function notifyManagers(
   let recipientsNotified = 0;
 
   for (const r of recipients) {
-    const row = await db.notification.create({
-      data: {
-        userId: r.id,
-        type: input.type,
-        title: subject,
-        body: shortBody,
-        meta: meta as Prisma.InputJsonValue,
-      },
-    });
-    recipientsNotified += 1;
-
     // Best-effort: канальный слой изолирует ошибки per-channel — сбой одного
-    // получателя/канала не прерывает fan-out.
-    const outcome = await dispatchToRecipient(r, channelPayload, {
-      dedupKey: row.id,
-      ...(routed ? { channels: routed } : {}),
-    });
+    // получателя/канала не прерывает fan-out. Ключ дедупа — документ или заказ (`У-231`).
+    const outcome = await recordAndDispatch(db, r, channelPayload, meta, entityId, routed);
+    recipientsNotified += 1;
+    if (!outcome) {
+      emailsSkipped += 1;
+      continue;
+    }
     if (outcome.mode === 'queued') {
       if (outcome.channels.includes('email')) emailsQueued += 1;
       else emailsSkipped += 1;
@@ -687,7 +772,8 @@ export async function notifyDialogAssigned(
   const subject = 'Вас назначили ответственным за диалог';
   const shortBody = 'Откройте переписку и ответьте клиенту.';
   const url = `${getAppBaseUrl()}/manager/messengers/${input.dialogId}`;
-  const meta = { dialogId: input.dialogId, url } as Prisma.InputJsonValue;
+  // `Р-Э5-7`: в строке — идентификатор, адрес считается от роли получателя.
+  const meta: Record<string, unknown> = { dialogId: input.dialogId };
   const channelPayload: ChannelPayload = {
     type: 'dialog_assigned',
     title: subject,
@@ -708,15 +794,12 @@ export async function notifyDialogAssigned(
     emailsQueued = 0,
     recipientsNotified = 0;
   for (const r of recipients) {
-    const row = await db.notification.create({
-      data: { userId: r.id, type: 'dialog_assigned', title: subject, body: shortBody, meta },
-    });
+    const outcome = await recordAndDispatch(db, r, channelPayload, meta, input.dialogId, routed);
     recipientsNotified += 1;
-
-    const outcome = await dispatchToRecipient(r, channelPayload, {
-      dedupKey: row.id,
-      ...(routed ? { channels: routed } : {}),
-    });
+    if (!outcome) {
+      emailsSkipped += 1;
+      continue;
+    }
     if (outcome.mode === 'queued') {
       if (outcome.channels.includes('email')) emailsQueued += 1;
       else emailsSkipped += 1;
@@ -777,7 +860,8 @@ export async function notifyManagersMessengerMessage(
   const subject = `Новое сообщение в ${input.channelLabel} от ${input.peerLabel}`;
   const shortBody = input.excerpt;
   const url = `${getAppBaseUrl()}/manager/messengers/${input.dialogId}`;
-  const meta = { dialogId: input.dialogId, url } as Prisma.InputJsonValue;
+  // `Р-Э5-7`: в строке — идентификатор, адрес считается от роли получателя.
+  const meta: Record<string, unknown> = { dialogId: input.dialogId };
   const channelPayload: ChannelPayload = {
     type: 'messenger_message',
     title: subject,
@@ -799,21 +883,14 @@ export async function notifyManagersMessengerMessage(
     emailsQueued = 0,
     recipientsNotified = 0;
   for (const r of recipients) {
-    const row = await db.notification.create({
-      data: {
-        userId: r.id,
-        type: 'messenger_message',
-        title: subject,
-        body: shortBody,
-        meta,
-      },
-    });
+    // `messenger_message` — без дедупа (реестр `noDedup`): каждое сообщение важно.
+    const outcome = await recordAndDispatch(db, r, channelPayload, meta, input.dialogId, routed);
     recipientsNotified += 1;
-
-    const outcome = await dispatchToRecipient(r, channelPayload, {
-      dedupKey: row.id,
-      ...(routed ? { channels: routed } : {}),
-    });
+    /* v8 ignore next 4 -- тип без дедупа: повтор невозможен по построению, ветка — контракт общего шага */
+    if (!outcome) {
+      emailsSkipped += 1;
+      continue;
+    }
     if (outcome.mode === 'queued') {
       if (outcome.channels.includes('email')) emailsQueued += 1;
       else emailsSkipped += 1;

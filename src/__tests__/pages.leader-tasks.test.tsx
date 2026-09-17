@@ -209,3 +209,26 @@ describe('LeaderTasksPage — подпись «Показаны первые N �
     expect(container.textContent).not.toContain('Показаны первые');
   });
 });
+
+// `У-232` (спека §3.7): тот же ответ на `?missing=1`, что у менеджера (зеркало §0.2).
+describe('LeaderTasksPage — плашка «объект недоступен» (У-232)', () => {
+  beforeEach(() => {
+    isFeatureEnabled.mockReturnValue(true);
+    requireManagerLeader.mockResolvedValue(SESSION);
+    listTaskBoard.mockResolvedValue({ columns: [], board: [], shown: 0, total: 0 });
+    getTaskFormOptions.mockResolvedValue(EMPTY_OPTIONS);
+  });
+
+  it('?missing=1 → плашка над доской, и речь в ней о задаче', async () => {
+    const { container } = await renderServerComponent(LeaderTasksPage(sp({ missing: '1' })));
+    const notice = container.querySelector('[data-testid="missing-object-notice"]');
+    expect(notice).not.toBeNull();
+    expect(notice?.textContent).toContain('Задача');
+    expect(notice?.textContent).toContain('недоступ');
+  });
+
+  it('без параметра плашки нет', async () => {
+    const { container } = await renderServerComponent(LeaderTasksPage(sp()));
+    expect(container.querySelector('[data-testid="missing-object-notice"]')).toBeNull();
+  });
+});

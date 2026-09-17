@@ -110,3 +110,50 @@ describe('notifyManagersPartnerOrderLess (У-115)', () => {
     expect(r).toMatchObject({ recipientsNotified: 1, emailsSent: 0, emailsSkipped: 1 });
   });
 });
+
+describe('notifyManagersPartnerOrderLess — дедуп (У-231)', () => {
+  it('documentId задан и повтор в окне → строка обновлена, письмо не уходит, emailsSkipped посчитан', async () => {
+    const findFirst = vi.fn().mockResolvedValue({ id: 'n-old' });
+    const update = vi.fn().mockResolvedValue({ id: 'n-old' });
+    const create = vi.fn();
+    const db = makeDb({
+      user: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([{ id: 'm1', email: 'm@x.ru', name: 'M', role: 'manager' }]),
+      },
+      notification: { create, findFirst, update },
+    });
+
+    const r = await notifyManagersPartnerOrderLess(db, { ...input, documentId: 'doc-7' });
+
+    expect(r).toEqual({ recipientsNotified: 1, emailsSent: 0, emailsSkipped: 1 });
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userId: 'm1',
+          type: 'document_uploaded_by_partner',
+          entityId: 'doc-7',
+        }),
+      })
+    );
+    expect(update).toHaveBeenCalledOnce();
+    expect(create).not.toHaveBeenCalled();
+    expect(sendPartner).not.toHaveBeenCalled();
+  });
+
+  it('без documentId дедупа нет: кандидат не ищется, письмо уходит', async () => {
+    const findFirst = vi.fn();
+    const db = makeDb({
+      user: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([{ id: 'm1', email: 'm@x.ru', name: 'M', role: 'manager' }]),
+      },
+      notification: { create: vi.fn().mockResolvedValue({ id: 'n1' }), findFirst, update: vi.fn() },
+    });
+    const r = await notifyManagersPartnerOrderLess(db, input);
+    expect(r.emailsSent).toBe(1);
+    expect(findFirst).not.toHaveBeenCalled();
+  });
+});

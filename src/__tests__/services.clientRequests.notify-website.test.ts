@@ -12,15 +12,15 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { createNotification, deliverNotificationToUser, resolveOrgManagerRecipients } = vi.hoisted(
+const { recordNotification, deliverNotificationToUser, resolveOrgManagerRecipients } = vi.hoisted(
   () => ({
-    createNotification: vi.fn(),
+    recordNotification: vi.fn(),
     deliverNotificationToUser: vi.fn(),
     resolveOrgManagerRecipients: vi.fn(),
   })
 );
 vi.mock('@/lib/notifications', () => ({
-  createNotification,
+  recordNotification,
   deliverNotificationToUser,
   resolveOrgManagerRecipients,
 }));
@@ -74,8 +74,9 @@ function db(users: Array<{ id: string }> = [{ id: 'm1' }]) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  createNotification.mockImplementation(async ({ userId }: { userId: string }) => ({
-    id: `n-${userId}`,
+  recordNotification.mockImplementation(async (_db: unknown, { userId }: { userId: string }) => ({
+    row: { id: `n-${userId}` },
+    deduped: false,
   }));
   deliverNotificationToUser.mockResolvedValue({});
   resolveOrgManagerRecipients.mockResolvedValue([]);
@@ -96,8 +97,8 @@ describe('заявка с сайта — кому уходит уведомле�
       where: { id: 'u-default', role: { in: ['manager', 'leader'] }, isActive: true },
       select: CHANNEL_RECIPIENT_SELECT,
     });
-    expect(createNotification).toHaveBeenCalledTimes(1);
-    expect(createNotification.mock.calls[0][0].userId).toBe('u-default');
+    expect(recordNotification).toHaveBeenCalledTimes(1);
+    expect(recordNotification.mock.calls[0][1].userId).toBe('u-default');
   });
 
   it('менеджер по умолчанию не задан: адресаты — весь контур ЦО, только активные', async () => {
@@ -109,7 +110,7 @@ describe('заявка с сайта — кому уходит уведомле�
       where: { role: { in: ['manager', 'leader'] }, isActive: true },
       select: CHANNEL_RECIPIENT_SELECT,
     });
-    expect(createNotification).toHaveBeenCalledTimes(2);
+    expect(recordNotification).toHaveBeenCalledTimes(2);
     expect(deliverNotificationToUser).toHaveBeenCalledTimes(2);
   });
 
@@ -135,7 +136,7 @@ describe('заявка с сайта — кому уходит уведомле�
 
     await notifyManagersClientRequestSubmitted(prisma, websiteRequest());
 
-    expect(createNotification).not.toHaveBeenCalled();
+    expect(recordNotification).not.toHaveBeenCalled();
     expect(logWarn).not.toHaveBeenCalled();
   });
 
@@ -148,7 +149,7 @@ describe('заявка с сайта — кому уходит уведомле�
 
     await notifyManagersClientRequestSubmitted(prisma, websiteRequest());
 
-    expect(createNotification).not.toHaveBeenCalled();
+    expect(recordNotification).not.toHaveBeenCalled();
   });
 
   it('ДЕФЕКТ (в отчёт): контур ЦО берётся без привязки к компании', async () => {
@@ -171,19 +172,34 @@ describe('заявка с сайта — заголовок уведомлени
 
     await notifyManagersClientRequestSubmitted(prisma, websiteRequest());
 
-    expect(createNotification.mock.calls[0][0]).toMatchObject({
+    // `У-232`: адреса кабинета в строке нет — ссылку строит таблица маршрутов
+    // по `requestId` от роли получателя; ключ дедупа — заявка.
+    expect(recordNotification.mock.calls[0][1]).toMatchObject({
       type: 'client_request_submitted',
       title: 'Новая заявка с сайта',
       body: 'ООО Ромашка: Обучение по охране труда',
       organizationId: null,
       partnerId: null,
-      meta: { requestId: 'R-site-1', url: '/manager/requests' },
+      meta: { requestId: 'R-site-1' },
+      entityId: 'R-site-1',
     });
+    expect(recordNotification.mock.calls[0][1].meta).not.toHaveProperty('url');
     expect(deliverNotificationToUser.mock.calls[0][0]).toMatchObject({
       title: 'Новая заявка с сайта',
-      url: '/manager/requests',
+      meta: { requestId: 'R-site-1' },
       dedupKey: 'n-m1',
     });
+    expect(deliverNotificationToUser.mock.calls[0][0]).not.toHaveProperty('url');
+  });
+
+  it('повтор за час (deduped: true) — строка «×N», доставка не зовётся', async () => {
+    recordNotification.mockResolvedValue({ row: { id: 'n-m1' }, deduped: true });
+    const { prisma } = db([{ id: 'm1' }]);
+
+    await notifyManagersClientRequestSubmitted(prisma, websiteRequest());
+
+    expect(recordNotification).toHaveBeenCalledTimes(1);
+    expect(deliverNotificationToUser).not.toHaveBeenCalled();
   });
 
   it('у заявки из кабинета заголовок прежний — «Новое обращение клиента»', async () => {
@@ -199,11 +215,11 @@ describe('заявка с сайта — заголовок уведомлени
       })
     );
 
-    expect(createNotification.mock.calls[0][0].title).toBe('Новое обращение клиента');
+    expect(recordNotification.mock.calls[0][1].title).toBe('Новое обращение клиента');
   });
 
   it('сбой рассылки проглатывается: заявка уже принята', async () => {
-    createNotification.mockRejectedValue(new Error('почта отвалилась'));
+    recordNotification.mockRejectedValue(new Error('почта отвалилась'));
     const { prisma } = db([{ id: 'm1' }]);
 
     await expect(
@@ -227,7 +243,7 @@ describe('смена статуса заявки без автора', () => {
       websiteRequest({ status: 'in_triage' } as Partial<ClientRequest>)
     );
 
-    expect(createNotification).not.toHaveBeenCalled();
+    expect(recordNotification).not.toHaveBeenCalled();
     expect(deliverNotificationToUser).not.toHaveBeenCalled();
     expect(logWarn).not.toHaveBeenCalled();
   });
@@ -243,7 +259,7 @@ describe('смена статуса заявки без автора', () => {
       } as Partial<ClientRequest>)
     );
 
-    expect(createNotification).not.toHaveBeenCalled();
+    expect(recordNotification).not.toHaveBeenCalled();
   });
 
   it('у заявки с автором уведомление по-прежнему уходит', async () => {
@@ -258,7 +274,7 @@ describe('смена статуса заявки без автора', () => {
       } as Partial<ClientRequest>)
     );
 
-    expect(createNotification).toHaveBeenCalledTimes(1);
-    expect(createNotification.mock.calls[0][0].userId).toBe('u-1');
+    expect(recordNotification).toHaveBeenCalledTimes(1);
+    expect(recordNotification.mock.calls[0][1].userId).toBe('u-1');
   });
 });

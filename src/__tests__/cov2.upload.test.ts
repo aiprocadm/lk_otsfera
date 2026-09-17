@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Coverage top-up for src/app/api/documents/upload/route.ts:150-166 — the
 // notification fan-out try-block SUCCESS completion. cov.api-misc.test.ts §F
 // already exercises the CATCH edge (notify resolves, deliver throws → line
-// 167-173). This file drives the complementary path: BOTH notifyDocumentCreated
+// 167-173). This file drives the complementary path: BOTH recordNotification
 // AND deliverNotificationToUser resolve without throwing, so the try completes
 // normally (no catch) and the route returns the 200 success payload.
 //
@@ -24,7 +24,7 @@ const {
   auditCreate,
   upload,
   enqueueAdd,
-  notifyDocumentCreated,
+  recordNotification,
   deliverNotificationToUser,
   getPrimaryOrganizationId,
 } = vi.hoisted(() => ({
@@ -34,7 +34,7 @@ const {
   auditCreate: vi.fn(),
   upload: vi.fn(),
   enqueueAdd: vi.fn(),
-  notifyDocumentCreated: vi.fn(),
+  recordNotification: vi.fn(),
   deliverNotificationToUser: vi.fn(),
   getPrimaryOrganizationId: vi.fn(),
 }));
@@ -53,7 +53,7 @@ vi.mock('@/lib/db/prisma', () => ({
     auditLog: { create: auditCreate },
   },
 }));
-vi.mock('@/lib/notifications', () => ({ notifyDocumentCreated, deliverNotificationToUser }));
+vi.mock('@/lib/notifications', () => ({ recordNotification, deliverNotificationToUser }));
 vi.mock('@/lib/storage', () => ({
   getObjectStorage: () => ({
     upload,
@@ -89,7 +89,7 @@ describe('documents/upload fan-out: try completes normally (route.ts:150-166)', 
     auditCreate.mockResolvedValue({});
     getPrimaryOrganizationId.mockResolvedValue('o1');
     // notify SUCCEEDS → returns a row whose id feeds dedupKey (line 165)
-    notifyDocumentCreated.mockResolvedValue({ id: 'notif-row-1' });
+    recordNotification.mockResolvedValue({ row: { id: 'notif-row-1' }, deduped: false });
     // deliver SUCCEEDS → try completes without entering the catch (line 166)
     deliverNotificationToUser.mockResolvedValue({ delivered: [], skipped: [] });
   });
@@ -114,13 +114,17 @@ describe('documents/upload fan-out: try completes normally (route.ts:150-166)', 
 
     // Both fan-out calls ran and resolved (no catch): notify first, deliver with
     // the row id threaded through as dedupKey.
-    expect(notifyDocumentCreated).toHaveBeenCalledTimes(1);
-    expect(notifyDocumentCreated).toHaveBeenCalledWith(
+    expect(recordNotification).toHaveBeenCalledTimes(1);
+    expect(recordNotification).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({
         userId: 'admin-1',
         organizationId: 'o1',
+        type: 'document_created',
         title: 'Новый документ',
         meta: expect.objectContaining({ orderId: 'ord1', documentId: 'd1' }),
+        // Ключ дедупа — документ.
+        entityId: 'd1',
       })
     );
     expect(deliverNotificationToUser).toHaveBeenCalledTimes(1);
@@ -128,8 +132,24 @@ describe('documents/upload fan-out: try completes normally (route.ts:150-166)', 
       expect.objectContaining({
         userId: 'admin-1',
         type: 'document_created',
+        meta: expect.objectContaining({ orderId: 'ord1', documentId: 'd1' }),
         dedupKey: 'notif-row-1',
       })
     );
+  });
+
+  it('повтор за час (deduped: true) — доставка не зовётся, ответ 200', async () => {
+    recordNotification.mockResolvedValueOnce({ row: { id: 'notif-row-1' }, deduped: true });
+    const fd = new FormData();
+    fd.set('orderId', 'ord1');
+    fd.set('file', new File(['%PDF-1.4 minimal'], 'good.pdf', { type: 'application/pdf' }));
+
+    const res = await uploadPost(
+      new Request('https://app.local/api/documents/upload', { method: 'POST', body: fd })
+    );
+
+    expect(res.status).toBe(200);
+    expect(recordNotification).toHaveBeenCalledTimes(1);
+    expect(deliverNotificationToUser).not.toHaveBeenCalled();
   });
 });

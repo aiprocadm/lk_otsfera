@@ -1,6 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { createNotification, deliverNotificationToUser } from '@/lib/notifications';
-import { TASKS_BOARD_URL } from '@/lib/services/tasks/notify';
+import { recordNotification, deliverNotificationToUser } from '@/lib/notifications';
 
 /**
  * Этап 7 (ФТ-7.2) — дневной джоб «скоро срок задачи»: dueDate ≤ конца завтрашнего
@@ -58,21 +57,26 @@ export async function runTaskDueSoon(
     const dueLabel = task.dueDate ? new Date(task.dueDate).toLocaleDateString('ru-RU') : '';
     const title = 'Скоро срок задачи';
     const body = `«${task.title}» — срок ${dueLabel}.`;
+    // `У-232`: ссылку на карточку задачи строит таблица маршрутов по `taskId`
+    // от роли получателя — адрес кабинета сюда не пишем.
+    const meta = { taskId: task.id };
 
     for (const userId of [...new Set(recipients)]) {
-      const row = await createNotification({
+      const { row, deduped } = await recordNotification(prisma, {
         userId,
         type: 'task_due_soon',
         title,
         body,
-        meta: { taskId: task.id, url: TASKS_BOARD_URL },
+        meta,
+        entityId: task.id,
       });
+      if (deduped) continue;
       await deliverNotificationToUser({
         userId,
         title,
         body,
         type: 'task_due_soon',
-        url: TASKS_BOARD_URL,
+        meta,
         dedupKey: row.id,
       });
     }

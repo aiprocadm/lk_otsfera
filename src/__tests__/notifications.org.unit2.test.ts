@@ -50,13 +50,16 @@ function dbWith(
   orgName = 'ООО Орг'
 ) {
   const create = vi.fn().mockResolvedValue({});
-  const organizationUsers = users.map((u) => ({ user: { telegramChatId: null, ...u } }));
+  const organizationUsers = users.map((u) => ({
+    user: { role: 'organization', telegramChatId: null, ...u },
+  }));
   return {
     db: {
       organization: {
         findUnique: vi.fn().mockResolvedValue({ id: 'org-1', name: orgName, organizationUsers }),
       },
-      notification: { create },
+      // Единая точка `recordNotification` (`У-231`): повтор ищется до создания.
+      notification: { create, findFirst: vi.fn().mockResolvedValue(null), update: vi.fn() },
     } as never,
     create,
   };

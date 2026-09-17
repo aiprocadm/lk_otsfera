@@ -14,7 +14,6 @@ const { recordAuditMock, notifyTaskAssignedMock } = vi.hoisted(() => ({
 vi.mock('@/lib/auth/audit', () => ({ recordAudit: recordAuditMock }));
 vi.mock('@/lib/services/tasks/notify', () => ({
   notifyTaskAssigned: notifyTaskAssignedMock,
-  TASKS_BOARD_URL: '/manager/tasks',
 }));
 
 import { createTask, updateTask, assignTask } from '@/lib/services/tasks/tasks';

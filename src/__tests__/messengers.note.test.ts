@@ -160,7 +160,6 @@ describe('addDialogNote', () => {
       entityId: 'd1',
       noteId: 'mm1',
       body: 'посмотри @Иван Петров',
-      managerPath: '/manager/messengers/d1',
     });
   });
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { sendMock, sendCommissionMock } = vi.hoisted(() => ({
   sendMock: vi.fn(),
@@ -11,17 +11,28 @@ vi.mock('@/lib/email/send', () => ({
 
 import { notifyPartnerUsers } from '@/lib/notifications/partner';
 
+// Счётчики вызовов почты не должны перетекать между случаями: проверка
+// «письмо НЕ ушло» иначе увидит письмо соседнего теста.
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
 function dbWith(users: Array<{ id: string; email: string | null }>) {
   const create = vi.fn().mockResolvedValue({});
-  const partnerUsers = users.map((u) => ({ user: u }));
+  // Единая точка `recordNotification` (`У-231`): повтор ищется до создания.
+  const findFirst = vi.fn().mockResolvedValue(null);
+  const update = vi.fn().mockResolvedValue({ id: 'n-dup' });
+  const partnerUsers = users.map((u) => ({ user: { role: 'partner', ...u } }));
   return {
     db: {
       partner: {
         findUnique: vi.fn().mockResolvedValue({ id: 'p-1', name: 'ООО Партнёр', partnerUsers }),
       },
-      notification: { create },
+      notification: { create, findFirst, update },
     } as never,
     create,
+    findFirst,
+    update,
   };
 }
 
@@ -41,6 +52,7 @@ describe('notifyPartnerUsers', () => {
         orderTitle: 'T',
         documentName: 'k.pdf',
         documentType: 'commission_statement',
+        documentId: 'doc-k',
       },
     });
     expect(r.recipientsNotified).toBe(2);
@@ -48,6 +60,49 @@ describe('notifyPartnerUsers', () => {
     expect(r.emailsSkipped).toBe(2);
     expect(create).toHaveBeenCalledTimes(2);
     expect(create.mock.calls[0][0].data.partnerId).toBe('p-1');
+    // `У-231`: ключ дедупа документа — сам документ, не заказ.
+    expect(create.mock.calls[0][0].data.entityId).toBe('doc-k');
+    expect(create.mock.calls[0][0].data.lastOccurredAt).toEqual(expect.any(Date));
+  });
+
+  it('повтор в окне (У-231): findFirst нашёл строку → update, create нет, письмо не шлётся, emailsSkipped', async () => {
+    sendMock.mockResolvedValue({ status: 'sent' });
+    const { db, create, findFirst, update } = dbWith([{ id: 'u1', email: 'a@p.ru' }]);
+    findFirst.mockResolvedValue({ id: 'n-old' });
+    const r = await notifyPartnerUsers(db, {
+      partnerId: 'p-1',
+      type: 'document_published',
+      payload: {
+        orderId: 'o1',
+        orderNumber: '42',
+        orderTitle: 'T',
+        documentName: 'k-v2.pdf',
+        documentType: 'act',
+        documentId: 'doc-k',
+      },
+    });
+    expect(r).toEqual({ recipientsNotified: 1, emailsSent: 0, emailsSkipped: 1 });
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userId: 'u1',
+          type: 'document_published',
+          entityId: 'doc-k',
+        }),
+      })
+    );
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'n-old' },
+        data: expect.objectContaining({
+          dedupCount: { increment: 1 },
+          isRead: false,
+          body: expect.stringContaining('k-v2.pdf'),
+        }),
+      })
+    );
+    expect(create).not.toHaveBeenCalled();
+    expect(sendMock).not.toHaveBeenCalled();
   });
 
   it('returns zeroes for an unknown partner', async () => {
@@ -130,10 +185,11 @@ describe('notifyPartnerUsers', () => {
     const meta = data.meta as Record<string, unknown>;
     expect(meta.url).toContain('/partner/finance');
     expect(meta.statementId).toBe('s-7');
+    // `У-231`: ключ дедупа отчёта — сам отчёт, а не заказ.
+    expect(data.entityId).toBe('s-7');
   });
 
   it('commission_statement_ready: dispatches the commission-ready email (not the document email)', async () => {
-    sendMock.mockClear(); // no beforeEach reset in this file; isolate the cross-type assertion
     sendCommissionMock.mockResolvedValue({ status: 'sent' });
     const { db } = dbWith([{ id: 'u6', email: 'e@p.ru' }]);
     const r = await notifyPartnerUsers(db, {

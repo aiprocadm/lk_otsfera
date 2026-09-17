@@ -33,8 +33,13 @@ describe('notifyManagers — document_uploaded_by_partner', () => {
       },
       organizationManager: { findMany: vi.fn().mockResolvedValue([]) },
       comment: { findMany: vi.fn().mockResolvedValue([]) },
-      user: { findMany: vi.fn().mockResolvedValue([{ id: 'm1', email: 'm@x.ru', name: 'M' }]) },
-      notification: { create },
+      user: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([{ id: 'm1', email: 'm@x.ru', name: 'M', role: 'manager' }]),
+      },
+      // Единая точка `recordNotification` (`У-231`): повтор ищется до создания.
+      notification: { create, findFirst: vi.fn().mockResolvedValue(null), update: vi.fn() },
     } as never;
 
     const r = await notifyManagers(db, {
@@ -43,12 +48,21 @@ describe('notifyManagers — document_uploaded_by_partner', () => {
       payload: {
         partnerName: 'ООО Партнёр',
         documentName: 'k.pdf',
+        documentId: 'doc-k',
         documentType: 'commission_statement',
       },
     });
 
     expect(r.recipientsNotified).toBe(1);
     expect(create.mock.calls[0][0].data.type).toBe('document_uploaded_by_partner');
+    // `У-231`: ключ дедупа документного события — сам документ.
+    expect(create.mock.calls[0][0].data.entityId).toBe('doc-k');
     expect(sendPartner).toHaveBeenCalledOnce();
+    expect(sendPartner).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'm@x.ru',
+        orderUrl: expect.stringMatching(/\/manager\/orders\/o1$/),
+      })
+    );
   });
 });

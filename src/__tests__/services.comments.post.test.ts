@@ -6,27 +6,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  * раньше проверялись через роут (api.comments.*.test.ts), но без HTTP.
  */
 
-const {
-  canReadOrder,
-  notifyManagers,
-  notifyOrgUsers,
-  notifyMessageCreated,
-  deliver,
-  getPrimaryOrg,
-} = vi.hoisted(() => ({
-  canReadOrder: vi.fn(),
-  notifyManagers: vi.fn(),
-  notifyOrgUsers: vi.fn(),
-  notifyMessageCreated: vi.fn(),
-  deliver: vi.fn(),
-  getPrimaryOrg: vi.fn(),
-}));
+const { canReadOrder, notifyManagers, notifyOrgUsers, recordNotification, deliver, getPrimaryOrg } =
+  vi.hoisted(() => ({
+    canReadOrder: vi.fn(),
+    notifyManagers: vi.fn(),
+    notifyOrgUsers: vi.fn(),
+    recordNotification: vi.fn(),
+    deliver: vi.fn(),
+    getPrimaryOrg: vi.fn(),
+  }));
 
 vi.mock('@/lib/auth/policy', () => ({ canReadOrder }));
 vi.mock('@/lib/notifications', () => ({
   notifyManagers,
   notifyOrgUsers,
-  notifyMessageCreated,
+  recordNotification,
   deliverNotificationToUser: deliver,
 }));
 vi.mock('@/lib/auth/organization', () => ({ getPrimaryOrganizationId: getPrimaryOrg }));
@@ -63,7 +57,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   notifyManagers.mockResolvedValue({});
   notifyOrgUsers.mockResolvedValue({});
-  notifyMessageCreated.mockResolvedValue({ id: 'n1' });
+  recordNotification.mockResolvedValue({ row: { id: 'n1' }, deduped: false });
   deliver.mockResolvedValue({});
   getPrimaryOrg.mockResolvedValue('org-a');
   canReadOrder.mockResolvedValue(true);
@@ -186,6 +180,32 @@ describe('postOrderComment — partner / общая ветка', () => {
     expect(res).toMatchObject({ ok: true, viewer: 'legacy' });
     // Партнёрская ветка не спрашивает общий предикат — она строже него.
     expect(canReadOrder).not.toHaveBeenCalled();
+    // Ключ дедупа — заказ; ссылку строит таблица маршрутов по meta.orderId.
+    expect(recordNotification).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({
+        userId: 'p-u',
+        partnerId: 'p1',
+        type: 'message_created',
+        entityId: 'ord-1',
+        meta: { orderId: 'ord-1', commentId: 'c1' },
+      })
+    );
+    expect(deliver).toHaveBeenCalledWith(
+      expect.objectContaining({ meta: { orderId: 'ord-1', commentId: 'c1' }, dedupKey: 'n1' })
+    );
+  });
+
+  it('повтор за час (deduped: true) — доставка не зовётся, комментарий сохранён', async () => {
+    recordNotification.mockResolvedValue({ row: { id: 'n1' }, deduped: true });
+    const prisma = prismaMock();
+    prisma.order.findUnique.mockResolvedValue({ id: 'ord-1', companyId: 'c1', partnerId: 'p1' });
+
+    const res = await postOrderComment(prisma as never, partner, args);
+
+    expect(res).toMatchObject({ ok: true, viewer: 'legacy' });
+    expect(recordNotification).toHaveBeenCalledTimes(1);
+    expect(deliver).not.toHaveBeenCalled();
   });
 
   it('заказ соседнего партнёра той же компании → access_denied', async () => {
@@ -206,7 +226,7 @@ describe('postOrderComment — partner / общая ветка', () => {
   });
 
   it('сбой рассылки не откатывает комментарий (best-effort)', async () => {
-    notifyMessageCreated.mockRejectedValue(new Error('transport down'));
+    recordNotification.mockRejectedValue(new Error('transport down'));
     const prisma = prismaMock();
     prisma.order.findUnique.mockResolvedValue({ id: 'ord-1', companyId: 'c1' });
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { notFound } from 'next/navigation';
+import { redirect } from 'next/navigation';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import {
@@ -19,6 +19,7 @@ import { OrderReadinessPanel } from '@/components/manager/order-readiness-panel'
 import { listCertificateScanTargets } from '@/lib/services/manager/certificateScans';
 import { CertificateScansPanel } from '@/components/manager/certificate-scans-panel';
 import { buildOrderBreadcrumbs } from '@/lib/navigation/breadcrumbs';
+import { missingObjectHref } from '@/lib/navigation/missingObject';
 import { OrderDealPanel } from '@/components/orders/order-deal-panel';
 import { getOrderStatusPanel } from '@/lib/services/orderStatuses';
 import { getOrderLinesPanel } from '@/lib/services/orders/linesPanel';
@@ -37,7 +38,10 @@ export default async function ManagerOrderDetailPage({
   const session = await requireManager();
   const { id } = await params;
   const data = await loadManagerOrderDetail(prisma, session, id);
-  if (!data) notFound();
+  // `У-232` (спека §3.7): удалённый или чужой заказ — не 404, а список
+  // раздела с плашкой «объект недоступен». Ответ один для обоих случаев,
+  // чтобы существование чужого заказа не утекало по разнице ответов (§4).
+  if (!data) redirect(missingObjectHref('/manager/orders'));
 
   const [directionsResult, students, customFieldsResult, activity] = await Promise.all([
     listDirections(prisma, session),

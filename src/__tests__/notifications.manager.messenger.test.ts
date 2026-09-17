@@ -23,17 +23,24 @@ import { notifyManagersMessengerMessage } from '@/lib/notifications/manager';
  */
 function makeDb(managers: unknown[], assigned: { userId: string }[]) {
   const createFn = vi.fn().mockResolvedValue({ id: 'n1' });
+  // Единая точка `recordNotification` (`У-231`): для сообщений повтор не
+  // ищется (`noDedup`), но таблица фейка честно умеет всё, что зовёт ядро.
+  const findFirst = vi.fn().mockResolvedValue(null);
   const userFindMany = vi.fn().mockResolvedValue(managers);
   return {
     db: {
       organizationManager: { findMany: vi.fn().mockResolvedValue(assigned) },
       user: { findMany: userFindMany },
-      notification: { create: createFn },
+      notification: { create: createFn, findFirst, update: vi.fn() },
     } as never,
     createFn,
+    findFirst,
     userFindMany,
   };
 }
+
+// Роль получателя обязательна: по ней таблица маршрутов строит ссылку (`Р-Э5-7`).
+const MARIA = { id: 'm1', email: 'm@x.ru', name: 'Мария', role: 'manager' };
 
 const INPUT = {
   organizationId: 'org1',
@@ -48,10 +55,7 @@ describe('notifyManagersMessengerMessage', () => {
 
   it('пишет уведомление со ссылкой в диалог и шлёт письмо закреплённым менеджерам', async () => {
     sendNotification.mockResolvedValue({ status: 'sent', id: 'e1' });
-    const { db, createFn } = makeDb(
-      [{ id: 'm1', email: 'm@x.ru', name: 'Мария' }],
-      [{ userId: 'm1' }]
-    );
+    const { db, createFn, findFirst } = makeDb([MARIA], [{ userId: 'm1' }]);
 
     const r = await notifyManagersMessengerMessage(db, INPUT);
 
@@ -63,9 +67,20 @@ describe('notifyManagersMessengerMessage', () => {
       type: 'messenger_message',
       title: 'Новое сообщение в Telegram от Иван Петров',
       body: 'нужен счёт',
-      meta: { dialogId: 'd1', url: expect.stringContaining('/manager/messengers/d1') },
+      entityId: 'd1',
     });
+    // `Р-Э5-7`: в строке только идентификатор диалога — адрес считается по роли.
+    expect(row.meta).toEqual({ dialogId: 'd1' });
+    // Сообщения — `noDedup`: каждое важно само по себе, повтор не ищется.
+    expect(findFirst).not.toHaveBeenCalled();
+    // А в письме адрес есть — и ведёт в сам диалог.
     expect(sendNotification).toHaveBeenCalledOnce();
+    expect(sendNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'm@x.ru',
+        url: expect.stringMatching(/\/manager\/messengers\/d1$/),
+      })
+    );
   });
 
   it('некому слать → нулевая сводка без записи', async () => {
@@ -81,11 +96,30 @@ describe('notifyManagersMessengerMessage', () => {
   it('excludeUserId убирает автора из получателей; без почты — письмо пропущено', async () => {
     sendNotification.mockResolvedValue({ status: 'skipped' });
     const { db, userFindMany } = makeDb(
-      [{ id: 'm2', email: null, name: 'Без почты' }],
+      [{ id: 'm2', email: null, name: 'Без почты', role: 'manager' }],
       [{ userId: 'm1' }, { userId: 'm2' }]
     );
     const r = await notifyManagersMessengerMessage(db, INPUT, { excludeUserId: 'm1' });
     expect(r).toEqual({ recipientsNotified: 1, emailsSent: 0, emailsSkipped: 1 });
+    expect(userFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ id: { in: ['m2'] } }) })
+    );
+  });
+
+  it('ответственный сам написал (excludeUserId = assigneeId) → откат на менеджеров организации', async () => {
+    sendNotification.mockResolvedValue({ status: 'sent', id: 'e1' });
+    const { db, userFindMany } = makeDb(
+      [{ id: 'm2', email: 'b@x.ru', name: 'Борис', role: 'manager' }],
+      [{ userId: 'm1' }, { userId: 'm2' }]
+    );
+    const r = await notifyManagersMessengerMessage(
+      db,
+      { ...INPUT, assigneeId: 'm1' },
+      { excludeUserId: 'm1' }
+    );
+    // Ветка ответственного вернула пусто без запроса в базу — адресаты из организации.
+    expect(r.recipientsNotified).toBe(1);
+    expect(userFindMany).toHaveBeenCalledTimes(1);
     expect(userFindMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ id: { in: ['m2'] } }) })
     );

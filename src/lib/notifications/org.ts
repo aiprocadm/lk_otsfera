@@ -1,4 +1,4 @@
-import { type Prisma, type PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '@prisma/client';
 import { log } from '@/lib/logging';
 import { dispatchToRecipient } from './channels/dispatch';
 import {
@@ -8,6 +8,7 @@ import {
 } from './channels/types';
 import { allowedChannels } from './routing';
 import { getAppBaseUrl, orderLabel } from './shared';
+import { recordNotification } from './core';
 
 type OrgNotifyInput =
   | {
@@ -19,6 +20,8 @@ type OrgNotifyInput =
         orderTitle: string | null;
         documentName: string;
         documentType: string;
+        /** `У-231`: ключ дедупа — сам документ; без него повторы не схлопываются. */
+        documentId?: string | undefined;
       };
     }
   | {
@@ -377,18 +380,30 @@ export async function notifyOrgUsers(
   let emailsQueued = 0;
   let recipientsNotified = 0;
 
+  // `У-231`: документ — по самому документу (два разных документа за час — два
+  // письма), без `documentId` дедупа нет; остальные события — по заказу.
+  let entityId: string | null = typeof meta.orderId === 'string' ? meta.orderId : null;
+  if (input.type === 'document_published') {
+    entityId = input.payload.documentId ?? null;
+    if (input.payload.documentId) meta.documentId = input.payload.documentId;
+  }
+
   for (const member of org.organizationUsers) {
-    const row = await db.notification.create({
-      data: {
-        userId: member.user.id,
-        organizationId: org.id,
-        type: input.type,
-        title,
-        body,
-        meta: meta as Prisma.InputJsonValue,
-      },
+    const { row, deduped } = await recordNotification(db, {
+      userId: member.user.id,
+      organizationId: org.id,
+      type: input.type,
+      title,
+      body,
+      meta,
+      entityId,
     });
     recipientsNotified += 1;
+    // Повтор в окне: строка помечена «×N», письмо и мессенджер не дублируются.
+    if (deduped) {
+      emailsSkipped += 1;
+      continue;
+    }
 
     // Best-effort: канальный слой изолирует ошибки per-channel — сбой одного
     // получателя/канала не прерывает fan-out (in-app строки — источник истины).

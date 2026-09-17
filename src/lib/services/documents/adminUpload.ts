@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { canReadOrder } from '@/lib/auth/policy';
-import { deliverNotificationToUser, notifyDocumentCreated } from '@/lib/notifications';
+import { deliverNotificationToUser, recordNotification } from '@/lib/notifications';
 import { getPrimaryOrganizationId } from '@/lib/auth/organization';
 import { log } from '@/lib/logging';
 import { persistUploadedDocument } from './upload-core';
@@ -90,22 +90,28 @@ export async function uploadAdminDocument(
   // would retry and create a duplicate).
   try {
     const organizationId = await getPrimaryOrganizationId(session);
-    const row = await notifyDocumentCreated({
+    const meta = { orderId, documentId: doc.id };
+    const { row, deduped } = await recordNotification(prisma, {
       userId: session.sub,
       organizationId,
-      // exactOptionalPropertyTypes: NotificationInput различает «ключа нет» и «ключ = undefined».
+      // exactOptionalPropertyTypes: вход различает «ключа нет» и «ключ = undefined».
       ...(session.partnerId !== undefined ? { partnerId: session.partnerId } : {}),
-      title: 'Новый документ',
-      body: `Загружен документ ${file.name}`,
-      meta: { orderId, documentId: doc.id },
-    });
-    await deliverNotificationToUser({
-      userId: session.sub,
-      title: 'Новый документ',
-      body: `Загружен документ ${file.name}`,
       type: 'document_created',
-      dedupKey: row.id,
+      title: 'Новый документ',
+      body: `Загружен документ ${file.name}`,
+      meta,
+      entityId: doc.id,
     });
+    if (!deduped) {
+      await deliverNotificationToUser({
+        userId: session.sub,
+        title: 'Новый документ',
+        body: `Загружен документ ${file.name}`,
+        type: 'document_created',
+        meta,
+        dedupKey: row.id,
+      });
+    }
   } catch (err) {
     log.warn('[documents/upload] notification fan-out failed', {
       correlationId,

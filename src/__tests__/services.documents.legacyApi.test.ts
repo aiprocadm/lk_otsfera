@@ -13,7 +13,7 @@ const {
   canReadDocument,
   upload,
   enqueueAdd,
-  notifyDocumentCreated,
+  recordNotification,
   deliver,
   getPrimaryOrg,
 } = vi.hoisted(() => ({
@@ -21,7 +21,7 @@ const {
   canReadDocument: vi.fn(),
   upload: vi.fn(),
   enqueueAdd: vi.fn(),
-  notifyDocumentCreated: vi.fn(),
+  recordNotification: vi.fn(),
   deliver: vi.fn(),
   getPrimaryOrg: vi.fn(),
 }));
@@ -40,7 +40,7 @@ vi.mock('@/lib/jobs/queues', () => ({
   QUEUE_NAMES: ['docs.scanDocument'],
 }));
 vi.mock('@/lib/notifications', () => ({
-  notifyDocumentCreated,
+  recordNotification,
   deliverNotificationToUser: deliver,
 }));
 vi.mock('@/lib/auth/organization', () => ({ getPrimaryOrganizationId: getPrimaryOrg }));
@@ -84,7 +84,7 @@ beforeEach(() => {
   canReadDocument.mockResolvedValue(true);
   upload.mockResolvedValue(undefined);
   enqueueAdd.mockResolvedValue(undefined);
-  notifyDocumentCreated.mockResolvedValue({ id: 'notif-1' });
+  recordNotification.mockResolvedValue({ row: { id: 'notif-1' }, deduped: false });
   deliver.mockResolvedValue({});
   getPrimaryOrg.mockResolvedValue('o1');
 });
@@ -175,14 +175,43 @@ describe('uploadAdminDocument', () => {
 
   it('сессия без partnerId: ключ не подставляется в уведомление (exactOptionalPropertyTypes)', async () => {
     await uploadAdminDocument(db() as never, { sub: 'a1', role: 'admin' } as never, args);
-    expect(notifyDocumentCreated).toHaveBeenCalledWith(
+    expect(recordNotification).toHaveBeenCalledWith(
+      expect.anything(),
       expect.not.objectContaining({ partnerId: expect.anything() })
     );
   });
 
+  it('уведомление: ключ дедупа — документ, meta без адреса кабинета, доставка с тем же meta', async () => {
+    const prisma = db();
+    await uploadAdminDocument(prisma as never, admin, args);
+    expect(recordNotification).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({
+        type: 'document_created',
+        entityId: 'd1',
+        meta: { orderId: 'ord1', documentId: 'd1' },
+      })
+    );
+    expect(deliver).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'document_created',
+        meta: { orderId: 'ord1', documentId: 'd1' },
+        dedupKey: 'notif-1',
+      })
+    );
+  });
+
+  it('повтор за час (deduped: true) — доставка не зовётся', async () => {
+    recordNotification.mockResolvedValue({ row: { id: 'notif-1' }, deduped: true });
+    const res = await uploadAdminDocument(db() as never, admin, args);
+    expect(res).toMatchObject({ ok: true });
+    expect(recordNotification).toHaveBeenCalledTimes(1);
+    expect(deliver).not.toHaveBeenCalled();
+  });
+
   it('сбои очереди и рассылки не ломают загрузку (graceful)', async () => {
     enqueueAdd.mockRejectedValue(new Error('Redis down'));
-    notifyDocumentCreated.mockRejectedValue('transport string');
+    recordNotification.mockRejectedValue('transport string');
     const res = await uploadAdminDocument(db() as never, admin, args);
     expect(res).toMatchObject({ ok: true });
   });

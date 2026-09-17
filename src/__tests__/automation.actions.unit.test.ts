@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
 
-const { createNotification, deliverNotificationToUser } = vi.hoisted(() => ({
-  createNotification: vi.fn().mockResolvedValue({ id: 'n1' }),
+const { recordNotification, deliverNotificationToUser } = vi.hoisted(() => ({
+  recordNotification: vi.fn().mockResolvedValue({ row: { id: 'n1' }, deduped: false }),
   deliverNotificationToUser: vi.fn(),
 }));
-vi.mock('@/lib/notifications', () => ({ createNotification, deliverNotificationToUser }));
+vi.mock('@/lib/notifications', () => ({ recordNotification, deliverNotificationToUser }));
 
 const { createTaskCore } = vi.hoisted(() => ({
   createTaskCore: vi.fn().mockResolvedValue({ id: 't1', title: 'T', dueDate: null }),
@@ -179,12 +179,72 @@ describe('runNotify', () => {
     const res = await runNotify(prisma, {
       action: { kind: 'notify', audience: 'role:leader', template: 'Смотри {{order.number}}' },
       companyId: 'co-1',
+      ruleId: 'r1',
       ruleName: 'Правило',
-      payload: { orderNumber: '17' },
+      payload: { orderNumber: '17', orderId: 'o-17' },
     });
     expect(res.notifiedUserIds).toEqual(['boss', 'boss2']);
-    expect(createNotification.mock.calls[0][0].body).toBe('Смотри 17');
-    expect(createNotification.mock.calls[0][0].type).toBe('automation_notice');
+    expect(recordNotification.mock.calls[0][1].body).toBe('Смотри 17');
+    expect(recordNotification.mock.calls[0][1].type).toBe('automation_notice');
+    // `У-232`: объект события — в `meta` (по нему таблица маршрутов строит
+    // ссылку от роли получателя), он же — ключ дедупа.
+    expect(recordNotification).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({
+        meta: { ruleId: 'r1', entity: 'order', entityId: 'o-17' },
+        // Ключ дедупа — «правило:объект» (два правила на одном заказе — два уведомления).
+        entityId: 'r1:o-17',
+      })
+    );
+    expect(deliverNotificationToUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'automation_notice',
+        meta: { ruleId: 'r1', entity: 'order', entityId: 'o-17' },
+        dedupKey: 'n1',
+      })
+    );
+    expect(deliverNotificationToUser.mock.calls[0][0]).not.toHaveProperty('url');
+  });
+
+  it('объект события выбирается по первому известному идентификатору; без объекта ключ — правило', async () => {
+    userFindMany.mockResolvedValue([{ id: 'boss' }]);
+    await runNotify(prisma, {
+      action: { kind: 'notify', audience: 'role:leader', template: 'Текст' },
+      companyId: 'co-1',
+      ruleId: 'r1',
+      ruleName: 'Правило',
+      payload: { documentId: 'doc-1', orderId: 'o-1', taskId: 't-1' },
+    });
+    expect(recordNotification.mock.calls[0][1]).toMatchObject({
+      meta: { ruleId: 'r1', entity: 'task', entityId: 't-1' },
+      entityId: 'r1:t-1',
+    });
+
+    await runNotify(prisma, {
+      action: { kind: 'notify', audience: 'role:leader', template: 'Текст' },
+      companyId: 'co-1',
+      ruleId: 'r1',
+      ruleName: 'Правило',
+      payload: {},
+    });
+    expect(recordNotification.mock.calls[1][1]).toMatchObject({
+      meta: { ruleId: 'r1', entity: null, entityId: null },
+      entityId: 'r1',
+    });
+  });
+
+  it('повтор за час (deduped: true) — доставка не зовётся, получатель засчитан', async () => {
+    userFindMany.mockResolvedValue([{ id: 'boss' }]);
+    recordNotification.mockResolvedValueOnce({ row: { id: 'n1' }, deduped: true });
+    const res = await runNotify(prisma, {
+      action: { kind: 'notify', audience: 'role:leader', template: 'Текст' },
+      companyId: 'co-1',
+      ruleId: 'r1',
+      ruleName: 'Правило',
+      payload: {},
+    });
+    expect(res.notifiedUserIds).toEqual(['boss']);
+    expect(deliverNotificationToUser).not.toHaveBeenCalled();
   });
 
   it('некому слать — честный отказ в журнал', async () => {
@@ -192,6 +252,7 @@ describe('runNotify', () => {
     const res = await runNotify(prisma, {
       action: { kind: 'notify', audience: 'role:leader', template: 'Текст' },
       companyId: 'co-1',
+      ruleId: 'r1',
       ruleName: 'Правило',
       payload: {},
     });
@@ -200,10 +261,11 @@ describe('runNotify', () => {
 
   it('один недоступный получатель не отменяет рассылку остальным', async () => {
     userFindMany.mockResolvedValue([{ id: 'boss' }, { id: 'boss2' }]);
-    createNotification.mockRejectedValueOnce(new Error('почта легла'));
+    recordNotification.mockRejectedValueOnce(new Error('почта легла'));
     const res = await runNotify(prisma, {
       action: { kind: 'notify', audience: 'role:leader', template: 'Текст' },
       companyId: 'co-1',
+      ruleId: 'r1',
       ruleName: 'Правило',
       payload: {},
     });
@@ -339,6 +401,7 @@ describe('краевые случаи действий', () => {
     const res = await runNotify(prisma, {
       action: { kind: 'notify', audience: 'user:нет-такого', template: 'Смотри' },
       companyId: 'co-1',
+      ruleId: 'r1',
       ruleName: 'Правило',
       payload: {},
     });

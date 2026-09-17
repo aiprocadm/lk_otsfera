@@ -1,6 +1,6 @@
 import type { PrismaClient, EnrollmentRequest } from '@prisma/client';
 import {
-  createNotification,
+  recordNotification,
   deliverNotificationToUser,
   resolveOrgManagerRecipients,
 } from '@/lib/notifications';
@@ -76,7 +76,9 @@ export async function notifySubmitterEnrollmentStatus(
         : '';
     const body = `Заявка на обучение: ${countText}, ${directionsCount > 1 ? 'направления' : 'направление'} «${directionName}» — статус «${statusLabel}».${reason}`;
     const url = submitterEnrollmentUrl(request.submitterRole, request.id);
-    const row = await createNotification({
+    // Ключ дедупа — заявка: две смены статуса за час — одна строка «×2» и одно
+    // письмо (тексты в строке — свежие).
+    const { row, deduped } = await recordNotification(prisma, {
       userId: request.submittedByUserId,
       organizationId: request.organizationId,
       partnerId: request.partnerId,
@@ -84,7 +86,9 @@ export async function notifySubmitterEnrollmentStatus(
       title,
       body,
       meta: { requestId: request.id, status: request.status, ...(url ? { url } : {}) },
+      entityId: request.id,
     });
+    if (deduped) return;
     await deliverNotificationToUser({
       userId: request.submittedByUserId,
       title,
@@ -121,21 +125,26 @@ export async function notifyManagersEnrollmentSubmitted(
     );
     const title = 'Новая заявка на обучение';
     const body = `${orgName ? `Организация «${orgName}»: ` : ''}${countText}, ${directionsCount > 1 ? 'направления' : 'направление'} «${directionName}».`;
+    // `У-232`: ссылку строит таблица маршрутов по `requestId` от роли
+    // получателя — адрес кабинета сюда не пишем.
+    const meta = { requestId: request.id };
     for (const r of recipients) {
-      const row = await createNotification({
+      const { row, deduped } = await recordNotification(prisma, {
         userId: r.id,
         organizationId: request.organizationId,
         type: 'enrollment_submitted',
         title,
         body,
-        meta: { requestId: request.id, url: '/manager/enrollments' },
+        meta,
+        entityId: request.id,
       });
+      if (deduped) continue;
       await deliverNotificationToUser({
         userId: r.id,
         title,
         body,
         type: 'enrollment_submitted',
-        url: '/manager/enrollments',
+        meta,
         dedupKey: row.id,
       });
     }

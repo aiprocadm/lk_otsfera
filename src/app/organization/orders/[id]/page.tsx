@@ -1,5 +1,5 @@
 import React from 'react';
-import { notFound } from 'next/navigation';
+import { redirect } from 'next/navigation';
 import { Breadcrumbs } from '@/components/ui';
 import { prisma } from '@/lib/db/prisma';
 import { getOrgPageContext } from '@/lib/auth/orgPageContext';
@@ -17,6 +17,7 @@ import { OrderCustomFields } from '@/components/orders/order-custom-fields';
 import { getOrgOrder, listOrgOrderComments } from '@/lib/services/organization/orders';
 import { getValuesForEntity } from '@/lib/services/customFields';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
+import { missingObjectHref } from '@/lib/navigation/missingObject';
 
 type Params = { id: string };
 type SearchParams = { org?: string };
@@ -31,14 +32,22 @@ export default async function OrganizationOrderDetailPage({
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const ctx = await getOrgPageContext(sp);
 
+  // Список раздела с активной организацией: и для крошек, и для ответа
+  // «объект недоступен» — человек остаётся в той организации, где был.
+  const listHref = sp.org
+    ? `/organization/orders?org=${encodeURIComponent(sp.org)}`
+    : '/organization/orders';
+
+  // `У-232` (спека §3.7): удалённый или чужой заказ → список раздела с плашкой
+  // «объект недоступен», а не 404. Ответ один для обоих случаев (§4).
   const order = await getOrgOrder(prisma, ctx.activeOrgId, id);
-  if (!order) notFound();
+  if (!order) redirect(missingObjectHref(listHref));
 
   // Defense-in-depth: even though the service already scoped by orgId,
   // re-check via canSeeOrder so a future refactor to the service can't
   // accidentally widen the trust boundary.
   if (!canSeeOrder(ctx.session, { organizationId: order.organizationId })) {
-    notFound();
+    redirect(missingObjectHref(listHref));
   }
 
   const [comments, customFieldsResult] = await Promise.all([
@@ -46,10 +55,6 @@ export default async function OrganizationOrderDetailPage({
     getValuesForEntity(prisma, ctx.session, 'order', order.id),
   ]);
   const customFields = customFieldsResult.ok ? customFieldsResult.fields : [];
-
-  const backHref = sp.org
-    ? `/organization/orders?org=${encodeURIComponent(sp.org)}`
-    : '/organization/orders';
 
   return (
     <OrgAppShell
@@ -66,7 +71,7 @@ export default async function OrganizationOrderDetailPage({
             'organization',
             '/organization/orders',
             [{ label: order.orderNumber ? `Заказ №${order.orderNumber}` : 'Заказ' }],
-            { sectionHref: backHref }
+            { sectionHref: listHref }
           )}
         />
 

@@ -44,7 +44,11 @@ describe('У-127: правила применяются, а не только с
     for (const f of FANOUT_FILES) {
       const src = read(f);
       const calls = (src.match(/await allowedChannels\(/g) ?? []).length;
-      const dispatches = (src.match(/await dispatchToRecipient\(/g) ?? []).length;
+      // Этап 5 PR-3: в manager.ts доставка живёт в общем шаге `recordAndDispatch`
+      // (строка через единую точку → при повторе каналы не дёргаются) — это та же
+      // рассылка, один вызов на функцию-веер.
+      const dispatches = (src.match(/await (dispatchToRecipient|recordAndDispatch)\(/g) ?? [])
+        .length;
       expect(calls, `${f}: запросов правил больше, чем рассылок`).toBeLessThanOrEqual(dispatches);
     }
   });

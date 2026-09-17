@@ -154,3 +154,27 @@ describe('LeaderOrdersPage — выгрузка в Excel', () => {
     expect(href).toContain('financialStatus=paid');
   });
 });
+
+// `У-232` (спека §3.7): тот же ответ на `?missing=1`, что у менеджера (зеркало §0.2).
+describe('LeaderOrdersPage — плашка «объект недоступен» (У-232)', () => {
+  beforeEach(() => {
+    requireManagerLeader.mockReset().mockResolvedValue(SESSION);
+    listOrders.mockReset().mockResolvedValue({ rows: [], nextCursor: null });
+    listOrganizations.mockReset().mockResolvedValue([]);
+  });
+
+  it('?missing=1 → плашка над списком', async () => {
+    const { container } = await renderServerComponent(
+      LeaderOrdersPage({ searchParams: Promise.resolve({ missing: '1' }) })
+    );
+    expect(container.querySelector('[data-testid="missing-object-notice"]')).not.toBeNull();
+    expect(container.textContent).toContain('Заказ недоступен');
+  });
+
+  it('без параметра плашки нет', async () => {
+    const { container } = await renderServerComponent(
+      LeaderOrdersPage({ searchParams: Promise.resolve({}) })
+    );
+    expect(container.querySelector('[data-testid="missing-object-notice"]')).toBeNull();
+  });
+});

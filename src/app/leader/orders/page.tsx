@@ -10,6 +10,8 @@ import { ExportLink } from '@/components/ui';
 import { getOrderedStatuses } from '@/lib/services/orderStatuses';
 
 import { PageHeader } from '@/components/ui/page-header';
+import { MissingObjectNotice } from '@/components/ui/missing-object-notice';
+import { isMissingObjectRequested } from '@/lib/navigation/missingObject';
 export const dynamic = 'force-dynamic';
 
 type SearchParams = {
@@ -19,6 +21,8 @@ type SearchParams = {
   organizationId?: string;
   unassigned?: string;
   cursor?: string;
+  /** `У-232`: пришли по ссылке на удалённый или чужой объект. */
+  missing?: string;
 };
 
 export default async function LeaderOrdersPage({
@@ -61,6 +65,8 @@ export default async function LeaderOrdersPage({
           }}
         />
       </div>
+      {/* `У-232`: пришли по ссылке на удалённый или чужой заказ. */}
+      {isMissingObjectRequested(sp) && <MissingObjectNotice what="Заказ" />}
       <ManagerOrdersFilter orgs={orgs} initial={sp} statuses={statusOptions} basePath="/leader" />
       <ManagerOrdersTable
         rows={rows}

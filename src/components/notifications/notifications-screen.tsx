@@ -136,10 +136,15 @@ export function NotificationsScreen(props: NotificationsScreenProps) {
                       {row.title}
                     </span>
                     {!row.isRead && <Badge tone="warning">новое</Badge>}
+                    {row.dedupCount > 1 && (
+                      <span title={`Повторилось ${row.dedupCount} раз за час`}>
+                        <Badge tone="neutral">×{row.dedupCount}</Badge>
+                      </span>
+                    )}
                   </span>
                   <span className="block text-sm text-gray-500">{row.body}</span>
                   <span className="mt-1 block text-xs text-gray-400">
-                    {typeLabel(row.type)} · {fmtDateTime(row.createdAt)}
+                    {typeLabel(row.type)} · {fmtDateTime(row.lastOccurredAt ?? row.createdAt)}
                   </span>
                 </span>
               </>
