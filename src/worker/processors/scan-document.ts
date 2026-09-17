@@ -130,6 +130,9 @@ async function loadTarget(
   if (kind === 'company_branding') {
     return db.companyBrandingAsset.findUnique({ where: { id }, select: { id: true, path: true } });
   }
+  if (kind === 'partner_material') {
+    return db.partnerMaterialFile.findUnique({ where: { id }, select: { id: true, path: true } });
+  }
   return db.leadAttachment.findUnique({ where: { id }, select: { id: true, path: true } });
 }
 
@@ -165,6 +168,12 @@ async function persistResult(
   } else if (kind === 'company_branding') {
     // Этап 5 (У-138): полный набор колонок, как Document/LeadAttachment.
     await db.companyBrandingAsset.update({
+      where: { id },
+      data: { scanStatus, scanReason, scannedAt: new Date() },
+    });
+  } else if (kind === 'partner_material') {
+    // Этап 6 (У-237): файл материала — полный набор колонок, как у оформления компании.
+    await db.partnerMaterialFile.update({
       where: { id },
       data: { scanStatus, scanReason, scannedAt: new Date() },
     });

@@ -29,13 +29,13 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development
 
 ## PR-3. Материалы для партнёров (`У-237`)
 
-- [ ] Миграция: `PartnerMaterial` + enum категории; `kind: 'partner_material'` в антивирусе
-- [ ] Сервис `services/partnerMaterials/*` (список для хаба и для партнёра со скоупом компаний, публикация только при `clean`, замена файла через `replacesDocumentId`, снятие, аудит скачивания)
-- [ ] Раздел хаба `catalogs.partnerMaterials` (`processes/partner-materials`, admin/leader), загрузка через API-роут `readMultipart`, форма, история «кто скачал»
-- [ ] `/partner/materials` (пункт меню, `sectionKey: 'materials'`, исключение зеркала), карточки по категориям, поиск, «Новое» 7 дней, скачивание presigned
-- [ ] Тип `partner_material_published` в реестре (значок, маршрут), рассылка единой точкой
-- [ ] Стражи `partner.materials-scope`, `partner.materials-download-audited` (мутации); IDOR-тест; `upload.core-usage`
-- [ ] AUDIT `У-237` → ✅; CHANGELOG; STATUS
+- [x] Миграция: `PartnerMaterial` + enum категории; `kind: 'partner_material'` в антивирусе
+- [x] Сервис `services/partnerMaterials/*` (список для хаба и для партнёра со скоупом компаний, публикация только при `clean`, замена файла через `replacesDocumentId`, снятие, аудит скачивания)
+- [x] Раздел хаба `catalogs.partnerMaterials` (`processes/partner-materials`, admin/leader), загрузка через API-роут `readMultipart`, форма, история «кто скачал»
+- [x] `/partner/materials` (пункт меню, `sectionKey: 'materials'`, исключение зеркала), карточки по категориям, поиск, «Новое» 7 дней, скачивание presigned
+- [x] Тип `partner_material_published` в реестре (значок, маршрут), рассылка единой точкой
+- [x] Стражи `partner.materials-scope`, `partner.materials-download-audited` (мутации); IDOR-тест; `upload.core-usage`
+- [x] AUDIT `У-237` → ✅; CHANGELOG; STATUS
 
 ## PR-4. «Переписка с менеджером», видимость `member` (`У-234`, `У-236`)
 

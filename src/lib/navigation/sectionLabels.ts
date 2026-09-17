@@ -34,6 +34,8 @@ export type SectionKey =
   | 'contacts'
   | 'partners'
   | 'portfolio'
+  // Этап 6 ТЗ 12.09.2026 (`У-237`): материалы для партнёров.
+  | 'materials'
   | 'myOrganization'
   | 'enrollments'
   | 'certificates'
@@ -95,6 +97,7 @@ export const SECTIONS: Record<SectionKey, SectionMeta> = {
   contacts: { label: 'Контакты', iconKey: 'contacts' },
   partners: { label: 'Партнёры', iconKey: 'partners' },
   portfolio: { label: 'Портфель', iconKey: 'portfolio' },
+  materials: { label: 'Материалы', iconKey: 'materials' },
   myOrganization: { label: 'Моя организация', iconKey: 'myOrganization' },
   enrollments: { label: 'Заявки на обучение', iconKey: 'enrollments' },
   certificates: { label: 'Удостоверения', iconKey: 'certificates' },

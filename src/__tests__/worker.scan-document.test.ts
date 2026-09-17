@@ -27,6 +27,7 @@ function makeDb(
     chatAttachmentPath?: string | null;
     clientRequestAttachmentPath?: string | null;
     brandingPath?: string | null;
+    partnerMaterialPath?: string | null;
   } = {}
 ) {
   const documentUpdate = vi.fn().mockResolvedValue({});
@@ -37,6 +38,7 @@ function makeDb(
   const chatMessageUpdate = vi.fn().mockResolvedValue({});
   const clientRequestAttachmentUpdate = vi.fn().mockResolvedValue({});
   const companyBrandingAssetUpdate = vi.fn().mockResolvedValue({});
+  const partnerMaterialFileUpdate = vi.fn().mockResolvedValue({});
   const syncLogCreate = vi.fn().mockResolvedValue({});
   return {
     document: {
@@ -134,6 +136,18 @@ function makeDb(
               : { id: 'brand-1', path: opts.brandingPath }
         ),
       update: companyBrandingAssetUpdate,
+    },
+    partnerMaterialFile: {
+      findUnique: vi
+        .fn()
+        .mockResolvedValue(
+          opts.partnerMaterialPath === undefined
+            ? { id: 'pmf-1', path: 'company/co-1/partner-materials/price.pdf' }
+            : opts.partnerMaterialPath === null
+              ? null
+              : { id: 'pmf-1', path: opts.partnerMaterialPath }
+        ),
+      update: partnerMaterialFileUpdate,
     },
     syncLog: { create: syncLogCreate },
   } as any;
@@ -535,6 +549,59 @@ describe('scanDocumentProcessor', () => {
         scanReason: 'Eicar-Test-Signature',
       }),
     });
+  });
+
+  it('материал для партнёров (kind=partner_material): clean пишет полный набор колонок', async () => {
+    // Этап 6 (У-237): файл материала проходит тот же антивирус; до `clean`
+    // партнёр материал не видит и не скачивает.
+    process.env.CLAMAV_HOST = 'clamav.local';
+    const db = makeDb();
+    const deps = makeDeps({ scan: vi.fn().mockResolvedValue('stream: OK') });
+
+    const result = await scanDocumentProcessor(
+      makeJob({ kind: 'partner_material', id: 'pmf-1' }),
+      db,
+      deps
+    );
+
+    expect(result).toEqual({
+      kind: 'partner_material',
+      id: 'pmf-1',
+      scanStatus: 'clean',
+      scanReason: null,
+    });
+    expect(db.partnerMaterialFile.update).toHaveBeenCalledWith({
+      where: { id: 'pmf-1' },
+      data: { scanStatus: 'clean', scanReason: null, scannedAt: expect.any(Date) },
+    });
+    expect(db.document.update).not.toHaveBeenCalled();
+    expect(db.companyBrandingAsset.update).not.toHaveBeenCalled();
+  });
+
+  it('материал для партнёров: infected с именем вируса', async () => {
+    process.env.CLAMAV_HOST = 'clamav.local';
+    const db = makeDb();
+    const deps = makeDeps({
+      scan: vi.fn().mockResolvedValue('stream: Eicar-Test-Signature FOUND'),
+    });
+    const result = await scanDocumentProcessor(
+      makeJob({ kind: 'partner_material', id: 'pmf-1' }),
+      db,
+      deps
+    );
+    expect(result.scanStatus).toBe('infected');
+    expect(db.partnerMaterialFile.update).toHaveBeenCalledWith({
+      where: { id: 'pmf-1' },
+      data: expect.objectContaining({ scanStatus: 'infected', scanReason: 'Eicar-Test-Signature' }),
+    });
+  });
+
+  it('throws NOT_FOUND when the PartnerMaterialFile row is missing', async () => {
+    const db = makeDb({ partnerMaterialPath: null });
+    await expect(
+      scanDocumentProcessor(makeJob({ kind: 'partner_material', id: 'pmf-1' }), db, makeDeps())
+    ).rejects.toThrow(/NOT_FOUND/);
+    expect(db.partnerMaterialFile.update).not.toHaveBeenCalled();
   });
 
   it('throws NOT_FOUND when the CompanyBrandingAsset row is missing', async () => {

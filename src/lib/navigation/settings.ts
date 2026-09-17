@@ -244,6 +244,21 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     legacyHrefs: [],
   },
   {
+    // `У-237` (этап 6): материалы для партнёров — прайсы, презентации,
+    // инструкции. Публикует компания-издатель; партнёр читает в своём разделе.
+    id: 'catalogs.partnerMaterials',
+    group: 'catalogs',
+    title: 'Материалы для партнёров',
+    description:
+      'Прайсы, презентации, шаблоны и инструкции, которые партнёры видят в своём кабинете.',
+    icon: '📦',
+    path: 'processes/partner-materials',
+    capability: 'settings.catalogs.manage',
+    cabinets: ['admin', 'leader'],
+    // Старого адреса нет: раздел появился сразу в хабе.
+    legacyHrefs: [],
+  },
+  {
     id: 'catalogs.customFields',
     group: 'catalogs',
     title: 'Дополнительные поля',

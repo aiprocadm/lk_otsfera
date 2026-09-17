@@ -253,6 +253,13 @@ export const MIRROR_EXCEPTIONS: MirrorException[] = [
   },
   {
     pair: 'clients',
+    sectionKey: 'materials',
+    cabinets: ['partner'],
+    reason:
+      'Материалы адресованы агентам — прайсы и инструкции для продажи; у заказчика аналога нет (этап 6, `Р-Э6-3`)',
+  },
+  {
+    pair: 'clients',
     sectionKey: 'studentCabinet',
     cabinets: ['organization'],
     reason: 'Вход в кабинет слушателя: обучаются сотрудники заказчика, у партнёра обучаемых нет',
