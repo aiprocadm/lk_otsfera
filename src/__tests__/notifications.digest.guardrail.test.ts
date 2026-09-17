@@ -262,3 +262,56 @@ describe('страж: прогон дайджеста', () => {
     expect(r).toMatchObject({ sent: 0, skipped: 1 });
   });
 });
+
+describe('страж: прогон дайджеста — краевые ветки', () => {
+  it('строка до миграции (lastOccurredAt = null) датируется созданием; партнёр получает ссылку раздела', async () => {
+    const partner = {
+      ...USER,
+      id: 'p1',
+      email: 'p@x.ru',
+      name: null,
+      role: 'partner',
+      organizationId: null,
+    };
+    const { prisma } = fakePrisma({
+      users: [partner],
+      rows: [
+        {
+          ...row(1, 'certificate_expiring'),
+          lastOccurredAt: null,
+          createdAt: new Date('2026-09-17T04:00:00.000Z'),
+        },
+      ],
+      total: 1,
+    });
+    await runNotificationDigest(prisma, NOW);
+    const args = sendDailyDigestEmail.mock.calls[0][0];
+    // Имени нет — обращение к «коллеге»; у партнёра есть раздел удостоверений.
+    expect(args.recipientName).toBe('коллега');
+    expect(args.items[0].url).toMatch(/\/partner\/certificates$/);
+    expect(args.items[0].at).toContain('17.09.2026');
+    expect(args.itemsText).toContain('/partner/certificates');
+    // Компании у партнёра нет — переопределение ищется на уровне платформы.
+    expect(getTemplateOverride).toHaveBeenCalledWith(prisma, 'dailyDigest', null);
+  });
+
+  it('организация заказчика не найдена — переопределение на уровне платформы', async () => {
+    const { prisma } = fakePrisma({ rows: [row(1)], total: 1 });
+    (prisma.organization.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    await runNotificationDigest(prisma, NOW);
+    expect(getTemplateOverride).toHaveBeenCalledWith(prisma, 'dailyDigest', null);
+  });
+
+  it('сбой не-Error (строка) тоже считается пропуском и не роняет прогон', async () => {
+    const { prisma } = fakePrisma({ rows: [row(1)], total: 1 });
+    sendDailyDigestEmail.mockRejectedValueOnce('smtp down');
+    const r = await runNotificationDigest(prisma, NOW);
+    expect(r).toMatchObject({ skipped: 1, sent: 0 });
+  });
+
+  it('неизвестный тип не срочный — почта у дайджеста вычитается', () => {
+    expect(
+      effectiveChannels({ digestEnabled: true }, 'нет_такого_типа', ['email', 'telegram'])
+    ).toEqual(['telegram']);
+  });
+});

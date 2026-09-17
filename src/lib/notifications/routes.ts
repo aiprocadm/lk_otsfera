@@ -253,7 +253,7 @@ const RULES: Record<NotificationTypeKey, Rule> = {
     const raw = idOf(m, 'sourceId');
     // У диалога `sourceId` составной — «<dialogId>:<начало ожидания>» (журнал
     // эскалаций уникален по паре, см. sla-escalation.ts): карточке нужен только id.
-    const id = sec === 'messengers' && raw ? (raw.split(':')[0] ?? null) || null : raw;
+    const id = sec === 'messengers' && raw ? raw.split(':')[0] || null : raw;
     // «Входящие» — список с живым фильтром по строке (`?message=`), карточки нет.
     if (sec === 'inbox') return section(c, sec, null, id ? `message=${id}` : undefined);
     return section(c, sec, id);
