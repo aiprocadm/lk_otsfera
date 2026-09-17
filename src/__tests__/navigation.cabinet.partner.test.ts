@@ -56,6 +56,8 @@ describe('navItemsFor (feature-flag filter)', () => {
     process.env.FEATURE_GLOBAL_SEARCH = '1';
     // Этап 1 ТЗ 12.09.2026: «Контакты» — opt-in флаг `contacts`.
     process.env.FEATURE_CONTACTS = '1';
+    // Этап 5 ТЗ 12.09.2026: «Уведомления» — opt-in флаг `notification_center`.
+    process.env.FEATURE_NOTIFICATION_CENTER = '1';
     const items = navItemsFor('admin');
     expect(items.length).toBe(navByRole.admin.length);
   });
@@ -207,7 +209,9 @@ describe('navByRole.admin — русский канон с группами', ()
     expect(hrefs).toContain('/admin/search');
     // Этап 1 ТЗ 12.09.2026 (`У-178`): + «Контакты» под флагом `contacts`.
     expect(hrefs).toContain('/admin/contacts');
-    expect(navByRole.admin).toHaveLength(28);
+    // Этап 5 ТЗ 12.09.2026 (`У-228`): + «Уведомления» под флагом `notification_center`.
+    expect(hrefs).toContain('/admin/notifications');
+    expect(navByRole.admin).toHaveLength(29);
     expect(hrefs).toContain('/admin/requests');
     expect(hrefs).toContain('/admin/intake');
   });
@@ -230,9 +234,10 @@ describe('navByRole.admin — русский канон с группами', ()
     }
   });
 
-  it('внизу закреплены «Настройки» и «Справка» — служебное отдельно от работы', () => {
+  it('внизу закреплены «Уведомления», «Настройки» и «Справка» — служебное отдельно от работы', () => {
+    // Этап 5 (`У-228`): лента уведомлений — над «Настройками».
     const pinned = navByRole.admin.filter((i) => i.pinnedBottom);
-    expect(pinned.map((i) => i.href)).toEqual(['/admin/settings', '/help']);
+    expect(pinned.map((i) => i.href)).toEqual(['/admin/notifications', '/admin/settings', '/help']);
   });
 });
 
@@ -256,6 +261,8 @@ describe('navByRole.organization — единый источник', () => {
       '/organization/company',
       '/organization/messages',
       '/student',
+      // Этап 5 ТЗ 12.09.2026 (`У-228`): «Уведомления» над «Настройками».
+      '/organization/notifications',
       '/organization/settings',
       // `У-76` (этап 9): словарь терминов, закреплён внизу.
       '/help',
@@ -312,6 +319,8 @@ describe('navByRole.partner — состав по ФТ-15.4', () => {
       '/partner/portfolio',
       // У-60 (этап 4): '/partner/team' убран — «Команда» стала вкладкой настроек.
       '/partner/messages',
+      // Этап 5 ТЗ 12.09.2026 (`У-228`): «Уведомления» над «Настройками».
+      '/partner/notifications',
       '/partner/settings',
       // `У-76` (этап 9): словарь терминов, закреплён внизу.
       '/help',

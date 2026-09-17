@@ -21,7 +21,12 @@ export async function buildNotificationScopeWhere(
   session: SessionPayload,
   opts: NotificationScopeOptions = {}
 ) {
-  if (session.role === 'admin') return {};
+  // Этап 5 (`У-228`, решение `Р-Э5-2`): раньше администратор получал `{}` — видел
+  // уведомления ВСЕХ пользователей платформы. Для колокольчика это было
+  // незаметно; для страницы с кнопкой «Отметить все прочитанными» это значило
+  // «пометить чужое». Model A — управление платформой через зеркало
+  // `/admin/*`, а не чтение чужих личных лент (пакет §8).
+  if (session.role === 'admin') return { userId: session.sub };
 
   if (isStaffManagerSide(session)) {
     // Manager visibility follows managerOrderScopeFilter (per-order ownership +

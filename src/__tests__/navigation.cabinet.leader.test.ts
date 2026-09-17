@@ -38,6 +38,8 @@ describe('канон leader', () => {
       '/leader/documents',
       // `У-111`: пункта «Мои заказы» здесь больше нет — кабинет переключается
       // в шапке, а не пунктом меню, спрятанным среди разделов работы.
+      // Этап 5 ТЗ 12.09.2026 (`У-228`): «Уведомления» над «Настройками», флаг `notification_center`.
+      '/leader/notifications',
       '/leader/settings',
       // §11 ТЗ v0.5: зеркало настройки полей — руководителя в /admin/* не пускаем
       '/leader/settings/custom-fields',
@@ -50,7 +52,11 @@ describe('канон leader', () => {
 
   it('пункты leader-меню без flag, кроме «Поиска», «Заявок», «Обращений клиентов», «Ролей», «Воронки», «Сделок», «Аналитики», «Задач» и «Календаря» (свои opt-in флаги)', () => {
     for (const item of navByRole.leader) {
-      if (item.href === '/leader/search') {
+      // Этап 5 ТЗ 12.09.2026 (`У-228`): «Уведомления» — свой поведенческий флаг.
+      if (item.href === '/leader/notifications') {
+        expect(item.flag).toBe('notification_center');
+        expect(item.pinnedBottom).toBe(true);
+      } else if (item.href === '/leader/search') {
         expect(item.flag).toBe('global_search');
       } else if (item.href === '/leader/deals') {
         expect(item.flag).toBe('deals_pipeline');
@@ -125,7 +131,8 @@ describe('канон leader', () => {
     expect(hrefs).not.toContain('/leader/search');
     expect(hrefs).not.toContain('/leader/intake');
     expect(hrefs).not.toContain('/leader/contacts');
-    expect(navItemsFor('leader')).toHaveLength(navByRole.leader.length - 11);
+    expect(hrefs).not.toContain('/leader/notifications');
+    expect(navItemsFor('leader')).toHaveLength(navByRole.leader.length - 12);
   });
 
   it('navItemsFor("leader") показывает opt-in пункты при включённых флагах', () => {
@@ -140,7 +147,9 @@ describe('канон leader', () => {
     process.env.FEATURE_GLOBAL_SEARCH = '1';
     process.env.FEATURE_INTAKE_INBOX = '1';
     process.env.FEATURE_CONTACTS = '1';
+    process.env.FEATURE_NOTIFICATION_CENTER = '1';
     const hrefs = navItemsFor('leader').map((i) => i.href);
+    expect(hrefs).toContain('/leader/notifications');
     expect(hrefs).toContain('/leader/contacts');
     expect(hrefs).toContain('/leader/enrollments');
     expect(hrefs).toContain('/leader/requests');

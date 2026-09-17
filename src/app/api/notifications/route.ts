@@ -5,15 +5,21 @@ import { requireRole, requireSession } from '@/lib/auth/guard';
 // Task C1 (parity): per-role scope вынесен в сервис — общий для этого роута
 // и GET /api/notifications/unread. Аудит A1: чтение и отметка прочтения тоже
 // уехали в сервис (`inbox`), роут остался маппингом. Поведение байт-в-байт.
-import { listNotifications, markNotificationsRead } from '@/lib/services/notifications/inbox';
+import {
+  listNotifications,
+  markAllNotificationsRead,
+  markNotificationsRead,
+} from '@/lib/services/notifications/inbox';
 
 const patchSchema = z
   .object({
     id: z.string().min(1).max(64).optional(),
     ids: z.array(z.string().min(1).max(64)).max(100).optional(),
     isRead: z.boolean().optional(),
+    // Этап 5 (`Р-Э5-3`): «все прочитанными» по скоупу сессии, без списка id.
+    all: z.literal(true).optional(),
   })
-  .refine((d) => d.id || (d.ids && d.ids.length > 0), {
+  .refine((d) => d.all || d.id || (d.ids && d.ids.length > 0), {
     message: 'id or ids required',
   });
 
@@ -22,12 +28,14 @@ export async function GET() {
   if (!sessionResult.ok) return sessionResult.response;
   const session = sessionResult.value;
 
+  // Этап 5 (`Р-Э5-1`): слушатель тоже — у него есть страница, пусть и пустая.
   const roleResult = requireRole(session, [
     'admin',
     'manager',
     'leader',
     'partner',
     'organization',
+    'student',
   ]);
   if (!roleResult.ok) return roleResult.response;
 
@@ -41,12 +49,14 @@ export async function PATCH(req: Request) {
   if (!sessionResult.ok) return sessionResult.response;
   const session = sessionResult.value;
 
+  // Этап 5 (`Р-Э5-1`): слушатель тоже — у него есть страница, пусть и пустая.
   const roleResult = requireRole(session, [
     'admin',
     'manager',
     'leader',
     'partner',
     'organization',
+    'student',
   ]);
   if (!roleResult.ok) return roleResult.response;
 
@@ -62,7 +72,11 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: 'id or ids required' }, { status: 400 });
   }
 
-  const { id, ids, isRead = true } = parsed.data;
+  const { id, ids, isRead = true, all } = parsed.data;
+  if (all) {
+    const result = await markAllNotificationsRead(prisma, session);
+    return NextResponse.json(result.updated);
+  }
   // Schema refine guarantees ids is non-empty when id is absent; ids! safe to assert non-null here
   const result = await markNotificationsRead(
     prisma,

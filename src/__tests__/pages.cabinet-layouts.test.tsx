@@ -142,7 +142,9 @@ describe('OrganizationLayout', () => {
 });
 
 describe('LeaderLayout', () => {
-  it('рендерит шапку руководителя; колокольчик — менеджерский (scope тот же)', async () => {
+  // Этап 5 (`У-232`, `Р-Э5-7`): колокольчик руководителя теперь СВОЙ — ссылки
+  // уведомлений считаются от роли получателя, а не от менеджерского кабинета.
+  it('рендерит шапку руководителя; колокольчик — роли leader', async () => {
     guards.requireManagerLeader.mockResolvedValue({ sub: 'l1', role: 'leader', email: 'l@b.c' });
 
     const html = renderToString(await LeaderLayout({ children: CHILD }));
@@ -150,7 +152,7 @@ describe('LeaderLayout', () => {
     // `У-111`: вместо статичной подписи «Кабинет руководителя» — переключатель
     // кабинетов; он же и говорит, где человек сейчас.
     expect(html).toContain('data-testid="cabinet-switcher"');
-    expect(html).toContain('data-role="manager"');
+    expect(html).toContain('data-role="leader"');
     expect(html).toContain('Руководитель');
   });
 

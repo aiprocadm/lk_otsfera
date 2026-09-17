@@ -47,6 +47,7 @@ const OPT_IN_FLAGS = new Set([
   'comm_center',
   // Этап 4 ТЗ 12.09.2026 (`У-222`): раскатка правил автоматизации.
   'automation',
+  'notification_center',
   'staff_chat',
   'staff_calendar',
   'global_search',

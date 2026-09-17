@@ -66,6 +66,14 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       hiddenWhenFlag: 'settings_hub',
     },
     // ТЗ 2026-08-04: единственный служебный пункт при включённом хабе; закреплён внизу.
+    // Этап 5 (`У-228`): лента уведомлений — над «Настройками», под флагом
+    // `notification_center` до приёмки (`Р-Э5-8`).
+    {
+      href: '/admin/notifications',
+      sectionKey: 'notifications',
+      flag: 'notification_center',
+      pinnedBottom: true,
+    },
     { href: '/admin/settings', sectionKey: 'settings', pinnedBottom: true },
     {
       href: '/admin/integrations',
@@ -328,6 +336,14 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       leaderOnly: true,
       hiddenWhenFlag: 'leader_cabinet',
     },
+    // Этап 5 (`У-228`): лента уведомлений — над «Настройками», под флагом
+    // `notification_center` до приёмки (`Р-Э5-8`).
+    {
+      href: '/manager/notifications',
+      sectionKey: 'notifications',
+      flag: 'notification_center',
+      pinnedBottom: true,
+    },
     {
       href: '/manager/settings',
       sectionKey: 'settings',
@@ -430,6 +446,14 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
     { href: '/leader/documents', group: 'Документы', sectionKey: 'documents' },
     // `У-111`: пункта «Мои заказы» больше нет — кабинет переключается одним
     // переключателем в шапке, а не пунктом меню, спрятанным среди разделов.
+    // Этап 5 (`У-228`): лента уведомлений — над «Настройками», под флагом
+    // `notification_center` до приёмки (`Р-Э5-8`).
+    {
+      href: '/leader/notifications',
+      sectionKey: 'notifications',
+      flag: 'notification_center',
+      pinnedBottom: true,
+    },
     { href: '/leader/settings', sectionKey: 'settings', pinnedBottom: true },
     // §11 ТЗ v0.5: настройку полей ведёт и руководитель — зеркало админского
     // экрана в его кабинете (в /admin/* руководителя не пускаем, Model A).
@@ -480,6 +504,14 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
     // это служебный раздел, ему не место рядом с «Заказами». Адрес
     // /partner/team остался редиректом.
     { href: '/partner/messages', sectionKey: 'messages', flag: 'chat' },
+    // Этап 5 (`У-228`): лента уведомлений — над «Настройками», под флагом
+    // `notification_center` до приёмки (`Р-Э5-8`).
+    {
+      href: '/partner/notifications',
+      sectionKey: 'notifications',
+      flag: 'notification_center',
+      pinnedBottom: true,
+    },
     { href: '/partner/settings', sectionKey: 'settings', pinnedBottom: true },
     // `У-76`: словарь терминов — один на все кабинеты, поэтому пункт одинаков
     // у всех шести ролей и закреплён внизу рядом с «Настройками».
@@ -539,6 +571,14 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
     // /student — отдельный shared-entry домен, не часть organization_cabinet.
     { href: '/organization/messages', sectionKey: 'messages', flag: 'chat' },
     { href: '/student', sectionKey: 'studentCabinet' },
+    // Этап 5 (`У-228`): лента уведомлений — над «Настройками», под флагом
+    // `notification_center` до приёмки (`Р-Э5-8`).
+    {
+      href: '/organization/notifications',
+      sectionKey: 'notifications',
+      flag: 'notification_center',
+      pinnedBottom: true,
+    },
     {
       href: '/organization/settings',
       sectionKey: 'settings',
@@ -551,6 +591,15 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
   ],
   student: [
     { href: '/student', sectionKey: 'learning' },
+    // Этап 5 (`У-228`, `Р-Э5-1`): у слушателя «Настроек» нет — лента встаёт над
+    // «Справкой». Ни один тип реестра ему не адресован: страница всегда пуста и
+    // честно об этом говорит; она нужна ради правила зеркала «шесть кабинетов».
+    {
+      href: '/student/notifications',
+      sectionKey: 'notifications',
+      flag: 'notification_center',
+      pinnedBottom: true,
+    },
     // `У-76`: словарь терминов — один на все кабинеты, поэтому пункт одинаков
     // у всех шести ролей и закреплён внизу рядом с «Настройками».
     { href: '/help', sectionKey: 'help', pinnedBottom: true },

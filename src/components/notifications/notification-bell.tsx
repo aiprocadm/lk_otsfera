@@ -1,5 +1,6 @@
 'use client';
 import React, { useEffect, useId, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useClientResource } from '@/hooks/useClientResource';
 import { notificationHref, type NotificationRole } from '@/lib/notifications/href';
@@ -51,8 +52,15 @@ const PILL_STYLE: React.CSSProperties = {
 export function NotificationBell({
   role,
   buttonClassName = 'hover:bg-gray-100',
+  allHref = null,
 }: {
   role: NotificationRole;
+  /**
+   * Этап 5 (`У-228`): адрес страницы «Уведомления» кабинета. `null` — флаг
+   * `notification_center` выключен, ссылки нет. Адрес приходит снаружи, а не
+   * выводится из роли: флаг читает сервер (шелл), клиент про него не знает.
+   */
+  allHref?: string | null;
   /**
    * Hover-подложка кнопки: дефолт заточен под светлый хедер; тёмный хедер
    * partner-шелла передаёт нейтральный вариант (например, hover:bg-white/10).
@@ -202,6 +210,17 @@ export function NotificationBell({
               ))}
             </ul>
           )}
+          {allHref ? (
+            <div className="border-t border-gray-100 px-4 py-2 text-right">
+              <Link
+                href={allHref}
+                onClick={() => setOpen(false)}
+                className="text-xs text-[#F97316] hover:underline"
+              >
+                Показать все →
+              </Link>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

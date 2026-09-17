@@ -13,12 +13,14 @@ export async function GET() {
   if (!sessionResult.ok) return sessionResult.response;
   const session = sessionResult.value;
 
+  // Этап 5 (`Р-Э5-1`): слушатель тоже — у него есть страница, пусть и пустая.
   const roleResult = requireRole(session, [
     'admin',
     'manager',
     'leader',
     'partner',
     'organization',
+    'student',
   ]);
   if (!roleResult.ok) return roleResult.response;
 

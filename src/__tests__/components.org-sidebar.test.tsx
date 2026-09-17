@@ -37,7 +37,7 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import { OrgSidebar, type OrgSidebarMembership } from '@/components/organization/org-sidebar';
 import { navByRole, type NavItem } from '@/lib/navigation/cabinet';
 
-// Full 12-item org canon (этап 3: + «Удостоверения»; этап 5: + «Обращения»). Flag-filtering (chat/enrollment) is navItemsFor's job server-side;
+// Full 13-item org canon (этап 3: + «Удостоверения»; этап 5: + «Обращения»; этап 5 ТЗ 12.09.2026: + «Уведомления»). Flag-filtering (chat/enrollment) is navItemsFor's job server-side;
 // here we pass the full list to test OrgSidebar's viewerRole filtering deterministically.
 const ALL_ORG_ITEMS: NavItem[] = navByRole.organization;
 
@@ -64,7 +64,7 @@ describe('OrgSidebar', () => {
     document.cookie = '';
   });
 
-  it('renders all 12 nav links for admin viewer (+«Справка», `У-76`)', () => {
+  it('renders all 13 nav links for admin viewer (+«Справка», `У-76`)', () => {
     vi.mocked(usePathname).mockReturnValue('/organization/dashboard');
     const html = renderToString(
       React.createElement(OrgSidebar, {
@@ -77,7 +77,7 @@ describe('OrgSidebar', () => {
     const matches = html.match(/data-testid="org-nav-/g);
     // `У-100`: «Сотрудники» и «Доступ в кабинет» стали вкладками раздела «Моя
     // организация» — двух пунктов не стало, один появился.
-    expect(matches).toHaveLength(12);
+    expect(matches).toHaveLength(13);
     expect(html).toContain('href="/organization/company"');
     expect(html).not.toContain('href="/organization/team"');
   });
@@ -95,13 +95,13 @@ describe('OrgSidebar', () => {
         variant: 'panel',
       })
     );
-    expect(html.match(/data-testid="org-nav-/g)).toHaveLength(12);
+    expect(html.match(/data-testid="org-nav-/g)).toHaveLength(13);
   });
 
   // `У-100`: признака `orgAdminOrLeaderOnly` больше нет — его носил один пункт,
   // и он уехал во вкладку. Меню теперь одинаково у всех ролей организации, а
   // право на управление доступом проверяет сервер на самой вкладке.
-  it('участник видит то же меню, что администратор (12 пунктов)', () => {
+  it('участник видит то же меню, что администратор (13 пунктов)', () => {
     vi.mocked(usePathname).mockReturnValue('/organization/dashboard');
     const html = renderToString(
       React.createElement(OrgSidebar, {
@@ -112,11 +112,11 @@ describe('OrgSidebar', () => {
       })
     );
     const matches = html.match(/data-testid="org-nav-/g);
-    expect(matches).toHaveLength(12);
+    expect(matches).toHaveLength(13);
     expect(html).not.toContain('href="/organization/team"');
   });
 
-  it('руководитель организации видит то же меню (12 пунктов)', () => {
+  it('руководитель организации видит то же меню (13 пунктов)', () => {
     vi.mocked(usePathname).mockReturnValue('/organization/dashboard');
     const html = renderToString(
       React.createElement(OrgSidebar, {
@@ -127,7 +127,7 @@ describe('OrgSidebar', () => {
       })
     );
     const matches = html.match(/data-testid="org-nav-/g);
-    expect(matches).toHaveLength(12);
+    expect(matches).toHaveLength(13);
     expect(html).toContain('href="/organization/company"');
   });
 

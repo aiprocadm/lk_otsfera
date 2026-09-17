@@ -16,17 +16,17 @@ unit (4 четверти), integration (4 четверти). Страж — то
 
 ## PR-1. Страница и меню (`У-228`, `У-233` реестр ↔ фильтр)
 
-- [ ] Флаг `notification_center` (поведенческий, opt-in) + запись в `featureFlags.test.ts`
-- [ ] Реестр типов: поле `icon` у всех 40 типов (значки из семантического реестра); страж `notifications.registry-filter` (label + icon у каждого; фильтр = `notificationTypesFor(роль)`; у слушателя пусто)
-- [ ] `services/notifications/list.ts`: фильтры `unread`/`type`, страница 50, `total`; `markAllRead` по скоупу
-- [ ] Скоуп администратора → личный (`Р-Э5-2`); тест `api.notifications.test.ts:96` переписан с объяснением; страж `notifications.page-scope` (мутация: вернуть `{}`)
-- [ ] `GET /api/notifications?unread&type&page` с `total`; `PATCH { all: true }`; `requireRole` + `student` в трёх роутах; матрица `security.role-access-matrix` обновлена
-- [ ] `notifications-screen.tsx` (презентационный): список с значком, заголовком, текстом, временем, «×N», ссылкой; фильтры; «Отметить все прочитанными»; пустое состояние с фразой пакета; 390×844 — карточки
-- [ ] Шесть страниц `/{admin,leader,manager,organization,partner,student}/notifications` с `notFound()` при выключенном флаге; три вопроса §15
-- [ ] `sectionLabels.ts` + `icons.ts` (`notifications`, 🔔), `cabinet.ts` — пункт `pinnedBottom` над «Настройками» (у слушателя — над «Справкой»), `flag: 'notification_center'`; страж зеркала зелёный без новых исключений
-- [ ] Колокольчик: ссылка «Показать все» при включённом флаге
-- [ ] Тесты страниц ×6 (`renderServerComponent`), компонента, сервиса (integration: скоуп шести ролей, `total`)
-- [ ] AUDIT: `У-228` → ✅; CHANGELOG; STATUS
+- [x] Флаг `notification_center` (поведенческий, opt-in) + запись в `featureFlags.test.ts`
+- [x] Реестр типов: поле `icon` у всех 39 типов (значки из семантического реестра); страж `notifications.registry-filter` (label + icon у каждого; фильтр = `notificationTypesFor(роль)`; у слушателя пусто)
+- [x] `services/notifications/list.ts`: фильтры `unread`/`type`, страница 50, `total`; `markAllRead` по скоупу
+- [x] Скоуп администратора → личный (`Р-Э5-2`); тест `api.notifications.test.ts:96` переписан с объяснением; страж `notifications.page-scope` (мутация: вернуть `{}`)
+- [x] Страница серверная — фильтры и `total` идут через сервис, `GET` роут не менялся (колокольчик ждёт прежний массив); `PATCH { all: true }`; `requireRole` + `student` в обоих роутах; матрица `security.role-access-matrix` роуты уведомлений не перечисляет — правки не потребовала
+- [x] `notifications-screen.tsx` (презентационный): список с значком, заголовком, текстом, временем, «×N», ссылкой; фильтры; «Отметить все прочитанными»; пустое состояние с фразой пакета; 390×844 — карточки
+- [x] Шесть страниц `/{admin,leader,manager,organization,partner,student}/notifications` с `notFound()` при выключенном флаге; три вопроса §15
+- [x] `sectionLabels.ts` + `icons.ts` (`notifications`, 🔔), `cabinet.ts` — пункт `pinnedBottom` над «Настройками» (у слушателя — над «Справкой»), `flag: 'notification_center'`; страж зеркала зелёный без новых исключений
+- [x] Колокольчик: ссылка «Показать все» при включённом флаге
+- [x] Тесты страниц ×6 (`renderServerComponent`), экрана, кнопки, действия; скоуп и `total` — стражем `notifications.page-scope` на фейках; живой скоуп шести ролей — в `services.notifications.list.integration` (PR-5)
+- [x] AUDIT: `У-228` → ✅; CHANGELOG; STATUS
 
 ## PR-2. Личные настройки (`У-229`)
 
