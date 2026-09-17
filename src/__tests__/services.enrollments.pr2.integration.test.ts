@@ -123,20 +123,19 @@ describe('PR-2 конвейер позиций + уведомления + дет
     expect(await headerStatus(requestId)).toBe('provisioned');
   });
 
-  it('после approve податель получил Notification type enrollment_status_changed', async () => {
+  it('после approve и provisioned податель получил ОДНУ строку enrollment_status_changed «×2» с последним статусом', async () => {
+    // Этап 5 PR-3 (`У-231`): смены статуса одной заявки в окне часа схлопываются в
+    // одну строку — счётчик растёт, текст и meta.status свежие, строка непрочитана.
     const rows = await prisma.notification.findMany({
-      where: { userId: SUBMITTER, type: 'enrollment_status_changed' },
-      orderBy: { createdAt: 'asc' },
+      where: { userId: SUBMITTER, type: 'enrollment_status_changed', entityId: requestId },
     });
-    expect(rows.length).toBeGreaterThanOrEqual(1);
-    const approved = rows.find(
-      (n) =>
-        (n.meta as { requestId?: string; status?: string })?.requestId === requestId &&
-        (n.meta as { status?: string })?.status === 'approved'
-    );
-    expect(approved).toBeDefined();
-    expect(approved!.title).toContain('Заявка на обучение');
-    expect(approved!.organizationId).toBe(orgId);
+    expect(rows).toHaveLength(1);
+    const row = rows[0]!;
+    expect((row.meta as { status?: string })?.status).toBe('provisioned');
+    expect(row.dedupCount).toBe(2);
+    expect(row.isRead).toBe(false);
+    expect(row.title).toContain('Заявка на обучение');
+    expect(row.organizationId).toBe(orgId);
   });
 
   it('advance in_training одной позиции (itemIds) → шапка осталась provisioned', async () => {
@@ -198,14 +197,14 @@ describe('PR-2 конвейер позиций + уведомления + дет
     expect(await itemStatuses(requestId)).toEqual(['certificates_ready', 'certificates_ready']);
     expect(await headerStatus(requestId)).toBe('certificates_ready');
 
-    // Смена статуса шапки на in_training и certificates_ready тоже уведомила подателя.
-    const statuses = (
-      await prisma.notification.findMany({
-        where: { userId: SUBMITTER, type: 'enrollment_status_changed' },
-      })
-    ).map((n) => (n.meta as { status?: string })?.status);
-    expect(statuses).toContain('in_training');
-    expect(statuses).toContain('certificates_ready');
+    // Смена статуса шапки на in_training и certificates_ready тоже уведомила подателя:
+    // та же строка (`У-231`), счётчик вырос ещё на два, статус — последний.
+    const row = await prisma.notification.findFirst({
+      where: { userId: SUBMITTER, type: 'enrollment_status_changed', entityId: requestId },
+      select: { meta: true, dedupCount: true },
+    });
+    expect((row?.meta as { status?: string })?.status).toBe('certificates_ready');
+    expect(row?.dedupCount).toBe(4);
   });
 
   it('getEnrollmentRequest: податель видит свою заявку (recordPiiAccess не роняет), чужой — not_found', async () => {

@@ -10,6 +10,8 @@ import { ExportLink } from '@/components/ui';
 import { getOrderedStatuses } from '@/lib/services/orderStatuses';
 
 import { PageHeader } from '@/components/ui/page-header';
+import { MissingObjectNotice } from '@/components/ui/missing-object-notice';
+import { isMissingObjectRequested } from '@/lib/navigation/missingObject';
 type SearchParams = {
   search?: string;
   executionStatus?: string;
@@ -17,6 +19,8 @@ type SearchParams = {
   organizationId?: string;
   unassigned?: string;
   cursor?: string;
+  /** `У-232`: пришли по ссылке на удалённый или чужой объект. */
+  missing?: string;
 };
 
 export default async function ManagerOrdersPage({
@@ -53,6 +57,8 @@ export default async function ManagerOrdersPage({
           }}
         />
       </div>
+      {/* `У-232`: пришли по ссылке на удалённый или чужой заказ. */}
+      {isMissingObjectRequested(sp) && <MissingObjectNotice what="Заказ" />}
       <ManagerOrdersFilter orgs={orgs} initial={sp} statuses={statusOptions} />
       <ManagerOrdersTable rows={rows} nextCursor={nextCursor} searchParams={sp} />
       <ManagerOrdersCardList rows={rows} />

@@ -186,9 +186,16 @@ describe('джоб task_due_soon (ФТ-7.2)', () => {
     expect(reset!.dueSoonNotifiedAt).toBeNull();
 
     await runTaskDueSoon(prisma, now);
+    // Этап 5 PR-3 (`У-231`): повторное уведомление о той же задаче в окне часа —
+    // не вторая строка, а «×2» на первой: снова непрочитана, текст свежий.
     expect(await prisma.notification.count({ where: { userId: m2, type: 'task_due_soon' } })).toBe(
-      before + 2
+      before + 1
     );
+    const row = await prisma.notification.findFirst({
+      where: { userId: m2, type: 'task_due_soon', entityId: taskId },
+      select: { dedupCount: true, isRead: true },
+    });
+    expect(row).toMatchObject({ dedupCount: 2, isRead: false });
   });
 
   it('done-задачи и задачи за горизонтом не трогаются', async () => {

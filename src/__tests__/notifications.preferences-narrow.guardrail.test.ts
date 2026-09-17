@@ -87,6 +87,7 @@ describe('страж: доставка применяет настройку', (
     id: 'u1',
     email: 'u@x.ru',
     name: 'Иван',
+    role: 'manager',
     telegramChatId: '1',
     maxChatId: null,
     whatsappPhone: null,

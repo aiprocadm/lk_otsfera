@@ -31,7 +31,11 @@ export async function listNotifications(
 
   const notifications = await prisma.notification.findMany({
     where,
-    orderBy: { createdAt: 'desc' },
+    orderBy: [
+      { lastOccurredAt: { sort: 'desc', nulls: 'last' } },
+      { createdAt: 'desc' },
+      { id: 'desc' },
+    ],
     take: 50,
   });
 
@@ -126,7 +130,11 @@ export async function listNotificationsPage(
   const [rows, total, unreadTotal] = await Promise.all([
     prisma.notification.findMany({
       where,
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      orderBy: [
+        { lastOccurredAt: { sort: 'desc', nulls: 'last' } },
+        { createdAt: 'desc' },
+        { id: 'desc' },
+      ],
       skip: (page - 1) * NOTIFICATIONS_PAGE_SIZE,
       take: NOTIFICATIONS_PAGE_SIZE,
     }),

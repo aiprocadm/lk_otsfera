@@ -1,6 +1,6 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { log } from '@/lib/logging';
-import { createNotification, deliverNotificationToUser } from './core';
+import { recordNotification, deliverNotificationToUser } from './core';
 
 type PrismaLike = PrismaClient | Prisma.TransactionClient;
 
@@ -11,12 +11,10 @@ export type NoteMentionInput = {
   /** Кого упомянули — id пользователей; автора вызывающий уже исключил. */
   mentionedUserIds: string[];
   entity: NoteMentionEntity;
-  /** id заказа (заметка по сделке) или организации. */
+  /** id заказа (заметка по сделке), организации, диалога или задачи. */
   entityId: string;
   noteId: string;
   body: string;
-  /** Путь в кабинете менеджера. Администратору ссылку не даём — у него нет `/manager`. */
-  managerPath: string;
 };
 
 const TITLE_RU: Record<NoteMentionEntity, string> = {
@@ -46,7 +44,8 @@ export async function notifyNoteMention(
   const title = TITLE_RU[input.entity];
   const excerpt = input.body.slice(0, EXCERPT_MAX);
   // Прежняя форма `meta` заметок по сделке (`orderId`) сохраняется — по ней
-  // строятся ссылки в ленте уведомлений.
+  // (и по `entity`) таблица маршрутов строит ссылку от роли получателя
+  // (`У-232`): адрес кабинета сюда не пишем.
   const meta =
     input.entity === 'deal'
       ? { entity: input.entity, orderId: input.entityId, noteId: input.noteId }
@@ -59,24 +58,29 @@ export async function notifyNoteMention(
   try {
     const recipients = await prisma.user.findMany({
       where: { id: { in: input.mentionedUserIds } },
-      select: { id: true, role: true },
+      select: { id: true },
     });
     for (const r of recipients) {
-      const row = await createNotification({
+      // Ключ дедупа — заметка: повторная правка с тем же упоминанием за час
+      // не шлёт второе письмо.
+      const { row, deduped } = await recordNotification(prisma, {
         userId: r.id,
         type: 'note_mention',
         title,
         body: excerpt,
         meta,
+        entityId: input.noteId,
       });
-      await deliverNotificationToUser({
-        userId: r.id,
-        title,
-        body: excerpt,
-        type: 'note_mention',
-        ...(r.role === 'admin' ? {} : { url: input.managerPath }),
-        dedupKey: row.id,
-      });
+      if (!deduped) {
+        await deliverNotificationToUser({
+          userId: r.id,
+          title,
+          body: excerpt,
+          type: 'note_mention',
+          meta,
+          dedupKey: row.id,
+        });
+      }
       notified += 1;
     }
   } catch (err) {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { notFound } from 'next/navigation';
+import { redirect } from 'next/navigation';
 import { requireManagerLeader } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import {
@@ -21,6 +21,7 @@ import { getOrderStatusPanel } from '@/lib/services/orderStatuses';
 import { loadOrderDeal } from '@/lib/services/manager/orderDetail';
 import { OrderDealPanel } from '@/components/orders/order-deal-panel';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
+import { missingObjectHref } from '@/lib/navigation/missingObject';
 import { getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { listOrderDialogs } from '@/lib/services/messengers/forOrder';
 import { OrderDialogsPanel } from '@/components/orders/order-dialogs-panel';
@@ -37,7 +38,9 @@ export default async function LeaderOrderDetailPage({
   const session = await requireManagerLeader();
   const { id } = await params;
   const data = await loadManagerOrderDetail(prisma, session, id);
-  if (!data) notFound();
+  // `У-232` (спека §3.7): удалённый или чужой заказ → список раздела с
+  // плашкой «объект недоступен», а не 404 — как у менеджера (зеркало §0.2).
+  if (!data) redirect(missingObjectHref('/leader/orders'));
 
   const [directionsResult, students, customFieldsResult, activity, companyManagers] =
     await Promise.all([

@@ -102,19 +102,41 @@ function enableQueueMode() {
 }
 
 // Recipient shapes: one that only enables email, one that only enables telegram.
-const EMAIL_RECIP = { id: 'm1', email: 'm1@x.ru', name: 'Mgr', telegramChatId: null };
-const TELEGRAM_ONLY_RECIP = { id: 'm2', email: null, name: 'Tg', telegramChatId: 'tg-2' };
+// Роль обязательна: по ней таблица маршрутов строит ссылку в письме (`Р-Э5-7`).
+const EMAIL_RECIP = {
+  id: 'm1',
+  email: 'm1@x.ru',
+  name: 'Mgr',
+  role: 'manager',
+  telegramChatId: null,
+};
+const TELEGRAM_ONLY_RECIP = {
+  id: 'm2',
+  email: null,
+  name: 'Tg',
+  role: 'manager',
+  telegramChatId: 'tg-2',
+};
+
+/**
+ * Таблица уведомлений фейка: единая точка `recordNotification` (`У-231`) ищет
+ * повтор в окне (`findFirst`) и лишь потом зовёт `create`. Повторов здесь нет.
+ */
+function notificationTable() {
+  const create = vi
+    .fn()
+    .mockImplementation((args: { data: { userId: string } }) =>
+      Promise.resolve({ id: `notif-${args.data.userId}` })
+    );
+  return { create, findFirst: vi.fn().mockResolvedValue(null), update: vi.fn() };
+}
 
 // ---------------------------------------------------------------------------
 // manager.ts — notifyManagers queued arm (438-441) + branches 437,459
 // ---------------------------------------------------------------------------
 
 function managerDb(recipients: Array<Record<string, unknown>>) {
-  const create = vi
-    .fn()
-    .mockImplementation((args: { data: { userId: string } }) =>
-      Promise.resolve({ id: `notif-${args.data.userId}` })
-    );
+  const notification = notificationTable();
   return {
     db: {
       order: {
@@ -129,9 +151,9 @@ function managerDb(recipients: Array<Record<string, unknown>>) {
       organizationManager: { findMany: vi.fn().mockResolvedValue([]) },
       comment: { findMany: vi.fn().mockResolvedValue([]) },
       user: { findMany: vi.fn().mockResolvedValue(recipients) },
-      notification: { create },
+      notification,
     } as never,
-    create,
+    create: notification.create,
   };
 }
 
@@ -185,20 +207,16 @@ describe('notifyManagers — D5 queued path', () => {
 // ---------------------------------------------------------------------------
 
 function orderLessDb(recipients: Array<Record<string, unknown>>) {
-  const create = vi
-    .fn()
-    .mockImplementation((args: { data: { userId: string } }) =>
-      Promise.resolve({ id: `notif-${args.data.userId}` })
-    );
+  const notification = notificationTable();
   return {
     db: {
       organizationManager: {
         findMany: vi.fn().mockResolvedValue(recipients.map((r) => ({ userId: r.id }))),
       },
       user: { findMany: vi.fn().mockResolvedValue(recipients) },
-      notification: { create },
+      notification,
     } as never,
-    create,
+    create: notification.create,
   };
 }
 
@@ -225,7 +243,7 @@ describe('notifyManagersOrderLess — D5 queued path', () => {
   it('non-email queued (telegram only) → emailsSkipped, emailsQueued omitted (branch 339 + 349 falsy)', async () => {
     enableQueueMode();
     telegramEnabled.value = true;
-    const { db } = orderLessDb([{ id: 'm2', email: null, name: 'Tg', telegramChatId: 'tg-2' }]);
+    const { db } = orderLessDb([TELEGRAM_ONLY_RECIP]);
 
     const r = await notifyManagersOrderLess(db, {
       organizationId: 'org1',
@@ -245,13 +263,10 @@ describe('notifyManagersOrderLess — D5 queued path', () => {
 // ---------------------------------------------------------------------------
 
 function orgDb(recipients: Array<Record<string, unknown>>) {
-  const create = vi
-    .fn()
-    .mockImplementation((args: { data: { userId: string } }) =>
-      Promise.resolve({ id: `notif-${args.data.userId}` })
-    );
+  const notification = notificationTable();
   const organizationUsers = recipients.map((u) => ({
     user: {
+      role: 'organization',
       telegramChatId: null,
       maxChatId: null,
       whatsappPhone: null,
@@ -264,9 +279,9 @@ function orgDb(recipients: Array<Record<string, unknown>>) {
       organization: {
         findUnique: vi.fn().mockResolvedValue({ id: 'org-1', name: 'ООО Орг', organizationUsers }),
       },
-      notification: { create },
+      notification,
     } as never,
-    create,
+    create: notification.create,
   };
 }
 
@@ -319,13 +334,10 @@ describe('notifyOrgUsers — D5 queued path', () => {
 // ---------------------------------------------------------------------------
 
 function partnerDb(recipients: Array<Record<string, unknown>>) {
-  const create = vi
-    .fn()
-    .mockImplementation((args: { data: { userId: string } }) =>
-      Promise.resolve({ id: `notif-${args.data.userId}` })
-    );
+  const notification = notificationTable();
   const partnerUsers = recipients.map((u) => ({
     user: {
+      role: 'partner',
       telegramChatId: null,
       maxChatId: null,
       whatsappPhone: null,
@@ -338,9 +350,9 @@ function partnerDb(recipients: Array<Record<string, unknown>>) {
       partner: {
         findUnique: vi.fn().mockResolvedValue({ id: 'p-1', name: 'ООО Партнёр', partnerUsers }),
       },
-      notification: { create },
+      notification,
     } as never,
-    create,
+    create: notification.create,
   };
 }
 
@@ -408,6 +420,7 @@ describe('deliverNotificationToUser — dedupKey queued outcome', () => {
       id: 'u-1',
       email: 'partner@test.ru',
       name: 'Тест',
+      role: 'partner',
       telegramChatId: null,
       maxChatId: null,
       whatsappPhone: null,
@@ -432,6 +445,7 @@ function makeUser(overrides: Partial<ChannelRecipient> = {}): ChannelRecipient {
     id: 'u1',
     email: 'user@example.ru',
     name: 'Иван',
+    role: 'partner',
     telegramChatId: null,
     maxChatId: null,
     whatsappPhone: null,
@@ -488,6 +502,7 @@ function fakeDbForWorker(overrides?: { syncLogCreate?: ReturnType<typeof vi.fn> 
           id: 'wu1',
           email: 'wu1@test.ru',
           name: 'Worker User',
+          role: 'partner',
           telegramChatId: 'tg-wu1',
           maxChatId: null,
           whatsappPhone: null,

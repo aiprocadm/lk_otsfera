@@ -7,12 +7,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
 
-const { createNotification, deliverNotificationToUser, logError } = vi.hoisted(() => ({
-  createNotification: vi.fn(),
+const { recordNotification, deliverNotificationToUser, logError } = vi.hoisted(() => ({
+  recordNotification: vi.fn(),
   deliverNotificationToUser: vi.fn(),
   logError: vi.fn(),
 }));
-vi.mock('@/lib/notifications', () => ({ createNotification, deliverNotificationToUser }));
+vi.mock('@/lib/notifications', () => ({ recordNotification, deliverNotificationToUser }));
 vi.mock('@/lib/logging', () => ({ log: { error: logError, info: vi.fn(), warn: vi.fn() } }));
 
 import { runSlaEscalation } from '@/worker/processors/sla-escalation';
@@ -58,7 +58,7 @@ function overdueDialog(over: Record<string, unknown> = {}) {
 }
 
 beforeEach(() => {
-  createNotification.mockReset().mockResolvedValue({ id: 'n1' });
+  recordNotification.mockReset().mockResolvedValue({ row: { id: 'n1' }, deduped: false });
   deliverNotificationToUser.mockReset().mockResolvedValue({});
   logError.mockReset();
 });
@@ -74,25 +74,34 @@ describe('SLA-эскалация диалога', () => {
         companyId: 'co-A',
       },
     });
-    const call = createNotification.mock.calls[0]![0];
+    const call = recordNotification.mock.calls[0]![1];
     expect(call).toMatchObject({ userId: 'lead-A', type: 'sla_escalation' });
     expect(call.body).toContain('диалог в Telegram с Иван Петров');
     expect(call.body).toContain('порог 6 ч');
   });
 
-  it('ссылка уведомления ведёт в сам диалог, а не в общую очередь «Входящих»', async () => {
+  it('в строке нет адреса кабинета: ссылку в диалог строит таблица по источнику и его id (У-232)', async () => {
     const { prisma } = makePrisma([overdueDialog()]);
     await runSlaEscalation(prisma, NOW);
-    expect(createNotification).toHaveBeenCalledWith(
-      expect.objectContaining({ meta: expect.objectContaining({ url: '/manager/messengers/d1' }) })
+    const meta = { sourceType: 'dialog', sourceId: `d1:${ago(9).toISOString()}` };
+    // Ключ дедупа — та же единица Intake, что и в журнале `SlaEscalation`.
+    expect(recordNotification).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({ meta, entityId: meta.sourceId })
     );
+    expect(recordNotification.mock.calls[0]![1].meta).not.toHaveProperty('url');
     expect(deliverNotificationToUser).toHaveBeenCalledWith(
-      expect.objectContaining({ url: '/manager/messengers/d1' })
+      expect.objectContaining({ type: 'sla_escalation', meta, dedupKey: 'n1' })
     );
-    // Диалога в `/leader/intake` нет — туда вести некуда.
-    expect(createNotification).not.toHaveBeenCalledWith(
-      expect.objectContaining({ meta: expect.objectContaining({ url: '/leader/intake' }) })
-    );
+    expect(deliverNotificationToUser.mock.calls[0]![0]).not.toHaveProperty('url');
+  });
+
+  it('повтор за час (deduped: true) — доставка не зовётся, эскалация засчитана', async () => {
+    recordNotification.mockResolvedValue({ row: { id: 'n1' }, deduped: true });
+    const { prisma } = makePrisma([overdueDialog()]);
+    expect(await runSlaEscalation(prisma, NOW)).toEqual({ escalated: 1 });
+    expect(recordNotification).toHaveBeenCalledTimes(1);
+    expect(deliverNotificationToUser).not.toHaveBeenCalled();
   });
 
   it('ключ дедупа составной: второе молчание того же диалога даёт НОВУЮ строку журнала', async () => {
@@ -136,8 +145,11 @@ describe('SLA-эскалация диалога', () => {
       [COMPANY_A, { id: 'co-B', slaResponseHours: 100, users: [{ id: 'lead-B' }] }]
     );
     expect(await runSlaEscalation(prisma, NOW)).toEqual({ escalated: 1 });
-    expect(createNotification).toHaveBeenCalledTimes(2);
-    expect(createNotification).toHaveBeenCalledWith(expect.objectContaining({ userId: 'lead-B' }));
+    expect(recordNotification).toHaveBeenCalledTimes(2);
+    expect(recordNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ userId: 'lead-B' })
+    );
   });
 
   it('текст про диалог говорит «нет ответа клиенту», а не «без ответственного»', async () => {
@@ -147,7 +159,7 @@ describe('SLA-эскалация диалога', () => {
     // руководитель пойдёт искать «свободный» диалог, которого нет.
     const { prisma } = makePrisma([overdueDialog()]);
     await runSlaEscalation(prisma, NOW);
-    const call = createNotification.mock.calls[0]![0];
+    const call = recordNotification.mock.calls[0]![1];
     expect(call.body as string).toContain('Нет ответа клиенту');
     expect(call.body as string).not.toContain('Без ответственного');
     expect(call.title as string).toBe('SLA: клиент ждёт ответа');
@@ -168,7 +180,7 @@ describe('SLA-эскалация диалога', () => {
       ],
     });
     await runSlaEscalation(prisma, NOW);
-    const call = createNotification.mock.calls[0]![0];
+    const call = recordNotification.mock.calls[0]![1];
     expect(call.body as string).toContain('Без ответственного');
     expect(call.title as string).toBe('SLA: входящее без реакции');
   });
@@ -180,7 +192,7 @@ describe('SLA-эскалация диалога', () => {
       overdueDialog({ id: 'd5', channel: 'unknown_channel', peerDisplay: 'Аноним' }),
     ]);
     await runSlaEscalation(prisma, NOW);
-    const bodies = createNotification.mock.calls.map((c) => c[0].body as string).join(' ');
+    const bodies = recordNotification.mock.calls.map((c) => c[1].body as string).join(' ');
     expect(bodies).toContain('ООО «Ромашка», Пётр');
     expect(bodies).toContain('с chat-1'); // пустое прозвище → адрес собеседника
     expect(bodies).toContain('unknown_channel'); // незнакомый канал показываем как есть

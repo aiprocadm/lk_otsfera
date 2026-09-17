@@ -62,6 +62,19 @@ beforeEach(() => {
 // Sentinel for "explicitly pass null as the order value"
 const NULL_ORDER = Symbol('null-order');
 
+/**
+ * Таблица уведомлений фейка. Единая точка `recordNotification` (`У-231`)
+ * сначала ищет повтор в окне (`findFirst`), затем либо `update` («×N»), либо
+ * `create`. По умолчанию повтора нет — каждый вызов создаёт строку.
+ */
+function notificationTable(createFn = vi.fn().mockResolvedValue({})) {
+  return {
+    create: createFn,
+    findFirst: vi.fn().mockResolvedValue(null),
+    update: vi.fn().mockResolvedValue({ id: 'n-dup' }),
+  };
+}
+
 function makeDb(overrides?: {
   order?: unknown | typeof NULL_ORDER;
   managers?: unknown[];
@@ -71,6 +84,7 @@ function makeDb(overrides?: {
   orgManagersFindMany?: ReturnType<typeof vi.fn>;
 }) {
   const createFn = overrides?.createFn ?? vi.fn().mockResolvedValue({});
+  const notification = notificationTable(createFn);
   const managers = overrides?.managers ?? [];
   const orgManagers = overrides?.orgManagers ?? [];
   const comments = overrides?.comments ?? [];
@@ -95,13 +109,15 @@ function makeDb(overrides?: {
       },
       comment: { findMany: vi.fn().mockResolvedValue(comments) },
       user: { findMany: vi.fn().mockResolvedValue(managers) },
-      notification: { create: createFn },
+      notification,
     } as never,
     createFn,
+    notification,
   };
 }
 
-const ONE_MANAGER = [{ id: 'm1', email: 'm@x.ru', name: 'Manager One' }];
+// Роль получателя обязательна: по ней таблица маршрутов строит ссылку в письме.
+const ONE_MANAGER = [{ id: 'm1', email: 'm@x.ru', name: 'Manager One', role: 'manager' }];
 
 // ---------------------------------------------------------------------------
 // notifyManagers — type coverage
@@ -115,7 +131,12 @@ describe('notifyManagers — document_uploaded_by_org', () => {
     const r = await notifyManagers(db, {
       orderId: 'o1',
       type: 'document_uploaded_by_org',
-      payload: { orgName: 'ООО Тест', documentName: 'act.pdf', documentType: 'act' },
+      payload: {
+        orgName: 'ООО Тест',
+        documentName: 'act.pdf',
+        documentType: 'act',
+        documentId: 'doc-1',
+      },
     });
 
     expect(r.recipientsNotified).toBe(1);
@@ -124,7 +145,77 @@ describe('notifyManagers — document_uploaded_by_org', () => {
     const row = createFn.mock.calls[0][0].data;
     expect(row.type).toBe('document_uploaded_by_org');
     expect(row.title).toBeTruthy();
+    // `У-231`: ключ дедупа документного события — сам документ (два разных
+    // документа по одному заказу за час — два письма); `Р-Э5-7`: адреса в строке нет.
+    expect(row.entityId).toBe('doc-1');
+    expect(row.meta).toHaveProperty('documentId', 'doc-1');
+    expect(row.lastOccurredAt).toEqual(expect.any(Date));
+    expect(row.meta).not.toHaveProperty('url');
     expect(sendOrgUpload).toHaveBeenCalledOnce();
+  });
+});
+
+describe('notifyManagers — повтор в окне дедупа (У-231)', () => {
+  it('findFirst нашёл строку → update вместо create, письмо не шлётся, emailsSkipped посчитан', async () => {
+    sendCommentFromOrg.mockResolvedValue({ status: 'sent' });
+    const { db, createFn, notification } = makeDb({ managers: ONE_MANAGER });
+    notification.findFirst.mockResolvedValue({ id: 'n-old' });
+
+    const r = await notifyManagers(db, {
+      orderId: 'o1',
+      type: 'comment_from_org',
+      payload: { orgName: 'ООО', commentExcerpt: 'ещё раз' },
+    });
+
+    expect(r).toEqual({ recipientsNotified: 1, emailsSent: 0, emailsSkipped: 1 });
+    expect(notification.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ userId: 'm1', type: 'comment_from_org', entityId: 'o1' }),
+      })
+    );
+    expect(notification.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'n-old' },
+        data: expect.objectContaining({
+          dedupCount: { increment: 1 },
+          isRead: false,
+          body: expect.stringContaining('ещё раз'),
+        }),
+      })
+    );
+    expect(createFn).not.toHaveBeenCalled();
+    expect(sendCommentFromOrg).not.toHaveBeenCalled();
+  });
+});
+
+describe('notifyManagers — ссылка по роли получателя (У-232)', () => {
+  it('менеджер получает /manager/orders/…, руководитель — /leader/orders/…', async () => {
+    sendCommentFromOrg.mockResolvedValue({ status: 'sent' });
+    const { db, createFn } = makeDb({
+      managers: [
+        { id: 'm1', email: 'm@x.ru', name: 'Менеджер', role: 'manager' },
+        { id: 'l1', email: 'l@x.ru', name: 'Руководитель', role: 'leader' },
+      ],
+    });
+
+    const r = await notifyManagers(db, {
+      orderId: 'o1',
+      type: 'comment_from_org',
+      payload: { orgName: 'ООО', commentExcerpt: 'вопрос' },
+    });
+
+    expect(r).toEqual({ recipientsNotified: 2, emailsSent: 2, emailsSkipped: 0 });
+    // Один и тот же шаблон, но адрес — кабинет получателя, а не «/manager всем».
+    expect(sendCommentFromOrg.mock.calls.map((c) => [c[0].to, c[0].orderUrl])).toEqual([
+      ['m@x.ru', expect.stringMatching(/\/manager\/orders\/o1$/)],
+      ['l@x.ru', expect.stringMatching(/\/leader\/orders\/o1$/)],
+    ]);
+    // В строке базы адреса нет — он считается на чтении по роли (`Р-Э5-7`).
+    expect(createFn).toHaveBeenCalledTimes(2);
+    for (const call of createFn.mock.calls) {
+      expect(call[0].data.meta).not.toHaveProperty('url');
+      expect(call[0].data.entityId).toBe('o1');
+    }
   });
 });
 
@@ -393,13 +484,18 @@ describe('notifyManagers — no recipients', () => {
 describe('notifyManagersOrderLess', () => {
   it('notifies org-assigned managers for order-less doc upload', async () => {
     sendOrgUpload.mockResolvedValue({ status: 'sent', id: 'e3' });
-    const createFn = vi.fn().mockResolvedValue({});
+    const notification = notificationTable();
+    const createFn = notification.create;
     const db = {
       organizationManager: {
         findMany: vi.fn().mockResolvedValue([{ userId: 'm1' }]),
       },
-      user: { findMany: vi.fn().mockResolvedValue([{ id: 'm1', email: 'm@x.ru', name: 'Mgr' }]) },
-      notification: { create: createFn },
+      user: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([{ id: 'm1', email: 'm@x.ru', name: 'Mgr', role: 'manager' }]),
+      },
+      notification,
     } as never;
 
     const r = await notifyManagersOrderLess(db, {
@@ -415,13 +511,55 @@ describe('notifyManagersOrderLess', () => {
     const row = createFn.mock.calls[0][0].data;
     expect(row.type).toBe('document_uploaded_by_org');
     expect(row.title).toBeTruthy();
+    // Без `documentId` ключа дедупа нет — повтор не ищется, строка честно новая.
+    expect(row.entityId).toBeNull();
+    expect(notification.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('documentId задан → ключ дедупа — документ; повтор в окне схлопывается без письма', async () => {
+    sendOrgUpload.mockResolvedValue({ status: 'sent' });
+    const notification = notificationTable();
+    notification.findFirst.mockResolvedValue({ id: 'n-old' });
+    const db = {
+      organizationManager: {
+        findMany: vi.fn().mockResolvedValue([{ userId: 'm1' }]),
+      },
+      user: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([{ id: 'm1', email: 'm@x.ru', name: 'Mgr', role: 'manager' }]),
+      },
+      notification,
+    } as never;
+
+    const r = await notifyManagersOrderLess(db, {
+      organizationId: 'org1',
+      orgName: 'ООО Орг',
+      documentName: 'gen.pdf',
+      documentType: 'other',
+      documentId: 'doc-9',
+    });
+
+    expect(r).toEqual({ recipientsNotified: 1, emailsSent: 0, emailsSkipped: 1 });
+    expect(notification.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userId: 'm1',
+          type: 'document_uploaded_by_org',
+          entityId: 'doc-9',
+        }),
+      })
+    );
+    expect(notification.update).toHaveBeenCalledOnce();
+    expect(notification.create).not.toHaveBeenCalled();
+    expect(sendOrgUpload).not.toHaveBeenCalled();
   });
 
   it('returns zero summary when no org managers are assigned', async () => {
     const db = {
       organizationManager: { findMany: vi.fn().mockResolvedValue([]) },
       user: { findMany: vi.fn() },
-      notification: { create: vi.fn() },
+      notification: notificationTable(),
     } as never;
 
     const r = await notifyManagersOrderLess(db, {
@@ -436,13 +574,16 @@ describe('notifyManagersOrderLess', () => {
 
   it('excludeUserId removes the actor from the recipient set', async () => {
     sendOrgUpload.mockResolvedValue({ status: 'sent' });
-    const createFn = vi.fn().mockResolvedValue({});
     const db = {
       organizationManager: {
         findMany: vi.fn().mockResolvedValue([{ userId: 'm1' }, { userId: 'm2' }]),
       },
-      user: { findMany: vi.fn().mockResolvedValue([{ id: 'm2', email: 'm2@x.ru', name: 'M2' }]) },
-      notification: { create: createFn },
+      user: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([{ id: 'm2', email: 'm2@x.ru', name: 'M2', role: 'manager' }]),
+      },
+      notification: notificationTable(),
     } as never;
 
     const r = await notifyManagersOrderLess(
@@ -455,13 +596,16 @@ describe('notifyManagersOrderLess', () => {
   });
 
   it('manager with no email → emailsSkipped', async () => {
-    const createFn = vi.fn().mockResolvedValue({});
     const db = {
       organizationManager: {
         findMany: vi.fn().mockResolvedValue([{ userId: 'm3' }]),
       },
-      user: { findMany: vi.fn().mockResolvedValue([{ id: 'm3', email: null, name: 'Nomail' }]) },
-      notification: { create: createFn },
+      user: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([{ id: 'm3', email: null, name: 'Nomail', role: 'manager' }]),
+      },
+      notification: notificationTable(),
     } as never;
 
     const r = await notifyManagersOrderLess(db, {
@@ -479,13 +623,16 @@ describe('notifyManagersOrderLess', () => {
   it('email dispatch throws → emailsSkipped, no re-throw', async () => {
     sendOrgUpload.mockRejectedValue(new Error('SMTP error'));
     const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const createFn = vi.fn().mockResolvedValue({});
     const db = {
       organizationManager: {
         findMany: vi.fn().mockResolvedValue([{ userId: 'm4' }]),
       },
-      user: { findMany: vi.fn().mockResolvedValue([{ id: 'm4', email: 'm4@x.ru', name: 'M4' }]) },
-      notification: { create: createFn },
+      user: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([{ id: 'm4', email: 'm4@x.ru', name: 'M4', role: 'manager' }]),
+      },
+      notification: notificationTable(),
     } as never;
 
     const r = await notifyManagersOrderLess(db, {
@@ -510,8 +657,12 @@ describe('notifyManagersOrderLess', () => {
       organizationManager: {
         findMany: vi.fn().mockResolvedValue([{ userId: 'm5' }]),
       },
-      user: { findMany: vi.fn().mockResolvedValue([{ id: 'm5', email: 'm5@x.ru', name: 'M5' }]) },
-      notification: { create: createFn },
+      user: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([{ id: 'm5', email: 'm5@x.ru', name: 'M5', role: 'manager' }]),
+      },
+      notification: notificationTable(createFn),
     } as never;
 
     const r = await notifyManagersOrderLess(db, {
@@ -658,7 +809,7 @@ describe('MANAGER_TEMPLATES type-guard defensive arms', () => {
     sendOrgUpload.mockResolvedValue({ status: 'sent' });
     // notifyManagers with a mismatched payload cast via `as any` triggers the guard
     const { db } = makeDb({
-      managers: [{ id: 'm1', email: 'm@x.ru', name: 'M' }],
+      managers: [{ id: 'm1', email: 'm@x.ru', name: 'M', role: 'manager' }],
       // Override the order.findUnique to return a valid order
       order: { id: 'o1', orderNumber: '1', title: 'T', managerId: 'm1', organizationId: 'org1' },
     });

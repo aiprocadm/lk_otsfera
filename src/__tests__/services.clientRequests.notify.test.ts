@@ -3,21 +3,21 @@
  *
  * notifyManagersClientRequestSubmitted — fan-out менеджерам: org-заявка через
  * resolveOrgManagerRecipients; партнёрская — менеджеры организаций партнёра
- * (дедуп + исключение подателя); некому → без createNotification.
+ * (дедуп + исключение подателя); некому → без recordNotification.
  * notifySubmitterClientRequestStatus — url по source, причина отказа в body,
  * dedupKey = id Notification-строки. Обе best-effort: сбой → log.warn.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { createNotification, deliverNotificationToUser, resolveOrgManagerRecipients } = vi.hoisted(
+const { recordNotification, deliverNotificationToUser, resolveOrgManagerRecipients } = vi.hoisted(
   () => ({
-    createNotification: vi.fn(),
+    recordNotification: vi.fn(),
     deliverNotificationToUser: vi.fn(),
     resolveOrgManagerRecipients: vi.fn(),
   })
 );
 vi.mock('@/lib/notifications', () => ({
-  createNotification,
+  recordNotification,
   deliverNotificationToUser,
   resolveOrgManagerRecipients,
 }));
@@ -68,8 +68,9 @@ function db(over: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  createNotification.mockImplementation(async ({ userId }: { userId: string }) => ({
-    id: `n-${userId}`,
+  recordNotification.mockImplementation(async (_db: unknown, { userId }: { userId: string }) => ({
+    row: { id: `n-${userId}` },
+    deduped: false,
   }));
   deliverNotificationToUser.mockResolvedValue({});
   resolveOrgManagerRecipients.mockResolvedValue([]);
@@ -102,24 +103,44 @@ describe('notifyManagersClientRequestSubmitted — org-заявка', () => {
       excludeUserId: 'sub-1',
     });
     expect(omFindMany).not.toHaveBeenCalled(); // партнёрская ветка не задействована
-    expect(createNotification).toHaveBeenCalledTimes(2);
-    expect(createNotification).toHaveBeenCalledWith({
+    expect(recordNotification).toHaveBeenCalledTimes(2);
+    // `У-232`: адреса кабинета в строке нет — ссылку строит таблица маршрутов
+    // по `requestId` от роли получателя; ключ дедупа — заявка.
+    expect(recordNotification).toHaveBeenCalledWith(prisma, {
       userId: 'm1',
       organizationId: 'o1',
       partnerId: null,
       type: 'client_request_submitted',
       title: 'Новое обращение клиента',
       body: 'ООО Ромашка: Обучение',
-      meta: { requestId: 'R1', url: '/manager/requests' },
+      meta: { requestId: 'R1' },
+      entityId: 'R1',
     });
     expect(deliverNotificationToUser).toHaveBeenCalledWith({
       userId: 'm2',
       title: 'Новое обращение клиента',
       body: 'ООО Ромашка: Обучение',
       type: 'client_request_submitted',
-      url: '/manager/requests',
+      meta: { requestId: 'R1' },
       dedupKey: 'n-m2',
     });
+  });
+
+  it('повтор за час (deduped: true) — строка «×N», доставка этому получателю не зовётся', async () => {
+    resolveOrgManagerRecipients.mockResolvedValue([{ id: 'm1' }, { id: 'm2' }]);
+    recordNotification
+      .mockResolvedValueOnce({ row: { id: 'n-m1' }, deduped: true })
+      .mockResolvedValueOnce({ row: { id: 'n-m2' }, deduped: false });
+    const { prisma } = db();
+    await notifyManagersClientRequestSubmitted(
+      prisma,
+      request({ source: 'organization_cabinet', organizationId: 'o1', partnerId: null })
+    );
+    expect(recordNotification).toHaveBeenCalledTimes(2);
+    expect(deliverNotificationToUser).toHaveBeenCalledTimes(1);
+    expect(deliverNotificationToUser).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'm2', dedupKey: 'n-m2' })
+    );
   });
 });
 
@@ -145,7 +166,7 @@ describe('notifyManagersClientRequestSubmitted — партнёрская зая
       where: { id: { in: ['m1', 'm2'] }, role: { in: ['manager', 'leader'] }, isActive: true },
       select: CHANNEL_RECIPIENT_SELECT,
     });
-    expect(createNotification).toHaveBeenCalledTimes(2);
+    expect(recordNotification).toHaveBeenCalledTimes(2);
     expect(deliverNotificationToUser).toHaveBeenCalledTimes(2);
   });
 
@@ -156,7 +177,7 @@ describe('notifyManagersClientRequestSubmitted — партнёрская зая
     ).organizationManager.findMany = vi.fn().mockResolvedValue([{ userId: 'sub-1' }]);
     await notifyManagersClientRequestSubmitted(prisma, request());
     expect(userFindMany).not.toHaveBeenCalled();
-    expect(createNotification).not.toHaveBeenCalled();
+    expect(recordNotification).not.toHaveBeenCalled();
     expect(deliverNotificationToUser).not.toHaveBeenCalled();
   });
 
@@ -168,7 +189,7 @@ describe('notifyManagersClientRequestSubmitted — партнёрская зая
     );
     expect(resolveOrgManagerRecipients).not.toHaveBeenCalled();
     expect(omFindMany).not.toHaveBeenCalled();
-    expect(createNotification).not.toHaveBeenCalled();
+    expect(recordNotification).not.toHaveBeenCalled();
   });
 
   it('best-effort: сбой резолва получателей проглатывается с log.warn', async () => {
@@ -204,7 +225,9 @@ describe('notifySubmitterClientRequestStatus', () => {
   it('партнёрская заявка: url /partner/requests/<id>, русская подпись статуса, dedupKey = id строки', async () => {
     const { prisma } = db();
     await notifySubmitterClientRequestStatus(prisma, request({ status: 'in_triage' }));
-    expect(createNotification).toHaveBeenCalledWith({
+    // Тип для заказчика/партнёра: `url` остаётся и в meta, и в доставке —
+    // кабинет подателя нотификатор считает сам; ключ дедупа — заявка.
+    expect(recordNotification).toHaveBeenCalledWith(prisma, {
       userId: 'sub-1',
       organizationId: null,
       partnerId: 'p1',
@@ -212,6 +235,7 @@ describe('notifySubmitterClientRequestStatus', () => {
       title: 'Обращение — статус «В работе»',
       body: 'Обращение «Обучение» (ООО Ромашка) — статус «В работе».',
       meta: { requestId: 'R1', status: 'in_triage', url: '/partner/requests/R1' },
+      entityId: 'R1',
     });
     expect(deliverNotificationToUser).toHaveBeenCalledWith({
       userId: 'sub-1',
@@ -221,6 +245,14 @@ describe('notifySubmitterClientRequestStatus', () => {
       url: '/partner/requests/R1',
       dedupKey: 'n-sub-1',
     });
+  });
+
+  it('повтор за час (deduped: true) — строка «×N», доставка не зовётся', async () => {
+    recordNotification.mockResolvedValue({ row: { id: 'n-sub-1' }, deduped: true });
+    const { prisma } = db();
+    await notifySubmitterClientRequestStatus(prisma, request({ status: 'in_triage' }));
+    expect(recordNotification).toHaveBeenCalledTimes(1);
+    expect(deliverNotificationToUser).not.toHaveBeenCalled();
   });
 
   it('организационная заявка: url /organization/requests/<id>; статус converted → «Принята»', async () => {
@@ -234,7 +266,8 @@ describe('notifySubmitterClientRequestStatus', () => {
         status: 'converted',
       })
     );
-    expect(createNotification).toHaveBeenCalledWith(
+    expect(recordNotification).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({
         title: 'Обращение — статус «Принята»',
         meta: { requestId: 'R1', status: 'converted', url: '/organization/requests/R1' },
@@ -248,7 +281,8 @@ describe('notifySubmitterClientRequestStatus', () => {
       prisma,
       request({ status: 'rejected', rejectedReason: 'нет мест' })
     );
-    expect(createNotification).toHaveBeenCalledWith(
+    expect(recordNotification).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({
         body: 'Обращение «Обучение» (ООО Ромашка) — статус «Отклонена». Причина: нет мест',
       })
@@ -261,12 +295,12 @@ describe('notifySubmitterClientRequestStatus', () => {
       prisma,
       request({ status: 'rejected', rejectedReason: null })
     );
-    const body = createNotification.mock.calls[0][0].body as string;
+    const body = recordNotification.mock.calls[0][1].body as string;
     expect(body).toBe('Обращение «Обучение» (ООО Ромашка) — статус «Отклонена».');
   });
 
-  it('best-effort: reject из createNotification проглатывается + log.warn; доставки нет', async () => {
-    createNotification.mockRejectedValue(new Error('insert failed'));
+  it('best-effort: reject из recordNotification проглатывается + log.warn; доставки нет', async () => {
+    recordNotification.mockRejectedValue(new Error('insert failed'));
     const { prisma } = db();
     await expect(
       notifySubmitterClientRequestStatus(prisma, request({ status: 'in_triage' }))
@@ -279,7 +313,7 @@ describe('notifySubmitterClientRequestStatus', () => {
   });
 
   it('best-effort: отказ не-Error значением логируется текстом', async () => {
-    createNotification.mockRejectedValue('соединение закрыто');
+    recordNotification.mockRejectedValue('соединение закрыто');
     const { prisma } = db();
     await expect(
       notifySubmitterClientRequestStatus(prisma, request({ status: 'in_triage' }))

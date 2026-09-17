@@ -1,14 +1,14 @@
-import { createNotification, deliverNotificationToUser } from '@/lib/notifications';
+import { prisma } from '@/lib/db/prisma';
+import { recordNotification, deliverNotificationToUser } from '@/lib/notifications';
 import { log } from '@/lib/logging';
 
 /**
  * Этап 7 (ФТ-7.2) — уведомления по задачам. Fan-out деградирует gracefully (§3
  * CLAUDE.md): ошибка доставки логируется и проглатывается, основную мутацию не
  * блокирует. Самоназначение не уведомляется (диф считает вызывающий).
- * Deep-link — meta.url на доску задач (href.ts отдаёт meta.url приоритетом).
+ * Ссылка на карточку задачи (`У-232`) строится таблицей маршрутов по
+ * `meta.taskId` от роли получателя — адрес кабинета в строку не пишем.
  */
-
-export const TASKS_BOARD_URL = '/manager/tasks';
 
 export async function notifyTaskAssigned(args: {
   taskId: string;
@@ -23,22 +23,26 @@ export async function notifyTaskAssigned(args: {
   const title = 'Вам назначена задача';
   const due = args.dueDate ? `, срок до ${new Date(args.dueDate).toLocaleDateString('ru-RU')}` : '';
   const body = `«${args.taskTitle}»${due}.`;
+  const meta = { taskId: args.taskId };
 
   for (const userId of recipients) {
     try {
-      const row = await createNotification({
+      // Ключ дедупа — задача: переназначение туда-обратно за час — одна строка.
+      const { row, deduped } = await recordNotification(prisma, {
         userId,
         type: 'task_assigned',
         title,
         body,
-        meta: { taskId: args.taskId, url: TASKS_BOARD_URL },
+        meta,
+        entityId: args.taskId,
       });
+      if (deduped) continue;
       await deliverNotificationToUser({
         userId,
         title,
         body,
         type: 'task_assigned',
-        url: TASKS_BOARD_URL,
+        meta,
         dedupKey: row.id,
       });
     } catch (e) {

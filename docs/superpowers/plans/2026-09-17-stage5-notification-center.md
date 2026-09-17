@@ -40,17 +40,17 @@ unit (4 четверти), integration (4 четверти). Страж — то
 
 ## PR-3. Единая точка, дедуп, маршруты (`У-231`, `У-232`, `У-233`)
 
-- [ ] Миграция: `Notification.entityId`, `dedupCount`, `lastOccurredAt`, индекс `[userId, type, entityId, createdAt]`
-- [ ] `recordNotification` в `core.ts` (окно 60 мин, `×N`, `isRead=false`, свежие тексты, `{ row, deduped }`); флаг `noDedup` в реестре (`messenger_message`, `chat_message`)
-- [ ] Перевод 27 вызовов в 20 файлах на `recordNotification` с явным `entityId`; при `deduped` каналы не дёргаются
-- [ ] Страж `notifications.single-create-point` (`readSource`, мутация: вернуть прямой вызов)
-- [ ] Страж `notifications.dedup` (мутации: снять окно, убрать исключение); `notifications.dedup.integration` на живых `createdAt`
-- [ ] `lib/notifications/routes.ts`: таблица «тип × роль → маршрут» по идентификаторам `meta`; `notificationHref` — обёртка; `meta.url` — запасной путь
-- [ ] Продьюсеры сотрудников пишут идентификаторы вместо `url` с кабинетом; `role` в `CHANNEL_RECIPIENT_SELECT`; письмо получает `url` по роли получателя
-- [ ] Списки разделов принимают `?missing=1` и показывают «объект недоступен»
-- [ ] Страж `notifications.routes` (все пары тип × роль; `leader` → `/leader/`; `null` только из явного списка; существование страницы проверяется по файлу); `notifications.href.test.ts:89` переписан с объяснением
-- [ ] Лента сортируется по `lastOccurredAt ?? createdAt`; «×N» на экране
-- [ ] AUDIT: `У-231`, `У-232` → ✅, `У-233` — частично; CHANGELOG; STATUS
+- [x] Миграция: `Notification.entityId`, `dedupCount`, `lastOccurredAt`, индекс `[userId, type, entityId, createdAt]`
+- [x] `recordNotification` в `core.ts` (окно 60 мин, `×N`, `isRead=false`, свежие тексты, `{ row, deduped }`); флаг `noDedup` в реестре (`messenger_message`, `chat_message`)
+- [x] Перевод 27 вызовов в 20 файлах на `recordNotification` с явным `entityId`; при `deduped` каналы не дёргаются
+- [x] Страж `notifications.single-create-point` (`readSource`, мутация: вернуть прямой вызов)
+- [x] Страж `notifications.dedup` (мутации: снять окно, убрать исключение); `notifications.dedup.integration` на живых `createdAt`
+- [x] `lib/notifications/routes.ts`: таблица «тип × роль → маршрут» по идентификаторам `meta`; `notificationHref` — обёртка; `meta.url` — запасной путь
+- [x] Продьюсеры сотрудников пишут идентификаторы вместо `url` с кабинетом; `role` в `CHANNEL_RECIPIENT_SELECT`; письмо получает `url` по роли получателя
+- [x] Списки разделов принимают `?missing=1` и показывают «объект недоступен»
+- [x] Страж `notifications.routes` (все пары тип × роль; `leader` → `/leader/`; `null` только из явного списка; существование страницы проверяется по файлу); `notifications.href.test.ts:89` переписан с объяснением
+- [x] Лента сортируется по `lastOccurredAt ?? createdAt`; «×N» на экране
+- [x] AUDIT: `У-231`, `У-232` → ✅, `У-233` — частично; CHANGELOG; STATUS
 
 ## PR-4. Дайджест (`У-230`, «Важно»)
 

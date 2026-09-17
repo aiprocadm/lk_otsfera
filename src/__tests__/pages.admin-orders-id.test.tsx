@@ -80,8 +80,10 @@ vi.mock('@/components/manager/generate-documents-panel', () => ({
 }));
 
 const nav = vi.hoisted(() => ({
-  notFound: vi.fn(() => {
-    throw new Error('NOT_FOUND');
+  // `У-232`: карточка больше не зовёт notFound() — удалённый или чужой
+  // заказ уводит в список раздела с `?missing=1`.
+  redirect: vi.fn((url: string) => {
+    throw new Error(`REDIRECT:${url}`);
   }),
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
@@ -163,7 +165,7 @@ describe('AdminOrderDetailPage', () => {
     getOrderLinesPanel.mockResolvedValue(null);
     getOrderContactPanel.mockReset().mockResolvedValue(null);
     getDocumentGenerationPanel.mockReset();
-    nav.notFound.mockClear();
+    nav.redirect.mockClear();
   });
 
   it('монтирует блок «Состав и стоимость», когда сервис отдал строки', async () => {
@@ -205,7 +207,9 @@ describe('AdminOrderDetailPage', () => {
     expect(container.querySelector('[data-testid="order-lines"]')).toBeNull();
   });
 
-  it('calls notFound() when the order is missing', async () => {
+  // `У-232` (спека §3.7): удалённый заказ — список раздела с плашкой «объект
+  // недоступен», а не 404: ссылка из уведомления не упирается в пустую страницу.
+  it('удалённый заказ → редирект в список с ?missing=1, а не 404', async () => {
     requireAdmin.mockResolvedValue(SESSION);
     getOrderForAdmin.mockResolvedValue(null);
     listManagerCandidates.mockResolvedValue([]);
@@ -213,7 +217,8 @@ describe('AdminOrderDetailPage', () => {
 
     await expect(
       renderServerComponent(AdminOrderDetailPage({ params: Promise.resolve({ id: 'missing' }) }))
-    ).rejects.toThrow('NOT_FOUND');
+    ).rejects.toThrow('REDIRECT:/admin/orders?missing=1');
+    expect(nav.redirect).toHaveBeenCalledWith('/admin/orders?missing=1');
   });
 
   it('renders order details with an organization link, partner name, custom fields, and candidates (Decimal-like totalAmount via toNumber())', async () => {

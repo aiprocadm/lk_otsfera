@@ -25,8 +25,10 @@ vi.mock('@/lib/services/customFields', () => ({ getValuesForEntity }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: { comment: {} } }));
 
 const nav = vi.hoisted(() => ({
-  notFound: vi.fn(() => {
-    throw new Error('NOT_FOUND');
+  // `У-232`: карточка больше не зовёт notFound() — удалённый или чужой
+  // заказ уводит в список раздела с `?missing=1`.
+  redirect: vi.fn((url: string) => {
+    throw new Error(`REDIRECT:${url}`);
   }),
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
@@ -89,10 +91,12 @@ describe('OrganizationOrderDetailPage', () => {
     getOrgOrder.mockReset();
     getValuesForEntity.mockReset();
     listOrgOrderComments.mockReset();
-    nav.notFound.mockClear();
+    nav.redirect.mockClear();
   });
 
-  it('calls notFound() when getOrgOrder returns null', async () => {
+  // `У-232` (спека §3.7): удалённый заказ — не 404, а список раздела с плашкой
+  // «объект недоступен».
+  it('удалённый заказ → редирект в список с ?missing=1, а не 404', async () => {
     getOrgPageContext.mockResolvedValue(CTX);
     getOrgOrder.mockResolvedValue(null);
 
@@ -103,12 +107,28 @@ describe('OrganizationOrderDetailPage', () => {
           searchParams: Promise.resolve({}),
         })
       )
-    ).rejects.toThrow('NOT_FOUND');
+    ).rejects.toThrow('REDIRECT:/organization/orders?missing=1');
 
     expect(canSeeOrder).not.toHaveBeenCalled();
   });
 
-  it('calls notFound() when canSeeOrder denies access (defense-in-depth re-check)', async () => {
+  it('редирект сохраняет ?org= активной организации: человек остаётся в ней', async () => {
+    getOrgPageContext.mockResolvedValue(CTX);
+    getOrgOrder.mockResolvedValue(null);
+
+    await expect(
+      renderServerComponent(
+        OrganizationOrderDetailPage({
+          params: Promise.resolve({ id: 'missing' }),
+          searchParams: Promise.resolve({ org: 'org-1' }),
+        })
+      )
+    ).rejects.toThrow('REDIRECT:/organization/orders?org=org-1&missing=1');
+  });
+
+  // Чужой заказ отвечает ТЕМ ЖЕ редиректом, что и удалённый (§4): по разнице
+  // ответов нельзя узнать, что заказ существует.
+  it('canSeeOrder отказал (defense-in-depth) → тот же редирект, что и для удалённого', async () => {
     getOrgPageContext.mockResolvedValue(CTX);
     getOrgOrder.mockResolvedValue(BASE_ORDER);
     canSeeOrder.mockReturnValue(false);
@@ -120,7 +140,7 @@ describe('OrganizationOrderDetailPage', () => {
           searchParams: Promise.resolve({}),
         })
       )
-    ).rejects.toThrow('NOT_FOUND');
+    ).rejects.toThrow('REDIRECT:/organization/orders?missing=1');
 
     expect(canSeeOrder).toHaveBeenCalledWith(CTX.session, { organizationId: 'org-1' });
   });

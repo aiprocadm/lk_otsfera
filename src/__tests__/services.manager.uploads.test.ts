@@ -175,6 +175,7 @@ describe('services/manager/uploads — createCounterpartyDocument', () => {
         orderNumber: 'O-100',
         orderTitle: 'Заказ #100',
         documentName: 'invoice.pdf',
+        documentId: 'doc-1',
         documentType: 'contract',
       },
     });

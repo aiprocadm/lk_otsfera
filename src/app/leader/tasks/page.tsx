@@ -11,6 +11,8 @@ import { TasksToolbar } from '@/components/tasks/tasks-toolbar';
 import { ColumnConfig } from '@/components/tasks/column-config';
 
 import { PageHeader } from '@/components/ui/page-header';
+import { MissingObjectNotice } from '@/components/ui/missing-object-notice';
+import { isMissingObjectRequested } from '@/lib/navigation/missingObject';
 import { ListCapNotice } from '@/components/ui';
 export const dynamic = 'force-dynamic';
 
@@ -21,7 +23,8 @@ export default async function LeaderTasksPage({
 }) {
   if (!isFeatureEnabled('internal_tasks')) notFound();
   const session = await requireManagerLeader();
-  const state = parseTasksSearchParams(await searchParams);
+  const sp = await searchParams;
+  const state = parseTasksSearchParams(sp);
   const [board, options] = await Promise.all([
     listTaskBoard(prisma, session, {
       scope: state.scope,
@@ -40,6 +43,8 @@ export default async function LeaderTasksPage({
           subtitle="Внутренний канбан задач. Перетаскивайте карточки между колонками; настройте колонки под процесс команды."
         />
       </div>
+      {/* `У-232`: пришли по ссылке на удалённую или чужую задачу. */}
+      {isMissingObjectRequested(sp) && <MissingObjectNotice what="Задача" feminine />}
       <TasksToolbar state={state} assigneeOptions={options.users} />
       {state.view === 'list' ? (
         <TaskList board={board} options={options} hrefBase="/leader/tasks" />

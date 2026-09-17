@@ -34,6 +34,12 @@ export type NotificationTypeSpec = {
    * должны жить рядом, иначе разъедутся при первом новом типе.
    */
   icon: string;
+  /**
+   * Этап 5 PR-3 (`Р-Э5-5`): каждое событие — отдельная строка, окно дедупа
+   * 60 минут не применяется. Только для типов, где каждый повтор важен сам
+   * по себе (сообщения).
+   */
+  noDedup?: true;
   /** Имя из ТЗ, если оно отличается от исторического кода. */
   tzAlias?: string;
 };
@@ -77,6 +83,7 @@ export const NOTIFICATION_TYPES = {
     producer: 'src/lib/notifications/org.ts',
   },
   chat_message: {
+    noDedup: true,
     label: 'Новое сообщение в чате',
     icon: '💬',
     audience: ['organization', 'manager'],
@@ -220,12 +227,16 @@ export const NOTIFICATION_TYPES = {
 
   // ── Внутренние коммуникации сотрудников ─────────────────────────────────
   staff_dm_message: {
+    // Сообщение служебного чата — как chat_message: каждое своей строкой.
+    noDedup: true,
     label: 'Личное сообщение сотруднику',
     icon: '✉',
     audience: ['staff'],
     producer: 'src/lib/services/staffChat/messages.ts',
   },
   staff_chat_mention: {
+    // Сообщение служебного чата — как chat_message: каждое своей строкой.
+    noDedup: true,
     label: 'Упоминание в чате сотрудников',
     icon: '💬',
     audience: ['staff'],
@@ -242,6 +253,8 @@ export const NOTIFICATION_TYPES = {
     producer: 'src/lib/notifications/noteMention.ts',
   },
   inbound_reply: {
+    // Ответ клиенту — свой текст, как сообщение: повтор «×2» потерял бы второй ответ.
+    noDedup: true,
     label: 'Ответ по внешнему обращению',
     icon: '✉',
     audience: ['staff'],
@@ -250,6 +263,7 @@ export const NOTIFICATION_TYPES = {
   // Спека 2026-09-12 (Р-М-9): клиент написал в диалог мессенджера — менеджерам
   // организации, к которой привязан диалог.
   messenger_message: {
+    noDedup: true,
     label: 'Новое сообщение в мессенджере',
     icon: '📱',
     audience: ['staff'],
@@ -297,19 +311,13 @@ export const NOTIFICATION_TYPES = {
     label: 'Создан документ',
     icon: '📄',
     audience: ['staff'],
-    producer: 'src/lib/notifications/core.ts',
-  },
-  status_changed: {
-    label: 'Изменился статус',
-    icon: '📋',
-    audience: ['staff'],
-    producer: 'src/lib/notifications/core.ts',
+    producer: 'src/lib/services/documents/adminUpload.ts',
   },
   message_created: {
     label: 'Новое сообщение',
     icon: '✉',
     audience: ['staff'],
-    producer: 'src/lib/notifications/core.ts',
+    producer: 'src/lib/services/comments/post.ts',
   },
 } as const satisfies Record<string, NotificationTypeSpec>;
 

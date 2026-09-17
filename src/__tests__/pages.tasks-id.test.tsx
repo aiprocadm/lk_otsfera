@@ -11,6 +11,9 @@ import { renderServerComponent } from './helpers/renderServerComponent';
  *
  * Проверяется ровно то, что делает страница: флаг, гард роли, отказ по чужой
  * задаче и передача кабинета в общий экран (от него зависят ссылки и крошки).
+ *
+ * Отказ по задаче — не 404, а список задач с плашкой «объект недоступен»
+ * (`У-232`, спека §3.7); 404 остаётся только у выключенного флага.
  */
 
 const { requireManager, requireManagerLeader } = vi.hoisted(() => ({
@@ -25,6 +28,9 @@ vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 vi.mock('next/navigation', () => ({
   notFound: () => {
     throw new Error('NOTFOUND');
+  },
+  redirect: (url: string) => {
+    throw new Error(`REDIRECT:${url}`);
   },
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
@@ -81,13 +87,17 @@ describe.each(CASES)('карточка задачи: $name', ({ Page, cabinet, g
     expect(guard).toHaveBeenCalled();
   });
 
-  it('чужая или несуществующая задача → 404 (сервис не различает их наружу)', async () => {
+  it('чужая или несуществующая задача → список с ?missing=1 (сервис не различает их наружу)', async () => {
     getTaskDetail.mockResolvedValue({ ok: false, error: 'not_found' });
-    await expect(renderServerComponent(open('чужая'))).rejects.toThrow('NOTFOUND');
+    await expect(renderServerComponent(open('чужая'))).rejects.toThrow(
+      `REDIRECT:/${cabinet}/tasks?missing=1`
+    );
   });
 
-  it('сессия без компании → 404, а не пустой экран', async () => {
+  it('сессия без компании → тот же редирект, а не пустой экран и не 404', async () => {
     getTaskDetail.mockResolvedValue({ ok: false, error: 'forbidden' });
-    await expect(renderServerComponent(open('t1'))).rejects.toThrow('NOTFOUND');
+    await expect(renderServerComponent(open('t1'))).rejects.toThrow(
+      `REDIRECT:/${cabinet}/tasks?missing=1`
+    );
   });
 });

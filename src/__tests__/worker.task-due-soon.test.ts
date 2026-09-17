@@ -6,11 +6,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
 
-const { createNotification, deliverNotificationToUser } = vi.hoisted(() => ({
-  createNotification: vi.fn(),
+const { recordNotification, deliverNotificationToUser } = vi.hoisted(() => ({
+  recordNotification: vi.fn(),
   deliverNotificationToUser: vi.fn(),
 }));
-vi.mock('@/lib/notifications', () => ({ createNotification, deliverNotificationToUser }));
+vi.mock('@/lib/notifications', () => ({ recordNotification, deliverNotificationToUser }));
 vi.mock('@/lib/db/prisma', () => ({
   prisma: { task: { findMany: vi.fn().mockResolvedValue([]) } },
 }));
@@ -35,7 +35,7 @@ const TASK = {
 };
 
 beforeEach(() => {
-  createNotification.mockReset().mockResolvedValue({ id: 'n1' });
+  recordNotification.mockReset().mockResolvedValue({ row: { id: 'n1' }, deduped: false });
   deliverNotificationToUser.mockReset().mockResolvedValue({});
 });
 
@@ -54,6 +54,15 @@ describe('runTaskDueSoon', () => {
     expect(lte.getHours()).toBe(23);
   });
 
+  it('повтор за час (deduped: true) — строка «×N», доставка не зовётся, задача засчитана', async () => {
+    recordNotification.mockResolvedValue({ row: { id: 'n1' }, deduped: true });
+    const { prisma } = makePrisma([TASK]);
+    const res = await runTaskDueSoon(prisma, NOW);
+    expect(res).toEqual({ notified: 1 });
+    expect(recordNotification).toHaveBeenCalledTimes(2);
+    expect(deliverNotificationToUser).not.toHaveBeenCalled();
+  });
+
   it('claim → уведомления уникальным исполнителям, notified=1', async () => {
     const { prisma, updateMany } = makePrisma([TASK]);
     const res = await runTaskDueSoon(prisma, NOW);
@@ -64,19 +73,29 @@ describe('runTaskDueSoon', () => {
       data: { dueSoonNotifiedAt: NOW },
     });
     // u1 дедуплицирован.
-    expect(createNotification).toHaveBeenCalledTimes(2);
-    expect(createNotification).toHaveBeenCalledWith(
+    expect(recordNotification).toHaveBeenCalledTimes(2);
+    // `У-232`: адреса кабинета в строке нет — ссылку строит таблица маршрутов
+    // по `taskId` от роли получателя; ключ дедупа — задача.
+    expect(recordNotification).toHaveBeenCalledWith(
+      prisma,
       expect.objectContaining({
         userId: 'u1',
         type: 'task_due_soon',
         title: 'Скоро срок задачи',
-        meta: { taskId: 't1', url: '/manager/tasks' },
+        meta: { taskId: 't1' },
+        entityId: 't1',
       })
     );
     expect(deliverNotificationToUser).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: 'u2', type: 'task_due_soon', dedupKey: 'n1' })
+      expect.objectContaining({
+        userId: 'u2',
+        type: 'task_due_soon',
+        meta: { taskId: 't1' },
+        dedupKey: 'n1',
+      })
     );
-    const body = createNotification.mock.calls[0]![0].body as string;
+    expect(deliverNotificationToUser.mock.calls[0]![0]).not.toHaveProperty('url');
+    const body = recordNotification.mock.calls[0]![1].body as string;
     expect(body).toContain('«Позвонить»');
     expect(body).toContain('срок');
   });
@@ -84,15 +103,18 @@ describe('runTaskDueSoon', () => {
   it('без исполнителей — фолбэк на создателя', async () => {
     const { prisma } = makePrisma([{ ...TASK, assignees: [] }]);
     await runTaskDueSoon(prisma, NOW);
-    expect(createNotification).toHaveBeenCalledTimes(1);
-    expect(createNotification).toHaveBeenCalledWith(expect.objectContaining({ userId: 'creator' }));
+    expect(recordNotification).toHaveBeenCalledTimes(1);
+    expect(recordNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ userId: 'creator' })
+    );
   });
 
   it('конкурирующий прогон перехватил claim (count=0) → задача пропускается', async () => {
     const { prisma } = makePrisma([TASK], 0);
     const res = await runTaskDueSoon(prisma, NOW);
     expect(res).toEqual({ notified: 0 });
-    expect(createNotification).not.toHaveBeenCalled();
+    expect(recordNotification).not.toHaveBeenCalled();
   });
 });
 

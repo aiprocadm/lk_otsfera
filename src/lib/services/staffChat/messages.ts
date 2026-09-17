@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
-import { createNotification, deliverNotificationToUser } from '@/lib/notifications';
+import { recordNotification, deliverNotificationToUser } from '@/lib/notifications';
 import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import { log } from '@/lib/logging';
@@ -132,7 +132,8 @@ export async function sendStaffMessage(
   // Уведомления — best-effort, не блокируют отправку
   try {
     const excerpt = body.slice(0, 200);
-    const url = (role: string) => (role === 'admin' ? '/admin/messages' : '/manager/messages');
+    // `У-232`: ссылку («Сообщения» своего кабинета) строит таблица маршрутов от
+    // роли получателя — адрес кабинета сюда не пишем.
     // Без '@' в теле упоминаний быть не может — не ходим в БД за списком коллег зря
     const mentioned = body.includes('@')
       ? extractMentions(body, (await listColleagues(prisma, session)).rows).filter(
@@ -142,47 +143,56 @@ export async function sendStaffMessage(
     const recipients = mentioned.length
       ? await prisma.user.findMany({
           where: { id: { in: mentioned } },
-          select: { id: true, role: true },
+          select: { id: true },
         })
       : [];
+    const mentionMeta = { conversationId: conv.id, messageId: message.id };
     for (const r of recipients) {
-      const row = await createNotification({
+      // Ключ дедупа — сообщение: одно упоминание — одно письмо.
+      const { row, deduped } = await recordNotification(prisma, {
         userId: r.id,
         type: 'staff_chat_mention',
         title: 'Вас упомянули в чате команды',
         body: excerpt,
-        meta: { conversationId: conv.id, messageId: message.id },
+        meta: mentionMeta,
+        entityId: message.id,
       });
+      if (deduped) continue;
       await deliverNotificationToUser({
         userId: r.id,
         title: 'Вас упомянули в чате команды',
         body: excerpt,
         type: 'staff_chat_mention',
-        url: url(r.role),
+        meta: mentionMeta,
         dedupKey: row.id,
       });
     }
     if (notifyDmRecipient && !mentioned.includes(notifyDmRecipient)) {
       const rec = await prisma.user.findUnique({
         where: { id: notifyDmRecipient },
-        select: { id: true, role: true },
+        select: { id: true },
       });
       if (rec) {
-        const row = await createNotification({
+        const dmMeta = { conversationId: conv.id };
+        // Ключ дедупа — беседа: серия сообщений за час — одна строка «×N».
+        const { row, deduped } = await recordNotification(prisma, {
           userId: rec.id,
           type: 'staff_dm_message',
           title: 'Новое сообщение в чате команды',
           body: excerpt,
-          meta: { conversationId: conv.id },
+          meta: dmMeta,
+          entityId: conv.id,
         });
-        await deliverNotificationToUser({
-          userId: rec.id,
-          title: 'Новое сообщение в чате команды',
-          body: excerpt,
-          type: 'staff_dm_message',
-          url: url(rec.role),
-          dedupKey: row.id,
-        });
+        if (!deduped) {
+          await deliverNotificationToUser({
+            userId: rec.id,
+            title: 'Новое сообщение в чате команды',
+            body: excerpt,
+            type: 'staff_dm_message',
+            meta: dmMeta,
+            dedupKey: row.id,
+          });
+        }
       }
     }
   } catch (err) {

@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { createNotification, deliverNotificationToUser } from '@/lib/notifications';
+import { recordNotification, deliverNotificationToUser } from '@/lib/notifications';
 import { log } from '@/lib/logging';
 
 /**
@@ -62,22 +62,27 @@ export async function runCalendarReminders(
     });
     const title = 'Напоминание о событии';
     const body = `«${event.title}» — ${when}${event.location ? `, ${event.location}` : ''}`;
+    // `У-232`: ссылку на календарь строит таблица маршрутов от роли
+    // получателя (руководитель — `/leader/calendar`) — адрес сюда не пишем.
+    const meta = { calendarEventId: event.id };
 
     for (const userId of recipients) {
       try {
-        const row = await createNotification({
+        const { row, deduped } = await recordNotification(prisma, {
           userId,
           type: 'calendar_event_reminder',
           title,
           body,
-          meta: { calendarEventId: event.id },
+          meta,
+          entityId: event.id,
         });
+        if (deduped) continue;
         await deliverNotificationToUser({
           userId,
           title,
           body,
           type: 'calendar_event_reminder',
-          url: '/manager/calendar',
+          meta,
           dedupKey: row.id,
         });
       } catch (e) {

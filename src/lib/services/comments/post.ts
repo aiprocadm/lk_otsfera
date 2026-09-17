@@ -11,8 +11,8 @@ import { canReadOrder } from '@/lib/auth/policy';
 import {
   deliverNotificationToUser,
   notifyManagers,
-  notifyMessageCreated,
   notifyOrgUsers,
+  recordNotification,
 } from '@/lib/notifications';
 import { getPrimaryOrganizationId } from '@/lib/auth/organization';
 import { recordAudit } from '@/lib/auth/audit';
@@ -193,22 +193,29 @@ export async function postOrderComment(
   // transport failures must not turn into a 500 for an already-posted comment.
   try {
     const organizationId = await getPrimaryOrganizationId(session);
-    const row = await notifyMessageCreated({
+    const meta = { orderId, commentId: comment.id };
+    // Ключ дедупа — заказ: серия сообщений по одному заказу за час — одна строка «×N».
+    const { row, deduped } = await recordNotification(prisma, {
       userId: session.sub,
       organizationId,
-      // exactOptionalPropertyTypes: NotificationInput различает «ключа нет» и «ключ = undefined».
+      // exactOptionalPropertyTypes: вход различает «ключа нет» и «ключ = undefined».
       ...(session.partnerId !== undefined ? { partnerId: session.partnerId } : {}),
-      title: 'Новое сообщение',
-      body,
-      meta: { orderId, commentId: comment.id },
-    });
-    await deliverNotificationToUser({
-      userId: session.sub,
-      title: 'Новое сообщение',
-      body,
       type: 'message_created',
-      dedupKey: row.id,
+      title: 'Новое сообщение',
+      body,
+      meta,
+      entityId: orderId,
     });
+    if (!deduped) {
+      await deliverNotificationToUser({
+        userId: session.sub,
+        title: 'Новое сообщение',
+        body,
+        type: 'message_created',
+        meta,
+        dedupKey: row.id,
+      });
+    }
   } catch (err) {
     log.warn('[api/comments] notification fan-out failed', {
       commentId: comment.id,

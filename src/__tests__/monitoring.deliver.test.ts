@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-const { createNotificationMock, deliverToUserMock } = vi.hoisted(() => ({
-  createNotificationMock: vi.fn(),
+const { recordNotificationMock, deliverToUserMock } = vi.hoisted(() => ({
+  recordNotificationMock: vi.fn(),
   deliverToUserMock: vi.fn(),
 }));
 vi.mock('@/lib/notifications', () => ({
-  createNotification: createNotificationMock,
+  recordNotification: recordNotificationMock,
   deliverNotificationToUser: deliverToUserMock,
 }));
 
@@ -18,7 +18,9 @@ function fakePrisma(adminIds: string[]) {
 }
 
 beforeEach(() => {
-  createNotificationMock.mockReset().mockResolvedValue({ id: 'alert-notif' });
+  recordNotificationMock
+    .mockReset()
+    .mockResolvedValue({ row: { id: 'alert-notif' }, deduped: false });
   deliverToUserMock.mockReset().mockResolvedValue(undefined);
   delete process.env.ALERT_TELEGRAM_BOT_TOKEN;
   delete process.env.ALERT_TELEGRAM_CHAT_ID;
@@ -28,16 +30,32 @@ beforeEach(() => {
 describe('deliverAlert', () => {
   it('writes in-app + email for every admin', async () => {
     await deliverAlert(fakePrisma(['a1', 'a2']), { kind: 'fire', message: 'boom' });
-    expect(createNotificationMock).toHaveBeenCalledTimes(2);
+    expect(recordNotificationMock).toHaveBeenCalledTimes(2);
     expect(deliverToUserMock).toHaveBeenCalledTimes(2);
     // Ops-алерты — только email: персональный Telegram дублировал бы общий алерт-чат.
     expect(deliverToUserMock).toHaveBeenCalledWith(
       expect.objectContaining({ userId: 'a1', channels: ['email'] })
     );
-    expect(createNotificationMock.mock.calls[0][0]).toMatchObject({
+    expect(recordNotificationMock.mock.calls[0][1]).toMatchObject({
       userId: 'a1',
       type: 'ops_alert',
     });
+    // У оповещения нет ключа объекта — дедупа нет: «сработало» и
+    // «восстановлено» одной проверки за час — два разных письма.
+    expect(recordNotificationMock.mock.calls[0][1].entityId).toBeNull();
+    expect(recordNotificationMock.mock.calls[0][1]).not.toHaveProperty('meta');
+  });
+
+  it('повтор за час (deduped: true) — письмо этому администратору не шлётся', async () => {
+    recordNotificationMock
+      .mockResolvedValueOnce({ row: { id: 'alert-notif' }, deduped: true })
+      .mockResolvedValueOnce({ row: { id: 'alert-notif-2' }, deduped: false });
+    await deliverAlert(fakePrisma(['a1', 'a2']), { kind: 'fire', message: 'boom' });
+    expect(recordNotificationMock).toHaveBeenCalledTimes(2);
+    expect(deliverToUserMock).toHaveBeenCalledTimes(1);
+    expect(deliverToUserMock).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'a2', dedupKey: 'alert-notif-2' })
+    );
   });
 
   it('posts to Telegram when configured', async () => {
@@ -67,14 +85,14 @@ describe('deliverAlert', () => {
     await expect(
       deliverAlert(fakePrisma(['a1']), { kind: 'fire', message: 'boom' })
     ).resolves.toBeUndefined();
-    expect(createNotificationMock).toHaveBeenCalledTimes(1);
+    expect(recordNotificationMock).toHaveBeenCalledTimes(1);
     expect(errorSpy).toHaveBeenCalledWith('[alerts] telegram failed', expect.anything());
     errorSpy.mockRestore();
   });
 
   it('uses resolve kind with ✅ prefix and "Восстановление" title', async () => {
     await deliverAlert(fakePrisma(['a1']), { kind: 'resolve', message: 'all good' });
-    expect(createNotificationMock.mock.calls[0][0]).toMatchObject({
+    expect(recordNotificationMock.mock.calls[0][1]).toMatchObject({
       title: 'Восстановление',
       body: expect.stringContaining('✅'),
     });
@@ -82,11 +100,11 @@ describe('deliverAlert', () => {
 
   it('uses custom type when provided', async () => {
     await deliverAlert(fakePrisma(['a1']), { kind: 'fire', message: 'x', type: 'custom_alert' });
-    expect(createNotificationMock.mock.calls[0][0]).toMatchObject({ type: 'custom_alert' });
+    expect(recordNotificationMock.mock.calls[0][1]).toMatchObject({ type: 'custom_alert' });
   });
 
-  it('logs and continues when createNotification throws', async () => {
-    createNotificationMock.mockRejectedValue(new Error('db error'));
+  it('logs and continues when recordNotification throws', async () => {
+    recordNotificationMock.mockRejectedValue(new Error('db error'));
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     await expect(
       deliverAlert(fakePrisma(['a1']), { kind: 'fire', message: 'boom' })
@@ -111,7 +129,7 @@ describe('deliverAlert', () => {
     await expect(
       deliverAlert(fakePrisma([]), { kind: 'fire', message: 'boom' })
     ).resolves.toBeUndefined();
-    expect(createNotificationMock).not.toHaveBeenCalled();
+    expect(recordNotificationMock).not.toHaveBeenCalled();
     expect(deliverToUserMock).not.toHaveBeenCalled();
   });
 });

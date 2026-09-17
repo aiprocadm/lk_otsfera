@@ -1378,6 +1378,7 @@ export async function generateOrderDocument(
         orderTitle: order?.title ?? null,
         documentName: `${reserved.number}.pdf`,
         documentType: args.docType,
+        documentId: created.id,
       },
     });
   } catch (err) {

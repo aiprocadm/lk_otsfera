@@ -97,6 +97,8 @@ export const CHANNEL_RECIPIENT_SELECT = {
   id: true,
   email: true,
   name: true,
+  // Этап 5 PR-3 (`Р-Э5-7`): ссылка в письме считается от роли получателя.
+  role: true,
   telegramChatId: true,
   maxChatId: true,
   whatsappPhone: true,
@@ -110,6 +112,8 @@ export type ChannelRecipient = {
   id: string;
   email: string;
   name: string | null;
+  /** Роль получателя — по ней таблица маршрутов строит ссылку в письме. */
+  role: string;
   telegramChatId: string | null;
   maxChatId: string | null;
   whatsappPhone: string | null;

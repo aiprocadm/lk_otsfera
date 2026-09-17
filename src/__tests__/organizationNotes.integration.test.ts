@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 // Доставку по каналам (почта, мессенджеры) в интеграционном тесте не гоняем —
-// проверяем строку `Notification` в базе; `createNotification` остаётся настоящим.
+// проверяем строку `Notification` в базе; `recordNotification` остаётся настоящим.
 vi.mock('@/lib/notifications/core', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/notifications/core')>();
   return { ...actual, deliverNotificationToUser: vi.fn().mockResolvedValue({}) };

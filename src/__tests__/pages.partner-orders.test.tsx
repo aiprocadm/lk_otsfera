@@ -117,3 +117,38 @@ describe('PartnerDealsPage', () => {
     );
   });
 });
+
+// `У-232` (спека §3.7): пришли по ссылке на удалённый или чужой заказ — список
+// объясняет; пометка не переносится на страницы пагинатора.
+describe('PartnerDealsPage — плашка «объект недоступен» (У-232)', () => {
+  beforeEach(() => {
+    requirePartner.mockReset().mockResolvedValue(SESSION);
+    listPartnerOrders.mockReset().mockResolvedValue({ rows: [], total: 60 });
+  });
+
+  it('?missing=1 → плашка над списком', async () => {
+    const { container } = await renderServerComponent(
+      PartnerDealsPage({ searchParams: Promise.resolve({ missing: '1' }) })
+    );
+    expect(container.querySelector('[data-testid="missing-object-notice"]')).not.toBeNull();
+    expect(container.textContent).toContain('Заказ недоступен');
+  });
+
+  it('без параметра плашки нет', async () => {
+    const { container } = await renderServerComponent(
+      PartnerDealsPage({ searchParams: Promise.resolve({}) })
+    );
+    expect(container.querySelector('[data-testid="missing-object-notice"]')).toBeNull();
+  });
+
+  it('ссылки пагинатора не тащат missing=1 на соседние страницы', async () => {
+    const { container } = await renderServerComponent(
+      PartnerDealsPage({ searchParams: Promise.resolve({ missing: '1', search: 'foo' }) })
+    );
+    const hrefs = [...container.querySelectorAll('a')].map((a) => a.getAttribute('href') ?? '');
+    const pager = hrefs.filter((h) => h.includes('skip='));
+    expect(pager.length).toBeGreaterThan(0);
+    expect(pager.every((h) => !h.includes('missing='))).toBe(true);
+    expect(pager.every((h) => h.includes('search=foo'))).toBe(true);
+  });
+});

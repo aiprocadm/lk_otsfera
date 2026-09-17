@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { createNotification, deliverNotificationToUser } from '@/lib/notifications';
+import { recordNotification, deliverNotificationToUser } from '@/lib/notifications';
 import { cachedIntegrationSetting } from '@/lib/config/integrationSettingsCache';
 import { log } from '@/lib/logging';
 
@@ -67,12 +67,25 @@ export async function deliverAlert(prisma: PrismaClient, d: AlertDelivery): Prom
 
   for (const a of admins) {
     let rowId: string | undefined;
+    let deduped = false;
     try {
-      const row = await createNotification({ userId: a.id, type, title, body: text });
-      rowId = row.id;
+      // У оповещения нет устойчивого ключа объекта (`AlertDelivery` несёт только
+      // текст), поэтому дедупа нет: «сработало» и «восстановлено» одной проверки
+      // за час — два разных письма, склеивать их нельзя.
+      const rec = await recordNotification(prisma, {
+        userId: a.id,
+        type,
+        title,
+        body: text,
+        entityId: null,
+      });
+      rowId = rec.row.id;
+      deduped = rec.deduped;
     } catch (err) {
       log.error('[alerts] in-app notification failed', { userId: a.id, err });
     }
+    // Повтор за час уже отмечен «×N» на прежней строке — письмо не дублируем.
+    if (deduped) continue;
     try {
       // Только email: персональный Telegram дублировал бы общий алерт-чат
       // (deliverTelegram ниже шлёт в ALERT_TELEGRAM_CHAT_ID).

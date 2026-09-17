@@ -1,5 +1,6 @@
 import type { InboundMessage } from '@prisma/client';
-import { createNotification, deliverNotificationToUser } from '@/lib/notifications';
+import { prisma } from '@/lib/db/prisma';
+import { recordNotification, deliverNotificationToUser } from '@/lib/notifications';
 import { sendToMessenger } from '@/lib/services/messengers/transport';
 import { log } from '@/lib/logging';
 import { sendEmailReply } from './emailReply';
@@ -21,7 +22,7 @@ import { sendEmailReply } from './emailReply';
  * менеджеру приходилось писать из своей почты мимо кабинета.
  */
 export async function replyToInbound(
-  msg: Pick<InboundMessage, 'channel' | 'senderRef' | 'subject'> & {
+  msg: Pick<InboundMessage, 'id' | 'channel' | 'senderRef' | 'subject'> & {
     resolvedUserId?: string | null;
     /** `Message-ID` письма клиента — сшивка ветки ответа (`У-205`). */
     externalMessageId?: string | null;
@@ -55,26 +56,34 @@ export async function replyToInbound(
  * Best-effort — ошибки доставки не бросаются наружу, как и у транспортов.
  */
 async function replyToCabinetQuestion(
-  msg: Pick<InboundMessage, 'subject'> & { resolvedUserId?: string | null },
+  msg: Pick<InboundMessage, 'id' | 'subject'> & { resolvedUserId?: string | null },
   text: string
 ): Promise<{ ok: boolean }> {
   if (!msg.resolvedUserId) return { ok: false };
   const title = 'Ответ на ваше обращение';
   const body = msg.subject ? `«${msg.subject}»: ${text}` : text;
+  // Диалог здесь неизвестен (строка «Входящих» знает только своё письмо) —
+  // ключ дедупа и `meta` держатся на id входящего сообщения.
+  const meta = { messageId: msg.id };
   try {
-    const row = await createNotification({
+    const { row, deduped } = await recordNotification(prisma, {
       userId: msg.resolvedUserId,
       type: 'inbound_reply',
       title,
       body,
+      meta,
+      entityId: msg.id,
     });
-    await deliverNotificationToUser({
-      userId: msg.resolvedUserId,
-      title,
-      body,
-      type: 'inbound_reply',
-      dedupKey: row.id,
-    });
+    if (!deduped) {
+      await deliverNotificationToUser({
+        userId: msg.resolvedUserId,
+        title,
+        body,
+        type: 'inbound_reply',
+        meta,
+        dedupKey: row.id,
+      });
+    }
     return { ok: true };
   } catch (err) {
     log.warn('[inbound/reply] cabinet reply failed', { error: (err as Error).message });

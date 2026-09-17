@@ -1,13 +1,13 @@
 import { it, expect, vi, beforeEach } from 'vitest';
 
-const { recordAudit, createNotification, deliverNotificationToUser, addJob } = vi.hoisted(() => ({
+const { recordAudit, recordNotification, deliverNotificationToUser, addJob } = vi.hoisted(() => ({
   recordAudit: vi.fn(),
-  createNotification: vi.fn().mockResolvedValue({ id: 'n1' }),
+  recordNotification: vi.fn().mockResolvedValue({ row: { id: 'n1' }, deduped: false }),
   deliverNotificationToUser: vi.fn(),
   addJob: vi.fn(),
 }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
-vi.mock('@/lib/notifications', () => ({ createNotification, deliverNotificationToUser }));
+vi.mock('@/lib/notifications', () => ({ recordNotification, deliverNotificationToUser }));
 vi.mock('@/lib/jobs/queues', () => ({ getQueue: () => ({ add: addJob }) }));
 
 import {
@@ -61,7 +61,7 @@ function prismaFixture(over: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  createNotification.mockResolvedValue({ id: 'n1' });
+  recordNotification.mockResolvedValue({ row: { id: 'n1' }, deduped: false });
 });
 
 it('rejects non-staff / empty / too long', async () => {
@@ -97,12 +97,12 @@ it('creates message, bumps lastMessageAt, audits WITHOUT body', async () => {
 it('DM: first-unread notification once (второе сообщение подряд молчит)', async () => {
   const prisma = prismaFixture();
   await sendStaffMessage(prisma, manager, { conversationId: 'conv1', body: 'раз' });
-  expect(createNotification).toHaveBeenCalledTimes(1);
+  expect(recordNotification).toHaveBeenCalledTimes(1);
   expect(deliverNotificationToUser).toHaveBeenCalledWith(
     expect.objectContaining({ userId: 'm2', type: 'staff_dm_message', dedupKey: 'n1' })
   );
   vi.clearAllMocks();
-  createNotification.mockResolvedValue({ id: 'n2' });
+  recordNotification.mockResolvedValue({ row: { id: 'n2' }, deduped: false });
   const prisma2 = prismaFixture({
     staffMessage: {
       create: vi.fn().mockResolvedValue({ id: 'msg2' }),
@@ -112,7 +112,7 @@ it('DM: first-unread notification once (второе сообщение подр
     },
   });
   await sendStaffMessage(prisma2, manager, { conversationId: 'conv1', body: 'два' });
-  expect(createNotification).not.toHaveBeenCalled();
+  expect(recordNotification).not.toHaveBeenCalled();
 });
 
 it('mention notifies mentioned staff (не автора), general без per-message уведомлений', async () => {
@@ -270,13 +270,13 @@ it('sendStaffMessage: сбой создания уведомления (упом
       findUnique: vi.fn(),
     },
   });
-  createNotification.mockRejectedValueOnce(new Error('db down'));
+  recordNotification.mockRejectedValueOnce(new Error('db down'));
   const res = await sendStaffMessage(prisma, manager, {
     conversationId: 'conv1',
     body: 'ping @Пётр',
   });
   expect(res).toEqual({ ok: true, messageId: 'msg1' });
-  expect(createNotification).toHaveBeenCalledTimes(1);
+  expect(recordNotification).toHaveBeenCalledTimes(1);
 });
 
 it('sendStaffMessage: сбой уведомления не-Error значением всё равно перехватывается', async () => {
@@ -289,7 +289,7 @@ it('sendStaffMessage: сбой уведомления не-Error значени�
       findUnique: vi.fn(),
     },
   });
-  createNotification.mockRejectedValueOnce('db down (string reason)');
+  recordNotification.mockRejectedValueOnce('db down (string reason)');
   const res = await sendStaffMessage(prisma, manager, {
     conversationId: 'conv1',
     body: 'ping @Пётр',
@@ -297,17 +297,95 @@ it('sendStaffMessage: сбой уведомления не-Error значени�
   expect(res).toEqual({ ok: true, messageId: 'msg1' });
 });
 
-it('sendStaffMessage: ЛС-уведомление админу использует /admin/messages', async () => {
+it('sendStaffMessage: ЛС — в строке нет адреса кабинета, ссылку «Сообщения» строит таблица от роли получателя (У-232)', async () => {
   const prisma = prismaFixture({
     user: {
       findMany: vi.fn().mockResolvedValue([]),
-      findUnique: vi.fn().mockResolvedValue({ id: 'm2', role: 'admin' }),
+      findUnique: vi.fn().mockResolvedValue({ id: 'm2' }),
     },
   });
   await sendStaffMessage(prisma, manager, { conversationId: 'conv1', body: 'привет' });
-  expect(deliverNotificationToUser).toHaveBeenCalledWith(
-    expect.objectContaining({ userId: 'm2', type: 'staff_dm_message', url: '/admin/messages' })
+  // Ключ дедупа — беседа: серия сообщений за час — одна строка «×N».
+  expect(recordNotification).toHaveBeenCalledWith(
+    prisma,
+    expect.objectContaining({
+      userId: 'm2',
+      type: 'staff_dm_message',
+      meta: { conversationId: 'conv1' },
+      entityId: 'conv1',
+    })
   );
+  expect(deliverNotificationToUser).toHaveBeenCalledWith(
+    expect.objectContaining({
+      userId: 'm2',
+      type: 'staff_dm_message',
+      meta: { conversationId: 'conv1' },
+      dedupKey: 'n1',
+    })
+  );
+  expect(deliverNotificationToUser.mock.calls[0][0]).not.toHaveProperty('url');
+});
+
+it('sendStaffMessage: ЛС — повтор за час (deduped: true), доставка не зовётся', async () => {
+  recordNotification.mockResolvedValue({ row: { id: 'n1' }, deduped: true });
+  const prisma = prismaFixture();
+  const res = await sendStaffMessage(prisma, manager, { conversationId: 'conv1', body: 'привет' });
+  expect(res).toEqual({ ok: true, messageId: 'msg1' });
+  expect(recordNotification).toHaveBeenCalledTimes(1);
+  expect(deliverNotificationToUser).not.toHaveBeenCalled();
+});
+
+it('sendStaffMessage: упоминание — ключ дедупа сообщение, повтор (deduped: true) без доставки', async () => {
+  const prisma = prismaFixture({
+    staffConversation: {
+      findUnique: vi.fn().mockResolvedValue(convFixture({ kind: 'general', participants: [] })),
+      update: vi.fn().mockResolvedValue({}),
+    },
+    user: {
+      findMany: vi
+        .fn()
+        .mockResolvedValueOnce([{ id: 'm2', name: 'Пётр' }]) // listColleagues
+        .mockResolvedValueOnce([{ id: 'm2' }]), // recipients load
+      findUnique: vi.fn(),
+    },
+  });
+  await sendStaffMessage(prisma, manager, { conversationId: 'conv1', body: 'ping @Пётр' });
+  expect(recordNotification).toHaveBeenCalledWith(
+    prisma,
+    expect.objectContaining({
+      userId: 'm2',
+      type: 'staff_chat_mention',
+      meta: { conversationId: 'conv1', messageId: 'msg1' },
+      entityId: 'msg1',
+    })
+  );
+  expect(deliverNotificationToUser).toHaveBeenCalledWith(
+    expect.objectContaining({
+      type: 'staff_chat_mention',
+      meta: { conversationId: 'conv1', messageId: 'msg1' },
+      dedupKey: 'n1',
+    })
+  );
+  expect(deliverNotificationToUser.mock.calls[0][0]).not.toHaveProperty('url');
+
+  vi.clearAllMocks();
+  recordNotification.mockResolvedValue({ row: { id: 'n1' }, deduped: true });
+  const prisma2 = prismaFixture({
+    staffConversation: {
+      findUnique: vi.fn().mockResolvedValue(convFixture({ kind: 'general', participants: [] })),
+      update: vi.fn().mockResolvedValue({}),
+    },
+    user: {
+      findMany: vi
+        .fn()
+        .mockResolvedValueOnce([{ id: 'm2', name: 'Пётр' }])
+        .mockResolvedValueOnce([{ id: 'm2' }]),
+      findUnique: vi.fn(),
+    },
+  });
+  await sendStaffMessage(prisma2, manager, { conversationId: 'conv1', body: 'ping @Пётр' });
+  expect(recordNotification).toHaveBeenCalledTimes(1);
+  expect(deliverNotificationToUser).not.toHaveBeenCalled();
 });
 
 it('DM: получатель упомянут И «первое непрочитанное» → ровно ОДНО уведомление (mention, без staff_dm_message)', async () => {
@@ -335,7 +413,7 @@ it('sendStaffMessage: first-unread считается верно при нали
     },
   });
   await sendStaffMessage(prisma, manager, { conversationId: 'conv1', body: 'привет' });
-  expect(createNotification).toHaveBeenCalledTimes(1);
+  expect(recordNotification).toHaveBeenCalledTimes(1);
 });
 
 it('sendStaffMessage: поднимает read-state автора (своя отправка не зажигает автору его же unread)', async () => {

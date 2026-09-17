@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { createNotification, deliverNotificationToUser } from '@/lib/notifications';
+import { recordNotification, deliverNotificationToUser } from '@/lib/notifications';
 import { INTAKE_BREACH_HOURS } from '@/lib/services/intake/list';
 import { DIALOG_STATUS } from '@/lib/services/messengers/dialogStatus';
 import { MESSENGER_LABELS, isMessengerChannel } from '@/lib/services/messengers/channels';
@@ -18,7 +18,6 @@ import { emitAutomationEvent } from '@/lib/automation/dispatch';
  */
 
 const BATCH_LIMIT = 200;
-const ESCALATION_URL = '/leader/intake';
 
 type Unit = {
   sourceType: 'client_request' | 'enrollment' | 'inbound' | 'call' | 'dialog';
@@ -26,8 +25,6 @@ type Unit = {
   companyId: string | null;
   createdAt: Date;
   label: string;
-  /** Куда вести руководителя; по умолчанию — очередь «Входящие в работу». */
-  url?: string;
 };
 
 type CompanyInfo = {
@@ -178,9 +175,6 @@ async function loadUnassignedUnits(prisma: PrismaClient): Promise<Unit[]> {
       companyId: d.companyId,
       createdAt: since,
       label: `диалог в ${channelLabel} с ${who}`,
-      // Ссылка ведёт в саму переписку, а не в общую очередь: диалог там не
-      // лежит, и руководитель искал бы его вручную.
-      url: `/manager/messengers/${d.id}`,
     });
   }
   for (const c of calls) {
@@ -250,7 +244,6 @@ export async function runSlaEscalation(
       });
     }
 
-    const unitUrl = unit.url ?? ESCALATION_URL;
     // У диалога ответственный может быть назначен — эскалация про отсутствие
     // ОТВЕТА, а не про отсутствие хозяина. Общий текст «Без ответственного»
     // отправлял бы руководителя искать свободный диалог, которого нет.
@@ -259,22 +252,29 @@ export async function runSlaEscalation(
     const body = isDialog
       ? `Нет ответа клиенту ${waitedHours} ч (порог ${thresholdHours} ч): ${unit.label}.`
       : `Без ответственного ${waitedHours} ч (порог ${thresholdHours} ч): ${unit.label}.`;
+    // `У-232`: куда вести руководителя, решает таблица маршрутов по источнику
+    // и его id от роли получателя — адрес кабинета сюда не пишем.
+    const meta = { sourceType: unit.sourceType, sourceId: unit.sourceId };
 
     for (const userId of recipients) {
       try {
-        const row = await createNotification({
+        // Ключ дедупа — единица Intake (журнал `SlaEscalation` уже даёт одну
+        // эскалацию на единицу; окно страхует повтор прогона).
+        const { row, deduped } = await recordNotification(prisma, {
           userId,
           type: 'sla_escalation',
           title,
           body,
-          meta: { sourceType: unit.sourceType, sourceId: unit.sourceId, url: unitUrl },
+          meta,
+          entityId: unit.sourceId,
         });
+        if (deduped) continue;
         await deliverNotificationToUser({
           userId,
           title,
           body,
           type: 'sla_escalation',
-          url: unitUrl,
+          meta,
           dedupKey: row.id,
         });
       } catch (err) {
@@ -365,7 +365,7 @@ async function notifyOverdueAssignees(
     const title = 'Задача просрочена';
     const due = task.dueDate ? new Date(task.dueDate).toLocaleDateString('ru-RU') : '—';
     const body = `«${task.title}»: срок был ${due}.`;
-    await notifyTask(recipients, task.id, title, body);
+    await notifyTask(prisma, recipients, task.id, title, body);
     sent += 1;
   }
   return sent;
@@ -404,6 +404,7 @@ async function escalateOverdueToLeaders(
 
     const due = task.dueDate ? new Date(task.dueDate).toLocaleDateString('ru-RU') : '—';
     await notifyTask(
+      prisma,
       company.leaders,
       task.id,
       'Задача просрочена больше нормы',
@@ -416,27 +417,32 @@ async function escalateOverdueToLeaders(
 
 /** Общая доставка: сбой одного получателя не отменяет остальных (§3 fail-open). */
 async function notifyTask(
+  prisma: PrismaClient,
   userIds: string[],
   taskId: string,
   title: string,
   body: string
 ): Promise<void> {
-  const url = `/manager/tasks/${taskId}`;
+  // `У-232`: ссылку на карточку задачи строит таблица маршрутов по `taskId`
+  // от роли получателя (руководитель — `/leader/tasks/…`) — адрес сюда не пишем.
+  const meta = { taskId };
   for (const userId of [...new Set(userIds)]) {
     try {
-      const row = await createNotification({
+      const { row, deduped } = await recordNotification(prisma, {
         userId,
         type: 'task_overdue',
         title,
         body,
-        meta: { taskId, url },
+        meta,
+        entityId: taskId,
       });
+      if (deduped) continue;
       await deliverNotificationToUser({
         userId,
         title,
         body,
         type: 'task_overdue',
-        url,
+        meta,
         dedupKey: row.id,
       });
     } catch (err) {

@@ -37,15 +37,15 @@ vi.mock('@/lib/services/oneCSync/pending', () => ({
 // (order/payment CREATE + status-change UPDATE) call them via the barrel, and running
 // live mode here would otherwise hit the real fan-out. Best-effort try/catch in the
 // writers means even a stub is safe, but neutralising them keeps the tests hermetic.
-const { createNotification, deliverNotificationToUser, notifyOrgUsers, notifyManagers } =
+const { recordNotification, deliverNotificationToUser, notifyOrgUsers, notifyManagers } =
   vi.hoisted(() => ({
-    createNotification: vi.fn().mockResolvedValue({ id: 'notif-1' }),
+    recordNotification: vi.fn().mockResolvedValue({ row: { id: 'notif-1' }, deduped: false }),
     deliverNotificationToUser: vi.fn().mockResolvedValue({}),
     notifyOrgUsers: vi.fn().mockResolvedValue(undefined),
     notifyManagers: vi.fn().mockResolvedValue(undefined),
   }));
 vi.mock('@/lib/notifications', () => ({
-  createNotification,
+  recordNotification,
   deliverNotificationToUser,
   notifyOrgUsers,
   notifyManagers,
@@ -299,13 +299,50 @@ describe('runCertificateExpiry — recipient fan-out with partner + managers + l
     );
     // Unique recipient set: 2 org users + 1 partner user + 1 order manager + 1 leader = 5.
     // (managerId:null is skipped by the `&& ids.add` guard.)
-    expect(createNotification).toHaveBeenCalledTimes(5);
+    expect(recordNotification).toHaveBeenCalledTimes(5);
     expect(deliverNotificationToUser).toHaveBeenCalledTimes(5);
-    expect(createNotification).toHaveBeenCalledWith(
+    // Ключ дедупа — удостоверение; клиент базы уходит первым аргументом.
+    expect(recordNotification).toHaveBeenCalledWith(
+      db,
       expect.objectContaining({
         type: 'certificate_expiring',
         meta: { certificateId: 'cert-A', thresholdDays: 7 },
+        entityId: 'cert-A',
       })
+    );
+    expect(deliverNotificationToUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'certificate_expiring',
+        meta: { certificateId: 'cert-A', thresholdDays: 7 },
+        dedupKey: 'notif-1',
+      })
+    );
+  });
+
+  it('повтор за час (deduped: true) — доставка этому получателю не зовётся, напоминание засчитано', async () => {
+    recordNotification.mockResolvedValueOnce({ row: { id: 'notif-1' }, deduped: true });
+    const db = {
+      certificate: { findMany: vi.fn().mockResolvedValue(due7Certs()) },
+      certificateReminder: { create: vi.fn().mockResolvedValue({}) },
+      organization: {
+        findUnique: vi.fn().mockResolvedValue({
+          partnerId: null,
+          companyId: null,
+          users: [{ id: 'u-org-1' }, { id: 'u-org-2' }],
+          partner: null,
+        }),
+      },
+      order: { findMany: vi.fn().mockResolvedValue([]) },
+      user: { findMany: vi.fn().mockResolvedValue([]) },
+    } as unknown as PrismaClient;
+
+    const result = await runCertificateExpiry(db, new Date());
+
+    expect(result.remindersSent).toBe(1);
+    expect(recordNotification).toHaveBeenCalledTimes(2);
+    expect(deliverNotificationToUser).toHaveBeenCalledTimes(1);
+    expect(deliverNotificationToUser).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'u-org-2' })
     );
   });
 });
@@ -327,7 +364,7 @@ describe('runCertificateExpiry — organization not found (branch @ 19)', () => 
 
     // Reminder row created & counted, but zero recipients → no notifications.
     expect(result.remindersSent).toBe(1);
-    expect(createNotification).not.toHaveBeenCalled();
+    expect(recordNotification).not.toHaveBeenCalled();
     expect(deliverNotificationToUser).not.toHaveBeenCalled();
     // order/user lookups short-circuited by the early `return []`.
     expect(db.order.findMany as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
@@ -353,7 +390,7 @@ describe('runCertificateExpiry — reminder create race (branch @ 79, lines 80-8
 
     // P2002 → continue → not counted, recipientsForOrg never reached.
     expect(result.remindersSent).toBe(0);
-    expect(createNotification).not.toHaveBeenCalled();
+    expect(recordNotification).not.toHaveBeenCalled();
     expect(db.organization.findUnique as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
   });
 
@@ -369,7 +406,7 @@ describe('runCertificateExpiry — reminder create race (branch @ 79, lines 80-8
     } as unknown as PrismaClient;
 
     await expect(runCertificateExpiry(db, new Date())).rejects.toThrow('boom');
-    expect(createNotification).not.toHaveBeenCalled();
+    expect(recordNotification).not.toHaveBeenCalled();
   });
 });
 

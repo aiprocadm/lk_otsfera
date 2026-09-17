@@ -17,9 +17,8 @@ const { getValuesForEntity } = vi.hoisted(() => ({ getValuesForEntity: vi.fn() }
 vi.mock('@/lib/services/customFields', () => ({ getValuesForEntity }));
 
 const nav = vi.hoisted(() => ({
-  notFound: vi.fn(() => {
-    throw new Error('NOT_FOUND');
-  }),
+  // `У-232`: notFound() карточка больше не зовёт — удалённый и чужой заказ
+  // одинаково уводят в список раздела с `?missing=1`.
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);
   }),
@@ -67,22 +66,25 @@ describe('PartnerDealDetailPage', () => {
     getPartnerOrderDetail.mockReset();
     canPartnerAccessOrg.mockReset();
     getValuesForEntity.mockReset();
-    nav.notFound.mockClear();
     nav.redirect.mockClear();
   });
 
-  it('calls notFound() when getPartnerOrderDetail returns null', async () => {
+  // `У-232` (спека §3.7): удалённый или чужой заказ — не 404, а список раздела
+  // с плашкой «объект недоступен».
+  it('удалённый или чужой заказ → редирект в список с ?missing=1, а не 404', async () => {
     requirePartner.mockResolvedValue(SESSION);
     getPartnerOrderDetail.mockResolvedValue(null);
 
     await expect(
       renderServerComponent(PartnerDealDetailPage({ params: Promise.resolve({ id: 'missing' }) }))
-    ).rejects.toThrow('NOT_FOUND');
+    ).rejects.toThrow('REDIRECT:/partner/orders?missing=1');
 
     expect(canPartnerAccessOrg).not.toHaveBeenCalled();
   });
 
-  it('redirects to /forbidden when the deal has an organization the partner cannot access', async () => {
+  // Раньше здесь был редирект на /forbidden — отдельный ответ выдавал, что
+  // заказ существует. Теперь «нет доступа» отвечает так же, как «не существует».
+  it('организация заказа закрыта для партнёра → тот же редирект, что и для удалённого', async () => {
     requirePartner.mockResolvedValue(SESSION);
     getPartnerOrderDetail.mockResolvedValue({
       ...BASE_DEAL,
@@ -93,7 +95,7 @@ describe('PartnerDealDetailPage', () => {
 
     await expect(
       renderServerComponent(PartnerDealDetailPage({ params: Promise.resolve({ id: 'deal-1' }) }))
-    ).rejects.toThrow('REDIRECT:/forbidden');
+    ).rejects.toThrow('REDIRECT:/partner/orders?missing=1');
 
     expect(canPartnerAccessOrg).toHaveBeenCalledWith(SESSION, 'org-1');
   });

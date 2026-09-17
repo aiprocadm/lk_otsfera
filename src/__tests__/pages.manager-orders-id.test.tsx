@@ -141,8 +141,10 @@ vi.mock('@/components/manager/generate-documents-panel', () => ({
 }));
 
 const nav = vi.hoisted(() => ({
-  notFound: vi.fn(() => {
-    throw new Error('NOT_FOUND');
+  // `У-232`: карточка больше не зовёт notFound() — удалённый или чужой
+  // заказ уводит в список раздела с `?missing=1`.
+  redirect: vi.fn((url: string) => {
+    throw new Error(`REDIRECT:${url}`);
   }),
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
@@ -239,7 +241,7 @@ describe('ManagerOrderDetailPage', () => {
     getOrderLinesPanel.mockResolvedValue(null);
     getCompanyTeamVisibility.mockReset().mockResolvedValue(false);
     getOrderContactPanel.mockReset().mockResolvedValue(null);
-    nav.notFound.mockClear();
+    nav.redirect.mockClear();
   });
 
   it('монтирует блок «Состав и стоимость», когда сервис отдал строки заказа', async () => {
@@ -291,13 +293,17 @@ describe('ManagerOrderDetailPage', () => {
     expect(container.querySelector('[data-testid="order-lines"]')).toBeNull();
   });
 
-  it('calls notFound() when loadManagerOrderDetail returns null', async () => {
+  // `У-232` (спека §3.7): удалённый или чужой заказ — не 404, а список раздела
+  // с плашкой «объект недоступен». Сервис отдаёт null в обоих случаях, и ответ
+  // страницы тоже один — существование чужого заказа не утекает (§4).
+  it('удалённый или чужой заказ → редирект в список с ?missing=1, а не 404', async () => {
     requireManager.mockResolvedValue(SESSION);
     loadManagerOrderDetail.mockResolvedValue(null);
 
     await expect(
       renderServerComponent(ManagerOrderDetailPage({ params: Promise.resolve({ id: 'missing' }) }))
-    ).rejects.toThrow('NOT_FOUND');
+    ).rejects.toThrow('REDIRECT:/manager/orders?missing=1');
+    expect(nav.redirect).toHaveBeenCalledWith('/manager/orders?missing=1');
 
     expect(listDirections).not.toHaveBeenCalled();
     expect(getDealActivity).not.toHaveBeenCalled();

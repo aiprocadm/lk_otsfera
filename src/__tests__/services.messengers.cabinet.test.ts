@@ -1,15 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const m = vi.hoisted(() => ({
-  createNotification: vi.fn(),
+  recordNotification: vi.fn(),
   deliverNotificationToUser: vi.fn(),
   warn: vi.fn(),
 }));
 vi.mock('@/lib/notifications/core', () => ({
-  createNotification: m.createNotification,
+  recordNotification: m.recordNotification,
   deliverNotificationToUser: m.deliverNotificationToUser,
 }));
 vi.mock('@/lib/logging', () => ({ log: { warn: m.warn, info: vi.fn(), error: vi.fn() } }));
+// Клиент базы уходит первым аргументом в recordNotification; сам он здесь не нужен.
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 import { deliverToCabinet } from '@/lib/services/messengers/cabinet';
 
@@ -24,7 +26,7 @@ import { deliverToCabinet } from '@/lib/services/messengers/cabinet';
  */
 beforeEach(() => {
   vi.clearAllMocks();
-  m.createNotification.mockResolvedValue({ id: 'n-1' });
+  m.recordNotification.mockResolvedValue({ row: { id: 'n-1' }, deduped: false });
   m.deliverNotificationToUser.mockResolvedValue({});
 });
 
@@ -33,33 +35,50 @@ const dialog = { id: 'd1', peerRef: 'u-7', userId: 'u-7' };
 describe('deliverToCabinet — доставка ответа', () => {
   it('заводит уведомление и доставляет его тому же человеку', async () => {
     await expect(deliverToCabinet(dialog, 'ответ менеджера')).resolves.toEqual({ ok: true });
-    expect(m.createNotification).toHaveBeenCalledWith({
+    // Ключ дедупа — диалог; ссылку строит таблица маршрутов по meta.dialogId.
+    expect(m.recordNotification).toHaveBeenCalledWith(expect.anything(), {
       userId: 'u-7',
       type: 'inbound_reply',
       title: 'Ответ на ваше обращение',
       body: 'ответ менеджера',
+      meta: { dialogId: 'd1' },
+      entityId: 'd1',
     });
     expect(m.deliverNotificationToUser).toHaveBeenCalledWith({
       userId: 'u-7',
       title: 'Ответ на ваше обращение',
       body: 'ответ менеджера',
       type: 'inbound_reply',
+      meta: { dialogId: 'd1' },
       // Ключ от записи уведомления: без него повторная доставка того же ответа
       // пришла бы человеку дважды (в кабинет и в бота).
       dedupKey: 'n-1',
     });
   });
 
+  it('повтор за час (deduped: true) — строка помечена «×N», каналы доставки не зовутся', async () => {
+    m.recordNotification.mockResolvedValue({ row: { id: 'n-1' }, deduped: true });
+    await expect(deliverToCabinet(dialog, 'ещё ответ')).resolves.toEqual({ ok: true });
+    expect(m.recordNotification).toHaveBeenCalledTimes(1);
+    expect(m.deliverNotificationToUser).not.toHaveBeenCalled();
+  });
+
   it('связь с пользователем важнее ключа диалога', async () => {
     // `peerRef` — тот же идентификатор строкой, но связь проставляет приём
     // вопроса, и она надёжнее: по ней ответ попадёт туда, куда надо.
     await deliverToCabinet({ id: 'd1', peerRef: 'странный-ключ', userId: 'u-9' }, 'ответ');
-    expect(m.createNotification).toHaveBeenCalledWith(expect.objectContaining({ userId: 'u-9' }));
+    expect(m.recordNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ userId: 'u-9' })
+    );
   });
 
   it('без связи адресатом становится ключ диалога', async () => {
     await deliverToCabinet({ id: 'd1', peerRef: 'u-7', userId: null }, 'ответ');
-    expect(m.createNotification).toHaveBeenCalledWith(expect.objectContaining({ userId: 'u-7' }));
+    expect(m.recordNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ userId: 'u-7' })
+    );
   });
 });
 
@@ -69,14 +88,14 @@ describe('deliverToCabinet — краевые случаи', () => {
     await expect(
       deliverToCabinet({ id: 'd1', peerRef: '', userId: null }, 'ответ')
     ).resolves.toEqual({ ok: false, error: 'Неизвестно, кому в кабинет отвечать' });
-    expect(m.createNotification).not.toHaveBeenCalled();
+    expect(m.recordNotification).not.toHaveBeenCalled();
     expect(m.deliverNotificationToUser).not.toHaveBeenCalled();
   });
 
   it('сбой записи уведомления не бросается наружу, а возвращает причину', async () => {
     // §3 «degrade gracefully»: исключение здесь уронило бы отправку целиком, и
     // сообщение не попало бы даже в историю диалога.
-    m.createNotification.mockRejectedValue(new Error('база недоступна'));
+    m.recordNotification.mockRejectedValue(new Error('база недоступна'));
     await expect(deliverToCabinet(dialog, 'ответ')).resolves.toEqual({
       ok: false,
       error: 'Не удалось положить ответ в кабинет',
@@ -96,7 +115,7 @@ describe('deliverToCabinet — краевые случаи', () => {
   });
 
   it('брошено не-исключение — в журнал всё равно попадает текст, а не «[object]»', async () => {
-    m.createNotification.mockRejectedValue('строковый сбой');
+    m.recordNotification.mockRejectedValue('строковый сбой');
     await deliverToCabinet(dialog, 'ответ');
     expect(m.warn).toHaveBeenCalledWith(
       expect.any(String),

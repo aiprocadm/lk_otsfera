@@ -31,7 +31,7 @@ beforeEach(() => {
 
 function dbWith(users: Array<{ id: string; email: string | null }>) {
   const create = vi.fn().mockResolvedValue({});
-  const partnerUsers = users.map((u) => ({ user: u }));
+  const partnerUsers = users.map((u) => ({ user: { role: 'partner', ...u } }));
   return {
     db: {
       partner: {
@@ -41,7 +41,8 @@ function dbWith(users: Array<{ id: string; email: string | null }>) {
           partnerUsers,
         }),
       },
-      notification: { create },
+      // Единая точка `recordNotification` (`У-231`): повтор ищется до создания.
+      notification: { create, findFirst: vi.fn().mockResolvedValue(null), update: vi.fn() },
     } as never,
     create,
   };

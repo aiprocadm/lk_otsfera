@@ -1,7 +1,7 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { log } from '@/lib/logging';
-import { createNotification, deliverNotificationToUser } from '@/lib/notifications';
+import { recordNotification, deliverNotificationToUser } from '@/lib/notifications';
 import { createTaskCore } from '@/lib/services/tasks/create';
 import { resolveTaskColumns } from '@/lib/tasks/columns';
 import type { AutomationEventPayload } from './conditions';
@@ -208,17 +208,46 @@ function asId(value: unknown): string | null {
   return typeof value === 'string' && value ? value : null;
 }
 
+/**
+ * Объект, на котором сработало правило, — по первому известному идентификатору
+ * в событии. Отдельного поля «тип сущности» у `AutomationEventPayload` нет:
+ * событие несёт только id (`orderId`, `taskId`, …). Порядок важен: у выданного
+ * документа есть и `orderId`, и `documentId` — ссылка ведёт к заказу, потому
+ * что карточка заказа есть в каждом кабинете сотрудника, а документ живёт в ней.
+ */
+const NOTICE_ENTITY_KEYS = [
+  ['task', 'taskId'],
+  ['order', 'orderId'],
+  ['dialog', 'dialogId'],
+  ['lead', 'leadId'],
+  ['deal', 'dealId'],
+  ['document', 'documentId'],
+  ['client_request', 'clientRequestId'],
+  ['payment', 'paymentId'],
+] as const;
+
+function noticeEntity(
+  payload: AutomationEventPayload
+): { entity: string; entityId: string } | null {
+  for (const [entity, key] of NOTICE_ENTITY_KEYS) {
+    const id = asId(payload[key]);
+    if (id) return { entity, entityId: id };
+  }
+  return null;
+}
+
 /** `notify`: сообщить сотруднику. */
 export async function runNotify(
   prisma: PrismaClient,
   args: {
     action: Extract<AutomationAction, { kind: 'notify' }>;
     companyId: string;
+    ruleId: string;
     ruleName: string;
     payload: AutomationEventPayload;
   }
 ): Promise<ActionOutcome> {
-  const { action, companyId, ruleName, payload } = args;
+  const { action, companyId, ruleId, ruleName, payload } = args;
   const recipients = await resolveRecipients(prisma, {
     companyId,
     target: action.audience,
@@ -230,22 +259,34 @@ export async function runNotify(
 
   const body = renderAutomationText(action.template, payload);
   const title = `Правило «${ruleName}»`;
+  // `У-232`: ссылку в письме и в ленте строит таблица маршрутов по `entity` +
+  // `entityId` от роли получателя — адрес кабинета сюда не пишем.
+  const target = noticeEntity(payload);
+  const meta = { ruleId, entity: target?.entity ?? null, entityId: target?.entityId ?? null };
   const notified: string[] = [];
   for (const userId of recipients.userIds) {
     try {
-      const row = await createNotification({
+      // Ключ дедупа — объект события; если у события нет объекта — само правило.
+      const { row, deduped } = await recordNotification(prisma, {
         userId,
         type: 'automation_notice',
         title,
         body,
+        meta,
+        // Ключ дедупа — «правило:объект»: два правила на одном заказе за час —
+        // два разных уведомления, а не «×2» с текстом первого. В meta — чистый id.
+        entityId: target ? `${ruleId}:${target.entityId}` : ruleId,
       });
-      await deliverNotificationToUser({
-        userId,
-        title,
-        body,
-        type: 'automation_notice',
-        dedupKey: row.id,
-      });
+      if (!deduped) {
+        await deliverNotificationToUser({
+          userId,
+          title,
+          body,
+          type: 'automation_notice',
+          meta,
+          dedupKey: row.id,
+        });
+      }
       notified.push(userId);
     } catch (e) {
       // Один недоступный получатель не отменяет рассылку остальным.

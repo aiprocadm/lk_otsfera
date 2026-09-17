@@ -22,9 +22,15 @@ import {
   notifyPushDocumentFinalFailure,
 } from '@/worker/processors/push-document';
 import { log } from '@/lib/logging';
+import { notificationRoute } from '@/lib/notifications/routes';
 
 const DOC = { type: 'act', number: 'А-7', companyId: 'co-1', oneCPushAttempts: 5 };
 
+/**
+ * Получатели с ролью — роль нужна ТЕСТУ, чтобы спросить у таблицы маршрутов
+ * адрес письма; сам воркер с этапа 5 роль не читает (`select: { id }`), и
+ * фейк отдаёт ему ровно то, что выбрал бы Prisma.
+ */
 function makeDb(
   doc: Record<string, unknown> | null = DOC,
   users: Array<{ id: string; role: string }> = [
@@ -33,16 +39,20 @@ function makeDb(
   ]
 ) {
   const findUnique = vi.fn().mockResolvedValue(doc);
-  const findMany = vi.fn().mockResolvedValue(users);
+  const findMany = vi.fn().mockResolvedValue(users.map(({ id }) => ({ id })));
   const create = vi.fn((args: unknown) => args);
-  const $transaction = vi.fn(async (ops: unknown[]) => ops);
+  // Единая точка `recordNotification` (`У-231`): повтор ищется до создания.
+  const findFirst = vi.fn().mockResolvedValue(null);
+  const update = vi.fn((args: unknown) => args);
+  // Интерактивная транзакция: воркер отдаёт функцию, tx — тот же фейк.
+  const $transaction = vi.fn(async (fn: (tx: PrismaClient) => Promise<unknown>) => fn(db));
   const db = {
     document: { findUnique },
     user: { findMany },
-    notification: { create },
+    notification: { create, findFirst, update },
     $transaction,
   } as unknown as PrismaClient;
-  return { db, findUnique, findMany, create, $transaction };
+  return { db, findUnique, findMany, create, findFirst, update, $transaction };
 }
 
 function job(
@@ -70,7 +80,7 @@ beforeEach(() => {
 });
 
 describe('notifyPushDocumentFinalFailure — кому и что', () => {
-  it('руководителям компании и инициатору: одна запись на человека, ссылка — в его кабинет', async () => {
+  it('руководителям компании и инициатору: одна запись на человека, адрес — по роли на чтении', async () => {
     const { db, findMany, create, $transaction } = makeDb();
     await notifyPushDocumentFinalFailure(db, {
       documentId: 'doc-1',
@@ -82,13 +92,15 @@ describe('notifyPushDocumentFinalFailure — кому и что', () => {
         isActive: true,
         OR: [{ role: 'leader', companyId: 'co-1' }, { id: 'mgr-1' }],
       },
-      select: { id: true, role: true },
+      select: { id: true },
     });
     expect($transaction).toHaveBeenCalledTimes(1);
     const rows = created(create);
     expect(rows).toHaveLength(2);
     expect(rows[0]).toEqual({
       userId: 'lead-1',
+      organizationId: null,
+      partnerId: null,
       type: 'sync_error',
       title: 'Не удалось выгрузить документ в 1С',
       body: 'Акт А-7 не принят 1С после 5 попыток: Контрагент не найден. Откройте документ и нажмите «Повторить» или исправьте его.',
@@ -96,21 +108,56 @@ describe('notifyPushDocumentFinalFailure — кому и что', () => {
         kind: 'push_document_failed',
         documentId: 'doc-1',
         error: 'Контрагент не найден',
-        url: '/leader/documents/doc-1',
       },
+      // `У-231`: ключ дедупа — документ, повторные провалы за час схлопнутся.
+      entityId: 'doc-1',
+      lastOccurredAt: expect.any(Date),
     });
     expect(rows[1].userId).toBe('mgr-1');
-    expect(rows[1].meta.url).toBe('/manager/documents/doc-1');
+    // `Р-Э5-7`: адрес в строке не хранится — его даёт таблица маршрутов по
+    // роли читателя: руководитель попадает в свой кабинет, менеджер — в свой.
+    expect(rows[0].meta).not.toHaveProperty('url');
+    expect(notificationRoute('sync_error', rows[0].meta, 'leader')).toBe('/leader/documents/doc-1');
+    expect(notificationRoute('sync_error', rows[1].meta, 'manager')).toBe(
+      '/manager/documents/doc-1'
+    );
   });
 
-  it('админ-инициатор получает ссылку на зеркало /admin', async () => {
+  it('админ-инициатор: та же строка ведёт в зеркало /admin', async () => {
     const { db, create } = makeDb(DOC, [{ id: 'adm-1', role: 'admin' }]);
     await notifyPushDocumentFinalFailure(db, {
       documentId: 'doc-1',
       errorMessage: 'x',
       actorUserId: 'adm-1',
     });
-    expect(created(create)[0].meta.url).toBe('/admin/documents/doc-1');
+    const [row] = created(create);
+    expect(row.userId).toBe('adm-1');
+    expect(notificationRoute('sync_error', row.meta, 'admin')).toBe('/admin/documents/doc-1');
+  });
+
+  it('повтор провала того же документа в окне — строка обновляется («×N»), новой нет', async () => {
+    const { db, create, findFirst, update, $transaction } = makeDb(DOC, [
+      { id: 'lead-1', role: 'leader' },
+    ]);
+    findFirst.mockResolvedValue({ id: 'n-old' });
+    await notifyPushDocumentFinalFailure(db, { documentId: 'doc-1', errorMessage: 'снова' });
+    expect($transaction).toHaveBeenCalledTimes(1);
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ userId: 'lead-1', type: 'sync_error', entityId: 'doc-1' }),
+      })
+    );
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'n-old' },
+        data: expect.objectContaining({
+          dedupCount: { increment: 1 },
+          isRead: false,
+          body: expect.stringContaining('снова'),
+        }),
+      })
+    );
+    expect(create).not.toHaveBeenCalled();
   });
 
   it('без попыток и без номера — «Документ без номера не принят 1С: …», без счётчика', async () => {

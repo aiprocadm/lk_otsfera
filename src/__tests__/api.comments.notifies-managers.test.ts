@@ -15,7 +15,7 @@ const {
   commentCreate,
   auditCreate,
   notifyManagers,
-  notifyMessageCreated,
+  recordNotification,
   notifyOrgUsers,
   deliverNotificationToUser,
   getPrimaryOrganizationId,
@@ -25,7 +25,7 @@ const {
   commentCreate: vi.fn(),
   auditCreate: vi.fn(),
   notifyManagers: vi.fn(),
-  notifyMessageCreated: vi.fn(),
+  recordNotification: vi.fn(),
   notifyOrgUsers: vi.fn(),
   deliverNotificationToUser: vi.fn(),
   getPrimaryOrganizationId: vi.fn(),
@@ -41,7 +41,7 @@ vi.mock('@/lib/db/prisma', () => ({
 }));
 vi.mock('@/lib/notifications', () => ({
   notifyManagers,
-  notifyMessageCreated,
+  recordNotification,
   notifyOrgUsers,
   deliverNotificationToUser,
 }));
@@ -110,7 +110,7 @@ describe('POST /api/comments — org branch fires notifyManagers (comment_from_o
       },
     });
     // Org branch must NOT touch partner-side helpers.
-    expect(notifyMessageCreated).not.toHaveBeenCalled();
+    expect(recordNotification).not.toHaveBeenCalled();
     expect(deliverNotificationToUser).not.toHaveBeenCalled();
   });
 

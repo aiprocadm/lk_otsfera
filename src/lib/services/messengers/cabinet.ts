@@ -1,4 +1,5 @@
-import { createNotification, deliverNotificationToUser } from '@/lib/notifications/core';
+import { prisma } from '@/lib/db/prisma';
+import { recordNotification, deliverNotificationToUser } from '@/lib/notifications/core';
 import { log } from '@/lib/logging';
 
 /**
@@ -25,20 +26,27 @@ export async function deliverToCabinet(
   if (!userId) return { ok: false, error: 'Неизвестно, кому в кабинет отвечать' };
 
   const title = 'Ответ на ваше обращение';
+  // Ключ дедупа — диалог: несколько ответов за час ложатся в одну строку «×N».
+  const meta = { dialogId: dialog.id };
   try {
-    const row = await createNotification({
+    const { row, deduped } = await recordNotification(prisma, {
       userId,
       type: 'inbound_reply',
       title,
       body: text,
+      meta,
+      entityId: dialog.id,
     });
-    await deliverNotificationToUser({
-      userId,
-      title,
-      body: text,
-      type: 'inbound_reply',
-      dedupKey: row.id,
-    });
+    if (!deduped) {
+      await deliverNotificationToUser({
+        userId,
+        title,
+        body: text,
+        type: 'inbound_reply',
+        meta,
+        dedupKey: row.id,
+      });
+    }
     return { ok: true };
   } catch (error) {
     // Best-effort, как и у прочих транспортов (§3): сообщение всё равно

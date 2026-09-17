@@ -10,6 +10,8 @@ import { pluralizeRu } from '@/lib/format';
 import { Paginator } from '@/components/ui';
 
 import { PageHeader } from '@/components/ui/page-header';
+import { MissingObjectNotice } from '@/components/ui/missing-object-notice';
+import { isMissingObjectRequested, MISSING_OBJECT_PARAM } from '@/lib/navigation/missingObject';
 type SearchParams = {
   org?: string;
   search?: string;
@@ -17,6 +19,8 @@ type SearchParams = {
   financial?: string;
   take?: string;
   skip?: string;
+  /** `У-232`: пришли по ссылке на удалённый или чужой объект. */
+  missing?: string;
 };
 
 const VALID_EXECUTION: ExecutionStatus[] = [
@@ -86,6 +90,9 @@ export default async function OrganizationOrdersPage({
           />
         </div>
 
+        {/* `У-232`: пришли по ссылке на удалённый или чужой заказ. */}
+        {isMissingObjectRequested(sp) && <MissingObjectNotice what="Заказ" />}
+
         <OrgOrdersFilter />
 
         <OrgOrdersTable rows={rows} orgParam={sp.org ?? null} />
@@ -93,7 +100,8 @@ export default async function OrganizationOrdersPage({
 
         <Paginator
           basePath="/organization/orders"
-          searchParams={sp}
+          /* Пометку «объект недоступен» на соседние страницы не переносим. */
+          searchParams={{ ...sp, [MISSING_OBJECT_PARAM]: undefined }}
           take={take}
           skip={skip}
           total={total}

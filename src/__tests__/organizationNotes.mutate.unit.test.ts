@@ -45,7 +45,6 @@ const partner = { sub: 'p1', role: 'partner', companyId: 'c1' } as SessionPayloa
 
 const NOW = new Date('2026-09-12T12:00:00.000Z');
 const hoursAgo = (h: number) => new Date(NOW.getTime() - h * 60 * 60 * 1000);
-const NOTES_PATH = '/manager/organizations/org1?tab=notes';
 
 function makePrisma() {
   return {
@@ -187,7 +186,6 @@ describe('addOrganizationNote', () => {
       entityId: 'org1',
       noteId: 'n1',
       body: 'договорились о скидке',
-      managerPath: NOTES_PATH,
     });
   });
 
@@ -344,7 +342,6 @@ describe('editOrganizationNote', () => {
       entityId: 'org1',
       noteId: 'n1',
       body: '@Пётр и @Анна, новый текст',
-      managerPath: NOTES_PATH,
     });
   });
 

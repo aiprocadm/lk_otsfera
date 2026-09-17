@@ -154,3 +154,27 @@ describe('ManagerTasksPage — подпись «Показаны первые N 
     expect(container.textContent).not.toContain('Показаны первые');
   });
 });
+
+// `У-232` (спека §3.7): карточка удалённой или чужой задачи увела сюда с
+// `?missing=1` — список объясняет, что случилось, а не показывает 404.
+describe('ManagerTasksPage — плашка «объект недоступен» (У-232)', () => {
+  beforeEach(() => {
+    isFeatureEnabled.mockReturnValue(true);
+    requireManager.mockResolvedValue(SESSION);
+    listTaskBoard.mockResolvedValue({ columns: [], board: [], shown: 0, total: 0 });
+    getTaskFormOptions.mockResolvedValue(EMPTY_OPTIONS);
+  });
+
+  it('?missing=1 → плашка над доской, и речь в ней о задаче', async () => {
+    const { container } = await renderServerComponent(ManagerTasksPage(sp({ missing: '1' })));
+    const notice = container.querySelector('[data-testid="missing-object-notice"]');
+    expect(notice).not.toBeNull();
+    expect(notice?.textContent).toContain('Задача');
+    expect(notice?.textContent).toContain('недоступ');
+  });
+
+  it('без параметра плашки нет', async () => {
+    const { container } = await renderServerComponent(ManagerTasksPage(sp()));
+    expect(container.querySelector('[data-testid="missing-object-notice"]')).toBeNull();
+  });
+});

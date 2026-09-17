@@ -46,6 +46,7 @@ function makeUser(overrides: Partial<ChannelRecipient> = {}): ChannelRecipient {
     id: 'u1',
     email: 'user@example.ru',
     name: 'Иван',
+    role: 'partner',
     telegramChatId: null,
     maxChatId: null,
     whatsappPhone: null,

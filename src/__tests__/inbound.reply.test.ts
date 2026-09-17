@@ -12,10 +12,12 @@ vi.mock('@/lib/telegram/client', () => ({ sendTelegramMessage: t.tg }));
 vi.mock('@/lib/max/client', () => ({ sendMaxMessage: t.max }));
 vi.mock('@/lib/whatsapp/aggregator', () => ({ sendWhatsAppMessage: t.wa }));
 vi.mock('@/lib/notifications', () => ({
-  createNotification: t.createN,
+  recordNotification: t.createN,
   deliverNotificationToUser: t.deliver,
 }));
 vi.mock('@/lib/logging', () => ({ log: { warn: t.warn } }));
+// Клиент базы уходит первым аргументом в recordNotification; сам он здесь не нужен.
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 import { replyToInbound } from '@/lib/services/inbound/reply';
 
@@ -87,10 +89,11 @@ describe('replyToInbound', () => {
     // У вопроса из кабинета нет внешнего транспорта — ответ доставляется
     // уведомлением автору (решение §9-2). Это единственный канал, где ответ
     // вообще может дойти; сломайся ветка — клиент никогда не увидит ответа.
-    t.createN.mockResolvedValue({ id: 'n1' });
+    t.createN.mockResolvedValue({ row: { id: 'n1' }, deduped: false });
     t.deliver.mockResolvedValue(undefined);
     const r = await replyToInbound(
       {
+        id: 'im-1',
         channel: 'cabinet',
         senderRef: 'u1',
         subject: 'Не открывается документ',
@@ -99,26 +102,56 @@ describe('replyToInbound', () => {
       'Проверьте, пожалуйста, ещё раз'
     );
     expect(r.ok).toBe(true);
+    // Ключ дедупа — входящее сообщение (диалог здесь неизвестен).
     expect(t.createN).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({
         userId: 'user-9',
         type: 'inbound_reply',
         body: '«Не открывается документ»: Проверьте, пожалуйста, ещё раз',
+        meta: { messageId: 'im-1' },
+        entityId: 'im-1',
       })
     );
     expect(t.deliver).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: 'user-9', dedupKey: 'n1' })
+      expect.objectContaining({ userId: 'user-9', meta: { messageId: 'im-1' }, dedupKey: 'n1' })
     );
   });
 
   it('cabinet: без темы в теле уведомления только текст ответа', async () => {
-    t.createN.mockResolvedValue({ id: 'n2' });
+    t.createN.mockResolvedValue({ row: { id: 'n2' }, deduped: false });
     const r = await replyToInbound(
-      { channel: 'cabinet', senderRef: 'u1', subject: null, resolvedUserId: 'user-9' } as any,
+      {
+        id: 'im-2',
+        channel: 'cabinet',
+        senderRef: 'u1',
+        subject: null,
+        resolvedUserId: 'user-9',
+      } as any,
       'Ответ'
     );
     expect(r.ok).toBe(true);
-    expect(t.createN).toHaveBeenCalledWith(expect.objectContaining({ body: 'Ответ' }));
+    expect(t.createN).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ body: 'Ответ' })
+    );
+  });
+
+  it('cabinet: повтор за час (deduped: true) — строка «×N», каналы доставки не зовутся', async () => {
+    t.createN.mockResolvedValue({ row: { id: 'n1' }, deduped: true });
+    const r = await replyToInbound(
+      {
+        id: 'im-1',
+        channel: 'cabinet',
+        senderRef: 'u1',
+        subject: null,
+        resolvedUserId: 'user-9',
+      } as any,
+      'Ещё раз'
+    );
+    expect(r.ok).toBe(true);
+    expect(t.createN).toHaveBeenCalledTimes(1);
+    expect(t.deliver).not.toHaveBeenCalled();
   });
 
   it('cabinet: автор не определён → ok:false, уведомление не создаётся', async () => {
