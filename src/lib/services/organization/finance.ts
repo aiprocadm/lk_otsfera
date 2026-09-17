@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import type { PrismaClient, FinancialStatus } from '@prisma/client';
+import type { OrgOrderScope } from '@/lib/auth/organizationPolicy';
 
 /**
  * Orders considered "billed at all" for the finance hub. `not_billed` and
@@ -48,13 +49,37 @@ export async function getOrgFinanceKpisForOrgs(
   );
 }
 
+/**
+ * `У-236`: при включённой настройке участник видит деньги только своих заказов.
+ * Без границы (`scope = null`) считает батч-вариант, как раньше; с границей —
+ * свой узкий запрос, потому что батч обслуживает витрины сотрудников сразу по
+ * многим организациям и границы зрителя не знает.
+ */
 export async function getOrgFinanceKpis(
   prisma: PrismaClient,
-  organizationId: string
+  organizationId: string,
+  scope: OrgOrderScope
 ): Promise<OrgFinanceKpis> {
-  const map = await getOrgFinanceKpisForOrgs(prisma, [organizationId]);
-  // Батч сидит запись для каждого запрошенного id — get() не бывает undefined.
-  return map.get(organizationId)!;
+  if (!scope) {
+    const map = await getOrgFinanceKpisForOrgs(prisma, [organizationId]);
+    // Батч сидит запись для каждого запрошенного id — get() не бывает undefined.
+    return map.get(organizationId)!;
+  }
+  const orders = await prisma.order.findMany({
+    where: { organizationId, financialStatus: { in: BILLED_STATUSES }, ...scope.where },
+    select: { totalAmount: true, paidAmount: true },
+  });
+  let billed = new Prisma.Decimal(0);
+  let paid = new Prisma.Decimal(0);
+  for (const o of orders) {
+    billed = billed.plus(o.totalAmount);
+    paid = paid.plus(o.paidAmount);
+  }
+  return {
+    billed: billed.toFixed(2),
+    paid: paid.toFixed(2),
+    outstanding: billed.minus(paid).toFixed(2),
+  };
 }
 
 export type OrgPaymentRow = {
@@ -74,10 +99,16 @@ export type OrgPaymentRow = {
 
 export async function listOrgPayments(
   prisma: PrismaClient,
-  opts: { organizationId: string; take?: number }
+  opts: { organizationId: string; take?: number; scope: OrgOrderScope }
 ): Promise<OrgPaymentRow[]> {
   const rows = await prisma.payment.findMany({
-    where: { organizationId: opts.organizationId },
+    // `У-236`: платёж показывает номер и сумму заказа, поэтому граница зрителя
+    // действует и здесь. Платёж без заказа «своим» быть не может — фильтр по
+    // связи его тоже отсекает.
+    where: {
+      organizationId: opts.organizationId,
+      ...(opts.scope ? { order: opts.scope.where } : {}),
+    },
     orderBy: { paidAt: 'desc' },
     take: opts.take ?? 50,
     select: {
@@ -116,11 +147,22 @@ export async function listOrgPayments(
  */
 export async function listOrgPaymentsForExport(
   prisma: PrismaClient,
-  opts: { organizationId: string; limit: number }
+  opts: { organizationId: string; limit: number; scope: OrgOrderScope }
 ): Promise<{ rows: OrgPaymentRow[]; total: number }> {
   const [rows, total] = await Promise.all([
-    listOrgPayments(prisma, { organizationId: opts.organizationId, take: opts.limit }),
-    prisma.payment.count({ where: { organizationId: opts.organizationId } }),
+    listOrgPayments(prisma, {
+      organizationId: opts.organizationId,
+      take: opts.limit,
+      scope: opts.scope,
+    }),
+    // Фильтр повторён внутри вызова намеренно: вынесенный в переменную, он не
+    // виден стражу — а хвост «показаны первые N из M» обязан считать то же.
+    prisma.payment.count({
+      where: {
+        organizationId: opts.organizationId,
+        ...(opts.scope ? { order: opts.scope.where } : {}),
+      },
+    }),
   ]);
   return { rows, total };
 }

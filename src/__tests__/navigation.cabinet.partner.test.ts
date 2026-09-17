@@ -63,40 +63,50 @@ describe('navItemsFor (feature-flag filter)', () => {
   });
 });
 
-describe('navItemsFor — chat flag (partner)', () => {
-  it('hides "Сообщения" (/partner/messages) when FEATURE_CHAT is unset (opt-in default off)', () => {
-    // FEATURE_CHAT unset — deleted in beforeEach
-    const labels = navItemsFor('partner').map((i) => i.label);
-    expect(labels).not.toContain('Сообщения');
-  });
-
-  it('hides "Сообщения" (/partner/messages) when FEATURE_CHAT=0', () => {
+/**
+ * Этап 6 (`У-234`): «Сообщения» несут ДВА домена — переписку с менеджером
+ * (`cabinet_questions`) и чат по заказам (`chat`). Пункт живёт, пока включён
+ * хотя бы один: прежнее правило «только `chat`» прятало бы переписку вместе с
+ * выключенным чатом.
+ */
+describe('navItemsFor — «Сообщения» (два домена, У-234)', () => {
+  it('чат выключен, переписка включена — пункт на месте', () => {
     process.env.FEATURE_CHAT = '0';
-    const labels = navItemsFor('partner').map((i) => i.label);
-    expect(labels).not.toContain('Сообщения');
-  });
-
-  it('shows "Сообщения" (/partner/messages) when FEATURE_CHAT=1', () => {
-    process.env.FEATURE_CHAT = '1';
+    process.env.FEATURE_CABINET_QUESTIONS = '1';
     const labels = navItemsFor('partner').map((i) => i.label);
     expect(labels).toContain('Сообщения');
-    // Other items still present
+  });
+
+  it('оба домена выключены — пункта нет', () => {
+    process.env.FEATURE_CHAT = '0';
+    process.env.FEATURE_CABINET_QUESTIONS = '0';
+    const labels = navItemsFor('partner').map((i) => i.label);
+    expect(labels).not.toContain('Сообщения');
+  });
+
+  it('включён только чат — пункт на месте, остальные разделы не задеты', () => {
+    process.env.FEATURE_CHAT = '1';
+    process.env.FEATURE_CABINET_QUESTIONS = '0';
+    const labels = navItemsFor('partner').map((i) => i.label);
+    expect(labels).toContain('Сообщения');
     expect(labels).toEqual(
       expect.arrayContaining(['Главная', 'Портфель', 'Заказы', 'Документы', 'Финансы'])
     );
   });
 
-  it('the Сообщения item points to /partner/messages', () => {
+  it('пункт ведёт на /partner/messages и объявляет оба флага', () => {
     const item = navByRole.partner.find((i) => i.href === '/partner/messages');
     expect(item).toBeDefined();
     expect(item!.label).toBe('Сообщения');
-    expect(item!.flag).toBe('chat');
+    expect(item!.anyFlags).toEqual(['chat', 'cabinet_questions']);
+    // Одиночный `flag` снят: он означал бы «раздел живёт только с чатом».
+    expect(item!.flag).toBeUndefined();
   });
 });
 
 describe('navItemsFor — chat flag (organization)', () => {
-  it('hides "Сообщения" (/organization/messages) when FEATURE_CHAT is unset', () => {
-    // org_cabinet also unset, but the item check is for the chat flag specifically
+  it('оба домена выключены — пункта нет (чат и переписка по умолчанию off)', () => {
+    // Оба флага opt-in: без явного включения раздел не показывается.
     const labels = navItemsFor('organization').map((i) => i.label);
     expect(labels).not.toContain('Сообщения');
   });
@@ -108,18 +118,28 @@ describe('navItemsFor — chat flag (organization)', () => {
     expect(labels).toContain('Сообщения');
   });
 
-  it('hides "Сообщения" when FEATURE_CHAT=0 even if org_cabinet=1', () => {
+  it('чат выключен и переписка выключена — пункта нет даже при включённом кабинете', () => {
     process.env.FEATURE_CHAT = '0';
+    process.env.FEATURE_CABINET_QUESTIONS = '0';
     process.env.FEATURE_ORGANIZATION_CABINET = '1';
     const labels = navItemsFor('organization').map((i) => i.label);
     expect(labels).not.toContain('Сообщения');
+  });
+
+  it('переписка включена без чата — пункт на месте (этап 6, У-234)', () => {
+    process.env.FEATURE_CABINET_QUESTIONS = '1';
+    process.env.FEATURE_ORGANIZATION_CABINET = '1';
+    const labels = navItemsFor('organization').map((i) => i.label);
+    expect(labels).toContain('Сообщения');
   });
 
   it('the Сообщения item points to /organization/messages', () => {
     const item = navByRole.organization.find((i) => i.href === '/organization/messages');
     expect(item).toBeDefined();
     expect(item!.label).toBe('Сообщения');
-    expect(item!.flag).toBe('chat');
+    // `У-234`: два домена вместо одного флага — зеркало партнёрского пункта.
+    expect(item!.anyFlags).toEqual(['chat', 'cabinet_questions']);
+    expect(item!.flag).toBeUndefined();
   });
 });
 

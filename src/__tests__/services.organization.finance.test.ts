@@ -111,7 +111,7 @@ afterAll(async () => {
 
 describe('getOrgFinanceKpis', () => {
   it('sums billed/paid over billed-ish orders, excludes not_billed', async () => {
-    const k = await getOrgFinanceKpis(prisma, orgId);
+    const k = await getOrgFinanceKpis(prisma, orgId, null);
     expect(k.billed).toBe('150000.00');
     expect(k.paid).toBe('90000.00');
     expect(k.outstanding).toBe('60000.00');
@@ -120,7 +120,7 @@ describe('getOrgFinanceKpis', () => {
 
 describe('listOrgPayments', () => {
   it('returns all payments (incl. refunds) newest-first with order ref', async () => {
-    const rows = await listOrgPayments(prisma, { organizationId: orgId });
+    const rows = await listOrgPayments(prisma, { scope: null, organizationId: orgId });
     expect(rows).toHaveLength(3);
     expect(rows[0].isRefund).toBe(true); // 2026-05-11 is newest
     expect(rows.every((r) => typeof r.orderId === 'string')).toBe(true);
@@ -139,7 +139,7 @@ describe('listOrgPayments', () => {
       },
     });
     try {
-      const rows = await listOrgPayments(prisma, { organizationId: orgId });
+      const rows = await listOrgPayments(prisma, { scope: null, organizationId: orgId });
       const row = rows.find((r) => r.id === imported.id);
       expect(row).toBeDefined();
       expect(row?.orderId).toBeNull();
@@ -166,7 +166,7 @@ describe('listOrgPayments', () => {
       },
     });
     try {
-      const rows = await listOrgPayments(prisma, { organizationId: orgId });
+      const rows = await listOrgPayments(prisma, { scope: null, organizationId: orgId });
       const row = rows.find((r) => r.id === richPayment.id);
       expect(row).toBeDefined();
       expect(row?.vatAmount).toBe('3000.00');
@@ -208,7 +208,7 @@ describe('getOrgIntermediaryCommission', () => {
       const c = await getOrgIntermediaryCommission(prisma, solo.id);
       expect(c).toEqual({ effectiveRate: '0', totalCommission: '0.00', perOrder: [] });
       // KPI при этом считаются как обычно.
-      const kpis = await getOrgFinanceKpis(prisma, solo.id);
+      const kpis = await getOrgFinanceKpis(prisma, solo.id, null);
       expect(kpis.billed).toBe('7000.00');
     } finally {
       await prisma.order.deleteMany({ where: { organizationId: solo.id } });
@@ -255,7 +255,7 @@ describe('batch variants (менеджерская витрина: N орган�
   it('listOrgPaymentsForOrgs: rows match the singular ledger; unknown org → []', async () => {
     const [batch, singular] = await Promise.all([
       listOrgPaymentsForOrgs(prisma, [orgId, 'no-such-org']),
-      listOrgPayments(prisma, { organizationId: orgId }),
+      listOrgPayments(prisma, { scope: null, organizationId: orgId }),
     ]);
     expect(batch.get(orgId)).toEqual(singular);
     expect(batch.get(orgId)).toHaveLength(3);

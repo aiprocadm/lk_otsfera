@@ -184,8 +184,13 @@ export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
  * нельзя — см. `isRouteGatedFlag`.
  */
 export const FEATURE_PREFIXES: Array<{ prefix: string; flag: FeatureFlag }> = [
-  { prefix: '/partner/messages', flag: 'chat' },
-  { prefix: '/organization/messages', flag: 'chat' },
+  // `/partner/messages` и `/organization/messages` СНЯТЫ с префиксов этапом 6
+  // (`У-234`, решение `Р-Э6-1`): на экране два домена под разными флагами —
+  // «Переписка с менеджером» (`cabinet_questions`) и «По заказам» (`chat`).
+  // Страница обязана открываться, если включён хотя бы один, а edge-middleware
+  // умеет сверить ровно один флаг на префикс. Гейт остался в двух точках из
+  // трёх: пункт меню (`anyFlags`) и сама страница (`notFound`, если выключены
+  // оба) — осознанное отступление, как у `telephony_mango` и `inbound_messaging`.
   // T5: every enrollment surface dark-launches together under one flag (the
   // cabinet-level flags below still apply additively via their own prefixes).
   { prefix: '/partner/enrollments', flag: 'enrollment_requests' },

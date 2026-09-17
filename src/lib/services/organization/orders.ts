@@ -8,6 +8,7 @@ import type {
 } from '@prisma/client';
 import { orderStage, type Stage } from '@/lib/orders/humanStage';
 import { organizationChannelWhere } from '@/lib/auth/documentChannelPolicy';
+import type { OrgOrderScope } from '@/lib/auth/organizationPolicy';
 
 const ORDER_ITEM_INCLUDE = {
   student: { select: { id: true, name: true, email: true } },
@@ -35,6 +36,12 @@ export type OrgOrderRow = {
 // Фильтры списка: «ключа нет» и «ключ = undefined» — одно и то же (не фильтровать).
 export type ListOrgOrdersOptions = {
   organizationId: string;
+  /**
+   * `У-236`: граница участника (`memberOrderScope`). Ключ обязателен — со
+   * значением по умолчанию его молча забыли бы, и участник снова увидел бы
+   * чужие заказы. `null` — ограничения нет.
+   */
+  scope: OrgOrderScope;
   executionStatus?: ExecutionStatus | undefined;
   financialStatus?: FinancialStatus | undefined;
   search?: string | undefined;
@@ -69,18 +76,23 @@ export async function listOrgOrders(
   const take = normalizeTake(opts.take);
   const skip = normalizeSkip(opts.skip);
 
-  const where = {
+  // Скоуп и поиск оба дают `OR`, поэтому складываются в `AND`, а не в один
+  // объект: второй `OR` затёр бы первый и снял бы ограничение участника.
+  const and: Prisma.OrderWhereInput[] = [];
+  if (opts.scope) and.push(opts.scope.where);
+  if (opts.search) {
+    and.push({
+      OR: [
+        { title: { contains: opts.search, mode: 'insensitive' as const } },
+        { orderNumber: { contains: opts.search, mode: 'insensitive' as const } },
+      ],
+    });
+  }
+  const where: Prisma.OrderWhereInput = {
     organizationId: opts.organizationId,
     ...(opts.executionStatus ? { executionStatus: opts.executionStatus } : {}),
     ...(opts.financialStatus ? { financialStatus: opts.financialStatus } : {}),
-    ...(opts.search
-      ? {
-          OR: [
-            { title: { contains: opts.search, mode: 'insensitive' as const } },
-            { orderNumber: { contains: opts.search, mode: 'insensitive' as const } },
-          ],
-        }
-      : {}),
+    ...(and.length > 0 ? { AND: and } : {}),
   };
 
   const [total, orders] = await Promise.all([
@@ -182,15 +194,25 @@ export type OrgOrderDetail = {
   payments: OrgOrderPayment[];
   commentsCount: number;
   items: OrgOrderItemRow[];
+  /**
+   * `У-236`: заказ «свой» для участника — он контактное лицо либо подал
+   * обращение, из которого заказ вырос. Считается здесь, чтобы страница могла
+   * перепроверить право тем же правилом (`canSeeOrder`), а не поверить выборке
+   * на слово. Без ограничения (админ, руководитель, выключенная настройка) —
+   * всегда `true`.
+   */
+  ownedByViewer: boolean;
 };
 
 export async function getOrgOrder(
   prisma: PrismaClient,
   organizationId: string,
-  orderId: string
+  orderId: string,
+  scope: OrgOrderScope
 ): Promise<OrgOrderDetail | null> {
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
+  const order = await prisma.order.findFirst({
+    // Скоуп участника — в самой выборке: чужой заказ не должен даже читаться.
+    where: { AND: [{ id: orderId }, ...(scope ? [scope.where] : [])] },
     // Этап 10 (§7 ТЗ): явный select — внутренние поля заказа (companyId,
     // managerId, партнёрские ссылки, 1С-курсоры) клиенту не уезжают.
     select: {
@@ -198,6 +220,10 @@ export async function getOrgOrder(
       organizationId: true,
       orderNumber: true,
       title: true,
+      // `У-236`: по этим двум связям считается «свой заказ» — те же правила,
+      // что в `memberOrderScope`, иначе выборка и проверка разошлись бы.
+      primaryContact: { select: { userId: true } },
+      promotedFromLead: { select: { sourceRequest: { select: { submittedByUserId: true } } } },
       executionStatus: true,
       financialStatus: true,
       totalAmount: true,
@@ -250,9 +276,15 @@ export async function getOrgOrder(
   if (!order) return null;
   if (order.organizationId !== organizationId) return null;
 
+  const ownedByViewer = scope
+    ? order.primaryContact?.userId === scope.viewerUserId ||
+      order.promotedFromLead?.sourceRequest?.submittedByUserId === scope.viewerUserId
+    : true;
+
   return {
     id: order.id,
     organizationId: order.organizationId,
+    ownedByViewer,
     orderNumber: order.orderNumber,
     title: order.title,
     stage: orderStage({

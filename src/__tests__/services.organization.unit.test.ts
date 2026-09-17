@@ -59,7 +59,7 @@ describe('organization/dashboard — kpis (unit)', () => {
       document: { count: vi.fn().mockResolvedValue(0) },
     } as unknown as PrismaClient;
 
-    const result = await kpis(prisma, 'org-1');
+    const result = await kpis(prisma, 'org-1', null);
     expect(result.activeOrders).toBe(0);
     expect(result.outstandingAmount).toBe('0.00');
     expect(result.studentsCount).toBe(0);
@@ -81,7 +81,7 @@ describe('organization/dashboard — kpis (unit)', () => {
       document: { count: vi.fn().mockResolvedValue(3) },
     } as unknown as PrismaClient;
 
-    const result = await kpis(prisma, 'org-1');
+    const result = await kpis(prisma, 'org-1', null);
     expect(result.activeOrders).toBe(2);
     expect(result.outstandingAmount).toBe('70000.00');
     expect(result.studentsCount).toBe(5);
@@ -96,7 +96,7 @@ describe('organization/dashboard — attention (unit)', () => {
       document: { findMany: vi.fn().mockResolvedValue([]) },
     } as unknown as PrismaClient;
 
-    const result = await attention(prisma, 'org-1');
+    const result = await attention(prisma, 'org-1', null);
     expect(result.items).toEqual([]);
   });
 
@@ -119,7 +119,7 @@ describe('organization/dashboard — attention (unit)', () => {
       document: { findMany: vi.fn().mockResolvedValue([]) },
     } as unknown as PrismaClient;
 
-    const result = await attention(prisma, 'org-1');
+    const result = await attention(prisma, 'org-1', null);
     const billed = result.items.filter((i) => i.kind === 'billed_unpaid');
     expect(billed).toHaveLength(1);
     expect(billed[0].title).toContain('ЗАК-001');
@@ -147,7 +147,7 @@ describe('organization/dashboard — attention (unit)', () => {
       document: { findMany: vi.fn().mockResolvedValue([]) },
     } as unknown as PrismaClient;
 
-    const result = await attention(prisma, 'org-1');
+    const result = await attention(prisma, 'org-1', null);
     const billed = result.items.filter((i) => i.kind === 'billed_unpaid');
     expect(billed[0].title).toContain('Безномерной заказ');
   });
@@ -166,7 +166,7 @@ describe('organization/dashboard — attention (unit)', () => {
       },
     } as unknown as PrismaClient;
 
-    const result = await attention(prisma, 'org-1');
+    const result = await attention(prisma, 'org-1', null);
     const acts = result.items.filter((i) => i.kind === 'unsigned_act');
     expect(acts).toHaveLength(1);
     expect(acts[0].title).toContain('Акт-1.pdf');
@@ -188,7 +188,7 @@ describe('organization/dashboard — attention (unit)', () => {
       },
     } as unknown as PrismaClient;
 
-    const result = await attention(prisma, 'org-1');
+    const result = await attention(prisma, 'org-1', null);
     const acts = result.items.filter((i) => i.kind === 'unsigned_act');
     expect(acts[0].meta).toBeUndefined();
   });
@@ -204,7 +204,7 @@ describe('organization/dashboard — attention (unit)', () => {
       document: { findMany: vi.fn().mockResolvedValue([]) },
     } as unknown as PrismaClient;
 
-    const result = await attention(prisma, 'org-1');
+    const result = await attention(prisma, 'org-1', null);
     const closed = result.items.filter((i) => i.kind === 'completed_open');
     expect(closed).toHaveLength(1);
     expect(closed[0].title).toContain('ЗАК-005');
@@ -224,7 +224,7 @@ describe('organization/dashboard — attention (unit)', () => {
       document: { findMany: vi.fn().mockResolvedValue([]) },
     } as unknown as PrismaClient;
 
-    const result = await attention(prisma, 'org-1');
+    const result = await attention(prisma, 'org-1', null);
     const closed = result.items.filter((i) => i.kind === 'completed_open');
     expect(closed[0].title).toContain('Безномерной завершённый');
   });
@@ -344,7 +344,7 @@ describe('organization/finance (unit)', () => {
       order: { findMany: vi.fn().mockResolvedValue([]) },
     } as unknown as PrismaClient;
 
-    const result = await getOrgFinanceKpis(prisma, 'org-1');
+    const result = await getOrgFinanceKpis(prisma, 'org-1', null);
     expect(result.billed).toBe('0.00');
     expect(result.paid).toBe('0.00');
     expect(result.outstanding).toBe('0.00');
@@ -368,7 +368,7 @@ describe('organization/finance (unit)', () => {
       },
     } as unknown as PrismaClient;
 
-    const result = await getOrgFinanceKpis(prisma, 'org-1');
+    const result = await getOrgFinanceKpis(prisma, 'org-1', null);
     expect(result.billed).toBe('150000.00');
     expect(result.paid).toBe('90000.00');
     expect(result.outstanding).toBe('60000.00');
@@ -391,7 +391,7 @@ describe('organization/finance (unit)', () => {
       },
     } as unknown as PrismaClient;
 
-    const rows = await listOrgPayments(prisma, { organizationId: 'org-1' });
+    const rows = await listOrgPayments(prisma, { scope: null, organizationId: 'org-1' });
     expect(rows).toHaveLength(1);
     expect(rows[0].amount).toBe('5000.00');
     expect(rows[0].orderId).toBe('o1');
@@ -416,7 +416,7 @@ describe('organization/finance (unit)', () => {
       },
     } as unknown as PrismaClient;
 
-    const rows = await listOrgPayments(prisma, { organizationId: 'org-1' });
+    const rows = await listOrgPayments(prisma, { scope: null, organizationId: 'org-1' });
     expect(rows[0].orderId).toBeNull();
     expect(rows[0].orderNumber).toBeNull();
   });
@@ -425,7 +425,7 @@ describe('organization/finance (unit)', () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const prisma = { payment: { findMany } } as unknown as PrismaClient;
 
-    await listOrgPayments(prisma, { organizationId: 'org-1', take: 10 });
+    await listOrgPayments(prisma, { scope: null, organizationId: 'org-1', take: 10 });
     expect(findMany.mock.calls[0][0].take).toBe(10);
   });
 
@@ -1058,7 +1058,7 @@ describe('organization/orders (unit)', () => {
       },
     } as unknown as PrismaClient;
 
-    const result = await listOrgOrders(prisma, { organizationId: 'org-1' });
+    const result = await listOrgOrders(prisma, { scope: null, organizationId: 'org-1' });
     expect(result.rows).toEqual([]);
     expect(result.total).toBe(0);
   });
@@ -1084,7 +1084,7 @@ describe('organization/orders (unit)', () => {
       },
     } as unknown as PrismaClient;
 
-    const result = await listOrgOrders(prisma, { organizationId: 'org-1' });
+    const result = await listOrgOrders(prisma, { scope: null, organizationId: 'org-1' });
     expect(result.rows[0].managerName).toBe('Иван Менеджер');
     expect(result.rows[0].orderNumber).toBe('ЗАК-001');
     expect(result.rows[0].totalAmount).toBe('100000.00');
@@ -1112,7 +1112,7 @@ describe('organization/orders (unit)', () => {
       },
     } as unknown as PrismaClient;
 
-    const result = await listOrgOrders(prisma, { organizationId: 'org-1' });
+    const result = await listOrgOrders(prisma, { scope: null, organizationId: 'org-1' });
     expect(result.rows[0].managerName).toBeNull();
     expect(result.rows[0].orderNumber).toBeNull();
   });
@@ -1123,7 +1123,11 @@ describe('organization/orders (unit)', () => {
       order: { count: vi.fn().mockResolvedValue(0), findMany },
     } as unknown as PrismaClient;
 
-    await listOrgOrders(prisma, { organizationId: 'org-1', executionStatus: 'completed' });
+    await listOrgOrders(prisma, {
+      scope: null,
+      organizationId: 'org-1',
+      executionStatus: 'completed',
+    });
     const whereArg = findMany.mock.calls[0][0].where;
     expect(whereArg.executionStatus).toBe('completed');
   });
@@ -1134,7 +1138,7 @@ describe('organization/orders (unit)', () => {
       order: { count: vi.fn().mockResolvedValue(0), findMany },
     } as unknown as PrismaClient;
 
-    await listOrgOrders(prisma, { organizationId: 'org-1', financialStatus: 'paid' });
+    await listOrgOrders(prisma, { scope: null, organizationId: 'org-1', financialStatus: 'paid' });
     const whereArg = findMany.mock.calls[0][0].where;
     expect(whereArg.financialStatus).toBe('paid');
   });
@@ -1145,9 +1149,11 @@ describe('organization/orders (unit)', () => {
       order: { count: vi.fn().mockResolvedValue(0), findMany },
     } as unknown as PrismaClient;
 
-    await listOrgOrders(prisma, { organizationId: 'org-1', search: 'тест' });
+    await listOrgOrders(prisma, { scope: null, organizationId: 'org-1', search: 'тест' });
     const whereArg = findMany.mock.calls[0][0].where;
-    expect(whereArg.OR).toBeDefined();
+    // Поиск лежит в `AND` рядом с границей участника (`У-236`): одним объектом
+    // второй `OR` затёр бы первый.
+    expect(whereArg.AND[0].OR).toBeDefined();
   });
 
   it('listOrgOrders: no status filter → no executionStatus/financialStatus in where', async () => {
@@ -1156,7 +1162,7 @@ describe('organization/orders (unit)', () => {
       order: { count: vi.fn().mockResolvedValue(0), findMany },
     } as unknown as PrismaClient;
 
-    await listOrgOrders(prisma, { organizationId: 'org-1' });
+    await listOrgOrders(prisma, { scope: null, organizationId: 'org-1' });
     const whereArg = findMany.mock.calls[0][0].where;
     expect(whereArg.executionStatus).toBeUndefined();
     expect(whereArg.financialStatus).toBeUndefined();
@@ -1168,24 +1174,24 @@ describe('organization/orders (unit)', () => {
       order: { count: vi.fn().mockResolvedValue(0), findMany },
     } as unknown as PrismaClient;
 
-    await listOrgOrders(prisma, { organizationId: 'org-1', take: 200, skip: -3 });
+    await listOrgOrders(prisma, { scope: null, organizationId: 'org-1', take: 200, skip: -3 });
     expect(findMany.mock.calls[0][0].take).toBe(100);
     expect(findMany.mock.calls[0][0].skip).toBe(0);
   });
 
   it('getOrgOrder: returns null when order not found', async () => {
     const prisma = {
-      order: { findUnique: vi.fn().mockResolvedValue(null) },
+      order: { findFirst: vi.fn().mockResolvedValue(null) },
     } as unknown as PrismaClient;
 
-    const result = await getOrgOrder(prisma, 'org-1', 'missing');
+    const result = await getOrgOrder(prisma, 'org-1', 'missing', null);
     expect(result).toBeNull();
   });
 
   it('getOrgOrder: returns null when order belongs to different org (IDOR guard)', async () => {
     const prisma = {
       order: {
-        findUnique: vi.fn().mockResolvedValue({
+        findFirst: vi.fn().mockResolvedValue({
           id: 'o1',
           organizationId: 'other-org',
           orderNumber: null,
@@ -1212,7 +1218,7 @@ describe('organization/orders (unit)', () => {
       },
     } as unknown as PrismaClient;
 
-    const result = await getOrgOrder(prisma, 'org-1', 'o1');
+    const result = await getOrgOrder(prisma, 'org-1', 'o1', null);
     expect(result).toBeNull();
   });
 
@@ -1220,7 +1226,7 @@ describe('organization/orders (unit)', () => {
     const now = new Date('2026-06-01');
     const prisma = {
       order: {
-        findUnique: vi.fn().mockResolvedValue({
+        findFirst: vi.fn().mockResolvedValue({
           id: 'o1',
           organizationId: 'org-1',
           orderNumber: 'ЗАК-001',
@@ -1266,7 +1272,7 @@ describe('organization/orders (unit)', () => {
       },
     } as unknown as PrismaClient;
 
-    const result = await getOrgOrder(prisma, 'org-1', 'o1');
+    const result = await getOrgOrder(prisma, 'org-1', 'o1', null);
     expect(result).not.toBeNull();
     expect(result!.orderNumber).toBe('ЗАК-001');
     expect(result!.managerName).toBe('Менеджер Иван');
@@ -1281,7 +1287,7 @@ describe('organization/orders (unit)', () => {
   it('getOrgOrder: null vatRate → null in result', async () => {
     const prisma = {
       order: {
-        findUnique: vi.fn().mockResolvedValue({
+        findFirst: vi.fn().mockResolvedValue({
           id: 'o2',
           organizationId: 'org-1',
           orderNumber: null,
@@ -1308,7 +1314,7 @@ describe('organization/orders (unit)', () => {
       },
     } as unknown as PrismaClient;
 
-    const result = await getOrgOrder(prisma, 'org-1', 'o2');
+    const result = await getOrgOrder(prisma, 'org-1', 'o2', null);
     expect(result!.vatRate).toBeNull();
     expect(result!.managerName).toBeNull();
   });
@@ -1319,7 +1325,7 @@ describe('organization/orders (unit)', () => {
       order: { count: vi.fn().mockResolvedValue(0), findMany },
     } as unknown as PrismaClient;
 
-    await listOrgOrders(prisma, { organizationId: 'org-1', take: Infinity });
+    await listOrgOrders(prisma, { scope: null, organizationId: 'org-1', take: Infinity });
     expect(findMany.mock.calls[0][0].take).toBe(25);
   });
 
@@ -1329,7 +1335,7 @@ describe('organization/orders (unit)', () => {
       order: { count: vi.fn().mockResolvedValue(0), findMany },
     } as unknown as PrismaClient;
 
-    await listOrgOrders(prisma, { organizationId: 'org-1', skip: Infinity });
+    await listOrgOrders(prisma, { scope: null, organizationId: 'org-1', skip: Infinity });
     expect(findMany.mock.calls[0][0].skip).toBe(0);
   });
 
@@ -1339,7 +1345,7 @@ describe('organization/orders (unit)', () => {
       order: { count: vi.fn().mockResolvedValue(0), findMany },
     } as unknown as PrismaClient;
 
-    await listOrgOrders(prisma, { organizationId: 'org-1', skip: 10 });
+    await listOrgOrders(prisma, { scope: null, organizationId: 'org-1', skip: 10 });
     expect(findMany.mock.calls[0][0].skip).toBe(10);
   });
 
@@ -1347,7 +1353,7 @@ describe('organization/orders (unit)', () => {
     const now = new Date('2026-06-01');
     const prisma = {
       order: {
-        findUnique: vi.fn().mockResolvedValue({
+        findFirst: vi.fn().mockResolvedValue({
           id: 'o1',
           organizationId: 'org-1',
           orderNumber: 'ЗАК-001',
@@ -1388,7 +1394,7 @@ describe('organization/orders (unit)', () => {
       },
     } as unknown as PrismaClient;
 
-    const result = await getOrgOrder(prisma, 'org-1', 'o1');
+    const result = await getOrgOrder(prisma, 'org-1', 'o1', null);
     expect(result).not.toBeNull();
     expect(result!.items).toHaveLength(1);
     expect(result!.items[0].student.name).toBe('Анна Обучаемая');
@@ -1399,7 +1405,7 @@ describe('organization/orders (unit)', () => {
   it('getOrgOrder: empty items array when no positions', async () => {
     const prisma = {
       order: {
-        findUnique: vi.fn().mockResolvedValue({
+        findFirst: vi.fn().mockResolvedValue({
           id: 'o2',
           organizationId: 'org-1',
           orderNumber: null,
@@ -1427,7 +1433,7 @@ describe('organization/orders (unit)', () => {
       },
     } as unknown as PrismaClient;
 
-    const result = await getOrgOrder(prisma, 'org-1', 'o2');
+    const result = await getOrgOrder(prisma, 'org-1', 'o2', null);
     expect(result!.items).toEqual([]);
   });
 });

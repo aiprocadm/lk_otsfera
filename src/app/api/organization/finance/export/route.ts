@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
 import { resolveActiveOrgId } from '@/lib/auth/orgContext';
 import { getPaymentsExportData } from '@/lib/services/finance/paymentsExport';
+import { orgOrderScope } from '@/lib/services/organization/memberScope';
 import { renderPaymentsXlsx } from '@/lib/services/finance/xlsx';
 
 /**
@@ -29,7 +30,9 @@ export async function GET(req: Request) {
     cookieStore.get('org_ctx')?.value ?? null
   );
 
-  const data = await getPaymentsExportData(prisma, organizationId);
+  // `У-236`: выгрузка обязана показывать ровно то же, что экран «Финансы».
+  const scope = await orgOrderScope(prisma, session, organizationId);
+  const data = await getPaymentsExportData(prisma, organizationId, scope);
 
   const buf = await renderPaymentsXlsx(data);
   return new NextResponse(Buffer.from(buf), {

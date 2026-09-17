@@ -19,6 +19,12 @@ type NavItemSpec = {
   sectionKey: SectionKey;
   disabled?: boolean;
   flag?: FeatureFlag;
+  /**
+   * Пункт живёт, если включён ХОТЯ БЫ ОДИН из флагов (`У-234`): «Сообщения»
+   * несут два домена — переписку с менеджером и чат по заказам, и выключение
+   * одного не должно прятать другой.
+   */
+  anyFlags?: FeatureFlag[];
   leaderOnly?: boolean;
   /**
    * Группа меню (`У-113`). Порядок групп — общий для всех кабинетов
@@ -506,7 +512,9 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
     // У-60 (этап 4): «Команда» уехала из главного меню на вкладку настроек —
     // это служебный раздел, ему не место рядом с «Заказами». Адрес
     // /partner/team остался редиректом.
-    { href: '/partner/messages', sectionKey: 'messages', flag: 'chat' },
+    // `У-234`: раздел несёт переписку с менеджером и чат по заказам — живёт,
+    // пока включён хотя бы один домен.
+    { href: '/partner/messages', sectionKey: 'messages', anyFlags: ['chat', 'cabinet_questions'] },
     // Этап 5 (`У-228`): лента уведомлений — над «Настройками», под флагом
     // `notification_center` до приёмки (`Р-Э5-8`).
     {
@@ -572,7 +580,12 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
     },
     // «Сообщения» намеренно под более узким флагом chat (см. CLAUDE.md §5);
     // /student — отдельный shared-entry домен, не часть organization_cabinet.
-    { href: '/organization/messages', sectionKey: 'messages', flag: 'chat' },
+    // `У-234`: зеркало партнёрского пункта — те же два домена.
+    {
+      href: '/organization/messages',
+      sectionKey: 'messages',
+      anyFlags: ['chat', 'cabinet_questions'],
+    },
     { href: '/student', sectionKey: 'studentCabinet' },
     // Этап 5 (`У-228`): лента уведомлений — над «Настройками», под флагом
     // `notification_center` до приёмки (`Р-Э5-8`).
@@ -636,6 +649,7 @@ export function navItemsFor(
 ): NavItem[] {
   return navByRole[role].filter((item) => {
     if (item.flag && !isFeatureEnabled(item.flag)) return false;
+    if (item.anyFlags && !item.anyFlags.some((f) => isFeatureEnabled(f))) return false;
     if (item.leaderOnly && !opts?.isManagerLeader) return false;
     if (item.hiddenWhenFlag && isFeatureEnabled(item.hiddenWhenFlag)) return false;
     return true;

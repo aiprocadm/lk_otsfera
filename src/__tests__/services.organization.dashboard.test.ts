@@ -52,7 +52,7 @@ afterAll(async () => {
 
 describe('organization dashboard service — kpis', () => {
   it('returns all zeros for empty org', async () => {
-    const k = await kpis(prisma, orgBId);
+    const k = await kpis(prisma, orgBId, null);
     expect(k).toEqual({
       activeOrders: 0,
       outstandingAmount: '0.00',
@@ -100,7 +100,7 @@ describe('organization dashboard service — kpis', () => {
       },
     });
 
-    const k = await kpis(prisma, orgAId);
+    const k = await kpis(prisma, orgAId, null);
     expect(k.activeOrders).toBe(2);
     expect(k.outstandingAmount).toBe('150000.00');
   });
@@ -112,7 +112,7 @@ describe('organization dashboard service — kpis', () => {
     await prisma.student.create({
       data: { email: `s2-${Date.now()}@t.local`, name: 'S2', organizationId: orgAId },
     });
-    const k = await kpis(prisma, orgAId);
+    const k = await kpis(prisma, orgAId, null);
     expect(k.studentsCount).toBe(2);
   });
 
@@ -150,14 +150,14 @@ describe('organization dashboard service — kpis', () => {
       },
     });
 
-    const k = await kpis(prisma, orgAId);
+    const k = await kpis(prisma, orgAId, null);
     expect(k.recentDocumentsCount).toBe(1);
   });
 });
 
 describe('organization dashboard service — attention', () => {
   it('returns empty for org without issues', async () => {
-    const a = await attention(prisma, orgBId);
+    const a = await attention(prisma, orgBId, null);
     expect(a.items).toEqual([]);
   });
 
@@ -177,7 +177,7 @@ describe('organization dashboard service — attention', () => {
     });
     await prisma.order.update({ where: { id: o.id }, data: { updatedAt: eightDaysAgo } });
 
-    const a = await attention(prisma, orgAId);
+    const a = await attention(prisma, orgAId, null);
     const billed = a.items.filter((i) => i.kind === 'billed_unpaid');
     expect(billed.length).toBeGreaterThanOrEqual(1);
     expect(billed.some((i) => i.orderId === o.id)).toBe(true);
@@ -328,7 +328,7 @@ describe('organization dashboard service — channel-isolation leak regression',
     expect(partnerChannelCount).toBeGreaterThanOrEqual(1);
 
     // Capture kpis WITH the partner-channel doc present
-    const kWithPartner = await kpis(prisma, orgAId);
+    const kWithPartner = await kpis(prisma, orgAId, null);
     const countWithPartner = kWithPartner.recentDocumentsCount;
 
     // Delete the partner-channel doc and re-count — result must be the same
@@ -336,7 +336,7 @@ describe('organization dashboard service — channel-isolation leak regression',
     await prisma.document.deleteMany({
       where: { orderId: order.id, counterpartyType: 'partner', counterpartyId: partnerId },
     });
-    const kWithoutPartner = await kpis(prisma, orgAId);
+    const kWithoutPartner = await kpis(prisma, orgAId, null);
     expect(kWithoutPartner.recentDocumentsCount).toBe(countWithPartner);
 
     // The org-channel doc must still be counted (count > 0)

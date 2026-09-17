@@ -175,11 +175,11 @@ describe('C3 — Order IDOR', () => {
 
 describe('C3 — Payment IDOR', () => {
   it('org B payment ledger never contains tenant A payment', async () => {
-    const rows = await listOrgPayments(prisma, { organizationId: orgB });
+    const rows = await listOrgPayments(prisma, { scope: null, organizationId: orgB });
     expect(rows.some((r) => r.id === paymentA)).toBe(false);
   });
   it('org A payment ledger contains its own payment (positive control)', async () => {
-    const rows = await listOrgPayments(prisma, { organizationId: orgA });
+    const rows = await listOrgPayments(prisma, { scope: null, organizationId: orgA });
     expect(rows.some((r) => r.id === paymentA)).toBe(true);
   });
 });

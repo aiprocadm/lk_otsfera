@@ -568,14 +568,14 @@ describe('§H organization/finance enteredByName present', () => {
   });
 
   it('surfaces enteredBy.name (left side of ?? — finance.ts:79)', async () => {
-    const rows = await listOrgPayments(prisma, { organizationId: orgId });
+    const rows = await listOrgPayments(prisma, { scope: null, organizationId: orgId });
     const row = rows.find((r) => r.amount === '7777.00');
     expect(row).toBeDefined();
     expect(row?.enteredByName).toBe('Payment Clerk'); // NOT null → ?? right side untaken
   });
 
   it('getOrgFinanceKpis returns zeroed KPIs when no billed orders exist (sanity)', async () => {
-    const k = await getOrgFinanceKpis(prisma, orgId);
+    const k = await getOrgFinanceKpis(prisma, orgId, null);
     expect(k.billed).toBe('0.00');
     expect(k.paid).toBe('0.00');
   });

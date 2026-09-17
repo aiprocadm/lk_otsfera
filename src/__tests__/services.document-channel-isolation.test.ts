@@ -95,7 +95,7 @@ describe('channel isolation invariant (org ⟂ partner on a shared order)', () =
   });
 
   it('order-detail embed isolates channels too', async () => {
-    const order = await getOrgOrder(prisma, orgId, orderId);
+    const order = await getOrgOrder(prisma, orgId, orderId, null);
     const ids = (order?.documents ?? []).map((d: { id: string }) => d.id);
     expect(ids).toContain(orgDocId);
     expect(ids).not.toContain(partnerDocId);

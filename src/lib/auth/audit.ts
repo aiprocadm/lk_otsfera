@@ -230,6 +230,8 @@ export const AUDIT_ACTIONS = [
   'organization_created_manual',
   'proposal_accepted',
   'organization_egrul_filled',
+  // `У-236` (этап 6): правило «участники видят только свои заказы».
+  'organization_member_scope_changed',
   'organization_note_created',
   'organization_note_deleted',
   'organization_note_pinned',

@@ -15,6 +15,12 @@ const { cookies } = vi.hoisted(() => ({ cookies: vi.fn() }));
 vi.mock('next/headers', () => ({ cookies }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: { organization: { findUnique: vi.fn() } } }));
+// Настройка «участники видят только свои заказы» (`У-236`) читается из базы;
+// здесь prisma — пустышка, а сама граница проверяется своим стражем.
+vi.mock('@/lib/services/organization/memberScope', () => ({
+  orgOrderScope: vi.fn(async () => null),
+  getOrgMemberScopeSetting: vi.fn(async () => false),
+}));
 
 const { getOrgFinanceKpis, listOrgPaymentsForExport } = vi.hoisted(() => ({
   getOrgFinanceKpis: vi.fn(),

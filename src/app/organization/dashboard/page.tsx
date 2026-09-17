@@ -18,6 +18,7 @@ import { QuickTasks } from '@/components/dashboard/quick-tasks';
 import { YourManagerCard } from '@/components/dashboard/your-manager-card';
 import { getOrgYourManager } from '@/lib/services/organization/yourManager';
 import { getOrgFirstSteps } from '@/lib/services/organization/firstSteps';
+import { orgOrderScope } from '@/lib/services/organization/memberScope';
 import { FirstStepsCard } from '@/components/dashboard/first-steps-card';
 import { dismissOrgFirstStepsAction } from '@/server-actions/organization/firstSteps';
 import { quickTasksFor } from '@/lib/quickTasks';
@@ -33,10 +34,12 @@ export default async function OrganizationDashboardPage({
 
   const enrollmentsEnabled = isFeatureEnabled('enrollment_requests');
   const certificatesEnabled = isFeatureEnabled('certificates_registry');
+  // `У-236`: заказы главной — в границе участника (счётчики, «Требует внимания», лента).
+  const scope = await orgOrderScope(prisma, ctx.session, ctx.activeOrgId);
   const [k, a, events, enrollments, expiringCerts, yourManager, firstSteps] = await Promise.all([
-    kpis(prisma, ctx.activeOrgId),
-    attention(prisma, ctx.activeOrgId),
-    recentEvents(prisma, ctx.activeOrgId),
+    kpis(prisma, ctx.activeOrgId, scope),
+    attention(prisma, ctx.activeOrgId, scope),
+    recentEvents(prisma, ctx.activeOrgId, undefined, scope),
     enrollmentsEnabled ? recentEnrollments(prisma, ctx.activeOrgId) : Promise.resolve([]),
     certificatesEnabled ? expiringCertificates(prisma, ctx.activeOrgId) : Promise.resolve(null),
     // Этап 6 (`У-240`): кто ведёт заказы организации.
@@ -63,7 +66,7 @@ export default async function OrganizationDashboardPage({
         />
         {/* `У-71`: постоянный блок вместо одноразового welcome-блока. */}
         <QuickTasks tasks={quickTasksFor('organization')} />
-        <YourManagerCard view={yourManager} />
+        <YourManagerCard view={yourManager} writeHref="/organization/messages?tab=manager" />
         <OrgKpiGrid kpis={k} expiringCertificates={expiringCerts} />
         {enrollmentsEnabled && <OrgEnrollmentsCard rows={enrollments} />}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

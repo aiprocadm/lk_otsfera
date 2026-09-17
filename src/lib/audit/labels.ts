@@ -161,6 +161,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   org_member_role_changed: 'Изменение роли сотрудника организации',
   organization_created_auto: 'Автосоздание организации из выгрузки 1С',
   organization_egrul_filled: 'Заполнение реквизитов из ЕГРЮЛ',
+  organization_member_scope_changed: 'Видимость заказов для сотрудников организации',
   lead_organization_linked: 'Привязка лида к существующей организации',
   organization_created_manual: 'Создание организации вручную',
   proposal_accepted: 'Принятие коммерческого предложения',

@@ -63,6 +63,9 @@ const CLIENT_AREAS = [
   'src/app/partner',
   'src/lib/services/organization',
   'src/lib/services/partner',
+  // Этап 6 (`У-234`): сервисы переписки клиента живут здесь — и читают
+  // сообщения диалога. Без этой строки страж охранял бы пустоту.
+  'src/lib/services/cabinetDialogs',
 ];
 
 function filesUnder(dir: string): string[] {

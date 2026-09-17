@@ -62,7 +62,7 @@ export default async function PartnerDashboard() {
         scopeField={{ name: 'partnerId', value: scope.partnerId }}
       />
       <QuickTasks tasks={quickTasksFor('partner')} />
-      <YourManagerCard view={yourManager} />
+      <YourManagerCard view={yourManager} writeHref="/partner/messages?tab=manager" />
 
       <KpiGrid kpis={k} expiringCertificates={expiringCerts} />
 

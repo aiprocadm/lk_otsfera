@@ -7,6 +7,7 @@ import {
 } from '@/lib/services/organization/finance';
 import { EXPORT_ROW_LIMIT } from '@/lib/services/export/xlsx';
 import { listOrgInvoices, type OrgInvoiceRow } from '@/lib/services/organization/invoices';
+import type { OrgOrderScope } from '@/lib/auth/organizationPolicy';
 
 /**
  * Данные для выгрузки платежей организации (этап 9 PR-3, ФТ-12.2) — ровно то,
@@ -33,13 +34,19 @@ export type PaymentsExportData = {
 
 export async function getPaymentsExportData(
   prisma: PrismaClient,
-  organizationId: string
+  organizationId: string,
+  /**
+   * `У-236`: граница видимости участника. Сотрудник ЦО передаёт `null` — у него
+   * своя граница (скоуп менеджера уже выбрал организацию). Без этого аргумента
+   * выгрузка отдавала бы участнику ровно то, что спрятано на экране.
+   */
+  scope: OrgOrderScope
 ): Promise<PaymentsExportData> {
   const [{ rows, total }, kpis, org, invoices] = await Promise.all([
-    listOrgPaymentsForExport(prisma, { organizationId, limit: EXPORT_ROW_LIMIT }),
-    getOrgFinanceKpis(prisma, organizationId),
+    listOrgPaymentsForExport(prisma, { organizationId, limit: EXPORT_ROW_LIMIT, scope }),
+    getOrgFinanceKpis(prisma, organizationId, scope),
     prisma.organization.findUnique({ where: { id: organizationId }, select: { name: true } }),
-    listOrgInvoices(prisma, { organizationId }),
+    listOrgInvoices(prisma, { organizationId, scope }),
   ]);
 
   return { rows, total, kpis, organizationName: org?.name ?? '—', invoices: invoices.rows };

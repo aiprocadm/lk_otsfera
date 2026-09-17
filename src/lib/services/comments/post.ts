@@ -1,7 +1,7 @@
 import type { Comment, PrismaClient } from '@prisma/client';
 import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { canSeeOrder } from '@/lib/auth/organizationPolicy';
+import { canSeeOrder, memberOrderScope } from '@/lib/auth/organizationPolicy';
 import {
   canSeeOrder as canSeeOrderMgr,
   managedOrgIds,
@@ -61,11 +61,30 @@ export async function postOrderComment(
       select: {
         id: true,
         organizationId: true,
-        organization: { select: { name: true } },
+        organization: { select: { name: true, membersSeeOwnOrdersOnly: true } },
+        // `У-236`: комментировать можно только видимый заказ — те же два
+        // правила, что у списка и карточки. Без этой проверки участник с
+        // суженной видимостью писал бы в чужой заказ по прямой ссылке.
+        primaryContact: { select: { userId: true } },
+        promotedFromLead: { select: { sourceRequest: { select: { submittedByUserId: true } } } },
       },
     });
     if (!order) return { ok: false, error: 'not_found' };
-    if (!canSeeOrder(session, order)) return { ok: false, error: 'access_denied' };
+    const scope = memberOrderScope(
+      session,
+      order.organizationId,
+      // Связь обязательна по схеме, но у осиротевшего заказа (`organizationId`
+      // пуст — так его готовит регресс legacy-ветки) её нет. Читаем безопасно:
+      // отказ должен прийти из `canSeeOrder`, а не из падения на `undefined`.
+      order.organization?.membersSeeOwnOrdersOnly ?? false
+    );
+    const ownedByViewer = scope
+      ? order.primaryContact?.userId === scope.viewerUserId ||
+        order.promotedFromLead?.sourceRequest?.submittedByUserId === scope.viewerUserId
+      : true;
+    if (!canSeeOrder(session, { ...order, ownedByViewer }, scope !== null)) {
+      return { ok: false, error: 'access_denied' };
+    }
 
     const comment = await prisma.comment.create({
       data: { orderId, body, authorId: session.sub },

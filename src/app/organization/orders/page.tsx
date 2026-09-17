@@ -6,6 +6,7 @@ import { OrgAppShell } from '@/components/organization/org-app-shell';
 import { OrgOrdersFilter } from '@/components/organization/org-orders-filter';
 import { OrgOrdersTable, OrgOrdersCardList } from '@/components/organization/org-orders-table';
 import { listOrgOrders } from '@/lib/services/organization/orders';
+import { orgOrderScope } from '@/lib/services/organization/memberScope';
 import { pluralizeRu } from '@/lib/format';
 import { Paginator } from '@/components/ui';
 
@@ -62,8 +63,12 @@ export default async function OrganizationOrdersPage({
     ? (sp.financial as FinancialStatus)
     : undefined;
 
+  // `У-236`: граница участника считается один раз и уходит в сервис.
+  const scope = await orgOrderScope(prisma, ctx.session, ctx.activeOrgId);
+
   const { rows, total } = await listOrgOrders(prisma, {
     organizationId: ctx.activeOrgId,
+    scope,
     search: sp.search,
     executionStatus,
     financialStatus,

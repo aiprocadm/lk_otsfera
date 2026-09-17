@@ -12,6 +12,7 @@ import {
   parseInvoiceState,
 } from '@/lib/services/organization/invoices';
 import { OrgFinanceInvoices } from '@/components/organization/org-finance-invoices';
+import { orgOrderScope } from '@/lib/services/organization/memberScope';
 
 import { PageHeader } from '@/components/ui/page-header';
 export default async function OrganizationFinancePage({
@@ -28,10 +29,13 @@ export default async function OrganizationFinancePage({
     to: parseInvoiceDate(sp.to, 'to'),
     state: parseInvoiceState(sp.state),
   };
+  // `У-236`: деньги показывают номера и суммы заказов, поэтому граница
+  // видимости участника действует и на «Финансах», и на выгрузке.
+  const scope = await orgOrderScope(prisma, ctx.session, ctx.activeOrgId);
   const [kpis, payments, invoices] = await Promise.all([
-    getOrgFinanceKpis(prisma, ctx.activeOrgId),
-    listOrgPayments(prisma, { organizationId: ctx.activeOrgId }),
-    listOrgInvoices(prisma, { organizationId: ctx.activeOrgId, ...invoiceFilter }),
+    getOrgFinanceKpis(prisma, ctx.activeOrgId, scope),
+    listOrgPayments(prisma, { organizationId: ctx.activeOrgId, scope }),
+    listOrgInvoices(prisma, { organizationId: ctx.activeOrgId, ...invoiceFilter, scope }),
   ]);
 
   return (
