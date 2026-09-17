@@ -266,6 +266,8 @@ export const AUDIT_ACTIONS = [
   // `У-127`: правила маршрутизации уведомлений.
   'notification_rule_changed',
   'notification_rules_reset',
+  // Этап 5 ТЗ 12.09.2026 (`У-229`): личная настройка «событие × канал».
+  'notification_preferences_changed',
   // `У-129`: сроки и лимиты входа.
   'login_policies_changed',
   // `У-128`: свои тексты писем.

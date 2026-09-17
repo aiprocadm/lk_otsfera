@@ -15,6 +15,28 @@ vi.mock('@/lib/services/telegram/link', () => ({ getTelegramStatus }));
 const { getNotificationSettings } = vi.hoisted(() => ({ getNotificationSettings: vi.fn() }));
 vi.mock('@/lib/services/notifications/preferences', () => ({ getNotificationSettings }));
 
+// Этап 5 (PR-2, `У-229`): матрица «событие × канал» — под флагом `notification_center`.
+// Остальные флаги остаются настоящими: подменяем ровно один.
+const { getNotificationPreferenceMatrix, notificationCenterOn } = vi.hoisted(() => ({
+  getNotificationPreferenceMatrix: vi.fn(),
+  notificationCenterOn: { value: false },
+}));
+vi.mock('@/lib/services/notifications/eventPreferences', () => ({
+  getNotificationPreferenceMatrix,
+}));
+vi.mock('@/components/settings/notification-preferences-matrix', () => ({
+  NotificationPreferencesMatrix: () =>
+    React.createElement('div', { 'data-testid': 'prefs-matrix' }, 'MATRIX'),
+}));
+vi.mock('@/lib/featureFlags', async (importOriginal) => {
+  const orig = await importOriginal<typeof import('@/lib/featureFlags')>();
+  return {
+    ...orig,
+    isFeatureEnabled: (flag: Parameters<typeof orig.isFeatureEnabled>[0]) =>
+      flag === 'notification_center' ? notificationCenterOn.value : orig.isFeatureEnabled(flag),
+  };
+});
+
 // Этап 8 (PR-1): реквизиты организации — сервис и карточка стабятся.
 const { getOrgRequisites } = vi.hoisted(() => ({ getOrgRequisites: vi.fn() }));
 vi.mock('@/lib/services/organization/requisites', () => ({ getOrgRequisites }));
@@ -113,6 +135,25 @@ describe('OrganizationSettingsPage (У-114)', () => {
     expect(container.querySelector('[data-testid="notif-card"]')).not.toBeNull();
     expect(getNotificationSettings).toHaveBeenCalled();
     expect(getTelegramStatus).not.toHaveBeenCalled();
+  });
+
+  it('«Уведомления»: матрица «событие × канал» — под флагом центра уведомлений (У-229)', async () => {
+    getNotificationPreferenceMatrix.mockReset().mockResolvedValue({
+      ok: true,
+      matrix: { columns: ['email'], rows: [] },
+    });
+    const off = await render('notifications');
+    expect(off.container.querySelector('[data-testid="prefs-matrix"]')).toBeNull();
+    expect(getNotificationPreferenceMatrix).not.toHaveBeenCalled();
+
+    notificationCenterOn.value = true;
+    try {
+      const on = await render('notifications');
+      expect(on.container.querySelector('[data-testid="prefs-matrix"]')).not.toBeNull();
+      expect(getNotificationPreferenceMatrix).toHaveBeenCalledWith({}, CTX.session);
+    } finally {
+      notificationCenterOn.value = false;
+    }
   });
 
   it('«Безопасность»: активные сессии', async () => {

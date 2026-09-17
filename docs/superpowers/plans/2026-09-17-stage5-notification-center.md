@@ -30,13 +30,13 @@ unit (4 четверти), integration (4 четверти). Страж — то
 
 ## PR-2. Личные настройки (`У-229`)
 
-- [ ] Миграция `UserNotificationPreference` (`userId`, `eventType`, `channels String[]`, `@@unique([userId, eventType])`)
-- [ ] `services/notifications/preferences.ts`: матрица для роли (события `notificationTypesFor`, каналы — только привязанные, правило компании как умолчание и как потолок), `savePreferences` с отказом `channel_disabled_by_company`, аудит
-- [ ] `CHANNEL_RECIPIENT_SELECT` + `notificationPreferences`; `dispatchToRecipient`: `effective = routed ∩ pref` до развилки inline/очередь
-- [ ] `preferences-matrix.tsx` во вкладке «Уведомления» личных настроек (все пять кабинетов с настройками); запрещённый канал — серым с подсказкой «отключено вашей компанией»; под флагом
-- [ ] Server action `notificationPreferences.ts` (`savePreferences`)
-- [ ] Страж `notifications.preferences-narrow` (мутация: `∩` → `∪`); тесты сервиса, компонента, действия
-- [ ] AUDIT: `У-229` → ✅; CHANGELOG; STATUS
+- [x] Миграция `UserNotificationPreference` (`userId`, `eventType`, `channels String[]`, `@@unique([userId, eventType])`)
+- [x] `services/notifications/preferences.ts`: матрица для роли (события `notificationTypesFor`, каналы — только привязанные, правило компании как умолчание и как потолок), `savePreferences` с отказом `channel_disabled_by_company`, аудит
+- [x] `CHANNEL_RECIPIENT_SELECT` + `notificationPreferences`; `dispatchToRecipient`: `effective = routed ∩ pref` до развилки inline/очередь
+- [x] `preferences-matrix.tsx` во вкладке «Уведомления» личных настроек (все пять кабинетов с настройками); запрещённый канал — серым с подсказкой «отключено вашей компанией»; под флагом
+- [x] Server action `notificationPreferences.ts` (`savePreferences`)
+- [x] Страж `notifications.preferences-narrow` (мутация: `∩` → `∪`); тесты сервиса, компонента, действия
+- [x] AUDIT: `У-229` → ✅; CHANGELOG; STATUS
 
 ## PR-3. Единая точка, дедуп, маршруты (`У-231`, `У-232`, `У-233`)
 

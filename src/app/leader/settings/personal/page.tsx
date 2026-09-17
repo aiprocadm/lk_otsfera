@@ -9,6 +9,8 @@ import { getStaffInternalPhone } from '@/lib/services/manager/staffProfile';
 import { readPersonalSettingsTab } from '@/lib/navigation/personalSettingsTab';
 import { StaffPersonalSettings } from '@/components/settings/staff-personal-settings';
 
+import { getNotificationPreferenceMatrix } from '@/lib/services/notifications/eventPreferences';
+import { isFeatureEnabled } from '@/lib/featureFlags';
 export const metadata: Metadata = { title: 'Личные настройки · Настройки' };
 
 /**
@@ -39,6 +41,11 @@ export default async function LeaderPersonalSettingsPage({
       : null;
   const notifications =
     tab === 'notifications' ? (await getNotificationSettings(prisma, session)).view : null;
+  // `У-229`: матрица «событие × канал» — под флагом центра уведомлений (`Р-Э5-8`).
+  const preferences =
+    tab === 'notifications' && isFeatureEnabled('notification_center')
+      ? (await getNotificationPreferenceMatrix(prisma, session)).matrix
+      : null;
 
   return (
     <StaffPersonalSettings
@@ -47,6 +54,7 @@ export default async function LeaderPersonalSettingsPage({
       withPhone={withPhone}
       profile={profile}
       notifications={notifications}
+      preferences={preferences}
     />
   );
 }

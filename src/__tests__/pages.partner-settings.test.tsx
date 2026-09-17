@@ -16,6 +16,28 @@ vi.mock('@/lib/services/telegram/link', () => ({ getTelegramStatus }));
 const { getNotificationSettings } = vi.hoisted(() => ({ getNotificationSettings: vi.fn() }));
 vi.mock('@/lib/services/notifications/preferences', () => ({ getNotificationSettings }));
 
+// Этап 5 (PR-2, `У-229`): матрица «событие × канал» — под флагом `notification_center`.
+// Остальные флаги остаются настоящими: подменяем ровно один.
+const { getNotificationPreferenceMatrix, notificationCenterOn } = vi.hoisted(() => ({
+  getNotificationPreferenceMatrix: vi.fn(),
+  notificationCenterOn: { value: false },
+}));
+vi.mock('@/lib/services/notifications/eventPreferences', () => ({
+  getNotificationPreferenceMatrix,
+}));
+vi.mock('@/components/settings/notification-preferences-matrix', () => ({
+  NotificationPreferencesMatrix: () =>
+    React.createElement('div', { 'data-testid': 'prefs-matrix' }, 'MATRIX'),
+}));
+vi.mock('@/lib/featureFlags', async (importOriginal) => {
+  const orig = await importOriginal<typeof import('@/lib/featureFlags')>();
+  return {
+    ...orig,
+    isFeatureEnabled: (flag: Parameters<typeof orig.isFeatureEnabled>[0]) =>
+      flag === 'notification_center' ? notificationCenterOn.value : orig.isFeatureEnabled(flag),
+  };
+});
+
 // Этап 8 (PR-1): реквизиты партнёра — сервис и карточка стабятся.
 const { getPartnerRequisites } = vi.hoisted(() => ({ getPartnerRequisites: vi.fn() }));
 vi.mock('@/lib/services/partner/requisites', () => ({ getPartnerRequisites }));
@@ -133,6 +155,40 @@ describe('PartnerSettingsPage', () => {
     expect(getTelegramStatus).not.toHaveBeenCalled();
     expect(getNotificationSettings).toHaveBeenCalledWith(expect.anything(), SESSION);
     expect(container.textContent).toContain('Настройки');
+  });
+
+  it('«Уведомления»: матрица «событие × канал» — под флагом центра уведомлений (У-229)', async () => {
+    requirePartner.mockResolvedValue(SESSION);
+    getNotificationSettings.mockResolvedValue({
+      ok: true,
+      view: {
+        emailAlwaysOn: true,
+        telegram: { available: true, linked: false, enabled: true },
+        max: { available: false, linked: false, enabled: false },
+        whatsapp: { available: false, phone: null, enabled: false },
+      },
+    });
+    getNotificationPreferenceMatrix.mockReset().mockResolvedValue({
+      ok: true,
+      matrix: { columns: ['email'], rows: [] },
+    });
+    const render = () =>
+      renderServerComponent(
+        PartnerSettingsPage({ searchParams: Promise.resolve({ tab: 'notifications' }) })
+      );
+
+    const off = await render();
+    expect(off.container.querySelector('[data-testid="prefs-matrix"]')).toBeNull();
+    expect(getNotificationPreferenceMatrix).not.toHaveBeenCalled();
+
+    notificationCenterOn.value = true;
+    try {
+      const on = await render();
+      expect(on.container.querySelector('[data-testid="prefs-matrix"]')).not.toBeNull();
+      expect(getNotificationPreferenceMatrix).toHaveBeenCalledWith(expect.anything(), SESSION);
+    } finally {
+      notificationCenterOn.value = false;
+    }
   });
 
   // ── У-60: вкладки настроек партнёра ──────────────────────────────────────

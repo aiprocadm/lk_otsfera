@@ -34,6 +34,18 @@ vi.mock('@/components/settings/notification-channels-card', () => ({
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 
+// Этап 5 (PR-2, `У-229`): матрица «событие × канал» — под флагом `notification_center`.
+const { getNotificationPreferenceMatrix } = vi.hoisted(() => ({
+  getNotificationPreferenceMatrix: vi.fn(),
+}));
+vi.mock('@/lib/services/notifications/eventPreferences', () => ({
+  getNotificationPreferenceMatrix,
+}));
+vi.mock('@/components/settings/notification-preferences-matrix', () => ({
+  NotificationPreferencesMatrix: () =>
+    React.createElement('div', { 'data-testid': 'prefs-matrix' }, 'MATRIX'),
+}));
+
 vi.mock('@/components/settings/security-card', () => ({
   SecurityCard: () => React.createElement('div', { 'data-testid': 'security-card' }, 'SECURITY'),
 }));
@@ -108,6 +120,21 @@ describe('ManagerSettingsPage (У-114)', () => {
     expect(container.querySelector('[data-testid="notif-card"]')).not.toBeNull();
     expect(getNotificationSettings).toHaveBeenCalled();
     expect(getTelegramStatus).not.toHaveBeenCalled();
+  });
+
+  it('«Уведомления»: матрица «событие × канал» — только под флагом центра уведомлений (У-229)', async () => {
+    const off = await render('notifications');
+    expect(off.container.querySelector('[data-testid="prefs-matrix"]')).toBeNull();
+    expect(getNotificationPreferenceMatrix).not.toHaveBeenCalled();
+
+    isFeatureEnabled.mockImplementation((flag: string) => flag === 'notification_center');
+    getNotificationPreferenceMatrix.mockResolvedValue({
+      ok: true,
+      matrix: { columns: ['email'], rows: [] },
+    });
+    const on = await render('notifications');
+    expect(on.container.querySelector('[data-testid="prefs-matrix"]')).not.toBeNull();
+    expect(getNotificationPreferenceMatrix).toHaveBeenCalledWith(prismaMock, SESSION);
   });
 
   it('«Безопасность»: сессии, а коды восстановления — под флагом', async () => {
