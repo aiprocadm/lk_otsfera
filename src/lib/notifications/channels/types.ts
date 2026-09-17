@@ -7,6 +7,7 @@
  * `NotificationChannel` + строка в реестре (`registry.ts`), места генерации
  * событий не меняются.
  */
+import type { DailyDigestProps } from '@/lib/email/templates/daily-digest';
 import type {
   sendNotificationEmail,
   sendOrgDocumentPublishedEmail,
@@ -51,6 +52,8 @@ type EmailTemplatePropsMap = {
   managerOrderStatusChanged: PropsOf<typeof sendManagerOrderStatusChangedEmail>;
   partnerDocumentPublished: PropsOf<typeof sendPartnerDocumentPublishedEmail>;
   commissionReady: PropsOf<typeof sendCommissionReadyEmail>;
+  // Этап 5 (`У-230`): дайджест шлёт воркер напрямую; ключ нужен реестру `У-128`.
+  dailyDigest: DailyDigestProps;
 };
 
 export type EmailTemplateKey = keyof EmailTemplatePropsMap;
@@ -106,6 +109,8 @@ export const CHANNEL_RECIPIENT_SELECT = {
   // `У-229`: личные настройки по событиям грузятся ВМЕСТЕ с получателем —
   // доставка не ходит в базу второй раз на каждую рассылку.
   notificationPreferences: { select: { eventType: true, channels: true } },
+  // `У-230`: у пользователя с дайджестом почта вычитается из веера несрочных типов.
+  digestEnabled: true,
 } as const;
 
 export type ChannelRecipient = {
@@ -124,6 +129,8 @@ export type ChannelRecipient = {
    * необязательное: получатель, собранный без него, доставляется как раньше.
    */
   notificationPreferences?: ReadonlyArray<{ eventType: string; channels: string[] }> | undefined;
+  /** `У-230`: дневной дайджест включён — несрочные письма не уходят сразу. */
+  digestEnabled?: boolean | undefined;
 };
 
 export interface NotificationChannel {

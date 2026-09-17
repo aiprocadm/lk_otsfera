@@ -28,6 +28,12 @@ vi.mock('@/components/settings/notification-preferences-matrix', () => ({
   NotificationPreferencesMatrix: () =>
     React.createElement('div', { 'data-testid': 'prefs-matrix' }, 'MATRIX'),
 }));
+// Этап 5 (PR-4, `У-230`): карточка дайджеста — тоже под флагом `notification_center`.
+const { getDigestSettings } = vi.hoisted(() => ({ getDigestSettings: vi.fn() }));
+vi.mock('@/lib/services/notifications/digest', () => ({ getDigestSettings }));
+vi.mock('@/components/settings/digest-settings-card', () => ({
+  DigestSettingsCard: () => React.createElement('div', { 'data-testid': 'digest-card' }, 'DIGEST'),
+}));
 vi.mock('@/lib/featureFlags', async (importOriginal) => {
   const orig = await importOriginal<typeof import('@/lib/featureFlags')>();
   return {
@@ -145,11 +151,19 @@ describe('OrganizationSettingsPage (У-114)', () => {
     const off = await render('notifications');
     expect(off.container.querySelector('[data-testid="prefs-matrix"]')).toBeNull();
     expect(getNotificationPreferenceMatrix).not.toHaveBeenCalled();
+    expect(off.container.querySelector('[data-testid="digest-card"]')).toBeNull();
+    expect(getDigestSettings).not.toHaveBeenCalled();
+    getDigestSettings.mockResolvedValue({
+      ok: true,
+      settings: { eligible: true, enabled: false, hourMsk: 9, lastSentAt: null },
+    });
 
     notificationCenterOn.value = true;
     try {
       const on = await render('notifications');
       expect(on.container.querySelector('[data-testid="prefs-matrix"]')).not.toBeNull();
+      expect(on.container.querySelector('[data-testid="digest-card"]')).not.toBeNull();
+      expect(getDigestSettings).toHaveBeenCalledWith(expect.anything(), CTX.session);
       expect(getNotificationPreferenceMatrix).toHaveBeenCalledWith({}, CTX.session);
     } finally {
       notificationCenterOn.value = false;

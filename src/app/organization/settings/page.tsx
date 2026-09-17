@@ -14,6 +14,8 @@ import { PERSONAL_SETTINGS_SUBTITLE } from '@/lib/navigation/personalSettings';
 import { PageHeader } from '@/components/ui/page-header';
 import { getNotificationPreferenceMatrix } from '@/lib/services/notifications/eventPreferences';
 import { NotificationPreferencesMatrix } from '@/components/settings/notification-preferences-matrix';
+import { DigestSettingsCard } from '@/components/settings/digest-settings-card';
+import { getDigestSettings } from '@/lib/services/notifications/digest';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 export const dynamic = 'force-dynamic';
 
@@ -42,6 +44,11 @@ export default async function OrganizationSettingsPage({
     tab === 'notifications' && isFeatureEnabled('notification_center')
       ? (await getNotificationPreferenceMatrix(prisma, ctx.session)).matrix
       : null;
+  // `У-230`: дневной дайджест — тоже под флагом (`Р-Э5-8`).
+  const digest =
+    tab === 'notifications' && isFeatureEnabled('notification_center')
+      ? (await getDigestSettings(prisma, ctx.session)).settings
+      : null;
 
   return (
     <OrgAppShell
@@ -61,6 +68,7 @@ export default async function OrganizationSettingsPage({
               <>
                 <NotificationChannelsCard settings={notifications.view} />
                 {preferences ? <NotificationPreferencesMatrix matrix={preferences} /> : null}
+                {digest ? <DigestSettingsCard settings={digest} /> : null}
               </>
             ) : null,
             security: <SecurityCard />,

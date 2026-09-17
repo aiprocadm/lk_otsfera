@@ -25,6 +25,8 @@ export const QUEUE_NAMES = [
   'notifications.certificateExpiry',
   'notifications.calendarReminder',
   'notifications.taskDueSoon',
+  // Этап 5 (`У-230`): ежечасный сбор дайджеста; час отправки — у каждого свой.
+  'notifications.digest',
   'inbound.email.poll',
   'telephony.mango.recording',
   'telephony.mango.backfill',

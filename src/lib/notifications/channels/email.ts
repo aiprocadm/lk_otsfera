@@ -9,6 +9,7 @@
  */
 import {
   sendNotificationEmail,
+  sendDailyDigestEmail,
   sendOrgDocumentPublishedEmail,
   sendOrgDocumentSentEmail,
   sendOrgPaymentReceivedEmail,
@@ -49,6 +50,7 @@ const EMAIL_TEMPLATES: Record<EmailTemplateKey, () => EmailSender> = {
   managerOrderStatusChanged: () => sendManagerOrderStatusChangedEmail as EmailSender,
   partnerDocumentPublished: () => sendPartnerDocumentPublishedEmail as EmailSender,
   commissionReady: () => sendCommissionReadyEmail as EmailSender,
+  dailyDigest: () => sendDailyDigestEmail as EmailSender,
 };
 
 export const emailChannel: NotificationChannel = {

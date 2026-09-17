@@ -54,14 +54,14 @@ unit (4 четверти), integration (4 четверти). Страж — то
 
 ## PR-4. Дайджест (`У-230`, «Важно»)
 
-- [ ] Миграция: `User.digestEnabled`, `digestHourMsk`, `digestLastSentAt`
-- [ ] Флаг `urgent` в реестре: `document_published`, `invoice_paid`, `messenger_message`, `client_request_status_changed`
-- [ ] `dispatchToRecipient`: у пользователя с дайджестом канал `email` вычитается для несрочных типов
-- [ ] Очередь `notifications.digest`, расписание ежечасно по Москве (`editable: true`), процессор `notifications-digest.ts`: выбор по часу, атомарный claim по `digestLastSentAt`, сбор за окно без срочных, пусто → не шлём, предел 50 строк
-- [ ] Шаблон `dailyDigest` в реестре писем и в `send.tsx`; правится в «Шаблонах писем»
-- [ ] Галочка «Получать письма дайджестом раз в день» и час — во вкладке «Уведомления» (только organization/partner; сервис отвергает прочие роли); под флагом
-- [ ] Страж `notifications.digest` (мутация: снять проверку пустоты); `worker.notifications-digest.integration`
-- [ ] AUDIT: `У-230` → ✅; CHANGELOG; STATUS
+- [x] Миграция: `User.digestEnabled`, `digestHourMsk`, `digestLastSentAt`
+- [x] Флаг `urgent` в реестре: `document_published`, `invoice_paid`, `messenger_message`, `client_request_status_changed`
+- [x] `dispatchToRecipient`: у пользователя с дайджестом канал `email` вычитается для несрочных типов
+- [x] Очередь `notifications.digest`, расписание ежечасно по Москве (`editable: true`), процессор `notifications-digest.ts`: выбор по часу, атомарный claim по `digestLastSentAt`, сбор за окно без срочных, пусто → не шлём, предел 50 строк
+- [x] Шаблон `dailyDigest` в реестре писем и в `send.tsx`; правится в «Шаблонах писем»
+- [x] Галочка «Получать письма дайджестом раз в день» и час — во вкладке «Уведомления» (только organization/partner; сервис отвергает прочие роли); под флагом
+- [x] Страж `notifications.digest` (мутация: снять проверку пустоты); `worker.notifications-digest.integration`
+- [x] AUDIT: `У-230` → ✅; CHANGELOG; STATUS
 
 ## PR-5. Стражи мутацией, аудит, глоссарий, close-out (`У-233`)
 

@@ -6,7 +6,7 @@
  * Notification-строка уже создана и остаётся источником истины).
  */
 import { primeIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
-import { narrowByEventPreference } from './preferences';
+import { effectiveChannels } from './preferences';
 import { getChannels } from './registry';
 import type { ChannelKey, ChannelPayload, ChannelRecipient, ChannelSendResult } from './types';
 
@@ -27,12 +27,9 @@ export async function deliverToRecipient(
   const { prisma } = await import('@/lib/db/prisma');
   await primeIntegrationSettingsCache(prisma);
 
-  // `У-229`: правило компании (`opts.channels`) ∩ личная настройка получателя.
-  const effective = narrowByEventPreference(
-    user.notificationPreferences,
-    payload.type,
-    opts?.channels
-  );
+  // `У-229`: правило компании (`opts.channels`) ∩ личная настройка получателя;
+  // `У-230`: у дайджеста почта вычитается для несрочных типов.
+  const effective = effectiveChannels(user, payload.type, opts?.channels);
   const results: DeliveryResults = {};
   for (const channel of getChannels()) {
     if (effective && !effective.includes(channel.key)) continue;

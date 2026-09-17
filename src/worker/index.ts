@@ -19,6 +19,7 @@ import {
   registerTaskRecurrenceSchedules,
   registerProposalExpirySchedules,
   registerSlaEscalationSchedules,
+  registerDigestSchedules,
   loadPausedSchedulerIds,
 } from '@/lib/jobs/scheduling';
 import { prisma } from '@/lib/db/prisma';
@@ -39,6 +40,7 @@ import { calculateMonthlyCommissionsProcessor } from './processors/calculate-mon
 import { scanDocumentProcessor } from './processors/scan-document';
 import { evaluateAlertsProcessor } from './processors/evaluate-alerts';
 import { certificateExpiryProcessor } from './processors/certificate-expiry';
+import { notificationsDigestProcessor } from './processors/notifications-digest';
 import { calendarReminderProcessor } from './processors/calendar-reminder';
 import { taskDueSoonProcessor } from './processors/task-due-soon';
 import { automationRunProcessor } from './processors/automation-run';
@@ -200,6 +202,8 @@ async function main() {
   startWorker('notifications.certificateExpiry', certificateExpiryProcessor as Processor);
   startWorker('notifications.calendarReminder', calendarReminderProcessor as Processor);
   startWorker('notifications.taskDueSoon', taskDueSoonProcessor as Processor);
+  // Этап 5 (`У-230`): ежечасный сбор дневного дайджеста.
+  startWorker('notifications.digest', notificationsDigestProcessor as Processor);
   // `У-164`: ежедневное истечение срока коммерческих предложений.
   startWorker('docs.expireProposals', expireProposalsProcessor as Processor);
   // Этап 4 (`У-223`): исполнение правил автоматизации, конкурентность 2.
@@ -229,6 +233,7 @@ async function main() {
     const taskDueSoonSchedules = await registerTaskDueSoonSchedules();
     const proposalExpirySchedules = await registerProposalExpirySchedules();
     const slaEscalationSchedules = await registerSlaEscalationSchedules(getQueue, patterns);
+    const digestSchedules = await registerDigestSchedules(getQueue);
     const taskRecurrenceSchedules = await registerTaskRecurrenceSchedules();
     for (const r of [
       ...syncSchedules,
@@ -240,6 +245,7 @@ async function main() {
       ...proposalExpirySchedules,
       ...slaEscalationSchedules,
       ...taskRecurrenceSchedules,
+      ...digestSchedules,
     ]) {
       log.info('[worker] schedule registered', {
         schedulerId: r.schedulerId,

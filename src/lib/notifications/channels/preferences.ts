@@ -9,6 +9,7 @@
  * канал всегда включён и не отключается (ТЗ §12.1).
  */
 import { z } from 'zod';
+import { isUrgentNotificationType } from '../registry';
 import { ROUTABLE_CHANNELS } from '../routing';
 import type { ChannelKey } from './types';
 
@@ -68,4 +69,25 @@ export function narrowByEventPreference(
   const allowed = new Set(pref.channels);
   const base: readonly ChannelKey[] = channels ?? ROUTABLE_CHANNELS;
   return base.filter((ch) => allowed.has(ch));
+}
+
+/**
+ * Итоговый веер каналов получателя (`У-229` + `У-230`): правило компании ∩
+ * личная настройка, а у пользователя с дайджестом для НЕсрочного типа ещё и
+ * минус `email` — письмо соберёт ежечасный воркер (`Р-Э5-6`). Запись в кабинете
+ * остаётся всегда: она и есть содержимое дайджеста. Один помощник на обе ветки
+ * доставки (inline и очередь), чтобы правило не разошлось.
+ */
+export function effectiveChannels(
+  user: {
+    notificationPreferences?: ReadonlyArray<{ eventType: string; channels: string[] }> | undefined;
+    digestEnabled?: boolean | undefined;
+  },
+  eventType: string,
+  channels: readonly ChannelKey[] | undefined
+): ChannelKey[] | undefined {
+  const narrowed = narrowByEventPreference(user.notificationPreferences, eventType, channels);
+  if (!user.digestEnabled || isUrgentNotificationType(eventType)) return narrowed;
+  const base: readonly ChannelKey[] = narrowed ?? ROUTABLE_CHANNELS;
+  return base.filter((ch) => ch !== 'email');
 }

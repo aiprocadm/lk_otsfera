@@ -40,6 +40,12 @@ export type NotificationTypeSpec = {
    * по себе (сообщения).
    */
   noDedup?: true;
+  /**
+   * Этап 5 PR-4 (`Р-Э5-6`): срочный тип уходит письмом сразу и в дайджест не
+   * попадает — даже у пользователя с включённым дайджестом. Список из пакета
+   * дословно: документ, оплаченный счёт, сообщение, статус заявки.
+   */
+  urgent?: true;
   /** Имя из ТЗ, если оно отличается от исторического кода. */
   tzAlias?: string;
 };
@@ -47,6 +53,7 @@ export type NotificationTypeSpec = {
 export const NOTIFICATION_TYPES = {
   // ── Клиентский контур: организация ──────────────────────────────────────
   document_published: {
+    urgent: true,
     label: 'Опубликован документ',
     icon: '📄',
     audience: ['organization', 'partner'],
@@ -96,6 +103,7 @@ export const NOTIFICATION_TYPES = {
     producer: 'src/lib/notifications/manager.ts',
   },
   invoice_paid: {
+    urgent: true,
     label: 'Счёт оплачен',
     icon: '💰',
     audience: ['manager'],
@@ -151,6 +159,7 @@ export const NOTIFICATION_TYPES = {
     tzAlias: 'new_client_request',
   },
   client_request_status_changed: {
+    urgent: true,
     label: 'Изменился статус заявки',
     icon: '📮',
     audience: ['organization', 'partner'],
@@ -263,6 +272,7 @@ export const NOTIFICATION_TYPES = {
   // Спека 2026-09-12 (Р-М-9): клиент написал в диалог мессенджера — менеджерам
   // организации, к которой привязан диалог.
   messenger_message: {
+    urgent: true,
     noDedup: true,
     label: 'Новое сообщение в мессенджере',
     icon: '📱',
@@ -390,5 +400,19 @@ export function notificationTypesForRole(role: NotificationRoleKey): Notificatio
 export function notificationTypesFor(audience: NotificationAudience): NotificationTypeKey[] {
   return (Object.keys(NOTIFICATION_TYPES) as NotificationTypeKey[]).filter((key) =>
     (NOTIFICATION_TYPES[key].audience as readonly NotificationAudience[]).includes(audience)
+  );
+}
+
+/** `Р-Э5-6`: срочный тип — письмом сразу, в дайджест не попадает. */
+export function isUrgentNotificationType(type: string): boolean {
+  return (
+    (NOTIFICATION_TYPES as Record<string, NotificationTypeSpec | undefined>)[type]?.urgent === true
+  );
+}
+
+/** Ключи срочных типов — для исключения из выборки дайджеста. */
+export function urgentNotificationTypes(): NotificationTypeKey[] {
+  return (Object.keys(NOTIFICATION_TYPES) as NotificationTypeKey[]).filter(
+    (k) => (NOTIFICATION_TYPES[k] as NotificationTypeSpec).urgent === true
   );
 }
