@@ -1,6 +1,12 @@
 import * as React from 'react';
 import { log } from '@/lib/logging';
 import {
+  DailyDigestTemplate,
+  dailyDigestSubject,
+  dailyDigestText,
+  type DailyDigestProps,
+} from './templates/daily-digest';
+import {
   defaultTransport,
   getEmailFrom,
   isEmailEnabled,
@@ -475,6 +481,23 @@ export async function sendManagerDocumentUploadedByPartnerEmail(
       subject: managerDocumentUploadedByPartnerSubject(props),
       html: await renderHtml(<ManagerDocumentUploadedByPartner {...props} />),
       text: managerDocumentUploadedByPartnerText(props),
+    },
+    options
+  );
+}
+
+/** Этап 5 (`У-230`): дневной дайджест — одно письмо на все несрочные события за окно. */
+export async function sendDailyDigestEmail(
+  args: { to: string } & DailyDigestProps,
+  options: SendOptions = {}
+): Promise<SendResult> {
+  const { to, ...props } = args;
+  return send(
+    {
+      to,
+      subject: dailyDigestSubject(props),
+      html: await renderHtml(<DailyDigestTemplate {...props} />),
+      text: dailyDigestText(props),
     },
     options
   );

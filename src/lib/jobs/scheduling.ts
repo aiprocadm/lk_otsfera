@@ -385,6 +385,51 @@ export async function registerSlaEscalationSchedules(
   return results;
 }
 
+type DigestSchedule = {
+  queueName: Extract<QueueName, 'notifications.digest'>;
+  schedulerId: string;
+  pattern: string;
+  tz: string;
+};
+
+/** Идентификатор расписания дайджеста — он же ключ правки из интерфейса. */
+const NOTIFICATION_DIGEST_SCHEDULER_ID = 'notifications.digest.cron';
+
+// Этап 5 ТЗ 12.09.2026 (`У-230`, `Р-Э5-6`): воркер ходит ЕЖЕЧАСНО по Москве и
+// выбирает тех, у кого `digestHourMsk` совпал с текущим часом — час отправки у
+// каждого свой, поэтому одного дневного запуска было бы мало.
+const DIGEST_SCHEDULES: ReadonlyArray<DigestSchedule> = [
+  {
+    queueName: 'notifications.digest',
+    schedulerId: NOTIFICATION_DIGEST_SCHEDULER_ID,
+    pattern: '0 * * * *',
+    tz: DEFAULT_SYNC_TZ,
+  },
+] as const;
+
+export async function registerDigestSchedules(
+  getQueueFn: GetQueueFn = getQueue
+): Promise<Array<{ schedulerId: string; queueName: string; pattern: string; tz: string }>> {
+  const results = [];
+  const triggeredAt = new Date().toISOString();
+  for (const schedule of DIGEST_SCHEDULES) {
+    const pattern = schedule.pattern;
+    const queue = getQueueFn(schedule.queueName);
+    await queue.upsertJobScheduler(
+      schedule.schedulerId,
+      { pattern, tz: schedule.tz },
+      { data: { triggeredAt, reason: 'cron' } }
+    );
+    results.push({
+      schedulerId: schedule.schedulerId,
+      queueName: schedule.queueName,
+      pattern,
+      tz: schedule.tz,
+    });
+  }
+  return results;
+}
+
 export type CertExpirySchedule = {
   queueName: Extract<QueueName, 'notifications.certificateExpiry'>;
   schedulerId: string;
@@ -497,6 +542,11 @@ export const ALL_SCHEDULES: ReadonlyArray<{
   ...TASK_DUE_SOON_SCHEDULES.map((s) => ({ ...s, editable: false })),
   // `У-130`: интервал задачи SLA настраивается там же, где пороги.
   ...SLA_ESCALATION_SCHEDULES.map((s) => ({ ...s, editable: true })),
+  // `У-230`: сбор ежечасный, а час отправки выбирает КАЖДЫЙ пользователь сам —
+  // своего экрана у этого расписания нет, и править его из интерфейса незачем
+  // (страж `config.onec-params`: редактируемое ⟺ есть экран). Записанное
+  // отступление от спеки §2.5.
+  ...DIGEST_SCHEDULES.map((s) => ({ ...s, editable: false })),
   ...CERT_EXPIRY_SCHEDULES.map((s) => ({ ...s, editable: false })),
   ...PROPOSAL_EXPIRY_SCHEDULES.map((s) => ({ ...s, editable: false })),
 ].map(({ schedulerId, pattern, tz, editable }) => ({ schedulerId, pattern, tz, editable }));

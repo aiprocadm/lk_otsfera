@@ -164,6 +164,17 @@ export const EMAIL_TEMPLATE_REGISTRY: Record<EmailTemplateKey, EmailTemplateSpec
       { token: 'statement.url', prop: 'statementUrl', label: 'Ссылка на отчёт' },
     ],
   },
+  // Этап 5 ТЗ 12.09.2026 (`У-230`): дневной дайджест заказчику и партнёру.
+  dailyDigest: {
+    label: 'Клиенту: дневной дайджест уведомлений',
+    placeholders: [
+      { token: 'recipient.name', prop: 'recipientName', label: 'Имя получателя' },
+      { token: 'period', prop: 'period', label: 'Период дайджеста' },
+      { token: 'count', prop: 'count', label: 'Число событий' },
+      { token: 'items', prop: 'itemsText', label: 'Список событий (текстом, по строке)' },
+      { token: 'cabinet.url', prop: 'cabinetUrl', label: 'Ссылка на страницу уведомлений' },
+    ],
+  },
 };
 
 export function isEmailTemplateKey(value: string): value is EmailTemplateKey {

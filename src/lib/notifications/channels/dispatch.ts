@@ -17,7 +17,7 @@ import { getQueue } from '@/lib/jobs/queues';
 import type { NotificationDispatchPayload } from '@/lib/jobs/types';
 import { log } from '@/lib/logging';
 import { deliverToRecipient, type DeliverOptions, type DeliveryResults } from './deliver';
-import { narrowByEventPreference } from './preferences';
+import { effectiveChannels } from './preferences';
 import { getChannels } from './registry';
 import type { ChannelKey, ChannelPayload, ChannelRecipient } from './types';
 
@@ -49,13 +49,9 @@ export async function dispatchToRecipient(
   const { prisma } = await import('@/lib/db/prisma');
   await primeIntegrationSettingsCache(prisma);
 
-  // `У-229`: тот же помощник, что и в inline-ветке, — правило компании ∩
-  // личная настройка получателя.
-  const effective = narrowByEventPreference(
-    user.notificationPreferences,
-    payload.type,
-    opts.channels
-  );
+  // `У-229`/`У-230`: тот же помощник, что и в inline-ветке, — правило компании ∩
+  // личная настройка получателя − почта у дайджеста для несрочных типов.
+  const effective = effectiveChannels(user, payload.type, opts.channels);
   const enabled = getChannels().filter(
     (ch) =>
       (!effective || effective.includes(ch.key)) &&

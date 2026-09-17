@@ -362,6 +362,13 @@ model User {
   notificationChannels         Json? // { telegram?: bool, max?: bool, whatsapp?: bool }
   /// Этап 5 ТЗ 12.09.2026 (`У-229`): личные настройки «событие × канал» — только отклонения.
   notificationPreferences      UserNotificationPreference[]
+  /// Этап 5 (`У-230`, `Р-Э5-6`): дневной дайджест — только заказчику и партнёру (сервис отвергает прочие роли).
+  /// Канал email вычитается из веера у несрочных типов; ежечасный воркер собирает записи кабинета в одно письмо.
+  digestEnabled                Boolean                      @default(false)
+  /// Час отправки по Москве (0…23); умолчание — 09:00 (`В-5-3`).
+  digestHourMsk                Int                          @default(9)
+  /// Момент последней отправки — и атомарный захват воркера (`updateMany … lt порог`).
+  digestLastSentAt             DateTime?
   tasksCreated                 Task[]                       @relation("TaskCreatedBy")
   taskAssignments              TaskAssignee[]               @relation("TaskAssignee")
   taskComments                 TaskComment[]                @relation("TaskCommentAuthor")
@@ -391,6 +398,9 @@ model User {
   orderStatusChanges           OrderStatusChange[]
   /// Этап 2 ТЗ 12.09.2026: пакеты миграции из Битрикс24, запущенные этим администратором.
   bitrixImports                BitrixImportBatch[]          @relation("BitrixImportedBy")
+
+  // Этап 5 (`У-230`): выборка воркера дайджеста «включён И этот час».
+  @@index([digestEnabled, digestHourMsk])
 }
 
 model PartnerUser {
