@@ -188,7 +188,7 @@ describe('M1 deal activity — DealNote client-invisibility', () => {
     // order's tenant. `OrgOrderDetail` has no notes field at all — this is
     // the runtime proof that the note text does not leak through ANY field
     // (comments/documents/etc.) of the object actually returned to the client.
-    const orgView = await getOrgOrder(prisma, orgC, orderC);
+    const orgView = await getOrgOrder(prisma, orgC, orderC, null);
     expect(orgView).not.toBeNull();
     expect(JSON.stringify(orgView)).not.toContain(NOTE_BODY);
   });

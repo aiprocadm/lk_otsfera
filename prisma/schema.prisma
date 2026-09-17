@@ -842,6 +842,9 @@ model Organization {
   companyId                      String?
   company                        Company?                           @relation(fields: [companyId], references: [id])
   assignedManagerUserId          String?
+  /// Этап 6 ТЗ 12.09.2026 (`У-236`, `Р-Э6-2`): участники видят только свои заказы
+  /// (где они контактное лицо или подали обращение). Правит администратор организации.
+  membersSeeOwnOrdersOnly        Boolean                            @default(false)
   partnerCommissionRate          Decimal?                           @db.Decimal(6, 4)
   partnerCommissionRateNote      String?
   partnerCommissionRateChangedAt DateTime?

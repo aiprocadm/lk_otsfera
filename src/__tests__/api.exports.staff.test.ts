@@ -16,6 +16,12 @@ const { notFoundIfDisabled } = vi.hoisted(() => ({ notFoundIfDisabled: vi.fn() }
 vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: { organization: { findUnique: vi.fn() } } }));
+// Настройка «участники видят только свои заказы» (`У-236`) читается из базы;
+// здесь prisma — пустышка, а сама граница проверяется своим стражем.
+vi.mock('@/lib/services/organization/memberScope', () => ({
+  orgOrderScope: vi.fn(async () => null),
+  getOrgMemberScopeSetting: vi.fn(async () => false),
+}));
 
 const { listOrdersForExport } = vi.hoisted(() => ({ listOrdersForExport: vi.fn() }));
 vi.mock('@/lib/services/manager/orders', () => ({ listOrdersForExport }));
@@ -275,6 +281,8 @@ describe('GET /api/manager/organizations/[id]/payments/export', () => {
     expect(listOrgPaymentsForExport).toHaveBeenCalledWith(expect.anything(), {
       organizationId: 'org1',
       limit: 10_000,
+      // У сотрудника ЦО границы участника нет — она про кабинет заказчика.
+      scope: null,
     });
 
     const wb = new ExcelJS.Workbook();

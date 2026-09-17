@@ -75,20 +75,18 @@ describe('api/partner/finance/statements/[id]/{pdf,xlsx} — commission_* gates'
   });
 });
 
-describe('middleware feature-flag gate — chat (opt-in)', () => {
-  it('returns 404 for /partner/messages when FEATURE_CHAT is unset (default off)', async () => {
-    vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'partner' } } as any);
-    // FEATURE_CHAT is not set (stripped in beforeEach) — opt-in defaults to disabled
-    const res = await middleware(middlewareReq('/partner/messages'));
-    expect(res.status).toBe(404);
-    expect(await res.text()).toBe('Not Found');
-  });
-
-  it('returns 404 for /partner/messages when FEATURE_CHAT=0', async () => {
+/**
+ * Этап 6 (`У-234`, решение `Р-Э6-1`): префиксы «Сообщений» СНЯТЫ с
+ * `FEATURE_PREFIXES`. На экране два домена под разными флагами, а
+ * edge-middleware умеет сверить ровно один флаг на префикс — гейт переехал на
+ * страницу (`notFound`, когда выключены оба) и в пункт меню (`anyFlags`).
+ */
+describe('middleware feature-flag gate — «Сообщения» (гейт на странице)', () => {
+  it('выключенный чат больше НЕ даёт 404 от middleware: решает страница', async () => {
     process.env.FEATURE_CHAT = '0';
     vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'partner' } } as any);
     const res = await middleware(middlewareReq('/partner/messages'));
-    expect(res.status).toBe(404);
+    expect(res.status).not.toBe(404);
   });
 
   it('does NOT 404 from the feature gate for /partner/messages when FEATURE_CHAT=1', async () => {
@@ -99,7 +97,15 @@ describe('middleware feature-flag gate — chat (opt-in)', () => {
     expect(res.status).not.toBe(404);
   });
 
-  it('returns 404 for /organization/messages when FEATURE_CHAT is unset', async () => {
+  it('у заказчика тот же порядок: кабинет включён, чат выключен — не 404', async () => {
+    process.env.FEATURE_ORGANIZATION_CABINET = '1';
+    process.env.FEATURE_CHAT = '0';
+    vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'organization' } } as any);
+    const res = await middleware(middlewareReq('/organization/messages'));
+    expect(res.status).not.toBe(404);
+  });
+
+  it('кабинет заказчика выключен — 404 по-прежнему, но от своего префикса', async () => {
     vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'organization' } } as any);
     const res = await middleware(middlewareReq('/organization/messages'));
     expect(res.status).toBe(404);

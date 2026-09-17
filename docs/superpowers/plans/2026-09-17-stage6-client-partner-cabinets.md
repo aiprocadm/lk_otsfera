@@ -39,13 +39,13 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development
 
 ## PR-4. «Переписка с менеджером», видимость `member` (`У-234`, `У-236`)
 
-- [ ] `services/cabinetDialogs/{list,get,reply}.ts` — диалоги пользователя всех каналов, реплики только `in`/`out`, ответ из кабинета через `ingestInboundMessage`
-- [ ] API `GET/POST /api/{organization,partner}/messages/...` или server actions; вкладки «Переписка с менеджером» / «По заказам» в «Сообщениях» заказчика и партнёра; гейт `cabinet_questions` / `chat`
-- [ ] Реестр: `inbound_reply` — аудитория клиентов, маршрут на вкладку; «Написать» из «Ваш менеджер» → вкладка
-- [ ] Миграция `Organization.membersSeeOwnOrdersOnly`; настройка на вкладке «Настройки» «Моей организации» (только `admin`); подсказка у роли `member`
-- [ ] `memberOrderScope` в `organizationPolicy.ts`; `listOrgOrders`, `getOrgOrder`, счётчики главной, экспорт — через него; `canSeeOrder` с флагом и ролью
-- [ ] Стражи `messengers.cabinet-notes-not-served`, `security.org-member-scope` (мутации); интеграционные тесты диалогов и IDOR
-- [ ] AUDIT `У-234`, `У-236` → ✅; CHANGELOG; STATUS
+- [x] `services/cabinetDialogs/{list,get,reply}.ts` — диалоги пользователя всех каналов, реплики только `in`/`out`, ответ из кабинета через `ingestInboundMessage`
+- [x] API `GET/POST /api/{organization,partner}/messages/...` или server actions; вкладки «Переписка с менеджером» / «По заказам» в «Сообщениях» заказчика и партнёра; гейт `cabinet_questions` / `chat`
+- [x] Реестр: `inbound_reply` — аудитория клиентов, маршрут на вкладку; «Написать» из «Ваш менеджер» → вкладка
+- [x] Миграция `Organization.membersSeeOwnOrdersOnly`; настройка на вкладке «Настройки» «Моей организации» (только `admin`); подсказка у роли `member`
+- [x] `memberOrderScope` в `organizationPolicy.ts`; `listOrgOrders`, `getOrgOrder`, счётчики главной, экспорт — через него; `canSeeOrder` с флагом и ролью
+- [x] Стражи `messengers.cabinet-notes-not-served`, `security.org-member-scope` (мутации); интеграционные тесты диалогов и IDOR
+- [x] AUDIT `У-234`, `У-236` → ✅; CHANGELOG; STATUS
 
 ## PR-5. Зеркало, стражи мутацией, эталоны, close-out (`У-241`)
 

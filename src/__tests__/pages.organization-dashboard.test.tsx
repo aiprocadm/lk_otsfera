@@ -11,6 +11,12 @@ vi.mock('@/lib/auth/orgPageContext', () => ({ getOrgPageContext }));
 // не-null → блок скрыт, старые сценарии этого файла его не касаются. Форма
 // запроса пиннится в services.welcome.viewer.test.ts (аудит A1).
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+
+// Граница видимости участника (`У-236`) читается из базы отдельным запросом;
+// здесь prisma — пустышка, а проверка самой границы живёт в своём страже.
+vi.mock('@/lib/services/organization/memberScope', () => ({
+  orgOrderScope: vi.fn(async () => null),
+}));
 // Этап 6 (`У-239`): блок «Первые шаги».
 vi.mock('@/lib/services/organization/firstSteps', () => ({
   getOrgFirstSteps: vi.fn(async () => ({
@@ -106,9 +112,10 @@ describe('OrganizationDashboardPage', () => {
     );
 
     expect(getOrgPageContext).toHaveBeenCalledWith({ org: 'org-1' });
-    expect(kpis).toHaveBeenCalledWith(expect.anything(), 'org-1');
-    expect(attention).toHaveBeenCalledWith(expect.anything(), 'org-1');
-    expect(recentEvents).toHaveBeenCalledWith(expect.anything(), 'org-1');
+    // Четвёртый аргумент — граница видимости участника (`У-236`), здесь пустая.
+    expect(kpis).toHaveBeenCalledWith(expect.anything(), 'org-1', null);
+    expect(attention).toHaveBeenCalledWith(expect.anything(), 'org-1', null);
+    expect(recentEvents).toHaveBeenCalledWith(expect.anything(), 'org-1', undefined, null);
     expect(container.textContent).toContain('Главная');
     expect(container.textContent).toContain('ООО Ромашка');
     // welcomeSeenAt не-null → welcome-блока нет.

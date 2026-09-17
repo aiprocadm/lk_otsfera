@@ -52,7 +52,7 @@ beforeEach(() => {
 
 describe('listOrgInvoices — выборка', () => {
   it('канал организации, только счета, без отменённых, свежие первыми, верхняя граница', async () => {
-    await listOrgInvoices(prisma, { organizationId: 'org1' });
+    await listOrgInvoices(prisma, { scope: null, organizationId: 'org1' });
     const args = findMany.mock.calls[0][0];
     expect(args.where).toMatchObject({
       counterpartyType: 'organization',
@@ -76,17 +76,17 @@ describe('listOrgInvoices — выборка', () => {
     ]);
     const from = new Date('2026-09-01T00:00:00Z');
     const to = new Date('2026-09-30T23:59:59.999Z');
-    await listOrgInvoices(prisma, { organizationId: 'org1', from, to });
+    await listOrgInvoices(prisma, { scope: null, organizationId: 'org1', from, to });
     expect(findMany.mock.calls[0][0].where.createdAt).toEqual({ gte: from, lte: to });
     expect(paymentFindMany.mock.calls[0][0].where).toEqual({ orderId: { in: ['o1', 'o2'] } });
   });
 
   it('только нижняя или только верхняя граница', async () => {
     const from = new Date('2026-09-01T00:00:00Z');
-    await listOrgInvoices(prisma, { organizationId: 'org1', from });
+    await listOrgInvoices(prisma, { scope: null, organizationId: 'org1', from });
     expect(findMany.mock.calls[0][0].where.createdAt).toEqual({ gte: from });
     const to = new Date('2026-09-30T00:00:00Z');
-    await listOrgInvoices(prisma, { organizationId: 'org1', to });
+    await listOrgInvoices(prisma, { scope: null, organizationId: 'org1', to });
     expect(findMany.mock.calls[1][0].where.createdAt).toEqual({ lte: to });
   });
 });
@@ -95,7 +95,7 @@ describe('listOrgInvoices — состояние оплаты', () => {
   it('частичная оплата: зачтено, остаток, состояние; «к оплате» и счётчики', async () => {
     findMany.mockResolvedValue([doc()]);
     paymentFindMany.mockResolvedValue([payment()]);
-    const r = await listOrgInvoices(prisma, { organizationId: 'org1' });
+    const r = await listOrgInvoices(prisma, { scope: null, organizationId: 'org1' });
     expect(r.rows[0]).toMatchObject({
       id: 'd1',
       number: 'С-2026-17',
@@ -116,7 +116,7 @@ describe('listOrgInvoices — состояние оплаты', () => {
   it('оплачен полностью (в том числе с переплатой) — остаток 0 и в «к оплате» не входит', async () => {
     findMany.mockResolvedValue([doc()]);
     paymentFindMany.mockResolvedValue([payment({ amount: new Prisma.Decimal('1200.00') })]);
-    const r = await listOrgInvoices(prisma, { organizationId: 'org1' });
+    const r = await listOrgInvoices(prisma, { scope: null, organizationId: 'org1' });
     expect(r.rows[0]).toMatchObject({ state: 'paid', paid: '1200.00', due: '0.00' });
     expect(r.toPay).toBe('0.00');
   });
@@ -124,7 +124,7 @@ describe('listOrgInvoices — состояние оплаты', () => {
   it('платёж не сослался на счёт — не оплачен и не сопоставлен', async () => {
     findMany.mockResolvedValue([doc()]);
     paymentFindMany.mockResolvedValue([payment({ purpose: 'Аванс' })]);
-    const r = await listOrgInvoices(prisma, { organizationId: 'org1' });
+    const r = await listOrgInvoices(prisma, { scope: null, organizationId: 'org1' });
     expect(r.rows[0]).toMatchObject({
       state: 'unpaid',
       matched: false,
@@ -140,7 +140,7 @@ describe('listOrgInvoices — состояние оплаты', () => {
       payment({ amount: new Prisma.Decimal('100.00') }),
       payment({ amount: new Prisma.Decimal('300.00'), isRefund: true }),
     ]);
-    const r = await listOrgInvoices(prisma, { organizationId: 'org1' });
+    const r = await listOrgInvoices(prisma, { scope: null, organizationId: 'org1' });
     expect(r.rows[0]).toMatchObject({
       state: 'unpaid',
       matched: true,
@@ -154,7 +154,7 @@ describe('listOrgInvoices — состояние оплаты', () => {
     paymentFindMany.mockResolvedValue([
       payment({ purpose: 'Оплата по счёту С-2026-17 и по счёту С-2026-18' }),
     ]);
-    const r = await listOrgInvoices(prisma, { organizationId: 'org1' });
+    const r = await listOrgInvoices(prisma, { scope: null, organizationId: 'org1' });
     expect(r.rows[0]).toMatchObject({ state: 'unpaid', matched: false, ambiguous: true });
   });
 
@@ -165,7 +165,7 @@ describe('listOrgInvoices — состояние оплаты', () => {
       doc({ id: 'noNumber', number: null }),
     ]);
     paymentFindMany.mockResolvedValue([payment()]);
-    const r = await listOrgInvoices(prisma, { organizationId: 'org1' });
+    const r = await listOrgInvoices(prisma, { scope: null, organizationId: 'org1' });
     const byId = new Map(r.rows.map((x) => [x.id, x]));
     expect(byId.get('noOrder')).toMatchObject({
       state: 'unknown',
@@ -184,7 +184,11 @@ describe('listOrgInvoices — состояние оплаты', () => {
   it('фильтр по состоянию сужает строки, но не общий счёт и не сумму к оплате', async () => {
     findMany.mockResolvedValue([doc(), doc({ id: 'd2', number: 'С-2026-18' })]);
     paymentFindMany.mockResolvedValue([payment({ amount: new Prisma.Decimal('1000.00') })]);
-    const r = await listOrgInvoices(prisma, { organizationId: 'org1', state: 'unpaid' });
+    const r = await listOrgInvoices(prisma, {
+      scope: null,
+      organizationId: 'org1',
+      state: 'unpaid',
+    });
     expect(r.rows.map((x) => x.id)).toEqual(['d2']);
     expect(r.total).toBe(2);
     expect(r.toPay).toBe('1000.00');

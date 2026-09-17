@@ -1,5 +1,6 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
 import { organizationChannelWhere } from '@/lib/auth/documentChannelPolicy';
+import type { OrgOrderScope } from '@/lib/auth/organizationPolicy';
 import {
   invoicePaymentState,
   PAYMENT_STATE_LABELS,
@@ -59,6 +60,8 @@ export type OrgInvoicesFilter = {
   from?: Date | undefined;
   to?: Date | undefined;
   state?: OrgInvoiceState | undefined;
+  /** `У-236`: граница видимости участника; `null` — видно всё по организации. */
+  scope: OrgOrderScope;
 };
 
 export type OrgInvoicesResult = {
@@ -163,6 +166,9 @@ export async function listOrgInvoices(
       type: 'invoice',
       // Отменённый счёт оплате не подлежит — в «к оплате» ему не место.
       status: { not: 'cancelled' },
+      // `У-236`: счёт называет заказ, значит границу зрителя держит и он.
+      // Счёт без заказа «своим» быть не может — связь его тоже отсекает.
+      ...(filter.scope ? { order: filter.scope.where } : {}),
       ...dateFilter,
     },
     // Хвост `id`: пачка документов одного заказа получает общий `createdAt`.

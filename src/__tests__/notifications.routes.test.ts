@@ -141,6 +141,19 @@ describe('notificationRoute — обмен, мониторинг, диалоги
     expect(notificationRoute('inbound_reply', { dialogId: 'd1' }, 'admin')).toBeNull();
   });
 
+  it('ответ менеджера клиенту ведёт во вкладку «Переписка с менеджером» (У-234)', () => {
+    expect(notificationRoute('inbound_reply', { dialogId: 'd1' }, 'organization')).toBe(
+      '/organization/messages?tab=manager&dialog=d1'
+    );
+    expect(notificationRoute('inbound_reply', { dialogId: 'd1' }, 'partner')).toBe(
+      '/partner/messages?tab=manager&dialog=d1'
+    );
+    // Диалог неизвестен (ответ из «Входящих») — просто вкладка переписки.
+    expect(notificationRoute('inbound_reply', { messageId: 'm1' }, 'organization')).toBe(
+      '/organization/messages?tab=manager'
+    );
+  });
+
   it('отчёт по комиссии: партнёру — финансы, админу — карточка отчёта', () => {
     expect(notificationRoute('commission_statement_ready', { statementId: 's1' }, 'partner')).toBe(
       '/partner/finance'

@@ -91,15 +91,15 @@ describe('canSeeOrder', () => {
   const session = s([{ organizationId: 'A', roleInOrg: 'member', isActive: true }]);
 
   it('true for own org order', () => {
-    expect(canSeeOrder(session, { organizationId: 'A' })).toBe(true);
+    expect(canSeeOrder(session, { organizationId: 'A' }, false)).toBe(true);
   });
 
   it('false for foreign org order', () => {
-    expect(canSeeOrder(session, { organizationId: 'B' })).toBe(false);
+    expect(canSeeOrder(session, { organizationId: 'B' }, false)).toBe(false);
   });
 
   it('false for orphan order (organizationId=null)', () => {
-    expect(canSeeOrder(session, { organizationId: null })).toBe(false);
+    expect(canSeeOrder(session, { organizationId: null }, false)).toBe(false);
   });
 });
 

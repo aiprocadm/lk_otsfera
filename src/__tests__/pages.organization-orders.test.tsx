@@ -9,6 +9,12 @@ vi.mock('@/lib/auth/orgPageContext', () => ({ getOrgPageContext }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
+// Граница видимости участника (`У-236`) читается из базы отдельным запросом;
+// здесь prisma — пустышка, а проверка самой границы живёт в своём страже.
+vi.mock('@/lib/services/organization/memberScope', () => ({
+  orgOrderScope: vi.fn(async () => null),
+}));
+
 const { listOrgOrders } = vi.hoisted(() => ({ listOrgOrders: vi.fn() }));
 vi.mock('@/lib/services/organization/orders', () => ({ listOrgOrders }));
 
@@ -69,6 +75,8 @@ describe('OrganizationOrdersPage', () => {
         financialStatus: 'paid',
         take: 10,
         skip: 5,
+        // Граница видимости участника (`У-236`): у администратора её нет.
+        scope: null,
       }
     );
   });

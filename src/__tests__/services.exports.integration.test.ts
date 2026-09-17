@@ -244,7 +244,11 @@ describe('журнал ПДн для выгрузок (integration)', () => {
 
 describe('listOrgPaymentsForExport (integration)', () => {
   it('организация без платежей — пустой леджер и нулевой total', async () => {
-    const res = await listOrgPaymentsForExport(prisma, { organizationId: orgId, limit: 100 });
+    const res = await listOrgPaymentsForExport(prisma, {
+      scope: null,
+      organizationId: orgId,
+      limit: 100,
+    });
     expect(res).toEqual({ rows: [], total: 0 });
   });
 });

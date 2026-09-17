@@ -31,7 +31,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
 
-  const data = await getPaymentsExportData(prisma, id);
+  // `null`: граница участника — про кабинет заказчика. У сотрудника своя
+  // граница, она уже выбрала организацию выше.
+  const data = await getPaymentsExportData(prisma, id, null);
 
   const buf = await renderPaymentsXlsx(data);
   return new NextResponse(Buffer.from(buf), {

@@ -8,6 +8,12 @@ vi.mock('@/lib/auth/orgPageContext', () => ({ getOrgPageContext }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
+// Граница видимости участника (`У-236`) читается из базы отдельным запросом;
+// здесь prisma — пустышка, а сама граница проверяется своим стражем.
+vi.mock('@/lib/services/organization/memberScope', () => ({
+  orgOrderScope: vi.fn(async () => null),
+}));
+
 const { getOrgFinanceKpis, listOrgPayments } = vi.hoisted(() => ({
   getOrgFinanceKpis: vi.fn(),
   listOrgPayments: vi.fn(),
@@ -69,9 +75,9 @@ describe('OrganizationFinancePage', () => {
     );
 
     expect(getOrgPageContext).toHaveBeenCalledWith({ org: 'org-1' });
-    expect(getOrgFinanceKpis).toHaveBeenCalledWith({}, 'org-1');
-    expect(listOrgPayments).toHaveBeenCalledWith({}, { organizationId: 'org-1' });
-    expect(listOrgInvoices).toHaveBeenCalledWith({}, { organizationId: 'org-1' });
+    expect(getOrgFinanceKpis).toHaveBeenCalledWith({}, 'org-1', null);
+    expect(listOrgPayments).toHaveBeenCalledWith({}, { organizationId: 'org-1', scope: null });
+    expect(listOrgInvoices).toHaveBeenCalledWith({}, { organizationId: 'org-1', scope: null });
     expect(container.textContent).toContain('Счета');
     expect(container.textContent).toContain('Финансы');
     expect(container.textContent).toContain('ООО Ромашка');
@@ -133,6 +139,7 @@ describe('OrganizationFinancePage — фильтры счетов (этап 6, �
         from: new Date('2026-09-01T00:00:00.000Z'),
         to: undefined,
         state: 'paid',
+        scope: null,
       }
     );
   });

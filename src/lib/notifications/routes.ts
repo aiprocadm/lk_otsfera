@@ -227,7 +227,17 @@ const RULES: Record<NotificationTypeKey, Rule> = {
   // ── Диалоги ──
   messenger_message: dialog,
   dialog_assigned: dialog,
-  inbound_reply: (m, c) => (idOf(m, 'dialogId') ? dialog(m, c) : section(c, 'inbox', null)),
+  // `У-234`: клиенту — вкладка «Переписка с менеджером» с открытой перепиской;
+  // сотруднику — карточка диалога, а без неё «Входящие».
+  inbound_reply: (m, c) => {
+    if (c === 'organization' || c === 'partner') {
+      const base = section(c, 'messages', null);
+      if (!base) return null;
+      const id = idOf(m, 'dialogId');
+      return id ? `${base}?tab=manager&dialog=${id}` : `${base}?tab=manager`;
+    }
+    return idOf(m, 'dialogId') ? dialog(m, c) : section(c, 'inbox', null);
+  },
 
   // ── Служебный чат и заметки ──
   staff_dm_message: messages,

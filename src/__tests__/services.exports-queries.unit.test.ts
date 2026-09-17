@@ -104,7 +104,11 @@ describe('listOrgPaymentsForExport', () => {
     const count = vi.fn().mockResolvedValue(7);
     const prisma = { payment: { findMany, count } } as never;
 
-    const res = await listOrgPaymentsForExport(prisma, { organizationId: 'org-1', limit: 500 });
+    const res = await listOrgPaymentsForExport(prisma, {
+      scope: null,
+      organizationId: 'org-1',
+      limit: 500,
+    });
     expect(res).toEqual({ rows: [], total: 7 });
     expect(findMany.mock.calls[0]![0].take).toBe(500);
     expect(findMany.mock.calls[0]![0].where).toEqual({ organizationId: 'org-1' });

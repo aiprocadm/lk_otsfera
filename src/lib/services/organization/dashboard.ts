@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import type { PrismaClient, EnrollmentStatus } from '@prisma/client';
 import { organizationChannelWhere } from '@/lib/auth/documentChannelPolicy';
+import type { OrgOrderScope } from '@/lib/auth/organizationPolicy';
 import { fmtMoney } from '@/lib/format';
 import { EXPIRING_WITHIN_DAYS } from '@/lib/services/training/certificates';
 import { startOfMoscowDay } from '@/lib/dates/calendar';
@@ -39,9 +40,18 @@ const THREE_DAYS_MS = 3 * 24 * 3600 * 1000;
 const ATTENTION_CAP = 10;
 const DEFAULT_EVENTS = 15;
 
+/**
+ * `У-236`: заказы главной сужаются тем же скоупом, что список и карточка.
+ * Иначе участник видел бы в счётчиках и в «Требует внимания» номера и
+ * названия чужих заказов — то есть ровно то, что настройка запрещает.
+ *
+ * Документы, платежи и справочник сотрудников организации остаются общими:
+ * требование говорит о заказах, а расширять объём молча нельзя (§16).
+ */
 export async function kpis(
   prisma: PrismaClient,
-  organizationId: string
+  organizationId: string,
+  scope: OrgOrderScope
 ): Promise<OrgDashboardKpis> {
   const since30 = new Date(Date.now() - THIRTY_DAYS_MS);
 
@@ -50,6 +60,7 @@ export async function kpis(
       where: {
         organizationId,
         executionStatus: { in: ['pending', 'in_progress'] },
+        ...(scope ? scope.where : {}),
       },
     }),
     // Сумма линейна → SQL SUM вместо выборки всех строк в JS (R2).
@@ -58,6 +69,7 @@ export async function kpis(
       where: {
         organizationId,
         financialStatus: { in: ['billed', 'partially_paid'] },
+        ...(scope ? scope.where : {}),
       },
       _sum: { totalAmount: true, paidAmount: true },
     }),
@@ -84,7 +96,8 @@ export async function kpis(
 
 export async function attention(
   prisma: PrismaClient,
-  organizationId: string
+  organizationId: string,
+  scope: OrgOrderScope
 ): Promise<OrgAttention> {
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - SEVEN_DAYS_MS);
@@ -98,6 +111,7 @@ export async function attention(
         executionStatus: { in: ['pending', 'in_progress'] },
         financialStatus: { in: ['billed', 'partially_paid'] },
         updatedAt: { lt: sevenDaysAgo },
+        ...(scope ? scope.where : {}),
       },
       orderBy: { updatedAt: 'asc' },
       take: ATTENTION_CAP,
@@ -112,6 +126,7 @@ export async function attention(
         signedAt: null,
         createdAt: { lt: threeDaysAgo },
         orderId: { not: null },
+        ...(scope ? { order: scope.where } : {}),
       },
       orderBy: { createdAt: 'asc' },
       take: ATTENTION_CAP,
@@ -123,6 +138,7 @@ export async function attention(
         organizationId,
         executionStatus: 'completed',
         closedAt: null,
+        ...(scope ? scope.where : {}),
       },
       orderBy: { updatedAt: 'asc' },
       take: ATTENTION_CAP,
@@ -159,22 +175,76 @@ export async function attention(
   return { items };
 }
 
+type OrderStatusEventRow = { id: string; entityId: string; createdAt: Date };
+
+/**
+ * Смены статуса заказов для ленты событий.
+ *
+ * `AuditLog` не имеет relation к `Order` (entityId — строка), поэтому скоуп —
+ * raw-join. Раньше бралась ГЛОБАЛЬНАЯ верхушка с пост-фильтром по заказам
+ * организации: активный соседний тенант вытеснял события текущего из окна
+ * (starvation), и приложение читало чужие строки впустую.
+ *
+ * `memberUserId` (`У-236`) сужает выборку до «своих» заказов участника теми же
+ * двумя правилами, что `memberOrderScope`. Пост-фильтр здесь не годится по той
+ * же причине: события коллег вытеснили бы свои из окна, и лента молча опустела
+ * бы — а человек решил бы, что по его заказам ничего не происходит.
+ */
+async function orderStatusEvents(
+  prisma: PrismaClient,
+  organizationId: string,
+  memberUserId: string | null,
+  limit: number
+): Promise<OrderStatusEventRow[]> {
+  if (!memberUserId) {
+    return prisma.$queryRaw<OrderStatusEventRow[]>`
+      SELECT a."id", a."entityId", a."createdAt"
+      FROM "AuditLog" a
+      JOIN "Order" o ON o."id" = a."entityId"
+      WHERE a."entity" = 'order'
+        AND a."action" LIKE 'order_status_%'
+        AND o."organizationId" = ${organizationId}
+      ORDER BY a."createdAt" DESC
+      LIMIT ${limit}
+    `;
+  }
+  return prisma.$queryRaw<OrderStatusEventRow[]>`
+    SELECT a."id", a."entityId", a."createdAt"
+    FROM "AuditLog" a
+    JOIN "Order" o ON o."id" = a."entityId"
+    LEFT JOIN "Contact" c ON c."id" = o."primaryContactId"
+    LEFT JOIN "Lead" l ON l."promotedOrderId" = o."id"
+    LEFT JOIN "ClientRequest" cr ON cr."id" = l."sourceRequestId"
+    WHERE a."entity" = 'order'
+      AND a."action" LIKE 'order_status_%'
+      AND o."organizationId" = ${organizationId}
+      AND (c."userId" = ${memberUserId} OR cr."submittedByUserId" = ${memberUserId})
+    ORDER BY a."createdAt" DESC
+    LIMIT ${limit}
+  `;
+}
+
 export async function recentEvents(
   prisma: PrismaClient,
   organizationId: string,
-  take: number = DEFAULT_EVENTS
+  take: number = DEFAULT_EVENTS,
+  scope: OrgOrderScope = null
 ): Promise<OrgEvent[]> {
   const fetchLimit = Math.max(20, take);
 
   const [documents, payments, statusAudits, comments] = await Promise.all([
     prisma.document.findMany({
-      where: { ...organizationChannelWhere(organizationId), orderId: { not: null } },
+      where: {
+        ...organizationChannelWhere(organizationId),
+        orderId: { not: null },
+        ...(scope ? { order: scope.where } : {}),
+      },
       orderBy: { createdAt: 'desc' },
       take: fetchLimit,
       select: { id: true, name: true, createdAt: true, orderId: true },
     }),
     prisma.payment.findMany({
-      where: { organizationId },
+      where: { organizationId, ...(scope ? { order: scope.where } : {}) },
       orderBy: { paidAt: 'desc' },
       take: fetchLimit,
       select: { id: true, amount: true, paidAt: true, orderId: true },
@@ -183,18 +253,9 @@ export async function recentEvents(
     // raw-join. Раньше бралась ГЛОБАЛЬНАЯ верхушка fetchLimit*2 с пост-фильтром
     // по заказам организации: активный соседний тенант вытеснял события текущего
     // из окна (starvation), и приложение читало чужие строки впустую.
-    prisma.$queryRaw<Array<{ id: string; entityId: string; createdAt: Date }>>`
-      SELECT a."id", a."entityId", a."createdAt"
-      FROM "AuditLog" a
-      JOIN "Order" o ON o."id" = a."entityId"
-      WHERE a."entity" = 'order'
-        AND a."action" LIKE 'order_status_%'
-        AND o."organizationId" = ${organizationId}
-      ORDER BY a."createdAt" DESC
-      LIMIT ${fetchLimit}
-    `,
+    orderStatusEvents(prisma, organizationId, scope?.viewerUserId ?? null, fetchLimit),
     prisma.comment.findMany({
-      where: { order: { organizationId } },
+      where: { order: { organizationId, ...(scope ? scope.where : {}) } },
       orderBy: { createdAt: 'desc' },
       take: fetchLimit,
       select: { id: true, createdAt: true, orderId: true, body: true },

@@ -18,6 +18,19 @@ vi.mock('@/components/organization/team-table', () => ({
 vi.mock('@/components/organization/invite-org-user-form', () => ({
   InviteOrgUserForm: () => React.createElement('div', null, 'ПРИГЛАСИТЬ'),
 }));
+// Переключатель видимости заказов — клиентский: под `renderToString` его
+// `useRouter` падает без смонтированного роутера. Своё поведение он проверяет
+// собственным тестом.
+vi.mock('@/components/organization/org-member-scope-form', () => ({
+  OrgMemberScopeForm: () => React.createElement('div', null, 'ВИДИМОСТЬ'),
+}));
+
+// Настройка «участники видят только свои заказы» (`У-236`) читается из базы;
+// здесь prisma — пустышка, а сама граница проверяется своим стражем.
+vi.mock('@/lib/services/organization/memberScope', () => ({
+  orgOrderScope: vi.fn(async () => null),
+  getOrgMemberScopeSetting: vi.fn(async () => false),
+}));
 
 import type { PrismaClient } from '@prisma/client';
 import { OrgCabinetAccessSection } from '@/components/organization/org-cabinet-access-section';

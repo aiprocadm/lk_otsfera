@@ -15,6 +15,7 @@ import { OrganizationDocumentUploadForm } from '@/components/organization/organi
 import { OrderItemsSection } from '@/components/training/order-items-section';
 import { OrderCustomFields } from '@/components/orders/order-custom-fields';
 import { getOrgOrder, listOrgOrderComments } from '@/lib/services/organization/orders';
+import { orgOrderScope } from '@/lib/services/organization/memberScope';
 import { getValuesForEntity } from '@/lib/services/customFields';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import { missingObjectHref } from '@/lib/navigation/missingObject';
@@ -40,13 +41,21 @@ export default async function OrganizationOrderDetailPage({
 
   // `У-232` (спека §3.7): удалённый или чужой заказ → список раздела с плашкой
   // «объект недоступен», а не 404. Ответ один для обоих случаев (§4).
-  const order = await getOrgOrder(prisma, ctx.activeOrgId, id);
+  // `У-236`: карточка сужается тем же скоупом, что и список.
+  const scope = await orgOrderScope(prisma, ctx.session, ctx.activeOrgId);
+  const order = await getOrgOrder(prisma, ctx.activeOrgId, id, scope);
   if (!order) redirect(missingObjectHref(listHref));
 
   // Defense-in-depth: even though the service already scoped by orgId,
   // re-check via canSeeOrder so a future refactor to the service can't
   // accidentally widen the trust boundary.
-  if (!canSeeOrder(ctx.session, { organizationId: order.organizationId })) {
+  if (
+    !canSeeOrder(
+      ctx.session,
+      { organizationId: order.organizationId, ownedByViewer: order.ownedByViewer },
+      scope !== null
+    )
+  ) {
     redirect(missingObjectHref(listHref));
   }
 

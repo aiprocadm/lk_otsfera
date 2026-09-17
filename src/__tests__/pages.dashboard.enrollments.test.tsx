@@ -16,6 +16,13 @@ vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
 const { getWelcomeViewer } = vi.hoisted(() => ({ getWelcomeViewer: vi.fn() }));
 vi.mock('@/lib/services/welcome/viewer', () => ({ getWelcomeViewer }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+
+// Граница видимости участника (`У-236`) читается из базы отдельным запросом;
+// здесь prisma — пустышка, а проверка самой границы живёт в своём страже.
+// Реализация переставляется в `beforeEach`: общий `vi.resetAllMocks()` её стирает,
+// и без этого страница получала бы `undefined` вместо «границы нет».
+const { orgOrderScope } = vi.hoisted(() => ({ orgOrderScope: vi.fn() }));
+vi.mock('@/lib/services/organization/memberScope', () => ({ orgOrderScope }));
 // Этап 6 (`У-239`): блок «Первые шаги».
 vi.mock('@/lib/services/organization/firstSteps', () => ({
   getOrgFirstSteps: vi.fn(async () => ({
@@ -103,6 +110,7 @@ const PARTNER_SCOPE = { partnerId: 'pt-1', scopeOrgIds: ['org-9'] };
 
 beforeEach(() => {
   vi.resetAllMocks();
+  orgOrderScope.mockResolvedValue(null);
 
   getWelcomeViewer.mockResolvedValue({ name: 'Иван', welcomeSeenAt: new Date('2026-01-01') });
   getOrgPageContext.mockResolvedValue(ORG_CTX);
@@ -148,7 +156,7 @@ describe('OrganizationDashboardPage — карточка заявок', () => {
     expect(container.textContent).not.toContain('Заявки на обучение');
     // Остальной дашборд живёт как раньше.
     expect(container.textContent).toContain('Главная');
-    expect(org.kpis).toHaveBeenCalledWith(expect.anything(), 'org-1');
+    expect(org.kpis).toHaveBeenCalledWith(expect.anything(), 'org-1', null);
   });
 });
 

@@ -273,7 +273,9 @@ export const NOTIFICATION_TYPES = {
     noDedup: true,
     label: 'Ответ по внешнему обращению',
     icon: '✉',
-    audience: ['staff'],
+    // `У-234`: ответ получает КЛИЕНТ — аудитория была `staff`, и у заказчика с
+    // партнёром не было ни строки в фильтре ленты, ни ссылки в письме.
+    audience: ['staff', 'organization', 'partner'],
     producer: 'src/lib/services/inbound/reply.ts',
   },
   // Спека 2026-09-12 (Р-М-9): клиент написал в диалог мессенджера — менеджерам

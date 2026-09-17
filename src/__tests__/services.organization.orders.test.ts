@@ -152,20 +152,21 @@ afterAll(async () => {
 
 describe('services/organization/orders — listOrgOrders', () => {
   it('returns only orders of the given organization', async () => {
-    const { rows, total } = await listOrgOrders(prisma, { organizationId: orgAId });
+    const { rows, total } = await listOrgOrders(prisma, { scope: null, organizationId: orgAId });
     expect(total).toBe(2);
     const ids = rows.map((r) => r.id).sort();
     expect(ids).toEqual([orderA1Id, orderA2Id].sort());
   });
 
   it('does not leak orders from another organization', async () => {
-    const { rows, total } = await listOrgOrders(prisma, { organizationId: orgBId });
+    const { rows, total } = await listOrgOrders(prisma, { scope: null, organizationId: orgBId });
     expect(total).toBe(1);
     expect(rows[0]!.id).toBe(orderB1Id);
   });
 
   it('filters by executionStatus', async () => {
     const { rows, total } = await listOrgOrders(prisma, {
+      scope: null,
       organizationId: orgAId,
       executionStatus: 'completed',
     });
@@ -175,6 +176,7 @@ describe('services/organization/orders — listOrgOrders', () => {
 
   it('filters by financialStatus', async () => {
     const { rows, total } = await listOrgOrders(prisma, {
+      scope: null,
       organizationId: orgAId,
       financialStatus: 'partially_paid',
     });
@@ -184,6 +186,7 @@ describe('services/organization/orders — listOrgOrders', () => {
 
   it('searches by orderNumber (case-insensitive)', async () => {
     const { rows } = await listOrgOrders(prisma, {
+      scope: null,
       organizationId: orgAId,
       search: 'a1-',
     });
@@ -193,6 +196,7 @@ describe('services/organization/orders — listOrgOrders', () => {
 
   it('searches by title (case-insensitive)', async () => {
     const { rows } = await listOrgOrders(prisma, {
+      scope: null,
       organizationId: orgAId,
       search: 'ОХРАНЕ',
     });
@@ -202,6 +206,7 @@ describe('services/organization/orders — listOrgOrders', () => {
 
   it('maps fields: debt, stage, managerName', async () => {
     const { rows } = await listOrgOrders(prisma, {
+      scope: null,
       organizationId: orgAId,
       executionStatus: 'in_progress',
     });
@@ -215,13 +220,27 @@ describe('services/organization/orders — listOrgOrders', () => {
   });
 
   it('clamps oversized take to MAX_TAKE', async () => {
-    const { rows } = await listOrgOrders(prisma, { organizationId: orgAId, take: 9999 });
+    const { rows } = await listOrgOrders(prisma, {
+      scope: null,
+      organizationId: orgAId,
+      take: 9999,
+    });
     expect(rows.length).toBeLessThanOrEqual(100);
   });
 
   it('applies skip for pagination', async () => {
-    const first = await listOrgOrders(prisma, { organizationId: orgAId, take: 1, skip: 0 });
-    const second = await listOrgOrders(prisma, { organizationId: orgAId, take: 1, skip: 1 });
+    const first = await listOrgOrders(prisma, {
+      scope: null,
+      organizationId: orgAId,
+      take: 1,
+      skip: 0,
+    });
+    const second = await listOrgOrders(prisma, {
+      scope: null,
+      organizationId: orgAId,
+      take: 1,
+      skip: 1,
+    });
     expect(first.rows.length).toBe(1);
     expect(second.rows.length).toBe(1);
     expect(first.rows[0]!.id).not.toBe(second.rows[0]!.id);
@@ -230,7 +249,7 @@ describe('services/organization/orders — listOrgOrders', () => {
 
 describe('services/organization/orders — getOrgOrder', () => {
   it('returns own order with documents (excluding infected) and payments', async () => {
-    const detail = await getOrgOrder(prisma, orgAId, orderA1Id);
+    const detail = await getOrgOrder(prisma, orgAId, orderA1Id, null);
     expect(detail).not.toBeNull();
     expect(detail!.id).toBe(orderA1Id);
     expect(detail!.organizationId).toBe(orgAId);
@@ -243,12 +262,12 @@ describe('services/organization/orders — getOrgOrder', () => {
   });
 
   it('returns null for foreign-org order (silent 404)', async () => {
-    const detail = await getOrgOrder(prisma, orgAId, orderB1Id);
+    const detail = await getOrgOrder(prisma, orgAId, orderB1Id, null);
     expect(detail).toBeNull();
   });
 
   it('returns null for non-existent order id', async () => {
-    const detail = await getOrgOrder(prisma, orgAId, 'cuid-that-does-not-exist');
+    const detail = await getOrgOrder(prisma, orgAId, 'cuid-that-does-not-exist', null);
     expect(detail).toBeNull();
   });
 });

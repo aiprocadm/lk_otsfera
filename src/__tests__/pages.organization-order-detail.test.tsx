@@ -23,6 +23,12 @@ vi.mock('@/lib/services/customFields', () => ({ getValuesForEntity }));
 // интеграционно в services.organization.orders.test.ts. Ключ `comment` в мок-
 // prisma оставлен: страница прокидывает тот же клиент в getValuesForEntity.
 vi.mock('@/lib/db/prisma', () => ({ prisma: { comment: {} } }));
+// Настройка «участники видят только свои заказы» (`У-236`) читается из базы;
+// здесь prisma — пустышка, а сама граница проверяется своим стражем.
+vi.mock('@/lib/services/organization/memberScope', () => ({
+  orgOrderScope: vi.fn(async () => null),
+  getOrgMemberScopeSetting: vi.fn(async () => false),
+}));
 
 const nav = vi.hoisted(() => ({
   // `У-232`: карточка больше не зовёт notFound() — удалённый или чужой
@@ -142,7 +148,12 @@ describe('OrganizationOrderDetailPage', () => {
       )
     ).rejects.toThrow('REDIRECT:/organization/orders?missing=1');
 
-    expect(canSeeOrder).toHaveBeenCalledWith(CTX.session, { organizationId: 'org-1' });
+    expect(canSeeOrder).toHaveBeenCalledWith(
+      CTX.session,
+      // Третий аргумент — есть ли граница участника (`У-236`); здесь её нет.
+      expect.objectContaining({ organizationId: 'org-1' }),
+      false
+    );
   });
 
   it('renders the full order detail with comments, custom fields, крошки с org-scoped ссылкой раздела, and a document count badge', async () => {
