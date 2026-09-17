@@ -6,19 +6,32 @@ import { OrgFinanceKpisGrid } from '@/components/organization/org-finance-kpis';
 import { OrgFinancePayments } from '@/components/organization/org-finance-payments';
 import { ExportLink } from '@/components/ui';
 import { getOrgFinanceKpis, listOrgPayments } from '@/lib/services/organization/finance';
+import {
+  listOrgInvoices,
+  parseInvoiceDate,
+  parseInvoiceState,
+} from '@/lib/services/organization/invoices';
+import { OrgFinanceInvoices } from '@/components/organization/org-finance-invoices';
 
 import { PageHeader } from '@/components/ui/page-header';
 export default async function OrganizationFinancePage({
   searchParams,
 }: {
-  searchParams: Promise<{ org?: string }>;
+  searchParams: Promise<{ org?: string; from?: string; to?: string; state?: string }>;
 }) {
   const sp = await searchParams;
   const ctx = await getOrgPageContext(sp);
 
-  const [kpis, payments] = await Promise.all([
+  // `У-235`: фильтры счетов — из адреса; мусор в параметрах = «без фильтра».
+  const invoiceFilter = {
+    from: parseInvoiceDate(sp.from, 'from'),
+    to: parseInvoiceDate(sp.to, 'to'),
+    state: parseInvoiceState(sp.state),
+  };
+  const [kpis, payments, invoices] = await Promise.all([
     getOrgFinanceKpis(prisma, ctx.activeOrgId),
     listOrgPayments(prisma, { organizationId: ctx.activeOrgId }),
+    listOrgInvoices(prisma, { organizationId: ctx.activeOrgId, ...invoiceFilter }),
   ]);
 
   return (
@@ -33,13 +46,22 @@ export default async function OrganizationFinancePage({
           <div>
             <PageHeader
               title="Финансы"
-              subtitle={<>Платежи и задолженность по {ctx.activeOrgName}</>}
+              subtitle={<>Счета, платежи и задолженность по {ctx.activeOrgName}</>}
             />
           </div>
           {/* ФТ-12.2: платежи и задолженность в Excel (лист «Итоги» — KPI). */}
           <ExportLink base="/api/organization/finance/export" params={{ org: ctx.activeOrgId }} />
         </div>
         <OrgFinanceKpisGrid kpis={kpis} />
+        <OrgFinanceInvoices
+          result={invoices}
+          orgId={ctx.activeOrgId}
+          filter={{
+            from: invoiceFilter.from ? sp.from : undefined,
+            to: invoiceFilter.to ? sp.to : undefined,
+            state: invoiceFilter.state,
+          }}
+        />
         <OrgFinancePayments payments={payments} orgId={ctx.activeOrgId} />
       </div>
     </OrgAppShell>

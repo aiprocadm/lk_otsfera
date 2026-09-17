@@ -6,6 +6,7 @@ import {
   type OrgPaymentRow,
 } from '@/lib/services/organization/finance';
 import { EXPORT_ROW_LIMIT } from '@/lib/services/export/xlsx';
+import { listOrgInvoices, type OrgInvoiceRow } from '@/lib/services/organization/invoices';
 
 /**
  * Данные для выгрузки платежей организации (этап 9 PR-3, ФТ-12.2) — ровно то,
@@ -26,17 +27,20 @@ export type PaymentsExportData = {
   total: number;
   kpis: OrgFinanceKpis;
   organizationName: string;
+  /** `У-235`: счета с состоянием оплаты — лист «Счета». */
+  invoices: OrgInvoiceRow[];
 };
 
 export async function getPaymentsExportData(
   prisma: PrismaClient,
   organizationId: string
 ): Promise<PaymentsExportData> {
-  const [{ rows, total }, kpis, org] = await Promise.all([
+  const [{ rows, total }, kpis, org, invoices] = await Promise.all([
     listOrgPaymentsForExport(prisma, { organizationId, limit: EXPORT_ROW_LIMIT }),
     getOrgFinanceKpis(prisma, organizationId),
     prisma.organization.findUnique({ where: { id: organizationId }, select: { name: true } }),
+    listOrgInvoices(prisma, { organizationId }),
   ]);
 
-  return { rows, total, kpis, organizationName: org?.name ?? '—' };
+  return { rows, total, kpis, organizationName: org?.name ?? '—', invoices: invoices.rows };
 }

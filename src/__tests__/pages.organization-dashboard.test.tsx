@@ -11,6 +11,19 @@ vi.mock('@/lib/auth/orgPageContext', () => ({ getOrgPageContext }));
 // не-null → блок скрыт, старые сценарии этого файла его не касаются. Форма
 // запроса пиннится в services.welcome.viewer.test.ts (аудит A1).
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+// Этап 6 (`У-239`): блок «Первые шаги».
+vi.mock('@/lib/services/organization/firstSteps', () => ({
+  getOrgFirstSteps: vi.fn(async () => ({
+    items: [],
+    doneCount: 0,
+    dismissed: false,
+    visible: false,
+  })),
+}));
+vi.mock('@/server-actions/organization/firstSteps', () => ({
+  dismissOrgFirstStepsAction: vi.fn(),
+}));
+vi.mock('@/components/dashboard/first-steps-card', () => ({ FirstStepsCard: () => null }));
 // Этап 6 (`У-240`): блок «Ваш менеджер».
 const { getOrgYourManager } = vi.hoisted(() => ({
   getOrgYourManager: vi.fn(async () => ({

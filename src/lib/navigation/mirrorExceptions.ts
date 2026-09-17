@@ -36,6 +36,33 @@ export const MIRROR_PAIRS: Record<MirrorPair, string[]> = {
   clients: ['organization', 'partner'],
 };
 
+/**
+ * Исключение для БЛОКА внутри общего раздела (этап 6, `Р-Э6-7`): раздел есть у
+ * обоих кабинетов пары, а один из его блоков — только у одного. Страж зеркала
+ * держит эти строки в том же порядке, что и разделы: причина обязательна,
+ * раздел обязан существовать у названных кабинетов.
+ */
+export type MirrorBlockException = {
+  pair: MirrorPair;
+  /** Общий раздел, внутри которого стоит блок. */
+  sectionKey: SectionKey;
+  /** Название блока так, как оно подписано на экране. */
+  block: string;
+  cabinets: string[];
+  reason: string;
+};
+
+export const MIRROR_BLOCK_EXCEPTIONS: MirrorBlockException[] = [
+  {
+    pair: 'clients',
+    sectionKey: 'finance',
+    block: 'Счета',
+    cabinets: ['organization'],
+    reason:
+      'Счета выставляются заказчику; партнёр оплаты и задолженность клиента не видит (пакет 06 §12, решение `Р-Э6-7`)',
+  },
+];
+
 export const MIRROR_EXCEPTIONS: MirrorException[] = [
   // ——— Кабинеты сотрудников учебного центра ———
   {

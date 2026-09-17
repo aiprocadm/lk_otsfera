@@ -12,6 +12,17 @@ vi.mock('@/lib/auth/requireRole', () => ({ requirePartner }));
 const { getWelcomeViewer } = vi.hoisted(() => ({ getWelcomeViewer: vi.fn() }));
 vi.mock('@/lib/services/welcome/viewer', () => ({ getWelcomeViewer }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+// Этап 6 (`У-239`): блок «Первые шаги».
+vi.mock('@/lib/services/partner/firstSteps', () => ({
+  getPartnerFirstSteps: vi.fn(async () => ({
+    items: [],
+    doneCount: 0,
+    dismissed: false,
+    visible: false,
+  })),
+}));
+vi.mock('@/server-actions/partner/firstSteps', () => ({ dismissPartnerFirstStepsAction: vi.fn() }));
+vi.mock('@/components/dashboard/first-steps-card', () => ({ FirstStepsCard: () => null }));
 // Этап 6 (`У-240`): блок «Ваш менеджер».
 const { getPartnerYourManager } = vi.hoisted(() => ({
   getPartnerYourManager: vi.fn(async () => ({

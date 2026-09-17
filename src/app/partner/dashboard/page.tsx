@@ -16,6 +16,9 @@ import { PartnerEnrollmentsCard } from '@/components/partner/partner-enrollments
 import { QuickTasks } from '@/components/dashboard/quick-tasks';
 import { YourManagerCard } from '@/components/dashboard/your-manager-card';
 import { getPartnerYourManager } from '@/lib/services/partner/yourManager';
+import { getPartnerFirstSteps } from '@/lib/services/partner/firstSteps';
+import { FirstStepsCard } from '@/components/dashboard/first-steps-card';
+import { dismissPartnerFirstStepsAction } from '@/server-actions/partner/firstSteps';
 import { quickTasksFor } from '@/lib/quickTasks';
 
 import { PageHeader } from '@/components/ui/page-header';
@@ -29,7 +32,7 @@ export default async function PartnerDashboard() {
 
   const enrollmentsEnabled = isFeatureEnabled('enrollment_requests');
   const certificatesEnabled = isFeatureEnabled('certificates_registry');
-  const [k, a, events, enrollments, expiringCerts, yourManager] = await Promise.all([
+  const [k, a, events, enrollments, expiringCerts, yourManager, firstSteps] = await Promise.all([
     kpis(prisma, scope),
     attention(prisma, scope),
     recentEvents(prisma, scope, 10),
@@ -37,6 +40,12 @@ export default async function PartnerDashboard() {
     certificatesEnabled ? expiringCertificates(prisma, scope) : Promise.resolve(null),
     // Этап 6 (`У-240`): ответственный за партнёра, иначе менеджер первой организации.
     getPartnerYourManager(prisma, scope.partnerId),
+    // Этап 6 (`У-239`): чек-лист по данным; «Команда» — только администратору партнёра.
+    getPartnerFirstSteps(prisma, {
+      partnerId: scope.partnerId,
+      userId: session.sub,
+      isPartnerAdmin: session.partnerRole === 'admin',
+    }),
   ]);
 
   return (
@@ -47,6 +56,11 @@ export default async function PartnerDashboard() {
 
       {/* `У-71`: блок постоянный — он отвечает на вопрос «что делать»,
           а не «как дела». Одноразовый welcome-блок заменён им. */}
+      <FirstStepsCard
+        view={firstSteps}
+        dismissAction={dismissPartnerFirstStepsAction}
+        scopeField={{ name: 'partnerId', value: scope.partnerId }}
+      />
       <QuickTasks tasks={quickTasksFor('partner')} />
       <YourManagerCard view={yourManager} />
 

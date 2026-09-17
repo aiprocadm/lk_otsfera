@@ -20,6 +20,9 @@ const { getOrgFinanceKpis, listOrgPaymentsForExport } = vi.hoisted(() => ({
   getOrgFinanceKpis: vi.fn(),
   listOrgPaymentsForExport: vi.fn(),
 }));
+// Этап 6 (`У-235`): общая композиция выгрузки берёт и счета — здесь их нет.
+const { listOrgInvoices } = vi.hoisted(() => ({ listOrgInvoices: vi.fn() }));
+vi.mock('@/lib/services/organization/invoices', () => ({ listOrgInvoices }));
 vi.mock('@/lib/services/organization/finance', () => ({
   getOrgFinanceKpis,
   listOrgPaymentsForExport,
@@ -65,6 +68,12 @@ beforeEach(() => {
   getOrgFinanceKpis.mockResolvedValue({ billed: '10.00', paid: '4.00', outstanding: '6.00' });
   listOrgStudentsForExport.mockResolvedValue({ rows: [STUDENT], total: 1 });
   vi.mocked(prisma.organization.findUnique).mockResolvedValue({ name: 'ООО Ромашка' } as never);
+  listOrgInvoices.mockResolvedValue({
+    rows: [],
+    total: 0,
+    toPay: '0.00',
+    counts: { unpaid: 0, partially_paid: 0, paid: 0, unknown: 0 },
+  });
 });
 
 describe('GET /api/organization/finance/export', () => {
@@ -77,7 +86,7 @@ describe('GET /api/organization/finance/export', () => {
     expect(listOrgPaymentsForExport).not.toHaveBeenCalled();
   });
 
-  it('успех: активная организация из query, xlsx с листами «Платежи» и «Итоги»', async () => {
+  it('успех: активная организация из query, xlsx с листами «Платежи», «Счета» и «Итоги»', async () => {
     getSession.mockResolvedValue(orgSession);
     const res = await financeExport(req('http://x/e?org=orgB'));
     expect(res.status).toBe(200);
@@ -90,7 +99,7 @@ describe('GET /api/organization/finance/export', () => {
 
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(await res.arrayBuffer());
-    expect(wb.worksheets.map((w) => w.name)).toEqual(['Платежи', 'Итоги']);
+    expect(wb.worksheets.map((w) => w.name)).toEqual(['Платежи', 'Счета', 'Итоги']);
   });
 
   it('чужой ?org= игнорируется — берётся своя организация', async () => {

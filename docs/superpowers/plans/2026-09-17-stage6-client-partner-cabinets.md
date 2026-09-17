@@ -20,12 +20,12 @@ REQUIRED SUB-SKILL: superpowers:subagent-driven-development
 
 ## PR-2. Счета у заказчика, «Первые шаги» (`У-235`, `У-239`)
 
-- [ ] `services/organization/invoices.ts` — счета организации с состоянием из `invoicePaymentState`, фильтры (период, состояние), «к оплате»; счета в экспорте финансов
-- [ ] Блок «Счета» в `/organization/finance` (таблица → карточки на мобильном), «Скачать» через существующий роут документов; исключение зеркала «Счета» с причиной
-- [ ] Миграция: `OrganizationUser.onboardingDismissedAt`, `PartnerUser.onboardingDismissedAt`
-- [ ] `services/organization/firstSteps.ts`, `services/partner/firstSteps.ts` — пункты по данным; `first-steps-card.tsx` с view-моделью; действие «Закрыть»
-- [ ] Страж `dashboard.first-steps` (мутация: выполненность из базы); тесты
-- [ ] AUDIT `У-235`, `У-239` → ✅; CHANGELOG; STATUS
+- [x] `services/organization/invoices.ts` — счета организации с состоянием из `invoicePaymentState`, фильтры (период, состояние), «к оплате»; счета в экспорте финансов
+- [x] Блок «Счета» в `/organization/finance` (таблица → карточки на мобильном), «Скачать» через существующий роут документов; исключение зеркала «Счета» с причиной
+- [x] Миграция: `OrganizationUser.onboardingDismissedAt`, `PartnerUser.onboardingDismissedAt`
+- [x] `services/organization/firstSteps.ts`, `services/partner/firstSteps.ts` — пункты по данным; `first-steps-card.tsx` с view-моделью; действие «Закрыть»
+- [x] Страж `dashboard.first-steps` (мутация: выполненность из базы); тесты
+- [x] AUDIT `У-235`, `У-239` → ✅; CHANGELOG; STATUS
 
 ## PR-3. Материалы для партнёров (`У-237`)
 
