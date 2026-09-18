@@ -185,9 +185,4 @@ describe('«Моя организация» (У-100)', () => {
     getOrganizationCard.mockResolvedValue(null);
     await expect(render()).rejects.toThrow('NOT_FOUND');
   });
-
-  it('кабинет заказчика выключен флагом — раздела нет', async () => {
-    isFeatureEnabled.mockReturnValue(false);
-    await expect(render()).rejects.toThrow('NOT_FOUND');
-  });
 });

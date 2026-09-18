@@ -3,8 +3,10 @@ import type { Role } from './jwt';
 export const roleHome: Record<Role, string> = {
   admin: '/admin/dashboard',
   manager: '/manager/dashboard',
-  // Дом руководителя при ВЫКЛЮЧЕННОМ leader_cabinet выбирает middleware
-  // (падает на /manager/dashboard) — здесь только дефолт включённого флага.
+  // До `У-262` дом руководителя зависел от флага `leader_cabinet`: при
+  // выключенном middleware уводил в кабинет менеджера. Флаг снят — кабинет
+  // роли это не эксперимент, и выключить его значило бы «роль не может войти
+  // никуда». Теперь дом один и тот же всегда.
   leader: '/leader/dashboard',
   partner: '/partner/dashboard',
   organization: '/organization/dashboard',

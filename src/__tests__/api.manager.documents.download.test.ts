@@ -58,15 +58,6 @@ describe('POST /api/manager/documents/[id]/download', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     commentCount.mockResolvedValue(0);
-    // Route is gated by the opt-in manager_cabinet flag (3-point contract, §5).
-    process.env.FEATURE_MANAGER_CABINET = '1';
-  });
-
-  it('returns 404 when manager_cabinet feature flag is disabled', async () => {
-    process.env.FEATURE_MANAGER_CABINET = '0';
-    const res = await downloadGet(getReq() as never, paramsP);
-    expect(res.status).toBe(404);
-    expect(documentFindUnique).not.toHaveBeenCalled();
   });
 
   it('redirects when user is not a manager', async () => {

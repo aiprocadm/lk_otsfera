@@ -51,17 +51,6 @@ describe('middleware — роль leader и кабинет руководите�
     expect(res.headers.get('location')).toBe('https://app.local/leader/dashboard');
   });
 
-  it('руководитель при выключенном флаге: / -> /manager/dashboard', async () => {
-    vi.mocked(jwtVerify).mockResolvedValue({
-      payload: { role: 'leader' },
-    } as any);
-
-    const res = await middleware(req('/', 'tkn'));
-
-    expect(res.status).toBe(307);
-    expect(res.headers.get('location')).toBe('https://app.local/manager/dashboard');
-  });
-
   it('рядовой менеджер при включённом флаге: / -> /manager/dashboard (роль manager, не leader)', async () => {
     process.env.FEATURE_LEADER_CABINET = '1';
     vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'manager' } } as any);
@@ -92,16 +81,6 @@ describe('middleware — роль leader и кабинет руководите�
 
     expect(res.status).toBe(307);
     expect(res.headers.get('location')).toBe('https://app.local/forbidden');
-  });
-
-  it('руководитель на /leader/team при ВЫКЛЮЧЕННОМ флаге -> 404 (FEATURE_PREFIXES)', async () => {
-    vi.mocked(jwtVerify).mockResolvedValue({
-      payload: { role: 'leader' },
-    } as any);
-
-    const res = await middleware(req('/leader/team', 'tkn'));
-
-    expect(res.status).toBe(404);
   });
 
   it('рядовой менеджер на /leader/team при включённом флаге -> /forbidden (protectedPrefixes["/leader"]=["leader"])', async () => {

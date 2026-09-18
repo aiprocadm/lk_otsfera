@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { dateString, parseJsonBody } from '@/lib/api/http';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
-import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { createCertificate, issueFromOrderItem } from '@/lib/services/training/certificates';
 
 function mapError(error: string): number {
@@ -38,9 +37,6 @@ const postBodySchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const disabled = notFoundIfDisabled('manager_cabinet');
-  if (disabled) return disabled;
-
   const session = await requireManager();
   const parsed = await parseJsonBody(req, postBodySchema);
   if (!parsed.ok) return parsed.response;

@@ -170,13 +170,13 @@ describe('FeatureFlagsMatrix (У-65…У-68)', () => {
   });
 
   it('У-65: функция, закрывающая раздел, объясняет, почему кнопки нет', () => {
-    render(<FeatureFlagsMatrix rows={[row({ flag: 'manager_cabinet', editable: false })]} />);
-    expect(screen.getByTestId('flag-locked-manager_cabinet').textContent).toContain(
+    render(<FeatureFlagsMatrix rows={[row({ flag: 'role_constructor', editable: false })]} />);
+    expect(screen.getByTestId('flag-locked-role_constructor').textContent).toContain(
       'только на сервере'
     );
-    expect(screen.queryByTestId('flag-toggle-manager_cabinet')).toBeNull();
+    expect(screen.queryByTestId('flag-toggle-role_constructor')).toBeNull();
     // «Вернуть настройку сервера» у такой строки тоже быть не может.
-    expect(screen.queryByTestId('flag-reset-manager_cabinet')).toBeNull();
+    expect(screen.queryByTestId('flag-reset-role_constructor')).toBeNull();
   });
 
   it('отказ сервера показывается по-русски, а не кодом', async () => {

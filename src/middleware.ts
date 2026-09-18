@@ -42,15 +42,12 @@ export async function middleware(req: NextRequest) {
     const { payload } = await jwtVerify(token, secret);
     const role = payload.role as Role;
 
-    // Руководитель при включённом кабинете попадает в /leader; при выключенном
-    // leader_cabinet редирект ведёт в обычный кабинет менеджера («играющий
-    // тренер»). Роль говорит сама за себя — суб-роли больше нет (ТЗ 2026-08-17).
-    const home =
-      role === 'leader'
-        ? isFeatureEnabled('leader_cabinet')
-          ? '/leader/dashboard'
-          : roleHome.manager
-        : roleHome[role];
+    // Дом роли. Руководитель попадает в свой кабинет: роль говорит сама за
+    // себя, суб-роли больше нет (ТЗ 2026-08-17). До `У-262` здесь была развилка
+    // «а если флаг `leader_cabinet` выключен — веди в кабинет менеджера»; флаг
+    // снят, потому что выключенный кабинет роли это не откат фичи, а «роль не
+    // может войти никуда».
+    const home = roleHome[role];
 
     if (isAuthPage) {
       return NextResponse.redirect(new URL(home, req.url));

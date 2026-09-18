@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { formFields, readFile, readMultipart } from '@/lib/api/multipart';
 import { requireOrganization } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
-import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { createOrganizationDocument } from '@/lib/services/organization/documentUpload';
 
 const FIELDS = z.object({
@@ -38,9 +37,6 @@ const FIELDS = z.object({
  */
 
 export async function POST(req: NextRequest) {
-  const disabled = notFoundIfDisabled('organization_cabinet');
-  if (disabled) return disabled;
-
   const session = await requireOrganization();
 
   const form = await readMultipart(req);

@@ -55,18 +55,6 @@ describe('POST /api/manager/documents/[id]/upload', () => {
     vi.mocked(notFoundIfDisabled).mockReturnValue(undefined as never);
   });
 
-  it('returns 404 when the manager cabinet flag is disabled', async () => {
-    vi.mocked(notFoundIfDisabled).mockReturnValue(
-      new Response('Not Found', { status: 404 }) as never
-    );
-    const res = await uploadPost(
-      buildReq({ file: new File(['x'], 'a.pdf', { type: 'application/pdf' }) }) as never,
-      paramsP
-    );
-    expect(res.status).toBe(404);
-    expect(createCounterpartyDocumentMock).not.toHaveBeenCalled();
-  });
-
   it('redirects when caller is not a manager', async () => {
     getSession.mockResolvedValue({ sub: 'u-admin', role: 'admin' });
     await expect(

@@ -4,7 +4,6 @@ import { z } from 'zod';
 import { parseJsonBody } from '@/lib/api/http';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
-import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { getManagerLead } from '@/lib/services/manager/leads';
 import {
   assignLead,
@@ -19,8 +18,6 @@ const statusFor = (error: 'not_found' | 'lifecycle_violation' | 'invalid_manager
   error === 'not_found' ? 404 : error === 'invalid_manager' ? 400 : 409;
 
 export async function GET(_req: Request, { params }: Params) {
-  const disabled = notFoundIfDisabled('manager_cabinet');
-  if (disabled) return disabled;
   const session = await requireManager();
   const { id } = await params;
   const lead = await getManagerLead(prisma, session, id);
@@ -41,8 +38,6 @@ const patchBodySchema = z.object({
 });
 
 export async function PATCH(req: Request, { params }: Params) {
-  const disabled = notFoundIfDisabled('manager_cabinet');
-  if (disabled) return disabled;
   const session = await requireManager();
   const { id } = await params;
   const parsed = await parseJsonBody(req, patchBodySchema);

@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { formFields, readFile, readMultipart } from '@/lib/api/multipart';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
-import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { createCounterpartyDocument } from '@/lib/services/manager/uploads';
 
 const FIELDS = z.object({
@@ -41,9 +40,6 @@ const FIELDS = z.object({
  */
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const disabled = notFoundIfDisabled('manager_cabinet');
-  if (disabled) return disabled;
-
   const session = await requireManager();
   const { id: orderId } = await params;
 

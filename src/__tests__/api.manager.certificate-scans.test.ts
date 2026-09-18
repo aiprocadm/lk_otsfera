@@ -62,15 +62,6 @@ describe('POST /api/manager/orders/[id]/certificate-scans', () => {
     uploadCertificateScansMock.mockResolvedValue({ ok: true, results: [] });
   });
 
-  it('флаг кабинета выключен → ответ флага, сервис не зовётся', async () => {
-    vi.mocked(notFoundIfDisabled).mockReturnValue(
-      Response.json({ error: 'not_found' }, { status: 404 }) as never
-    );
-    const res = await POST(buildReq([{ file: pdf('a.pdf'), itemId: 'i1' }]) as never, paramsP);
-    expect(res.status).toBe(404);
-    expect(uploadCertificateScansMock).not.toHaveBeenCalled();
-  });
-
   it('форма без файлов → 400', async () => {
     const res = await POST(buildReq([]) as never, paramsP);
     expect(res.status).toBe(400);

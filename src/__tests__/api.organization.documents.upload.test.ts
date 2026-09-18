@@ -63,17 +63,6 @@ describe('POST /api/organization/documents/upload', () => {
     vi.mocked(notFoundIfDisabled).mockReturnValue(undefined as never);
   });
 
-  it('returns 404 when the organization cabinet flag is disabled', async () => {
-    vi.mocked(notFoundIfDisabled).mockReturnValue(
-      new Response('Not Found', { status: 404 }) as never
-    );
-    const res = await uploadPost(
-      buildReq({ file: pdf(), organizationId: 'org-a', orderId: 'ord-1' }) as never
-    );
-    expect(res.status).toBe(404);
-    expect(createOrganizationDocumentMock).not.toHaveBeenCalled();
-  });
-
   it('redirects to /login when there is no session', async () => {
     getSession.mockResolvedValue(null);
     await expect(

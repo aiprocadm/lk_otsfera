@@ -105,13 +105,6 @@ describe('middleware feature-flag gate — «Сообщения» (гейт на
     expect(res.status).not.toBe(404);
   });
 
-  it('кабинет заказчика выключен — 404 по-прежнему, но от своего префикса', async () => {
-    vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'organization' } } as any);
-    const res = await middleware(middlewareReq('/organization/messages'));
-    expect(res.status).toBe(404);
-    expect(await res.text()).toBe('Not Found');
-  });
-
   it('does NOT 404 from the feature gate for /organization/messages when FEATURE_CHAT=1 and FEATURE_ORGANIZATION_CABINET=1', async () => {
     process.env.FEATURE_CHAT = '1';
     process.env.FEATURE_ORGANIZATION_CABINET = '1';

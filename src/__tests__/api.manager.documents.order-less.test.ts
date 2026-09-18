@@ -24,20 +24,9 @@ function form(fields: Record<string, string>, withFile = true) {
 beforeEach(() => {
   vi.clearAllMocks();
   requireManager.mockResolvedValue({ sub: 'm1', role: 'manager', companyId: 'co-1' });
-  // Route is gated by the opt-in manager_cabinet flag (3-point contract, §5).
-  process.env.FEATURE_MANAGER_CABINET = '1';
 });
 
 describe('POST /api/manager/documents/order-less', () => {
-  it('404 when manager_cabinet flag is disabled', async () => {
-    process.env.FEATURE_MANAGER_CABINET = '0';
-    const res = await POST(
-      form({ counterpartyType: 'organization', counterpartyId: 'o1', docType: 'other' })
-    );
-    expect(res.status).toBe(404);
-    delete process.env.FEATURE_MANAGER_CABINET;
-  });
-
   it('maps forbidden → 403', async () => {
     createManagerOrderLessDocument.mockResolvedValue({ ok: false, error: 'forbidden' });
     const res = await POST(
