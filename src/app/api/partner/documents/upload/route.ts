@@ -8,6 +8,8 @@ import { createPartnerDocument } from '@/lib/services/partner/documentUpload';
 const FIELDS = z.object({
   orderId: z.coerce.string().default(''),
   docType: z.coerce.string().default('other'),
+  /** `У-251`: пусто — обычная загрузка; id — новая версия этого документа. */
+  replacesDocumentId: z.coerce.string().default(''),
 });
 
 /**
@@ -47,7 +49,7 @@ export async function POST(req: NextRequest) {
   if (!form) {
     return Response.json({ ok: false, error: 'no_file' }, { status: 400 });
   }
-  const { orderId, docType } = formFields(form, FIELDS);
+  const { orderId, docType, replacesDocumentId } = formFields(form, FIELDS);
 
   const file = await readFile(form, 'file');
   if (file === null) {
@@ -58,6 +60,7 @@ export async function POST(req: NextRequest) {
     // Пусто → общий документ партнёра (ветка без заказа, `У-115`).
     orderId: orderId === '' ? null : orderId,
     docType,
+    replacesDocumentId: replacesDocumentId === '' ? null : replacesDocumentId,
     file: {
       name: file.name,
       size: file.size,
@@ -78,7 +81,11 @@ export async function POST(req: NextRequest) {
               ? 413
               : result.error === 'invalid_mime'
                 ? 415
-                : 500;
+                : result.error === 'generated_document' || result.error === 'already_superseded'
+                  ? 409
+                  : result.error === 'mismatch'
+                    ? 400
+                    : 500;
     return Response.json({ ok: false, error: result.error }, { status });
   }
 

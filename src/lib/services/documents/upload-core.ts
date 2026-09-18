@@ -59,6 +59,14 @@ export type PersistDocumentArgs = {
   uploadedById: string;
   source: UploadSource;
   file: { name: string; size: number; mimeType: string; buffer: Buffer };
+  /**
+   * `У-251`: новая версия ЗАГРУЖЕННОГО документа вместо новой бумаги рядом.
+   *
+   * Приходит уже проверенным (`checkReplaceTarget` в `versions.ts`): здесь
+   * только запись. Проверять второй раз в ядре — значит развести два набора
+   * правил и однажды их рассогласовать.
+   */
+  replaces?: { id: string; version: number } | undefined;
 };
 
 export type PersistDocumentResult =
@@ -120,23 +128,45 @@ export async function persistUploadedDocument(
   }
 
   const docType = coerceDocType(args.docType);
-  const doc = await prisma.document.create({
-    data: {
-      orderId: args.orderId,
-      companyId,
-      counterpartyType: args.counterparty.type,
-      counterpartyId: args.counterparty.id,
-      name: args.file.name,
-      mimeType: args.file.mimeType,
-      size: args.file.size,
-      path: storagePath,
-      type: docType,
-      direction: args.direction,
-      generatedBy: 'user',
-      scanStatus: 'pending',
-      uploadedById: args.uploadedById,
-    } as Prisma.DocumentUncheckedCreateInput,
-  });
+  const replaces = args.replaces;
+  const data = {
+    orderId: args.orderId,
+    companyId,
+    counterpartyType: args.counterparty.type,
+    counterpartyId: args.counterparty.id,
+    name: args.file.name,
+    mimeType: args.file.mimeType,
+    size: args.file.size,
+    path: storagePath,
+    type: docType,
+    direction: args.direction,
+    generatedBy: 'user',
+    scanStatus: 'pending',
+    uploadedById: args.uploadedById,
+    // `У-251`: новая версия ссылается на прежнюю и получает следующий номер.
+    ...(replaces ? { version: replaces.version + 1, replacesDocumentId: replaces.id } : {}),
+  } as Prisma.DocumentUncheckedCreateInput;
+
+  /**
+   * `У-251`: прежняя версия помечается заменённой ТОЙ ЖЕ транзакцией, что
+   * создаёт новую, — как у перевыпуска (`У-151`). Пометь мы её раньше, сбой
+   * записи оставил бы контрагента без действующего документа; позже — на
+   * секунду показались бы две действующие версии одного файла.
+   *
+   * Транзакция открывается ТОЛЬКО ради замены. Обычная загрузка — одна запись,
+   * и заворачивать её значило бы держать соединение под транзакцией на каждом
+   * файле ради случая, которого в этот раз нет.
+   */
+  const doc = replaces
+    ? await prisma.$transaction(async (tx) => {
+        const created = await tx.document.create({ data });
+        await tx.document.update({
+          where: { id: replaces.id },
+          data: { supersededAt: new Date() },
+        });
+        return created;
+      })
+    : await prisma.document.create({ data });
 
   // Best-effort: enqueue ClamAV scan. Failure leaves scanStatus='pending'.
   try {
@@ -150,11 +180,14 @@ export async function persistUploadedDocument(
   }
 
   await recordAudit(prisma, {
-    action: 'document_uploaded',
+    // `У-251`: замена версии — не то же самое, что новая бумага. По журналу
+    // должно быть видно, что старый файл перестал быть действующим.
+    action: replaces ? 'document_version_uploaded' : 'document_uploaded',
     entity: 'document',
     entityId: doc.id,
     userId: args.uploadedById,
     after: {
+      ...(replaces ? { replacesDocumentId: replaces.id, version: replaces.version + 1 } : {}),
       orderId: args.orderId,
       companyId,
       counterpartyType: args.counterparty.type,

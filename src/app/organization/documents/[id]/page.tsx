@@ -7,6 +7,8 @@ import { getFieldsForEntity } from '@/lib/services/customFields';
 import { OrgAppShell } from '@/components/organization/org-app-shell';
 import { DocumentDetailView } from '@/components/documents/document-detail-view';
 import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fields';
+import { DocumentVersionUploadForm } from '@/components/documents/document-version-upload-form';
+import { organizationVersionUploadTarget } from '@/lib/documents/versionUpload';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import { Breadcrumbs } from '@/components/ui';
 
@@ -27,6 +29,10 @@ export default async function OrganizationDocumentDetailPage({
   if (!res.ok) notFound();
 
   const customFields = await getFieldsForEntity(prisma, ctx.session, 'document', id);
+  // `У-251`: заменить можно только свой же загруженный файл — признак посчитал
+  // сервер. Истории версий и журнала скачиваний у клиента нет (внутренний
+  // контур исполнителя).
+  const versionUpload = organizationVersionUploadTarget(res.document);
 
   return (
     <OrgAppShell
@@ -48,6 +54,14 @@ export default async function OrganizationDocumentDetailPage({
         // сотрудников той же карточкой кнопка не показывается.
         canAccept
       >
+        {versionUpload && (
+          <DocumentVersionUploadForm
+            url={versionUpload.url}
+            fields={versionUpload.fields}
+            documentId={id}
+            currentVersion={res.document.version}
+          />
+        )}
         <EntityCustomFields fields={customFields} entityType="document" entityId={id} />
       </DocumentDetailView>
     </OrgAppShell>

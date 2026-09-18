@@ -38,6 +38,14 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 const { getDocumentDetail } = vi.hoisted(() => ({ getDocumentDetail: vi.fn() }));
 vi.mock('@/lib/services/documents/detail', () => ({ getDocumentDetail }));
 
+// `У-251`, `У-254`: страницы сотрудников спрашивают ещё и историю документа.
+// Здесь проверяются гарды и адреса ссылок, поэтому история — пустой отказ:
+// её содержимое проверяет свой тест сервиса.
+const { getDocumentHistory } = vi.hoisted(() => ({
+  getDocumentHistory: vi.fn(async () => ({ ok: false as const, error: 'not_found' as const })),
+}));
+vi.mock('@/lib/services/documents/history', () => ({ getDocumentHistory }));
+
 vi.mock('@/lib/services/customFields', () => ({
   getFieldsForEntity: async () => [],
 }));

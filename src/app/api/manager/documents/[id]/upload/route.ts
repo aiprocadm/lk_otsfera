@@ -9,6 +9,8 @@ import { createCounterpartyDocument } from '@/lib/services/manager/uploads';
 const FIELDS = z.object({
   docType: z.coerce.string().default('other'),
   recipient: z.coerce.string().default('organization'),
+  /** `У-251`: пусто — обычная загрузка; id — новая версия этого документа. */
+  replacesDocumentId: z.coerce.string().default(''),
 });
 
 /**
@@ -49,7 +51,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!form) {
     return Response.json({ ok: false, error: 'no_file' }, { status: 400 });
   }
-  const { docType, recipient: recipientRaw } = formFields(form, FIELDS);
+  const { docType, recipient: recipientRaw, replacesDocumentId } = formFields(form, FIELDS);
   const recipient = recipientRaw === 'partner' ? 'partner' : 'organization';
 
   const file = await readFile(form, 'file');
@@ -61,6 +63,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     orderId,
     recipient,
     docType,
+    replacesDocumentId: replacesDocumentId === '' ? null : replacesDocumentId,
     file: {
       name: file.name,
       size: file.size,
@@ -81,7 +84,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
               ? 404
               : result.error === 'invalid_recipient'
                 ? 400
-                : 500;
+                : result.error === 'generated_document' || result.error === 'already_superseded'
+                  ? 409
+                  : result.error === 'mismatch'
+                    ? 400
+                    : 500;
     return Response.json({ ok: false, error: result.error }, { status });
   }
 

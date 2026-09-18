@@ -70,7 +70,10 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     entity: 'document',
     entityId: id,
     userId: session.sub,
-    after: { ttl: SIGNED_URL_TTL_SEC, viewer: 'manager' },
+    // `У-254`: роль берётся из сессии, а не вписывается строкой. Кабинет
+    // менеджера открыт и руководителю («играющий тренер»), и в журнале он
+    // числился менеджером — разбор «кто унёс бумагу» начинался с неверного имени.
+    after: { ttl: SIGNED_URL_TTL_SEC, viewer: session.role, version: result.version },
   });
 
   return Response.json({

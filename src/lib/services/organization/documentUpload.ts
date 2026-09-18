@@ -2,6 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { notifyManagers, notifyManagersOrderLess } from '@/lib/notifications';
 import { persistUploadedDocument } from '@/lib/services/documents/upload-core';
+import { resolveReplaces, type ReplaceErrorCode } from '@/lib/services/documents/versions';
 import { getOrganizationName } from '@/lib/services/organization/lookup';
 import { log } from '@/lib/logging';
 
@@ -31,6 +32,11 @@ export type CreateOrganizationDocumentArgs = {
   orderId: string | null;
   docType: string;
   file: { name: string; size: number; mimeType: string; buffer: Buffer };
+  /**
+   * `У-251`: заменить этим файлом прежнюю версию. Поле необязательное —
+   * обычная загрузка приходит без него и работает как раньше.
+   */
+  replacesDocumentId?: string | null;
 };
 
 export type CreateOrganizationDocumentResult =
@@ -38,7 +44,13 @@ export type CreateOrganizationDocumentResult =
   | {
       ok: false;
       error:
-        'forbidden' | 'not_found' | 'too_large' | 'invalid_mime' | 'storage' | 'org_no_company';
+        | 'forbidden'
+        | 'not_found'
+        | 'too_large'
+        | 'invalid_mime'
+        | 'storage'
+        | 'org_no_company'
+        | ReplaceErrorCode;
     };
 
 export async function createOrganizationDocument(
@@ -60,6 +72,13 @@ export async function createOrganizationDocument(
     });
     if (!org?.companyId) return { ok: false, error: 'not_found' };
 
+    const replacesOrderLess = await resolveReplaces(prisma, session, args.replacesDocumentId, {
+      docType: args.docType,
+      counterparty: { type: 'organization', id: args.organizationId },
+      orderId: null,
+    });
+    if (!replacesOrderLess.ok) return replacesOrderLess;
+
     const persisted = await persistUploadedDocument(prisma, {
       counterparty: { type: 'organization', id: args.organizationId },
       orderId: null,
@@ -69,6 +88,7 @@ export async function createOrganizationDocument(
       uploadedById: session.sub,
       source: 'organization',
       file: args.file,
+      replaces: replacesOrderLess.replaces,
     });
     if (!persisted.ok) return persisted;
 
@@ -98,6 +118,13 @@ export async function createOrganizationDocument(
     return { ok: false, error: 'not_found' };
   }
 
+  const replaces = await resolveReplaces(prisma, session, args.replacesDocumentId, {
+    docType: args.docType,
+    counterparty: { type: 'organization', id: args.organizationId },
+    orderId: order.id,
+  });
+  if (!replaces.ok) return replaces;
+
   const persisted = await persistUploadedDocument(prisma, {
     counterparty: { type: 'organization', id: args.organizationId },
     orderId: order.id,
@@ -106,6 +133,7 @@ export async function createOrganizationDocument(
     uploadedById: session.sub,
     source: 'organization',
     file: args.file,
+    replaces: replaces.replaces,
   });
   if (!persisted.ok) return persisted;
 

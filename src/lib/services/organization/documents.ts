@@ -145,7 +145,15 @@ export async function listOrgDocuments(
 }
 
 export type DownloadResult =
-  | { ok: true; path: string; mimeType: string; name: string; downloadName: string }
+  | {
+      ok: true;
+      path: string;
+      mimeType: string;
+      name: string;
+      downloadName: string;
+      /** `У-254`: версия попадает в журнал скачиваний. */
+      version: number;
+    }
   | { ok: false; error: 'not_found' }
   | { ok: false; error: 'infected'; scanReason: string | null };
 
@@ -171,6 +179,8 @@ export async function getOrgDocumentForDownload(
       createdAt: true,
       // `У-164`: черновик КП клиенту не отдаётся даже по прямой ссылке.
       status: true,
+      // `У-254`: журнал скачиваний записывает, какую версию унесли.
+      version: true,
     },
   });
 
@@ -202,5 +212,6 @@ export async function getOrgDocumentForDownload(
     mimeType: doc.mimeType,
     name: doc.name,
     downloadName: documentDownloadName(doc),
+    version: doc.version,
   };
 }

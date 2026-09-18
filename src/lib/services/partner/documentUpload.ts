@@ -2,6 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { notifyManagers, notifyManagersPartnerOrderLess } from '@/lib/notifications';
 import { persistUploadedDocument } from '@/lib/services/documents/upload-core';
+import { resolveReplaces, type ReplaceErrorCode } from '@/lib/services/documents/versions';
 import { log } from '@/lib/logging';
 
 /**
@@ -34,6 +35,11 @@ export type CreatePartnerDocumentArgs = {
   orderId: string | null;
   docType: string;
   file: { name: string; size: number; mimeType: string; buffer: Buffer };
+  /**
+   * `У-251`: заменить этим файлом прежнюю версию. Поле необязательное —
+   * обычная загрузка приходит без него и работает как раньше.
+   */
+  replacesDocumentId?: string | null;
 };
 
 export type CreatePartnerDocumentResult =
@@ -47,7 +53,8 @@ export type CreatePartnerDocumentResult =
         | 'invalid_mime'
         | 'storage'
         | 'org_no_company'
-        | 'company_required';
+        | 'company_required'
+        | ReplaceErrorCode;
     };
 
 export async function createPartnerDocument(
@@ -70,6 +77,13 @@ export async function createPartnerDocument(
     const companyId = companyIds.size === 1 ? [...companyIds][0] : undefined;
     if (companyId === undefined) return { ok: false, error: 'company_required' };
 
+    const replacesOrderLess = await resolveReplaces(prisma, session, args.replacesDocumentId, {
+      docType: args.docType,
+      counterparty: { type: 'partner', id: partnerId },
+      orderId: null,
+    });
+    if (!replacesOrderLess.ok) return replacesOrderLess;
+
     const persisted = await persistUploadedDocument(prisma, {
       counterparty: { type: 'partner', id: partnerId },
       orderId: null,
@@ -79,6 +93,7 @@ export async function createPartnerDocument(
       uploadedById: session.sub,
       source: 'partner',
       file: args.file,
+      replaces: replacesOrderLess.replaces,
     });
     if (!persisted.ok) return persisted;
 
@@ -111,6 +126,13 @@ export async function createPartnerDocument(
     return { ok: false, error: 'not_found' };
   }
 
+  const replaces = await resolveReplaces(prisma, session, args.replacesDocumentId, {
+    docType: args.docType,
+    counterparty: { type: 'partner', id: partnerId },
+    orderId: order.id,
+  });
+  if (!replaces.ok) return replaces;
+
   const persisted = await persistUploadedDocument(prisma, {
     counterparty: { type: 'partner', id: partnerId },
     orderId: order.id,
@@ -119,6 +141,7 @@ export async function createPartnerDocument(
     uploadedById: session.sub,
     source: 'partner',
     file: args.file,
+    replaces: replaces.replaces,
   });
   if (!persisted.ok) return persisted;
 
