@@ -101,6 +101,8 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   intake_claimed: 'Взятие входящего в работу',
   integration_settings_updated: 'Изменение настроек интеграции',
   invite_resent: 'Повторная отправка приглашения',
+  kpi_metrics_changed: 'Изменение набора показателей компании',
+  kpi_target_changed: 'Изменение плана по показателю',
   lead_assigned: 'Назначение ответственного за заявку',
   lead_created_from_call: 'Заявка из звонка',
   lead_created_from_contact: 'Создание лида из контакта',

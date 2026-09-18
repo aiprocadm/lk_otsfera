@@ -6,6 +6,7 @@ import { moscowMonthRange } from '@/lib/dates/calendar';
 import { resolveFunnelStages, stageForLead } from '@/lib/funnel/stages';
 import { listCompanyManagers } from '@/lib/services/manager/team';
 import { recordAudit } from '@/lib/auth/audit';
+import { leadCompanyWhere } from '@/lib/auth/leadScope';
 
 /**
  * M3 — аналитика руководителя: когортная конверсия воронки + план/факт по
@@ -84,9 +85,13 @@ const UNASSIGNED_LABEL = 'Без менеджера';
 
 /**
  * Воронка руководителя: снапшот открытых стадий (как есть сейчас) + когортная
- * конверсия за период + разбивка по менеджерам. Скоуп C8-partial (спека §0.8):
- * Lead не имеет companyId, поэтому границы держим через assignedManager.companyId,
- * пропуская неназначенные лиды (общая очередь).
+ * конверсия за период + разбивка по менеджерам.
+ *
+ * Скоуп компании — `leadCompanyWhere` (`Р-Э7-2`, этап 7): ответственный ИЛИ
+ * организация лида из этой компании. До этапа 7 здесь стояло «ответственный из
+ * компании ИЛИ ответственного нет вовсе», и неназначенный лид любой компании
+ * попадал в воронку каждой. Правило переехало в одно место, потому что на него
+ * встают ещё метрики и отчёты этапа.
  */
 export async function getFunnelAnalytics(
   prisma: PrismaClient,
@@ -96,20 +101,17 @@ export async function getFunnelAnalytics(
   if (!isStaff(session) || !session.companyId) return { ok: false, error: 'forbidden' };
   const companyId = session.companyId;
 
-  const scopeOr: Prisma.LeadWhereInput['OR'] = [
-    { assignedManagerId: null },
-    { assignedManager: { companyId } },
-  ];
+  const scope = leadCompanyWhere(companyId);
 
   const [stages, managers, openLeads, cohortLeads] = await Promise.all([
     resolveFunnelStages(prisma, companyId),
     listCompanyManagers(prisma, companyId),
     prisma.lead.findMany({
-      where: { status: { in: [...OPEN_LEAD_STATUSES] }, OR: scopeOr },
+      where: { ...scope, status: { in: [...OPEN_LEAD_STATUSES] } },
       select: { status: true, funnelStageId: true, estimatedAmount: true },
     }),
     prisma.lead.findMany({
-      where: { createdAt: { gte: from, lt: to }, OR: scopeOr },
+      where: { ...scope, createdAt: { gte: from, lt: to } },
       select: {
         status: true,
         estimatedAmount: true,
@@ -283,7 +285,9 @@ export async function getPlanFact(
       _count: { _all: true },
     }),
     prisma.salesTarget.findMany({
-      where: { companyId, year, month },
+      // План/факт этого экрана — про деньги. Без фильтра по показателю сюда
+      // приехали бы планы по звонкам и лидам и сложились бы с рублями.
+      where: { companyId, year, month, metric: 'revenue_paid' },
       select: { managerId: true, targetAmount: true },
     }),
     prisma.deal.groupBy({
@@ -417,7 +421,10 @@ export async function upsertSalesTarget(
   if (target.companyId !== companyId) return { ok: false, error: 'forbidden' };
 
   if (targetAmount === null) {
-    await prisma.salesTarget.deleteMany({ where: { companyId, managerId, year, month } });
+    // Только план продаж: планы по остальным показателям чистит хаб KPI.
+    await prisma.salesTarget.deleteMany({
+      where: { companyId, managerId, year, month, metric: 'revenue_paid' },
+    });
     await recordAudit(prisma, {
       action: 'sales_target_cleared',
       entity: 'user',
@@ -439,9 +446,27 @@ export async function upsertSalesTarget(
   if (!amount.isFinite() || amount.lte(0) || amount.gte(MAX_TARGET_AMOUNT))
     return { ok: false, error: 'invalid' };
 
+  // `metric` этап 7 добавил в ключ. Здесь всегда деньги: эта функция — прежний
+  // план продаж, планы по остальным показателям задаёт хаб KPI (`У-242`).
   await prisma.salesTarget.upsert({
-    where: { companyId_managerId_year_month: { companyId, managerId, year, month } },
-    create: { companyId, managerId, year, month, targetAmount: amount, createdById: session.sub },
+    where: {
+      companyId_managerId_year_month_metric: {
+        companyId,
+        managerId,
+        year,
+        month,
+        metric: 'revenue_paid',
+      },
+    },
+    create: {
+      companyId,
+      managerId,
+      year,
+      month,
+      metric: 'revenue_paid',
+      targetAmount: amount,
+      createdById: session.sub,
+    },
     update: { targetAmount: amount },
   });
 

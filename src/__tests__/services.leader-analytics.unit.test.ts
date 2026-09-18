@@ -91,12 +91,19 @@ describe('getFunnelAnalytics', () => {
     expect(res).toEqual({ ok: false, error: 'forbidden' });
   });
 
-  it('scope-where: lead.findMany (snapshot + cohort) both carry the §0.8 OR-clause', async () => {
+  it('граница компании: обе выборки лидов идут через ответственного ИЛИ организацию', async () => {
+    // Этап 7, `Р-Э7-2`. Раньше здесь стояло «ответственного нет вовсе» — и
+    // неназначенный лид ЛЮБОЙ компании попадал в воронку каждой. Правило
+    // переехало в `leadCompanyWhere`, потому что на него встают ещё метрики и
+    // отчёты этапа; прежнее поведение возвращать нельзя.
     const lead = { findMany: vi.fn().mockResolvedValue([]) };
     const prisma = fakePrisma({ lead });
     await getFunnelAnalytics(prisma, leaderSession, monthRange(2026, 7));
     expect(lead.findMany).toHaveBeenCalledTimes(2);
-    const expectedOr = [{ assignedManagerId: null }, { assignedManager: { companyId: 'c1' } }];
+    const expectedOr = [
+      { assignedManager: { companyId: 'c1' } },
+      { organization: { companyId: 'c1' } },
+    ];
     expect(lead.findMany.mock.calls[0][0].where.OR).toEqual(expectedOr);
     expect(lead.findMany.mock.calls[1][0].where.OR).toEqual(expectedOr);
   });
@@ -614,7 +621,15 @@ describe('upsertSalesTarget', () => {
     expect(salesTarget.upsert).toHaveBeenCalledOnce();
     const call = salesTarget.upsert.mock.calls[0][0];
     expect(call.where).toEqual({
-      companyId_managerId_year_month: { companyId: 'c1', managerId: 'm1', year: 2026, month: 7 },
+      // Этап 7: в ключ добавился показатель. Прежний план продаж — это
+      // показатель «Оплачено», поэтому здесь всегда `revenue_paid`.
+      companyId_managerId_year_month_metric: {
+        companyId: 'c1',
+        managerId: 'm1',
+        year: 2026,
+        month: 7,
+        metric: 'revenue_paid',
+      },
     });
     expect(call.create.targetAmount.toFixed(2)).toBe('1500.00');
     expect(call.create.createdById).toBe('leader1');
@@ -706,7 +721,9 @@ describe('upsertSalesTarget', () => {
     const res = await upsertSalesTarget(prisma, leaderSession, { ...args, targetAmount: null });
     expect(res).toEqual({ ok: true });
     expect(salesTarget.deleteMany).toHaveBeenCalledWith({
-      where: { companyId: 'c1', managerId: 'm1', year: 2026, month: 7 },
+      // Чистится только план продаж: планы по остальным показателям живут в
+      // той же таблице и стираться заодно не должны.
+      where: { companyId: 'c1', managerId: 'm1', year: 2026, month: 7, metric: 'revenue_paid' },
     });
     expect(salesTarget.upsert).not.toHaveBeenCalled();
     expect(recordAudit).toHaveBeenCalledWith(

@@ -169,6 +169,9 @@ export const AUDIT_ACTIONS = [
   'intake_claimed',
   'integration_settings_updated',
   'invite_resent',
+  // Этап 7 (`У-242`): настройка показателей компании и планов по ним.
+  'kpi_metrics_changed',
+  'kpi_target_changed',
   'lead_assigned',
   'lead_created_from_call',
   'lead_created_from_contact',
