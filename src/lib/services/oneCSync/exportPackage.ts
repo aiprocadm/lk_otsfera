@@ -3,7 +3,7 @@ import ExcelJS from 'exceljs';
 import JSZip from 'jszip';
 import { recordAudit } from '@/lib/auth/audit';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { documentDownloadName } from '@/lib/documents/fileName';
+import { documentDownloadName, uniqueArchiveName } from '@/lib/documents/fileName';
 import { parseOneCPushStatus } from '@/lib/documents/oneCPushStatus';
 import { errorMessageRu } from '@/lib/errors/messages';
 import { log } from '@/lib/logging';
@@ -223,20 +223,6 @@ export async function listExportCandidates(
 
 type PackedDocument = { doc: CandidateRow; record: OneCDocumentRecord; file: string };
 
-/**
- * Имя файла внутри архива — без повторов: «… (2).pdf», если такое уже есть.
- * Расширение у имени есть всегда: `documentDownloadName` его гарантирует.
- */
-function uniqueName(base: string, used: Set<string>): string {
-  const dot = base.lastIndexOf('.');
-  let name = base;
-  for (let i = 2; used.has(name); i += 1) {
-    name = `${base.slice(0, dot)} (${i})${base.slice(dot)}`;
-  }
-  used.add(name);
-  return name;
-}
-
 /** Лист «Документы» + «Строки» + «Не вошли»: заголовки — «по-русски (ключ контракта)». */
 async function renderPackageXlsx(
   packed: PackedDocument[],
@@ -398,7 +384,7 @@ export async function buildExportPackage(
       skipped.push({ documentId: doc.id, number: doc.number, reason: 'file_unavailable' });
       continue;
     }
-    const file = uniqueName(documentDownloadName(doc), used);
+    const file = uniqueArchiveName(documentDownloadName(doc), used);
     zip.file(`files/${file}`, content);
     packed.push({ doc, record: built.record, file });
   }

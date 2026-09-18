@@ -145,6 +145,7 @@ export default async function PartnerDocumentsPage({
         newDocIds={newDocIds}
         groupByOrder={tab === 'orders'}
         cardHrefBase="/partner/documents"
+        zipDownload
       />
 
       <Paginator

@@ -155,6 +155,8 @@ export const AUDIT_ACTIONS = [
   // действующей. Отдельное событие: по журналу должно быть видно замену, а не
   // просто ещё одну загрузку.
   'document_version_uploaded',
+  // `У-252`: пакетное скачивание. Одно событие на архив, перечень id — в `after`.
+  'documents_zip_downloaded',
   'enrollment_approved',
   // У-34а (этап 6): администратор проставил направление старой заявке.
   'enrollment_legacy_direction_assigned',

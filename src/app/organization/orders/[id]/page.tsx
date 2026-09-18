@@ -101,6 +101,7 @@ export default async function OrganizationOrderDetailPage({
                 rows={order.documents}
                 downloadEndpointBase="/api/organization/documents"
                 downloadEndpointQuery={sp.org ? `?org=${encodeURIComponent(sp.org)}` : ''}
+                zipDownload
               />
               <OrganizationDocumentUploadForm organizationId={ctx.activeOrgId} orderId={order.id} />
             </div>

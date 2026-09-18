@@ -35,6 +35,24 @@ export function documentTypeLabelRu(type: string): string {
   return TYPE_LABELS[type] ?? TYPE_LABELS.other!;
 }
 
+/**
+ * Имя файла внутри архива — без повторов: «… (2).pdf», если такое уже есть.
+ *
+ * Правило одно на оба архива — пакет для 1С (`У-173`) и «Скачать выбранные»
+ * (`У-252`): два одинаковых имени в одном ZIP — это либо потерянный файл, либо
+ * непонятно чей. Расширение у имени есть всегда: `documentDownloadName` его
+ * гарантирует.
+ */
+export function uniqueArchiveName(base: string, used: Set<string>): string {
+  const dot = base.lastIndexOf('.');
+  let name = base;
+  for (let i = 2; used.has(name); i += 1) {
+    name = `${base.slice(0, dot)} (${i})${base.slice(dot)}`;
+  }
+  used.add(name);
+  return name;
+}
+
 export function documentDownloadName(doc: {
   type: string;
   number: string | null;

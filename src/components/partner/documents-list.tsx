@@ -1,7 +1,8 @@
 'use client';
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Badge, EmptyState } from '@/components/ui';
+import { Badge, Button, EmptyState } from '@/components/ui';
+import { ZipDownloadButton } from '@/components/documents/zip-download-button';
 import type { OrgDocumentRow } from '@/lib/services/partner/orgDocuments';
 import { ONE_C_PUSH_STATUS_LABEL, ONE_C_PUSH_STATUS_TONE } from '@/lib/documents/oneCPushStatus';
 
@@ -13,8 +14,14 @@ import { ONE_C_PUSH_STATUS_LABEL, ONE_C_PUSH_STATUS_TONE } from '@/lib/documents
 export type DocumentsListSelection = {
   selected: ReadonlySet<string>;
   onToggle: (id: string) => void;
-  /** Флажок строки активен, только если документ можно поставить в очередь. */
-  canSelect: (doc: OrgDocumentRow) => boolean;
+  /**
+   * Флажок строки активен, только если документ годится для действия.
+   * Не задан — выбирать можно любую строку: так и есть у скачивания архивом
+   * (`У-252`), где в выборку годится каждая бумага.
+   */
+  canSelect?: ((doc: OrgDocumentRow) => boolean) | undefined;
+  /** Подсказка на неактивном флажке — почему строку выбрать нельзя. */
+  disabledHint?: string | undefined;
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -53,6 +60,7 @@ export function DocumentsList({
   groupByOrder = false,
   cardHrefBase,
   selection,
+  zipDownload = false,
 }: {
   rows: OrgDocumentRow[];
   downloadEndpointBase?: string;
@@ -67,15 +75,46 @@ export function DocumentsList({
   newDocIds?: string[];
   /** Этап 3 PR-2 (ФТ-6.6): секции «Заказ №…» / «Без заказа» вместо плоского списка. */
   groupByOrder?: boolean;
-  /** `У-169`: флажки выбора строк (только списки сотрудников). Нет — флажков нет. */
+  /**
+   * `У-169`: выбор строк, которым управляет обёртка (кнопка «Выгрузить
+   * выбранные в 1С» живёт у неё). Нет — список ведёт выбор сам, если включено
+   * скачивание архивом.
+   */
   selection?: DocumentsListSelection | undefined;
+  /**
+   * `У-252`: флажки и кнопка «Скачать выбранные (ZIP)». Включается во всех
+   * шести списках документов; у обёртки сотрудников кнопка стоит рядом с
+   * выгрузкой в 1С и делит с ней ОДИН столбец флажков — два столбца рядом
+   * человек читал бы как два разных выбора.
+   */
+  zipDownload?: boolean;
 }) {
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [ownSelected, setOwnSelected] = useState<ReadonlySet<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   // Локально гасим бейдж сразу после скачивания (сервер ставит отметку в download-роуте).
   const [seen, setSeen] = useState<ReadonlySet<string>>(new Set());
 
   const isNew = (id: string) => newDocIds.includes(id) && !seen.has(id);
+
+  function toggleOwn(id: string) {
+    setOwnSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  // Выбор один на список: либо его ведёт обёртка, либо — при скачивании
+  // архивом — сам список. Двух наборов флажков в одной таблице не бывает.
+  const ownSelection: DocumentsListSelection | undefined = zipDownload
+    ? { selected: ownSelected, onToggle: toggleOwn }
+    : undefined;
+  const rowSelection = selection ?? ownSelection;
+  // Кнопку архива рисует список только тогда, когда сам ведёт выбор: у
+  // обёртки сотрудников своя панель, и вторая кнопка в списке дублировала бы её.
+  const showOwnToolbar = zipDownload && !selection;
 
   async function download(docId: string, name: string) {
     setError(null);
@@ -127,16 +166,18 @@ export function DocumentsList({
 
   const renderRow = (doc: OrgDocumentRow) => (
     <li key={doc.id} className="px-4 py-3 flex items-center gap-3 hover:bg-gray-50">
-      {selection && (
+      {rowSelection && (
         <input
           type="checkbox"
           aria-label={`Выбрать ${doc.name}`}
-          checked={selection.selected.has(doc.id)}
-          disabled={!selection.canSelect(doc)}
+          checked={rowSelection.selected.has(doc.id)}
+          disabled={rowSelection.canSelect ? !rowSelection.canSelect(doc) : false}
           title={
-            selection.canSelect(doc) ? undefined : 'Этот документ сейчас нельзя выгрузить в 1С'
+            rowSelection.canSelect && !rowSelection.canSelect(doc)
+              ? rowSelection.disabledHint
+              : undefined
           }
-          onChange={() => selection.onToggle(doc.id)}
+          onChange={() => rowSelection.onToggle(doc.id)}
           className="h-4 w-4 flex-shrink-0 accent-[#F97316] disabled:opacity-40"
         />
       )}
@@ -220,6 +261,29 @@ export function DocumentsList({
 
   return (
     <div className="space-y-2">
+      {showOwnToolbar && (
+        <div
+          role="toolbar"
+          aria-label="Скачивание выбранных документов"
+          className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm"
+        >
+          <span className="text-gray-700">{`Выбрано: ${ownSelected.size}`}</span>
+          <ZipDownloadButton ids={[...ownSelected]} />
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setOwnSelected(new Set(rows.map((d) => d.id)))}
+          >
+            Выбрать все
+          </Button>
+          {ownSelected.size > 0 && (
+            <Button size="sm" variant="ghost" onClick={() => setOwnSelected(new Set())}>
+              Снять выбор
+            </Button>
+          )}
+        </div>
+      )}
+
       {error && (
         <div className="text-sm text-red-700 bg-red-50 border border-red-100 rounded px-3 py-2">
           {error}
