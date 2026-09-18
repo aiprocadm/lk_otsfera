@@ -43,11 +43,7 @@ export type SectionKey =
   | 'finance'
   | 'commissions'
   | 'corrections'
-  | 'import'
-  | 'paymentsImport'
   | 'exchange'
-  | 'sync'
-  | 'integrations'
   | 'messages'
   | 'inbox'
   | 'messengers'
@@ -55,13 +51,9 @@ export type SectionKey =
   | 'analytics'
   | 'team'
   | 'users'
-  | 'roles'
   | 'trainingDirections'
-  | 'customFields'
-  | 'orderStatuses'
   | 'audit'
   | 'piiAccess'
-  | 'health'
   | 'settings'
   | 'notifications'
   | 'studentCabinet'
@@ -74,6 +66,15 @@ export type SectionMeta = { label: string; iconKey: IconKey };
  * Названия — из глоссария (`У-76`). Переименования `У-107` сделаны здесь, и
  * этого достаточно: пункт меню, заголовок страницы и хлебная крошка берут
  * строку отсюда.
+ */
+/**
+ * `У-262`: из словаря убраны девять ключей — `sync`, `import`, `paymentsImport`,
+ * `roles`, `security`, `health`, `integrations`, `customFields`,
+ * `orderStatuses`. Ими подписывались пункты меню, которые заменил хаб
+ * «Настройки»: при включённом флаге `settings_hub` они прятались, а флаг был
+ * включён везде — то есть пункты не показывались никому. Флаг снят, пункты
+ * удалены, и ключи остались без потребителя (страж значков это и поймал).
+ * Разделы хаба хранят свои названия в реестре `settings.ts`.
  */
 export const SECTIONS: Record<SectionKey, SectionMeta> = {
   dashboard: { label: 'Главная', iconKey: 'dashboard' },
@@ -110,18 +111,9 @@ export const SECTIONS: Record<SectionKey, SectionMeta> = {
   // `У-107`: было «Корректировки» — корректировки чего.
   corrections: { label: 'Корректировки комиссии', iconKey: 'corrections' },
 
-  // ── Обмен с 1С ────────────────────────────────────────────────────────────
-  // `У-107`: было «Загрузка из 1С» — не отличить от выписки, тоже «из 1С».
-  import: { label: 'Загрузка Excel из 1С', iconKey: 'import' },
-  // `У-107`: было «Импорт оплат» у менеджера и «Выписка (сч. 51)» у админа —
-  // один экран под двумя именами.
-  paymentsImport: { label: 'Выписка по счёту 51', iconKey: 'paymentsImport' },
   // `У-113`: у менеджера две загрузки схлопнуты в один раздел с вкладками —
   // человеку не нужно помнить, что обмен «размазан» по двум пунктам меню.
   exchange: { label: 'Обмен с 1С', iconKey: 'exchange' },
-  // `У-107`: было «Синхронизация (авто)».
-  sync: { label: 'Автообмен с 1С', iconKey: 'sync' },
-  integrations: { label: 'Интеграции', iconKey: 'integrations' },
 
   // ── Коммуникации ──────────────────────────────────────────────────────────
   messages: { label: 'Сообщения', iconKey: 'messages' },
@@ -137,17 +129,10 @@ export const SECTIONS: Record<SectionKey, SectionMeta> = {
 
   // ── Справочники и платформа ───────────────────────────────────────────────
   users: { label: 'Пользователи', iconKey: 'users' },
-  // `У-107`: было «Роли» — речь о конструкторе прав доступа.
-  roles: { label: 'Роли доступа', iconKey: 'roles' },
   trainingDirections: { label: 'Направления обучения', iconKey: 'trainingDirections' },
-  // `У-107`: было «Доп-поля» — сокращение в интерфейсе.
-  customFields: { label: 'Дополнительные поля', iconKey: 'customFields' },
-  orderStatuses: { label: 'Статусы заявок', iconKey: 'orderStatuses' },
   audit: { label: 'Аудит', iconKey: 'audit' },
   // `У-107`: было «Доступ к ПДн» — аббревиатура в интерфейсе.
   piiAccess: { label: 'Доступ к персональным данным', iconKey: 'security' },
-  // `У-107`: было «Здоровье».
-  health: { label: 'Здоровье системы', iconKey: 'health' },
   settings: { label: 'Настройки', iconKey: 'settings' },
   // Этап 5 ТЗ 12.09.2026 (`У-228`): лента уведомлений, одна на шесть кабинетов,
   // закреплена внизу над «Настройками».

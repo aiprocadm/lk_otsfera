@@ -119,10 +119,9 @@ export default async function ManagerOrderDetailPage({
   // вела бы на выключенный флагом раздел.
   // Сотрудник без компании границы изоляции не имеет — деградируем в
   // «ничего», а не в «видно всё» (тот же принцип, что у sentinel-веток чата).
-  const deal =
-    isFeatureEnabled('deals_pipeline') && session.companyId
-      ? await loadOrderDeal(prisma, id, { companyId: session.companyId })
-      : null;
+  const deal = session.companyId
+    ? await loadOrderDeal(prisma, id, { companyId: session.companyId })
+    : null;
   // Этап 1 ТЗ 12.09.2026 (`У-180`): «Контакт заказа» — с кем со стороны
   // клиента ведут заказ. Флаг `contacts` поведенческий; `teamMode` читается
   // свежим (C8), варианты — контакты организации заказа в охвате сотрудника.

@@ -53,11 +53,8 @@ const FLAG_LABELS: Record<FeatureFlag, string> = {
   staff_chat: 'Внутренний чат сотрудников',
   staff_calendar: 'Календарь сотрудников',
   global_search: 'Глобальный поиск (сотрудники)',
-  deals_pipeline: 'Сделки / канбан менеджера и руководителя',
-  intake_inbox: 'Входящие в работу: единый триаж-экран',
   document_generation: 'Генерация счёта/акта по заказу',
   cabinet_questions: '«Задать вопрос» из кабинета клиента',
-  settings_hub: 'Единый хаб «Настройки» в кабинетах сотрудников',
 };
 
 /**

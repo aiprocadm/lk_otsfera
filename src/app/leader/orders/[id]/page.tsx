@@ -98,10 +98,9 @@ export default async function LeaderOrderDetailPage({
 
   // Сделка, из которой вырос заказ (19.08.2026). Флаг уважаем: при
   // выключенном `deals_pipeline` раздела сделок нет, панель не читается.
-  const deal =
-    isFeatureEnabled('deals_pipeline') && session.companyId
-      ? await loadOrderDeal(prisma, id, { companyId: session.companyId })
-      : null;
+  const deal = session.companyId
+    ? await loadOrderDeal(prisma, id, { companyId: session.companyId })
+    : null;
 
   // Этап 1 ТЗ 12.09.2026 (`У-180`): «Контакт заказа» — тот же блок, что у
   // менеджера и администратора (правило зеркала §0.2); `teamMode` — свежий (C8).

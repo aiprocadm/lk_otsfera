@@ -131,16 +131,6 @@ beforeEach(() => {
 });
 
 describe('ManagerDealsPage', () => {
-  it('calls notFound() when the deals_pipeline flag is off — before the auth gate', async () => {
-    isFeatureEnabled.mockReturnValue(false);
-
-    await expect(renderServerComponent(ManagerDealsPage())).rejects.toThrow('NOT_FOUND');
-
-    expect(isFeatureEnabled).toHaveBeenCalledWith('deals_pipeline');
-    expect(requireManager).not.toHaveBeenCalled();
-    expect(getDealBoard).not.toHaveBeenCalled();
-  });
-
   it('happy path: gates via requireManager, renders the heading, the board and the "+ Сделка" button', async () => {
     isFeatureEnabled.mockReturnValue(true);
     requireManager.mockResolvedValue(MANAGER_SESSION);
@@ -189,15 +179,6 @@ describe('LeaderDealsPage', () => {
   function renderLeader(searchParams: { manager?: string } = {}) {
     return renderServerComponent(LeaderDealsPage({ searchParams: Promise.resolve(searchParams) }));
   }
-
-  it('calls notFound() when the deals_pipeline flag is off — before the auth gate', async () => {
-    isFeatureEnabled.mockReturnValue(false);
-
-    await expect(renderLeader()).rejects.toThrow('NOT_FOUND');
-
-    expect(isFeatureEnabled).toHaveBeenCalledWith('deals_pipeline');
-    expect(requireManagerLeader).not.toHaveBeenCalled();
-  });
 
   it('happy path: gates via requireManagerLeader, renders the board, filter and DealStageConfig (isDefault=true)', async () => {
     isFeatureEnabled.mockReturnValue(true);

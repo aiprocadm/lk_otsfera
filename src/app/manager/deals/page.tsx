@@ -1,5 +1,4 @@
 import React from 'react';
-import { notFound } from 'next/navigation';
 import { requireManager } from '@/lib/auth/requireRole';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { prisma } from '@/lib/db/prisma';
@@ -20,7 +19,6 @@ export const dynamic = 'force-dynamic';
  * Гейт: флаг deals_pipeline (page-точка из трёх) + requireManager.
  */
 export default async function ManagerDealsPage() {
-  if (!isFeatureEnabled('deals_pipeline')) notFound();
   const session = await requireManager();
 
   const [board, organizations, managers] = await Promise.all([

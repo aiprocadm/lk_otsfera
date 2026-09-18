@@ -80,20 +80,6 @@ describe('mobileTabsFor (У-117)', () => {
     expect(mobileTabsFor('partner', items).map((t) => t.href)).toContain('/partner/orders');
   });
 
-  it('выключенный флагом пункт заменяется следующим по приоритету', () => {
-    // «Обращения» выключены — их место занимает «Портфель», следующий в списке.
-    const items = [
-      item('/partner/dashboard', 'dashboard'),
-      item('/partner/orders', 'orders'),
-      item('/partner/documents', 'documents'),
-      item('/partner/portfolio', 'portfolio'),
-    ];
-    const tabs = mobileTabsFor('partner', items).map((t) => t.sectionKey);
-    expect(tabs).not.toContain('requests');
-    expect(tabs).toHaveLength(4);
-    expect(tabs).toContain('portfolio');
-  });
-
   it('`Д-40`: панель не схлопывается — добирает обычными пунктами меню', () => {
     // Ни одного запасного из списка нет: панель обязана добрать из меню.
     // Закреплённые внизу стоят В НАЧАЛЕ списка — если бы добор их брал, они
@@ -117,12 +103,12 @@ describe('mobileTabsFor (У-117)', () => {
     // Именно этот случай и был дефектом: у менеджера «Входящие» и «Задачи»
     // сидят под opt-in флагами, и панель показывала две вкладки из четырёх.
     process.env.FEATURE_MANAGER_CABINET = '1';
-    delete process.env.FEATURE_INTAKE_INBOX;
     delete process.env.FEATURE_INTERNAL_TASKS;
     const items = navItemsFor('manager');
     const tabs = mobileTabsFor('manager', items);
     expect(tabs.length, 'панель схлопнулась').toBe(4);
-    expect(tabs.map((t) => t.sectionKey)).not.toContain('intake');
+    // `У-262`: флага у «Входящих в работу» больше нет — вкладка есть всегда.
+    expect(tabs.map((t) => t.sectionKey)).toContain('intake');
   });
 
   it('пункт «скоро» в панель не берётся — в меню он и не ссылка', () => {

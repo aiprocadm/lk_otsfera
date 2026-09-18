@@ -64,6 +64,12 @@ export const MIRROR_BLOCK_EXCEPTIONS: MirrorBlockException[] = [
 ];
 
 export const MIRROR_EXCEPTIONS: MirrorException[] = [
+  // `У-262`: отсюда убраны исключения для разделов, которыми подписывались
+  // пункты меню, заменённые хабом «Настройки» (`health`, `audit`, `piiAccess`,
+  // `integrations`, `sync`, `import`, `paymentsImport`, `roles`,
+  // `customFields`, `orderStatuses`). Пункты удалены вместе с флагом
+  // `settings_hub` — исключать стало нечего, и страж это заметил сам.
+
   // ——— Кабинеты сотрудников учебного центра ———
   {
     pair: 'staff',
@@ -87,50 +93,6 @@ export const MIRROR_EXCEPTIONS: MirrorException[] = [
   },
   {
     pair: 'staff',
-    sectionKey: 'health',
-    cabinets: ['admin'],
-    reason: 'Здоровье платформы: чужой кабинет ею не управляет',
-  },
-  {
-    pair: 'staff',
-    sectionKey: 'audit',
-    cabinets: ['admin'],
-    reason: 'Журнал действий всей платформы — надзорный раздел администратора',
-  },
-  {
-    pair: 'staff',
-    sectionKey: 'piiAccess',
-    cabinets: ['admin'],
-    reason: 'Журнал доступа к персональным данным — надзорный раздел администратора',
-  },
-  {
-    pair: 'staff',
-    sectionKey: 'integrations',
-    cabinets: ['admin'],
-    reason: 'Подключения к внешним системам общие для платформы; компании их не настраивают',
-  },
-  {
-    pair: 'staff',
-    sectionKey: 'sync',
-    cabinets: ['admin'],
-    reason: 'Расписания автообмена с 1С общие для платформы (решение `Р-22`)',
-  },
-  {
-    pair: 'staff',
-    sectionKey: 'import',
-    cabinets: ['admin'],
-    reason:
-      'Загрузка файлов 1С у менеджера живёт в разделе «Обмен с 1С» (`У-113`), у админа — в настройках платформы',
-  },
-  {
-    pair: 'staff',
-    sectionKey: 'paymentsImport',
-    cabinets: ['admin'],
-    reason:
-      'Выписка по счёту 51 у менеджера — вкладка «Обмена с 1С» (`У-113`), у админа — раздел настроек платформы',
-  },
-  {
-    pair: 'staff',
     sectionKey: 'commissions',
     cabinets: ['admin'],
     reason:
@@ -148,33 +110,6 @@ export const MIRROR_EXCEPTIONS: MirrorException[] = [
     sectionKey: 'trainingDirections',
     cabinets: ['admin'],
     reason: 'Справочник направлений обучения общий для платформы',
-  },
-  {
-    pair: 'staff',
-    sectionKey: 'customFields',
-    cabinets: ['admin', 'leader'],
-    reason:
-      'Настраиваемые поля своей компании ведёт руководитель, платформенные — администратор; менеджер их не настраивает',
-  },
-  {
-    pair: 'staff',
-    sectionKey: 'orderStatuses',
-    cabinets: ['admin', 'leader'],
-    reason:
-      'Статусы заказов настраивает руководитель компании и администратор; менеджер по ним работает',
-  },
-  {
-    pair: 'staff',
-    sectionKey: 'roles',
-    cabinets: ['admin', 'leader'],
-    reason: 'Профили доступа раздаёт руководитель и администратор; менеджер их не раздаёт',
-  },
-  {
-    pair: 'staff',
-    sectionKey: 'team',
-    cabinets: ['leader', 'manager'],
-    reason:
-      'Состав команды компании ведёт руководитель; у менеджера пункт — свой список коллег, у админа его место занимают «Пользователи»',
   },
   {
     pair: 'staff',

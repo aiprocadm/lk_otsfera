@@ -336,15 +336,6 @@ describe('AdminOrderDetailPage', () => {
       expect(container.innerHTML).not.toContain('/admin/deals');
       expect(container.innerHTML).not.toContain('/admin/leads');
     });
-
-    it('флаг выключен → сделка не читается и панели нет', async () => {
-      isFeatureEnabled.mockReturnValue(false);
-
-      const { container } = await render();
-
-      expect(loadOrderDeal).not.toHaveBeenCalled();
-      expect(container.textContent).not.toContain('Переговоры, из которых вырос этот заказ');
-    });
   });
 
   // Этап 1 ТЗ 12.09.2026 (`У-180`): «Контакт заказа» у администратора — зеркало

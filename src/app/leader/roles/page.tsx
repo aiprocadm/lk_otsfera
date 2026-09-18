@@ -1,10 +1,15 @@
 import { redirectToSettingsHub } from '@/lib/navigation/settingsRedirect';
-import LeaderRolesPage from '@/app/leader/settings/access/roles/page';
 
 export const dynamic = 'force-dynamic';
 
-/** Старый адрес: при включённом хабе «Настройки» — редирект, иначе прежняя страница. */
+/**
+ * Старый адрес: постоянный редирект в хаб «Настройки».
+ *
+ * До `У-262` здесь была развилка: при выключенном флаге `settings_hub`
+ * страница рендерила прежнее содержимое на прежнем адресе. Флаг снят — хаб
+ * принят, откатывать нечего, и вторая ветка стала недостижимой. Мёртвый код
+ * не оставляем: он тянет за собой и покрытие.
+ */
 export default async function LeaderRolesLegacyPage() {
   redirectToSettingsHub('/leader/roles');
-  return LeaderRolesPage();
 }

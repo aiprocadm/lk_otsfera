@@ -500,15 +500,6 @@ describe('LeaderOrderDetailPage', () => {
       expect(container.innerHTML).not.toContain('/manager/leads');
     });
 
-    it('флаг выключен → сделка не читается и панели нет', async () => {
-      isFeatureEnabled.mockReturnValue(false);
-
-      const { container } = await render();
-
-      expect(loadOrderDeal).not.toHaveBeenCalled();
-      expect(container.textContent).not.toContain('Переговоры, из которых вырос этот заказ');
-    });
-
     it('у заказа без номера крошка берёт его название', async () => {
       isFeatureEnabled.mockReturnValue(false);
       requireManagerLeader.mockResolvedValue(SESSION);

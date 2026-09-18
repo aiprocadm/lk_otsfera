@@ -1,14 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
-vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
-
-const { redirect } = vi.hoisted(() => ({
-  redirect: vi.fn(() => {
+// `У-262`: флага `settings_hub` больше нет — шлюз уводит в хаб ВСЕГДА, и
+// редирект стал постоянным (308). Подменяем именно `permanentRedirect`.
+const { permanentRedirect } = vi.hoisted(() => ({
+  permanentRedirect: vi.fn(() => {
     throw new Error('REDIRECT');
   }),
 }));
-vi.mock('next/navigation', () => ({ redirect }));
+vi.mock('next/navigation', () => ({ permanentRedirect }));
 
 import { redirectToSettingsHub } from '@/lib/navigation/settingsRedirect';
 import { legacyRedirectMap } from '@/lib/navigation/settings';
@@ -17,36 +16,25 @@ import { legacyRedirectMap } from '@/lib/navigation/settings';
 import { SETTINGS_HUB_REDIRECTS, LEGACY_REDIRECTS } from '../../next.config.mjs';
 
 beforeEach(() => {
-  isFeatureEnabled.mockReset();
-  redirect.mockClear();
+  permanentRedirect.mockClear();
 });
 
 describe('redirectToSettingsHub', () => {
-  it('флаг выключен — редиректа нет, страница остаётся на старом адресе', () => {
-    isFeatureEnabled.mockReturnValue(false);
-    expect(() => redirectToSettingsHub('/admin/sync')).not.toThrow();
-    expect(isFeatureEnabled).toHaveBeenCalledWith('settings_hub');
-    expect(redirect).not.toHaveBeenCalled();
-  });
-
-  it('флаг включён — уводит по карте редиректов', () => {
-    isFeatureEnabled.mockReturnValue(true);
+  it('уводит по карте редиректов', () => {
     expect(() => redirectToSettingsHub('/admin/sync')).toThrow('REDIRECT');
-    expect(redirect).toHaveBeenCalledWith('/admin/settings/integrations/1c/auto');
+    expect(permanentRedirect).toHaveBeenCalledWith('/admin/settings/integrations/1c/auto');
   });
 
   it('две загрузки 1С приезжают каждая на свою вкладку, а не на общий корень', () => {
-    isFeatureEnabled.mockReturnValue(true);
     expect(() => redirectToSettingsHub('/admin/import')).toThrow('REDIRECT');
-    expect(redirect).toHaveBeenCalledWith('/admin/settings/integrations/1c/excel');
+    expect(permanentRedirect).toHaveBeenCalledWith('/admin/settings/integrations/1c/excel');
     expect(() => redirectToSettingsHub('/admin/payments-import')).toThrow('REDIRECT');
-    expect(redirect).toHaveBeenCalledWith('/admin/settings/integrations/1c/payments');
+    expect(permanentRedirect).toHaveBeenCalledWith('/admin/settings/integrations/1c/payments');
   });
 
   it('путь руководителя уводит в его кабинет, а не в админский', () => {
-    isFeatureEnabled.mockReturnValue(true);
     expect(() => redirectToSettingsHub('/leader/roles')).toThrow('REDIRECT');
-    expect(redirect).toHaveBeenCalledWith('/leader/settings/access/roles');
+    expect(permanentRedirect).toHaveBeenCalledWith('/leader/settings/access/roles');
   });
 });
 

@@ -16,7 +16,8 @@ const CONTACT_CARD_TABS: readonly ContactCardTab[] = [
   { key: 'dialogs', label: 'Диалоги', flag: 'inbound_messaging' },
   { key: 'calls', label: 'Звонки', flag: 'telephony_mango' },
   { key: 'inbound', label: 'Входящие письма', flag: 'inbound_messaging' },
-  { key: 'deals', label: 'Сделки', flag: 'deals_pipeline' },
+  // `У-262`: флага у сделок больше нет — раздел есть всегда.
+  { key: 'deals', label: 'Сделки' },
   { key: 'orders', label: 'Заказы' },
   { key: 'tasks', label: 'Задачи', flag: 'internal_tasks' },
   { key: 'history', label: 'История' },

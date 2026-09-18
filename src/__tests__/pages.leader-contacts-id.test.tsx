@@ -83,12 +83,6 @@ describe('LeaderContactPage', () => {
     listContactOrgOptions.mockResolvedValue([]);
   });
 
-  it('флаг contacts выключен → notFound без обращения к сессии', async () => {
-    isFeatureEnabled.mockReturnValue(false);
-    await expect(open('k1')).rejects.toThrow('NOTFOUND');
-    expect(requireManagerLeader).not.toHaveBeenCalled();
-  });
-
   it('нет права crm.contacts → notFound без похода в сервисы', async () => {
     canUseContacts.mockReturnValue(false);
     await expect(open('k1')).rejects.toThrow('NOTFOUND');
@@ -129,7 +123,9 @@ describe('LeaderContactPage', () => {
     expect(screen.getAttribute('data-cabinet')).toBe('leader');
     expect(screen.getAttribute('data-contact')).toBe('k1');
     // Этап 4 (`У-220`) добавил вкладку «Задачи» под флагом `internal_tasks`.
-    expect(screen.getAttribute('data-tabs')).toBe('dialogs,calls,inbound,orders,tasks,history');
+    expect(screen.getAttribute('data-tabs')).toBe(
+      'dialogs,calls,inbound,deals,orders,tasks,history'
+    );
     expect(screen.getAttribute('data-active-tab')).toBe('calls');
     expect(screen.getAttribute('data-tab-items')).toBe('d1');
     expect(screen.getAttribute('data-tab-total')).toBe('3');

@@ -1,7 +1,6 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
 import { requireManager } from '@/lib/auth/requireRole';
-import { isFeatureEnabled } from '@/lib/featureFlags';
 import { prisma } from '@/lib/db/prisma';
 import { listIntake } from '@/lib/services/intake/list';
 import { IntakeTable } from '@/components/intake/intake-table';
@@ -17,7 +16,6 @@ export default async function ManagerIntakePage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  if (!isFeatureEnabled('intake_inbox')) notFound();
   const session = await requireManager();
   const sp = await searchParams;
   const skip = Math.max(Number(typeof sp.skip === 'string' ? sp.skip : 0) || 0, 0);

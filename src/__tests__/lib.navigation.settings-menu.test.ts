@@ -19,9 +19,6 @@ function enableEverything() {
   // Меню админа частично под opt-in флагами: включаем их, чтобы сравнивать
   // полный состав, а не обрезанный.
   process.env.FEATURE_ROLE_CONSTRUCTOR = '1';
-  process.env.FEATURE_ENROLLMENT_REQUESTS = '1';
-  process.env.FEATURE_CLIENT_REQUESTS = '1';
-  process.env.FEATURE_INTAKE_INBOX = '1';
   process.env.FEATURE_LEADER_CABINET = '1';
   process.env.FEATURE_MANAGER_CABINET = '1';
 }
@@ -35,9 +32,7 @@ afterEach(() => {
 });
 
 describe('меню админа при включённом хабе', () => {
-  beforeEach(() => {
-    process.env.FEATURE_SETTINGS_HUB = '1';
-  });
+  beforeEach(() => {});
 
   it('ни одного из старых служебных пунктов не осталось', () => {
     const hrefs = navItemsFor('admin').map((i) => i.href);
@@ -62,12 +57,16 @@ describe('меню админа при включённом хабе', () => {
     // в общей группе «Финансы», а не в своей.
     expect(navItemsFor('admin').map((i) => i.group)).not.toContain('Обмен с 1С');
 
-    process.env.FEATURE_SETTINGS_HUB = '0';
+    // `У-262`: трёх пунктов обмена в меню больше НЕТ вовсе. Они прятались
+    // флагом `settings_hub`, а он был включён везде — то есть не показывались
+    // никому; их место заняла карточка хаба «Обмен с 1С» с четырьмя вкладками.
+    // Флаг снят, пункты удалены. Прежняя вторая половина проверки («при
+    // выключенном хабе они лежат в группе „Финансы“») проверяла ветку, которой
+    // больше не существует.
     const exchange = navItemsFor('admin').filter((i) =>
       ['/admin/sync', '/admin/import', '/admin/payments-import'].includes(i.href)
     );
-    expect(exchange.length).toBe(3);
-    for (const item of exchange) expect(item.group).toBe('Финансы');
+    expect(exchange).toEqual([]);
   });
 
   it('операционные разделы остаются на месте', () => {
@@ -87,22 +86,8 @@ describe('меню админа при включённом хабе', () => {
   });
 });
 
-describe('меню админа при выключенном хабе', () => {
-  beforeEach(() => {
-    process.env.FEATURE_SETTINGS_HUB = '0';
-  });
-
-  it('все прежние пункты на месте — раскатка обратима', () => {
-    const hrefs = navItemsFor('admin').map((i) => i.href);
-    for (const legacy of LEGACY_ADMIN_HREFS) {
-      expect(hrefs).toContain(legacy);
-    }
-  });
-});
-
 describe('меню руководителя', () => {
   it('при включённом хабе служебные зеркала уезжают под «Настройки»', () => {
-    process.env.FEATURE_SETTINGS_HUB = '1';
     const hrefs = navItemsFor('leader').map((i) => i.href);
     expect(hrefs).not.toContain('/leader/roles');
     expect(hrefs).not.toContain('/leader/settings/custom-fields');
@@ -115,13 +100,5 @@ describe('меню руководителя', () => {
       // `У-76` (этап 9): словарь терминов.
       '/help',
     ]);
-  });
-
-  it('при выключенном хабе зеркала на месте', () => {
-    process.env.FEATURE_SETTINGS_HUB = '0';
-    const hrefs = navItemsFor('leader').map((i) => i.href);
-    expect(hrefs).toContain('/leader/roles');
-    expect(hrefs).toContain('/leader/settings/custom-fields');
-    expect(hrefs).toContain('/leader/settings/order-statuses');
   });
 });

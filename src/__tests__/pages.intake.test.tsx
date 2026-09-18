@@ -87,13 +87,6 @@ beforeEach(() => {
 });
 
 describe('ManagerIntakePage', () => {
-  it('флаг выключен → notFound до auth', async () => {
-    isFeatureEnabled.mockReturnValue(false);
-    await expect(renderServerComponent(ManagerIntakePage(sp()))).rejects.toThrow('NOT_FOUND');
-    expect(isFeatureEnabled).toHaveBeenCalledWith('intake_inbox');
-    expect(requireManager).not.toHaveBeenCalled();
-  });
-
   it('рендерит таблицу без фильтров; skip → page', async () => {
     const { container } = await renderServerComponent(ManagerIntakePage(sp({ skip: '50' })));
     expect(listIntake).toHaveBeenCalledWith({ user: { findMany: userFindMany } }, SESSION, {
@@ -192,11 +185,6 @@ describe('LeaderIntakePage', () => {
     );
   });
 
-  it('флаг выключен → notFound', async () => {
-    isFeatureEnabled.mockReturnValue(false);
-    await expect(renderServerComponent(LeaderIntakePage(sp()))).rejects.toThrow('NOT_FOUND');
-  });
-
   it('companyId=null → без менеджеров, listCompanyManagers не зовётся', async () => {
     requireManagerLeader.mockResolvedValue({ ...SESSION, companyId: null, role: 'leader' });
     await renderServerComponent(LeaderIntakePage(sp()));
@@ -212,11 +200,6 @@ describe('AdminIntakePage', () => {
       '/admin'
     );
     expect(container.querySelector('[data-testid="intake-filters"]')?.textContent).toBe('Мария');
-  });
-
-  it('флаг выключен → notFound', async () => {
-    isFeatureEnabled.mockReturnValue(false);
-    await expect(renderServerComponent(AdminIntakePage(sp()))).rejects.toThrow('NOT_FOUND');
   });
 
   it('сервис вернул forbidden → notFound', async () => {

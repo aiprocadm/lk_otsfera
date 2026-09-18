@@ -50,7 +50,6 @@ describe('navItemsFor (feature-flag filter)', () => {
     process.env.FEATURE_PARTNER_LEADS = '0';
     process.env.FEATURE_ENROLLMENT_REQUESTS = '1'; // admin opt-in items: enrollments + requests + roles
     process.env.FEATURE_ROLE_CONSTRUCTOR = '1';
-    process.env.FEATURE_INTAKE_INBOX = '1';
     // `У-112`: «Поиск» появился и у админа — под тем же флагом, что у менеджера.
     process.env.FEATURE_GLOBAL_SEARCH = '1';
     // Этап 1 ТЗ 12.09.2026: «Контакты» — opt-in флаг `contacts`.
@@ -215,13 +214,8 @@ describe('navByRole.admin — русский канон с группами', ()
     }
     expect(hrefs).toContain('/admin/commission-corrections');
     expect(hrefs).toContain('/admin/training-directions');
-    expect(hrefs).toContain('/admin/custom-fields');
     // §10 ТЗ v0.5: справочник рабочих статусов заявки
-    expect(hrefs).toContain('/admin/order-statuses');
     expect(hrefs).toContain('/admin/settings');
-    expect(hrefs).toContain('/admin/payments-import');
-    expect(hrefs).toContain('/admin/roles');
-    expect(hrefs).toContain('/admin/pii-access');
     // `У-76` (этап 9): + «Справка» — словарь терминов, общий для всех кабинетов.
     expect(hrefs).toContain('/help');
     // `У-112`: у админа появились «Заказы» (был пункт-обманка с редиректом на
@@ -232,7 +226,7 @@ describe('navByRole.admin — русский канон с группами', ()
     expect(hrefs).toContain('/admin/contacts');
     // Этап 5 ТЗ 12.09.2026 (`У-228`): + «Уведомления» под флагом `notification_center`.
     expect(hrefs).toContain('/admin/notifications');
-    expect(navByRole.admin).toHaveLength(29);
+    expect(navByRole.admin).toHaveLength(19);
     expect(hrefs).toContain('/admin/requests');
     expect(hrefs).toContain('/admin/intake');
   });
