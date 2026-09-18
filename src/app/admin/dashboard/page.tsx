@@ -5,6 +5,10 @@ import { prisma } from '@/lib/db/prisma';
 import { kpis, attention, recentEvents } from '@/lib/services/admin/dashboard';
 import { auditActionRu } from '@/lib/i18n/auditActions';
 import { StatCard } from '@/components/dashboard/stat-card';
+import { CrossCompanyPanel } from '@/components/admin/cross-company-panel';
+import { getCrossCompanyMonth } from '@/lib/services/admin/crossCompany';
+import { parseKpiMonth } from '@/lib/kpi/period';
+import { isFeatureEnabled } from '@/lib/featureFlags';
 import { QuickTasks } from '@/components/dashboard/quick-tasks';
 import { quickTasksFor } from '@/lib/quickTasks';
 import { fmtDateTime } from '@/lib/format';
@@ -15,10 +19,16 @@ export const dynamic = 'force-dynamic';
 export default async function AdminDashboardPage() {
   await requireAdmin();
 
-  const [k, a, events] = await Promise.all([
+  // `У-246`: кросс-компанийный свод за месяц. Под флагом этапа (`Р-Э7-1`) —
+  // до приёмки «Главная» выглядит как прежде.
+  const crossCompanyOn = isFeatureEnabled('leader_analytics');
+  const { year, month } = parseKpiMonth(undefined);
+
+  const [k, a, events, crossCompany] = await Promise.all([
     kpis(prisma),
     attention(prisma),
     recentEvents(prisma, 20),
+    crossCompanyOn ? getCrossCompanyMonth(prisma, { year, month }) : Promise.resolve(null),
   ]);
 
   return (
@@ -35,6 +45,8 @@ export default async function AdminDashboardPage() {
           <StatCard key={tile.label} title={tile.label} value={tile.value} href={tile.href} />
         ))}
       </div>
+
+      {crossCompany !== null && <CrossCompanyPanel data={crossCompany} />}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {/* Attention List */}

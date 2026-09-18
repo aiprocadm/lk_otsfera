@@ -8,8 +8,13 @@ import type { PrismaClient } from '@prisma/client';
  * оплачено» жила в шести местах, и ни в одном не было ни срока долга, ни
  * ответственного — до руководителя доходило одно число на всю компанию.
  *
- * Считается **одним запросом** с группировкой по организации (`У-248`): по
- * организации в цикле это был бы отчёт на сотню запросов.
+ * Считается **группировкой в базе** (`У-248`), а не в памяти. Так было не
+ * всегда: первая редакция обещала «одним запросом», а на деле тянула ВСЕ
+ * неоплаченные заказы компании в JavaScript и складывала их циклом. На ста
+ * тысячах заказов это полсотни тысяч строк с присоединёнными организацией и
+ * ответственным — и замер `У-248` перестал укладываться в бюджет, как только
+ * машина стала чуть медленнее. Здесь три ограниченных запроса: суммы по
+ * организациям, названия организаций и ответственный у самого старого долга.
  *
  * «Дней с даты счёта» берётся по самому СТАРОМУ неоплаченному заказу
  * организации: человек хочет знать, сколько уже ждут, а не среднее по больнице.
@@ -35,69 +40,82 @@ export type ReceivablesResult = {
 /** Заказы, по которым ещё ждут денег. Отменённые и возвращённые — не долг. */
 const UNPAID_STATUSES = ['billed', 'partially_paid'] as const;
 
+/**
+ * Ответственный у самого старого неоплаченного заказа каждой организации — к
+ * нему и идти. Одним запросом с `DISTINCT ON`: тот же приём, что у первого
+ * ответа в реестре показателей; выборка по организации в цикле вернула бы
+ * отчёт к сотне запросов, от которых этап и уходил.
+ */
+async function oldestDebtManagers(
+  prisma: PrismaClient,
+  companyId: string
+): Promise<Map<string, string | null>> {
+  const rows = await prisma.$queryRaw<
+    Array<{ organizationId: string; name: string | null; email: string | null }>
+  >`
+    SELECT DISTINCT ON (o."organizationId")
+           o."organizationId" AS "organizationId",
+           u."name"  AS "name",
+           u."email" AS "email"
+      FROM "Order" o
+      LEFT JOIN "User" u ON u.id = o."managerId"
+     WHERE o."companyId" = ${companyId}
+       AND o."financialStatus"::text IN ('billed', 'partially_paid')
+     ORDER BY o."organizationId", o."createdAt" ASC, o."id" ASC
+  `;
+  return new Map(rows.map((r) => [r.organizationId, r.name || r.email || null]));
+}
+
 export async function getReceivables(
   prisma: PrismaClient,
   args: { companyId: string; olderThanDays?: number }
 ): Promise<ReceivablesResult> {
   const olderThanDays = Math.max(0, Math.trunc(args.olderThanDays ?? 0));
 
-  const orders = await prisma.order.findMany({
+  const grouped = await prisma.order.groupBy({
+    by: ['organizationId'],
     where: { companyId: args.companyId, financialStatus: { in: [...UNPAID_STATUSES] } },
-    select: {
-      organizationId: true,
-      totalAmount: true,
-      paidAmount: true,
-      createdAt: true,
-      organization: { select: { name: true } },
-      manager: { select: { name: true, email: true } },
-    },
+    _sum: { totalAmount: true, paidAmount: true },
+    _min: { createdAt: true },
   });
+  if (grouped.length === 0) return { rows: [], totalDebt: '0.00', olderThanDays };
+
+  const orgIds = grouped.map((g) => g.organizationId);
+  const [orgs, managers] = await Promise.all([
+    prisma.organization.findMany({
+      where: { id: { in: orgIds } },
+      select: { id: true, name: true },
+    }),
+    oldestDebtManagers(prisma, args.companyId),
+  ]);
+  const orgName = new Map(orgs.map((o) => [o.id, o.name]));
 
   const now = Date.now();
-  type Acc = {
-    name: string;
-    billed: Prisma.Decimal;
-    paid: Prisma.Decimal;
-    oldest: Date | null;
-    manager: string | null;
-  };
-  const byOrg = new Map<string, Acc>();
-
-  for (const o of orders) {
-    const acc: Acc = byOrg.get(o.organizationId) ?? {
-      name: o.organization.name,
-      billed: new Prisma.Decimal(0),
-      paid: new Prisma.Decimal(0),
-      oldest: null,
-      manager: null,
-    };
-    acc.billed = acc.billed.plus(o.totalAmount);
-    acc.paid = acc.paid.plus(o.paidAmount);
-    if (!acc.oldest || o.createdAt < acc.oldest) acc.oldest = o.createdAt;
-    // Ответственный берётся у самого старого долга: это тот, к кому идти.
-    if (acc.manager === null && o.manager) acc.manager = o.manager.name || o.manager.email;
-    byOrg.set(o.organizationId, acc);
-  }
-
   const rows: ReceivableRow[] = [];
   let totalDebt = new Prisma.Decimal(0);
-  for (const [organizationId, acc] of byOrg) {
-    const debt = acc.billed.minus(acc.paid);
+
+  for (const g of grouped) {
+    const billed = g._sum.totalAmount ?? new Prisma.Decimal(0);
+    const paid = g._sum.paidAmount ?? new Prisma.Decimal(0);
+    const debt = billed.minus(paid);
     // Переплата — не отрицательный долг: показывать «минус» в дебиторке значит
     // предлагать человеку вычесть её из чужого долга.
     if (debt.lte(0)) continue;
-    const oldestDays = acc.oldest
-      ? Math.floor((now - acc.oldest.getTime()) / (24 * 60 * 60 * 1000))
-      : null;
+
+    const oldest = g._min.createdAt;
+    const oldestDays = oldest ? Math.floor((now - oldest.getTime()) / (24 * 60 * 60 * 1000)) : null;
     if (olderThanDays > 0 && (oldestDays === null || oldestDays < olderThanDays)) continue;
+
     rows.push({
-      organizationId,
-      organizationName: acc.name,
-      billed: acc.billed.toFixed(2),
-      paid: acc.paid.toFixed(2),
+      organizationId: g.organizationId,
+      // Организация могла пропасть между двумя запросами — прочерк вместо
+      // падения отчёта: строка с долгом важнее красивого названия.
+      organizationName: orgName.get(g.organizationId) ?? '—',
+      billed: billed.toFixed(2),
+      paid: paid.toFixed(2),
       debt: debt.toFixed(2),
       oldestDays,
-      managerName: acc.manager,
+      managerName: managers.get(g.organizationId) ?? null,
     });
     totalDebt = totalDebt.plus(debt);
   }

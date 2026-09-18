@@ -8,6 +8,10 @@ import { MyDayCards } from '@/components/manager/my-day-cards';
 import { QuickTasks } from '@/components/dashboard/quick-tasks';
 import { quickTasksFor } from '@/lib/quickTasks';
 import { ManagerKpiGrid } from '@/components/manager/manager-kpi-grid';
+import { MyKpiGrid } from '@/components/manager/my-kpi-grid';
+import { getMyKpi } from '@/lib/services/manager/myKpi';
+import { parseKpiMonth } from '@/lib/kpi/period';
+import { isFeatureEnabled } from '@/lib/featureFlags';
 import { ManagerAttentionList } from '@/components/manager/manager-attention-list';
 import { ManagerEventsFeed } from '@/components/manager/manager-events-feed';
 
@@ -25,6 +29,20 @@ export default async function ManagerDashboard() {
     // Этап 11 PR-2 (ФТ-15.3): «Мой день» — первый блок «Главной».
     getMyDay(prisma, session, teamMode),
   ]);
+
+  // `У-245`: «Мои KPI за месяц». Под флагом этапа (`Р-Э7-1`) — до приёмки
+  // блок не показывается; без компании считать нечего, а не «по всем».
+  const { year, month } = parseKpiMonth(undefined);
+  const myKpi =
+    isFeatureEnabled('leader_analytics') && session.companyId
+      ? await getMyKpi(prisma, {
+          companyId: session.companyId,
+          managerId: session.sub,
+          year,
+          month,
+        })
+      : null;
+  const monthLabel = `${String(month).padStart(2, '0')}.${year}`;
   return (
     <>
       <div className="mb-4">
@@ -36,6 +54,7 @@ export default async function ManagerDashboard() {
       <div className="space-y-4">
         <QuickTasks tasks={quickTasksFor('manager')} />
         <MyDayCards data={myDay} />
+        {myKpi !== null && <MyKpiGrid rows={myKpi} month={monthLabel} />}
         <ManagerKpiGrid data={kpiData} />
         <ManagerAttentionList items={attentionData} />
         <ManagerEventsFeed events={events} />

@@ -106,7 +106,7 @@ describe('getMyDay', () => {
       dealsOpen: 0,
       dealsByStage: [],
       inboundFresh: 0,
-      callsMissed: 0,
+      callsUnsorted: 0,
       // `У-226`: новые показатели тоже обязаны быть честными нулями.
       dialogsWaiting: 0,
       proposalsExpiring: 0,
@@ -212,11 +212,11 @@ describe('getMyDay', () => {
     expect(data.dealsByStage).toEqual([{ stageName: 'Без стадии', count: 2 }]);
   });
 
-  it('свежие обращения и пропущенные звонки — за сутки, своими скоупами', async () => {
+  it('свежие обращения и входящие без разбора — за сутки, своими скоупами', async () => {
     const { prisma } = makePrisma({ inbound: 4, calls: 2 });
     const data = await getMyDay(prisma, session, false, NOW);
     expect(data.inboundFresh).toBe(4);
-    expect(data.callsMissed).toBe(2);
+    expect(data.callsUnsorted).toBe(2);
     expect(intakeInboundWhere).toHaveBeenCalledWith(session);
     expect(intakeCallWhere).toHaveBeenCalledWith(session);
   });

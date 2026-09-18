@@ -132,7 +132,9 @@ export function MyDayCards({ data }: { data: MyDayData }) {
           href="/manager/inbox"
         >
           <div className="mt-2 text-xs text-gray-600">
-            Пропущенные звонки за сутки: <span className="font-medium">{data.callsMissed}</span>
+            {/* `Р-Э7-6`: подпись обещала «пропущенные», а считается очередь
+                разбора — объяснение в `myDay.ts`. */}
+            Входящие без разбора за сутки: <span className="font-medium">{data.callsUnsorted}</span>
           </div>
         </Card>
 
