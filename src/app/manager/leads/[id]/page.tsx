@@ -138,7 +138,7 @@ export default async function ManagerLeadDetailPage({
           hasOrganization={lead.organizationId !== null}
           promotedOrderId={lead.promotedOrderId}
           candidates={candidates}
-          dealsEnabled={isFeatureEnabled('deals_pipeline')}
+          dealsEnabled
         />
         {/* B3: отправлять можно лид в любом статусе (ручная кнопка, решение владельца);
             скрываем только уже отправленный. */}

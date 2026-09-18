@@ -98,7 +98,8 @@ const TABS: ContactCardTab[] = [
   { key: 'dialogs', label: 'Диалоги', flag: 'inbound_messaging' },
   { key: 'calls', label: 'Звонки', flag: 'telephony_mango' },
   { key: 'inbound', label: 'Входящие письма', flag: 'inbound_messaging' },
-  { key: 'deals', label: 'Сделки', flag: 'deals_pipeline' },
+  // `У-262`: флага у сделок больше нет — вкладка есть всегда.
+  { key: 'deals', label: 'Сделки' },
   { key: 'orders', label: 'Заказы' },
   { key: 'history', label: 'История' },
 ];

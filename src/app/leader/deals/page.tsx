@@ -1,5 +1,4 @@
 import React from 'react';
-import { notFound } from 'next/navigation';
 import { requireManagerLeader } from '@/lib/auth/requireRole';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { prisma } from '@/lib/db/prisma';
@@ -27,7 +26,6 @@ export default async function LeaderDealsPage({
 }: {
   searchParams: Promise<{ manager?: string }>;
 }) {
-  if (!isFeatureEnabled('deals_pipeline')) notFound();
   const session = await requireManagerLeader();
   const sp = await searchParams;
   const managerId = sp.manager?.trim() || undefined;

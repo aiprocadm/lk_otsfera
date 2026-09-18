@@ -1,14 +1,14 @@
 import { redirectToSettingsHub } from '@/lib/navigation/settingsRedirect';
-import LeaderSettingsCustomFieldsPage from '@/app/leader/settings/catalogs/custom-fields/page';
 
 export const dynamic = 'force-dynamic';
 
-/** Старый адрес доп-полей руководителя: редирект при включённом хабе. */
-export default async function LeaderCustomFieldsLegacyPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ entity?: string }>;
-}) {
+/**
+ * Старый адрес: постоянный редирект в хаб «Настройки».
+ *
+ * До `У-262` здесь была развилка: при выключенном флаге `settings_hub`
+ * страница рендерила прежнее содержимое на прежнем адресе. Флаг снят — хаб
+ * принят, откатывать нечего, и вторая ветка стала недостижимой.
+ */
+export default async function LeaderCustomFieldsLegacyPage() {
   redirectToSettingsHub('/leader/settings/custom-fields');
-  return LeaderSettingsCustomFieldsPage({ searchParams });
 }

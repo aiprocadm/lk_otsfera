@@ -65,12 +65,6 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
     // `У-112`: поиск отдан и админу — сознательное расширение решения `У-75`
     // («поиск по данным — менеджеру и руководителю»), а не дрейф.
     { href: '/admin/search', sectionKey: 'search', flag: 'global_search' },
-    {
-      href: '/admin/health',
-      group: 'Платформа',
-      sectionKey: 'health',
-      hiddenWhenFlag: 'settings_hub',
-    },
     // ТЗ 2026-08-04: единственный служебный пункт при включённом хабе; закреплён внизу.
     // Этап 5 (`У-228`): лента уведомлений — над «Настройками», под флагом
     // `notification_center` до приёмки (`Р-Э5-8`).
@@ -81,12 +75,6 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       pinnedBottom: true,
     },
     { href: '/admin/settings', sectionKey: 'settings', pinnedBottom: true },
-    {
-      href: '/admin/integrations',
-      group: 'Платформа',
-      sectionKey: 'integrations',
-      hiddenWhenFlag: 'settings_hub',
-    },
     { href: '/admin/documents', group: 'Документы', sectionKey: 'documents' },
     { href: '/admin/messages', group: 'Коммуникации', sectionKey: 'messages' },
     {
@@ -109,49 +97,6 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       href: '/admin/intake',
       group: 'Работа',
       sectionKey: 'intake',
-      flag: 'intake_inbox',
-    },
-    {
-      href: '/admin/audit',
-      group: 'Платформа',
-      sectionKey: 'audit',
-      hiddenWhenFlag: 'settings_hub',
-    },
-    {
-      href: '/admin/pii-access',
-      group: 'Платформа',
-      sectionKey: 'piiAccess',
-      hiddenWhenFlag: 'settings_hub',
-    },
-    // `У-46` (этап 7): «вместо трёх пунктов один» выполняется САМИМ хабом —
-    // все три пункта скрыты при `settings_hub`, а в хабе им отвечает одна
-    // карточка «Обмен с 1С» с четырьмя вкладками. Здесь трио остаётся
-    // нетронутым намеренно: это меню ДО хаба, и раскатка обязана быть
-    // обратимой (страж `lib.navigation.settings-menu` это проверяет).
-    {
-      href: '/admin/sync',
-      group: 'Финансы',
-      sectionKey: 'sync',
-      hiddenWhenFlag: 'settings_hub',
-    },
-    {
-      // У-8: было «Загрузка Excel» — тот же раздел, что «Загрузка из 1С» у
-      // менеджера; одно название на два кабинета (решение заказчика 09.08.2026).
-      href: '/admin/import',
-      group: 'Финансы',
-      sectionKey: 'import',
-      hiddenWhenFlag: 'settings_hub',
-    },
-    {
-      href: '/admin/payments-import',
-      group: 'Финансы',
-      sectionKey: 'paymentsImport',
-      // Один экран — одно название во всех кабинетах (§15, `У-76`). Раньше у
-      // админа стояло «Импорт выписки (сч. 51)», у менеджера — «Импорт оплат»,
-      // а заголовок самой страницы не совпадал ни с тем ни с другим.
-      // Бухгалтерская подробность («Карточка счёта 51») переехала в
-      // подзаголовок — там она объясняет, какой файл взять из 1С.
-      hiddenWhenFlag: 'settings_hub',
     },
     { href: '/admin/users', group: 'Справочники', sectionKey: 'users' },
     { href: '/admin/partners', group: 'Клиенты', sectionKey: 'partners' },
@@ -173,26 +118,6 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       href: '/admin/training-directions',
       group: 'Справочники',
       sectionKey: 'trainingDirections',
-    },
-    {
-      href: '/admin/custom-fields',
-      group: 'Справочники',
-      sectionKey: 'customFields',
-      hiddenWhenFlag: 'settings_hub',
-    },
-    // §10 ТЗ v0.5: настраиваемый справочник рабочих статусов заявки.
-    {
-      href: '/admin/order-statuses',
-      group: 'Справочники',
-      sectionKey: 'orderStatuses',
-      hiddenWhenFlag: 'settings_hub',
-    },
-    {
-      href: '/admin/roles',
-      group: 'Справочники',
-      sectionKey: 'roles',
-      flag: 'role_constructor',
-      hiddenWhenFlag: 'settings_hub',
     },
     // `У-76`: словарь терминов — один на все кабинеты, поэтому пункт одинаков
     // у всех шести ролей и закреплён внизу рядом с «Настройками».
@@ -224,7 +149,6 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       href: '/manager/intake',
       group: 'Работа',
       sectionKey: 'intake',
-      flag: 'intake_inbox',
       badgeKey: 'intake',
     },
     {
@@ -237,7 +161,6 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       href: '/manager/deals',
       group: 'Продажи',
       sectionKey: 'deals',
-      flag: 'deals_pipeline',
     },
     {
       href: '/manager/tasks',
@@ -372,15 +295,6 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       sectionKey: 'organizations',
     },
     { href: '/leader/contacts', group: 'Клиенты', sectionKey: 'contacts', flag: 'contacts' },
-    // role_constructor — отдельный feature-флаг (НЕ leader_cabinet): гейтит только
-    // этот пункт, не опустошает сайдбар при выключении.
-    {
-      href: '/leader/roles',
-      group: 'Справочники',
-      sectionKey: 'roles',
-      flag: 'role_constructor',
-      hiddenWhenFlag: 'settings_hub',
-    },
     {
       href: '/leader/funnel',
       group: 'Продажи',
@@ -392,7 +306,6 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       href: '/leader/deals',
       group: 'Продажи',
       sectionKey: 'deals',
-      flag: 'deals_pipeline',
     },
     {
       href: '/leader/analytics',
@@ -429,7 +342,6 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       href: '/leader/intake',
       group: 'Работа',
       sectionKey: 'intake',
-      flag: 'intake_inbox',
       badgeKey: 'intake',
     },
     // `У-110`: раздел свой, а не мост в кабинет менеджера — раньше человек
@@ -447,21 +359,6 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       pinnedBottom: true,
     },
     { href: '/leader/settings', sectionKey: 'settings', pinnedBottom: true },
-    // §11 ТЗ v0.5: настройку полей ведёт и руководитель — зеркало админского
-    // экрана в его кабинете (в /admin/* руководителя не пускаем, Model A).
-    {
-      href: '/leader/settings/custom-fields',
-      group: 'Справочники',
-      sectionKey: 'customFields',
-      hiddenWhenFlag: 'settings_hub',
-    },
-    // §10 ТЗ v0.5: зеркало справочника статусов — руководителя в /admin/* не пускаем.
-    {
-      href: '/leader/settings/order-statuses',
-      group: 'Справочники',
-      sectionKey: 'orderStatuses',
-      hiddenWhenFlag: 'settings_hub',
-    },
     // `У-76`: словарь терминов — один на все кабинеты, поэтому пункт одинаков
     // у всех шести ролей и закреплён внизу рядом с «Настройками».
     { href: '/help', sectionKey: 'help', pinnedBottom: true },

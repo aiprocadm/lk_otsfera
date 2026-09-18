@@ -147,9 +147,7 @@ export const FEATURE_FLAGS = [
   // (notFound). ВНИМАНИЕ: заказы партнёра (/partner/orders, до `У-109` —
   // /partner/deals) — другой домен и под этим флагом НЕ живут.
   // Спека 2026-07-25-stage6-deals-kanban.
-  'deals_pipeline',
   // Этап 7 (ФТ-8.1): экран «Входящие в работу» (route-флаг: middleware + nav + page).
-  'intake_inbox',
   // Этап 8 (ФТ-9.4): выпуск документов по заказу. Поведенческий флаг (не route):
   // точки чтения — деталка заказа во ВСЕХ ТРЁХ кабинетах сотрудников (панель
   // «Документы по заказу»), server-action выпуска и запроса реквизитов, роут
@@ -166,7 +164,6 @@ export const FEATURE_FLAGS = [
   // страница на месте). В FEATURE_PREFIXES middleware намеренно НЕ добавлен:
   // новые пути обязаны отвечать всегда, иначе редирект уводил бы на 404.
   // Снимается после приёмки. Спека 2026-08-04-settings-hub-design.
-  'settings_hub',
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -217,12 +214,7 @@ export const FEATURE_PREFIXES: Array<{ prefix: string; flag: FeatureFlag }> = [
   // /organization/students/[id] гейтится на странице (список живёт без флага).
   // Этап 6 (Модуль 4): канбан сделок. Заказы партнёра (/partner/orders, до
   // `У-109` — /partner/deals) под этот флаг НЕ попадают.
-  { prefix: '/manager/deals', flag: 'deals_pipeline' },
-  { prefix: '/leader/deals', flag: 'deals_pipeline' },
   // Этап 7 (Модуль 8): «Входящие в работу» — единый тёмный запуск всех поверхностей.
-  { prefix: '/manager/intake', flag: 'intake_inbox' },
-  { prefix: '/leader/intake', flag: 'intake_inbox' },
-  { prefix: '/admin/intake', flag: 'intake_inbox' },
 ];
 
 /**
@@ -250,11 +242,8 @@ const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'staff_chat',
   'staff_calendar',
   'global_search',
-  'deals_pipeline',
-  'intake_inbox',
   // `У-144`: выпуск документов включён по умолчанию — из opt-in снят.
   'cabinet_questions',
-  'settings_hub',
 ]);
 
 /**

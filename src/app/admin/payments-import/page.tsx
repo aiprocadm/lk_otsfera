@@ -1,15 +1,14 @@
 import { redirectToSettingsHub } from '@/lib/navigation/settingsRedirect';
-import AdminPaymentsImportPage from '@/app/admin/settings/integrations/1c/payments/page';
 
 export const dynamic = 'force-dynamic';
 
-/** Старый адрес: при включённом хабе «Настройки» — редирект, иначе прежняя страница. */
-export default async function AdminPaymentsImportLegacyPage({
-  searchParams,
-}: {
-  searchParams?: Promise<Record<string, string | string[] | undefined>>;
-}) {
+/**
+ * Старый адрес: постоянный редирект в хаб «Настройки».
+ *
+ * До `У-262` здесь была развилка: при выключенном флаге `settings_hub`
+ * страница рендерила прежнее содержимое на прежнем адресе. Флаг снят — хаб
+ * принят, откатывать нечего, и вторая ветка стала недостижимой.
+ */
+export default async function AdminPaymentsImportLegacyPage() {
   redirectToSettingsHub('/admin/payments-import');
-  // `У-90`: фильтры и страница очереди переносятся со старого адреса как есть.
-  return AdminPaymentsImportPage({ searchParams: Promise.resolve((await searchParams) ?? {}) });
 }

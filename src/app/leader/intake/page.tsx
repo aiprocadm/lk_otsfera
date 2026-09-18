@@ -1,7 +1,6 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
 import { requireManagerLeader } from '@/lib/auth/requireRole';
-import { isFeatureEnabled } from '@/lib/featureFlags';
 import { prisma } from '@/lib/db/prisma';
 import { listIntake } from '@/lib/services/intake/list';
 import { listCompanyManagers } from '@/lib/services/manager/team';
@@ -19,7 +18,6 @@ export default async function LeaderIntakePage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  if (!isFeatureEnabled('intake_inbox')) notFound();
   const session = await requireManagerLeader();
   const sp = await searchParams;
   const skip = Math.max(Number(typeof sp.skip === 'string' ? sp.skip : 0) || 0, 0);

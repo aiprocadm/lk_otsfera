@@ -1,10 +1,14 @@
 import { redirectToSettingsHub } from '@/lib/navigation/settingsRedirect';
-import AdminAuditPage from '@/app/admin/settings/security/audit/page';
 
 export const dynamic = 'force-dynamic';
 
-/** Старый адрес журнала аудита: при включённом хабе — редирект, иначе прежняя страница. */
-export default async function AdminAuditLegacyPage(props: Parameters<typeof AdminAuditPage>[0]) {
+/**
+ * Старый адрес: постоянный редирект в хаб «Настройки».
+ *
+ * До `У-262` здесь была развилка: при выключенном флаге `settings_hub`
+ * страница рендерила прежнее содержимое на прежнем адресе. Флаг снят — хаб
+ * принят, откатывать нечего, и вторая ветка стала недостижимой.
+ */
+export default async function AdminAuditLegacyPage() {
   redirectToSettingsHub('/admin/audit');
-  return AdminAuditPage(props);
 }

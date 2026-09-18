@@ -110,7 +110,8 @@ export const ORG_CARD_TABS: readonly OrgCardTab[] = [
   // Отдельного флага у лидов нет: раздел закрывается флагом кабинета, как и
   // пункт меню «Лиды» у менеджера.
   { key: 'leads', label: 'Лиды', iconKey: 'leads', cabinets: STAFF },
-  { key: 'deals', label: 'Сделки', iconKey: 'deals', cabinets: STAFF, flag: 'deals_pipeline' },
+  // `У-262`: флага у сделок больше нет — раздел есть всегда.
+  { key: 'deals', label: 'Сделки', iconKey: 'deals', cabinets: STAFF },
 
   // `У-210` (этап 3 ТЗ 12.09.2026): «Диалоги» — переписка с людьми этой
   // организации в мессенджерах и по почте. Стоит перед «Звонками» и

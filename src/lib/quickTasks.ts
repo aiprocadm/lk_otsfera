@@ -110,21 +110,17 @@ const BUILDERS: Record<QuickTasksRole, () => QuickTask[]> = {
 
   manager: () => {
     const t: QuickTask[] = [];
-    if (isFeatureEnabled('intake_inbox')) {
-      t.push({
-        href: '/manager/intake',
-        title: 'Разобрать входящие',
-        hint: 'Обращения, заявки, письма и звонки в одной очереди',
-      });
-    }
-    if (isFeatureEnabled('deals_pipeline')) {
-      t.push({
-        href: '/manager/deals',
-        title: 'Создать сделку',
-        hint: 'Переговоры со стадиями на доске',
-        action: 'Новая сделка',
-      });
-    }
+    t.push({
+      href: '/manager/intake',
+      title: 'Разобрать входящие',
+      hint: 'Обращения, заявки, письма и звонки в одной очереди',
+    });
+    t.push({
+      href: '/manager/deals',
+      title: 'Создать сделку',
+      hint: 'Переговоры со стадиями на доске',
+      action: 'Новая сделка',
+    });
     t.push(
       {
         // `У-113`: обмен с 1С стал одним разделом с вкладками — плитка ведёт
@@ -184,6 +180,13 @@ const BUILDERS: Record<QuickTasksRole, () => QuickTask[]> = {
       title: 'Функции платформы',
       hint: 'Что включено в системе',
     },
-    { href: '/admin/audit', title: 'Журнал действий', hint: 'Кто и что менял' },
+    // `У-262`: адрес взят прямой, а не через старый `/admin/audit`. Тот стал
+    // постоянным редиректом в хаб «Настройки», и плитка, ведущая в редирект,
+    // заставляла бы браузер ходить дважды за одним экраном.
+    {
+      href: '/admin/settings/security/audit',
+      title: 'Журнал действий',
+      hint: 'Кто и что менял',
+    },
   ],
 };

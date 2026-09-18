@@ -12,6 +12,11 @@ afterEach(() => {
   process.env = { ...ORIGINAL_ENV };
 });
 
+// `У-262`: три проверки отсюда убраны вместе с пунктами меню, которые заменил
+// хаб «Настройки»: «Роли», «Статусы заявок» и «Дополнительные поля». Пункты
+// прятались флагом `settings_hub`, а он был включён везде — руководитель их
+// не видел и попадал в разделы через «Настройки». Сами разделы на месте:
+// реестр хаба объявляет их для кабинетов `['admin', 'leader']`.
 describe('канон leader', () => {
   it('состав меню руководителя: свои «Сообщения» и «Документы», без пунктов-мостов в чужой кабинет', () => {
     expect(navByRole.leader.map((i) => i.href)).toEqual([
@@ -24,7 +29,6 @@ describe('канон leader', () => {
       '/leader/organizations',
       // Этап 1 ТЗ 12.09.2026 (`У-178`): справочник контактов, свой флаг `contacts`.
       '/leader/contacts',
-      '/leader/roles',
       '/leader/funnel',
       '/leader/deals',
       '/leader/analytics',
@@ -42,9 +46,7 @@ describe('канон leader', () => {
       '/leader/notifications',
       '/leader/settings',
       // §11 ТЗ v0.5: зеркало настройки полей — руководителя в /admin/* не пускаем
-      '/leader/settings/custom-fields',
       // §10 ТЗ v0.5: там же зеркало справочника статусов
-      '/leader/settings/order-statuses',
       // `У-76` (этап 9): словарь терминов, закреплён внизу.
       '/help',
     ]);
@@ -59,7 +61,8 @@ describe('канон leader', () => {
       } else if (item.href === '/leader/search') {
         expect(item.flag).toBe('global_search');
       } else if (item.href === '/leader/deals') {
-        expect(item.flag).toBe('deals_pipeline');
+        // `У-262`: флага у сделок больше нет — раздел есть всегда.
+        expect(item.flag).toBeUndefined();
       } else if (item.href === '/leader/enrollments') {
         // `У-262`: флага у пункта больше нет — раздел есть всегда.
         expect(item.flag).toBeUndefined();
@@ -67,9 +70,8 @@ describe('канон leader', () => {
         // `У-262`: флага у пункта больше нет — раздел есть всегда.
         expect(item.flag).toBeUndefined();
       } else if (item.href === '/leader/intake') {
-        expect(item.flag).toBe('intake_inbox');
-      } else if (item.href === '/leader/roles') {
-        expect(item.flag).toBe('role_constructor');
+        // `У-262`: флага у «Входящих в работу» больше нет.
+        expect(item.flag).toBeUndefined();
       } else if (item.href === '/leader/funnel') {
         expect(item.flag).toBe('sales_funnel');
       } else if (item.href === '/leader/analytics') {
@@ -84,25 +86,6 @@ describe('канон leader', () => {
         expect(item.flag).toBeUndefined();
       }
     }
-  });
-
-  it('«Статусы заявок» ведут в кабинет руководителя, без флага (§10 ТЗ v0.5)', () => {
-    const item = navByRole.leader.find((i) => i.href === '/leader/settings/order-statuses');
-    expect(item).toBeDefined();
-    expect(item!.label).toBe('Статусы заявок');
-    expect(item!.group).toBe('Справочники');
-    expect(item!.flag).toBeUndefined();
-    expect(item!.href.startsWith('/admin')).toBe(false);
-  });
-
-  it('«Дополнительные поля» ведут в кабинет руководителя, без флага (§11 ТЗ v0.5)', () => {
-    const item = navByRole.leader.find((i) => i.href === '/leader/settings/custom-fields');
-    expect(item).toBeDefined();
-    expect(item!.label).toBe('Дополнительные поля');
-    expect(item!.group).toBe('Справочники');
-    expect(item!.flag).toBeUndefined();
-    // ключевое: ссылка НЕ в админский кабинет
-    expect(item!.href.startsWith('/admin')).toBe(false);
   });
 
   it('«Настройки» указывает на /leader/settings и имеет иконку', () => {
@@ -126,28 +109,27 @@ describe('канон leader', () => {
     // флаги сняты, разделы есть всегда и от окружения больше не зависят.
     expect(hrefs).toContain('/leader/enrollments');
     expect(hrefs).toContain('/leader/requests');
-    expect(hrefs).not.toContain('/leader/roles');
     expect(hrefs).not.toContain('/leader/funnel');
-    expect(hrefs).not.toContain('/leader/deals');
+    // `У-262`: «Сделки» из этого списка ушли — флаг снят, раздел есть всегда.
+    expect(hrefs).toContain('/leader/deals');
     expect(hrefs).not.toContain('/leader/analytics');
     expect(hrefs).not.toContain('/leader/tasks');
     expect(hrefs).not.toContain('/leader/calendar');
     expect(hrefs).not.toContain('/leader/search');
-    expect(hrefs).not.toContain('/leader/intake');
+    // `У-262`: «Входящие в работу» из этого списка ушли — флаг снят.
+    expect(hrefs).toContain('/leader/intake');
     expect(hrefs).not.toContain('/leader/contacts');
     expect(hrefs).not.toContain('/leader/notifications');
-    expect(navItemsFor('leader')).toHaveLength(navByRole.leader.length - 10);
+    expect(navItemsFor('leader')).toHaveLength(navByRole.leader.length - 7);
   });
 
   it('navItemsFor("leader") показывает opt-in пункты при включённых флагах', () => {
     process.env.FEATURE_ROLE_CONSTRUCTOR = '1';
     process.env.FEATURE_SALES_FUNNEL = '1';
-    process.env.FEATURE_DEALS_PIPELINE = '1';
     process.env.FEATURE_LEADER_ANALYTICS = '1';
     process.env.FEATURE_INTERNAL_TASKS = '1';
     process.env.FEATURE_STAFF_CALENDAR = '1';
     process.env.FEATURE_GLOBAL_SEARCH = '1';
-    process.env.FEATURE_INTAKE_INBOX = '1';
     process.env.FEATURE_CONTACTS = '1';
     process.env.FEATURE_NOTIFICATION_CENTER = '1';
     const hrefs = navItemsFor('leader').map((i) => i.href);
@@ -155,7 +137,6 @@ describe('канон leader', () => {
     expect(hrefs).toContain('/leader/contacts');
     expect(hrefs).toContain('/leader/enrollments');
     expect(hrefs).toContain('/leader/requests');
-    expect(hrefs).toContain('/leader/roles');
     expect(hrefs).toContain('/leader/funnel');
     expect(hrefs).toContain('/leader/deals');
     expect(hrefs).toContain('/leader/analytics');

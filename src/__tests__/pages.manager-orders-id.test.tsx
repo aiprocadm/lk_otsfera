@@ -467,13 +467,6 @@ describe('ManagerOrderDetailPage', () => {
       );
     }
 
-    it('со сделками выключенными флагом цепочка не дочитывается', async () => {
-      isFeatureEnabled.mockReturnValue(false);
-      const { container } = await renderOrder();
-      expect(loadOrderDeal).not.toHaveBeenCalled();
-      expect(container.textContent).toContain('Заказы');
-    });
-
     it('заказ из сделки с лидом и обращением разворачивает всю цепочку', async () => {
       isFeatureEnabled.mockImplementation((flag: string) => flag === 'deals_pipeline');
       loadOrderDeal.mockResolvedValue({

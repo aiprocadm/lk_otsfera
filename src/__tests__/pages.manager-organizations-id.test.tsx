@@ -386,7 +386,8 @@ describe('ManagerOrgDetailPage', () => {
     );
     let tabs = res.container.textContent ?? '';
     expect(tabs).toContain('leads');
-    expect(tabs).not.toContain('deals');
+    // `У-262`: «Сделки» больше не гейтятся — их флаг снят, вкладка есть всегда.
+    expect(tabs).toContain('deals');
 
     isFeatureEnabled.mockImplementation(
       (f: string) => f === 'client_requests' || f === 'deals_pipeline'

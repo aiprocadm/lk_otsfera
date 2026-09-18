@@ -25,22 +25,15 @@ describe('contactCardTabsFor', () => {
     ]);
   });
 
-  it('все флаги выключены — остаются «Заказы» и «История»', () => {
-    expect(contactCardTabsFor({ flags: () => false }).map((t) => t.key)).toEqual([
-      'orders',
-      'history',
-    ]);
-  });
-
   it('фильтр по флагам: спрашивает только у вкладок с флагом, по их флагу', () => {
     const flags = vi.fn((flag: FeatureFlag) => flag === 'telephony_mango');
     const tabs = contactCardTabsFor({ flags });
-    expect(tabs.map((t) => t.key)).toEqual(['calls', 'orders', 'history']);
+    expect(tabs.map((t) => t.key)).toEqual(['calls', 'deals', 'orders', 'history']);
     expect(flags.mock.calls.map((c) => c[0])).toEqual([
       'inbound_messaging',
       'telephony_mango',
       'inbound_messaging',
-      'deals_pipeline',
+      // `У-262`: у «Сделок» флага больше нет — про них фильтр не спрашивает.
       // `У-220`: «Задачи» гейтятся тем же флагом, что и сам раздел задач —
       // иначе при выключенном разделе вкладка вела бы в никуда.
       'internal_tasks',
@@ -50,7 +43,8 @@ describe('contactCardTabsFor', () => {
   it('вкладки под одним флагом включаются и выключаются вместе', () => {
     const only = (name: FeatureFlag) =>
       contactCardTabsFor({ flags: (f) => f === name }).map((t) => t.key);
-    expect(only('inbound_messaging')).toEqual(['dialogs', 'inbound', 'orders', 'history']);
-    expect(only('deals_pipeline')).toEqual(['deals', 'orders', 'history']);
+    expect(only('inbound_messaging')).toEqual(['dialogs', 'inbound', 'deals', 'orders', 'history']);
+    // `У-262`: «Сделки» из этой проверки ушли — их флаг снят, вкладка есть
+    // всегда и вместе с «Заказами» и «Историей» показывается без флагов.
   });
 });

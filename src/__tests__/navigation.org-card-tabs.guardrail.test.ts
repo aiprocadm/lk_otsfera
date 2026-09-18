@@ -95,12 +95,13 @@ describe('реестр вкладок карточки организации (�
   });
 
   it('выключенный флаг убирает вкладку у всех кабинетов сразу', () => {
-    const withDeals = orgCardTabsFor('manager', { flags: () => true }).map((t) => t.key);
-    const without = orgCardTabsFor('manager', { flags: (f) => f !== 'deals_pipeline' }).map(
+    // Пример взят на «Звонках»: у «Сделок» флага больше нет (`У-262`).
+    const withCalls = orgCardTabsFor('manager', { flags: () => true }).map((t) => t.key);
+    const without = orgCardTabsFor('manager', { flags: (f) => f !== 'telephony_mango' }).map(
       (t) => t.key
     );
-    expect(withDeals).toContain('deals');
-    expect(without).not.toContain('deals');
+    expect(withCalls).toContain('calls');
+    expect(without).not.toContain('calls');
   });
 
   it('«Комментарии» флагом не гейтятся — это разговор по заказу, а не чат (У-96)', () => {

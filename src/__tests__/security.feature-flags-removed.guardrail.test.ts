@@ -33,6 +33,10 @@ const REMOVED: string[] = [
   'enrollment_requests',
   'client_requests',
   'certificates_registry',
+  // Пачка C: сделки, входящие и хаб «Настройки».
+  'deals_pipeline',
+  'intake_inbox',
+  'settings_hub',
 ];
 
 /** Имя env-переменной флага — та же схема, что у `featureFlagEnvVar`. */

@@ -1,12 +1,14 @@
 import { redirectToSettingsHub } from '@/lib/navigation/settingsRedirect';
-import AdminPiiAccessPage from '@/app/admin/settings/security/personal-data/page';
 
 export const dynamic = 'force-dynamic';
 
-/** Старый адрес журнала доступа к ПДн: при включённом хабе — редирект, иначе прежняя страница. */
-export default async function AdminPiiAccessLegacyPage(
-  props: Parameters<typeof AdminPiiAccessPage>[0]
-) {
+/**
+ * Старый адрес: постоянный редирект в хаб «Настройки».
+ *
+ * До `У-262` здесь была развилка: при выключенном флаге `settings_hub`
+ * страница рендерила прежнее содержимое на прежнем адресе. Флаг снят — хаб
+ * принят, откатывать нечего, и вторая ветка стала недостижимой.
+ */
+export default async function AdminPiiAccessLegacyPage() {
   redirectToSettingsHub('/admin/pii-access');
-  return AdminPiiAccessPage(props);
 }
