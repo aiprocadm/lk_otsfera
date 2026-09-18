@@ -70,6 +70,15 @@ describe('PartnerMaterialsList', () => {
     expect(out).toContain('k.pdf · 150 КБ');
   });
 
+  it('материал без файла и без ссылки — карточка есть, кнопки нет', () => {
+    // Такая строка в списке не появляется (фильтр требует файл `clean` или
+    // ссылку), но карточка обязана пережить её, а не нарисовать пустую кнопку.
+    const out = html([row({ id: 'n', file: null, externalUrl: null })]);
+    expect(out).toContain('Прайс осень');
+    expect(out).not.toContain('data-testid="dl-n"');
+    expect(out).not.toContain('Открыть ↗');
+  });
+
   it('пусто: объяснение без поиска и «ничего не найдено» с поиском (значение поиска остаётся)', () => {
     expect(html([])).toContain('их публикует учебный центр');
     const searched = html([], 'прайс');

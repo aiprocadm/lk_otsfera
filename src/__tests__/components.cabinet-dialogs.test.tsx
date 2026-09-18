@@ -89,6 +89,21 @@ describe('CabinetDialogsPanel', () => {
     expect(out).toContain('data-testid="reply-form"');
   });
 
+  it('последней была заметка — строка списка говорит «нет новых сообщений»', () => {
+    // Превью заметки клиенту не показывают (`У-209`), но и пустой строки в
+    // списке быть не должно: человек не поймёт, что это за переписка.
+    const out = panel([row({ preview: null, lastDirection: null })], null);
+    expect(out).toContain('Нет новых сообщений');
+    expect(out).not.toContain('Менеджер: ');
+
+    // Обратный край: текст есть, а направление неизвестно — показываем текст
+    // без подписи автора, а не «undefined: …».
+    const noAuthor = panel([row({ preview: 'Просто текст', lastDirection: null })], null);
+    expect(noAuthor).toContain('Просто текст');
+    expect(noAuthor).not.toContain('Вы: Просто текст');
+    expect(noAuthor).not.toContain('Менеджер: Просто текст');
+  });
+
   it('пустой список объясняет себя и не прячет поле ответа (У-74)', () => {
     const out = panel([], null);
     expect(out).toContain('Переписки пока нет');

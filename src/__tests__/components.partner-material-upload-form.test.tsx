@@ -110,4 +110,14 @@ describe('PartnerMaterialUploadForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
     expect(onCancel).toHaveBeenCalled();
   });
+
+  it('передумал: переключился на ссылку и вернулся к файлу', () => {
+    // Оба переключателя — рабочие: вернуться к файлу так же просто, как уйти
+    // к ссылке, иначе человеку придётся закрывать форму и начинать заново.
+    mount();
+    fireEvent.click(screen.getByLabelText('Ссылка', { selector: 'input[type="radio"]' }));
+    expect(screen.queryByLabelText('Файл', { selector: 'input[type="file"]' })).toBeNull();
+    fireEvent.click(screen.getByLabelText('Файл', { selector: 'input[type="radio"]' }));
+    expect(screen.getByLabelText('Файл', { selector: 'input[type="file"]' })).toBeTruthy();
+  });
 });

@@ -70,4 +70,16 @@ describe('POST /api/partner/materials/[id]/download', () => {
       expect.objectContaining({ materialId: 'm1', error: 'bucket gone' })
     );
   });
+
+  it('хранилище бросило не-ошибку — всё равно 502 и строка в логе', async () => {
+    // Клиент хранилища может бросить строку: тогда `error.message` не
+    // существует и сама запись в лог уронила бы маршрут пятисотой.
+    createSignedUrl.mockRejectedValueOnce('bucket недоступен');
+    const res = await POST(req, ctx('m1'));
+    expect(res.status).toBe(502);
+    expect(logError).toHaveBeenCalledWith(
+      '[partner/materials] signed url failed',
+      expect.objectContaining({ error: 'bucket недоступен' })
+    );
+  });
 });

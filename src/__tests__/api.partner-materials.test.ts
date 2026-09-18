@@ -115,6 +115,15 @@ describe('POST /api/partner-materials', () => {
       if (result.error === 'validation') expect(body.messages).toEqual(['Название обязательно.']);
     }
   });
+
+  it('незнакомый код сервиса — 400, а не падение маршрута', async () => {
+    // Сервис может завести новый код раньше, чем роут узнает о нём. Тогда
+    // человек обязан получить понятный отказ, а не пятисотую ошибку.
+    createMaterial.mockResolvedValueOnce({ ok: false, error: 'какой_то_новый_код' });
+    const res = await CREATE(makeReq(makeForm({ ...FIELDS, file: pdfFile() })));
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: 'какой_то_новый_код' });
+  });
 });
 
 describe('POST /api/partner-materials/[id]/file', () => {
@@ -151,5 +160,11 @@ describe('POST /api/partner-materials/[id]/file', () => {
     });
     replaceMaterialFile.mockResolvedValueOnce({ ok: false, error: 'not_found' });
     expect((await REPLACE(makeReq(makeForm({ file: pdfFile() })), ctx('zz'))).status).toBe(404);
+
+    // Незнакомый код — понятный отказ, а не пятисотая.
+    replaceMaterialFile.mockResolvedValueOnce({ ok: false, error: 'новый_код' });
+    const unknown = await REPLACE(makeReq(makeForm({ file: pdfFile() })), ctx('m1'));
+    expect(unknown.status).toBe(400);
+    await expect(unknown.json()).resolves.toEqual({ error: 'новый_код' });
   });
 });

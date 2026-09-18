@@ -153,6 +153,109 @@ describe('PartnerMaterialsScreen', () => {
     expect(refresh).toHaveBeenCalled();
   });
 
+  it('«кто скачал» закрывается тем же нажатием, что и открылся', () => {
+    mount([row()]);
+    fireEvent.click(screen.getByTestId('downloads-toggle-m1'));
+    expect(screen.queryByTestId('downloads-list')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('downloads-toggle-m1'));
+    expect(screen.queryByTestId('downloads-list')).toBeNull();
+  });
+
+  it('у администратора компания ещё не выбрана — экран цел, выбор на месте', () => {
+    // Пустое значение выбора: браузер подставит первую компанию, а экран не
+    // должен ни падать, ни прятать переключатель.
+    mount([], { companyId: null });
+    expect(screen.getByTestId('company-select')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Материалы для партнёров' })).toBeTruthy();
+  });
+
+  it('материал без описания: поле правки пустое, а не со словом null', () => {
+    mount([row({ description: null })]);
+    fireEvent.click(screen.getByRole('button', { name: 'Редактировать' }));
+    const area = screen.getByTestId('edit-form-m1').querySelector('textarea');
+    expect(area?.value).toBe('');
+  });
+
+  it('замена файла сорвалась без внятного ответа — человек всё равно видит причину', async () => {
+    // Роут может ответить пустым телом: тогда подставляется код по статусу,
+    // и тост не должен оказаться пустым.
+    mount([row()]);
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 502, json: async () => ({}) });
+    const input = screen.getByTestId('replace-file-m1') as HTMLInputElement;
+    fireEvent.change(input, {
+      target: { files: [new File(['%PDF'], 'new.pdf', { type: 'application/pdf' })] },
+    });
+    await waitFor(() => expect(toastError).toHaveBeenCalled());
+    expect(String(toastError.mock.calls[0][0]).length).toBeGreaterThan(5);
+  });
+
+  it('передумал добавлять: «Отмена» закрывает форму и ничего не перечитывает', () => {
+    mount([row()]);
+    fireEvent.click(screen.getByTestId('add-material'));
+    expect(screen.getByTestId('upload-form')).toBeTruthy();
+    fireEvent.click(screen.getByText('cancel'));
+    expect(screen.queryByTestId('upload-form')).toBeNull();
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it('передумал править: «Отмена» закрывает форму правки без сохранения', () => {
+    mount([row()]);
+    fireEvent.click(screen.getByRole('button', { name: 'Редактировать' }));
+    expect(screen.getByTestId('edit-form-m1')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
+    expect(screen.queryByTestId('edit-form-m1')).toBeNull();
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('«Заменить файл» открывает выбор файла, а не делает вид', () => {
+    // Настоящий `input type=file` спрятан: кнопка обязана нажать именно его,
+    // иначе замена файла не начнётся вовсе.
+    mount([row()]);
+    const input = screen.getByTestId('replace-file-m1') as HTMLInputElement;
+    const click = vi.spyOn(input, 'click');
+    fireEvent.click(screen.getByRole('button', { name: 'Заменить файл' }));
+    expect(click).toHaveBeenCalled();
+  });
+
+  it('сервис отказал без кода вовсе — общая русская подсказка', async () => {
+    // Крайний случай: `{ ok: false }` без `error` и без текстов. Тост обязан
+    // быть осмысленным, иначе человек увидит пустую плашку.
+    publish.mockResolvedValueOnce({ ok: false });
+    mount([row()]);
+    fireEvent.click(screen.getByRole('button', { name: 'Опубликовать' }));
+    await waitFor(() => expect(toastError).toHaveBeenCalled());
+    expect(String(toastError.mock.calls[0][0]).length).toBeGreaterThan(5);
+  });
+
+  it('замена файла отклонена с текстами — показываем их, а не общий код', async () => {
+    mount([row()]);
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: 'validation', messages: ['Файл больше 200 МБ.'] }),
+    });
+    fireEvent.change(screen.getByTestId('replace-file-m1'), {
+      target: { files: [new File(['%PDF'], 'big.pdf', { type: 'application/pdf' })] },
+    });
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Файл больше 200 МБ.'));
+  });
+
+  it('материал ещё никто не скачивал — так и написано, а не пустая рамка', () => {
+    mount([row({ downloadsCount: 0, downloads: [] })]);
+    fireEvent.click(screen.getByTestId('downloads-toggle-m1'));
+    expect(screen.getByTestId('downloads-list').textContent).toContain('Пока никто не скачивал');
+  });
+
+  it('незнакомый код отказа — общая русская подсказка, а не пустой тост', async () => {
+    // Сервис может завести новый код раньше экрана: человек обязан увидеть
+    // осмысленную строку, а не пустоту.
+    publish.mockResolvedValueOnce({ ok: false, error: 'какой_то_новый_код' });
+    mount([row()]);
+    fireEvent.click(screen.getByRole('button', { name: 'Опубликовать' }));
+    await waitFor(() => expect(toastError).toHaveBeenCalled());
+    expect(String(toastError.mock.calls[0][0]).length).toBeGreaterThan(5);
+  });
+
   it('файл ещё проверяется — кнопки публикации нет; заражён — подсказка про замену; not_ready от сервиса — русская ошибка', async () => {
     const { unmount } = mount([row({ file: { ...row().file!, scanStatus: 'pending' } })]);
     expect(screen.queryByRole('button', { name: 'Опубликовать' })).toBeNull();

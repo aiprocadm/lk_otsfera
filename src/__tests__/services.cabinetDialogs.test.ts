@@ -168,6 +168,16 @@ describe('getCabinetDialog', () => {
       hiddenCount: 0,
     });
   });
+
+  it('неизвестный канал в карточке не роняет экран, а считается кабинетом', async () => {
+    // У старой строки в базе может оказаться канал, которого реестр уже не
+    // знает. Экран переписки из-за справочника падать не должен.
+    const { prisma, raw } = db();
+    raw.messengerDialog.findFirst.mockResolvedValue({ id: 'd3', channel: 'факс' });
+    const res = await getCabinetDialog(prisma, PARTNER, 'd3');
+    if (!res.ok) throw new Error('expected ok');
+    expect(res.dialog).toMatchObject({ channel: 'cabinet', isCabinet: true });
+  });
 });
 
 describe('replyFromCabinet', () => {
