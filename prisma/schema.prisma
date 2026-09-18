@@ -1429,6 +1429,13 @@ model Order {
   @@index([companyId, financialStatus])
   /// Сопровождение, хотфикс №50 (`С-8`): вкладка «Заказы» карточки контакта ищет заказы по контакту.
   @@index([primaryContactId])
+  /// Этап 7 (`У-248`): отчёты и показатели фильтруют «компания + диапазон дат».
+  /// Пары с датой в прежних индексах не было вовсе — был только голый
+  /// `closedAt` по всем компаниям сразу, и месячный отчёт читал таблицу целиком.
+  @@index([companyId, createdAt])
+  @@index([companyId, completedAt])
+  @@index([companyId, closedAt])
+  @@index([companyId, deadline])
 }
 
 model Document {
