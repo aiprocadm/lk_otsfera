@@ -193,7 +193,6 @@ afterAll(async () => {
   });
   await prisma.commissionStatement.deleteMany({ where: { partnerId } });
   await prisma.comment.deleteMany({ where: { body: { startsWith: 'MEO-' } } });
-  await prisma.upload.deleteMany({ where: { filename: { startsWith: 'MEO-' } } });
   await prisma.orderThread.deleteMany({ where: ourOrders });
   await prisma.payment.deleteMany({ where: { note: { startsWith: 'MEO-' } } });
   await prisma.document.deleteMany({ where: ourOrders });
@@ -571,19 +570,14 @@ describe('mergeExternalOrderInto — отказы по содержимому з
     await expectBlocked(source, target, 'has_lines');
   });
 
+  // Ветки `has_activity` осталось три: комментарий, тред и строка ведомости.
+  // Четвёртая — загрузка (`Upload`) — убрана вместе с самой проверкой
+  // (`У-261`, дефект `Д-43`): таблица мертва, записей в неё не делает никто,
+  // и счётчик, всегда равный нулю, ничего не охранял.
   it('есть комментарий — has_activity', async () => {
     const { source, target } = await pair();
     await prisma.comment.create({
       data: { body: `MEO-Comment-${S}`, orderId: source, authorId: leaderAId },
-    });
-
-    await expectBlocked(source, target, 'has_activity');
-  });
-
-  it('есть загрузка — has_activity', async () => {
-    const { source, target } = await pair();
-    await prisma.upload.create({
-      data: { filename: `MEO-Upload-${S}`, path: 'u1', size: 10, orderId: source },
     });
 
     await expectBlocked(source, target, 'has_activity');

@@ -151,30 +151,37 @@ export async function mergeExternalOrderInto(
  * Что мешает объединению. Проверяем ДО транзакции и по каждой связи отдельно:
  * человеку нужна причина отказа, а не «не удалось удалить заказ».
  *
- * Комментарии, загрузки, треды и позиции держат заказ жёстким внешним ключом —
+ * Комментарии, треды и позиции ведомости держат заказ жёстким внешним ключом —
  * на заказе миграции их не бывает, но если появились, значит заказом уже
  * пользовались как живым, и молча удалять его нельзя.
+ *
+ * **Загрузки (`Upload`) из проверки убраны** (`У-261`, дефект `Д-43`). Таблица
+ * мертва: за всё время в боевом коде не появилось ни одной записи в неё —
+ * файлы живут в `Document` и в объектном хранилище. Счётчик, который всегда
+ * равен нулю, ничего не охраняет, а модель из-за него выглядела живой.
+ * Ветку `has_activity` по-прежнему держат три других счётчика, так что
+ * «живой» заказ этой правкой объединить не станет легче. Саму таблицу
+ * удаляет следующий PR — и его миграция сначала убеждается, что строк
+ * действительно нет (`npm run report:dead-tables`).
  */
 async function findBlocker(
   prisma: PrismaClient,
   sourceId: string,
   targetId: string
 ): Promise<MergeExternalError | null> {
-  const [payments, lines, items, comments, uploads, threads, statements, targetDeal] =
-    await Promise.all([
-      prisma.payment.count({ where: { orderId: sourceId } }),
-      prisma.orderLine.count({ where: { orderId: sourceId } }),
-      prisma.orderItem.count({ where: { orderId: sourceId } }),
-      prisma.comment.count({ where: { orderId: sourceId } }),
-      prisma.upload.count({ where: { orderId: sourceId } }),
-      prisma.orderThread.count({ where: { orderId: sourceId } }),
-      prisma.commissionStatementItem.count({ where: { orderId: sourceId } }),
-      prisma.deal.count({ where: { orderId: targetId } }),
-    ]);
+  const [payments, lines, items, comments, threads, statements, targetDeal] = await Promise.all([
+    prisma.payment.count({ where: { orderId: sourceId } }),
+    prisma.orderLine.count({ where: { orderId: sourceId } }),
+    prisma.orderItem.count({ where: { orderId: sourceId } }),
+    prisma.comment.count({ where: { orderId: sourceId } }),
+    prisma.orderThread.count({ where: { orderId: sourceId } }),
+    prisma.commissionStatementItem.count({ where: { orderId: sourceId } }),
+    prisma.deal.count({ where: { orderId: targetId } }),
+  ]);
 
   if (payments > 0) return 'has_payments';
   if (lines > 0 || items > 0) return 'has_lines';
-  if (comments > 0 || uploads > 0 || threads > 0 || statements > 0) return 'has_activity';
+  if (comments > 0 || threads > 0 || statements > 0) return 'has_activity';
   // У заказа один выигранный сделочный «родитель» (`Deal.orderId @unique`).
   if (targetDeal > 0) return 'target_has_deal';
   return null;

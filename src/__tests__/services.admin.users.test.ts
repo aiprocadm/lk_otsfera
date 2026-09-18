@@ -667,11 +667,15 @@ describe('createUser', () => {
       role: 'partner',
       partnerId: 'partner1',
     });
+    // `Д-47`: тест закреплял значение `'member'` — то самое, которого нет ни в
+    // одном контракте. Так дефект и держался: он был «подтверждён тестом».
+    // Контракт везде `'admin' | 'manager'`, сессия трактует «не admin» как
+    // менеджера, поэтому поведение не меняется — меняется то, что лежит в базе.
     expect(txMock.partnerUser.create).toHaveBeenCalledWith({
       data: {
         userId: 'u2',
         partnerId: 'partner1',
-        roleInPartner: 'member',
+        roleInPartner: 'manager',
         assignedOrgIds: [],
       },
     });

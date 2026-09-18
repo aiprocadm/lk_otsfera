@@ -72,7 +72,12 @@ export async function createUser(
           data: {
             userId: user.id,
             partnerId: args.partnerId,
-            roleInPartner: 'member',
+            // `Д-47`: здесь писалось `'member'` — значение вне контракта
+            // `'admin' | 'manager'`. Дыры в доступе не было (сессия трактует
+            // «не admin» как `manager`), но отчёты и выборки по роли врали, а
+            // в базе копился мусор. Запись приведена к контракту; прежние
+            // строки чинит бэкфилл миграции этапа 9.
+            roleInPartner: 'manager',
             assignedOrgIds: [],
           },
         });
@@ -190,7 +195,12 @@ export async function updateUser(
           data: {
             userId: id,
             partnerId: args.partnerId,
-            roleInPartner: 'member',
+            // `Д-47`: здесь писалось `'member'` — значение вне контракта
+            // `'admin' | 'manager'`. Дыры в доступе не было (сессия трактует
+            // «не admin» как `manager`), но отчёты и выборки по роли врали, а
+            // в базе копился мусор. Запись приведена к контракту; прежние
+            // строки чинит бэкфилл миграции этапа 9.
+            roleInPartner: 'manager',
             assignedOrgIds: [],
           },
         });
