@@ -256,7 +256,10 @@ describe('LeaderOrgDetailPage (У-101)', () => {
     const keys = container.querySelector('[data-testid="org-card"]')!.textContent!.split(',');
     expect(keys).toContain('orders');
     // Флаги выключены — вкладок под флагом нет ни одной.
-    for (const gated of ['threads', 'calls', 'requests', 'deals', 'certificates']) {
+    // `У-262`: вкладки «Обращения» и «Удостоверения» больше не гейтятся —
+    // флаги `client_requests` и `certificates_registry` сняты, разделы есть
+    // всегда. Под флагами остались переписка, звонки и сделки.
+    for (const gated of ['threads', 'calls', 'deals']) {
       expect(keys).not.toContain(gated);
     }
   });

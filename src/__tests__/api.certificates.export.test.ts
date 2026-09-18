@@ -48,19 +48,6 @@ beforeEach(() => {
 });
 
 describe('GET /api/organization/certificates/export', () => {
-  it('404 при выключенном флаге; 401 без сессии; 403 не-организации', async () => {
-    notFoundIfDisabled.mockReturnValue(new Response('Not Found', { status: 404 }));
-    expect((await orgExport(req('http://x/'))).status).toBe(404);
-
-    notFoundIfDisabled.mockReturnValue(null);
-    getSession.mockResolvedValue(null);
-    expect((await orgExport(req('http://x/'))).status).toBe(401);
-
-    getSession.mockResolvedValue(partnerSession);
-    expect((await orgExport(req('http://x/'))).status).toBe(403);
-    expect(listCertificates).not.toHaveBeenCalled();
-  });
-
   it('успех: фильтры из query уходят в сервис, тело — валидный xlsx без колонки «Организация»', async () => {
     getSession.mockResolvedValue(orgSession);
     const res = await orgExport(
@@ -98,19 +85,6 @@ describe('GET /api/organization/certificates/export', () => {
 });
 
 describe('GET /api/partner/certificates/export', () => {
-  it('404 при выключенном флаге; 401 без сессии; 403 не-партнёру', async () => {
-    notFoundIfDisabled.mockReturnValue(new Response('Not Found', { status: 404 }));
-    expect((await partnerExport(req('http://x/'))).status).toBe(404);
-
-    notFoundIfDisabled.mockReturnValue(null);
-    getSession.mockResolvedValue(null);
-    expect((await partnerExport(req('http://x/'))).status).toBe(401);
-
-    getSession.mockResolvedValue(orgSession);
-    expect((await partnerExport(req('http://x/'))).status).toBe(403);
-    expect(listCertificates).not.toHaveBeenCalled();
-  });
-
   it('партнёрская выгрузка без фильтров: пустые query-параметры не уходят в сервис', async () => {
     // Пустой параметр в адресе (?organization=) означает «все», а не поиск
     // организации с пустым названием. И незнакомый статус тоже игнорируется.

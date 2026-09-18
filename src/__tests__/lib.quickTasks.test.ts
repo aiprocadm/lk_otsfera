@@ -66,21 +66,6 @@ describe('quickTasksFor (У-71)', () => {
     }
   });
 
-  it('выключенный флагом раздел исчезает из плиток вместе с самим разделом', () => {
-    process.env.FEATURE_ENROLLMENT_REQUESTS = '0';
-    for (const role of ['partner', 'organization'] as const) {
-      const hrefs = quickTasksFor(role).map((t) => t.href);
-      expect(hrefs, `${role}: заявки выключены, а плитка осталась`).not.toContain(
-        `/${role}/enrollments`
-      );
-      // Блок не должен схлопнуться: остальные задачи на месте.
-      expect(hrefs.length).toBeGreaterThanOrEqual(4);
-    }
-
-    process.env.FEATURE_INTAKE_INBOX = '0';
-    expect(quickTasksFor('manager').map((t) => t.href)).not.toContain('/manager/intake');
-  });
-
   it('состав отличается по ролям — это задачи роли, а не общий список', () => {
     const partner = quickTasksFor('partner')
       .map((t) => t.href)

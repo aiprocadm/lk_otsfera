@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { parseJsonBody } from '@/lib/api/http';
 import { getSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
-import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { getClientRequest } from '@/lib/services/clientRequests/list';
 import {
   takeInTriage,
@@ -20,8 +19,6 @@ const statusFor = (
   error === 'validation' ? 400 : error === 'forbidden' ? 403 : error === 'not_found' ? 404 : 409;
 
 export async function GET(_req: Request, { params }: Params) {
-  const disabled = notFoundIfDisabled('client_requests');
-  if (disabled) return disabled;
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -33,8 +30,6 @@ export async function GET(_req: Request, { params }: Params) {
 
 /** Триаж (ФТ-1.4): takeInTriage | convertToLead | reject — тонкий маппинг (§3). */
 export async function PATCH(req: Request, { params }: Params) {
-  const disabled = notFoundIfDisabled('client_requests');
-  if (disabled) return disabled;
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

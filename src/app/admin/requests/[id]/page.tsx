@@ -19,7 +19,6 @@ export default async function AdminRequestDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  if (!isFeatureEnabled('client_requests')) notFound();
   const session = await requireAdmin();
   const { id } = await params;
 

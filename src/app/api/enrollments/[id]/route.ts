@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { parseJsonBody } from '@/lib/api/http';
 import { getSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
-import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { canReviewEnrollments } from '@/lib/services/enrollments/policy';
 import {
   advanceEnrollmentItems,
@@ -18,8 +17,6 @@ const statusFor = (error: 'not_found' | 'lifecycle_violation' | 'validation'): n
   error === 'validation' ? 400 : error === 'not_found' ? 404 : 409;
 
 export async function PATCH(req: Request, { params }: Params) {
-  const disabled = notFoundIfDisabled('enrollment_requests');
-  if (disabled) return disabled;
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!canReviewEnrollments(session))

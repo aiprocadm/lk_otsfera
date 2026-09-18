@@ -48,13 +48,6 @@ beforeEach(() => {
 });
 
 describe('PATCH /api/enrollments/[id] — markInTraining / markCertificatesReady', () => {
-  it('404 when feature flag disabled', async () => {
-    notFoundIfDisabled.mockReturnValue(new Response('Not Found', { status: 404 }));
-    const res = await PATCH(jsonReq({ action: 'markInTraining' }), ctx('E1'));
-    expect(res.status).toBe(404);
-    expect(advanceEnrollmentItems).not.toHaveBeenCalled();
-  });
-
   it('401 unauthenticated', async () => {
     getSession.mockResolvedValue(null);
     const res = await PATCH(jsonReq({ action: 'markInTraining' }), ctx('E1'));

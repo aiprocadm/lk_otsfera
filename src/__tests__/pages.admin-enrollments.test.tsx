@@ -48,15 +48,6 @@ describe('AdminEnrollmentsPage', () => {
     nav.notFound.mockClear();
   });
 
-  it('calls notFound() when enrollment_requests flag is disabled', async () => {
-    isFeatureEnabled.mockReturnValue(false);
-
-    await expect(renderServerComponent(AdminEnrollmentsPage())).rejects.toThrow('NOT_FOUND');
-
-    expect(isFeatureEnabled).toHaveBeenCalledWith('enrollment_requests');
-    expect(requireAdmin).not.toHaveBeenCalled();
-  });
-
   it('lists enrollment requests when the flag is enabled', async () => {
     isFeatureEnabled.mockReturnValue(true);
     requireAdmin.mockResolvedValue(SESSION);

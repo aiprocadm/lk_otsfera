@@ -2,7 +2,6 @@ import React from 'react';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
 import { getOrgPageContext } from '@/lib/auth/orgPageContext';
-import { isFeatureEnabled } from '@/lib/featureFlags';
 import {
   listCertificates,
   CERTIFICATE_STATUS_FILTERS,
@@ -42,7 +41,6 @@ export default async function OrganizationCertificatesPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  if (!isFeatureEnabled('certificates_registry')) notFound();
   const sp = await searchParams;
   const ctx = await getOrgPageContext(sp);
 

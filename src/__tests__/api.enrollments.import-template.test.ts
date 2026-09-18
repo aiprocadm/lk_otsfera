@@ -23,11 +23,6 @@ beforeEach(() => {
 });
 
 describe('GET /api/enrollments/import-template', () => {
-  it('404 when feature flag disabled', async () => {
-    notFoundIfDisabled.mockReturnValue(new Response('Not Found', { status: 404 }));
-    expect((await GET()).status).toBe(404);
-  });
-
   it('401 unauthenticated', async () => {
     getSession.mockResolvedValue(null);
     expect((await GET()).status).toBe(401);

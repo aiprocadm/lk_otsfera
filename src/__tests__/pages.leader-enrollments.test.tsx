@@ -42,15 +42,6 @@ describe('LeaderEnrollmentsPage', () => {
     nav.notFound.mockClear();
   });
 
-  it('calls notFound() when the enrollment_requests flag is disabled (before auth check)', async () => {
-    isFeatureEnabled.mockReturnValue(false);
-
-    await expect(renderServerComponent(LeaderEnrollmentsPage())).rejects.toThrow('NOT_FOUND');
-
-    expect(isFeatureEnabled).toHaveBeenCalledWith('enrollment_requests');
-    expect(requireManagerLeader).not.toHaveBeenCalled();
-  });
-
   it('renders the enrollment queue when the flag is enabled', async () => {
     isFeatureEnabled.mockReturnValue(true);
     requireManagerLeader.mockResolvedValue(SESSION);

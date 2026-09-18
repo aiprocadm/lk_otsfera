@@ -60,15 +60,6 @@ describe('OrganizationEnrollmentsPage', () => {
     listEnrollmentRequests.mockReset();
   });
 
-  it('calls notFound() when the enrollment_requests flag is disabled (defense-in-depth)', async () => {
-    isFeatureEnabled.mockReturnValue(false);
-
-    await expect(renderServerComponent(OrganizationEnrollmentsPage())).rejects.toThrow('NOT_FOUND');
-
-    expect(isFeatureEnabled).toHaveBeenCalledWith('enrollment_requests');
-    expect(getOrgPageContext).not.toHaveBeenCalled();
-  });
-
   it('renders the enrollment request form + list when the flag is enabled', async () => {
     isFeatureEnabled.mockReturnValue(true);
     getOrgPageContext.mockResolvedValue(CTX);

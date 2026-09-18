@@ -88,6 +88,10 @@ describe('PartnerDashboard', () => {
     });
     attention.mockResolvedValue({ stuckOrders: [], overdueOrders: [] });
     recentEvents.mockResolvedValue([]);
+    // `У-262`: флаги заявок и удостоверений сняты — эти выборки теперь
+    // выполняются всегда, поэтому у них должен быть ответ.
+    recentEnrollments.mockResolvedValue([]);
+    expiringCertificates.mockResolvedValue(null);
 
     const { container } = await renderServerComponent(PartnerDashboard());
 

@@ -19,7 +19,6 @@ export default async function LeaderRequestDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  if (!isFeatureEnabled('client_requests')) notFound();
   const session = await requireManagerLeader();
   const { id } = await params;
 

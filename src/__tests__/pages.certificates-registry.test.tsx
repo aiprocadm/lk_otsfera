@@ -102,15 +102,6 @@ beforeEach(() => {
 });
 
 describe('OrganizationCertificatesPage', () => {
-  it('флаг off → notFound, контекст не запрашивается', async () => {
-    isFeatureEnabled.mockReturnValue(false);
-    await expect(renderServerComponent(OrganizationCertificatesPage(props()))).rejects.toThrow(
-      'NOT_FOUND'
-    );
-    expect(isFeatureEnabled).toHaveBeenCalledWith('certificates_registry');
-    expect(getOrgPageContext).not.toHaveBeenCalled();
-  });
-
   it('успех: сервис зовётся с активной организацией и распарсенными фильтрами', async () => {
     isFeatureEnabled.mockReturnValue(true);
     getOrgPageContext.mockResolvedValue(ORG_CTX);
@@ -163,14 +154,6 @@ describe('OrganizationCertificatesPage', () => {
 });
 
 describe('PartnerCertificatesPage', () => {
-  it('флаг off → notFound, requirePartner не вызывается', async () => {
-    isFeatureEnabled.mockReturnValue(false);
-    await expect(renderServerComponent(PartnerCertificatesPage(props()))).rejects.toThrow(
-      'NOT_FOUND'
-    );
-    expect(requirePartner).not.toHaveBeenCalled();
-  });
-
   it('успех (partner-admin): селект организаций по partnerId без сужения; фильтр организации уходит в сервис', async () => {
     isFeatureEnabled.mockReturnValue(true);
     requirePartner.mockResolvedValue(PARTNER_ADMIN);

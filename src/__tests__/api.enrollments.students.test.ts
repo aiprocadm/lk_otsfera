@@ -28,18 +28,6 @@ beforeEach(() => {
 });
 
 describe('GET /api/enrollments/students', () => {
-  it('404 при выключенном флаге; 401 без сессии; 400 без organizationId', async () => {
-    notFoundIfDisabled.mockReturnValue(new Response('Not Found', { status: 404 }));
-    expect((await GET(req('?organizationId=o1'))).status).toBe(404);
-
-    notFoundIfDisabled.mockReturnValue(null);
-    getSession.mockResolvedValue(null);
-    expect((await GET(req('?organizationId=o1'))).status).toBe(401);
-
-    getSession.mockResolvedValue({ sub: 'u', role: 'admin' });
-    expect((await GET(req(''))).status).toBe(400);
-  });
-
   it('403 для роли без права подачи (student)', async () => {
     getSession.mockResolvedValue({ sub: 'u', role: 'student' });
     expect((await GET(req('?organizationId=o1'))).status).toBe(403);

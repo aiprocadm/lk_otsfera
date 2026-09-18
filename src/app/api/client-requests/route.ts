@@ -4,7 +4,6 @@ import { z } from 'zod';
 import { parseJsonBody } from '@/lib/api/http';
 import { getSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
-import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { submitClientRequest } from '@/lib/services/clientRequests/submit';
 import { listClientRequests } from '@/lib/services/clientRequests/list';
 
@@ -13,8 +12,6 @@ const STATUSES: string[] = Object.values(ClientRequestStatus);
 
 /** Тонкие роуты заявок клиентов (этап 5): только маппинг кодов в HTTP (§3). */
 export async function POST(req: Request) {
-  const disabled = notFoundIfDisabled('client_requests');
-  if (disabled) return disabled;
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -43,8 +40,6 @@ export async function POST(req: Request) {
 }
 
 export async function GET(req: Request) {
-  const disabled = notFoundIfDisabled('client_requests');
-  if (disabled) return disabled;
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

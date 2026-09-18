@@ -130,16 +130,20 @@ beforeEach(() => {
   org.attention.mockResolvedValue({ items: [] });
   org.recentEvents.mockResolvedValue([]);
   org.expiringCertificates.mockResolvedValue(4);
+  // `У-262`: заявки на обучение больше не под флагом — выборка выполняется
+  // всегда, значит у неё должен быть ответ.
+  org.recentEnrollments.mockResolvedValue([]);
 
   requirePartner.mockResolvedValue(PARTNER_SESSION);
   partner.kpis.mockResolvedValue({ openOrders: 1, outstanding: '0', commissionThisMonth: '0' });
   partner.attention.mockResolvedValue({ stuckOrders: [], overdueOrders: [] });
   partner.recentEvents.mockResolvedValue([]);
   partner.expiringCertificates.mockResolvedValue(6);
+  partner.recentEnrollments.mockResolvedValue([]);
 });
 
 describe('OrganizationDashboardPage — KPI удостоверений', () => {
-  it('флаг on → карточка с числом, счётчик по активной организации', async () => {
+  it('карточка с числом, счётчик по активной организации', async () => {
     flags(true);
     const { container } = await renderServerComponent(
       OrganizationDashboardPage({ searchParams: Promise.resolve({}) })
@@ -148,19 +152,10 @@ describe('OrganizationDashboardPage — KPI удостоверений', () => {
     expect(container.textContent).toContain('Истекают удостоверения');
     expect(container.textContent).toContain('4');
   });
-
-  it('флаг off → карточки нет и счётчик не считается', async () => {
-    flags(false);
-    const { container } = await renderServerComponent(
-      OrganizationDashboardPage({ searchParams: Promise.resolve({}) })
-    );
-    expect(org.expiringCertificates).not.toHaveBeenCalled();
-    expect(container.textContent).not.toContain('Истекают удостоверения');
-  });
 });
 
 describe('PartnerDashboard — KPI удостоверений', () => {
-  it('флаг on → карточка с числом, счётчик по скоупу партнёра', async () => {
+  it('карточка с числом, счётчик по скоупу партнёра', async () => {
     flags(true);
     const { container } = await renderServerComponent(PartnerDashboard());
     expect(partner.expiringCertificates).toHaveBeenCalledWith(expect.anything(), {
@@ -169,12 +164,5 @@ describe('PartnerDashboard — KPI удостоверений', () => {
     });
     expect(container.textContent).toContain('Истекают удостоверения');
     expect(container.textContent).toContain('6');
-  });
-
-  it('флаг off → карточки нет и счётчик не считается', async () => {
-    flags(false);
-    const { container } = await renderServerComponent(PartnerDashboard());
-    expect(partner.expiringCertificates).not.toHaveBeenCalled();
-    expect(container.textContent).not.toContain('Истекают удостоверения');
   });
 });

@@ -20,7 +20,6 @@ export const FEATURE_FLAGS = [
   'commission_xlsx',
   'pwa_installer',
   'chat',
-  'enrollment_requests',
   // Трек D: каналы уведомлений. Не route-флаги — точки чтения: транспорт
   // (isMaxEnabled/isWhatsAppEnabled → канал+диспетчер), settings-UI (карточка),
   // webhook/binding-роуты (notFoundIfDisabled). Middleware/nav неприменимы.
@@ -138,13 +137,11 @@ export const FEATURE_FLAGS = [
   // (/organization/certificates, /partner/certificates), nav «Удостоверения»,
   // page-гейты реестров и карточки сотрудника, KPI-карточки дашбордов.
   // Спека 2026-07-24-stage3-certificates-registry-design.
-  'certificates_registry',
   // Этап 5 (Модуль 1): заявки клиентов (ClientRequest). Route-флаг: middleware
   // (/partner/requests, /organization/requests, /manager/requests, /leader/requests,
   // /admin/requests), nav-пункты, page/route-гейты; под ним же живёт redirect
   // Этап 10: домен лидов удалён из клиентских кабинетов (ТЗ §3.2).
   // Спека 2026-07-24-stage5-client-requests-design.
-  'client_requests',
   // Этап 6 (Модуль 4): канбан сделок менеджера/руководителя. Route-флаг: middleware
   // (/manager/deals, /leader/deals), nav «Сделки» (manager, leader), page-гейты
   // (notFound). ВНИМАНИЕ: заказы партнёра (/partner/orders, до `У-109` —
@@ -190,17 +187,7 @@ export const FEATURE_PREFIXES: Array<{ prefix: string; flag: FeatureFlag }> = [
   // оба) — осознанное отступление, как у `telephony_mango` и `inbound_messaging`.
   // T5: every enrollment surface dark-launches together under one flag (the
   // cabinet-level flags below still apply additively via their own prefixes).
-  { prefix: '/partner/enrollments', flag: 'enrollment_requests' },
-  { prefix: '/organization/enrollments', flag: 'enrollment_requests' },
-  { prefix: '/manager/enrollments', flag: 'enrollment_requests' },
-  { prefix: '/leader/enrollments', flag: 'enrollment_requests' },
-  { prefix: '/admin/enrollments', flag: 'enrollment_requests' },
   // Этап 5 (Модуль 1): заявки клиентов — единый тёмный запуск всех поверхностей.
-  { prefix: '/partner/requests', flag: 'client_requests' },
-  { prefix: '/organization/requests', flag: 'client_requests' },
-  { prefix: '/manager/requests', flag: 'client_requests' },
-  { prefix: '/leader/requests', flag: 'client_requests' },
-  { prefix: '/admin/requests', flag: 'client_requests' },
   // G1: конструктор ролей — отдельный флаг поверх кабинетных префиксов (additive).
   { prefix: '/leader/roles', flag: 'role_constructor' },
   { prefix: '/admin/roles', flag: 'role_constructor' },
@@ -228,8 +215,6 @@ export const FEATURE_PREFIXES: Array<{ prefix: string; flag: FeatureFlag }> = [
   // §5 CLAUDE.md ровно для одного флага — остальные route-флаги не трогаем.
   // Этап 3 (Модуль 6): клиентские реестры удостоверений. Карточка сотрудника
   // /organization/students/[id] гейтится на странице (список живёт без флага).
-  { prefix: '/organization/certificates', flag: 'certificates_registry' },
-  { prefix: '/partner/certificates', flag: 'certificates_registry' },
   // Этап 6 (Модуль 4): канбан сделок. Заказы партнёра (/partner/orders, до
   // `У-109` — /partner/deals) под этот флаг НЕ попадают.
   { prefix: '/manager/deals', flag: 'deals_pipeline' },
@@ -247,7 +232,6 @@ export const FEATURE_PREFIXES: Array<{ prefix: string; flag: FeatureFlag }> = [
  */
 const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'chat',
-  'enrollment_requests',
   'max_channel',
   'whatsapp_channel',
   'notif_queue',
@@ -266,8 +250,6 @@ const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'staff_chat',
   'staff_calendar',
   'global_search',
-  'certificates_registry',
-  'client_requests',
   'deals_pipeline',
   'intake_inbox',
   // `У-144`: выпуск документов включён по умолчанию — из opt-in снят.

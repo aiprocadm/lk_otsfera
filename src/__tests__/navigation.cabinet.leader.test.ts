@@ -61,9 +61,11 @@ describe('канон leader', () => {
       } else if (item.href === '/leader/deals') {
         expect(item.flag).toBe('deals_pipeline');
       } else if (item.href === '/leader/enrollments') {
-        expect(item.flag).toBe('enrollment_requests');
+        // `У-262`: флага у пункта больше нет — раздел есть всегда.
+        expect(item.flag).toBeUndefined();
       } else if (item.href === '/leader/requests') {
-        expect(item.flag).toBe('client_requests');
+        // `У-262`: флага у пункта больше нет — раздел есть всегда.
+        expect(item.flag).toBeUndefined();
       } else if (item.href === '/leader/intake') {
         expect(item.flag).toBe('intake_inbox');
       } else if (item.href === '/leader/roles') {
@@ -118,10 +120,12 @@ describe('канон leader', () => {
     }
   });
 
-  it('navItemsFor("leader") без opt-in флагов скрывает «Поиск», «Заявки на обучение», «Обращения», «Роли», «Воронку», «Сделки», «Аналитику», «Задачи» и «Календарь»', () => {
+  it('navItemsFor("leader") без opt-in флагов скрывает «Поиск», «Роли», «Воронку», «Сделки», «Аналитику», «Задачи» и «Календарь»', () => {
     const hrefs = navItemsFor('leader').map((i) => i.href);
-    expect(hrefs).not.toContain('/leader/enrollments');
-    expect(hrefs).not.toContain('/leader/requests');
+    // `У-262`: «Заявки на обучение» и «Обращения» из этого списка ушли — их
+    // флаги сняты, разделы есть всегда и от окружения больше не зависят.
+    expect(hrefs).toContain('/leader/enrollments');
+    expect(hrefs).toContain('/leader/requests');
     expect(hrefs).not.toContain('/leader/roles');
     expect(hrefs).not.toContain('/leader/funnel');
     expect(hrefs).not.toContain('/leader/deals');
@@ -132,12 +136,10 @@ describe('канон leader', () => {
     expect(hrefs).not.toContain('/leader/intake');
     expect(hrefs).not.toContain('/leader/contacts');
     expect(hrefs).not.toContain('/leader/notifications');
-    expect(navItemsFor('leader')).toHaveLength(navByRole.leader.length - 12);
+    expect(navItemsFor('leader')).toHaveLength(navByRole.leader.length - 10);
   });
 
   it('navItemsFor("leader") показывает opt-in пункты при включённых флагах', () => {
-    process.env.FEATURE_ENROLLMENT_REQUESTS = '1';
-    process.env.FEATURE_CLIENT_REQUESTS = '1';
     process.env.FEATURE_ROLE_CONSTRUCTOR = '1';
     process.env.FEATURE_SALES_FUNNEL = '1';
     process.env.FEATURE_DEALS_PIPELINE = '1';

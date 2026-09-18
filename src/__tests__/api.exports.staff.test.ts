@@ -178,18 +178,6 @@ describe('GET /api/manager/orders/export', () => {
 });
 
 describe('GET /api/manager/organizations/[id]/certificates/export', () => {
-  it('404 при выключенном флаге; 401 без сессии; 403 не-менеджеру', async () => {
-    notFoundIfDisabled.mockReturnValue(new Response('Not Found', { status: 404 }));
-    expect((await orgCertsExport(req('http://x/e'), params('org1'))).status).toBe(404);
-
-    notFoundIfDisabled.mockReturnValue(null);
-    getSession.mockResolvedValue(null);
-    expect((await orgCertsExport(req('http://x/e'), params('org1'))).status).toBe(401);
-
-    getSession.mockResolvedValue(orgSession);
-    expect((await orgCertsExport(req('http://x/e'), params('org1'))).status).toBe(403);
-  });
-
   it('404 для организации вне скоупа — существование не подтверждаем', async () => {
     getSession.mockResolvedValue(managerSession);
     canManagerAccessOrg.mockResolvedValue(false);

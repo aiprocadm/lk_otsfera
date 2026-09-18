@@ -156,13 +156,6 @@ beforeEach(() => {
 });
 
 describe('PartnerRequestsPage (/partner/requests)', () => {
-  it('флаг off → notFound, requirePartner не вызывается', async () => {
-    isFeatureEnabled.mockReturnValue(false);
-    await expect(renderServerComponent(PartnerRequestsPage())).rejects.toThrow('NOT_FOUND');
-    expect(isFeatureEnabled).toHaveBeenCalledWith('client_requests');
-    expect(auth.requirePartner).not.toHaveBeenCalled();
-  });
-
   it('happy → форма + список со своими заявками, deталка ведёт в /partner/requests', async () => {
     isFeatureEnabled.mockReturnValue(true);
     auth.requirePartner.mockResolvedValue(PARTNER_SESSION);
@@ -180,12 +173,6 @@ describe('PartnerRequestsPage (/partner/requests)', () => {
 });
 
 describe('OrganizationRequestsPage (/organization/requests)', () => {
-  it('флаг off → notFound, контекст организации не запрашивается', async () => {
-    isFeatureEnabled.mockReturnValue(false);
-    await expect(renderServerComponent(OrganizationRequestsPage())).rejects.toThrow('NOT_FOUND');
-    expect(getOrgPageContext).not.toHaveBeenCalled();
-  });
-
   it('happy → OrgAppShell + форма + список, база деталки /organization/requests', async () => {
     isFeatureEnabled.mockReturnValue(true);
     getOrgPageContext.mockResolvedValue(ORG_CTX);
@@ -204,14 +191,6 @@ describe('OrganizationRequestsPage (/organization/requests)', () => {
 });
 
 describe('PartnerRequestDetailPage (/partner/requests/[id])', () => {
-  it('флаг off → notFound', async () => {
-    isFeatureEnabled.mockReturnValue(false);
-    await expect(renderServerComponent(PartnerRequestDetailPage(props('R1')))).rejects.toThrow(
-      'NOT_FOUND'
-    );
-    expect(auth.requirePartner).not.toHaveBeenCalled();
-  });
-
   it('сервис not_found (чужая заявка) → notFound', async () => {
     isFeatureEnabled.mockReturnValue(true);
     auth.requirePartner.mockResolvedValue(PARTNER_SESSION);
@@ -266,14 +245,6 @@ describe('OrganizationRequestDetailPage (/organization/requests/[id])', () => {
       renderServerComponent(OrganizationRequestDetailPage(props('R404')))
     ).rejects.toThrow('NOT_FOUND');
     expect(svc.getClientRequest).toHaveBeenCalledWith({}, ORG_CTX.session, 'R404');
-  });
-
-  it('флаг выключен → notFound до обращения к контексту организации', async () => {
-    isFeatureEnabled.mockReturnValue(false);
-    await expect(renderServerComponent(OrganizationRequestDetailPage(props('R1')))).rejects.toThrow(
-      'NOT_FOUND'
-    );
-    expect(getOrgPageContext).not.toHaveBeenCalled();
   });
 
   it('вложения организации приходят в деталку с приведённой датой', async () => {
@@ -338,12 +309,6 @@ describe('очередь триажа: manager / leader / admin', () => {
   ];
 
   for (const { name, Page, guard, session } of cases) {
-    it(`${name}: флаг off → notFound, гард не вызывается`, async () => {
-      isFeatureEnabled.mockReturnValue(false);
-      await expect(renderServerComponent(Page())).rejects.toThrow('NOT_FOUND');
-      expect(guard).not.toHaveBeenCalled();
-    });
-
     it(`${name}: happy → очередь с заявками`, async () => {
       isFeatureEnabled.mockReturnValue(true);
       guard.mockResolvedValue(session);

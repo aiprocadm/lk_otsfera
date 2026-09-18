@@ -27,12 +27,10 @@ import type { FeatureFlagRow, FlagSource } from '@/lib/services/admin/featureFla
  * ломает typecheck и не может молча выпасть из матрицы.
  */
 const FLAG_LABELS: Record<FeatureFlag, string> = {
-  client_requests: 'Обращения клиентов: подача и триаж',
   commission_pdf: 'Скачивание PDF-стейтмента комиссии',
   commission_xlsx: 'Скачивание XLSX-стейтмента комиссии',
   pwa_installer: 'Подсказка установки приложения (PWA)',
   chat: 'Чат с клиентами (partner/org) и чат-секция менеджера',
-  enrollment_requests: 'Заявки на обучение',
   max_channel: 'Канал уведомлений Max',
   whatsapp_channel: 'Канал уведомлений WhatsApp (агрегатор)',
   notif_queue: 'Доставка уведомлений через воркер (очередь)',
@@ -55,7 +53,6 @@ const FLAG_LABELS: Record<FeatureFlag, string> = {
   staff_chat: 'Внутренний чат сотрудников',
   staff_calendar: 'Календарь сотрудников',
   global_search: 'Глобальный поиск (сотрудники)',
-  certificates_registry: 'Реестры удостоверений клиентов (организация/партнёр)',
   deals_pipeline: 'Сделки / канбан менеджера и руководителя',
   intake_inbox: 'Входящие в работу: единый триаж-экран',
   document_generation: 'Генерация счёта/акта по заказу',

@@ -2,7 +2,6 @@ import React from 'react';
 import { notFound } from 'next/navigation';
 import { requirePartner } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
-import { isFeatureEnabled } from '@/lib/featureFlags';
 import { getClientRequest } from '@/lib/services/clientRequests/list';
 import { listClientRequestAttachments } from '@/lib/services/clientRequests/attachments';
 import { ClientRequestDetailView } from '@/components/client-requests/client-request-detail-view';
@@ -16,7 +15,6 @@ export default async function PartnerRequestDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  if (!isFeatureEnabled('client_requests')) notFound();
   const session = await requirePartner();
   const { id } = await params;
   // canSee-чек (§4): getClientRequest скоупит по сессии — чужое обращение = not_found.

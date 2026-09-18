@@ -1,7 +1,6 @@
 import React from 'react';
 import { prisma } from '@/lib/db/prisma';
 import { requirePartner } from '@/lib/auth/requireRole';
-import { isFeatureEnabled } from '@/lib/featureFlags';
 import {
   kpis,
   attention,
@@ -30,14 +29,12 @@ export default async function PartnerDashboard() {
     scopeOrgIds: session.assignedOrgIds ?? [],
   };
 
-  const enrollmentsEnabled = isFeatureEnabled('enrollment_requests');
-  const certificatesEnabled = isFeatureEnabled('certificates_registry');
   const [k, a, events, enrollments, expiringCerts, yourManager, firstSteps] = await Promise.all([
     kpis(prisma, scope),
     attention(prisma, scope),
     recentEvents(prisma, scope, 10),
-    enrollmentsEnabled ? recentEnrollments(prisma, scope) : Promise.resolve([]),
-    certificatesEnabled ? expiringCertificates(prisma, scope) : Promise.resolve(null),
+    recentEnrollments(prisma, scope),
+    expiringCertificates(prisma, scope),
     // Этап 6 (`У-240`): ответственный за партнёра, иначе менеджер первой организации.
     getPartnerYourManager(prisma, scope.partnerId),
     // Этап 6 (`У-239`): чек-лист по данным; «Команда» — только администратору партнёра.
@@ -66,7 +63,7 @@ export default async function PartnerDashboard() {
 
       <KpiGrid kpis={k} expiringCertificates={expiringCerts} />
 
-      {enrollmentsEnabled && <PartnerEnrollmentsCard rows={enrollments} />}
+      <PartnerEnrollmentsCard rows={enrollments} />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <AttentionList data={a} />
