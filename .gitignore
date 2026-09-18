@@ -28,11 +28,11 @@ test-results/
 # Brainstorming visual companion sessions
 .superpowers/
 
-# dev-stack runtime logs
-dev-server.log
-dev-server.err.log
-npm-ci.log
-dev.log
-worker.dev.log
-worker.dev.err.log
+# Логи любого происхождения (`У-259`, дефект `Д-41`).
+#
+# Раньше здесь лежал список имён поимённо, и он отставал от жизни: под git
+# приехали `seed.err.log`, `seed.out.log`, `worker.err.log`, `worker.log` —
+# просто потому, что их имён в списке не оказалось. Общее правило снимает
+# сам класс ошибки; страж `repo.no-log-files.guardrail` держит его честным.
+*.log
 .playwright-mcp/
