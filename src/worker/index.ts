@@ -32,6 +32,7 @@ import { syncPaymentsProcessor } from './processors/sync-payments';
 import { syncDocumentsProcessor } from './processors/sync-documents';
 import { syncOrganizationsProcessor } from './processors/sync-organizations';
 import { syncReconcileProcessor } from './processors/sync-reconcile';
+import { syncReconcileDebtsProcessor } from './processors/sync-reconcile-debts';
 import { pushLeadProcessor, notifyPushLeadFinalFailure } from './processors/push-lead';
 import { pushDocumentProcessor, handlePushDocumentJobFailed } from './processors/push-document';
 import { generateCommissionPdfProcessor } from './processors/generate-commission-pdf';
@@ -164,6 +165,8 @@ async function main() {
   startWorker('oneCSync.pullPayments', syncPaymentsProcessor as Processor);
   startWorker('oneCSync.pullDocuments', syncDocumentsProcessor as Processor);
   startWorker('oneCSync.reconcile', syncReconcileProcessor as Processor);
+  // `У-257`: сверка дебиторки — своя очередь, своё расписание (04:00 МСК).
+  startWorker('oneCSync.reconcileDebts', syncReconcileDebtsProcessor as Processor);
 
   const pushLeadWorker = startWorker('oneCSync.pushLead', pushLeadProcessor as Processor);
   // eslint-disable-next-line @typescript-eslint/no-misused-promises -- BullMQ допускает async-слушатель 'failed'; ошибки обрабатываются внутри

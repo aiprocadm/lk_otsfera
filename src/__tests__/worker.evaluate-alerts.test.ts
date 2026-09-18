@@ -25,10 +25,22 @@ let prisma: PrismaClient;
  * locally yet). `document.count` тоже подставной: в общей базе могут лежать
  * чужие `failed`-документы, а порог `У-174` по умолчанию 0.
  */
-function makeDb(base: PrismaClient, failedPushes = 0): PrismaClient {
+function makeDb(base: PrismaClient, failedPushes = 0, debtMismatches = 0): PrismaClient {
   return Object.assign(Object.create(Object.getPrototypeOf(base)), base, {
     oneCPendingRecord: { count: vi.fn().mockResolvedValue(0) },
     document: { count: vi.fn().mockResolvedValue(failedPushes) },
+    // `У-257`: расхождения дебиторки читаются из последней записи сверки.
+    // Подставной так же, как `document.count`: в общей базе могут лежать
+    // чужие сверки, а порог по умолчанию 0.
+    syncLog: {
+      findFirst: vi
+        .fn()
+        .mockResolvedValue(
+          debtMismatches > 0
+            ? { payload: { mismatches: Array.from({ length: debtMismatches }, () => ({})) } }
+            : null
+        ),
+    },
   }) as unknown as PrismaClient;
 }
 
@@ -105,6 +117,8 @@ describe('evaluateAlertsProcessor', () => {
     const mockDb = {
       oneCPendingRecord: { count: vi.fn().mockResolvedValue(2) },
       document: { count: vi.fn().mockResolvedValue(0) },
+      // `У-257`: оценка читает и последнюю сверку дебиторки — сверок нет.
+      syncLog: { findFirst: vi.fn().mockResolvedValue(null) },
       alertState: {
         findMany: vi.fn().mockResolvedValue([]),
         upsert: vi.fn().mockResolvedValue(undefined),

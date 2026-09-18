@@ -38,6 +38,9 @@ const NUMERIC: Array<{ field: string; key: SettingKey; min: number; max: number 
   { field: 'alerts_renotifyCooldownHours', key: 'alerts.renotifyCooldownHours', min: 1, max: 168 },
   { field: 'alerts_oneCDeadLetterMax', key: 'alerts.oneCDeadLetterMax', min: 0, max: 100_000 },
   { field: 'alerts_oneCPushFailedMax', key: 'alerts.oneCPushFailedMax', min: 0, max: 100_000 },
+  // `У-257`: расхождения по дебиторке в последней сверке с 1С. Ноль означает
+  // «сообщать о любом расхождении» — денег это касается напрямую.
+  { field: 'alerts_debtMismatchMax', key: 'alerts.debtMismatchMax', min: 0, max: 100_000 },
 ];
 
 /** Простая проверка адреса: нам нужно отсечь опечатку, а не валидировать RFC. */

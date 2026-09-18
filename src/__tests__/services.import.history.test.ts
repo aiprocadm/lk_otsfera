@@ -82,7 +82,14 @@ function db(over: Record<string, unknown> = {}) {
   ];
   const auto = vi.fn();
   const documents = vi.fn();
-  const syncLog = vi.fn(async (args: { where: { direction?: unknown } }) => {
+  const debts = vi.fn();
+  const syncLog = vi.fn(async (args: { where: { direction?: unknown; entity?: unknown } }) => {
+    // `У-257`: сверка дебиторки читает тот же журнал, но свою сущность. Мок
+    // обязан их различать — иначе одна и та же строка попадёт в два канала.
+    if (args.where.entity === 'debt') {
+      debts(args);
+      return [];
+    }
     if (args.where.direction === 'outbound') {
       documents(args);
       return documentRows;
@@ -103,6 +110,7 @@ function db(over: Record<string, unknown> = {}) {
     statement,
     auto,
     documents,
+    debts,
     users,
   };
 }
@@ -141,7 +149,7 @@ describe('listExchangeHistory (У-48)', () => {
     expect(excel).not.toHaveBeenCalled();
   });
 
-  it('четыре канала в одном списке, свежие сверху', async () => {
+  it('каналы в одном списке, свежие сверху', async () => {
     const { prisma } = db();
     const res = await listExchangeHistory(prisma, session);
     if (!res.ok) throw new Error('expected ok');
@@ -475,6 +483,8 @@ describe('listExchangeHistory (У-48)', () => {
       statement: 'Выписка по счёту 51',
       auto: 'Автообмен',
       documents: 'Документы → 1С',
+      // `У-257`: сверка дебиторки — свой канал, а не строка среди автообмена.
+      debts: 'Дебиторка',
     });
   });
 });

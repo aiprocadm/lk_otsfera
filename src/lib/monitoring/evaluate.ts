@@ -11,6 +11,8 @@ export type AlertMetrics = {
   pendingDeadLetters: number;
   /** `У-174`: действующие документы со статусом выгрузки `failed`. */
   failedDocumentPushes: number;
+  /** `У-257`: расхождения по дебиторке в последней сверке с 1С. */
+  debtMismatches: number;
 };
 
 export function evaluate(metrics: AlertMetrics, t: Thresholds): Breach[] {
@@ -65,6 +67,21 @@ export function evaluate(metrics: AlertMetrics, t: Thresholds): Breach[] {
       key: 'onec_push_failed',
       severity: 'warning',
       message: `1С: ${n} ${pluralizeRu(n, 'документ не выгружен', 'документа не выгружено', 'документов не выгружено')} (порог ${t.oneCPushFailedMax})`,
+      value: n,
+    });
+  }
+
+  /**
+   * `У-257`: расхождение по деньгам — повод посмотреть, а не авария: обмен
+   * жив, просто кабинет и 1С считают долг по-разному. Разбирается человеком
+   * по отчёту, поэтому предупреждение.
+   */
+  if (metrics.debtMismatches > t.debtMismatchMax) {
+    const n = metrics.debtMismatches;
+    breaches.push({
+      key: 'debt_mismatch',
+      severity: 'warning',
+      message: `Дебиторка: ${n} ${pluralizeRu(n, 'расхождение', 'расхождения', 'расхождений')} с 1С (порог ${t.debtMismatchMax})`,
       value: n,
     });
   }

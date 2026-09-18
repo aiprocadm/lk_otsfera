@@ -18,7 +18,7 @@ import { rollbackStateOf, type RollbackState } from './rollback';
  * у автообмена отката нет by design — это поток, а не файл, отменять там
  * нечего.
  */
-export type ExchangeChannel = 'excel' | 'statement' | 'auto' | 'documents';
+export type ExchangeChannel = 'excel' | 'statement' | 'auto' | 'documents' | 'debts';
 
 export const CHANNEL_LABEL: Record<ExchangeChannel, string> = {
   excel: 'Загрузка Excel',
@@ -27,6 +27,9 @@ export const CHANNEL_LABEL: Record<ExchangeChannel, string> = {
   // `У-173`: пакет документов, скачанный файлом для 1С; `У-174`: каждая
   // попытка выгрузки документа по сети — тоже здесь.
   documents: 'Документы → 1С',
+  // `У-257`: сверка дебиторки. Свой канал, а не строка среди автообмена:
+  // расхождение по деньгам ищут отдельно от «обмен вообще живой».
+  debts: 'Дебиторка',
 };
 
 export type ExchangeHistoryItem = {
@@ -108,6 +111,7 @@ function autoTitle(entity: string, operation: string): string {
     document: 'Документы',
     lead: 'Лиды',
     contact: 'Контакты',
+    debt: 'Дебиторка',
   };
   const OPERATION: Record<string, string> = {
     pull: 'получение',
@@ -208,7 +212,9 @@ export async function listExchangeHistory(
   // показывать его руководителю значило бы показать чужие обмены.
   if (wants('auto') && scope.kind !== 'company') {
     const rows = await prisma.syncLog.findMany({
-      where: { operation: { in: ['pull', 'push', 'reconcile'] } },
+      // `У-257`: сверка дебиторки ушла в свой канал — здесь её не показываем
+      // второй раз, иначе одна и та же строка читалась бы как две задачи.
+      where: { operation: { in: ['pull', 'push', 'reconcile'] }, entity: { not: 'debt' } },
       orderBy: { createdAt: 'desc' },
       take,
       select: {
@@ -231,6 +237,40 @@ export async function listExchangeHistory(
         rollback: 'unsupported',
         counts: l.payload,
         detail: null,
+      });
+    }
+  }
+
+  /**
+   * `У-257`: сверка дебиторки. Строк мало (одна в сутки), компании в
+   * `SyncLog` нет — как и у автообмена, канал виден только администратору:
+   * расхождения по деньгам чужой компании руководителю показывать нельзя.
+   */
+  if (wants('debts') && scope.kind !== 'company' && scope.kind !== 'orgs') {
+    const rows = await prisma.syncLog.findMany({
+      where: { entity: 'debt', operation: 'reconcile' },
+      orderBy: { createdAt: 'desc' },
+      take,
+      select: {
+        id: true,
+        createdAt: true,
+        status: true,
+        errorMessage: true,
+        payload: true,
+      },
+    });
+    for (const l of rows) {
+      items.push({
+        id: l.id,
+        channel: 'debts',
+        createdAt: l.createdAt.toISOString(),
+        title: 'Сверка дебиторки',
+        authorName: null,
+        status: l.status,
+        rollback: 'unsupported',
+        counts: l.payload,
+        // Итог строкой: «Расхождения по дебиторке: 3» или «метод не подключён».
+        detail: l.errorMessage,
       });
     }
   }

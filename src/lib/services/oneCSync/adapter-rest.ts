@@ -18,9 +18,10 @@ import type {
   OneCLeadPushResult,
   OneCDocumentPushPayload,
   OneCDocumentPushResult,
+  OneCDebtDto,
   SyncCursor,
 } from './dto';
-import type { OneCAdapter } from './adapter';
+import { OneCMethodNotImplementedError, type OneCAdapter } from './adapter';
 
 export type RestAdapterConfig = { baseUrl: string; token: string };
 
@@ -119,6 +120,24 @@ export class RestOneCAdapter implements OneCAdapter {
   // `GET /api/documents?externalId=` отвечает пустым списком или одним
   // элементом. Тот же конверт, что у выгрузки списков, но без пагинации:
   // больше одного элемента по одному id 1С не отдаёт, берём первый.
+  /**
+   * `У-257`: долги контрагентов. Пока 1С метод не реализовала, она отвечает
+   * `404` (маршрута нет) или `501` (не реализовано) — и то и другое означает
+   * «метод не подключён», а не «обмен сломан». Остальные коды остаются
+   * ошибками транспорта: недоступную 1С сверка не должна принимать за
+   * отсутствие метода и молча успокаиваться.
+   */
+  async pullDebts(cursor: SyncCursor): Promise<OneCDebtDto[]> {
+    try {
+      return (await this.getArray(ENDPOINTS.debts, cursor)) as OneCDebtDto[];
+    } catch (err) {
+      if (err instanceof OneCHttpError && (err.status === 404 || err.status === 501)) {
+        throw new OneCMethodNotImplementedError(ENDPOINTS.debts);
+      }
+      throw err;
+    }
+  }
+
   async findDocument(externalId: string): Promise<OneCDocumentDto | null> {
     const url = new URL(buildUrl(this.config.baseUrl, ENDPOINTS.documents, {}));
     url.searchParams.set(EXTERNAL_ID_PARAM, externalId);

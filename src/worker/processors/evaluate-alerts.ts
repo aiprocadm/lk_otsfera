@@ -8,6 +8,7 @@ import { evaluate } from '@/lib/monitoring/evaluate';
 import { diffAlerts } from '@/lib/monitoring/dedup';
 import { deliverAlert } from '@/lib/monitoring/deliver';
 import { countFailedDocumentPushes } from '@/lib/services/oneCSync/pushFailures';
+import { countLastDebtMismatches } from '@/lib/services/oneCSync/debtMismatches';
 import type { SyncJobPayload } from '@/lib/jobs/types';
 
 const INT32_MAX = 2_147_483_647;
@@ -19,14 +20,21 @@ export async function evaluateAlertsProcessor(
   db: PrismaClient = prisma
 ): Promise<EvaluateAlertsResult> {
   const t = getThresholds();
-  const [queues, syncLag, pendingDeadLetters, failedDocumentPushes] = await Promise.all([
-    getQueueStats(),
-    getSyncLag(db),
-    db.oneCPendingRecord.count({ where: { status: 'dead' } }),
-    // `У-174`: по всей платформе — оповещение платформенное, как и остальные.
-    countFailedDocumentPushes(db),
-  ]);
-  const breaches = evaluate({ queues, syncLag, pendingDeadLetters, failedDocumentPushes }, t);
+  const [queues, syncLag, pendingDeadLetters, failedDocumentPushes, debtMismatches] =
+    await Promise.all([
+      getQueueStats(),
+      getSyncLag(db),
+      db.oneCPendingRecord.count({ where: { status: 'dead' } }),
+      // `У-174`: по всей платформе — оповещение платформенное, как и остальные.
+      countFailedDocumentPushes(db),
+      // `У-257`: берём ПОСЛЕДНЮЮ сверку, а не сумму за всё время: расхождение,
+      // разобранное вчера, не должно держать оповещение горящим.
+      countLastDebtMismatches(db),
+    ]);
+  const breaches = evaluate(
+    { queues, syncLag, pendingDeadLetters, failedDocumentPushes, debtMismatches },
+    t
+  );
 
   const active = await db.alertState.findMany({
     where: { status: 'firing' },

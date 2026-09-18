@@ -221,6 +221,27 @@ export function OneCAutoExchange({
             )}
           </div>
         </Card>
+        {/* `У-257`: сверка дебиторки — своя задача и своя кнопка «Повторить
+            сверку». Она ничего не правит, только показывает расхождение. */}
+        <Card title="Сверка дебиторки">
+          <CardRow label="Сейчас">
+            {(activeByQueue.get('oneCSync.reconcileDebts') ?? 0) > 0 ? 'выполняется' : '—'}
+          </CardRow>
+          {!isAdmin && (
+            <CardRow label="Расписание">
+              {pausedIds.has('oneCSync.reconcileDebts.cron') ? 'на паузе' : 'работает'}
+            </CardRow>
+          )}
+          <div className="pt-2 flex flex-wrap gap-2">
+            <SyncTriggerButton entity="reconcileDebts" label="Повторить сверку" />
+            {isAdmin && (
+              <SyncScheduleToggle
+                schedulerId="oneCSync.reconcileDebts.cron"
+                paused={pausedIds.has('oneCSync.reconcileDebts.cron')}
+              />
+            )}
+          </div>
+        </Card>
       </CardList>
 
       <div className="hidden md:block overflow-x-auto bg-white border border-gray-200 rounded-xl">
@@ -281,6 +302,28 @@ export function OneCAutoExchange({
                 </tr>
               );
             })}
+            <tr className="border-t border-gray-100 bg-gray-50/50">
+              <td className="px-4 py-3 text-[#111111] font-medium">Сверка дебиторки</td>
+              <td className="px-4 py-3 text-gray-400">—</td>
+              <td className="px-4 py-3">
+                <RunningBadge active={activeByQueue.get('oneCSync.reconcileDebts') ?? 0} />
+              </td>
+              <td className="px-4 py-3">
+                <SyncTriggerButton entity="reconcileDebts" label="Повторить сверку" />
+              </td>
+              <td className="px-4 py-3">
+                {isAdmin ? (
+                  <SyncScheduleToggle
+                    schedulerId="oneCSync.reconcileDebts.cron"
+                    paused={pausedIds.has('oneCSync.reconcileDebts.cron')}
+                  />
+                ) : (
+                  <span className="text-xs text-gray-500">
+                    {pausedIds.has('oneCSync.reconcileDebts.cron') ? 'на паузе' : 'работает'}
+                  </span>
+                )}
+              </td>
+            </tr>
             <tr className="border-t border-gray-100 bg-gray-50/50">
               <td className="px-4 py-3 text-[#111111] font-medium">Сверка (reconcile)</td>
               <td className="px-4 py-3 text-gray-400">—</td>

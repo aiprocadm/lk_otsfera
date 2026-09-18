@@ -17,6 +17,10 @@ export const ENDPOINTS = {
   // `GET`, другой метод. Ключ отдельный намеренно: маршрут один, операции
   // разные, и в настройках их нельзя путать.
   documentPush: '/api/documents',
+  // `У-257`: долги контрагентов. **Ожидает реализации на стороне 1С** —
+  // адаптер уже умеет спрашивать, а «нет такого метода» (404/501) сверка
+  // отличает от «1С не отвечает».
+  debts: '/api/debts',
 } as const;
 
 // DECISION Q6/Q7: incremental cursor query param + datetime format on the wire.

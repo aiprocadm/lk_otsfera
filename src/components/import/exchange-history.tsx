@@ -44,6 +44,7 @@ const FILTERS: Array<{ value: ExchangeChannel | 'all'; label: string }> = [
   { value: 'statement', label: CHANNEL_LABEL.statement },
   { value: 'auto', label: CHANNEL_LABEL.auto },
   { value: 'documents', label: CHANNEL_LABEL.documents },
+  { value: 'debts', label: CHANNEL_LABEL.debts },
 ];
 
 /** Итоги батча — только числа, без сырого JSON на экране. */

@@ -100,6 +100,7 @@ export default async function AdminHealthPage() {
           renotifyCooldownHours: settingOf('alerts.renotifyCooldownHours'),
           oneCDeadLetterMax: settingOf('alerts.oneCDeadLetterMax'),
           oneCPushFailedMax: settingOf('alerts.oneCPushFailedMax'),
+          debtMismatchMax: settingOf('alerts.debtMismatchMax'),
           telegramChatId: settingOf('alerts.telegramChatId'),
           emailRecipients: settingOf('alerts.emailRecipients'),
         }}

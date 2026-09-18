@@ -10,6 +10,7 @@ type SyncScheduleQueueName = Extract<
   | 'oneCSync.pullDocuments'
   | 'oneCSync.pullOrganizations'
   | 'oneCSync.reconcile'
+  | 'oneCSync.reconcileDebts'
   | 'inbound.email.poll'
   | 'telephony.mango.backfill'
   | 'bitrix.import'
@@ -61,6 +62,14 @@ export const SYNC_SCHEDULES: ReadonlyArray<SyncSchedule> = [
     queueName: 'oneCSync.reconcile',
     schedulerId: 'oneCSync.reconcile.cron',
     pattern: '0 3 * * *',
+    tz: DEFAULT_SYNC_TZ,
+  },
+  {
+    // `У-257`, `В-8-4`: раз в сутки в 04:00 МСК — когда 1С свободна и ночная
+    // сверка документов уже закончилась.
+    queueName: 'oneCSync.reconcileDebts',
+    schedulerId: 'oneCSync.reconcileDebts.cron',
+    pattern: '0 4 * * *',
     tz: DEFAULT_SYNC_TZ,
   },
   {

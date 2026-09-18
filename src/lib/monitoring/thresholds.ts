@@ -19,6 +19,8 @@ export type Thresholds = {
   oneCDeadLetterMax: number;
   /** `У-174`: предел документов, которые не удалось выгрузить в 1С. */
   oneCPushFailedMax: number;
+  /** `У-257`: предел расхождений по дебиторке в последней сверке с 1С. */
+  debtMismatchMax: number;
 };
 
 function num(value: string | undefined, fallback: number): number {
@@ -52,5 +54,6 @@ export function getThresholds(env: Record<string, string | undefined> = process.
       configured('alerts.oneCPushFailedMax', env.ALERT_ONEC_PUSH_FAILED_MAX),
       0
     ),
+    debtMismatchMax: num(configured('alerts.debtMismatchMax', env.ALERT_DEBT_MISMATCH_MAX), 0),
   };
 }

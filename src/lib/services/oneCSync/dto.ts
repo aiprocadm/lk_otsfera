@@ -49,3 +49,11 @@ export type OneCLeadPushPayload = {
 export type SyncCursor = {
   since?: string;
 };
+
+/** `У-257`: долг контрагента по данным 1С (см. `OneCDebtSchema`). */
+export type OneCDebtDto = {
+  orderExternalId?: string | undefined;
+  organizationInn?: string | undefined;
+  debt: number;
+  asOf: string;
+};

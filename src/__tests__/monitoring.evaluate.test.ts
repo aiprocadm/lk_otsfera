@@ -10,15 +10,38 @@ const T: Thresholds = {
   renotifyCooldownMs: 6 * 3600_000,
   oneCDeadLetterMax: 0,
   oneCPushFailedMax: 0,
+  debtMismatchMax: 0,
 };
 
 const noCounts = { waiting: 0, active: 0, completed: 0, failed: 0, delayed: 0 };
 
 function metrics(over: Partial<AlertMetrics>): AlertMetrics {
-  return { queues: [], syncLag: [], pendingDeadLetters: 0, failedDocumentPushes: 0, ...over };
+  return {
+    queues: [],
+    syncLag: [],
+    pendingDeadLetters: 0,
+    failedDocumentPushes: 0,
+    debtMismatches: 0,
+    ...over,
+  };
 }
 
 describe('evaluate', () => {
+  /**
+   * `У-257`: расхождение по деньгам — повод посмотреть, а не авария. Обмен
+   * жив, просто кабинет и 1С считают долг по-разному.
+   */
+  it('расхождения по дебиторке выше порога дают предупреждение', () => {
+    const r = evaluate(metrics({ debtMismatches: 3 }), { ...T, debtMismatchMax: 2 });
+    expect(r).toHaveLength(1);
+    expect(r[0]).toMatchObject({ key: 'debt_mismatch', severity: 'warning', value: 3 });
+    expect(r[0]!.message).toContain('Дебиторка');
+  });
+
+  it('ровно на пороге расхождения молчат', () => {
+    expect(evaluate(metrics({ debtMismatches: 2 }), { ...T, debtMismatchMax: 2 })).toEqual([]);
+  });
+
   it('returns nothing when all metrics are within thresholds', () => {
     expect(evaluate(metrics({}), T)).toEqual([]);
   });

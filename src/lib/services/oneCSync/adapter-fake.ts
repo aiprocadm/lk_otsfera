@@ -1,5 +1,6 @@
 import { FAKE_ORGS } from './fixtures/orgs';
 import { FAKE_ORDERS, FAKE_PAYMENTS, FAKE_DOCUMENTS } from './fixtures/orders';
+import { FAKE_DEBTS } from './fixtures/debts';
 import type { OneCAdapter } from './adapter';
 import type {
   OneCOrgDto,
@@ -10,6 +11,7 @@ import type {
   OneCLeadPushResult,
   OneCDocumentPushPayload,
   OneCDocumentPushResult,
+  OneCDebtDto,
   SyncCursor,
 } from './dto';
 
@@ -86,6 +88,14 @@ export class FakeOneCAdapter implements OneCAdapter {
   // живёт до рестарта воркера, и «не помню — значит пропал» пометило бы на
   // стенде все документы `failed` после первого же перезапуска. Путь «в 1С
   // нет» проверяют подставной адаптер в тестах сервиса и mock-1c.
+  /** `У-257`: фикстура долгов — в ней есть намеренное расхождение. */
+  async pullDebts(cursor: SyncCursor): Promise<OneCDebtDto[]> {
+    await maybeLatency();
+    maybeFail('pull debts');
+    void cursor;
+    return FAKE_DEBTS;
+  }
+
   async findDocument(externalId: string): Promise<OneCDocumentDto | null> {
     await maybeLatency();
     maybeFail(`find document ${externalId}`);

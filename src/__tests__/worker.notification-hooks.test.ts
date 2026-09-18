@@ -46,6 +46,11 @@ class ScriptedAdapter implements OneCAdapter {
   async findDocument(): Promise<OneCDocumentDto | null> {
     return null;
   }
+
+  /** `У-257`: сверка дебиторки этим сценариям не нужна — долгов нет. */
+  async pullDebts(): Promise<[]> {
+    return [];
+  }
 }
 
 const adapter = new ScriptedAdapter();

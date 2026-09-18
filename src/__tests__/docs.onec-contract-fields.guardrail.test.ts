@@ -7,6 +7,7 @@ import {
   OneCOrderSchema,
   OneCPaymentSchema,
   OneCDocumentSchema,
+  OneCDebtSchema,
 } from '@/lib/services/oneCSync/schemas';
 
 /**
@@ -97,6 +98,10 @@ const OPERATIONS = [
   { n: 2, name: 'Orders', schema: OneCOrderSchema },
   { n: 3, name: 'Payments', schema: OneCPaymentSchema },
   { n: 4, name: 'Documents', schema: OneCDocumentSchema },
+  // `У-257`: метод ещё не реализован в 1С, но контракт его уже описывает — и
+  // описание обязано совпадать со схемой так же строго, как у работающих
+  // методов. Иначе к моменту реализации сторона 1С соберёт не то.
+  { n: 8, name: 'Debts', schema: OneCDebtSchema },
 ];
 
 describe('контракт 1С описывает все поля, которые принимает код (С-7)', () => {
@@ -115,7 +120,12 @@ describe('контракт 1С описывает все поля, которы�
     }
   );
 
-  it('образцы разделов 1–4 не пустые (страж читает именно их)', () => {
-    for (const { n } of OPERATIONS) expect(sampleKeys(section(n)).length).toBeGreaterThan(5);
+  it('образцы разделов не пустые (страж читает именно их)', () => {
+    // У сверки дебиторки полей всего четыре — предел на неё отдельный, иначе
+    // пришлось бы выдумывать поля ради стража.
+    const minKeys: Record<number, number> = { 8: 3 };
+    for (const { n } of OPERATIONS) {
+      expect(sampleKeys(section(n)).length).toBeGreaterThan(minKeys[n] ?? 5);
+    }
   });
 });

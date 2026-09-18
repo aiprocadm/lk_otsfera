@@ -2,7 +2,7 @@ import { parseWorkbook } from '@/lib/services/import/parse-workbook';
 import type { ImportDiagnostics } from '@/lib/services/import/diagnostics';
 import { isValidInn, normalizeInn, synthOrgExternalId } from './inn';
 import { translateFinancialStatus } from './translate';
-import type { OneCAdapter } from './adapter';
+import { OneCMethodNotImplementedError, type OneCAdapter } from './adapter';
 import type {
   OneCOrgDto,
   OneCOrderDto,
@@ -12,6 +12,7 @@ import type {
   OneCLeadPushResult,
   OneCDocumentPushPayload,
   OneCDocumentPushResult,
+  OneCDebtDto,
   SyncCursor,
 } from './dto';
 
@@ -192,5 +193,11 @@ export class FileOneCAdapter implements OneCAdapter {
   async findDocument(externalId: string): Promise<OneCDocumentDto | null> {
     void externalId;
     throw new Error('FileOneCAdapter is read-only');
+  }
+
+  /** `У-257`: в файловой выгрузке долгов нет — это не поломка, а отсутствие метода. */
+  async pullDebts(cursor: SyncCursor): Promise<OneCDebtDto[]> {
+    void cursor;
+    throw new OneCMethodNotImplementedError('pullDebts');
   }
 }

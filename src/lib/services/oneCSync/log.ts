@@ -13,13 +13,25 @@ export type SyncLogEntity =
   | 'inbound'
   | 'call'
   // `У-256`: контакты контрагента, приехавшие из 1С.
-  | 'contact';
+  | 'contact'
+  // `У-257`: сверка дебиторки — свой канал истории обмена.
+  | 'debt';
 
 export type SyncLogEntry = {
   entity: SyncLogEntity;
   externalId?: string | undefined;
   direction: 'inbound' | 'outbound';
-  operation: 'create' | 'update' | 'skip' | 'delete' | 'check' | 'import' | 'export';
+  operation:
+    | 'create'
+    | 'update'
+    | 'skip'
+    | 'delete'
+    | 'check'
+    | 'import'
+    | 'export'
+    // `У-257`: сверка дебиторки — отдельная операция, чтобы в истории обмена
+    // её строки отделялись от проверки «обмен вообще живой».
+    | 'reconcile';
   status: 'success' | 'error' | 'warn';
   errorMessage?: string | undefined;
   payload?: unknown;

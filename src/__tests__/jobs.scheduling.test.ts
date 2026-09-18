@@ -16,7 +16,7 @@ function makeFakeQueue() {
 }
 
 describe('registerSyncSchedules', () => {
-  it('registers all 8 scheduled jobs (4 pulls + reconcile + inbound email poll + mango backfill + повтор миграции)', async () => {
+  it('registers all 9 scheduled jobs (4 pulls + reconcile + сверка дебиторки + inbound email poll + mango backfill + повтор миграции)', async () => {
     const queues = new Map<string, Queue>();
     const getQueue = (name: string) => {
       const existing = queues.get(name);
@@ -28,7 +28,7 @@ describe('registerSyncSchedules', () => {
 
     const result = await registerSyncSchedules(getQueue as never);
     expect(result).toHaveLength(SYNC_SCHEDULES.length);
-    expect(result).toHaveLength(8);
+    expect(result).toHaveLength(9);
     const queueNames = result.map((r) => r.queueName).sort();
     expect(queueNames).toEqual(
       [
@@ -42,6 +42,8 @@ describe('registerSyncSchedules', () => {
         'oneCSync.pullOrganizations',
         'oneCSync.pullPayments',
         'oneCSync.reconcile',
+        // `У-257`: сверка дебиторки — своя задача и своё расписание (04:00 МСК).
+        'oneCSync.reconcileDebts',
         'telephony.mango.backfill',
       ].sort()
     );
@@ -57,7 +59,7 @@ describe('registerSyncSchedules', () => {
         }),
       }) as unknown as Queue;
     await registerSyncSchedules(getQueue as never);
-    expect(calls.length).toBe(8);
+    expect(calls.length).toBe(9);
     for (const c of calls) {
       expect(c.opts.tz).toBe('Europe/Moscow');
       expect(c.opts.pattern).toBeTruthy();
@@ -78,8 +80,8 @@ describe('registerSyncSchedules', () => {
     await registerSyncSchedules(getQueue as never);
 
     const unique = new Set(observedSchedulerIds);
-    expect(observedSchedulerIds.length).toBe(16);
-    expect(unique.size).toBe(8);
+    expect(observedSchedulerIds.length).toBe(18);
+    expect(unique.size).toBe(9);
   });
 
   it('passes reason=cron in job data so SyncLog can distinguish triggered source', async () => {
@@ -107,7 +109,7 @@ describe('registerSyncSchedules — paused skipping', () => {
       getQueue as never,
       new Set(['oneCSync.pullOrders.cron'])
     );
-    expect(result).toHaveLength(7);
+    expect(result).toHaveLength(8);
     expect(result.map((r) => r.schedulerId)).not.toContain('oneCSync.pullOrders.cron');
   });
 });
