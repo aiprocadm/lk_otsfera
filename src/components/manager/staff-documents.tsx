@@ -8,6 +8,12 @@ import type { ManagerCounterparties } from '@/lib/services/manager/counterpartie
 import { sectionLabel } from '@/lib/navigation/sectionLabels';
 import { parseOneCPushStatus } from '@/lib/documents/oneCPushStatus';
 import { OneCPushStatusSelect } from '@/components/documents/one-c-push-status-select';
+import { documentSource, DOCUMENT_SOURCES, DOCUMENT_SOURCE_LABELS } from '@/lib/documents/source';
+import {
+  DOCUMENT_DIRECTION_FILTER_OPTIONS,
+  DOCUMENT_STATUS_FILTER_OPTIONS,
+  documentYearOptions,
+} from '@/lib/documents/listFilters';
 
 import { PageHeader } from '@/components/ui/page-header';
 /**
@@ -34,6 +40,12 @@ export type StaffDocumentsSearchParams = {
   tab?: string;
   /** `У-169`: фильтр «Выгрузка в 1С» — значение `OneCPushStatus` или пусто. */
   oneCPushStatus?: string;
+  // `У-253`, `У-258`: четыре фильтра «файлового шкафа». Чужое слово в адресе
+  // означает «без фильтра» — разбирает `parseStaffDocumentFilters`.
+  year?: string;
+  direction?: string;
+  status?: string;
+  source?: string;
 };
 
 /**
@@ -42,7 +54,13 @@ export type StaffDocumentsSearchParams = {
  */
 type StaffDocumentsData =
   | { tab: 'general'; rows: ManagerOrderLessRow[]; counterparties: ManagerCounterparties }
-  | { tab: 'orders'; rows: ListDocumentsResult['rows']; nextCursor: string | null };
+  | {
+      tab: 'orders';
+      rows: ListDocumentsResult['rows'];
+      nextCursor: string | null;
+      /** `У-253`: сколько документов под фильтром всего. */
+      total: number;
+    };
 
 /**
  * Значения — литералы `enum DocumentType` из prisma/schema.prisma; подписи —
@@ -97,6 +115,44 @@ function Header() {
   );
 }
 
+/** Источники для выпадающего списка — из одного реестра (`У-258`). */
+const SOURCE_OPTIONS = DOCUMENT_SOURCES.map((value) => ({
+  value,
+  label: DOCUMENT_SOURCE_LABELS[value],
+}));
+
+/**
+ * Одинаковый выпадающий список фильтра: пустое значение — «не фильтровать».
+ * Четыре копии одной разметки разошлись бы стилями на первой же правке.
+ */
+function FilterSelect({
+  name,
+  value,
+  placeholder,
+  options,
+}: {
+  name: string;
+  value: string | undefined;
+  placeholder: string;
+  options: ReadonlyArray<{ value: string; label: string }>;
+}) {
+  return (
+    <select
+      name={name}
+      defaultValue={value ?? ''}
+      aria-label={placeholder}
+      className="border border-gray-200 rounded px-2 py-1 text-sm"
+    >
+      <option value="">{placeholder}</option>
+      {options.map((opt) => (
+        <option key={opt.value} value={opt.value}>
+          {opt.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 export function StaffDocuments({
   cabinet,
   sp,
@@ -110,6 +166,7 @@ export function StaffDocuments({
   const base = `/${cabinet}/documents`;
   // Активный фильтр выгрузки: пустой результат покажет кнопку «Сбросить фильтр».
   const pushFilterActive = parseOneCPushStatus(sp.oneCPushStatus) !== undefined;
+  const yearOptions = documentYearOptions().map((y) => ({ value: String(y), label: String(y) }));
 
   if (data.tab === 'general') {
     const documentRows: OrgDocumentRow[] = data.rows.map((d) => ({
@@ -126,6 +183,9 @@ export function StaffDocuments({
       number: d.number,
       version: d.version,
       oneCPushStatus: d.oneCPushStatus,
+      // `У-258`: источник виден и на вкладке общих документов — правило
+      // зеркала не терпит колонки «через одну вкладку».
+      source: documentSource(d),
     }));
 
     return (
@@ -150,6 +210,7 @@ export function StaffDocuments({
           rows={documentRows}
           downloadEndpointBase="/api/manager/documents"
           cardHrefBase={base}
+          grouping
           resetHref={pushFilterActive ? `${base}?tab=general` : undefined}
         />
       </div>
@@ -173,6 +234,8 @@ export function StaffDocuments({
     number: d.number,
     version: d.version,
     oneCPushStatus: d.oneCPushStatus,
+    // `У-258`: источник считается на сервере по полям, которые уже есть.
+    source: documentSource(d),
   }));
 
   // Фильтры переносим в ссылку «Дальше» — иначе постраничный переход молча
@@ -182,6 +245,10 @@ export function StaffDocuments({
     if (sp.search) p.set('search', sp.search);
     if (sp.type) p.set('type', sp.type);
     if (sp.orderId) p.set('orderId', sp.orderId);
+    if (sp.year) p.set('year', sp.year);
+    if (sp.direction) p.set('direction', sp.direction);
+    if (sp.status) p.set('status', sp.status);
+    if (sp.source) p.set('source', sp.source);
     if (pushFilterActive && !opts?.withoutPush) p.set('oneCPushStatus', sp.oneCPushStatus ?? '');
     for (const [k, v] of Object.entries(extra ?? {})) p.set(k, v);
     const qs = p.toString();
@@ -198,7 +265,9 @@ export function StaffDocuments({
         <input
           name="search"
           defaultValue={sp.search ?? ''}
-          placeholder="Поиск по названию…"
+          // `У-253`: ищем и по номеру — подпись обязана об этом сказать, иначе
+          // человек не догадается ввести «С-2026-7».
+          placeholder="Поиск по названию или номеру…"
           className="border border-gray-200 rounded px-2 py-1 text-sm flex-1 min-w-[200px]"
         />
         <select
@@ -214,6 +283,25 @@ export function StaffDocuments({
           ))}
         </select>
         <OneCPushStatusSelect value={sp.oneCPushStatus} />
+        <FilterSelect name="year" value={sp.year} placeholder="Все годы" options={yearOptions} />
+        <FilterSelect
+          name="direction"
+          value={sp.direction}
+          placeholder="Входящие и исходящие"
+          options={DOCUMENT_DIRECTION_FILTER_OPTIONS}
+        />
+        <FilterSelect
+          name="status"
+          value={sp.status}
+          placeholder="Любое состояние"
+          options={DOCUMENT_STATUS_FILTER_OPTIONS}
+        />
+        <FilterSelect
+          name="source"
+          value={sp.source}
+          placeholder="Любой источник"
+          options={SOURCE_OPTIONS}
+        />
         {sp.orderId && <input type="hidden" name="orderId" value={sp.orderId} />}
         <button
           type="submit"
@@ -223,10 +311,19 @@ export function StaffDocuments({
         </button>
       </form>
 
+      {/* `У-253`: «показано 50» без «из 340» человек читает как «их
+          пятьдесят» — и уходит, не найдя нужного. */}
+      {documentRows.length > 0 && (
+        <p className="text-sm text-gray-500">
+          {`Показано ${documentRows.length} из ${data.total}`}
+        </p>
+      )}
+
       <StaffDocumentsPushList
         rows={documentRows}
         downloadEndpointBase="/api/manager/documents"
         cardHrefBase={base}
+        grouping
         resetHref={pushFilterActive ? withFilters(undefined, { withoutPush: true }) : undefined}
       />
 

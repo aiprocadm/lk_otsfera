@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { listDocuments, listManagerOrderLessDocuments } from '@/lib/services/manager/documents';
 import { listManagerCounterparties } from '@/lib/services/manager/counterparties';
 import { parseOneCPushStatus } from '@/lib/documents/oneCPushStatus';
+import { parseStaffDocumentFilters } from '@/lib/documents/listFilters';
 import {
   StaffDocuments,
   type StaffDocumentsSearchParams,
@@ -39,14 +40,20 @@ export default async function LeaderDocumentsPage({
     );
   }
 
-  const { rows, nextCursor } = await listDocuments(prisma, {
+  // `У-253`, `У-258`: год, направление, состояние и источник. Разбор общий на
+  // оба кабинета — иначе один экран понимал бы адрес иначе, чем другой.
+  const filters = parseStaffDocumentFilters(sp);
+  const { rows, nextCursor, total } = await listDocuments(prisma, {
     session,
     search: sp.search,
     type: sp.type || undefined,
     orderId: sp.orderId,
     cursor: sp.cursor,
     oneCPushStatus,
+    ...filters,
     teamModeOverride: true,
   });
-  return <StaffDocuments cabinet="leader" sp={sp} data={{ tab: 'orders', rows, nextCursor }} />;
+  return (
+    <StaffDocuments cabinet="leader" sp={sp} data={{ tab: 'orders', rows, nextCursor, total }} />
+  );
 }

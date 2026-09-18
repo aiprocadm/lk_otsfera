@@ -36,6 +36,12 @@ import {
 } from '@/lib/services/manager/documents';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
+/**
+ * `У-253`: список теперь считает и общее число — вторым запросом по тому же
+ * условию. Мок обязателен всем, иначе `listDocuments` падает на `count`.
+ */
+const countMock = vi.fn().mockResolvedValue(0);
+
 const SESSION: SessionPayload = {
   sub: 'mgr-1',
   role: 'manager',
@@ -85,7 +91,10 @@ beforeEach(() => {
 describe('listDocuments', () => {
   it('returns rows with nextCursor=null when count <= take', async () => {
     const findMany = vi.fn().mockResolvedValue([docRow('d1'), docRow('d2')]);
-    const p = { document: { findMany }, company: { findUnique: vi.fn() } } as never;
+    const p = {
+      document: { findMany, count: countMock },
+      company: { findUnique: vi.fn() },
+    } as never;
     const result = await listDocuments(p, { session: SESSION, take: 50 });
     expect(result.rows).toHaveLength(2);
     expect(result.nextCursor).toBeNull();
@@ -94,7 +103,10 @@ describe('listDocuments', () => {
   it('paginates: returns nextCursor when rows > take', async () => {
     const rows = Array.from({ length: 51 }, (_, i) => docRow(`d${i}`));
     const findMany = vi.fn().mockResolvedValue(rows);
-    const p = { document: { findMany }, company: { findUnique: vi.fn() } } as never;
+    const p = {
+      document: { findMany, count: countMock },
+      company: { findUnique: vi.fn() },
+    } as never;
     const result = await listDocuments(p, { session: SESSION, take: 50 });
     expect(result.rows).toHaveLength(50);
     expect(result.nextCursor).toBe('d49');
@@ -102,7 +114,10 @@ describe('listDocuments', () => {
 
   it('applies orderId filter when provided', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const p = { document: { findMany }, company: { findUnique: vi.fn() } } as never;
+    const p = {
+      document: { findMany, count: countMock },
+      company: { findUnique: vi.fn() },
+    } as never;
     await listDocuments(p, { session: SESSION, orderId: 'ord-42' });
     const where = findMany.mock.calls[0][0].where;
     expect(where).toMatchObject({ AND: expect.arrayContaining([{ orderId: 'ord-42' }]) });
@@ -110,7 +125,10 @@ describe('listDocuments', () => {
 
   it('applies type filter when provided', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const p = { document: { findMany }, company: { findUnique: vi.fn() } } as never;
+    const p = {
+      document: { findMany, count: countMock },
+      company: { findUnique: vi.fn() },
+    } as never;
     await listDocuments(p, { session: SESSION, type: 'act' });
     const where = findMany.mock.calls[0][0].where;
     expect(where).toMatchObject({ AND: expect.arrayContaining([{ type: 'act' }]) });
@@ -118,7 +136,10 @@ describe('listDocuments', () => {
 
   it('У-169: applies oneCPushStatus filter when provided', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const p = { document: { findMany }, company: { findUnique: vi.fn() } } as never;
+    const p = {
+      document: { findMany, count: countMock },
+      company: { findUnique: vi.fn() },
+    } as never;
     await listDocuments(p, { session: SESSION, oneCPushStatus: 'failed' });
     const where = findMany.mock.calls[0][0].where;
     expect(where).toMatchObject({ AND: expect.arrayContaining([{ oneCPushStatus: 'failed' }]) });
@@ -126,25 +147,47 @@ describe('listDocuments', () => {
 
   it('У-169: does not add oneCPushStatus to where when not provided', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const p = { document: { findMany }, company: { findUnique: vi.fn() } } as never;
+    const p = {
+      document: { findMany, count: countMock },
+      company: { findUnique: vi.fn() },
+    } as never;
     await listDocuments(p, { session: SESSION });
     const where = findMany.mock.calls[0][0].where;
     expect(where.AND.some((f: Record<string, unknown>) => 'oneCPushStatus' in f)).toBe(false);
   });
 
-  it('applies search filter when provided', async () => {
+  /**
+   * `У-253`: поиск ищет и по имени файла, и по НОМЕРУ документа.
+   *
+   * До этапа 8 смотрели только на имя: человек вводил «С-2026-7», не находил
+   * ничего и решал, что счёта нет, — хотя счёт лежал под именем `scan_12.pdf`.
+   */
+  it('ищет по имени файла И по номеру документа', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const p = { document: { findMany }, company: { findUnique: vi.fn() } } as never;
+    const p = {
+      document: { findMany, count: countMock },
+      company: { findUnique: vi.fn() },
+    } as never;
     await listDocuments(p, { session: SESSION, search: 'договор' });
     const where = findMany.mock.calls[0][0].where;
     expect(where).toMatchObject({
-      AND: expect.arrayContaining([{ name: { contains: 'договор', mode: 'insensitive' } }]),
+      AND: expect.arrayContaining([
+        {
+          OR: [
+            { name: { contains: 'договор', mode: 'insensitive' } },
+            { number: { contains: 'договор', mode: 'insensitive' } },
+          ],
+        },
+      ]),
     });
   });
 
   it('passes cursor when provided', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const p = { document: { findMany }, company: { findUnique: vi.fn() } } as never;
+    const p = {
+      document: { findMany, count: countMock },
+      company: { findUnique: vi.fn() },
+    } as never;
     await listDocuments(p, { session: SESSION, cursor: 'cursor-xyz' });
     const call = findMany.mock.calls[0][0];
     expect(call.cursor).toEqual({ id: 'cursor-xyz' });
@@ -153,7 +196,10 @@ describe('listDocuments', () => {
 
   it('does not pass cursor when not provided', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const p = { document: { findMany }, company: { findUnique: vi.fn() } } as never;
+    const p = {
+      document: { findMany, count: countMock },
+      company: { findUnique: vi.fn() },
+    } as never;
     await listDocuments(p, { session: SESSION });
     const call = findMany.mock.calls[0][0];
     expect(call.cursor).toBeUndefined();
@@ -449,7 +495,10 @@ describe('listManagerOrderLessDocuments', () => {
 
   it('applies type filter when opts.type provided', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const p = { document: { findMany }, company: { findUnique: vi.fn() } } as never;
+    const p = {
+      document: { findMany, count: countMock },
+      company: { findUnique: vi.fn() },
+    } as never;
     await listManagerOrderLessDocuments(p, SESSION, { type: 'act' });
     const where = findMany.mock.calls[0][0].where;
     expect(where).toMatchObject({ type: 'act' });
@@ -457,7 +506,10 @@ describe('listManagerOrderLessDocuments', () => {
 
   it('does not add type to where when not provided', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const p = { document: { findMany }, company: { findUnique: vi.fn() } } as never;
+    const p = {
+      document: { findMany, count: countMock },
+      company: { findUnique: vi.fn() },
+    } as never;
     await listManagerOrderLessDocuments(p, SESSION, {});
     const where = findMany.mock.calls[0][0].where;
     expect(where.type).toBeUndefined();
@@ -465,7 +517,10 @@ describe('listManagerOrderLessDocuments', () => {
 
   it('У-169: applies oneCPushStatus filter and selects the column for the badge', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const p = { document: { findMany }, company: { findUnique: vi.fn() } } as never;
+    const p = {
+      document: { findMany, count: countMock },
+      company: { findUnique: vi.fn() },
+    } as never;
     await listManagerOrderLessDocuments(p, SESSION, { oneCPushStatus: 'pending' });
     const call = findMany.mock.calls[0][0];
     expect(call.where).toMatchObject({ oneCPushStatus: 'pending' });
@@ -474,14 +529,20 @@ describe('listManagerOrderLessDocuments', () => {
 
   it('У-169: does not add oneCPushStatus to where when not provided', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const p = { document: { findMany }, company: { findUnique: vi.fn() } } as never;
+    const p = {
+      document: { findMany, count: countMock },
+      company: { findUnique: vi.fn() },
+    } as never;
     await listManagerOrderLessDocuments(p, SESSION, {});
     expect(findMany.mock.calls[0][0].where.oneCPushStatus).toBeUndefined();
   });
 
   it('passes cursor when provided', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const p = { document: { findMany }, company: { findUnique: vi.fn() } } as never;
+    const p = {
+      document: { findMany, count: countMock },
+      company: { findUnique: vi.fn() },
+    } as never;
     await listManagerOrderLessDocuments(p, SESSION, { cursor: 'c-1' });
     const call = findMany.mock.calls[0][0];
     expect(call.cursor).toEqual({ id: 'c-1' });
@@ -502,7 +563,10 @@ describe('listManagerOrderLessDocuments', () => {
     });
     const rows = Array.from({ length: 6 }, (_, i) => orderLessRow(`d${i}`));
     const findMany = vi.fn().mockResolvedValue(rows);
-    const p = { document: { findMany }, company: { findUnique: vi.fn() } } as never;
+    const p = {
+      document: { findMany, count: countMock },
+      company: { findUnique: vi.fn() },
+    } as never;
     const result = await listManagerOrderLessDocuments(p, SESSION, { take: 5 });
     expect(result.rows).toHaveLength(5);
     expect(result.nextCursor).toBe('d4');
@@ -510,14 +574,20 @@ describe('listManagerOrderLessDocuments', () => {
 
   it('nextCursor is null when rows <= take', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const p = { document: { findMany }, company: { findUnique: vi.fn() } } as never;
+    const p = {
+      document: { findMany, count: countMock },
+      company: { findUnique: vi.fn() },
+    } as never;
     const result = await listManagerOrderLessDocuments(p, SESSION, { take: 50 });
     expect(result.nextCursor).toBeNull();
   });
 
   it('clamps take to [1, 100] range', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const p = { document: { findMany }, company: { findUnique: vi.fn() } } as never;
+    const p = {
+      document: { findMany, count: countMock },
+      company: { findUnique: vi.fn() },
+    } as never;
     await listManagerOrderLessDocuments(p, SESSION, { take: 0 });
     // take=0 → Math.max(0,1) = 1, then Math.min(1,100) = 1, query with take=1+1=2
     expect(findMany.mock.calls[0][0].take).toBe(2);
