@@ -66,19 +66,31 @@
 - [x] Спека дополнена решением `Р-Э9-11`; строка в `NOT_DOING.md` — в PR-6
 - [x] CHANGELOG
 
-## PR-3 — `У-261` (а): отчёт, снятие кода, страж
+## PR-3 — `У-261` (а): отчёт и чистые данные
 
-- [ ] `scripts/report-dead-tables.ts` + npm-скрипт `report:dead-tables`: число строк в
-      `SavedView`, `Upload` и число лидов `source = partner_legacy` (для `Р-Э9-7`)
-- [ ] Прогнать отчёт против Docker-Postgres (`npm run gate` поднимает базу) — зафиксировать вывод в PR
-- [ ] `findBlocker` в [mergeExternal.ts](../../../src/lib/services/orders/mergeExternal.ts): убрать
+- [x] `scripts/report-dead-tables.ts` + npm-скрипт `report:dead-tables`: число строк в
+      `SavedView`, `Upload`, число строк `roleInPartner = 'member'` и число лидов
+      `source = partner_legacy` (для `Р-Э9-7`)
+- [x] Прогнать отчёт **дважды**: на чистой базе (Docker, порт 5433 — 5432 занят чужим
+      контейнером) и **на базе стенда**. Оба раза: 0 / 0 / не найдено / 0
+- [x] `findBlocker` в [mergeExternal.ts](../../../src/lib/services/orders/mergeExternal.ts): убрать
       `prisma.upload.count` и `uploads` из условия `has_activity`; комментарий, почему это безопасно
-- [ ] Интеграционный тест `mergeExternal`: ветку `has_activity` доказывать комментарием/тредом,
-      а не загрузкой
-- [ ] [admin/users/mutations.ts](../../../src/lib/services/admin/users/mutations.ts):75,193 —
+- [x] Интеграционный тест `mergeExternal`: ветка «есть загрузка» удалена вместе с проверкой;
+      `has_activity` держат комментарий, тред и строка ведомости. 38 тестов на живой базе зелёные
+- [x] [admin/users/mutations.ts](../../../src/lib/services/admin/users/mutations.ts) — оба места:
       `roleInPartner: 'member'` → `'manager'`
-- [ ] Сузить тип записи `roleInPartner` до `'admin' | 'manager'` там, где он ещё `string`
-- [ ] CHANGELOG
+- [x] Страж `security.partner-role-values.guardrail.test.ts` вместо сужения типа: поле в схеме
+      объявлено как `String`, компилятор здесь бессилен — проверяем литералы записи
+- [x] Мутация: вернуть `'member'` → страж красный → откатить
+- [x] CHANGELOG
+
+> **Про `partner_legacy` (`У-264`, решение `Р-Э9-7` подтверждено фактами).** Отчёт показал 0
+> лидов с этим источником, и требование допускает удаление значения enum. Но: (1) это
+> **значение по умолчанию** колонки `Lead.source`, (2) все шесть мест создания лида задают
+> источник **явно**, так что умолчание не применяется никогда и вреда не несёт, и (3) удаление
+> значения enum в Postgres — **необратимая и не-аддитивная** миграция, а §14 CLAUDE.md
+> разрешает такую в этой программе ровно одну: удаление мёртвых таблиц `У-261`. Значение
+> остаётся; причина — строкой в `NOT_DOING.md` (PR-6).
 
 > **Страж мёртвых моделей переехал в PR-4.** В PR-3 он был бы красным: модель
 > `SavedView` ещё в схеме, а удаляет её миграция следующего PR. Страж, который
