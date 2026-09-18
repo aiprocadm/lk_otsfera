@@ -31,6 +31,7 @@ export type AlertSettingsValues = {
   renotifyCooldownHours: string;
   oneCDeadLetterMax: string;
   oneCPushFailedMax: string;
+  debtMismatchMax: string;
   telegramChatId: string;
   emailRecipients: string;
 };
@@ -88,6 +89,12 @@ export function AlertSettingsForm({
     {
       name: 'oneCPushFailedMax',
       label: 'Документов не выгружено в 1С — предел',
+      hint: 'по умолчанию 0',
+    },
+    // `У-257`: расхождения дебиторки в последней сверке с 1С.
+    {
+      name: 'debtMismatchMax',
+      label: 'Расхождений по дебиторке — предел',
       hint: 'по умолчанию 0',
     },
   ];

@@ -13,6 +13,7 @@ export type SyncControlEntity =
   | 'payment'
   | 'document'
   | 'reconcile'
+  | 'reconcileDebts'
   | 'certificateExpiry'
   | 'emailPoll'
   | 'mangoBackfill'
@@ -49,6 +50,13 @@ export const SYNC_ENTITIES: Record<
   reconcile: {
     queueName: 'oneCSync.reconcile',
     schedulerId: 'oneCSync.reconcile.cron',
+    hasCursor: false,
+  },
+  // `У-257`: «Повторить сверку» — та же кнопка «запустить сейчас», что у
+  // остальных задач обмена. Своего механизма запуска заводить незачем.
+  reconcileDebts: {
+    queueName: 'oneCSync.reconcileDebts',
+    schedulerId: 'oneCSync.reconcileDebts.cron',
     hasCursor: false,
   },
   // G3: run-now для standalone cron-джобов. Паузой управляет SYNC_SCHEDULES

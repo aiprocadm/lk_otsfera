@@ -173,6 +173,13 @@ export const SETTING_SPECS = {
     envVar: 'ALERT_ONEC_PUSH_FAILED_MAX',
     isSecret: false,
   },
+  // `У-257`: сколько расхождений по дебиторке терпимо, прежде чем уйдёт
+  // оповещение. Ноль означает «сообщать о любом расхождении».
+  'alerts.debtMismatchMax': {
+    key: 'alerts.debtMismatchMax',
+    envVar: 'ALERT_DEBT_MISMATCH_MAX',
+    isSecret: false,
+  },
   'alerts.telegramBotToken': {
     key: 'alerts.telegramBotToken',
     envVar: 'ALERT_TELEGRAM_BOT_TOKEN',

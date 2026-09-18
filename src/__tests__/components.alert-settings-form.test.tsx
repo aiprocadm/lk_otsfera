@@ -28,6 +28,7 @@ const INITIAL: AlertSettingsValues = {
   renotifyCooldownHours: '6',
   oneCDeadLetterMax: '0',
   oneCPushFailedMax: '3',
+  debtMismatchMax: '0',
   telegramChatId: '-100500',
   emailRecipients: 'ops@x.ru',
 };
@@ -59,7 +60,7 @@ describe('AlertSettingsForm', () => {
     expect(input.placeholder).toBe('по умолчанию 0');
   });
 
-  it('все шесть числовых порогов имеют имена alerts_<ключ> — их ждёт server action', () => {
+  it('все числовые пороги имеют имена alerts_<ключ> — их ждёт server action', () => {
     mount();
     const names = Array.from(document.querySelectorAll('input[type="text"]')).map(
       (i) => (i as HTMLInputElement).name
@@ -71,6 +72,8 @@ describe('AlertSettingsForm', () => {
       'alerts_renotifyCooldownHours',
       'alerts_oneCDeadLetterMax',
       'alerts_oneCPushFailedMax',
+      // `У-257`: расхождения дебиторки — седьмой порог.
+      'alerts_debtMismatchMax',
       'alerts_telegramChatId',
       'alerts_emailRecipients',
     ]);

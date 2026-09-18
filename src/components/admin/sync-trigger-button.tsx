@@ -11,7 +11,18 @@ const ERROR_LABELS: Record<string, string> = {
   queue_unavailable: 'Очередь недоступна (Redis).',
 };
 
-export function SyncTriggerButton({ entity }: { entity: string }) {
+export function SyncTriggerButton({
+  entity,
+  label = 'Запустить',
+}: {
+  entity: string;
+  /**
+   * `У-257`: у сверки дебиторки кнопка называется «Повторить сверку» — так
+   * написано в требовании, и так понятнее: «Запустить» рядом со словом
+   * «Сверка» читается как «начать что-то новое».
+   */
+  label?: string;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [err, setErr] = useState<string | null>(null);
@@ -35,7 +46,7 @@ export function SyncTriggerButton({ entity }: { entity: string }) {
         disabled={pending}
         className="text-xs px-2 py-1 rounded border border-gray-300 hover:border-[#F97316] hover:text-[#F97316] transition-colors disabled:opacity-50"
       >
-        {pending ? 'Запуск…' : 'Запустить'}
+        {pending ? 'Запуск…' : label}
       </button>
       {err && <span className="text-xs text-red-700">{err}</span>}
     </div>

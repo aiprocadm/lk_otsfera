@@ -206,3 +206,26 @@ export const OneCDocumentPushSchema = z.object({
 export const OneCDocumentPushResultSchema = z.object({
   externalId: z.string().min(1),
 });
+
+/**
+ * `У-257` (этап 8): долг контрагента по данным 1С.
+ *
+ * Метод `GET /api/debts?since=` **ожидает реализации на стороне 1С** — контракт
+ * его уже описывает, адаптер уже умеет спрашивать, а сверка честно говорит
+ * «метод не подключён», пока ответа нет. Так сторона 1С видит, что именно от
+ * неё нужно, а кабинет не притворяется, будто сверка идёт.
+ *
+ * Ключ — либо заказ (`orderExternalId`), либо контрагент (`organizationInn`):
+ * 1С хранит долг и так и так, и требовать один ключ значило бы отказать
+ * половине выгрузок. Сумма — долг НА ДАТУ `asOf`, а не оборот за период.
+ */
+export const OneCDebtSchema = z
+  .object({
+    orderExternalId: z.string().min(1).optional(),
+    organizationInn: z.string().min(1).optional(),
+    debt: finite,
+    asOf: isoDate,
+  })
+  .refine((d) => !!d.orderExternalId || !!d.organizationInn, {
+    message: 'no_debt_key',
+  });

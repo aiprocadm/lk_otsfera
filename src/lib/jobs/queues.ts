@@ -13,6 +13,9 @@ export const QUEUE_NAMES = [
   // бы работать. От двойной доставки защищает сравнение версий в процессоре.
   'oneCSync.pushDocument',
   'oneCSync.reconcile',
+  // `У-257`: сверка дебиторки с 1С — своя очередь и своё расписание. Её
+  // работа тяжелее «термометра» `reconcile` и нужна реже.
+  'oneCSync.reconcileDebts',
   'docs.generateCommissionPdf',
   'docs.generateCommissionXlsx',
   'docs.calculateMonthlyCommissions',
