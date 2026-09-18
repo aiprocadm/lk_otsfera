@@ -1,8 +1,9 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { Badge, Button, EmptyState } from '@/components/ui';
 import { ZipDownloadButton } from '@/components/documents/zip-download-button';
+import { DOCUMENT_SOURCE_LABELS } from '@/lib/documents/source';
 import type { OrgDocumentRow } from '@/lib/services/partner/orgDocuments';
 import { ONE_C_PUSH_STATUS_LABEL, ONE_C_PUSH_STATUS_TONE } from '@/lib/documents/oneCPushStatus';
 
@@ -61,6 +62,7 @@ export function DocumentsList({
   cardHrefBase,
   selection,
   zipDownload = false,
+  grouping = false,
 }: {
   rows: OrgDocumentRow[];
   downloadEndpointBase?: string;
@@ -88,9 +90,35 @@ export function DocumentsList({
    * человек читал бы как два разных выбора.
    */
   zipDownload?: boolean;
+  /**
+   * `У-253`: переключатель «по типу / по году / по заказу» над списком.
+   *
+   * Группировка считается на УЖЕ полученной странице, а не отдельными
+   * запросами: иначе счётчики групп разъедутся с постраничностью и человек
+   * увидит «Счета: 40» там, где на странице их шесть.
+   *
+   * Выбор запоминается в браузере (`В-8-5`) — это привычка конкретного
+   * сотрудника, а не настройка компании. На сервер он не уходит вовсе:
+   * группировка ничего не выбирает из базы.
+   */
+  grouping?: boolean;
 }) {
   const [downloading, setDownloading] = useState<string | null>(null);
   const [ownSelected, setOwnSelected] = useState<ReadonlySet<string>>(new Set());
+  /**
+   * Выбранная группировка живёт в браузере, а не в состоянии компонента.
+   *
+   * Соблазн прочитать хранилище эффектом и позвать `setState` велик, но это
+   * лишняя перерисовка сразу после монтирования (её ловит и eslint). А прочесть
+   * хранилище прямо при первой отрисовке нельзя: на сервере его нет, и разметка
+   * сервера разошлась бы с клиентской. `useSyncExternalStore` решает ровно эту
+   * задачу — у него отдельный снимок для сервера.
+   */
+  const groupMode = useSyncExternalStore(
+    groupStore.subscribe,
+    groupStore.read,
+    groupStore.serverRead
+  );
   const [error, setError] = useState<string | null>(null);
   // Локально гасим бейдж сразу после скачивания (сервер ставит отметку в download-роуте).
   const [seen, setSeen] = useState<ReadonlySet<string>>(new Set());
@@ -230,6 +258,14 @@ export function DocumentsList({
               <span className="text-green-700">подписан</span>
             </>
           )}
+          {doc.source && (
+            <>
+              <span aria-hidden>·</span>
+              {/* `У-258`: откуда документ взялся. Только у сотрудников — в
+                  клиентских списках поля нет вовсе. */}
+              <span>{DOCUMENT_SOURCE_LABELS[doc.source]}</span>
+            </>
+          )}
           {doc.oneCPushStatus && doc.oneCPushStatus !== 'none' && (
             <>
               <span aria-hidden>·</span>
@@ -290,7 +326,39 @@ export function DocumentsList({
         </div>
       )}
 
-      {groupByOrder ? (
+      {grouping && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-gray-500">Группировать:</span>
+          {GROUP_MODES.map((mode) => (
+            <button
+              key={mode.value}
+              type="button"
+              onClick={() => groupStore.write(mode.value)}
+              aria-pressed={groupMode === mode.value}
+              className={
+                groupMode === mode.value
+                  ? 'rounded-full bg-[#F97316] px-3 py-1 text-xs font-medium text-white'
+                  : 'rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-200'
+              }
+            >
+              {mode.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {grouping ? (
+        groupRowsBy(rows, groupMode).map((group) => (
+          <section key={group.key} className="space-y-1">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-1 pt-2">
+              {`${group.title} · ${group.rows.length}`}
+            </h3>
+            <ul className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100 overflow-hidden">
+              {group.rows.map(renderRow)}
+            </ul>
+          </section>
+        ))
+      ) : groupByOrder ? (
         groupRows(rows).map((group) => (
           <section key={group.key} className="space-y-1">
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-1 pt-2">
@@ -357,4 +425,93 @@ function iconForType(type: string): string {
     default:
       return '📄';
   }
+}
+
+/** `У-253`: три способа разложить страницу документов по полкам. */
+const GROUP_MODES = [
+  { value: 'type' as const, label: 'по типу' },
+  { value: 'year' as const, label: 'по году' },
+  { value: 'order' as const, label: 'по заказу' },
+];
+
+type GroupMode = (typeof GROUP_MODES)[number]['value'];
+
+const GROUP_STORAGE_KEY = 'documents.groupBy';
+
+/** Умолчание — «по заказу»: так список выглядел до появления переключателя. */
+const DEFAULT_GROUP_MODE: GroupMode = 'order';
+
+function isGroupMode(value: string): value is GroupMode {
+  return GROUP_MODES.some((m) => m.value === value);
+}
+
+/**
+ * Хранилище выбора группировки — один на страницу.
+ *
+ * Модульное, а не внутри компонента: два списка на одном экране должны
+ * соглашаться друг с другом, иначе человек переключит группировку в одном и
+ * удивится, почему второй остался прежним. Любой отказ хранилища (приватный
+ * режим, запрет сайту) означает «остаёмся на умолчании», а не поломку экрана.
+ */
+const groupStore = {
+  listeners: new Set<() => void>(),
+
+  subscribe(onChange: () => void): () => void {
+    groupStore.listeners.add(onChange);
+    // Соседняя вкладка того же кабинета меняет выбор — подхватываем.
+    window.addEventListener('storage', onChange);
+    return () => {
+      groupStore.listeners.delete(onChange);
+      window.removeEventListener('storage', onChange);
+    };
+  },
+
+  read(): GroupMode {
+    try {
+      const saved = window.localStorage.getItem(GROUP_STORAGE_KEY);
+      return saved && isGroupMode(saved) ? saved : DEFAULT_GROUP_MODE;
+    } catch {
+      return DEFAULT_GROUP_MODE;
+    }
+  },
+
+  /** На сервере хранилища нет — там всегда умолчание. */
+  serverRead(): GroupMode {
+    return DEFAULT_GROUP_MODE;
+  },
+
+  write(mode: GroupMode): void {
+    try {
+      window.localStorage.setItem(GROUP_STORAGE_KEY, mode);
+    } catch {
+      /* не сохранилось — экран всё равно перерисуется на выбранный режим */
+    }
+    for (const listener of groupStore.listeners) listener();
+  },
+};
+
+/**
+ * Разложить УЖЕ полученные строки по выбранному признаку.
+ *
+ * Порядок групп — порядок первого появления: строки приходят от свежих к
+ * старым, и переставлять группы значило бы прятать самое новое в середину.
+ */
+function groupRowsBy(
+  rows: OrgDocumentRow[],
+  mode: GroupMode
+): Array<{ key: string; title: string; rows: OrgDocumentRow[] }> {
+  if (mode === 'order') return groupRows(rows);
+
+  const groups = new Map<string, { key: string; title: string; rows: OrgDocumentRow[] }>();
+  for (const doc of rows) {
+    const key = mode === 'type' ? doc.type : String(new Date(doc.createdAt).getFullYear());
+    const title = mode === 'type' ? (TYPE_LABELS[doc.type] ?? doc.type) : `${key} год`;
+    let group = groups.get(key);
+    if (!group) {
+      group = { key, title, rows: [] };
+      groups.set(key, group);
+    }
+    group.rows.push(doc);
+  }
+  return Array.from(groups.values());
 }

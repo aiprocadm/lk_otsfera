@@ -68,12 +68,15 @@ export function StaffDocumentsPushList({
   downloadEndpointBase,
   cardHrefBase,
   groupByOrder = false,
+  grouping = false,
   resetHref,
 }: {
   rows: OrgDocumentRow[];
   downloadEndpointBase: string;
   cardHrefBase: string;
   groupByOrder?: boolean;
+  /** `У-253`: переключатель «по типу / по году / по заказу» над списком. */
+  grouping?: boolean;
   /**
    * Адрес без фильтра «Выгрузка в 1С». Передан — фильтр активен, и пустой
    * результат объясняет это и даёт кнопку сброса (`У-74`).
@@ -216,6 +219,7 @@ export function StaffDocumentsPushList({
         downloadEndpointBase={downloadEndpointBase}
         cardHrefBase={cardHrefBase}
         groupByOrder={groupByOrder}
+        grouping={grouping}
         selection={{ selected, onToggle: toggle }}
       />
     </div>

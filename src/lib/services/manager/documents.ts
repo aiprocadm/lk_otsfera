@@ -4,6 +4,7 @@ import type {
   Prisma,
   DocumentType,
   DocumentDirection,
+  DocumentStatus,
   OneCPushStatus,
 } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
@@ -14,6 +15,7 @@ import {
 } from '@/lib/auth/managerPolicy';
 import { managerOrderLessWhere, canReadOrderLessDocument } from '@/lib/auth/documentChannelPolicy';
 import { documentDownloadName } from '@/lib/documents/fileName';
+import { documentSourceWhere, isDocumentSource, type DocumentSource } from '@/lib/documents/source';
 
 /**
  * Manager-facing documents service.
@@ -37,6 +39,14 @@ const ListDocumentsOptionsSchema = z.object({
   // `У-169`: фильтр «Выгрузка в 1С». Значение уже разобрано страницей
   // (`parseOneCPushStatus`) — чужое слово из адреса сюда не доходит.
   oneCPushStatus: z.custom<OneCPushStatus>((v) => typeof v === 'string').optional(),
+  // `У-253`: четыре фильтра «файлового шкафа». Значения приходят уже
+  // разобранными страницей — чужое слово из адреса сюда не доходит.
+  /** Год создания документа (по `createdAt`). */
+  year: z.number().int().min(2000).max(2100).optional(),
+  direction: z.enum(['incoming', 'outgoing']).optional(),
+  status: z.string().optional(),
+  /** `У-258`: откуда документ взялся. Условие даёт `documentSourceWhere`. */
+  source: z.custom<DocumentSource>((v) => typeof v === 'string' && isDocumentSource(v)).optional(),
   take: z.number().int().min(1).max(100).default(50),
   cursor: z.string().optional(),
   // `У-110`: кабинет руководителя форсит company-wide независимо от toggle —
@@ -57,6 +67,9 @@ const LIST_INCLUDE = {
       organizationId: true,
     },
   },
+  // `У-258`: источник документа считается по роли загрузившего — без неё
+  // «загружен клиентом» и «загружен сотрудником» неразличимы.
+  uploadedBy: { select: { role: true } },
 } satisfies Prisma.DocumentInclude;
 
 type ManagerDocumentRow = Prisma.DocumentGetPayload<{ include: typeof LIST_INCLUDE }>;
@@ -64,6 +77,15 @@ type ManagerDocumentRow = Prisma.DocumentGetPayload<{ include: typeof LIST_INCLU
 export type ListDocumentsResult = {
   rows: ManagerDocumentRow[];
   nextCursor: string | null;
+  /**
+   * `У-253`: сколько документов под фильтром ВСЕГО. «Показано 50» без «из 340»
+   * человек читает как «их пятьдесят» — и уходит, не найдя нужного.
+   *
+   * Считается отдельным `count` по тому же условию (`Р-Э8-8`). Это второй
+   * запрос, но дешёвый: курсорную постраничность он не ломает, а она стоит на
+   * стабильном порядке и менять её ради общего числа нельзя.
+   */
+  total: number;
 };
 
 export async function listDocuments(
@@ -78,22 +100,52 @@ export async function listDocuments(
   if (opts.orderId) filters.push({ orderId: opts.orderId });
   if (opts.type) filters.push({ type: opts.type as DocumentType });
   if (opts.oneCPushStatus) filters.push({ oneCPushStatus: opts.oneCPushStatus });
+  if (opts.direction) filters.push({ direction: opts.direction });
+  if (opts.status) filters.push({ status: opts.status as DocumentStatus });
+  if (opts.source) filters.push(documentSourceWhere(opts.source));
+  if (opts.year !== undefined) {
+    // Границы года считаются в UTC — так же, как их считает остальной проект;
+    // «с 1 января по 1 января следующего» вместо `gte/lte` по дате, чтобы в
+    // выборку попал последний день целиком.
+    filters.push({
+      createdAt: {
+        gte: new Date(Date.UTC(opts.year, 0, 1)),
+        lt: new Date(Date.UTC(opts.year + 1, 0, 1)),
+      },
+    });
+  }
   if (opts.search) {
-    filters.push({ name: { contains: opts.search, mode: 'insensitive' } });
+    /**
+     * `У-253`: ищем по имени файла И по номеру документа.
+     *
+     * До этапа 8 поиск смотрел только на имя файла. Человек вводил номер
+     * счёта, не находил ничего и делал вывод, что счёта нет, — хотя счёт
+     * лежал рядом под именем вроде `scan_0012.pdf`.
+     */
+    filters.push({
+      OR: [
+        { name: { contains: opts.search, mode: 'insensitive' } },
+        { number: { contains: opts.search, mode: 'insensitive' } },
+      ],
+    });
   }
 
-  const rows = await prisma.document.findMany({
-    where: { AND: filters },
-    include: LIST_INCLUDE,
-    orderBy: { id: 'desc' },
-    take: opts.take + 1,
-    ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
-  });
+  const where: Prisma.DocumentWhereInput = { AND: filters };
+  const [rows, total] = await Promise.all([
+    prisma.document.findMany({
+      where,
+      include: LIST_INCLUDE,
+      orderBy: { id: 'desc' },
+      take: opts.take + 1,
+      ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
+    }),
+    prisma.document.count({ where }),
+  ]);
 
   const hasMore = rows.length > opts.take;
   const sliced = hasMore ? rows.slice(0, opts.take) : rows;
   const nextCursor = hasMore ? sliced[sliced.length - 1]!.id : null;
-  return { rows: sliced, nextCursor };
+  return { rows: sliced, nextCursor, total };
 }
 
 export type DownloadResult =
@@ -217,6 +269,11 @@ export type ManagerOrderLessRow = {
   counterpartyId: string;
   /** `У-169`: состояние выгрузки в 1С — бейдж и флажок массовой выгрузки. */
   oneCPushStatus: OneCPushStatus;
+  // `У-258`: поля, по которым считается источник документа.
+  bitrixId: string | null;
+  externalId: string | null;
+  generatedBy: string;
+  uploadedBy: { role: string } | null;
 };
 
 export async function listManagerOrderLessDocuments(
@@ -252,6 +309,13 @@ export async function listManagerOrderLessDocuments(
       counterpartyType: true,
       counterpartyId: true,
       oneCPushStatus: true,
+      // `У-258`: то же, что у списка по заказам, — источник виден и здесь.
+      bitrixId: true,
+      externalId: true,
+      generatedBy: true,
+      number: true,
+      version: true,
+      uploadedBy: { select: { role: true } },
     },
   });
   const hasMore = rows.length > take;

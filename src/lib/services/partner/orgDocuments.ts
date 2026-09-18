@@ -1,5 +1,6 @@
 import type { PrismaClient, DocumentType, DocumentDirection, OneCPushStatus } from '@prisma/client';
 import { partnerPortfolioDocumentsWhere } from '@/lib/auth/documentChannelPolicy';
+import type { DocumentSource } from '@/lib/documents/source';
 
 export type OrgDocumentRow = {
   id: string;
@@ -22,6 +23,11 @@ export type OrgDocumentRow = {
    * исполнителя им не показывают.
    */
   oneCPushStatus?: OneCPushStatus | undefined;
+  /**
+   * `У-258`: откуда документ взялся. Только в списках сотрудников — клиенту
+   * знать, что его акт приехал из 1С, незачем, это кухня исполнителя.
+   */
+  source?: DocumentSource | undefined;
 };
 
 // Фильтры списка: «ключа нет» и «ключ = undefined» — одно и то же (не фильтровать).
