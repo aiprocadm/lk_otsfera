@@ -212,7 +212,7 @@ describe('пакетное создание организаций из очер
     expect(revalidatePath.mock.calls.map((c: unknown[]) => c[0])).toEqual([
       '/admin/settings/integrations/1c/payments',
       '/leader/settings/integrations/1c/payments',
-      '/manager/payments-import',
+      '/admin/settings/integrations/1c/payments',
     ]);
   });
 

@@ -52,7 +52,8 @@ export async function createStudentAction(fd: FormData): Promise<CreateStudentRe
     // `У-103` (вторая половина `Д-28`): сотрудник виден из ПЯТИ мест — вкладка
     // «Сотрудники» есть теперь и у руководителя. Пропущенный путь означает, что
     // человек добавил сотрудника и не увидел его в соседнем кабинете.
-    revalidatePath('/organization/students');
+    // `У-263`: сбрасываем кэш нового адреса — старый стал перенаправлением.
+    revalidatePath('/organization/company');
     revalidatePath(`/partner/portfolio/${organizationId}`);
     revalidatePath(`/manager/organizations/${organizationId}`);
     revalidatePath(`/leader/organizations/${organizationId}`);

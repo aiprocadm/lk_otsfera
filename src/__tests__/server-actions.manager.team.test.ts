@@ -86,7 +86,7 @@ describe('leaderAssignManagerAction — delegation', () => {
       organizationId: 'org-1',
       email: 'new@t.local',
     });
-    expect(revalidatePath).toHaveBeenCalledWith('/manager/team');
+    expect(revalidatePath).toHaveBeenCalledWith('/leader/team');
   });
 
   it('режим new с именем: ключ name присутствует только когда он задан', async () => {
@@ -152,7 +152,7 @@ describe('leaderDeactivateAssignmentAction', () => {
     expect(deactivateAssignmentAsLeader).toHaveBeenCalledWith(prisma, LEADER_SESSION_CO_A, {
       assignmentId: 'asgn-1',
     });
-    expect(revalidatePath).toHaveBeenCalledWith('/manager/team');
+    expect(revalidatePath).toHaveBeenCalledWith('/leader/team');
   });
 
   it('коды отказа сервиса прокидываются без ревалидации', async () => {

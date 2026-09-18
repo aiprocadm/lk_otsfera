@@ -64,7 +64,7 @@ describe('setTeamVisibilityAction — happy path', () => {
 
     expect(res).toEqual({ ok: true, changed: true });
     expect(setTeamVisibility).toHaveBeenCalledWith(expect.anything(), 'leader-1', 'co-A', true);
-    expect(revalidatePath).toHaveBeenCalledWith('/manager/team');
+    expect(revalidatePath).toHaveBeenCalledWith('/leader/team');
     expect(revalidatePath).toHaveBeenCalledWith('/manager/dashboard');
   });
 
@@ -76,7 +76,7 @@ describe('setTeamVisibilityAction — happy path', () => {
     expect(res).toEqual({ ok: true, changed: false });
     expect(setTeamVisibility).toHaveBeenCalledWith(expect.anything(), 'leader-1', 'co-A', false);
     // revalidatePath still fires (idempotent, harmless)
-    expect(revalidatePath).toHaveBeenCalledWith('/manager/team');
+    expect(revalidatePath).toHaveBeenCalledWith('/leader/team');
     expect(revalidatePath).toHaveBeenCalledWith('/manager/dashboard');
   });
 });

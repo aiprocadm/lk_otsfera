@@ -149,7 +149,7 @@ describe('createStudentAction (У-24…У-26)', () => {
   it('после успеха обновляются все пять экранов, где сотрудник виден', async () => {
     await createStudentAction(form({ organizationId: ORG, name: 'Иванов' }));
     expect(revalidatePath.mock.calls.map((c) => c[0])).toEqual([
-      '/organization/students',
+      '/organization/company',
       `/partner/portfolio/${ORG}`,
       `/manager/organizations/${ORG}`,
       `/leader/organizations/${ORG}`,
@@ -296,7 +296,7 @@ describe('commitStudentsImportAction (У-28) — шаг записи', () => {
     const res = await commitStudentsImportAction(ORG, []);
     expect(res).toEqual({ ok: true, created: 2, skipped: 1 });
     expect(revalidatePath.mock.calls.map((c) => c[0])).toEqual([
-      '/organization/students',
+      '/organization/company',
       `/partner/portfolio/${ORG}`,
     ]);
   });

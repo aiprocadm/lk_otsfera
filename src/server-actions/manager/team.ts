@@ -57,7 +57,7 @@ export async function leaderAssignManagerAction(formData: FormData): Promise<Lea
   const result = await assignManagerAsLeader(prisma, session, input);
   if (!result.ok) return result;
 
-  revalidatePath('/manager/team');
+  revalidatePath('/leader/team'); // У-263: новый адрес, старый стал перенаправлением
   return result;
 }
 
@@ -79,6 +79,6 @@ export async function leaderDeactivateAssignmentAction(
   });
   if (!result.ok) return result;
 
-  revalidatePath('/manager/team');
+  revalidatePath('/leader/team'); // У-263: новый адрес, старый стал перенаправлением
   return { ok: true };
 }
