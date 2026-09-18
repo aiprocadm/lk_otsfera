@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import { loadXlsxWorkbook } from '../load-xlsx';
+import { sniffWorkbookFormat } from '../workbook';
 
 export type SpreadsheetFormat = 'xls' | 'xlsx';
 
@@ -55,7 +56,22 @@ function readXls(buffer: Buffer): string[][] {
   return rows.map((row) => (row as unknown[]).map(cellToString));
 }
 
-/** Файл (любой поддерживаемый формат) → строки×колонки строк. */
+/**
+ * Файл (любой поддерживаемый формат) → строки×колонки строк.
+ *
+ * **Формат определяется по содержимому, а не по имени** (`У-267`). Раньше
+ * решало расширение, и это был дефект: старый `.xls`, сохранённый или
+ * присланный под именем `.xlsx`, уезжал в ExcelJS, который двоичный формат не
+ * читает вовсе, — человек получал техническую ошибку вместо своих строк.
+ * Загрузчик выписки (`workbook.ts`) научили этому ещё в программе починки
+ * импорта 1С (Т-13/Т-14), а карточку контрагента — нет; два читателя одних и
+ * тех же выгрузок вели себя по-разному.
+ *
+ * Имя файла остаётся запасным вариантом: если по первым байтам формат не
+ * опознан, поведение ровно прежнее — ошибку выдаст сам читатель, и текст её не
+ * изменится.
+ */
 export async function readSpreadsheet(buffer: Buffer, fileName: string): Promise<string[][]> {
-  return sniffFormat(fileName) === 'xls' ? readXls(buffer) : readXlsx(buffer);
+  const format = sniffWorkbookFormat(buffer) ?? sniffFormat(fileName);
+  return format === 'xls' ? readXls(buffer) : readXlsx(buffer);
 }
