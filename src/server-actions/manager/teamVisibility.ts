@@ -23,7 +23,7 @@ export async function setTeamVisibilityAction(input: {
 
   const res = await setTeamVisibility(prisma, session.sub, session.companyId, parsed.data.enabled);
   if (!res.ok) return { ok: false, error: res.error };
-  revalidatePath('/manager/team');
+  revalidatePath('/leader/team'); // У-263: новый адрес, старый стал перенаправлением
   revalidatePath('/manager/dashboard');
   return { ok: true, changed: res.changed };
 }

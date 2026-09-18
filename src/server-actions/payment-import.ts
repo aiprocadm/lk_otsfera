@@ -127,7 +127,7 @@ export async function createOrgsFromQueueRowsAction(args: {
     for (const cabinet of ['/admin', '/leader']) {
       revalidatePath(`${cabinet}/settings/integrations/1c/payments`);
     }
-    revalidatePath('/manager/payments-import');
+    revalidatePath('/admin/settings/integrations/1c/payments'); // У-263: новый адрес
   }
   return res;
 }

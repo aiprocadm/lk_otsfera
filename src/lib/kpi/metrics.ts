@@ -311,7 +311,11 @@ export const KPI_METRICS: KpiMetric[] = [
   },
   {
     key: 'certificates_issued',
-    managerHref: '/manager/students',
+    // `У-263`: было `/manager/students` — адрес давно стал перенаправлением
+    // (`У-103`: сквозной список сотрудников снят, людей смотрят в карточке
+    // организации). Показатель вёл человека через лишний переход, а после
+    // удаления шлюза привёл бы в никуда. Нашёл `npm run report:legacy-links`.
+    managerHref: '/manager/organizations',
     label: 'Удостоверения выданы',
     unit: 'count',
     perManager: false,

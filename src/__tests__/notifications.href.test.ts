@@ -164,7 +164,9 @@ describe('notificationHref', () => {
       expect(
         notificationHref('leader', 'sync_error', { kind: 'push_document_failed', documentId: 'd1' })
       ).toBe('/leader/documents/d1');
-      expect(notificationHref('admin', 'sync_error', {})).toBe('/admin/sync');
+      expect(notificationHref('admin', 'sync_error', {})).toBe(
+        '/admin/settings/integrations/1c/auto'
+      );
       expect(notificationHref('manager', 'sync_error', {})).toBeNull();
     });
   });

@@ -307,7 +307,10 @@ const RULES: Record<NotificationTypeKey, Rule> = {
         // У партнёра нет раздела заявок в 1С — строка остаётся без ссылки.
         return null;
       default:
-        if (c === 'admin') return '/admin/sync';
+        // `У-263`: адрес взят прямой. Было `/admin/sync` — он стал постоянным
+        // перенаправлением в хаб «Настройки», и человек из уведомления шёл через
+        // лишний переход. Нашёл `npm run report:legacy-links`.
+        if (c === 'admin') return '/admin/settings/integrations/1c/auto';
         if (c === 'leader') return '/leader/settings/integrations';
         return null;
     }

@@ -82,7 +82,8 @@ export async function commitStudentsImportAction(
   });
   if (!res.ok) return { ok: false, error: 'Нет прав добавлять сотрудников в эту организацию.' };
 
-  revalidatePath('/organization/students');
+  // `У-263`: сбрасываем кэш нового адреса — старый стал перенаправлением.
+  revalidatePath('/organization/company');
   revalidatePath(`/partner/portfolio/${organizationId}`);
   return res;
 }

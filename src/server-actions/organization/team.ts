@@ -94,7 +94,8 @@ export async function inviteOrgMemberAction(formData: FormData): Promise<
     }
   }
 
-  revalidatePath('/organization/team');
+  // `У-263`: сбрасываем кэш нового адреса — старый стал перенаправлением.
+  revalidatePath('/organization/company');
   return {
     ok: true,
     user: res.user,
@@ -125,7 +126,7 @@ export async function updateOrgMemberRoleAction(formData: FormData): Promise<Act
     actorRole
   );
   if (!res.ok) return { ok: false, error: res.error };
-  revalidatePath('/organization/team');
+  revalidatePath('/organization/company'); // У-263: новый адрес, старый стал перенаправлением
   return { ok: true };
 }
 
@@ -149,7 +150,7 @@ export async function deactivateOrgMemberAction(formData: FormData): Promise<Act
     actorRole
   );
   if (!res.ok) return { ok: false, error: res.error };
-  revalidatePath('/organization/team');
+  revalidatePath('/organization/company'); // У-263: новый адрес, старый стал перенаправлением
   return { ok: true };
 }
 
@@ -173,7 +174,7 @@ export async function reactivateOrgMemberAction(formData: FormData): Promise<Act
     actorRole
   );
   if (!res.ok) return { ok: false, error: res.error };
-  revalidatePath('/organization/team');
+  revalidatePath('/organization/company'); // У-263: новый адрес, старый стал перенаправлением
   return { ok: true };
 }
 

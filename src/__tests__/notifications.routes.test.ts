@@ -126,7 +126,9 @@ describe('notificationRoute — обмен, мониторинг, диалоги
     expect(
       notificationRoute('sync_error', { kind: 'push_lead_failed', leadId: 'l1' }, 'partner')
     ).toBeNull();
-    expect(notificationRoute('sync_error', { kind: 'other' }, 'admin')).toBe('/admin/sync');
+    expect(notificationRoute('sync_error', { kind: 'other' }, 'admin')).toBe(
+      '/admin/settings/integrations/1c/auto'
+    );
     expect(notificationRoute('sync_error', {}, 'leader')).toBe('/leader/settings/integrations');
     expect(notificationRoute('sync_error', {}, 'manager')).toBeNull();
   });

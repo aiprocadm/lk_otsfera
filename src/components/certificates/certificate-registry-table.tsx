@@ -33,7 +33,7 @@ export function CertificateRegistryTable({
 }: {
   rows: CertificateRegistryRow[];
   showOrganization?: boolean;
-  /** База ссылки на карточку сотрудника ('/organization/students') или null — без ссылок. */
+  /** База ссылки на карточку сотрудника или null — без ссылок. */
   studentHrefBase?: string | null;
   emptyMessage?: string;
 }) {

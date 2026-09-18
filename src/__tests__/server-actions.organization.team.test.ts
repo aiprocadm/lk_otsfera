@@ -110,7 +110,7 @@ describe('inviteOrgMemberAction', () => {
       inviteUrl: 'https://app.test/reset-password?token=abc',
       invitedByName: 'Actor',
     });
-    expect(revalidatePath).toHaveBeenCalledWith('/organization/team');
+    expect(revalidatePath).toHaveBeenCalledWith('/organization/company');
   });
 
   it('skips email when user already has password (inviteUrl null)', async () => {
@@ -158,7 +158,7 @@ describe('updateOrgMemberRoleAction', () => {
       'actor-1',
       'admin'
     );
-    expect(revalidatePath).toHaveBeenCalledWith('/organization/team');
+    expect(revalidatePath).toHaveBeenCalledWith('/organization/company');
   });
 
   it('maps self_action_forbidden', async () => {
@@ -183,7 +183,7 @@ describe('deactivateOrgMemberAction', () => {
     deactivateMember.mockResolvedValue({ ok: true });
     const res = await deactivateOrgMemberAction(fd({ organizationId: 'org-1', orgUserId: 'ou-1' }));
     expect(res).toEqual({ ok: true });
-    expect(revalidatePath).toHaveBeenCalledWith('/organization/team');
+    expect(revalidatePath).toHaveBeenCalledWith('/organization/company');
   });
 
   it('maps not_found', async () => {
@@ -198,7 +198,7 @@ describe('reactivateOrgMemberAction', () => {
     reactivateMember.mockResolvedValue({ ok: true });
     const res = await reactivateOrgMemberAction(fd({ organizationId: 'org-1', orgUserId: 'ou-1' }));
     expect(res).toEqual({ ok: true });
-    expect(revalidatePath).toHaveBeenCalledWith('/organization/team');
+    expect(revalidatePath).toHaveBeenCalledWith('/organization/company');
   });
 });
 
@@ -217,7 +217,7 @@ describe('inviteOrgMemberAction — email failure (graceful degradation)', () =>
       fd({ organizationId: 'org-1', email: 'new2@t.local', name: 'N', roleInOrg: 'member' })
     );
     expect(res).toMatchObject({ ok: true, inviteUrl: 'https://app.test/reset-password?token=def' });
-    expect(revalidatePath).toHaveBeenCalledWith('/organization/team');
+    expect(revalidatePath).toHaveBeenCalledWith('/organization/company');
   });
 });
 
