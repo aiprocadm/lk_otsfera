@@ -31,6 +31,12 @@ import { CommunicationsPanel } from '@/components/leader/analytics/communication
 import { SourcesPanel } from '@/components/leader/analytics/sources-panel';
 import { PartnersAnalyticsPanel } from '@/components/leader/analytics/partners-analytics-panel';
 import { CompanyPicker } from '@/components/leader/analytics/company-picker';
+import {
+  ReportsExportPanel,
+  TabExportLink,
+  TAB_REPORT,
+} from '@/components/leader/analytics/reports-export-panel';
+import { REPORTS, canRunReport } from '@/lib/reports/registry';
 import { MonthPicker } from '@/components/leader/analytics/month-picker';
 import { PageHeader } from '@/components/ui/page-header';
 
@@ -77,6 +83,16 @@ export default async function AdminFinancePage({ searchParams }: { searchParams:
   const monthValue = `${year}-${String(month).padStart(2, '0')}`;
   const period = monthRange(year, month);
   const query = companyId ? { company: companyId, month: monthValue } : { month: monthValue };
+
+  /**
+   * Отчёт этой вкладки — если роль вправе его выгружать. Кнопка, ведущая на
+   * отказ, хуже её отсутствия: человек решит, что сломалось.
+   */
+  const tabReportKey = TAB_REPORT[tab];
+  const tabReport =
+    tabReportKey && REPORTS.some((r) => r.key === tabReportKey && canRunReport(r, session))
+      ? tabReportKey
+      : null;
 
   let content: React.ReactNode = null;
   if (analyticsOn && companyId) {
@@ -129,12 +145,19 @@ export default async function AdminFinancePage({ searchParams }: { searchParams:
         olderThanDays: Number(sp.older) || 0,
       });
       content = <ReceivablesPanel data={data} basePath={BASE} query={query} />;
-    } else {
+    } else if (tab === 'partners') {
       content = (
         <PartnersAnalyticsPanel
           data={await getPartnersAnalytics(prisma, { companyId, ...period })}
         />
       );
+    } else {
+      const available = REPORTS.filter((r) => canRunReport(r, session)).map((r) => ({
+        key: r.key,
+        title: r.title,
+        hint: r.hint,
+      }));
+      content = <ReportsExportPanel reports={available} query={query} />;
     }
   }
 
@@ -157,6 +180,8 @@ export default async function AdminFinancePage({ searchParams }: { searchParams:
             <MonthPicker month={monthValue} />
           </div>
           <AnalyticsTabs basePath={BASE} active={tab} query={query} />
+          {/* Отчёт вкладки скачивается прямо отсюда: уходить на «Экспорт» не нужно. */}
+          {tabReport ? <TabExportLink reportKey={tabReport} query={query} /> : null}
           {content}
         </section>
       )}

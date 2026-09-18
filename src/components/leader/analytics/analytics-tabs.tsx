@@ -14,9 +14,13 @@ const ANALYTICS_TABS = [
   { key: 'communications', label: 'Коммуникации' },
   { key: 'receivables', label: 'Дебиторка' },
   { key: 'partners', label: 'Партнёры' },
+  { key: 'export', label: 'Экспорт' },
 ] as const;
 
 export type AnalyticsTabKey = (typeof ANALYTICS_TABS)[number]['key'];
+
+/** Ключи вкладок — для стража полноты реестра отчётов (`У-250`). */
+export const ANALYTICS_TAB_KEYS: readonly AnalyticsTabKey[] = ANALYTICS_TABS.map((t) => t.key);
 
 export function isAnalyticsTab(value: string | undefined): value is AnalyticsTabKey {
   return ANALYTICS_TABS.some((t) => t.key === value);

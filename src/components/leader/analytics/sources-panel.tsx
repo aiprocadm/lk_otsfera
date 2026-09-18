@@ -43,6 +43,7 @@ export function SourcesPanel({ data }: { data: SourcesResult }) {
                 <tr className="border-b border-gray-200 text-left text-xs uppercase text-gray-500">
                   <th className="py-2">Источник</th>
                   <th className="py-2">Лидов</th>
+                  <th className="py-2">Стали сделкой</th>
                   <th className="py-2">Стали заказом</th>
                   <th className="py-2">Конверсия</th>
                 </tr>
@@ -52,6 +53,7 @@ export function SourcesPanel({ data }: { data: SourcesResult }) {
                   <tr key={r.source} className="border-b border-gray-100">
                     <td className="py-2">{r.label}</td>
                     <td className="py-2">{r.leads}</td>
+                    <td className="py-2">{r.deals}</td>
                     <td className="py-2">{r.orders}</td>
                     <td className="py-2">
                       {r.conversionPct === null ? '—' : `${r.conversionPct} %`}
@@ -61,7 +63,8 @@ export function SourcesPanel({ data }: { data: SourcesResult }) {
               </tbody>
             </table>
             <p className="text-sm text-gray-700">
-              Всего: {data.totalLeads} лидов, из них стали заказом {data.totalOrders}
+              Всего: {data.totalLeads} лидов, из них дошли до сделки {data.totalDeals}, стали
+              заказом {data.totalOrders}
               {totalPct !== null && ` (${totalPct} %)`}.
             </p>
           </>

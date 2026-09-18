@@ -176,8 +176,13 @@ describe('Коммуникации', () => {
 });
 
 describe('Источники', () => {
-  function db(leads: unknown[], promoted: unknown[], requests: unknown[]) {
-    const leadGroupBy = vi.fn().mockResolvedValueOnce(leads).mockResolvedValueOnce(promoted);
+  // Порядок важен: сервис спрашивает лиды, потом сделки, потом заказы.
+  function db(leads: unknown[], deals: unknown[], promoted: unknown[], requests: unknown[]) {
+    const leadGroupBy = vi
+      .fn()
+      .mockResolvedValueOnce(leads)
+      .mockResolvedValueOnce(deals)
+      .mockResolvedValueOnce(promoted);
     const prisma = {
       lead: { groupBy: leadGroupBy },
       clientRequest: { groupBy: vi.fn(async () => requests) },
@@ -186,11 +191,12 @@ describe('Источники', () => {
   }
 
   it('ничего не было — пусто, а не ошибка', async () => {
-    const { prisma } = db([], [], []);
+    const { prisma } = db([], [], [], []);
     expect(await getSources(prisma, PERIOD)).toEqual({
       leads: [],
       requests: [],
       totalLeads: 0,
+      totalDeals: 0,
       totalOrders: 0,
     });
   });
@@ -201,24 +207,37 @@ describe('Источники', () => {
         { source: 'website', _count: { _all: 10 } },
         { source: 'call', _count: { _all: 4 } },
       ],
+      [{ source: 'website', _count: { _all: 6 } }],
       [{ source: 'website', _count: { _all: 3 } }],
       [{ source: 'organization_cabinet', _count: { _all: 2 } }]
     );
     const res = await getSources(prisma, PERIOD);
     expect(res.leads[0]).toMatchObject({ label: 'Сайт', leads: 10, orders: 3, conversionPct: 30 });
+    // Средний шаг воронки виден отдельно: из десяти лидов шесть дошли до сделки,
+    // а заказом стали три — потеря видна там, где она случилась (`У-247`).
+    expect(res.leads[0]!.deals).toBe(6);
     // Источник без единого заказа даёт ноль, а не пустоту.
-    expect(res.leads[1]).toMatchObject({ label: 'Звонок', orders: 0, conversionPct: 0 });
+    expect(res.leads[1]).toMatchObject({ label: 'Звонок', deals: 0, orders: 0, conversionPct: 0 });
     expect(res.totalLeads).toBe(14);
+    expect(res.totalDeals).toBe(6);
     expect(res.totalOrders).toBe(3);
     expect(res.requests[0]).toMatchObject({ label: 'Кабинет заказчика', requests: 2 });
     expect(leadGroupBy.mock.calls[0][0].where.OR).toEqual([
       { assignedManager: { companyId: 'c1' } },
       { organization: { companyId: 'c1' } },
     ]);
+    // Сделки спрашиваются той же когортой и с той же границей компании.
+    expect(leadGroupBy.mock.calls[1][0].where).toMatchObject({
+      promotedDealId: { not: null },
+    });
+    expect(leadGroupBy.mock.calls[1][0].where.OR).toEqual([
+      { assignedManager: { companyId: 'c1' } },
+      { organization: { companyId: 'c1' } },
+    ]);
   });
 
   it('незнакомый источник показывается как есть, а не прячется', async () => {
-    const { prisma } = db([{ source: 'новый_канал', _count: { _all: 1 } }], [], []);
+    const { prisma } = db([{ source: 'новый_канал', _count: { _all: 1 } }], [], [], []);
     const res = await getSources(prisma, PERIOD);
     expect(res.leads[0]!.label).toBe('новый_канал');
   });
