@@ -31,7 +31,7 @@ export type KpiMetricKey =
   | 'certificates_issued';
 
 /** Единица измерения — от неё зависит только показ, не расчёт. */
-type KpiUnit = 'money' | 'count' | 'minutes';
+export type KpiUnit = 'money' | 'count' | 'minutes';
 
 /** Факт за период: сколько всего и сколько у каждого ответственного. */
 type KpiFact = {
