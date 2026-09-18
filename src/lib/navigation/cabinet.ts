@@ -104,7 +104,6 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       href: '/admin/requests',
       group: 'Продажи',
       sectionKey: 'requests',
-      flag: 'client_requests',
     },
     {
       href: '/admin/intake',
@@ -169,7 +168,6 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       href: '/admin/enrollments',
       group: 'Клиенты',
       sectionKey: 'enrollments',
-      flag: 'enrollment_requests',
     },
     {
       href: '/admin/training-directions',
@@ -220,7 +218,6 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       href: '/manager/requests',
       group: 'Продажи',
       sectionKey: 'requests',
-      flag: 'client_requests',
       badgeKey: 'clientRequestsNew',
     },
     {
@@ -296,7 +293,6 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       href: '/manager/enrollments',
       group: 'Клиенты',
       sectionKey: 'enrollments',
-      flag: 'enrollment_requests',
     },
     {
       href: '/manager/messages',
@@ -421,14 +417,12 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       href: '/leader/enrollments',
       group: 'Клиенты',
       sectionKey: 'enrollments',
-      flag: 'enrollment_requests',
     },
     {
       // У-8: было «Обращения клиентов» (см. менеджера).
       href: '/leader/requests',
       group: 'Продажи',
       sectionKey: 'requests',
-      flag: 'client_requests',
       badgeKey: 'clientRequestsNew',
     },
     {
@@ -480,16 +474,14 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
     // Было «Мои заявки» (решение §5-1 этапа 11 прошлой программы). У-8/У-76
     // требуют одного имени на объект во всех кабинетах, поэтому здесь и в
     // кабинете организации теперь «Обращения» (решение заказчика 09.08.2026).
-    { href: '/partner/requests', sectionKey: 'requests', flag: 'client_requests' },
+    { href: '/partner/requests', sectionKey: 'requests' },
     {
       href: '/partner/enrollments',
       sectionKey: 'enrollments',
-      flag: 'enrollment_requests',
     },
     {
       href: '/partner/certificates',
       sectionKey: 'certificates',
-      flag: 'certificates_registry',
     },
     { href: '/partner/documents', sectionKey: 'documents' },
     { href: '/partner/finance', sectionKey: 'finance' },
@@ -537,17 +529,14 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
     {
       href: '/organization/requests',
       sectionKey: 'requests',
-      flag: 'client_requests',
     },
     {
       href: '/organization/enrollments',
       sectionKey: 'enrollments',
-      flag: 'enrollment_requests',
     },
     {
       href: '/organization/certificates',
       sectionKey: 'certificates',
-      flag: 'certificates_registry',
     },
     {
       href: '/organization/documents',

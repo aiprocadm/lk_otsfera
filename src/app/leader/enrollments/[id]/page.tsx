@@ -2,7 +2,6 @@ import React from 'react';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
 import { requireManagerLeader } from '@/lib/auth/requireRole';
-import { isFeatureEnabled } from '@/lib/featureFlags';
 import { getEnrollmentRequest } from '@/lib/services/enrollments/detail';
 import { StaffEnrollmentDetail } from '@/components/enrollment/staff-enrollment-detail';
 
@@ -20,7 +19,6 @@ export default async function LeaderEnrollmentDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  if (!isFeatureEnabled('enrollment_requests')) notFound();
   const session = await requireManagerLeader();
   const { id } = await params;
   const res = await getEnrollmentRequest(prisma, session, id);

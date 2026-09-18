@@ -2,7 +2,6 @@ import React from 'react';
 import { notFound } from 'next/navigation';
 import { requirePartner } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
-import { isFeatureEnabled } from '@/lib/featureFlags';
 import { getEnrollmentRequest } from '@/lib/services/enrollments/detail';
 import {
   EnrollmentDetailView,
@@ -18,7 +17,6 @@ export default async function PartnerEnrollmentDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  if (!isFeatureEnabled('enrollment_requests')) notFound();
   const session = await requirePartner();
   const { id } = await params;
   // canSee-чек (§4): getEnrollmentRequest скоупит по сессии — чужая заявка = not_found.

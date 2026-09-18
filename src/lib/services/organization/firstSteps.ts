@@ -1,5 +1,4 @@
 import type { PrismaClient } from '@prisma/client';
-import { isFeatureEnabled } from '@/lib/featureFlags';
 import {
   buildFirstStepsView,
   type FirstStepItem,
@@ -14,14 +13,14 @@ import {
 export type OrgFirstStepsArgs = { organizationId: string; userId: string };
 
 /**
- * Куда вести за первым обращением: раздел под флагом — ссылка не имеет права
- * вести в 404 (тот же принцип, что у «Частых задач»).
+ * Куда вести за первым обращением.
+ *
+ * Раньше адрес выбирался по флагам: раздел под выключенным флагом отвечает
+ * 404, а ссылка «первого шага» не имеет права туда вести. Флаги
+ * `client_requests` и `enrollment_requests` сняты (`У-262`) — раздел обращений
+ * есть всегда, и выбирать больше не из чего.
  */
-function firstRequestHref(): string {
-  if (isFeatureEnabled('client_requests')) return '/organization/requests';
-  if (isFeatureEnabled('enrollment_requests')) return '/organization/enrollments';
-  return '/organization/orders';
-}
+const FIRST_REQUEST_HREF = '/organization/requests';
 
 export async function getOrgFirstSteps(
   prisma: PrismaClient,
@@ -72,7 +71,7 @@ export async function getOrgFirstSteps(
       key: 'firstRequest',
       title: 'Подать первое обращение или заявку',
       hint: 'Расскажите, чему нужно обучить, — менеджер ответит в кабинете',
-      href: firstRequestHref(),
+      href: FIRST_REQUEST_HREF,
       done: requests + enrollments > 0,
     },
   ];

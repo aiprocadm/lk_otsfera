@@ -2,7 +2,6 @@ import React from 'react';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
 import { requirePartner } from '@/lib/auth/requireRole';
-import { isFeatureEnabled } from '@/lib/featureFlags';
 import {
   listCertificates,
   CERTIFICATE_STATUS_FILTERS,
@@ -47,7 +46,6 @@ export default async function PartnerCertificatesPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  if (!isFeatureEnabled('certificates_registry')) notFound();
   const session = await requirePartner();
   const sp = await searchParams;
 

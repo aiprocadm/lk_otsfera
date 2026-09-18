@@ -45,14 +45,12 @@ export function quickTasksFor(role: QuickTasksRole): QuickTask[] {
 const BUILDERS: Record<QuickTasksRole, () => QuickTask[]> = {
   partner: () => {
     const t: QuickTask[] = [];
-    if (isFeatureEnabled('enrollment_requests')) {
-      t.push({
-        href: '/partner/enrollments',
-        title: 'Подать заявку на обучение',
-        hint: 'Список сотрудников и направление обучения',
-        action: 'Подать заявку на обучение',
-      });
-    }
+    t.push({
+      href: '/partner/enrollments',
+      title: 'Подать заявку на обучение',
+      hint: 'Список сотрудников и направление обучения',
+      action: 'Подать заявку на обучение',
+    });
     // `У-105` дословно: у партнёра плитка ведёт в «Портфель» с подсказкой
     // «откройте организацию → Сотрудники». Кнопка живёт внутри карточки
     // конкретного клиента, а какого — знает только человек, поэтому подсказка
@@ -62,13 +60,11 @@ const BUILDERS: Record<QuickTasksRole, () => QuickTask[]> = {
       title: 'Добавить сотрудника',
       hint: 'Откройте организацию → вкладка «Сотрудники»',
     });
-    if (isFeatureEnabled('certificates_registry')) {
-      t.push({
-        href: '/partner/certificates',
-        title: 'Посмотреть удостоверения',
-        hint: 'Кто обучен и когда истекает срок',
-      });
-    }
+    t.push({
+      href: '/partner/certificates',
+      title: 'Посмотреть удостоверения',
+      hint: 'Кто обучен и когда истекает срок',
+    });
     t.push(
       {
         href: '/partner/finance',
@@ -82,14 +78,12 @@ const BUILDERS: Record<QuickTasksRole, () => QuickTask[]> = {
 
   organization: () => {
     const t: QuickTask[] = [];
-    if (isFeatureEnabled('enrollment_requests')) {
-      t.push({
-        href: '/organization/enrollments',
-        title: 'Подать заявку на обучение',
-        hint: 'Список сотрудников и направление обучения',
-        action: 'Подать заявку на обучение',
-      });
-    }
+    t.push({
+      href: '/organization/enrollments',
+      title: 'Подать заявку на обучение',
+      hint: 'Список сотрудников и направление обучения',
+      action: 'Подать заявку на обучение',
+    });
     // `У-105`: плитка ведёт на вкладку «Сотрудники» своей организации —
     // именно там стоит обещанная кнопка (`У-100`).
     t.push({
@@ -98,13 +92,11 @@ const BUILDERS: Record<QuickTasksRole, () => QuickTask[]> = {
       hint: 'В справочник, чтобы выбирать его в заявках',
       action: 'Добавить сотрудника',
     });
-    if (isFeatureEnabled('certificates_registry')) {
-      t.push({
-        href: '/organization/certificates',
-        title: 'Посмотреть удостоверения',
-        hint: 'Кто обучен и когда истекает срок',
-      });
-    }
+    t.push({
+      href: '/organization/certificates',
+      title: 'Посмотреть удостоверения',
+      hint: 'Кто обучен и когда истекает срок',
+    });
     t.push(
       {
         href: '/organization/finance',

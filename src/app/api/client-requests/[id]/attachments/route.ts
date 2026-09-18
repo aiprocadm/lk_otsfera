@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { readFile, readMultipart } from '@/lib/api/multipart';
 import { prisma } from '@/lib/db/prisma';
 import { getSession } from '@/lib/auth/session';
-import { notFoundIfDisabled } from '@/lib/featureFlags';
 import {
   listClientRequestAttachments,
   uploadClientRequestAttachment,
@@ -35,9 +34,6 @@ function mapFailureToResponse(f: ClientRequestAttachmentFailure): Response {
 }
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const disabled = notFoundIfDisabled('client_requests');
-  if (disabled) return disabled;
-
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -53,9 +49,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 }
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const disabled = notFoundIfDisabled('client_requests');
-  if (disabled) return disabled;
-
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

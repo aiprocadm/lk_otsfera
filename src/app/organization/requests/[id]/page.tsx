@@ -2,7 +2,6 @@ import React from 'react';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
 import { getOrgPageContext } from '@/lib/auth/orgPageContext';
-import { isFeatureEnabled } from '@/lib/featureFlags';
 import { getClientRequest } from '@/lib/services/clientRequests/list';
 import { listClientRequestAttachments } from '@/lib/services/clientRequests/attachments';
 import { OrgAppShell } from '@/components/organization/org-app-shell';
@@ -17,7 +16,6 @@ export default async function OrganizationRequestDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  if (!isFeatureEnabled('client_requests')) notFound();
   const ctx = await getOrgPageContext({});
   const { id } = await params;
   // canSee-чек (§4): getClientRequest скоупит по сессии — чужое обращение = not_found.

@@ -386,7 +386,6 @@ describe('ManagerOrgDetailPage', () => {
     );
     let tabs = res.container.textContent ?? '';
     expect(tabs).toContain('leads');
-    expect(tabs).not.toContain('requests');
     expect(tabs).not.toContain('deals');
 
     isFeatureEnabled.mockImplementation(
@@ -426,19 +425,6 @@ describe('ManagerOrgDetailPage — вкладка удостоверений', (
     );
     expect(container.textContent).toContain('certificates');
     expect(container.textContent).toContain('active:certificates');
-  });
-
-  it('скрыта при выключенном флаге — ?tab=certificates падает на «Обзор»', async () => {
-    requireManagerForOrg.mockResolvedValue(SESSION);
-    getOrganizationCard.mockResolvedValue(CARD);
-
-    const { container } = await renderServerComponent(
-      ManagerOrgDetailPage({
-        params: Promise.resolve({ id: 'org-1' }),
-        searchParams: Promise.resolve({ tab: 'certificates' }),
-      })
-    );
-    expect(container.textContent).toContain('active:overview');
   });
 });
 

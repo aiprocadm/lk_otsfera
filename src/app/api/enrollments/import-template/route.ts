@@ -1,7 +1,6 @@
 import ExcelJS from 'exceljs';
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
-import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { canSubmitEnrollments } from '@/lib/services/enrollments/policy';
 import { ENROLLMENT_IMPORT_COLUMNS } from '@/lib/services/enrollments/importRows';
 
@@ -14,8 +13,6 @@ import { ENROLLMENT_IMPORT_COLUMNS } from '@/lib/services/enrollments/importRows
 const BRAND = 'FFF97316'; // оранжевый примитивов UI (§13)
 
 export async function GET() {
-  const disabled = notFoundIfDisabled('enrollment_requests');
-  if (disabled) return disabled;
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!canSubmitEnrollments(session))

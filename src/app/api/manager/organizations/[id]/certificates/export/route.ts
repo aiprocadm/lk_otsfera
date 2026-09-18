@@ -3,7 +3,6 @@ import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import { getSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
 import { canManagerAccessOrg } from '@/lib/auth/managerPolicy';
-import { notFoundIfDisabled } from '@/lib/featureFlags';
 import {
   listCertificates,
   CERTIFICATE_STATUS_FILTERS,
@@ -23,9 +22,6 @@ import { recordPiiAccess } from '@/lib/pii/record';
  */
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  const disabled = notFoundIfDisabled('certificates_registry');
-  if (disabled) return disabled;
-
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   // Этап 9 (PR-1): администратор тоже — та же кнопка на той же карточке

@@ -1,6 +1,5 @@
 'use server';
 import { requireSession } from '@/lib/auth/requireRole';
-import { isFeatureEnabled } from '@/lib/featureFlags';
 import { canSubmitEnrollments } from '@/lib/services/enrollments/policy';
 import { prisma } from '@/lib/db/prisma';
 import {
@@ -18,7 +17,7 @@ const MAX_BYTES = 10 * 1024 * 1024;
  */
 export async function parseEnrollmentImportAction(form: FormData): Promise<EnrollmentImportResult> {
   const session = await requireSession();
-  if (!isFeatureEnabled('enrollment_requests') || !canSubmitEnrollments(session)) {
+  if (!canSubmitEnrollments(session)) {
     return { ok: false, errors: ['Недостаточно прав для импорта слушателей'] };
   }
   const file = form.get('file');

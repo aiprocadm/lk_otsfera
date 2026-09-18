@@ -52,12 +52,6 @@ beforeEach(() => {
 });
 
 describe('POST /api/client-requests/[id]/attachments (multipart upload)', () => {
-  it('404 when feature flag disabled', async () => {
-    vi.mocked(notFoundIfDisabled).mockReturnValue(new Response('Not Found', { status: 404 }));
-    expect((await POST(formReq(), ctx())).status).toBe(404);
-    expect(vi.mocked(notFoundIfDisabled)).toHaveBeenCalledWith('client_requests');
-  });
-
   it('401 unauthenticated', async () => {
     vi.mocked(getSession).mockResolvedValue(null);
     expect((await POST(formReq(), ctx())).status).toBe(401);
@@ -190,11 +184,6 @@ describe('POST /api/client-requests/[id]/attachments (multipart upload)', () => 
 });
 
 describe('GET /api/client-requests/[id]/attachments (list)', () => {
-  it('404 when feature flag disabled', async () => {
-    vi.mocked(notFoundIfDisabled).mockReturnValue(new Response('Not Found', { status: 404 }));
-    expect((await GET(new Request('http://x/'), ctx())).status).toBe(404);
-  });
-
   it('401 unauthenticated', async () => {
     vi.mocked(getSession).mockResolvedValue(null);
     expect((await GET(new Request('http://x/'), ctx())).status).toBe(401);
@@ -227,13 +216,6 @@ describe('GET /api/client-requests/[id]/attachments (list)', () => {
 });
 
 describe('POST /api/client-requests/[id]/attachments/[attachmentId]/download', () => {
-  it('404 when feature flag disabled', async () => {
-    vi.mocked(notFoundIfDisabled).mockReturnValue(new Response('Not Found', { status: 404 }));
-    expect((await DOWNLOAD(new Request('http://x/', { method: 'POST' }), dlCtx())).status).toBe(
-      404
-    );
-  });
-
   it('401 unauthenticated', async () => {
     vi.mocked(getSession).mockResolvedValue(null);
     expect((await DOWNLOAD(new Request('http://x/', { method: 'POST' }), dlCtx())).status).toBe(

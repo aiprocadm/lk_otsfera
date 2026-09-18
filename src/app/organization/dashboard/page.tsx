@@ -6,7 +6,6 @@ import { OrgKpiGrid } from '@/components/organization/org-kpi-grid';
 import { OrgAttentionList } from '@/components/organization/org-attention-list';
 import { OrgEventsFeed } from '@/components/organization/org-events-feed';
 import { OrgEnrollmentsCard } from '@/components/organization/org-enrollments-card';
-import { isFeatureEnabled } from '@/lib/featureFlags';
 import {
   kpis,
   attention,
@@ -32,16 +31,14 @@ export default async function OrganizationDashboardPage({
   const sp = await searchParams;
   const ctx = await getOrgPageContext(sp);
 
-  const enrollmentsEnabled = isFeatureEnabled('enrollment_requests');
-  const certificatesEnabled = isFeatureEnabled('certificates_registry');
   // `У-236`: заказы главной — в границе участника (счётчики, «Требует внимания», лента).
   const scope = await orgOrderScope(prisma, ctx.session, ctx.activeOrgId);
   const [k, a, events, enrollments, expiringCerts, yourManager, firstSteps] = await Promise.all([
     kpis(prisma, ctx.activeOrgId, scope),
     attention(prisma, ctx.activeOrgId, scope),
     recentEvents(prisma, ctx.activeOrgId, undefined, scope),
-    enrollmentsEnabled ? recentEnrollments(prisma, ctx.activeOrgId) : Promise.resolve([]),
-    certificatesEnabled ? expiringCertificates(prisma, ctx.activeOrgId) : Promise.resolve(null),
+    recentEnrollments(prisma, ctx.activeOrgId),
+    expiringCertificates(prisma, ctx.activeOrgId),
     // Этап 6 (`У-240`): кто ведёт заказы организации.
     getOrgYourManager(prisma, ctx.activeOrgId),
     // Этап 6 (`У-239`): чек-лист по данным, «Закрыть» — на членстве.
@@ -68,7 +65,7 @@ export default async function OrganizationDashboardPage({
         <QuickTasks tasks={quickTasksFor('organization')} />
         <YourManagerCard view={yourManager} writeHref="/organization/messages?tab=manager" />
         <OrgKpiGrid kpis={k} expiringCertificates={expiringCerts} />
-        {enrollmentsEnabled && <OrgEnrollmentsCard rows={enrollments} />}
+        <OrgEnrollmentsCard rows={enrollments} />
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <OrgAttentionList data={a} />
           <OrgEventsFeed events={events} />

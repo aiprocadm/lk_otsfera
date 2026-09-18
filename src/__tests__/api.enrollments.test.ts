@@ -162,21 +162,12 @@ describe('POST /api/enrollments', () => {
     expect(res.status).toBe(403);
     expect(await res.json()).toEqual({ error: 'forbidden', messages: [] });
   });
-  it('404 when feature flag disabled', async () => {
-    vi.mocked(notFoundIfDisabled).mockReturnValue(new Response('Not Found', { status: 404 }));
-    expect((await POST(jsonReq({}))).status).toBe(404);
-  });
 });
 
 describe('GET /api/enrollments', () => {
   it('401 unauthenticated', async () => {
     vi.mocked(getSession).mockResolvedValue(null);
     expect((await GET(new Request('http://x/api/enrollments'))).status).toBe(401);
-  });
-
-  it('404 when feature flag disabled', async () => {
-    vi.mocked(notFoundIfDisabled).mockReturnValue(new Response('Not Found', { status: 404 }));
-    expect((await GET(new Request('http://x/api/enrollments'))).status).toBe(404);
   });
 
   it('200 returns result on success', async () => {
@@ -202,12 +193,6 @@ describe('GET /api/enrollments', () => {
 });
 
 describe('PATCH /api/enrollments/[id]', () => {
-  it('404 when feature flag disabled', async () => {
-    vi.mocked(notFoundIfDisabled).mockReturnValue(new Response('Not Found', { status: 404 }));
-    const res = await PATCH(jsonReq({ action: 'approve' }, 'PATCH'), ctx('E1'));
-    expect(res.status).toBe(404);
-  });
-
   it('401 unauthenticated', async () => {
     vi.mocked(getSession).mockResolvedValue(null);
     const res = await PATCH(jsonReq({ action: 'approve' }, 'PATCH'), ctx('E1'));

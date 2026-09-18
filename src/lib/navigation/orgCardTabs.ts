@@ -82,7 +82,6 @@ export const ORG_CARD_TABS: readonly OrgCardTab[] = [
     label: 'Заявки на обучение',
     iconKey: 'enrollments',
     cabinets: ALL,
-    flag: 'enrollment_requests',
   },
   { key: 'documents', label: 'Документы', iconKey: 'documents', cabinets: ALL },
   { key: 'payments', label: 'Оплаты', iconKey: 'finance', cabinets: STAFF },
@@ -91,14 +90,12 @@ export const ORG_CARD_TABS: readonly OrgCardTab[] = [
     label: 'Удостоверения',
     iconKey: 'certificates',
     cabinets: ALL,
-    flag: 'certificates_registry',
   },
   {
     key: 'requests',
     label: 'Обращения',
     iconKey: 'requests',
     cabinets: STAFF_AND_PARTNER,
-    flag: 'client_requests',
   },
   // `У-96`: вкладка показывает `Comment` — разговор клиента и менеджера по
   // заказам. Называлась «Переписка» и стояла под флагом `chat`, хотя чат — это

@@ -48,15 +48,6 @@ describe('PartnerEnrollmentsPage', () => {
     listEnrollmentRequests.mockReset();
   });
 
-  it('calls notFound() when the enrollment_requests flag is disabled (defense-in-depth)', async () => {
-    isFeatureEnabled.mockReturnValue(false);
-
-    await expect(renderServerComponent(PartnerEnrollmentsPage())).rejects.toThrow('NOT_FOUND');
-
-    expect(isFeatureEnabled).toHaveBeenCalledWith('enrollment_requests');
-    expect(requirePartner).not.toHaveBeenCalled();
-  });
-
   it('renders the request form and list, scoping organizations to the partner', async () => {
     isFeatureEnabled.mockReturnValue(true);
     requirePartner.mockResolvedValue(SESSION);

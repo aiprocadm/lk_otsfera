@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { getSession } from '@/lib/auth/session';
-import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { getClientRequestAttachmentDownloadUrl } from '@/lib/services/clientRequests/attachments';
 import { log } from '@/lib/logging';
 
@@ -13,9 +12,6 @@ export async function POST(
   _req: Request,
   { params }: { params: Promise<{ id: string; attachmentId: string }> }
 ) {
-  const disabled = notFoundIfDisabled('client_requests');
-  if (disabled) return disabled;
-
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

@@ -19,7 +19,6 @@ export default async function ManagerRequestDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  if (!isFeatureEnabled('client_requests')) notFound();
   const session = await requireManager();
   const { id } = await params;
 

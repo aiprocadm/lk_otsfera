@@ -4,7 +4,6 @@ import { z } from 'zod';
 import { parseJsonBody } from '@/lib/api/http';
 import { getSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
-import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { submitEnrollmentRequest } from '@/lib/services/enrollments/submit';
 import { listEnrollmentRequests } from '@/lib/services/enrollments/list';
 import { canSubmitEnrollments } from '@/lib/services/enrollments/policy';
@@ -31,8 +30,6 @@ function readItem(raw: unknown) {
 }
 
 export async function POST(req: Request) {
-  const disabled = notFoundIfDisabled('enrollment_requests');
-  if (disabled) return disabled;
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!canSubmitEnrollments(session))
@@ -60,8 +57,6 @@ export async function POST(req: Request) {
 }
 
 export async function GET(req: Request) {
-  const disabled = notFoundIfDisabled('enrollment_requests');
-  if (disabled) return disabled;
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

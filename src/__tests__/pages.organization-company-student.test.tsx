@@ -87,14 +87,6 @@ beforeEach(() => {
 });
 
 describe('Карточка сотрудника в «Моей организации» (У-97, У-100)', () => {
-  it('флаг off → notFound, контекст не запрашивается', async () => {
-    isFeatureEnabled.mockReturnValue(false);
-    await expect(
-      renderServerComponent(OrganizationCompanyStudentPage(props('s1')))
-    ).rejects.toThrow('NOT_FOUND');
-    expect(getOrgPageContext).not.toHaveBeenCalled();
-  });
-
   it('чужой/несуществующий сотрудник → notFound (скоуп активной организации)', async () => {
     isFeatureEnabled.mockReturnValue(true);
     getOrgPageContext.mockResolvedValue(ORG_CTX);

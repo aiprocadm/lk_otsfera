@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
-import { notFoundIfDisabled } from '@/lib/featureFlags';
 import {
   listCertificates,
   CERTIFICATE_STATUS_FILTERS,
@@ -18,8 +17,6 @@ import { renderCertificatesXlsx } from '@/lib/services/certificates/xlsx';
  */
 
 export async function GET(req: Request) {
-  const disabled = notFoundIfDisabled('certificates_registry');
-  if (disabled) return disabled;
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (session.role !== 'organization')

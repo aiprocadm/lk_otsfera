@@ -1,8 +1,6 @@
 import React from 'react';
-import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
 import { getOrgPageContext } from '@/lib/auth/orgPageContext';
-import { isFeatureEnabled } from '@/lib/featureFlags';
 import { listClientRequests } from '@/lib/services/clientRequests/list';
 import { OrgAppShell } from '@/components/organization/org-app-shell';
 import { ClientRequestForm } from '@/components/client-requests/client-request-form';
@@ -13,7 +11,6 @@ export const dynamic = 'force-dynamic';
 
 /** Обращения организации — вопросы в поддержку (этап 5, ФТ-1.2/1.3): форма подачи + свои обращения. */
 export default async function OrganizationRequestsPage() {
-  if (!isFeatureEnabled('client_requests')) notFound();
   const ctx = await getOrgPageContext({});
   const { rows } = await listClientRequests(prisma, ctx.session, {});
   return (

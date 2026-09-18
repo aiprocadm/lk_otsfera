@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
 import { getOrgPageContext } from '@/lib/auth/orgPageContext';
-import { isFeatureEnabled } from '@/lib/featureFlags';
 import { getOrgStudent, listOrgStudentTraining } from '@/lib/services/organization/students';
 import { listCertificates } from '@/lib/services/training/certificates';
 import { OrgAppShell } from '@/components/organization/org-app-shell';
@@ -46,7 +45,6 @@ export default async function OrganizationCompanyStudentPage({
   params: Promise<{ studentId: string }>;
   searchParams: Promise<{ org?: string }>;
 }) {
-  if (!isFeatureEnabled('certificates_registry')) notFound();
   const sp = await searchParams;
   const ctx = await getOrgPageContext(sp);
   const { studentId: id } = await params;

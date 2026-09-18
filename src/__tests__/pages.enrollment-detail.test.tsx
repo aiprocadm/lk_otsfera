@@ -84,15 +84,6 @@ beforeEach(() => {
 });
 
 describe('OrganizationEnrollmentDetailPage', () => {
-  it('флаг off → notFound, контекст не запрашивается', async () => {
-    isFeatureEnabled.mockReturnValue(false);
-    await expect(
-      renderServerComponent(OrganizationEnrollmentDetailPage(props('E1')))
-    ).rejects.toThrow('NOT_FOUND');
-    expect(isFeatureEnabled).toHaveBeenCalledWith('enrollment_requests');
-    expect(getOrgPageContext).not.toHaveBeenCalled();
-  });
-
   it('сервис not_found (чужая заявка) → notFound', async () => {
     isFeatureEnabled.mockReturnValue(true);
     getOrgPageContext.mockResolvedValue(ORG_CTX);
@@ -122,14 +113,6 @@ describe('OrganizationEnrollmentDetailPage', () => {
 });
 
 describe('PartnerEnrollmentDetailPage', () => {
-  it('флаг off → notFound, requirePartner не вызывается', async () => {
-    isFeatureEnabled.mockReturnValue(false);
-    await expect(renderServerComponent(PartnerEnrollmentDetailPage(props('E1')))).rejects.toThrow(
-      'NOT_FOUND'
-    );
-    expect(requirePartner).not.toHaveBeenCalled();
-  });
-
   it('сервис not_found → notFound', async () => {
     isFeatureEnabled.mockReturnValue(true);
     requirePartner.mockResolvedValue(PARTNER_SESSION);

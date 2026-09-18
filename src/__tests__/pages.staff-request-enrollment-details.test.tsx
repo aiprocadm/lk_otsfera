@@ -145,13 +145,6 @@ describe('деталка обращения у сотрудников ЦО (У-1
     expect(notFound).toHaveBeenCalled();
   });
 
-  it('при выключенном флаге раздела экрана нет', async () => {
-    isFeatureEnabled.mockReturnValue(false);
-    await expect(render(ManagerRequestDetailPage as never)).rejects.toThrow('NOT_FOUND');
-    // До сервиса дело не доходит: существование обращения не утекает.
-    expect(getClientRequest).not.toHaveBeenCalled();
-  });
-
   it('закрытое обращение объясняет, почему кнопок нет (§15)', async () => {
     getClientRequest.mockResolvedValue({
       ok: true,

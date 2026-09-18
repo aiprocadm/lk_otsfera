@@ -2,7 +2,6 @@ import React from 'react';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
 import { getOrgPageContext } from '@/lib/auth/orgPageContext';
-import { isFeatureEnabled } from '@/lib/featureFlags';
 import { getEnrollmentRequest } from '@/lib/services/enrollments/detail';
 import { OrgAppShell } from '@/components/organization/org-app-shell';
 import {
@@ -19,7 +18,6 @@ export default async function OrganizationEnrollmentDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  if (!isFeatureEnabled('enrollment_requests')) notFound();
   const ctx = await getOrgPageContext({});
   const { id } = await params;
   // canSee-чек (§4): getEnrollmentRequest скоупит по сессии — чужая заявка = not_found.

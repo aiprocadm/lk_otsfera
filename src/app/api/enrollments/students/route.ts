@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
-import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { canAccessEnrollmentOrg, canSubmitEnrollments } from '@/lib/services/enrollments/policy';
 import { listOrgStudents } from '@/lib/services/organization/students';
 import { recordPiiAccess } from '@/lib/pii/record';
@@ -15,8 +14,6 @@ import { recordPiiAccess } from '@/lib/pii/record';
  */
 
 export async function GET(req: Request) {
-  const disabled = notFoundIfDisabled('enrollment_requests');
-  if (disabled) return disabled;
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!canSubmitEnrollments(session))

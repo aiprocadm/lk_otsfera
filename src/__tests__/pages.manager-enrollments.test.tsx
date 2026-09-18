@@ -53,15 +53,6 @@ describe('ManagerEnrollmentsPage', () => {
     nav.notFound.mockClear();
   });
 
-  it('calls notFound() when the enrollment_requests flag is disabled (before auth check)', async () => {
-    isFeatureEnabled.mockReturnValue(false);
-
-    await expect(renderServerComponent(ManagerEnrollmentsPage())).rejects.toThrow('NOT_FOUND');
-
-    expect(isFeatureEnabled).toHaveBeenCalledWith('enrollment_requests');
-    expect(requireManager).not.toHaveBeenCalled();
-  });
-
   it('renders the enrollment queue + request form when the flag is enabled', async () => {
     isFeatureEnabled.mockReturnValue(true);
     requireManager.mockResolvedValue(SESSION);

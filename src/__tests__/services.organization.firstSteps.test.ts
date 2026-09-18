@@ -98,14 +98,9 @@ describe('getOrgFirstSteps', () => {
       bot: '/organization/settings?tab=profile',
       firstRequest: '/organization/requests',
     });
-    isFeatureEnabled.mockImplementation((f: string) => f === 'enrollment_requests');
-    expect(
-      (await getOrgFirstSteps(casted, ARGS)).items.find((i) => i.key === 'firstRequest')?.href
-    ).toBe('/organization/enrollments');
-    isFeatureEnabled.mockReturnValue(false);
-    expect(
-      (await getOrgFirstSteps(casted, ARGS)).items.find((i) => i.key === 'firstRequest')?.href
-    ).toBe('/organization/orders');
+    // `У-262`: прежде адрес «первого обращения» выбирался по флагам — раздел
+    // под выключенным флагом отвечает 404, и вести туда нельзя. Флаги сняты,
+    // раздел обращений есть всегда, выбирать не из чего.
   });
 
   it('«Закрыть» на членстве прячет блок; членства или организации нет — блок виден без падения', async () => {

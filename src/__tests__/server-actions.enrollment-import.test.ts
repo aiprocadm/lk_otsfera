@@ -46,14 +46,6 @@ beforeEach(() => {
 });
 
 describe('parseEnrollmentImportAction', () => {
-  it('флаг enrollment_requests выключен → «Недостаточно прав…», файл не разбирается', async () => {
-    isFeatureEnabled.mockReturnValue(false);
-    const res = await parseEnrollmentImportAction(formWith(new File(['x'], 'ok.xlsx')));
-    expect(res).toEqual({ ok: false, errors: [RIGHTS_ERROR] });
-    expect(isFeatureEnabled).toHaveBeenCalledWith('enrollment_requests');
-    expect(parseEnrollmentImportWorkbook).not.toHaveBeenCalled();
-  });
-
   it('canSubmitEnrollments=false → та же ошибка прав', async () => {
     canSubmitEnrollments.mockReturnValue(false);
     const res = await parseEnrollmentImportAction(formWith(new File(['x'], 'ok.xlsx')));

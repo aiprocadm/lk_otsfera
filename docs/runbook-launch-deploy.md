@@ -53,7 +53,6 @@
 | Флаг | Env | Класс | Дефолт (unset) | Действие на launch |
 |---|---|---|---|---|
 | `chat` | `FEATURE_CHAT` | opt-in | **OFF** | включить, если чат в первой волне |
-| `enrollment_requests` | `FEATURE_ENROLLMENT_REQUESTS` | opt-in | **OFF** | включить → `1` (T5) |
 | `commission_pdf` / `commission_xlsx` / `pwa_installer` / `pii_access_log` / `document_generation` | соотв. | opt-out | **ON** | ничего не делать |
 
 **Ловушка дефолтов:** «забыл выставить env» ведёт себя противоположно для двух классов — opt-in остаётся **OFF** (кабинет → 404), opt-out остаётся **ON**. Поэтому проверка «все opt-in флаги первой волны явно =1» обязательна (§3.3). Флип любого флага требует **redeploy web И worker** (env фиксируется при старте процесса) — механика и 3 точки чтения описаны в [runbook-staged-rollout-cabinets.md §0](runbook-staged-rollout-cabinets.md).
@@ -104,7 +103,6 @@ npx prisma migrate status          # ожидание: "Database schema is up to
 
 ### 3.3 Включить opt-in флаги первой волны (web + worker)
 ```
-FEATURE_ENROLLMENT_REQUESTS=1
 FEATURE_CHAT=1            # только если чат идёт в первую волну; иначе оставить unset
 ```
 Выставить в env **обоих** процессов (web + worker) → redeploy/restart обоих. Затем верифицировать (≤5 мин):

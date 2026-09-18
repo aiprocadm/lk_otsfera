@@ -331,7 +331,10 @@ describe('AdminOrganizationDetailPage — карточка по реестру (
     for (const own of ['orders', 'documents', 'employees', 'settings']) {
       expect(keys).toContain(own);
     }
-    for (const gated of ['threads', 'calls', 'requests', 'deals', 'certificates']) {
+    // `У-262`: вкладки «Обращения» и «Удостоверения» больше не гейтятся —
+    // флаги `client_requests` и `certificates_registry` сняты, разделы есть
+    // всегда. Под флагами остались переписка, звонки и сделки.
+    for (const gated of ['threads', 'calls', 'deals']) {
       expect(keys).not.toContain(gated);
     }
   });

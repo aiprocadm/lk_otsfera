@@ -24,7 +24,16 @@ import { FEATURE_FLAGS } from '@/lib/featureFlags';
 const REPO_ROOT = join(__dirname, '..', '..');
 
 /** Снятые флаги. Список только растёт: вернуть флаг — отдельное решение. */
-const REMOVED: string[] = ['organization_cabinet', 'manager_cabinet', 'leader_cabinet'];
+const REMOVED: string[] = [
+  // Пачка A (`У-262`): кабинеты ролей.
+  'organization_cabinet',
+  'manager_cabinet',
+  'leader_cabinet',
+  // Пачка B: разделы прежних программ, отгружены и приняты.
+  'enrollment_requests',
+  'client_requests',
+  'certificates_registry',
+];
 
 /** Имя env-переменной флага — та же схема, что у `featureFlagEnvVar`. */
 function envVar(flag: string): string {

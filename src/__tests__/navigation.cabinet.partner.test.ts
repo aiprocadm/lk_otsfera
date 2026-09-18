@@ -50,7 +50,6 @@ describe('navItemsFor (feature-flag filter)', () => {
     process.env.FEATURE_PARTNER_LEADS = '0';
     process.env.FEATURE_ENROLLMENT_REQUESTS = '1'; // admin opt-in items: enrollments + requests + roles
     process.env.FEATURE_ROLE_CONSTRUCTOR = '1';
-    process.env.FEATURE_CLIENT_REQUESTS = '1';
     process.env.FEATURE_INTAKE_INBOX = '1';
     // `У-112`: «Поиск» появился и у админа — под тем же флагом, что у менеджера.
     process.env.FEATURE_GLOBAL_SEARCH = '1';
@@ -301,7 +300,8 @@ describe('navByRole.organization — единый источник', () => {
     const requests = navByRole.organization.find((i) => i.href === '/organization/requests');
     expect(requests?.label).toBe('Обращения');
     // Роут и флаг не переименовываются — только user-facing строка.
-    expect(requests?.flag).toBe('client_requests');
+    // `У-262`: флага у пункта больше нет — раздел есть всегда.
+    expect(requests?.flag).toBeUndefined();
   });
 
   it('«Моя организация» — свой значок, а не значок списка чужих организаций', () => {
@@ -354,6 +354,7 @@ describe('navByRole.partner — состав по ФТ-15.4', () => {
   it('раздел обращений называется «Обращения», роут не тронут', () => {
     const requests = navByRole.partner.find((i) => i.href === '/partner/requests');
     expect(requests?.label).toBe('Обращения');
-    expect(requests?.flag).toBe('client_requests');
+    // `У-262`: флага у пункта больше нет — раздел есть всегда.
+    expect(requests?.flag).toBeUndefined();
   });
 });

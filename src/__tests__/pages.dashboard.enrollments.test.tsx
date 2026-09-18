@@ -133,51 +133,21 @@ beforeEach(() => {
 });
 
 describe('OrganizationDashboardPage — карточка заявок', () => {
-  it('флаг on → заголовок «Заявки на обучение» и вызов recentEnrollments по активной организации', async () => {
-    isFeatureEnabled.mockReturnValue(true);
-
+  it('заголовок «Заявки на обучение» и вызов recentEnrollments по активной организации', async () => {
     const { container } = await renderServerComponent(
       OrganizationDashboardPage({ searchParams: Promise.resolve({}) })
     );
 
-    expect(isFeatureEnabled).toHaveBeenCalledWith('enrollment_requests');
     expect(org.recentEnrollments).toHaveBeenCalledWith(expect.anything(), 'org-1');
     expect(container.textContent).toContain('Заявки на обучение');
-  });
-
-  it('флаг off → карточки нет и recentEnrollments не вызывается', async () => {
-    isFeatureEnabled.mockReturnValue(false);
-
-    const { container } = await renderServerComponent(
-      OrganizationDashboardPage({ searchParams: Promise.resolve({}) })
-    );
-
-    expect(org.recentEnrollments).not.toHaveBeenCalled();
-    expect(container.textContent).not.toContain('Заявки на обучение');
-    // Остальной дашборд живёт как раньше.
-    expect(container.textContent).toContain('Главная');
-    expect(org.kpis).toHaveBeenCalledWith(expect.anything(), 'org-1', null);
   });
 });
 
 describe('PartnerDashboard — карточка заявок', () => {
-  it('флаг on → заголовок «Заявки на обучение» и вызов recentEnrollments со скоупом партнёра', async () => {
-    isFeatureEnabled.mockReturnValue(true);
-
+  it('заголовок «Заявки на обучение» и вызов recentEnrollments со скоупом партнёра', async () => {
     const { container } = await renderServerComponent(PartnerDashboard());
 
     expect(partner.recentEnrollments).toHaveBeenCalledWith(expect.anything(), PARTNER_SCOPE);
     expect(container.textContent).toContain('Заявки на обучение');
-  });
-
-  it('флаг off → карточки нет и recentEnrollments не вызывается', async () => {
-    isFeatureEnabled.mockReturnValue(false);
-
-    const { container } = await renderServerComponent(PartnerDashboard());
-
-    expect(partner.recentEnrollments).not.toHaveBeenCalled();
-    expect(container.textContent).not.toContain('Заявки на обучение');
-    expect(container.textContent).toContain('Главная');
-    expect(partner.recentEvents).toHaveBeenCalledWith(expect.anything(), PARTNER_SCOPE, 10);
   });
 });
