@@ -59,6 +59,15 @@ describe('partnerMaterialCompanyIds', () => {
     });
   });
 
+  it('у администратора партнёра поля назначенных организаций может не быть вовсе', async () => {
+    // В сессии администратора `assignedOrgIds` отсутствует (не пустой массив,
+    // а именно нет поля) — граница по организациям тогда не ставится.
+    const { prisma, raw } = db();
+    const admin = { sub: 'u3', role: 'partner', partnerId: 'p1' } as unknown as SessionPayload;
+    expect(await partnerMaterialCompanyIds(prisma, admin)).toEqual(['c1', 'c2']);
+    expect(raw.organization.findMany.mock.calls[0][0].where.id).toBeUndefined();
+  });
+
   it('пользователь партнёра с назначенными организациями — только их компании', async () => {
     const { prisma, raw } = db();
     await partnerMaterialCompanyIds(prisma, MANAGER);
@@ -137,6 +146,32 @@ describe('partnerMaterialsWhere / listPartnerMaterials', () => {
 
     await listPartnerMaterials(prisma, PARTNER);
     expect(raw.partnerMaterial.findMany.mock.calls[1][0].where.AND).toBeUndefined();
+  });
+
+  it('строка без даты публикации показывает дату правки, а не пустоту', async () => {
+    // Фильтр выборки требует `publishedAt: not null`, но подстраховка в коде
+    // есть: если дата всё-таки пуста, карточка берёт дату последней правки.
+    const { prisma, raw } = db();
+    const updatedAt = new Date('2026-09-10T00:00:00Z');
+    raw.partnerMaterial.findMany.mockResolvedValue([
+      {
+        id: 'm3',
+        title: 'Без даты',
+        description: null,
+        category: 'other',
+        companyId: 'c1',
+        externalUrl: null,
+        publishedAt: null,
+        updatedAt,
+        company: { name: 'УЦ' },
+        files: [],
+      },
+    ]);
+    const rows = await listPartnerMaterials(prisma, PARTNER, {
+      now: new Date('2026-09-17T00:00:00Z'),
+    });
+    expect(rows[0]?.publishedAt).toEqual(updatedAt);
+    expect(rows[0]?.isNew).toBe(false);
   });
 });
 

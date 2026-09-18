@@ -66,6 +66,15 @@ describe('OrgFinanceInvoices', () => {
     expect(out).not.toContain('Сбросить');
   });
 
+  it('у заказа нет номера — в ссылке название, а без названия — слово «Заказ»', () => {
+    // Номер заказу присваивает 1С: до обмена его нет, и ссылка не должна
+    // превращаться в пустое место.
+    const noNumber = html(result([row({ orderNumber: null })]));
+    expect(noNumber).toContain('>Обучение</a>');
+    const noTitle = html(result([row({ orderNumber: null, orderTitle: null })]));
+    expect(noTitle).toContain('>Заказ</a>');
+  });
+
   it('состояния: подписи, подсказки про сопоставление и «не определено» без остатка', () => {
     const out = html(
       result([

@@ -60,6 +60,20 @@ describe('OrgMemberScopeForm', () => {
     );
   });
 
+  it('сеть отвалилась — галочка возвращается, человек видит «Сетевая ошибка»', async () => {
+    // Действие может не ответить вовсе: тогда галочка не должна остаться
+    // в положении, которое на сервер не доехало.
+    action.mockRejectedValue(new Error('offline'));
+    render(
+      React.createElement(OrgMemberScopeForm, { organizationId: 'o1', value: false, canEdit: true })
+    );
+    fireEvent.click(screen.getByRole('checkbox'));
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Сетевая ошибка'));
+    await waitFor(() =>
+      expect((screen.getByRole('checkbox') as HTMLInputElement).checked).toBe(false)
+    );
+  });
+
   it('без права правки — состояние словами, без галочки', () => {
     const { unmount } = render(
       React.createElement(OrgMemberScopeForm, { organizationId: 'o1', value: true, canEdit: false })

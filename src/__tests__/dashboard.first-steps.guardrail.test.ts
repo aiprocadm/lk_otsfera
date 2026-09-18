@@ -13,8 +13,8 @@ import { getPartnerFirstSteps, dismissPartnerFirstSteps } from '@/lib/services/p
  * хранятся; «Закрыть» — отметка на членстве (организация / партнёр), не на
  * пользователе.
  *
- * Мутация (проверено): (1) `done: true` константой в сервисе → «пункт исчезает
- * при выполнении по данным» краснеет; (2) `dismiss*` пишет `user.update` →
+ * Мутация (проверено): (1) `done: true` константой в ЛЮБОМ пункте (в том числе
+ * «Заполнить реквизиты») → «по данным считается каждый пункт» краснеет; (2) `dismiss*` пишет `user.update` →
  * «на членстве, не на User» краснеет; (3) `onboardingDismissedAt` добавлен в
  * `model User` схемы → страж схемы краснеет.
  */
@@ -42,6 +42,44 @@ function orgDb(students: number, dismissedAt: Date | null) {
     },
     clientRequest: { count: vi.fn(async () => 0) },
     enrollmentRequest: { count: vi.fn(async () => 0) },
+  };
+}
+
+/** Те же членства, но КАЖДЫЙ признак выполнен: все пункты обязаны стать `done`. */
+function orgDbAllDone() {
+  return {
+    organizationUser: {
+      findUnique: vi.fn(async () => ({ onboardingDismissedAt: null })),
+      updateMany: vi.fn(async () => ({ count: 1 })),
+    },
+    organization: {
+      findUnique: vi.fn(async () => ({ inn: '7701234567', legalAddress: 'Москва' })),
+    },
+    student: { count: vi.fn(async () => 3) },
+    user: {
+      findUnique: vi.fn(async () => ({ telegramChatId: '42', maxChatId: null })),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+    },
+    clientRequest: { count: vi.fn(async () => 1) },
+    enrollmentRequest: { count: vi.fn(async () => 1) },
+  };
+}
+
+function partnerDbAllDone() {
+  return {
+    partnerUser: {
+      findUnique: vi.fn(async () => ({ onboardingDismissedAt: null })),
+      count: vi.fn(async () => 3),
+      updateMany: vi.fn(async () => ({ count: 1 })),
+    },
+    partner: { findUnique: vi.fn(async () => ({ inn: '7701234567', legalAddress: 'Москва' })) },
+    organization: { count: vi.fn(async () => 2) },
+    user: {
+      findUnique: vi.fn(async () => ({ telegramChatId: '42', maxChatId: null })),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+    },
   };
 }
 
@@ -87,6 +125,48 @@ describe('страж: «Первые шаги» по данным, «Закры�
     });
     expect(pBefore.items.find((i) => i.key === 'firstOrganization')?.done).toBe(false);
     expect(pAfter.items.find((i) => i.key === 'firstOrganization')?.done).toBe(true);
+  });
+
+  it('по данным считается КАЖДЫЙ пункт, а не два известных', async () => {
+    // Прежде страж проверял только «Добавить сотрудников» и «Первая
+    // организация»: подмена любого другого пункта на `done: true` проходила
+    // зелёной. Найдено сводной мутацией этапа (`У-241`). Теперь фиксируется
+    // весь список: одно и то же членство, данные пустые против полных.
+    const empty = await getOrgFirstSteps(orgDb(0, null) as unknown as PrismaClient, {
+      organizationId: 'org1',
+      userId: 'u1',
+    });
+    const full = await getOrgFirstSteps(orgDbAllDone() as unknown as PrismaClient, {
+      organizationId: 'org1',
+      userId: 'u1',
+    });
+    expect(empty.items.length, 'список пунктов пуст — страж охранял бы пустоту').toBeGreaterThan(2);
+    expect(empty.items.length).toBe(full.items.length);
+    for (const item of empty.items) {
+      expect(item.done, `«${item.title}»: выполнен без данных — значит, не по данным`).toBe(false);
+    }
+    for (const item of full.items) {
+      expect(item.done, `«${item.title}»: не выполнен при полных данных`).toBe(true);
+    }
+
+    const pEmpty = await getPartnerFirstSteps(partnerDb(0) as unknown as PrismaClient, {
+      partnerId: 'p1',
+      userId: 'u1',
+      isPartnerAdmin: true,
+    });
+    const pFull = await getPartnerFirstSteps(partnerDbAllDone() as unknown as PrismaClient, {
+      partnerId: 'p1',
+      userId: 'u1',
+      isPartnerAdmin: true,
+    });
+    expect(pEmpty.items.length, 'у партнёра пунктов нет').toBeGreaterThan(2);
+    expect(pEmpty.items.length).toBe(pFull.items.length);
+    for (const item of pEmpty.items) {
+      expect(item.done, `партнёр, «${item.title}»: выполнен без данных`).toBe(false);
+    }
+    for (const item of pFull.items) {
+      expect(item.done, `партнёр, «${item.title}»: не выполнен при полных данных`).toBe(true);
+    }
   });
 
   it('«Закрыть» пишет на членство, а к пользователю не прикасается', async () => {

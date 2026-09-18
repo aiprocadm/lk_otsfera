@@ -149,4 +149,29 @@ describe('notifyPartnerMaterialPublished', () => {
       expect.objectContaining({ materialId: 'm1', error: 'db down' })
     );
   });
+
+  it('сбой не-ошибкой тоже не роняет рассылку — в лог уходит строка', async () => {
+    // База может «бросить» не Error, а строку: тогда `err.message` не
+    // существует и запись в лог сама уронила бы рассылку.
+    const { prisma, raw } = db();
+    raw.partnerMaterial.findUnique.mockRejectedValueOnce('соединение оборвалось');
+    expect(await notifyPartnerMaterialPublished(prisma, 'm1')).toEqual({ recipientsNotified: 0 });
+    expect(logWarn).toHaveBeenCalledWith(
+      '[notifications/partnerMaterials] publish notify failed',
+      expect.objectContaining({ error: 'соединение оборвалось' })
+    );
+  });
+
+  it('у получателя нет имени — в письме нейтральное обращение, а не пустота', async () => {
+    const nameless = { ...user('admin1'), name: '' };
+    const { prisma } = db({
+      partnerUser: {
+        findMany: vi.fn(async () => [{ partnerId: 'p1', assignedOrgIds: [], user: nameless }]),
+      },
+    });
+    await notifyPartnerMaterialPublished(prisma, 'm1');
+    expect(dispatchToRecipient.mock.calls[0][1]).toMatchObject({
+      email: { props: expect.objectContaining({ recipientName: 'партнёр' }) },
+    });
+  });
 });

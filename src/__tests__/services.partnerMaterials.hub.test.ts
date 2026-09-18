@@ -2,18 +2,19 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
-const { recordAudit, upload, add, notify, logWarn } = vi.hoisted(() => ({
+const { recordAudit, upload, add, notify, logWarn, logError } = vi.hoisted(() => ({
   recordAudit: vi.fn(),
   upload: vi.fn(),
   add: vi.fn(),
   notify: vi.fn(),
   logWarn: vi.fn(),
+  logError: vi.fn(),
 }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
 vi.mock('@/lib/storage', () => ({ getObjectStorage: () => ({ upload }) }));
 vi.mock('@/lib/jobs/queues', () => ({ getQueue: () => ({ add }) }));
 vi.mock('@/lib/notifications/partnerMaterials', () => ({ notifyPartnerMaterialPublished: notify }));
-vi.mock('@/lib/logging', () => ({ log: { warn: logWarn, error: vi.fn(), info: vi.fn() } }));
+vi.mock('@/lib/logging', () => ({ log: { warn: logWarn, error: logError, info: vi.fn() } }));
 vi.mock('@/lib/services/admin/companyBranding', () => ({
   guardCompany: (s: SessionPayload, c: string) =>
     s.role === 'admin' || (s.role === 'leader' && s.companyId === c)
@@ -296,6 +297,29 @@ describe('createMaterial', () => {
     expect(await createMaterial(prisma, ADMIN, 'c1', input, pdf)).toEqual({ ok: true, id: 'm3' });
     expect(logWarn).toHaveBeenCalled();
   });
+
+  it('сбои не-ошибкой тоже не роняют создание — в лог уходит строка', async () => {
+    // Хранилище и очередь могут «бросить» не Error, а строку: тогда `e.message`
+    // не существует и сама запись в лог уронила бы запрос.
+    const { prisma, raw } = db();
+    upload.mockRejectedValueOnce('соединение оборвалось');
+    expect(await createMaterial(prisma, ADMIN, 'c1', input, pdf)).toEqual({
+      ok: false,
+      error: 'storage',
+    });
+    expect(logError).toHaveBeenCalledWith(
+      '[partnerMaterials] upload failed',
+      expect.objectContaining({ error: 'соединение оборвалось' })
+    );
+
+    raw.partnerMaterial.create.mockResolvedValue({ id: 'm4', files: [{ id: 'f10' }] });
+    add.mockRejectedValueOnce('очередь недоступна');
+    expect(await createMaterial(prisma, ADMIN, 'c1', input, pdf)).toEqual({ ok: true, id: 'm4' });
+    expect(logWarn).toHaveBeenCalledWith(
+      '[partnerMaterials] enqueue scan failed',
+      expect.objectContaining({ error: 'очередь недоступна' })
+    );
+  });
 });
 
 describe('updateMaterial', () => {
@@ -406,6 +430,21 @@ describe('replaceMaterialFile', () => {
       })
     );
   });
+
+  it('первый файл у материала без файла: в аудите «было» пусто, а не выдумано', async () => {
+    // Материал-ссылку можно дополнить файлом: прежней версии нет, и запись
+    // аудита обязана честно сказать «было: ничего».
+    const { prisma, raw } = db();
+    raw.partnerMaterial.findUnique.mockResolvedValue(material({ files: [] }));
+    expect(await replaceMaterialFile(prisma, LEADER, 'm1', pdf)).toEqual({
+      ok: true,
+      fileId: 'f2',
+    });
+    expect(recordAudit).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({ before: { fileId: null } })
+    );
+  });
 });
 
 describe('publishMaterial', () => {
@@ -465,6 +504,15 @@ describe('publishMaterial', () => {
     expect(logWarn).toHaveBeenCalledWith(
       '[partnerMaterials] publish notify failed',
       expect.objectContaining({ materialId: 'm1' })
+    );
+
+    // Сбой не-ошибкой: `err.message` не существует, и сама запись в лог
+    // уронила бы публикацию, если бы не подстраховка.
+    notify.mockRejectedValueOnce('почта молчит');
+    expect(await publishMaterial(prisma, ADMIN, 'm1')).toEqual({ ok: true });
+    expect(logWarn).toHaveBeenCalledWith(
+      '[partnerMaterials] publish notify failed',
+      expect.objectContaining({ error: 'почта молчит' })
     );
   });
 });

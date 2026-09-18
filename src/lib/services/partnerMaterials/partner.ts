@@ -154,7 +154,14 @@ export async function getPartnerMaterialForDownload(
     action: 'partner_material_downloaded',
     entity: 'partner_material',
     entityId: m.id,
-    after: { partnerId: session.partnerId ?? null, fileId: file.id, fileName: file.fileName },
+    after: {
+      // Недостижимо: без `partnerId` список компаний пуст и функция вышла выше
+      // с `not_found`; `?? null` оставлен как страховка типа.
+      /* v8 ignore next */
+      partnerId: session.partnerId ?? null,
+      fileId: file.id,
+      fileName: file.fileName,
+    },
   });
   return { ok: true, path: file.path, fileName: file.fileName, mimeType: file.mimeType };
 }
