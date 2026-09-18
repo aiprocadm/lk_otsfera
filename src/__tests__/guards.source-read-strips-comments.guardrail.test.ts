@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
+import { stripComments } from '@/lib/acceptance/screenRules';
 import { join } from 'node:path';
 
 /**
@@ -154,11 +155,28 @@ function rawReadCalls(src: string): Array<{ call: string; wrapped: boolean }> {
   }
 }
 
-type Guard = { file: string; src: string };
+type Guard = { file: string; src: string; code: string };
 
+/**
+ * `src` — исходник стража как есть, `code` — он же без комментариев.
+ *
+ * Разделение появилось `У-261`: страж мёртвых моделей пояснял в комментарии,
+ * почему путь к схеме пишется прямо в вызове, — и упоминание
+ * «readFileSync(SCHEMA, …)» внутри этого пояснения было засчитано как
+ * настоящий вызов. Проверка, существующая ровно затем, чтобы комментарий не
+ * считали кодом, сама наступила на эти грабли — только с другой стороны:
+ * ложное срабатывание вместо пропуска.
+ *
+ * Поиск ВЫЗОВОВ идёт по `code`. Поиск УПОМИНАНИЙ помощника (`readSource`,
+ * `stripComments`) остаётся по `src`: там комментарий — такое же
+ * свидетельство намерения, как и код, и снимать его незачем.
+ */
 const guards: Guard[] = readdirSync(TESTS_DIR)
   .filter((f) => f.endsWith('.guardrail.test.ts'))
-  .map((f) => ({ file: f, src: readFileSync(join(TESTS_DIR, f), 'utf8') }));
+  .map((f) => {
+    const src = readFileSync(join(TESTS_DIR, f), 'utf8');
+    return { file: f, src, code: stripComments(src) };
+  });
 
 describe('стражи, читающие исходник, не считают комментарий кодом', () => {
   it('в папке вообще есть стражи (иначе проверка ничего не значит)', () => {
@@ -169,7 +187,7 @@ describe('стражи, читающие исходник, не считают �
     const offenders = guards
       .filter(
         (g) =>
-          g.src.includes('readFileSync(') &&
+          g.code.includes('readFileSync(') &&
           presenceChecks(g.src) > 0 &&
           !g.src.includes('readSource') &&
           !g.src.includes('stripComments') &&
@@ -185,7 +203,7 @@ describe('стражи, читающие исходник, не считают �
           // (`У-260`) это не всплывало — ни один страж, читающий не-код, не
           // проверял НАЛИЧИЕ строки. Вторая проверка ниже смотрела на текст
           // вызова с самого начала; теперь так делают обе.
-          rawReadCalls(g.src).some(
+          rawReadCalls(g.code).some(
             ({ call, wrapped }) => !wrapped && !NOT_CODE.some((m) => call.includes(m))
           )
       )
@@ -220,7 +238,7 @@ describe('стражи, читающие исходник, не считают �
       // отсутствия, и счётчик давал ноль (прогон №28). Считаем правило общим:
       // проверке ОТСУТСТВИЯ снятие комментариев не вредит (закомментированное
       // нарушение — не нарушение), а проверке наличия — спасает.
-      for (const { call, wrapped } of rawReadCalls(g.src)) {
+      for (const { call, wrapped } of rawReadCalls(g.code)) {
         if (!wrapped && !NOT_CODE.some((m) => call.includes(m))) {
           offenders.push(`${g.file}: ${call.replace(/\s+/g, ' ').slice(0, 80)}`);
         }

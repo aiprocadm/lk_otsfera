@@ -336,7 +336,6 @@ model User {
   clientRequestsTriaged        ClientRequest[]              @relation("ClientRequestTriager")
   clientRequestAttachments     ClientRequestAttachment[]    @relation("ClientRequestAttachmentAuthor")
   commissionStatementsAuthored CommissionStatement[]        @relation("CommissionAuthor")
-  savedViews                   SavedView[]                  @relation("SavedViewOwner")
   passwordResetTokens          PasswordResetToken[]
   twoFactorChallenge           TwoFactorChallenge?
   twoFactorBackupCodes         TwoFactorBackupCode[]
@@ -676,21 +675,6 @@ model Payment {
   @@index([organizationId])
   @@index([paidAt])
   @@index([externalId])
-}
-
-model SavedView {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  userId    String
-  user      User     @relation("SavedViewOwner", fields: [userId], references: [id])
-  scope     String
-  name      String
-  filters   Json
-  isDefault Boolean  @default(false)
-  isShared  Boolean  @default(false)
-
-  @@index([userId, scope])
 }
 
 model SyncLog {
@@ -1392,7 +1376,6 @@ model Order {
   manager                  User?                     @relation("OrderManager", fields: [managerId], references: [id])
   documents                Document[]
   comments                 Comment[]
-  uploads                  Upload[]
   payments                 Payment[]
   promotedFromLead         Lead?                     @relation("LeadPromoted")
   commissionItems          CommissionStatementItem[]
@@ -1718,17 +1701,6 @@ model Comment {
   // Остаётся для «мои комментарии по этому заказу» (история доступа менеджера,
   // uploads.ts / comments/post.ts) — там `authorId` селективнее.
   @@index([authorId, orderId])
-}
-
-model Upload {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  filename  String
-  path      String
-  size      Int
-  orderId   String
-  order     Order    @relation(fields: [orderId], references: [id])
 }
 
 model AuditLog {
