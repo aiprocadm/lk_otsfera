@@ -149,6 +149,26 @@ describe('AdminFinancePage', () => {
     expect(getByTestId('kpi-plan-fact')).toBeTruthy();
   });
 
+  it('выгрузка несёт выбранную компанию: и кнопка вкладки, и список «Экспорта»', async () => {
+    const onTab = await renderServerComponent(
+      AdminFinancePage({
+        searchParams: sp({ month: '2026-05', company: 'c2', tab: 'receivables' }),
+      })
+    );
+    // Без компании в адресе администратор скачал бы отчёт «ни по какой» компании.
+    expect(onTab.getByTestId('tab-download-receivables').getAttribute('href')).toContain(
+      'company=c2'
+    );
+
+    const onExport = await renderServerComponent(
+      AdminFinancePage({ searchParams: sp({ month: '2026-05', company: 'c2', tab: 'export' }) })
+    );
+    const link = onExport.container.querySelector(
+      '[data-testid="report-download-manager_load"]'
+    ) as HTMLAnchorElement | null;
+    expect(link?.getAttribute('href')).toContain('company=c2');
+  });
+
   it('компания берётся из адреса; чужой идентификатор — первая по алфавиту', async () => {
     await renderServerComponent(AdminFinancePage({ searchParams: sp({ company: 'c2' }) }));
     expect(getKpiPlanFact.mock.calls[0][1]).toMatchObject({ companyId: 'c2' });
@@ -191,7 +211,13 @@ describe('AdminFinancePage', () => {
         conversionPct: null,
       },
     });
-    getSources.mockResolvedValue({ leads: [], requests: [], totalLeads: 0, totalOrders: 0 });
+    getSources.mockResolvedValue({
+      leads: [],
+      requests: [],
+      totalLeads: 0,
+      totalDeals: 0,
+      totalOrders: 0,
+    });
 
     await renderServerComponent(
       AdminFinancePage({ searchParams: sp({ company: 'c2', tab: 'funnel' }) })

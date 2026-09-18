@@ -29,6 +29,12 @@ import { ReceivablesPanel } from '@/components/leader/analytics/receivables-pane
 import { CommunicationsPanel } from '@/components/leader/analytics/communications-panel';
 import { SourcesPanel } from '@/components/leader/analytics/sources-panel';
 import { PartnersAnalyticsPanel } from '@/components/leader/analytics/partners-analytics-panel';
+import {
+  ReportsExportPanel,
+  TabExportLink,
+  TAB_REPORT,
+} from '@/components/leader/analytics/reports-export-panel';
+import { REPORTS, canRunReport } from '@/lib/reports/registry';
 import { PageHeader } from '@/components/ui/page-header';
 
 /**
@@ -66,6 +72,16 @@ export default async function LeaderAnalyticsPage({
   const monthValue = `${year}-${String(month).padStart(2, '0')}`;
   const period = monthRange(year, month);
   const query = { month: monthValue };
+
+  /**
+   * Отчёт этой вкладки — если роль вправе его выгружать. Кнопка, ведущая на
+   * отказ, хуже её отсутствия: человек решит, что сломалось.
+   */
+  const tabReportKey = TAB_REPORT[tab];
+  const tabReport =
+    tabReportKey && REPORTS.some((r) => r.key === tabReportKey && canRunReport(r, session))
+      ? tabReportKey
+      : null;
 
   let content: React.ReactNode = null;
 
@@ -112,10 +128,18 @@ export default async function LeaderAnalyticsPage({
       olderThanDays: Number(sp.older) || 0,
     });
     content = <ReceivablesPanel data={data} basePath={BASE} query={query} />;
-  } else {
+  } else if (tab === 'partners') {
     content = (
       <PartnersAnalyticsPanel data={await getPartnersAnalytics(prisma, { companyId, ...period })} />
     );
+  } else {
+    // Что человеку доступно, решает сервер: список приходит уже отфильтрованным.
+    const available = REPORTS.filter((r) => canRunReport(r, session)).map((r) => ({
+      key: r.key,
+      title: r.title,
+      hint: r.hint,
+    }));
+    content = <ReportsExportPanel reports={available} query={query} />;
   }
 
   return (
@@ -126,6 +150,8 @@ export default async function LeaderAnalyticsPage({
       />
       <MonthPicker month={monthValue} />
       <AnalyticsTabs basePath={BASE} active={tab} query={query} />
+      {/* Отчёт вкладки скачивается прямо отсюда: уходить на «Экспорт» не нужно. */}
+      {tabReport ? <TabExportLink reportKey={tabReport} query={query} /> : null}
       {content}
     </div>
   );

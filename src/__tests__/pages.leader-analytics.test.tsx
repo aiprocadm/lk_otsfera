@@ -147,7 +147,13 @@ describe('LeaderAnalyticsPage — вкладки (У-243)', () => {
       calls: { inbound: 0, answered: 0, missed: 0, outbound: 0 },
       slaHours: 24,
     });
-    getSources.mockResolvedValue({ leads: [], requests: [], totalLeads: 0, totalOrders: 0 });
+    getSources.mockResolvedValue({
+      leads: [],
+      requests: [],
+      totalLeads: 0,
+      totalDeals: 0,
+      totalOrders: 0,
+    });
     getPartnersAnalytics.mockResolvedValue({
       rows: [],
       totalAccrued: '0.00',
@@ -247,6 +253,37 @@ describe('LeaderAnalyticsPage — вкладки (У-243)', () => {
         LeaderAnalyticsPage({ searchParams: sp({ month: '2026-05', tab: 'funnel' }) })
       )
     ).rejects.toThrow('NOT_FOUND');
+  });
+
+  it('вкладка «Экспорт»: список отчётов, ни один отчёт аналитики не считается', async () => {
+    const { getByTestId } = await renderServerComponent(
+      LeaderAnalyticsPage({ searchParams: sp({ month: '2026-05', tab: 'export' }) })
+    );
+    expect(getByTestId('reports-export')).toBeTruthy();
+    // Список — это ссылки; считать данные шести отчётов ради него не нужно.
+    expect(getKpiPlanFact).not.toHaveBeenCalled();
+    expect(getReceivables).not.toHaveBeenCalled();
+    expect(getByTestId('report-download-receivables').getAttribute('href')).toContain(
+      '/api/reports/receivables/export?month=2026-05'
+    );
+  });
+
+  it('на обычной вкладке есть своя кнопка «Скачать XLSX», на «Экспорте» её нет', async () => {
+    const onTab = await renderServerComponent(
+      LeaderAnalyticsPage({ searchParams: sp({ month: '2026-05', tab: 'receivables' }) })
+    );
+    expect(onTab.getByTestId('tab-download-receivables').getAttribute('href')).toContain(
+      '/api/reports/receivables/export?month=2026-05'
+    );
+
+    const onExport = await renderServerComponent(
+      LeaderAnalyticsPage({ searchParams: sp({ month: '2026-05', tab: 'export' }) })
+    );
+    // Ищем в СВОЁМ куске разметки: обе отрисовки живут в одном документе.
+    expect(
+      onExport.container.querySelector('[data-testid="tab-download-receivables"]'),
+      'на «Экспорте» кнопка вкладки была бы дублем списка'
+    ).toBeNull();
   });
 
   it('у сотрудника без компании отчётов нет вовсе', async () => {
