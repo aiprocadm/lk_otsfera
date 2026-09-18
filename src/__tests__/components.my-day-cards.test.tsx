@@ -20,7 +20,7 @@ const EMPTY: MyDayData = {
   dealsOpen: 0,
   dealsByStage: [],
   inboundFresh: 0,
-  callsMissed: 0,
+  callsUnsorted: 0,
   // `У-226` (этап 4): четыре новых показателя сводки.
   dialogsWaiting: 0,
   proposalsExpiring: 0,
@@ -44,7 +44,7 @@ const FULL: MyDayData = {
     { stageName: 'Счёт', count: 2 },
   ],
   inboundFresh: 4,
-  callsMissed: 1,
+  callsUnsorted: 1,
   dialogsWaiting: 4,
   proposalsExpiring: 2,
   checklistOpen: 9,
@@ -115,8 +115,10 @@ describe('MyDayCards', () => {
     expect(html).toContain('Счёт');
   });
 
-  it('пропущенные звонки показаны внутри карточки обращений', () => {
-    expect(render(FULL)).toContain('Пропущенные звонки за сутки');
+  it('входящие без разбора показаны внутри карточки обращений', () => {
+    // `Р-Э7-6`: счётчик про очередь разбора, а не про неотвеченные звонки —
+    // подпись обещала не то, что считается.
+    expect(render(FULL)).toContain('Входящие без разбора за сутки');
   });
 
   it('заголовок раздела связан с секцией через aria-labelledby', () => {

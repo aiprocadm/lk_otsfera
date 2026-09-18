@@ -32,6 +32,22 @@ vi.mock('@/components/manager/manager-kpi-grid', () => ({
     React.createElement('div', { 'data-testid': 'kpi-grid' }, JSON.stringify(props.data)),
 }));
 
+// `У-245` (этап 7): блок «Мои KPI за месяц» под флагом этапа.
+const { getMyKpi, isFeatureEnabled } = vi.hoisted(() => ({
+  getMyKpi: vi.fn(),
+  isFeatureEnabled: vi.fn(),
+}));
+vi.mock('@/lib/services/manager/myKpi', () => ({ getMyKpi }));
+vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
+vi.mock('@/components/manager/my-kpi-grid', () => ({
+  MyKpiGrid: (props: { rows: unknown[]; month: string }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'my-kpi' },
+      `${props.month}:${JSON.stringify(props.rows)}`
+    ),
+}));
+
 vi.mock('@/components/manager/manager-attention-list', () => ({
   ManagerAttentionList: (props: { items: unknown[] }) =>
     React.createElement('div', { 'data-testid': 'attention-list' }, JSON.stringify(props.items)),
@@ -58,6 +74,10 @@ describe('ManagerDashboard', () => {
     recentEvents.mockReset();
     getMyDay.mockReset();
     getMyDay.mockResolvedValue({ tasksToday: 0 });
+    getMyKpi.mockReset();
+    getMyKpi.mockResolvedValue([{ metric: 'revenue_paid', fact: '10' }]);
+    isFeatureEnabled.mockReset();
+    isFeatureEnabled.mockReturnValue(false);
   });
 
   it('fetches kpis/attention/events in parallel, resolving teamMode ONCE for all three', async () => {
@@ -83,6 +103,52 @@ describe('ManagerDashboard', () => {
     expect(container.textContent).toContain('activeOrders');
     expect(container.textContent).toContain('a1');
     expect(container.textContent).toContain('e1');
+  });
+
+  it('флаг выключен — блока «Мои KPI» нет и считать его не начинают', async () => {
+    requireManager.mockResolvedValue(SESSION);
+    kpis.mockResolvedValue({});
+    attention.mockResolvedValue([]);
+    recentEvents.mockResolvedValue([]);
+
+    const { queryByTestId } = await renderServerComponent(ManagerDashboard());
+
+    expect(queryByTestId('my-kpi')).toBeNull();
+    // Считать показатели впустую — платить за экран, которого не видно.
+    expect(getMyKpi).not.toHaveBeenCalled();
+  });
+
+  it('флаг включён — считаются МОИ показатели за текущий месяц', async () => {
+    isFeatureEnabled.mockReturnValue(true);
+    requireManager.mockResolvedValue(SESSION);
+    kpis.mockResolvedValue({});
+    attention.mockResolvedValue([]);
+    recentEvents.mockResolvedValue([]);
+
+    const { getByTestId } = await renderServerComponent(ManagerDashboard());
+
+    expect(isFeatureEnabled).toHaveBeenCalledWith('leader_analytics');
+    const args = getMyKpi.mock.calls[0] as unknown as [unknown, Record<string, unknown>];
+    expect(args[1], 'показатели считаются не за себя или не за свою компанию').toMatchObject({
+      companyId: 'c1',
+      managerId: 'u1',
+    });
+    expect(getByTestId('my-kpi').textContent).toContain('revenue_paid');
+  });
+
+  it('у сотрудника без компании блок не считается, а страница цела', async () => {
+    isFeatureEnabled.mockReturnValue(true);
+    requireManager.mockResolvedValue({ sub: 'u2', role: 'manager' as const });
+    getCompanyTeamVisibility.mockResolvedValue(false);
+    kpis.mockResolvedValue({});
+    attention.mockResolvedValue([]);
+    recentEvents.mockResolvedValue([]);
+
+    const { queryByTestId, container } = await renderServerComponent(ManagerDashboard());
+
+    expect(getMyKpi).not.toHaveBeenCalled();
+    expect(queryByTestId('my-kpi')).toBeNull();
+    expect(container.textContent).toContain('Главная');
   });
 
   it('renders with empty attention/events arrays', async () => {

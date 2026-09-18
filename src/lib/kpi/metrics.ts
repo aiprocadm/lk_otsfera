@@ -48,6 +48,14 @@ export type KpiMetric = {
   unit: KpiUnit;
   /** Есть ли у объекта ответственный (`Р-Э7-3`). */
   perManager: boolean;
+  /**
+   * Куда ведёт плитка «Мои KPI» в кабинете менеджера (`У-245`).
+   *
+   * Живёт в реестре, а не в компоненте: плитка без ссылки — тупик («вижу
+   * число и не понимаю, из чего оно»), а забывчивость ловится стражем
+   * полноты реестра, а не ревью.
+   */
+  managerHref: string;
   /** Одна строка: что именно считается. Показывается в хабе KPI. */
   hint: string;
   compute: (
@@ -135,6 +143,7 @@ async function firstResponseRows(
 export const KPI_METRICS: KpiMetric[] = [
   {
     key: 'revenue_paid',
+    managerHref: '/manager/finance',
     label: 'Оплачено',
     unit: 'money',
     perManager: true,
@@ -158,6 +167,7 @@ export const KPI_METRICS: KpiMetric[] = [
   },
   {
     key: 'orders_created',
+    managerHref: '/manager/orders',
     label: 'Заказы заведены',
     unit: 'count',
     perManager: true,
@@ -173,6 +183,7 @@ export const KPI_METRICS: KpiMetric[] = [
   },
   {
     key: 'leads_created',
+    managerHref: '/manager/leads',
     label: 'Лиды заведены',
     unit: 'count',
     perManager: true,
@@ -188,6 +199,7 @@ export const KPI_METRICS: KpiMetric[] = [
   },
   {
     key: 'proposals_sent',
+    managerHref: '/manager/documents?type=commercial_proposal',
     label: 'КП отправлено',
     unit: 'count',
     perManager: true,
@@ -208,6 +220,7 @@ export const KPI_METRICS: KpiMetric[] = [
   },
   {
     key: 'deals_won',
+    managerHref: '/manager/deals',
     label: 'Сделки выиграны',
     unit: 'count',
     perManager: true,
@@ -223,6 +236,7 @@ export const KPI_METRICS: KpiMetric[] = [
   },
   {
     key: 'calls_outbound',
+    managerHref: '/manager/calls',
     label: 'Звонки исходящие',
     unit: 'count',
     perManager: true,
@@ -238,6 +252,7 @@ export const KPI_METRICS: KpiMetric[] = [
   },
   {
     key: 'dialogs_answered',
+    managerHref: '/manager/messengers',
     label: 'Диалоги с ответом',
     unit: 'count',
     perManager: true,
@@ -249,6 +264,7 @@ export const KPI_METRICS: KpiMetric[] = [
   },
   {
     key: 'avg_first_response_min',
+    managerHref: '/manager/messengers',
     label: 'Среднее время первого ответа',
     unit: 'minutes',
     perManager: true,
@@ -272,6 +288,7 @@ export const KPI_METRICS: KpiMetric[] = [
   },
   {
     key: 'tasks_overdue',
+    managerHref: '/manager/tasks',
     label: 'Просроченные задачи',
     unit: 'count',
     perManager: true,
@@ -294,6 +311,7 @@ export const KPI_METRICS: KpiMetric[] = [
   },
   {
     key: 'certificates_issued',
+    managerHref: '/manager/students',
     label: 'Удостоверения выданы',
     unit: 'count',
     perManager: false,

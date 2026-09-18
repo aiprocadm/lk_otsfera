@@ -18,37 +18,55 @@ const PERIOD = { companyId: 'c1', from: new Date('2026-09-01'), to: new Date('20
 beforeEach(() => vi.clearAllMocks());
 
 describe('Дебиторка', () => {
-  function db(orders: unknown[]) {
-    const findMany = vi.fn(async () => orders);
+  /**
+   * Дебиторка считается ГРУППИРОВКОЙ в базе, а не выборкой всех заказов в
+   * память: на ста тысячах заказов второе перестало укладываться в бюджет
+   * `У-248`. Поэтому подменяются `groupBy`, справочник организаций и сырой
+   * запрос «ответственный у самого старого долга».
+   */
+  function db(groups: unknown[], orgs: unknown[] = [{ id: 'o1', name: 'Ромашка' }]) {
+    const groupBy = vi.fn(async () => groups);
+    const orgFindMany = vi.fn(async () => orgs);
+    const queryRaw = vi.fn(async () => [
+      { organizationId: 'o1', name: 'Иванов', email: 'i@x' },
+      { organizationId: 'o2', name: null, email: 'v@x' },
+    ]);
     // Аргументы читаются как `unknown[][]`: у `vi.fn` без параметров кортеж
     // пустой, и точечный доступ `calls[0][0]` типы бы не пропустили.
-    const calls = () => findMany.mock.calls as unknown as Array<[{ where: Record<string, any> }]>;
-    return { prisma: { order: { findMany } } as unknown as PrismaClient, findMany, calls };
+    const calls = () => groupBy.mock.calls as unknown as Array<[{ where: Record<string, any> }]>;
+    return {
+      prisma: {
+        order: { groupBy },
+        organization: { findMany: orgFindMany },
+        $queryRaw: queryRaw,
+      } as unknown as PrismaClient,
+      groupBy,
+      queryRaw,
+      calls,
+    };
   }
-  const order = (over: Record<string, unknown> = {}) => ({
+
+  /** Строка группировки: суммы и дата самого старого неоплаченного заказа. */
+  const group = (over: Record<string, unknown> = {}) => ({
     organizationId: 'o1',
-    totalAmount: D('1000'),
-    paidAmount: D('400'),
-    createdAt: new Date('2026-08-01'),
-    organization: { name: 'Ромашка' },
-    manager: { name: 'Иванов', email: 'i@x' },
+    _sum: { totalAmount: D('1500'), paidAmount: D('400') },
+    _min: { createdAt: new Date('2026-07-01') },
     ...over,
   });
 
   it('долгов нет — пусто, а не ошибка', async () => {
-    const { prisma } = db([]);
+    const { prisma, queryRaw } = db([]);
     expect(await getReceivables(prisma, { companyId: 'c1' })).toEqual({
       rows: [],
       totalDebt: '0.00',
       olderThanDays: 0,
     });
+    // Долгов нет — и лишних запросов тоже: спрашивать нечего.
+    expect(queryRaw).not.toHaveBeenCalled();
   });
 
   it('считает долг по организации, берёт самый старый заказ и ответственного', async () => {
-    const { prisma, calls } = db([
-      order(),
-      order({ totalAmount: D('500'), paidAmount: D('0'), createdAt: new Date('2026-07-01') }),
-    ]);
+    const { prisma, calls } = db([group()]);
     const res = await getReceivables(prisma, { companyId: 'c1' });
     expect(res.rows).toHaveLength(1);
     expect(res.rows[0]).toMatchObject({
@@ -64,31 +82,61 @@ describe('Дебиторка', () => {
     expect(calls()[0]![0].where.companyId).toBe('c1');
   });
 
+  it('суммы считает база, а не память: ни одной выборки заказов', async () => {
+    // Регресс `У-248`: прежняя редакция тянула ВСЕ неоплаченные заказы в
+    // JavaScript и складывала их циклом — на ста тысячах заказов это и было
+    // медленно. Выборки заказов у сервиса быть не должно вовсе.
+    const { prisma } = db([group()]);
+    await getReceivables(prisma, { companyId: 'c1' });
+    expect(
+      (prisma as unknown as { order: Record<string, unknown> }).order.findMany
+    ).toBeUndefined();
+  });
+
+  it('у организации нет имени в справочнике — прочерк, а не падение отчёта', async () => {
+    const { prisma } = db([group()], []);
+    const res = await getReceivables(prisma, { companyId: 'c1' });
+    expect(res.rows[0]!.organizationName).toBe('—');
+  });
+
+  it('у ответственного нет имени — берётся почта', async () => {
+    const { prisma } = db([group({ organizationId: 'o2' })], [{ id: 'o2', name: 'Вторая' }]);
+    const res = await getReceivables(prisma, { companyId: 'c1' });
+    expect(res.rows[0]!.managerName).toBe('v@x');
+  });
+
   it('переплата не показывается отрицательным долгом', async () => {
-    const { prisma } = db([order({ totalAmount: D('100'), paidAmount: D('300') })]);
+    const { prisma } = db([group({ _sum: { totalAmount: D('100'), paidAmount: D('300') } })]);
     const res = await getReceivables(prisma, { companyId: 'c1' });
     expect(res.rows).toHaveLength(0);
     expect(res.totalDebt).toBe('0.00');
   });
 
   it('фильтр «старше N дней» отсекает молодые долги', async () => {
-    const fresh = new Date();
-    const { prisma } = db([order({ createdAt: fresh })]);
+    const { prisma } = db([group({ _min: { createdAt: new Date() } })]);
     const res = await getReceivables(prisma, { companyId: 'c1', olderThanDays: 30 });
     expect(res.rows).toHaveLength(0);
     expect(res.olderThanDays).toBe(30);
   });
 
+  it('даты у долга нет — строка не выпадает, но и фильтр её не пропускает', async () => {
+    const { prisma } = db([group({ _min: { createdAt: null } })]);
+    expect((await getReceivables(prisma, { companyId: 'c1' })).rows[0]!.oldestDays).toBeNull();
+    const filtered = await getReceivables(prisma, { companyId: 'c1', olderThanDays: 10 });
+    expect(filtered.rows).toHaveLength(0);
+  });
+
   it('сортировка — от большего долга к меньшему', async () => {
-    const { prisma } = db([
-      order({ organizationId: 'o1', totalAmount: D('200'), paidAmount: D('0') }),
-      order({
-        organizationId: 'o2',
-        totalAmount: D('900'),
-        paidAmount: D('0'),
-        organization: { name: 'Вторая' },
-      }),
-    ]);
+    const { prisma } = db(
+      [
+        group({ organizationId: 'o1', _sum: { totalAmount: D('200'), paidAmount: D('0') } }),
+        group({ organizationId: 'o2', _sum: { totalAmount: D('900'), paidAmount: D('0') } }),
+      ],
+      [
+        { id: 'o1', name: 'Ромашка' },
+        { id: 'o2', name: 'Вторая' },
+      ]
+    );
     const res = await getReceivables(prisma, { companyId: 'c1' });
     expect(res.rows.map((r) => r.organizationId)).toEqual(['o2', 'o1']);
   });

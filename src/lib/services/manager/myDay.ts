@@ -47,7 +47,18 @@ export type MyDayData = {
   dealsOpen: number;
   dealsByStage: MyDayDeal[];
   inboundFresh: number;
-  callsMissed: number;
+  /**
+   * Входящие звонки, которые ещё никто не разобрал (`Р-Э7-6`, этап 7).
+   *
+   * Раньше поле звалось «пропущенные», и это было НЕ ТО: расчёт
+   * (`intakeCallWhere`) смотрит на очередь разбора — входящий, без организации,
+   * без контакта, не закрыт, без лида — и поля `answeredAt` не касается вовсе.
+   * Звонок, на который ответили и просто не разобрали, попадал в «пропущенные»;
+   * настоящий пропуск с привязанной организацией — не попадал. Счётчик полезен
+   * как есть, врало название. Настоящие принятые и пропущенные считаются во
+   * вкладке «Коммуникации» по `answeredAt` (`У-243`).
+   */
+  callsUnsorted: number;
   /**
    * `У-226` (этап 4). Четыре вещи, которых в «Моём дне» не хватало: переписка,
    * где клиент ждёт ответа именно от меня; коммерческие предложения, у которых
@@ -133,7 +144,7 @@ export async function getMyDay(
     ready,
     dealsGrouped,
     inboundFresh,
-    callsMissed,
+    callsUnsorted,
     dialogsWaiting,
     proposalsExpiring,
     checklistOpen,
@@ -234,7 +245,7 @@ export async function getMyDay(
     dealsOpen: dealsByStage.reduce((sum, s) => sum + s.count, 0),
     dealsByStage,
     inboundFresh,
-    callsMissed,
+    callsUnsorted,
     dialogsWaiting,
     proposalsExpiring,
     checklistOpen,
