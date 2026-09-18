@@ -38,12 +38,49 @@ function section(n: number): string {
   return m![1];
 }
 
-/** Ключи объекта; `refine` оборачивает объект в ZodEffects — разворачиваем. */
+/**
+ * Все ключи схемы, включая вложенные.
+ *
+ * Обёртки (`optional`, `nullable`, `refine`) разворачиваются, массивы —
+ * обходятся по элементу. Раньше здесь брались только ключи верхнего уровня, и
+ * этого хватало, пока контракт был плоским. С появлением `contacts`
+ * (`У-256`, этап 8) вложенный объект стал законной частью обмена: команда 1С
+ * собирает его по этому же документу, и поля внутри массива обязаны быть
+ * описаны наравне с остальными — иначе `position` или `email` молча выпадут из
+ * выгрузки, а страж этого не заметит.
+ */
 function shapeKeys(schema: z.ZodTypeAny): string[] {
-  let s: z.ZodTypeAny = schema;
-  while (s instanceof z.ZodEffects) s = s.innerType();
-  expect(s, 'ожидался ZodObject').toBeInstanceOf(z.ZodObject);
-  return Object.keys((s as z.ZodObject<z.ZodRawShape>).shape);
+  const keys = new Set<string>();
+
+  const unwrap = (s: z.ZodTypeAny): z.ZodTypeAny => {
+    let cur: z.ZodTypeAny = s;
+    for (;;) {
+      if (cur instanceof z.ZodEffects) cur = cur.innerType();
+      else if (cur instanceof z.ZodOptional || cur instanceof z.ZodNullable)
+        cur = cur.unwrap() as z.ZodTypeAny;
+      else if (cur instanceof z.ZodDefault) cur = cur.removeDefault() as z.ZodTypeAny;
+      else return cur;
+    }
+  };
+
+  const walk = (s: z.ZodTypeAny): void => {
+    const inner = unwrap(s);
+    if (inner instanceof z.ZodArray) {
+      walk(inner.element as z.ZodTypeAny);
+      return;
+    }
+    if (inner instanceof z.ZodObject) {
+      for (const [key, value] of Object.entries((inner as z.ZodObject<z.ZodRawShape>).shape)) {
+        keys.add(key);
+        walk(value as z.ZodTypeAny);
+      }
+    }
+  };
+
+  const root = unwrap(schema);
+  expect(root, 'ожидался ZodObject').toBeInstanceOf(z.ZodObject);
+  walk(root);
+  return [...keys];
 }
 
 /** Ключи JSON-образца в разделе: строки вида `"externalId": …` внутри ```json. */

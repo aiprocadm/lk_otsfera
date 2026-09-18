@@ -107,6 +107,7 @@ function autoTitle(entity: string, operation: string): string {
     payment: 'Платежи',
     document: 'Документы',
     lead: 'Лиды',
+    contact: 'Контакты',
   };
   const OPERATION: Record<string, string> = {
     pull: 'получение',

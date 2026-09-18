@@ -27,6 +27,21 @@ export const OneCOrgSchema = z.object({
   signerPosition: z.string().optional(),
   signerBasis: z.string().optional(),
   partnerExternalId: z.string().optional(),
+  /**
+   * `У-256` (этап 8): живые люди контрагента — кому звонить и кому писать.
+   * Поле необязательное: ответы 1С без него остаются валидными, ничего
+   * переписывать на той стороне не нужно.
+   */
+  contacts: z
+    .array(
+      z.object({
+        name: z.string().min(1),
+        position: z.string().optional(),
+        phone: z.string().optional(),
+        email: z.string().optional(),
+      })
+    )
+    .optional(),
   updatedAt: isoDate,
 });
 

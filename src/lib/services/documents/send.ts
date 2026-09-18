@@ -53,10 +53,18 @@ export type SendDocumentResult =
         | 'email_disabled';
     };
 
+/**
+ * `У-258`: попутчики — документы той же организации, которые едут этим же
+ * письмом. Механизм массовой отправки (`sendMany.ts`) собирает их сам; у
+ * одиночной кнопки список пуст, и поведение не меняется ни на шаг.
+ */
+export type SendCompanions = { alsoDocumentIds?: string[] | undefined };
+
 export async function sendDocumentToCustomer(
   prisma: PrismaClient,
   session: SessionPayload,
-  documentId: string
+  documentId: string,
+  companions: SendCompanions = {}
 ): Promise<SendDocumentResult> {
   // Отправляет сотрудник исполнителя. Заказчику эта дверь не нужна: документ
   // и так лежит в его кабинете.
@@ -118,6 +126,24 @@ export async function sendDocumentToCustomer(
     .map((u) => ({ id: u.id, email: u.email as string, name: u.name }));
   if (recipients.length === 0) return { ok: false, error: 'no_recipients' };
 
+  /**
+   * `У-258`: попутчики уже отобраны вызывающим — здесь только читаем их файлы
+   * и имена. Повторно проверять скоуп незачем: массовая отправка спрашивает
+   * тот же `canReadDocument` по каждому документу до того, как позвать эту
+   * дверь, а из карточки список приходит пустым.
+   */
+  const companionIds = companions.alsoDocumentIds ?? [];
+  const companionDocs = companionIds.length
+    ? await prisma.document.findMany({
+        // `У-151`: заменённая версия к письму не прикладывается ни при каких
+        // вызовах. Массовая отправка отсеивает её раньше и говорит об этом
+        // человеку; здесь — вторая линия на случай другого вызывающего
+        // (§4, defense-in-depth).
+        where: { id: { in: companionIds }, supersededAt: null },
+        select: { id: true, name: true, path: true, type: true, number: true, createdAt: true },
+      })
+    : [];
+
   const props = {
     organizationName: org.name,
     documentType: doc.type,
@@ -126,19 +152,25 @@ export async function sendDocumentToCustomer(
     documentUrl: `${getAppBaseUrl()}/organization/documents/${doc.id}`,
     orderNumber: doc.order?.orderNumber ?? null,
     orderTitle: doc.order?.title ?? null,
+    ...(companionDocs.length
+      ? { alsoDocuments: companionDocs.map((d) => documentDownloadName(d)) }
+      : {}),
   };
 
   // Вложение best-effort: без него письмо остаётся осмысленным.
-  let attachments: { filename: string; content: Buffer }[] | undefined;
-  try {
-    const content = await getObjectStorage().download(doc.path);
-    attachments = [{ filename: documentDownloadName(doc), content }];
-  } catch (err) {
-    log.warn('[documents/send] файл не прочитан — письмо уйдёт без вложения', {
-      documentId: doc.id,
-      error: err instanceof Error ? err.message : String(err),
-    });
+  const files: { filename: string; content: Buffer }[] = [];
+  for (const attachable of [doc, ...companionDocs]) {
+    try {
+      const content = await getObjectStorage().download(attachable.path);
+      files.push({ filename: documentDownloadName(attachable), content });
+    } catch (err) {
+      log.warn('[documents/send] файл не прочитан — письмо уйдёт без вложения', {
+        documentId: attachable.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
+  const attachments = files.length ? files : undefined;
 
   // `У-128`: свой текст письма пишет компания-продавец (исполнитель), а не
   // компания получателя — как и во всех остальных письмах клиенту.
@@ -184,6 +216,37 @@ export async function sendDocumentToCustomer(
     await prisma.document.update({
       where: { id: doc.id },
       data: { sentAt: new Date(), sentById: session.sub },
+    });
+  }
+
+  /**
+   * `У-258`: попутчики тоже считаются отправленными — каждому свой статус,
+   * своя отметка и своё событие журнала. Иначе в карточке второй бумаги
+   * стояло бы «не отправляли», хотя клиент держит её в руках.
+   */
+  for (const companion of companionDocs) {
+    const full = await prisma.document.findUnique({
+      where: { id: companion.id },
+      select: { id: true, type: true, status: true, number: true },
+    });
+    if (!full) continue;
+    // Тип сужаем здесь заново: массовая отправка уже отобрала бумаги с
+    // жизненным циклом, но дверь открыта и другим вызывающим, а матрица
+    // переходов знает только про них.
+    if (isLifecycleType(full.type) && canTransition(full.type, full.status, 'sent')) {
+      await setDocumentStatus(prisma, session, { documentId: full.id, to: 'sent' });
+    } else {
+      await prisma.document.update({
+        where: { id: full.id },
+        data: { sentAt: new Date(), sentById: session.sub },
+      });
+    }
+    await recordAudit(prisma, {
+      userId: session.sub,
+      action: 'document_sent',
+      entity: 'document',
+      entityId: full.id,
+      after: { recipients: sent, attached: !!attachments, withDocumentId: doc.id },
     });
   }
 

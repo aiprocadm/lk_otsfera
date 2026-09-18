@@ -11,7 +11,9 @@ export type SyncLogEntity =
   | 'scan'
   | 'commission'
   | 'inbound'
-  | 'call';
+  | 'call'
+  // `У-256`: контакты контрагента, приехавшие из 1С.
+  | 'contact';
 
 export type SyncLogEntry = {
   entity: SyncLogEntity;
