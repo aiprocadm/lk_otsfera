@@ -33,6 +33,12 @@ export type OrgDocumentSentProps = {
   documentUrl: string;
   orderNumber: string | null;
   orderTitle: string | null;
+  /**
+   * `У-258`: остальные документы того же письма — имена файлов как во
+   * вложениях. Одно письмо на организацию, а не письмо на документ: три
+   * письма за минуту человек читает как сбой рассылки.
+   */
+  alsoDocuments?: string[] | undefined;
 };
 
 /** «Счёт № С-2026-17» или, если номера нет, название файла. */
@@ -64,6 +70,18 @@ export function OrgDocumentSentTemplate(props: OrgDocumentSentProps) {
         ) : null}{' '}
         для «{props.organizationName}». Файл приложен к письму.
       </p>
+      {props.alsoDocuments?.length ? (
+        <>
+          <p style={emailStyles.paragraph}>В этом же письме:</p>
+          <ul>
+            {props.alsoDocuments.map((name) => (
+              <li key={name} style={emailStyles.paragraph}>
+                {name}
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
       <p style={emailStyles.paragraph}>
         <a href={props.documentUrl} style={emailStyles.button}>
           Открыть в личном кабинете
@@ -78,15 +96,21 @@ export function OrgDocumentSentTemplate(props: OrgDocumentSentProps) {
 
 export function orgDocumentSentSubject(props: OrgDocumentSentProps): string {
   const order = orderLabel(props);
-  return order ? `${docLabel(props)} по заказу ${order}` : docLabel(props);
+  const base = order ? `${docLabel(props)} по заказу ${order}` : docLabel(props);
+  // `У-258`: в теме честно сказано, что бумаг несколько, — иначе человек
+  // откроет письмо за одним документом и не заметит остальные вложения.
+  const also = props.alsoDocuments?.length ?? 0;
+  return also > 0 ? `${base} и ещё ${also}` : base;
 }
 
 export function orgDocumentSentText(props: OrgDocumentSentProps): string {
   const order = orderLabel(props);
+  const also = props.alsoDocuments ?? [];
   return [
     `Здравствуйте! Направляем вам ${docLabel(props).toLowerCase()}${
       order ? ` по заказу ${order}` : ''
     } для «${props.organizationName}». Файл приложен к письму.`,
+    ...(also.length ? ['', 'В этом же письме:', ...also.map((name) => `— ${name}`)] : []),
     '',
     `Открыть в личном кабинете: ${props.documentUrl}`,
   ].join('\n');

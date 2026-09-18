@@ -27,6 +27,7 @@ import { isOneCPushableType } from '@/lib/services/oneCSync/schemas';
 import { errorMessageRu } from '@/lib/errors/messages';
 import { toast } from '@/lib/ui/toast';
 import { requestDocumentPushManyAction } from '@/server-actions/documents/pushToOneC';
+import { sendDocumentsToClientsAction } from '@/server-actions/documents/send';
 
 /** Дельты поверх общего словаря — центральные строки этих кодов писались для других экранов. */
 const PUSH_ERROR_RU: Record<string, string> = {
@@ -86,6 +87,7 @@ export function StaffDocumentsPushList({
   const router = useRouter();
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  const [sending, setSending] = useState(false);
   const [summary, setSummary] = useState<PushSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -138,6 +140,39 @@ export function StaffDocumentsPushList({
     }
   }
 
+  /**
+   * `У-258`: отправить выбранные бумаги заказчику одним действием.
+   *
+   * Сервис сам решает, что годится, и возвращает пропущенные с причиной —
+   * экран только показывает итог. Молча отправить часть и промолчать про
+   * остальное нельзя: сотрудник будет уверен, что клиент получил всё.
+   */
+  async function sendSelected() {
+    if (selected.size === 0) return;
+    setSending(true);
+    setError(null);
+    setSummary(null);
+    const fd = new FormData();
+    for (const id of selected) fd.append('documentIds', id);
+    const res = await sendDocumentsToClientsAction(fd);
+    setSending(false);
+    if (!res.ok) {
+      setError(errorMessageRu(res.error));
+      return;
+    }
+    if (res.sent === 0) {
+      setError('Ни один из выбранных документов отправить нельзя — проверьте тип и состояние.');
+      return;
+    }
+    setSelected(new Set());
+    toast.success(
+      res.skipped.length > 0
+        ? `Отправлено документов: ${res.sent} в ${res.organizations} орг. Не отправлено: ${res.skipped.length}.`
+        : `Отправлено документов: ${res.sent} в ${res.organizations} орг.`
+    );
+    router.refresh();
+  }
+
   if (rows.length === 0 && resetHref) {
     return (
       <EmptyState
@@ -176,6 +211,15 @@ export function StaffDocumentsPushList({
               {`В 1С можно выгрузить ${pushable.length} из ${selected.size}`}
             </span>
           )}
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => void sendSelected()}
+            disabled={selected.size === 0}
+            loading={sending}
+          >
+            {sending ? 'Отправляю…' : 'Отправить клиенту'}
+          </Button>
           <Button size="sm" variant="ghost" onClick={selectAll} disabled={busy}>
             Выбрать все
           </Button>

@@ -9,6 +9,7 @@ import { notifyInvoicesPaid } from '@/lib/services/documents/invoicePaidNotice';
 import { emitAutomationEvent } from '@/lib/automation/dispatch';
 import { setDocumentStatus } from '@/lib/services/documents/status';
 import { organizationNameKey } from '@/lib/services/import/oneCAccountCard/counterparty-key';
+import { syncOrgContactsFromOneC } from './contacts';
 import {
   mapOrderDto,
   mapPaymentDto,
@@ -409,6 +410,37 @@ function allRequisites(requisites: OrgRequisites): OrgRequisites {
   return out;
 }
 
+/**
+ * `У-256`: перенести контакты контрагента, если 1С их прислала.
+ *
+ * Обёртка, а не прямой вызов, ровно по одной причине: контакты — **не повод
+ * уронить импорт контрагента**. Организация к этому моменту уже записана, и
+ * откатывать её из-за телефона неправильно; сбой логируется и проглатывается
+ * (§3, degrade gracefully). Конфликт канала сбоем не считается: он уже записан
+ * строкой `warn` в журнал обмена внутри самого переноса.
+ */
+async function writeOrgContacts(
+  db: PrismaClient,
+  dto: OneCOrgDto,
+  target: { organizationId: string; companyId: string | null }
+): Promise<void> {
+  const contacts = dto.contacts;
+  if (!contacts?.length || !target.companyId) return;
+  try {
+    await syncOrgContactsFromOneC(db, {
+      organizationId: target.organizationId,
+      companyId: target.companyId,
+      externalId: dto.externalId,
+      contacts,
+    });
+  } catch (err) {
+    log.warn('[oneCSync/writers] контакты контрагента не записаны', {
+      externalId: dto.externalId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
 export async function upsertOrgRecord(
   db: PrismaClient,
   dto: OneCOrgDto,
@@ -481,6 +513,12 @@ export async function upsertOrgRecord(
         ...(input.externalId && !existing.externalId ? { externalId: input.externalId } : {}),
       };
       await db.organization.update({ where: { id: existing.id }, data });
+      // `У-256`: контакты контрагента. Организация к этому моменту уже есть —
+      // привязывать контакты есть к чему.
+      await writeOrgContacts(db, dto, {
+        organizationId: existing.id,
+        companyId: existing.companyId,
+      });
     }
     sum.updated += 1;
     ctx.bump?.(dto.updatedAt);
@@ -529,6 +567,8 @@ export async function upsertOrgRecord(
         select: { id: true },
       });
       createdId = created.id;
+      // `У-256`: контакты контрагента — сразу при создании.
+      await writeOrgContacts(db, dto, { organizationId: created.id, companyId });
     }
     sum.created += 1;
     ctx.bump?.(dto.updatedAt);

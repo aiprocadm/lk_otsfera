@@ -18,6 +18,20 @@ export const FAKE_ORGS: OneCOrgDto[] = [
     signerPosition: 'Генеральный директор',
     signerBasis: 'Устава',
     partnerExternalId: '1c-partner-001',
+    // `У-256`: контакты контрагента — двое живых людей с телефоном и почтой.
+    contacts: [
+      {
+        name: 'Иванова Мария Сергеевна',
+        position: 'Главный бухгалтер',
+        phone: '+7 (900) 123-45-67',
+        email: 'buh@prima.test',
+      },
+      {
+        name: 'Петров Олег Иванович',
+        position: 'Начальник отдела кадров',
+        phone: '89001234568',
+      },
+    ],
     updatedAt: '2026-04-12T10:00:00Z',
   },
   {
@@ -30,6 +44,9 @@ export const FAKE_ORGS: OneCOrgDto[] = [
     ogrn: '1025002999999',
     legalAddress: '143400, Московская обл., г. Красногорск, ул. Ленина, д. 5',
     partnerExternalId: '1c-partner-001',
+    // `У-256`: контакт без разбираемого телефона — заводится всё равно, имя и
+    // должность полезны и без канала.
+    contacts: [{ name: 'Сидорова Анна', position: 'Секретарь', phone: 'через приёмную' }],
     updatedAt: '2026-04-15T11:00:00Z',
   },
   {
