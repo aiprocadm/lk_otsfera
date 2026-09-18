@@ -167,7 +167,8 @@ describe('navByRole.manager — «Обмен с 1С» одним пунктом 
     const item = navByRole.manager.find((i) => i.href === '/manager/exchange');
     expect(item).toBeDefined();
     expect(item!.label).toBe('Обмен с 1С');
-    expect(item!.flag).toBe('manager_cabinet');
+    // `У-262`: флага у пункта больше нет — кабинет менеджера не выключается.
+    expect(item!.flag).toBeUndefined();
     expect(item!.group).toBe('Финансы');
   });
 
@@ -179,11 +180,12 @@ describe('navByRole.manager — «Обмен с 1С» одним пунктом 
 });
 
 describe('navByRole — Финансы (manager + admin)', () => {
-  it('manager содержит /manager/finance с флагом manager_cabinet', () => {
+  it('manager содержит /manager/finance — без флага (У-262)', () => {
     const item = navByRole.manager.find((i) => i.href === '/manager/finance');
     expect(item).toBeDefined();
     expect(item!.label).toBe('Финансы');
-    expect(item!.flag).toBe('manager_cabinet');
+    // `У-262`: флага у пункта больше нет — кабинет менеджера не выключается.
+    expect(item!.flag).toBeUndefined();
   });
 
   it('admin содержит /admin/finance без флага', () => {

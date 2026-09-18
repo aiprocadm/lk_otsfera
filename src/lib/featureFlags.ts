@@ -19,9 +19,6 @@ export const FEATURE_FLAGS = [
   'commission_pdf',
   'commission_xlsx',
   'pwa_installer',
-  'organization_cabinet',
-  'manager_cabinet',
-  'leader_cabinet',
   'chat',
   'enrollment_requests',
   // Трек D: каналы уведомлений. Не route-флаги — точки чтения: транспорт
@@ -204,9 +201,6 @@ export const FEATURE_PREFIXES: Array<{ prefix: string; flag: FeatureFlag }> = [
   { prefix: '/manager/requests', flag: 'client_requests' },
   { prefix: '/leader/requests', flag: 'client_requests' },
   { prefix: '/admin/requests', flag: 'client_requests' },
-  { prefix: '/organization', flag: 'organization_cabinet' },
-  { prefix: '/manager', flag: 'manager_cabinet' },
-  { prefix: '/leader', flag: 'leader_cabinet' },
   // G1: конструктор ролей — отдельный флаг поверх кабинетных префиксов (additive).
   { prefix: '/leader/roles', flag: 'role_constructor' },
   { prefix: '/admin/roles', flag: 'role_constructor' },
@@ -252,9 +246,6 @@ export const FEATURE_PREFIXES: Array<{ prefix: string; flag: FeatureFlag }> = [
  * convention. Use sparingly: only for dark-launch / staged-rollout features.
  */
 const OPT_IN_FLAGS = new Set<FeatureFlag>([
-  'organization_cabinet',
-  'manager_cabinet',
-  'leader_cabinet',
   'chat',
   'enrollment_requests',
   'max_channel',

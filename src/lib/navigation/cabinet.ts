@@ -201,19 +201,17 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
     { href: '/help', sectionKey: 'help', pinnedBottom: true },
   ],
   manager: [
-    { href: '/manager/dashboard', sectionKey: 'dashboard', flag: 'manager_cabinet' },
+    { href: '/manager/dashboard', sectionKey: 'dashboard' },
     { href: '/manager/search', sectionKey: 'search', flag: 'global_search' },
     {
       href: '/manager/orders',
       group: 'Работа',
       sectionKey: 'orders',
-      flag: 'manager_cabinet',
     },
     {
       href: '/manager/leads',
       group: 'Продажи',
       sectionKey: 'leads',
-      flag: 'manager_cabinet',
     },
     {
       // У-8: было «Обращения клиентов» — один объект зовётся одинаково во всех
@@ -261,7 +259,6 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       href: '/manager/organizations',
       group: 'Клиенты',
       sectionKey: 'organizations',
-      flag: 'manager_cabinet',
     },
     // Этап 1 ТЗ 12.09.2026 (`У-178`): справочник контактов — поведенческий
     // флаг `contacts` (включается из интерфейса), одинаково в трёх кабинетах ЦО.
@@ -275,7 +272,6 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       href: '/manager/finance',
       group: 'Финансы',
       sectionKey: 'finance',
-      flag: 'manager_cabinet',
     },
     {
       // `У-113`: раньше обмен с 1С был двумя пунктами меню — «Загрузка Excel из
@@ -290,13 +286,11 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       href: '/manager/exchange',
       group: 'Финансы',
       sectionKey: 'exchange',
-      flag: 'manager_cabinet',
     },
     {
       href: '/manager/documents',
       group: 'Документы',
       sectionKey: 'documents',
-      flag: 'manager_cabinet',
     },
     {
       href: '/manager/enrollments',
@@ -308,7 +302,6 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       href: '/manager/messages',
       group: 'Коммуникации',
       sectionKey: 'messages',
-      flag: 'manager_cabinet',
       badgeKey: 'messagesUnread',
     },
     {
@@ -334,14 +327,14 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       sectionKey: 'calls',
       flag: 'telephony_mango',
     },
-    {
-      href: '/manager/team',
-      group: 'Справочники',
-      sectionKey: 'team',
-      flag: 'manager_cabinet',
-      leaderOnly: true,
-      hiddenWhenFlag: 'leader_cabinet',
-    },
+    // Пункта «Команда» здесь больше нет (`У-262`). Он был `leaderOnly` и при
+    // этом прятался флагом `leader_cabinet` — то есть при включённом кабинете
+    // руководителя (а он включён везде) не показывался вообще никому:
+    // рядовому менеджеру не полагался, а руководитель видел «Команду» уже в
+    // своём кабинете. Флаг снят, и без него пункт всплыл бы дублем, ведущим на
+    // страницу-шлюз. Сам адрес `/manager/team` остаётся редиректом ради
+    // закладок — но в меню ему места нет.
+    //
     // Этап 5 (`У-228`): лента уведомлений — над «Настройками», под флагом
     // `notification_center` до приёмки (`Р-Э5-8`).
     {
@@ -353,7 +346,6 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
     {
       href: '/manager/settings',
       sectionKey: 'settings',
-      flag: 'manager_cabinet',
       pinnedBottom: true,
     },
     // `У-76`: словарь терминов — один на все кабинеты, поэтому пункт одинаков
@@ -536,12 +528,10 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
     {
       href: '/organization/dashboard',
       sectionKey: 'dashboard',
-      flag: 'organization_cabinet',
     },
     {
       href: '/organization/orders',
       sectionKey: 'orders',
-      flag: 'organization_cabinet',
     },
     // Было «Мои заявки» — см. комментарий у партнёра.
     {
@@ -562,12 +552,10 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
     {
       href: '/organization/documents',
       sectionKey: 'documents',
-      flag: 'organization_cabinet',
     },
     {
       href: '/organization/finance',
       sectionKey: 'finance',
-      flag: 'organization_cabinet',
     },
     // `У-100`: сотрудники и доступ в кабинет — это части ОДНОГО объекта, своей
     // организации, а были двумя отдельными пунктами меню. Теперь это один
@@ -576,7 +564,6 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
     {
       href: '/organization/company',
       sectionKey: 'myOrganization',
-      flag: 'organization_cabinet',
     },
     // «Сообщения» намеренно под более узким флагом chat (см. CLAUDE.md §5);
     // /student — отдельный shared-entry домен, не часть organization_cabinet.
@@ -598,7 +585,6 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
     {
       href: '/organization/settings',
       sectionKey: 'settings',
-      flag: 'organization_cabinet',
       pinnedBottom: true,
     },
     // `У-76`: словарь терминов — один на все кабинеты, поэтому пункт одинаков

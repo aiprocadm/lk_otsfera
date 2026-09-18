@@ -4,7 +4,6 @@ import { prisma } from '@/lib/db/prisma';
 import { getDocumentForDownload } from '@/lib/services/manager/documents';
 import { getObjectStorage } from '@/lib/storage';
 import { recordAudit } from '@/lib/auth/audit';
-import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { log } from '@/lib/logging';
 
 /**
@@ -30,9 +29,6 @@ import { log } from '@/lib/logging';
 const SIGNED_URL_TTL_SEC = 600;
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const disabled = notFoundIfDisabled('manager_cabinet');
-  if (disabled) return disabled;
-
   const correlationId = crypto.randomUUID();
   const session = await requireManager();
   const { id } = await params;

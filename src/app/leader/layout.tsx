@@ -1,4 +1,3 @@
-import { notFound } from 'next/navigation';
 import React, { type ReactNode } from 'react';
 import { requireManagerLeader } from '@/lib/auth/requireRole';
 import { isFeatureEnabled } from '@/lib/featureFlags';
@@ -14,8 +13,6 @@ import { CommandPalette } from '@/components/shell/command-palette';
 import { CabinetSwitcher } from '@/components/shell/cabinet-switcher';
 
 export default async function LeaderLayout({ children }: { children: ReactNode }) {
-  // Третья точка гейтинга (после middleware и nav): прямой заход при выключенном флаге -> 404.
-  if (!isFeatureEnabled('leader_cabinet')) notFound();
   const session = await requireManagerLeader();
   // Без opts: leader-меню не фильтруется по суб-роли (внутрь пускает layout-гард).
   const items = navItemsFor('leader').filter(

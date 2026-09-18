@@ -60,25 +60,9 @@ describe('GET /api/manager/leads', () => {
       expect.objectContaining({ assignedToUserId: 'm1' })
     );
   });
-
-  it('404 when the manager cabinet flag is disabled', async () => {
-    vi.mocked(notFoundIfDisabled).mockReturnValue(
-      new Response('Not Found', { status: 404 }) as never
-    );
-    const res = await GET(new Request('http://x/manager/leads'));
-    expect(res.status).toBe(404);
-  });
 });
 
 describe('GET /api/manager/leads/[id]', () => {
-  it('404 when feature flag disabled', async () => {
-    vi.mocked(notFoundIfDisabled).mockReturnValue(
-      new Response('Not Found', { status: 404 }) as never
-    );
-    const res = await GET_SINGLE(new Request('http://x/'), ctx('L1'));
-    expect(res.status).toBe(404);
-  });
-
   it('404 when lead not found', async () => {
     vi.mocked(getManagerLead).mockResolvedValue(null);
     const res = await GET_SINGLE(new Request('http://x/'), ctx('L1'));
@@ -144,14 +128,6 @@ describe('PATCH /api/manager/leads/[id]', () => {
   it('unknown action → 400', async () => {
     const res = await PATCH(patchReq({ action: 'frobnicate' }), ctx('L1'));
     expect(res.status).toBe(400);
-  });
-
-  it('404 when feature flag disabled for PATCH', async () => {
-    vi.mocked(notFoundIfDisabled).mockReturnValue(
-      new Response('Not Found', { status: 404 }) as never
-    );
-    const res = await PATCH(patchReq({ action: 'assign' }), ctx('L1'));
-    expect(res.status).toBe(404);
   });
 
   it('reject → 200 with explicit reason', async () => {

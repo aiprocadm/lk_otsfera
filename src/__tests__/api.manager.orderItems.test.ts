@@ -64,61 +64,6 @@ beforeEach(() => {
 
 // ── manager_cabinet feature-flag gate ─────────────────────────────────────────
 
-describe('manager_cabinet flag disabled → 404 before handler logic', () => {
-  beforeEach(() => {
-    vi.mocked(notFoundIfDisabled).mockReturnValue(
-      new Response('Not Found', { status: 404 }) as never
-    );
-  });
-
-  it('GET /orders/[id]/items → 404, service untouched', async () => {
-    const res = await GET(
-      new Request('http://x') as never,
-      { params: Promise.resolve({ id: 'o1' }) } as never
-    );
-    expect(res.status).toBe(404);
-    expect(listOrderItems).not.toHaveBeenCalled();
-  });
-
-  it('POST /orders/[id]/items → 404, service untouched', async () => {
-    const req = new Request('http://x', {
-      method: 'POST',
-      body: JSON.stringify({ studentId: 's1', directionId: 'd1' }),
-    });
-    const res = await POST(req as never, { params: Promise.resolve({ id: 'o1' }) } as never);
-    expect(res.status).toBe(404);
-    expect(addOrderItem).not.toHaveBeenCalled();
-  });
-
-  it('PATCH /order-items/[id] → 404, service untouched', async () => {
-    const req = new Request('http://x', {
-      method: 'PATCH',
-      body: JSON.stringify({ trainingStatus: 'completed' }),
-    });
-    const res = await PATCH(req as never, { params: Promise.resolve({ id: 'it1' }) } as never);
-    expect(res.status).toBe(404);
-    expect(updateItemStatus).not.toHaveBeenCalled();
-  });
-
-  it('DELETE /order-items/[id] → 404, service untouched', async () => {
-    const req = new Request('http://x', { method: 'DELETE' });
-    const res = await DELETE(req as never, { params: Promise.resolve({ id: 'it1' }) } as never);
-    expect(res.status).toBe(404);
-    expect(removeOrderItem).not.toHaveBeenCalled();
-  });
-
-  it('POST /certificates → 404, service untouched', async () => {
-    const req = new Request('http://x', {
-      method: 'POST',
-      body: JSON.stringify({ orderItemId: 'oi1', number: 'X', issuedAt: '2026-01-01' }),
-    });
-    const res = await certPost(req as never);
-    expect(res.status).toBe(404);
-    expect(issueFromOrderItem).not.toHaveBeenCalled();
-    expect(createCertificate).not.toHaveBeenCalled();
-  });
-});
-
 // ── GET /api/manager/orders/[id]/items ────────────────────────────────────────
 
 describe('GET /api/manager/orders/[id]/items', () => {

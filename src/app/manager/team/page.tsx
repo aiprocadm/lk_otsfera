@@ -1,35 +1,23 @@
-import React from 'react';
-import { redirect } from 'next/navigation';
-import { isFeatureEnabled } from '@/lib/featureFlags';
+import { permanentRedirect } from 'next/navigation';
 import { requireManagerLeader } from '@/lib/auth/requireRole';
-import { prisma } from '@/lib/db/prisma';
-import { getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
-import { listCompanyManagers } from '@/lib/services/manager/team';
-import { TeamVisibilityToggle } from '@/components/manager/team-visibility-toggle';
-import { ManagerRosterPanel } from '@/components/manager/manager-roster-panel';
 
-import { PageHeader } from '@/components/ui/page-header';
-// «Команда» переехала в кабинет руководителя. Старый адрес остаётся
-// redirect-ом, чтобы закладки/ссылки не ломались. При выключенном
-// leader_cabinet страница работает по-старому — см. git-историю этого файла.
+/**
+ * «Команда» переехала в кабинет руководителя — этот адрес остался шлюзом,
+ * чтобы закладки и старые ссылки не ломались.
+ *
+ * До `У-262` здесь лежало ещё и прежнее содержимое страницы: при выключенном
+ * флаге `leader_cabinet` она работала по-старому. Флаг снят (кабинет
+ * руководителя — не эксперимент, а часть продукта), поэтому ветка «по-старому»
+ * удалена целиком, а не заменена на `if (true)`: мёртвая ветка в коде и в
+ * покрытии хуже, чем её отсутствие. Содержимое при необходимости поднимается
+ * из истории этого файла.
+ *
+ * Редирект **постоянный**: адрес переехал насовсем, и браузеру незачем каждый
+ * раз ходить сюда за ответом.
+ *
+ * Авторизация остаётся: без неё адрес отвечал бы гостю, куда переехал раздел.
+ */
 export default async function ManagerTeamPage() {
-  const session = await requireManagerLeader();
-
-  if (isFeatureEnabled('leader_cabinet')) {
-    redirect('/leader/team');
-  }
-
-  // ↓ прежнее содержимое страницы (toggle + roster) — НЕ удалять, пока флаг не выпилен
-  const teamMode = session.companyId
-    ? await getCompanyTeamVisibility(prisma, session.companyId)
-    : false;
-  const roster = session.companyId ? await listCompanyManagers(prisma, session.companyId) : [];
-
-  return (
-    <div className="space-y-6">
-      <PageHeader title="Команда" subtitle="Менеджеры компании и их нагрузка" />
-      <TeamVisibilityToggle initial={teamMode} />
-      <ManagerRosterPanel roster={roster} />
-    </div>
-  );
+  await requireManagerLeader();
+  permanentRedirect('/leader/team');
 }

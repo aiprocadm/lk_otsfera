@@ -1,69 +1,19 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { isFeatureEnabled, requireFeature, notFoundIfDisabled } from '@/lib/featureFlags';
 import { navByRole, navItemsFor } from '@/lib/navigation/cabinet';
 
 const ORIGINAL_ENV = { ...process.env };
 
 beforeEach(() => {
+  // `У-262`: флагов `manager_cabinet` и `leader_cabinet` больше нет — чистим
+  // окружение целиком, чтобы меню собиралось как на пустом env.
   process.env = { ...ORIGINAL_ENV };
-  delete process.env.FEATURE_MANAGER_CABINET;
-  delete process.env.FEATURE_LEADER_CABINET;
 });
 
 afterEach(() => {
   process.env = { ...ORIGINAL_ENV };
 });
 
-describe('manager_cabinet (opt-in flag)', () => {
-  it('is DISABLED when env is unset (opt-in default)', () => {
-    expect(isFeatureEnabled('manager_cabinet')).toBe(false);
-  });
-
-  it('is DISABLED when env is empty string', () => {
-    process.env.FEATURE_MANAGER_CABINET = '';
-    expect(isFeatureEnabled('manager_cabinet')).toBe(false);
-  });
-
-  it.each(['0', 'false', 'off', 'no', 'disabled'])('stays disabled for falsy value %s', (val) => {
-    process.env.FEATURE_MANAGER_CABINET = val;
-    expect(isFeatureEnabled('manager_cabinet')).toBe(false);
-  });
-
-  it.each(['1', 'true', 'on', 'yes', 'enabled', 'True', ' 1 '])(
-    'is ENABLED for truthy value %s',
-    (val) => {
-      process.env.FEATURE_MANAGER_CABINET = val;
-      expect(isFeatureEnabled('manager_cabinet')).toBe(true);
-    }
-  );
-
-  it('rejects unknown / garbage values (strict opt-in)', () => {
-    process.env.FEATURE_MANAGER_CABINET = 'maybe';
-    expect(isFeatureEnabled('manager_cabinet')).toBe(false);
-  });
-
-  it('requireFeature throws when disabled (default)', () => {
-    expect(() => requireFeature('manager_cabinet')).toThrow();
-  });
-
-  it('requireFeature is silent when enabled', () => {
-    process.env.FEATURE_MANAGER_CABINET = '1';
-    expect(() => requireFeature('manager_cabinet')).not.toThrow();
-  });
-
-  it('notFoundIfDisabled returns 404 when default-disabled', () => {
-    const res = notFoundIfDisabled('manager_cabinet');
-    expect(res).not.toBeNull();
-    expect(res!.status).toBe(404);
-  });
-
-  it('notFoundIfDisabled returns null when explicitly enabled', () => {
-    process.env.FEATURE_MANAGER_CABINET = '1';
-    expect(notFoundIfDisabled('manager_cabinet')).toBeNull();
-  });
-});
-
-describe('navByRole.manager — feature-flag gated', () => {
+describe('navByRole.manager', () => {
   // `У-103`: пункт «Сотрудники» снят — сотрудники ведутся в карточке
   // организации, сквозной список показывал людей вперемешку из разных клиентов.
   it('состав меню менеджера: свои разделы и «Справка», без входа в чужой кабинет', () => {
@@ -89,7 +39,9 @@ describe('navByRole.manager — feature-flag gated', () => {
       '/manager/inbox',
       '/manager/messengers',
       '/manager/calls',
-      '/manager/team',
+      // `У-262`: пункта «Команда» здесь больше нет — он прятался флагом
+      // `leader_cabinet` и при включённом кабинете руководителя не
+      // показывался никому. Адрес остался редиректом ради закладок.
       // `У-111`: пункта-входа в кабинет руководителя здесь больше нет — смена
       // кабинета живёт в шапке.
       // Этап 5 ТЗ 12.09.2026 (`У-228`): «Уведомления» над «Настройками», флаг `notification_center`.
@@ -98,64 +50,6 @@ describe('navByRole.manager — feature-flag gated', () => {
       // `У-76` (этап 9): словарь терминов, закреплён внизу.
       '/help',
     ]);
-  });
-
-  it('every manager item carries flag=manager_cabinet (so they hide together), кроме search/requests/enrollments/funnel/deals/tasks/calendar/inbox/calls (свои флаги)', () => {
-    const ownItems = navByRole.manager.filter(
-      (i) =>
-        i.href.startsWith('/manager/') &&
-        i.href !== '/manager/search' &&
-        i.href !== '/manager/requests' &&
-        i.href !== '/manager/intake' &&
-        i.href !== '/manager/enrollments' &&
-        i.href !== '/manager/funnel' &&
-        i.href !== '/manager/deals' &&
-        i.href !== '/manager/tasks' &&
-        i.href !== '/manager/calendar' &&
-        i.href !== '/manager/inbox' &&
-        i.href !== '/manager/messengers' &&
-        i.href !== '/manager/calls' &&
-        i.href !== '/manager/contacts' &&
-        i.href !== '/manager/notifications'
-    );
-    expect(ownItems.every((i) => i.flag === 'manager_cabinet')).toBe(true);
-    // Этап 5 (`У-228`): «Уведомления» — свой поведенческий флаг.
-    const notifications = navByRole.manager.find((i) => i.href === '/manager/notifications');
-    expect(notifications?.flag).toBe('notification_center');
-    expect(notifications?.pinnedBottom).toBe(true);
-    const requests = navByRole.manager.find((i) => i.href === '/manager/requests');
-    expect(requests?.flag).toBe('client_requests');
-    const contacts = navByRole.manager.find((i) => i.href === '/manager/contacts');
-    expect(contacts?.flag).toBe('contacts');
-    const enrollment = navByRole.manager.find((i) => i.href === '/manager/enrollments');
-    expect(enrollment?.flag).toBe('enrollment_requests');
-    const search = navByRole.manager.find((i) => i.href === '/manager/search');
-    expect(search?.flag).toBe('global_search');
-    const funnel = navByRole.manager.find((i) => i.href === '/manager/funnel');
-    expect(funnel?.flag).toBe('sales_funnel');
-    const deals = navByRole.manager.find((i) => i.href === '/manager/deals');
-    expect(deals?.flag).toBe('deals_pipeline');
-    const tasks = navByRole.manager.find((i) => i.href === '/manager/tasks');
-    expect(tasks?.flag).toBe('internal_tasks');
-    const calendar = navByRole.manager.find((i) => i.href === '/manager/calendar');
-    expect(calendar?.flag).toBe('staff_calendar');
-    const inbox = navByRole.manager.find((i) => i.href === '/manager/inbox');
-    expect(inbox?.flag).toBe('inbound_messaging');
-    // Спека 2026-09-12: диалоги под тем же флагом, что и «Входящие письма».
-    const messengers = navByRole.manager.find((i) => i.href === '/manager/messengers');
-    expect(messengers?.flag).toBe('inbound_messaging');
-    // `У-215`: бейдж считает ЖДУЩИЕ диалоги, а не непрочитанные сообщения, и
-    // ключ назван по смыслу цифры — иначе меню и счётчик обещают разное.
-    expect(messengers?.badgeKey).toBe('dialogsWaiting');
-    const calls = navByRole.manager.find((i) => i.href === '/manager/calls');
-    expect(calls?.flag).toBe('telephony_mango');
-  });
-
-  it('navItemsFor("manager") при выключенном флаге оставляет только «Справку»', () => {
-    // Все рабочие пункты гейтятся флагом кабинета, а словарь терминов (`У-76`)
-    // — нет: он общий для всех ролей и от кабинета не зависит. До меню в этом
-    // случае всё равно не доходит — middleware отдаёт 404 на весь префикс.
-    expect(navItemsFor('manager').map((i) => i.href)).toEqual(['/help']);
   });
 
   // Решение заказчика 11.08.2026 отменило `Т-25`: импорт виден и обычному
@@ -177,26 +71,5 @@ describe('navByRole.manager — feature-flag gated', () => {
       'Справка',
     ]);
     expect(items.map((i) => i.label)).not.toContain('Команда');
-  });
-
-  it('navItemsFor("manager") руководителю: импорт и «Команда» на месте (leaderOnly)', () => {
-    process.env.FEATURE_MANAGER_CABINET = '1';
-    const items = navItemsFor('manager', { isManagerLeader: true });
-    // `У-103`: пункт «Сотрудники» снят — было 13. `У-113`: две загрузки
-    // схлопнуты в один «Обмен с 1С» — стало 11.
-    expect(items).toHaveLength(11); // +«Справка» (`У-76`)
-    expect(items.map((i) => i.label)).toEqual([
-      'Главная',
-      'Заказы',
-      'Лиды',
-      'Организации',
-      'Финансы',
-      'Обмен с 1С',
-      'Документы',
-      'Сообщения',
-      'Команда',
-      'Настройки',
-      'Справка',
-    ]);
   });
 });

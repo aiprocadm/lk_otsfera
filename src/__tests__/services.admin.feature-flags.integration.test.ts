@@ -28,7 +28,10 @@ const manager = { sub: USER_ID, role: 'manager', managedOrgIds: [] } as never;
  * умолчании и покраснел, хотя код изменился намеренно.
  */
 const FLAG = 'cabinet_questions';
-const ROUTE_FLAG = 'manager_cabinet';
+// Любой флаг, который читает edge-middleware, — такой из интерфейса
+// переключать нельзя. Был `manager_cabinet`; он снят этапом 9 (`У-262`),
+// поэтому берём другой действующий route-флаг.
+const ROUTE_FLAG = 'role_constructor';
 
 beforeAll(async () => {
   await prisma.user.create({

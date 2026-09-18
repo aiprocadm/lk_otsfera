@@ -4,7 +4,6 @@ import { formFields, readFile, readMultipart } from '@/lib/api/multipart';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { createManagerOrderLessDocument } from '@/lib/services/manager/uploads';
-import { notFoundIfDisabled } from '@/lib/featureFlags';
 
 const FIELDS = z.object({
   counterpartyType: z.coerce.string().default(''),
@@ -28,9 +27,6 @@ const STATUS: Record<string, number> = {
 };
 
 export async function POST(req: Request) {
-  const disabled = notFoundIfDisabled('manager_cabinet');
-  if (disabled) return disabled;
-
   const session = await requireManager();
   const fd = await readMultipart(req);
   if (!fd) {

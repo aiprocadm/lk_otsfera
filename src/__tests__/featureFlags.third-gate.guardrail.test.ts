@@ -78,23 +78,11 @@ describe('у каждого route-флага есть третья точка г
     expect(missing, 'раздел закрывается только префиксом middleware').toEqual([]);
   });
 
-  it('кабинетные флаги проверяются именно в layout — одной точкой на весь кабинет', () => {
-    // Иначе проверку пришлось бы повторять на каждой из десятков страниц, и
-    // однажды её бы забыли — что и произошло до этой правки.
-    for (const [cabinet, flag] of [
-      ['manager', 'manager_cabinet'],
-      ['leader', 'leader_cabinet'],
-      ['organization', 'organization_cabinet'],
-    ] as const) {
-      const layout = readSource(join(APP, cabinet, 'layout.tsx'));
-      // Мало, чтобы имя флага и слово `notFound` просто встречались в файле:
-      // они должны стоять в ОДНОЙ проверке. Иначе гейт можно разорвать, не
-      // тронув ни одной из двух строк по отдельности.
-      expect(layout, `${cabinet}: проверка ${flag} не ведёт к notFound`).toMatch(
-        new RegExp(`isFeatureEnabled\\(\\s*'${flag}'\\s*\\)[^;]{0,60}notFound`)
-      );
-    }
-  });
+  // Проверка «кабинетные флаги гейтятся в layout одной точкой» удалена вместе с
+  // самими флагами (`У-262`): `manager_cabinet`, `leader_cabinet` и
+  // `organization_cabinet` сняты — выключенный кабинет роли это не откат фичи,
+  // а «роль не может войти никуда». Возврат любого из трёх ловит
+  // `security.feature-flags-removed.guardrail`.
 
   it('список исключений не разрастается', () => {
     expect(ELSEWHERE.size).toBeLessThanOrEqual(3);

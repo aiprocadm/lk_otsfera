@@ -7,7 +7,6 @@ import { getOrgDocumentForDownload } from '@/lib/services/organization/documents
 import { getObjectStorage } from '@/lib/storage';
 import { recordAudit } from '@/lib/auth/audit';
 import { markDocumentViewed } from '@/lib/services/documents/viewMarks';
-import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { log } from '@/lib/logging';
 
 const MIN_TTL = 60;
@@ -22,9 +21,6 @@ function resolveTtl(queryTtl: string | null): number {
 }
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const disabled = notFoundIfDisabled('organization_cabinet');
-  if (disabled) return disabled;
-
   const correlationId = crypto.randomUUID();
   const session = await requireOrganization();
 

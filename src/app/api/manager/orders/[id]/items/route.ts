@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { parseJsonBody } from '@/lib/api/http';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
-import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { listOrderItems, addOrderItem } from '@/lib/services/training/orderItems';
 
 function mapError(error: string): number {
@@ -20,9 +19,6 @@ function mapError(error: string): number {
 }
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const disabled = notFoundIfDisabled('manager_cabinet');
-  if (disabled) return disabled;
-
   const session = await requireManager();
   const { id } = await params;
   const res = await listOrderItems(prisma, session, { orderId: id });
@@ -41,9 +37,6 @@ const postBodySchema = z.object({
 });
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const disabled = notFoundIfDisabled('manager_cabinet');
-  if (disabled) return disabled;
-
   const session = await requireManager();
   const { id } = await params;
   const parsed = await parseJsonBody(req, postBodySchema);

@@ -166,30 +166,11 @@ describe('канон leader', () => {
 });
 
 describe('меню менеджера при включённом leader_cabinet', () => {
-  it('лидер: «Команда» уезжает в свой кабинет', () => {
-    process.env.FEATURE_LEADER_CABINET = '1';
-    process.env.FEATURE_MANAGER_CABINET = '1';
-    const labels = navItemsFor('manager', { isManagerLeader: true }).map((i) => i.label);
-    expect(labels).not.toContain('Команда');
-  });
-
-  it('при выключенном флаге всё как раньше: «Команда» у лидера на месте', () => {
-    process.env.FEATURE_MANAGER_CABINET = '1';
-    const labels = navItemsFor('manager', { isManagerLeader: true }).map((i) => i.label);
-    expect(labels).toContain('Команда');
-  });
-
   it('рядовой менеджер не видит «Команду» ни при каком флаге', () => {
     process.env.FEATURE_LEADER_CABINET = '1';
     process.env.FEATURE_MANAGER_CABINET = '1';
     const labels = navItemsFor('manager').map((i) => i.label);
     expect(labels).not.toContain('Команда');
-  });
-
-  it('пункт /manager/team помечен hiddenWhenFlag: leader_cabinet', () => {
-    const team = navByRole.manager.find((i) => i.href === '/manager/team');
-    expect(team).toBeDefined();
-    expect(team!.hiddenWhenFlag).toBe('leader_cabinet');
   });
 
   it('`У-111`: пункта-входа в кабинет руководителя в меню менеджера больше нет', () => {

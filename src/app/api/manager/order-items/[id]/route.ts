@@ -4,7 +4,6 @@ import { z } from 'zod';
 import { parseJsonBody } from '@/lib/api/http';
 import { requireManager } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
-import { notFoundIfDisabled } from '@/lib/featureFlags';
 import { updateItemStatus, removeOrderItem } from '@/lib/services/training/orderItems';
 
 function mapError(error: string): number {
@@ -26,9 +25,6 @@ const patchBodySchema = z.object({
 });
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const disabled = notFoundIfDisabled('manager_cabinet');
-  if (disabled) return disabled;
-
   const session = await requireManager();
   const { id } = await params;
   const parsed = await parseJsonBody(req, patchBodySchema);
@@ -43,9 +39,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const disabled = notFoundIfDisabled('manager_cabinet');
-  if (disabled) return disabled;
-
   const session = await requireManager();
   const { id } = await params;
   const res = await removeOrderItem(prisma, session, { itemId: id });

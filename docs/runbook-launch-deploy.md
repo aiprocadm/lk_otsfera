@@ -52,9 +52,6 @@
 
 | Флаг | Env | Класс | Дефолт (unset) | Действие на launch |
 |---|---|---|---|---|
-| `organization_cabinet` | `FEATURE_ORGANIZATION_CABINET` | opt-in | **OFF** | включить → `1` |
-| `manager_cabinet` | `FEATURE_MANAGER_CABINET` | opt-in | **OFF** | включить → `1` |
-| `leader_cabinet` | `FEATURE_LEADER_CABINET` | opt-in | **OFF** | включить → `1` |
 | `chat` | `FEATURE_CHAT` | opt-in | **OFF** | включить, если чат в первой волне |
 | `enrollment_requests` | `FEATURE_ENROLLMENT_REQUESTS` | opt-in | **OFF** | включить → `1` (T5) |
 | `commission_pdf` / `commission_xlsx` / `pwa_installer` / `pii_access_log` / `document_generation` | соотв. | opt-out | **ON** | ничего не делать |
@@ -107,9 +104,6 @@ npx prisma migrate status          # ожидание: "Database schema is up to
 
 ### 3.3 Включить opt-in флаги первой волны (web + worker)
 ```
-FEATURE_ORGANIZATION_CABINET=1
-FEATURE_MANAGER_CABINET=1
-FEATURE_LEADER_CABINET=1
 FEATURE_ENROLLMENT_REQUESTS=1
 FEATURE_CHAT=1            # только если чат идёт в первую волну; иначе оставить unset
 ```

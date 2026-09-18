@@ -109,17 +109,6 @@ describe('ManagerLayout', () => {
     const html = renderToString(await ManagerLayout({ children: CHILD }));
     expect(html).toContain('Кабинет менеджера');
   });
-
-  it('при выключенном флаге manager_cabinet — 404 (третья точка гейтинга)', async () => {
-    // У кабинета руководителя такая проверка была с самого начала, у менеджера
-    // и заказчика — нет: раздел закрывался одним лишь списком префиксов
-    // middleware, хотя §5 требует трёх точек.
-    guards.requireManager.mockResolvedValue({ sub: 'm1', role: 'manager' });
-    isFeatureEnabled.mockReturnValue(false);
-
-    await expect(ManagerLayout({ children: CHILD })).rejects.toThrow('NOT_FOUND');
-    expect(notFound).toHaveBeenCalled();
-  });
 });
 
 describe('OrganizationLayout', () => {
@@ -130,14 +119,6 @@ describe('OrganizationLayout', () => {
 
     expect(guards.requireOrganization).toHaveBeenCalled();
     expect(html).toContain('дочерний контент');
-  });
-
-  it('при выключенном флаге organization_cabinet — 404 (третья точка гейтинга)', async () => {
-    guards.requireOrganization.mockResolvedValue({ sub: 'o1', role: 'organization' });
-    isFeatureEnabled.mockReturnValue(false);
-
-    await expect(OrganizationLayout({ children: CHILD })).rejects.toThrow('NOT_FOUND');
-    expect(notFound).toHaveBeenCalled();
   });
 });
 
@@ -154,13 +135,6 @@ describe('LeaderLayout', () => {
     expect(html).toContain('data-testid="cabinet-switcher"');
     expect(html).toContain('data-role="leader"');
     expect(html).toContain('Руководитель');
-  });
-
-  it('при выключенном флаге leader_cabinet — 404 (третья точка гейтинга)', async () => {
-    isFeatureEnabled.mockReturnValue(false);
-    await expect(LeaderLayout({ children: CHILD })).rejects.toThrow('NOT_FOUND');
-    expect(notFound).toHaveBeenCalled();
-    expect(guards.requireManagerLeader).not.toHaveBeenCalled();
   });
 
   // Переехало из cov.gap-components-misc (там это проверялось на LeaderAppShell,

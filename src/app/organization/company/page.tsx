@@ -37,7 +37,6 @@ export default async function OrganizationCompanyPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  if (!isFeatureEnabled('organization_cabinet')) notFound();
   const sp = await searchParams;
   const ctx = await getOrgPageContext(sp);
 
