@@ -338,6 +338,7 @@ describe('`У-169`: состояние выгрузки в 1С в списке �
           selected: new Set(['ok']),
           onToggle,
           canSelect: (doc) => doc.type === 'invoice',
+          disabledHint: 'Этот документ сейчас нельзя выгрузить в 1С',
         }}
       />
     );
@@ -351,5 +352,71 @@ describe('`У-169`: состояние выгрузки в 1С в списке �
 
     fireEvent.click(ok);
     expect(onToggle).toHaveBeenCalledWith('ok');
+  });
+
+  /**
+   * `У-252`: ограничение выбора стало НЕОБЯЗАТЕЛЬНЫМ.
+   *
+   * До этапа 8 флажок существовал ради одной кнопки — «Выгрузить выбранные в
+   * 1С», — и строка, которая туда не годится, была неактивна. Теперь тот же
+   * флажок обслуживает и скачивание архивом, где годится любая бумага. Если
+   * оставить прежнее ограничение, сотрудник не смог бы положить в архив,
+   * например, удостоверение — молча и без объяснения.
+   */
+  it('без `canSelect` выбрать можно любую строку и подсказки нет', () => {
+    const onToggle = vi.fn();
+    render(
+      <DocumentsList
+        rows={[
+          { ...base, id: 'ok', name: 'Счёт.pdf', type: 'invoice' },
+          { ...base, id: 'no', name: 'Отчёт.pdf', type: 'report' },
+        ]}
+        selection={{ selected: new Set(), onToggle }}
+      />
+    );
+    const no = screen.getByLabelText('Выбрать Отчёт.pdf') as HTMLInputElement;
+    expect(no.disabled).toBe(false);
+    expect(no.title).toBe('');
+    fireEvent.click(no);
+    expect(onToggle).toHaveBeenCalledWith('no');
+  });
+
+  /**
+   * `У-252`: список сам ведёт выбор, когда включено скачивание архивом. У
+   * кабинетов заказчика и партнёра обёртки нет — иначе кнопки не было бы у
+   * четырёх списков из шести.
+   */
+  it('с `zipDownload` появляются флажки, счётчик и кнопка архива', () => {
+    render(
+      <DocumentsList
+        rows={[
+          { ...base, id: 'a', name: 'А.pdf' },
+          { ...base, id: 'b', name: 'Б.pdf' },
+        ]}
+        zipDownload
+      />
+    );
+    expect(screen.getByText('Выбрано: 0')).toBeTruthy();
+    const zip = screen.getByRole('button', { name: 'Скачать выбранные (ZIP)' });
+    expect((zip as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.click(screen.getByLabelText('Выбрать А.pdf'));
+    expect(screen.getByText('Выбрано: 1')).toBeTruthy();
+    expect(
+      (screen.getByRole('button', { name: 'Скачать выбранные (ZIP)' }) as HTMLButtonElement)
+        .disabled
+    ).toBe(false);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Выбрать все' }));
+    expect(screen.getByText('Выбрано: 2')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Снять выбор' }));
+    expect(screen.getByText('Выбрано: 0')).toBeTruthy();
+  });
+
+  it('без `zipDownload` флажков и кнопки архива нет', () => {
+    render(<DocumentsList rows={[{ ...base, id: 'a', name: 'А.pdf' }]} />);
+    expect(screen.queryByLabelText('Выбрать А.pdf')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Скачать выбранные (ZIP)' })).toBeNull();
   });
 });

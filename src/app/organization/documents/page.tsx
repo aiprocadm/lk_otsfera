@@ -162,6 +162,7 @@ export default async function OrganizationDocumentsPage({
           newDocIds={newDocIds}
           groupByOrder={tab === 'orders'}
           cardHrefBase="/organization/documents"
+          zipDownload
         />
 
         <Paginator

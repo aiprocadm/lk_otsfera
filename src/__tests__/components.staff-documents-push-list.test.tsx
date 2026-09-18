@@ -86,16 +86,42 @@ describe('canSelectForPush — какие строки можно выбрать
 });
 
 describe('StaffDocumentsPushList', () => {
-  it('панель выбора есть только когда есть хоть одна доступная строка', () => {
+  /**
+   * `У-252`: панель теперь общая на два действия — «Скачать выбранные (ZIP)» и
+   * «Выгрузить выбранные в 1С». Прятать её, когда нет ни одной строки для 1С,
+   * значило бы отнять у сотрудника архив на экране, где ни одна бумага в 1С не
+   * едет (например, одни отчёты).
+   */
+  it('панель выбора есть, пока в списке есть хоть одна строка', () => {
     const { unmount } = mount([row({ id: 'r', type: 'report' })]);
-    expect(screen.queryByRole('toolbar')).toBeNull();
+    expect(
+      screen.getByRole('toolbar', { name: 'Действия над выбранными документами' })
+    ).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Скачать выбранные (ZIP)' })).toBeTruthy();
+    // Строк для 1С нет — кнопка выгрузки неактивна, но панель на месте.
+    expect(
+      (screen.getByRole('button', { name: 'Выгрузить выбранные в 1С' }) as HTMLButtonElement)
+        .disabled
+    ).toBe(true);
     unmount();
 
-    mount([row({ id: 'r', type: 'report' }), row({ id: 'i' })]);
-    expect(
-      screen.getByRole('toolbar', { name: 'Выгрузка выбранных документов в 1С' })
-    ).toBeTruthy();
-    expect(screen.getByText('Выбрано: 0')).toBeTruthy();
+    mount([]);
+    expect(screen.queryByRole('toolbar')).toBeNull();
+  });
+
+  /**
+   * `У-252`: столбец флажков ОДИН на два действия, поэтому выбрать можно любую
+   * строку. В 1С уезжает только та её часть, которая туда годится, и человеку
+   * об этом говорят прямо — молчание он прочитал бы как «кнопка сломалась».
+   */
+  it('выбрать можно любую строку; сколько уедет в 1С — написано рядом', () => {
+    mount([row({ id: 'a' }), row({ id: 'c', type: 'report' })]);
+    fireEvent.click(screen.getByLabelText('Выбрать c.pdf'));
+    expect((screen.getByLabelText('Выбрать c.pdf') as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByText('В 1С можно выгрузить 0 из 1')).toBeTruthy();
+
+    fireEvent.click(screen.getByLabelText('Выбрать a.pdf'));
+    expect(screen.getByText('В 1С можно выгрузить 1 из 2')).toBeTruthy();
   });
 
   it('флажок строки меняет счётчик; кнопка выгрузки активна только при выборе', () => {
@@ -113,15 +139,17 @@ describe('StaffDocumentsPushList', () => {
     expect(screen.getByText('Выбрано: 0')).toBeTruthy();
   });
 
-  it('«Выбрать все доступные» берёт только строки, которые можно выгрузить; «Снять выбор» очищает', () => {
+  it('«Выбрать все» берёт весь список; «Снять выбор» очищает', () => {
     mount([
       row({ id: 'a' }),
       row({ id: 'b', oneCPushStatus: 'pushed' }),
       row({ id: 'c', type: 'report' }),
     ]);
-    fireEvent.click(screen.getByRole('button', { name: 'Выбрать все доступные' }));
-    expect(screen.getByText('Выбрано: 1')).toBeTruthy();
-    expect((screen.getByLabelText('Выбрать a.pdf') as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Выбрать все' }));
+    // Три строки выбраны ради архива; в 1С из них годится одна.
+    expect(screen.getByText('Выбрано: 3')).toBeTruthy();
+    expect(screen.getByText('В 1С можно выгрузить 1 из 3')).toBeTruthy();
+    expect((screen.getByLabelText('Выбрать c.pdf') as HTMLInputElement).checked).toBe(true);
 
     fireEvent.click(screen.getByRole('button', { name: 'Снять выбор' }));
     expect(screen.getByText('Выбрано: 0')).toBeTruthy();
@@ -138,7 +166,7 @@ describe('StaffDocumentsPushList', () => {
       ],
     });
     mount([row({ id: 'a' }), row({ id: 'b' }), row({ id: 'c' }), row({ id: 'd' })]);
-    fireEvent.click(screen.getByRole('button', { name: 'Выбрать все доступные' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Выбрать все' }));
     fireEvent.click(screen.getByRole('button', { name: 'Выгрузить выбранные в 1С' }));
 
     await waitFor(() => expect(screen.getByRole('status')).toBeTruthy());

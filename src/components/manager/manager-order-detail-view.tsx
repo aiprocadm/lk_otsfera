@@ -106,7 +106,11 @@ export function ManagerOrderDetailView({
                 <span className="text-gray-400 font-normal">({documentRows.length})</span>
               )}
             </h2>
-            <DocumentsList rows={documentRows} downloadEndpointBase="/api/manager/documents" />
+            <DocumentsList
+              rows={documentRows}
+              downloadEndpointBase="/api/manager/documents"
+              zipDownload
+            />
             {/* `У-158` (дефект `Д-14`): форма загрузки существовала, но не была
                 смонтирована нигде — сотрудник не мог приложить к заказу
                 подписанный скан. Здесь же, где список: положить документ и

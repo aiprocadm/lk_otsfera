@@ -85,6 +85,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   document_upload: 'Загрузка документа',
   document_uploaded: 'Загрузка документа',
   document_version_uploaded: 'Загрузка новой версии документа',
+  documents_zip_downloaded: 'Скачивание документов архивом',
   enrollment_legacy_direction_assigned: 'Направление проставлено старой заявке',
   enrollment_approved: 'Одобрение заявки на обучение',
   enrollment_items_advanced: 'Продвижение позиций обучения',

@@ -68,7 +68,7 @@ export default async function PartnerDealDetailPage({
                 <span className="text-gray-400 font-normal">({deal.documents.length})</span>
               )}
             </h2>
-            <DocumentsList rows={deal.documents} />
+            <DocumentsList rows={deal.documents} zipDownload />
             <PartnerDocumentUploadForm orderId={id} />
           </div>
 

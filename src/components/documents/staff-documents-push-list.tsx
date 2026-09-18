@@ -8,9 +8,12 @@
  * Сам список остаётся презентационным и общим с кабинетами заказчика и
  * партнёра — у них флажков нет, потому что нет и обёртки (`Р-23`).
  *
- * Флажок доступен только там, где выгрузка вообще возможна по типу и
- * состоянию; остальное — правило компании, «пришёл из 1С», права — проверит
- * сервис и вернёт в списке пропущенных. Экран не решает за сервер (§4).
+ * `У-252`: рядом появилась вторая кнопка — «Скачать выбранные (ZIP)». Столбец
+ * флажков у них ОДИН: два столбца рядом человек читал бы как два разных
+ * выбора. Поэтому выбрать можно любую строку, а выгрузка в 1С сама берёт из
+ * выбора то, что ей годится по типу и состоянию, и честно говорит, сколько
+ * строк не взяла. Остальное — правило компании, «пришёл из 1С», права —
+ * проверит сервис и вернёт в списке пропущенных. Экран не решает за сервер (§4).
  */
 
 import React, { useMemo, useState } from 'react';
@@ -18,6 +21,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button, EmptyState } from '@/components/ui';
 import { DocumentsList } from '@/components/partner/documents-list';
+import { ZipDownloadButton } from '@/components/documents/zip-download-button';
 import type { OrgDocumentRow } from '@/lib/services/partner/orgDocuments';
 import { isOneCPushableType } from '@/lib/services/oneCSync/schemas';
 import { errorMessageRu } from '@/lib/errors/messages';
@@ -82,7 +86,12 @@ export function StaffDocumentsPushList({
   const [summary, setSummary] = useState<PushSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const selectable = useMemo(() => rows.filter(canSelectForPush), [rows]);
+  // Что из ВЫБРАННОГО годится для 1С. Остальное выбрано ради архива — и это
+  // не ошибка человека, поэтому не отказ, а честная строка «не взяли N».
+  const pushable = useMemo(
+    () => rows.filter((d) => selected.has(d.id) && canSelectForPush(d)),
+    [rows, selected]
+  );
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -94,7 +103,7 @@ export function StaffDocumentsPushList({
   }
 
   function selectAll() {
-    setSelected(new Set(selectable.map((d) => d.id)));
+    setSelected(new Set(rows.map((d) => d.id)));
   }
 
   function clear() {
@@ -102,12 +111,15 @@ export function StaffDocumentsPushList({
   }
 
   async function pushSelected() {
-    if (selected.size === 0) return;
+    if (pushable.length === 0) return;
     setBusy(true);
     setError(null);
     setSummary(null);
     const fd = new FormData();
-    for (const id of selected) fd.append('documentIds', id);
+    // В 1С отправляем только то, что туда вообще может уехать: слать заведомо
+    // негодные строки значит получать в ответ список отказов, которого человек
+    // не просил.
+    for (const doc of pushable) fd.append('documentIds', doc.id);
     const res = await requestDocumentPushManyAction(fd);
     setBusy(false);
     if (!res.ok) {
@@ -143,18 +155,26 @@ export function StaffDocumentsPushList({
 
   return (
     <div className="space-y-3">
-      {selectable.length > 0 && (
+      {rows.length > 0 && (
         <div
           role="toolbar"
-          aria-label="Выгрузка выбранных документов в 1С"
+          aria-label="Действия над выбранными документами"
           className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm"
         >
           <span className="text-gray-700">{`Выбрано: ${selected.size}`}</span>
-          <Button size="sm" onClick={pushSelected} disabled={selected.size === 0} loading={busy}>
+          <ZipDownloadButton ids={[...selected]} />
+          <Button size="sm" onClick={pushSelected} disabled={pushable.length === 0} loading={busy}>
             {busy ? 'Ставлю в очередь…' : 'Выгрузить выбранные в 1С'}
           </Button>
+          {selected.size > pushable.length && (
+            // Молчание здесь читалось бы как «кнопка сломалась»: человек выбрал
+            // строки, а в 1С уехали не все.
+            <span className="text-xs text-gray-500">
+              {`В 1С можно выгрузить ${pushable.length} из ${selected.size}`}
+            </span>
+          )}
           <Button size="sm" variant="ghost" onClick={selectAll} disabled={busy}>
-            Выбрать все доступные
+            Выбрать все
           </Button>
           {selected.size > 0 && (
             <Button size="sm" variant="ghost" onClick={clear} disabled={busy}>
@@ -196,7 +216,7 @@ export function StaffDocumentsPushList({
         downloadEndpointBase={downloadEndpointBase}
         cardHrefBase={cardHrefBase}
         groupByOrder={groupByOrder}
-        selection={{ selected, onToggle: toggle, canSelect: canSelectForPush }}
+        selection={{ selected, onToggle: toggle }}
       />
     </div>
   );

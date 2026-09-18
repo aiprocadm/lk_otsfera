@@ -90,7 +90,7 @@ export default async function OrgDocumentsPage({
 
       <TypeFilter orgId={orgId} active={typeFilter} countsByType={countsByType} total={total} />
 
-      <DocumentsList rows={rows} />
+      <DocumentsList rows={rows} zipDownload />
     </div>
   );
 }
