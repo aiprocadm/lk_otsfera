@@ -91,7 +91,6 @@ async function cleanupOrders(externalIds: string[]) {
   if (ids.length) {
     await prisma.commissionStatementItem.deleteMany({ where: { orderId: { in: ids } } });
     await prisma.comment.deleteMany({ where: { orderId: { in: ids } } });
-    await prisma.upload.deleteMany({ where: { orderId: { in: ids } } });
     await prisma.document.deleteMany({ where: { orderId: { in: ids } } });
     await prisma.payment.deleteMany({ where: { orderId: { in: ids } } });
     await prisma.order.deleteMany({ where: { id: { in: ids } } });

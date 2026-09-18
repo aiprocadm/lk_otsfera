@@ -123,12 +123,12 @@ async function deletePartnerCascade(pid: string) {
     await prisma.lead.deleteMany({ where: { id: { in: leadIds } } });
   }
 
-  // Order children → orders. Comment and Upload also FK Order and were missing
-  // before — another test leaving a comment on this partner's seed order would
-  // make the bare order.deleteMany() throw.
+  // Order children → orders. Comment also FKs Order and was missing before —
+  // another test leaving a comment on this partner's seed order would make the
+  // bare order.deleteMany() throw. (Таблица `Upload` удалена в этапе 9, `У-261`:
+  // писателя у неё не было, убирать нечего.)
   if (orderIds.length) {
     await prisma.comment.deleteMany({ where: { orderId: { in: orderIds } } });
-    await prisma.upload.deleteMany({ where: { orderId: { in: orderIds } } });
     await prisma.document.deleteMany({ where: { orderId: { in: orderIds } } });
     await prisma.payment.deleteMany({ where: { orderId: { in: orderIds } } });
     // CommissionStatementItem has FKs to both Order and CommissionStatement —
@@ -143,7 +143,6 @@ async function deletePartnerCascade(pid: string) {
   // Everything FK-ing the partner's users must die before the users themselves.
   if (userIds.length) {
     await prisma.auditLog.deleteMany({ where: { userId: { in: userIds } } });
-    await prisma.savedView.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.studentBridgeGrant.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.passwordResetToken.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.comment.deleteMany({ where: { authorId: { in: userIds } } });

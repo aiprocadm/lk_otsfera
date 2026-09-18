@@ -98,17 +98,25 @@
 
 ## PR-4 — `У-261` (б): миграция
 
-- [ ] Миграция: `DO $$` — если `count("SavedView") > 0` или `count("Upload") > 0`, `RAISE EXCEPTION`
+- [x] Миграция: `DO $$` — если `count("SavedView") > 0` или `count("Upload") > 0`, `RAISE EXCEPTION`
       с русским текстом и подсказкой `npm run report:dead-tables`
-- [ ] `UPDATE "PartnerMembership" SET "roleInPartner" = 'manager' WHERE "roleInPartner" = 'member'`
-- [ ] `DROP TABLE "Upload"`, `DROP TABLE "SavedView"`
-- [ ] `schema.prisma`: убрать модели + связи `User.savedViews`, `Order.uploads`
-- [ ] `prisma:generate`; починить тесты, обращавшиеся к удалённым моделям
-- [ ] `npm run gate` — миграция применяется на чистой базе и на базе с данными сида
-- [ ] Проверить обе ветки миграции: пустая таблица → проходит; с одной строкой → падает с текстом
-- [ ] Страж `prisma.dead-models.guardrail.test.ts` по `Р-Э9-5` (три канала доказательств)
-- [ ] Мутация: добавить `model ZzDead` в схему → страж красный → откатить
-- [ ] CHANGELOG
+- [x] `UPDATE "PartnerUser" SET "roleInPartner" = 'manager' WHERE "roleInPartner" = 'member'`
+      — **до** удаления: если самопроверка упала, до бэкфилла дело не дойдёт.
+      (В плане стояло `PartnerMembership` — такой таблицы нет, это имя связи;
+      поймано до запуска отчёта)
+- [x] `DROP TABLE "Upload"`, `DROP TABLE "SavedView"`
+- [x] `schema.prisma`: убраны модели + связи `User.savedViews`, `Order.uploads`
+- [x] `prisma:generate`; починены тесты, обращавшиеся к удалённым моделям
+- [x] **Обе ветки миграции проверены на живой базе** (Docker, порт 5433 — 5432 занят):
+      с одной строкой в `SavedView` падает текстом «Таблица "SavedView" не пуста: 1 строк…»,
+      база не меняется, отчёт в этот же момент даёт код выхода 1; после удаления строки
+      применяется, обеих таблиц нет, `migrate status` чист
+- [x] Удалён `schema.savedView.test.ts` — проверял только форму типа мёртвой модели
+      и создавал видимость, что она живая
+- [x] Страж `prisma.dead-models.guardrail.test.ts` по `Р-Э9-5` (три канала доказательств):
+      был **красным на `SavedView` до починки**, стал зелёным после
+- [x] Мутация: добавить `model ZzMutationDead` в схему → страж красный → откатить
+- [x] CHANGELOG
 
 ## PR-5 — `У-266`: страж стоп-слов
 
