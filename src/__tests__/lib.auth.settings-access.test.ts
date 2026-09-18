@@ -30,6 +30,9 @@ beforeEach(() => {
   // `У-222` (этап 4): раздел «Автоматизация» гейтится своим флагом — без него
   // он не виден никому, включая администратора.
   process.env.FEATURE_AUTOMATION = '1';
+  // `У-242` (этап 7): «Показатели и планы» живут под флагом «Аналитики»
+  // (`Р-Э7-1`) — это один экран раскатки, а не две функции.
+  process.env.FEATURE_LEADER_ANALYTICS = '1';
 });
 
 function section(id: string): SettingsSection {
@@ -162,6 +165,8 @@ describe('visibleSettingsSections / hasAnySettingsAccess', () => {
       'catalogs.automation',
       // `У-237` (этап 6): материалы для партнёров своей компании.
       'catalogs.partnerMaterials',
+      // `У-242` (этап 7): показатели и планы своей компании.
+      'catalogs.kpi',
       'catalogs.customFields',
       // `У-136` (Р-22): каталог услуг и цены — руководитель ведёт свою компанию.
       'catalogs.priceList',

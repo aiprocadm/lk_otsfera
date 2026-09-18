@@ -259,6 +259,22 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     legacyHrefs: [],
   },
   {
+    // `У-242` (этап 7): какие показатели компания считает своими и какие планы
+    // ставит менеджерам. Флаг общий с «Аналитикой» (`Р-Э7-1`): это один экран
+    // раскатки, а не две независимые функции.
+    id: 'catalogs.kpi',
+    group: 'catalogs',
+    title: 'Показатели и планы',
+    description: 'Какие показатели компания ведёт и какой план стоит у каждого менеджера.',
+    icon: '🎯',
+    path: 'processes/kpi',
+    capability: 'settings.catalogs.manage',
+    cabinets: ['admin', 'leader'],
+    flag: 'leader_analytics',
+    // Старого адреса нет: раздел появился сразу в хабе.
+    legacyHrefs: [],
+  },
+  {
     id: 'catalogs.customFields',
     group: 'catalogs',
     title: 'Дополнительные поля',

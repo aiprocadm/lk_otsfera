@@ -963,6 +963,11 @@ model Company {
   /// требования («на 3-й день»), поэтому появление поля ничего не меняет.
   taskOverdueEscalationDays Int                    @default(3)
   slaWarningHours           Int                    @default(4)
+  /// Этап 7 (`У-242`): какие показатели компания считает своими и в каком
+  /// порядке показывает. Пустой массив — прежнее поведение: один показатель
+  /// «Оплачено», как было до конфигуратора. Предел в восемь ключей проверяет
+  /// сервис, а не только форма.
+  activeKpiMetrics          String[]               @default([])
   // Этап 8 (ФТ-9.1, PR-1): реквизиты для автогенерации документов.
   legalName                 String?
   inn                       String?
@@ -2812,15 +2817,25 @@ model SalesTarget {
   updatedAt    DateTime @updatedAt
   companyId    String
   company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  managerId    String
-  manager      User     @relation("SalesTargetManager", fields: [managerId], references: [id], onDelete: Cascade)
+  /// `null` — план на компанию целиком. Так планируются показатели без
+  /// ответственного (`certificates_issued`): приписывать удостоверения
+  /// менеджеру, которого у них нет, значило бы врать в отчёте (`Р-Э7-3`).
+  /// Postgres считает NULL-ы различными, поэтому единственность таких строк
+  /// держит ЧАСТИЧНЫЙ уникальный индекс из миграции, а не `@@unique` ниже.
+  managerId    String?
+  manager      User?    @relation("SalesTargetManager", fields: [managerId], references: [id], onDelete: Cascade)
   year         Int
   month        Int // 1..12
   targetAmount Decimal  @db.Decimal(14, 2)
   createdById  String? // кто задал (аудит-денорм; полный трейл в AuditLog)
+  /// Этап 7 (`У-242`, решение `Р-Б-7`): какой показатель планируется. Прежние
+  /// строки — план продаж в рублях, поэтому значение по умолчанию `revenue_paid`:
+  /// после миграции они продолжают работать и показываются как «Оплачено».
+  /// Ключ — из реестра `src/lib/kpi/metrics.ts`; свободного текста тут не бывает.
+  metric       String   @default("revenue_paid")
 
-  @@unique([companyId, managerId, year, month])
-  @@index([companyId, year, month])
+  @@unique([companyId, managerId, year, month, metric])
+  @@index([companyId, year, month, metric])
 }
 
 /// M4 (спека 2026-07-17): внутренний чат сотрудников — ОТДЕЛЬНЫЙ домен от клиентского

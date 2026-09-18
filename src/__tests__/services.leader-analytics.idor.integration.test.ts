@@ -182,12 +182,18 @@ beforeAll(async () => {
     status: 'new' as const,
     createdAt: leadCreatedAt,
   };
-  const leadUnassigned = await prisma.lead.create({
+  // Этап 7, `Р-Э7-2`: лид принадлежит компании, если из неё его ОТВЕТСТВЕННЫЙ
+  // или его ОРГАНИЗАЦИЯ. Поэтому фикстура держит три случая: совсем ничей лид,
+  // ничей по ответственному, но с организацией компании A, и лид компании B.
+  const leadNobody = await prisma.lead.create({
     data: { ...baseLead, assignedManagerId: null },
+  });
+  const leadByOrgA = await prisma.lead.create({
+    data: { ...baseLead, assignedManagerId: null, organizationId: orgA },
   });
   const leadA = await prisma.lead.create({ data: { ...baseLead, assignedManagerId: mgrA } });
   const leadB = await prisma.lead.create({ data: { ...baseLead, assignedManagerId: mgrB } });
-  leadIds = [leadUnassigned.id, leadA.id, leadB.id];
+  leadIds = [leadNobody.id, leadByOrgA.id, leadA.id, leadB.id];
 });
 
 afterAll(async () => {
@@ -284,8 +290,8 @@ describe('M3 leader analytics — getPlanFact isolation + netting', () => {
   });
 });
 
-describe('M3 leader analytics — getFunnelAnalytics cohort scope (§0.8)', () => {
-  it("leader A's cohort excludes company B's assigned lead; unassigned (shared queue) + mgrA's lead count", async () => {
+describe('M3 leader analytics — граница компании у лидов (Р-Э7-2)', () => {
+  it('в когорту компании A входят её лид и лид её организации; ничей и чужой — нет', async () => {
     const res = await getFunnelAnalytics(
       prisma,
       leaderSession(leaderA, companyA),
@@ -294,12 +300,15 @@ describe('M3 leader analytics — getFunnelAnalytics cohort scope (§0.8)', () =
     expect(res.ok).toBe(true);
     if (!res.ok) return;
 
+    // Свои два: лид менеджера A и лид организации компании A. Совсем ничей лид
+    // до этапа 7 считался «общей очередью» и попадал в воронку КАЖДОЙ компании.
     expect(res.cohort.total).toBe(2);
 
     const rowA = res.perManager.find((r) => r.managerId === mgrA);
     expect(rowA).toBeDefined();
     expect(rowA?.assigned).toBe(1);
 
+    // Строка «не назначен» осталась — в ней лид организации компании A.
     const unassignedRow = res.perManager.find((r) => r.managerId === null);
     expect(unassignedRow).toBeDefined();
     expect(unassignedRow?.assigned).toBe(1);
