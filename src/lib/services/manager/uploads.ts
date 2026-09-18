@@ -3,6 +3,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { canSeeOrder, managedOrgIds, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { notifyOrgUsers, notifyPartnerUsers } from '@/lib/notifications';
 import { persistUploadedDocument, validateUploadFile } from '@/lib/services/documents/upload-core';
+import { resolveReplaces, type ReplaceErrorCode } from '@/lib/services/documents/versions';
 import { canManagerUploadOrderLess } from '@/lib/auth/documentChannelPolicy';
 import { listManagerCounterparties } from '@/lib/services/manager/counterparties';
 import { log } from '@/lib/logging';
@@ -30,6 +31,11 @@ export type CreateCounterpartyDocumentArgs = {
   recipient: DocumentRecipient;
   docType: string;
   file: { name: string; size: number; mimeType: string; buffer: Buffer };
+  /**
+   * `У-251`: заменить этим файлом прежнюю версию. Поле необязательное —
+   * обычная загрузка приходит без него и работает как раньше.
+   */
+  replacesDocumentId?: string | null;
 };
 
 export type CreateCounterpartyDocumentResult =
@@ -43,7 +49,8 @@ export type CreateCounterpartyDocumentResult =
         | 'storage'
         | 'org_no_company'
         | 'not_found'
-        | 'invalid_recipient';
+        | 'invalid_recipient'
+        | ReplaceErrorCode;
     };
 
 export async function createCounterpartyDocument(
@@ -95,6 +102,13 @@ export async function createCounterpartyDocument(
       : { type: 'organization' as const, id: order.organizationId };
   if (!counterparty) return { ok: false, error: 'invalid_recipient' };
 
+  const replaces = await resolveReplaces(prisma, session, args.replacesDocumentId, {
+    docType: args.docType,
+    counterparty,
+    orderId: order.id,
+  });
+  if (!replaces.ok) return replaces;
+
   const persisted = await persistUploadedDocument(prisma, {
     counterparty,
     orderId: order.id,
@@ -103,6 +117,7 @@ export async function createCounterpartyDocument(
     uploadedById: session.sub,
     source: 'manager',
     file: args.file,
+    replaces: replaces.replaces,
   });
   if (!persisted.ok) return persisted;
 
@@ -152,6 +167,11 @@ export type CreateManagerOrderLessArgs = {
   counterparty: { type: DocumentRecipient; id: string };
   docType: string;
   file: { name: string; size: number; mimeType: string; buffer: Buffer };
+  /**
+   * `У-251`: заменить этим файлом прежнюю версию. Поле необязательное —
+   * обычная загрузка приходит без него и работает как раньше.
+   */
+  replacesDocumentId?: string | null;
 };
 
 /**
@@ -181,6 +201,13 @@ export async function createManagerOrderLessDocument(
     return { ok: false, error: 'forbidden' };
   }
 
+  const replaces = await resolveReplaces(prisma, session, args.replacesDocumentId, {
+    docType: args.docType,
+    counterparty: args.counterparty,
+    orderId: null,
+  });
+  if (!replaces.ok) return replaces;
+
   const persisted = await persistUploadedDocument(prisma, {
     counterparty: args.counterparty,
     orderId: null,
@@ -190,6 +217,7 @@ export async function createManagerOrderLessDocument(
     uploadedById: session.sub,
     source: 'manager',
     file: args.file,
+    replaces: replaces.replaces,
   });
   if (!persisted.ok) return persisted;
 

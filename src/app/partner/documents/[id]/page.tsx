@@ -7,6 +7,8 @@ import { getFieldsForEntity } from '@/lib/services/customFields';
 import { DocumentDetailView } from '@/components/documents/document-detail-view';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fields';
+import { DocumentVersionUploadForm } from '@/components/documents/document-version-upload-form';
+import { partnerVersionUploadTarget } from '@/lib/documents/versionUpload';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,6 +24,8 @@ export default async function PartnerDocumentDetailPage({
   if (!res.ok) notFound();
 
   const customFields = await getFieldsForEntity(prisma, session, 'document', id);
+  // `У-251`: партнёр меняет версию только своего загруженного файла.
+  const versionUpload = partnerVersionUploadTarget(res.document);
 
   return (
     <DocumentDetailView
@@ -32,6 +36,14 @@ export default async function PartnerDocumentDetailPage({
       ])}
       orderHrefBase="/partner/orders"
     >
+      {versionUpload && (
+        <DocumentVersionUploadForm
+          url={versionUpload.url}
+          fields={versionUpload.fields}
+          documentId={id}
+          currentVersion={res.document.version}
+        />
+      )}
       <EntityCustomFields fields={customFields} entityType="document" entityId={id} />
     </DocumentDetailView>
   );

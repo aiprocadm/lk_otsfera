@@ -79,7 +79,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     entity: 'document',
     entityId: id,
     userId: session.sub,
-    after: { ttl, viewer: 'organization', organizationId: activeOrgId },
+    // `У-254`: версия рядом с ролью — иначе по журналу не понять, какую
+    // именно редакцию документа человек унёс.
+    after: { ttl, viewer: session.role, organizationId: activeOrgId, version: result.version },
   });
   // Этап 3 PR-2 (ФТ-6.6): скачивание гасит бейдж «новый» (best-effort внутри).
   await markDocumentViewed(prisma, { documentId: id, userId: session.sub });

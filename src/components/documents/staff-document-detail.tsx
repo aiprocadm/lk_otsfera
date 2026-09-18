@@ -8,6 +8,11 @@ import type { DocumentDetail } from '@/lib/services/documents/detail';
 import type { FieldWithValue } from '@/lib/services/customFields';
 import { LinkedTasksPanel } from '@/components/tasks/linked-tasks-panel';
 import type { TaskCard } from '@/lib/services/tasks/board';
+import { DocumentVersionHistory } from '@/components/documents/document-version-history';
+import { DocumentVersionUploadForm } from '@/components/documents/document-version-upload-form';
+import { DocumentDownloads } from '@/components/documents/document-downloads';
+import type { DocumentHistory } from '@/lib/services/documents/history';
+import { staffVersionUploadTarget } from '@/lib/documents/versionUpload';
 
 /**
  * Карточка документа сотрудника ЦО — одна на кабинет менеджера и кабинет
@@ -28,6 +33,10 @@ import type { TaskCard } from '@/lib/services/tasks/board';
  * Блок «Выгрузка в 1С» (`У-169`) — тоже у обоих; ссылка на правило компании
  * есть только у руководителя (у менеджера хаба настроек нет — блок скажет,
  * к кому идти).
+ *
+ * `У-251` и `У-254`: история версий, загрузка новой версии и «Кто скачивал» —
+ * внутренний контур. Заказчику и партнёру эти блоки не показываются, поэтому
+ * они живут здесь, а не в общей карточке пяти кабинетов.
  */
 export function StaffDocumentDetail({
   cabinet,
@@ -35,6 +44,7 @@ export function StaffDocumentDetail({
   customFields,
   tasks,
   currentUserId,
+  history = null,
 }: {
   cabinet: 'manager' | 'leader';
   document: DocumentDetail;
@@ -42,8 +52,11 @@ export function StaffDocumentDetail({
   /** `У-220`: задачи по документу. `null` — раздел задач выключен, блока нет. */
   tasks?: TaskCard[] | null;
   currentUserId?: string;
+  /** `У-251`, `У-254`: версии, скачивания и «в 1С ушла версия N». */
+  history?: DocumentHistory | null;
 }) {
   const listHref = `/${cabinet}/documents`;
+  const versionUpload = staffVersionUploadTarget(document);
 
   return (
     <DocumentDetailView
@@ -59,7 +72,26 @@ export function StaffDocumentDetail({
         documentId={document.id}
         push={document.oneCPush}
         pushRuleHref={settingsSectionHref('catalogs.requisites', cabinet)}
+        pushedVersionInOneC={history?.pushedVersionInOneC ?? null}
       />
+      {versionUpload && (
+        <DocumentVersionUploadForm
+          url={versionUpload.url}
+          fields={versionUpload.fields}
+          documentId={document.id}
+          currentVersion={document.version}
+        />
+      )}
+      {history && (
+        <DocumentVersionHistory
+          versions={history.versions}
+          currentId={document.id}
+          hrefBase={listHref}
+        />
+      )}
+      {/* `У-254`: журнал действий — раздел настроек администратора; у
+          менеджера и руководителя его нет, поэтому ссылки тоже нет. */}
+      {history && <DocumentDownloads downloads={history.downloads} auditHref={null} />}
       <EntityCustomFields fields={customFields} entityType="document" entityId={document.id} />
       {tasks && currentUserId && (
         <section className="space-y-2 rounded-xl border border-gray-200 bg-white p-4">

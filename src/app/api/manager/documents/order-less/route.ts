@@ -10,6 +10,8 @@ const FIELDS = z.object({
   counterpartyType: z.coerce.string().default(''),
   counterpartyId: z.coerce.string().default(''),
   docType: z.coerce.string().default('other'),
+  /** `У-251`: пусто — обычная загрузка; id — новая версия этого документа. */
+  replacesDocumentId: z.coerce.string().default(''),
 });
 
 const STATUS: Record<string, number> = {
@@ -19,6 +21,10 @@ const STATUS: Record<string, number> = {
   too_large: 413,
   invalid_mime: 415,
   storage: 502,
+  // `У-251`: состояние документа не позволяет замену (409) либо прислали файл
+  // другого типа/контрагента (400 по умолчанию словаря).
+  generated_document: 409,
+  already_superseded: 409,
 };
 
 export async function POST(req: Request) {
@@ -30,7 +36,7 @@ export async function POST(req: Request) {
   if (!fd) {
     return NextResponse.json({ error: 'invalid_request' }, { status: 400 });
   }
-  const { counterpartyType, counterpartyId, docType } = formFields(fd, FIELDS);
+  const { counterpartyType, counterpartyId, docType, replacesDocumentId } = formFields(fd, FIELDS);
 
   if ((counterpartyType !== 'organization' && counterpartyType !== 'partner') || !counterpartyId) {
     return NextResponse.json({ error: 'invalid_request' }, { status: 400 });
@@ -43,6 +49,7 @@ export async function POST(req: Request) {
   const result = await createManagerOrderLessDocument(prisma, session, {
     counterparty: { type: counterpartyType as 'organization' | 'partner', id: counterpartyId },
     docType,
+    replacesDocumentId: replacesDocumentId === '' ? null : replacesDocumentId,
     file: { name: file.name, size: file.size, mimeType: file.type, buffer: file.buffer },
   });
 

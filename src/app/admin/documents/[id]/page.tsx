@@ -9,6 +9,11 @@ import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import { EntityCustomFields } from '@/components/custom-fields/entity-custom-fields';
 import { DocumentOneCPushBlock } from '@/components/documents/document-onec-push-block';
 import { settingsSectionHref } from '@/lib/navigation/settings';
+import { getDocumentHistory } from '@/lib/services/documents/history';
+import { DocumentVersionHistory } from '@/components/documents/document-version-history';
+import { DocumentVersionUploadForm } from '@/components/documents/document-version-upload-form';
+import { DocumentDownloads } from '@/components/documents/document-downloads';
+import { adminVersionUploadTarget } from '@/lib/documents/versionUpload';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +29,9 @@ export default async function AdminDocumentDetailPage({
   if (!res.ok) notFound();
 
   const customFields = await getFieldsForEntity(prisma, session, 'document', id);
+  // `У-251`, `У-254`: те же блоки, что у менеджера и руководителя (зеркало).
+  const history = await getDocumentHistory(prisma, session, id);
+  const versionUpload = adminVersionUploadTarget(res.document);
 
   return (
     <DocumentDetailView
@@ -42,7 +50,30 @@ export default async function AdminDocumentDetailPage({
         documentId={id}
         push={res.document.oneCPush}
         pushRuleHref={settingsSectionHref('catalogs.requisites', 'admin')}
+        pushedVersionInOneC={history.ok ? history.history.pushedVersionInOneC : null}
       />
+      {versionUpload && (
+        <DocumentVersionUploadForm
+          url={versionUpload.url}
+          fields={versionUpload.fields}
+          documentId={id}
+          currentVersion={res.document.version}
+        />
+      )}
+      {history.ok && (
+        <>
+          <DocumentVersionHistory
+            versions={history.history.versions}
+            currentId={id}
+            hrefBase="/admin/documents"
+          />
+          {/* `У-254`: у администратора журнал действий есть — ведём в него. */}
+          <DocumentDownloads
+            downloads={history.history.downloads}
+            auditHref={settingsSectionHref('security.audit', 'admin')}
+          />
+        </>
+      )}
       <EntityCustomFields fields={customFields} entityType="document" entityId={id} />
     </DocumentDetailView>
   );

@@ -19,6 +19,7 @@ function doc(over: Partial<DocumentDetail> = {}): DocumentDetail {
     direction: 'outgoing',
     number: 'С-2026-5',
     version: 2,
+    canUploadVersion: false,
     size: 2048,
     mimeType: 'application/pdf',
     scanStatus: 'clean',

@@ -97,7 +97,14 @@ export async function listDocuments(
 }
 
 export type DownloadResult =
-  | { ok: true; path: string; mimeType: string; name: string; downloadName: string }
+  | {
+      ok: true;
+      path: string;
+      mimeType: string;
+      name: string;
+      downloadName: string;
+      version: number;
+    }
   | { ok: false; error: 'not_found' }
   | { ok: false; error: 'infected'; scanReason: string | null };
 
@@ -116,6 +123,9 @@ export async function getDocumentForDownload(
       mimeType: true,
       scanStatus: true,
       scanReason: true,
+      // `У-254`: версия нужна журналу скачиваний — «скачал документ» без
+      // версии не отвечает на вопрос, какую именно бумагу человек получил.
+      version: true,
       orderId: true,
       companyId: true,
       counterpartyType: true,
@@ -153,6 +163,7 @@ export async function getDocumentForDownload(
       path: doc.path,
       mimeType: doc.mimeType,
       name: doc.name,
+      version: doc.version,
       downloadName: documentDownloadName(doc),
     };
   }
@@ -186,6 +197,7 @@ export async function getDocumentForDownload(
     path: doc.path,
     mimeType: doc.mimeType,
     name: doc.name,
+    version: doc.version,
     downloadName: documentDownloadName(doc),
   };
 }

@@ -38,7 +38,12 @@ const ALLOWED_MIME_TYPES = new Set<string>([...DOCUMENT_MIME_TYPES, ARCHIVE_MIME
 const ALLOWED_EXTENSIONS: readonly string[] = [...DOCUMENT_EXTENSIONS, '.zip'];
 const ALLOWED_FORMATS_ERROR = `Unsupported file format. Allowed formats: ${ALLOWED_EXTENSIONS.join(', ')}`;
 
-const FIELDS = z.object({ orderId: z.coerce.string().default('') });
+const FIELDS = z.object({
+  orderId: z.coerce.string().default(''),
+  docType: z.coerce.string().default('other'),
+  /** `У-251`: пусто — обычная загрузка; id — новая версия этого документа. */
+  replacesDocumentId: z.coerce.string().default(''),
+});
 
 const MAX_FILE_SIZE_MB = resolveMaxFileSizeMb();
 const MAX_FILE_SIZE_BYTES = maxFileSizeBytes();
@@ -67,7 +72,7 @@ export async function POST(req: Request) {
   const form = await readMultipart(req);
   if (!form)
     return errorResponse('BAD_REQUEST', 'Expected multipart form-data', 400, correlationId);
-  const { orderId } = formFields(form, FIELDS);
+  const { orderId, docType, replacesDocumentId } = formFields(form, FIELDS);
   // Буфер читаем ПОСЛЕ проверок размера/MIME — отсюда readFileEntry, а не readFile.
   const file = readFileEntry(form, 'file');
 
@@ -94,6 +99,8 @@ export async function POST(req: Request) {
   const result = await uploadAdminDocument(prisma, s, {
     orderId,
     correlationId,
+    docType,
+    replacesDocumentId: replacesDocumentId === '' ? null : replacesDocumentId,
     file: {
       name: file.name,
       size: file.size,
@@ -117,6 +124,15 @@ export async function POST(req: Request) {
         );
       case 'invalid_file_format':
         return errorResponse('INVALID_FILE_FORMAT', ALLOWED_FORMATS_ERROR, 400, correlationId);
+      // `У-251`: отказы замены версии отвечают в общем для форм виде
+      // `{ ok:false, error }` — их разбирает `useFetchSubmit` и показывает
+      // русскую строку. Прежние пять кодов свою форму ответа сохраняют:
+      // переписывать их значило бы трогать чужие вызовы ради одной кнопки.
+      case 'generated_document':
+      case 'already_superseded':
+        return NextResponse.json({ ok: false, error: result.error }, { status: 409 });
+      case 'mismatch':
+        return NextResponse.json({ ok: false, error: result.error }, { status: 400 });
       default:
         return errorResponse(
           'STORAGE_UPLOAD_FAILED',

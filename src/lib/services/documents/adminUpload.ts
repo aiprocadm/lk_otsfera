@@ -5,6 +5,7 @@ import { deliverNotificationToUser, recordNotification } from '@/lib/notificatio
 import { getPrimaryOrganizationId } from '@/lib/auth/organization';
 import { log } from '@/lib/logging';
 import { persistUploadedDocument } from './upload-core';
+import { resolveReplaces, type ReplaceErrorCode } from './versions';
 
 /**
  * Загрузка документа из админ-панели (legacy-канал POST /api/documents/upload).
@@ -31,13 +32,23 @@ import { persistUploadedDocument } from './upload-core';
  */
 
 type AdminUploadError =
-  'not_found' | 'forbidden' | 'organization_context_not_found' | 'invalid_file_format' | 'storage';
+  | 'not_found'
+  | 'forbidden'
+  | 'organization_context_not_found'
+  | 'invalid_file_format'
+  | 'storage'
+  | ReplaceErrorCode;
 
 export type UploadAdminDocumentArgs = {
   orderId: string;
   correlationId: string;
   /** Тип документа из формы; неизвестный движок сведёт к «прочему». */
   docType?: string;
+  /**
+   * `У-251`: заменить этим файлом прежнюю версию. Поле необязательное —
+   * обычная загрузка приходит без него и работает как раньше.
+   */
+  replacesDocumentId?: string | null;
   file: { name: string; size: number; mimeType: string; buffer: Buffer };
 };
 
@@ -60,6 +71,13 @@ export async function uploadAdminDocument(
   // организация компании: иначе бумага клиента ложилась в чужую папку.
   if (!order.organizationId) return { ok: false, error: 'organization_context_not_found' };
 
+  const replaces = await resolveReplaces(prisma, session, args.replacesDocumentId, {
+    docType: args.docType ?? 'other',
+    counterparty: { type: 'organization', id: order.organizationId },
+    orderId,
+  });
+  if (!replaces.ok) return replaces;
+
   const persisted = await persistUploadedDocument(prisma, {
     counterparty: { type: 'organization', id: order.organizationId },
     orderId,
@@ -68,6 +86,7 @@ export async function uploadAdminDocument(
     uploadedById: session.sub,
     source: 'admin',
     file,
+    replaces: replaces.replaces,
   });
   if (!persisted.ok) {
     log.warn('[documents/adminUpload] persist failed', {

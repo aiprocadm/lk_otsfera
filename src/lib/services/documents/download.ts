@@ -20,7 +20,7 @@ import { documentDownloadName } from '@/lib/documents/fileName';
  */
 
 export type DocumentDownloadTarget =
-  | { ok: true; id: string; path: string; name: string; downloadName: string }
+  | { ok: true; id: string; path: string; name: string; downloadName: string; version: number }
   | { ok: false; error: 'not_found' }
   | { ok: false; error: 'forbidden' }
   | { ok: false; error: 'infected'; scanReason: string | null };
@@ -38,6 +38,9 @@ export async function getDocumentForSignedDownload(
       name: true,
       scanStatus: true,
       scanReason: true,
+      // `У-254`: версия нужна журналу скачиваний — «скачал документ» без
+      // версии не отвечает на вопрос, какую именно бумагу человек получил.
+      version: true,
       orderId: true,
       companyId: true,
       counterpartyType: true,
@@ -63,6 +66,7 @@ export async function getDocumentForSignedDownload(
     id: doc.id,
     path: doc.path,
     name: doc.name,
+    version: doc.version,
     downloadName: documentDownloadName(doc),
   };
 }

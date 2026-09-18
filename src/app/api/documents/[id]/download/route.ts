@@ -68,7 +68,9 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     entity: 'document',
     entityId: doc.id,
     userId: s.sub,
-    after: { ttl },
+    // `У-254`: этот роут — общая дверь для всех ролей, и до этапа 8 он один из
+    // трёх не писал в журнал ни читателя, ни версию.
+    after: { ttl, viewer: s.role, version: doc.version },
   });
   // Этап 3 PR-2 (ФТ-6.6): скачивание гасит бейдж «новый» (best-effort внутри).
   await markDocumentViewed(prisma, { documentId: doc.id, userId: s.sub });

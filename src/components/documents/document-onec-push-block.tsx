@@ -11,6 +11,11 @@
  *
  * Заказчик и партнёр блока не видят: 1С исполнителя им не принадлежит —
  * поэтому блок живёт отдельно от общей карточки, а не внутри неё.
+ *
+ * `У-251`: если в 1С уехала ПРЕЖНЯЯ версия документа, блок говорит об этом
+ * прямо и предлагает выгрузить заново. Молча подменить выгруженную бумагу
+ * нельзя: в 1С осталась бы старая редакция, а в ЛК — новая, и расхождение
+ * всплыло бы у бухгалтера, а не у нас.
  */
 
 import React, { useState } from 'react';
@@ -69,11 +74,17 @@ export function DocumentOneCPushBlock({
   documentId,
   push,
   pushRuleHref,
+  pushedVersionInOneC = null,
 }: {
   documentId: string;
   push: DocumentDetail['oneCPush'];
   /** Куда вести за правилом компании; `null` — у кабинета нет настроек (менеджер). */
   pushRuleHref: string | null;
+  /**
+   * `У-251`: номер версии, которая уже уехала в 1С вместо этой. `null` — либо
+   * документ первый в цепочке, либо прежний в 1С не отправляли.
+   */
+  pushedVersionInOneC?: number | null;
 }) {
   const [status, setStatus] = useState<OneCPushStatus>(push.status);
   const [busy, setBusy] = useState(false);
@@ -101,7 +112,10 @@ export function DocumentOneCPushBlock({
     toast.success('Документ отправлен на выгрузку в 1С.');
   }
 
-  const label = buttonLabel(status);
+  // Прежняя версия уже в 1С — значит это не первая выгрузка, а повтор
+  // изменённой бумаги. Подпись кнопки должна об этом говорить.
+  const label =
+    pushedVersionInOneC !== null && status === 'none' ? 'Выгрузить повторно' : buttonLabel(status);
 
   return (
     <section
@@ -124,6 +138,12 @@ export function DocumentOneCPushBlock({
         {push.attempts > 0 && <Row label="Попыток">{push.attempts}</Row>}
         {push.status === 'failed' && push.error && <Row label="Ошибка">{push.error}</Row>}
       </dl>
+
+      {pushedVersionInOneC !== null && status !== 'pushed' && (
+        <p className="text-sm text-amber-700">
+          {`В 1С ушла версия ${pushedVersionInOneC}. Новая версия туда не попадёт сама — выгрузите её заново.`}
+        </p>
+      )}
 
       {push.blocked ? (
         <p className="text-sm text-gray-500">

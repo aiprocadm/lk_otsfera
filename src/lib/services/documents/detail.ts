@@ -18,6 +18,7 @@ import { canReadDocument } from '@/lib/auth/policy';
 import { invoicePaymentState, type InvoicePaymentResult } from '@/lib/documents/invoicePayment';
 import { proposalDisplayStatus } from '@/lib/documents/proposalExpiry';
 import { oneCPushBlockReason, type OneCPushBlockReason } from './pushToOneC';
+import { canReplaceUploader } from './versions';
 
 type DocumentDetailError = 'not_found';
 
@@ -35,6 +36,15 @@ export type DocumentDetail = {
   signedAt: Date | null;
   createdAt: Date;
   uploadedByName: string | null;
+  /**
+   * `У-251`: показывать ли кнопку «Загрузить новую версию».
+   *
+   * Считается на сервере тем же предикатом, что решает запись: у выпущенных в
+   * ЛК бумаг версия меняется перевыпуском, заменённая версия не ветвится, а
+   * файл клиента не заменяет сотрудник наоборот. Кнопка правами не является —
+   * сервис проверит всё заново (§4).
+   */
+  canUploadVersion: boolean;
   /** Состояние документа (`У-148`): выставлен · отправлен · принят · аннулирован. */
   status: string;
   /** Итог с НДС строкой; у документов до этапа 6 его нет — показываем «—». */
@@ -129,7 +139,9 @@ export async function getDocumentDetail(
       companyId: true,
       counterpartyType: true,
       counterpartyId: true,
-      uploadedBy: { select: { name: true, email: true } },
+      uploadedBy: { select: { name: true, email: true, role: true } },
+      // `У-251`: чем документ создан — загрузкой или генератором.
+      generatedBy: true,
       order: {
         select: { id: true, title: true, orderNumber: true, companyId: true },
       },
@@ -202,6 +214,10 @@ export async function getDocumentDetail(
       acceptedAt: doc.acceptedAt ?? null,
       payment,
       uploadedByName: doc.uploadedBy?.name ?? doc.uploadedBy?.email ?? null,
+      canUploadVersion:
+        doc.generatedBy === 'user' &&
+        doc.supersededAt === null &&
+        canReplaceUploader(session, doc.uploadedBy?.role ?? null),
       order: doc.order
         ? { id: doc.order.id, title: doc.order.title, orderNumber: doc.order.orderNumber }
         : null,

@@ -151,6 +151,10 @@ export const AUDIT_ACTIONS = [
   'document_generated',
   'document_upload',
   'document_uploaded',
+  // `У-251` (этап 8): загружена НОВАЯ ВЕРСИЯ файла — прежняя перестала быть
+  // действующей. Отдельное событие: по журналу должно быть видно замену, а не
+  // просто ещё одну загрузку.
+  'document_version_uploaded',
   'enrollment_approved',
   // У-34а (этап 6): администратор проставил направление старой заявке.
   'enrollment_legacy_direction_assigned',
