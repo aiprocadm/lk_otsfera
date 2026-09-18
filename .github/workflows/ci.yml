@@ -8,6 +8,36 @@
 #
 # CI вызывает те же npm-скрипты, что и хуки, — не дублируй их шаги в YAML,
 # иначе серверный и локальный гейты разъедутся.
+#
+# ─── Про стоимость (правка 18.09.2026) ──────────────────────────────────────
+#
+# Репозиторий приватный, аккаунт на бесплатном тарифе: 2000 минут Actions в
+# месяц. Раньше один прогон стоил **27 минут** (замер по успешному прогону
+# 12.09.2026), а на каждый PR приходилось ДВА прогона — на сам PR и на push в
+# `main` после мержа. Итого ~54 минуты на PR, то есть квоты хватало на ~37 PR.
+# Программа делает по 50+ PR в месяц, и 17.09.2026 в 18:30 минуты кончились:
+# с этого момента КАЖДЫЙ прогон падает за 0 секунд со `startup_failure`, а
+# владельцу идут письма «PR run failed at startup». Заметить причину по письму
+# нельзя — GitHub пишет обтекаемое «likely a workflow file issue», хотя файл
+# исправен (тот же файл работал за 24 минуты до этого, а ручной запуск
+# принимается).
+#
+# Что сделано, чтобы это не повторилось:
+#
+#   1. **Тяжёлые работы запускаются только по делу.** Job `scope` смотрит, что
+#      изменилось в PR, и включает `gate` только при правках базы и сервисов
+#      (ровно как локальный `gate-precheck.ts`, §6 L2.5), `e2e` — только при
+#      правках экранов, `build` — при правках кода, `audit` — при правках
+#      зависимостей. Документационный PR стоит ~12 минут вместо 27.
+#   2. **На `main` после мержа гоняется только `checks`.** Прогон PR проверил
+#      РОВНО то же дерево минутами раньше: ветки берутся от свежего `main` и
+#      вливаются сразу. Второй полный прогон стоил столько же и не проверял
+#      ничего нового.
+#   3. **У каждой работы есть предел времени.** Без него зависшая работа
+#      крутится до 6 часов — это 18 % месячной квоты за один раз.
+#
+# Расчёт после правки: типичный PR этапа (код без экранов) ≈ 20 минут вместо
+# 54 — квоты хватает примерно на 100 PR в месяц.
 name: CI
 
 on:
@@ -20,7 +50,7 @@ on:
   # называют его обязательным гейтом. Заметить это было нечем: отключённый
   # workflow не падает, он просто молчит. Кнопка «Run workflow» нужна, чтобы
   # состояние гейта можно было проверить в любой момент, не выдумывая пустой
-  # коммит.
+  # коммит. Ручной запуск гоняет ВСЁ, без сокращений по изменённым файлам.
   workflow_dispatch:
 
 # На PR-ветках новый push отменяет устаревший прогон; на main НЕ отменяем —
@@ -30,11 +60,87 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # Что именно изменилось. Отдельной работой, а не сторонним экшеном: нужен
+  # один `git diff`, ради которого не стоит заводить зависимость с правами на
+  # репозиторий. Стоит ~30 секунд и экономит десятки минут на каждом PR.
+  #
+  # Если сравнивать не с чем (ручной запуск, новая ветка, force-push) —
+  # включаем ВСЁ. Ошибиться в сторону «прогнать лишнее» дешевле, чем пропустить.
+  scope:
+    name: что менялось
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.what.outputs.code }}
+      db: ${{ steps.what.outputs.db }}
+      ui: ${{ steps.what.outputs.ui }}
+      deps: ${{ steps.what.outputs.deps }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: what
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -uo pipefail
+          all() {
+            echo "сравнивать не с чем — гоним всё"
+            {
+              echo "code=true"
+              echo "db=true"
+              echo "ui=true"
+              echo "deps=true"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+          [ -n "${BASE:-}" ] || all
+          git cat-file -e "${BASE}^{commit}" 2>/dev/null || all
+
+          files=$(git diff --name-only "$BASE" "$HEAD")
+          echo "Изменённые файлы:"
+          echo "$files" | sed 's/^/  /'
+
+          has() { echo "$files" | grep -qE "$1"; }
+
+          # Код, от которого зависит сборка и типы.
+          if has '^(src/|prisma/|scripts/|package(-lock)?\.json|next\.config\.mjs|tsconfig.*\.json|eslint\.config\.mjs|vitest\.config\.ts|\.github/workflows/)'; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          # База и то, что с ней работает, — тот же список, что у локального
+          # `scripts/gate-precheck.ts` (CLAUDE.md §6, слой L2.5).
+          if has '^(prisma/|src/lib/services/|src/worker/|src/lib/jobs/|scripts/gate)'; then
+            echo "db=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "db=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          # Экраны: страницы, компоненты, навигация и правила приёмки.
+          if has '^(src/app/|src/components/|src/lib/navigation/|src/lib/acceptance/|src/e2e/|playwright\.config\.ts)'; then
+            echo "ui=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ui=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if has '^package(-lock)?\.json$'; then
+            echo "deps=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deps=false" >> "$GITHUB_OUTPUT"
+          fi
+
   # Фаза 4: скан секретов. Работает по всей истории PR-диапазона; секретов в
   # репозитории нет (проверено аудитом) — job охраняет от будущих утечек.
+  # Стоит секунды, поэтому по изменённым файлам не сокращается: утечка может
+  # приехать в любом файле.
   gitleaks:
     name: gitleaks · скан секретов
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name != 'push'
     env:
       GITLEAKS_VERSION: 8.24.3
     steps:
@@ -53,6 +159,9 @@ jobs:
   build:
     name: build · прод-сборка
     runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: scope
+    if: github.event_name != 'push' && needs.scope.outputs.code == 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -72,6 +181,9 @@ jobs:
   audit:
     name: audit · критические уязвимости
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: scope
+    if: github.event_name != 'push' && needs.scope.outputs.deps == 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -81,9 +193,19 @@ jobs:
       - run: npm ci
       - run: npm audit --omit=dev --audit-level=critical
 
+  # Ядро гейта. На PR гоняется ВСЕГДА и по изменённым файлам не сокращается:
+  # внутри живут доковые стражи (`docs.tz-program`, `docs.live-links`), и PR,
+  # меняющий только документы, ломает ровно их.
+  #
+  # На `main` после мержа — только если менялся код. Документы к этому моменту
+  # уже проверены прогоном самого PR на том же дереве; повторять ради них
+  # двенадцать минут незачем.
   checks:
     name: typecheck · lint · unit
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: scope
+    if: github.event_name != 'push' || needs.scope.outputs.code == 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -102,6 +224,9 @@ jobs:
   gate:
     name: integration gate · migrate status
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: scope
+    if: github.event_name != 'push' && needs.scope.outputs.db == 'true'
     services:
       postgres:
         # Тот же образ и креды, что db-сервис в docker-compose.yml.
@@ -172,10 +297,16 @@ jobs:
   # Приложение поднимается прод-сборкой, а не `next dev`: маршруты уже
   # собраны, поэтому нет таймаутов первого захода — 290 проверок
   # проходят за ~4 минуты вместо часа.
+  #
+  # Самая дорогая работа конвейера (~7 минут): ставит браузер, собирает прод и
+  # поднимает сервер. Гоняется только когда менялись экраны — правка сервиса
+  # или документа их вида не меняет.
   e2e-rules:
     name: e2e · правила экранов
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    needs: scope
+    if: github.event_name != 'push' && needs.scope.outputs.ui == 'true'
     services:
       postgres:
         image: postgres:16-alpine
@@ -281,4 +412,7 @@ jobs:
         with:
           name: playwright-report
           path: playwright-report/
-          retention-days: 7
+          # Было 7 дней. Артефакты приватного репозитория тратят платное
+          # хранилище так же, как минуты, — трёх дней хватает, чтобы разобрать
+          # упавший прогон.
+          retention-days: 3
