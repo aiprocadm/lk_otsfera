@@ -38,7 +38,16 @@ export function OrgEventsFeed({ events }: { events: OrgEvent[] }) {
                 {e.title}
               </span>
             )}
-            <span className="text-gray-400 text-xs whitespace-nowrap">{fmtDateTime(e.at)}</span>
+            {/*
+              Метка для визуального эталона: время события приходит из базы
+              (`updatedAt`/`createdAt`), а сид проставляет его «от сегодня» —
+              значит снимок во всю страницу стареет от каждого пересоздания
+              базы, без единой правки кода. Playwright закрывает эту область
+              маской и сверяет всё остальное (прогон сопровождения №30).
+            */}
+            <span data-testid="event-time" className="text-gray-400 text-xs whitespace-nowrap">
+              {fmtDateTime(e.at)}
+            </span>
           </li>
         ))}
       </ul>
