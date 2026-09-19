@@ -17,7 +17,7 @@ function eventRow(id: string, over: Record<string, unknown> = {}) {
     user: { id: 'u1', email: 'e@x.ru', name: 'Емп' },
     userRole: 'manager',
     companyId: 'co-1',
-    context: 'manager_students_list',
+    context: 'global_search_students',
     action: 'list',
     subjectType: 'student',
     subjectIds: ['s1'],
@@ -60,8 +60,8 @@ describe('listPiiAccess', () => {
     if (!res.ok) return;
     expect(res.rows[0]).toMatchObject({
       id: 'ev1',
-      context: 'manager_students_list',
-      labelRu: 'Список слушателей',
+      context: 'global_search_students',
+      labelRu: 'Глобальный поиск: слушатели',
       subjects: [{ id: 's1', label: 'Иван И.' }],
     });
     expect(res.nextCursor).toBeNull();

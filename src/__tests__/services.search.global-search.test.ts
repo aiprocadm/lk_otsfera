@@ -244,7 +244,7 @@ describe('globalSearch — маппинг выдачи', () => {
         name: 'Иванов Иван',
         email: 'ivanov@example.com',
         createdAt: new Date('2026-07-04'),
-        organization: { name: 'ООО Ромашка' },
+        organization: { id: 'org-1', name: 'ООО Ромашка' },
       },
       // Слушатель без почты и без названия организации: подписи нет вовсе —
       // на экране не должно появиться висящего разделителя « · ».
@@ -253,7 +253,7 @@ describe('globalSearch — маппинг выдачи', () => {
         name: 'Петров Пётр',
         email: null,
         createdAt: new Date('2026-07-04'),
-        organization: { name: '' },
+        organization: { id: 'org-2', name: '' },
       },
     ]);
     message.mockResolvedValue([
@@ -316,7 +316,12 @@ describe('globalSearch — маппинг выдачи', () => {
 
     const students = res.groups.find((g) => g.key === 'students')!;
     expect(students.hits[0]!.subtitle).toBe('ivanov@example.com · ООО Ромашка');
-    expect(students.hits[0]!.href).toBe('/manager/students/s1');
+    // Настоящий адрес карточки, а не шлюз `/manager/students/<id>`:
+    // сотрудник ведётся внутри организации (`У-97`). Через шлюз человек шёл
+    // лишним переходом, а после его удаления по сроку (`У-263`) каждый
+    // найденный поиском сотрудник вёл бы в никуда. Поправлено 19.09.2026
+    // сухим прогоном приёмки.
+    expect(students.hits[0]!.href).toBe('/manager/organizations/org-1/students/s1');
     expect(students.hits[1]!.subtitle).toBeNull();
 
     const messages = res.groups.find((g) => g.key === 'messages')!;

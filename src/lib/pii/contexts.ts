@@ -39,18 +39,16 @@ export type PiiContext = {
 };
 
 export const PII_CONTEXTS = {
-  manager_students_list: {
-    subjectType: 'student',
-    action: 'list',
-    labelRu: 'Список слушателей',
-    callSite: 'src/lib/services/manager/students.ts',
-  },
-  manager_student_view: {
-    subjectType: 'student',
-    action: 'view',
-    labelRu: 'Карточка слушателя',
-    callSite: 'src/lib/services/manager/students.ts',
-  },
+  // Здесь были `manager_students_list` и `manager_student_view` — справочник
+  // слушателей у менеджера. **Сняты 19.09.2026 вместе со своим сервисом.**
+  // Раздел «Сотрудники» убран у менеджера ещё в августе (`У-103`), адрес стал
+  // шлюзом, и читать ПДн там стало нечему. Дожили они потому, что сервис
+  // держал мёртвый компонент списка, а компонент — собственный тест: для
+  // knip такая пара выглядит живой. Поймал страж `services.no-test-only-modules`.
+  //
+  // Чтение ПДн сотрудника теперь идёт только через `org_card_employee_view`
+  // ниже — карточку внутри организации.
+  //
   // `У-97`: карточка сотрудника открывается внутри карточки организации и
   // одинакова во всех кабинетах сотрудников ЦО — поэтому у неё свой контекст,
   // а не менеджерский `manager_student_view` (тот остался у справочника).
