@@ -88,8 +88,14 @@ export default async function AdminDashboardPage() {
             <ul className="space-y-2 text-sm">
               {events.map((e) => (
                 <li key={e.id} className="flex items-center justify-between gap-3">
+                  {/*
+                    Настоящий адрес журнала, а не шлюз `/admin/audit`: аудит
+                    переехал в хаб «Настройки» (`У-262`). Через шлюз человек шёл
+                    лишним переходом, а после его удаления по сроку (`У-263`)
+                    каждое событие на главной вело бы в никуда.
+                  */}
                   <Link
-                    href={`/admin/audit?entity=${e.entity}&action=${e.verb}`}
+                    href={`/admin/settings/security/audit?entity=${e.entity}&action=${e.verb}`}
                     className="text-gray-700 flex-1 min-w-0 truncate hover:text-[#F97316] hover:underline"
                   >
                     <span className="font-medium">{e.actor}</span> {auditActionRu(e.verb)}

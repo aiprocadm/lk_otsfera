@@ -518,8 +518,47 @@ describe('saveBatchMapping', () => {
             userMap: { '1': 'u1' },
           },
         },
+        // Сопоставление меняет итог предпросмотра, поэтому пакет возвращается
+        // в пересчёт.
+        status: 'preview_pending',
       },
     });
+  });
+
+  /**
+   * Счётчики и список «Нужно решение» — результат прогона, сделанного ДО
+   * сопоставления. Пока их не пересчитывали, экран одновременно писал
+   * «Сопоставление готово» и «эти записи не перенесутся: стадия не
+   * сопоставлена» — про стадию, которую человек только что сопоставил.
+   *
+   * Сухой прогон приёмки (этап 10) померил разницу: предпросмотр обещал
+   * «Лиды: создадим 1», а перенеслось 5. Это тот столбик, по которому решают,
+   * нажимать ли «Применить», — то есть цифра, ради которой предпросмотр и
+   * существует.
+   */
+  it('сохранение сопоставления ставит пакет на пересчёт предпросмотра', async () => {
+    findUnique.mockResolvedValue(row({}));
+    queueAdd.mockClear();
+
+    await expect(
+      saveBatchMapping(prisma, admin, { batchId: 'b1', tables: { stageMap: { '0:NEW': 'ds-2' } } })
+    ).resolves.toEqual({ ok: true });
+
+    expect(update.mock.calls.at(-1)?.[0]?.data?.status).toBe('preview_pending');
+    expect(getQueue).toHaveBeenCalledWith('bitrix.import');
+    expect(queueAdd).toHaveBeenCalledWith('preview', { batchId: 'b1' });
+  });
+
+  it('недоступная очередь не роняет сохранение: пакет ждёт пересчёта', async () => {
+    // §3: постановка в очередь логируется и проглатывается. Решение человека
+    // по стадиям уже записано — терять его из-за упавшего Redis нельзя.
+    findUnique.mockResolvedValue(row({}));
+    queueAdd.mockRejectedValueOnce(new Error('redis down'));
+
+    await expect(
+      saveBatchMapping(prisma, admin, { batchId: 'b1', tables: { stageMap: { '0:NEW': 'ds-3' } } })
+    ).resolves.toEqual({ ok: true });
+    expect(update.mock.calls.at(-1)?.[0]?.data?.status).toBe('preview_pending');
   });
 });
 

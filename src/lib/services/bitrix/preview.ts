@@ -278,10 +278,30 @@ export async function saveBatchMapping(
     ...current.batch.settings,
     tables: { ...current.batch.settings.tables, ...args.tables },
   };
+  // Сопоставление меняет ИТОГ предпросмотра, поэтому пакет возвращается в
+  // пересчёт (`У-193`).
+  //
+  // **Почему это важно.** Счётчики («создадим 5, пропустим 0») и список
+  // «Нужно решение» — результат сухого прогона, сделанного ДО сопоставления.
+  // Пока их не пересчитывали, экран одновременно писал «Сопоставление готово»
+  // и «эти записи не перенесутся: стадия не сопоставлена» — про стадию,
+  // которую человек только что сопоставил. Сухой прогон приёмки (этап 10)
+  // померил разницу: предпросмотр обещал «Лиды: создадим 1», а перенеслось 5.
+  // Это ровно тот столбик, по которому решают, нажимать ли «Применить».
+  //
+  // Пересчёт безопасен: предпросмотр ничего не записывает, а очередь
+  // недоступна — пакет остаётся в `preview_pending`, и человек видит, что
+  // пересчёт идёт (§3: постановка в очередь логируется и проглатывается).
   await prisma.bitrixImportBatch.update({
     where: { id: args.batchId },
-    data: { settings: settings as unknown as Prisma.InputJsonValue },
+    data: {
+      settings: settings as unknown as Prisma.InputJsonValue,
+      status: 'preview_pending',
+    },
   });
+  await getQueue('bitrix.import')
+    .add('preview', { batchId: args.batchId })
+    .catch(bestEffort('[bitrix/preview] re-enqueue after mapping failed'));
   return { ok: true };
 }
 

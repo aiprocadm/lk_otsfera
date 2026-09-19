@@ -23,7 +23,11 @@ export function OrgKpiGrid({
       <StatCard
         title="Сотрудников на курсе"
         value={kpis.studentsCount}
-        href="/organization/students"
+        // Настоящий адрес, а не шлюз `/organization/students`: сотрудники
+        // ведутся во вкладке карточки своей организации (`Р-12`). Ссылка на
+        // шлюз работала бы через лишний переход и сломалась бы в день, когда
+        // шлюз удалят по сроку (`У-263`).
+        href="/organization/company?tab=employees"
       />
       <StatCard
         title="Документов за 30 дней"

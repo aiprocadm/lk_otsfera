@@ -32,7 +32,14 @@ const LIST_INCLUDE = {
   organization: { select: { id: true, name: true } },
 } satisfies Prisma.StudentInclude;
 
-export type ManagerStudentRow = Prisma.StudentGetPayload<{ include: typeof LIST_INCLUDE }>;
+/**
+ * Строка справочника. **Без `export`** (§12b: символ, нужный только внутри
+ * файла, живёт без него): наружу её больше никто не берёт — компонент списка
+ * сотрудников у менеджера удалён 19.09.2026 как мёртвый, а сам раздел стал
+ * шлюзом ещё в августе (`У-103`). Форма типа при этом видна снаружи через
+ * `ListStudentsResult`.
+ */
+type ManagerStudentRow = Prisma.StudentGetPayload<{ include: typeof LIST_INCLUDE }>;
 
 export type ListStudentsResult = {
   rows: ManagerStudentRow[];
