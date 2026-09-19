@@ -10,8 +10,8 @@ function row(over: Partial<PiiAccessRow> = {}): PiiAccessRow {
     createdAt: new Date('2026-07-11T10:00:00Z'),
     actor: { id: 'u1', email: 'e@x.ru', name: 'Емп Ловеев' },
     userRole: 'manager',
-    context: 'manager_students_list',
-    labelRu: 'Список слушателей',
+    context: 'global_search_students',
+    labelRu: 'Глобальный поиск: слушатели',
     action: 'list',
     subjectType: 'student',
     subjectCount: 1,
@@ -29,7 +29,7 @@ describe('PiiAccessTable', () => {
   it('рендерит актора, контекст и субъектов', () => {
     const html = renderToString(<PiiAccessTable rows={[row()]} />);
     expect(html).toContain('Емп Ловеев');
-    expect(html).toContain('Список слушателей');
+    expect(html).toContain('Глобальный поиск: слушатели');
     expect(html).toContain('Иван И.');
   });
 

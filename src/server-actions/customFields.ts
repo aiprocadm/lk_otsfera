@@ -12,13 +12,40 @@ type ActionResult = { ok: true } | { ok: false; error: ValuesError };
  * Пути, которые надо освежить после записи значений: одна и та же карточка
  * живёт в нескольких кабинетах, и без revalidate соседний кабинет продолжит
  * показывать старое значение из кэша.
+ *
+ * **Адреса — настоящие, а не шлюзы.** Карточка сотрудника переехала внутрь
+ * организации (`У-97`, `У-100`): `/manager/students/<id>` и
+ * `/organization/students/<id>` теперь только уводят на новое место. Освежать
+ * шлюз бессмысленно: за ним нет экрана, который показывал бы поле. Сегодня это
+ * ничего не ломало — все карточки объявлены `force-dynamic` и из кэша не
+ * отдаются, — но в день, когда шлюз удалят по сроку (`У-263`), здесь остался бы
+ * адрес в никуда. Держит страж `navigation.no-gateway-links`.
+ *
+ * Адрес кабинета сотрудников ЦО — шаблон маршрута: номер организации здесь
+ * неизвестен, а `revalidatePath` со вторым аргументом `'page'` освежает все
+ * экземпляры маршрута сразу.
  */
-const REVALIDATE_PATHS: Record<CustomFieldEntity, (id: string) => string[]> = {
-  order: (id) => [`/manager/orders/${id}`, `/leader/orders/${id}`, `/admin/orders/${id}`],
-  organization: (id) => [`/admin/organizations/${id}`, `/manager/organizations/${id}`],
-  partner: (id) => [`/admin/partners/${id}`],
-  student: (id) => [`/manager/students/${id}`, `/organization/students/${id}`],
-  document: (id) => [`/admin/documents/${id}`],
+type RevalidateTarget = { path: string; routePattern?: true };
+
+const REVALIDATE_PATHS: Record<CustomFieldEntity, (id: string) => RevalidateTarget[]> = {
+  order: (id) => [
+    { path: `/manager/orders/${id}` },
+    { path: `/leader/orders/${id}` },
+    { path: `/admin/orders/${id}` },
+  ],
+  organization: (id) => [
+    { path: `/admin/organizations/${id}` },
+    { path: `/manager/organizations/${id}` },
+  ],
+  partner: (id) => [{ path: `/admin/partners/${id}` }],
+  student: (id) => [
+    { path: `/organization/company/students/${id}` },
+    { path: '/manager/organizations/[id]/students/[studentId]', routePattern: true },
+    { path: '/leader/organizations/[id]/students/[studentId]', routePattern: true },
+    { path: '/admin/organizations/[id]/students/[studentId]', routePattern: true },
+    { path: '/partner/portfolio/[orgId]/students/[studentId]', routePattern: true },
+  ],
+  document: (id) => [{ path: `/admin/documents/${id}` }],
 };
 
 /**
@@ -38,8 +65,9 @@ export async function saveCustomFieldsAction(
   const result = await setValues(prisma, session, entityType, entityId, values);
   if (!result.ok) return result;
 
-  for (const path of REVALIDATE_PATHS[entityType](entityId)) {
-    revalidatePath(path);
+  for (const target of REVALIDATE_PATHS[entityType](entityId)) {
+    if (target.routePattern) revalidatePath(target.path, 'page');
+    else revalidatePath(target.path);
   }
   return { ok: true };
 }

@@ -42,8 +42,6 @@ describe('PII_CONTEXTS registry', () => {
       'intake_list', // этап 7: union-список «Входящие в работу»
       'lead_contact_match', // этап 1 ТЗ 12.09.2026 (`У-180`): контакт, найденный по данным лида
       'manager_lead_view',
-      'manager_student_view',
-      'manager_students_list',
       'messengers_candidates', // спека 2026-09-12: кому написать первым (пользователи + контакты)
       'messengers_list', // спека 2026-09-12: список диалогов
       'messengers_view', // спека 2026-09-12: карточка диалога

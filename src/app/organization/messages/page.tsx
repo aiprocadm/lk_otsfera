@@ -1,7 +1,8 @@
 import React from 'react';
 import { notFound, redirect } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
-import { requireOrganization } from '@/lib/auth/requireRole';
+import { getOrgPageContext } from '@/lib/auth/orgPageContext';
+import { OrgAppShell } from '@/components/organization/org-app-shell';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { listThreads } from '@/lib/services/chat/threads';
 import { listCabinetDialogs } from '@/lib/services/cabinetDialogs/list';
@@ -31,14 +32,21 @@ const BASE = '/organization/messages';
 export default async function OrganizationMessagesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; dialog?: string; missing?: string }>;
+  searchParams: Promise<{ tab?: string; dialog?: string; missing?: string; org?: string }>;
 }) {
   const chatEnabled = isFeatureEnabled('chat');
   const cabinetEnabled = isFeatureEnabled('cabinet_questions');
   if (!chatEnabled && !cabinetEnabled) notFound();
 
-  const session = await requireOrganization();
   const sp = await searchParams;
+  // Оболочку кабинета заказчика рисует не layout, а каждая страница сама:
+  // `layout.tsx` не видит `searchParams`, а активная организация берётся
+  // именно оттуда. Цена приёма — про него можно забыть, и тогда экран
+  // открывается без меню, шапки и кнопки «Выйти»: человек попадает сюда с
+  // кнопки «Написать» на главной и оказывается в тупике. Так и было до
+  // сухого прогона приёмки (этап 10). Держит страж `pages.org-app-shell`.
+  const ctx = await getOrgPageContext(sp);
+  const session = ctx.session;
 
   const tabs: MessagesTabKey[] = [
     ...(cabinetEnabled ? (['manager'] as const) : []),
@@ -61,23 +69,30 @@ export default async function OrganizationMessagesPage({
   const threads = active === 'orders' ? await listThreads(prisma, session) : null;
 
   return (
-    <div className="space-y-4">
-      <PageHeader
-        title={<>Сообщения {chatEnabled ? <UnreadBadge /> : null}</>}
-        subtitle="Переписка с менеджером и обсуждение по вашим заказам"
-      />
-      <MessagesTabs basePath={BASE} active={active} tabs={tabs} />
-      {isMissingObjectRequested(sp) && <MissingObjectNotice what="Переписка" />}
-      {active === 'manager' ? (
-        <CabinetDialogsPanel basePath={BASE} dialogs={dialogs} selected={selected} />
-      ) : (
-        <OrderThreadInbox
-          threads={threads?.ok ? threads.rows : []}
-          total={threads?.ok ? threads.total : 0}
-          currentUserId={session.sub}
-          variant="role"
+    <OrgAppShell
+      activeOrgName={ctx.activeOrgName}
+      memberships={ctx.memberships}
+      activeOrgId={ctx.activeOrgId}
+      viewerRole={ctx.viewerRole}
+    >
+      <div className="space-y-4">
+        <PageHeader
+          title={<>Сообщения {chatEnabled ? <UnreadBadge /> : null}</>}
+          subtitle="Переписка с менеджером и обсуждение по вашим заказам"
         />
-      )}
-    </div>
+        <MessagesTabs basePath={BASE} active={active} tabs={tabs} />
+        {isMissingObjectRequested(sp) && <MissingObjectNotice what="Переписка" />}
+        {active === 'manager' ? (
+          <CabinetDialogsPanel basePath={BASE} dialogs={dialogs} selected={selected} />
+        ) : (
+          <OrderThreadInbox
+            threads={threads?.ok ? threads.rows : []}
+            total={threads?.ok ? threads.total : 0}
+            currentUserId={session.sub}
+            variant="role"
+          />
+        )}
+      </div>
+    </OrgAppShell>
   );
 }

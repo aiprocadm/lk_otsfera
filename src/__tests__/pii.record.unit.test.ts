@@ -39,7 +39,7 @@ describe('recordPiiAccess', () => {
     const p = makePrisma();
     await recordPiiAccess(p, {
       session: MANAGER,
-      context: 'manager_students_list',
+      context: 'global_search_students',
       subjectIds: ['s1', 's2'],
       meta: { take: 50, hasQuery: true },
     });
@@ -48,7 +48,7 @@ describe('recordPiiAccess', () => {
         userId: 'u-mgr',
         userRole: 'manager',
         companyId: 'co-1',
-        context: 'manager_students_list',
+        context: 'global_search_students',
         action: 'list',
         subjectType: 'student',
         subjectIds: ['s1', 's2'],
@@ -80,7 +80,7 @@ describe('recordPiiAccess', () => {
     const p = makePrisma();
     await recordPiiAccess(p, {
       session: MANAGER,
-      context: 'manager_students_list',
+      context: 'global_search_students',
       subjectIds: ['s1'],
       meta: { cursor: true },
     });

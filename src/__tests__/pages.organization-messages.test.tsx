@@ -20,6 +20,22 @@ const { requireOrganization } = vi.hoisted(() => ({ requireOrganization: vi.fn()
 vi.mock('@/lib/auth/requireRole', () => ({ requireOrganization }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
+/**
+ * Контекст кабинета заказчика: сессия плюс всё, что нужно оболочке
+ * (активная организация, список членств, роль). Страница берёт сессию
+ * оттуда же — `getOrgPageContext` сам зовёт `requireOrganization`.
+ */
+const { getOrgPageContext } = vi.hoisted(() => ({ getOrgPageContext: vi.fn() }));
+vi.mock('@/lib/auth/orgPageContext', () => ({ getOrgPageContext }));
+
+// Оболочка кабинета — тяжёлый клиентский блок с меню и шапкой. Здесь важно
+// только то, что страница В НЕЙ, а не рядом: сухой прогон приёмки (этап 10)
+// нашёл этот экран без оболочки, и человек оставался без меню и без выхода.
+vi.mock('@/components/organization/org-app-shell', () => ({
+  OrgAppShell: (props: { children: React.ReactNode }) =>
+    React.createElement('div', { 'data-testid': 'org-shell' }, props.children),
+}));
+
 const { listThreads } = vi.hoisted(() => ({ listThreads: vi.fn() }));
 vi.mock('@/lib/services/chat/threads', () => ({ listThreads }));
 
@@ -62,6 +78,13 @@ const render = (sp: Record<string, string> = {}) =>
 beforeEach(() => {
   vi.clearAllMocks();
   requireOrganization.mockResolvedValue(SESSION);
+  getOrgPageContext.mockResolvedValue({
+    session: SESSION,
+    activeOrgId: 'org-1',
+    activeOrgName: 'ООО «Пример»',
+    memberships: [],
+    viewerRole: 'admin',
+  });
   listCabinetDialogs.mockResolvedValue([{ id: 'd1' }, { id: 'd2' }]);
   getCabinetDialog.mockResolvedValue({ ok: true, dialog: { id: 'd1' } });
   listThreads.mockResolvedValue({ ok: true, rows: [], total: 3 });
@@ -71,8 +94,28 @@ describe('OrganizationMessagesPage', () => {
   it('оба флага выключены — notFound, до сессии и сервисов дело не доходит', async () => {
     flags({});
     await expect(render()).rejects.toThrow('NOT_FOUND');
-    expect(requireOrganization).not.toHaveBeenCalled();
+    // Сессию страница берёт из контекста кабинета — он же даёт оболочке
+    // активную организацию. Проверяем именно его: `requireOrganization`
+    // теперь зовётся внутри контекста, а не страницей напрямую.
+    expect(getOrgPageContext).not.toHaveBeenCalled();
     expect(listCabinetDialogs).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Экран живёт В оболочке кабинета, а не рядом с ней.
+   *
+   * Сухой прогон приёмки (этап 10) нашёл его без оболочки: ни бокового меню,
+   * ни шапки, ни кнопки «Выйти». Человек приходит сюда с кнопки «Написать» на
+   * главной и оказывается в тупике — уйти можно только кнопкой «назад» в
+   * браузере. Страница отвечала 200, заголовок был на месте, сервисы отдавали
+   * данные; не было только всего остального, и ни один тест этого не замечал.
+   */
+  it('страница рисуется внутри оболочки кабинета (У-120)', async () => {
+    flags({ cabinet_questions: true });
+    const { container } = await render();
+    const shell = container.querySelector('[data-testid="org-shell"]');
+    expect(shell, 'экран без оболочки — человек без меню и без выхода').toBeTruthy();
+    expect(shell?.textContent).toContain('Сообщения');
   });
 
   it('только переписка: обе вкладки не рисуются, чат не грузится', async () => {

@@ -93,7 +93,10 @@ describe('updateStudentPositionAction', () => {
       studentId: 's1',
       position: 'Инженер',
     });
-    expect(revalidatePath).toHaveBeenCalledWith('/organization/students/s1');
+    // Настоящий адрес карточки, а не шлюз `/organization/students/<id>`:
+    // карточка живёт внутри «Моей организации» (`У-97`), и форма должности
+    // стоит именно на ней. Поправлено 19.09.2026 сухим прогоном приёмки.
+    expect(revalidatePath).toHaveBeenCalledWith('/organization/company/students/s1');
   });
 
   it('ошибка сервиса пробрасывается без ревалидации', async () => {

@@ -61,6 +61,43 @@ function codeFiles(dir: string, out: string[] = []): string[] {
   return out;
 }
 
+/**
+ * Текст файла без комментариев: упоминание адреса в пояснении — не ссылка.
+ *
+ * Без этого отчёт краснел бы на каждом комментарии вида «раньше жила по адресу
+ * `/organization/students`», которых в проекте много и которые как раз
+ * объясняют переезд.
+ */
+function stripComments(src: string): string {
+  return src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^[ \t]*\/\/.*$/gm, ' ');
+}
+
+/**
+ * Ссылается ли файл на старый адрес.
+ *
+ * **Почему не просто `includes("'" + path + "'")`.** Ровно так было написано
+ * сначала — и отчёт молчал про настоящие ссылки. В разметке ссылка пишется
+ * атрибутом: `href="/organization/students"`, в **двойных** кавычках; в коде
+ * встречается и шаблонная строка с подстановкой:
+ * `` `/organization/students/${id}` ``. Сухой прогон приёмки (этап 10) нашёл
+ * две живые ссылки, которых отчёт не видел.
+ *
+ * Адрес карточки записан в реестре шаблоном (`/manager/students/[id]`);
+ * искать его буквально бесполезно, поэтому ищем часть до первой скобки — она
+ * же покрывает и список, и карточку.
+ */
+function mentionsLegacy(src: string, legacyHref: string): boolean {
+  const needle = legacyHref.split('[')[0]?.replace(/\/$/, '') ?? legacyHref;
+  if (!needle) return false;
+  const body = stripComments(src);
+  // Адрес внутри строкового литерала любого из трёх видов. После адреса
+  // допускаем «/», «?», «#» и закрывающую кавычку — чтобы `/organization/students`
+  // не совпал с посторонним `/organization/students-import`.
+  const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`['"\`]${escaped}(?=['"\`/?#])`);
+  return re.test(body);
+}
+
 /** Файлы самих шлюзов и реестров: упоминание адреса там — норма, а не ссылка. */
 function isRegistryOrGateway(path: string, legacyHref: string): boolean {
   if (path.includes('navigation/legacyGateways.ts')) return true;
@@ -103,7 +140,7 @@ async function main(): Promise<number> {
     let inCode = 0;
     for (const path of paths) {
       const hits = files.filter(
-        (f) => !isRegistryOrGateway(f, path) && readFileSync(f, 'utf8').includes(`'${path}'`)
+        (f) => !isRegistryOrGateway(f, path) && mentionsLegacy(readFileSync(f, 'utf8'), path)
       );
       if (hits.length > 0) {
         inCode += hits.length;

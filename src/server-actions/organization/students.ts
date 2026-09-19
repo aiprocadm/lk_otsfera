@@ -32,6 +32,9 @@ export async function updateStudentPositionAction(
   });
   if (!res.ok) return res;
 
-  revalidatePath(`/organization/students/${studentId}`);
+  // Настоящий адрес карточки, а не шлюз `/organization/students/<id>`: карточка
+  // живёт внутри «Моей организации» (`У-97`, `У-100`), и форма должности стоит
+  // именно на ней. Держит страж `navigation.no-gateway-links`.
+  revalidatePath(`/organization/company/students/${studentId}`);
   return { ok: true };
 }

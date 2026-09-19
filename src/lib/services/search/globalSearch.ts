@@ -238,7 +238,10 @@ export async function globalSearch(
           name: true,
           email: true,
           createdAt: true,
-          organization: { select: { name: true } },
+          // `id` организации нужен для ссылки: карточка сотрудника живёт
+          // внутри организации (`У-97`), и без него пришлось бы вести на
+          // адрес-шлюз `/manager/students/<id>`.
+          organization: { select: { id: true, name: true } },
         },
         orderBy: { createdAt: 'desc' },
         take: SEARCH_TAKE,
@@ -371,7 +374,11 @@ export async function globalSearch(
         id: s.id,
         title: s.name,
         subtitle: joinParts(s.email, s.organization.name),
-        href: `/manager/students/${s.id}`,
+        // Настоящий адрес карточки, а не шлюз `/manager/students/<id>`:
+        // сотрудник ведётся внутри организации (`У-97`). Через шлюз человек
+        // шёл лишним переходом, а после его удаления по сроку (`У-263`)
+        // каждый найденный поиском сотрудник вёл бы в никуда.
+        href: `/manager/organizations/${s.organization.id}/students/${s.id}`,
         date: s.createdAt,
       })),
     },

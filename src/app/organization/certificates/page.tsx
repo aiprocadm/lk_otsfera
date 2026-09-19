@@ -101,9 +101,15 @@ export default async function OrganizationCertificatesPage({
           current={{ direction: sp.direction, status: sp.status, search: sp.search }}
           hidden={sp.org ? { org: sp.org } : {}}
         />
+        {/*
+          Настоящий адрес карточки сотрудника, а не шлюз `/organization/students/[id]`:
+          карточка переехала внутрь «Моей организации» (`У-97`, `У-100`), и ссылка
+          через шлюз стоила бы лишнего перехода, а после удаления шлюза по сроку
+          (`У-263`) привела бы в никуда.
+        */}
         <CertificateRegistryTable
           rows={result.certificates}
-          studentHrefBase="/organization/students"
+          studentHrefBase="/organization/company/students"
         />
         <Paginator
           basePath="/organization/certificates"

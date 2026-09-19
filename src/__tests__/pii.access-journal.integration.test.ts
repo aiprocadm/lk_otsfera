@@ -48,7 +48,7 @@ describe('PII access journal (integration)', () => {
   it('GIN-поиск: subjectIds has находит событие по субъекту', async () => {
     await recordPiiAccess(prisma, {
       session: session(),
-      context: 'manager_students_list',
+      context: 'global_search_students',
       subjectIds: [`${RUN}-s1`, `${RUN}-s2`],
     });
     const hit = await prisma.piiAccessEvent.findMany({
@@ -115,12 +115,12 @@ describe('PII access journal (integration)', () => {
     try {
       await recordPiiAccess(prisma, {
         session: session(),
-        context: 'manager_students_list',
+        context: 'global_search_students',
         subjectIds: [`${RUN}-s-a`],
       });
       await recordPiiAccess(prisma, {
         session: session({ sub: other.id }),
-        context: 'manager_students_list',
+        context: 'global_search_students',
         subjectIds: [`${RUN}-s-b`],
       });
 
