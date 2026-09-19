@@ -27,12 +27,19 @@ import { ROLLBACK_STATE_HINTS } from '@/lib/services/bitrix/rollback';
 const DAY = 24 * 60 * 60 * 1000;
 
 const findManyBatches = vi.fn();
+// Счётчик всех пакетов компании: список усечён пределом, и без общего числа
+// экран не сможет сказать «показаны последние N из M» (прогон №31).
+const countBatches = vi.fn(async () => 0);
 const findUniqueBatch = vi.fn();
 const groupByWrites = vi.fn();
 const countWrites = vi.fn();
 
 const prisma = {
-  bitrixImportBatch: { findMany: findManyBatches, findUnique: findUniqueBatch },
+  bitrixImportBatch: {
+    findMany: findManyBatches,
+    findUnique: findUniqueBatch,
+    count: countBatches,
+  },
   bitrixImportWrite: { groupBy: groupByWrites, count: countWrites },
 } as unknown as PrismaClient;
 
@@ -85,8 +92,29 @@ describe('listBitrixHistory — доступ и пустая история', ()
 
   it('переносов ещё не было → пустой список и НИ ОДНОГО запроса счётчиков', async () => {
     findManyBatches.mockResolvedValue([]);
-    await expect(listBitrixHistory(prisma, admin)).resolves.toEqual({ ok: true, batches: [] });
+    // Общее число и предел отдаются и на пустой истории: экран решает по ним,
+    // нужна ли подпись «показаны последние N из M» (прогон №31).
+    await expect(listBitrixHistory(prisma, admin)).resolves.toEqual({
+      ok: true,
+      batches: [],
+      total: 0,
+      limit: 50,
+    });
     expect(groupByWrites).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Общее число пакетов считается по той же границе компании, что и сам
+   * список: иначе администратор увидел бы в подписи чужие переносы. Найдено
+   * прогоном сопровождения №28 (усечение без счётчика), закрыто №31.
+   */
+  it('общее число считается по своей компании и доезжает до экрана', async () => {
+    countBatches.mockResolvedValue(137);
+    const res = await listBitrixHistory(prisma, admin);
+
+    expect(countBatches).toHaveBeenCalledWith({ where: { companyId: 'c1' } });
+    expect(res.ok && res.total).toBe(137);
+    expect(res.ok && res.limit).toBe(50);
   });
 
   it('история читается своей компанией и не длиннее пятидесяти строк', async () => {

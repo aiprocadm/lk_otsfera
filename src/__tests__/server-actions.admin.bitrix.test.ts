@@ -517,6 +517,12 @@ describe('applyBitrixBatchAction', () => {
     expect(notFoundIfDisabled).toHaveBeenCalledWith('bitrix_migration');
     expect(applyBitrixBatch).toHaveBeenCalledWith(expect.anything(), SESSION, 'b-1');
     expect(revalidatePath).toHaveBeenCalledWith(`${BATCHES_PATH}/b-1`);
+    // Состояние пакета видно и строкой в списке — освежаются ОБА адреса,
+    // как это давно делает откат. Без второй строки список, открытый после
+    // «Применить», показывал прежнее состояние: страница `force-dynamic`, но
+    // её RSC-ответ лежит в клиентском кэше маршрутов. Найдено прогоном
+    // сопровождения №28, закрыто №31.
+    expect(revalidatePath).toHaveBeenCalledWith(BATCHES_PATH);
   });
 
   it('раздел закрыт гардом настроек — до флага и сервиса дело не доходит', async () => {

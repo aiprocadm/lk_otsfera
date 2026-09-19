@@ -51,8 +51,11 @@ const create = vi.fn();
 const findUnique = vi.fn();
 const findMany = vi.fn();
 const update = vi.fn();
+// Счётчик всех пакетов компании: список усечён `take`, и без общего числа
+// экран не сможет сказать «показаны последние N из M» (прогон №31).
+const countBatches = vi.fn(async () => 0);
 const prisma = {
-  bitrixImportBatch: { create, findUnique, findMany, update },
+  bitrixImportBatch: { create, findUnique, findMany, update, count: countBatches },
 } as unknown as PrismaClient;
 
 const admin = { sub: 'u1', role: 'admin', companyId: 'c1' } as SessionPayload;

@@ -22,16 +22,26 @@ export type BitrixHistoryItem = BitrixBatchView & {
   rollbackHint: string;
 };
 
-/** Больше не показываем: история переносов — не бесконечная лента. */
+/**
+ * Больше не показываем: история переносов — не бесконечная лента.
+ *
+ * **Предел отдаётся наружу вместе с общим числом** (`limit`, `total`): экран
+ * обязан сказать «показаны последние N из M», иначе администратор не отличит
+ * «это вся история» от «видна только верхушка» — а идёт он сюда именно за
+ * старыми переносами. Молчаливо усечённый список — дефект (§15/§16).
+ */
 const HISTORY_LIMIT = 50;
 
 export async function listBitrixHistory(
   prisma: PrismaClient,
   session: SessionPayload
-): Promise<{ ok: true; batches: BitrixHistoryItem[] } | BitrixBatchFail> {
+): Promise<
+  { ok: true; batches: BitrixHistoryItem[]; total: number; limit: number } | BitrixBatchFail
+> {
   const list = await listBitrixBatches(prisma, session, HISTORY_LIMIT);
   if (!list.ok) return list;
-  if (list.batches.length === 0) return { ok: true, batches: [] };
+  if (list.batches.length === 0)
+    return { ok: true, batches: [], total: list.total, limit: HISTORY_LIMIT };
 
   // Неоткаченные строки — одним запросом на всю страницу: иначе список из
   // пятидесяти пакетов дал бы пятьдесят запросов.
@@ -45,6 +55,8 @@ export async function listBitrixHistory(
   const now = Date.now();
   return {
     ok: true,
+    total: list.total,
+    limit: HISTORY_LIMIT,
     batches: list.batches.map((batch) => {
       const state = rollbackStateOf(batch, now, pendingByBatch.get(batch.id) ?? 0);
       return { ...batch, rollback: state, rollbackHint: ROLLBACK_STATE_HINTS[state] };
