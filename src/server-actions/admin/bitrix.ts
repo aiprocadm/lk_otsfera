@@ -234,6 +234,13 @@ export async function applyBitrixBatchAction(batchId: string): Promise<BitrixApp
   const res = await applyBitrixBatch(prisma, session, batchId);
   if (!res.ok) return { ok: false, error: res.error };
   revalidatePath(`${BITRIX_BATCHES_PATH}/${batchId}`);
+  // Состояние пакета видно не только в карточке, но и строкой в списке —
+  // освежаем оба адреса, как это давно делает откат. Без второй строки список,
+  // открытый после «Применить», показывал прежнее состояние: страница сама по
+  // себе `force-dynamic`, но её RSC-ответ лежит в клиентском кэше маршрутов, и
+  // сбрасывает его именно `revalidatePath`. Найдено прогоном сопровождения №28,
+  // закрыто №31; держит страж `bitrix.apply-revalidates-list`.
+  revalidatePath(BITRIX_BATCHES_PATH);
   return { ok: true };
 }
 

@@ -31,6 +31,11 @@ export default async function AdminBitrixHistoryPage() {
   ]);
 
   const rows = batches.ok ? batches.batches : [];
+  // Список усечён пределом сервиса. Без этой подписи человек не отличит «это
+  // вся история» от «показана верхушка» — а в историю переносов идут именно за
+  // старыми пакетами. Молчаливо усечённый список — дефект (§15/§16); найдено
+  // прогоном сопровождения №28, закрыто №31.
+  const truncated = batches.ok && batches.total > rows.length;
   const managerOptions = managers
     .filter((m) => m.isActive)
     .map((m) => ({ id: m.id, name: m.name }));
@@ -46,7 +51,15 @@ export default async function AdminBitrixHistoryPage() {
         hasConnection={Boolean(connection['bitrix.webhookUrl'])}
       />
       {rows.length > 0 ? (
-        <BatchList batches={rows} />
+        <>
+          <BatchList batches={rows} />
+          {truncated && batches.ok ? (
+            <p className="text-sm text-gray-500">
+              Показаны последние {rows.length} пакетов из {batches.total}. Старые переносы остаются
+              в базе — откройте нужный по прямой ссылке из журнала аудита.
+            </p>
+          ) : null}
+        </>
       ) : (
         <EmptyState
           icon="🚚"

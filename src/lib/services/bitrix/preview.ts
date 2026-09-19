@@ -227,19 +227,33 @@ export async function getBitrixBatch(
   return { ok: true, batch: toView(row) };
 }
 
+/**
+ * Список пакетов компании, новейшие сверху.
+ *
+ * Возвращает и **общее число** пакетов, а не только показанную страницу:
+ * список усечён (`take`), и без счётчика человек не отличит «это всё» от
+ * «показана верхушка». Молчаливое усечение списка — дефект по §15/§16; здесь
+ * оно к тому же опасно по смыслу: администратор идёт в историю переносов
+ * выяснять, что и когда переносили, и не увидел бы самого старого пакета.
+ * Найдено прогоном сопровождения №28, закрыто №31.
+ */
 export async function listBitrixBatches(
   prisma: PrismaClient,
   session: SessionPayload,
   limit = 20
-): Promise<BitrixBatchResult<{ batches: BitrixBatchView[] }> | BitrixBatchFail> {
+): Promise<BitrixBatchResult<{ batches: BitrixBatchView[]; total: number }> | BitrixBatchFail> {
   if (!session.companyId) return { ok: false, error: 'forbidden' };
-  const rows = await prisma.bitrixImportBatch.findMany({
-    where: { companyId: session.companyId },
-    select: BATCH_SELECT,
-    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    take: limit,
-  });
-  return { ok: true, batches: rows.map(toView) };
+  const where = { companyId: session.companyId };
+  const [total, rows] = await Promise.all([
+    prisma.bitrixImportBatch.count({ where }),
+    prisma.bitrixImportBatch.findMany({
+      where,
+      select: BATCH_SELECT,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit,
+    }),
+  ]);
+  return { ok: true, batches: rows.map(toView), total };
 }
 
 /** Состояние пакета для опроса с экрана: минимум полей, без настроек. */

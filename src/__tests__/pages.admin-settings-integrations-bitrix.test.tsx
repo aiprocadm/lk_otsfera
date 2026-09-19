@@ -448,6 +448,37 @@ describe('AdminBitrixHistoryPage («Пакеты»)', () => {
     expect(container.textContent).not.toContain('Здесь пока пусто');
   });
 
+  /**
+   * Список пакетов усечён пределом сервиса (50). Без подписи человек не
+   * отличит «это вся история» от «показана верхушка» — а в историю переносов
+   * идут именно за старыми пакетами. Молчаливо усечённый список — дефект
+   * (§15/§16); найдено прогоном сопровождения №28, закрыто №31.
+   */
+  it('список усечён — страница честно говорит, сколько всего пакетов', async () => {
+    listBitrixHistory.mockResolvedValue({
+      ok: true,
+      batches: [{ id: 'b-1' }, { id: 'b-2' }],
+      total: 137,
+      limit: 50,
+    });
+    const { container } = await renderServerComponent(AdminBitrixHistoryPage());
+
+    expect(container.textContent).toContain('Показаны последние 2 пакетов из 137');
+  });
+
+  it('список НЕ усечён — лишней подписи нет', async () => {
+    // Подпись про усечение на полном списке была бы враньём наоборот.
+    listBitrixHistory.mockResolvedValue({
+      ok: true,
+      batches: [{ id: 'b-1' }, { id: 'b-2' }],
+      total: 2,
+      limit: 50,
+    });
+    const { container } = await renderServerComponent(AdminBitrixHistoryPage());
+
+    expect(container.textContent).not.toContain('Показаны последние');
+  });
+
   it('отчёт и состояние отката доезжают до списка как есть — страница их не пересчитывает', async () => {
     // `У-196`, `У-198`: можно ли откатить строку, знает сервис — он смотрит
     // статус, дату применения и журнал записей. Страница, посчитавшая это
