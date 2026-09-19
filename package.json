@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:stack": "pwsh -File scripts/dev-stack.ps1",
-    "build": "next build",
+    "build": "tsx scripts/build.ts",
     "start": "next start",
     "deploy:stand": "bash scripts/stand/update-stand.sh",
     "lint": "node --max-old-space-size=8192 ./node_modules/eslint/bin/eslint.js . --max-warnings=0",
