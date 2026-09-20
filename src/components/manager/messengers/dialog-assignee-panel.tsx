@@ -34,8 +34,12 @@ export function DialogAssigneePanel({
 
   const { formAction, pending, errorText } = useFormAction<object>({
     action: (formData) => {
-      const raw = String(formData.get('assigneeId') ?? '');
-      return assignDialogAction({ dialogId, assigneeId: raw === '' ? null : raw });
+      // Пустой выбор и отсутствие поля означают одно и то же — «без
+      // ответственного». Одна проверка вместо двух: `?? ''` рядом с
+      // `raw === ''` давала ветку, в которую из этой формы не попасть
+      // (селект в разметке есть всегда), то есть заведомо непокрываемую.
+      const raw = formData.get('assigneeId');
+      return assignDialogAction({ dialogId, assigneeId: raw ? String(raw) : null });
     },
     errorMap: ERROR_LABEL,
     refresh: true,
