@@ -409,3 +409,47 @@ describe('краевые случаи действий', () => {
     expect(res.error).toContain('некому отправить');
   });
 });
+
+/**
+ * Краевые пути действий правил (`У-223`, `У-224`).
+ *
+ * Общее у них одно: правило работает **без человека рядом**, и молчаливый
+ * провал здесь дороже обычного. Поэтому у каждого исхода свой текст в журнале
+ * прогона — иначе «правило сработало» и «правило сработало вхолостую»
+ * выглядели бы одинаково.
+ */
+describe('runNotify — никому не дошло', () => {
+  it('упали ВСЕ получатели — правило честно сообщает об этом', async () => {
+    userFindMany.mockResolvedValue([{ id: 'boss' }, { id: 'boss2' }]);
+    recordNotification.mockRejectedValue(new Error('почта легла'));
+
+    const res = await runNotify(prisma, {
+      action: { kind: 'notify', audience: 'role:leader', template: 'Текст' },
+      companyId: 'co-1',
+      ruleId: 'r1',
+      ruleName: 'Правило',
+      payload: {},
+    });
+
+    expect(res.notifiedUserIds).toEqual([]);
+    expect(res.error).toBe('ни одно уведомление не доставлено');
+  });
+
+  it('конкретный сотрудник на месте — письмо уходит ему одному', async () => {
+    // Реализацию мока прошлый тест поменял на «падает», а `clearAllMocks`
+    // реализации не сбрасывает — только счётчики вызовов.
+    recordNotification.mockResolvedValue({ row: { id: 'n1' }, deduped: false });
+    userFindFirst.mockResolvedValue({ id: 'u-7' });
+
+    const res = await runNotify(prisma, {
+      action: { kind: 'notify', audience: 'user:u-7', template: 'Текст' },
+      companyId: 'co-1',
+      ruleId: 'r1',
+      ruleName: 'Правило',
+      payload: {},
+    });
+
+    expect(res.notifiedUserIds).toEqual(['u-7']);
+    expect(res.error).toBeNull();
+  });
+});

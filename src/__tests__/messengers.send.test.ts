@@ -7,6 +7,10 @@ const m = vi.hoisted(() => ({
   recordOutboundInDialog: vi.fn(),
   sendToMessenger: vi.fn(),
   isMessengerAvailable: vi.fn(),
+  claimDialogOnFirstReply: vi.fn(),
+}));
+vi.mock('@/lib/services/messengers/assign', () => ({
+  claimDialogOnFirstReply: m.claimDialogOnFirstReply,
 }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit: m.recordAudit }));
 vi.mock('@/lib/services/messengers/recordOutbound', () => ({
@@ -162,5 +166,55 @@ describe('sendDialogMessage', () => {
       prisma,
       expect.objectContaining({ after: { channel: 'telegram', delivered: false } })
     );
+  });
+});
+
+/**
+ * Правило первого ответившего (`У-206`).
+ *
+ * Ответил в диалог, за который никто не отвечает, — стал за него отвечать.
+ * Это **не привязка компании** (та проверяется выше) и делается тоже **после
+ * успешной отправки**: не дошло — не «забрал», иначе диалог повис бы на
+ * человеке, который клиенту так ничего и не написал.
+ */
+describe('sendDialogMessage — кто становится ответственным', () => {
+  const unassigned = { ...bound, assigneeId: null };
+
+  // Свой сброс и свои умолчания: общий стоит внутри соседнего describe и на
+  // этот блок не действует — без него счётчики считают чужие вызовы.
+  beforeEach(() => {
+    vi.clearAllMocks();
+    m.isMessengerAvailable.mockReturnValue(true);
+    m.sendToMessenger.mockResolvedValue({ ok: true });
+    m.recordOutboundInDialog.mockResolvedValue({ dialogId: 'd1', messageId: 'mm1' });
+    updateMany.mockResolvedValue({ count: 1 });
+    m.claimDialogOnFirstReply.mockResolvedValue(undefined);
+  });
+
+  it('за диалог никто не отвечал — отвечавший забирает его себе', async () => {
+    findUnique.mockResolvedValue(unassigned);
+
+    await sendDialogMessage(prisma, session, { dialogId: 'd1', text: 'здравствуйте' });
+
+    expect(m.claimDialogOnFirstReply).toHaveBeenCalledWith(prisma, session, 'd1');
+  });
+
+  it('ответственный уже есть — чужой диалог не забираем', async () => {
+    findUnique.mockResolvedValue({ ...bound, assigneeId: 'другой-менеджер' });
+
+    await sendDialogMessage(prisma, session, { dialogId: 'd1', text: 'здравствуйте' });
+
+    expect(m.claimDialogOnFirstReply).not.toHaveBeenCalled();
+  });
+
+  it('сообщение не дошло — не «забрал»', async () => {
+    findUnique.mockResolvedValue(unassigned);
+    m.sendToMessenger.mockResolvedValue({ ok: false, error: 'провайдер молчит' });
+
+    await sendDialogMessage(prisma, session, { dialogId: 'd1', text: 'здравствуйте' });
+
+    // Иначе диалог повис бы на человеке, который клиенту так ничего и не
+    // написал, и следующий сотрудник прошёл бы мимо: «уже занято».
+    expect(m.claimDialogOnFirstReply).not.toHaveBeenCalled();
   });
 });

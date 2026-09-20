@@ -254,7 +254,10 @@ export async function runNotify(
     payload,
   });
   if (recipients.userIds.length === 0) {
-    return { ...EMPTY, error: `некому отправить: ${recipients.note ?? 'получатель не найден'}` };
+    // Пустой список ВСЕГДА приходит с пояснением: его заполняет каждая ветка
+    // `resolveRecipients`. Запасной текст был бы недостижимой веткой, которую
+    // нечестно покрывать тестом (§11b).
+    return { ...EMPTY, error: `некому отправить: ${recipients.note!}` };
   }
 
   const body = renderAutomationText(action.template, payload);
