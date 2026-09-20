@@ -122,3 +122,69 @@ describe('DialogThread', () => {
     expect(html).toContain('Показаны последние 3 сообщений, ещё 12 старше.');
   });
 });
+
+/**
+ * Файл в сообщении (`У-204`).
+ *
+ * Главное обещание: **ссылка появляется только у проверенного файла**. Пока
+ * антивирус не сказал «чисто», ссылки нет — иначе человек нажмёт и получит
+ * отказ, не понимая почему. У заражённого — прямая подпись, а не молчание.
+ */
+describe('Вложение в ленте', () => {
+  /** Реплика с файлом: меняем только то, что проверяем. */
+  const withFile = (att: Record<string, unknown>): DialogMessageView => ({
+    ...messages[0]!,
+    attachment: { name: 'счёт.pdf', size: 2048, scanStatus: 'clean', ...att } as never,
+  });
+
+  const html = (m: DialogMessageView) =>
+    renderToString(<DialogThread dialogId="d1" messages={[m]} hiddenCount={0} />).replace(
+      /<!-- -->/g,
+      ''
+    );
+
+  it('проверенный файл — ссылка на скачивание с именем и размером', () => {
+    const out = html(withFile({}));
+
+    expect(out).toContain('href="/api/manager/messengers/d1/attachment/m1"');
+    expect(out).toContain('счёт.pdf · 2 КБ');
+  });
+
+  it('проверка ещё идёт — подпись есть, ссылки нет', () => {
+    const out = html(withFile({ scanStatus: 'pending' }));
+
+    expect(out).toContain('проверяется антивирусом');
+    expect(out).not.toContain('/attachment/m1');
+  });
+
+  it('заражённый файл называет причину и не даёт ссылки', () => {
+    const out = html(withFile({ scanStatus: 'infected' }));
+
+    expect(out).toContain('файл заблокирован антивирусом');
+    expect(out).not.toContain('/attachment/m1');
+    // Размер у заражённого не показываем: обсуждать нечего, файла не будет.
+    expect(out).not.toContain('2 КБ');
+  });
+
+  it.each([
+    ['байты', 512, '512 Б'],
+    ['килобайты', 2048, '2 КБ'],
+    ['мегабайты с запятой', 1572864, '1,5 МБ'],
+  ])('размер в %s читается человеком', (_name, size, expected) => {
+    expect(html(withFile({ size }))).toContain(`счёт.pdf · ${expected}`);
+  });
+
+  it.each([
+    ['размера нет', null],
+    ['ноль', 0],
+  ])('%s — показываем одно имя, без пустого «· »', (_name, size) => {
+    const out = html(withFile({ size }));
+
+    expect(out).toContain('счёт.pdf');
+    expect(out).not.toContain('счёт.pdf ·');
+  });
+
+  it('файла нет — в ленте про него ни слова', () => {
+    expect(html(messages[0]!)).not.toContain('📎');
+  });
+});

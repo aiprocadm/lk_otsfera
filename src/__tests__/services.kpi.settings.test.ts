@@ -220,6 +220,31 @@ describe('copyTargetsFromPreviousMonth', () => {
     expect(data[0].managerId).toBe('u2');
   });
 
+  it('план на компанию целиком тоже не перетирается', async () => {
+    // У такого плана нет ответственного (`managerId: null`), и ключ «показатель
+    // без менеджера» обязан совпасть с прошлым месяцем. Иначе кнопка создаст
+    // второй план на ту же клетку — а это уже двойной счёт в отчёте.
+    const { prisma, raw } = db({
+      salesTarget: {
+        findMany: vi
+          .fn()
+          .mockResolvedValueOnce([
+            { managerId: null, metric: 'certificates_issued', targetAmount: D('50') },
+            { managerId: null, metric: 'revenue_paid', targetAmount: D('9000') },
+          ])
+          .mockResolvedValueOnce([{ managerId: null, metric: 'certificates_issued' }]),
+        createMany: vi.fn(async () => ({ count: 1 })),
+      },
+    });
+
+    const res = await copyTargetsFromPreviousMonth(prisma, LEADER, { year: 2026, month: 9 });
+
+    expect(res).toEqual({ ok: true, copied: 1 });
+    const data = raw.salesTarget.createMany.mock.calls[0][0].data;
+    expect(data).toHaveLength(1);
+    expect(data[0].metric).toBe('revenue_paid');
+  });
+
   it('январь берёт декабрь прошлого года', async () => {
     const { prisma, raw } = db();
     await copyTargetsFromPreviousMonth(prisma, LEADER, { year: 2026, month: 1 });
@@ -235,5 +260,118 @@ describe('copyTargetsFromPreviousMonth', () => {
       ok: false,
       error: 'forbidden',
     });
+  });
+});
+
+/**
+ * Краевые пути настроек (`У-242`).
+ *
+ * Все они выглядят одинаково — «отказ», — но означают разное, и потому
+ * проверяются поимённо: у пропавшей компании нет данных (`not_found`), у
+ * рядового менеджера нет права (`forbidden`), у кривого месяца нет смысла
+ * (`invalid`). Общий код отправил бы человека чинить не то.
+ */
+describe('Краевые пути', () => {
+  it('компания пропала — «не найдено», а не пустой экран настроек', async () => {
+    const { prisma } = db({
+      company: { findUnique: vi.fn(async () => null), update: vi.fn() },
+    });
+
+    expect(await getKpiSettings(prisma, LEADER, { year: 2026, month: 9 })).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
+  });
+
+  it('выбор показателей: рядовому — отказ, в базу не ходим', async () => {
+    const { prisma, raw } = db();
+
+    expect(await setActiveMetrics(prisma, MANAGER, ['revenue_paid'])).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+    expect(raw.company.update).not.toHaveBeenCalled();
+  });
+
+  it('выбор показателей: компания пропала — ничего не пишем', async () => {
+    const { prisma, raw } = db({
+      company: { findUnique: vi.fn(async () => null), update: vi.fn() },
+    });
+
+    expect(await setActiveMetrics(prisma, LEADER, ['revenue_paid'])).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
+    // Запись без «как было» сделала бы журнал бесполезным — поэтому и не пишем.
+    expect(raw.company.update).not.toHaveBeenCalled();
+    expect(recordAudit).not.toHaveBeenCalled();
+  });
+
+  it('план: рядовому — отказ, до проверки показателя дело не доходит', async () => {
+    const { prisma, raw } = db();
+
+    expect(
+      await upsertKpiTarget(prisma, MANAGER, {
+        metric: 'revenue_paid',
+        managerId: null,
+        year: 2026,
+        month: 9,
+        amount: '100',
+      })
+    ).toEqual({ ok: false, error: 'forbidden' });
+    expect(raw.salesTarget.findFirst).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['придуманный показатель', { metric: 'выдумка' }],
+    ['год дробью', { year: 2026.5 }],
+    ['год из будущего', { year: 2101 }],
+    ['год из прошлого века', { year: 1999 }],
+    ['месяц дробью', { month: 9.5 }],
+    ['месяц нулевой', { month: 0 }],
+    ['месяц тринадцатый', { month: 13 }],
+  ])('план: %s — отказ «неверно», база не трогается', async (_name, over) => {
+    const { prisma, raw } = db();
+
+    expect(
+      await upsertKpiTarget(prisma, LEADER, {
+        metric: 'revenue_paid',
+        managerId: null,
+        year: 2026,
+        month: 9,
+        amount: '100',
+        ...over,
+      })
+    ).toEqual({ ok: false, error: 'invalid' });
+    expect(raw.salesTarget.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('план: сотрудника нет вовсе — «не найдено», а не «нет доступа»', async () => {
+    const { prisma } = db({
+      user: { findMany: vi.fn(async () => []), findUnique: vi.fn(async () => null) },
+    });
+
+    expect(
+      await upsertKpiTarget(prisma, LEADER, {
+        metric: 'revenue_paid',
+        managerId: 'ghost',
+        year: 2026,
+        month: 9,
+        amount: '100',
+      })
+    ).toEqual({ ok: false, error: 'not_found' });
+  });
+
+  it.each([
+    ['год дробью', { year: 2026.5, month: 9 }],
+    ['месяц дробью', { year: 2026, month: 9.5 }],
+  ])('копирование: %s — отказ до любых выборок', async (_name, args) => {
+    const { prisma, raw } = db();
+
+    expect(await copyTargetsFromPreviousMonth(prisma, LEADER, args)).toEqual({
+      ok: false,
+      error: 'invalid',
+    });
+    expect(raw.salesTarget.findMany).not.toHaveBeenCalled();
   });
 });
