@@ -97,3 +97,52 @@ describe('письмо «документ отправлен заказчику�
     expect(text).not.toContain('по заказу');
   });
 });
+
+/**
+ * `У-258` — одно письмо на несколько бумаг.
+ *
+ * В теме честно сказано, что бумаг несколько: иначе человек откроет письмо за
+ * одним документом и не заметит остальные вложения. В теле они перечислены
+ * поимённо — по именам файлов, как во вложениях.
+ */
+describe('попутчики письма', () => {
+  const withAlso: OrgDocumentSentProps = {
+    ...base,
+    alsoDocuments: ['Акт А-5 от 29.08.2026.pdf', 'Договор Д-1 от 01.08.2026.pdf'],
+  };
+
+  it('тема говорит, сколько ещё бумаг в письме', () => {
+    expect(orgDocumentSentSubject(withAlso)).toBe('Счёт № С-2026-17 по заказу № ON-1 и ещё 2');
+  });
+
+  it('пустой список попутчиков тему не меняет', () => {
+    expect(orgDocumentSentSubject({ ...base, alsoDocuments: [] })).toBe(
+      orgDocumentSentSubject(base)
+    );
+  });
+
+  it('в тексте попутчики перечислены поимённо', () => {
+    const text = orgDocumentSentText(withAlso);
+
+    expect(text).toContain('В этом же письме:');
+    expect(text).toContain('— Акт А-5 от 29.08.2026.pdf');
+    expect(text).toContain('— Договор Д-1 от 01.08.2026.pdf');
+  });
+
+  it('без попутчиков лишнего раздела в тексте нет', () => {
+    expect(orgDocumentSentText(base)).not.toContain('В этом же письме');
+  });
+
+  it('в вёрстке письма попутчики тоже видны', () => {
+    const html = renderToStaticMarkup(React.createElement(OrgDocumentSentTemplate, withAlso));
+
+    expect(html).toContain('В этом же письме:');
+    expect(html).toContain('Акт А-5 от 29.08.2026.pdf');
+  });
+
+  it('без попутчиков вёрстка не печатает пустой список', () => {
+    const html = renderToStaticMarkup(React.createElement(OrgDocumentSentTemplate, base));
+
+    expect(html).not.toContain('В этом же письме');
+  });
+});

@@ -477,6 +477,76 @@ describe('listExchangeHistory (У-48)', () => {
     expect(res.items).toHaveLength(2);
   });
 
+  describe('У-257: сверка дебиторки в общем списке', () => {
+    /** Журнал, где сущность `debt` отвечает настоящими строками. */
+    function withDebts(rows: unknown[]) {
+      return db({
+        syncLog: {
+          findMany: vi.fn(async (args: { where: { entity?: unknown } }) =>
+            args.where.entity === 'debt' ? rows : []
+          ),
+        },
+      });
+    }
+
+    it('строка сверки попадает в список со своим итогом', async () => {
+      const { prisma } = withDebts([
+        {
+          id: 'dbt-1',
+          createdAt: new Date('2026-09-19T03:00:00.000Z'),
+          status: 'success',
+          errorMessage: 'Расхождения по дебиторке: 3',
+          payload: { checked: 120 },
+        },
+      ]);
+
+      const res = await listExchangeHistory(prisma, session, { channel: 'debts' });
+      if (!res.ok) throw new Error('expected ok');
+
+      expect(res.items).toHaveLength(1);
+      expect(res.items[0]).toMatchObject({
+        id: 'dbt-1',
+        channel: 'debts',
+        title: 'Сверка дебиторки',
+        status: 'success',
+        // Автора у ночной сверки нет — её никто не запускал руками.
+        authorName: null,
+        // Откатывать нечего: сверка ничего не меняет, только сравнивает.
+        rollback: 'unsupported',
+        detail: 'Расхождения по дебиторке: 3',
+        counts: { checked: 120 },
+      });
+    });
+
+    it('отказ метода 1С виден строкой, а не пустым местом', async () => {
+      const { prisma } = withDebts([
+        {
+          id: 'dbt-2',
+          createdAt: new Date('2026-09-18T03:00:00.000Z'),
+          status: 'error',
+          errorMessage: 'метод не подключён',
+          payload: null,
+        },
+      ]);
+
+      const res = await listExchangeHistory(prisma, session, { channel: 'debts' });
+      if (!res.ok) throw new Error('expected ok');
+
+      expect(res.items[0]).toMatchObject({ status: 'error', detail: 'метод не подключён' });
+    });
+
+    it('руководителю канала нет вовсе — деньги чужих компаний не его дело', async () => {
+      importScope.mockReturnValue({ kind: 'company', companyId: 'c1' });
+      const { prisma, debts } = db();
+
+      const res = await listExchangeHistory(prisma, session, { channel: 'debts' });
+      if (!res.ok) throw new Error('expected ok');
+
+      expect(res.items).toEqual([]);
+      expect(debts).not.toHaveBeenCalled();
+    });
+  });
+
   it('подписи каналов — по-русски (их видит человек)', () => {
     expect(CHANNEL_LABEL).toEqual({
       excel: 'Загрузка Excel',

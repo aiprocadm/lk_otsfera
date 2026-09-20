@@ -92,4 +92,28 @@ describe('действия хаба «Показатели и планы» (У-2
     expect(await copyKpiTargetsAction(fd)).toEqual({ ok: true, copied: 2 });
     expect(copyTargets).toHaveBeenCalledWith({}, SESSION, { year: 2026, month: 9 });
   });
+  it('форма без полей не роняет действие — пустые значения читаются как пустые', async () => {
+    // Ветка `?? ''` у каждого поля: форма, собранная не экраном (например
+    // прямым вызовом), приходит без ключей вовсе.
+    await upsertKpiTargetAction(new FormData());
+
+    expect(upsertKpiTarget.mock.calls[0][2]).toMatchObject({
+      metric: '',
+      managerId: null,
+      amount: null,
+    });
+  });
+
+  it('запятая в сумме плана понимается как разделитель дробной части', async () => {
+    const fd = new FormData();
+    fd.set('metric', 'revenue');
+    fd.set('managerId', 'm1');
+    fd.set('year', '2026');
+    fd.set('month', '9');
+    fd.set('amount', '1234,50');
+
+    await upsertKpiTargetAction(fd);
+
+    expect(upsertKpiTarget.mock.calls[0][2].amount).toBe('1234.50');
+  });
 });

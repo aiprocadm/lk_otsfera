@@ -549,6 +549,12 @@ export const ALL_SCHEDULES: ReadonlyArray<{
   ...ALERT_SCHEDULES.map((s) => ({ ...s, editable: false })),
   ...CALENDAR_REMINDER_SCHEDULES.map((s) => ({ ...s, editable: false })),
   ...TASK_DUE_SOON_SCHEDULES.map((s) => ({ ...s, editable: false })),
+  // Повторяющиеся задачи: своего экрана нет (правило повтора задаётся у самой
+  // задачи), поэтому не редактируется. В реестре быть обязано — иначе
+  // `defaultPatternFor` отвечает «такой задачи нет» про живую задачу, а имя
+  // ALL_SCHEDULES перестаёт быть правдой. Полноту держит страж
+  // `jobs.all-schedules-complete`.
+  ...TASK_RECURRENCE_SCHEDULES.map((s) => ({ ...s, editable: false })),
   // `У-130`: интервал задачи SLA настраивается там же, где пороги.
   ...SLA_ESCALATION_SCHEDULES.map((s) => ({ ...s, editable: true })),
   // `У-230`: сбор ежечасный, а час отправки выбирает КАЖДЫЙ пользователь сам —

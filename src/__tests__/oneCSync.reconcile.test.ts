@@ -257,6 +257,39 @@ describe('reconcileStuckLeads', () => {
     expect(args.orderBy).toEqual([{ pushedToOneCAt: 'desc' }, { id: 'desc' }]);
   });
 
+  it('пачка набралась под завязку — предупреждаем эксплуатацию', async () => {
+    // Полная пачка заход за заходом означает, что очередь не рассасывается:
+    // остаток ждёт следующей ночи, и это надо видеть, а не догадываться.
+    const claimed = new Date(NOW.getTime() - 30 * HOURS);
+    const many = Array.from({ length: 200 }, (_, i) => ({
+      id: `lead-${i}`,
+      pushedToOneCAt: claimed,
+    }));
+    const { prisma } = leadsPrisma(many, []);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await reconcileStuckLeads(prisma, { now: NOW });
+
+    expect(warn).toHaveBeenCalledWith(
+      '[oneCSync/reconcile] зависших претензий больше, чем берём за заход',
+      { limit: 200 }
+    );
+    warn.mockRestore();
+  });
+
+  it('неполная пачка журнал не тревожит', async () => {
+    const claimed = new Date(NOW.getTime() - 30 * HOURS);
+    const { prisma } = leadsPrisma([{ id: 'lead-1', pushedToOneCAt: claimed }], []);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await reconcileStuckLeads(prisma, { now: NOW });
+
+    // Иначе предупреждение печаталось бы каждую ночь и перестало бы значить
+    // хоть что-нибудь.
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
   it('число запросов к истории обмена не растёт вместе с базой', async () => {
     const claimed = new Date(NOW.getTime() - 30 * HOURS);
     const one = leadsPrisma([{ id: 'lead-1', pushedToOneCAt: claimed }], []);

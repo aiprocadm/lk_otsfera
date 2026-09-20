@@ -224,3 +224,62 @@ describe('пакетное создание организаций из очер
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * `У-87` — правки предпросмотра: снятые галочки и вписанные ИНН.
+ *
+ * Форма шлёт их одной JSON-строкой. **Негодный JSON — это отсутствие правок, а
+ * не отказ импорта**: сервер всё равно перепроверяет каждую правку по ключу
+ * контрагента, и ронять из-за испорченного поля весь импорт значит наказывать
+ * человека за чужую ошибку.
+ */
+describe('правки предпросмотра', () => {
+  /** Форма с настоящим файлом и строкой правок. */
+  function withOverrides(raw: string | File | null) {
+    const fd = new FormData();
+    fd.set('file', new File(['x'], 'выписка.xlsx'));
+    if (raw !== null) fd.set('overrides', raw);
+    return fd;
+  }
+
+  beforeEach(() => {
+    commitPaymentImport.mockResolvedValue({ ok: true });
+  });
+
+  it('правки доезжают до сервиса разобранными', async () => {
+    await commitPaymentImportAction(
+      withOverrides(JSON.stringify([{ key: 'ООО Ромашка', create: false, inn: '7700000000' }]))
+    );
+
+    expect(commitPaymentImport.mock.calls[0]?.[2]).toMatchObject({
+      overrides: [{ key: 'ООО Ромашка', create: false, inn: '7700000000' }],
+    });
+  });
+
+  it('лишние поля отбрасываются, а не уезжают в сервис', async () => {
+    await commitPaymentImportAction(
+      withOverrides(JSON.stringify([{ key: 'ООО', create: 'да', inn: 5, мусор: 1 }]))
+    );
+
+    expect(commitPaymentImport.mock.calls[0]?.[2]?.overrides).toEqual([{ key: 'ООО' }]);
+  });
+
+  it.each([
+    ['поля нет вовсе', null],
+    ['пустая строка', '   '],
+    ['не JSON', 'вовсе не json'],
+    ['JSON не список', JSON.stringify({ key: 'ООО' })],
+    ['список без ключей', JSON.stringify([{ inn: '7700000000' }, null, 'строка'])],
+  ])('%s — правок просто нет, импорт продолжается', async (_name, raw) => {
+    await commitPaymentImportAction(withOverrides(raw as string | null));
+
+    expect(commitPaymentImport).toHaveBeenCalled();
+    expect(commitPaymentImport.mock.calls[0]?.[2]).not.toHaveProperty('overrides');
+  });
+
+  it('поле не строка — тоже «правок нет»', async () => {
+    await commitPaymentImportAction(withOverrides(new File(['x'], 'o.json')));
+
+    expect(commitPaymentImport.mock.calls[0]?.[2]).not.toHaveProperty('overrides');
+  });
+});

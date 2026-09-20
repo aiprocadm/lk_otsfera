@@ -97,6 +97,48 @@ function page(pdfData: OrderDocumentData): { texts: string[]; images: unknown[] 
   return { texts, images };
 }
 
+/**
+ * Две необязательные строки шапки счёта и акта.
+ *
+ * **Период оказания услуг** в акте — главное: он отвечает на вопрос «за что
+ * платим». Без него акт формально подписывается за неизвестно что.
+ *
+ * **Пометка предпросмотра** обязана быть видна на самом листе: человек
+ * печатает лист, кладёт в папку, и через неделю уже не помнит, выпущен
+ * документ или это был черновик.
+ */
+describe('OrderDocumentPdf — необязательные строки шапки', () => {
+  it('период услуг печатается по-русски, датами', () => {
+    const { texts } = page({
+      ...data('act'),
+      servicePeriod: {
+        from: new Date('2026-09-01T00:00:00Z'),
+        to: new Date('2026-09-30T00:00:00Z'),
+      },
+    });
+
+    expect(texts).toContain('Период оказания услуг: 01.09.2026 — 30.09.2026');
+  });
+
+  it('периода нет — строки нет вовсе, а не «Период: —»', () => {
+    const { texts } = page(data('act'));
+
+    expect(texts.some((t) => t.includes('Период оказания услуг'))).toBe(false);
+  });
+
+  it('пометка черновика печатается на листе', () => {
+    const { texts } = page({ ...data('invoice'), draftNote: 'ПРЕДПРОСМОТР — не выпущен' });
+
+    expect(texts).toContain('ПРЕДПРОСМОТР — не выпущен');
+  });
+
+  it('выпущенный документ пометки не несёт', () => {
+    const { texts } = page(data('invoice'));
+
+    expect(texts.some((t) => t.includes('ПРЕДПРОСМОТР'))).toBe(false);
+  });
+});
+
 describe('renderOrderDocumentPdf', () => {
   it('счёт: валидный PDF-буфер с кириллицей, рендер < 2 с (ФТ-9.6)', async () => {
     const started = Date.now();

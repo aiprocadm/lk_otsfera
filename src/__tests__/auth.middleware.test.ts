@@ -126,3 +126,60 @@ describe('auth middleware', () => {
     expect(res.headers.get('location')).toBe('https://app.local/login');
   });
 });
+
+/**
+ * Гейт флагов в middleware — третья точка §5 `CLAUDE.md`.
+ *
+ * Важен **порядок**: проверка флага стоит ПОСЛЕ авторизации. Иначе
+ * неавторизованный посетитель отличал бы выключенный раздел (`404`) от
+ * несуществующего и узнавал бы, что такой раздел в системе есть.
+ *
+ * Ответ — простой `404` прямо из middleware: страница не грузится вовсе,
+ * поэтому её собственный гард сюда и не доходит.
+ */
+describe('auth middleware — гейт флагов', () => {
+  const ENV = { ...process.env };
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    process.env = { ...ENV };
+    process.env.JWT_SECRET = 'middleware-test-secret-with-at-least-32-chars';
+  });
+
+  it('раздел с выключенным флагом отвечает «не найдено»', async () => {
+    process.env.FEATURE_ROLE_CONSTRUCTOR = '0';
+    vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'leader' } } as never);
+
+    const res = await middleware(req('/leader/roles', 'tkn'));
+
+    expect(res.status).toBe(404);
+  });
+
+  it('тот же раздел при включённом флаге пропускается', async () => {
+    process.env.FEATURE_ROLE_CONSTRUCTOR = '1';
+    vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'leader' } } as never);
+
+    const res = await middleware(req('/leader/roles', 'tkn'));
+
+    expect(res.status).toBe(200);
+  });
+
+  it('чужой раздел выключенный флаг не задевает', async () => {
+    process.env.FEATURE_ROLE_CONSTRUCTOR = '0';
+    vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'leader' } } as never);
+
+    const res = await middleware(req('/leader/orders', 'tkn'));
+
+    expect(res.status).toBe(200);
+  });
+
+  it('неавторизованного уводит на вход, а не на «не найдено»', async () => {
+    process.env.FEATURE_ROLE_CONSTRUCTOR = '0';
+
+    const res = await middleware(req('/leader/roles'));
+
+    // Ответь мы «404», посетитель узнал бы, что такой раздел существует.
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toContain('/login');
+  });
+});

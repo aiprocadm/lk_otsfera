@@ -206,6 +206,48 @@ describe('updateAutomationRule', () => {
   });
 });
 
+describe('updateAutomationRule — проверки до похода в базу', () => {
+  it('пустое название — отказ, правило не ищем', async () => {
+    const res = await updateAutomationRule(prisma, {
+      companyId: 'co-1',
+      authorId: 'u',
+      ruleId: 'r1',
+      input: { ...VALID, name: '' },
+    });
+
+    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    expect(findFirst).not.toHaveBeenCalled();
+  });
+
+  it('несуществующее событие — свой код отказа, а не общий «неверно»', async () => {
+    const res = await updateAutomationRule(prisma, {
+      companyId: 'co-1',
+      authorId: 'u',
+      ruleId: 'r1',
+      // Событие могли убрать из каталога между открытием формы и сохранением.
+      input: { ...VALID, trigger: 'событие_которого_нет' },
+    });
+
+    expect(res).toMatchObject({ ok: false, error: 'unknown_trigger' });
+    expect(findFirst).not.toHaveBeenCalled();
+  });
+
+  it('неизвестная подстановка — отказ с её именем, а не пустота в готовой задаче', async () => {
+    const res = await updateAutomationRule(prisma, {
+      companyId: 'co-1',
+      authorId: 'u',
+      ruleId: 'r1',
+      input: {
+        ...VALID,
+        actions: [{ ...VALID.actions[0]!, titleTemplate: 'Проверить {{document.выдумка}}' }],
+      },
+    });
+
+    expect(res).toMatchObject({ ok: false, error: 'unknown_placeholder' });
+    expect(findFirst).not.toHaveBeenCalled();
+  });
+});
+
 describe('toggleAutomationRule', () => {
   it('ВКЛЮЧЕНИЕ записывает автора, если его не было — иначе задачу создать некому', async () => {
     findFirst.mockResolvedValue({ id: 'r1', createdById: null });

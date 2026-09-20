@@ -247,3 +247,73 @@ describe('AdminFinancePage', () => {
     expect(getByTestId('finance-view')).toBeTruthy();
   });
 });
+
+/**
+ * Остальные вкладки аналитики администратора (`У-243`).
+ *
+ * Правило зеркала (§0.2): вкладок пять и у руководителя, и у администратора,
+ * и каждая обязана показывать СВОЮ панель за ВЫБРАННУЮ компанию. Вкладка,
+ * которая молча открывает соседнюю панель, — дефект приёмки: человек примет
+ * чужие цифры за свои.
+ */
+describe('AdminFinancePage — остальные вкладки', () => {
+  beforeEach(() => {
+    getCommunications.mockResolvedValue({ rows: [] });
+    getPartnersAnalytics.mockResolvedValue({ rows: [] });
+    getReceivables.mockResolvedValue({ rows: [] });
+    getFunnelAnalytics.mockResolvedValue({ ok: true, snapshot: {}, cohort: {}, perManager: [] });
+    getProposalConversion.mockResolvedValue({ ok: true, conversion: {} });
+    getSources.mockResolvedValue({ rows: [] });
+  });
+
+  it('«Коммуникации» показывают свою панель за выбранную компанию', async () => {
+    const { container } = await renderServerComponent(
+      AdminFinancePage({ searchParams: sp({ tab: 'communications', company: 'c2' }) })
+    );
+
+    expect(container.querySelector('[data-testid="communications-panel"]')).toBeTruthy();
+    expect(getCommunications.mock.calls[0]?.[1]).toMatchObject({ companyId: 'c2' });
+  });
+
+  it('«Партнёры» показывают свою панель за выбранную компанию', async () => {
+    const { container } = await renderServerComponent(
+      AdminFinancePage({ searchParams: sp({ tab: 'partners', company: 'c2' }) })
+    );
+
+    expect(container.querySelector('[data-testid="partners-panel"]')).toBeTruthy();
+    expect(getPartnersAnalytics.mock.calls[0]?.[1]).toMatchObject({ companyId: 'c2' });
+  });
+
+  it('«Воронка» собирает три панели разом', async () => {
+    const { container } = await renderServerComponent(
+      AdminFinancePage({ searchParams: sp({ tab: 'funnel' }) })
+    );
+
+    expect(container.querySelector('[data-testid="funnel-panel"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="proposal-panel"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="sources-panel"]')).toBeTruthy();
+  });
+
+  it.each([
+    ['воронка', { getFunnelAnalytics: true }],
+    ['конверсия предложений', { getProposalConversion: true }],
+  ])('отказ сервиса «%s» — «не найдено», а не полупустая вкладка', async (_name, which) => {
+    if ('getFunnelAnalytics' in which) {
+      getFunnelAnalytics.mockResolvedValue({ ok: false, error: 'forbidden' });
+    } else {
+      getProposalConversion.mockResolvedValue({ ok: false, error: 'forbidden' });
+    }
+
+    await expect(
+      renderServerComponent(AdminFinancePage({ searchParams: sp({ tab: 'funnel' }) }))
+    ).rejects.toThrow('NOT_FOUND');
+  });
+
+  it('отказ плана-факта — «не найдено»: половина таблицы хуже честного отказа', async () => {
+    getPlanFact.mockResolvedValue({ ok: false, error: 'forbidden' });
+
+    await expect(
+      renderServerComponent(AdminFinancePage({ searchParams: sp({ tab: 'plan' }) }))
+    ).rejects.toThrow('NOT_FOUND');
+  });
+});

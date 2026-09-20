@@ -160,9 +160,11 @@ async function loadUnassignedUnits(prisma: PrismaClient): Promise<Unit[]> {
     });
   }
   for (const d of dialogs) {
-    // `waitingSince` в выборке заведомо не null (условие `where`), но тип его
-    // не знает — берём запасной вариант, чтобы не писать non-null assertion.
-    const since = d.waitingSince ?? new Date();
+    // `waitingSince` в выборке заведомо не null — это условие самого `where`.
+    // Тип об этом не знает, поэтому здесь утверждение, а не запасное значение:
+    // запасное было бы недостижимой веткой и вдобавок врало бы «ждёт с этой
+    // секунды», обнуляя просрочку (§11b).
+    const since = d.waitingSince!;
     const channelLabel = isMessengerChannel(d.channel) ? MESSENGER_LABELS[d.channel] : d.channel;
     const who = d.contact?.name?.trim() || d.peerDisplay?.trim() || d.peerRef;
     units.push({
@@ -235,7 +237,8 @@ export async function runSlaEscalation(
         payload: {
           // `sourceId` у диалога составной — `<id диалога>:<начало ожидания>`:
           // одна эскалация на один неотвеченный вопрос, а не на диалог целиком.
-          dialogId: unit.sourceId.split(':')[0] ?? unit.sourceId,
+          // `split` всегда даёт хотя бы один кусок — индекс доказуемо валиден.
+          dialogId: unit.sourceId.split(':')[0]!,
           waitedHours,
           thresholdHours,
           label: unit.label,

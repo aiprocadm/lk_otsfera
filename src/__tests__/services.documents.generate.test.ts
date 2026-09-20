@@ -1085,6 +1085,39 @@ describe('generateOrderDocument — коммерческое предложен�
       expect(data.dealId).toBe('deal-9');
     });
 
+    it('у лида нет даже названия компании — бумага всё равно выпускается', async () => {
+      // Лид может быть заведён по одному телефону. Отказать в предложении из-за
+      // незаполненного названия значило бы запретить продавать тому, кто ещё
+      // не представился: реквизиты появятся, когда клиент согласится.
+      leadAllowed({ lead: { ...LEAD, clientCompanyName: null } });
+      const { prisma, documentCreate } = makePrisma();
+
+      const r = await generateOrderDocument(prisma, manager(), {
+        leadId: 'lead-1',
+        docType: 'commercial_proposal',
+        lines: LINES,
+      });
+
+      expect(r.ok).toBe(true);
+      expect(documentCreate).toHaveBeenCalled();
+    });
+
+    it('сделки у лида нет — поле пустое, а не выдуманное', async () => {
+      leadAllowed();
+      const { prisma, documentCreate } = makePrisma({ deal: null });
+
+      await generateOrderDocument(prisma, manager(), {
+        leadId: 'lead-1',
+        docType: 'commercial_proposal',
+        lines: LINES,
+      });
+
+      const data = documentCreate.mock.calls[0]![0].data as Record<string, unknown>;
+      // Ключа нет вовсе: `undefined` для Prisma означает «не трогать поле», а
+      // выдуманная связь со сделкой была бы хуже её отсутствия.
+      expect(data.dealId ?? null).toBeNull();
+    });
+
     it('компания берётся ИЗ СЕССИИ — у лида её нет в модели', async () => {
       resolveLeadIssueScope.mockResolvedValue({ ok: true, companyId: 'co-B', lead: LEAD });
       const { prisma, documentCreate } = makePrisma();

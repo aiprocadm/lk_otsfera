@@ -79,6 +79,12 @@ describe('почта отвечает так же, как остальные к�
     expect(code).toContain("getSettingValue(prisma, 'imap.user')");
     expect(code).toContain('replyTo');
     // Без In-Reply-To ответ встанет отдельным письмом, а не в ту же ветку.
-    expect(code).toContain('inReplyTo');
+    //
+    // Ищем ИМЕННО сборку заголовка, а не слово `inReplyTo`: слово остаётся в
+    // условии `args.inReplyTo ? …` даже после того, как заголовок убрали из
+    // письма, и прежняя проверка на такой мутации молчала (найдено прогоном
+    // сопровождения №34, проверка `С-5`). Существо проверяет поведенческий
+    // тест `services.inbound.email-reply-headers`.
+    expect(code, 'ответ обязан нести заголовки сшивки ветки').toMatch(/headers:\s*{\s*inReplyTo/);
   });
 });

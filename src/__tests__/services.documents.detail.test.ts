@@ -219,3 +219,48 @@ describe('getDocumentDetail', () => {
     expect(res.document.scanReason).toBe('Eicar-Test-Signature');
   });
 });
+
+/**
+ * Можно ли заменить файл новой версией (`У-251`).
+ *
+ * Три условия сразу, и каждое отсекает свой случай:
+ * — **файл загружен человеком**: выпущенную программой бумагу заменяют
+ *   перевыпуском, а не подсовыванием другого файла;
+ * — **версия действующая**: у заменённой замена уже есть, и вторая цепочка
+ *   сделала бы историю нечитаемой;
+ * — **роль совпадает**: свой же загруженный файл. Сотрудник ЦО заменяет любой,
+ *   клиент — только свой.
+ *
+ * Признак считает сервер; кнопка на экране правами не считается (§4).
+ */
+describe('getDocumentDetail — замена версии', () => {
+  const detailOf = async (over: Record<string, unknown>, sess = session) => {
+    canReadDocument.mockResolvedValue(true);
+    const res = await getDocumentDetail(
+      makePrisma({
+        ...BASE_DOC,
+        generatedBy: 'user',
+        uploadedBy: { ...BASE_DOC.uploadedBy, role: 'manager' },
+        ...over,
+      }),
+      sess,
+      'doc1'
+    );
+    if (!res.ok) throw new Error('ожидался ok');
+    return res.document;
+  };
+
+  it('свой загруженный действующий файл сотрудник заменить может', async () => {
+    expect((await detailOf({})).canUploadVersion).toBe(true);
+  });
+
+  it('файл выпущен программой — замены нет, только перевыпуск', async () => {
+    expect((await detailOf({ generatedBy: 'system' })).canUploadVersion).toBe(false);
+  });
+
+  it('версия уже заменена — второй цепочки не заводим', async () => {
+    expect(
+      (await detailOf({ supersededAt: new Date('2026-08-01T00:00:00Z') })).canUploadVersion
+    ).toBe(false);
+  });
+});

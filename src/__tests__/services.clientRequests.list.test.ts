@@ -214,3 +214,40 @@ describe('getClientRequest', () => {
     });
   });
 });
+
+/**
+ * Кто подал и кто ответил (`У-211`).
+ *
+ * У заявки с сайта автора в системе нет — так и пишем словами. Пустая строка
+ * или «Никто» в колонке выглядели бы как потерянные данные, и человек полез
+ * бы выяснять, что сломалось.
+ *
+ * Имя ответившего показывается ТОЛЬКО когда ответ есть: подпись без ответа
+ * означала бы, что клиенту уже написали.
+ */
+describe('listClientRequests — подписи людей', () => {
+  it('заявка с сайта: автор — «Заявка с сайта», а не пустота', async () => {
+    const { prisma } = db([row('r1', { submittedByUser: null })]);
+
+    const res = await listClientRequests(prisma, s({ role: 'admin' }));
+
+    expect(res.rows[0]?.submittedByName).toBe('Заявка с сайта');
+  });
+
+  it('ответа нет — имени ответившего тоже нет', async () => {
+    const { prisma } = db([row('r1', { staffReply: null, staffRepliedByUser: { name: 'Мария' } })]);
+
+    const res = await listClientRequests(prisma, s({ role: 'admin' }));
+
+    expect(res.rows[0]?.staffRepliedByName).toBeNull();
+  });
+
+  it('ответ есть, а кто ответил — неизвестно: подпись пустая, но ответ на месте', async () => {
+    const { prisma } = db([row('r1', { staffReply: 'ответили', staffRepliedByUser: null })]);
+
+    const res = await listClientRequests(prisma, s({ role: 'admin' }));
+
+    expect(res.rows[0]?.staffReply).toBe('ответили');
+    expect(res.rows[0]?.staffRepliedByName).toBeNull();
+  });
+});

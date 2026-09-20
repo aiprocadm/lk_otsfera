@@ -157,6 +157,10 @@ describe('RetryMessageButton — что делает нажатие', () => {
     render(<RetryMessageButton dialogId="d1" messageId="m7" />);
     fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
     await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
+    // Ждём, пока кнопка вернётся из «Отправляем…»: под нагрузкой первая
+    // попытка ещё не завершилась к моменту второго нажатия, и поиск кнопки по
+    // подписи «Повторить» падал — тест плавал не из-за кода, а из-за спешки.
+    await screen.findByRole('button', { name: 'Повторить' });
 
     actions.retryDialogMessageAction.mockResolvedValue({ ok: true });
     fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));

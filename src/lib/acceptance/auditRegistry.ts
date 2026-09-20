@@ -90,7 +90,10 @@ export function lastDateOf(cell: string): string | null {
 export function anchorsOf(line: string): string[] {
   const out: string[] = [];
   for (const m of line.matchAll(/\]\(([^)]+)\)/g)) {
-    const raw = (m[1] ?? '').split('#')[0] ?? '';
+    // Группа 1 обязательна в выражении, а `split` всегда возвращает хотя бы
+    // один кусок — индексы доказуемо валидны (§11b). Прежние `?? ''` были
+    // недостижимыми ветками, покрыть которые честно нельзя.
+    const raw = m[1]!.split('#')[0]!;
     if (!raw || /^[a-z]+:/i.test(raw)) continue;
     let path: string;
     if (raw.startsWith('../../')) path = raw.slice(6);
@@ -105,7 +108,8 @@ export function anchorsOf(line: string): string[] {
 export function guardTokensOf(line: string, anchors: readonly string[]): string[] {
   const out: string[] = [];
   for (const m of line.matchAll(/`([a-z0-9-]+(?:\.[a-z0-9-]+)+)`/g)) {
-    const token = m[1] ?? '';
+    // Группа 1 обязательна — см. пояснение выше.
+    const token = m[1]!;
     if (token && !out.includes(token)) out.push(token);
   }
   for (const a of anchors) {
@@ -119,20 +123,23 @@ export function parseAuditRows(md: string): AuditRow[] {
   const rows: AuditRow[] = [];
   const lines = md.split('\n');
   for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i] ?? '';
+    // `i` идёт по длине массива — элемент существует (§11b).
+    const line = lines[i]!;
     const m = ROW_RE.exec(line);
     if (!m) continue;
     const cells = splitCells(line);
     // Минимум: номер, что проверять, вердикт, сверено. Между «что» и
     // вердиктом — якорь (иногда две ячейки).
     if (cells.length < 4) continue;
-    const checked = cells[cells.length - 1] ?? '';
-    const verdict = cells[cells.length - 2] ?? '';
+    // Колонок не меньше четырёх (проверено строкой выше), поэтому две
+    // последние и вторая существуют.
+    const checked = cells[cells.length - 1]!;
+    const verdict = cells[cells.length - 2]!;
     const anchors = anchorsOf(line);
     rows.push({
-      id: m[1] ?? '',
+      id: m[1]!,
       line: i + 1,
-      what: cells[1] ?? '',
+      what: cells[1]!,
       verdict,
       checked,
       anchors,
@@ -163,8 +170,9 @@ export function classifyRow(row: AuditRow, input: ClassifyInput): AuditGroup {
 
 /** `2026-09-05` → `05.09.2026` — так даты записаны в колонке «Сверено». */
 export function ruDate(iso: string): string {
+  // Дата приходит в виде `ГГГГ-ММ-ДД`, поэтому три куска есть всегда.
   const [y, m, d] = iso.split('-');
-  return `${d ?? ''}.${m ?? ''}.${y ?? ''}`;
+  return `${d!}.${m!}.${y!}`;
 }
 
 /**
@@ -178,14 +186,15 @@ export function markChecked(md: string, marks: ReadonlyMap<string, string>): str
     .map((line) => {
       const m = ROW_RE.exec(line);
       if (!m) return line;
-      const note = marks.get(m[1] ?? '');
+      const note = marks.get(m[1]!);
       if (note === undefined) return line;
       // Последняя ячейка — даты и слова, `|` внутри неё не бывает.
       const tail = /^(.*\|)([^|]*)\|\s*$/.exec(line);
       if (!tail) return line;
-      const prev = (tail[2] ?? '').trim();
+      // Обе группы обязательны в выражении — при совпадении они есть (§11b).
+      const prev = tail[2]!.trim();
       const joined = prev === '' || prev === '—' ? note : `${prev} · ${note}`;
-      return `${tail[1] ?? ''} ${joined} |`;
+      return `${tail[1]!} ${joined} |`;
     })
     .join('\n');
 }

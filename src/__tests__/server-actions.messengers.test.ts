@@ -8,6 +8,11 @@ const m = vi.hoisted(() => ({
   bindDialog: vi.fn(),
   setDialogStatus: vi.fn(),
   startDialog: vi.fn(),
+  assignDialog: vi.fn(),
+  takeDialog: vi.fn(),
+  addDialogNote: vi.fn(),
+  applyReplyTemplate: vi.fn(),
+  retryDialogMessage: vi.fn(),
 }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled: m.isFeatureEnabled }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager: m.requireManager }));
@@ -20,6 +25,24 @@ vi.mock('@/lib/services/messengers/send', async () => ({
   sendDialogMessage: m.sendDialogMessage,
 }));
 vi.mock('@/lib/services/messengers/bind', () => ({ bindDialog: m.bindDialog }));
+vi.mock('@/lib/services/messengers/assign', () => ({
+  assignDialog: m.assignDialog,
+  takeDialog: m.takeDialog,
+}));
+// Частичный мок: предел длины заметки (`DIALOG_NOTE_MAX`) берём настоящий —
+// по нему собрана проверка формы.
+vi.mock('@/lib/services/messengers/note', async () => ({
+  ...(await vi.importActual<typeof import('@/lib/services/messengers/note')>(
+    '@/lib/services/messengers/note'
+  )),
+  addDialogNote: m.addDialogNote,
+}));
+vi.mock('@/lib/services/replyTemplates/apply', () => ({
+  applyReplyTemplate: m.applyReplyTemplate,
+}));
+vi.mock('@/lib/services/messengers/retry', () => ({
+  retryDialogMessage: m.retryDialogMessage,
+}));
 vi.mock('@/lib/services/messengers/status', () => ({ setDialogStatus: m.setDialogStatus }));
 // Частичный мок: подменяем только сам сервис, а реестр каналов «написать
 // первым» (`START_FIRST_CHANNELS`) берём НАСТОЯЩИЙ — по нему собран `z.enum`
@@ -36,6 +59,11 @@ import {
   sendDialogMessageAction,
   setDialogStatusAction,
   startDialogAction,
+  assignDialogAction,
+  takeDialogAction,
+  addDialogNoteAction,
+  applyReplyTemplateAction,
+  retryDialogMessageAction,
 } from '@/server-actions/messengers';
 
 /**
@@ -214,5 +242,219 @@ describe('server-actions/messengers', () => {
       error: 'no_messenger_channel',
     });
     expect(m.revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Ответственный, заметка, шаблон и повтор (`У-206`, `У-208`, `У-209`,
+ * `У-213`).
+ *
+ * У всех один каркас: выключённый рычаг → `forbidden`, кривой ввод →
+ * `validation`, и **лента перечитывается только когда что-то изменилось**.
+ * Последнее не мелочь: лишний перечит на каждое нажатие заставляет страницу
+ * моргать там, где ничего не произошло.
+ */
+describe('assignDialogAction / takeDialogAction — ответственный', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    m.isFeatureEnabled.mockReturnValue(true);
+    m.requireManager.mockResolvedValue({ sub: 'u1', role: 'manager', companyId: 'c1' });
+  });
+
+  it('выключённый рычаг отвечает «нет доступа», не раскрывая механизм', async () => {
+    m.isFeatureEnabled.mockReturnValue(false);
+
+    await expect(assignDialogAction({ dialogId: 'd1', assigneeId: null })).resolves.toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+    expect(m.assignDialog).not.toHaveBeenCalled();
+  });
+
+  it('пустой номер диалога — отказ до сервиса', async () => {
+    await expect(assignDialogAction({ dialogId: '', assigneeId: null })).resolves.toEqual({
+      ok: false,
+      error: 'validation',
+    });
+  });
+
+  it('снятие ответственного передаёт null, а не пустую строку', async () => {
+    m.assignDialog.mockResolvedValue({ ok: true, changed: true });
+
+    const res = await assignDialogAction({ dialogId: 'd1', assigneeId: null });
+
+    expect(res).toEqual({ ok: true, changed: true });
+    expect(m.assignDialog).toHaveBeenCalledWith({}, expect.anything(), {
+      dialogId: 'd1',
+      assigneeId: null,
+    });
+    expect(m.revalidatePath).toHaveBeenCalled();
+  });
+
+  it('ничего не изменилось — ленту не перечитываем', async () => {
+    m.assignDialog.mockResolvedValue({ ok: true, changed: false });
+
+    await assignDialogAction({ dialogId: 'd1', assigneeId: 'u2' });
+
+    expect(m.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('отказ сервиса возвращается как есть', async () => {
+    m.assignDialog.mockResolvedValue({ ok: false, error: 'invalid_assignee' });
+
+    await expect(assignDialogAction({ dialogId: 'd1', assigneeId: 'u2' })).resolves.toEqual({
+      ok: false,
+      error: 'invalid_assignee',
+    });
+    expect(m.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('«Взять себе» не требует от кнопки моего номера', async () => {
+    m.takeDialog.mockResolvedValue({ ok: true, changed: true });
+
+    const res = await takeDialogAction({ dialogId: 'd1' });
+
+    expect(res).toEqual({ ok: true, changed: true });
+    expect(m.takeDialog).toHaveBeenCalledWith({}, expect.anything(), { dialogId: 'd1' });
+    expect(m.revalidatePath).toHaveBeenCalled();
+  });
+
+  it('«Взять себе» при выключённом рычаге тоже закрыто', async () => {
+    m.isFeatureEnabled.mockReturnValue(false);
+
+    await expect(takeDialogAction({ dialogId: 'd1' })).resolves.toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+  });
+
+  it('«Взять себе» с пустым номером — отказ', async () => {
+    await expect(takeDialogAction({ dialogId: '' })).resolves.toEqual({
+      ok: false,
+      error: 'validation',
+    });
+  });
+
+  it('диалог уже мой — ленту не трогаем', async () => {
+    m.takeDialog.mockResolvedValue({ ok: true, changed: false });
+
+    await takeDialogAction({ dialogId: 'd1' });
+
+    expect(m.revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe('addDialogNoteAction — внутренняя заметка', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    m.isFeatureEnabled.mockReturnValue(true);
+    m.requireManager.mockResolvedValue({ sub: 'u1', role: 'manager', companyId: 'c1' });
+  });
+
+  it('выключённый рычаг закрывает действие', async () => {
+    m.isFeatureEnabled.mockReturnValue(false);
+
+    await expect(addDialogNoteAction({ dialogId: 'd1', text: 'x' })).resolves.toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+  });
+
+  it('пустой номер диалога — отказ', async () => {
+    await expect(addDialogNoteAction({ dialogId: '', text: 'x' })).resolves.toEqual({
+      ok: false,
+      error: 'validation',
+    });
+  });
+
+  it('заметка сохраняется и лента перечитывается', async () => {
+    m.addDialogNote.mockResolvedValue({ ok: true, noteId: 'n1' });
+
+    const res = await addDialogNoteAction({ dialogId: 'd1', text: 'позвонить завтра' });
+
+    expect(res).toEqual({ ok: true, noteId: 'n1' });
+    expect(m.revalidatePath).toHaveBeenCalled();
+  });
+
+  it('отказ сервиса ленту не трогает', async () => {
+    m.addDialogNote.mockResolvedValue({ ok: false, error: 'empty' });
+
+    await addDialogNoteAction({ dialogId: 'd1', text: '' });
+
+    expect(m.revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe('applyReplyTemplateAction — вставка шаблона', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    m.isFeatureEnabled.mockReturnValue(true);
+    m.requireManager.mockResolvedValue({ sub: 'u1', role: 'manager', companyId: 'c1' });
+  });
+
+  it('выключённый рычаг закрывает действие', async () => {
+    m.isFeatureEnabled.mockReturnValue(false);
+
+    await expect(applyReplyTemplateAction({ dialogId: 'd1', templateId: 't1' })).resolves.toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+  });
+
+  it('пустой номер шаблона — отказ', async () => {
+    await expect(applyReplyTemplateAction({ dialogId: 'd1', templateId: '' })).resolves.toEqual({
+      ok: false,
+      error: 'validation',
+    });
+  });
+
+  it('ничего не отправляет — возвращает готовый текст и незаполненные подстановки', async () => {
+    m.applyReplyTemplate.mockResolvedValue({ ok: true, text: 'Здравствуйте!', missing: ['цена'] });
+
+    const res = await applyReplyTemplateAction({ dialogId: 'd1', templateId: 't1' });
+
+    expect(res).toEqual({ ok: true, text: 'Здравствуйте!', missing: ['цена'] });
+    expect(m.revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe('retryDialogMessageAction — «Повторить»', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    m.isFeatureEnabled.mockReturnValue(true);
+    m.requireManager.mockResolvedValue({ sub: 'u1', role: 'manager', companyId: 'c1' });
+  });
+
+  it('выключённый рычаг закрывает действие', async () => {
+    m.isFeatureEnabled.mockReturnValue(false);
+
+    await expect(retryDialogMessageAction({ dialogId: 'd1', messageId: 'm1' })).resolves.toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+  });
+
+  it('пустой номер сообщения — отказ', async () => {
+    await expect(retryDialogMessageAction({ dialogId: 'd1', messageId: '' })).resolves.toEqual({
+      ok: false,
+      error: 'validation',
+    });
+  });
+
+  it('лента перечитывается и при неудаче — у неё меняется текст причины', async () => {
+    m.retryDialogMessage.mockResolvedValue({ ok: false, error: 'channel_down' });
+
+    const res = await retryDialogMessageAction({ dialogId: 'd1', messageId: 'm1' });
+
+    expect(res).toEqual({ ok: false, error: 'channel_down' });
+    expect(m.revalidatePath).toHaveBeenCalled();
+  });
+
+  it('удачный повтор тоже перечитывает ленту', async () => {
+    m.retryDialogMessage.mockResolvedValue({ ok: true });
+
+    await retryDialogMessageAction({ dialogId: 'd1', messageId: 'm1' });
+
+    expect(m.revalidatePath).toHaveBeenCalled();
   });
 });

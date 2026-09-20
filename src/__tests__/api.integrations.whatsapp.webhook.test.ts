@@ -1,10 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-const { ingest, notFoundIfDisabled, recordWebhookEvent } = vi.hoisted(() => ({
-  ingest: vi.fn(),
-  notFoundIfDisabled: vi.fn(),
-  recordWebhookEvent: vi.fn().mockResolvedValue(undefined),
-}));
+const { ingest, notFoundIfDisabled, recordWebhookEvent, fetchInboundAttachment } = vi.hoisted(
+  () => ({
+    ingest: vi.fn(),
+    notFoundIfDisabled: vi.fn(),
+    recordWebhookEvent: vi.fn().mockResolvedValue(undefined),
+    fetchInboundAttachment: vi.fn(),
+  })
+);
 
 vi.mock('@/lib/db/prisma', () => ({
   prisma: { integrationSetting: { findUnique: async () => null } },
@@ -12,6 +15,7 @@ vi.mock('@/lib/db/prisma', () => ({
 vi.mock('@/lib/services/inbound/ingest', () => ({ ingestInboundMessage: ingest }));
 vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled }));
 vi.mock('@/lib/services/admin/webhookDiagnostics', () => ({ recordWebhookEvent }));
+vi.mock('@/lib/services/messengers/attachment', () => ({ fetchInboundAttachment }));
 
 import { POST } from '@/app/api/integrations/whatsapp/webhook/route';
 
@@ -28,6 +32,7 @@ function req(body: unknown, headers: Record<string, string> = {}): Request {
 beforeEach(() => {
   vi.clearAllMocks();
   notFoundIfDisabled.mockReturnValue(null); // флаг inbound_messaging включён по умолчанию
+  fetchInboundAttachment.mockResolvedValue(null);
   process.env.WHATSAPP_WEBHOOK_SECRET = SECRET;
 });
 
@@ -180,5 +185,98 @@ describe('диагностика вебхука (ФТ-14.4)', () => {
     const denied = await POST(req({ messages: [] }, { 'x-wazzup-secret': 'wrong' }));
     expect(denied.status).toBe(401);
     expect(recordWebhookEvent).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Файл во входящем сообщении (`У-204`).
+ *
+ * Агрегатор отдаёт файл ссылкой на свой сервер, а ссылка живёт недолго —
+ * поэтому файл скачивается сразу, в наше хранилище. Главное обещание:
+ * **неудачная загрузка не съедает обращение клиента**. Тело сообщения к
+ * этому моменту уже есть (имя файла), и записать его важнее, чем файл.
+ */
+describe('Файл во входящем сообщении', () => {
+  /** Вебхук агрегатора с одним файлом и без подписи. */
+  const withFile = {
+    messages: [
+      {
+        messageId: 'w-file',
+        chatId: '79990001122',
+        contentUri: 'https://cdn.wazzup24.com/files/scan.pdf',
+        mimeType: 'application/pdf',
+      },
+    ],
+  };
+
+  it('скачанный файл прикладывается к сообщению', async () => {
+    fetchInboundAttachment.mockResolvedValue({
+      path: 'inbound/2026/09/scan.pdf',
+      name: 'scan.pdf',
+      mimeType: 'application/pdf',
+      size: 1024,
+    });
+
+    const res = await POST(req(withFile, { 'x-wazzup-secret': SECRET }));
+
+    expect(res.status).toBe(200);
+    expect(fetchInboundAttachment).toHaveBeenCalledWith('inbound', {
+      url: 'https://cdn.wazzup24.com/files/scan.pdf',
+      name: 'scan.pdf',
+      mimeType: 'application/pdf',
+    });
+    expect(ingest.mock.calls[0]?.[1]).toMatchObject({
+      attachmentPath: 'inbound/2026/09/scan.pdf',
+      attachmentName: 'scan.pdf',
+      attachmentMime: 'application/pdf',
+      attachmentSize: 1024,
+    });
+  });
+
+  it('файл не скачался — сообщение всё равно записывается, телом станет имя', async () => {
+    fetchInboundAttachment.mockResolvedValue(null);
+
+    const res = await POST(req(withFile, { 'x-wazzup-secret': SECRET }));
+
+    expect(res.status).toBe(200);
+    const dto = ingest.mock.calls[0]?.[1];
+    expect(dto).toMatchObject({ body: 'Файл: scan.pdf' });
+    // Полей файла нет вовсе — не `undefined`: пустые поля в базе выглядели бы
+    // как «файл был, но пропал».
+    expect(dto).not.toHaveProperty('attachmentPath');
+    expect(dto).not.toHaveProperty('attachmentSize');
+  });
+
+  it('сообщения без файла за скачиванием не ходят', async () => {
+    await POST(
+      req(
+        { messages: [{ messageId: 'w-txt', chatId: '79990001122', text: 'привет' }] },
+        { 'x-wazzup-secret': SECRET }
+      )
+    );
+
+    expect(fetchInboundAttachment).not.toHaveBeenCalled();
+    expect(ingest).toHaveBeenCalled();
+  });
+  it('агрегатор прислал имя контакта — оно доезжает до карточки', async () => {
+    await POST(
+      req(
+        {
+          messages: [
+            {
+              messageId: 'w-named',
+              chatId: '79990001122',
+              text: 'привет',
+              contact: { name: 'Пётр Смирнов' },
+            },
+          ],
+        },
+        { 'x-wazzup-secret': SECRET }
+      )
+    );
+
+    // Имени может не быть — тогда ключа нет вовсе (проверено выше), а пустая
+    // строка затёрла бы уже известное имя человека в карточке.
+    expect(ingest.mock.calls[0]?.[1]).toMatchObject({ senderDisplay: 'Пётр Смирнов' });
   });
 });

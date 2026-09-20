@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 const { parseWorkbook } = vi.hoisted(() => ({ parseWorkbook: vi.fn() }));
 vi.mock('@/lib/services/import/parse-workbook', () => ({ parseWorkbook }));
 import { FileOneCAdapter } from '@/lib/services/oneCSync/adapter-file';
+import { OneCMethodNotImplementedError } from '@/lib/services/oneCSync/adapter';
 
 describe('FileOneCAdapter', () => {
   it('documents are never created from Excel (orgs — с этапа 5 создаются)', async () => {
@@ -474,5 +475,21 @@ describe('FileOneCAdapter.diagnostics', () => {
     const orders = await a.pullOrders({});
     expect(orders).toHaveLength(1);
     expect(parseWorkbook).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * `У-257`: долгов в файловой выгрузке нет — и это **не поломка**.
+ *
+ * Отказ того же вида, что у REST-канала с нереализованным методом: сверка
+ * обязана отличить «канал не умеет» от «1С недоступна». Верни адаптер пустой
+ * список — сверка решила бы, что долгов нет вовсе, и молча отчиталась бы «всё
+ * сошлось».
+ */
+describe('FileOneCAdapter.pullDebts', () => {
+  it('честно отказывает «метод не подключён», а не возвращает пустой список', async () => {
+    const adapter = new FileOneCAdapter(Buffer.from('x'));
+
+    await expect(adapter.pullDebts({})).rejects.toBeInstanceOf(OneCMethodNotImplementedError);
   });
 });

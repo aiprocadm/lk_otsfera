@@ -176,7 +176,9 @@ export async function buildDocumentsZip(
     entity: 'document',
     // Событие про пакет, а не про одну бумагу: у пакета своей строки нет,
     // поэтому якорем берём первый документ, а весь перечень — в `after`.
-    entityId: packedIds[0] ?? '',
+    // Пакет непуст — пустой отсечён проверкой `packedIds.length === 0` выше,
+    // поэтому запасное значение было бы недостижимой веткой (§11b).
+    entityId: packedIds[0]!,
     userId: session.sub,
     after: {
       documentIds: packedIds,

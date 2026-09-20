@@ -274,3 +274,89 @@ describe('detectLateRefundCorrections', () => {
     expect(reads(many)).toBeLessThanOrEqual(5);
   });
 });
+
+/**
+ * Порция кончилась — предупреждение в журнал (`С-8`, хотфикс №49).
+ *
+ * Порционность решает проблему нагрузки, но создаёт новую: если работы больше,
+ * чем предел, остаток молча ждёт следующего захода. Само по себе это не беда —
+ * заход повторяется, — но **эксплуатация обязана это видеть**: полная пачка
+ * заход за заходом означает, что очередь не рассасывается.
+ *
+ * Предупреждение проверяется через `console.warn`: в тестовой среде логгер
+ * работает пропускающим, verbatim (`CLAUDE.md` §12).
+ */
+describe('detectLateRefundCorrections — предел порции виден в журнале', () => {
+  /** Ровно `n` закрытых периодов одного партнёра. */
+  const periods = (n: number) =>
+    Array.from({ length: n }, (_, i) => paidPeriod({ id: `stmt-${i}` }));
+
+  /** Ровно `n` возвратов. */
+  const refunds = (n: number) =>
+    Array.from({ length: n }, (_, i) => refundRow({ id: `pay-r${i}`, organizationId: `org-${i}` }));
+
+  it('периодов ровно столько, сколько берём, — предупреждаем', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const db = makeDb({ refunds: [], periods: periods(500) });
+
+    await detectLateRefundCorrections(db);
+
+    expect(warn).toHaveBeenCalledWith(
+      '[commission/corrections] закрытых периодов больше, чем берём за заход',
+      { limit: 500 }
+    );
+    warn.mockRestore();
+  });
+
+  it('возвратов ровно столько, сколько берём, — предупреждаем отдельно', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const db = makeDb({ refunds: refunds(500), periods: [paidPeriod()] });
+
+    expect(await detectLateRefundCorrections(db)).toBe(500);
+
+    expect(warn).toHaveBeenCalledWith(
+      '[commission/corrections] поздних возвратов больше, чем берём за заход',
+      { limit: 500 }
+    );
+    warn.mockRestore();
+  });
+
+  it('неполная порция журнал не тревожит', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const db = makeDb({ refunds: refunds(3), periods: periods(2) });
+
+    await detectLateRefundCorrections(db);
+
+    // Иначе предупреждение печаталось бы каждый заход и перестало бы значить
+    // хоть что-нибудь.
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('две смены ставки одного партнёра складываются в одну группу', async () => {
+    // Группировка по партнёру: вторая смена обязана лечь рядом с первой, а не
+    // затереть её — иначе сторно посчиталось бы по ставке не того периода.
+    const db = makeDb({
+      refunds: [refundRow()],
+      periods: [paidPeriod()],
+      rateChanges: [
+        {
+          partnerId: 'p1',
+          effectiveFrom: new Date('2026-01-01'),
+          oldRate: dec(0.2),
+          newRate: dec(0.1),
+        },
+        {
+          partnerId: 'p1',
+          effectiveFrom: new Date('2026-04-10'),
+          oldRate: dec(0.1),
+          newRate: dec(0.3),
+        },
+      ],
+    });
+
+    expect(await detectLateRefundCorrections(db)).toBe(1);
+    // Возврат от 20.04 попадает под вторую ставку: 30 000 × 0,3 = 9 000.
+    expect(Number(db._created[0].commissionAmount)).toBe(9000);
+  });
+});

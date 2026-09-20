@@ -4,6 +4,8 @@ import type { PrismaClient } from '@prisma/client';
 const m = vi.hoisted(() => ({
   upsertDialog: vi.fn(),
   notifyManagersMessengerMessage: vi.fn(),
+  queueAdd: vi.fn(),
+  getQueue: vi.fn(),
 }));
 vi.mock('@/lib/services/messengers/dialog', () => ({
   upsertDialog: m.upsertDialog,
@@ -12,6 +14,9 @@ vi.mock('@/lib/services/messengers/dialog', () => ({
 vi.mock('@/lib/notifications/manager', () => ({
   notifyManagersMessengerMessage: m.notifyManagersMessengerMessage,
 }));
+// Очередь проверки вложений: без подмены `getQueue` полез бы в Redis и подвесил
+// прогон. Здесь важно только, ЗОВЁТСЯ ли постановка и что бывает при сбое.
+vi.mock('@/lib/jobs/queues', () => ({ getQueue: m.getQueue }));
 
 import { appendInboundToDialog } from '@/lib/services/messengers/appendInbound';
 import { dialogOverdueLevel } from '@/lib/services/messengers/dialogStatus';
@@ -227,5 +232,75 @@ describe('appendInboundToDialog: кого уведомляем', () => {
       ok: true,
       deduped: false,
     });
+  });
+});
+
+/**
+ * Файл во входящем (`У-204`).
+ *
+ * Проверка файла — **отдельная задача**, не общая с проверкой письма: статусы
+ * лежат в разных таблицах, и общий скан оставил бы ленту диалога вечно в
+ * «проверяется».
+ *
+ * Постановка задачи — best-effort, как и везде (§3): сбой очереди **не
+ * отменяет уже записанное сообщение**. Обращение клиента дороже вложения —
+ * файл просто останется непроверенным, и это видно на экране.
+ */
+describe('appendInboundToDialog: файл', () => {
+  const withFile = {
+    ...ARGS,
+    attachment: { path: 'inbound/f.pdf', name: 'f.pdf', mimeType: 'application/pdf', size: 10 },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    messageFindUnique.mockResolvedValue(null);
+    messageCreate.mockResolvedValue({ id: 'mm1' });
+    dialogUpdateMany.mockResolvedValue({ count: 1 });
+    m.upsertDialog.mockResolvedValue(dialog());
+    m.notifyManagersMessengerMessage.mockResolvedValue({
+      recipientsNotified: 0,
+      emailsSent: 0,
+      emailsSkipped: 0,
+    });
+    m.queueAdd.mockResolvedValue(undefined);
+    m.getQueue.mockReturnValue({ add: m.queueAdd });
+  });
+
+  it('файл записывается «на проверке» и уходит в свою очередь', async () => {
+    await appendInboundToDialog(prisma, withFile);
+
+    expect(messageCreate.mock.calls[0]?.[0].data).toMatchObject({
+      attachmentPath: 'inbound/f.pdf',
+      attachmentName: 'f.pdf',
+      scanStatus: 'pending',
+    });
+    expect(m.getQueue).toHaveBeenCalledWith('docs.scanDocument');
+    expect(m.queueAdd).toHaveBeenCalledWith('scan', {
+      kind: 'messenger_attachment',
+      id: 'mm1',
+    });
+  });
+
+  it('очередь недоступна — сообщение всё равно записано', async () => {
+    m.queueAdd.mockRejectedValue(new Error('redis down'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await expect(appendInboundToDialog(prisma, withFile)).resolves.toBeDefined();
+
+    expect(messageCreate).toHaveBeenCalled();
+    // Сбой не проглатывается молча: без записи в журнал файл остался бы
+    // «на проверке» навсегда, и никто бы не узнал почему.
+    expect(warn).toHaveBeenCalledWith(
+      '[messengers/appendInbound] scan enqueue failed',
+      expect.objectContaining({ messageId: 'mm1', error: 'redis down' })
+    );
+    warn.mockRestore();
+  });
+
+  it('сообщение без файла за очередью не ходит', async () => {
+    await appendInboundToDialog(prisma, ARGS);
+
+    expect(m.getQueue).not.toHaveBeenCalled();
   });
 });

@@ -15,7 +15,7 @@ import { CabinetSwitcher } from '@/components/shell/cabinet-switcher';
 export default async function ManagerLayout({ children }: { children: ReactNode }) {
   const session = await requireManager();
   const isLeader = isManagerLeader(session);
-  const items = navItemsFor('manager', { isManagerLeader: isLeader });
+  const items = navItemsFor('manager');
   const userEmail = session.email ?? null;
 
   return (

@@ -142,13 +142,11 @@ describe('navItemsFor — chat flag (organization)', () => {
 });
 
 describe('У-60 (этап 4): «Команда» ушла из главного меню в настройки', () => {
-  it('пункта «Команда» в меню партнёра нет ни при каких opts', () => {
-    // Признак `partnerAdminOnly` удалён этапом 9 (его не носил ни один пункт),
-    // поэтому состав меню партнёра от опций больше не зависит.
-    for (const opts of [undefined, { isManagerLeader: false }]) {
-      const labels = navItemsFor('partner', opts).map((i) => i.label);
-      expect(labels, `opts=${JSON.stringify(opts)}`).not.toContain('Команда');
-    }
+  it('пункта «Команда» в меню партнёра нет', () => {
+    // Признаки `partnerAdminOnly` (этап 9), `leaderOnly` и `hiddenWhenFlag`
+    // (прогон сопровождения №34) удалены: их не носил ни один пункт. Поэтому
+    // состав меню больше не зависит ни от каких опций — их и нет.
+    expect(navItemsFor('partner').map((i) => i.label)).not.toContain('Команда');
   });
 
   it('адреса /partner/team в меню тоже нет — он стал редиректом на вкладку настроек', () => {

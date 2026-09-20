@@ -24,6 +24,12 @@ const P2002 = new Prisma.PrismaClientKnownRequestError('dup', {
   clientVersion: '5.0.0',
 });
 
+/** Нарушение внешнего ключа: в позиции указано направление, которого нет. */
+const P2003 = new Prisma.PrismaClientKnownRequestError('fk', {
+  code: 'P2003',
+  clientVersion: '5.0.0',
+});
+
 const adminSession = (): SessionPayload =>
   ({ sub: 'a1', role: 'admin' }) as unknown as SessionPayload;
 const leaderSession = (companyId = 'co-1'): SessionPayload =>
@@ -422,5 +428,59 @@ describe('setCatalogItemActive', () => {
     expect(await setCatalogItemActive(prisma, leaderSession(), 'ci-1', true)).toEqual({ ok: true });
     expect(update).toHaveBeenCalledWith({ where: { id: 'ci-1' }, data: { isActive: true } });
     expect(recordAuditMock.mock.calls[0]![1].action).toBe('catalog_item_activated');
+  });
+});
+
+/**
+ * Направление исчезло между открытием формы и сохранением (`У-137`).
+ *
+ * База отвечает нарушением внешнего ключа. Показать это как «ошибка сервера»
+ * значило бы отправить человека к администратору, хотя чинится оно им самим:
+ * выбрать другое направление. Поэтому отказ переводится в понятную причину —
+ * и **проверять её заранее отдельным запросом не нужно**: между проверкой и
+ * записью направление всё равно может исчезнуть, а база проверит это всегда.
+ */
+describe('исчезнувшее направление', () => {
+  it('создание: отказ по внешнему ключу объясняется по-русски', async () => {
+    const f = fake();
+    f.create.mockRejectedValue(P2003);
+
+    const res = await createCatalogItem(f.prisma, adminSession(), 'co-1', VALID);
+
+    expect(res).toEqual({
+      ok: false,
+      error: 'validation',
+      messages: ['Направление не найдено'],
+    });
+    expect(recordAuditMock).not.toHaveBeenCalled();
+  });
+
+  it('правка: тот же отказ и та же причина', async () => {
+    // Позиция существует — её читают перед правкой, чтобы записать в журнал
+    // «что было».
+    const f = fake({
+      row: {
+        id: 'it1',
+        companyId: 'co-1',
+        name: 'Старое',
+        code: 'A-1',
+        price: null,
+        vatRate: null,
+        directionId: null,
+        description: null,
+        unit: 'person',
+        isActive: true,
+        sortOrder: 0,
+      },
+    });
+    f.update.mockRejectedValue(P2003);
+
+    const res = await updateCatalogItem(f.prisma, adminSession(), 'it1', VALID);
+
+    expect(res).toEqual({
+      ok: false,
+      error: 'validation',
+      messages: ['Направление не найдено'],
+    });
   });
 });

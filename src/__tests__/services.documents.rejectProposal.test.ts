@@ -130,3 +130,24 @@ describe('rejectProposal — запись', () => {
     ).toEqual({ ok: false, error: 'invalid_transition' });
   });
 });
+
+/**
+ * Документа нет вовсе (`У-165`).
+ *
+ * Отдельно от «чужой документ»: там отказ маскируется под «не найдено»
+ * НАМЕРЕННО, здесь его действительно нет. Снаружи ответы одинаковы — и это
+ * правильно: иначе по разнице ответов можно было бы пересчитать чужие бумаги.
+ */
+describe('rejectProposal — документа нет', () => {
+  it('«не найдено» приходит ещё до двери статусов', async () => {
+    const { prisma } = makePrisma(null);
+
+    const res = await rejectProposal(prisma, CLIENT(), {
+      documentId: 'нет-такого',
+      reason: 'дорого',
+    });
+
+    expect(res).toEqual({ ok: false, error: 'not_found' });
+    expect(setDocumentStatus).not.toHaveBeenCalled();
+  });
+});

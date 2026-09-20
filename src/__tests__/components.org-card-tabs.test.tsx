@@ -847,3 +847,65 @@ describe('OrgCardTabs — адреса по кабинету (этап 9, PR-1)'
     );
   });
 });
+
+/**
+ * Предупреждение «ИНН не указан» (`У-94`) и вкладка «Сотрудники».
+ *
+ * Организации из банковской выписки приходят без ИНН. Человек должен увидеть
+ * это **сразу и с кнопкой**, а не выяснять по пустой строке в реквизитах:
+ * без ИНН не собрать счёт и акт, а импорт из 1С не свяжет организацию.
+ */
+describe('OrgCardTabs — организация без ИНН', () => {
+  it('без ИНН — предупреждение с объяснением и кнопкой', () => {
+    const card = makeCard({ inn: null });
+    const html = renderToString(
+      React.createElement(OrgCardTabs, {
+        card,
+        activeTab: 'overview',
+        tabs: MANAGER_TABS,
+        egrulAction: React.createElement('button', {}, 'Заполнить из ЕГРЮЛ'),
+      })
+    );
+
+    expect(html).toContain('ИНН не указан');
+    expect(html).toContain('не собрать счёт и акт');
+    // Кнопка — ответ на вопрос «что делать дальше» (§15).
+    expect(html).toContain('Заполнить из ЕГРЮЛ');
+  });
+
+  it('ИНН есть — предупреждения нет вовсе', () => {
+    const card = makeCard({});
+    const html = renderToString(
+      React.createElement(OrgCardTabs, { card, activeTab: 'overview', tabs: MANAGER_TABS })
+    );
+
+    expect(html).not.toContain('ИНН не указан');
+  });
+
+  it('без ИНН и без кнопки — предупреждение всё равно видно', () => {
+    // Кнопку даёт страница своей роли: у кого нет права дозаполнять, тот
+    // хотя бы знает о проблеме и позовёт того, у кого право есть.
+    const card = makeCard({ inn: null });
+    const html = renderToString(
+      React.createElement(OrgCardTabs, { card, activeTab: 'overview', tabs: MANAGER_TABS })
+    );
+
+    expect(html).toContain('ИНН не указан');
+  });
+});
+
+describe('OrgCardTabs — вкладка «Сотрудники»', () => {
+  it('содержимое приходит со страницы и рисуется как есть', () => {
+    const card = makeCard({});
+    const html = renderToString(
+      React.createElement(OrgCardTabs, {
+        card,
+        activeTab: 'employees',
+        tabs: MANAGER_TABS,
+        employees: React.createElement('div', {}, 'Список сотрудников'),
+      })
+    );
+
+    expect(html).toContain('Список сотрудников');
+  });
+});

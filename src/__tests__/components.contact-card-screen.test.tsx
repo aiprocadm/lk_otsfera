@@ -248,6 +248,33 @@ describe('ContactCardScreen — менеджер, полный контакт', 
   });
 });
 
+describe('ContactCardScreen — вкладка «Задачи» (`У-220`)', () => {
+  it('вкладка показывает свой счётчик, как и остальные', () => {
+    // Задачи включаются своим рычагом, поэтому вкладка приходит в списке не
+    // всегда. Появившись, она обязана вести себя как все: счётчик из карточки,
+    // адрес с `?tab=`, пометка активной.
+    render(
+      <ContactCardScreen
+        cabinet="manager"
+        contact={contact()}
+        tabs={[...TABS, { key: 'tasks', label: 'Задачи', flag: 'internal_tasks' }]}
+        activeTab="tasks"
+        tabItems={TAB_ITEMS}
+        tabTotal={7}
+        skip={0}
+        searchParams={{ tab: 'tasks' }}
+        orgOptions={[{ id: 'o1', name: 'Ромашка' }]}
+        messengersEnabled
+      />
+    );
+
+    const tab = screen.getByTestId('contact-tab-tasks');
+    expect(tab.textContent).toBe('Задачи7');
+    expect(tab.getAttribute('href')).toBe('/manager/contacts/c1?tab=tasks');
+    expect(tab.getAttribute('data-active')).toBe('true');
+  });
+});
+
 describe('ContactCardScreen — «Написать» неактивна с причиной', () => {
   it('мессенджеры выключены → кнопка заблокирована, причина — про настройки', () => {
     renderCard({ messengersEnabled: false });

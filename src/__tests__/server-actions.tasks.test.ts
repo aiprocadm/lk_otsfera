@@ -231,3 +231,95 @@ describe('column CRUD actions', () => {
     expect(deleteTaskColumn).toHaveBeenCalledWith({}, SESSION, 'c3');
   });
 });
+
+/**
+ * Повторение задачи (`У-221`) и обновление карточки-источника (`У-220`).
+ *
+ * Про повторение важно одно: **пустой выбор — это `null`, а не «поле не
+ * прислали»**. При правке «поле не прислали» означало бы «оставь как было», и
+ * серию нельзя было бы выключить вовсе — задача повторялась бы вечно.
+ *
+ * Про источник: блок «Задачи» на карточке рисует сервер. Без сброса кэша
+ * человек нажимает «Создать» и не видит своей же задачи, пока не обновит
+ * страницу руками.
+ */
+describe('Повторение задачи', () => {
+  beforeEach(() => createTask.mockResolvedValue({ ok: true, id: 't-rec' }));
+
+  /** Правило повторения, доехавшее до сервиса. */
+  const recurrenceOf = () =>
+    (createTask.mock.calls[0]?.[2] as { recurrence: unknown } | undefined)?.recurrence;
+
+  it('выбор пуст — правило `null`, серия выключается', async () => {
+    await createTaskAction(form({ title: 'T' }));
+
+    expect(recurrenceOf()).toBeNull();
+  });
+
+  it('частота без интервала — раз в период', async () => {
+    await createTaskAction(form({ title: 'T', recurrenceFreq: 'weekly' }));
+
+    expect(recurrenceOf()).toEqual({ freq: 'weekly', interval: 1 });
+  });
+
+  it('интервал из формы доезжает как число', async () => {
+    await createTaskAction(form({ title: 'T', recurrenceFreq: 'daily', recurrenceInterval: '3' }));
+
+    expect(recurrenceOf()).toEqual({ freq: 'daily', interval: 3 });
+  });
+
+  it('нечисловой интервал не превращается в NaN', async () => {
+    await createTaskAction(
+      form({ title: 'T', recurrenceFreq: 'monthly', recurrenceInterval: 'ой' })
+    );
+
+    // `NaN` уехал бы в базу и сломал расчёт следующей даты — задача не
+    // повторилась бы ни разу, молча.
+    expect(recurrenceOf()).toEqual({ freq: 'monthly', interval: 1 });
+  });
+
+  it('дата окончания уходит, если задана, и не уходит пустой', async () => {
+    await createTaskAction(
+      form({ title: 'T', recurrenceFreq: 'weekly', recurrenceUntil: '2026-12-31' })
+    );
+    expect(recurrenceOf()).toMatchObject({ until: '2026-12-31' });
+
+    createTask.mockClear();
+    await createTaskAction(form({ title: 'T', recurrenceFreq: 'weekly', recurrenceUntil: '' }));
+    expect(recurrenceOf()).not.toHaveProperty('until');
+  });
+
+  it('«только эту» уходит отдельным признаком, остальное — молчанием', async () => {
+    await createTaskAction(form({ title: 'T', recurrenceScope: 'this' }));
+    expect(createTask.mock.calls[0]?.[2]).toMatchObject({ recurrenceScope: 'this' });
+
+    createTask.mockClear();
+    await createTaskAction(form({ title: 'T', recurrenceScope: 'all' }));
+    // Ключа нет вовсе: «вся серия» — это умолчание сервиса, а не значение формы.
+    expect(createTask.mock.calls[0]?.[2]).not.toHaveProperty('recurrenceScope');
+  });
+});
+
+describe('Обновление карточки-источника', () => {
+  beforeEach(() => createTask.mockResolvedValue({ ok: true, id: 't-src' }));
+
+  it.each([
+    ['контакта', 'linkedContactId', 'contacts'],
+    ['переписки', 'linkedDialogId', 'messengers'],
+    ['документа', 'linkedDocumentId', 'documents'],
+    ['организации', 'linkedOrganizationId', 'organizations'],
+    ['лида', 'linkedLeadId', 'leads'],
+  ])('задача из карточки %s освежает её в обоих кабинетах', async (_name, field, segment) => {
+    await createTaskAction(form({ title: 'T', [field]: 'x1' }));
+
+    expect(revalidatePath).toHaveBeenCalledWith(`/manager/${segment}/x1`);
+    expect(revalidatePath).toHaveBeenCalledWith(`/leader/${segment}/x1`);
+  });
+
+  it('задача без источника карточек не трогает', async () => {
+    await createTaskAction(form({ title: 'T' }));
+
+    const paths = revalidatePath.mock.calls.map((c) => String(c[0]));
+    expect(paths.every((p) => p.endsWith('/tasks') || p.includes('/tasks/'))).toBe(true);
+  });
+});

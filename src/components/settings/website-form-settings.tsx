@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { Badge, Button, Textarea } from '@/components/ui';
 import { PageHeader } from '@/components/ui/page-header';
 import { buildSettingsBreadcrumbs } from '@/lib/navigation/settings';
+import { str } from '@/lib/actions/form';
 import { useFormAction } from '@/lib/ui/useFormAction';
 import { issueSiteTokenAction, saveWebsiteSettingsAction } from '@/server-actions/admin/website';
 
@@ -85,8 +86,10 @@ export function WebsiteFormSettings({
     action: (formData) =>
       saveWebsiteSettingsAction({
         enabled: formData.get('enabled') === 'on',
-        allowedOrigins: String(formData.get('allowedOrigins') ?? ''),
-        defaultManagerId: String(formData.get('defaultManagerId') ?? ''),
+        // `str` вместо `String(fd.get(x) ?? '')`: общий помощник (§12b) и без
+        // ветки `?? ''`, недостижимой из этой формы.
+        allowedOrigins: str(formData, 'allowedOrigins'),
+        defaultManagerId: str(formData, 'defaultManagerId'),
       }),
     errorMap: ERROR_LABEL,
     refresh: true,

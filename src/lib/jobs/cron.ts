@@ -100,8 +100,10 @@ export function parseCron(expression: string): ParseCronResult {
   for (let i = 0; i < 5; i += 1) {
     const res = parseField(parts[i]!, i);
     if (typeof res === 'string') return { ok: false, error: res };
-    if (res.length === 0)
-      return { ok: false, error: `${FIELD_RANGES[i]!.name}: ни одного значения` };
+    // Проверки «поле не дало ни одного значения» здесь нет намеренно: каждый
+    // элемент списка либо возвращает текст ошибки, либо добавляет минимум одно
+    // значение (цикл `for (v = from; v <= to)` при `from <= to`). Такая
+    // проверка была бы недостижимой веткой (§11b).
     parsed.push(res);
   }
 
@@ -210,7 +212,10 @@ function wallClockParts(tz: string, at: Date): { y: number; m: number; d: number
     y: Number(p.year),
     m: Number(p.month),
     d: Number(p.day),
-    dow: dowMap[String(p.weekday)] ?? 0,
+    // Форматтер построен на `en-US` с `weekday: 'short'`, поэтому отвечает
+    // строго одним из семи ключей карты. Запасное значение было бы
+    // недостижимой веткой и вдобавок врало бы «воскресенье» (§11b).
+    dow: dowMap[String(p.weekday)]!,
   };
 }
 

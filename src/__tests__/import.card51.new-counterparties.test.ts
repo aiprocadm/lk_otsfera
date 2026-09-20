@@ -178,3 +178,110 @@ describe('collectNewCounterparties: правки предпросмотра (У-
     expect(res.badOverrides).toEqual([]);
   });
 });
+
+/**
+ * Краевые пути сбора кандидатов (`У-85`, `У-87`).
+ *
+ * Общее у них одно: **человек и файл могут не согласиться**, и порядок
+ * старшинства должен быть один и тот же всегда — файл, потом ЕГРЮЛ, потом
+ * правка человека. Последнее слово за человеком, и «стереть ИНН» — такое же
+ * его решение, как «вписать другой».
+ */
+describe('collectNewCounterparties: краевые пути', () => {
+  it('ИНН подбирается из ЛЮБОЙ строки группы, а не только из первой', async () => {
+    // В выписке одна и та же организация часто идёт несколькими строками, и
+    // реквизит стоит не в первой. Брать только первую — терять ИНН на ровном
+    // месте.
+    const res = await collectNewCounterparties(db(), [
+      row(null, 'ООО «Ромашка»'),
+      row(VALID_A, 'ромашка ооо'),
+    ]);
+
+    expect(res.candidates[0]).toMatchObject({ inn: VALID_A, innSource: 'file', rows: 2 });
+  });
+
+  it('первый найденный ИНН не перебивается вторым', async () => {
+    const res = await collectNewCounterparties(db(), [
+      row(VALID_A, 'ООО «Ромашка»'),
+      row(VALID_B, 'ромашка ооо'),
+    ]);
+
+    // Иначе результат зависел бы от порядка строк в файле — а он случайный.
+    expect(res.candidates[0]).toMatchObject({ inn: VALID_A, innSource: 'file' });
+  });
+
+  it('ЕГРЮЛ ответил про ключ, которого уже нет, — ответ просто не нужен', async () => {
+    enrichInnByName.mockResolvedValue({
+      byKey: new Map([['ВЕКТОР', { inn: VALID_B, egrulName: 'АО «Вектор»' }]]),
+      used: true,
+    });
+
+    const res = await collectNewCounterparties(db(), [row(null, 'ООО «Ромашка»')]);
+
+    // Ни падения, ни лишнего кандидата: «Вектор» в очередь не попадал.
+    expect(res.candidates.map((c) => c.key)).toEqual(['РОМАШКА']);
+    expect(res.candidates[0]).toMatchObject({ inn: null });
+  });
+
+  it('человек стёр ИНН — кандидат остаётся, но уже без реквизита', async () => {
+    enrichInnByName.mockResolvedValue({
+      byKey: new Map([['РОМАШКА', { inn: VALID_A, egrulName: 'ООО «Ромашка»' }]]),
+      used: true,
+    });
+
+    const res = await collectNewCounterparties(db(), [row(null, 'ООО «Ромашка»')], {
+      overrides: [{ key: 'РОМАШКА', inn: '' }],
+    });
+
+    // Пустая правка — это «не надо этого ИНН», а не «правки нет»: подставленный
+    // из ЕГРЮЛ реквизит человек мог отвергнуть осознанно.
+    expect(res.candidates[0]).toMatchObject({ inn: null, innSource: null });
+    expect(res.badOverrides).toEqual([]);
+  });
+
+  it('правка про неизвестный ключ молча пропускается', async () => {
+    const res = await collectNewCounterparties(db(), [row(null, 'ООО «Ромашка»')], {
+      overrides: [{ key: 'КОГО-ТО-НЕТ', create: false }],
+    });
+
+    expect(res.candidates.map((c) => c.key)).toEqual(['РОМАШКА']);
+    expect(res.reasons.skipped_by_user).toBeUndefined();
+  });
+  it('база вернула организацию с чужим ИНН — кандидата это не трогает', async () => {
+    // Защита на границе с базой: запрос просит ИНН из списка, но полагаться на
+    // то, что ответ всегда точно по списку, — значит держать сбор на честном
+    // слове. Лишняя строка в ответе не должна ни ронять, ни удалять кандидата.
+    const prisma = db({
+      organization: {
+        findMany: vi.fn().mockResolvedValue([{ id: 'org-x', inn: VALID_B, companyId: 'c1' }]),
+      },
+    });
+
+    const res = await collectNewCounterparties(prisma, [row(VALID_A, 'ООО «Ромашка»')]);
+
+    expect(res.candidates.map((c) => c.key)).toEqual(['РОМАШКА']);
+    expect(res.existing).toEqual([]);
+  });
+
+  it('организация без ключа названия в ответе пропускается', async () => {
+    // ИНН у строки нет, поэтому дедуп по ИНН пропускается целиком и это —
+    // ПЕРВЫЙ поход в базу, а не второй.
+    const prisma = db({
+      organization: {
+        findMany: vi.fn().mockResolvedValue([
+          { id: 'org-null', nameKey: null },
+          { id: 'org-other', nameKey: 'ВЕКТОР' },
+        ]),
+      },
+    });
+
+    const res = await collectNewCounterparties(prisma, [row(null, 'ООО «Ромашка»')], {
+      companyId: 'c1',
+    });
+
+    // Ни `null`, ни чужой ключ не объявляются «уже существующим» кандидатом:
+    // иначе «Ромашка» молча не создалась бы, и выписка ушла бы в никуда.
+    expect(res.existing).toEqual([]);
+    expect(res.candidates.map((c) => c.key)).toEqual(['РОМАШКА']);
+  });
+});

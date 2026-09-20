@@ -25,7 +25,6 @@ type NavItemSpec = {
    * одного не должно прятать другой.
    */
   anyFlags?: FeatureFlag[];
-  leaderOnly?: boolean;
   /**
    * Группа меню (`У-113`). Порядок групп — общий для всех кабинетов
    * сотрудников и задан реестром [menuGroups.ts](./menuGroups.ts), а не
@@ -33,7 +32,6 @@ type NavItemSpec = {
    */
   group?: MenuGroup;
   /** Скрыть пункт, когда флаг ВКЛЮЧЁН (обратный гейт: «Команда» менеджера уезжает в /leader). */
-  hiddenWhenFlag?: FeatureFlag;
   /**
    * Закрепить внизу сайдбара, отдельно от операционных пунктов (ТЗ 2026-08-04 §4.1).
    * Сайдбар рисует такие пункты последним блоком с отчерком.
@@ -515,15 +513,10 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = Object.fromEntries(
  * `navByRole` stays exported for tests and any caller that wants the raw
  * shape; `navItemsFor` is what the app shell renders.
  */
-export function navItemsFor(
-  role: Role | 'leader',
-  opts?: { isManagerLeader?: boolean }
-): NavItem[] {
+export function navItemsFor(role: Role | 'leader'): NavItem[] {
   return navByRole[role].filter((item) => {
     if (item.flag && !isFeatureEnabled(item.flag)) return false;
     if (item.anyFlags && !item.anyFlags.some((f) => isFeatureEnabled(f))) return false;
-    if (item.leaderOnly && !opts?.isManagerLeader) return false;
-    if (item.hiddenWhenFlag && isFeatureEnabled(item.hiddenWhenFlag)) return false;
     return true;
   });
 }

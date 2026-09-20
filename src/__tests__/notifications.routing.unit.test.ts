@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { allowedChannels, listRoutingRules, ROUTABLE_CHANNELS } from '@/lib/notifications/routing';
+import {
+  allowedChannels,
+  listRoutingRules,
+  ROUTABLE_CHANNELS,
+  isKnownAudience,
+  isRoutableChannel,
+} from '@/lib/notifications/routing';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/registry';
 
 /**
@@ -211,5 +217,38 @@ describe('listRoutingRules — таблица для экрана', () => {
     for (const spec of Object.values(NOTIFICATION_TYPES)) {
       expect(spec.label.length).toBeGreaterThan(3);
     }
+  });
+});
+
+/**
+ * Проверки значений формы правил (`У-127`).
+ *
+ * Роль и канал приходят из формы, то есть снаружи. Незнакомое значение обязано
+ * отсекаться ДО записи: правило с ролью «новая-роль» никогда не совпало бы ни
+ * с одним уведомлением и осталось бы в таблице мёртвым грузом — человек видел
+ * бы запрет, которого на деле нет.
+ */
+describe('isKnownAudience / isRoutableChannel', () => {
+  it.each(['organization', 'partner', 'manager', 'staff', 'admin'])(
+    'роль «%s» — своя',
+    (audience) => {
+      expect(isKnownAudience(audience)).toBe(true);
+    }
+  );
+
+  it.each(['', 'новая-роль', 'ADMIN', 'student', '__proto__'])(
+    'роль «%s» не принимается',
+    (audience) => {
+      expect(isKnownAudience(audience)).toBe(false);
+    }
+  );
+
+  it('каналы проверяются по тому же реестру, из которого строится форма', () => {
+    for (const channel of ROUTABLE_CHANNELS) {
+      expect(isRoutableChannel(channel)).toBe(true);
+    }
+    expect(isRoutableChannel('голубиная почта')).toBe(false);
+    // Уведомление в кабинете правилам не подчиняется и в реестр не входит.
+    expect(isRoutableChannel('inapp')).toBe(false);
   });
 });

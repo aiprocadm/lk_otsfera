@@ -172,3 +172,63 @@ describe('toGenerateArgs — цель-лид (`У-161`)', () => {
     expect('leadId' in args).toBe(false);
   });
 });
+
+/**
+ * Необязательные поля выпуска (`У-147`, `У-151`, `У-166`).
+ *
+ * Все они проходят через условный спред, и это не украшение:
+ * `exactOptionalPropertyTypes` различает «поля нет» и «поле равно undefined»,
+ * а сервис по ОТСУТСТВИЮ поля выбирает поведение по умолчанию. Присланное
+ * `undefined` он прочитал бы как «значение задано и оно пустое» — и, например,
+ * стёр бы срок действия у перевыпускаемого предложения.
+ */
+describe('toGenerateArgs — необязательные поля', () => {
+  const base = { orderId: 'o1', docType: 'invoice' as const };
+
+  it.each([
+    ['срок действия', 'validUntil', '2026-12-31'],
+    ['условия оплаты', 'paymentTerms', 'предоплата 100%'],
+    ['что изменилось', 'changeText', 'исправлен адрес'],
+  ])('%s доезжает до сервиса, когда задано', (_name, field, value) => {
+    const args = toGenerateArgs({ ...base, [field]: value } as never);
+
+    const extras = args.extras as Record<string, unknown>;
+    // Срок — дата, остальные — строки: сверяем по смыслу, а не по типу.
+    expect(extras[field] instanceof Date ? extras[field]!.toString() : extras[field]).toBeTruthy();
+  });
+
+  it.each([
+    ['срок действия', 'validUntil'],
+    ['условия оплаты', 'paymentTerms'],
+    ['что изменилось', 'changeText'],
+    ['основание перевыпуска', 'reissueOfDocumentId'],
+  ])('пустое «%s» — ключа НЕТ вовсе, а не undefined', (_name, field) => {
+    const args = toGenerateArgs({ ...base, [field]: '' } as never);
+
+    expect(args.extras ?? {}).not.toHaveProperty(field);
+  });
+
+  it('перевыпуск несёт документ-основание', () => {
+    const args = toGenerateArgs({ ...base, reissueOfDocumentId: 'doc-7' } as never);
+
+    expect(args.extras).toMatchObject({ reissueOfDocumentId: 'doc-7' });
+  });
+
+  it('сделка доезжает отдельным полем, а не внутри extras (`У-166`)', () => {
+    const args = toGenerateArgs({ ...base, dealId: 'd-9' } as never);
+
+    // Сделка — не цель выпуска: адресат всё равно заказ, организация или лид.
+    expect(args).toMatchObject({ orderId: 'o1', dealId: 'd-9' });
+  });
+
+  it('сделки нет — ключа нет', () => {
+    expect(toGenerateArgs({ ...base } as never)).not.toHaveProperty('dealId');
+  });
+
+  it('ни одного необязательного поля — `extras` не появляется пустым объектом', () => {
+    const args = toGenerateArgs(base as never);
+
+    // Пустой `extras` сервис прочитал бы как «человек всё очистил».
+    expect(args).not.toHaveProperty('extras');
+  });
+});
