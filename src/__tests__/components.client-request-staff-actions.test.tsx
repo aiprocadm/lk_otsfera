@@ -171,8 +171,8 @@ describe('ClientRequestStaffActions — «принять и выставить �
     // в статусе «отправлено» — у взятого закреплять уже нечего.
     // Тип аргументов объявлен явно: без него `mock.calls` получает пустой
     // кортеж, и обращение к `calls[0][1]` не проходит проверку типов.
-    const fetchMock = vi.fn<(url: string, init: { body: string }) => Promise<unknown>>(
-      async () => okResponse({})
+    const fetchMock = vi.fn<(url: string, init: { body: string }) => Promise<unknown>>(async () =>
+      okResponse({})
     );
     vi.stubGlobal('fetch', fetchMock);
     renderActions();

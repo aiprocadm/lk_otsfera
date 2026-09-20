@@ -126,9 +126,7 @@ describe('listOrganizationProposals', () => {
       { sub: 'm1', role: 'manager' } as unknown as SessionPayload,
       { organizationId: 'org-1' }
     );
-    expect((documentFindMany.mock.calls[0]![0].where as { companyId: string }).companyId).toBe(
-      ''
-    );
+    expect((documentFindMany.mock.calls[0]![0].where as { companyId: string }).companyId).toBe('');
   });
 
   it('администратор видит всё: компании в его сессии может не быть вовсе', async () => {

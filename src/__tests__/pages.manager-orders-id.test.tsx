@@ -320,9 +320,7 @@ describe('ManagerOrderDetailPage', () => {
     getDealActivity.mockResolvedValue({ ok: false, error: 'forbidden' });
     isFeatureEnabled.mockReturnValue(false);
 
-    await renderServerComponent(
-      ManagerOrderDetailPage({ params: Promise.resolve({ id: 'o1' }) })
-    );
+    await renderServerComponent(ManagerOrderDetailPage({ params: Promise.resolve({ id: 'o1' }) }));
 
     expect(loadOrderDeal).not.toHaveBeenCalled();
   });

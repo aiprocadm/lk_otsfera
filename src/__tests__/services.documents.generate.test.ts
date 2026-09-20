@@ -1390,9 +1390,9 @@ describe('generateOrderDocument — тихие края', () => {
 
   it('уборка осиротевшего файла упала НЕ-Error — исходная ошибка всё равно наружу', async () => {
     const { prisma, tx } = makePrisma();
-    (tx.document.create as unknown as { mockRejectedValue: (e: unknown) => void }).mockRejectedValue(
-      new Error('db down')
-    );
+    (
+      tx.document.create as unknown as { mockRejectedValue: (e: unknown) => void }
+    ).mockRejectedValue(new Error('db down'));
     removeMock.mockRejectedValue('нет связи с хранилищем');
     await expect(
       generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice' })
@@ -1485,7 +1485,12 @@ describe('КП лида — название клиента и связь со �
     resolveLeadIssueScope.mockResolvedValue({
       ok: true,
       companyId: 'co-A',
-      lead: { id: 'lead-1', clientCompanyName: null, clientContactName: 'Иван', organizationId: null },
+      lead: {
+        id: 'lead-1',
+        clientCompanyName: null,
+        clientContactName: 'Иван',
+        organizationId: null,
+      },
     });
     const { prisma } = leadPrisma();
     const r = await generateOrderDocument(prisma, manager(), {
@@ -1534,7 +1539,9 @@ describe('КП лида — название клиента и связь со �
         organizationId: null,
       },
     });
-    const own = leadPrisma({ deal: { id: 'deal-1', companyId: 'co-A', organizationId: null, leadId: 'lead-1' } });
+    const own = leadPrisma({
+      deal: { id: 'deal-1', companyId: 'co-A', organizationId: null, leadId: 'lead-1' },
+    });
     expect(
       (
         await generateOrderDocument(own.prisma, manager(), {

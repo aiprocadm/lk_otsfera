@@ -158,10 +158,9 @@ describe('страж: раздел «Сообщения» есть у ОБОИХ
     // ссылка из уведомления перестанет открываться, а человек решит, что ему
     // не ответили. Поэтому инвариант проверяется здесь, а не догадкой в коде.
     for (const cabinet of ['organization', 'partner'] as const) {
-      expect(
-        notificationRoute('inbound_reply', { dialogId: 'd1' }, cabinet),
-        cabinet
-      ).toBe(`/${cabinet}/messages?tab=manager&dialog=d1`);
+      expect(notificationRoute('inbound_reply', { dialogId: 'd1' }, cabinet), cabinet).toBe(
+        `/${cabinet}/messages?tab=manager&dialog=d1`
+      );
       expect(notificationRoute('inbound_reply', {}, cabinet), cabinet).toBe(
         `/${cabinet}/messages?tab=manager`
       );

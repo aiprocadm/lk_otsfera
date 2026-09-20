@@ -858,6 +858,32 @@ describe('upsertPaymentRecord', () => {
     expect(sum.updated).toBe(1);
   });
 
+  it('`У-148`: исправленная сумма тоже пробует закрыть счёт, и её сбой не роняет обмен', async () => {
+    // Оплату из 1С правят задним числом. Проверка «не закрылся ли теперь
+    // счёт» обязана идти и на обновлении — иначе документ навсегда останется
+    // «выставленным». Сама проверка — best-effort: её сбой не должен
+    // прерывать ночной обмен.
+    const d = pdb();
+    d.order.findUnique.mockResolvedValue({
+      id: 'ord',
+      organizationId: 'o',
+      orderNumber: 'O1',
+      title: 't',
+    });
+    d.payment.findUnique.mockResolvedValue({
+      id: 'pay-existing',
+      amount: 100,
+      paidAt: new Date('2026-04-01T00:00:00Z'),
+      purpose: null,
+    });
+    const sum = emptySummary();
+
+    await expect(
+      upsertPaymentRecord(d, payOrderDto, sum, { mode: 'live', notify: true })
+    ).resolves.toBeDefined();
+    expect(sum.updated).toBe(1);
+  });
+
   it('shadow mode: counts created but does not write', async () => {
     const d = pdb();
     d.order.findUnique.mockResolvedValue({

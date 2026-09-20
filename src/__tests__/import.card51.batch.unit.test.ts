@@ -15,6 +15,14 @@ vi.mock('@/lib/services/import/oneCAccountCard/parser', () => ({ parseAccountCar
 // `У-85`: обогащение ИНН через ЕГРЮЛ — побочный канал; в unit-слое он выключен,
 // его поведение проверяется своим набором (import.card51.dadata-inn).
 vi.mock('@/lib/services/admin/integrations', () => ({ isDadataEnabled: () => false }));
+// Тот же побочный канал со стороны его собственного модуля: по умолчанию
+// «не ходили» — как при выключенной интеграции.
+const { enrichInnByName } = vi.hoisted(() => ({
+  enrichInnByName: vi.fn<
+    () => Promise<{ byKey: Map<string, unknown>; used: boolean; reason?: string }>
+  >(async () => ({ byKey: new Map(), used: false, reason: 'disabled' })),
+}));
+vi.mock('@/lib/services/import/oneCAccountCard/dadata-inn', () => ({ enrichInnByName }));
 
 import {
   previewPaymentImport,
@@ -124,6 +132,37 @@ describe('previewPaymentImport', () => {
       expect(res.plan.counts.excludedByReason.supplier).toBe(1);
     }
     expect(upsertPaymentRecord).not.toHaveBeenCalled(); // shadow mode
+  });
+
+  it('ЕГРЮЛ ответил — причины «почему не ходили» в сводке нет вовсе', async () => {
+    // Поле-причина объясняет ПУСТОЙ результат. Оставь мы его при удачном
+    // походе — экран сказал бы «ИНН не искали», хотя искали и нашли.
+    enrichInnByName.mockResolvedValueOnce({ byKey: new Map(), used: true });
+    const prisma = { organization: { findMany: vi.fn().mockResolvedValue([]) } } as never;
+    const res = await previewPaymentImport(prisma, session, {
+      fileBuffer: Buffer.from(''),
+      fileName: 'c.xlsx',
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.plan.counterparties.dadataUsed).toBe(true);
+    expect(res.plan.counterparties).not.toHaveProperty('dadataReason');
+  });
+
+  it('правки оператора из предпросмотра доезжают до сбора контрагентов', async () => {
+    // Человек поправил название или вписал ИНН руками (`У-87`). Потеряйся эти
+    // правки по дороге — предпросмотр показал бы одно, а запись сделала другое.
+    const prisma = { organization: { findMany: vi.fn().mockResolvedValue([]) } } as never;
+    const res = await previewPaymentImport(prisma, session, {
+      fileBuffer: Buffer.from(''),
+      fileName: 'c.xlsx',
+      // Ключ — нормализованное название контрагента строки очереди («B»).
+      overrides: [{ key: 'B', create: false }],
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    // Отключённый оператором контрагент в список создаваемых не попадает.
+    expect(res.plan.counterparties.willCreate).toBe(0);
   });
 
   it('returns empty when no operation rows', async () => {

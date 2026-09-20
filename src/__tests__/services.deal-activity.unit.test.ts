@@ -73,11 +73,14 @@ it('заметка без автора подписана «Импорт из Б
   getOrder.mockResolvedValue({ id: 'o1' });
   const prisma = fakePrisma({
     dealNote: {
-      findMany: vi
-        .fn()
-        .mockResolvedValue([
-          { id: 'n1', body: 'из Битрикса', createdAt: new Date('2026-07-13T09:00:00Z'), author: null },
-        ]),
+      findMany: vi.fn().mockResolvedValue([
+        {
+          id: 'n1',
+          body: 'из Битрикса',
+          createdAt: new Date('2026-07-13T09:00:00Z'),
+          author: null,
+        },
+      ]),
     },
   });
   const res = await getDealActivity(prisma, session, 'o1', { view: 'all' });

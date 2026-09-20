@@ -110,8 +110,8 @@ export function EgrulFillDialog({
     // Индекс приходит из отрисованного списка, поэтому элемент всегда есть —
     // проверка нужна только типам (`noUncheckedIndexedAccess`), в бою она не
     // срабатывает.
-    /* v8 ignore next */
     const s = items[index];
+    /* v8 ignore next */
     if (!s) return;
     setPicked(index);
     // По умолчанию отмечены все поля, которые подсказка вообще знает.

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { DocumentsList } from '@/components/partner/documents-list';
 import type { OrgDocumentRow } from '@/lib/services/partner/orgDocuments';
 
@@ -103,6 +103,24 @@ describe('DocumentsList — группировка (У-253)', () => {
     } finally {
       Object.defineProperty(window, 'localStorage', { configurable: true, value: store });
     }
+    // Хранилище выбора модульное: возвращаем умолчание УДАВШЕЙСЯ записью,
+    // иначе «невыбранный» режим протёк бы в соседние тесты.
+    fireEvent.click(screen.getByRole('button', { name: 'по заказу' }));
+  });
+
+  it('соседняя вкладка сменила группировку — экран подхватывает её выбор', () => {
+    // Хранилище общее на весь браузер: сотрудник открыл два списка в двух
+    // вкладках и переключил группировку в одной. Вторая обязана показать то
+    // же самое — иначе один и тот же список выглядит по-разному.
+    render(<DocumentsList rows={ROWS} grouping />);
+    expect(screen.getByText('Без заказа · 3')).toBeTruthy();
+
+    window.localStorage.setItem('documents.groupBy', 'type');
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key: 'documents.groupBy' }));
+    });
+
+    expect(screen.getByText('Счёт · 2')).toBeTruthy();
   });
 
   it('незнакомый тип документа подписывается своим кодом, а не пустой полкой', () => {

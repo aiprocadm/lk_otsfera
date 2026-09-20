@@ -138,8 +138,9 @@ describe('EgrulFillDialog (У-94)', () => {
 
     fireEvent.click(dialog.getByRole('button', { name: 'Найти' }));
     await waitFor(() => expect(global.fetch).toHaveBeenCalled());
-    expect(String((global.fetch as unknown as { mock: { calls: string[][] } }).mock.calls[0]![0]))
-      .toContain(encodeURIComponent('Ромашка-Плюс'));
+    expect(
+      String((global.fetch as unknown as { mock: { calls: string[][] } }).mock.calls[0]![0])
+    ).toContain(encodeURIComponent('Ромашка-Плюс'));
   });
 
   it('Escape закрывает окно — из него всегда есть выход', async () => {

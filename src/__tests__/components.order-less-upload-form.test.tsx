@@ -164,9 +164,7 @@ describe('OrderLessUploadForm (interactive, jsdom)', () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
     vi.stubGlobal('fetch', fetchMock);
 
-    render(
-      React.createElement(OrderLessUploadForm, { url: '/api/partner/documents/upload' })
-    );
+    render(React.createElement(OrderLessUploadForm, { url: '/api/partner/documents/upload' }));
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     pickFile(fileInput, makeFile('scan.pdf'));
 

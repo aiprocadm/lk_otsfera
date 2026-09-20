@@ -158,6 +158,22 @@ describe('runBackfill', () => {
     });
   });
 
+  it('оформление документов тоже листается курсором, а не первой страницей по кругу', async () => {
+    // Без курсора вторая страница была бы той же первой: доскан висел бы
+    // вечно на одних и тех же файлах, а печати и подписи компании остались
+    // бы «на проверке» навсегда.
+    documentFindMany.mockResolvedValueOnce([]);
+    leadFindMany.mockResolvedValueOnce([]);
+    brandingFindMany.mockResolvedValueOnce([{ id: 'b1' }, { id: 'b2' }]).mockResolvedValueOnce([]);
+
+    const result = await runBackfill(db, { add: queueAdd }, 2);
+
+    expect(brandingFindMany.mock.calls[0][0]).not.toHaveProperty('cursor');
+    expect(brandingFindMany.mock.calls[1][0]).toMatchObject({ cursor: { id: 'b2' }, skip: 1 });
+    expect(result.companyBranding).toBe(2);
+    expect(queueAdd).toHaveBeenCalledWith('scan', { kind: 'company_branding', id: 'b1' });
+  });
+
   it('leadAttachment table also uses cursor on subsequent pages', async () => {
     documentFindMany.mockResolvedValueOnce([]);
     leadFindMany.mockResolvedValueOnce([{ id: 'l1' }, { id: 'l2' }]).mockResolvedValueOnce([]);

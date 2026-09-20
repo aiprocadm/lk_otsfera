@@ -166,6 +166,50 @@ describe('разбор исторических номеров (`У-151`)', () =
     expect(after.duplicates.find((g) => g.number === `С-${STAMP}-1`)).toBeUndefined();
   });
 
+  it('следующая свободная версия ищется через ЗАНЯТЫЕ, а не «предыдущая плюс один»', async () => {
+    // У одного номера могут сосуществовать версия 1 (дважды) и версия 2 —
+    // например, после ручной правки. Поставь второму дублю просто «2» — и
+    // уникальный индекс (номер + версия) не встанет, то есть миграция
+    // упрётся ровно в то, ради чего эта уборка и делается.
+    const number = `С-${STAMP}-7`;
+    const first = await makeDoc({
+      orderId: order1,
+      companyId: companyA,
+      type: 'invoice',
+      number,
+      version: 1,
+      createdAt: new Date('2026-01-01'),
+    });
+    const second = await makeDoc({
+      orderId: order1,
+      companyId: companyA,
+      type: 'invoice',
+      number,
+      version: 1,
+      createdAt: new Date('2026-02-01'),
+    });
+    await makeDoc({
+      orderId: order1,
+      companyId: companyA,
+      type: 'invoice',
+      number,
+      version: 2,
+      createdAt: new Date('2026-03-01'),
+    });
+
+    const report = await fixNumberingIssues(prisma);
+    // Версия 2 занята — второму дублю достаётся 3, а не 2.
+    expect(report.versionsBumped).toContainEqual({ documentId: second, from: 1, to: 3 });
+
+    const rows = await prisma.document.findMany({
+      where: { number, companyId: companyA },
+      select: { id: true, version: true },
+      orderBy: { version: 'asc' },
+    });
+    expect(rows.map((r) => r.version)).toEqual([1, 2, 3]);
+    expect(rows[0]!.id).toBe(first);
+  });
+
   it('акту проставляется связь со счётом того же заказа по совпадению номера', async () => {
     const invoice = await makeDoc({
       orderId: order1,

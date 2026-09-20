@@ -96,6 +96,10 @@ export async function getPartnersAnalytics(
     totalPaid = totalPaid.plus(p);
     return {
       partnerId: id,
+      // Оба словаря заполняются из того же списка организаций, из которого
+      // взяты `partnerIds`, поэтому промахнуться здесь нечем: запасные
+      // значения стоят ради типов.
+      /* v8 ignore next 2 */
       partnerName: names.get(id) ?? id,
       organizations: orgCount.get(id) ?? 0,
       accrued: a.toFixed(2),

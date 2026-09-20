@@ -138,10 +138,7 @@ describe('registerWebhook (У-123)', () => {
     // при прерывании по таймауту). Администратору важно отличить «провайдер
     // отказал» от «мы не дозвонились».
     getSettingValue.mockResolvedValue('x');
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockRejectedValue('соединение прервано')
-    );
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue('соединение прервано'));
     expect(await registerWebhook(prisma, 'telegram')).toEqual({
       ok: false,
       error: 'provider_error',

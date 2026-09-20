@@ -239,6 +239,12 @@ describe('Карточка документа — задачи и история
     expect(container.querySelector('[data-testid="version-history"]')).toBeTruthy();
     expect(container.querySelector('[data-testid="downloads"]')).toBeTruthy();
 
+    // Правило зеркала: у руководителя тот же экран и те же блоки.
+    const leader = await renderServerComponent(
+      LeaderDocumentPage({ params: Promise.resolve({ id: 'd1' }) })
+    );
+    expect(leader.container.querySelector('[data-testid="version-history"]')).toBeTruthy();
+
     // И обратная сторона: отказ выборки не рисует пустых блоков-обманок.
     getDocumentHistory.mockResolvedValue({ ok: false as const, error: 'not_found' } as never);
     const denied = await renderServerComponent(

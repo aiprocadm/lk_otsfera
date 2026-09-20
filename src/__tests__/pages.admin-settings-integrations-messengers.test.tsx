@@ -71,10 +71,7 @@ const { channelHealthRows, channelActions } = vi.hoisted(() => ({
 vi.mock('@/components/admin/channel-health-panel', async () => {
   const R = await import('react');
   return {
-    ChannelHealthPanel: (props: {
-      rows: unknown[];
-      actionsFor?: (channel: string) => unknown;
-    }) => {
+    ChannelHealthPanel: (props: { rows: unknown[]; actionsFor?: (channel: string) => unknown }) => {
       channelHealthRows.splice(0, channelHealthRows.length, ...props.rows);
       // Кнопки проверки строит страница, а не панель: зовём её сборщик за
       // каждую строку — иначе «есть ли кнопка у этого канала» проверить нечем.

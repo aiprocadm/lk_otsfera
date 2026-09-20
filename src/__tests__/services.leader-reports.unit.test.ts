@@ -183,6 +183,17 @@ describe('Коммуникации', () => {
     expect(res.byChannel[0]!.overSla).toBe(1);
   });
 
+  it('незнакомый канал из базы сводится к «Кабинету», а не ломает отчёт', async () => {
+    // Канал приходит строкой и может оказаться новым (или прежним, который
+    // убрали из справочника). Отдельной безымянной строки в отчёте быть не
+    // должно: цифры уйдут в понятную корзину, а не в графу без подписи.
+    const { prisma } = db([
+      { dialogId: 'd1', channel: 'sms', assigneeId: 'm1', assigneeName: 'И', minutes: 5 },
+    ]);
+    const res = await getCommunications(prisma, PERIOD);
+    expect(res.byChannel[0]).toMatchObject({ channel: 'cabinet', channelLabel: 'Кабинет' });
+  });
+
   it('переписки и звонков не было — нули, а не ошибка', async () => {
     const { prisma } = db([]);
     const res = await getCommunications(prisma, PERIOD);

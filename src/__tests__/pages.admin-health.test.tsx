@@ -39,10 +39,7 @@ vi.mock('@/components/admin/retry-all-button', () => ({
 // `У-126`: форма оповещений — клиентский компонент, ей нужен роутер. Тест
 // проверяет серверную страницу, а не её внутренности.
 vi.mock('@/components/admin/alert-settings-form', () => ({
-  AlertSettingsForm: (props: {
-    initial: Record<string, string>;
-    telegramTokenSet: boolean;
-  }) =>
+  AlertSettingsForm: (props: { initial: Record<string, string>; telegramTokenSet: boolean }) =>
     React.createElement(
       'div',
       { 'data-testid': 'alert-settings-form', 'data-token-set': String(props.telegramTokenSet) },

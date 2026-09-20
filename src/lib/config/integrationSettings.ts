@@ -300,11 +300,10 @@ export async function getSettingValues(
  * которым её записали. Если настройка потом перестала быть секретной, значение
  * в базе всё равно зашифровано, и читать его как обычный текст нельзя.
  */
-function plainValue(row: { value: string | null; isSecret: boolean }): string | null {
-  if (row.value === null || row.value === '') return null;
-  if (!row.isSecret) return row.value;
+function plainValue(value: string, isSecret: boolean): string | null {
+  if (!isSecret) return value;
   try {
-    return decryptSecret(row.value);
+    return decryptSecret(value);
   } catch {
     // Порча или смена ключа: показываем «не задано», а не шифротекст.
     return null;
@@ -348,7 +347,13 @@ export async function getSettingsView(
       // перестать быть секретом (`У-131`: `whatsapp.channelId`), и тогда в базе
       // остаётся строка, записанная зашифрованной. Без этой ветки форма
       // показала бы человеку шифротекст и предложила его «поправить».
-      value: spec.isSecret ? null : dbSet ? plainValue(dbRow!) : (envVal ?? null),
+      // `dbSet` уже означает «строка есть и значение непустое», поэтому
+      // значение здесь заведомо строка.
+      value: spec.isSecret
+        ? null
+        : dbSet
+          ? plainValue(dbRow!.value!, dbRow!.isSecret)
+          : (envVal ?? null),
       source,
     };
   });

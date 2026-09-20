@@ -179,7 +179,11 @@ describe('getDocumentDetail', () => {
     // Запрос с пустым идентификатором вернул бы ошибку Prisma и уронил
     // карточку целиком.
     canReadDocument.mockResolvedValue(true);
-    const prisma = makePrisma({ ...BASE_DOC, counterpartyType: 'organization', counterpartyId: null });
+    const prisma = makePrisma({
+      ...BASE_DOC,
+      counterpartyType: 'organization',
+      counterpartyId: null,
+    });
     const res = await getDocumentDetail(prisma, session, 'doc1');
     if (!res.ok) throw new Error('unexpected');
     expect(res.document.counterparty.name).toBeNull();
