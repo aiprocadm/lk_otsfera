@@ -34,3 +34,46 @@ describe('ManagerOrgsList', () => {
     expect(html).toContain('9');
   });
 });
+
+/**
+ * Отбор «без ИНН» (`У-94`).
+ *
+ * Отбор — **ссылка, а не кнопка**: отобранным списком можно поделиться, а
+ * «назад» в браузере работает. Состояние живёт в адресе, а не в памяти
+ * страницы, — иначе ссылка на «организации без ИНН» открывала бы полный
+ * список у того, кому её прислали.
+ */
+describe('ManagerOrgsList — отбор «без ИНН»', () => {
+  const html = (props: Record<string, unknown>) =>
+    renderToString(React.createElement(ManagerOrgsList, { orgs: [], ...props } as never)).replace(
+      /<!-- -->/g,
+      ''
+    );
+
+  it('отбор выключен — ссылка включает его', () => {
+    const out = html({});
+
+    expect(out).toContain('href="/manager/organizations?inn=without"');
+    expect(out).not.toContain('aria-current');
+  });
+
+  it('отбор включён — та же ссылка его снимает и помечена как текущая', () => {
+    const out = html({ withoutInn: true });
+
+    expect(out).toContain('href="/manager/organizations"');
+    expect(out).toContain('aria-current="true"');
+  });
+
+  it('пустой список объясняет РАЗНОЕ в зависимости от отбора', () => {
+    // «Вам ничего не назначено» и «все реквизиты заполнены» — новости разные,
+    // и общий текст отправил бы человека искать не ту причину.
+    expect(html({})).toContain('Вам пока не назначено ни одной организации');
+    expect(html({ withoutInn: true })).toContain('Организаций без ИНН нет');
+  });
+
+  it('у руководителя отбор ведёт в его кабинет', () => {
+    const out = html({ basePath: '/leader/organizations' });
+
+    expect(out).toContain('href="/leader/organizations?inn=without"');
+  });
+});
