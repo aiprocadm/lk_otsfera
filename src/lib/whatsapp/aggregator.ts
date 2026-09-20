@@ -120,7 +120,9 @@ function isIngestibleWazzupMessage(
 
 /** Имя файла из ссылки агрегатора: последний сегмент пути без параметров. */
 function fileNameFromUri(uri: string): string {
-  const withoutQuery = uri.split('?')[0] ?? uri;
+  // `split` всегда возвращает минимум один кусок, поэтому запасное значение
+  // было бы недостижимой веткой (§11b).
+  const withoutQuery = uri.split('?')[0]!;
   const last = withoutQuery.split('/').filter(Boolean).pop();
   return last && last.includes('.') ? decodeURIComponent(last) : 'file';
 }
