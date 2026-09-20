@@ -581,7 +581,7 @@ export async function computeRollbackConflicts(
         o.id,
         label,
         'order_has_other_links',
-        c.comments + c.uploads + c.threads + c.commissionItems + c.dealNotes
+        c.comments + c.threads + c.commissionItems + c.dealNotes
       );
     }
     return { conflicts, blocked };
@@ -678,18 +678,30 @@ export async function computeRollbackConflicts(
   return { conflicts, blocked };
 }
 
-/** Связи, которыми база держит заказ. Строки `select` для `_count`. */
+/**
+ * Связи, которыми база держит заказ. Строки `select` для `_count`.
+ *
+ * **`as const satisfies` здесь обязателен, а не украшение.** Вынесенная
+ * константа подставляется в `_count: { select: … }` отдельно от литерала, и
+ * без этой приписки TypeScript её с типом Prisma не сверяет: поле, которого в
+ * схеме нет, доживает до запроса и падает уже в базе. Так и случилось —
+ * уборка мёртвых таблиц (`У-261`) убрала модель `Upload`, а `uploads: true`
+ * остался здесь и в [import/rollback.ts](../import/rollback.ts); откат
+ * заказов ломался на живом Postgres, а `npm run typecheck` молчал. Обычная
+ * аннотация типа (`const X: Prisma.…Select = …`) не годится: она расширяет
+ * тип до «все поля необязательные», и счётчики ниже становятся
+ * `number | undefined`. `satisfies` проверяет, но не расширяет.
+ */
 const ORDER_LINKS = {
   payments: true,
   items: true,
   lines: true,
   documents: true,
   comments: true,
-  uploads: true,
   threads: true,
   commissionItems: true,
   dealNotes: true,
-} as const;
+} as const satisfies Prisma.OrderCountOutputTypeSelect;
 
 const ORG_LINKS = {
   orders: true,
@@ -711,7 +723,7 @@ const ORG_LINKS = {
   messengerDialogs: true,
   calls: true,
   notes: true,
-} as const;
+} as const satisfies Prisma.OrganizationCountOutputTypeSelect;
 
 const CONTACT_LINKS = {
   inboundMessages: true,
@@ -719,11 +731,19 @@ const CONTACT_LINKS = {
   calls: true,
   ordersAsPrimary: true,
   mergedFrom: true,
-} as const;
+} as const satisfies Prisma.ContactCountOutputTypeSelect;
 
-const LEAD_LINKS = { proposals: true, attachments: true, tasks: true } as const;
+const LEAD_LINKS = {
+  proposals: true,
+  attachments: true,
+  tasks: true,
+} as const satisfies Prisma.LeadCountOutputTypeSelect;
 
-const DEAL_LINKS = { notes: true, proposals: true, tasks: true } as const;
+const DEAL_LINKS = {
+  notes: true,
+  proposals: true,
+  tasks: true,
+} as const satisfies Prisma.DealCountOutputTypeSelect;
 
 /**
  * Повтор упавшей порции по одной строке. Возвращает суммарный итог; строки,
