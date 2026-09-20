@@ -125,6 +125,29 @@ describe('acceptDocument', () => {
     expect(warn).toHaveBeenCalled();
   });
 
+  it('не-Error от уведомления тоже переживаем', async () => {
+    // Отказ может прилететь строкой (внешний SDK, отклонённый промис без
+    // `Error`). Плечо `String(err)` нужно ровно за этим: иначе сама запись в
+    // журнал упала бы и увела за собой удачную приёмку.
+    notifyManagers.mockRejectedValue('smtp down');
+    const f = fake();
+
+    expect(await acceptDocument(f.prisma, orgUser(), 'doc-1')).toEqual({ ok: true });
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it('дверь статусов сказала «не найдено» — отвечаем тем же, а не «переход невозможен»', async () => {
+    // Две разные новости: документа нет вовсе — и документ есть, но его
+    // состояние не даёт принять. Общий код отправил бы человека не туда.
+    setDocumentStatus.mockResolvedValue({ ok: false, error: 'not_found' });
+    const f = fake();
+
+    expect(await acceptDocument(f.prisma, orgUser(), 'doc-1')).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
+  });
+
   it('документ без заказа принимается, уведомлять некого', async () => {
     const f = fake({ orderId: null, order: null });
     expect(await acceptDocument(f.prisma, orgUser(), 'doc-1')).toEqual({ ok: true });

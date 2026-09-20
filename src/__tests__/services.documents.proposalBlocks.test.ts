@@ -138,3 +138,20 @@ describe('listOrganizationProposals', () => {
     ).toEqual({ ok: false, error: 'forbidden' });
   });
 });
+
+/**
+ * Предложение без суммы (`У-166`).
+ *
+ * Сумму считает выпуск; у бумаги, выпущенной до появления расчёта, её может не
+ * быть. Прочерк честнее нуля: «0 ₽» на карточке прочитали бы как «бесплатно».
+ */
+describe('предложение без суммы', () => {
+  it('в блок уходит null, а не «0.00»', async () => {
+    const { prisma } = makePrisma({ docs: [{ ...DOC, amountGross: null }] });
+
+    const res = await listOrganizationProposals(prisma, MGR(), 'org-1');
+    if (!res.ok) throw new Error('ожидался ok');
+
+    expect(res.rows[0]?.amountGross).toBeNull();
+  });
+});

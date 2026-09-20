@@ -173,6 +173,22 @@ describe('buildDocumentsZip', () => {
     expect(res.ok && res.included).toBe(1);
   });
 
+  it('хранилище отказало СТРОКОЙ — бумага пропущена, архив собран', async () => {
+    // Часть SDK объектных хранилищ отклоняет промис строкой, а не `Error`.
+    // Без плеча `String(err)` упала бы сама запись в журнал и увела бы за
+    // собой весь архив — из-за ОДНОЙ недоступной бумаги.
+    downloadMock.mockImplementation(async (path: string) => {
+      if (path === 'нет') throw 's3 отвалился';
+      return Buffer.from('file');
+    });
+
+    const rows = [doc(), doc({ id: 'd2', path: 'нет' })];
+    const res = await buildDocumentsZip(db(rows), session, ['d1', 'd2']);
+
+    expect(res.ok).toBe(true);
+    expect(res.ok && res.skipped.unavailable).toBe(1);
+  });
+
   it('все файлы пропали — архива нет', async () => {
     downloadMock.mockRejectedValue(new Error('нет файла'));
     const res = await buildDocumentsZip(db([doc()]), session, ['d1']);
