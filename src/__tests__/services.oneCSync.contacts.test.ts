@@ -156,4 +156,33 @@ describe('syncOrgContactsFromOneC', () => {
     expect(res.updated).toBe(1);
     expect(upsert).toHaveBeenCalledTimes(2);
   });
+
+  it('сбой записи канала бросил не-Error — перенос живой, запись читаемая', async () => {
+    const { prisma, upsert } = db([{ contactId: 'c-1', organizationId: ORG }]);
+    (upsert as ReturnType<typeof vi.fn>).mockRejectedValueOnce('гонка');
+    const res = await syncOrgContactsFromOneC(
+      prisma,
+      args([{ name: 'Иванова Мария', phone: '89001234567', email: 'buh@x.test' }])
+    );
+    expect(res.updated).toBe(1);
+  });
+
+  it('новый человек с должностью: она пишется, пустая — не пишется вовсе', async () => {
+    // `exactOptionalPropertyTypes`: ключ `position` со значением `undefined`
+    // Prisma поняла бы как «записать NULL» — и пустая должность из 1С затёрла
+    // бы поле, которого у нового контакта ещё нет.
+    const withPos = db([]);
+    await syncOrgContactsFromOneC(
+      withPos.prisma,
+      args([{ name: 'Новый Человек', position: '  Главбух  ', phone: '89001234567' }])
+    );
+    expect(withPos.create.mock.calls[0]![0].data.position).toBe('Главбух');
+
+    const noPos = db([]);
+    await syncOrgContactsFromOneC(
+      noPos.prisma,
+      args([{ name: 'Новый Человек', position: '   ', phone: '89001234567' }])
+    );
+    expect(noPos.create.mock.calls[0]![0].data).not.toHaveProperty('position');
+  });
 });

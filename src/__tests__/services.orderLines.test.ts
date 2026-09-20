@@ -559,6 +559,19 @@ describe('добавление строки: нормализация, сним�
     expect(res).toMatchObject({ ok: true });
   });
 
+  it('чужая услуга каталога не проскакивает и на ПРАВКЕ строки', async () => {
+    // Обойти проверку на добавлении можно было бы, создав строку без услуги
+    // и подставив чужой `catalogItemId` правкой. Граница обязана стоять на
+    // обоих путях.
+    const c = makePrisma({ line: EXISTING });
+    const res = await updateOrderLine(c.prisma, admin, 'l1', {
+      ...VALID,
+      catalogItemId: 'foreign-item',
+    });
+    expect(res).toMatchObject({ ok: false, error: 'validation' });
+    expect(c.lineUpdate).not.toHaveBeenCalled();
+  });
+
   it('аудит записывает добавление строки с её сутью', async () => {
     const c = makePrisma();
     await addOrderLine(c.prisma, admin, 'ord-1', VALID);

@@ -106,6 +106,9 @@ export async function fillFromEgrul(
       entity: 'organization',
       entityId: org.id,
       before: Object.fromEntries(filled.map((f) => [f, org[f] ?? null])),
+      // `filled` собран из тех же `values`, поэтому значение здесь всегда есть:
+      // запасное `null` стоит ради типов (`noUncheckedIndexedAccess`).
+      /* v8 ignore next */
       after: Object.fromEntries(filled.map((f) => [f, args.values[f]?.trim() ?? null])),
     });
   });

@@ -298,6 +298,19 @@ describe('appendInboundToDialog: файл', () => {
     warn.mockRestore();
   });
 
+  it('очередь бросила не-Error — сообщение записано, причина читаемая', async () => {
+    m.queueAdd.mockRejectedValue('очередь закрыта');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await expect(appendInboundToDialog(prisma, withFile)).resolves.toBeDefined();
+
+    expect(warn).toHaveBeenCalledWith(
+      '[messengers/appendInbound] scan enqueue failed',
+      expect.objectContaining({ error: 'очередь закрыта' })
+    );
+    warn.mockRestore();
+  });
+
   it('сообщение без файла за очередью не ходит', async () => {
     await appendInboundToDialog(prisma, ARGS);
 

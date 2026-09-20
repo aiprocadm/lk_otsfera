@@ -91,6 +91,16 @@ describe('resolveReplaces', () => {
     expect(res).toEqual({ ok: true, replaces: { id: 'doc1', version: 2 } });
   });
 
+  it('у прежней версии автора нет (импорт из 1С) — клиенту замена закрыта', async () => {
+    // Роль автора у импортированной бумаги неизвестна. Считать «автора нет»
+    // за «автор — это ты» значило бы открыть клиенту замену чужих файлов.
+    const noUploader = { ...PREV, uploadedBy: null };
+    expect(await resolveReplaces(db(noUploader), client, 'doc1', INCOMING)).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+  });
+
   it('выпущенный в ЛК документ меняется перевыпуском, а не загрузкой', async () => {
     const generated = { ...PREV, generatedBy: 'system' };
     const res = await resolveReplaces(db(generated), staff, 'doc1', INCOMING);

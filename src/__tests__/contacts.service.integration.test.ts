@@ -55,6 +55,26 @@ describe('contacts service', () => {
     expect(row?.channels[0].isPrimary).toBe(true);
   });
 
+  it('`У-180`: занятый канал — понятный отказ с указанием владельца, а не P2002', async () => {
+    // Телефон уже закреплён за другим контактом компании. Без этой проверки
+    // наружу летел бы `P2002`, и сотрудник видел бы 500 вместо «этот номер
+    // уже у Ивана» — а вместе с подсказкой он может просто открыть тот контакт.
+    const co = await prisma.company.create({ data: { name: `${STAMP}-co-dup` } });
+    const first = await createContact(prisma, session(co.id), {
+      name: `${STAMP}-Первый`,
+      channels: [{ type: 'phone', value: '+7 999 111-22-33' }],
+    });
+    expect(first.ok).toBe(true);
+
+    const second = await createContact(prisma, session(co.id), {
+      name: `${STAMP}-Второй`,
+      channels: [{ type: 'phone', value: '8 999 111 22 33' }],
+    });
+    expect(second).toMatchObject({ ok: false, error: 'contact_channel_taken' });
+    if (second.ok || second.error !== 'contact_channel_taken') return;
+    expect(second.conflict.name).toContain('Первый');
+  });
+
   it('createContact: a leading empty-normalizing channel is dropped and the first SURVIVING channel is primary', async () => {
     const co = await prisma.company.create({ data: { name: `${STAMP}-co3` } });
     const r = await createContact(prisma, session(co.id), {

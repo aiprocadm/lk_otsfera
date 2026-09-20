@@ -67,6 +67,28 @@ it('merges sources ascending by unified `at`, using inbound.sentAt over createdA
   expect(res.items[1].at).toEqual(new Date('2026-07-13T10:00:00Z')); // sentAt wins
 });
 
+it('заметка без автора подписана «Импорт из Битрикс24», а не пустотой', async () => {
+  // Перенесённые заметки автора не имеют: в Битрикс24 его могли удалить.
+  // Пустая подпись в ленте читается как сбой переноса.
+  getOrder.mockResolvedValue({ id: 'o1' });
+  const prisma = fakePrisma({
+    dealNote: {
+      findMany: vi
+        .fn()
+        .mockResolvedValue([
+          { id: 'n1', body: 'из Битрикса', createdAt: new Date('2026-07-13T09:00:00Z'), author: null },
+        ]),
+    },
+  });
+  const res = await getDealActivity(prisma, session, 'o1', { view: 'all' });
+  expect(res.ok).toBe(true);
+  if (!res.ok) return;
+  const note = res.items[0]!;
+  expect(note.kind).toBe('note');
+  if (note.kind !== 'note') return;
+  expect(note.author).toBe('Импорт из Битрикс24');
+});
+
 it("view:'dialogue' excludes note/call/event", async () => {
   getOrder.mockResolvedValue({ id: 'o1' });
   const prisma = fakePrisma({

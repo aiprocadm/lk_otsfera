@@ -174,6 +174,17 @@ describe('getDocumentDetail', () => {
     expect(res.document.counterparty.name).toBeNull();
   });
 
+  it('тип контрагента есть, а идентификатора нет — имя null, в базу не ходим', async () => {
+    // Такие строки остались от импорта: «организация», но какая — неизвестно.
+    // Запрос с пустым идентификатором вернул бы ошибку Prisma и уронил
+    // карточку целиком.
+    canReadDocument.mockResolvedValue(true);
+    const prisma = makePrisma({ ...BASE_DOC, counterpartyType: 'organization', counterpartyId: null });
+    const res = await getDocumentDetail(prisma, session, 'doc1');
+    if (!res.ok) throw new Error('unexpected');
+    expect(res.document.counterparty.name).toBeNull();
+  });
+
   it('удалённый партнёр-контрагент не роняет карточку — имя null', async () => {
     canReadDocument.mockResolvedValue(true);
     const prisma = makePrisma(
@@ -256,6 +267,19 @@ describe('getDocumentDetail — замена версии', () => {
 
   it('файл выпущен программой — замены нет, только перевыпуск', async () => {
     expect((await detailOf({ generatedBy: 'system' })).canUploadVersion).toBe(false);
+  });
+
+  it('у файла нет автора (приехал из 1С) — сотрудник ЦО заменить всё равно может', async () => {
+    // Роль автора у импортированной бумаги неизвестна. Сотрудник заменяет
+    // любой файл, поэтому «автора нет» не должно превращаться в запрет —
+    // иначе исправить кривой скан из 1С было бы нечем.
+    expect((await detailOf({ uploadedBy: null })).canUploadVersion).toBe(true);
+  });
+
+  it('клиент чужой (безавторский) файл заменить не может', async () => {
+    // Обратная сторона: правило «свой же файл» для клиента остаётся в силе.
+    const client = { sub: 'o1', role: 'organization' } as never;
+    expect((await detailOf({ uploadedBy: null }, client)).canUploadVersion).toBe(false);
   });
 
   it('версия уже заменена — второй цепочки не заводим', async () => {

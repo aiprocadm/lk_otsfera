@@ -259,4 +259,35 @@ describe('createOrganizationFromLead — журнал', () => {
     expect(res).toMatchObject({ ok: true, organizationId: 'org-new' });
     expect(logError).toHaveBeenCalled();
   });
+
+  it('журнал бросил не-Error — перенос всё равно состоялся, запись читаемая', async () => {
+    recordAudit.mockRejectedValue('журнал недоступен');
+    const { prisma } = makePrisma();
+    const res = await createOrganizationFromLead(prisma, MGR(), { leadId: 'lead-1' });
+    expect(res).toMatchObject({ ok: true });
+    expect(logError).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ error: 'журнал недоступен' })
+    );
+  });
+
+  it('КПП из формы доезжает до карточки, пробелы и пустота — как «не указан»', async () => {
+    // КПП вводят руками рядом с ИНН. Пустая строка вместо null означала бы
+    // «КПП есть и он пустой» — такой реквизит потом печатается в счёте.
+    const withKpp = makePrisma();
+    await createOrganizationFromLead(withKpp.prisma, MGR(), {
+      leadId: 'lead-1',
+      inn: '7707083893',
+      kpp: '  770701001  ',
+    });
+    expect(withKpp.orgCreate.mock.calls[0]![0].data.kpp).toBe('770701001');
+
+    const blank = makePrisma();
+    await createOrganizationFromLead(blank.prisma, MGR(), {
+      leadId: 'lead-1',
+      inn: '7707083893',
+      kpp: '   ',
+    });
+    expect(blank.orgCreate.mock.calls[0]![0].data.kpp).toBeNull();
+  });
 });

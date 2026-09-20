@@ -106,6 +106,19 @@ describe('pushDocumentToOneC — краевые ветки', () => {
     error.mockRestore();
   });
 
+  it('падение аудита бросило не-Error — та же деградация, запись читаемая', async () => {
+    const error = vi.spyOn(log, 'error').mockImplementation(() => {});
+    recordAudit.mockRejectedValueOnce('журнал недоступен');
+    const prisma = makePrisma();
+    const res = await pushDocumentToOneC(prisma, 'doc-1', { adapter: adapter().adapter });
+    expect(res).toMatchObject({ ok: true });
+    expect(error).toHaveBeenCalledWith(
+      '[pushDocumentToOneC] audit write failed',
+      expect.objectContaining({ error: 'журнал недоступен' })
+    );
+    error.mockRestore();
+  });
+
   it('без актора и без автора документа аудит не пишется, выгрузка проходит', async () => {
     const prisma = makePrisma({ uploadedById: null });
     const res = await pushDocumentToOneC(prisma, 'doc-1', { adapter: adapter().adapter });

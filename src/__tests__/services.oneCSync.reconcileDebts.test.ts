@@ -164,6 +164,35 @@ describe('reconcileDebts', () => {
     expect(writeSyncLog.mock.calls[0]![0]).toMatchObject({ status: 'error' });
   });
 
+  it('«с какой даты» уходит в 1С, а не теряется по дороге', async () => {
+    // Без границы адаптер вернул бы весь массив долгов за всё время — на
+    // живой базе это минуты ожидания и лишняя нагрузка на учётную систему.
+    const { prisma } = db([]);
+    const adapter = adapterWith([]);
+    await reconcileDebts(prisma, { adapter, since: new Date('2026-09-01T00:00:00.000Z') });
+    expect(adapter.pullDebts).toHaveBeenCalledWith({ since: '2026-09-01T00:00:00.000Z' });
+  });
+
+  it('1С бросила не-Error — та же ошибка транспорта, запись читаемая', async () => {
+    const { prisma } = db([]);
+    const adapter = { pullDebts: vi.fn().mockRejectedValue('нет связи') } as unknown as OneCAdapter;
+    const res = await reconcileDebts(prisma, { adapter });
+    expect(res).toMatchObject({ ok: false, error: 'transport' });
+    expect(String(writeSyncLog.mock.calls[0]![0].errorMessage)).toContain('нет связи');
+  });
+
+  it('у организации заказа нет имени — в отчёт уходит null, а не «undefined»', async () => {
+    // Организацию могли удалить, а заказ остался. Строка «undefined» в
+    // выгрузке для бухгалтерии читается как настоящее название.
+    const { prisma } = db([order({ organization: null })]);
+    const res = await reconcileDebts(prisma, {
+      adapter: adapterWith([
+        { orderExternalId: '1c-order-001', debt: 45000, asOf: '2026-09-18T00:00:00Z' },
+      ]),
+    });
+    expect(res.ok && res.mismatches[0]!.organizationName).toBeNull();
+  });
+
   it('сверяются только неоплаченные заказы — у оплаченных сверять нечего', async () => {
     const { prisma, findMany } = db([]);
     await reconcileDebts(prisma, { adapter: adapterWith([]) });

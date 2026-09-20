@@ -168,6 +168,62 @@ describe('getDocumentGenerationPanel', () => {
       vatIncluded: true,
     });
   });
+
+  it('скидка строки и её отсутствие доезжают до формы раздельно', async () => {
+    // Скидку человек согласовал с клиентом. Потеряйся она при предзаполнении —
+    // счёт выставится на полную сумму, и разбираться придётся уже по факту.
+    const { prisma } = fakePrisma({
+      company: FULL,
+      organization: FULL,
+      generated: [],
+      lines: [
+        {
+          title: 'Со скидкой',
+          quantity: { toString: () => '1' },
+          unit: 'person',
+          unitPrice: { toString: () => '5000' },
+          discountPercent: { toString: () => '15' },
+          vatRate: { toString: () => '0.2' },
+          vatIncluded: true,
+        },
+        {
+          title: 'Без ставки',
+          quantity: { toString: () => '1' },
+          unit: 'service',
+          unitPrice: { toString: () => '100' },
+          discountPercent: null,
+          vatRate: null,
+          vatIncluded: false,
+        },
+      ],
+    });
+
+    const panel = await getDocumentGenerationPanel(prisma as never, ARGS);
+    expect(panel.orderLines.map((l) => l.discountPercent)).toEqual(['15', null]);
+    expect(panel.orderLines.map((l) => l.vatRate)).toEqual(['0.2', null]);
+  });
+
+  it('у заказчика нет юр. названия — берём рабочее, нет и его — «заказчик»', async () => {
+    // Шапка формы выпуска обязана кого-то называть: пустое место читается как
+    // сломанный экран, а «заказчик» честно говорит «названия у карточки нет».
+    const byName = fakePrisma({
+      company: FULL,
+      organization: { ...FULL, legalName: '   ', name: '  ООО «Ромашка»  ' },
+      generated: [],
+    });
+    expect((await getDocumentGenerationPanel(byName.prisma as never, ARGS)).counterpartyName).toBe(
+      'ООО «Ромашка»'
+    );
+
+    const nameless = fakePrisma({
+      company: FULL,
+      organization: { ...FULL, legalName: null, name: null },
+      generated: [],
+    });
+    expect(
+      (await getDocumentGenerationPanel(nameless.prisma as never, ARGS)).counterpartyName
+    ).toBe('заказчик');
+  });
 });
 
 /**

@@ -133,6 +133,23 @@ describe('валидации (Т-30)', () => {
     });
   });
 
+  it('`У-89`: ИНН вообще не передан — организация заводится по названию', async () => {
+    // В карточке счёта 51 ИНН чаще всего нет. Требовать его значило бы
+    // запретить заводить клиента оттуда, ради чего очередь и сделана.
+    const db = makeDb();
+    const res = await createOrgFromQueueRow(db, ADMIN, {
+      rowId: 'row-1',
+      name: 'ООО Без ИНН',
+      inn: '',
+      companyId: 'co-1',
+    });
+    expect(res).toMatchObject({ ok: true });
+    expect(
+      (db as { organization: { create: ReturnType<typeof vi.fn> } }).organization.create.mock
+        .calls[0]![0].data.inn
+    ).toBeNull();
+  });
+
   it('организация с таким ИНН уже есть → org_exists, ничего не создаём (§8.2 спеки)', async () => {
     const db = makeDb();
     (

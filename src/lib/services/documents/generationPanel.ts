@@ -162,7 +162,9 @@ export async function getDocumentGenerationPanel(
     baseDocuments: baseRows.map((row) => ({
       id: row.id,
       type: row.type,
-      // Номер не пуст по условию выборки; хвост оставлен ради типа.
+      // Номер не пуст по условию выборки; хвост оставлен ради типа и потому
+      // недостижим.
+      /* v8 ignore next */
       number: row.number ?? '',
       date: row.createdAt.toISOString(),
     })),
@@ -304,7 +306,9 @@ export async function getOrgDocumentIssuePanel(
     baseDocuments: baseRows.map((row) => ({
       id: row.id,
       type: row.type,
-      // Номер не пуст по условию выборки; хвост оставлен ради типа.
+      // Номер не пуст по условию выборки; хвост оставлен ради типа и потому
+      // недостижим.
+      /* v8 ignore next */
       number: row.number ?? '',
       date: row.createdAt.toISOString(),
     })),

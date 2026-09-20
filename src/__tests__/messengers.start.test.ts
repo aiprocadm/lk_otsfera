@@ -245,6 +245,19 @@ describe('listDialogCandidates', () => {
       })
     );
   });
+
+  it('руководителю список кандидатов — вся его компания, даже без закреплений', async () => {
+    // Экран и сервер обязаны говорить одно и то же: `startDialog` руководителю
+    // писать РАЗРЕШАЕТ, а без этой ветки список кандидатов был бы пуст —
+    // человек видел бы «некому написать» там, где написать можно.
+    m.getCompanyTeamVisibility.mockResolvedValue(false);
+    await listDialogCandidates(prisma, managerSession({ role: 'leader', managedOrgIds: [] }));
+    expect(userFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ organization: { companyId: 'c1' } }),
+      })
+    );
+  });
 });
 
 describe('startDialog', () => {

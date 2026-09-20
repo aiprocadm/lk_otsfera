@@ -388,4 +388,22 @@ describe('Партнёры', () => {
     const res = await getPartnersAnalytics(prisma, PERIOD);
     expect(res.rows[0]).toMatchObject({ partnerName: 'Тихий', accrued: '0.00', requests: 0 });
   });
+
+  it('организации без партнёра в отчёт не попадают, а партнёр без имени — под своим кодом', async () => {
+    // Прямые клиенты учебного центра к партнёрской аналитике отношения не
+    // имеют: посчитай их — и доля партнёров в отчёте окажется заниженной.
+    // А у самого партнёра справочная запись может быть удалена: строка без
+    // подписи выглядит как сбой отчёта.
+    const { prisma } = db([
+      { id: 'o1', partnerId: null, partner: null },
+      { id: 'o2', partnerId: 'p-no-name', partner: null },
+    ]);
+    const res = await getPartnersAnalytics(prisma, PERIOD);
+    expect(res.rows).toHaveLength(1);
+    expect(res.rows[0]).toMatchObject({
+      partnerId: 'p-no-name',
+      partnerName: 'p-no-name',
+      organizations: 1,
+    });
+  });
 });
