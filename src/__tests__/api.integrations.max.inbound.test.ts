@@ -8,6 +8,7 @@ const {
   isFeatureEnabled,
   ingestMock,
   recordWebhookEvent,
+  fetchInboundAttachment,
 } = vi.hoisted(() => ({
   linkMaxByCode: vi.fn(),
   sendMaxMessage: vi.fn(),
@@ -15,6 +16,7 @@ const {
   isFeatureEnabled: vi.fn(),
   ingestMock: vi.fn(),
   recordWebhookEvent: vi.fn().mockResolvedValue(undefined),
+  fetchInboundAttachment: vi.fn(),
 }));
 
 vi.mock('@/lib/db/prisma', () => ({
@@ -25,6 +27,7 @@ vi.mock('@/lib/max/client', () => ({ sendMaxMessage }));
 vi.mock('@/lib/services/inbound/ingest', () => ({ ingestInboundMessage: ingestMock }));
 vi.mock('@/lib/featureFlags', () => ({ notFoundIfDisabled, isFeatureEnabled }));
 vi.mock('@/lib/services/admin/webhookDiagnostics', () => ({ recordWebhookEvent }));
+vi.mock('@/lib/services/messengers/attachment', () => ({ fetchInboundAttachment }));
 
 import { POST } from '@/app/api/integrations/max/webhook/route';
 
@@ -176,5 +179,119 @@ describe('POST /api/integrations/max/webhook — inbound ingest', () => {
       )
     );
     expect(res.status).toBe(200);
+  });
+});
+
+/**
+ * Файл от клиента (`У-204`). MAX отдаёт медиа **ссылкой**, поэтому файл
+ * скачиваем сами. Ключевое правило: **не вышло скачать — сообщение всё равно
+ * записываем**, телом станет имя файла. Терять обращение клиента нельзя, а
+ * «пустой файл» в переписке хуже, чем строка «Файл: счёт.pdf».
+ */
+describe('вложение клиента', () => {
+  const attachmentUpdate = (over: Record<string, unknown> = {}) => ({
+    message: {
+      message_id: 77,
+      chat: { id: 555 },
+      body: {
+        attachments: [
+          {
+            payload: {
+              url: 'https://cdn.max.ru/file/1',
+              filename: 'счёт.pdf',
+              mime_type: 'application/pdf',
+            },
+          },
+        ],
+      },
+      ...over,
+    },
+  });
+
+  it('скачанный файл прикладывается к сообщению', async () => {
+    fetchInboundAttachment.mockResolvedValue({
+      path: 'inbound/max/1.pdf',
+      name: 'счёт.pdf',
+      mimeType: 'application/pdf',
+      size: 1024,
+    });
+
+    const res = await POST(req(attachmentUpdate(), { 'x-max-webhook-secret': SECRET }));
+
+    expect(res.status).toBe(200);
+    expect(fetchInboundAttachment).toHaveBeenCalledWith('inbound', {
+      url: 'https://cdn.max.ru/file/1',
+      name: 'счёт.pdf',
+      mimeType: 'application/pdf',
+    });
+    expect(ingestMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        body: 'Файл: счёт.pdf',
+        attachmentPath: 'inbound/max/1.pdf',
+        attachmentName: 'счёт.pdf',
+        attachmentMime: 'application/pdf',
+        attachmentSize: 1024,
+      })
+    );
+  });
+
+  it('файл не скачался — сообщение всё равно записано, телом стало имя файла', async () => {
+    fetchInboundAttachment.mockResolvedValue(null);
+
+    await POST(req(attachmentUpdate(), { 'x-max-webhook-secret': SECRET }));
+
+    const payload = ingestMock.mock.calls[0]![1] as Record<string, unknown>;
+    expect(payload.body).toBe('Файл: счёт.pdf');
+    expect(payload).not.toHaveProperty('attachmentPath');
+  });
+
+  it('файл с подписью — телом становится подпись, а не имя файла', async () => {
+    fetchInboundAttachment.mockResolvedValue(null);
+
+    await POST(req(attachmentUpdate({ text: 'вот счёт' }), { 'x-max-webhook-secret': SECRET }));
+
+    expect(ingestMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ body: 'вот счёт' })
+    );
+  });
+
+  it('вложение без ссылки игнорируется — записывать нечего', async () => {
+    const res = await POST(
+      req(
+        {
+          message: { message_id: 78, chat: { id: 555 }, body: { attachments: [{ payload: {} }] } },
+        },
+        { 'x-max-webhook-secret': SECRET }
+      )
+    );
+
+    expect(res.status).toBe(200);
+    expect(fetchInboundAttachment).not.toHaveBeenCalled();
+    expect(ingestMock).not.toHaveBeenCalled();
+  });
+
+  it('у вложения без имени и типа берутся разумные умолчания', async () => {
+    fetchInboundAttachment.mockResolvedValue(null);
+
+    await POST(
+      req(
+        {
+          message: {
+            message_id: 79,
+            chat: { id: 555 },
+            body: { attachments: [{ payload: { url: 'https://cdn.max.ru/f/2' } }] },
+          },
+        },
+        { 'x-max-webhook-secret': SECRET }
+      )
+    );
+
+    expect(fetchInboundAttachment).toHaveBeenCalledWith('inbound', {
+      url: 'https://cdn.max.ru/f/2',
+      name: 'file',
+      mimeType: 'application/octet-stream',
+    });
   });
 });

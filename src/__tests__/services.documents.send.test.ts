@@ -72,15 +72,29 @@ const ORG = {
   ],
 };
 
-function fake(doc: Record<string, unknown> | null = {}, org: unknown = ORG) {
-  const documentFindUnique = vi.fn(async () => (doc === null ? null : { ...DOC, ...doc }));
+function fake(
+  doc: Record<string, unknown> | null = {},
+  org: unknown = ORG,
+  /** `У-258`: попутчики письма — что вернёт выборка по списку. */
+  companions: Array<Record<string, unknown>> = []
+) {
+  const byId = new Map(companions.map((c) => [c.id as string, c]));
+  const documentFindUnique = vi.fn(async (args: { where: { id: string } }) => {
+    if (args.where.id !== 'doc-1') return byId.get(args.where.id) ?? null;
+    return doc === null ? null : { ...DOC, ...doc };
+  });
   const documentUpdate = vi.fn(async () => ({}));
+  const documentFindMany = vi.fn(async () => companions);
   const organizationFindUnique = vi.fn(async () => org);
   const prisma = {
-    document: { findUnique: documentFindUnique, update: documentUpdate },
+    document: {
+      findUnique: documentFindUnique,
+      update: documentUpdate,
+      findMany: documentFindMany,
+    },
     organization: { findUnique: organizationFindUnique },
   } as unknown as PrismaClient;
-  return { prisma, documentFindUnique, documentUpdate, organizationFindUnique };
+  return { prisma, documentFindUnique, documentUpdate, documentFindMany, organizationFindUnique };
 }
 
 beforeEach(() => {
@@ -393,5 +407,96 @@ describe('отправка документа заказчику письмом'
       const res = await sendDocumentToCustomer(f.prisma, staff(role), 'doc-1');
       expect(res.ok, role).toBe(true);
     }
+  });
+});
+
+/**
+ * `У-258` — попутчики письма: одно письмо на организацию, а не письмо на
+ * документ. Три письма за минуту человек читает как сбой рассылки.
+ */
+describe('попутчики письма', () => {
+  const COMPANION = {
+    id: 'doc-2',
+    name: 'akt.pdf',
+    path: 'orders/ord-1/generated/akt.pdf',
+    type: 'act',
+    number: 'А-5',
+    createdAt: new Date('2026-08-29T10:00:00Z'),
+    status: 'issued',
+  };
+
+  it('попутчик уходит вложением и упоминается в письме', async () => {
+    const f = fake({}, ORG, [COMPANION]);
+
+    const res = await sendDocumentToCustomer(f.prisma, staff(), 'doc-1', {
+      alsoDocumentIds: ['doc-2'],
+    });
+
+    expect(res).toMatchObject({ ok: true, attached: true });
+    const args = sendOrgDocumentSentEmail.mock.calls[0]![0] as Record<string, unknown>;
+    expect(args.alsoDocuments).toEqual(['Акт А-5 от 29.08.2026.pdf']);
+    expect((args.attachments as unknown[]).length).toBe(2);
+  });
+
+  it('заменённая версия к письму не прикладывается — выборка её отсекает', async () => {
+    const f = fake({}, ORG, []);
+
+    await sendDocumentToCustomer(f.prisma, staff(), 'doc-1', { alsoDocumentIds: ['doc-2'] });
+
+    // Вторая линия защиты (§4): условие выборки требует «не заменён».
+    expect(f.documentFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: ['doc-2'] }, supersededAt: null } })
+    );
+    const args = sendOrgDocumentSentEmail.mock.calls[0]![0] as Record<string, unknown>;
+    expect(args).not.toHaveProperty('alsoDocuments');
+  });
+
+  it('попутчик тоже помечается отправленным — иначе в его карточке «не отправляли»', async () => {
+    const f = fake({}, ORG, [COMPANION]);
+
+    await sendDocumentToCustomer(f.prisma, staff(), 'doc-1', { alsoDocumentIds: ['doc-2'] });
+
+    expect(setDocumentStatus).toHaveBeenCalledWith(f.prisma, expect.anything(), {
+      documentId: 'doc-2',
+      to: 'sent',
+    });
+    expect(recordAudit).toHaveBeenCalledWith(
+      f.prisma,
+      expect.objectContaining({ entityId: 'doc-2', action: 'document_sent' })
+    );
+  });
+
+  it('попутчик без жизненного цикла получает только отметку времени', async () => {
+    const f = fake({}, ORG, [{ ...COMPANION, type: 'other', status: 'uploaded' }]);
+
+    await sendDocumentToCustomer(f.prisma, staff(), 'doc-1', { alsoDocumentIds: ['doc-2'] });
+
+    expect(setDocumentStatus).not.toHaveBeenCalledWith(
+      f.prisma,
+      expect.anything(),
+      expect.objectContaining({ documentId: 'doc-2' })
+    );
+    expect(f.documentUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'doc-2' } })
+    );
+  });
+
+  it('попутчик исчез между выборкой и пометкой — пропускаем, а не падаем', async () => {
+    const f = fake({}, ORG, [COMPANION]);
+    // Между чтением списка и пометкой документ удалили: повторное чтение
+    // вернёт «нет такого».
+    f.documentFindUnique.mockImplementation(async (args: { where: { id: string } }) =>
+      args.where.id === 'doc-1' ? { ...DOC } : null
+    );
+
+    const res = await sendDocumentToCustomer(f.prisma, staff(), 'doc-1', {
+      alsoDocumentIds: ['doc-2'],
+    });
+
+    expect(res).toMatchObject({ ok: true });
+    expect(recordAudit).not.toHaveBeenCalledWith(
+      f.prisma,
+      expect.objectContaining({ entityId: 'doc-2' })
+    );
   });
 });
