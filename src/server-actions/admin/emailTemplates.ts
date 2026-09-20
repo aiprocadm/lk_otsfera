@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db/prisma';
 import { requireSettingsSection } from '@/lib/auth/requireSettings';
+import type { EmailTemplateKey } from '@/lib/notifications/channels/types';
 import {
   EMAIL_TEMPLATE_REGISTRY,
   isEmailTemplateKey,
@@ -66,8 +67,11 @@ function scopeOf(
  * must be async functions», хотя typecheck, lint и тесты остаются зелёными.
  * Функция нужна только внутри этого файла (§12b: без `export`).
  */
-function sampleProps(key: string): Record<string, string> {
-  const spec = isEmailTemplateKey(key) ? EMAIL_TEMPLATE_REGISTRY[key] : null;
+function sampleProps(key: EmailTemplateKey): Record<string, string> {
+  // Ключ сюда попадает уже проверенным (`isEmailTemplateKey` стоит в каждом
+  // вызывающем действии), поэтому повторной проверки здесь нет: она была бы
+  // мёртвой веткой, которую невозможно пройти тестом честно.
+  const spec = EMAIL_TEMPLATE_REGISTRY[key];
   const values: Record<string, string> = {
     orderNumber: 'З-2026-001',
     orderTitle: 'Обучение по охране труда',
