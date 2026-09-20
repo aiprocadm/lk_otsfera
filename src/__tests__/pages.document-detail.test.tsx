@@ -276,7 +276,10 @@ describe('Замена версии документа — клиентские 
     getDocumentDetail.mockResolvedValue(allowed({ type: 'organization', id: 'org-7' }));
 
     const { container } = await renderServerComponent(
-      OrganizationDocumentPage({ params: Promise.resolve({ id: 'doc1' }) })
+      OrganizationDocumentPage({
+        params: Promise.resolve({ id: 'doc1' }),
+        searchParams: Promise.resolve({}),
+      })
     );
 
     const form = container.querySelector('[data-testid="version-upload"]') as HTMLElement;
@@ -293,7 +296,12 @@ describe('Замена версии документа — клиентские 
     getDocumentDetail.mockResolvedValue(allowed(counterparty));
 
     const { container } = await renderServerComponent(
-      Page({ params: Promise.resolve({ id: 'doc1' }) })
+      // Обе страницы принимают параметры адреса; у партнёрской они не нужны,
+      // но общий вызов проще, чем две ветки в одном сценарии.
+      Page({
+        params: Promise.resolve({ id: 'doc1' }),
+        searchParams: Promise.resolve({}),
+      } as never)
     );
 
     expect(container.querySelector('[data-testid="version-upload"]')).toBeNull();

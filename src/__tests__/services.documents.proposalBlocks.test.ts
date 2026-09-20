@@ -149,7 +149,7 @@ describe('предложение без суммы', () => {
   it('в блок уходит null, а не «0.00»', async () => {
     const { prisma } = makePrisma({ docs: [{ ...DOC, amountGross: null }] });
 
-    const res = await listOrganizationProposals(prisma, MGR(), 'org-1');
+    const res = await listOrganizationProposals(prisma, MGR(), { organizationId: 'org-1' });
     if (!res.ok) throw new Error('ожидался ok');
 
     expect(res.rows[0]?.amountGross).toBeNull();
